@@ -1,0 +1,81 @@
+/**
+ * KlineCacheService - K线数据缓存
+ *
+ * 智能缓存策略：
+ * 1. 优先从本地读取
+ * 2. 缺失则从API拉取并存储
+ * 3. 支持增量更新
+ */
+
+import { StockDBService } from './stock-db-service.js';
+import { callPython } from '../../infrastructure/tools/invest-tools.js';
+
+export class KlineCacheService {
+  constructor(private db: StockDBService) {}
+
+  /** 获取K线（智能缓存） */
+  async getHistory(symbol: string, startDate: string, endDate: string): Promise<any[]> {
+    // 1. 尝试从本地读取
+    const local = this.db.getKlines(symbol, startDate, endDate);
+
+    // 2. 检查是否完整
+    const expectedDays = this.calcTradingDays(startDate, endDate);
+    if (local.length >= expectedDays * 0.9) {
+      return local; // 数据完整，直接返回
+    }
+
+    // 3. 数据缺失，从API拉取
+    console.log(`[KlineCache] ${symbol} 本地数据不足，从API拉取...`);
+    const raw = await callPython('get_stock_history', {
+      symbol,
+      start_date: startDate,
+      end_date: endDate
+    });
+    const data = JSON.parse(raw);
+
+    if (Array.isArray(data.data)) {
+      this.db.saveKlines(symbol, data.data);
+      return data.data;
+    }
+
+    return local; // API失败，返回本地数据
+  }
+
+  /** 增量更新（只拉取缺失部分） */
+  async updateSymbol(symbol: string, days: number = 730): Promise<number> {
+    const latest = this.db.getLatestKlineDate(symbol);
+    const endDate = new Date().toISOString().split('T')[0];
+
+    let startDate: string;
+    if (latest) {
+      // 从最新日期后一天开始
+      const d = new Date(latest);
+      d.setDate(d.getDate() + 1);
+      startDate = d.toISOString().split('T')[0];
+    } else {
+      // 首次拉取，默认2年
+      const d = new Date();
+      d.setDate(d.getDate() - days);
+      startDate = d.toISOString().split('T')[0];
+    }
+
+    if (startDate >= endDate) return 0; // 已是最新
+
+    const raw = await callPython('get_stock_history', {
+      symbol,
+      start_date: startDate,
+      end_date: endDate
+    });
+    const data = JSON.parse(raw);
+
+    if (Array.isArray(data.data)) {
+      return this.db.saveKlines(symbol, data.data);
+    }
+    return 0;
+  }
+
+  private calcTradingDays(start: string, end: string): number {
+    const days = Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 86400000);
+    return Math.floor(days * 0.7); // 粗略估算交易日
+  }
+}
