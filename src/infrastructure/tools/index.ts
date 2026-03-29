@@ -15,8 +15,9 @@ import { clarifyTool } from "./clarify-tool.js";
 import { reflectTool } from "./reflect-tool.js";
 import { memoryWriteTool, memorySearchTool } from "./memory-tool.js";
 import { investTools } from "./invest-tools.js";
+import { stockDBTools } from "./stock-db-tools.js";
 import { wrapInvestToolWithSkillGuard } from "../../services/intelligence/skill-guard.js";
-import { quantTools } from "../../services/quant/quant-tools.js";
+import { quantTools } from "./quant-tools.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./memory-tool.js";
@@ -43,6 +44,7 @@ export const allCustomTools = [
   reflectTool,
   // 投资工具 — 核心业务
   ...investTools.map(wrapInvestToolWithSkillGuard),
+  ...stockDBTools,
   // 量化工具 — 策略回测与信号生成
   ...quantTools,
   // 中频 — 记忆
