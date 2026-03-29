@@ -76,12 +76,16 @@ export class SignalGenerator {
   private matchCondition(tech: any, condition: any): boolean {
     const { indicator, operator, value } = condition;
 
+    // RSI
     if (indicator === 'rsi') {
       const rsi = tech.rsi;
       if (operator === '<') return rsi < value;
       if (operator === '>') return rsi > value;
+      if (operator === '<=') return rsi <= value;
+      if (operator === '>=') return rsi >= value;
     }
 
+    // 均线交叉
     if (indicator === 'ma_cross') {
       const ma5 = tech.ma5;
       const ma20 = tech.ma20;
@@ -89,13 +93,35 @@ export class SignalGenerator {
       if (operator === 'cross_below') return ma5 < ma20;
     }
 
+    // MACD
+    if (indicator === 'macd') {
+      const hist = tech.macd_histogram || 0;
+      if (operator === '>') return hist > value;
+      if (operator === '<') return hist < value;
+      if (operator === 'golden_cross') return hist > 0;
+      if (operator === 'death_cross') return hist < 0;
+    }
+
+    // 布林带
+    if (indicator === 'bollinger') {
+      const price = tech.close || 0;
+      const upper = tech.bollinger_upper || 0;
+      const lower = tech.bollinger_lower || 0;
+      if (operator === 'touch_lower') return price <= lower * 1.01;
+      if (operator === 'touch_upper') return price >= upper * 0.99;
+      if (operator === 'break_upper') return price > upper;
+      if (operator === 'break_lower') return price < lower;
+    }
+
     return false;
   }
 
   private buildReason(tech: any, conditions: any[]): string {
     const reasons = conditions.map(c => {
-      if (c.indicator === 'rsi') return `RSI=${tech.rsi.toFixed(2)}`;
-      if (c.indicator === 'ma_cross') return `MA5=${tech.ma5.toFixed(2)} MA20=${tech.ma20.toFixed(2)}`;
+      if (c.indicator === 'rsi') return `RSI=${tech.rsi?.toFixed(2)}`;
+      if (c.indicator === 'ma_cross') return `MA5=${tech.ma5?.toFixed(2)} MA20=${tech.ma20?.toFixed(2)}`;
+      if (c.indicator === 'macd') return `MACD柱=${tech.macd_histogram?.toFixed(4)}`;
+      if (c.indicator === 'bollinger') return `价格=${tech.close?.toFixed(2)} 下轨=${tech.bollinger_lower?.toFixed(2)}`;
       return '';
     });
     return reasons.filter(r => r).join(', ');
@@ -116,10 +142,6 @@ export class SignalGenerator {
     });
 
     return stocks.slice(0, 100).map(s => s.symbol); // 限制100只
-  }
-    }
-
-    return testPool;
   }
 
   private async saveSignals(date: string, signals: Signal[]): Promise<void> {

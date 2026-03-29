@@ -21,6 +21,7 @@ import http from "http";
 import { EventEmitter } from "events";
 import { randomUUID } from "crypto";
 import { spawn, exec, ChildProcess } from "child_process";
+import { saveCodexResult } from "./codex-result-handler";
 
 const CODEX_WS_PORT = 3100;
 const BRIDGE_HTTP_PORT = 8765;
@@ -177,6 +178,7 @@ class CodexBridge extends EventEmitter {
           if (st === "error") {
             task.status = "error";
             task.error = params.error ?? "unknown error";
+            saveCodexResult(task.id, { status: "error", error: task.error, prompt: task.prompt });
             this.notify(
               "Codex 任务失败 ❌",
               task.prompt.slice(0, 60) + (task.prompt.length > 60 ? "…" : "")
@@ -189,6 +191,7 @@ class CodexBridge extends EventEmitter {
       case "turn/completed":
         if (task && params.turn?.status === "completed") {
           task.status = "done";
+          saveCodexResult(task.id, { status: "done", result: task.result, prompt: task.prompt });
           this.notify(
             "Codex 任务完成 ✅",
             task.prompt.slice(0, 60) + (task.prompt.length > 60 ? "…" : "")
@@ -480,6 +483,35 @@ class CodexBridge extends EventEmitter {
             json({ id: task.id, status: "error", error: e.message }, 504);
           }
         });
+        return;
+      }
+
+      // ── POST /task/async ─────────────────────────────────────────────────
+      if (req.method === "POST" && path === "/task/async") {
+        readBody().then(async (body) => {
+          const { prompt, workdir } = body;
+          if (!prompt) { json({ error: "prompt required" }, 400); return; }
+          const task = await this.sendTask(prompt, workdir);
+          json({ taskId: task.id, status: task.status });
+        });
+        return;
+      }
+
+      // ── GET /result/async/:id ────────────────────────────────────────────
+      if (req.method === "GET" && path.startsWith("/result/async/")) {
+        const taskId = path.split("/")[3];
+        const task = this.tasks.get(taskId);
+        if (!task) { json({ error: "not found" }, 404); return; }
+        json({ id: task.id, status: task.status, result: task.result, error: task.error });
+        return;
+      }
+
+      // ── GET /results/async ───────────────────────────────────────────────
+      if (req.method === "GET" && path === "/results/async") {
+        const completed = Array.from(this.tasks.values())
+          .filter(t => t.status === "done" || t.status === "error")
+          .map(t => ({ id: t.id, status: t.status, prompt: t.prompt.slice(0, 80) }));
+        json(completed);
         return;
       }
 

@@ -1,9 +1,9 @@
-import type { ToolDefinition } from '../infrastructure/tools/index.js';
+import type { ToolDefinition } from '../../infrastructure/tools/index.js';
 import { Type } from '@sinclair/typebox';
-import { QuantService } from '../services/quant/quant-service.js';
-import { BacktestEngine } from '../services/quant/backtest-engine.js';
-import { SignalGenerator } from '../services/quant/signal-generator.js';
-import { QuantStrategy } from '../services/quant/types.js';
+import { QuantService } from './quant-service.js';
+import { BacktestEngine } from './backtest-engine.js';
+import { SignalGenerator } from './signal-generator.js';
+import { QuantStrategy } from './types.js';
 
 const quantService = new QuantService();
 const backtestEngine = new BacktestEngine();

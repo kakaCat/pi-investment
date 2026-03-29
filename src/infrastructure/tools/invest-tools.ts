@@ -103,8 +103,8 @@ export async function callPython(func: string, args: Record<string, unknown> = {
   try {
     const argsJson = JSON.stringify(args);
     const { stdout } = await execAsync(
-      `python3 "${pythonScript}" "${func}" '${argsJson.replace(/'/g, "'\\''")}'`,
-      { timeout: 30000 }
+      `TQDM_DISABLE=1 python3 "${pythonScript}" "${func}" '${argsJson.replace(/'/g, "'\\''")}'`,
+      { timeout: 120000 }  // 增加到120秒
     );
     const raw = stdout.trim();
     // Annotate Python result with fallback info so agent is aware

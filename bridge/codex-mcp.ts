@@ -93,6 +93,28 @@ const TOOLS = [
     },
   },
   {
+    name: "task_async",
+    description: "异步提交任务给 Codex，立即返回任务ID。Codex 在后台执行，完成后写入结果文件。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        prompt: { type: "string", description: "任务描述" },
+        workdir: { type: "string", description: "工作目录" },
+      },
+      required: ["prompt"],
+    },
+  },
+  {
+    name: "check_results",
+    description: "检查异步任务结果",
+    inputSchema: {
+      type: "object",
+      properties: {
+        task_id: { type: "string", description: "任务ID（可选）" },
+      },
+    },
+  },
+  {
     name: "review",
     description:
       "让 Codex 做 code review。分析当前 git 变更或指定文件，找出 bug、边界条件问题、代码质量问题。",
@@ -177,6 +199,32 @@ async function handleTool(name: string, args: any): Promise<string> {
         timeout: 120_000,
       });
       return result.result || result.error || "(无输出)";
+    }
+
+    case "task_async": {
+      const { prompt, workdir } = args;
+      const result = await bridgePost("/task/async", {
+        prompt,
+        workdir: workdir ?? process.cwd(),
+      });
+      return result.taskId
+        ? `✅ 任务已提交，ID: ${result.taskId}`
+        : `❌ 提交失败: ${result.error}`;
+    }
+
+    case "check_results": {
+      const { task_id } = args;
+      const result = await bridgeGet(
+        task_id ? `/result/async/${task_id}` : "/results/async"
+      );
+      if (task_id) {
+        if (result.error) return `❌ ${result.error}`;
+        return `状态: ${result.status}\n结果:\n${result.result || "(执行中)"}`;
+      }
+      if (!result.length) return "📭 暂无完成的异步任务";
+      return result
+        .map((t: any) => `[${t.id.slice(0, 8)}] ${t.status} - ${t.prompt.slice(0, 50)}`)
+        .join("\n");
     }
 
     case "status": {

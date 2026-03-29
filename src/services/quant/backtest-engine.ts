@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { BacktestOptions, BacktestResult, Trade, Position, QuantStrategy } from './types';
 import { StockDBService, KlineCacheService } from '../stock-db/index.js';
+import { TS_FUNCTIONS } from '../../infrastructure/akshare-ts/index.js';
 
 export class BacktestEngine {
   private backtestsDir = '.pi-invest/quant/backtests';

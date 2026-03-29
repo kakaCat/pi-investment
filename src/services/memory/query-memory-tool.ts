@@ -4,7 +4,7 @@
  * Agent 可主动查询已知股票的静态信息，避免重复调用数据源
  */
 
-import { stockMemoryService } from "../services/memory/stock-memory-service.js";
+import { stockMemoryService } from "./stock-memory-service.js";
 
 export const queryStockMemoryTool = {
   name: "query_stock_memory",

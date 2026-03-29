@@ -16,7 +16,7 @@ import { reflectTool } from "./reflect-tool.js";
 import { memoryWriteTool, memorySearchTool } from "./memory-tool.js";
 import { investTools } from "./invest-tools.js";
 import { wrapInvestToolWithSkillGuard } from "../../services/intelligence/skill-guard.js";
-import { quantTools } from "../../tools/quant-tools.js";
+import { quantTools } from "../../services/quant/quant-tools.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./memory-tool.js";

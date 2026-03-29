@@ -12,6 +12,10 @@ Example:
 import sys
 import json
 import traceback
+import os
+
+# 禁用 tqdm 进度条（避免污染 stdout）
+os.environ['TQDM_DISABLE'] = '1'
 
 
 def _safe_float(val, default=0.0, decimals=2):
@@ -1200,6 +1204,25 @@ def get_north_flow() -> dict:
         return {"error": str(e)}
 
 
+def get_stock_list(market="A"):
+    """获取A股列表"""
+    import akshare as ak
+    try:
+        df = ak.stock_zh_a_spot_em()
+        stocks = []
+        for _, row in df.iterrows():
+            stocks.append({
+                "code": str(row.get("代码", "")),
+                "name": str(row.get("名称", "")),
+                "market_cap": _safe_float(row.get("总市值", 0)) / 100000000,
+                "pe": _safe_float(row.get("市盈率-动态", 0)),
+                "pb": _safe_float(row.get("市净率", 0)),
+            })
+        return {"stocks": stocks}
+    except Exception as e:
+        return {"error": str(e), "stocks": []}
+
+
 def get_market_overview() -> dict:
     from datetime import datetime
     try:
@@ -2020,6 +2043,7 @@ FUNCTIONS = {
     "get_macro_data": get_macro_data,
     "get_north_flow": get_north_flow,
     "get_market_overview": get_market_overview,
+    "get_stock_list": get_stock_list,
     "manage_portfolio": manage_portfolio,
     "get_financial_statements": get_financial_statements,
     "get_balance_sheet": get_balance_sheet,

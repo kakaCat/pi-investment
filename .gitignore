@@ -6,3 +6,6 @@ dist
 .pi-invest
 python/__pycache__
 python/*.pyc
+.claude
+# bridge 目录包含核心的 Codex 桥接代码，应当被版本控制
+# bridge
