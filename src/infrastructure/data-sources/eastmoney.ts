@@ -96,7 +96,7 @@ export async function fetchPeData(symbol: string): Promise<PeData> {
         const pb = safeFloat(fields[46]);
         const price = safeFloat(fields[3]);
         const totalShares = safeFloat(fields[44]);
-        const cap = (price > 0 && totalShares > 0) ? Math.round(price * totalShares / 1e4) / 100 : null;
+        const cap = (price > 0 && totalShares > 0) ? Math.round(price * totalShares / 1e2) / 100 : null;
         return {
           pe_ttm: pe > 0 ? pe : null,
           pb: pb > 0 ? pb : null,
