@@ -99,6 +99,7 @@ export class SignalGenerator {
     // RSI
     if (indicator === 'rsi') {
       const rsi = tech.rsi;
+      if (rsi == null) return false;
       if (operator === '<') return rsi < value;
       if (operator === '>') return rsi > value;
       if (operator === '<=') return rsi <= value;
@@ -109,6 +110,7 @@ export class SignalGenerator {
     if (indicator === 'ma_cross') {
       const ma5 = tech.ma5;
       const ma20 = tech.ma20;
+      if (ma5 == null || ma20 == null) return false;
       if (operator === 'cross_above') return ma5 > ma20;
       if (operator === 'cross_below') return ma5 < ma20;
     }
@@ -127,6 +129,7 @@ export class SignalGenerator {
       const price = tech.close || 0;
       const upper = tech.bollinger_upper || 0;
       const lower = tech.bollinger_lower || 0;
+      if (price === 0 || upper === 0 || lower === 0) return false;
       if (operator === 'touch_lower') return price <= lower * 1.01;
       if (operator === 'touch_upper') return price >= upper * 0.99;
       if (operator === 'break_upper') return price > upper;

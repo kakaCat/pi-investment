@@ -232,12 +232,12 @@ export const scoreStockTool: ToolDefinition = {
 
     // Sina 实时行情字段：price（非 current），pe_dynamic（非 pe），pb 为 0 时视为无效
     const curPrice = price.price ?? price.current;
-    const peVal = (pe.pe || price.pe_dynamic) || undefined;   // 0 视为无效
+    const peVal = (pe.current_pe || price.pe_dynamic) || undefined;   // 0 视为无效
     const pbVal = price.pb > 0 ? price.pb : undefined;
 
     const data = {
       pe: peVal,
-      pe_percentile: pe.percentile ?? undefined,
+      pe_percentile: pe.pe_percentile ?? undefined,
       pb: pbVal,
       rsi: tech.rsi ?? undefined,
       ma5: tech.ma5 ?? undefined,

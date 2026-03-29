@@ -77,12 +77,37 @@ export async function fetchPeData(symbol: string): Promise<PeData> {
     if (d) {
       const pe = d.f162 != null && d.f162 > 0 ? d.f162 / 100 : null;
       const pb = d.f167 != null && d.f167 > 0 ? d.f167 / 100 : null;
-      const cap = d.f116 != null && d.f116 > 0 ? Math.round(d.f116 / 1e6) / 100 : null; // 元→亿
+      const cap = d.f116 != null && d.f116 > 0 ? Math.round(d.f116 / 1e6) / 100 : null;
       return { pe_ttm: pe, pb, market_cap_billion: cap };
     }
   } catch {
-    // fall through to return nulls
+    // Eastmoney 失败，回退到 Sina
   }
+
+  // Fallback: Sina hq.sinajs.cn (fields[39]=PE, fields[46]=PB, fields[44]=总股本万股)
+  try {
+    const prefix = clean.startsWith("6") ? "sh" : (clean.match(/^[84]/) ? "bj" : "sz");
+    const text = await withRetry(() => fetchGbk(`https://hq.sinajs.cn/list=${prefix}${clean}`));
+    const match = text.match(/"([^"]*)"/);
+    if (match) {
+      const fields = match[1].split(",");
+      if (fields.length >= 47) {
+        const pe = safeFloat(fields[39]);
+        const pb = safeFloat(fields[46]);
+        const price = safeFloat(fields[3]);
+        const totalShares = safeFloat(fields[44]);
+        const cap = (price > 0 && totalShares > 0) ? Math.round(price * totalShares / 1e4) / 100 : null;
+        return {
+          pe_ttm: pe > 0 ? pe : null,
+          pb: pb > 0 ? pb : null,
+          market_cap_billion: cap,
+        };
+      }
+    }
+  } catch {
+    // Both failed
+  }
+
   return { pe_ttm: null, pb: null, market_cap_billion: null };
 }
 

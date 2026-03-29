@@ -396,7 +396,7 @@ export async function calculate_technical_indicators(symbol: string): Promise<st
 
     // 只在实时报价本身也是今日数据时才追加合成 K 线，
     // 避免周末/节假日/盘前用前一交易日收盘价创建错误的"今日"K 线
-    const rtDate = rt?.date || rt?.time?.slice(0, 10); // Sina 实时行情可能带 date 或 time 字段
+    const rtDate = rt?.data_date || rt?.date || rt?.time?.slice(0, 10);
     const rtIsToday = rtDate === todayStr;
     if (rt && rt.price && rtIsToday && (!lastBar || lastBar.date < todayStr)) {
       // 避免重复添加 (比如今天还没收盘，但缓存里已经有了今天的懒加载数据)
