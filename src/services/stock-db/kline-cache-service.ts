@@ -25,20 +25,28 @@ export class KlineCacheService {
     }
 
     // 3. 数据缺失，从API拉取
-    console.log(`[KlineCache] ${symbol} 本地数据不足，从API拉取...`);
-    const raw = await callPython('get_stock_history', {
+    console.log(`[KlineCache] ${symbol} 本地数据不足，从API拉取并存入数据库...`);
+    const args = {
       symbol,
       start_date: startDate,
-      end_date: endDate
-    });
-    const data = JSON.parse(raw);
+      end_date: endDate,
+      _skip_cache: true,   // 防止 TS 路径再次进入 KlineCache 造成死循环
+    };
 
-    if (Array.isArray(data.data)) {
-      this.db.saveKlines(symbol, data.data);
-      return data.data;
+    try {
+      // 通过 callPython 获取数据，akshare_bridge 会处理具体的 API 逻辑
+      const raw = await callPython('get_stock_history', args);
+      const data = JSON.parse(raw);
+
+      if (Array.isArray(data.data)) {
+        this.db.saveKlines(symbol, data.data);
+        return data.data;
+      }
+    } catch (err) {
+      console.error(`[KlineCache] ${symbol} 数据拉取失败:`, err);
     }
 
-    return local; // API失败，返回本地数据
+    return local; // 失败则返回已有的部分本地数据
   }
 
   /** 增量更新（只拉取缺失部分） */
@@ -61,21 +69,29 @@ export class KlineCacheService {
 
     if (startDate >= endDate) return 0; // 已是最新
 
-    const raw = await callPython('get_stock_history', {
-      symbol,
-      start_date: startDate,
-      end_date: endDate
-    });
-    const data = JSON.parse(raw);
+    try {
+      const raw = await callPython('get_stock_history', {
+        symbol,
+        start_date: startDate,
+        end_date: endDate,
+        _skip_cache: true,   // 防止死循环
+      });
+      const data = JSON.parse(raw);
 
-    if (Array.isArray(data.data)) {
-      return this.db.saveKlines(symbol, data.data);
+      if (Array.isArray(data.data)) {
+        return this.db.saveKlines(symbol, data.data);
+      }
+    } catch (err) {
+      console.error(`[KlineCache] ${symbol} 增量更新失败:`, err);
     }
     return 0;
   }
 
   private calcTradingDays(start: string, end: string): number {
-    const days = Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 86400000);
+    const startTs = new Date(start).getTime();
+    const endTs = new Date(end).getTime();
+    if (isNaN(startTs) || isNaN(endTs)) return 0;
+    const days = Math.floor((endTs - startTs) / 86400000);
     return Math.floor(days * 0.7); // 粗略估算交易日
   }
 }

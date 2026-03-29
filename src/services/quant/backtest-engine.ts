@@ -2,7 +2,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { BacktestOptions, BacktestResult, Trade, Position, QuantStrategy } from './types';
 import { StockDBService, KlineCacheService } from '../stock-db/index.js';
-import { TS_FUNCTIONS } from '../../infrastructure/akshare-ts/index.js';
+import {
+  rollingMean, rsi as calcRsi, macd as calcMacd, bollinger,
+  lastNum,
+} from '../../infrastructure/data-sources/technical.js';
 
 export class BacktestEngine {
   private backtestsDir = '.pi-invest/quant/backtests';
@@ -17,43 +20,56 @@ export class BacktestEngine {
   async run(strategy: QuantStrategy, options: Omit<BacktestOptions, 'strategy_id'>): Promise<BacktestResult> {
     const { start_date, end_date, initial_capital, commission } = options;
 
-    // 1. 获取股票池（简化版：只测试单只股票或小池子）
+    // 1. 获取股票池（基于 strategy.screening 真实筛选）
     const symbols = await this.getStockPool(strategy);
+    if (symbols.length === 0) {
+      throw new Error('股票池为空，请先更新股票数据库（manage_stock_db action=update_stocks）');
+    }
 
-    // 2. 初始化
+    // 2. 预加载所有股票的历史 K 线（避免回测中反复请求网络）
+    //    klineMap: symbol → 按日期升序排列的 K 线数组
+    const klineMap = new Map<string, Array<{ date: string; close: number; open: number; high: number; low: number; volume: number }>>();
+    for (const symbol of symbols) {
+      const bars = await this.klineCache.getHistory(symbol, start_date, end_date);
+      if (bars.length > 0) {
+        klineMap.set(symbol, bars);
+      }
+    }
+
+    // 3. 构建交易日历（取第一只有数据的股票的日期序列）
+    const activeSymbols = [...klineMap.keys()];
+    if (activeSymbols.length === 0) {
+      throw new Error('所有股票均无历史数据，请检查日期范围或先缓存数据');
+    }
+    const calendar = klineMap.get(activeSymbols[0])!.map(b => b.date);
+
+    // 4. 初始化
     let cash = initial_capital;
     const positions: Map<string, Position> = new Map();
     const trades: Trade[] = [];
     const equityCurve: Array<{ date: string; value: number }> = [];
 
-    // 3. 获取交易日历（使用缓存）
-    if (symbols.length === 0) {
-      throw new Error('股票池为空');
-    }
+    // 5. 逐日回测（无前视偏差：信号计算只用截止当日的历史数据）
+    for (let dayIdx = 0; dayIdx < calendar.length; dayIdx++) {
+      const date = calendar[dayIdx];
 
-    const historyData = await this.klineCache.getHistory(symbols[0], start_date, end_date);
-    const calendar = historyData || [];
-
-    // 4. 逐日回测
-    for (const day of calendar) {
-      const date = day.date;
-
-      // 先检查持仓的止损止盈
+      // 先检查持仓的止损止盈（用当日该股票的实际收盘价）
       for (const [symbol, pos] of positions.entries()) {
-        const currentPrice = day.close;
+        const bars = klineMap.get(symbol);
+        const bar = bars?.find(b => b.date === date);
+        if (!bar) continue;
+
+        const currentPrice = bar.close;
         const pnl_pct = (currentPrice - pos.cost) / pos.cost;
 
         let shouldSell = false;
         let reason = '';
 
-        // 止损检查
         if (strategy.exit.stop_loss && pnl_pct <= -strategy.exit.stop_loss) {
           shouldSell = true;
           reason = `止损 ${(pnl_pct * 100).toFixed(2)}%`;
         }
-
-        // 止盈检查
-        if (strategy.exit.take_profit && pnl_pct >= strategy.exit.take_profit) {
+        if (!shouldSell && strategy.exit.take_profit && pnl_pct >= strategy.exit.take_profit) {
           shouldSell = true;
           reason = `止盈 ${(pnl_pct * 100).toFixed(2)}%`;
         }
@@ -62,84 +78,69 @@ export class BacktestEngine {
           const proceeds = pos.quantity * currentPrice * (1 - commission);
           cash += proceeds;
           const pnl = proceeds - pos.quantity * pos.cost;
-
           trades.push({
-            date,
-            symbol,
-            name: symbol,
-            action: 'sell',
-            price: currentPrice,
-            quantity: pos.quantity,
+            date, symbol, name: pos.name, action: 'sell',
+            price: currentPrice, quantity: pos.quantity,
             commission: pos.quantity * currentPrice * commission,
-            pnl,
-            pnl_pct,
-            reason,
+            pnl, pnl_pct, reason,
           });
           positions.delete(symbol);
         }
       }
 
-      // 检查每只股票的信号
-      for (const symbol of symbols) {
-        const signal = await this.checkSignal(symbol, date, strategy, positions.has(symbol));
+      // 检查每只股票的信号（截止当日的历史切片，无前视偏差）
+      for (const symbol of activeSymbols) {
+        const bars = klineMap.get(symbol)!;
+        // 取截止当日（含）的所有 K 线
+        const sliceIdx = bars.findIndex(b => b.date === date);
+        if (sliceIdx < 0) continue; // 该股票当日无数据（停牌等）
+        const slice = bars.slice(0, sliceIdx + 1);
+        const close = slice.map(b => b.close);
+        const currentPrice = slice[slice.length - 1].close;
 
-        if (signal === 'buy' && !positions.has(symbol) && positions.size < strategy.position.max_stocks) {
-          // 买入
-          const price = day.close;
+        const hasPosition = positions.has(symbol);
+        const signal = this.checkSignalFromClose(close, strategy, hasPosition);
+
+        if (signal === 'buy' && !hasPosition && positions.size < strategy.position.max_stocks) {
           const maxPosition = initial_capital * strategy.position.max_position_pct;
-          const quantity = Math.floor(maxPosition / price / 100) * 100; // A股100股整数倍
+          const quantity = Math.floor(maxPosition / currentPrice / 100) * 100;
 
-          if (quantity > 0 && cash >= quantity * price * (1 + commission)) {
-            const cost = quantity * price * (1 + commission);
+          if (quantity > 0 && cash >= quantity * currentPrice * (1 + commission)) {
+            const cost = quantity * currentPrice * (1 + commission);
             cash -= cost;
             positions.set(symbol, {
-              symbol,
-              name: symbol,
-              quantity,
-              cost: cost / quantity,
-              entry_date: date,
+              symbol, name: symbol, quantity,
+              cost: cost / quantity, entry_date: date,
             });
             trades.push({
-              date,
-              symbol,
-              name: symbol,
-              action: 'buy',
-              price,
-              quantity,
-              commission: quantity * price * commission,
+              date, symbol, name: symbol, action: 'buy',
+              price: currentPrice, quantity,
+              commission: quantity * currentPrice * commission,
               reason: '买入信号触发',
             });
           }
-        } else if (signal === 'sell' && positions.has(symbol)) {
-          // 卖出（技术指标信号）
+        } else if (signal === 'sell' && hasPosition) {
           const pos = positions.get(symbol)!;
-          const price = day.close;
-          const proceeds = pos.quantity * price * (1 - commission);
+          const proceeds = pos.quantity * currentPrice * (1 - commission);
           cash += proceeds;
-
           const pnl = proceeds - pos.quantity * pos.cost;
           const pnl_pct = pnl / (pos.quantity * pos.cost);
-
           trades.push({
-            date,
-            symbol,
-            name: symbol,
-            action: 'sell',
-            price,
-            quantity: pos.quantity,
-            commission: pos.quantity * price * commission,
-            pnl,
-            pnl_pct,
-            reason: '卖出信号触发',
+            date, symbol, name: pos.name, action: 'sell',
+            price: currentPrice, quantity: pos.quantity,
+            commission: pos.quantity * currentPrice * commission,
+            pnl, pnl_pct, reason: '卖出信号触发',
           });
           positions.delete(symbol);
         }
       }
 
-      // 计算当日权益
+      // 计算当日权益（各持仓用当日实际收盘价）
       let positionValue = 0;
-      for (const pos of positions.values()) {
-        positionValue += pos.quantity * day.close;
+      for (const [symbol, pos] of positions.entries()) {
+        const bars = klineMap.get(symbol);
+        const bar = bars?.find(b => b.date === date);
+        positionValue += pos.quantity * (bar?.close ?? pos.cost);
       }
       equityCurve.push({ date, value: cash + positionValue });
     }
@@ -168,58 +169,79 @@ export class BacktestEngine {
   }
 
   private async getStockPool(strategy: QuantStrategy): Promise<string[]> {
-    // 简化版：返回一些常见的大盘股作为测试池
-    // TODO: 根据 strategy.screening 实现真实筛选
-    const testPool = [
-      '000001', // 平安银行
-      '600036', // 招商银行
-      '601318', // 中国平安
-      '600519', // 贵州茅台
-      '000858', // 五粮液
-    ];
+    const filters = strategy.screening?.filters || {};
 
-    // 如果指定了行业，可以进一步过滤
-    if (strategy.screening.sector) {
-      // TODO: 调用 get_sector_list 获取行业股票
-      return testPool.slice(0, 2);
+    // 优先使用本地数据库筛选（需先执行 manage_stock_db update_stocks）
+    const stocks = this.stockDB.filter({
+      market: strategy.screening?.market || 'A',
+      industry: strategy.screening?.sector,
+      min_market_cap: 50,           // 市值 >= 50 亿，过滤微盘
+      max_pe: filters.pe_range?.[1],
+      min_pe: filters.pe_range?.[0],
+      max_pb: filters.pb_range?.[1],
+      min_pb: filters.pb_range?.[0],
+      exclude_st: true,
+      exclude_suspended: true,
+      list_days: 365,               // 上市满 1 年
+    });
+
+    if (stocks.length === 0) {
+      // 区分两种情况：数据库为空 vs 筛选条件过严
+      const totalStocks = this.stockDB.filter({ market: strategy.screening?.market || 'A' });
+      if (totalStocks.length === 0) {
+        throw new Error('股票数据库为空，请先执行 manage_stock_db action=update_stocks 更新数据库');
+      }
+      // 筛选条件过严，返回空池而不是回退到无关股票
+      const filterDesc = [
+        strategy.screening?.sector ? `行业=${strategy.screening.sector}` : null,
+        filters.pe_range ? `PE=[${filters.pe_range[0] ?? '-'}~${filters.pe_range[1] ?? '-'}]` : null,
+        filters.pb_range ? `PB=[${filters.pb_range[0] ?? '-'}~${filters.pb_range[1] ?? '-'}]` : null,
+      ].filter(Boolean).join(', ');
+      throw new Error(`策略筛选条件过严，无股票满足条件（${filterDesc || '当前筛选器'}），请放宽筛选范围`);
     }
 
-    return testPool;
+    // 限制最多 50 只，避免回测时间过长
+    return stocks.slice(0, 50).map(s => s.symbol);
   }
 
-  private async checkSignal(
-    symbol: string,
-    date: string,
+  /**
+   * 基于历史 close 数组计算信号（无前视偏差）
+   * @param close 截止当日（含）的收盘价序列，升序
+   */
+  private checkSignalFromClose(
+    close: number[],
     strategy: QuantStrategy,
-    hasPosition: boolean
-  ): Promise<'buy' | 'sell' | null> {
-    try {
-      // 获取技术指标
-      const techJson = await TS_FUNCTIONS['calculate_technical_indicators']({
-        symbol,
-        indicators: ['ma', 'rsi', 'macd']
-      });
-      const tech = JSON.parse(techJson);
+    hasPosition: boolean,
+  ): 'buy' | 'sell' | null {
+    if (close.length < 30) return null; // 数据不足，跳过
 
-      // 检查卖出信号（持仓时）
-      if (hasPosition) {
-        // 止损止盈检查在主循环中处理
-        if (strategy.exit.conditions) {
-          const exitMatch = this.matchConditions(tech, strategy.exit.conditions, 'OR');
-          if (exitMatch) return 'sell';
-        }
+    // 计算技术指标（只用传入的历史切片）
+    const n = close.length;
+    const ma5  = lastNum(rollingMean(close, 5)) ?? 0;
+    const ma20 = lastNum(rollingMean(close, 20)) ?? 0;
+    const ma60 = n >= 60 ? (lastNum(rollingMean(close, 60)) ?? 0) : 0;
+    const rsiArr = calcRsi(close, 14);
+    const rsiVal = lastNum(rsiArr) ?? 50;
+    const { histogram } = calcMacd(close);
+    const macdHist = histogram[n - 1] ?? 0;
+    const bb = bollinger(close);
+    const bbUpper = lastNum(bb.upper) ?? 0;
+    const bbLower = lastNum(bb.lower) ?? 0;
+    const curPrice = close[n - 1];
+
+    const tech = { rsi: rsiVal, ma5, ma20, ma60, macd_histogram: macdHist, close: curPrice, bollinger_upper: bbUpper, bollinger_lower: bbLower };
+
+    if (hasPosition) {
+      if (strategy.exit.conditions?.length) {
+        const exitMatch = this.matchConditions(tech, strategy.exit.conditions, 'OR');
+        if (exitMatch) return 'sell';
       }
-
-      // 检查买入信号（无持仓时）
-      if (!hasPosition) {
-        const entryMatch = this.matchConditions(tech, strategy.entry.conditions, strategy.entry.logic);
-        if (entryMatch) return 'buy';
-      }
-
-      return null;
-    } catch {
-      return null;
+    } else {
+      const entryMatch = this.matchConditions(tech, strategy.entry.conditions, strategy.entry.logic);
+      if (entryMatch) return 'buy';
     }
+
+    return null;
   }
 
   private matchConditions(tech: any, conditions: any[], logic: 'AND' | 'OR'): boolean {
@@ -249,6 +271,18 @@ export class BacktestEngine {
       const macd = tech.macd_histogram || 0;
       if (operator === '>') return macd > value;
       if (operator === '<') return macd < value;
+      if (operator === 'golden_cross') return macd > 0;
+      if (operator === 'death_cross') return macd < 0;
+    }
+
+    if (indicator === 'bollinger') {
+      const price = tech.close || 0;
+      const upper = tech.bollinger_upper || 0;
+      const lower = tech.bollinger_lower || 0;
+      if (operator === 'touch_lower') return lower > 0 && price <= lower * 1.01;
+      if (operator === 'touch_upper') return upper > 0 && price >= upper * 0.99;
+      if (operator === 'break_upper') return upper > 0 && price > upper;
+      if (operator === 'break_lower') return lower > 0 && price < lower;
     }
 
     return false;

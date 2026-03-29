@@ -56,34 +56,34 @@ export interface PeData {
 
 
 /**
- * Fetch PE/PB from Sina (push2.eastmoney blocked on this machine)
- * Sina fields: 39=PE, 46=PB, 44=total_shares(万股)
+ * Fetch PE/PB from push2.eastmoney.com
+ * f162=PE_TTM×100, f167=PB×100, f116=总市值(元)
+ * Fallback: Sina hq_str fields[39]/fields[46] (unreliable, often 0)
  */
 export async function fetchPeData(symbol: string): Promise<PeData> {
   const clean = symbol.replace(/^(sh|sz|bj)/i, "");
-  const prefix = clean.startsWith("6") ? "sh" : (clean.match(/^[84]/) ? "bj" : "sz");
-  const sinaCode = `${prefix}${clean}`;
+  const secid = clean.startsWith("6") ? `1.${clean}` : (clean.match(/^[84]/) ? `0.${clean}` : `0.${clean}`);
+
   try {
-    const text = await withRetry(() => fetchGbk(`https://hq.sinajs.cn/list=${sinaCode}`));
-    const match = text.match(/"([^"]*)"/);
-    if (!match) return { pe_ttm: null, pb: null, market_cap_billion: null };
-    const fields = match[1].split(",");
-    if (fields.length < 47) return { pe_ttm: null, pb: null, market_cap_billion: null };
-
-    const pe = safeFloat(fields[39]);
-    const pb = safeFloat(fields[46]);
-    const price = safeFloat(fields[3]);
-    const totalShares = safeFloat(fields[44]);
-    const cap = (price > 0 && totalShares > 0) ? Math.round(price * totalShares / 1e4) / 100 : null;
-
-    return {
-      pe_ttm: pe > 0 ? pe : null,
-      pb: pb > 0 ? pb : null,
-      market_cap_billion: cap,
-    };
+    const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f57,f162,f167,f116`;
+    const resp = await withRetry(async () => {
+      const r = await fetch(url, {
+        headers: { Referer: "https://finance.eastmoney.com", "User-Agent": "Mozilla/5.0" },
+        signal: AbortSignal.timeout(8000),
+      });
+      return r.json() as Promise<any>;
+    });
+    const d = resp?.data;
+    if (d) {
+      const pe = d.f162 != null && d.f162 > 0 ? d.f162 / 100 : null;
+      const pb = d.f167 != null && d.f167 > 0 ? d.f167 / 100 : null;
+      const cap = d.f116 != null && d.f116 > 0 ? Math.round(d.f116 / 1e6) / 100 : null; // 元→亿
+      return { pe_ttm: pe, pb, market_cap_billion: cap };
+    }
   } catch {
-    return { pe_ttm: null, pb: null, market_cap_billion: null };
+    // fall through to return nulls
   }
+  return { pe_ttm: null, pb: null, market_cap_billion: null };
 }
 
 export async function fetchSectorList(): Promise<Array<{ name: string; code: string; changePct: number }>> {

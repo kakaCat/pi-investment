@@ -7,47 +7,40 @@ AI 股票投资顾问，基于 piagent 架构，使用 DeepSeek + GPT-5.4 双模
 
 ## 🤖 Codex 子 Agent 使用规则
 
-项目集成了 Claude Code（主 Agent）+ Codex（子 Agent）双向通信桥。
-Codex 工具：`mcp__codex__task`、`mcp__codex__review`、`mcp__codex__status`
+Claude Code 直接通过 `codex exec` CLI 调用 Codex，无需 MCP 或 bridge。
+
+### 调用方式
+
+```bash
+# 任意任务（同步，结果写入文件后读取）
+codex exec --dangerously-bypass-approvals-and-sandbox --ephemeral \
+  -C /Users/mac/Documents/ai/pi-investment \
+  -o /tmp/codex-out.txt \
+  "你的 prompt"
+cat /tmp/codex-out.txt
+
+# code review（基于 git 未提交变更）
+codex exec review --uncommitted --ephemeral \
+  -C /Users/mac/Documents/ai/pi-investment \
+  -o /tmp/codex-review.txt \
+  "重点关注边界条件和异常处理"
+cat /tmp/codex-review.txt
+```
 
 ### 什么时候必须调用 Codex
 
-**以下场景，在完成主要工作后，自动调用 Codex，无需用户提示：**
+**以下场景，在完成主要工作后，自动用 Bash 工具执行 codex exec，无需用户提示：**
 
-1. **写完或修改了业务逻辑代码**（`.ts`、`.py` 文件）
-   - 调用 `mcp__codex__review`，让 Codex review 变更
-   - focus：边界条件、潜在 bug、未处理的异常
-
-2. **新增工具函数 / API 接口**
-   - 调用 `mcp__codex__task`，让 Codex 分析接口设计是否合理
-   - prompt 示例："review 这个新增函数的参数设计和返回值是否合理"
-
-3. **修复 bug 后**
-   - 调用 `mcp__codex__task`，让 Codex 确认修复是否完整，有无引入新问题
-
-4. **重构代码后**
-   - 调用 `mcp__codex__review`，让 Codex 检查重构后的代码质量
-
-5. **实现复杂算法或数据处理逻辑**（技术指标、投资分析、持仓计算）
-   - 调用 `mcp__codex__task`，让 Codex 验证逻辑正确性
+1. **写完或修改了业务逻辑代码**（`.ts`、`.py` 文件）→ `codex exec review --uncommitted`
+2. **修复 bug 后** → `codex exec "确认修复是否完整，有无引入新问题"`
+3. **实现复杂算法**（技术指标、投资分析、持仓计算）→ `codex exec "验证逻辑正确性"`
+4. **重构代码后** → `codex exec review --uncommitted`
 
 ### 什么时候不需要调用 Codex
 
 - 只读文件、搜索代码、回答问题
 - 修改配置文件（`.json`、`.toml`、`.env`）
-- 写文档、注释
-- 简单的变量重命名
-- 已经明确是小改动（< 5 行）
-
-### 调用方式
-
-```
-// 快速 review（推荐，大多数场景）
-mcp__codex__review({ focus: "边界条件和异常处理" })
-
-// 特定任务
-mcp__codex__task({ prompt: "检查 XXX 函数的逻辑是否正确..." })
-```
+- 写文档、注释、简单改动（< 5 行）
 
 ### 结果处理
 
@@ -71,5 +64,3 @@ mcp__codex__task({ prompt: "检查 XXX 函数的逻辑是否正确..." })
 - `src/index.ts` — 主入口
 - `src/tools/invest-tools.ts` — 工具路由
 - `src/infrastructure/akshare-ts/index.ts` — TS 原生数据层
-- `bridge/codex-bridge.ts` — Codex 通信桥
-- `bridge/codex-mcp.ts` — MCP server（Claude Code 调用入口）

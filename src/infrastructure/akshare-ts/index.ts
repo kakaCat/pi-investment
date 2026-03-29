@@ -27,6 +27,22 @@ import {
   candlestickPatterns, trendLines, fibonacci, priceGaps,
 } from "../data-sources/technical.js";
 import { safeFloat, today, nowStr } from "../data-sources/http-client.js";
+import { StockDBService, KlineCacheService } from "../../services/stock-db/index.js";
+
+// ─── Shared Services (懒加载避免循环依赖) ──────────────────────────────────
+const piDir = ".pi-invest";
+let _stockDB: StockDBService | null = null;
+let _klineCache: KlineCacheService | null = null;
+
+function getStockDB() {
+  if (!_stockDB) _stockDB = new StockDBService(piDir);
+  return _stockDB;
+}
+
+function getKlineCache() {
+  if (!_klineCache) _klineCache = new KlineCacheService(getStockDB());
+  return _klineCache;
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -163,53 +179,48 @@ export async function get_stock_realtime_price(symbol: string): Promise<string> 
 export async function get_stock_history(
   symbol: string,
   period = "daily",
-  _start?: string,
-  _end?: string,
+  start?: string,
+  end?: string,
   _adjust = "qfq",
+  _skip_cache = false,
 ): Promise<string> {
   const clean = cleanSymbol(symbol);
-  const scaleMap: Record<string, 240 | 1200 | 4800> = { daily: 240, weekly: 1200, monthly: 4800 };
-  const scale = scaleMap[period] ?? 240;
 
-  // 检查记忆（历史K线）
-  const memKey = `${clean}_${period}`;
-  const cached = memoryService.get<{ symbol: string; period: string; data: any[] }>("history", memKey);
+  // ─── 数据库缓存优先 ────────────────────────────────
+  if (period === "daily" && !_skip_cache) {
+    const startDate = start || "2023-01-01";
+    const endDate = end || today();
+    try {
+      // KlineCacheService.getHistory 会在缺失时调用此函数（带 _skip_cache=true）
+      const data = await getKlineCache().getHistory(clean, startDate, endDate);
+      if (data && data.length > 0) {
+        return JSON.stringify({
+          symbol: clean,
+          period,
+          count: data.length,
+          data,
+          data_date: data[data.length - 1].date,
+          _source: "cache"
+        });
+      }
+    } catch (e) {
+      console.warn(`[akshare-ts] Cache read failed for ${clean}:`, e);
+    }
+  }
 
+  // ─── 网络获取 (通过 Python 桥) ──────────────────────
   try {
-    const bars = await fetchSinaKlines(clean, scale, 60);
-    if (!bars.length) return JSON.stringify({ error: `无历史数据: ${clean}`, symbol: clean });
-
-    let prevClose: number | null = null;
-    const data = bars.map(b => {
-      const close = safeFloat(b.close);
-      const changePct = prevClose ? r2((close - prevClose) / prevClose * 100) : 0;
-      prevClose = close;
-      return {
-        date: b.day, open: safeFloat(b.open), high: safeFloat(b.high),
-        low: safeFloat(b.low), close, volume: safeFloat(b.volume, 0), change_pct: changePct,
-      };
-    });
-
-    const dataDate = bars[bars.length - 1].day;
-    const result = { symbol: clean, period, count: data.length, data, data_date: dataDate };
-
-    // 保存到记忆（只保存已收盘的历史数据）
-    const today_str = today();
-    const historicalData = data.filter(d => d.date < today_str);
-    if (historicalData.length > 0) {
-      memoryService.set("history", memKey, {
-        symbol: clean,
-        period,
-        data: historicalData,
-      });
-    }
-
-    return JSON.stringify(result);
+    const args = {
+      symbol: clean,
+      period,
+      start_date: start,
+      end_date: end,
+      adjust: _adjust
+    };
+    // 直接调用 callPython 避免 TS 函数递归
+    const raw = await callPythonBridge("get_stock_history", args);
+    return JSON.stringify(raw);
   } catch (e) {
-    // 如果获取失败但有缓存，返回缓存
-    if (cached) {
-      return JSON.stringify({ ...cached, note: "使用历史记忆数据" });
-    }
     return JSON.stringify({ error: String(e), symbol: clean });
   }
 }
@@ -369,12 +380,44 @@ export async function get_hk_stock_history(
 export async function calculate_technical_indicators(symbol: string): Promise<string> {
   const clean = cleanSymbol(symbol);
   try {
-    const bars = await fetchSinaKlines(clean, 240, 90);
+    // 1. 获取历史 K 线 (优先从数据库缓存获取最近 120 天数据)
+    const historyJson = await get_stock_history(clean, "daily", undefined, undefined);
+    const historyRes = JSON.parse(historyJson);
+    if (historyRes.error) return historyJson;
+    let bars = historyRes.data || [];
+
+    // 2. 获取实时价格 (用于补充最新的当日报价)
+    const realtimeJson = await get_stock_realtime_price(clean);
+    const rt = JSON.parse(realtimeJson);
+
+    // 3. 混合模式：如果实时日期比缓存日期更新，则将实时报价追加为最新的一根 K 线
+    const todayStr = today();
+    const lastBar = bars.length > 0 ? bars[bars.length - 1] : null;
+
+    // 只在实时报价本身也是今日数据时才追加合成 K 线，
+    // 避免周末/节假日/盘前用前一交易日收盘价创建错误的"今日"K 线
+    const rtDate = rt?.date || rt?.time?.slice(0, 10); // Sina 实时行情可能带 date 或 time 字段
+    const rtIsToday = rtDate === todayStr;
+    if (rt && rt.price && rtIsToday && (!lastBar || lastBar.date < todayStr)) {
+      // 避免重复添加 (比如今天还没收盘，但缓存里已经有了今天的懒加载数据)
+      const currentBar = {
+        day: todayStr, // SinaKlines 内部使用 day 字段
+        date: todayStr,
+        open: rt.open || rt.price,
+        high: rt.high || rt.price,
+        low: rt.low || rt.price,
+        close: rt.price,
+        volume: rt.volume || 0,
+        _is_realtime: true
+      };
+      bars.push(currentBar);
+    }
+
     if (bars.length < 30) return JSON.stringify({ error: "历史数据不足", symbol: clean });
 
     const { close } = klinesToNumbers(bars);
     const n = close.length;
-    const dataDate = bars[n - 1].day; // 使用最后一根K线的日期
+    const dataDate = bars[n - 1].date || bars[n - 1].day;
 
     const ma5  = r2(lastNum(rollingMean(close, 5)));
     const ma10 = r2(lastNum(rollingMean(close, 10)));
@@ -1170,7 +1213,7 @@ type TsFn = (args: Record<string, unknown>) => Promise<string> | string;
 
 export const TS_FUNCTIONS: Record<string, TsFn> = {
   get_stock_realtime_price: (a) => get_stock_realtime_price(a.symbol as string),
-  get_stock_history: (a) => get_stock_history(a.symbol as string, a.period as string | undefined),
+  get_stock_history: (a) => get_stock_history(a.symbol as string, a.period as string | undefined, a.start_date as string | undefined, a.end_date as string | undefined, undefined, a._skip_cache as boolean | undefined),
   get_stock_info: (a) => get_stock_info(a.symbol as string),
   get_market_overview: () => get_market_overview(),
   get_sector_list: () => get_sector_list(),

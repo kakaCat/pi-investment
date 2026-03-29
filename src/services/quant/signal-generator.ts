@@ -52,6 +52,7 @@ export class SignalGenerator {
     // 检查买入条件
     const buySignal = this.matchConditions(tech, strategy.entry.conditions, strategy.entry.logic);
     if (buySignal) {
+      const { confidence, model } = await this.calculateConfidence(symbol, tech, strategy.entry.conditions, 'buy');
       return {
         date,
         symbol,
@@ -60,9 +61,28 @@ export class SignalGenerator {
         strategy_id: strategy.id,
         price,
         reason: this.buildReason(tech, strategy.entry.conditions),
-        confidence: 0.8,
+        confidence,
         indicators: tech,
       };
+    }
+
+    // 检查卖出条件
+    if (strategy.exit.conditions?.length) {
+      const sellSignal = this.matchConditions(tech, strategy.exit.conditions, 'OR');
+      if (sellSignal) {
+        const { confidence, model } = await this.calculateConfidence(symbol, tech, strategy.exit.conditions, 'sell');
+        return {
+          date,
+          symbol,
+          name,
+          action: 'sell',
+          strategy_id: strategy.id,
+          price,
+          reason: this.buildReason(tech, strategy.exit.conditions),
+          confidence,
+          indicators: tech,
+        };
+      }
     }
 
     return null;
@@ -125,6 +145,50 @@ export class SignalGenerator {
       return '';
     });
     return reasons.filter(r => r).join(', ');
+  }
+
+  private calculateRuleConfidence(tech: any, conditions: any[], action: 'buy' | 'sell'): number {
+    if (conditions.length === 0) return 0.5;
+
+    // 基础分：匹配条件数 / 总条件数
+    const matchedCount = conditions.filter(c => this.matchCondition(tech, c)).length;
+    let confidence = matchedCount / conditions.length;
+
+    // 强信号 bonus
+    const rsi = tech.rsi || 50;
+    const price = tech.close || 0;
+    const bbLower = tech.bollinger_lower || 0;
+    const bbUpper = tech.bollinger_upper || 0;
+
+    if (action === 'buy') {
+      if (rsi < 30) confidence += 0.1;
+      if (bbLower > 0 && price <= bbLower * 1.01) confidence += 0.1;
+    } else {
+      if (rsi > 70) confidence += 0.1;
+      if (bbUpper > 0 && price >= bbUpper * 0.99) confidence += 0.1;
+    }
+
+    return Math.min(confidence, 1.0);
+  }
+
+  private async calculateConfidence(symbol: string, tech: any, conditions: any[], action: 'buy' | 'sell'): Promise<{ confidence: number; model: string }> {
+    // 尝试 ML 预测
+    try {
+      const matchedCount = conditions.filter(c => this.matchCondition(tech, c)).length;
+      tech.conditions_matched_ratio = conditions.length > 0 ? matchedCount / conditions.length : 0;
+
+      const mlJson = await TS_FUNCTIONS['predict_signal_confidence']({ symbol, indicators: tech, action });
+      const mlResult = JSON.parse(mlJson);
+
+      if (mlResult.model === 'xgboost' && mlResult.confidence != null) {
+        return { confidence: mlResult.confidence, model: 'xgboost' };
+      }
+    } catch (err) {
+      // ML 失败，回退到规则
+    }
+
+    // 回退到规则
+    return { confidence: this.calculateRuleConfidence(tech, conditions, action), model: 'rule' };
   }
 
   private async getStockPool(strategy: QuantStrategy): Promise<string[]> {
