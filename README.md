@@ -51,6 +51,14 @@ pip install akshare
 
 ```bash
 export DEEPSEEK_API_KEY=your-key-here
+export OPENAI_API_KEY=your-key-here
+```
+
+如需启用飞书 Bot，还需要配置：
+
+```bash
+export FEISHU_APP_ID=cli_xxx
+export FEISHU_APP_SECRET=your-feishu-secret
 ```
 
 ### 启动
@@ -63,8 +71,21 @@ npm run dev
 
 ```bash
 npm run portfolio
+npm run feishu
 npm test
 ```
+
+### 飞书 Bot
+
+飞书模式使用 WebSocket 长连接接收消息，每个 `chatId` 独立持久化会话，历史保存在 `.pi-invest/sessions/{chatId}/`。
+
+启动：
+
+```bash
+npm run feishu
+```
+
+定时推送模板位于 `.pi-invest/FEISHU_CRON.json`。填入实际 `chatId` 后，可通过 `CronService` 定时向指定飞书会话发送投研请求。
 
 ## 可用工具
 

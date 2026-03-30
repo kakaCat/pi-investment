@@ -3,7 +3,8 @@ dist
 .env
 *.log
 .DS_Store
-.pi-invest
+.pi-invest/*
+!.pi-invest/FEISHU_CRON.json
 .worktrees
 python/__pycache__
 python/*.pyc

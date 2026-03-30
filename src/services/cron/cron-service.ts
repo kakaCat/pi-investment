@@ -20,6 +20,7 @@ export interface CronJobPayload {
   kind: "agent_turn" | "daily_review" | "system_event" | "stop_loss_alert";
   message?: string;
   text?: string;
+  chatId?: string;
 }
 
 interface RawJob {

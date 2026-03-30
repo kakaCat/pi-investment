@@ -9,15 +9,17 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "dev:log": "tsx src/index-with-logger.ts",
+    "feishu": "tsx src/api/feishu.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "portfolio": "tsx src/scripts/portfolio-cli.ts",
-"test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.38.0",
+    "@larksuiteoapi/node-sdk": "^1.60.0",
     "@mariozechner/pi-agent-core": "^0.58.3",
     "@mariozechner/pi-ai": "^0.58.3",
     "@mariozechner/pi-coding-agent": "^0.58.3",

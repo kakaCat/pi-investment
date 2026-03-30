@@ -1,0 +1,18 @@
+{
+  "jobs": [
+    {
+      "id": "feishu-morning-brief",
+      "name": "飞书早报",
+      "enabled": false,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 9 * * 1-5"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "chatId": "oc_REPLACE_WITH_YOUR_CHAT_ID",
+        "message": "生成今日投资建议：1) 市场概览 2) 持仓分析 3) 风险提示"
+      }
+    }
+  ]
+}
