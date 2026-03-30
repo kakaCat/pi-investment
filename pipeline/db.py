@@ -70,6 +70,7 @@ class Database:
                     close REAL,
                     volume REAL,
                     amount REAL,
+                    turnover_rate REAL,
                     PRIMARY KEY (symbol, date)
                 );
 
@@ -100,6 +101,11 @@ class Database:
             for column, column_type in new_columns.items():
                 if column not in existing_columns:
                     cursor.execute(f"ALTER TABLE stocks ADD COLUMN {column} {column_type}")
+
+            cursor.execute("PRAGMA table_info(daily_klines)")
+            existing_kline_columns = {str(row[1]) for row in cursor.fetchall()}
+            if "turnover_rate" not in existing_kline_columns:
+                cursor.execute("ALTER TABLE daily_klines ADD COLUMN turnover_rate REAL")
 
             connection.commit()
         except sqlite3.Error as exc:
@@ -267,7 +273,7 @@ class Database:
         import pandas as pd
         connection = self._get_connection()
         try:
-            query = "SELECT symbol, date, open, high, low, close, volume, amount FROM daily_klines WHERE symbol = ? ORDER BY date ASC LIMIT ?"
+            query = "SELECT symbol, date, open, high, low, close, volume, amount, turnover_rate FROM daily_klines WHERE symbol = ? ORDER BY date ASC LIMIT ?"
             return pd.read_sql_query(query, connection, params=(symbol, limit))
         except sqlite3.Error as exc:
             raise RuntimeError(f"Failed to fetch klines: {exc}") from exc

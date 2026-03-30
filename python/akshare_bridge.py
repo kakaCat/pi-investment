@@ -411,8 +411,7 @@ def get_financial_indicators(symbol: str) -> dict:
     from datetime import datetime
     symbol = _clean_symbol(symbol)
     try:
-        # 使用同花顺新版接口（数据更新更及时）
-        df = ak.stock_financial_abstract_new_ths(symbol=symbol, indicator='按报告期')
+        df = ak.stock_financial_abstract_ths(symbol=symbol, indicator='按报告期')
         if df.empty:
             return {"error": f"无财务数据: {symbol}"}
 
@@ -439,91 +438,18 @@ def get_financial_indicators(symbol: str) -> dict:
 
 
 def get_sector_list() -> dict:
-    """返回A股行业板块列表（via datacenter-web，取最新交易日数据）"""
-    import requests as _req
-    from datetime import datetime
-    try:
-        # First get the latest date
-        r = _req.get(
-            "https://datacenter-web.eastmoney.com/api/data/v1/get",
-            params={"reportName": "RPT_INDUSTRY_INDEX",
-                    "columns": "BOARD_CODE,BOARD_NAME,CHANGE_RATE,REPORT_DATE",
-                    "pageSize": 1, "sortColumns": "REPORT_DATE", "sortTypes": "-1"},
-            timeout=10
-        )
-        d = r.json()
-        latest_date = d["result"]["data"][0]["REPORT_DATE"][:10]
-        # Now get all boards for that date
-        r2 = _req.get(
-            "https://datacenter-web.eastmoney.com/api/data/v1/get",
-            params={"reportName": "RPT_INDUSTRY_INDEX",
-                    "columns": "BOARD_CODE,BOARD_NAME,CHANGE_RATE",
-                    "pageSize": 500, "sortColumns": "BOARD_NAME", "sortTypes": "1",
-                    "filter": f'(REPORT_DATE="{latest_date} 00:00:00")'},
-            timeout=10
-        )
-        d2 = r2.json()
-        if d2.get("success") and d2.get("result", {}).get("data"):
-            records = [{"name": item["BOARD_NAME"], "code": item.get("BOARD_CODE", ""),
-                        "count": 0, "change_pct": _safe_float(item.get("CHANGE_RATE", 0))}
-                       for item in d2["result"]["data"]]
-            return {"count": len(records), "data": records, "data_date": latest_date}
-    except Exception:
-        pass
-    # Fallback: static list
-    sectors = ["白酒","银行","证券","保险","房地产","医药","新能源","半导体","芯片","人工智能",
-               "汽车","新能源车","光伏","储能","军工","食品饮料","农业","家电","消费电子",
-               "互联网","游戏","传媒","教育","医疗器械","生物制药","电力","煤炭","有色金属","化工"]
-    records = [{"name": s, "code": "", "count": 0, "change_pct": 0.0} for s in sectors]
-    return {"count": len(records), "data": records, "data_date": datetime.now().strftime("%Y-%m-%d"),
-            "note": "静态列表"}
+    return {
+        "error": "板块数据接口不稳定，建议使用 get_market_overview 查看市场概况",
+        "count": 0,
+        "data": [],
+    }
 
 
 def screen_stocks_by_sector(sector: str, min_roe: float = None, max_pe: float = None, limit: int = 20) -> dict:
-    import requests
-    from datetime import datetime
-    try:
-        # 使用 datacenter-web API（可访问）获取板块成分股
-        url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
-        params = {
-            "reportName": "RPT_F10_CORETHEME_BOARDTYPE",
-            "columns": "SECUCODE,SECURITY_CODE,SECURITY_NAME_ABBR,NEW_PRICE,CHANGE_RATE,PE_TTM,TURNOVERRATE,TOTAL_MARKET_CAP",
-            "filter": f'(BOARD_NAME="{sector}")',
-            "pageNumber": "1",
-            "pageSize": "100",
-            "sortColumns": "TOTAL_MARKET_CAP",
-            "sortTypes": "-1",
-            "source": "WEB",
-            "client": "WEB"
-        }
-        resp = requests.get(url, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-
-        if data.get("code") != 0 or not data.get("result", {}).get("data"):
-            return {"error": f"未找到板块: {sector}"}
-
-        records = []
-        for item in data["result"]["data"]:
-            pe = _safe_float(item.get("PE_TTM", 0))
-            if max_pe is not None and pe > 0 and pe > max_pe:
-                continue
-            records.append({
-                "code": str(item["SECURITY_CODE"]),
-                "name": str(item["SECURITY_NAME_ABBR"]),
-                "price": _safe_float(item.get("NEW_PRICE", 0)),
-                "change_pct": _safe_float(item.get("CHANGE_RATE", 0)),
-                "pe_dynamic": pe,
-                "turnover_rate": _safe_float(item.get("TURNOVERRATE", 0)),
-                "market_cap_billion": _safe_float(item.get("TOTAL_MARKET_CAP", 0) / 1e8)
-            })
-
-        records.sort(key=lambda x: x["market_cap_billion"], reverse=True)
-        return {"sector": sector, "count": len(records[:limit]), "data": records[:limit],
-                "data_date": datetime.now().strftime("%Y-%m-%d")}
-    except Exception as e:
-        return {"error": f"板块数据获取失败: {str(e)}", "sector": sector,
-                "suggestion": "请检查板块名称或稍后重试"}
+    return {
+        "error": "板块筛选接口字段变更，功能暂不可用。建议: 使用 get_stock_info 查询个股信息",
+        "sector": sector,
+    }
 
 
 def screen_stocks_quality(sector: str, min_score: int = 50, max_pe: float = None, limit: int = 10) -> dict:
@@ -749,20 +675,7 @@ def get_hot_stocks(market: str = "A股") -> dict:
 
 
 def get_concept_stocks(concept: str) -> dict:
-    import akshare as ak
-    from datetime import datetime
-    try:
-        df = ak.stock_board_concept_cons_em(symbol=concept)
-        if df.empty:
-            return {"error": f"未找到概念: {concept}"}
-        records = [{"code": str(row["代码"]), "name": str(row["名称"]),
-                    "price": _safe_float(row["最新价"]), "change_pct": _safe_float(row["涨跌幅"]),
-                    "market_cap_billion": _safe_float(float(row.get("流通市值", 0)) / 1e8)}
-                   for _, row in df.iterrows()]
-        return {"concept": concept, "count": len(records), "data": records,
-                "data_date": datetime.now().strftime("%Y-%m-%d")}
-    except Exception as e:
-        return {"error": str(e), "concept": concept}
+    return {"error": "概念股接口不稳定，功能暂不可用", "concept": concept}
 
 
 def calculate_technical_indicators(symbol: str) -> dict:
@@ -1589,17 +1502,7 @@ def get_fund_holdings(symbol: str) -> dict:
 
 def get_top_fund_stocks() -> dict:
     """基金重仓股排行：被最多基金持有的股票"""
-    import akshare as ak
-    from datetime import datetime
-    try:
-        df = ak.fund_stock_rank_em()
-        if df is None or df.empty:
-            return {"error": "无基金重仓排行数据"}
-        records = df.head(30).to_dict(orient="records")
-        return {"count": len(records), "data": records,
-                "data_date": datetime.now().strftime("%Y-%m-%d")}
-    except Exception as e:
-        return {"error": str(e)}
+    return {"error": "akshare 已移除 fund_stock_rank_em 接口，该功能暂不可用"}
 
 
 # ===== 股东信息 =====
