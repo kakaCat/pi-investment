@@ -4,6 +4,7 @@ dist
 *.log
 .DS_Store
 .pi-invest
+.worktrees
 python/__pycache__
 python/*.pyc
 .claude
