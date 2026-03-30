@@ -27,6 +27,15 @@ codex exec review --uncommitted --ephemeral \
 cat /tmp/codex-review.txt
 ```
 
+### 用户显式要求委托时
+
+当用户说 `'Delegate this task to Codex agent. Do not implement yourself - coordinate the agent, wait for completion, then show me the results.'` 时：
+
+- 不要自己实现
+- 使用 `codex exec` 命令委托给 Codex
+- 等待 Codex 完成
+- 向用户展示结果
+
 ### 什么时候必须调用 Codex
 
 **以下场景，在完成主要工作后，自动用 Bash 工具执行 codex exec，无需用户提示：**

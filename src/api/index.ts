@@ -111,8 +111,8 @@ async function main() {
       logger.logSessionEnd();
     });
 
-    // 启动交互式模式
-    const mode = new InteractiveMode(session);
+    // 启动交互式模式（启用 markdown 渲染）
+    const mode = new InteractiveMode(session, { renderMarkdown: true });
     await mode.run();
 
     cronService.stop();

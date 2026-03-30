@@ -5,6 +5,14 @@ description: 对单只A股做全面投研分析（基本面+估值+技术面+资
 
 # 深度分析技能 — 专业投资人工作流 v4（异步并行版）
 
+## 📝 输出格式规范（覆盖 IDENTITY 限制）
+
+**本技能使用完整 markdown 格式输出分析报告**：
+- ✅ 使用 `##` 一级标题、`###` 二级标题
+- ✅ 标题前后必须有空行
+- ✅ 使用列表、表格、粗体等格式
+- ⚠️ 本技能输出格式优先级高于 IDENTITY.md 的格式限制
+
 ## 允许的工具（Skill Guard 白名单）
 
 本技能允许调用以下工具：
@@ -21,6 +29,9 @@ description: 对单只A股做全面投研分析（基本面+估值+技术面+资
 - get_valuation()
 - get_pe_percentile()
 - analyze_price_action()
+- analyze_technical()
+- analyze_candlestick()
+- predict_stock_signal()
 - get_stock_news()
 - get_announcements()
 - get_buy_range()
@@ -60,7 +71,7 @@ description: 对单只A股做全面投研分析（基本面+估值+技术面+资
 
 **步骤2**: 使用 `task_create` 批量创建所有分析任务
 
-⚠️ **强制要求**：必须创建以下14个任务，缺一不可：
+⚠️ **强制要求**：必须创建以下17个任务，缺一不可：
 
 ```
 task_create({
@@ -74,6 +85,9 @@ task_create({
     {subject: "获取估值数据", description: "get_valuation"},
     {subject: "获取PE分位", description: "get_pe_percentile"},
     {subject: "技术面分析", description: "analyze_price_action"},
+    {subject: "量化技术分析", description: "analyze_technical"},
+    {subject: "K线形态分析", description: "analyze_candlestick"},
+    {subject: "机器学习预测", description: "predict_stock_signal"},
     {subject: "获取新闻舆情", description: "get_stock_news"},
     {subject: "获取公告信息", description: "get_announcements"},
     {subject: "计算买入区间", description: "get_buy_range"},
@@ -84,7 +98,9 @@ task_create({
 ```
 
 **检查清单**（创建后自查）：
-- [ ] 14个任务全部创建
+- [ ] 17个任务全部创建
+- [ ] 包含 predict_stock_signal（量化预测）
+- [ ] 包含 analyze_candlestick（K线形态）
 - [ ] 包含 get_buy_range（买入区间）
 - [ ] 包含 manage_portfolio（持仓检查）
 - [ ] 包含 get_holder_changes（股东变化）
@@ -130,7 +146,7 @@ task_execute_async({
 
 ---
 
-### 🔍 Stage 3 — 第2步：估值 + 技术 + 舆情（异步并行）
+### 🔍 Stage 3 — 第2步：估值 + 技术 + 量化 + 舆情（异步并行）
 
 ```
 task_execute_async({
@@ -138,8 +154,11 @@ task_execute_async({
     {task_id: 7, tool_name: "get_valuation", params: {symbol: "600519"}},
     {task_id: 8, tool_name: "get_pe_percentile", params: {symbol: "600519"}},
     {task_id: 9, tool_name: "analyze_price_action", params: {symbol: "600519"}},
-    {task_id: 10, tool_name: "get_stock_news", params: {symbol: "600519"}},
-    {task_id: 11, tool_name: "get_announcements", params: {symbol: "600519"}}
+    {task_id: 10, tool_name: "analyze_technical", params: {symbol: "600519"}},
+    {task_id: 11, tool_name: "analyze_candlestick", params: {symbol: "600519"}},
+    {task_id: 12, tool_name: "predict_stock_signal", params: {symbol: "600519"}},
+    {task_id: 13, tool_name: "get_stock_news", params: {symbol: "600519"}},
+    {task_id: 14, tool_name: "get_announcements", params: {symbol: "600519"}}
   ]
 })
 ```
@@ -151,9 +170,9 @@ task_execute_async({
 ```
 task_execute_async({
   executions: [
-    {task_id: 12, tool_name: "get_buy_range", params: {symbol: "600519"}},
-    {task_id: 13, tool_name: "get_stock_fund_flow", params: {symbol: "600519"}},
-    {task_id: 14, tool_name: "get_holder_changes", params: {symbol: "600519"}}
+    {task_id: 15, tool_name: "get_buy_range", params: {symbol: "600519"}},
+    {task_id: 16, tool_name: "get_stock_fund_flow", params: {symbol: "600519"}},
+    {task_id: 17, tool_name: "get_holder_changes", params: {symbol: "600519"}}
   ]
 })
 ```
@@ -213,6 +232,7 @@ task_execute_async({
 - 质量：XX/100分（grade X），财务趋势XX
 - 估值：PE XX倍，历史XX%分位（低估/合理/高估）
 - 走势：短期XX，中期XX，支撑XX元，阻力XX元
+- 量化：上涨概率XX%，技术信号XX，K线形态XX
 - 主力：近5日XX亿，股东人数XX
 - 风险：XX（最重要的1-2条）
 
@@ -227,6 +247,7 @@ task_execute_async({
 
 - 估值详情：格雷厄姆估值、PB、市值对比
 - 技术详情：KDJ、RSI、CCI、MACD、量比、OBV、ATR、回撤、52周高低
+- 量化详情：上涨概率模型、K线形态分析、技术指标信号
 - 资金详情：龙虎榜、基金持仓、北向资金
 - 消息详情：公告解析、新闻舆情
 
@@ -244,3 +265,7 @@ task_execute_async({
 8. **购买指南强制输出**：结论为"买入"时，必须输出完整的【购买指南】区块
 9. **分批价格计算**：基于买入区间和技术支撑位，不能随意编造
 10. **资金示例真实性**：根据当前股价和建议仓位计算，确保可执行
+11. **量化分析强制**：所有股票分析必须包含量化预测（predict_stock_signal）
+12. **技术分析完整**：必须同时调用 analyze_price_action 和 analyze_candlestick
+13. **上涨概率权重**：上涨概率>70%为强看涨信号，<30%为强看跌信号
+14. **矛盾信号处理**：量化信号与传统分析矛盾时，在风险中明确说明

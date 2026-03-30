@@ -19,6 +19,7 @@ export const BOOTSTRAP_FILES = [
   "PORTFOLIO.md",
   "AGENTS.md",
   "HEARTBEAT.md",
+  "INVESTMENT_ADVICE.md",
 ];
 
 const MAX_FILE_CHARS = 20000;

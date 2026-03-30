@@ -18,6 +18,7 @@ import { investTools } from "./invest-tools.js";
 import { stockDBTools } from "./stock-db-tools.js";
 import { wrapInvestToolWithSkillGuard } from "../../services/intelligence/skill-guard.js";
 import { quantTools } from "./quant-tools.js";
+import { monitorTools } from "../../tools/monitor-tools.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./memory-tool.js";
@@ -47,6 +48,8 @@ export const allCustomTools = [
   ...stockDBTools,
   // 量化工具 — 策略回测与信号生成
   ...quantTools,
+  // 监控工具 — 实时盯盘
+  ...monitorTools,
   // 中频 — 记忆
   memoryWriteTool,
   memorySearchTool,

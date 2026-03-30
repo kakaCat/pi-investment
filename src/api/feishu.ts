@@ -95,6 +95,51 @@ function parseTextMessage(content: string): string | null {
 }
 
 async function sendReply(client: lark.Client, chatId: string, text: string): Promise<void> {
+  // 飞书卡片 Markdown 内容限制约 30000 字符
+  const MAX_CARD_LENGTH = 28000;
+  let content = text;
+
+  if (text.length > MAX_CARD_LENGTH) {
+    content = text.substring(0, MAX_CARD_LENGTH) + "\n\n...\n\n⚠️ 内容过长已截断，完整内容请查看后续消息";
+    console.warn(`⚠️ 飞书回复内容过长 (${text.length} 字符)，已截断至 ${MAX_CARD_LENGTH} 字符`);
+  }
+
+  const card = {
+    config: {
+      wide_screen_mode: true,
+    },
+    elements: [
+      {
+        tag: "markdown",
+        content,
+      },
+    ],
+    header: {
+      template: "blue",
+      title: {
+        tag: "plain_text",
+        content: "Pi Investment",
+      },
+    },
+  };
+
+  await client.im.message.create({
+    params: { receive_id_type: "chat_id" },
+    data: {
+      receive_id: chatId,
+      msg_type: "interactive",
+      content: JSON.stringify(card),
+    },
+  });
+
+  // 如果内容被截断，发送剩余部分
+  if (text.length > MAX_CARD_LENGTH) {
+    const remaining = text.substring(MAX_CARD_LENGTH);
+    await sendReply(client, chatId, remaining);
+  }
+}
+
+async function sendTextReply(client: lark.Client, chatId: string, text: string): Promise<void> {
   await client.im.message.create({
     params: { receive_id_type: "chat_id" },
     data: {
@@ -164,6 +209,7 @@ async function main(): Promise<void> {
 
       if ((session as any).agent?.state) {
         (session as any).agent.state.systemPrompt = systemPrompt;
+        logger.logSystemPrompt(systemPrompt, (session as any).agent.state.messages.length);
         microCompact((session as any).agent.state.messages);
 
         const totalTokens = ((session as any).agent.state.messages ?? []).reduce(
@@ -200,12 +246,15 @@ async function main(): Promise<void> {
 
   const dispatcher = new lark.EventDispatcher({}).register({
     "im.message.receive_v1": async (data: any) => {
+      console.log("📨 收到飞书消息事件");
       const message = data?.message;
       if (!message || message.message_type !== "text") {
+        console.log("⚠️ 消息类型不是 text，跳过");
         return;
       }
 
       if (sessionManager.isDuplicate(message.message_id)) {
+        console.log(`⚠️ 检测到重复消息: ${message.message_id}`);
         return;
       }
 
@@ -221,14 +270,18 @@ async function main(): Promise<void> {
 
       if (text.toLowerCase() === "stop") {
         const aborted = await sessionManager.abort(chatId);
-        await sendReply(client, chatId, aborted ? "已取消当前任务。" : "当前没有运行中的任务。");
+        await sendTextReply(client, chatId, aborted ? "已取消当前任务" : "当前没有运行中的任务");
         return;
       }
 
-      await sendReply(
+      // 发送即时确认消息（避免用户等待时无反馈）
+      // 注意：如果删除此确认消息，可能导致飞书重复发送问题
+      // 原因：飞书在未收到任何回复时会认为消息未送达，可能重发
+      // 如需删除，请确保在 sessionManager.isDuplicate() 中正确处理重复消息
+      await sendTextReply(
         client,
         chatId,
-        sessionManager.isProcessing(chatId) ? "任务处理中，消息已排队。" : "收到，正在处理。"
+        sessionManager.isProcessing(chatId) ? "任务处理中，消息已排队" : "收到，正在处理"
       );
 
       try {
@@ -238,7 +291,7 @@ async function main(): Promise<void> {
         }
       } catch (error) {
         console.error("❌ 飞书消息处理失败:", error instanceof Error ? error.message : String(error));
-        await sendReply(client, chatId, "抱歉，处理消息时出现错误，请稍后重试。");
+        await sendTextReply(client, chatId, "抱歉，处理消息时出现错误，请稍后重试。");
       }
     },
     "im.message.message_read_v1": async () => {},

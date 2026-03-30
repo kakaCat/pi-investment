@@ -5,8 +5,18 @@ import { Model } from "@mariozechner/pi-ai";
 import { join } from "path";
 import { BootstrapLoader } from "../services/intelligence/bootstrap-loader.js";
 
-// 启动时加载一次 bootstrap（skills/memory 在 agent-loop 里每轮更新）
+// Bootstrap loader 实例
 const _bootstrapLoader = new BootstrapLoader(join(process.cwd(), ".pi-invest"));
+
+/**
+ * 获取 bootstrap 数据（每次重新加载，确保修改后立即生效）
+ */
+export function getBootstrapData(): Record<string, string> {
+  return _bootstrapLoader.loadAll("full");
+}
+
+// 向后兼容：保留 bootstrapData 导出（但建议使用 getBootstrapData()）
+// 注意：这个会在模块加载时缓存，修改文件后需要重启进程
 export const bootstrapData = _bootstrapLoader.loadAll("full");
 
 /**

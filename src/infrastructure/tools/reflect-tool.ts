@@ -6,7 +6,7 @@
 import { Type } from "@sinclair/typebox";
 import { createReflectAgent } from "../../services/plan/reflect-agent.js";
 import { logSubagentStart, logSubagentEnd } from "../logging/observable-logger.js";
-import { bootstrapData } from "../../config/config.js";
+import { getBootstrapData } from "../../config/config.js";
 
 export const reflectTool = {
   name: "reflect",
@@ -30,7 +30,7 @@ export const reflectTool = {
       console.log("\n🪞 启动 Reflect Agent...");
       console.log(`🎯 目标: ${params.goal}`);
 
-      const evaluation = await createReflectAgent(params.goal, params.outcome, params.context, bootstrapData);
+      const evaluation = await createReflectAgent(params.goal, params.outcome, params.context, getBootstrapData());
 
       console.log("✅ 回顾评估完成\n");
       logSubagentEnd("reflect", evaluation, 1, 0, Date.now() - startTime);

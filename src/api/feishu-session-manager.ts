@@ -70,6 +70,7 @@ export class FeishuSessionManager {
 
   isDuplicate(messageId: string): boolean {
     if (this.messageIds.has(messageId)) {
+      console.log(`⚠️ 检测到重复消息: ${messageId}`);
       return true;
     }
 

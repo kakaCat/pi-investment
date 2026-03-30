@@ -25,7 +25,7 @@ import { join } from "path";
 import { createDeepSeekModel, paths } from "../../config/config.js";
 import { getSessionDir, getSessionKey, logSystemPrompt, logBootstrapFiles } from "../../infrastructure/logging/observable-logger.js";
 import { initSkillsBlock, autoRecall, readDailyMemory, buildAgentSystemPrompt } from "./system-prompt.js";
-import { bootstrapData } from "../../config/config.js";
+import { getBootstrapData } from "../../config/config.js";
 import { initSkillRouter, rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
 
 // 全局会话实例，复用同一个 session
@@ -120,7 +120,7 @@ export async function getSession(): Promise<AgentSession> {
       initBrowserTool(sessionDir);
       console.log(`📋 Session: ${getSessionKey()}`);
 
-      logBootstrapFiles(bootstrapData);
+      logBootstrapFiles(getBootstrapData());
       logSystemPrompt(buildAgentSystemPrompt({
         memoryContext: "",
         dailyMemory: "",
@@ -150,7 +150,20 @@ export async function agentLoop(messages: Message[]): Promise<void> {
   try {
     const agentSession = await getSession();
 
-    // 注入后台任务完成通知
+    // ============================================================
+    // 并行工具调用机制：注入后台任务完成通知
+    // ============================================================
+    // 工作原理：
+    // 1. Agent 上一轮调用了 background_run(taskId, toolName, params)
+    // 2. 工具在 Worker 线程中异步执行，不阻塞 Agent
+    // 3. 本轮开始时，drainNotifications() 获取所有已完成的任务
+    // 4. 将结果注入到 Agent 的消息历史中（作为 <background-results>）
+    // 5. Agent 看到结果后继续分析，或启动下一批并行任务
+    //
+    // 这样实现了真正的并行：
+    // - 上一轮：启动 3 个 background_run → 立即返回
+    // - 本轮：收到 3 个任务的结果 → 继续工作
+    // ============================================================
     const bgManager = getBackgroundManager();
     const notifications = bgManager.drainNotifications();
 

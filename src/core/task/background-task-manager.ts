@@ -2,6 +2,36 @@
  * BackgroundTaskManager - 异步工具调用管理器
  *
  * 参考 s08_background_tasks.py，但专注于工具调用而非 shell 命令
+ *
+ * 核心机制：实现真正的并行工具调用
+ * ==========================================
+ *
+ * 问题：Agent 直接调用工具是同步的（串行执行）
+ * - 调用 get_stock_info → 等待 2 秒 → 返回
+ * - 调用 get_quality_score → 等待 3 秒 → 返回
+ * - 调用 get_financial_data → 等待 2 秒 → 返回
+ * 总耗时：7 秒
+ *
+ * 解决：使用 Worker 线程实现真并行
+ * - background_run(1, "get_stock_info", {...}) → 立即返回
+ * - background_run(2, "get_quality_score", {...}) → 立即返回
+ * - background_run(3, "get_financial_data", {...}) → 立即返回
+ * - 三个工具在独立的 Worker 线程中并行执行
+ * - 下一轮通过 drainNotifications() 获取所有完成的结果
+ * 总耗时：3 秒（最慢的那个工具）
+ *
+ * 使用流程：
+ * 1. Agent 调用 task_create 创建任务追踪
+ * 2. Agent 调用 background_run 启动异步执行（立即返回）
+ * 3. Agent 继续其他工作或结束当前轮次
+ * 4. 下一轮 agent-loop.ts 自动调用 drainNotifications()
+ * 5. 将完成的任务结果注入到 Agent 的上下文中
+ *
+ * 关键点：
+ * - background_run 不阻塞，立即返回任务 ID
+ * - 工具在 Worker 线程中执行，不影响主线程
+ * - 多个 background_run 可以真正并行执行
+ * - Agent 必须在系统提示词中被告知使用这个机制
  */
 import { Worker } from "worker_threads";
 import { randomUUID } from "crypto";

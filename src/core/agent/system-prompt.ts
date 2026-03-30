@@ -12,7 +12,7 @@ import { join } from "path";
 import { readFileSync, existsSync } from "fs";
 import { getMemoryStore } from "../../services/intelligence/memory-store.js";
 import { buildSystemPrompt } from "../../services/intelligence/system-prompt-builder.js";
-import { bootstrapData } from "../../config/config.js";
+import { getBootstrapData } from "../../config/config.js";
 import type { PluginSkill } from "../../infrastructure/plugins/index.js";
 import { chinaDate } from "../../utils/china-time.js";
 
@@ -121,7 +121,7 @@ export function buildAgentSystemPrompt(params: {
   const customToolsBlock = tools.map(t => `- ${t.name}: ${t.description}`).join("\n");
 
   return buildSystemPrompt({
-    bootstrap: bootstrapData,
+    bootstrap: getBootstrapData(),
     skillsBlock,
     memoryContext,
     dailyMemory,

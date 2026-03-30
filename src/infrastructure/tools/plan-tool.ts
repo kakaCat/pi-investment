@@ -8,7 +8,7 @@ import { Type } from "@sinclair/typebox";
 import { createPlanAgent } from "../../services/plan/plan-agent.js";
 import { logSubagentStart, logSubagentEnd } from "../logging/observable-logger.js";
 import type { ToolDefinition } from "./index.js";
-import { bootstrapData } from "../../config/config.js";
+import { getBootstrapData } from "../../config/config.js";
 
 let availableTools: ToolDefinition[] = [];
 
@@ -44,7 +44,7 @@ export const planTool = {
         description: t.description
       }));
 
-      const plan = await createPlanAgent(params.task, params.context, toolsForPlan, bootstrapData);
+      const plan = await createPlanAgent(params.task, params.context, toolsForPlan, getBootstrapData());
 
       console.log("✅ 计划生成完成\n");
 
