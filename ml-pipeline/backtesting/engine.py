@@ -1,10 +1,16 @@
 """回测引擎"""
 
+from __future__ import annotations
+
 from statistics import fmean, pstdev
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from backtesting.risk_manager import RiskManager
+
+if TYPE_CHECKING:
+    from strategies.base import BaseStrategy
 
 
 class BacktestEngine:
@@ -75,8 +81,20 @@ class BacktestEngine:
 
         return aligned[list(self.REQUIRED_COLUMNS)], aligned['signal']
 
-    def run(self, df: pd.DataFrame, signals: pd.Series):
+    def run(
+        self,
+        df: pd.DataFrame,
+        signals: pd.Series | None = None,
+        strategy: BaseStrategy | None = None,
+    ):
         self._reset()
+        if strategy is not None:
+            if signals is not None:
+                raise ValueError('Pass either signals or strategy, not both')
+            signals = strategy.generate_signals(df.copy())
+        if signals is None:
+            raise ValueError('Backtest requires signals or a strategy')
+
         df, signals = self._prepare_inputs(df, signals)
         equity_curve = []
 

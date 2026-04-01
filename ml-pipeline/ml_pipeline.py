@@ -11,11 +11,28 @@ from db import Database
 from backtesting.engine import BacktestEngine
 from features.technical import TechnicalFeatures
 from inference.predictor import SignalPredictor
+from strategies.mean_reversion import MeanReversionStrategy
+from strategies.momentum import MomentumStrategy
+from strategies.trend_following import TrendFollowingStrategy
 
 try:
     from training.trainer import SignalTrainer
 except ModuleNotFoundError:
     SignalTrainer = None
+
+
+STRATEGY_FACTORIES = {
+    'mean_reversion': MeanReversionStrategy,
+    'momentum': MomentumStrategy,
+    'trend_following': TrendFollowingStrategy,
+}
+
+
+def _get_strategy(name: str):
+    strategy_cls = STRATEGY_FACTORIES.get(name)
+    if strategy_cls is None:
+        raise ValueError(f'不支持的策略 {name}')
+    return strategy_cls()
 
 
 def _train_signal_model() -> int:
@@ -81,13 +98,31 @@ def _predict_signal(symbol: str) -> int:
             print(f"[Predict] 错误: 没有 {symbol} 的数据")
             return 1
 
+        # 修复数据
+        if 'turnover_rate' in df.columns:
+            df['turnover_rate'] = pd.to_numeric(df['turnover_rate'], errors='coerce')
+            df['turnover_rate'] = df['turnover_rate'].fillna(1.0)
+        
+        # 确保数值类型
+        numeric_cols = ['open', 'high', 'low', 'close', 'volume', 'amount']
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+
         featured = TechnicalFeatures.calculate_all(df)
         if featured.empty:
             print("[Predict] 错误: 特征计算失败")
             return 1
 
-        X = featured.drop(columns=["label", "symbol", "date"], errors="ignore")
-        X = X.select_dtypes(include="number")
+        # 只保留模型训练时有的特征
+        required_features = ['open', 'high', 'low', 'close', 'volume', 'amount', 
+                           'ma5', 'ma10', 'ma20', 'ma60', 'rsi', 'macd', 'macd_signal', 
+                           'macd_hist', 'bb_middle', 'bb_std', 'bb_upper', 'bb_lower', 
+                           'bb_width', 'tr', 'atr', 'price_change', 'volume_change']
+        
+        # 只保留需要的特征
+        available_features = [f for f in required_features if f in featured.columns]
+        X = featured[available_features]
 
         predictor = SignalPredictor()
         proba = predictor.predict(X.tail(1))
@@ -186,10 +221,50 @@ def _backtest_signal() -> int:
             X = X.select_dtypes(include="number")
 
             proba = predictor.predict(X)
-            signals = (proba > 0.6).astype(int)
+            signals = pd.Series((proba > 0.6).astype(int), index=featured['date'])
 
             engine = BacktestEngine()
-            result = engine.run(featured[["date", "close"]], pd.Series(signals))
+            result = engine.run(featured, signals=signals)
+            results.append({"symbol": symbol, **result})
+
+        print("[Backtest] 回测结果")
+        for result in results:
+            print(
+                f"{result['symbol']}: 收益率 {result['return']:.2f}%, "
+                f"交易次数 {result['trades']}, "
+                f"胜率 {result['win_rate']:.2f}%, "
+                f"最大回撤 {result['max_drawdown']:.2f}%, "
+                f"夏普比率 {result['sharpe_ratio']:.2f}"
+            )
+        return 0
+    finally:
+        db.close()
+
+
+def _backtest_strategy(name: str) -> int:
+    try:
+        strategy = _get_strategy(name)
+    except ValueError as exc:
+        print(f"[Backtest] 错误: {exc}", file=sys.stderr)
+        return 1
+
+    db = Database()
+
+    try:
+        symbols = db.get_all_symbols()[:5]
+
+        results = []
+        for symbol in symbols:
+            df = db.get_klines(symbol, 500)
+            if df.empty:
+                continue
+
+            featured = TechnicalFeatures.calculate_all(df)
+            if featured.empty:
+                continue
+
+            engine = BacktestEngine()
+            result = engine.run(featured, strategy=strategy)
             results.append({"symbol": symbol, **result})
 
         print("[Backtest] 回测结果")
@@ -225,7 +300,8 @@ def main(argv=None):
 
     # backtest 命令
     backtest_parser = subparsers.add_parser('backtest')
-    backtest_parser.add_argument('--model', default='signal')
+    backtest_parser.add_argument('--model')
+    backtest_parser.add_argument('--strategy')
 
     # list-models 命令
     list_parser = subparsers.add_parser('list-models')
@@ -249,8 +325,12 @@ def main(argv=None):
         print(f"[Evaluate] 评估模型: {args.model}")
         return _evaluate_signal_model()
     elif args.command == 'backtest':
-        if args.model != 'signal':
-            print(f"[Backtest] 错误: 不支持的模型 {args.model}", file=sys.stderr)
+        if args.strategy:
+            return _backtest_strategy(args.strategy)
+
+        model = args.model or 'signal'
+        if model != 'signal':
+            print(f"[Backtest] 错误: 不支持的模型 {model}", file=sys.stderr)
             return 1
         return _backtest_signal()
     elif args.command == 'list-models':

@@ -12,4 +12,8 @@ export class QuantService {
   backtest(): string {
     return execSync('python ml-pipeline/ml_pipeline.py backtest', { encoding: 'utf-8' });
   }
+
+  backtestStrategy(name: string): string {
+    return execSync(`python ml-pipeline/ml_pipeline.py backtest --strategy ${name}`, { encoding: 'utf-8' });
+  }
 }

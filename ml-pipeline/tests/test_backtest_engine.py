@@ -147,3 +147,28 @@ class TestBacktestEngine(unittest.TestCase):
         self.assertAlmostEqual(result['final_value'], 103000.0)
         self.assertEqual(engine.trades[0]['date'], pd.Timestamp('2024-01-02'))
         self.assertEqual(engine.trades[1]['date'], pd.Timestamp('2024-01-03'))
+
+    def test_run_supports_strategy_object(self):
+        class TestStrategy:
+            def generate_signals(self, df):
+                return pd.Series(
+                    [1, 0],
+                    index=pd.Index(df['date'].iloc[1:3], name='date'),
+                )
+
+        engine = BacktestEngine(
+            initial_capital=100000,
+            risk_manager=RiskManager(stop_loss=0.05, take_profit=0.50, max_position=0.3),
+        )
+        df = pd.DataFrame(
+            {
+                'date': ['2024-01-01', '2024-01-02', '2024-01-03'],
+                'close': [9.0, 10.0, 11.0],
+                'volume': [1000, 1100, 1200],
+            }
+        )
+
+        result = engine.run(df, strategy=TestStrategy())
+
+        self.assertEqual(result['trades'], 2)
+        self.assertAlmostEqual(result['final_value'], 103000.0)

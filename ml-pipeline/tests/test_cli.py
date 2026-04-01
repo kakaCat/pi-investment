@@ -240,3 +240,71 @@ class TestCLI(unittest.TestCase):
             '000000: 收益率 5.00%, 交易次数 2, 胜率 50.00%, 最大回撤 10.00%, 夏普比率 1.20',
             stdout.getvalue(),
         )
+
+    @patch('ml_pipeline.BacktestEngine', create=True)
+    @patch('ml_pipeline._get_strategy', create=True)
+    @patch('ml_pipeline.TechnicalFeatures', create=True)
+    @patch('ml_pipeline.Database', create=True)
+    def test_backtest_strategy_command(self, mock_database_cls, mock_features_cls, mock_get_strategy, mock_engine_cls):
+        stock_symbols = [f'{i:06d}' for i in range(10)]
+        feature_df = pd.DataFrame(
+            {
+                'date': ['2024-01-01', '2024-01-02'],
+                'close': [10.0, 11.0],
+                'volume': [100, 110],
+                'symbol': ['000001', '000001'],
+                'ma20': [9.5, 10.5],
+                'ma60': [9.0, 10.0],
+                'rsi': [40.0, 55.0],
+                'macd': [0.2, 0.4],
+                'macd_signal': [0.1, 0.2],
+                'macd_hist': [0.1, 0.2],
+                'bb_lower': [9.0, 10.0],
+                'label': [0, 1],
+            }
+        )
+
+        mock_db = MagicMock()
+        mock_db.get_all_symbols.return_value = stock_symbols
+        mock_db.get_klines.return_value = feature_df[['date', 'close', 'volume']]
+        mock_database_cls.return_value = mock_db
+        mock_features_cls.calculate_all.return_value = feature_df
+
+        strategy = MagicMock()
+        strategy.name = 'momentum'
+        mock_get_strategy.return_value = strategy
+
+        mock_engine = MagicMock()
+        mock_engine.run.return_value = {
+            'initial_capital': 100000,
+            'final_value': 108000,
+            'return': 8.0,
+            'trades': 3,
+            'win_rate': 66.67,
+            'max_drawdown': 7.5,
+            'sharpe_ratio': 1.8,
+        }
+        mock_engine_cls.return_value = mock_engine
+
+        stdout = StringIO()
+        with patch('sys.stdout', stdout):
+            result = main(['backtest', '--strategy', 'momentum'])
+
+        self.assertEqual(result, 0)
+        mock_get_strategy.assert_called_once_with('momentum')
+        self.assertEqual(mock_db.get_klines.call_count, 5)
+        self.assertEqual(mock_engine.run.call_count, 5)
+        run_args, run_kwargs = mock_engine.run.call_args
+        self.assertTrue(run_args[0].equals(feature_df))
+        self.assertEqual(run_kwargs, {'strategy': strategy})
+        self.assertIn('[Backtest] 回测结果', stdout.getvalue())
+
+    @patch('ml_pipeline.Database', create=True)
+    def test_backtest_strategy_command_returns_1_for_unknown_strategy(self, mock_database_cls):
+        stderr = StringIO()
+        with patch('sys.stderr', stderr):
+            result = main(['backtest', '--strategy', 'unknown'])
+
+        self.assertEqual(result, 1)
+        mock_database_cls.assert_not_called()
+        self.assertIn('不支持的策略 unknown', stderr.getvalue())
