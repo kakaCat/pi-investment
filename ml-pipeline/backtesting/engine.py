@@ -8,6 +8,8 @@ from backtesting.risk_manager import RiskManager
 
 
 class BacktestEngine:
+    REQUIRED_COLUMNS = ('date', 'close', 'volume')
+
     def __init__(self, initial_capital: float = 100000, risk_manager: RiskManager | None = None):
         self.initial_capital = initial_capital
         self.capital = initial_capital
@@ -36,8 +38,46 @@ class BacktestEngine:
         self.buy_price = 0
         self.trades = []
 
+    def _prepare_inputs(self, df: pd.DataFrame, signals: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
+        missing_columns = [column for column in self.REQUIRED_COLUMNS if column not in df.columns]
+        if missing_columns:
+            missing = ', '.join(missing_columns)
+            raise ValueError(f'Backtest data missing required columns: {missing}')
+
+        market_data = df.loc[:, list(self.REQUIRED_COLUMNS)].copy()
+        market_data['date'] = pd.to_datetime(market_data['date'], errors='coerce')
+        market_data['close'] = pd.to_numeric(market_data['close'], errors='coerce')
+        market_data['volume'] = pd.to_numeric(market_data['volume'], errors='coerce')
+        market_data = market_data.replace([float('inf'), float('-inf')], pd.NA)
+
+        if market_data.isna().any().any():
+            raise ValueError('Backtest data contains invalid date/close/volume values')
+
+        market_data = market_data.sort_values('date').drop_duplicates(subset=['date'], keep='last')
+        signal_series = pd.Series(signals, copy=True)
+        signal_values = pd.to_numeric(signal_series, errors='coerce')
+        if signal_values.isna().any():
+            raise ValueError('Signals contain invalid values')
+
+        if len(signal_values) == len(market_data) and isinstance(signal_values.index, pd.RangeIndex):
+            return market_data.reset_index(drop=True), signal_values.reset_index(drop=True)
+
+        signal_dates = pd.to_datetime(signal_series.index, errors='coerce')
+        if signal_dates.isna().any():
+            raise ValueError('Signals must match market data length or use a valid date index')
+
+        signal_frame = pd.DataFrame({'date': signal_dates, 'signal': signal_values.to_numpy()})
+        signal_frame = signal_frame.sort_values('date').drop_duplicates(subset=['date'], keep='last')
+
+        aligned = market_data.merge(signal_frame, on='date', how='inner').reset_index(drop=True)
+        if aligned.empty:
+            raise ValueError('Signals do not align with market data')
+
+        return aligned[list(self.REQUIRED_COLUMNS)], aligned['signal']
+
     def run(self, df: pd.DataFrame, signals: pd.Series):
         self._reset()
+        df, signals = self._prepare_inputs(df, signals)
         equity_curve = []
 
         for i in range(len(df)):

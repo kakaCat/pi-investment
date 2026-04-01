@@ -23,6 +23,7 @@ class TestBacktestEngine(unittest.TestCase):
             {
                 'date': ['2024-01-01', '2024-01-02', '2024-01-03'],
                 'close': [10.0, 11.0, 12.0],
+                'volume': [1000, 1100, 1200],
             }
         )
         signals = pd.Series([0, 1, 0])
@@ -48,6 +49,7 @@ class TestBacktestEngine(unittest.TestCase):
             {
                 'date': ['2024-01-01', '2024-01-02', '2024-01-03'],
                 'close': [100.0, 94.0, 95.0],
+                'volume': [1000, 1100, 1200],
             }
         )
         signals = pd.Series([1, 0, 0])
@@ -71,6 +73,7 @@ class TestBacktestEngine(unittest.TestCase):
             {
                 'date': ['2024-01-01', '2024-01-02', '2024-01-03'],
                 'close': [100.0, 111.0, 112.0],
+                'volume': [1000, 1100, 1200],
             }
         )
         signals = pd.Series([1, 0, 0])
@@ -94,6 +97,7 @@ class TestBacktestEngine(unittest.TestCase):
             {
                 'date': ['2024-01-01', '2024-01-02', '2024-01-03', '2024-01-04'],
                 'close': [100.0, 111.0, 90.0, 108.0],
+                'volume': [1000, 1100, 1200, 1300],
             }
         )
         signals = pd.Series([1, 0, 1, 0])
@@ -106,3 +110,40 @@ class TestBacktestEngine(unittest.TestCase):
         self.assertAlmostEqual(result['win_rate'], 100.0)
         self.assertAlmostEqual(result['max_drawdown'], 0.0)
         self.assertAlmostEqual(result['sharpe_ratio'], 3.444444444444444)
+
+    def test_run_raises_when_required_columns_are_missing(self):
+        engine = BacktestEngine()
+        df = pd.DataFrame(
+            {
+                'date': ['2024-01-01', '2024-01-02'],
+                'close': [10.0, 11.0],
+            }
+        )
+        signals = pd.Series([0, 1])
+
+        with self.assertRaisesRegex(ValueError, 'volume'):
+            engine.run(df, signals)
+
+    def test_run_aligns_signals_by_date_index(self):
+        engine = BacktestEngine(
+            initial_capital=100000,
+            risk_manager=RiskManager(stop_loss=0.05, take_profit=0.50, max_position=0.3),
+        )
+        df = pd.DataFrame(
+            {
+                'date': ['2024-01-01', '2024-01-02', '2024-01-03'],
+                'close': [9.0, 10.0, 11.0],
+                'volume': [1000, 1100, 1200],
+            }
+        )
+        signals = pd.Series(
+            [1, 0],
+            index=pd.Index(['2024-01-02', '2024-01-03'], name='date'),
+        )
+
+        result = engine.run(df, signals)
+
+        self.assertEqual(result['trades'], 2)
+        self.assertAlmostEqual(result['final_value'], 103000.0)
+        self.assertEqual(engine.trades[0]['date'], pd.Timestamp('2024-01-02'))
+        self.assertEqual(engine.trades[1]['date'], pd.Timestamp('2024-01-03'))
