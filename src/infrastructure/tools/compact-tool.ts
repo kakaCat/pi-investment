@@ -4,6 +4,7 @@
 import { Type } from "@sinclair/typebox";
 import { generateSummary } from "@mariozechner/pi-coding-agent";
 import type { AgentSession } from "@mariozechner/pi-coding-agent";
+import { getMessages, getModel } from "../../core/agent/session-adapter.js";
 
 let sessionRef: AgentSession | null = null;
 
@@ -31,11 +32,11 @@ export const compactTool = {
     }
 
     try {
-      const messages = (sessionRef as any).agent.state.messages;
+      const messages = getMessages(sessionRef);
       const beforeCount = messages.length;
 
       // 生成摘要（SDK 会自动处理压缩和保存 CompactionEntry）
-      const model = (sessionRef as any).agent.model;
+      const model = getModel(sessionRef);
       const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY || "";
 
       await generateSummary(messages, model, 16384, apiKey, undefined, params.focus);
