@@ -78,12 +78,6 @@ function getKlineCache() {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-<<<<<<< HEAD
-const execFileAsync = promisify(execFile);
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
-
-=======
->>>>>>> worktree-agent-a8fe60dcad5340f19
 function r2(v: number | null): number { return roundN(v, 2) ?? 0; }
 function r4(v: number | null): number { return roundN(v, 4) ?? 0; }
 
