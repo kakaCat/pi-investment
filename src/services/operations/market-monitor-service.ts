@@ -7,6 +7,39 @@ import { get_stock_realtime_price } from "../../infrastructure/akshare-ts/index.
 import { quickFilter, type Quote } from "./market-filter.js";
 import { paths } from "../../config/config.js";
 
+export function isWithinTradingHours(date: Date): boolean {
+  const shanghai = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
+  const day = shanghai.getDay();
+  const hour = shanghai.getHours();
+  const minute = shanghai.getMinutes();
+
+  // Weekend
+  if (day === 0 || day === 6) return false;
+
+  // Before 09:30
+  if (hour < 9 || (hour === 9 && minute < 30)) return false;
+
+  // After 15:00
+  if (hour >= 15) return false;
+
+  return true;
+}
+
+export class AlertDeduper {
+  private lastSent: Map<string, number> = new Map();
+  private readonly COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+
+  shouldNotify(symbol: string, now: number): boolean {
+    const last = this.lastSent.get(symbol);
+    if (!last) return true;
+    return now - last >= this.COOLDOWN_MS;
+  }
+
+  markSent(symbol: string, now: number): void {
+    this.lastSent.set(symbol, now);
+  }
+}
+
 const MONITOR_SYSTEM_PROMPT = `你是实时盯盘助手。
 
 职责：

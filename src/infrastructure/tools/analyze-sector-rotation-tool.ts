@@ -62,7 +62,7 @@ export const analyzeSectorRotationTool: ToolDefinition = {
           price: Number(s.price || s.latest_price || 0),
           changePct: Number(s.change_pct || s.pct_chg || 0),
         }))
-        .sort((a, b) => b.netInflow - a.netInflow);
+        .sort((a: any, b: any) => b.netInflow - a.netInflow);
 
       const topGainers = sorted.slice(0, 5);
       const topDecliners = sorted.slice(-5).reverse();
