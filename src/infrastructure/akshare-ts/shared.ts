@@ -2,7 +2,6 @@
  * Shared utilities, types, and services for akshare-ts
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
