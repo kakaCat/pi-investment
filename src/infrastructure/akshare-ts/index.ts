@@ -12,8 +12,8 @@ import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { fileURLToPath } from "url";
-import { memoryService } from "../../services/cache/cache-service.js";
-import { stockMemoryService } from "../../services/memory/stock-memory-service.js";
+import { memoryService } from "../../services/data/cache-service.js";
+import { stockMemoryService } from "../../services/data/stock-memory-service.js";
 import {
   fetchSinaAShareRealtime, fetchSinaHKRealtime, fetchSinaIndices,
   fetchSinaKlines, klinesToNumbers,
@@ -27,7 +27,7 @@ import {
   candlestickPatterns, trendLines, fibonacci, priceGaps,
 } from "../data-sources/technical.js";
 import { safeFloat, today, nowStr } from "../data-sources/http-client.js";
-import { StockDBService, KlineCacheService } from "../../services/stock-db/index.js";
+import { StockDBService, KlineCacheService } from "../../services/data/stock-db-index.js";
 
 // ─── Shared Services (懒加载避免循环依赖) ──────────────────────────────────
 const piDir = ".pi-invest";
