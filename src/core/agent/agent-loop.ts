@@ -44,10 +44,6 @@ let session: AgentSession | null = null;
 // 插件贡献的工具（在 getSession 中初始化）
 let pluginTools: ToolDefinition[] = [];
 
-function getWorkspaceDir(): string {
-  return join(getSessionDir(), "workspace");
-}
-
 /** 返回内置工具 + 插件工具的合并列表 */
 function getEffectiveTools(): ToolDefinition[] {
   return [...allCustomTools, ...pluginTools];
@@ -113,13 +109,13 @@ export async function getSession(): Promise<AgentSession> {
       setPlanToolContext(effectiveTools);
 
       const result = await createAgentSession({
-        cwd: getWorkspaceDir(),
+        cwd: paths.root,
         model: createDeepSeekModel(),
         systemPrompt: () => buildAgentSystemPrompt({
           memoryContext: "",
           dailyMemory: "",
           tools: getEffectiveTools(),
-          workspaceDir: getWorkspaceDir(),
+          workspaceDir: paths.root,
         }),
         customTools: effectiveTools,
         skills,
@@ -136,7 +132,7 @@ export async function getSession(): Promise<AgentSession> {
         memoryContext: "",
         dailyMemory: "",
         tools: effectiveTools,
-        workspaceDir: getWorkspaceDir(),
+        workspaceDir: paths.root,
       }), 0);
 
       initTaskTools(join(sessionDir, "tasks"));
@@ -213,7 +209,7 @@ export async function agentLoop(messages: Message[]): Promise<void> {
       memoryContext,
       dailyMemory,
       tools: getEffectiveTools(),
-      workspaceDir: getWorkspaceDir(),
+      workspaceDir: paths.root,
     });
     setSystemPrompt(agentSession, newSystemPrompt);
     logSystemPrompt(newSystemPrompt, getMessageCount(agentSession));

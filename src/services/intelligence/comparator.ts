@@ -42,9 +42,9 @@ export function checkTargetRealistic(
     reasons.push(`目标超出大盘${vsMarket.toFixed(1)}%，过于激进`);
   }
 
-  // 检查2：对比历史平均
+  // 检查2：对比历史平均（仅当历史收益为正时有意义）
   const avgHistorical = historicalReturns.reduce((a, b) => a + b, 0) / historicalReturns.length;
-  if (target > avgHistorical * 2) {
+  if (avgHistorical > 0 && target > avgHistorical * 2) {
     realistic = false;
     reasons.push(`目标是历史平均的${(target / avgHistorical).toFixed(1)}倍，不现实`);
   }

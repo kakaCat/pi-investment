@@ -71,27 +71,27 @@ export const analyzeSectorRotationTool: ToolDefinition = {
       const signals: string[] = [];
 
       // Strong inflow sectors
-      const strongInflow = topGainers.filter(s => s.netInflow > 0 && s.inflowPct > 2);
+      const strongInflow = topGainers.filter((s: any) => s.netInflow > 0 && s.inflowPct > 2);
       if (strongInflow.length > 0) {
-        signals.push(`强势流入: ${strongInflow.map(s => s.name).join(", ")}`);
+        signals.push(`强势流入: ${strongInflow.map((s: any) => s.name).join(", ")}`);
       }
 
       // Strong outflow sectors
-      const strongOutflow = topDecliners.filter(s => s.netInflow < 0 && s.inflowPct < -2);
+      const strongOutflow = topDecliners.filter((s: any) => s.netInflow < 0 && s.inflowPct < -2);
       if (strongOutflow.length > 0) {
-        signals.push(`强势流出: ${strongOutflow.map(s => s.name).join(", ")}`);
+        signals.push(`强势流出: ${strongOutflow.map((s: any) => s.name).join(", ")}`);
       }
 
       // Format output
       let output = `# 行业轮动分析 (近${days}日)\n\n`;
 
       output += `## 资金流入TOP5\n`;
-      topGainers.forEach((s, i) => {
+      topGainers.forEach((s: any, i: number) => {
         output += `${i + 1}. ${s.name}: 净流入 ${(s.netInflow / 1e8).toFixed(2)}亿 (${s.inflowPct.toFixed(2)}%), 涨跌 ${s.changePct.toFixed(2)}%\n`;
       });
 
       output += `\n## 资金流出TOP5\n`;
-      topDecliners.forEach((s, i) => {
+      topDecliners.forEach((s: any, i: number) => {
         output += `${i + 1}. ${s.name}: 净流出 ${(Math.abs(s.netInflow) / 1e8).toFixed(2)}亿 (${s.inflowPct.toFixed(2)}%), 涨跌 ${s.changePct.toFixed(2)}%\n`;
       });
 
