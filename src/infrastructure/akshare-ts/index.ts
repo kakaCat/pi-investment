@@ -28,6 +28,7 @@ import {
 } from "../data-sources/technical.js";
 import { safeFloat, today, nowStr } from "../data-sources/http-client.js";
 import { StockDBService, KlineCacheService } from "../../services/data/stock-db-index.js";
+import { callPythonDaemon } from "../tools/python-bridge.js";
 
 // ─── Shared Services (懒加载避免循环依赖) ──────────────────────────────────
 const piDir = ".pi-invest";
@@ -48,7 +49,6 @@ function getKlineCache() {
 
 const execFileAsync = promisify(execFile);
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
-const pythonScript = join(__dirname, "..", "..", "..", "python", "akshare_bridge.py");
 
 function r2(v: number | null): number { return roundN(v, 2) ?? 0; }
 function r4(v: number | null): number { return roundN(v, 4) ?? 0; }
@@ -56,12 +56,8 @@ function r4(v: number | null): number { return roundN(v, 4) ?? 0; }
 type JsonRecord = Record<string, unknown>;
 
 async function callPythonBridge(func: string, args: Record<string, unknown> = {}): Promise<JsonRecord> {
-  const { stdout } = await execFileAsync(
-    "python3",
-    [pythonScript, func, JSON.stringify(args)],
-    { timeout: 60000 },
-  );
-  return JSON.parse(stdout.trim()) as JsonRecord;
+  const result = await callPythonDaemon(func, args);
+  return JSON.parse(result) as JsonRecord;
 }
 
 function toNumber(value: unknown): number {

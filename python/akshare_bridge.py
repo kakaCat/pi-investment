@@ -1980,18 +1980,125 @@ FUNCTIONS = {
     "get_hk_analysis": get_hk_analysis,
 }
 
+def daemon_mode():
+    """
+    Daemon mode: read JSON-RPC requests from stdin, execute functions, write responses to stdout.
+
+    Request format:
+        {"jsonrpc": "2.0", "id": 1, "method": "get_stock_info", "params": {"symbol": "600519"}}
+
+    Response format:
+        {"jsonrpc": "2.0", "id": 1, "result": {...}}
+        {"jsonrpc": "2.0", "id": 1, "error": {"code": -32603, "message": "..."}}
+    """
+    import sys
+
+    # Ensure stdout is line-buffered for immediate response delivery
+    sys.stdout.reconfigure(line_buffering=True)
+
+    while True:
+        try:
+            line = sys.stdin.readline()
+            if not line:
+                # EOF reached, exit gracefully
+                break
+
+            line = line.strip()
+            if not line:
+                continue
+
+            # Parse JSON-RPC request
+            try:
+                request = json.loads(line)
+            except json.JSONDecodeError as e:
+                # Invalid JSON, send error response without ID
+                error_response = {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32700, "message": f"Parse error: {str(e)}"}
+                }
+                print(json.dumps(error_response, ensure_ascii=False), flush=True)
+                continue
+
+            req_id = request.get("id")
+            method = request.get("method")
+            params = request.get("params", {})
+
+            # Validate request
+            if request.get("jsonrpc") != "2.0":
+                error_response = {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32600, "message": "Invalid Request: jsonrpc must be '2.0'"}
+                }
+                print(json.dumps(error_response, ensure_ascii=False), flush=True)
+                continue
+
+            if not method or not isinstance(method, str):
+                error_response = {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32600, "message": "Invalid Request: method is required"}
+                }
+                print(json.dumps(error_response, ensure_ascii=False), flush=True)
+                continue
+
+            # Execute function
+            func = FUNCTIONS.get(method)
+            if not func:
+                error_response = {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32601, "message": f"Method not found: {method}"}
+                }
+                print(json.dumps(error_response, ensure_ascii=False), flush=True)
+                continue
+
+            try:
+                result = func(**params)
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "result": result
+                }
+                print(json.dumps(response, ensure_ascii=False, default=str), flush=True)
+            except Exception as e:
+                error_response = {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {
+                        "code": -32603,
+                        "message": str(e),
+                        "data": {"trace": traceback.format_exc()}
+                    }
+                }
+                print(json.dumps(error_response, ensure_ascii=False), flush=True)
+
+        except KeyboardInterrupt:
+            # Graceful shutdown on Ctrl+C
+            break
+        except Exception as e:
+            # Unexpected error in main loop
+            sys.stderr.write(f"Daemon loop error: {str(e)}\n")
+            sys.stderr.flush()
+
+
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print(json.dumps({"error": "Usage: akshare_bridge.py <function> [json_args]"}))
+    if len(sys.argv) >= 2 and sys.argv[1] == "--daemon":
+        daemon_mode()
+    elif len(sys.argv) < 2:
+        print(json.dumps({"error": "Usage: akshare_bridge.py <function> [json_args] OR akshare_bridge.py --daemon"}))
         sys.exit(1)
-    func_name = sys.argv[1]
-    args = json.loads(sys.argv[2]) if len(sys.argv) > 2 else {}
-    func = FUNCTIONS.get(func_name)
-    if not func:
-        print(json.dumps({"error": f"Unknown function: {func_name}"}))
-        sys.exit(1)
-    try:
-        result = func(**args)
-        print(json.dumps(result, ensure_ascii=False, default=str))
-    except Exception as e:
-        print(json.dumps({"error": str(e), "trace": traceback.format_exc()}))
+    else:
+        # Legacy CLI mode
+        func_name = sys.argv[1]
+        args = json.loads(sys.argv[2]) if len(sys.argv) > 2 else {}
+        func = FUNCTIONS.get(func_name)
+        if not func:
+            print(json.dumps({"error": f"Unknown function: {func_name}"}))
+            sys.exit(1)
+        try:
+            result = func(**args)
+            print(json.dumps(result, ensure_ascii=False, default=str))
+        except Exception as e:
+            print(json.dumps({"error": str(e), "trace": traceback.format_exc()}))
