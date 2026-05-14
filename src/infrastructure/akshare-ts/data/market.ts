@@ -4,8 +4,11 @@
 
 import {
   fetchSinaAShareRealtime, fetchSinaIndices, fetchSinaHKRealtime,
-  parseSinaAShare, parseSinaHK, cleanSymbol, sinaSymbol, hkCode,
+  parseSinaAShare, parseSinaHK, cleanSymbol as cleanSymbolInternal, sinaSymbol, hkCode,
 } from "../../data-sources/sina.js";
+
+// Re-export cleanSymbol for use by other modules
+export { cleanSymbol } from "../../data-sources/sina.js";
 import { fetchPeData, fetchStockInfo, fetchSectorList } from "../../data-sources/eastmoney.js";
 import { fetchHkHistory } from "../../data-sources/stooq.js";
 import { safeFloat, today, nowStr } from "../../data-sources/http-client.js";
@@ -14,7 +17,7 @@ import { r2, callPythonBridge, getKlineCache } from "../shared.js";
 // ─── A股实时行情 ───────────────────────────────────────────────────────────
 
 export async function get_stock_realtime_price(symbol: string): Promise<string> {
-  const clean = cleanSymbol(symbol);
+  const clean = cleanSymbolInternal(symbol);
   try {
     const [text, peData] = await Promise.all([
       fetchSinaAShareRealtime([sinaSymbol(clean)]),
@@ -56,7 +59,7 @@ export async function get_stock_history(
   _adjust = "qfq",
   _skip_cache = false,
 ): Promise<string> {
-  const clean = cleanSymbol(symbol);
+  const clean = cleanSymbolInternal(symbol);
 
   // ─── 数据库缓存优先 ────────────────────────────────
   if (period === "daily" && !_skip_cache) {
@@ -100,7 +103,7 @@ export async function get_stock_history(
 // ─── A股基本信息 ───────────────────────────────────────────────────────────
 
 export async function get_stock_info(symbol: string, saveToMemory = false): Promise<string> {
-  const clean = cleanSymbol(symbol);
+  const clean = cleanSymbolInternal(symbol);
 
   try {
     const [info, priceJson, peData] = await Promise.all([
