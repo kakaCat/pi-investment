@@ -1926,31 +1926,6 @@ def analyze_price_action(symbol: str) -> dict:
 
 
 # ===== Dispatcher =====
-def predict_signal_confidence(symbol, indicators, action):
-    """预测信号置信度（XGBoost）"""
-    from ml.signal_predictor import predict as ml_predict
-
-    ma5 = indicators.get('ma5', 0)
-    ma20 = indicators.get('ma20', 1)
-    ma60 = indicators.get('ma60', 1)
-    price = indicators.get('close', 0)
-    bb_lower = indicators.get('bollinger_lower', 0)
-    bb_upper = indicators.get('bollinger_upper', 1)
-
-    features = {
-        'rsi': indicators.get('rsi', 50),
-        'ma5_ma20_ratio': ma5 / max(ma20, 1),
-        'ma20_ma60_ratio': ma20 / max(ma60, 1),
-        'macd_histogram': indicators.get('macd_histogram', 0),
-        'bb_position': (price - bb_lower) / max(bb_upper - bb_lower, 1) if bb_upper > bb_lower else 0.5,
-        'volume_ratio': 1.0,
-        'conditions_matched_ratio': indicators.get('conditions_matched_ratio', 0),
-        'action': 0 if action == 'buy' else 1
-    }
-
-    return ml_predict(features)
-
-
 FUNCTIONS = {
     "get_stock_info": get_stock_info,
     "get_stock_realtime_price": get_stock_realtime_price,
@@ -2003,8 +1978,6 @@ FUNCTIONS = {
     "get_hk_stock_history": get_hk_stock_history,
     "get_hk_financials": get_hk_financials,
     "get_hk_analysis": get_hk_analysis,
-    # ML
-    "predict_signal_confidence": predict_signal_confidence,
 }
 
 if __name__ == "__main__":
