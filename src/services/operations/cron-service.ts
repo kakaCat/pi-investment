@@ -17,7 +17,7 @@ import { join } from "path";
 // ─── 类型 ───────────────────────────────────────────────────────────────────
 
 export interface CronJobPayload {
-  kind: "agent_turn" | "daily_review" | "system_event" | "stop_loss_alert";
+  kind: "agent_turn" | "daily_review" | "system_event" | "stop_loss_alert" | "weekly_evolution";
   message?: string;
   text?: string;
   chatId?: string;
