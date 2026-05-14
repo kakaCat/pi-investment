@@ -8,6 +8,7 @@
  */
 import { createDeepSeekModel, paths } from "../../config/config.js";
 import { createTrackedSession } from "../../infrastructure/session/session-factory.js";
+import { getLastMessage, extractTextContent } from "../../core/agent/session-adapter.js";
 
 /**
  * 运行子 agent 执行独立任务
@@ -32,12 +33,10 @@ export async function runSubagent(prompt: string): Promise<string> {
     await session.prompt(prompt);
 
     // 只返回最终文本摘要
-    const state = session.agent.state;
-    const lastMsg = state.messages[state.messages.length - 1];
+    const lastMsg = getLastMessage(session);
 
     if (lastMsg?.role === "assistant") {
-      const textBlocks = lastMsg.content.filter(c => c.type === "text");
-      const summary = textBlocks.map(b => "text" in b ? b.text : "").join("\n");
+      const summary = extractTextContent(lastMsg);
 
       if (!summary.trim()) {
         return "(no summary generated)";

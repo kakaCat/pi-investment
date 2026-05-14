@@ -20,6 +20,7 @@ import { initSkillRouter, rewritePromptWithSkill } from "../../services/intellig
 import { join } from "path";
 import { SessionIdMapper } from "../session/session-id-mapper.js";
 import { createDeepSeekModel, paths } from "../../config/config.js";
+import { getAgentState, getLastMessage, extractTextContent } from "./session-adapter.js";
 
 let session: AgentSession | null = null;
 
@@ -87,7 +88,10 @@ export async function agentLoop(messages: Message[]): Promise<void> {
       return;
     }
 
-    microCompact(agentSession.agent.state.messages);
+    const agentState = getAgentState(agentSession);
+    if (agentState) {
+      microCompact(agentState.messages);
+    }
 
     const routed = rewritePromptWithSkill(userContent);
     if (routed.forcedSkill) {
@@ -96,13 +100,12 @@ export async function agentLoop(messages: Message[]): Promise<void> {
 
     await agentSession.prompt(routed.prompt);
 
-    const state = agentSession.agent.state;
-    const lastMsg = state.messages[state.messages.length - 1];
+    const lastMsg = getLastMessage(agentSession);
 
     if (lastMsg?.role === "assistant") {
-      const textContent = lastMsg.content.find(c => c.type === "text");
-      if (textContent && "text" in textContent) {
-        messages.push({ role: "assistant", content: textContent.text });
+      const textContent = extractTextContent(lastMsg);
+      if (textContent) {
+        messages.push({ role: "assistant", content: textContent });
       }
     }
   } catch (error) {

@@ -30,6 +30,12 @@ import {
   type FeishuAgentSession,
 } from "./feishu-session-manager.js";
 import { CronService, type CronJobPayload } from "../services/operations/cron-service.js";
+import {
+  setSystemPrompt,
+  getMessages,
+  getMessageCount,
+  hasState,
+} from "../core/agent/session-adapter.js";
 
 const APP_ID = process.env.FEISHU_APP_ID;
 const APP_SECRET = process.env.FEISHU_APP_SECRET;
@@ -72,15 +78,15 @@ function loadProjectSkills(): Skill[] {
 }
 
 function extractReply(session: FeishuAgentSession): string {
-  const messages = session.agent?.state?.messages ?? [];
-  const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant");
+  const messages = getMessages(session);
+  const lastAssistant = [...messages].reverse().find((message: any) => message.role === "assistant");
   if (!lastAssistant?.content) {
     return "";
   }
 
   return lastAssistant.content
-    .filter((block) => block.type === "text" && typeof block.text === "string")
-    .map((block) => block.text ?? "")
+    .filter((block: any) => block.type === "text" && typeof block.text === "string")
+    .map((block: any) => block.text ?? "")
     .join("\n")
     .trim();
 }
@@ -207,12 +213,14 @@ async function main(): Promise<void> {
         workspaceDir: paths.root,
       });
 
-      if ((session as any).agent?.state) {
-        (session as any).agent.state.systemPrompt = systemPrompt;
-        logger.logSystemPrompt(systemPrompt, (session as any).agent.state.messages.length);
-        microCompact((session as any).agent.state.messages);
+      if (hasState(session)) {
+        setSystemPrompt(session, systemPrompt);
+        logger.logSystemPrompt(systemPrompt, getMessageCount(session));
 
-        const totalTokens = ((session as any).agent.state.messages ?? []).reduce(
+        const messages = getMessages(session);
+        microCompact(messages);
+
+        const totalTokens = messages.reduce(
           (sum: number, message: unknown) => sum + estimateTokens(message as any),
           0
         );

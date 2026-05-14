@@ -27,6 +27,17 @@ import { getSessionDir, getSessionKey, logSystemPrompt, logBootstrapFiles } from
 import { initSkillsBlock, autoRecall, readDailyMemory, buildAgentSystemPrompt } from "./system-prompt.js";
 import { getBootstrapData } from "../../config/config.js";
 import { initSkillRouter, rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
+import {
+  addMessage,
+  createUserMessage,
+  createAssistantMessage,
+  setSystemPrompt,
+  getMessages,
+  getMessageCount,
+  getLastMessage,
+  extractTextContent,
+  getAgentState,
+} from "./session-adapter.js";
 
 // 全局会话实例，复用同一个 session
 let session: AgentSession | null = null;
@@ -172,15 +183,8 @@ export async function agentLoop(messages: Message[]): Promise<void> {
         .map(n => `[Task #${n.taskId}] ${n.status} (${Math.round(n.duration/1000)}s):\n${JSON.stringify(n.result).slice(0, 500)}`)
         .join("\n\n");
 
-      (agentSession as any).agent.state.messages.push({
-        role: "user",
-        content: [{ type: "text", text: `<background-results>\n${notifText}\n</background-results>` }]
-      });
-
-      (agentSession as any).agent.state.messages.push({
-        role: "assistant",
-        content: [{ type: "text", text: "Noted background results." }]
-      });
+      addMessage(agentSession, createUserMessage(`<background-results>\n${notifText}\n</background-results>`));
+      addMessage(agentSession, createAssistantMessage("Noted background results."));
 
       console.log(`📬 注入 ${notifications.length} 个后台任务结果`);
     }
@@ -211,13 +215,16 @@ export async function agentLoop(messages: Message[]): Promise<void> {
       tools: getEffectiveTools(),
       workspaceDir: getWorkspaceDir(),
     });
-    (agentSession as any).agent.state.systemPrompt = newSystemPrompt;
-    logSystemPrompt(newSystemPrompt, (agentSession as any).agent.state.messages.length);
+    setSystemPrompt(agentSession, newSystemPrompt);
+    logSystemPrompt(newSystemPrompt, getMessageCount(agentSession));
 
-    microCompact(agentSession.agent.state.messages);
+    const agentState = getAgentState(agentSession);
+    if (agentState) {
+      microCompact(agentState.messages);
+    }
 
     // 自动记忆保存：接近上下文窗口时触发
-    const totalTokens = agentSession.agent.state.messages.reduce(
+    const totalTokens = getMessages(agentSession).reduce(
       (sum, msg) => sum + estimateTokens(msg), 0
     );
     if (totalTokens > 40000) {
@@ -235,11 +242,11 @@ export async function agentLoop(messages: Message[]): Promise<void> {
 
     await agentSession.prompt(routed.prompt);
 
-    const lastMsg = agentSession.agent.state.messages.at(-1);
+    const lastMsg = getLastMessage(agentSession);
     if (lastMsg?.role === "assistant") {
-      const textContent = lastMsg.content.find(c => c.type === "text");
-      if (textContent && "text" in textContent) {
-        messages.push({ role: "assistant", content: textContent.text });
+      const textContent = extractTextContent(lastMsg);
+      if (textContent) {
+        messages.push({ role: "assistant", content: textContent });
       }
     }
 
