@@ -1,0 +1,869 @@
+# Agent 自动化进化系统 - 设计文档
+
+**日期**：2026-05-14  
+**版本**：v2.0 (自动化版本)  
+**状态**：待审核
+
+---
+
+## 一、功能概述
+
+### 1.1 核心目标
+
+实现完全自动化的 Agent 进化系统，补偿器自动生成代码实现工具，效应器负责分支管理、验证和提交，支持完整的回退机制。
+
+### 1.2 与 v1.0 的区别
+
+**v1.0（半自动）**：
+- 补偿器生成建议 → 保存到 JSON → 人工实现代码
+
+**v2.0（全自动）**：
+- 补偿器生成建议 → 效应器自动生成代码 → 沙箱验证 → 提交分支 → 用户审核合并
+
+### 1.3 控制论模型（更新）
+
+```
+目标值（期望收益）
+    ↓
+减法器（Comparator）：计算误差 = 目标 - 实际
+    ↓
+误差信号（目标差距）
+    ↓
+补偿器（Compensator）：生成优化建议
+    ↓
+效应器（Effector）：自动生成代码并验证
+    ↓
+    ├─ 创建 evolution 分支
+    ├─ 生成工具代码
+    ├─ 沙箱验证（编译 + 测试 + 集成）
+    ├─ 提交到分支
+    └─ 生成修改计划报告
+    ↓
+用户审核
+    ├─ 批准 → 合并到 main
+    └─ 拒绝 → 删除分支（回退）
+    ↓
+实际输出（盈利结果）
+    ↓
+反馈回路 ──────────┘
+```
+
+---
+
+## 二、核心架构
+
+### 2.1 组件职责划分
+
+#### 减法器（Comparator）
+- **职责**：计算目标与实际的差距，归因分析
+- **输入**：目标收益、实际收益、市场收益、历史数据
+- **输出**：差距信号、归因结果
+- **实现**：`src/services/intelligence/comparator.ts`（已存在）
+
+#### 补偿器（Compensator）
+- **职责**：根据差距生成优化建议
+- **输入**：差距信号、归因结果、工具统计、弱点分析
+- **输出**：优化建议列表（add_tool, remove_tool, update_experience）
+- **实现**：`src/services/intelligence/compensator.ts`（已存在）
+
+#### 能力执行器（CapabilityExecutor）
+- **职责**：执行能力层面的改动（经验库更新）
+- **输入**：优化建议
+- **输出**：执行结果
+- **实现**：`src/services/intelligence/capability-executor.ts`（重命名自 evolution-executor）
+
+#### 效应器（EvolutionEffector）
+- **职责**：自动生成代码、验证、提交 git
+- **输入**：优化建议
+- **输出**：分支名称、提交列表、修改计划报告
+- **实现**：`src/services/intelligence/evolution-effector.ts`（新增）
+
+#### 沙箱验证器（SandboxValidator）
+- **职责**：验证生成的代码（编译 + 测试 + 集成）
+- **输入**：工具代码、工具名称
+- **输出**：验证结果（通过/失败 + 错误信息）
+- **实现**：`src/services/intelligence/sandbox-validator.ts`（新增）
+
+### 2.2 数据流图
+
+```
+/evolution 命令
+    ↓
+evolution-service.ts
+    ├─ 调用 comparator（减法器）
+    ├─ 调用 compensator（补偿器）
+    ├─ 调用 capability-executor（能力执行器）
+    └─ 调用 evolution-effector（效应器）
+        ↓
+    evolution-effector.ts
+        ├─ 创建 evolution/YYYY-MM-DD-xxx 分支
+        ├─ 对每个 add_tool 建议：
+        │   ├─ 生成工具代码（我作为 Agent）
+        │   ├─ 调用 sandbox-validator 验证
+        │   ├─ 验证通过 → git commit
+        │   └─ 验证失败 → 记录错误，跳过
+        ├─ 对每个 remove_tool 建议：
+        │   ├─ 从 index.ts 移除工具
+        │   ├─ 移动工具文件到 deprecated/
+        │   └─ git commit
+        └─ 生成修改计划报告
+            ↓
+    返回给用户
+        ├─ 分支名称
+        ├─ 提交列表
+        ├─ 验证结果
+        └─ 询问是否合并
+```
+
+---
+
+## 三、效应器详细设计
+
+### 3.1 EvolutionEffector 接口
+
+```typescript
+interface EvolutionEffectorResult {
+  branchName: string;
+  commits: Array<{
+    hash: string;
+    message: string;
+    files: string[];
+  }>;
+  validationResults: Array<{
+    suggestionId: string;
+    toolName: string;
+    status: 'success' | 'failed';
+    error?: string;
+  }>;
+  modificationPlan: string; // Markdown 格式的修改计划
+  needsReview: boolean;
+}
+
+export class EvolutionEffector {
+  async executeEvolution(
+    suggestions: OptimizationSuggestion[],
+    piDir: string
+  ): Promise<EvolutionEffectorResult>;
+}
+```
+
+### 3.2 执行流程
+
+#### Step 1: 创建进化分支
+
+```typescript
+async createEvolutionBranch(): Promise<string> {
+  const timestamp = new Date().toISOString().split('T')[0];
+  const branchName = `evolution/${timestamp}-auto-evolution`;
+  
+  // 确保在 main 分支
+  await exec('git checkout main');
+  await exec('git pull');
+  
+  // 创建新分支
+  await exec(`git checkout -b ${branchName}`);
+  
+  return branchName;
+}
+```
+
+#### Step 2: 处理 add_tool 建议
+
+```typescript
+async handleAddTool(suggestion: OptimizationSuggestion): Promise<void> {
+  const toolName = suggestion.data.toolName;
+  const toolPath = `src/infrastructure/tools/${toolName}-tool.ts`;
+  
+  // 1. 生成工具代码（我作为 Agent 直接生成）
+  const toolCode = await this.generateToolCode(suggestion);
+  
+  // 2. 写入文件
+  await fs.writeFile(toolPath, toolCode, 'utf-8');
+  
+  // 3. 沙箱验证
+  const validationResult = await this.validator.validate(toolName, toolPath);
+  
+  if (!validationResult.passed) {
+    // 验证失败，删除文件，记录错误
+    await fs.unlink(toolPath);
+    throw new Error(`Tool validation failed: ${validationResult.error}`);
+  }
+  
+  // 4. 注册工具到 index.ts
+  await this.registerToolInIndex(toolName);
+  
+  // 5. 提交
+  await exec(`git add ${toolPath} src/infrastructure/tools/index.ts`);
+  await exec(`git commit -m "feat(evolution): add ${toolName} tool"`);
+}
+```
+
+#### Step 3: 处理 remove_tool 建议
+
+```typescript
+async handleRemoveTool(suggestion: OptimizationSuggestion): Promise<void> {
+  const toolName = suggestion.data.toolName;
+  const toolPath = `src/infrastructure/tools/${toolName}-tool.ts`;
+  
+  // 1. 从 index.ts 移除
+  await this.unregisterToolFromIndex(toolName);
+  
+  // 2. 移动到 deprecated/（保留代码以便回退）
+  const deprecatedPath = `src/infrastructure/tools/deprecated/${toolName}-tool.ts`;
+  await fs.mkdir('src/infrastructure/tools/deprecated', { recursive: true });
+  await fs.rename(toolPath, deprecatedPath);
+  
+  // 3. 提交
+  await exec(`git add ${toolPath} ${deprecatedPath} src/infrastructure/tools/index.ts`);
+  await exec(`git commit -m "refactor(evolution): remove ${toolName} tool"`);
+}
+```
+
+#### Step 4: 生成修改计划报告
+
+```typescript
+async generateModificationPlan(
+  suggestions: OptimizationSuggestion[],
+  results: ValidationResult[]
+): Promise<string> {
+  return `
+# 进化修改计划
+
+## 执行时间
+${new Date().toISOString()}
+
+## 分支信息
+- 分支名称: ${this.branchName}
+- 基于: main
+- 提交数量: ${this.commits.length}
+
+## 修改内容
+
+### ✅ 成功应用 (${results.filter(r => r.status === 'success').length})
+
+${results.filter(r => r.status === 'success').map(r => `
+#### ${r.toolName}
+- 类型: ${r.type}
+- 文件: ${r.files.join(', ')}
+- 验证: 通过（编译 + 单元测试 + 集成测试）
+`).join('\n')}
+
+### ❌ 失败跳过 (${results.filter(r => r.status === 'failed').length})
+
+${results.filter(r => r.status === 'failed').map(r => `
+#### ${r.toolName}
+- 类型: ${r.type}
+- 错误: ${r.error}
+- 建议: 需要人工介入
+`).join('\n')}
+
+## Git 提交记录
+
+${this.commits.map(c => `
+- ${c.hash.slice(0, 7)} ${c.message}
+  文件: ${c.files.join(', ')}
+`).join('\n')}
+
+## 下一步操作
+
+### 如果批准此次进化：
+\`\`\`bash
+git checkout main
+git merge ${this.branchName}
+git push
+\`\`\`
+
+### 如果拒绝此次进化：
+\`\`\`bash
+git checkout main
+git branch -D ${this.branchName}
+\`\`\`
+
+## 回退方案
+
+如果合并后发现问题，可以回退到合并前的状态：
+\`\`\`bash
+git log --oneline -10  # 找到合并前的 commit
+git reset --hard <commit-hash>
+\`\`\`
+`;
+}
+```
+
+---
+
+## 四、沙箱验证器详细设计
+
+### 4.1 SandboxValidator 接口
+
+```typescript
+interface ValidationResult {
+  passed: boolean;
+  error?: string;
+  details: {
+    compilation: { passed: boolean; error?: string };
+    unitTest: { passed: boolean; error?: string };
+    integration: { passed: boolean; error?: string };
+  };
+}
+
+export class SandboxValidator {
+  async validate(toolName: string, toolPath: string): Promise<ValidationResult>;
+}
+```
+
+### 4.2 验证流程
+
+#### Level 1: 编译验证
+
+```typescript
+async validateCompilation(toolPath: string): Promise<{ passed: boolean; error?: string }> {
+  try {
+    // 运行 TypeScript 编译检查
+    const { stdout, stderr } = await exec(`npx tsc --noEmit ${toolPath}`);
+    
+    if (stderr) {
+      return { passed: false, error: stderr };
+    }
+    
+    return { passed: true };
+  } catch (e) {
+    return { passed: false, error: e.message };
+  }
+}
+```
+
+#### Level 2: 单元测试验证
+
+```typescript
+async validateUnitTest(toolName: string, toolPath: string): Promise<{ passed: boolean; error?: string }> {
+  // 1. 生成单元测试代码
+  const testCode = await this.generateUnitTest(toolName, toolPath);
+  const testPath = toolPath.replace('.ts', '.test.ts');
+  
+  // 2. 写入测试文件
+  await fs.writeFile(testPath, testCode, 'utf-8');
+  
+  try {
+    // 3. 运行测试
+    const { stdout, stderr } = await exec(`npm test -- ${testPath}`);
+    
+    // 4. 清理测试文件
+    await fs.unlink(testPath);
+    
+    if (stderr && stderr.includes('FAIL')) {
+      return { passed: false, error: stderr };
+    }
+    
+    return { passed: true };
+  } catch (e) {
+    await fs.unlink(testPath);
+    return { passed: false, error: e.message };
+  }
+}
+```
+
+#### Level 3: 集成测试验证
+
+```typescript
+async validateIntegration(toolName: string): Promise<{ passed: boolean; error?: string }> {
+  try {
+    // 1. 动态导入工具
+    const toolModule = await import(`../../infrastructure/tools/${toolName}-tool.js`);
+    const tool = toolModule[`${toCamelCase(toolName)}Tool`];
+    
+    // 2. 调用工具（使用 mock 参数）
+    const result = await tool.execute('test-call-id', {});
+    
+    // 3. 验证返回格式
+    if (!result.content || !Array.isArray(result.content)) {
+      return { passed: false, error: 'Invalid return format' };
+    }
+    
+    return { passed: true };
+  } catch (e) {
+    return { passed: false, error: e.message };
+  }
+}
+```
+
+---
+
+## 五、代码生成策略
+
+### 5.1 我作为 Agent 的代码生成能力
+
+作为 Agent，我可以：
+1. 理解优化建议的意图
+2. 参考现有工具的代码模式
+3. 生成符合项目规范的代码
+4. 处理边界情况和错误处理
+
+### 5.2 代码生成输入
+
+```typescript
+interface CodeGenerationInput {
+  toolName: string;
+  description: string;
+  reason: string;
+  expectedImpact: string;
+  dataSource?: string; // 如 "get_sector_fund_flow"
+  parameters?: Record<string, any>;
+  referenceTools: string[]; // 参考的现有工具
+}
+```
+
+### 5.3 生成流程
+
+```typescript
+async generateToolCode(suggestion: OptimizationSuggestion): Promise<string> {
+  // 1. 读取参考工具代码
+  const referenceCode = await this.loadReferenceTools([
+    'evolution-tool.ts',
+    'invest-tools.ts'
+  ]);
+  
+  // 2. 构造生成提示（我自己理解）
+  const prompt = `
+根据以下需求生成工具代码：
+
+工具名称: ${suggestion.data.toolName}
+描述: ${suggestion.description}
+原因: ${suggestion.reason}
+预期效果: ${suggestion.expectedImpact}
+
+参考现有工具模式：
+${referenceCode}
+
+要求：
+1. 使用 ToolDefinition 类型
+2. 使用 @sinclair/typebox 定义参数
+3. 包含完整的错误处理
+4. 返回格式：{ content: [{ type: "text", text: string }], details: any }
+5. 遵循项目代码风格
+`;
+
+  // 3. 我直接生成代码（作为 Agent 的能力）
+  const toolCode = await this.generateCode(prompt);
+  
+  return toolCode;
+}
+```
+
+---
+
+*（文档第一部分完成，继续下一部分...）*
+
+## 六、回退机制设计
+
+### 6.1 回退场景
+
+#### 场景 1: 验证失败（自动回退）
+- 代码生成后验证失败
+- 自动删除生成的文件
+- 不创建 commit
+- 记录失败原因到报告
+
+#### 场景 2: 用户拒绝合并（手动回退）
+- 用户审核后拒绝此次进化
+- 删除整个 evolution 分支
+- 代码完全回退到进化前状态
+
+#### 场景 3: 合并后发现问题（紧急回退）
+- 进化已合并到 main，但运行时发现问题
+- 使用 git revert 回退合并提交
+- 或使用 git reset 回退到合并前
+
+### 6.2 回退操作接口
+
+```typescript
+export class EvolutionRollback {
+  // 场景 1: 验证失败自动回退
+  async rollbackFailedValidation(toolPath: string): Promise<void> {
+    await fs.unlink(toolPath);
+    console.log(`已回退失败的工具: ${toolPath}`);
+  }
+  
+  // 场景 2: 删除进化分支
+  async rollbackEvolutionBranch(branchName: string): Promise<void> {
+    await exec('git checkout main');
+    await exec(`git branch -D ${branchName}`);
+    console.log(`已删除进化分支: ${branchName}`);
+  }
+  
+  // 场景 3: 回退已合并的进化
+  async rollbackMergedEvolution(mergeCommitHash: string): Promise<void> {
+    // 方案 A: 使用 revert（推荐，保留历史）
+    await exec(`git revert -m 1 ${mergeCommitHash}`);
+    
+    // 方案 B: 使用 reset（危险，重写历史）
+    // await exec(`git reset --hard ${mergeCommitHash}^`);
+    
+    console.log(`已回退合并提交: ${mergeCommitHash}`);
+  }
+}
+```
+
+### 6.3 回退安全检查
+
+```typescript
+async safeRollback(branchName: string): Promise<void> {
+  // 1. 检查是否有未提交的更改
+  const { stdout: status } = await exec('git status --porcelain');
+  if (status.trim()) {
+    throw new Error('有未提交的更改，请先提交或暂存');
+  }
+  
+  // 2. 检查分支是否存在
+  const { stdout: branches } = await exec('git branch --list');
+  if (!branches.includes(branchName)) {
+    throw new Error(`分支不存在: ${branchName}`);
+  }
+  
+  // 3. 确认当前不在要删除的分支上
+  const { stdout: currentBranch } = await exec('git branch --show-current');
+  if (currentBranch.trim() === branchName) {
+    await exec('git checkout main');
+  }
+  
+  // 4. 执行删除
+  await exec(`git branch -D ${branchName}`);
+}
+```
+
+---
+
+## 七、风险控制
+
+### 7.1 代码生成风险
+
+**风险**：生成的代码可能包含安全漏洞或错误逻辑
+
+**控制措施**：
+1. 三级沙箱验证（编译 + 单元测试 + 集成测试）
+2. 静态代码分析（检查危险操作）
+3. 限制工具权限（不允许文件系统写入、网络请求等）
+4. 人工最终审核
+
+```typescript
+async checkCodeSafety(code: string): Promise<{ safe: boolean; issues: string[] }> {
+  const issues: string[] = [];
+  
+  // 检查危险操作
+  if (code.includes('eval(') || code.includes('Function(')) {
+    issues.push('包含 eval 或 Function 调用');
+  }
+  
+  if (code.includes('fs.writeFile') || code.includes('fs.unlink')) {
+    issues.push('包含文件系统写入操作');
+  }
+  
+  if (code.includes('exec(') || code.includes('spawn(')) {
+    issues.push('包含命令执行操作');
+  }
+  
+  return {
+    safe: issues.length === 0,
+    issues
+  };
+}
+```
+
+### 7.2 Git 操作风险
+
+**风险**：错误的 git 操作可能导致代码丢失
+
+**控制措施**：
+1. 所有进化在独立分支进行
+2. 合并前必须人工审核
+3. 提供完整的回退方案
+4. 定期备份 main 分支
+
+```typescript
+async safeGitOperation(operation: () => Promise<void>): Promise<void> {
+  // 1. 备份当前状态
+  const { stdout: currentBranch } = await exec('git branch --show-current');
+  const { stdout: currentCommit } = await exec('git rev-parse HEAD');
+  
+  try {
+    // 2. 执行操作
+    await operation();
+  } catch (e) {
+    // 3. 失败时恢复
+    console.error('Git 操作失败，正在恢复...', e);
+    await exec(`git checkout ${currentBranch}`);
+    await exec(`git reset --hard ${currentCommit}`);
+    throw e;
+  }
+}
+```
+
+### 7.3 验证失败风险
+
+**风险**：验证过程可能误判或遗漏问题
+
+**控制措施**：
+1. 多级验证（编译 → 单元测试 → 集成测试）
+2. 验证失败时保留详细日志
+3. 人工审核验证结果
+4. 提供手动重新验证机制
+
+```typescript
+async validateWithRetry(
+  toolName: string,
+  toolPath: string,
+  maxRetries: number = 2
+): Promise<ValidationResult> {
+  let lastError: string | undefined;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    const result = await this.validator.validate(toolName, toolPath);
+    
+    if (result.passed) {
+      return result;
+    }
+    
+    lastError = result.error;
+    console.log(`验证失败 (${i + 1}/${maxRetries}): ${result.error}`);
+    
+    // 等待后重试
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  
+  return {
+    passed: false,
+    error: `验证失败 ${maxRetries} 次: ${lastError}`,
+    details: {
+      compilation: { passed: false },
+      unitTest: { passed: false },
+      integration: { passed: false }
+    }
+  };
+}
+```
+
+### 7.4 过度进化风险
+
+**风险**：频繁自动进化可能导致系统不稳定
+
+**控制措施**：
+1. 限制进化频率（每周最多 1 次）
+2. 限制单次进化的改动数量（最多 3-5 个工具）
+3. 观察期机制（新工具运行 1 周后才能再次进化）
+4. 进化效果评估（下次进化前评估上次效果）
+
+```typescript
+async checkEvolutionThrottle(): Promise<{ allowed: boolean; reason?: string }> {
+  // 1. 检查上次进化时间
+  const lastEvolution = await this.getLastEvolutionDate();
+  const daysSinceLastEvolution = (Date.now() - lastEvolution.getTime()) / (1000 * 60 * 60 * 24);
+  
+  if (daysSinceLastEvolution < 7) {
+    return {
+      allowed: false,
+      reason: `距离上次进化仅 ${daysSinceLastEvolution.toFixed(1)} 天，需等待 7 天`
+    };
+  }
+  
+  // 2. 检查待审核的进化分支
+  const { stdout: branches } = await exec('git branch --list evolution/*');
+  if (branches.trim()) {
+    return {
+      allowed: false,
+      reason: '存在未审核的进化分支，请先处理'
+    };
+  }
+  
+  return { allowed: true };
+}
+```
+
+---
+
+## 八、用户交互流程
+
+### 8.1 进化触发
+
+```bash
+# 用户执行
+npm run dev
+
+# 在 Agent 会话中
+/evolution
+```
+
+### 8.2 进化执行（自动）
+
+```
+🔄 开始自动进化分析...
+
+📊 减法器计算
+  目标收益: 10%
+  实际收益: 8%
+  差距: 2%
+  归因: 能力需要优化
+
+💡 补偿器生成建议
+  ✅ 新增工具: analyze_sector_rotation
+  ✅ 新增工具: check_stop_loss_trigger
+  ✅ 移除工具: get_stock_news
+
+🛠️ 效应器执行
+  ├─ 创建分支: evolution/2026-05-14-auto-evolution
+  ├─ 生成 analyze_sector_rotation 工具代码...
+  │   ├─ ✅ 编译验证通过
+  │   ├─ ✅ 单元测试通过
+  │   ├─ ✅ 集成测试通过
+  │   └─ ✅ 已提交: feat(evolution): add analyze_sector_rotation tool
+  ├─ 生成 check_stop_loss_trigger 工具代码...
+  │   ├─ ✅ 编译验证通过
+  │   ├─ ✅ 单元测试通过
+  │   ├─ ✅ 集成测试通过
+  │   └─ ✅ 已提交: feat(evolution): add check_stop_loss_trigger tool
+  └─ 移除 get_stock_news 工具...
+      └─ ✅ 已提交: refactor(evolution): remove get_stock_news tool
+
+📝 修改计划已生成: .pi-invest/evolution/modification-plan-2026-05-14.md
+
+✅ 进化完成！请审核修改计划。
+```
+
+### 8.3 用户审核
+
+```markdown
+# 修改计划报告
+
+## 执行时间
+2026-05-14T10:30:00Z
+
+## 分支信息
+- 分支名称: evolution/2026-05-14-auto-evolution
+- 基于: main
+- 提交数量: 3
+
+## 修改内容
+
+### ✅ 成功应用 (3)
+
+#### analyze_sector_rotation
+- 类型: add_tool
+- 文件: src/infrastructure/tools/analyze-sector-rotation-tool.ts
+- 验证: 通过（编译 + 单元测试 + 集成测试）
+
+#### check_stop_loss_trigger
+- 类型: add_tool
+- 文件: src/infrastructure/tools/check-stop-loss-trigger-tool.ts
+- 验证: 通过（编译 + 单元测试 + 集成测试）
+
+#### get_stock_news
+- 类型: remove_tool
+- 文件: 已移至 deprecated/
+
+## 下一步操作
+
+### 批准此次进化：
+```bash
+git checkout main
+git merge evolution/2026-05-14-auto-evolution
+git push
+```
+
+### 拒绝此次进化：
+```bash
+git checkout main
+git branch -D evolution/2026-05-14-auto-evolution
+```
+```
+
+### 8.4 用户决策
+
+**选项 A: 批准**
+```bash
+git checkout main
+git merge evolution/2026-05-14-auto-evolution
+git push
+```
+
+**选项 B: 拒绝**
+```bash
+git checkout main
+git branch -D evolution/2026-05-14-auto-evolution
+```
+
+**选项 C: 部分批准（手动）**
+```bash
+# 查看具体提交
+git log evolution/2026-05-14-auto-evolution
+
+# 只合并部分提交
+git cherry-pick <commit-hash>
+```
+
+---
+
+## 九、实施计划
+
+### 9.1 开发顺序
+
+1. **Phase 1: 基础设施**
+   - 重命名 evolution-executor → capability-executor
+   - 创建 EvolutionEffector 骨架
+   - 创建 SandboxValidator 骨架
+
+2. **Phase 2: 沙箱验证**
+   - 实现编译验证
+   - 实现单元测试生成和验证
+   - 实现集成测试验证
+
+3. **Phase 3: 代码生成**
+   - 实现工具代码生成逻辑
+   - 实现工具注册/注销逻辑
+   - 实现代码安全检查
+
+4. **Phase 4: Git 操作**
+   - 实现分支创建和管理
+   - 实现自动提交
+   - 实现回退机制
+
+5. **Phase 5: 集成测试**
+   - 端到端测试完整流程
+   - 测试各种失败场景
+   - 测试回退机制
+
+### 9.2 文件清单
+
+**新增文件**：
+- `src/services/intelligence/evolution-effector.ts`
+- `src/services/intelligence/sandbox-validator.ts`
+- `src/services/intelligence/evolution-rollback.ts`
+
+**修改文件**：
+- `src/services/intelligence/evolution-executor.ts` → `capability-executor.ts`
+- `src/services/intelligence/evolution-service.ts`（集成 effector）
+
+**测试文件**：
+- `src/services/intelligence/evolution-effector.test.ts`
+- `src/services/intelligence/sandbox-validator.test.ts`
+
+---
+
+## 十、成功指标
+
+### 10.1 自动化指标
+- 代码生成成功率 >80%
+- 沙箱验证通过率 >90%
+- 自动提交成功率 100%
+
+### 10.2 质量指标
+- 生成的工具代码无编译错误
+- 生成的工具通过集成测试
+- 无安全漏洞
+
+### 10.3 效率指标
+- 从 /evolution 到生成报告 <5 分钟
+- 验证时间 <2 分钟/工具
+- 用户审核时间 <10 分钟
+
+---
+
+**文档结束**
