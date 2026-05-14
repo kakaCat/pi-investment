@@ -15,6 +15,7 @@ import { PortfolioService } from "../../services/portfolio/portfolio-service.js"
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
 import { chinaDate } from "../../utils/china-time.js";
+import { callPythonDaemon } from "./python-bridge.js";
 
 const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -101,30 +102,23 @@ export async function callPython(func: string, args: Record<string, unknown> = {
     args = cleanArgs;
   }
   try {
-    const argsJson = JSON.stringify(args);
-    const { stdout } = await execAsync(
-      `TQDM_DISABLE=1 python3 "${pythonScript}" "${func}" '${argsJson.replace(/'/g, "'\\''")}'`,
-      { timeout: 120000 }  // 增加到120秒
-    );
-    const raw = stdout.trim();
+    const result = await callPythonDaemon(func, args);
     // Annotate Python result with fallback info so agent is aware
-    let result = raw;
+    let finalResult = result;
     if (tsFallbackErr) {
       try {
-        const parsed = JSON.parse(raw);
-        result = JSON.stringify({ ...parsed, _via_python_fallback: true });
+        const parsed = JSON.parse(result);
+        finalResult = JSON.stringify({ ...parsed, _via_python_fallback: true });
       } catch {
-        // raw is not JSON (e.g. plain text), leave as-is
+        // result is not JSON (e.g. plain text), leave as-is
       }
     }
     const ttl = TTL[func] ?? DEFAULT_TTL;
-    cache.set(cacheKey, { data: result, expiry: Date.now() + ttl });
-    return result;
+    cache.set(cacheKey, { data: finalResult, expiry: Date.now() + ttl });
+    return finalResult;
   } catch (error: unknown) {
     if (error instanceof Error) {
-      const spawnError = error as any;
-      const stderr = spawnError.stderr ? String(spawnError.stderr).trim() : "";
-      const msg = stderr || error.message;
+      const msg = error.message;
       return JSON.stringify({ error: `Python调用失败: ${msg}`, ts_error: tsFallbackErr || undefined, _no_operation_performed: true });
     }
     return JSON.stringify({ error: "Python调用失败（未知错误）", ts_error: tsFallbackErr || undefined, _no_operation_performed: true });
