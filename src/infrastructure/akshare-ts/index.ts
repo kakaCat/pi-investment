@@ -30,6 +30,37 @@ import { safeFloat, today, nowStr } from "../data-sources/http-client.js";
 import { StockDBService, KlineCacheService } from "../../services/data/stock-db-index.js";
 import { callPythonDaemon } from "../tools/python-bridge.js";
 
+// ─── Python Bridge for functions not yet implemented in TS ─────────────────
+const execFileAsync = promisify(execFile);
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
+const pythonScript = join(__dirname, "..", "..", "..", "python", "akshare_bridge.py");
+
+/**
+ * callPython - Direct Python bridge for functions not yet in TS
+ *
+ * Use this only for functions not yet implemented in TypeScript.
+ * Prefer using the typed TS functions above when available.
+ */
+export async function callPython(func: string, args: Record<string, unknown> = {}): Promise<string> {
+  try {
+    const argsJson = JSON.stringify(args);
+    const { stdout } = await execFileAsync(
+      "python3",
+      [pythonScript, func, argsJson],
+      { timeout: 60000 }
+    );
+    return stdout.trim();
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      const spawnError = error as any;
+      const stderr = spawnError.stderr ? String(spawnError.stderr).trim() : "";
+      const msg = stderr || error.message;
+      return JSON.stringify({ error: `Python调用失败: ${msg}` });
+    }
+    return JSON.stringify({ error: "Python调用失败（未知错误）" });
+  }
+}
+
 // ─── Shared Services (懒加载避免循环依赖) ──────────────────────────────────
 const piDir = ".pi-invest";
 let _stockDB: StockDBService | null = null;
@@ -47,9 +78,12 @@ function getKlineCache() {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
+<<<<<<< HEAD
 const execFileAsync = promisify(execFile);
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
+=======
+>>>>>>> worktree-agent-a8fe60dcad5340f19
 function r2(v: number | null): number { return roundN(v, 2) ?? 0; }
 function r4(v: number | null): number { return roundN(v, 4) ?? 0; }
 
