@@ -867,3 +867,366 @@ git cherry-pick <commit-hash>
 ---
 
 **文档结束**
+
+---
+
+## 附录 A：补偿器增强 - 进化效果评估
+
+### A.1 问题描述
+
+当前补偿器只根据当前差距生成建议，但缺少对**上次进化效果**的评估。这导致：
+- 不知道上次新增的工具是否有效
+- 可能重复生成相同的无效建议
+- 无法形成"建议 → 应用 → 评估 → 改进"的完整闭环
+
+### A.2 解决方案：进化历史追踪
+
+#### 数据结构
+
+```typescript
+interface EvolutionHistory {
+  evolutionId: string;
+  date: string;
+  branchName: string;
+  suggestions: OptimizationSuggestion[];
+  applied: string[]; // 已应用的建议 ID
+  
+  // 应用前的基线
+  baseline: {
+    return: number;
+    winRate: number;
+    maxDrawdown: number;
+    toolStats: ToolEfficiency[];
+  };
+  
+  // 应用后的效果（下次进化时填充）
+  outcome?: {
+    return: number;
+    winRate: number;
+    maxDrawdown: number;
+    toolStats: ToolEfficiency[];
+    improvement: {
+      returnDelta: number;
+      winRateDelta: number;
+      maxDrawdownDelta: number;
+    };
+  };
+  
+  // 效果评估
+  evaluation?: {
+    effective: boolean;
+    effectiveTools: string[]; // 有效的工具
+    ineffectiveTools: string[]; // 无效的工具
+    reasons: string[];
+  };
+}
+```
+
+#### 存储位置
+
+```
+.pi-invest/evolution/
+├── history/
+│   ├── 2026-05-07.json  # 上次进化记录
+│   ├── 2026-05-14.json  # 本次进化记录
+│   └── 2026-05-21.json  # 下次进化记录
+├── evolution-2026-05-07.md
+├── evolution-2026-05-14.md
+└── modification-plan-2026-05-14.md
+```
+
+### A.3 补偿器增强逻辑
+
+#### Step 1: 加载上次进化历史
+
+```typescript
+async function loadLastEvolution(): Promise<EvolutionHistory | null> {
+  const historyDir = path.join(piDir, 'evolution/history');
+  const files = await fs.readdir(historyDir);
+  
+  if (files.length === 0) return null;
+  
+  // 获取最近的历史文件
+  const lastFile = files.sort().reverse()[0];
+  const content = await fs.readFile(path.join(historyDir, lastFile), 'utf-8');
+  
+  return JSON.parse(content);
+}
+```
+
+#### Step 2: 评估上次进化效果
+
+```typescript
+async function evaluateLastEvolution(
+  lastEvolution: EvolutionHistory,
+  currentMetrics: PerformanceMetrics
+): Promise<EvolutionEvaluation> {
+  
+  // 1. 计算指标变化
+  const improvement = {
+    returnDelta: currentMetrics.return - lastEvolution.baseline.return,
+    winRateDelta: currentMetrics.winRate - lastEvolution.baseline.winRate,
+    maxDrawdownDelta: currentMetrics.maxDrawdown - lastEvolution.baseline.maxDrawdown,
+  };
+  
+  // 2. 判断整体效果
+  const effective = 
+    improvement.returnDelta > 0 || 
+    improvement.winRateDelta > 0.02 || 
+    improvement.maxDrawdownDelta > 0;
+  
+  // 3. 评估每个工具的效果
+  const effectiveTools: string[] = [];
+  const ineffectiveTools: string[] = [];
+  
+  for (const suggestionId of lastEvolution.applied) {
+    const suggestion = lastEvolution.suggestions.find(s => s.id === suggestionId);
+    if (!suggestion || suggestion.type !== 'add_tool') continue;
+    
+    const toolName = suggestion.data.toolName;
+    
+    // 查找工具的使用统计
+    const toolStat = currentMetrics.toolStats.find(t => t.tool_name === toolName);
+    
+    if (!toolStat) {
+      ineffectiveTools.push(toolName);
+      continue;
+    }
+    
+    // 判断工具是否有效
+    if (toolStat.win_rate > 0.6 && toolStat.avg_return > 0) {
+      effectiveTools.push(toolName);
+    } else {
+      ineffectiveTools.push(toolName);
+    }
+  }
+  
+  // 4. 生成评估原因
+  const reasons: string[] = [];
+  
+  if (improvement.returnDelta > 0) {
+    reasons.push(`收益率提升 ${improvement.returnDelta.toFixed(2)}%`);
+  } else if (improvement.returnDelta < 0) {
+    reasons.push(`收益率下降 ${Math.abs(improvement.returnDelta).toFixed(2)}%`);
+  }
+  
+  if (improvement.winRateDelta > 0.02) {
+    reasons.push(`胜率提升 ${(improvement.winRateDelta * 100).toFixed(1)}%`);
+  } else if (improvement.winRateDelta < -0.02) {
+    reasons.push(`胜率下降 ${Math.abs(improvement.winRateDelta * 100).toFixed(1)}%`);
+  }
+  
+  if (effectiveTools.length > 0) {
+    reasons.push(`有效工具: ${effectiveTools.join(', ')}`);
+  }
+  
+  if (ineffectiveTools.length > 0) {
+    reasons.push(`无效工具: ${ineffectiveTools.join(', ')}`);
+  }
+  
+  return {
+    effective,
+    effectiveTools,
+    ineffectiveTools,
+    reasons,
+    improvement,
+  };
+}
+```
+
+#### Step 3: 基于评估结果调整建议
+
+```typescript
+function generateOptimizationSuggestionsV2(
+  gap: PerformanceGap,
+  attribution: AttributionResult,
+  toolStats: ToolEfficiency[],
+  weaknesses: string[],
+  lastEvolutionEval?: EvolutionEvaluation
+): OptimizationSuggestion[] {
+  
+  const suggestions: OptimizationSuggestion[] = [];
+  
+  // 1. 如果上次进化有无效工具，优先移除
+  if (lastEvolutionEval?.ineffectiveTools.length > 0) {
+    for (const toolName of lastEvolutionEval.ineffectiveTools) {
+      suggestions.push({
+        id: `opt_remove_${toolName}`,
+        type: 'remove_tool',
+        description: `移除无效工具: ${toolName}`,
+        reason: `上次进化新增的工具 ${toolName} 效果不佳（胜率低或负收益）`,
+        expectedImpact: '减少噪音，提升决策质量',
+        priority: 'high',
+        data: { toolName }
+      });
+    }
+  }
+  
+  // 2. 如果上次进化整体无效，降低本次进化的激进程度
+  const aggressiveness = lastEvolutionEval?.effective === false ? 'conservative' : 'normal';
+  
+  // 3. 避免重复建议
+  const previousSuggestions = lastEvolutionEval?.appliedSuggestions || [];
+  
+  // 4. 根据差距生成新建议（排除已尝试过的）
+  if (Math.abs(gap.gap) >= 2) {
+    // 生成新建议，但排除上次已尝试且无效的
+    const newSuggestions = generateNewSuggestions(
+      gap,
+      weaknesses,
+      toolStats,
+      aggressiveness
+    );
+    
+    // 过滤掉重复的建议
+    const filtered = newSuggestions.filter(s => {
+      return !previousSuggestions.some(prev => 
+        prev.type === s.type && 
+        prev.data?.toolName === s.data?.toolName
+      );
+    });
+    
+    suggestions.push(...filtered);
+  }
+  
+  return suggestions;
+}
+```
+
+### A.4 进化历史保存
+
+```typescript
+async function saveEvolutionHistory(
+  evolutionId: string,
+  suggestions: OptimizationSuggestion[],
+  applied: string[],
+  baseline: PerformanceMetrics
+): Promise<void> {
+  
+  const history: EvolutionHistory = {
+    evolutionId,
+    date: new Date().toISOString(),
+    branchName: `evolution/${evolutionId}`,
+    suggestions,
+    applied,
+    baseline: {
+      return: baseline.return,
+      winRate: baseline.winRate,
+      maxDrawdown: baseline.maxDrawdown,
+      toolStats: baseline.toolStats,
+    },
+    // outcome 和 evaluation 在下次进化时填充
+  };
+  
+  const historyDir = path.join(piDir, 'evolution/history');
+  await fs.mkdir(historyDir, { recursive: true });
+  
+  const historyPath = path.join(historyDir, `${evolutionId}.json`);
+  await fs.writeFile(historyPath, JSON.stringify(history, null, 2), 'utf-8');
+}
+```
+
+### A.5 更新上次进化的结果
+
+```typescript
+async function updateLastEvolutionOutcome(
+  lastEvolution: EvolutionHistory,
+  currentMetrics: PerformanceMetrics,
+  evaluation: EvolutionEvaluation
+): Promise<void> {
+  
+  lastEvolution.outcome = {
+    return: currentMetrics.return,
+    winRate: currentMetrics.winRate,
+    maxDrawdown: currentMetrics.maxDrawdown,
+    toolStats: currentMetrics.toolStats,
+    improvement: evaluation.improvement,
+  };
+  
+  lastEvolution.evaluation = {
+    effective: evaluation.effective,
+    effectiveTools: evaluation.effectiveTools,
+    ineffectiveTools: evaluation.ineffectiveTools,
+    reasons: evaluation.reasons,
+  };
+  
+  const historyPath = path.join(
+    piDir,
+    'evolution/history',
+    `${lastEvolution.evolutionId}.json`
+  );
+  
+  await fs.writeFile(
+    historyPath,
+    JSON.stringify(lastEvolution, null, 2),
+    'utf-8'
+  );
+}
+```
+
+### A.6 完整流程（更新）
+
+```
+/evolution 触发
+    ↓
+1. 加载上次进化历史
+    ↓
+2. 评估上次进化效果
+    ├─ 计算指标变化
+    ├─ 评估每个工具的效果
+    └─ 更新上次进化的 outcome 和 evaluation
+    ↓
+3. 减法器计算当前差距
+    ↓
+4. 补偿器生成建议（基于评估结果）
+    ├─ 优先移除无效工具
+    ├─ 避免重复建议
+    └─ 根据上次效果调整激进程度
+    ↓
+5. 效应器执行
+    ├─ 创建分支
+    ├─ 生成代码
+    ├─ 验证
+    └─ 提交
+    ↓
+6. 保存本次进化历史（baseline）
+    ↓
+7. 生成报告（包含上次进化评估）
+```
+
+### A.7 报告增强
+
+进化报告中新增"上次进化效果评估"部分：
+
+```markdown
+# 进化报告 2026-05-14
+
+## 📊 上次进化效果评估 (2026-05-07)
+
+### 整体效果
+✅ **有效** - 收益率提升 1.2%，胜率提升 3%
+
+### 工具效果评估
+
+#### ✅ 有效工具
+- **analyze_sector_rotation**: 调用 15 次，胜率 73%，平均收益 +4.2%
+- **check_stop_loss_trigger**: 调用 8 次，成功避免 3 次亏损扩大
+
+#### ❌ 无效工具
+- **predict_market_trend**: 调用 12 次，胜率 42%，平均收益 -1.5%
+  - **建议**: 本次进化将移除此工具
+
+### 改进建议
+- 保留有效工具，继续观察
+- 移除无效工具，避免噪音
+- 本次进化采用正常激进度
+
+---
+
+## 📊 本次表现
+...
+```
+
+---
+
+**补充完成**
