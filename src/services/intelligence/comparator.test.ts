@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { calculateGap, checkTargetRealistic, evaluateAgentCapability } from './comparator.js';
+import { calculateGap, checkTargetRealistic, evaluateAgentCapability, attributeGap } from './comparator.js';
 import type { DecisionQualityMetrics } from '../../types/evolution.js';
 
 describe('Comparator - calculateGap', () => {
@@ -149,5 +149,51 @@ describe('Comparator - evaluateAgentCapability', () => {
     expect(result.capable).toBe(false);
     expect(result.reasons.some(r => r.includes('止损执行率'))).toBe(true);
     expect(result.weaknesses).toContain('风控能力');
+  });
+});
+
+describe('Comparator - attributeGap', () => {
+  it('应该归因为目标不合理', () => {
+    const gap = calculateGap(20, 10, 8);
+    const metrics: DecisionQualityMetrics = {
+      recentReturns: [10, 11, 12],
+      errorRate: 0.2,
+      stopLossExecutionRate: 0.8
+    };
+
+    const result = attributeGap(gap, [9, 10, 11], 3, metrics);
+
+    expect(result.rootCause).toBe('target_unrealistic');
+    expect(result.recommendation).toBe('adjust_target');
+    expect(result.suggestedTarget).toBeDefined();
+  });
+
+  it('应该归因为能力不足', () => {
+    const gap = calculateGap(10, 5, 8);
+    const metrics: DecisionQualityMetrics = {
+      recentReturns: [8, 6, 5],  // 下降趋势
+      errorRate: 0.5,  // 高错误率
+      stopLossExecutionRate: 0.5  // 低执行率
+    };
+
+    const result = attributeGap(gap, [9, 10, 11], 3, metrics);
+
+    expect(result.rootCause).toBe('capability_insufficient');
+    expect(result.recommendation).toBe('trigger_optimizer');
+  });
+
+  it('应该处理混合情况（目标略高+能力略弱）', () => {
+    const gap = calculateGap(12, 9, 8);
+    const metrics: DecisionQualityMetrics = {
+      recentReturns: [10, 9.5, 9],  // 轻微下降
+      errorRate: 0.35,  // 略高
+      stopLossExecutionRate: 0.65  // 略低
+    };
+
+    const result = attributeGap(gap, [9, 10, 11], 3, metrics);
+
+    expect(result.rootCause).toBe('capability_insufficient');
+    expect(result.recommendation).toBe('trigger_optimizer');
+    expect(result.confidence).toBeLessThan(0.8);
   });
 });
