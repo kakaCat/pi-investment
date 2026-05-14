@@ -4,7 +4,7 @@
  * 计算目标与实际的差距，产生误差信号
  */
 
-import type { PerformanceGap, TargetRealisticCheck } from '../../types/evolution.js';
+import type { PerformanceGap, TargetRealisticCheck, CapabilityCheck, DecisionQualityMetrics } from '../../types/evolution.js';
 
 /**
  * 计算性能差距
@@ -59,4 +59,68 @@ export function checkTargetRealistic(
   const suggestedTarget = realistic ? undefined : market + 1.5;
 
   return { realistic, reasons, suggestedTarget };
+}
+
+/**
+ * 计算趋势
+ */
+function calculateTrend(returns: number[]): 'rising' | 'stable' | 'declining' {
+  if (returns.length < 2) return 'stable';
+
+  let ups = 0;
+  let downs = 0;
+
+  for (let i = 1; i < returns.length; i++) {
+    if (returns[i] > returns[i - 1]) ups++;
+    else if (returns[i] < returns[i - 1]) downs++;
+  }
+
+  if (downs > ups) return 'declining';
+  if (ups > downs) return 'rising';
+  return 'stable';
+}
+
+/**
+ * 评估 Agent 能力
+ */
+export function evaluateAgentCapability(
+  actual: number,
+  market: number,
+  alpha: number,
+  decisionQuality: DecisionQualityMetrics
+): CapabilityCheck {
+  const reasons: string[] = [];
+  const weaknesses: string[] = [];
+  let capable = true;
+
+  // 检查1：对比大盘
+  if (alpha < -2) {
+    capable = false;
+    reasons.push(`跑输大盘${Math.abs(alpha).toFixed(1)}%`);
+    weaknesses.push('选股能力');
+  }
+
+  // 检查2：趋势分析
+  const trend = calculateTrend(decisionQuality.recentReturns);
+  if (trend === 'declining') {
+    capable = false;
+    reasons.push('收益率持续下降');
+    weaknesses.push('整体策略');
+  }
+
+  // 检查3：决策质量
+  if (decisionQuality.errorRate > 0.4) {
+    capable = false;
+    reasons.push(`决策错误率${(decisionQuality.errorRate * 100).toFixed(0)}%过高`);
+    weaknesses.push('决策准确性');
+  }
+
+  // 检查4：止损执行
+  if (decisionQuality.stopLossExecutionRate < 0.6) {
+    capable = false;
+    reasons.push('止损执行率不足60%');
+    weaknesses.push('风控能力');
+  }
+
+  return { capable, reasons, weaknesses };
 }

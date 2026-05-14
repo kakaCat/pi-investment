@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
-import { calculateGap, checkTargetRealistic } from './comparator.js';
+import { calculateGap, checkTargetRealistic, evaluateAgentCapability } from './comparator.js';
+import type { DecisionQualityMetrics } from '../../types/evolution.js';
 
 describe('Comparator - calculateGap', () => {
   it('应该正确计算性能差距', () => {
@@ -76,5 +77,77 @@ describe('Comparator - checkTargetRealistic', () => {
 
     expect(result.realistic).toBe(false);
     expect(result.reasons.some(r => r.includes('波动率'))).toBe(true);
+  });
+});
+
+describe('Comparator - evaluateAgentCapability', () => {
+  it('应该判断能力正常', () => {
+    const metrics: DecisionQualityMetrics = {
+      recentReturns: [10, 11, 12],
+      errorRate: 0.2,
+      stopLossExecutionRate: 0.8
+    };
+
+    const result = evaluateAgentCapability(10, 8, 2, metrics);
+
+    expect(result.capable).toBe(true);
+    expect(result.reasons).toHaveLength(0);
+    expect(result.weaknesses).toHaveLength(0);
+  });
+
+  it('应该识别跑输大盘', () => {
+    const metrics: DecisionQualityMetrics = {
+      recentReturns: [5, 6, 5],
+      errorRate: 0.2,
+      stopLossExecutionRate: 0.8
+    };
+
+    const result = evaluateAgentCapability(5, 8, -3, metrics);
+
+    expect(result.capable).toBe(false);
+    expect(result.reasons.some(r => r.includes('跑输大盘'))).toBe(true);
+    expect(result.weaknesses).toContain('选股能力');
+  });
+
+  it('应该识别收益率下降趋势', () => {
+    const metrics: DecisionQualityMetrics = {
+      recentReturns: [12, 10, 8],  // 下降趋势
+      errorRate: 0.2,
+      stopLossExecutionRate: 0.8
+    };
+
+    const result = evaluateAgentCapability(8, 7, 1, metrics);
+
+    expect(result.capable).toBe(false);
+    expect(result.reasons.some(r => r.includes('持续下降'))).toBe(true);
+    expect(result.weaknesses).toContain('整体策略');
+  });
+
+  it('应该识别决策错误率过高', () => {
+    const metrics: DecisionQualityMetrics = {
+      recentReturns: [10, 11, 12],
+      errorRate: 0.5,  // 50% 错误率
+      stopLossExecutionRate: 0.8
+    };
+
+    const result = evaluateAgentCapability(10, 8, 2, metrics);
+
+    expect(result.capable).toBe(false);
+    expect(result.reasons.some(r => r.includes('错误率'))).toBe(true);
+    expect(result.weaknesses).toContain('决策准确性');
+  });
+
+  it('应该识别止损执行率不足', () => {
+    const metrics: DecisionQualityMetrics = {
+      recentReturns: [10, 11, 12],
+      errorRate: 0.2,
+      stopLossExecutionRate: 0.5  // 50% 执行率
+    };
+
+    const result = evaluateAgentCapability(10, 8, 2, metrics);
+
+    expect(result.capable).toBe(false);
+    expect(result.reasons.some(r => r.includes('止损执行率'))).toBe(true);
+    expect(result.weaknesses).toContain('风控能力');
   });
 });
