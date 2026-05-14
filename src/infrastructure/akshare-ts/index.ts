@@ -12,8 +12,6 @@ import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { fileURLToPath } from "url";
-import { memoryService } from "../../services/storage/cache-service.js";
-import { stockMemoryService } from "../../services/storage/stock-memory-service.js";
 import {
   fetchSinaAShareRealtime, fetchSinaHKRealtime, fetchSinaIndices,
   fetchSinaKlines, klinesToNumbers,
@@ -254,12 +252,9 @@ export async function get_stock_history(
 export async function get_stock_info(symbol: string, saveToMemory = false): Promise<string> {
   const clean = cleanSymbol(symbol);
 
-  // 先查记忆
-  const cached = stockMemoryService.get(clean);
-
   try {
     const [info, priceJson, peData] = await Promise.all([
-      cached ? Promise.resolve(cached) : fetchStockInfo(clean),
+      fetchStockInfo(clean),
       get_stock_realtime_price(clean),
       fetchPeData(clean),
     ]);
@@ -277,16 +272,6 @@ export async function get_stock_info(symbol: string, saveToMemory = false): Prom
       listed_date: (info as any).listedDate ?? (info as any).listed_date ?? "",
       data_date: today(),
     };
-
-    // 只在明确需要时保存到记忆
-    if (saveToMemory && !cached) {
-      stockMemoryService.add({
-        symbol: clean,
-        name: result.name,
-        sector: result.sector,
-        listed_date: result.listed_date,
-      });
-    }
 
     return JSON.stringify(result);
   } catch (e) {
