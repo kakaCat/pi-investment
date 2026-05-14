@@ -1,14 +1,14 @@
 /**
  * Memory Tool Adapter - memory_write / memory_search 工具定义
  *
- * 真实实现位于 services/intelligence/memory-store.ts
+ * 真实实现位于 services/storage/memory-store.ts
  */
 import type { ToolDefinition } from "./index.js";
 import { Type } from "@sinclair/typebox";
-import { getMemoryStore } from "../../services/intelligence/memory-store.js";
-import { stockDecisionMemoryService } from "../../services/memory/stock-decision-memory-service.js";
+import { getMemoryStore } from "../../services/storage/memory-store.js";
+import { stockDecisionMemoryService } from "../../services/storage/stock-decision-memory-service.js";
 
-export { initMemoryStore as initMemoryTools } from "../../services/intelligence/memory-store.js";
+export { initMemoryStore as initMemoryTools } from "../../services/storage/memory-store.js";
 
 export const memoryWriteTool: ToolDefinition = {
   name: "memory_write",

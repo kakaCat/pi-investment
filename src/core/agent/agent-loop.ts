@@ -19,7 +19,7 @@ import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initMe
 import type { ToolDefinition } from "../../infrastructure/tools/index.js";
 import { setPlanToolContext } from "../../infrastructure/tools/plan-tool.js";
 import { loadPlugins } from "../../infrastructure/plugins/index.js";
-import { getMemoryStore } from "../../services/intelligence/memory-store.js";
+import { getMemoryStore } from "../../services/storage/memory-store.js";
 import { microCompact } from "../../services/compaction/compaction-service.js";
 import { join } from "path";
 import { createDeepSeekModel, paths } from "../../config/config.js";

@@ -12,8 +12,8 @@ import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { fileURLToPath } from "url";
-import { memoryService } from "../../services/cache/cache-service.js";
-import { stockMemoryService } from "../../services/memory/stock-memory-service.js";
+import { memoryService } from "../../services/storage/cache-service.js";
+import { stockMemoryService } from "../../services/storage/stock-memory-service.js";
 import {
   fetchSinaAShareRealtime, fetchSinaHKRealtime, fetchSinaIndices,
   fetchSinaKlines, klinesToNumbers,

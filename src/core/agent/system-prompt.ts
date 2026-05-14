@@ -10,7 +10,7 @@
 import { type Skill } from "@mariozechner/pi-coding-agent";
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
-import { getMemoryStore } from "../../services/intelligence/memory-store.js";
+import { getMemoryStore } from "../../services/storage/memory-store.js";
 import { buildSystemPrompt } from "../../services/intelligence/system-prompt-builder.js";
 import { getBootstrapData } from "../../config/config.js";
 import type { PluginSkill } from "../../infrastructure/plugins/index.js";

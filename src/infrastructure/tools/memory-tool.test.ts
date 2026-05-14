@@ -7,7 +7,7 @@ const appendStockMemoryMock = jest.fn<(symbol: string, section: string) => strin
 const getStockMemoryMock = jest.fn<(symbol: string) => string | null>();
 const initMemoryStoreMock = jest.fn();
 
-jest.unstable_mockModule("../../services/intelligence/memory-store.js", () => ({
+jest.unstable_mockModule("../../services/storage/memory-store.js", () => ({
   getMemoryStore: () => ({
     writeMemory: writeMemoryMock,
     hybridSearch: hybridSearchMock,
@@ -15,7 +15,7 @@ jest.unstable_mockModule("../../services/intelligence/memory-store.js", () => ({
   initMemoryStore: initMemoryStoreMock,
 }));
 
-jest.unstable_mockModule("../../services/memory/stock-decision-memory-service.js", () => ({
+jest.unstable_mockModule("../../services/storage/stock-decision-memory-service.js", () => ({
   stockDecisionMemoryService: {
     save: saveStockMemoryMock,
     append: appendStockMemoryMock,

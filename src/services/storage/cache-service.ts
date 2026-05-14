@@ -18,7 +18,7 @@ export class MemoryService {
   private memCache = new Map<string, unknown>();
   private memoryDir: string;
 
-  constructor(baseDir = ".pi-invest/memory") {
+  constructor(baseDir = ".pi-invest/memory/cache") {
     this.memoryDir = join(process.cwd(), baseDir);
     mkdirSync(this.memoryDir, { recursive: true });
   }
@@ -56,16 +56,14 @@ export class MemoryService {
     const memKey = `${type}:${key}`;
     this.memCache.set(memKey, data);
 
-    // 异步写文件
-    setImmediate(() => {
-      try {
-        const dir = join(this.memoryDir, type);
-        mkdirSync(dir, { recursive: true });
-        writeFileSync(this.getFilePath(type, key), JSON.stringify(data, null, 2), "utf-8");
-      } catch {
-        // 忽略写入失败
-      }
-    });
+    // 同步写文件
+    try {
+      const dir = join(this.memoryDir, type);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(this.getFilePath(type, key), JSON.stringify(data, null, 2), "utf-8");
+    } catch {
+      // 忽略写入失败
+    }
   }
 
   private getFilePath(type: MemoryType, key: string): string {
