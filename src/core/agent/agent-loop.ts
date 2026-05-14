@@ -124,7 +124,10 @@ export async function getSession(): Promise<AgentSession> {
       initCompactTool(session);
 
       const sessionDir = getSessionDir();
-      initBrowserTool(sessionDir);
+      if (sessionDir) {
+        initBrowserTool(sessionDir);
+        initTaskTools(join(sessionDir, "tasks"));
+      }
       console.log(`📋 Session: ${getSessionKey()}`);
 
       logBootstrapFiles(getBootstrapData());
@@ -134,8 +137,6 @@ export async function getSession(): Promise<AgentSession> {
         tools: effectiveTools,
         workspaceDir: paths.root,
       }), 0);
-
-      initTaskTools(join(sessionDir, "tasks"));
 
       try {
         const stats = getMemoryStore().getStats();

@@ -21,6 +21,7 @@ import { monitorTools } from "../../tools/monitor-tools.js";
 import { evolutionRunTool } from "./evolution-tool.js";
 import { analyzeSectorRotationTool } from "./analyze-sector-rotation-tool.js";
 import { checkStopLossTriggerTool } from "./check-stop-loss-trigger-tool.js";
+import { testMarketSentimentTool } from "./test-market-sentiment-tool.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./memory-tool.js";
@@ -48,8 +49,9 @@ export const allCustomTools = [
   // 投资工具 — 核心业务
   ...investTools.map(wrapInvestToolWithSkillGuard),
   ...stockDBTools,
-  analyzeSectorRotationTool,      // NEW: 行业轮动分析
-  checkStopLossTriggerTool,       // NEW: 止损检查
+  analyzeSectorRotationTool,      // 行业轮动分析
+  checkStopLossTriggerTool,       // 止损检查
+  testMarketSentimentTool,        // NEW: 市场情绪分析
   // 监控工具 — 实时盯盘
   ...monitorTools,
   // 进化工具 — 自我优化

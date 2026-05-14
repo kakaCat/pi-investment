@@ -47,14 +47,6 @@ export interface OptimizerStrategy {
   actions: OptimizerAction[];
 }
 
-export type OptimizerAction =
-  | 'adjust_parameters'
-  | 'update_experience'
-  | 'add_tools'
-  | 'remove_tools'
-  | 'update_algorithms'
-  | 'redesign_strategy';
-
 // 工具调整
 export interface ToolAddition {
   name: string;
@@ -145,15 +137,46 @@ export interface ToolEfficiency {
   rating: 1 | 2 | 3 | 4 | 5;
 }
 
+// 优化建议类型
+export type OptimizerAction =
+  | 'add_tool'           // 生成新工具（能力缺失）
+  | 'remove_tool'        // 移除工具（能力冗余）
+  | 'update_experience'  // 更新经验库（经验不足）
+  | 'update_prompt'      // 修改提示词（决策逻辑偏差）
+  | 'update_code'        // 修改代码（实现缺陷/性能问题）
+  | 'adjust_parameter';  // 调整参数（配置优化）
+
+// 提示词更新
+export interface PromptUpdate {
+  file: string;           // 提示词文件路径（相对于 .pi-invest/bootstrap/）
+  section?: string;       // 要修改的章节（可选）
+  modification: string;   // 修改内容描述
+  newContent: string;     // 新的内容
+  reason: string;         // 修改原因
+}
+
+// 代码更新
+export interface CodeUpdate {
+  file: string;           // 代码文件路径
+  function?: string;      // 要修改的函数名（可选）
+  issue: string;          // 问题描述
+  modification: string;   // 修改内容描述
+  reason: string;         // 修改原因
+}
+
 // 优化建议
 export interface OptimizationSuggestion {
   id: string;
-  type: 'add_tool' | 'remove_tool' | 'update_experience' | 'adjust_parameter';
+  type: OptimizerAction;
   priority: 'high' | 'medium' | 'low';
   description: string;
   reason: string;
   expectedImpact: string;
   data?: any;
+
+  // 类型特定数据
+  promptUpdate?: PromptUpdate;
+  codeUpdate?: CodeUpdate;
 }
 
 // 进化报告

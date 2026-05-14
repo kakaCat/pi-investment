@@ -7,7 +7,7 @@ describe('Compensator - determineOptimizerStrategy', () => {
     const strategy = determineOptimizerStrategy(1.5);
 
     expect(strategy.level).toBe('minor');
-    expect(strategy.actions).toContain('adjust_parameters');
+    expect(strategy.actions).toContain('adjust_parameter');
     expect(strategy.actions).toContain('update_experience');
   });
 
@@ -15,16 +15,16 @@ describe('Compensator - determineOptimizerStrategy', () => {
     const strategy = determineOptimizerStrategy(3);
 
     expect(strategy.level).toBe('moderate');
-    expect(strategy.actions).toContain('add_tools');
-    expect(strategy.actions).toContain('remove_tools');
+    expect(strategy.actions).toContain('add_tool');
+    expect(strategy.actions).toContain('remove_tool');
   });
 
   it('应该为大差距返回重大调整策略', () => {
     const strategy = determineOptimizerStrategy(6);
 
     expect(strategy.level).toBe('major');
-    expect(strategy.actions).toContain('redesign_strategy');
-    expect(strategy.actions).toContain('update_algorithms');
+    expect(strategy.actions).toContain('update_code');
+    expect(strategy.actions).toContain('update_prompt');
   });
 });
 
