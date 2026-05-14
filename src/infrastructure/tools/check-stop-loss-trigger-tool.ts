@@ -59,8 +59,8 @@ export const checkStopLossTriggerTool: ToolDefinition = {
 
       for (const holding of snapshot.holdings) {
         // Read portfolio.json to get stop_loss field
-        const portfolioData = portfolioService.getHoldings();
-        const holdingData = portfolioData.find(h => h.symbol === holding.symbol);
+        const portfolioData = portfolioService.load();
+        const holdingData = portfolioData.holdings.find((h) => h.symbol === holding.symbol);
 
         if (!holdingData || !holdingData.stop_loss) {
           // No stop loss configured for this position

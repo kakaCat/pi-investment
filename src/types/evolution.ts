@@ -192,3 +192,103 @@ export interface EvolutionReport {
     version: number;
   }>;
 }
+
+// ─── 进化历史学习系统 ────────────────────────────────────────────────────
+
+// 进化历史记录
+export interface EvolutionHistory {
+  evolutionId: string;
+  date: string;
+  branchName: string;
+  suggestions: OptimizationSuggestion[];
+  applied: string[]; // 已应用的建议 ID
+
+  // 应用前的基线
+  baseline: {
+    return: number;
+    winRate: number;
+    maxDrawdown: number;
+    toolStats: ToolEfficiency[];
+  };
+
+  // 应用后的效果（下次进化时填充）
+  outcome?: {
+    return: number;
+    winRate: number;
+    maxDrawdown: number;
+    toolStats: ToolEfficiency[];
+    improvement: {
+      returnDelta: number;
+      winRateDelta: number;
+      maxDrawdownDelta: number;
+    };
+  };
+
+  // 效果评估
+  evaluation?: {
+    score: number; // 0-100分
+    effective: boolean;
+    effectiveTools: string[];
+    ineffectiveTools: string[];
+    reasons: string[];
+    suggestionScores: SuggestionScore[];
+  };
+}
+
+// 单个建议评分
+export interface SuggestionScore {
+  suggestionId: string;
+  toolName: string;
+  score: number; // 0-100分
+  metrics: {
+    callCount: number;
+    winRate: number;
+    avgReturn: number;
+    contribution: number;
+  } | null;
+  verdict: 'excellent' | 'good' | 'neutral' | 'poor' | 'harmful';
+}
+
+// 经验总结
+export interface ExperienceSummary {
+  version: string;
+  lastUpdated: string;
+  totalEvolutions: number;
+
+  toolPatterns: ToolPattern[];
+  suggestionTypeStats: SuggestionTypeStat[];
+  learnings: Learning[];
+  antiPatterns: AntiPattern[];
+}
+
+export interface ToolPattern {
+  toolName: string;
+  addedCount: number;
+  removedCount: number;
+  avgScore: number;
+  successRate: number;
+  bestContext: string;
+  recommendation: 'highly_recommended' | 'recommended' | 'neutral' | 'not_recommended';
+}
+
+export interface SuggestionTypeStat {
+  type: 'add_tool' | 'remove_tool' | 'update_experience';
+  totalCount: number;
+  avgScore: number;
+  successRate: number;
+}
+
+export interface Learning {
+  id: string;
+  rule: string;
+  confidence: number;
+  evidence: string[];
+  examples: string[];
+}
+
+export interface AntiPattern {
+  pattern: string;
+  reason: string;
+  occurrences: number;
+  avgNegativeImpact: number;
+}

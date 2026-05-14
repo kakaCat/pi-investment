@@ -19,8 +19,8 @@ export function isWithinTradingHours(date: Date): boolean {
   // Before 09:30
   if (hour < 9 || (hour === 9 && minute < 30)) return false;
 
-  // After 15:00
-  if (hour >= 15) return false;
+  // After 15:00 (15:00 is the last minute of trading)
+  if (hour > 15 || (hour === 15 && minute > 0)) return false;
 
   return true;
 }

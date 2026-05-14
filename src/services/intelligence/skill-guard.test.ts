@@ -12,7 +12,7 @@ describe("skill-guard", () => {
     initSkillGuard([
       { name: "deep-analysis", filePath: join(process.cwd(), "skills", "deep-analysis.md") },
       { name: "portfolio", filePath: join(process.cwd(), "skills", "portfolio.md") },
-      { name: "risk-manager", filePath: join(process.cwd(), "skills", "risk-manager.md") },
+      { name: "test-no-tools", filePath: join(process.cwd(), "skills", "test-no-tools.md") },
     ] as any);
   });
 
@@ -33,8 +33,8 @@ describe("skill-guard", () => {
   });
 
   test("blocks invest tools when the skill contains no tool calls", async () => {
-    await expect(withForcedSkillScope("risk-manager", async () => {
+    await expect(withForcedSkillScope("test-no-tools", async () => {
       assertToolAllowedForActiveSkill("get_stock_price");
-    })).rejects.toThrow("技能 risk-manager 未授权调用工具 get_stock_price");
+    })).rejects.toThrow("技能 test-no-tools 未授权调用工具 get_stock_price");
   });
 });

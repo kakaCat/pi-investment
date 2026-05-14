@@ -13,6 +13,7 @@ import { PerformanceMonitor } from "../infrastructure/monitoring/performance-mon
 import { CronService } from "../services/operations/cron-service.js";
 import { DailyReviewService } from "../services/operations/daily-review-service.js";
 import { StopLossAlertService } from "../services/operations/stop-loss-alert-service.js";
+import { runWeeklyEvolution } from "../services/intelligence/evolution-service.js";
 import { join } from "path";
 
 // 加载环境变量
@@ -77,6 +78,29 @@ async function main() {
         } else if (payload.kind === "stop_loss_alert") {
           const result = await alertService.run();
           process.stdout.write(result.summary + "\n");
+        } else if (payload.kind === "weekly_evolution") {
+          process.stdout.write("\n\n" + "═".repeat(60) + "\n");
+          process.stdout.write("[进化分析] 开始运行每周进化分析...\n");
+          process.stdout.write("═".repeat(60) + "\n\n");
+          try {
+            const result = await runWeeklyEvolution();
+            process.stdout.write(`✅ 进化分析完成\n`);
+            process.stdout.write(`📊 报告路径: ${result.reportPath}\n`);
+            process.stdout.write(`📈 目标收益: ${result.summary.targetReturn}% | 实际收益: ${result.summary.realizedReturn}%\n`);
+            process.stdout.write(`🎯 胜率: ${(result.summary.winRate * 100).toFixed(1)}% | 交易次数: ${result.summary.totalTrades}\n`);
+            process.stdout.write(`🔍 归因: ${result.summary.attribution}\n`);
+            process.stdout.write(`💡 优化建议: ${result.summary.suggestionCount} 条\n`);
+            if (result.summary.appliedCount > 0) {
+              process.stdout.write(`✨ 已自动应用: ${result.summary.appliedCount} 条\n`);
+            }
+            if (result.summary.manualTaskCount > 0) {
+              process.stdout.write(`⚠️  需人工处理: ${result.summary.manualTaskCount} 条\n`);
+            }
+            process.stdout.write("\n" + "═".repeat(60) + "\n\n");
+          } catch (e) {
+            process.stdout.write(`❌ 进化分析失败: ${e instanceof Error ? e.message : String(e)}\n`);
+            process.stdout.write("═".repeat(60) + "\n\n");
+          }
         } else if (payload.kind === "agent_turn" && payload.message) {
           // 直接通过 session 注入消息
           await session.prompt(payload.message);

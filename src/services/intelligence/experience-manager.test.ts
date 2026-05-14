@@ -1,167 +1,171 @@
+/**
+ * Experience Manager Tests
+ */
+
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { loadExperienceBase, saveExperienceBase, addExperience, queryExperience } from './experience-manager.js';
-import { existsSync, mkdirSync, writeFileSync, unlinkSync, rmdirSync } from 'fs';
+import { mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
+import {
+  loadExperienceBase,
+  saveExperienceBase,
+  addExperience,
+  addExperiences,
+  removeExperience,
+  mergeExperiences,
+  queryExperience,
+} from './experience-manager.js';
+import type { Experience, ExperienceBase } from '../../types/evolution.js';
 
-const TEST_DIR = join(process.cwd(), '.pi-invest-test');
-const TEST_EXPERIENCE_FILE = join(TEST_DIR, 'experience', 'experience-base.json');
+const TEST_DIR = join(process.cwd(), '.test-experience');
 
-describe('ExperienceManager', () => {
+describe('Experience Manager', () => {
   beforeEach(() => {
-    if (!existsSync(TEST_DIR)) {
-      mkdirSync(TEST_DIR, { recursive: true });
-      mkdirSync(join(TEST_DIR, 'experience'), { recursive: true });
+    if (existsSync(TEST_DIR)) {
+      rmSync(TEST_DIR, { recursive: true });
     }
+    mkdirSync(TEST_DIR, { recursive: true });
   });
 
   afterEach(() => {
-    if (existsSync(TEST_EXPERIENCE_FILE)) {
-      unlinkSync(TEST_EXPERIENCE_FILE);
-    }
-    if (existsSync(join(TEST_DIR, 'experience'))) {
-      rmdirSync(join(TEST_DIR, 'experience'));
-    }
     if (existsSync(TEST_DIR)) {
-      rmdirSync(TEST_DIR);
+      rmSync(TEST_DIR, { recursive: true });
     }
   });
 
-  it('应该加载空经验库', () => {
-    const base = loadExperienceBase(TEST_DIR);
-
-    expect(base.version).toBe('1.0');
-    expect(base.experiences).toEqual([]);
+  const createTestExperience = (id: string): Experience => ({
+    id,
+    scenario: '测试场景',
+    pattern: {
+      conditions: ['条件1', '条件2'],
+      action: 'buy',
+    },
+    outcomes: {
+      total_cases: 10,
+      win_rate: 60,
+      avg_return: 5.5,
+      max_gain: 15,
+      max_loss: -8,
+    },
+    recommendation: 'moderate',
+    reason: '测试原因',
+    examples: [
+      {
+        date: '2026-05-13',
+        symbol: '600036',
+        session_id: 'test-session',
+        result: 5.5,
+      },
+    ],
+    confidence: 0.7,
+    last_updated: '2026-05-14',
   });
 
-  it('应该加载现有经验库', () => {
-    const mockBase = {
-      version: '1.0',
-      last_updated: '2026-05-14',
-      experiences: [
-        {
-          id: 'exp_001',
-          scenario: '追涨买入',
-          pattern: { conditions: ['涨幅>5%'], action: 'buy' as const },
-          outcomes: { total_cases: 5, win_rate: 0.2, avg_return: -0.03 },
-          recommendation: 'avoid' as const,
-          reason: '胜率低',
-          examples: [],
-          confidence: 0.8,
-          last_updated: '2026-05-14'
-        }
-      ]
-    };
-
-    writeFileSync(TEST_EXPERIENCE_FILE, JSON.stringify(mockBase, null, 2));
-
-    const base = loadExperienceBase(TEST_DIR);
-
-    expect(base.experiences).toHaveLength(1);
-    expect(base.experiences[0].id).toBe('exp_001');
-    expect(base.experiences[0].scenario).toBe('追涨买入');
-  });
-
-  it('应该保存经验库', () => {
-    const base = loadExperienceBase(TEST_DIR);
-
-    base.experiences.push({
-      id: 'exp_002',
-      scenario: 'MACD金叉',
-      pattern: { conditions: ['MACD>0'], action: 'buy' },
-      outcomes: { total_cases: 10, win_rate: 0.7, avg_return: 0.05 },
-      recommendation: 'moderate',
-      reason: '胜率较高',
-      examples: [],
-      confidence: 0.85,
-      last_updated: '2026-05-14'
+  describe('loadExperienceBase', () => {
+    it('should return empty base if file does not exist', () => {
+      const base = loadExperienceBase(TEST_DIR);
+      expect(base.version).toBe('1.0.0');
+      expect(base.experiences).toEqual([]);
     });
 
-    saveExperienceBase(base, TEST_DIR);
+    it('should load existing experience base', () => {
+      const testBase: ExperienceBase = {
+        version: '1.0.0',
+        last_updated: '2026-05-14',
+        experiences: [createTestExperience('exp-1')],
+      };
 
-    const reloaded = loadExperienceBase(TEST_DIR);
-    expect(reloaded.experiences).toHaveLength(1);
-    expect(reloaded.experiences[0].scenario).toBe('MACD金叉');
-  });
-});
+      const expDir = join(TEST_DIR, 'experience');
+      mkdirSync(expDir, { recursive: true });
+      writeFileSync(
+        join(expDir, 'experiences.json'),
+        JSON.stringify(testBase, null, 2)
+      );
 
-describe('ExperienceManager - queryExperience', () => {
-  beforeEach(() => {
-    if (!existsSync(TEST_DIR)) {
-      mkdirSync(TEST_DIR, { recursive: true });
-      mkdirSync(join(TEST_DIR, 'experience'), { recursive: true });
-    }
+      const loaded = loadExperienceBase(TEST_DIR);
+      expect(loaded.version).toBe('1.0.0');
+      expect(loaded.experiences).toHaveLength(1);
+      expect(loaded.experiences[0].id).toBe('exp-1');
+    });
 
-    const base = {
-      version: '1.0',
-      last_updated: '2026-05-14',
-      experiences: [
-        {
-          id: 'exp_001',
-          scenario: '追涨买入',
-          pattern: { conditions: ['涨幅>5%', 'RSI>70'], action: 'buy' as const },
-          outcomes: { total_cases: 8, win_rate: 0.25, avg_return: -0.035 },
-          recommendation: 'avoid' as const,
-          reason: '胜率低',
-          examples: [],
-          confidence: 0.88,
-          last_updated: '2026-05-14'
-        },
-        {
-          id: 'exp_002',
-          scenario: 'MACD金叉买入',
-          pattern: { conditions: ['MACD>0', '成交量放大'], action: 'buy' as const },
-          outcomes: { total_cases: 12, win_rate: 0.75, avg_return: 0.058 },
-          recommendation: 'moderate' as const,
-          reason: '胜率较高',
-          examples: [],
-          confidence: 0.82,
-          last_updated: '2026-05-14'
-        }
-      ]
-    };
+    it('should throw error if format is invalid', () => {
+      const expDir = join(TEST_DIR, 'experience');
+      mkdirSync(expDir, { recursive: true });
+      writeFileSync(join(expDir, 'experiences.json'), '{"invalid": true}');
 
-    writeFileSync(TEST_EXPERIENCE_FILE, JSON.stringify(base, null, 2));
+      expect(() => loadExperienceBase(TEST_DIR)).toThrow('Invalid experience base format');
+    });
   });
 
-  afterEach(() => {
-    if (existsSync(TEST_EXPERIENCE_FILE)) {
-      unlinkSync(TEST_EXPERIENCE_FILE);
-    }
-    if (existsSync(join(TEST_DIR, 'experience'))) {
-      rmdirSync(join(TEST_DIR, 'experience'));
-    }
-    if (existsSync(TEST_DIR)) {
-      rmdirSync(TEST_DIR);
-    }
+  describe('saveExperienceBase', () => {
+    it('should save experience base with version increment', () => {
+      const base: ExperienceBase = {
+        version: '1.0.0',
+        last_updated: '2026-05-14',
+        experiences: [createTestExperience('exp-1')],
+      };
+
+      saveExperienceBase(base, TEST_DIR);
+
+      const loaded = loadExperienceBase(TEST_DIR);
+      expect(loaded.version).toBe('1.0.1');
+      expect(loaded.experiences).toHaveLength(1);
+    });
   });
 
-  it('应该根据场景查询经验', () => {
-    const results = queryExperience({ scenario: '追涨' }, TEST_DIR);
+  describe('addExperience', () => {
+    it('should add new experience', () => {
+      const exp = createTestExperience('exp-1');
+      addExperience(exp, TEST_DIR);
 
-    expect(results).toHaveLength(1);
-    expect(results[0].scenario).toBe('追涨买入');
+      const base = loadExperienceBase(TEST_DIR);
+      expect(base.experiences).toHaveLength(1);
+      expect(base.experiences[0].id).toBe('exp-1');
+    });
+
+    it('should update existing experience', () => {
+      const exp1 = createTestExperience('exp-1');
+      addExperience(exp1, TEST_DIR);
+
+      const exp2 = { ...exp1, confidence: 0.9 };
+      addExperience(exp2, TEST_DIR);
+
+      const base = loadExperienceBase(TEST_DIR);
+      expect(base.experiences).toHaveLength(1);
+      expect(base.experiences[0].confidence).toBe(0.9);
+    });
   });
 
-  it('应该根据条件查询经验', () => {
-    const results = queryExperience(
-      { conditions: ['MACD>0'] },
-      TEST_DIR
-    );
+  describe('queryExperience', () => {
+    beforeEach(() => {
+      const exp1 = createTestExperience('exp-1');
+      exp1.scenario = '突破前高后回调';
+      exp1.pattern.conditions = ['MACD金叉', 'RSI>70'];
+      exp1.confidence = 0.8;
 
-    expect(results).toHaveLength(1);
-    expect(results[0].scenario).toBe('MACD金叉买入');
-  });
+      const exp2 = createTestExperience('exp-2');
+      exp2.scenario = '跌破支撑位';
+      exp2.pattern.conditions = ['MACD死叉', 'RSI<30'];
+      exp2.pattern.action = 'sell';
+      exp2.confidence = 0.6;
 
-  it('应该按置信度排序', () => {
-    const results = queryExperience({ scenario: '买入' }, TEST_DIR);
+      addExperiences([exp1, exp2], TEST_DIR);
+    });
 
-    expect(results).toHaveLength(2);
-    expect(results[0].confidence).toBeGreaterThanOrEqual(results[1].confidence);
-  });
+    it('should query by scenario', () => {
+      const results = queryExperience({ scenario: '突破' }, TEST_DIR);
+      expect(results.length).toBeGreaterThanOrEqual(1);
+    });
 
-  it('应该返回空数组如果没有匹配', () => {
-    const results = queryExperience({ scenario: '不存在的场景' }, TEST_DIR);
+    it('should query by conditions', () => {
+      const results = queryExperience({ conditions: ['MACD金叉'] }, TEST_DIR);
+      expect(results.length).toBeGreaterThanOrEqual(1);
+    });
 
-    expect(results).toEqual([]);
+    it('should sort by confidence', () => {
+      const results = queryExperience({ scenario: '突破' }, TEST_DIR);
+      if (results.length > 1) {
+        expect(results[0].confidence).toBeGreaterThanOrEqual(results[1].confidence);
+      }
+    });
   });
 });

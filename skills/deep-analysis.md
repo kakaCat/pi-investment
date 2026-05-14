@@ -16,30 +16,30 @@ description: 对单只A股做全面投研分析（基本面+估值+技术面+资
 ## 允许的工具（Skill Guard 白名单）
 
 本技能允许调用以下工具：
-- plan_task()
-- task_create()
-- task_update()
-- task_execute_async()
-- get_market_overview()
-- get_quality_score()
-- get_financial_data()
-- manage_portfolio()
-- get_stock_price()
-- get_stock_info()
-- get_valuation()
-- get_pe_percentile()
-- analyze_price_action()
-- analyze_technical()
-- analyze_candlestick()
-- predict_stock_signal()
-- get_stock_news()
-- get_announcements()
-- get_buy_range()
-- get_stock_fund_flow()
-- get_holder_changes()
-- get_macro_data()
-- get_north_flow()
-- reflect()
+- `plan_task()`
+- `task_create()`
+- `task_update()`
+- `task_execute_async()`
+- `get_market_overview()`
+- `get_quality_score()`
+- `get_financial_data()`
+- `manage_portfolio()`
+- `get_stock_price()`
+- `get_stock_info()`
+- `get_valuation()`
+- `get_pe_percentile()`
+- `analyze_price_action()`
+- `analyze_technical()`
+- `analyze_candlestick()`
+- `predict_stock_signal()`
+- `get_stock_news()`
+- `get_announcements()`
+- `get_buy_range()`
+- `get_stock_fund_flow()`
+- `get_holder_changes()`
+- `get_macro_data()`
+- `get_north_flow()`
+- `reflect()`
 
 ## 触发条件
 

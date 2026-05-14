@@ -12,6 +12,17 @@ import { calculateGap, attributeGap } from './comparator';
 import { determineOptimizerStrategy, generateOptimizationSuggestions } from './compensator';
 import { generateEvolutionReport, formatReportAsMarkdown } from './evolution-reporter';
 import { executeOptimizationSuggestions, saveExecutionResult } from './evolution-executor';
+import {
+  loadRecentEvolutions,
+  evaluateLastEvolution,
+  updateEvolutionOutcome,
+  saveEvolutionHistory,
+} from './evolution-history';
+import {
+  loadExperienceSummary,
+  generateExperienceSummary,
+  saveExperienceSummary,
+} from './experience-learner';
 import type {
   EvolutionReport,
   DecisionQualityMetrics,
@@ -57,6 +68,7 @@ interface EvolutionResult {
     suggestionCount: number;
     appliedCount: number;
     manualTaskCount: number;
+    evolutionId?: string; // 新增
   };
 }
 
@@ -242,6 +254,31 @@ export async function runWeeklyEvolution(): Promise<EvolutionResult> {
   const actual = realizedReturn;
   const market = 5; // 默认大盘参考（无实时数据时用 5%）
 
+  // ── 新增：加载历史和经验 ──────────────────────────────────────────────
+  const recentEvolutions = await loadRecentEvolutions(piDir, 3);
+  const experienceSummary = await loadExperienceSummary(piDir);
+
+  // ── 新增：评估上次进化效果 ────────────────────────────────────────────
+  if (recentEvolutions.length > 0) {
+    const lastEvolution = recentEvolutions[0];
+    const currentMetrics = {
+      return: actual,
+      winRate,
+      maxDrawdown: tradeResults.length > 0
+        ? Math.min(...tradeResults.map(r => r.pnlPct))
+        : 0,
+      toolStats: [],
+    };
+
+    try {
+      const evaluation = await evaluateLastEvolution(lastEvolution, currentMetrics);
+      await updateEvolutionOutcome(lastEvolution.evolutionId, currentMetrics, evaluation, piDir);
+      console.log(`[进化] 已评估上次进化 ${lastEvolution.evolutionId}，评分: ${evaluation.score}/100`);
+    } catch (e) {
+      console.error('[进化] 评估上次进化失败:', e);
+    }
+  }
+
   // ── 4. 减法器：计算差距 + 归因 ─────────────────────────────────────────
   const gap = calculateGap(target, actual, market);
 
@@ -255,7 +292,7 @@ export async function runWeeklyEvolution(): Promise<EvolutionResult> {
 
   const attribution = attributeGap(gap, historicalReturns, marketVolatility, decisionQuality);
 
-  // ── 5. 补偿器：策略 + 建议 ─────────────────────────────────────────────
+  // ── 5. 补偿器：策略 + 建议（增强：传入历史和经验）─────────────────────
   const strategy = determineOptimizerStrategy(gap.gap);
 
   const weaknesses: string[] = [];
@@ -263,11 +300,15 @@ export async function runWeeklyEvolution(): Promise<EvolutionResult> {
   if (decisionQuality.stopLossExecutionRate < 0.6) weaknesses.push('风控能力');
   if (lossCount > winCount && winCount + lossCount > 5) weaknesses.push('决策准确性');
 
-  const suggestions = generateOptimizationSuggestions({
-    level: strategy.level,
-    toolStats: [],
-    weaknesses,
-  });
+  const suggestions = generateOptimizationSuggestions(
+    {
+      level: strategy.level,
+      toolStats: [],
+      weaknesses,
+    },
+    recentEvolutions,
+    experienceSummary
+  );
 
   // ── 6. 成功/失败模式 ────────────────────────────────────────────────────
   const profitTrades = tradeResults.filter(r => r.pnl > 0);
@@ -311,7 +352,7 @@ export async function runWeeklyEvolution(): Promise<EvolutionResult> {
   });
 
   // ── 8. 保存报告 ────────────────────────────────────────────────────────
-  const markdown = formatReportAsMarkdown(report);
+  const markdown = formatReportAsMarkdown(report, recentEvolutions, experienceSummary ?? undefined);
 
   const evolutionDir = path.join(piDir, 'evolution');
   await fs.mkdir(evolutionDir, { recursive: true });
@@ -323,6 +364,35 @@ export async function runWeeklyEvolution(): Promise<EvolutionResult> {
   // ── 9. 执行优化建议 ────────────────────────────────────────────────────
   const executionResult = await executeOptimizationSuggestions(suggestions, piDir);
   const executionResultPath = await saveExecutionResult(executionResult, evolutionDir);
+
+  // ── 新增：保存本次进化历史 ────────────────────────────────────────────
+  const appliedIds = executionResult.applied
+    .filter(a => a.status === 'success')
+    .map(a => a.suggestionId);
+
+  const evolutionId = await saveEvolutionHistory(
+    suggestions,
+    appliedIds,
+    {
+      return: actual,
+      winRate,
+      maxDrawdown: lossTrades.length > 0
+        ? Math.min(...lossTrades.map(r => r.pnlPct))
+        : 0,
+      toolStats: [],
+    },
+    piDir
+  );
+
+  // ── 新增：更新经验总结 ────────────────────────────────────────────────
+  try {
+    const allHistory = await loadRecentEvolutions(piDir, 100); // 加载最近100次
+    const newSummary = await generateExperienceSummary(allHistory);
+    await saveExperienceSummary(newSummary, piDir);
+    console.log(`[进化] 已更新经验总结，共${allHistory.length}次进化`);
+  } catch (e) {
+    console.error('[进化] 更新经验总结失败:', e);
+  }
 
   return {
     reportPath,
@@ -338,6 +408,7 @@ export async function runWeeklyEvolution(): Promise<EvolutionResult> {
       suggestionCount: suggestions.length,
       appliedCount: executionResult.applied.filter(a => a.status === 'success').length,
       manualTaskCount: executionResult.manualTasks.length,
+      evolutionId, // 新增
     },
   };
 }

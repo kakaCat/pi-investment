@@ -166,8 +166,8 @@ describe("feishu api", () => {
     });
 
     expect(sessionManagerInstance.processMessage).toHaveBeenCalledWith("chat-1", "msg-1", "你好");
-    expect(messageCreateMock).toHaveBeenCalledTimes(1);
-    expect(messageCreateMock).toHaveBeenCalledWith(expect.objectContaining({
+    expect(messageCreateMock).toHaveBeenCalledTimes(2); // 1st: confirmation, 2nd: final reply
+    expect(messageCreateMock).toHaveBeenNthCalledWith(2, expect.objectContaining({
       params: { receive_id_type: "chat_id" },
       data: {
         receive_id: "chat-1",
@@ -176,10 +176,10 @@ describe("feishu api", () => {
       },
     }));
 
-    const firstCall = messageCreateMock.mock.calls[0]?.[0] as {
+    const secondCall = messageCreateMock.mock.calls[1]?.[0] as {
       data: { content: string };
     };
-    expect(JSON.parse(firstCall.data.content)).toEqual({
+    expect(JSON.parse(secondCall.data.content)).toEqual({
       config: {
         wide_screen_mode: true,
       },
@@ -297,8 +297,8 @@ describe("feishu api", () => {
       },
     });
 
-    expect(messageCreateMock).toHaveBeenCalledTimes(1);
-    expect(messageCreateMock).toHaveBeenCalledWith({
+    expect(messageCreateMock).toHaveBeenCalledTimes(2); // 1st: confirmation, 2nd: error message
+    expect(messageCreateMock).toHaveBeenNthCalledWith(2, {
       params: { receive_id_type: "chat_id" },
       data: {
         receive_id: "chat-4",

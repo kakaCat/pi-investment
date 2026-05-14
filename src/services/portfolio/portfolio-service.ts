@@ -22,6 +22,10 @@ export interface Holding {
   market: "A" | "HK";  // 市场类型
   notes: string;       // 备注（如：分批建仓批次、操作背景等）
   added_date: string;  // 首次录入日期
+  stop_loss?: number | null;  // 止损价
+  target_price?: number | null;  // 目标价
+  sector?: string;     // 行业
+  buy_reason?: string; // 买入理由
 }
 
 export interface PortfolioFile {

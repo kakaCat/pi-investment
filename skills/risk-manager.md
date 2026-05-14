@@ -6,11 +6,11 @@ description: 制定仓位分配和止损策略（单只最大仓位、分批建�
 # 风险管理技能 (Risk Manager)
 
 ## 允许的工具
-- manage_portfolio()
-- get_stock_price()
-- get_market_overview()
-- analyze_price_action()
-- get_exit_plan()
+- `manage_portfolio()`
+- `get_stock_price()`
+- `get_market_overview()`
+- `analyze_price_action()`
+- `get_exit_plan()`
 
 ## 触发条件
 

@@ -7,7 +7,9 @@
 import type {
   OptimizerStrategy,
   OptimizationSuggestion,
-  ToolEfficiency
+  ToolEfficiency,
+  EvolutionHistory,
+  ExperienceSummary,
 } from '../../types/evolution.js';
 
 /**
@@ -46,15 +48,39 @@ interface OptimizationContext {
 }
 
 /**
- * 生成优化建议
+ * 生成优化建议（增强版：基于历史学习）
  */
 export function generateOptimizationSuggestions(
-  context: OptimizationContext
+  context: OptimizationContext,
+  recentEvolutions?: EvolutionHistory[],
+  experienceSummary?: ExperienceSummary | null
 ): OptimizationSuggestion[] {
   const suggestions: OptimizationSuggestion[] = [];
   let idCounter = 1;
 
-  // 1. 移除低效工具（ROI < 0 或 rating = 1）
+  // ── 1. 基于历史：优先移除上次评分低的工具 ──────────────────────────
+  if (recentEvolutions && recentEvolutions.length > 0) {
+    const lastEvolution = recentEvolutions[0];
+    const lastEvaluation = lastEvolution.evaluation;
+
+    if (lastEvaluation?.ineffectiveTools && lastEvaluation.ineffectiveTools.length > 0) {
+      for (const toolName of lastEvaluation.ineffectiveTools) {
+        const toolScore = lastEvaluation.suggestionScores.find(s => s.toolName === toolName);
+
+        suggestions.push({
+          id: `opt_${idCounter++}`,
+          type: 'remove_tool',
+          priority: 'high',
+          description: `移除无效工具：${toolName}`,
+          reason: `上次进化评分: ${toolScore?.score || 0}/100，${toolScore?.verdict || 'poor'}`,
+          expectedImpact: '减少噪音，提升决策质量',
+          data: { toolName, evidence: toolScore?.metrics }
+        });
+      }
+    }
+  }
+
+  // ── 2. 移除低效工具（ROI < 0 或 rating = 1）──────────────────────
   for (const tool of context.toolStats) {
     if (tool.roi < 0 || tool.rating === 1) {
       suggestions.push({
@@ -69,7 +95,7 @@ export function generateOptimizationSuggestions(
     }
   }
 
-  // 2. 根据弱点新增工具
+  // ── 3. 根据弱点新增工具 ────────────────────────────────────────
   for (const weakness of context.weaknesses) {
     if (weakness === '风控能力') {
       suggestions.push({
@@ -102,7 +128,7 @@ export function generateOptimizationSuggestions(
     }
   }
 
-  // 3. 更新经验库
+  // ── 4. 更新经验库 ──────────────────────────────────────────────
   if (context.newPatterns && context.newPatterns.length > 0) {
     for (const pattern of context.newPatterns) {
       suggestions.push({
@@ -117,5 +143,94 @@ export function generateOptimizationSuggestions(
     }
   }
 
-  return suggestions;
+  // ── 5. 智能过滤：基于历史和经验 ────────────────────────────────
+  const filteredSuggestions = applyIntelligentFilters(
+    suggestions,
+    recentEvolutions,
+    experienceSummary
+  );
+
+  return filteredSuggestions;
 }
+
+/**
+ * 应用智能过滤
+ */
+function applyIntelligentFilters(
+  suggestions: OptimizationSuggestion[],
+  recentEvolutions?: EvolutionHistory[],
+  experienceSummary?: ExperienceSummary | null
+): OptimizationSuggestion[] {
+  let filtered = suggestions;
+
+  // 过滤1: 避免重复建议（检查最近3次）
+  if (recentEvolutions && recentEvolutions.length > 0) {
+    const recentSuggestions = recentEvolutions.flatMap(e => e.suggestions);
+
+    filtered = filtered.filter(s => {
+      const alreadyTried = recentSuggestions.some(prev =>
+        prev.type === s.type &&
+        prev.data?.toolName === s.data?.toolName
+      );
+
+      if (alreadyTried) {
+        console.log(`[补偿器] 过滤重复建议: ${s.description}`);
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  // 过滤2: 过滤不推荐的工具（根据经验总结）
+  if (experienceSummary) {
+    const notRecommendedTools = experienceSummary.toolPatterns
+      .filter(p => p.recommendation === 'not_recommended')
+      .map(p => p.toolName);
+
+    filtered = filtered.filter(s => {
+      if (s.type === 'add_tool') {
+        const toolName = s.data?.toolName;
+        if (notRecommendedTools.includes(toolName)) {
+          console.log(`[补偿器] 过滤不推荐工具: ${toolName} (历史平均评分: ${
+            experienceSummary.toolPatterns.find(p => p.toolName === toolName)?.avgScore
+          })`);
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  // 过滤3: 根据最近3次评分调整激进程度并限制数量
+  let maxSuggestions = 3; // 默认
+
+  if (recentEvolutions && recentEvolutions.length > 0) {
+    const recentScores = recentEvolutions
+      .map(e => e.evaluation?.score)
+      .filter(s => s !== undefined) as number[];
+
+    if (recentScores.length > 0) {
+      const avgRecentScore = recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
+
+      if (avgRecentScore < 40) {
+        maxSuggestions = 2; // 保守
+        console.log(`[补偿器] 最近平均评分: ${avgRecentScore.toFixed(1)}/100，采用保守策略（最多2个建议）`);
+      } else if (avgRecentScore > 70) {
+        maxSuggestions = 5; // 激进
+        console.log(`[补偿器] 最近平均评分: ${avgRecentScore.toFixed(1)}/100，采用激进策略（最多5个建议）`);
+      } else {
+        console.log(`[补偿器] 最近平均评分: ${avgRecentScore.toFixed(1)}/100，采用正常策略（最多3个建议）`);
+      }
+    }
+  }
+
+  // 限制建议数量
+  if (filtered.length > maxSuggestions) {
+    console.log(`[补偿器] 限制建议数量: ${filtered.length} → ${maxSuggestions}`);
+    filtered = filtered.slice(0, maxSuggestions);
+  }
+
+  return filtered;
+}
+
