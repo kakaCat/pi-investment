@@ -870,16 +870,23 @@ git cherry-pick <commit-hash>
 
 ---
 
-## 附录 A：补偿器增强 - 进化效果评估
+## 附录 A：补偿器增强 - 进化历史学习与经验总结
 
 ### A.1 问题描述
 
-当前补偿器只根据当前差距生成建议，但缺少对**上次进化效果**的评估。这导致：
-- 不知道上次新增的工具是否有效
+当前补偿器只根据当前差距生成建议，但缺少对**历史进化效果**的学习能力。这导致：
+- 不知道历史上哪些建议有效、哪些无效
 - 可能重复生成相同的无效建议
-- 无法形成"建议 → 应用 → 评估 → 改进"的完整闭环
+- 无法从历史中总结经验规律
+- 无法形成"建议 → 应用 → 评估 → 学习 → 改进"的完整闭环
 
-### A.2 解决方案：进化历史追踪
+### A.2 解决方案：进化历史学习系统
+
+**核心能力**：
+1. **读取历史**：补偿器可以读取所有历史进化记录（初始实现读取最近3次）
+2. **效果评分**：对每次进化的建议进行0-100分的量化评分
+3. **经验总结**：从历史中提取可复用的经验规律
+4. **智能决策**：基于历史评分和经验，生成更优的建议
 
 #### 数据结构
 
@@ -912,13 +919,71 @@ interface EvolutionHistory {
     };
   };
   
-  // 效果评估
+  // 效果评估（新增：评分 + 详细分析）
   evaluation?: {
+    score: number; // 0-100分，量化本次进化效果
     effective: boolean;
     effectiveTools: string[]; // 有效的工具
     ineffectiveTools: string[]; // 无效的工具
     reasons: string[];
+    
+    // 每个建议的详细评分
+    suggestionScores: Array<{
+      suggestionId: string;
+      toolName: string;
+      score: number; // 0-100分
+      metrics: {
+        callCount: number;
+        winRate: number;
+        avgReturn: number;
+        contribution: number; // 对整体收益的贡献度
+      };
+      verdict: 'excellent' | 'good' | 'neutral' | 'poor' | 'harmful';
+    }>;
   };
+}
+
+// 经验总结数据结构
+interface ExperienceSummary {
+  version: string;
+  lastUpdated: string;
+  totalEvolutions: number;
+  
+  // 工具效果统计
+  toolPatterns: Array<{
+    toolName: string;
+    addedCount: number; // 被添加的次数
+    removedCount: number; // 被移除的次数
+    avgScore: number; // 平均评分
+    successRate: number; // 成功率（评分>60的比例）
+    bestContext: string; // 最佳使用场景（如"震荡市"、"牛市"）
+    recommendation: 'highly_recommended' | 'recommended' | 'neutral' | 'not_recommended';
+  }>;
+  
+  // 建议类型效果统计
+  suggestionTypeStats: Array<{
+    type: 'add_tool' | 'remove_tool' | 'update_experience';
+    totalCount: number;
+    avgScore: number;
+    successRate: number;
+  }>;
+  
+  // 经验规律（从历史中提取的规则）
+  learnings: Array<{
+    id: string;
+    rule: string; // 规则描述
+    confidence: number; // 置信度 0-1
+    evidence: string[]; // 支持证据（evolutionId列表）
+    examples: string[]; // 具体案例
+  }>;
+  
+  // 反模式（应该避免的操作）
+  antiPatterns: Array<{
+    pattern: string;
+    reason: string;
+    occurrences: number;
+    avgNegativeImpact: number;
+  }>;
 }
 ```
 
@@ -927,82 +992,388 @@ interface EvolutionHistory {
 ```
 .pi-invest/evolution/
 ├── history/
-│   ├── 2026-05-07.json  # 上次进化记录
-│   ├── 2026-05-14.json  # 本次进化记录
-│   └── 2026-05-21.json  # 下次进化记录
-├── evolution-2026-05-07.md
-├── evolution-2026-05-14.md
-└── modification-plan-2026-05-14.md
+│   ├── 2026-05-07.json  # 进化历史（包含评分和评估）
+│   ├── 2026-05-14.json
+│   └── 2026-05-21.json
+├── experience-summary.json  # 经验总结（从所有历史中提取）
+├── execution-logs/
+│   ├── 2026-05-07T10:30:00.json # 执行日志（详细过程）
+│   └── 2026-05-14T10:30:00.json
+├── evolution-2026-05-07.md      # 进化报告（Markdown）
+└── evolution-2026-05-14.md
 ```
 
-### A.3 补偿器增强逻辑
+### A.3 评分机制设计
 
-#### Step 1: 加载上次进化历史
+#### 评分公式
+
+每次进化的总评分（0-100分）由以下因素决定：
 
 ```typescript
-async function loadLastEvolution(): Promise<EvolutionHistory | null> {
-  const historyDir = path.join(piDir, 'evolution/history');
-  const files = await fs.readdir(historyDir);
+function calculateEvolutionScore(
+  baseline: PerformanceMetrics,
+  outcome: PerformanceMetrics
+): number {
   
-  if (files.length === 0) return null;
+  // 1. 收益率改善（权重40%）
+  const returnImprovement = (outcome.return - baseline.return) / Math.abs(baseline.return);
+  const returnScore = Math.min(100, Math.max(0, 50 + returnImprovement * 100));
   
-  // 获取最近的历史文件
-  const lastFile = files.sort().reverse()[0];
-  const content = await fs.readFile(path.join(historyDir, lastFile), 'utf-8');
+  // 2. 胜率改善（权重30%）
+  const winRateImprovement = outcome.winRate - baseline.winRate;
+  const winRateScore = Math.min(100, Math.max(0, 50 + winRateImprovement * 200));
   
-  return JSON.parse(content);
+  // 3. 回撤控制（权重20%）
+  const drawdownImprovement = outcome.maxDrawdown - baseline.maxDrawdown;
+  const drawdownScore = Math.min(100, Math.max(0, 50 + drawdownImprovement * 100));
+  
+  // 4. 工具质量（权重10%）
+  const toolQualityScore = calculateToolQualityScore(outcome.toolStats);
+  
+  // 加权平均
+  const totalScore = 
+    returnScore * 0.4 +
+    winRateScore * 0.3 +
+    drawdownScore * 0.2 +
+    toolQualityScore * 0.1;
+  
+  return Math.round(totalScore);
+}
+
+function calculateToolQualityScore(toolStats: ToolEfficiency[]): number {
+  if (toolStats.length === 0) return 50;
+  
+  const avgWinRate = toolStats.reduce((sum, t) => sum + t.win_rate, 0) / toolStats.length;
+  const avgReturn = toolStats.reduce((sum, t) => sum + t.avg_return, 0) / toolStats.length;
+  
+  return Math.min(100, Math.max(0, 50 + avgWinRate * 50 + avgReturn * 10));
 }
 ```
 
-#### Step 2: 评估上次进化效果
+#### 单个建议评分
 
 ```typescript
-async function evaluateLastEvolution(
+function scoreSuggestion(
+  suggestion: OptimizationSuggestion,
+  toolStats: ToolEfficiency[]
+): SuggestionScore {
+  
+  if (suggestion.type === 'add_tool') {
+    const toolName = suggestion.data.toolName;
+    const toolStat = toolStats.find(t => t.tool_name === toolName);
+    
+    if (!toolStat) {
+      return { score: 0, verdict: 'poor', metrics: null };
+    }
+    
+    // 评分因素：调用次数、胜率、平均收益
+    const callScore = Math.min(30, toolStat.call_count * 2); // 最多30分
+    const winRateScore = toolStat.win_rate * 40; // 最多40分
+    const returnScore = Math.min(30, Math.max(0, 15 + toolStat.avg_return * 30)); // 最多30分
+    
+    const score = callScore + winRateScore + returnScore;
+    
+    let verdict: 'excellent' | 'good' | 'neutral' | 'poor' | 'harmful';
+    if (score >= 80) verdict = 'excellent';
+    else if (score >= 60) verdict = 'good';
+    else if (score >= 40) verdict = 'neutral';
+    else if (score >= 20) verdict = 'poor';
+    else verdict = 'harmful';
+    
+    return {
+      suggestionId: suggestion.id,
+      toolName,
+      score: Math.round(score),
+      metrics: {
+        callCount: toolStat.call_count,
+        winRate: toolStat.win_rate,
+        avgReturn: toolStat.avg_return,
+        contribution: toolStat.avg_return * toolStat.call_count
+      },
+      verdict
+    };
+  }
+  
+  // remove_tool 的评分逻辑：如果移除后效果变好，则高分
+  if (suggestion.type === 'remove_tool') {
+    // 需要对比移除前后的效果，这里简化处理
+    return { score: 50, verdict: 'neutral', metrics: null };
+  }
+  
+  return { score: 50, verdict: 'neutral', metrics: null };
+}
+```
+
+### A.4 经验总结生成
+
+#### 从历史中提取经验
+
+```typescript
+async function generateExperienceSummary(
+  allHistory: EvolutionHistory[]
+): Promise<ExperienceSummary> {
+  
+  // 1. 统计工具效果模式
+  const toolPatterns = extractToolPatterns(allHistory);
+  
+  // 2. 统计建议类型效果
+  const suggestionTypeStats = extractSuggestionTypeStats(allHistory);
+  
+  // 3. 提取经验规律
+  const learnings = extractLearnings(allHistory);
+  
+  // 4. 识别反模式
+  const antiPatterns = extractAntiPatterns(allHistory);
+  
+  return {
+    version: '1.0',
+    lastUpdated: new Date().toISOString(),
+    totalEvolutions: allHistory.length,
+    toolPatterns,
+    suggestionTypeStats,
+    learnings,
+    antiPatterns
+  };
+}
+
+function extractToolPatterns(history: EvolutionHistory[]): ToolPattern[] {
+  const toolMap = new Map<string, {
+    addedCount: number;
+    removedCount: number;
+    scores: number[];
+    contexts: string[];
+  }>();
+  
+  for (const evolution of history) {
+    if (!evolution.evaluation) continue;
+    
+    for (const suggestionScore of evolution.evaluation.suggestionScores) {
+      const toolName = suggestionScore.toolName;
+      
+      if (!toolMap.has(toolName)) {
+        toolMap.set(toolName, {
+          addedCount: 0,
+          removedCount: 0,
+          scores: [],
+          contexts: []
+        });
+      }
+      
+      const toolData = toolMap.get(toolName)!;
+      
+      // 统计添加/移除次数
+      const suggestion = evolution.suggestions.find(s => s.id === suggestionScore.suggestionId);
+      if (suggestion?.type === 'add_tool') {
+        toolData.addedCount++;
+        toolData.scores.push(suggestionScore.score);
+      } else if (suggestion?.type === 'remove_tool') {
+        toolData.removedCount++;
+      }
+    }
+  }
+  
+  // 转换为 ToolPattern 数组
+  const patterns: ToolPattern[] = [];
+  for (const [toolName, data] of toolMap.entries()) {
+    const avgScore = data.scores.length > 0
+      ? data.scores.reduce((a, b) => a + b, 0) / data.scores.length
+      : 0;
+    
+    const successRate = data.scores.length > 0
+      ? data.scores.filter(s => s > 60).length / data.scores.length
+      : 0;
+    
+    let recommendation: 'highly_recommended' | 'recommended' | 'neutral' | 'not_recommended';
+    if (avgScore >= 80 && successRate >= 0.8) recommendation = 'highly_recommended';
+    else if (avgScore >= 60 && successRate >= 0.6) recommendation = 'recommended';
+    else if (avgScore >= 40) recommendation = 'neutral';
+    else recommendation = 'not_recommended';
+    
+    patterns.push({
+      toolName,
+      addedCount: data.addedCount,
+      removedCount: data.removedCount,
+      avgScore: Math.round(avgScore),
+      successRate,
+      bestContext: 'unknown', // TODO: 从市场环境中推断
+      recommendation
+    });
+  }
+  
+  return patterns.sort((a, b) => b.avgScore - a.avgScore);
+}
+
+function extractLearnings(history: EvolutionHistory[]): Learning[] {
+  const learnings: Learning[] = [];
+  
+  // 规律1: 高评分工具的共性
+  const excellentTools = history
+    .flatMap(h => h.evaluation?.suggestionScores || [])
+    .filter(s => s.verdict === 'excellent');
+  
+  if (excellentTools.length >= 2) {
+    learnings.push({
+      id: 'learning_001',
+      rule: '高胜率工具（>70%）通常能显著提升整体收益',
+      confidence: 0.85,
+      evidence: excellentTools.map(t => t.suggestionId),
+      examples: excellentTools.map(t => `${t.toolName}: 胜率${(t.metrics.winRate * 100).toFixed(1)}%, 评分${t.score}`)
+    });
+  }
+  
+  // 规律2: 移除低效工具的效果
+  const removedTools = history
+    .filter(h => h.evaluation?.score && h.evaluation.score > 60)
+    .flatMap(h => h.suggestions.filter(s => s.type === 'remove_tool'));
+  
+  if (removedTools.length >= 2) {
+    learnings.push({
+      id: 'learning_002',
+      rule: '及时移除低胜率工具（<50%）能减少噪音，提升决策质量',
+      confidence: 0.75,
+      evidence: removedTools.map(t => t.id),
+      examples: removedTools.map(t => `移除 ${t.data.toolName}`)
+    });
+  }
+  
+  // 规律3: 工具组合效应
+  // TODO: 分析哪些工具组合在一起效果更好
+  
+  return learnings;
+}
+
+function extractAntiPatterns(history: EvolutionHistory[]): AntiPattern[] {
+  const antiPatterns: AntiPattern[] = [];
+  
+  // 反模式1: 重复添加相同的无效工具
+  const repeatedFailures = new Map<string, number>();
+  
+  for (const evolution of history) {
+    if (!evolution.evaluation) continue;
+    
+    for (const score of evolution.evaluation.suggestionScores) {
+      if (score.verdict === 'poor' || score.verdict === 'harmful') {
+        repeatedFailures.set(
+          score.toolName,
+          (repeatedFailures.get(score.toolName) || 0) + 1
+        );
+      }
+    }
+  }
+  
+  for (const [toolName, count] of repeatedFailures.entries()) {
+    if (count >= 2) {
+      antiPatterns.push({
+        pattern: `重复添加低效工具: ${toolName}`,
+        reason: `该工具在${count}次进化中均表现不佳`,
+        occurrences: count,
+        avgNegativeImpact: -5 // TODO: 计算实际负面影响
+      });
+    }
+  }
+  
+  // 反模式2: 过度进化（单次添加过多工具）
+  const overEvolutions = history.filter(h => 
+    h.suggestions.filter(s => s.type === 'add_tool').length > 5
+  );
+  
+  if (overEvolutions.length > 0) {
+    antiPatterns.push({
+      pattern: '单次进化添加过多工具（>5个）',
+      reason: '难以评估单个工具的效果，增加系统复杂度',
+      occurrences: overEvolutions.length,
+      avgNegativeImpact: -3
+    });
+  }
+  
+  return antiPatterns;
+}
+```
+
+### A.5 补偿器增强逻辑
+
+#### Step 1: 加载最近3次进化历史 + 经验总结
+
+```typescript
+async function loadRecentEvolutionsAndExperience(): Promise<{
+  recentEvolutions: EvolutionHistory[];
+  experienceSummary: ExperienceSummary | null;
+}> {
+  const historyDir = path.join(piDir, 'evolution/history');
+  const files = await fs.readdir(historyDir);
+  
+  if (files.length === 0) {
+    return { recentEvolutions: [], experienceSummary: null };
+  }
+  
+  // 获取最近3次进化历史
+  const recentFiles = files.sort().reverse().slice(0, 3);
+  const recentEvolutions: EvolutionHistory[] = [];
+  
+  for (const file of recentFiles) {
+    const content = await fs.readFile(path.join(historyDir, file), 'utf-8');
+    recentEvolutions.push(JSON.parse(content));
+  }
+  
+  // 加载经验总结
+  const experiencePath = path.join(piDir, 'evolution/experience-summary.json');
+  let experienceSummary: ExperienceSummary | null = null;
+  
+  if (await fs.exists(experiencePath)) {
+    const content = await fs.readFile(experiencePath, 'utf-8');
+    experienceSummary = JSON.parse(content);
+  }
+  
+  return { recentEvolutions, experienceSummary };
+}
+```
+
+#### Step 2: 评估最近一次进化效果并打分
+
+```typescript
+async function evaluateAndScoreLastEvolution(
   lastEvolution: EvolutionHistory,
   currentMetrics: PerformanceMetrics
 ): Promise<EvolutionEvaluation> {
   
-  // 1. 计算指标变化
+  // 1. 计算整体评分
+  const score = calculateEvolutionScore(lastEvolution.baseline, currentMetrics);
+  
+  // 2. 计算指标变化
   const improvement = {
     returnDelta: currentMetrics.return - lastEvolution.baseline.return,
     winRateDelta: currentMetrics.winRate - lastEvolution.baseline.winRate,
     maxDrawdownDelta: currentMetrics.maxDrawdown - lastEvolution.baseline.maxDrawdown,
   };
   
-  // 2. 判断整体效果
-  const effective = 
-    improvement.returnDelta > 0 || 
-    improvement.winRateDelta > 0.02 || 
-    improvement.maxDrawdownDelta > 0;
+  // 3. 判断整体效果
+  const effective = score >= 60;
   
-  // 3. 评估每个工具的效果
+  // 4. 评估每个建议的效果并打分
+  const suggestionScores: SuggestionScore[] = [];
   const effectiveTools: string[] = [];
   const ineffectiveTools: string[] = [];
   
   for (const suggestionId of lastEvolution.applied) {
     const suggestion = lastEvolution.suggestions.find(s => s.id === suggestionId);
-    if (!suggestion || suggestion.type !== 'add_tool') continue;
+    if (!suggestion) continue;
     
-    const toolName = suggestion.data.toolName;
+    const suggestionScore = scoreSuggestion(suggestion, currentMetrics.toolStats);
+    suggestionScores.push(suggestionScore);
     
-    // 查找工具的使用统计
-    const toolStat = currentMetrics.toolStats.find(t => t.tool_name === toolName);
-    
-    if (!toolStat) {
-      ineffectiveTools.push(toolName);
-      continue;
-    }
-    
-    // 判断工具是否有效
-    if (toolStat.win_rate > 0.6 && toolStat.avg_return > 0) {
-      effectiveTools.push(toolName);
-    } else {
-      ineffectiveTools.push(toolName);
+    if (suggestion.type === 'add_tool') {
+      if (suggestionScore.verdict === 'excellent' || suggestionScore.verdict === 'good') {
+        effectiveTools.push(suggestionScore.toolName);
+      } else if (suggestionScore.verdict === 'poor' || suggestionScore.verdict === 'harmful') {
+        ineffectiveTools.push(suggestionScore.toolName);
+      }
     }
   }
   
-  // 4. 生成评估原因
+  // 5. 生成评估原因
   const reasons: string[] = [];
+  
+  reasons.push(`整体评分: ${score}/100`);
   
   if (improvement.returnDelta > 0) {
     reasons.push(`收益率提升 ${improvement.returnDelta.toFixed(2)}%`);
@@ -1025,36 +1396,45 @@ async function evaluateLastEvolution(
   }
   
   return {
+    score,
     effective,
     effectiveTools,
     ineffectiveTools,
     reasons,
     improvement,
+    suggestionScores
   };
 }
 ```
 
-#### Step 3: 基于评估结果调整建议
+#### Step 3: 基于历史和经验生成智能建议
 
 ```typescript
-function generateOptimizationSuggestionsV2(
+function generateOptimizationSuggestionsV3(
   gap: PerformanceGap,
   attribution: AttributionResult,
   toolStats: ToolEfficiency[],
   weaknesses: string[],
-  lastEvolutionEval?: EvolutionEvaluation
+  recentEvolutions: EvolutionHistory[],
+  experienceSummary: ExperienceSummary | null
 ): OptimizationSuggestion[] {
   
   const suggestions: OptimizationSuggestion[] = [];
   
-  // 1. 如果上次进化有无效工具，优先移除
-  if (lastEvolutionEval?.ineffectiveTools.length > 0) {
-    for (const toolName of lastEvolutionEval.ineffectiveTools) {
+  // 1. 从最近一次进化中学习
+  const lastEvolution = recentEvolutions[0];
+  const lastEvaluation = lastEvolution?.evaluation;
+  
+  // 优先移除无效工具
+  if (lastEvaluation?.ineffectiveTools.length > 0) {
+    for (const toolName of lastEvaluation.ineffectiveTools) {
+      const toolScore = lastEvaluation.suggestionScores.find(s => s.toolName === toolName);
+      
       suggestions.push({
         id: `opt_remove_${toolName}`,
         type: 'remove_tool',
         description: `移除无效工具: ${toolName}`,
-        reason: `上次进化新增的工具 ${toolName} 效果不佳（胜率低或负收益）`,
+        reason: `上次进化评分: ${toolScore?.score || 0}/100，${toolScore?.verdict}`,
         expectedImpact: '减少噪音，提升决策质量',
         priority: 'high',
         data: { toolName }
@@ -1062,96 +1442,227 @@ function generateOptimizationSuggestionsV2(
     }
   }
   
-  // 2. 如果上次进化整体无效，降低本次进化的激进程度
-  const aggressiveness = lastEvolutionEval?.effective === false ? 'conservative' : 'normal';
+  // 2. 从经验总结中学习
+  if (experienceSummary) {
+    // 2.1 避免反模式
+    for (const antiPattern of experienceSummary.antiPatterns) {
+      console.log(`[经验] 避免反模式: ${antiPattern.pattern}`);
+    }
+    
+    // 2.2 参考工具效果模式
+    const recommendedTools = experienceSummary.toolPatterns
+      .filter(p => p.recommendation === 'highly_recommended' || p.recommendation === 'recommended')
+      .map(p => p.toolName);
+    
+    const notRecommendedTools = experienceSummary.toolPatterns
+      .filter(p => p.recommendation === 'not_recommended')
+      .map(p => p.toolName);
+    
+    console.log(`[经验] 推荐工具: ${recommendedTools.join(', ')}`);
+    console.log(`[经验] 不推荐工具: ${notRecommendedTools.join(', ')}`);
+    
+    // 2.3 应用经验规律
+    for (const learning of experienceSummary.learnings) {
+      console.log(`[经验] ${learning.rule} (置信度: ${(learning.confidence * 100).toFixed(0)}%)`);
+    }
+  }
   
-  // 3. 避免重复建议
-  const previousSuggestions = lastEvolutionEval?.appliedSuggestions || [];
+  // 3. 根据最近3次进化的趋势调整激进程度
+  const recentScores = recentEvolutions
+    .map(e => e.evaluation?.score)
+    .filter(s => s !== undefined) as number[];
   
-  // 4. 根据差距生成新建议（排除已尝试过的）
+  const avgRecentScore = recentScores.length > 0
+    ? recentScores.reduce((a, b) => a + b, 0) / recentScores.length
+    : 50;
+  
+  let aggressiveness: 'conservative' | 'normal' | 'aggressive';
+  if (avgRecentScore < 40) {
+    aggressiveness = 'conservative'; // 最近效果不好，保守一点
+  } else if (avgRecentScore > 70) {
+    aggressiveness = 'aggressive'; // 最近效果很好，可以更激进
+  } else {
+    aggressiveness = 'normal';
+  }
+  
+  console.log(`[策略] 最近平均评分: ${avgRecentScore.toFixed(1)}/100，采用${aggressiveness}策略`);
+  
+  // 4. 避免重复建议（检查最近3次）
+  const recentSuggestions = recentEvolutions.flatMap(e => e.suggestions);
+  
+  // 5. 根据差距生成新建议
   if (Math.abs(gap.gap) >= 2) {
-    // 生成新建议，但排除上次已尝试且无效的
     const newSuggestions = generateNewSuggestions(
       gap,
       weaknesses,
       toolStats,
-      aggressiveness
+      aggressiveness,
+      experienceSummary
     );
     
     // 过滤掉重复的建议
     const filtered = newSuggestions.filter(s => {
-      return !previousSuggestions.some(prev => 
+      // 检查是否在最近3次中已经尝试过
+      const alreadyTried = recentSuggestions.some(prev => 
         prev.type === s.type && 
         prev.data?.toolName === s.data?.toolName
       );
+      
+      if (alreadyTried) {
+        console.log(`[过滤] 跳过重复建议: ${s.description}`);
+        return false;
+      }
+      
+      // 检查是否在不推荐列表中
+      if (experienceSummary && s.type === 'add_tool') {
+        const notRecommended = experienceSummary.toolPatterns
+          .filter(p => p.recommendation === 'not_recommended')
+          .some(p => p.toolName === s.data.toolName);
+        
+        if (notRecommended) {
+          console.log(`[过滤] 跳过不推荐工具: ${s.data.toolName}`);
+          return false;
+        }
+      }
+      
+      return true;
     });
     
     suggestions.push(...filtered);
   }
   
-  return suggestions;
+  // 6. 限制单次进化的建议数量（避免过度进化）
+  const maxSuggestions = aggressiveness === 'conservative' ? 2 : 
+                         aggressiveness === 'normal' ? 3 : 5;
+  
+  return suggestions.slice(0, maxSuggestions);
 }
 ```
 
-### A.4 进化历史保存
+#### Step 4: 更新经验总结
 
 ```typescript
-async function saveEvolutionHistory(
-  evolutionId: string,
-  suggestions: OptimizationSuggestion[],
-  applied: string[],
-  baseline: PerformanceMetrics
+async function updateExperienceSummary(
+  allHistory: EvolutionHistory[]
 ): Promise<void> {
   
-  const history: EvolutionHistory = {
-    evolutionId,
-    date: new Date().toISOString(),
-    branchName: `evolution/${evolutionId}`,
-    suggestions,
-    applied,
-    baseline: {
-      return: baseline.return,
-      winRate: baseline.winRate,
-      maxDrawdown: baseline.maxDrawdown,
-      toolStats: baseline.toolStats,
-    },
-    // outcome 和 evaluation 在下次进化时填充
-  };
+  // 重新生成经验总结
+  const experienceSummary = await generateExperienceSummary(allHistory);
   
-  const historyDir = path.join(piDir, 'evolution/history');
-  await fs.mkdir(historyDir, { recursive: true });
+  // 保存到文件
+  const experiencePath = path.join(piDir, 'evolution/experience-summary.json');
+  await fs.writeFile(
+    experiencePath,
+    JSON.stringify(experienceSummary, null, 2),
+    'utf-8'
+  );
   
-  const historyPath = path.join(historyDir, `${evolutionId}.json`);
-  await fs.writeFile(historyPath, JSON.stringify(history, null, 2), 'utf-8');
+  console.log(`[经验] 已更新经验总结，共${allHistory.length}次进化`);
 }
 ```
 
-### A.5 更新上次进化的结果
+### A.6 完整流程（更新）
 
-```typescript
-async function updateLastEvolutionOutcome(
-  lastEvolution: EvolutionHistory,
-  currentMetrics: PerformanceMetrics,
-  evaluation: EvolutionEvaluation
-): Promise<void> {
-  
-  lastEvolution.outcome = {
-    return: currentMetrics.return,
-    winRate: currentMetrics.winRate,
-    maxDrawdown: currentMetrics.maxDrawdown,
-    toolStats: currentMetrics.toolStats,
-    improvement: evaluation.improvement,
-  };
-  
-  lastEvolution.evaluation = {
-    effective: evaluation.effective,
-    effectiveTools: evaluation.effectiveTools,
-    ineffectiveTools: evaluation.ineffectiveTools,
-    reasons: evaluation.reasons,
-  };
-  
-  const historyPath = path.join(
-    piDir,
+```
+/evolution 触发
+    ↓
+1. 加载最近3次进化历史 + 经验总结
+    ↓
+2. 评估最近一次进化效果
+    ├─ 计算整体评分（0-100分）
+    ├─ 评估每个建议的效果并打分
+    ├─ 识别有效/无效工具
+    └─ 更新最近一次进化的 outcome 和 evaluation
+    ↓
+3. 减法器计算当前差距
+    ↓
+4. 补偿器生成智能建议
+    ├─ 优先移除无效工具
+    ├─ 参考经验总结（工具模式、经验规律、反模式）
+    ├─ 根据最近3次评分调整激进程度
+    ├─ 避免重复建议
+    └─ 限制建议数量
+    ↓
+5. 效应器执行
+    ├─ 创建分支
+    ├─ 生成代码
+    ├─ 验证
+    └─ 自动合并到 main
+    ↓
+6. 保存本次进化历史（baseline）
+    ↓
+7. 更新经验总结（从所有历史中重新提取）
+    ↓
+8. 生成进化报告（包含评分和经验）
+```
+
+### A.7 报告增强
+
+进化报告中新增"历史评分与经验总结"部分：
+
+```markdown
+# 进化报告 2026-05-14
+
+## 📊 历史评分与经验总结
+
+### 最近3次进化评分
+1. **2026-05-07**: 78/100 ✅ 优秀
+   - 收益率提升 1.2%，胜率提升 3%
+   - 有效工具: analyze_sector_rotation (85分), check_stop_loss_trigger (72分)
+   - 无效工具: predict_market_trend (35分)
+
+2. **2026-04-30**: 62/100 ✅ 良好
+   - 收益率提升 0.5%，胜率提升 1.5%
+   - 有效工具: get_market_sentiment (68分)
+
+3. **2026-04-23**: 45/100 ⚠️ 一般
+   - 收益率下降 0.3%，胜率持平
+   - 无效工具: predict_next_day_price (28分)
+
+**平均评分**: 61.7/100  
+**策略**: 采用正常激进度
+
+### 经验规律（从历史中学习）
+1. ✅ 高胜率工具（>70%）通常能显著提升整体收益（置信度: 85%）
+2. ✅ 及时移除低胜率工具（<50%）能减少噪音，提升决策质量（置信度: 75%）
+
+### 工具效果模式
+| 工具名称 | 平均评分 | 成功率 | 推荐度 |
+|---------|---------|--------|--------|
+| analyze_sector_rotation | 85 | 100% | ⭐⭐⭐ 强烈推荐 |
+| check_stop_loss_trigger | 72 | 100% | ⭐⭐ 推荐 |
+| get_market_sentiment | 68 | 100% | ⭐⭐ 推荐 |
+| predict_market_trend | 35 | 0% | ❌ 不推荐 |
+| predict_next_day_price | 28 | 0% | ❌ 不推荐 |
+
+### 反模式（应避免）
+- ❌ 重复添加低效工具: predict_market_trend（2次失败）
+- ❌ 单次进化添加过多工具（>5个）
+
+---
+
+## 📊 本次表现
+...
+
+## 💡 本次优化建议
+
+基于历史经验和当前差距，生成以下建议：
+
+1. **移除无效工具**: predict_market_trend
+   - 原因: 上次进化评分 35/100，poor
+   - 预期效果: 减少噪音，提升决策质量
+
+2. **新增工具**: analyze_industry_chain
+   - 原因: 当前缺少产业链分析能力
+   - 预期效果: 提升选股准确度
+   - 参考: 类似工具 analyze_sector_rotation 历史评分 85/100
+
+（已过滤重复建议和不推荐工具）
+```
+
+---
+
+**补偿器增强设计完成**
     'evolution/history',
     `${lastEvolution.evolutionId}.json`
   );
@@ -1164,72 +1675,9 @@ async function updateLastEvolutionOutcome(
 }
 ```
 
-### A.6 完整流程（更新）
-
-```
-/evolution 触发
-    ↓
-1. 加载上次进化历史
-    ↓
-2. 评估上次进化效果
-    ├─ 计算指标变化
-    ├─ 评估每个工具的效果
-    └─ 更新上次进化的 outcome 和 evaluation
-    ↓
-3. 减法器计算当前差距
-    ↓
-4. 补偿器生成建议（基于评估结果）
-    ├─ 优先移除无效工具
-    ├─ 避免重复建议
-    └─ 根据上次效果调整激进程度
-    ↓
-5. 效应器执行
-    ├─ 创建分支
-    ├─ 生成代码
-    ├─ 验证
-    └─ 提交
-    ↓
-6. 保存本次进化历史（baseline）
-    ↓
-7. 生成报告（包含上次进化评估）
-```
-
-### A.7 报告增强
-
-进化报告中新增"上次进化效果评估"部分：
-
-```markdown
-# 进化报告 2026-05-14
-
-## 📊 上次进化效果评估 (2026-05-07)
-
-### 整体效果
-✅ **有效** - 收益率提升 1.2%，胜率提升 3%
-
-### 工具效果评估
-
-#### ✅ 有效工具
-- **analyze_sector_rotation**: 调用 15 次，胜率 73%，平均收益 +4.2%
-- **check_stop_loss_trigger**: 调用 8 次，成功避免 3 次亏损扩大
-
-#### ❌ 无效工具
-- **predict_market_trend**: 调用 12 次，胜率 42%，平均收益 -1.5%
-  - **建议**: 本次进化将移除此工具
-
-### 改进建议
-- 保留有效工具，继续观察
-- 移除无效工具，避免噪音
-- 本次进化采用正常激进度
-
 ---
 
-## 📊 本次表现
-...
-```
-
----
-
-**补充完成**
+**补偿器增强设计完成**
 
 ---
 
