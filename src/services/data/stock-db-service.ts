@@ -10,7 +10,7 @@
 import Database from 'better-sqlite3';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { callPython } from '../../infrastructure/akshare-ts/index.js';
+import { callPython } from '../../infrastructure/tools/invest-tools.js';
 
 export interface StockFilter {
   market?: 'A' | 'HK';
