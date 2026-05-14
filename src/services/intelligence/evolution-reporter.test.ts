@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
-import { generateEvolutionReport } from './evolution-reporter.js';
-import type { AttributionResult, ToolEfficiency } from '../../types/evolution.js';
+import { generateEvolutionReport, formatReportAsMarkdown } from './evolution-reporter.js';
+import type { AttributionResult, ToolEfficiency, EvolutionReport } from '../../types/evolution.js';
 
 describe('EvolutionReporter - generateEvolutionReport', () => {
   it('应该生成完整的进化报告', () => {
@@ -45,5 +45,42 @@ describe('EvolutionReporter - generateEvolutionReport', () => {
     expect(report.performance.gap).toBe(2);
     expect(report.attribution.rootCause).toBe('capability_insufficient');
     expect(report.toolEfficiency).toHaveLength(1);
+  });
+});
+
+describe('EvolutionReporter - formatReportAsMarkdown', () => {
+  it('应该生成 Markdown 格式报告', () => {
+    const report: EvolutionReport = {
+      period: '2026-05',
+      performance: {
+        target: 12,
+        actual: 10,
+        gap: 2,
+        market: 8,
+        winRate: 0.68,
+        maxDrawdown: -6,
+        sharpeRatio: 1.3
+      },
+      attribution: {
+        rootCause: 'capability_insufficient',
+        confidence: 0.85,
+        reasons: ['跑输大盘2%'],
+        recommendation: 'trigger_optimizer'
+      },
+      sessionAnalysis: {
+        totalSessions: 50,
+        successPatterns: [],
+        failurePatterns: []
+      },
+      toolEfficiency: [],
+      suggestions: []
+    };
+
+    const markdown = formatReportAsMarkdown(report);
+
+    expect(markdown).toContain('# 进化报告 2026-05');
+    expect(markdown).toContain('## 📊 本月表现');
+    expect(markdown).toContain('| 月收益率 | +12% | +10% | +2% | +8% |');
+    expect(markdown).toContain('## 🔍 减法器归因分析');
   });
 });
