@@ -8,6 +8,8 @@
  * - add_tool: 动态注册新工具到工具列表
  * - remove_tool: 从工具列表移除低效工具
  * - adjust_parameter: 自动调整配置参数
+ * - update_prompt: 修改提示词文件
+ * - update_code: 修改代码文件
  *
  * 特性：
  * - 执行前验证（schema检查、参数范围验证）
@@ -18,9 +20,13 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { existsSync } from 'fs';
 import { Type } from '@sinclair/typebox';
 import { addExperience } from './experience-manager.js';
-import type { OptimizationSuggestion, Experience, ToolAddition, ToolRemoval } from '../../types/evolution.js';
+import type { OptimizationSuggestion, Experience, ToolAddition, ToolRemoval, PromptUpdate, CodeUpdate } from '../../types/evolution.js';
+import { generateToolCode, writeGeneratedCode } from './code-generator.js';
+import { validateInSandbox, allValidationsPassed, formatValidationResults } from './sandbox-validator.js';
+import { createEvolutionBranch, commitChanges, mergeToBranch, rollbackToBranch, getCurrentBranch } from './evolution-branch-manager.js';
 
 interface DynamicToolDefinition {
   name: string;
@@ -35,6 +41,7 @@ export interface ExecutionResult {
     status: 'success' | 'skipped' | 'error';
     message: string;
     rollbackData?: any;
+    details?: any;
   }>;
   manualTasks: Array<{
     suggestionId: string;
@@ -115,6 +122,14 @@ export async function executeOptimizationSuggestions(
 
       case 'adjust_parameter':
         await executeParameterAdjustment(suggestion, piDir, result, actuatorConfig);
+        break;
+
+      case 'update_prompt':
+        await executePromptUpdate(suggestion, piDir, result);
+        break;
+
+      case 'update_code':
+        await executeCodeUpdate(suggestion, piDir, result);
         break;
 
       default:
@@ -212,7 +227,7 @@ async function executeExperienceUpdate(
 }
 
 /**
- * 执行工具添加（自动）
+ * 执行工具添加（自动生成代码版本）
  */
 async function executeToolAddition(
   suggestion: OptimizationSuggestion,
@@ -228,40 +243,101 @@ async function executeToolAddition(
     details: {},
   };
 
+  let branchName: string | null = null;
+  const originalBranch = await getCurrentBranch();
+
   try {
     const toolData = suggestion.data as ToolAddition;
     if (!toolData?.name || !toolData?.description) {
       throw new Error('缺少工具名称或描述');
     }
 
-    const toolDef: DynamicToolDefinition = {
-      name: toolData.name,
-      description: toolData.description,
-      parameters: Type.Object({}),
-    };
+    console.log(`\n🚀 开始执行工具添加: ${toolData.name}`);
 
-    if (!validateToolSchema(toolDef)) {
-      throw new Error('工具schema验证失败');
+    // 1. 创建进化分支
+    const evolutionId = new Date().toISOString().split('T')[0];
+    branchName = await createEvolutionBranch(evolutionId);
+
+    // 2. 生成工具代码
+    console.log('📝 生成工具代码...');
+    const generatedCode = await generateToolCode(toolData);
+
+    // 3. 写入文件
+    const toolsDir = path.join(process.cwd(), 'src/infrastructure/tools');
+    const { toolPath, testPath } = await writeGeneratedCode(generatedCode, toolsDir);
+
+    // 4. 沙箱验证
+    console.log('🔍 沙箱验证...');
+    const validationResults = await validateInSandbox(toolPath, testPath);
+    const allPassed = allValidationsPassed(validationResults);
+
+    if (!allPassed) {
+      console.error('❌ 沙箱验证失败');
+      console.error(formatValidationResults(validationResults));
+
+      // 验证失败，回滚
+      await rollbackToBranch(originalBranch);
+      throw new Error('沙箱验证失败，已回滚更改');
     }
 
-    const evolutionDir = path.join(piDir, 'evolution');
-    const toolsRegistryPath = path.join(evolutionDir, 'dynamic-tools.json');
+    console.log('✅ 沙箱验证通过');
 
-    const rollbackData = await saveDynamicTool(toolsRegistryPath, toolDef);
+    // 5. 注册工具到索引
+    console.log('📋 注册工具到索引...');
+    await registerToolToIndex(toolData.name, generatedCode.toolFileName);
 
-    logEntry.details = { toolName: toolData.name, toolDef };
+    // 6. 提交到分支
+    const commitMessage = `feat: add ${toolData.name} tool\n\n${toolData.reason}\n\n预期效果: ${toolData.expectedImpact}`;
+    const filesToCommit = [
+      toolPath,
+      testPath,
+      path.join(toolsDir, 'index.ts')
+    ];
+
+    const commitHash = await commitChanges(commitMessage, filesToCommit);
+
+    // 7. 自动合并到 main（根据设计文档，完全自动化）
+    console.log('🔀 合并到 main...');
+    await mergeToBranch(branchName, 'main');
+
+    console.log(`✅ 工具添加完成: ${toolData.name}`);
+
+    logEntry.details = {
+      toolName: toolData.name,
+      branchName,
+      commitHash,
+      validationResults
+    };
     executionLogs.push(logEntry);
 
     result.applied.push({
       suggestionId: suggestion.id,
       type: 'add_tool',
       status: 'success',
-      message: `已添加工具: ${toolData.name}`,
-      rollbackData,
+      message: `已生成并合并工具: ${toolData.name} (commit: ${commitHash})`,
+      rollbackData: {
+        branchName,
+        commitHash,
+        files: [toolPath, testPath]
+      },
+      details: {
+        validationResults: formatValidationResults(validationResults)
+      }
     });
 
-    await logToolChange('add', toolData.name, toolDef, evolutionDir);
   } catch (e) {
+    console.error(`❌ 工具添加失败: ${e instanceof Error ? e.message : String(e)}`);
+
+    // 如果创建了分支但失败了，回滚
+    if (branchName) {
+      try {
+        await rollbackToBranch(originalBranch);
+        console.log('↩️  已回滚到原分支');
+      } catch (rollbackError) {
+        console.error('⚠️  回滚失败:', rollbackError);
+      }
+    }
+
     logEntry.status = 'error';
     logEntry.error = e instanceof Error ? e.message : String(e);
     executionLogs.push(logEntry);
@@ -273,6 +349,45 @@ async function executeToolAddition(
       message: `执行失败: ${e instanceof Error ? e.message : String(e)}`,
     });
   }
+}
+
+/**
+ * 注册工具到 index.ts
+ */
+async function registerToolToIndex(toolName: string, toolFileName: string): Promise<void> {
+  const indexPath = path.join(process.cwd(), 'src/infrastructure/tools/index.ts');
+  let content = await fs.readFile(indexPath, 'utf-8');
+
+  // 生成导入语句（转换为 camelCase）
+  const toolVarName = `${toolName}Tool`;
+  const importStatement = `import { ${toolVarName} } from './${toolFileName.replace('.ts', '.js')}';\n`;
+
+  // 检查是否已经导入
+  if (content.includes(importStatement.trim())) {
+    console.log('  ℹ️  工具已在索引中注册');
+    return;
+  }
+
+  // 在文件开头添加导入（在其他导入之后）
+  const lastImportIndex = content.lastIndexOf('import ');
+  const nextLineIndex = content.indexOf('\n', lastImportIndex);
+  content = content.slice(0, nextLineIndex + 1) + importStatement + content.slice(nextLineIndex + 1);
+
+  // 在 allCustomTools 数组中添加工具
+  const toolsArrayMatch = content.match(/export const allCustomTools: ToolDefinition\[\] = \[([\s\S]*?)\];/);
+  if (!toolsArrayMatch) {
+    throw new Error('未找到 allCustomTools 数组定义');
+  }
+
+  const toolRegistration = `  ${toolVarName},\n`;
+  content = content.replace(
+    /export const allCustomTools: ToolDefinition\[\] = \[/,
+    `export const allCustomTools: ToolDefinition[] = [\n${toolRegistration}`
+  );
+
+  // 写回文件
+  await fs.writeFile(indexPath, content, 'utf-8');
+  console.log(`  ✅ 已注册到 index.ts`);
 }
 
 /**
@@ -682,5 +797,252 @@ export async function getExecutionHistory(
   } catch (e) {
     return [];
   }
+}
+
+/**
+ * 执行提示词更新（自动）
+ */
+async function executePromptUpdate(
+  suggestion: OptimizationSuggestion,
+  piDir: string,
+  result: ExecutionResult
+): Promise<void> {
+  const logEntry: ExecutionLog = {
+    timestamp: new Date().toISOString(),
+    suggestionId: suggestion.id,
+    type: 'update_prompt',
+    action: 'execute',
+    status: 'success',
+    details: {},
+  };
+
+  try {
+    const promptUpdate = suggestion.promptUpdate;
+    if (!promptUpdate) {
+      throw new Error('缺少 promptUpdate 数据');
+    }
+
+    const bootstrapDir = path.join(piDir, 'bootstrap');
+    const promptFilePath = path.join(bootstrapDir, promptUpdate.file);
+
+    // 检查文件是否存在
+    if (!existsSync(promptFilePath)) {
+      throw new Error(`提示词文件不存在: ${promptUpdate.file}`);
+    }
+
+    // 备份原文件
+    const backupPath = `${promptFilePath}.backup-${Date.now()}`;
+    await fs.copyFile(promptFilePath, backupPath);
+    logEntry.details.backupPath = backupPath;
+
+    // 读取原文件
+    const originalContent = await fs.readFile(promptFilePath, 'utf-8');
+
+    // 如果指定了 section，尝试替换该章节
+    let newContent: string;
+    if (promptUpdate.section) {
+      // 查找章节标题（支持 ## 和 # 格式）
+      const sectionRegex = new RegExp(
+        `(#{1,3}\\s+${promptUpdate.section}[^\\n]*\\n)([\\s\\S]*?)(?=\\n#{1,3}\\s+|$)`,
+        'i'
+      );
+      const match = originalContent.match(sectionRegex);
+
+      if (match) {
+        // 替换该章节内容
+        newContent = originalContent.replace(
+          sectionRegex,
+          `$1\n${promptUpdate.newContent}\n`
+        );
+        logEntry.details.modification = 'section_replace';
+      } else {
+        // 章节不存在，追加到文件末尾
+        newContent = `${originalContent}\n\n${promptUpdate.newContent}\n`;
+        logEntry.details.modification = 'section_append';
+      }
+    } else {
+      // 没有指定章节，追加到文件末尾
+      newContent = `${originalContent}\n\n${promptUpdate.newContent}\n`;
+      logEntry.details.modification = 'file_append';
+    }
+
+    // 写入新内容
+    await fs.writeFile(promptFilePath, newContent, 'utf-8');
+
+    logEntry.details.file = promptUpdate.file;
+    logEntry.details.section = promptUpdate.section;
+    logEntry.details.reason = promptUpdate.reason;
+    executionLogs.push(logEntry);
+
+    result.applied.push({
+      suggestionId: suggestion.id,
+      type: 'update_prompt',
+      status: 'success',
+      message: `已更新提示词: ${promptUpdate.file}${promptUpdate.section ? ` (${promptUpdate.section})` : ''}`,
+      details: {
+        file: promptUpdate.file,
+        backupPath,
+      },
+    });
+
+    console.log(`[执行器] ✓ 提示词更新成功: ${promptUpdate.file}`);
+  } catch (error: any) {
+    logEntry.status = 'error';
+    logEntry.error = error.message;
+    executionLogs.push(logEntry);
+
+    result.applied.push({
+      suggestionId: suggestion.id,
+      type: 'update_prompt',
+      status: 'error',
+      message: `提示词更新失败: ${error.message}`,
+    });
+
+    console.error(`[执行器] ✗ 提示词更新失败:`, error);
+  }
+}
+
+/**
+ * 执行代码更新（自动）
+ */
+async function executeCodeUpdate(
+  suggestion: OptimizationSuggestion,
+  piDir: string,
+  result: ExecutionResult
+): Promise<void> {
+  const logEntry: ExecutionLog = {
+    timestamp: new Date().toISOString(),
+    suggestionId: suggestion.id,
+    type: 'update_code',
+    action: 'execute',
+    status: 'success',
+    details: {},
+  };
+
+  try {
+    const codeUpdate = suggestion.codeUpdate;
+    if (!codeUpdate) {
+      throw new Error('缺少 codeUpdate 数据');
+    }
+
+    // 注意：代码修改需要更谨慎，这里生成详细的修改计划
+    // 实际修改由 Agent 自身完成（通过调用自己的编辑能力）
+
+    const modificationPlan = {
+      file: codeUpdate.file,
+      function: codeUpdate.function,
+      issue: codeUpdate.issue,
+      modification: codeUpdate.modification,
+      reason: codeUpdate.reason,
+      suggestedApproach: generateCodeModificationApproach(codeUpdate),
+    };
+
+    // 保存修改计划到文件
+    const evolutionDir = path.join(piDir, 'evolution');
+    const planPath = path.join(
+      evolutionDir,
+      `code-modification-${suggestion.id}.md`
+    );
+
+    const planContent = `# 代码修改计划
+
+## 目标文件
+\`${codeUpdate.file}\`
+
+## 问题描述
+${codeUpdate.issue}
+
+## 修改内容
+${codeUpdate.modification}
+
+## 原因
+${codeUpdate.reason}
+
+## 建议方案
+${modificationPlan.suggestedApproach}
+
+## 执行步骤
+1. 备份原文件
+2. 阅读当前实现
+3. 识别问题根源
+4. 实施修改
+5. 运行测试验证
+6. 提交修改
+
+---
+生成时间: ${new Date().toISOString()}
+建议ID: ${suggestion.id}
+`;
+
+    await fs.writeFile(planPath, planContent, 'utf-8');
+
+    logEntry.details.file = codeUpdate.file;
+    logEntry.details.planPath = planPath;
+    executionLogs.push(logEntry);
+
+    result.applied.push({
+      suggestionId: suggestion.id,
+      type: 'update_code',
+      status: 'success',
+      message: `已生成代码修改计划: ${codeUpdate.file}`,
+      details: {
+        file: codeUpdate.file,
+        planPath,
+      },
+    });
+
+    console.log(`[执行器] ✓ 代码修改计划已生成: ${planPath}`);
+  } catch (error: any) {
+    logEntry.status = 'error';
+    logEntry.error = error.message;
+    executionLogs.push(logEntry);
+
+    result.applied.push({
+      suggestionId: suggestion.id,
+      type: 'update_code',
+      status: 'error',
+      message: `代码修改计划生成失败: ${error.message}`,
+    });
+
+    console.error(`[执行器] ✗ 代码修改计划生成失败:`, error);
+  }
+}
+
+/**
+ * 生成代码修改建议方案
+ */
+function generateCodeModificationApproach(codeUpdate: CodeUpdate): string {
+  const approaches: string[] = [];
+
+  // 根据问题类型生成不同的建议
+  if (codeUpdate.issue.includes('胜率低') || codeUpdate.issue.includes('准确性')) {
+    approaches.push('- 检查数据源是否准确、及时');
+    approaches.push('- 审查计算逻辑是否存在错误');
+    approaches.push('- 验证结果解读是否合理');
+    approaches.push('- 考虑增加数据验证和异常处理');
+  }
+
+  if (codeUpdate.issue.includes('性能') || codeUpdate.issue.includes('效率')) {
+    approaches.push('- 分析性能瓶颈（CPU、内存、I/O）');
+    approaches.push('- 优化算法复杂度');
+    approaches.push('- 添加缓存机制');
+    approaches.push('- 考虑异步处理');
+  }
+
+  if (codeUpdate.issue.includes('误报') || codeUpdate.issue.includes('触发')) {
+    approaches.push('- 调整触发阈值');
+    approaches.push('- 增加过滤条件');
+    approaches.push('- 添加二次确认机制');
+    approaches.push('- 优化判断逻辑');
+  }
+
+  if (approaches.length === 0) {
+    approaches.push('- 仔细阅读当前实现');
+    approaches.push('- 识别问题根源');
+    approaches.push('- 设计修改方案');
+    approaches.push('- 实施并测试');
+  }
+
+  return approaches.join('\n');
 }
 
