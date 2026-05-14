@@ -23,7 +23,7 @@ import {
   readDailyMemory,
 } from "../core/agent/system-prompt.js";
 import { microCompact } from "../services/compaction/compaction-service.js";
-import { initSkillGuard } from "../services/intelligence/skill-guard.js";
+import { initSkillGuard } from "../infrastructure/tools/skill-guard.js";
 import { initSkillRouter } from "../services/intelligence/skill-router.js";
 import {
   FeishuSessionManager,
