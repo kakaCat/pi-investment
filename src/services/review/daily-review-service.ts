@@ -11,7 +11,13 @@
  *   - 启动时自动检测（A股收盘后 15:30+，工作日）
  *   - CronService 定时触发（CRON.json daily-review 任务）
  */
-import { callPython } from "../../infrastructure/tools/invest-tools.js";
+import {
+  get_stock_realtime_price,
+  get_hk_stock_price,
+  calculate_technical_indicators,
+  get_market_overview,
+  manage_portfolio
+} from "../../infrastructure/akshare-ts/index.js";
 import { writeFileSync, readFileSync, existsSync, mkdirSync, appendFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import { chinaDate, chinaHourMinute, chinaTime, chinaWeekday } from "../../utils/china-time.js";
@@ -97,14 +103,14 @@ export function formatMarketOverviewSection(data: Record<string, unknown>): stri
 async function reviewHolding(h: Holding): Promise<string> {
   // 并行获取：价格 + 技术指标 + 新闻
   const pricePromise = h.market === "HK"
-    ? callPython("get_hk_stock_price", { symbol: h.symbol })
-    : callPython("get_stock_realtime_price", { symbol: h.symbol });
+    ? get_hk_stock_price(h.symbol)
+    : get_stock_realtime_price(h.symbol);
   const techPromise = h.market === "HK"
     ? Promise.resolve(JSON.stringify({ unsupported: true }))
-    : callPython("calculate_technical_indicators", { symbol: h.symbol });
+    : calculate_technical_indicators(h.symbol);
   const newsPromise = h.market === "HK"
     ? Promise.resolve(JSON.stringify({ unsupported: true }))
-    : callPython("get_stock_news", { symbol: h.symbol, num: 3 });
+    : Promise.resolve(JSON.stringify({ unsupported: true })); // get_stock_news not in akshare-ts yet
 
   const [priceRaw, techRaw, newsRaw] = await Promise.all([pricePromise, techPromise, newsPromise]);
 
@@ -164,7 +170,7 @@ ${newsSection}
 // ─── 大盘概览 ──────────────────────────────────────────────────────────────
 
 async function marketOverview(): Promise<string> {
-  const raw = await callPython("get_market_overview", {});
+  const raw = await get_market_overview();
   const data = safeJson(raw);
   return formatMarketOverviewSection(data);
 }
@@ -198,7 +204,7 @@ export class DailyReviewService {
     console.log(`\n[复盘] 开始执行每日持仓复盘（${date}）...\n`);
 
     // 1. 获取持仓
-    const portfolioRaw = await callPython("manage_portfolio", { action: "get" });
+    const portfolioRaw = await manage_portfolio("get");
     const portfolio = safeJson(portfolioRaw);
     const holdings: Holding[] = [];
 

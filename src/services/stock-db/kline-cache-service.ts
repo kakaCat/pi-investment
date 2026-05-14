@@ -8,7 +8,7 @@
  */
 
 import { StockDBService } from './stock-db-service.js';
-import { callPython } from '../../infrastructure/tools/invest-tools.js';
+import { callPython } from '../../infrastructure/akshare-ts/index.js';
 
 export class KlineCacheService {
   constructor(private db: StockDBService) {}
