@@ -18,6 +18,9 @@ import { investTools } from "./invest-tools.js";
 import { stockDBTools } from "./stock-db-tools.js";
 import { wrapInvestToolWithSkillGuard } from "./skill-guard.js";
 import { monitorTools } from "../../tools/monitor-tools.js";
+import { evolutionRunTool } from "./evolution-tool.js";
+import { analyzeSectorRotationTool } from "./analyze-sector-rotation-tool.js";
+import { checkStopLossTriggerTool } from "./check-stop-loss-trigger-tool.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./memory-tool.js";
@@ -45,8 +48,12 @@ export const allCustomTools = [
   // 投资工具 — 核心业务
   ...investTools.map(wrapInvestToolWithSkillGuard),
   ...stockDBTools,
+  analyzeSectorRotationTool,      // NEW: 行业轮动分析
+  checkStopLossTriggerTool,       // NEW: 止损检查
   // 监控工具 — 实时盯盘
   ...monitorTools,
+  // 进化工具 — 自我优化
+  evolutionRunTool,
   // 中频 — 记忆
   memoryWriteTool,
   memorySearchTool,
