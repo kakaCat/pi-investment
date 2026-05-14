@@ -56,12 +56,12 @@ export const experienceQueryTool: ToolDefinition = {
       const formattedResults = results.map(exp => ({
         id: exp.id,
         scenario: exp.scenario,
-        symbol: exp.symbol,
         pattern: exp.pattern,
-        action: exp.action,
-        outcome: exp.outcome,
+        outcomes: exp.outcomes,
+        recommendation: exp.recommendation,
+        reason: exp.reason,
         confidence: exp.confidence,
-        created_at: exp.created_at,
+        last_updated: exp.last_updated,
       }));
 
       return {
