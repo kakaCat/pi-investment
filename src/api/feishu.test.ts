@@ -112,7 +112,7 @@ jest.unstable_mockModule("./feishu-session-manager.js", () => ({
   },
 }));
 
-jest.unstable_mockModule("../services/cron/cron-service.js", () => ({
+jest.unstable_mockModule("../services/operations/cron-service.js", () => ({
   CronService: class MockCronService {
     constructor(
       _cronFile: string,

@@ -23,7 +23,7 @@ export const checkStopLossTriggerTool: ToolDefinition = {
       const portfolioService = new PortfolioService(piDir);
 
       // Get current portfolio snapshot with real-time prices
-      const snapshot = await portfolioService.getSnapshot();
+      const snapshot = await portfolioService.getWithPnL();
 
       if (snapshot.holdings.length === 0) {
         return {
