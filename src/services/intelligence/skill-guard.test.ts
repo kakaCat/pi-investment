@@ -5,7 +5,7 @@ import {
   getExplicitSkillFromPrompt,
   initSkillGuard,
   withForcedSkillScope,
-} from "./skill-guard.js";
+} from "../../infrastructure/tools/skill-guard.js";
 
 describe("skill-guard", () => {
   beforeEach(() => {

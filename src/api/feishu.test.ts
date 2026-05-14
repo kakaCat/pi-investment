@@ -89,7 +89,7 @@ jest.unstable_mockModule("../services/compaction/compaction-service.js", () => (
   microCompact: jest.fn(),
 }));
 
-jest.unstable_mockModule("../services/intelligence/skill-guard.js", () => ({
+jest.unstable_mockModule("../infrastructure/tools/skill-guard.js", () => ({
   initSkillGuard: jest.fn(),
 }));
 

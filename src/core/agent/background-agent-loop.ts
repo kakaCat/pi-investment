@@ -15,7 +15,7 @@ import type { Message } from "../../types/index.js";
 import { compactTool } from "../../infrastructure/tools/compact-tool.js";
 import { taskCreateTool, taskUpdateTool, taskListTool, taskGetTool, taskExecuteAsyncTool, taskCheckBackgroundTool, initTaskTools } from "../../infrastructure/tools/task-tools.js";
 import { microCompact } from "../../services/compaction/compaction-service.js";
-import { initSkillGuard } from "../../services/intelligence/skill-guard.js";
+import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
 import { initSkillRouter, rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
 import { join } from "path";
 import { SessionIdMapper } from "../session/session-id-mapper.js";

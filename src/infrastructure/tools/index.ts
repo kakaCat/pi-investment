@@ -16,7 +16,7 @@ import { reflectTool } from "./reflect-tool.js";
 import { memoryWriteTool, memorySearchTool } from "./memory-tool.js";
 import { investTools } from "./invest-tools.js";
 import { stockDBTools } from "./stock-db-tools.js";
-import { wrapInvestToolWithSkillGuard } from "../../services/intelligence/skill-guard.js";
+import { wrapInvestToolWithSkillGuard } from "./skill-guard.js";
 import { quantTools } from "./quant-tools.js";
 import { monitorTools } from "../../tools/monitor-tools.js";
 

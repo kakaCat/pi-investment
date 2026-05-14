@@ -14,7 +14,7 @@ import { createAgentSession } from "@mariozechner/pi-coding-agent";
 import type { AgentSession } from "@mariozechner/pi-coding-agent";
 import * as logger from "../logging/observable-logger.js";
 import { rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
-import { getExplicitSkillFromPrompt, withForcedSkillScope } from "../../services/intelligence/skill-guard.js";
+import { getExplicitSkillFromPrompt, withForcedSkillScope } from "../tools/skill-guard.js";
 
 export type AgentType = 'main' | 'subagent' | 'plan';
 
