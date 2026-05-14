@@ -29,7 +29,7 @@ import {
   FeishuSessionManager,
   type FeishuAgentSession,
 } from "./feishu-session-manager.js";
-import { CronService, type CronJobPayload } from "../services/cron/cron-service.js";
+import { CronService, type CronJobPayload } from "../services/operations/cron-service.js";
 
 const APP_ID = process.env.FEISHU_APP_ID;
 const APP_SECRET = process.env.FEISHU_APP_SECRET;

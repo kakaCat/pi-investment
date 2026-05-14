@@ -10,9 +10,9 @@ import { getSession as getSessionBackground } from "../core/agent/background-age
 import * as logger from "../infrastructure/logging/observable-logger.js";
 import { wrapSessionWithLogger } from "../infrastructure/session/session-factory.js";
 import { PerformanceMonitor } from "../infrastructure/monitoring/performance-monitor.js";
-import { CronService } from "../services/cron/cron-service.js";
-import { DailyReviewService } from "../services/review/daily-review-service.js";
-import { StopLossAlertService } from "../services/alert/stop-loss-alert-service.js";
+import { CronService } from "../services/operations/cron-service.js";
+import { DailyReviewService } from "../services/operations/daily-review-service.js";
+import { StopLossAlertService } from "../services/operations/stop-loss-alert-service.js";
 import { join } from "path";
 
 // 加载环境变量

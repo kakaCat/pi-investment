@@ -6,7 +6,7 @@
 import type { ToolDefinition } from "./index.js";
 import { Type } from "@sinclair/typebox";
 import { getMemoryStore } from "../../services/intelligence/memory-store.js";
-import { stockDecisionMemoryService } from "../../services/memory/stock-decision-memory-service.js";
+import { stockDecisionMemoryService } from "../../services/data/stock-decision-memory-service.js";
 
 export { initMemoryStore as initMemoryTools } from "../../services/intelligence/memory-store.js";
 
