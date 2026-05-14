@@ -1230,3 +1230,357 @@ async function updateLastEvolutionOutcome(
 ---
 
 **补充完成**
+
+---
+
+## 附录 B：完全自动化流程（无需用户审核）
+
+### B.1 设计变更
+
+**原设计**：
+```
+效应器执行 → 生成报告 → 用户审核 → 手动合并/拒绝
+```
+
+**新设计**：
+```
+效应器执行 → 验证通过 → 自动合并到 main → 记录完整日志
+```
+
+### B.2 自动合并流程
+
+```typescript
+async function autoMergeEvolution(
+  branchName: string,
+  validationResults: ValidationResult[]
+): Promise<AutoMergeResult> {
+  
+  // 1. 检查是否所有验证都通过
+  const allPassed = validationResults.every(r => r.passed);
+  
+  if (!allPassed) {
+    // 有验证失败，不合并，删除分支
+    await exec('git checkout main');
+    await exec(`git branch -D ${branchName}`);
+    
+    return {
+      merged: false,
+      reason: '部分验证失败，已回退',
+      failedValidations: validationResults.filter(r => !r.passed)
+    };
+  }
+  
+  // 2. 切换到 main 分支
+  await exec('git checkout main');
+  await exec('git pull');
+  
+  // 3. 合并进化分支
+  const mergeMessage = `chore(evolution): auto-merge ${branchName}`;
+  await exec(`git merge ${branchName} -m "${mergeMessage}"`);
+  
+  // 4. 推送到远程
+  await exec('git push');
+  
+  // 5. 删除进化分支（已合并）
+  await exec(`git branch -d ${branchName}`);
+  
+  // 6. 记录合并信息
+  const { stdout: mergeCommit } = await exec('git rev-parse HEAD');
+  
+  return {
+    merged: true,
+    mergeCommit: mergeCommit.trim(),
+    branchName,
+    timestamp: new Date().toISOString()
+  };
+}
+```
+
+### B.3 执行记录保存
+
+#### 记录结构
+
+```typescript
+interface EvolutionExecutionLog {
+  executionId: string;
+  timestamp: string;
+  
+  // 输入
+  trigger: 'manual' | 'scheduled';
+  gap: PerformanceGap;
+  suggestions: OptimizationSuggestion[];
+  
+  // 执行过程
+  branchName: string;
+  commits: Array<{
+    hash: string;
+    message: string;
+    files: string[];
+    timestamp: string;
+  }>;
+  
+  // 验证结果
+  validations: Array<{
+    toolName: string;
+    passed: boolean;
+    compilation: { passed: boolean; duration: number; error?: string };
+    unitTest: { passed: boolean; duration: number; error?: string };
+    integration: { passed: boolean; duration: number; error?: string };
+  }>;
+  
+  // 合并结果
+  merge: {
+    merged: boolean;
+    mergeCommit?: string;
+    reason?: string;
+    timestamp?: string;
+  };
+  
+  // 统计
+  stats: {
+    totalSuggestions: number;
+    appliedSuggestions: number;
+    failedSuggestions: number;
+    totalDuration: number; // 毫秒
+  };
+}
+```
+
+#### 存储位置
+
+```
+.pi-invest/evolution/
+├── history/
+│   ├── 2026-05-07.json          # 进化历史（效果评估）
+│   └── 2026-05-14.json
+├── execution-logs/
+│   ├── 2026-05-07T10:30:00.json # 执行日志（详细过程）
+│   └── 2026-05-14T10:30:00.json
+├── evolution-2026-05-07.md      # 进化报告（Markdown）
+└── evolution-2026-05-14.md
+```
+
+#### 保存逻辑
+
+```typescript
+async function saveExecutionLog(log: EvolutionExecutionLog): Promise<string> {
+  const logDir = path.join(piDir, 'evolution/execution-logs');
+  await fs.mkdir(logDir, { recursive: true });
+  
+  const logPath = path.join(logDir, `${log.executionId}.json`);
+  await fs.writeFile(logPath, JSON.stringify(log, null, 2), 'utf-8');
+  
+  return logPath;
+}
+```
+
+### B.4 完整自动化流程
+
+```
+/evolution 触发
+    ↓
+1. 加载上次进化历史
+    ↓
+2. 评估上次进化效果
+    ↓
+3. 减法器计算差距
+    ↓
+4. 补偿器生成建议
+    ↓
+5. 创建执行日志（开始记录）
+    ↓
+6. 效应器执行
+    ├─ 创建 evolution/YYYY-MM-DD 分支
+    ├─ 对每个建议：
+    │   ├─ 生成代码
+    │   ├─ 沙箱验证（记录详细结果）
+    │   ├─ 验证通过 → commit（记录 commit hash）
+    │   └─ 验证失败 → 跳过（记录失败原因）
+    └─ 记录所有 commits
+    ↓
+7. 检查验证结果
+    ├─ 全部通过 → 自动合并到 main
+    │   ├─ git merge
+    │   ├─ git push
+    │   └─ 删除进化分支
+    └─ 有失败 → 删除分支，不合并
+    ↓
+8. 更新执行日志（合并结果）
+    ↓
+9. 保存本次进化历史（baseline）
+    ↓
+10. 生成进化报告（Markdown）
+    ↓
+11. 输出执行摘要
+```
+
+### B.5 执行摘要输出
+
+```
+🔄 自动进化执行完成
+
+📊 执行摘要
+  执行ID: 2026-05-14T10:30:00
+  触发方式: 手动 (/evolution)
+  执行时长: 3分42秒
+
+💡 建议处理
+  总建议数: 3
+  成功应用: 2
+  验证失败: 1
+
+✅ 成功应用
+  1. analyze_sector_rotation
+     - 编译: ✅ (1.2s)
+     - 单元测试: ✅ (2.5s)
+     - 集成测试: ✅ (3.8s)
+     - 提交: a1b2c3d
+  
+  2. check_stop_loss_trigger
+     - 编译: ✅ (1.1s)
+     - 单元测试: ✅ (2.3s)
+     - 集成测试: ✅ (4.1s)
+     - 提交: d4e5f6g
+
+❌ 验证失败
+  1. predict_market_trend
+     - 编译: ✅
+     - 单元测试: ❌ (TypeError: Cannot read property 'data')
+     - 已回退，未提交
+
+🔀 合并结果
+  ✅ 已自动合并到 main
+  合并提交: h7i8j9k
+  已推送到远程: origin/main
+
+📝 记录保存
+  执行日志: .pi-invest/evolution/execution-logs/2026-05-14T10:30:00.json
+  进化历史: .pi-invest/evolution/history/2026-05-14.json
+  进化报告: .pi-invest/evolution/evolution-2026-05-14.md
+
+🔍 查看详情
+  git log --oneline -5
+  cat .pi-invest/evolution/execution-logs/2026-05-14T10:30:00.json
+```
+
+### B.6 失败场景处理
+
+#### 场景 1: 所有验证都失败
+
+```
+❌ 自动进化失败
+
+所有建议验证失败，未进行任何修改。
+
+失败原因:
+  1. analyze_sector_rotation: 编译错误
+  2. check_stop_loss_trigger: 集成测试失败
+  3. predict_market_trend: 单元测试失败
+
+已删除进化分支: evolution/2026-05-14-auto-evolution
+未对 main 分支进行任何修改。
+
+📝 执行日志已保存，可用于调试。
+```
+
+#### 场景 2: 部分验证失败
+
+```
+⚠️ 自动进化部分成功
+
+成功应用: 2/3
+验证失败: 1/3
+
+✅ 已合并到 main:
+  - analyze_sector_rotation
+  - check_stop_loss_trigger
+
+❌ 验证失败（未应用）:
+  - predict_market_trend
+
+合并提交: h7i8j9k
+```
+
+### B.7 回退机制（自动化版本）
+
+由于已自动合并到 main，回退需要使用 git revert：
+
+```typescript
+async function autoRevertEvolution(mergeCommit: string): Promise<void> {
+  // 1. 确认在 main 分支
+  await exec('git checkout main');
+  await exec('git pull');
+  
+  // 2. Revert 合并提交
+  await exec(`git revert -m 1 ${mergeCommit}`);
+  
+  // 3. 推送
+  await exec('git push');
+  
+  // 4. 记录回退
+  const revertLog = {
+    revertedCommit: mergeCommit,
+    revertCommit: await exec('git rev-parse HEAD'),
+    timestamp: new Date().toISOString(),
+    reason: '自动回退：进化效果不佳'
+  };
+  
+  await saveRevertLog(revertLog);
+}
+```
+
+### B.8 监控和告警
+
+虽然是自动化，但需要监控关键指标：
+
+```typescript
+interface EvolutionMonitoring {
+  // 成功率监控
+  successRate: number; // 最近 10 次进化的成功率
+  
+  // 验证失败率
+  validationFailureRate: number;
+  
+  // 合并失败次数
+  mergeFailures: number;
+  
+  // 告警阈值
+  alerts: {
+    successRateBelowThreshold: boolean; // < 70%
+    tooManyValidationFailures: boolean; // > 50%
+    consecutiveMergeFailures: boolean;  // 连续 3 次
+  };
+}
+
+async function checkEvolutionHealth(): Promise<EvolutionMonitoring> {
+  const recentLogs = await loadRecentExecutionLogs(10);
+  
+  const successCount = recentLogs.filter(log => log.merge.merged).length;
+  const successRate = successCount / recentLogs.length;
+  
+  const validationFailures = recentLogs.reduce(
+    (sum, log) => sum + log.stats.failedSuggestions,
+    0
+  );
+  const totalSuggestions = recentLogs.reduce(
+    (sum, log) => sum + log.stats.totalSuggestions,
+    0
+  );
+  const validationFailureRate = validationFailures / totalSuggestions;
+  
+  return {
+    successRate,
+    validationFailureRate,
+    mergeFailures: recentLogs.length - successCount,
+    alerts: {
+      successRateBelowThreshold: successRate < 0.7,
+      tooManyValidationFailures: validationFailureRate > 0.5,
+      consecutiveMergeFailures: checkConsecutiveFailures(recentLogs, 3)
+    }
+  };
+}
+```
+
+---
+
+**完全自动化设计完成**
