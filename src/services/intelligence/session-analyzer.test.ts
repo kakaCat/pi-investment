@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
-import { parseSessionEvents } from './session-analyzer.js';
+import { parseSessionEvents, evaluateToolEfficiency } from './session-analyzer.js';
+import type { DecisionChain } from '../../types/evolution.js';
 
 describe('SessionAnalyzer - parseSessionEvents', () => {
   it('应该解析 session events 文件', () => {
@@ -36,5 +37,79 @@ describe('SessionAnalyzer - parseSessionEvents', () => {
       'calculate_technical_indicators',
       'get_financial_data'
     ]);
+  });
+});
+
+describe('SessionAnalyzer - evaluateToolEfficiency', () => {
+  it('应该计算工具效能指标', () => {
+    const sessions: DecisionChain[] = [
+      {
+        session_id: 's1',
+        timestamp: '2026-05-10T10:00:00Z',
+        user_query: '分析股票',
+        tool_calls: [
+          { tool_name: 'get_stock_realtime_price', arguments: {}, timestamp: '2026-05-10T10:00:00Z' },
+          { tool_name: 'calculate_technical_indicators', arguments: {}, timestamp: '2026-05-10T10:00:01Z' }
+        ],
+        decision: { action: 'buy', symbol: '600036', reason: '买入' },
+        resources: { tokens: 1000, cost: 0.01, duration_ms: 2000 }
+      },
+      {
+        session_id: 's2',
+        timestamp: '2026-05-11T10:00:00Z',
+        user_query: '分析股票',
+        tool_calls: [
+          { tool_name: 'get_stock_realtime_price', arguments: {}, timestamp: '2026-05-11T10:00:00Z' }
+        ],
+        decision: { action: 'sell', symbol: '600036', reason: '卖出' },
+        resources: { tokens: 800, cost: 0.008, duration_ms: 1500 }
+      }
+    ];
+
+    const trades = [
+      { session_id: 's1', symbol: '600036', return: 0.05 },  // 5% 收益
+      { session_id: 's2', symbol: '600036', return: -0.02 }  // -2% 亏损
+    ];
+
+    const result = evaluateToolEfficiency(sessions, trades);
+
+    expect(result).toHaveLength(2);
+
+    const priceToolStats = result.find(t => t.tool_name === 'get_stock_realtime_price');
+    expect(priceToolStats).toBeDefined();
+    expect(priceToolStats!.call_count).toBe(2);
+    expect(priceToolStats!.decisions_after_call).toBe(2);
+    expect(priceToolStats!.win_rate).toBe(0.5);
+
+    const techToolStats = result.find(t => t.tool_name === 'calculate_technical_indicators');
+    expect(techToolStats).toBeDefined();
+    expect(techToolStats!.call_count).toBe(1);
+    expect(techToolStats!.win_rate).toBe(1.0);
+  });
+
+  it('应该计算 ROI', () => {
+    const sessions: DecisionChain[] = [
+      {
+        session_id: 's1',
+        timestamp: '2026-05-10T10:00:00Z',
+        user_query: '分析',
+        tool_calls: [
+          { tool_name: 'get_financial_data', arguments: {}, timestamp: '2026-05-10T10:00:00Z' }
+        ],
+        decision: { action: 'buy', symbol: '600036', reason: '买入' },
+        resources: { tokens: 2000, cost: 0.02, duration_ms: 3000 }
+      }
+    ];
+
+    const trades = [
+      { session_id: 's1', symbol: '600036', return: 0.10 }  // 10% 收益
+    ];
+
+    const result = evaluateToolEfficiency(sessions, trades);
+    const toolStats = result[0];
+
+    expect(toolStats.avg_return).toBe(0.10);
+    expect(toolStats.cost_per_call).toBe(0.02);
+    expect(toolStats.roi).toBeCloseTo(5.0, 1);  // 10% / 0.02 = 5.0
   });
 });
