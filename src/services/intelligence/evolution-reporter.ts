@@ -85,6 +85,9 @@ export function formatReportAsMarkdown(report: EvolutionReport, recentHistories?
         const eval_ = h.evaluation!;
         const outcome = h.outcome;
 
+        // 格式化日期（只显示日期部分）
+        const dateStr = h.date.split('T')[0];
+
         if (outcome?.improvement) {
           const returnDelta = outcome.improvement.returnDelta >= 0
             ? `+${outcome.improvement.returnDelta.toFixed(1)}%`
@@ -98,7 +101,11 @@ export function formatReportAsMarkdown(report: EvolutionReport, recentHistories?
 
           const scoreEmoji = eval_.score >= 80 ? '🌟' : eval_.score >= 60 ? '✅' : eval_.score >= 40 ? '➖' : '⚠️';
 
-          lines.push(`| ${h.date} | ${scoreEmoji} ${eval_.score} | ${returnDelta} | ${winRateDelta} | ${drawdownDelta} |`);
+          lines.push(`| ${dateStr} | ${scoreEmoji} ${eval_.score} | ${returnDelta} | ${winRateDelta} | ${drawdownDelta} |`);
+        } else {
+          // 即使没有 improvement 数据，也显示评分
+          const scoreEmoji = eval_.score >= 80 ? '🌟' : eval_.score >= 60 ? '✅' : eval_.score >= 40 ? '➖' : '⚠️';
+          lines.push(`| ${dateStr} | ${scoreEmoji} ${eval_.score} | - | - | - |`);
         }
       }
       lines.push('');

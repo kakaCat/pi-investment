@@ -51,6 +51,22 @@ export async function saveEvolutionHistory(
   const evolutionId = new Date().toISOString().split('T')[0];
   const branchName = `evolution/${evolutionId}`;
 
+  const historyDir = path.join(piDir, 'evolution/history');
+  await fs.mkdir(historyDir, { recursive: true });
+
+  const historyPath = path.join(historyDir, `${evolutionId}.json`);
+
+  // 检查文件是否已存在（同一天多次运行的情况）
+  let existingHistory: EvolutionHistory | null = null;
+  if (existsSync(historyPath)) {
+    try {
+      const content = await fs.readFile(historyPath, 'utf-8');
+      existingHistory = JSON.parse(content) as EvolutionHistory;
+    } catch (e) {
+      console.warn('[进化历史] 读取现有历史失败，将覆盖:', e);
+    }
+  }
+
   const history: EvolutionHistory = {
     evolutionId,
     date: new Date().toISOString(),
@@ -63,13 +79,11 @@ export async function saveEvolutionHistory(
       maxDrawdown: baseline.maxDrawdown,
       toolStats: baseline.toolStats,
     },
-    // outcome 和 evaluation 在下次进化时填充
+    // 保留已有的 outcome 和 evaluation（如果存在）
+    outcome: existingHistory?.outcome,
+    evaluation: existingHistory?.evaluation,
   };
 
-  const historyDir = path.join(piDir, 'evolution/history');
-  await fs.mkdir(historyDir, { recursive: true });
-
-  const historyPath = path.join(historyDir, `${evolutionId}.json`);
   await fs.writeFile(historyPath, JSON.stringify(history, null, 2), 'utf-8');
 
   return evolutionId;
