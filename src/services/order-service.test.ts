@@ -18,6 +18,7 @@ describe("OrderService - High-level business methods", () => {
     portfolioService = new PortfolioService(testDir);
     tradeService = new TradeService(testDir);
     orderService.setServices(portfolioService, tradeService);
+    portfolioService.setTradeService(tradeService);
   });
 
   describe("fillOrder()", () => {
@@ -233,6 +234,102 @@ describe("OrderService - High-level business methods", () => {
       // 验证持仓未变化
       const portfolio = portfolioService.load();
       expect(portfolio.holdings).toHaveLength(0);
+    });
+  });
+
+  describe("calculateCommission()", () => {
+    test("calculates A-share commission correctly (0.025%, min 5 CNY)", () => {
+      // 小额交易：应返回最低手续费 5 元
+      expect(orderService.calculateCommission("A", 10, 100)).toBe(5);
+
+      // 大额交易：应按万2.5计算
+      // 1800 * 1000 = 1,800,000，手续费 = 1,800,000 * 0.00025 = 450
+      expect(orderService.calculateCommission("A", 1800, 1000)).toBe(450);
+
+      // 边界测试：刚好超过最低手续费
+      // 需要 amount * 0.00025 > 5，即 amount > 20000
+      // 20000 * 0.00025 = 5
+      expect(orderService.calculateCommission("A", 100, 200)).toBe(5);
+      expect(orderService.calculateCommission("A", 100, 201)).toBe(5.03);
+    });
+
+    test("calculates HK-share commission correctly (0.05%, min 5 HKD)", () => {
+      // 小额交易：应返回最低手续费 5 港币
+      expect(orderService.calculateCommission("HK", 10, 50)).toBe(5);
+
+      // 大额交易：应按万5计算
+      // 100 * 1000 = 100,000，手续费 = 100,000 * 0.0005 = 50
+      expect(orderService.calculateCommission("HK", 100, 1000)).toBe(50);
+
+      // 边界测试：刚好超过最低手续费
+      // 需要 amount * 0.0005 > 5，即 amount > 10000
+      expect(orderService.calculateCommission("HK", 50, 200)).toBe(5);
+      expect(orderService.calculateCommission("HK", 50, 201)).toBe(5.03);
+    });
+
+    test("commission is applied in buy orders", async () => {
+      const order = orderService.create({
+        symbol: "600519",
+        name: "茅台",
+        side: "buy",
+        type: "limit",
+        price: 1800,
+        quantity: 100,
+        market: "A",
+      });
+
+      await orderService.fillOrder(order.id, 1800, 100);
+
+      // 验证持仓成本包含手续费
+      // 手续费 = 1800 * 100 * 0.00025 = 45
+      // 总成本 = 1800 * 100 + 45 = 180,045
+      // 均价 = 180,045 / 100 = 1800.45
+      const portfolio = portfolioService.load();
+      const holding = portfolio.holdings[0];
+      expect(holding.avg_cost).toBeCloseTo(1800.45, 2);
+    });
+
+    test("commission is applied in sell orders", async () => {
+      // 先通过买入挂单成交来建立持仓（这样会同时创建持仓和交易记录）
+      const buyOrder = orderService.create({
+        symbol: "600519",
+        name: "茅台",
+        side: "buy",
+        type: "limit",
+        price: 1800,
+        quantity: 100,
+        market: "A",
+      });
+      await orderService.fillOrder(buyOrder.id, 1800, 100);
+
+      // 创建卖出挂单
+      const order = orderService.create({
+        symbol: "600519",
+        name: "茅台",
+        side: "sell",
+        type: "limit",
+        price: 2000,
+        quantity: 100,
+        market: "A",
+      });
+
+      const result = await orderService.fillOrder(order.id, 2000, 100);
+
+      // 验证盈亏计算包含手续费
+      // 卖出金额 = 2000 * 100 = 200,000
+      // 手续费 = 200,000 * 0.00025 = 50
+      // 实际收入 = 200,000 - 50 = 199,950
+      // 买入成本 = 1800 * 100 + 45 = 180,045
+      // 盈亏 = 199,950 - 180,045 = 19,905
+      expect(result.success).toBe(true);
+      expect(result.tradeRecorded).toBe(true);
+
+      // 验证交易记录
+      const trades = tradeService.load();
+      const sellTrade = trades.trades.find((t: any) => t.action === "sell");
+      expect(sellTrade).toBeDefined();
+      expect(sellTrade?.commission).toBe(50);
+      expect(sellTrade?.amount).toBe(200000);
     });
   });
 });

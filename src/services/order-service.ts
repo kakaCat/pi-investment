@@ -130,6 +130,31 @@ export class OrderService {
     this.tradeService = tradeService;
   }
 
+  /**
+   * 计算交易手续费
+   * @param market 市场类型
+   * @param price 成交价格
+   * @param quantity 成交数量
+   * @returns 手续费金额（保留2位小数）
+   */
+  calculateCommission(market: "A" | "HK", price: number, quantity: number): number {
+    const amount = price * quantity;
+
+    // A股：万2.5，最低5元
+    if (market === "A") {
+      const commission = amount * 0.00025;
+      return roundN(Math.max(commission, 5), 2);
+    }
+
+    // 港股：万5，最低5港币
+    if (market === "HK") {
+      const commission = amount * 0.0005;
+      return roundN(Math.max(commission, 5), 2);
+    }
+
+    return 0;
+  }
+
   private ensureFile(): void {
     if (!existsSync(this.filePath)) {
       writeFileSync(
@@ -469,45 +494,56 @@ export class OrderService {
     // 3. 更新持仓
     let portfolioAction: "add" | "remove" | "update" | "noop" = "noop";
     let portfolioMessage = "";
+    let tradeRecorded = false;
+    let sellResult: any = undefined;
 
     try {
       if (order.side === "buy") {
+        // 买入：计算手续费
+        const commission = this.calculateCommission(order.market, fillPrice, fillQty);
         const result = this.portfolioService.add(
           order.symbol,
           fillQty,
           fillPrice,
-          0, // commission - 挂单成交暂不计手续费
+          commission,
           order.name,
           order.market,
           `挂单成交 ${orderId} @${fillPrice}`,
         );
         portfolioAction = "add";
         portfolioMessage = result.message;
-      } else {
-        // 卖出
-        const holding = this.portfolioService
-          .load()
-          .holdings.find((h: any) => h.symbol === order.symbol);
-        if (holding) {
-          const remaining = holding.quantity - fillQty;
-          if (remaining <= 0) {
-            this.portfolioService.remove(order.symbol);
-            portfolioAction = "remove";
-            portfolioMessage = `清仓 ${order.symbol}，${fillQty}股@${fillPrice}`;
-          } else {
-            this.portfolioService.update(
-              order.symbol,
-              remaining,
-              holding.avg_cost,
-              undefined,
-              `${holding.notes || ""} | 挂单成交减仓 ${fillQty}股@${fillPrice}`,
-            );
-            portfolioAction = "update";
-            portfolioMessage = `减仓 ${order.symbol}：${fillQty}股@${fillPrice}，剩余 ${remaining}股`;
-          }
-        } else {
-          portfolioMessage = `未找到持仓 ${order.symbol}（可能已清仓）`;
+
+        // 记录交易
+        try {
+          const { chinaDate } = await import("../utils/china-time.js");
+          this.tradeService.add(
+            chinaDate(),
+            order.symbol,
+            order.name,
+            "buy",
+            fillQty,
+            fillPrice,
+            commission,
+            order.market,
+            `挂单成交 [${orderId}] ${order.notes}`,
+          );
+          tradeRecorded = true;
+        } catch (e) {
+          console.warn("交易记录失败:", e);
         }
+      } else {
+        // 卖出：计算手续费并调用 PortfolioService.sell()
+        const commission = this.calculateCommission(order.market, fillPrice, fillQty);
+        sellResult = this.portfolioService.sell(
+          order.symbol,
+          fillQty,
+          fillPrice,
+          commission,
+          `挂单成交 [${orderId}] ${order.notes}`,
+        );
+        portfolioAction = sellResult.remaining > 0 ? "update" : "remove";
+        portfolioMessage = sellResult.message;
+        tradeRecorded = sellResult.tradeRecorded;
       }
     } catch (e) {
       return {
@@ -522,31 +558,10 @@ export class OrderService {
       };
     }
 
-    // 4. 记录交易
-    let tradeRecorded = false;
-    try {
-      const { chinaDate } = await import("../utils/china-time.js");
-      this.tradeService.add(
-        chinaDate(),
-        order.symbol,
-        order.name,
-        order.side,
-        fillQty,
-        fillPrice,
-        0,
-        order.market,
-        `挂单成交 [${orderId}] ${order.notes}`,
-      );
-      tradeRecorded = true;
-    } catch (e) {
-      // 交易记录失败不影响主流程
-      console.warn("交易记录失败:", e);
-    }
-
-    // 5. 更新挂单状态
+    // 4. 更新挂单状态
     this.fill(orderId, fillPrice, fillQty);
 
-    // 6. 获取更新后的持仓和剩余挂单
+    // 5. 获取更新后的持仓和剩余挂单
     const updatedHolding = this.portfolioService
       .load()
       .holdings.find((h: any) => h.symbol === order.symbol);
