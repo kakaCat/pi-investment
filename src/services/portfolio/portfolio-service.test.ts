@@ -76,6 +76,11 @@ describe("PortfolioService", () => {
     expect(result.pnlAmount).toBe(60); // (12 - 10) * 30
     expect(result.pnlPct).toBe(20); // (12 - 10) / 10 * 100
 
+    // ✅ 验证返回了更新后的持仓
+    expect(result.updatedHolding).toBeDefined();
+    expect(result.updatedHolding?.symbol).toBe("600519");
+    expect(result.updatedHolding?.quantity).toBe(70);
+
     const data = service.load();
     expect(data.holdings).toHaveLength(1);
     expect(data.holdings[0].quantity).toBe(70);
@@ -89,6 +94,9 @@ describe("PortfolioService", () => {
 
     expect(result.success).toBe(true);
     expect(result.remaining).toBe(0);
+
+    // ✅ 清仓后不应该有 updatedHolding
+    expect(result.updatedHolding).toBeUndefined();
 
     const data = service.load();
     expect(data.holdings).toHaveLength(0);

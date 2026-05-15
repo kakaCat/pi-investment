@@ -42,6 +42,15 @@ describe("OrderService - High-level business methods", () => {
       expect(result.portfolioAction).toBe("add");
       expect(result.tradeRecorded).toBe(true);
 
+      // ✅ 验证返回了更新后的持仓
+      expect(result.updatedHolding).toBeDefined();
+      expect(result.updatedHolding?.symbol).toBe("600519");
+      expect(result.updatedHolding?.quantity).toBe(100);
+
+      // ✅ 验证返回了剩余挂单列表
+      expect(result.remainingOrders).toBeDefined();
+      expect(Array.isArray(result.remainingOrders)).toBe(true);
+
       // 验证持仓
       const portfolio = portfolioService.load();
       expect(portfolio.holdings).toHaveLength(1);

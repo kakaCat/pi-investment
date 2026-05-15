@@ -79,6 +79,8 @@ export interface FillOrderResult {
   portfolioMessage: string;
   tradeRecorded: boolean;
   error?: string;
+  updatedHolding?: any;           // 更新后的持仓
+  remainingOrders?: PendingOrder[]; // 剩余挂单
 }
 
 export interface CheckOrdersResult {
@@ -101,6 +103,8 @@ export interface CheckOrdersResult {
     order: PendingOrder;
     error: string;
   }>;
+  portfolioSnapshot?: any;        // 完整持仓快照（供 LLM 决策）
+  remainingOrders?: PendingOrder[]; // 剩余挂单
 }
 
 // ─── OrderService ──────────────────────────────────────────────────────────
@@ -542,6 +546,12 @@ export class OrderService {
     // 5. 更新挂单状态
     this.fill(orderId, fillPrice, fillQty);
 
+    // 6. 获取更新后的持仓和剩余挂单
+    const updatedHolding = this.portfolioService
+      .load()
+      .holdings.find((h: any) => h.symbol === order.symbol);
+    const remainingOrders = this.listPending();
+
     return {
       success: true,
       order,
@@ -550,6 +560,8 @@ export class OrderService {
       portfolioAction,
       portfolioMessage,
       tradeRecorded,
+      updatedHolding,
+      remainingOrders,
     };
   }
 
@@ -699,12 +711,24 @@ export class OrderService {
       }
     }
 
+    // 7. 获取完整持仓快照和剩余挂单
+    let portfolioSnapshot: any;
+    try {
+      portfolioSnapshot = await this.portfolioService.getWithPnL();
+    } catch (e) {
+      console.warn("获取持仓快照失败:", e);
+    }
+
+    const remainingOrders = this.listPending();
+
     return {
       expiredCount,
       totalChecked: pendingOrders.length,
       fills,
       notYets,
       errors,
+      portfolioSnapshot,
+      remainingOrders,
     };
   }
 }

@@ -60,6 +60,8 @@ export interface SellResult {
   pnlAmount: number;
   pnlPct: number;
   tradeRecorded: boolean;
+  updatedHolding?: Holding;           // 更新后的持仓（部分卖出时）
+  portfolioSnapshot?: PortfolioSnapshot;  // 完整持仓快照（供 LLM 决策）
 }
 
 // ─── 工具函数 ──────────────────────────────────────────────────────────────
@@ -176,10 +178,10 @@ export class PortfolioService {
     name = "",
     market: "A" | "HK" = "A",
     notes = "",
-  ): { success: boolean; message: string } {
-    if (!symbol) return { success: false, message: "symbol 不能为空" };
-    if (quantity <= 0) return { success: false, message: "quantity 必须大于0" };
-    if (avg_cost <= 0) return { success: false, message: "avg_cost 必须大于0" };
+  ): { success: boolean; message: string; updatedHolding?: Holding } {
+    if (!symbol) return { success: false, message: "symbol 不能为空", updatedHolding: undefined };
+    if (quantity <= 0) return { success: false, message: "quantity 必须大于0", updatedHolding: undefined };
+    if (avg_cost <= 0) return { success: false, message: "avg_cost 必须大于0", updatedHolding: undefined };
 
     // ✅ OPT-005: 计算实际成本（包含手续费）
     const actualCost = commission > 0
@@ -203,18 +205,31 @@ export class PortfolioService {
           notes: notes || h.notes,
         };
         this.save(data);
-        return { success: true, message: `${symbol} 已加仓，新均价 ${data.holdings[idx].avg_cost}，总持股 ${totalQty} 股` };
+        return {
+          success: true,
+          message: `${symbol} 已加仓，新均价 ${data.holdings[idx].avg_cost}，总持股 ${totalQty} 股`,
+          updatedHolding: data.holdings[idx],
+        };
       } else {
         data.holdings[idx] = { ...h, quantity, avg_cost: actualCost, name: name || h.name, notes: notes || h.notes };
         this.save(data);
-        return { success: true, message: `${symbol} 持仓已更新` };
+        return {
+          success: true,
+          message: `${symbol} 持仓已更新`,
+          updatedHolding: data.holdings[idx],
+        };
       }
     } else {
-      data.holdings.push({
+      const newHolding: Holding = {
         symbol, name, quantity, avg_cost: actualCost, market, notes, added_date: today(),
-      });
+      };
+      data.holdings.push(newHolding);
       this.save(data);
-      return { success: true, message: `${symbol} 已录入持仓` };
+      return {
+        success: true,
+        message: `${symbol} 已录入持仓`,
+        updatedHolding: newHolding,
+      };
     }
   }
 
@@ -339,17 +354,21 @@ export class PortfolioService {
       throw new Error(`持仓不足: 需卖出 ${quantity} 股，实际仅持有 ${holding.quantity} 股`);
     }
 
-    // 3. 计算盈亏
+    // 3. 计算盈亏（扣除手续费）
     const remaining = holding.quantity - quantity;
-    const pnlPerShare = price - holding.avg_cost;
-    const pnlAmount = roundN(pnlPerShare * quantity);
-    const pnlPct = roundN((pnlPerShare / holding.avg_cost) * 100);
+    const grossProceeds = price * quantity;           // 卖出总收入
+    const netProceeds = grossProceeds - commission;   // 扣除手续费后的净收入
+    const costBasis = holding.avg_cost * quantity;    // 成本
+    const pnlAmount = roundN(netProceeds - costBasis); // 实际盈亏
+    const pnlPct = roundN((pnlAmount / costBasis) * 100);
 
     // 4. 更新持仓
+    let updatedHolding: Holding | undefined;
     if (remaining <= 0) {
       this.remove(symbol);
     } else {
       this.update(symbol, remaining, holding.avg_cost, undefined, notes);
+      updatedHolding = this.load().holdings.find(h => h.symbol === symbol);
     }
 
     // 5. 记录交易
@@ -373,6 +392,9 @@ export class PortfolioService {
       }
     }
 
+    // 6. 获取完整持仓快照（异步，不阻塞主流程）
+    const portfolioSnapshot = this.getWithPnL().catch(() => undefined);
+
     return {
       success: true,
       message: `卖出 ${symbol} ${quantity}股@${price.toFixed(2)}，${remaining > 0 ? `剩余 ${remaining}股` : "已清仓"}`,
@@ -383,6 +405,8 @@ export class PortfolioService {
       pnlAmount,
       pnlPct,
       tradeRecorded,
+      updatedHolding,
+      portfolioSnapshot: undefined, // 同步返回时先不包含快照，避免阻塞
     };
   }
 }
