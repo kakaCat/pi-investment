@@ -65,8 +65,29 @@ export class TradeService {
 
   load(): TradesFile {
     try {
-      return JSON.parse(readFileSync(this.filePath, "utf-8")) as TradesFile;
-    } catch {
+      const content = readFileSync(this.filePath, "utf-8");
+      const parsed = JSON.parse(content);
+
+      // 兼容性处理：如果是旧的数组格式，自动迁移
+      if (Array.isArray(parsed)) {
+        console.warn("⚠️  检测到旧格式 trades.json（数组），自动迁移到新格式");
+        const migrated: TradesFile = {
+          trades: parsed,
+          last_updated: nowStr()
+        };
+        this.save(migrated);
+        return migrated;
+      }
+
+      // 新格式验证
+      if (!parsed.trades || !Array.isArray(parsed.trades)) {
+        console.error("❌ trades.json 格式错误，期望 { trades: [], last_updated: '' }");
+        return { trades: [], last_updated: "" };
+      }
+
+      return parsed as TradesFile;
+    } catch (error) {
+      console.error("❌ 读取 trades.json 失败:", error);
       return { trades: [], last_updated: "" };
     }
   }
