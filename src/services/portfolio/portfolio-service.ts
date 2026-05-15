@@ -157,8 +157,29 @@ export class PortfolioService {
 
   load(): PortfolioFile {
     try {
-      return JSON.parse(readFileSync(this.filePath, "utf-8")) as PortfolioFile;
-    } catch {
+      const content = readFileSync(this.filePath, "utf-8");
+      const parsed = JSON.parse(content);
+
+      // 兼容性处理：如果是旧的数组格式，自动迁移
+      if (Array.isArray(parsed)) {
+        console.warn("⚠️  检测到旧格式 portfolio.json（数组），自动迁移到新格式");
+        const migrated: PortfolioFile = {
+          holdings: parsed,
+          last_updated: nowStr()
+        };
+        this.save(migrated);
+        return migrated;
+      }
+
+      // 新格式验证
+      if (!parsed.holdings || !Array.isArray(parsed.holdings)) {
+        console.error("❌ portfolio.json 格式错误，期望 { holdings: [], last_updated: '' }");
+        return { holdings: [], last_updated: "" };
+      }
+
+      return parsed as PortfolioFile;
+    } catch (error) {
+      console.error("❌ 读取 portfolio.json 失败:", error);
       return { holdings: [], last_updated: "" };
     }
   }

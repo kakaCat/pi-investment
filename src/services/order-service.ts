@@ -179,8 +179,29 @@ export class OrderService {
 
   load(): OrdersFile {
     try {
-      return JSON.parse(readFileSync(this.filePath, "utf-8")) as OrdersFile;
-    } catch {
+      const content = readFileSync(this.filePath, "utf-8");
+      const parsed = JSON.parse(content);
+
+      // 兼容性处理：如果是旧的数组格式，自动迁移
+      if (Array.isArray(parsed)) {
+        console.warn("⚠️  检测到旧格式 orders.json（数组），自动迁移到新格式");
+        const migrated: OrdersFile = {
+          orders: parsed,
+          last_updated: nowStr()
+        };
+        this.save(migrated);
+        return migrated;
+      }
+
+      // 新格式验证
+      if (!parsed.orders || !Array.isArray(parsed.orders)) {
+        console.error("❌ orders.json 格式错误，期望 { orders: [], last_updated: '' }");
+        return { orders: [], last_updated: "" };
+      }
+
+      return parsed as OrdersFile;
+    } catch (error) {
+      console.error("❌ 读取 orders.json 失败:", error);
       return { orders: [], last_updated: "" };
     }
   }
