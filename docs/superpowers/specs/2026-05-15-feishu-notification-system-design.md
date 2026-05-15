@@ -1,60 +1,60 @@
-# Feishu Notification System Design
+# 飞书通知系统设计
 
-**Date:** 2026-05-15  
-**Status:** Approved  
-**Goal:** Transform Feishu into a unified agent communication and notification module
-
----
-
-## Overview
-
-This design establishes Feishu as the primary input/output interface and notification system for the Pi Investment agent. The system provides a decoupled, extensible architecture that allows the agent to send rich notifications (trade signals, market briefs, risk warnings) while maintaining flexibility to add other notification channels in the future.
+**日期:** 2026-05-15  
+**状态:** 已批准  
+**目标:** 将飞书打造为统一的 agent 通信和通知模块
 
 ---
 
-## Architecture
+## 概述
 
-### Core Components
+本设计将飞书建立为 Pi Investment agent 的主要输入输出接口和通知系统。系统提供解耦、可扩展的架构，允许 agent 发送丰富的通知（交易信号、市场简报、风险警告），同时保持未来添加其他通知渠道的灵活性。
+
+---
+
+## 架构设计
+
+### 核心组件
 
 ```
-NotificationService (unified interface)
+NotificationService (统一接口)
     ↓
-NotificationChannel (abstract base class)
+NotificationChannel (抽象基类)
     ↓
-FeishuChannel (Feishu implementation)
+FeishuChannel (飞书实现)
 ```
 
-### Component Responsibilities
+### 组件职责
 
 **NotificationService**
-- Provides unified notification API (`send`, `sendCard`, `sendImage`)
-- Manages multiple channel instances
-- Handles notification retry and fallback logic
-- Routes messages to appropriate channels
+- 提供统一的通知 API (`send`, `sendCard`, `sendImage`)
+- 管理多个 channel 实例
+- 处理通知重试和降级逻辑
+- 将消息路由到合适的渠道
 
-**NotificationChannel (abstract)**
-- Defines interface that all channels must implement
-- Standardizes message format conversion
-- Provides availability checking
+**NotificationChannel (抽象)**
+- 定义所有 channel 必须实现的接口
+- 标准化消息格式转换
+- 提供可用性检查
 
 **FeishuChannel**
-- Encapsulates Lark SDK calls
-- Implements card, rich text, and image formats
-- Handles Feishu-specific constraints (character limits, rate limits)
-- Manages message queuing and batching
+- 封装 Lark SDK 调用
+- 实现卡片、富文本、图片等格式
+- 处理飞书特有的限制（字符长度、频率限制）
+- 管理消息队列和批量发送
 
-### Data Flow
+### 数据流
 
 ```
 Agent Tool → NotificationService.send() 
     → FeishuChannel.send() 
     → Lark SDK 
-    → Feishu Server
+    → 飞书服务器
 ```
 
 ---
 
-## Interface Design
+## 接口设计
 
 ### NotificationService API
 
@@ -73,57 +73,57 @@ interface NotificationOptions {
 }
 
 class NotificationService {
-  // Basic text message
+  // 基础文本消息
   async send(message: string, options?: NotificationOptions): Promise<void>
   
-  // Rich card (trade signals, market briefs, etc.)
+  // 富文本卡片（交易信号、市场简报等）
   async sendCard(message: NotificationMessage, options?: NotificationOptions): Promise<void>
   
-  // Image/chart
+  // 图片/图表
   async sendImage(imageUrl: string, caption?: string, options?: NotificationOptions): Promise<void>
   
-  // Batch send (avoid rate limits)
+  // 批量发送（避免频率限制）
   async sendBatch(messages: NotificationMessage[], options?: NotificationOptions): Promise<void>
 }
 ```
 
-### NotificationChannel Abstract Class
+### NotificationChannel 抽象类
 
 ```typescript
 abstract class NotificationChannel {
   abstract send(message: NotificationMessage): Promise<void>
   abstract sendImage(imageUrl: string, caption?: string): Promise<void>
-  abstract isAvailable(): boolean  // check if configuration is complete
+  abstract isAvailable(): boolean  // 检查配置是否完整
 }
 ```
 
-### Agent Tool Usage Examples
+### Agent 工具调用示例
 
 ```typescript
-// Trade signal
+// 交易信号
 await notificationService.sendCard({
-  title: '🟢 Buy Signal',
-  content: '**Kweichow Moutai** (600519)\nPrice: ¥1850\n...',
+  title: '🟢 买入信号',
+  content: '**贵州茅台** (600519)\n当前价: ¥1850\n...',
   type: 'card',
   metadata: { signal_type: 'buy', symbol: '600519' }
 })
 
-// Simple text
-await notificationService.send('Market monitoring started')
+// 简单文本
+await notificationService.send('市场监控已启动')
 ```
 
 ---
 
-## FeishuChannel Implementation
+## FeishuChannel 实现
 
-### Feishu-Specific Features
+### 飞书特有功能
 
-**1. Card Message Format**
-- Supports Markdown rendering
-- Blue header (Pi Investment branding)
-- Auto-handles 28000 character limit (split into multiple messages)
+**1. 卡片消息格式**
+- 支持 Markdown 渲染
+- 蓝色标题头（Pi Investment 品牌）
+- 自动处理 28000 字符限制（分片发送）
 
-**2. Message Type Mapping**
+**2. 消息类型映射**
 ```typescript
 NotificationMessage.type → Feishu msg_type
   'text' → 'text'
@@ -131,20 +131,20 @@ NotificationMessage.type → Feishu msg_type
   'card' → 'interactive' (rich card)
 ```
 
-**3. Error Handling**
-- Feishu API failure → fallback to plain text
-- Rate limit → auto-queue with delay
-- Missing config → silent fail + warning log
+**3. 错误处理**
+- 飞书 API 失败 → 降级为纯文本
+- 频率限制 → 自动排队延迟发送
+- 配置缺失 → 静默失败 + 日志警告
 
-### Configuration Management
+### 配置管理
 
 ```typescript
-// Read from environment variables
+// 从环境变量读取
 FEISHU_APP_ID
 FEISHU_APP_SECRET
-FEISHU_DEFAULT_CHAT_ID  // default send target
+FEISHU_DEFAULT_CHAT_ID  // 默认发送目标
 
-// FeishuChannel initialization
+// FeishuChannel 初始化
 const feishuChannel = new FeishuChannel({
   appId: process.env.FEISHU_APP_ID,
   appSecret: process.env.FEISHU_APP_SECRET,
@@ -152,34 +152,34 @@ const feishuChannel = new FeishuChannel({
 })
 ```
 
-### Relationship with Existing Code
+### 与现有代码的关系
 
-**Keep:**
-- `src/api/feishu.ts` - WebSocket Bot (receive messages)
-- `FeishuSessionManager` - session management
+**保留:**
+- `src/api/feishu.ts` - WebSocket Bot（接收消息）
+- `FeishuSessionManager` - 会话管理
 
-**Refactor:**
-- `src/services/notification/feishu-service.ts` → rename to `FeishuChannel`
-- `send_feishu_alert` tool → call `NotificationService`
+**重构:**
+- `src/services/notification/feishu-service.ts` → 改为 `FeishuChannel`
+- `send_feishu_alert` 工具 → 调用 `NotificationService`
 
-**New:**
+**新增:**
 - `src/services/notification/notification-service.ts`
 - `src/services/notification/notification-channel.ts`
 - `src/services/notification/feishu-channel.ts`
 
 ---
 
-## Agent Tool Integration
+## Agent 工具集成
 
-### Updated Existing Tools
+### 更新现有工具
 
 **`send_feishu_alert` → `send_notification`**
 
 ```typescript
-// New tool definition
+// 新工具定义
 {
   name: "send_notification",
-  description: "Send notification message (trade signals, market alerts, etc.)",
+  description: "发送通知消息（交易信号、市场提醒等）",
   parameters: {
     type: 'text' | 'card',
     title?: string,
@@ -188,7 +188,7 @@ const feishuChannel = new FeishuChannel({
   }
 }
 
-// Implementation
+// 实现
 execute: async (params) => {
   await notificationService.sendCard({
     title: params.title,
@@ -199,9 +199,9 @@ execute: async (params) => {
 }
 ```
 
-### New Convenience Tools
+### 新增便捷工具
 
-**1. `send_trade_signal`** - Specialized for trade signals
+**1. `send_trade_signal`** - 专门用于交易信号
 ```typescript
 parameters: {
   action: 'buy' | 'sell',
@@ -210,10 +210,10 @@ parameters: {
   reason: string,
   confidence: number
 }
-// Internally formats as standard card
+// 内部格式化为标准卡片
 ```
 
-**2. `send_market_brief`** - Market summary
+**2. `send_market_brief`** - 市场简报
 ```typescript
 parameters: {
   summary: string,
@@ -222,7 +222,7 @@ parameters: {
 }
 ```
 
-**3. `send_risk_warning`** - Risk alerts
+**3. `send_risk_warning`** - 风险警告
 ```typescript
 parameters: {
   level: 'low' | 'medium' | 'high',
@@ -230,7 +230,7 @@ parameters: {
 }
 ```
 
-### Tool Registration
+### 工具注册
 
 ```typescript
 // src/tools/notification-tools.ts
@@ -251,46 +251,46 @@ export const allCustomTools = [
 
 ---
 
-## Error Handling
+## 错误处理
 
-### Strategy
+### 策略
 
-**1. Missing Configuration**
+**1. 配置缺失**
 ```typescript
-// FeishuChannel.isAvailable() returns false
-// NotificationService silently skips, logs warning
+// FeishuChannel.isAvailable() 返回 false
+// NotificationService 静默跳过，记录警告日志
 console.warn('[Notification] Feishu channel not configured, skipping')
 ```
 
-**2. Send Failure**
+**2. 发送失败**
 ```typescript
-// Retry 3 times with exponential backoff (1s, 2s, 4s)
-// Final failure → log error, don't block agent execution
+// 重试 3 次，指数退避（1s, 2s, 4s）
+// 最终失败 → 记录错误，不阻塞 agent 执行
 console.error('[Notification] Failed to send after 3 retries:', error)
 ```
 
-**3. Rate Limiting**
+**3. 频率限制**
 ```typescript
-// Feishu limit: 20 messages/minute
-// Built-in queue, auto-delay sending
-// Queue overflow → drop old messages, keep newest
+// 飞书限制：20 条/分钟
+// 内置队列，自动延迟发送
+// 队列溢出 → 丢弃旧消息，保留最新
 ```
 
 ---
 
-## Testing Strategy
+## 测试策略
 
-### Unit Tests
+### 单元测试
 
-- `NotificationService` - mock channel, verify routing logic
-- `FeishuChannel` - mock Lark SDK, verify message format conversion
-- Tool functions - verify parameter validation and formatting
+- `NotificationService` - mock channel，验证路由逻辑
+- `FeishuChannel` - mock Lark SDK，验证消息格式转换
+- 工具函数 - 验证参数校验和格式化
 
-### Integration Tests
+### 集成测试
 
 ```typescript
 // src/services/notification/feishu-channel.test.ts
-// Use real Feishu test group
+// 使用真实飞书测试群
 describe('FeishuChannel', () => {
   it('should send card message', async () => {
     const channel = new FeishuChannel({...testConfig})
@@ -303,100 +303,100 @@ describe('FeishuChannel', () => {
 })
 ```
 
-### Manual Test Script
+### 手动测试脚本
 
 ```typescript
 // src/scripts/test-notification.ts
-// Quick validation of Feishu config and message formats
+// 快速验证飞书配置和消息格式
 ```
 
 ---
 
-## Implementation Files
+## 实现文件清单
 
-### New Files
+### 新增文件
 
-1. `src/services/notification/notification-channel.ts` - Abstract base class
-2. `src/services/notification/notification-service.ts` - Unified service
-3. `src/services/notification/feishu-channel.ts` - Feishu implementation
-4. `src/tools/notification-tools.ts` - Agent tools
-5. `src/scripts/test-notification.ts` - Manual test script
+1. `src/services/notification/notification-channel.ts` - 抽象基类
+2. `src/services/notification/notification-service.ts` - 统一服务
+3. `src/services/notification/feishu-channel.ts` - 飞书实现
+4. `src/tools/notification-tools.ts` - Agent 工具
+5. `src/scripts/test-notification.ts` - 手动测试脚本
 
-### Modified Files
+### 修改文件
 
-1. `src/services/notification/feishu-service.ts` - Refactor into FeishuChannel
-2. `src/tools/monitor-tools.ts` - Update to use NotificationService
-3. `src/infrastructure/tools/index.ts` - Register notification tools
+1. `src/services/notification/feishu-service.ts` - 重构为 FeishuChannel
+2. `src/tools/monitor-tools.ts` - 更新为使用 NotificationService
+3. `src/infrastructure/tools/index.ts` - 注册通知工具
 
-### Preserved Files
+### 保留文件
 
-1. `src/api/feishu.ts` - WebSocket Bot (unchanged)
-2. `src/api/feishu-session-manager.ts` - Session management (unchanged)
-
----
-
-## Migration Path
-
-### Phase 1: Core Infrastructure
-1. Create `NotificationChannel` abstract class
-2. Create `NotificationService` with basic send methods
-3. Implement `FeishuChannel` with text and card support
-
-### Phase 2: Tool Integration
-1. Create new notification tools
-2. Update existing `send_feishu_alert` to use NotificationService
-3. Register tools in tool registry
-
-### Phase 3: Testing & Validation
-1. Write unit tests for all components
-2. Create integration tests with real Feishu
-3. Build manual test script
-4. Validate with real agent workflows
-
-### Phase 4: Cleanup
-1. Remove old `FeishuService` if fully replaced
-2. Update documentation
-3. Add usage examples to README
+1. `src/api/feishu.ts` - WebSocket Bot（不变）
+2. `src/api/feishu-session-manager.ts` - 会话管理（不变）
 
 ---
 
-## Future Extensions
+## 实施路径
 
-### Additional Channels
-- DingTalk channel
-- WeChat Work channel
-- Email channel
-- SMS channel
+### 阶段 1: 核心基础设施
+1. 创建 `NotificationChannel` 抽象类
+2. 创建 `NotificationService` 及基础发送方法
+3. 实现 `FeishuChannel`，支持文本和卡片
 
-### Enhanced Features
-- Message templates
-- Scheduled notifications
-- Notification history/audit log
-- User preference management (per-user notification settings)
+### 阶段 2: 工具集成
+1. 创建新的通知工具
+2. 更新现有 `send_feishu_alert` 使用 NotificationService
+3. 在工具注册表中注册工具
 
-### Advanced Capabilities
-- Interactive cards with buttons
-- File attachments
-- Voice messages
-- Video notifications
+### 阶段 3: 测试与验证
+1. 编写所有组件的单元测试
+2. 创建真实飞书的集成测试
+3. 构建手动测试脚本
+4. 用真实 agent 工作流验证
 
----
-
-## Success Criteria
-
-1. ✅ Agent can send text, card, and image notifications via unified API
-2. ✅ Feishu integration works without blocking agent execution on failures
-3. ✅ System handles rate limits gracefully
-4. ✅ Code is decoupled from specific notification provider
-5. ✅ All existing notification use cases continue to work
-6. ✅ Test coverage ≥ 80% for new code
-7. ✅ Manual test script validates end-to-end flow
+### 阶段 4: 清理
+1. 如果完全替换，删除旧的 `FeishuService`
+2. 更新文档
+3. 添加使用示例到 README
 
 ---
 
-## Non-Goals
+## 未来扩展
 
-- Real-time bidirectional communication (already handled by WebSocket Bot)
-- Message threading/conversation management
-- User authentication/authorization
-- Analytics/metrics collection (can be added later)
+### 额外渠道
+- 钉钉 channel
+- 企业微信 channel
+- 邮件 channel
+- 短信 channel
+
+### 增强功能
+- 消息模板
+- 定时通知
+- 通知历史/审计日志
+- 用户偏好管理（每用户通知设置）
+
+### 高级能力
+- 带按钮的交互式卡片
+- 文件附件
+- 语音消息
+- 视频通知
+
+---
+
+## 成功标准
+
+1. ✅ Agent 可以通过统一 API 发送文本、卡片、图片通知
+2. ✅ 飞书集成在失败时不阻塞 agent 执行
+3. ✅ 系统优雅处理频率限制
+4. ✅ 代码与特定通知提供商解耦
+5. ✅ 所有现有通知用例继续工作
+6. ✅ 新代码测试覆盖率 ≥ 80%
+7. ✅ 手动测试脚本验证端到端流程
+
+---
+
+## 非目标
+
+- 实时双向通信（已由 WebSocket Bot 处理）
+- 消息线程/会话管理
+- 用户认证/授权
+- 分析/指标收集（可后续添加）
