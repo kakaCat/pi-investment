@@ -45,7 +45,7 @@ describe("buildPortfolioSnapshotFromQuotes", () => {
 describe("PortfolioService", () => {
   test("replaceHoldings overwrites old positions instead of merging", () => {
     const service = new PortfolioService(mkdtempSync(join(tmpdir(), "pi-invest-portfolio-")));
-    service.add("600519", 100, 10, "茅台", "A");
+    service.add("600519", 100, 10, 0, "茅台", "A");
 
     service.replaceHoldings([
       {
@@ -62,5 +62,48 @@ describe("PortfolioService", () => {
     const data = service.load();
     expect(data.holdings).toHaveLength(1);
     expect(data.holdings[0].symbol).toBe("00700");
+  });
+
+  test("sell() reduces position and calculates P&L", () => {
+    const service = new PortfolioService(mkdtempSync(join(tmpdir(), "pi-invest-portfolio-")));
+    service.add("600519", 100, 10, 0, "茅台", "A");
+
+    const result = service.sell("600519", 30, 12, 0, "部分卖出");
+
+    expect(result.success).toBe(true);
+    expect(result.quantity).toBe(30);
+    expect(result.remaining).toBe(70);
+    expect(result.pnlAmount).toBe(60); // (12 - 10) * 30
+    expect(result.pnlPct).toBe(20); // (12 - 10) / 10 * 100
+
+    const data = service.load();
+    expect(data.holdings).toHaveLength(1);
+    expect(data.holdings[0].quantity).toBe(70);
+  });
+
+  test("sell() clears position when selling all shares", () => {
+    const service = new PortfolioService(mkdtempSync(join(tmpdir(), "pi-invest-portfolio-")));
+    service.add("600519", 100, 10, 0, "茅台", "A");
+
+    const result = service.sell("600519", 100, 12);
+
+    expect(result.success).toBe(true);
+    expect(result.remaining).toBe(0);
+
+    const data = service.load();
+    expect(data.holdings).toHaveLength(0);
+  });
+
+  test("sell() throws error when position not found", () => {
+    const service = new PortfolioService(mkdtempSync(join(tmpdir(), "pi-invest-portfolio-")));
+
+    expect(() => service.sell("600519", 100, 12)).toThrow("未找到持仓: 600519");
+  });
+
+  test("sell() throws error when insufficient shares", () => {
+    const service = new PortfolioService(mkdtempSync(join(tmpdir(), "pi-invest-portfolio-")));
+    service.add("600519", 50, 10, 0, "茅台", "A");
+
+    expect(() => service.sell("600519", 100, 12)).toThrow("持仓不足");
   });
 });

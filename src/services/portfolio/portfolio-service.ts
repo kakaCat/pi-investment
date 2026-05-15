@@ -50,6 +50,18 @@ export interface PortfolioSnapshot {
   as_of: string;
 }
 
+export interface SellResult {
+  success: boolean;
+  message: string;
+  symbol: string;
+  sellPrice: number;
+  quantity: number;
+  remaining: number;
+  pnlAmount: number;
+  pnlPct: number;
+  tradeRecorded: boolean;
+}
+
 // ─── 工具函数 ──────────────────────────────────────────────────────────────
 
 function today(): string {
@@ -114,11 +126,19 @@ export function buildPortfolioSnapshotFromQuotes(
 
 export class PortfolioService {
   private filePath: string;
+  private tradeService?: any;
 
   constructor(piDir: string) {
     this.filePath = join(piDir, "portfolio.json");
     mkdirSync(piDir, { recursive: true });
     this.ensureFile();
+  }
+
+  /**
+   * 设置 TradeService 依赖（用于高层业务方法）
+   */
+  setTradeService(tradeService: any): void {
+    this.tradeService = tradeService;
   }
 
   // ── 文件初始化 ────────────────────────────────────────────────────────────
@@ -152,6 +172,7 @@ export class PortfolioService {
     symbol: string,
     quantity: number,
     avg_cost: number,
+    commission = 0,
     name = "",
     market: "A" | "HK" = "A",
     notes = "",
@@ -160,6 +181,11 @@ export class PortfolioService {
     if (quantity <= 0) return { success: false, message: "quantity 必须大于0" };
     if (avg_cost <= 0) return { success: false, message: "avg_cost 必须大于0" };
 
+    // ✅ OPT-005: 计算实际成本（包含手续费）
+    const actualCost = commission > 0
+      ? roundN((avg_cost * quantity + commission) / quantity)
+      : avg_cost;
+
     const data = this.load();
     const idx = data.holdings.findIndex(h => h.symbol === symbol);
     if (idx >= 0) {
@@ -167,7 +193,7 @@ export class PortfolioService {
       const h = data.holdings[idx];
       // 若数量和成本均有效，加权平均成本
       if (h.quantity > 0 && h.avg_cost > 0) {
-        const totalCost = h.quantity * h.avg_cost + quantity * avg_cost;
+        const totalCost = h.quantity * h.avg_cost + quantity * actualCost;
         const totalQty = h.quantity + quantity;
         data.holdings[idx] = {
           ...h,
@@ -179,13 +205,13 @@ export class PortfolioService {
         this.save(data);
         return { success: true, message: `${symbol} 已加仓，新均价 ${data.holdings[idx].avg_cost}，总持股 ${totalQty} 股` };
       } else {
-        data.holdings[idx] = { ...h, quantity, avg_cost, name: name || h.name, notes: notes || h.notes };
+        data.holdings[idx] = { ...h, quantity, avg_cost: actualCost, name: name || h.name, notes: notes || h.notes };
         this.save(data);
         return { success: true, message: `${symbol} 持仓已更新` };
       }
     } else {
       data.holdings.push({
-        symbol, name, quantity, avg_cost, market, notes, added_date: today(),
+        symbol, name, quantity, avg_cost: actualCost, market, notes, added_date: today(),
       });
       this.save(data);
       return { success: true, message: `${symbol} 已录入持仓` };
@@ -267,4 +293,96 @@ export class PortfolioService {
 
   /** 是否有持仓 */
   hasHoldings(): boolean { return this.load().holdings.length > 0; }
+
+  // ── 高层业务方法 ────────────────────────────────────────────────────────
+
+  /**
+   * 卖出持仓（高层业务方法）
+   *
+   * 包含：校验持仓 → 计算盈亏 → 更新持仓 → 记录交易
+   *
+   * @param symbol 股票代码
+   * @param quantity 卖出数量
+   * @param price 卖出价格
+   * @param commission 手续费（默认0）
+   * @param notes 备注
+   * @returns 结构化的卖出结果
+   */
+  sell(
+    symbol: string,
+    quantity: number,
+    price: number,
+    commission = 0,
+    notes = "",
+  ): SellResult {
+    // 1. 校验参数
+    if (!symbol) {
+      throw new Error("symbol 不能为空");
+    }
+    if (quantity <= 0) {
+      throw new Error("quantity 必须大于0");
+    }
+    if (price <= 0) {
+      throw new Error("price 必须大于0");
+    }
+    if (commission < 0) {
+      throw new Error("commission 不能小于0");
+    }
+
+    // 2. 校验持仓
+    const holding = this.load().holdings.find(h => h.symbol === symbol);
+    if (!holding) {
+      throw new Error(`未找到持仓: ${symbol}`);
+    }
+
+    if (holding.quantity < quantity) {
+      throw new Error(`持仓不足: 需卖出 ${quantity} 股，实际仅持有 ${holding.quantity} 股`);
+    }
+
+    // 3. 计算盈亏
+    const remaining = holding.quantity - quantity;
+    const pnlPerShare = price - holding.avg_cost;
+    const pnlAmount = roundN(pnlPerShare * quantity);
+    const pnlPct = roundN((pnlPerShare / holding.avg_cost) * 100);
+
+    // 4. 更新持仓
+    if (remaining <= 0) {
+      this.remove(symbol);
+    } else {
+      this.update(symbol, remaining, holding.avg_cost, undefined, notes);
+    }
+
+    // 5. 记录交易
+    let tradeRecorded = false;
+    if (this.tradeService) {
+      try {
+        this.tradeService.add(
+          chinaDate(),
+          symbol,
+          holding.name || symbol,
+          "sell",
+          quantity,
+          price,
+          commission,
+          holding.market || "A",
+          notes || "卖出",
+        );
+        tradeRecorded = true;
+      } catch (e) {
+        console.warn("交易记录失败:", e);
+      }
+    }
+
+    return {
+      success: true,
+      message: `卖出 ${symbol} ${quantity}股@${price.toFixed(2)}，${remaining > 0 ? `剩余 ${remaining}股` : "已清仓"}`,
+      symbol,
+      sellPrice: price,
+      quantity,
+      remaining,
+      pnlAmount,
+      pnlPct,
+      tradeRecorded,
+    };
+  }
 }
