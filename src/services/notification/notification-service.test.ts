@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { NotificationService, NotificationOptions } from './notification-service.js';
 import { NotificationChannel, NotificationMessage } from './notification-channel.js';
 
@@ -53,7 +53,7 @@ describe('NotificationService', () => {
 
     it('should skip if channel is not available', async () => {
       mockChannel.available = false;
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await service.send('Test');
 
