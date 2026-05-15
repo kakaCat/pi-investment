@@ -88,7 +88,8 @@ export const checkPendingOrdersTool: ToolDefinition = {
   description:
     "检查所有挂单是否满足成交条件。读取 orders.json 中的 pending 挂单，" +
     "获取每只股票实时价格，自动检测触发条件（限价买入/卖出、止损单）。" +
-    "触发后自动更新持仓（portfolio.json）和交易记录（trades.json）。" +
+    "触发后自动计算手续费（A股万2.5，港股万5），更新持仓成本（买入）或计算盈亏（卖出），" +
+    "并记录到 portfolio.json 和 trades.json。" +
     "可指定 symbol 只检查某只股票的挂单，不传则检查全部。",
   parameters: Type.Object({
     symbol: Type.Optional(

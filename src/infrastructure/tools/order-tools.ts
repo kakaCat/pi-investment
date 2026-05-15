@@ -270,8 +270,8 @@ export const manageOrdersTool: ToolDefinition = {
     "- place: 创建挂单（限价买入/卖出、止损单），写入 orders.json\n" +
     "- cancel: 撤销挂单\n" +
     "- list: 查看挂单列表（可按状态/股票筛选）\n" +
-    "- fill: 手动标记挂单成交，自动更新持仓和交易记录\n" +
-    "- check: 检查挂单是否触发（自动成交核心逻辑），获取实时价格对比触发条件",
+    "- fill: 手动标记挂单成交，自动计算手续费（A股万2.5/港股万5），更新持仓成本和交易记录，卖出时计算盈亏\n" +
+    "- check: 检查挂单是否触发（自动成交核心逻辑），获取实时价格对比触发条件，触发后自动计算手续费并成交",
   parameters: Type.Object({
     action: Type.String({
       description:
