@@ -24,13 +24,19 @@ export const tradeLogTool: ToolDefinition = {
   name: "trade_log",
   label: "交易日志管理",
   description:
-    "管理股票交易日志（Markdown 格式）。使用 action 参数区分操作：\n" +
+    "管理股票交易日志（Markdown 格式），记录建仓逻辑、操作计划、执行记录和日度追踪。\n\n" +
+    "**何时使用：**\n" +
+    "1. 建仓后：创建日志记录买入逻辑和操作计划\n" +
+    "2. 执行交易后：追加买卖操作记录\n" +
+    "3. 每日盘后：追加收盘价和浮盈追踪\n" +
+    "4. 策略调整时：更新操作计划（如调整止盈止损）\n\n" +
+    "**操作类型：**\n" +
     "- list: 列出所有交易日志\n" +
-    "- get: 读取指定股票的日志内容（只需提供 symbol）\n" +
-    "- create: 创建新的交易日志（需提供 symbol 和 name，记录建仓逻辑和操作计划）\n" +
-    "- update: 更新日志的建仓逻辑或操作计划（只需提供 symbol）\n" +
-    "- append_execution: 追加执行记录（只需提供 symbol，每次买卖操作后记录）\n" +
-    "- append_tracking: 追加日度追踪记录（只需提供 symbol，每日盘后记录收盘价和浮盈）",
+    "- get: 读取指定股票的日志内容（只需 symbol）\n" +
+    "- create: 创建新日志（需 symbol + name + 建仓信息）\n" +
+    "- update: 更新建仓逻辑或操作计划（只需 symbol）\n" +
+    "- append_execution: 追加执行记录（只需 symbol + 交易信息）\n" +
+    "- append_tracking: 追加日度追踪（只需 symbol + 价格/持仓/盈亏）",
 
   parameters: Type.Object({
     action: Type.String({
