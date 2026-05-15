@@ -25,6 +25,7 @@ import { checkPendingOrdersTool } from "./check-pending-orders.js";
 import { manageOrdersTool } from "./order-tools.js";
 import { testMarketSentimentTool } from "./test-market-sentiment-tool.js";
 import { queryExperienceTool } from "./query-experience-tool.js";
+import { tradeLogTool } from "./trade-log-tools.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./memory-tool.js";
@@ -57,6 +58,7 @@ export const allCustomTools = [
   checkStopLossTriggerTool,       // 止损检查
   checkPendingOrdersTool,         // 挂单检查（自动成交）
   manageOrdersTool,               // 挂单管理（创建/撤销/查看/成交）
+  tradeLogTool,                   // 交易日志管理（创建/更新/追加记录）
   testMarketSentimentTool,        // NEW: 市场情绪分析
   // 监控工具 — 实时盯盘
   ...monitorTools,
