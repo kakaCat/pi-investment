@@ -18,6 +18,7 @@ import { investTools } from "./invest-tools.js";
 import { stockDBTools } from "./stock-db-tools.js";
 import { wrapInvestToolWithSkillGuard } from "./skill-guard.js";
 import { monitorTools } from "../../tools/monitor-tools.js";
+import { notificationTools } from "../../tools/notification-tools.js";
 import { evolutionRunTool } from "./evolution-tool.js";
 import { analyzeSectorRotationTool } from "./analyze-sector-rotation-tool.js";
 import { checkStopLossTriggerTool } from "./check-stop-loss-trigger-tool.js";
@@ -60,6 +61,8 @@ export const allCustomTools = [
   manageOrdersTool,               // 挂单管理（创建/撤销/查看/成交）
   tradeLogTool,                   // 交易日志管理（创建/更新/追加记录）
   testMarketSentimentTool,        // NEW: 市场情绪分析
+  // 通知工具 — 消息推送
+  ...notificationTools,
   // 监控工具 — 实时盯盘
   ...monitorTools,
   // 进化工具 — 自我优化
