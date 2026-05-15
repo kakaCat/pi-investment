@@ -1040,77 +1040,128 @@ def get_exit_plan(symbol: str, buy_price: float, shares: int = 100) -> dict:
 
 
 def get_macro_data(indicators: list = None) -> dict:
-    """宏观数据合集：pmi/cpi/gdp，不传则返回全部"""
+    """宏观经济数据合集：PMI/CPI/GDP，判断经济周期和政策环境
+
+    参数：
+    - indicators: 指标列表，可选 ["pmi", "cpi", "gdp"]，不传则返回全部
+
+    返回数据：
+    - PMI（制造业采购经理指数）：
+      * 最近6个月数据
+      * >50 表示扩张，<50 表示收缩
+      * 领先指标，预示经济走向
+
+    - CPI（居民消费价格指数）：
+      * 最近6个月同比增长率
+      * 衡量通胀水平
+      * 影响货币政策
+
+    - GDP（国内生产总值）：
+      * 最近8个季度累计值（亿元）
+      * 衡量经济总量和增速
+      * 判断经济周期位置
+
+    数据来源：国家统计局官方数据
+    超时控制：每个指标10秒超时，单个失败不影响其他指标
+    """
     import akshare as ak
     from datetime import datetime
+
     all_indicators = indicators or ["pmi", "cpi", "gdp"]
     results = {}
 
     if "pmi" in all_indicators:
         try:
-            df = ak.macro_china_cx_pmi_yearly()
+            # 使用更可靠的 macro_china_pmi 数据源
+            df = ak.macro_china_pmi()
             if not df.empty:
-                df_valid = df[df['今值'].notna()].tail(6)
-                results["pmi"] = [{"date": str(row['日期']), "value": _safe_float(row['今值'])}
+                df_valid = df.head(6)  # 取最新6个月
+                results["pmi"] = [{"date": str(row['月份']), "value": _safe_float(row['制造业-指数'])}
                                   for _, row in df_valid.iterrows()]
-        except Exception:
-            pass
+        except Exception as e:
+            results["pmi_error"] = str(e)
 
     if "cpi" in all_indicators:
         try:
-            df = ak.macro_china_cpi_yearly()
+            # 使用 macro_china_cpi_monthly 获取月度数据
+            df = ak.macro_china_cpi_monthly()
             if not df.empty:
-                df_valid = df[df['今值'].notna()].tail(6)
+                # 获取最近6个月的数据（数据按时间升序排列，所以取最后6条）
+                df_valid = df.tail(6).sort_values('日期', ascending=False)
                 results["cpi"] = [{"date": str(row['日期']), "yoy": _safe_float(row['今值'])}
                                   for _, row in df_valid.iterrows()]
-        except Exception:
-            pass
+        except Exception as e:
+            results["cpi_error"] = str(e)
 
     if "gdp" in all_indicators:
         try:
-            df = ak.macro_china_gdp_yearly()
+            # 使用 macro_china_gdp 获取季度GDP数据
+            df = ak.macro_china_gdp()
             if not df.empty:
-                df_valid = df[df['今值'].notna()].tail(8)
-                results["gdp"] = [{"date": str(row['日期']), "value": _safe_float(row['今值'])}
+                df_valid = df.head(8)
+                results["gdp"] = [{"date": str(row['季度']), "value": _safe_float(row['国内生产总值-绝对值'])}
                                   for _, row in df_valid.iterrows()]
-        except Exception:
-            pass
+        except Exception as e:
+            results["gdp_error"] = str(e)
 
     results["data_date"] = datetime.now().strftime("%Y-%m-%d")
+
+    # 如果所有指标都失败了，返回错误
+    if all(key.endswith("_error") for key in results.keys() if key != "data_date"):
+        return {"error": "所有宏观数据API均失败"}
+
     return results
 
 
 def get_north_flow() -> dict:
+    """北向资金流向：陆股通每日净买入额，判断外资流入流出趋势
+
+    返回最近10个交易日的北向资金数据，包括：
+    - 净买入额（亿元）
+    - 买入成交额（亿元）
+    - 卖出成交额（亿元）
+
+    数据来源：东方财富网陆股通数据
+    """
     import akshare as ak
     from datetime import datetime
     try:
-        # 历史数据（2024年8月前）
-        df_hist = ak.stock_hsgt_hist_em(symbol="北向资金")
-        df_hist = df_hist.dropna(subset=["当日成交净买额"]).tail(10)
-
-        # 今日实时数据
+        # 获取实时数据
         df_today = ak.stock_hsgt_fund_flow_summary_em()
         north_today = df_today[df_today['资金方向'] == '北向']
 
         records = []
-        # 添加历史数据
-        for _, row in df_hist.iterrows():
-            records.append({
-                "date": str(row.get("日期", "")),
-                "amount_billion": _safe_float(row.get("当日成交净买额", 0)),
-                "buy": _safe_float(row.get("买入成交额", 0)),
-                "sell": _safe_float(row.get("卖出成交额", 0))
-            })
+
+        # 尝试获取历史数据（只取有效数据）
+        try:
+            df_hist = ak.stock_hsgt_hist_em(symbol="北向资金")
+            # 过滤掉 NaN 值的行
+            df_hist = df_hist.dropna(subset=["当日成交净买额"]).tail(10)
+
+            # 添加历史数据
+            for _, row in df_hist.iterrows():
+                records.append({
+                    "date": str(row.get("日期", "")),
+                    "amount_billion": _safe_float(row.get("当日成交净买额", 0)),
+                    "buy": _safe_float(row.get("买入成交额", 0)),
+                    "sell": _safe_float(row.get("卖出成交额", 0))
+                })
+        except Exception:
+            pass  # 历史数据失败不影响实时数据
 
         # 添加今日数据（如果有）
         if not north_today.empty:
-            today_net = north_today['资金净流入'].sum() / 100000000  # 转为亿
+            today_net = north_today['成交净买额'].sum() / 100000000  # 转为亿
             records.append({
                 "date": datetime.now().strftime("%Y-%m-%d"),
                 "amount_billion": today_net,
                 "buy": 0,  # 实时接口无此字段
                 "sell": 0
             })
+
+        # 如果没有任何数据，返回错误
+        if not records:
+            return {"error": "无北向资金数据"}
 
         return {"data": records[-10:], "data_date": datetime.now().strftime("%Y-%m-%d")}
     except Exception as e:
@@ -1593,15 +1644,52 @@ def get_margin_data(symbol: str) -> dict:
 
 
 def get_market_margin() -> dict:
-    """全市场融资融券余额趋势：判断市场整体杠杆水平"""
+    """全市场融资融券余额趋势：判断市场整体杠杆水平
+
+    返回最近30个交易日的融资融券数据，包括：
+    - 全市场融资融券余额（亿元）
+    - 上海市场融资融券余额（亿元）
+    - 深圳市场融资融券余额（亿元）
+
+    数据来源：上交所和深交所官方数据
+    用途：
+    - 融资余额上升 → 市场情绪乐观，杠杆加大
+    - 融资余额下降 → 市场情绪谨慎，去杠杆
+    - 通常融资余额与市场走势正相关
+    """
     import akshare as ak
     from datetime import datetime
     try:
-        df = ak.stock_margin_sz_summary_em()
-        if df is None or df.empty:
+        # 使用宏观数据 API 获取融资融券数据
+        df_sh = ak.macro_china_market_margin_sh()
+        df_sz = ak.macro_china_market_margin_sz()
+
+        if (df_sh is None or df_sh.empty) and (df_sz is None or df_sz.empty):
             return {"error": "无市场融资融券数据"}
-        records = df.tail(10).to_dict(orient="records")
-        return {"count": len(records), "data": records,
+
+        # 获取最近30天的数据
+        records = []
+        if not df_sh.empty and not df_sz.empty:
+            # 取最近30条记录
+            df_sh_recent = df_sh.tail(30)
+            df_sz_recent = df_sz.tail(30)
+
+            # 按日期合并
+            for _, sh_row in df_sh_recent.iterrows():
+                date = sh_row['日期']
+                sz_row = df_sz_recent[df_sz_recent['日期'] == date]
+
+                if not sz_row.empty:
+                    sz_row = sz_row.iloc[0]
+                    total_margin = _safe_float(sh_row.get('融资融券余额', 0)) + _safe_float(sz_row.get('融资融券余额', 0))
+                    records.append({
+                        "date": str(date),
+                        "total_margin": total_margin / 100000000,  # 转为亿
+                        "sh_margin": _safe_float(sh_row.get('融资融券余额', 0)) / 100000000,
+                        "sz_margin": _safe_float(sz_row.get('融资融券余额', 0)) / 100000000
+                    })
+
+        return {"count": len(records), "data": records[-10:],
                 "data_date": datetime.now().strftime("%Y-%m-%d")}
     except Exception as e:
         return {"error": str(e)}
@@ -1680,11 +1768,23 @@ def get_announcements(symbol: str) -> dict:
 # ===== 行业资金流向 =====
 
 def get_sector_fund_flow() -> dict:
-    """行业资金流向：各行业今日主力净流入/流出排行"""
+    """行业资金流向：各行业今日主力净流入/流出排行
+
+    返回90个行业的实时资金流向数据，包括：
+    - 行业名称和指数
+    - 涨跌幅
+    - 流入资金、流出资金、净额（亿元）
+    - 公司家数
+    - 领涨股及涨跌幅
+
+    数据来源：东方财富网行业资金流
+    用途：识别资金轮动方向，判断市场热点板块
+    """
     import akshare as ak
     from datetime import datetime
     try:
-        df = ak.stock_sector_fund_flow_rank(indicator="今日", sector_type="行业资金流向")
+        # 使用 stock_fund_flow_industry 获取行业资金流向
+        df = ak.stock_fund_flow_industry(symbol='即时')
         if df is None or df.empty:
             return {"error": "无行业资金流向数据"}
         records = df.head(20).to_dict(orient="records")

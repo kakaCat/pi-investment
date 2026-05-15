@@ -8,6 +8,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { chinaDateTime } from "../../utils/china-time.js";
+import { FileLockService } from "../file-lock.service.js";
 
 // ─── 数据结构 ──────────────────────────────────────────────────────────────
 
@@ -94,7 +95,9 @@ export class TradeService {
 
   private save(data: TradesFile): void {
     data.last_updated = nowStr();
-    writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+    FileLockService.withLockSync(this.filePath, () => {
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+    });
   }
 
   // ── 录入交易 ────────────────────────────────────────────────────────────
@@ -114,35 +117,49 @@ export class TradeService {
     if (price <= 0) throw new Error("price 必须大于0");
     if (commission < 0) throw new Error("commission 不能小于0");
 
-    if (action === "sell") {
-      const openQty = this.buildSnapshot().get(symbol)?.quantity ?? 0;
-      if (openQty < quantity) {
-        throw new Error(`卖出数量超过当前持仓: ${symbol} 持仓 ${openQty} 股，尝试卖出 ${quantity} 股`);
-      }
-    }
+    return FileLockService.withLockSync(this.filePath, () => {
+      // 在锁保护下重新加载数据，确保读取最新状态
+      const data = this.load();
 
-    const trade: Trade = {
-      id: makeId(),
-      date, symbol, name, action, quantity, price,
-      commission: roundN(commission),
-      amount: roundN(quantity * price),
-      market, notes,
-    };
-    const data = this.load();
-    data.trades.push(trade);
-    // 按日期排序
-    data.trades.sort((a, b) => a.date.localeCompare(b.date));
-    this.save(data);
-    return trade;
+      if (action === "sell") {
+        const openQty = this.buildSnapshot().get(symbol)?.quantity ?? 0;
+        if (openQty < quantity) {
+          throw new Error(`卖出数量超过当前持仓: ${symbol} 持仓 ${openQty} 股，尝试卖出 ${quantity} 股`);
+        }
+      }
+
+      const trade: Trade = {
+        id: makeId(),
+        date, symbol, name, action, quantity, price,
+        commission: roundN(commission),
+        amount: roundN(quantity * price),
+        market, notes,
+      };
+      data.trades.push(trade);
+      // 按日期排序
+      data.trades.sort((a, b) => a.date.localeCompare(b.date));
+
+      // 直接写入，不调用 save()（避免重复加锁）
+      data.last_updated = nowStr();
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+
+      return trade;
+    });
   }
 
   remove(id: string): boolean {
-    const data = this.load();
-    const before = data.trades.length;
-    data.trades = data.trades.filter(t => t.id !== id);
-    if (data.trades.length === before) return false;
-    this.save(data);
-    return true;
+    return FileLockService.withLockSync(this.filePath, () => {
+      const data = this.load();
+      const before = data.trades.length;
+      data.trades = data.trades.filter(t => t.id !== id);
+      if (data.trades.length === before) return false;
+
+      // 直接写入，不调用 save()（避免重复加锁）
+      data.last_updated = nowStr();
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+
+      return true;
+    });
   }
 
   // ── 查询 ────────────────────────────────────────────────────────────────

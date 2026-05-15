@@ -2,8 +2,17 @@
  * Session Analyzer - Session 分析器
  *
  * 解析 session 日志,提取决策链路和工具调用信息
+ *
+ * 功能：
+ * 1. 解析 .pi-invest/sessions/ 目录下的 Session 日志
+ * 2. 提取工具调用记录
+ * 3. 关联工具调用与交易结果
+ * 4. 计算每个工具的 ROI、胜率、Token 消耗
+ * 5. 生成 ToolEfficiency 数据供进化系统使用
  */
 
+import { readdirSync, readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 import type { DecisionChain, ToolCall, ToolEfficiency } from '../../types/evolution.js';
 
 interface SessionEvent {
@@ -166,4 +175,150 @@ export function evaluateToolEfficiency(
   }
 
   return result.sort((a, b) => b.roi - a.roi);
+}
+
+// ─── Session 日志加载 ────────────────────────────────────────────────────────
+
+/**
+ * 从文件系统加载 Session 日志
+ */
+export function loadSessionLogs(piDir: string, windowDays?: number): DecisionChain[] {
+  const sessionsDir = join(piDir, 'sessions');
+
+  if (!existsSync(sessionsDir)) {
+    console.log('[Session分析] sessions 目录不存在');
+    return [];
+  }
+
+  const files = readdirSync(sessionsDir)
+    .filter(f => f.endsWith('.jsonl') || f.endsWith('.log') || f.endsWith('.json'))
+    .sort();
+
+  // 时间窗口过滤
+  let filteredFiles = files;
+  if (windowDays) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - windowDays);
+    const cutoffStr = cutoffDate.toISOString().split('T')[0];
+
+    filteredFiles = files.filter(f => {
+      const dateMatch = f.match(/(\d{4}-\d{2}-\d{2})/);
+      if (dateMatch) {
+        return dateMatch[1] >= cutoffStr;
+      }
+      return true;
+    });
+  }
+
+  console.log(`[Session分析] 加载 ${filteredFiles.length} 个 Session 日志文件`);
+
+  const sessions: DecisionChain[] = [];
+  for (const file of filteredFiles) {
+    const filePath = join(sessionsDir, file);
+    try {
+      const content = readFileSync(filePath, 'utf-8');
+      const events = parseSessionFile(content);
+      if (events.length > 0) {
+        const sessionId = file.replace(/\.(jsonl|log|json)$/, '');
+        const session = parseSessionEvents(sessionId, events);
+        sessions.push(session);
+      }
+    } catch (e) {
+      console.error(`[Session分析] 读取文件失败: ${file}`, e);
+    }
+  }
+
+  return sessions;
+}
+
+/**
+ * 解析 Session 文件内容
+ */
+function parseSessionFile(content: string): SessionEvent[] {
+  const events: SessionEvent[] = [];
+  const lines = content.split('\n').filter(l => l.trim());
+
+  for (const line of lines) {
+    try {
+      const entry = JSON.parse(line);
+
+      // 兼容不同的日志格式
+      if (entry.event) {
+        events.push({
+          ts: entry.ts || entry.timestamp || Date.now() / 1000,
+          event: entry.event,
+          data: entry.data || entry
+        });
+      } else if (entry.type) {
+        // 兼容 type 字段
+        events.push({
+          ts: entry.timestamp || Date.now() / 1000,
+          event: entry.type,
+          data: entry
+        });
+      }
+    } catch {
+      // 跳过无法解析的行
+    }
+  }
+
+  return events;
+}
+
+/**
+ * 从交易记录构建 TradeResult
+ */
+export function buildTradeResults(trades: Array<{
+  date: string;
+  action: 'buy' | 'sell';
+  symbol: string;
+  price: number;
+  quantity: number;
+}>): TradeResult[] {
+  // 简化版：假设每笔卖出都有对应的买入
+  const results: TradeResult[] = [];
+  const buyMap = new Map<string, { price: number; date: string }>();
+
+  for (const trade of trades) {
+    if (trade.action === 'buy') {
+      buyMap.set(trade.symbol, { price: trade.price, date: trade.date });
+    } else if (trade.action === 'sell') {
+      const buy = buyMap.get(trade.symbol);
+      if (buy) {
+        const returnPct = ((trade.price - buy.price) / buy.price) * 100;
+        results.push({
+          session_id: `${buy.date}_${trade.symbol}`, // 简化的 session_id
+          symbol: trade.symbol,
+          return: returnPct
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * 主入口：分析 Session 并计算工具效能
+ */
+export function analyzeSessionsAndCalculateEfficiency(
+  piDir: string,
+  trades: Array<{
+    date: string;
+    action: 'buy' | 'sell';
+    symbol: string;
+    price: number;
+    quantity: number;
+  }>,
+  windowDays?: number
+): ToolEfficiency[] {
+  const sessions = loadSessionLogs(piDir, windowDays);
+
+  if (sessions.length === 0) {
+    console.log('[Session分析] 没有找到 Session 日志，返回空结果');
+    return [];
+  }
+
+  const tradeResults = buildTradeResults(trades);
+  return evaluateToolEfficiency(sessions, tradeResults);
 }

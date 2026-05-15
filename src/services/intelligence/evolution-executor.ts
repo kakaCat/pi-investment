@@ -768,8 +768,11 @@ export async function saveExecutionResult(
   result: ExecutionResult,
   evolutionDir: string
 ): Promise<string> {
-  const timestamp = new Date().toISOString().split("T")[0];
-  const resultPath = path.join(evolutionDir, `execution-${timestamp}.json`);
+  // 使用日期 + 时间戳，避免同一天多次运行时覆盖
+  const date = new Date();
+  const dateStr = date.toISOString().split('T')[0];
+  const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '');
+  const resultPath = path.join(evolutionDir, `execution-${dateStr}-${timeStr}.json`);
 
   await fs.writeFile(
     resultPath,

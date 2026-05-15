@@ -28,14 +28,13 @@ export function createDeepSeekModel(): Model<'openai-completions'> {
     name: 'DeepSeek Chat',
     api: 'openai-completions',
     provider: 'openai',
-    apiKey: process.env.DEEPSEEK_API_KEY,
     baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1',
     reasoning: false,
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 64000,
     maxTokens: 8000
-  };
+  } as any;
 }
 
 /**

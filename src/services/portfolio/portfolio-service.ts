@@ -11,6 +11,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { get_stock_realtime_price, get_hk_stock_price } from "../../infrastructure/akshare-ts/index.js";
 import { chinaDate, chinaDateTime } from "../../utils/china-time.js";
+import { FileLockService } from "../file-lock.service.js";
 
 // ─── 数据结构 ──────────────────────────────────────────────────────────────
 
@@ -186,7 +187,9 @@ export class PortfolioService {
 
   private save(data: PortfolioFile): void {
     data.last_updated = nowStr();
-    writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+    FileLockService.withLockSync(this.filePath, () => {
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+    });
   }
 
   // ── 录入持仓 ─────────────────────────────────────────────────────────────
@@ -209,49 +212,55 @@ export class PortfolioService {
       ? roundN((avg_cost * quantity + commission) / quantity)
       : avg_cost;
 
-    const data = this.load();
-    const idx = data.holdings.findIndex(h => h.symbol === symbol);
-    if (idx >= 0) {
-      // 更新现有持仓
-      const h = data.holdings[idx];
-      // 若数量和成本均有效，加权平均成本
-      if (h.quantity > 0 && h.avg_cost > 0) {
-        const totalCost = h.quantity * h.avg_cost + quantity * actualCost;
-        const totalQty = h.quantity + quantity;
-        data.holdings[idx] = {
-          ...h,
-          quantity: totalQty,
-          avg_cost: roundN(totalCost / totalQty),
-          name: name || h.name,
-          notes: notes || h.notes,
-        };
-        this.save(data);
-        return {
-          success: true,
-          message: `${symbol} 已加仓，新均价 ${data.holdings[idx].avg_cost}，总持股 ${totalQty} 股`,
-          updatedHolding: data.holdings[idx],
-        };
+    return FileLockService.withLockSync(this.filePath, () => {
+      const data = this.load();
+      const idx = data.holdings.findIndex(h => h.symbol === symbol);
+      if (idx >= 0) {
+        // 更新现有持仓
+        const h = data.holdings[idx];
+        // 若数量和成本均有效，加权平均成本
+        if (h.quantity > 0 && h.avg_cost > 0) {
+          const totalCost = h.quantity * h.avg_cost + quantity * actualCost;
+          const totalQty = h.quantity + quantity;
+          data.holdings[idx] = {
+            ...h,
+            quantity: totalQty,
+            avg_cost: roundN(totalCost / totalQty),
+            name: name || h.name,
+            notes: notes || h.notes,
+          };
+          // 直接写入，不调用 save()（避免重复加锁）
+          data.last_updated = nowStr();
+          writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+          return {
+            success: true,
+            message: `${symbol} 已加仓，新均价 ${data.holdings[idx].avg_cost}，总持股 ${totalQty} 股`,
+            updatedHolding: data.holdings[idx],
+          };
+        } else {
+          data.holdings[idx] = { ...h, quantity, avg_cost: actualCost, name: name || h.name, notes: notes || h.notes };
+          data.last_updated = nowStr();
+          writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+          return {
+            success: true,
+            message: `${symbol} 持仓已更新`,
+            updatedHolding: data.holdings[idx],
+          };
+        }
       } else {
-        data.holdings[idx] = { ...h, quantity, avg_cost: actualCost, name: name || h.name, notes: notes || h.notes };
-        this.save(data);
+        const newHolding: Holding = {
+          symbol, name, quantity, avg_cost: actualCost, market, notes, added_date: today(),
+        };
+        data.holdings.push(newHolding);
+        data.last_updated = nowStr();
+        writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
         return {
           success: true,
-          message: `${symbol} 持仓已更新`,
-          updatedHolding: data.holdings[idx],
+          message: `${symbol} 已录入持仓`,
+          updatedHolding: newHolding,
         };
       }
-    } else {
-      const newHolding: Holding = {
-        symbol, name, quantity, avg_cost: actualCost, market, notes, added_date: today(),
-      };
-      data.holdings.push(newHolding);
-      this.save(data);
-      return {
-        success: true,
-        message: `${symbol} 已录入持仓`,
-        updatedHolding: newHolding,
-      };
-    }
+    });
   }
 
   /** 直接覆盖更新（适合修正均价/数量而非加仓） */
@@ -262,33 +271,42 @@ export class PortfolioService {
     name?: string,
     notes?: string,
   ): { success: boolean; message: string } {
-    const data = this.load();
-    const h = data.holdings.find(h => h.symbol === symbol);
-    if (!h) return { success: false, message: `未找到持仓: ${symbol}` };
-    if (quantity !== undefined) h.quantity = quantity;
-    if (avg_cost !== undefined) h.avg_cost = avg_cost;
-    if (name !== undefined) h.name = name;
-    if (notes !== undefined) h.notes = notes;
-    this.save(data);
-    return { success: true, message: `${symbol} 持仓已更新` };
+    return FileLockService.withLockSync(this.filePath, () => {
+      const data = this.load();
+      const h = data.holdings.find(h => h.symbol === symbol);
+      if (!h) return { success: false, message: `未找到持仓: ${symbol}` };
+      if (quantity !== undefined) h.quantity = quantity;
+      if (avg_cost !== undefined) h.avg_cost = avg_cost;
+      if (name !== undefined) h.name = name;
+      if (notes !== undefined) h.notes = notes;
+      data.last_updated = nowStr();
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+      return { success: true, message: `${symbol} 持仓已更新` };
+    });
   }
 
   remove(symbol: string): { success: boolean; message: string } {
-    const data = this.load();
-    const before = data.holdings.length;
-    data.holdings = data.holdings.filter(h => h.symbol !== symbol);
-    if (data.holdings.length === before) return { success: false, message: `未找到持仓: ${symbol}` };
-    this.save(data);
-    return { success: true, message: `${symbol} 已从持仓中移除` };
+    return FileLockService.withLockSync(this.filePath, () => {
+      const data = this.load();
+      const before = data.holdings.length;
+      data.holdings = data.holdings.filter(h => h.symbol !== symbol);
+      if (data.holdings.length === before) return { success: false, message: `未找到持仓: ${symbol}` };
+      data.last_updated = nowStr();
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+      return { success: true, message: `${symbol} 已从持仓中移除` };
+    });
   }
 
   replaceHoldings(holdings: Holding[]): { success: boolean; message: string } {
-    const normalized = holdings.map((holding) => ({
-      ...holding,
-      added_date: holding.added_date || today(),
-    }));
-    this.save({ holdings: normalized, last_updated: "" });
-    return { success: true, message: `已覆盖为 ${normalized.length} 只持仓` };
+    return FileLockService.withLockSync(this.filePath, () => {
+      const normalized = holdings.map((holding) => ({
+        ...holding,
+        added_date: holding.added_date || today(),
+      }));
+      const data: PortfolioFile = { holdings: normalized, last_updated: nowStr() };
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+      return { success: true, message: `已覆盖为 ${normalized.length} 只持仓` };
+    });
   }
 
   // ── 读取持仓（带行情） ─────────────────────────────────────────────────────

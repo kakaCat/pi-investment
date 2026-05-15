@@ -1,14 +1,21 @@
 /**
- * Code Generator - 使用 Agent 自身能力生成工具代码
+ * Code Generator - 使用 Codex (GPT-5.4) 生成工具代码
  *
- * 根据补偿器的建议，自动生成完整的 TypeScript 工具实现。
+ * 根据补偿器的建议，委托 Codex 自动生成完整的 TypeScript 工具实现。
+ *
+ * 架构说明：
+ * - 投资 Agent (DeepSeek): 负责投资决策
+ * - Codex Agent (GPT-5.4): 负责代码生成
+ * - 职责分离，避免循环依赖
  */
 
-import { getSession } from '../../core/agent/agent-loop.js';
-import { getLastMessage, extractTextContent } from '../../core/agent/session-adapter.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import type { ToolAddition } from '../../types/evolution.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+
+const execAsync = promisify(exec);
 
 export interface GeneratedCode {
   toolCode: string;
@@ -18,7 +25,7 @@ export interface GeneratedCode {
 }
 
 /**
- * 从 Agent 响应中提取代码块
+ * 从 Codex 响应中提取代码块
  */
 function extractCodeBlocks(text: string): { tool: string; test: string } {
   const codeBlockRegex = /```(?:typescript|ts)?\n([\s\S]*?)```/g;
@@ -30,7 +37,7 @@ function extractCodeBlocks(text: string): { tool: string; test: string } {
   }
 
   if (blocks.length < 1) {
-    throw new Error('未能从 Agent 响应中提取代码块');
+    throw new Error('未能从 Codex 响应中提取代码块');
   }
 
   // 第一个代码块是工具实现，第二个（如果有）是测试
@@ -56,16 +63,13 @@ async function getToolExamples(): Promise<string> {
 }
 
 /**
- * 使用 Agent 生成工具代码
+ * 构造 Codex 代码生成提示词
  */
-export async function generateToolCode(toolSpec: ToolAddition): Promise<GeneratedCode> {
-  console.log(`🤖 正在生成工具代码: ${toolSpec.name}`);
+function buildCodeGenPrompt(toolSpec: ToolAddition, exampleCode: string): string {
+  // 转义双引号，避免 shell 命令解析错误
+  const escapedExample = exampleCode.replace(/"/g, '\\"').replace(/\n/g, '\\n');
 
-  const session = await getSession();
-  const exampleCode = await getToolExamples();
-
-  // 构造详细的生成提示词
-  const prompt = `请生成一个投资工具的完整 TypeScript 实现代码。
+  return `你是一个专业的 TypeScript 代码生成助手。请生成一个投资工具的完整实现代码。
 
 ## 工具规格
 
@@ -76,20 +80,16 @@ export async function generateToolCode(toolSpec: ToolAddition): Promise<Generate
 
 ## 实现要求
 
-1. **参考现有工具模式**（以下是示例）：
-
-\`\`\`typescript
-${exampleCode}
-\`\`\`
+1. **参考现有工具模式**（示例已省略，请遵循以下规范）
 
 2. **必须包含的元素**：
    - 文件顶部的 JSDoc 注释说明工具用途
-   - 导入必要的类型：\`import type { ToolDefinition } from "./index.js";\`
-   - 导入 Type 用于参数定义：\`import { Type } from "@sinclair/typebox";\`
-   - 如果需要调用 Python，导入：\`import { callPython } from "./invest-tools.js";\`
-   - 导出一个符合 ToolDefinition 接口的常量，命名为 \`${toolSpec.name}Tool\`
+   - 导入必要的类型：import type { ToolDefinition } from "./index.js";
+   - 导入 Type 用于参数定义：import { Type } from "@sinclair/typebox";
+   - 如果需要调用 Python，导入：import { callPython } from "./invest-tools.js";
+   - 导出一个符合 ToolDefinition 接口的常量，命名为 ${toolSpec.name}Tool
    - 包含 name, label, description, parameters, execute 字段
-   - execute 函数返回 \`{ content: [{ type: "text", text: string }], details?: any }\`
+   - execute 函数返回 { content: [{ type: "text", text: string }], details?: any }
 
 3. **参数定义**：
    - 使用 Type.Object() 定义参数 schema
@@ -118,40 +118,85 @@ ${exampleCode}
 - Mock 外部依赖（如 callPython）
 
 现在请生成代码，只输出代码块，不要包含其他解释文字。`;
+}
 
-  // 发送提示词给 Agent
-  await session.prompt(prompt);
+/**
+ * 使用 Codex (GPT-5.4) 生成工具代码
+ */
+export async function generateToolCode(toolSpec: ToolAddition): Promise<GeneratedCode> {
+  console.log(`🤖 正在使用 Codex 生成工具代码: ${toolSpec.name}`);
 
-  // 获取 Agent 的响应
-  const lastMsg = getLastMessage(session);
-  if (!lastMsg || lastMsg.role !== 'assistant') {
-    throw new Error('未能获取 Agent 响应');
+  const exampleCode = await getToolExamples();
+  const prompt = buildCodeGenPrompt(toolSpec, exampleCode);
+
+  // 创建临时输出文件
+  const timestamp = Date.now();
+  const outputFile = `/tmp/codex-gen-${timestamp}.txt`;
+
+  try {
+    // 调用 Codex (GPT-5.4) 生成代码
+    console.log(`  📡 调用 Codex...`);
+
+    const { stdout, stderr } = await execAsync(
+      `codex exec --dangerously-bypass-approvals-and-sandbox --ephemeral ` +
+      `-C ${process.cwd()} ` +
+      `-o ${outputFile} ` +
+      `"${prompt.replace(/"/g, '\\"')}"`,
+      {
+        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+        timeout: 120000 // 2 分钟超时
+      }
+    );
+
+    if (stderr) {
+      console.warn(`  ⚠️  Codex stderr: ${stderr}`);
+    }
+
+    // 读取 Codex 输出
+    const output = await fs.readFile(outputFile, 'utf-8');
+
+    if (!output || output.trim().length === 0) {
+      throw new Error('Codex 返回空响应');
+    }
+
+    console.log(`  📝 Codex 响应长度: ${output.length} 字符`);
+
+    // 提取代码块
+    const { tool, test } = extractCodeBlocks(output);
+
+    const toolFileName = `${toolSpec.name}-tool.ts`;
+    const testFileName = `${toolSpec.name}-tool.test.ts`;
+
+    console.log(`  ✅ 代码生成完成: ${toolFileName} (${tool.length} 字符)`);
+    if (test) {
+      console.log(`  ✅ 测试生成完成: ${testFileName} (${test.length} 字符)`);
+    }
+
+    // 清理临时文件
+    try {
+      await fs.unlink(outputFile);
+    } catch {
+      // 忽略清理失败
+    }
+
+    return {
+      toolCode: tool,
+      testCode: test,
+      toolFileName,
+      testFileName
+    };
+  } catch (error: any) {
+    console.error(`  ❌ Codex 调用失败:`, error.message);
+
+    // 清理临时文件
+    try {
+      await fs.unlink(outputFile);
+    } catch {
+      // 忽略清理失败
+    }
+
+    throw new Error(`Codex 代码生成失败: ${error.message}`);
   }
-
-  const responseText = extractTextContent(lastMsg);
-  if (!responseText) {
-    throw new Error('Agent 响应为空');
-  }
-
-  console.log(`📝 Agent 响应长度: ${responseText.length} 字符`);
-
-  // 提取代码块
-  const { tool, test } = extractCodeBlocks(responseText);
-
-  const toolFileName = `${toolSpec.name}-tool.ts`;
-  const testFileName = `${toolSpec.name}-tool.test.ts`;
-
-  console.log(`✅ 代码生成完成: ${toolFileName} (${tool.length} 字符)`);
-  if (test) {
-    console.log(`✅ 测试生成完成: ${testFileName} (${test.length} 字符)`);
-  }
-
-  return {
-    toolCode: tool,
-    testCode: test,
-    toolFileName,
-    testFileName
-  };
 }
 
 /**

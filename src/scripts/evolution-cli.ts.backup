@@ -1,0 +1,150 @@
+#!/usr/bin/env tsx
+/**
+ * PI Investment — 进化分析 CLI
+ *
+ * 用法:
+ *   npm run evolution                    运行进化分析（默认配置）
+ *   npm run evolution -- --view          查看最近一次进化报告
+ *   npm run evolution -- --days 30       只分析最近 30 天交易
+ *   npm run evolution -- --all           分析全部交易记录
+ *   npm run evolution -- --target 15     设置目标收益率 15%
+ *
+ * 自动调度已在 CRON.json 中配置：每周日 20:00 自动触发
+ */
+
+import { runWeeklyEvolution, type EvolutionConfig } from "../services/intelligence/evolution-service.js";
+import { formatReportAsMarkdown } from "../services/intelligence/evolution-reporter.js";
+import { readFileSync, existsSync, readdirSync } from "fs";
+import { join } from "path";
+
+const piDir = join(process.cwd(), ".pi-invest");
+const evolutionDir = join(piDir, "evolution");
+const args = process.argv.slice(2);
+
+function line(char = "─", len = 60): void {
+  console.log(char.repeat(len));
+}
+
+/**
+ * 解析命令行参数
+ */
+function parseArgs(): EvolutionConfig {
+  const config: EvolutionConfig = {};
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    if (arg === "--days" || arg === "-d") {
+      const days = parseInt(args[++i], 10);
+      if (isNaN(days) || days <= 0) {
+        console.error("❌ --days 参数必须是正整数");
+        process.exit(1);
+      }
+      config.tradeWindowDays = days;
+    } else if (arg === "--all" || arg === "-a") {
+      config.tradeWindowDays = undefined; // 全部
+    } else if (arg === "--target" || arg === "-t") {
+      const target = parseFloat(args[++i]);
+      if (isNaN(target) || target <= 0) {
+        console.error("❌ --target 参数必须是正数");
+        process.exit(1);
+      }
+      config.targetReturn = target;
+    } else if (arg === "--reviews" || arg === "-r") {
+      const count = parseInt(args[++i], 10);
+      if (isNaN(count) || count <= 0) {
+        console.error("❌ --reviews 参数必须是正整数");
+        process.exit(1);
+      }
+      config.reviewWindowCount = count;
+    }
+  }
+
+  return config;
+}
+
+async function runEvolution(): Promise<void> {
+  console.log("\n🧬 正在运行进化分析...\n");
+
+  try {
+    // 初始化 session 并设置上下文
+    const { getSession } = await import("../core/agent/agent-loop.js");
+    await getSession({
+      type: 'cron_evolution',
+      sessionId: `evolution-cli-${Date.now()}`,
+      metadata: { trigger: 'manual_cli', jobId: 'evolution-cli' }
+    });
+
+    const config = parseArgs();
+    const result = await runWeeklyEvolution(config);
+    const markdown = formatReportAsMarkdown(result.report);
+
+    console.log(markdown);
+    line();
+    console.log(`\n✅ 进化报告已保存: ${result.reportPath}\n`);
+  } catch (e) {
+    console.error("❌ 进化分析失败:", e instanceof Error ? e.message : String(e));
+    process.exit(1);
+  }
+}
+
+function viewLatestReport(): void {
+  if (!existsSync(evolutionDir)) {
+    console.log("\n  暂无进化报告。运行 npm run evolution 生成第一份报告。\n");
+    return;
+  }
+
+  const reports = readdirSync(evolutionDir)
+    .filter(f => f.startsWith("evolution-") && f.endsWith(".md"))
+    .sort()
+    .reverse();
+
+  if (reports.length === 0) {
+    console.log("\n  暂无进化报告。运行 npm run evolution 生成第一份报告。\n");
+    return;
+  }
+
+  const latest = join(evolutionDir, reports[0]);
+  const content = readFileSync(latest, "utf-8");
+
+  console.log(`\n📋 最近报告: ${reports[0]}\n`);
+  console.log(content);
+  line();
+}
+
+async function main(): Promise<void> {
+  if (args.includes("--view") || args.includes("-v")) {
+    viewLatestReport();
+  } else if (args.includes("--help") || args.includes("-h")) {
+    console.log(`
+🧬 进化分析 CLI
+
+用法:
+  npm run evolution                    运行进化分析（默认配置）
+  npm run evolution -- --view          查看最近一次进化报告
+  npm run evolution -- --days 30       只分析最近 30 天交易
+  npm run evolution -- --all           分析全部交易记录
+  npm run evolution -- --target 15     设置目标收益率 15%
+  npm run evolution -- --reviews 20    分析最近 20 份复盘报告
+
+参数:
+  -d, --days <天数>       交易记录时间窗口（默认 90 天）
+  -a, --all               分析全部交易记录
+  -t, --target <百分比>   目标收益率（默认 10%）
+  -r, --reviews <数量>    复盘报告数量（默认 10）
+  -v, --view              查看最近一次报告
+  -h, --help              显示帮助信息
+
+示例:
+  npm run evolution -- --days 60 --target 12
+  npm run evolution -- --all
+    `);
+  } else {
+    await runEvolution();
+  }
+}
+
+main().catch(e => {
+  console.error(e);
+  process.exit(1);
+});

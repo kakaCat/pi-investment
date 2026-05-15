@@ -17,6 +17,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { chinaDateTime } from "../utils/china-time.js";
+import { FileLockService } from "./file-lock.service.js";
 
 // ─── 数据类型 ──────────────────────────────────────────────────────────────
 
@@ -208,7 +209,9 @@ export class OrderService {
 
   private save(data: OrdersFile): void {
     data.last_updated = nowStr();
-    writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+    FileLockService.withLockSync(this.filePath, () => {
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+    });
   }
 
   private addHistory(
@@ -273,10 +276,13 @@ export class OrderService {
       notes: params.notes || "",
     };
 
-    const data = this.load();
-    data.orders.push(order);
-    this.save(data);
-    return order;
+    return FileLockService.withLockSync(this.filePath, () => {
+      const data = this.load();
+      data.orders.push(order);
+      data.last_updated = nowStr();
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+      return order;
+    });
   }
 
   /**
@@ -319,55 +325,66 @@ export class OrderService {
    * 撤销挂单
    */
   cancel(id: string, reason?: string): PendingOrder | null {
-    const data = this.load();
-    const order = data.orders.find((o) => o.id === id);
-    if (!order) return null;
-    if (order.status !== "pending") {
-      throw new Error(`挂单 ${id} 状态为 ${order.status}，无法撤销`);
-    }
-    order.status = "cancelled";
-    order.updated_at = nowStr();
-    this.addHistory(order, "cancelled", reason || "主动撤销");
-    this.save(data);
-    return order;
+    return FileLockService.withLockSync(this.filePath, () => {
+      const data = this.load();
+      const order = data.orders.find((o) => o.id === id);
+      if (!order) return null;
+      if (order.status !== "pending") {
+        throw new Error(`挂单 ${id} 状态为 ${order.status}，无法撤销`);
+      }
+      order.status = "cancelled";
+      order.updated_at = nowStr();
+      this.addHistory(order, "cancelled", reason || "主动撤销");
+      data.last_updated = nowStr();
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+      return order;
+    });
   }
 
   /**
    * 标记挂单过期
    */
   expire(id: string, reason?: string): PendingOrder | null {
-    const data = this.load();
-    const order = data.orders.find((o) => o.id === id);
-    if (!order) return null;
-    if (order.status !== "pending") return null;
-    order.status = "expired";
-    order.updated_at = nowStr();
-    this.addHistory(order, "expired", reason || "超时过期");
-    this.save(data);
-    return order;
+    return FileLockService.withLockSync(this.filePath, () => {
+      const data = this.load();
+      const order = data.orders.find((o) => o.id === id);
+      if (!order) return null;
+      if (order.status !== "pending") return null;
+      order.status = "expired";
+      order.updated_at = nowStr();
+      this.addHistory(order, "expired", reason || "超时过期");
+      data.last_updated = nowStr();
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+      return order;
+    });
   }
 
   /**
    * 检查并执行超期挂单
    */
   expireOverdue(): number {
-    const data = this.load();
-    let count = 0;
-    const now = Date.now();
-    for (const order of data.orders) {
-      if (
-        order.status === "pending" &&
-        order.expires_at &&
-        new Date(order.expires_at).getTime() <= now
-      ) {
-        order.status = "expired";
-        order.updated_at = nowStr();
-        this.addHistory(order, "expired", "超时自动过期");
-        count++;
+    return FileLockService.withLockSync(this.filePath, () => {
+      const data = this.load();
+      let count = 0;
+      const now = Date.now();
+      for (const order of data.orders) {
+        if (
+          order.status === "pending" &&
+          order.expires_at &&
+          new Date(order.expires_at).getTime() <= now
+        ) {
+          order.status = "expired";
+          order.updated_at = nowStr();
+          this.addHistory(order, "expired", "超时自动过期");
+          count++;
+        }
       }
-    }
-    if (count > 0) this.save(data);
-    return count;
+      if (count > 0) {
+        data.last_updated = nowStr();
+        writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+      }
+      return count;
+    });
   }
 
   /**
@@ -383,45 +400,48 @@ export class OrderService {
     fillPrice: number,
     fillQuantity?: number,
   ): PendingOrder | null {
-    const data = this.load();
-    const order = data.orders.find((o) => o.id === id);
-    if (!order) return null;
-    if (order.status !== "pending") return null;
+    return FileLockService.withLockSync(this.filePath, () => {
+      const data = this.load();
+      const order = data.orders.find((o) => o.id === id);
+      if (!order) return null;
+      if (order.status !== "pending") return null;
 
-    const qtyToFill = fillQuantity ?? order.quantity;
+      const qtyToFill = fillQuantity ?? order.quantity;
 
-    if (qtyToFill <= 0) {
-      throw new Error(`成交数量必须大于0: ${qtyToFill}`);
-    }
-    if (order.filled_quantity + qtyToFill > order.quantity) {
-      throw new Error(
-        `成交数量超过挂单剩余: 已成交 ${order.filled_quantity}，本次 ${qtyToFill}，总量 ${order.quantity}`,
-      );
-    }
+      if (qtyToFill <= 0) {
+        throw new Error(`成交数量必须大于0: ${qtyToFill}`);
+      }
+      if (order.filled_quantity + qtyToFill > order.quantity) {
+        throw new Error(
+          `成交数量超过挂单剩余: 已成交 ${order.filled_quantity}，本次 ${qtyToFill}，总量 ${order.quantity}`,
+        );
+      }
 
-    order.filled_quantity += qtyToFill;
-    order.fill_price = roundN(fillPrice);
-    order.updated_at = nowStr();
+      order.filled_quantity += qtyToFill;
+      order.fill_price = roundN(fillPrice);
+      order.updated_at = nowStr();
 
-    // 判断是否完全成交
-    if (order.filled_quantity >= order.quantity) {
-      order.status = "filled";
-      this.addHistory(
-        order,
-        "filled",
-        `全额成交 ${qtyToFill}股 @${fillPrice}`,
-      );
-    } else {
-      order.status = "partial";
-      this.addHistory(
-        order,
-        "partial",
-        `部分成交 ${qtyToFill}股 @${fillPrice}，剩余 ${order.quantity - order.filled_quantity}股`,
-      );
-    }
+      // 判断是否完全成交
+      if (order.filled_quantity >= order.quantity) {
+        order.status = "filled";
+        this.addHistory(
+          order,
+          "filled",
+          `全额成交 ${qtyToFill}股 @${fillPrice}`,
+        );
+      } else {
+        order.status = "partial";
+        this.addHistory(
+          order,
+          "partial",
+          `部分成交 ${qtyToFill}股 @${fillPrice}，剩余 ${order.quantity - order.filled_quantity}股`,
+        );
+      }
 
-    this.save(data);
-    return order;
+      data.last_updated = nowStr();
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+      return order;
+    });
   }
 
   /**

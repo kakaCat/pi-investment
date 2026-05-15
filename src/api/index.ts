@@ -14,6 +14,7 @@ import { CronService } from "../services/operations/cron-service.js";
 import { DailyReviewService } from "../services/operations/daily-review-service.js";
 import { StopLossAlertService } from "../services/operations/stop-loss-alert-service.js";
 import { runWeeklyEvolution } from "../services/intelligence/evolution-service.js";
+import { saveSessionMemoryAsync } from "../services/intelligence/session-memory-saver.js";
 import { join } from "path";
 
 // 加载环境变量
@@ -83,6 +84,14 @@ async function main() {
           process.stdout.write("[进化分析] 开始运行每周进化分析...\n");
           process.stdout.write("═".repeat(60) + "\n\n");
           try {
+            // 初始化 session 并设置上下文
+            const { getSession } = await import("../core/agent/agent-loop.js");
+            await getSession({
+              type: 'cron_evolution',
+              sessionId: `evolution-${Date.now()}`,
+              metadata: { trigger: 'cron', jobId: 'weekly-evolution' }
+            });
+
             const result = await runWeeklyEvolution();
             process.stdout.write(`✅ 进化分析完成\n`);
             process.stdout.write(`📊 报告路径: ${result.reportPath}\n`);
@@ -124,10 +133,22 @@ async function main() {
     }
 
     // 监听进程退出
-    process.on('SIGINT', () => {
+    process.on('SIGINT', async () => {
       cronService.stop();
       console.log(perfMonitor.getReport());
       logger.logSessionEnd();
+
+      // 异步保存会话记忆（不阻塞退出）
+      console.log("\n🧠 保存会话记忆...");
+      saveSessionMemoryAsync(session, {
+        timeout: 30000,
+        verbose: false
+      }).catch(err => {
+        console.error(`记忆保存失败: ${err instanceof Error ? err.message : String(err)}`);
+      });
+
+      // 等待500ms让记忆保存agent启动
+      await new Promise(resolve => setTimeout(resolve, 500));
       process.exit(0);
     });
 
@@ -138,6 +159,15 @@ async function main() {
     // 启动交互式模式
     const mode = new InteractiveMode(session);
     await mode.run();
+
+    // 正常退出时保存会话记忆
+    console.log("\n🧠 保存会话记忆...");
+    await saveSessionMemoryAsync(session, {
+      timeout: 30000,
+      verbose: false
+    }).catch(err => {
+      console.error(`记忆保存失败: ${err instanceof Error ? err.message : String(err)}`);
+    });
 
     cronService.stop();
     logger.logSessionEnd();

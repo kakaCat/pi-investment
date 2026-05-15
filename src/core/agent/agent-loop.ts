@@ -39,10 +39,23 @@ import {
   getAgentState,
 } from "./session-adapter.js";
 
+/**
+ * Session 上下文类型
+ *
+ * 注意：'cron_evolution' 已废弃，代码生成现在由 Codex 负责
+ */
+export interface SessionContext {
+  type: 'interactive' | 'cron_evolution' | 'cron_review' | 'background_task';
+  sessionId: string;
+  metadata?: Record<string, any>;
+}
+
 // 全局会话实例，复用同一个 session
 let session: AgentSession | null = null;
 // 插件贡献的工具（在 getSession 中初始化）
 let pluginTools: ToolDefinition[] = [];
+// 当前 session 的上下文
+let sessionContext: SessionContext | null = null;
 
 /** 返回内置工具 + 插件工具的合并列表 */
 function getEffectiveTools(): ToolDefinition[] {
@@ -76,9 +89,37 @@ function loadProjectSkills(): Skill[] {
 }
 
 /**
+ * 根据上下文类型构建 system prompt
+ */
+function buildSystemPromptForContext(ctx: SessionContext | null): string {
+  // 所有上下文类型都使用投资决策 prompt
+  // 代码生成已委托给 Codex，不再使用投资 Agent
+  return buildAgentSystemPrompt({
+    memoryContext: "",
+    dailyMemory: "",
+    tools: getEffectiveTools(),
+    workspaceDir: paths.root,
+  });
+}
+
+/**
+ * 根据上下文类型获取工具列表
+ */
+function getToolsForContext(ctx: SessionContext | null): ToolDefinition[] {
+  // 所有上下文类型都使用完整工具集
+  return getEffectiveTools();
+}
+
+/**
  * 获取或创建 AgentSession（懒初始化，全局单例）
  */
-export async function getSession(): Promise<AgentSession> {
+export async function getSession(context?: SessionContext): Promise<AgentSession> {
+  // 如果传入了新的 context，更新全局 context
+  if (context) {
+    sessionContext = context;
+    console.log(`🔄 Session 上下文: ${context.type} (${context.sessionId})`);
+  }
+
   if (!session) {
     try {
       initMemoryTools(paths.piDir);
@@ -103,7 +144,7 @@ export async function getSession(): Promise<AgentSession> {
       initSkillRouter(skills);
       initSkillsBlock(skills, pluginRegistry.skills);
 
-      const effectiveTools = getEffectiveTools();
+      const effectiveTools = getToolsForContext(sessionContext);
 
       // 初始化 plan tool 的工具上下文
       setPlanToolContext(effectiveTools);
@@ -111,12 +152,7 @@ export async function getSession(): Promise<AgentSession> {
       const result = await createAgentSession({
         cwd: paths.root,
         model: createDeepSeekModel(),
-        systemPrompt: () => buildAgentSystemPrompt({
-          memoryContext: "",
-          dailyMemory: "",
-          tools: getEffectiveTools(),
-          workspaceDir: paths.root,
-        }),
+        systemPrompt: () => buildSystemPromptForContext(sessionContext),
         customTools: effectiveTools,
         skills,
       } as any);
@@ -131,12 +167,7 @@ export async function getSession(): Promise<AgentSession> {
       console.log(`📋 Session: ${getSessionKey()}`);
 
       logBootstrapFiles(getBootstrapData());
-      logSystemPrompt(buildAgentSystemPrompt({
-        memoryContext: "",
-        dailyMemory: "",
-        tools: effectiveTools,
-        workspaceDir: paths.root,
-      }), 0);
+      logSystemPrompt(buildSystemPromptForContext(sessionContext), 0);
 
       try {
         const stats = getMemoryStore().getStats();

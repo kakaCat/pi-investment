@@ -1,81 +1,287 @@
 import { describe, expect, test, jest } from "@jest/globals";
+import {
+  checkHolding,
+  buildOutput,
+  CheckStatus,
+} from "./check-stop-loss-trigger-tool.js";
+import type {
+  HoldingCheckData,
+  CheckResult,
+} from "./check-stop-loss-trigger-tool.js";
 
-// ── Mock PortfolioService BEFORE importing the module under test ──
+// ── Mock PortfolioService using ESM-compatible pattern ──
 const mockLoad = jest.fn<() => any>();
 const mockGetWithPnL = jest.fn<() => any>();
 
-jest.mock("../../services/portfolio/portfolio-service.js", () => ({
-  PortfolioService: jest.fn().mockImplementation(() => ({
-    load: mockLoad,
-    getWithPnL: mockGetWithPnL,
-  })),
-}));
+await jest.unstable_mockModule(
+  "../../services/portfolio/portfolio-service.js",
+  () => ({
+    PortfolioService: jest.fn().mockImplementation(() => ({
+      load: mockLoad,
+      getWithPnL: mockGetWithPnL,
+    })),
+  }),
+);
 
-import type { AgentToolResult } from "@mariozechner/pi-coding-agent";
-type AnyAgentToolResult = AgentToolResult<any>;
-import { checkStopLossTriggerTool } from "./check-stop-loss-trigger-tool.js";
+const { checkStopLossTriggerTool } = await import(
+  "./check-stop-loss-trigger-tool.js"
+);
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── Fixtures ───────────────────────────────────────────────────────────────
 
-function callTool(
-  params: Record<string, unknown> = {},
-): Promise<AnyAgentToolResult> {
-  return checkStopLossTriggerTool.execute(
-    "test-call-id",
-    params,
-    undefined as any,
-    undefined as any,
-    undefined as any,
-  ) as Promise<AnyAgentToolResult>;
-}
-
-/** Build a holding with explicit stop_loss in portfolio.json */
-function makeHolding(
-  symbol: string,
-  name: string,
-  avgCost: number,
-  quantity: number,
-  currentPrice: number,
-  pnlPct: number,
-  marketValue: number,
-  stopLoss: number | null = null,
-): { snapshot: any; raw: any } {
+function makeHolding(overrides: Partial<HoldingCheckData> = {}): HoldingCheckData {
   return {
-    snapshot: {
-      symbol,
-      name,
-      quantity,
-      avg_cost: avgCost,
-      current_price: currentPrice,
-      change_pct: 0,
-      pnl_pct: pnlPct,
-      pnl_amount: (currentPrice - avgCost) * quantity,
-      market_value: marketValue,
-      market: "A",
-      notes: "",
-      added_date: "2026-01-01",
-    },
-    raw: {
-      symbol,
-      name,
-      quantity,
-      avg_cost: avgCost,
-      market: "A",
-      notes: "",
-      added_date: "2026-01-01",
-      ...(stopLoss !== null ? { stop_loss: stopLoss } : {}),
-    },
+    symbol: "000001",
+    name: "测试股票",
+    quantity: 1000,
+    avg_cost: 10.0,
+    current_price: 9.5,
+    market_value: 9500,
+    pnl_pct: -5.0,
+    pnl_amount: -500,
+    ...overrides,
   };
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// ── Tests: checkHolding (pure logic) ──────────────────────────────────────
 
-describe("checkStopLossTriggerTool", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+describe("checkHolding", () => {
+  test("returns triggered when currentPrice ≤ stopLoss (explicit)", () => {
+    const holding = makeHolding({ current_price: 8.0, avg_cost: 10.0 });
+    const allHoldings: HoldingCheckData[] = [
+      { symbol: "000001", stop_loss: 9.0 },
+    ] as any;
+
+    const result = checkHolding(holding, allHoldings, -8);
+
+    expect(result.status).toBe(CheckStatus.Triggered);
+    if (result.status === CheckStatus.Triggered) {
+      expect(result.position.stopLoss).toBe(9.0);
+      expect(result.position.stopLossSource).toBe("explicit");
+      expect(result.position.currentPrice).toBe(8.0);
+      expect(result.position.lossAmount).toBe(-2000);
+    }
   });
 
-  // ── Test 1: Empty portfolio ──────────────────────────────────────────────
+  test("returns triggered when currentPrice ≤ stopLoss (default -8%)", () => {
+    const holding = makeHolding({ current_price: 9.0, avg_cost: 10.0 });
+    const allHoldings: HoldingCheckData[] = [];
+
+    const result = checkHolding(holding, allHoldings, -8);
+
+    expect(result.status).toBe(CheckStatus.Triggered);
+    if (result.status === CheckStatus.Triggered) {
+      expect(result.position.stopLoss).toBeCloseTo(9.2, 2); // 10 * (1 - 0.08) = 9.2
+      expect(result.position.stopLossSource).toBe("default");
+      expect(result.position.lossAmount).toBe(-1000);
+    }
+  });
+
+  test("returns no_stop_loss when defaultStopLossPct >= 0 and no explicit stop_loss", () => {
+    const holding = makeHolding({ current_price: 9.5, avg_cost: 10.0 });
+    const allHoldings: HoldingCheckData[] = [
+      { symbol: "000001", stop_loss: null },
+    ] as any;
+
+    const result = checkHolding(holding, allHoldings, 0);
+
+    expect(result.status).toBe(CheckStatus.NoStopLoss);
+    if (result.status === CheckStatus.NoStopLoss) {
+      expect(result.position.symbol).toBe("000001");
+      expect(result.position.avgCost).toBe(10.0);
+    }
+  });
+
+  test("returns safe when price is well above stop-loss", () => {
+    const holding = makeHolding({ current_price: 12.0, avg_cost: 10.0 });
+    const allHoldings: HoldingCheckData[] = [
+      { symbol: "000001", stop_loss: 9.0 },
+    ] as any;
+
+    const result = checkHolding(holding, allHoldings, -8);
+
+    expect(result.status).toBe(CheckStatus.Safe);
+    if (result.status === CheckStatus.Safe) {
+      // distance = (12 - 9) / 9 * 100 = 33.33%
+      expect(result.position.distanceToStopLoss).toBeGreaterThan(20);
+    }
+  });
+
+  test("returns warning when price is close to stop-loss (within 3%)", () => {
+    const holding = makeHolding({ current_price: 9.25, avg_cost: 10.0 });
+    const allHoldings: HoldingCheckData[] = [
+      { symbol: "000001", stop_loss: 9.0 },
+    ] as any;
+
+    const result = checkHolding(holding, allHoldings, -8);
+
+    expect(result.status).toBe(CheckStatus.Warning);
+    if (result.status === CheckStatus.Warning) {
+      // distance = (9.25 - 9.0) / 9.0 * 100 = 2.78%
+      expect(result.position.distanceToStopLoss).toBeLessThan(3);
+      expect(result.position.distanceToStopLoss).toBeGreaterThan(0);
+    }
+  });
+
+  test("uses default stop-loss when holding not found in portfolio data", () => {
+    const holding = makeHolding({ current_price: 9.5, avg_cost: 10.0 });
+    const allHoldings: HoldingCheckData[] = [];
+
+    const result = checkHolding(holding, allHoldings, -8);
+
+    expect(result.status).toBe(CheckStatus.Safe);
+    if (result.status === CheckStatus.Safe) {
+      expect(result.position.stopLoss).toBeCloseTo(9.2, 2);
+      expect(result.position.stopLossSource).toBe("default");
+    }
+  });
+});
+
+// ── Tests: buildOutput ─────────────────────────────────────────────────────
+
+describe("buildOutput", () => {
+  test("returns all-clear message when no triggered/warning positions", () => {
+    const safeResult: CheckResult = {
+      status: CheckStatus.Safe,
+      position: {
+        symbol: "000001",
+        name: "测试股票",
+        currentPrice: 12.0,
+        avgCost: 10.0,
+        stopLoss: 9.0,
+        stopLossSource: "explicit",
+        pnlPct: 20,
+        distanceToStopLoss: 33.33,
+        quantity: 1000,
+        marketValue: 12000,
+      },
+    };
+
+    const { text, details } = buildOutput([safeResult], -8);
+
+    expect(text).toContain("所有持仓运行正常");
+    expect(text).toContain("安全持仓");
+    expect(text).toContain("12.00");
+    expect(text).not.toContain("已触发止损");
+    expect(details.triggered).toHaveLength(0);
+    expect(details.safe).toHaveLength(1);
+  });
+
+  test("includes triggered and warning sections when present", () => {
+    const triggeredResult: CheckResult = {
+      status: CheckStatus.Triggered,
+      position: {
+        symbol: "600001",
+        name: "下跌股",
+        currentPrice: 8.0,
+        avgCost: 10.0,
+        stopLoss: 9.0,
+        stopLossSource: "explicit",
+        pnlPct: -20,
+        quantity: 500,
+        marketValue: 4000,
+        lossAmount: -1000,
+      },
+    };
+
+    const warningResult: CheckResult = {
+      status: CheckStatus.Warning,
+      position: {
+        symbol: "600002",
+        name: "接近止损股",
+        currentPrice: 9.2,
+        avgCost: 10.0,
+        stopLoss: 9.0,
+        stopLossSource: "explicit",
+        pnlPct: -8,
+        distanceToStopLoss: 2.22,
+        quantity: 300,
+        marketValue: 2760,
+      },
+    };
+
+    const safeResult: CheckResult = {
+      status: CheckStatus.Safe,
+      position: {
+        symbol: "600003",
+        name: "安全股",
+        currentPrice: 15.0,
+        avgCost: 10.0,
+        stopLoss: 9.0,
+        stopLossSource: "explicit",
+        pnlPct: 50,
+        distanceToStopLoss: 66.67,
+        quantity: 200,
+        marketValue: 3000,
+      },
+    };
+
+    const { text, details } = buildOutput(
+      [triggeredResult, warningResult, safeResult],
+      -8,
+    );
+
+    expect(text).toContain("已触发=1");
+    expect(text).toContain("接近=1");
+    expect(text).toContain("安全=1");
+
+    expect(text).toContain("下跌股");
+    expect(text).toContain("接近止损股");
+    expect(text).toContain("安全股");
+
+    expect(text).toContain("立即执行止损");
+    expect(text).toContain("密切关注");
+    expect(text).toContain("总体建议");
+
+    expect(details.totalHoldings).toBe(3);
+    expect(details.triggered).toHaveLength(1);
+    expect(details.warnings).toHaveLength(1);
+    expect(details.safe).toHaveLength(1);
+  });
+
+  test("includes no_stop_loss section when positions have no stop loss", () => {
+    const noSlResult: CheckResult = {
+      status: CheckStatus.NoStopLoss,
+      position: {
+        symbol: "000001",
+        name: "无止损股",
+        currentPrice: 11.0,
+        avgCost: 10.0,
+        pnlPct: 10,
+        quantity: 100,
+        marketValue: 1100,
+      },
+    };
+
+    const { text, details } = buildOutput([noSlResult], 0);
+
+    expect(text).toContain("未设置止损");
+    expect(text).toContain("无止损股");
+    expect(text).toContain("默认止损已关闭");
+    expect(details.noStopLossConfigured).toHaveLength(1);
+  });
+});
+
+// ── Tests: full tool execution (with mocked PortfolioService) ──────────────
+
+describe("checkStopLossTriggerTool (integration)", () => {
+  beforeEach(() => {
+    mockLoad.mockReset();
+    mockGetWithPnL.mockReset();
+  });
+
+  function callTool(
+    params: Record<string, unknown>,
+  ): ReturnType<typeof checkStopLossTriggerTool.execute> {
+    return checkStopLossTriggerTool.execute(
+      "test-call-id",
+      params,
+      undefined as any,
+      undefined as any,
+      undefined as any,
+    );
+  }
+
   test("returns no-holdings message when portfolio is empty", async () => {
     mockGetWithPnL.mockResolvedValue({
       holdings: [],
@@ -83,264 +289,131 @@ describe("checkStopLossTriggerTool", () => {
       total_value: 0,
       total_pnl: 0,
       total_pnl_pct: 0,
-      as_of: "2026-05-15",
+      as_of: "2025-01-01",
     });
-    // load() won't be called if holdings is empty, but just in case
-    mockLoad.mockReturnValue({ holdings: [] });
+    mockLoad.mockReturnValue({ holdings: [], last_updated: "2025-01-01" });
 
     const result = await callTool({});
 
     expect(result.content).toHaveLength(1);
     const text = (result.content[0] as any).text;
-    expect(text).toContain("当前无持仓");
+    expect(text).toBe("当前无持仓");
 
     const details = result.details as any;
     expect(details).toBeDefined();
     expect(details.totalHoldings).toBe(0);
+    expect(details.triggered).toHaveLength(0);
   });
 
-  // ── Test 2: Triggered positions with explicit stop_loss ──────────────────
-  test("detects triggered positions with explicit stop_loss", async () => {
-    const h1 = makeHolding("600519", "贵州茅台", 2200, 200, 1850, -15.91, 370000, 1900);
-    const h2 = makeHolding("000001", "平安银行", 12, 5000, 11.2, -6.67, 56000, 11.5);
-    const h3 = makeHolding("300750", "宁德时代", 250, 1000, 260, 4.0, 260000, 230);
-
+  test("detects triggered and safe positions correctly", async () => {
     mockGetWithPnL.mockResolvedValue({
-      holdings: [h1.snapshot, h2.snapshot, h3.snapshot],
-      total_cost: 0,
-      total_value: 0,
+      holdings: [
+        {
+          symbol: "600001",
+          name: "下跌股",
+          quantity: 500,
+          avg_cost: 10.0,
+          current_price: 8.0,
+          market_value: 4000,
+          pnl_pct: -20,
+          pnl_amount: -1000,
+          change_pct: -2,
+        },
+        {
+          symbol: "600003",
+          name: "安全股",
+          quantity: 200,
+          avg_cost: 10.0,
+          current_price: 15.0,
+          market_value: 3000,
+          pnl_pct: 50,
+          pnl_amount: 1000,
+          change_pct: 1,
+        },
+      ],
+      total_cost: 7000,
+      total_value: 7000,
       total_pnl: 0,
       total_pnl_pct: 0,
-      as_of: "2026-05-15",
+      as_of: "2025-01-01",
     });
 
     mockLoad.mockReturnValue({
-      holdings: [h1.raw, h2.raw, h3.raw],
+      holdings: [
+        { symbol: "600001", name: "下跌股", quantity: 500, avg_cost: 10.0, market: "A", notes: "", added_date: "2025-01-01", stop_loss: 9.0, target_price: null, sector: "", buy_reason: "" },
+        { symbol: "600003", name: "安全股", quantity: 200, avg_cost: 10.0, market: "A", notes: "", added_date: "2025-01-01", stop_loss: 9.0, target_price: null, sector: "", buy_reason: "" },
+      ],
+      last_updated: "2025-01-01",
     });
 
     const result = await callTool({});
 
     expect(result.content).toHaveLength(1);
     const text = (result.content[0] as any).text;
-
-    // Header and summary
-    expect(text).toContain("止损检查报告");
-    expect(text).toContain("已触发=2");
-    expect(text).toContain("安全=1");
-
-    // Triggered positions
-    expect(text).toContain("贵州茅台");
-    expect(text).toContain("平安银行");
-    expect(text).toContain("已触发止损");
-
-    // Safe position
-    expect(text).toContain("宁德时代");
-    expect(text).toContain("安全持仓");
-
-    // Advice
-    expect(text).toContain("总体建议");
-    expect(text).toContain("立即执行止损");
-
-    // Details structure
-    const details = result.details as any;
-    expect(details).toBeDefined();
-    expect(details.totalHoldings).toBe(3);
-    expect(details.triggered).toHaveLength(2);
-    expect(details.warnings).toHaveLength(0);
-    expect(details.safe).toHaveLength(1);
-    expect(details.noStopLossConfigured).toHaveLength(0);
-
-    // Verify triggered details
-    expect(details.triggered[0].symbol).toBe("600519");
-    expect(details.triggered[0].stopLoss).toBe(1900);
-    expect(details.triggered[0].stopLossSource).toBe("explicit");
-
-    // Verify safe details
-    expect(details.safe[0].symbol).toBe("300750");
-    expect(details.safe[0].stopLoss).toBe(230);
-    expect(details.safe[0].distanceToStopLoss).toBeGreaterThan(3);
-  });
-
-  // ── Test 3: Default stop-loss with positions that have no explicit config ──
-  test("applies default stop-loss percentage when no explicit stop_loss set", async () => {
-    const h1 = makeHolding("600519", "贵州茅台", 100, 100, 88, -12.0, 8800, null);
-    // 88/100 = -12%, default -8% would be 92 — so triggered
-    const h2 = makeHolding("000001", "平安银行", 12, 5000, 11.2, -6.67, 56000, null);
-    // 11.2/12 = -6.67%, default -8% would be 11.04 — so not triggered, 11.2 > 11.04
-    // distance = (11.2-11.04)/11.04 = 1.45% → warning zone
-    const h3 = makeHolding("300750", "宁德时代", 250, 1000, 280, 12.0, 280000, null);
-    // 280/250 = +12%, default -8% would be 230 — safe
-
-    mockGetWithPnL.mockResolvedValue({
-      holdings: [h1.snapshot, h2.snapshot, h3.snapshot],
-      total_cost: 0,
-      total_value: 0,
-      total_pnl: 0,
-      total_pnl_pct: 0,
-      as_of: "2026-05-15",
-    });
-
-    mockLoad.mockReturnValue({
-      holdings: [h1.raw, h2.raw, h3.raw],
-    });
-
-    const result = await callTool({ default_stop_loss_pct: -8 });
-
-    expect(result.content).toHaveLength(1);
-    const text = (result.content[0] as any).text;
-
-    expect(text).toContain("默认 -8% 回撤止损");
     expect(text).toContain("已触发=1");
-    expect(text).toContain("接近=1");
     expect(text).toContain("安全=1");
+    expect(text).toContain("下跌股");
+    expect(text).toContain("安全股");
 
     const details = result.details as any;
-    expect(details).toBeDefined();
-    expect(details.defaultStopLossPct).toBe(-8);
+    expect(details.totalHoldings).toBe(2);
     expect(details.triggered).toHaveLength(1);
-    expect(details.warnings).toHaveLength(1);
+    expect(details.triggered[0].symbol).toBe("600001");
     expect(details.safe).toHaveLength(1);
-
-    // H1: default stop = 100 * 0.92 = 92, current 88 → triggered
-    expect(details.triggered[0].symbol).toBe("600519");
-    expect(details.triggered[0].stopLoss).toBeCloseTo(92, 1);
-    expect(details.triggered[0].stopLossSource).toBe("default");
-
-    // H2: default stop = 12 * 0.92 = 11.04, current 11.2
-    // distance = (11.2-11.04)/11.04 = 1.45% < 3% → warning
-    expect(details.warnings[0].symbol).toBe("000001");
-    expect(details.warnings[0].stopLoss).toBeCloseTo(11.04, 2);
-    expect(details.warnings[0].distanceToStopLoss).toBeLessThan(3);
-
-    // H3: default stop = 250 * 0.92 = 230, current 280 → safe
-    expect(details.safe[0].symbol).toBe("300750");
-    expect(details.safe[0].stopLoss).toBeCloseTo(230, 1);
-    expect(details.safe[0].distanceToStopLoss).toBeGreaterThan(3);
+    expect(details.safe[0].symbol).toBe("600003");
   });
 
-  // ── Test 4: Warning positions (approaching stop-loss) ────────────────────
-  test("flags positions approaching stop-loss as warnings", async () => {
-    const h1 = makeHolding("000333", "美的集团", 70, 2000, 65.8, -6.0, 131600, 64);
-    // current 65.8, stop 64 → distance = (65.8-64)/64 = 2.81% < 3% → warning
-
+  test("applies default stop-loss when no explicit stop_loss set", async () => {
     mockGetWithPnL.mockResolvedValue({
-      holdings: [h1.snapshot],
-      total_cost: 0,
-      total_value: 0,
-      total_pnl: 0,
-      total_pnl_pct: 0,
-      as_of: "2026-05-15",
+      holdings: [
+        {
+          symbol: "000001",
+          name: "无止损股",
+          quantity: 1000,
+          avg_cost: 100,
+          current_price: 88,
+          market_value: 88000,
+          pnl_pct: -12,
+          pnl_amount: -12000,
+          change_pct: -2,
+        },
+      ],
+      total_cost: 100000,
+      total_value: 88000,
+      total_pnl: -12000,
+      total_pnl_pct: -12,
+      as_of: "2025-01-01",
     });
 
     mockLoad.mockReturnValue({
-      holdings: [h1.raw],
+      holdings: [{ symbol: "000001", name: "无止损股", quantity: 1000, avg_cost: 100, market: "A", notes: "", added_date: "2025-01-01", stop_loss: null, target_price: null, sector: "", buy_reason: "" }],
+      last_updated: "2025-01-01",
     });
 
-    const result = await callTool({});
+    const result = await callTool({ default_stop_loss_pct: -10 });
 
+    expect(result.content).toHaveLength(1);
     const text = (result.content[0] as any).text;
-    expect(text).toContain("接近止损");
+    expect(text).toContain("默认 -10% 回撤止损");
+    // default stop-loss = 100 * (1 - 0.10) = 90
+    // current_price = 88 <= 90 → triggered
+    expect(text).toContain("已触发=1");
 
     const details = result.details as any;
-    expect(details.warnings).toHaveLength(1);
-    expect(details.triggered).toHaveLength(0);
-    expect(details.warnings[0].symbol).toBe("000333");
-    expect(details.warnings[0].distanceToStopLoss).toBeLessThan(3);
-  });
-
-  // ── Test 5: All safe positions ──────────────────────────────────────────
-  test("shows all safe when no positions are near stop-loss", async () => {
-    const h1 = makeHolding("600519", "贵州茅台", 1800, 100, 2100, 16.67, 210000, 1500);
-    const h2 = makeHolding("300750", "宁德时代", 230, 200, 280, 21.74, 56000, 200);
-
-    mockGetWithPnL.mockResolvedValue({
-      holdings: [h1.snapshot, h2.snapshot],
-      total_cost: 0,
-      total_value: 0,
-      total_pnl: 0,
-      total_pnl_pct: 0,
-      as_of: "2026-05-15",
-    });
-
-    mockLoad.mockReturnValue({
-      holdings: [h1.raw, h2.raw],
-    });
-
-    const result = await callTool({});
-
-    const text = (result.content[0] as any).text;
-    expect(text).toContain("所有持仓运行正常");
-    expect(text).not.toContain("已触发止损");
-    expect(text).not.toContain("接近止损");
-
-    const details = result.details as any;
-    expect(details.triggered).toHaveLength(0);
-    expect(details.warnings).toHaveLength(0);
-    expect(details.safe).toHaveLength(2);
-  });
-
-  // ── Test 6: Positions without any stop_loss configured and default disabled ──
-  test("reports positions without stop_loss when default is disabled (0)", async () => {
-    const h1 = makeHolding("600519", "贵州茅台", 2000, 100, 1950, -2.5, 195000, null);
-
-    mockGetWithPnL.mockResolvedValue({
-      holdings: [h1.snapshot],
-      total_cost: 0,
-      total_value: 0,
-      total_pnl: 0,
-      total_pnl_pct: 0,
-      as_of: "2026-05-15",
-    });
-
-    mockLoad.mockReturnValue({
-      holdings: [h1.raw],
-    });
-
-    // default_stop_loss_pct = 0 disables auto stop-loss
-    const result = await callTool({ default_stop_loss_pct: 0 });
-
-    const text = (result.content[0] as any).text;
-    expect(text).toContain("未设置止损");
-    expect(text).toContain("已关闭");
-
-    const details = result.details as any;
-    expect(details.noStopLossConfigured).toHaveLength(1);
-    expect(details.triggered).toHaveLength(0);
-    expect(details.warnings).toHaveLength(0);
-    expect(details.safe).toHaveLength(0);
-  });
-
-  // ── Test 7: Mixed scenario ──────────────────────────────────────────────
-  test("correctly handles mixed triggered, warning, safe, and no-stop-loss positions", async () => {
-    const h1 = makeHolding("600519", "贵州茅台", 2000, 100, 1780, -11.0, 178000, 1800);
-    // 1780 <= 1800 → triggered
-    const h2 = makeHolding("000001", "平安银行", 12, 5000, 11.4, -5.0, 57000, 11.1);
-    // 11.4 > 11.1, distance=(11.4-11.1)/11.1=2.7% < 3% → warning
-    const h3 = makeHolding("300750", "宁德时代", 250, 1000, 275, 10.0, 275000, null);
-    // default stop = 250*0.92=230, 275 > 230, distance=19.6% → safe
-    const h4 = makeHolding("002415", "海康威视", 35, 3000, 33.2, -5.14, 99600, null);
-    // default stop = 35*0.92=32.2, 33.2 > 32.2, distance=3.1% → safe
-
-    mockGetWithPnL.mockResolvedValue({
-      holdings: [h1.snapshot, h2.snapshot, h3.snapshot, h4.snapshot],
-      total_cost: 0,
-      total_value: 0,
-      total_pnl: 0,
-      total_pnl_pct: 0,
-      as_of: "2026-05-15",
-    });
-
-    mockLoad.mockReturnValue({
-      holdings: [h1.raw, h2.raw, h3.raw, h4.raw],
-    });
-
-    const result = await callTool({});
-
-    const details = result.details as any;
-    expect(details.totalHoldings).toBe(4);
     expect(details.triggered).toHaveLength(1);
-    expect(details.warnings).toHaveLength(1);
-    expect(details.safe).toHaveLength(2);
-    expect(details.noStopLossConfigured).toHaveLength(0);
+    expect(details.triggered[0].stopLoss).toBe(90);
+    expect(details.triggered[0].stopLossSource).toBe("default");
+  });
+
+  test("reports error when PortfolioService throws", async () => {
+    mockGetWithPnL.mockRejectedValue(new Error("Network error"));
+
+    const result = await callTool({});
+
+    expect(result.content).toHaveLength(1);
+    const text = (result.content[0] as any).text;
+    expect(text).toContain("止损检查失败");
+    expect(text).toContain("Network error");
+    expect(result.details).toBeUndefined();
   });
 });

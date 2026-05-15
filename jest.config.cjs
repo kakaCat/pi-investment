@@ -13,6 +13,7 @@ module.exports = {
       {
         useESM: true,
         tsconfig: "tsconfig.json",
+        diagnostics: true,
       },
     ],
   },

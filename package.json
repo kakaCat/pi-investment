@@ -13,7 +13,6 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "portfolio": "tsx src/scripts/portfolio-cli.ts",
-    "evolution": "tsx src/scripts/evolution-cli.ts",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
@@ -29,13 +28,15 @@
     "better-sqlite3": "^12.8.0",
     "dotenv": "^17.3.1",
     "openai": "^4.77.0",
-    "playwright": "^1.58.2"
+    "playwright": "^1.58.2",
+    "proper-lockfile": "^4.1.2"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "^29.5.12",
     "@types/node": "^22.0.0",
+    "@types/proper-lockfile": "^4.1.4",
     "@types/ws": "^8.18.1",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.2",
