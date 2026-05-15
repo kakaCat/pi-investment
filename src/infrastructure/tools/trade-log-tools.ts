@@ -26,11 +26,11 @@ export const tradeLogTool: ToolDefinition = {
   description:
     "管理股票交易日志（Markdown 格式）。使用 action 参数区分操作：\n" +
     "- list: 列出所有交易日志\n" +
-    "- get: 读取指定股票的日志内容\n" +
-    "- create: 创建新的交易日志（建仓后记录买入逻辑和操作计划）\n" +
-    "- update: 更新日志的建仓逻辑或操作计划\n" +
-    "- append_execution: 追加执行记录（每次买卖操作后记录）\n" +
-    "- append_tracking: 追加日度追踪记录（每日盘后记录收盘价和浮盈）",
+    "- get: 读取指定股票的日志内容（只需提供 symbol）\n" +
+    "- create: 创建新的交易日志（需提供 symbol 和 name，记录建仓逻辑和操作计划）\n" +
+    "- update: 更新日志的建仓逻辑或操作计划（只需提供 symbol）\n" +
+    "- append_execution: 追加执行记录（只需提供 symbol，每次买卖操作后记录）\n" +
+    "- append_tracking: 追加日度追踪记录（只需提供 symbol，每日盘后记录收盘价和浮盈）",
 
   parameters: Type.Object({
     action: Type.String({
@@ -45,10 +45,10 @@ export const tradeLogTool: ToolDefinition = {
     }),
 
     // 通用参数
-    symbol: Type.Optional(Type.String({ description: "股票代码，如 '600519'（除 list 外都需要）" })),
-    name: Type.Optional(Type.String({ description: "股票名称（除 list 外都需要）" })),
+    symbol: Type.Optional(Type.String({ description: "股票代码，如 '600519'（除 list 外都需要，工具会自动查找对应的股票名称）" })),
 
-    // create 参数
+    // create 参数（创建时需要提供 name）
+    name: Type.Optional(Type.String({ description: "股票名称（仅 create 时需要）" })),
     initial_position: Type.Optional(Type.Number({ description: "初始持仓数量（create 时使用）" })),
     avg_cost: Type.Optional(Type.Number({ description: "持仓均价（create 时使用）" })),
     entry_logic: Type.Optional(Type.String({ description: "建仓逻辑（create 时使用）" })),
@@ -80,6 +80,13 @@ export const tradeLogTool: ToolDefinition = {
       const service = new TradeLogService(PI_DIR);
       const action = params.action;
 
+      // 辅助函数：根据 symbol 查找对应的 name
+      const findNameBySymbol = (symbol: string): string | null => {
+        const logs = service.list();
+        const found = logs.find(log => log.symbol === symbol);
+        return found ? found.name : null;
+      };
+
       switch (action) {
         case "list": {
           const logs = await service.list();
@@ -100,24 +107,32 @@ export const tradeLogTool: ToolDefinition = {
         }
 
         case "get": {
-          if (!params.symbol || !params.name) {
+          if (!params.symbol) {
             return {
-              content: [{ type: "text" as const, text: "❌ 缺少参数: symbol 和 name" }],
-              details: { error: "missing symbol or name" },
+              content: [{ type: "text" as const, text: "❌ 缺少参数: symbol" }],
+              details: { error: "missing symbol" },
             };
           }
 
-          const content = service.read(params.symbol, params.name);
-          if (!content) {
+          const name = findNameBySymbol(params.symbol);
+          if (!name) {
             return {
-              content: [{ type: "text" as const, text: `❌ 未找到 ${params.symbol}-${params.name} 的交易日志` }],
+              content: [{ type: "text" as const, text: `❌ 未找到 ${params.symbol} 的交易日志` }],
               details: { error: "log not found" },
             };
           }
 
+          const content = service.read(params.symbol, name);
+          if (!content) {
+            return {
+              content: [{ type: "text" as const, text: `❌ 读取 ${params.symbol}-${name} 的交易日志失败` }],
+              details: { error: "read failed" },
+            };
+          }
+
           return {
-            content: [{ type: "text" as const, text: `📄 ${params.symbol} - ${params.name}\n\n${content}` }],
-            details: { symbol: params.symbol, name: params.name },
+            content: [{ type: "text" as const, text: `📄 ${params.symbol} - ${name}\n\n${content}` }],
+            details: { symbol: params.symbol, name },
           };
         }
 
@@ -160,10 +175,18 @@ export const tradeLogTool: ToolDefinition = {
         }
 
         case "update": {
-          if (!params.symbol || !params.name) {
+          if (!params.symbol) {
             return {
-              content: [{ type: "text" as const, text: "❌ 缺少参数: symbol 和 name" }],
-              details: { error: "missing symbol or name" },
+              content: [{ type: "text" as const, text: "❌ 缺少参数: symbol" }],
+              details: { error: "missing symbol" },
+            };
+          }
+
+          const name = findNameBySymbol(params.symbol);
+          if (!name) {
+            return {
+              content: [{ type: "text" as const, text: `❌ 未找到 ${params.symbol} 的交易日志` }],
+              details: { error: "log not found" },
             };
           }
 
@@ -179,7 +202,7 @@ export const tradeLogTool: ToolDefinition = {
             };
           }
 
-          service.update(params.symbol, params.name, updates);
+          service.update(params.symbol, name, updates);
 
           return {
             content: [{ type: "text" as const, text: `✅ 已更新 ${params.symbol} 的交易日志` }],
@@ -188,7 +211,7 @@ export const tradeLogTool: ToolDefinition = {
         }
 
         case "append_execution": {
-          const required = ["symbol", "name", "execution_date", "execution_action", "execution_price", "execution_quantity", "execution_reason"];
+          const required = ["symbol", "execution_date", "execution_action", "execution_price", "execution_quantity", "execution_reason"];
           const missing = required.filter(key => !params[key]);
           if (missing.length > 0) {
             return {
@@ -197,7 +220,15 @@ export const tradeLogTool: ToolDefinition = {
             };
           }
 
-          service.appendExecution(params.symbol, params.name, {
+          const name = findNameBySymbol(params.symbol);
+          if (!name) {
+            return {
+              content: [{ type: "text" as const, text: `❌ 未找到 ${params.symbol} 的交易日志` }],
+              details: { error: "log not found" },
+            };
+          }
+
+          service.appendExecution(params.symbol, name, {
             date: params.execution_date,
             operation: params.execution_action === "buy" ? "买入" : "卖出",
             quantity: params.execution_quantity,
@@ -213,7 +244,7 @@ export const tradeLogTool: ToolDefinition = {
         }
 
         case "append_tracking": {
-          const required = ["symbol", "name", "tracking_date", "tracking_close_price", "tracking_position", "tracking_pnl"];
+          const required = ["symbol", "tracking_date", "tracking_close_price", "tracking_position", "tracking_pnl"];
           const missing = required.filter(key => !params[key]);
           if (missing.length > 0) {
             return {
@@ -222,7 +253,15 @@ export const tradeLogTool: ToolDefinition = {
             };
           }
 
-          service.appendTracking(params.symbol, params.name, {
+          const name = findNameBySymbol(params.symbol);
+          if (!name) {
+            return {
+              content: [{ type: "text" as const, text: `❌ 未找到 ${params.symbol} 的交易日志` }],
+              details: { error: "log not found" },
+            };
+          }
+
+          service.appendTracking(params.symbol, name, {
             date: params.tracking_date,
             close_price: params.tracking_close_price,
             change_pct: 0, // 需要计算
