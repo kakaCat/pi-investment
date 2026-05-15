@@ -42,6 +42,7 @@ export interface PendingOrder {
   fill_price: number | null; // 实际成交价（null=未成交）
   status: OrderStatus;
   market: "A" | "HK";
+  commission_rate?: number; // 手续费率（可选），如 0.00025 表示万2.5，不设置则使用默认值
   created_at: string;
   updated_at: string;
   expires_at: string | null; // null=永不过期
@@ -135,10 +136,21 @@ export class OrderService {
    * @param market 市场类型
    * @param price 成交价格
    * @param quantity 成交数量
+   * @param customRate 可选：自定义手续费率（如 0.00025 表示万2.5），优先使用此值
    * @returns 手续费金额（保留2位小数）
    */
-  calculateCommission(market: "A" | "HK", price: number, quantity: number): number {
+  calculateCommission(
+    market: "A" | "HK",
+    price: number,
+    quantity: number,
+    customRate?: number
+  ): number {
     const amount = price * quantity;
+
+    // 如果提供了自定义费率，使用自定义费率（无最低限制）
+    if (customRate !== undefined) {
+      return roundN(amount * customRate, 2);
+    }
 
     // A股：万2.5，最低5元
     if (market === "A") {
@@ -203,6 +215,7 @@ export class OrderService {
     price: number;
     quantity: number;
     market: "A" | "HK";
+    commission_rate?: number; // 可选：自定义手续费率，如 0.00025 表示万2.5
     notes?: string;
     expires_in_minutes?: number; // 超时自动过期（分钟），不传=永不过期
   }): PendingOrder {
@@ -231,6 +244,7 @@ export class OrderService {
       fill_price: null,
       status: "pending",
       market: params.market,
+      commission_rate: params.commission_rate, // 保存自定义手续费率
       created_at: now,
       updated_at: now,
       expires_at: expiresAt,
@@ -499,8 +513,13 @@ export class OrderService {
 
     try {
       if (order.side === "buy") {
-        // 买入：计算手续费
-        const commission = this.calculateCommission(order.market, fillPrice, fillQty);
+        // 买入：计算手续费（优先使用挂单的自定义费率）
+        const commission = this.calculateCommission(
+          order.market,
+          fillPrice,
+          fillQty,
+          order.commission_rate
+        );
         const result = this.portfolioService.add(
           order.symbol,
           fillQty,
@@ -532,8 +551,13 @@ export class OrderService {
           console.warn("交易记录失败:", e);
         }
       } else {
-        // 卖出：计算手续费并调用 PortfolioService.sell()
-        const commission = this.calculateCommission(order.market, fillPrice, fillQty);
+        // 卖出：计算手续费（优先使用挂单的自定义费率）并调用 PortfolioService.sell()
+        const commission = this.calculateCommission(
+          order.market,
+          fillPrice,
+          fillQty,
+          order.commission_rate
+        );
         sellResult = this.portfolioService.sell(
           order.symbol,
           fillQty,

@@ -73,6 +73,7 @@ async function handlePlace(params: {
   price: number;
   quantity: number;
   market: "A" | "HK";
+  commission_rate?: number;
   notes?: string;
   expires_in_minutes?: number;
 }): Promise<string> {
@@ -89,6 +90,7 @@ async function handlePlace(params: {
     `| 价格 | ${fmtPrice(order.price)} |`,
     `| 数量 | ${order.quantity}股 |`,
     `| 市场 | ${order.market === "A" ? "A股" : "港股"} |`,
+    `| 手续费率 | ${order.commission_rate ? `${(order.commission_rate * 10000).toFixed(2)}‱` : "默认"} |`,
     `| 挂单编号 | \`${order.id}\` |`,
     `| 有效期限 | ${order.expires_at ? order.expires_at : "永久有效"} |`,
     `| 备注 | ${order.notes || "-"} |`,
@@ -290,6 +292,7 @@ export const manageOrdersTool: ToolDefinition = {
     price: Type.Optional(Type.Number({ description: "挂单价/止损价（place时使用）" })),
     quantity: Type.Optional(Type.Integer({ description: "挂单数量（股），如 300（place时使用）" })),
     market: Type.Optional(Type.String({ description: "市场: 'A'=A股（默认）, 'HK'=港股（place时使用）" })),
+    commission_rate: Type.Optional(Type.Number({ description: "自定义手续费率（可选），如 0.0003 表示万3，不传则使用默认值（A股万2.5，港股万5）（place时使用）" })),
     notes: Type.Optional(Type.String({ description: "备注（place时使用）" })),
     expires_in_minutes: Type.Optional(Type.Integer({ description: "有效期（分钟），不传=永久有效（place时使用）" })),
     // cancel 参数
@@ -327,6 +330,7 @@ export const manageOrdersTool: ToolDefinition = {
             price: params.price,
             quantity: params.quantity,
             market: params.market || "A",
+            commission_rate: params.commission_rate,
             notes: params.notes,
             expires_in_minutes: params.expires_in_minutes,
           });

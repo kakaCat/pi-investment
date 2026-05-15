@@ -331,5 +331,45 @@ describe("OrderService - High-level business methods", () => {
       expect(sellTrade?.commission).toBe(50);
       expect(sellTrade?.amount).toBe(200000);
     });
+
+    test("uses custom commission rate when provided", () => {
+      // 自定义费率：万3 (0.0003)
+      const customRate = 0.0003;
+
+      // 小额交易：使用自定义费率，无最低限制
+      // 10 * 100 * 0.0003 = 0.3
+      expect(orderService.calculateCommission("A", 10, 100, customRate)).toBe(0.3);
+
+      // 大额交易：按自定义费率计算
+      // 1800 * 1000 * 0.0003 = 540
+      expect(orderService.calculateCommission("A", 1800, 1000, customRate)).toBe(540);
+
+      // 港股也使用自定义费率
+      expect(orderService.calculateCommission("HK", 100, 1000, customRate)).toBe(30);
+    });
+
+    test("custom commission rate is applied in orders", async () => {
+      // 创建带自定义费率的买入挂单（万3）
+      const order = orderService.create({
+        symbol: "600519",
+        name: "茅台",
+        side: "buy",
+        type: "limit",
+        price: 1800,
+        quantity: 100,
+        market: "A",
+        commission_rate: 0.0003,
+      });
+
+      await orderService.fillOrder(order.id, 1800, 100);
+
+      // 验证持仓成本使用自定义费率
+      // 手续费 = 1800 * 100 * 0.0003 = 54
+      // 总成本 = 1800 * 100 + 54 = 180,054
+      // 均价 = 180,054 / 100 = 1800.54
+      const portfolio = portfolioService.load();
+      const holding = portfolio.holdings[0];
+      expect(holding.avg_cost).toBeCloseTo(1800.54, 2);
+    });
   });
 });
