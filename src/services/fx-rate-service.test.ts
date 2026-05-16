@@ -20,4 +20,11 @@ describe("FxRateService", () => {
     const cachePath = join(TEST_DIR, "fx-rates.json");
     expect(existsSync(cachePath)).toBe(true);
   });
+
+  test("fetches FX rate from Sina", async () => {
+    const service = new FxRateService(TEST_DIR);
+    const rate = await service.fetchRateFromSina("HKDCNY");
+    expect(rate).toBeGreaterThan(0);
+    expect(rate).toBeLessThan(2);
+  }, 15000);
 });

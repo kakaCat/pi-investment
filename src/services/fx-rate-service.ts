@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
+import { fetchSinaFxRate } from "../infrastructure/data-sources/sina-fx.js";
 
 export interface FxRatesFile {
   rates: {
@@ -42,5 +43,9 @@ export class FxRateService {
 
   private saveCache(data: FxRatesFile): void {
     writeFileSync(this.cachePath, JSON.stringify(data, null, 2), "utf-8");
+  }
+
+  async fetchRateFromSina(pair: "HKDCNY"): Promise<number> {
+    return fetchSinaFxRate(pair);
   }
 }
