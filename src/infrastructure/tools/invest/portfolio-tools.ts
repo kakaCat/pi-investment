@@ -23,6 +23,8 @@ export const managePortfolioTool: ToolDefinition = {
     "  'get' — list raw holdings (symbol, quantity, avg_cost, notes)\n" +
     "  'get_with_pnl' — list holdings enriched with current price, today's change%, P&L amount and %\n" +
     "  'add' — record a NEW position or ADD SHARES to an existing one (weighted avg cost is auto-calculated)\n" +
+    "    - For A-shares: provide avg_cost (CNY price)\n" +
+    "    - For HK stocks: provide price_hkd (HKD price) and set market='HK', FX conversion is automatic\n" +
     "  'sell' — record a SELL (减仓/清仓), auto-calculates P&L and writes to trades.json\n" +
     "  'update' — overwrite quantity/avg_cost directly (use to correct mistakes, not for adding shares)\n" +
     "  'remove' — delete a position entirely\n" +
@@ -37,7 +39,8 @@ export const managePortfolioTool: ToolDefinition = {
     ),
     symbol: Type.Optional(Type.String({ description: "Stock code — 6-digit A-share (e.g. '600519') or HK code (e.g. '09988'). Required for add/sell/update/remove." })),
     quantity: Type.Optional(Type.Integer({ description: "Number of shares (for add/sell/update)" })),
-    avg_cost: Type.Optional(Type.Number({ description: "Average cost per share in CNY/HKD (for add/update)" })),
+    avg_cost: Type.Optional(Type.Number({ description: "Average cost per share in CNY (for A-shares). Required for A-share 'add' action." })),
+    price_hkd: Type.Optional(Type.Number({ description: "HK stock price in HKD (港股港币价格). Required for HK stock 'add' action when market='HK'. Example: 666.57 for Tencent at 666.57 HKD." })),
     price: Type.Optional(Type.Number({ description: "Sell price per share (for sell action only, e.g. 118.80)" })),
     name: Type.Optional(Type.String({ description: "Stock name (optional, will be auto-filled from market data if omitted)" })),
     market: Type.Optional(Type.Union([Type.Literal("A"), Type.Literal("HK")], { description: "Market: 'A' for A-share (default), 'HK' for Hong Kong" })),
@@ -47,7 +50,7 @@ export const managePortfolioTool: ToolDefinition = {
     target_price: Type.Optional(Type.Number({ description: "目标价（可选），买入时自动创建止盈挂单，如 2160 表示涨到 2160 自动卖出" })),
   }),
   execute: async (_toolCallId, params: any) => {
-    const { action, symbol, quantity, avg_cost, price, name, market, notes, commission, stop_loss, target_price } = params;
+    const { action, symbol, quantity, avg_cost, price_hkd, price, name, market, notes, commission, stop_loss, target_price } = params;
     try {
       if (action === "get") {
         const data = _portfolioSvc.load();
@@ -58,71 +61,154 @@ export const managePortfolioTool: ToolDefinition = {
         return { content: [{ type: "text" as const, text: JSON.stringify(snapshot) }], details: undefined };
       }
       if (action === "add") {
-        if (!symbol || quantity == null || avg_cost == null) {
-          return { content: [{ type: "text" as const, text: JSON.stringify({ error: "add 需要 symbol, quantity, avg_cost", _no_operation_performed: true }) }], details: undefined };
+        // Validate common parameters
+        if (!symbol || quantity == null) {
+          return { content: [{ type: "text" as const, text: JSON.stringify({ error: "add 需要 symbol, quantity", _no_operation_performed: true }) }], details: undefined };
         }
         const qtyErr = validatePositiveNumber(quantity, "数量");
         if (qtyErr) return { content: [{ type: "text" as const, text: JSON.stringify({ error: qtyErr, _no_operation_performed: true }) }], details: undefined };
-        const costErr = validatePositiveNumber(avg_cost, "成本价");
-        if (costErr) return { content: [{ type: "text" as const, text: JSON.stringify({ error: costErr, _no_operation_performed: true }) }], details: undefined };
 
-        const res = _portfolioSvc.add(symbol, quantity, avg_cost, commission || 0, name ?? "", market ?? "A", notes ?? "");
-
-        // ✅ 优化1: 记录交易到 trades.json，保证数据一致性
-        try {
-          const ts = new TradeService(PI_DIR);
-          ts.add(chinaDate(), symbol, name || symbol, "buy", quantity, avg_cost, commission || 0, market ?? "A", notes || "手动录入");
-        } catch (e) {
-          console.warn("交易记录失败:", e);
-        }
-
-        // ✅ 优化3: 自动创建止损/止盈挂单
-        const ordersCreated: string[] = [];
-        if (stop_loss || target_price) {
-          try {
-            const { OrderService } = await import("../../../services/order-service.js");
-            const orderSvc = new OrderService(PI_DIR);
-
-            if (stop_loss && stop_loss > 0) {
-              const stopLossOrder = orderSvc.create({
-                symbol,
-                name: name || symbol,
-                side: "sell",
-                type: "stop_loss",
-                price: stop_loss,
-                quantity,
-                market: market ?? "A",
-                notes: `自动止损单（成本价 ${avg_cost}）`,
-              });
-              ordersCreated.push(`止损单 ${stop_loss}`);
-            }
-
-            if (target_price && target_price > avg_cost) {
-              const targetOrder = orderSvc.create({
-                symbol,
-                name: name || symbol,
-                side: "sell",
-                type: "limit",
-                price: target_price,
-                quantity,
-                market: market ?? "A",
-                notes: `自动止盈单（成本价 ${avg_cost}）`,
-              });
-              ordersCreated.push(`止盈单 ${target_price}`);
-            }
-          } catch (e) {
-            console.warn("创建挂单失败:", e);
+        // HK stock: requires price_hkd
+        if (market === "HK") {
+          if (price_hkd == null) {
+            return { content: [{ type: "text" as const, text: JSON.stringify({ error: "港股需要提供 price_hkd（港币价格）", _no_operation_performed: true }) }], details: undefined };
           }
+          const priceErr = validatePositiveNumber(price_hkd, "港币价格");
+          if (priceErr) return { content: [{ type: "text" as const, text: JSON.stringify({ error: priceErr, _no_operation_performed: true }) }], details: undefined };
+
+          // Call HK-specific method
+          const res = await _portfolioSvc.addHKStock(symbol, quantity, price_hkd, commission || 0, name ?? "", notes ?? "");
+
+          if (!res.success) {
+            return { content: [{ type: "text" as const, text: JSON.stringify({ error: res.message, _no_operation_performed: true }) }], details: undefined };
+          }
+
+          // Record trade with HK fields
+          try {
+            const ts = new TradeService(PI_DIR);
+            const { FxRateService } = await import("../../../services/fx-rate-service.js");
+            const fxService = new FxRateService(PI_DIR);
+            const fxRate = await fxService.getRate("HKDCNY");
+            const priceCNY = roundN(price_hkd * fxRate);
+
+            ts.addHKTrade(chinaDate(), symbol, name || symbol, "buy", quantity, priceCNY, price_hkd, fxRate, commission || 0, notes || "手动录入");
+          } catch (e) {
+            console.warn("交易记录失败:", e);
+          }
+
+          // Auto-create stop loss/target orders
+          const ordersCreated: string[] = [];
+          if (stop_loss || target_price) {
+            try {
+              const { OrderService } = await import("../../../services/order-service.js");
+              const orderSvc = new OrderService(PI_DIR);
+
+              if (stop_loss && stop_loss > 0) {
+                orderSvc.create({
+                  symbol,
+                  name: name || symbol,
+                  side: "sell",
+                  type: "stop_loss",
+                  price: stop_loss,
+                  quantity,
+                  market: "HK",
+                  notes: `自动止损单（成本价 ${price_hkd} HKD）`,
+                });
+                ordersCreated.push(`止损单 ${stop_loss}`);
+              }
+
+              if (target_price && target_price > price_hkd) {
+                orderSvc.create({
+                  symbol,
+                  name: name || symbol,
+                  side: "sell",
+                  type: "limit",
+                  price: target_price,
+                  quantity,
+                  market: "HK",
+                  notes: `自动止盈单（成本价 ${price_hkd} HKD）`,
+                });
+                ordersCreated.push(`止盈单 ${target_price}`);
+              }
+            } catch (e) {
+              console.warn("创建挂单失败:", e);
+            }
+          }
+
+          const resultWithOrders = {
+            ...res,
+            orders_created: ordersCreated.length > 0 ? ordersCreated : undefined,
+            message: res.message + (ordersCreated.length > 0 ? `，已自动创建挂单: ${ordersCreated.join("、")}` : ""),
+          };
+
+          return { content: [{ type: "text" as const, text: JSON.stringify(resultWithOrders) }], details: undefined };
         }
 
-        // 返回结果，包含挂单创建信息
-        const resultWithOrders = {
-          ...res,
-          orders_created: ordersCreated.length > 0 ? ordersCreated : undefined,
-          message: res.message + (ordersCreated.length > 0 ? `，已自动创建挂单: ${ordersCreated.join("、")}` : ""),
-        };
+        // A-share: requires avg_cost
+        else {
+          if (avg_cost == null) {
+            return { content: [{ type: "text" as const, text: JSON.stringify({ error: "A股需要提供 avg_cost（人民币成本）", _no_operation_performed: true }) }], details: undefined };
+          }
+          const costErr = validatePositiveNumber(avg_cost, "成本价");
+          if (costErr) return { content: [{ type: "text" as const, text: JSON.stringify({ error: costErr, _no_operation_performed: true }) }], details: undefined };
 
-        return { content: [{ type: "text" as const, text: JSON.stringify(resultWithOrders) }], details: undefined };
+          const res = _portfolioSvc.add(symbol, quantity, avg_cost, commission || 0, name ?? "", market ?? "A", notes ?? "");
+
+          // Record trade to trades.json
+          try {
+            const ts = new TradeService(PI_DIR);
+            ts.add(chinaDate(), symbol, name || symbol, "buy", quantity, avg_cost, commission || 0, market ?? "A", notes || "手动录入");
+          } catch (e) {
+            console.warn("交易记录失败:", e);
+          }
+
+          // Auto-create stop loss/target orders
+          const ordersCreated: string[] = [];
+          if (stop_loss || target_price) {
+            try {
+              const { OrderService } = await import("../../../services/order-service.js");
+              const orderSvc = new OrderService(PI_DIR);
+
+              if (stop_loss && stop_loss > 0) {
+                orderSvc.create({
+                  symbol,
+                  name: name || symbol,
+                  side: "sell",
+                  type: "stop_loss",
+                  price: stop_loss,
+                  quantity,
+                  market: market ?? "A",
+                  notes: `自动止损单（成本价 ${avg_cost}）`,
+                });
+                ordersCreated.push(`止损单 ${stop_loss}`);
+              }
+
+              if (target_price && target_price > avg_cost) {
+                orderSvc.create({
+                  symbol,
+                  name: name || symbol,
+                  side: "sell",
+                  type: "limit",
+                  price: target_price,
+                  quantity,
+                  market: market ?? "A",
+                  notes: `自动止盈单（成本价 ${avg_cost}）`,
+                });
+                ordersCreated.push(`止盈单 ${target_price}`);
+              }
+            } catch (e) {
+              console.warn("创建挂单失败:", e);
+            }
+          }
+
+          const resultWithOrders = {
+            ...res,
+            orders_created: ordersCreated.length > 0 ? ordersCreated : undefined,
+            message: res.message + (ordersCreated.length > 0 ? `，已自动创建挂单: ${ordersCreated.join("、")}` : ""),
+          };
+
+          return { content: [{ type: "text" as const, text: JSON.stringify(resultWithOrders) }], details: undefined };
+        }
       }
       if (action === "sell") {
         if (!symbol || quantity == null || price == null) {

@@ -156,6 +156,60 @@ export class TradeService {
     });
   }
 
+  addHKTrade(
+    date: string,
+    symbol: string,
+    name: string,
+    action: TradeAction,
+    quantity: number,
+    priceCNY: number,
+    priceHKD: number,
+    fxRate: number,
+    commission = 0,
+    notes = "",
+    pnl?: number,
+    pnl_pct?: number,
+  ): Trade {
+    if (quantity <= 0) throw new Error("quantity 必须大于0");
+    if (priceCNY <= 0) throw new Error("priceCNY 必须大于0");
+    if (priceHKD <= 0) throw new Error("priceHKD 必须大于0");
+    if (fxRate <= 0) throw new Error("fxRate 必须大于0");
+    if (commission < 0) throw new Error("commission 不能小于0");
+
+    return FileLockService.withLockSync(this.filePath, () => {
+      const data = this.load();
+
+      if (action === "sell") {
+        const openQty = this.buildSnapshot().get(symbol)?.quantity ?? 0;
+        if (openQty < quantity) {
+          throw new Error(`卖出数量超过当前持仓: ${symbol} 持仓 ${openQty} 股，尝试卖出 ${quantity} 股`);
+        }
+      }
+
+      const trade: Trade = {
+        id: makeId(),
+        date, symbol, name, action, quantity,
+        price: priceCNY,
+        price_hkd: priceHKD,
+        fx_rate: fxRate,
+        commission: roundN(commission),
+        amount: roundN(quantity * priceCNY),
+        market: "HK",
+        notes,
+        ...(pnl !== undefined && { pnl: roundN(pnl) }),
+        ...(pnl_pct !== undefined && { pnl_pct: roundN(pnl_pct) }),
+      };
+
+      data.trades.push(trade);
+      data.trades.sort((a, b) => a.date.localeCompare(b.date));
+
+      data.last_updated = nowStr();
+      writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+
+      return trade;
+    });
+  }
+
   remove(id: string): boolean {
     return FileLockService.withLockSync(this.filePath, () => {
       const data = this.load();
