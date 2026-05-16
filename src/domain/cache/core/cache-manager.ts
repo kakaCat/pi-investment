@@ -25,6 +25,16 @@ export class CacheManager {
     return CacheManager.instance;
   }
 
+  /**
+   * Reset singleton instance (for testing)
+   */
+  static resetInstance(): void {
+    if (CacheManager.instance) {
+      CacheManager.instance.destroy();
+      CacheManager.instance = null;
+    }
+  }
+
   async get<T>(namespace: CacheNamespace, key: string): Promise<T | null> {
     return this.namespaces[namespace].get<T>(key);
   }

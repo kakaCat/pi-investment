@@ -2,14 +2,28 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { CacheManager } from './cache-manager.js';
 import { EventBus } from './event-bus.js';
 import { CacheMonitor } from './cache-monitor.js';
-import { unlinkSync, existsSync } from 'fs';
+import { StorageFactory } from '../storage/storage-factory.js';
+import { mkdtempSync, rmSync, existsSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 describe('CacheManager Integration', () => {
   let manager: CacheManager;
   let eventBus: EventBus;
   let monitor: CacheMonitor;
+  let testDir: string;
+  let testDbPath: string;
 
   beforeEach(() => {
+    // Create temporary directory for test
+    testDir = mkdtempSync(join(tmpdir(), 'cache-test-'));
+    testDbPath = join(testDir, 'cache.db');
+
+    // Configure factory to use test paths
+    StorageFactory.setTestPaths(testDbPath, testDir);
+
+    // Reset and get fresh instances
+    CacheManager.resetInstance();
     manager = CacheManager.getInstance();
     eventBus = EventBus.getInstance();
     monitor = CacheMonitor.getInstance();
@@ -19,9 +33,12 @@ describe('CacheManager Integration', () => {
 
   afterEach(() => {
     manager.destroy();
-    const dbPath = '.pi-invest/cache.db';
-    if (existsSync(dbPath)) {
-      unlinkSync(dbPath);
+    CacheManager.resetInstance();
+    StorageFactory.resetPaths();
+
+    // Clean up test directory
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
     }
   });
 

@@ -1,21 +1,23 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { FileStorage } from './file-storage.js';
-import { unlinkSync, existsSync } from 'fs';
+import { mkdtempSync, rmSync, existsSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 describe('FileStorage', () => {
-  const testFilePath = '.pi-invest/cache/test-static.json';
+  let testDir: string;
+  let testFilePath: string;
   let storage: FileStorage;
 
   beforeEach(() => {
-    if (existsSync(testFilePath)) {
-      unlinkSync(testFilePath);
-    }
+    testDir = mkdtempSync(join(tmpdir(), 'cache-test-'));
+    testFilePath = join(testDir, 'test-static.json');
     storage = new FileStorage(testFilePath);
   });
 
   afterEach(() => {
-    if (existsSync(testFilePath)) {
-      unlinkSync(testFilePath);
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
     }
   });
 

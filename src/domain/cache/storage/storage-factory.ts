@@ -5,14 +5,33 @@ import { SQLiteStorage } from './sqlite-storage.js';
 import { FileStorage } from './file-storage.js';
 
 export class StorageFactory {
+  private static dbPath = '.pi-invest/cache.db';
+  private static cacheDir = '.pi-invest/cache';
+
+  /**
+   * Set custom paths for testing
+   */
+  static setTestPaths(dbPath: string, cacheDir: string): void {
+    this.dbPath = dbPath;
+    this.cacheDir = cacheDir;
+  }
+
+  /**
+   * Reset to default production paths
+   */
+  static resetPaths(): void {
+    this.dbPath = '.pi-invest/cache.db';
+    this.cacheDir = '.pi-invest/cache';
+  }
+
   static create(config: CacheConfig): IStorage {
     switch (config.storageType) {
       case 'memory':
         return new MemoryStorage(config.maxSize);
       case 'sqlite':
-        return new SQLiteStorage('.pi-invest/cache.db', config.namespace);
+        return new SQLiteStorage(this.dbPath, config.namespace);
       case 'file':
-        return new FileStorage(`.pi-invest/cache/${config.namespace}.json`);
+        return new FileStorage(`${this.cacheDir}/${config.namespace}.json`);
       default:
         throw new Error(`Unknown storage type: ${config.storageType}`);
     }

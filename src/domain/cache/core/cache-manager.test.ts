@@ -1,19 +1,31 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { CacheManager } from './cache-manager.js';
-import { unlinkSync, existsSync } from 'fs';
+import { StorageFactory } from '../storage/storage-factory.js';
+import { mkdtempSync, rmSync, existsSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 describe('CacheManager', () => {
   let manager: CacheManager;
+  let testDir: string;
+  let testDbPath: string;
 
   beforeEach(() => {
+    testDir = mkdtempSync(join(tmpdir(), 'cache-test-'));
+    testDbPath = join(testDir, 'cache.db');
+    StorageFactory.setTestPaths(testDbPath, testDir);
+
+    CacheManager.resetInstance();
     manager = CacheManager.getInstance();
   });
 
   afterEach(() => {
     manager.destroy();
-    const dbPath = '.pi-invest/cache.db';
-    if (existsSync(dbPath)) {
-      unlinkSync(dbPath);
+    CacheManager.resetInstance();
+    StorageFactory.resetPaths();
+
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
     }
   });
 
