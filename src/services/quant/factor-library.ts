@@ -1,4 +1,5 @@
 import { StockDBService } from '../data/stock-db-service.js';
+import { get_stock_history } from '../../infrastructure/akshare-ts/index.js';
 
 export interface TechnicalIndicators {
   rsi: number;
@@ -47,6 +48,54 @@ export class FactorLibrary {
   }
 
   /**
+   * Get K-line data with fallback to akshare-ts
+   * @param symbol Stock symbol
+   * @param date Optional date
+   * @returns K-line data arrays
+   */
+  private async getKlineData(
+    symbol: string,
+    date?: string
+  ): Promise<{
+    closes: number[];
+    highs: number[];
+    lows: number[];
+    volumes: number[];
+  }> {
+    try {
+      if (!this.stockDBService) throw new Error('StockDBService not initialized');
+
+      const klines = this.stockDBService.getKlines(symbol, undefined, date);
+      if (!klines || klines.length === 0) {
+        throw new Error('No data from StockDBService');
+      }
+
+      return {
+        closes: klines.map(k => k.close),
+        highs: klines.map(k => k.high),
+        lows: klines.map(k => k.low),
+        volumes: klines.map(k => k.volume)
+      };
+    } catch (error) {
+      // Fallback to akshare-ts
+      console.log(`[FactorLibrary] Falling back to akshare-ts for ${symbol}`);
+      const historyJson = await get_stock_history(symbol, 'daily', undefined, date);
+      const historyData = JSON.parse(historyJson);
+
+      if (historyData.error || !historyData.data || historyData.data.length === 0) {
+        throw new Error(`No K-line data found for ${symbol}`);
+      }
+
+      return {
+        closes: historyData.data.map((d: any) => d.close || d.收盘 || 0),
+        highs: historyData.data.map((d: any) => d.high || d.最高 || 0),
+        lows: historyData.data.map((d: any) => d.low || d.最低 || 0),
+        volumes: historyData.data.map((d: any) => d.volume || d.成交量 || 0)
+      };
+    }
+  }
+
+  /**
    * Calculate RSI (Relative Strength Index) from array
    * @param closes Array of closing prices
    * @param period RSI period (default 14)
@@ -81,7 +130,6 @@ export class FactorLibrary {
    */
   private calculateMAFromArray(closes: number[], period: number): number {
     if (period <= 0) throw new Error('Period must be positive');
-    if (period < 0) throw new Error('Period cannot be negative');
     if (closes.length === 0) return 0;
     if (closes.length < period) return closes[closes.length - 1] || 0;
 
@@ -123,8 +171,8 @@ export class FactorLibrary {
     const ema26 = this.calculateEMAFromArray(closes, 26);
     const dif = ema12 - ema26;
 
-    // For DEA, we need to calculate EMA of DIF values
-    // Simplified: use single DIF value for now
+    // TODO: This is a simplified DEA calculation using single DIF value
+    // For production, should calculate EMA-9 of historical DIF series
     const difValues = [dif];
     const dea = this.calculateEMAFromArray(difValues, 9);
     const histogram = dif - dea;
@@ -247,16 +295,7 @@ export class FactorLibrary {
     const cached = this.getFromCache(cacheKey, date);
     if (cached !== null) return cached;
 
-    if (!this.stockDBService) {
-      throw new Error('StockDBService not initialized');
-    }
-
-    const klines = this.stockDBService.getKlines(symbol, undefined, date);
-    if (klines.length === 0) {
-      throw new Error(`No K-line data found for ${symbol}`);
-    }
-
-    const closes = klines.map(k => k.close);
+    const { closes } = await this.getKlineData(symbol, date);
     const result = this.calculateMAFromArray(closes, period);
 
     this.setCache(cacheKey, result, date);
@@ -271,16 +310,7 @@ export class FactorLibrary {
     const cached = this.getFromCache(cacheKey, date);
     if (cached !== null) return cached;
 
-    if (!this.stockDBService) {
-      throw new Error('StockDBService not initialized');
-    }
-
-    const klines = this.stockDBService.getKlines(symbol, undefined, date);
-    if (klines.length === 0) {
-      throw new Error(`No K-line data found for ${symbol}`);
-    }
-
-    const closes = klines.map(k => k.close);
+    const { closes } = await this.getKlineData(symbol, date);
     const result = this.calculateEMAFromArray(closes, period);
 
     this.setCache(cacheKey, result, date);
@@ -295,16 +325,7 @@ export class FactorLibrary {
     const cached = this.getFromCache(cacheKey, date);
     if (cached !== null) return cached;
 
-    if (!this.stockDBService) {
-      throw new Error('StockDBService not initialized');
-    }
-
-    const klines = this.stockDBService.getKlines(symbol, undefined, date);
-    if (klines.length === 0) {
-      throw new Error(`No K-line data found for ${symbol}`);
-    }
-
-    const closes = klines.map(k => k.close);
+    const { closes } = await this.getKlineData(symbol, date);
     const result = this.calculateRSIFromArray(closes, period);
 
     this.setCache(cacheKey, result, date);
@@ -319,16 +340,7 @@ export class FactorLibrary {
     const cached = this.getFromCache(cacheKey, date);
     if (cached !== null) return cached;
 
-    if (!this.stockDBService) {
-      throw new Error('StockDBService not initialized');
-    }
-
-    const klines = this.stockDBService.getKlines(symbol, undefined, date);
-    if (klines.length === 0) {
-      throw new Error(`No K-line data found for ${symbol}`);
-    }
-
-    const closes = klines.map(k => k.close);
+    const { closes } = await this.getKlineData(symbol, date);
     const { dif, dea, histogram } = this.calculateMACDFromArray(closes);
     const result = { dif, dea, macd: histogram };
 
@@ -349,16 +361,7 @@ export class FactorLibrary {
     const cached = this.getFromCache(cacheKey, date);
     if (cached !== null) return cached;
 
-    if (!this.stockDBService) {
-      throw new Error('StockDBService not initialized');
-    }
-
-    const klines = this.stockDBService.getKlines(symbol, undefined, date);
-    if (klines.length === 0) {
-      throw new Error(`No K-line data found for ${symbol}`);
-    }
-
-    const closes = klines.map(k => k.close);
+    const { closes } = await this.getKlineData(symbol, date);
     const { upper, mid, lower } = this.calculateBollinger(closes, period, stdDev);
     const result = { upper, middle: mid, lower };
 
