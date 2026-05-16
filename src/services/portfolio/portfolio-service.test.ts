@@ -146,7 +146,7 @@ describe("PortfolioService", () => {
     expect(sellTrade?.pnl_pct).toBeCloseTo(48.51, 1); // 195 / 402 * 100
   });
 
-  test("stores HK stock with avg_cost_hkd and purchase_fx_rate", () => {
+  test("stores HK stock without FX fields when using add()", () => {
     const testDir = mkdtempSync(join(tmpdir(), "pi-invest-hk-fx-"));
     const service = new PortfolioService(testDir);
 
@@ -157,7 +157,7 @@ describe("PortfolioService", () => {
 
     expect(holding).toBeDefined();
     expect(holding?.avg_cost).toBe(589.71);
-    expect(holding?.avg_cost_hkd).toBeUndefined(); // Will be added in next step
-    expect(holding?.purchase_fx_rate).toBeUndefined();
+    expect(holding?.avg_cost_hkd).toBeUndefined(); // add() doesn't set HK fields
+    expect(holding?.purchase_fx_rate).toBeUndefined(); // addHKStock() will set these in Task 5
   });
 });

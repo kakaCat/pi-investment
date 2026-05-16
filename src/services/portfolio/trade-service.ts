@@ -140,15 +140,9 @@ export class TradeService {
         commission: roundN(commission),
         amount: roundN(quantity * price),
         market, notes,
+        ...(pnl !== undefined && { pnl: roundN(pnl) }),
+        ...(pnl_pct !== undefined && { pnl_pct: roundN(pnl_pct) }),
       };
-
-      // 添加盈亏字段（仅当提供时）
-      if (pnl !== undefined) {
-        trade.pnl = roundN(pnl);
-      }
-      if (pnl_pct !== undefined) {
-        trade.pnl_pct = roundN(pnl_pct);
-      }
 
       data.trades.push(trade);
       // 按日期排序
