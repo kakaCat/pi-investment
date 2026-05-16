@@ -199,4 +199,33 @@ describe("PortfolioService", () => {
     expect(holding?.purchase_fx_rate).toBe(0.8850);
     expect(holding?.market).toBe("HK");
   });
+
+  test("addHKStock calculates weighted average when adding to existing position", async () => {
+    const testDir = mkdtempSync(join(tmpdir(), "pi-invest-hk-fx-"));
+    const service = new PortfolioService(testDir);
+
+    // Setup FX rate cache
+    const cache = {
+      rates: {
+        HKDCNY: { rate: 0.8850, date: "2026-05-16", updated_at: "2026-05-16 09:00:00", source: "sina" }
+      },
+      last_updated: "2026-05-16 09:00:00"
+    };
+    writeFileSync(join(testDir, "fx-rates.json"), JSON.stringify(cache, null, 2));
+
+    // First purchase: 100 shares at 666.57 HKD
+    await service.addHKStock("00700", 100, 666.57, 0, "腾讯控股", "");
+
+    // Second purchase: 50 shares at 680.00 HKD
+    await service.addHKStock("00700", 50, 680.00, 0, "腾讯控股", "");
+
+    const data = service.load();
+    const holding = data.holdings.find(h => h.symbol === "00700");
+
+    // Weighted average HKD: (666.57*100 + 680.00*50) / 150 = 671.05
+    expect(holding?.avg_cost_hkd).toBeCloseTo(671.05, 2);
+    // Weighted average CNY: (589.91*100 + 601.80*50) / 150 = 593.87
+    expect(holding?.avg_cost).toBeCloseTo(593.87, 2);
+    expect(holding?.quantity).toBe(150);
+  });
 });

@@ -290,10 +290,33 @@ export class PortfolioService {
     notes: string = ""
   ): Promise<{ success: boolean; message: string; updatedHolding?: Holding }> {
 
-    // 1. Get current FX rate
-    const fxRate = await this.fxRateService.getRate("HKDCNY");
+    // Validation
+    if (!symbol) {
+      return { success: false, message: "symbol 不能为空" };
+    }
+    if (quantity <= 0) {
+      return { success: false, message: "quantity 必须大于0" };
+    }
+    if (priceHKD <= 0) {
+      return { success: false, message: "priceHKD 必须大于0" };
+    }
+    if (commission < 0) {
+      return { success: false, message: "commission 不能小于0" };
+    }
+
+    // 1. Get current FX rate with error handling
+    let fxRate: number;
+    try {
+      fxRate = await this.fxRateService.getRate("HKDCNY");
+    } catch (error) {
+      return {
+        success: false,
+        message: `获取汇率失败: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
 
     // 2. Calculate CNY cost
+    // Note: Commission is in CNY and added after HKD→CNY conversion
     const totalCostHKD = priceHKD * quantity;
     const totalCostCNY = totalCostHKD * fxRate + commission;
     const avgCostCNY = roundN(totalCostCNY / quantity);
@@ -313,8 +336,10 @@ export class PortfolioService {
         const totalCostCNYWeighted = h.avg_cost * existingQty + avgCostCNY * quantity;
         const totalQty = existingQty + quantity;
 
+        // Weighted average costs
         const newAvgCostHKD = roundN(totalCostHKDWeighted / totalQty);
         const newAvgCostCNY = roundN(totalCostCNYWeighted / totalQty);
+        // Effective FX rate derived from averaged costs (includes commission impact)
         const newAvgFxRate = roundN(newAvgCostCNY / newAvgCostHKD, 4);
 
         data.holdings[idx] = {
