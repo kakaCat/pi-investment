@@ -28,13 +28,17 @@ export interface CacheConfig {
 }
 
 // 缓存事件类型
-export enum CacheEventType {
-  TRADING_DAY_CHANGE = 'trading_day_change',
-  FINANCIAL_REPORT = 'financial_report',
-  MANUAL_INVALIDATE = 'manual_invalidate',
-  ANNOUNCEMENT = 'announcement',
-  HOLDER_CHANGE = 'holder_change'
-}
+export type CacheEventType =
+  | 'cache:invalidate'
+  | 'cache:clear'
+  | 'cache:refresh'
+  | 'cache:set'
+  | 'cache:delete'
+  | 'trading_day_change'
+  | 'financial_report'
+  | 'manual_invalidate'
+  | 'announcement'
+  | 'holder_change';
 
 // 缓存事件
 export interface CacheEvent {
@@ -44,6 +48,7 @@ export interface CacheEvent {
     symbol?: string;
     namespace?: CacheNamespace;
     pattern?: string;
+    key?: string;
   };
 }
 
