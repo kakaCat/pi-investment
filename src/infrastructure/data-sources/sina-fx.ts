@@ -1,4 +1,8 @@
 export async function fetchSinaFxRate(pair: string): Promise<number> {
+  if (pair !== "HKDCNY") {
+    throw new Error(`不支持的汇率对: ${pair}`);
+  }
+
   const url = `https://hq.sinajs.cn/list=${pair}`;
 
   try {
@@ -21,6 +25,10 @@ export async function fetchSinaFxRate(pair: string): Promise<number> {
     }
 
     const parts = match[1].split(",");
+    if (parts.length < 2) {
+      throw new Error(`汇率数据格式错误: 字段数不足 (${parts.length})`);
+    }
+
     // Sina FX format: "time,buy_rate,sell_rate,..."
     // We use the buy rate (index 1)
     const rate = parseFloat(parts[1]);
