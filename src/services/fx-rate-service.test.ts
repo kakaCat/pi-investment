@@ -1,12 +1,12 @@
 import { describe, test, expect, beforeEach, afterEach } from "@jest/globals";
-import { FxRateService, FxRatesFile } from "./fx-rate-service.js";
+import { FxRateServiceAdapter, FxRatesFile } from "./fx-rate-service-adapter.js";
 import { mkdirSync, rmSync, existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { chinaDate, chinaDateTime } from "../utils/china-time.js";
 
 const TEST_DIR = join(process.cwd(), ".test-fx-rates");
 
-describe("FxRateService", () => {
+describe("FxRateServiceAdapter", () => {
   beforeEach(() => {
     if (existsSync(TEST_DIR)) rmSync(TEST_DIR, { recursive: true });
     mkdirSync(TEST_DIR, { recursive: true });
@@ -17,20 +17,20 @@ describe("FxRateService", () => {
   });
 
   test("initializes with empty cache file", () => {
-    const service = new FxRateService(TEST_DIR);
+    const service = new FxRateServiceAdapter(TEST_DIR);
     const cachePath = join(TEST_DIR, "fx-rates.json");
     expect(existsSync(cachePath)).toBe(true);
   });
 
   test("fetches FX rate from Sina", async () => {
-    const service = new FxRateService(TEST_DIR);
+    const service = new FxRateServiceAdapter(TEST_DIR);
     const rate = await service.fetchRateFromSina("HKDCNY");
     expect(rate).toBeGreaterThan(0);
     expect(rate).toBeLessThan(2);
   }, 15000);
 
   test("getRate returns cached rate if fresh", async () => {
-    const service = new FxRateService(TEST_DIR);
+    const service = new FxRateServiceAdapter(TEST_DIR);
 
     // Manually write a fresh cache
     const cache: FxRatesFile = {
@@ -51,7 +51,7 @@ describe("FxRateService", () => {
   });
 
   test("getRate fetches new rate if cache stale", async () => {
-    const service = new FxRateService(TEST_DIR);
+    const service = new FxRateServiceAdapter(TEST_DIR);
 
     // Write a stale cache (2 days ago)
     const yesterday = new Date();
@@ -77,7 +77,7 @@ describe("FxRateService", () => {
   }, 15000);
 
   test("getRate uses stale cache if fetch fails", async () => {
-    const service = new FxRateService(TEST_DIR);
+    const service = new FxRateServiceAdapter(TEST_DIR);
 
     // Write a stale cache
     const yesterday = new Date();
@@ -107,7 +107,7 @@ describe("FxRateService", () => {
   });
 
   test("getRate uses default if no cache and fetch fails", async () => {
-    const service = new FxRateService(TEST_DIR);
+    const service = new FxRateServiceAdapter(TEST_DIR);
 
     // Mock fetchRateFromSina to fail
     service.fetchRateFromSina = async () => {
@@ -119,7 +119,7 @@ describe("FxRateService", () => {
   });
 
   test("updateCache fetches and saves new rate", async () => {
-    const service = new FxRateService(TEST_DIR);
+    const service = new FxRateServiceAdapter(TEST_DIR);
 
     await service.updateCache();
 

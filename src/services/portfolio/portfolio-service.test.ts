@@ -4,7 +4,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { buildPortfolioSnapshotFromQuotes, PortfolioService, type Holding } from "./portfolio-service.js";
 import { TradeService } from "./trade-service.js";
-import { FxRateService } from "../fx-rate-service.js";
+import { FxRateServiceAdapter } from "../fx-rate-service-adapter.js";
 import * as akshareTs from "../../infrastructure/akshare-ts/index.js";
 
 describe("buildPortfolioSnapshotFromQuotes", () => {
