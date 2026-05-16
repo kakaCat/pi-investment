@@ -13,6 +13,7 @@ import { PerformanceMonitor } from "../infrastructure/monitoring/performance-mon
 import { CronService } from "../services/operations/cron-service.js";
 import { DailyReviewService } from "../services/operations/daily-review-service.js";
 import { StopLossAlertService } from "../services/operations/stop-loss-alert-service.js";
+import { FxRateService } from "../services/fx-rate-service.js";
 import { runWeeklyEvolution } from "../services/intelligence/evolution-service.js";
 import { saveSessionMemoryAsync } from "../services/intelligence/session-memory-saver.js";
 import { join } from "path";
@@ -36,6 +37,7 @@ async function main() {
     // 初始化服务
     const reviewService = new DailyReviewService(piDir);
     const alertService = new StopLossAlertService(piDir);
+    const fxRateService = new FxRateService(piDir);
 
     // 启动时自动复盘检查（工作日收盘后，且今日未复盘）
     if (reviewService.shouldAutoRun()) {
@@ -113,6 +115,13 @@ async function main() {
         } else if (payload.kind === "agent_turn" && payload.message) {
           // 直接通过 session 注入消息
           await session.prompt(payload.message);
+        } else if (payload.kind === "system_event" && payload.message === "update_fx_rates") {
+          try {
+            await fxRateService.updateCache();
+            console.log("✅ 汇率缓存已更新");
+          } catch (error) {
+            console.error("❌ 汇率更新失败:", error);
+          }
         } else if (payload.kind === "system_event" && payload.text) {
           process.stdout.write(`\n[系统] ${payload.text}\n`);
         }
