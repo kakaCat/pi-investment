@@ -1,9 +1,10 @@
 import { describe, expect, test } from "@jest/globals";
-import { mkdtempSync } from "fs";
+import { mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { buildPortfolioSnapshotFromQuotes, PortfolioService, type Holding } from "./portfolio-service.js";
 import { TradeService } from "./trade-service.js";
+import { FxRateService } from "../fx-rate-service.js";
 
 describe("buildPortfolioSnapshotFromQuotes", () => {
   test("calculates per-position and aggregate pnl", () => {
@@ -159,5 +160,43 @@ describe("PortfolioService", () => {
     expect(holding?.avg_cost).toBe(589.71);
     expect(holding?.avg_cost_hkd).toBeUndefined(); // add() doesn't set HK fields
     expect(holding?.purchase_fx_rate).toBeUndefined(); // addHKStock() will set these in Task 5
+  });
+
+  test("addHKStock records HKD price and FX rate", async () => {
+    const testDir = mkdtempSync(join(tmpdir(), "pi-invest-hk-fx-"));
+    const service = new PortfolioService(testDir);
+
+    // Mock FX rate by creating a fresh cache
+    const cache = {
+      rates: {
+        HKDCNY: {
+          rate: 0.8850,
+          date: "2026-05-16",
+          updated_at: "2026-05-16 09:00:00",
+          source: "sina"
+        }
+      },
+      last_updated: "2026-05-16 09:00:00"
+    };
+    writeFileSync(join(testDir, "fx-rates.json"), JSON.stringify(cache, null, 2));
+
+    const result = await service.addHKStock(
+      "00700",
+      100,
+      666.57,  // HKD price
+      0,
+      "腾讯控股",
+      ""
+    );
+
+    expect(result.success).toBe(true);
+
+    const data = service.load();
+    const holding = data.holdings.find(h => h.symbol === "00700");
+
+    expect(holding?.avg_cost).toBeCloseTo(589.91, 2); // 666.57 * 0.8850 = 589.91
+    expect(holding?.avg_cost_hkd).toBe(666.57);
+    expect(holding?.purchase_fx_rate).toBe(0.8850);
+    expect(holding?.market).toBe("HK");
   });
 });

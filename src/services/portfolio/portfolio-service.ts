@@ -12,6 +12,7 @@ import { join } from "path";
 import { get_stock_realtime_price, get_hk_stock_price } from "../../infrastructure/akshare-ts/index.js";
 import { chinaDate, chinaDateTime } from "../../utils/china-time.js";
 import { FileLockService } from "../file-lock.service.js";
+import { FxRateService } from "../fx-rate-service.js";
 
 // ─── 数据结构 ──────────────────────────────────────────────────────────────
 
@@ -134,9 +135,11 @@ export function buildPortfolioSnapshotFromQuotes(
 export class PortfolioService {
   private filePath: string;
   private tradeService?: any;
+  private fxRateService: FxRateService;
 
   constructor(piDir: string) {
     this.filePath = join(piDir, "portfolio.json");
+    this.fxRateService = new FxRateService(piDir);
     mkdirSync(piDir, { recursive: true });
     this.ensureFile();
   }
@@ -258,6 +261,98 @@ export class PortfolioService {
         data.holdings.push(newHolding);
         data.last_updated = nowStr();
         writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+        return {
+          success: true,
+          message: `${symbol} 已录入持仓`,
+          updatedHolding: newHolding,
+        };
+      }
+    });
+  }
+
+  /**
+   * 录入港股持仓（带汇率转换）
+   *
+   * @param symbol 港股代码（5位）
+   * @param quantity 持股数量
+   * @param priceHKD 港币价格
+   * @param commission 手续费（人民币）
+   * @param name 股票名称
+   * @param notes 备注
+   * @returns 操作结果
+   */
+  async addHKStock(
+    symbol: string,
+    quantity: number,
+    priceHKD: number,
+    commission: number = 0,
+    name: string = "",
+    notes: string = ""
+  ): Promise<{ success: boolean; message: string; updatedHolding?: Holding }> {
+
+    // 1. Get current FX rate
+    const fxRate = await this.fxRateService.getRate("HKDCNY");
+
+    // 2. Calculate CNY cost
+    const totalCostHKD = priceHKD * quantity;
+    const totalCostCNY = totalCostHKD * fxRate + commission;
+    const avgCostCNY = roundN(totalCostCNY / quantity);
+
+    // 3. Check for existing holding
+    return FileLockService.withLockSync(this.filePath, () => {
+      const data = this.load();
+      const idx = data.holdings.findIndex(h => h.symbol === symbol);
+
+      if (idx >= 0) {
+        // Add to existing position (weighted average)
+        const h = data.holdings[idx];
+        const existingCostHKD = h.avg_cost_hkd || 0;
+        const existingQty = h.quantity;
+
+        const totalCostHKDWeighted = existingCostHKD * existingQty + priceHKD * quantity;
+        const totalCostCNYWeighted = h.avg_cost * existingQty + avgCostCNY * quantity;
+        const totalQty = existingQty + quantity;
+
+        const newAvgCostHKD = roundN(totalCostHKDWeighted / totalQty);
+        const newAvgCostCNY = roundN(totalCostCNYWeighted / totalQty);
+        const newAvgFxRate = roundN(newAvgCostCNY / newAvgCostHKD, 4);
+
+        data.holdings[idx] = {
+          ...h,
+          quantity: totalQty,
+          avg_cost: newAvgCostCNY,
+          avg_cost_hkd: newAvgCostHKD,
+          purchase_fx_rate: newAvgFxRate,
+          name: name || h.name,
+          notes: notes || h.notes,
+        };
+
+        data.last_updated = nowStr();
+        writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+
+        return {
+          success: true,
+          message: `${symbol} 已加仓，新均价 ${newAvgCostCNY.toFixed(2)} CNY (${newAvgCostHKD.toFixed(2)} HKD)`,
+          updatedHolding: data.holdings[idx],
+        };
+      } else {
+        // New position
+        const newHolding: Holding = {
+          symbol,
+          name,
+          quantity,
+          avg_cost: avgCostCNY,
+          avg_cost_hkd: priceHKD,
+          purchase_fx_rate: fxRate,
+          market: "HK",
+          notes,
+          added_date: today(),
+        };
+
+        data.holdings.push(newHolding);
+        data.last_updated = nowStr();
+        writeFileSync(this.filePath, JSON.stringify(data, null, 2), "utf-8");
+
         return {
           success: true,
           message: `${symbol} 已录入持仓`,
