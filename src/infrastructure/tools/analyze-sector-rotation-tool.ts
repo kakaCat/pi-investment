@@ -78,11 +78,11 @@ export const analyzeSectorRotationTool: ToolDefinition = {
 
       const sorted: SectorEntry[] = sectors
         .map((s: any) => ({
-          name: s.name || s.sector_name || "未知",
-          netInflow: Number(s.net_inflow || s.main_net_inflow || 0),
-          inflowPct: Number(s.inflow_pct || s.main_net_inflow_pct || 0),
-          price: Number(s.price || s.latest_price || 0),
-          changePct: Number(s.change_pct || s.pct_chg || 0),
+          name: s.行业 || s.name || s.sector_name || "未知",
+          netInflow: Number(s.净额 || s.net_inflow || s.main_net_inflow || 0),
+          inflowPct: Number(s["行业-涨跌幅"] || s.inflow_pct || s.main_net_inflow_pct || 0),
+          price: Number(s.行业指数 || s.price || s.latest_price || 0),
+          changePct: Number(s["行业-涨跌幅"] || s.change_pct || s.pct_chg || 0),
         }))
         .sort((a: SectorEntry, b: SectorEntry) => b.netInflow - a.netInflow);
 

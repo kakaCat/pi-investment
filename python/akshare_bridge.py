@@ -13,9 +13,73 @@ import sys
 import json
 import traceback
 import os
+import signal
+import math
+from functools import wraps
 
 # 禁用 tqdm 进度条（避免污染 stdout）
 os.environ['TQDM_DISABLE'] = '1'
+
+
+# ===== JSON 序列化辅助函数 =====
+def clean_nan_values(obj):
+    """
+    递归清理对象中的 NaN 和 Infinity 值，转换为 None
+    """
+    if isinstance(obj, dict):
+        return {k: clean_nan_values(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_nan_values(item) for item in obj]
+    elif isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    else:
+        return obj
+
+
+def json_serializer(obj):
+    """
+    自定义 JSON 序列化器，处理不可序列化对象
+    """
+    return str(obj)
+
+
+def safe_json_dumps(obj, **kwargs):
+    """
+    安全的 JSON 序列化，自动处理 NaN/Infinity
+    """
+    # 先清理 NaN/Infinity
+    cleaned_obj = clean_nan_values(obj)
+
+    kwargs.setdefault('ensure_ascii', False)
+    kwargs.setdefault('default', json_serializer)
+    return json.dumps(cleaned_obj, **kwargs)
+
+
+# ===== 超时装饰器 =====
+def timeout_decorator(seconds=30):
+    """为函数添加超时控制（仅 Unix 系统）"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            def timeout_handler(signum, frame):
+                raise TimeoutError(f"Function {func.__name__} timed out after {seconds} seconds")
+
+            # 设置信号处理器
+            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(seconds)
+
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                # 恢复原信号处理器
+                signal.alarm(0)
+                signal.signal(signal.SIGALRM, old_handler)
+
+            return result
+        return wrapper
+    return decorator
 
 
 def _safe_float(val, default=0.0, decimals=2):
@@ -408,6 +472,7 @@ def get_stock_history(symbol: str, period: str = "daily", start_date: str = None
 
 def get_financial_indicators(symbol: str) -> dict:
     import akshare as ak
+    import sys, traceback
     from datetime import datetime
     symbol = _clean_symbol(symbol)
     try:
@@ -415,41 +480,129 @@ def get_financial_indicators(symbol: str) -> dict:
         if df.empty:
             return {"error": f"无财务数据: {symbol}"}
 
-        # 按报告期分组，取最近4个季度
-        report_dates = df['report_date'].unique()[:4]
+        # akshare 返回宽格式：每行一个报告期，每列一个指标
+        # 数据按时间正序排列，取最后4个报告期（最新的）
+        df = df.tail(4).iloc[::-1]  # 取最后4行并反转，使最新的在前
         quarters = []
 
-        for report_date in report_dates:
-            period_data = df[df['report_date'] == report_date]
-            metrics = {row['metric_name']: _safe_float(row['value']) for _, row in period_data.iterrows()}
+        for _, row in df.iterrows():
+            # 提取关键指标，处理百分比字符串
+            def parse_pct(val):
+                if isinstance(val, str) and '%' in val:
+                    return _safe_float(val.replace('%', ''))
+                return _safe_float(val)
 
             quarters.append({
-                "report_date": report_date,
-                "roe": metrics.get("index_full_diluted_roe", 0),
-                "gross_margin": metrics.get("sale_gross_margin", 0),
-                "net_margin": metrics.get("sale_net_interest_ratio", 0),
-                "debt_ratio": metrics.get("equity_ratio", 0) * 100,
-                "current_ratio": metrics.get("current_ratio", 0),
+                "report_date": str(row['报告期']),
+                "roe": parse_pct(row.get('净资产收益率', 0)),
+                "gross_margin": parse_pct(row.get('销售毛利率', 0)),
+                "net_margin": parse_pct(row.get('销售净利率', 0)),
+                "debt_ratio": parse_pct(row.get('资产负债率', 0)),
+                "current_ratio": _safe_float(row.get('流动比率', 0)),
             })
 
-        return {"symbol": symbol, "quarters": quarters, "data": quarters, "data_date": datetime.now().strftime("%Y-%m-%d")}
+        result = {"symbol": symbol, "quarters": quarters, "data": quarters, "data_date": datetime.now().strftime("%Y-%m-%d")}
+        sys.stderr.write(f"[DEBUG] get_financial_indicators OK for {symbol}, {len(quarters)} quarters\n")
+        sys.stderr.flush()
+        return result
     except Exception as e:
+        tb = traceback.format_exc()
+        sys.stderr.write(f"[DEBUG] get_financial_indicators ERROR for {symbol}: {e}\n{tb}\n")
+        sys.stderr.flush()
         return {"error": str(e), "symbol": symbol}
 
 
 def get_sector_list() -> dict:
-    return {
-        "error": "板块数据接口不稳定，建议使用 get_market_overview 查看市场概况",
-        "count": 0,
-        "data": [],
-    }
+    """获取行业板块列表及今日涨跌幅
+
+    数据来源：东方财富网行业资金流向接口
+    返回：行业名称、板块指数、今日涨跌幅
+    """
+    from datetime import datetime
+    try:
+        import akshare as ak
+        df = ak.stock_fund_flow_industry(symbol='即时')
+        if df is None or df.empty:
+            return {"error": "板块数据暂时不可用", "count": 0, "data": []}
+        records = []
+        for _, row in df.iterrows():
+            records.append({
+                "name": str(row.get('行业', '')),
+                "code": "",
+                "count": int(row.get('公司家数', 0)) if row.get('公司家数') else 0,
+                "change_pct": float(row.get('行业-涨跌幅', 0)) if row.get('行业-涨跌幅') else 0,
+            })
+        return {"count": len(records), "data": records,
+                "data_date": datetime.now().strftime("%Y-%m-%d")}
+    except Exception as e:
+        return {"error": str(e), "count": 0, "data": []}
 
 
 def screen_stocks_by_sector(sector: str, min_roe: float = None, max_pe: float = None, limit: int = 20) -> dict:
-    return {
-        "error": "板块筛选接口字段变更，功能暂不可用。建议: 使用 get_stock_info 查询个股信息",
-        "sector": sector,
-    }
+    """按板块筛选股票（东方财富行业板块）
+
+    注意：此功能依赖东方财富网API，可能因网络问题或API变更而不可用
+    """
+    import akshare as ak
+    from datetime import datetime
+
+    try:
+        # 获取板块成分股
+        df = ak.stock_board_industry_cons_em(symbol=sector)
+
+        if df is None or df.empty:
+            return {
+                "error": f"未找到板块: {sector}",
+                "sector": sector,
+                "suggestion": "使用 get_stock_info 查询个股信息"
+            }
+
+        # 提取基本信息
+        results = []
+        for _, row in df.head(limit).iterrows():
+            stock = {
+                "code": str(row.get("代码", "")),
+                "name": str(row.get("名称", "")),
+                "price": float(row.get("最新价", 0)),
+                "change_pct": float(row.get("涨跌幅", 0)),
+            }
+
+            # 如果有PE和ROE数据，添加过滤
+            if "市盈率-动态" in row:
+                stock["pe"] = float(row.get("市盈率-动态", 0))
+            if "净资产收益率" in row:
+                stock["roe"] = float(row.get("净资产收益率", 0))
+
+            results.append(stock)
+
+        # 应用过滤条件
+        if max_pe is not None:
+            results = [s for s in results if s.get("pe", 0) > 0 and s["pe"] <= max_pe]
+        if min_roe is not None:
+            results = [s for s in results if s.get("roe", 0) >= min_roe]
+
+        return {
+            "sector": sector,
+            "count": len(results),
+            "data": results[:limit],
+            "data_date": datetime.now().strftime("%Y-%m-%d")
+        }
+
+    except Exception as e:
+        error_msg = str(e)
+        if "Connection" in error_msg or "Proxy" in error_msg or "Remote" in error_msg:
+            return {
+                "error": f"网络连接失败，无法获取板块数据: {sector}",
+                "sector": sector,
+                "suggestion": "请检查网络连接或稍后重试。建议使用 get_stock_info 查询个股信息",
+                "technical_error": error_msg[:200]
+            }
+        else:
+            return {
+                "error": f"板块筛选失败: {error_msg[:200]}",
+                "sector": sector,
+                "suggestion": "使用 get_stock_info 查询个股信息"
+            }
 
 
 def screen_stocks_quality(sector: str, min_score: int = 50, max_pe: float = None, limit: int = 10) -> dict:
@@ -599,6 +752,7 @@ def get_stock_news(symbol: str, num: int = 10) -> dict:
     return result
 
 
+@timeout_decorator(seconds=50)
 def get_market_news(num: int = 20) -> dict:
     """财经市场综合新闻 (财新 + 东财 + 百度 + 股吧)"""
     from datetime import datetime
@@ -638,7 +792,8 @@ def get_market_news(num: int = 20) -> dict:
             result["baidu_calendar"] = {"count": len(items), "data": items}
             result["sources"].append("baidu_calendar")
     except Exception as e:
-        result["baidu_error"] = str(e)
+        # Baidu API requires cookies - gracefully skip if unavailable
+        pass
 
     # 4. 东财股吧热帖 (市场情绪)
     try:
@@ -662,6 +817,16 @@ def get_hot_stocks(market: str = "A股") -> dict:
     """热搜/热门股票排行 (百度股市通)"""
     import akshare as ak
     from datetime import datetime
+
+    # Validate market parameter
+    valid_markets = ["全部", "A股", "港股", "美股"]
+    if market not in valid_markets:
+        return {
+            "error": f"无效的市场参数: {market}",
+            "valid_values": valid_markets,
+            "suggestion": "使用 get_lhb (龙虎榜) 或 get_sector_fund_flow (板块资金流) 查看市场热点"
+        }
+
     try:
         today = datetime.now().strftime("%Y%m%d")
         df = ak.stock_hot_search_baidu(symbol=market, date=today, time="今日")
@@ -670,12 +835,214 @@ def get_hot_stocks(market: str = "A股") -> dict:
         records = df.head(20).to_dict(orient="records")
         return {"market": market, "count": len(records), "data": records,
                 "data_date": today}
+    except (TypeError, KeyError) as e:
+        # Baidu API structure changed or deprecated
+        return {
+            "error": f"百度热搜API已失效 (API structure changed): {str(e)}",
+            "market": market,
+            "suggestion": "使用 get_lhb (龙虎榜) 或 get_sector_fund_flow (板块资金流) 查看市场热点"
+        }
     except Exception as e:
         return {"error": str(e), "market": market}
 
 
 def get_concept_stocks(concept: str) -> dict:
-    return {"error": "概念股接口不稳定，功能暂不可用", "concept": concept}
+    """获取概念板块成分股
+
+    数据来源：同花顺概念板块 (stock_board_concept_name_ths + 网页分页解析)
+    返回：概念板块成分股列表（股票代码、名称、价格、涨跌幅、市值）
+
+    注意：本函数使用同花顺数据源，与东方财富数据可能有概念名称差异。
+    如果输入的概念名称未找到，会尝试模糊匹配。
+    """
+    import akshare as ak
+    import requests
+    import re
+    from datetime import datetime
+
+    try:
+        # 第一步：获取所有概念板块名称，匹配输入的概念名
+        df_names = ak.stock_board_concept_name_ths()
+        if df_names is None or df_names.empty:
+            return {"error": "无法获取概念板块列表", "concept": concept}
+
+        # 精确匹配
+        matched = df_names[df_names['name'] == concept]
+        if matched.empty:
+            # 模糊匹配（包含关系）
+            matched = df_names[df_names['name'].str.contains(concept, na=False)]
+            if matched.empty:
+                # 反向匹配：概念名包含在板块名中
+                matched = df_names[df_names['name'].str.contains(concept, na=False, regex=False)]
+            if matched.empty:
+                return {
+                    "error": f"未找到概念: {concept}",
+                    "concept": concept,
+                    "suggestion": "可使用 get_concept_list 查看所有可用概念名称"
+                }
+
+        # 取第一个匹配项
+        row = matched.iloc[0]
+        concept_name = str(row['name'])
+        concept_code = str(row['code'])
+
+        # 第二步：用同花顺网页获取成分股（支持分页）
+        session = requests.Session()
+        session.trust_env = False  # 忽略系统代理
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        }
+
+        all_stocks = []
+        page = 1
+        max_pages = 10  # 最多爬10页（每页10只，即100只股票）
+        empty_pages = 0
+
+        while page <= max_pages:
+            url = f'http://q.10jqka.com.cn/gn/detail/code/{concept_code}/page/{page}/'
+            try:
+                r = session.get(url, headers=headers, timeout=10)
+            except Exception:
+                break
+
+            if r.status_code != 200:
+                break
+
+            # 解析表格行
+            rows = re.findall(r'<tr[^>]*>(.*?)</tr>', r.text, re.DOTALL)
+            page_stocks = []
+            for row_html in rows:
+                cells = re.findall(r'<td[^>]*>(.*?)</td>', row_html, re.DOTALL)
+                if len(cells) < 4:
+                    continue
+                code_match = re.search(r'(\d{6})', cells[1])
+                name = re.sub(r'<[^>]+>', '', cells[2]).strip()
+                price = re.sub(r'<[^>]+>', '', cells[3]).strip()
+                if not code_match or not name or '序号' in name:
+                    continue
+                stock_code = code_match.group(1)
+                # 提取涨跌幅（在第4列）
+                change_pct = 0.0
+                if len(cells) >= 5:
+                    change_text = re.sub(r'<[^>]+>', '', cells[4]).strip().replace('%', '')
+                    try:
+                        change_pct = float(change_text)
+                    except (ValueError, TypeError):
+                        change_pct = 0.0
+                page_stocks.append({
+                    "code": stock_code,
+                    "name": name,
+                    "price": _safe_float(price, 0),
+                    "change_pct": change_pct,
+                })
+
+            if not page_stocks:
+                empty_pages += 1
+                if empty_pages >= 2:  # 连续2页无数据则终止
+                    break
+            else:
+                empty_pages = 0
+                all_stocks.extend(page_stocks)
+
+            page += 1
+
+        # 如果没有从网页获取到数据，回退方案：用 fund_flow_concept 获取领涨股
+        if not all_stocks:
+            try:
+                df_flow = ak.stock_fund_flow_concept()
+                if df_flow is not None:
+                    # 找匹配的概念
+                    matched_flow = df_flow[df_flow['行业'] == concept_name]
+                    if not matched_flow.empty:
+                        lead_stock = matched_flow.iloc[0]
+                        leader_name = str(lead_stock.get('领涨股', ''))
+                        leader_price = float(lead_stock.get('当前价', 0))
+                        if leader_name and leader_name != '--':
+                            all_stocks.append({
+                                "code": "",
+                                "name": leader_name,
+                                "price": _safe_float(leader_price, 0),
+                                "change_pct": 0,
+                            })
+            except Exception:
+                pass
+
+        return {
+            "concept": concept_name,
+            "count": len(all_stocks),
+            "data": all_stocks[:50],  # 最多返回50只
+            "data_date": datetime.now().strftime("%Y-%m-%d")
+        }
+
+    except Exception as e:
+        return {
+            "error": f"获取概念股数据失败: {str(e)}",
+            "concept": concept
+        }
+
+
+def get_concept_list() -> dict:
+    """获取所有概念板块列表
+
+    数据来源：同花顺概念板块
+    返回：概念板块名称和代码列表
+    """
+    import akshare as ak
+    from datetime import datetime
+
+    try:
+        df = ak.stock_board_concept_name_ths()
+        if df is None or df.empty:
+            # fallback to 资金流接口
+            df = ak.stock_fund_flow_concept()
+            if df is not None and not df.empty:
+                concepts = []
+                for _, row in df.iterrows():
+                    concepts.append({
+                        "name": str(row.get('行业', '')),
+                        "code": "",
+                        "change_pct": float(row.get('行业-涨跌幅', 0)),
+                    })
+                return {
+                    "count": len(concepts),
+                    "data": concepts,
+                    "data_date": datetime.now().strftime("%Y-%m-%d"),
+                    "source": "fund_flow"
+                }
+            return {"error": "无法获取概念板块列表", "count": 0, "data": []}
+
+        concepts = []
+        for _, row in df.iterrows():
+            concepts.append({
+                "name": str(row.get('name', '')),
+                "code": str(row.get('code', '')),
+            })
+        return {
+            "count": len(concepts),
+            "data": concepts,
+            "data_date": datetime.now().strftime("%Y-%m-%d"),
+            "source": "ths"
+        }
+    except Exception as e:
+        try:
+            df = ak.stock_fund_flow_concept()
+            if df is not None and not df.empty:
+                concepts = []
+                for _, row in df.iterrows():
+                    concepts.append({
+                        "name": str(row.get('行业', '')),
+                        "code": "",
+                        "change_pct": float(row.get('行业-涨跌幅', 0)),
+                    })
+                return {
+                    "count": len(concepts),
+                    "data": concepts,
+                    "data_date": datetime.now().strftime("%Y-%m-%d"),
+                    "source": "fund_flow"
+                }
+        except Exception:
+            pass
+        return {"error": f"获取概念列表失败: {str(e)}", "count": 0, "data": []}
 
 
 def calculate_technical_indicators(symbol: str) -> dict:
@@ -1039,6 +1406,7 @@ def get_exit_plan(symbol: str, buy_price: float, shares: int = 100) -> dict:
         return {"error": str(e), "symbol": symbol}
 
 
+@timeout_decorator(seconds=50)
 def get_macro_data(indicators: list = None) -> dict:
     """宏观经济数据合集：PMI/CPI/GDP，判断经济周期和政策环境
 
@@ -1365,6 +1733,298 @@ def get_hk_analysis(symbol: str) -> dict:
     return result
 
 
+# ===== 新增：港股工具 ==========================================================
+
+def get_hk_market_overview() -> dict:
+    """港股三大指数实时行情：恒生指数、国企指数、恒生科技指数
+
+    数据来源：新浪财经（与 A 股 get_market_overview 相同的 Sina 数据源）
+    """
+    import requests as _req
+    from datetime import datetime
+    try:
+        r = _req.get(
+            "https://hq.sinajs.cn/list=rt_hkHSI,rt_hkHSCEI,rt_hkHSTECH",
+            headers={"Referer": "https://finance.sina.com.cn"},
+            timeout=10
+        )
+        r.encoding = "gbk"
+        lines = r.text.strip().split("\n")
+        indices = []
+        # 新浪港股指数格式：
+        # var hq_str_rt_hkXXX="name(GBK),open,prev_close,current,high,low,change,change_pct,...,high_52w,low_52w,date,time"
+
+        for line in lines:
+            line = line.strip()
+            if not line or not line.startswith("var "):
+                continue
+            # 提取 "=" 号后的引号内容
+            eq_idx = line.find("=")
+            if eq_idx == -1:
+                continue
+            raw = line[eq_idx + 1:].strip().strip('"').strip("'").strip(";")
+            parts = raw.split(",")
+            if len(parts) < 8:
+                continue
+            code_raw = parts[0]  # e.g. "HSI"
+            name_gbk = parts[1]
+            # 尝试解码 GBK
+            try:
+                name_bytes = name_gbk.encode("latin1")
+                name = name_bytes.decode("gbk")
+            except Exception:
+                name = name_gbk
+
+            open_price = _safe_float(parts[2])
+            prev_close = _safe_float(parts[3])
+            current = _safe_float(parts[4])
+            high = _safe_float(parts[5])
+            low = _safe_float(parts[6])
+            change = _safe_float(parts[7])
+            change_pct = _safe_float(parts[8])
+            date_str = parts[16] if len(parts) > 16 else ""
+            time_str = parts[17] if len(parts) > 17 else ""
+
+            indices.append({
+                "code": code_raw,
+                "name": name,
+                "current": current,
+                "change": change,
+                "change_pct": change_pct,
+                "open": open_price,
+                "high": high,
+                "low": low,
+                "prev_close": prev_close,
+                "data_date": date_str,
+                "data_time": time_str,
+            })
+
+        if not indices:
+            return {"error": "无法获取港股指数数据", "indices": []}
+
+        return {
+            "indices": indices,
+            "data_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+    except Exception as e:
+        return {"error": f"港股指数数据获取失败: {str(e)}", "indices": []}
+
+
+def get_hk_south_flow() -> dict:
+    """南向资金（港股通）流向
+
+    通过 akshare 获取港股通每日净买入额，判断内地资金流入流出趋势。
+    对应 A 股的 get_north_flow（北向资金）。
+    """
+    import akshare as ak
+    from datetime import datetime
+    try:
+        # 获取南向资金（沪深港通-南向）
+        df = ak.stock_hsgt_hist_em(symbol="南向资金")
+        if df is None or df.empty:
+            return {"error": "无南向资金数据", "data": []}
+
+        records = []
+        for _, row in df.tail(10).iterrows():
+            records.append({
+                "date": str(row.get("日期", "")),
+                "net_amount_billion": _safe_float(row.get("当日成交净买额", 0)),
+                "buy_amount_billion": _safe_float(row.get("买入成交额", 0)),
+                "sell_amount_billion": _safe_float(row.get("卖出成交额", 0)),
+            })
+
+        return {
+            "data": records,
+            "direction": "南向（内地→港股）",
+            "data_date": datetime.now().strftime("%Y-%m-%d"),
+        }
+    except Exception as e:
+        return {"error": str(e), "data": []}
+
+
+def get_hk_technical(symbol: str) -> dict:
+    """港股个股技术分析
+
+    基于 get_hk_stock_history 的历史数据，本地计算技术指标：
+    - 均线（MA5/MA10/MA20/MA60）
+    - MACD（DIF/DEA/柱）
+    - RSI-14
+    - 布林带（上/中/下轨）
+    - 信号判断
+
+    对应 A 股的 calculate_technical_indicators。
+    """
+    from datetime import datetime
+    import pandas as _pd
+
+    code = _hk_code(symbol)
+
+    # 1. 获取历史行情
+    hist = get_hk_stock_history(symbol, period="daily")
+    if "error" in hist or not hist.get("data"):
+        return {"error": f"无法获取{code}的历史数据", "symbol": code}
+
+    data = hist["data"]
+    if len(data) < 30:
+        return {"error": f"历史数据不足（{len(data)}条），需要至少30个交易日", "symbol": code}
+
+    closes = _pd.Series([r["close"] for r in data])
+    highs = _pd.Series([r["high"] for r in data])
+    lows = _pd.Series([r["low"] for r in data])
+    volumes = _pd.Series([r["volume"] for r in data])
+    dates = [r["date"] for r in data]
+
+    result = {
+        "symbol": code,
+        "market": "HK",
+        "data_date": datetime.now().strftime("%Y-%m-%d"),
+    }
+
+    # 2. 均线
+    ma_periods = {5: "MA5", 10: "MA10", 20: "MA20", 60: "MA60"}
+    ma_values = {}
+    for period, name in ma_periods.items():
+        if len(closes) >= period:
+            ma_values[name] = _safe_float(closes.tail(period).mean())
+    result["ma"] = ma_values
+
+    # 3. MACD
+    if len(closes) >= 26:
+        ema12 = closes.ewm(span=12, adjust=False).mean()
+        ema26 = closes.ewm(span=26, adjust=False).mean()
+        dif = ema12 - ema26
+        dea = dif.ewm(span=9, adjust=False).mean()
+        macd_hist = 2 * (dif - dea)
+        result["macd"] = {
+            "dif": _safe_float(dif.iloc[-1]),
+            "dea": _safe_float(dea.iloc[-1]),
+            "histogram": _safe_float(macd_hist.iloc[-1]),
+        }
+    else:
+        result["macd"] = None
+
+    # 4. RSI-14
+    if len(closes) >= 15:
+        delta = closes.diff()
+        gain = delta.where(delta > 0, 0.0)
+        loss = (-delta).where(delta < 0, 0.0)
+        avg_gain = gain.rolling(14).mean()
+        avg_loss = loss.rolling(14).mean()
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        result["rsi_14"] = _safe_float(rsi.iloc[-1])
+    else:
+        result["rsi_14"] = None
+
+    # 5. 布林带（20日）
+    if len(closes) >= 20:
+        ma20 = closes.tail(20).mean()
+        std20 = closes.tail(20).std()
+        result["bollinger"] = {
+            "upper": _safe_float(ma20 + 2 * std20),
+            "middle": _safe_float(ma20),
+            "lower": _safe_float(ma20 - 2 * std20),
+        }
+    else:
+        result["bollinger"] = None
+
+    # 6. 信号判断
+    signals = []
+    current = closes.iloc[-1]
+
+    # 均线排列
+    ma5 = ma_values.get("MA5")
+    ma10 = ma_values.get("MA10")
+    ma20_val = ma_values.get("MA20")
+    ma60_val = ma_values.get("MA60")
+
+    if ma5 and ma10 and ma20_val and ma60_val:
+        if current > ma5 > ma10 > ma20_val > ma60_val:
+            signals.append("多头排列（短期强势）")
+        elif current < ma5 < ma10 < ma20_val < ma60_val:
+            signals.append("空头排列（短期弱势）")
+        elif ma5 > ma10 and current > ma20_val:
+            signals.append("短期偏多")
+        elif ma5 < ma10 and current < ma20_val:
+            signals.append("短期偏空")
+        else:
+            signals.append("震荡整理")
+
+    # MACD 金叉/死叉
+    if result.get("macd") and result["macd"]["dif"] and result["macd"]["dea"]:
+        if result["macd"]["dif"] > result["macd"]["dea"]:
+            signals.append("MACD多头（DIF在DEA上方）")
+        else:
+            signals.append("MACD空头（DIF在DEA下方）")
+
+        # 金叉/死叉检查
+        if len(closes) >= 26:
+            # 用前一天的差值判断方向变化
+            dif_prev = _safe_float(dif.iloc[-2])
+            dea_prev = _safe_float(dea.iloc[-2])
+            if dif_prev < dea_prev and result["macd"]["dif"] > result["macd"]["dea"]:
+                signals.append("MACD金叉（买入信号）")
+            elif dif_prev > dea_prev and result["macd"]["dif"] < result["macd"]["dea"]:
+                signals.append("MACD死叉（卖出信号）")
+
+    # RSI
+    rsi_val = result.get("rsi_14")
+    if rsi_val is not None:
+        if rsi_val > 70:
+            signals.append("RSI超买（>70）")
+        elif rsi_val < 30:
+            signals.append("RSI超卖（<30）")
+
+    # 价格与布林带
+    boll = result.get("bollinger")
+    if boll:
+        if current >= boll["upper"]:
+            signals.append("价格触及布林上轨")
+        elif current <= boll["lower"]:
+            signals.append("价格触及布林下轨")
+
+    result["signals"] = signals
+    result["current_price"] = _safe_float(current)
+
+    return result
+
+
+def get_hk_hot_rank() -> dict:
+    """港股人气热度排行
+
+    通过 akshare 获取东方财富港股人气榜，了解今日港股市场最受关注的个股。
+    """
+    import akshare as ak
+    from datetime import datetime
+
+    try:
+        df = ak.stock_hk_hot_rank_em()
+
+        if df is None or df.empty:
+            return {"error": "无法获取港股人气排行", "stocks": []}
+
+        stocks = []
+        for _, row in df.iterrows():
+            stocks.append({
+                "rank": int(row.get("当前排名", 0)),
+                "symbol": str(row.get("代码", "")),
+                "name": str(row.get("股票名称", "")),
+                "price": _safe_float(row.get("最新价", 0)),
+                "change_pct": _safe_float(row.get("涨跌幅", 0)),
+            })
+
+        return {
+            "stocks": stocks,
+            "total": len(stocks),
+            "data_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+    except Exception as e:
+        return {"error": str(e), "stocks": []}
+
+
+# ===== End of HK tools =====
+
+
 def manage_portfolio(action: str, symbol: str = None, quantity: int = None, avg_cost: float = None, notes: str = "") -> dict:
     import os
     from datetime import datetime
@@ -1498,22 +2158,44 @@ def get_insider_trades(symbol: str) -> dict:
 
 # ===== 龙虎榜 =====
 
-def get_lhb(symbol: str = None, date: str = None, period: str = "近一月") -> dict:
-    """龙虎榜：有 symbol 则查个股统计，无 symbol 则查今日榜单明细"""
+@timeout_decorator(seconds=40)
+def get_lhb(symbol: str = None, date: str = None) -> dict:
+    """龙虎榜：有 symbol 则查个股统计，无 symbol 则查今日榜单明细
+
+    注意：akshare 最新版中 stock_lhb_stock_statistic_em(symbol) 的 symbol 参数
+    实际上表示统计周期（如 "近一月"），而非股票代码。
+    个股龙虎榜统计功能暂时不可用。
+    """
     import akshare as ak
     from datetime import datetime, timedelta
     if symbol:
+        # akShare 新版 API 变更：stock_lhb_stock_statistic_em(symbol) 的
+        # symbol 参数实际为 period 字符串，不再支持按股票代码查询。
+        # 使用 stock_lhb_detail_em 按日期筛选个股替代
         symbol = _clean_symbol(symbol)
         try:
-            df = ak.stock_lhb_stock_statistic_em(symbol=symbol, period=period)
+            # 获取最近 30 天的龙虎榜，按股票代码筛选
+            end = datetime.now()
+            start = end - timedelta(days=30)
+            df = ak.stock_lhb_detail_em(
+                start_date=start.strftime("%Y%m%d"),
+                end_date=end.strftime("%Y%m%d"),
+            )
             if df is None or df.empty:
-                return {"error": f"无龙虎榜统计: {symbol}", "symbol": symbol}
-            return {"symbol": symbol, "period": period, "count": len(df),
-                    "data": df.to_dict(orient="records"),
-                    "data_date": datetime.now().strftime("%Y-%m-%d")}
+                return {"error": f"无龙虎榜数据: {symbol}", "symbol": symbol}
+            # 筛选该股票
+            stock_df = df[df["代码"] == symbol].copy()
+            if stock_df.empty:
+                return {"error": f"该股近期未上龙虎榜: {symbol}", "symbol": symbol,
+                        "hint": "可使用不带参数的 get_lhb() 查看今日龙虎榜全榜"}
+            records = stock_df.head(10).to_dict(orient="records")
+            return {"symbol": symbol, "count": len(records), "data": records,
+                    "data_date": datetime.now().strftime("%Y-%m-%d"),
+                    "note": "个股统计周期为近30日明细（akShare API 变更后替代方案）"}
         except Exception as e:
             return {"error": str(e), "symbol": symbol}
     else:
+        # 无 symbol：获取昨日（或指定日期）榜单
         if not date:
             date = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
         try:
@@ -1525,10 +2207,12 @@ def get_lhb(symbol: str = None, date: str = None, period: str = "近一月") -> 
                 "涨跌幅": "change_pct", "龙虎榜净买额": "net_buy",
                 "龙虎榜买入额": "buy_amount", "龙虎榜卖出额": "sell_amount",
                 "净买额占总成交比": "net_buy_ratio", "上榜原因": "reason",
+                "解读": "analysis", "换手率": "turnover_rate",
             }
             df = df.rename(columns={k: v for k, v in col_map.items() if k in df.columns})
             return {"date": date, "count": len(df),
-                    "data": df.head(30).to_dict(orient="records")}
+                    "data": df.head(30).to_dict(orient="records"),
+                    "data_date": datetime.now().strftime("%Y-%m-%d")}
         except Exception as e:
             return {"error": str(e), "date": date}
 
@@ -1628,19 +2312,88 @@ def get_holder_changes(symbol: str) -> dict:
 def get_margin_data(symbol: str) -> dict:
     """融资融券数据：融资余额、融券余额、融资买入额、融券卖出量"""
     import akshare as ak
-    from datetime import datetime
+    from datetime import datetime, timedelta
+    import pandas as pd
+
     symbol = _clean_symbol(symbol)
+
+    # Validate symbol format (6-digit A-share code)
+    if not symbol.isdigit() or len(symbol) != 6:
+        return {"error": f"无效股票代码格式: {symbol}，需要6位数字", "symbol": symbol}
+
+    # Determine exchange based on first digit
+    # SSE: 6xxxxx (主板), 688xxx (科创板)
+    # SZSE: 0xxxxx (主板), 002xxx (中小板), 3xxxxx (创业板)
+    if symbol.startswith('6'):
+        exchange = 'sse'
+        api_func = ak.stock_margin_detail_sse
+        symbol_col = '标的证券代码'
+    elif symbol.startswith(('0', '2', '3')):
+        exchange = 'szse'
+        api_func = ak.stock_margin_detail_szse
+        symbol_col = '证券代码'
+    else:
+        return {"error": f"不支持的股票代码: {symbol}（仅支持沪深A股）", "symbol": symbol}
+
     try:
-        df = ak.stock_margin_detail_szse(symbol=symbol)
-        if df is None or df.empty:
-            df = ak.stock_margin_detail_sse(symbol=symbol)
-        if df is None or df.empty:
-            return {"error": f"无融资融券数据: {symbol}", "symbol": symbol}
-        records = df.tail(10).to_dict(orient="records")
-        return {"symbol": symbol, "count": len(records), "data": records,
-                "data_date": datetime.now().strftime("%Y-%m-%d")}
+        # akshare API changed: now returns all stocks for a given date, need to filter
+        # Try to get recent 10 trading days of data
+        results = []
+        errors = []
+        today = datetime.now()
+
+        for days_back in range(15):  # Try last 15 days to get ~10 trading days
+            date_str = (today - timedelta(days=days_back)).strftime("%Y%m%d")
+
+            try:
+                df = api_func(date=date_str)
+
+                if df is not None and not df.empty:
+                    # Use exact match, not substring
+                    if symbol_col not in df.columns:
+                        errors.append(f"{date_str}: 列名不匹配 (expected {symbol_col})")
+                        continue
+
+                    # Exact match on symbol
+                    filtered = df[df[symbol_col].astype(str) == symbol]
+                    if not filtered.empty:
+                        record = filtered.iloc[0].to_dict()
+                        results.append(record)
+
+                        if len(results) >= 10:
+                            break
+                    # else: symbol not in margin list for this date (not an error)
+            except Exception as e:
+                errors.append(f"{date_str}: {str(e)[:50]}")
+                # Stop early if we hit 3 consecutive failures (likely API issue)
+                if len(errors) >= 3 and not results:
+                    break
+                continue
+
+        if not results:
+            if errors:
+                return {
+                    "error": f"无法获取融资融券数据: {symbol}",
+                    "symbol": symbol,
+                    "exchange": exchange,
+                    "details": f"尝试了 {len(errors)} 个日期，均失败。最近错误: {errors[-1]}"
+                }
+            else:
+                return {
+                    "error": f"该股票不在融资融券标的范围内: {symbol}",
+                    "symbol": symbol,
+                    "exchange": exchange
+                }
+
+        return {
+            "symbol": symbol,
+            "exchange": exchange,
+            "count": len(results),
+            "data": results,
+            "data_date": datetime.now().strftime("%Y-%m-%d")
+        }
     except Exception as e:
-        return {"error": str(e), "symbol": symbol}
+        return {"error": str(e), "symbol": symbol, "exchange": exchange if 'exchange' in locals() else 'unknown'}
 
 
 def get_market_margin() -> dict:
@@ -1744,6 +2497,7 @@ def get_gdp_data() -> dict:
 
 # ===== 公告 =====
 
+@timeout_decorator(seconds=30)
 def get_announcements(symbol: str) -> dict:
     """个股公告列表：公告标题、日期、类型（业绩/分红/重组等）"""
     import akshare as ak
@@ -1767,6 +2521,7 @@ def get_announcements(symbol: str) -> dict:
 
 # ===== 行业资金流向 =====
 
+@timeout_decorator(seconds=30)
 def get_sector_fund_flow() -> dict:
     """行业资金流向：各行业今日主力净流入/流出排行
 
@@ -1794,6 +2549,7 @@ def get_sector_fund_flow() -> dict:
         return {"error": str(e)}
 
 
+@timeout_decorator(seconds=30)
 def get_stock_fund_flow(symbol: str) -> dict:
     """个股资金流向：主力/超大单/大单/中单/小单净流入"""
     import akshare as ak
@@ -2036,6 +2792,7 @@ FUNCTIONS = {
     "screen_stocks_quality": screen_stocks_quality,
     "get_stock_news": get_stock_news,
     "get_concept_stocks": get_concept_stocks,
+    "get_concept_list": get_concept_list,
     "calculate_technical_indicators": calculate_technical_indicators,
     "analyze_price_action": analyze_price_action,
     "calculate_buy_range": calculate_buy_range,
@@ -2072,12 +2829,17 @@ FUNCTIONS = {
     # 资金流向
     "get_sector_fund_flow": get_sector_fund_flow,
     "get_stock_fund_flow": get_stock_fund_flow,
-    # HK stocks
+    # HK stocks — basic
     "get_hk_stock_price": get_hk_stock_price,
     "get_hk_stock_info": get_hk_stock_info,
     "get_hk_stock_history": get_hk_stock_history,
     "get_hk_financials": get_hk_financials,
     "get_hk_analysis": get_hk_analysis,
+    # HK stocks — new tools
+    "get_hk_market_overview": get_hk_market_overview,
+    "get_hk_south_flow": get_hk_south_flow,
+    "get_hk_technical": get_hk_technical,
+    "get_hk_hot_rank": get_hk_hot_rank,
 }
 
 def daemon_mode():
@@ -2117,7 +2879,7 @@ def daemon_mode():
                     "id": None,
                     "error": {"code": -32700, "message": f"Parse error: {str(e)}"}
                 }
-                print(json.dumps(error_response, ensure_ascii=False), flush=True)
+                print(safe_json_dumps(error_response), flush=True)
                 continue
 
             req_id = request.get("id")
@@ -2131,7 +2893,7 @@ def daemon_mode():
                     "id": req_id,
                     "error": {"code": -32600, "message": "Invalid Request: jsonrpc must be '2.0'"}
                 }
-                print(json.dumps(error_response, ensure_ascii=False), flush=True)
+                print(safe_json_dumps(error_response), flush=True)
                 continue
 
             if not method or not isinstance(method, str):
@@ -2140,7 +2902,7 @@ def daemon_mode():
                     "id": req_id,
                     "error": {"code": -32600, "message": "Invalid Request: method is required"}
                 }
-                print(json.dumps(error_response, ensure_ascii=False), flush=True)
+                print(safe_json_dumps(error_response), flush=True)
                 continue
 
             # Execute function
@@ -2151,7 +2913,7 @@ def daemon_mode():
                     "id": req_id,
                     "error": {"code": -32601, "message": f"Method not found: {method}"}
                 }
-                print(json.dumps(error_response, ensure_ascii=False), flush=True)
+                print(safe_json_dumps(error_response), flush=True)
                 continue
 
             try:
@@ -2161,7 +2923,7 @@ def daemon_mode():
                     "id": req_id,
                     "result": result
                 }
-                print(json.dumps(response, ensure_ascii=False, default=str), flush=True)
+                print(safe_json_dumps(response), flush=True)
             except Exception as e:
                 error_response = {
                     "jsonrpc": "2.0",
@@ -2172,7 +2934,7 @@ def daemon_mode():
                         "data": {"trace": traceback.format_exc()}
                     }
                 }
-                print(json.dumps(error_response, ensure_ascii=False), flush=True)
+                print(safe_json_dumps(error_response), flush=True)
 
         except KeyboardInterrupt:
             # Graceful shutdown on Ctrl+C
@@ -2187,7 +2949,7 @@ if __name__ == "__main__":
     if len(sys.argv) >= 2 and sys.argv[1] == "--daemon":
         daemon_mode()
     elif len(sys.argv) < 2:
-        print(json.dumps({"error": "Usage: akshare_bridge.py <function> [json_args] OR akshare_bridge.py --daemon"}))
+        print(safe_json_dumps({"error": "Usage: akshare_bridge.py <function> [json_args] OR akshare_bridge.py --daemon"}))
         sys.exit(1)
     else:
         # Legacy CLI mode
@@ -2195,10 +2957,10 @@ if __name__ == "__main__":
         args = json.loads(sys.argv[2]) if len(sys.argv) > 2 else {}
         func = FUNCTIONS.get(func_name)
         if not func:
-            print(json.dumps({"error": f"Unknown function: {func_name}"}))
+            print(safe_json_dumps({"error": f"Unknown function: {func_name}"}))
             sys.exit(1)
         try:
             result = func(**args)
-            print(json.dumps(result, ensure_ascii=False, default=str))
+            print(safe_json_dumps(result))
         except Exception as e:
-            print(json.dumps({"error": str(e), "trace": traceback.format_exc()}))
+            print(safe_json_dumps({"error": str(e), "trace": traceback.format_exc()}))

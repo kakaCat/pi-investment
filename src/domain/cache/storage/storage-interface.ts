@@ -19,4 +19,7 @@ export interface IStorage {
 
   // 清理操作
   cleanup(): Promise<number>;
+
+  // 资源释放
+  destroy?(): void;
 }

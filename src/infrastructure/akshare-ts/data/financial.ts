@@ -273,7 +273,8 @@ async function fetchTopHolderSnapshot(symbol: string, reportDate: string): Promi
 export async function get_holder_changes(symbol: string): Promise<string> {
   const clean = cleanSymbol(symbol);
   try {
-    const quarterEnds = computeQuarterEnds(8);
+    // 限制尝试轮次数为 4，减少不必要的 API 调用（每次调用可能 10s+）
+    const quarterEnds = computeQuarterEnds(4);
     const snapshots: Array<Awaited<ReturnType<typeof fetchTopHolderSnapshot>>> = [];
 
     for (const quarterEnd of quarterEnds) {

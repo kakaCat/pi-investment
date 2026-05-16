@@ -160,15 +160,35 @@ export async function get_market_overview(): Promise<string> {
 
 export async function get_sector_list(): Promise<string> {
   try {
+    // 优先从东方财富数据中心的行业历史数据接口获取
     const sectors = await fetchSectorList();
     if (sectors.length > 0) {
       const data = sectors.map(s => ({ name: s.name, code: s.code, count: 0, change_pct: s.changePct }));
       return JSON.stringify({ count: data.length, data, data_date: today() });
     }
-    return JSON.stringify({ error: "板块数据暂时不可用", count: 0, data: [] });
   } catch (e) {
-    return JSON.stringify({ error: String(e), count: 0, data: [] });
+    console.warn(`[akshare-ts] fetchSectorList failed:`, e);
   }
+
+  // Fallback: 从行业资金流向接口提取行业列表
+  try {
+    const flowData = await callPythonBridge("get_sector_fund_flow", {});
+    if (!flowData.error && Array.isArray(flowData.data) && flowData.data.length > 0) {
+      const data = (flowData.data as Array<Record<string, unknown>>).map(s => ({
+        name: String(s.行业 || s.name || ""),
+        code: "",
+        count: Number(s.公司家数 || s.count || 0),
+        change_pct: Number(s["行业-涨跌幅"] || s.change_pct || 0),
+      })).filter(s => s.name);
+      if (data.length > 0) {
+        return JSON.stringify({ count: data.length, data, data_date: today() });
+      }
+    }
+  } catch (e2) {
+    console.warn(`[akshare-ts] get_sector_fund_flow fallback failed:`, e2);
+  }
+
+  return JSON.stringify({ error: "板块数据暂时不可用", count: 0, data: [] });
 }
 
 // ─── 港股实时行情 ──────────────────────────────────────────────────────────

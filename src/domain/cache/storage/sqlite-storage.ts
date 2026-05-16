@@ -13,7 +13,8 @@ export class SQLiteStorage implements IStorage {
       mkdirSync(dir, { recursive: true });
     }
 
-    this.db = new Database(dbPath);
+    // Open database with write permissions
+    this.db = new Database(dbPath, { readonly: false, fileMustExist: false });
     this.namespace = namespace;
     this.initializeSchema();
   }

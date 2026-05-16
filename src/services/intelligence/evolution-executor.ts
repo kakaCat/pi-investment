@@ -27,6 +27,7 @@ import type { OptimizationSuggestion, Experience, ToolAddition, ToolRemoval, Pro
 import { generateToolCode, writeGeneratedCode } from './code-generator.js';
 import { validateInSandbox, allValidationsPassed, formatValidationResults } from './sandbox-validator.js';
 import { createEvolutionBranch, commitChanges, mergeToBranch, rollbackToBranch, getCurrentBranch } from './evolution-branch-manager.js';
+import { evolutionConfig } from '../../config/config.js';
 
 interface DynamicToolDefinition {
   name: string;
@@ -57,7 +58,7 @@ export interface ExecutionLog {
   suggestionId: string;
   type: string;
   action: 'execute' | 'rollback';
-  status: 'success' | 'error';
+  status: 'success' | 'error' | 'skipped';
   details: any;
   error?: string;
 }
@@ -253,6 +254,30 @@ async function executeToolAddition(
     }
 
     console.log(`\n🚀 开始执行工具添加: ${toolData.name}`);
+
+    // 检查是否启用代码生成
+    if (!evolutionConfig.enableCodeGeneration) {
+      console.log('⚠️  自动代码生成已禁用（Codex 余额不足或配置关闭）');
+      console.log('💡 建议：手动实现工具或充值 Codex 账户后启用');
+
+      logEntry.status = 'skipped';
+      logEntry.details = {
+        toolName: toolData.name,
+        description: toolData.description,
+        reason: toolData.reason,
+        expectedImpact: toolData.expectedImpact,
+        message: '自动代码生成已禁用，需要手动实现'
+      };
+
+      result.applied.push({
+        suggestionId: suggestion.id,
+        type: 'add_tool',
+        status: 'skipped',
+        message: '自动代码生成已禁用，需要手动实现',
+      });
+
+      return;
+    }
 
     // 1. 创建进化分支
     const evolutionId = new Date().toISOString().split('T')[0];

@@ -27,6 +27,7 @@ import { manageOrdersTool } from "./order-tools.js";
 import { testMarketSentimentTool } from "./test-market-sentiment-tool.js";
 import { queryExperienceTool } from "./query-experience-tool.js";
 import { tradeLogTool } from "./trade-log-tools.js";
+import { restartAgentTool } from "./restart-agent-tool.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./memory-tool.js";
@@ -67,6 +68,8 @@ export const allCustomTools = [
   ...monitorTools,
   // 进化工具 — 自我优化
   evolutionRunTool,
+  // 重启工具 — 运维操作
+  restartAgentTool,
   // 中频 — 记忆
   memoryWriteTool,
   memorySearchTool,

@@ -70,3 +70,13 @@ export const compactionConfig = {
  * 工具指令从 .pi-invest/bootstrap/TOOLS.md 加载。
  */
 export const agentConfig = {};
+
+/**
+ * Evolution 配置
+ */
+export const evolutionConfig = {
+  // 是否启用自动代码生成（需要 Codex 账户余额充足）
+  enableCodeGeneration: true,
+  // Codex 超时时间（毫秒）
+  codexTimeout: 120000,
+};

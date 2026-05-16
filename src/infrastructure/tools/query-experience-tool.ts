@@ -5,10 +5,11 @@
  */
 
 import { Type } from '@sinclair/typebox';
-import { queryAndFormatExperience } from '../../services/intelligence/experience-query.js';
+import type { ToolDefinition } from "./index.js";
 
-export const queryExperienceTool = {
+export const queryExperienceTool: ToolDefinition = {
   name: 'query_experience',
+  label: '查询经验库',
   description: `查询历史经验库，获取类似场景的成功/失败案例。
 
 使用场景：
@@ -38,17 +39,15 @@ export const queryExperienceTool = {
     }))
   }),
 
-  handler: async (params: {
-    scenario: string;
-    symbol?: string;
-    conditions?: string[];
-    limit?: number;
-  }) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
+      // Lazy import to avoid issues when experience file doesn't exist
+      const { queryAndFormatExperience } = await import('../../services/intelligence/experience-query.js');
       const result = queryAndFormatExperience(params);
-      return result;
+      return { content: [{ type: "text" as const, text: result }], details: undefined };
     } catch (e) {
-      return `查询经验库失败: ${e instanceof Error ? e.message : String(e)}`;
+      const msg = e instanceof Error ? e.message : String(e);
+      return { content: [{ type: "text" as const, text: `查询经验库失败: ${msg}` }], details: undefined };
     }
   }
 };

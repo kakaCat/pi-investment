@@ -1,21 +1,18 @@
 /**
- * Code Generator - 使用 Codex (GPT-5.4) 生成工具代码
+ * Code Generator - 使用 LLM API 生成工具代码
  *
- * 根据补偿器的建议，委托 Codex 自动生成完整的 TypeScript 工具实现。
+ * 根据补偿器的建议，使用 LLM API 自动生成完整的 TypeScript 工具实现。
  *
  * 架构说明：
  * - 投资 Agent (DeepSeek): 负责投资决策
- * - Codex Agent (GPT-5.4): 负责代码生成
+ * - 代码生成 (DeepSeek API): 负责代码生成
  * - 职责分离，避免循环依赖
  */
 
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import OpenAI from 'openai';
 import type { ToolAddition } from '../../types/evolution.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-
-const execAsync = promisify(exec);
 
 export interface GeneratedCode {
   toolCode: string;
@@ -36,8 +33,23 @@ function extractCodeBlocks(text: string): { tool: string; test: string } {
     blocks.push(match[1].trim());
   }
 
-  if (blocks.length < 1) {
-    throw new Error('未能从 Codex 响应中提取代码块');
+  // 如果没有找到代码块，尝试直接提取 TypeScript 代码
+  if (blocks.length === 0) {
+    // 查找 import 语句开始的位置
+    const importIndex = text.indexOf('import');
+    if (importIndex === -1) {
+      throw new Error('未能从 Codex 响应中找到 import 语句');
+    }
+
+    // 从 import 开始提取到文件末尾，确保获取完整代码
+    const code = text.substring(importIndex).trim();
+
+    // 验证代码包含必需的结构
+    if (!code.includes('export const') || !code.includes('Tool')) {
+      throw new Error('提取的代码缺少必需的 export 语句');
+    }
+
+    blocks.push(code);
   }
 
   // 第一个代码块是工具实现，第二个（如果有）是测试
@@ -54,9 +66,8 @@ async function getToolExamples(): Promise<string> {
   const examplePath = path.join(process.cwd(), 'src/infrastructure/tools/analyze-sector-rotation-tool.ts');
   try {
     const content = await fs.readFile(examplePath, 'utf-8');
-    // 只取前100行作为示例
-    const lines = content.split('\n').slice(0, 100);
-    return lines.join('\n');
+    // 返回完整文件，确保 Codex 看到完整的结构
+    return content;
   } catch {
     return '// 无法读取示例文件';
   }
@@ -66,58 +77,86 @@ async function getToolExamples(): Promise<string> {
  * 构造 Codex 代码生成提示词
  */
 function buildCodeGenPrompt(toolSpec: ToolAddition, exampleCode: string): string {
-  // 转义双引号，避免 shell 命令解析错误
-  const escapedExample = exampleCode.replace(/"/g, '\\"').replace(/\n/g, '\\n');
+  return `你是一个 TypeScript 代码生成器。请根据以下规范生成工具代码。
 
-  return `你是一个专业的 TypeScript 代码生成助手。请生成一个投资工具的完整实现代码。
+## 工具规范
 
-## 工具规格
+**名称**: ${toolSpec.name}
+**标签**: ${toolSpec.label || toolSpec.name}
+**描述**: ${toolSpec.description}
 
-- **名称**: ${toolSpec.name}
-- **描述**: ${toolSpec.description}
-- **原因**: ${toolSpec.reason}
-- **预期效果**: ${toolSpec.expectedImpact}
+## 代码要求
 
-## 实现要求
+1. **导入语句**:
+   \`\`\`typescript
+   import type { ToolDefinition } from "./index.js";
+   import { Type } from "@sinclair/typebox";
+   \`\`\`
 
-1. **参考现有工具模式**（示例已省略，请遵循以下规范）
+2. **导出常量**: \`export const ${toolSpec.name}Tool: ToolDefinition = { ... }\`
 
-2. **必须包含的元素**：
-   - 文件顶部的 JSDoc 注释说明工具用途
-   - 导入必要的类型：import type { ToolDefinition } from "./index.js";
-   - 导入 Type 用于参数定义：import { Type } from "@sinclair/typebox";
-   - 如果需要调用 Python，导入：import { callPython } from "./invest-tools.js";
-   - 导出一个符合 ToolDefinition 接口的常量，命名为 ${toolSpec.name}Tool
-   - 包含 name, label, description, parameters, execute 字段
-   - execute 函数返回 { content: [{ type: "text", text: string }], details?: any }
+3. **必需字段**:
+   - name: "${toolSpec.name}"
+   - label: "${toolSpec.label || toolSpec.name}"
+   - description: "${toolSpec.description}"
+   - parameters: Type.Object({ ... })
+   - execute: async (_toolCallId, params: any) => { ... }
 
-3. **参数定义**：
-   - 使用 Type.Object() 定义参数 schema
-   - 为每个参数添加 description
-   - 使用 Type.Optional() 标记可选参数
+4. **execute 函数签名**:
+   \`\`\`typescript
+   execute: async (_toolCallId, params: any) => {
+     // 实现逻辑
+     return {
+       content: [{ type: "text" as const, text: "结果文本" }],
+       details: { /* 结构化数据 */ }
+     };
+   }
+   \`\`\`
 
-4. **错误处理**：
-   - 使用 try-catch 包裹主要逻辑
-   - 返回友好的错误消息
+5. **返回格式**: 必须包含 \`content\` 和 \`details\` 两个字段
 
-5. **代码风格**：
-   - 使用 TypeScript 严格模式
-   - 添加必要的类型注解
-   - 保持代码简洁清晰
+## 参考示例
 
-## 输出格式
+\`\`\`typescript
+${exampleCode}
+\`\`\`
 
-请按以下格式输出两个代码块：
+## 输出要求
 
-第一个代码块：工具实现代码（${toolSpec.name}-tool.ts）
-第二个代码块：单元测试代码（${toolSpec.name}-tool.test.ts）
+请生成两个代码块：
 
-测试代码要求：
-- 使用 Jest 测试框架
-- 至少包含 3 个测试用例：正常情况、错误处理、边界条件
-- Mock 外部依赖（如 callPython）
+**第一个代码块**: 工具实现代码
+\`\`\`typescript
+// 工具实现代码
+\`\`\`
 
-现在请生成代码，只输出代码块，不要包含其他解释文字。`;
+**第二个代码块**: 单元测试代码（使用 Jest）
+\`\`\`typescript
+import { describe, it, expect } from '@jest/globals';
+import { ${toolSpec.name}Tool } from './${toolSpec.name}-tool.js';
+
+describe('${toolSpec.name}Tool', () => {
+  it('should execute successfully with valid params', async () => {
+    const result = await (${toolSpec.name}Tool.execute as any)('test-id', {
+      // 测试参数
+    });
+    expect(result.content).toBeDefined();
+    expect(result.details).toBeDefined();
+  });
+
+  it('should handle invalid params gracefully', async () => {
+    const result = await (${toolSpec.name}Tool.execute as any)('test-id', {});
+    expect(result.content).toBeDefined();
+  });
+});
+\`\`\`
+
+两个代码块都必须：
+- 语法正确，可以直接编译
+- 包含所有必需的闭合括号
+- 遵循上述规范
+
+不要包含任何解释文字，只输出代码块。`;
 }
 
 /**
@@ -129,37 +168,49 @@ export async function generateToolCode(toolSpec: ToolAddition): Promise<Generate
   const exampleCode = await getToolExamples();
   const prompt = buildCodeGenPrompt(toolSpec, exampleCode);
 
-  // 创建临时输出文件
-  const timestamp = Date.now();
-  const outputFile = `/tmp/codex-gen-${timestamp}.txt`;
+  // 使用临时文件传递 prompt，避免 shell 解析问题
+  const tmpDir = '/tmp';
+  const promptFile = path.join(tmpDir, `codex-prompt-${Date.now()}.txt`);
 
   try {
-    // 调用 Codex (GPT-5.4) 生成代码
+    // 写入 prompt 到临时文件
+    await fs.writeFile(promptFile, prompt, 'utf-8');
     console.log(`  📡 调用 Codex...`);
 
-    const { stdout, stderr } = await execAsync(
-      `codex exec --dangerously-bypass-approvals-and-sandbox --ephemeral ` +
-      `-C ${process.cwd()} ` +
-      `-o ${outputFile} ` +
-      `"${prompt.replace(/"/g, '\\"')}"`,
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+
+    // 使用文件重定向而不是 echo
+    const { stdout } = await execAsync(
+      `codex exec --dangerously-bypass-approvals-and-sandbox --ephemeral -C ${process.cwd()} < ${promptFile}`,
       {
-        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-        timeout: 120000 // 2 分钟超时
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 120000
       }
     );
 
-    if (stderr) {
-      console.warn(`  ⚠️  Codex stderr: ${stderr}`);
+    // 提取 Codex 输出的代码部分
+    const codexMarker = '\ncodex\n';
+    const tokensMarker = '\ntokens used\n';
+
+    let output = stdout;
+    const codexIndex = output.lastIndexOf(codexMarker);
+    if (codexIndex !== -1) {
+      output = output.substring(codexIndex + codexMarker.length);
+      const tokensIndex = output.indexOf(tokensMarker);
+      if (tokensIndex !== -1) {
+        output = output.substring(0, tokensIndex);
+      }
     }
 
-    // 读取 Codex 输出
-    const output = await fs.readFile(outputFile, 'utf-8');
+    output = output.trim();
 
-    if (!output || output.trim().length === 0) {
+    if (!output || output.length === 0) {
       throw new Error('Codex 返回空响应');
     }
 
-    console.log(`  📝 Codex 响应长度: ${output.length} 字符`);
+    console.log(`  📝 Codex 代码长度: ${output.length} 字符`);
 
     // 提取代码块
     const { tool, test } = extractCodeBlocks(output);
@@ -172,13 +223,6 @@ export async function generateToolCode(toolSpec: ToolAddition): Promise<Generate
       console.log(`  ✅ 测试生成完成: ${testFileName} (${test.length} 字符)`);
     }
 
-    // 清理临时文件
-    try {
-      await fs.unlink(outputFile);
-    } catch {
-      // 忽略清理失败
-    }
-
     return {
       toolCode: tool,
       testCode: test,
@@ -187,15 +231,14 @@ export async function generateToolCode(toolSpec: ToolAddition): Promise<Generate
     };
   } catch (error: any) {
     console.error(`  ❌ Codex 调用失败:`, error.message);
-
+    throw new Error(`Codex 代码生成失败: ${error.message}`);
+  } finally {
     // 清理临时文件
     try {
-      await fs.unlink(outputFile);
+      await fs.unlink(promptFile);
     } catch {
       // 忽略清理失败
     }
-
-    throw new Error(`Codex 代码生成失败: ${error.message}`);
   }
 }
 

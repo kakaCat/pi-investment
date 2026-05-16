@@ -50,6 +50,7 @@ export interface OptimizerStrategy {
 // 工具调整
 export interface ToolAddition {
   name: string;
+  label?: string;
   description: string;
   reason: string;
   expectedImpact: string;

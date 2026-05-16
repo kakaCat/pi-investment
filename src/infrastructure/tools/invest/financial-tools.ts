@@ -21,8 +21,54 @@ export const getFinancialDataTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await callPython("get_financial_indicators", { symbol: params.symbol });
-    return { content: [{ type: "text" as const, text: result }], details: undefined };
+    // Try the primary data source
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await callPython("get_financial_indicators", { symbol: params.symbol });
+      try {
+        const parsed = JSON.parse(result);
+        if (parsed.error) {
+          console.error(`[get_financial_data] attempt=${attempt} error:`, parsed.error);
+          if (attempt === 0) continue; // retry once
+          // Both attempts failed—fall through to fallback
+        } else {
+          return { content: [{ type: "text" as const, text: result }], details: undefined };
+        }
+      } catch {
+        // Not JSON — return as-is (but re-check)
+        return { content: [{ type: "text" as const, text: result }], details: undefined };
+      }
+    }
+    console.error(`[get_financial_data] both attempts failed, using fallback`);
+    // Fallback: derive ratios from financial statements
+    const stmt = await callPython("get_financial_statements", { symbol: params.symbol, statement: "income", recent_n: 4 });
+    try {
+      const data = JSON.parse(stmt);
+      if (!data.error && data.income_statement?.data?.length > 0) {
+        const rows = data.income_statement.data;
+        const quarters = rows.map((r: any) => ({
+          report_date: r.报告日 || r.report_date || "",
+          roe: 0,
+          gross_margin: r.营业总收入 && r.营业成本
+            ? Math.round(((r.营业总收入 - r.营业成本) / r.营业总收入) * 10000) / 100
+            : 0,
+          net_margin: r.营业总收入 && r.净利润
+            ? Math.round((r.净利润 / r.营业总收入) * 10000) / 100
+            : 0,
+          debt_ratio: 0,
+          current_ratio: 0,
+        }));
+        return { content: [{ type: "text" as const, text: JSON.stringify({
+          note: "从利润表推导的财务指标（部分数据如ROE/负债率不可用）",
+          symbol: params.symbol,
+          quarters,
+          data: quarters,
+        }) }], details: undefined };
+      }
+    } catch {}
+    return { content: [{ type: "text" as const, text: JSON.stringify({
+      error: `无法获取财务数据: ${params.symbol}，建议使用 get_financial_statements 查看详细财务报表`,
+      symbol: params.symbol,
+    }) }], details: undefined };
   },
 };
 

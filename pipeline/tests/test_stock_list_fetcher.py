@@ -55,33 +55,34 @@ class StockListFetcherTests(unittest.TestCase):
             fetcher.run(market="US")
 
     def test_fetch_a_stocks_maps_rows_and_prints_progress_every_100(self) -> None:
-        """A-share fetch should normalize AkShare rows and emit progress updates."""
+        """A-share fetch should normalize Sina AkShare rows and emit progress updates."""
         database = MagicMock()
         fetcher = StockListFetcher(database)
+        # Sina format: code includes exchange prefix (sh/sz/bj)
         frame = pd.DataFrame(
             [
                 {
-                    "代码": f"{index:06d}",
+                    "代码": f"sh{index:06d}" if index < 600000 else f"sz{index:06d}",
                     "名称": f"股票{index}",
-                    "总市值": 100000000 + index,
-                    "市盈率-动态": 10.5,
-                    "市净率": 1.5,
-                    "所属行业": "行业",
                 }
                 for index in range(1, 201)
             ]
         )
         stdout = io.StringIO()
 
-        with patch("pipeline.fetchers.stock_list.ak.stock_zh_a_spot_em", return_value=frame):
+        with patch("pipeline.fetchers.stock_list.ak.stock_zh_a_spot", return_value=frame):
             with redirect_stdout(stdout):
                 stocks = fetcher._fetch_a_stocks()
 
         self.assertEqual(len(stocks), 200)
+        # Sina mapper strips exchange prefix
         self.assertEqual(stocks[0]["symbol"], "000001")
         self.assertEqual(stocks[0]["market"], "A")
-        self.assertEqual(stocks[0]["industry"], "行业")
-        self.assertAlmostEqual(stocks[0]["market_cap"], 1.0)
+        # Sina has no industry/PE/PB/market_cap — fields are None
+        self.assertIsNone(stocks[0]["industry"])
+        self.assertIsNone(stocks[0]["market_cap"])
+        self.assertIsNone(stocks[0]["pe"])
+        self.assertIsNone(stocks[0]["pb"])
         output = stdout.getvalue()
         self.assertIn("A股进度: 100/200", output)
         self.assertIn("A股进度: 200/200", output)
@@ -127,18 +128,14 @@ class StockListFetcherTests(unittest.TestCase):
         frame = pd.DataFrame(
             [
                 {
-                    "代码": "600519",
+                    "代码": "sh600519",
                     "名称": "贵州茅台",
-                    "总市值": 2000000000000,
-                    "市盈率-动态": 20.1,
-                    "市净率": 7.3,
-                    "所属行业": "白酒",
                 }
             ]
         )
 
         with patch(
-            "pipeline.fetchers.stock_list.ak.stock_zh_a_spot_em",
+            "pipeline.fetchers.stock_list.ak.stock_zh_a_spot",
             side_effect=[RuntimeError("timeout"), RuntimeError("timeout"), frame],
         ) as fetch_mock, patch("pipeline.fetchers.stock_list.time.sleep") as sleep_mock:
             stocks = fetcher._fetch_a_stocks()
@@ -146,6 +143,7 @@ class StockListFetcherTests(unittest.TestCase):
         self.assertEqual(fetch_mock.call_count, 3)
         self.assertEqual(sleep_mock.call_args_list[0].args[0], 1)
         self.assertEqual(sleep_mock.call_args_list[1].args[0], 2)
+        # Sina mapper strips exchange prefix
         self.assertEqual(stocks[0]["symbol"], "600519")
 
     def test_fetch_hk_stocks_raises_after_three_failures(self) -> None:

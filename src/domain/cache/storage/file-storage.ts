@@ -145,4 +145,8 @@ export class FileStorage implements IStorage {
 
     return cleaned;
   }
+
+  destroy(): void {
+    // FileStorage doesn't need cleanup
+  }
 }

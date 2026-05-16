@@ -61,4 +61,39 @@ describe("TradeService", () => {
     expect(data.trades[0].symbol).toBe("600519");
     expect(data.last_updated).toBeTruthy();
   });
+
+  test("records pnl and pnl_pct when selling with profit", () => {
+    const service = makeService();
+    service.add("2026-03-20", "600519", "茅台", "buy", 100, 10, 5);
+
+    const sellTrade = service.add("2026-03-21", "600519", "茅台", "sell", 50, 15, 3, "A", "止盈", 247, 49.4);
+
+    expect(sellTrade.pnl).toBe(247);
+    expect(sellTrade.pnl_pct).toBe(49.4);
+
+    const trades = service.load().trades;
+    const sellRecord = trades.find(t => t.action === "sell");
+    expect(sellRecord?.pnl).toBe(247);
+    expect(sellRecord?.pnl_pct).toBe(49.4);
+  });
+
+  test("records pnl and pnl_pct when selling with loss", () => {
+    const service = makeService();
+    service.add("2026-03-20", "600519", "茅台", "buy", 100, 15, 5);
+
+    const sellTrade = service.add("2026-03-21", "600519", "茅台", "sell", 50, 10, 3, "A", "止损", -253, -33.55);
+
+    expect(sellTrade.pnl).toBe(-253);
+    expect(sellTrade.pnl_pct).toBe(-33.55);
+  });
+
+  test("allows sell without pnl for backward compatibility", () => {
+    const service = makeService();
+    service.add("2026-03-20", "600519", "茅台", "buy", 100, 10);
+
+    const sellTrade = service.add("2026-03-21", "600519", "茅台", "sell", 50, 15);
+
+    expect(sellTrade.pnl).toBeUndefined();
+    expect(sellTrade.pnl_pct).toBeUndefined();
+  });
 });

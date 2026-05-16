@@ -40,8 +40,9 @@ export const tradeLogTool: ToolDefinition = {
 
   parameters: Type.Object({
     action: Type.String({
+      minLength: 1,
       description:
-        "操作类型:\n" +
+        "【必需】操作类型:\n" +
         '  "list"              — 列出所有交易日志\n' +
         '  "get"               — 读取指定股票的日志\n' +
         '  "create"            — 创建新的交易日志\n' +
@@ -81,10 +82,18 @@ export const tradeLogTool: ToolDefinition = {
     tracking_notes: Type.Optional(Type.String({ description: "备注（append_tracking 时使用，可选）" })),
   }),
 
-  execute: async (params: any) => {
+  execute: async (_toolCallId, params: any) => {
     try {
       const service = new TradeLogService(PI_DIR);
-      const action = params.action;
+      const action = params?.action;
+
+      // 验证 action 参数
+      if (!action) {
+        return {
+          content: [{ type: "text" as const, text: "❌ 缺少必需参数: action。支持的操作: list, get, create, update, append_execution, append_tracking" }],
+          details: { error: "missing action parameter" },
+        };
+      }
 
       // 辅助函数：根据 symbol 查找对应的 name
       const findNameBySymbol = (symbol: string): string | null => {

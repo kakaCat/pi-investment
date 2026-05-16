@@ -17,9 +17,44 @@ import { FxRateService } from "../services/fx-rate-service.js";
 import { runWeeklyEvolution } from "../services/intelligence/evolution-service.js";
 import { saveSessionMemoryAsync } from "../services/intelligence/session-memory-saver.js";
 import { join } from "path";
+import { existsSync, readFileSync, unlinkSync } from "fs";
+import { spawn } from "child_process";
 
 // 加载环境变量
 config();
+
+// ── 重启上下文处理 ─────────────────────────────────────────────────────────
+// 检测是否有 .restart/context.json（由 restart_agent 工具写入）
+// 如果有，说明这是重启后的新进程，打印提示信息
+const RESTART_DIR = join(process.cwd(), ".restart");
+const RESTART_CONTEXT = join(RESTART_DIR, "context.json");
+
+function checkRestartContext(): void {
+  if (process.env.PI_RESTARTED === "true" && existsSync(RESTART_CONTEXT)) {
+    try {
+      const data = JSON.parse(readFileSync(RESTART_CONTEXT, "utf-8"));
+      const ts = new Date(data.timestamp).getTime();
+      const elapsed = !isNaN(ts) ? Math.round((Date.now() - ts) / 1000) : 0;
+      console.log(`🔄 检测到 Agent 重启（${elapsed > 0 ? `${elapsed} 秒前` : '时间未知'}）`);
+      console.log(`   - 原因: ${data.reason || '未指定'}`);
+      console.log(`   - 新工具已加载\n`);
+
+      // 清理上下文文件
+      try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
+    } catch {
+      // 文件损坏或格式异常，打印简单提示
+      console.log("🔄 检测到 Agent 重启（新工具已加载）\n");
+      try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
+    }
+  } else if (existsSync(RESTART_CONTEXT)) {
+    // 非重启启动，清理旧文件
+    try {
+      unlinkSync(RESTART_CONTEXT);
+    } catch { /* ignore */ }
+  }
+}
+
+checkRestartContext();
 
 // 选择 agent loop 模式
 const USE_BACKGROUND_MODE = process.env.BACKGROUND_MODE === "true";

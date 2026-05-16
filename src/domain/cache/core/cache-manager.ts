@@ -90,6 +90,13 @@ export class CacheManager {
   }
 
   destroy(): void {
+    // Close all storage connections
+    for (const namespace of Object.values(this.namespaces)) {
+      const storage = namespace.getStorage();
+      if (storage && typeof storage.destroy === 'function') {
+        storage.destroy();
+      }
+    }
     CacheManager.instance = null;
   }
 }

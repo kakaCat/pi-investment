@@ -19,6 +19,7 @@ import { financialTools } from "./invest/financial-tools.js";
 import { screeningTools } from "./invest/screening-tools.js";
 import { sentimentTools } from "./invest/sentiment-tools.js";
 import { portfolioTools } from "./invest/portfolio-tools.js";
+import { hkTools } from "./invest/hk-tools.js";
 
 // 导出共享工具函数供其他模块使用
 export { callPython } from "./shared/python-caller.js";
@@ -38,6 +39,8 @@ export const investTools: ToolDefinition[] = [
   ...screeningTools,
   // Market sentiment & flow
   ...sentimentTools,
+  // HK stocks — dedicated tools
+  ...hkTools,
   // Portfolio & reviews
   ...portfolioTools,
 ];

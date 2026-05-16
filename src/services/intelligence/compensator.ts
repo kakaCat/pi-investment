@@ -313,6 +313,7 @@ function applyIntelligentFilters(
   // 过滤1: 避免重复建议（检查最近3次）
   if (recentEvolutions && recentEvolutions.length > 0) {
     const recentSuggestions = recentEvolutions.flatMap(e => e.suggestions);
+    console.log(`[补偿器] 历史建议数量: ${recentSuggestions.length}`, recentSuggestions.map(s => s.data?.toolName || s.type));
 
     filtered = filtered.filter(s => {
       const alreadyTried = recentSuggestions.some(prev =>
@@ -321,7 +322,7 @@ function applyIntelligentFilters(
       );
 
       if (alreadyTried) {
-        console.log(`[补偿器] 过滤重复建议: ${s.description}`);
+        console.log(`[补偿器] 过滤重复建议: ${s.description} (toolName: ${s.data?.toolName})`);
         return false;
       }
 

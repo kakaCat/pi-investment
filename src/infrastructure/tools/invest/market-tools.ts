@@ -54,6 +54,22 @@ export const getConceptStocksTool: ToolDefinition = {
   },
 };
 
+// ===== get_concept_list =====
+export const getConceptListTool: ToolDefinition = {
+  name: "get_concept_list",
+  label: "查询所有概念板块列表",
+  description:
+    "Get a list of all concept/theme sectors: name and code. " +
+    "Use to discover available concept names for get_concept_stocks, or to find what concepts exist. " +
+    "Returns hundreds of concept names (e.g. '数据中心', '液冷服务器', '人工智能'), " +
+    "sorted by popularity. Use the returned names as input to get_concept_stocks.",
+  parameters: Type.Object({}),
+  execute: async (_toolCallId, _params: any) => {
+    const result = await callPython("get_concept_list", {});
+    return { content: [{ type: "text" as const, text: result }], details: undefined };
+  },
+};
+
 // ===== get_macro_data =====
 export const getMacroDataTool: ToolDefinition = {
   name: "get_macro_data",
@@ -165,6 +181,7 @@ export const marketTools: ToolDefinition[] = [
   getMarketOverviewTool,
   getSectorListTool,
   getConceptStocksTool,
+  getConceptListTool,
   getMacroDataTool,
   getNorthFlowTool,
   getSectorFundFlowTool,

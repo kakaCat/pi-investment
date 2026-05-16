@@ -14,7 +14,7 @@ import * as readline from "readline";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PYTHON_SCRIPT = join(__dirname, "..", "..", "..", "python", "akshare_bridge.py");
 const RESTART_DELAY_MS = 1000;
-const REQUEST_TIMEOUT_MS = 120000; // 2 minutes
+const REQUEST_TIMEOUT_MS = 90000; // 90 seconds (max timeout, controlled by caller)
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";

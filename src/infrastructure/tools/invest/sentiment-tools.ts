@@ -38,7 +38,11 @@ export const getLhbTool: ToolDefinition = {
     "with net buy/sell amounts. Use to spot what hot money is chasing today. " +
     "With symbol: returns that stock's appearance statistics over a period — count, cumulative net buy, seat breakdown (institutional vs retail). " +
     "Institutional seats buying = strong signal; multiple retail seats selling = distribution warning. " +
-    "Returns {error} if no data is available for the requested date or symbol.",
+    "Returns {error} if no data is available for the requested date or symbol. " +
+    "\n\n⚠️ TIMEOUT FALLBACK: If this tool times out (>120s), use WebFetch instead:\n" +
+    "- URL: https://data.eastmoney.com/stock/lhb.html (东方财富龙虎榜)\n" +
+    "- Prompt: 'Extract today's Dragon-Tiger List data: top 20 stocks with code, name, close price, change %, net buy amount, and listing reason'\n" +
+    "- Alternative: http://data.10jqka.com.cn/market/longhu/ (同花顺龙虎榜)",
   parameters: Type.Object({
     symbol: Type.Optional(Type.String({ description: "6-digit A-share code. Omit to get today's full榜单; provide to get per-stock statistics." })),
     date: Type.Optional(Type.String({ description: "Date in YYYYMMDD format for榜单 mode (default: yesterday). Ignored when symbol is provided." })),
@@ -52,7 +56,6 @@ export const getLhbTool: ToolDefinition = {
       args.symbol = params.symbol;
     }
     if (params.date) args.date = params.date;
-    if (params.period) args.period = params.period;
     const result = await callPython("get_lhb", args);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },

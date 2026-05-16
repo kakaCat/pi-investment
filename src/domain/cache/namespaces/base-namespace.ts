@@ -55,6 +55,10 @@ export abstract class BaseNamespace {
     return this.storage.cleanup();
   }
 
+  getStorage(): IStorage {
+    return this.storage;
+  }
+
   protected async beforeGet?(key: string): Promise<void>;
   protected async afterGet?(key: string, value: unknown): Promise<void>;
   protected async beforeSet?(key: string, value: unknown): Promise<void>;

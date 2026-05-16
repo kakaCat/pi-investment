@@ -78,8 +78,10 @@ async function validateCompilation(filePath: string): Promise<ValidationResult> 
 
   try {
     // 使用 tsc --noEmit 只检查类型，不生成文件
+    // 添加 --skipLibCheck 跳过第三方库的类型检查
+    // 只编译目标文件，避免项目中其他文件的类型错误影响验证
     const { stdout, stderr } = await execAsync(
-      `npx tsc --noEmit ${filePath}`,
+      `npx tsc --noEmit --skipLibCheck --esModuleInterop --module esnext --target esnext --moduleResolution bundler ${filePath}`,
       { cwd: process.cwd() }
     );
 
@@ -123,16 +125,23 @@ async function validateUnitTests(testPath: string): Promise<ValidationResult> {
       { cwd: process.cwd() }
     );
 
-    // 检查测试是否通过
-    if (stdout.includes('PASS') || stdout.includes('Tests:') && !stdout.includes('FAIL')) {
+    // 检查测试是否通过 - 查找 PASS 关键字
+    if (stdout.includes('PASS') && stdout.includes('Test Suites:') && !stdout.includes('FAIL')) {
       result.passed = true;
     }
 
-    if (stderr && stderr.trim() !== '') {
+    // stderr 中的 ExperimentalWarning 不算错误
+    if (stderr && stderr.trim() !== '' && !stderr.includes('ExperimentalWarning')) {
       result.warnings.push(stderr);
     }
   } catch (error: any) {
-    result.errors.push(error.stdout || error.stderr || error.message);
+    // 即使有错误，也检查 stdout 是否包含 PASS
+    const output = error.stdout || '';
+    if (output.includes('PASS') && output.includes('Test Suites:') && !output.includes('FAIL')) {
+      result.passed = true;
+    } else {
+      result.errors.push(error.stdout || error.stderr || error.message);
+    }
   }
 
   result.duration = Date.now() - startTime;

@@ -67,11 +67,17 @@ class StockListFetcher:
         self._update_technical_indicators(normalized_market)
 
     def _fetch_a_stocks(self) -> List[Dict[str, Any]]:
-        """Fetch and normalize the full A-share spot list from AkShare."""
+        """Fetch and normalize the full A-share spot list from AkShare.
+
+        Uses the Sina source (stock_zh_a_spot) because East Money's push2 API
+        is unreachable on this network. The Sina source lacks industry, PE, PB,
+        and market-cap columns — those fields remain NULL and can be backfilled
+        later via dedicated fetchers.
+        """
         return self._fetch_with_retry(
-            fetch_fn=ak.stock_zh_a_spot_em,
+            fetch_fn=ak.stock_zh_a_spot,
             market_label="A股",
-            mapper=self._map_a_stock_row,
+            mapper=self._map_a_stock_row_sina,
         )
 
     def _fetch_hk_stocks(self) -> List[Dict[str, Any]]:
@@ -138,7 +144,7 @@ class StockListFetcher:
         return stocks
 
     def _map_a_stock_row(self, row: pd.Series) -> Dict[str, Any]:
-        """Normalize one A-share AkShare row into a database payload."""
+        """Normalize one A-share AkShare row (East Money) into a database payload."""
         return {
             "symbol": self._require_text(row["代码"], "代码"),
             "name": self._require_text(row["名称"], "名称"),
@@ -147,6 +153,26 @@ class StockListFetcher:
             "pe": self._to_float(row.get("市盈率-动态")),
             "pb": self._to_float(row.get("市净率")),
             "industry": self._to_optional_text(row.get("所属行业")),
+        }
+
+    def _map_a_stock_row_sina(self, row: pd.Series) -> Dict[str, Any]:
+        """Normalize one A-share AkShare row (Sina) into a database payload.
+
+        Sina's stock_zh_a_spot() returns spot prices only — no fundamentals.
+        Fields like PE, PB, industry, market_cap are left as None.
+        """
+        code = self._require_text(row["代码"], "代码")
+        # Sina includes exchange prefix like sh600519, sz000001 — strip to 6-digit
+        if len(code) > 6 and code.lower().startswith(("sh", "sz", "bj")):
+            code = code[2:]
+        return {
+            "symbol": code,
+            "name": self._require_text(row["名称"], "名称"),
+            "market": "A",
+            "market_cap": None,
+            "pe": None,
+            "pb": None,
+            "industry": None,
         }
 
     def _map_hk_stock_row(self, row: pd.Series) -> Dict[str, Any]:
