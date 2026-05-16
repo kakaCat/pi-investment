@@ -16,6 +16,9 @@ export interface FxRatesFile {
 }
 
 export class FxRateService {
+  private static readonly CACHE_FRESH_HOURS = 24;
+  private static readonly DEFAULT_HKDCNY_RATE = 0.88; // Historical average fallback
+
   private cachePath: string;
 
   constructor(piDir: string) {
@@ -54,7 +57,7 @@ export class FxRateService {
     const cacheDate = new Date(date);
     const now = new Date();
     const diffHours = (now.getTime() - cacheDate.getTime()) / (1000 * 60 * 60);
-    return diffHours > 24;
+    return diffHours > FxRateService.CACHE_FRESH_HOURS;
   }
 
   async getRate(pair: "HKDCNY"): Promise<number> {
@@ -91,23 +94,28 @@ export class FxRateService {
       }
 
       // 4. Use default fallback
-      console.error("❌ 汇率获取失败且无缓存，使用默认值 0.88");
-      return 0.88;
+      console.error(`❌ 汇率获取失败且无缓存，使用默认值 ${FxRateService.DEFAULT_HKDCNY_RATE}`);
+      return FxRateService.DEFAULT_HKDCNY_RATE;
     }
   }
 
   async updateCache(): Promise<void> {
-    const rate = await this.fetchRateFromSina("HKDCNY");
-    const cache = this.loadCache();
+    try {
+      const rate = await this.fetchRateFromSina("HKDCNY");
+      const cache = this.loadCache();
 
-    cache.rates["HKDCNY"] = {
-      rate,
-      date: chinaDate(),
-      updated_at: chinaDateTime(),
-      source: "sina"
-    };
-    cache.last_updated = chinaDateTime();
+      cache.rates["HKDCNY"] = {
+        rate,
+        date: chinaDate(),
+        updated_at: chinaDateTime(),
+        source: "sina"
+      };
+      cache.last_updated = chinaDateTime();
 
-    this.saveCache(cache);
+      this.saveCache(cache);
+    } catch (error) {
+      console.error("❌ 更新汇率缓存失败:", error);
+      // Don't throw - let cron job continue
+    }
   }
 }
