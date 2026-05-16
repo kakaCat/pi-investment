@@ -87,6 +87,7 @@ function roundN(v: number, n = 2): number {
 export function buildPortfolioSnapshotFromQuotes(
   holdings: Holding[],
   priceResults: Array<Record<string, unknown>>,
+  fxRate: number = 0.88
 ): PortfolioSnapshot {
   if (holdings.length === 0) {
     return { holdings: [], total_cost: 0, total_value: 0, total_pnl: 0, total_pnl_pct: 0, as_of: today() };
@@ -97,24 +98,52 @@ export function buildPortfolioSnapshotFromQuotes(
 
   const enriched: HoldingWithPnL[] = holdings.map((h, i) => {
     const rt = priceResults[i] ?? {};
-    const curPrice = Number(rt.price ?? rt.current_price ?? 0);
-    const changePct = Number(rt.change_pct ?? rt.pct_chg ?? 0);
-    const pnlPct = h.avg_cost > 0 ? roundN((curPrice - h.avg_cost) / h.avg_cost * 100) : 0;
-    const pnlAmt = roundN((curPrice - h.avg_cost) * h.quantity);
-    const marketValue = roundN(curPrice * h.quantity);
-    const cost = roundN(h.avg_cost * h.quantity);
-    totalCost += cost;
-    totalValue += marketValue;
 
-    return {
-      ...h,
-      name: String(rt.name ?? h.name),
-      current_price: curPrice,
-      change_pct: roundN(changePct),
-      pnl_pct: pnlPct,
-      pnl_amount: pnlAmt,
-      market_value: marketValue,
-    };
+    if (h.market === "HK") {
+      // HK stock logic: convert HKD price to CNY
+      const currentPriceHKD = Number(rt.price ?? 0);
+      const currentPriceCNY = currentPriceHKD * fxRate;
+      const changePct = Number(rt.change_pct ?? rt.pct_chg ?? 0);
+      const marketValue = roundN(currentPriceCNY * h.quantity);
+      const cost = roundN(h.avg_cost * h.quantity);
+      const pnlAmt = roundN(marketValue - cost);
+      const pnlPct = cost > 0 ? roundN((pnlAmt / cost) * 100) : 0;
+
+      totalCost += cost;
+      totalValue += marketValue;
+
+      return {
+        ...h,
+        name: String(rt.name ?? h.name),
+        current_price: currentPriceCNY,
+        current_price_hkd: currentPriceHKD,
+        current_fx_rate: fxRate,
+        change_pct: roundN(changePct),
+        pnl_pct: pnlPct,
+        pnl_amount: pnlAmt,
+        market_value: marketValue,
+      };
+    } else {
+      // A-share logic (unchanged)
+      const curPrice = Number(rt.price ?? rt.current_price ?? 0);
+      const changePct = Number(rt.change_pct ?? rt.pct_chg ?? 0);
+      const pnlPct = h.avg_cost > 0 ? roundN((curPrice - h.avg_cost) / h.avg_cost * 100) : 0;
+      const pnlAmt = roundN((curPrice - h.avg_cost) * h.quantity);
+      const marketValue = roundN(curPrice * h.quantity);
+      const cost = roundN(h.avg_cost * h.quantity);
+      totalCost += cost;
+      totalValue += marketValue;
+
+      return {
+        ...h,
+        name: String(rt.name ?? h.name),
+        current_price: curPrice,
+        change_pct: roundN(changePct),
+        pnl_pct: pnlPct,
+        pnl_amount: pnlAmt,
+        market_value: marketValue,
+      };
+    }
   });
 
   const totalPnl = roundN(totalValue - totalCost);
@@ -443,7 +472,10 @@ export class PortfolioService {
       return { holdings: [], total_cost: 0, total_value: 0, total_pnl: 0, total_pnl_pct: 0, as_of: today() };
     }
 
-    // 并行获取所有持仓实时价格（直接调用 TS 函数，避免循环依赖）
+    // 1. Get current FX rate for HK stocks
+    const fxRate = await this.fxRateService.getRate("HKDCNY");
+
+    // 2. 并行获取所有持仓实时价格（直接调用 TS 函数，避免循环依赖）
     const priceResults = await Promise.all(
       holdings.map(h =>
         (h.market === "HK" ? get_hk_stock_price(h.symbol) : get_stock_realtime_price(h.symbol))
@@ -452,7 +484,7 @@ export class PortfolioService {
       )
     );
 
-    return buildPortfolioSnapshotFromQuotes(holdings, priceResults);
+    return buildPortfolioSnapshotFromQuotes(holdings, priceResults, fxRate);
   }
 
   // ── 文本摘要（供 agent 在 bootstrap 时读取） ────────────────────────────────

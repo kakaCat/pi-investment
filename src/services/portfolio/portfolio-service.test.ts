@@ -1,10 +1,11 @@
-import { describe, expect, test } from "@jest/globals";
+import { describe, expect, test, jest } from "@jest/globals";
 import { mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { buildPortfolioSnapshotFromQuotes, PortfolioService, type Holding } from "./portfolio-service.js";
 import { TradeService } from "./trade-service.js";
 import { FxRateService } from "../fx-rate-service.js";
+import * as akshareTs from "../../infrastructure/akshare-ts/index.js";
 
 describe("buildPortfolioSnapshotFromQuotes", () => {
   test("calculates per-position and aggregate pnl", () => {
@@ -29,18 +30,20 @@ describe("buildPortfolioSnapshotFromQuotes", () => {
       },
     ];
 
+    // For HK stock: price 18 HKD * 0.88 FX rate = 15.84 CNY
+    // P&L: (15.84 - 20) * 50 = -208
     const snapshot = buildPortfolioSnapshotFromQuotes(holdings, [
       { name: "贵州茅台", price: 12, change_pct: 5 },
       { price: 18, change_pct: -1.5 },
-    ]);
+    ], 0.88);
 
     expect(snapshot.holdings[0].name).toBe("贵州茅台");
     expect(snapshot.holdings[0].pnl_amount).toBe(200);
-    expect(snapshot.holdings[1].pnl_amount).toBe(-100);
+    expect(snapshot.holdings[1].pnl_amount).toBe(-208);
     expect(snapshot.total_cost).toBe(2000);
-    expect(snapshot.total_value).toBe(2100);
-    expect(snapshot.total_pnl).toBe(100);
-    expect(snapshot.total_pnl_pct).toBe(5);
+    expect(snapshot.total_value).toBe(1992); // 1200 + 792
+    expect(snapshot.total_pnl).toBe(-8); // 200 + (-208)
+    expect(snapshot.total_pnl_pct).toBe(-0.4);
   });
 });
 
@@ -227,5 +230,58 @@ describe("PortfolioService", () => {
     // Weighted average CNY: (589.91*100 + 601.80*50) / 150 = 593.87
     expect(holding?.avg_cost).toBeCloseTo(593.87, 2);
     expect(holding?.quantity).toBe(150);
+  });
+
+  test("getWithPnL converts HK stock prices from HKD to CNY", async () => {
+    const testDir = mkdtempSync(join(tmpdir(), "pi-invest-hk-fx-"));
+
+    // Setup FX rate cache with current rate (0.8800)
+    const currentCache = {
+      rates: {
+        HKDCNY: { rate: 0.8800, date: "2026-05-16", updated_at: "2026-05-16 15:00:00", source: "sina" }
+      },
+      last_updated: "2026-05-16 15:00:00"
+    };
+    writeFileSync(join(testDir, "fx-rates.json"), JSON.stringify(currentCache, null, 2));
+
+    // Create holdings manually (simulating what addHKStock would do)
+    const holdings: Holding[] = [
+      {
+        symbol: "00700",
+        name: "腾讯控股",
+        quantity: 100,
+        avg_cost: 589.91,  // 666.57 * 0.8850 (purchase rate)
+        avg_cost_hkd: 666.57,
+        purchase_fx_rate: 0.8850,
+        market: "HK",
+        notes: "",
+        added_date: "2026-05-16"
+      }
+    ];
+
+    // Mock price results (HKD price from market)
+    const priceResults = [
+      { price: 670.00, name: "腾讯控股", change_pct: 0.5 }
+    ];
+
+    // Test buildPortfolioSnapshotFromQuotes with FX rate
+    const snapshot = buildPortfolioSnapshotFromQuotes(holdings, priceResults, 0.8800);
+
+    const holding = snapshot.holdings[0];
+
+    // Verify HKD price is stored
+    expect(holding.current_price_hkd).toBe(670.00);
+
+    // Verify current FX rate is stored
+    expect(holding.current_fx_rate).toBe(0.8800);
+
+    // Verify CNY price is calculated: 670 * 0.88 = 589.60
+    expect(holding.current_price).toBeCloseTo(589.60, 2);
+
+    // Verify market value: 589.60 * 100 = 58960
+    expect(holding.market_value).toBeCloseTo(58960, 2);
+
+    // Verify P&L calculation (cost was 589.91, current 589.60)
+    expect(holding.pnl_amount).toBeCloseTo(-31, 0);
   });
 });
