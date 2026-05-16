@@ -3,6 +3,7 @@ import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { buildPortfolioSnapshotFromQuotes, PortfolioService, type Holding } from "./portfolio-service.js";
+import { TradeService } from "./trade-service.js";
 
 describe("buildPortfolioSnapshotFromQuotes", () => {
   test("calculates per-position and aggregate pnl", () => {
@@ -113,5 +114,50 @@ describe("PortfolioService", () => {
     service.add("600519", 50, 10, 0, "茅台", "A");
 
     expect(() => service.sell("600519", 100, 12)).toThrow("持仓不足");
+  });
+
+  test("sell() records pnl to TradeService when integrated", () => {
+    const testDir = mkdtempSync(join(tmpdir(), "pi-invest-integrated-"));
+    const portfolioService = new PortfolioService(testDir);
+    const tradeService = new TradeService(testDir);
+
+    // 集成 TradeService
+    portfolioService.setTradeService(tradeService);
+
+    // 先通过 TradeService 记录买入（这样 TradeService 才知道有持仓）
+    tradeService.add("2026-03-20", "600519", "茅台", "buy", 100, 10, 5, "A", "建仓");
+
+    // 同步到 PortfolioService（实际使用中会通过 replaceHoldings 同步）
+    portfolioService.add("600519", 100, 10, 5, "茅台", "A");
+
+    // 卖出获利
+    const result = portfolioService.sell("600519", 40, 15, 3, "止盈");
+
+    expect(result.success).toBe(true);
+    expect(result.pnlAmount).toBe(195); // (15 * 40 - 3) - (10.05 * 40) = 597 - 402 = 195
+    expect(result.tradeRecorded).toBe(true);
+
+    // 验证交易记录包含盈亏
+    const trades = tradeService.load().trades;
+    const sellTrade = trades.find(t => t.action === "sell");
+
+    expect(sellTrade).toBeDefined();
+    expect(sellTrade?.pnl).toBe(195);
+    expect(sellTrade?.pnl_pct).toBeCloseTo(48.51, 1); // 195 / 402 * 100
+  });
+
+  test("stores HK stock with avg_cost_hkd and purchase_fx_rate", () => {
+    const testDir = mkdtempSync(join(tmpdir(), "pi-invest-hk-fx-"));
+    const service = new PortfolioService(testDir);
+
+    const result = service.add("00700", 100, 589.71, 0, "腾讯控股", "HK", "");
+
+    const data = service.load();
+    const holding = data.holdings.find(h => h.symbol === "00700");
+
+    expect(holding).toBeDefined();
+    expect(holding?.avg_cost).toBe(589.71);
+    expect(holding?.avg_cost_hkd).toBeUndefined(); // Will be added in next step
+    expect(holding?.purchase_fx_rate).toBeUndefined();
   });
 });

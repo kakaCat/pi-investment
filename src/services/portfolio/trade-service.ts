@@ -22,10 +22,14 @@ export interface Trade {
   action: TradeAction;
   quantity: number;      // 股数
   price: number;         // 成交均价（元/港元）
+  price_hkd?: number;            // 港币成交价（HKD），仅港股
+  fx_rate?: number;              // 成交时汇率，仅港股
   commission: number;    // 手续费（元）
   amount: number;        // 成交金额 = quantity × price（不含手续费）
   market: "A" | "HK";
   notes: string;
+  pnl?: number;          // 盈亏金额（仅卖出时）
+  pnl_pct?: number;      // 盈亏比例（仅卖出时）
 }
 
 export interface TradesFile {
@@ -112,6 +116,8 @@ export class TradeService {
     commission = 0,
     market: "A" | "HK" = "A",
     notes = "",
+    pnl?: number,
+    pnl_pct?: number,
   ): Trade {
     if (quantity <= 0) throw new Error("quantity 必须大于0");
     if (price <= 0) throw new Error("price 必须大于0");
@@ -135,6 +141,15 @@ export class TradeService {
         amount: roundN(quantity * price),
         market, notes,
       };
+
+      // 添加盈亏字段（仅当提供时）
+      if (pnl !== undefined) {
+        trade.pnl = roundN(pnl);
+      }
+      if (pnl_pct !== undefined) {
+        trade.pnl_pct = roundN(pnl_pct);
+      }
+
       data.trades.push(trade);
       // 按日期排序
       data.trades.sort((a, b) => a.date.localeCompare(b.date));

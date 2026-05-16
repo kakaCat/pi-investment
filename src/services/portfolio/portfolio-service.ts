@@ -20,6 +20,8 @@ export interface Holding {
   name: string;        // 股票名称（可从行情更新）
   quantity: number;    // 持股数量（股）
   avg_cost: number;    // 持仓均价（元/港元）
+  avg_cost_hkd?: number;         // 港币成本（HKD），仅港股
+  purchase_fx_rate?: number;     // 买入时汇率（HKD→CNY），仅港股
   market: "A" | "HK";  // 市场类型
   notes: string;       // 备注（如：分批建仓批次、操作背景等）
   added_date: string;  // 首次录入日期
@@ -36,6 +38,8 @@ export interface PortfolioFile {
 
 export interface HoldingWithPnL extends Holding {
   current_price: number;
+  current_price_hkd?: number;    // 当前港币价格
+  current_fx_rate?: number;      // 当前汇率
   change_pct: number;      // 今日涨跌幅
   pnl_pct: number;         // 持仓盈亏%
   pnl_amount: number;      // 持仓盈亏额（元）
@@ -424,6 +428,8 @@ export class PortfolioService {
           commission,
           holding.market || "A",
           notes || "卖出",
+          pnlAmount,    // 传递盈亏金额
+          pnlPct,       // 传递盈亏比例
         );
         tradeRecorded = true;
       } catch (e) {
