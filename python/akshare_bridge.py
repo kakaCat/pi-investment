@@ -439,6 +439,59 @@ def get_stock_realtime_price(symbol: str) -> dict:
         return {"error": str(e), "symbol": symbol}
 
 
+def get_batch_realtime_prices(symbols: list) -> dict:
+    """批量获取实时价格（优化版：一次请求获取多个股票）"""
+    from datetime import datetime
+    if not symbols or len(symbols) == 0:
+        return {"prices": {}, "errors": [], "timestamp": datetime.now().isoformat()}
+
+    # 清理股票代码
+    cleaned_symbols = [_clean_symbol(s) for s in symbols]
+
+    # 构建新浪批量请求（最多100个股票一次请求）
+    prices = {}
+    errors = []
+
+    # 分批处理（每批100个）
+    batch_size = 100
+    for i in range(0, len(cleaned_symbols), batch_size):
+        batch = cleaned_symbols[i:i+batch_size]
+        sina_symbols = [_sina_symbol(s) for s in batch]
+        symbols_str = ",".join(sina_symbols)
+
+        try:
+            r = _sina_request(f"https://hq.sinajs.cn/list={symbols_str}")
+            r.encoding = "gbk"
+            lines = r.text.strip().split("\n")
+
+            for idx, line in enumerate(lines):
+                if idx >= len(batch):
+                    break
+
+                symbol = batch[idx]
+                fields = _parse_sina_realtime(line)
+
+                if fields and fields.get("price"):
+                    price = _safe_float(fields["price"])
+                    if price > 0:
+                        prices[symbol] = price
+                    else:
+                        errors.append({"symbol": symbol, "error": "价格为0"})
+                else:
+                    errors.append({"symbol": symbol, "error": "未找到数据"})
+
+        except Exception as e:
+            for symbol in batch:
+                errors.append({"symbol": symbol, "error": str(e)})
+
+    return {
+        "prices": prices,
+        "errors": errors,
+        "count": len(prices),
+        "timestamp": datetime.now().isoformat()
+    }
+
+
 def get_stock_history(symbol: str, period: str = "daily", start_date: str = None, end_date: str = None, adjust: str = "qfq") -> dict:
     """A股历史行情（via 新浪 getKLineData）"""
     from datetime import datetime
@@ -1490,50 +1543,55 @@ def get_north_flow() -> dict:
     - 卖出成交额（亿元）
 
     数据来源：东方财富网陆股通数据
+
+    注意：该接口自 2024-08-19 起数据源失效，返回的历史数据停留在 2024-08-16，
+    实时数据全为 0。这是东方财富网数据源问题，非代码问题。
     """
     import akshare as ak
-    from datetime import datetime
+    from datetime import datetime, timedelta
     try:
-        # 获取实时数据
-        df_today = ak.stock_hsgt_fund_flow_summary_em()
-        north_today = df_today[df_today['资金方向'] == '北向']
+        # 获取历史数据
+        df_hist = ak.stock_hsgt_hist_em(symbol="北向资金")
 
+        # 过滤掉 NaN 值的行
+        valid_data = df_hist.dropna(subset=["当日成交净买额"])
+
+        if valid_data.empty:
+            return {
+                "error": "北向资金数据源失效",
+                "detail": "东方财富网北向资金接口无有效数据，建议使用其他市场情绪指标",
+                "data": []
+            }
+
+        # 检查最新数据的时效性
+        latest_date = valid_data['日期'].max()
+        days_old = (datetime.now() - datetime.strptime(str(latest_date), "%Y-%m-%d")).days
+
+        if days_old > 30:
+            return {
+                "error": "北向资金数据过期",
+                "detail": f"最新数据停留在 {latest_date}（{days_old} 天前），数据源已失效",
+                "last_valid_date": str(latest_date),
+                "data": []
+            }
+
+        # 返回最近10条有效数据
         records = []
-
-        # 尝试获取历史数据（只取有效数据）
-        try:
-            df_hist = ak.stock_hsgt_hist_em(symbol="北向资金")
-            # 过滤掉 NaN 值的行
-            df_hist = df_hist.dropna(subset=["当日成交净买额"]).tail(10)
-
-            # 添加历史数据
-            for _, row in df_hist.iterrows():
-                records.append({
-                    "date": str(row.get("日期", "")),
-                    "amount_billion": _safe_float(row.get("当日成交净买额", 0)),
-                    "buy": _safe_float(row.get("买入成交额", 0)),
-                    "sell": _safe_float(row.get("卖出成交额", 0))
-                })
-        except Exception:
-            pass  # 历史数据失败不影响实时数据
-
-        # 添加今日数据（如果有）
-        if not north_today.empty:
-            today_net = north_today['成交净买额'].sum() / 100000000  # 转为亿
+        for _, row in valid_data.tail(10).iterrows():
             records.append({
-                "date": datetime.now().strftime("%Y-%m-%d"),
-                "amount_billion": today_net,
-                "buy": 0,  # 实时接口无此字段
-                "sell": 0
+                "date": str(row.get("日期", "")),
+                "amount_billion": _safe_float(row.get("当日成交净买额", 0)),
+                "buy": _safe_float(row.get("买入成交额", 0)),
+                "sell": _safe_float(row.get("卖出成交额", 0))
             })
 
-        # 如果没有任何数据，返回错误
-        if not records:
-            return {"error": "无北向资金数据"}
-
-        return {"data": records[-10:], "data_date": datetime.now().strftime("%Y-%m-%d")}
+        return {
+            "data": records,
+            "data_date": str(latest_date),
+            "warning": f"数据更新至 {latest_date}，可能不是最新" if days_old > 1 else None
+        }
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": f"获取北向资金数据失败: {str(e)}"}
 
 
 def get_stock_list(market="A"):
@@ -1586,6 +1644,63 @@ def get_market_overview() -> dict:
         return {"indices": results, "data_date": datetime.now().strftime("%Y-%m-%d")}
     except Exception as e:
         return {"error": str(e)}
+
+
+def get_index_history(symbol: str, start_date: str, end_date: str) -> dict:
+    """获取指数历史数据
+
+    Args:
+        symbol: 指数代码，如 sh000001, sz399001, sz399006
+        start_date: 开始日期，格式 YYYY-MM-DD
+        end_date: 结束日期，格式 YYYY-MM-DD
+
+    Returns:
+        {"success": True, "data": [{"date": "2024-01-01", "open": 3000, "high": 3100, "low": 2900, "close": 3050, "volume": 1000000}]}
+    """
+    import akshare as ak
+    try:
+        # 转换代码格式（去掉 sh/sz 前缀）
+        if symbol.startswith('sh'):
+            code = symbol[2:]
+        elif symbol.startswith('sz'):
+            code = symbol[2:]
+        else:
+            code = symbol
+
+        # 获取指数日线数据
+        df = ak.stock_zh_index_daily(symbol=code)
+
+        if df is None or df.empty:
+            return {"success": False, "error": f"No data for index {symbol}"}
+
+        # 过滤日期范围
+        df['date'] = df['date'].astype(str)
+        df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+
+        if df.empty:
+            return {"success": False, "error": f"No data in date range {start_date} to {end_date}"}
+
+        # 转换为字典列表
+        result = []
+        for _, row in df.iterrows():
+            result.append({
+                'date': str(row['date']),
+                'open': _safe_float(row.get('open', 0)),
+                'high': _safe_float(row.get('high', 0)),
+                'low': _safe_float(row.get('low', 0)),
+                'close': _safe_float(row.get('close', 0)),
+                'volume': _safe_float(row.get('volume', 0), decimals=0),
+            })
+
+        return {
+            'success': True,
+            'data': result
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
 
 
 def get_hk_financials(symbol: str) -> dict:
@@ -2803,6 +2918,7 @@ FUNCTIONS = {
     "get_macro_data": get_macro_data,
     "get_north_flow": get_north_flow,
     "get_market_overview": get_market_overview,
+    "get_index_history": get_index_history,
     "get_stock_list": get_stock_list,
     "manage_portfolio": manage_portfolio,
     "get_financial_statements": get_financial_statements,
@@ -2840,7 +2956,22 @@ FUNCTIONS = {
     "get_hk_south_flow": get_hk_south_flow,
     "get_hk_technical": get_hk_technical,
     "get_hk_hot_rank": get_hk_hot_rank,
+    # ML functions
+    "predict_signal_confidence": lambda features: predict_signal_confidence(features),
+    "train_signal_model": lambda days=30, min_samples=50: train_signal_model(days, min_samples),
 }
+
+
+def predict_signal_confidence(features: dict) -> dict:
+    """Predict signal confidence using ML model"""
+    from ml.signal_predictor import predict_confidence
+    return predict_confidence(features)
+
+
+def train_signal_model(days: int = 30, min_samples: int = 50) -> dict:
+    """Train signal confidence model"""
+    from ml.signal_trainer import train_model
+    return train_model(days, min_samples)
 
 def daemon_mode():
     """

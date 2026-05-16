@@ -13,10 +13,12 @@ export interface StockData {
 export class SignalGenerator {
   private signalsDir: string;
   private factorLib: FactorLibrary;
+  private useML: boolean;
 
-  constructor(signalsDir: string = '.pi-invest/quant/signals', factorLib?: FactorLibrary) {
+  constructor(signalsDir: string = '.pi-invest/quant/signals', factorLib?: FactorLibrary, useML: boolean = true) {
     this.signalsDir = signalsDir;
     this.factorLib = factorLib || new FactorLibrary();
+    this.useML = useML;
   }
 
   /**
@@ -50,7 +52,13 @@ export class SignalGenerator {
         indicators: tech as any,
       };
 
-      signal.confidence = this.calculateConfidence(tech, signal.action);
+      // Use ML prediction if enabled, otherwise use rule-based
+      if (this.useML) {
+        signal.confidence = await this.predictConfidence(signal);
+      } else {
+        signal.confidence = this.calculateConfidence(tech, signal.action);
+      }
+
       return signal;
     }
 
@@ -305,6 +313,75 @@ export class SignalGenerator {
     // Use mid as proxy for current price if close not available
     const price = mid || (upper + lower) / 2;
     return (price - lower) / (upper - lower);
+  }
+
+  /**
+   * Extract features from signal for ML prediction
+   */
+  private extractFeatures(signal: Signal): any {
+    const ind = signal.indicators as TechnicalIndicators;
+    return {
+      rsi: ind.rsi || 50,
+      ma5_ma20_ratio: ind.ma5 && ind.ma20 ? ind.ma5 / ind.ma20 : 1,
+      ma20_ma60_ratio: ind.ma20 && ind.ma60 ? ind.ma20 / ind.ma60 : 1,
+      macd_histogram: ind.macd_histogram || 0,
+      bb_position: this.calculateBBPosition(ind),
+      volume_ratio: ind.volume_ratio || 1,
+      conditions_matched_ratio: this.calculateConditionsRatio(signal.reason),
+      action: signal.action === 'buy' ? 0 : 1
+    };
+  }
+
+  /**
+   * Calculate conditions matched ratio from reason string
+   */
+  private calculateConditionsRatio(reason: string): number {
+    if (!reason) return 0.5;
+    const count = reason.split(',').length;
+    return Math.min(count / 3, 1.0);
+  }
+
+  /**
+   * Predict confidence using ML model with fallback to rule-based
+   */
+  async predictConfidence(signal: Signal, retries: number = 2): Promise<number> {
+    // Import callPythonResilient dynamically
+    try {
+      const pythonCaller = await import('../../infrastructure/tools/shared/python-caller-resilient-adapter.js');
+      const { callPythonResilient } = pythonCaller;
+
+      // Level 1: Try XGBoost ML model
+      for (let i = 0; i < retries; i++) {
+        try {
+          const features = this.extractFeatures(signal);
+          const result = await callPythonResilient('predict_signal_confidence', { features });
+          const data = JSON.parse(result);
+
+          if (data.confidence !== null && data.confidence !== undefined) {
+            return data.confidence;
+          }
+        } catch (error) {
+          if (i === retries - 1) {
+            // All retries failed, fall back to rule-based
+            break;
+          }
+          await this.sleep(1000 * (i + 1));
+        }
+      }
+    } catch (importError) {
+      // python-caller not available, use rule-based
+    }
+
+    // Level 2: Rule-based fallback
+    const ind = signal.indicators as TechnicalIndicators;
+    return this.calculateConfidence(ind, signal.action);
+  }
+
+  /**
+   * Sleep helper for retry logic
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
