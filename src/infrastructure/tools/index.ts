@@ -40,15 +40,15 @@ export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager,
 export { initMemoryTools } from "./memory-tool.js";
 
 /**
- * 所有自定义工具列表 — agent-loop 直接使用此数组
+ * 内置工具列表
  *
- * 排序原则：高频工具靠前，专用/低频工具靠后。
- * LLM 对工具列表靠前的条目权重更高，高频工具放前面可降低选错工具的概率。
+ * 顺序说明：
+ * - 此数组的顺序 = 系统提示词中的工具列表顺序
+ * - 高频工具在前（plan, clarify, task 等）
+ * - 投资分析工具居中
+ * - 低频工具在后（compact, browser 等）
  *
- * 高频（每个任务都要用）:    plan_task → clarify → task_create → task_update → task_list → reflect
- * 投资工具（核心业务）:      market overview → stock info → analysis → screening → portfolio
- * 中频（大多数任务用到）:    memory_write / memory_search
- * 低频/专用（按需使用）:     task_get / spawn / compact
+ * 调整顺序：直接在此数组中移动工具位置即可
  */
 export const allCustomTools = [
   // 高频 — 工作流核心

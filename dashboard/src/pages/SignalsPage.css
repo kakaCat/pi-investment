@@ -1,0 +1,72 @@
+.signals-page {
+  max-width: 1400px;
+}
+
+.days-select {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+}
+
+.signals-table {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.signals-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.signals-table th {
+  background: #f8f9fa;
+  padding: 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #1a1a2e;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.signals-table td {
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.signals-table tr:hover {
+  background: #f8f9fa;
+}
+
+.signal-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.signal-badge.success {
+  background: #d4edda;
+  color: #155724;
+}
+
+.signal-badge.danger {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.signal-badge.neutral {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+.empty {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+}
