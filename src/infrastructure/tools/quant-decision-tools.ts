@@ -134,6 +134,13 @@ export const analyzeStockQuantTool: ToolDefinition = {
 - 评估买入机会
 - 验证卖出决策`,
 
+  promptSnippet: '需要量化分析股票时',
+  promptGuidelines: [
+    '返回技术指标、因子分析、风险评估',
+    '结果包含买入/卖出信号和置信度',
+    '适用于技术面分析和量化选股'
+  ],
+
   parameters: Type.Object({
     symbol: Type.String({
       description: '股票代码，如 600036.SH 或 000425.SZ'

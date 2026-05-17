@@ -108,6 +108,12 @@ export const browserTool = {
     "screenshot (capture current page; use to verify state or share what you see), " +
     "close (shut down browser when done — always call this when finished), " +
     "search (search Bing with a query string and return results — the fastest way to look up real-time info, use this instead of manually navigating to a search engine).",
+  promptSnippet: '工具获取数据失败时作为备选方案',
+  promptGuidelines: [
+    '仅在其他工具无法获取数据时使用',
+    '适用于需要实时网页内容的场景',
+    '返回网页文本内容，需要自行解析'
+  ],
   parameters: Type.Object({
     action: Type.String({ description: "Action to perform: search | navigate | click | fill | getText | getHTML | screenshot | connect | close" }),
     url: Type.Optional(Type.String({ description: "URL to navigate to (for navigate), or CDP endpoint to attach to (for connect, e.g. http://localhost:9222)" })),

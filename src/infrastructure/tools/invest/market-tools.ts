@@ -98,10 +98,16 @@ export const getNorthFlowTool: ToolDefinition = {
   name: "get_north_flow",
   label: "查询北向资金",
   description:
-    "Get 10-day northbound capital (沪深港通) net inflow in billions CNY. Positive = buying; negative = selling. " +
-    "Sustained inflows over 5+ days signal foreign institutional confidence — a strong bullish indicator. " +
-    "Use alongside get_market_overview for a complete market sentiment picture. " +
-    "Returns {error} if northbound flow data is unavailable.",
+    "⚠️ DATA SOURCE ISSUE: This tool is currently UNAVAILABLE. The underlying data source (East Money northbound flow API) " +
+    "has been returning stale data since 2024-08-19 (last valid: 2024-08-16). This is a data provider issue, not a code bug. " +
+    "The tool will return an explicit error message explaining the situation. " +
+    "DO NOT use this tool for current analysis. For market sentiment, use: get_market_overview, get_sector_fund_flow, get_market_margin instead.",
+  promptSnippet: '需要查询北向资金流向时',
+  promptGuidelines: [
+    '数据源可能不稳定，失败时考虑使用 browser 工具',
+    '返回沪股通和深股通的资金流入流出数据',
+    '可用于判断外资对A股的态度'
+  ],
   parameters: Type.Object({}),
   execute: async () => {
     const result = await callPython("get_north_flow");

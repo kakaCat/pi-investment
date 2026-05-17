@@ -39,6 +39,13 @@ export const getTechnicalSignalsTool: ToolDefinition = {
 - 快速查看技术面
 - 技术分析参考`,
 
+  promptSnippet: '需要获取技术指标信号时',
+  promptGuidelines: [
+    '返回MACD、RSI、布林带等技术指标',
+    '包含买入/卖出信号和强度',
+    '可用于短期交易决策'
+  ],
+
   parameters: Type.Object({
     symbol: Type.String({
       description: '股票代码，如 600036.SH'
@@ -340,6 +347,13 @@ export const backtestStrategyTool: ToolDefinition = {
 - 验证策略有效性
 - 优化策略参数
 - 评估风险收益比`,
+
+  promptSnippet: '需要回测交易策略时',
+  promptGuidelines: [
+    '用于验证策略的历史表现',
+    '返回收益率、夏普比率、最大回撤等指标',
+    '回测时间较长，建议使用 task_create 创建后台任务'
+  ],
 
   parameters: Type.Object({
     strategy_id: Type.String({
