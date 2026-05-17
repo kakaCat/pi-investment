@@ -14,6 +14,7 @@ import type { ToolDefinition } from "./index.js";
 import { QuantService } from '../../services/quant/quant-service.js';
 import { SignalGenerator, StockData } from '../../services/quant/signal-generator.js';
 import { FactorLibrary, TechnicalIndicators } from '../../services/quant/factor-library.js';
+import { BacktestEngine } from '../../services/quant/backtest-engine.js';
 import { StockDBService } from '../../services/data/stock-db-service.js';
 import { get_stock_realtime_price, get_stock_info } from '../../infrastructure/akshare-ts/index.js';
 
@@ -22,6 +23,7 @@ const quantService = new QuantService();
 const stockDBService = new StockDBService('.pi-invest/stock.db');
 const factorLibrary = new FactorLibrary(stockDBService);
 const signalGenerator = new SignalGenerator('.pi-invest/quant/signals', factorLibrary);
+const backtestEngine = new BacktestEngine();
 
 /**
  * 辅助函数：计算完整的技术指标
@@ -295,11 +297,70 @@ export const runBacktestTool: ToolDefinition = {
 
   execute: async (_toolCallId: string, params: any) => {
     try {
-      // TODO: 实现回测引擎
-      // 当前返回占位符
+      const { strategy_id, start_date, end_date, symbols, initial_capital = 100000 } = params;
+
+      // 获取策略
+      const strategy = await quantService.getStrategy(strategy_id);
+      if (!strategy) {
+        return {
+          content: [{ type: "text" as const, text: `Strategy ${strategy_id} not found` }],
+          details: undefined
+        };
+      }
+
+      // 确定股票列表
+      let stockList = symbols;
+      if (!stockList || stockList.length === 0) {
+        // 如果没有指定股票，使用默认列表（A股主要指数成分股）
+        stockList = ['000001', '600000', '600036', '601318', '600519']; // 示例：平安、浦发、招行、平安、茅台
+      }
+
+      // 运行回测
+      const result = await backtestEngine.runBacktest(
+        strategy,
+        start_date,
+        end_date,
+        stockList,
+        initial_capital
+      );
+
+      // 格式化输出
+      const summary = `
+回测结果 - ${strategy.name}
+=====================================
+时间范围: ${result.start_date} 至 ${result.end_date}
+初始资金: ¥${result.initial_capital.toLocaleString()}
+最终资金: ¥${result.final_capital.toLocaleString()}
+
+收益指标:
+- 总收益率: ${result.total_return.toFixed(2)}%
+- 年化收益率: ${result.annual_return.toFixed(2)}%
+- 最大回撤: ${result.max_drawdown.toFixed(2)}%
+
+交易指标:
+- 总交易次数: ${result.total_trades}
+- 盈利交易: ${result.winning_trades} (胜率: ${result.win_rate.toFixed(2)}%)
+- 亏损交易: ${result.losing_trades}
+- 盈亏比: ${result.profit_loss_ratio.toFixed(2)}
+
+风险指标:
+- 夏普比率: ${result.sharpe_ratio.toFixed(2)}
+- 波动率: ${result.volatility.toFixed(2)}%
+
+持仓指标:
+- 平均持仓天数: ${result.avg_holding_days.toFixed(1)}天
+- 最大同时持仓数: ${result.max_position_count}
+
+交易记录 (前10笔):
+${result.trades.slice(0, 10).map(t =>
+  `${t.symbol} | ${t.entry_date} → ${t.exit_date} | ${t.profit > 0 ? '+' : ''}${t.profit_pct.toFixed(2)}% | ${t.exit_reason}`
+).join('\n')}
+${result.trades.length > 10 ? `\n... 共 ${result.trades.length} 笔交易` : ''}
+`;
+
       return {
-        content: [{ type: "text" as const, text: `Backtest功能开发中...\n参数: ${JSON.stringify(params, null, 2)}` }],
-        details: undefined
+        content: [{ type: "text" as const, text: summary }],
+        details: result
       };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
