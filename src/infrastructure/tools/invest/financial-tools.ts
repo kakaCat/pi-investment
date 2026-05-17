@@ -3,6 +3,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
+import { writeFile } from "fs/promises";
 import { callPython } from "../shared/python-caller.js";
 import { requireAshare, detectMarket } from "../shared/validators.js";
 
@@ -93,10 +94,30 @@ export const getFinancialStatementsTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const args: Record<string, unknown> = { symbol: params.symbol, statement: params.statement ?? "all" };
+
+    const args: Record<string, unknown> = {
+      symbol: params.symbol,
+      statement: params.statement ?? "all"
+    };
     if (params.recent_n !== undefined) args.recent_n = params.recent_n;
+
     const result = await callPython("get_financial_statements", args);
-    return { content: [{ type: "text" as const, text: result }], details: undefined };
+
+    // 判断数据大小
+    if (result.length > 2000) {
+      // 写入临时文件
+      const filePath = `/tmp/pi-financials-${params.symbol}-${params.statement || 'all'}-${Date.now()}.json`;
+      await writeFile(filePath, result, 'utf-8');
+
+      // 返回预览（前 500 字符）+ 文件路径
+      const preview = result.substring(0, 500);
+      const resultText = `财务数据已保存到: ${filePath}\n\n数据预览 (前500字符):\n${preview}...\n\n[总长度: ${result.length} 字符，完整内容见文件。使用 Read 工具查看完整内容]`;
+
+      return { content: [{ type: "text" as const, text: resultText }], details: undefined };
+    } else {
+      // 数据较小，直接返回
+      return { content: [{ type: "text" as const, text: result }], details: undefined };
+    }
   },
 };
 
