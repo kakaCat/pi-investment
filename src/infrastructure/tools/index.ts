@@ -20,14 +20,21 @@ import { wrapInvestToolWithSkillGuard } from "./skill-guard.js";
 import { monitorTools } from "../../tools/monitor-tools.js";
 import { notificationTools } from "../../tools/notification-tools.js";
 import { evolutionRunTool } from "./evolution-tool.js";
-import { analyzeSectorRotationTool } from "./analyze-sector-rotation-tool.js";
-import { checkStopLossTriggerTool } from "./check-stop-loss-trigger-tool.js";
+import { analyze_sector_rotationTool } from "./analyze_sector_rotation-tool.js";
+import { check_stop_loss_triggerTool } from "./check_stop_loss_trigger-tool.js";
 import { checkPendingOrdersTool } from "./check-pending-orders.js";
 import { manageOrdersTool } from "./order-tools.js";
 import { testMarketSentimentTool } from "./test-market-sentiment-tool.js";
 import { queryExperienceTool } from "./query-experience-tool.js";
 import { tradeLogTool } from "./trade-log-tools.js";
 import { restartAgentTool } from "./restart-agent-tool.js";
+import { manageWatchlistTool } from "./watchlist-tools.js";
+// 量化工具 - 新架构
+import { quantDecisionTools } from "./quant-decision-tools.js";
+import { quantAnalysisTools } from "./quant-analysis-tools.js";
+import { quantStrategyTools } from "./quant-strategy-tools.js";
+// 量化工具 - 旧版本（已弃用，保持向后兼容）
+import { quantTools } from "./quant-tools.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./memory-tool.js";
@@ -56,12 +63,19 @@ export const allCustomTools = [
   ...investTools.map(wrapInvestToolWithSkillGuard),
   ...stockDBTools,
   queryExperienceTool,            // 查询历史经验库
-  analyzeSectorRotationTool,      // 行业轮动分析
-  checkStopLossTriggerTool,       // 止损检查
+  analyze_sector_rotationTool,    // 行业轮动分析
+  check_stop_loss_triggerTool,    // 止损检查
   checkPendingOrdersTool,         // 挂单检查（自动成交）
   manageOrdersTool,               // 挂单管理（创建/撤销/查看/成交）
   tradeLogTool,                   // 交易日志管理（创建/更新/追加记录）
+  manageWatchlistTool,            // 关注列表管理（自选池）
   testMarketSentimentTool,        // NEW: 市场情绪分析
+  // 量化工具 — 决策分析（新架构）
+  ...quantDecisionTools,          // analyze_stock_quant, compare_stocks_quant, validate_trade_decision
+  ...quantAnalysisTools,          // get_technical_signals, get_quant_score, query_similar_cases, backtest_strategy
+  ...quantStrategyTools,          // list_quant_strategies, get_strategy_performance
+  // 量化工具 — 旧版本（已弃用，保持向后兼容）
+  // ...quantTools,
   // 通知工具 — 消息推送
   ...notificationTools,
   // 监控工具 — 实时盯盘
