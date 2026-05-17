@@ -5,7 +5,15 @@
  * 1. 在此目录或 services/ 下创建工具文件
  * 2. 在下方 import 并加入 allCustomTools 数组
  */
-export type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { ToolDefinition as BaseToolDefinition } from "@mariozechner/pi-coding-agent";
+
+/**
+ * Extended ToolDefinition with prompt guidance fields
+ */
+export interface ToolDefinition extends BaseToolDefinition {
+  promptSnippet?: string;
+  promptGuidelines?: string[];
+}
 import { readTool } from "@mariozechner/pi-coding-agent";
 import { compactTool, initCompactTool } from "./compact-tool.js";
 import { browserTool, initBrowserTool } from "./browser-tool.js";
