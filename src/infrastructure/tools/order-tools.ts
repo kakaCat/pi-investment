@@ -274,6 +274,12 @@ export const manageOrdersTool: ToolDefinition = {
     "- list: 查看挂单列表（可按状态/股票筛选）\n" +
     "- fill: 手动标记挂单成交，自动计算手续费（A股万2.5/港股万5），更新持仓成本和交易记录，卖出时计算盈亏\n" +
     "- check: 检查挂单是否触发（自动成交核心逻辑），获取实时价格对比触发条件，触发后自动计算手续费并成交",
+  promptSnippet: '需要管理交易订单时',
+  promptGuidelines: [
+    '支持创建、查询、取消订单',
+    '创建订单前必须先检查持仓和资金',
+    '订单状态变化会记录到交易日志'
+  ],
   parameters: Type.Object({
     action: Type.String({
       description:

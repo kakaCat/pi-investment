@@ -37,6 +37,12 @@ export const tradeLogTool: ToolDefinition = {
     "- update: 更新建仓逻辑或操作计划（只需 symbol）\n" +
     "- append_execution: 追加执行记录（只需 symbol + 交易信息）\n" +
     "- append_tracking: 追加日度追踪（只需 symbol + 价格/持仓/盈亏）",
+  promptSnippet: '需要记录或查询交易日志时',
+  promptGuidelines: [
+    '所有交易操作必须记录日志',
+    '支持按时间范围、股票代码查询',
+    '日志包含决策依据和执行结果'
+  ],
 
   parameters: Type.Object({
     action: Type.String({
