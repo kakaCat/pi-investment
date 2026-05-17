@@ -23,6 +23,11 @@ export interface BuildSystemPromptOptions {
   channel?: "terminal" | "api";
   mode?: "full" | "minimal" | "none";
   customToolsBlock?: string;
+  customTools?: Array<{
+    name: string;
+    label?: string;
+    promptGuidelines?: string[];
+  }>;
 }
 
 const CHANNEL_HINTS: Record<string, string> = {
@@ -42,6 +47,7 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
     channel = "terminal",
     mode = "full",
     customToolsBlock = "",
+    customTools = [],
   } = opts;
 
   const sections: string[] = [];
@@ -56,12 +62,35 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
     if (soul) sections.push(`## Personality\n\n${soul}`);
   }
 
-  // 第 3 层: 工具使用指南
+  // 第 3 层: 工具（Tools）
+  // 分为三个子层：
+  // 3.1 执行策略（来自 TOOLS.md）
+  // 3.2 工具列表（来自 customToolsBlock，框架自动生成）
+  // 3.3 工具使用细则（来自 promptGuidelines）
+
+  const toolsSections: string[] = [];
+
+  // 3.1 执行策略
   const toolsMd = bootstrap["TOOLS.md"]?.trim();
   if (toolsMd) {
-    sections.push(`## Tool Usage Guidelines\n\n${toolsMd}`);
-  } else if (customToolsBlock) {
-    sections.push(`## Available Tools\n\n${customToolsBlock}`);
+    toolsSections.push('## 执行策略\n\n' + toolsMd);
+  }
+
+  // 3.2 工具列表
+  if (customToolsBlock) {
+    toolsSections.push('## 可用工具\n\n' + customToolsBlock);
+  }
+
+  // 3.3 工具使用细则
+  if (customTools && customTools.length > 0) {
+    const guidelines = buildToolGuidelines(customTools);
+    if (guidelines.trim()) {
+      toolsSections.push('## 工具使用细则\n\n' + guidelines);
+    }
+  }
+
+  if (toolsSections.length > 0) {
+    sections.push(`## Tool Usage Guidelines\n\n${toolsSections.join('\n\n')}`);
   }
 
   // 第 4 层: 技能（仅 full 模式）

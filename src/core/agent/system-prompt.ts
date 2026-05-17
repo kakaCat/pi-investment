@@ -106,7 +106,7 @@ export function readDailyMemory(piDir: string): string {
 export function buildAgentSystemPrompt(params: {
   memoryContext?: string;
   dailyMemory?: string;
-  tools?: Array<{ name: string; description: string }>;
+  tools?: Array<{ name: string; description: string; label?: string; promptGuidelines?: string[] }>;
   workspaceDir: string;
 }): string {
   const {
@@ -131,6 +131,7 @@ export function buildAgentSystemPrompt(params: {
     channel: "terminal",
     mode: "full",
     customToolsBlock,
+    customTools: tools,
   });
 }
 
