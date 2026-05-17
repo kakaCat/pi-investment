@@ -17,6 +17,12 @@ export const memoryWriteTool: ToolDefinition = {
     "For stock-specific decisions, provide 'symbol' parameter to save to stock decision memory. " +
     "Not for temporary task state or in-progress notes — use task tools instead. " +
     "Write self-contained statements, not conversation summaries.",
+  promptSnippet: '需要保存重要信息到记忆库时',
+  promptGuidelines: [
+    '用于保存用户偏好、投资策略、历史决策',
+    '记忆会在后续对话中自动加载',
+    '避免保存临时数据或过期信息'
+  ],
   parameters: Type.Object({
     content: Type.String({
       description:
@@ -54,6 +60,12 @@ export const memorySearchTool: ToolDefinition = {
     "Returns entries saved across sessions by memory_write. " +
     "Use for explicit recall when you need specific context not surfaced by auto-recall (which runs automatically each turn). " +
     "Not a substitute for auto-recall — only call this when you have a specific topic to look up.",
+  promptSnippet: '需要查询历史记忆时',
+  promptGuidelines: [
+    '用于检索用户偏好、历史决策、投资策略',
+    '支持关键词搜索和语义搜索',
+    '返回相关记忆的内容和时间戳'
+  ],
   parameters: Type.Object({
     query: Type.String({
       description:
