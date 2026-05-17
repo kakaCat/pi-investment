@@ -9,19 +9,31 @@ import { join } from 'path';
 import type { Experience, ExperienceBase } from '../../types/evolution.js';
 
 /**
- * 计算文本相似度（简单的关键词匹配）
+ * 计算文本相似度（支持中文）
  */
-function calculateSimilarity(text1: string, text2: string): number {
-  const words1 = text1.toLowerCase().split(/\s+/);
-  const words2 = text2.toLowerCase().split(/\s+/);
+function calculateSimilarity(text1: string | undefined, text2: string | undefined): number {
+  if (!text1 || !text2) return 0;
 
-  const set1 = new Set(words1);
-  const set2 = new Set(words2);
+  // 转换为小写
+  const t1 = text1.toLowerCase();
+  const t2 = text2.toLowerCase();
+
+  // 简单的包含匹配（适合中文短语）
+  if (t1.includes(t2) || t2.includes(t1)) {
+    return 0.8;
+  }
+
+  // 字符级别的相似度（适合中文）
+  const chars1 = Array.from(t1);
+  const chars2 = Array.from(t2);
+
+  const set1 = new Set(chars1);
+  const set2 = new Set(chars2);
 
   const intersection = new Set([...set1].filter(x => set2.has(x)));
   const union = new Set([...set1, ...set2]);
 
-  return intersection.size / union.size; // Jaccard 相似度
+  return intersection.size / union.size;
 }
 
 /**
@@ -46,7 +58,7 @@ function matchConditions(
  * 查询经验库
  */
 export function queryExperience(params: {
-  scenario: string;
+  scenario?: string;
   symbol?: string;
   conditions?: string[];
   minConfidence?: number;
@@ -122,20 +134,20 @@ export function formatExperience(experience: Experience): string {
   lines.push(`置信度: ${(experience.confidence * 100).toFixed(0)}%`);
   lines.push(`历史数据:`);
   lines.push(`  - 总案例: ${experience.outcomes.total_cases} 次`);
-  lines.push(`  - 胜率: ${(experience.outcomes.win_rate * 100).toFixed(0)}%`);
-  lines.push(`  - 平均收益: ${(experience.outcomes.avg_return * 100).toFixed(1)}%`);
+  lines.push(`  - 胜率: ${experience.outcomes.win_rate.toFixed(1)}%`);
+  lines.push(`  - 平均收益: ${experience.outcomes.avg_return.toFixed(2)}%`);
 
   if (experience.outcomes.max_gain) {
-    lines.push(`  - 最大盈利: ${(experience.outcomes.max_gain * 100).toFixed(1)}%`);
+    lines.push(`  - 最大盈利: ${experience.outcomes.max_gain.toFixed(2)}%`);
   }
   if (experience.outcomes.max_loss) {
-    lines.push(`  - 最大亏损: ${(experience.outcomes.max_loss * 100).toFixed(1)}%`);
+    lines.push(`  - 最大亏损: ${experience.outcomes.max_loss.toFixed(2)}%`);
   }
 
   if (experience.examples.length > 0) {
     lines.push(`示例案例:`);
     for (const ex of experience.examples.slice(0, 3)) {
-      lines.push(`  - ${ex.date} ${ex.symbol}: ${(ex.result * 100).toFixed(1)}%`);
+      lines.push(`  - ${ex.date} ${ex.symbol}: ${ex.result.toFixed(2)}%`);
     }
   }
 

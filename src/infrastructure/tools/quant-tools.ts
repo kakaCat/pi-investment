@@ -15,6 +15,7 @@ import { QuantService } from '../../services/quant/quant-service.js';
 import { SignalGenerator, StockData } from '../../services/quant/signal-generator.js';
 import { FactorLibrary, TechnicalIndicators } from '../../services/quant/factor-library.js';
 import { BacktestEngine } from '../../services/quant/backtest-engine.js';
+import { PerformanceAnalyzer } from '../../services/quant/performance-analyzer.js';
 import { StockDBService } from '../../services/data/stock-db-service.js';
 import { get_stock_realtime_price, get_stock_info } from '../../infrastructure/akshare-ts/index.js';
 
@@ -24,6 +25,7 @@ const stockDBService = new StockDBService('.pi-invest/stock.db');
 const factorLibrary = new FactorLibrary(stockDBService);
 const signalGenerator = new SignalGenerator('.pi-invest/quant/signals', factorLibrary);
 const backtestEngine = new BacktestEngine();
+const performanceAnalyzer = new PerformanceAnalyzer('.pi-invest/quant/signals');
 
 /**
  * 辅助函数：计算完整的技术指标
@@ -657,16 +659,15 @@ export const getStrategyPerformanceTool: ToolDefinition = {
         };
       }
 
-      const result = {
-        strategy_id: params.strategy_id,
-        strategy_name: strategy.name,
-        period_days: params.days || 30,
-        total_signals: 0,
-        message: "Performance analysis requires PerformanceAnalyzer service (Phase 7 - deferred)"
-      };
+      // 使用PerformanceAnalyzer分析策略表现
+      const metrics = await performanceAnalyzer.analyzeStrategy(
+        params.strategy_id,
+        strategy.name,
+        params.days || 30
+      );
 
       return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(metrics, null, 2) }],
         details: undefined
       };
     } catch (error: any) {
