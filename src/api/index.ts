@@ -13,9 +13,11 @@ import { PerformanceMonitor } from "../infrastructure/monitoring/performance-mon
 import { CronService } from "../services/operations/cron-service.js";
 import { DailyReviewService } from "../services/operations/daily-review-service.js";
 import { StopLossAlertService } from "../services/operations/stop-loss-alert-service.js";
-import { FxRateService } from "../services/fx-rate-service.js";
+import { FxRateServiceAdapter } from "../services/fx-rate-service-adapter.js";
 import { runWeeklyEvolution } from "../services/intelligence/evolution-service.js";
 import { saveSessionMemoryAsync } from "../services/intelligence/session-memory-saver.js";
+import { startFeishuBot } from "./feishu.js";
+import type { FeishuBotHandle } from "./feishu.js";
 import { join } from "path";
 import { existsSync, readFileSync, unlinkSync } from "fs";
 import { spawn } from "child_process";
@@ -62,8 +64,21 @@ const USE_BACKGROUND_MODE = process.env.BACKGROUND_MODE === "true";
 const piDir = join(process.cwd(), ".pi-invest");
 
 async function main() {
+  let feishuBot: FeishuBotHandle | null = null;
+
   try {
+    // 确保 stdin 使用 UTF-8 编码（重启后需要重新设置）
+    if (process.stdin.setEncoding) {
+      process.stdin.setEncoding("utf8");
+    }
+
     console.log("🚀 启动 PI Investment - AI 股票投资顾问...\n");
+
+    // 启动飞书 Bot（后台 WebSocket 监听）
+    feishuBot = await startFeishuBot();
+    if (feishuBot) {
+      console.log("");
+    }
 
     // 先初始化 logger（在创建 session 之前）
     logger.initSession();
@@ -72,7 +87,7 @@ async function main() {
     // 初始化服务
     const reviewService = new DailyReviewService(piDir);
     const alertService = new StopLossAlertService(piDir);
-    const fxRateService = new FxRateService(piDir);
+    const fxRateService = new FxRateServiceAdapter(piDir);
 
     // 启动时自动复盘检查（工作日收盘后，且今日未复盘）
     if (reviewService.shouldAutoRun()) {
@@ -179,6 +194,7 @@ async function main() {
     // 监听进程退出
     process.on('SIGINT', async () => {
       cronService.stop();
+      if (feishuBot) feishuBot.shutdown();
       console.log(perfMonitor.getReport());
       logger.logSessionEnd();
 

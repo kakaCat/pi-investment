@@ -1,5 +1,3 @@
-import "dotenv/config";
-
 import * as lark from "@larksuiteoapi/node-sdk";
 import {
   SessionManager,
@@ -37,12 +35,8 @@ import {
   hasState,
 } from "../core/agent/session-adapter.js";
 
-const APP_ID = process.env.FEISHU_APP_ID;
-const APP_SECRET = process.env.FEISHU_APP_SECRET;
-
-if (!APP_ID || !APP_SECRET) {
-  console.error("❌ 缺少 FEISHU_APP_ID 或 FEISHU_APP_SECRET");
-  process.exit(1);
+export interface FeishuBotHandle {
+  shutdown: () => void;
 }
 
 const FEISHU_CRON_FILE = join(paths.piDir, "FEISHU_CRON.json");
@@ -156,12 +150,17 @@ async function sendTextReply(client: lark.Client, chatId: string, text: string):
   });
 }
 
-async function main(): Promise<void> {
+export async function startFeishuBot(): Promise<FeishuBotHandle | null> {
+  const appId = process.env.FEISHU_APP_ID;
+  const appSecret = process.env.FEISHU_APP_SECRET;
+
+  if (!appId || !appSecret) {
+    console.warn("⚠️ 缺少 FEISHU_APP_ID 或 FEISHU_APP_SECRET，飞书 Bot 未启动");
+    return null;
+  }
+
   ensurePiDir();
-  logger.initSession();
   initMemoryTools(paths.piDir);
-  const appId = APP_ID!;
-  const appSecret = APP_SECRET!;
 
   const skills = loadProjectSkills();
   initSkillRouter(skills);
@@ -282,10 +281,6 @@ async function main(): Promise<void> {
         return;
       }
 
-      // 发送即时确认消息（避免用户等待时无反馈）
-      // 注意：如果删除此确认消息，可能导致飞书重复发送问题
-      // 原因：飞书在未收到任何回复时会认为消息未送达，可能重发
-      // 如需删除，请确保在 sessionManager.isDuplicate() 中正确处理重复消息
       await sendTextReply(
         client,
         chatId,
@@ -315,22 +310,13 @@ async function main(): Promise<void> {
   cronService.start();
   wsClient.start({ eventDispatcher: dispatcher });
 
-  console.log("🚀 飞书 Bot 已启动");
+  console.log("🤖 飞书 Bot 已启动（WebSocket 监听中）");
   console.log(`📁 会话目录: ${FEISHU_SESSIONS_DIR}`);
-  console.log(`⏰ Cron 配置: ${FEISHU_CRON_FILE}`);
 
   const shutdown = () => {
     cronService.stop();
     sessionManager.shutdown();
-    logger.logSessionEnd();
-    process.exit(0);
   };
 
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+  return { shutdown };
 }
-
-void main().catch((error) => {
-  console.error("❌ 飞书 Bot 启动失败:", error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
