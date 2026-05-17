@@ -73,24 +73,34 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
   // 3.1 执行策略
   const toolsMd = bootstrap["TOOLS.md"]?.trim();
   if (toolsMd) {
-    toolsSections.push('## 执行策略\n\n' + toolsMd);
+    toolsSections.push('### 执行策略（何时用什么工具）\n\n' + toolsMd);
   }
 
   // 3.2 工具列表
   if (customToolsBlock) {
-    toolsSections.push('## 可用工具\n\n' + customToolsBlock);
+    const toolListHeader = `### 工具列表（按使用频率排序，优先考虑靠前的工具）
+
+以下是所有可用工具，按使用频率从高到低排列。选择工具时，优先考虑列表前面的工具。
+
+`;
+    toolsSections.push(toolListHeader + customToolsBlock);
   }
 
   // 3.3 工具使用细则
   if (customTools && customTools.length > 0) {
     const guidelines = buildToolGuidelines(customTools);
     if (guidelines.trim()) {
-      toolsSections.push('## 工具使用细则\n\n' + guidelines);
+      const guidelinesHeader = `### 工具使用细则（复杂工具的特殊注意事项）
+
+以下工具有特殊的使用规则或注意事项，使用前请仔细阅读：
+
+`;
+      toolsSections.push(guidelinesHeader + guidelines);
     }
   }
 
   if (toolsSections.length > 0) {
-    sections.push(`## Tool Usage Guidelines\n\n${toolsSections.join('\n\n')}`);
+    sections.push(`## Tools\n\n${toolsSections.join('\n\n')}`);
   }
 
   // 第 4 层: 技能（仅 full 模式）
