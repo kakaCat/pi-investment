@@ -56,6 +56,12 @@ export const taskCreateTool: ToolDefinition = {
     "Use after plan_task: create all steps in one call before executing anything. " +
     "Do NOT use as a substitute for planning — plan first, then create tasks to track execution. " +
     "Be specific: tasks like 'do the thing' are unambiguous to complete; tasks like 'fix the bug' are not.",
+  promptSnippet: '需要创建后台任务时',
+  promptGuidelines: [
+    '适用于长时间运行的操作（如数据采集、回测）',
+    '创建后立即返回任务ID，不阻塞当前流程',
+    '使用 task_check_background 查询任务状态'
+  ],
   parameters: Type.Object({
     tasks: Type.Array(
       Type.Object({
@@ -204,6 +210,12 @@ export const taskExecuteAsyncTool: ToolDefinition = {
     "Returns immediately with task IDs. Results are delivered via <background-results> in the next agent turn. " +
     "Use for independent data fetching operations like: analyzing multiple stocks, fetching batch market data. " +
     "Do NOT use for sequential operations that depend on each other's results.",
+  promptSnippet: '需要并行执行多个独立任务时',
+  promptGuidelines: [
+    '只用于真正独立的任务（无数据依赖）',
+    '有依赖关系的任务必须串行执行',
+    '每个任务完成后会收到通知，无需主动轮询'
+  ],
   parameters: Type.Object({
     executions: Type.Array(
       Type.Object({
@@ -251,6 +263,12 @@ export const taskCheckBackgroundTool: ToolDefinition = {
     "Returns task status (running/completed/error/timeout), elapsed time, and result preview. " +
     "Pass background_id to check a specific task, or omit to list all background tasks. " +
     "Use when you need to verify task progress before results arrive via <background-results>.",
+  promptSnippet: '需要查询后台任务状态时',
+  promptGuidelines: [
+    '用于检查 task_create 创建的任务进度',
+    '返回任务状态、进度和结果',
+    '任务完成后可获取完整输出'
+  ],
   parameters: Type.Object({
     background_id: Type.Optional(Type.String({ description: "Background task ID (8-char UUID)" }))
   }),
