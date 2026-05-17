@@ -2959,6 +2959,11 @@ FUNCTIONS = {
     # ML functions
     "predict_signal_confidence": lambda features: predict_signal_confidence(features),
     "train_signal_model": lambda days=30, min_samples=50: train_signal_model(days, min_samples),
+    # Visualization functions
+    "plot_model_accuracy_trend": lambda days=90, output_path='.pi-invest/quant/charts/accuracy_trend.png': plot_model_accuracy_trend(days, output_path),
+    "plot_equity_curve": lambda backtest_result, output_path='.pi-invest/quant/charts/equity_curve.png': plot_equity_curve(backtest_result, output_path),
+    "plot_strategy_comparison": lambda strategies_performance, output_path='.pi-invest/quant/charts/strategy_comparison.png': plot_strategy_comparison(strategies_performance, output_path),
+    "plot_feature_importance": lambda model_path='.pi-invest/quant/models/signal_confidence.pkl', output_path='.pi-invest/quant/charts/feature_importance.png': plot_feature_importance(model_path, output_path),
 }
 
 
@@ -2972,6 +2977,31 @@ def train_signal_model(days: int = 30, min_samples: int = 50) -> dict:
     """Train signal confidence model"""
     from ml.signal_trainer import train_model
     return train_model(days, min_samples)
+
+
+def plot_model_accuracy_trend(days: int = 90, output_path: str = '.pi-invest/quant/charts/accuracy_trend.png') -> dict:
+    """Plot model accuracy trend chart"""
+    from ml.visualizer import plot_model_accuracy_trend
+    return plot_model_accuracy_trend(days, output_path)
+
+
+def plot_equity_curve(backtest_result: dict, output_path: str = '.pi-invest/quant/charts/equity_curve.png') -> dict:
+    """Plot backtest equity curve chart"""
+    from ml.visualizer import plot_equity_curve
+    return plot_equity_curve(backtest_result, output_path)
+
+
+def plot_strategy_comparison(strategies_performance: list, output_path: str = '.pi-invest/quant/charts/strategy_comparison.png') -> dict:
+    """Plot strategy comparison chart"""
+    from ml.visualizer import plot_strategy_comparison
+    return plot_strategy_comparison(strategies_performance, output_path)
+
+
+def plot_feature_importance(model_path: str = '.pi-invest/quant/models/signal_confidence.pkl', output_path: str = '.pi-invest/quant/charts/feature_importance.png') -> dict:
+    """Plot feature importance chart"""
+    from ml.visualizer import plot_feature_importance
+    return plot_feature_importance(model_path, output_path)
+
 
 def daemon_mode():
     """

@@ -619,16 +619,49 @@ export const trainSignalModelTool: ToolDefinition = {
 
   execute: async (_toolCallId: string, params: any) => {
     try {
-      // TODO: 实现ML训练
-      // 当前返回占位符
+      const { strategy_id, min_samples = 100 } = params;
+
+      // 调用Python训练函数
+      const result = await callPythonResilient(
+        'train_signal_model',
+        { days: 30, min_samples },
+        { timeout: 60000 } // 训练可能需要较长时间
+      );
+
+      if (result.error) {
+        return {
+          content: [{ type: "text" as const, text: `训练失败: ${result.error}` }],
+          details: result
+        };
+      }
+
+      // 格式化训练结果
+      const summary = `
+✅ 模型训练完成
+
+📊 训练数据:
+- 样本数: ${result.samples}
+- 正样本: ${result.positive_samples}
+- 负样本: ${result.negative_samples}
+
+📈 模型性能:
+- 准确率: ${(result.accuracy * 100).toFixed(2)}%
+- 模型路径: ${result.model_path}
+
+💡 特征重要性:
+${result.feature_importance?.slice(0, 5).map((imp: number, i: number) =>
+  `  ${i + 1}. 特征${i + 1}: ${(imp * 100).toFixed(2)}%`
+).join('\n') || '  (无数据)'}
+      `.trim();
+
       return {
-        content: [{ type: "text" as const, text: `训练功能开发中...\n参数: ${JSON.stringify(params, null, 2)}` }],
-        details: undefined
+        content: [{ type: "text" as const, text: summary }],
+        details: result
       };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return {
-        content: [{ type: "text" as const, text: `Error: ${msg}` }],
+        content: [{ type: "text" as const, text: `训练异常: ${msg}` }],
         details: undefined
       };
     }
