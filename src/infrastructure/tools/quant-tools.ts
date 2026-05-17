@@ -18,6 +18,7 @@ import { BacktestEngine } from '../../services/quant/backtest-engine.js';
 import { PerformanceAnalyzer } from '../../services/quant/performance-analyzer.js';
 import { StockDBService } from '../../services/data/stock-db-service.js';
 import { get_stock_realtime_price, get_stock_info } from '../../infrastructure/akshare-ts/index.js';
+import { callPythonResilient } from './shared/python-caller-resilient-adapter.js';
 
 // 初始化服务
 const quantService = new QuantService();
