@@ -106,14 +106,21 @@ export const getFinancialStatementsTool: ToolDefinition = {
     // 判断数据大小
     if (result.length > 2000) {
       // 写入临时文件
-      const filePath = `/tmp/pi-financials-${params.symbol}-${params.statement || 'all'}-${Date.now()}.json`;
-      await writeFile(filePath, result, 'utf-8');
+      try {
+        const sanitizedStatement = (params.statement || 'all').replace(/[^a-z0-9_-]/gi, '_');
+        const filePath = `/tmp/pi-financials-${params.symbol}-${sanitizedStatement}-${Date.now()}.json`;
+        await writeFile(filePath, result, 'utf-8');
 
-      // 返回预览（前 500 字符）+ 文件路径
-      const preview = result.substring(0, 500);
-      const resultText = `财务数据已保存到: ${filePath}\n\n数据预览 (前500字符):\n${preview}...\n\n[总长度: ${result.length} 字符，完整内容见文件。使用 Read 工具查看完整内容]`;
+        // 返回预览（前 500 字符）+ 文件路径
+        const preview = result.substring(0, 500);
+        const resultText = `财务数据已保存到: ${filePath}\n\n数据预览 (前500字符):\n${preview}...\n\n[总长度: ${result.length} 字符，完整内容见文件。使用 Read 工具查看完整内容]`;
 
-      return { content: [{ type: "text" as const, text: resultText }], details: undefined };
+        return { content: [{ type: "text" as const, text: resultText }], details: undefined };
+      } catch (writeError) {
+        // 文件写入失败，降级为直接返回（可能被截断）
+        const fallbackText = `[警告: 文件写入失败，直接返回数据]\n\n${result}`;
+        return { content: [{ type: "text" as const, text: fallbackText }], details: undefined };
+      }
     } else {
       // 数据较小，直接返回
       return { content: [{ type: "text" as const, text: result }], details: undefined };
