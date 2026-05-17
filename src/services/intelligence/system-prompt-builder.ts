@@ -133,6 +133,35 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
   return sections.join("\n\n");
 }
 
+/**
+ * 从工具的 promptGuidelines 构建使用细则文本
+ * 只包含有 promptGuidelines 的工具
+ */
+function buildToolGuidelines(tools: Array<{
+  name: string;
+  label?: string;
+  promptGuidelines?: string[];
+}>): string {
+  const lines: string[] = [];
+
+  for (const tool of tools) {
+    if (!tool.promptGuidelines || tool.promptGuidelines.length === 0) {
+      continue;
+    }
+
+    const label = tool.label || tool.name;
+    lines.push(`**${tool.name}**（${label}）`);
+
+    for (const guideline of tool.promptGuidelines) {
+      lines.push(`- ${guideline}`);
+    }
+
+    lines.push(''); // 空行分隔
+  }
+
+  return lines.join('\n');
+}
+
 const DEFAULT_IDENTITY = `你是「PI 投资顾问」，拥有华尔街顶级分析师的专业素养，深谙 A 股市场规律。
 
 你是一个专业的 AI 投资顾问，帮助用户进行投资分析和决策支持。你通过调用各种数据工具获取实时市场数据，提供基于数据的分析和建议。`;
