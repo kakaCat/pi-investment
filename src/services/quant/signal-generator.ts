@@ -460,6 +460,11 @@ export class SignalGenerator {
     weights?: Record<string, number>,
     confidenceThreshold: number = 0.5
   ): Promise<{ signals: Signal[], metadata: any }> {
+    // Validate empty input
+    if (signals.length === 0) {
+      return { signals: [], metadata: { empty: true } };
+    }
+
     try {
       // Import dynamically to avoid circular dependency
       const pythonCaller = await import('../../infrastructure/tools/shared/python-caller-resilient-adapter.js');
@@ -467,7 +472,7 @@ export class SignalGenerator {
 
       // Convert TypeScript signals to Python format
       const pythonSignals = signals.map(s => ({
-        timestamp: s.date + 'T00:00:00',  // Convert date string to ISO timestamp
+        timestamp: new Date(s.date).toISOString().split('.')[0],  // Convert date string to ISO timestamp
         symbol: s.symbol,
         action: s.action,
         price: s.price,
@@ -501,17 +506,33 @@ export class SignalGenerator {
       }
 
       // Convert Python signals back to TypeScript format
-      const combinedSignals: Signal[] = data.combined_signals.map((s: any) => ({
-        date: s.timestamp.split('T')[0],  // Extract date from ISO timestamp
-        symbol: s.symbol,
-        name: signals.find(sig => sig.symbol === s.symbol)?.name || s.symbol,
-        action: s.action as 'buy' | 'sell',
-        strategy_id: s.strategy_id,
-        price: s.price,
-        reason: s.reason,
-        confidence: s.confidence,
-        indicators: signals.find(sig => sig.strategy_id === s.strategy_id)?.indicators
-      }));
+      const combinedSignals: Signal[] = data.combined_signals.map((s: any) => {
+        // Extract date from ISO timestamp with validation
+        const date = s.timestamp.includes('T') ? s.timestamp.split('T')[0] : s.timestamp;
+
+        // Find matching signal by symbol for name lookup
+        const matchingSignal = signals.find(sig => sig.symbol === s.symbol);
+        if (!matchingSignal) {
+          console.warn(`No matching signal found for symbol ${s.symbol}, using symbol as name`);
+        }
+
+        // Find indicators by matching both symbol AND strategy_id
+        const indicatorsSource = signals.find(sig =>
+          sig.symbol === s.symbol && sig.strategy_id === s.strategy_id
+        );
+
+        return {
+          date,
+          symbol: s.symbol,
+          name: matchingSignal?.name || s.symbol,
+          action: s.action as 'buy' | 'sell',
+          strategy_id: s.strategy_id,
+          price: s.price,
+          reason: s.reason,
+          confidence: s.confidence,
+          indicators: indicatorsSource?.indicators
+        };
+      });
 
       return {
         signals: combinedSignals,
