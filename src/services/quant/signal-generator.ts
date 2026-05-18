@@ -450,4 +450,133 @@ export class SignalGenerator {
       return [];
     }
   }
+
+  /**
+   * Combine multiple signals using Python combiner
+   */
+  async combineSignals(
+    signals: Signal[],
+    mode: 'or' | 'and' | 'vote' = 'vote',
+    weights?: Record<string, number>,
+    confidenceThreshold: number = 0.5
+  ): Promise<{ signals: Signal[], metadata: any }> {
+    try {
+      // Import dynamically to avoid circular dependency
+      const pythonCaller = await import('../../infrastructure/tools/shared/python-caller-resilient-adapter.js');
+      const { callPythonResilient } = pythonCaller;
+
+      // Convert TypeScript signals to Python format
+      const pythonSignals = signals.map(s => ({
+        timestamp: s.date + 'T00:00:00',  // Convert date string to ISO timestamp
+        symbol: s.symbol,
+        action: s.action,
+        price: s.price,
+        quantity: 0,
+        strategy_id: s.strategy_id,
+        confidence: s.confidence,
+        reason: s.reason
+      }));
+
+      // Call Python combiner
+      const result = await callPythonResilient('combine_strategy_signals', {
+        signals: pythonSignals,
+        mode,
+        weights: weights || {},
+        confidence_threshold: confidenceThreshold
+      });
+
+      const data = JSON.parse(result);
+
+      // Check for errors
+      if (data.error) {
+        console.warn('Python combiner error, falling back to OR mode:', data.error);
+        return {
+          signals: signals,  // Return all signals (OR mode fallback)
+          metadata: {
+            fallback: true,
+            reason: 'python_error',
+            error: data.error
+          }
+        };
+      }
+
+      // Convert Python signals back to TypeScript format
+      const combinedSignals: Signal[] = data.combined_signals.map((s: any) => ({
+        date: s.timestamp.split('T')[0],  // Extract date from ISO timestamp
+        symbol: s.symbol,
+        name: signals.find(sig => sig.symbol === s.symbol)?.name || s.symbol,
+        action: s.action as 'buy' | 'sell',
+        strategy_id: s.strategy_id,
+        price: s.price,
+        reason: s.reason,
+        confidence: s.confidence,
+        indicators: signals.find(sig => sig.strategy_id === s.strategy_id)?.indicators
+      }));
+
+      return {
+        signals: combinedSignals,
+        metadata: data.metadata
+      };
+
+    } catch (error) {
+      console.error('combineSignals error:', error);
+      // Fallback: return all signals (OR mode)
+      return {
+        signals: signals,
+        metadata: {
+          fallback: true,
+          reason: 'exception',
+          error: error instanceof Error ? error.message : String(error)
+        }
+      };
+    }
+  }
+
+  /**
+   * Scan market with multiple strategies and combine signals
+   */
+  async scanMarketMultiStrategy(
+    strategies: QuantStrategy[],
+    stockData: StockData[],
+    mode: 'or' | 'and' | 'vote' = 'vote',
+    weights?: Record<string, number>,
+    confidenceThreshold: number = 0.5
+  ): Promise<Signal[]> {
+    // Step 1: Generate signals for each strategy
+    const allSignals: Signal[] = [];
+
+    for (const strategy of strategies) {
+      const strategySignals = await this.scanMarket(strategy, stockData, confidenceThreshold);
+      allSignals.push(...strategySignals);
+    }
+
+    // Step 2: Group signals by symbol
+    const signalsBySymbol = new Map<string, Signal[]>();
+    for (const signal of allSignals) {
+      const existing = signalsBySymbol.get(signal.symbol) || [];
+      existing.push(signal);
+      signalsBySymbol.set(signal.symbol, existing);
+    }
+
+    // Step 3: Combine signals for each symbol
+    const combinedSignals: Signal[] = [];
+
+    for (const [symbol, signals] of signalsBySymbol.entries()) {
+      // Only combine if multiple strategies generated signals for this symbol
+      if (signals.length > 1) {
+        const { signals: combined } = await this.combineSignals(
+          signals,
+          mode,
+          weights,
+          confidenceThreshold
+        );
+        combinedSignals.push(...combined);
+      } else {
+        // Single signal, keep as-is
+        combinedSignals.push(signals[0]);
+      }
+    }
+
+    return combinedSignals;
+  }
 }
