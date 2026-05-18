@@ -1,12 +1,13 @@
 /**
  * Quant Tools - 量化分析工具集
  *
- * 提供 5 个量化工具：
+ * 提供 6 个量化工具：
  * 1. manage_quant_strategy - 管理量化策略
  * 2. run_backtest - 运行回测
  * 3. generate_signals - 生成交易信号
  * 4. score_stock - 股票因子评分
  * 5. train_signal_model - 训练信号模型
+ * 6. combine_strategy_signals - 组合多策略信号
  */
 
 import { Type } from '@sinclair/typebox';
@@ -676,7 +677,157 @@ ${parsed.feature_importance?.slice(0, 5).map((imp: number, i: number) =>
 };
 
 /**
- * 工具 6: 策略表现统计
+ * 6. 组合多策略信号
+ */
+export const combineStrategySignalsTool: ToolDefinition = {
+  name: 'combine_strategy_signals',
+  label: '组合多策略信号',
+  description: `组合多个策略的交易信号，支持 OR/AND/VOTE 模式。
+
+使用场景：
+- RSI + 均线 + 布林带三个信号投票，提高准确率
+- 要求所有策略一致才执行（AND 模式）
+- 任一策略触发即执行（OR 模式）
+
+返回：组合后的信号和决策元数据（买入/卖出得分、胜出方向）`,
+
+  promptSnippet: `示例1：组合三个策略信号（VOTE模式）
+combine_strategy_signals({
+  symbol: "600519",
+  strategy_ids: ["rsi_reversal", "ma_cross", "bollinger_breakout"],
+  mode: "vote",
+  weights: {"rsi_reversal": 1.5, "ma_cross": 1.0, "bollinger_breakout": 1.2}
+})
+
+示例2：要求所有策略一致（AND模式）
+combine_strategy_signals({
+  symbol: "600519",
+  strategy_ids: ["rsi_reversal", "ma_cross"],
+  mode: "and"
+})`,
+
+  parameters: Type.Object({
+    symbol: Type.String({
+      description: '股票代码'
+    }),
+    strategy_ids: Type.Array(Type.String(), {
+      description: '策略ID列表，至少2个',
+      minItems: 2
+    }),
+    mode: Type.Optional(Type.Union([
+      Type.Literal('vote'),
+      Type.Literal('and'),
+      Type.Literal('or')
+    ], {
+      description: '组合模式：vote=加权投票（默认）, and=全部一致, or=任一触发'
+    })),
+    weights: Type.Optional(Type.Record(Type.String(), Type.Number(), {
+      description: '策略权重，如 {"rsi_reversal": 1.5, "ma_cross": 1.0}，默认全部为1.0'
+    })),
+    confidence_threshold: Type.Optional(Type.Number({
+      description: '最低置信度阈值，默认 0.5',
+      default: 0.5
+    }))
+  }),
+
+  execute: async (_toolCallId: string, params: any) => {
+    try {
+      const { symbol, strategy_ids, mode = 'vote', weights, confidence_threshold = 0.5 } = params;
+
+      if (!strategy_ids || strategy_ids.length < 2) {
+        return {
+          content: [{ type: "text" as const, text: 'Error: At least 2 strategy_ids required' }],
+          details: undefined
+        };
+      }
+
+      const infoJson = await get_stock_info(symbol);
+      const infoData = JSON.parse(infoJson);
+      const priceJson = await get_stock_realtime_price(symbol);
+      const priceData = JSON.parse(priceJson);
+
+      if (infoData.error || priceData.error) {
+        return {
+          content: [{ type: "text" as const, text: `Failed to get stock data for ${symbol}` }],
+          details: undefined
+        };
+      }
+
+      const tech = await calculateAllIndicators(symbol);
+
+      const signals: any[] = [];
+      for (const strategy_id of strategy_ids) {
+        const strategy = await quantService.getStrategy(strategy_id);
+        if (!strategy) {
+          console.warn(`Strategy ${strategy_id} not found, skipping`);
+          continue;
+        }
+
+        const signal = await signalGenerator.generateSignal(
+          symbol,
+          infoData.name || symbol,
+          strategy,
+          tech,
+          priceData.price || 0
+        );
+
+        if (signal) {
+          signals.push(signal);
+        }
+      }
+
+      if (signals.length === 0) {
+        return {
+          content: [{ type: "text" as const, text: `No signals generated for ${symbol}` }],
+          details: undefined
+        };
+      }
+
+      if (signals.length === 1) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({
+            signal: signals[0],
+            metadata: { reason: 'insufficient_signals' }
+          }, null, 2) }],
+          details: undefined
+        };
+      }
+
+      const { signals: combinedSignals, metadata } = await signalGenerator.combineSignals(
+        signals,
+        mode,
+        weights,
+        confidence_threshold
+      );
+
+      const result = {
+        symbol,
+        combined_signals: combinedSignals,
+        metadata: {
+          mode,
+          total_strategies: strategy_ids.length,
+          signals_generated: signals.length,
+          ...metadata
+        }
+      };
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+        details: result
+      };
+
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return {
+        content: [{ type: "text" as const, text: `Error: ${msg}` }],
+        details: undefined
+      };
+    }
+  }
+};
+
+/**
+ * 工具 7: 策略表现统计
  */
 export const getStrategyPerformanceTool: ToolDefinition = {
   name: "get_strategy_performance",
@@ -728,5 +879,6 @@ export const quantTools: ToolDefinition[] = [
   generateSignalsTool,
   scoreStockTool,
   trainSignalModelTool,
+  combineStrategySignalsTool,
   getStrategyPerformanceTool
 ];
