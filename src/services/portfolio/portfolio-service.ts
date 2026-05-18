@@ -12,7 +12,7 @@ import { join } from "path";
 import { get_stock_realtime_price, get_hk_stock_price } from "../../infrastructure/akshare-ts/index.js";
 import { chinaDate, chinaDateTime } from "../../utils/china-time.js";
 import { FileLockService } from "../file-lock.service.js";
-import { FxRateService } from "../fx-rate-service.js";
+import { FxRateServiceAdapter } from "../fx-rate-service-adapter.js";
 
 // ─── 数据结构 ──────────────────────────────────────────────────────────────
 
@@ -164,11 +164,11 @@ export function buildPortfolioSnapshotFromQuotes(
 export class PortfolioService {
   private filePath: string;
   private tradeService?: any;
-  private fxRateService: FxRateService;
+  private fxRateService: FxRateServiceAdapter;
 
   constructor(piDir: string) {
     this.filePath = join(piDir, "portfolio.json");
-    this.fxRateService = new FxRateService(piDir);
+    this.fxRateService = new FxRateServiceAdapter(piDir);
     mkdirSync(piDir, { recursive: true });
     this.ensureFile();
   }

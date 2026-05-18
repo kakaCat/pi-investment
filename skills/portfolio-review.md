@@ -14,6 +14,7 @@ description: 逐只复盘持仓健康度（盈亏分析+基本面验证+调仓�
 - get_exit_plan()
 - get_quality_score()
 - get_financial_data()
+- get_buy_range()
 
 ## 触发条件
 

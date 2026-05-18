@@ -8,6 +8,7 @@ description: 快速查看当前持仓和实时盈亏（只看不分析，深度�
 ## 允许的工具
 - `manage_portfolio()`
 - `get_stock_price()`
+- `get_buy_range()`
 
 ## 触发条件
 

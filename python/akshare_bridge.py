@@ -2213,7 +2213,9 @@ def get_financial_statements(symbol: str, statement: str = "all", recent_n: int 
     if statement in ("balance", "all"):
         result["balance_sheet"] = _financial_report(symbol, "资产负债表", recent_n)
     if statement in ("cashflow", "all"):
-        result["cash_flow"] = _financial_report(symbol, "现金流量表", recent_n)
+        cf = _financial_report(symbol, "现金流量表", recent_n)
+        result["cash_flow"] = cf
+        result["cashflow_statement"] = cf  # 别名，兼容 AI agent 的命名预期
     return result
 
 

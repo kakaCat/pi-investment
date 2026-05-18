@@ -8,26 +8,36 @@
 import * as fs from 'fs/promises';
 import { readFileSync, existsSync, readdirSync } from 'fs';
 import * as path from 'path';
-import { calculateGap, attributeGap } from './comparator';
-import { determineOptimizerStrategy, generateOptimizationSuggestions } from './compensator';
-import { generateEvolutionReport, formatReportAsMarkdown } from './evolution-reporter';
-import { executeOptimizationSuggestions, saveExecutionResult } from './evolution-executor';
-import { analyzeSessionsAndCalculateEfficiency } from './session-analyzer';
+import { Subtractor } from './subtractor.js';
+import { calculateGap, attributeGap } from './comparator.js';
+import { PortfolioService } from '../portfolio/portfolio-service.js';
+import { determineOptimizerStrategy, generateOptimizationSuggestions } from './compensator.js';
+import { generateEvolutionReport, formatReportAsMarkdown } from './evolution-reporter.js';
+import { executeOptimizationSuggestions, saveExecutionResult } from './evolution-executor.js';
+import { analyzeSessionsAndCalculateEfficiency } from './session-analyzer.js';
 import {
   loadRecentEvolutions,
   evaluateLastEvolution,
   updateEvolutionOutcome,
   saveEvolutionHistory,
-} from './evolution-history';
+} from './evolution-history.js';
 import {
   loadExperienceSummary,
   generateExperienceSummary,
   saveExperienceSummary,
-} from './experience-learner';
+} from './experience-learner.js';
+import { collectMarketContext } from './market-data-collector.js';
+import { parseSessionLog } from './session-log-parser.js';
+import { analyzeToolEfficiency } from './tool-efficiency-analyzer.js';
+import { analyzeHoldingDimensions } from './holding-dimension-analyzer.js';
+import type { Holding } from './data-collector.js';
 import type {
   EvolutionReport,
   DecisionQualityMetrics,
 } from '../../types/evolution.js';
+import type { MarketContext } from '../../types/market-context.js';
+import type { SessionAnalysis } from '../../types/session-log.js';
+import type { HoldingDimensionAnalysis } from '../../types/holding-analysis.js';
 
 // ─── 类型 ────────────────────────────────────────────────────────────────────
 
@@ -42,17 +52,6 @@ interface Trade {
   market: string;
   notes: string;
   time: string;
-}
-
-interface Holding {
-  symbol: string;
-  name: string;
-  quantity: number;
-  avg_cost: number;
-  market: string;
-  total_invested: number;
-  sector?: string;
-  buy_reason?: string;
 }
 
 interface EvolutionResult {
@@ -136,92 +135,6 @@ function filterTradesByWindow(trades: Trade[], windowDays?: number): Trade[] {
 }
 
 // ─── 指标计算 ────────────────────────────────────────────────────────────────
-
-/**
- * 从交易记录计算已实现盈亏
- * 按「先买后卖」配对，FIFO 计算每笔已平仓交易的盈亏
- */
-function calcRealizedPnL(trades: Trade[]): {
-  totalRealizedPnL: number;
-  totalInvested: number;
-  realizedReturn: number;
-  winCount: number;
-  lossCount: number;
-  winRate: number;
-  tradeResults: Array<{ symbol: string; pnl: number; pnlPct: number }>;
-} {
-  // 过滤掉明显的回退/纠错记录（notes 含 "回退" / "撤回" / "纠正" / "误操作" 等）
-  const cleanTrades = trades.filter(t => {
-    const n = t.notes;
-    if (n && (n.includes('回退') || n.includes('撤回') || n.includes('纠正') || n.includes('误操作'))) return false;
-    return true;
-  });
-
-  // 按 symbol 分组，FIFO 配对
-  const bySymbol = new Map<string, Trade[]>();
-  for (const t of cleanTrades) {
-    const list = bySymbol.get(t.symbol) || [];
-    list.push(t);
-    bySymbol.set(t.symbol, list);
-  }
-
-  const tradeResults: Array<{ symbol: string; pnl: number; pnlPct: number }> = [];
-  let totalRealizedPnL = 0;
-  let totalInvested = 0;
-  let winCount = 0;
-  let lossCount = 0;
-
-  for (const [symbol, symbolTrades] of bySymbol) {
-    // FIFO: 用队列模拟
-    const buyQueue: Trade[] = [];
-
-    for (const t of symbolTrades) {
-      if (t.action === 'buy') {
-        buyQueue.push(t);
-      } else {
-        // sell: 从最早的买入队列中匹配
-        let remainingSell = t.quantity;
-
-        while (remainingSell > 0 && buyQueue.length > 0) {
-          const buy = buyQueue[0];
-          const matchedQty = Math.min(remainingSell, buy.quantity);
-
-          const buyCost = buy.price * matchedQty;
-          const sellProceeds = t.price * matchedQty;
-          const pnl = sellProceeds - buyCost;
-          const pnlPct = ((t.price - buy.price) / buy.price) * 100;
-
-          totalRealizedPnL += pnl;
-          totalInvested += buyCost;
-          tradeResults.push({ symbol, pnl, pnlPct });
-
-          if (pnl > 0) winCount++;
-          else if (pnl < 0) lossCount++;
-
-          buy.quantity -= matchedQty;
-          remainingSell -= matchedQty;
-
-          if (buy.quantity <= 0) buyQueue.shift();
-        }
-
-        // 如果还有剩余卖出但队列已空（可能是之前买的已全部卖出），忽略
-      }
-    }
-  }
-
-  const totalTrades = winCount + lossCount;
-  const realizedReturn = totalInvested > 0 ? (totalRealizedPnL / totalInvested) * 100 : 0;
-
-  return {
-    totalRealizedPnL,
-    totalInvested,
-    realizedReturn,
-    winCount,
-    lossCount,
-    winRate: totalTrades > 0 ? winCount / totalTrades : 0,
-    tradeResults,
-  };
-}
 
 /**
  * 从复盘报告中提取决策质量信号
@@ -321,25 +234,108 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
 
   console.log(`✅ 数据检查通过，开始分析...\n`);
 
-  // ── 2. 计算已实现收益 ──────────────────────────────────────────────────
+  // ── 2. 减法器：全维度比较 ────────────────────────────────────────────────
+  const portfolioService = new PortfolioService(piDir);
+
+  // 获取完整的持仓数据（包含当前价格和浮盈）
+  let portfolioSnapshot;
+  let currentPrices: Record<string, number> = {};
+
+  try {
+    portfolioSnapshot = await portfolioService.getWithPnL();
+    console.log(`[进化] 持仓浮盈: ¥${portfolioSnapshot.total_pnl.toFixed(2)} (${portfolioSnapshot.total_pnl_pct.toFixed(2)}%)`);
+
+    // 构建当前价格映射
+    portfolioSnapshot.holdings.forEach(h => {
+      currentPrices[h.symbol] = h.current_price;
+    });
+  } catch (e) {
+    console.warn('[进化] 获取持仓浮盈失败，仅使用已实现盈亏:', e);
+  }
+
+  // 使用 Subtractor（减法器）进行全维度账本分析
+  const subtractor = new Subtractor();
+
+  // 将 evolution-service 的 Trade 类型转换为 subtractor 的 TradeRecord 类型
+  const tradeRecords = trades.map((t, idx) => ({
+    id: idx,
+    symbol: t.symbol,
+    name: t.name,
+    action: t.action,
+    price: t.price,
+    quantity: t.quantity,
+    amount: t.amount,
+    fee: 0, // evolution-service 的 Trade 没有 fee 字段
+    pnl: null,
+    pnl_pct: null,
+    date: t.date,
+    reason: t.notes,
+  }));
+
+  // 将 holdings 转换为 subtractor 的 HoldingPosition 类型
+  const holdingPositions = holdings.map(h => ({
+    symbol: h.symbol,
+    name: h.name,
+    quantity: h.quantity,
+    avg_cost: h.avg_cost,
+    market: h.market as 'A' | 'HK',
+    total_invested: h.total_invested,
+    added_date: h.added_date,
+    original_cost: h.original_cost,
+    notes: h.notes,
+  }));
+
+  // 注入数据并运行减法器
+  subtractor.injectData(tradeRecords, holdingPositions);
+  const comparison = await subtractor.run(currentPrices);
   const {
-    totalRealizedPnL,
-    totalInvested,
-    realizedReturn,
-    winCount,
-    lossCount,
-    winRate,
-    tradeResults,
-  } = calcRealizedPnL(trades);
+    totalReturn,
+    weeklyComparison,
+    monthlyComparison,
+    allTimeComparison,
+    dataQuality,
+  } = comparison;
 
-  // 当前持仓总成本
-  const holdingCost = holdings.reduce((sum, h) => sum + h.total_invested, 0);
-  const totalCapital = totalInvested + holdingCost;
+  // 导出关键指标
+  const realizedReturn = totalReturn.totalReturnPct;
+  const winRate = allTimeComparison.tradeCount > 0
+    ? allTimeComparison.winRate
+    : 0;
 
-  // ── 3. 收益率 ──────────────────────────────────────────────────────────
+  // 从周/月切片中提取损益序列
+  const tradeResults = comparison.monthlyComparison.length > 0
+    ? comparison.monthlyComparison.map(p => p.returnPct)
+    : comparison.weeklyComparison.map(p => p.returnPct);
+
+  // ── 3. 收集市场环境数据 ──────────────────────────────────────────────────
+  console.log('[进化] 收集市场环境数据...');
+  let marketContext: MarketContext | undefined;
+  let market = 5; // 默认大盘参考（无实时数据时用 5%）
+
+  try {
+    marketContext = await collectMarketContext(
+      dataQuality.earliestTradeDate ?? undefined,
+      dataQuality.latestTradeDate ?? undefined,
+      finalConfig.tradeWindowDays
+    );
+
+    // 使用上证指数作为市场基准
+    market = marketContext.indices.sh000001.return;
+
+    console.log(`[进化] 市场环境:`);
+    console.log(`  - 上证指数: ${marketContext.indices.sh000001.return.toFixed(2)}% (${marketContext.indices.sh000001.trend})`);
+    console.log(`  - 深证成指: ${marketContext.indices.sz399001.return.toFixed(2)}% (${marketContext.indices.sz399001.trend})`);
+    console.log(`  - 创业板指: ${marketContext.indices.sz399006.return.toFixed(2)}% (${marketContext.indices.sz399006.trend})`);
+    console.log(`  - 市场情绪: ${marketContext.sentiment.sentiment}`);
+    console.log(`  - 数据质量: ${marketContext.dataQuality.reliability}`);
+  } catch (error) {
+    console.warn('[进化] 收集市场环境数据失败，使用默认值:', error);
+    marketContext = undefined;
+  }
+
+  // ── 4. 收益率 ──────────────────────────────────────────────────────────
   const target = finalConfig.targetReturn;
   const actual = realizedReturn;
-  const market = 5; // 默认大盘参考（无实时数据时用 5%）
 
   // ── 新增：加载历史和经验 ──────────────────────────────────────────────
   const recentEvolutions = await loadRecentEvolutions(piDir, finalConfig.evolutionWindowRecent);
@@ -347,41 +343,75 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
 
   console.log(`[进化] 加载进化历史: ${recentEvolutions.length} 次（决策参考）`);
 
-  // ── 新增：评估上次进化效果 ────────────────────────────────────────────
-  if (recentEvolutions.length > 0) {
-    const lastEvolution = recentEvolutions[0];
-    const currentMetrics = {
-      return: actual,
-      winRate,
-      maxDrawdown: tradeResults.length > 0
-        ? Math.min(...tradeResults.map(r => r.pnlPct))
-        : 0,
-      toolStats: [],
-    };
+  // ── 4.1 解析 Session 日志 ────────────────────────────────────────────
+  console.log('[进化] 解析 Session 日志...');
+  let sessionAnalysis: SessionAnalysis | undefined;
 
-    try {
-      const evaluation = await evaluateLastEvolution(lastEvolution, currentMetrics);
-      await updateEvolutionOutcome(lastEvolution.evolutionId, currentMetrics, evaluation, piDir);
-      console.log(`[进化] 已评估上次进化 ${lastEvolution.evolutionId}，评分: ${evaluation.score}/100`);
-    } catch (e) {
-      console.error('[进化] 评估上次进化失败:', e);
+  try {
+    const sessionsDir = path.join(piDir, 'sessions');
+    const sessionDirs = existsSync(sessionsDir) ? readdirSync(sessionsDir) : [];
+
+    if (sessionDirs.length > 0) {
+      // 获取最新的 session 目录
+      const latestSession = sessionDirs
+        .filter(dir => existsSync(path.join(sessionsDir, dir, 'metadata.json')))
+        .sort()
+        .reverse()[0];
+
+      if (latestSession) {
+        const sessionDir = path.join(sessionsDir, latestSession);
+        sessionAnalysis = await parseSessionLog(sessionDir);
+        console.log(`[进化] Session 分析完成: ${sessionAnalysis.totalToolCalls} 次工具调用，错误率 ${(sessionAnalysis.overallErrorRate * 100).toFixed(2)}%`);
+      }
     }
+  } catch (error) {
+    console.warn('[进化] 解析 Session 日志失败:', error);
   }
 
-  // ── 4. 减法器：计算差距 + 归因 ─────────────────────────────────────────
+  // ── 4.2 持仓维度分析 ────────────────────────────────────────────────────
+  console.log('[进化] 分析持仓维度...');
+  let holdingAnalysis: HoldingDimensionAnalysis | undefined;
+
+  try {
+    if (holdings.length > 0) {
+      // 获取当前价格
+      const snapshot = await portfolioService.getWithPnL();
+      const currentPrices = new Map<string, number>();
+      const stockInfo = new Map<string, { name: string; sector?: string; marketCap?: number }>();
+
+      snapshot.holdings.forEach(h => {
+        currentPrices.set(h.symbol, h.current_price);
+        stockInfo.set(h.symbol, {
+          name: h.name,
+          sector: undefined, // TODO: 从数据源获取行业信息
+          marketCap: undefined, // TODO: 从数据源获取市值信息
+        });
+      });
+
+      holdingAnalysis = await analyzeHoldingDimensions(holdings, currentPrices, stockInfo);
+      console.log(`[进化] 持仓分析完成: ${holdingAnalysis.stocks.length} 只个股，${holdingAnalysis.sectors.length} 个行业`);
+      console.log(`[进化] 发现 ${holdingAnalysis.issues.length} 个持仓问题`);
+    } else {
+      console.log('[进化] 无持仓数据，跳过持仓维度分析');
+    }
+  } catch (error) {
+    console.warn('[进化] 持仓维度分析失败:', error);
+  }
+
+  // ── 5. 归因分析 ──────────────────────────────────────────────────────
   const gap = calculateGap(target, actual, market);
 
   // 历史收益序列（从交易结果提取）
-  const historicalReturns = tradeResults.map(r => r.pnlPct);
+  const historicalReturns = tradeResults.length > 0 ? tradeResults : [0];
   const marketVolatility = 15;
 
   // 决策质量（从复盘 + 交易统计估算）
   const reviewsDir = path.join(piDir, 'reviews');
   const decisionQuality = calcDecisionQuality(reviewsDir, winRate, historicalReturns, finalConfig.reviewWindowCount);
 
-  const attribution = attributeGap(gap, historicalReturns, marketVolatility, decisionQuality);
+  const attribution = attributeGap(gap, historicalReturns, marketVolatility, decisionQuality, dataQuality);
 
-  // ── 5. Session 分析：计算工具效能 ──────────────────────────────────────
+  // ── 6. Session 分析：计算工具效能 ──────────────────────────────────────
   console.log('[进化] 开始 Session 分析...');
   const toolStats = analyzeSessionsAndCalculateEfficiency(
     piDir,
@@ -390,13 +420,57 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
   );
   console.log(`[进化] Session 分析完成，评估了 ${toolStats.length} 个工具`);
 
-  // ── 6. 补偿器：策略 + 建议（增强：传入历史和经验）─────────────────────
+  // ── 6.5 工具效能分析 ──────────────────────────────────────────────────────
+  console.log('[进化] 分析工具效能...');
+  const toolEfficiencyAssessment = sessionAnalysis
+    ? analyzeToolEfficiency(sessionAnalysis)
+    : undefined;
+
+  if (toolEfficiencyAssessment) {
+    console.log(`[进化] 工具效能评分: ${toolEfficiencyAssessment.overallScore}/100`);
+    if (toolEfficiencyAssessment.problematicTools.length > 0) {
+      console.log(`[进化] 发现 ${toolEfficiencyAssessment.problematicTools.length} 个高失败率工具`);
+    }
+    if (toolEfficiencyAssessment.slowTools.length > 0) {
+      console.log(`[进化] 发现 ${toolEfficiencyAssessment.slowTools.length} 个性能瓶颈工具`);
+    }
+  }
+
+  // ── 评估上次进化效果 ────────────────────────────────────────────────
+  if (recentEvolutions.length > 0) {
+    const lastEvolution = recentEvolutions[0];
+    const currentMetrics = {
+      return: actual,
+      winRate: allTimeComparison.winRate,
+      maxDrawdown: allTimeComparison.returnPct < 0 ? Math.abs(allTimeComparison.returnPct) : 0,
+      toolStats: [], // Session 日志的 ToolStats 与 ToolEfficiency 结构不同，暂时使用空数组
+    };
+
+    try {
+      const evaluation = await evaluateLastEvolution(
+        lastEvolution,
+        currentMetrics,
+        marketContext,
+        holdingAnalysis,
+        toolEfficiencyAssessment?.overallScore,
+        sessionAnalysis?.overallErrorRate
+      );
+      await updateEvolutionOutcome(lastEvolution.evolutionId, currentMetrics, evaluation, piDir);
+      console.log(`[进化] 已评估上次进化 ${lastEvolution.evolutionId}，评分: ${evaluation.score}/100`);
+    } catch (e) {
+      console.error('[进化] 评估上次进化失败:', e);
+    }
+  }
+
+  // ── 7. 补偿器：策略 + 建议（增强：传入历史和经验）─────────────────────
   const strategy = determineOptimizerStrategy(gap.gap);
 
+  const totalTradeCount = monthlyComparison.reduce((s, m) => s + m.tradeCount, 0) ||
+                           weeklyComparison.reduce((s, w) => s + w.tradeCount, 0);
   const weaknesses: string[] = [];
-  if (winRate <= 0.5 && winCount + lossCount > 0) weaknesses.push('选股能力');
+  if (winRate <= 0.5 && totalTradeCount > 0) weaknesses.push('选股能力');
   if (decisionQuality.stopLossExecutionRate < 0.6) weaknesses.push('风控能力');
-  if (lossCount > winCount && winCount + lossCount > 5) weaknesses.push('决策准确性');
+  if (winRate < 0.5 && totalTradeCount > 5) weaknesses.push('决策准确性');
 
   const suggestions = generateOptimizationSuggestions(
     {
@@ -408,49 +482,65 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
     experienceSummary
   );
 
-  // ── 7. 成功/失败模式 ────────────────────────────────────────────────────
-  const profitTrades = tradeResults.filter(r => r.pnl > 0);
-  const lossTrades = tradeResults.filter(r => r.pnl < 0);
+  // 合并工具效能建议
+  const allSuggestions = toolEfficiencyAssessment
+    ? [...suggestions, ...toolEfficiencyAssessment.suggestions]
+    : suggestions;
 
-  const successPatterns = profitTrades.length > 0 ? [{
-    pattern: '盈利交易',
-    count: profitTrades.length,
-    winRate: 1,
-    avgReturn: profitTrades.reduce((s, r) => s + r.pnlPct, 0) / profitTrades.length,
+  console.log(`[进化] 生成优化建议: ${allSuggestions.length} 条（基础 ${suggestions.length} + 工具效能 ${toolEfficiencyAssessment?.suggestions.length || 0}）`);
+
+
+  // ── 8. 成功/失败模式（从周切片提取） ──────────────────────────────────────
+  const positiveWeeks = weeklyComparison.filter(w => w.totalPnL > 0);
+  const negativeWeeks = weeklyComparison.filter(w => w.totalPnL < 0);
+
+  const successPatterns = positiveWeeks.length > 0 ? [{
+    pattern: '盈利周',
+    count: positiveWeeks.length,
+    winRate: Math.round((positiveWeeks.length / weeklyComparison.length) * 100) / 100,
+    avgReturn: positiveWeeks.reduce((s, w) => s + w.returnPct, 0) / positiveWeeks.length,
   }] : [];
 
-  const failurePatterns = lossTrades.length > 0 ? [{
-    pattern: '亏损交易',
-    count: lossTrades.length,
+  const failurePatterns = negativeWeeks.length > 0 ? [{
+    pattern: '亏损周',
+    count: negativeWeeks.length,
     winRate: 0,
-    avgLoss: Math.abs(lossTrades.reduce((s, r) => s + r.pnlPct, 0) / lossTrades.length),
+    avgLoss: Math.abs(negativeWeeks.reduce((s, w) => s + w.returnPct, 0) / negativeWeeks.length),
   }] : [];
 
-  // ── 8. 生成报告 ────────────────────────────────────────────────────────
+  // ── 9. 生成报告 ────────────────────────────────────────────────────────
+  const monthlyReturns = monthlyComparison.map(m => m.returnPct);
+  const allReturns = weeklyComparison.map(w => w.returnPct);
+
   const report = generateEvolutionReport({
-    period: `${trades.length > 0 ? trades[0].date : '--'} ~ ${new Date().toISOString().split('T')[0]}`,
+    period: `${dataQuality.earliestTradeDate ?? '--'} ~ ${dataQuality.latestTradeDate ?? new Date().toISOString().slice(0, 10)}`,
     performance: {
       target,
       actual: Math.round(actual * 100) / 100,
       gap: Math.round(gap.gap * 100) / 100,
       market,
       winRate,
-      maxDrawdown: lossTrades.length > 0
-        ? Math.round(Math.min(...lossTrades.map(r => r.pnlPct)) * 100) / 100
+      maxDrawdown: allReturns.length > 0
+        ? Math.round(Math.min(...allReturns, 0 as number) * 100) / 100
         : 0,
-      sharpeRatio: historicalReturns.length > 1
-        ? calcSharpe(historicalReturns)
+      sharpeRatio: monthlyReturns.length > 1
+        ? calcSharpe(monthlyReturns)
         : 0,
     },
     attribution,
     toolStats: toolStats, // 使用 Session 分析的结果
-    suggestions,
+    marketContext, // 新增：传入市场环境数据
+    sessionAnalysis, // 新增：传入 Session 日志分析
+    toolEfficiencyAssessment, // 新增：传入工具效能评估
+    holdingAnalysis, // 新增：传入持仓维度分析
+    suggestions: allSuggestions,
     successPatterns,
     failurePatterns,
+    comparisonResult: comparison, // 传入减法器全量数据
   });
 
   // ── 9. 保存报告 ────────────────────────────────────────────────────────
-  const markdown = formatReportAsMarkdown(report, recentEvolutions, experienceSummary ?? undefined);
+  const markdown = formatReportAsMarkdown(report, recentEvolutions, experienceSummary ?? undefined, comparison);
 
   const evolutionDir = path.join(piDir, 'evolution');
   await fs.mkdir(evolutionDir, { recursive: true });
@@ -464,7 +554,7 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
   await fs.writeFile(reportPath, markdown, 'utf-8');
 
   // ── 9. 执行优化建议（完全自动化）────────────────────────────────────────
-  const executionResult = await executeOptimizationSuggestions(suggestions, piDir, {
+  const executionResult = await executeOptimizationSuggestions(allSuggestions, piDir, {
     autoExecute: true,
     requireApproval: [], // 空数组 = 所有类型都自动执行
     maxRollbackHistory: 10,
@@ -482,21 +572,19 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
     .map(a => a.suggestionId);
 
   const evolutionId = await saveEvolutionHistory(
-    suggestions,
+    allSuggestions,
     appliedIds,
     {
       return: actual,
       winRate,
-      maxDrawdown: lossTrades.length > 0
-        ? Math.min(...lossTrades.map(r => r.pnlPct))
-        : 0,
+      maxDrawdown: allTimeComparison.returnPct < 0 ? Math.abs(allTimeComparison.returnPct) : 0,
       toolStats: toolStats,
     },
     piDir
   );
 
   // ── 新增：更新版本历史 ────────────────────────────────────────────────
-  await updateVersionHistory(evolutionDir, executionResult, suggestions);
+  await updateVersionHistory(evolutionDir, executionResult, allSuggestions);
 
   // ── 新增：更新经验总结 ────────────────────────────────────────────────
   try {
@@ -510,11 +598,12 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
 
   // ── 输出统计信息 ──────────────────────────────────────────────────────
   console.log(`\n[进化] 本次进化完成:`);
-  console.log(`  - 分析交易: ${trades.length} 笔 (${finalConfig.tradeWindowDays ? `最近 ${finalConfig.tradeWindowDays} 天` : '全部'})`);
-  console.log(`  - 已实现收益: ${Math.round(actual * 100) / 100}% (目标: ${target}%)`);
-  console.log(`  - 胜率: ${Math.round(winRate * 100)}% (${winCount}胜 ${lossCount}负)`);
+  console.log(`  - 数据可靠性: ${dataQuality.reliability}`);
+  console.log(`  - 交易记录: ${trades.length} 笔，持仓 ${holdings.length} 只`);
+  console.log(`  - 总账: 已实现 ¥${totalReturn.realizedPnL} | 浮盈 ¥${totalReturn.unrealizedPnL} | 总收益 ¥${totalReturn.totalPnL} | 收益率 ${actual}% (目标: ${target}%)`);
+  console.log(`  - 周切片: ${weeklyComparison.length} 周 | 月切片: ${monthlyComparison.length} 月`);
   console.log(`  - 归因: ${attribution.rootCause === 'target_unrealistic' ? '目标不合理' : '能力需优化'}`);
-  console.log(`  - 建议: ${suggestions.length} 条，已应用 ${executionResult.applied.filter(a => a.status === 'success').length} 条`);
+  console.log(`  - 建议: ${allSuggestions.length} 条，已应用 ${executionResult.applied.filter(a => a.status === 'success').length} 条`);
   console.log(`  - 报告: ${reportPath}`);
 
   return {
@@ -525,10 +614,10 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
       targetReturn: target,
       realizedReturn: Math.round(actual * 100) / 100,
       winRate: Math.round(winRate * 100),
-      totalTrades: winCount + lossCount,
+      totalTrades: totalTradeCount,
       attribution: attribution.rootCause,
       strategyLevel: strategy.level,
-      suggestionCount: suggestions.length,
+      suggestionCount: allSuggestions.length,
       appliedCount: executionResult.applied.filter(a => a.status === 'success').length,
       manualTaskCount: executionResult.manualTasks.length,
       evolutionId,

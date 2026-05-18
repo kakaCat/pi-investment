@@ -2,7 +2,7 @@
 /**
  * 测试备选方案提示
  */
-import { callPythonResilient } from "../infrastructure/tools/shared/python-caller-resilient.js";
+import { callPythonResilient } from "../infrastructure/tools/shared/python-caller-resilient-adapter.js";
 
 async function testAlternatives() {
   console.log("测试备选方案提示功能\n");

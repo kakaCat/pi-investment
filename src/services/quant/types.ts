@@ -38,8 +38,8 @@ export interface QuantStrategy {
 }
 
 export interface EntryCondition {
-  indicator: 'rsi' | 'ma_cross' | 'macd' | 'bollinger' | 'volume';
-  params: Record<string, any>;
+  indicator: 'rsi' | 'ma_cross' | 'macd' | 'bollinger' | 'volume' | 'pe' | 'pb' | 'roe' | 'debt_ratio';
+  params: Record<string, string | number>;
   operator: '>' | '<' | '>=' | '<=' | '==' | 'cross_above' | 'cross_below';
   value: number | string;
 }
@@ -54,37 +54,6 @@ export interface BacktestOptions {
   commission: number;
 }
 
-export interface BacktestResult {
-  id: string;
-  strategy_id: string;
-  period: { start: string; end: string };
-  performance: {
-    total_return: number;
-    annual_return: number;
-    sharpe_ratio: number;
-    max_drawdown: number;
-    win_rate: number;
-    profit_factor: number;
-    total_trades: number;
-  };
-  trades: Trade[];
-  equity_curve: Array<{ date: string; value: number }>;
-  created_at: string;
-}
-
-export interface Trade {
-  date: string;
-  symbol: string;
-  name: string;
-  action: 'buy' | 'sell';
-  price: number;
-  quantity: number;
-  commission: number;
-  pnl?: number;
-  pnl_pct?: number;
-  reason: string;
-}
-
 export interface Signal {
   date: string;
   symbol: string;
@@ -94,7 +63,7 @@ export interface Signal {
   price: number;
   reason: string;
   confidence: number;
-  indicators?: Record<string, any>;
+  indicators?: Record<string, number>;
 }
 
 export interface Position {

@@ -12,7 +12,7 @@
  */
 
 import { PortfolioService } from "../services/portfolio/portfolio-service.js";
-import { FxRateService } from "../services/fx-rate-service.js";
+import { FxRateServiceAdapter } from "../services/fx-rate-service-adapter.js";
 import { copyFileSync } from "fs";
 import { join } from "path";
 
@@ -32,7 +32,7 @@ async function migrateHKHoldings(dryRun: boolean = true) {
   console.log(`模式: ${dryRun ? "🔍 预览模式（不会修改文件）" : "✍️  应用模式（将修改文件）"}\n`);
 
   const portfolioService = new PortfolioService(PI_DIR);
-  const fxRateService = new FxRateService(PI_DIR);
+  const fxRateService = new FxRateServiceAdapter(PI_DIR);
 
   // 1. Load current portfolio
   const originalData = portfolioService.load();

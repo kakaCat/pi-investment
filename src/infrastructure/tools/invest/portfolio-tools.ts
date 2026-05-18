@@ -9,9 +9,11 @@ import { chinaDate } from "../../../utils/china-time.js";
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
 import { roundN, validatePositiveNumber } from "../shared/validators.js";
+import { WatchlistService } from "../../../services/portfolio/watchlist-service.js";
 
 const PI_DIR = join(process.cwd(), ".pi-invest");
 const _portfolioSvc = new PortfolioService(PI_DIR);
+const _watchlistSvc = new WatchlistService(PI_DIR);
 
 // ===== manage_portfolio =====
 export const managePortfolioTool: ToolDefinition = {
@@ -86,8 +88,8 @@ export const managePortfolioTool: ToolDefinition = {
           // Record trade with HK fields
           try {
             const ts = new TradeService(PI_DIR);
-            const { FxRateService } = await import("../../../services/fx-rate-service.js");
-            const fxService = new FxRateService(PI_DIR);
+            const { FxRateServiceAdapter } = await import("../../../services/fx-rate-service-adapter.js");
+            const fxService = new FxRateServiceAdapter(PI_DIR);
             const fxRate = await fxService.getRate("HKDCNY");
             const priceCNY = roundN(price_hkd * fxRate);
 

@@ -224,7 +224,12 @@ describe('SignalGenerator', () => {
         bollinger_mid: 100,
         bollinger_lower: 90,
         volume_ratio: 2.0,
-        atr: 1.5
+        atr: 1.5,
+      pe: 0,
+      pb: 0,
+      roe: 0,
+      gross_margin: 0,
+        debt_ratio: 0
       };
 
       const signal = await generator.generateSignal('000001', '平安银行', strategy, tech, 102);
@@ -279,7 +284,12 @@ describe('SignalGenerator', () => {
         bollinger_mid: 100,
         bollinger_lower: 90,
         volume_ratio: 1.0,
-        atr: 1.5
+        atr: 1.5,
+      pe: 0,
+      pb: 0,
+      roe: 0,
+      gross_margin: 0,
+        debt_ratio: 0
       };
 
       const signal = await generator.generateSignal('000001', '平安银行', strategy, tech, 102);
@@ -324,7 +334,12 @@ describe('SignalGenerator', () => {
         bollinger_mid: 100,
         bollinger_lower: 90,
         volume_ratio: 1.0,
-        atr: 1.5
+        atr: 1.5,
+      pe: 0,
+      pb: 0,
+      roe: 0,
+      gross_margin: 0,
+        debt_ratio: 0
       };
 
       const signal = await generator.generateSignal('000001', '平安银行', strategy, tech, 102);

@@ -148,6 +148,43 @@ export class SignalGenerator {
       if (op === '<=') return volumeRatio <= (value as number);
     }
 
+    // PE conditions (基本面因子)
+    if (indicator === 'pe') {
+      const pe = tech.pe || 0;
+      if (op === '>') return pe > (value as number);
+      if (op === '<') return pe < (value as number);
+      if (op === '>=') return pe >= (value as number);
+      if (op === '<=') return pe <= (value as number);
+      if (op === '==') return Math.abs(pe - (value as number)) < 0.01;
+    }
+
+    // PB conditions
+    if (indicator === 'pb') {
+      const pb = tech.pb || 0;
+      if (op === '>') return pb > (value as number);
+      if (op === '<') return pb < (value as number);
+      if (op === '>=') return pb >= (value as number);
+      if (op === '<=') return pb <= (value as number);
+    }
+
+    // ROE conditions
+    if (indicator === 'roe') {
+      const roe = tech.roe || 0;
+      if (op === '>') return roe > (value as number);
+      if (op === '<') return roe < (value as number);
+      if (op === '>=') return roe >= (value as number);
+      if (op === '<=') return roe <= (value as number);
+    }
+
+    // Debt ratio conditions
+    if (indicator === 'debt_ratio') {
+      const dr = tech.debt_ratio || 0;
+      if (op === '>') return dr > (value as number);
+      if (op === '<') return dr < (value as number);
+      if (op === '>=') return dr >= (value as number);
+      if (op === '<=') return dr <= (value as number);
+    }
+
     return false;
   }
 
@@ -209,6 +246,14 @@ export class SignalGenerator {
         reasons.push(`价格=${tech.close?.toFixed(2) || 'N/A'} 下轨=${tech.bollinger_lower?.toFixed(2) || 'N/A'}`);
       } else if (c.indicator === 'volume') {
         reasons.push(`量比=${tech.volume_ratio?.toFixed(2) || 'N/A'}`);
+      } else if (c.indicator === 'pe') {
+        reasons.push(`PE=${tech.pe?.toFixed(2) || 'N/A'}`);
+      } else if (c.indicator === 'pb') {
+        reasons.push(`PB=${tech.pb?.toFixed(2) || 'N/A'}`);
+      } else if (c.indicator === 'roe') {
+        reasons.push(`ROE=${tech.roe?.toFixed(2) || 'N/A'}%`);
+      } else if (c.indicator === 'debt_ratio') {
+        reasons.push(`负债率=${tech.debt_ratio?.toFixed(1) || 'N/A'}%`);
       }
     }
 

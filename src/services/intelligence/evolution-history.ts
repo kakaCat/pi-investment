@@ -13,6 +13,13 @@ import type {
   ToolEfficiency,
   SuggestionScore,
 } from '../../types/evolution.js';
+import type { MarketContext } from '../../types/market-context.js';
+import type { HoldingDimensionAnalysis } from '../../types/holding-analysis.js';
+import {
+  calculateEnhancedEvolutionScore,
+  type EnhancedPerformanceMetrics,
+  type DetailedEvolutionScore,
+} from './evolution-scorer.js';
 
 // ─── 类型定义 ────────────────────────────────────────────────────────────────
 
@@ -131,10 +138,28 @@ export async function loadRecentEvolutions(
  */
 export async function evaluateLastEvolution(
   lastEvolution: EvolutionHistory,
-  currentMetrics: PerformanceMetrics
+  currentMetrics: PerformanceMetrics,
+  marketContext?: MarketContext,
+  holdingAnalysis?: HoldingDimensionAnalysis,
+  toolEfficiencyScore?: number,
+  errorRate?: number
 ): Promise<EvolutionEvaluation> {
-  // 1. 计算整体评分
-  const score = calculateEvolutionScore(lastEvolution.baseline, currentMetrics);
+  // 构建增强的性能指标
+  const baselineEnhanced: EnhancedPerformanceMetrics = {
+    ...lastEvolution.baseline,
+  };
+
+  const outcomeEnhanced: EnhancedPerformanceMetrics = {
+    ...currentMetrics,
+    marketContext,
+    holdingAnalysis,
+    toolEfficiencyScore,
+    errorRate,
+  };
+
+  // 1. 使用优化后的评分算法
+  const detailedScore = calculateEnhancedEvolutionScore(baselineEnhanced, outcomeEnhanced);
+  const score = detailedScore.totalScore;
 
   // 2. 计算指标变化
   const improvement = {
@@ -167,22 +192,11 @@ export async function evaluateLastEvolution(
     }
   }
 
-  // 5. 生成评估原因
+  // 5. 生成评估原因（使用详细评分的breakdown）
   const reasons: string[] = [];
 
   reasons.push(`整体评分: ${score}/100`);
-
-  if (improvement.returnDelta > 0) {
-    reasons.push(`收益率提升 ${improvement.returnDelta.toFixed(2)}%`);
-  } else if (improvement.returnDelta < 0) {
-    reasons.push(`收益率下降 ${Math.abs(improvement.returnDelta).toFixed(2)}%`);
-  }
-
-  if (improvement.winRateDelta > 0.02) {
-    reasons.push(`胜率提升 ${(improvement.winRateDelta * 100).toFixed(1)}%`);
-  } else if (improvement.winRateDelta < -0.02) {
-    reasons.push(`胜率下降 ${Math.abs(improvement.winRateDelta * 100).toFixed(1)}%`);
-  }
+  reasons.push(...detailedScore.breakdown);
 
   if (effectiveTools.length > 0) {
     reasons.push(`有效工具: ${effectiveTools.join(', ')}`);
@@ -247,52 +261,6 @@ export async function updateEvolutionOutcome(
 }
 
 // ─── 评分算法 ────────────────────────────────────────────────────────────────
-
-/**
- * 计算进化总评分（0-100）
- */
-function calculateEvolutionScore(
-  baseline: PerformanceMetrics,
-  outcome: PerformanceMetrics
-): number {
-  // 1. 收益率改善（权重40%）
-  const returnImprovement = baseline.return !== 0
-    ? (outcome.return - baseline.return) / Math.abs(baseline.return)
-    : 0;
-  const returnScore = Math.min(100, Math.max(0, 50 + returnImprovement * 100));
-
-  // 2. 胜率改善（权重30%）
-  const winRateImprovement = outcome.winRate - baseline.winRate;
-  const winRateScore = Math.min(100, Math.max(0, 50 + winRateImprovement * 200));
-
-  // 3. 回撤控制（权重20%）
-  const drawdownImprovement = outcome.maxDrawdown - baseline.maxDrawdown;
-  const drawdownScore = Math.min(100, Math.max(0, 50 + drawdownImprovement * 100));
-
-  // 4. 工具质量（权重10%）
-  const toolQualityScore = calculateToolQualityScore(outcome.toolStats);
-
-  // 加权平均
-  const totalScore =
-    returnScore * 0.4 +
-    winRateScore * 0.3 +
-    drawdownScore * 0.2 +
-    toolQualityScore * 0.1;
-
-  return Math.round(totalScore);
-}
-
-/**
- * 计算工具质量评分
- */
-function calculateToolQualityScore(toolStats: ToolEfficiency[]): number {
-  if (toolStats.length === 0) return 50;
-
-  const avgWinRate = toolStats.reduce((sum, t) => sum + t.win_rate, 0) / toolStats.length;
-  const avgReturn = toolStats.reduce((sum, t) => sum + t.avg_return, 0) / toolStats.length;
-
-  return Math.min(100, Math.max(0, 50 + avgWinRate * 50 + avgReturn * 10));
-}
 
 /**
  * 对单个建议打分

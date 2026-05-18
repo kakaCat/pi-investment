@@ -11,6 +11,7 @@
     "dev:log": "tsx src/index-with-logger.ts",
     "feishu": "tsx src/api/feishu.ts",
     "api": "tsx src/api/web/server.ts",
+    "dashboard": "bash start-dashboard.sh",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "portfolio": "tsx src/scripts/portfolio-cli.ts",

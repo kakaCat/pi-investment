@@ -21,6 +21,7 @@ import { spawn, execSync } from "child_process";
 import { join, dirname } from "path";
 import { writeFileSync, mkdirSync, existsSync, unlinkSync } from "fs";
 import { fileURLToPath } from "url";
+import { getSessionKey, getConversationMessages } from "../logging/observable-logger.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -112,10 +113,16 @@ export const restartAgentTool: ToolDefinition = {
           mkdirSync(RESTART_DIR, { recursive: true });
         }
 
+        const prevSessionKey = getSessionKey();
+        const conversationMessages = getConversationMessages();
+
         const context = {
           timestamp: new Date().toISOString(),
           cwd: process.cwd(),
           reason: "user_requested_restart",
+          prevSessionKey,
+          conversationMessageCount: conversationMessages.length,
+          messages: conversationMessages.slice(-50), // 保留最近 50 条消息
           env: {
             NODE_ENV: process.env.NODE_ENV || "development",
             BACKGROUND_MODE: process.env.BACKGROUND_MODE || "false",
@@ -162,6 +169,7 @@ export const restartAgentTool: ToolDefinition = {
         ...process.env,
         PI_RESTARTED: "true",
         PI_RESTART_TIMESTAMP: new Date().toISOString(),
+        // 保持原有的 locale 设置，不要覆盖
       },
     });
 
@@ -197,13 +205,41 @@ export const restartAgentTool: ToolDefinition = {
       },
     };
 
-    // 返回后立即安排退出
+    // 返回后安排退出
+    // 需要先重置终端状态，避免子进程继承 raw mode 导致乱码
     setImmediate(() => {
       if (spawnFailed) {
         console.log("[restart] 新进程启动失败，当前进程继续运行");
         return;
       }
-      process.exit(0);
+
+      // 重置终端模式：InteractiveMode (readline) 会将 stdin 设为 raw mode，
+      // 必须在退出前重置，否则子进程会继承错误的终端状态导致输入乱码
+      try {
+        if (process.stdin.isTTY) {
+          process.stdin.setRawMode(false);
+        }
+      } catch {
+        // stdin 可能已被关闭或不可用
+      }
+
+      try {
+        process.stdin.pause();
+      } catch {
+        // ignore
+      }
+
+      // 使用 stty 命令恢复正常终端模式
+      try {
+        execSync('stty sane', { stdio: 'ignore', timeout: 1000 });
+      } catch {
+        // ignore - stty 可能不可用
+      }
+
+      // 延迟退出，确保终端状态完全恢复
+      setTimeout(() => {
+        process.exit(0);
+      }, 300);
     });
 
     return response;

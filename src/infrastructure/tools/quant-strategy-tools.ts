@@ -124,7 +124,7 @@ export const getStrategyPerformanceTool: ToolDefinition = {
       }
 
       // 分析策略表现
-      const metrics = await performanceAnalyzer.analyzeStrategy(strategy_id, days);
+      const metrics = await performanceAnalyzer.analyzeStrategy(strategy_id, strategy.name, days);
 
       const summary = `
 策略表现统计 - ${strategy.name}
@@ -137,14 +137,14 @@ export const getStrategyPerformanceTool: ToolDefinition = {
 - 卖出信号: ${metrics.sell_signals}
 
 收益统计:
-- 胜率: ${(metrics.win_rate * 100).toFixed(2)}%
-- 平均收益: ${metrics.avg_return.toFixed(2)}%
-- 最大盈利: ${metrics.max_gain.toFixed(2)}%
-- 最大亏损: ${metrics.max_loss.toFixed(2)}%
+- 胜率: ${metrics.win_rate.toFixed(2)}%
+- 平均收益: ${metrics.avg_profit_pct.toFixed(2)}%
+- 最大盈利: ${metrics.avg_win_pct.toFixed(2)}%
+- 最大亏损: ${metrics.avg_loss_pct.toFixed(2)}%
 
 信号质量:
-- 平均置信度: ${(metrics.avg_confidence * 100).toFixed(0)}%
-- 有效信号比例: ${((metrics.winning_signals / metrics.total_signals) * 100).toFixed(0)}%
+- 平均置信度: 暂无数据
+- 有效信号比例: ${metrics.total_signals > 0 ? ((metrics.profitable_trades / metrics.total_signals) * 100).toFixed(0) : 0}%
 
 策略评价: ${metrics.win_rate >= 0.6 ? '表现优秀' : metrics.win_rate >= 0.5 ? '表现良好' : '需要优化'}
 `.trim();

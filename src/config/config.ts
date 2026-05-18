@@ -23,13 +23,16 @@ export const bootstrapData = _bootstrapLoader.loadAll("full");
  * 模型配置
  */
 export function createDeepSeekModel(): Model<'openai-completions'> {
+  const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1';
+  const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY;
+
   return {
-    id: 'deepseek-chat',
+    id: process.env.MODEL_ID || 'deepseek-chat',
     name: 'DeepSeek Chat',
     api: 'openai-completions',
-    provider: 'openai',
-    apiKey: process.env.OPENAI_API_KEY,
-    baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1',
+    provider: 'openai',              // SDK 要求 openai provider 才能正确路由 key
+    apiKey,
+    baseUrl,                         // ← 始终显式设置，不依赖 SDK 默认值
     reasoning: false,
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },

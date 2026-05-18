@@ -12,7 +12,7 @@ export { cleanSymbol } from "../../data-sources/sina.js";
 import { fetchPeData, fetchStockInfo, fetchSectorList } from "../../data-sources/eastmoney.js";
 import { fetchHkHistory } from "../../data-sources/stooq.js";
 import { safeFloat, today, nowStr } from "../../data-sources/http-client.js";
-import { r2, callPythonBridge, getKlineCache } from "../shared.js";
+import { r2, callPythonBridge, getKlineCache, getSessionDataDir } from "../shared.js";
 
 // ─── A股实时行情 ───────────────────────────────────────────────────────────
 
@@ -61,22 +61,20 @@ export async function get_stock_history(
 ): Promise<string> {
   const clean = cleanSymbolInternal(symbol);
 
+  // ─── 上下文保护策略 ──────────────────────────────────
+  // 900 条日线 ≈ 150KB，直接返回会吃掉 64K token 上下文的 60%
+  // 策略：完整数据写本地文件，只返回摘要 + 最近 30 条 + 文件路径
+  // Agent 可通过 read 工具按需读取完整数据
+  const SUMMARY_ROWS = 30;
+
   // ─── 数据库缓存优先 ────────────────────────────────
   if (period === "daily" && !_skip_cache) {
     const startDate = start || "2023-01-01";
     const endDate = end || today();
     try {
-      // KlineCacheService.getHistory 会在缺失时调用此函数（带 _skip_cache=true）
       const data = await getKlineCache().getHistory(clean, startDate, endDate);
       if (data && data.length > 0) {
-        return JSON.stringify({
-          symbol: clean,
-          period,
-          count: data.length,
-          data,
-          data_date: data[data.length - 1].date,
-          _source: "cache"
-        });
+        return buildSmartResult(clean, period, data, "cache");
       }
     } catch (e) {
       console.warn(`[akshare-ts] Cache read failed for ${clean}:`, e);
@@ -92,12 +90,70 @@ export async function get_stock_history(
       end_date: end,
       adjust: _adjust
     };
-    // 直接调用 callPython 避免 TS 函数递归
     const raw = await callPythonBridge("get_stock_history", args);
+    const rows = raw?.data ?? (Array.isArray(raw) ? raw : []);
+    if (rows.length > 0) {
+      return buildSmartResult(clean, period, rows, "network");
+    }
     return JSON.stringify(raw);
   } catch (e) {
     return JSON.stringify({ error: String(e), symbol: clean });
   }
+}
+
+/**
+ * 构建智能返回结果：完整数据写文件，摘要返回给 Agent
+ */
+async function buildSmartResult(
+  symbol: string,
+  period: string,
+  data: any[],
+  source: string,
+): Promise<string> {
+  const SUMMARY_ROWS = 30;
+  const recent = data.slice(-SUMMARY_ROWS);
+  const lastRow = data[data.length - 1];
+
+  // ─── 完整数据写本地文件 ────────────────────────────
+  const filePath = `${getSessionDataDir()}/pi-kline-${symbol}-${period}.json`;
+  try {
+    const { writeFile } = await import("fs/promises");
+    await writeFile(filePath, JSON.stringify({
+      symbol, period, count: data.length, data,
+      data_date: lastRow.date, generated_at: nowStr(),
+    }), "utf-8");
+  } catch (e) {
+    console.warn(`[akshare-ts] Failed to write kline file:`, e);
+  }
+
+  // ─── 计算关键统计（省去 agent 自己算）───────────────
+  const closes = data.map((d: any) => d.close).filter(Boolean);
+  const stats: Record<string, any> = {};
+  if (closes.length >= 5)  stats.ma5  = r2(closes.slice(-5).reduce((a: number, b: number) => a + b, 0) / 5);
+  if (closes.length >= 10) stats.ma10 = r2(closes.slice(-10).reduce((a: number, b: number) => a + b, 0) / 10);
+  if (closes.length >= 20) stats.ma20 = r2(closes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20);
+  if (closes.length >= 60) stats.ma60 = r2(closes.slice(-60).reduce((a: number, b: number) => a + b, 0) / 60);
+  if (closes.length >= 120) stats.ma120 = r2(closes.slice(-120).reduce((a: number, b: number) => a + b, 0) / 120);
+  if (closes.length >= 250) stats.ma250 = r2(closes.slice(-250).reduce((a: number, b: number) => a + b, 0) / 250);
+
+  const high52w = closes.length >= 250 ? Math.max(...closes.slice(-250)) : Math.max(...closes);
+  const low52w  = closes.length >= 250 ? Math.min(...closes.slice(-250)) : Math.min(...closes);
+  stats.high_52w = r2(high52w);
+  stats.low_52w  = r2(low52w);
+  stats.current  = r2(closes[closes.length - 1]);
+  stats.from_high_pct = r2((stats.current - high52w) / high52w * 100);
+
+  return JSON.stringify({
+    symbol,
+    period,
+    total_rows: data.length,
+    data_date: lastRow.date,
+    _source: source,
+    moving_averages: stats,
+    recent_data: recent,
+    full_data_file: filePath,
+    _tip: `最近${recent.length}条已内联。如需更早数据，用 read 工具读取 ${filePath}`,
+  });
 }
 
 // ─── A股基本信息 ───────────────────────────────────────────────────────────

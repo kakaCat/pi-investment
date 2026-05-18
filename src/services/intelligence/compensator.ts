@@ -6,6 +6,7 @@
 
 import type {
   OptimizerStrategy,
+  OptimizerAction,
   OptimizationSuggestion,
   ToolEfficiency,
   EvolutionHistory,
@@ -293,11 +294,15 @@ export function generateOptimizationSuggestions(
   // ── 5. 智能过滤：基于历史和经验 ────────────────────────────────
   const filteredSuggestions = applyIntelligentFilters(
     suggestions,
+    context,
     recentEvolutions,
     experienceSummary
   );
 
-  return filteredSuggestions;
+  // ── 6. 优先级排序：按预期收益和优先级排序 ────────────────────────
+  const sortedSuggestions = sortSuggestionsByPriority(filteredSuggestions, context);
+
+  return sortedSuggestions;
 }
 
 /**
@@ -305,24 +310,54 @@ export function generateOptimizationSuggestions(
  */
 function applyIntelligentFilters(
   suggestions: OptimizationSuggestion[],
+  context: OptimizationContext,
   recentEvolutions?: EvolutionHistory[],
   experienceSummary?: ExperienceSummary | null
 ): OptimizationSuggestion[] {
   let filtered = suggestions;
 
-  // 过滤1: 避免重复建议（检查最近3次）
+  // 过滤1: 智能去重（只过滤成功的建议，失败的允许重试）
   if (recentEvolutions && recentEvolutions.length > 0) {
     const recentSuggestions = recentEvolutions.flatMap(e => e.suggestions);
     console.log(`[补偿器] 历史建议数量: ${recentSuggestions.length}`, recentSuggestions.map(s => s.data?.toolName || s.type));
 
     filtered = filtered.filter(s => {
-      const alreadyTried = recentSuggestions.some(prev =>
-        prev.type === s.type &&
-        prev.data?.toolName === s.data?.toolName
+      // 查找历史中相同的建议
+      const matchingHistory = recentEvolutions.filter(e =>
+        e.suggestions.some(prev =>
+          prev.type === s.type &&
+          prev.data?.toolName === s.data?.toolName
+        )
       );
 
-      if (alreadyTried) {
-        console.log(`[补偿器] 过滤重复建议: ${s.description} (toolName: ${s.data?.toolName})`);
+      if (matchingHistory.length === 0) {
+        return true; // 没有历史记录，保留
+      }
+
+      // 检查最近一次尝试的评分
+      const lastAttempt = matchingHistory[0];
+      const lastScore = lastAttempt.evaluation?.score;
+
+      // 策略：
+      // 1. 评分 >= 60: 成功，不重复尝试
+      // 2. 评分 < 40: 失败，允许重试（可能是实现问题）
+      // 3. 评分 40-60: 一般，检查尝试次数（最多重试1次）
+      if (lastScore !== undefined) {
+        if (lastScore >= 60) {
+          console.log(`[补偿器] 过滤成功建议: ${s.description} (上次评分: ${lastScore})`);
+          return false;
+        } else if (lastScore < 40 && matchingHistory.length < 2) {
+          console.log(`[补偿器] 允许重试失败建议: ${s.description} (上次评分: ${lastScore}, 尝试次数: ${matchingHistory.length})`);
+          return true;
+        } else if (lastScore >= 40 && lastScore < 60 && matchingHistory.length >= 2) {
+          console.log(`[补偿器] 过滤多次尝试的一般建议: ${s.description} (上次评分: ${lastScore}, 尝试次数: ${matchingHistory.length})`);
+          return false;
+        }
+      }
+
+      // 没有评分信息，检查尝试次数（最多3次）
+      if (matchingHistory.length >= 3) {
+        console.log(`[补偿器] 过滤多次尝试建议: ${s.description} (尝试次数: ${matchingHistory.length})`);
         return false;
       }
 
@@ -350,9 +385,20 @@ function applyIntelligentFilters(
     });
   }
 
-  // 过滤3: 根据最近3次评分调整激进程度并限制数量
+  // 过滤3: 根据差距大小、历史评分和市场环境调整建议数量
   let maxSuggestions = 3; // 默认
 
+  // 3.1 根据差距大小调整
+  const gap = Math.abs(context.level === 'major' ? 10 : context.level === 'moderate' ? 5 : 2);
+  if (gap > 20) {
+    maxSuggestions = 5; // 差距大，需要激进调整
+    console.log(`[补偿器] 差距 ${gap}% > 20%，采用激进策略（最多5个建议）`);
+  } else if (gap < 5) {
+    maxSuggestions = 2; // 差距小，只需微调
+    console.log(`[补偿器] 差距 ${gap}% < 5%，采用保守策略（最多2个建议）`);
+  }
+
+  // 3.2 根据历史评分调整
   if (recentEvolutions && recentEvolutions.length > 0) {
     const recentScores = recentEvolutions
       .map(e => e.evaluation?.score)
@@ -361,14 +407,14 @@ function applyIntelligentFilters(
     if (recentScores.length > 0) {
       const avgRecentScore = recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
 
+      // 历史评分低，说明之前的建议效果不好，应该更保守
       if (avgRecentScore < 40) {
-        maxSuggestions = 2; // 保守
-        console.log(`[补偿器] 最近平均评分: ${avgRecentScore.toFixed(1)}/100，采用保守策略（最多2个建议）`);
+        maxSuggestions = Math.min(maxSuggestions, 2);
+        console.log(`[补偿器] 最近平均评分: ${avgRecentScore.toFixed(1)}/100，限制为最多2个建议`);
       } else if (avgRecentScore > 70) {
-        maxSuggestions = 5; // 激进
-        console.log(`[补偿器] 最近平均评分: ${avgRecentScore.toFixed(1)}/100，采用激进策略（最多5个建议）`);
-      } else {
-        console.log(`[补偿器] 最近平均评分: ${avgRecentScore.toFixed(1)}/100，采用正常策略（最多3个建议）`);
+        // 历史评分高，说明方向对了，可以更激进
+        maxSuggestions = Math.min(maxSuggestions + 1, 5);
+        console.log(`[补偿器] 最近平均评分: ${avgRecentScore.toFixed(1)}/100，允许最多${maxSuggestions}个建议`);
       }
     }
   }
@@ -380,5 +426,52 @@ function applyIntelligentFilters(
   }
 
   return filtered;
+}
+
+/**
+ * 按优先级和预期收益排序建议
+ */
+function sortSuggestionsByPriority(
+  suggestions: OptimizationSuggestion[],
+  context: OptimizationContext
+): OptimizationSuggestion[] {
+  return suggestions.sort((a, b) => {
+    // 1. 优先级权重
+    const priorityWeight = { high: 3, medium: 2, low: 1 };
+    const priorityDiff = priorityWeight[a.priority] - priorityWeight[b.priority];
+    if (priorityDiff !== 0) return -priorityDiff; // 高优先级在前
+
+    // 2. 类型权重（先移除低效，再添加新能力）
+    const typeWeight: Record<OptimizerAction, number> = {
+      remove_tool: 5,         // 移除低效工具优先（立即止损）
+      update_code: 4,         // 修复现有工具次之
+      add_tool: 3,            // 添加新工具
+      adjust_parameter: 2,    // 调整参数
+      update_prompt: 1,       // 调整提示词
+      update_experience: 0    // 更新经验最后
+    };
+    const typeDiff = typeWeight[a.type] - typeWeight[b.type];
+    if (typeDiff !== 0) return -typeDiff;
+
+    // 3. 预期收益（从描述中提取数字）
+    const extractImpact = (s: OptimizationSuggestion): number => {
+      // 尝试从 expectedImpact 中提取百分比数字
+      const match = s.expectedImpact?.match(/(\d+(?:\.\d+)?)\s*%/);
+      if (match) return parseFloat(match[1]);
+
+      // 尝试从 data 中提取 pnlImpact
+      if (s.data?.pnlImpact) return s.data.pnlImpact / 1000; // 转换为百分比量级
+
+      // 根据类型给默认权重
+      if (s.type === 'remove_tool') return 2; // 移除低效工具预期收益2%
+      if (s.type === 'add_tool') return 3;    // 添加新工具预期收益3%
+      if (s.type === 'update_code') return 2.5;
+      return 1;
+    };
+
+    const impactA = extractImpact(a);
+    const impactB = extractImpact(b);
+    return impactB - impactA; // 高收益在前
+  });
 }
 

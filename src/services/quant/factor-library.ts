@@ -15,6 +15,12 @@ export interface TechnicalIndicators {
   bollinger_lower: number;
   volume_ratio: number;
   atr: number;
+  /** 基本面因子 */
+  pe: number;
+  pb: number;
+  roe: number;
+  gross_margin: number;
+  debt_ratio: number;
 }
 
 export interface StockScore {
@@ -78,19 +84,35 @@ export class FactorLibrary {
       };
     } catch (error) {
       // Fallback to akshare-ts
-      console.log(`[FactorLibrary] Falling back to akshare-ts for ${symbol}`);
+      console.log(`[FactorLibrary] Falling back to akshare-ts for ${symbol}, DB error: ${error}`);
       const historyJson = await get_stock_history(symbol, 'daily', undefined, date);
       const historyData = JSON.parse(historyJson);
 
-      if (historyData.error || !historyData.data || historyData.data.length === 0) {
+      // Support both legacy `data` field and new `recent_data` field
+      let klineData = historyData.data || historyData.recent_data;
+      
+      // If recent_data has < 60 rows and full_data_file exists, try to read the full file
+      if ((!klineData || klineData.length < 60) && historyData.full_data_file) {
+        try {
+          const { readFile } = await import('fs/promises');
+          const fullJson = JSON.parse(await readFile(historyData.full_data_file, 'utf-8'));
+          if (fullJson.data && fullJson.data.length > klineData?.length) {
+            klineData = fullJson.data;
+          }
+        } catch (e) {
+          console.warn(`[FactorLibrary] Failed to read full kline file for ${symbol}:`, e);
+        }
+      }
+
+      if (historyData.error || !klineData || klineData.length === 0) {
         throw new Error(`No K-line data found for ${symbol}`);
       }
 
       return {
-        closes: historyData.data.map((d: any) => d.close || d.收盘 || 0),
-        highs: historyData.data.map((d: any) => d.high || d.最高 || 0),
-        lows: historyData.data.map((d: any) => d.low || d.最低 || 0),
-        volumes: historyData.data.map((d: any) => d.volume || d.成交量 || 0)
+        closes: klineData.map((d: any) => d.close || d.收盘 || 0),
+        highs: klineData.map((d: any) => d.high || d.最高 || 0),
+        lows: klineData.map((d: any) => d.low || d.最低 || 0),
+        volumes: klineData.map((d: any) => d.volume || d.成交量 || 0)
       };
     }
   }
@@ -167,14 +189,27 @@ export class FactorLibrary {
       return { dif: 0, dea: 0, histogram: 0 };
     }
 
-    const ema12 = this.calculateEMAFromArray(closes, 12);
-    const ema26 = this.calculateEMAFromArray(closes, 26);
-    const dif = ema12 - ema26;
+    // Compute DIF series incrementally (rolling EMA-12 / EMA-26)
+    const ema12Mult = 2 / (12 + 1);
+    const ema26Mult = 2 / (26 + 1);
 
-    // TODO: This is a simplified DEA calculation using single DIF value
-    // For production, should calculate EMA-9 of historical DIF series
-    const difValues = [dif];
-    const dea = this.calculateEMAFromArray(difValues, 9);
+    let ema12 = closes[0];
+    let ema26 = closes[0];
+    const difSeries: number[] = [];
+
+    for (let i = 0; i < closes.length; i++) {
+      ema12 = (closes[i] - ema12) * ema12Mult + ema12;
+      ema26 = (closes[i] - ema26) * ema26Mult + ema26;
+
+      if (i >= 25) {
+        difSeries.push(ema12 - ema26);
+      }
+    }
+
+    const dif = difSeries[difSeries.length - 1];
+    const dea = difSeries.length >= 9
+      ? this.calculateEMAFromArray(difSeries, 9)
+      : difSeries.reduce((s, v) => s + v, 0) / difSeries.length;
     const histogram = dif - dea;
 
     return { dif, dea, histogram };
@@ -281,6 +316,58 @@ export class FactorLibrary {
     const avgVolume = this.calculateMA(volumes.slice(0, -1), period);
 
     return avgVolume > 0 ? currentVolume / avgVolume : 1;
+  }
+
+  /**
+   * 🔥 获取指定股票在指定日期的真实收盘价
+   * @param symbol Stock symbol
+   * @param date Optional date (default: today)
+   * @returns 收盘价，获取失败返回 0（含无数据）
+   */
+  async getLatestClosePrice(symbol: string, date?: string): Promise<number> {
+    try {
+      const { closes } = await this.getKlineData(symbol, date);
+      if (closes.length === 0) return 0;
+      return closes[closes.length - 1];
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * 🔥 仅查本地DB获取收盘价，不触发API回源（用于回测场景，可接受无数据=跳过）
+   */
+  async getLatestClosePriceLocal(symbol: string, date?: string): Promise<number> {
+    try {
+      if (!this.stockDBService) return 0;
+      const klines = this.stockDBService.getKlines(symbol, undefined, date);
+      if (!klines || klines.length === 0) return 0;
+      const last = klines[klines.length - 1];
+      return last.close || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * 获取 A 股基本面因子（PE/PB/ROE）——仅查本地DB，用于回测
+   */
+  async getFundamentals(symbol: string): Promise<{ pe: number; pb: number; roe: number; gross_margin: number; debt_ratio: number }> {
+    const defaults = { pe: 0, pb: 0, roe: 0, gross_margin: 0, debt_ratio: 0 };
+    try {
+      if (!this.stockDBService) return defaults;
+      const row = this.stockDBService.getStockBasics(symbol);
+      if (!row) return defaults;
+      return {
+        pe: row.pe || 0,
+        pb: row.pb || 0,
+        roe: row.roe || 0,
+        gross_margin: row.gross_margin || 0,
+        debt_ratio: row.debt_ratio || 0,
+      };
+    } catch {
+      return defaults;
+    }
   }
 
   /**

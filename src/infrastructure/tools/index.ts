@@ -37,12 +37,15 @@ import { queryExperienceTool } from "./query-experience-tool.js";
 import { tradeLogTool } from "./trade-log-tools.js";
 import { restartAgentTool } from "./restart-agent-tool.js";
 import { manageWatchlistTool } from "./watchlist-tools.js";
-// 量化工具 - 新架构
-import { quantDecisionTools } from "./quant-decision-tools.js";
-import { quantAnalysisTools } from "./quant-analysis-tools.js";
-import { quantStrategyTools } from "./quant-strategy-tools.js";
-// 量化工具 - 旧版本（已弃用，保持向后兼容）
-import { quantTools } from "./quant-tools.js";
+// 量化工具 - V2 新架构（通过 Python API）
+import { quantDecisionTools } from "./quant-decision-tools-v2.js";
+// 量化工具 - V1 旧架构（直接访问数据库，已弃用）
+// import { quantDecisionTools as quantDecisionToolsV1 } from "./quant-decision-tools.js";
+// import { quantAnalysisTools } from "./quant-analysis-tools.js";
+// import { quantStrategyTools } from "./quant-strategy-tools.js";
+// import { quantTools } from "./quant-tools.js";
+// 因子分析工具 - 模型可解释性
+import { factorAnalysisTools } from "../../tools/factor-analysis-tools.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./memory-tool.js";
@@ -78,12 +81,14 @@ export const allCustomTools = [
   tradeLogTool,                   // 交易日志管理（创建/更新/追加记录）
   manageWatchlistTool,            // 关注列表管理（自选池）
   testMarketSentimentTool,        // NEW: 市场情绪分析
-  // 量化工具 — 决策分析（新架构）
-  ...quantDecisionTools,          // analyze_stock_quant, compare_stocks_quant, validate_trade_decision
-  ...quantAnalysisTools,          // get_technical_signals, get_quant_score, query_similar_cases, backtest_strategy
-  ...quantStrategyTools,          // list_quant_strategies, get_strategy_performance
-  // 量化工具 — 旧版本（已弃用，保持向后兼容）
+  // 量化工具 — V2 新架构（通过 Python API）
+  ...quantDecisionTools,          // analyze_stock_quant, get_quant_signals
+  // 量化工具 — V1 旧架构（已弃用）
+  // ...quantAnalysisTools,
+  // ...quantStrategyTools,
   // ...quantTools,
+  // 因子分析工具 — 模型可解释性
+  ...factorAnalysisTools,         // get_feature_importance, analyze_stock_factors, compare_stock_factors
   // 通知工具 — 消息推送
   ...notificationTools,
   // 监控工具 — 实时盯盘

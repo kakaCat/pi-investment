@@ -60,6 +60,9 @@ export class StockDBService {
         market_cap REAL,
         pe REAL,
         pb REAL,
+        roe REAL,
+        gross_margin REAL,
+        debt_ratio REAL,
         total_mv REAL,
         circulating_mv REAL,
         is_st INTEGER DEFAULT 0,
@@ -110,8 +113,8 @@ export class StockDBService {
 
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO stocks
-      (symbol, name, market, industry, market_cap, pe, pb, is_st, list_date, updated_at)
-      VALUES (?, ?, 'A', ?, ?, ?, ?, ?, ?, datetime('now'))
+      (symbol, name, market, industry, market_cap, pe, pb, roe, gross_margin, debt_ratio, is_st, list_date, updated_at)
+      VALUES (?, ?, 'A', ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     `);
 
     const insert = this.db.transaction((stocks: any[]) => {
@@ -124,6 +127,9 @@ export class StockDBService {
           s.market_cap || s.total_mv || null,
           s.pe || null,
           s.pb || null,
+          s.roe || null,
+          s.gross_margin || null,
+          s.debt_ratio || null,
           isST,
           s.list_date || null
         );
@@ -231,23 +237,41 @@ export class StockDBService {
     return klines.length;
   }
 
-  /** 获取K线数据 */
+  /** 获取K线数据（自动标准化日期，兼容 DB 中 YYYYMMDD 和 YYYY-MM-DD 两种格式） */
   getKlines(symbol: string, startDate?: string, endDate?: string): any[] {
     let sql = 'SELECT * FROM daily_klines WHERE symbol = ?';
     const params: any[] = [symbol];
 
     if (startDate) {
-      sql += ' AND date >= ?';
-      params.push(startDate);
+      const normalized = startDate.replace(/-/g, '');
+      // DB 中可能存在 YYYYMMDD 和 YYYY-MM-DD 两种格式，统一用 REPLACE 比对
+      sql += ` AND REPLACE(date, '-', '') >= ?`;
+      params.push(normalized);
     }
 
     if (endDate) {
-      sql += ' AND date <= ?';
-      params.push(endDate);
+      const normalized = endDate.replace(/-/g, '');
+      sql += ` AND REPLACE(date, '-', '') <= ?`;
+      params.push(normalized);
     }
 
     sql += ' ORDER BY date ASC';
     return this.db.prepare(sql).all(...params);
+  }
+
+  /** 按市值降序取前N只A股 */
+  getTopNByMarketCap(n: number, excludeST: boolean = true): StockInfo[] {
+    let sql = 'SELECT symbol, name, market, industry, market_cap, pe, pb FROM stocks WHERE market = ?';
+    const params: any[] = ['A'];
+
+    if (excludeST) {
+      sql += ' AND is_st = 0';
+    }
+
+    sql += ' ORDER BY market_cap DESC LIMIT ?';
+    params.push(n);
+
+    return this.db.prepare(sql).all(...params) as StockInfo[];
   }
 
   /** 获取最新K线日期 */
@@ -256,6 +280,14 @@ export class StockDBService {
       'SELECT MAX(date) as latest FROM daily_klines WHERE symbol = ?'
     ).get(symbol) as any;
     return row?.latest || null;
+  }
+
+  /** 获取个股基本面数据（PE/PB/ROE等），用于回测 */
+  getStockBasics(symbol: string): { pe: number; pb: number; roe: number; gross_margin: number; debt_ratio: number } | null {
+    const row = this.db.prepare(
+      'SELECT pe, pb, roe, gross_margin, debt_ratio FROM stocks WHERE symbol = ?'
+    ).get(symbol) as any;
+    return row || null;
   }
 
   close(): void {

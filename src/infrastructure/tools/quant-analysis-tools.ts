@@ -16,7 +16,7 @@ import { get_stock_realtime_price, get_stock_info } from '../akshare-ts/index.js
 
 // 初始化服务
 const quantService = new QuantService();
-const stockDBService = new StockDBService('.pi-invest/stock.db');
+const stockDBService = new StockDBService('.pi-invest');
 const factorLibrary = new FactorLibrary(stockDBService);
 const signalGenerator = new SignalGenerator('.pi-invest/quant/signals', factorLibrary);
 const backtestEngine = new BacktestEngine();

@@ -1,6 +1,7 @@
 import { QuantStrategy } from './types.js';
 import { SignalGenerator } from './signal-generator.js';
 import { FactorLibrary } from './factor-library.js';
+import { StockDBService } from '../data/stock-db-service.js';
 
 /**
  * 回测结果
@@ -85,9 +86,13 @@ export class BacktestEngine {
   private signalGenerator: SignalGenerator;
   private factorLibrary: FactorLibrary;
 
-  constructor() {
-    this.signalGenerator = new SignalGenerator();
-    this.factorLibrary = new FactorLibrary();
+  private readonly COMMISSION_RATE = 0.0003; // A股佣金 0.03%
+  private readonly STAMP_TAX_RATE = 0.001;  // 卖出印花税 0.1%
+
+  constructor(stockDBService?: StockDBService) {
+    const db = stockDBService || new StockDBService('.pi-invest');
+    this.factorLibrary = new FactorLibrary(db);
+    this.signalGenerator = new SignalGenerator('.pi-invest/quant/signals', this.factorLibrary, false);
   }
 
   /**
@@ -135,11 +140,13 @@ export class BacktestEngine {
 
           // 执行卖出
           const sellValue = position.shares * data.price;
-          cash += sellValue;
+          const sellCommission = sellValue * this.COMMISSION_RATE;
+          const stampTax = sellValue * this.STAMP_TAX_RATE;
+          cash += (sellValue - sellCommission - stampTax);
 
           // 记录交易
           const holdingDays = this.calculateDays(position.entry_date, date);
-          const profit = sellValue - (position.shares * position.entry_price);
+          const profit = sellValue - (position.shares * position.entry_price) - sellCommission - stampTax;
           const profitPct = (profit / (position.shares * position.entry_price)) * 100;
 
           trades.push({
@@ -188,7 +195,8 @@ export class BacktestEngine {
               // 执行买入
               const shares = Math.floor(positionSize);
               const cost = shares * data.price;
-              cash -= cost;
+              const buyCommission = Math.max(cost * this.COMMISSION_RATE, 5);
+              cash -= (cost + buyCommission);
 
               positions.set(symbol, {
                 symbol,
@@ -227,10 +235,12 @@ export class BacktestEngine {
       if (!data) continue;
 
       const sellValue = position.shares * data.price;
-      cash += sellValue;
+      const sellCommission = sellValue * this.COMMISSION_RATE;
+      const stampTax = sellValue * this.STAMP_TAX_RATE;
+      cash += (sellValue - sellCommission - stampTax);
 
       const holdingDays = this.calculateDays(position.entry_date, lastDate);
-      const profit = sellValue - (position.shares * position.entry_price);
+      const profit = sellValue - (position.shares * position.entry_price) - sellCommission - stampTax;
       const profitPct = (profit / (position.shares * position.entry_price)) * 100;
 
       trades.push({
@@ -345,19 +355,25 @@ export class BacktestEngine {
 
     for (const symbol of symbols) {
       try {
-        // 计算技术指标（使用FactorLibrary的公共方法）
-        const [rsi, ma5, ma10, ma20, ma60, macd, bb] = await Promise.all([
+        // 🔥 快速检查：仅查本地DB，不触发API回源（次新股在上市前直接跳过）
+        const realPrice = await this.factorLibrary.getLatestClosePriceLocal(symbol, date);
+        if (realPrice <= 0) {
+          continue; // 还没上市或无数据，跳过
+        }
+
+        // 并行计算技术指标
+        const [rsi, ma5, ma10, ma20, ma60, macd, bb, fundamentals] = await Promise.all([
           this.factorLibrary.calculateRSIForSymbol(symbol, 14, date),
           this.factorLibrary.calculateMAForSymbol(symbol, 5, date),
           this.factorLibrary.calculateMAForSymbol(symbol, 10, date),
           this.factorLibrary.calculateMAForSymbol(symbol, 20, date),
           this.factorLibrary.calculateMAForSymbol(symbol, 60, date),
           this.factorLibrary.calculateMACDForSymbol(symbol, date),
-          this.factorLibrary.calculateBollingerBands(symbol, 20, 2, date)
+          this.factorLibrary.calculateBollingerBands(symbol, 20, 2, date),
+          this.factorLibrary.getFundamentals(symbol)
         ]);
 
-        // 获取当前价格（使用MA5作为近似价格）
-        const price = ma5;
+        const price = realPrice;
 
         const indicators = {
           rsi,
@@ -372,7 +388,13 @@ export class BacktestEngine {
           bb_middle: bb.middle,
           bb_lower: bb.lower,
           volume_ratio: 1.0,
-          atr: 0
+          atr: 0,
+          // 基本面因子
+          pe: fundamentals.pe,
+          pb: fundamentals.pb,
+          roe: fundamentals.roe,
+          gross_margin: fundamentals.gross_margin,
+          debt_ratio: fundamentals.debt_ratio,
         };
 
         result.set(symbol, {

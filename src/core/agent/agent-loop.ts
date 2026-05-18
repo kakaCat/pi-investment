@@ -20,13 +20,14 @@ import type { ToolDefinition } from "../../infrastructure/tools/index.js";
 import { setPlanToolContext } from "../../infrastructure/tools/plan-tool.js";
 import { loadPlugins } from "../../infrastructure/plugins/index.js";
 import { getMemoryStore } from "../../services/intelligence/memory-store.js";
-import { microCompact } from "../../services/compaction/compaction-service.js";
+import { microCompact, compactConversationHistory } from "../../services/compaction/compaction-service.js";
 import { join } from "path";
 import { createDeepSeekModel, paths } from "../../config/config.js";
 import { getSessionDir, getSessionKey, logSystemPrompt, logBootstrapFiles } from "../../infrastructure/logging/observable-logger.js";
 import { initSkillsBlock, autoRecall, readDailyMemory, buildAgentSystemPrompt } from "./system-prompt.js";
 import { getBootstrapData } from "../../config/config.js";
 import { initSkillRouter, rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
+import { setSessionDataDir } from "../../infrastructure/akshare-ts/shared.js";
 import {
   addMessage,
   createUserMessage,
@@ -163,6 +164,7 @@ export async function getSession(context?: SessionContext): Promise<AgentSession
       if (sessionDir) {
         initBrowserTool(sessionDir);
         initTaskTools(join(sessionDir, "tasks"));
+        setSessionDataDir(sessionDir);
       }
       console.log(`📋 Session: ${getSessionKey()}`);
 
@@ -255,7 +257,12 @@ export async function agentLoop(messages: Message[]): Promise<void> {
     const totalTokens = getMessages(agentSession).reduce(
       (sum, msg) => sum + estimateTokens(msg), 0
     );
-    if (totalTokens > 40000) {
+    if (totalTokens > 40000 && agentState) {
+      compactConversationHistory(agentState.messages, (m: unknown) => estimateTokens(m as any), {
+        keepTurns: 3,
+        tokenThreshold: 40000,
+      });
+
       console.log("🧠 触发自动记忆保存");
       await agentSession.prompt(
         "Pre-compaction memory flush: Use memory_write to save important facts, " +

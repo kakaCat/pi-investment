@@ -18,6 +18,12 @@ import { getExplicitSkillFromPrompt, withForcedSkillScope } from "../tools/skill
 
 export type AgentType = 'main' | 'subagent' | 'plan';
 
+function extractTextContent(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) return content.map((c: any) => c?.text ?? '').join('');
+  return String(content);
+}
+
 export interface CreateTrackedSessionOptions {
   agentType: AgentType;
   createOptions: any;
@@ -72,11 +78,13 @@ export function attachLogger(session: AgentSession, agentType: AgentType, perfMo
           const startTime = startTimes.get(msg.toolCallId);
           const duration = startTime ? Date.now() - startTime : undefined;
 
+          const errorFromContent = msg.isError ? new Error(extractTextContent(msg.content)) : undefined;
+
           if (agentType === 'main') {
-            logger.logToolResult(toolName, msg.toolCallId, msg.content, msg.isError ? new Error(String(msg.content)) : undefined, duration);
+            logger.logToolResult(toolName, msg.toolCallId, msg.content, errorFromContent, duration);
             perfMonitor?.endToolCall?.(msg.toolCallId, toolName, !msg.isError);
           } else {
-            logger.logToolResult(toolName, msg.toolCallId, msg.content, msg.isError ? new Error(String(msg.content)) : undefined, duration);
+            logger.logToolResult(toolName, msg.toolCallId, msg.content, errorFromContent, duration);
           }
 
           startTimes.delete(msg.toolCallId);

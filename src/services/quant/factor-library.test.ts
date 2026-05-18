@@ -247,7 +247,12 @@ describe('FactorLibrary', () => {
         bollinger_mid: 100,
         bollinger_lower: 90,
         volume_ratio: 2.5,
-        atr: 2.5
+        atr: 2.5,
+        pe: 0,
+        pb: 0,
+        roe: 0,
+        gross_margin: 0,
+        debt_ratio: 0
       };
 
       const score = factorLib.scoreStock(indicators, 92);
@@ -275,7 +280,12 @@ describe('FactorLibrary', () => {
         bollinger_mid: 100,
         bollinger_lower: 95,
         volume_ratio: 1.0,
-        atr: 2.0
+        atr: 2.0,
+        pe: 0,
+        pb: 0,
+        roe: 0,
+        gross_margin: 0,
+        debt_ratio: 0
       };
 
       const score = factorLib.scoreStock(indicators, 100);
@@ -299,7 +309,12 @@ describe('FactorLibrary', () => {
         bollinger_mid: 100,
         bollinger_lower: 90,
         volume_ratio: 0.4,
-        atr: 3.0
+        atr: 3.0,
+        pe: 0,
+        pb: 0,
+        roe: 0,
+        gross_margin: 0,
+        debt_ratio: 0
       };
 
       const score = factorLib.scoreStock(indicators, 108);
@@ -324,7 +339,12 @@ describe('FactorLibrary', () => {
         bollinger_mid: 100,
         bollinger_lower: 90,
         volume_ratio: 3.0,
-        atr: 2.0
+        atr: 2.0,
+        pe: 0,
+        pb: 0,
+        roe: 0,
+        gross_margin: 0,
+        debt_ratio: 0
       };
 
       const score = factorLib.scoreStock(indicators, 91);

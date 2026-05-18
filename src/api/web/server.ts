@@ -5,6 +5,7 @@ import { signalsRouter } from './routes/signals.js';
 import { backtestRouter } from './routes/backtest.js';
 import { performanceRouter } from './routes/performance.js';
 import { chartsRouter } from './routes/charts.js';
+import { stocksRouter } from './routes/stocks.js';
 import { errorHandler } from './middleware/error-handler.js';
 
 const app = express();
@@ -34,6 +35,7 @@ app.use('/api/signals', signalsRouter);
 app.use('/api/backtest', backtestRouter);
 app.use('/api/performance', performanceRouter);
 app.use('/api/charts', chartsRouter);
+app.use('/api/stocks', stocksRouter);
 
 // 错误处理
 app.use(errorHandler);

@@ -12,7 +12,7 @@
  */
 
 import { PortfolioService } from "../services/portfolio/portfolio-service.js";
-import { FxRateService } from "../services/fx-rate-service.js";
+import { FxRateServiceAdapter } from "../services/fx-rate-service-adapter.js";
 import { TradeService } from "../services/portfolio/trade-service.js";
 import { mkdirSync, rmSync, existsSync, readFileSync } from "fs";
 import { join } from "path";
@@ -48,7 +48,7 @@ async function runIntegrationTests() {
   mkdirSync(TEST_DIR, { recursive: true });
 
   const portfolioService = new PortfolioService(TEST_DIR);
-  const fxService = new FxRateService(TEST_DIR);
+  const fxService = new FxRateServiceAdapter(TEST_DIR);
   const tradeService = new TradeService(TEST_DIR);
 
   console.log(`   Test directory: ${TEST_DIR}`);

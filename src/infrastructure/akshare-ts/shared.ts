@@ -6,7 +6,7 @@ import { join } from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { fileURLToPath } from "url";
-import { StockDBService, KlineCacheService } from "../../services/data/stock-db-index.js";
+import { StockDBService, KlineCacheAdapter } from "../../services/data/stock-db-index.js";
 import { callPythonDaemon } from "../tools/python-bridge.js";
 
 const execFileAsync = promisify(execFile);
@@ -138,15 +138,28 @@ export function getQualityRating(score: number): "优秀" | "良好" | "一般" 
 
 const piDir = ".pi-invest";
 let _stockDB: StockDBService | null = null;
-let _klineCache: KlineCacheService | null = null;
+let _klineCache: KlineCacheAdapter | null = null;
+
+// ─── Session 数据目录（工具结果写入此目录，供 agent 按需 read）───
+let _sessionDataDir: string | null = null;
+
+/** 设置当前 session 的数据输出目录（每次会话初始化时调用） */
+export function setSessionDataDir(dir: string): void {
+  _sessionDataDir = dir;
+}
+
+/** 获取当前 session 的数据输出目录，fallback 到 /tmp */
+export function getSessionDataDir(): string {
+  return _sessionDataDir || "/tmp";
+}
 
 export function getStockDB(): StockDBService {
   if (!_stockDB) _stockDB = new StockDBService(piDir);
   return _stockDB;
 }
 
-export function getKlineCache(): KlineCacheService {
-  if (!_klineCache) _klineCache = new KlineCacheService(getStockDB());
+export function getKlineCache(): KlineCacheAdapter {
+  if (!_klineCache) _klineCache = new KlineCacheAdapter(getStockDB());
   return _klineCache;
 }
 

@@ -26,7 +26,8 @@ async function testEvolution() {
   const portfolioPath = join(piDir, "portfolio.json");
 
   if (existsSync(tradesPath)) {
-    const trades = JSON.parse(readFileSync(tradesPath, "utf-8"));
+    const tradesData = JSON.parse(readFileSync(tradesPath, "utf-8"));
+    const trades = tradesData.trades || tradesData;
     console.log(`✅ trades.json 存在: ${trades.length} 笔交易`);
 
     // 统计买入/卖出
@@ -43,8 +44,9 @@ async function testEvolution() {
   }
 
   if (existsSync(portfolioPath)) {
-    const portfolio = JSON.parse(readFileSync(portfolioPath, "utf-8"));
-    console.log(`✅ portfolio.json 存在: ${portfolio.holdings?.length || 0} 个持仓`);
+    const portfolioData = JSON.parse(readFileSync(portfolioPath, "utf-8"));
+    const holdings = portfolioData.holdings || portfolioData;
+    console.log(`✅ portfolio.json 存在: ${holdings.length || 0} 个持仓`);
   } else {
     console.log(`❌ portfolio.json 不存在`);
   }

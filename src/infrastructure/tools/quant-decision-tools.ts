@@ -15,7 +15,7 @@ import { get_stock_realtime_price, get_stock_info } from '../akshare-ts/index.js
 
 // 初始化服务
 const quantService = new QuantService();
-const stockDBService = new StockDBService('.pi-invest/stock.db');
+const stockDBService = new StockDBService('.pi-invest');
 const factorLibrary = new FactorLibrary(stockDBService);
 const signalGenerator = new SignalGenerator('.pi-invest/quant/signals', factorLibrary);
 
@@ -23,14 +23,15 @@ const signalGenerator = new SignalGenerator('.pi-invest/quant/signals', factorLi
  * 辅助函数：计算技术指标
  */
 async function calculateTechnicalIndicators(symbol: string) {
-  const [rsi, ma5, ma10, ma20, ma60, macd, bb] = await Promise.all([
+  const [rsi, ma5, ma10, ma20, ma60, macd, bb, fundamentals] = await Promise.all([
     factorLibrary.calculateRSIForSymbol(symbol, 14),
     factorLibrary.calculateMAForSymbol(symbol, 5),
     factorLibrary.calculateMAForSymbol(symbol, 10),
     factorLibrary.calculateMAForSymbol(symbol, 20),
     factorLibrary.calculateMAForSymbol(symbol, 60),
     factorLibrary.calculateMACDForSymbol(symbol),
-    factorLibrary.calculateBollingerBands(symbol, 20, 2)
+    factorLibrary.calculateBollingerBands(symbol, 20, 2),
+    factorLibrary.getFundamentals(symbol)
   ]);
 
   return {
@@ -46,7 +47,12 @@ async function calculateTechnicalIndicators(symbol: string) {
     bollinger_mid: bb.middle,
     bollinger_lower: bb.lower,
     volume_ratio: 1.0,
-    atr: 0
+    atr: 0,
+    pe: fundamentals.pe,
+    pb: fundamentals.pb,
+    roe: fundamentals.roe,
+    gross_margin: fundamentals.gross_margin,
+    debt_ratio: fundamentals.debt_ratio,
   };
 }
 
@@ -354,7 +360,7 @@ export const compareStocksQuantTool: ToolDefinition = {
       for (const symbol of symbols) {
         try {
           // 复用 analyze_stock_quant 的逻辑
-          const result = await analyzeStockQuantTool.execute!(_toolCallId, { symbol, context: 'buy' });
+          const result = await (analyzeStockQuantTool.execute as any)(_toolCallId, { symbol, context: 'buy' });
           if (result.details) {
             results.push({
               symbol,
@@ -460,7 +466,7 @@ export const validateTradeDecisionTool: ToolDefinition = {
       const { symbol, action, price, quantity, reason } = params;
 
       // 1. 获取综合分析
-      const analysisResult = await analyzeStockQuantTool.execute!(_toolCallId, {
+      const analysisResult = await (analyzeStockQuantTool.execute as any)(_toolCallId, {
         symbol,
         context: action
       });

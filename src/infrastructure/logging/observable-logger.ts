@@ -29,6 +29,11 @@ export function getSessionKey(): string {
   return sessionKey;
 }
 
+/** 获取当前会话的对话消息（用于跨重启恢复） */
+export function getConversationMessages(): Array<{ role: string; content: string; timestamp: string }> {
+  return [...conversation.messages];
+}
+
 let turnIndex = 0;
 let llmCalls = 0;
 let toolCalls = 0;

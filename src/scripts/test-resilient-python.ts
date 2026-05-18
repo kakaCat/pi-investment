@@ -2,7 +2,7 @@
 /**
  * 测试弹性 Python 调用
  */
-import { callPythonResilient, getCacheStats, clearAllCaches } from "../infrastructure/tools/shared/python-caller-resilient.js";
+import { callPythonResilient, getCacheStats, clearAllCaches } from "../infrastructure/tools/shared/python-caller-resilient-adapter.js";
 
 async function testFunction(name: string, func: string, args: Record<string, unknown> = {}) {
   console.log(`\n${"=".repeat(60)}`);
@@ -110,10 +110,10 @@ async function main() {
   }
 
   // 缓存统计
-  const stats = getCacheStats();
+  const stats = await getCacheStats();
   console.log(`\n缓存统计:`);
   console.log(`  - 活跃缓存: ${stats.cache_size} 条`);
-  console.log(`  - 降级缓存: ${stats.fallback_cache_size} 条`);
+  console.log(`  - 按命名空间: ${JSON.stringify(stats.by_namespace)}`);
 
   process.exit(failCount > 0 ? 1 : 0);
 }

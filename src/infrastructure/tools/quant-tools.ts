@@ -22,7 +22,7 @@ import { callPythonResilient } from './shared/python-caller-resilient-adapter.js
 
 // 初始化服务
 const quantService = new QuantService();
-const stockDBService = new StockDBService('.pi-invest/stock.db');
+const stockDBService = new StockDBService('.pi-invest');
 const factorLibrary = new FactorLibrary(stockDBService);
 const signalGenerator = new SignalGenerator('.pi-invest/quant/signals', factorLibrary);
 const backtestEngine = new BacktestEngine();
@@ -32,19 +32,19 @@ const performanceAnalyzer = new PerformanceAnalyzer('.pi-invest/quant/signals');
  * 辅助函数：计算完整的技术指标
  */
 async function calculateAllIndicators(symbol: string): Promise<TechnicalIndicators> {
-  const [rsi, ma5, ma10, ma20, ma60, macd, bb] = await Promise.all([
+  const [rsi, ma5, ma10, ma20, ma60, macd, bb, fundamentals] = await Promise.all([
     factorLibrary.calculateRSIForSymbol(symbol, 14),
     factorLibrary.calculateMAForSymbol(symbol, 5),
     factorLibrary.calculateMAForSymbol(symbol, 10),
     factorLibrary.calculateMAForSymbol(symbol, 20),
     factorLibrary.calculateMAForSymbol(symbol, 60),
     factorLibrary.calculateMACDForSymbol(symbol),
-    factorLibrary.calculateBollingerBands(symbol, 20, 2)
+    factorLibrary.calculateBollingerBands(symbol, 20, 2),
+    factorLibrary.getFundamentals(symbol)
   ]);
 
-  // 计算成交量比率和ATR（简化版）
-  const volumeRatio = 1.0; // TODO: 实现真实的成交量比率计算
-  const atr = 0; // TODO: 实现ATR计算
+  const volumeRatio = 1.0;
+  const atr = 0;
 
   return {
     rsi,
@@ -59,7 +59,12 @@ async function calculateAllIndicators(symbol: string): Promise<TechnicalIndicato
     bollinger_mid: bb.middle,
     bollinger_lower: bb.lower,
     volume_ratio: volumeRatio,
-    atr
+    atr,
+    pe: fundamentals.pe,
+    pb: fundamentals.pb,
+    roe: fundamentals.roe,
+    gross_margin: fundamentals.gross_margin,
+    debt_ratio: fundamentals.debt_ratio,
   };
 }
 
@@ -625,14 +630,15 @@ export const trainSignalModelTool: ToolDefinition = {
       // 调用Python训练函数
       const result = await callPythonResilient(
         'train_signal_model',
-        { days: 30, min_samples },
-        { timeout: 60000 } // 训练可能需要较长时间
+        { days: 30, min_samples, timeout: 60000 }
       );
 
-      if (result.error) {
+      const parsed = JSON.parse(result);
+
+      if (parsed.error) {
         return {
-          content: [{ type: "text" as const, text: `训练失败: ${result.error}` }],
-          details: result
+          content: [{ type: "text" as const, text: `训练失败: ${parsed.error}` }],
+          details: parsed
         };
       }
 
@@ -641,23 +647,23 @@ export const trainSignalModelTool: ToolDefinition = {
 ✅ 模型训练完成
 
 📊 训练数据:
-- 样本数: ${result.samples}
-- 正样本: ${result.positive_samples}
-- 负样本: ${result.negative_samples}
+- 样本数: ${parsed.samples}
+- 正样本: ${parsed.positive_samples}
+- 负样本: ${parsed.negative_samples}
 
 📈 模型性能:
-- 准确率: ${(result.accuracy * 100).toFixed(2)}%
-- 模型路径: ${result.model_path}
+- 准确率: ${(parsed.accuracy * 100).toFixed(2)}%
+- 模型路径: ${parsed.model_path}
 
 💡 特征重要性:
-${result.feature_importance?.slice(0, 5).map((imp: number, i: number) =>
+${parsed.feature_importance?.slice(0, 5).map((imp: number, i: number) =>
   `  ${i + 1}. 特征${i + 1}: ${(imp * 100).toFixed(2)}%`
 ).join('\n') || '  (无数据)'}
       `.trim();
 
       return {
         content: [{ type: "text" as const, text: summary }],
-        details: result
+        details: parsed
       };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

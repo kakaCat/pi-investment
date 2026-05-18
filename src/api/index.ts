@@ -21,39 +21,86 @@ import type { FeishuBotHandle } from "./feishu.js";
 import { join } from "path";
 import { existsSync, readFileSync, unlinkSync } from "fs";
 import { spawn } from "child_process";
+import type { AgentSession } from "@mariozechner/pi-coding-agent";
+import { addMessage, createUserMessage, createAssistantMessage } from "../core/agent/session-adapter.js";
 
 // 加载环境变量
 config();
 
 // ── 重启上下文处理 ─────────────────────────────────────────────────────────
 // 检测是否有 .restart/context.json（由 restart_agent 工具写入）
-// 如果有，说明这是重启后的新进程，打印提示信息
+// 如果有，说明这是重启后的新进程，打印提示信息并恢复对话历史
+
+interface ConversationMessage {
+  role: string;
+  content: string;
+  timestamp?: string;
+}
+
+interface RestartContext {
+  timestamp: string;
+  cwd: string;
+  reason: string;
+  prevSessionKey?: string;
+  conversationMessageCount?: number;
+  messages?: ConversationMessage[];
+  env: {
+    NODE_ENV: string;
+    BACKGROUND_MODE: string;
+  };
+}
+
 const RESTART_DIR = join(process.cwd(), ".restart");
 const RESTART_CONTEXT = join(RESTART_DIR, "context.json");
+
+let restartData: RestartContext | null = null;
 
 function checkRestartContext(): void {
   if (process.env.PI_RESTARTED === "true" && existsSync(RESTART_CONTEXT)) {
     try {
-      const data = JSON.parse(readFileSync(RESTART_CONTEXT, "utf-8"));
+      const data: RestartContext = JSON.parse(readFileSync(RESTART_CONTEXT, "utf-8"));
+      restartData = data;
       const ts = new Date(data.timestamp).getTime();
       const elapsed = !isNaN(ts) ? Math.round((Date.now() - ts) / 1000) : 0;
+      const msgCount = data.conversationMessageCount ?? data.messages?.length ?? 0;
       console.log(`🔄 检测到 Agent 重启（${elapsed > 0 ? `${elapsed} 秒前` : '时间未知'}）`);
       console.log(`   - 原因: ${data.reason || '未指定'}`);
+      console.log(`   - 对话消息: ${msgCount} 条待恢复`);
       console.log(`   - 新工具已加载\n`);
-
-      // 清理上下文文件
-      try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
     } catch {
-      // 文件损坏或格式异常，打印简单提示
       console.log("🔄 检测到 Agent 重启（新工具已加载）\n");
-      try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
     }
   } else if (existsSync(RESTART_CONTEXT)) {
     // 非重启启动，清理旧文件
-    try {
-      unlinkSync(RESTART_CONTEXT);
-    } catch { /* ignore */ }
+    try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
   }
+}
+
+/** 将上一个 session 的对话历史恢复到新 session 中 */
+function restoreConversationIntoSession(session: AgentSession): void {
+  if (!restartData?.messages || restartData.messages.length === 0) return;
+
+  const messages = restartData.messages;
+  let injected = 0;
+
+  for (const msg of messages) {
+    if (!msg.role || !msg.content) continue;
+    if (msg.role === "user") {
+      addMessage(session, createUserMessage(msg.content));
+      injected++;
+    } else if (msg.role === "assistant") {
+      addMessage(session, createAssistantMessage(msg.content));
+      injected++;
+    }
+  }
+
+  if (injected > 0) {
+    console.log(`📋 已恢复 ${injected} 条对话消息（共 ${messages.length} 条）\n`);
+  }
+
+  // 清理上下文文件
+  try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
+  restartData = null;
 }
 
 checkRestartContext();
@@ -67,11 +114,6 @@ async function main() {
   let feishuBot: FeishuBotHandle | null = null;
 
   try {
-    // 确保 stdin 使用 UTF-8 编码（重启后需要重新设置）
-    if (process.stdin.setEncoding) {
-      process.stdin.setEncoding("utf8");
-    }
-
     console.log("🚀 启动 PI Investment - AI 股票投资顾问...\n");
 
     // 启动飞书 Bot（后台 WebSocket 监听）
@@ -117,6 +159,9 @@ async function main() {
 
     // 用工厂函数包装 session，注入 logger + 性能监控
     wrapSessionWithLogger(session, perfMonitor);
+
+    // 如果是从 restart_agent 重启，恢复对话历史
+    restoreConversationIntoSession(session);
 
     // 启动 CronService（后台定时任务）
     const cronService = new CronService(

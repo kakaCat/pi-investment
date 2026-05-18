@@ -5,13 +5,37 @@
 import { callPythonBridge, findNumber, findString, normalizeHolderName, computeQuarterEnds, r2, JsonRecord, getQualityRating, toNumber } from "../shared.js";
 import { today } from "../../data-sources/http-client.js";
 import { cleanSymbol } from "../../data-sources/sina.js";
+import { getTradingTimeInfo, generateTimeoutAlternatives } from "../utils/trading-time.js";
 
 // ─── 估值数据 ──────────────────────────────────────────────────────────
 
 export async function get_stock_valuation(symbol: string): Promise<string> {
   const clean = cleanSymbol(symbol);
+
+  // Fast-fail: check trading time before expensive network call
+  const timeInfo = getTradingTimeInfo();
+  if (!timeInfo.isTradingHours) {
+    // Non-trading hours: use shorter timeout (30s instead of 90s)
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('TIMEOUT')), 30000);
+    });
+
+    try {
+      const result = await Promise.race([
+        callPythonBridge("get_stock_valuation", { symbol: clean }),
+        timeoutPromise
+      ]);
+      return JSON.stringify(result);
+    } catch (e) {
+      if (String(e).includes('TIMEOUT') || String(e).includes('timeout')) {
+        return generateTimeoutAlternatives(clean, 'get_valuation');
+      }
+      return JSON.stringify({ error: String(e), symbol: clean });
+    }
+  }
+
   try {
-    // Fallback to Python akshare (network restrictions on TS sources)
+    // Trading hours: use normal timeout
     return JSON.stringify(await callPythonBridge("get_stock_valuation", { symbol: clean }));
   } catch (e) {
     return JSON.stringify({ error: String(e), symbol: clean });
@@ -42,6 +66,38 @@ function extractStatementRows(payload: JsonRecord, sectionKey: string): JsonReco
 
 export async function get_quality_score(symbol: string): Promise<string> {
   const clean = cleanSymbol(symbol);
+
+  // Fast-fail: check trading time before expensive network calls
+  const timeInfo = getTradingTimeInfo();
+  if (!timeInfo.isTradingHours) {
+    // Non-trading hours: use shorter timeout (30s instead of 90s)
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('TIMEOUT')), 30000);
+    });
+
+    try {
+      const result = await Promise.race([
+        Promise.all([
+          callPythonBridge("get_financial_indicators", { symbol: clean }),
+          callPythonBridge("get_income_statement", { symbol: clean, recent_n: 8 }),
+          callPythonBridge("get_cash_flow", { symbol: clean, recent_n: 8 }),
+        ]),
+        timeoutPromise
+      ]);
+
+      const [financials, incomePayload, cashPayload] = result;
+      if (financials.error) return JSON.stringify(financials);
+
+      // Continue with normal processing...
+      return await processQualityScore(clean, financials, incomePayload, cashPayload);
+    } catch (e) {
+      if (String(e).includes('TIMEOUT') || String(e).includes('timeout')) {
+        return generateTimeoutAlternatives(clean, 'get_quality_score');
+      }
+      return JSON.stringify({ error: String(e), symbol: clean });
+    }
+  }
+
   try {
     const [financials, incomePayload, cashPayload] = await Promise.all([
       callPythonBridge("get_financial_indicators", { symbol: clean }),
@@ -50,6 +106,18 @@ export async function get_quality_score(symbol: string): Promise<string> {
     ]);
 
     if (financials.error) return JSON.stringify(financials);
+    return await processQualityScore(clean, financials, incomePayload, cashPayload);
+  } catch (e) {
+    return JSON.stringify({ error: String(e), symbol: clean });
+  }
+}
+
+async function processQualityScore(
+  clean: string,
+  financials: JsonRecord,
+  incomePayload: JsonRecord,
+  cashPayload: JsonRecord
+): Promise<string> {
 
     const finRows = Array.isArray(financials.data)
       ? financials.data as JsonRecord[]
@@ -137,42 +205,39 @@ export async function get_quality_score(symbol: string): Promise<string> {
     const totalScore = Math.max(0, Math.min(100, roeScore + grossMarginScore + debtScore + cashFlowScore + revenueGrowthScore));
     const rating = getQualityRating(totalScore);
 
-    return JSON.stringify({
-      symbol: clean,
-      score: totalScore,
-      rating,
-      dimensions: {
-        roe: {
-          value_pct: r2(roe),
-          score: roeScore,
-          weight: 25,
-          trend: roeSeries.length >= 3
-            ? (roeSeries[0] >= roeSeries[1] && roeSeries[1] >= roeSeries[2] ? "改善" : roeSeries[0] < roeSeries[1] && roeSeries[1] < roeSeries[2] ? "走弱" : "波动")
-            : "数据不足",
-        },
-        gross_margin: { value_pct: r2(grossMargin), score: grossMarginScore, weight: 20 },
-        debt_ratio: { value_pct: r2(debtRatio), score: debtScore, weight: 15 },
-        cash_flow: {
-          operating_cash_flow: r2(operatingCashFlow),
-          net_profit: r2(netProfit),
-          cash_conversion_pct: r2(cashFlowCoverage),
-          score: cashFlowScore,
-          weight: 20,
-        },
-        revenue_growth: {
-          latest_revenue: r2(latestRevenue),
-          previous_revenue: r2(previousRevenue),
-          growth_pct: r2(revenueGrowth),
-          score: revenueGrowthScore,
-          weight: 20,
-        },
+  return JSON.stringify({
+    symbol: clean,
+    score: totalScore,
+    rating,
+    dimensions: {
+      roe: {
+        value_pct: r2(roe),
+        score: roeScore,
+        weight: 25,
+        trend: roeSeries.length >= 3
+          ? (roeSeries[0] >= roeSeries[1] && roeSeries[1] >= roeSeries[2] ? "改善" : roeSeries[0] < roeSeries[1] && roeSeries[1] < roeSeries[2] ? "走弱" : "波动")
+          : "数据不足",
       },
-      summary: totalScore >= 80 ? "盈利质量与成长性较强" : totalScore >= 65 ? "基本面较稳健" : totalScore >= 50 ? "基本面中性" : "基本面偏弱需谨慎",
-      data_date: today(),
-    });
-  } catch (e) {
-    return JSON.stringify({ error: String(e), symbol: clean });
-  }
+      gross_margin: { value_pct: r2(grossMargin), score: grossMarginScore, weight: 20 },
+      debt_ratio: { value_pct: r2(debtRatio), score: debtScore, weight: 15 },
+      cash_flow: {
+        operating_cash_flow: r2(operatingCashFlow),
+        net_profit: r2(netProfit),
+        cash_conversion_pct: r2(cashFlowCoverage),
+        score: cashFlowScore,
+        weight: 20,
+      },
+      revenue_growth: {
+        latest_revenue: r2(latestRevenue),
+        previous_revenue: r2(previousRevenue),
+        growth_pct: r2(revenueGrowth),
+        score: revenueGrowthScore,
+        weight: 20,
+      },
+    },
+    summary: totalScore >= 80 ? "盈利质量与成长性较强" : totalScore >= 65 ? "基本面较稳健" : totalScore >= 50 ? "基本面中性" : "基本面偏弱需谨慎",
+    data_date: today(),
+  });
 }
 
 export async function get_stock_fund_flow(symbol: string, days = 5): Promise<string> {
