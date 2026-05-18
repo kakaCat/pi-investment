@@ -25,6 +25,8 @@ os.environ['TQDM_DISABLE'] = '1'
 # Add path to quant module for strategy combiner
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'quant'))
 
+from quantsys.strategies.combiner import StrategyCombiner, Signal as CombinerSignal, CombinerConfig
+
 # Setup logger
 logger = logging.getLogger(__name__)
 
@@ -2906,33 +2908,29 @@ def analyze_price_action(symbol: str) -> dict:
         return {"error": str(e), "symbol": symbol}
 
 
-def combine_strategy_signals(
-    signals: list,
-    mode: str = 'vote',
-    weights: dict = None,
-    confidence_threshold: float = 0.5,
-    min_agree_count: int = 1
-) -> dict:
+def combine_strategy_signals(params: dict) -> dict:
     """
     Combine multiple strategy signals using StrategyCombiner.
 
     Args:
-        signals: [
-            {
-                'timestamp': '2026-05-19T10:00:00',
-                'symbol': '600519',
-                'action': 'buy',
-                'price': 1800.0,
-                'strategy_id': 'rsi_reversal',
-                'confidence': 0.8,
-                'reason': 'RSI=28'
-            },
-            ...
-        ]
-        mode: 'or', 'and', 'vote'
-        weights: {'rsi_reversal': 1.5, 'ma_cross': 1.0}  # optional
-        confidence_threshold: 0.5  # optional
-        min_agree_count: 1  # optional for AND mode
+        params: {
+            'signals': [
+                {
+                    'timestamp': '2026-05-19T10:00:00',
+                    'symbol': '600519',
+                    'action': 'buy',
+                    'price': 1800.0,
+                    'strategy_id': 'rsi_reversal',
+                    'confidence': 0.8,
+                    'reason': 'RSI=28'
+                },
+                ...
+            ],
+            'mode': 'vote',  # 'or', 'and', 'vote'
+            'weights': {'rsi_reversal': 1.5, 'ma_cross': 1.0},  # optional
+            'confidence_threshold': 0.5,  # optional
+            'min_agree_count': 1  # optional for AND mode
+        }
 
     Returns:
         {
@@ -2941,14 +2939,15 @@ def combine_strategy_signals(
         }
     """
     try:
-        from quantsys.strategies.combiner import StrategyCombiner, Signal as CombinerSignal, CombinerConfig
-
-        if weights is None:
-            weights = {}
+        signals_data = params.get('signals', [])
+        mode = params.get('mode', 'vote')
+        weights = params.get('weights', {})
+        confidence_threshold = params.get('confidence_threshold', 0.5)
+        min_agree_count = params.get('min_agree_count', 1)
 
         # Convert TypeScript signals to Python Signal dataclass
         python_signals = []
-        for sig in signals:
+        for sig in signals_data:
             timestamp_str = sig.get('timestamp', '')
             # Parse ISO timestamp
             if timestamp_str:
@@ -3081,7 +3080,7 @@ FUNCTIONS = {
     "plot_strategy_comparison": lambda strategies_performance, output_path='.pi-invest/quant/charts/strategy_comparison.png': plot_strategy_comparison(strategies_performance, output_path),
     "plot_feature_importance": lambda model_path='.pi-invest/quant/models/signal_confidence.pkl', output_path='.pi-invest/quant/charts/feature_importance.png': plot_feature_importance(model_path, output_path),
     # Strategy combiner
-    "combine_strategy_signals": combine_strategy_signals,
+    "combine_strategy_signals": lambda **kwargs: combine_strategy_signals(kwargs),
 }
 
 
