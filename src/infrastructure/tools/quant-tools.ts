@@ -756,10 +756,13 @@ combine_strategy_signals({
       const tech = await calculateAllIndicators(symbol);
 
       const signals: any[] = [];
+      const skippedStrategies: string[] = [];
+
       for (const strategy_id of strategy_ids) {
         const strategy = await quantService.getStrategy(strategy_id);
         if (!strategy) {
           console.warn(`Strategy ${strategy_id} not found, skipping`);
+          skippedStrategies.push(strategy_id);
           continue;
         }
 
@@ -776,19 +779,9 @@ combine_strategy_signals({
         }
       }
 
-      if (signals.length === 0) {
+      if (signals.length < 2) {
         return {
-          content: [{ type: "text" as const, text: `No signals generated for ${symbol}` }],
-          details: undefined
-        };
-      }
-
-      if (signals.length === 1) {
-        return {
-          content: [{ type: "text" as const, text: JSON.stringify({
-            signal: signals[0],
-            metadata: { reason: 'insufficient_signals' }
-          }, null, 2) }],
+          content: [{ type: "text" as const, text: `Error: Need at least 2 valid signals to combine, got ${signals.length}. Check that all strategy_ids exist and can generate signals for ${symbol}.${skippedStrategies.length > 0 ? ` Skipped strategies: ${skippedStrategies.join(', ')}` : ''}` }],
           details: undefined
         };
       }
@@ -807,6 +800,7 @@ combine_strategy_signals({
           mode,
           total_strategies: strategy_ids.length,
           signals_generated: signals.length,
+          skipped_strategies: skippedStrategies,
           ...metadata
         }
       };
