@@ -16,9 +16,17 @@ import os
 import signal
 import math
 from functools import wraps
+from datetime import datetime
+import logging
 
 # 禁用 tqdm 进度条（避免污染 stdout）
 os.environ['TQDM_DISABLE'] = '1'
+
+# Add path to quant module for strategy combiner
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'quant'))
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 
 # ===== JSON 序列化辅助函数 =====
@@ -2898,6 +2906,111 @@ def analyze_price_action(symbol: str) -> dict:
         return {"error": str(e), "symbol": symbol}
 
 
+def combine_strategy_signals(
+    signals: list,
+    mode: str = 'vote',
+    weights: dict = None,
+    confidence_threshold: float = 0.5,
+    min_agree_count: int = 1
+) -> dict:
+    """
+    Combine multiple strategy signals using StrategyCombiner.
+
+    Args:
+        signals: [
+            {
+                'timestamp': '2026-05-19T10:00:00',
+                'symbol': '600519',
+                'action': 'buy',
+                'price': 1800.0,
+                'strategy_id': 'rsi_reversal',
+                'confidence': 0.8,
+                'reason': 'RSI=28'
+            },
+            ...
+        ]
+        mode: 'or', 'and', 'vote'
+        weights: {'rsi_reversal': 1.5, 'ma_cross': 1.0}  # optional
+        confidence_threshold: 0.5  # optional
+        min_agree_count: 1  # optional for AND mode
+
+    Returns:
+        {
+            'combined_signals': [...],
+            'metadata': {...}
+        }
+    """
+    try:
+        from quantsys.strategies.combiner import StrategyCombiner, Signal as CombinerSignal, CombinerConfig
+
+        if weights is None:
+            weights = {}
+
+        # Convert TypeScript signals to Python Signal dataclass
+        python_signals = []
+        for sig in signals:
+            timestamp_str = sig.get('timestamp', '')
+            # Parse ISO timestamp
+            if timestamp_str:
+                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            else:
+                timestamp = datetime.now()
+
+            python_sig = CombinerSignal(
+                timestamp=timestamp,
+                symbol=sig.get('symbol', ''),
+                action=sig.get('action', 'hold'),
+                price=float(sig.get('price', 0)),
+                quantity=int(sig.get('quantity', 0)),
+                strategy_id=sig.get('strategy_id', ''),
+                reason=sig.get('reason', ''),
+                confidence=float(sig.get('confidence', 0.5)),
+                metadata=sig.get('metadata', {})
+            )
+            python_signals.append(python_sig)
+
+        # Create combiner config
+        config = CombinerConfig(
+            mode=mode,
+            weights=weights,
+            confidence_threshold=confidence_threshold,
+            min_agree_count=min_agree_count
+        )
+
+        # Combine signals
+        combiner = StrategyCombiner(config)
+        combined_signals, metadata = combiner.combine_signals(python_signals)
+
+        # Convert back to JSON-serializable format
+        result_signals = []
+        for sig in combined_signals:
+            result_signals.append({
+                'timestamp': sig.timestamp.isoformat(),
+                'symbol': sig.symbol,
+                'action': sig.action,
+                'price': sig.price,
+                'quantity': sig.quantity,
+                'strategy_id': sig.strategy_id,
+                'reason': sig.reason,
+                'confidence': sig.confidence,
+                'metadata': sig.metadata
+            })
+
+        return {
+            'combined_signals': result_signals,
+            'metadata': metadata
+        }
+
+    except Exception as e:
+        logger.error(f"combine_strategy_signals error: {e}")
+        traceback.print_exc()
+        return {
+            'error': str(e),
+            'combined_signals': [],
+            'metadata': {'reason': 'python_error', 'error': str(e)}
+        }
+
+
 # ===== Dispatcher =====
 FUNCTIONS = {
     "get_stock_info": get_stock_info,
@@ -2961,11 +3074,14 @@ FUNCTIONS = {
     # ML functions
     "predict_signal_confidence": lambda features: predict_signal_confidence(features),
     "train_signal_model": lambda days=30, min_samples=50: train_signal_model(days, min_samples),
+    "ml_predict_single": lambda symbol: ml_predict_single(symbol),
     # Visualization functions
     "plot_model_accuracy_trend": lambda days=90, output_path='.pi-invest/quant/charts/accuracy_trend.png': plot_model_accuracy_trend(days, output_path),
     "plot_equity_curve": lambda backtest_result, output_path='.pi-invest/quant/charts/equity_curve.png': plot_equity_curve(backtest_result, output_path),
     "plot_strategy_comparison": lambda strategies_performance, output_path='.pi-invest/quant/charts/strategy_comparison.png': plot_strategy_comparison(strategies_performance, output_path),
     "plot_feature_importance": lambda model_path='.pi-invest/quant/models/signal_confidence.pkl', output_path='.pi-invest/quant/charts/feature_importance.png': plot_feature_importance(model_path, output_path),
+    # Strategy combiner
+    "combine_strategy_signals": combine_strategy_signals,
 }
 
 
@@ -2979,6 +3095,55 @@ def train_signal_model(days: int = 30, min_samples: int = 50) -> dict:
     """Train signal confidence model"""
     from ml.signal_trainer import train_model
     return train_model(days, min_samples)
+
+
+def ml_predict_single(symbol: str) -> dict:
+    """Predict single stock using trained ML model"""
+    import sys
+    import os
+
+    # Add quant directory to path
+    quant_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'quant')
+    if quant_dir not in sys.path:
+        sys.path.insert(0, quant_dir)
+
+    try:
+        from scripts.ml_predict import MLPredictor
+        from quantsys.data.db import Database
+
+        # Database path
+        db_path = os.path.join(quant_dir, 'quantsys', 'data', 'stocks.db')
+        if not os.path.exists(db_path):
+            return {"error": f"Database not found: {db_path}"}
+
+        # Model path
+        model_path = os.path.join(quant_dir, 'quantsys', 'ml', 'models', 'xgboost_model.pkl')
+        if not os.path.exists(model_path):
+            return {"error": f"Model not found: {model_path}. Please train the model first."}
+
+        # Initialize predictor
+        db = Database(db_path)
+        predictor = MLPredictor(db, model_path)
+
+        # Load model
+        if not predictor.load_model():
+            return {"error": "Failed to load model"}
+
+        # Get latest date
+        latest_date = predictor.get_latest_date()
+        if not latest_date:
+            return {"error": "No data available in database"}
+
+        # Predict
+        prediction = predictor.predict_stock(symbol, latest_date)
+
+        if not prediction:
+            return {"error": f"Failed to predict {symbol}. Check if data exists for this symbol."}
+
+        return prediction
+
+    except Exception as e:
+        return {"error": str(e)}
 
 
 def plot_model_accuracy_trend(days: int = 90, output_path: str = '.pi-invest/quant/charts/accuracy_trend.png') -> dict:
