@@ -364,7 +364,7 @@ export class SignalGenerator {
    * Extract features from signal for ML prediction
    */
   private extractFeatures(signal: Signal): any {
-    const ind = signal.indicators as TechnicalIndicators;
+    const ind = signal.indicators as unknown as TechnicalIndicators;
     return {
       rsi: ind.rsi || 50,
       ma5_ma20_ratio: ind.ma5 && ind.ma20 ? ind.ma5 / ind.ma20 : 1,
@@ -418,7 +418,7 @@ export class SignalGenerator {
     }
 
     // Level 2: Rule-based fallback
-    const ind = signal.indicators as TechnicalIndicators;
+    const ind = signal.indicators as unknown as TechnicalIndicators;
     return this.calculateConfidence(ind, signal.action);
   }
 
