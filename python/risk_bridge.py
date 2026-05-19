@@ -170,23 +170,30 @@ class RiskBridge:
 
         return win_rate, profit_loss_ratio, len(closed_trades)
 
-    def _build_risk_config(self) -> 'RiskConfig':
+    def _build_risk_config(self) -> Optional['RiskConfig']:
         """构建RiskConfig对象"""
         if not QUANT_AVAILABLE:
             return None
 
-        return RiskConfig(
-            max_position_pct=float(self.config.get('max_position_pct', 0.10)),
-            max_sector_pct=float(self.config.get('max_sector_pct', 0.30)),
-            max_drawdown=float(self.config.get('max_drawdown', 0.20)),
-            max_daily_trades=int(self.config.get('max_daily_trades', 10)),
-            blacklist=[],
-            allow_st_stocks=False,
-            min_liquidity=1000000
-        )
+        try:
+            return RiskConfig(
+                max_position_pct=float(self.config.get('max_position_pct', 0.10)),
+                max_sector_pct=float(self.config.get('max_sector_pct', 0.30)),
+                max_drawdown=float(self.config.get('max_drawdown', 0.20)),
+                max_daily_trades=int(self.config.get('max_daily_trades', 10)),
+                blacklist=[],
+                allow_st_stocks=False,
+                min_liquidity=1000000
+            )
+        except (ValueError, TypeError) as e:
+            print(f"Warning: Invalid risk config values: {e}", file=sys.stderr)
+            return None
 
     def _calculate_max_allowed_shares(self, symbol: str, price: float, portfolio: SimpleNamespace) -> int:
         """计算最大允许买入股数（不超过仓位限制）"""
+        if price <= 0:
+            return 0
+
         max_pct = float(self.config.get('max_position_pct', 0.10))
         max_value = portfolio.total_equity * max_pct
 
@@ -215,5 +222,6 @@ class RiskBridge:
 
                 row = cursor.fetchone()
                 return row[0] if row else None
-        except sqlite3.Error:
+        except sqlite3.Error as e:
+            print(f"Warning: Failed to fetch price for {symbol}: {e}", file=sys.stderr)
             return None
