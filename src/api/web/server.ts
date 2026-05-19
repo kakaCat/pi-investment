@@ -45,9 +45,9 @@ app.use('/api', featuresRouter);
 // 健康检查 (放在 /api 下以便前端统一访问)
 app.get('/api/health', async (req, res) => {
   try {
-    // 检查数据库连接
-    const os = await import('os');
-    const dbPath = path.join(os.homedir(), '.pi-invest/stock-db/stocks.db');
+    // 检查数据库连接（使用项目目录）
+    const projectRoot = path.resolve(__dirname, '../../../');
+    const dbPath = path.join(projectRoot, '.pi-invest/stock-db/stocks.db');
     const dbConnected = fs.existsSync(dbPath);
 
     // 检查模型文件是否存在
