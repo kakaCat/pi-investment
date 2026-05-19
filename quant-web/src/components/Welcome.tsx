@@ -4,10 +4,17 @@ import { CheckCircleOutlined, CloseCircleOutlined, SyncOutlined } from '@ant-des
 
 const { Title, Paragraph, Text } = Typography
 
+interface DbInfo {
+  path: string
+  size_mb: number
+  size_display: string
+}
+
 interface SystemStatus {
   backend: boolean
   database: boolean
   model: boolean
+  db_info?: DbInfo | null
 }
 
 export default function Welcome() {
