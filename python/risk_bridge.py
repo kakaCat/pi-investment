@@ -440,3 +440,60 @@ class RiskBridge:
                     "error": str(e)
                 }
             }
+
+    def calculate_stop_loss(self, symbol: str, entry_price: float,
+                           current_price: Optional[float] = None,
+                           highest_price: Optional[float] = None) -> Dict:
+        """计算止损价（混合策略）"""
+        # Entry price validation
+        if entry_price <= 0:
+            return {"error": "入场价格必须大于0"}
+
+        try:
+            # 获取当前价格
+            if current_price is None:
+                current_price = self._fetch_current_price(symbol)
+                if current_price is None:
+                    return {"error": f"无法获取{symbol}的当前价格"}
+
+            # Validate current_price
+            if current_price <= 0:
+                return {"error": f"当前价格无效: {current_price}"}
+
+            if highest_price is None:
+                highest_price = current_price
+
+            # Validate highest_price
+            if highest_price <= 0:
+                return {"error": f"最高价格无效: {highest_price}"}
+
+            # 计算盈亏比例 (handle division by zero)
+            if entry_price == 0:
+                return {"error": "入场价格不能为0"}
+
+            pnl_pct = (current_price - entry_price) / entry_price
+            profit_threshold = float(self.config.get('profit_threshold_for_trailing', 0.05))
+
+            # 混合策略
+            if pnl_pct < profit_threshold:
+                # 固定止损
+                fixed_pct = float(self.config.get('fixed_stop_loss_pct', 0.08))
+                stop_loss_price = entry_price * (1 - fixed_pct)
+                method = "fixed"
+                reason = f"当前盈利{pnl_pct:.1%} < {profit_threshold:.0%}，使用固定止损-{fixed_pct:.0%}"
+            else:
+                # 移动止损
+                trailing_pct = float(self.config.get('trailing_stop_loss_pct', 0.10))
+                stop_loss_price = highest_price * (1 - trailing_pct)
+                method = "trailing"
+                reason = f"当前盈利{pnl_pct:.1%} ≥ {profit_threshold:.0%}，使用移动止损（从最高价{highest_price:.2f}回撤{trailing_pct:.0%}）"
+
+            return {
+                "stop_loss_price": round(stop_loss_price, 2),
+                "stop_loss_pct": round((stop_loss_price - entry_price) / entry_price, 4),
+                "method": method,
+                "reason": reason
+            }
+
+        except Exception as e:
+            return {"error": f"计算止损价失败: {str(e)}"}
