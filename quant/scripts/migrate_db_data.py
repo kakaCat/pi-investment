@@ -14,7 +14,7 @@ from pathlib import Path
 QUANT_ROOT = Path(__file__).parent.parent
 PROJECT_ROOT = QUANT_ROOT.parent
 SOURCE_DB = QUANT_ROOT / 'quantsys' / 'data' / 'stocks.db'
-TARGET_DB = PROJECT_ROOT / '.pi-invest' / 'stock-db' / 'stocks.db'
+TARGET_DB = Path.home() / '.pi-invest' / 'stock-db' / 'stocks.db'
 
 def main():
     """Migrate incremental data from source to target database."""
