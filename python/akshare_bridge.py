@@ -26,6 +26,7 @@ os.environ['TQDM_DISABLE'] = '1'
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'quant'))
 
 from quantsys.strategies.combiner import StrategyCombiner, Signal as CombinerSignal, CombinerConfig
+from risk_bridge import RiskBridge
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -3010,6 +3011,37 @@ def combine_strategy_signals(params: dict) -> dict:
         }
 
 
+# ===== Risk Control Functions =====
+def check_trade_risk(symbol: str, action: str, price: float, shares: int) -> dict:
+    """预交易风控检查"""
+    portfolio_db = os.path.join(os.path.dirname(__file__), '..', '.pi-invest', 'portfolio.db')
+    quant_db = os.path.join(os.path.dirname(__file__), '..', 'quant', 'quantsys', 'data', 'stocks.db')
+
+    bridge = RiskBridge(portfolio_db, quant_db)
+    result = bridge.check_trade_risk(symbol, action, price, shares)
+    return result
+
+
+def calculate_position_size(symbol: str, price: float, signal_strength: float = 1.0) -> dict:
+    """Kelly公式计算建议仓位"""
+    portfolio_db = os.path.join(os.path.dirname(__file__), '..', '.pi-invest', 'portfolio.db')
+    quant_db = os.path.join(os.path.dirname(__file__), '..', 'quant', 'quantsys', 'data', 'stocks.db')
+
+    bridge = RiskBridge(portfolio_db, quant_db)
+    result = bridge.calculate_position_size(symbol, price, signal_strength)
+    return result
+
+
+def calculate_stop_loss(symbol: str, entry_price: float, current_price: float = None, highest_price: float = None) -> dict:
+    """计算止损价（混合策略）"""
+    portfolio_db = os.path.join(os.path.dirname(__file__), '..', '.pi-invest', 'portfolio.db')
+    quant_db = os.path.join(os.path.dirname(__file__), '..', 'quant', 'quantsys', 'data', 'stocks.db')
+
+    bridge = RiskBridge(portfolio_db, quant_db)
+    result = bridge.calculate_stop_loss(symbol, entry_price, current_price, highest_price)
+    return result
+
+
 # ===== Dispatcher =====
 FUNCTIONS = {
     "get_stock_info": get_stock_info,
@@ -3081,6 +3113,10 @@ FUNCTIONS = {
     "plot_feature_importance": lambda model_path='.pi-invest/quant/models/signal_confidence.pkl', output_path='.pi-invest/quant/charts/feature_importance.png': plot_feature_importance(model_path, output_path),
     # Strategy combiner
     "combine_strategy_signals": lambda **kwargs: combine_strategy_signals(kwargs),
+    # Risk control functions
+    "check_trade_risk": check_trade_risk,
+    "calculate_position_size": calculate_position_size,
+    "calculate_stop_loss": calculate_stop_loss,
 }
 
 
