@@ -1216,11 +1216,42 @@ def calculate_buy_range(symbol: str, current_price: float = None) -> dict:
         else:
             advice = f"当前价{current_price}高于支撑区({ideal_buy})，建议等待回调至{ideal_buy}附近再建仓. 若追入，止损位{stop_loss}, 目标价{target}"
 
+        # 自动风控检查
+        try:
+            risk_check_result = check_trade_risk(symbol, 'buy', ideal_buy, 300)
+            position_result = calculate_position_size(symbol, ideal_buy, 0.8)
+            stop_loss_result = calculate_stop_loss(symbol, ideal_buy)
+        except Exception as e:
+            # 降级：风控失败不影响主流程
+            risk_check_result = {
+                "passed": True,
+                "level": "warning",
+                "reason": f"风控检查失败: {str(e)}",
+                "violations": [],
+                "adjusted_shares": 300
+            }
+            position_result = {
+                "shares": 300,
+                "position_pct": 0.10,
+                "method": "fallback",
+                "kelly_params": {"data_source": "error"}
+            }
+            stop_loss_result = {
+                "stop_loss_price": safe_buy * 0.92,
+                "method": "fixed",
+                "reason": "降级使用固定止损"
+            }
+
         result = {"symbol": symbol, "current_price": current_price,
-                "safe_buy": safe_buy, "ideal_buy": ideal_buy, "stop_loss": stop_loss, "target_price": target,
+                "safe_buy": safe_buy, "ideal_buy": ideal_buy,
+                "stop_loss": stop_loss_result.get("stop_loss_price", safe_buy * 0.92),
+                "target_price": target,
                 "support_levels": {"ma20": ma20, "ma60": ma60, "recent_low_20d": recent_low, "bollinger_lower": bb_lower},
                 "advice": advice,
-                "data_date": datetime.now().strftime("%Y-%m-%d")}
+                "data_date": datetime.now().strftime("%Y-%m-%d"),
+                "risk_check": risk_check_result,
+                "position_advice": position_result,
+                "stop_loss_method": stop_loss_result.get("method", "fixed")}
         if fundamental_support:
             result["fundamental_support"] = fundamental_support
         return result
