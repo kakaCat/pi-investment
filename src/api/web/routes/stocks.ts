@@ -14,21 +14,11 @@ export const stocksRouter = Router();
 // Note: This must come before /:symbol to avoid route collision
 stocksRouter.get('/data-status', async (req, res, next) => {
   try {
-    // 查找数据库文件
-    const dbPaths = [
-      path.join(__dirname, '../../../../quant/quantsys/data/stocks.db'),
-      path.join(__dirname, '../../../../.pi-invest/stock-db/stocks.db'),
-    ];
+    // 使用标准数据库路径
+    const os = await import('os');
+    const dbPath = path.join(os.homedir(), '.pi-invest/stock-db/stocks.db');
 
-    let dbPath = '';
-    for (const p of dbPaths) {
-      if (fs.existsSync(p)) {
-        dbPath = p;
-        break;
-      }
-    }
-
-    if (!dbPath) {
+    if (!fs.existsSync(dbPath)) {
       res.json({
         total_stocks: 0,
         complete_stocks: 0,
