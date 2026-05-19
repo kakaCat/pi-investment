@@ -39,6 +39,9 @@ const TIMEOUT_CONFIG: Record<string, number> = {
   train_signal_model: TIMEOUT_SLOW,
   predict_signal_confidence: TIMEOUT_MEDIUM,
   combine_strategy_signals: TIMEOUT_MEDIUM,
+  check_trade_risk: TIMEOUT_MEDIUM,
+  calculate_position_size: TIMEOUT_MEDIUM,
+  calculate_stop_loss: TIMEOUT_FAST,
 };
 
 // ===== 分级重试配置 =====
@@ -76,6 +79,11 @@ const NAMESPACE_MAP: Record<string, CacheNamespace> = {
   get_hk_hot_rank: 'intraday',
   get_hk_south_flow: 'intraday',
   get_hk_market_overview: 'intraday',
+
+  // 风险管理 -> intraday (日内缓存)
+  check_trade_risk: 'intraday',
+  calculate_position_size: 'intraday',
+  calculate_stop_loss: 'intraday',
 
   // 日级数据 -> daily (24小时)
   get_stock_info: 'daily',
