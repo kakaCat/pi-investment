@@ -229,6 +229,25 @@ class RiskBridge:
 
     def check_trade_risk(self, symbol: str, action: str, price: float, shares: int) -> Dict:
         """预交易风控检查"""
+        # Input validation
+        if price <= 0:
+            return {
+                "passed": False,
+                "level": "reject",
+                "reason": "价格必须大于0",
+                "violations": [{"rule": "invalid_price", "severity": "high", "message": f"Invalid price: {price}"}],
+                "adjusted_shares": 0
+            }
+
+        if shares <= 0:
+            return {
+                "passed": False,
+                "level": "reject",
+                "reason": "股数必须大于0",
+                "violations": [{"rule": "invalid_shares", "severity": "high", "message": f"Invalid shares: {shares}"}],
+                "adjusted_shares": 0
+            }
+
         if not QUANT_AVAILABLE:
             return {
                 "passed": True,
@@ -264,8 +283,11 @@ class RiskBridge:
                 if any(kw in error_msg for kw in ['ST', '黑名单', '回撤']):
                     level = "reject"
                 elif '仓位限制' in error_msg:
-                    level = "warning"
                     adjusted_shares = self._calculate_max_allowed_shares(symbol, price, portfolio)
+                    if adjusted_shares == 0:
+                        level = "reject"  # Can't buy anything
+                    else:
+                        level = "warning"  # Can buy reduced amount
                     violations.append({
                         "rule": "position_limit",
                         "message": error_msg,
@@ -289,7 +311,7 @@ class RiskBridge:
 
         except Exception as e:
             return {
-                "passed": True,
+                "passed": False,
                 "level": "warning",
                 "reason": f"风控检查异常: {str(e)}",
                 "violations": [{"rule": "exception", "severity": "high", "message": str(e)}],
