@@ -46,6 +46,8 @@ import { quantDecisionTools } from "./quant-decision-tools-v2.js";
 // import { quantTools } from "./quant-tools.js";
 // 因子分析工具 - 模型可解释性
 import { factorAnalysisTools } from "../../tools/factor-analysis-tools.js";
+// 风险管理工具
+import { riskTools } from "./invest/risk-tools.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./memory-tool.js";
@@ -89,6 +91,8 @@ export const allCustomTools = [
   // ...quantTools,
   // 因子分析工具 — 模型可解释性
   ...factorAnalysisTools,         // get_feature_importance, analyze_stock_factors, compare_stock_factors
+  // 风险管理工具 — 风控与仓位管理
+  ...riskTools,                   // check_trade_risk, calculate_position_size, calculate_stop_loss
   // 通知工具 — 消息推送
   ...notificationTools,
   // 监控工具 — 实时盯盘
