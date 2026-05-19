@@ -91,7 +91,7 @@ export async function get_stock_history(
       adjust: _adjust
     };
     const raw = await callPythonBridge("get_stock_history", args);
-    const rows = raw?.data ?? (Array.isArray(raw) ? raw : []);
+    const rows = (raw?.data ?? (Array.isArray(raw) ? raw : [])) as any[];
     if (rows.length > 0) {
       return buildSmartResult(clean, period, rows, "network");
     }
