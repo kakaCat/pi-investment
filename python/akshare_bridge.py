@@ -19,6 +19,16 @@ from functools import wraps
 from datetime import datetime
 import logging
 
+# ===== 代理绕过：akshare/requests 需要直连东方财富等国内数据源 =====
+# Python 桥进程会继承 shell 的 http_proxy/https_proxy 环境变量，
+# 但代理（如 127.0.0.1:7890）通常无法访问国内数据源。
+# 必须在导入 akshare/requests 之前清理代理设置。
+for _k in list(os.environ.keys()):
+    if _k.lower().endswith('_proxy') or _k.lower() == 'no_proxy':
+        del os.environ[_k]
+# 强制 requests 不使用系统代理
+os.environ['no_proxy'] = '*'
+
 # 禁用 tqdm 进度条（避免污染 stdout）
 os.environ['TQDM_DISABLE'] = '1'
 
@@ -234,45 +244,64 @@ def get_hk_stock_info(symbol: str) -> dict:
 
 
 def get_hk_stock_history(symbol: str, period: str = "daily", start_date: str = None, end_date: str = None, adjust: str = "qfq") -> dict:
-    """港股历史行情（via stooq），最多返回60条"""
-    import requests as _req
-    import io
-    from datetime import datetime
+    """港股历史行情（via akshare，最多返回60条）
+
+    v2.4: 从 stooq 切换到 akshare，因为 stooq 2025年起要求 API key。
+    """
+    from datetime import datetime, timedelta
     code = _hk_code(symbol)
-    # stooq interval: d=daily, w=weekly, m=monthly
-    interval_map = {"daily": "d", "weekly": "w", "monthly": "m"}
-    interval = interval_map.get(period, "d")
-    # strip leading zeros for stooq (09988 -> 9988)
-    stooq_code = str(int(code))
     try:
-        r = _req.get(
-            f"https://stooq.com/q/d/l/",
-            params={"s": f"{stooq_code}.hk", "i": interval},
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=10
-        )
-        lines = r.text.strip().split("\n")
-        if len(lines) < 2:
+        import akshare as ak
+        import requests as _requests
+        # 强制绕过代理（akshare 需要直连东方财富）
+        _session = _requests.Session()
+        _session.trust_env = False
+        _session.proxies.clear()
+        # Monkey-patch 全局 requests.get/post，确保本次调用不走代理
+        _orig_get = _requests.get
+        _orig_post = _requests.post
+        _requests.get = _session.get
+        _requests.post = _session.post
+
+        try:
+            # 计算日期范围：默认取最近120个自然日（约60个交易日）
+            if not end_date:
+                end_date = datetime.now().strftime("%Y%m%d")
+            if not start_date:
+                start_date = (datetime.now() - timedelta(days=180)).strftime("%Y%m%d")
+
+            # akshare adjust: qfq=前复权, hfq=后复权, ''=不复权
+            ak_adjust = adjust if adjust in ('qfq', 'hfq') else 'qfq'
+            df = ak.stock_hk_hist(
+                symbol=code, period=period,
+                start_date=start_date, end_date=end_date,
+                adjust=ak_adjust
+            )
+        finally:
+            # 恢复全局 requests
+            _requests.get = _orig_get
+            _requests.post = _orig_post
+
+        if df is None or len(df) == 0:
             return {"error": f"无历史数据: {symbol}"}
-        # CSV: Date,Open,High,Low,Close,Volume
+
+        # akshare 返回列：日期,开盘,收盘,最高,最低,成交量,成交额,振幅,涨跌幅,涨跌额,换手率
         records = []
         prev_close = None
-        for line in lines[1:][-60:]:  # skip header, last 60
-            parts = line.strip().split(",")
-            if len(parts) < 5:
-                continue
-            close = _safe_float(parts[4])
-            change_pct = round((close - prev_close) / prev_close * 100, 2) if prev_close else 0.0
+        for _, row in df.tail(60).iterrows():
+            close = float(row['收盘'])
+            change_pct = round((close - prev_close) / prev_close * 100, 2) if prev_close and prev_close != 0 else 0.0
             records.append({
-                "date": parts[0],
-                "open": _safe_float(parts[1]),
-                "high": _safe_float(parts[2]),
-                "low": _safe_float(parts[3]),
+                "date": str(row['日期']),
+                "open": float(row['开盘']),
+                "high": float(row['最高']),
+                "low": float(row['最低']),
                 "close": close,
-                "volume": _safe_float(parts[5] if len(parts) > 5 else 0, decimals=0),
+                "volume": float(row['成交量']),
                 "change_pct": change_pct,
             })
             prev_close = close
+
         if not records:
             return {"error": f"无历史数据: {symbol}"}
         return {
@@ -280,8 +309,11 @@ def get_hk_stock_history(symbol: str, period: str = "daily", start_date: str = N
             "market": "HK", "data": records,
             "data_date": datetime.now().strftime("%Y-%m-%d"),
         }
+    except ImportError:
+        # akshare 未安装时的友好提示
+        return {"error": "akshare 未安装，请运行: pip install akshare", "symbol": symbol}
     except Exception as e:
-        return {"error": str(e), "symbol": symbol}
+        return {"error": f"获取港股历史数据失败: {str(e)}", "symbol": symbol}
 
 
 # ===== All stock functions =====
@@ -1701,16 +1733,8 @@ def get_index_history(symbol: str, start_date: str, end_date: str) -> dict:
     """
     import akshare as ak
     try:
-        # 转换代码格式（去掉 sh/sz 前缀）
-        if symbol.startswith('sh'):
-            code = symbol[2:]
-        elif symbol.startswith('sz'):
-            code = symbol[2:]
-        else:
-            code = symbol
-
-        # 获取指数日线数据
-        df = ak.stock_zh_index_daily(symbol=code)
+        # 使用腾讯数据源（新浪API已失效返回404）
+        df = ak.stock_zh_index_daily_tx(symbol=symbol)
 
         if df is None or df.empty:
             return {"success": False, "error": f"No data for index {symbol}"}
@@ -1722,7 +1746,7 @@ def get_index_history(symbol: str, start_date: str, end_date: str) -> dict:
         if df.empty:
             return {"success": False, "error": f"No data in date range {start_date} to {end_date}"}
 
-        # 转换为字典列表
+        # 转换为字典列表（注意：腾讯源返回的是'amount'字段，映射为'volume'）
         result = []
         for _, row in df.iterrows():
             result.append({
@@ -1731,7 +1755,7 @@ def get_index_history(symbol: str, start_date: str, end_date: str) -> dict:
                 'high': _safe_float(row.get('high', 0)),
                 'low': _safe_float(row.get('low', 0)),
                 'close': _safe_float(row.get('close', 0)),
-                'volume': _safe_float(row.get('volume', 0), decimals=0),
+                'volume': _safe_float(row.get('amount', 0), decimals=0),
             })
 
         return {
@@ -3046,7 +3070,7 @@ def combine_strategy_signals(params: dict) -> dict:
 def check_trade_risk(symbol: str, action: str, price: float, shares: int) -> dict:
     """预交易风控检查"""
     portfolio_db = os.path.join(os.path.dirname(__file__), '..', '.pi-invest', 'portfolio.db')
-    quant_db = os.path.join(os.path.dirname(__file__), '..', 'quant', 'quantsys', 'data', 'stocks.db')
+    quant_db = os.path.join(os.path.dirname(__file__), '..', '.pi-invest', 'stock-db', 'stocks.db')
 
     bridge = RiskBridge(portfolio_db, quant_db)
     result = bridge.check_trade_risk(symbol, action, price, shares)
@@ -3056,7 +3080,7 @@ def check_trade_risk(symbol: str, action: str, price: float, shares: int) -> dic
 def calculate_position_size(symbol: str, price: float, signal_strength: float = 1.0) -> dict:
     """Kelly公式计算建议仓位"""
     portfolio_db = os.path.join(os.path.dirname(__file__), '..', '.pi-invest', 'portfolio.db')
-    quant_db = os.path.join(os.path.dirname(__file__), '..', 'quant', 'quantsys', 'data', 'stocks.db')
+    quant_db = os.path.join(os.path.dirname(__file__), '..', '.pi-invest', 'stock-db', 'stocks.db')
 
     bridge = RiskBridge(portfolio_db, quant_db)
     result = bridge.calculate_position_size(symbol, price, signal_strength)
@@ -3066,7 +3090,7 @@ def calculate_position_size(symbol: str, price: float, signal_strength: float = 
 def calculate_stop_loss(symbol: str, entry_price: float, current_price: float = None, highest_price: float = None) -> dict:
     """计算止损价（混合策略）"""
     portfolio_db = os.path.join(os.path.dirname(__file__), '..', '.pi-invest', 'portfolio.db')
-    quant_db = os.path.join(os.path.dirname(__file__), '..', 'quant', 'quantsys', 'data', 'stocks.db')
+    quant_db = os.path.join(os.path.dirname(__file__), '..', '.pi-invest', 'stock-db', 'stocks.db')
 
     bridge = RiskBridge(portfolio_db, quant_db)
     result = bridge.calculate_stop_loss(symbol, entry_price, current_price, highest_price)
@@ -3178,7 +3202,7 @@ def ml_predict_single(symbol: str) -> dict:
         from quantsys.data.db import Database
 
         # Database path
-        db_path = os.path.join(quant_dir, 'quantsys', 'data', 'stocks.db')
+        db_path = os.path.join(os.path.dirname(quant_dir), '.pi-invest', 'stock-db', 'stocks.db')
         if not os.path.exists(db_path):
             return {"error": f"Database not found: {db_path}"}
 
