@@ -2,6 +2,12 @@ import { Router } from 'express';
 import { BacktestEngine } from '../../../services/quant/backtest-engine.js';
 import { QuantService } from '../../../services/quant/quant-service.js';
 import { FactorLibrary } from '../../../services/quant/factor-library.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = Router();
 const quantService = new QuantService();
@@ -35,6 +41,61 @@ router.post('/run', async (req, res, next) => {
     );
 
     res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/backtest/results - 获取回测结果汇总
+router.get('/results', async (req, res, next) => {
+  try {
+    // 检查多个可能的回测结果目录
+    const possibleDirs = [
+      path.join(__dirname, '../../../../.pi-invest/quant/backtest'),
+      path.join(__dirname, '../../../../quant/quantsys/backtest/results'),
+      path.join(__dirname, '../../../../quant/backtest')
+    ];
+
+    let backtestDir: string | null = null;
+    for (const dir of possibleDirs) {
+      if (fs.existsSync(dir)) {
+        backtestDir = dir;
+        break;
+      }
+    }
+
+    if (!backtestDir) {
+      res.json({ summary: [] });
+      return;
+    }
+
+    const files = fs.readdirSync(backtestDir)
+      .filter(f => f.endsWith('.json'))
+      .sort()
+      .reverse();
+
+    const summary = files.slice(0, 100).map(filename => {
+      try {
+        const filePath = path.join(backtestDir!, filename);
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const data = JSON.parse(content);
+
+        return {
+          symbol: data.symbol || '',
+          date: data.date || data.backtest_date || '',
+          best_strategy: data.best_strategy || data.strategy || '',
+          best_return: data.total_return || data.best_return || 0,
+          sharpe_ratio: data.sharpe_ratio || 0,
+          max_drawdown: data.max_drawdown || 0,
+          win_rate: data.win_rate || 0
+        };
+      } catch (error) {
+        console.warn(`Failed to parse backtest result ${filename}:`, error);
+        return null;
+      }
+    }).filter(record => record !== null);
+
+    res.json({ summary });
   } catch (error) {
     next(error);
   }
