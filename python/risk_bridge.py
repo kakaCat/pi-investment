@@ -5,9 +5,7 @@
 import sqlite3
 import sys
 import os
-from datetime import datetime
-from types import SimpleNamespace
-from typing import Dict, List, Tuple, Optional
+from typing import Dict
 
 # 添加 quant 路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'quant'))
@@ -35,10 +33,9 @@ class RiskBridge:
     def _load_config(self) -> Dict[str, str]:
         """从 portfolio.db 读取风控配置"""
         try:
-            conn = sqlite3.connect(self.portfolio_db)
-            cursor = conn.execute("SELECT key, value FROM risk_config")
-            config = {row[0]: row[1] for row in cursor.fetchall()}
-            conn.close()
+            with sqlite3.connect(self.portfolio_db) as conn:
+                cursor = conn.execute("SELECT key, value FROM risk_config")
+                config = {row[0]: row[1] for row in cursor.fetchall()}
             return config
         except sqlite3.Error as e:
             print(f"Warning: Failed to load risk config: {e}", file=sys.stderr)
