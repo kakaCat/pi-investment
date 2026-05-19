@@ -1,26 +1,56 @@
-import React, { useState } from 'react'
-import { Layout, Menu, Typography } from 'antd'
-import { HomeOutlined, BarChartOutlined, StockOutlined, DashboardOutlined, SignalFilled, ExperimentOutlined, HistoryOutlined, DatabaseOutlined, RocketOutlined } from '@ant-design/icons'
-import Welcome from './components/Welcome'
-import FeatureImportance from './components/FeatureImportance'
-import StockAnalysis from './components/StockAnalysis'
-import StockComparison from './components/StockComparison'
-import SignalsDashboard from './components/SignalsDashboard'
-import BacktestDashboard from './components/BacktestDashboard'
-import TrainingHistory from './components/TrainingHistory'
-import StockList from './components/StockList'
-import ModelTraining from './components/ModelTraining'
+import { Suspense, lazy, useState } from 'react'
+import { Layout, Menu, Spin, Typography } from 'antd'
+import type { MenuProps } from 'antd'
+import { HomeOutlined, BarChartOutlined, StockOutlined, DashboardOutlined, SignalFilled, ExperimentOutlined, HistoryOutlined, DatabaseOutlined, RocketOutlined, CloudServerOutlined } from '@ant-design/icons'
 
 const { Header, Sider, Content } = Layout
-const { Title } = Typography
+const { Text, Title } = Typography
 
-type MenuKey = 'welcome' | 'feature-importance' | 'stock-analysis' | 'stock-comparison' | 'signals' | 'backtest' | 'training' | 'model-training' | 'stock-list'
+const MENU_KEYS = [
+  'dashboard',
+  'welcome',
+  'feature-importance',
+  'stock-analysis',
+  'stock-comparison',
+  'signals',
+  'backtest',
+  'training',
+  'model-training',
+  'stock-list',
+  'ops'
+] as const
+
+type MenuKey = typeof MENU_KEYS[number]
+
+const DashboardOverview = lazy(() => import('./components/dashboard/DashboardOverview'))
+const Welcome = lazy(() => import('./components/Welcome'))
+const FeatureImportance = lazy(() => import('./components/FeatureImportance'))
+const StockAnalysis = lazy(() => import('./components/StockAnalysis'))
+const StockComparison = lazy(() => import('./components/StockComparison'))
+const SignalsDashboard = lazy(() => import('./components/SignalsDashboard'))
+const BacktestDashboard = lazy(() => import('./components/BacktestDashboard'))
+const TrainingHistory = lazy(() => import('./components/TrainingHistory'))
+const StockList = lazy(() => import('./components/StockList'))
+const ModelTraining = lazy(() => import('./components/ModelTraining'))
+const OpsCenter = lazy(() => import('./components/OpsCenter'))
 
 function App() {
-  const [selectedMenu, setSelectedMenu] = useState<MenuKey>('welcome')
+  const [selectedMenu, setSelectedMenu] = useState<MenuKey>('dashboard')
+
+  const navigateTo = (key: string) => {
+    if (isMenuKey(key)) {
+      setSelectedMenu(key)
+    }
+  }
 
   const renderContent = () => {
     switch (selectedMenu) {
+      case 'dashboard':
+        return (
+          <div className="dashboard-page">
+            <DashboardOverview onNavigate={navigateTo} />
+          </div>
+        )
       case 'welcome':
         return <Welcome />
       case 'feature-importance':
@@ -39,90 +69,144 @@ function App() {
         return <ModelTraining />
       case 'stock-list':
         return <StockList />
+      case 'ops':
+        return <OpsCenter />
       default:
-        return <Welcome />
+        return (
+          <div className="dashboard-page">
+            <DashboardOverview onNavigate={navigateTo} />
+          </div>
+        )
     }
   }
 
+  const menuItems: MenuProps['items'] = [
+    {
+      key: 'overview',
+      label: 'Overview',
+      type: 'group',
+      children: [
+        {
+          key: 'dashboard',
+          icon: <DashboardOutlined />,
+          label: 'Dashboard'
+        }
+      ]
+    },
+    {
+      key: 'research',
+      label: 'Research',
+      type: 'group',
+      children: [
+        {
+          key: 'signals',
+          icon: <SignalFilled />,
+          label: '交易信号'
+        },
+        {
+          key: 'backtest',
+          icon: <ExperimentOutlined />,
+          label: '回测仪表板'
+        },
+        {
+          key: 'feature-importance',
+          icon: <BarChartOutlined />,
+          label: '因子重要性'
+        },
+        {
+          key: 'stock-analysis',
+          icon: <StockOutlined />,
+          label: '股票分析'
+        },
+        {
+          key: 'stock-comparison',
+          icon: <DashboardOutlined />,
+          label: '股票对比'
+        }
+      ]
+    },
+    {
+      key: 'model',
+      label: 'Model',
+      type: 'group',
+      children: [
+        {
+          key: 'model-training',
+          icon: <RocketOutlined />,
+          label: '模型训练'
+        },
+        {
+          key: 'training',
+          icon: <HistoryOutlined />,
+          label: '训练历史'
+        }
+      ]
+    },
+    {
+      key: 'data',
+      label: 'Data',
+      type: 'group',
+      children: [
+        {
+          key: 'stock-list',
+          icon: <DatabaseOutlined />,
+          label: '股票列表'
+        }
+      ]
+    },
+    {
+      key: 'operations',
+      label: 'Operations',
+      type: 'group',
+      children: [
+        {
+          key: 'ops',
+          icon: <CloudServerOutlined />,
+          label: '运维中心'
+        },
+        {
+          key: 'welcome',
+          icon: <HomeOutlined />,
+          label: '系统信息'
+        }
+      ]
+    }
+  ]
+
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ background: '#001529', padding: '0 24px', display: 'flex', alignItems: 'center' }}>
-        <Title level={3} style={{ color: 'white', margin: 0 }}>
-          📊 量化系统可视化
-        </Title>
+    <Layout className="app-shell">
+      <Header className="app-header">
+        <div>
+          <Title level={3} style={{ color: 'white', margin: 0 }}>
+            量化管理台
+          </Title>
+          <Text className="app-header-subtitle">Quant Management Console</Text>
+        </div>
       </Header>
       <Layout>
-        <Sider width={200} style={{ background: '#fff' }}>
+        <Sider width={232} style={{ background: '#fff' }}>
           <Menu
             mode="inline"
             selectedKeys={[selectedMenu]}
             style={{ height: '100%', borderRight: 0 }}
-            onSelect={({ key }) => setSelectedMenu(key as MenuKey)}
-            items={[
-              {
-                key: 'welcome',
-                icon: <HomeOutlined />,
-                label: '欢迎页'
-              },
-              {
-                key: 'feature-importance',
-                icon: <BarChartOutlined />,
-                label: '因子重要性'
-              },
-              {
-                key: 'stock-analysis',
-                icon: <StockOutlined />,
-                label: '股票分析'
-              },
-              {
-                key: 'stock-comparison',
-                icon: <DashboardOutlined />,
-                label: '股票对比'
-              },
-              {
-                key: 'signals',
-                icon: <SignalFilled />,
-                label: '交易信号'
-              },
-              {
-                key: 'backtest',
-                icon: <ExperimentOutlined />,
-                label: '回测仪表板'
-              },
-              {
-                key: 'model-training',
-                icon: <RocketOutlined />,
-                label: '模型训练'
-              },
-              {
-                key: 'training',
-                icon: <HistoryOutlined />,
-                label: '训练历史'
-              },
-              {
-                key: 'stock-list',
-                icon: <DatabaseOutlined />,
-                label: '股票列表'
-              }
-            ]}
+            onSelect={({ key }) => navigateTo(String(key))}
+            items={menuItems}
           />
         </Sider>
-        <Layout style={{ padding: '24px' }}>
-          <Content
-            style={{
-              background: '#fff',
-              padding: 24,
-              margin: 0,
-              minHeight: 280,
-              borderRadius: 8
-            }}
-          >
-            {renderContent()}
+        <Layout>
+          <Content className="app-content">
+            <Suspense fallback={<Spin className="app-content-loading" />}>
+              {renderContent()}
+            </Suspense>
           </Content>
         </Layout>
       </Layout>
     </Layout>
   )
+}
+
+function isMenuKey(value: string): value is MenuKey {
+  return (MENU_KEYS as readonly string[]).includes(value)
 }
 
 export default App
