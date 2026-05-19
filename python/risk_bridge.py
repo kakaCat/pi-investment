@@ -5,7 +5,8 @@
 import sqlite3
 import sys
 import os
-from typing import Dict
+from typing import Dict, List, Tuple, Optional
+from types import SimpleNamespace
 
 # 添加 quant 路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'quant'))
@@ -56,3 +57,115 @@ class RiskBridge:
             'trailing_stop_loss_pct': '0.10',
             'profit_threshold_for_trailing': '0.05'
         }
+
+    def _get_portfolio_snapshot(self) -> SimpleNamespace:
+        """读取当前持仓快照"""
+        try:
+            with sqlite3.connect(self.portfolio_db) as conn:
+                # 读取总权益（从holdings表计算）
+                cursor = conn.execute("SELECT SUM(market_value) FROM holdings WHERE shares > 0")
+                row = cursor.fetchone()
+                total_equity = row[0] if row and row[0] else 100000.0
+
+                # 读取持仓
+                cursor = conn.execute("""
+                    SELECT symbol, shares, cost_basis, market_value
+                    FROM holdings WHERE shares > 0
+                """)
+                positions = {}
+                for row in cursor.fetchall():
+                    positions[row[0]] = SimpleNamespace(
+                        shares=row[1],
+                        cost_basis=row[2],
+                        market_value=row[3]
+                    )
+
+                return SimpleNamespace(
+                    total_equity=total_equity,
+                    positions=positions
+                )
+        except sqlite3.Error as e:
+            print(f"Warning: Failed to get portfolio snapshot: {e}", file=sys.stderr)
+            return SimpleNamespace(total_equity=100000.0, positions={})
+
+    def _get_trade_history(self, symbol: Optional[str] = None) -> List[Dict]:
+        """读取历史交易记录"""
+        try:
+            with sqlite3.connect(self.portfolio_db) as conn:
+                if symbol:
+                    cursor = conn.execute("""
+                        SELECT symbol, action, price, shares, total, date
+                        FROM trades
+                        WHERE symbol = ? AND action IN ('buy', 'sell')
+                        ORDER BY date DESC
+                    """, (symbol,))
+                else:
+                    cursor = conn.execute("""
+                        SELECT symbol, action, price, shares, total, date
+                        FROM trades
+                        WHERE action IN ('buy', 'sell')
+                        ORDER BY date DESC
+                    """)
+
+                trades = []
+                for row in cursor.fetchall():
+                    trades.append({
+                        'symbol': row[0],
+                        'action': row[1],
+                        'price': row[2],
+                        'shares': row[3],
+                        'total': row[4],
+                        'date': row[5]
+                    })
+
+                return trades
+        except sqlite3.Error as e:
+            print(f"Warning: Failed to get trade history: {e}", file=sys.stderr)
+            return []
+
+    def _calculate_win_rate(self, trades: List[Dict]) -> Tuple[float, float, int]:
+        """
+        计算胜率和盈亏比
+
+        Returns:
+            (win_rate, profit_loss_ratio, trade_count)
+        """
+        if len(trades) < 2:
+            return 0.5, 1.5, 0
+
+        # 简化逻辑：配对买卖计算盈亏
+        positions = {}
+        closed_trades = []
+
+        for trade in reversed(trades):  # 从旧到新
+            symbol = trade['symbol']
+
+            if trade['action'] == 'buy':
+                if symbol not in positions:
+                    positions[symbol] = []
+                positions[symbol].append({
+                    'price': trade['price'],
+                    'shares': trade['shares'],
+                    'date': trade['date']
+                })
+            elif trade['action'] == 'sell' and symbol in positions:
+                if positions[symbol]:
+                    buy = positions[symbol].pop(0)
+                    pnl = (trade['price'] - buy['price']) / buy['price']
+                    closed_trades.append(pnl)
+
+        if not closed_trades:
+            return 0.5, 1.5, 0
+
+        # 计算胜率
+        wins = [p for p in closed_trades if p > 0]
+        losses = [p for p in closed_trades if p < 0]
+
+        win_rate = len(wins) / len(closed_trades) if closed_trades else 0.5
+
+        # 计算盈亏比
+        avg_win = sum(wins) / len(wins) if wins else 0.1
+        avg_loss = abs(sum(losses) / len(losses)) if losses else 0.05
+        profit_loss_ratio = avg_win / avg_loss if avg_loss > 0 else 1.5
+
+        return win_rate, profit_loss_ratio, len(closed_trades)
