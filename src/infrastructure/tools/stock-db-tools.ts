@@ -39,15 +39,23 @@ export const manageStockDBTool: ToolDefinition = {
             details: undefined,
           };
         }
-        const output = execSync(`python pipeline/pipeline.py full --market ${market}`, {
+        // 禁用代理环境变量（akshare 需要直连）
+        const env = { ...process.env };
+        delete env.HTTP_PROXY;
+        delete env.HTTPS_PROXY;
+        delete env.http_proxy;
+        delete env.https_proxy;
+        delete env.ALL_PROXY;
+        const output = execSync(`python quant/quantsys/data/pipeline.py full --market ${market}`, {
           cwd: process.cwd(),
           encoding: "utf-8",
           timeout: 300000, // 5 minutes timeout
+          env,
         });
         return { content: [{ type: "text" as const, text: output }], details: undefined };
       }
 
-      const output = execSync("python pipeline/pipeline.py status", {
+      const output = execSync("python quant/quantsys/data/pipeline.py status", {
         cwd: process.cwd(),
         encoding: "utf-8",
         timeout: 10000, // 10 seconds timeout for status check

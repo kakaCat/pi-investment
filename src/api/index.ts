@@ -58,17 +58,30 @@ let restartData: RestartContext | null = null;
 function checkRestartContext(): void {
   if (process.env.PI_RESTARTED === "true" && existsSync(RESTART_CONTEXT)) {
     try {
+      // 确保终端使用 UTF-8 编码
+      if (process.stdout.isTTY) {
+        process.stdout.write('\x1b[?1049h'); // 保存屏幕
+        process.stdout.write('\x1b[?1049l'); // 恢复屏幕（触发终端重置）
+      }
+
       const data: RestartContext = JSON.parse(readFileSync(RESTART_CONTEXT, "utf-8"));
       restartData = data;
       const ts = new Date(data.timestamp).getTime();
       const elapsed = !isNaN(ts) ? Math.round((Date.now() - ts) / 1000) : 0;
       const msgCount = data.conversationMessageCount ?? data.messages?.length ?? 0;
-      console.log(`🔄 检测到 Agent 重启（${elapsed > 0 ? `${elapsed} 秒前` : '时间未知'}）`);
-      console.log(`   - 原因: ${data.reason || '未指定'}`);
-      console.log(`   - 对话消息: ${msgCount} 条待恢复`);
-      console.log(`   - 新工具已加载\n`);
+
+      // 使用 Buffer 确保 UTF-8 编码输出
+      const output = Buffer.from(
+        `🔄 检测到 Agent 重启（${elapsed > 0 ? `${elapsed} 秒前` : '时间未知'}）\n` +
+        `   - 原因: ${data.reason || '未指定'}\n` +
+        `   - 对话消息: ${msgCount} 条待恢复\n` +
+        `   - 新工具已加载\n\n`,
+        'utf-8'
+      );
+      process.stdout.write(output);
     } catch {
-      console.log("🔄 检测到 Agent 重启（新工具已加载）\n");
+      const output = Buffer.from("🔄 检测到 Agent 重启（新工具已加载）\n\n", 'utf-8');
+      process.stdout.write(output);
     }
   } else if (existsSync(RESTART_CONTEXT)) {
     // 非重启启动，清理旧文件
@@ -82,20 +95,36 @@ function restoreConversationIntoSession(session: AgentSession): void {
 
   const messages = restartData.messages;
   let injected = 0;
+  let lastUserMessage = "";
+  let lastAssistantMessage = "";
 
   for (const msg of messages) {
     if (!msg.role || !msg.content) continue;
     if (msg.role === "user") {
       addMessage(session, createUserMessage(msg.content));
+      lastUserMessage = msg.content;
       injected++;
     } else if (msg.role === "assistant") {
       addMessage(session, createAssistantMessage(msg.content));
+      lastAssistantMessage = msg.content;
       injected++;
     }
   }
 
   if (injected > 0) {
     console.log(`📋 已恢复 ${injected} 条对话消息（共 ${messages.length} 条）\n`);
+
+    // 添加一条系统提示消息，告诉 agent 继续之前的工作
+    const contextPrompt = `Agent 已重启完成，新工具已加载。
+
+上下文已恢复：
+- 最后的用户请求：${lastUserMessage.slice(0, 200)}${lastUserMessage.length > 200 ? '...' : ''}
+- 你之前的回复：${lastAssistantMessage.slice(0, 200)}${lastAssistantMessage.length > 200 ? '...' : ''}
+
+请继续完成之前的任务。如果任务已完成，请总结结果。如果任务未完成，请继续执行。`;
+
+    addMessage(session, createUserMessage(contextPrompt));
+    console.log(`💡 已添加上下文提示，Agent 将自动继续之前的工作\n`);
   }
 
   // 清理上下文文件

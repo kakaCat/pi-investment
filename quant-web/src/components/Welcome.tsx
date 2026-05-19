@@ -62,7 +62,7 @@ export default function Welcome() {
                 title: '后端API服务',
                 status: status.backend ? 'finish' : 'error',
                 icon: getStatusIcon(status.backend),
-                description: status.backend ? '✅ 运行正常 (http://localhost:5001)' : '❌ 连接失败'
+                description: status.backend ? '✅ 运行正常 (http://localhost:3001)' : '❌ 连接失败'
               },
               {
                 title: '数据库连接',

@@ -161,6 +161,22 @@ export const restartAgentTool: ToolDefinition = {
       console.warn(`[restart] 警告: ${cmd} 不存在，尝试使用全局 tsx`);
     }
 
+    // 重置终端到正常模式，避免子进程继承 raw mode
+    try {
+      if (process.stdin.isTTY) {
+        process.stdin.setRawMode(false);
+      }
+    } catch {
+      // ignore
+    }
+
+    // 使用 stty 命令恢复正常终端模式
+    try {
+      execSync('stty sane 2>/dev/null || true', { stdio: 'ignore', timeout: 1000 });
+    } catch {
+      // ignore
+    }
+
     const child = spawn(cmd, args, {
       cwd: process.cwd(),
       stdio: "inherit",
@@ -169,7 +185,10 @@ export const restartAgentTool: ToolDefinition = {
         ...process.env,
         PI_RESTARTED: "true",
         PI_RESTART_TIMESTAMP: new Date().toISOString(),
-        // 保持原有的 locale 设置，不要覆盖
+        // 确保 UTF-8 编码
+        LANG: process.env.LANG || "zh_CN.UTF-8",
+        LC_ALL: process.env.LC_ALL || "zh_CN.UTF-8",
+        LC_CTYPE: process.env.LC_CTYPE || "zh_CN.UTF-8",
       },
     });
 
@@ -206,21 +225,10 @@ export const restartAgentTool: ToolDefinition = {
     };
 
     // 返回后安排退出
-    // 需要先重置终端状态，避免子进程继承 raw mode 导致乱码
     setImmediate(() => {
       if (spawnFailed) {
         console.log("[restart] 新进程启动失败，当前进程继续运行");
         return;
-      }
-
-      // 重置终端模式：InteractiveMode (readline) 会将 stdin 设为 raw mode，
-      // 必须在退出前重置，否则子进程会继承错误的终端状态导致输入乱码
-      try {
-        if (process.stdin.isTTY) {
-          process.stdin.setRawMode(false);
-        }
-      } catch {
-        // stdin 可能已被关闭或不可用
       }
 
       try {
@@ -229,17 +237,10 @@ export const restartAgentTool: ToolDefinition = {
         // ignore
       }
 
-      // 使用 stty 命令恢复正常终端模式
-      try {
-        execSync('stty sane', { stdio: 'ignore', timeout: 1000 });
-      } catch {
-        // ignore - stty 可能不可用
-      }
-
-      // 延迟退出，确保终端状态完全恢复
+      // 延迟退出，确保子进程完全接管
       setTimeout(() => {
         process.exit(0);
-      }, 300);
+      }, 500);
     });
 
     return response;

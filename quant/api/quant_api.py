@@ -31,7 +31,10 @@ class QuantAPI:
 
     def __init__(self):
         """初始化数据库连接"""
-        db_path = Path.home() / '.pi-invest' / 'stock-db' / 'stocks.db'
+        _project_root = QUANT_ROOT.parent  # quant/ → project_root/
+        _project_db = _project_root / '.pi-invest' / 'stock-db' / 'stocks.db'
+        _home_db = Path.home() / '.pi-invest' / 'stock-db' / 'stocks.db'
+        db_path = _project_db if _project_db.exists() else _home_db
         self.db = Database(str(db_path))
 
     def get_stock_factors(self, symbol: str, date: Optional[str] = None) -> Dict[str, Any]:

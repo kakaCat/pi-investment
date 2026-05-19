@@ -12,6 +12,7 @@ import type { CacheNamespace } from "../../../domain/cache/core/types.js";
 const TIMEOUT_FAST = 15000;
 const TIMEOUT_MEDIUM = 35000;
 const TIMEOUT_SLOW = 55000;
+const TIMEOUT_VERY_SLOW = 120000; // 2分钟，用于腾讯API等慢速数据源
 
 const TIMEOUT_CONFIG: Record<string, number> = {
   get_stock_realtime_price: TIMEOUT_FAST,
@@ -19,7 +20,7 @@ const TIMEOUT_CONFIG: Record<string, number> = {
   get_stock_news: TIMEOUT_FAST,
   get_market_overview: TIMEOUT_FAST,
   get_north_flow: TIMEOUT_MEDIUM,
-  get_sector_fund_flow: TIMEOUT_MEDIUM,
+  get_sector_fund_flow: TIMEOUT_VERY_SLOW, // AkShare板块数据较慢
   get_stock_fund_flow: TIMEOUT_MEDIUM,
   get_market_margin: TIMEOUT_MEDIUM,
   calculate_technical_indicators: TIMEOUT_MEDIUM,
@@ -31,6 +32,7 @@ const TIMEOUT_CONFIG: Record<string, number> = {
   get_hk_south_flow: TIMEOUT_MEDIUM,
   get_hk_technical: TIMEOUT_MEDIUM,
   get_hk_hot_rank: TIMEOUT_MEDIUM,
+  get_index_history: TIMEOUT_VERY_SLOW, // 腾讯API较慢，需要更长超时
   get_macro_data: TIMEOUT_SLOW,
   get_financial_indicators: TIMEOUT_SLOW,
   get_financial_statements: TIMEOUT_SLOW,
@@ -54,6 +56,7 @@ const RETRY_CONFIG: Record<string, number> = {
   get_market_news: 1,
   get_north_flow: 1,
   get_sector_fund_flow: 1,
+  get_index_history: 1, // 腾讯API慢，只重试1次
 };
 
 const DEFAULT_MAX_RETRIES = 2;

@@ -34,9 +34,13 @@ def init_services():
     global db, model, factor_calculator, feature_engineer
 
     # 存储数据库路径，但不创建连接（避免线程问题）
-    # 使用统一的数据库：.pi-invest/stock-db/stocks.db（包含完整股票+ K线数据）
+    # 使用项目根目录下的 .pi-invest/stock-db/stocks.db（包含完整股票+ K线数据）
+    # 优先级: 环境变量 > 项目根目录 > home目录
     global db_path
-    db_path = Path.home() / '.pi-invest' / 'stock-db' / 'stocks.db'
+    _project_root = Path(__file__).parent.parent.parent  # quant/api/ → quant/ → project_root/
+    _project_db = _project_root / '.pi-invest' / 'stock-db' / 'stocks.db'
+    _home_db = Path.home() / '.pi-invest' / 'stock-db' / 'stocks.db'
+    db_path = _project_db if _project_db.exists() else _home_db
 
     # 尝试多个模型路径（优先加载新模型）
     model_paths = [

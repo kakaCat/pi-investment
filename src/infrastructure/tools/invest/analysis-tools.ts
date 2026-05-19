@@ -74,11 +74,16 @@ export const getBuyRangeTool: ToolDefinition = {
   name: "get_buy_range",
   label: "计算买入区间",
   description:
-    "Calculate optimal buy price range with AUTOMATIC risk validation and Kelly position sizing. " +
-    "Returns safe_buy, ideal_buy, target_price, AND risk_check (pass/warning/reject), " +
-    "position_advice (Kelly-based shares), stop_loss (dynamic, not fixed 8%). " +
-    "If risk check fails, advice will include adjusted recommendations or rejection reason. " +
-    "Use after get_stock_price for context. This tool now replaces manual risk checking for buy recommendations.",
+    "⚠️ PRICE REFERENCE ONLY - NOT A BUY SIGNAL. Calculate technical support levels (MA20/MA60/20-day low/Bollinger lower) " +
+    "and fundamental support (PE-based fair value) to suggest buy price range. " +
+    "Returns safe_buy, ideal_buy, stop_loss, target_price with AUTOMATIC risk validation and Kelly position sizing. " +
+    "CRITICAL LIMITATIONS: (1) Does NOT check trend direction - may suggest buying in downtrends; " +
+    "(2) Does NOT validate fundamental quality - may suggest buying garbage stocks; " +
+    "(3) Does NOT consider market environment - may suggest buying in bear markets; " +
+    "(4) Assumes support levels hold - they often fail in trending markets; " +
+    "(5) PE valuation fails for loss-making, cyclical, or fraudulent companies. " +
+    "REQUIRED WORKFLOW: MUST call analyze_stock_quant (score ≥60) + get_quality_score (≥70) + analyze_price_action (trend check) BEFORE using this tool. " +
+    "This tool only answers 'at what price' - NOT 'should I buy'. Use for price execution after decision is made.",
   parameters: Type.Object({
     symbol: Type.String({ description: "6-digit A-share code, e.g. '600519'" }),
     current_price: Type.Optional(Type.Number({ description: "Override current price in CNY (auto-fetched from history if omitted)" })),

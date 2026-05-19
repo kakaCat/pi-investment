@@ -1,16 +1,20 @@
 import React, { useState } from 'react'
 import { Layout, Menu, Typography } from 'antd'
-import { HomeOutlined, BarChartOutlined, StockOutlined, DashboardOutlined, SignalFilled } from '@ant-design/icons'
+import { HomeOutlined, BarChartOutlined, StockOutlined, DashboardOutlined, SignalFilled, ExperimentOutlined, HistoryOutlined, DatabaseOutlined, RocketOutlined } from '@ant-design/icons'
 import Welcome from './components/Welcome'
 import FeatureImportance from './components/FeatureImportance'
 import StockAnalysis from './components/StockAnalysis'
 import StockComparison from './components/StockComparison'
 import SignalsDashboard from './components/SignalsDashboard'
+import BacktestDashboard from './components/BacktestDashboard'
+import TrainingHistory from './components/TrainingHistory'
+import StockList from './components/StockList'
+import ModelTraining from './components/ModelTraining'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
 
-type MenuKey = 'welcome' | 'feature-importance' | 'stock-analysis' | 'stock-comparison' | 'signals'
+type MenuKey = 'welcome' | 'feature-importance' | 'stock-analysis' | 'stock-comparison' | 'signals' | 'backtest' | 'training' | 'model-training' | 'stock-list'
 
 function App() {
   const [selectedMenu, setSelectedMenu] = useState<MenuKey>('welcome')
@@ -27,6 +31,14 @@ function App() {
         return <StockComparison />
       case 'signals':
         return <SignalsDashboard />
+      case 'backtest':
+        return <BacktestDashboard />
+      case 'training':
+        return <TrainingHistory />
+      case 'model-training':
+        return <ModelTraining />
+      case 'stock-list':
+        return <StockList />
       default:
         return <Welcome />
     }
@@ -71,6 +83,26 @@ function App() {
                 key: 'signals',
                 icon: <SignalFilled />,
                 label: '交易信号'
+              },
+              {
+                key: 'backtest',
+                icon: <ExperimentOutlined />,
+                label: '回测仪表板'
+              },
+              {
+                key: 'model-training',
+                icon: <RocketOutlined />,
+                label: '模型训练'
+              },
+              {
+                key: 'training',
+                icon: <HistoryOutlined />,
+                label: '训练历史'
+              },
+              {
+                key: 'stock-list',
+                icon: <DatabaseOutlined />,
+                label: '股票列表'
               }
             ]}
           />
