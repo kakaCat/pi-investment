@@ -317,3 +317,126 @@ class RiskBridge:
                 "violations": [{"rule": "exception", "severity": "high", "message": str(e)}],
                 "adjusted_shares": shares
             }
+
+    def calculate_position_size(self, symbol: str, price: float, signal_strength: float = 1.0) -> Dict:
+        """Kelly公式计算建议仓位"""
+        # Price validation
+        if price <= 0:
+            return {
+                "shares": 0,
+                "position_pct": 0.0,
+                "position_value": 0.0,
+                "method": "error",
+                "kelly_params": {
+                    "win_rate": 0.50,
+                    "profit_loss_ratio": 1.5,
+                    "data_source": "error",
+                    "trade_count": 0,
+                    "error": f"Invalid price: {price}"
+                }
+            }
+
+        if not QUANT_AVAILABLE:
+            # 降级：简单固定仓位
+            portfolio = self._get_portfolio_snapshot()
+            if portfolio.total_equity <= 0:
+                shares = 0
+            else:
+                shares = int(portfolio.total_equity * 0.05 / price / 100) * 100
+
+            return {
+                "shares": shares,
+                "position_pct": (shares * price) / portfolio.total_equity if portfolio.total_equity > 0 else 0.0,
+                "position_value": shares * price,
+                "method": "fixed",
+                "kelly_params": {
+                    "win_rate": 0.50,
+                    "profit_loss_ratio": 1.5,
+                    "data_source": "default",
+                    "trade_count": 0
+                }
+            }
+
+        try:
+            portfolio = self._get_portfolio_snapshot()
+            total_equity = portfolio.total_equity
+
+            # Handle zero equity
+            if total_equity <= 0:
+                return {
+                    "shares": 0,
+                    "position_pct": 0.0,
+                    "position_value": 0.0,
+                    "method": "error",
+                    "kelly_params": {
+                        "win_rate": 0.50,
+                        "profit_loss_ratio": 1.5,
+                        "data_source": "error",
+                        "trade_count": 0,
+                        "error": "Total equity is zero or negative"
+                    }
+                }
+
+            # 获取历史交易数据
+            trades = self._get_trade_history(symbol)
+            min_trades = int(self.config.get('min_trade_history', 10))
+
+            # 判断数据源
+            if len(trades) >= min_trades:
+                win_rate, pl_ratio, count = self._calculate_win_rate(trades)
+                data_source = "historical"
+            else:
+                win_rate = float(self.config.get('default_win_rate', 0.50))
+                pl_ratio = float(self.config.get('default_profit_loss_ratio', 1.5))
+                data_source = "default"
+                count = len(trades)
+
+            # 调用 PositionManager
+            position_mgr = PositionManager(config=PositionSizeConfig(
+                method='kelly',
+                kelly_fraction=float(self.config.get('kelly_fraction', 0.25)),
+                max_position_pct=float(self.config.get('max_position_pct', 0.10))
+            ))
+
+            shares = position_mgr.calculate_position_size(
+                symbol=symbol,
+                price=price,
+                total_equity=total_equity,
+                signal_strength=signal_strength,
+                market_data={'win_rate': win_rate, 'profit_loss_ratio': pl_ratio}
+            )
+
+            return {
+                "shares": shares,
+                "position_pct": round((shares * price) / total_equity, 4),
+                "position_value": round(shares * price, 2),
+                "method": "kelly",
+                "kelly_params": {
+                    "win_rate": round(win_rate, 3),
+                    "profit_loss_ratio": round(pl_ratio, 2),
+                    "data_source": data_source,
+                    "trade_count": count
+                }
+            }
+
+        except Exception as e:
+            # 降级处理
+            portfolio = self._get_portfolio_snapshot()
+            if portfolio.total_equity <= 0:
+                shares = 0
+            else:
+                shares = int(portfolio.total_equity * 0.05 / price / 100) * 100
+
+            return {
+                "shares": shares,
+                "position_pct": (shares * price) / portfolio.total_equity if portfolio.total_equity > 0 else 0.0,
+                "position_value": shares * price,
+                "method": "fallback",
+                "kelly_params": {
+                    "win_rate": 0.50,
+                    "profit_loss_ratio": 1.5,
+                    "data_source": "error",
+                    "trade_count": 0,
+                    "error": str(e)
+                }
+            }
