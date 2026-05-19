@@ -169,3 +169,51 @@ class RiskBridge:
         profit_loss_ratio = avg_win / avg_loss if avg_loss > 0 else 1.5
 
         return win_rate, profit_loss_ratio, len(closed_trades)
+
+    def _build_risk_config(self) -> 'RiskConfig':
+        """构建RiskConfig对象"""
+        if not QUANT_AVAILABLE:
+            return None
+
+        return RiskConfig(
+            max_position_pct=float(self.config.get('max_position_pct', 0.10)),
+            max_sector_pct=float(self.config.get('max_sector_pct', 0.30)),
+            max_drawdown=float(self.config.get('max_drawdown', 0.20)),
+            max_daily_trades=int(self.config.get('max_daily_trades', 10)),
+            blacklist=[],
+            allow_st_stocks=False,
+            min_liquidity=1000000
+        )
+
+    def _calculate_max_allowed_shares(self, symbol: str, price: float, portfolio: SimpleNamespace) -> int:
+        """计算最大允许买入股数（不超过仓位限制）"""
+        max_pct = float(self.config.get('max_position_pct', 0.10))
+        max_value = portfolio.total_equity * max_pct
+
+        # 减去已有持仓
+        if symbol in portfolio.positions:
+            existing_value = portfolio.positions[symbol].market_value
+            max_value -= existing_value
+
+        if max_value <= 0:
+            return 0
+
+        max_shares = int(max_value / price / 100) * 100  # 100股整数倍
+        return max(0, max_shares)
+
+    def _fetch_current_price(self, symbol: str) -> Optional[float]:
+        """从quant DB获取当前价格"""
+        try:
+            with sqlite3.connect(self.quant_db) as conn:
+                cursor = conn.execute("""
+                    SELECT close
+                    FROM daily_klines
+                    WHERE symbol = ?
+                    ORDER BY date DESC
+                    LIMIT 1
+                """, (symbol,))
+
+                row = cursor.fetchone()
+                return row[0] if row else None
+        except sqlite3.Error:
+            return None
