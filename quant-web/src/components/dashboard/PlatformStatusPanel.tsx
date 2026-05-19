@@ -8,11 +8,11 @@ import {
   SignalFilled,
   WarningOutlined,
 } from '@ant-design/icons';
+import type { PlatformCheckStatus } from '../../dashboard/dashboardTypes';
 
 const { Text } = Typography;
 
 type PlatformCheckName = 'database' | 'signals' | 'model' | 'daily_report';
-type PlatformCheckStatus = 'healthy' | 'degraded' | 'unavailable';
 
 interface PlatformStatusCheck {
   name: PlatformCheckName;

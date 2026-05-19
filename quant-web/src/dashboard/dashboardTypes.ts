@@ -66,3 +66,30 @@ export interface StockDataStatus {
     data_complete: boolean;
   }>;
 }
+
+export type PlatformCheckStatus = 'healthy' | 'degraded' | 'unavailable';
+
+export interface PlatformStatusCheck {
+  name: string;
+  status: PlatformCheckStatus;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export interface PlatformStatus {
+  overall_status: PlatformCheckStatus;
+  generated_at: string;
+  checks: PlatformStatusCheck[];
+}
+
+export interface HealthStatus {
+  status: string;
+  timestamp: string;
+  db_connected: boolean;
+  model_loaded: boolean;
+  db_info?: {
+    path: string;
+    size_mb: number;
+    size_display: string;
+  } | null;
+}
