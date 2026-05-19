@@ -74,11 +74,11 @@ export const getBuyRangeTool: ToolDefinition = {
   name: "get_buy_range",
   label: "计算买入区间",
   description:
-    "Calculate optimal buy price range from four support levels: MA20, MA60, 20-day low, Bollinger lower band. " +
-    "Returns safe_buy (lowest support), ideal_buy (avg of two lowest supports), stop_loss (safe_buy × 0.95), target_price (1:2 risk/reward), and a phased buying advice. " +
-    "Advice distinguishes three cases: current price already in buy zone / approaching support / needs to wait for pullback. " +
-    "Call after get_stock_price so you have current price context. " +
-    "Returns {error} if fewer than 20 trading days of history are available.",
+    "Calculate optimal buy price range with AUTOMATIC risk validation and Kelly position sizing. " +
+    "Returns safe_buy, ideal_buy, target_price, AND risk_check (pass/warning/reject), " +
+    "position_advice (Kelly-based shares), stop_loss (dynamic, not fixed 8%). " +
+    "If risk check fails, advice will include adjusted recommendations or rejection reason. " +
+    "Use after get_stock_price for context. This tool now replaces manual risk checking for buy recommendations.",
   parameters: Type.Object({
     symbol: Type.String({ description: "6-digit A-share code, e.g. '600519'" }),
     current_price: Type.Optional(Type.Number({ description: "Override current price in CNY (auto-fetched from history if omitted)" })),
