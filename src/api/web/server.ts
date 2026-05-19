@@ -50,6 +50,34 @@ app.get('/api/health', async (req, res) => {
     const dbPath = path.join(projectRoot, '.pi-invest/stock-db/stocks.db');
     const dbConnected = fs.existsSync(dbPath);
 
+    // 获取数据库文件信息
+    let dbInfo = null;
+    if (dbConnected) {
+      try {
+        const stats = fs.statSync(dbPath);
+        const sizeBytes = stats.size;
+        const sizeMb = sizeBytes / (1024 * 1024);
+
+        // 格式化大小显示
+        let sizeDisplay: string;
+        if (sizeMb < 1) {
+          sizeDisplay = `${(sizeBytes / 1024).toFixed(1)} KB`;
+        } else if (sizeMb < 1024) {
+          sizeDisplay = `${sizeMb.toFixed(1)} MB`;
+        } else {
+          sizeDisplay = `${(sizeMb / 1024).toFixed(1)} GB`;
+        }
+
+        dbInfo = {
+          path: dbPath,
+          size_mb: Math.round(sizeMb * 100) / 100,
+          size_display: sizeDisplay
+        };
+      } catch (error) {
+        console.error('Failed to get database file info:', error);
+      }
+    }
+
     // 检查模型文件是否存在
     let modelLoaded = false;
     const modelPath = path.join(__dirname, '../../../quant/quantsys/ml/models/xgboost_latest.pkl');
@@ -59,7 +87,8 @@ app.get('/api/health', async (req, res) => {
       status: 'ok',
       timestamp: new Date().toISOString(),
       db_connected: dbConnected,
-      model_loaded: modelLoaded
+      model_loaded: modelLoaded,
+      db_info: dbInfo
     });
   } catch (error) {
     console.error('Health check error:', error);
@@ -68,6 +97,7 @@ app.get('/api/health', async (req, res) => {
       timestamp: new Date().toISOString(),
       db_connected: false,
       model_loaded: false,
+      db_info: null,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }

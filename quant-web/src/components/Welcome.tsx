@@ -37,7 +37,8 @@ export default function Welcome() {
       setStatus({
         backend: data.status === 'ok',
         database: data.db_connected,
-        model: data.model_loaded
+        model: data.model_loaded,
+        db_info: data.db_info
       })
     } catch (error) {
       console.error('Failed to check status:', error)
@@ -75,7 +76,21 @@ export default function Welcome() {
                 title: '数据库连接',
                 status: status.database ? 'finish' : 'error',
                 icon: getStatusIcon(status.database),
-                description: status.database ? '✅ 已连接' : '❌ 未连接'
+                description: status.database && status.db_info
+                  ? (
+                    <div>
+                      <div>✅ 已连接</div>
+                      <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                        路径: {status.db_info.path}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>
+                        大小: {status.db_info.size_display}
+                      </div>
+                    </div>
+                  )
+                  : status.database
+                  ? '✅ 已连接'
+                  : '❌ 未连接'
               },
               {
                 title: 'ML模型',
