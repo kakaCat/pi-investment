@@ -5,6 +5,7 @@
 import sqlite3
 import sys
 import os
+from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 from types import SimpleNamespace
 
@@ -225,3 +226,72 @@ class RiskBridge:
         except sqlite3.Error as e:
             print(f"Warning: Failed to fetch price for {symbol}: {e}", file=sys.stderr)
             return None
+
+    def check_trade_risk(self, symbol: str, action: str, price: float, shares: int) -> Dict:
+        """预交易风控检查"""
+        if not QUANT_AVAILABLE:
+            return {
+                "passed": True,
+                "level": "warning",
+                "reason": "风控模块不可用，建议手动检查",
+                "violations": [{"rule": "import_error", "severity": "high", "message": "quant module not available"}],
+                "adjusted_shares": shares
+            }
+
+        try:
+            portfolio = self._get_portfolio_snapshot()
+
+            # 构造订单对象
+            order = SimpleNamespace(
+                symbol=symbol,
+                action=action,
+                price=price,
+                shares=shares,
+                date=datetime.now().strftime('%Y-%m-%d')
+            )
+
+            # 执行风控检查
+            risk_checker = PreTradeRiskCheck(config=self._build_risk_config())
+            passed, error_msg = risk_checker.check(order, portfolio, market_data=None)
+
+            # 分级响应
+            violations = []
+            level = "pass"
+            adjusted_shares = shares
+
+            if not passed:
+                # 判断严重程度
+                if any(kw in error_msg for kw in ['ST', '黑名单', '回撤']):
+                    level = "reject"
+                elif '仓位限制' in error_msg:
+                    level = "warning"
+                    adjusted_shares = self._calculate_max_allowed_shares(symbol, price, portfolio)
+                    violations.append({
+                        "rule": "position_limit",
+                        "message": error_msg,
+                        "severity": "medium"
+                    })
+                else:
+                    level = "warning"
+                    violations.append({
+                        "rule": "other",
+                        "message": error_msg,
+                        "severity": "medium"
+                    })
+
+            return {
+                "passed": passed,
+                "level": level,
+                "reason": error_msg if not passed else "通过所有风控检查",
+                "violations": violations,
+                "adjusted_shares": adjusted_shares
+            }
+
+        except Exception as e:
+            return {
+                "passed": True,
+                "level": "warning",
+                "reason": f"风控检查异常: {str(e)}",
+                "violations": [{"rule": "exception", "severity": "high", "message": str(e)}],
+                "adjusted_shares": shares
+            }
