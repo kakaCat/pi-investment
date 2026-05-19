@@ -66,17 +66,22 @@ interface PlatformStatusResponse {
 }
 
 interface SignalsResponse {
-  signals: DashboardSignal[];
-  count: number;
+  success?: boolean;
+  signals?: DashboardSignal[];
+  count?: number;
+  error?: string;
 }
 
 interface BacktestResultsResponse {
-  count: number;
-  summary: BacktestSummary[];
+  success?: boolean;
+  count?: number;
+  summary?: BacktestSummary[];
+  error?: string;
 }
 
 interface TrainingHistoryResponse {
-  history: TrainingRecord[];
+  success?: boolean;
+  history?: TrainingRecord[];
   error?: string;
 }
 
@@ -131,8 +136,8 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
       fetchJson<HealthStatus>('/api/health'),
       fetchPlatformStatus(),
       fetchJobs(),
-      fetchJson<SignalsResponse>('/api/signals?days=30'),
-      fetchJson<BacktestResultsResponse>('/api/backtest/results'),
+      fetchSignals(),
+      fetchBacktestResults(),
       fetchTrainingHistory(),
       fetchJson<StockDataStatus>('/api/stocks/data-status'),
     ]);
@@ -155,10 +160,10 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
       }
     });
     applySettledResult(requests[3], 'signals', nextErrors, (value) => {
-      setSignals(value.signals);
+      setSignals(value);
     });
     applySettledResult(requests[4], 'backtests', nextErrors, (value) => {
-      setBacktests(value.summary);
+      setBacktests(value);
     });
     applySettledResult(requests[5], 'trainingHistory', nextErrors, (value) => {
       setTrainingHistory(value);
@@ -335,6 +340,7 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
           </Title>
           <Text type="secondary">
             Last refreshed: {lastRefreshed ? formatDateTime(lastRefreshed) : 'Never'}
+            {dataQualityMetrics.latestDataDate ? ` · Data through ${formatDate(dataQualityMetrics.latestDataDate)}` : ''}
           </Text>
         </Space>
         <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void loadDashboard()}>
@@ -364,20 +370,20 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <MetricCard
-            title="Signals"
-            value={signalMetrics.total}
+            title="High Confidence"
+            value={signalMetrics.highConfidenceCount}
             tone="info"
             loading={loading && signals.length === 0}
-            helper={`${signalMetrics.buyCount} buy · ${signalMetrics.sellCount} sell`}
+            helper={`${signalMetrics.total} signals · >=80% confidence`}
           />
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <MetricCard
-            title="Backtests"
-            value={backtestMetrics.count}
-            tone={getReturnTone(backtestMetrics.averageReturn)}
-            loading={loading && backtests.length === 0}
-            helper={`Avg return ${formatPercent(backtestMetrics.averageReturn)}`}
+            title="Buy / Sell"
+            value={`${formatPercent(signalMetrics.buyRatio)} / ${formatPercent(signalMetrics.sellRatio)}`}
+            tone="info"
+            loading={loading && signals.length === 0}
+            helper={`${signalMetrics.buyCount} buy · ${signalMetrics.sellCount} sell`}
           />
         </Col>
         <Col xs={24} sm={12} xl={6}>
@@ -402,30 +408,30 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <MetricCard
+            title="Avg Sharpe"
+            value={formatNumber(backtestMetrics.averageSharpe)}
+            tone={getSharpeTone(backtestMetrics.averageSharpe)}
+            loading={loading && backtests.length === 0}
+            helper={`${backtestMetrics.count} backtests`}
+          />
+        </Col>
+        <Col xs={24} sm={12} xl={6}>
+          <MetricCard
+            title="Model AUC"
+            value={latestTraining ? formatNumber(latestTraining.test_auc) : '-'}
+            tone="info"
+            loading={loading && trainingHistory.length === 0}
+            helper={latestTraining ? `Trained ${formatDateTime(latestTraining.timestamp)}` : 'No training history'}
+          />
+        </Col>
+        <Col xs={24} sm={12} xl={6}>
+          <MetricCard
             title="Data Quality"
             value={formatPercent(dataQualityMetrics.completenessRate)}
             prefix={<DatabaseOutlined />}
             tone={(dataQualityMetrics.completenessRate ?? 0) >= 0.95 ? 'success' : 'warning'}
             loading={loading && !dataStatus}
             helper={`${dataQualityMetrics.completeStocks}/${dataQualityMetrics.totalStocks} complete`}
-          />
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <MetricCard
-            title="Model"
-            value={latestTraining ? formatNumber(latestTraining.test_auc) : '-'}
-            tone="info"
-            loading={loading && trainingHistory.length === 0}
-            helper={latestTraining ? `Test AUC · ${formatDateTime(latestTraining.timestamp)}` : 'No training history'}
-          />
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <MetricCard
-            title="Database"
-            value={health?.db_info?.size_display || '-'}
-            tone={health?.db_connected ? 'success' : 'danger'}
-            loading={loading && !health}
-            helper={health?.db_info?.path || 'Database metadata unavailable'}
           />
         </Col>
       </Row>
@@ -538,17 +544,73 @@ async function fetchPlatformStatus() {
 
 async function fetchJobs() {
   const response = await fetchJson<JobsResponse>('/api/jobs');
-  if (!response.success) {
-    throw new Error(response.error || response.warning || 'Jobs response was unsuccessful');
-  }
-  return response.jobs;
+  return normalizeJobsResponse(response);
+}
+
+async function fetchSignals() {
+  const response = await fetchJson<SignalsResponse>('/api/signals?days=30');
+  return normalizeSignalsResponse(response);
+}
+
+async function fetchBacktestResults() {
+  const response = await fetchJson<BacktestResultsResponse>('/api/backtest/results');
+  return normalizeBacktestResultsResponse(response);
 }
 
 async function fetchTrainingHistory() {
   const response = await fetchJson<TrainingHistoryResponse>('/api/training/history');
+  return normalizeTrainingHistoryResponse(response);
+}
+
+export function normalizeJobsResponse(response: JobsResponse): JobRecord[] {
+  if (!response.success) {
+    throw new Error(response.error || response.warning || 'Jobs response was unsuccessful');
+  }
+
+  if (!Array.isArray(response.jobs)) {
+    throw new Error('Jobs response did not include a valid jobs array');
+  }
+
+  return response.jobs;
+}
+
+export function normalizeSignalsResponse(response: SignalsResponse): DashboardSignal[] {
+  if (response.success === false) {
+    throw new Error(response.error || 'Signals response was unsuccessful');
+  }
+
+  if (!Array.isArray(response.signals)) {
+    throw new Error('Signals response did not include a valid signals array');
+  }
+
+  return response.signals;
+}
+
+export function normalizeBacktestResultsResponse(response: BacktestResultsResponse): BacktestSummary[] {
+  if (response.success === false) {
+    throw new Error(response.error || 'Backtest results response was unsuccessful');
+  }
+
+  if (!Array.isArray(response.summary)) {
+    throw new Error('Backtest results response did not include a valid summary array');
+  }
+
+  return response.summary;
+}
+
+export function normalizeTrainingHistoryResponse(response: TrainingHistoryResponse): TrainingRecord[] {
+  if (response.success === false) {
+    throw new Error(response.error || 'Training history response was unsuccessful');
+  }
+
   if (response.error) {
     throw new Error(response.error);
   }
+
+  if (!Array.isArray(response.history)) {
+    throw new Error('Training history response did not include a valid history array');
+  }
+
   return response.history;
 }
 
@@ -650,6 +712,13 @@ function getReturnTone(value?: number) {
   return value >= 0 ? 'success' : 'danger';
 }
 
+function getSharpeTone(value?: number) {
+  if (typeof value !== 'number') {
+    return 'default';
+  }
+  return value > 0 ? 'success' : 'warning';
+}
+
 function formatHealthValue(health?: HealthStatus) {
   if (!health) {
     return '-';
@@ -678,6 +747,14 @@ function formatDateTime(value: string) {
     return value;
   }
   return date.toLocaleString('zh-CN', { hour12: false });
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleDateString('zh-CN');
 }
 
 const headerStyle: CSSProperties = {
