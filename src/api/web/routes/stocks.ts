@@ -14,9 +14,9 @@ export const stocksRouter = Router();
 // Note: This must come before /:symbol to avoid route collision
 stocksRouter.get('/data-status', async (req, res, next) => {
   try {
-    // 使用标准数据库路径
-    const os = await import('os');
-    const dbPath = path.join(os.homedir(), '.pi-invest/stock-db/stocks.db');
+    // 使用项目目录下的数据库路径
+    const projectRoot = path.resolve(__dirname, '../../../../');
+    const dbPath = path.join(projectRoot, '.pi-invest/stock-db/stocks.db');
 
     if (!fs.existsSync(dbPath)) {
       res.json({
