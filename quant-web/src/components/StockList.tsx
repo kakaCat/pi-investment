@@ -67,7 +67,6 @@ const StockList: React.FC = () => {
   const fetchSearchResults = useCallback(async (query: string, page: number, pageSize: number) => {
     try {
       setLoading(true);
-      setIsSearching(true);
       const response = await fetch(
         `/api/stocks/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}`
       );
@@ -100,13 +99,22 @@ const StockList: React.FC = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
+
+    if (query.trim() === '') {
+      // 立即恢复全量列表，不需要防抖
+      setIsSearching(false);
+      fetchStockDataStatus(1, pagination.pageSize);
+      setPagination(prev => ({ ...prev, current: 1 }));
+      return;
+    }
+
+    // 显示搜索状态
+    setIsSearching(true);
+
+    // 只对非空搜索词进行防抖，延迟600ms减少卡顿感
     timeoutRef.current = setTimeout(() => {
-      if (query.trim() === '') {
-        fetchStockDataStatus(1, pagination.pageSize);
-      } else {
-        fetchSearchResults(query, 1, pagination.pageSize);
-      }
-    }, 300);
+      fetchSearchResults(query, 1, pagination.pageSize);
+    }, 600);
   }, [pagination.pageSize, fetchStockDataStatus, fetchSearchResults]);
 
   useEffect(() => {
