@@ -81,7 +81,9 @@
 3. **因子模块化** - 42个因子基于统一的Factor基类
 4. **策略可组合** - 支持多策略投票/AND/OR组合
 5. **风控前置** - 预交易风控7项检查
-6. **防腐层模式** - 所有对外层（CLI/API/Scheduler）都是防腐层，负责校验和转换
+6. **防腐层模式** - 多层防腐保护核心业务逻辑
+   - **对外防腐层**：CLI/API/Scheduler（保护系统不受外部调用方影响）
+   - **对下防腐层**：Adapters/Repositories（保护服务层不受底层实现影响）
 7. **通用方法原则** - 数据层提供通用查询方法，通过参数控制，避免为每个调用方写专用方法
 8. **按业务分类** - 每个文件夹内按业务类型（股票、市场、策略、风控）分文件，不按调用方分
 
@@ -104,13 +106,13 @@
 
 ```mermaid
 graph TB
-    subgraph "对外接口层（防腐层）"
-        CLI[CLI命令行]
-        API[HTTP API]
-        Scheduler[定时调度]
+    subgraph "对外防腐层（保护系统不受外部调用方影响）"
+        CLI[CLI命令行<br/>校验+转换]
+        API[HTTP API<br/>校验+转换]
+        Scheduler[定时调度<br/>校验+转换]
     end
     
-    subgraph "服务层（业务逻辑 + 编排）"
+    subgraph "服务层（核心业务逻辑 + 编排）"
         StockService[StockService]
         MarketService[MarketService]
         StrategyService[StrategyService]
@@ -118,17 +120,20 @@ graph TB
         QuantService[QuantService]
     end
     
-    subgraph "适配器层（三方接口封装）"
-        AkShare[AkShare适配器]
-        TuShare[TuShare适配器]
-        Wind[Wind适配器]
-    end
-    
-    subgraph "仓储层（数据访问）"
-        StockRepo[StockRepository]
-        KlineRepo[KlineRepository]
-        FactorRepo[FactorRepository]
-        SignalRepo[SignalRepository]
+    subgraph "对下防腐层（保护服务层不受底层实现影响）"
+        direction LR
+        subgraph "Adapters<br/>三方接口防腐"
+            AkShare[AkShare适配器<br/>校验+转换]
+            TuShare[TuShare适配器<br/>校验+转换]
+            Wind[Wind适配器<br/>校验+转换]
+        end
+        
+        subgraph "Repositories<br/>数据库防腐"
+            StockRepo[StockRepository<br/>校验+转换+SQL]
+            KlineRepo[KlineRepository<br/>校验+转换+SQL]
+            FactorRepo[FactorRepository<br/>校验+转换+SQL]
+            SignalRepo[SignalRepository<br/>校验+转换+SQL]
+        end
     end
     
     subgraph "量化引擎（独立领域能力）"
@@ -138,14 +143,15 @@ graph TB
         ML[机器学习]
     end
     
-    subgraph "存储层"
+    subgraph "外部系统"
+        ThirdParty[三方API<br/>AkShare/TuShare/Wind]
         PG[(PostgreSQL)]
         Cache[缓存]
     end
     
-    CLI -->|校验+转换| StockService
-    API -->|校验+转换| StockService
-    Scheduler -->|校验+转换| StockService
+    CLI --> StockService
+    API --> StockService
+    Scheduler --> StockService
     
     StockService --> StockRepo
     StockService --> AkShare
@@ -153,12 +159,206 @@ graph TB
     
     StockRepo --> PG
     StockRepo --> Cache
-    AkShare -->|校验+转换| PG
+    AkShare --> ThirdParty
     
     QuantService --> Factors
     QuantService --> Strategies
     QuantService --> Backtest
     QuantService --> ML
+    
+    style CLI fill:#e1f5ff
+    style API fill:#e1f5ff
+    style Scheduler fill:#e1f5ff
+    style AkShare fill:#ffe1e1
+    style TuShare fill:#ffe1e1
+    style Wind fill:#ffe1e1
+    style StockRepo fill:#ffe1e1
+    style KlineRepo fill:#ffe1e1
+    style FactorRepo fill:#ffe1e1
+    style SignalRepo fill:#ffe1e1
+```
+
+### 2.2 防腐层详解
+
+#### 2.2.1 对外防腐层（CLI/API/Scheduler）
+
+**职责**：保护系统不受外部调用方影响
+
+**功能**：
+- ✅ 参数校验（格式、类型、范围）
+- ✅ 数据转换（外部格式 → 内部格式）
+- ✅ 错误处理（友好的错误信息）
+- ✅ 日志记录（调用追踪）
+
+**示例**：
+```python
+# api/stock_routes.py - 对外防腐层
+
+@app.route('/api/stock/<symbol>/info', methods=['GET'])
+def get_stock_info(symbol: str):
+    """股票信息API - 对外防腐层"""
+    try:
+        # 1. 参数校验
+        if not symbol or len(symbol) != 6:
+            return jsonify({'error': 'Invalid symbol'}), 400
+        
+        # 2. 数据转换（API层 → 服务层）
+        normalized_symbol = symbol.strip().upper()
+        
+        # 3. 调用服务层
+        result = stock_service.get_stock_info(normalized_symbol)
+        
+        # 4. 数据转换（服务层 → API层）
+        response = {
+            'code': 0,
+            'data': result,
+            'message': 'success'
+        }
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        # 5. 错误处理
+        return jsonify({'error': str(e)}), 500
+```
+
+#### 2.2.2 对下防腐层（Adapters/Repositories）
+
+**职责**：保护服务层不受底层实现影响
+
+##### Adapters - 三方接口防腐层
+
+**功能**：
+- ✅ 封装三方API调用
+- ✅ 参数校验和转换
+- ✅ 响应数据标准化
+- ✅ 错误处理和重试
+- ✅ 当三方API变化时，只需修改Adapter，服务层不受影响
+
+**示例**：
+```python
+# adapters/akshare_adapter.py - 对下防腐层
+
+class AkShareAdapter:
+    """AkShare适配器 - 对下防腐层"""
+    
+    def get_stock_info(self, symbol: str) -> Dict:
+        """获取股票信息 - 封装AkShare API"""
+        try:
+            # 1. 参数校验
+            self._validate_symbol(symbol)
+            
+            # 2. 参数转换（内部格式 → AkShare格式）
+            akshare_symbol = self._to_akshare_symbol(symbol)
+            
+            # 3. 调用三方API
+            raw_data = akshare.stock_individual_info_em(akshare_symbol)
+            
+            # 4. 数据转换（AkShare格式 → 内部格式）
+            standardized_data = self._standardize_stock_info(raw_data)
+            
+            return standardized_data
+            
+        except Exception as e:
+            # 5. 错误处理
+            raise AdapterException(f"AkShare API failed: {e}")
+    
+    def _to_akshare_symbol(self, symbol: str) -> str:
+        """内部格式 → AkShare格式"""
+        # 600519 → sh600519
+        if symbol.startswith('6'):
+            return f'sh{symbol}'
+        else:
+            return f'sz{symbol}'
+    
+    def _standardize_stock_info(self, raw_data: Any) -> Dict:
+        """AkShare格式 → 内部标准格式"""
+        return {
+            'symbol': raw_data['代码'],
+            'name': raw_data['名称'],
+            'market': raw_data['市场'],
+            'industry': raw_data['行业']
+        }
+```
+
+##### Repositories - 数据库防腐层
+
+**功能**：
+- ✅ 封装数据库操作
+- ✅ 参数校验和SQL注入防护
+- ✅ 数据转换（数据库格式 ↔ 领域对象）
+- ✅ 提供通用查询方法
+- ✅ 当数据库结构变化时，只需修改Repository，服务层不受影响
+
+**示例**：
+```python
+# repositories/stock_repository.py - 对下防腐层
+
+class StockRepository:
+    """股票仓储 - 对下防腐层"""
+    
+    def get_by_symbol(self, symbol: str) -> Dict:
+        """根据代码查询股票 - 封装数据库操作"""
+        # 1. 参数校验
+        self._validate_symbol(symbol)
+        
+        # 2. SQL查询
+        row = self.db.query(
+            "SELECT * FROM stocks WHERE symbol = ?", 
+            symbol
+        )
+        
+        # 3. 数据转换（数据库行 → 领域对象）
+        if row:
+            return self._to_domain_object(row)
+        return None
+    
+    def save(self, stock: Dict) -> None:
+        """保存股票 - 封装数据库操作"""
+        # 1. 参数校验
+        self._validate_stock_data(stock)
+        
+        # 2. 数据转换（领域对象 → 数据库行）
+        db_row = self._to_db_row(stock)
+        
+        # 3. SQL执行
+        self.db.upsert('stocks', db_row)
+    
+    def _to_domain_object(self, row: Dict) -> Dict:
+        """数据库行 → 领域对象"""
+        return {
+            'symbol': row['symbol'],
+            'name': row['name'],
+            'market': row['market'],
+            'updated_at': row['updated_at'].isoformat()
+        }
+    
+    def _to_db_row(self, stock: Dict) -> Dict:
+        """领域对象 → 数据库行"""
+        return {
+            'symbol': stock['symbol'],
+            'name': stock['name'],
+            'market': stock['market'],
+            'updated_at': datetime.now()
+        }
+```
+
+#### 2.2.3 防腐层的价值
+
+**对外防腐层的价值**：
+- 🛡️ 外部调用方变化（CLI改为Web界面）不影响服务层
+- 🛡️ 外部数据格式变化不影响服务层
+- 🛡️ 统一的错误处理和日志
+
+**对下防腐层的价值**：
+- 🛡️ 三方API变化（AkShare → TuShare）只需修改Adapter
+- 🛡️ 数据库变化（PostgreSQL → MongoDB）只需修改Repository
+- 🛡️ 服务层代码保持稳定，不受底层技术栈影响
+
+**完整的防腐保护**：
+```
+外部调用方 → [对外防腐层] → 服务层 → [对下防腐层] → 外部系统
+   变化         隔离保护      稳定     隔离保护        变化
 ```
 
 ### 2.2 重构后的目录结构
@@ -232,16 +432,16 @@ quantsys/
 │   ├── quant_service.py          # 量化能力服务
 │   └── scheduler_service.py      # 调度编排服务
 │
-├── adapters/                      # 适配器层（三方接口封装）
+├── adapters/                      # 适配器层（对下防腐层 - 三方接口）
 │   ├── akshare_adapter.py        # AkShare适配器（校验 + 转换）
 │   ├── tushare_adapter.py        # TuShare适配器（校验 + 转换）
 │   └── wind_adapter.py           # Wind适配器（校验 + 转换）
 │
-├── repositories/                  # 仓储层（数据访问）
-│   ├── stock_repository.py       # 股票仓储（通用查询方法）
-│   ├── kline_repository.py       # K线仓储（通用查询方法）
-│   ├── factor_repository.py      # 因子仓储（通用查询方法）
-│   └── signal_repository.py      # 信号仓储（通用查询方法）
+├── repositories/                  # 仓储层（对下防腐层 - 数据库）
+│   ├── stock_repository.py       # 股票仓储（通用查询方法 + 校验 + 转换）
+│   ├── kline_repository.py       # K线仓储（通用查询方法 + 校验 + 转换）
+│   ├── factor_repository.py      # 因子仓储（通用查询方法 + 校验 + 转换）
+│   └── signal_repository.py      # 信号仓储（通用查询方法 + 校验 + 转换）
 │
 └── quant/                         # 量化引擎（独立领域能力）
     ├── factors/                  # 因子计算
@@ -2402,41 +2602,44 @@ class RiskCheckException(QuantSysException):
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  对外接口层（防腐层）                      │
+│            对外防腐层（保护系统不受外部影响）              │
 │  CLI │ API │ Scheduler                                   │
 │  (校验 + 转换)                                            │
 └────────────────────┬────────────────────────────────────┘
                      │
 ┌────────────────────▼────────────────────────────────────┐
 │                   服务层 (Service)                       │
-│  StockService │ MarketService │ StrategyService │ ...    │
-│  (业务逻辑 + 编排)                                        │
+│  核心业务逻辑 + 编排 - 稳定不变                          │
 └────────────────────┬────────────────────────────────────┘
                      │
         ┌────────────┼────────────┐
         ↓            ↓            ↓
 ┌──────────┐  ┌──────────┐  ┌──────────┐
-│ 适配器层  │  │ 仓储层    │  │ 量化引擎  │
 │ Adapters │  │Repository│  │  Quant   │
-│(校验+转换)│  │(通用方法) │  │ (独立)   │
+│(对下防腐) │  │(对下防腐) │  │ (独立)   │
+│ 三方接口  │  │  数据库   │  │          │
+│校验+转换  │  │校验+转换  │  │          │
 └────┬─────┘  └────┬─────┘  └──────────┘
      │             │
-     └──────┬──────┘
-            ↓
-┌─────────────────────────────────────────────────────────┐
-│                   存储层                                 │
-│  PostgreSQL │ Cache                                     │
-└─────────────────────────────────────────────────────────┘
+     ↓             ↓
+  三方API       PostgreSQL
+  (变化)         (变化)
 ```
 
 **核心原则**:
-- ✅ 清晰的分层架构
-- ✅ 防腐层模式（所有对外层）
+- ✅ 双层防腐保护（对外 + 对下）
+- ✅ 服务层稳定不变
 - ✅ 通用方法原则（仓储层）
 - ✅ 按业务分类（不按调用方）
 - ✅ 易于测试和维护
 - ✅ 易于扩展新功能
 - ✅ 减少90%重复代码
+
+**防腐层价值**:
+- 🛡️ 外部调用方变化 → 只改对外防腐层
+- 🛡️ 三方API变化 → 只改Adapters
+- 🛡️ 数据库变化 → 只改Repositories
+- 🛡️ 服务层代码保持稳定
 
 ### 7.4 Scheduler抽象层设计
 
