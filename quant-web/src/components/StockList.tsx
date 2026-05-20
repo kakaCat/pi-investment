@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Card, Table, Tag, Statistic, Row, Col, Spin, Alert, Input } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -40,7 +40,6 @@ const StockList: React.FC = () => {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout>();
 
   const fetchStockDataStatus = useCallback(async (page: number, pageSize: number) => {
     try {
@@ -95,45 +94,31 @@ const StockList: React.FC = () => {
     }
   }, []);
 
-  const debouncedSearch = useCallback((query: string) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
+  const handleSearch = useCallback((query: string) => {
     if (query.trim() === '') {
-      // 立即恢复全量列表，不需要防抖
-      setIsSearching(false);
+      // 清空搜索，恢复全量列表
       fetchStockDataStatus(1, pagination.pageSize);
       setPagination(prev => ({ ...prev, current: 1 }));
-      return;
-    }
-
-    // 显示搜索状态
-    setIsSearching(true);
-
-    // 只对非空搜索词进行防抖，延迟600ms减少卡顿感
-    timeoutRef.current = setTimeout(() => {
+    } else {
+      // 执行搜索
+      setIsSearching(true);
       fetchSearchResults(query, 1, pagination.pageSize);
-    }, 600);
+    }
   }, [pagination.pageSize, fetchStockDataStatus, fetchSearchResults]);
 
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch(searchQuery);
+    }
+  };
 
   useEffect(() => {
     fetchStockDataStatus(pagination.current, pagination.pageSize);
   }, [pagination.current, pagination.pageSize, fetchStockDataStatus]);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    debouncedSearch(query);
-  };
 
   const columns: ColumnsType<StockData> = [
     {
@@ -294,15 +279,16 @@ const StockList: React.FC = () => {
         title="股票数据详情"
         extra={
           <Input
-            placeholder="搜索股票代码或名称"
+            placeholder="搜索股票代码或名称（按回车搜索）"
             prefix={<SearchOutlined />}
-            style={{ width: 250 }}
+            style={{ width: 300 }}
             value={searchQuery}
             onChange={handleSearchChange}
+            onKeyPress={handleSearchKeyPress}
             allowClear
             onClear={() => {
               setSearchQuery('');
-              fetchStockDataStatus(1, pagination.pageSize);
+              handleSearch('');
             }}
             suffix={isSearching ? <Spin size="small" /> : null}
           />
