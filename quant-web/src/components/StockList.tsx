@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, Table, Tag, Statistic, Row, Col, Spin, Alert, Input } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -40,12 +40,9 @@ const StockList: React.FC = () => {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout>();
 
-  useEffect(() => {
-    fetchStockDataStatus(pagination.current, pagination.pageSize);
-  }, [pagination.current, pagination.pageSize]);
-
-  const fetchStockDataStatus = async (page: number, pageSize: number) => {
+  const fetchStockDataStatus = useCallback(async (page: number, pageSize: number) => {
     try {
       setLoading(true);
       const response = await fetch(`/api/stocks/data-status?page=${page}&pageSize=${pageSize}`);
@@ -65,9 +62,9 @@ const StockList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchSearchResults = async (query: string, page: number, pageSize: number) => {
+  const fetchSearchResults = useCallback(async (query: string, page: number, pageSize: number) => {
     try {
       setLoading(true);
       setIsSearching(true);
@@ -97,21 +94,32 @@ const StockList: React.FC = () => {
       setLoading(false);
       setIsSearching(false);
     }
-  };
+  }, []);
 
-  const debouncedSearch = useMemo(() => {
-    let timeoutId: NodeJS.Timeout;
-    return (query: string) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        if (query.trim() === '') {
-          fetchStockDataStatus(1, pagination.pageSize);
-        } else {
-          fetchSearchResults(query, 1, pagination.pageSize);
-        }
-      }, 300);
+  const debouncedSearch = useCallback((query: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      if (query.trim() === '') {
+        fetchStockDataStatus(1, pagination.pageSize);
+      } else {
+        fetchSearchResults(query, 1, pagination.pageSize);
+      }
+    }, 300);
+  }, [pagination.pageSize, fetchStockDataStatus, fetchSearchResults]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, [pagination.pageSize]);
+  }, []);
+
+  useEffect(() => {
+    fetchStockDataStatus(pagination.current, pagination.pageSize);
+  }, [pagination.current, pagination.pageSize, fetchStockDataStatus]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
