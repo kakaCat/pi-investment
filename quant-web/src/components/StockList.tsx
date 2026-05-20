@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Card, Table, Tag, Statistic, Row, Col, Spin, Alert, Input } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -26,7 +26,6 @@ const StockList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<StockDataStatus | null>(null);
-  const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState<{
     market: string[];
     dataComplete: (string | number | boolean)[];
@@ -34,27 +33,90 @@ const StockList: React.FC = () => {
     market: [],
     dataComplete: []
   });
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 20,
+    total: 0,
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
-    fetchStockDataStatus();
-  }, []);
+    fetchStockDataStatus(pagination.current, pagination.pageSize);
+  }, [pagination.current, pagination.pageSize]);
 
-  const fetchStockDataStatus = async () => {
+  const fetchStockDataStatus = async (page: number, pageSize: number) => {
     try {
       setLoading(true);
-      const response = await fetch('/api/stocks/data-status');
+      const response = await fetch(`/api/stocks/data-status?page=${page}&pageSize=${pageSize}`);
       const result = await response.json();
 
       if (result.error) {
         setError(result.error);
       } else {
         setData(result);
+        setPagination(prev => ({
+          ...prev,
+          total: result.pagination?.total || 0,
+        }));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取股票数据状态失败');
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchSearchResults = async (query: string, page: number, pageSize: number) => {
+    try {
+      setLoading(true);
+      setIsSearching(true);
+      const response = await fetch(
+        `/api/stocks/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}`
+      );
+      const result = await response.json();
+
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setData({
+          total_stocks: result.total,
+          complete_stocks: result.total,
+          incomplete_stocks: 0,
+          stocks: result.stocks
+        });
+        setPagination(prev => ({
+          ...prev,
+          total: result.total,
+          current: page
+        }));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '搜索失败');
+    } finally {
+      setLoading(false);
+      setIsSearching(false);
+    }
+  };
+
+  const debouncedSearch = useMemo(() => {
+    let timeoutId: NodeJS.Timeout;
+    return (query: string) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        if (query.trim() === '') {
+          fetchStockDataStatus(1, pagination.pageSize);
+        } else {
+          fetchSearchResults(query, 1, pagination.pageSize);
+        }
+      }, 300);
+    };
+  }, [pagination.pageSize]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    debouncedSearch(query);
   };
 
   const columns: ColumnsType<StockData> = [
@@ -65,10 +127,6 @@ const StockList: React.FC = () => {
       width: 120,
       fixed: 'left',
       render: (symbol: string) => <strong>{symbol}</strong>,
-      filteredValue: searchText ? [searchText] : null,
-      onFilter: (value, record) =>
-        record.symbol.toLowerCase().includes(value.toString().toLowerCase()) ||
-        record.name.toLowerCase().includes(value.toString().toLowerCase())
     },
     {
       title: '股票名称',
@@ -223,8 +281,14 @@ const StockList: React.FC = () => {
             placeholder="搜索股票代码或名称"
             prefix={<SearchOutlined />}
             style={{ width: 250 }}
-            onChange={(e) => setSearchText(e.target.value)}
+            value={searchQuery}
+            onChange={handleSearchChange}
             allowClear
+            onClear={() => {
+              setSearchQuery('');
+              fetchStockDataStatus(1, pagination.pageSize);
+            }}
+            suffix={isSearching ? <Spin size="small" /> : null}
           />
         }
       >
@@ -232,7 +296,20 @@ const StockList: React.FC = () => {
           columns={columns}
           dataSource={data.stocks}
           rowKey={(record) => record.symbol}
-          pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `共 ${total} 只股票` }}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 只股票`,
+            onChange: (page, pageSize) => {
+              setPagination(prev => ({
+                ...prev,
+                current: page,
+                pageSize: pageSize || prev.pageSize,
+              }));
+            },
+          }}
           scroll={{ x: 1200 }}
           onChange={(_, filters) => {
             setFilters({
