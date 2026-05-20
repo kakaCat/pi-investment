@@ -4,7 +4,7 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import * as fs from 'fs';
 import { requireOpsAuth } from '../middleware/ops-auth.js';
-import { PythonBackendClient } from '../../../lib/python-backend-client.js';
+import { PythonBackendClient } from '../../../services/python/python-backend-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

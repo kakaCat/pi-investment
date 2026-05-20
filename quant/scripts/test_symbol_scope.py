@@ -20,6 +20,19 @@ def test_factor_and_signal_scripts_parse_comma_separated_symbols():
     ]
 
 
+def test_factor_and_signal_scripts_accept_job_id_argument():
+    factor_parser = calculate_factors.build_arg_parser()
+    signal_parser = generate_signals.build_arg_parser()
+
+    factor_args = factor_parser.parse_args(["--job-id", "factor_compute_123", "--symbols", "000001"])
+    signal_args = signal_parser.parse_args(["--job-id", "signal_generate_123", "--symbols", "000001"])
+
+    assert factor_args.job_id == "factor_compute_123"
+    assert factor_args.symbols == "000001"
+    assert signal_args.job_id == "signal_generate_123"
+    assert signal_args.symbols == "000001"
+
+
 def test_ml_retrain_filters_training_frames_to_selected_symbols():
     import pandas as pd
 

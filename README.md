@@ -4,32 +4,32 @@
 
 ## 架构
 
-本项目采用 **Python 后端代理架构**，TypeScript API 层作为轻量级代理，将量化相关请求转发到 Python Flask 后端处理。
+本项目采用 **前后端分离架构**，前端通过 Vite 代理直接访问 Python Flask 后端。
 
 ```
 pi-investment/
-├── src/
-│   ├── core/
-│   │   └── agent/
-│   │       └── system-prompt.ts     # 投资顾问系统提示词
-│   ├── services/
-│   │   ├── intelligence/
-│   │   │   ├── system-prompt-builder.ts  # 8层提示词组装器
-│   │   │   └── bootstrap-loader.ts      # Bootstrap 文件加载器
-│   │   └── python/
-│   │       └── python-backend-client.ts  # Python 后端 HTTP 客户端
-│   ├── api/
-│   │   └── web/
-│   │       └── routes/              # TypeScript 代理路由层
-│   └── tools/
-│       ├── investment-tools.ts      # 投资工具注册
-│       └── akshare-bridge.ts        # TypeScript → Python 桥接
+├── quant-web/                       # React 前端应用
+│   ├── src/
+│   │   ├── components/             # UI 组件
+│   │   └── api/                    # API 客户端
+│   └── vite.config.ts              # Vite 配置（代理到 Python 后端）
 ├── quant/                           # Python 量化后端
 │   ├── api/
-│   │   ├── server.py               # Flask API 服务器
+│   │   ├── server.py               # Flask API 服务器（端口 5002）
 │   │   └── quant_api.py            # 量化 API 端点
 │   ├── quantsys/                   # 量化核心库
 │   └── scripts/                    # 数据处理脚本
+├── src/                             # TypeScript Agent 核心
+│   ├── core/
+│   │   └── agent/
+│   │       └── system-prompt.ts    # 投资顾问系统提示词
+│   ├── services/
+│   │   └── intelligence/
+│   │       ├── system-prompt-builder.ts  # 8层提示词组装器
+│   │       └── bootstrap-loader.ts      # Bootstrap 文件加载器
+│   └── tools/
+│       ├── investment-tools.ts     # 投资工具注册
+│       └── akshare-bridge.ts       # TypeScript → Python 桥接
 ├── python/
 │   └── akshare_bridge.py           # akshare 数据获取
 ├── skills/                          # 投资技能文件
@@ -45,8 +45,8 @@ pi-investment/
 
 ### 服务架构
 
-- **TypeScript API (端口 3000)**: 轻量级代理层，处理认证、路由转发
-- **Python Flask Backend (端口 5000)**: 量化计算引擎，处理回测、信号生成、模型训练等
+- **React Frontend (端口 3000)**: Vite 开发服务器，通过代理访问 Python 后端
+- **Python Flask Backend (端口 5002)**: 量化计算引擎，处理回测、信号生成、模型训练等，包含认证中间件
 
 ## 快速开始
 
@@ -92,22 +92,15 @@ export FEISHU_APP_SECRET=your-feishu-secret
 
 ```bash
 # 终端 1: 启动 Python 量化后端
-cd quant
-python3 api/server.py
+source .venv/bin/activate
+python quant/api/server.py
 
-# 终端 2: 启动 TypeScript API
+# 终端 2: 启动前端开发服务器
+cd quant-web
 npm run dev
 ```
 
-Python 后端将在 `http://localhost:5000` 启动，TypeScript API 在 `http://localhost:3000` 启动。
-
-**单服务启动（仅 TypeScript）**：
-
-```bash
-npm run dev
-```
-
-注意: 量化相关功能（回测、信号、训练）需要 Python 后端运行。
+Python 后端将在 `http://localhost:5002` 启动，前端开发服务器在 `http://localhost:3000` 启动并自动代理 API 请求到 Python 后端。
 
 **其他命令**：
 
@@ -120,17 +113,18 @@ npm test
 ### 故障排查
 
 **Python 后端连接失败**：
-- 确认 Python 后端已启动: `curl http://localhost:5000/health`
-- 检查环境变量 `PYTHON_BACKEND_URL` 是否正确
-- 查看 Python 后端日志: `cd quant && python3 api/server.py`
+- 确认 Python 后端已启动: `curl http://localhost:5002/api/health`
+- 检查 Vite 代理配置: `quant-web/vite.config.ts` 中的 `DEFAULT_API_TARGET`
+- 查看 Python 后端日志: `tail -f logs/python-backend.log`
 
 **端口冲突**：
-- Python 后端默认端口 5000，可在 `quant/api/server.py` 修改
-- TypeScript API 默认端口 3000，可在启动时指定: `PORT=3001 npm run dev`
+- Python 后端默认端口 5002，可在 `quant/api/server.py` 修改
+- 前端开发服务器默认端口 3000，可在 `quant-web/vite.config.ts` 修改
+- 注意: macOS AirPlay Receiver 占用 5000 端口
 
 **依赖问题**：
-- Python 依赖: `cd quant && pip install -r requirements.txt`
-- Node 依赖: `npm install`
+- Python 依赖: `pip install -r requirements.txt`
+- 前端依赖: `cd quant-web && npm install`
 
 ### 飞书 Bot
 

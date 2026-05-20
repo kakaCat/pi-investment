@@ -82,6 +82,39 @@ def analyze_feature_importance(model, model_path: str = None) -> pd.DataFrame:
 app = Flask(__name__)
 CORS(app)  # 允许跨域
 
+# ---- 认证中间件 ----
+def require_ops_auth():
+    """检查操作 API token"""
+    expected_token = os.environ.get('OPS_API_TOKEN')
+    if not expected_token:
+        return None  # 未配置 token，跳过认证
+
+    # 从 header 提取 token
+    token = request.headers.get('x-pi-ops-token')
+    if not token:
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+
+    if token == expected_token:
+        return None  # 认证通过
+
+    return jsonify({'success': False, 'error': 'Missing or invalid operations token'}), 401
+
+@app.before_request
+def check_auth():
+    """在每个请求前检查认证"""
+    # 健康检查端点不需要认证
+    if request.path == '/health':
+        return None
+
+    # 需要认证的端点
+    protected_paths = ['/api/backtest', '/api/training', '/api/signals', '/api/jobs', '/api/platform', '/api/scheduler', '/api/strategies']
+    if any(request.path.startswith(path) for path in protected_paths):
+        return require_ops_auth()
+
+    return None
+
 # ---- 异步任务追踪 ----
 _scripts_dir = Path(__file__).parent.parent / 'scripts'
 _jobs_dir = Path(__file__).parent.parent.parent / '.pi-invest' / 'jobs'
@@ -3164,4 +3197,4 @@ if __name__ == '__main__':
     print('   GET /api/scheduler/tasks')
     print('   POST /api/scheduler/tasks/<task_id>/trigger')
     print('   POST /api/scheduler/tasks/<task_id>/compensate')
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    app.run(host='0.0.0.0', port=5002, debug=False)

@@ -159,14 +159,21 @@ def save_factors(db: Database, symbol: str, date: str, factors: dict):
     db.replace_factor_values_for_dates(records)
 
 
-def main():
-    """主函数"""
+def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='因子计算脚本')
     parser.add_argument('--symbols', type=str, help='股票代码列表，逗号分隔；不传则计算全部A股')
-    args = parser.parse_args()
+    parser.add_argument('--job-id', type=str, help='后端异步任务ID，用于兼容API任务调度')
+    return parser
+
+
+def main():
+    """主函数"""
+    args = build_arg_parser().parse_args()
 
     logger.info("=" * 60)
     logger.info("因子计算任务开始")
+    if args.job_id:
+        logger.info(f"任务ID: {args.job_id}")
     logger.info(f"运行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 60)
 

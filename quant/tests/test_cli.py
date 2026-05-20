@@ -54,6 +54,11 @@ class QuantCliTests(unittest.TestCase):
         self.assertIn("trade.verify", command_names)
         self.assertIn("portfolio.correlation", command_names)
         self.assertIn("factor.decay", command_names)
+        self.assertIn("stock.quote", command_names)
+        self.assertIn("stock.info", command_names)
+        self.assertIn("stock.history", command_names)
+        self.assertIn("stock.news", command_names)
+        self.assertIn("stock.announcements", command_names)
 
     def test_tools_describe_returns_command_schema(self) -> None:
         exit_code, stdout, _stderr = self.run_cli(
@@ -251,6 +256,63 @@ class QuantCliTests(unittest.TestCase):
         self.assertEqual(payload["command"], "stock.klines")
         self.assertEqual(payload["data"]["symbol"], "600519")
         self.assertEqual(payload["data"]["limit"], 5)
+
+    def test_stock_query_commands_forward_to_quant_stock_query_helpers(self) -> None:
+        cases = [
+            (
+                ["stock", "+quote", "--symbol", "600519", "--json"],
+                "get_stock_quote",
+                {"symbol": "600519", "price": 100.5},
+                ("600519",),
+                {},
+                "stock.quote",
+            ),
+            (
+                ["stock", "+info", "--symbol", "600519", "--json"],
+                "get_stock_info",
+                {"symbol": "600519", "name": "贵州茅台"},
+                ("600519",),
+                {},
+                "stock.info",
+            ),
+            (
+                ["stock", "+history", "--symbol", "600519", "--limit", "30", "--json"],
+                "get_stock_history",
+                {"symbol": "600519", "count": 30, "data": []},
+                ("600519",),
+                {"period": "daily", "start_date": None, "end_date": None, "limit": 30},
+                "stock.history",
+            ),
+            (
+                ["stock", "+news", "--symbol", "600519", "--num", "5", "--json"],
+                "get_stock_news",
+                {"symbol": "600519", "count": 5, "data": []},
+                ("600519",),
+                {"num": 5},
+                "stock.news",
+            ),
+            (
+                ["stock", "+announcements", "--symbol", "600519", "--json"],
+                "get_stock_announcements",
+                {"symbol": "600519", "count": 1, "data": []},
+                ("600519",),
+                {},
+                "stock.announcements",
+            ),
+        ]
+
+        for argv, helper_name, helper_result, expected_args, expected_kwargs, command_name in cases:
+            with self.subTest(command_name=command_name):
+                with patch.object(cli_main, helper_name, return_value=helper_result, create=True) as helper:
+                    exit_code, stdout, _stderr = self.run_cli(argv)
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["command"], command_name)
+                self.assertEqual(payload["data"], helper_result)
+                helper.assert_called_once_with(*expected_args, **expected_kwargs)
 
     def test_signal_list_command_forwards_filters(self) -> None:
         calls = []
