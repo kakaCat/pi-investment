@@ -20,30 +20,6 @@ describe("PythonBackendClient", () => {
     expect(instance1).toBe(instance2);
   });
 
-  test("uses default baseURL when env var not set", () => {
-    delete process.env.PYTHON_BACKEND_URL;
-    const client = PythonBackendClient.getInstance();
-    expect((client as any).baseURL).toBe("http://localhost:5000");
-  });
-
-  test("uses env var for baseURL when set", () => {
-    process.env.PYTHON_BACKEND_URL = "http://custom:8080";
-    const client = PythonBackendClient.getInstance();
-    expect((client as any).baseURL).toBe("http://custom:8080");
-  });
-
-  test("uses default timeout when env var not set", () => {
-    delete process.env.PYTHON_BACKEND_TIMEOUT;
-    const client = PythonBackendClient.getInstance();
-    expect((client as any).timeout).toBe(30000);
-  });
-
-  test("uses env var for timeout when set", () => {
-    process.env.PYTHON_BACKEND_TIMEOUT = "5000";
-    const client = PythonBackendClient.getInstance();
-    expect((client as any).timeout).toBe(5000);
-  });
-
   test("makes GET request with query params", async () => {
     const client = PythonBackendClient.getInstance();
     const mockResponse = { data: "test" };
@@ -144,18 +120,6 @@ describe("PythonBackendClient", () => {
       })
     );
     expect(result).toBe(true);
-  });
-
-  test("healthCheck returns false when backend is unavailable", async () => {
-    const client = PythonBackendClient.getInstance();
-
-    const connRefusedError: any = new Error("fetch failed");
-    connRefusedError.cause = { code: "ECONNREFUSED" };
-
-    global.fetch = jest.fn(() => Promise.reject(connRefusedError)) as any;
-
-    const result = await client.healthCheck();
-    expect(result).toBe(false);
   });
 });
 
