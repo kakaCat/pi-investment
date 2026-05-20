@@ -2483,22 +2483,21 @@ def get_stocks_data_status():
 @app.route('/api/stocks/search', methods=['GET'])
 def search_stocks():
     """搜索股票（支持代码和名称模糊匹配）"""
+    # 获取搜索参数
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('pageSize', 20, type=int)
+
+    # 参数验证
+    if not query:
+        return jsonify({'error': '搜索关键词不能为空'}), 400
+
+    page_size = max(1, min(page_size, 100))
+    page = max(1, page)
+    offset = (page - 1) * page_size
+
+    conn = get_db()
     try:
-        # 获取搜索参数
-        query = request.args.get('q', '').strip()
-        page = request.args.get('page', 1, type=int)
-        page_size = request.args.get('pageSize', 20, type=int)
-
-        # 参数验证
-        if not query:
-            return jsonify({'error': '搜索关键词不能为空'}), 400
-
-        page_size = max(1, min(page_size, 100))
-        page = max(1, page)
-        offset = (page - 1) * page_size
-
-        conn = get_db()
-
         # 先获取总数
         if get_db_provider() == 'postgres':
             count_query = """
@@ -2600,6 +2599,8 @@ def search_stocks():
     except Exception as e:
         logger.error(f'搜索股票失败: {e}')
         return jsonify({'error': '搜索失败', 'message': str(e)}), 500
+    finally:
+        conn.close()
 
 
 def _lookup_local_stock(db: Database, symbol: str):
@@ -3389,16 +3390,20 @@ def _execute_kline_download(symbols: list, period: str, days: int, market: str =
                 # 存储到数据库
                 klines = []
                 for _, row in df.iterrows():
-                    klines.append({
-                        'symbol': symbol,
-                        'trade_date': row['date'],
-                        'open': row.get('open'),
-                        'high': row.get('high'),
-                        'low': row.get('low'),
-                        'close': row.get('close'),
-                        'volume': row.get('volume'),
-                        'amount': row.get('amount'),
-                    })
+                    try:
+                        klines.append({
+                            'symbol': symbol,
+                            'date': row['date'],  # 使用 'date' 而不是 'trade_date'
+                            'open': row.get('open'),
+                            'high': row.get('high'),
+                            'low': row.get('low'),
+                            'close': row.get('close'),
+                            'volume': row.get('volume', 0),
+                            'amount': row.get('amount', 0),
+                        })
+                    except KeyError as e:
+                        print(f"KeyError for {symbol}: {e}, available columns: {df.columns.tolist()}")
+                        raise
 
                 if klines:
                     db.upsert_daily_klines(klines)
@@ -3414,6 +3419,8 @@ def _execute_kline_download(symbols: list, period: str, days: int, market: str =
             failed += 1
             failures.append({'symbol': symbol, 'error': str(exc)})
             print(f"✗ {symbol}: {exc}")
+            import traceback
+            traceback.print_exc()
 
     db.close()
 
