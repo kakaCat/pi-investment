@@ -3,8 +3,14 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { callPython } from "../shared/python-caller.js";
 import { detectMarket } from "../shared/validators.js";
+import {
+  getAnnouncementsViaQuantCli,
+  getStockHistoryViaQuantCli,
+  getStockInfoViaQuantCli,
+  getStockNewsViaQuantCli,
+  getStockPriceViaQuantCli,
+} from "../../quant/stock-query-cli-adapter.js";
 
 // ===== get_stock_info =====
 export const getStockInfoTool: ToolDefinition = {
@@ -24,8 +30,7 @@ export const getStockInfoTool: ToolDefinition = {
     if (market === "invalid") {
       return { content: [{ type: "text" as const, text: JSON.stringify({ error: `不支持的股票代码 "${params.symbol}"。本系统支持A股（6位数字）和港股（1-5位数字或含.HK后缀）。`, invalid_format: true }) }], details: undefined };
     }
-    const func = market === "hk" ? "get_hk_stock_info" : "get_stock_info";
-    const result = await callPython(func, { symbol: params.symbol });
+    const result = await getStockInfoViaQuantCli(params.symbol);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -48,8 +53,7 @@ export const getStockPriceTool: ToolDefinition = {
     if (market === "invalid") {
       return { content: [{ type: "text" as const, text: JSON.stringify({ error: `不支持的股票代码 "${params.symbol}"。本系统支持A股（6位数字）和港股（1-5位数字或含.HK后缀）。`, invalid_format: true }) }], details: undefined };
     }
-    const func = market === "hk" ? "get_hk_stock_price" : "get_stock_realtime_price";
-    const result = await callPython(func, { symbol: params.symbol });
+    const result = await getStockPriceViaQuantCli(params.symbol);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -74,12 +78,12 @@ export const getStockHistoryTool: ToolDefinition = {
     if (market === "invalid") {
       return { content: [{ type: "text" as const, text: JSON.stringify({ error: `不支持的股票代码 "${params.symbol}"。本系统支持A股（6位数字）和港股（1-5位数字或含.HK后缀）。`, invalid_format: true }) }], details: undefined };
     }
-    const func = market === "hk" ? "get_hk_stock_history" : "get_stock_history";
-    const args: Record<string, unknown> = { symbol: params.symbol };
-    if (params.period) args.period = params.period;
-    if (params.start_date) args.start_date = params.start_date;
-    if (params.end_date) args.end_date = params.end_date;
-    const result = await callPython(func, args);
+    const result = await getStockHistoryViaQuantCli({
+      symbol: params.symbol,
+      period: params.period,
+      start_date: params.start_date,
+      end_date: params.end_date,
+    });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -99,9 +103,7 @@ export const getStockNewsTool: ToolDefinition = {
     num: Type.Optional(Type.Integer({ description: "Number of news items to return (default 10)" })),
   }),
   execute: async (_toolCallId, params: any) => {
-    const args: Record<string, unknown> = { symbol: params.symbol };
-    if (params.num !== undefined) args.num = params.num;
-    const result = await callPython("get_stock_news", args);
+    const result = await getStockNewsViaQuantCli(params.symbol, params.num);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -118,7 +120,7 @@ export const getAnnouncementsTool: ToolDefinition = {
     symbol: Type.String({ description: "6-digit A-share code" }),
   }),
   execute: async (_toolCallId, params: any) => {
-    const result = await callPython("get_announcements", { symbol: params.symbol });
+    const result = await getAnnouncementsViaQuantCli(params.symbol);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };

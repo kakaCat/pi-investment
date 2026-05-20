@@ -15,7 +15,7 @@ import logging
 import argparse
 import re
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Any, Tuple, Optional
 import pandas as pd
 
 # 添加项目路径
@@ -271,9 +271,10 @@ class SignalGenerator:
 
     # ========== 综合信号生成 ==========
 
-    def generate_signals(self, symbols: List[str], date: str) -> List[Dict]:
-        """为所有股票生成信号"""
+    def generate_signals(self, symbols: List[str], date: str) -> Tuple[List[Dict], Dict[str, Dict]]:
+        """为所有股票生成信号，返回信号列表和因子字典"""
         all_signals = []
+        all_factors_map = {}  # 存储每个股票的因子数据
 
         for symbol in symbols:
             # 获取因子和价格
@@ -282,6 +283,9 @@ class SignalGenerator:
 
             if not factors or not price:
                 continue
+
+            # 保存因子数据供后续使用
+            all_factors_map[symbol] = factors
 
             # 运行所有策略
             strategies = [
@@ -303,7 +307,7 @@ class SignalGenerator:
                     logger.warning(f"  ⚠️  {symbol} 策略 {strategy_func.__name__} 失败: {e}")
                     continue
 
-        return all_signals
+        return all_signals, all_factors_map
 
 
 def save_signals(signals: List[Dict], output_path: str):
@@ -330,6 +334,94 @@ def save_signals(signals: List[Dict], output_path: str):
         json.dump(output, f, ensure_ascii=False, indent=2)
 
     logger.info(f"✅ 信号已保存到: {output_path}")
+
+
+def extract_factors_from_signal(signal: Dict, all_factors: Dict) -> List[Dict[str, Any]]:
+    """从信号中提取因子信息，用于持久化到 signal_factors 表"""
+    symbol = signal['symbol']
+    date = signal['date']
+    strategy = signal['strategy']
+
+    factors_list = []
+
+    # 策略到因子的映射
+    strategy_factor_map = {
+        'RSI反转': ['RSI'],
+        '均线突破': ['MA5', 'MA20'],
+        'MACD': ['MACD', 'MACD_SIGNAL', 'MACD_HIST'],
+        '布林带': ['BOLL_UPPER', 'BOLL_MIDDLE', 'BOLL_LOWER'],
+        'KDJ': ['KDJ_K', 'KDJ_D', 'KDJ_J']
+    }
+
+    factor_names = strategy_factor_map.get(strategy, [])
+
+    for idx, factor_name in enumerate(factor_names):
+        factor_value = all_factors.get(factor_name)
+        if factor_value is not None:
+            factors_list.append({
+                'symbol': symbol,
+                'signal_date': date,
+                'strategy_name': strategy,
+                'factor_name': factor_name,
+                'factor_value': float(factor_value),
+                'factor_weight': None,  # 可以后续优化添加权重
+                'trigger_condition': None,  # 可以后续添加触发条件描述
+                'is_primary': (idx == 0)  # 第一个因子标记为主因子
+            })
+
+    return factors_list
+
+
+def persist_signals_to_database(db: Database, signals: List[Dict], signal_date: str, all_factors_map: Dict[str, Dict]):
+    """将信号和因子持久化到数据库"""
+    if not signals:
+        logger.info("没有信号需要持久化")
+        return
+
+    try:
+        # 准备信号数据
+        signal_rows = []
+        for signal in signals:
+            signal_rows.append({
+                'symbol': normalize_symbol(signal['symbol']),
+                'signal_date': signal['date'],
+                'signal_type': signal['signal'],
+                'strategy_name': signal['strategy'],
+                'confidence': float(signal.get('confidence', 0.0)),
+                'price': float(signal.get('price', 0.0)),
+                'reason': signal.get('reason', ''),
+                'metadata': json.dumps({
+                    'timestamp': signal.get('timestamp'),
+                    'generated_by': 'generate_signals.py'
+                })
+            })
+
+        # 准备因子数据
+        factor_rows = []
+        for signal in signals:
+            symbol = signal['symbol']
+            factors = all_factors_map.get(symbol, {})
+            if factors:
+                signal_factors = extract_factors_from_signal(signal, factors)
+                factor_rows.extend(signal_factors)
+
+        # 持久化到数据库
+        symbols = [normalize_symbol(s['symbol']) for s in signals]
+        count = db.replace_trading_signals_for_date(
+            signal_date=signal_date,
+            signals=signal_rows,
+            signal_factors=factor_rows,
+            symbols=symbols
+        )
+
+        logger.info(f"✅ 已将 {count} 条信号持久化到数据库")
+        logger.info(f"✅ 已将 {len(factor_rows)} 条因子详情持久化到数据库")
+
+    except Exception as e:
+        logger.error(f"❌ 数据库持久化失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        # 不抛出异常，允许继续保存到 JSON
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -369,7 +461,7 @@ def main():
     logger.info("")
 
     # 生成信号
-    signals = generator.generate_signals(symbols, latest_date)
+    signals, all_factors_map = generator.generate_signals(symbols, latest_date)
 
     logger.info("")
     logger.info("=" * 60)
@@ -379,7 +471,10 @@ def main():
     logger.info(f"卖出信号: {len([s for s in signals if s['signal'] == 'SELL'])}")
     logger.info("=" * 60)
 
-    # 保存信号
+    # 持久化到数据库（PostgreSQL）
+    persist_signals_to_database(db, signals, latest_date, all_factors_map)
+
+    # 保存信号到 JSON（向后兼容）
     output_dir = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         '.pi-invest'

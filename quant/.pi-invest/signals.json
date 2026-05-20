@@ -1,221 +1,31 @@
 {
-  "generated_at": "2026-05-19T21:05:56.175603",
-  "date": "2026-05-19",
+  "generated_at": "2026-05-20T12:21:43.078472",
+  "date": "2026-05-20",
   "summary": {
-    "total": 21,
-    "buy": 10,
-    "sell": 11
+    "total": 2,
+    "buy": 1,
+    "sell": 1
   },
   "signals": [
     {
-      "symbol": "000006",
-      "strategy": "均线突破",
-      "signal": "BUY",
-      "reason": "MA5(10.37) > MA20(9.81)",
-      "price": 11.14,
-      "confidence": 0.85,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.093957"
-    },
-    {
-      "symbol": "000007",
-      "strategy": "均线突破",
-      "signal": "SELL",
-      "reason": "MA5(12.73) < MA20(14.29)",
-      "price": 12.34,
-      "confidence": 0.85,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.094170"
-    },
-    {
-      "symbol": "000009",
-      "strategy": "均线突破",
-      "signal": "SELL",
-      "reason": "MA5(7.99) < MA20(8.60)",
-      "price": 7.85,
-      "confidence": 0.85,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.094547"
-    },
-    {
-      "symbol": "000010",
-      "strategy": "均线突破",
-      "signal": "SELL",
-      "reason": "MA5(2.66) < MA20(3.13)",
-      "price": 2.6,
-      "confidence": 0.85,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.094904"
-    },
-    {
-      "symbol": "000012",
-      "strategy": "均线突破",
-      "signal": "SELL",
-      "reason": "MA5(3.77) < MA20(4.12)",
-      "price": 3.74,
-      "confidence": 0.85,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.095509"
-    },
-    {
-      "symbol": "000014",
-      "strategy": "均线突破",
-      "signal": "SELL",
-      "reason": "MA5(12.25) < MA20(12.94)",
-      "price": 12.01,
-      "confidence": 0.85,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.095763"
-    },
-    {
-      "symbol": "000017",
-      "strategy": "均线突破",
-      "signal": "SELL",
-      "reason": "MA5(5.97) < MA20(6.32)",
-      "price": 5.91,
-      "confidence": 0.85,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.096338"
-    },
-    {
-      "symbol": "000019",
-      "strategy": "均线突破",
-      "signal": "SELL",
-      "reason": "MA5(7.11) < MA20(7.58)",
-      "price": 7.0,
-      "confidence": 0.85,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.096406"
-    },
-    {
-      "symbol": "000020",
-      "strategy": "均线突破",
-      "signal": "SELL",
-      "reason": "MA5(13.65) < MA20(15.06)",
-      "price": 13.47,
-      "confidence": 0.85,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.096527"
-    },
-    {
-      "symbol": "000021",
-      "strategy": "均线突破",
-      "signal": "BUY",
-      "reason": "MA5(35.46) > MA20(31.31)",
-      "price": 37.67,
-      "confidence": 0.85,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.096596"
-    },
-    {
-      "symbol": "000034",
-      "strategy": "均线突破",
-      "signal": "BUY",
-      "reason": "MA5(29.87) > MA20(28.06)",
-      "price": 30.96,
-      "confidence": 0.85,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.096967"
-    },
-    {
-      "symbol": "000002",
-      "strategy": "均线突破",
-      "signal": "SELL",
-      "reason": "MA5(3.81) < MA20(3.89)",
-      "price": 3.71,
-      "confidence": 0.6243628662321576,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.093425"
-    },
-    {
-      "symbol": "000021",
-      "strategy": "RSI反转",
-      "signal": "SELL",
-      "reason": "RSI超买 (83.97 > 70)",
-      "price": 37.67,
-      "confidence": 0.4486832045543048,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.096591"
-    },
-    {
-      "symbol": "000020",
+      "symbol": "000001",
       "strategy": "RSI反转",
       "signal": "BUY",
-      "reason": "RSI超卖 (16.57 < 30)",
-      "price": 13.47,
-      "confidence": 0.4222339541926748,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.096520"
+      "reason": "RSI超卖 (1.43 < 30)",
+      "price": 10.84,
+      "confidence": 0.85,
+      "date": "2026-05-20",
+      "timestamp": "2026-05-20T12:21:43.062476"
     },
     {
-      "symbol": "000012",
-      "strategy": "RSI反转",
-      "signal": "BUY",
-      "reason": "RSI超卖 (19.15 < 30)",
-      "price": 3.74,
-      "confidence": 0.30369006029846074,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.095502"
-    },
-    {
-      "symbol": "000014",
-      "strategy": "RSI反转",
-      "signal": "BUY",
-      "reason": "RSI超卖 (22.16 < 30)",
-      "price": 12.01,
-      "confidence": 0.19271996599311064,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.095758"
-    },
-    {
-      "symbol": "000010",
-      "strategy": "RSI反转",
-      "signal": "BUY",
-      "reason": "RSI超卖 (23.65 < 30)",
-      "price": 2.6,
-      "confidence": 0.15062215354052153,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.094899"
-    },
-    {
-      "symbol": "000017",
-      "strategy": "RSI反转",
-      "signal": "BUY",
-      "reason": "RSI超卖 (24.00 < 30)",
-      "price": 5.91,
-      "confidence": 0.14185106490048638,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.096329"
-    },
-    {
-      "symbol": "000006",
-      "strategy": "RSI反转",
+      "symbol": "000001",
+      "strategy": "均线突破",
       "signal": "SELL",
-      "reason": "RSI超买 (74.87 > 70)",
-      "price": 11.14,
-      "confidence": 0.11656375912973486,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.093946"
-    },
-    {
-      "symbol": "000009",
-      "strategy": "RSI反转",
-      "signal": "BUY",
-      "reason": "RSI超卖 (27.01 < 30)",
-      "price": 7.85,
-      "confidence": 0.08295611449267869,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.094540"
-    },
-    {
-      "symbol": "000019",
-      "strategy": "RSI反转",
-      "signal": "BUY",
-      "reason": "RSI超卖 (28.79 < 30)",
-      "price": 7.0,
-      "confidence": 0.0596602230191744,
-      "date": "2026-05-19",
-      "timestamp": "2026-05-19T21:05:56.096401"
+      "reason": "MA5(10.92) < MA20(11.16)",
+      "price": 10.84,
+      "confidence": 0.6529929140779377,
+      "date": "2026-05-20",
+      "timestamp": "2026-05-20T12:21:43.062492"
     }
   ]
 }

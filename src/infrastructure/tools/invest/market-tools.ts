@@ -3,7 +3,18 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { callPython } from "../shared/python-caller.js";
+import {
+  getConceptListViaQuantCli,
+  getConceptStocksViaQuantCli,
+  getHotStocksViaQuantCli,
+  getMacroDataViaQuantCli,
+  getMarketMarginViaQuantCli,
+  getMarketNewsViaQuantCli,
+  getMarketOverviewViaQuantCli,
+  getNorthFlowViaQuantCli,
+  getSectorFundFlowViaQuantCli,
+  getSectorListViaQuantCli,
+} from "../../quant/market-query-cli-adapter.js";
 
 // ===== get_market_overview =====
 export const getMarketOverviewTool: ToolDefinition = {
@@ -16,7 +27,7 @@ export const getMarketOverviewTool: ToolDefinition = {
     "Returns {error} if market data is unavailable (e.g. outside trading hours).",
   parameters: Type.Object({}),
   execute: async () => {
-    const result = await callPython("get_market_overview");
+    const result = await getMarketOverviewViaQuantCli();
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -31,7 +42,7 @@ export const getSectorListTool: ToolDefinition = {
     "Also useful for spotting which sectors are outperforming or underperforming the market today.",
   parameters: Type.Object({}),
   execute: async () => {
-    const result = await callPython("get_sector_list");
+    const result = await getSectorListViaQuantCli();
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -49,7 +60,7 @@ export const getConceptStocksTool: ToolDefinition = {
     concept: Type.String({ description: "Concept/theme name in Chinese, e.g. '人工智能', '芯片概念', '新能源汽车'. Must match the exact concept name." }),
   }),
   execute: async (_toolCallId, params: any) => {
-    const result = await callPython("get_concept_stocks", { concept: params.concept });
+    const result = await getConceptStocksViaQuantCli(params.concept);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -65,7 +76,7 @@ export const getConceptListTool: ToolDefinition = {
     "sorted by popularity. Use the returned names as input to get_concept_stocks.",
   parameters: Type.Object({}),
   execute: async (_toolCallId, _params: any) => {
-    const result = await callPython("get_concept_list", {});
+    const result = await getConceptListViaQuantCli();
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -86,9 +97,7 @@ export const getMacroDataTool: ToolDefinition = {
     })),
   }),
   execute: async (_toolCallId, params: any) => {
-    const args: Record<string, unknown> = {};
-    if (params.indicators?.length) args.indicators = params.indicators;
-    const result = await callPython("get_macro_data", args);
+    const result = await getMacroDataViaQuantCli(params.indicators);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -110,7 +119,7 @@ export const getNorthFlowTool: ToolDefinition = {
   ],
   parameters: Type.Object({}),
   execute: async () => {
-    const result = await callPython("get_north_flow");
+    const result = await getNorthFlowViaQuantCli();
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -125,7 +134,7 @@ export const getSectorFundFlowTool: ToolDefinition = {
     "Use before stock screening to identify which sectors have momentum.",
   parameters: Type.Object({}),
   execute: async () => {
-    const result = await callPython("get_sector_fund_flow");
+    const result = await getSectorFundFlowViaQuantCli();
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -140,7 +149,7 @@ export const getMarketMarginTool: ToolDefinition = {
     "Use alongside get_market_overview for macro risk assessment.",
   parameters: Type.Object({}),
   execute: async () => {
-    const result = await callPython("get_market_margin");
+    const result = await getMarketMarginViaQuantCli();
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -158,9 +167,7 @@ export const getMarketNewsTool: ToolDefinition = {
     num: Type.Optional(Type.Integer({ description: "Number of items per source (default 20)" })),
   }),
   execute: async (_toolCallId, params: any) => {
-    const args: Record<string, unknown> = {};
-    if (params?.num !== undefined) args.num = params.num;
-    const result = await callPython("get_market_news", args);
+    const result = await getMarketNewsViaQuantCli(params?.num);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -177,8 +184,7 @@ export const getHotStocksTool: ToolDefinition = {
     market: Type.Optional(Type.String({ description: "Market filter: 'A股' (default), '港股', '美股', '全部'" })),
   }),
   execute: async (_toolCallId, params: any) => {
-    const args: Record<string, unknown> = { market: params?.market ?? "A股" };
-    const result = await callPython("get_hot_stocks", args);
+    const result = await getHotStocksViaQuantCli(params?.market ?? "A股");
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };

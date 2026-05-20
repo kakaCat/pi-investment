@@ -1,7 +1,7 @@
 {
   "success": true,
   "model_type": "xgboost",
-  "timestamp": "2026-05-20T12:15:34.680615",
+  "timestamp": "2026-05-20T12:12:46.999518",
   "data": {
     "total_samples": 266666,
     "train_samples": 213332,
@@ -107,7 +107,7 @@
     0.0,
     0.015488016419112682
   ],
-  "model_path": "/Users/mac/Documents/ai/pi-investment/quant/.pi-invest/stock-db/../ml/models/xgboost_model_20260520_121534.pkl",
+  "model_path": "/Users/mac/Documents/ai/pi-investment/quant/.pi-invest/stock-db/../ml/models/xgboost_model_20260520_121246.pkl",
   "latest_model_path": "/Users/mac/Documents/ai/pi-investment/quant/.pi-invest/stock-db/../ml/models/xgboost_latest.pkl",
   "feature_names": [
     "action_encoded",
@@ -161,7 +161,7 @@
     "volume_x_momentum"
   ],
   "n_features": 49,
-  "start_time": "2026-05-20T12:14:14.509841",
-  "end_time": "2026-05-20T12:15:34.684004",
-  "duration_seconds": 80.174163
+  "start_time": "2026-05-20T12:11:48.210320",
+  "end_time": "2026-05-20T12:12:47.003817",
+  "duration_seconds": 58.793497
 }

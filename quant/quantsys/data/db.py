@@ -217,6 +217,46 @@ class Database:
                     PRIMARY KEY (symbol, factor_date, factor_name)
                 );
 
+                CREATE TABLE IF NOT EXISTS quant.trading_signals (
+                    id BIGSERIAL PRIMARY KEY,
+                    symbol TEXT NOT NULL REFERENCES quant.stocks(symbol) ON DELETE CASCADE,
+                    signal_date DATE NOT NULL,
+                    signal_type TEXT NOT NULL CHECK (signal_type IN ('BUY', 'SELL', 'HOLD')),
+                    strategy_name TEXT NOT NULL,
+                    confidence DOUBLE PRECISION NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
+                    price DOUBLE PRECISION NOT NULL,
+                    reason TEXT,
+                    metadata JSONB,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    UNIQUE (symbol, signal_date, strategy_name)
+                );
+
+                CREATE TABLE IF NOT EXISTS quant.signal_factors (
+                    id BIGSERIAL PRIMARY KEY,
+                    signal_id BIGINT NOT NULL REFERENCES quant.trading_signals(id) ON DELETE CASCADE,
+                    factor_name TEXT NOT NULL,
+                    factor_value DOUBLE PRECISION NOT NULL,
+                    factor_weight DOUBLE PRECISION,
+                    trigger_condition TEXT,
+                    is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                );
+
+                CREATE TABLE IF NOT EXISTS quant.signal_executions (
+                    id BIGSERIAL PRIMARY KEY,
+                    signal_id BIGINT NOT NULL REFERENCES quant.trading_signals(id) ON DELETE CASCADE,
+                    execution_date DATE NOT NULL,
+                    execution_price DOUBLE PRECISION NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    commission DOUBLE PRECISION,
+                    status TEXT NOT NULL CHECK (status IN ('pending', 'executed', 'cancelled', 'expired')),
+                    pnl DOUBLE PRECISION,
+                    close_date DATE,
+                    close_price DOUBLE PRECISION,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_quant_stocks_market ON quant.stocks(market);
                 CREATE INDEX IF NOT EXISTS idx_quant_stocks_updated_at ON quant.stocks(updated_at);
                 CREATE INDEX IF NOT EXISTS idx_quant_daily_klines_symbol_date_desc
@@ -225,6 +265,22 @@ class Database:
                     ON quant.factor_values(symbol, factor_date);
                 CREATE INDEX IF NOT EXISTS idx_quant_factor_values_factor_date
                     ON quant.factor_values(factor_date);
+                CREATE INDEX IF NOT EXISTS idx_quant_trading_signals_symbol_date_desc
+                    ON quant.trading_signals(symbol, signal_date DESC);
+                CREATE INDEX IF NOT EXISTS idx_quant_trading_signals_signal_date_desc
+                    ON quant.trading_signals(signal_date DESC);
+                CREATE INDEX IF NOT EXISTS idx_quant_trading_signals_strategy_name
+                    ON quant.trading_signals(strategy_name);
+                CREATE INDEX IF NOT EXISTS idx_quant_trading_signals_signal_type
+                    ON quant.trading_signals(signal_type);
+                CREATE INDEX IF NOT EXISTS idx_quant_signal_factors_signal_id
+                    ON quant.signal_factors(signal_id);
+                CREATE INDEX IF NOT EXISTS idx_quant_signal_factors_factor_name
+                    ON quant.signal_factors(factor_name);
+                CREATE INDEX IF NOT EXISTS idx_quant_signal_executions_signal_id
+                    ON quant.signal_executions(signal_id);
+                CREATE INDEX IF NOT EXISTS idx_quant_signal_executions_execution_date_desc
+                    ON quant.signal_executions(execution_date DESC);
                 """
             )
             connection.commit()
@@ -926,6 +982,286 @@ class Database:
             return str(row[0]) if row and row[0] is not None else None
         except Exception as exc:
             raise RuntimeError(f"Failed to get latest factor date for {symbol}: {exc}") from exc
+
+    def replace_trading_signals_for_date(
+        self,
+        signal_date: str,
+        signals: List[Dict[str, Any]],
+        signal_factors: List[Dict[str, Any]],
+        symbols: Optional[List[str]] = None,
+    ) -> int:
+        """Replace trading signals and their factor details for one date, optionally scoped to symbols."""
+        if self.provider != "postgres":
+            raise RuntimeError("Trading signal persistence requires PostgreSQL")
+
+        normalized_date = str(signal_date)
+        normalized_symbols = sorted({normalize_symbol(symbol) for symbol in (symbols or []) if symbol})
+        signal_rows = [dict(signal) for signal in signals]
+        factor_rows = [dict(factor) for factor in signal_factors]
+        signal_by_key = {
+            (
+                normalize_symbol(str(signal["symbol"])),
+                str(signal["signal_date"]),
+                str(signal["strategy_name"]),
+            ): signal
+            for signal in signal_rows
+        }
+
+        connection = self._get_connection()
+        cursor = connection.cursor()
+        try:
+            if normalized_symbols:
+                cursor.execute(
+                    """
+                    DELETE FROM quant.trading_signals
+                    WHERE signal_date = %s AND symbol = ANY(%s)
+                    """,
+                    (normalized_date, normalized_symbols),
+                )
+            else:
+                cursor.execute(
+                    "DELETE FROM quant.trading_signals WHERE signal_date = %s",
+                    (normalized_date,),
+                )
+
+            if signal_rows:
+                cursor.executemany(
+                    """
+                    INSERT INTO quant.trading_signals (
+                        symbol,
+                        signal_date,
+                        signal_type,
+                        strategy_name,
+                        confidence,
+                        price,
+                        reason,
+                        metadata
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT(symbol, signal_date, strategy_name) DO UPDATE SET
+                        signal_type = excluded.signal_type,
+                        confidence = excluded.confidence,
+                        price = excluded.price,
+                        reason = excluded.reason,
+                        metadata = excluded.metadata
+                    """,
+                    [
+                        (
+                            normalize_symbol(str(signal["symbol"])),
+                            str(signal["signal_date"]),
+                            str(signal["signal_type"]),
+                            str(signal["strategy_name"]),
+                            signal.get("confidence"),
+                            signal.get("price"),
+                            signal.get("reason"),
+                            signal.get("metadata"),
+                        )
+                        for signal in signal_rows
+                    ],
+                )
+
+            inserted_ids: Dict[tuple[str, str, str], int] = {}
+            if signal_rows:
+                if normalized_symbols:
+                    cursor.execute(
+                        """
+                        SELECT id, symbol, signal_date::text, strategy_name
+                        FROM quant.trading_signals
+                        WHERE signal_date = %s AND symbol = ANY(%s)
+                        """,
+                        (normalized_date, normalized_symbols),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT id, symbol, signal_date::text, strategy_name
+                        FROM quant.trading_signals
+                        WHERE signal_date = %s
+                        """,
+                        (normalized_date,),
+                    )
+                for row in cursor.fetchall():
+                    key = (normalize_symbol(str(row[1])), str(row[2]), str(row[3]))
+                    if key in signal_by_key:
+                        inserted_ids[key] = int(row[0])
+
+            factor_payload = []
+            for factor in factor_rows:
+                key = (
+                    normalize_symbol(str(factor["symbol"])),
+                    str(factor["signal_date"]),
+                    str(factor["strategy_name"]),
+                )
+                signal_id = inserted_ids.get(key)
+                if signal_id is None:
+                    continue
+                factor_payload.append(
+                    (
+                        signal_id,
+                        str(factor["factor_name"]),
+                        factor.get("factor_value"),
+                        factor.get("factor_weight"),
+                        factor.get("trigger_condition"),
+                        bool(factor.get("is_primary", False)),
+                    )
+                )
+
+            if factor_payload:
+                cursor.executemany(
+                    """
+                    INSERT INTO quant.signal_factors (
+                        signal_id,
+                        factor_name,
+                        factor_value,
+                        factor_weight,
+                        trigger_condition,
+                        is_primary
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    factor_payload,
+                )
+
+            connection.commit()
+            return len(signal_rows)
+        except Exception as exc:
+            connection.rollback()
+            raise RuntimeError(f"Failed to replace trading signals for {signal_date}: {exc}") from exc
+        finally:
+            cursor.close()
+
+    def get_trading_signals(
+        self,
+        date: Optional[str] = None,
+        signal_type: Optional[str] = None,
+        min_confidence: float = 0.0,
+        strategy_name: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Return trading signals joined with stock names and ordered by confidence/date."""
+        if self.provider != "postgres":
+            raise RuntimeError("Trading signal queries require PostgreSQL")
+
+        connection = self._get_connection()
+        clauses = []
+        params: List[Any] = []
+
+        if date:
+            clauses.append("ts.signal_date = %s")
+            params.append(date)
+        if signal_type:
+            clauses.append("ts.signal_type = %s")
+            params.append(str(signal_type).upper())
+        clauses.append("ts.confidence >= %s")
+        params.append(float(min_confidence))
+        if strategy_name:
+            clauses.append("ts.strategy_name = %s")
+            params.append(strategy_name)
+
+        where_clause = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        limit_clause = ""
+        if limit is not None:
+            limit_clause = " LIMIT %s"
+            params.append(int(limit))
+
+        cursor = connection.cursor()
+        try:
+            cursor.execute(
+                f"""
+                SELECT
+                    ts.id,
+                    ts.symbol,
+                    COALESCE(st.name, '') AS name,
+                    ts.signal_date::text,
+                    ts.signal_type,
+                    ts.strategy_name,
+                    ts.confidence,
+                    ts.price,
+                    ts.reason,
+                    ts.metadata,
+                    ts.created_at::text
+                FROM quant.trading_signals ts
+                LEFT JOIN quant.stocks st ON st.symbol = ts.symbol
+                {where_clause}
+                ORDER BY ts.signal_date DESC, ts.confidence DESC, ts.symbol ASC, ts.strategy_name ASC
+                {limit_clause}
+                """,
+                tuple(params),
+            )
+            rows = cursor.fetchall()
+            return [
+                {
+                    "id": int(row[0]),
+                    "symbol": str(row[1]),
+                    "name": str(row[2] or ""),
+                    "date": str(row[3]),
+                    "signal": str(row[4]),
+                    "strategy": str(row[5]),
+                    "strategy_name": str(row[5]),
+                    "confidence": float(row[6]) if row[6] is not None else 0.0,
+                    "price": float(row[7]) if row[7] is not None else 0.0,
+                    "reason": row[8],
+                    "metadata": row[9],
+                    "timestamp": row[10],
+                }
+                for row in rows
+            ]
+        except Exception as exc:
+            raise RuntimeError(f"Failed to fetch trading signals: {exc}") from exc
+        finally:
+            cursor.close()
+
+    def get_signal_history(self, days: int = 30) -> List[Dict[str, Any]]:
+        """Return recent trading signals for dashboard/history use."""
+        if self.provider != "postgres":
+            raise RuntimeError("Trading signal queries require PostgreSQL")
+
+        connection = self._get_connection()
+        cursor = connection.cursor()
+        try:
+            cursor.execute(
+                """
+                SELECT
+                    ts.id,
+                    ts.symbol,
+                    COALESCE(st.name, '') AS name,
+                    ts.signal_date::text,
+                    ts.signal_type,
+                    ts.strategy_name,
+                    ts.confidence,
+                    ts.price,
+                    ts.reason,
+                    ts.metadata,
+                    ts.created_at::text
+                FROM quant.trading_signals ts
+                LEFT JOIN quant.stocks st ON st.symbol = ts.symbol
+                WHERE ts.signal_date >= (
+                    COALESCE((SELECT MAX(signal_date) FROM quant.trading_signals), CURRENT_DATE) - (%s::int - 1) * INTERVAL '1 day'
+                )
+                ORDER BY ts.signal_date DESC, ts.confidence DESC, ts.symbol ASC, ts.strategy_name ASC
+                """,
+                (max(int(days), 1),),
+            )
+            rows = cursor.fetchall()
+            return [
+                {
+                    "id": int(row[0]),
+                    "symbol": str(row[1]),
+                    "name": str(row[2] or ""),
+                    "date": str(row[3]),
+                    "signal": str(row[4]),
+                    "strategy": str(row[5]),
+                    "strategy_name": str(row[5]),
+                    "confidence": float(row[6]) if row[6] is not None else 0.0,
+                    "price": float(row[7]) if row[7] is not None else 0.0,
+                    "reason": row[8],
+                    "metadata": row[9],
+                    "timestamp": row[10],
+                }
+                for row in rows
+            ]
+        except Exception as exc:
+            raise RuntimeError(f"Failed to fetch signal history: {exc}") from exc
+        finally:
+            cursor.close()
 
     def get_trading_dates(self, days: int) -> List[str]:
         """Return recent distinct trading dates in ascending order."""

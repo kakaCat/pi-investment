@@ -59,6 +59,25 @@ class QuantCliTests(unittest.TestCase):
         self.assertIn("stock.history", command_names)
         self.assertIn("stock.news", command_names)
         self.assertIn("stock.announcements", command_names)
+        self.assertIn("market.overview", command_names)
+        self.assertIn("market.sectors", command_names)
+        self.assertIn("market.concept_stocks", command_names)
+        self.assertIn("market.concepts", command_names)
+        self.assertIn("market.macro", command_names)
+        self.assertIn("market.north_flow", command_names)
+        self.assertIn("market.sector_flow", command_names)
+        self.assertIn("market.margin", command_names)
+        self.assertIn("market.news", command_names)
+        self.assertIn("market.hot_stocks", command_names)
+        self.assertIn("analysis.technical", command_names)
+        self.assertIn("analysis.price_action", command_names)
+        self.assertIn("analysis.candlestick", command_names)
+        self.assertIn("analysis.buy_range", command_names)
+        self.assertIn("analysis.valuation", command_names)
+        self.assertIn("analysis.pe_percentile", command_names)
+        self.assertIn("analysis.quality", command_names)
+        self.assertIn("analysis.exit_plan", command_names)
+        self.assertIn("analysis.peers", command_names)
 
     def test_tools_describe_returns_command_schema(self) -> None:
         exit_code, stdout, _stderr = self.run_cli(
@@ -131,6 +150,33 @@ class QuantCliTests(unittest.TestCase):
             "trade.verify": ("trades_json", "quant trade +verify"),
             "portfolio.correlation": ("prices_json", "quant portfolio +correlation"),
             "factor.decay": ("factor", "quant factor +decay"),
+        }
+
+        for command_name, (param_name, example_text) in expected.items():
+            with self.subTest(command_name=command_name):
+                exit_code, stdout, _stderr = self.run_cli(
+                    ["tools", "+describe", command_name, "--json"]
+                )
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["data"]["name"], command_name)
+                self.assertIn(param_name, payload["data"]["params"])
+                self.assertIn(example_text, payload["data"]["examples"][0])
+
+    def test_tools_describe_returns_analysis_command_schemas(self) -> None:
+        expected = {
+            "analysis.technical": ("symbol", "quant analysis +technical"),
+            "analysis.price_action": ("period", "quant analysis +price-action"),
+            "analysis.candlestick": ("symbol", "quant analysis +candlestick"),
+            "analysis.buy_range": ("current_price", "quant analysis +buy-range"),
+            "analysis.valuation": ("symbol", "quant analysis +valuation"),
+            "analysis.pe_percentile": ("years", "quant analysis +pe-percentile"),
+            "analysis.quality": ("symbol", "quant analysis +quality"),
+            "analysis.exit_plan": ("buy_price", "quant analysis +exit-plan"),
+            "analysis.peers": ("symbol", "quant analysis +peers"),
         }
 
         for command_name, (param_name, example_text) in expected.items():
@@ -298,6 +344,192 @@ class QuantCliTests(unittest.TestCase):
                 ("600519",),
                 {},
                 "stock.announcements",
+            ),
+        ]
+
+        for argv, helper_name, helper_result, expected_args, expected_kwargs, command_name in cases:
+            with self.subTest(command_name=command_name):
+                with patch.object(cli_main, helper_name, return_value=helper_result, create=True) as helper:
+                    exit_code, stdout, _stderr = self.run_cli(argv)
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["command"], command_name)
+                self.assertEqual(payload["data"], helper_result)
+                helper.assert_called_once_with(*expected_args, **expected_kwargs)
+
+    def test_market_commands_forward_to_quant_market_helpers(self) -> None:
+        cases = [
+            (
+                ["market", "+overview", "--json"],
+                "get_market_overview",
+                {"indices": {"上证指数": {"price": 3000}}},
+                (),
+                {},
+                "market.overview",
+            ),
+            (
+                ["market", "+sectors", "--json"],
+                "get_sector_list",
+                {"count": 1, "data": [{"name": "银行"}]},
+                (),
+                {},
+                "market.sectors",
+            ),
+            (
+                ["market", "+concept-stocks", "--concept", "人工智能", "--json"],
+                "get_concept_stocks",
+                {"concept": "人工智能", "count": 1, "data": []},
+                ("人工智能",),
+                {},
+                "market.concept_stocks",
+            ),
+            (
+                ["market", "+concepts", "--json"],
+                "get_concept_list",
+                {"count": 1, "data": [{"name": "人工智能"}]},
+                (),
+                {},
+                "market.concepts",
+            ),
+            (
+                ["market", "+macro", "--indicators", "pmi,cpi", "--json"],
+                "get_macro_data",
+                {"pmi": [], "cpi": []},
+                (),
+                {"indicators": ["pmi", "cpi"]},
+                "market.macro",
+            ),
+            (
+                ["market", "+north-flow", "--json"],
+                "get_north_flow",
+                {"data": []},
+                (),
+                {},
+                "market.north_flow",
+            ),
+            (
+                ["market", "+sector-flow", "--json"],
+                "get_sector_fund_flow",
+                {"count": 1, "data": []},
+                (),
+                {},
+                "market.sector_flow",
+            ),
+            (
+                ["market", "+margin", "--json"],
+                "get_market_margin",
+                {"count": 1, "data": []},
+                (),
+                {},
+                "market.margin",
+            ),
+            (
+                ["market", "+news", "--num", "9", "--json"],
+                "get_market_news",
+                {"sources": ["eastmoney"]},
+                (),
+                {"num": 9},
+                "market.news",
+            ),
+            (
+                ["market", "+hot-stocks", "--market", "港股", "--json"],
+                "get_hot_stocks",
+                {"market": "港股", "count": 1, "data": []},
+                (),
+                {"market": "港股"},
+                "market.hot_stocks",
+            ),
+        ]
+
+        for argv, helper_name, helper_result, expected_args, expected_kwargs, command_name in cases:
+            with self.subTest(command_name=command_name):
+                with patch.object(cli_main, helper_name, return_value=helper_result, create=True) as helper:
+                    exit_code, stdout, _stderr = self.run_cli(argv)
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["command"], command_name)
+                self.assertEqual(payload["data"], helper_result)
+                helper.assert_called_once_with(*expected_args, **expected_kwargs)
+
+    def test_analysis_commands_forward_to_quant_analysis_helpers(self) -> None:
+        cases = [
+            (
+                ["analysis", "+technical", "--symbol", "600519", "--json"],
+                "calculate_technical_indicators",
+                {"symbol": "600519", "signals": ["MACD金叉"]},
+                ("600519",),
+                {},
+                "analysis.technical",
+            ),
+            (
+                ["analysis", "+price-action", "--symbol", "600519", "--period", "80", "--json"],
+                "analyze_price_action",
+                {"symbol": "600519", "trend": {"direction": "上升"}},
+                ("600519",),
+                {"period": 80},
+                "analysis.price_action",
+            ),
+            (
+                ["analysis", "+candlestick", "--symbol", "600519", "--json"],
+                "analyze_candlestick",
+                {"symbol": "600519", "patterns": []},
+                ("600519",),
+                {},
+                "analysis.candlestick",
+            ),
+            (
+                ["analysis", "+buy-range", "--symbol", "600519", "--current-price", "100.5", "--json"],
+                "calculate_buy_range",
+                {"symbol": "600519", "ideal_buy": 98.0},
+                ("600519",),
+                {"current_price": 100.5},
+                "analysis.buy_range",
+            ),
+            (
+                ["analysis", "+valuation", "--symbol", "600519", "--json"],
+                "get_stock_valuation",
+                {"symbol": "600519", "pe": 22.0},
+                ("600519",),
+                {},
+                "analysis.valuation",
+            ),
+            (
+                ["analysis", "+pe-percentile", "--symbol", "600519", "--years", "3", "--json"],
+                "get_pe_percentile",
+                {"symbol": "600519", "pe_percentile": 45.0},
+                ("600519",),
+                {"years": 3},
+                "analysis.pe_percentile",
+            ),
+            (
+                ["analysis", "+quality", "--symbol", "600519", "--json"],
+                "get_quality_score",
+                {"symbol": "600519", "score": 80},
+                ("600519",),
+                {},
+                "analysis.quality",
+            ),
+            (
+                ["analysis", "+exit-plan", "--symbol", "600519", "--buy-price", "90", "--shares", "200", "--json"],
+                "get_exit_plan",
+                {"symbol": "600519", "shares": 200},
+                ("600519",),
+                {"buy_price": 90.0, "shares": 200},
+                "analysis.exit_plan",
+            ),
+            (
+                ["analysis", "+peers", "--symbol", "600519", "--json"],
+                "compare_peers",
+                {"symbol": "600519", "sector": "白酒"},
+                ("600519",),
+                {},
+                "analysis.peers",
             ),
         ]
 

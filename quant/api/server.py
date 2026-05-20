@@ -919,6 +919,16 @@ def _normalize_signal(signal: dict) -> dict:
 
 
 def _load_dashboard_signals() -> list:
+    """加载信号数据 - 优先从数据库读取，JSON作为fallback"""
+    try:
+        db = _quant_database()
+        if db and db.provider == 'postgres':
+            signals = db.get_signal_history(days=30)
+            return [_normalize_signal(signal) for signal in signals]
+    except Exception as e:
+        logger.warning(f"Database read failed, falling back to JSON: {e}")
+
+    # Fallback: 读取JSON文件
     path = _signals_file_path()
     if not path.exists():
         return []
@@ -1425,124 +1435,130 @@ def get_feature_importance():
         return jsonify({'error': str(e)}), 500
 
 
+def _analyze_stock_factors(symbol, date=None):
+    """核心逻辑：分析股票因子（内部函数，不是路由）"""
+    if model is None:
+        raise ValueError('模型未加载')
+
+    conn = get_db()
+
+    # 获取最新日期
+    if date is None:
+        cursor = conn.execute(
+            "SELECT MAX(date) FROM daily_klines WHERE symbol = ?",
+            (symbol,)
+        )
+        date = cursor.fetchone()[0]
+        if not date:
+            conn.close()
+            raise ValueError(f'未找到股票 {symbol} 的数据')
+
+    # 获取K线数据
+    cursor = conn.execute("""
+        SELECT open, high, low, close, volume, amount, turnover_rate
+        FROM daily_klines
+        WHERE symbol = ? AND date = ?
+    """, (symbol, date))
+
+    kline = cursor.fetchone()
+    if not kline:
+        conn.close()
+        raise ValueError('未找到价格数据')
+
+    # 获取因子数据
+    cursor = conn.execute("""
+        SELECT factor_name, factor_value
+        FROM factor_values
+        WHERE symbol = ? AND date = ?
+    """, (symbol, date))
+
+    factors = {}
+    for row in cursor.fetchall():
+        factors[row[0]] = row[1]
+
+    conn.close()
+
+    # 从训练报告读取特征顺序（使用与加载模型匹配的报告）
+    import json
+    report_path = Path(__file__).parent.parent / 'quantsys' / 'ml' / 'models' / 'training_report_20260519_112515.json'
+    with open(report_path) as f:
+        report = json.load(f)
+        feature_names = report['feature_names']
+
+    # 构建特征字典（K线数据 + 因子），处理None值
+    all_features = {
+        'open': kline[0] if kline[0] is not None else 0.0,
+        'high': kline[1] if kline[1] is not None else 0.0,
+        'low': kline[2] if kline[2] is not None else 0.0,
+        'close': kline[3] if kline[3] is not None else 0.0,
+        'volume': kline[4] if kline[4] is not None else 0.0,
+        'amount': kline[5] if kline[5] is not None else 0.0,
+        'turnover_rate': kline[6] if kline[6] is not None else 0.0,
+        **factors
+    }
+
+    # 按训练时的顺序构建特征数组
+    features = []
+    missing_features = []
+    for name in feature_names:
+        value = all_features.get(name, None)
+        if value is None or (isinstance(value, float) and np.isnan(value)):
+            missing_features.append(name)
+            features.append(0.0)
+        else:
+            features.append(float(value))
+
+    # 预测
+    X = np.array(features).reshape(1, -1)
+    if hasattr(model, 'predict_proba'):
+        proba = model.predict_proba(X)[0]
+        up_prob = float(proba[1])
+    else:
+        up_prob = float(model.predict(X)[0])
+
+    # 计算因子贡献
+    if hasattr(model, 'feature_importances_'):
+        importances = model.feature_importances_
+        contributions = np.array(features) * importances
+
+        key_factors = []
+        for i, name in enumerate(feature_names):
+            key_factors.append({
+                'name': name,
+                'value': float(features[i]),
+                'importance': float(importances[i]),
+                'contribution': float(contributions[i])
+            })
+
+        # 按贡献排序
+        key_factors.sort(key=lambda x: abs(x['contribution']), reverse=True)
+    else:
+        key_factors = []
+
+    return {
+        'symbol': symbol,
+        'date': date,
+        'price': float(kline[3]),
+        'prediction': {
+            'up_probability': up_prob,
+            'direction': 'UP' if up_prob > 0.5 else 'DOWN',
+            'confidence': abs(up_prob - 0.5) * 2
+        },
+        'key_factors': key_factors[:10],
+        'factors': {k: float(v) if not (isinstance(v, float) and np.isnan(v)) else 0.0
+                   for k, v in all_features.items()},
+        'missing_features': missing_features if missing_features else None
+    }
+
+
 @app.route('/api/stock/<symbol>/factors', methods=['GET'])
 @app.route('/api/stocks/<symbol>/factors', methods=['GET'])
 def get_stock_factors(symbol):
     """获取股票因子分析"""
     try:
         date = request.args.get('date')
-
-        if model is None:
-            return jsonify({'error': '模型未加载'}), 500
-
-        conn = get_db()
-
-        # 获取最新日期
-        if date is None:
-            cursor = conn.execute(
-                "SELECT MAX(date) FROM daily_klines WHERE symbol = ?",
-                (symbol,)
-            )
-            date = cursor.fetchone()[0]
-            if not date:
-                conn.close()
-                return jsonify({'error': f'未找到股票 {symbol} 的数据'}), 404
-
-        # 获取K线数据
-        cursor = conn.execute("""
-            SELECT open, high, low, close, volume, amount, turnover_rate
-            FROM daily_klines
-            WHERE symbol = ? AND date = ?
-        """, (symbol, date))
-
-        kline = cursor.fetchone()
-        if not kline:
-            conn.close()
-            return jsonify({'error': '未找到价格数据'}), 404
-
-        # 获取因子数据
-        cursor = conn.execute("""
-            SELECT factor_name, factor_value
-            FROM factor_values
-            WHERE symbol = ? AND date = ?
-        """, (symbol, date))
-
-        factors = {}
-        for row in cursor.fetchall():
-            factors[row[0]] = row[1]
-
-        conn.close()
-
-        # 从训练报告读取特征顺序（使用与加载模型匹配的报告）
-        import json
-        report_path = Path(__file__).parent.parent / 'quantsys' / 'ml' / 'models' / 'training_report_20260519_112515.json'
-        with open(report_path) as f:
-            report = json.load(f)
-            feature_names = report['feature_names']
-
-        # 构建特征字典（K线数据 + 因子），处理None值
-        all_features = {
-            'open': kline[0] if kline[0] is not None else 0.0,
-            'high': kline[1] if kline[1] is not None else 0.0,
-            'low': kline[2] if kline[2] is not None else 0.0,
-            'close': kline[3] if kline[3] is not None else 0.0,
-            'volume': kline[4] if kline[4] is not None else 0.0,
-            'amount': kline[5] if kline[5] is not None else 0.0,
-            'turnover_rate': kline[6] if kline[6] is not None else 0.0,
-            **factors
-        }
-
-        # 按训练时的顺序构建特征数组
-        features = []
-        missing_features = []
-        for name in feature_names:
-            value = all_features.get(name, None)
-            if value is None or (isinstance(value, float) and np.isnan(value)):
-                missing_features.append(name)
-                features.append(0.0)
-            else:
-                features.append(float(value))
-
-        # 预测
-        X = np.array(features).reshape(1, -1)
-        if hasattr(model, 'predict_proba'):
-            proba = model.predict_proba(X)[0]
-            up_prob = float(proba[1])
-        else:
-            up_prob = float(model.predict(X)[0])
-
-        # 计算因子贡献
-        if hasattr(model, 'feature_importances_'):
-            importances = model.feature_importances_
-            contributions = np.array(features) * importances
-
-            key_factors = []
-            for i, name in enumerate(feature_names):
-                key_factors.append({
-                    'name': name,
-                    'value': float(features[i]),
-                    'importance': float(importances[i]),
-                    'contribution': float(contributions[i])
-                })
-
-            # 按贡献排序
-            key_factors.sort(key=lambda x: abs(x['contribution']), reverse=True)
-        else:
-            key_factors = []
-
-        return jsonify({
-            'symbol': symbol,
-            'date': date,
-            'close': float(kline[3]),
-            'prediction_proba': up_prob,
-            'prediction': 'UP' if up_prob > 0.5 else 'DOWN',
-            'confidence': abs(up_prob - 0.5) * 2,
-            'factors': {k: float(v) if not (isinstance(v, float) and np.isnan(v)) else 0.0
-                       for k, v in all_features.items()},
-            'key_factors': key_factors[:10],
-            'missing_features': missing_features if missing_features else None
-        })
-
+        result = _analyze_stock_factors(symbol, date)
+        return jsonify(result)
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1566,13 +1582,13 @@ def compare_stocks():
         results = []
         for symbol in symbols:
             try:
-                # 复用 get_stock_factors 的逻辑
-                with app.test_request_context(f'/api/stock/{symbol}/factors', query_string={'date': date}):
-                    response = get_stock_factors(symbol)
-                    if response[1] == 200:  # 成功
-                        results.append(response[0].get_json())
+                # 直接调用核心分析函数（已返回正确格式）
+                result = _analyze_stock_factors(symbol, date)
+                results.append(result)
             except Exception as e:
                 print(f"Failed to analyze {symbol}: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
 
         # 按上涨概率排序
@@ -1584,26 +1600,48 @@ def compare_stocks():
         })
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/signals', methods=['GET'])
 def get_signals():
-    """获取交易信号"""
+    """获取交易信号 - 优先从数据库读取，JSON作为fallback"""
     try:
         date = request.args.get('date')
+        signal_type = request.args.get('signal_type')
+        min_confidence = request.args.get('min_confidence', type=float, default=0.0)
+        strategy_name = request.args.get('strategy_name')
 
-        # 读取信号文件
+        # 尝试从数据库读取
+        try:
+            db = _quant_database()
+            if db and db.provider == 'postgres':
+                signals = db.get_trading_signals(
+                    date=date,
+                    signal_type=signal_type,
+                    min_confidence=min_confidence,
+                    strategy_name=strategy_name
+                )
+                return jsonify({
+                    'signals': signals,
+                    'count': len(signals),
+                    'date': date or (signals[0]['date'] if signals else ''),
+                    'source': 'database'
+                })
+        except Exception as db_error:
+            logger.warning(f"Database read failed, falling back to JSON: {db_error}")
+
+        # Fallback: 读取信号文件
         signals_path = Path(__file__).parent.parent / '.pi-invest' / 'signals.json'
 
         if not signals_path.exists():
-            return jsonify({'signals': []})
+            return jsonify({'signals': [], 'count': 0, 'source': 'json'})
 
         import json
         with open(signals_path, 'r') as f:
             data = json.load(f)
-            # signals.json 结构: {generated_at, date, summary, signals: [...]}
-            # 必须提取 signals 数组，不能直接返回整个文件对象
             signals = data.get('signals', [])
             if not isinstance(signals, list):
                 signals = []
@@ -1611,17 +1649,18 @@ def get_signals():
         # 过滤日期/信号类型/置信度
         if date:
             signals = [s for s in signals if s.get('date') == date]
-        signal_type = request.args.get('signal_type')
         if signal_type:
             signals = [s for s in signals if s.get('signal') == signal_type]
-        min_confidence = request.args.get('min_confidence', type=float)
         if min_confidence:
             signals = [s for s in signals if s.get('confidence', 0) >= min_confidence]
+        if strategy_name:
+            signals = [s for s in signals if s.get('strategy') == strategy_name]
 
         return jsonify({
             'signals': signals,
             'count': len(signals),
-            'date': data.get('date', '')
+            'date': data.get('date', ''),
+            'source': 'json'
         })
 
     except Exception as e:
