@@ -129,7 +129,7 @@ router.post('/scan', requireOpsAuth(), async (req, res, next) => {
 router.get('/history', async (req, res, next) => {
   try {
     const client = PythonBackendClient.getInstance();
-    const data = await client.get('/api/signals', req.query);
+    const data = await client.get('/api/signals/history', req.query);
     res.json(data);
   } catch (error) {
     next(error);
