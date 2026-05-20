@@ -1,30 +1,36 @@
 import { Router } from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { requireOpsAuth } from '../middleware/ops-auth.js';
-import { PythonBackendClient } from '../../../services/python/python-backend-client.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = Router();
-const pythonClient = PythonBackendClient.getInstance();
+type QuantServiceInstance = import('../../../services/quant/quant-service.js').QuantService;
+type StockDBServiceInstance = import('../../../services/data/stock-db-service.js').StockDBService;
+
+let quantService: QuantServiceInstance | undefined;
+let stockDBService: StockDBServiceInstance | undefined;
+
+async function getQuantService(): Promise<QuantServiceInstance> {
+  if (!quantService) {
+    const { QuantService } = await import('../../../services/quant/quant-service.js');
+    quantService = new QuantService();
+  }
+  return quantService;
+}
+
+async function getStockDBService(): Promise<StockDBServiceInstance> {
+  if (!stockDBService) {
+    const { StockDBService } = await import('../../../services/data/stock-db-service.js');
+    stockDBService = StockDBService.getInstance('.pi-invest');
+  }
+  return stockDBService;
+}
 
 // POST /api/backtest/run - 运行回测
-router.post('/run', requireOpsAuth(), async (req, res, next) => {
-  try {
-    const { strategy_id, symbol, start_date, end_date, initial_capital = 100000 } = req.body;
-
-    if (!strategy_id || !symbol || !start_date || !end_date) {
-      res.status(400);
-      throw new Error('Missing required parameters: strategy_id, symbol, start_date, end_date');
-    }
-
-    // Proxy to Python backend
-    const result = await pythonClient.post('/api/backtest', req.body);
-
-    res.json({ success: true, data: result });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/* LEGACY IMPLEMENTATION - Direct BacktestEngine usage
 router.post('/run', requireOpsAuth(), async (req, res, next) => {
   try {
     const { strategy_id, symbol, start_date, end_date, initial_capital = 100000 } = req.body;
@@ -58,27 +64,8 @@ router.post('/run', requireOpsAuth(), async (req, res, next) => {
     next(error);
   }
 });
-*/
 
 // GET /api/backtest/results - 获取回测结果汇总
-router.get('/results', async (req, res, next) => {
-  try {
-    const symbol = typeof req.query.symbol === 'string' ? req.query.symbol : undefined;
-    const date = typeof req.query.date === 'string' ? req.query.date : undefined;
-
-    // Proxy to Python backend
-    const params: Record<string, string> = {};
-    if (symbol) params.symbol = symbol;
-    if (date) params.date = date;
-
-    const result = await pythonClient.get('/api/backtest/results', params);
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/* LEGACY IMPLEMENTATION - Direct file system access
 router.get('/results', async (req, res, next) => {
   try {
     const symbol = typeof req.query.symbol === 'string' ? req.query.symbol : undefined;
@@ -156,6 +143,5 @@ router.get('/results', async (req, res, next) => {
     next(error);
   }
 });
-*/
 
 export { router as backtestRouter };
