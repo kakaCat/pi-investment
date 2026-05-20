@@ -14,6 +14,17 @@ import { callPythonResilient } from '../infrastructure/tools/shared/python-calle
 const days = parseInt(process.argv[2]) || 30;
 const minSamples = parseInt(process.argv[3]) || 50;
 
+type PythonResult = Record<string, any>;
+
+function parsePythonResult(raw: string): PythonResult {
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : { value: parsed };
+  } catch {
+    return { error: raw };
+  }
+}
+
 async function trainModel() {
   console.log('=== 量化信号模型训练 ===\n');
   console.log(`📚 训练参数:`);
@@ -24,11 +35,10 @@ async function trainModel() {
   console.log('🔄 开始训练...');
 
   try {
-    const result = await callPythonResilient(
+    const result = parsePythonResult(await callPythonResilient(
       'train_signal_model',
-      { days, min_samples: minSamples },
-      { timeout: 60000 }
-    );
+      { days, min_samples: minSamples }
+    ));
 
     if (result.error) {
       console.error('❌ 训练失败:', result.error);

@@ -2,6 +2,34 @@ import fs from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { QuantStrategy } from './types';
+import { runQuantCli } from '../../infrastructure/quant/quant-cli-client.js';
+
+export interface UpdateDataRequest {
+  source: 'portfolio' | 'watchlist' | 'hs300' | 'all';
+  days: number;
+  async?: boolean;
+  force?: boolean;
+  symbols?: string[];
+}
+
+export interface UpdateDataResponse {
+  success: boolean;
+  source: string;
+  days: number;
+  total?: number;
+  updated?: number;
+  skipped?: number;
+  failed?: number;
+  details?: unknown[];
+  stdout?: string;
+  stderr?: string;
+}
+
+export interface AsyncJobResponse {
+  success: boolean;
+  job_id: string;
+  message: string;
+}
 
 export class QuantService {
   private storageDir: string;
@@ -105,5 +133,23 @@ export class QuantService {
 
   async disableStrategy(id: string): Promise<QuantStrategy | null> {
     return this.updateStrategy(id, { enabled: false });
+  }
+
+  /**
+   * 统一数据更新 - 委托给 QuantSys CLI
+   */
+  async updateStockData(params: UpdateDataRequest): Promise<UpdateDataResponse | AsyncJobResponse> {
+    const response = await runQuantCli<{ stdout?: string; stderr?: string }>('data', 'update-klines', {
+      days: params.days,
+      symbols: params.symbols,
+    });
+
+    return {
+      success: true,
+      source: params.source,
+      days: params.days,
+      stdout: response.data?.stdout,
+      stderr: response.data?.stderr,
+    };
   }
 }

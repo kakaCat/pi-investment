@@ -23,35 +23,35 @@ export default function ModelSummaryPanel({
 
   return (
     <Card
-      title="Model Summary"
+      title="模型摘要"
       loading={loading && history.length === 0}
       extra={
         <Button size="small" type="link" icon={<ArrowRightOutlined />} onClick={onOpenTraining}>
-          Open
+          打开
         </Button>
       }
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        {error && <Alert type="error" showIcon message="Unable to load training history" description={error} />}
+        {error && <Alert type="error" showIcon message="训练历史加载失败" description={error} />}
         {!latestRecord ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No model training history" />
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无模型训练历史" />
         ) : (
           <>
             <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
               <MetricCard title="CV AUC" value={formatNumber(latestRecord.cv_auc)} tone="info" loading={loading} />
               <MetricCard title="Test AUC" value={formatNumber(latestRecord.test_auc)} tone="success" loading={loading} />
-              <MetricCard title="Features" value={latestRecord.n_features} loading={loading} />
-              <MetricCard title="Samples" value={latestRecord.total_samples} loading={loading} />
+              <MetricCard title="特征数" value={latestRecord.n_features} loading={loading} />
+              <MetricCard title="样本数" value={latestRecord.total_samples} loading={loading} />
             </div>
             <Descriptions size="small" column={{ xs: 1, sm: 2 }} bordered>
-              <Descriptions.Item label="Model">{latestRecord.model_type}</Descriptions.Item>
-              <Descriptions.Item label="Trained">{formatDateTime(latestRecord.timestamp)}</Descriptions.Item>
-              <Descriptions.Item label="Duration">{formatDuration(latestRecord.duration_seconds)}</Descriptions.Item>
-              <Descriptions.Item label="Class Balance">
+              <Descriptions.Item label="模型">{latestRecord.model_type}</Descriptions.Item>
+              <Descriptions.Item label="训练时间">{formatDateTime(latestRecord.timestamp)}</Descriptions.Item>
+              <Descriptions.Item label="耗时">{formatDuration(latestRecord.duration_seconds)}</Descriptions.Item>
+              <Descriptions.Item label="类别平衡">
                 {formatPercent(latestRecord.class_balance)}
               </Descriptions.Item>
             </Descriptions>
-            <Text type="secondary">Latest completed training record</Text>
+            <Text type="secondary">最近一次完成的训练记录</Text>
           </>
         )}
       </Space>

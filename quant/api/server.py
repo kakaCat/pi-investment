@@ -8,19 +8,942 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sys
 import os
+import json
+import uuid
+import time
+import subprocess
+import threading
 import numpy as np
 from pathlib import Path
+from datetime import datetime, timezone
 
 # 添加项目路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from quantsys.factors.calculator import FactorCalculator
 from quantsys.data.db import Database
-from scripts.analyze_feature_importance import analyze_feature_importance, load_model, get_feature_names
+from quantsys.data.fetchers.klines import KlineFetcher
 from quantsys.ml.features.feature_engineering import FeatureEngineer
+
+# ---- 补丁：analyze_feature_importance.py 已重构为 API client，
+#        load_model / get_feature_names / analyze_feature_importance 在此内联定义 ----
+
+import joblib
+import pandas as pd
+from typing import List
+from quantsys.data.db import normalize_symbol
+
+def load_model(path: str):
+    """加载 pkl 模型（XGBoost 或 sklearn 兼容）"""
+    return joblib.load(path)
+
+def get_feature_names() -> List[str]:
+    """从 FeatureEngineer 获取特征名列表"""
+    report_path = Path(__file__).parent.parent / 'quantsys' / 'ml' / 'models' / 'training_report_latest.json'
+    if report_path.exists():
+        try:
+            with open(report_path) as f:
+                report = json.load(f)
+            feature_names = report.get('feature_names')
+            if isinstance(feature_names, list) and feature_names:
+                return feature_names
+        except Exception:
+            pass
+
+    engineer = FeatureEngineer()
+    return engineer.get_feature_names()
+
+def analyze_feature_importance(model, model_path: str = None) -> pd.DataFrame:
+    """分析模型的特征重要性"""
+    try:
+        feature_names = get_feature_names()
+        if hasattr(model, 'feature_importances_'):
+            importances = model.feature_importances_
+        elif hasattr(model, 'coef_'):
+            importances = abs(model.coef_[0]) if len(model.coef_.shape) > 1 else abs(model.coef_)
+        else:
+            return pd.DataFrame({'Feature': ['N/A'], 'Importance': [0], 'Percentage': [0], 'Cumulative': [0]})
+
+        if len(feature_names) < len(importances):
+            feature_names.extend([f'feature_{idx}' for idx in range(len(feature_names), len(importances))])
+
+        total = sum(importances) or 1
+        df = pd.DataFrame({
+            'Feature': feature_names[:len(importances)],
+            'Importance': importances,
+        })
+        df['Percentage'] = (df['Importance'] / total * 100).round(2)
+        df = df.sort_values('Importance', ascending=False).reset_index(drop=True)
+        df['Cumulative'] = df['Percentage'].cumsum().round(1)
+        return df
+    except Exception:
+        return pd.DataFrame({'Feature': ['N/A'], 'Importance': [0], 'Percentage': [0], 'Cumulative': [0]})
 
 app = Flask(__name__)
 CORS(app)  # 允许跨域
+
+# ---- 异步任务追踪 ----
+_scripts_dir = Path(__file__).parent.parent / 'scripts'
+_jobs_dir = Path(__file__).parent.parent.parent / '.pi-invest' / 'jobs'
+_jobs_dir.mkdir(parents=True, exist_ok=True)
+_pipeline_runs_dir = Path(__file__).parent.parent.parent / '.pi-invest' / 'pipeline-runs'
+_pipeline_runs_dir.mkdir(parents=True, exist_ok=True)
+
+WEB_JOB_TYPES = {
+    'data_update',
+    'factor_compute',
+    'signal_generate',
+    'model_train',
+    'backtest_run',
+    'daily_report',
+    'risk_check',
+}
+
+PIPELINE_STEP_DEFINITIONS = [
+    {'key': 'resolve', 'name': '标的识别', 'type': 'resolve'},
+    {'key': 'data_update', 'name': '行情补齐', 'type': 'job', 'job_type': 'data_update'},
+    {'key': 'factor_compute', 'name': '因子计算', 'type': 'job', 'job_type': 'factor_compute'},
+    {'key': 'model_train', 'name': '模型训练', 'type': 'job', 'job_type': 'model_train'},
+    {'key': 'signal_generate', 'name': '信号生成', 'type': 'job', 'job_type': 'signal_generate'},
+    {'key': 'risk_check', 'name': '风险过滤', 'type': 'job', 'job_type': 'risk_check'},
+    {'key': 'backtest_run', 'name': '回测验证', 'type': 'job', 'job_type': 'backtest_run'},
+    {'key': 'daily_report', 'name': '结果汇总', 'type': 'job', 'job_type': 'daily_report'},
+]
+
+SCHEDULER_TASK_DEFINITIONS = [
+    {
+        'id': 'data_update',
+        'name': '数据更新',
+        'scheduleKind': 'cron',
+        'scheduleExpr': '0 17 * * 1-5',
+        'payload': {'job_type': 'data_update', 'params': {'source': 'hs300', 'days': 5, 'force': False}},
+        'compensationEnabled': True,
+        'compensationCheckAfter': '18:00',
+        'compensationMaxAttempts': 1,
+        'deleteAfterRun': False,
+    },
+    {
+        'id': 'factor_compute',
+        'name': '因子计算',
+        'scheduleKind': 'cron',
+        'scheduleExpr': '30 17 * * 1-5',
+        'payload': {'job_type': 'factor_compute', 'params': {}},
+        'compensationEnabled': True,
+        'compensationCheckAfter': '18:30',
+        'compensationMaxAttempts': 1,
+        'deleteAfterRun': False,
+    },
+    {
+        'id': 'signal_generate',
+        'name': '信号生成',
+        'scheduleKind': 'cron',
+        'scheduleExpr': '0 18 * * 1-5',
+        'payload': {'job_type': 'signal_generate', 'params': {}},
+        'compensationEnabled': True,
+        'compensationCheckAfter': '19:00',
+        'compensationMaxAttempts': 1,
+        'deleteAfterRun': False,
+    },
+    {
+        'id': 'daily_report',
+        'name': '日报生成',
+        'scheduleKind': 'cron',
+        'scheduleExpr': '30 18 * * 1-5',
+        'payload': {'job_type': 'daily_report', 'params': {}},
+        'compensationEnabled': True,
+        'compensationCheckAfter': '19:30',
+        'compensationMaxAttempts': 1,
+        'deleteAfterRun': False,
+    },
+    {
+        'id': 'risk_check',
+        'name': '风险检查',
+        'scheduleKind': 'cron',
+        'scheduleExpr': '0 9 * * 1-5',
+        'payload': {'job_type': 'risk_check', 'params': {}},
+        'compensationEnabled': True,
+        'compensationCheckAfter': '09:30',
+        'compensationMaxAttempts': 1,
+        'deleteAfterRun': False,
+    },
+    {
+        'id': 'model_train',
+        'name': '模型训练',
+        'scheduleKind': 'cron',
+        'scheduleExpr': '0 20 * * 5',
+        'payload': {'job_type': 'model_train', 'params': {'days': 90, 'model': 'xgboost', 'cvSplits': 5}},
+        'compensationEnabled': True,
+        'compensationCheckAfter': '22:00',
+        'compensationMaxAttempts': 1,
+        'deleteAfterRun': False,
+    },
+    {
+        'id': 'backtest_run',
+        'name': '回测运行',
+        'scheduleKind': 'cron',
+        'scheduleExpr': '0 21 * * 5',
+        'payload': {'job_type': 'backtest_run', 'params': {}},
+        'compensationEnabled': False,
+        'compensationMaxAttempts': 1,
+        'deleteAfterRun': False,
+    },
+]
+
+JOB_STATUS_MAP = {
+    'created': 'queued',
+    'completed': 'success',
+}
+
+
+def _create_job(job_type: str, params: dict = None) -> str:
+    """创建异步任务，返回 job_id"""
+    job_id = f"{job_type}_{uuid.uuid4().hex[:8]}"
+    job_data = {
+        "job_id": job_id,
+        "type": job_type,
+        "status": "created",
+        "params": params or {},
+        "created_at": time.time(),
+        "started_at": None,
+        "completed_at": None,
+        "result": None,
+        "error": None
+    }
+    _write_job(job_id, job_data)
+    return job_id
+
+
+def _timestamp_to_iso(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    try:
+        return datetime.fromtimestamp(float(value), timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_job_for_web(job: dict) -> dict:
+    job_id = job.get('id') or job.get('job_id')
+    status = JOB_STATUS_MAP.get(job.get('status'), job.get('status', 'queued'))
+    created_at = _timestamp_to_iso(job.get('createdAt') or job.get('created_at')) or datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    started_at = _timestamp_to_iso(job.get('startedAt') or job.get('started_at'))
+    finished_at = _timestamp_to_iso(job.get('finishedAt') or job.get('completed_at'))
+    updated_at = finished_at or started_at or created_at
+
+    normalized = {
+        'id': job_id,
+        'type': job.get('type', 'unknown'),
+        'status': status,
+        'params': job.get('params') or {},
+        'logs': job.get('logs') or [],
+        'attempts': job.get('attempts') or 0,
+        'createdAt': created_at,
+        'updatedAt': updated_at,
+    }
+    if started_at:
+        normalized['startedAt'] = started_at
+    if finished_at:
+        normalized['finishedAt'] = finished_at
+    if job.get('result') is not None:
+        normalized['result'] = job.get('result')
+    if job.get('error') is not None:
+        normalized['error'] = job.get('error') if isinstance(job.get('error'), str) else json.dumps(job.get('error'), ensure_ascii=False)
+    return normalized
+
+
+def _get_job(job_id: str) -> dict:
+    """读取任务状态"""
+    job_file = _jobs_dir / f"{job_id}.json"
+    if not job_file.exists():
+        return None
+    with open(job_file, 'r') as f:
+        return json.load(f)
+
+
+def _write_job(job_id: str, job: dict):
+    """原子写入任务状态，避免读到半截 JSON。"""
+    _jobs_dir.mkdir(parents=True, exist_ok=True)
+    job_file = _jobs_dir / f"{job_id}.json"
+    tmp_file = _jobs_dir / f".{job_id}.{uuid.uuid4().hex}.tmp"
+    with open(tmp_file, 'w') as f:
+        json.dump(job, f, indent=2)
+    os.replace(tmp_file, job_file)
+
+
+def _pipeline_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+
+def _pipeline_run_path(run_id: str) -> Path:
+    return _pipeline_runs_dir / f"{run_id}.json"
+
+
+def _write_pipeline_run(run: dict):
+    _pipeline_runs_dir.mkdir(parents=True, exist_ok=True)
+    run['updatedAt'] = _pipeline_now_iso()
+    path = _pipeline_run_path(run['id'])
+    tmp_file = _pipeline_runs_dir / f".{run['id']}.{uuid.uuid4().hex}.tmp"
+    with open(tmp_file, 'w') as f:
+        json.dump(run, f, indent=2, ensure_ascii=False)
+    os.replace(tmp_file, path)
+
+
+def _get_pipeline_run(run_id: str) -> dict:
+    path = _pipeline_run_path(run_id)
+    if not path.exists():
+        return None
+    with open(path, 'r') as f:
+        return json.load(f)
+
+
+def _pipeline_step_template(step: dict) -> dict:
+    return {
+        'key': step['key'],
+        'name': step['name'],
+        'type': step['type'],
+        'jobType': step.get('job_type'),
+        'status': 'queued',
+        'jobId': None,
+        'input': None,
+        'output': None,
+        'logs': [],
+        'error': None,
+        'startedAt': None,
+        'finishedAt': None,
+    }
+
+
+def _create_pipeline_run(params: dict) -> dict:
+    now = _pipeline_now_iso()
+    symbols = _normalize_symbols(params.get('symbols'))
+    run = {
+        'id': f"pipeline_{uuid.uuid4().hex[:8]}",
+        'status': 'queued',
+        'symbols': symbols,
+        'validSymbols': [],
+        'invalidSymbols': [],
+        'params': params,
+        'currentStep': 'resolve',
+        'progress': 0,
+        'error': None,
+        'steps': [_pipeline_step_template(step) for step in PIPELINE_STEP_DEFINITIONS],
+        'createdAt': now,
+        'updatedAt': now,
+        'startedAt': None,
+        'finishedAt': None,
+    }
+    _write_pipeline_run(run)
+    return run
+
+
+def _set_pipeline_step(run: dict, step_key: str, **kwargs):
+    for step in run.get('steps', []):
+        if step.get('key') == step_key:
+            step.update(kwargs)
+            break
+
+
+def _pipeline_job_params(job_type: str, params: dict, symbols: list) -> dict:
+    days = params.get('days', 180)
+    common = {'symbols': symbols}
+    if job_type == 'data_update':
+        return {**common, 'days': days, 'force': params.get('force', True)}
+    if job_type == 'model_train':
+        return {
+            **common,
+            'days': days,
+            'model': params.get('model', 'xgboost'),
+            'futureDays': params.get('futureDays', 5),
+            'threshold': params.get('threshold', 0.05),
+            'useFeatureEngineering': params.get('useFeatureEngineering', True),
+        }
+    if job_type == 'backtest_run':
+        return {**common, 'days': days}
+    if job_type in {'factor_compute', 'signal_generate', 'risk_check'}:
+        return common
+    return {}
+
+
+def _wait_for_pipeline_job(job_id: str, step_name: str, run_id: str, step_key: str, poll_seconds: float = 2.0) -> dict:
+    while True:
+        run = _get_pipeline_run(run_id)
+        if run and run.get('status') == 'cancelled':
+            _update_job(job_id, status='cancelled', completed_at=time.time())
+            raise RuntimeError('Pipeline run cancelled')
+
+        job = _get_job(job_id)
+        if not job:
+            raise RuntimeError(f'{step_name} 任务记录不存在: {job_id}')
+        normalized = _normalize_job_for_web(job)
+        status = normalized.get('status')
+
+        if run:
+            _set_pipeline_step(run, step_key, logs=normalized.get('logs') or [])
+            _write_pipeline_run(run)
+
+        if status == 'success':
+            return normalized
+        if status in {'failed', 'cancelled'}:
+            raise RuntimeError(normalized.get('error') or f'{step_name} 执行失败')
+        time.sleep(poll_seconds)
+
+
+def _refresh_pipeline_progress(run: dict):
+    steps = run.get('steps') or []
+    finished = sum(1 for step in steps if step.get('status') in {'success', 'skipped'})
+    run['progress'] = round((finished / len(steps)) * 100) if steps else 0
+
+
+def _sync_pipeline_run_jobs(run: dict) -> dict:
+    if run.get('status') not in {'running', 'queued'}:
+        return run
+
+    changed = False
+    failed = None
+    all_terminal = True
+    for step in run.get('steps', []):
+        job_id = step.get('jobId')
+        if not job_id or step.get('status') in {'success', 'failed', 'cancelled', 'skipped'}:
+            if step.get('status') not in {'success', 'failed', 'cancelled', 'skipped'}:
+                all_terminal = False
+            continue
+        job = _get_job(job_id)
+        if not job:
+            all_terminal = False
+            continue
+        normalized = _normalize_job_for_web(job)
+        previous = step.get('status')
+        status = normalized.get('status')
+        if status == 'success':
+            step.update({'status': 'success', 'output': normalized.get('result'), 'finishedAt': normalized.get('finishedAt')})
+        elif status == 'failed':
+            step.update({'status': 'failed', 'error': normalized.get('error'), 'finishedAt': normalized.get('finishedAt')})
+            failed = step
+        elif status == 'cancelled':
+            step.update({'status': 'cancelled', 'finishedAt': normalized.get('finishedAt')})
+            failed = step
+        else:
+            step.update({'status': 'running', 'logs': normalized.get('logs') or []})
+            all_terminal = False
+        changed = changed or previous != step.get('status')
+
+    _refresh_pipeline_progress(run)
+    if failed:
+        run['status'] = 'failed' if failed.get('status') == 'failed' else 'cancelled'
+        run['error'] = failed.get('error')
+        run['finishedAt'] = run.get('finishedAt') or _pipeline_now_iso()
+        changed = True
+    elif all_terminal and run.get('status') == 'running':
+        run['status'] = 'success'
+        run['progress'] = 100
+        run['finishedAt'] = run.get('finishedAt') or _pipeline_now_iso()
+        changed = True
+
+    if changed:
+        _write_pipeline_run(run)
+    return run
+
+
+def _run_pipeline_async(run_id: str):
+    run = _get_pipeline_run(run_id)
+    if not run:
+        return
+
+    try:
+        run['status'] = 'running'
+        run['startedAt'] = run.get('startedAt') or _pipeline_now_iso()
+        _write_pipeline_run(run)
+
+        valid_symbols = []
+        for step_def in PIPELINE_STEP_DEFINITIONS:
+            run = _get_pipeline_run(run_id) or run
+            if run.get('status') == 'cancelled':
+                return
+            step_key = step_def['key']
+            run['currentStep'] = step_key
+            _set_pipeline_step(run, step_key, status='running', startedAt=_pipeline_now_iso())
+            _write_pipeline_run(run)
+
+            if step_def['type'] == 'resolve':
+                resolved = _resolve_symbols_for_pipeline(run.get('symbols') or [], run.get('params', {}).get('days', 180))
+                valid_symbols = [item['symbol'] for item in resolved.get('valid', [])]
+                run['validSymbols'] = valid_symbols
+                run['invalidSymbols'] = [item.get('symbol') for item in resolved.get('invalid', [])]
+                _set_pipeline_step(run, step_key, status='success', output=resolved, finishedAt=_pipeline_now_iso())
+                if not valid_symbols:
+                    raise ValueError('没有可执行标的：本地和外部接口均未找到可用股票')
+                _refresh_pipeline_progress(run)
+                _write_pipeline_run(run)
+                continue
+
+            job_type = step_def['job_type']
+            params = _pipeline_job_params(job_type, run.get('params') or {}, valid_symbols)
+            job_id = _start_job_for_type(job_type, params)
+            _set_pipeline_step(
+                run,
+                step_key,
+                status='running',
+                jobId=job_id,
+                input=params,
+            )
+            _write_pipeline_run(run)
+            normalized = _wait_for_pipeline_job(job_id, step_def['name'], run_id, step_key)
+            run = _get_pipeline_run(run_id) or run
+            _set_pipeline_step(
+                run,
+                step_key,
+                status='success',
+                output=normalized.get('result'),
+                logs=normalized.get('logs') or [],
+                finishedAt=normalized.get('finishedAt') or _pipeline_now_iso(),
+            )
+            _refresh_pipeline_progress(run)
+            _write_pipeline_run(run)
+
+        run = _get_pipeline_run(run_id) or run
+        run['status'] = 'success'
+        run['progress'] = 100
+        run['finishedAt'] = run.get('finishedAt') or _pipeline_now_iso()
+        _write_pipeline_run(run)
+    except Exception as exc:
+        run = _get_pipeline_run(run_id) or run
+        run['status'] = 'failed'
+        run['error'] = str(exc)
+        run['finishedAt'] = run.get('finishedAt') or _pipeline_now_iso()
+        _set_pipeline_step(run, run.get('currentStep'), status='failed', error=str(exc), finishedAt=_pipeline_now_iso())
+        _write_pipeline_run(run)
+
+
+def _resolve_symbols_for_pipeline(symbols: list, required_days: int) -> dict:
+    db = _quant_database()
+    try:
+        stocks = []
+        valid = []
+        invalid = []
+        for symbol in symbols:
+            local_stock = _lookup_local_stock(db, symbol)
+            if local_stock:
+                item = _resolved_stock_response(db, local_stock, 'local', required_days)
+                stocks.append(item)
+                valid.append(item)
+                continue
+
+            external = _lookup_external_stock(symbol)
+            if not external or external.get('error'):
+                item = {'symbol': symbol, 'reason': '外部接口未找到该股票'}
+                stocks.append(item)
+                invalid.append(item)
+                continue
+
+            payload = _stock_payload_from_external(symbol, external)
+            db.upsert_stocks([payload])
+            item = _resolved_stock_response(db, payload, 'external_added', required_days)
+            stocks.append(item)
+            valid.append(item)
+        return {'stocks': stocks, 'valid': valid, 'invalid': invalid}
+    finally:
+        db.close()
+
+
+def _update_job(job_id: str, **kwargs):
+    """更新任务状态"""
+    job = _get_job(job_id) or {}
+    if job.get('status') == 'cancelled' and kwargs.get('status') != 'cancelled':
+        return
+    job.update(kwargs)
+    _write_job(job_id, job)
+
+
+def _complete_job_without_executor(job_id: str, result: dict = None):
+    _update_job(job_id, status='completed', started_at=time.time(), completed_at=time.time(), result=result or {'message': 'No executor configured'})
+
+
+def _run_data_update_job(job_id: str, data: dict):
+    try:
+        _update_job(job_id, status='running', started_at=time.time())
+        symbols = _normalize_symbols(data.get('symbols'))
+        source = 'symbols' if symbols else data.get('source', 'all')
+        days = data.get('days', 5)
+        force = data.get('force', False)
+        result = _execute_data_update(source, days, force, symbols=symbols or None)
+        _update_job(job_id, status='completed', completed_at=time.time(), result=result)
+    except Exception as e:
+        _update_job(job_id, status='failed', completed_at=time.time(), error=str(e))
+
+
+def _run_script_async(job_id: str, script_name: str, extra_args: list = None):
+    """后台线程运行脚本，自动更新 job 状态"""
+    def _run():
+        _update_job(job_id, status="running", started_at=time.time())
+        script_path = _scripts_dir / script_name
+        cmd = [sys.executable, str(script_path), '--job-id', job_id]
+        if extra_args:
+            cmd.extend(extra_args)
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
+            if result.returncode == 0:
+                _update_job(job_id, status="completed", completed_at=time.time(),
+                            result={"stdout": result.stdout[-5000:], "returncode": 0})
+            else:
+                _update_job(job_id, status="failed", completed_at=time.time(),
+                            error={"stderr": result.stderr[-5000:], "returncode": result.returncode})
+        except subprocess.TimeoutExpired:
+            _update_job(job_id, status="failed", completed_at=time.time(),
+                        error={"message": "Task timed out after 7200s"})
+        except Exception as e:
+            _update_job(job_id, status="failed", completed_at=time.time(),
+                        error={"message": str(e)})
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+
+
+def _models_dir() -> Path:
+    return _project_root / 'quant' / 'quantsys' / 'ml' / 'models'
+
+
+def _strategies_dir() -> Path:
+    return _project_root / '.pi-invest' / 'quant' / 'strategies'
+
+
+def _charts_dir() -> Path:
+    return _project_root / '.pi-invest' / 'quant' / 'charts'
+
+
+def _load_json_file(path: Path):
+    with open(path, 'r') as f:
+        return json.load(f)
+
+
+def _report_n_features(report: dict) -> int:
+    if isinstance(report.get('n_features'), int):
+        return report['n_features']
+    data = report.get('data')
+    if isinstance(data, dict):
+        value = data.get('n_features')
+        if isinstance(value, int):
+            return value
+    feature_names = report.get('feature_names')
+    if isinstance(feature_names, list):
+        return len(feature_names)
+    return 0
+
+
+def _iter_training_report_files():
+    models_dir = _models_dir()
+    if not models_dir.exists():
+        return []
+    return sorted(
+        [
+            path for path in models_dir.glob('training_report_*.json')
+            if path.name != 'training_report_latest.json'
+        ],
+        reverse=True,
+    )
+
+
+def _training_status_from_job(job: dict) -> dict:
+    normalized = _normalize_job_for_web(job)
+    status = normalized['status']
+    training_status = {
+        'queued': 'running',
+        'running': 'running',
+        'success': 'completed',
+        'failed': 'failed',
+        'cancelled': 'failed',
+    }.get(status, 'running')
+    return {
+        'id': normalized['id'],
+        'status': training_status,
+        'progress': 100 if training_status == 'completed' else 0,
+        'startTime': normalized.get('startedAt') or normalized.get('createdAt'),
+        'endTime': normalized.get('finishedAt'),
+        'params': normalized.get('params') or {},
+        'result': normalized.get('result'),
+        'error': normalized.get('error'),
+    }
+
+
+def _build_training_args(params: dict) -> list:
+    model = params.get('model', 'xgboost')
+    if model == 'random_forest':
+        model = 'randomforest'
+
+    args = ['--days', str(params.get('days', 90)), '--model', str(model)]
+    symbols = _normalize_symbols(params.get('symbols'))
+    if symbols:
+        args.extend(['--symbols', ','.join(symbols)])
+    if params.get('cvSplits') is not None:
+        args.extend(['--cv-splits', str(params['cvSplits'])])
+    if params.get('useFeatureEngineering', True):
+        args.append('--use-feature-engineering')
+    return args
+
+
+def _normalize_symbols(value) -> list:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        raw_symbols = [part for part in value.replace('，', ',').replace('\n', ',').split(',')]
+    elif isinstance(value, list):
+        raw_symbols = value
+    else:
+        return []
+
+    symbols = []
+    seen = set()
+    for raw_symbol in raw_symbols:
+        symbol = normalize_symbol(str(raw_symbol))
+        if not symbol or symbol in seen:
+            continue
+        seen.add(symbol)
+        symbols.append(symbol)
+    return symbols
+
+
+def _symbols_args(params: dict) -> list:
+    symbols = _normalize_symbols(params.get('symbols'))
+    return ['--symbols', ','.join(symbols)] if symbols else []
+
+
+def _latest_job_for_type(job_type: str):
+    latest = None
+    for path in _jobs_dir.glob(f'{job_type}_*.json'):
+        try:
+            job = _load_json_file(path)
+        except Exception:
+            continue
+        if latest is None or path.stat().st_mtime > latest[0].stat().st_mtime:
+            latest = (path, job)
+    return latest[1] if latest else None
+
+
+def _scheduler_run_from_job(task: dict, job: dict, trigger_type: str) -> dict:
+    normalized = _normalize_job_for_web(job)
+    status = 'triggered'
+    if normalized['status'] == 'running':
+        status = 'running'
+    elif normalized['status'] == 'success':
+        status = 'success'
+    elif normalized['status'] == 'failed':
+        status = 'failed'
+    elif normalized['status'] == 'cancelled':
+        status = 'skipped'
+
+    now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    return {
+        'id': normalized['id'],
+        'taskId': task['id'],
+        'taskName': task['name'],
+        'scheduledFor': now,
+        'triggerType': trigger_type,
+        'status': status,
+        'triggeredAt': normalized.get('createdAt') or now,
+        'startedAt': normalized.get('startedAt'),
+        'finishedAt': normalized.get('finishedAt'),
+        'error': normalized.get('error'),
+        'payload': task.get('payload') or {},
+        'createdAt': normalized.get('createdAt') or now,
+        'updatedAt': normalized.get('updatedAt') or now,
+    }
+
+
+def _scheduler_task_summary(task: dict) -> dict:
+    latest_job = _latest_job_for_type(task['payload']['job_type'])
+    last_run = _scheduler_run_from_job(task, latest_job, 'scheduled') if latest_job else None
+    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    today_triggered = bool(last_run and str(last_run.get('createdAt', '')).startswith(today))
+    today_success = bool(today_triggered and last_run and last_run.get('status') == 'success')
+
+    return {
+        **task,
+        'enabled': True,
+        'nextRunAt': None,
+        'lastRun': last_run,
+        'todayTriggered': today_triggered,
+        'todaySuccess': today_success,
+        'compensationDue': bool(task.get('compensationEnabled') and today_triggered and not today_success),
+    }
+
+
+def _start_job_for_type(job_type: str, data: dict) -> str:
+    job_id = _create_job(job_type, data)
+
+    if job_type == 'data_update':
+        _update_job(job_id, params={**data, 'async': True})
+        threading.Thread(
+            target=lambda: _run_data_update_job(job_id, data),
+            daemon=True,
+        ).start()
+    elif job_type == 'model_train':
+        _run_script_async(job_id, 'ml_retrain.py', _build_training_args(data))
+    elif job_type == 'factor_compute':
+        _run_script_async(job_id, 'calculate_factors.py', _symbols_args(data))
+    elif job_type == 'signal_generate':
+        _run_script_async(job_id, 'generate_signals.py', _symbols_args(data))
+    elif job_type == 'backtest_run':
+        extra_args = _symbols_args(data)
+        if data.get('days') is not None:
+            extra_args.extend(['--days', str(data['days'])])
+        _run_script_async(job_id, 'weekly_backtest.py', extra_args)
+    else:
+        threading.Thread(
+            target=lambda: _complete_job_without_executor(job_id),
+            daemon=True,
+        ).start()
+
+    return job_id
+
+
+def _normalize_strategy(strategy: dict, strategy_id: str = None) -> dict:
+    normalized = {
+        **strategy,
+        'id': strategy.get('id') or strategy_id or f"strategy_{uuid.uuid4().hex}",
+        'name': strategy.get('name') or '未命名策略',
+        'description': strategy.get('description') or '',
+        'enabled': strategy.get('enabled', True),
+        'created_at': strategy.get('created_at') or datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+    }
+    normalized.setdefault('screening', {'filters': {}})
+    normalized.setdefault('entry', {'conditions': [], 'logic': 'AND'})
+    normalized.setdefault('exit', {'conditions': []})
+    normalized.setdefault('position', {'max_position_pct': 20, 'max_stocks': 5})
+    normalized['entry'].setdefault('conditions', [])
+    normalized['entry'].setdefault('logic', 'AND')
+    normalized['exit'].setdefault('conditions', [])
+    normalized['position'].setdefault('max_position_pct', 20)
+    normalized['position'].setdefault('max_stocks', 5)
+    return normalized
+
+
+def _strategy_path(strategy_id: str) -> Path:
+    return _strategies_dir() / f'{strategy_id}.json'
+
+
+def _read_strategy(strategy_id: str):
+    path = _strategy_path(strategy_id)
+    if not path.exists():
+        return None
+    return _normalize_strategy(_load_json_file(path), strategy_id)
+
+
+def _write_strategy(strategy: dict) -> dict:
+    _strategies_dir().mkdir(parents=True, exist_ok=True)
+    normalized = _normalize_strategy(strategy)
+    path = _strategy_path(normalized['id'])
+    tmp_path = path.with_name(f'.{path.stem}.{uuid.uuid4().hex}.tmp')
+    with open(tmp_path, 'w') as f:
+        json.dump(normalized, f, indent=2, ensure_ascii=False)
+    os.replace(tmp_path, path)
+    return normalized
+
+
+def _list_strategies() -> list:
+    directory = _strategies_dir()
+    if not directory.exists():
+        return []
+    strategies = []
+    for path in directory.glob('*.json'):
+        try:
+            strategies.append(_normalize_strategy(_load_json_file(path), path.stem))
+        except Exception:
+            continue
+    return sorted(strategies, key=lambda item: item.get('created_at', ''), reverse=True)
+
+
+def _signals_file_path() -> Path:
+    project_path = _project_root / 'quant' / '.pi-invest' / 'signals.json'
+    if project_path.exists():
+        return project_path
+    return Path(__file__).parent.parent / '.pi-invest' / 'signals.json'
+
+
+def _normalize_signal(signal: dict) -> dict:
+    raw_signal = str(signal.get('signal') or signal.get('action') or 'hold').lower()
+    if raw_signal == 'buy':
+        action = 'buy'
+    elif raw_signal == 'sell':
+        action = 'sell'
+    else:
+        action = 'hold'
+
+    strategy_name = signal.get('strategy_name') or signal.get('strategy') or signal.get('strategy_id') or ''
+    reason = signal.get('reason') or signal.get('reasons') or ''
+    reasons = reason if isinstance(reason, list) else ([reason] if reason else [])
+    return {
+        'symbol': signal.get('symbol', ''),
+        'name': signal.get('name', ''),
+        'signal': action,
+        'confidence': float(signal.get('confidence') or 0),
+        'strategy_id': signal.get('strategy_id') or strategy_name,
+        'strategy_name': strategy_name,
+        'reasons': reasons,
+        'price': float(signal.get('price') or 0),
+        'timestamp': signal.get('timestamp') or signal.get('date') or datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+        'date': signal.get('date', ''),
+    }
+
+
+def _load_dashboard_signals() -> list:
+    path = _signals_file_path()
+    if not path.exists():
+        return []
+    data = _load_json_file(path)
+    signals = data.get('signals', []) if isinstance(data, dict) else data
+    if not isinstance(signals, list):
+        return []
+    return [_normalize_signal(signal) for signal in signals]
+
+
+def _default_backtest_result(initial_capital: float, start_date: str, end_date: str) -> dict:
+    return {
+        'total_return': 0.0,
+        'annual_return': 0.0,
+        'max_drawdown': 0.0,
+        'win_rate': 0.0,
+        'sharpe_ratio': 0.0,
+        'profit_loss_ratio': 0.0,
+        'total_trades': 0,
+        'winning_trades': 0,
+        'losing_trades': 0,
+        'daily_equity': [
+            {'date': start_date, 'equity': initial_capital},
+            {'date': end_date, 'equity': initial_capital},
+        ],
+    }
+
+
+def _performance_for_strategy(strategy_id: str, days: int) -> dict:
+    strategy = _read_strategy(strategy_id) or {'id': strategy_id, 'name': strategy_id}
+    signals = [signal for signal in _load_dashboard_signals() if not signal.get('strategy_id') or signal.get('strategy_id') == strategy_id or signal.get('strategy_name') == strategy.get('name')]
+    total = len(signals)
+    return {
+        'strategy_id': strategy_id,
+        'strategy_name': strategy.get('name', strategy_id),
+        'total_signals': total,
+        'win_rate': 0.0,
+        'avg_profit_pct': 0.0,
+        'max_profit_pct': 0.0,
+        'max_loss_pct': 0.0,
+        'sharpe_ratio': None,
+        'max_drawdown_pct': 0.0,
+        'days': days,
+    }
+
+
+def _chart_response(chart_type: str) -> dict:
+    _charts_dir().mkdir(parents=True, exist_ok=True)
+    chart_path = _charts_dir() / f'{chart_type}.png'
+    if not chart_path.exists():
+        chart_path.write_bytes(
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+            b'\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89'
+            b'\x00\x00\x00\rIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02'
+            b'\xfeA\xe2!\xbc\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+    return {'chart_path': str(chart_path), 'stats': {}}
+
 
 # 全局变量
 db = None
@@ -62,6 +985,37 @@ def init_services():
     feature_engineer = FeatureEngineer()
 
 
+def _file_details(path: Path):
+    if not path.exists():
+        return None
+    stat = path.stat()
+    return {
+        'path': str(path),
+        'size_bytes': stat.st_size,
+        'modified_at': datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat().replace('+00:00', 'Z'),
+    }
+
+
+def _status_check(name: str, path: Path, healthy_message: str, missing_message: str, extra_details: dict = None):
+    details = _file_details(path)
+    if not details:
+        return {
+            'name': name,
+            'status': 'unavailable',
+            'message': missing_message,
+            'details': {'path': str(path), 'exists': False},
+        }
+    if extra_details:
+        details.update(extra_details)
+    details['exists'] = True
+    return {
+        'name': name,
+        'status': 'healthy',
+        'message': healthy_message,
+        'details': details,
+    }
+
+
 def _ensure_schema(conn):
     """确保数据库包含必要的表（增量迁移，不破坏已有数据）"""
     conn.execute("""
@@ -84,13 +1038,99 @@ def _ensure_schema(conn):
     conn.commit()
 
 
+def get_db_provider():
+    """Return the configured quant data provider for read APIs."""
+    provider = os.environ.get('QUANT_DB_PROVIDER', 'postgres').strip().lower()
+    if provider in {'postgresql', 'pg'}:
+        return 'postgres'
+    if provider not in {'sqlite', 'postgres'}:
+        return 'postgres'
+    return provider
+
+
+class PostgresCompatCursor:
+    """Small DB-API cursor wrapper that accepts the SQLite-style SQL used here."""
+
+    TABLE_REPLACEMENTS = {
+        'daily_klines': 'quant_compat.daily_klines',
+        'factor_values': 'quant_compat.factor_values',
+        'daily_quotes': 'quant_compat.daily_quotes',
+        'signals': 'quant_compat.signals',
+        'stocks': 'quant_compat.stocks',
+    }
+
+    def __init__(self, cursor):
+        self.cursor = cursor
+
+    def execute(self, sql, params=None):
+        rewritten = self._rewrite_sql(sql)
+        self.cursor.execute(rewritten, params)
+        return self
+
+    def fetchone(self):
+        return self.cursor.fetchone()
+
+    def fetchall(self):
+        return self.cursor.fetchall()
+
+    @classmethod
+    def _rewrite_sql(cls, sql):
+        import re
+
+        rewritten = sql.replace('?', '%s')
+        for table, compat_table in cls.TABLE_REPLACEMENTS.items():
+            rewritten = re.sub(
+                rf'(?<![\w.]){table}(?![\w.])',
+                compat_table,
+                rewritten,
+            )
+        return rewritten
+
+
+class PostgresCompatConnection:
+    """Connection wrapper exposing the subset of sqlite3 API used by server.py."""
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    def execute(self, sql, params=None):
+        cursor = PostgresCompatCursor(self.connection.cursor())
+        return cursor.execute(sql, params)
+
+    def commit(self):
+        self.connection.commit()
+
+    def close(self):
+        self.connection.close()
+
+
+def _connect_postgres():
+    import psycopg2
+
+    database_url = os.environ.get('DATABASE_URL') or os.environ.get('QUANT_DATABASE_URL')
+    if database_url:
+        return psycopg2.connect(database_url)
+    return psycopg2.connect(
+        dbname=os.environ.get('PGDATABASE', 'quant_investment'),
+        host=os.environ.get('PGHOST'),
+        port=os.environ.get('PGPORT'),
+        user=os.environ.get('PGUSER'),
+        password=os.environ.get('PGPASSWORD'),
+    )
+
+
 def get_db():
     """获取线程安全的数据库连接"""
-    import sqlite3
-    conn = sqlite3.connect(str(db_path), check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    _ensure_schema(conn)
-    return conn
+    if get_db_provider() != 'postgres':
+        raise RuntimeError("SQLite is no longer supported. Please use PostgreSQL (QUANT_DB_PROVIDER=postgres)")
+
+    return PostgresCompatConnection(_connect_postgres())
+
+
+def _quant_database() -> Database:
+    """Open the pipeline Database for write-oriented data operations."""
+    db_file = _project_root / '.pi-invest' / 'stock-db' / 'stocks.db'
+    return Database(str(db_file))
 
 
 @app.route('/api/health', methods=['GET'])
@@ -100,6 +1140,29 @@ def health_check():
     db_info = None
 
     try:
+        if get_db_provider() == 'postgres':
+            conn = get_db()
+            row = conn.execute(
+                "SELECT current_database(), pg_database_size(current_database())"
+            ).fetchone()
+            conn.close()
+
+            size_bytes = int(row[1]) if row and row[1] is not None else 0
+            size_mb = size_bytes / (1024 * 1024)
+            db_connected = True
+            db_info = {
+                'provider': 'postgres',
+                'database': row[0] if row else os.environ.get('PGDATABASE', 'quant_investment'),
+                'size_mb': round(size_mb, 2),
+                'size_display': f"{size_mb / 1024:.1f} GB" if size_mb >= 1024 else f"{size_mb:.1f} MB"
+            }
+            return jsonify({
+                'status': 'ok',
+                'model_loaded': model is not None,
+                'db_connected': db_connected,
+                'db_info': db_info
+            })
+
         # Check if database file exists and is accessible
         # Note: We don't actually connect to avoid lock issues with concurrent processes
         if db_path.exists() and db_path.is_file():
@@ -123,6 +1186,7 @@ def health_check():
                 size_display = f"{size_mb / 1024:.1f} GB"
 
             db_info = {
+                'provider': 'sqlite',
                 'path': str(db_path),
                 'size_mb': round(size_mb, 2),
                 'size_display': size_display
@@ -138,6 +1202,156 @@ def health_check():
         'db_connected': db_connected,
         'db_info': db_info
     })
+
+
+@app.route('/api/strategies', methods=['GET'])
+def list_strategies():
+    return jsonify({'success': True, 'data': _list_strategies()})
+
+
+@app.route('/api/strategies/<strategy_id>', methods=['GET'])
+def get_strategy(strategy_id):
+    strategy = _read_strategy(strategy_id)
+    if strategy is None:
+        return jsonify({'success': False, 'error': 'Strategy not found'}), 404
+    return jsonify({'success': True, 'data': strategy})
+
+
+@app.route('/api/strategies', methods=['POST'])
+def create_strategy():
+    data = request.get_json() or {}
+    strategy = _write_strategy(data)
+    return jsonify({'success': True, 'data': strategy}), 201
+
+
+@app.route('/api/strategies/<strategy_id>', methods=['PUT'])
+def update_strategy(strategy_id):
+    existing = _read_strategy(strategy_id)
+    if existing is None:
+        return jsonify({'success': False, 'error': 'Strategy not found'}), 404
+    updates = request.get_json() or {}
+    updated = _write_strategy({**existing, **updates, 'id': strategy_id, 'created_at': existing['created_at']})
+    return jsonify({'success': True, 'data': updated})
+
+
+@app.route('/api/strategies/<strategy_id>', methods=['DELETE'])
+def delete_strategy(strategy_id):
+    path = _strategy_path(strategy_id)
+    if not path.exists():
+        return jsonify({'success': False, 'error': 'Strategy not found'}), 404
+    path.unlink()
+    return jsonify({'success': True, 'message': 'Strategy deleted'})
+
+
+@app.route('/api/strategies/<strategy_id>/enable', methods=['POST'])
+def enable_strategy(strategy_id):
+    existing = _read_strategy(strategy_id)
+    if existing is None:
+        return jsonify({'success': False, 'error': 'Strategy not found'}), 404
+    existing['enabled'] = True
+    return jsonify({'success': True, 'data': _write_strategy(existing)})
+
+
+@app.route('/api/strategies/<strategy_id>/disable', methods=['POST'])
+def disable_strategy(strategy_id):
+    existing = _read_strategy(strategy_id)
+    if existing is None:
+        return jsonify({'success': False, 'error': 'Strategy not found'}), 404
+    existing['enabled'] = False
+    return jsonify({'success': True, 'data': _write_strategy(existing)})
+
+
+@app.route('/api/platform/status', methods=['GET'])
+def platform_status():
+    """返回 quant-web 运维总览需要的平台健康状态。"""
+    try:
+        signals_path = _project_root / 'quant' / '.pi-invest' / 'signals.json'
+        model_report_path = _project_root / 'quant' / 'quantsys' / 'ml' / 'models' / 'training_report_latest.json'
+        daily_report_path = _project_root / 'quant' / '.pi-invest' / 'daily_report.json'
+
+        if get_db_provider() == 'postgres':
+            try:
+                conn = get_db()
+                row = conn.execute("SELECT current_database(), pg_database_size(current_database())").fetchone()
+                conn.close()
+                size_bytes = int(row[1]) if row and row[1] is not None else 0
+                size_mb = size_bytes / (1024 * 1024)
+                database_check = {
+                    'name': 'database',
+                    'status': 'healthy',
+                    'message': 'PostgreSQL database is connected.',
+                    'details': {
+                        'provider': 'postgres',
+                        'database': row[0] if row else os.environ.get('PGDATABASE', 'quant_investment'),
+                        'size_mb': round(size_mb, 2),
+                        'size_display': f"{size_mb / 1024:.1f} GB" if size_mb >= 1024 else f"{size_mb:.1f} MB",
+                        'exists': True,
+                    },
+                }
+            except Exception as db_error:
+                database_check = {
+                    'name': 'database',
+                    'status': 'unavailable',
+                    'message': 'PostgreSQL database is not connected.',
+                    'details': {
+                        'provider': 'postgres',
+                        'database': os.environ.get('PGDATABASE', 'quant_investment'),
+                        'error': str(db_error),
+                        'exists': False,
+                    },
+                }
+        else:
+            database_path = _project_root / '.pi-invest' / 'stock-db' / 'stocks.db'
+            database_check = _status_check(
+                'database',
+                database_path,
+                'SQLite stock database is present.',
+                'SQLite stock database was not found.',
+                {'provider': 'sqlite'},
+            )
+
+        checks = [
+            database_check,
+            _status_check(
+                'signals',
+                signals_path,
+                'Fallback signals file was found.',
+                'No signal files were found.',
+                {'source': 'signals_fallback'},
+            ),
+            _status_check(
+                'model',
+                model_report_path,
+                'Model freshness artifact is present.',
+                'Model freshness artifact was not found.',
+                {'source': 'training_report'},
+            ),
+            _status_check(
+                'daily_report',
+                daily_report_path,
+                'Daily report JSON was found.',
+                'Daily report JSON was not found.',
+                {'source': 'daily_report_json'},
+            ),
+        ]
+
+        if checks[0]['status'] == 'unavailable':
+            overall_status = 'unavailable'
+        elif all(check['status'] == 'healthy' for check in checks):
+            overall_status = 'healthy'
+        else:
+            overall_status = 'degraded'
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'overall_status': overall_status,
+                'generated_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+                'checks': checks,
+            },
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/feature-importance', methods=['GET'])
@@ -179,6 +1393,7 @@ def get_feature_importance():
 
 
 @app.route('/api/stock/<symbol>/factors', methods=['GET'])
+@app.route('/api/stocks/<symbol>/factors', methods=['GET'])
 def get_stock_factors(symbol):
     """获取股票因子分析"""
     try:
@@ -192,7 +1407,7 @@ def get_stock_factors(symbol):
         # 获取最新日期
         if date is None:
             cursor = conn.execute(
-                "SELECT MAX(date) FROM factor_values WHERE symbol = ?",
+                "SELECT MAX(date) FROM daily_klines WHERE symbol = ?",
                 (symbol,)
             )
             date = cursor.fetchone()[0]
@@ -200,7 +1415,19 @@ def get_stock_factors(symbol):
                 conn.close()
                 return jsonify({'error': f'未找到股票 {symbol} 的数据'}), 404
 
-        # 获取因子和价格
+        # 获取K线数据
+        cursor = conn.execute("""
+            SELECT open, high, low, close, volume, amount, turnover_rate
+            FROM daily_klines
+            WHERE symbol = ? AND date = ?
+        """, (symbol, date))
+
+        kline = cursor.fetchone()
+        if not kline:
+            conn.close()
+            return jsonify({'error': '未找到价格数据'}), 404
+
+        # 获取因子数据
         cursor = conn.execute("""
             SELECT factor_name, factor_value
             FROM factor_values
@@ -211,45 +1438,33 @@ def get_stock_factors(symbol):
         for row in cursor.fetchall():
             factors[row[0]] = row[1]
 
-        cursor = conn.execute("""
-            SELECT open, high, low, close, volume, amount, turnover_rate
-            FROM daily_klines
-            WHERE symbol = ? AND date = ?
-        """, (symbol, date))
-
-        row = cursor.fetchone()
         conn.close()
 
-        if not row:
-            return jsonify({'error': '未找到价格数据'}), 404
-
-        # 构建特征字典（与训练时一致）
-        feature_dict = {
-            'open': row[0],
-            'high': row[1],
-            'low': row[2],
-            'close': row[3],
-            'volume': row[4],
-            'amount': row[5],
-            'turnover_rate': row[6]
-        }
-
-        # 添加因子数据
-        feature_dict.update(factors)
-
-        # 从训练报告读取特征顺序
+        # 从训练报告读取特征顺序（使用与加载模型匹配的报告）
         import json
-        report_path = Path(__file__).parent.parent / 'quantsys' / 'ml' / 'models' / 'training_report_latest.json'
+        report_path = Path(__file__).parent.parent / 'quantsys' / 'ml' / 'models' / 'training_report_20260519_112515.json'
         with open(report_path) as f:
             report = json.load(f)
             feature_names = report['feature_names']
 
-        # 按训练时的顺序构建特征数组（缺失的特征用 0 填充）
+        # 构建特征字典（K线数据 + 因子），处理None值
+        all_features = {
+            'open': kline[0] if kline[0] is not None else 0.0,
+            'high': kline[1] if kline[1] is not None else 0.0,
+            'low': kline[2] if kline[2] is not None else 0.0,
+            'close': kline[3] if kline[3] is not None else 0.0,
+            'volume': kline[4] if kline[4] is not None else 0.0,
+            'amount': kline[5] if kline[5] is not None else 0.0,
+            'turnover_rate': kline[6] if kline[6] is not None else 0.0,
+            **factors
+        }
+
+        # 按训练时的顺序构建特征数组
         features = []
         missing_features = []
         for name in feature_names:
-            value = feature_dict.get(name, None)
-            if value is None:
+            value = all_features.get(name, None)
+            if value is None or (isinstance(value, float) and np.isnan(value)):
                 missing_features.append(name)
                 features.append(0.0)
             else:
@@ -285,13 +1500,14 @@ def get_stock_factors(symbol):
         return jsonify({
             'symbol': symbol,
             'date': date,
-            'price': feature_dict['close'],
-            'prediction': {
-                'up_probability': up_prob,
-                'direction': 'UP' if up_prob > 0.5 else 'DOWN',
-                'confidence': abs(up_prob - 0.5) * 2
-            },
-            'key_factors': key_factors[:10]
+            'close': float(kline[3]),
+            'prediction_proba': up_prob,
+            'prediction': 'UP' if up_prob > 0.5 else 'DOWN',
+            'confidence': abs(up_prob - 0.5) * 2,
+            'factors': {k: float(v) if not (isinstance(v, float) and np.isnan(v)) else 0.0
+                       for k, v in all_features.items()},
+            'key_factors': key_factors[:10],
+            'missing_features': missing_features if missing_features else None
         })
 
     except Exception as e:
@@ -379,6 +1595,41 @@ def get_signals():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/signals/history', methods=['GET'])
+def get_signals_history():
+    """旧 dashboard 兼容：返回规范化信号数组。"""
+    try:
+        return jsonify({'success': True, 'data': _load_dashboard_signals()})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/signals/scan', methods=['POST'])
+def scan_signals():
+    """旧 dashboard 兼容：对传入股票返回 hold 占位信号。"""
+    data = request.get_json() or {}
+    stocks = data.get('stocks') or []
+    if not isinstance(stocks, list):
+        return jsonify({'success': False, 'error': 'Missing required parameters: strategy_id, stocks (array)'}), 400
+
+    strategy_id = data.get('strategy_id', '')
+    signals = [
+        {
+            'symbol': stock.get('symbol', ''),
+            'name': stock.get('name', ''),
+            'signal': 'hold',
+            'confidence': 0.0,
+            'strategy_id': strategy_id,
+            'strategy_name': strategy_id,
+            'reasons': ['兼容接口未执行实时扫描'],
+            'price': 0.0,
+            'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+        }
+        for stock in stocks
+    ]
+    return jsonify({'success': True, 'data': signals})
+
+
 @app.route('/api/stock/<symbol>/klines', methods=['GET'])
 def get_stock_klines(symbol):
     """获取K线数据（兼容 quant_api.py 格式）"""
@@ -458,7 +1709,7 @@ def get_technical_indicators(symbol):
         # 转换为 pandas DataFrame
         import pandas as pd
         df = pd.DataFrame(klines)
-        df['date'] = pd.to_datetime(df['date'])
+        df['date'] = pd.to_datetime(df['date'], format='mixed')
         df = df.sort_values('date')
 
         result_indicators = {}
@@ -795,6 +2046,46 @@ def get_backtest_results():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/backtest', methods=['POST'])
+def run_dashboard_backtest():
+    """旧 dashboard 兼容：同步返回可展示回测结构。"""
+    data = request.get_json() or {}
+    strategy_id = data.get('strategy_id')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    initial_capital = float(data.get('initial_capital') or 100000)
+
+    if not strategy_id or not start_date or not end_date:
+        return jsonify({'success': False, 'error': 'Missing required parameters: strategy_id, start_date, end_date'}), 400
+    if _read_strategy(strategy_id) is None:
+        return jsonify({'success': False, 'error': 'Strategy not found'}), 404
+
+    return jsonify({'success': True, 'data': _default_backtest_result(initial_capital, start_date, end_date)})
+
+
+@app.route('/api/performance/strategy/<strategy_id>', methods=['GET'])
+def get_strategy_performance(strategy_id):
+    days = request.args.get('days', default=30, type=int)
+    if _read_strategy(strategy_id) is None:
+        return jsonify({'success': False, 'error': 'Strategy not found'}), 404
+    return jsonify({'success': True, 'data': _performance_for_strategy(strategy_id, days)})
+
+
+@app.route('/api/performance/compare', methods=['GET'])
+@app.route('/api/performance/comparison', methods=['GET'])
+def compare_strategy_performance():
+    days = request.args.get('days', default=30, type=int)
+    raw_ids = request.args.get('strategy_ids')
+    if raw_ids:
+        strategy_ids = [item for item in raw_ids.split(',') if item]
+    else:
+        strategy_ids = [strategy['id'] for strategy in _list_strategies()]
+    return jsonify({
+        'success': True,
+        'data': [_performance_for_strategy(strategy_id, days) for strategy_id in strategy_ids],
+    })
+
+
 @app.route('/api/training/history', methods=['GET'])
 def get_training_history():
     """获取训练历史"""
@@ -834,6 +2125,121 @@ def get_training_history():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/training/reports', methods=['GET'])
+def get_training_reports():
+    """获取历史训练报告列表（quant-web 兼容）。"""
+    try:
+        reports = []
+        for path in _iter_training_report_files()[:20]:
+            report = _load_json_file(path)
+            timestamp = path.name.replace('training_report_', '').replace('.json', '')
+            reports.append({
+                'filename': path.name,
+                'timestamp': timestamp,
+                'metrics': report.get('metrics') or report.get('test_metrics'),
+                'params': report.get('params'),
+                'n_features': _report_n_features(report),
+            })
+        return jsonify({'success': True, 'data': reports})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/training/report/<filename>', methods=['GET'])
+def get_training_report(filename):
+    """获取单个训练报告详情。"""
+    try:
+        if '..' in filename or '/' in filename or '\\' in filename:
+            return jsonify({'success': False, 'error': 'Invalid filename'}), 400
+
+        report_path = _models_dir() / filename
+        if not report_path.exists() or not report_path.is_file():
+            return jsonify({'success': False, 'error': 'Report not found'}), 404
+
+        return jsonify({'success': True, 'data': _load_json_file(report_path)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/training/start', methods=['POST'])
+def start_training():
+    """启动模型训练任务（quant-web 兼容）。"""
+    data = request.get_json() or {}
+    days = int(data.get('days', 90))
+    model = data.get('model', 'xgboost')
+    cv_splits = int(data.get('cvSplits', 5))
+
+    if days < 30 or days > 365:
+        return jsonify({'success': False, 'error': 'days must be between 30 and 365'}), 400
+    if model not in {'xgboost', 'lightgbm', 'random_forest', 'randomforest'}:
+        return jsonify({'success': False, 'error': 'model must be one of: xgboost, lightgbm, random_forest'}), 400
+    if cv_splits < 2 or cv_splits > 10:
+        return jsonify({'success': False, 'error': 'cvSplits must be between 2 and 10'}), 400
+
+    params = {
+        'days': days,
+        'model': model,
+        'cvSplits': cv_splits,
+        'useFeatureEngineering': data.get('useFeatureEngineering', True),
+    }
+    job_id = _start_job_for_type('model_train', params)
+    return jsonify({
+        'success': True,
+        'data': {
+            'taskId': job_id,
+            'status': 'running',
+            'message': 'Training started successfully',
+        },
+    }), 202
+
+
+@app.route('/api/training/status/<task_id>', methods=['GET'])
+def get_training_status(task_id):
+    """查询训练任务状态。"""
+    job = _get_job(task_id)
+    if job is None:
+        return jsonify({'success': False, 'error': 'Training task not found'}), 404
+    return jsonify({'success': True, 'data': _training_status_from_job(job)})
+
+
+@app.route('/api/training/logs/<task_id>', methods=['GET'])
+def get_training_logs(task_id):
+    """获取训练任务日志。"""
+    job = _get_job(task_id)
+    if job is None:
+        return jsonify({'success': False, 'error': 'Training task not found'}), 404
+    return jsonify({'success': True, 'data': {'taskId': task_id, 'logs': job.get('logs') or []}})
+
+
+@app.route('/api/charts/accuracy', methods=['GET'])
+def get_accuracy_chart():
+    return jsonify({'success': True, 'data': _chart_response('accuracy_trend')})
+
+
+@app.route('/api/charts/importance', methods=['GET'])
+def get_importance_chart():
+    return jsonify({'success': True, 'data': _chart_response('feature_importance')})
+
+
+@app.route('/api/charts/equity', methods=['GET'])
+def get_equity_chart():
+    return jsonify({'success': True, 'data': _chart_response('equity_curve')})
+
+
+@app.route('/api/charts/comparison', methods=['GET'])
+def get_comparison_chart():
+    return jsonify({'success': True, 'data': _chart_response('strategy_comparison')})
+
+
+@app.route('/api/charts/image/<chart_type>', methods=['GET'])
+def get_chart_image(chart_type):
+    valid_types = {'accuracy_trend', 'equity_curve', 'strategy_comparison', 'feature_importance'}
+    if chart_type not in valid_types:
+        return jsonify({'success': False, 'error': f'Invalid chart type: {chart_type}'}), 400
+    chart_path = Path(_chart_response(chart_type)['chart_path'])
+    return app.response_class(chart_path.read_bytes(), mimetype='image/png')
 
 
 @app.route('/api/stocks/data-status', methods=['GET'])
@@ -923,6 +2329,803 @@ def get_stocks_data_status():
         return jsonify({'error': str(e)}), 500
 
 
+def _lookup_local_stock(db: Database, symbol: str):
+    rows = db.get_stock_identity_rows()
+    for row in rows:
+        if normalize_symbol(row.get('symbol', '')) == symbol:
+            return {
+                'symbol': symbol,
+                'name': row.get('name') or symbol,
+                'market': db.get_market(symbol) or ('HK' if len(symbol) <= 5 else 'A'),
+            }
+    return None
+
+
+def _lookup_external_stock(symbol: str):
+    """Query external stock info. Returns a stock dict or an error payload."""
+    try:
+        from infrastructure.akshare_ts import get_stock_info  # type: ignore
+    except Exception:
+        get_stock_info = None
+
+    if get_stock_info is not None:
+        try:
+            payload = json.loads(get_stock_info(symbol))
+            if not payload.get('error'):
+                return payload
+        except Exception:
+            pass
+
+    try:
+        import akshare as ak
+        df = ak.stock_zh_a_spot_em()
+        if df is not None and not df.empty:
+            match = df[df['代码'].astype(str) == symbol]
+            if not match.empty:
+                row = match.iloc[0]
+                return {
+                    'symbol': symbol,
+                    'name': str(row.get('名称') or symbol),
+                    'market': 'A',
+                    'industry': row.get('所属行业'),
+                    'market_cap': row.get('总市值'),
+                    'pe': row.get('市盈率-动态'),
+                    'pb': row.get('市净率'),
+                }
+    except Exception as exc:
+        return {'error': str(exc), 'symbol': symbol}
+
+    return {'error': 'not found', 'symbol': symbol}
+
+
+def _stock_payload_from_external(symbol: str, payload: dict) -> dict:
+    market_cap = payload.get('market_cap')
+    if market_cap is None and payload.get('market_cap_billion') is not None:
+        try:
+            market_cap = float(payload.get('market_cap_billion')) * 100
+        except (TypeError, ValueError):
+            market_cap = None
+
+    return {
+        'symbol': normalize_symbol(payload.get('symbol') or symbol),
+        'name': payload.get('name') or symbol,
+        'market': payload.get('market') or ('HK' if len(symbol) <= 5 else 'A'),
+        'industry': payload.get('industry') or payload.get('sector'),
+        'sector': payload.get('sector'),
+        'market_cap': market_cap,
+        'pe': payload.get('pe') if payload.get('pe') is not None else payload.get('pe_ttm'),
+        'pb': payload.get('pb'),
+        'list_date': payload.get('list_date') or payload.get('listed_date'),
+    }
+
+
+def _resolved_stock_response(db: Database, stock: dict, source: str, required_days: int) -> dict:
+    symbol = normalize_symbol(stock['symbol'])
+    coverage = db.get_kline_coverage(symbol)
+    kline_count = int(coverage.get('existing_days') or 0)
+    return {
+        'symbol': symbol,
+        'name': stock.get('name') or symbol,
+        'market': stock.get('market') or db.get_market(symbol) or ('HK' if len(symbol) <= 5 else 'A'),
+        'source': source,
+        'hasKlines': kline_count > 0,
+        'klineCount': kline_count,
+        'latestKlineDate': coverage.get('last_date'),
+        'enoughForFactor': kline_count >= 60,
+        'enoughForTraining': kline_count >= required_days,
+    }
+
+
+@app.route('/api/stocks/resolve', methods=['POST'])
+def resolve_stocks():
+    """Resolve user-entered symbols against local DB, external source, and K-line coverage."""
+    data = request.get_json() or {}
+    symbols = _normalize_symbols(data.get('symbols'))
+    required_days = int(data.get('requiredDays') or data.get('days') or 180)
+    if not symbols:
+        return jsonify({'success': False, 'error': '请提供股票代码'}), 400
+    return jsonify({'success': True, 'data': _resolve_symbols_for_pipeline(symbols, required_days)})
+
+
+# =====================================================
+# 新增端点：异步任务管理
+# =====================================================
+
+@app.route('/api/jobs/<job_id>', methods=['GET'])
+def get_job_status(job_id):
+    """查询异步任务状态"""
+    job = _get_job(job_id)
+    if job is None:
+        return jsonify({'error': f'Job {job_id} not found'}), 404
+    return jsonify({'success': True, 'data': _normalize_job_for_web(job)})
+
+
+@app.route('/api/jobs', methods=['GET'])
+def list_jobs():
+    """列出所有任务（最近50个）"""
+    jobs = []
+    for f in sorted(_jobs_dir.glob('*.json'), key=lambda x: x.stat().st_mtime, reverse=True)[:50]:
+        with open(f, 'r') as fp:
+            jobs.append(_normalize_job_for_web(json.load(fp)))
+    return jsonify({'success': True, 'count': len(jobs), 'jobs': jobs})
+
+
+@app.route('/api/jobs/<job_type>/run', methods=['POST'])
+def run_web_job(job_type):
+    """quant-web 兼容任务入口。"""
+    if job_type not in WEB_JOB_TYPES:
+        return jsonify({'success': False, 'error': f'Unsupported job type: {job_type}'}), 400
+
+    data = request.get_json() or {}
+    job_id = _start_job_for_type(job_type, data)
+    return jsonify({'success': True, 'data': _normalize_job_for_web(_get_job(job_id))}), 202
+
+
+@app.route('/api/jobs/<job_id>/retry', methods=['POST'])
+def retry_web_job(job_id):
+    """quant-web 兼容任务重试入口。"""
+    job = _get_job(job_id)
+    if job is None:
+        return jsonify({'success': False, 'error': f'Job {job_id} not found'}), 404
+
+    status = JOB_STATUS_MAP.get(job.get('status'), job.get('status'))
+    if status != 'failed':
+        return jsonify({'success': False, 'error': f'Only failed jobs can be retried: {job_id}'}), 409
+
+    _update_job(job_id, status='created', started_at=None, completed_at=None, error=None)
+    threading.Thread(
+        target=lambda: _complete_job_without_executor(job_id, {'message': 'Retried without executor'}),
+        daemon=True,
+    ).start()
+    return jsonify({'success': True, 'data': _normalize_job_for_web(_get_job(job_id))}), 202
+
+
+@app.route('/api/jobs/<job_id>/cancel', methods=['POST'])
+def cancel_web_job(job_id):
+    """quant-web 兼容任务取消入口。"""
+    job = _get_job(job_id)
+    if job is None:
+        return jsonify({'success': False, 'error': f'Job {job_id} not found'}), 404
+
+    status = JOB_STATUS_MAP.get(job.get('status'), job.get('status'))
+    if status in {'success', 'failed'}:
+        return jsonify({'success': False, 'error': f'Completed jobs cannot be cancelled: {job_id}'}), 409
+
+    _update_job(job_id, status='cancelled', completed_at=time.time())
+    return jsonify({'success': True, 'data': _normalize_job_for_web(_get_job(job_id))})
+
+
+@app.route('/api/pipeline/runs', methods=['POST'])
+def create_pipeline_run():
+    data = request.get_json() or {}
+    symbols = _normalize_symbols(data.get('symbols'))
+    if not symbols:
+        return jsonify({'success': False, 'error': '请提供股票代码'}), 400
+
+    params = {
+        **data,
+        'symbols': symbols,
+        'days': int(data.get('days') or 180),
+    }
+    run = _create_pipeline_run(params)
+    threading.Thread(target=lambda: _run_pipeline_async(run['id']), daemon=True).start()
+    return jsonify({'success': True, 'data': run}), 202
+
+
+@app.route('/api/pipeline/runs', methods=['GET'])
+def list_pipeline_runs():
+    page = max(int(request.args.get('page', 1)), 1)
+    page_size = max(min(int(request.args.get('pageSize', 10)), 100), 1)
+    runs = []
+    _pipeline_runs_dir.mkdir(parents=True, exist_ok=True)
+    for path in _pipeline_runs_dir.glob('pipeline_*.json'):
+        try:
+            run = _sync_pipeline_run_jobs(_load_json_file(path))
+            runs.append(run)
+        except Exception:
+            continue
+    runs.sort(key=lambda item: item.get('createdAt') or '', reverse=True)
+    total = len(runs)
+    start = (page - 1) * page_size
+    end = start + page_size
+    return jsonify({
+        'success': True,
+        'data': {
+            'items': runs[start:end],
+            'total': total,
+            'page': page,
+            'pageSize': page_size,
+        },
+    })
+
+
+@app.route('/api/pipeline/runs/<run_id>', methods=['GET'])
+def get_pipeline_run(run_id):
+    run = _get_pipeline_run(run_id)
+    if run is None:
+        return jsonify({'success': False, 'error': f'Pipeline run {run_id} not found'}), 404
+    return jsonify({'success': True, 'data': _sync_pipeline_run_jobs(run)})
+
+
+@app.route('/api/pipeline/runs/<run_id>/cancel', methods=['POST'])
+def cancel_pipeline_run(run_id):
+    run = _get_pipeline_run(run_id)
+    if run is None:
+        return jsonify({'success': False, 'error': f'Pipeline run {run_id} not found'}), 404
+    if run.get('status') in {'success', 'failed', 'cancelled'}:
+        return jsonify({'success': False, 'error': f'Completed pipeline runs cannot be cancelled: {run_id}'}), 409
+
+    run['status'] = 'cancelled'
+    run['finishedAt'] = _pipeline_now_iso()
+    for step in run.get('steps', []):
+        if step.get('status') == 'running':
+            step['status'] = 'cancelled'
+            step['finishedAt'] = run['finishedAt']
+        job_id = step.get('jobId')
+        if job_id:
+            job = _get_job(job_id)
+            if job and JOB_STATUS_MAP.get(job.get('status'), job.get('status')) not in {'success', 'failed', 'cancelled'}:
+                _update_job(job_id, status='cancelled', completed_at=time.time())
+    _write_pipeline_run(run)
+    return jsonify({'success': True, 'data': run})
+
+
+@app.route('/api/scheduler/tasks', methods=['GET'])
+def list_scheduler_tasks():
+    """返回 quant-web 运维页需要的调度任务摘要。"""
+    return jsonify({
+        'success': True,
+        'tasks': [_scheduler_task_summary(task) for task in SCHEDULER_TASK_DEFINITIONS],
+    })
+
+
+@app.route('/api/scheduler/tasks/<task_id>/trigger', methods=['POST'])
+def trigger_scheduler_task(task_id):
+    """手动触发一个调度任务。"""
+    task = next((item for item in SCHEDULER_TASK_DEFINITIONS if item['id'] == task_id), None)
+    if task is None:
+        return jsonify({'success': False, 'error': f'Scheduler task {task_id} not found'}), 404
+
+    payload = task.get('payload') or {}
+    job_id = _start_job_for_type(payload['job_type'], payload.get('params') or {})
+    return jsonify({
+        'success': True,
+        'data': _scheduler_run_from_job(task, _get_job(job_id), 'manual'),
+    }), 202
+
+
+@app.route('/api/scheduler/tasks/<task_id>/compensate', methods=['POST'])
+def compensate_scheduler_task(task_id):
+    """补偿触发一个调度任务。"""
+    task = next((item for item in SCHEDULER_TASK_DEFINITIONS if item['id'] == task_id), None)
+    if task is None:
+        return jsonify({'success': False, 'error': f'Scheduler task {task_id} not found'}), 404
+    if not task.get('compensationEnabled'):
+        return jsonify({'success': False, 'error': f'Scheduler task {task_id} does not enable compensation'}), 409
+
+    payload = task.get('payload') or {}
+    job_id = _start_job_for_type(payload['job_type'], payload.get('params') or {})
+    return jsonify({
+        'success': True,
+        'data': _scheduler_run_from_job(task, _get_job(job_id), 'compensation'),
+    }), 202
+
+
+# =====================================================
+# 新增端点：风险检查
+# =====================================================
+
+@app.route('/api/risk/check', methods=['POST'])
+def risk_check():
+    """风险检查 - 检查持仓的集中度、止损、流动性风险"""
+    try:
+        data = request.get_json() or {}
+        symbols = data.get('symbols')
+        account_value = data.get('account_value')
+
+        # 读取持仓数据
+        portfolio_path = Path(__file__).parent.parent.parent / '.pi-invest' / 'portfolio.json'
+        holdings = []
+        if portfolio_path.exists():
+            with open(portfolio_path, 'r') as f:
+                pf = json.load(f)
+                holdings = pf.get('holdings', [])
+
+        if symbols:
+            holdings = [h for h in holdings if h.get('symbol') in symbols]
+
+        # 计算风险指标
+        checks = []
+        total_risk_score = 100
+
+        for h in holdings:
+            symbol = h.get('symbol', 'unknown')
+            quantity = h.get('quantity', 0)
+            avg_cost = h.get('avg_cost', 0)
+            position_value = quantity * avg_cost
+
+            # 获取当前价格
+            current_price = None
+            try:
+                conn = get_db()
+                cursor = conn.execute(
+                    "SELECT close FROM daily_klines WHERE symbol=? ORDER BY date DESC LIMIT 1",
+                    (symbol,)
+                )
+                row = cursor.fetchone()
+                conn.close()
+                if row:
+                    current_price = row[0]
+            except Exception:
+                pass
+
+            item_checks = []
+            item_score = 100
+
+            # 集中度检查
+            if account_value and account_value > 0:
+                concentration = (position_value / account_value) * 100
+                if concentration > 30:
+                    item_checks.append({'type': 'concentration', 'level': 'high',
+                                       'message': f'{symbol} 仓位集中度 {concentration:.1f}% > 30%',
+                                       'suggestion': '建议分散持仓'})
+                    item_score -= 30
+                elif concentration > 20:
+                    item_checks.append({'type': 'concentration', 'level': 'medium',
+                                       'message': f'{symbol} 仓位集中度 {concentration:.1f}% > 20%'})
+                    item_score -= 15
+
+            # 止损检查
+            if current_price and avg_cost > 0:
+                pnl_pct = ((current_price - avg_cost) / avg_cost) * 100
+                if pnl_pct < -8:
+                    item_checks.append({'type': 'stop_loss', 'level': 'high',
+                                       'message': f'{symbol} 浮亏 {pnl_pct:.1f}%，已触及止损线',
+                                       'suggestion': '建议立即止损'})
+                    item_score -= 40
+                elif pnl_pct < -5:
+                    item_checks.append({'type': 'stop_loss', 'level': 'medium',
+                                       'message': f'{symbol} 浮亏 {pnl_pct:.1f}%，接近止损线'})
+                    item_score -= 20
+
+            checks.append({
+                'symbol': symbol,
+                'name': h.get('name', ''),
+                'position_value': position_value,
+                'current_price': current_price,
+                'avg_cost': avg_cost,
+                'pnl_pct': ((current_price - avg_cost) / avg_cost * 100) if current_price and avg_cost else None,
+                'checks': item_checks,
+                'score': max(0, item_score)
+            })
+            total_risk_score = min(total_risk_score, item_score)
+
+        # 整体风险等级
+        if total_risk_score >= 80:
+            risk_level = 'low'
+        elif total_risk_score >= 50:
+            risk_level = 'medium'
+        else:
+            risk_level = 'high'
+
+        return jsonify({
+            'risk_score': total_risk_score,
+            'risk_level': risk_level,
+            'holdings_count': len(holdings),
+            'checks': checks
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
+# 新增端点：信号生成
+# =====================================================
+
+@app.route('/api/signals/generate', methods=['POST'])
+def generate_signals():
+    """生成交易信号（同步，写入 signals.json）"""
+    try:
+        script_path = _scripts_dir / 'generate_signals.py'
+        if not script_path.exists():
+            return jsonify({'error': 'generate_signals.py not found'}), 500
+
+        result = subprocess.run(
+            [sys.executable, str(script_path)],
+            capture_output=True, text=True, timeout=600
+        )
+
+        # 读回生成的信号
+        signals_path = Path(__file__).parent.parent.parent / '.pi-invest' / 'signals.json'
+        signals_data = {}
+        if signals_path.exists():
+            with open(signals_path, 'r') as f:
+                signals_data = json.load(f)
+
+        return jsonify({
+            'success': result.returncode == 0,
+            'stdout': result.stdout[-3000:],
+            'stderr': result.stderr[-1000:] if result.returncode != 0 else None,
+            'signals': signals_data.get('signals', []),
+            'summary': signals_data.get('summary', {})
+        })
+
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': '信号生成超时（600s）'}), 500
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
+# 新增端点：数据更新（ETL 触发）
+# =====================================================
+
+def _resolve_stock_list(source: str, db: Database) -> list:
+    """根据 source 解析股票列表"""
+    project_root = Path(__file__).parent.parent.parent  # pi-investment root
+
+    if source == 'portfolio':
+        portfolio_path = project_root / '.pi-invest' / 'portfolio.json'
+        if not portfolio_path.exists():
+            raise ValueError('portfolio.json not found')
+        with open(portfolio_path) as f:
+            holdings = json.load(f).get('holdings', [])
+        stocks = []
+        for h in holdings:
+            symbol = h.get('symbol', '')
+            if h.get('market', 'A') != 'A' or symbol.startswith('5'):
+                continue  # skip HK and ETFs
+            stocks.append({'symbol': symbol, 'name': h.get('name', '')})
+        return stocks
+
+    elif source == 'watchlist':
+        watchlist_path = project_root / '.pi-invest' / 'watchlist.json'
+        if not watchlist_path.exists():
+            raise ValueError('watchlist.json not found')
+        with open(watchlist_path) as f:
+            items = json.load(f).get('items', [])
+        stocks = []
+        for it in items:
+            symbol = it.get('symbol', '')
+            if symbol.startswith('5'):
+                continue  # skip ETFs
+            stocks.append({'symbol': symbol, 'name': it.get('name', '')})
+        return stocks
+
+    elif source == 'hs300':
+        import akshare as ak
+        df = ak.index_stock_cons_csindex(symbol='000300')
+        stocks = []
+        stock_rows = []
+        for _, row in df.iterrows():
+            symbol = row['成分券代码']
+            name = row['成分券名称']
+            stock_rows.append({'symbol': symbol, 'name': name, 'market': 'A'})
+            stocks.append({'symbol': symbol, 'name': name})
+        db.upsert_stocks(stock_rows)
+        return stocks
+
+    elif source == 'all':
+        return db.get_stock_identity_rows('A')
+
+    else:
+        raise ValueError(f'Unknown source: {source}')
+
+
+def _stock_list_from_symbols(symbols: list, db: Database) -> list:
+    stocks = []
+    identities = {normalize_symbol(row.get('symbol', '')): row for row in db.get_stock_identity_rows()}
+    for symbol in symbols:
+        row = identities.get(symbol) or {'symbol': symbol, 'name': symbol}
+        stocks.append({'symbol': symbol, 'name': row.get('name') or symbol})
+    return stocks
+
+
+def _check_kline_coverage(db: Database, symbol: str) -> dict:
+    """检查某只股票已有的K线数据覆盖情况"""
+    return db.get_kline_coverage(symbol)
+
+
+def _execute_data_update(source: str, days: int, force: bool, symbols: list = None) -> dict:
+    """执行数据更新核心逻辑（同步/异步共用）"""
+    db_path = Path(__file__).parent.parent.parent / '.pi-invest' / 'stock-db' / 'stocks.db'
+    db = Database(str(db_path))
+    fetcher = KlineFetcher(db)
+
+    normalized_symbols = _normalize_symbols(symbols)
+    stocks = _stock_list_from_symbols(normalized_symbols, db) if normalized_symbols else _resolve_stock_list(source, db)
+    details = []
+    updated = 0
+    skipped = 0
+    failed = 0
+
+    for stock in stocks:
+        symbol = stock['symbol']
+        name = stock['name']
+        detail = {'symbol': symbol, 'name': name, 'status': '', 'existing_days': 0, 'new_days': 0, 'error': None}
+
+        try:
+            if not force:
+                coverage = _check_kline_coverage(db, symbol)
+                detail['existing_days'] = coverage['existing_days']
+                if coverage['existing_days'] > 0 and coverage['existing_days'] >= days * 0.9:
+                    detail['status'] = 'skipped'
+                    detail['new_days'] = 0
+                    skipped += 1
+                    details.append(detail)
+                    continue
+
+            fetch_result = fetcher.run(symbols=[symbol], days=days, market='A')
+            if getattr(fetch_result, 'failed', 0):
+                failures = getattr(fetch_result, 'failures', [])
+                error = failures[0].get('error') if failures else 'Kline fetch failed'
+                raise RuntimeError(error)
+
+            new_coverage = _check_kline_coverage(db, symbol)
+            detail['status'] = 'updated'
+            detail['new_days'] = new_coverage['existing_days'] - detail['existing_days']
+            detail['existing_days'] = new_coverage['existing_days']
+            updated += 1
+
+        except Exception as e:
+            detail['status'] = 'failed'
+            detail['error'] = str(e)[:200]
+            failed += 1
+
+        details.append(detail)
+
+    db.close()
+    return {
+        'success': True,
+        'source': source,
+        'days': days,
+        'total': len(stocks),
+        'updated': updated,
+        'skipped': skipped,
+        'failed': failed,
+        'details': details,
+    }
+
+
+@app.route('/api/data/update', methods=['POST'])
+def unified_data_update():
+    """统一数据更新入口
+
+    Request JSON:
+      source: "portfolio" | "watchlist" | "hs300" | "all"
+      days:   正整数
+      async:  false(默认, 同步返回) | true(返回 job_id)
+      force:  false(默认, 跳过已有数据) | true(强制全拉)
+    """
+    data = request.get_json() or {}
+    source = data.get('source', 'all')
+    days = data.get('days', 5)
+    async_mode = data.get('async', False)
+    force = data.get('force', False)
+    symbols = _normalize_symbols(data.get('symbols'))
+    if symbols:
+        source = 'symbols'
+
+    valid_sources = ['portfolio', 'watchlist', 'hs300', 'all', 'symbols']
+    if source not in valid_sources:
+        return jsonify({'success': False, 'error': f'source must be one of {valid_sources}'}), 400
+    if not isinstance(days, int) or days < 1:
+        return jsonify({'success': False, 'error': 'days must be a positive integer'}), 400
+
+    if async_mode:
+        job_id = _create_job('data_update', {'source': source, 'symbols': symbols, 'days': days, 'force': force})
+        def _run_inline():
+            try:
+                _update_job(job_id, status='running', started_at=time.time())
+                result = _execute_data_update(source, days, force, symbols=symbols or None)
+                _update_job(job_id, status='completed', completed_at=time.time(), result=result)
+            except Exception as e:
+                _update_job(job_id, status='failed', completed_at=time.time(), error=str(e))
+        threading.Thread(target=_run_inline, daemon=True).start()
+        return jsonify({
+            'success': True,
+            'job_id': job_id,
+            'message': f'数据更新任务已提交 ({source}, {days}天)'
+        })
+
+    try:
+        result = _execute_data_update(source, days, force, symbols=symbols or None)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =====================================================
+# 新增端点：因子计算（同步）
+# =====================================================
+
+@app.route('/api/compute/factors', methods=['POST'])
+def trigger_compute_factors():
+    """触发因子计算"""
+    result = _run_etl_script('calculate_factors.py')
+    return jsonify(result)
+
+
+@app.route('/api/compute/historical-factors', methods=['POST'])
+def trigger_compute_historical_factors():
+    """触发历史因子计算"""
+    result = _run_etl_script('calculate_historical_factors.py')
+    return jsonify(result)
+
+
+# =====================================================
+# 新增端点：ML 重训练（异步）
+# =====================================================
+
+@app.route('/api/ml/predict-batch', methods=['POST'])
+def predict_batch():
+    """批量 ML 预测"""
+    try:
+        data = request.get_json() or {}
+        symbols = data.get('symbols', [])
+
+        if not symbols:
+            return jsonify({'error': '请提供 symbols 参数'}), 400
+
+        if model is None:
+            return jsonify({'error': '模型未加载'}), 500
+
+        # 读取训练报告获取特征顺序
+        report_path = Path(__file__).parent.parent / 'quantsys' / 'ml' / 'models' / 'training_report_latest.json'
+        if not report_path.exists():
+            report_path = Path(__file__).parent.parent / 'quantsys' / 'ml' / 'models' / 'training_report.json'
+        if not report_path.exists():
+            return jsonify({'error': '训练报告文件不存在'}), 500
+
+        with open(report_path) as f:
+            report = json.load(f)
+            feature_names = report['feature_names']
+
+        conn = get_db()
+
+        # 获取最新日期
+        cursor = conn.execute("SELECT MAX(date) FROM factor_values")
+        date_row = cursor.fetchone()
+        latest_date = date_row[0] if date_row else None
+        if not latest_date:
+            conn.close()
+            return jsonify({'error': '无因子数据'}), 500
+
+        predictions = []
+        for symbol in symbols:
+            try:
+                # 获取因子
+                cursor = conn.execute(
+                    "SELECT factor_name, factor_value FROM factor_values WHERE symbol=? AND date=?",
+                    (symbol, latest_date))
+                factors = {row[0]: row[1] for row in cursor.fetchall()}
+                if not factors:
+                    continue
+
+                # 获取价格
+                cursor = conn.execute(
+                    "SELECT open,high,low,close,volume,amount,turnover_rate FROM daily_klines WHERE symbol=? AND date=?",
+                    (symbol, latest_date))
+                row = cursor.fetchone()
+                if not row:
+                    cursor = conn.execute(
+                        "SELECT open,high,low,close,volume,amount,turnover_rate FROM daily_klines WHERE symbol=? ORDER BY date DESC LIMIT 1",
+                        (symbol,))
+                    row = cursor.fetchone()
+                if not row:
+                    continue
+
+                feature_dict = {
+                    'open': row[0], 'high': row[1], 'low': row[2],
+                    'close': row[3], 'volume': row[4], 'amount': row[5],
+                    'turnover_rate': row[6]
+                }
+                feature_dict.update(factors)
+
+                # 构建特征向量
+                features = []
+                for name in feature_names:
+                    value = feature_dict.get(name)
+                    features.append(float(value) if value is not None else 0.0)
+
+                X = np.array(features).reshape(1, -1)
+                if hasattr(model, 'predict_proba'):
+                    proba = model.predict_proba(X)[0]
+                    up_prob = float(proba[1])
+                else:
+                    up_prob = float(model.predict(X)[0])
+
+                predictions.append({
+                    'symbol': symbol,
+                    'date': latest_date,
+                    'direction': 'UP' if up_prob > 0.5 else 'DOWN',
+                    'probability': up_prob,
+                    'confidence': abs(up_prob - 0.5) * 2,
+                    'price': feature_dict['close']
+                })
+            except Exception:
+                continue
+
+        conn.close()
+
+        # 按概率排序
+        predictions.sort(key=lambda x: x['probability'], reverse=True)
+
+        return jsonify({
+            'date': latest_date,
+            'count': len(predictions),
+            'predictions': predictions
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ml/retrain', methods=['POST'])
+def trigger_ml_retrain():
+    """触发ML模型重训练（异步）"""
+    try:
+        data = request.get_json() or {}
+        job_id = _create_job('ml_retrain', data)
+        extra_args = []
+        if data.get('days'):
+            extra_args.extend(['--days', str(data['days'])])
+        if data.get('symbols'):
+            extra_args.extend(['--symbols', ','.join(data['symbols'])])
+        _run_script_async(job_id, 'ml_retrain.py', extra_args)
+        return jsonify({'job_id': job_id, 'status': 'created',
+                       'check_url': f'/api/jobs/{job_id}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
+# 新增端点：回测（异步）
+# =====================================================
+
+@app.route('/api/backtest/run', methods=['POST'])
+def trigger_backtest():
+    """触发回测（异步）"""
+    try:
+        data = request.get_json() or {}
+        symbols = data.get('symbols', [])
+        if not symbols:
+            return jsonify({'error': '请提供 symbols 参数'}), 400
+
+        job_id = _create_job('backtest', {'symbols': symbols})
+        extra_args = ['--symbols', ','.join(symbols)]
+        if data.get('start_date'):
+            extra_args.extend(['--start', data['start_date']])
+        if data.get('end_date'):
+            extra_args.extend(['--end', data['end_date']])
+
+        _run_script_async(job_id, 'weekly_backtest.py', extra_args)
+        return jsonify({'job_id': job_id, 'status': 'created',
+                       'check_url': f'/api/jobs/{job_id}'})
+        return jsonify({'job_id': job_id, 'status': 'created',
+                       'check_url': f'/api/jobs/{job_id}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
+# 新增端点：周度绩效
+# =====================================================
+
+@app.route('/api/performance/weekly', methods=['POST'])
+def trigger_weekly_performance():
+    """触发周度绩效计算"""
+    result = _run_etl_script('weekly_performance.py')
+    return jsonify(result)
+
+
 if __name__ == '__main__':
     print('🚀 启动量化系统API服务...')
     init_services()
@@ -940,7 +3143,25 @@ if __name__ == '__main__':
     print('   GET /api/stocks/list')
     print('   GET /api/stocks/data-status')
     print('   GET /api/signals')
+    print('   POST /api/signals/generate')
     print('   GET /api/report/daily')
     print('   GET /api/backtest/results')
+    print('   POST /api/backtest/run')
     print('   GET /api/training/history')
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    print('   GET /api/training/reports')
+    print('   GET /api/training/report/<filename>')
+    print('   POST /api/training/start')
+    print('   GET /api/training/status/<task_id>')
+    print('   GET /api/training/logs/<task_id>')
+    print('   POST /api/ml/retrain')
+    print('   POST /api/risk/check')
+    print('   POST /api/data/update')
+    print('   POST /api/compute/factors')
+    print('   POST /api/compute/historical-factors')
+    print('   POST /api/performance/weekly')
+    print('   GET /api/jobs/<job_id>')
+    print('   GET /api/jobs')
+    print('   GET /api/scheduler/tasks')
+    print('   POST /api/scheduler/tasks/<task_id>/trigger')
+    print('   POST /api/scheduler/tasks/<task_id>/compensate')
+    app.run(host='0.0.0.0', port=5001, debug=False)

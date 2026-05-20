@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Card, Input, Button, Spin, Alert, Typography, Table, Tag, Space } from 'antd'
-import { PlusOutlined, DeleteOutlined, SwapOutlined } from '@ant-design/icons'
+import { PlusOutlined, SwapOutlined } from '@ant-design/icons'
 import axios from 'axios'
 
 const { Title, Text } = Typography

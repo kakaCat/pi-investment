@@ -1,0 +1,1 @@
+{"timestamp": "2026-05-18T21:52:55.973904", "event_type": "circuit_break", "strategy_id": "ma_cross", "reason": "连续亏损 3 次触发熔断 (限制: 3次)", "severity": "CRITICAL", "metadata": {}, "trigger_type": "consecutive_loss", "trigger_value": 3, "threshold": 3}

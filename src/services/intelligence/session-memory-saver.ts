@@ -6,7 +6,7 @@
 import { createAgentSession, type AgentSession } from "@mariozechner/pi-coding-agent";
 import { createDeepSeekModel } from "../../config/config.js";
 import { memoryWriteTool, memorySearchTool } from "../../infrastructure/tools/memory-tool.js";
-import { getMessages } from "../../core/agent/session-adapter.js";
+import { getMessages, type SessionMessage } from "../../core/agent/session-adapter.js";
 
 export interface SessionSummary {
   keyDecisions: string[];
@@ -31,10 +31,10 @@ export async function saveSessionMemoryAsync(
   // 异步执行，不阻塞主进程
   Promise.race([
     saveSessionMemoryInternal(mainSession, verbose),
-    new Promise((_, reject) =>
+    new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("Memory save timeout")), timeout)
     )
-  ]).catch(error => {
+  ]).catch((error: unknown) => {
     console.error(`⚠️  会话记忆保存失败: ${error instanceof Error ? error.message : String(error)}`);
   });
 }
@@ -54,7 +54,7 @@ export async function saveSessionMemorySync(
   try {
     await Promise.race([
       saveSessionMemoryInternal(mainSession, verbose),
-      new Promise((_, reject) =>
+      new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Memory save timeout")), timeout)
       )
     ]);
@@ -80,13 +80,13 @@ async function saveSessionMemoryInternal(
 
   // 过滤出用户和助手的对话（排除系统消息）
   const conversationHistory = messages
-    .filter(msg => msg.role === "user" || msg.role === "assistant")
+    .filter((msg: SessionMessage) => msg.role === "user" || msg.role === "assistant")
     .slice(-20)  // 只取最近 20 条消息，避免上下文过长
-    .map(msg => {
+    .map((msg: SessionMessage) => {
       const content = typeof msg.content === "string"
         ? msg.content
         : Array.isArray(msg.content)
-          ? msg.content.find(c => typeof c === "object" && "text" in c)?.text || ""
+          ? msg.content.find((c: unknown) => typeof c === "object" && c !== null && "text" in c)?.text || ""
           : "";
       return `${msg.role === "user" ? "User" : "Assistant"}: ${content.slice(0, 500)}`;
     })
@@ -100,7 +100,7 @@ async function saveSessionMemoryInternal(
   }
 
   // 创建独立的 memory saver agent
-  const memorySaverSession = await createAgentSession({
+  const { session: memorySaverSession } = await createAgentSession({
     cwd: process.cwd(),
     model: createDeepSeekModel(),
     systemPrompt: buildMemorySaverSystemPrompt(),
@@ -276,7 +276,7 @@ export async function extractSessionSummary(
     const content = typeof msg.content === "string"
       ? msg.content
       : Array.isArray(msg.content)
-        ? msg.content.find(c => typeof c === "object" && "text" in c)?.text || ""
+        ? msg.content.find((c: unknown) => typeof c === "object" && c !== null && "text" in c)?.text || ""
         : "";
 
     const lower = content.toLowerCase();

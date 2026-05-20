@@ -18,12 +18,22 @@ import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+import math
 
 # 添加 quantsys 到路径
 QUANT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(QUANT_ROOT))
 
 from quantsys.data.db import Database
+
+
+def _json_number(value: Any) -> Any:
+    """Return JSON-safe scalar values for API output."""
+    if value is None:
+        return None
+    if isinstance(value, float) and math.isnan(value):
+        return None
+    return value
 
 
 class QuantAPI:
@@ -57,30 +67,15 @@ class QuantAPI:
                 }
             }
         """
-        conn = self.db._get_connection()
-        cursor = conn.cursor()
-
         # 如果没有指定日期，获取最新日期
         if not date:
-            cursor.execute("""
-                SELECT MAX(date) FROM factor_values WHERE symbol = ?
-            """, (symbol,))
-            row = cursor.fetchone()
-            date = row[0] if row and row[0] else None
+            date = self.db.get_latest_factor_date_for_symbol(symbol)
 
         if not date:
             return {"error": f"No factor data found for {symbol}"}
 
         # 获取因子数据
-        cursor.execute("""
-            SELECT factor_name, factor_value
-            FROM factor_values
-            WHERE symbol = ? AND date = ?
-        """, (symbol, date))
-
-        factors = {}
-        for row in cursor.fetchall():
-            factors[row[0]] = row[1]
+        factors = self.db.get_factor_values(symbol, date)
 
         if not factors:
             return {"error": f"No factors found for {symbol} on {date}"}
@@ -112,36 +107,28 @@ class QuantAPI:
                 ]
             }
         """
-        conn = self.db._get_connection()
-        cursor = conn.cursor()
-
-        # 构建查询
-        query = "SELECT date, open, high, low, close, volume, amount FROM daily_klines WHERE symbol = ?"
-        params = [symbol]
-
-        if start_date:
-            query += " AND date >= ?"
-            params.append(start_date)
-
-        if end_date:
-            query += " AND date <= ?"
-            params.append(end_date)
-
-        query += " ORDER BY date DESC LIMIT ?"
-        params.append(limit)
-
-        cursor.execute(query, params)
-
+        frame = self.db.get_backtest_klines(
+            symbol,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+        )
+        if frame.empty:
+            rows = []
+        else:
+            date_column = "date" if "date" in frame.columns else "timestamp"
+            frame = frame.sort_values(date_column, ascending=False)
+            rows = frame.to_dict("records")
         klines = []
-        for row in cursor.fetchall():
+        for row in rows:
             klines.append({
-                "date": row[0],
-                "open": row[1],
-                "high": row[2],
-                "low": row[3],
-                "close": row[4],
-                "volume": row[5],
-                "amount": row[6]
+                "date": row.get("date") or row.get("timestamp"),
+                "open": _json_number(row.get("open")),
+                "high": _json_number(row.get("high")),
+                "low": _json_number(row.get("low")),
+                "close": _json_number(row.get("close")),
+                "volume": _json_number(row.get("volume")),
+                "amount": _json_number(row.get("amount"))
             })
 
         return {
@@ -230,43 +217,7 @@ class QuantAPI:
                 ]
             }
         """
-        conn = self.db._get_connection()
-        cursor = conn.cursor()
-
-        if has_data:
-            # 只返回有K线数据的股票
-            query = """
-                SELECT DISTINCT s.symbol, s.name, s.market
-                FROM stocks s
-                INNER JOIN daily_klines k ON s.symbol = k.symbol
-            """
-            params = []
-
-            if market:
-                query += " WHERE s.market = ?"
-                params.append(market)
-
-            query += " ORDER BY s.symbol"
-            cursor.execute(query, params)
-        else:
-            # 返回所有股票
-            query = "SELECT symbol, name, market FROM stocks"
-            params = []
-
-            if market:
-                query += " WHERE market = ?"
-                params.append(market)
-
-            query += " ORDER BY symbol"
-            cursor.execute(query, params)
-
-        stocks = []
-        for row in cursor.fetchall():
-            stocks.append({
-                "symbol": row[0],
-                "name": row[1],
-                "market": row[2]
-            })
+        stocks = self.db.get_stock_rows(market=market, has_data=has_data)
 
         return {
             "count": len(stocks),
@@ -327,7 +278,8 @@ class QuantAPI:
         # 转换为 pandas DataFrame
         import pandas as pd
         df = pd.DataFrame(klines)
-        df['date'] = pd.to_datetime(df['date'])
+        # 兼容多种日期格式: ISO8601 (2026-05-15) 和紧凑格式 (20260515)
+        df['date'] = pd.to_datetime(df['date'], format='mixed', errors='coerce')
         df = df.sort_values('date')
 
         # 计算指标

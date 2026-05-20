@@ -2,7 +2,6 @@ import type {
   BacktestSummary,
   DashboardSignal,
   JobRecord,
-  StockDataStatus,
   TrainingRecord,
 } from './dashboardTypes';
 
@@ -30,6 +29,17 @@ export function calculateSignalMetrics(signals: DashboardSignal[]) {
   };
 }
 
+export function getHighConfidenceSignalsForDate(
+  signals: DashboardSignal[],
+  date: string,
+  limit = 5,
+) {
+  return [...signals]
+    .filter((signal) => getSignalDate(signal) === date && (signal.confidence ?? 0) >= 0.8)
+    .sort((first, second) => (second.confidence ?? 0) - (first.confidence ?? 0))
+    .slice(0, limit);
+}
+
 export function calculateBacktestMetrics(summary: BacktestSummary[]) {
   return {
     count: summary.length,
@@ -54,24 +64,22 @@ export function calculateJobMetrics(jobs: JobRecord[]) {
   };
 }
 
-export function calculateDataQualityMetrics(status?: StockDataStatus) {
-  const totalStocks = status?.total_stocks ?? 0;
-  const latestDataDate = status?.stocks
-    .map((stock) => stock.latest_date)
-    .filter(Boolean)
-    .sort((first, second) => new Date(second).getTime() - new Date(first).getTime())[0];
-
-  return {
-    totalStocks,
-    completeStocks: status?.complete_stocks ?? 0,
-    incompleteStocks: status?.incomplete_stocks ?? 0,
-    completenessRate: totalStocks > 0 ? (status?.complete_stocks ?? 0) / totalStocks : undefined,
-    latestDataDate: totalStocks > 0 ? latestDataDate : undefined,
-  };
-}
-
 export function getLatestTrainingRecord(history: TrainingRecord[]) {
   return [...history].sort(
     (first, second) => new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime(),
   )[0];
+}
+
+function getSignalDate(signal: DashboardSignal) {
+  const rawDate = signal.date || signal.created_at || '';
+  if (!rawDate) {
+    return '';
+  }
+
+  const parsedDate = new Date(rawDate);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return rawDate.slice(0, 10);
+  }
+
+  return parsedDate.toISOString().slice(0, 10);
 }

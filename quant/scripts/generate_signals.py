@@ -12,6 +12,8 @@ import os
 import sys
 import json
 import logging
+import argparse
+import re
 from datetime import datetime
 from typing import List, Dict
 import pandas as pd
@@ -20,6 +22,13 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from quantsys.data.db import Database
+from quantsys.utils.confidence_calibration import (
+    calibrate_rsi_confidence,
+    calibrate_ma_confidence,
+    calibrate_macd_confidence,
+    calibrate_bollinger_confidence,
+    calibrate_kdj_confidence
+)
 
 # 配置日志
 logging.basicConfig(
@@ -29,50 +38,43 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def normalize_symbol(symbol: str) -> str:
+    """Normalize common exchange prefixes/suffixes."""
+    value = str(symbol).strip()
+    value = re.sub(r'^(sh|sz|bj)', '', value, flags=re.IGNORECASE)
+    value = re.sub(r'\.(SH|SZ|BJ|HK)$', '', value, flags=re.IGNORECASE)
+    return value
+
+
+def parse_symbols(raw_symbols: str = None):
+    """Parse comma/whitespace separated symbols."""
+    if not raw_symbols:
+        return None
+    symbols = [
+        normalize_symbol(symbol)
+        for symbol in re.split(r'[\s,，]+', raw_symbols)
+        if symbol.strip()
+    ]
+    return list(dict.fromkeys(symbols))
+
+
 class SignalGenerator:
     """信号生成器"""
 
     def __init__(self, db: Database):
         self.db = db
-        self.conn = db._get_connection()
 
     def get_latest_date(self) -> str:
         """获取最新数据日期"""
-        cursor = self.conn.execute("SELECT MAX(date) FROM daily_klines")
-        return cursor.fetchone()[0]
+        return self.db.get_latest_kline_date()
 
     def get_stock_factors(self, symbol: str, date: str) -> Dict:
         """获取股票的因子值"""
-        cursor = self.conn.execute("""
-            SELECT factor_name, factor_value
-            FROM factor_values
-            WHERE symbol = ? AND date = ?
-        """, (symbol, date))
-
-        factors = {}
-        for row in cursor.fetchall():
-            factors[row[0]] = row[1]
-
-        return factors
+        return self.db.get_factor_values(symbol, date)
 
     def get_stock_price(self, symbol: str, date: str) -> Dict:
         """获取股票价格"""
-        cursor = self.conn.execute("""
-            SELECT open, high, low, close, volume
-            FROM daily_klines
-            WHERE symbol = ? AND date = ?
-        """, (symbol, date))
-
-        row = cursor.fetchone()
-        if row:
-            return {
-                'open': row[0],
-                'high': row[1],
-                'low': row[2],
-                'close': row[3],
-                'volume': row[4]
-            }
-        return None
+        return self.db.get_price_on_date(symbol, date)
 
     # ========== 策略1: RSI反转策略 ==========
 
@@ -88,22 +90,24 @@ class SignalGenerator:
             return None
 
         if rsi < 30:
+            confidence = calibrate_rsi_confidence(rsi, 30, 'buy')
             return {
                 'symbol': symbol,
                 'strategy': 'RSI反转',
                 'signal': 'BUY',
                 'reason': f'RSI超卖 ({rsi:.2f} < 30)',
                 'price': price['close'],
-                'confidence': min((30 - rsi) / 10, 1.0)  # 越超卖信心越高
+                'confidence': confidence
             }
         elif rsi > 70:
+            confidence = calibrate_rsi_confidence(rsi, 70, 'sell')
             return {
                 'symbol': symbol,
                 'strategy': 'RSI反转',
                 'signal': 'SELL',
                 'reason': f'RSI超买 ({rsi:.2f} > 70)',
                 'price': price['close'],
-                'confidence': min((rsi - 70) / 10, 1.0)
+                'confidence': confidence
             }
 
         return None
@@ -124,7 +128,8 @@ class SignalGenerator:
             return None
 
         # 计算穿越强度
-        cross_strength = abs(ma5 - ma20) / ma20
+        ma_diff_pct = abs(ma5 - ma20) / ma20
+        confidence = calibrate_ma_confidence(ma_diff_pct)
 
         if ma5 > ma20 and close > ma5:
             return {
@@ -133,7 +138,7 @@ class SignalGenerator:
                 'signal': 'BUY',
                 'reason': f'MA5({ma5:.2f}) > MA20({ma20:.2f})',
                 'price': close,
-                'confidence': min(cross_strength * 10, 1.0)
+                'confidence': confidence
             }
         elif ma5 < ma20 and close < ma5:
             return {
@@ -142,7 +147,7 @@ class SignalGenerator:
                 'signal': 'SELL',
                 'reason': f'MA5({ma5:.2f}) < MA20({ma20:.2f})',
                 'price': close,
-                'confidence': min(cross_strength * 10, 1.0)
+                'confidence': confidence
             }
 
         return None
@@ -162,6 +167,9 @@ class SignalGenerator:
         if dif is None or dea is None:
             return None
 
+        dif_dea_diff = abs(dif - dea)
+        confidence = calibrate_macd_confidence(dif_dea_diff)
+
         if dif > dea and macd > 0:
             return {
                 'symbol': symbol,
@@ -169,7 +177,7 @@ class SignalGenerator:
                 'signal': 'BUY',
                 'reason': f'MACD金叉 (DIF={dif:.3f}, DEA={dea:.3f})',
                 'price': price['close'],
-                'confidence': min(abs(dif - dea) * 100, 1.0)
+                'confidence': confidence
             }
         elif dif < dea and macd < 0:
             return {
@@ -178,7 +186,7 @@ class SignalGenerator:
                 'signal': 'SELL',
                 'reason': f'MACD死叉 (DIF={dif:.3f}, DEA={dea:.3f})',
                 'price': price['close'],
-                'confidence': min(abs(dif - dea) * 100, 1.0)
+                'confidence': confidence
             }
 
         return None
@@ -200,22 +208,26 @@ class SignalGenerator:
             return None
 
         if close <= lower:
+            distance_pct = abs((lower - close) / lower)
+            confidence = calibrate_bollinger_confidence(distance_pct)
             return {
                 'symbol': symbol,
                 'strategy': '布林带',
                 'signal': 'BUY',
                 'reason': f'价格触及下轨 ({close:.2f} <= {lower:.2f})',
                 'price': close,
-                'confidence': min((lower - close) / lower, 1.0)
+                'confidence': confidence
             }
         elif close >= upper:
+            distance_pct = abs((close - upper) / upper)
+            confidence = calibrate_bollinger_confidence(distance_pct)
             return {
                 'symbol': symbol,
                 'strategy': '布林带',
                 'signal': 'SELL',
                 'reason': f'价格触及上轨 ({close:.2f} >= {upper:.2f})',
                 'price': close,
-                'confidence': min((close - upper) / upper, 1.0)
+                'confidence': confidence
             }
 
         return None
@@ -235,22 +247,24 @@ class SignalGenerator:
             return None
 
         if k < 20 and d < 20:
+            confidence = calibrate_kdj_confidence(k, 20, 'buy')
             return {
                 'symbol': symbol,
                 'strategy': 'KDJ',
                 'signal': 'BUY',
                 'reason': f'KDJ超卖 (K={k:.2f}, D={d:.2f})',
                 'price': price['close'],
-                'confidence': min((20 - k) / 20, 1.0)
+                'confidence': confidence
             }
         elif k > 80 and d > 80:
+            confidence = calibrate_kdj_confidence(k, 80, 'sell')
             return {
                 'symbol': symbol,
                 'strategy': 'KDJ',
                 'signal': 'SELL',
                 'reason': f'KDJ超买 (K={k:.2f}, D={d:.2f})',
                 'price': price['close'],
-                'confidence': min((k - 80) / 20, 1.0)
+                'confidence': confidence
             }
 
         return None
@@ -320,6 +334,10 @@ def save_signals(signals: List[Dict], output_path: str):
 
 def main():
     """主函数"""
+    parser = argparse.ArgumentParser(description='交易信号生成脚本')
+    parser.add_argument('--symbols', type=str, help='股票代码列表，逗号分隔；不传则生成全部A股信号')
+    args = parser.parse_args()
+
     logger.info("=" * 60)
     logger.info("交易信号生成任务开始")
     logger.info(f"运行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -338,8 +356,8 @@ def main():
     latest_date = generator.get_latest_date()
     logger.info(f"最新数据日期: {latest_date}")
 
-    # 获取所有股票
-    symbols = db.get_all_symbols(market='A')
+    # 获取股票范围
+    symbols = parse_symbols(args.symbols) or db.get_all_symbols(market='A')
     logger.info(f"共 {len(symbols)} 只股票需要生成信号")
     logger.info("")
 

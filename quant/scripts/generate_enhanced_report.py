@@ -1,278 +1,117 @@
 #!/usr/bin/env python3
 """
-增强版每日报告 - 包含因子分析
+增强版报告 - 因子分析（HTTP 客户端版）
 
-在原有报告基础上，添加：
-1. 每只股票的关键因子分析
-2. 因子贡献排名
-3. 异常因子预警
+通过 Flask API 获取因子数据，生成本地增强报告。
+前置条件: Flask API 服务运行在 localhost:5001
 """
 
 import os
 import sys
 import json
-import pickle
-import numpy as np
-import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Optional
+import requests
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from quantsys.data.db import Database
-
-
-def get_feature_names():
-    """获取特征名称"""
-    return [
-        'RSI', 'MACD_DIF', 'MACD_DEA', 'MACD_HIST',
-        'KDJ_K', 'KDJ_D', 'KDJ_J', 'CCI', 'WilliamsR',
-        'MA5/MA20', 'MA10/MA20', 'MA20/MA60', 'Price/MA5', 'Price/MA20',
-        'BB_Position', 'BB_Width',
-        'Volume_Ratio', 'OBV', 'MFI',
-        'ATR_Ratio', 'ROC', 'MOM',
-        'High_Low_Range', 'Close_Open_Change', 'Volume',
-    ]
-
-
-def analyze_key_factors(
-    model,
-    factors: dict,
-    price: dict,
-    top_n: int = 5
-) -> List[Dict]:
-    """分析关键因子"""
-    from scripts.analyze_stock_factors import extract_features
-
-    feature_names = get_feature_names()
-    features = extract_features(factors, price)
-
-    # 获取特征重要性
-    if hasattr(model, 'feature_importances_'):
-        importances = model.feature_importances_
-    else:
-        return []
-
-    # 计算贡献
-    contributions = features * importances
-
-    # 创建结果
-    results = []
-    for i, name in enumerate(feature_names):
-        results.append({
-            'name': name,
-            'value': float(features[i]),
-            'importance': float(importances[i]),
-            'contribution': float(contributions[i])
-        })
-
-    # 按贡献排序
-    results.sort(key=lambda x: abs(x['contribution']), reverse=True)
-
-    return results[:top_n]
+API_BASE = "http://localhost:5001"
 
 
 def interpret_factor(name: str, value: float) -> str:
     """解释因子含义"""
     interpretations = {
-        'RSI': lambda v: f"RSI={v:.1f} {'超买' if v > 70 else '超卖' if v < 30 else '中性'}",
-        'MACD_DIF': lambda v: f"MACD {'金叉' if v > 0 else '死叉'}",
-        'MA5/MA20': lambda v: f"短期均线{'向上' if v > 1 else '向下'}",
-        'Price/MA5': lambda v: f"价格{'高于' if v > 1 else '低于'}5日线",
-        'BB_Position': lambda v: f"布林带位置{v:.1%} {'接近上轨' if v > 0.8 else '接近下轨' if v < 0.2 else '中性'}",
-        'Volume_Ratio': lambda v: f"成交量{'放大' if v > 1.2 else '萎缩' if v < 0.8 else '正常'}",
-        'KDJ_K': lambda v: f"KDJ_K={v:.1f} {'超买' if v > 80 else '超卖' if v < 20 else ''}",
+        'RSI': '超买' if value > 70 else '超卖' if value < 30 else '中性',
+        'MACD_DIF': '多头' if value > 0 else '空头',
+        'KDJ_K': '超买' if value > 80 else '超卖' if value < 20 else '中性',
+        'CCI': '超买' if value > 100 else '超卖' if value < -100 else '中性',
+        'BB_Position': '上轨' if value > 0.8 else '下轨' if value < 0.2 else '中轨',
     }
+    for key, pattern in interpretations.items():
+        if key in name:
+            return pattern
+    return '-'
 
-    if name in interpretations:
-        return interpretations[name](value)
-    else:
-        return f"{name}={value:.2f}"
 
-
-def generate_enhanced_report(
-    signals: List[Dict],
-    model,
-    db: Database,
-    date: str
-) -> str:
-    """生成增强版报告"""
-    report = []
-    report.append(f"# 量化系统每日报告（增强版）- {date}\n")
-
-    # 买入信号分析
-    buy_signals = [s for s in signals if s.get('action') == 'BUY'][:5]
-
-    if buy_signals:
-        report.append("## 📈 Top 5 买入信号（含因子分析）\n")
-
-        for i, signal in enumerate(buy_signals, 1):
-            symbol = signal['symbol']
-            report.append(f"### {i}. {symbol} - {signal.get('reason', '未知')} (信心度: {signal.get('confidence', 0):.2f})\n")
-
-            # 获取因子和价格
-            conn = db._get_connection()
-            cursor = conn.execute("""
-                SELECT factor_name, factor_value
-                FROM factor_values
-                WHERE symbol = ? AND date = ?
-            """, (symbol, date))
-
-            factors = {}
-            for row in cursor.fetchall():
-                factors[row[0]] = row[1]
-
-            cursor = conn.execute("""
-                SELECT open, high, low, close, volume
-                FROM daily_klines
-                WHERE symbol = ? AND date = ?
-            """, (symbol, date))
-
-            row = cursor.fetchone()
-            if not row:
-                continue
-
-            price = {
-                'open': row[0],
-                'high': row[1],
-                'low': row[2],
-                'close': row[3],
-                'volume': row[4]
-            }
-
-            report.append(f"- **价格**: ¥{price['close']:.2f}\n")
-
-            # 分析关键因子
-            key_factors = analyze_key_factors(model, factors, price, top_n=5)
-
-            if key_factors:
-                report.append("- **关键因子**:\n")
-                for factor in key_factors:
-                    direction = "📈" if factor['contribution'] > 0 else "📉"
-                    interpretation = interpret_factor(factor['name'], factor['value'])
-                    report.append(f"  {direction} {interpretation} (贡献: {factor['contribution']:+.3f})\n")
-
-            report.append("\n")
-
-    # 卖出信号分析
-    sell_signals = [s for s in signals if s.get('action') == 'SELL'][:5]
-
-    if sell_signals:
-        report.append("## 📉 Top 5 卖出信号（含因子分析）\n")
-
-        for i, signal in enumerate(sell_signals, 1):
-            symbol = signal['symbol']
-            report.append(f"### {i}. {symbol} - {signal.get('reason', '未知')} (信心度: {signal.get('confidence', 0):.2f})\n")
-
-            # 获取因子和价格
-            conn = db._get_connection()
-            cursor = conn.execute("""
-                SELECT factor_name, factor_value
-                FROM factor_values
-                WHERE symbol = ? AND date = ?
-            """, (symbol, date))
-
-            factors = {}
-            for row in cursor.fetchall():
-                factors[row[0]] = row[1]
-
-            cursor = conn.execute("""
-                SELECT open, high, low, close, volume
-                FROM daily_klines
-                WHERE symbol = ? AND date = ?
-            """, (symbol, date))
-
-            row = cursor.fetchone()
-            if not row:
-                continue
-
-            price = {
-                'open': row[0],
-                'high': row[1],
-                'low': row[2],
-                'close': row[3],
-                'volume': row[4]
-            }
-
-            report.append(f"- **价格**: ¥{price['close']:.2f}\n")
-
-            # 分析关键因子
-            key_factors = analyze_key_factors(model, factors, price, top_n=5)
-
-            if key_factors:
-                report.append("- **关键因子**:\n")
-                for factor in key_factors:
-                    direction = "📈" if factor['contribution'] > 0 else "📉"
-                    interpretation = interpret_factor(factor['name'], factor['value'])
-                    report.append(f"  {direction} {interpretation} (贡献: {factor['contribution']:+.3f})\n")
-
-            report.append("\n")
-
-    report.append(f"\n---\n*报告生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n")
-
-    return ''.join(report)
+def analyze_stock(symbol: str) -> dict:
+    """通过 API 分析单只股票"""
+    try:
+        resp = requests.get(f"{API_BASE}/api/stock/{symbol}/factors", timeout=30)
+        if resp.status_code != 200:
+            return None
+        return resp.json()
+    except Exception:
+        return None
 
 
 def main():
     print("=" * 60)
-    print("生成增强版每日报告")
+    print("增强版因子分析报告 (API 模式)")
     print("=" * 60)
 
-    # 加载信号
-    signals_path = Path(__file__).parent.parent / '.pi-invest' / 'signals.json'
+    # 参数
+    symbols_arg = sys.argv[1] if len(sys.argv) > 1 else None
 
-    if not signals_path.exists():
-        print(f"❌ 信号文件不存在: {signals_path}")
+    # 检查 API
+    try:
+        requests.get(f"{API_BASE}/api/health", timeout=5)
+    except requests.ConnectionError:
+        print(f"❌ 无法连接到 API ({API_BASE})")
         return
 
-    with open(signals_path, 'r') as f:
-        signals = json.load(f)
-
-    print(f"✅ 加载了 {len(signals)} 个信号")
-
-    # 加载模型
-    model_path = Path(__file__).parent.parent / 'quantsys' / 'ml' / 'models' / 'xgboost_model.pkl'
-
-    if not model_path.exists():
-        print(f"⚠️  模型文件不存在，将生成简化报告")
-        model = None
+    # 获取股票列表
+    if symbols_arg:
+        symbols = [s.strip() for s in symbols_arg.split(',')]
     else:
-        with open(model_path, 'rb') as f:
-            model = pickle.load(f)
-        print(f"✅ 模型加载成功")
+        # 从 signals 获取热门股票
+        resp = requests.get(f"{API_BASE}/api/signals", timeout=30)
+        signals = resp.json().get('signals', [])
+        symbols = list(set(s.get('symbol', '') for s in signals[:20]))[:10]
+        if not symbols:
+            # fallback: 获取前10只有数据的股票
+            resp = requests.get(f"{API_BASE}/api/stocks/data-status", timeout=30)
+            stocks = resp.json().get('stocks', [])
+            symbols = [s['symbol'] for s in stocks[:10]]
 
-    # 连接数据库
-    db_path = Path.home() / '.pi-invest' / 'stock-db' / 'stocks.db'
-    db = Database(str(db_path))
-
-    # 获取最新日期
-    conn = db._get_connection()
-    cursor = conn.execute("SELECT MAX(date) FROM daily_klines")
-    date = cursor.fetchone()[0]
-
-    if not date:
-        print("❌ 未找到数据")
+    if not symbols:
+        print("❌ 无待分析股票")
         return
 
-    print(f"分析日期: {date}")
+    print(f"分析 {len(symbols)} 只股票: {', '.join(symbols[:10])}")
+    print()
 
-    # 生成报告
-    if model:
-        report = generate_enhanced_report(signals, model, db, date)
-    else:
-        report = "# 简化报告\n\n模型未加载，无法进行因子分析。\n"
+    results = []
+    for i, symbol in enumerate(symbols, 1):
+        print(f"[{i}/{len(symbols)}] 分析 {symbol}...")
+        data = analyze_stock(symbol)
+        if data:
+            results.append(data)
 
-    # 保存报告
-    output_path = Path(__file__).parent.parent / '.pi-invest' / f'enhanced_report_{date}.md'
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(report)
-
-    print(f"\n✅ 报告已保存: {output_path}")
-    print("\n预览:")
+    # 打印摘要
+    print("\n" + "=" * 60)
+    print("📊 因子分析摘要")
     print("=" * 60)
-    print(report[:1000])
-    print("...")
+
+    for r in sorted(results, key=lambda x: x['prediction']['up_probability'], reverse=True):
+        symbol = r['symbol']
+        pred = r['prediction']
+        direction = '📈' if pred['direction'] == 'UP' else '📉'
+        print(f"\n{direction} {symbol} | 价格: ¥{r['price']:.2f} | "
+              f"上涨概率: {pred['up_probability']:.2%} | 置信度: {pred['confidence']:.2%}")
+
+        # Top 3 关键因子
+        for factor in r.get('key_factors', [])[:3]:
+            contrib = factor['contribution']
+            arrow = '↑' if contrib > 0 else '↓'
+            interp = interpret_factor(factor['name'], factor['value'])
+            print(f"    {arrow} {factor['name']:20s} = {factor['value']:8.4f} "
+                  f"(贡献: {contrib:+.4f}, {interp})")
+
+    # 保存
+    output_dir = Path(__file__).parent.parent / '.pi-invest'
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f'enhanced_report_{datetime.now().strftime("%Y%m%d")}.json'
+    with open(output_path, 'w') as f:
+        json.dump(results, f, ensure_ascii=False, indent=2)
+    print(f"\n📄 报告已保存: {output_path}")
 
 
 if __name__ == '__main__':

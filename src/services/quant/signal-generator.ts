@@ -1,7 +1,9 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { Signal, QuantStrategy, EntryCondition } from './types.js';
+import Database from 'better-sqlite3';
+import { Signal, QuantStrategy, EntryCondition, SignalActionType } from './types.js';
 import { FactorLibrary, TechnicalIndicators } from './factor-library.js';
+import { SignalArbiter, ArbiterConfig } from './signal-arbiter.js';
 
 export interface StockData {
   symbol: string;
@@ -10,15 +12,145 @@ export interface StockData {
   tech: TechnicalIndicators;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// Confidence Config Types (from calibration)
+// ═══════════════════════════════════════════════════════════════
+
+interface FactorBinConfig {
+  range: [number, number];
+  mean_return: number;
+  hit_rate: number;
+  score_bonus: number;
+  samples: number;
+  neutral: boolean;
+}
+
+interface FactorConfig {
+  type: 'range' | 'boolean';
+  rank_ic: number;
+  weight: number;
+  direction?: 'buy' | 'sell';
+  bins?: FactorBinConfig[];
+  // boolean-specific
+  mean_return?: number;
+  hit_rate?: number;
+  samples?: number;
+  excess_return?: number;
+  // meta
+  column?: string;
+  condition?: string;
+}
+
+interface ConfidenceConfig {
+  version: string;
+  generated_at: string;
+  forward_return_days: number;
+  return_threshold: number;
+  total_samples: number;
+  factors: Record<string, FactorConfig>;
+  meta: {
+    calibration_method: string;
+    data_range: { start: string; end: string };
+    symbols_count: number;
+  };
+}
+
 export class SignalGenerator {
   private signalsDir: string;
   private factorLib: FactorLibrary;
   private useML: boolean;
+  private dbPath: string;
+  private arbiter: SignalArbiter;
+  private confidenceConfig: ConfidenceConfig | null = null;
+  private configPath: string;
 
-  constructor(signalsDir: string = '.pi-invest/quant/signals', factorLib?: FactorLibrary, useML: boolean = true) {
+  // 是否已尝试加载配置（避免每次重复读取文件）
+  private configLoaded = false;
+
+  constructor(
+    signalsDir: string = '.pi-invest/quant/signals',
+    factorLib?: FactorLibrary,
+    useML: boolean = true,
+    dbPath?: string,
+    arbiterConfig?: Partial<ArbiterConfig>
+  ) {
     this.signalsDir = signalsDir;
     this.factorLib = factorLib || new FactorLibrary();
     this.useML = useML;
+    this.dbPath = dbPath || '.pi-invest/stock-db/stocks.db';
+    this.arbiter = new SignalArbiter(arbiterConfig);
+    this.configPath = path.join(path.dirname(this.signalsDir), 'confidence_config.json');
+  }
+
+  /**
+   * 加载校准配置。首次调用时读取 JSON，后续返回缓存。
+   */
+  loadConfidenceConfig(): ConfidenceConfig | null {
+    if (this.configLoaded) {
+      return this.confidenceConfig;
+    }
+    this.configLoaded = true;
+
+    try {
+      // 使用同步读取（与项目其他位置一致）
+      const { readFileSync } = require('fs');
+      const raw = readFileSync(this.configPath, 'utf-8');
+      const config = JSON.parse(raw) as ConfidenceConfig;
+
+      // 基本校验
+      if (!config.version || !config.factors || typeof config.factors !== 'object') {
+        console.warn('[SignalGenerator] 校准配置格式无效，使用硬编码 fallback');
+        return null;
+      }
+
+      const factorCount = Object.keys(config.factors).length;
+      console.log(
+        `[SignalGenerator] ✅ 已加载校准配置 v${config.version} ` +
+        `(${config.generated_at?.slice(0, 10)}, ${factorCount} 个因子, ` +
+        `${config.total_samples?.toLocaleString()} 样本)`
+      );
+      this.confidenceConfig = config;
+      return config;
+    } catch (err: any) {
+      if (err.code === 'ENOENT') {
+        console.log('[SignalGenerator] 校准配置不存在，使用硬编码 fallback。运行 calibrate.run 生成。');
+      } else {
+        console.warn('[SignalGenerator] 校准配置读取失败:', err.message, '，使用硬编码 fallback');
+      }
+      return null;
+    }
+  }
+
+  /**
+   * 运行置信度校准（异步，调用 Python 校准器）。
+   */
+  async runCalibration(
+    forwardDays: number = 5,
+    returnThreshold: number = 0.02
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const pythonCaller = await import(
+        '../../infrastructure/tools/shared/python-caller-resilient-adapter.js'
+      );
+      const { callPythonResilient } = pythonCaller;
+
+      const resultJson = await callPythonResilient('run_confidence_calibration', {
+        forward_days: forwardDays,
+        return_threshold: returnThreshold,
+        output_path: this.configPath,
+      });
+      const result = JSON.parse(resultJson);
+
+      if (result.success) {
+        // 重新加载
+        this.configLoaded = false;
+        this.loadConfidenceConfig();
+        return { success: true };
+      }
+      return { success: false, error: result.error || '校准失败' };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
   }
 
   /**
@@ -39,12 +171,14 @@ export class SignalGenerator {
 
     if (conditionsMatch) {
       const action = isSellStrategy ? 'sell' : 'buy';
+      const action_type = isSellStrategy ? SignalActionType.SELL : SignalActionType.BUY;
 
       const signal: Signal = {
         date: new Date().toISOString().split('T')[0],
         symbol,
         name,
         action,
+        action_type,
         strategy_id: strategy.id,
         price,
         reason: this.buildReason(tech, strategy.entry.conditions),
@@ -261,9 +395,149 @@ export class SignalGenerator {
   }
 
   /**
-   * Calculate confidence score based on technical indicators
+   * Calculate confidence score — data-driven when calibration config exists,
+   * falls back to hardcoded thresholds otherwise.
    */
   private calculateConfidence(indicators: TechnicalIndicators, signalType: 'buy' | 'sell'): number {
+    const config = this.loadConfidenceConfig();
+    if (config && config.factors && Object.keys(config.factors).length > 0) {
+      return this.calculateConfidenceFromConfig(indicators, signalType, config);
+    }
+    return this.calculateConfidenceFallback(indicators, signalType);
+  }
+
+  /**
+   * Data-driven confidence calculation using calibration config.
+   */
+  private calculateConfidenceFromConfig(
+    indicators: TechnicalIndicators,
+    signalType: 'buy' | 'sell',
+    config: ConfidenceConfig
+  ): number {
+    let score = 0.5;
+    let totalWeight = 0;
+    const factors = config.factors;
+
+    // RSI (range factor)
+    const rsiCfg = factors.rsi;
+    if (rsiCfg && rsiCfg.type === 'range' && rsiCfg.bins && indicators.rsi != null) {
+      const rsi = indicators.rsi;
+      for (const bin of rsiCfg.bins) {
+        if (rsi >= bin.range[0] && rsi < bin.range[1]) {
+          if (!bin.neutral) {
+            // score_bonus is signed: positive = good for buy, negative = good for sell
+            const bonus = bin.score_bonus;
+            if (signalType === 'buy') {
+              score += bonus * (rsiCfg.weight || 0.1) * 10;
+            } else {
+              score -= bonus * (rsiCfg.weight || 0.1) * 10; // mirror for sell
+            }
+          }
+          break;
+        }
+      }
+      totalWeight += Math.abs(rsiCfg.weight || 0);
+    }
+
+    // MA Bullish (boolean, buy direction)
+    const maBullCfg = factors.ma_bullish;
+    if (maBullCfg && maBullCfg.type === 'boolean' && maBullCfg.direction === 'buy') {
+      const isBullish = (indicators.ma5 ?? 0) > (indicators.ma20 ?? 0) &&
+                        (indicators.ma20 ?? 0) > (indicators.ma60 ?? 0);
+      if (isBullish) {
+        // Scale excess_return: ±2.5% → ±0.125 bonus, bounded ±0.2 per factor
+        const rawBonus = Math.max(-0.2, Math.min(0.2, (maBullCfg.excess_return ?? 0) * 5));
+        score += signalType === 'buy' ? rawBonus : -rawBonus * 0.3;
+      }
+      totalWeight += Math.abs(maBullCfg.weight || 0);
+    }
+
+    // MA Bearish (boolean, sell direction)
+    const maBearCfg = factors.ma_bearish;
+    if (maBearCfg && maBearCfg.type === 'boolean' && maBearCfg.direction === 'sell') {
+      const isBearish = (indicators.ma5 ?? 0) < (indicators.ma20 ?? 0) &&
+                        (indicators.ma20 ?? 0) < (indicators.ma60 ?? 0);
+      if (isBearish) {
+        const rawBonus = Math.max(-0.2, Math.min(0.2, (maBearCfg.excess_return ?? 0) * 5));
+        score += signalType === 'sell' ? rawBonus : -rawBonus * 0.3;
+      }
+      totalWeight += Math.abs(maBearCfg.weight || 0);
+    }
+
+    // MA5 > MA20 (simple bullish)
+    const ma5Cfg = factors.ma5_cross;
+    if (ma5Cfg && ma5Cfg.type === 'boolean') {
+      const isAbove = (indicators.ma5 ?? 0) > (indicators.ma20 ?? 0);
+      if (isAbove) {
+        const rawBonus = Math.max(-0.15, Math.min(0.15, (ma5Cfg.excess_return ?? 0) * 5));
+        if (signalType === 'buy') {
+          score += rawBonus;
+        } else {
+          score -= rawBonus * 0.3;
+        }
+      }
+      totalWeight += Math.abs(ma5Cfg.weight || 0);
+    }
+
+    // MACD Positive (boolean, buy direction)
+    const macdCfg = factors.macd_positive;
+    if (macdCfg && macdCfg.type === 'boolean') {
+      const macdPositive = (indicators.macd_histogram ?? 0) > 0;
+      if (macdPositive) {
+        const rawBonus = Math.max(-0.15, Math.min(0.15, (macdCfg.excess_return ?? 0) * 5));
+        score += signalType === 'buy' ? rawBonus : -rawBonus * 0.3;
+      }
+      totalWeight += Math.abs(macdCfg.weight || 0);
+    }
+
+    // Volume Ratio (range factor)
+    const vrCfg = factors.volume_ratio;
+    if (vrCfg && vrCfg.type === 'range' && vrCfg.bins && indicators.volume_ratio != null) {
+      const vr = indicators.volume_ratio;
+      for (const bin of vrCfg.bins) {
+        if (vr >= bin.range[0] && vr < bin.range[1]) {
+          if (!bin.neutral) {
+            const bonus = bin.score_bonus;
+            score += bonus * (vrCfg.weight || 0.05) * 10;
+          }
+          break;
+        }
+      }
+      totalWeight += Math.abs(vrCfg.weight || 0);
+    }
+
+    // Bollinger Band Position (range factor)
+    const bbCfg = factors.bb_position;
+    if (bbCfg && bbCfg.type === 'range' && bbCfg.bins) {
+      const bbPos = this.calculateBBPosition(indicators);
+      for (const bin of bbCfg.bins) {
+        if (bbPos >= bin.range[0] && bbPos < bin.range[1]) {
+          if (!bin.neutral) {
+            const bonus = bin.score_bonus;
+            if (signalType === 'buy') {
+              // Low BB position = good for buy (oversold)
+              score += bonus * (bbCfg.weight || 0.05) * 10;
+            } else {
+              // High BB position = good for sell (overbought)
+              score -= bonus * (bbCfg.weight || 0.05) * 10;
+            }
+          }
+          break;
+        }
+      }
+      totalWeight += Math.abs(bbCfg.weight || 0);
+    }
+
+    // Clamp to [0.1, 0.95]
+    return Math.max(0.1, Math.min(0.95, score));
+  }
+
+  /**
+   * Hardcoded fallback — maintains backward compatibility.
+   * This is the original hand-tuned logic, preserved for when no calibration
+   * config exists.
+   */
+  private calculateConfidenceFallback(indicators: TechnicalIndicators, signalType: 'buy' | 'sell'): number {
     let score = 0.5; // Base score
 
     if (signalType === 'buy') {
@@ -417,9 +691,9 @@ export class SignalGenerator {
       // python-caller not available, use rule-based
     }
 
-    // Level 2: Rule-based fallback
+    // Level 2: Data-driven or rule-based fallback
     const ind = signal.indicators as unknown as TechnicalIndicators;
-    return this.calculateConfidence(ind, signal.action);
+    return this.calculateConfidence(ind, signal.action as 'buy' | 'sell');
   }
 
   /**
@@ -430,24 +704,67 @@ export class SignalGenerator {
   }
 
   /**
-   * Save signals to file
+   * Save signals to database
    */
   async saveSignals(date: string, signals: Signal[]): Promise<void> {
-    await fs.mkdir(this.signalsDir, { recursive: true });
-    const filePath = path.join(this.signalsDir, `${date}.json`);
-    await fs.writeFile(filePath, JSON.stringify(signals, null, 2), 'utf-8');
+    const db = new Database(this.dbPath);
+
+    try {
+      const stmt = db.prepare(`
+        INSERT INTO signals (date, symbol, name, action, action_type, strategy_id, price, reason, confidence, indicators)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      const insertMany = db.transaction((signals: Signal[]) => {
+        for (const signal of signals) {
+          stmt.run(
+            signal.date,
+            signal.symbol,
+            signal.name,
+            signal.action,
+            signal.action_type,
+            signal.strategy_id,
+            signal.price,
+            signal.reason,
+            signal.confidence,
+            JSON.stringify(signal.indicators)
+          );
+        }
+      });
+
+      insertMany(signals);
+    } finally {
+      db.close();
+    }
   }
 
   /**
-   * Load signals from file
+   * Load signals from database
    */
   async loadSignals(date: string): Promise<Signal[]> {
+    const db = new Database(this.dbPath, { readonly: true });
+
     try {
-      const filePath = path.join(this.signalsDir, `${date}.json`);
-      const content = await fs.readFile(filePath, 'utf-8');
-      return JSON.parse(content);
-    } catch {
-      return [];
+      const stmt = db.prepare(`
+        SELECT * FROM signals WHERE date = ? ORDER BY created_at DESC
+      `);
+
+      const rows = stmt.all(date) as any[];
+
+      return rows.map(row => ({
+        date: row.date,
+        symbol: row.symbol,
+        name: row.name,
+        action: row.action,
+        action_type: row.action_type,
+        strategy_id: row.strategy_id,
+        price: row.price,
+        reason: row.reason,
+        confidence: row.confidence,
+        indicators: row.indicators ? JSON.parse(row.indicators) : undefined
+      }));
+    } finally {
+      db.close();
     }
   }
 
@@ -521,11 +838,15 @@ export class SignalGenerator {
           sig.symbol === s.symbol && sig.strategy_id === s.strategy_id
         );
 
+        // Determine action_type from action string
+        const action_type = s.action === 'sell' ? SignalActionType.SELL : SignalActionType.BUY;
+
         return {
           date,
           symbol: s.symbol,
           name: matchingSignal?.name || s.symbol,
           action: s.action as 'buy' | 'sell',
+          action_type,
           strategy_id: s.strategy_id,
           price: s.price,
           reason: s.reason,
@@ -561,7 +882,8 @@ export class SignalGenerator {
     stockData: StockData[],
     mode: 'or' | 'and' | 'vote' = 'vote',
     weights?: Record<string, number>,
-    confidenceThreshold: number = 0.5
+    confidenceThreshold: number = 0.5,
+    useArbiter: boolean = true
   ): Promise<Signal[]> {
     // Step 1: Generate signals for each strategy
     const allSignals: Signal[] = [];
@@ -598,6 +920,40 @@ export class SignalGenerator {
       }
     }
 
+    // Step 4: Apply signal arbiter to resolve conflicts
+    if (useArbiter) {
+      const arbiterResult = this.arbiter.arbitrate(combinedSignals);
+
+      // Log conflicts if any
+      if (arbiterResult.conflicts.length > 0) {
+        console.log(`\n⚠️  检测到 ${arbiterResult.conflicts.length} 个信号冲突:`);
+        for (const conflict of arbiterResult.conflicts) {
+          console.log(`  - ${conflict.symbol} (${conflict.name}): ${conflict.resolution} - ${conflict.reason}`);
+        }
+        console.log(`\n📊 裁决统计:`);
+        console.log(`  输入信号: ${arbiterResult.stats.totalInput}`);
+        console.log(`  输出信号: ${arbiterResult.stats.totalOutput}`);
+        console.log(`  丢弃信号: ${arbiterResult.stats.signalsDiscarded}`);
+        console.log(`  降级信号: ${arbiterResult.stats.signalsDowngraded}`);
+      }
+
+      return arbiterResult.signals;
+    }
+
     return combinedSignals;
+  }
+
+  /**
+   * Get signal arbiter instance for advanced usage
+   */
+  getArbiter(): SignalArbiter {
+    return this.arbiter;
+  }
+
+  /**
+   * Get conflict statistics from arbiter
+   */
+  getConflictStats() {
+    return this.arbiter.getConflictStats();
   }
 }

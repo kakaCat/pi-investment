@@ -4,7 +4,6 @@ import { Alert, Button, Col, Row, Space, Typography, message } from 'antd';
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
-  DatabaseOutlined,
   ReloadOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -14,18 +13,16 @@ import type {
   HealthStatus,
   JobRecord,
   PlatformStatus,
-  StockDataStatus,
   TrainingRecord,
 } from '../../dashboard/dashboardTypes';
 import {
   calculateBacktestMetrics,
-  calculateDataQualityMetrics,
   calculateJobMetrics,
   calculateSignalMetrics,
+  getHighConfidenceSignalsForDate,
   getLatestTrainingRecord,
 } from '../../dashboard/dashboardMetrics';
 import BacktestSummaryPanel from './BacktestSummaryPanel';
-import DataQualityPanel from './DataQualityPanel';
 import JobQueuePanel from './JobQueuePanel';
 import MetricCard from './MetricCard';
 import ModelSummaryPanel from './ModelSummaryPanel';
@@ -47,8 +44,7 @@ type DashboardPanelKey =
   | 'jobs'
   | 'signals'
   | 'backtests'
-  | 'trainingHistory'
-  | 'dataStatus';
+  | 'trainingHistory';
 
 type DashboardErrors = Partial<Record<DashboardPanelKey, string>>;
 
@@ -90,13 +86,12 @@ interface DashboardOverviewProps {
 }
 
 const PANEL_LABELS: Record<DashboardPanelKey, string> = {
-  health: 'Health',
-  platformStatus: 'Platform status',
-  jobs: 'Jobs',
-  signals: 'Signals',
-  backtests: 'Backtests',
-  trainingHistory: 'Training history',
-  dataStatus: 'Data status',
+  health: '系统健康',
+  platformStatus: '平台状态',
+  jobs: '任务',
+  signals: '信号',
+  backtests: '回测',
+  trainingHistory: '训练历史',
 };
 
 const KNOWN_PLATFORM_CHECK_NAMES = ['database', 'signals', 'model', 'daily_report'] as const;
@@ -111,7 +106,6 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
   const [signals, setSignals] = useState<DashboardSignal[]>([]);
   const [backtests, setBacktests] = useState<BacktestSummary[]>([]);
   const [trainingHistory, setTrainingHistory] = useState<TrainingRecord[]>([]);
-  const [dataStatus, setDataStatus] = useState<StockDataStatus | undefined>();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<DashboardErrors>({});
   const [lastRefreshed, setLastRefreshed] = useState<string | undefined>();
@@ -139,7 +133,6 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
       fetchSignals(),
       fetchBacktestResults(),
       fetchTrainingHistory(),
-      fetchJson<StockDataStatus>('/api/stocks/data-status'),
     ]);
 
     if (!isMountedRef.current || requestId !== dashboardRequestIdRef.current) {
@@ -167,9 +160,6 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
     });
     applySettledResult(requests[5], 'trainingHistory', nextErrors, (value) => {
       setTrainingHistory(value);
-    });
-    applySettledResult(requests[6], 'dataStatus', nextErrors, (value) => {
-      setDataStatus(value);
     });
 
     setErrors(nextErrors);
@@ -319,7 +309,11 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
   const signalMetrics = useMemo(() => calculateSignalMetrics(signals), [signals]);
   const backtestMetrics = useMemo(() => calculateBacktestMetrics(backtests), [backtests]);
   const jobMetrics = useMemo(() => calculateJobMetrics(jobs), [jobs]);
-  const dataQualityMetrics = useMemo(() => calculateDataQualityMetrics(dataStatus), [dataStatus]);
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayHighConfidenceSignals = useMemo(
+    () => getHighConfidenceSignalsForDate(signals, today, 5),
+    [signals, today],
+  );
   const latestTraining = useMemo(() => getLatestTrainingRecord(trainingHistory), [trainingHistory]);
   const platformPanelStatus = useMemo(() => adaptPlatformStatusForPanel(platformStatus), [platformStatus]);
   const activeJobTypes = useMemo(
@@ -336,15 +330,14 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
       <div style={headerStyle}>
         <Space direction="vertical" size={2}>
           <Title level={3} style={{ margin: 0 }}>
-            Dashboard Overview
+            量化总览
           </Title>
           <Text type="secondary">
-            Last refreshed: {lastRefreshed ? formatDateTime(lastRefreshed) : 'Never'}
-            {dataQualityMetrics.latestDataDate ? ` · Data through ${formatDate(dataQualityMetrics.latestDataDate)}` : ''}
+            最近刷新：{lastRefreshed ? formatDateTime(lastRefreshed) : '尚未刷新'}
           </Text>
         </Space>
         <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void loadDashboard()}>
-          Refresh
+          刷新
         </Button>
       </div>
 
@@ -352,100 +345,100 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
         <Alert
           type="warning"
           showIcon
-          message="Showing partial dashboard data"
-          description={`Unable to load: ${failedPanelLabels.join(', ')}`}
+          message="当前仅展示部分数据"
+          description={`加载失败：${failedPanelLabels.join('、')}`}
         />
       )}
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} xl={6}>
           <MetricCard
-            title="Health"
+            title="系统健康"
             value={formatHealthValue(health)}
             prefix={health?.status === 'ok' ? <CheckCircleOutlined /> : <WarningOutlined />}
             tone={getHealthTone(health)}
             loading={loading && !health}
-            helper={health ? `DB ${health.db_connected ? 'connected' : 'offline'} · Model ${health.model_loaded ? 'loaded' : 'missing'}` : 'No health data'}
+            helper={health ? `数据库${health.db_connected ? '已连接' : '离线'} · 模型${health.model_loaded ? '已加载' : '缺失'}` : '暂无健康状态'}
           />
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <MetricCard
-            title="High Confidence"
+            title="高置信信号"
             value={signalMetrics.highConfidenceCount}
             tone="info"
             loading={loading && signals.length === 0}
-            helper={`${signalMetrics.total} signals · >=80% confidence`}
+            helper={`共 ${signalMetrics.total} 条 · 置信度 >= 80%`}
           />
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <MetricCard
-            title="Buy / Sell"
+            title="买入 / 卖出"
             value={`${formatPercent(signalMetrics.buyRatio)} / ${formatPercent(signalMetrics.sellRatio)}`}
             tone="info"
             loading={loading && signals.length === 0}
-            helper={`${signalMetrics.buyCount} buy · ${signalMetrics.sellCount} sell`}
+            helper={`${signalMetrics.buyCount} 买入 · ${signalMetrics.sellCount} 卖出`}
           />
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <MetricCard
-            title="Jobs"
+            title="任务"
             value={jobMetrics.activeCount}
-            suffix="active"
+            suffix="运行中"
             prefix={<ClockCircleOutlined />}
             tone={jobMetrics.failedCount > 0 ? 'warning' : 'default'}
             loading={loading && jobs.length === 0}
-            helper={`${jobMetrics.failedCount} failed · ${jobMetrics.total} total`}
+            helper={`${jobMetrics.failedCount} 失败 · 共 ${jobMetrics.total} 个`}
           />
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <MetricCard
-            title="Platform"
+            title="平台状态"
             value={formatPlatformStatus(platformStatus)}
             tone={getPlatformTone(platformStatus)}
             loading={loading && !platformStatus}
-            helper={platformStatus ? `Generated ${formatDateTime(platformStatus.generated_at)}` : 'No platform status'}
+            helper={platformStatus ? `生成于 ${formatDateTime(platformStatus.generated_at)}` : '暂无平台状态'}
           />
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <MetricCard
-            title="Avg Sharpe"
+            title="平均夏普"
             value={formatNumber(backtestMetrics.averageSharpe)}
             tone={getSharpeTone(backtestMetrics.averageSharpe)}
             loading={loading && backtests.length === 0}
-            helper={`${backtestMetrics.count} backtests`}
+            helper={`共 ${backtestMetrics.count} 次回测`}
           />
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <MetricCard
-            title="Model AUC"
+            title="模型 AUC"
             value={latestTraining ? formatNumber(latestTraining.test_auc) : '-'}
             tone="info"
             loading={loading && trainingHistory.length === 0}
-            helper={latestTraining ? `Trained ${formatDateTime(latestTraining.timestamp)}` : 'No training history'}
+            helper={latestTraining ? `训练于 ${formatDateTime(latestTraining.timestamp)}` : '暂无训练记录'}
           />
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <MetricCard
-            title="Data Quality"
-            value={formatPercent(dataQualityMetrics.completenessRate)}
-            prefix={<DatabaseOutlined />}
-            tone={(dataQualityMetrics.completenessRate ?? 0) >= 0.95 ? 'success' : 'warning'}
-            loading={loading && !dataStatus}
-            helper={`${dataQualityMetrics.completeStocks}/${dataQualityMetrics.totalStocks} complete`}
+            title="今日高概率"
+            value={todayHighConfidenceSignals.length}
+            tone="info"
+            loading={loading && signals.length === 0}
+            helper="下方展示前 5 条"
           />
         </Col>
       </Row>
 
       <Row gutter={[16, 16]}>
-        <Col xs={24} xl={8}>
+        <Col xs={24} xl={12}>
           <SignalSummaryPanel
+            title="信号摘要"
             signals={signals}
             loading={loading && signals.length === 0}
             error={errors.signals}
             onOpenSignals={() => onNavigate('signals')}
           />
         </Col>
-        <Col xs={24} xl={8}>
+        <Col xs={24} xl={12}>
           <BacktestSummaryPanel
             summary={backtests}
             loading={loading && backtests.length === 0}
@@ -453,7 +446,7 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
             onOpenBacktest={() => onNavigate('backtest')}
           />
         </Col>
-        <Col xs={24} xl={8}>
+        <Col xs={24}>
           <TaskActionPanel
             activeJobTypes={activeJobTypes}
             actionLoading={actionLoading}
@@ -463,14 +456,14 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
       </Row>
 
       <Row gutter={[16, 16]}>
-        <Col xs={24} xl={12} xxl={6}>
+        <Col xs={24} xl={12}>
           <PlatformStatusPanel
             status={platformPanelStatus}
             loading={loading && !platformStatus}
             error={errors.platformStatus}
           />
         </Col>
-        <Col xs={24} xl={12} xxl={6}>
+        <Col xs={24} xl={12}>
           <ModelSummaryPanel
             history={trainingHistory}
             loading={loading && trainingHistory.length === 0}
@@ -478,15 +471,17 @@ export default function DashboardOverview({ onNavigate = () => undefined }: Dash
             onOpenTraining={() => onNavigate('model-training')}
           />
         </Col>
-        <Col xs={24} xl={12} xxl={6}>
-          <DataQualityPanel
-            status={dataStatus}
-            loading={loading && !dataStatus}
-            error={errors.dataStatus}
-            onOpenData={() => onNavigate('stock-list')}
+        <Col xs={24} xl={12}>
+          <SignalSummaryPanel
+            title="今日高概率买卖"
+            signals={todayHighConfidenceSignals}
+            loading={loading && signals.length === 0}
+            error={errors.signals}
+            emptyDescription="今日暂无高概率信号"
+            onOpenSignals={() => onNavigate('signals')}
           />
         </Col>
-        <Col xs={24} xl={12} xxl={6}>
+        <Col xs={24} xl={12}>
           <JobQueuePanel
             jobs={jobs}
             loading={loading && jobs.length === 0}
@@ -705,13 +700,6 @@ function getPlatformTone(status?: PlatformStatus) {
   return status.overall_status === 'degraded' ? 'warning' : 'danger';
 }
 
-function getReturnTone(value?: number) {
-  if (typeof value !== 'number') {
-    return 'default';
-  }
-  return value >= 0 ? 'success' : 'danger';
-}
-
 function getSharpeTone(value?: number) {
   if (typeof value !== 'number') {
     return 'default';
@@ -723,14 +711,19 @@ function formatHealthValue(health?: HealthStatus) {
   if (!health) {
     return '-';
   }
-  return health.status.toUpperCase();
+  return health.status === 'ok' ? '正常' : health.status;
 }
 
 function formatPlatformStatus(status?: PlatformStatus) {
   if (!status) {
     return '-';
   }
-  return status.overall_status.replace('_', ' ').toUpperCase();
+  const labels: Record<PlatformStatus['overall_status'], string> = {
+    healthy: '正常',
+    degraded: '降级',
+    unavailable: '不可用',
+  };
+  return labels[status.overall_status] || status.overall_status;
 }
 
 function formatPercent(value?: number) {
@@ -747,14 +740,6 @@ function formatDateTime(value: string) {
     return value;
   }
   return date.toLocaleString('zh-CN', { hour12: false });
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleDateString('zh-CN');
 }
 
 const headerStyle: CSSProperties = {

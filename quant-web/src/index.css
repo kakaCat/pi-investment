@@ -46,3 +46,24 @@ body {
 .dashboard-page {
   width: 100%;
 }
+
+.pipeline-page {
+  width: 100%;
+}
+
+.pipeline-log {
+  background: #101828;
+  border-radius: 6px;
+  color: #e5e7eb;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+
+.pipeline-run-selected > td {
+  background: #eef4ff !important;
+}

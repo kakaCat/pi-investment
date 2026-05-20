@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateBacktestMetrics,
-  calculateDataQualityMetrics,
   calculateJobMetrics,
   calculateSignalMetrics,
+  getHighConfidenceSignalsForDate,
   getLatestTrainingRecord,
 } from './dashboardMetrics';
 
@@ -22,6 +22,29 @@ describe('dashboardMetrics', () => {
     expect(metrics.highConfidenceCount).toBe(2);
     expect(metrics.buyRatio).toBeCloseTo(0.5);
     expect(metrics.sellRatio).toBeCloseTo(0.5);
+  });
+
+  it('selects today high-confidence signals sorted by confidence', () => {
+    const signals = [
+      { symbol: '000001', signal: 'BUY' as const, confidence: 0.91, date: '2026-05-20' },
+      { symbol: '000002', signal: 'SELL' as const, confidence: 0.78, date: '2026-05-20' },
+      { symbol: '000003', signal: 'BUY' as const, confidence: 0.99, created_at: '2026-05-20T09:30:00Z' },
+      { symbol: '000004', signal: 'SELL' as const, confidence: 0.88, date: '2026-05-19' },
+      { symbol: '000005', signal: 'BUY' as const, confidence: 0.84, date: '2026-05-20' },
+      { symbol: '000006', signal: 'SELL' as const, confidence: 0.83, date: '2026-05-20' },
+      { symbol: '000007', signal: 'BUY' as const, confidence: 0.82, date: '2026-05-20' },
+      { symbol: '000008', signal: 'SELL' as const, confidence: 0.81, date: '2026-05-20' },
+    ];
+
+    const selected = getHighConfidenceSignalsForDate(signals, '2026-05-20', 5);
+
+    expect(selected.map((signal) => signal.symbol)).toEqual([
+      '000003',
+      '000001',
+      '000005',
+      '000006',
+      '000007',
+    ]);
   });
 
   it('averages backtest return, Sharpe, win rate, and worst drawdown', () => {
@@ -113,47 +136,6 @@ describe('dashboardMetrics', () => {
     expect(metrics.activeCount).toBe(2);
     expect(metrics.failedCount).toBe(1);
     expect(metrics.latestJob).toBe(jobs[3]);
-  });
-
-  it('calculates data completeness and latest data date', () => {
-    const metrics = calculateDataQualityMetrics({
-      total_stocks: 3,
-      complete_stocks: 2,
-      incomplete_stocks: 1,
-      stocks: [
-        { symbol: '000001', name: 'A', market: 'CN', latest_date: '2026-05-17', data_complete: true },
-        { symbol: '000002', name: 'B', market: 'CN', latest_date: '2026-05-19', data_complete: true },
-        { symbol: '000003', name: 'C', market: 'CN', latest_date: '2026-05-18', data_complete: false },
-      ],
-    });
-
-    expect(metrics.totalStocks).toBe(3);
-    expect(metrics.completeStocks).toBe(2);
-    expect(metrics.incompleteStocks).toBe(1);
-    expect(metrics.completenessRate).toBeCloseTo(2 / 3);
-    expect(metrics.latestDataDate).toBe('2026-05-19');
-  });
-
-  it('returns undefined completeness and date when data status is missing or zero', () => {
-    expect(calculateDataQualityMetrics()).toEqual({
-      totalStocks: 0,
-      completeStocks: 0,
-      incompleteStocks: 0,
-      completenessRate: undefined,
-      latestDataDate: undefined,
-    });
-
-    expect(
-      calculateDataQualityMetrics({
-        total_stocks: 0,
-        complete_stocks: 0,
-        incomplete_stocks: 0,
-        stocks: [],
-      }),
-    ).toMatchObject({
-      completenessRate: undefined,
-      latestDataDate: undefined,
-    });
   });
 
   it('selects the newest training record by timestamp', () => {

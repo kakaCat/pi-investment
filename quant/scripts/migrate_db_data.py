@@ -2,10 +2,14 @@
 """
 Migrate incremental data from legacy database to canonical location.
 
+This is a legacy SQLite-to-SQLite migration helper. For PostgreSQL imports use:
+    python scripts/postgres/migrate-sqlite-to-postgres.py
+
 Usage:
     python quant/scripts/migrate_db_data.py
 """
 
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -14,10 +18,14 @@ from pathlib import Path
 QUANT_ROOT = Path(__file__).parent.parent
 PROJECT_ROOT = QUANT_ROOT.parent
 SOURCE_DB = QUANT_ROOT / 'quantsys' / 'data' / 'stocks.db'
-TARGET_DB = Path.home() / '.pi-invest' / 'stock-db' / 'stocks.db'
+TARGET_DB = PROJECT_ROOT / '.pi-invest' / 'stock-db' / 'stocks.db'
 
 def main():
     """Migrate incremental data from source to target database."""
+    if os.environ.get("QUANT_DB_PROVIDER", "sqlite").strip().lower() == "postgres":
+        print("❌ migrate_db_data.py is SQLite-only.")
+        print("   Use scripts/postgres/migrate-sqlite-to-postgres.py for PostgreSQL imports.")
+        sys.exit(2)
 
     # Verify source exists
     if not SOURCE_DB.exists():

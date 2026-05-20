@@ -29,45 +29,45 @@ export interface TaskActionPanelProps {
 const TASK_ACTIONS: TaskAction[] = [
   {
     type: 'data_update',
-    title: 'Data Update',
-    description: 'Refresh recent market data',
+    title: '数据更新',
+    description: '刷新最近行情数据',
     params: { source: 'hs300', days: 5, force: false },
   },
   {
     type: 'factor_compute',
-    title: 'Factor Compute',
-    description: 'Recalculate factor datasets',
+    title: '因子计算',
+    description: '重新计算因子数据集',
     params: {},
   },
   {
     type: 'signal_generate',
-    title: 'Signal Generate',
-    description: 'Generate latest research signals',
+    title: '生成信号',
+    description: '生成最新研究信号',
     params: {},
   },
   {
     type: 'risk_check',
-    title: 'Risk Check',
-    description: 'Run current portfolio risk checks',
+    title: '风险检查',
+    description: '检查当前组合风险',
     params: {},
   },
   {
     type: 'model_train',
-    title: 'Model Train',
-    description: 'Trigger model retraining',
+    title: '模型训练',
+    description: '触发模型重新训练',
     params: { days: 90, model: 'xgboost', cvSplits: 5 },
   },
   {
     type: 'backtest_run',
-    title: 'Backtest Run',
-    description: 'Run the default backtest workflow',
+    title: '执行回测',
+    description: '运行默认回测流程',
     params: {},
     danger: true,
   },
   {
     type: 'daily_report',
-    title: 'Daily Report',
-    description: 'Generate the daily research report',
+    title: '日报生成',
+    description: '生成每日研究报告',
     params: {},
   },
 ];
@@ -78,14 +78,14 @@ export default function TaskActionPanel({
   onRunTask,
 }: TaskActionPanelProps) {
   return (
-    <Card title="Task Actions" extra={<Text type="secondary">Tasks run in the job queue</Text>}>
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+    <Card title="任务操作" extra={<Text type="secondary">任务会进入后台队列执行</Text>}>
+      <div style={taskGridStyle}>
         {TASK_ACTIONS.map((task) => {
           const isActive = activeJobTypes.has(task.type);
           return (
             <div style={taskItemStyle} key={task.type}>
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                <Space style={{ justifyContent: 'space-between', width: '100%' }}>
+                <Space align="start" style={{ justifyContent: 'space-between', width: '100%' }}>
                   <Text strong>{task.title}</Text>
                   <Tag>{task.type}</Tag>
                 </Space>
@@ -98,7 +98,7 @@ export default function TaskActionPanel({
                   disabled={isActive}
                   onClick={() => onRunTask(task.type, task.params)}
                 >
-                  {isActive ? 'Already active' : 'Run task'}
+                  {isActive ? '执行中' : '运行任务'}
                 </Button>
               </Space>
             </div>
@@ -109,8 +109,15 @@ export default function TaskActionPanel({
   );
 }
 
+const taskGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+};
+
 const taskItemStyle: React.CSSProperties = {
   border: '1px solid #f0f0f0',
   borderRadius: 6,
+  minWidth: 0,
   padding: 12,
 };

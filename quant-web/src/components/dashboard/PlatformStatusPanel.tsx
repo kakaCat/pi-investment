@@ -34,10 +34,10 @@ export interface PlatformStatusPanelProps {
 }
 
 const CHECK_LABELS: Record<PlatformCheckName, string> = {
-  database: 'Database',
-  signals: 'Signals',
-  model: 'Model',
-  daily_report: 'Daily report',
+  database: '数据库',
+  signals: '信号文件',
+  model: '模型',
+  daily_report: '日报',
 };
 
 const CHECK_ICONS: Record<PlatformCheckName, React.ReactNode> = {
@@ -54,9 +54,9 @@ const STATUS_COLORS: Record<PlatformCheckStatus, string> = {
 };
 
 const STATUS_LABELS: Record<PlatformCheckStatus, string> = {
-  healthy: 'Healthy',
-  degraded: 'Degraded',
-  unavailable: 'Unavailable',
+  healthy: '正常',
+  degraded: '降级',
+  unavailable: '不可用',
 };
 
 export default function PlatformStatusPanel({
@@ -66,14 +66,14 @@ export default function PlatformStatusPanel({
 }: PlatformStatusPanelProps) {
   return (
     <Card
-      title="Platform Status"
+      title="平台状态"
       loading={loading && !status}
       extra={status && <Tag color={STATUS_COLORS[status.overall_status]}>{STATUS_LABELS[status.overall_status]}</Tag>}
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        {error && <Alert type="error" showIcon message="Unable to load platform status" description={error} />}
+        {error && <Alert type="error" showIcon message="平台状态加载失败" description={error} />}
         {!status ? (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No platform status available" />
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无平台状态" />
         ) : (
           <>
             <List
@@ -95,7 +95,7 @@ export default function PlatformStatusPanel({
                 </List.Item>
               )}
             />
-            {status.generated_at && <Text type="secondary">Generated: {formatDateTime(status.generated_at)}</Text>}
+            {status.generated_at && <Text type="secondary">生成时间：{formatDateTime(status.generated_at)}</Text>}
           </>
         )}
       </Space>
@@ -106,7 +106,7 @@ export default function PlatformStatusPanel({
 function buildChecks(status: PlatformStatus) {
   const byName = new Map(status.checks.map((check) => [check.name, check]));
   return (Object.keys(CHECK_LABELS) as PlatformCheckName[]).map((name) => (
-    byName.get(name) || { name, status: 'unavailable' as const, message: 'No check result' }
+    byName.get(name) || { name, status: 'unavailable' as const, message: '暂无检查结果' }
   ));
 }
 

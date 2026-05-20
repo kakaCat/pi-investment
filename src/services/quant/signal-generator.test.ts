@@ -1,8 +1,32 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { SignalGenerator } from './signal-generator.js';
-import { QuantStrategy } from './types.js';
-import { FactorLibrary } from './factor-library.js';
+import { QuantStrategy, SignalActionType } from './types.js';
+import { FactorLibrary, type TechnicalIndicators } from './factor-library.js';
 import fs from 'fs/promises';
+
+function tech(overrides: Partial<TechnicalIndicators> = {}): TechnicalIndicators {
+  return {
+    rsi: 50,
+    ma5: 100,
+    ma10: 100,
+    ma20: 100,
+    ma60: 100,
+    macd_dif: 0,
+    macd_dea: 0,
+    macd_histogram: 0,
+    bollinger_upper: 110,
+    bollinger_mid: 100,
+    bollinger_lower: 90,
+    volume_ratio: 1,
+    atr: 1,
+    pe: 15,
+    pb: 1.5,
+    roe: 0.12,
+    gross_margin: 0.35,
+    debt_ratio: 0.45,
+    ...overrides,
+  };
+}
 
 describe('SignalGenerator', () => {
   const testDir = '.pi-invest-test/quant/signals';
@@ -476,7 +500,7 @@ describe('SignalGenerator', () => {
           symbol: '000001',
           name: '平安银行',
           price: 10.5,
-          tech: {
+          tech: tech({
             rsi: 25,
             ma5: 105,
             ma10: 103,
@@ -490,13 +514,13 @@ describe('SignalGenerator', () => {
             bollinger_lower: 90,
             volume_ratio: 2.0,
             atr: 1.5
-          }
+          })
         },
         {
           symbol: '000002',
           name: '万科A',
           price: 8.5,
-          tech: {
+          tech: tech({
             rsi: 65, // Does not match
             ma5: 100,
             ma10: 100,
@@ -510,13 +534,13 @@ describe('SignalGenerator', () => {
             bollinger_lower: 90,
             volume_ratio: 1.0,
             atr: 1.5
-          }
+          })
         },
         {
           symbol: '600000',
           name: '浦发银行',
           price: 7.8,
-          tech: {
+          tech: tech({
             rsi: 28,
             ma5: 102,
             ma10: 100,
@@ -530,7 +554,7 @@ describe('SignalGenerator', () => {
             bollinger_lower: 91,
             volume_ratio: 1.5,
             atr: 1.2
-          }
+          })
         }
       ];
 
@@ -572,7 +596,7 @@ describe('SignalGenerator', () => {
           symbol: '000001',
           name: '平安银行',
           price: 10.5,
-          tech: {
+          tech: tech({
             rsi: 25, // Strong signal
             ma5: 105,
             ma10: 103,
@@ -586,13 +610,13 @@ describe('SignalGenerator', () => {
             bollinger_lower: 90,
             volume_ratio: 2.5,
             atr: 1.5
-          }
+          })
         },
         {
           symbol: '000002',
           name: '万科A',
           price: 8.5,
-          tech: {
+          tech: tech({
             rsi: 48, // Weak signal
             ma5: 100,
             ma10: 100,
@@ -606,7 +630,7 @@ describe('SignalGenerator', () => {
             bollinger_lower: 90,
             volume_ratio: 1.0,
             atr: 1.5
-          }
+          })
         }
       ];
 
@@ -627,6 +651,7 @@ describe('SignalGenerator', () => {
           symbol: '000001',
           name: '平安银行',
           action: 'buy' as const,
+          action_type: SignalActionType.BUY,
           strategy_id: 'test',
           price: 10.5,
           reason: 'RSI < 30',

@@ -31,7 +31,7 @@ def get_stock_data(symbol: str, days: int = 730) -> pd.DataFrame:
     df = df.sort_values('date').reset_index(drop=True)
 
     # 添加策略需要的列
-    df['timestamp'] = pd.to_datetime(df['date'])
+    df['timestamp'] = pd.to_datetime(df['date'], format='mixed', errors='coerce')
     df['symbol'] = symbol
 
     return df

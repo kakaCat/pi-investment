@@ -9,7 +9,7 @@
 
 import Database from 'better-sqlite3';
 import { join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { mkdirSync } from 'fs';
 import { callPython } from '../../infrastructure/akshare-ts/index.js';
 
 export interface StockFilter {
@@ -37,16 +37,36 @@ export interface StockInfo {
   pb?: number;
 }
 
+export interface KlineCoverage {
+  existing_days: number;
+  first_date: string | null;
+  last_date: string | null;
+}
+
 export class StockDBService {
+  private static instances: Map<string, StockDBService> = new Map();
   private db: Database.Database;
   private dbPath: string;
 
-  constructor(piDir: string) {
+  private constructor(piDir: string) {
     const dbDir = join(piDir, 'stock-db');
     mkdirSync(dbDir, { recursive: true });
     this.dbPath = join(dbDir, 'stocks.db');
-    this.db = new Database(this.dbPath);
+    this.db = new Database(this.dbPath, {
+      timeout: 5000,
+      fileMustExist: false
+    });
+    // Enable WAL mode for better concurrent access
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('busy_timeout = 5000');
     this.initDB();
+  }
+
+  public static getInstance(piDir: string): StockDBService {
+    if (!StockDBService.instances.has(piDir)) {
+      StockDBService.instances.set(piDir, new StockDBService(piDir));
+    }
+    return StockDBService.instances.get(piDir)!;
   }
 
   private initDB(): void {
@@ -210,6 +230,80 @@ export class StockDBService {
     return (this.db.prepare('SELECT COUNT(*) as cnt FROM stocks').get() as any).cnt;
   }
 
+  getStock(symbol: string): StockInfo | null {
+    const row = this.db.prepare(
+      'SELECT symbol, name, market, industry, market_cap, pe, pb FROM stocks WHERE symbol = ?'
+    ).get(normalizeStockSymbol(symbol)) as StockInfo | undefined;
+    return row || null;
+  }
+
+  upsertStocks(stocks: Array<Record<string, unknown>>): number {
+    if (stocks.length === 0) {
+      return 0;
+    }
+
+    const stmt = this.db.prepare(`
+      INSERT INTO stocks
+      (symbol, name, market, industry, market_cap, pe, pb, total_mv, circulating_mv, is_st, is_suspended, list_date, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(symbol) DO UPDATE SET
+        name = excluded.name,
+        market = excluded.market,
+        industry = COALESCE(excluded.industry, stocks.industry),
+        market_cap = COALESCE(excluded.market_cap, stocks.market_cap),
+        pe = COALESCE(excluded.pe, stocks.pe),
+        pb = COALESCE(excluded.pb, stocks.pb),
+        total_mv = COALESCE(excluded.total_mv, stocks.total_mv),
+        circulating_mv = COALESCE(excluded.circulating_mv, stocks.circulating_mv),
+        is_st = excluded.is_st,
+        is_suspended = excluded.is_suspended,
+        list_date = COALESCE(excluded.list_date, stocks.list_date),
+        updated_at = excluded.updated_at
+    `);
+
+    const insert = this.db.transaction((rows: Array<Record<string, unknown>>) => {
+      for (const stock of rows) {
+        const symbol = normalizeStockSymbol(String(stock.symbol || ''));
+        if (!symbol) {
+          continue;
+        }
+        const name = String(stock.name || symbol);
+        stmt.run(
+          symbol,
+          name,
+          String(stock.market || 'A'),
+          stock.industry || stock.sector || null,
+          stock.market_cap ?? null,
+          stock.pe ?? stock.pe_ttm ?? null,
+          stock.pb ?? null,
+          stock.total_mv ?? stock.market_cap ?? null,
+          stock.circulating_mv ?? null,
+          stock.is_st === true || name.toUpperCase().includes('ST') ? 1 : 0,
+          stock.is_suspended === true ? 1 : 0,
+          stock.list_date || stock.listed_date || null,
+          String(stock.updated_at || new Date().toISOString())
+        );
+      }
+    });
+
+    insert(stocks);
+    return stocks.length;
+  }
+
+  getKlineCoverage(symbol: string): KlineCoverage {
+    const row = this.db.prepare(`
+      SELECT COUNT(*) as existing_days, MIN(date) as first_date, MAX(date) as last_date
+      FROM daily_klines
+      WHERE symbol = ?
+    `).get(normalizeStockSymbol(symbol)) as KlineCoverage | undefined;
+
+    return {
+      existing_days: Number(row?.existing_days || 0),
+      first_date: row?.first_date || null,
+      last_date: row?.last_date || null,
+    };
+  }
+
   /** 保存K线数据 */
   saveKlines(symbol: string, klines: any[]): number {
     const stmt = this.db.prepare(`
@@ -293,4 +387,8 @@ export class StockDBService {
   close(): void {
     this.db.close();
   }
+}
+
+function normalizeStockSymbol(symbol: string): string {
+  return symbol.trim().replace(/^(sh|sz|bj)/i, '').replace(/\.(SH|SZ|BJ|HK)$/i, '');
 }

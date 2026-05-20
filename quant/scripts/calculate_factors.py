@@ -11,6 +11,8 @@
 import os
 import sys
 import logging
+import argparse
+import re
 from datetime import datetime
 import pandas as pd
 
@@ -70,49 +72,38 @@ FACTORS = [
 ]
 
 
+def normalize_symbol(symbol: str) -> str:
+    """Normalize common exchange prefixes/suffixes."""
+    value = str(symbol).strip()
+    value = re.sub(r'^(sh|sz|bj)', '', value, flags=re.IGNORECASE)
+    value = re.sub(r'\.(SH|SZ|BJ|HK)$', '', value, flags=re.IGNORECASE)
+    return value
+
+
+def parse_symbols(raw_symbols: str = None):
+    """Parse comma/whitespace separated symbols."""
+    if not raw_symbols:
+        return None
+    symbols = [
+        normalize_symbol(symbol)
+        for symbol in re.split(r'[\s,，]+', raw_symbols)
+        if symbol.strip()
+    ]
+    return list(dict.fromkeys(symbols))
+
+
 def create_factor_table(db: Database):
     """创建因子表"""
-    conn = db._get_connection()
-
-    # 创建因子值表
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS factor_values (
-            symbol TEXT NOT NULL,
-            date TEXT NOT NULL,
-            factor_name TEXT NOT NULL,
-            factor_value REAL,
-            PRIMARY KEY (symbol, date, factor_name)
-        )
-    """)
-
-    # 创建索引
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_factor_symbol_date
-        ON factor_values(symbol, date)
-    """)
-
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_factor_date
-        ON factor_values(date)
-    """)
-
-    conn.commit()
+    db._migrate()
     logger.info("✅ 因子表创建完成")
 
 
 def get_stock_data(db: Database, symbol: str, days: int = 100) -> pd.DataFrame:
     """获取股票数据"""
-    conn = db._get_connection()
-
-    query = """
-        SELECT date, open, high, low, close, volume, amount
-        FROM daily_klines
-        WHERE symbol = ?
-        ORDER BY date DESC
-        LIMIT ?
-    """
-
-    df = pd.read_sql_query(query, conn, params=(symbol, days))
+    latest_date = db.get_latest_kline_date()
+    if not latest_date:
+        return None
+    df = db.get_stock_klines_until_date(symbol, latest_date, days)
 
     if len(df) == 0:
         return None
@@ -160,27 +151,20 @@ def calculate_factors_for_stock(db: Database, symbol: str) -> dict:
 
 def save_factors(db: Database, symbol: str, date: str, factors: dict):
     """保存因子值到数据库"""
-    conn = db._get_connection()
-
-    # 删除旧数据
-    conn.execute("""
-        DELETE FROM factor_values
-        WHERE symbol = ? AND date = ?
-    """, (symbol, date))
-
-    # 插入新数据
-    for factor_name, factor_value in factors.items():
-        if pd.notna(factor_value):  # 跳过 NaN 值
-            conn.execute("""
-                INSERT INTO factor_values (symbol, date, factor_name, factor_value)
-                VALUES (?, ?, ?, ?)
-            """, (symbol, date, factor_name, float(factor_value)))
-
-    conn.commit()
+    records = [
+        (symbol, date, factor_name, float(factor_value))
+        for factor_name, factor_value in factors.items()
+        if pd.notna(factor_value)
+    ]
+    db.replace_factor_values_for_dates(records)
 
 
 def main():
     """主函数"""
+    parser = argparse.ArgumentParser(description='因子计算脚本')
+    parser.add_argument('--symbols', type=str, help='股票代码列表，逗号分隔；不传则计算全部A股')
+    args = parser.parse_args()
+
     logger.info("=" * 60)
     logger.info("因子计算任务开始")
     logger.info(f"运行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -197,15 +181,13 @@ def main():
     # 创建因子表
     create_factor_table(db)
 
-    # 获取所有股票
-    symbols = db.get_all_symbols(market='A')
+    # 获取股票范围
+    symbols = parse_symbols(args.symbols) or db.get_all_symbols(market='A')
     logger.info(f"共 {len(symbols)} 只股票需要计算因子")
     logger.info("")
 
     # 获取最新日期
-    conn = db._get_connection()
-    cursor = conn.execute("SELECT MAX(date) FROM daily_klines")
-    latest_date = cursor.fetchone()[0]
+    latest_date = db.get_latest_kline_date()
     logger.info(f"最新数据日期: {latest_date}")
     logger.info("")
 
@@ -241,21 +223,12 @@ def main():
     logger.info("=" * 60)
 
     # 统计信息
-    cursor = conn.execute("""
-        SELECT
-            COUNT(DISTINCT symbol) as stocks,
-            COUNT(DISTINCT factor_name) as factors,
-            COUNT(*) as records
-        FROM factor_values
-        WHERE date = ?
-    """, (latest_date,))
-
-    stats = cursor.fetchone()
+    stats = db.get_factor_stats(latest_date)
     logger.info(f"\n📊 因子统计:")
     logger.info(f"  日期: {latest_date}")
-    logger.info(f"  股票数: {stats[0]}")
-    logger.info(f"  因子数: {stats[1]}")
-    logger.info(f"  记录数: {stats[2]}")
+    logger.info(f"  股票数: {stats['stocks']}")
+    logger.info(f"  因子数: {stats['factors']}")
+    logger.info(f"  记录数: {stats['records']}")
 
 
 if __name__ == '__main__':

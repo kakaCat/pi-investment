@@ -24,11 +24,11 @@ const STATUS_COLORS: Record<JobStatus, string> = {
 };
 
 const STATUS_LABELS: Record<JobStatus, string> = {
-  queued: 'Queued',
-  running: 'Running',
-  success: 'Success',
-  failed: 'Failed',
-  cancelled: 'Cancelled',
+  queued: '排队',
+  running: '运行中',
+  success: '成功',
+  failed: '失败',
+  cancelled: '已取消',
 };
 
 export default function JobQueuePanel({
@@ -45,7 +45,7 @@ export default function JobQueuePanel({
     .slice(0, 5);
   const columns: ColumnsType<JobRecord> = [
     {
-      title: 'Job',
+      title: '任务',
       dataIndex: 'id',
       key: 'id',
       width: 120,
@@ -58,27 +58,27 @@ export default function JobQueuePanel({
       ),
     },
     {
-      title: 'Status',
+      title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 110,
       render: (status: JobStatus) => <Tag color={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</Tag>,
     },
     {
-      title: 'Updated',
+      title: '更新时间',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 150,
       render: formatDateTime,
     },
     {
-      title: 'Logs',
+      title: '日志',
       key: 'logs',
       ellipsis: true,
       render: (_, record) => renderLogPreview(record),
     },
     {
-      title: 'Actions',
+      title: '操作',
       key: 'actions',
       width: 170,
       render: (_, record) => (
@@ -90,7 +90,7 @@ export default function JobQueuePanel({
             loading={actionLoading === record.id && record.status === 'failed'}
             onClick={() => onRetry(record)}
           >
-            Retry
+            重试
           </Button>
           <Button
             size="small"
@@ -102,7 +102,7 @@ export default function JobQueuePanel({
             }
             onClick={() => onCancel(record)}
           >
-            Cancel
+            取消
           </Button>
         </Space>
       ),
@@ -111,15 +111,15 @@ export default function JobQueuePanel({
 
   return (
     <Card
-      title="Job Queue"
+      title="任务队列"
       extra={
         <Button size="small" type="link" icon={<ArrowRightOutlined />} onClick={onOpenJobs}>
-          Open
+          打开
         </Button>
       }
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        {error && <Alert type="error" showIcon message="Unable to load jobs" description={error} />}
+        {error && <Alert type="error" showIcon message="任务加载失败" description={error} />}
         <Table
           size="small"
           rowKey="id"
@@ -127,8 +127,9 @@ export default function JobQueuePanel({
           dataSource={recentJobs}
           loading={loading}
           pagination={false}
+          scroll={{ x: 760 }}
           locale={{
-            emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No recent jobs" />,
+            emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无最近任务" />,
           }}
         />
       </Space>

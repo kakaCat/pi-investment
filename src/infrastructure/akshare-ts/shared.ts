@@ -154,7 +154,7 @@ export function getSessionDataDir(): string {
 }
 
 export function getStockDB(): StockDBService {
-  if (!_stockDB) _stockDB = new StockDBService(piDir);
+  if (!_stockDB) _stockDB = StockDBService.getInstance(piDir);
   return _stockDB;
 }
 

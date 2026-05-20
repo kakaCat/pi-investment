@@ -10,7 +10,7 @@ import { getSession as getSessionBackground } from "../core/agent/background-age
 import * as logger from "../infrastructure/logging/observable-logger.js";
 import { wrapSessionWithLogger } from "../infrastructure/session/session-factory.js";
 import { PerformanceMonitor } from "../infrastructure/monitoring/performance-monitor.js";
-import { CronService } from "../services/operations/cron-service.js";
+import { startSchedulerRuntime } from "../services/scheduler/scheduler-runtime.js";
 import { DailyReviewService } from "../services/operations/daily-review-service.js";
 import { StopLossAlertService } from "../services/operations/stop-loss-alert-service.js";
 import { FxRateServiceAdapter } from "../services/fx-rate-service-adapter.js";
@@ -192,82 +192,32 @@ async function main() {
     // 如果是从 restart_agent 重启，恢复对话历史
     restoreConversationIntoSession(session);
 
-    // 启动 CronService（后台定时任务）
-    const cronService = new CronService(
-      join(piDir, "CRON.json"),
-      piDir,
-      async (payload) => {
-        if (payload.kind === "daily_review") {
-          const report = await reviewService.run();
-          process.stdout.write("\n\n" + "─".repeat(60) + "\n");
-          process.stdout.write("[定时复盘] " + report + "\n");
-          process.stdout.write("─".repeat(60) + "\n\n");
-        } else if (payload.kind === "stop_loss_alert") {
-          const result = await alertService.run();
-          process.stdout.write(result.summary + "\n");
-        } else if (payload.kind === "weekly_evolution") {
-          process.stdout.write("\n\n" + "═".repeat(60) + "\n");
-          process.stdout.write("[进化分析] 开始运行每周进化分析...\n");
-          process.stdout.write("═".repeat(60) + "\n\n");
-          try {
-            // 初始化 session 并设置上下文
-            const { getSession } = await import("../core/agent/agent-loop.js");
-            await getSession({
-              type: 'cron_evolution',
-              sessionId: `evolution-${Date.now()}`,
-              metadata: { trigger: 'cron', jobId: 'weekly-evolution' }
-            });
+    // 启动数据库调度器。CRON.json 已废弃，数据库是唯一任务来源。
+    const schedulerRuntime = await startSchedulerRuntime({
+      promptAgent: async (message) => {
+        await session.prompt(message);
+      },
+      writeOutput: (message) => process.stdout.write(message),
+    }).catch((error) => {
+      console.error(`❌ 数据库调度器启动失败: ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    });
 
-            const result = await runWeeklyEvolution();
-            process.stdout.write(`✅ 进化分析完成\n`);
-            process.stdout.write(`📊 报告路径: ${result.reportPath}\n`);
-            process.stdout.write(`📈 目标收益: ${result.summary.targetReturn}% | 实际收益: ${result.summary.realizedReturn}%\n`);
-            process.stdout.write(`🎯 胜率: ${(result.summary.winRate * 100).toFixed(1)}% | 交易次数: ${result.summary.totalTrades}\n`);
-            process.stdout.write(`🔍 归因: ${result.summary.attribution}\n`);
-            process.stdout.write(`💡 优化建议: ${result.summary.suggestionCount} 条\n`);
-            if (result.summary.appliedCount > 0) {
-              process.stdout.write(`✨ 已自动应用: ${result.summary.appliedCount} 条\n`);
-            }
-            if (result.summary.manualTaskCount > 0) {
-              process.stdout.write(`⚠️  需人工处理: ${result.summary.manualTaskCount} 条\n`);
-            }
-            process.stdout.write("\n" + "═".repeat(60) + "\n\n");
-          } catch (e) {
-            process.stdout.write(`❌ 进化分析失败: ${e instanceof Error ? e.message : String(e)}\n`);
-            process.stdout.write("═".repeat(60) + "\n\n");
-          }
-        } else if (payload.kind === "agent_turn" && payload.message) {
-          // 直接通过 session 注入消息
-          await session.prompt(payload.message);
-        } else if (payload.kind === "system_event" && payload.message === "update_fx_rates") {
-          try {
-            await fxRateService.updateCache();
-            console.log("✅ 汇率缓存已更新");
-          } catch (error) {
-            console.error("❌ 汇率更新失败:", error);
-          }
-        } else if (payload.kind === "system_event" && payload.text) {
-          process.stdout.write(`\n[系统] ${payload.text}\n`);
-        }
-      }
-    );
-    cronService.start();
-
-    // 列出已加载的 cron 任务
-    const jobs = cronService.listJobs();
+    // 列出已加载的数据库调度任务
+    const jobs = schedulerRuntime ? await schedulerRuntime.service.listTaskSummaries() : [];
     if (jobs.length > 0) {
-      console.log(`⏰ Cron 任务（${jobs.length} 个）:`);
+      console.log(`⏰ 数据库调度任务（${jobs.length} 个）:`);
       for (const j of jobs) {
         const status = j.enabled ? "✅" : "❌";
-        const next = j.nextIn !== null ? ` 下次：${j.nextRun}（${Math.round(j.nextIn / 60)} 分钟后）` : "";
-        console.log(`  ${status} ${j.name}（${j.kind}: ${j.id}）${next}`);
+        const next = j.nextRunAt ? ` 下次：${new Date(j.nextRunAt).toLocaleString("zh-CN")}` : "";
+        console.log(`  ${status} ${j.name}（${j.scheduleKind}: ${j.id}）${next}`);
       }
       console.log();
     }
 
     // 监听进程退出
     process.on('SIGINT', async () => {
-      cronService.stop();
+      schedulerRuntime?.service.stop();
       if (feishuBot) feishuBot.shutdown();
       console.log(perfMonitor.getReport());
       logger.logSessionEnd();
@@ -303,7 +253,7 @@ async function main() {
       console.error(`记忆保存失败: ${err instanceof Error ? err.message : String(err)}`);
     });
 
-    cronService.stop();
+    schedulerRuntime?.service.stop();
     logger.logSessionEnd();
   } catch (error) {
     console.error("❌ 启动失败:", error instanceof Error ? error.message : String(error));

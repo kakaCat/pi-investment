@@ -19,13 +19,10 @@ async function testCodexGeneration() {
   // 1. 定义一个简单的测试工具规格
   const testSpec: ToolAddition = {
     name: 'test-simple-calculator',
+    label: 'test-simple-calculator',
     description: '简单计算器工具，用于测试代码生成',
     reason: '测试 Codex 代码生成和沙箱验证流程',
     expectedImpact: '验证架构重构是否成功',
-    data: {
-      toolName: 'test-simple-calculator',
-      name: 'test-simple-calculator',
-    }
   };
 
   try {

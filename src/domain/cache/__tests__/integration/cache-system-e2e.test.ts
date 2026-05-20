@@ -43,7 +43,7 @@ describe('Cache System E2E Integration Tests', () => {
     ]);
 
     // Initialize test database
-    testDb = new StockDBService(TEST_DB_PATH);
+    testDb = StockDBService.getInstance(TEST_DIR);
   });
 
   afterEach(() => {

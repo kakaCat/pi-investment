@@ -21,7 +21,7 @@ async function main() {
 
   // 创建一个模拟的会话
   console.log("1️⃣ 创建模拟会话...");
-  const session = await createAgentSession({
+  const { session } = await createAgentSession({
     cwd: process.cwd(),
     model: createDeepSeekModel(),
     systemPrompt: "You are a helpful AI assistant.",

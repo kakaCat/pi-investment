@@ -17,21 +17,21 @@ ML 模型重训练脚本
 import os
 import sys
 import json
+import time
 import pickle
 import logging
 import argparse
+import re
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Dict, List, Tuple, Any, Optional
 
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from quantsys.data.db import Database
-from quantsys.ml.training.trainer import ModelTrainer
-from quantsys.ml.training.cross_validation import TimeSeriesCV
-from quantsys.ml.training.hyperparameter_tuning import HyperparameterTuner
 
 # 配置日志
 logging.basicConfig(
@@ -43,6 +43,26 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+
+def normalize_symbol(symbol: str) -> str:
+    """Normalize common exchange prefixes/suffixes."""
+    value = str(symbol).strip()
+    value = re.sub(r'^(sh|sz|bj)', '', value, flags=re.IGNORECASE)
+    value = re.sub(r'\.(SH|SZ|BJ|HK)$', '', value, flags=re.IGNORECASE)
+    return value
+
+
+def parse_symbols(raw_symbols: str = None) -> Optional[List[str]]:
+    """Parse comma/whitespace separated symbols."""
+    if not raw_symbols:
+        return None
+    symbols = [
+        normalize_symbol(symbol)
+        for symbol in re.split(r'[\s,，]+', raw_symbols)
+        if symbol.strip()
+    ]
+    return list(dict.fromkeys(symbols))
 
 
 class MLRetrainer:
@@ -72,7 +92,8 @@ class MLRetrainer:
         self,
         days: int = 180,
         future_days: int = 5,
-        return_threshold: float = 0.05
+        return_threshold: float = 0.05,
+        symbols: Optional[List[str]] = None
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         从数据库加载训练数据
@@ -89,32 +110,18 @@ class MLRetrainer:
         logger.info("加载训练数据")
         logger.info("=" * 60)
 
-        conn = self.db._get_connection()
-
         # 1. 获取日期范围
         cutoff_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
         logger.info(f"数据起始日期: {cutoff_date}")
 
         # 2. 加载K线数据
         logger.info("加载K线数据...")
-        klines_query = """
-            SELECT symbol, date, open, high, low, close, volume, amount, turnover_rate
-            FROM daily_klines
-            WHERE date >= ?
-            ORDER BY symbol, date
-        """
-        klines_df = pd.read_sql_query(klines_query, conn, params=(cutoff_date,))
+        klines_df, factors_df = self.db.load_model_training_frames(cutoff_date)
+        klines_df, factors_df = self.filter_training_frames(klines_df, factors_df, symbols)
         logger.info(f"  加载 {len(klines_df)} 条K线记录")
 
         # 3. 加载因子数据
         logger.info("加载因子数据...")
-        factors_query = """
-            SELECT symbol, date, factor_name, factor_value
-            FROM factor_values
-            WHERE date >= ?
-            ORDER BY symbol, date, factor_name
-        """
-        factors_df = pd.read_sql_query(factors_query, conn, params=(cutoff_date,))
         logger.info(f"  加载 {len(factors_df)} 条因子记录")
 
         # 4. 转换因子数据为宽表格式
@@ -175,6 +182,25 @@ class MLRetrainer:
         logger.info("")
 
         return features_df, labels_df
+
+    def filter_training_frames(
+        self,
+        klines_df: pd.DataFrame,
+        factors_df: pd.DataFrame,
+        symbols: Optional[List[str]] = None
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Limit training frames to selected symbols when provided."""
+        if not symbols:
+            return klines_df, factors_df
+
+        normalized_symbols = set(parse_symbols(",".join(symbols)) or [])
+        if not normalized_symbols:
+            return klines_df.iloc[0:0], factors_df.iloc[0:0]
+
+        filtered_klines = klines_df[klines_df['symbol'].astype(str).map(normalize_symbol).isin(normalized_symbols)].copy()
+        filtered_factors = factors_df[factors_df['symbol'].astype(str).map(normalize_symbol).isin(normalized_symbols)].copy()
+        logger.info(f"  训练股票范围: {', '.join(sorted(normalized_symbols))}")
+        return filtered_klines, filtered_factors
 
     def prepare_features(
         self,
@@ -327,6 +353,8 @@ class MLRetrainer:
         logger.info(f"训练 {model_type.upper()} 模型")
         logger.info("=" * 60)
 
+        from quantsys.ml.training.trainer import ModelTrainer
+
         # 检查样本数量
         if len(X) < 100:
             raise ValueError(f"样本数量不足: {len(X)} < 100")
@@ -367,11 +395,19 @@ class MLRetrainer:
     def save_training_report(
         self,
         report: Dict[str, Any],
-        feature_names: List[str]
+        feature_names: List[str],
+        start_time: datetime = None,
+        end_time: datetime = None
     ):
         """保存训练报告"""
         report['feature_names'] = feature_names
         report['n_features'] = len(feature_names)
+
+        # 添加时长信息
+        if start_time and end_time:
+            report['start_time'] = start_time.isoformat()
+            report['end_time'] = end_time.isoformat()
+            report['duration_seconds'] = (end_time - start_time).total_seconds()
 
         # 保存为JSON
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -430,6 +466,13 @@ class MLRetrainer:
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description='ML 模型重训练脚本')
+
+    parser.add_argument(
+        '--symbols',
+        type=str,
+        default=None,
+        help='股票代码列表，逗号分隔；不传则使用全部股票'
+    )
 
     parser.add_argument(
         '--days',
@@ -493,7 +536,37 @@ def main():
         help='使用 FeatureEngineer 生成高级特征 (56个), 默认使用原始特征 (38个)'
     )
 
+    parser.add_argument(
+        '--job-id',
+        type=str,
+        default=None,
+        help='异步任务ID（由 Flask API 传入），用于状态追踪'
+    )
+
     args = parser.parse_args()
+
+    # 任务状态追踪
+    def _job_status(status: str, **kwargs):
+        if not args.job_id:
+            return
+        jobs_dir = Path.home() / '.pi-invest' / 'jobs'
+        jobs_dir.mkdir(parents=True, exist_ok=True)
+        job_file = jobs_dir / f"{args.job_id}.json"
+        job = {}
+        if job_file.exists():
+            import json
+            with open(job_file) as f:
+                job = json.load(f)
+        job['status'] = status
+        job.update(kwargs)
+        if status in ('completed', 'failed'):
+            job['completed_at'] = time.time()
+        with open(job_file, 'w') as f:
+            import json
+            json.dump(job, f, indent=2)
+
+    if args.job_id:
+        _job_status('running', started_at=datetime.now().timestamp())
 
     # 确定数据库路径
     if args.db_path:
@@ -511,9 +584,12 @@ def main():
     logger.info("=" * 60)
     logger.info("ML 模型重训练任务")
     logger.info("=" * 60)
-    logger.info(f"开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    start_time = datetime.now()
+    logger.info(f"开始时间: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info(f"数据库: {db_path}")
     logger.info(f"历史天数: {args.days}")
+    if args.symbols:
+        logger.info(f"股票范围: {args.symbols}")
     logger.info(f"未来天数: {args.future_days}")
     logger.info(f"涨幅阈值: {args.threshold*100:.1f}%")
     logger.info(f"模型类型: {args.model}")
@@ -532,7 +608,8 @@ def main():
         features_df, labels_df = retrainer.load_training_data(
             days=args.days,
             future_days=args.future_days,
-            return_threshold=args.threshold
+            return_threshold=args.threshold,
+            symbols=parse_symbols(args.symbols)
         )
 
         # 2. 准备特征
@@ -552,7 +629,8 @@ def main():
         )
 
         # 4. 保存报告
-        retrainer.save_training_report(training_report, feature_names)
+        end_time = datetime.now()
+        retrainer.save_training_report(training_report, feature_names, start_time, end_time)
 
         # 5. 打印摘要
         retrainer.print_summary(training_report)
@@ -575,6 +653,14 @@ def main():
         logger.info(f"结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         logger.info("=" * 60)
 
+        if args.job_id:
+            _job_status('completed', result={
+                'accuracy': training_report['test_metrics']['accuracy'],
+                'auc': training_report['test_metrics']['auc'],
+                'model_type': args.model,
+                'n_features': len(feature_names),
+            })
+
     except Exception as e:
         logger.error("")
         logger.error("=" * 60)
@@ -583,6 +669,10 @@ def main():
         logger.error("=" * 60)
         import traceback
         logger.error(traceback.format_exc())
+
+        if args.job_id:
+            _job_status('failed', error={'message': str(e)})
+
         sys.exit(1)
 
 

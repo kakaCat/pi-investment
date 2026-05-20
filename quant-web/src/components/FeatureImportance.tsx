@@ -139,9 +139,9 @@ const FeatureImportance: React.FC = () => {
               cx="50%"
               cy="50%"
               outerRadius={100}
-              label={(entry) => `${entry.feature}: ${entry.percentage.toFixed(1)}%`}
+              label={({ feature, percentage }) => `${feature}: ${percentage.toFixed(1)}%`}
             >
-              {top5.map((entry, index) => (
+              {top5.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>

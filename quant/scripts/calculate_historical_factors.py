@@ -12,6 +12,7 @@ import os
 import sys
 import logging
 from datetime import datetime, timedelta
+from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
@@ -73,46 +74,12 @@ FACTORS = [
 
 def create_factor_table(db: Database):
     """创建因子表"""
-    conn = db._get_connection()
-
-    # 创建因子值表
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS factor_values (
-            symbol TEXT NOT NULL,
-            date TEXT NOT NULL,
-            factor_name TEXT NOT NULL,
-            factor_value REAL,
-            PRIMARY KEY (symbol, date, factor_name)
-        )
-    """)
-
-    # 创建索引
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_factor_symbol_date
-        ON factor_values(symbol, date)
-    """)
-
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_factor_date
-        ON factor_values(date)
-    """)
-
-    conn.commit()
+    db._migrate()
 
 
 def get_stock_data_until_date(db: Database, symbol: str, end_date: str, lookback: int = 100) -> pd.DataFrame:
     """获取截止到某日期的股票数据"""
-    conn = db._get_connection()
-
-    query = """
-        SELECT date, open, high, low, close, volume, amount
-        FROM daily_klines
-        WHERE symbol = ? AND date <= ?
-        ORDER BY date DESC
-        LIMIT ?
-    """
-
-    df = pd.read_sql_query(query, conn, params=(symbol, end_date, lookback))
+    df = db.get_stock_klines_until_date(symbol, end_date, lookback)
 
     if len(df) == 0:
         return None
@@ -160,32 +127,12 @@ def calculate_factors_for_date(db: Database, symbol: str, date: str) -> dict:
 
 def save_factors_batch(db: Database, records: list):
     """批量保存因子值"""
-    conn = db._get_connection()
-
-    # 批量插入
-    conn.executemany("""
-        INSERT OR REPLACE INTO factor_values (symbol, date, factor_name, factor_value)
-        VALUES (?, ?, ?, ?)
-    """, records)
-
-    conn.commit()
+    db.upsert_factor_values(records)
 
 
 def get_trading_dates(db: Database, days: int) -> list:
     """获取最近N个交易日"""
-    conn = db._get_connection()
-
-    query = """
-        SELECT DISTINCT date
-        FROM daily_klines
-        ORDER BY date DESC
-        LIMIT ?
-    """
-
-    cursor = conn.execute(query, (days,))
-    dates = [row[0] for row in cursor.fetchall()]
-
-    return sorted(dates)  # 升序排列
+    return db.get_trading_dates(days)
 
 
 def main():
@@ -203,25 +150,17 @@ def main():
     logger.info(f"计算天数: {args.days}")
     logger.info("")
 
-    # 数据库路径
-    db_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        '.pi-invest', 'stock-db', 'stocks.db'
-    )
+    # 数据库路径 - 使用项目根目录的数据库
+    project_root = Path(__file__).parent.parent.parent
+    db_path = project_root / '.pi-invest' / 'stock-db' / 'stocks.db'
 
-    db = Database(db_path)
+    db = Database(str(db_path))
 
     # 创建因子表
     create_factor_table(db)
 
     # 获取有K线数据的股票
-    conn = db._get_connection()
-    cursor = conn.execute("""
-        SELECT DISTINCT symbol
-        FROM daily_klines
-        ORDER BY symbol
-    """)
-    symbols = [row[0] for row in cursor.fetchall()]
+    symbols = db.get_symbols_with_kline_count(1)
     logger.info(f"股票数量: {len(symbols)}")
 
     # 获取交易日期
@@ -282,25 +221,12 @@ def main():
     logger.info("")
 
     # 统计信息
-    conn = db._get_connection()
-    cursor = conn.execute("""
-        SELECT
-            COUNT(DISTINCT symbol) as stocks,
-            COUNT(DISTINCT date) as dates,
-            COUNT(DISTINCT factor_name) as factors,
-            COUNT(*) as records,
-            MIN(date) as min_date,
-            MAX(date) as max_date
-        FROM factor_values
-    """)
-
-    stats = cursor.fetchone()
+    stats = db.get_factor_stats()
     logger.info("📊 数据库统计:")
-    logger.info(f"  股票数: {stats[0]}")
-    logger.info(f"  日期数: {stats[1]}")
-    logger.info(f"  因子数: {stats[2]}")
-    logger.info(f"  记录数: {stats[3]}")
-    logger.info(f"  日期范围: {stats[4]} ~ {stats[5]}")
+    logger.info(f"  股票数: {stats['stocks']}")
+    logger.info(f"  因子数: {stats['factors']}")
+    logger.info(f"  记录数: {stats['records']}")
+    logger.info(f"  日期范围: {stats['min_date']} ~ {stats['max_date']}")
 
 
 if __name__ == '__main__':

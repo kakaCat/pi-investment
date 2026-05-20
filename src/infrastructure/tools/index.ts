@@ -37,29 +37,9 @@ import { queryExperienceTool } from "./query-experience-tool.js";
 import { tradeLogTool } from "./trade-log-tools.js";
 import { restartAgentTool } from "./restart-agent-tool.js";
 import { manageWatchlistTool } from "./watchlist-tools.js";
-// 量化工具 - V2 新架构（通过 Python API）
-import { quantDecisionTools } from "./quant-decision-tools-v2.js";
-// ML预测工具 - 独立注册（通过 Flask API）
-import { quantMLTools } from "./quant-ml-tools.js";
-// 量化工具 - V1 旧架构（直接访问数据库，已弃用）
-// import { quantDecisionTools as quantDecisionToolsV1 } from "./quant-decision-tools.js";
-// import { quantAnalysisTools } from "./quant-analysis-tools.js";
-// import { quantStrategyTools } from "./quant-strategy-tools.js";
-// import { quantTools } from "./quant-tools.js";
-// 因子分析工具 - 模型可解释性
-import { factorAnalysisTools } from "../../tools/factor-analysis-tools.js";
+import { quantCliTool } from "./quant-cli-tool.js";
 // 风险管理工具 - 风控与仓位管理
 import { riskTools } from "./invest/risk-tools.js";
-// 量化风控工具 - 仓位计算 + 交易风险检查
-import { quantRiskTools } from "./quant-risk-tools.js";
-// 量化报告工具 - 日度报告
-import { quantReportTools } from "./quant-report-tools.js";
-// 量化回测工具 - 策略回测 + 策略列表
-import { quantBacktestTools } from "./quant-backtest-tools.js";
-// 量化监控工具 - 模型漂移 + 实时预测
-import { quantMonitorTools } from "./quant-monitor-tools.js";
-// 量化数据工具 - K线/技术指标/股票列表/回测/训练历史/数据状态
-import { quantDataTools } from "./quant-data-tools.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./memory-tool.js";
@@ -95,28 +75,10 @@ export const allCustomTools = [
   tradeLogTool,                   // 交易日志管理（创建/更新/追加记录）
   manageWatchlistTool,            // 关注列表管理（自选池）
   testMarketSentimentTool,        // NEW: 市场情绪分析
-  // 量化工具 — V2 新架构（通过 Python API）
-  ...quantDecisionTools,          // analyze_stock_quant, get_quant_signals
-  // ML 预测 — XGBoost 模型预测（通过 Flask API）
-  ...quantMLTools,                // predict_stock_ml
-  // 量化工具 — V1 旧架构（已弃用）
-  // ...quantAnalysisTools,
-  // ...quantStrategyTools,
-  // ...quantTools,
-  // 因子分析工具 — 模型可解释性
-  ...factorAnalysisTools,         // get_feature_importance, analyze_stock_factors, compare_stock_factors
+  // 量化工具 — 统一通过 QuantSys CLI 调用
+  quantCliTool,                   // quant_cli
   // 风险管理工具 — 风控与仓位管理
   ...riskTools,                   // check_trade_risk, calculate_position_size, calculate_stop_loss
-  // 量化风控工具 — Kelly仓位 + 交易风险检查
-  ...quantRiskTools,              // calculate_position_size, check_trade_risk
-  // 量化报告工具 — 日度报告
-  ...quantReportTools,            // get_quant_daily_report
-  // 量化回测工具 — 策略回测
-  ...quantBacktestTools,          // run_strategy_backtest, list_quant_strategies
-  // 量化监控工具 — 模型漂移检测
-  ...quantMonitorTools,           // check_model_drift, get_live_predictions
-  // 量化数据工具 — Flask端点完整封装
-  ...quantDataTools,              // get_quant_klines, get_quant_technical, list_quant_stocks, get_quant_backtest_results, get_quant_training_history, get_quant_data_status
   // 通知工具 — 消息推送
   ...notificationTools,
   // 监控工具 — 实时盯盘

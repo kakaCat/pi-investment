@@ -19,15 +19,25 @@ import { PerformanceAnalyzer } from '../services/quant/performance-analyzer.js';
 
 const chartType = process.argv[2] || 'all';
 
+type PythonResult = Record<string, any>;
+
+function parsePythonResult(raw: string): PythonResult {
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : { value: parsed };
+  } catch {
+    return { error: raw };
+  }
+}
+
 async function generateAccuracyTrend() {
   console.log('\n📊 生成模型准确率趋势图...');
 
   try {
-    const result = await callPythonResilient(
+    const result = parsePythonResult(await callPythonResilient(
       'plot_model_accuracy_trend',
-      { days: 90 },
-      { timeout: 30000 }
-    );
+      { days: 90 }
+    ));
 
     if (result.error) {
       console.error('❌ 生成失败:', result.error);
@@ -80,11 +90,10 @@ async function generateEquityCurve() {
     );
 
     // 生成图表
-    const result = await callPythonResilient(
+    const result = parsePythonResult(await callPythonResilient(
       'plot_equity_curve',
-      { backtest_result: backtest },
-      { timeout: 30000 }
-    );
+      { backtest_result: backtest }
+    ));
 
     if (result.error) {
       console.error('❌ 生成失败:', result.error);
@@ -139,11 +148,10 @@ async function generateStrategyComparison() {
     }
 
     // 生成图表
-    const result = await callPythonResilient(
+    const result = parsePythonResult(await callPythonResilient(
       'plot_strategy_comparison',
-      { strategies_performance: performances },
-      { timeout: 30000 }
-    );
+      { strategies_performance: performances }
+    ));
 
     if (result.error) {
       console.error('❌ 生成失败:', result.error);
@@ -164,11 +172,10 @@ async function generateFeatureImportance() {
   console.log('\n📊 生成特征重要性图...');
 
   try {
-    const result = await callPythonResilient(
+    const result = parsePythonResult(await callPythonResilient(
       'plot_feature_importance',
-      {},
-      { timeout: 30000 }
-    );
+      {}
+    ));
 
     if (result.error) {
       console.error('❌ 生成失败:', result.error);

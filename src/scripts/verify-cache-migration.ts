@@ -55,17 +55,17 @@ async function verifyFxRateMigration(): Promise<void> {
 async function verifyKlineMigration(): Promise<void> {
   console.log("\n=== 验证K线缓存迁移 ===");
 
-  const dbPath = join(PI_DIR, "stocks.db");
+  const dbPath = join(PI_DIR, "stock-db", "stocks.db");
 
   if (!existsSync(dbPath)) {
     console.log("⚠️  旧K线数据库不存在，跳过验证");
     return;
   }
 
-  const db = new StockDBService(dbPath);
+  const db = StockDBService.getInstance(PI_DIR);
 
   // 检查数据库中的数据
-  const symbols = db.getAllSymbols();
+  const symbols = db.filter({}).map(stock => stock.symbol);
   console.log(`📁 旧数据库包含 ${symbols.length} 只股票的K线数据`);
 
   if (symbols.length > 0) {
@@ -101,12 +101,10 @@ async function verifyKlineMigration(): Promise<void> {
 async function verifyPythonCallerCache(): Promise<void> {
   console.log("\n=== 验证Python调用缓存 ===");
 
-  const stats = getCacheStats();
+  const stats = await getCacheStats();
   console.log(`📊 当前缓存统计:`);
-  console.log(`   - 总调用: ${stats.totalCalls || 0}`);
-  console.log(`   - 缓存命中: ${stats.cacheHits || 0}`);
-  console.log(`   - 缓存未命中: ${stats.cacheMisses || 0}`);
-  console.log(`   - 命中率: ${(stats.hitRate || 0).toFixed(2)}%`);
+  console.log(`   - 缓存总量: ${stats.cache_size || 0}`);
+  console.log(`   - 分命名空间: ${JSON.stringify(stats.by_namespace || {})}`);
 
   console.log(`✅ Python调用缓存使用新缓存系统（intraday命名空间）`);
 }

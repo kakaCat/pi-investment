@@ -8,25 +8,30 @@
 3. 风险检查
 """
 
-import os
-import sys
 import subprocess
 from datetime import datetime
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def run_script(script_name: str, description: str):
     """运行脚本并显示结果"""
+    return run_command(['python3', str(PROJECT_ROOT / 'scripts' / script_name)], description)
+
+
+def run_command(command: list[str], description: str):
+    """运行命令并显示结果"""
     print("=" * 60)
     print(f"测试: {description}")
     print("=" * 60)
     print()
 
-    script_path = os.path.join(os.path.dirname(__file__), script_name)
-
     try:
         result = subprocess.run(
-            ['python3', script_path],
+            command,
             capture_output=True,
             text=True,
+            cwd=PROJECT_ROOT,
             timeout=300  # 5分钟超时
         )
 
@@ -60,10 +65,13 @@ def main():
 
     # 测试1: 数据更新
     print("📊 测试 1/4: 数据更新")
-    print("提示: 首次运行需要先执行 fetch_hs300_data.py 获取历史数据")
+    print("提示: 首次运行可先执行 python3 quantsys/data/pipeline.py full --market A 获取股票列表和K线数据")
     input("按 Enter 继续...")
     print()
-    results.append(run_script('daily_update.py', '数据更新'))
+    results.append(run_command(
+        ['python3', 'quantsys/data/pipeline.py', 'update-klines'],
+        '数据更新'
+    ))
 
     # 测试2: 因子计算
     print("📊 测试 2/4: 因子计算")

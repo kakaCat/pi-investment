@@ -18,17 +18,16 @@
 import os
 import sys
 import json
+import time
 import logging
 import argparse
-import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
-from collections import defaultdict
-import time
 
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from quantsys.data.db import Database
 from quantsys.strategies.backtest import BacktestEngine
 from quantsys.strategies.classic.rsi_reversal import RSIReversalStrategy
 from quantsys.strategies.classic.ma_cross import MACrossStrategy
@@ -65,11 +64,20 @@ class WeeklyBacktester:
         self.initial_capital = initial_capital
         self.commission = commission
         self.slippage = slippage
-        self.pi_invest_dir = os.path.join(os.path.expanduser('~'), '.pi-invest')
-        self.db_path = os.path.join(os.path.expanduser('~'), '.pi-invest', 'stock-db', 'stocks.db')
+
+        # 使用项目根目录的.pi-invest路径
+        script_path = os.path.abspath(__file__)
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(script_path)))
+        self.pi_invest_dir = os.path.join(project_root, '.pi-invest')
+        self.db_path = os.path.join(project_root, '.pi-invest', 'stock-db', 'stocks.db')
+        self.db = Database(self.db_path)
 
         # 确保输出目录存在
         os.makedirs(self.pi_invest_dir, exist_ok=True)
+
+    def close(self) -> None:
+        """Close the underlying database connection."""
+        self.db.close()
 
     def get_available_strategies(self) -> List[Tuple[str, Any, Dict]]:
         """
@@ -113,22 +121,7 @@ class WeeklyBacktester:
             股票代码列表
         """
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            # 获取有数据的股票列表（至少有30天数据）
-            query = """
-                SELECT symbol, COUNT(*) as days
-                FROM daily_klines
-                GROUP BY symbol
-                HAVING days >= 30
-                ORDER BY days DESC
-            """
-            cursor.execute(query)
-            results = cursor.fetchall()
-            conn.close()
-
-            stock_list = [row[0] for row in results]
+            stock_list = self.db.get_symbols_with_kline_count(30)
             logger.info(f"找到 {len(stock_list)} 只股票有足够的历史数据")
             return stock_list
 
@@ -157,30 +150,12 @@ class WeeklyBacktester:
         """
         try:
             import pandas as pd
-            conn = sqlite3.connect(self.db_path)
-
-            if start_date and end_date:
-                query = """
-                    SELECT date as timestamp, symbol, open, high, low, close, volume, amount
-                    FROM daily_klines
-                    WHERE symbol = ? AND date >= ? AND date <= ?
-                    ORDER BY date ASC
-                """
-                df = pd.read_sql_query(query, conn, params=(symbol, start_date, end_date))
-            elif days:
-                query = """
-                    SELECT date as timestamp, symbol, open, high, low, close, volume, amount
-                    FROM daily_klines
-                    WHERE symbol = ?
-                    ORDER BY date DESC
-                    LIMIT ?
-                """
-                df = pd.read_sql_query(query, conn, params=(symbol, days))
-                df = df.sort_values('timestamp').reset_index(drop=True)
-            else:
-                raise ValueError("必须指定 start_date/end_date 或 days")
-
-            conn.close()
+            df = self.db.get_backtest_klines(
+                symbol=symbol,
+                start_date=start_date,
+                end_date=end_date,
+                limit=days,
+            )
 
             if df.empty:
                 return None
@@ -580,8 +555,42 @@ def main():
         default=0.001,
         help='滑点率（默认: 0.001 = 0.1%%）'
     )
+    parser.add_argument(
+        '--symbols',
+        type=str,
+        default=None,
+        help='多只股票（逗号分隔），与 --symbol 互斥'
+    )
+    parser.add_argument(
+        '--job-id',
+        type=str,
+        default=None,
+        help='异步任务ID（由 Flask API 传入）'
+    )
 
     args = parser.parse_args()
+
+    # 任务状态追踪
+    def _job_status(status: str, **kwargs):
+        if not args.job_id:
+            return
+        import json
+        jobs_dir = os.path.join(os.path.expanduser('~'), '.pi-invest', 'jobs')
+        os.makedirs(jobs_dir, exist_ok=True)
+        job_file = os.path.join(jobs_dir, f"{args.job_id}.json")
+        job = {}
+        if os.path.exists(job_file):
+            with open(job_file) as f:
+                job = json.load(f)
+        job['status'] = status
+        job.update(kwargs)
+        if status in ('completed', 'failed'):
+            job['completed_at'] = time.time()
+        with open(job_file, 'w') as f:
+            json.dump(job, f, indent=2)
+
+    if args.job_id:
+        _job_status('running', started_at=datetime.now().timestamp())
 
     # 获取quant目录路径
     quant_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -608,29 +617,41 @@ def main():
         start_date = (datetime.now() - timedelta(days=args.days)).strftime('%Y-%m-%d')
         days = args.days
 
+    # 处理 --symbols (多个股票, 逗号分隔)
+    symbols_to_test = [args.symbol]
+    if args.symbols:
+        symbols_to_test = [s.strip() for s in args.symbols.split(',') if s.strip()]
+
     logger.info(f"回测期间: {start_date} 至 {end_date}")
     logger.info(f"初始资金: {args.capital:,.0f} 元")
+    logger.info(f"待回测股票: {symbols_to_test}")
     logger.info("")
 
-    # 运行回测
-    results = backtester.run_all_backtests(
-        symbol=args.symbol,
-        start_date=start_date,
-        end_date=end_date,
-        days=days
-    )
+    all_results = {}
+    for symbol in symbols_to_test:
+        logger.info(f"--- 回测 {symbol} ---")
+        results = backtester.run_all_backtests(
+            symbol=symbol,
+            start_date=start_date,
+            end_date=end_date,
+            days=days
+        )
 
-    if not results:
-        logger.error("回测失败，没有结果")
+        if results:
+            json_path, markdown_path = backtester.save_reports(results, symbol, start_date, end_date)
+            all_results[symbol] = {
+                'reports_saved': [json_path, markdown_path],
+                'strategies': results
+            }
+        else:
+            logger.warning(f"  ⚠️  {symbol} 回测无结果")
+
+    if not all_results:
+        logger.error("回测失败，所有股票均无结果")
+        if args.job_id:
+            _job_status('failed', error={'message': '回测无结果'})
+        backtester.close()
         sys.exit(1)
-
-    # 保存报告
-    json_path, markdown_path = backtester.save_reports(
-        results,
-        args.symbol,
-        start_date,
-        end_date
-    )
 
     # 打印摘要
     logger.info("")
@@ -638,20 +659,24 @@ def main():
     logger.info("回测完成")
     logger.info("=" * 60)
 
-    ranked_results = backtester.rank_strategies(results)
-    for idx, result in enumerate(ranked_results, 1):
-        logger.info(
-            f"{idx}. {result.get('strategy_name')}: "
-            f"回报 {result.get('total_return', 0)*100:+.2f}%, "
-            f"夏普 {result.get('sharpe_ratio', 0):.2f}, "
-            f"回撤 {result.get('max_drawdown', 0)*100:.2f}%"
-        )
+    for symbol, data in all_results.items():
+        ranked = backtester.rank_strategies(data['strategies'])
+        for idx, result in enumerate(ranked[:3], 1):
+            logger.info(
+                f"[{symbol}] {idx}. {result.get('strategy_name')}: "
+                f"回报 {result.get('total_return', 0)*100:+.2f}%, "
+                f"夏普 {result.get('sharpe_ratio', 0):.2f}"
+            )
 
-    logger.info("")
-    logger.info(f"详细报告:")
-    logger.info(f"  JSON: {json_path}")
-    logger.info(f"  Markdown: {markdown_path}")
+    if args.job_id:
+        _job_status('completed', result={
+            'symbols_tested': len(all_results),
+            'symbols': list(all_results.keys()),
+            'total_strategies': sum(len(d['strategies']) for d in all_results.values())
+        })
+
     logger.info("=" * 60)
+    backtester.close()
 
 
 if __name__ == '__main__':

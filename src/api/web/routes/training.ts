@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import * as fs from 'fs';
+import { requireOpsAuth } from '../middleware/ops-auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,7 +33,7 @@ interface TrainingParams {
 const trainingTasks = new Map<string, TrainingTask>();
 
 // POST /api/training/start - 启动模型训练
-router.post('/start', async (req, res, next) => {
+router.post('/start', requireOpsAuth(), async (req, res, next) => {
   try {
     const {
       days = 90,
@@ -316,6 +317,9 @@ router.get('/history', async (req, res, next) => {
 
         return {
           timestamp: report.timestamp,
+          start_time: report.start_time,
+          end_time: report.end_time,
+          duration_seconds: report.duration_seconds,
           model_type: report.model_type,
           n_features: report.data?.n_features || 0,
           total_samples: report.data?.total_samples || 0,
@@ -331,7 +335,7 @@ router.get('/history', async (req, res, next) => {
       }
     }).filter(record => record !== null);
 
-    res.json({ history });
+    res.json({ count: history.length, history });
   } catch (error) {
     next(error);
   }

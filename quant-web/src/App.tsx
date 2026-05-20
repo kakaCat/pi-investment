@@ -1,7 +1,7 @@
 import { Suspense, lazy, useState } from 'react'
 import { Layout, Menu, Spin, Typography } from 'antd'
 import type { MenuProps } from 'antd'
-import { HomeOutlined, BarChartOutlined, StockOutlined, DashboardOutlined, SignalFilled, ExperimentOutlined, HistoryOutlined, DatabaseOutlined, RocketOutlined, CloudServerOutlined } from '@ant-design/icons'
+import { HomeOutlined, BarChartOutlined, StockOutlined, DashboardOutlined, SignalFilled, ExperimentOutlined, HistoryOutlined, DatabaseOutlined, RocketOutlined, CloudServerOutlined, ApartmentOutlined } from '@ant-design/icons'
 
 const { Header, Sider, Content } = Layout
 const { Text, Title } = Typography
@@ -14,6 +14,7 @@ const MENU_KEYS = [
   'stock-comparison',
   'signals',
   'backtest',
+  'pipeline',
   'training',
   'model-training',
   'stock-list',
@@ -29,6 +30,7 @@ const StockAnalysis = lazy(() => import('./components/StockAnalysis'))
 const StockComparison = lazy(() => import('./components/StockComparison'))
 const SignalsDashboard = lazy(() => import('./components/SignalsDashboard'))
 const BacktestDashboard = lazy(() => import('./components/BacktestDashboard'))
+const QuantPipeline = lazy(() => import('./components/QuantPipeline'))
 const TrainingHistory = lazy(() => import('./components/TrainingHistory'))
 const StockList = lazy(() => import('./components/StockList'))
 const ModelTraining = lazy(() => import('./components/ModelTraining'))
@@ -63,6 +65,8 @@ function App() {
         return <SignalsDashboard />
       case 'backtest':
         return <BacktestDashboard />
+      case 'pipeline':
+        return <QuantPipeline />
       case 'training':
         return <TrainingHistory />
       case 'model-training':
@@ -83,19 +87,19 @@ function App() {
   const menuItems: MenuProps['items'] = [
     {
       key: 'overview',
-      label: 'Overview',
+      label: '总览',
       type: 'group',
       children: [
         {
           key: 'dashboard',
           icon: <DashboardOutlined />,
-          label: 'Dashboard'
+          label: '仪表盘'
         }
       ]
     },
     {
       key: 'research',
-      label: 'Research',
+      label: '研究',
       type: 'group',
       children: [
         {
@@ -107,6 +111,11 @@ function App() {
           key: 'backtest',
           icon: <ExperimentOutlined />,
           label: '回测仪表板'
+        },
+        {
+          key: 'pipeline',
+          icon: <ApartmentOutlined />,
+          label: '量化链路'
         },
         {
           key: 'feature-importance',
@@ -127,7 +136,7 @@ function App() {
     },
     {
       key: 'model',
-      label: 'Model',
+      label: '模型',
       type: 'group',
       children: [
         {
@@ -144,7 +153,7 @@ function App() {
     },
     {
       key: 'data',
-      label: 'Data',
+      label: '数据',
       type: 'group',
       children: [
         {
@@ -156,7 +165,7 @@ function App() {
     },
     {
       key: 'operations',
-      label: 'Operations',
+      label: '运维',
       type: 'group',
       children: [
         {

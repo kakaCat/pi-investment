@@ -128,7 +128,7 @@ async function addHolding(): Promise<void> {
     const name = await qDefault("  股票名称（可选，回车跳过）", "");
     const notes = await qDefault("  备注（可选，回车跳过）", "");
 
-    const res = portfolio.add(symbol, quantity, avgCost, name, market, notes);
+    const res = portfolio.add(symbol, quantity, avgCost, 0, name, market, notes);
     console.log(`  ✅ ${res.message}\n`);
     count++;
   }
@@ -188,7 +188,7 @@ async function addTrade(): Promise<void> {
 
     // 同步更新 portfolio.json
     if (action === "buy") {
-      const res = portfolio.add(symbol, quantity, price, name, market, notes ? `${notes}（交易导入）` : "交易导入");
+      const res = portfolio.add(symbol, quantity, price, commission, name, market, notes ? `${notes}（交易导入）` : "交易导入");
       console.log(`  ✅ 交易已记录 | ${res.message}\n`);
     } else {
       const res = portfolio.update(symbol, undefined, undefined, name || undefined);

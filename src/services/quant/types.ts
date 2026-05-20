@@ -1,5 +1,11 @@
 // 量化策略类型定义
 
+// 信号动作类型枚举
+export enum SignalActionType {
+  BUY = 1,
+  SELL = 2
+}
+
 export interface QuantStrategy {
   id: string;
   name: string;
@@ -59,6 +65,7 @@ export interface Signal {
   symbol: string;
   name: string;
   action: 'buy' | 'sell';
+  action_type: SignalActionType; // 1=买入, 2=卖出
   strategy_id: string;
   price: number;
   reason: string;

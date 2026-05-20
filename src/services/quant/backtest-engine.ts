@@ -90,7 +90,7 @@ export class BacktestEngine {
   private readonly STAMP_TAX_RATE = 0.001;  // 卖出印花税 0.1%
 
   constructor(stockDBService?: StockDBService) {
-    const db = stockDBService || new StockDBService('.pi-invest');
+    const db = stockDBService || StockDBService.getInstance('.pi-invest');
     this.factorLibrary = new FactorLibrary(db);
     this.signalGenerator = new SignalGenerator('.pi-invest/quant/signals', this.factorLibrary, false);
   }

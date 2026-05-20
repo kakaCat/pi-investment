@@ -12,18 +12,20 @@ type SignalSummaryRow = DashboardSignal & {
 };
 
 export interface SignalSummaryPanelProps {
+  title?: string;
   signals: DashboardSignal[];
   loading?: boolean;
   error?: string;
+  emptyDescription?: string;
   onOpenSignals: () => void;
 }
 
 const columns: ColumnsType<SignalSummaryRow> = [
   {
-    title: 'Symbol',
+    title: '代码',
     dataIndex: 'symbol',
     key: 'symbol',
-    width: 100,
+    width: 96,
     render: (symbol: string, record) => (
       <Space direction="vertical" size={0}>
         <Text strong>{symbol}</Text>
@@ -32,41 +34,43 @@ const columns: ColumnsType<SignalSummaryRow> = [
     ),
   },
   {
-    title: 'Side',
+    title: '方向',
     dataIndex: 'signal',
     key: 'signal',
-    width: 90,
+    width: 76,
     render: (signal: SignalSummaryRow['signal']) => (
-      <Tag color={signal === 'BUY' ? 'green' : 'red'}>{signal}</Tag>
+      <Tag color={signal === 'BUY' ? 'green' : 'red'}>{signal === 'BUY' ? '买入' : '卖出'}</Tag>
     ),
   },
   {
-    title: 'Strategy',
+    title: '策略',
     dataIndex: 'strategy',
     key: 'strategy',
     ellipsis: true,
     render: (strategy?: string) => strategy || '-',
   },
   {
-    title: 'Confidence',
+    title: '置信度',
     dataIndex: 'confidence',
     key: 'confidence',
-    width: 110,
+    width: 88,
     align: 'right',
     render: formatPercent,
   },
   {
-    title: 'Date',
+    title: '日期',
     key: 'date',
-    width: 130,
+    width: 108,
     render: (_, record) => formatDate(record.date || record.created_at),
   },
 ];
 
 export default function SignalSummaryPanel({
+  title = '信号摘要',
   signals,
   loading = false,
   error,
+  emptyDescription = '暂无最近信号',
   onOpenSignals,
 }: SignalSummaryPanelProps) {
   const metrics = calculateSignalMetrics(signals);
@@ -80,24 +84,24 @@ export default function SignalSummaryPanel({
 
   return (
     <Card
-      title="Signal Summary"
+      title={title}
       extra={
         <Button size="small" type="link" icon={<ArrowRightOutlined />} onClick={onOpenSignals}>
-          Open
+          打开
         </Button>
       }
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        {error && <Alert type="error" showIcon message="Unable to load signals" description={error} />}
+        {error && <Alert type="error" showIcon message="信号加载失败" description={error} />}
         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}>
-          <MetricCard title="Buy" value={metrics.buyCount} tone="success" loading={loading} />
-          <MetricCard title="Sell" value={metrics.sellCount} tone="danger" loading={loading} />
+          <MetricCard title="买入" value={metrics.buyCount} tone="success" loading={loading} />
+          <MetricCard title="卖出" value={metrics.sellCount} tone="danger" loading={loading} />
           <MetricCard
-            title="High Confidence"
+            title="高置信"
             value={metrics.highConfidenceCount}
             tone="info"
             loading={loading}
-            helper="Confidence >= 80%"
+            helper="置信度 >= 80%"
           />
         </div>
         <Table
@@ -107,11 +111,12 @@ export default function SignalSummaryPanel({
           dataSource={latestSignals}
           loading={loading}
           pagination={false}
+          scroll={{ x: 560 }}
           locale={{
             emptyText: (
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No recent signals"
+                description={emptyDescription}
               />
             ),
           }}

@@ -12,7 +12,7 @@ const mockMessages = [
   },
   {
     role: "assistant",
-    content: "好的，我建议将它拆分成多个模块：market.ts, financial.ts, technical.ts 等"
+    content: "好的，我们选择将它拆分成多个模块：market.ts, financial.ts, technical.ts 等"
   },
   {
     role: "user",
@@ -30,8 +30,8 @@ jest.unstable_mockModule("../../core/agent/session-adapter.js", () => ({
   getMessages: mockGetMessages
 }));
 
-const mockCreateAgentSession = jest.fn();
-const mockPrompt = jest.fn();
+const mockPrompt = jest.fn<(prompt: string) => Promise<void>>();
+const mockCreateAgentSession = jest.fn<() => Promise<{ session: { prompt: typeof mockPrompt } }>>();
 
 jest.unstable_mockModule("@mariozechner/pi-coding-agent", () => ({
   createAgentSession: mockCreateAgentSession
@@ -56,7 +56,9 @@ describe("SessionMemorySaver", () => {
     mockSession = {} as AgentSession;
     mockPrompt.mockResolvedValue(undefined);
     mockCreateAgentSession.mockResolvedValue({
-      prompt: mockPrompt
+      session: {
+        prompt: mockPrompt
+      }
     });
   });
 
@@ -105,7 +107,7 @@ describe("SessionMemorySaver", () => {
         expect.stringContaining("User: 我想重构 akshare-ts 模块")
       );
       expect(mockPrompt).toHaveBeenCalledWith(
-        expect.stringContaining("Assistant: 好的，我建议将它拆分成多个模块")
+        expect.stringContaining("Assistant: 好的，我们选择将它拆分成多个模块")
       );
     });
 

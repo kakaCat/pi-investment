@@ -17,11 +17,13 @@
  */
 import type { ToolDefinition } from "./index.js";
 import { Type } from "@sinclair/typebox";
-import { spawn, execSync } from "child_process";
+import { execSync } from "child_process";
+import process from "node:process";
 import { join, dirname } from "path";
 import { writeFileSync, mkdirSync, existsSync, unlinkSync } from "fs";
 import { fileURLToPath } from "url";
 import { getSessionKey, getConversationMessages } from "../logging/observable-logger.js";
+import { resetTerminalModes } from "../tui/pi-tui-compat.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -29,6 +31,28 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, "..", "..", "..");
 const RESTART_DIR = join(PROJECT_ROOT, ".restart");
 const CONTEXT_FILE = join(RESTART_DIR, "context.json");
+
+interface RestartTerminalStreams {
+  stdin?: {
+    isTTY?: boolean;
+    setRawMode?: (mode: boolean) => void;
+  };
+  stdout?: {
+    write?: (data: string) => unknown;
+  };
+}
+
+interface RestartExecPlanInput {
+  projectRoot?: string;
+  argv?: string[];
+  execPath?: string;
+  localTsxExists?: boolean;
+}
+
+interface RestartExecPlan {
+  file: string;
+  args: string[];
+}
 
 /**
  * 查找 Python akshare_bridge 进程并终止
@@ -60,27 +84,77 @@ function killPythonBridge(): boolean {
  *
  * 统一使用 tsx（优先本地 .bin/tsx，否则全局 tsx）来重启
  */
-function getSpawnCommand(): { cmd: string; args: string[] } {
-  // 优先查找本项目的 tsx
-  const localTsx = join(PROJECT_ROOT, "node_modules", ".bin", "tsx");
-  const tsxBin = existsSync(localTsx) ? localTsx : "tsx";
+export function buildRestartExecPlan(input: RestartExecPlanInput = {}): RestartExecPlan {
+  const projectRoot = input.projectRoot ?? PROJECT_ROOT;
+  const argv = input.argv ?? process.argv;
+  const execPath = input.execPath ?? process.execPath;
+  const localTsx = join(projectRoot, "node_modules", ".bin", "tsx");
+  const localTsxExists = input.localTsxExists ?? existsSync(localTsx);
 
-  // 取当前运行的文件作为入口
-  // process.argv[1] 是 tsx 加载的入口文件路径（src/index.ts）
-  // 如果不可用，回退到已知入口
-  const entryFile = process.argv[1];
-  if (entryFile && entryFile !== process.argv[0] && entryFile.endsWith(".ts")) {
+  if (localTsxExists) {
+    const entryFile =
+      argv[1] && argv[1] !== argv[0] && argv[1].endsWith(".ts")
+        ? argv[1]
+        : join(projectRoot, "src", "index.ts");
+
     return {
-      cmd: tsxBin,
-      args: [entryFile],
+      file: localTsx,
+      args: [localTsx, entryFile],
     };
   }
 
-  // 回退：用 tsx 直接启动入口
   return {
-    cmd: tsxBin,
-    args: [join(PROJECT_ROOT, "src", "index.ts")],
+    file: execPath,
+    args: [execPath, ...argv.slice(1)],
   };
+}
+
+/**
+ * Restore terminal modes that pi-tui enables before handing the TTY to a new
+ * process. This mirrors the important parts of ProcessTerminal.stop() without
+ * needing direct access to the InteractiveMode instance.
+ */
+export function resetTerminalForRestart(streams: RestartTerminalStreams = {}): void {
+  const stdin = streams.stdin ?? process.stdin;
+  const stdout = streams.stdout ?? process.stdout;
+
+  try {
+    stdout.write?.("\x1b[?2026l"); // synchronized output off
+    stdout.write?.("\x1b[?2004l"); // bracketed paste off
+    stdout.write?.("\x1b[<u"); // Kitty keyboard protocol off
+    stdout.write?.("\x1b[>4;0m"); // xterm modifyOtherKeys off
+    stdout.write?.("\x1b[?1l"); // normal cursor-key mode
+    stdout.write?.("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l"); // mouse modes off
+    stdout.write?.("\x1b[0m");
+    stdout.write?.("\x1b(B");
+    stdout.write?.("\x1b[?25h");
+  } catch {
+    // ignore
+  }
+
+  try {
+    if (stdin.isTTY) {
+      stdin.setRawMode?.(false);
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    execSync("stty sane 2>/dev/null || true", { stdio: "ignore", timeout: 1000 });
+  } catch {
+    // ignore
+  }
+
+  try {
+    execSync("stty iutf8 2>/dev/null || true", { stdio: "ignore", timeout: 1000 });
+  } catch {
+    // ignore
+  }
+
+  if (streams.stdin === undefined && streams.stdout === undefined) {
+    resetTerminalModes({ restoreRawMode: true, runStty: true });
+  }
 }
 
 // ── Tool Definition ────────────────────────────────────────────────────────
@@ -152,64 +226,27 @@ export const restartAgentTool: ToolDefinition = {
       // ignore
     }
 
-    // ── 3. 启动新进程 ──────────────────────────────────────────────
-    const { cmd, args } = getSpawnCommand();
-
-    // 先验证 tsx 可执行文件存在
-    const tsxExists = existsSync(cmd) || cmd === "tsx";
-    if (!tsxExists) {
-      console.warn(`[restart] 警告: ${cmd} 不存在，尝试使用全局 tsx`);
-    }
-
-    // 重置终端到正常模式，避免子进程继承 raw mode
-    try {
-      if (process.stdin.isTTY) {
-        process.stdin.setRawMode(false);
-      }
-    } catch {
-      // ignore
-    }
-
-    // 使用 stty 命令恢复正常终端模式
-    try {
-      execSync('stty sane 2>/dev/null || true', { stdio: 'ignore', timeout: 1000 });
-    } catch {
-      // ignore
-    }
-
-    const child = spawn(cmd, args, {
-      cwd: process.cwd(),
-      stdio: "inherit",
-      detached: true,
-      env: {
-        ...process.env,
-        PI_RESTARTED: "true",
-        PI_RESTART_TIMESTAMP: new Date().toISOString(),
-        // 确保 UTF-8 编码
-        LANG: process.env.LANG || "zh_CN.UTF-8",
-        LC_ALL: process.env.LC_ALL || "zh_CN.UTF-8",
-        LC_CTYPE: process.env.LC_CTYPE || "zh_CN.UTF-8",
-      },
-    });
-
-    // 监听 spawn 错误（如命令不存在）
-    let spawnFailed = false;
-    child.on("error", (err: NodeJS.ErrnoException) => {
-      spawnFailed = true;
-      console.error(`[restart] 新进程启动失败: ${err.message}`);
-    });
-
-    child.unref();
+    // ── 3. 准备原地替换当前进程 ───────────────────────────────────
+    const restartPlan = buildRestartExecPlan();
+    const env = {
+      ...process.env,
+      PI_RESTARTED: "true",
+      PI_RESTART_TIMESTAMP: new Date().toISOString(),
+      // 确保 UTF-8 编码
+      LANG: process.env.LANG || "zh_CN.UTF-8",
+      LC_ALL: process.env.LC_ALL || "zh_CN.UTF-8",
+      LC_CTYPE: process.env.LC_CTYPE || "zh_CN.UTF-8",
+    };
+    resetTerminalForRestart();
 
     // ── 4. 返回消息并退出 ──────────────────────────────────────────
-    // 使用 setImmediate + process.exit 确保 response 先返回
-    // 然后当前进程退出，新进程继续运行
+    // 使用 execve 原地替换当前进程，保留前台进程组和 TTY 控制权。
     const response = {
       content: [
         {
           type: "text" as const,
           text: `## 🔄 Agent 重启中...\n\n` +
-                `新进程已启动 (PID: ${child.pid ?? '?'})，当前进程即将退出。\n` +
+                `当前进程将原地重启，PID 会保持在前台终端中。\n` +
                 (preserveContext
                   ? `✅ 对话上下文已保存，重启后将恢复。\n`
                   : `🆕 干净重启，不保留上下文。\n`) +
@@ -218,16 +255,16 @@ export const restartAgentTool: ToolDefinition = {
         },
       ],
       details: {
-        new_pid: child.pid,
         preserve_context: preserveContext,
-        command: `${cmd} ${args.join(" ")}`,
+        command: restartPlan.args.join(" "),
+        mode: "execve",
       },
     };
 
-    // 返回后安排退出
     setImmediate(() => {
-      if (spawnFailed) {
-        console.log("[restart] 新进程启动失败，当前进程继续运行");
+      const execve = process.execve;
+      if (!execve) {
+        console.error("[restart] 当前 Node 版本不支持 process.execve，无法安全原地重启");
         return;
       }
 
@@ -237,9 +274,8 @@ export const restartAgentTool: ToolDefinition = {
         // ignore
       }
 
-      // 延迟退出，确保子进程完全接管
       setTimeout(() => {
-        process.exit(0);
+        execve(restartPlan.file, restartPlan.args, env);
       }, 500);
     });
 

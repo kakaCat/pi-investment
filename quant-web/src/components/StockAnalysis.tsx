@@ -40,7 +40,7 @@ const StockAnalysis: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
-      const response = await axios.get(`/api/stock/${symbol}/factors`)
+      const response = await axios.get(`/api/stocks/${symbol}/factors`)
       setData(response.data)
     } catch (err: any) {
       setError(err.response?.data?.error || '获取数据失败')

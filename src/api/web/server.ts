@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { Client } from 'pg';
 import { strategiesRouter } from './routes/strategies.js';
 import { signalsRouter } from './routes/signals.js';
 import { backtestRouter } from './routes/backtest.js';
@@ -11,6 +12,9 @@ import { chartsRouter } from './routes/charts.js';
 import { stocksRouter } from './routes/stocks.js';
 import { featuresRouter } from './routes/features.js';
 import { trainingRouter } from './routes/training.js';
+import { jobsRouter } from './routes/jobs.js';
+import { platformRouter } from './routes/platform.js';
+import { schedulerRouter } from './routes/scheduler.js';
 import { errorHandler } from './middleware/error-handler.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,6 +22,60 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
+
+function getDatabaseProvider(): 'postgres' | 'sqlite' {
+  return process.env.QUANT_DB_PROVIDER?.trim().toLowerCase() === 'sqlite'
+    ? 'sqlite'
+    : 'postgres';
+}
+
+async function getPostgresHealthInfo(): Promise<{
+  connected: boolean;
+  info: Record<string, unknown> | null;
+  error?: string;
+}> {
+  const connectionString = process.env.QUANT_DATABASE_URL
+    || process.env.DATABASE_URL
+    || process.env.POSTGRES_DSN;
+  const client = new Client(connectionString
+    ? { connectionString }
+    : {
+        database: process.env.PGDATABASE || 'quant_investment',
+        host: process.env.PGHOST,
+        port: process.env.PGPORT ? Number(process.env.PGPORT) : undefined,
+        user: process.env.PGUSER,
+        password: process.env.PGPASSWORD,
+      });
+
+  try {
+    await client.connect();
+    const result = await client.query('SELECT current_database() AS database, pg_database_size(current_database()) AS size_bytes');
+    const row = result.rows[0] as { database?: string; size_bytes?: string | number } | undefined;
+    const sizeBytes = Number(row?.size_bytes ?? 0);
+    const sizeMb = sizeBytes / (1024 * 1024);
+
+    return {
+      connected: true,
+      info: {
+        provider: 'postgres',
+        database: row?.database ?? process.env.PGDATABASE ?? 'quant_investment',
+        size_mb: Math.round(sizeMb * 100) / 100,
+        size_display: sizeMb >= 1024 ? `${(sizeMb / 1024).toFixed(1)} GB` : `${sizeMb.toFixed(1)} MB`,
+      },
+    };
+  } catch (error) {
+    return {
+      connected: false,
+      info: {
+        provider: 'postgres',
+        database: process.env.PGDATABASE ?? 'quant_investment',
+      },
+      error: error instanceof Error ? error.message : 'Unknown PostgreSQL connection error',
+    };
+  } finally {
+    await client.end().catch(() => undefined);
+  }
+}
 
 // 中间件
 app.use(cors({
@@ -40,41 +98,54 @@ app.use('/api/performance', performanceRouter);
 app.use('/api/charts', chartsRouter);
 app.use('/api/stocks', stocksRouter);
 app.use('/api/training', trainingRouter);
+app.use('/api/jobs', jobsRouter);
+app.use('/api/platform', platformRouter);
+app.use('/api/scheduler', schedulerRouter);
 app.use('/api', featuresRouter);
 
 // 健康检查 (放在 /api 下以便前端统一访问)
 app.get('/api/health', async (req, res) => {
   try {
-    // 检查数据库连接（使用项目目录）
-    const projectRoot = path.resolve(__dirname, '../../../');
-    const dbPath = path.join(projectRoot, '.pi-invest/stock-db/stocks.db');
-    const dbConnected = fs.existsSync(dbPath);
-
-    // 获取数据库文件信息
+    let dbConnected = false;
     let dbInfo = null;
-    if (dbConnected) {
-      try {
-        const stats = fs.statSync(dbPath);
-        const sizeBytes = stats.size;
-        const sizeMb = sizeBytes / (1024 * 1024);
 
-        // 格式化大小显示
-        let sizeDisplay: string;
-        if (sizeMb < 1) {
-          sizeDisplay = `${(sizeBytes / 1024).toFixed(1)} KB`;
-        } else if (sizeMb < 1024) {
-          sizeDisplay = `${sizeMb.toFixed(1)} MB`;
-        } else {
-          sizeDisplay = `${(sizeMb / 1024).toFixed(1)} GB`;
+    if (getDatabaseProvider() === 'postgres') {
+      const health = await getPostgresHealthInfo();
+      dbConnected = health.connected;
+      dbInfo = health.info;
+      if (!health.connected && health.error) {
+        dbInfo = { ...dbInfo, error: health.error };
+      }
+    } else {
+      // 检查 SQLite 文件连接（仅显式 QUANT_DB_PROVIDER=sqlite 时使用）
+      const projectRoot = path.resolve(__dirname, '../../../');
+      const dbPath = path.join(projectRoot, '.pi-invest/stock-db/stocks.db');
+      dbConnected = fs.existsSync(dbPath);
+
+      if (dbConnected) {
+        try {
+          const stats = fs.statSync(dbPath);
+          const sizeBytes = stats.size;
+          const sizeMb = sizeBytes / (1024 * 1024);
+
+          let sizeDisplay: string;
+          if (sizeMb < 1) {
+            sizeDisplay = `${(sizeBytes / 1024).toFixed(1)} KB`;
+          } else if (sizeMb < 1024) {
+            sizeDisplay = `${sizeMb.toFixed(1)} MB`;
+          } else {
+            sizeDisplay = `${(sizeMb / 1024).toFixed(1)} GB`;
+          }
+
+          dbInfo = {
+            provider: 'sqlite',
+            path: dbPath,
+            size_mb: Math.round(sizeMb * 100) / 100,
+            size_display: sizeDisplay
+          };
+        } catch (error) {
+          console.error('Failed to get database file info:', error);
         }
-
-        dbInfo = {
-          path: dbPath,
-          size_mb: Math.round(sizeMb * 100) / 100,
-          size_display: sizeDisplay
-        };
-      } catch (error) {
-        console.error('Failed to get database file info:', error);
       }
     }
 

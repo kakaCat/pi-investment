@@ -234,7 +234,7 @@ const StockList: React.FC = () => {
           rowKey={(record) => record.symbol}
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `共 ${total} 只股票` }}
           scroll={{ x: 1200 }}
-          onChange={(pagination, filters) => {
+          onChange={(_, filters) => {
             setFilters({
               market: (filters.market as string[]) || [],
               dataComplete: (filters.data_complete as (string | number | boolean)[]) || []

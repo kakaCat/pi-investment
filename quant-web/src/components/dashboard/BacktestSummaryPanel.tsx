@@ -16,20 +16,20 @@ export interface BacktestSummaryPanelProps {
 
 const columns: ColumnsType<BacktestSummaryRow> = [
   {
-    title: 'Symbol',
+    title: '代码',
     dataIndex: 'symbol',
     key: 'symbol',
     width: 100,
     render: (symbol: string) => <strong>{symbol}</strong>,
   },
   {
-    title: 'Strategy',
+    title: '策略',
     dataIndex: 'best_strategy',
     key: 'best_strategy',
     ellipsis: true,
   },
   {
-    title: 'Return',
+    title: '收益',
     dataIndex: 'best_return',
     key: 'best_return',
     width: 100,
@@ -37,7 +37,7 @@ const columns: ColumnsType<BacktestSummaryRow> = [
     render: (value: unknown) => renderReturn(value),
   },
   {
-    title: 'Sharpe',
+    title: '夏普',
     dataIndex: 'sharpe_ratio',
     key: 'sharpe_ratio',
     width: 90,
@@ -45,7 +45,7 @@ const columns: ColumnsType<BacktestSummaryRow> = [
     render: (value: unknown) => formatNumber(value),
   },
   {
-    title: 'Drawdown',
+    title: '回撤',
     dataIndex: 'max_drawdown',
     key: 'max_drawdown',
     width: 110,
@@ -75,15 +75,15 @@ export default function BacktestSummaryPanel({
 
   return (
     <Card
-      title="Backtest Summary"
+      title="回测摘要"
       extra={
         <Button size="small" type="link" icon={<ArrowRightOutlined />} onClick={onOpenBacktest}>
-          Open
+          打开
         </Button>
       }
     >
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        {error && <Alert type="error" showIcon message="Unable to load backtests" description={error} />}
+        {error && <Alert type="error" showIcon message="回测结果加载失败" description={error} />}
         <Table
           size="small"
           rowKey="dashboardRowKey"
@@ -91,11 +91,12 @@ export default function BacktestSummaryPanel({
           dataSource={topRows}
           loading={loading}
           pagination={false}
+          scroll={{ x: 560 }}
           locale={{
             emptyText: (
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No backtest results. Open backtests to run one."
+                description="暂无回测结果"
               />
             ),
           }}

@@ -3166,6 +3166,8 @@ FUNCTIONS = {
     "plot_equity_curve": lambda backtest_result, output_path='.pi-invest/quant/charts/equity_curve.png': plot_equity_curve(backtest_result, output_path),
     "plot_strategy_comparison": lambda strategies_performance, output_path='.pi-invest/quant/charts/strategy_comparison.png': plot_strategy_comparison(strategies_performance, output_path),
     "plot_feature_importance": lambda model_path='.pi-invest/quant/models/signal_confidence.pkl', output_path='.pi-invest/quant/charts/feature_importance.png': plot_feature_importance(model_path, output_path),
+    # Confidence calibration
+    "run_confidence_calibration": lambda **kwargs: run_confidence_calibration_wrapper(kwargs),
     # Strategy combiner
     "combine_strategy_signals": lambda **kwargs: combine_strategy_signals(kwargs),
     # Risk control functions
@@ -3173,6 +3175,37 @@ FUNCTIONS = {
     "calculate_position_size": calculate_position_size,
     "calculate_stop_loss": calculate_stop_loss,
 }
+
+
+def run_confidence_calibration_wrapper(params: dict) -> dict:
+    """Wrapper for confidence calibration — callable from quant_cli / TS bridge."""
+    try:
+        from quantsys.ml.confidence_calibrator import run_calibration
+        db_path = params.get("db_path")
+        forward_days = int(params.get("forward_days", 5))
+        return_threshold = float(params.get("return_threshold", 0.02))
+        output_path = params.get("output_path", ".pi-invest/quant/confidence_config.json")
+        max_samples = int(params.get("max_samples", 500_000))
+
+        config = run_calibration(
+            db_path=db_path,
+            forward_days=forward_days,
+            return_threshold=return_threshold,
+            output_path=output_path,
+            max_samples=max_samples,
+        )
+        return {
+            "success": True,
+            "config_path": output_path,
+            "version": config.get("version"),
+            "total_samples": config.get("total_samples"),
+            "factors_count": len(config.get("factors", {})),
+        }
+    except Exception as e:
+        logger.error(f"run_confidence_calibration error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e), "success": False}
 
 
 def predict_signal_confidence(features: dict) -> dict:

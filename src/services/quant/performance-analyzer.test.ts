@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { PerformanceAnalyzer } from './performance-analyzer.js';
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
-import type { Signal } from './types.js';
+import { SignalActionType, type Signal } from './types.js';
 
 describe('PerformanceAnalyzer', () => {
   const testDir = '.pi-invest-test/quant/signals';
@@ -42,6 +42,7 @@ describe('PerformanceAnalyzer', () => {
         symbol: '600036.SH',
         name: '招商银行',
         action: 'buy',
+        action_type: SignalActionType.BUY,
         confidence: 0.85,
         reason: 'RSI超卖',
         price: 40.0,
@@ -53,8 +54,12 @@ describe('PerformanceAnalyzer', () => {
           ma10: 39.8,
           ma20: 40.2,
           ma60: 41.0,
-          macd: { dif: -0.5, dea: -0.3, macd: -0.2 },
-          bollinger: { upper: 42.0, middle: 40.0, lower: 38.0 },
+          macd_dif: -0.5,
+          macd_dea: -0.3,
+          macd_histogram: -0.2,
+          bollinger_upper: 42.0,
+          bollinger_mid: 40.0,
+          bollinger_lower: 38.0,
           volume_ratio: 1.2,
           atr: 1.5
         }
@@ -63,6 +68,7 @@ describe('PerformanceAnalyzer', () => {
         symbol: '000425.SZ',
         name: '徐工机械',
         action: 'buy',
+        action_type: SignalActionType.BUY,
         confidence: 0.75,
         reason: 'MACD金叉',
         price: 7.0,
@@ -74,8 +80,12 @@ describe('PerformanceAnalyzer', () => {
           ma10: 6.8,
           ma20: 6.7,
           ma60: 6.5,
-          macd: { dif: 0.1, dea: 0.05, macd: 0.05 },
-          bollinger: { upper: 7.5, middle: 7.0, lower: 6.5 },
+          macd_dif: 0.1,
+          macd_dea: 0.05,
+          macd_histogram: 0.05,
+          bollinger_upper: 7.5,
+          bollinger_mid: 7.0,
+          bollinger_lower: 6.5,
           volume_ratio: 1.5,
           atr: 0.3
         }
@@ -110,6 +120,7 @@ describe('PerformanceAnalyzer', () => {
         symbol: '600036.SH',
         name: '招商银行',
         action: 'buy',
+        action_type: SignalActionType.BUY,
         confidence: 0.6 + (i % 3) * 0.1, // 变化的置信度
         reason: '测试信号',
         price: 40.0 + i * 0.5,
@@ -121,8 +132,12 @@ describe('PerformanceAnalyzer', () => {
           ma10: 40,
           ma20: 40,
           ma60: 40,
-          macd: { dif: 0, dea: 0, macd: 0 },
-          bollinger: { upper: 42, middle: 40, lower: 38 },
+          macd_dif: 0,
+          macd_dea: 0,
+          macd_histogram: 0,
+          bollinger_upper: 42,
+          bollinger_mid: 40,
+          bollinger_lower: 38,
           volume_ratio: 1.0,
           atr: 1.0
         }
@@ -151,6 +166,7 @@ describe('PerformanceAnalyzer', () => {
       symbol: '600036.SH',
       name: '招商银行',
       action: 'buy',
+      action_type: SignalActionType.BUY,
       confidence: 0.8,
       reason: '旧信号',
       price: 40.0,
@@ -162,8 +178,12 @@ describe('PerformanceAnalyzer', () => {
         ma10: 40,
         ma20: 40,
         ma60: 40,
-        macd: { dif: 0, dea: 0, macd: 0 },
-        bollinger: { upper: 42, middle: 40, lower: 38 },
+        macd_dif: 0,
+        macd_dea: 0,
+        macd_histogram: 0,
+        bollinger_upper: 42,
+        bollinger_mid: 40,
+        bollinger_lower: 38,
         volume_ratio: 1.0,
         atr: 1.0
       }
@@ -176,6 +196,7 @@ describe('PerformanceAnalyzer', () => {
       symbol: '000425.SZ',
       name: '徐工机械',
       action: 'buy',
+      action_type: SignalActionType.BUY,
       confidence: 0.75,
       reason: '新信号',
       price: 7.0,
@@ -187,8 +208,12 @@ describe('PerformanceAnalyzer', () => {
         ma10: 7,
         ma20: 7,
         ma60: 7,
-        macd: { dif: 0, dea: 0, macd: 0 },
-        bollinger: { upper: 7.5, middle: 7, lower: 6.5 },
+        macd_dif: 0,
+        macd_dea: 0,
+        macd_histogram: 0,
+        bollinger_upper: 7.5,
+        bollinger_mid: 7,
+        bollinger_lower: 6.5,
         volume_ratio: 1.0,
         atr: 0.3
       }
@@ -210,6 +235,7 @@ describe('PerformanceAnalyzer', () => {
         symbol: '600036.SH',
         name: '招商银行',
         action: 'buy',
+        action_type: SignalActionType.BUY,
         confidence: 0.9, // 高置信度
         reason: '强买入信号',
         price: 40.0,
@@ -221,8 +247,12 @@ describe('PerformanceAnalyzer', () => {
           ma10: 40,
           ma20: 40,
           ma60: 40,
-          macd: { dif: 0.5, dea: 0.3, macd: 0.2 },
-          bollinger: { upper: 42, middle: 40, lower: 38 },
+          macd_dif: 0.5,
+          macd_dea: 0.3,
+          macd_histogram: 0.2,
+          bollinger_upper: 42,
+          bollinger_mid: 40,
+          bollinger_lower: 38,
           volume_ratio: 1.5,
           atr: 1.0
         }
@@ -250,6 +280,7 @@ describe('PerformanceAnalyzer', () => {
           symbol: '600036.SH',
           name: '招商银行',
           action: 'buy',
+          action_type: SignalActionType.BUY,
           confidence: 0.8,
           reason: '测试',
           price: 40.0,
@@ -261,8 +292,12 @@ describe('PerformanceAnalyzer', () => {
             ma10: 40,
             ma20: 40,
             ma60: 40,
-            macd: { dif: 0, dea: 0, macd: 0 },
-            bollinger: { upper: 42, middle: 40, lower: 38 },
+            macd_dif: 0,
+            macd_dea: 0,
+            macd_histogram: 0,
+            bollinger_upper: 42,
+            bollinger_mid: 40,
+            bollinger_lower: 38,
             volume_ratio: 1.0,
             atr: 1.0
           }
