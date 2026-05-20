@@ -74,8 +74,6 @@ export class PythonBackendClient {
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
-
       if (!response.ok) {
         const errorData: any = await response.json().catch(() => ({}));
         const error: any = new Error(errorData.error || response.statusText);
@@ -85,8 +83,6 @@ export class PythonBackendClient {
 
       return await response.json();
     } catch (error: any) {
-      clearTimeout(timeoutId);
-
       if (error.name === "AbortError") {
         const timeoutError: any = new Error("Gateway timeout");
         timeoutError.status = 504;
@@ -100,6 +96,8 @@ export class PythonBackendClient {
       }
 
       throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 }
