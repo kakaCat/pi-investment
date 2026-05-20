@@ -81,6 +81,9 @@
 3. **因子模块化** - 42个因子基于统一的Factor基类
 4. **策略可组合** - 支持多策略投票/AND/OR组合
 5. **风控前置** - 预交易风控7项检查
+6. **防腐层模式** - 所有对外层（CLI/API/Scheduler）都是防腐层，负责校验和转换
+7. **通用方法原则** - 数据层提供通用查询方法，通过参数控制，避免为每个调用方写专用方法
+8. **按业务分类** - 每个文件夹内按业务类型（股票、市场、策略、风控）分文件，不按调用方分
 
 ### 1.5 项目统计
 
@@ -97,91 +100,262 @@
 
 ## 2. 架构图
 
-### 2.1 系统分层架构
+### 2.1 系统分层架构（重构后）
 
 ```mermaid
 graph TB
-    subgraph "客户端层"
-        TS[TypeScript Agent Tools]
-        CLI[CLI Commands]
-        Scheduler[定时任务调度器]
+    subgraph "对外接口层（防腐层）"
+        CLI[CLI命令行]
+        API[HTTP API]
+        Scheduler[定时调度]
     end
     
-    subgraph "API层"
-        Flask[Flask API Server :5001]
+    subgraph "服务层（业务逻辑 + 编排）"
+        StockService[StockService]
+        MarketService[MarketService]
+        StrategyService[StrategyService]
+        RiskService[RiskService]
+        QuantService[QuantService]
     end
     
-    subgraph "业务逻辑层"
-        Data[数据层 quantsys.data]
-        Factors[因子层 quantsys.factors]
-        Strategies[策略层 quantsys.strategies]
-        ML[机器学习层 quantsys.ml]
-        Risk[风控层 quantsys.risk]
-        Backtest[回测层 quantsys.backtest]
+    subgraph "适配器层（三方接口封装）"
+        AkShare[AkShare适配器]
+        TuShare[TuShare适配器]
+        Wind[Wind适配器]
     end
     
-    subgraph "数据层"
+    subgraph "仓储层（数据访问）"
+        StockRepo[StockRepository]
+        KlineRepo[KlineRepository]
+        FactorRepo[FactorRepository]
+        SignalRepo[SignalRepository]
+    end
+    
+    subgraph "量化引擎（独立领域能力）"
+        Factors[因子计算]
+        Strategies[策略引擎]
+        Backtest[回测引擎]
+        ML[机器学习]
+    end
+    
+    subgraph "存储层"
         PG[(PostgreSQL)]
-        Cache[缓存管理]
+        Cache[缓存]
     end
     
-    TS -->|HTTP| Flask
-    CLI -->|HTTP| Flask
-    Scheduler -->|HTTP| Flask
+    CLI -->|校验+转换| StockService
+    API -->|校验+转换| StockService
+    Scheduler -->|校验+转换| StockService
     
-    Flask --> Data
-    Flask --> Factors
-    Flask --> Strategies
-    Flask --> ML
-    Flask --> Risk
-    Flask --> Backtest
+    StockService --> StockRepo
+    StockService --> AkShare
+    StockService --> QuantService
     
-    Data --> PG
-    Data --> Cache
-    Factors --> PG
-    Strategies --> PG
-    ML --> PG
-    Risk --> PG
-    Backtest --> PG
+    StockRepo --> PG
+    StockRepo --> Cache
+    AkShare -->|校验+转换| PG
+    
+    QuantService --> Factors
+    QuantService --> Strategies
+    QuantService --> Backtest
+    QuantService --> ML
 ```
 
-### 2.2 数据流向图
-
-```mermaid
-flowchart LR
-    A[外部数据源 AkShare] --> B[KlineFetcher]
-    B --> C[PostgreSQL]
-    C --> D[FactorCalculator]
-    D --> C
-    C --> E[Strategy]
-    E --> F[StrategyCombiner]
-    F --> C
-    C --> G[MLPredictor]
-    G --> H[RiskCheck]
-    H --> I[SignalExecution]
-    I --> C
-```
-
-### 2.3 重构后的调用关系
+### 2.2 重构后的目录结构
 
 ```
-┌──────────────┐     HTTP      ┌──────────────┐
-│  Scripts      │──────────────→│  Flask API    │
-│  (HTTP Client)│               │  :5001        │
-└──────────────┘               └──────┬────────┘
-                                      │
-┌──────────────┐                      │ import
-│  TypeScript   │─────HTTP───────────→│
-│  Agent Tools  │                     │
-└──────────────┘               ┌──────▼────────┐
-                               │  quantsys      │
-┌──────────────┐               │  (core lib)    │
-│  ETL Scripts  │───spawn─────→│                │
-│  (Flask子进程) │              └──────┬─────────┘
-└──────────────┘                      │
-                               ┌──────▼────────┐
-                               │  PostgreSQL    │
-                               └───────────────┘
+quantsys/
+├── cli/                           # CLI层（命令行接口 + 防腐层）
+│   ├── stock_commands.py         # 股票命令（校验 + 转换）
+│   ├── market_commands.py        # 市场命令（校验 + 转换）
+│   ├── strategy_commands.py      # 策略命令（校验 + 转换）
+│   └── risk_commands.py          # 风控命令（校验 + 转换）
+│
+├── api/                           # API层（HTTP接口 + 防腐层）
+│   ├── stock_routes.py           # 股票API（校验 + 转换）
+│   ├── market_routes.py          # 市场API（校验 + 转换）
+│   ├── strategy_routes.py        # 策略API（校验 + 转换）
+│   └── risk_routes.py            # 风控API（校验 + 转换）
+│
+├── scheduler/                     # 调度层（定时任务 + 防腐层）
+│   ├── core/                     # 核心抽象层
+│   │   ├── base_job.py           # 任务基类（模板方法）
+│   │   ├── job_validator.py      # 参数校验器（通用）
+│   │   ├── job_transformer.py    # 数据转换器（通用）
+│   │   ├── job_executor.py       # 任务执行器（通用）
+│   │   ├── job_logger.py         # 任务日志（通用）
+│   │   └── job_registry.py       # 任务注册表（通用）
+│   │
+│   ├── cron/                     # 定时任务（按时间周期）
+│   │   ├── daily/                # 每日任务
+│   │   │   ├── data_update_job.py      
+│   │   │   ├── factor_calc_job.py      
+│   │   │   ├── signal_gen_job.py       
+│   │   │   ├── ml_predict_job.py       
+│   │   │   ├── risk_check_job.py       
+│   │   │   └── daily_report_job.py     
+│   │   ├── weekly/               # 每周任务
+│   │   │   ├── backtest_job.py         
+│   │   │   ├── model_retrain_job.py    
+│   │   │   └── performance_job.py      
+│   │   ├── monthly/              # 每月任务
+│   │   │   ├── portfolio_review_job.py 
+│   │   │   └── data_cleanup_job.py     
+│   │   └── intraday/             # 盘中任务
+│   │       ├── price_monitor_job.py    
+│   │       ├── position_check_job.py   
+│   │       └── alert_job.py            
+│   │
+│   ├── delayed/                  # 延迟任务（异步队列）
+│   │   ├── data_download_job.py        
+│   │   ├── backtest_heavy_job.py       
+│   │   ├── model_training_job.py       
+│   │   ├── report_generation_job.py    
+│   │   └── batch_calculation_job.py    
+│   │
+│   ├── event/                    # 事件驱动任务
+│   │   ├── signal_trigger_job.py       
+│   │   ├── order_fill_job.py           
+│   │   ├── risk_breach_job.py          
+│   │   └── price_alert_job.py          
+│   │
+│   └── pipeline/                 # 流水线任务（有依赖）
+│       ├── daily_pipeline.py           
+│       ├── weekly_pipeline.py          
+│       └── ondemand_pipeline.py        
+│
+├── services/                      # 服务层（业务逻辑 + 编排）
+│   ├── stock_service.py          # 股票业务
+│   ├── market_service.py         # 市场业务
+│   ├── strategy_service.py       # 策略业务
+│   ├── risk_service.py           # 风控业务
+│   ├── quant_service.py          # 量化能力服务
+│   └── scheduler_service.py      # 调度编排服务
+│
+├── adapters/                      # 适配器层（三方接口封装）
+│   ├── akshare_adapter.py        # AkShare适配器（校验 + 转换）
+│   ├── tushare_adapter.py        # TuShare适配器（校验 + 转换）
+│   └── wind_adapter.py           # Wind适配器（校验 + 转换）
+│
+├── repositories/                  # 仓储层（数据访问）
+│   ├── stock_repository.py       # 股票仓储（通用查询方法）
+│   ├── kline_repository.py       # K线仓储（通用查询方法）
+│   ├── factor_repository.py      # 因子仓储（通用查询方法）
+│   └── signal_repository.py      # 信号仓储（通用查询方法）
+│
+└── quant/                         # 量化引擎（独立领域能力）
+    ├── factors/                  # 因子计算
+    ├── strategies/               # 策略引擎
+    ├── backtest/                 # 回测引擎
+    └── ml/                       # 机器学习
+```
+
+### 2.3 通用方法原则示例
+
+#### ❌ 错误做法：为每个调用方写专用方法
+
+```python
+class StockRepository:
+    def get_stock_for_cli(self, symbol: str):
+        """CLI专用"""
+        return self.db.query("SELECT * FROM stocks WHERE symbol = ?", symbol)
+    
+    def get_stock_for_api(self, symbol: str):
+        """API专用"""
+        return self.db.query("SELECT * FROM stocks WHERE symbol = ?", symbol)
+    
+    def get_stock_for_scheduler(self, symbol: str):
+        """调度器专用"""
+        return self.db.query("SELECT * FROM stocks WHERE symbol = ?", symbol)
+```
+
+**问题**：
+- 🔴 重复代码：3个方法做同样的事
+- 🔴 维护困难：修改逻辑需要改3处
+- 🔴 命名混乱：方法名体现调用方而非业务意图
+
+#### ✅ 正确做法：提供通用方法，通过参数控制
+
+```python
+class StockRepository:
+    """股票仓储 - 提供通用查询方法"""
+    
+    def get_by_symbol(self, symbol: str, fields: List[str] = None) -> Dict:
+        """根据代码查询单只股票 - CLI/API/Scheduler都用这个方法"""
+        if fields:
+            field_str = ', '.join(fields)
+            return self.db.query(f"SELECT {field_str} FROM stocks WHERE symbol = ?", symbol)
+        else:
+            return self.db.query("SELECT * FROM stocks WHERE symbol = ?", symbol)
+    
+    def get_all(self, 
+                market: str = None, 
+                industry: str = None,
+                is_st: bool = None,
+                limit: int = None,
+                offset: int = None) -> List[Dict]:
+        """批量查询股票 - 通过参数控制筛选条件"""
+        query = "SELECT * FROM stocks WHERE 1=1"
+        params = []
+        
+        if market:
+            query += " AND market = ?"
+            params.append(market)
+        
+        if industry:
+            query += " AND industry = ?"
+            params.append(industry)
+        
+        if is_st is not None:
+            query += " AND is_st = ?"
+            params.append(is_st)
+        
+        if limit:
+            query += f" LIMIT {limit}"
+        
+        if offset:
+            query += f" OFFSET {offset}"
+        
+        return self.db.query(query, *params)
+    
+    def search(self, keyword: str, limit: int = 10) -> List[Dict]:
+        """搜索股票 - 支持代码和名称模糊查询"""
+        query = """
+            SELECT * FROM stocks 
+            WHERE symbol LIKE ? OR name LIKE ?
+            LIMIT ?
+        """
+        pattern = f"%{keyword}%"
+        return self.db.query(query, pattern, pattern, limit)
+    
+    def save(self, stock: Dict) -> None:
+        """保存股票信息 - 插入或更新"""
+        self.db.upsert('stocks', stock)
+```
+
+**优势**：
+- ✅ 一个查询需求 = 一个通用方法
+- ✅ 通过参数控制不同场景
+- ✅ 方法命名体现业务意图
+- ✅ 易于维护和扩展
+
+#### 调用示例
+
+```python
+# CLI层调用
+stock = stock_repository.get_by_symbol('600519')
+
+# API层调用（同一个方法）
+stock = stock_repository.get_by_symbol('600519', fields=['symbol', 'name', 'market'])
+
+# Scheduler层调用（同一个方法）
+stock = stock_repository.get_by_symbol('600519')
+
+# 不同的筛选需求，通过参数控制
+a_stocks = stock_repository.get_all(market='A')
+tech_stocks = stock_repository.get_all(industry='科技')
+non_st_stocks = stock_repository.get_all(is_st=False)
+top_10 = stock_repository.get_all(limit=10)
 ```
 
 ---
@@ -2228,37 +2402,144 @@ class RiskCheckException(QuantSysException):
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                     客户端层                              │
-│  TypeScript Tools │ CLI (Command模式) │ Scheduler        │
-└────────────────────┬────────────────────────────────────┘
-                     │ HTTP
-┌────────────────────▼────────────────────────────────────┐
-│                   Flask API层                            │
-│  统一参数验证 │ 统一错误处理 │ 统一响应格式               │
+│                  对外接口层（防腐层）                      │
+│  CLI │ API │ Scheduler                                   │
+│  (校验 + 转换)                                            │
 └────────────────────┬────────────────────────────────────┘
                      │
 ┌────────────────────▼────────────────────────────────────┐
 │                   服务层 (Service)                       │
-│  DataService │ FactorService │ StrategyService │ ...    │
+│  StockService │ MarketService │ StrategyService │ ...    │
+│  (业务逻辑 + 编排)                                        │
 └────────────────────┬────────────────────────────────────┘
                      │
-┌────────────────────▼────────────────────────────────────┐
-│                 仓库层 (Repository)                      │
-│  StockRepo │ KlineRepo │ FactorRepo │ SignalRepo        │
-└────────────────────┬────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────┐
+        ┌────────────┼────────────┐
+        ↓            ↓            ↓
+┌──────────┐  ┌──────────┐  ┌──────────┐
+│ 适配器层  │  │ 仓储层    │  │ 量化引擎  │
+│ Adapters │  │Repository│  │  Quant   │
+│(校验+转换)│  │(通用方法) │  │ (独立)   │
+└────┬─────┘  └────┬─────┘  └──────────┘
+     │             │
+     └──────┬──────┘
+            ↓
+┌─────────────────────────────────────────────────────────┐
 │                   存储层                                 │
-│  PostgreSQL │ CacheManager                              │
+│  PostgreSQL │ Cache                                     │
 └─────────────────────────────────────────────────────────┘
 ```
 
-**优势**:
+**核心原则**:
 - ✅ 清晰的分层架构
-- ✅ 统一的数据访问
+- ✅ 防腐层模式（所有对外层）
+- ✅ 通用方法原则（仓储层）
+- ✅ 按业务分类（不按调用方）
 - ✅ 易于测试和维护
 - ✅ 易于扩展新功能
 - ✅ 减少90%重复代码
+
+### 7.4 Scheduler抽象层设计
+
+#### 7.4.1 任务基类（BaseJob）
+
+```python
+from abc import ABC, abstractmethod
+from typing import Dict, Any
+
+class BaseJob(ABC):
+    """任务基类 - 模板方法模式"""
+    
+    def __init__(self, validator, transformer, logger):
+        self.validator = validator
+        self.transformer = transformer
+        self.logger = logger
+    
+    def execute(self, **params) -> Dict[str, Any]:
+        """模板方法 - 定义任务执行流程"""
+        try:
+            # 1. 参数校验
+            self.logger.info(f"开始执行任务: {self.__class__.__name__}")
+            validated_params = self.validator.validate(params, self.get_param_schema())
+            
+            # 2. 参数转换（调度层 → 服务层）
+            service_params = self.transformer.to_service_params(validated_params)
+            
+            # 3. 执行业务逻辑（子类实现）
+            result = self.run(service_params)
+            
+            # 4. 结果转换（服务层 → 调度层）
+            job_result = self.transformer.to_job_result(result)
+            
+            # 5. 记录日志
+            self.logger.info(f"任务执行成功: {self.__class__.__name__}")
+            return job_result
+            
+        except Exception as e:
+            self.logger.error(f"任务执行失败: {self.__class__.__name__}, 错误: {e}")
+            raise
+    
+    @abstractmethod
+    def run(self, params: Dict[str, Any]) -> Any:
+        """子类实现具体业务逻辑"""
+        pass
+    
+    @abstractmethod
+    def get_param_schema(self) -> Dict[str, Any]:
+        """子类定义参数校验规则"""
+        pass
+```
+
+#### 7.4.2 具体任务实现示例
+
+```python
+# scheduler/cron/daily/data_update_job.py
+
+from scheduler.core.base_job import BaseJob
+from scheduler.core.job_registry import JobRegistry
+from services.stock_service import StockService
+
+@JobRegistry.register(name='data_update', schedule='0 16 * * *')
+class DataUpdateJob(BaseJob):
+    """每日数据更新任务"""
+    
+    def __init__(self):
+        super().__init__(
+            validator=JobValidator(),
+            transformer=JobTransformer(),
+            logger=JobLogger('DataUpdateJob')
+        )
+        self.stock_service = StockService()
+    
+    def get_param_schema(self) -> Dict:
+        """定义参数校验规则"""
+        return {
+            'symbols': {
+                'required': False,
+                'type': list,
+                'validator': lambda x: all(isinstance(s, str) for s in x)
+            },
+            'days': {
+                'required': False,
+                'type': int,
+                'validator': lambda x: x > 0 and x <= 730
+            }
+        }
+    
+    def run(self, params: Dict) -> Any:
+        """执行业务逻辑 - 调用服务层"""
+        result = self.stock_service.update_market_data(
+            symbols=params.get('symbols'),
+            days=params.get('days', 1)
+        )
+        return result
+```
+
+**优势**:
+- ✅ 避免重复代码 - 校验、转换、日志逻辑复用
+- ✅ 统一流程 - 所有任务遵循相同的执行流程
+- ✅ 易于扩展 - 新增任务只需继承BaseJob
+- ✅ 易于测试 - 可以Mock validator、transformer
+- ✅ 任务注册 - 通过装饰器自动注册，支持动态发现
 
 ---
 
