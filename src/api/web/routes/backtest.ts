@@ -5,26 +5,18 @@ import { PythonBackendClient } from '../../../services/python/python-backend-cli
 const router = Router();
 const pythonClient = PythonBackendClient.getInstance();
 
-// POST /api/backtest/run - 运行回测
+// NEW: proxy to Python backend
 router.post('/run', requireOpsAuth(), async (req, res, next) => {
   try {
-    const { strategy_id, symbol, start_date, end_date, initial_capital = 100000 } = req.body;
-
-    if (!strategy_id || !symbol || !start_date || !end_date) {
-      res.status(400);
-      throw new Error('Missing required parameters: strategy_id, symbol, start_date, end_date');
-    }
-
-    // Proxy to Python backend
-    const result = await pythonClient.post('/api/backtest', req.body);
-
-    res.json({ success: true, data: result });
+    const data = await pythonClient.post('/api/backtest', req.body);
+    res.json(data);
   } catch (error) {
     next(error);
   }
 });
 
-/* LEGACY IMPLEMENTATION - Direct BacktestEngine usage
+// LEGACY: direct BacktestEngine usage - kept for rollback
+/*
 router.post('/run', requireOpsAuth(), async (req, res, next) => {
   try {
     const { strategy_id, symbol, start_date, end_date, initial_capital = 100000 } = req.body;
@@ -60,25 +52,18 @@ router.post('/run', requireOpsAuth(), async (req, res, next) => {
 });
 */
 
-// GET /api/backtest/results - 获取回测结果汇总
+// NEW: proxy to Python backend
 router.get('/results', async (req, res, next) => {
   try {
-    const symbol = typeof req.query.symbol === 'string' ? req.query.symbol : undefined;
-    const date = typeof req.query.date === 'string' ? req.query.date : undefined;
-
-    // Proxy to Python backend
-    const params: Record<string, string> = {};
-    if (symbol) params.symbol = symbol;
-    if (date) params.date = date;
-
-    const result = await pythonClient.get('/api/backtest/results', params);
-    res.json(result);
+    const data = await pythonClient.get('/api/backtest/results', req.query);
+    res.json(data);
   } catch (error) {
     next(error);
   }
 });
 
-/* LEGACY IMPLEMENTATION - Direct file system access
+// LEGACY: direct file system access - kept for rollback
+/*
 router.get('/results', async (req, res, next) => {
   try {
     const symbol = typeof req.query.symbol === 'string' ? req.query.symbol : undefined;
