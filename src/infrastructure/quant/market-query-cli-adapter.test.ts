@@ -9,6 +9,7 @@ await jest.unstable_mockModule("./quant-cli-client.js", () => ({
 }));
 
 const {
+  getIndexHistoryViaQuantCli,
   getMarketOverviewViaQuantCli,
   getSectorListViaQuantCli,
   getConceptStocksViaQuantCli,
@@ -37,7 +38,8 @@ describe("market-query-cli-adapter", () => {
       .mockResolvedValueOnce({ ok: true, command: "market.sector_flow", data: { count: 3 } })
       .mockResolvedValueOnce({ ok: true, command: "market.margin", data: { count: 4 } })
       .mockResolvedValueOnce({ ok: true, command: "market.news", data: { sources: [] } })
-      .mockResolvedValueOnce({ ok: true, command: "market.hot_stocks", data: { market: "港股" } });
+      .mockResolvedValueOnce({ ok: true, command: "market.hot_stocks", data: { market: "港股" } })
+      .mockResolvedValueOnce({ ok: true, command: "market.index_history", data: { success: true, data: [] } });
 
     expect(JSON.parse(await getMarketOverviewViaQuantCli())).toEqual({ indices: {} });
     expect(JSON.parse(await getSectorListViaQuantCli())).toEqual({ count: 1 });
@@ -49,6 +51,11 @@ describe("market-query-cli-adapter", () => {
     expect(JSON.parse(await getMarketMarginViaQuantCli())).toEqual({ count: 4 });
     expect(JSON.parse(await getMarketNewsViaQuantCli(9))).toEqual({ sources: [] });
     expect(JSON.parse(await getHotStocksViaQuantCli("港股"))).toEqual({ market: "港股" });
+    expect(JSON.parse(await getIndexHistoryViaQuantCli({
+      symbol: "sh000001",
+      start_date: "2026-01-01",
+      end_date: "2026-05-20",
+    }))).toEqual({ success: true, data: [] });
 
     expect(runQuantCliMock).toHaveBeenNthCalledWith(1, "market", "overview", {});
     expect(runQuantCliMock).toHaveBeenNthCalledWith(2, "market", "sectors", {});
@@ -60,6 +67,11 @@ describe("market-query-cli-adapter", () => {
     expect(runQuantCliMock).toHaveBeenNthCalledWith(8, "market", "margin", {});
     expect(runQuantCliMock).toHaveBeenNthCalledWith(9, "market", "news", { num: 9 });
     expect(runQuantCliMock).toHaveBeenNthCalledWith(10, "market", "hot-stocks", { market: "港股" });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(11, "market", "index-history", {
+      symbol: "sh000001",
+      start_date: "2026-01-01",
+      end_date: "2026-05-20",
+    });
   });
 
   test("returns stable JSON error when CLI call fails", async () => {

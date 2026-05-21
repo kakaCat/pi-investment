@@ -17,10 +17,27 @@ import logging
 import numpy as np
 import math
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from psycopg2.extras import RealDictCursor
 
 # JSON encoder to handle NaN values and date objects
+def sanitize_for_json(obj):
+    """递归清理对象中的 NaN 和 Infinity，使其可以被 JSON 序列化"""
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    elif isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [sanitize_for_json(item) for item in obj]
+    elif isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    elif hasattr(obj, 'isoformat'):
+        return obj.isoformat()
+    else:
+        return obj
+
 class NaNEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, float):
@@ -1065,6 +1082,32 @@ db_path = _project_db if _project_db.exists() else _home_db
 def init_services():
     """初始化服务"""
     global db, model, factor_calculator, feature_engineer
+
+    # 清理孤儿job（服务器重启前未完成的job）
+    try:
+        conn = _connect_postgres()
+        with conn.cursor() as cur:
+            # 查找所有状态为 created 或 running 的job（这些job在服务器重启后不会被执行）
+            cur.execute("""
+                SELECT COUNT(*) FROM quant.jobs
+                WHERE status IN ('created', 'running')
+            """)
+            orphaned_count = cur.fetchone()[0]
+
+            if orphaned_count > 0:
+                # 标记为失败
+                cur.execute("""
+                    UPDATE quant.jobs
+                    SET status = 'failed',
+                        error = '服务器重启导致任务未执行',
+                        finished_at = NOW()
+                    WHERE status IN ('created', 'running')
+                """)
+                conn.commit()
+                print(f"⚠️ Cleaned up {orphaned_count} orphaned jobs from previous server session")
+        conn.close()
+    except Exception as e:
+        print(f"⚠️ Failed to clean up orphaned jobs: {e}")
 
     # 尝试多个模型路径（优先加载新模型）
     model_paths = [
@@ -3074,34 +3117,22 @@ def risk_check():
 
 @app.route('/api/signals/generate', methods=['POST'])
 def generate_signals():
-    """生成交易信号（同步，写入 signals.json）"""
+    """生成交易信号（异步任务）"""
     try:
-        script_path = _scripts_dir / 'generate_signals.py'
-        if not script_path.exists():
-            return jsonify({'error': 'generate_signals.py not found'}), 500
+        data = request.get_json() or {}
+        job_id = _create_job('signal_generate', data)
 
-        result = subprocess.run(
-            [sys.executable, str(script_path)],
-            capture_output=True, text=True, timeout=600
-        )
-
-        # 读回生成的信号
-        signals_path = Path(__file__).parent.parent.parent / '.pi-invest' / 'signals.json'
-        signals_data = {}
-        if signals_path.exists():
-            with open(signals_path, 'r') as f:
-                signals_data = json.load(f)
+        # 在后台线程中执行
+        threading.Thread(
+            target=lambda: _run_signal_generate_job(job_id, data),
+            daemon=True
+        ).start()
 
         return jsonify({
-            'success': result.returncode == 0,
-            'stdout': result.stdout[-3000:],
-            'stderr': result.stderr[-1000:] if result.returncode != 0 else None,
-            'signals': signals_data.get('signals', []),
-            'summary': signals_data.get('summary', {})
+            'job_id': job_id,
+            'status': 'created',
+            'check_url': f'/api/jobs/{job_id}'
         })
-
-    except subprocess.TimeoutExpired:
-        return jsonify({'error': '信号生成超时（600s）'}), 500
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -3341,8 +3372,8 @@ def download_klines():
 
 def _execute_kline_download(symbols: list, period: str, days: int, market: str = None) -> dict:
     """执行K线数据下载（使用多数据源支持）"""
-    db_path = Path(__file__).parent.parent.parent / '.pi-invest' / 'stock-db' / 'stocks.db'
-    db = Database(str(db_path))
+    # 使用 PostgreSQL 连接
+    conn = _connect_postgres()
 
     # 初始化 DataService（支持多数据源自动降级）
     data_service = DataService(cache_enabled=False, validate_data=True)
@@ -3360,10 +3391,14 @@ def _execute_kline_download(symbols: list, period: str, days: int, market: str =
 
     # 分钟级数据暂时使用旧的 fetcher（待扩展 DataService 支持）
     if period in ['1min', '5min', '15min', '30min', '60min']:
+        # 对于分钟线，仍然使用 SQLite（待后续迁移）
+        db_path = Path(__file__).parent.parent.parent / '.pi-invest' / 'stock-db' / 'stocks.db'
+        db = Database(str(db_path))
         minute_period = period.replace('min', '')
         fetcher = MinuteKlineFetcher(db)
         result = fetcher.run(symbols=symbols, period=minute_period, market=market)
         db.close()
+        conn.close()
         return {
             'success': True,
             'period': period,
@@ -3375,54 +3410,83 @@ def _execute_kline_download(symbols: list, period: str, days: int, market: str =
         }
 
     # 日/周/月线数据使用 DataService（多数据源支持）
-    for symbol in symbols:
-        try:
-            # 使用 DataService 获取数据（自动尝试 Tushare -> AkShare）
-            df = data_service.get_daily_klines(
-                symbol=symbol,
-                start_date=start_date,
-                end_date=end_date,
-                adjust="qfq",
-                use_cache=False
-            )
+    try:
+        for symbol in symbols:
+            try:
+                # 使用 DataService 获取数据（自动尝试 Tushare -> AkShare）
+                print(f"[DEBUG] Fetching data for {symbol}...")
+                print(f"[DEBUG] Date range: {start_date} to {end_date}")
 
-            if df is not None and not df.empty:
-                # 存储到数据库
-                klines = []
-                for _, row in df.iterrows():
-                    try:
-                        klines.append({
-                            'symbol': symbol,
-                            'date': row['date'],  # 使用 'date' 而不是 'trade_date'
-                            'open': row.get('open'),
-                            'high': row.get('high'),
-                            'low': row.get('low'),
-                            'close': row.get('close'),
-                            'volume': row.get('volume', 0),
-                            'amount': row.get('amount', 0),
-                        })
-                    except KeyError as e:
-                        print(f"KeyError for {symbol}: {e}, available columns: {df.columns.tolist()}")
-                        raise
+                df = data_service.get_daily_klines(
+                    symbol=symbol,
+                    start_date=start_date,
+                    end_date=end_date,
+                    adjust="qfq",
+                    use_cache=False
+                )
 
-                if klines:
-                    db.upsert_daily_klines(klines)
+                import sys
+                print(f"[DEBUG] get_daily_klines returned, type: {type(df)}", flush=True)
+                sys.stdout.flush()
+                print(f"[DEBUG] df is None: {df is None}", flush=True)
+                sys.stdout.flush()
+                if df is not None:
+                    print(f"[DEBUG] df.empty: {df.empty}", flush=True)
+                    sys.stdout.flush()
+                    print(f"[DEBUG] len(df): {len(df)}", flush=True)
+                    sys.stdout.flush()
+                print(f"[DEBUG] Received {len(df) if df is not None else 0} rows for {symbol}", flush=True)
+                sys.stdout.flush()
+
+                if df is not None and not df.empty:
+                    print(f"[DEBUG] Writing {len(df)} rows to PostgreSQL for {symbol}...")
+                    # 存储到 PostgreSQL 数据库
+                    with conn.cursor() as cur:
+                        for _, row in df.iterrows():
+                            try:
+                                cur.execute("""
+                                    INSERT INTO quant.daily_klines
+                                    (symbol, trade_date, open, high, low, close, volume, amount)
+                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                    ON CONFLICT (symbol, trade_date)
+                                    DO UPDATE SET
+                                        open = EXCLUDED.open,
+                                        high = EXCLUDED.high,
+                                        low = EXCLUDED.low,
+                                        close = EXCLUDED.close,
+                                        volume = EXCLUDED.volume,
+                                        amount = EXCLUDED.amount
+                                """, (
+                                    symbol,
+                                    row['date'],
+                                    float(row.get('open')) if row.get('open') is not None else None,
+                                    float(row.get('high')) if row.get('high') is not None else None,
+                                    float(row.get('low')) if row.get('low') is not None else None,
+                                    float(row.get('close')) if row.get('close') is not None else None,
+                                    float(row.get('volume', 0)),
+                                    float(row.get('amount', 0))
+                                ))
+                            except Exception as e:
+                                print(f"Error inserting row for {symbol} on {row['date']}: {e}")
+                                raise
+
+                    conn.commit()
                     succeeded += 1
-                    total_rows += len(klines)
-                    print(f"✓ {symbol}: {len(klines)} rows")
-            else:
+                    total_rows += len(df)
+                    print(f"✓ {symbol}: {len(df)} rows written to PostgreSQL (commit successful)")
+                else:
+                    failed += 1
+                    failures.append({'symbol': symbol, 'error': 'No data returned'})
+                    print(f"✗ {symbol}: No data")
+
+            except Exception as exc:
                 failed += 1
-                failures.append({'symbol': symbol, 'error': 'No data returned'})
-                print(f"✗ {symbol}: No data")
-
-        except Exception as exc:
-            failed += 1
-            failures.append({'symbol': symbol, 'error': str(exc)})
-            print(f"✗ {symbol}: {exc}")
-            import traceback
-            traceback.print_exc()
-
-    db.close()
+                failures.append({'symbol': symbol, 'error': str(exc)})
+                print(f"✗ {symbol}: {exc}")
+                import traceback
+                traceback.print_exc()
+    finally:
+        conn.close()
 
     # 获取数据源健康状态
     health_status = data_service.get_health_status()
@@ -3674,9 +3738,40 @@ def trigger_ml_retrain():
                 symbols = data.get('symbols')
                 if symbols:
                     if isinstance(symbols, str):
-                        symbols = [symbols]
+                        # 分割逗号分隔的字符串
+                        symbols = [s.strip() for s in symbols.split(',') if s.strip()]
                     elif not isinstance(symbols, list):
                         symbols = None
+
+                # 检查并自动计算缺失的因子
+                if symbols:
+                    logger.info(f"检查因子数据: {symbols}")
+                    from quantsys.factors.factor_service import FactorService
+
+                    pg_config = {
+                        'dbname': os.environ.get('PGDATABASE', 'quant_investment'),
+                        'host': os.environ.get('PGHOST', 'localhost'),
+                        'port': os.environ.get('PGPORT', '5432'),
+                        'user': os.environ.get('PGUSER'),
+                        'password': os.environ.get('PGPASSWORD'),
+                    }
+
+                    factor_service = FactorService(pg_config=pg_config)
+                    latest_kline_date = factor_service.get_latest_kline_date()
+
+                    # 检查哪些股票缺少因子
+                    missing_symbols = []
+                    for symbol in symbols:
+                        if not factor_service.check_factors_exist(symbol, latest_kline_date):
+                            missing_symbols.append(symbol)
+
+                    # 自动计算缺失的因子
+                    if missing_symbols:
+                        logger.info(f"自动计算缺失因子: {missing_symbols}")
+                        factor_service.calculate_factors(symbols=missing_symbols, force=False)
+                        logger.info(f"因子计算完成")
+                    else:
+                        logger.info(f"所有股票因子已存在，跳过计算")
 
                 # 执行训练
                 service = MLTrainingService(conn)
@@ -3733,8 +3828,113 @@ def trigger_ml_retrain():
         return jsonify({'error': str(e)}), 500
 
 
+def _run_ml_retrain_job(job_id: str, data: dict):
+    """运行ML模型训练任务（服务端函数）"""
+    from quantsys.ml.training_service import MLTrainingService
+
+    conn = _connect_postgres()
+    try:
+        # 更新任务状态为 running
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE quant.jobs
+                SET status = 'running', started_at = NOW()
+                WHERE id = %s
+            """, (job_id,))
+        conn.commit()
+
+        # 解析参数
+        days = int(data.get('days', 180))
+        future_days = int(data.get('futureDays') or data.get('future_days', 5))
+        threshold = float(data.get('threshold', 0.05))
+        if threshold > 1:  # 如果是百分比形式
+            threshold = threshold / 100.0
+        model_type = data.get('model', 'xgboost')
+
+        symbols = data.get('symbols')
+        if symbols:
+            if isinstance(symbols, str):
+                symbols = [s.strip() for s in symbols.split(',') if s.strip()]
+            elif not isinstance(symbols, list):
+                symbols = None
+
+        # 检查并自动计算缺失的因子
+        if symbols:
+            logger.info(f"检查因子数据: {symbols}")
+            from quantsys.factors.factor_service import FactorService
+
+            pg_config = {
+                'dbname': os.environ.get('PGDATABASE', 'quant_investment'),
+                'host': os.environ.get('PGHOST', 'localhost'),
+                'port': os.environ.get('PGPORT', '5432'),
+                'user': os.environ.get('PGUSER'),
+                'password': os.environ.get('PGPASSWORD'),
+            }
+
+            factor_service = FactorService(pg_config=pg_config)
+            latest_kline_date = factor_service.get_latest_kline_date()
+
+            # 检查哪些股票缺少因子
+            missing_symbols = []
+            for symbol in symbols:
+                if not factor_service.check_factors_exist(symbol, latest_kline_date):
+                    missing_symbols.append(symbol)
+
+            # 自动计算缺失的因子
+            if missing_symbols:
+                logger.info(f"自动计算缺失因子: {missing_symbols}")
+                factor_service.calculate_factors(symbols=missing_symbols, force=False)
+                logger.info(f"因子计算完成")
+            else:
+                logger.info(f"所有股票因子已存在，跳过计算")
+
+        # 执行训练
+        service = MLTrainingService(conn)
+        data_df, labels_df = service.load_training_data(
+            days=days,
+            future_days=future_days,
+            return_threshold=threshold,
+            symbols=symbols
+        )
+
+        X, y, feature_names = service.prepare_features(data_df)
+
+        if model_type == 'xgboost':
+            report = service.train_xgboost(X, y, feature_names)
+        else:
+            raise ValueError(f"Unsupported model type: {model_type}")
+
+        # 保存训练报告
+        service.save_training_report(report, job_id)
+
+        # 更新任务状态为 success
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE quant.jobs
+                SET status = 'success', finished_at = NOW()
+                WHERE id = %s
+            """, (job_id,))
+        conn.commit()
+
+    except Exception as e:
+        # 回滚事务
+        conn.rollback()
+
+        # 更新任务状态为 failed
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE quant.jobs
+                SET status = 'failed', error = %s, finished_at = NOW()
+                WHERE id = %s
+            """, (str(e), job_id))
+        conn.commit()
+        logger.exception(f"Training job {job_id} failed")
+    finally:
+        conn.close()
+
+
 def _run_factor_compute_job(job_id: str, data: dict):
-    """运行因子计算任务（服务端函数）"""
+    """运行因子计算任务（服务端函数，支持并行处理）"""
     conn = _connect_postgres()
     try:
         # 更新任务状态为 running
@@ -3748,6 +3948,9 @@ def _run_factor_compute_job(job_id: str, data: dict):
 
         # 解析参数
         symbols = _normalize_symbols(data.get('symbols'))
+        parallel = data.get('parallel', True)  # 默认启用并行
+        max_workers = data.get('max_workers', 4)  # 默认4个线程
+        force = data.get('force', False)  # 默认增量计算（跳过已有）
 
         # 构建 PostgreSQL 配置
         pg_config = {
@@ -3759,8 +3962,44 @@ def _run_factor_compute_job(job_id: str, data: dict):
         }
 
         # 执行因子计算
-        service = FactorService(pg_config=pg_config)
-        result = service.calculate_factors(symbols=symbols)
+        if parallel and len(symbols) > 1:
+            # 并行处理多个股票
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            logger.info(f"并行计算 {len(symbols)} 只股票的因子（{max_workers} 线程）")
+
+            results = []
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # 为每个股票创建独立的服务实例
+                futures = {
+                    executor.submit(
+                        lambda s: FactorService(pg_config=pg_config).calculate_factors(symbols=[s], force=force),
+                        symbol
+                    ): symbol
+                    for symbol in symbols
+                }
+
+                for future in as_completed(futures):
+                    symbol = futures[future]
+                    try:
+                        result = future.result()
+                        results.append(result)
+                        logger.info(f"✓ {symbol} 计算完成")
+                    except Exception as e:
+                        logger.error(f"✗ {symbol} 计算失败: {e}")
+
+            # 合并结果
+            result = {
+                'success': True,
+                'total_symbols': len(symbols),
+                'completed': len(results),
+                'parallel': True
+            }
+        else:
+            # 串行处理
+            service = FactorService(pg_config=pg_config)
+            result = service.calculate_factors(symbols=symbols, force=force)
+            result['parallel'] = False
 
         # 更新任务状态为 success
         with conn.cursor() as cur:
@@ -3768,7 +4007,7 @@ def _run_factor_compute_job(job_id: str, data: dict):
                 UPDATE quant.jobs
                 SET status = 'success', result = %s, finished_at = NOW(), updated_at = NOW()
                 WHERE id = %s
-            """, (json.dumps(result, cls=NaNEncoder), job_id))
+            """, (json.dumps(sanitize_for_json(result)), job_id))
         conn.commit()
 
     except Exception as e:
@@ -3848,7 +4087,7 @@ def _run_signal_generate_job(job_id: str, data: dict):
                 UPDATE quant.jobs
                 SET status = 'success', result = %s, finished_at = NOW(), updated_at = NOW()
                 WHERE id = %s
-            """, (json.dumps(result, cls=NaNEncoder), job_id))
+            """, (json.dumps(sanitize_for_json(result)), job_id))
         conn.commit()
         conn.close()
 
@@ -3899,27 +4138,31 @@ def _run_backtest_job(job_id: str, data: dict):
             initial_capital=capital
         )
 
-        # 执行回测
+        # 执行回测（对每个股票运行所有策略）
         logger.info(f"开始回测: symbols={symbols}, days={days}")
 
-        if start_date and end_date:
-            report = backtester.run_backtest_by_date_range(
+        all_results = []
+        for symbol in symbols:
+            logger.info(f"回测股票: {symbol}")
+            results = backtester.run_all_backtests(
+                symbol=symbol,
                 start_date=start_date,
                 end_date=end_date,
-                symbols=symbols
+                days=days
             )
-        else:
-            report = backtester.run_backtest_by_days(
-                days=days,
-                symbols=symbols
-            )
+            all_results.extend(results)
 
-        logger.info(f"回测完成: 总收益率 {report.get('total_return', 0):.2%}")
+        # 对结果排名
+        ranked_results = backtester.rank_strategies(all_results)
+
+        logger.info(f"回测完成: 共 {len(all_results)} 个策略结果")
 
         # 构建结果
         result = {
             'success': True,
-            'report': report
+            'total_backtests': len(all_results),
+            'symbols': symbols,
+            'results': ranked_results[:10]  # 只返回前10个最佳策略
         }
 
         # 更新任务状态为 success
@@ -3929,7 +4172,7 @@ def _run_backtest_job(job_id: str, data: dict):
                 UPDATE quant.jobs
                 SET status = 'success', result = %s, finished_at = NOW(), updated_at = NOW()
                 WHERE id = %s
-            """, (json.dumps(result, cls=NaNEncoder), job_id))
+            """, (json.dumps(sanitize_for_json(result)), job_id))
         conn.commit()
         conn.close()
 

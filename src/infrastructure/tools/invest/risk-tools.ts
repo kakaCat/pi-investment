@@ -3,8 +3,12 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { callPython } from "../shared/python-caller.js";
 import { requireAshare } from "../shared/validators.js";
+import {
+  calculatePositionSizeViaQuantCli,
+  calculateStopLossViaQuantCli,
+  checkTradeRiskViaQuantCli,
+} from "../../quant/risk-query-cli-adapter.js";
 
 export const checkTradeRiskTool: ToolDefinition = {
   name: "check_trade_risk",
@@ -27,7 +31,7 @@ export const checkTradeRiskTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await callPython("check_trade_risk", params);
+    const result = await checkTradeRiskViaQuantCli(params);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -52,7 +56,7 @@ export const calculatePositionSizeTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await callPython("calculate_position_size", params);
+    const result = await calculatePositionSizeViaQuantCli(params);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -76,7 +80,7 @@ export const calculateStopLossTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await callPython("calculate_stop_loss", params);
+    const result = await calculateStopLossViaQuantCli(params);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };

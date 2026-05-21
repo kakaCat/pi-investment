@@ -1,8 +1,33 @@
-import { describe, it, expect } from '@jest/globals';
-import { FactorLibrary, type TechnicalIndicators } from './factor-library';
+import { beforeEach, describe, it, expect, jest } from '@jest/globals';
+import type { TechnicalIndicators } from './factor-library';
+
+const getStockHistoryViaQuantCliMock = jest.fn<
+  (params: { symbol: string; period?: string; start_date?: string; end_date?: string; limit?: number }) => Promise<string>
+>();
+
+await jest.unstable_mockModule('../../infrastructure/quant/stock-query-cli-adapter.js', () => ({
+  getAnnouncementsViaQuantCli: jest.fn(),
+  getBatchStockPricesViaQuantCli: jest.fn(),
+  getStockHistoryViaQuantCli: getStockHistoryViaQuantCliMock,
+  getStockInfoViaQuantCli: jest.fn(),
+  getStockListViaQuantCli: jest.fn(),
+  getStockNewsViaQuantCli: jest.fn(),
+  getStockPriceViaQuantCli: jest.fn(),
+}));
+
+const { FactorLibrary } = await import('./factor-library');
 
 describe('FactorLibrary', () => {
   const factorLib = new FactorLibrary();
+
+  beforeEach(() => {
+    factorLib.clearCache();
+    getStockHistoryViaQuantCliMock.mockReset();
+    getStockHistoryViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      error: 'No data',
+      data: [],
+    }));
+  });
 
   describe('calculateRSI', () => {
     it('should calculate RSI correctly for uptrend data', () => {
@@ -209,13 +234,18 @@ describe('FactorLibrary', () => {
     it('should calculate multiple indicators for multiple stocks', async () => {
       const symbols = ['000001', '000002'];
       const factors = ['ma5', 'ma20', 'rsi'];
+      getStockHistoryViaQuantCliMock.mockResolvedValue(JSON.stringify({
+        data: Array.from({ length: 30 }, (_, i) => ({
+          close: 10 + i,
+          high: 11 + i,
+          low: 9 + i,
+          volume: 1000 + i,
+        })),
+      }));
 
       const results = await factorLib.batchCalculate(symbols, factors);
 
-      // Without StockDBService, all stocks will fail gracefully
-      // The method should not throw, just return empty or partial results
-      expect(results.size).toBeGreaterThanOrEqual(0);
-      expect(results.size).toBeLessThanOrEqual(2);
+      expect(results.size).toBe(2);
     });
 
     it('should return empty map for empty symbols', async () => {
@@ -355,39 +385,47 @@ describe('FactorLibrary', () => {
   });
 
   describe('caching behavior', () => {
-    it('should use akshare-ts fallback when StockDBService not initialized', async () => {
-      // Without StockDBService, should fallback to akshare-ts
+    it('should use quant CLI fallback when StockDBService not initialized', async () => {
       const symbol = '000001';
       const date = '2024-01-01';
+      getStockHistoryViaQuantCliMock.mockResolvedValue(JSON.stringify({
+        data: [
+          { close: 10, high: 11, low: 9, volume: 1000 },
+          { close: 11, high: 12, low: 10, volume: 1100 },
+          { close: 12, high: 13, low: 11, volume: 1200 },
+          { close: 13, high: 14, low: 12, volume: 1300 },
+          { close: 14, high: 15, low: 13, volume: 1400 },
+        ],
+      }));
 
-      // This should now fallback to akshare-ts instead of throwing
-      // Note: In test environment, akshare-ts might also fail, but the fallback logic is tested
-      try {
-        const result = await factorLib.calculateMAForSymbol(symbol, 5, date);
-        // If it succeeds, it used the fallback
-        expect(typeof result).toBe('number');
-      } catch (error: any) {
-        // If it fails, it should be because akshare-ts also failed, not because of missing StockDBService
-        expect(error.message).not.toContain('StockDBService not initialized');
-      }
+      const result = await factorLib.calculateMAForSymbol(symbol, 5, date);
+
+      expect(getStockHistoryViaQuantCliMock).toHaveBeenCalledWith({
+        symbol,
+        period: 'daily',
+        end_date: date,
+        limit: 60,
+      });
+      expect(result).toBe(12);
     });
 
     it('should cache fallback results', async () => {
       const symbol = '000002';
       const date = '2024-01-01';
+      getStockHistoryViaQuantCliMock.mockResolvedValue(JSON.stringify({
+        data: Array.from({ length: 20 }, (_, i) => ({
+          close: 10 + i,
+          high: 11 + i,
+          low: 9 + i,
+          volume: 1000 + i,
+        })),
+      }));
 
-      try {
-        // First call - will try StockDBService, then fallback to akshare-ts
-        const result1 = await factorLib.calculateRSIForSymbol(symbol, 14, date);
+      const result1 = await factorLib.calculateRSIForSymbol(symbol, 14, date);
+      const result2 = await factorLib.calculateRSIForSymbol(symbol, 14, date);
 
-        // Second call - should use cache
-        const result2 = await factorLib.calculateRSIForSymbol(symbol, 14, date);
-
-        expect(result1).toBe(result2);
-      } catch (error) {
-        // Both data sources failed - acceptable in test environment
-        expect(error).toBeDefined();
-      }
+      expect(result1).toBe(result2);
+      expect(getStockHistoryViaQuantCliMock).toHaveBeenCalledTimes(1);
     });
   });
 

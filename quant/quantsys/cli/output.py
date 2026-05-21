@@ -2,10 +2,20 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 from typing import Any
 
 from .errors import CliError
+
+
+class _CliJsonEncoder(json.JSONEncoder):
+    """Custom encoder that converts date/datetime objects to ISO strings."""
+
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, (dt.date, dt.datetime)):
+            return obj.isoformat()
+        return super().default(obj)
 
 
 def success_payload(
@@ -47,6 +57,9 @@ def error_payload(command: str, error: CliError) -> dict[str, Any]:
 
 
 def print_json(payload: dict[str, Any]) -> None:
-    """Print compact UTF-8 JSON for agents."""
-    print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+    """Print compact UTF-8 JSON for agents.
+
+    Uses a custom encoder that converts date/datetime objects to ISO strings.
+    """
+    print(json.dumps(payload, ensure_ascii=False, separators=(",", ":"), cls=_CliJsonEncoder))
 

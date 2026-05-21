@@ -5,10 +5,21 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+# Load .env from project root to override inherited environment variables
+_ENV_PATH = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+if _ENV_PATH.exists():
+    with open(_ENV_PATH) as _ef:
+        for _line in _ef:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _key, _val = _line.split("=", 1)
+                os.environ[_key] = _val
 
 from api.quant_api import QuantAPI
 
@@ -27,10 +38,23 @@ from .context import CliContext, build_context
 from .errors import CliError, UnknownCommandError
 from .factor_decay import analyze_factor_decay
 from .factor_sector_analytics import analyze_factors, aggregate_sectors
+from .financial_query import (
+    get_financial_indicators,
+    get_financial_statements,
+    get_hk_analysis,
+    get_hk_financials,
+)
+from .hk_query import (
+    get_hk_hot_rank,
+    get_hk_market_overview,
+    get_hk_south_flow,
+    get_hk_technical,
+)
 from .market_query import (
     get_concept_list,
     get_concept_stocks,
     get_hot_stocks,
+    get_index_history,
     get_macro_data,
     get_market_margin,
     get_market_news,
@@ -43,8 +67,26 @@ from .output import error_payload, print_json, success_payload
 from .portfolio_analytics import compare_benchmark, optimize_portfolio
 from .registry import CommandRegistry, CommandSpec
 from .risk_watch_analytics import price_alert, stress_test
+from .risk_query import (
+    calculate_position_size,
+    calculate_stop_loss,
+    check_trade_risk,
+)
+from .screening_query import screen_stocks_by_sector, screen_stocks_quality
+from .sentiment_query import (
+    get_fund_holdings,
+    get_holder_changes,
+    get_insider_trades,
+    get_lhb,
+    get_margin_data,
+    get_stock_fund_flow,
+    get_top_fund_stocks,
+    get_top_holders,
+)
 from .stock_analytics import score_stock, screen_stocks
 from .stock_query import (
+    get_batch_stock_quotes,
+    get_stock_list,
     get_stock_announcements,
     get_stock_history,
     get_stock_info,
@@ -71,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
             python=parsed.pop("python", None),
         )
 
-        command_name = _command_name(parsed.pop("domain"), parsed.pop("action"))
+        command_name = _command_name(parsed.pop("domain"), parsed.pop("cli_action"))
         spec = registry.get(command_name)
         if not spec:
             raise UnknownCommandError(command_name)
@@ -251,6 +293,21 @@ def build_registry() -> CommandRegistry:
     )
     registry.register(
         CommandSpec(
+            name="market.index_history",
+            domain="market",
+            action="index-history",
+            description="Get historical OHLCV data for a major China index.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "start_date": {"type": "string", "required": True},
+                "end_date": {"type": "string", "required": True},
+            },
+            examples=["quant market +index-history --symbol sh000001 --start-date 2026-01-01 --end-date 2026-05-20 --json"],
+            handler=_handle_market_index_history,
+        )
+    )
+    registry.register(
+        CommandSpec(
             name="stock.klines",
             domain="stock",
             action="klines",
@@ -274,6 +331,17 @@ def build_registry() -> CommandRegistry:
             params={"symbol": {"type": "string", "required": True}},
             examples=["quant stock +quote --symbol 600519 --json"],
             handler=_handle_stock_quote,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="stock.batch_quotes",
+            domain="stock",
+            action="batch-quotes",
+            description="Get real-time prices for multiple A-share or HK stocks.",
+            params={"symbols": {"type": "array", "required": True}},
+            examples=["quant stock +batch-quotes --symbols 600519,000001 --json"],
+            handler=_handle_stock_batch_quotes,
         )
     )
     registry.register(
@@ -443,6 +511,38 @@ def build_registry() -> CommandRegistry:
     )
     registry.register(
         CommandSpec(
+            name="screening.sector",
+            domain="screening",
+            action="sector",
+            description="Screen stocks in an industry sector with optional ROE, PE, and limit filters.",
+            params={
+                "sector": {"type": "string", "required": True},
+                "min_roe": {"type": "number", "required": False},
+                "max_pe": {"type": "number", "required": False},
+                "limit": {"type": "integer", "required": False},
+            },
+            examples=["quant screening +sector --sector 白酒 --max-pe 30 --limit 20 --json"],
+            handler=_handle_screening_sector,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="screening.quality",
+            domain="screening",
+            action="quality",
+            description="Screen sector stocks and rank candidates by fundamental quality score.",
+            params={
+                "sector": {"type": "string", "required": True},
+                "min_score": {"type": "integer", "required": False},
+                "max_pe": {"type": "number", "required": False},
+                "limit": {"type": "integer", "required": False},
+            },
+            examples=["quant screening +quality --sector 白酒 --min-score 65 --max-pe 30 --limit 10 --json"],
+            handler=_handle_screening_quality,
+        )
+    )
+    registry.register(
+        CommandSpec(
             name="stock.technical",
             domain="stock",
             action="technical",
@@ -464,8 +564,9 @@ def build_registry() -> CommandRegistry:
             params={
                 "market": {"type": "string", "required": False},
                 "has_data": {"type": "boolean", "required": False},
+                "source": {"type": "string", "required": False},
             },
-            examples=["quant stock +list --market A --has-data --json"],
+            examples=["quant stock +list --market A --source live --json"],
             handler=_handle_stock_list,
         )
     )
@@ -721,6 +822,242 @@ def build_registry() -> CommandRegistry:
     )
     registry.register(
         CommandSpec(
+            name="risk.trade_check",
+            domain="risk",
+            action="trade-check",
+            description="Run pre-trade risk checks for one A-share order.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "action": {"type": "string", "required": True},
+                "price": {"type": "number", "required": True},
+                "shares": {"type": "integer", "required": True},
+            },
+            examples=["quant risk +trade-check --symbol 600519 --action buy --price 100 --shares 300 --json"],
+            handler=_handle_risk_trade_check,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="risk.position_size",
+            domain="risk",
+            action="position-size",
+            description="Calculate Kelly-style position size for one A-share trade idea.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "price": {"type": "number", "required": True},
+                "signal_strength": {"type": "number", "required": False},
+            },
+            examples=["quant risk +position-size --symbol 600519 --price 100 --signal-strength 0.8 --json"],
+            handler=_handle_risk_position_size,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="risk.stop_loss",
+            domain="risk",
+            action="stop-loss",
+            description="Calculate fixed or trailing stop-loss price for one A-share position.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "entry_price": {"type": "number", "required": True},
+                "current_price": {"type": "number", "required": False},
+                "highest_price": {"type": "number", "required": False},
+            },
+            examples=["quant risk +stop-loss --symbol 600519 --entry-price 90 --current-price 100 --highest-price 110 --json"],
+            handler=_handle_risk_stop_loss,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="hk.market_overview",
+            domain="hk",
+            action="market-overview",
+            description="Get real-time snapshots for major HK indices.",
+            params={},
+            examples=["quant hk +market-overview --json"],
+            handler=_handle_hk_market_overview,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="hk.south_flow",
+            domain="hk",
+            action="south-flow",
+            description="Get recent southbound capital flow data.",
+            params={},
+            examples=["quant hk +south-flow --json"],
+            handler=_handle_hk_south_flow,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="hk.technical",
+            domain="hk",
+            action="technical",
+            description="Run technical analysis for one HK stock.",
+            params={"symbol": {"type": "string", "required": True}},
+            examples=["quant hk +technical --symbol 9988 --json"],
+            handler=_handle_hk_technical,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="hk.hot_rank",
+            domain="hk",
+            action="hot-rank",
+            description="Get Eastmoney HK stock popularity ranking.",
+            params={},
+            examples=["quant hk +hot-rank --json"],
+            handler=_handle_hk_hot_rank,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="sentiment.stock_fund_flow",
+            domain="sentiment",
+            action="stock-fund-flow",
+            description="Get recent stock-level fund flow records.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "days": {"type": "integer", "required": False},
+            },
+            examples=["quant sentiment +stock-fund-flow --symbol 600519 --days 5 --json"],
+            handler=_handle_sentiment_stock_fund_flow,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="sentiment.lhb",
+            domain="sentiment",
+            action="lhb",
+            description="Get Dragon-Tiger List data by date or recent stock appearances.",
+            params={
+                "symbol": {"type": "string", "required": False},
+                "date": {"type": "string", "required": False},
+            },
+            examples=["quant sentiment +lhb --date 20260519 --json"],
+            handler=_handle_sentiment_lhb,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="sentiment.insider_trades",
+            domain="sentiment",
+            action="insider-trades",
+            description="Get recent insider trading records.",
+            params={"symbol": {"type": "string", "required": True}},
+            examples=["quant sentiment +insider-trades --symbol 600519 --json"],
+            handler=_handle_sentiment_insider_trades,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="sentiment.fund_holdings",
+            domain="sentiment",
+            action="fund-holdings",
+            description="Get funds holding one stock.",
+            params={"symbol": {"type": "string", "required": True}},
+            examples=["quant sentiment +fund-holdings --symbol 600519 --json"],
+            handler=_handle_sentiment_fund_holdings,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="sentiment.top_fund_stocks",
+            domain="sentiment",
+            action="top-fund-stocks",
+            description="Get top fund-heavy stocks if the upstream interface is available.",
+            params={},
+            examples=["quant sentiment +top-fund-stocks --json"],
+            handler=_handle_sentiment_top_fund_stocks,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="sentiment.top_holders",
+            domain="sentiment",
+            action="top-holders",
+            description="Get top 10 shareholders for one stock.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "date": {"type": "string", "required": False},
+            },
+            examples=["quant sentiment +top-holders --symbol 600519 --json"],
+            handler=_handle_sentiment_top_holders,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="sentiment.holder_changes",
+            domain="sentiment",
+            action="holder-changes",
+            description="Get recent shareholder count changes.",
+            params={"symbol": {"type": "string", "required": True}},
+            examples=["quant sentiment +holder-changes --symbol 600519 --json"],
+            handler=_handle_sentiment_holder_changes,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="sentiment.margin_data",
+            domain="sentiment",
+            action="margin-data",
+            description="Get recent stock-level margin financing and securities lending data.",
+            params={"symbol": {"type": "string", "required": True}},
+            examples=["quant sentiment +margin-data --symbol 600519 --json"],
+            handler=_handle_sentiment_margin_data,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="financial.indicators",
+            domain="financial",
+            action="indicators",
+            description="Get recent A-share financial ratios.",
+            params={"symbol": {"type": "string", "required": True}},
+            examples=["quant financial +indicators --symbol 600519 --json"],
+            handler=_handle_financial_indicators,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="financial.statements",
+            domain="financial",
+            action="statements",
+            description="Get A-share income, balance sheet, cashflow, or all statements.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "statement": {"type": "string", "required": False},
+                "recent_n": {"type": "integer", "required": False},
+            },
+            examples=["quant financial +statements --symbol 600519 --statement income --recent-n 4 --json"],
+            handler=_handle_financial_statements,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="financial.hk_financials",
+            domain="financial",
+            action="hk-financials",
+            description="Get HK stock annual income and balance-sheet summary.",
+            params={"symbol": {"type": "string", "required": True}},
+            examples=["quant financial +hk-financials --symbol 9988 --json"],
+            handler=_handle_financial_hk_financials,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="financial.hk_analysis",
+            domain="financial",
+            action="hk-analysis",
+            description="Get HK stock price, technical summary, and available financial data.",
+            params={"symbol": {"type": "string", "required": True}},
+            examples=["quant financial +hk-analysis --symbol 9988 --json"],
+            handler=_handle_financial_hk_analysis,
+        )
+    )
+    registry.register(
+        CommandSpec(
             name="trade.verify",
             domain="trade",
             action="verify",
@@ -772,7 +1109,7 @@ def parse_args(raw_args: list[str]) -> dict[str, Any]:
     """Parse the common `quant <domain> +<action>` command shape."""
     parser = argparse.ArgumentParser(prog="quant", add_help=True)
     parser.add_argument("domain")
-    parser.add_argument("action")
+    parser.add_argument("cli_action")
     parser.add_argument("name", nargs="?")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--db-path")
@@ -790,6 +1127,7 @@ def parse_args(raw_args: list[str]) -> dict[str, Any]:
     parser.add_argument("--signal-type")
     parser.add_argument("--min-confidence", type=float)
     parser.add_argument("--market")
+    parser.add_argument("--source")
     parser.add_argument("--has-data", action="store_true")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--days", type=int)
@@ -810,6 +1148,7 @@ def parse_args(raw_args: list[str]) -> dict[str, Any]:
     parser.add_argument("--signals-dir")
     parser.add_argument("--signals-json")
     parser.add_argument("--pe-max", type=float)
+    parser.add_argument("--max-pe", type=float, dest="max_pe")
     parser.add_argument("--pe-min", type=float)
     parser.add_argument("--pb-max", type=float)
     parser.add_argument("--pb-min", type=float)
@@ -837,6 +1176,7 @@ def parse_args(raw_args: list[str]) -> dict[str, Any]:
     parser.add_argument("--metric")
     parser.add_argument("--param-grid-json")
     parser.add_argument("--price", type=float)
+    parser.add_argument("--action")
     parser.add_argument("--above", type=float)
     parser.add_argument("--below", type=float)
     parser.add_argument("--change-pct", type=float)
@@ -853,6 +1193,13 @@ def parse_args(raw_args: list[str]) -> dict[str, Any]:
     parser.add_argument("--years", type=int)
     parser.add_argument("--buy-price", type=float)
     parser.add_argument("--shares", type=int)
+    parser.add_argument("--signal-strength", type=float)
+    parser.add_argument("--entry-price", type=float)
+    parser.add_argument("--highest-price", type=float)
+    parser.add_argument("--sector")
+    parser.add_argument("--min-roe", type=float)
+    parser.add_argument("--statement")
+    parser.add_argument("--recent-n", type=int)
 
     namespace = parser.parse_args(raw_args)
     parsed = vars(namespace)
@@ -929,6 +1276,13 @@ def _handle_market_hot_stocks(context: CliContext, params: dict[str, Any]) -> di
     return {"params": params, "data": get_hot_stocks(market=str(params.get("market") or "A股"))}
 
 
+def _handle_market_index_history(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    start_date = _require_param(params, "start_date")
+    end_date = _require_param(params, "end_date")
+    return {"params": params, "data": get_index_history(symbol, start_date, end_date)}
+
+
 def _handle_stock_klines(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
     symbol = _require_param(params, "symbol")
     data = QuantAPI().get_klines(
@@ -943,6 +1297,13 @@ def _handle_stock_klines(context: CliContext, params: dict[str, Any]) -> dict[st
 def _handle_stock_quote(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
     symbol = _require_param(params, "symbol")
     return {"params": params, "data": get_stock_quote(symbol)}
+
+
+def _handle_stock_batch_quotes(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbols = _parse_csv(params.get("symbols"))
+    if not symbols:
+        raise CliError("MISSING_PARAMETER", "Missing required parameter: symbols", exit_code=2)
+    return {"params": params, "data": get_batch_stock_quotes(symbols)}
 
 
 def _handle_stock_info(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
@@ -1034,6 +1395,32 @@ def _handle_analysis_peers(context: CliContext, params: dict[str, Any]) -> dict[
     return {"params": params, "data": compare_peers(symbol)}
 
 
+def _handle_screening_sector(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    sector = _require_param(params, "sector")
+    return {
+        "params": params,
+        "data": screen_stocks_by_sector(
+            sector,
+            min_roe=params.get("min_roe"),
+            max_pe=params.get("max_pe"),
+            limit=int(params.get("limit", 20)),
+        ),
+    }
+
+
+def _handle_screening_quality(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    sector = _require_param(params, "sector")
+    return {
+        "params": params,
+        "data": screen_stocks_quality(
+            sector,
+            min_score=int(params.get("min_score", 50)),
+            max_pe=params.get("max_pe"),
+            limit=int(params.get("limit", 10)),
+        ),
+    }
+
+
 def _handle_stock_technical(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
     symbol = _require_param(params, "symbol")
     indicators = _parse_csv(params.get("indicators"))
@@ -1046,6 +1433,12 @@ def _handle_stock_technical(context: CliContext, params: dict[str, Any]) -> dict
 
 
 def _handle_stock_list(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    if str(params.get("source") or "local").lower() == "live":
+        return {
+            "params": params,
+            "data": get_stock_list(market=str(params.get("market") or "A")),
+        }
+
     data = QuantAPI().get_stock_list(
         market=params.get("market"),
         has_data=bool(params.get("has_data", False)),
@@ -1206,6 +1599,145 @@ def _handle_stress_test(context: CliContext, params: dict[str, Any]) -> dict[str
     return {"params": params, "data": stress_test(context.output_dir, params)}
 
 
+def _handle_risk_trade_check(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    action = _require_param(params, "action")
+    price = params.get("price")
+    shares = params.get("shares")
+    if price is None:
+        raise CliError("MISSING_PARAMETER", "Missing required parameter: price", exit_code=2)
+    if shares is None:
+        raise CliError("MISSING_PARAMETER", "Missing required parameter: shares", exit_code=2)
+    return {
+        "params": params,
+        "data": check_trade_risk(symbol, action, float(price), int(shares)),
+    }
+
+
+def _handle_risk_position_size(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    price = params.get("price")
+    if price is None:
+        raise CliError("MISSING_PARAMETER", "Missing required parameter: price", exit_code=2)
+    return {
+        "params": params,
+        "data": calculate_position_size(
+            symbol,
+            float(price),
+            signal_strength=float(params.get("signal_strength", 1.0)),
+        ),
+    }
+
+
+def _handle_risk_stop_loss(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    entry_price = params.get("entry_price")
+    if entry_price is None:
+        raise CliError("MISSING_PARAMETER", "Missing required parameter: entry_price", exit_code=2)
+    return {
+        "params": params,
+        "data": calculate_stop_loss(
+            symbol,
+            float(entry_price),
+            current_price=params.get("current_price"),
+            highest_price=params.get("highest_price"),
+        ),
+    }
+
+
+def _handle_hk_market_overview(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    return {"params": params, "data": get_hk_market_overview()}
+
+
+def _handle_hk_south_flow(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    return {"params": params, "data": get_hk_south_flow()}
+
+
+def _handle_hk_technical(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    return {"params": params, "data": get_hk_technical(symbol)}
+
+
+def _handle_hk_hot_rank(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    return {"params": params, "data": get_hk_hot_rank()}
+
+
+def _handle_sentiment_stock_fund_flow(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    return {
+        "params": params,
+        "data": get_stock_fund_flow(symbol, days=int(params.get("days", 10))),
+    }
+
+
+def _handle_sentiment_lhb(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "params": params,
+        "data": get_lhb(
+            symbol=params.get("symbol"),
+            date=params.get("date"),
+        ),
+    }
+
+
+def _handle_sentiment_insider_trades(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    return {"params": params, "data": get_insider_trades(symbol)}
+
+
+def _handle_sentiment_fund_holdings(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    return {"params": params, "data": get_fund_holdings(symbol)}
+
+
+def _handle_sentiment_top_fund_stocks(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    return {"params": params, "data": get_top_fund_stocks()}
+
+
+def _handle_sentiment_top_holders(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    if params.get("date"):
+        return {"params": params, "data": get_top_holders(symbol, date=params.get("date"))}
+    return {"params": params, "data": get_top_holders(symbol)}
+
+
+def _handle_sentiment_holder_changes(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    return {"params": params, "data": get_holder_changes(symbol)}
+
+
+def _handle_sentiment_margin_data(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    return {"params": params, "data": get_margin_data(symbol)}
+
+
+def _handle_financial_indicators(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    return {"params": params, "data": get_financial_indicators(symbol)}
+
+
+def _handle_financial_statements(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    return {
+        "params": params,
+        "data": get_financial_statements(
+            symbol,
+            statement=str(params.get("statement") or "all"),
+            recent_n=int(params.get("recent_n", 8)),
+        ),
+    }
+
+
+def _handle_financial_hk_financials(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    return {"params": params, "data": get_hk_financials(symbol)}
+
+
+def _handle_financial_hk_analysis(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    return {"params": params, "data": get_hk_analysis(symbol)}
+
+
 def _handle_trade_verify(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
     return {"params": params, "data": verify_trades(context.output_dir, params)}
 
@@ -1247,7 +1779,10 @@ def _script_command_specs() -> list[CommandSpec]:
             description="Generate trading signals from latest factor values.",
             script=Path("scripts/generate_signals.py"),
             base_args=[],
-            params={},
+            params={
+                "date": "--date",
+                "symbols": "--symbols",
+            },
             examples=["quant signal +generate --json"],
         ),
         _script_spec(
@@ -1275,7 +1810,7 @@ def _script_command_specs() -> list[CommandSpec]:
             action="train",
             description="Train or retrain the signal model.",
             script=Path("scripts/ml_retrain.py"),
-            base_args=[],
+            base_args=["--json"],
             params={
                 "days": "--days",
                 "future_days": "--future-days",

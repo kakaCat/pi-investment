@@ -54,6 +54,41 @@ def get_market_overview() -> dict[str, Any]:
         return {"error": str(exc)}
 
 
+def get_index_history(symbol: str, start_date: str, end_date: str) -> dict[str, Any]:
+    """Return historical OHLCV data for a major China index."""
+    try:
+        _disable_proxy_env()
+        import akshare as ak
+
+        frame = ak.stock_zh_index_daily_tx(symbol=symbol)
+        if frame is None or frame.empty:
+            return {"success": False, "error": f"No data for index {symbol}", "data": []}
+
+        frame["date"] = frame["date"].astype(str)
+        filtered = frame[(frame["date"] >= start_date) & (frame["date"] <= end_date)]
+        if filtered.empty:
+            return {
+                "success": False,
+                "error": f"No data in date range {start_date} to {end_date}",
+                "data": [],
+            }
+
+        records = [
+            {
+                "date": str(row["date"]),
+                "open": _safe_float(row.get("open", 0)),
+                "high": _safe_float(row.get("high", 0)),
+                "low": _safe_float(row.get("low", 0)),
+                "close": _safe_float(row.get("close", 0)),
+                "volume": _safe_float(row.get("amount", 0)),
+            }
+            for _, row in filtered.iterrows()
+        ]
+        return {"success": True, "data": records}
+    except Exception as exc:
+        return {"success": False, "error": str(exc), "data": []}
+
+
 def get_sector_list() -> dict[str, Any]:
     """Return A-share industry sector list."""
     try:

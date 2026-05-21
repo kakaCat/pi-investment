@@ -43,6 +43,7 @@ import { riskTools } from "./invest/risk-tools.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./memory-tool.js";
+export { initRestartAgentTool } from "./restart-agent-tool.js";
 
 /**
  * 内置工具列表

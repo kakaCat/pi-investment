@@ -9,6 +9,8 @@ await jest.unstable_mockModule("./quant-cli-client.js", () => ({
 }));
 
 const {
+  getBatchStockPricesViaQuantCli,
+  getStockListViaQuantCli,
   getStockInfoViaQuantCli,
   getStockPriceViaQuantCli,
   getStockHistoryViaQuantCli,
@@ -27,7 +29,9 @@ describe("stock-query-cli-adapter", () => {
       .mockResolvedValueOnce({ ok: true, command: "stock.quote", data: { price: 100.5 } })
       .mockResolvedValueOnce({ ok: true, command: "stock.history", data: { count: 30 } })
       .mockResolvedValueOnce({ ok: true, command: "stock.news", data: { count: 5 } })
-      .mockResolvedValueOnce({ ok: true, command: "stock.announcements", data: { count: 1 } });
+      .mockResolvedValueOnce({ ok: true, command: "stock.announcements", data: { count: 1 } })
+      .mockResolvedValueOnce({ ok: true, command: "stock.batch_quotes", data: { prices: { "600519": 100.5 } } })
+      .mockResolvedValueOnce({ ok: true, command: "stock.list", data: { stocks: [{ code: "600519" }] } });
 
     expect(JSON.parse(await getStockInfoViaQuantCli("600519"))).toEqual({ symbol: "600519" });
     expect(JSON.parse(await getStockPriceViaQuantCli("600519"))).toEqual({ price: 100.5 });
@@ -39,6 +43,8 @@ describe("stock-query-cli-adapter", () => {
     }))).toEqual({ count: 30 });
     expect(JSON.parse(await getStockNewsViaQuantCli("600519", 5))).toEqual({ count: 5 });
     expect(JSON.parse(await getAnnouncementsViaQuantCli("600519"))).toEqual({ count: 1 });
+    expect(JSON.parse(await getBatchStockPricesViaQuantCli(["600519"]))).toEqual({ prices: { "600519": 100.5 } });
+    expect(JSON.parse(await getStockListViaQuantCli("A"))).toEqual({ stocks: [{ code: "600519" }] });
 
     expect(runQuantCliMock).toHaveBeenNthCalledWith(1, "stock", "info", { symbol: "600519" });
     expect(runQuantCliMock).toHaveBeenNthCalledWith(2, "stock", "quote", { symbol: "600519" });
@@ -54,6 +60,13 @@ describe("stock-query-cli-adapter", () => {
     });
     expect(runQuantCliMock).toHaveBeenNthCalledWith(5, "stock", "announcements", {
       symbol: "600519",
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(6, "stock", "batch-quotes", {
+      symbols: ["600519"],
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(7, "stock", "list", {
+      market: "A",
+      source: "live",
     });
   });
 

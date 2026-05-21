@@ -53,20 +53,32 @@ class KlineFetcher:
         symbols: list[str] | None = None,
         days: int = 730,
         market: str | None = None,
+        period: str = "daily",
     ) -> KlineFetchResult:
-        """Batch update recent daily klines for the requested symbols."""
+        """Batch update recent klines for the requested symbols.
+
+        Args:
+            symbols: List of stock symbols to fetch. If None, fetch all symbols.
+            days: Number of days to fetch (for daily/weekly/monthly periods)
+            market: Market filter ('A', 'HK', etc.)
+            period: Period type - 'daily', 'weekly', or 'monthly'
+        """
+        if period not in ("daily", "weekly", "monthly"):
+            raise ValueError(f"period must be 'daily', 'weekly', or 'monthly', got {period}")
+
         target_symbols = symbols or self.db.get_all_symbols(market)
         total = len(target_symbols)
         success = 0
         failures = []
 
-        print(f"[Klines] 开始更新 {total} 只股票的K线数据...")
+        period_cn = {"daily": "日线", "weekly": "周线", "monthly": "月线"}[period]
+        print(f"[Klines] 开始更新 {total} 只股票的{period_cn}数据...")
 
         for index, symbol in enumerate(target_symbols, start=1):
             try:
-                count = self._update_symbol(symbol, days)
+                count = self._update_symbol(symbol, days, period)
                 success += 1
-                print(f"[{index}/{total}] {symbol} 更新 {count} 条")
+                print(f"[{index}/{total}] {symbol} 更新 {count} 条 ({period_cn})")
             except Exception as exc:
                 failures.append({"symbol": symbol, "error": str(exc)})
                 print(f"[{index}/{total}] {symbol} 失败: {exc}")
@@ -79,10 +91,10 @@ class KlineFetcher:
             failures=failures,
         )
 
-    def _update_symbol(self, symbol: str, days: int) -> int:
-        """Fetch one symbol's recent daily history and upsert it into the database."""
+    def _update_symbol(self, symbol: str, days: int, period: str = "daily") -> int:
+        """Fetch one symbol's recent history and upsert it into the database."""
         market = self._resolve_market(symbol)
-        frame = self._fetch_history(symbol=symbol, market=market, days=days)
+        frame = self._fetch_history(symbol=symbol, market=market, days=days, period=period)
         if frame.empty:
             return 0
 
@@ -125,8 +137,8 @@ class KlineFetcher:
         except Exception as exc:
             raise RuntimeError(f"{symbol} K线写入数据库失败: {exc}") from exc
 
-    def _fetch_history(self, symbol: str, market: str, days: int) -> pd.DataFrame:
-        """Fetch the symbol's daily kline history for the requested date range.
+    def _fetch_history(self, symbol: str, market: str, days: int, period: str = "daily") -> pd.DataFrame:
+        """Fetch the symbol's kline history for the requested date range and period.
 
         Priority: East Money (ak.stock_zh_a_hist) -> Tencent (ak.stock_zh_a_hist_tx)
         East Money is preferred because it includes volume/amount columns.
@@ -134,6 +146,12 @@ class KlineFetcher:
         Note: Tencent source has different column format:
         - 'amount' in Tencent = volume (成交量)
         - No separate amount (成交额) column
+
+        Args:
+            symbol: Stock symbol
+            market: Market type ('A', 'HK', etc.)
+            days: Number of days to fetch
+            period: Period type - 'daily', 'weekly', or 'monthly'
         """
         end_date = datetime.now().strftime("%Y%m%d")
         start_date = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
@@ -141,7 +159,7 @@ class KlineFetcher:
         if market == "HK":
             return ak.stock_hk_hist(
                 symbol=symbol,
-                period="daily",
+                period=period,
                 start_date=start_date,
                 end_date=end_date,
                 adjust="qfq",
@@ -151,7 +169,7 @@ class KlineFetcher:
         try:
             return ak.stock_zh_a_hist(
                 symbol=symbol,
-                period="daily",
+                period=period,
                 start_date=start_date,
                 end_date=end_date,
                 adjust="qfq",

@@ -8,7 +8,10 @@
  */
 
 import { StockDBService } from './stock-db-service.js';
-import { callPython } from '../../infrastructure/akshare-ts/index.js';
+import {
+  getBatchStockPricesViaQuantCli,
+  getStockPriceViaQuantCli,
+} from '../../infrastructure/quant/stock-query-cli-adapter.js';
 
 export interface PriceResult {
   symbol: string;
@@ -108,7 +111,7 @@ export class PriceService {
     const result = new Map<string, number>();
 
     try {
-      const raw = await callPython('get_batch_realtime_prices', { symbols });
+      const raw = await getBatchStockPricesViaQuantCli(symbols);
       const data = JSON.parse(raw);
 
       if (data.prices && typeof data.prices === 'object') {
@@ -149,7 +152,7 @@ export class PriceService {
    */
   private async fetchSinglePriceFromAPI(symbol: string): Promise<number | null> {
     try {
-      const raw = await callPython('get_stock_realtime_price', { symbol });
+      const raw = await getStockPriceViaQuantCli(symbol);
       const data = JSON.parse(raw);
 
       if (data.price && typeof data.price === 'number' && data.price > 0) {

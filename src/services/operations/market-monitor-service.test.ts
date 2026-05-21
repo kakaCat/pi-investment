@@ -1,5 +1,30 @@
-import { describe, expect, test } from "@jest/globals";
-import { AlertDeduper, isWithinTradingHours } from "./market-monitor-service.js";
+import { describe, expect, jest, test, beforeEach } from "@jest/globals";
+
+const getStockPriceViaQuantCliMock = jest.fn<(symbol: string) => Promise<string>>();
+const getSessionMock = jest.fn<() => Promise<{ prompt: (context: string) => Promise<void> }>>();
+const getWithPnLMock = jest.fn<() => Promise<{ holdings: any[] }>>();
+
+await jest.unstable_mockModule("../../infrastructure/quant/stock-query-cli-adapter.js", () => ({
+  getAnnouncementsViaQuantCli: jest.fn(),
+  getBatchStockPricesViaQuantCli: jest.fn(),
+  getStockPriceViaQuantCli: getStockPriceViaQuantCliMock,
+  getStockNewsViaQuantCli: jest.fn(),
+  getStockHistoryViaQuantCli: jest.fn(),
+  getStockInfoViaQuantCli: jest.fn(),
+  getStockListViaQuantCli: jest.fn(),
+}));
+
+await jest.unstable_mockModule("../../core/agent/agent-loop.js", () => ({
+  getSession: getSessionMock,
+}));
+
+await jest.unstable_mockModule("../portfolio/portfolio-service.js", () => ({
+  PortfolioService: jest.fn().mockImplementation(() => ({
+    getWithPnL: getWithPnLMock,
+  })),
+}));
+
+const { AlertDeduper, MarketMonitorService, isWithinTradingHours } = await import("./market-monitor-service.js");
 
 describe("market monitor guards", () => {
   test("allows trading time in weekday 09:30-15:00 Asia/Shanghai", () => {
@@ -26,5 +51,32 @@ describe("AlertDeduper", () => {
 
     expect(deduper.shouldNotify("600519", t20m)).toBe(false);
     expect(deduper.shouldNotify("600519", t31m)).toBe(true);
+  });
+});
+
+describe("MarketMonitorService", () => {
+  beforeEach(() => {
+    getStockPriceViaQuantCliMock.mockReset();
+    getSessionMock.mockReset();
+    getWithPnLMock.mockReset();
+  });
+
+  test("fetches holding quotes through quant CLI before agent analysis", async () => {
+    const prompt = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    getSessionMock.mockResolvedValue({ prompt });
+    getWithPnLMock.mockResolvedValue({
+      holdings: [{ symbol: "600519", name: "贵州茅台", quantity: 100, cost: 100 }],
+    });
+    getStockPriceViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      name: "贵州茅台",
+      price: 100,
+      change_pct: 4,
+      volume: 1000,
+    }));
+
+    await new MarketMonitorService().tick();
+
+    expect(getStockPriceViaQuantCliMock).toHaveBeenCalledWith("600519");
+    expect(prompt).toHaveBeenCalledWith(expect.stringContaining("贵州茅台"));
   });
 });

@@ -1,5 +1,5 @@
 import { StockDBService } from '../data/stock-db-service.js';
-import { get_stock_history } from '../../infrastructure/akshare-ts/index.js';
+import { getStockHistoryViaQuantCli } from '../../infrastructure/quant/stock-query-cli-adapter.js';
 
 export interface TechnicalIndicators {
   rsi: number;
@@ -54,7 +54,7 @@ export class FactorLibrary {
   }
 
   /**
-   * Get K-line data with fallback to akshare-ts
+   * Get K-line data with fallback to quant CLI
    * @param symbol Stock symbol
    * @param date Optional date
    * @returns K-line data arrays
@@ -83,9 +83,14 @@ export class FactorLibrary {
         volumes: klines.map(k => k.volume)
       };
     } catch (error) {
-      // Fallback to akshare-ts
-      console.log(`[FactorLibrary] Falling back to akshare-ts for ${symbol}, DB error: ${error}`);
-      const historyJson = await get_stock_history(symbol, 'daily', undefined, date);
+      // Fallback to quant CLI
+      console.log(`[FactorLibrary] Falling back to quant CLI for ${symbol}, DB error: ${error}`);
+      const historyJson = await getStockHistoryViaQuantCli({
+        symbol,
+        period: 'daily',
+        end_date: date,
+        limit: 60,
+      });
       const historyData = JSON.parse(historyJson);
 
       // Support both legacy `data` field and new `recent_data` field

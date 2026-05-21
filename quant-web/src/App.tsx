@@ -18,6 +18,7 @@ const MENU_KEYS = [
   'training',
   'model-training',
   'stock-list',
+  'stock-management',
   'ops'
 ] as const
 
@@ -33,6 +34,7 @@ const BacktestDashboard = lazy(() => import('./components/BacktestDashboard'))
 const QuantPipeline = lazy(() => import('./components/QuantPipeline'))
 const TrainingHistory = lazy(() => import('./components/TrainingHistory'))
 const StockList = lazy(() => import('./components/StockList'))
+const StockManagement = lazy(() => import('./components/StockManagement'))
 const ModelTraining = lazy(() => import('./components/ModelTraining'))
 const OpsCenter = lazy(() => import('./components/OpsCenter'))
 
@@ -73,6 +75,8 @@ function App() {
         return <ModelTraining />
       case 'stock-list':
         return <StockList />
+      case 'stock-management':
+        return <StockManagement />
       case 'ops':
         return <OpsCenter />
       default:
@@ -160,6 +164,11 @@ function App() {
           key: 'stock-list',
           icon: <DatabaseOutlined />,
           label: '股票列表'
+        },
+        {
+          key: 'stock-management',
+          icon: <StockOutlined />,
+          label: '股票管理'
         }
       ]
     },

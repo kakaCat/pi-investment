@@ -32,6 +32,12 @@ const PROJECT_ROOT = join(__dirname, "..", "..", "..");
 const RESTART_DIR = join(PROJECT_ROOT, ".restart");
 const CONTEXT_FILE = join(RESTART_DIR, "context.json");
 
+let currentSession: any = null;
+
+export function initRestartAgentTool(session: any): void {
+  currentSession = session;
+}
+
 interface RestartTerminalStreams {
   stdin?: {
     isTTY?: boolean;
@@ -52,6 +58,46 @@ interface RestartExecPlanInput {
 interface RestartExecPlan {
   file: string;
   args: string[];
+}
+
+interface RestartContextMessage {
+  role: string;
+  content: string;
+  timestamp: string;
+}
+
+interface BuildRestartContextInput {
+  cwd: string;
+  prevSessionKey: string;
+  conversationMessages: RestartContextMessage[];
+  sdkSessionFile?: string;
+  sdkSessionId?: string;
+  env: {
+    NODE_ENV: string;
+    BACKGROUND_MODE: string;
+  };
+}
+
+export function buildRestartContext(input: BuildRestartContextInput) {
+  return {
+    timestamp: new Date().toISOString(),
+    cwd: input.cwd,
+    reason: "user_requested_restart",
+    prevSessionKey: input.prevSessionKey,
+    sdkSessionFile: input.sdkSessionFile,
+    sdkSessionId: input.sdkSessionId,
+    conversationMessageCount: input.conversationMessages.length,
+    messages: input.conversationMessages.slice(-50),
+    env: input.env,
+  };
+}
+
+function getCurrentSessionInfo(): { sessionFile?: string; sessionId?: string } {
+  if (!currentSession) return {};
+  return {
+    sessionFile: currentSession.sessionFile ?? currentSession.sessionManager?.getSessionFile?.(),
+    sessionId: currentSession.sessionId ?? currentSession.sessionManager?.getSessionId?.(),
+  };
 }
 
 /**
@@ -190,18 +236,18 @@ export const restartAgentTool: ToolDefinition = {
         const prevSessionKey = getSessionKey();
         const conversationMessages = getConversationMessages();
 
-        const context = {
-          timestamp: new Date().toISOString(),
+        const currentSession = getCurrentSessionInfo();
+        const context = buildRestartContext({
           cwd: process.cwd(),
-          reason: "user_requested_restart",
           prevSessionKey,
-          conversationMessageCount: conversationMessages.length,
-          messages: conversationMessages.slice(-50), // 保留最近 50 条消息
+          conversationMessages,
+          sdkSessionFile: currentSession.sessionFile,
+          sdkSessionId: currentSession.sessionId,
           env: {
             NODE_ENV: process.env.NODE_ENV || "development",
             BACKGROUND_MODE: process.env.BACKGROUND_MODE || "false",
           },
-        };
+        });
 
         writeFileSync(CONTEXT_FILE, JSON.stringify(context, null, 2), "utf-8");
       } catch (e) {

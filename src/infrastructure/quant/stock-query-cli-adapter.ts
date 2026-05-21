@@ -8,12 +8,20 @@ export interface StockHistoryCliParams {
   limit?: number;
 }
 
+export async function getStockListViaQuantCli(market: string = "A"): Promise<string> {
+  return runStockQuery("list", compactParams({ market, source: "live" }));
+}
+
 export async function getStockInfoViaQuantCli(symbol: string): Promise<string> {
   return runStockQuery("info", { symbol });
 }
 
 export async function getStockPriceViaQuantCli(symbol: string): Promise<string> {
   return runStockQuery("quote", { symbol });
+}
+
+export async function getBatchStockPricesViaQuantCli(symbols: string[]): Promise<string> {
+  return runStockQuery("batch-quotes", { symbols });
 }
 
 export async function getStockHistoryViaQuantCli(params: StockHistoryCliParams): Promise<string> {

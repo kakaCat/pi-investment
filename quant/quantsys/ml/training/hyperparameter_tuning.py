@@ -1,13 +1,21 @@
 """
 Hyperparameter tuning using Optuna for Bayesian optimization.
 """
-import optuna
 import numpy as np
 from typing import Dict, Any, Callable, Optional
 import logging
 from sklearn.model_selection import cross_val_score
 
 logger = logging.getLogger(__name__)
+
+# Lazy import to avoid blocking training when optuna is not installed and tuning is not needed
+_optuna = None
+
+def _get_optuna():
+    global _optuna
+    if _optuna is None:
+        import optuna as _optuna
+    return _optuna
 
 
 class HyperparameterTuner:
@@ -74,6 +82,7 @@ class HyperparameterTuner:
             return scores.mean()
 
         # Create study
+        optuna = _get_optuna()
         self.study = optuna.create_study(
             direction='maximize',
             sampler=optuna.samplers.TPESampler(seed=42)
@@ -151,6 +160,7 @@ class HyperparameterTuner:
             return scores.mean()
 
         # Create study
+        optuna = _get_optuna()
         self.study = optuna.create_study(
             direction='maximize',
             sampler=optuna.samplers.TPESampler(seed=42)
@@ -209,7 +219,7 @@ class HyperparameterTuner:
         try:
             import matplotlib.pyplot as plt
 
-            fig = optuna.visualization.matplotlib.plot_optimization_history(self.study)
+            fig = _get_optuna().visualization.matplotlib.plot_optimization_history(self.study)
             if save_path:
                 plt.savefig(save_path)
                 logger.info(f"Optimization history saved to {save_path}")
@@ -227,7 +237,7 @@ class HyperparameterTuner:
         try:
             import matplotlib.pyplot as plt
 
-            fig = optuna.visualization.matplotlib.plot_param_importances(self.study)
+            fig = _get_optuna().visualization.matplotlib.plot_param_importances(self.study)
             if save_path:
                 plt.savefig(save_path)
                 logger.info(f"Parameter importances saved to {save_path}")

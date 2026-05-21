@@ -8,7 +8,13 @@
  */
 import type { ToolDefinition } from "./index.js";
 import { Type } from "@sinclair/typebox";
-import { callPython } from "./invest-tools.js";
+import {
+  getHotStocksViaQuantCli,
+  getMacroDataViaQuantCli,
+  getMarketMarginViaQuantCli,
+  getMarketOverviewViaQuantCli,
+  getNorthFlowViaQuantCli,
+} from "../quant/market-query-cli-adapter.js";
 
 /**
  * Calculate a composite sentiment score from individual indicators.
@@ -119,11 +125,11 @@ export const testMarketSentimentTool: ToolDefinition = {
     try {
       // ── Fetch all sentiment data in parallel ──
       const [northFlowResult, marginResult, macroResult, marketOverviewResult, hotStocksResult] = await Promise.all([
-        callPython("get_north_flow", {}).catch(() => null),
-        callPython("get_market_margin", {}).catch(() => null),
-        callPython("get_macro_data", {}).catch(() => null),
-        callPython("get_market_overview", {}).catch(() => null),
-        callPython("get_hot_stocks", {}).catch(() => null),
+        getNorthFlowViaQuantCli().catch(() => null),
+        getMarketMarginViaQuantCli().catch(() => null),
+        getMacroDataViaQuantCli().catch(() => null),
+        getMarketOverviewViaQuantCli().catch(() => null),
+        getHotStocksViaQuantCli().catch(() => null),
       ]);
 
       const northFlowData = northFlowResult ? JSON.parse(northFlowResult) : null;

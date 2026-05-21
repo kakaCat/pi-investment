@@ -21,6 +21,7 @@ export class MemoryStorage implements IStorage {
     this.cleanupTimer = setInterval(() => {
       this.cleanup().catch(console.error);
     }, 60000);
+    this.cleanupTimer.unref();
   }
 
   async get<T>(key: string): Promise<T | null> {

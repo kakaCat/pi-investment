@@ -1,14 +1,28 @@
-import { describe, expect, test, beforeEach } from "@jest/globals";
+import { describe, expect, jest, test, beforeEach } from "@jest/globals";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { OrderService } from "./order-service.js";
+import type { OrderService as OrderServiceType } from "./order-service.js";
+
+const getStockPriceViaQuantCliMock = jest.fn<(symbol: string) => Promise<string>>();
+
+await jest.unstable_mockModule("../infrastructure/quant/stock-query-cli-adapter.js", () => ({
+  getAnnouncementsViaQuantCli: jest.fn(),
+  getBatchStockPricesViaQuantCli: jest.fn(),
+  getStockHistoryViaQuantCli: jest.fn(),
+  getStockInfoViaQuantCli: jest.fn(),
+  getStockListViaQuantCli: jest.fn(),
+  getStockNewsViaQuantCli: jest.fn(),
+  getStockPriceViaQuantCli: getStockPriceViaQuantCliMock,
+}));
+
+const { OrderService } = await import("./order-service.js");
 import { PortfolioService } from "./portfolio/portfolio-service.js";
 import { TradeService } from "./portfolio/trade-service.js";
 
 describe("OrderService - High-level business methods", () => {
   let testDir: string;
-  let orderService: OrderService;
+  let orderService: OrderServiceType;
   let portfolioService: PortfolioService;
   let tradeService: TradeService;
 
@@ -19,6 +33,7 @@ describe("OrderService - High-level business methods", () => {
     tradeService = new TradeService(testDir);
     orderService.setServices(portfolioService, tradeService);
     portfolioService.setTradeService(tradeService);
+    getStockPriceViaQuantCliMock.mockReset();
   });
 
   describe("fillOrder()", () => {
@@ -234,6 +249,24 @@ describe("OrderService - High-level business methods", () => {
       // 验证持仓未变化
       const portfolio = portfolioService.load();
       expect(portfolio.holdings).toHaveLength(0);
+    });
+
+    test("fetches current order price through quant CLI", async () => {
+      orderService.create({
+        symbol: "600519",
+        name: "茅台",
+        side: "buy",
+        type: "limit",
+        price: 100,
+        quantity: 100,
+        market: "A",
+      });
+      getStockPriceViaQuantCliMock.mockResolvedValue(JSON.stringify({ price: 101 }));
+
+      const result = await orderService.checkAndFillOrders(undefined, true);
+
+      expect(getStockPriceViaQuantCliMock).toHaveBeenCalledWith("600519");
+      expect(result.notYets[0].currentPrice).toBe(101);
     });
   });
 

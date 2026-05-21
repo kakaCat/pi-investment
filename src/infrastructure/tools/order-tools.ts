@@ -19,7 +19,6 @@ import { OrderService, type PendingOrder, type OrderSide, type OrderType, type O
 import { PortfolioService } from "../../services/portfolio/portfolio-service.js";
 import { TradeService } from "../../services/portfolio/trade-service.js";
 import { chinaDate, chinaDateTime } from "../../utils/china-time.js";
-import { get_stock_realtime_price, get_hk_stock_price } from "../akshare-ts/index.js";
 
 const PI_DIR = ".pi-invest";
 

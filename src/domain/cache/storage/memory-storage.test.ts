@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { MemoryStorage } from './memory-storage.js';
 
 describe('MemoryStorage', () => {
@@ -6,6 +6,10 @@ describe('MemoryStorage', () => {
 
   beforeEach(() => {
     storage = new MemoryStorage(100);
+  });
+
+  afterEach(() => {
+    storage.destroy();
   });
 
   it('should return null for non-existent key', async () => {
@@ -66,20 +70,30 @@ describe('MemoryStorage', () => {
     expect(size).toBe(1);
   });
 
+  it('should not keep the Node.js event loop alive with the cleanup timer', () => {
+    const timer = (storage as any).cleanupTimer as NodeJS.Timeout | undefined;
+    expect(timer).toBeDefined();
+    expect(timer?.hasRef()).toBe(false);
+  });
+
   it('should enforce maxSize with LRU eviction', async () => {
     const smallStorage = new MemoryStorage(3);
     const expiresAt = Date.now() + 10000;
 
-    await smallStorage.set('key1', 'value1', expiresAt);
-    await smallStorage.set('key2', 'value2', expiresAt);
-    await smallStorage.set('key3', 'value3', expiresAt);
-    await smallStorage.set('key4', 'value4', expiresAt);
+    try {
+      await smallStorage.set('key1', 'value1', expiresAt);
+      await smallStorage.set('key2', 'value2', expiresAt);
+      await smallStorage.set('key3', 'value3', expiresAt);
+      await smallStorage.set('key4', 'value4', expiresAt);
 
-    const size = await smallStorage.size();
-    expect(size).toBe(3);
+      const size = await smallStorage.size();
+      expect(size).toBe(3);
 
-    const key1 = await smallStorage.get('key1');
-    expect(key1).toBeNull();
+      const key1 = await smallStorage.get('key1');
+      expect(key1).toBeNull();
+    } finally {
+      smallStorage.destroy();
+    }
   });
 
   it('should support batch get', async () => {

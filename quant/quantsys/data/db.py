@@ -33,21 +33,67 @@ def normalize_symbol(symbol: str) -> str:
 class Database:
     """Encapsulate pipeline stock and kline persistence."""
 
-    def __init__(self, db_path: str = DEFAULT_DB_PATH) -> None:
-        """Create the configured database connection and ensure schema compatibility."""
-        self.provider = os.environ.get("QUANT_DB_PROVIDER", "postgres").strip().lower()
+    def __init__(self, db_path: str = DEFAULT_DB_PATH, connect: bool = True) -> None:
+        """Create the configured database connection and ensure schema compatibility.
 
-        # Only PostgreSQL is supported
-        if self.provider == "sqlite":
-            raise RuntimeError("SQLite is no longer supported. Please use PostgreSQL (QUANT_DB_PROVIDER=postgres)")
+        Set connect=False to defer connection (e.g., when used with context manager).
+        """
+        self.provider = os.environ.get("QUANT_DB_PROVIDER", "sqlite").strip().lower()
 
-        if self.provider not in {"postgres"}:
-            self.provider = "postgres"
+        if self.provider not in {"postgres", "sqlite"}:
+            self.provider = "sqlite"
 
         self.db_path: Optional[Path] = None
         self.conn: Any | None = None
+        self._schema: str | None = None
 
-        self._init_postgres()
+        if connect:
+            if self.provider == "sqlite":
+                self._init_sqlite(db_path)
+            else:
+                self._init_postgres()
+
+    def __enter__(self) -> "Database":
+        """Enter the context manager — connect if not already connected."""
+        if self.conn is None:
+            if self.provider == "sqlite":
+                self._init_sqlite(str(self.db_path) if self.db_path else DEFAULT_DB_PATH)
+            else:
+                self._init_postgres()
+        return self
+
+    @property
+    def schema(self) -> str | None:
+        """Return the active schema name for provider-aware table references."""
+        if self._schema is not None:
+            return self._schema
+        if self.provider == "postgres":
+            return os.environ.get("QUANT_PG_SCHEMA", "quant")
+        return None
+
+    @schema.setter
+    def schema(self, value: str | None) -> None:
+        self._schema = value
+
+    def get_connection(self) -> Any:
+        """Return the raw database connection (public wrapper for _get_connection)."""
+        if self.conn is None:
+            self.__enter__()
+        return self._get_connection()
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Exit the context manager — close the connection."""
+        self.close()
+
+    def _init_sqlite(self, db_path: str) -> None:
+        """Create the SQLite connection used by the data pipeline."""
+        import sqlite3
+        self.db_path = Path(db_path) if db_path else DEFAULT_DB_PATH
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.conn = sqlite3.connect(str(self.db_path))
+        self.conn.row_factory = sqlite3.Row
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA foreign_keys=ON")
 
     def _init_postgres(self) -> None:
         """Create the PostgreSQL connection used by the data pipeline."""
@@ -128,6 +174,33 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_daily_klines_date ON daily_klines(date);
                 CREATE INDEX IF NOT EXISTS idx_factor_symbol_date ON factor_values(symbol, date);
                 CREATE INDEX IF NOT EXISTS idx_factor_date ON factor_values(date);
+
+                CREATE TABLE IF NOT EXISTS trading_signals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT NOT NULL,
+                    signal_date TEXT NOT NULL,
+                    signal_type TEXT NOT NULL,
+                    strategy_name TEXT NOT NULL,
+                    confidence REAL,
+                    price REAL,
+                    reason TEXT,
+                    metadata TEXT,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    UNIQUE(symbol, signal_date, strategy_name)
+                );
+
+                CREATE TABLE IF NOT EXISTS signal_factors (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    signal_id INTEGER NOT NULL REFERENCES trading_signals(id) ON DELETE CASCADE,
+                    factor_name TEXT NOT NULL,
+                    factor_value REAL,
+                    factor_weight REAL,
+                    trigger_condition TEXT,
+                    is_primary INTEGER DEFAULT 0
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_trading_signals_symbol ON trading_signals(symbol);
+                CREATE INDEX IF NOT EXISTS idx_trading_signals_date ON trading_signals(signal_date);
                 """
             )
 
@@ -521,29 +594,107 @@ class Database:
             connection.rollback()
             raise RuntimeError(f"Failed to upsert daily kline records: {exc}") from exc
 
-    def get_all_symbols(self, market: Optional[str] = None) -> List[str]:
-        """Return all stock symbols, optionally filtered by market."""
+    def upsert_minute_klines(self, klines: List[Dict[str, Any]]) -> int:
+        """Insert or update minute kline rows."""
+        if not klines:
+            return 0
+
+        rows = []
+        for kline in klines:
+            rows.append(
+                (
+                    str(kline["symbol"]),
+                    kline["ts"],
+                    kline.get("open"),
+                    kline.get("high"),
+                    kline.get("low"),
+                    kline.get("close"),
+                    kline.get("volume"),
+                    kline.get("amount"),
+                )
+            )
+
+        connection = self._get_connection()
+        try:
+            if self.provider == "postgres":
+                cursor = connection.cursor()
+                try:
+                    cursor.executemany(
+                        """
+                        INSERT INTO quant.minute_klines
+                        (symbol, ts, open, high, low, close, volume, amount)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT(symbol, ts) DO UPDATE SET
+                            open = excluded.open,
+                            high = excluded.high,
+                            low = excluded.low,
+                            close = excluded.close,
+                            volume = excluded.volume,
+                            amount = excluded.amount
+                        """,
+                        rows,
+                    )
+                    connection.commit()
+                finally:
+                    cursor.close()
+            else:
+                raise RuntimeError("SQLite is no longer supported for minute klines")
+            return len(rows)
+        except Exception as exc:
+            connection.rollback()
+            raise RuntimeError(f"Failed to upsert minute kline records: {exc}") from exc
+
+    def get_all_symbols(
+        self,
+        market: Optional[str] = None,
+        exclude_st: bool = False,
+        exclude_suspended: bool = False,
+    ) -> List[str]:
+        """Return all stock symbols, optionally filtered by market and tradeability."""
         connection = self._get_connection()
 
         try:
+            conditions = []
+            params = []
+
             if market:
                 if self.provider == "postgres":
-                    cursor = connection.cursor()
-                    cursor.execute("SELECT symbol FROM quant.stocks WHERE market = %s ORDER BY symbol ASC", (market,))
+                    conditions.append("market = %s")
                 else:
-                    cursor = connection.execute(
-                        "SELECT symbol FROM stocks WHERE market = ? ORDER BY symbol ASC",
-                        (market,),
-                    )
-            else:
+                    conditions.append("market = ?")
+                params.append(market)
+
+            if exclude_st:
                 if self.provider == "postgres":
-                    cursor = connection.cursor()
-                    cursor.execute("SELECT symbol FROM quant.stocks ORDER BY symbol ASC")
+                    conditions.append("is_st = FALSE")
                 else:
-                    cursor = connection.execute("SELECT symbol FROM stocks ORDER BY symbol ASC")
-            rows = cursor.fetchall()
+                    conditions.append("is_st = 0")
+
+            if exclude_suspended:
+                if self.provider == "postgres":
+                    conditions.append("is_suspended = FALSE")
+                else:
+                    conditions.append("is_suspended = 0")
+
+            where_clause = ""
+            if conditions:
+                where_clause = "WHERE " + " AND ".join(conditions)
+
             if self.provider == "postgres":
+                cursor = connection.cursor()
+                cursor.execute(
+                    f"SELECT symbol FROM quant.stocks {where_clause} ORDER BY symbol ASC",
+                    params,
+                )
+                rows = cursor.fetchall()
                 cursor.close()
+            else:
+                cursor = connection.execute(
+                    f"SELECT symbol FROM stocks {where_clause} ORDER BY symbol ASC",
+                    params,
+                )
+                rows = cursor.fetchall()
+
             return [str(row[0]) for row in rows]
         except Exception as exc:
             raise RuntimeError(f"Failed to fetch stock symbols: {exc}") from exc
@@ -961,6 +1112,26 @@ class Database:
         except Exception as exc:
             raise RuntimeError(f"Failed to get latest kline date: {exc}") from exc
 
+    def get_prev_trading_date(self, date: str) -> Optional[str]:
+        """Return the most recent trading date before the given date."""
+        connection = self._get_connection()
+        try:
+            if self.provider == "postgres":
+                cursor = connection.cursor()
+                cursor.execute(
+                    "SELECT MAX(trade_date)::text FROM quant.daily_klines WHERE trade_date < %s",
+                    (date,),
+                )
+                row = cursor.fetchone()
+                cursor.close()
+            else:
+                row = connection.execute(
+                    "SELECT MAX(date) FROM daily_klines WHERE date < ?", (date,)
+                ).fetchone()
+            return str(row[0]) if row and row[0] is not None else None
+        except Exception as exc:
+            raise RuntimeError(f"Failed to get prev trading date before {date}: {exc}") from exc
+
     def get_latest_factor_date_for_symbol(self, symbol: str) -> Optional[str]:
         """Return the latest available factor date for one symbol."""
         normalized_symbol = normalize_symbol(symbol)
@@ -991,8 +1162,8 @@ class Database:
         symbols: Optional[List[str]] = None,
     ) -> int:
         """Replace trading signals and their factor details for one date, optionally scoped to symbols."""
-        if self.provider != "postgres":
-            raise RuntimeError("Trading signal persistence requires PostgreSQL")
+        if self.provider not in ("postgres", "sqlite"):
+            raise RuntimeError("Trading signal persistence requires PostgreSQL or SQLite")
 
         normalized_date = str(signal_date)
         normalized_symbols = sorted({normalize_symbol(symbol) for symbol in (symbols or []) if symbol})
@@ -1009,81 +1180,125 @@ class Database:
 
         connection = self._get_connection()
         cursor = connection.cursor()
+
+        # Ensure SQLite tables exist (no-op for postgres)
+        self._migrate_sqlite()
+
         try:
-            if normalized_symbols:
-                cursor.execute(
-                    """
-                    DELETE FROM quant.trading_signals
-                    WHERE signal_date = %s AND symbol = ANY(%s)
-                    """,
-                    (normalized_date, normalized_symbols),
-                )
-            else:
-                cursor.execute(
-                    "DELETE FROM quant.trading_signals WHERE signal_date = %s",
-                    (normalized_date,),
-                )
-
-            if signal_rows:
-                cursor.executemany(
-                    """
-                    INSERT INTO quant.trading_signals (
-                        symbol,
-                        signal_date,
-                        signal_type,
-                        strategy_name,
-                        confidence,
-                        price,
-                        reason,
-                        metadata
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT(symbol, signal_date, strategy_name) DO UPDATE SET
-                        signal_type = excluded.signal_type,
-                        confidence = excluded.confidence,
-                        price = excluded.price,
-                        reason = excluded.reason,
-                        metadata = excluded.metadata
-                    """,
-                    [
-                        (
-                            normalize_symbol(str(signal["symbol"])),
-                            str(signal["signal_date"]),
-                            str(signal["signal_type"]),
-                            str(signal["strategy_name"]),
-                            signal.get("confidence"),
-                            signal.get("price"),
-                            signal.get("reason"),
-                            signal.get("metadata"),
-                        )
-                        for signal in signal_rows
-                    ],
-                )
-
-            inserted_ids: Dict[tuple[str, str, str], int] = {}
-            if signal_rows:
+            # Delete old signals for this date
+            if self.provider == "postgres":
                 if normalized_symbols:
                     cursor.execute(
-                        """
-                        SELECT id, symbol, signal_date::text, strategy_name
-                        FROM quant.trading_signals
-                        WHERE signal_date = %s AND symbol = ANY(%s)
-                        """,
+                        "DELETE FROM quant.trading_signals WHERE signal_date = %s AND symbol = ANY(%s)",
                         (normalized_date, normalized_symbols),
                     )
                 else:
                     cursor.execute(
-                        """
-                        SELECT id, symbol, signal_date::text, strategy_name
-                        FROM quant.trading_signals
-                        WHERE signal_date = %s
-                        """,
+                        "DELETE FROM quant.trading_signals WHERE signal_date = %s",
                         (normalized_date,),
                     )
-                for row in cursor.fetchall():
-                    key = (normalize_symbol(str(row[1])), str(row[2]), str(row[3]))
-                    if key in signal_by_key:
-                        inserted_ids[key] = int(row[0])
+            else:
+                if normalized_symbols:
+                    placeholders = ",".join("?" for _ in normalized_symbols)
+                    cursor.execute(
+                        f"DELETE FROM trading_signals WHERE signal_date = ? AND symbol IN ({placeholders})",
+                        (normalized_date, *normalized_symbols),
+                    )
+                else:
+                    cursor.execute(
+                        "DELETE FROM trading_signals WHERE signal_date = ?",
+                        (normalized_date,),
+                    )
 
+            # Insert/update signals
+            if signal_rows:
+                if self.provider == "postgres":
+                    cursor.executemany(
+                        """
+                        INSERT INTO quant.trading_signals (
+                            symbol, signal_date, signal_type, strategy_name,
+                            confidence, price, reason, metadata
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT(symbol, signal_date, strategy_name) DO UPDATE SET
+                            signal_type = excluded.signal_type,
+                            confidence = excluded.confidence,
+                            price = excluded.price,
+                            reason = excluded.reason,
+                            metadata = excluded.metadata
+                        """,
+                        [
+                            (
+                                normalize_symbol(str(s["symbol"])), str(s["signal_date"]),
+                                str(s["signal_type"]), str(s["strategy_name"]),
+                                s.get("confidence"), s.get("price"),
+                                s.get("reason"), s.get("metadata"),
+                            )
+                            for s in signal_rows
+                        ],
+                    )
+                else:
+                    for s in signal_rows:
+                        cursor.execute(
+                            """
+                            INSERT INTO trading_signals (
+                                symbol, signal_date, signal_type, strategy_name,
+                                confidence, price, reason, metadata
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(symbol, signal_date, strategy_name) DO UPDATE SET
+                                signal_type = excluded.signal_type,
+                                confidence = excluded.confidence,
+                                price = excluded.price,
+                                reason = excluded.reason,
+                                metadata = excluded.metadata
+                            """,
+                            (
+                                normalize_symbol(str(s["symbol"])), str(s["signal_date"]),
+                                str(s["signal_type"]), str(s["strategy_name"]),
+                                s.get("confidence"), s.get("price"),
+                                s.get("reason"), s.get("metadata"),
+                            ),
+                        )
+
+            # Fetch inserted signal IDs
+            inserted_ids: Dict[tuple[str, str, str], int] = {}
+            if signal_rows:
+                if self.provider == "postgres":
+                    if normalized_symbols:
+                        cursor.execute(
+                            "SELECT id, symbol, signal_date::text, strategy_name FROM quant.trading_signals "
+                            "WHERE signal_date = %s AND symbol = ANY(%s)",
+                            (normalized_date, normalized_symbols),
+                        )
+                    else:
+                        cursor.execute(
+                            "SELECT id, symbol, signal_date::text, strategy_name FROM quant.trading_signals "
+                            "WHERE signal_date = %s",
+                            (normalized_date,),
+                        )
+                    for row in cursor.fetchall():
+                        key = (normalize_symbol(str(row[1])), str(row[2]), str(row[3]))
+                        if key in signal_by_key:
+                            inserted_ids[key] = int(row[0])
+                else:
+                    if normalized_symbols:
+                        placeholders = ",".join("?" for _ in normalized_symbols)
+                        cursor.execute(
+                            f"SELECT id, symbol, signal_date, strategy_name FROM trading_signals "
+                            f"WHERE signal_date = ? AND symbol IN ({placeholders})",
+                            (normalized_date, *normalized_symbols),
+                        )
+                    else:
+                        cursor.execute(
+                            "SELECT id, symbol, signal_date, strategy_name FROM trading_signals "
+                            "WHERE signal_date = ?",
+                            (normalized_date,),
+                        )
+                    for row in cursor.fetchall():
+                        key = (normalize_symbol(str(row["symbol"])), str(row["signal_date"]), str(row["strategy_name"]))
+                        if key in signal_by_key:
+                            inserted_ids[key] = int(row["id"])
+
+            # Insert signal factors
             factor_payload = []
             for factor in factor_rows:
                 key = (
@@ -1106,19 +1321,18 @@ class Database:
                 )
 
             if factor_payload:
-                cursor.executemany(
-                    """
-                    INSERT INTO quant.signal_factors (
-                        signal_id,
-                        factor_name,
-                        factor_value,
-                        factor_weight,
-                        trigger_condition,
-                        is_primary
-                    ) VALUES (%s, %s, %s, %s, %s, %s)
-                    """,
-                    factor_payload,
-                )
+                if self.provider == "postgres":
+                    cursor.executemany(
+                        "INSERT INTO quant.signal_factors (signal_id, factor_name, factor_value, factor_weight, trigger_condition, is_primary) "
+                        "VALUES (%s, %s, %s, %s, %s, %s)",
+                        factor_payload,
+                    )
+                else:
+                    cursor.executemany(
+                        "INSERT INTO signal_factors (signal_id, factor_name, factor_value, factor_weight, trigger_condition, is_primary) "
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                        factor_payload,
+                    )
 
             connection.commit()
             return len(signal_rows)
@@ -1137,8 +1351,8 @@ class Database:
         limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Return trading signals joined with stock names and ordered by confidence/date."""
-        if self.provider != "postgres":
-            raise RuntimeError("Trading signal queries require PostgreSQL")
+        if self.provider not in ("postgres", "sqlite"):
+            raise RuntimeError("Trading signal queries require PostgreSQL or SQLite")
 
         connection = self._get_connection()
         clauses = []
@@ -1211,8 +1425,8 @@ class Database:
 
     def get_signal_history(self, days: int = 30) -> List[Dict[str, Any]]:
         """Return recent trading signals for dashboard/history use."""
-        if self.provider != "postgres":
-            raise RuntimeError("Trading signal queries require PostgreSQL")
+        if self.provider not in ("postgres", "sqlite"):
+            raise RuntimeError("Trading signal queries require PostgreSQL or SQLite")
 
         connection = self._get_connection()
         cursor = connection.cursor()

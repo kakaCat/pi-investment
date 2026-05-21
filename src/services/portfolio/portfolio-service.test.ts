@@ -1,11 +1,49 @@
-import { describe, expect, test, jest } from "@jest/globals";
-import { mkdtempSync, writeFileSync } from "fs";
+import { beforeEach, describe, expect, test, jest } from "@jest/globals";
+import { mkdtempSync, readFileSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { buildPortfolioSnapshotFromQuotes, PortfolioService, type Holding } from "./portfolio-service.js";
+import type { Holding } from "./portfolio-service.js";
 import { TradeService } from "./trade-service.js";
-import { FxRateServiceAdapter } from "../fx-rate-service-adapter.js";
-import * as akshareTs from "../../infrastructure/akshare-ts/index.js";
+
+const getStockPriceViaQuantCliMock = jest.fn<(symbol: string) => Promise<string>>();
+
+await jest.unstable_mockModule("../../infrastructure/quant/stock-query-cli-adapter.js", () => ({
+  getAnnouncementsViaQuantCli: jest.fn(),
+  getBatchStockPricesViaQuantCli: jest.fn(),
+  getStockHistoryViaQuantCli: jest.fn(),
+  getStockInfoViaQuantCli: jest.fn(),
+  getStockListViaQuantCli: jest.fn(),
+  getStockNewsViaQuantCli: jest.fn(),
+  getStockPriceViaQuantCli: getStockPriceViaQuantCliMock,
+}));
+
+await jest.unstable_mockModule("../fx-rate-service-adapter.js", () => ({
+  FxRateServiceAdapter: class {
+    constructor(private readonly piDir: string) {}
+
+    async getRate(pair: "HKDCNY"): Promise<number> {
+      const raw = JSON.parse(readFileSync(join(this.piDir, "fx-rates.json"), "utf-8"));
+      return Number(raw.rates?.[pair]?.rate ?? 0.88);
+    }
+  },
+}));
+
+const { buildPortfolioSnapshotFromQuotes, PortfolioService } = await import("./portfolio-service.js");
+
+function writeFxRateCache(dir: string, rate: number): void {
+  const now = new Date().toISOString();
+  writeFileSync(join(dir, "fx-rates.json"), JSON.stringify({
+    rates: {
+      HKDCNY: {
+        rate,
+        date: now,
+        updated_at: now,
+        source: "test",
+      },
+    },
+    last_updated: now,
+  }, null, 2));
+}
 
 describe("buildPortfolioSnapshotFromQuotes", () => {
   test("calculates per-position and aggregate pnl", () => {
@@ -48,6 +86,10 @@ describe("buildPortfolioSnapshotFromQuotes", () => {
 });
 
 describe("PortfolioService", () => {
+  beforeEach(() => {
+    getStockPriceViaQuantCliMock.mockReset();
+  });
+
   test("replaceHoldings overwrites old positions instead of merging", () => {
     const service = new PortfolioService(mkdtempSync(join(tmpdir(), "pi-invest-portfolio-")));
     service.add("600519", 100, 10, 0, "茅台", "A");
@@ -169,19 +211,7 @@ describe("PortfolioService", () => {
     const testDir = mkdtempSync(join(tmpdir(), "pi-invest-hk-fx-"));
     const service = new PortfolioService(testDir);
 
-    // Mock FX rate by creating a fresh cache
-    const cache = {
-      rates: {
-        HKDCNY: {
-          rate: 0.8850,
-          date: "2026-05-16",
-          updated_at: "2026-05-16 09:00:00",
-          source: "sina"
-        }
-      },
-      last_updated: "2026-05-16 09:00:00"
-    };
-    writeFileSync(join(testDir, "fx-rates.json"), JSON.stringify(cache, null, 2));
+    writeFxRateCache(testDir, 0.8850);
 
     const result = await service.addHKStock(
       "00700",
@@ -207,14 +237,7 @@ describe("PortfolioService", () => {
     const testDir = mkdtempSync(join(tmpdir(), "pi-invest-hk-fx-"));
     const service = new PortfolioService(testDir);
 
-    // Setup FX rate cache
-    const cache = {
-      rates: {
-        HKDCNY: { rate: 0.8850, date: "2026-05-16", updated_at: "2026-05-16 09:00:00", source: "sina" }
-      },
-      last_updated: "2026-05-16 09:00:00"
-    };
-    writeFileSync(join(testDir, "fx-rates.json"), JSON.stringify(cache, null, 2));
+    writeFxRateCache(testDir, 0.8850);
 
     // First purchase: 100 shares at 666.57 HKD
     await service.addHKStock("00700", 100, 666.57, 0, "腾讯控股", "");
@@ -235,14 +258,7 @@ describe("PortfolioService", () => {
   test("getWithPnL converts HK stock prices from HKD to CNY", async () => {
     const testDir = mkdtempSync(join(tmpdir(), "pi-invest-hk-fx-"));
 
-    // Setup FX rate cache with current rate (0.8800)
-    const currentCache = {
-      rates: {
-        HKDCNY: { rate: 0.8800, date: "2026-05-16", updated_at: "2026-05-16 15:00:00", source: "sina" }
-      },
-      last_updated: "2026-05-16 15:00:00"
-    };
-    writeFileSync(join(testDir, "fx-rates.json"), JSON.stringify(currentCache, null, 2));
+    writeFxRateCache(testDir, 0.8800);
 
     // Create holdings manually (simulating what addHKStock would do)
     const holdings: Holding[] = [
@@ -283,5 +299,43 @@ describe("PortfolioService", () => {
 
     // Verify P&L calculation (cost was 589.91, current 589.60)
     expect(holding.pnl_amount).toBeCloseTo(-31, 0);
+  });
+
+  test("getWithPnL fetches holding quotes through quant CLI", async () => {
+    const testDir = mkdtempSync(join(tmpdir(), "pi-invest-portfolio-cli-"));
+    writeFxRateCache(testDir, 0.88);
+
+    const service = new PortfolioService(testDir);
+    service.replaceHoldings([
+      {
+        symbol: "600519",
+        name: "贵州茅台",
+        quantity: 100,
+        avg_cost: 100,
+        market: "A",
+        notes: "",
+        added_date: "2026-05-20",
+      },
+      {
+        symbol: "00700",
+        name: "腾讯控股",
+        quantity: 100,
+        avg_cost: 500,
+        market: "HK",
+        notes: "",
+        added_date: "2026-05-20",
+      },
+    ]);
+    getStockPriceViaQuantCliMock
+      .mockResolvedValueOnce(JSON.stringify({ price: 120, name: "贵州茅台", change_pct: 1.2 }))
+      .mockResolvedValueOnce(JSON.stringify({ price: 600, name: "腾讯控股", change_pct: -0.5 }));
+
+    const snapshot = await service.getWithPnL();
+
+    expect(getStockPriceViaQuantCliMock).toHaveBeenNthCalledWith(1, "600519");
+    expect(getStockPriceViaQuantCliMock).toHaveBeenNthCalledWith(2, "00700");
+    expect(snapshot.holdings[0].current_price).toBe(120);
+    expect(snapshot.holdings[1].current_price_hkd).toBe(600);
+    expect(snapshot.holdings[1].current_price).toBeCloseTo(528, 2);
   });
 });

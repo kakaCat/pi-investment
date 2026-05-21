@@ -42,6 +42,8 @@ interface RestartContext {
   cwd: string;
   reason: string;
   prevSessionKey?: string;
+  sdkSessionFile?: string;
+  sdkSessionId?: string;
   conversationMessageCount?: number;
   messages?: ConversationMessage[];
   env: {
@@ -92,6 +94,12 @@ function checkRestartContext(): void {
 /** 将上一个 session 的对话历史恢复到新 session 中 */
 function restoreConversationIntoSession(session: AgentSession): void {
   if (!restartData?.messages || restartData.messages.length === 0) return;
+  if (restartData.sdkSessionFile) {
+    console.log(`📋 已恢复 SDK 会话: ${restartData.sdkSessionId || restartData.sdkSessionFile}\n`);
+    try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
+    restartData = null;
+    return;
+  }
 
   const messages = restartData.messages;
   let injected = 0;
@@ -152,7 +160,7 @@ async function main() {
     }
 
     // 先初始化 logger（在创建 session 之前）
-    logger.initSession();
+    logger.initSession(restartData?.prevSessionKey);
     console.log(`📋 Session: ${logger.getSessionKey()}\n`);
 
     // 初始化服务
@@ -177,7 +185,13 @@ async function main() {
     // 根据环境变量选择 agent loop
     const session = USE_BACKGROUND_MODE
       ? await getSessionBackground()
-      : await getSessionNormal();
+      : await getSessionNormal(restartData?.sdkSessionFile
+          ? {
+              type: "interactive",
+              sessionId: restartData.sdkSessionId || restartData.prevSessionKey || "restarted",
+              metadata: { sdkSessionFile: restartData.sdkSessionFile },
+            }
+          : undefined);
 
     console.log(`📌 模式: ${USE_BACKGROUND_MODE ? "Background (并行任务)" : "Normal (串行)"}\n`);
 

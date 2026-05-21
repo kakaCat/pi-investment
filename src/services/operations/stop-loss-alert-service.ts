@@ -15,7 +15,7 @@
  */
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
-import { get_stock_realtime_price, get_hk_stock_price } from "../../infrastructure/akshare-ts/index.js";
+import { getStockPriceViaQuantCli } from "../../infrastructure/quant/stock-query-cli-adapter.js";
 import { StopLossAnalyzer } from "./stop-loss-analyzer-service.js";
 import type { StopLossReport } from "../../types/stop-loss-analysis.js";
 
@@ -77,9 +77,7 @@ function parseThreshold(notes: string): number {
 
 async function fetchCurrentPrice(symbol: string, market: "A" | "HK"): Promise<number | null> {
   try {
-    const raw = market === "HK"
-      ? await get_hk_stock_price(symbol)
-      : await get_stock_realtime_price(symbol);
+    const raw = await getStockPriceViaQuantCli(symbol);
     const data = typeof raw === "string" ? JSON.parse(raw) : raw;
     const price = data?.current ?? data?.price ?? data?.close;
     return price != null && !isNaN(Number(price)) ? Number(price) : null;

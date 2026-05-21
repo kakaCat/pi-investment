@@ -1,0 +1,240 @@
+<h2>股票列表全局搜索 - 完整设计方案</h2>
+<p class="subtitle">基于你的选择：后端全局搜索 + 实时触发 + 基础搜索（代码/名称）</p>
+
+<div class="section">
+  <h3>1. 架构设计</h3>
+  <div style="padding: 16px; background: #f5f5f5; border-radius: 8px; margin-bottom: 16px;">
+    <div style="display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 12px; align-items: center;">
+      <div style="padding: 12px; background: white; border-radius: 4px; text-align: center;">
+        <div style="font-weight: bold; margin-bottom: 4px;">前端</div>
+        <div style="font-size: 12px; color: #666;">StockList.tsx</div>
+        <div style="font-size: 11px; margin-top: 4px;">• 搜索输入框<br>• 防抖处理<br>• 结果展示</div>
+      </div>
+      <div style="font-size: 20px;">→</div>
+      <div style="padding: 12px; background: white; border-radius: 4px; text-align: center;">
+        <div style="font-weight: bold; margin-bottom: 4px;">API</div>
+        <div style="font-size: 12px; color: #666;">GET /api/stocks/search</div>
+        <div style="font-size: 11px; margin-top: 4px;">• 接收搜索词<br>• 分页参数<br>• 返回结果</div>
+      </div>
+      <div style="font-size: 20px;">→</div>
+      <div style="padding: 12px; background: white; border-radius: 4px; text-align: center;">
+        <div style="font-weight: bold; margin-bottom: 4px;">数据库</div>
+        <div style="font-size: 12px; color: #666;">SQLite/PostgreSQL</div>
+        <div style="font-size: 11px; margin-top: 4px;">• LIKE 查询<br>• 索引优化<br>• 返回匹配行</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>2. 后端 API 设计</h3>
+  <div style="padding: 16px; background: #fafafa; border-radius: 8px; margin-bottom: 16px;">
+    <h4 style="margin: 0 0 12px 0; font-size: 14px;">新增端点：GET /api/stocks/search</h4>
+
+    <div style="margin-bottom: 16px;">
+      <div style="font-weight: bold; margin-bottom: 8px; font-size: 13px;">请求参数：</div>
+      <div style="font-family: monospace; font-size: 12px; background: white; padding: 12px; border-radius: 4px; border: 1px solid #d9d9d9;">
+        ?q=<span style="color: #1890ff;">搜索词</span>&page=<span style="color: #52c41a;">1</span>&pageSize=<span style="color: #52c41a;">20</span>
+      </div>
+      <div style="margin-top: 8px; font-size: 12px; color: #666;">
+        • <strong>q</strong>: 搜索关键词（必填）<br>
+        • <strong>page</strong>: 页码，默认1<br>
+        • <strong>pageSize</strong>: 每页数量，默认20，最大100
+      </div>
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <div style="font-weight: bold; margin-bottom: 8px; font-size: 13px;">SQL 查询逻辑：</div>
+      <div style="font-family: monospace; font-size: 11px; background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 4px; overflow-x: auto;">
+<span style="color: #569cd6;">SELECT</span> s.symbol, st.name, st.market, s.kline_days,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;s.earliest_date, s.latest_date, s.factor_days, s.factor_count<br>
+<span style="color: #569cd6;">FROM</span> stock_data_summary s<br>
+<span style="color: #569cd6;">JOIN</span> stocks st <span style="color: #569cd6;">ON</span> s.symbol = st.symbol<br>
+<span style="color: #569cd6;">WHERE</span> (s.symbol <span style="color: #569cd6;">LIKE</span> <span style="color: #ce9178;">'%' || ? || '%'</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #569cd6;">OR</span> st.name <span style="color: #569cd6;">LIKE</span> <span style="color: #ce9178;">'%' || ? || '%'</span>)<br>
+&nbsp;&nbsp;<span style="color: #569cd6;">AND</span> s.factor_count >= <span style="color: #b5cea8;">30</span><br>
+<span style="color: #569cd6;">ORDER BY</span> s.symbol<br>
+<span style="color: #569cd6;">LIMIT</span> ? <span style="color: #569cd6;">OFFSET</span> ?
+      </div>
+    </div>
+
+    <div>
+      <div style="font-weight: bold; margin-bottom: 8px; font-size: 13px;">响应格式：</div>
+      <div style="font-family: monospace; font-size: 11px; background: white; padding: 12px; border-radius: 4px; border: 1px solid #d9d9d9; overflow-x: auto;">
+{<br>
+&nbsp;&nbsp;<span style="color: #a31515;">"total"</span>: <span style="color: #098658;">3</span>,<br>
+&nbsp;&nbsp;<span style="color: #a31515;">"page"</span>: <span style="color: #098658;">1</span>,<br>
+&nbsp;&nbsp;<span style="color: #a31515;">"pageSize"</span>: <span style="color: #098658;">20</span>,<br>
+&nbsp;&nbsp;<span style="color: #a31515;">"stocks"</span>: [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #a31515;">"symbol"</span>: <span style="color: #a31515;">"600519"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #a31515;">"name"</span>: <span style="color: #a31515;">"贵州茅台"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #a31515;">"market"</span>: <span style="color: #a31515;">"SH"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #a31515;">"kline_days"</span>: <span style="color: #098658;">515</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #a31515;">"data_complete"</span>: <span style="color: #0000ff;">true</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;]<br>
+}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>3. 前端交互设计</h3>
+
+  <div class="mockup" style="margin-bottom: 16px;">
+    <div class="mockup-header">用户交互流程</div>
+    <div class="mockup-body" style="padding: 20px; background: white;">
+      <div style="display: flex; gap: 16px; align-items: flex-start;">
+        <div style="flex: 1;">
+          <div style="margin-bottom: 16px;">
+            <div style="font-weight: bold; margin-bottom: 8px; font-size: 13px;">① 初始状态</div>
+            <div style="padding: 12px; background: #f5f5f5; border-radius: 4px;">
+              <input class="mock-input" placeholder="搜索股票代码或名称" style="width: 100%;">
+              <div style="margin-top: 8px; font-size: 12px; color: #999;">显示全部股票（分页）</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <div style="font-weight: bold; margin-bottom: 8px; font-size: 13px;">② 用户输入</div>
+            <div style="padding: 12px; background: #f5f5f5; border-radius: 4px;">
+              <input class="mock-input" value="茅" style="width: 100%;">
+              <div style="margin-top: 8px; font-size: 12px; color: #1890ff;">⏱ 等待300ms（防抖）...</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <div style="font-weight: bold; margin-bottom: 8px; font-size: 13px;">③ 发起搜索</div>
+            <div style="padding: 12px; background: #f5f5f5; border-radius: 4px;">
+              <input class="mock-input" value="茅台" style="width: 100%;">
+              <div style="margin-top: 8px; font-size: 12px; color: #faad14;">🔄 搜索中...</div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-weight: bold; margin-bottom: 8px; font-size: 13px;">④ 显示结果</div>
+            <div style="padding: 12px; background: #f5f5f5; border-radius: 4px;">
+              <input class="mock-input" value="茅台" style="width: 100%;">
+              <div style="margin-top: 8px; font-size: 12px; color: #52c41a;">✓ 找到 1 个结果</div>
+              <div style="margin-top: 8px; padding: 8px; background: white; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 12px;">
+                <strong>600519</strong> - 贵州茅台
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="width: 200px; padding: 12px; background: #e6f7ff; border-radius: 4px; font-size: 12px;">
+          <div style="font-weight: bold; margin-bottom: 8px;">关键点</div>
+          <div style="line-height: 1.8;">
+            • 300ms 防抖<br>
+            • 显示加载状态<br>
+            • 显示结果数量<br>
+            • 空搜索显示全部<br>
+            • 支持清空按钮
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>4. 性能优化</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+    <div style="padding: 12px; background: #f6ffed; border-left: 3px solid #52c41a; border-radius: 4px;">
+      <div style="font-weight: bold; margin-bottom: 8px; font-size: 13px;">数据库优化</div>
+      <div style="font-size: 12px; line-height: 1.8;">
+        • 在 symbol 和 name 字段创建索引<br>
+        • 使用 stock_data_summary 预计算表<br>
+        • LIMIT 限制返回数量<br>
+        • 查询时间目标：&lt; 50ms
+      </div>
+    </div>
+    <div style="padding: 12px; background: #e6f7ff; border-left: 3px solid #1890ff; border-radius: 4px;">
+      <div style="font-weight: bold; margin-bottom: 8px; font-size: 13px;">前端优化</div>
+      <div style="font-size: 12px; line-height: 1.8;">
+        • 300ms 防抖减少请求<br>
+        • 显示加载状态提升体验<br>
+        • 取消上一次未完成的请求<br>
+        • 空搜索词不发起请求
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>5. 边界情况处理</h3>
+  <div style="padding: 16px; background: #fafafa; border-radius: 8px;">
+    <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+      <thead>
+        <tr style="background: #f0f0f0;">
+          <th style="padding: 8px; text-align: left; border: 1px solid #d9d9d9;">场景</th>
+          <th style="padding: 8px; text-align: left; border: 1px solid #d9d9d9;">处理方式</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding: 8px; border: 1px solid #d9d9d9;">搜索词为空</td>
+          <td style="padding: 8px; border: 1px solid #d9d9d9;">显示全部股票（原有分页逻辑）</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border: 1px solid #d9d9d9;">无搜索结果</td>
+          <td style="padding: 8px; border: 1px solid #d9d9d9;">显示"未找到匹配的股票"提示</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border: 1px solid #d9d9d9;">搜索请求失败</td>
+          <td style="padding: 8px; border: 1px solid #d9d9d9;">显示错误提示，保留上一次结果</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border: 1px solid #d9d9d9;">快速输入</td>
+          <td style="padding: 8px; border: 1px solid #d9d9d9;">防抖处理，只发送最后一次请求</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border: 1px solid #d9d9d9;">搜索词过短（1个字符）</td>
+          <td style="padding: 8px; border: 1px solid #d9d9d9;">仍然搜索（可能返回较多结果）</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <h3>6. 实现工作量估算</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+    <div style="padding: 12px; background: white; border: 1px solid #d9d9d9; border-radius: 4px; text-align: center;">
+      <div style="font-size: 24px; font-weight: bold; color: #1890ff;">1.5h</div>
+      <div style="font-size: 12px; color: #666; margin-top: 4px;">后端 API 开发</div>
+      <div style="font-size: 11px; color: #999; margin-top: 8px;">• 新增端点<br>• SQL 查询<br>• 测试</div>
+    </div>
+    <div style="padding: 12px; background: white; border: 1px solid #d9d9d9; border-radius: 4px; text-align: center;">
+      <div style="font-size: 24px; font-weight: bold; color: #52c41a;">1h</div>
+      <div style="font-size: 12px; color: #666; margin-top: 4px;">前端开发</div>
+      <div style="font-size: 11px; color: #999; margin-top: 8px;">• 搜索逻辑<br>• 防抖处理<br>• UI 状态</div>
+    </div>
+    <div style="padding: 12px; background: white; border: 1px solid #d9d9d9; border-radius: 4px; text-align: center;">
+      <div style="font-size: 24px; font-weight: bold; color: #faad14;">0.5h</div>
+      <div style="font-size: 12px; color: #666; margin-top: 4px;">测试验证</div>
+      <div style="font-size: 11px; color: #999; margin-top: 8px;">• 功能测试<br>• 性能测试<br>• 边界测试</div>
+    </div>
+  </div>
+  <div style="margin-top: 12px; padding: 12px; background: #f0f9ff; border-radius: 4px; text-align: center;">
+    <strong>总计：约 3 小时</strong>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px; padding: 16px; background: #fffbe6; border-radius: 8px; border-left: 4px solid #faad14;">
+  <h4 style="margin: 0 0 8px 0;">📋 设计总结</h4>
+  <div style="font-size: 14px; line-height: 1.8;">
+    <strong>核心改进：</strong>从前端过滤（仅当前页20条）升级为后端全局搜索（全部5458只股票）<br>
+    <strong>用户体验：</strong>实时搜索 + 防抖优化，输入即搜索，无需点击按钮<br>
+    <strong>搜索范围：</strong>股票代码和名称，支持模糊匹配<br>
+    <strong>性能目标：</strong>查询响应 &lt; 50ms，防抖延迟 300ms
+  </div>
+</div>
+
+<div class="section" style="margin-top: 16px; padding: 12px; background: #fafafa; border-radius: 4px;">
+  <p style="margin: 0; font-size: 13px; color: #666;">
+    👆 这个设计方案看起来如何？如果没问题，我将写入设计文档并开始实现。
+  </p>
+</div>

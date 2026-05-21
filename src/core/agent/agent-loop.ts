@@ -11,11 +11,13 @@ import {
   AgentSession,
   createAgentSession,
   loadSkills,
+  SessionManager,
   type Skill,
   estimateTokens
 } from "@mariozechner/pi-coding-agent";
 import type { Message } from "../../types/index.js";
-import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initMemoryTools, initBackgroundManager, getBackgroundManager } from "../../infrastructure/tools/index.js";
+import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initMemoryTools, initBackgroundManager, getBackgroundManager, initRestartAgentTool } from "../../infrastructure/tools/index.js";
+import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
 import type { ToolDefinition } from "../../infrastructure/tools/index.js";
 import { setPlanToolContext } from "../../infrastructure/tools/plan-tool.js";
 import { loadPlugins } from "../../infrastructure/plugins/index.js";
@@ -38,6 +40,7 @@ import {
   getLastMessage,
   extractTextContent,
   getAgentState,
+  normalizeAssistantUsages,
 } from "./session-adapter.js";
 
 /**
@@ -144,6 +147,7 @@ export async function getSession(context?: SessionContext): Promise<AgentSession
 
       initSkillRouter(skills);
       initSkillsBlock(skills, pluginRegistry.skills);
+      initSkillGuard(skills);
 
       const effectiveTools = getToolsForContext(sessionContext);
 
@@ -153,12 +157,17 @@ export async function getSession(context?: SessionContext): Promise<AgentSession
       const result = await createAgentSession({
         cwd: paths.root,
         model: createDeepSeekModel(),
+        sessionManager: sessionContext?.metadata?.sdkSessionFile
+          ? SessionManager.open(String(sessionContext.metadata.sdkSessionFile))
+          : undefined,
         systemPrompt: () => buildSystemPromptForContext(sessionContext),
         customTools: effectiveTools,
         skills,
       } as any);
       session = result.session;
+      normalizeAssistantUsages(session);
       initCompactTool(session);
+      initRestartAgentTool(session);
 
       const sessionDir = getSessionDir();
       if (sessionDir) {

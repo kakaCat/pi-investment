@@ -1,0 +1,165 @@
+<h2>后端全局搜索 - 搜索触发方式</h2>
+<p class="subtitle">选择搜索的交互方式</p>
+
+<div class="section">
+  <h3>问题：用户输入后，何时触发搜索？</h3>
+  <p style="color: #666; margin-bottom: 24px;">不同的触发方式会影响用户体验和服务器负载</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="realtime" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>实时搜索（推荐）</h3>
+      <p style="margin: 8px 0; color: #666;">输入时自动搜索，带防抖优化</p>
+
+      <div class="mockup" style="margin: 12px 0; transform: scale(0.9); transform-origin: top left;">
+        <div class="mockup-body" style="padding: 16px; background: white;">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="font-size: 18px;">🔍</span>
+            <input class="mock-input" value="贵州" style="flex: 1;">
+            <span style="font-size: 12px; color: #999;">搜索中...</span>
+          </div>
+          <div style="margin-top: 12px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px;">
+            <div style="color: #1890ff; margin-bottom: 4px;">💡 交互流程</div>
+            <div style="color: #666;">
+              1. 用户输入"贵"<br>
+              2. 等待 300ms（防抖）<br>
+              3. 自动发起搜索请求<br>
+              4. 显示结果
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="font-size: 12px;">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>用户体验最流畅</li>
+            <li>无需点击按钮</li>
+            <li>即时反馈</li>
+            <li>类似百度/Google搜索</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>注意</h4>
+          <ul>
+            <li>需要防抖（300ms延迟）</li>
+            <li>服务器请求稍多</li>
+            <li>需要loading状态提示</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="button" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>按钮触发</h3>
+      <p style="margin: 8px 0; color: #666;">输入完成后点击搜索按钮</p>
+
+      <div class="mockup" style="margin: 12px 0; transform: scale(0.9); transform-origin: top left;">
+        <div class="mockup-body" style="padding: 16px; background: white;">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="font-size: 18px;">🔍</span>
+            <input class="mock-input" value="贵州茅台" style="flex: 1;">
+            <button class="mock-button" style="padding: 8px 20px; background: #1890ff; color: white; border: none; border-radius: 4px;">搜索</button>
+          </div>
+          <div style="margin-top: 12px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px;">
+            <div style="color: #1890ff; margin-bottom: 4px;">💡 交互流程</div>
+            <div style="color: #666;">
+              1. 用户输入"贵州茅台"<br>
+              2. 点击"搜索"按钮<br>
+              3. 发起搜索请求<br>
+              4. 显示结果
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="font-size: 12px;">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>用户完全控制搜索时机</li>
+            <li>服务器请求少</li>
+            <li>实现简单</li>
+            <li>支持回车键触发</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>劣势</h4>
+          <ul>
+            <li>需要额外点击操作</li>
+            <li>体验不如实时搜索流畅</li>
+            <li>多一步操作</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>混合模式</h3>
+      <p style="margin: 8px 0; color: #666;">实时搜索 + 搜索按钮，两种方式都支持</p>
+
+      <div class="mockup" style="margin: 12px 0; transform: scale(0.9); transform-origin: top left;">
+        <div class="mockup-body" style="padding: 16px; background: white;">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="font-size: 18px;">🔍</span>
+            <input class="mock-input" value="贵州" style="flex: 1;">
+            <button class="mock-button" style="padding: 8px 20px; background: #1890ff; color: white; border: none; border-radius: 4px;">搜索</button>
+          </div>
+          <div style="margin-top: 12px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 13px;">
+            <div style="color: #1890ff; margin-bottom: 4px;">💡 交互流程</div>
+            <div style="color: #666;">
+              <strong>方式1：</strong>输入后等待300ms自动搜索<br>
+              <strong>方式2：</strong>点击按钮立即搜索<br>
+              <strong>方式3：</strong>按回车键立即搜索
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="font-size: 12px;">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>兼顾两种用户习惯</li>
+            <li>灵活性最高</li>
+            <li>按钮可立即触发（跳过防抖）</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>注意</h4>
+          <ul>
+            <li>UI稍复杂</li>
+            <li>需要处理重复请求</li>
+            <li>开发成本略高</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px; padding: 16px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #1890ff;">
+  <h4 style="margin: 0 0 8px 0;">💡 我的建议</h4>
+  <p style="margin: 0; font-size: 14px; line-height: 1.6;">
+    <strong>推荐方案A（实时搜索）</strong>，因为：<br>
+    1. 现代Web应用的标准体验<br>
+    2. 用户无需额外操作，输入即搜索<br>
+    3. 防抖优化可以控制请求频率<br>
+    4. 与当前前端过滤的体验一致
+  </p>
+</div>
+
+<div class="section" style="margin-top: 16px; padding: 12px; background: #fafafa; border-radius: 4px;">
+  <p style="margin: 0; font-size: 13px; color: #666;">
+    👆 请选择你偏好的搜索触发方式
+  </p>
+</div>

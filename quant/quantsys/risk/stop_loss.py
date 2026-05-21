@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 class StopLossConfig:
     """止损配置"""
     method: str = 'fixed'                   # 止损方法
-    fixed_pct: float = 0.05                 # 固定止损 5%
+    fixed_pct: float = 0.08                 # 固定止损 8%（对齐 Agent 规则）
     atr_multiplier: float = 2.0             # ATR倍数
     trailing_pct: float = 0.10              # 移动止损 10%
     max_holding_days: int = 60              # 最大持仓天数

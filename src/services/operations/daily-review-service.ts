@@ -1,7 +1,7 @@
 /**
  * DailyReviewService - 每日持仓复盘
  *
- * 不走 Agent Loop，直接调用 Python 桥接获取数据，生成结构化复盘报告。
+ * 不走 Agent Loop，直接调用量化 CLI 获取数据，生成结构化复盘报告。
  * 报告同时：
  *   1. 打印到终端（当用户启动 app 时可见）
  *   2. 存入每日记忆文件 .pi-invest/memory/daily/YYYY-MM-DD.jsonl
@@ -11,13 +11,9 @@
  *   - 启动时自动检测（A股收盘后 15:30+，工作日）
  *   - CronService 定时触发（CRON.json daily-review 任务）
  */
-import {
-  get_stock_realtime_price,
-  get_hk_stock_price,
-  calculate_technical_indicators,
-  get_market_overview,
-  manage_portfolio
-} from "../../infrastructure/akshare-ts/index.js";
+import { analyzeTechnicalViaQuantCli } from "../../infrastructure/quant/analysis-query-cli-adapter.js";
+import { getMarketOverviewViaQuantCli } from "../../infrastructure/quant/market-query-cli-adapter.js";
+import { getStockPriceViaQuantCli } from "../../infrastructure/quant/stock-query-cli-adapter.js";
 import { writeFileSync, readFileSync, existsSync, mkdirSync, appendFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import { chinaDate, chinaHourMinute, chinaTime, chinaWeekday } from "../../utils/china-time.js";
@@ -102,15 +98,13 @@ export function formatMarketOverviewSection(data: Record<string, unknown>): stri
 
 async function reviewHolding(h: Holding): Promise<string> {
   // 并行获取：价格 + 技术指标 + 新闻
-  const pricePromise = h.market === "HK"
-    ? get_hk_stock_price(h.symbol)
-    : get_stock_realtime_price(h.symbol);
+  const pricePromise = getStockPriceViaQuantCli(h.symbol);
   const techPromise = h.market === "HK"
     ? Promise.resolve(JSON.stringify({ unsupported: true }))
-    : calculate_technical_indicators(h.symbol);
+    : analyzeTechnicalViaQuantCli(h.symbol);
   const newsPromise = h.market === "HK"
     ? Promise.resolve(JSON.stringify({ unsupported: true }))
-    : Promise.resolve(JSON.stringify({ unsupported: true })); // get_stock_news not in akshare-ts yet
+    : Promise.resolve(JSON.stringify({ unsupported: true })); // 每日复盘暂不拉取新闻，避免放大启动成本。
 
   const [priceRaw, techRaw, newsRaw] = await Promise.all([pricePromise, techPromise, newsPromise]);
 
@@ -170,7 +164,7 @@ ${newsSection}
 // ─── 大盘概览 ──────────────────────────────────────────────────────────────
 
 async function marketOverview(): Promise<string> {
-  const raw = await get_market_overview();
+  const raw = await getMarketOverviewViaQuantCli();
   const data = safeJson(raw);
   return formatMarketOverviewSection(data);
 }
@@ -186,6 +180,12 @@ export class DailyReviewService {
     this.dailyMemDir = join(piDir, "memory", "daily");
     mkdirSync(this.reviewsDir, { recursive: true });
     mkdirSync(this.dailyMemDir, { recursive: true });
+  }
+
+  private loadPortfolio(): Record<string, unknown> {
+    const portfolioPath = join(this.piDir, "portfolio.json");
+    if (!existsSync(portfolioPath)) return { holdings: [] };
+    return safeJson(readFileSync(portfolioPath, "utf-8"));
   }
 
   /** 今日复盘是否已完成 */
@@ -204,8 +204,7 @@ export class DailyReviewService {
     console.log(`\n[复盘] 开始执行每日持仓复盘（${date}）...\n`);
 
     // 1. 获取持仓
-    const portfolioRaw = await manage_portfolio("get");
-    const portfolio = safeJson(portfolioRaw);
+    const portfolio = this.loadPortfolio();
     const holdings: Holding[] = [];
 
     if (!portfolio.error && Array.isArray(portfolio.holdings)) {

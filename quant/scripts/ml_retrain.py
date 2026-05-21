@@ -456,8 +456,11 @@ class MLRetrainer:
         logger.info("")
         logger.info("混淆矩阵:")
         cm = report['test_metrics']['confusion_matrix']
-        logger.info(f"  TN={cm[0][0]:4d}  FP={cm[0][1]:4d}")
-        logger.info(f"  FN={cm[1][0]:4d}  TP={cm[1][1]:4d}")
+        if len(cm) == 2 and len(cm[0]) == 2:
+            logger.info(f"  TN={cm[0][0]:4d}  FP={cm[0][1]:4d}")
+            logger.info(f"  FN={cm[1][0]:4d}  TP={cm[1][1]:4d}")
+        else:
+            logger.info(f"  单类别混淆矩阵: {cm}")
         logger.info("")
         logger.info(f"模型已保存: {report['model_path']}")
         logger.info("=" * 60)
@@ -543,7 +546,24 @@ def main():
         help='异步任务ID（由 Flask API 传入），用于状态追踪'
     )
 
+    parser.add_argument(
+        '--json',
+        action='store_true',
+        help='仅输出 JSON 格式的关键指标 (quiet mode)'
+    )
+
     args = parser.parse_args()
+
+    if args.json:
+        logging.getLogger().setLevel(logging.ERROR)
+        # Redirect print() noise from training libs to stderr
+        _orig_stdout = sys.stdout
+        sys.stdout = sys.stderr
+        try:
+            import warnings
+            warnings.filterwarnings('ignore')
+        except Exception:
+            pass
 
     # 任务状态追踪
     def _job_status(status: str, **kwargs):
@@ -632,8 +652,23 @@ def main():
         end_time = datetime.now()
         retrainer.save_training_report(training_report, feature_names, start_time, end_time)
 
-        # 5. 打印摘要
-        retrainer.print_summary(training_report)
+        # 5. 输出结果
+        if args.json:
+            sys.stdout = _orig_stdout  # restore stdout for clean JSON output
+            cv_means = training_report["cv_results"]["mean_scores"]
+            cv_stds = training_report["cv_results"]["std_scores"]
+            test = training_report["test_metrics"]
+            print(json.dumps({
+                "ok": True,
+                "model": args.model,
+                "n_features": len(feature_names),
+                "cv": {k: {"mean": round(cv_means[k], 4), "std": round(cv_stds[k], 4)}
+                       for k in cv_means},
+                "test": {k: round(test[k], 4) for k in ["accuracy", "precision", "recall", "f1", "auc"]},
+                "model_path": training_report.get("model_path", ""),
+            }, ensure_ascii=False))
+        else:
+            retrainer.print_summary(training_report)
 
         # 6. 检查模型性能
         test_accuracy = training_report['test_metrics']['accuracy']
@@ -647,11 +682,12 @@ def main():
             logger.warning("  4. 尝试其他模型类型（--model 参数）")
             logger.warning("")
 
-        logger.info("")
-        logger.info("=" * 60)
-        logger.info("✅ 训练任务完成")
-        logger.info(f"结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        logger.info("=" * 60)
+        if not args.json:
+            logger.info("")
+            logger.info("=" * 60)
+            logger.info("✅ 训练任务完成")
+            logger.info(f"结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            logger.info("=" * 60)
 
         if args.job_id:
             _job_status('completed', result={
@@ -662,13 +698,21 @@ def main():
             })
 
     except Exception as e:
-        logger.error("")
-        logger.error("=" * 60)
-        logger.error("❌ 训练任务失败")
-        logger.error(f"错误: {e}")
-        logger.error("=" * 60)
-        import traceback
-        logger.error(traceback.format_exc())
+        if args.json:
+            sys.stdout = _orig_stdout  # restore stdout
+            import traceback as tb
+            print(json.dumps({
+                "ok": False,
+                "error": str(e),
+            }, ensure_ascii=False))
+        else:
+            logger.error("")
+            logger.error("=" * 60)
+            logger.error("❌ 训练任务失败")
+            logger.error(f"错误: {e}")
+            logger.error("=" * 60)
+            import traceback
+            logger.error(traceback.format_exc())
 
         if args.job_id:
             _job_status('failed', error={'message': str(e)})

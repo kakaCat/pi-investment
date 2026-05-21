@@ -30,7 +30,7 @@ export interface StopLossAnalysisRequest {
 
 /** 证据链条目 */
 export interface EvidenceItem {
-  source: string;           // 数据来源工具名，如 "get_stock_history"
+  source: string;           // 数据来源，如 "quant.stock.history"
   summary: string;          // 证据要点
   detail: string;           // 原始数据片段
 }

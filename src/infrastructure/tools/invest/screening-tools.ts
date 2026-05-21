@@ -3,7 +3,10 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { callPython } from "../shared/python-caller.js";
+import {
+  screenStocksBySectorViaQuantCli,
+  screenStocksQualityViaQuantCli,
+} from "../../quant/screening-query-cli-adapter.js";
 
 // ===== screen_stocks =====
 export const screenStocksTool: ToolDefinition = {
@@ -25,7 +28,7 @@ export const screenStocksTool: ToolDefinition = {
     if (params.min_roe !== undefined) args.min_roe = params.min_roe;
     if (params.max_pe !== undefined) args.max_pe = params.max_pe;
     if (params.limit !== undefined) args.limit = params.limit;
-    const result = await callPython("screen_stocks_by_sector", args);
+    const result = await screenStocksBySectorViaQuantCli(args as any);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -52,7 +55,7 @@ export const screenStocksQualityTool: ToolDefinition = {
     if (params.min_score !== undefined) args.min_score = params.min_score;
     if (params.max_pe !== undefined) args.max_pe = params.max_pe;
     if (params.limit !== undefined) args.limit = params.limit;
-    const result = await callPython("screen_stocks_quality", args);
+    const result = await screenStocksQualityViaQuantCli(args as any);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };

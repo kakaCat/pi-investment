@@ -18,13 +18,16 @@
  */
 
 import {
-  get_stock_realtime_price,
-  get_stock_history,
-  get_hk_stock_price,
-  get_stock_fund_flow,
-  callPython,
-} from "../../infrastructure/akshare-ts/index.js";
-import { analyze_price_action } from "../../infrastructure/akshare-ts/services/price-action.js";
+  analyzeCandlestickViaQuantCli,
+  analyzePriceActionViaQuantCli,
+  analyzeTechnicalViaQuantCli,
+} from "../../infrastructure/quant/analysis-query-cli-adapter.js";
+import {
+  getAnnouncementsViaQuantCli,
+  getStockHistoryViaQuantCli,
+  getStockNewsViaQuantCli,
+} from "../../infrastructure/quant/stock-query-cli-adapter.js";
+import { getStockFundFlowViaQuantCli } from "../../infrastructure/quant/sentiment-query-cli-adapter.js";
 import { chinaDateTime } from "../../utils/china-time.js";
 import type {
   StopLossAnalysisRequest,
@@ -72,30 +75,20 @@ function round2(v: number): number {
  * 给异步调用加超时
  */
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   return Promise.race([
     promise,
     new Promise<null>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} 超时 (${ms}ms)`)), ms)
+      timer = setTimeout(() => reject(new Error(`${label} 超时 (${ms}ms)`)), ms)
     ),
-  ]).catch((err) => {
+  ]).finally(() => {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }).catch((err) => {
     console.warn(`[StopLossAnalyzer] ${label}: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   });
-}
-
-/**
- * 解析实时价格
- */
-async function fetchPrice(symbol: string, market: "A" | "HK"): Promise<number | null> {
-  try {
-    const raw = market === "HK"
-      ? await get_hk_stock_price(symbol)
-      : await get_stock_realtime_price(symbol);
-    const data = typeof raw === "string" ? JSON.parse(raw) : raw;
-    return data?.price ?? data?.current_price ?? data?.current ?? null;
-  } catch {
-    return null;
-  }
 }
 
 // ─── 分析函数 ──────────────────────────────────────────────────────────────
@@ -111,7 +104,7 @@ async function checkTechnical(
   const evidence: EvidenceItem[] = [];
 
   try {
-    const raw = await withTimeout(analyze_price_action(symbol, 60), TIMEOUTS.TECHNICAL, "技术分析");
+    const raw = await withTimeout(analyzePriceActionViaQuantCli(symbol, 60), TIMEOUTS.TECHNICAL, "技术分析");
     if (!raw) {
       return {
         trend: "无法判断", trendConfirmed: false,
@@ -136,9 +129,8 @@ async function checkTechnical(
     // K线形态分析
     let pattern: string | null = null;
     try {
-      const { analyze_candlestick } = await import("../../infrastructure/akshare-ts/index.js");
       const patternRaw = await withTimeout(
-        analyze_candlestick(symbol),
+        analyzeCandlestickViaQuantCli(symbol),
         TIMEOUTS.TECHNICAL,
         "K线形态分析",
       );
@@ -163,9 +155,8 @@ async function checkTechnical(
     let rsi: number | null = null;
     let macdSignal: string | null = null;
     try {
-      const { calculate_technical_indicators } = await import("../../infrastructure/akshare-ts/index.js");
       const techRaw = await withTimeout(
-        calculate_technical_indicators(symbol),
+        analyzeTechnicalViaQuantCli(symbol),
         TIMEOUTS.TECHNICAL,
         "技术指标计算",
       );
@@ -174,7 +165,7 @@ async function checkTechnical(
         if (tech.signals?.length) {
           macdSignal = tech.signals.join(", ");
           evidence.push({
-            source: "calculate_technical_indicators",
+            source: "quant.analysis.technical",
             summary: `信号: ${tech.signals.slice(0, 3).join(", ")}`,
             detail: JSON.stringify(tech).slice(0, 300),
           });
@@ -200,14 +191,14 @@ async function checkTechnical(
 
 /**
  * 成交量分析
- * 用 get_stock_history 获取最近成交量，对比20日均量
+ * 用 quant CLI 历史行情获取最近成交量，对比20日均量
  */
 async function checkVolume(symbol: string): Promise<VolumeAnalysis> {
   const evidence: EvidenceItem[] = [];
 
   try {
     const raw = await withTimeout(
-      get_stock_history(symbol, "daily"),
+      getStockHistoryViaQuantCli({ symbol, period: "daily", limit: 60 }),
       TIMEOUTS.VOLUME,
       "获取历史行情",
     );
@@ -220,7 +211,7 @@ async function checkVolume(symbol: string): Promise<VolumeAnalysis> {
 
     if (candles.length < 25) {
       evidence.push({
-        source: "get_stock_history",
+        source: "quant.stock.history",
         summary: `历史数据不足 (${candles.length}条)，成交量分析不可靠`,
         detail: "",
       });
@@ -235,7 +226,7 @@ async function checkVolume(symbol: string): Promise<VolumeAnalysis> {
 
     if (volumes.length < 5) {
       evidence.push({
-        source: "get_stock_history",
+        source: "quant.stock.history",
         summary: "成交量数据不足",
         detail: "",
       });
@@ -250,7 +241,7 @@ async function checkVolume(symbol: string): Promise<VolumeAnalysis> {
     const isVolumeSpike = vsAvg !== null ? vsAvg > SPIKE_THRESHOLD * 100 : null;
 
     evidence.push({
-      source: "get_stock_history",
+      source: "quant.stock.history",
       summary: `今日量 ${todayVol.toLocaleString()}, 20日均量 ${round2(avg20).toLocaleString()}, 比值 ${vsAvg !== null ? vsAvg + "%" : "N/A"}`,
       detail: JSON.stringify({ todayVol, avg20, vsAvg }),
     });
@@ -271,7 +262,7 @@ async function checkFundFlow(symbol: string): Promise<FundFlowAnalysis> {
 
   try {
     const raw = await withTimeout(
-      get_stock_fund_flow(symbol),
+      getStockFundFlowViaQuantCli({ symbol }),
       TIMEOUTS.FUND_FLOW,
       "获取资金流向",
     );
@@ -323,10 +314,9 @@ async function checkFundamentals(symbol: string): Promise<FundamentalCheck> {
   const evidence: EvidenceItem[] = [];
 
   try {
-    // news 和 announcements 通过 Python bridge 调用
     const [newsRaw, annRaw] = await Promise.all([
-      withTimeout(callPython("get_stock_news", { symbol }), TIMEOUTS.FUNDAMENTALS, "获取新闻"),
-      withTimeout(callPython("get_announcements", { symbol }), TIMEOUTS.FUNDAMENTALS, "获取公告")
+      withTimeout(getStockNewsViaQuantCli(symbol, 10), TIMEOUTS.FUNDAMENTALS, "获取新闻"),
+      withTimeout(getAnnouncementsViaQuantCli(symbol), TIMEOUTS.FUNDAMENTALS, "获取公告")
         .catch(() => null),
     ]);
 
@@ -338,7 +328,7 @@ async function checkFundamentals(symbol: string): Promise<FundamentalCheck> {
     // 分析新闻
     if (newsRaw) {
       const newsData = typeof newsRaw === "string" ? JSON.parse(newsRaw) : newsRaw;
-      const articles = Array.isArray(newsData) ? newsData : (newsData.news ?? newsData.items ?? []);
+      const articles = Array.isArray(newsData) ? newsData : (newsData.news ?? newsData.items ?? newsData.data ?? []);
 
       const NEGATIVE_KEYWORDS = ["减持", "利空", "下跌", "预警", "亏损", "调查", "监管", "处罚", "st"];
       const POSITIVE_KEYWORDS = ["涨停", "利好", "增长", "突破", "签约", "中标", "回购", "增持", "分红"];
@@ -354,7 +344,7 @@ async function checkFundamentals(symbol: string): Promise<FundamentalCheck> {
     // 分析公告
     if (annRaw) {
       const annData = typeof annRaw === "string" ? JSON.parse(annRaw) : annRaw;
-      const anns = Array.isArray(annData) ? annData : (annData.announcements ?? annData.items ?? []);
+      const anns = Array.isArray(annData) ? annData : (annData.announcements ?? annData.items ?? annData.data ?? []);
 
       const WARNING_KEYWORDS = ["业绩预告", "业绩快报", "预亏", "预减", "减持", "风险提示"];
       for (const ann of anns.slice(0, 10)) {

@@ -3,8 +3,17 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { callPython } from "../shared/python-caller.js";
 import { requireAshare } from "../shared/validators.js";
+import {
+  getFundHoldingsViaQuantCli,
+  getHolderChangesViaQuantCli,
+  getInsiderTradesViaQuantCli,
+  getLhbViaQuantCli,
+  getMarginDataViaQuantCli,
+  getStockFundFlowViaQuantCli,
+  getTopFundStocksViaQuantCli,
+  getTopHoldersViaQuantCli,
+} from "../../quant/sentiment-query-cli-adapter.js";
 
 // ===== get_stock_fund_flow =====
 export const getStockFundFlowTool: ToolDefinition = {
@@ -23,7 +32,7 @@ export const getStockFundFlowTool: ToolDefinition = {
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
     const args: Record<string, unknown> = { symbol: params.symbol };
     if (params.days !== undefined) args.days = params.days;
-    const result = await callPython("get_stock_fund_flow", args);
+    const result = await getStockFundFlowViaQuantCli(args as any);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -56,7 +65,7 @@ export const getLhbTool: ToolDefinition = {
       args.symbol = params.symbol;
     }
     if (params.date) args.date = params.date;
-    const result = await callPython("get_lhb", args);
+    const result = await getLhbViaQuantCli(args);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -76,7 +85,7 @@ export const getInsiderTradesTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await callPython("get_insider_trades", { symbol: params.symbol });
+    const result = await getInsiderTradesViaQuantCli(params.symbol);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -95,7 +104,7 @@ export const getFundHoldingsTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await callPython("get_fund_holdings", { symbol: params.symbol });
+    const result = await getFundHoldingsViaQuantCli(params.symbol);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -110,7 +119,7 @@ export const getTopFundStocksTool: ToolDefinition = {
     "Combine with valuation tools to find quality stocks at reasonable prices.",
   parameters: Type.Object({}),
   execute: async () => {
-    const result = await callPython("get_top_fund_stocks");
+    const result = await getTopFundStocksViaQuantCli();
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -129,7 +138,7 @@ export const getTopHoldersTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await callPython("get_top_holders", { symbol: params.symbol });
+    const result = await getTopHoldersViaQuantCli(params.symbol);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -148,7 +157,7 @@ export const getHolderChangesTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await callPython("get_holder_changes", { symbol: params.symbol });
+    const result = await getHolderChangesViaQuantCli(params.symbol);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -167,7 +176,7 @@ export const getMarginDataTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await callPython("get_margin_data", { symbol: params.symbol });
+    const result = await getMarginDataViaQuantCli(params.symbol);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };

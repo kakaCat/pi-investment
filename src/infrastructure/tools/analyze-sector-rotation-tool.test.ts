@@ -1,17 +1,16 @@
 import { describe, expect, test, jest } from "@jest/globals";
 
-// ── Mock callPython using ESM-compatible jest.unstable_mockModule ──
-const mockCallPython = jest.fn<(...args: string[]) => Promise<string>>();
+const getSectorFundFlowViaQuantCliMock = jest.fn<() => Promise<string>>();
 
-await jest.unstable_mockModule("./invest-tools.js", () => ({
-  callPython: mockCallPython,
+await jest.unstable_mockModule("../quant/market-query-cli-adapter.js", () => ({
+  getSectorFundFlowViaQuantCli: getSectorFundFlowViaQuantCliMock,
 }));
 
 const { analyzeSectorRotationTool } = await import("./analyze-sector-rotation-tool.js");
 
 describe("analyzeSectorRotationTool", () => {
   beforeEach(() => {
-    mockCallPython.mockReset();
+    getSectorFundFlowViaQuantCliMock.mockReset();
   });
 
   function callTool(
@@ -28,7 +27,7 @@ describe("analyzeSectorRotationTool", () => {
 
   // ── Test case 1: Normal case — sectors with mixed inflows/outflows ──
   test("returns sorted top gainers and decliners with signals", async () => {
-    mockCallPython.mockImplementation(async () =>
+    getSectorFundFlowViaQuantCliMock.mockImplementation(async () =>
       JSON.stringify({
         data: [
           { name: "白酒", net_inflow: 5000000000, inflow_pct: 3.5, price: 8000, pct_chg: 1.8 },
@@ -89,9 +88,9 @@ describe("analyzeSectorRotationTool", () => {
     expect(details.rotationStage).toBeDefined();
   });
 
-  // ── Test case 2: Error handling — callPython throws ──
-  test("returns friendly error when callPython throws", async () => {
-    mockCallPython.mockRejectedValue(new Error("API timeout after 30s"));
+  // ── Test case 2: Error handling — quant CLI adapter throws ──
+  test("returns friendly error when quant CLI adapter throws", async () => {
+    getSectorFundFlowViaQuantCliMock.mockRejectedValue(new Error("API timeout after 30s"));
 
     const result = await callTool({});
 
@@ -104,7 +103,7 @@ describe("analyzeSectorRotationTool", () => {
 
   // ── Test case 3: Error handling — API returns error JSON ──
   test("returns friendly error when API returns error in data", async () => {
-    mockCallPython.mockResolvedValue(
+    getSectorFundFlowViaQuantCliMock.mockResolvedValue(
       JSON.stringify({ error: "市场未开盘，暂无数据" }),
     );
 
@@ -119,7 +118,7 @@ describe("analyzeSectorRotationTool", () => {
 
   // ── Test case 4: Empty data array ──
   test("handles empty sectors data gracefully", async () => {
-    mockCallPython.mockResolvedValue(JSON.stringify({ data: [] }));
+    getSectorFundFlowViaQuantCliMock.mockResolvedValue(JSON.stringify({ data: [] }));
 
     const result = await callTool({});
 
@@ -131,7 +130,7 @@ describe("analyzeSectorRotationTool", () => {
 
   // ── Test case 5: Everything is positive (no outflow sectors) ──
   test("handles all-positive sector flows correctly", async () => {
-    mockCallPython.mockResolvedValue(
+    getSectorFundFlowViaQuantCliMock.mockResolvedValue(
       JSON.stringify({
         data: [
           { name: "白酒", net_inflow: 8000000000, inflow_pct: 5.0, price: 8000, pct_chg: 2.5 },
@@ -167,7 +166,7 @@ describe("analyzeSectorRotationTool", () => {
 
   // ── Test case 6: All data is negative (no inflow sectors) ──
   test("handles all-negative sector flows as 普跌", async () => {
-    mockCallPython.mockResolvedValue(
+    getSectorFundFlowViaQuantCliMock.mockResolvedValue(
       JSON.stringify({
         data: [
           { name: "房地产", net_inflow: -1000000000, inflow_pct: -0.8, price: 1900, pct_chg: -0.6 },
@@ -193,7 +192,7 @@ describe("analyzeSectorRotationTool", () => {
 
   // ── Test case 7: Custom days parameter ──
   test("accepts custom days parameter in output header", async () => {
-    mockCallPython.mockResolvedValue(
+    getSectorFundFlowViaQuantCliMock.mockResolvedValue(
       JSON.stringify({
         data: [
           { name: "白酒", net_inflow: 1000000000, inflow_pct: 1.0, price: 8000, pct_chg: 0.5 },
@@ -210,7 +209,7 @@ describe("analyzeSectorRotationTool", () => {
 
   // ── Test case 8: Rotation pattern detection ──
   test("detects clear rotation pattern when inflow sectors rise and outflow sectors fall", async () => {
-    mockCallPython.mockImplementation(async () =>
+    getSectorFundFlowViaQuantCliMock.mockImplementation(async () =>
       JSON.stringify({
         data: [
           { name: "白酒", net_inflow: 6000000000, inflow_pct: 4.0, price: 8000, pct_chg: 2.0 },

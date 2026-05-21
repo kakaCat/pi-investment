@@ -154,12 +154,27 @@ const StockAnalysis: React.FC = () => {
                   value={data.prediction.up_probability * 100}
                   precision={2}
                   suffix="%"
-                  valueStyle={{ color: data.prediction.up_probability > 0.5 ? '#3f8600' : '#cf1322' }}
-                  prefix={data.prediction.up_probability > 0.5 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                  valueStyle={{ color: '#cf1322' }}
+                  prefix={<ArrowUpOutlined />}
                 />
               </Card>
             </Col>
             <Col span={6}>
+              <Card>
+                <Statistic
+                  title="下跌概率"
+                  value={(1 - data.prediction.up_probability) * 100}
+                  precision={2}
+                  suffix="%"
+                  valueStyle={{ color: '#3f8600' }}
+                  prefix={<ArrowDownOutlined />}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          <Row gutter={16} style={{ marginTop: 16 }}>
+            <Col span={24}>
               <Card>
                 <Statistic
                   title="置信度"

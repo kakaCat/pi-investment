@@ -1,12 +1,17 @@
 /**
  * HK Stock Tools — 港股专用工具
  *
- * 新增工具对应 Python akshare_bridge.py 中的同名函数
+ * 新增工具通过 quant CLI 后端链路提供数据
  * 注册方式：在 invest-tools.ts 的 investTools 数组中加入 hkTools
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { callPython } from "../shared/python-caller.js";
+import {
+  getHkHotRankViaQuantCli,
+  getHkMarketOverviewViaQuantCli,
+  getHkSouthFlowViaQuantCli,
+  getHkTechnicalViaQuantCli,
+} from "../../quant/hk-query-cli-adapter.js";
 
 // ===== get_hk_market_overview =====
 export const getHkMarketOverviewTool: ToolDefinition = {
@@ -21,7 +26,7 @@ export const getHkMarketOverviewTool: ToolDefinition = {
     "Returns {error} if market data is unavailable (e.g. outside trading hours).",
   parameters: Type.Object({}),
   execute: async () => {
-    const result = await callPython("get_hk_market_overview");
+    const result = await getHkMarketOverviewViaQuantCli();
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -39,7 +44,7 @@ export const getHkSouthFlowTool: ToolDefinition = {
     "Returns {error} if southbound flow data is unavailable.",
   parameters: Type.Object({}),
   execute: async () => {
-    const result = await callPython("get_hk_south_flow");
+    const result = await getHkSouthFlowViaQuantCli();
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -60,7 +65,7 @@ export const getHkTechnicalTool: ToolDefinition = {
     symbol: Type.String({ description: "HK stock code, e.g. '9988' or '9988.HK' or '00700'" }),
   }),
   execute: async (_toolCallId, params: any) => {
-    const result = await callPython("get_hk_technical", { symbol: params.symbol });
+    const result = await getHkTechnicalViaQuantCli(params.symbol);
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -78,7 +83,7 @@ export const getHkHotRankTool: ToolDefinition = {
     "Returns {error} if ranking data is unavailable.",
   parameters: Type.Object({}),
   execute: async () => {
-    const result = await callPython("get_hk_hot_rank");
+    const result = await getHkHotRankViaQuantCli();
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };

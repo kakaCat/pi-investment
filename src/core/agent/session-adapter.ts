@@ -79,6 +79,34 @@ export function getMessages(session: AgentSession | any): SessionMessage[] {
   return [];
 }
 
+export function normalizeAssistantUsages(session: AgentSession | any): void {
+  for (const message of getMessages(session)) {
+    if (message?.role !== "assistant") continue;
+    const usage = message.usage ?? {};
+    const input = usage.input ?? usage.input_tokens ?? 0;
+    const output = usage.output ?? usage.output_tokens ?? 0;
+    const cacheRead = usage.cacheRead ?? usage.cache_read ?? 0;
+    const cacheWrite = usage.cacheWrite ?? usage.cache_write ?? 0;
+    const cost = usage.cost ?? {};
+
+    message.usage = {
+      ...usage,
+      input,
+      output,
+      cacheRead,
+      cacheWrite,
+      totalTokens: usage.totalTokens ?? usage.total_tokens ?? input + output + cacheRead + cacheWrite,
+      cost: {
+        input: cost.input ?? 0,
+        output: cost.output ?? 0,
+        cacheRead: cost.cacheRead ?? cost.cache_read ?? 0,
+        cacheWrite: cost.cacheWrite ?? cost.cache_write ?? 0,
+        total: cost.total ?? 0,
+      },
+    };
+  }
+}
+
 /**
  * Get the last message from the session
  */

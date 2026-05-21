@@ -24,6 +24,81 @@ def get_stock_quote(symbol: str) -> dict[str, Any]:
     return _get_a_share_quote(symbol)
 
 
+def get_batch_stock_quotes(symbols: list[str]) -> dict[str, Any]:
+    """Return real-time prices for multiple A-share or HK symbols."""
+    prices: dict[str, float] = {}
+    errors: list[dict[str, str]] = []
+
+    for raw_symbol in symbols:
+        symbol = _hk_code(raw_symbol) if _is_hk_symbol(raw_symbol) else _clean_symbol(raw_symbol)
+        quote = get_stock_quote(raw_symbol)
+        price = quote.get("price")
+        if isinstance(price, (int, float)) and price > 0:
+            prices[symbol] = float(price)
+        else:
+            errors.append({
+                "symbol": symbol,
+                "error": str(quote.get("error") or "价格不可用"),
+            })
+
+    return {
+        "prices": prices,
+        "errors": errors,
+        "count": len(prices),
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+def get_stock_list(market: str = "A") -> dict[str, Any]:
+    """Return live stock universe data in the legacy bridge shape."""
+    normalized_market = (market or "A").upper()
+    if normalized_market not in {"A", "HK"}:
+        return {"error": f"暂不支持市场: {market}", "stocks": []}
+
+    try:
+        _disable_proxy_env()
+        import akshare as ak
+
+        if normalized_market == "HK":
+            frame = ak.stock_hk_spot_em()
+            code_key = "代码"
+            name_key = "名称"
+            records = [
+                {
+                    "code": str(row.get(code_key, "")).zfill(5),
+                    "symbol": str(row.get(code_key, "")).zfill(5),
+                    "name": str(row.get(name_key, "")),
+                    "market": "HK",
+                    "market_cap": _safe_float(row.get("总市值", 0), decimals=0) / 100000000,
+                    "pe": _safe_float(row.get("市盈率", 0)),
+                    "pb": _safe_float(row.get("市净率", 0)),
+                }
+                for _, row in frame.iterrows()
+            ]
+        else:
+            frame = ak.stock_zh_a_spot_em()
+            records = [
+                {
+                    "code": str(row.get("代码", "")),
+                    "symbol": str(row.get("代码", "")),
+                    "name": str(row.get("名称", "")),
+                    "market": "A",
+                    "market_cap": _safe_float(row.get("总市值", 0), decimals=0) / 100000000,
+                    "pe": _safe_float(row.get("市盈率-动态", 0)),
+                    "pb": _safe_float(row.get("市净率", 0)),
+                }
+                for _, row in frame.iterrows()
+            ]
+
+        return {
+            "stocks": records,
+            "count": len(records),
+            "data_date": datetime.now().strftime("%Y-%m-%d"),
+        }
+    except Exception as exc:
+        return {"error": str(exc), "stocks": []}
+
+
 def get_stock_info(symbol: str) -> dict[str, Any]:
     """Return basic A-share or HK stock profile data."""
     if _is_hk_symbol(symbol):
@@ -86,7 +161,7 @@ def get_stock_history(
 
 
 def get_stock_news(symbol: str, num: int = 10) -> dict[str, Any]:
-    """Return recent stock news from AkShare/Eastmoney."""
+    """Return recent stock news/announcements from Eastmoney."""
     raw = _clean_symbol(symbol)
     market_symbol = _eastmoney_symbol(raw)
     result: dict[str, Any] = {
@@ -95,24 +170,66 @@ def get_stock_news(symbol: str, num: int = 10) -> dict[str, Any]:
         "data": [],
         "data_date": datetime.now().strftime("%Y-%m-%d"),
     }
+
+    # Source 1: Eastmoney announcements API (primary, verified working)
     try:
         _disable_proxy_env()
-        import akshare as ak
+        import requests as _requests
 
-        frame = ak.stock_news_em(symbol=market_symbol)
-        if frame is not None and not frame.empty:
-            result["data"].extend([
-                {
-                    "title": str(row.get("新闻标题", "")),
-                    "date": str(row.get("发布时间", "")),
-                    "source": str(row.get("文章来源", "")),
-                    "content": str(row.get("新闻内容", ""))[:200],
-                }
-                for _, row in frame.head(num).iterrows()
-            ])
-            result["sources"].append("eastmoney")
+        ann_url = "http://np-anotice-stock.eastmoney.com/api/security/ann"
+        ann_params = {
+            "sr": -1,
+            "page_size": min(num, 50),
+            "page_index": 1,
+            "ann_type": "A",
+            "client_source": "web",
+            "stock_list": raw,
+        }
+        ann_resp = _requests.get(
+            ann_url,
+            params=ann_params,
+            headers={
+                "Referer": "https://data.eastmoney.com",
+                "User-Agent": "Mozilla/5.0",
+            },
+            timeout=10,
+        )
+        if ann_resp.status_code == 200:
+            ann_data = ann_resp.json()
+            ann_items = ann_data.get("data", {}).get("list") or []
+            if ann_items:
+                result["data"].extend([
+                    {
+                        "title": str(item.get("title", "")),
+                        "date": str(item.get("notice_date", "")),
+                        "source": "公司公告",
+                        "content": str(item.get("summary", ""))[:200],
+                        "type": "announcement",
+                    }
+                    for item in ann_items[:num]
+                ])
+                result["sources"].append("eastmoney_announcements")
     except Exception as exc:
-        result["eastmoney_error"] = str(exc)
+        result["eastmoney_ann_error"] = str(exc)
+
+    # Source 2: AkShare fallback (may be unavailable due to upstream changes)
+    if len(result["data"]) < num:
+        try:
+            import akshare as ak
+
+            frame = ak.stock_news_em(symbol=market_symbol)
+            if frame is not None and not frame.empty:
+                for _, row in frame.head(num - len(result["data"])).iterrows():
+                    result["data"].append({
+                        "title": str(row.get("新闻标题", "")),
+                        "date": str(row.get("发布时间", "")),
+                        "source": str(row.get("文章来源", "")),
+                        "content": str(row.get("新闻内容", ""))[:200],
+                        "type": "news",
+                    })
+                result["sources"].append("eastmoney_news")
+        except Exception as exc:
+            result["eastmoney_news_error"] = str(exc)
 
     if not result["data"]:
         result["warning"] = "所有新闻源均无数据"

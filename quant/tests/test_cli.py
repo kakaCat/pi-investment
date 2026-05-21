@@ -59,6 +59,7 @@ class QuantCliTests(unittest.TestCase):
         self.assertIn("stock.history", command_names)
         self.assertIn("stock.news", command_names)
         self.assertIn("stock.announcements", command_names)
+        self.assertIn("stock.batch_quotes", command_names)
         self.assertIn("market.overview", command_names)
         self.assertIn("market.sectors", command_names)
         self.assertIn("market.concept_stocks", command_names)
@@ -69,6 +70,7 @@ class QuantCliTests(unittest.TestCase):
         self.assertIn("market.margin", command_names)
         self.assertIn("market.news", command_names)
         self.assertIn("market.hot_stocks", command_names)
+        self.assertIn("market.index_history", command_names)
         self.assertIn("analysis.technical", command_names)
         self.assertIn("analysis.price_action", command_names)
         self.assertIn("analysis.candlestick", command_names)
@@ -78,6 +80,27 @@ class QuantCliTests(unittest.TestCase):
         self.assertIn("analysis.quality", command_names)
         self.assertIn("analysis.exit_plan", command_names)
         self.assertIn("analysis.peers", command_names)
+        self.assertIn("screening.sector", command_names)
+        self.assertIn("screening.quality", command_names)
+        self.assertIn("risk.trade_check", command_names)
+        self.assertIn("risk.position_size", command_names)
+        self.assertIn("risk.stop_loss", command_names)
+        self.assertIn("hk.market_overview", command_names)
+        self.assertIn("hk.south_flow", command_names)
+        self.assertIn("hk.technical", command_names)
+        self.assertIn("hk.hot_rank", command_names)
+        self.assertIn("sentiment.stock_fund_flow", command_names)
+        self.assertIn("sentiment.lhb", command_names)
+        self.assertIn("sentiment.insider_trades", command_names)
+        self.assertIn("sentiment.fund_holdings", command_names)
+        self.assertIn("sentiment.top_fund_stocks", command_names)
+        self.assertIn("sentiment.top_holders", command_names)
+        self.assertIn("sentiment.holder_changes", command_names)
+        self.assertIn("sentiment.margin_data", command_names)
+        self.assertIn("financial.indicators", command_names)
+        self.assertIn("financial.statements", command_names)
+        self.assertIn("financial.hk_financials", command_names)
+        self.assertIn("financial.hk_analysis", command_names)
 
     def test_tools_describe_returns_command_schema(self) -> None:
         exit_code, stdout, _stderr = self.run_cli(
@@ -177,6 +200,119 @@ class QuantCliTests(unittest.TestCase):
             "analysis.quality": ("symbol", "quant analysis +quality"),
             "analysis.exit_plan": ("buy_price", "quant analysis +exit-plan"),
             "analysis.peers": ("symbol", "quant analysis +peers"),
+        }
+
+        for command_name, (param_name, example_text) in expected.items():
+            with self.subTest(command_name=command_name):
+                exit_code, stdout, _stderr = self.run_cli(
+                    ["tools", "+describe", command_name, "--json"]
+                )
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["data"]["name"], command_name)
+                self.assertIn(param_name, payload["data"]["params"])
+                self.assertIn(example_text, payload["data"]["examples"][0])
+
+    def test_tools_describe_returns_screening_command_schemas(self) -> None:
+        expected = {
+            "screening.sector": ("sector", "quant screening +sector"),
+            "screening.quality": ("min_score", "quant screening +quality"),
+        }
+
+        for command_name, (param_name, example_text) in expected.items():
+            with self.subTest(command_name=command_name):
+                exit_code, stdout, _stderr = self.run_cli(
+                    ["tools", "+describe", command_name, "--json"]
+                )
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["data"]["name"], command_name)
+                self.assertIn(param_name, payload["data"]["params"])
+                self.assertIn(example_text, payload["data"]["examples"][0])
+
+    def test_tools_describe_returns_risk_command_schemas(self) -> None:
+        expected = {
+            "risk.trade_check": ("shares", "quant risk +trade-check"),
+            "risk.position_size": ("signal_strength", "quant risk +position-size"),
+            "risk.stop_loss": ("entry_price", "quant risk +stop-loss"),
+        }
+
+        for command_name, (param_name, example_text) in expected.items():
+            with self.subTest(command_name=command_name):
+                exit_code, stdout, _stderr = self.run_cli(
+                    ["tools", "+describe", command_name, "--json"]
+                )
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["data"]["name"], command_name)
+                self.assertIn(param_name, payload["data"]["params"])
+                self.assertIn(example_text, payload["data"]["examples"][0])
+
+    def test_tools_describe_returns_hk_command_schemas(self) -> None:
+        expected = {
+            "hk.market_overview": ("quant hk +market-overview", None),
+            "hk.south_flow": ("quant hk +south-flow", None),
+            "hk.technical": ("quant hk +technical", "symbol"),
+            "hk.hot_rank": ("quant hk +hot-rank", None),
+        }
+
+        for command_name, (example_text, param_name) in expected.items():
+            with self.subTest(command_name=command_name):
+                exit_code, stdout, _stderr = self.run_cli(
+                    ["tools", "+describe", command_name, "--json"]
+                )
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["data"]["name"], command_name)
+                if param_name:
+                    self.assertIn(param_name, payload["data"]["params"])
+                self.assertIn(example_text, payload["data"]["examples"][0])
+
+    def test_tools_describe_returns_sentiment_command_schemas(self) -> None:
+        expected = {
+            "sentiment.stock_fund_flow": ("symbol", "quant sentiment +stock-fund-flow"),
+            "sentiment.lhb": ("date", "quant sentiment +lhb"),
+            "sentiment.insider_trades": ("symbol", "quant sentiment +insider-trades"),
+            "sentiment.fund_holdings": ("symbol", "quant sentiment +fund-holdings"),
+            "sentiment.top_fund_stocks": (None, "quant sentiment +top-fund-stocks"),
+            "sentiment.top_holders": ("symbol", "quant sentiment +top-holders"),
+            "sentiment.holder_changes": ("symbol", "quant sentiment +holder-changes"),
+            "sentiment.margin_data": ("symbol", "quant sentiment +margin-data"),
+        }
+
+        for command_name, (param_name, example_text) in expected.items():
+            with self.subTest(command_name=command_name):
+                exit_code, stdout, _stderr = self.run_cli(
+                    ["tools", "+describe", command_name, "--json"]
+                )
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["data"]["name"], command_name)
+                if param_name:
+                    self.assertIn(param_name, payload["data"]["params"])
+                self.assertIn(example_text, payload["data"]["examples"][0])
+
+    def test_tools_describe_returns_financial_command_schemas(self) -> None:
+        expected = {
+            "financial.indicators": ("symbol", "quant financial +indicators"),
+            "financial.statements": ("statement", "quant financial +statements"),
+            "financial.hk_financials": ("symbol", "quant financial +hk-financials"),
+            "financial.hk_analysis": ("symbol", "quant financial +hk-analysis"),
         }
 
         for command_name, (param_name, example_text) in expected.items():
@@ -345,6 +481,14 @@ class QuantCliTests(unittest.TestCase):
                 {},
                 "stock.announcements",
             ),
+            (
+                ["stock", "+batch-quotes", "--symbols", "600519,000001", "--json"],
+                "get_batch_stock_quotes",
+                {"prices": {"600519": 100.5, "000001": 12.3}, "errors": []},
+                (["600519", "000001"],),
+                {},
+                "stock.batch_quotes",
+            ),
         ]
 
         for argv, helper_name, helper_result, expected_args, expected_kwargs, command_name in cases:
@@ -359,6 +503,22 @@ class QuantCliTests(unittest.TestCase):
                 self.assertEqual(payload["command"], command_name)
                 self.assertEqual(payload["data"], helper_result)
                 helper.assert_called_once_with(*expected_args, **expected_kwargs)
+
+    def test_stock_list_can_use_live_stock_universe_helper(self) -> None:
+        helper_result = {"stocks": [{"code": "600519", "name": "贵州茅台"}]}
+
+        with patch.object(cli_main, "get_stock_list", return_value=helper_result, create=True) as helper:
+            exit_code, stdout, _stderr = self.run_cli(
+                ["stock", "+list", "--market", "A", "--source", "live", "--json"]
+            )
+
+        payload = self.parse_json_stdout(stdout)
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["command"], "stock.list")
+        self.assertEqual(payload["data"], helper_result)
+        helper.assert_called_once_with(market="A")
 
     def test_market_commands_forward_to_quant_market_helpers(self) -> None:
         cases = [
@@ -441,6 +601,14 @@ class QuantCliTests(unittest.TestCase):
                 (),
                 {"market": "港股"},
                 "market.hot_stocks",
+            ),
+            (
+                ["market", "+index-history", "--symbol", "sh000001", "--start-date", "2026-01-01", "--end-date", "2026-05-20", "--json"],
+                "get_index_history",
+                {"success": True, "data": []},
+                ("sh000001", "2026-01-01", "2026-05-20"),
+                {},
+                "market.index_history",
             ),
         ]
 
@@ -530,6 +698,259 @@ class QuantCliTests(unittest.TestCase):
                 ("600519",),
                 {},
                 "analysis.peers",
+            ),
+        ]
+
+        for argv, helper_name, helper_result, expected_args, expected_kwargs, command_name in cases:
+            with self.subTest(command_name=command_name):
+                with patch.object(cli_main, helper_name, return_value=helper_result, create=True) as helper:
+                    exit_code, stdout, _stderr = self.run_cli(argv)
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["command"], command_name)
+                self.assertEqual(payload["data"], helper_result)
+                helper.assert_called_once_with(*expected_args, **expected_kwargs)
+
+    def test_screening_commands_forward_to_quant_screening_helpers(self) -> None:
+        cases = [
+            (
+                ["screening", "+sector", "--sector", "白酒", "--min-roe", "15", "--max-pe", "30", "--limit", "8", "--json"],
+                "screen_stocks_by_sector",
+                {"sector": "白酒", "count": 1, "data": [{"code": "600519"}]},
+                ("白酒",),
+                {"min_roe": 15.0, "max_pe": 30.0, "limit": 8},
+                "screening.sector",
+            ),
+            (
+                ["screening", "+quality", "--sector", "白酒", "--min-score", "65", "--max-pe", "30", "--limit", "5", "--json"],
+                "screen_stocks_quality",
+                {"sector": "白酒", "qualified": 1, "data": [{"symbol": "600519"}]},
+                ("白酒",),
+                {"min_score": 65, "max_pe": 30.0, "limit": 5},
+                "screening.quality",
+            ),
+        ]
+
+        for argv, helper_name, helper_result, expected_args, expected_kwargs, command_name in cases:
+            with self.subTest(command_name=command_name):
+                with patch.object(cli_main, helper_name, return_value=helper_result, create=True) as helper:
+                    exit_code, stdout, _stderr = self.run_cli(argv)
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["command"], command_name)
+                self.assertEqual(payload["data"], helper_result)
+                helper.assert_called_once_with(*expected_args, **expected_kwargs)
+
+    def test_risk_commands_forward_to_quant_risk_helpers(self) -> None:
+        cases = [
+            (
+                ["risk", "+trade-check", "--symbol", "600519", "--action", "buy", "--price", "100.5", "--shares", "300", "--json"],
+                "check_trade_risk",
+                {"passed": True, "adjusted_shares": 300},
+                ("600519", "buy", 100.5, 300),
+                {},
+                "risk.trade_check",
+            ),
+            (
+                ["risk", "+position-size", "--symbol", "600519", "--price", "100.5", "--signal-strength", "0.8", "--json"],
+                "calculate_position_size",
+                {"shares": 200, "method": "kelly"},
+                ("600519", 100.5),
+                {"signal_strength": 0.8},
+                "risk.position_size",
+            ),
+            (
+                ["risk", "+stop-loss", "--symbol", "600519", "--entry-price", "90", "--current-price", "100", "--highest-price", "110", "--json"],
+                "calculate_stop_loss",
+                {"stop_loss_price": 99.0, "method": "trailing"},
+                ("600519", 90.0),
+                {"current_price": 100.0, "highest_price": 110.0},
+                "risk.stop_loss",
+            ),
+        ]
+
+        for argv, helper_name, helper_result, expected_args, expected_kwargs, command_name in cases:
+            with self.subTest(command_name=command_name):
+                with patch.object(cli_main, helper_name, return_value=helper_result, create=True) as helper:
+                    exit_code, stdout, _stderr = self.run_cli(argv)
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["command"], command_name)
+                self.assertEqual(payload["data"], helper_result)
+                helper.assert_called_once_with(*expected_args, **expected_kwargs)
+
+    def test_hk_commands_forward_to_quant_hk_helpers(self) -> None:
+        cases = [
+            (
+                ["hk", "+market-overview", "--json"],
+                "get_hk_market_overview",
+                {"indices": [{"code": "HSI"}]},
+                (),
+                {},
+                "hk.market_overview",
+            ),
+            (
+                ["hk", "+south-flow", "--json"],
+                "get_hk_south_flow",
+                {"direction": "南向（内地→港股）", "data": []},
+                (),
+                {},
+                "hk.south_flow",
+            ),
+            (
+                ["hk", "+technical", "--symbol", "9988", "--json"],
+                "get_hk_technical",
+                {"symbol": "09988", "signals": []},
+                ("9988",),
+                {},
+                "hk.technical",
+            ),
+            (
+                ["hk", "+hot-rank", "--json"],
+                "get_hk_hot_rank",
+                {"total": 1, "stocks": [{"symbol": "00700"}]},
+                (),
+                {},
+                "hk.hot_rank",
+            ),
+        ]
+
+        for argv, helper_name, helper_result, expected_args, expected_kwargs, command_name in cases:
+            with self.subTest(command_name=command_name):
+                with patch.object(cli_main, helper_name, return_value=helper_result, create=True) as helper:
+                    exit_code, stdout, _stderr = self.run_cli(argv)
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["command"], command_name)
+                self.assertEqual(payload["data"], helper_result)
+                helper.assert_called_once_with(*expected_args, **expected_kwargs)
+
+    def test_sentiment_commands_forward_to_quant_sentiment_helpers(self) -> None:
+        cases = [
+            (
+                ["sentiment", "+stock-fund-flow", "--symbol", "600519", "--days", "5", "--json"],
+                "get_stock_fund_flow",
+                {"symbol": "600519", "count": 5},
+                ("600519",),
+                {"days": 5},
+                "sentiment.stock_fund_flow",
+            ),
+            (
+                ["sentiment", "+lhb", "--symbol", "600519", "--date", "20260519", "--json"],
+                "get_lhb",
+                {"symbol": "600519", "count": 1},
+                (),
+                {"symbol": "600519", "date": "20260519"},
+                "sentiment.lhb",
+            ),
+            (
+                ["sentiment", "+insider-trades", "--symbol", "600519", "--json"],
+                "get_insider_trades",
+                {"symbol": "600519", "count": 1},
+                ("600519",),
+                {},
+                "sentiment.insider_trades",
+            ),
+            (
+                ["sentiment", "+fund-holdings", "--symbol", "600519", "--json"],
+                "get_fund_holdings",
+                {"symbol": "600519", "count": 1},
+                ("600519",),
+                {},
+                "sentiment.fund_holdings",
+            ),
+            (
+                ["sentiment", "+top-fund-stocks", "--json"],
+                "get_top_fund_stocks",
+                {"data": []},
+                (),
+                {},
+                "sentiment.top_fund_stocks",
+            ),
+            (
+                ["sentiment", "+top-holders", "--symbol", "600519", "--json"],
+                "get_top_holders",
+                {"symbol": "600519", "count": 10},
+                ("600519",),
+                {},
+                "sentiment.top_holders",
+            ),
+            (
+                ["sentiment", "+holder-changes", "--symbol", "600519", "--json"],
+                "get_holder_changes",
+                {"symbol": "600519", "count": 8},
+                ("600519",),
+                {},
+                "sentiment.holder_changes",
+            ),
+            (
+                ["sentiment", "+margin-data", "--symbol", "600519", "--json"],
+                "get_margin_data",
+                {"symbol": "600519", "count": 10},
+                ("600519",),
+                {},
+                "sentiment.margin_data",
+            ),
+        ]
+
+        for argv, helper_name, helper_result, expected_args, expected_kwargs, command_name in cases:
+            with self.subTest(command_name=command_name):
+                with patch.object(cli_main, helper_name, return_value=helper_result, create=True) as helper:
+                    exit_code, stdout, _stderr = self.run_cli(argv)
+
+                payload = self.parse_json_stdout(stdout)
+
+                self.assertEqual(exit_code, 0)
+                self.assertTrue(payload["ok"])
+                self.assertEqual(payload["command"], command_name)
+                self.assertEqual(payload["data"], helper_result)
+                helper.assert_called_once_with(*expected_args, **expected_kwargs)
+
+    def test_financial_commands_forward_to_quant_financial_helpers(self) -> None:
+        cases = [
+            (
+                ["financial", "+indicators", "--symbol", "600519", "--json"],
+                "get_financial_indicators",
+                {"symbol": "600519", "quarters": []},
+                ("600519",),
+                {},
+                "financial.indicators",
+            ),
+            (
+                ["financial", "+statements", "--symbol", "600519", "--statement", "income", "--recent-n", "4", "--json"],
+                "get_financial_statements",
+                {"income_statement": {"data": []}},
+                ("600519",),
+                {"statement": "income", "recent_n": 4},
+                "financial.statements",
+            ),
+            (
+                ["financial", "+hk-financials", "--symbol", "9988", "--json"],
+                "get_hk_financials",
+                {"symbol": "09988", "market": "HK"},
+                ("9988",),
+                {},
+                "financial.hk_financials",
+            ),
+            (
+                ["financial", "+hk-analysis", "--symbol", "9988", "--json"],
+                "get_hk_analysis",
+                {"symbol": "09988", "market": "HK"},
+                ("9988",),
+                {},
+                "financial.hk_analysis",
             ),
         ]
 

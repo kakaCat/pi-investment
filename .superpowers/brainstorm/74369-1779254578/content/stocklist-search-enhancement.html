@@ -1,0 +1,196 @@
+<h2>股票列表管理 - 搜索功能增强方案</h2>
+<p class="subtitle">当前页面已有基础搜索，以下是三种增强方案</p>
+
+<div class="section">
+  <h3>当前搜索功能分析</h3>
+  <div style="padding: 16px; background: #f5f5f5; border-radius: 8px; margin-bottom: 24px;">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+      <span style="font-size: 24px;">🔍</span>
+      <input class="mock-input" placeholder="搜索股票代码或名称" style="flex: 1; padding: 8px 12px;">
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px;">
+      <div style="padding: 8px; background: #e6f7ff; border-left: 3px solid #1890ff;">
+        <strong>✓ 已有功能</strong><br>
+        • 搜索股票代码<br>
+        • 搜索股票名称<br>
+        • 实时前端过滤
+      </div>
+      <div style="padding: 8px; background: #fff7e6; border-left: 3px solid #faad14;">
+        <strong>⚠️ 局限性</strong><br>
+        • 仅过滤当前页（20条）<br>
+        • 无法跨页搜索全部5458只股票<br>
+        • 无高级筛选条件
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>增强方案对比</h3>
+
+<div class="options">
+  <div class="option" data-choice="backend-search" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>后端全局搜索（推荐）</h3>
+      <p style="margin: 8px 0; color: #666;">改造为后端API搜索，支持全库查询</p>
+
+      <div class="mockup" style="margin: 12px 0; transform: scale(0.85); transform-origin: top left;">
+        <div class="mockup-body" style="padding: 12px; background: white;">
+          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+            <input class="mock-input" placeholder="搜索 5,458 只股票的代码或名称..." style="flex: 1;">
+            <button class="mock-button" style="padding: 6px 16px;">搜索</button>
+          </div>
+          <div style="font-size: 12px; color: #999;">找到 3 个结果（用时 45ms）</div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="font-size: 12px;">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>搜索全部股票，不受分页限制</li>
+            <li>支持模糊匹配和拼音搜索</li>
+            <li>性能好，数据库索引加速</li>
+            <li>可扩展高级筛选</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>成本</h4>
+          <ul>
+            <li>需要后端API开发</li>
+            <li>需要数据库索引优化</li>
+            <li>开发时间：2-3小时</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="advanced-filter" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>高级筛选面板</h3>
+      <p style="margin: 8px 0; color: #666;">添加多条件组合筛选，保留前端过滤</p>
+
+      <div class="mockup" style="margin: 12px 0; transform: scale(0.85); transform-origin: top left;">
+        <div class="mockup-body" style="padding: 12px; background: white;">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <input class="mock-input" placeholder="搜索代码或名称" style="flex: 1;">
+            <button class="mock-button" style="padding: 6px 12px;">🔽 高级筛选</button>
+          </div>
+          <div style="padding: 12px; background: #fafafa; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 12px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+              <div>
+                <div style="margin-bottom: 4px; color: #666;">市场</div>
+                <select class="mock-input" style="width: 100%; padding: 4px;">
+                  <option>全部</option>
+                  <option>A股</option>
+                  <option>港股</option>
+                </select>
+              </div>
+              <div>
+                <div style="margin-bottom: 4px; color: #666;">数据状态</div>
+                <select class="mock-input" style="width: 100%; padding: 4px;">
+                  <option>全部</option>
+                  <option>完整</option>
+                  <option>不完整</option>
+                </select>
+              </div>
+              <div>
+                <div style="margin-bottom: 4px; color: #666;">K线天数</div>
+                <input class="mock-input" placeholder="最小天数" style="width: 100%; padding: 4px;">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="font-size: 12px;">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>多维度组合筛选</li>
+            <li>纯前端实现，无需后端</li>
+            <li>开发快速</li>
+            <li>用户体验直观</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>局限</h4>
+          <ul>
+            <li>仍然只能筛选当前页</li>
+            <li>无法全局搜索</li>
+            <li>开发时间：1-2小时</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="smart-search" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>智能搜索（后端 + 高级筛选）</h3>
+      <p style="margin: 8px 0; color: #666;">结合方案A和B，提供最完整的搜索体验</p>
+
+      <div class="mockup" style="margin: 12px 0; transform: scale(0.85); transform-origin: top left;">
+        <div class="mockup-body" style="padding: 12px; background: white;">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <input class="mock-input" placeholder="搜索全部 5,458 只股票..." style="flex: 1;">
+            <button class="mock-button">搜索</button>
+            <button class="mock-button">🔽 筛选</button>
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px;">
+            <span style="padding: 4px 8px; background: #e6f7ff; border-radius: 12px; border: 1px solid #91d5ff;">
+              市场: A股 ×
+            </span>
+            <span style="padding: 4px 8px; background: #f6ffed; border-radius: 12px; border: 1px solid #b7eb8f;">
+              数据完整 ×
+            </span>
+            <span style="padding: 4px 8px; background: #fff7e6; border-radius: 12px; border: 1px solid #ffd591;">
+              K线 ≥ 500天 ×
+            </span>
+          </div>
+          <div style="margin-top: 8px; font-size: 12px; color: #999;">找到 1,234 个结果</div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="font-size: 12px;">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>全局搜索 + 多条件筛选</li>
+            <li>最佳用户体验</li>
+            <li>支持复杂查询场景</li>
+            <li>可保存筛选条件</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>成本</h4>
+          <ul>
+            <li>开发工作量最大</li>
+            <li>需要前后端配合</li>
+            <li>开发时间：4-5小时</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px; padding: 16px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #1890ff;">
+  <h4 style="margin: 0 0 8px 0;">💡 我的建议</h4>
+  <p style="margin: 0; font-size: 14px; line-height: 1.6;">
+    <strong>推荐方案A（后端全局搜索）</strong>，因为：<br>
+    1. 当前最大痛点是无法搜索全部5458只股票<br>
+    2. 后端搜索性能更好，用户体验更流畅<br>
+    3. 为未来扩展高级筛选打好基础<br>
+    4. 开发成本适中，性价比最高
+  </p>
+</div>
+
+<div class="section" style="margin-top: 16px; padding: 12px; background: #fafafa; border-radius: 4px;">
+  <p style="margin: 0; font-size: 13px; color: #666;">
+    👆 请点击选择你想要的方案，或在终端告诉我你的想法
+  </p>
+</div>

@@ -20,12 +20,26 @@ describe("quantCliTool", () => {
     expect(quantCliTool.description).toContain("使用说明书");
     expect(quantCliTool.description).toContain("stock.technical");
     expect(quantCliTool.description).toContain("stock.quote");
+    expect(quantCliTool.description).toContain("stock.batch_quotes");
+    expect(quantCliTool.description).toContain("stock.list");
     expect(quantCliTool.description).toContain("stock.info");
     expect(quantCliTool.description).toContain("market.overview");
+    expect(quantCliTool.description).toContain("market.index_history");
     expect(quantCliTool.description).toContain("market.macro");
     expect(quantCliTool.description).toContain("analysis.technical");
     expect(quantCliTool.description).toContain("analysis.buy_range");
     expect(quantCliTool.description).toContain("analysis.peers");
+    expect(quantCliTool.description).toContain("screening.sector");
+    expect(quantCliTool.description).toContain("screening.quality");
+    expect(quantCliTool.description).toContain("risk.trade_check");
+    expect(quantCliTool.description).toContain("risk.position_size");
+    expect(quantCliTool.description).toContain("risk.stop_loss");
+    expect(quantCliTool.description).toContain("hk.market_overview");
+    expect(quantCliTool.description).toContain("hk.technical");
+    expect(quantCliTool.description).toContain("sentiment.stock_fund_flow");
+    expect(quantCliTool.description).toContain("sentiment.margin_data");
+    expect(quantCliTool.description).toContain("financial.indicators");
+    expect(quantCliTool.description).toContain("financial.hk_analysis");
     expect(quantCliTool.description).toContain("stock.score");
     expect(quantCliTool.description).toContain("stock.screen");
     expect(quantCliTool.description).toContain("performance.analyze");
@@ -137,7 +151,9 @@ describe("quantCliTool", () => {
       .mockResolvedValueOnce({ ok: true, command: "stock.info", data: { symbol: "600519" }, error: null })
       .mockResolvedValueOnce({ ok: true, command: "stock.history", data: { count: 30 }, error: null })
       .mockResolvedValueOnce({ ok: true, command: "stock.news", data: { count: 5 }, error: null })
-      .mockResolvedValueOnce({ ok: true, command: "stock.announcements", data: { count: 1 }, error: null });
+      .mockResolvedValueOnce({ ok: true, command: "stock.announcements", data: { count: 1 }, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "stock.batch_quotes", data: { prices: { "600519": 100.5 } }, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "stock.list", data: { stocks: [{ symbol: "600519" }] }, error: null });
 
     await (quantCliTool.execute as any)("call-1", {
       command: "stock.quote",
@@ -159,6 +175,14 @@ describe("quantCliTool", () => {
       command: "stock.announcements",
       params: { symbol: "600519" },
     });
+    await (quantCliTool.execute as any)("call-6", {
+      command: "stock.batch_quotes",
+      params: { symbols: ["600519", "000001"] },
+    });
+    await (quantCliTool.execute as any)("call-7", {
+      command: "stock.list",
+      params: { market: "A", source: "live" },
+    });
 
     expect(runQuantCliMock).toHaveBeenNthCalledWith(1, "stock", "quote", {
       symbol: "600519",
@@ -178,6 +202,13 @@ describe("quantCliTool", () => {
     expect(runQuantCliMock).toHaveBeenNthCalledWith(5, "stock", "announcements", {
       symbol: "600519",
     });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(6, "stock", "batch-quotes", {
+      symbols: ["600519", "000001"],
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(7, "stock", "list", {
+      market: "A",
+      source: "live",
+    });
   });
 
   test("allows market query compatibility commands", async () => {
@@ -191,7 +222,8 @@ describe("quantCliTool", () => {
       .mockResolvedValueOnce({ ok: true, command: "market.sector_flow", data: {}, error: null })
       .mockResolvedValueOnce({ ok: true, command: "market.margin", data: {}, error: null })
       .mockResolvedValueOnce({ ok: true, command: "market.news", data: {}, error: null })
-      .mockResolvedValueOnce({ ok: true, command: "market.hot_stocks", data: {}, error: null });
+      .mockResolvedValueOnce({ ok: true, command: "market.hot_stocks", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "market.index_history", data: {}, error: null });
 
     await (quantCliTool.execute as any)("call-1", { command: "market.overview" });
     await (quantCliTool.execute as any)("call-2", { command: "market.sectors" });
@@ -215,6 +247,10 @@ describe("quantCliTool", () => {
       command: "market.hot_stocks",
       params: { market: "港股" },
     });
+    await (quantCliTool.execute as any)("call-11", {
+      command: "market.index_history",
+      params: { symbol: "sh000001", start_date: "2026-01-01", end_date: "2026-05-20" },
+    });
 
     expect(runQuantCliMock).toHaveBeenNthCalledWith(1, "market", "overview", {});
     expect(runQuantCliMock).toHaveBeenNthCalledWith(2, "market", "sectors", {});
@@ -231,6 +267,11 @@ describe("quantCliTool", () => {
     expect(runQuantCliMock).toHaveBeenNthCalledWith(9, "market", "news", { num: 9 });
     expect(runQuantCliMock).toHaveBeenNthCalledWith(10, "market", "hot-stocks", {
       market: "港股",
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(11, "market", "index-history", {
+      symbol: "sh000001",
+      start_date: "2026-01-01",
+      end_date: "2026-05-20",
     });
   });
 
@@ -314,6 +355,204 @@ describe("quantCliTool", () => {
     });
     expect(runQuantCliMock).toHaveBeenNthCalledWith(9, "analysis", "peers", {
       symbol: "600519",
+    });
+  });
+
+  test("allows screening compatibility commands", async () => {
+    runQuantCliMock
+      .mockResolvedValueOnce({ ok: true, command: "screening.sector", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "screening.quality", data: {}, error: null });
+
+    await (quantCliTool.execute as any)("call-1", {
+      command: "screening.sector",
+      params: { sector: "白酒", min_roe: 15, max_pe: 30, limit: 8 },
+    });
+    await (quantCliTool.execute as any)("call-2", {
+      command: "screening.quality",
+      params: { sector: "白酒", min_score: 65, max_pe: 30, limit: 5 },
+    });
+
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(1, "screening", "sector", {
+      sector: "白酒",
+      min_roe: 15,
+      max_pe: 30,
+      limit: 8,
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(2, "screening", "quality", {
+      sector: "白酒",
+      min_score: 65,
+      max_pe: 30,
+      limit: 5,
+    });
+  });
+
+  test("allows risk compatibility commands", async () => {
+    runQuantCliMock
+      .mockResolvedValueOnce({ ok: true, command: "risk.trade_check", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "risk.position_size", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "risk.stop_loss", data: {}, error: null });
+
+    await (quantCliTool.execute as any)("call-1", {
+      command: "risk.trade_check",
+      params: { symbol: "600519", action: "buy", price: 100.5, shares: 300 },
+    });
+    await (quantCliTool.execute as any)("call-2", {
+      command: "risk.position_size",
+      params: { symbol: "600519", price: 100.5, signal_strength: 0.8 },
+    });
+    await (quantCliTool.execute as any)("call-3", {
+      command: "risk.stop_loss",
+      params: { symbol: "600519", entry_price: 90, current_price: 100, highest_price: 110 },
+    });
+
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(1, "risk", "trade-check", {
+      symbol: "600519",
+      action: "buy",
+      price: 100.5,
+      shares: 300,
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(2, "risk", "position-size", {
+      symbol: "600519",
+      price: 100.5,
+      signal_strength: 0.8,
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(3, "risk", "stop-loss", {
+      symbol: "600519",
+      entry_price: 90,
+      current_price: 100,
+      highest_price: 110,
+    });
+  });
+
+  test("allows HK compatibility commands", async () => {
+    runQuantCliMock
+      .mockResolvedValueOnce({ ok: true, command: "hk.market_overview", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "hk.south_flow", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "hk.technical", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "hk.hot_rank", data: {}, error: null });
+
+    await (quantCliTool.execute as any)("call-1", { command: "hk.market_overview" });
+    await (quantCliTool.execute as any)("call-2", { command: "hk.south_flow" });
+    await (quantCliTool.execute as any)("call-3", {
+      command: "hk.technical",
+      params: { symbol: "9988" },
+    });
+    await (quantCliTool.execute as any)("call-4", { command: "hk.hot_rank" });
+
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(1, "hk", "market-overview", {});
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(2, "hk", "south-flow", {});
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(3, "hk", "technical", {
+      symbol: "9988",
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(4, "hk", "hot-rank", {});
+  });
+
+  test("allows sentiment compatibility commands", async () => {
+    runQuantCliMock
+      .mockResolvedValueOnce({ ok: true, command: "sentiment.stock_fund_flow", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "sentiment.lhb", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "sentiment.insider_trades", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "sentiment.fund_holdings", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "sentiment.top_fund_stocks", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "sentiment.top_holders", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "sentiment.holder_changes", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "sentiment.margin_data", data: {}, error: null });
+
+    await (quantCliTool.execute as any)("call-1", {
+      command: "sentiment.stock_fund_flow",
+      params: { symbol: "600519", days: 5 },
+    });
+    await (quantCliTool.execute as any)("call-2", {
+      command: "sentiment.lhb",
+      params: { symbol: "600519", date: "20260519" },
+    });
+    await (quantCliTool.execute as any)("call-3", {
+      command: "sentiment.insider_trades",
+      params: { symbol: "600519" },
+    });
+    await (quantCliTool.execute as any)("call-4", {
+      command: "sentiment.fund_holdings",
+      params: { symbol: "600519" },
+    });
+    await (quantCliTool.execute as any)("call-5", {
+      command: "sentiment.top_fund_stocks",
+    });
+    await (quantCliTool.execute as any)("call-6", {
+      command: "sentiment.top_holders",
+      params: { symbol: "600519" },
+    });
+    await (quantCliTool.execute as any)("call-7", {
+      command: "sentiment.holder_changes",
+      params: { symbol: "600519" },
+    });
+    await (quantCliTool.execute as any)("call-8", {
+      command: "sentiment.margin_data",
+      params: { symbol: "600519" },
+    });
+
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(1, "sentiment", "stock-fund-flow", {
+      symbol: "600519",
+      days: 5,
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(2, "sentiment", "lhb", {
+      symbol: "600519",
+      date: "20260519",
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(3, "sentiment", "insider-trades", {
+      symbol: "600519",
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(4, "sentiment", "fund-holdings", {
+      symbol: "600519",
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(5, "sentiment", "top-fund-stocks", {});
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(6, "sentiment", "top-holders", {
+      symbol: "600519",
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(7, "sentiment", "holder-changes", {
+      symbol: "600519",
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(8, "sentiment", "margin-data", {
+      symbol: "600519",
+    });
+  });
+
+  test("allows financial compatibility commands", async () => {
+    runQuantCliMock
+      .mockResolvedValueOnce({ ok: true, command: "financial.indicators", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "financial.statements", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "financial.hk_financials", data: {}, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "financial.hk_analysis", data: {}, error: null });
+
+    await (quantCliTool.execute as any)("call-1", {
+      command: "financial.indicators",
+      params: { symbol: "600519" },
+    });
+    await (quantCliTool.execute as any)("call-2", {
+      command: "financial.statements",
+      params: { symbol: "600519", statement: "income", recent_n: 4 },
+    });
+    await (quantCliTool.execute as any)("call-3", {
+      command: "financial.hk_financials",
+      params: { symbol: "9988" },
+    });
+    await (quantCliTool.execute as any)("call-4", {
+      command: "financial.hk_analysis",
+      params: { symbol: "9988" },
+    });
+
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(1, "financial", "indicators", {
+      symbol: "600519",
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(2, "financial", "statements", {
+      symbol: "600519",
+      statement: "income",
+      recent_n: 4,
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(3, "financial", "hk-financials", {
+      symbol: "9988",
+    });
+    expect(runQuantCliMock).toHaveBeenNthCalledWith(4, "financial", "hk-analysis", {
+      symbol: "9988",
     });
   });
 

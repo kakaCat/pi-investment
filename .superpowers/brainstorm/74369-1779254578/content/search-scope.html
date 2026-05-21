@@ -1,0 +1,177 @@
+<h2>后端全局搜索 - 搜索范围</h2>
+<p class="subtitle">确定搜索功能支持哪些字段</p>
+
+<div class="section">
+  <h3>问题：用户可以搜索哪些字段？</h3>
+  <p style="color: #666; margin-bottom: 24px;">从截图看，表格包含：股票代码、股票名称、市场、K线天数、日期、因子数量、数据状态等字段</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="basic" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>基础搜索（推荐）</h3>
+      <p style="margin: 8px 0; color: #666;">仅搜索股票代码和名称</p>
+
+      <div class="mockup" style="margin: 12px 0; transform: scale(0.9); transform-origin: top left;">
+        <div class="mockup-body" style="padding: 16px; background: white;">
+          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+            <span style="font-size: 18px;">🔍</span>
+            <input class="mock-input" placeholder="搜索股票代码或名称" style="flex: 1;">
+          </div>
+          <div style="font-size: 13px; color: #666; line-height: 1.8;">
+            <strong>支持搜索：</strong><br>
+            ✓ 股票代码（如：600519、000001）<br>
+            ✓ 股票名称（如：贵州茅台、平安银行）<br>
+            ✓ 部分匹配（如：输入"茅台"可找到"贵州茅台"）
+          </div>
+          <div style="margin-top: 12px; padding: 8px; background: #e6f7ff; border-left: 3px solid #1890ff; font-size: 12px;">
+            <strong>示例：</strong><br>
+            • 输入 "600519" → 找到 贵州茅台<br>
+            • 输入 "茅台" → 找到 贵州茅台<br>
+            • 输入 "平安" → 找到 平安银行、中国平安等
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="font-size: 12px;">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>覆盖90%的搜索场景</li>
+            <li>实现简单，性能好</li>
+            <li>用户认知负担低</li>
+            <li>数据库索引效率高</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>局限</h4>
+          <ul>
+            <li>无法按市场、状态等筛选</li>
+            <li>不支持数值范围查询</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="multi-field" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>多字段搜索</h3>
+      <p style="margin: 8px 0; color: #666;">搜索代码、名称、市场等多个字段</p>
+
+      <div class="mockup" style="margin: 12px 0; transform: scale(0.9); transform-origin: top left;">
+        <div class="mockup-body" style="padding: 16px; background: white;">
+          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+            <span style="font-size: 18px;">🔍</span>
+            <input class="mock-input" placeholder="搜索代码、名称、市场..." style="flex: 1;">
+          </div>
+          <div style="font-size: 13px; color: #666; line-height: 1.8;">
+            <strong>支持搜索：</strong><br>
+            ✓ 股票代码<br>
+            ✓ 股票名称<br>
+            ✓ 市场（A、SH、SZ等）<br>
+            ✓ 所有文本字段
+          </div>
+          <div style="margin-top: 12px; padding: 8px; background: #e6f7ff; border-left: 3px solid #1890ff; font-size: 12px;">
+            <strong>示例：</strong><br>
+            • 输入 "SH" → 找到所有上海市场股票<br>
+            • 输入 "A" → 找到所有A股市场股票<br>
+            • 输入 "茅台" → 找到贵州茅台
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="font-size: 12px;">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>搜索范围更广</li>
+            <li>支持按市场搜索</li>
+            <li>灵活性高</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>问题</h4>
+          <ul>
+            <li>可能返回过多结果（如搜"A"）</li>
+            <li>用户不清楚能搜什么</li>
+            <li>性能稍差</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="search-plus-filter" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>搜索 + 筛选组合</h3>
+      <p style="margin: 8px 0; color: #666;">搜索框只搜代码/名称，其他字段用筛选器</p>
+
+      <div class="mockup" style="margin: 12px 0; transform: scale(0.9); transform-origin: top left;">
+        <div class="mockup-body" style="padding: 16px; background: white;">
+          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+            <span style="font-size: 18px;">🔍</span>
+            <input class="mock-input" placeholder="搜索股票代码或名称" style="flex: 1;">
+          </div>
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <select class="mock-input" style="width: 120px; padding: 6px;">
+              <option>全部市场</option>
+              <option>A股</option>
+              <option>SH</option>
+              <option>SZ</option>
+            </select>
+            <select class="mock-input" style="width: 120px; padding: 6px;">
+              <option>全部状态</option>
+              <option>数据完整</option>
+              <option>数据不完整</option>
+            </select>
+          </div>
+          <div style="font-size: 13px; color: #666;">
+            <strong>搜索框：</strong>代码、名称<br>
+            <strong>筛选器：</strong>市场、数据状态
+          </div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="font-size: 12px;">
+        <div class="pros">
+          <h4>优势</h4>
+          <ul>
+            <li>职责清晰：搜索找股票，筛选缩小范围</li>
+            <li>用户体验最好</li>
+            <li>支持复杂查询</li>
+            <li>表格已有筛选器，可复用</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>成本</h4>
+          <ul>
+            <li>需要同时实现搜索和筛选</li>
+            <li>UI稍复杂</li>
+            <li>开发时间增加1-2小时</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px; padding: 16px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #1890ff;">
+  <h4 style="margin: 0 0 8px 0;">💡 我的建议</h4>
+  <p style="margin: 0; font-size: 14px; line-height: 1.6;">
+    <strong>推荐方案A（基础搜索）</strong>，因为：<br>
+    1. 用户主要需求是找特定股票（按代码或名称）<br>
+    2. 表格已有市场和状态的筛选器，无需重复<br>
+    3. 实现简单，性能最优<br>
+    4. 如果未来需要，可以升级到方案C
+  </p>
+</div>
+
+<div class="section" style="margin-top: 16px; padding: 12px; background: #fafafa; border-radius: 4px;">
+  <p style="margin: 0; font-size: 13px; color: #666;">
+    👆 请选择搜索范围方案
+  </p>
+</div>

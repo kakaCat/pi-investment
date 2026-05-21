@@ -1,10 +1,14 @@
 /**
  * 市场数据收集器
  *
- * 从 akshare 获取大盘指数、板块表现、市场情绪数据
+ * 从 quant CLI 获取大盘指数、板块表现、市场情绪数据
  */
 
-import { callPython } from '../../infrastructure/tools/shared/python-caller.js';
+import {
+  getIndexHistoryViaQuantCli,
+  getMarketOverviewViaQuantCli,
+  getSectorFundFlowViaQuantCli,
+} from '../../infrastructure/quant/market-query-cli-adapter.js';
 import type { MarketContext, IndexMetrics, SectorMetrics, MarketSentiment } from '../../types/market-context.js';
 
 // ─── 配置 ────────────────────────────────────────────────────────────────
@@ -82,7 +86,7 @@ async function collectIndices(startDate: string, endDate: string): Promise<Index
  * 获取指数历史数据
  */
 async function getIndexHistory(code: string, startDate: string, endDate: string): Promise<any[]> {
-  const resultStr = await callPython('get_index_history', {
+  const resultStr = await getIndexHistoryViaQuantCli({
     symbol: code,
     start_date: startDate,
     end_date: endDate,
@@ -198,7 +202,7 @@ async function collectSectorPerformance(startDate: string, endDate: string): Pro
  * 获取板块资金流向
  */
 async function getSectorFundFlow(date: string): Promise<any[]> {
-  const resultStr = await callPython('get_sector_fund_flow', {});
+  const resultStr = await getSectorFundFlowViaQuantCli();
   const result = JSON.parse(resultStr);
 
   // get_sector_fund_flow 返回格式: { data: [...] } 或 { error: "..." }
@@ -274,7 +278,7 @@ async function collectMarketSentiment(date: string): Promise<MarketSentiment> {
  * 获取涨跌家数
  */
 async function getAdvanceDeclineData(date: string): Promise<{ advance: number; decline: number }> {
-  const resultStr = await callPython('get_market_overview', {});
+  const resultStr = await getMarketOverviewViaQuantCli();
   const result = JSON.parse(resultStr);
 
   // get_market_overview 返回格式: { indices: {...}, data_date: "..." }

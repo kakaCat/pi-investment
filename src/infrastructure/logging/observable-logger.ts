@@ -4,7 +4,7 @@
  * 通过包装 Agent 的方法来记录详细的执行信息
  */
 
-import { appendFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { appendFileSync, writeFileSync, existsSync, mkdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { randomBytes } from 'crypto';
 
@@ -85,6 +85,7 @@ function saveMetadata() {
 
 // 初始化会话
 export function initSession(sessionId?: string) {
+  const shouldResumeExisting = Boolean(sessionId);
   // 格式: YYYYMMDDHHmmss_run_id (例如: 20260316170255_4d0b4701)
   const now = new Date();
   const timeStr = now.toISOString()
@@ -110,16 +111,40 @@ export function initSession(sessionId?: string) {
   mkdirSync(screenshotsDir, { recursive: true });
   mkdirSync(workspaceDir, { recursive: true });
 
-  conversation.session_key = sessionKey;
-  metadata.session_key = sessionKey;
+  if (shouldResumeExisting && existsSync(conversationFile)) {
+    try {
+      const existingConversation = JSON.parse(readFileSync(conversationFile, "utf-8"));
+      conversation.session_key = existingConversation.session_key || sessionKey;
+      conversation.messages = Array.isArray(existingConversation.messages) ? existingConversation.messages : [];
+    } catch {
+      conversation.session_key = sessionKey;
+      conversation.messages = [];
+    }
+  } else {
+    conversation.session_key = sessionKey;
+    conversation.messages = [];
+  }
+
+  if (shouldResumeExisting && existsSync(metadataFile)) {
+    try {
+      Object.assign(metadata, JSON.parse(readFileSync(metadataFile, "utf-8")));
+    } catch {
+      // keep current metadata
+    }
+  }
+  (metadata as any).session_key = sessionKey;
 
   logEvent('session.start', {
     session_key: sessionKey,
     session_dir: sessionDir,
   });
 
-  saveMetadata();
-  saveConversation();
+  if (!shouldResumeExisting || !existsSync(metadataFile)) {
+    saveMetadata();
+  }
+  if (!shouldResumeExisting || !existsSync(conversationFile)) {
+    saveConversation();
+  }
 
   console.log(`\n📊 Observable Logger 已启动`);
   console.log(`📁 Session: ${sessionKey}`);
@@ -182,20 +207,21 @@ export function logLLMStart(model: string, promptCount: number, fullPrompt?: str
 // 记录 LLM 结束
 export function logLLMEnd(llmRunId: string, usage: any, output?: string, durationMs?: number, reasoning?: string) {
   llmCalls++;
-  totalTokens += usage?.totalTokens || 0;
-  totalCost += usage?.cost?.total || 0;
+  const normalizedUsage = normalizeUsage(usage);
+  totalTokens += normalizedUsage.totalTokens;
+  totalCost += normalizedUsage.cost.total;
 
   const maxTokens = 32000; // DeepSeek context window
-  const contextUsage = usage?.input ? (usage.input / maxTokens * 100).toFixed(1) : 0;
+  const contextUsage = normalizedUsage.input ? (normalizedUsage.input / maxTokens * 100).toFixed(1) : 0;
 
   logEvent('llm.end', {
     turn_index: turnIndex,
     llm_run_id: llmRunId,
-    input_tokens: usage?.input,
-    output_tokens: usage?.output,
-    total_tokens: usage?.totalTokens,
+    input_tokens: normalizedUsage.input,
+    output_tokens: normalizedUsage.output,
+    total_tokens: normalizedUsage.totalTokens,
     context_usage_percent: contextUsage,
-    cost: usage?.cost?.total,
+    cost: normalizedUsage.cost.total,
     duration_ms: durationMs,
     reasoning: reasoning,
     output: output,
@@ -245,6 +271,7 @@ export function logToolResult(toolName: string, toolId: string, result: any, err
 
 // 记录 Agent 结束
 export function logAgentEnd(stopReason: string, usage: any, output?: string) {
+  const normalizedUsage = normalizeUsage(usage);
   logEvent('agent.end', {
     turn_index: turnIndex,
     stop_reason: stopReason,
@@ -253,12 +280,7 @@ export function logAgentEnd(stopReason: string, usage: any, output?: string) {
     total_steps: 1,
     llm_calls: llmCalls,
     tool_calls: toolCalls,
-    usage: usage ? {
-      input: usage.input,
-      output: usage.output,
-      total: usage.totalTokens,
-      cost: usage.cost?.total,
-    } : null,
+    usage: normalizedUsage,
   });
 
   if (output) {
@@ -270,6 +292,29 @@ export function logAgentEnd(stopReason: string, usage: any, output?: string) {
 
     saveConversation();
   }
+}
+
+function normalizeUsage(usage: any) {
+  const input = usage?.input ?? usage?.input_tokens ?? 0;
+  const output = usage?.output ?? usage?.output_tokens ?? 0;
+  const cacheRead = usage?.cacheRead ?? usage?.cache_read ?? 0;
+  const cacheWrite = usage?.cacheWrite ?? usage?.cache_write ?? 0;
+  const totalTokens = usage?.totalTokens ?? usage?.total_tokens ?? input + output + cacheRead + cacheWrite;
+  const cost = usage?.cost ?? {};
+  return {
+    input,
+    output,
+    cacheRead,
+    cacheWrite,
+    totalTokens,
+    cost: {
+      input: cost.input ?? 0,
+      output: cost.output ?? 0,
+      cacheRead: cost.cacheRead ?? cost.cache_read ?? 0,
+      cacheWrite: cost.cacheWrite ?? cost.cache_write ?? 0,
+      total: cost.total ?? 0,
+    },
+  };
 }
 
 // 记录回合结束

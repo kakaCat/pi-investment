@@ -24,7 +24,6 @@ import type {
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { spawnSync } from 'child_process';
 import { PriceService } from '../data/price-service.js';
 import { StockDBService } from '../data/stock-db-service.js';
 
@@ -874,57 +873,6 @@ export class Subtractor {
     }
 
     console.log(`[Subtractor] 成功获取 ${priceMap.size}/${needPrice.size} 个价格`);
-  }
-
-  /**
-   * 从 Python bridge 获取单只股票实时价
-   * 通过 akshare_bridge.py 的 get_stock_realtime_price 接口
-   */
-  private fetchPrice(symbol: string): number | null {
-    try {
-      const bridgePath = join(process.cwd(), 'python', 'akshare_bridge.py');
-
-      // A股直接传6位代码，港股传带 .HK
-      let code = symbol;
-
-      const pyCode = `
-import sys, json
-sys.path.insert(0, '${join(process.cwd(), 'python')}')
-from akshare_bridge import get_stock_realtime_price
-try:
-    result = get_stock_realtime_price('${code}')
-    if isinstance(result, dict) and 'price' in result:
-        print(json.dumps({'price': result['price']}))
-    elif isinstance(result, dict) and 'error' in result:
-        print(json.dumps({'error': result['error']}))
-    else:
-        print('NONE')
-except Exception as e:
-    print(json.dumps({'error': str(e)}))
-`;
-
-      const result = spawnSync('python3', ['-c', pyCode], {
-        timeout: 20000,
-        encoding: 'utf-8',
-        cwd: process.cwd(),
-      });
-
-      const output = result.stdout?.trim();
-      if (output && output !== 'NONE') {
-        try {
-          const parsed = JSON.parse(output);
-          if (parsed.price && !isNaN(parsed.price) && parsed.price > 0) {
-            return parsed.price;
-          }
-        } catch {
-          // 不是 JSON 格式
-        }
-      }
-
-      return null;
-    } catch {
-      return null;
-    }
   }
 
   // ── 高级分析：做T效应、机会成本、减仓效果 ──────────────────────────

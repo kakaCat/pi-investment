@@ -18,6 +18,42 @@ import { getExplicitSkillFromPrompt, withForcedSkillScope } from "../tools/skill
 
 export type AgentType = 'main' | 'subagent' | 'plan';
 
+export function normalizeUsage(usage: any): any {
+  if (!usage) {
+    return {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    };
+  }
+
+  const input = usage.input ?? usage.input_tokens ?? 0;
+  const output = usage.output ?? usage.output_tokens ?? 0;
+  const cacheRead = usage.cacheRead ?? usage.cache_read ?? 0;
+  const cacheWrite = usage.cacheWrite ?? usage.cache_write ?? 0;
+  const totalTokens = usage.totalTokens ?? usage.total_tokens ?? input + output + cacheRead + cacheWrite;
+  const cost = usage.cost ?? {};
+
+  return {
+    ...usage,
+    input,
+    output,
+    cacheRead,
+    cacheWrite,
+    totalTokens,
+    cost: {
+      input: cost.input ?? 0,
+      output: cost.output ?? 0,
+      cacheRead: cost.cacheRead ?? cost.cache_read ?? 0,
+      cacheWrite: cost.cacheWrite ?? cost.cache_write ?? 0,
+      total: cost.total ?? 0,
+    },
+  };
+}
+
 function extractTextContent(content: unknown): string {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) return content.map((c: any) => c?.text ?? '').join('');
@@ -59,7 +95,8 @@ export function attachLogger(session: AgentSession, agentType: AgentType, perfMo
         if (msg.role === 'assistant') {
           const text = msg.content?.find((c: any) => c.type === 'text')?.text || '';
           const thinking = msg.content?.find((c: any) => c.type === 'thinking')?.thinking || '';
-          const usage = msg.usage;
+          const usage = normalizeUsage(msg.usage);
+          msg.usage = usage;
           const duration = turnStartTime ? Date.now() - turnStartTime : 0;
 
           if (agentType === 'main') {

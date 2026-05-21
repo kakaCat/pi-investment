@@ -17,6 +17,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { chinaDateTime } from "../utils/china-time.js";
+import { getStockPriceViaQuantCli } from "../infrastructure/quant/stock-query-cli-adapter.js";
 import { FileLockService } from "./file-lock.service.js";
 
 // ─── 数据类型 ──────────────────────────────────────────────────────────────
@@ -682,11 +683,7 @@ export class OrderService {
       // 获取实时价格
       let priceResult: string;
       try {
-        const { get_stock_realtime_price, get_hk_stock_price } = await import("../infrastructure/akshare-ts/index.js");
-        priceResult =
-          order.market === "HK"
-            ? await get_hk_stock_price(order.symbol)
-            : await get_stock_realtime_price(order.symbol);
+        priceResult = await getStockPriceViaQuantCli(order.symbol);
       } catch (e) {
         errors.push({
           order,

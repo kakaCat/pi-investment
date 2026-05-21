@@ -1,7 +1,17 @@
 import { runQuantCli } from "./quant-cli-client.js";
 
+export interface IndexHistoryCliParams {
+  symbol: string;
+  start_date: string;
+  end_date: string;
+}
+
 export async function getMarketOverviewViaQuantCli(): Promise<string> {
   return runMarketQuery("overview", {});
+}
+
+export async function getIndexHistoryViaQuantCli(params: IndexHistoryCliParams): Promise<string> {
+  return runMarketQuery("index-history", { ...params });
 }
 
 export async function getSectorListViaQuantCli(): Promise<string> {

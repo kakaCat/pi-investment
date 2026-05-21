@@ -1,19 +1,30 @@
 import { describe, expect, test, jest } from "@jest/globals";
 
-// Mock callPython using jest.mock BEFORE imports
-const mockCallPython = jest.fn<(...args: string[]) => Promise<string>>();
+const getNorthFlowViaQuantCliMock = jest.fn<() => Promise<string>>();
+const getMarketMarginViaQuantCliMock = jest.fn<() => Promise<string>>();
+const getMacroDataViaQuantCliMock = jest.fn<() => Promise<string>>();
+const getMarketOverviewViaQuantCliMock = jest.fn<() => Promise<string>>();
+const getHotStocksViaQuantCliMock = jest.fn<() => Promise<string>>();
 
-jest.mock("./invest-tools.js", () => ({
-  callPython: mockCallPython,
+await jest.unstable_mockModule("../quant/market-query-cli-adapter.js", () => ({
+  getNorthFlowViaQuantCli: getNorthFlowViaQuantCliMock,
+  getMarketMarginViaQuantCli: getMarketMarginViaQuantCliMock,
+  getMacroDataViaQuantCli: getMacroDataViaQuantCliMock,
+  getMarketOverviewViaQuantCli: getMarketOverviewViaQuantCliMock,
+  getHotStocksViaQuantCli: getHotStocksViaQuantCliMock,
 }));
 
 import type { AgentToolResult } from "@mariozechner/pi-coding-agent";
 type AnyAgentToolResult = AgentToolResult<any>;
-import { testMarketSentimentTool } from "./test-market-sentiment-tool.js";
+const { testMarketSentimentTool } = await import("./test-market-sentiment-tool.js");
 
 describe("testMarketSentimentTool", () => {
   beforeEach(() => {
-    mockCallPython.mockReset();
+    getNorthFlowViaQuantCliMock.mockReset();
+    getMarketMarginViaQuantCliMock.mockReset();
+    getMacroDataViaQuantCliMock.mockReset();
+    getMarketOverviewViaQuantCliMock.mockReset();
+    getHotStocksViaQuantCliMock.mockReset();
   });
 
   function callTool(params: Record<string, unknown>): Promise<AnyAgentToolResult> {
@@ -28,56 +39,45 @@ describe("testMarketSentimentTool", () => {
 
   // ── Test case 1: Normal case with all data available ──
   test("returns composite sentiment score when all data sources are available", async () => {
-    mockCallPython.mockImplementation(async (func: string) => {
-      switch (func) {
-        case "get_north_flow":
-          return JSON.stringify({
-            data: [
-              { net_inflow: 5000000000 },
-              { net_inflow: 3000000000 },
-              { net_inflow: 4000000000 },
-              { net_inflow: 2000000000 },
-              { net_inflow: 6000000000 },
-            ],
-          });
-        case "get_market_margin":
-          return JSON.stringify({
-            data: [
-              { total_margin: 15000 },
-              { total_margin: 15500 },
-            ],
-          });
-        case "get_macro_data":
-          return JSON.stringify({
-            pmi: [
-              { value: 50.8 },
-              { value: 51.2 },
-            ],
-          });
-        case "get_market_overview":
-          return JSON.stringify({
-            data: [
-              { change_pct: 0.85 },
-              { change_pct: 1.20 },
-              { change_pct: 1.50 },
-              { change_pct: 0.60 },
-              { change_pct: 0.95 },
-            ],
-          });
-        case "get_hot_stocks":
-          return JSON.stringify({
-            data: [
-              { change_pct: 3.5 },
-              { change_pct: 2.1 },
-              { change_pct: -1.2 },
-              { change_pct: 4.8 },
-              { change_pct: 6.2 },
-            ],
-          });
-        default:
-          return JSON.stringify({ error: "unknown function" });
-      }
-    });
+    getNorthFlowViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      data: [
+        { net_inflow: 5000000000 },
+        { net_inflow: 3000000000 },
+        { net_inflow: 4000000000 },
+        { net_inflow: 2000000000 },
+        { net_inflow: 6000000000 },
+      ],
+    }));
+    getMarketMarginViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      data: [
+        { total_margin: 15000 },
+        { total_margin: 15500 },
+      ],
+    }));
+    getMacroDataViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      pmi: [
+        { value: 50.8 },
+        { value: 51.2 },
+      ],
+    }));
+    getMarketOverviewViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      data: [
+        { change_pct: 0.85 },
+        { change_pct: 1.20 },
+        { change_pct: 1.50 },
+        { change_pct: 0.60 },
+        { change_pct: 0.95 },
+      ],
+    }));
+    getHotStocksViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      data: [
+        { change_pct: 3.5 },
+        { change_pct: 2.1 },
+        { change_pct: -1.2 },
+        { change_pct: 4.8 },
+        { change_pct: 6.2 },
+      ],
+    }));
 
     const result = await callTool({});
 
@@ -105,7 +105,12 @@ describe("testMarketSentimentTool", () => {
 
   // ── Test case 2: All data sources fail ──
   test("gracefully handles all data source failures", async () => {
-    mockCallPython.mockResolvedValue(JSON.stringify({ error: "API timeout" }));
+    const errorJson = JSON.stringify({ error: "API timeout" });
+    getNorthFlowViaQuantCliMock.mockResolvedValue(errorJson);
+    getMarketMarginViaQuantCliMock.mockResolvedValue(errorJson);
+    getMacroDataViaQuantCliMock.mockResolvedValue(errorJson);
+    getMarketOverviewViaQuantCliMock.mockResolvedValue(errorJson);
+    getHotStocksViaQuantCliMock.mockResolvedValue(errorJson);
 
     const result = await callTool({});
 
@@ -123,56 +128,45 @@ describe("testMarketSentimentTool", () => {
 
   // ── Test case 3: Extreme negative market data ──
   test("correctly identifies extreme fear with strongly negative data", async () => {
-    mockCallPython.mockImplementation(async (func: string) => {
-      switch (func) {
-        case "get_north_flow":
-          return JSON.stringify({
-            data: [
-              { net_inflow: -8000000000 },
-              { net_inflow: -6000000000 },
-              { net_inflow: -10000000000 },
-              { net_inflow: -5000000000 },
-              { net_inflow: -7000000000 },
-            ],
-          });
-        case "get_market_margin":
-          return JSON.stringify({
-            data: [
-              { total_margin: 16000 },
-              { total_margin: 15200 },
-            ],
-          });
-        case "get_macro_data":
-          return JSON.stringify({
-            pmi: [
-              { value: 48.5 },
-              { value: 47.2 },
-            ],
-          });
-        case "get_market_overview":
-          return JSON.stringify({
-            data: [
-              { change_pct: -2.30 },
-              { change_pct: -2.80 },
-              { change_pct: -3.10 },
-              { change_pct: -1.90 },
-              { change_pct: -2.50 },
-            ],
-          });
-        case "get_hot_stocks":
-          return JSON.stringify({
-            data: [
-              { change_pct: -7.2 },
-              { change_pct: -5.8 },
-              { change_pct: -3.1 },
-              { change_pct: -9.5 },
-              { change_pct: -4.3 },
-            ],
-          });
-        default:
-          return JSON.stringify({ error: "unknown" });
-      }
-    });
+    getNorthFlowViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      data: [
+        { net_inflow: -8000000000 },
+        { net_inflow: -6000000000 },
+        { net_inflow: -10000000000 },
+        { net_inflow: -5000000000 },
+        { net_inflow: -7000000000 },
+      ],
+    }));
+    getMarketMarginViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      data: [
+        { total_margin: 16000 },
+        { total_margin: 15200 },
+      ],
+    }));
+    getMacroDataViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      pmi: [
+        { value: 48.5 },
+        { value: 47.2 },
+      ],
+    }));
+    getMarketOverviewViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      data: [
+        { change_pct: -2.30 },
+        { change_pct: -2.80 },
+        { change_pct: -3.10 },
+        { change_pct: -1.90 },
+        { change_pct: -2.50 },
+      ],
+    }));
+    getHotStocksViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      data: [
+        { change_pct: -7.2 },
+        { change_pct: -5.8 },
+        { change_pct: -3.1 },
+        { change_pct: -9.5 },
+        { change_pct: -4.3 },
+      ],
+    }));
 
     const result = await callTool({});
 
@@ -185,32 +179,21 @@ describe("testMarketSentimentTool", () => {
 
   // ── Test case 4: Partial data ──
   test("handles partial data gracefully", async () => {
-    mockCallPython.mockImplementation(async (func: string) => {
-      switch (func) {
-        case "get_north_flow":
-          return JSON.stringify({
-            data: [
-              { net_inflow: 2000000000 },
-              { net_inflow: 1000000000 },
-            ],
-          });
-        case "get_market_margin":
-          throw new Error("Timeout");
-        case "get_macro_data":
-          return '{"pmi": [{"value": 50.5}]}';
-        case "get_market_overview":
-          throw new Error("Network error");
-        case "get_hot_stocks":
-          return JSON.stringify({
-            data: [
-              { change_pct: 1.2 },
-              { change_pct: 0.8 },
-            ],
-          });
-        default:
-          return JSON.stringify({ error: "unknown" });
-      }
-    });
+    getNorthFlowViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      data: [
+        { net_inflow: 2000000000 },
+        { net_inflow: 1000000000 },
+      ],
+    }));
+    getMarketMarginViaQuantCliMock.mockRejectedValue(new Error("Timeout"));
+    getMacroDataViaQuantCliMock.mockResolvedValue('{"pmi": [{"value": 50.5}]}');
+    getMarketOverviewViaQuantCliMock.mockRejectedValue(new Error("Network error"));
+    getHotStocksViaQuantCliMock.mockResolvedValue(JSON.stringify({
+      data: [
+        { change_pct: 1.2 },
+        { change_pct: 0.8 },
+      ],
+    }));
 
     const result = await callTool({});
 
@@ -227,22 +210,11 @@ describe("testMarketSentimentTool", () => {
 
   // ── Test case 5: Empty data arrays ──
   test("handles empty data arrays gracefully", async () => {
-    mockCallPython.mockImplementation(async (func: string) => {
-      switch (func) {
-        case "get_north_flow":
-          return JSON.stringify({ data: [] });
-        case "get_market_margin":
-          return JSON.stringify({ data: [] });
-        case "get_macro_data":
-          return JSON.stringify({ pmi: [] });
-        case "get_market_overview":
-          return JSON.stringify({ data: [] });
-        case "get_hot_stocks":
-          return JSON.stringify({ data: [] });
-        default:
-          return JSON.stringify({ error: "unknown" });
-      }
-    });
+    getNorthFlowViaQuantCliMock.mockResolvedValue(JSON.stringify({ data: [] }));
+    getMarketMarginViaQuantCliMock.mockResolvedValue(JSON.stringify({ data: [] }));
+    getMacroDataViaQuantCliMock.mockResolvedValue(JSON.stringify({ pmi: [] }));
+    getMarketOverviewViaQuantCliMock.mockResolvedValue(JSON.stringify({ data: [] }));
+    getHotStocksViaQuantCliMock.mockResolvedValue(JSON.stringify({ data: [] }));
 
     const result = await callTool({});
 

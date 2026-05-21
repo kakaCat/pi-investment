@@ -103,6 +103,17 @@ const COMMANDS: Record<string, CommandRule> = {
     params: { market: { type: "string", enum: ["全部", "A股", "港股", "美股"] } },
     example: { market: "A股" },
   },
+  "market.index_history": {
+    domain: "market",
+    action: "index-history",
+    description: "查询主要指数历史 OHLCV 数据。",
+    params: {
+      symbol: { required: true, type: "string" },
+      start_date: { required: true, type: "string" },
+      end_date: { required: true, type: "string" },
+    },
+    example: { symbol: "sh000001", start_date: "2026-01-01", end_date: "2026-05-20" },
+  },
   "stock.klines": {
     domain: "stock",
     action: "klines",
@@ -121,6 +132,13 @@ const COMMANDS: Record<string, CommandRule> = {
     description: "通过量化后端查询 A 股或港股实时行情。",
     params: { symbol: { required: true, type: "string", symbol: true } },
     example: { symbol: "600519" },
+  },
+  "stock.batch_quotes": {
+    domain: "stock",
+    action: "batch-quotes",
+    description: "通过量化后端批量查询 A 股或港股实时价格。",
+    params: { symbols: { required: true, type: "array" } },
+    example: { symbols: ["600519", "000001"] },
   },
   "stock.info": {
     domain: "stock",
@@ -172,12 +190,13 @@ const COMMANDS: Record<string, CommandRule> = {
   "stock.list": {
     domain: "stock",
     action: "list",
-    description: "列出本地量化数据库中的股票。",
+    description: "列出本地量化数据库中的股票，或用 source=live 拉取实时股票池。",
     params: {
       market: { type: "string" },
       has_data: { type: "boolean" },
+      source: { type: "string", enum: ["local", "live"] },
     },
-    example: { market: "A", has_data: true },
+    example: { market: "A", source: "live" },
   },
   "stock.ml_predict": {
     domain: "stock",
@@ -287,6 +306,152 @@ const COMMANDS: Record<string, CommandRule> = {
     description: "返回目标股关键指标和行业名称，用于后续同行对比工作流。",
     params: { symbol: { required: true, type: "string", symbol: true } },
     example: { symbol: "600519" },
+  },
+  "screening.sector": {
+    domain: "screening",
+    action: "sector",
+    description: "按行业板块筛选股票，可选 ROE、PE 和返回数量过滤。",
+    params: {
+      sector: { required: true, type: "string" },
+      min_roe: { type: "number" },
+      max_pe: { type: "number", min: 0 },
+      limit: { type: "integer", min: 1 },
+    },
+    example: { sector: "白酒", max_pe: 30, limit: 20 },
+  },
+  "screening.quality": {
+    domain: "screening",
+    action: "quality",
+    description: "按行业板块筛选股票并计算质量评分，返回满足分数门槛的候选股。",
+    params: {
+      sector: { required: true, type: "string" },
+      min_score: { type: "integer", min: 0 },
+      max_pe: { type: "number", min: 0 },
+      limit: { type: "integer", min: 1 },
+    },
+    example: { sector: "白酒", min_score: 65, max_pe: 30, limit: 10 },
+  },
+  "hk.market_overview": {
+    domain: "hk",
+    action: "market-overview",
+    description: "查询恒生指数、国企指数、恒生科技指数等港股主要指数概览。",
+    params: {},
+    example: {},
+  },
+  "hk.south_flow": {
+    domain: "hk",
+    action: "south-flow",
+    description: "查询港股通南向资金最近流入流出情况。",
+    params: {},
+    example: {},
+  },
+  "hk.technical": {
+    domain: "hk",
+    action: "technical",
+    description: "计算港股个股 MA、MACD、RSI、布林带和技术信号。",
+    params: { symbol: { required: true, type: "string", symbol: true } },
+    example: { symbol: "9988" },
+  },
+  "hk.hot_rank": {
+    domain: "hk",
+    action: "hot-rank",
+    description: "查询东方财富港股人气排行。",
+    params: {},
+    example: {},
+  },
+  "sentiment.stock_fund_flow": {
+    domain: "sentiment",
+    action: "stock-fund-flow",
+    description: "查询个股资金流向，包括主力、大单、中单、小单净流入。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      days: { type: "integer", min: 1 },
+    },
+    example: { symbol: "600519", days: 5 },
+  },
+  "sentiment.lhb": {
+    domain: "sentiment",
+    action: "lhb",
+    description: "查询龙虎榜全榜或个股近期龙虎榜记录。",
+    params: {
+      symbol: { type: "string", symbol: true },
+      date: { type: "string" },
+    },
+    example: { date: "20260519" },
+  },
+  "sentiment.insider_trades": {
+    domain: "sentiment",
+    action: "insider-trades",
+    description: "查询高管增减持记录。",
+    params: { symbol: { required: true, type: "string", symbol: true } },
+    example: { symbol: "600519" },
+  },
+  "sentiment.fund_holdings": {
+    domain: "sentiment",
+    action: "fund-holdings",
+    description: "查询持有指定股票的基金列表。",
+    params: { symbol: { required: true, type: "string", symbol: true } },
+    example: { symbol: "600519" },
+  },
+  "sentiment.top_fund_stocks": {
+    domain: "sentiment",
+    action: "top-fund-stocks",
+    description: "查询基金重仓股排行（若上游接口可用）。",
+    params: {},
+    example: {},
+  },
+  "sentiment.top_holders": {
+    domain: "sentiment",
+    action: "top-holders",
+    description: "查询前十大股东。",
+    params: { symbol: { required: true, type: "string", symbol: true } },
+    example: { symbol: "600519" },
+  },
+  "sentiment.holder_changes": {
+    domain: "sentiment",
+    action: "holder-changes",
+    description: "查询股东人数变化。",
+    params: { symbol: { required: true, type: "string", symbol: true } },
+    example: { symbol: "600519" },
+  },
+  "sentiment.margin_data": {
+    domain: "sentiment",
+    action: "margin-data",
+    description: "查询个股融资融券数据。",
+    params: { symbol: { required: true, type: "string", symbol: true } },
+    example: { symbol: "600519" },
+  },
+  "financial.indicators": {
+    domain: "financial",
+    action: "indicators",
+    description: "查询最近财务指标：ROE、毛利率、净利率、负债率等。",
+    params: { symbol: { required: true, type: "string", symbol: true } },
+    example: { symbol: "600519" },
+  },
+  "financial.statements": {
+    domain: "financial",
+    action: "statements",
+    description: "查询利润表、资产负债表、现金流量表或三表合集。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      statement: { type: "string", enum: ["income", "balance", "cashflow", "all"] },
+      recent_n: { type: "integer", min: 1 },
+    },
+    example: { symbol: "600519", statement: "income", recent_n: 4 },
+  },
+  "financial.hk_financials": {
+    domain: "financial",
+    action: "hk-financials",
+    description: "查询港股财务数据。",
+    params: { symbol: { required: true, type: "string", symbol: true } },
+    example: { symbol: "9988" },
+  },
+  "financial.hk_analysis": {
+    domain: "financial",
+    action: "hk-analysis",
+    description: "查询港股综合分析：价格、技术摘要和财务数据。",
+    params: { symbol: { required: true, type: "string", symbol: true } },
+    example: { symbol: "9988" },
   },
   "signal.list": {
     domain: "signal",
@@ -494,6 +659,41 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { positions_json: "[{\"symbol\":\"600519\",\"market_value\":10000}]", shock_pct: -0.2 },
   },
+  "risk.trade_check": {
+    domain: "risk",
+    action: "trade-check",
+    description: "对单笔 A 股买卖订单执行交易前风控检查。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      action: { required: true, type: "string", enum: ["buy", "sell"] },
+      price: { required: true, type: "number", min: 0 },
+      shares: { required: true, type: "integer", min: 1 },
+    },
+    example: { symbol: "600519", action: "buy", price: 100, shares: 300 },
+  },
+  "risk.position_size": {
+    domain: "risk",
+    action: "position-size",
+    description: "按 Kelly 公式和组合风控参数计算建议仓位。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      price: { required: true, type: "number", min: 0 },
+      signal_strength: { type: "number", min: 0 },
+    },
+    example: { symbol: "600519", price: 100, signal_strength: 0.8 },
+  },
+  "risk.stop_loss": {
+    domain: "risk",
+    action: "stop-loss",
+    description: "基于入场价、当前价和最高价计算固定或移动止损价。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      entry_price: { required: true, type: "number", min: 0 },
+      current_price: { type: "number", min: 0 },
+      highest_price: { type: "number", min: 0 },
+    },
+    example: { symbol: "600519", entry_price: 90, current_price: 100, highest_price: 110 },
+  },
   "trade.verify": {
     domain: "trade",
     action: "verify",
@@ -572,23 +772,27 @@ export const quantCliTool: ToolDefinition = {
     "量化功能统一入口。这个工具只负责校验参数并调用本地 QuantSys CLI，不直接实现量化逻辑。 " +
     "它的使用方式接近 bash CLI：先用 help 获取使用说明书，再按手册执行具体 command。 " +
     "help 等价于 tools.list；help + params.name 等价于 tools.describe，可查看单个命令的参数、示例和用途。 " +
-    "适用场景：查询实时行情/基础信息/历史行情/新闻/公告、市场概览/行业板块/概念股/宏观/资金流/市场新闻/热搜股票、单只股票买点/技术指标/K线、股票综合评分、多条件选股、因子分析、行业聚合、基准对比、组合优化、策略参数优化、价格预警、压力测试、实盘和回测对比、组合相关性矩阵、因子时效性、生成或读取交易信号、信号裁决、策略表现分析、运行回测、训练模型、查看数据状态和报告。 " +
+    "适用场景：查询实时行情/批量行情/股票池/基础信息/历史行情/新闻/公告、市场概览/指数历史/行业板块/概念股/宏观/资金流/市场新闻/热搜股票、港股指数/南向资金/技术分析/人气排行、资金流/龙虎榜/高管增减持/基金持仓/股东/融资融券、财务指标/财务报表/港股财务、单只股票买点/技术指标/K线、股票综合评分、多条件选股、因子分析、行业聚合、基准对比、组合优化、策略参数优化、价格预警、压力测试、实盘和回测对比、组合相关性矩阵、因子时效性、生成或读取交易信号、信号裁决、策略表现分析、运行回测、训练模型、查看数据状态和报告。 " +
     "参数格式：command 使用白名单命令名，params 传该命令参数，例如 { command: \"stock.technical\", params: { symbol: \"600519\" } }。 " +
-    "常用命令：help、market.overview、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、stock.quote、stock.info、stock.history、stock.news、stock.announcements、analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.valuation、analysis.pe_percentile、analysis.quality、analysis.exit_plan、analysis.peers、stock.score、stock.screen、stock.technical、stock.klines、stock.ml_predict、factor.analyze、factor.decay、sector.aggregate、benchmark.compare、portfolio.optimize、portfolio.correlation、strategy.optimize、watch.price_alert、stress.test、trade.verify、signal.list、signal.generate、signal.arbitrate、performance.analyze、backtest.run、backtest.results、ml.train、ml.history、data.status、data.full_status、data.update_klines、risk.check、report.daily、report.read_daily、tools.list、tools.describe。 " +
+    "常用命令：help、market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、stock.quote、stock.batch_quotes、stock.list、stock.info、stock.history、stock.news、stock.announcements、analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.valuation、analysis.pe_percentile、analysis.quality、analysis.exit_plan、analysis.peers、screening.sector、screening.quality、hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank、sentiment.stock_fund_flow、sentiment.lhb、sentiment.insider_trades、sentiment.fund_holdings、sentiment.top_fund_stocks、sentiment.top_holders、sentiment.holder_changes、sentiment.margin_data、financial.indicators、financial.statements、financial.hk_financials、financial.hk_analysis、stock.score、stock.screen、stock.technical、stock.klines、stock.ml_predict、factor.analyze、factor.decay、sector.aggregate、benchmark.compare、portfolio.optimize、portfolio.correlation、strategy.optimize、watch.price_alert、stress.test、risk.trade_check、risk.position_size、risk.stop_loss、trade.verify、signal.list、signal.generate、signal.arbitrate、performance.analyze、backtest.run、backtest.results、ml.train、ml.history、data.status、data.full_status、data.update_klines、risk.check、report.daily、report.read_daily、tools.list、tools.describe。 " +
     "不要臆造 command 或参数；不确定时先调用 help、tools.list 或 tools.describe。",
   promptSnippet:
     "量化相关能力统一使用 quant_cli。像 bash 一样先用 command=help 查使用说明书，再选择白名单 command 并把参数放进 params；不要调用旧的分散量化工具。",
   promptGuidelines: [
     "不知道量化 CLI 能做什么时，先调用 quant_cli({ command: \"help\" }) 获取命令清单。",
     "不知道某个命令参数时，调用 quant_cli({ command: \"help\", params: { name: \"stock.technical\" } }) 获取单命令说明书。",
-    "需要实时行情、股票基础信息、历史行情、新闻或公告时，优先用 stock.quote、stock.info、stock.history、stock.news、stock.announcements。",
-    "需要市场概览、行业板块、概念、宏观、资金流、市场新闻或热搜股票时，用 market.overview、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks。",
+    "需要实时行情、批量价格、股票池、股票基础信息、历史行情、新闻或公告时，优先用 stock.quote、stock.batch_quotes、stock.list、stock.info、stock.history、stock.news、stock.announcements。",
+    "需要市场概览、指数历史、行业板块、概念、宏观、资金流、市场新闻或热搜股票时，用 market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks。",
     "需要技术分析、走势结构、K线形态、买入区间、估值、PE分位数、质量评分、止盈计划或同行对比时，用 analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.valuation、analysis.pe_percentile、analysis.quality、analysis.exit_plan、analysis.peers。",
+    "需要按行业板块筛选股票时，用 screening.sector；需要行业候选股同时按基本面质量评分排序时，用 screening.quality。",
+    "需要港股市场概览、南向资金、港股技术面或港股人气排行时，用 hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank。",
+    "需要资金流向、龙虎榜、高管增减持、基金持仓、股东变化或融资融券时，用 sentiment.stock_fund_flow、sentiment.lhb、sentiment.insider_trades、sentiment.fund_holdings、sentiment.top_fund_stocks、sentiment.top_holders、sentiment.holder_changes、sentiment.margin_data。",
+    "需要财务指标、财务报表或港股财务分析时，用 financial.indicators、financial.statements、financial.hk_financials、financial.hk_analysis。",
     "需要综合评价单只股票时用 stock.score；需要按 PE/ROE/负债率/RSI/综合分选股时用 stock.screen。",
     "需要看策略历史信号质量时用 performance.analyze；同一股票多信号冲突时用 signal.arbitrate。",
     "需要分析因子有效性用 factor.analyze；需要行业/板块聚合用 sector.aggregate。",
     "需要策略相对指数表现用 benchmark.compare；需要组合权重建议用 portfolio.optimize；需要搜索策略参数用 strategy.optimize。",
-    "需要价格预警用 watch.price_alert；需要组合压力测试用 stress.test；需要实盘和回测差异对比用 trade.verify。",
+    "需要价格预警用 watch.price_alert；需要组合压力测试用 stress.test；需要交易前风控、Kelly仓位或止损价计算时，用 risk.trade_check、risk.position_size、risk.stop_loss；需要实盘和回测差异对比用 trade.verify。",
     "需要组合相关性矩阵用 portfolio.correlation；需要分析因子预测力随持有周期衰减用 factor.decay。",
     "查询单只股票买点或技术面时优先用 stock.technical，并结合 signal.list 或 stock.ml_predict。",
     "不确定命令或参数时先用 help / tools.list / tools.describe，不要猜测不存在的 command。",

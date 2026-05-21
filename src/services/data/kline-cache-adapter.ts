@@ -6,7 +6,7 @@
 
 import { CacheManager } from '../../domain/cache/core/cache-manager.js';
 import { StockDBService } from './stock-db-service.js';
-import { callPython } from '../../infrastructure/akshare-ts/index.js';
+import { getStockHistoryViaQuantCli } from '../../infrastructure/quant/stock-query-cli-adapter.js';
 
 export class KlineCacheAdapter {
   private cacheManager: CacheManager;
@@ -43,13 +43,13 @@ export class KlineCacheAdapter {
     console.log(`[KlineCacheAdapter] ${symbol} 本地数据不足，从API拉取...`);
     const args = {
       symbol,
+      period: 'daily',
       start_date: startDate,
       end_date: endDate,
-      _skip_cache: true,
     };
 
     try {
-      const raw = await callPython('get_stock_history', args);
+      const raw = await getStockHistoryViaQuantCli(args);
       const data = JSON.parse(raw);
 
       if (Array.isArray(data.data)) {
@@ -84,11 +84,11 @@ export class KlineCacheAdapter {
     if (startDate >= endDate) return 0;
 
     try {
-      const raw = await callPython('get_stock_history', {
+      const raw = await getStockHistoryViaQuantCli({
         symbol,
+        period: 'daily',
         start_date: startDate,
         end_date: endDate,
-        _skip_cache: true,
       });
       const data = JSON.parse(raw);
 

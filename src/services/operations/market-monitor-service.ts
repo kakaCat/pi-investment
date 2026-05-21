@@ -3,7 +3,7 @@
  */
 import { getSession } from "../../core/agent/agent-loop.js";
 import { PortfolioService } from "../portfolio/portfolio-service.js";
-import { get_stock_realtime_price } from "../../infrastructure/akshare-ts/index.js";
+import { getStockPriceViaQuantCli } from "../../infrastructure/quant/stock-query-cli-adapter.js";
 import { quickFilter, type Quote } from "./market-filter.js";
 import { paths } from "../../config/config.js";
 
@@ -94,7 +94,7 @@ export class MarketMonitorService {
     const quotes: Quote[] = [];
     for (const symbol of symbols) {
       try {
-        const data = JSON.parse(await get_stock_realtime_price(symbol));
+        const data = JSON.parse(await getStockPriceViaQuantCli(symbol));
         if (data.price) {
           quotes.push({
             symbol,

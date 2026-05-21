@@ -47,14 +47,17 @@ def score_stock(quant_root: Path, params: dict[str, Any]) -> dict[str, Any]:
     if "error" in source:
         return _error(symbol, source["error"]["code"], source["error"]["message"])
 
-    table = source["table"]
+    schema = source["schema"]
+    table_name = source["table"]
     columns = source["columns"]
+    table_ref = f"{_quote_identifier(schema)}.{_quote_identifier(table_name)}" if schema else _quote_identifier(table_name)
+
     try:
         with Database() as db:
-            conn = db._get_connection()
+            conn = db.get_connection()
             cursor = conn.cursor()
             cursor.execute(
-                f"SELECT * FROM {_quote_identifier(table)} WHERE symbol = %s LIMIT 1",
+                f"SELECT * FROM {table_ref} WHERE symbol = %s LIMIT 1",
                 (symbol,),
             )
             row = cursor.fetchone()
@@ -76,13 +79,16 @@ def screen_stocks(quant_root: Path, params: dict[str, Any]) -> dict[str, Any]:
     if "error" in source:
         return {"count": 0, "stocks": [], "error": source["error"]}
 
-    table = source["table"]
+    schema = source["schema"]
+    table_name = source["table"]
     columns = source["columns"]
+    table_ref = f"{_quote_identifier(schema)}.{_quote_identifier(table_name)}" if schema else _quote_identifier(table_name)
+
     try:
         with Database() as db:
-            conn = db._get_connection()
+            conn = db.get_connection()
             cursor = conn.cursor()
-            cursor.execute(f"SELECT * FROM {_quote_identifier(table)}")
+            cursor.execute(f"SELECT * FROM {table_ref}")
             rows = cursor.fetchall()
             col_names = [desc[0] for desc in cursor.description]
             rows = [dict(zip(col_names, row)) for row in rows]
@@ -117,36 +123,42 @@ def screen_stocks(quant_root: Path, params: dict[str, Any]) -> dict[str, Any]:
 def _load_source(quant_root: Path) -> dict[str, Any]:
     try:
         with Database() as db:
-            conn = db._get_connection()
+            conn = db.get_connection()
             cursor = conn.cursor()
-            table = _find_symbol_table(cursor)
-            if table is None:
+            schema = db.schema
+            table_name = _find_symbol_table(cursor, schema)
+            if table_name is None:
                 return {
                     "error": {
                         "code": "TABLE_NOT_FOUND",
                         "message": "no table with a symbol column was found",
                     }
                 }
-            columns = _table_columns(cursor, table)
+            columns = _table_columns(cursor, table_name, schema)
     except Exception as exc:
         return {"error": {"code": "DATABASE_ERROR", "message": str(exc)}}
 
-    return {"table": table, "columns": columns}
+    return {"schema": schema, "table": table_name, "columns": columns}
 
 
-def _find_symbol_table(cursor) -> str | None:
-    cursor.execute(
-        """
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-        ORDER BY table_name
-        """
-    )
+def _find_symbol_table(cursor, schema: str | None) -> str | None:
+    if schema:
+        cursor.execute(
+            """
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = %s AND table_type = 'BASE TABLE'
+            ORDER BY table_name
+            """,
+            (schema,),
+        )
+    else:
+        # SQLite fallback: use sqlite_master
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
     rows = cursor.fetchall()
     candidates: list[tuple[int, int, str]] = []
     for (table,) in rows:
-        columns = _table_columns(cursor, table)
+        columns = _table_columns(cursor, table, schema)
         if "symbol" in columns:
             score_field_count = sum(1 for field in FACTOR_FIELDS if field in columns)
             name_priority = 0 if str(table).lower() == "stocks" else 1
@@ -157,15 +169,19 @@ def _find_symbol_table(cursor) -> str | None:
     return candidates[0][2]
 
 
-def _table_columns(cursor, table: str) -> set[str]:
-    cursor.execute(
-        """
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = %s
-        """,
-        (table,)
-    )
+def _table_columns(cursor, table: str, schema: str | None) -> set[str]:
+    if schema:
+        cursor.execute(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = %s AND table_name = %s
+            """,
+            (schema, table),
+        )
+    else:
+        cursor.execute(f"PRAGMA table_info({_quote_identifier(table)})")
+        return {str(row[1]) for row in cursor.fetchall()}
     return {str(row[0]) for row in cursor.fetchall()}
 
 

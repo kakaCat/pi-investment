@@ -9,7 +9,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
-import { get_stock_realtime_price, get_hk_stock_price } from "../../infrastructure/akshare-ts/index.js";
+import { getStockPriceViaQuantCli } from "../../infrastructure/quant/stock-query-cli-adapter.js";
 import { chinaDate, chinaDateTime } from "../../utils/china-time.js";
 import { FileLockService } from "../file-lock.service.js";
 import { FxRateServiceAdapter } from "../fx-rate-service-adapter.js";
@@ -475,10 +475,10 @@ export class PortfolioService {
     // 1. Get current FX rate for HK stocks
     const fxRate = await this.fxRateService.getRate("HKDCNY");
 
-    // 2. 并行获取所有持仓实时价格（直接调用 TS 函数，避免循环依赖）
+    // 2. 并行获取所有持仓实时价格（统一通过 quant CLI）
     const priceResults = await Promise.all(
       holdings.map(h =>
-        (h.market === "HK" ? get_hk_stock_price(h.symbol) : get_stock_realtime_price(h.symbol))
+        getStockPriceViaQuantCli(h.symbol)
           .then(raw => JSON.parse(raw) as Record<string, unknown>)
           .catch(() => ({} as Record<string, unknown>))
       )

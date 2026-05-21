@@ -83,9 +83,11 @@ export class PerformanceMonitor {
     this.metrics.llm.avgLatency = this.metrics.llm.totalLatency / this.metrics.llm.calls;
 
     if (tokens) {
-      this.metrics.llm.tokens.prompt += tokens.input_tokens || 0;
-      this.metrics.llm.tokens.completion += tokens.output_tokens || 0;
-      this.metrics.llm.tokens.total += (tokens.input_tokens || 0) + (tokens.output_tokens || 0);
+      const input = tokens.input ?? tokens.input_tokens ?? 0;
+      const output = tokens.output ?? tokens.output_tokens ?? 0;
+      this.metrics.llm.tokens.prompt += input;
+      this.metrics.llm.tokens.completion += output;
+      this.metrics.llm.tokens.total += tokens.totalTokens ?? tokens.total_tokens ?? input + output;
     }
 
     this.activeCalls.delete(id);
