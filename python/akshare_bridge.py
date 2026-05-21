@@ -36,7 +36,7 @@ os.environ['TQDM_DISABLE'] = '1'
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'quant'))
 
 from quantsys.strategies.combiner import StrategyCombiner, Signal as CombinerSignal, CombinerConfig
-from risk_bridge import RiskBridge
+from quantsys.risk.bridge import RiskBridge
 
 # Setup logger
 logger = logging.getLogger(__name__)
