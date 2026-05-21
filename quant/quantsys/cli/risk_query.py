@@ -40,13 +40,9 @@ def calculate_stop_loss(
 
 
 def _build_bridge():
+    from quantsys.risk.bridge import RiskBridge
+
     project_root = Path(__file__).resolve().parents[3]
-    python_dir = project_root / "python"
-    if str(python_dir) not in sys.path:
-        sys.path.insert(0, str(python_dir))
-
-    from risk_bridge import RiskBridge
-
     portfolio_db = project_root / ".pi-invest" / "portfolio.db"
     quant_db = project_root / ".pi-invest" / "stock-db" / "stocks.db"
     return RiskBridge(str(portfolio_db), str(quant_db))
