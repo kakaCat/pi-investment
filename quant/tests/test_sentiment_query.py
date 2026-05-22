@@ -46,3 +46,28 @@ def test_get_fund_flow_stats_with_data():
     assert stats['sina']['failure'] == 1
     assert stats['sina']['total_requests'] == 3
     assert abs(stats['sina']['success_rate'] - 0.6667) < 0.01
+
+
+def test_update_stats_success():
+    """Test updating stats on success."""
+    _update_stats('sina', success=True)
+    assert _source_stats['sina']['success'] == 1
+    assert _source_stats['sina']['failure'] == 0
+    assert _source_stats['sina']['last_success_time'] is not None
+
+
+def test_update_stats_failure():
+    """Test updating stats on failure."""
+    _update_stats('sina', success=False)
+    assert _source_stats['sina']['success'] == 0
+    assert _source_stats['sina']['failure'] == 1
+    assert _source_stats['sina']['last_success_time'] is None
+
+
+def test_update_stats_multiple():
+    """Test multiple stat updates."""
+    _update_stats('sina', success=True)
+    _update_stats('sina', success=True)
+    _update_stats('sina', success=False)
+    assert _source_stats['sina']['success'] == 2
+    assert _source_stats['sina']['failure'] == 1
