@@ -38,10 +38,10 @@ def _predict_signal_confidence(params: Dict[str, Any]) -> Any:
 def _combine_strategy_signals(params: Dict[str, Any]) -> Any:
     """Combine signals from multiple strategies."""
     from .strategy_analytics import arbitrate_signals
-    from .context import CliContext
+    from .context import build_context
 
-    ctx = CliContext(db_path=None, output_dir=None, python="python3")
-    return arbitrate_signals(ctx, params)
+    ctx = build_context()
+    return arbitrate_signals(ctx.quant_root, params)
 
 
 def _plot_model_accuracy_trend(params: Dict[str, Any]) -> Any:

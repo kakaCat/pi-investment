@@ -52,7 +52,7 @@ def handle_request(request: dict) -> dict:
         return {
             "jsonrpc": "2.0",
             "id": request_id,
-            "result": json.dumps(result, default=str, ensure_ascii=False),
+            "result": result,
         }
     except Exception:
         return {
@@ -84,4 +84,4 @@ def run_daemon() -> None:
             continue
 
         response = handle_request(request)
-        print(json.dumps(response, ensure_ascii=False), flush=True)
+        print(json.dumps(response, default=str, ensure_ascii=False), flush=True)
