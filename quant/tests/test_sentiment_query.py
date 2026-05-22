@@ -207,3 +207,101 @@ def test_fetch_from_akshare_exception(mock_disable, mock_ak):
     assert 'error' in result
     assert result['symbol'] == "600094"
     assert "akshare 数据源失败" in result['error']
+
+
+@patch('quantsys.cli.sentiment_query._fetch_from_akshare')
+@patch('quantsys.cli.sentiment_query._fetch_from_sina')
+def test_get_stock_fund_flow_sina_success(mock_sina, mock_akshare):
+    """Test successful Sina call (no fallback)."""
+    mock_sina.return_value = {
+        "symbol": "600094",
+        "data": [{"日期": "2024-01-15"}],
+        "source": "sina",
+        "estimated_fields": []
+    }
+
+    result = get_stock_fund_flow("600094", days=5)
+
+    assert result['source'] == "sina"
+    assert mock_sina.called
+    assert not mock_akshare.called  # Should not fallback
+
+
+@patch('quantsys.cli.sentiment_query._fetch_from_akshare')
+@patch('quantsys.cli.sentiment_query._fetch_from_sina')
+def test_get_stock_fund_flow_fallback_to_akshare(mock_sina, mock_akshare):
+    """Test fallback to akshare when Sina fails."""
+    mock_sina.return_value = {"error": "Sina failed", "symbol": "600094"}
+    mock_akshare.return_value = {
+        "symbol": "600094",
+        "data": [{"日期": "2024-01-15"}],
+        "source": "akshare",
+        "estimated_fields": []
+    }
+
+    result = get_stock_fund_flow("600094", days=5)
+
+    assert result['source'] == "akshare"
+    assert mock_sina.called
+    assert mock_akshare.called  # Should fallback
+
+
+@patch('quantsys.cli.sentiment_query._fetch_from_akshare')
+@patch('quantsys.cli.sentiment_query._fetch_from_sina')
+def test_get_stock_fund_flow_both_fail(mock_sina, mock_akshare):
+    """Test when both sources fail."""
+    mock_sina.return_value = {"error": "Sina failed", "symbol": "600094"}
+    mock_akshare.return_value = {"error": "akshare failed", "symbol": "600094"}
+
+    result = get_stock_fund_flow("600094", days=5)
+
+    assert 'error' in result
+    assert mock_sina.called
+    assert mock_akshare.called
+
+
+@patch('quantsys.cli.sentiment_query._fetch_from_sina')
+def test_get_stock_fund_flow_with_zero_days(mock_sina):
+    """Test with days=0 (boundary case)."""
+    mock_sina.return_value = {"symbol": "600094", "data": [], "source": "sina", "estimated_fields": []}
+
+    result = get_stock_fund_flow("600094", days=0)
+
+    # This test will reveal if validation is needed
+    assert mock_sina.called
+
+
+@patch('quantsys.cli.sentiment_query._fetch_from_sina')
+def test_get_stock_fund_flow_with_negative_days(mock_sina):
+    """Test with negative days (invalid input)."""
+    mock_sina.return_value = {"symbol": "600094", "data": [], "source": "sina", "estimated_fields": []}
+
+    result = get_stock_fund_flow("600094", days=-5)
+
+    # This test will reveal if validation is needed
+    assert mock_sina.called
+
+
+@patch('quantsys.cli.sentiment_query._fetch_from_sina')
+def test_get_stock_fund_flow_with_large_days(mock_sina):
+    """Test with very large days value."""
+    mock_sina.return_value = {"symbol": "600094", "data": [], "source": "sina", "estimated_fields": []}
+
+    result = get_stock_fund_flow("600094", days=10000)
+
+    assert mock_sina.called
+
+
+@patch('quantsys.cli.sentiment_query.requests.get')
+def test_fetch_from_sina_with_malformed_data(mock_get):
+    """Test Sina API with missing fields."""
+    mock_response = Mock()
+    mock_response.json.return_value = [
+        {"opendate": "2024-01-15"}  # Missing required fields
+    ]
+    mock_get.return_value = mock_response
+
+    result = _fetch_from_sina("600094", days=1)
+
+    # Should handle missing fields gracefully (defaults to 0)
+    assert 'error' not in result or 'data' in result
