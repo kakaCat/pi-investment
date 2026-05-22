@@ -15,26 +15,37 @@ _source_stats = {
 
 
 def get_stock_fund_flow(symbol: str, days: int = 10) -> dict[str, Any]:
-    """Return recent individual stock fund flow records."""
-    clean = _clean_symbol(symbol)
-    try:
-        _disable_proxy_env()
-        import akshare as ak
+    """
+    多渠道获取个股资金流向数据
 
-        if clean.startswith("6"):
-            market = "sh"
-        elif clean.startswith(("8", "4")):
-            market = "bj"
-        else:
-            market = "sz"
-        frame = ak.stock_individual_fund_flow(stock=clean, market=market)
-        if frame is None or frame.empty:
-            return {"error": f"无资金流向数据: {clean}", "symbol": clean}
-        limit = max(int(days or 10), 1)
-        records = frame.tail(limit).to_dict(orient="records")
-        return {"symbol": clean, "count": len(records), "data": records, "data_date": _today()}
-    except Exception as exc:
-        return {"error": str(exc), "symbol": clean}
+    降级策略：新浪 → akshare
+
+    Args:
+        symbol: 股票代码（支持多种格式：600094, sh600094, SH600094）
+        days: 查询天数，默认 10 天
+
+    Returns:
+        成功时返回包含 data, source, estimated_fields 的字典
+        失败时返回包含 error 的字典
+    """
+    clean = _clean_symbol(symbol)
+
+    # 尝试新浪数据源
+    result = _fetch_from_sina(clean, days)
+    if result and 'error' not in result:
+        _update_stats('sina', success=True)
+        return result
+
+    _update_stats('sina', success=False)
+
+    # 降级到 akshare
+    result = _fetch_from_akshare(clean, days)
+    if result and 'error' not in result:
+        _update_stats('akshare', success=True)
+    else:
+        _update_stats('akshare', success=False)
+
+    return result
 
 
 def _fetch_from_sina(symbol: str, days: int) -> dict[str, Any]:
@@ -100,6 +111,9 @@ def _fetch_from_sina(symbol: str, days: int) -> dict[str, Any]:
                 "小单净流入-净占比": -main_ratio * 0.5,
             }
             records.append(record)
+
+        # 新浪 API 的 num 参数不可靠，手动截取最近 N 天
+        records = records[:days]
 
         return {
             "symbol": symbol,
