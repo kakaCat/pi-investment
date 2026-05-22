@@ -254,6 +254,24 @@ def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
+def _update_stats(source: str, success: bool) -> None:
+    """
+    更新数据源成功率统计
+
+    Args:
+        source: 数据源名称（'sina' 或 'akshare'）
+        success: 是否成功
+    """
+    from datetime import datetime
+
+    if source in _source_stats:
+        if success:
+            _source_stats[source]['success'] += 1
+            _source_stats[source]['last_success_time'] = datetime.now()
+        else:
+            _source_stats[source]['failure'] += 1
+
+
 # === Daemon handler registration ===
 
 from .daemon import register_daemon_method  # noqa: E402
