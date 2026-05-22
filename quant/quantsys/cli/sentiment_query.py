@@ -7,6 +7,12 @@ from typing import Any
 
 from .stock_query import _clean_symbol, _disable_proxy_env, _safe_float, _sina_symbol
 
+# 进程级别的数据源成功率统计（内存缓存）
+_source_stats = {
+    'sina': {'success': 0, 'failure': 0, 'last_success_time': None},
+    'akshare': {'success': 0, 'failure': 0, 'last_success_time': None},
+}
+
 
 def get_stock_fund_flow(symbol: str, days: int = 10) -> dict[str, Any]:
     """Return recent individual stock fund flow records."""
