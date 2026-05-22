@@ -159,7 +159,7 @@ def test_fetch_from_sina_http_error(mock_get):
     assert result['symbol'] == "600094"
 
 
-@patch('quantsys.cli.sentiment_query.ak.stock_individual_fund_flow')
+@patch('akshare.stock_individual_fund_flow')
 @patch('quantsys.cli.sentiment_query._disable_proxy_env')
 def test_fetch_from_akshare_success(mock_disable, mock_ak):
     """Test successful akshare API call."""
@@ -181,7 +181,7 @@ def test_fetch_from_akshare_success(mock_disable, mock_ak):
     assert result['estimated_fields'] == []  # akshare has no estimated fields
 
 
-@patch('quantsys.cli.sentiment_query.ak.stock_individual_fund_flow')
+@patch('akshare.stock_individual_fund_flow')
 @patch('quantsys.cli.sentiment_query._disable_proxy_env')
 def test_fetch_from_akshare_empty(mock_disable, mock_ak):
     """Test akshare returning empty DataFrame."""
@@ -196,7 +196,7 @@ def test_fetch_from_akshare_empty(mock_disable, mock_ak):
     assert "无资金流向数据" in result['error']
 
 
-@patch('quantsys.cli.sentiment_query.ak.stock_individual_fund_flow')
+@patch('akshare.stock_individual_fund_flow')
 @patch('quantsys.cli.sentiment_query._disable_proxy_env')
 def test_fetch_from_akshare_exception(mock_disable, mock_ak):
     """Test akshare API exception."""
