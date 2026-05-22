@@ -2,7 +2,7 @@
  * Tool Worker - 在独立线程中执行工具调用
  */
 import { parentPort, workerData } from "worker_threads";
-import { callInvestTool } from "../../infrastructure/tools/invest-tools.js";
+import { callInvestTool } from "../../infrastructure/tools/core/invest-tools.js";
 
 const { toolName, params, timeout } = workerData;
 

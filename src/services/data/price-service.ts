@@ -8,10 +8,7 @@
  */
 
 import { StockDBService } from './stock-db-service.js';
-import {
-  getBatchStockPricesViaQuantCli,
-  getStockPriceViaQuantCli,
-} from '../../infrastructure/quant/stock-query-cli-adapter.js';
+import { callQuantSysDaemon } from '../../infrastructure/quant/quantsys-daemon-adapter.js';
 
 export interface PriceResult {
   symbol: string;
@@ -111,7 +108,7 @@ export class PriceService {
     const result = new Map<string, number>();
 
     try {
-      const raw = await getBatchStockPricesViaQuantCli(symbols);
+      const raw = await callQuantSysDaemon("get_batch_stock_prices", { symbols });
       const data = JSON.parse(raw);
 
       if (data.prices && typeof data.prices === 'object') {
@@ -152,7 +149,7 @@ export class PriceService {
    */
   private async fetchSinglePriceFromAPI(symbol: string): Promise<number | null> {
     try {
-      const raw = await getStockPriceViaQuantCli(symbol);
+      const raw = await callQuantSysDaemon("get_stock_realtime_price", { symbol });
       const data = JSON.parse(raw);
 
       if (data.price && typeof data.price === 'number' && data.price > 0) {

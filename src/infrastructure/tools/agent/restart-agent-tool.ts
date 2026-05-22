@@ -15,15 +15,15 @@
  *
  * 新进程启动时会检测 .restart/context.json，恢复上下文。
  */
-import type { ToolDefinition } from "./index.js";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { execSync } from "child_process";
 import process from "node:process";
 import { join, dirname } from "path";
 import { writeFileSync, mkdirSync, existsSync, unlinkSync } from "fs";
 import { fileURLToPath } from "url";
-import { getSessionKey, getConversationMessages } from "../logging/observable-logger.js";
-import { resetTerminalModes } from "../tui/pi-tui-compat.js";
+import { getSessionKey, getConversationMessages } from "../../logging/observable-logger.js";
+import { resetTerminalModes } from "../../tui/pi-tui-compat.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -101,12 +101,12 @@ function getCurrentSessionInfo(): { sessionFile?: string; sessionId?: string } {
 }
 
 /**
- * 查找 Python akshare_bridge 进程并终止
- * 只匹配通过本项目启动的 akshare_bridge.py --daemon 进程
+ * 查找 QuantSys CLI daemon 进程并终止
+ * 只匹配通过本项目启动的 quantsys.cli --daemon 进程
  */
 function killPythonBridge(): boolean {
   try {
-    const result = execSync("pgrep -f 'akshare_bridge.py' 2>/dev/null || true", {
+    const result = execSync("pgrep -f 'quantsys.cli.*--daemon' 2>/dev/null || true", {
       encoding: "utf-8",
       timeout: 3000,
     });

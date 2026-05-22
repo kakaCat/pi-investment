@@ -15,7 +15,7 @@
  */
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
-import { getStockPriceViaQuantCli } from "../../infrastructure/quant/stock-query-cli-adapter.js";
+import { callQuantSysDaemon } from "../../infrastructure/quant/quantsys-daemon-adapter.js";
 import { StopLossAnalyzer } from "./stop-loss-analyzer-service.js";
 import type { StopLossReport } from "../../types/stop-loss-analysis.js";
 
@@ -77,7 +77,7 @@ function parseThreshold(notes: string): number {
 
 async function fetchCurrentPrice(symbol: string, market: "A" | "HK"): Promise<number | null> {
   try {
-    const raw = await getStockPriceViaQuantCli(symbol);
+    const raw = await callQuantSysDaemon("get_stock_realtime_price", { symbol });
     const data = typeof raw === "string" ? JSON.parse(raw) : raw;
     const price = data?.current ?? data?.price ?? data?.close;
     return price != null && !isNaN(Number(price)) ? Number(price) : null;

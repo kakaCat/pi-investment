@@ -5,7 +5,7 @@
  */
 
 import { Type } from '@sinclair/typebox';
-import type { ToolDefinition } from "./index.js";
+import type { ToolDefinition } from "../index.js";
 
 export const queryExperienceTool: ToolDefinition = {
   name: 'query_experience',

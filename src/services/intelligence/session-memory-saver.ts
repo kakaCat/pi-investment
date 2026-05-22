@@ -5,7 +5,7 @@
  */
 import { createAgentSession, type AgentSession } from "@mariozechner/pi-coding-agent";
 import { createDeepSeekModel } from "../../config/config.js";
-import { memoryWriteTool, memorySearchTool } from "../../infrastructure/tools/memory-tool.js";
+import { memoryWriteTool, memorySearchTool } from "../../infrastructure/tools/agent/memory-tool.js";
 import { getMessages, type SessionMessage } from "../../core/agent/session-adapter.js";
 
 export interface SessionSummary {

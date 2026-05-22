@@ -4,17 +4,7 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { requireAshare } from "../shared/validators.js";
-import {
-  analyzeCandlestickViaQuantCli,
-  analyzePriceActionViaQuantCli,
-  analyzeTechnicalViaQuantCli,
-  comparePeersViaQuantCli,
-  getBuyRangeViaQuantCli,
-  getExitPlanViaQuantCli,
-  getPePercentileViaQuantCli,
-  getQualityScoreViaQuantCli,
-  getValuationViaQuantCli,
-} from "../../quant/analysis-query-cli-adapter.js";
+import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
 
 // ===== analyze_technical =====
 export const analyzeTechnicalTool: ToolDefinition = {
@@ -31,7 +21,7 @@ export const analyzeTechnicalTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await analyzeTechnicalViaQuantCli(params.symbol);
+    const result = await callQuantSysDaemon("calculate_technical_indicators", { symbol: params.symbol });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -52,7 +42,7 @@ export const analyzePriceActionTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await analyzePriceActionViaQuantCli(params.symbol, params.period);
+    const result = await callQuantSysDaemon("analyze_price_action", { symbol: params.symbol, period: params.period });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -72,7 +62,7 @@ export const analyzeCandlestickTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await analyzeCandlestickViaQuantCli(params.symbol);
+    const result = await callQuantSysDaemon("analyze_candlestick", { symbol: params.symbol });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -99,7 +89,7 @@ export const getBuyRangeTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await getBuyRangeViaQuantCli(params.symbol, params.current_price);
+    const result = await callQuantSysDaemon("calculate_buy_range", { symbol: params.symbol, current_price: params.current_price });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -119,7 +109,7 @@ export const getValuationTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await getValuationViaQuantCli(params.symbol);
+    const result = await callQuantSysDaemon("get_stock_valuation", { symbol: params.symbol });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -141,7 +131,7 @@ export const getPePercentileTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await getPePercentileViaQuantCli(params.symbol, params.years);
+    const result = await callQuantSysDaemon("get_pe_percentile", { symbol: params.symbol, years: params.years });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -162,7 +152,7 @@ export const getQualityScoreTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await getQualityScoreViaQuantCli(params.symbol);
+    const result = await callQuantSysDaemon("get_quality_score", { symbol: params.symbol });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -186,7 +176,7 @@ export const getExitPlanTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await getExitPlanViaQuantCli(params.symbol, params.buy_price, params.shares);
+    const result = await callQuantSysDaemon("calculate_exit_plan", { symbol: params.symbol, buy_price: params.buy_price, shares: params.shares });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -209,7 +199,7 @@ export const comparePeersTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await comparePeersViaQuantCli(params.symbol);
+    const result = await callQuantSysDaemon("compare_peers", { symbol: params.symbol });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };

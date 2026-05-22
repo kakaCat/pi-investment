@@ -4,7 +4,7 @@
 import { Type } from "@sinclair/typebox";
 import { generateSummary } from "@mariozechner/pi-coding-agent";
 import type { AgentSession } from "@mariozechner/pi-coding-agent";
-import { getMessages, getModel } from "../../core/agent/session-adapter.js";
+import { getMessages, getModel } from "../../../core/agent/session-adapter.js";
 
 let sessionRef: AgentSession | null = null;
 

@@ -3,11 +3,11 @@
  *
  * 真实实现位于 services/intelligence/memory-store.ts
  */
-import type { ToolDefinition } from "./index.js";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { getMemoryStore } from "../../services/intelligence/memory-store.js";
+import { getMemoryStore } from "../../../services/intelligence/memory-store.js";
 
-export { initMemoryStore as initMemoryTools } from "../../services/intelligence/memory-store.js";
+export { initMemoryStore as initMemoryTools } from "../../../services/intelligence/memory-store.js";
 
 export const memoryWriteTool: ToolDefinition = {
   name: "memory_write",

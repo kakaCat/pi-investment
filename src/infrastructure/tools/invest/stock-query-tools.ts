@@ -4,13 +4,7 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { detectMarket } from "../shared/validators.js";
-import {
-  getAnnouncementsViaQuantCli,
-  getStockHistoryViaQuantCli,
-  getStockInfoViaQuantCli,
-  getStockNewsViaQuantCli,
-  getStockPriceViaQuantCli,
-} from "../../quant/stock-query-cli-adapter.js";
+import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
 
 // ===== get_stock_info =====
 export const getStockInfoTool: ToolDefinition = {
@@ -30,7 +24,7 @@ export const getStockInfoTool: ToolDefinition = {
     if (market === "invalid") {
       return { content: [{ type: "text" as const, text: JSON.stringify({ error: `不支持的股票代码 "${params.symbol}"。本系统支持A股（6位数字）和港股（1-5位数字或含.HK后缀）。`, invalid_format: true }) }], details: undefined };
     }
-    const result = await getStockInfoViaQuantCli(params.symbol);
+    const result = await callQuantSysDaemon("get_stock_info", { symbol: params.symbol });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -53,7 +47,7 @@ export const getStockPriceTool: ToolDefinition = {
     if (market === "invalid") {
       return { content: [{ type: "text" as const, text: JSON.stringify({ error: `不支持的股票代码 "${params.symbol}"。本系统支持A股（6位数字）和港股（1-5位数字或含.HK后缀）。`, invalid_format: true }) }], details: undefined };
     }
-    const result = await getStockPriceViaQuantCli(params.symbol);
+    const result = await callQuantSysDaemon("get_stock_realtime_price", { symbol: params.symbol });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -78,7 +72,7 @@ export const getStockHistoryTool: ToolDefinition = {
     if (market === "invalid") {
       return { content: [{ type: "text" as const, text: JSON.stringify({ error: `不支持的股票代码 "${params.symbol}"。本系统支持A股（6位数字）和港股（1-5位数字或含.HK后缀）。`, invalid_format: true }) }], details: undefined };
     }
-    const result = await getStockHistoryViaQuantCli({
+    const result = await callQuantSysDaemon("get_stock_history", {
       symbol: params.symbol,
       period: params.period,
       start_date: params.start_date,
@@ -103,7 +97,7 @@ export const getStockNewsTool: ToolDefinition = {
     num: Type.Optional(Type.Integer({ description: "Number of news items to return (default 10)" })),
   }),
   execute: async (_toolCallId, params: any) => {
-    const result = await getStockNewsViaQuantCli(params.symbol, params.num);
+    const result = await callQuantSysDaemon("get_stock_news", { symbol: params.symbol, num: params.num });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -120,7 +114,7 @@ export const getAnnouncementsTool: ToolDefinition = {
     symbol: Type.String({ description: "6-digit A-share code" }),
   }),
   execute: async (_toolCallId, params: any) => {
-    const result = await getAnnouncementsViaQuantCli(params.symbol);
+    const result = await callQuantSysDaemon("get_announcements", { symbol: params.symbol });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };

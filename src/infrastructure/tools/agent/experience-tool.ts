@@ -3,9 +3,9 @@
  *
  * 供 Agent 在决策时调用，查询历史经验作为参考
  */
-import type { ToolDefinition } from "./index.js";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { queryExperience } from "../../services/intelligence/experience-manager.js";
+import { queryExperience } from "../../../services/intelligence/experience-manager.js";
 
 export const experienceQueryTool: ToolDefinition = {
   name: "experience_query",

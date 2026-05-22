@@ -12,7 +12,7 @@ import * as logger from "../infrastructure/logging/observable-logger.js";
 import { createTrackedSession } from "../infrastructure/session/session-factory.js";
 import { allCustomTools, initMemoryTools } from "../infrastructure/tools/index.js";
 import type { ToolDefinition } from "../infrastructure/tools/index.js";
-import { setPlanToolContext } from "../infrastructure/tools/plan-tool.js";
+import { setPlanToolContext } from "../infrastructure/tools/agent/plan-tool.js";
 import { loadPlugins } from "../infrastructure/plugins/index.js";
 import { createDeepSeekModel, paths } from "../config/config.js";
 import {
@@ -24,7 +24,7 @@ import {
 import { microCompact, compactConversationHistory } from "../services/compaction/compaction-service.js";
 import { initSkillGuard } from "../infrastructure/tools/skill-guard.js";
 import { initSkillRouter } from "../services/intelligence/skill-router.js";
-import { setSessionDataDir } from "../infrastructure/akshare-ts/shared.js";
+import { setSessionDataDir } from "../infrastructure/tools/shared/session-utils.js";
 import {
   FeishuSessionManager,
   type FeishuAgentSession,

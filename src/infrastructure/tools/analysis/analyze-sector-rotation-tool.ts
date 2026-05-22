@@ -13,9 +13,9 @@
  *
  * Expected impact: improve stock selection quality, add 2-3% win rate.
  */
-import type { ToolDefinition } from "./index.js";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { getSectorFundFlowViaQuantCli } from "../quant/market-query-cli-adapter.js";
+import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
 
 export const analyzeSectorRotationTool: ToolDefinition = {
   name: "analyze_sector_rotation",
@@ -39,7 +39,7 @@ export const analyzeSectorRotationTool: ToolDefinition = {
       const days = params.days ?? 5;
 
       // ── Step 1: Fetch sector fund flow data ──────────────────────
-      const flowResult = await getSectorFundFlowViaQuantCli();
+      const flowResult = await callQuantSysDaemon("get_sector_fund_flow");
       const flowData = JSON.parse(flowResult);
 
       if (flowData.error) {

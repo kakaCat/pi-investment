@@ -13,12 +13,12 @@
  * 存储依赖 OrderService (src/services/order-service.ts)。
  */
 
-import type { ToolDefinition } from "./index.js";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { OrderService, type PendingOrder, type OrderSide, type OrderType, type OrderStatus } from "../../services/order-service.js";
-import { PortfolioService } from "../../services/portfolio/portfolio-service.js";
-import { TradeService } from "../../services/portfolio/trade-service.js";
-import { chinaDate, chinaDateTime } from "../../utils/china-time.js";
+import { OrderService, type PendingOrder, type OrderSide, type OrderType, type OrderStatus } from "../../../services/order-service.js";
+import { PortfolioService } from "../../../services/portfolio/portfolio-service.js";
+import { TradeService } from "../../../services/portfolio/trade-service.js";
+import { chinaDate, chinaDateTime } from "../../../utils/china-time.js";
 
 const PI_DIR = ".pi-invest";
 

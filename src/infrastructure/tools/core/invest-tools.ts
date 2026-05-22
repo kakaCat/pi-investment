@@ -11,19 +11,19 @@
  * - portfolio-tools: 持仓管理、复盘报告
  */
 
-import type { ToolDefinition } from "./index.js";
-import { marketTools } from "./invest/market-tools.js";
-import { stockQueryTools } from "./invest/stock-query-tools.js";
-import { analysisTools } from "./invest/analysis-tools.js";
-import { financialTools } from "./invest/financial-tools.js";
-import { screeningTools } from "./invest/screening-tools.js";
-import { sentimentTools } from "./invest/sentiment-tools.js";
-import { portfolioTools } from "./invest/portfolio-tools.js";
-import { hkTools } from "./invest/hk-tools.js";
+import type { ToolDefinition } from "../index.js";
+import { marketTools } from "../invest/market-tools.js";
+import { stockQueryTools } from "../invest/stock-query-tools.js";
+import { analysisTools } from "../invest/analysis-tools.js";
+import { financialTools } from "../invest/financial-tools.js";
+import { screeningTools } from "../invest/screening-tools.js";
+import { sentimentTools } from "../invest/sentiment-tools.js";
+import { portfolioTools } from "../invest/portfolio-tools.js";
+import { hkTools } from "../invest/hk-tools.js";
 
 // 导出共享工具函数供其他模块使用
-export { callPython } from "./shared/python-caller.js";
-export { detectMarket, requireAshare, roundN } from "./shared/validators.js";
+export { callPython } from "../shared/python-caller.js";
+export { detectMarket, requireAshare, roundN } from "../shared/validators.js";
 
 // ===== Export all investment tools =====
 export const investTools: ToolDefinition[] = [

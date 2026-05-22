@@ -1,5 +1,5 @@
 import { StockDBService } from '../data/stock-db-service.js';
-import { getStockHistoryViaQuantCli } from '../../infrastructure/quant/stock-query-cli-adapter.js';
+import { callQuantSysDaemon } from '../../infrastructure/quant/quantsys-daemon-adapter.js';
 
 export interface TechnicalIndicators {
   rsi: number;
@@ -85,7 +85,7 @@ export class FactorLibrary {
     } catch (error) {
       // Fallback to quant CLI
       console.log(`[FactorLibrary] Falling back to quant CLI for ${symbol}, DB error: ${error}`);
-      const historyJson = await getStockHistoryViaQuantCli({
+      const historyJson = await callQuantSysDaemon("get_stock_history", {
         symbol,
         period: 'daily',
         end_date: date,

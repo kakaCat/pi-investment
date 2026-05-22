@@ -17,7 +17,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { chinaDateTime } from "../utils/china-time.js";
-import { getStockPriceViaQuantCli } from "../infrastructure/quant/stock-query-cli-adapter.js";
+import { callQuantSysDaemon } from "../infrastructure/quant/quantsys-daemon-adapter.js";
 import { FileLockService } from "./file-lock.service.js";
 
 // ─── 数据类型 ──────────────────────────────────────────────────────────────
@@ -683,7 +683,7 @@ export class OrderService {
       // 获取实时价格
       let priceResult: string;
       try {
-        priceResult = await getStockPriceViaQuantCli(order.symbol);
+        priceResult = await callQuantSysDaemon("get_stock_realtime_price", { symbol: order.symbol });
       } catch (e) {
         errors.push({
           order,

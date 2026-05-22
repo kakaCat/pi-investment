@@ -1,6 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import { execSync } from "child_process";
-import type { ToolDefinition } from "./index.js";
+import type { ToolDefinition } from "../index.js";
 
 export const manageStockDBTool: ToolDefinition = {
   name: "manage_stock_db",

@@ -33,11 +33,11 @@ export function createDeepSeekModel(): Model<'openai-completions'> {
     provider: 'openai',              // SDK 要求 openai provider 才能正确路由 key
     apiKey,
     baseUrl,                         // ← 始终显式设置，不依赖 SDK 默认值
-    reasoning: false,
+    reasoning: true,                 // DeepSeek支持reasoning，设为true避免解析错误
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 64000,
-    maxTokens: 8000
+    maxTokens: 8000                  // 恢复到8000，真正问题是reasoning配置
   } as any;
 }
 

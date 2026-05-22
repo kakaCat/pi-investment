@@ -1,6 +1,6 @@
 import { Type } from "@sinclair/typebox";
-import type { ToolDefinition } from "./index.js";
-import { runQuantCli } from "../quant/quant-cli-client.js";
+import type { ToolDefinition } from "../index.js";
+import { runQuantCli } from "../../quant/quant-cli-client.js";
 
 type ParamRule = {
   required?: boolean;
@@ -102,6 +102,13 @@ const COMMANDS: Record<string, CommandRule> = {
     description: "查询热搜股票排行。",
     params: { market: { type: "string", enum: ["全部", "A股", "港股", "美股"] } },
     example: { market: "A股" },
+  },
+  "market.sentiment": {
+    domain: "market",
+    action: "sentiment",
+    description: "分析市场情绪指标，返回综合恐惧/贪婪评分（0-100）。",
+    params: {},
+    example: {},
   },
   "market.index_history": {
     domain: "market",
@@ -439,6 +446,103 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbol: "600519", statement: "income", recent_n: 4 },
   },
+  "financial.valuation": {
+    domain: "financial",
+    action: "valuation",
+    description: "获取股票估值数据：PE、PB、估值状态（cheap/fair/expensive）、合理价值估算。",
+    params: { symbol: { required: true, type: "string", symbol: true } },
+    example: { symbol: "600519" },
+  },
+  "financial.pe_percentile": {
+    domain: "financial",
+    action: "pe-percentile",
+    description: "获取PE历史分位数：当前PE在过去N年中所处的百分位（0=历史最低，100=历史最高）。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      years: { type: "number", positive: true },
+    },
+    example: { symbol: "600519", years: 3 },
+  },
+  "financial.income_statement": {
+    domain: "financial",
+    action: "income-statement",
+    description: "获取利润表：营业收入、营业成本、净利润、毛利率、净利率等。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      recent_n: { type: "number", positive: true },
+    },
+    example: { symbol: "600519", recent_n: 8 },
+  },
+  "financial.cash_flow": {
+    domain: "financial",
+    action: "cash-flow",
+    description: "获取现金流量表：经营活动现金流、投资活动现金流、筹资活动现金流。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      recent_n: { type: "number", positive: true },
+    },
+    example: { symbol: "600519", recent_n: 8 },
+  },
+  "indicator.technical": {
+    domain: "indicator",
+    action: "technical",
+    description: "计算技术指标：MA（移动平均线）、MACD、RSI、布林带，并生成交易信号。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      indicators: { type: "string" },
+    },
+    example: { symbol: "600519" },
+  },
+  "indicator.candlestick": {
+    domain: "indicator",
+    action: "candlestick",
+    description: "K线形态识别：识别看涨/看跌形态、跳空缺口、趋势线突破等。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      lookback: { type: "number", positive: true },
+    },
+    example: { symbol: "600519", lookback: 120 },
+  },
+  "analysis.price_action": {
+    domain: "analysis",
+    action: "price-action",
+    description: "价格行为分析：趋势、支撑阻力、成交量、突破信号、动量、波动率。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      period: { type: "number", positive: true },
+    },
+    example: { symbol: "600519", period: 60 },
+  },
+  "analysis.buy_range": {
+    domain: "analysis",
+    action: "buy-range",
+    description: "买入区间计算：基于技术支撑位计算安全价、理想价、止损位、目标价，并给出分批建仓建议。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      current_price: { type: "number", positive: true },
+    },
+    example: { symbol: "600519" },
+  },
+  "analysis.peer_comparison": {
+    domain: "analysis",
+    action: "peer-comparison",
+    description: "同行对比：获取目标股票基础数据（PE、PB、ROE、市值）和行业信息，提示如何获取同行数据。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+    },
+    example: { symbol: "600519" },
+  },
+  "analysis.exit_plan": {
+    domain: "analysis",
+    action: "exit-plan",
+    description: "止盈计划：基于买入价和PE计算分批止盈目标（保守/中等/激进），给出卖出建议。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      entry_price: { required: true, type: "number", positive: true },
+      position_size: { type: "number", positive: true },
+    },
+    example: { symbol: "600519", entry_price: 1200, position_size: 100 },
+  },
   "financial.hk_financials": {
     domain: "financial",
     action: "hk-financials",
@@ -774,7 +878,7 @@ export const quantCliTool: ToolDefinition = {
     "help 等价于 tools.list；help + params.name 等价于 tools.describe，可查看单个命令的参数、示例和用途。 " +
     "适用场景：查询实时行情/批量行情/股票池/基础信息/历史行情/新闻/公告、市场概览/指数历史/行业板块/概念股/宏观/资金流/市场新闻/热搜股票、港股指数/南向资金/技术分析/人气排行、资金流/龙虎榜/高管增减持/基金持仓/股东/融资融券、财务指标/财务报表/港股财务、单只股票买点/技术指标/K线、股票综合评分、多条件选股、因子分析、行业聚合、基准对比、组合优化、策略参数优化、价格预警、压力测试、实盘和回测对比、组合相关性矩阵、因子时效性、生成或读取交易信号、信号裁决、策略表现分析、运行回测、训练模型、查看数据状态和报告。 " +
     "参数格式：command 使用白名单命令名，params 传该命令参数，例如 { command: \"stock.technical\", params: { symbol: \"600519\" } }。 " +
-    "常用命令：help、market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、stock.quote、stock.batch_quotes、stock.list、stock.info、stock.history、stock.news、stock.announcements、analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.valuation、analysis.pe_percentile、analysis.quality、analysis.exit_plan、analysis.peers、screening.sector、screening.quality、hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank、sentiment.stock_fund_flow、sentiment.lhb、sentiment.insider_trades、sentiment.fund_holdings、sentiment.top_fund_stocks、sentiment.top_holders、sentiment.holder_changes、sentiment.margin_data、financial.indicators、financial.statements、financial.hk_financials、financial.hk_analysis、stock.score、stock.screen、stock.technical、stock.klines、stock.ml_predict、factor.analyze、factor.decay、sector.aggregate、benchmark.compare、portfolio.optimize、portfolio.correlation、strategy.optimize、watch.price_alert、stress.test、risk.trade_check、risk.position_size、risk.stop_loss、trade.verify、signal.list、signal.generate、signal.arbitrate、performance.analyze、backtest.run、backtest.results、ml.train、ml.history、data.status、data.full_status、data.update_klines、risk.check、report.daily、report.read_daily、tools.list、tools.describe。 " +
+    "常用命令：help、market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、market.sentiment、stock.quote、stock.batch_quotes、stock.list、stock.info、stock.history、stock.news、stock.announcements、analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.valuation、analysis.pe_percentile、analysis.quality、analysis.exit_plan、analysis.peers、screening.sector、screening.quality、hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank、sentiment.stock_fund_flow、sentiment.lhb、sentiment.insider_trades、sentiment.fund_holdings、sentiment.top_fund_stocks、sentiment.top_holders、sentiment.holder_changes、sentiment.margin_data、financial.indicators、financial.statements、financial.valuation、financial.pe_percentile、financial.income_statement、financial.cash_flow、financial.hk_financials、financial.hk_analysis、indicator.technical、indicator.candlestick、stock.score、stock.screen、stock.technical、stock.klines、stock.ml_predict、factor.analyze、factor.decay、sector.aggregate、benchmark.compare、portfolio.optimize、portfolio.correlation、strategy.optimize、watch.price_alert、stress.test、risk.trade_check、risk.position_size、risk.stop_loss、trade.verify、signal.list、signal.generate、signal.arbitrate、performance.analyze、backtest.run、backtest.results、ml.train、ml.history、data.status、data.full_status、data.update_klines、risk.check、report.daily、report.read_daily、tools.list、tools.describe。 " +
     "不要臆造 command 或参数；不确定时先调用 help、tools.list 或 tools.describe。",
   promptSnippet:
     "量化相关能力统一使用 quant_cli。像 bash 一样先用 command=help 查使用说明书，再选择白名单 command 并把参数放进 params；不要调用旧的分散量化工具。",
@@ -782,7 +886,7 @@ export const quantCliTool: ToolDefinition = {
     "不知道量化 CLI 能做什么时，先调用 quant_cli({ command: \"help\" }) 获取命令清单。",
     "不知道某个命令参数时，调用 quant_cli({ command: \"help\", params: { name: \"stock.technical\" } }) 获取单命令说明书。",
     "需要实时行情、批量价格、股票池、股票基础信息、历史行情、新闻或公告时，优先用 stock.quote、stock.batch_quotes、stock.list、stock.info、stock.history、stock.news、stock.announcements。",
-    "需要市场概览、指数历史、行业板块、概念、宏观、资金流、市场新闻或热搜股票时，用 market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks。",
+    "需要市场概览、指数历史、行业板块、概念、宏观、资金流、市场新闻或热搜股票时，用 market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、market.sentiment。",
     "需要技术分析、走势结构、K线形态、买入区间、估值、PE分位数、质量评分、止盈计划或同行对比时，用 analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.valuation、analysis.pe_percentile、analysis.quality、analysis.exit_plan、analysis.peers。",
     "需要按行业板块筛选股票时，用 screening.sector；需要行业候选股同时按基本面质量评分排序时，用 screening.quality。",
     "需要港股市场概览、南向资金、港股技术面或港股人气排行时，用 hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank。",
@@ -991,12 +1095,11 @@ function formatSuccess(command: string, response: unknown): string {
 }
 
 /**
- * Run confidence calibration via Python bridge.
- * This is separate from regular CLI commands because it uses the
- * akshare_bridge.py's run_confidence_calibration endpoint.
+ * Run confidence calibration via QuantSys daemon.
+ * Calls the run_confidence_calibration handler registered in ml_query.py.
  */
 async function runCalibrationBridge(params: Record<string, unknown>) {
-  const { callPythonResilient } = await import('./shared/python-caller-resilient-adapter.js');
+  const { callPythonResilient } = await import('../shared/python-caller-resilient-adapter.js');
   const resultJson = await callPythonResilient('run_confidence_calibration', {
     forward_days: params.forward_days ?? 5,
     return_threshold: params.return_threshold ?? 0.02,

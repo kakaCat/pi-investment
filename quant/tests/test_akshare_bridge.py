@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pandas as pd
 
 
-MODULE_PATH = Path(__file__).resolve().parents[1] / "akshare_bridge.py"
+MODULE_PATH = Path(__file__).resolve().parents[2] / "quantsys" / "bridge" / "akshare_bridge.py"
 SPEC = importlib.util.spec_from_file_location("akshare_bridge", MODULE_PATH)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError(f"Unable to load AkShare bridge module from {MODULE_PATH}")

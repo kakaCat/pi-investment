@@ -14,9 +14,9 @@
  * 存储依赖 TradeLogService (src/services/trade-log-service.ts)。
  */
 
-import type { ToolDefinition } from "./index.js";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { TradeLogService } from "../../services/trade-log-service.js";
+import { TradeLogService } from "../../../services/trade-log-service.js";
 
 const PI_DIR = process.env.PI_DIR || ".pi-invest";
 

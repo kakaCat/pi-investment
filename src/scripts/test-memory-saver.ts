@@ -8,7 +8,7 @@
 import { createAgentSession } from "@mariozechner/pi-coding-agent";
 import { createDeepSeekModel } from "../config/config.js";
 import { saveSessionMemorySync } from "../services/intelligence/session-memory-saver.js";
-import { initMemoryTools } from "../infrastructure/tools/memory-tool.js";
+import { initMemoryTools } from "../infrastructure/tools/agent/memory-tool.js";
 import { join } from "path";
 
 const piDir = join(process.cwd(), ".pi-invest");

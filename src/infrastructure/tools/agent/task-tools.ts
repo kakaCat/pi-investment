@@ -1,10 +1,10 @@
 /**
  * Task Tools - 任务管理工具集
  */
-import type { ToolDefinition } from "./index.js";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { TaskManager } from "../../core/task/task-manager.js";
-import { BackgroundTaskManager } from "../../core/task/background-task-manager.js";
+import { TaskManager } from "../../../core/task/task-manager.js";
+import { BackgroundTaskManager } from "../../../core/task/background-task-manager.js";
 
 let taskManager: TaskManager;
 let bgManager: BackgroundTaskManager | null = null;

@@ -4,9 +4,9 @@
  * 真实实现位于 services/plan/reflect-agent.ts
  */
 import { Type } from "@sinclair/typebox";
-import { createReflectAgent } from "../../services/plan/reflect-agent.js";
-import { logSubagentStart, logSubagentEnd } from "../logging/observable-logger.js";
-import { getBootstrapData } from "../../config/config.js";
+import { createReflectAgent } from "../../../services/plan/reflect-agent.js";
+import { logSubagentStart, logSubagentEnd } from "../../logging/observable-logger.js";
+import { getBootstrapData } from "../../../config/config.js";
 
 export const reflectTool = {
   name: "reflect",

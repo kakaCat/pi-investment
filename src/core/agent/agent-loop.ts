@@ -19,7 +19,7 @@ import type { Message } from "../../types/index.js";
 import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initMemoryTools, initBackgroundManager, getBackgroundManager, initRestartAgentTool } from "../../infrastructure/tools/index.js";
 import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
 import type { ToolDefinition } from "../../infrastructure/tools/index.js";
-import { setPlanToolContext } from "../../infrastructure/tools/plan-tool.js";
+import { setPlanToolContext } from "../../infrastructure/tools/agent/plan-tool.js";
 import { loadPlugins } from "../../infrastructure/plugins/index.js";
 import { getMemoryStore } from "../../services/intelligence/memory-store.js";
 import { microCompact, compactConversationHistory } from "../../services/compaction/compaction-service.js";
@@ -29,7 +29,7 @@ import { getSessionDir, getSessionKey, logSystemPrompt, logBootstrapFiles } from
 import { initSkillsBlock, autoRecall, readDailyMemory, buildAgentSystemPrompt } from "./system-prompt.js";
 import { getBootstrapData } from "../../config/config.js";
 import { initSkillRouter, rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
-import { setSessionDataDir } from "../../infrastructure/akshare-ts/shared.js";
+import { setSessionDataDir } from "../../infrastructure/tools/shared/session-utils.js";
 import {
   addMessage,
   createUserMessage,

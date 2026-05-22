@@ -9,9 +9,9 @@
  *   B池=候选观察（需要等买点或更多确认）
  *   C池=研究关注（初步了解，待深度分析）
  */
-import type { ToolDefinition } from "./index.js";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { WatchlistService } from "../../services/portfolio/watchlist-service.js";
+import { WatchlistService } from "../../../services/portfolio/watchlist-service.js";
 import { join } from "path";
 
 const PI_DIR = join(process.cwd(), ".pi-invest");

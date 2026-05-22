@@ -6,7 +6,7 @@
 
 import { CacheManager } from '../../domain/cache/core/cache-manager.js';
 import { StockDBService } from './stock-db-service.js';
-import { getStockHistoryViaQuantCli } from '../../infrastructure/quant/stock-query-cli-adapter.js';
+import { callQuantSysDaemon } from '../../infrastructure/quant/quantsys-daemon-adapter.js';
 
 export class KlineCacheAdapter {
   private cacheManager: CacheManager;
@@ -49,7 +49,7 @@ export class KlineCacheAdapter {
     };
 
     try {
-      const raw = await getStockHistoryViaQuantCli(args);
+      const raw = await callQuantSysDaemon("get_stock_history", args);
       const data = JSON.parse(raw);
 
       if (Array.isArray(data.data)) {
@@ -84,7 +84,7 @@ export class KlineCacheAdapter {
     if (startDate >= endDate) return 0;
 
     try {
-      const raw = await getStockHistoryViaQuantCli({
+      const raw = await callQuantSysDaemon("get_stock_history", {
         symbol,
         period: 'daily',
         start_date: startDate,

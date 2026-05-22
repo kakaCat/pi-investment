@@ -10,7 +10,7 @@
 import Database from 'better-sqlite3';
 import { join } from 'path';
 import { mkdirSync } from 'fs';
-import { getStockListViaQuantCli } from '../../infrastructure/quant/stock-query-cli-adapter.js';
+import { callQuantSysDaemon } from '../../infrastructure/quant/quantsys-daemon-adapter.js';
 
 export interface StockFilter {
   market?: 'A' | 'HK';
@@ -126,7 +126,7 @@ export class StockDBService {
   /** 更新 A 股列表 */
   async updateAStocks(): Promise<number> {
     console.log('[StockDB] 更新 A 股列表...');
-    const raw = await getStockListViaQuantCli('A');
+    const raw = await callQuantSysDaemon("get_stock_list", { market: "A" });
     const data = JSON.parse(raw);
 
     if (!Array.isArray(data.stocks)) return 0;

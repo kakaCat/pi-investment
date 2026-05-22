@@ -9,7 +9,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
-import { getStockPriceViaQuantCli } from "../../infrastructure/quant/stock-query-cli-adapter.js";
+import { callQuantSysDaemon } from "../../infrastructure/quant/quantsys-daemon-adapter.js";
 import { chinaDate, chinaDateTime } from "../../utils/china-time.js";
 import { FileLockService } from "../file-lock.service.js";
 import { FxRateServiceAdapter } from "../fx-rate-service-adapter.js";
@@ -478,7 +478,7 @@ export class PortfolioService {
     // 2. 并行获取所有持仓实时价格（统一通过 quant CLI）
     const priceResults = await Promise.all(
       holdings.map(h =>
-        getStockPriceViaQuantCli(h.symbol)
+        callQuantSysDaemon("get_stock_realtime_price", { symbol: h.symbol })
           .then(raw => JSON.parse(raw) as Record<string, unknown>)
           .catch(() => ({} as Record<string, unknown>))
       )

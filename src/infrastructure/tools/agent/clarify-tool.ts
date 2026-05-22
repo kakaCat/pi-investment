@@ -4,8 +4,8 @@
  * 真实实现位于 services/plan/clarify-agent.ts
  */
 import { Type } from "@sinclair/typebox";
-import { createClarifyAgent } from "../../services/plan/clarify-agent.js";
-import { logSubagentStart, logSubagentEnd } from "../logging/observable-logger.js";
+import { createClarifyAgent } from "../../../services/plan/clarify-agent.js";
+import { logSubagentStart, logSubagentEnd } from "../../logging/observable-logger.js";
 
 export const clarifyTool = {
   name: "clarify",

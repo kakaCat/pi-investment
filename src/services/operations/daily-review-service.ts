@@ -11,9 +11,7 @@
  *   - 启动时自动检测（A股收盘后 15:30+，工作日）
  *   - CronService 定时触发（CRON.json daily-review 任务）
  */
-import { analyzeTechnicalViaQuantCli } from "../../infrastructure/quant/analysis-query-cli-adapter.js";
-import { getMarketOverviewViaQuantCli } from "../../infrastructure/quant/market-query-cli-adapter.js";
-import { getStockPriceViaQuantCli } from "../../infrastructure/quant/stock-query-cli-adapter.js";
+import { callQuantSysDaemon } from "../../infrastructure/quant/quantsys-daemon-adapter.js";
 import { writeFileSync, readFileSync, existsSync, mkdirSync, appendFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import { chinaDate, chinaHourMinute, chinaTime, chinaWeekday } from "../../utils/china-time.js";
@@ -98,10 +96,10 @@ export function formatMarketOverviewSection(data: Record<string, unknown>): stri
 
 async function reviewHolding(h: Holding): Promise<string> {
   // 并行获取：价格 + 技术指标 + 新闻
-  const pricePromise = getStockPriceViaQuantCli(h.symbol);
+  const pricePromise = callQuantSysDaemon("get_stock_realtime_price", { symbol: h.symbol });
   const techPromise = h.market === "HK"
     ? Promise.resolve(JSON.stringify({ unsupported: true }))
-    : analyzeTechnicalViaQuantCli(h.symbol);
+    : callQuantSysDaemon("calculate_technical_indicators", { symbol: h.symbol });
   const newsPromise = h.market === "HK"
     ? Promise.resolve(JSON.stringify({ unsupported: true }))
     : Promise.resolve(JSON.stringify({ unsupported: true })); // 每日复盘暂不拉取新闻，避免放大启动成本。
@@ -164,7 +162,7 @@ ${newsSection}
 // ─── 大盘概览 ──────────────────────────────────────────────────────────────
 
 async function marketOverview(): Promise<string> {
-  const raw = await getMarketOverviewViaQuantCli();
+  const raw = await callQuantSysDaemon("get_market_overview");
   const data = safeJson(raw);
   return formatMarketOverviewSection(data);
 }

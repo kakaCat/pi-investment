@@ -17,17 +17,7 @@
  * 所有维度均失败 → confidence=0, action=INSUFFICIENT_DATA。
  */
 
-import {
-  analyzeCandlestickViaQuantCli,
-  analyzePriceActionViaQuantCli,
-  analyzeTechnicalViaQuantCli,
-} from "../../infrastructure/quant/analysis-query-cli-adapter.js";
-import {
-  getAnnouncementsViaQuantCli,
-  getStockHistoryViaQuantCli,
-  getStockNewsViaQuantCli,
-} from "../../infrastructure/quant/stock-query-cli-adapter.js";
-import { getStockFundFlowViaQuantCli } from "../../infrastructure/quant/sentiment-query-cli-adapter.js";
+import { callQuantSysDaemon } from "../../infrastructure/quant/quantsys-daemon-adapter.js";
 import { chinaDateTime } from "../../utils/china-time.js";
 import type {
   StopLossAnalysisRequest,
@@ -104,7 +94,7 @@ async function checkTechnical(
   const evidence: EvidenceItem[] = [];
 
   try {
-    const raw = await withTimeout(analyzePriceActionViaQuantCli(symbol, 60), TIMEOUTS.TECHNICAL, "技术分析");
+    const raw = await withTimeout(callQuantSysDaemon("analyze_price_action", { symbol, period: 60 }), TIMEOUTS.TECHNICAL, "技术分析");
     if (!raw) {
       return {
         trend: "无法判断", trendConfirmed: false,
@@ -130,7 +120,7 @@ async function checkTechnical(
     let pattern: string | null = null;
     try {
       const patternRaw = await withTimeout(
-        analyzeCandlestickViaQuantCli(symbol),
+        callQuantSysDaemon("analyze_candlestick", { symbol }),
         TIMEOUTS.TECHNICAL,
         "K线形态分析",
       );
@@ -156,7 +146,7 @@ async function checkTechnical(
     let macdSignal: string | null = null;
     try {
       const techRaw = await withTimeout(
-        analyzeTechnicalViaQuantCli(symbol),
+        callQuantSysDaemon("calculate_technical_indicators", { symbol }),
         TIMEOUTS.TECHNICAL,
         "技术指标计算",
       );
@@ -198,7 +188,7 @@ async function checkVolume(symbol: string): Promise<VolumeAnalysis> {
 
   try {
     const raw = await withTimeout(
-      getStockHistoryViaQuantCli({ symbol, period: "daily", limit: 60 }),
+      callQuantSysDaemon("get_stock_history", { symbol, period: "daily", limit: 60 }),
       TIMEOUTS.VOLUME,
       "获取历史行情",
     );
@@ -262,7 +252,7 @@ async function checkFundFlow(symbol: string): Promise<FundFlowAnalysis> {
 
   try {
     const raw = await withTimeout(
-      getStockFundFlowViaQuantCli({ symbol }),
+      callQuantSysDaemon("get_stock_fund_flow", { symbol }),
       TIMEOUTS.FUND_FLOW,
       "获取资金流向",
     );
@@ -315,8 +305,8 @@ async function checkFundamentals(symbol: string): Promise<FundamentalCheck> {
 
   try {
     const [newsRaw, annRaw] = await Promise.all([
-      withTimeout(getStockNewsViaQuantCli(symbol, 10), TIMEOUTS.FUNDAMENTALS, "获取新闻"),
-      withTimeout(getAnnouncementsViaQuantCli(symbol), TIMEOUTS.FUNDAMENTALS, "获取公告")
+      withTimeout(callQuantSysDaemon("get_stock_news", { symbol, num: 10 }), TIMEOUTS.FUNDAMENTALS, "获取新闻"),
+      withTimeout(callQuantSysDaemon("get_announcements", { symbol }), TIMEOUTS.FUNDAMENTALS, "获取公告")
         .catch(() => null),
     ]);
 

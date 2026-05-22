@@ -8,12 +8,12 @@
  * 业务逻辑已移至 OrderService.checkAndFillOrders()
  */
 
-import type { ToolDefinition } from "./index.js";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { OrderService } from "../../services/order-service.js";
-import { PortfolioService } from "../../services/portfolio/portfolio-service.js";
-import { TradeService } from "../../services/portfolio/trade-service.js";
-import { chinaDate } from "../../utils/china-time.js";
+import { OrderService } from "../../../services/order-service.js";
+import { PortfolioService } from "../../../services/portfolio/portfolio-service.js";
+import { TradeService } from "../../../services/portfolio/trade-service.js";
+import { chinaDate } from "../../../utils/china-time.js";
 
 const PI_DIR = ".pi-invest";
 

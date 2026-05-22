@@ -5,12 +5,7 @@ import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { writeFile } from "fs/promises";
 import { requireAshare, detectMarket } from "../shared/validators.js";
-import {
-  getFinancialIndicatorsViaQuantCli,
-  getFinancialStatementsViaQuantCli,
-  getHkAnalysisViaQuantCli,
-  getHkFinancialsViaQuantCli,
-} from "../../quant/financial-query-cli-adapter.js";
+import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
 
 // ===== get_financial_data =====
 export const getFinancialDataTool: ToolDefinition = {
@@ -27,7 +22,7 @@ export const getFinancialDataTool: ToolDefinition = {
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await getFinancialIndicatorsViaQuantCli(params.symbol);
+    const result = await callQuantSysDaemon("get_financial_indicators", { symbol: params.symbol });
     try {
       const parsed = JSON.parse(result);
       if (!parsed.error) {
@@ -38,7 +33,7 @@ export const getFinancialDataTool: ToolDefinition = {
       return { content: [{ type: "text" as const, text: result }], details: undefined };
     }
 
-    const stmt = await getFinancialStatementsViaQuantCli({
+    const stmt = await callQuantSysDaemon("get_financial_statements", {
       symbol: params.symbol,
       statement: "income",
       recent_n: 4,
@@ -102,7 +97,7 @@ export const getFinancialStatementsTool: ToolDefinition = {
     };
     if (params.recent_n !== undefined) args.recent_n = params.recent_n;
 
-    const result = await getFinancialStatementsViaQuantCli(args as any);
+    const result = await callQuantSysDaemon("get_financial_statements", args as any);
 
     // 判断数据大小
     if (result.length > 2000) {
@@ -146,7 +141,7 @@ export const getHkFinancialsTool: ToolDefinition = {
     if (market !== "hk") {
       return { content: [{ type: "text" as const, text: JSON.stringify({ error: "get_hk_financials 仅支持港股代码（1-5位数字或含.HK后缀）" }) }], details: undefined };
     }
-    const result = await getHkFinancialsViaQuantCli(params.symbol);
+    const result = await callQuantSysDaemon("get_hk_financials", { symbol: params.symbol });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };
@@ -169,7 +164,7 @@ export const getHkAnalysisTool: ToolDefinition = {
     if (market !== "hk") {
       return { content: [{ type: "text" as const, text: JSON.stringify({ error: "get_hk_analysis 仅支持港股代码（1-5位数字或含.HK后缀）" }) }], details: undefined };
     }
-    const result = await getHkAnalysisViaQuantCli(params.symbol);
+    const result = await callQuantSysDaemon("get_hk_analysis", { symbol: params.symbol });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };

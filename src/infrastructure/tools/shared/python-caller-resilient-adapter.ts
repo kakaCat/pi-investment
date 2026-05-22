@@ -2,9 +2,10 @@
  * 弹性 Python 调用层适配器 - 使用新缓存系统
  *
  * 保持与旧 python-caller-resilient 相同的接口,但使用新的缓存领域实现
+ *
+ * Phase 4 重构：移除 TS_FUNCTIONS 依赖，所有调用统一通过 quantsys-daemon-adapter
  */
-import { TS_FUNCTIONS } from "../../akshare-ts/index.js";
-import { callPythonDaemon } from "../python-bridge.js";
+import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
 import { CacheManager } from "../../../domain/cache/core/cache-manager.js";
 import type { CacheNamespace } from "../../../domain/cache/core/types.js";
 
@@ -207,7 +208,7 @@ async function callPythonWithTimeout(
   timeoutMs: number
 ): Promise<string> {
   return Promise.race([
-    callPythonDaemon(func, args),
+    callQuantSysDaemon(func, args),
     new Promise<string>((_, reject) =>
       setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
     )
@@ -373,24 +374,7 @@ export async function callPythonResilient(
     return cached;
   }
 
-  // 2. 尝试 TypeScript 原生实现
-  const tsFn = TS_FUNCTIONS[func];
-  if (tsFn) {
-    try {
-      const result = await tsFn(args);
-      const shouldCache = !isErrorResult(result);
-      if (shouldCache) {
-        await cacheManager.set(namespace, cacheKey, result);
-      }
-      return result;
-    } catch (e) {
-      const tsErr = e instanceof Error ? e.message : String(e);
-      console.warn(`[akshare-ts] ${func} failed (${tsErr}), trying Python...`);
-      (args as any).__ts_fallback = tsErr;
-    }
-  }
-
-  // 2b. 非交易时段快速失败（仅限实时类工具）
+  // 2. 非交易时段快速失败（仅限实时类工具）
   if (!OFFLINE_CAPABLE_TOOLS.has(func)) {
     const now = new Date();
     const chinaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
@@ -415,7 +399,7 @@ export async function callPythonResilient(
     }
   }
 
-  // 3. 尝试 Python 调用（带超时控制）
+  // 3. 调用 quantsys-daemon-adapter（统一路由到 QuantSys CLI daemon）
   const timeout = TIMEOUT_CONFIG[func] ?? DEFAULT_TIMEOUT;
   const tsFallbackErr = (args as any).__ts_fallback as string | undefined;
 

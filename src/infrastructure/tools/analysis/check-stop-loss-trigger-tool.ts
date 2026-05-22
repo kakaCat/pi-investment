@@ -15,7 +15,7 @@
  *
  * Expected impact: reduce max drawdown by catching positions before deep losses
  */
-import type { ToolDefinition } from "./index.js";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 
 // ── Types used by the pure logic functions ────────────────────────────────

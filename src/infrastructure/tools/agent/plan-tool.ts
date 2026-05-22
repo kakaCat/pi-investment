@@ -5,10 +5,10 @@
  * Plan Agent 负责探索代码库、分析需求、生成结构化计划
  */
 import { Type } from "@sinclair/typebox";
-import { createPlanAgent } from "../../services/plan/plan-agent.js";
-import { logSubagentStart, logSubagentEnd } from "../logging/observable-logger.js";
-import type { ToolDefinition } from "./index.js";
-import { getBootstrapData } from "../../config/config.js";
+import { createPlanAgent } from "../../../services/plan/plan-agent.js";
+import { logSubagentStart, logSubagentEnd } from "../../logging/observable-logger.js";
+import type { ToolDefinition } from "../index.js";
+import { getBootstrapData } from "../../../config/config.js";
 
 let availableTools: ToolDefinition[] = [];
 
