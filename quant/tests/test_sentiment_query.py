@@ -267,8 +267,9 @@ def test_get_stock_fund_flow_with_zero_days(mock_sina):
 
     result = get_stock_fund_flow("600094", days=0)
 
-    # This test will reveal if validation is needed
+    # Should validate and convert 0 to 1
     assert mock_sina.called
+    assert mock_sina.call_args[0][1] == 1  # days parameter should be 1
 
 
 @patch('quantsys.cli.sentiment_query._fetch_from_sina')
@@ -278,8 +279,9 @@ def test_get_stock_fund_flow_with_negative_days(mock_sina):
 
     result = get_stock_fund_flow("600094", days=-5)
 
-    # This test will reveal if validation is needed
+    # Should validate and convert negative to 1
     assert mock_sina.called
+    assert mock_sina.call_args[0][1] == 1  # days parameter should be 1
 
 
 @patch('quantsys.cli.sentiment_query._fetch_from_sina')
@@ -289,7 +291,9 @@ def test_get_stock_fund_flow_with_large_days(mock_sina):
 
     result = get_stock_fund_flow("600094", days=10000)
 
+    # Large values should pass through (no upper limit)
     assert mock_sina.called
+    assert mock_sina.call_args[0][1] == 10000
 
 
 @patch('requests.get')

@@ -29,6 +29,7 @@ def get_stock_fund_flow(symbol: str, days: int = 10) -> dict[str, Any]:
         失败时返回包含 error 的字典
     """
     clean = _clean_symbol(symbol)
+    days = max(int(days if days is not None else 10), 1)  # Ensure days is at least 1
 
     # 尝试新浪数据源
     result = _fetch_from_sina(clean, days)
