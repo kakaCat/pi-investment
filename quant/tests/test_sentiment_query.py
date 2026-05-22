@@ -71,3 +71,89 @@ def test_update_stats_multiple():
     _update_stats('sina', success=False)
     assert _source_stats['sina']['success'] == 2
     assert _source_stats['sina']['failure'] == 1
+
+
+@patch('requests.get')
+def test_fetch_from_sina_success(mock_get):
+    """Test successful Sina API call."""
+    # Mock response
+    mock_response = Mock()
+    mock_response.json.return_value = [
+        {
+            "opendate": "2024-01-15",
+            "trade": "10.50",
+            "changeratio": "0.02",
+            "netamount": "1000000",
+            "ratioamount": "0.05",
+        },
+        {
+            "opendate": "2024-01-16",
+            "trade": "10.70",
+            "changeratio": "0.019",
+            "netamount": "1200000",
+            "ratioamount": "0.06",
+        },
+    ]
+    mock_get.return_value = mock_response
+
+    result = _fetch_from_sina("600094", days=2)
+
+    assert 'error' not in result
+    assert result['symbol'] == "600094"
+    assert result['source'] == "sina"
+    assert len(result['data']) == 2
+    assert len(result['estimated_fields']) == 8
+
+    # Check field mapping
+    record = result['data'][0]
+    assert record['日期'] == "2024-01-15"
+    assert record['收盘价'] == 10.50
+    assert record['涨跌幅'] == 2.0
+    assert record['主力净流入-净额'] == 1000000.0
+    assert record['主力净流入-净占比'] == 5.0
+
+    # Check estimation ratios
+    assert record['超大单净流入-净额'] == 600000.0  # 60%
+    assert record['大单净流入-净额'] == 400000.0  # 40%
+    assert record['中单净流入-净额'] == -500000.0  # -50%
+    assert record['小单净流入-净额'] == -500000.0  # -50%
+
+
+@patch('requests.get')
+def test_fetch_from_sina_empty_data(mock_get):
+    """Test Sina API returning empty data."""
+    mock_response = Mock()
+    mock_response.json.return_value = []
+    mock_get.return_value = mock_response
+
+    result = _fetch_from_sina("600094", days=10)
+
+    assert 'error' in result
+    assert result['symbol'] == "600094"
+    assert "新浪返回空数据" in result['error']
+
+
+@patch('requests.get')
+def test_fetch_from_sina_network_error(mock_get):
+    """Test Sina API network failure."""
+    mock_get.side_effect = Exception("Connection timeout")
+
+    result = _fetch_from_sina("600094", days=10)
+
+    assert 'error' in result
+    assert result['symbol'] == "600094"
+    assert "新浪数据源失败" in result['error']
+    assert "Connection timeout" in result['error']
+
+
+@patch('requests.get')
+def test_fetch_from_sina_http_error(mock_get):
+    """Test Sina API HTTP error."""
+    mock_response = Mock()
+    mock_response.raise_for_status.side_effect = Exception("404 Not Found")
+    mock_get.return_value = mock_response
+
+    result = _fetch_from_sina("600094", days=10)
+
+    assert 'error' in result
+    assert result['symbol'] == "600094"
