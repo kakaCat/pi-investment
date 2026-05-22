@@ -30,19 +30,31 @@ from .analysis_query import (
     calculate_technical_indicators,
     compare_peers,
     get_exit_plan,
-    get_pe_percentile,
     get_quality_score,
-    get_stock_valuation,
+)
+from ..analysis.indicators import (
+    calculate_technical_indicators as calculate_indicators_v2,
+    analyze_candlestick_patterns,
+)
+from ..analysis.trading_strategy import (
+    analyze_price_action as analyze_price_action_v2,
+    calculate_buy_range as calculate_buy_range_v2,
+    compare_peers as compare_peers_v2,
+    get_exit_plan as get_exit_plan_v2,
 )
 from .context import CliContext, build_context
 from .errors import CliError, UnknownCommandError
 from .factor_decay import analyze_factor_decay
 from .factor_sector_analytics import analyze_factors, aggregate_sectors
 from .financial_query import (
+    get_cash_flow,
     get_financial_indicators,
     get_financial_statements,
     get_hk_analysis,
     get_hk_financials,
+    get_income_statement,
+    get_pe_percentile,
+    get_stock_valuation,
 )
 from .hk_query import (
     get_hk_hot_rank,
@@ -59,6 +71,7 @@ from .market_query import (
     get_market_margin,
     get_market_news,
     get_market_overview,
+    get_market_sentiment,
     get_north_flow,
     get_sector_fund_flow,
     get_sector_list,
@@ -101,6 +114,33 @@ from .trade_portfolio_analytics import correlate_portfolio, verify_trades
 def main(argv: list[str] | None = None) -> int:
     """Run the CLI and return a stable process exit code."""
     raw_args = list(argv) if argv is not None else sys.argv[1:]
+
+    # Daemon mode: start JSON-RPC server over stdin/stdout
+    if "--daemon" in raw_args:
+        from .daemon import run_daemon
+        from .market_query import register_daemon_handlers as reg_market
+        from .stock_query import register_daemon_handlers as reg_stock
+        from .financial_query import register_daemon_handlers as reg_financial
+        from .analysis_query import register_daemon_handlers as reg_analysis
+        from .sentiment_query import register_daemon_handlers as reg_sentiment
+        from .risk_query import register_daemon_handlers as reg_risk
+        from .screening_query import register_daemon_handlers as reg_screening
+        from .hk_query import register_daemon_handlers as reg_hk
+        from .ml_query import register_all as reg_ml
+
+        reg_market()
+        reg_stock()
+        reg_financial()
+        reg_analysis()
+        reg_sentiment()
+        reg_risk()
+        reg_screening()
+        reg_hk()
+        reg_ml()
+
+        run_daemon()
+        return 0
+
     command_name = _extract_command_name(raw_args)
     wants_json = "--json" in raw_args
 
@@ -289,6 +329,17 @@ def build_registry() -> CommandRegistry:
             params={"market": {"type": "string", "required": False}},
             examples=["quant market +hot-stocks --market A股 --json"],
             handler=_handle_market_hot_stocks,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="market.sentiment",
+            domain="market",
+            action="sentiment",
+            description="Analyze market sentiment indicators and return composite fear/greed score (0-100).",
+            params={},
+            examples=["quant market +sentiment --json"],
+            handler=_handle_market_sentiment,
         )
     )
     registry.register(
@@ -1041,8 +1092,156 @@ def build_registry() -> CommandRegistry:
             action="hk-financials",
             description="Get HK stock annual income and balance-sheet summary.",
             params={"symbol": {"type": "string", "required": True}},
-            examples=["quant financial +hk-financials --symbol 9988 --json"],
+            examples=["quant financial +hk-financials --symbol 00700 --json"],
             handler=_handle_financial_hk_financials,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="financial.hk_analysis",
+            domain="financial",
+            action="hk-analysis",
+            description="Get HK stock price, technical summary, and available financial data.",
+            params={"symbol": {"type": "string", "required": True}},
+            examples=["quant financial +hk-analysis --symbol 00700 --json"],
+            handler=_handle_financial_hk_analysis,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="financial.valuation",
+            domain="financial",
+            action="valuation",
+            description="Get stock valuation data: PE, PB, valuation status, fair value estimate.",
+            params={"symbol": {"type": "string", "required": True}},
+            examples=["quant financial +valuation --symbol 600519 --json"],
+            handler=_handle_financial_valuation,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="financial.pe_percentile",
+            domain="financial",
+            action="pe-percentile",
+            description="Get PE historical percentile: current PE position in past N years.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "years": {"type": "integer", "required": False},
+            },
+            examples=["quant financial +pe-percentile --symbol 600519 --years 3 --json"],
+            handler=_handle_financial_pe_percentile,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="financial.income_statement",
+            domain="financial",
+            action="income-statement",
+            description="Get income statement: revenue, cost, net profit, margins.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "recent_n": {"type": "integer", "required": False},
+            },
+            examples=["quant financial +income-statement --symbol 600519 --recent-n 8 --json"],
+            handler=_handle_financial_income_statement,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="financial.cash_flow",
+            domain="financial",
+            action="cash-flow",
+            description="Get cash flow statement: operating, investing, financing cash flows.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "recent_n": {"type": "integer", "required": False},
+            },
+            examples=["quant financial +cash-flow --symbol 600519 --recent-n 8 --json"],
+            handler=_handle_financial_cash_flow,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="indicator.technical",
+            domain="indicator",
+            action="technical",
+            description="Calculate technical indicators: MA, MACD, RSI, Bollinger Bands with signals.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "indicators": {"type": "string", "required": False},
+            },
+            examples=["quant indicator +technical --symbol 600519 --json"],
+            handler=_handle_indicator_technical,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="indicator.candlestick",
+            domain="indicator",
+            action="candlestick",
+            description="Analyze candlestick patterns, gaps, and chart formations.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "lookback": {"type": "integer", "required": False},
+            },
+            examples=["quant indicator +candlestick --symbol 600519 --lookback 120 --json"],
+            handler=_handle_indicator_candlestick,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="analysis.price_action",
+            domain="analysis",
+            action="price-action",
+            description="Analyze price action: trend, support/resistance, volume, breakout signals, momentum, volatility.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "period": {"type": "integer", "required": False},
+            },
+            examples=["quant analysis +price-action --symbol 600519 --period 60 --json"],
+            handler=_handle_analysis_price_action,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="analysis.buy_range",
+            domain="analysis",
+            action="buy-range",
+            description="Calculate buy range based on technical support levels: safe buy, ideal buy, stop loss, target price.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "current_price": {"type": "number", "required": False},
+            },
+            examples=["quant analysis +buy-range --symbol 600519 --json"],
+            handler=_handle_analysis_buy_range,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="analysis.peer_comparison",
+            domain="analysis",
+            action="peer-comparison",
+            description="Compare stock with peers in the same sector: PE, PB, ROE, market cap.",
+            params={
+                "symbol": {"type": "string", "required": True},
+            },
+            examples=["quant analysis +peer-comparison --symbol 600519 --json"],
+            handler=_handle_analysis_peer_comparison,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="analysis.exit_plan",
+            domain="analysis",
+            action="exit-plan",
+            description="Calculate profit-taking targets and sell recommendations based on entry price.",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "entry_price": {"type": "number", "required": True},
+                "position_size": {"type": "integer", "required": False},
+            },
+            examples=["quant analysis +exit-plan --symbol 600519 --entry-price 1200 --position-size 100 --json"],
+            handler=_handle_analysis_exit_plan,
         )
     )
     registry.register(
@@ -1274,6 +1473,10 @@ def _handle_market_news(context: CliContext, params: dict[str, Any]) -> dict[str
 
 def _handle_market_hot_stocks(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
     return {"params": params, "data": get_hot_stocks(market=str(params.get("market") or "A股"))}
+
+
+def _handle_market_sentiment(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    return {"params": params, "data": get_market_sentiment()}
 
 
 def _handle_market_index_history(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
@@ -1736,6 +1939,75 @@ def _handle_financial_hk_financials(context: CliContext, params: dict[str, Any])
 def _handle_financial_hk_analysis(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
     symbol = _require_param(params, "symbol")
     return {"params": params, "data": get_hk_analysis(symbol)}
+
+
+def _handle_financial_valuation(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    return {"params": params, "data": get_stock_valuation(symbol)}
+
+
+def _handle_financial_pe_percentile(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    years = int(params.get("years", 3))
+    return {"params": params, "data": get_pe_percentile(symbol, years)}
+
+
+def _handle_financial_income_statement(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    recent_n = int(params.get("recent_n", 8))
+    return {"params": params, "data": get_income_statement(symbol, recent_n)}
+
+
+def _handle_financial_cash_flow(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    symbol = _require_param(params, "symbol")
+    recent_n = int(params.get("recent_n", 8))
+    return {"params": params, "data": get_cash_flow(symbol, recent_n)}
+
+
+def _handle_indicator_technical(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """技术指标分析"""
+    symbol = _require_param(params, "symbol")
+    indicators = params.get("indicators")  # 可选，默认全部
+    if indicators and isinstance(indicators, str):
+        indicators = [i.strip() for i in indicators.split(",")]
+    return {"params": params, "data": calculate_indicators_v2(symbol, indicators)}
+
+
+def _handle_indicator_candlestick(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """K线形态识别"""
+    symbol = _require_param(params, "symbol")
+    lookback = int(params.get("lookback", 120))
+    return {"params": params, "data": analyze_candlestick_patterns(symbol, lookback)}
+
+
+def _handle_analysis_price_action(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """价格行为分析"""
+    symbol = _require_param(params, "symbol")
+    period = int(params.get("period", 60))
+    return {"params": params, "data": analyze_price_action_v2(symbol, period)}
+
+
+def _handle_analysis_buy_range(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """买入区间计算"""
+    symbol = _require_param(params, "symbol")
+    current_price = params.get("current_price")
+    if current_price:
+        current_price = float(current_price)
+    return {"params": params, "data": calculate_buy_range_v2(symbol, current_price)}
+
+
+def _handle_analysis_peer_comparison(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """同行对比"""
+    symbol = _require_param(params, "symbol")
+    return {"params": params, "data": compare_peers_v2(symbol)}
+
+
+def _handle_analysis_exit_plan(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """止盈计划"""
+    symbol = _require_param(params, "symbol")
+    entry_price = float(_require_param(params, "entry_price"))
+    position_size = int(params.get("position_size", 100))
+    return {"params": params, "data": get_exit_plan_v2(symbol, entry_price, position_size)}
 
 
 def _handle_trade_verify(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
