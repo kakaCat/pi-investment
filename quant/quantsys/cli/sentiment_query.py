@@ -121,6 +121,49 @@ def _fetch_from_sina(symbol: str, days: int) -> dict[str, Any]:
         return {"error": f"新浪数据源失败: {str(e)}", "symbol": symbol}
 
 
+def _fetch_from_akshare(symbol: str, days: int) -> dict[str, Any]:
+    """
+    使用 akshare 原始接口获取资金流向数据
+
+    Args:
+        symbol: 纯数字股票代码（如 "600094"）
+        days: 查询天数
+
+    Returns:
+        转换后的数据字典，失败时返回包含 error 的字典
+    """
+    try:
+        _disable_proxy_env()
+        import akshare as ak
+
+        # 确定市场
+        if symbol.startswith("6"):
+            market = "sh"
+        elif symbol.startswith(("8", "4")):
+            market = "bj"
+        else:
+            market = "sz"
+
+        # 调用 akshare
+        frame = ak.stock_individual_fund_flow(stock=symbol, market=market)
+        if frame is None or frame.empty:
+            return {"error": f"无资金流向数据: {symbol}", "symbol": symbol}
+
+        # 限制返回天数
+        limit = max(int(days or 10), 1)
+        records = frame.tail(limit).to_dict(orient="records")
+
+        return {
+            "symbol": symbol,
+            "data": records,
+            "source": "akshare",
+            "estimated_fields": []  # akshare 数据无估算字段
+        }
+
+    except Exception as e:
+        return {"error": f"akshare 数据源失败: {str(e)}", "symbol": symbol}
+
+
 def get_lhb(symbol: str | None = None, date: str | None = None) -> dict[str, Any]:
     """Return Dragon-Tiger List data by date or recent stock appearances."""
     try:
