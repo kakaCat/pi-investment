@@ -157,3 +157,53 @@ def test_fetch_from_sina_http_error(mock_get):
 
     assert 'error' in result
     assert result['symbol'] == "600094"
+
+
+@patch('quantsys.cli.sentiment_query.ak.stock_individual_fund_flow')
+@patch('quantsys.cli.sentiment_query._disable_proxy_env')
+def test_fetch_from_akshare_success(mock_disable, mock_ak):
+    """Test successful akshare API call."""
+    import pandas as pd
+
+    # Mock DataFrame response
+    mock_df = pd.DataFrame([
+        {"日期": "2024-01-15", "收盘价": 10.50, "主力净流入-净额": 1000000},
+        {"日期": "2024-01-16", "收盘价": 10.70, "主力净流入-净额": 1200000},
+    ])
+    mock_ak.return_value = mock_df
+
+    result = _fetch_from_akshare("600094", days=2)
+
+    assert 'error' not in result
+    assert result['symbol'] == "600094"
+    assert result['source'] == "akshare"
+    assert len(result['data']) == 2
+    assert result['estimated_fields'] == []  # akshare has no estimated fields
+
+
+@patch('quantsys.cli.sentiment_query.ak.stock_individual_fund_flow')
+@patch('quantsys.cli.sentiment_query._disable_proxy_env')
+def test_fetch_from_akshare_empty(mock_disable, mock_ak):
+    """Test akshare returning empty DataFrame."""
+    import pandas as pd
+
+    mock_ak.return_value = pd.DataFrame()
+
+    result = _fetch_from_akshare("600094", days=10)
+
+    assert 'error' in result
+    assert result['symbol'] == "600094"
+    assert "无资金流向数据" in result['error']
+
+
+@patch('quantsys.cli.sentiment_query.ak.stock_individual_fund_flow')
+@patch('quantsys.cli.sentiment_query._disable_proxy_env')
+def test_fetch_from_akshare_exception(mock_disable, mock_ak):
+    """Test akshare API exception."""
+    mock_ak.side_effect = Exception("API error")
+
+    result = _fetch_from_akshare("600094", days=10)
+
+    assert 'error' in result
+    assert result['symbol'] == "600094"
+    assert "akshare 数据源失败" in result['error']
