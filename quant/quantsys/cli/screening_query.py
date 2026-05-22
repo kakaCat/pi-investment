@@ -147,3 +147,33 @@ def _sector_suggestions(sector: str) -> list[str]:
 
 def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
+
+
+# === Daemon handler registration ===
+
+from .daemon import register_daemon_method  # noqa: E402
+from .context import build_context  # noqa: E402
+
+
+def register_daemon_handlers() -> None:
+    build_context(db_path=None, output_dir=None, python="python3")
+
+    def _screen_stocks_by_sector(params):
+        return screen_stocks_by_sector(
+            sector=params.get("sector"),
+            min_roe=params.get("min_roe"),
+            max_pe=params.get("max_pe"),
+            limit=params.get("limit", 20),
+        )
+
+    def _screen_stocks_quality(params):
+        return screen_stocks_quality(
+            sector=params.get("sector"),
+            min_score=params.get("min_score", 50),
+            max_pe=params.get("max_pe"),
+            limit=params.get("limit", 10),
+        )
+
+    register_daemon_method("screen_stocks_by_sector", _screen_stocks_by_sector)
+    register_daemon_method("screen_stocks", _screen_stocks_by_sector)
+    register_daemon_method("screen_stocks_quality", _screen_stocks_quality)

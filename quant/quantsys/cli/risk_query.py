@@ -45,3 +45,40 @@ def _build_bridge():
     portfolio_db = project_root / ".pi-invest" / "portfolio.db"
     quant_db = project_root / ".pi-invest" / "stock-db" / "stocks.db"
     return RiskBridge(str(portfolio_db), str(quant_db))
+
+
+# === Daemon handler registration ===
+
+from .daemon import register_daemon_method  # noqa: E402
+from .context import build_context  # noqa: E402
+
+
+def register_daemon_handlers() -> None:
+    build_context(db_path=None, output_dir=None, python="python3")
+
+    def _check_trade_risk(params):
+        return check_trade_risk(
+            symbol=params.get("symbol"),
+            action=params.get("action"),
+            price=params.get("price"),
+            shares=params.get("shares"),
+        )
+
+    def _calculate_position_size(params):
+        return calculate_position_size(
+            symbol=params.get("symbol"),
+            price=params.get("price"),
+            signal_strength=params.get("signal_strength", 1.0),
+        )
+
+    def _calculate_stop_loss(params):
+        return calculate_stop_loss(
+            symbol=params.get("symbol"),
+            entry_price=params.get("entry_price"),
+            current_price=params.get("current_price"),
+            highest_price=params.get("highest_price"),
+        )
+
+    register_daemon_method("check_trade_risk", _check_trade_risk)
+    register_daemon_method("calculate_position_size", _calculate_position_size)
+    register_daemon_method("calculate_stop_loss", _calculate_stop_loss)

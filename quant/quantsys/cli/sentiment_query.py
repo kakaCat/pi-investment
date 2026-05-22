@@ -247,3 +247,55 @@ def _latest_quarter_end() -> str:
 def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
+
+# === Daemon handler registration ===
+
+from .daemon import register_daemon_method  # noqa: E402
+from .context import build_context  # noqa: E402
+
+
+def register_daemon_handlers() -> None:
+    build_context(db_path=None, output_dir=None, python="python3")
+
+    def _get_stock_fund_flow(params):
+        return get_stock_fund_flow(
+            symbol=params.get("symbol"),
+            days=params.get("days", 10),
+        )
+
+    def _get_lhb(params):
+        return get_lhb(
+            symbol=params.get("symbol"),
+            date=params.get("date"),
+        )
+
+    def _get_margin_data(params):
+        return get_margin_data(symbol=params.get("symbol"))
+
+    def _get_top_holders(params):
+        return get_top_holders(
+            symbol=params.get("symbol"),
+            date=params.get("date"),
+        )
+
+    def _get_holder_changes(params):
+        return get_holder_changes(symbol=params.get("symbol"))
+
+    def _get_fund_holdings(params):
+        return get_fund_holdings(symbol=params.get("symbol"))
+
+    def _get_top_fund_stocks(params):
+        return get_top_fund_stocks()
+
+    def _get_insider_trades(params):
+        return get_insider_trades(symbol=params.get("symbol"))
+
+    register_daemon_method("get_stock_fund_flow", _get_stock_fund_flow)
+    register_daemon_method("get_lhb", _get_lhb)
+    register_daemon_method("get_margin_data", _get_margin_data)
+    register_daemon_method("get_top_holders", _get_top_holders)
+    register_daemon_method("get_holder_changes", _get_holder_changes)
+    register_daemon_method("get_fund_holdings", _get_fund_holdings)
+    register_daemon_method("get_top_fund_stocks", _get_top_fund_stocks)
+    register_daemon_method("get_insider_trades", _get_insider_trades)
+

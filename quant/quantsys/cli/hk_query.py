@@ -250,3 +250,30 @@ def _hk_technical_signals(
             signals.append("价格触及布林下轨")
 
     return signals
+
+
+# === Daemon handler registration ===
+
+from .daemon import register_daemon_method  # noqa: E402
+from .context import build_context  # noqa: E402
+
+
+def register_daemon_handlers() -> None:
+    build_context(db_path=None, output_dir=None, python="python3")
+
+    def _get_hk_market_overview(params):
+        return get_hk_market_overview()
+
+    def _get_hk_hot_rank(params):
+        return get_hk_hot_rank()
+
+    def _get_hk_south_flow(params):
+        return get_hk_south_flow()
+
+    def _get_hk_technical(params):
+        return get_hk_technical(symbol=params.get("symbol"))
+
+    register_daemon_method("get_hk_market_overview", _get_hk_market_overview)
+    register_daemon_method("get_hk_hot_rank", _get_hk_hot_rank)
+    register_daemon_method("get_hk_south_flow", _get_hk_south_flow)
+    register_daemon_method("get_hk_technical", _get_hk_technical)
