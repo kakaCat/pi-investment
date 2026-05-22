@@ -262,10 +262,15 @@ async function checkFundFlow(symbol: string): Promise<FundFlowAnalysis> {
 
     const data = typeof raw === "string" ? JSON.parse(raw) : raw;
 
+    // 处理新的嵌套格式：提取最近一天的数据
+    // 新格式: { data: [{日期: ..., 主力净流入-净额: ...}], source: "sina", ... }
+    // 旧格式: { 主力净流入: value, ... }
+    const recentData = Array.isArray(data.data) && data.data.length > 0 ? data.data[0] : data;
+
     // 提取主力净流入信息
-    const mainNetInflow = data.主力净流入 ?? data.main_force_net_inflow ?? data.mainForceNetInflow;
-    const largeOrderNetInflow = data.大单净流入 ?? data.largeOrderNetInflow;
-    const retailNetInflow = data.小单净流入 ?? data.retailNetInflow ?? data.smallOrderNetInflow;
+    const mainNetInflow = recentData.主力净流入 ?? recentData["主力净流入-净额"] ?? recentData.main_force_net_inflow ?? recentData.mainForceNetInflow;
+    const largeOrderNetInflow = recentData.大单净流入 ?? recentData["大单净流入-净额"] ?? recentData.largeOrderNetInflow;
+    const retailNetInflow = recentData.小单净流入 ?? recentData["小单净流入-净额"] ?? recentData.retailNetInflow ?? recentData.smallOrderNetInflow;
 
     let mainForceNetFlow: string | null = null;
     if (mainNetInflow !== undefined) {
