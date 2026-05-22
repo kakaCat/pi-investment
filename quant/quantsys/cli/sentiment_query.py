@@ -272,6 +272,28 @@ def _update_stats(source: str, success: bool) -> None:
             _source_stats[source]['failure'] += 1
 
 
+def get_fund_flow_stats() -> dict[str, Any]:
+    """
+    获取数据源统计信息（用于监控和调试）
+
+    Returns:
+        {
+            'sina': {'success': 10, 'failure': 2, 'success_rate': 0.833, ...},
+            'akshare': {'success': 0, 'failure': 5, 'success_rate': 0.0, ...}
+        }
+    """
+    stats = {}
+    for source, data in _source_stats.items():
+        total = data['success'] + data['failure']
+        success_rate = data['success'] / total if total > 0 else 0.0
+        stats[source] = {
+            **data,
+            'total_requests': total,
+            'success_rate': success_rate,
+        }
+    return stats
+
+
 # === Daemon handler registration ===
 
 from .daemon import register_daemon_method  # noqa: E402
