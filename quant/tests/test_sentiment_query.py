@@ -292,7 +292,7 @@ def test_get_stock_fund_flow_with_large_days(mock_sina):
     assert mock_sina.called
 
 
-@patch('quantsys.cli.sentiment_query.requests.get')
+@patch('requests.get')
 def test_fetch_from_sina_with_malformed_data(mock_get):
     """Test Sina API with missing fields."""
     mock_response = Mock()
@@ -304,4 +304,72 @@ def test_fetch_from_sina_with_malformed_data(mock_get):
     result = _fetch_from_sina("600094", days=1)
 
     # Should handle missing fields gracefully (defaults to 0)
-    assert 'error' not in result or 'data' in result
+    assert 'error' not in result
+    assert 'data' in result
+    assert len(result['data']) == 1
+    # Check that missing fields default to 0
+    record = result['data'][0]
+    assert record['日期'] == "2024-01-15"
+    assert record['收盘价'] == 0.0
+    assert record['涨跌幅'] == 0.0
+    assert record['主力净流入-净额'] == 0.0
+
+
+@patch('requests.get')
+def test_fetch_from_sina_market_sh(mock_get):
+    """Test Shanghai market prefix (6xxxxx)."""
+    mock_response = Mock()
+    mock_response.json.return_value = [{"opendate": "2024-01-15", "trade": "10", "changeratio": "0", "netamount": "0", "ratioamount": "0"}]
+    mock_get.return_value = mock_response
+
+    _fetch_from_sina("600094", days=1)
+
+    # Verify API called with sh prefix
+    call_args = mock_get.call_args
+    assert call_args[1]['params']['daima'] == "sh600094"
+
+
+@patch('requests.get')
+def test_fetch_from_sina_market_sz(mock_get):
+    """Test Shenzhen market prefix (0xxxxx, 3xxxxx)."""
+    mock_response = Mock()
+    mock_response.json.return_value = [{"opendate": "2024-01-15", "trade": "10", "changeratio": "0", "netamount": "0", "ratioamount": "0"}]
+    mock_get.return_value = mock_response
+
+    _fetch_from_sina("000001", days=1)
+
+    call_args = mock_get.call_args
+    assert call_args[1]['params']['daima'] == "sz000001"
+
+
+@patch('requests.get')
+def test_fetch_from_sina_market_bj(mock_get):
+    """Test Beijing market prefix (8xxxxx, 4xxxxx)."""
+    mock_response = Mock()
+    mock_response.json.return_value = [{"opendate": "2024-01-15", "trade": "10", "changeratio": "0", "netamount": "0", "ratioamount": "0"}]
+    mock_get.return_value = mock_response
+
+    _fetch_from_sina("830001", days=1)
+
+    call_args = mock_get.call_args
+    assert call_args[1]['params']['daima'] == "bj830001"
+
+
+@patch('akshare.stock_individual_fund_flow')
+@patch('quantsys.cli.sentiment_query._disable_proxy_env')
+def test_fetch_from_akshare_market_detection(mock_disable, mock_ak):
+    """Test akshare market parameter."""
+    import pandas as pd
+    mock_ak.return_value = pd.DataFrame([{"日期": "2024-01-15"}])
+
+    # Test sh
+    _fetch_from_akshare("600094", days=1)
+    assert mock_ak.call_args[1]['market'] == "sh"
+
+    # Test sz
+    _fetch_from_akshare("000001", days=1)
+    assert mock_ak.call_args[1]['market'] == "sz"
+
+    # Test bj
+    _fetch_from_akshare("830001", days=1)
+    assert mock_ak.call_args[1]['market'] == "bj"
