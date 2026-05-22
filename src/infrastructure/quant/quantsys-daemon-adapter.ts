@@ -226,13 +226,14 @@ class QuantSysDaemon {
       this.pendingRequests.delete(id);
     }
 
-    if (this.process) {
+    const proc = this.process;
+    if (proc) {
       try {
-        this.process.stdin?.end();
-        this.process.kill("SIGTERM");
+        proc.stdin?.end();
+        proc.kill("SIGTERM");
         setTimeout(() => {
-          if (this.process && this.process.exitCode === null) {
-            this.process.kill("SIGKILL");
+          if (proc.exitCode === null) {
+            proc.kill("SIGKILL");
           }
         }, 2000);
       } catch (error) {
