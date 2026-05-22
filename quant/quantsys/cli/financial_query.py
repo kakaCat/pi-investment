@@ -217,3 +217,181 @@ def _financial_report(symbol: str, report_type: str, recent_n: int = 8) -> dict[
 
 def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
+
+
+def get_stock_valuation(symbol: str) -> dict[str, Any]:
+    """获取股票估值数据：PE、PB、估值状态、合理价值估算"""
+    clean = _clean_symbol(symbol)
+    try:
+        _disable_proxy_env()
+        import akshare as ak
+
+        # 获取实时行情（包含PE、PB）
+        df = ak.stock_zh_a_spot_em()
+        if df is None or df.empty:
+            return {"error": f"无法获取实时行情: {clean}", "symbol": clean}
+
+        stock = df[df["代码"] == clean]
+        if stock.empty:
+            return {"error": f"未找到股票: {clean}", "symbol": clean}
+
+        row = stock.iloc[0]
+        current_price = _safe_float(row.get("最新价", 0))
+        pe = _safe_float(row.get("市盈率-动态", 0))
+        pb = _safe_float(row.get("市净率", 0))
+        name = str(row.get("名称", ""))
+
+        # 估值状态判断
+        if pe <= 0:
+            status = "unknown"
+        elif pe < 15:
+            status = "cheap"
+        elif pe < 25:
+            status = "fair"
+        elif pe < 40:
+            status = "slightly_expensive"
+        else:
+            status = "expensive"
+
+        # 合理价值估算（格雷厄姆公式简化版）
+        fair_value = None
+        if pe > 0 and current_price > 0:
+            eps = current_price / pe
+            fair_value = round(eps * (8.5 + 2 * 10), 2)  # 假设增长率10%
+
+        return {
+            "symbol": clean,
+            "name": name,
+            "current_price": current_price,
+            "pe": pe,
+            "pb": pb,
+            "valuation_status": status,
+            "fair_value_estimate": fair_value,
+            "data_date": _today()
+        }
+    except Exception as exc:
+        return {"error": str(exc), "symbol": clean}
+
+
+def get_pe_percentile(symbol: str, years: int = 3) -> dict[str, Any]:
+    """获取PE历史分位数：当前PE在过去N年中所处的百分位"""
+    clean = _clean_symbol(symbol)
+    try:
+        _disable_proxy_env()
+        import akshare as ak
+        import pandas as pd
+
+        # 获取历史数据（日线）
+        days = min(years * 250, 750)  # 最多3年
+        df = ak.stock_zh_a_hist(symbol=clean, period="daily", adjust="qfq")
+        if df is None or df.empty or len(df) < 60:
+            return {"error": f"历史数据不足: {clean}", "symbol": clean}
+
+        df = df.tail(days)
+
+        # 获取当前PE
+        valuation = get_stock_valuation(symbol)
+        if "error" in valuation:
+            return valuation
+
+        current_pe = valuation.get("pe", 0)
+        if current_pe <= 0:
+            return {"error": f"当前PE无效: {clean}", "symbol": clean, "current_pe": current_pe}
+
+        # 计算历史PE（使用收盘价和当前PE推算）
+        current_price = valuation.get("current_price", 0)
+        if current_price <= 0:
+            return {"error": f"当前价格无效: {clean}", "symbol": clean}
+
+        eps = current_price / current_pe
+        df["pe"] = df["收盘"].astype(float) / eps
+        df = df[df["pe"] > 0]  # 过滤无效PE
+
+        if len(df) < 60:
+            return {"error": f"有效PE数据不足: {clean}", "symbol": clean}
+
+        # 计算分位数
+        pe_values = df["pe"].values
+        percentile = (pe_values < current_pe).sum() / len(pe_values) * 100
+
+        return {
+            "symbol": clean,
+            "current_pe": round(current_pe, 2),
+            "percentile": round(percentile, 2),
+            "min_pe": round(float(pe_values.min()), 2),
+            "max_pe": round(float(pe_values.max()), 2),
+            "median_pe": round(float(pd.Series(pe_values).median()), 2),
+            "years": years,
+            "data_points": len(pe_values),
+            "data_date": _today()
+        }
+    except Exception as exc:
+        return {"error": str(exc), "symbol": clean}
+
+
+def get_income_statement(symbol: str, recent_n: int = 8) -> dict[str, Any]:
+    """获取利润表：营业收入、营业成本、净利润、毛利率、净利率等"""
+    return get_financial_statements(symbol, statement="income", recent_n=recent_n)
+
+
+def get_cash_flow(symbol: str, recent_n: int = 8) -> dict[str, Any]:
+    """获取现金流量表：经营活动现金流、投资活动现金流、筹资活动现金流"""
+    return get_financial_statements(symbol, statement="cashflow", recent_n=recent_n)
+
+
+# === Daemon handler registration ===
+
+from .daemon import register_daemon_method
+from .context import build_context
+
+
+def register_daemon_handlers() -> None:
+    build_context(db_path=None, output_dir=None, python="python3")
+
+    def _get_financial_indicators(params):
+        return get_financial_indicators(params.get("symbol"))
+
+    def _get_financial_statements(params):
+        return get_financial_statements(
+            symbol=params.get("symbol"),
+            statement=params.get("statement_type", "all"),
+            recent_n=params.get("recent_n", 8),
+        )
+
+    def _get_income_statement(params):
+        return get_income_statement(
+            symbol=params.get("symbol"),
+            recent_n=params.get("recent_n", 8),
+        )
+
+    def _get_cash_flow(params):
+        return get_cash_flow(
+            symbol=params.get("symbol"),
+            recent_n=params.get("recent_n", 8),
+        )
+
+    def _get_stock_valuation(params):
+        return get_stock_valuation(params.get("symbol"))
+
+    def _get_pe_percentile(params):
+        return get_pe_percentile(
+            symbol=params.get("symbol"),
+            years=params.get("years", 3),
+        )
+
+    def _get_hk_financials(params):
+        return get_hk_financials(params.get("symbol"))
+
+    def _get_hk_analysis(params):
+        return get_hk_analysis(params.get("symbol"))
+
+    register_daemon_method("get_financial_indicators", _get_financial_indicators)
+    register_daemon_method("get_financial_statements", _get_financial_statements)
+    register_daemon_method("get_financial_data", _get_financial_statements)
+    register_daemon_method("get_income_statement", _get_income_statement)
+    register_daemon_method("get_cash_flow", _get_cash_flow)
+    register_daemon_method("get_stock_valuation", _get_stock_valuation)
+    register_daemon_method("get_valuation", _get_stock_valuation)
+    register_daemon_method("get_pe_percentile", _get_pe_percentile)
+    register_daemon_method("get_hk_financials", _get_hk_financials)
+    register_daemon_method("get_hk_analysis", _get_hk_analysis)

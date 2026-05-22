@@ -921,3 +921,54 @@ def _is_nan(value: Any) -> bool:
 
 def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
+
+
+# === Daemon handler registration ===
+
+from .daemon import register_daemon_method
+from .context import build_context
+
+
+def register_daemon_handlers() -> None:
+    build_context(db_path=None, output_dir=None, python="python3")
+
+    def _calculate_technical(params):
+        return calculate_technical_indicators(params.get("symbol"))
+
+    def _analyze_candlestick(params):
+        return analyze_candlestick(params.get("symbol"))
+
+    def _analyze_price_action(params):
+        return analyze_price_action(
+            symbol=params.get("symbol"),
+            period=params.get("period", 60),
+        )
+
+    def _calculate_buy_range(params):
+        return calculate_buy_range(
+            symbol=params.get("symbol"),
+            current_price=params.get("current_price"),
+        )
+
+    def _get_exit_plan(params):
+        return get_exit_plan(
+            symbol=params.get("symbol"),
+            buy_price=params.get("buy_price"),
+            shares=params.get("shares", 100),
+        )
+
+    def _compare_peers(params):
+        return compare_peers(params.get("symbol"))
+
+    def _get_quality_score(params):
+        return get_quality_score(params.get("symbol"))
+
+    register_daemon_method("calculate_technical_indicators", _calculate_technical)
+    register_daemon_method("analyze_technical", _calculate_technical)
+    register_daemon_method("analyze_candlestick", _analyze_candlestick)
+    register_daemon_method("analyze_price_action", _analyze_price_action)
+    register_daemon_method("calculate_buy_range", _calculate_buy_range)
+    register_daemon_method("get_buy_range", _calculate_buy_range)
+    register_daemon_method("get_exit_plan", _get_exit_plan)
+    register_daemon_method("compare_peers", _compare_peers)
+    register_daemon_method("get_quality_score", _get_quality_score)

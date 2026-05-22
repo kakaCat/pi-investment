@@ -424,6 +424,33 @@ def _extract_change_pct(cells: list[str]) -> float:
     return _safe_float(text, 0.0)
 
 
+def get_market_sentiment() -> dict[str, Any]:
+    """Analyze market sentiment indicators and return composite fear/greed score."""
+    try:
+        from quantsys.analysis.sentiment import calculate_sentiment_score
+
+        # Fetch all sentiment data sources
+        north_flow_data = get_north_flow()
+        margin_data = get_market_margin()
+        hot_stocks_data = get_hot_stocks()
+        market_overview_data = get_market_overview()
+        macro_data = get_macro_data(indicators=["pmi"])
+
+        # Calculate sentiment
+        result = calculate_sentiment_score(
+            north_flow_data=north_flow_data,
+            margin_data=margin_data,
+            hot_stocks_data=hot_stocks_data,
+            market_overview_data=market_overview_data,
+            macro_data=macro_data,
+        )
+
+        result["data_date"] = datetime.now().strftime("%Y-%m-%d")
+        return result
+    except Exception as exc:
+        return {"error": f"市场情绪分析失败: {str(exc)}"}
+
+
 def _safe_float(value: Any, default: float = 0.0) -> float:
     try:
         number = float(value)
@@ -432,3 +459,66 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
         return round(number, 2)
     except (TypeError, ValueError):
         return default
+
+
+# === Daemon handler registration ===
+
+from .daemon import register_daemon_method
+from .context import build_context
+
+
+def register_daemon_handlers() -> None:
+    build_context(db_path=None, output_dir=None, python="python3")
+
+    def _get_market_overview(params):
+        return get_market_overview()
+
+    def _get_sector_list(params):
+        return get_sector_list()
+
+    def _get_concept_list(params):
+        return get_concept_list()
+
+    def _get_concept_stocks(params):
+        return get_concept_stocks(params.get("concept"))
+
+    def _get_hot_stocks(params):
+        return get_hot_stocks(market=params.get("market", "A股"))
+
+    def _get_north_flow(params):
+        return get_north_flow()
+
+    def _get_sector_fund_flow(params):
+        return get_sector_fund_flow()
+
+    def _get_market_margin(params):
+        return get_market_margin()
+
+    def _get_macro_data(params):
+        return get_macro_data(indicators=params.get("indicators"))
+
+    def _get_market_news(params):
+        return get_market_news(num=params.get("limit", 20))
+
+    def _get_market_sentiment(params):
+        return get_market_sentiment()
+
+    def _get_index_history(params):
+        return get_index_history(
+            symbol=params.get("index_code"),
+            start_date=params.get("start_date"),
+            end_date=params.get("end_date"),
+        )
+
+    register_daemon_method("get_market_overview", _get_market_overview)
+    register_daemon_method("get_sector_list", _get_sector_list)
+    register_daemon_method("get_concept_list", _get_concept_list)
+    register_daemon_method("get_concept_stocks", _get_concept_stocks)
+    register_daemon_method("get_hot_stocks", _get_hot_stocks)
+    register_daemon_method("get_north_flow", _get_north_flow)
+    register_daemon_method("get_sector_fund_flow", _get_sector_fund_flow)
+    register_daemon_method("get_market_margin", _get_market_margin)
+    register_daemon_method("get_macro_data", _get_macro_data)
+    register_daemon_method("get_market_news", _get_market_news)
+    register_daemon_method("get_market_sentiment", _get_market_sentiment)
+    register_daemon_method("get_index_history", _get_index_history)

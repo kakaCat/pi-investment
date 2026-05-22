@@ -560,3 +560,44 @@ def _parse_sina_hk_realtime(raw: str) -> dict[str, str]:
         "volume": fields[9] if len(fields) > 9 else "0",
         "amount": fields[10] if len(fields) > 10 else "0",
     }
+
+
+# === Daemon handler registration ===
+
+from .daemon import register_daemon_method
+from .context import build_context
+
+
+def register_daemon_handlers() -> None:
+    build_context(db_path=None, output_dir=None, python="python3")
+
+    def _get_stock_info(params):
+        return get_stock_info(params.get("symbol"))
+
+    def _get_stock_quote(params):
+        return get_stock_quote(params.get("symbol"))
+
+    def _get_stock_history(params):
+        return get_stock_history(
+            symbol=params.get("symbol"),
+            period=params.get("period", "daily"),
+            start_date=params.get("start_date"),
+            end_date=params.get("end_date"),
+            limit=params.get("limit", 60),
+        )
+
+    def _get_stock_news(params):
+        return get_stock_news(
+            symbol=params.get("symbol"),
+            num=params.get("limit", 10),
+        )
+
+    def _get_stock_announcements(params):
+        return get_stock_announcements(params.get("symbol"))
+
+    register_daemon_method("get_stock_info", _get_stock_info)
+    register_daemon_method("get_stock_price", _get_stock_quote)
+    register_daemon_method("get_stock_realtime_price", _get_stock_quote)
+    register_daemon_method("get_stock_history", _get_stock_history)
+    register_daemon_method("get_stock_news", _get_stock_news)
+    register_daemon_method("get_announcements", _get_stock_announcements)
