@@ -37,6 +37,90 @@ def get_stock_fund_flow(symbol: str, days: int = 10) -> dict[str, Any]:
         return {"error": str(exc), "symbol": clean}
 
 
+def _fetch_from_sina(symbol: str, days: int) -> dict[str, Any]:
+    """
+    从新浪获取资金流向数据并转换为 akshare 格式
+
+    Args:
+        symbol: 纯数字股票代码（如 "600094"）
+        days: 查询天数
+
+    Returns:
+        转换后的数据字典，失败时返回包含 error 的字典
+    """
+    try:
+        import requests
+
+        # 确定市场前缀
+        if symbol.startswith("6"):
+            market_prefix = "sh"
+        elif symbol.startswith(("8", "4")):
+            market_prefix = "bj"
+        else:
+            market_prefix = "sz"
+
+        # 调用新浪 API
+        url = "https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/MoneyFlow.ssl_qsfx_zjlrqs"
+        params = {
+            "daima": f"{market_prefix}{symbol}",
+            "num": days,
+        }
+
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+        if not data or len(data) == 0:
+            return {"error": "新浪返回空数据", "symbol": symbol}
+
+        # 转换为 akshare 格式
+        records = []
+        for item in data:
+            # 解析数值
+            main_net = float(item.get("netamount", 0))
+            main_ratio = float(item.get("ratioamount", 0)) * 100  # 转换为百分比
+
+            record = {
+                "日期": item.get("opendate"),
+                "收盘价": float(item.get("trade", 0)),
+                "涨跌幅": float(item.get("changeratio", 0)) * 100,  # 转换为百分比
+                "主力净流入-净额": main_net,
+                "主力净流入-净占比": main_ratio,
+                # 估算超大单（60%）
+                "超大单净流入-净额": main_net * 0.6,
+                "超大单净流入-净占比": main_ratio * 0.6,
+                # 估算大单（40%）
+                "大单净流入-净额": main_net * 0.4,
+                "大单净流入-净占比": main_ratio * 0.4,
+                # 估算中单（反向 50%）
+                "中单净流入-净额": -main_net * 0.5,
+                "中单净流入-净占比": -main_ratio * 0.5,
+                # 估算小单（反向 50%）
+                "小单净流入-净额": -main_net * 0.5,
+                "小单净流入-净占比": -main_ratio * 0.5,
+            }
+            records.append(record)
+
+        return {
+            "symbol": symbol,
+            "data": records,
+            "source": "sina",
+            "estimated_fields": [
+                "超大单净流入-净额",
+                "超大单净流入-净占比",
+                "大单净流入-净额",
+                "大单净流入-净占比",
+                "中单净流入-净额",
+                "中单净流入-净占比",
+                "小单净流入-净额",
+                "小单净流入-净占比",
+            ]
+        }
+
+    except Exception as e:
+        return {"error": f"新浪数据源失败: {str(e)}", "symbol": symbol}
+
+
 def get_lhb(symbol: str | None = None, date: str | None = None) -> dict[str, Any]:
     """Return Dragon-Tiger List data by date or recent stock appearances."""
     try:
