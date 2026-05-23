@@ -10,23 +10,23 @@ export interface Position {
   symbol: string;
   name: string;
   quantity: number;
-  cost_basis: number;
-  current_price?: number;
-  entry_date: string;
-  stop_loss?: number;
-  take_profit?: number;
+  costBasis: number;
+  currentPrice?: number;
+  entryDate: string;
+  stopLoss?: number;
+  takeProfit?: number;
   status: 'open' | 'closed';
-  account_id: string;
+  accountId: string;
   notes?: string;
 }
 
 export interface PositionSummary {
-  total_positions: number;
-  total_quantity: number;
-  total_cost: number;
-  total_market_value: number;
-  total_pnl: number;
-  total_pnl_pct: number;
+  totalPositions: number;
+  totalQuantity: number;
+  totalCost: number;
+  totalMarketValue: number;
+  totalPnl: number;
+  totalPnlPct: number;
 }
 
 // ============================================================================
@@ -40,10 +40,10 @@ export interface WatchlistItem {
   priority: number;
   pool: 'A' | 'B' | 'C';
   status: 'watching' | 'ready' | 'bought' | 'discarded';
-  buy_range_low?: number;
-  buy_range_high?: number;
-  target_price?: number;
-  stop_loss?: number;
+  buyRangeLow?: number;
+  buyRangeHigh?: number;
+  targetPrice?: number;
+  stopLoss?: number;
   reason?: string;
   notes?: string;
 }
@@ -60,19 +60,19 @@ export interface Trade {
   quantity: number;
   price: number;
   timestamp: string;
-  realized_pnl?: number;
+  realizedPnl?: number;
   notes?: string;
 }
 
 export interface TradeStats {
-  total_trades: number;
-  buy_count: number;
-  sell_count: number;
-  total_pnl: number;
-  avg_pnl: number;
-  win_count: number;
-  loss_count: number;
-  win_rate: number;
+  totalTrades: number;
+  buyCount: number;
+  sellCount: number;
+  totalPnl: number;
+  avgPnl: number;
+  winCount: number;
+  lossCount: number;
+  winRate: number;
 }
 
 // ============================================================================
@@ -81,7 +81,7 @@ export interface TradeStats {
 
 export interface Account {
   name: string;
-  current_capital: number;
+  currentCapital: number;
   currency: string;
   notes?: string;
 }
