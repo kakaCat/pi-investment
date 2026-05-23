@@ -880,9 +880,9 @@ onMounted(() => {
 
 .preview-card {
   .chart-container {
-    height: 280px;
+    height: 220px; // 从 280px 改为 220px，对齐原型
     background: #0a0a0f;
-    border-radius: 8px;
+    border-radius: 8px; // rounded-lg
     overflow: hidden;
   }
 }
