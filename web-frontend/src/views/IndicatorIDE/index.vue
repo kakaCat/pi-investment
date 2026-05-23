@@ -908,10 +908,40 @@ onMounted(() => {
 
 .backtest-card {
   .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px; // gap-3
+    margin-bottom: 16px;
+
     > div {
-      padding: 12px;
-      background: #f8fafc;
-      border-radius: 8px;
+      padding: 0; // 移除背景和内边距
+      background: transparent; // 从 #f8fafc 改为透明
+      border-radius: 0; // 从 8px 改为 0
+
+      p:first-child {
+        font-size: 13px;
+        color: #475569; // text-slate-600
+        margin-bottom: 4px;
+      }
+
+      p:last-child {
+        font-size: 20px; // text-xl
+        font-weight: 700; // font-bold
+        line-height: 1.25;
+      }
+    }
+  }
+
+  // 回测按钮
+  :deep(.el-button) {
+    width: 100%;
+    background-color: #ea580c; // orange-600
+    border-color: #ea580c;
+    color: #ffffff;
+
+    &:hover {
+      background-color: #c2410c; // orange-700
+      border-color: #c2410c;
     }
   }
 }
