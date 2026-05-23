@@ -4366,14 +4366,13 @@ def trigger_weekly_performance():
 def list_trades():
     """获取交易历史列表"""
     try:
-        page = request.args.get('page', type=int, default=1)
-        page_size = request.args.get('pageSize', type=int, default=20)
+        page, page_size = _validate_pagination_params(
+            request.args.get('page', type=int, default=1),
+            request.args.get('pageSize', type=int, default=20)
+        )
         symbol = request.args.get('symbol')
         direction = request.args.get('direction')  # buy/sell
         keyword = request.args.get('keyword')
-
-        # 计算偏移量
-        offset = (page - 1) * page_size
 
         # 构建查询
         conn = get_db()
@@ -4402,16 +4401,17 @@ def list_trades():
         cursor = conn.execute(count_query, params)
         total = cursor.fetchone()[0]
 
-        # 获取数据
-        query = f"""
+        # 执行分页查询
+        base_query = f"""
             SELECT id, symbol, action, shares, price, amount, timestamp, notes, realized_pnl
             FROM position_history
             {where_clause}
             ORDER BY timestamp DESC
-            LIMIT ? OFFSET ?
         """
-        params.extend([page_size, offset])
-        cursor = conn.execute(query, params)
+        paginated_query, paginated_params = _paginate_query(
+            base_query, params, page, page_size
+        )
+        cursor = conn.execute(paginated_query, paginated_params)
         rows = cursor.fetchall()
         conn.close()
 
@@ -4430,17 +4430,12 @@ def list_trades():
                 'realized_pnl': float(row[8]) if row[8] is not None else 0.0
             })
 
-        return jsonify({
-            'success': True,
-            'data': {
-                'trades': trades,
-                'total': total,
-                'page': page,
-                'pageSize': page_size,
-                'totalPages': (total + page_size - 1) // page_size
-            }
-        })
+        return jsonify(_build_paginated_response(
+            trades, page, page_size, total, items_key='trades'
+        ))
 
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         import traceback
         traceback.print_exc()
