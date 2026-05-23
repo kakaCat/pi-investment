@@ -77,7 +77,22 @@ export class WatchlistCliAdapter extends BaseCliAdapter {
     pool?: 'A' | 'B' | 'C';
     notes?: string;
   }): Promise<string> {
-    const result = await this.executeCommand('watchlist', 'add', data);
+    // Convert camelCase to snake_case for CLI
+    const params: Record<string, string | number | boolean> = {
+      symbol: data.symbol,
+      name: data.name,
+      market: data.market,
+      reason: data.reason,
+      buy_range_low: data.buyRangeLow,
+    };
+    if (data.buyRangeHigh !== undefined) params.buy_range_high = data.buyRangeHigh;
+    if (data.targetPrice !== undefined) params.target_price = data.targetPrice;
+    if (data.stopLoss !== undefined) params.stop_loss = data.stopLoss;
+    if (data.priority !== undefined) params.priority = data.priority;
+    if (data.pool !== undefined) params.pool = data.pool;
+    if (data.notes !== undefined) params.notes = data.notes;
+
+    const result = await this.executeCommand('watchlist', 'add', params);
     return result.id;
   }
 
@@ -85,10 +100,22 @@ export class WatchlistCliAdapter extends BaseCliAdapter {
    * 更新观察列表项
    */
   async update(symbol: string, data: Partial<WatchlistItem>): Promise<boolean> {
-    const result = await this.executeCommand('watchlist', 'update', {
-      symbol,
-      ...data
-    });
+    // Convert camelCase to snake_case for CLI
+    const params: Record<string, string | number | boolean> = { symbol };
+
+    if (data.name !== undefined) params.name = data.name;
+    if (data.market !== undefined) params.market = data.market;
+    if (data.priority !== undefined) params.priority = data.priority;
+    if (data.pool !== undefined) params.pool = data.pool;
+    if (data.status !== undefined) params.status = data.status;
+    if (data.buyRangeLow !== undefined) params.buy_range_low = data.buyRangeLow;
+    if (data.buyRangeHigh !== undefined) params.buy_range_high = data.buyRangeHigh;
+    if (data.targetPrice !== undefined) params.target_price = data.targetPrice;
+    if (data.stopLoss !== undefined) params.stop_loss = data.stopLoss;
+    if (data.reason !== undefined) params.reason = data.reason;
+    if (data.notes !== undefined) params.notes = data.notes;
+
+    const result = await this.executeCommand('watchlist', 'update', params);
     return result.updated_rows > 0;
   }
 
