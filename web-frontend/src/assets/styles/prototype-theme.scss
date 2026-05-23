@@ -291,3 +291,33 @@
 // 阴影
 .shadow-card { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
 .shadow-elevated { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+
+// ============================================
+// 响应式设计 - 统一断点和响应式规则
+// ============================================
+
+// 断点定义
+$breakpoint-tablet: 1180px;
+$breakpoint-mobile: 760px;
+
+// 响应式容器 - 3列→2列→1列
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+
+  @media (max-width: $breakpoint-tablet) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// 页面容器响应式padding
+.page-container {
+  @media (max-width: $breakpoint-mobile) {
+    padding: 16px;
+  }
+}
