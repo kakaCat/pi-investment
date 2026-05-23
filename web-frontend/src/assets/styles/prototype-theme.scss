@@ -264,3 +264,30 @@
     color: var(--slate-900);
   }
 }
+
+// ============================================
+// 工具类 - 补充Tailwind常用工具类
+// ============================================
+
+// 间距工具
+.gap-tight { gap: 8px; }
+.gap-normal { gap: 12px; }
+.gap-loose { gap: 16px; }
+
+// 文本颜色（涨跌）
+.text-up { color: var(--green-600); }
+.text-down { color: var(--red-600); }
+.text-neutral { color: var(--slate-500); }
+
+// 背景色（状态）
+.bg-success-light { background-color: var(--green-50); }
+.bg-warning-light { background-color: var(--orange-50); }
+.bg-danger-light { background-color: var(--red-50); }
+
+// 边框
+.border-light { border: 1px solid var(--slate-200); }
+.border-medium { border: 1px solid var(--slate-300); }
+
+// 阴影
+.shadow-card { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+.shadow-elevated { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
