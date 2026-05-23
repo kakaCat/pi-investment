@@ -90,16 +90,47 @@ router.get('/positions/:symbol', async (req: Request, res: Response) => {
 router.get('/history', async (req: Request, res: Response) => {
   try {
     const { days = 30 } = req.query;
+    const daysNum = parseInt(days as string, 10);
 
-    // TODO: 实现历史数据查询
-    // 目前 CLI 没有提供历史数据接口，需要从数据库直接查询
-    // 或者从 position_history 表获取
+    // 从数据库查询历史数据
+    const { Client } = await import('pg');
+    const connectionString = process.env.QUANT_DATABASE_URL
+      || process.env.DATABASE_URL
+      || process.env.POSTGRES_DSN;
 
-    // 临时返回空数据
-    res.json({
-      history: [],
-      message: 'Portfolio history endpoint not yet implemented. Need to query position_history table.'
-    });
+    const client = new Client(connectionString
+      ? { connectionString }
+      : {
+          database: process.env.PGDATABASE || 'quant_investment',
+          host: process.env.PGHOST || 'localhost',
+          port: process.env.PGPORT ? Number(process.env.PGPORT) : 5432,
+          user: process.env.PGUSER || 'mac',
+          password: process.env.PGPASSWORD,
+        });
+
+    await client.connect();
+
+    try {
+      // 查询每日总资产
+      const result = await client.query(`
+        SELECT
+          DATE(timestamp) as date,
+          SUM(amount) as total_assets
+        FROM quant_agent.position_history
+        WHERE timestamp >= NOW() - INTERVAL '${daysNum} days'
+        GROUP BY DATE(timestamp)
+        ORDER BY date ASC
+      `);
+
+      const history = result.rows.map(row => ({
+        date: row.date.toISOString().split('T')[0],
+        totalAssets: parseFloat(row.total_assets) || 0
+      }));
+
+      res.json({ history });
+    } finally {
+      await client.end();
+    }
   } catch (error) {
     console.error('获取投资组合历史失败:', error);
     res.status(500).json({

@@ -21,6 +21,14 @@ if _ENV_PATH.exists():
                 _key, _val = _line.split("=", 1)
                 os.environ[_key] = _val
 
+import sys
+from pathlib import Path
+
+# Add parent directory to path to import api module
+_parent_dir = Path(__file__).resolve().parent.parent.parent
+if str(_parent_dir) not in sys.path:
+    sys.path.insert(0, str(_parent_dir))
+
 from api.quant_api import QuantAPI
 
 from .analysis_query import (
@@ -367,14 +375,16 @@ def build_registry() -> CommandRegistry:
             name="stock.klines",
             domain="stock",
             action="klines",
-            description="Read stock K-line data from the local quant database.",
+            description="Read stock K-line data from the local quant database (daily) or live via akshare (1min/5min/15min/30min/60min).",
             params={
                 "symbol": {"type": "string", "required": True},
+                "period": {"type": "string", "required": False},
                 "start_date": {"type": "string", "required": False},
                 "end_date": {"type": "string", "required": False},
                 "limit": {"type": "integer", "required": False},
             },
-            examples=["quant stock +klines --symbol 600519 --limit 100 --json"],
+            examples=[    "quant stock +klines --symbol 600519 --limit 100 --json",
+    "quant stock +klines --symbol 600519 --period 5min --limit 50 --json"],
             handler=_handle_stock_klines,
         )
     )
@@ -1450,6 +1460,78 @@ def build_registry() -> CommandRegistry:
             handler=_handle_watchlist_update,
         )
     )
+    registry.register(
+        CommandSpec(
+            name="trade.list",
+            domain="trade",
+            action="list",
+            description="List trade history",
+            params={
+                "symbol": {"type": "string", "required": False},
+                "start_date": {"type": "string", "required": False},
+                "end_date": {"type": "string", "required": False},
+                "limit": {"type": "integer", "required": False}
+            },
+            examples=["quant trade +list --json", "quant trade +list --symbol 600519 --limit 10 --json"],
+            handler=_handle_trade_list,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="trade.get",
+            domain="trade",
+            action="get",
+            description="Get single trade detail",
+            params={
+                "trade_id": {"type": "integer", "required": True}
+            },
+            examples=["quant trade +get --trade-id 1 --json"],
+            handler=_handle_trade_get,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="trade.stats",
+            domain="trade",
+            action="stats",
+            description="Get trade statistics",
+            params={
+                "symbol": {"type": "string", "required": False},
+                "period": {"type": "string", "required": False}
+            },
+            examples=["quant trade +stats --json", "quant trade +stats --symbol 600519 --period 30d --json"],
+            handler=_handle_trade_stats,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="account.get",
+            domain="account",
+            action="get",
+            description="Get account info",
+            params={
+                "name": {"type": "string", "required": False}
+            },
+            examples=["quant account +get --json", "quant account +get --name 'My Account' --json"],
+            handler=_handle_account_get,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="account.update",
+            domain="account",
+            action="update",
+            description="Update account fields",
+            params={
+                "name": {"type": "string", "required": False},
+                "capital": {"type": "number", "required": False},
+                "currency": {"type": "string", "required": False},
+                "notes": {"type": "string", "required": False}
+            },
+            examples=["quant account +update --capital 100000 --json", "quant account +update --name 'My Account' --currency CNY --json"],
+            handler=_handle_account_update,
+        )
+    )
 
     for spec in _script_command_specs():
         registry.register(spec)
@@ -1564,6 +1646,8 @@ def parse_args(raw_args: list[str]) -> dict[str, Any]:
     parser.add_argument("--buy-range-low", type=float)
     parser.add_argument("--buy-range-high", type=float)
     parser.add_argument("--target-price", type=float)
+    parser.add_argument("--trade-id", type=int)
+    parser.add_argument("--currency")
 
     namespace = parser.parse_args(raw_args)
     parsed = vars(namespace)
@@ -1653,11 +1737,13 @@ def _handle_market_index_history(context: CliContext, params: dict[str, Any]) ->
 
 def _handle_stock_klines(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
     symbol = _require_param(params, "symbol")
+    period = str(params.get("period", "daily"))
     data = QuantAPI().get_klines(
         symbol=symbol,
         start_date=params.get("start_date"),
         end_date=params.get("end_date"),
         limit=int(params.get("limit", 100)),
+        period=period,
     )
     return {"params": params, "data": data}
 
@@ -2426,6 +2512,133 @@ def _handle_watchlist_update(context: CliContext, params: dict[str, Any]) -> dic
             "symbol": symbol,
             "rows_updated": rows_updated,
             "updated_fields": list(update_data.keys())
+        }
+    }
+
+
+def _handle_trade_list(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 trade.list 命令"""
+    from ..db.dao import TradeDAO
+
+    dao = TradeDAO()
+    symbol = params.get('symbol')
+    start_date = params.get('start_date')
+    end_date = params.get('end_date')
+    limit = params.get('limit', 100)
+
+    trades = dao.list_trades(symbol=symbol, start_date=start_date,
+                            end_date=end_date, limit=limit)
+
+    return {
+        "params": params,
+        "data": {
+            "total": len(trades),
+            "trades": trades
+        }
+    }
+
+
+def _handle_trade_get(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 trade.get 命令"""
+    from ..db.dao import TradeDAO
+
+    dao = TradeDAO()
+    trade_id = params.get('trade_id')
+
+    if trade_id is None:
+        raise CliError("MISSING_PARAMETER", "Missing required parameter: trade_id", exit_code=2)
+
+    trade = dao.get_trade(trade_id=trade_id)
+
+    if trade is None:
+        return {
+            "params": params,
+            "status": "error",
+            "data": {
+                "error": f"Trade not found: {trade_id}"
+            }
+        }
+
+    return {
+        "params": params,
+        "data": trade
+    }
+
+
+def _handle_trade_stats(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 trade.stats 命令"""
+    from ..db.dao import TradeDAO
+
+    dao = TradeDAO()
+    symbol = params.get('symbol')
+    period = params.get('period', 'all')
+
+    stats = dao.get_trade_stats(symbol=symbol, period=period)
+
+    return {
+        "params": params,
+        "data": stats
+    }
+
+
+def _handle_account_get(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 account.get 命令"""
+    from ..db.dao import AccountDAO
+
+    dao = AccountDAO()
+    name = params.get('name', 'Default Account')
+
+    account = dao.get_account(name=name)
+
+    if account is None:
+        return {
+            "params": params,
+            "status": "error",
+            "data": {
+                "error": f"Account not found: {name}"
+            }
+        }
+
+    return {
+        "params": params,
+        "data": account
+    }
+
+
+def _handle_account_update(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 account.update 命令"""
+    from ..db.dao import AccountDAO
+
+    dao = AccountDAO()
+    name = params.get('name', 'Default Account')
+
+    data = {}
+    if 'capital' in params:
+        data['current_capital'] = params['capital']
+    if 'currency' in params:
+        data['currency'] = params['currency']
+    if 'notes' in params:
+        data['notes'] = params['notes']
+
+    if not data:
+        raise CliError("MISSING_PARAMETER", "No update fields provided", exit_code=2)
+
+    rows = dao.update_account(name=name, data=data)
+
+    if rows == 0:
+        return {
+            "params": params,
+            "status": "error",
+            "data": {
+                "error": f"Account not found or no changes: {name}"
+            }
+        }
+
+    return {
+        "params": params,
+        "data": {
+            "updated_rows": rows,
+            "name": name
         }
     }
 
