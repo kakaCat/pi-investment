@@ -13,6 +13,10 @@ from datetime import datetime
 from dateutil import parser
 from psycopg2.extras import RealDictCursor
 
+# 常量定义
+SCHEMA_NAME = 'quant_agent'
+POSITIONS_NEW_COLUMNS = ['name', 'market', 'sector', 'notes', 'original_cost', 'total_invested', 'batch_plan']
+
 
 class MigrationConfig:
     """迁移配置"""
@@ -88,10 +92,10 @@ class DataLoader:
         with open(self.config.cash_file, 'r', encoding='utf-8') as f:
             return json.load(f)
 
-    def parse_date(self, date_str: str) -> datetime:
+    def parse_date(self, date_str: str) -> Optional[datetime]:
         """解析日期字符串"""
         if not date_str:
-            return datetime.now()
+            return None
         return parser.parse(date_str)
 
 
@@ -136,28 +140,28 @@ class SchemaUpdater:
         cursor.execute("""
             SELECT EXISTS (
                 SELECT FROM information_schema.tables
-                WHERE table_schema = 'quant_agent'
+                WHERE table_schema = %s
                 AND table_name = 'watchlist'
             )
-        """)
+        """, (SCHEMA_NAME,))
 
         if not cursor.fetchone()[0]:
             print("❌ watchlist表不存在")
             return False
 
         # 检查positions表是否有新字段
-        cursor.execute("""
+        placeholders = ','.join(['%s'] * len(POSITIONS_NEW_COLUMNS))
+        cursor.execute(f"""
             SELECT column_name FROM information_schema.columns
-            WHERE table_schema = 'quant_agent'
+            WHERE table_schema = %s
             AND table_name = 'positions'
-            AND column_name IN ('name', 'market', 'sector', 'notes', 'original_cost', 'total_invested', 'batch_plan')
-        """)
+            AND column_name IN ({placeholders})
+        """, (SCHEMA_NAME, *POSITIONS_NEW_COLUMNS))
 
         new_columns = [row[0] for row in cursor.fetchall()]
-        expected_columns = ['name', 'market', 'sector', 'notes', 'original_cost', 'total_invested', 'batch_plan']
 
-        if len(new_columns) != len(expected_columns):
-            print(f"❌ positions表缺少字段: {set(expected_columns) - set(new_columns)}")
+        if len(new_columns) != len(POSITIONS_NEW_COLUMNS):
+            print(f"❌ positions表缺少字段: {set(POSITIONS_NEW_COLUMNS) - set(new_columns)}")
             return False
 
         print("✅ Schema验证通过")
