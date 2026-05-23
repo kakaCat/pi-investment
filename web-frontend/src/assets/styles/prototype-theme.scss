@@ -211,6 +211,10 @@
   background-color: var(--slate-100);
   min-height: 100vh;
   padding: 24px;
+
+  @media (max-width: $breakpoint-mobile) {
+    padding: 16px;
+  }
 }
 
 // 标题样式 - 小号大写标题
@@ -312,12 +316,5 @@ $breakpoint-mobile: 760px;
 
   @media (max-width: $breakpoint-mobile) {
     grid-template-columns: 1fr;
-  }
-}
-
-// 页面容器响应式padding
-.page-container {
-  @media (max-width: $breakpoint-mobile) {
-    padding: 16px;
   }
 }
