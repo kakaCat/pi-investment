@@ -2035,33 +2035,57 @@ def get_technical_indicators(symbol):
 
 @app.route('/api/stocks/list', methods=['GET'])
 def get_stock_list():
-    """获取股票列表（兼容 quant_api.py 格式）"""
+    """获取股票列表（兼容 quant_api.py 格式，支持分页）"""
     try:
+        # 验证分页参数
+        page, page_size = _validate_pagination_params(
+            request.args.get('page', type=int, default=1),
+            request.args.get('pageSize', type=int, default=10)
+        )
+
         market = request.args.get('market')
         has_data = request.args.get('has_data', type=bool, default=False)
 
         conn = get_db()
 
         if has_data:
-            query = """
+            data_query = """
                 SELECT DISTINCT s.symbol, s.name, s.market
                 FROM stocks s
                 INNER JOIN daily_klines k ON s.symbol = k.symbol
             """
-            params = []
+            count_query = """
+                SELECT COUNT(DISTINCT s.symbol)
+                FROM stocks s
+                INNER JOIN daily_klines k ON s.symbol = k.symbol
+            """
+            filter_clause = ""
+            filter_params = []
             if market:
-                query += " WHERE s.market = ?"
-                params.append(market)
-            query += " ORDER BY s.symbol"
+                filter_clause = " WHERE s.market = ?"
+                filter_params = [market]
+            order_clause = " ORDER BY s.symbol"
         else:
-            query = "SELECT symbol, name, market FROM stocks"
-            params = []
+            data_query = "SELECT symbol, name, market FROM stocks"
+            count_query = "SELECT COUNT(*) FROM stocks"
+            filter_clause = ""
+            filter_params = []
             if market:
-                query += " WHERE market = ?"
-                params.append(market)
-            query += " ORDER BY symbol"
+                filter_clause = " WHERE market = ?"
+                filter_params = [market]
+            order_clause = " ORDER BY symbol"
 
-        cursor = conn.execute(query, params)
+        # 获取总数
+        total = conn.execute(
+            count_query + filter_clause, filter_params
+        ).fetchone()[0]
+
+        # 构建并执行分页查询
+        full_query = data_query + filter_clause + order_clause
+        paginated_query, paginated_params = _paginate_query(
+            full_query, filter_params, page, page_size
+        )
+        cursor = conn.execute(paginated_query, paginated_params)
         rows = cursor.fetchall()
         conn.close()
 
@@ -2073,13 +2097,14 @@ def get_stock_list():
                 'market': row[2]
             })
 
-        return jsonify({
-            'count': len(stocks),
-            'stocks': stocks
-        })
+        return jsonify(_build_paginated_response(
+            stocks, page, page_size, total, items_key='stocks'
+        ))
 
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/report/daily', methods=['GET'])
