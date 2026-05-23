@@ -7,8 +7,8 @@ export class WatchlistCliAdapter extends BaseCliAdapter {
    * 列出观察列表
    */
   async list(params: {
-    market?: string;
     pool?: string;
+    priority?: number;
     status?: string;
   } = {}): Promise<WatchlistItem[]> {
     const result = await this.executeCommand('watchlist', 'list', params);
@@ -67,53 +67,24 @@ export class WatchlistCliAdapter extends BaseCliAdapter {
   async add(data: {
     symbol: string;
     name: string;
-    market?: string;
-    priority?: number;
-    pool?: string;
-    status?: string;
-    buyRangeLow?: number;
+    market: 'A' | 'HK';
+    reason: string;
+    buyRangeLow: number;
     buyRangeHigh?: number;
     targetPrice?: number;
     stopLoss?: number;
-    reason?: string;
+    priority?: number;
+    pool?: 'A' | 'B' | 'C';
     notes?: string;
-  }): Promise<WatchlistItem> {
+  }): Promise<string> {
     const result = await this.executeCommand('watchlist', 'add', data);
-
-    // Map snake_case from CLI to camelCase for TypeScript
-    return {
-      symbol: result.symbol,
-      name: result.name,
-      market: result.market,
-      priority: result.priority,
-      pool: result.pool,
-      status: result.status,
-      buyRangeLow: result.buy_range_low,
-      buyRangeHigh: result.buy_range_high,
-      targetPrice: result.target_price,
-      stopLoss: result.stop_loss,
-      reason: result.reason,
-      notes: result.notes
-    };
+    return result.id;
   }
 
   /**
    * 更新观察列表项
    */
-  async update(
-    symbol: string,
-    data: {
-      priority?: number;
-      pool?: string;
-      status?: string;
-      buyRangeLow?: number;
-      buyRangeHigh?: number;
-      targetPrice?: number;
-      stopLoss?: number;
-      reason?: string;
-      notes?: string;
-    }
-  ): Promise<boolean> {
+  async update(symbol: string, data: Partial<WatchlistItem>): Promise<boolean> {
     const result = await this.executeCommand('watchlist', 'update', {
       symbol,
       ...data
