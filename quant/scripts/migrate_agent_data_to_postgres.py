@@ -183,23 +183,12 @@ class DataMigrator:
             # 从cash.json加载数据
             cash_data = self.loader.load_cash()
 
-            # 检查账户是否已存在
+            # 更新默认账户（已在schema中创建）
             cursor.execute(f"""
-                SELECT account_id FROM {SCHEMA_NAME}.accounts
-                WHERE account_name = %s
-            """, ('default',))
-
-            if cursor.fetchone():
-                print("⚠️  账户已存在，跳过")
-                return True
-
-            # 插入账户记录
-            cursor.execute(f"""
-                INSERT INTO {SCHEMA_NAME}.accounts
-                (account_name, balance, currency, notes, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, NOW(), NOW())
+                UPDATE {SCHEMA_NAME}.accounts
+                SET current_capital = %s, currency = %s, notes = %s, updated_at = now()
+                WHERE name = 'Default Account'
             """, (
-                'default',
                 cash_data.get('available_cash', 0),
                 'CNY',
                 'Migrated from cash.json'
@@ -222,11 +211,11 @@ class DataMigrator:
             # 加载持仓数据
             holdings = self.loader.load_portfolio()
 
-            # 获取账户ID
+            # 获取账户ID（使用正确的列名）
             cursor.execute(f"""
-                SELECT account_id FROM {SCHEMA_NAME}.accounts
-                WHERE account_name = %s
-            """, ('default',))
+                SELECT id FROM {SCHEMA_NAME}.accounts
+                WHERE name = %s
+            """, ('Default Account',))
 
             result = cursor.fetchone()
             if not result:
@@ -239,49 +228,53 @@ class DataMigrator:
             for holding in holdings:
                 symbol = holding.get('symbol')
 
-                # 检查持仓是否已存在
+                # 检查持仓是否已存在（使用正确的列名）
                 cursor.execute(f"""
-                    SELECT position_id FROM {SCHEMA_NAME}.positions
-                    WHERE symbol = %s AND account_id = %s
+                    SELECT id FROM {SCHEMA_NAME}.positions
+                    WHERE symbol = %s AND account_id = %s AND status = 'open'
                 """, (symbol, account_id))
 
                 if cursor.fetchone():
                     print(f"⚠️  持仓已存在: {symbol}，跳过")
                     continue
 
-                # 解析市场前缀
-                market = None
-                if symbol.startswith(('00', '01', '02', '03', '06', '09')):
-                    market = 'HK'
-                elif symbol.startswith(('6', '0', '3')):
-                    market = 'A'
-                # US股票通常是字母开头，但这里没有US股票，保持None
+                # 优先使用JSON中的market字段，否则通过前缀检测
+                market = holding.get('market')
+                if not market:
+                    if symbol.startswith(('00', '01', '02', '03', '06', '09')):
+                        market = 'HK'
+                    elif symbol.startswith(('6', '0', '3', '5')):
+                        market = 'A'
+                    # US股票通常是字母开头
 
-                # 插入持仓记录
+                # 解析entry_date（从added_date映射）
+                entry_date = self.loader.parse_date(holding.get('added_date'))
+                if not entry_date:
+                    print(f"⚠️  持仓 {symbol} 缺少added_date，跳过")
+                    continue
+
+                # 插入持仓记录（使用正确的列名和字段映射）
                 cursor.execute(f"""
                     INSERT INTO {SCHEMA_NAME}.positions
-                    (account_id, symbol, name, market, quantity, avg_price,
-                     current_price, market_value, cost_basis, unrealized_pnl,
-                     unrealized_pnl_pct, sector, notes, original_cost,
-                     total_invested, batch_plan, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    (account_id, symbol, name, market, quantity, cost_basis,
+                     entry_date, entry_reason, sector, notes, original_cost,
+                     total_invested, batch_plan, status, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                 """, (
                     account_id,
                     symbol,
                     holding.get('name'),
                     market,
                     holding.get('quantity', 0),
-                    holding.get('avg_price', 0),
-                    holding.get('current_price', 0),
-                    holding.get('market_value', 0),
-                    holding.get('cost_basis', 0),
-                    holding.get('unrealized_pnl', 0),
-                    holding.get('unrealized_pnl_pct', 0),
+                    holding.get('avg_cost', 0),  # JSON字段是avg_cost，映射到cost_basis
+                    entry_date,  # 从added_date映射
+                    holding.get('buy_reason'),  # 映射到entry_reason
                     holding.get('sector'),
                     holding.get('notes'),
                     holding.get('original_cost'),
                     holding.get('total_invested'),
-                    json.dumps(holding.get('batch_plan')) if holding.get('batch_plan') else None
+                    json.dumps(holding.get('batch_plan')) if holding.get('batch_plan') else None,
+                    'open'
                 ))
 
                 migrated_count += 1
@@ -318,23 +311,21 @@ class DataMigrator:
                     print(f"⚠️  关注列表已存在: {symbol}，跳过")
                     continue
 
-                # 解析市场前缀
-                market = None
-                if symbol.startswith(('00', '01', '02', '03', '06', '09')):
-                    market = 'HK'
-                elif symbol.startswith(('6', '0', '3')):
-                    market = 'A'
+                # 优先使用JSON中的market字段，否则通过前缀检测
+                market = item.get('market')
+                if not market:
+                    if symbol.startswith(('00', '01', '02', '03', '06', '09')):
+                        market = 'HK'
+                    elif symbol.startswith(('6', '0', '3', '5')):
+                        market = 'A'
 
-                # 解析日期
-                added_date = self.loader.parse_date(item.get('added_date'))
-
-                # 插入关注列表记录
+                # 插入关注列表记录（移除不存在的added_date和tags列）
                 cursor.execute(f"""
                     INSERT INTO {SCHEMA_NAME}.watchlist
-                    (symbol, name, market, pool, priority, status,
-                     target_price, stop_loss, notes, tags,
-                     added_date, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    (symbol, name, market, pool, priority, status, buy_range_low,
+                     buy_range_high, target_price, stop_loss, reason, notes,
+                     created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                 """, (
                     symbol,
                     item.get('name'),
@@ -342,11 +333,12 @@ class DataMigrator:
                     item.get('pool', 'A'),
                     item.get('priority', 3),
                     item.get('status', 'watching'),
+                    item.get('buy_range_low'),
+                    item.get('buy_range_high'),
                     item.get('target_price'),
                     item.get('stop_loss'),
-                    item.get('notes'),
-                    json.dumps(item.get('tags')) if item.get('tags') else None,
-                    added_date
+                    item.get('reason'),
+                    item.get('notes')
                 ))
 
                 migrated_count += 1
@@ -368,11 +360,11 @@ class DataMigrator:
             # 加载交易历史
             trades = self.loader.load_trades()
 
-            # 获取账户ID
+            # 获取账户ID（使用正确的列名）
             cursor.execute(f"""
-                SELECT account_id FROM {SCHEMA_NAME}.accounts
-                WHERE account_name = %s
-            """, ('default',))
+                SELECT id FROM {SCHEMA_NAME}.accounts
+                WHERE name = %s
+            """, ('Default Account',))
 
             result = cursor.fetchone()
             if not result:
@@ -381,10 +373,10 @@ class DataMigrator:
 
             account_id = result[0]
 
-            # 获取所有持仓的symbol->position_id映射
+            # 获取所有持仓的symbol->id映射（使用正确的列名）
             cursor.execute(f"""
-                SELECT symbol, position_id FROM {SCHEMA_NAME}.positions
-                WHERE account_id = %s
+                SELECT symbol, id FROM {SCHEMA_NAME}.positions
+                WHERE account_id = %s AND status = 'open'
             """, (account_id,))
 
             symbol_to_position_id = {row[0]: row[1] for row in cursor.fetchall()}
@@ -396,9 +388,9 @@ class DataMigrator:
                 symbol = trade.get('symbol')
                 trade_id = trade.get('id')
 
-                # 检查是否已存在（通过notes字段存储原始trade_id）
+                # 检查是否已存在（通过notes字段存储原始trade_id，使用正确的列名）
                 cursor.execute(f"""
-                    SELECT history_id FROM {SCHEMA_NAME}.position_history
+                    SELECT id FROM {SCHEMA_NAME}.position_history
                     WHERE notes LIKE %s
                 """, (f'%trade_id:{trade_id}%',))
 
@@ -414,8 +406,8 @@ class DataMigrator:
                     skipped_count += 1
                     continue
 
-                # 解析日期
-                trade_date = self.loader.parse_date(trade.get('date'))
+                # 解析日期（使用正确的字段名timestamp）
+                trade_timestamp = self.loader.parse_date(trade.get('date'))
 
                 # 计算realized_pnl和realized_pnl_pct（如果是卖出交易）
                 action = trade.get('action', 'buy')
@@ -423,34 +415,28 @@ class DataMigrator:
                 realized_pnl_pct = None
 
                 if action == 'sell':
-                    quantity = trade.get('quantity', 0)
-                    price = trade.get('price', 0)
-                    cost = trade.get('cost', 0)
-                    fee = trade.get('fee', 0)
+                    # 优先使用JSON中的pnl字段
+                    realized_pnl = trade.get('pnl')
+                    realized_pnl_pct = trade.get('pnl_pct')
 
-                    if cost > 0:
-                        realized_pnl = (price * quantity) - cost - fee
-                        realized_pnl_pct = (realized_pnl / cost) * 100
-
-                # 插入交易历史记录
+                # 插入交易历史记录（使用正确的列名和字段映射）
                 cursor.execute(f"""
                     INSERT INTO {SCHEMA_NAME}.position_history
-                    (position_id, action, quantity, price, total_amount,
-                     fee, trade_date, name, realized_pnl, realized_pnl_pct, notes,
-                     created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    (position_id, action, quantity, price, amount,
+                     fee, timestamp, name, realized_pnl, realized_pnl_pct, notes)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     position_id,
                     action,
                     trade.get('quantity', 0),
                     trade.get('price', 0),
-                    trade.get('total', 0),
+                    trade.get('amount', 0),  # JSON字段是amount，不是total
                     trade.get('fee', 0),
-                    trade_date,
+                    trade_timestamp,  # 映射到timestamp列
                     trade.get('name'),
                     realized_pnl,
                     realized_pnl_pct,
-                    f"trade_id:{trade_id}; {trade.get('notes', '')}"
+                    f"trade_id:{trade_id}; {trade.get('reason', '')}"
                 ))
 
                 migrated_count += 1
