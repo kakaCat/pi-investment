@@ -10,7 +10,7 @@ import psycopg2
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
-from dateutil import parser
+from dateutil import parser as date_parser
 from psycopg2.extras import RealDictCursor
 
 # 常量定义
@@ -103,7 +103,7 @@ class DataLoader:
         """解析日期字符串"""
         if not date_str:
             return None
-        return parser.parse(date_str)
+        return date_parser.parse(date_str)
 
 
 class SchemaUpdater:
