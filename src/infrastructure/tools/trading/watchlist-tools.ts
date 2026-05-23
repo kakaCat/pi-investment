@@ -11,11 +11,9 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { WatchlistService } from "../../../services/portfolio/watchlist-service.js";
-import { join } from "path";
+import { WatchlistCliAdapter } from "../../adapters/cli/watchlist-cli-adapter.js";
 
-const PI_DIR = join(process.cwd(), ".pi-invest");
-const _watchlistSvc = new WatchlistService(PI_DIR);
+const _watchlistAdapter = new WatchlistCliAdapter();
 
 const poolLabel: Record<string, string> = { A: "核心建仓", B: "候选观察", C: "研究关注" };
 const statusLabel: Record<string, string> = {
@@ -122,20 +120,22 @@ export const manageWatchlistTool: ToolDefinition = {
     try {
       // ── list ──────────────────────────────────────────────────────────────
       if (action === "list") {
-        const summary = _watchlistSvc.getSummary();
+        const allItems = await _watchlistAdapter.list();
+
+        // Group by pool manually
         const pools = ["A", "B", "C"];
         const sections = pools
           .map((p) => {
-            const items = summary[`${p}_pool`] ?? [];
+            const items = allItems.filter(item => item.pool === p);
             if (items.length === 0) return "";
             const itemLines = items.map(
-              (item: any, i: number) =>
+              (item, i: number) =>
                 `${i + 1}. **${item.name}**（\`${item.symbol}\`）` +
-                (item.buy_range_low
-                  ? `买入 ¥${item.buy_range_low}~${item.buy_range_high || "市价"}`
+                (item.buyRangeLow
+                  ? `买入 ¥${item.buyRangeLow}~${item.buyRangeHigh || "市价"}`
                   : "") +
-                (item.target_price ? ` → 目标 ¥${item.target_price}` : "") +
-                (item.stop_loss ? ` ⛔ ${item.stop_loss}` : "") +
+                (item.targetPrice ? ` → 目标 ¥${item.targetPrice}` : "") +
+                (item.stopLoss ? ` ⛔ ${item.stopLoss}` : "") +
                 ` | ${item.reason ?? ""}` +
                 (item.notes ? `\n   > ${item.notes}` : "")
             );
@@ -147,7 +147,7 @@ export const manageWatchlistTool: ToolDefinition = {
           content: [
             {
               type: "text" as const,
-              text: `📋 关注列表总览（共 ${summary.total ?? 0} 只，含已买/已弃）\n\n${sections.join("\n\n")}`,
+              text: `📋 关注列表总览（共 ${allItems.length} 只，含已买/已弃）\n\n${sections.join("\n\n")}`,
             },
           ],
           details: undefined,
@@ -166,7 +166,7 @@ export const manageWatchlistTool: ToolDefinition = {
             ],
             details: undefined,
           };
-        const item = _watchlistSvc.get(symbol);
+        const item = await _watchlistAdapter.get(symbol);
         if (!item)
           return {
             content: [
@@ -184,9 +184,9 @@ export const manageWatchlistTool: ToolDefinition = {
                 `• 池子: ${poolLabel[item.pool] ?? item.pool}`,
                 `• 优先级: ${"⭐".repeat(item.priority ?? 3)}`,
                 `• 状态: ${statusLabel[item.status] ?? item.status}`,
-                `• 买入区间: ¥${item.buy_range_low ?? "-"} ~ ¥${item.buy_range_high || "市价"}`,
-                item.target_price ? `• 目标价: ¥${item.target_price}` : "",
-                item.stop_loss ? `• 止损价: ¥${item.stop_loss}` : "",
+                `• 买入区间: ¥${item.buyRangeLow ?? "-"} ~ ¥${item.buyRangeHigh || "市价"}`,
+                item.targetPrice ? `• 目标价: ¥${item.targetPrice}` : "",
+                item.stopLoss ? `• 止损价: ¥${item.stopLoss}` : "",
                 `• 理由: ${item.reason ?? "-"}`,
                 item.notes ? `• 备注: ${item.notes}` : "",
               ]
@@ -211,26 +211,26 @@ export const manageWatchlistTool: ToolDefinition = {
             details: undefined,
           };
         }
-        const res = _watchlistSvc.add(
+        const id = await _watchlistAdapter.add({
           symbol,
           name,
           market,
           reason,
-          buy_range_low,
-          buy_range_high ?? 0,
-          target_price ?? 0,
-          stop_loss ?? 0,
-          priority ?? 3,
-          pool ?? "C",
-          notes ?? ""
-        );
+          buyRangeLow: buy_range_low,
+          buyRangeHigh: buy_range_high ?? 0,
+          targetPrice: target_price ?? 0,
+          stopLoss: stop_loss ?? 0,
+          priority: priority ?? 3,
+          pool: pool ?? "C",
+          notes: notes ?? ""
+        });
         return {
           content: [
             {
               type: "text" as const,
-              text: res.success
+              text: id
                 ? `✅ 已添加 **${name}**（\`${symbol}\`）到关注列表\n  • 池子: ${poolLabel[pool ?? "C"]}\n  • 买入区间: ¥${buy_range_low} ~ ¥${buy_range_high || "市价"}\n  • 理由: ${reason}`
-                : `❌ 添加失败: ${res.message ?? res.error ?? "未知错误"}`,
+                : `❌ 添加失败: 未知错误`,
             },
           ],
           details: undefined,
@@ -251,25 +251,25 @@ export const manageWatchlistTool: ToolDefinition = {
           };
         const updates: Record<string, any> = {};
         if (name !== undefined) updates.name = name;
-        if (buy_range_low !== undefined) updates.buy_range_low = buy_range_low;
-        if (buy_range_high !== undefined) updates.buy_range_high = buy_range_high;
-        if (target_price !== undefined) updates.target_price = target_price;
-        if (stop_loss !== undefined) updates.stop_loss = stop_loss;
+        if (buy_range_low !== undefined) updates.buyRangeLow = buy_range_low;
+        if (buy_range_high !== undefined) updates.buyRangeHigh = buy_range_high;
+        if (target_price !== undefined) updates.targetPrice = target_price;
+        if (stop_loss !== undefined) updates.stopLoss = stop_loss;
         if (priority !== undefined) updates.priority = priority;
         if (pool !== undefined) updates.pool = pool;
         if (status !== undefined) updates.status = status;
         if (reason !== undefined) updates.reason = reason;
         if (notes !== undefined) updates.notes = notes;
 
-        const res = _watchlistSvc.update(symbol, updates);
+        const success = await _watchlistAdapter.update(symbol, updates);
         const updatedFields = Object.keys(updates).join(", ");
         return {
           content: [
             {
               type: "text" as const,
-              text: res.success
+              text: success
                 ? `✅ 已更新 \`${symbol}\` 的关注信息：${updatedFields}`
-                : `❌ 更新失败: ${res.message ?? res.error ?? "未知错误"}`,
+                : `❌ 更新失败: 未找到该股票或更新失败`,
             },
           ],
           details: undefined,
@@ -288,14 +288,14 @@ export const manageWatchlistTool: ToolDefinition = {
             ],
             details: undefined,
           };
-        const res = _watchlistSvc.remove(symbol);
+        const success = await _watchlistAdapter.remove(symbol);
         return {
           content: [
             {
               type: "text" as const,
-              text: res.success
+              text: success
                 ? `✅ 已将 \`${symbol}\` 从关注列表中移除`
-                : `❌ 移除失败: ${res.message ?? res.error ?? "未知错误"}`,
+                : `❌ 移除失败: 未找到该股票或移除失败`,
             },
           ],
           details: undefined,
@@ -304,7 +304,8 @@ export const manageWatchlistTool: ToolDefinition = {
 
       // ── ready ─────────────────────────────────────────────────────────────
       if (action === "ready") {
-        const ready = _watchlistSvc.getReadyToBuy();
+        const allItems = await _watchlistAdapter.list();
+        const ready = allItems.filter(item => item.status === 'ready');
         if (ready.length === 0) {
           return {
             content: [
@@ -317,8 +318,8 @@ export const manageWatchlistTool: ToolDefinition = {
           };
         }
         const lines = ready.map(
-          (item: any, i: number) =>
-            `${i + 1}. **${item.name}**（\`${item.symbol}\`）— 已到买入区间 ¥${item.buy_range_low ?? "-"}`
+          (item, i: number) =>
+            `${i + 1}. **${item.name}**（\`${item.symbol}\`）— 已到买入区间 ¥${item.buyRangeLow ?? "-"}`
         );
         return {
           content: [
@@ -333,8 +334,35 @@ export const manageWatchlistTool: ToolDefinition = {
 
       // ── summary ───────────────────────────────────────────────────────────
       if (action === "summary") {
-        const text = _watchlistSvc.summaryText();
-        return { content: [{ type: "text" as const, text: text }], details: undefined };
+        const allItems = await _watchlistAdapter.list();
+        const poolCounts = {
+          A: allItems.filter(item => item.pool === 'A').length,
+          B: allItems.filter(item => item.pool === 'B').length,
+          C: allItems.filter(item => item.pool === 'C').length,
+        };
+        const statusCounts = {
+          watching: allItems.filter(item => item.status === 'watching').length,
+          ready: allItems.filter(item => item.status === 'ready').length,
+          bought: allItems.filter(item => item.status === 'bought').length,
+          discarded: allItems.filter(item => item.status === 'discarded').length,
+        };
+        const text = [
+          `📋 关注列表摘要`,
+          ``,
+          `总计: ${allItems.length} 只`,
+          ``,
+          `按池子分布:`,
+          `  • A池（核心建仓）: ${poolCounts.A} 只`,
+          `  • B池（候选观察）: ${poolCounts.B} 只`,
+          `  • C池（研究关注）: ${poolCounts.C} 只`,
+          ``,
+          `按状态分布:`,
+          `  • 关注中: ${statusCounts.watching} 只`,
+          `  • 待买入: ${statusCounts.ready} 只`,
+          `  • 已买入: ${statusCounts.bought} 只`,
+          `  • 已放弃: ${statusCounts.discarded} 只`,
+        ].join("\n");
+        return { content: [{ type: "text" as const, text }], details: undefined };
       }
 
       return {
