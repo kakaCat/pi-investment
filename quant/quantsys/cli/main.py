@@ -38,7 +38,6 @@ from ..analysis.indicators import (
 )
 from ..analysis.trading_strategy import (
     analyze_price_action as analyze_price_action_v2,
-    calculate_buy_range as calculate_buy_range_v2,
     compare_peers as compare_peers_v2,
     get_exit_plan as get_exit_plan_v2,
 )
@@ -122,21 +121,27 @@ def main(argv: list[str] | None = None) -> int:
         from .stock_query import register_daemon_handlers as reg_stock
         from .financial_query import register_daemon_handlers as reg_financial
         from .analysis_query import register_daemon_handlers as reg_analysis
+        from .global_macro_query import register_daemon_handlers as reg_global_macro
         from .sentiment_query import register_daemon_handlers as reg_sentiment
         from .risk_query import register_daemon_handlers as reg_risk
         from .screening_query import register_daemon_handlers as reg_screening
         from .hk_query import register_daemon_handlers as reg_hk
         from .ml_query import register_all as reg_ml
+        from .crypto_factors_query import register_daemon_handlers as reg_crypto_factors
+        from .auxiliary_tools_query import register_daemon_handlers as reg_auxiliary_tools
 
         reg_market()
         reg_stock()
         reg_financial()
         reg_analysis()
+        reg_global_macro()
         reg_sentiment()
         reg_risk()
         reg_screening()
         reg_hk()
         reg_ml()
+        reg_crypto_factors()
+        reg_auxiliary_tools()
 
         run_daemon()
         return 0
@@ -1204,20 +1209,6 @@ def build_registry() -> CommandRegistry:
     )
     registry.register(
         CommandSpec(
-            name="analysis.buy_range",
-            domain="analysis",
-            action="buy-range",
-            description="Calculate buy range based on technical support levels: safe buy, ideal buy, stop loss, target price.",
-            params={
-                "symbol": {"type": "string", "required": True},
-                "current_price": {"type": "number", "required": False},
-            },
-            examples=["quant analysis +buy-range --symbol 600519 --json"],
-            handler=_handle_analysis_buy_range,
-        )
-    )
-    registry.register(
-        CommandSpec(
             name="analysis.peer_comparison",
             domain="analysis",
             action="peer-comparison",
@@ -1295,6 +1286,81 @@ def build_registry() -> CommandRegistry:
             },
             examples=["quant factor +decay --factor momentum --horizons 5,10,20 --json"],
             handler=_handle_factor_decay,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="position.list",
+            domain="position",
+            action="list",
+            description="List all positions",
+            params={
+                "account_id": {"type": "string", "required": False, "default": "default"},
+                "status": {"type": "string", "required": False, "default": "open"}
+            },
+            examples=["quant position +list --json", "quant position +list --status closed --json"],
+            handler=_handle_position_list,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="position.get",
+            domain="position",
+            action="get",
+            description="Get single position detail",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "account_id": {"type": "string", "required": False, "default": "default"}
+            },
+            examples=["quant position +get --symbol 600036 --json"],
+            handler=_handle_position_get,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="position.update",
+            domain="position",
+            action="update",
+            description="Update position fields",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "account_id": {"type": "string", "required": False, "default": "default"},
+                "quantity": {"type": "integer", "required": False},
+                "price": {"type": "number", "required": False},
+                "stop_loss": {"type": "number", "required": False},
+                "take_profit": {"type": "number", "required": False},
+                "notes": {"type": "string", "required": False}
+            },
+            examples=["quant position +update --symbol 600036 --price 38.5 --json"],
+            handler=_handle_position_update,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="position.close",
+            domain="position",
+            action="close",
+            description="Close position",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "account_id": {"type": "string", "required": False, "default": "default"},
+                "reason": {"type": "string", "required": False}
+            },
+            examples=["quant position +close --symbol 600036 --reason 'Stop loss triggered' --json"],
+            handler=_handle_position_close,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="position.summary",
+            domain="position",
+            action="summary",
+            description="Get position statistics",
+            params={
+                "account_id": {"type": "string", "required": False, "default": "default"}
+            },
+            examples=["quant position +summary --json"],
+            handler=_handle_position_summary,
         )
     )
 
@@ -1399,6 +1465,13 @@ def parse_args(raw_args: list[str]) -> dict[str, Any]:
     parser.add_argument("--min-roe", type=float)
     parser.add_argument("--statement")
     parser.add_argument("--recent-n", type=int)
+    parser.add_argument("--account-id")
+    parser.add_argument("--status")
+    parser.add_argument("--quantity", type=int)
+    parser.add_argument("--stop-loss", type=float)
+    parser.add_argument("--take-profit", type=float)
+    parser.add_argument("--notes")
+    parser.add_argument("--reason")
 
     namespace = parser.parse_args(raw_args)
     parsed = vars(namespace)
@@ -1579,7 +1652,8 @@ def _handle_analysis_pe_percentile(context: CliContext, params: dict[str, Any]) 
 
 def _handle_analysis_quality(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
     symbol = _require_param(params, "symbol")
-    return {"params": params, "data": get_quality_score(symbol)}
+    framework = params.get("framework", "auto")
+    return {"params": params, "data": get_quality_score(symbol, framework=str(framework))}
 
 
 def _handle_analysis_exit_plan(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
@@ -1987,15 +2061,6 @@ def _handle_analysis_price_action(context: CliContext, params: dict[str, Any]) -
     return {"params": params, "data": analyze_price_action_v2(symbol, period)}
 
 
-def _handle_analysis_buy_range(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
-    """买入区间计算"""
-    symbol = _require_param(params, "symbol")
-    current_price = params.get("current_price")
-    if current_price:
-        current_price = float(current_price)
-    return {"params": params, "data": calculate_buy_range_v2(symbol, current_price)}
-
-
 def _handle_analysis_peer_comparison(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
     """同行对比"""
     symbol = _require_param(params, "symbol")
@@ -2020,6 +2085,123 @@ def _handle_portfolio_correlation(context: CliContext, params: dict[str, Any]) -
 
 def _handle_factor_decay(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
     return {"params": params, "data": analyze_factor_decay(context.db_path, params)}
+
+
+def _handle_position_list(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 position.list 命令"""
+    from ..db.dao import PositionDAO
+
+    dao = PositionDAO()
+    account_id = params.get('account_id', 'default')
+    status = params.get('status', 'open')
+
+    positions = dao.list_positions(account_id=account_id, status=status)
+
+    return {
+        "params": params,
+        "data": {
+            "total": len(positions),
+            "positions": positions
+        }
+    }
+
+
+def _handle_position_get(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 position.get 命令"""
+    from ..db.dao import PositionDAO
+
+    symbol = _require_param(params, "symbol")
+    account_id = params.get('account_id', 'default')
+
+    dao = PositionDAO()
+    position = dao.get_position(symbol=symbol, account_id=account_id)
+
+    if not position:
+        return {
+            "params": params,
+            "data": {
+                "error": f"Position not found for symbol {symbol} in account {account_id}"
+            }
+        }
+
+    return {
+        "params": params,
+        "data": position
+    }
+
+
+def _handle_position_update(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 position.update 命令"""
+    from ..db.dao import PositionDAO
+
+    symbol = _require_param(params, "symbol")
+    account_id = params.get('account_id', 'default')
+
+    # 构建更新数据字典
+    update_data = {}
+    if 'quantity' in params:
+        update_data['quantity'] = params['quantity']
+    if 'price' in params:
+        update_data['current_price'] = params['price']
+    if 'stop_loss' in params:
+        update_data['stop_loss'] = params['stop_loss']
+    if 'take_profit' in params:
+        update_data['take_profit'] = params['take_profit']
+    if 'notes' in params:
+        update_data['notes'] = params['notes']
+
+    if not update_data:
+        raise CliError("MISSING_PARAMETER", "No update fields provided", exit_code=2)
+
+    dao = PositionDAO()
+    rows_updated = dao.update_position(symbol=symbol, data=update_data, account_id=account_id)
+
+    return {
+        "params": params,
+        "data": {
+            "symbol": symbol,
+            "account_id": account_id,
+            "rows_updated": rows_updated,
+            "updated_fields": list(update_data.keys())
+        }
+    }
+
+
+def _handle_position_close(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 position.close 命令"""
+    from ..db.dao import PositionDAO
+
+    symbol = _require_param(params, "symbol")
+    account_id = params.get('account_id', 'default')
+    reason = params.get('reason')
+
+    dao = PositionDAO()
+    rows_updated = dao.close_position(symbol=symbol, reason=reason, account_id=account_id)
+
+    return {
+        "params": params,
+        "data": {
+            "symbol": symbol,
+            "account_id": account_id,
+            "rows_updated": rows_updated,
+            "status": "closed" if rows_updated > 0 else "not_found"
+        }
+    }
+
+
+def _handle_position_summary(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 position.summary 命令"""
+    from ..db.dao import PositionDAO
+
+    account_id = params.get('account_id', 'default')
+
+    dao = PositionDAO()
+    summary = dao.get_position_summary(account_id=account_id)
+
+    return {
+        "params": params,
+        "data": summary
+    }
 
 
 def _script_command_specs() -> list[CommandSpec]:
