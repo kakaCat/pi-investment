@@ -9,7 +9,7 @@
               <el-icon :size="32" color="#1890ff"><TrendCharts /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">¥1,234,567</div>
+              <div class="stat-value">{{ totalAssets }}</div>
               <div class="stat-label">总资产</div>
             </div>
           </div>
@@ -23,7 +23,7 @@
               <el-icon :size="32" color="#52c41a"><ArrowUp /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value success">+¥12,345</div>
+              <div class="stat-value" :class="dailyPnLClass">{{ dailyPnL }}</div>
               <div class="stat-label">今日盈亏</div>
             </div>
           </div>
@@ -37,7 +37,7 @@
               <el-icon :size="32" color="#fa8c16"><Bell /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">5</div>
+              <div class="stat-value">{{ pendingSignals }}</div>
               <div class="stat-label">待审批信号</div>
             </div>
           </div>
@@ -51,7 +51,7 @@
               <el-icon :size="32" color="#f5222d"><Warning /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">2</div>
+              <div class="stat-value">{{ riskAlerts }}</div>
               <div class="stat-label">风险预警</div>
             </div>
           </div>
@@ -150,49 +150,106 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
+import { tradingApi } from '@/services/api/trading'
+import { apiClient } from '@/services/api/client'
 
 const router = useRouter()
 
-const pendingTasks = ref([
-  {
-    type: '买入申请',
-    symbol: '600519',
-    description: 'RSI超卖(28), MACD金叉, 主力净流入',
-    confidence: 85,
-    time: '2026-05-23 09:30:00'
-  },
-  {
-    type: '止损提醒',
-    symbol: '000001',
-    description: '跌破止损线, 建议卖出',
-    confidence: 90,
-    time: '2026-05-23 10:15:00'
-  }
-])
+// 统计数据
+const totalAssets = ref('¥0')
+const dailyPnL = ref('¥0')
+const dailyPnLClass = ref('')
+const pendingSignals = ref(0)
+const riskAlerts = ref(0)
+
+const pendingTasks = ref<any[]>([])
+const loading = ref(false)
 
 const chartRef = ref<HTMLElement>()
 let chartInstance: echarts.ECharts | null = null
 
-const initChart = () => {
+// 获取投资组合概览数据
+const fetchPortfolioSummary = async () => {
+  try {
+    const data = await tradingApi.getPortfolioSummary()
+
+    // 更新统计卡片数据
+    totalAssets.value = `¥${data.totalValue?.toLocaleString() || '0'}`
+
+    const change = data.dailyChange || 0
+    dailyPnL.value = `${change >= 0 ? '+' : ''}¥${Math.abs(change).toLocaleString()}`
+    dailyPnLClass.value = change >= 0 ? 'success' : 'danger'
+
+    // TODO: 从其他接口获取待审批信号和风险预警数量
+    pendingSignals.value = 0
+    riskAlerts.value = 0
+  } catch (error) {
+    console.error('获取投资组合概览失败:', error)
+  }
+}
+
+// 获取今日信号作为待处理事项
+const fetchPendingTasks = async () => {
+  try {
+    const response = await apiClient.get('/api/signals', {
+      params: {
+        date_filter: 'today',
+        limit: 10
+      }
+    })
+
+    // 转换信号数据为待处理任务格式
+    pendingTasks.value = (response || []).map((signal: any) => ({
+      type: signal.action === 'buy' ? '买入申请' : signal.action === 'sell' ? '卖出申请' : '信号',
+      symbol: signal.symbol,
+      description: signal.reason || '无描述',
+      confidence: Math.round((signal.confidence || 0) * 100),
+      time: signal.signalDate || signal.createdAt || ''
+    }))
+
+    pendingSignals.value = pendingTasks.value.length
+  } catch (error) {
+    console.error('获取今日信号失败:', error)
+  }
+}
+
+// 获取历史数据并渲染图表
+const fetchHistoryAndRenderChart = async () => {
+  try {
+    const data = await apiClient.get('/api/portfolio/history', {
+      params: { days: 30 }
+    })
+
+    if (!data || !data.history || data.history.length === 0) {
+      console.warn('没有历史数据')
+      renderChartWithMockData()
+      return
+    }
+
+    const dates = data.history.map((item: any) => item.date)
+    const values = data.history.map((item: any) => item.totalAssets)
+
+    renderChart(dates, values)
+  } catch (error) {
+    console.error('获取历史数据失败:', error)
+    renderChartWithMockData()
+  }
+}
+
+const renderChart = (dates: string[], values: number[]) => {
   if (!chartRef.value) return
 
-  chartInstance = echarts.init(chartRef.value)
-
-  // 模拟净值数据
-  const dates = []
-  const values = []
-  const baseValue = 1.0
-  for (let i = 0; i < 30; i++) {
-    const date = new Date()
-    date.setDate(date.getDate() - (29 - i))
-    dates.push(date.toISOString().split('T')[0])
-    values.push(+(baseValue + Math.random() * 0.2 - 0.05).toFixed(4))
+  if (!chartInstance) {
+    chartInstance = echarts.init(chartRef.value)
   }
 
   const option: EChartsOption = {
     tooltip: {
       trigger: 'axis',
-      formatter: '{b}<br/>净值: {c}'
+      formatter: (params: any) => {
+        const param = params[0]
+        return `${param.name}<br/>总资产: ¥${param.value.toLocaleString()}`
+      }
     },
     grid: {
       left: '3%',
@@ -207,11 +264,14 @@ const initChart = () => {
     },
     yAxis: {
       type: 'value',
-      scale: true
+      scale: true,
+      axisLabel: {
+        formatter: (value: number) => `¥${(value / 10000).toFixed(1)}万`
+      }
     },
     series: [
       {
-        name: '组合净值',
+        name: '总资产',
         type: 'line',
         smooth: true,
         symbol: 'none',
@@ -240,6 +300,21 @@ const initChart = () => {
   chartInstance.setOption(option)
 }
 
+const renderChartWithMockData = () => {
+  // 如果没有真实数据，使用模拟数据
+  const dates = []
+  const values = []
+  const baseValue = 1000000
+  for (let i = 0; i < 30; i++) {
+    const date = new Date()
+    date.setDate(date.getDate() - (29 - i))
+    dates.push(date.toISOString().split('T')[0])
+    values.push(baseValue + Math.random() * 200000 - 50000)
+  }
+
+  renderChart(dates, values)
+}
+
 const handleViewAll = () => {
   router.push('/opportunities')
 }
@@ -258,8 +333,21 @@ const handleView = (row: any) => {
   router.push(`/opportunities/${row.symbol}`)
 }
 
-onMounted(() => {
-  initChart()
+onMounted(async () => {
+  loading.value = true
+
+  try {
+    // 并行获取所有数据
+    await Promise.all([
+      fetchPortfolioSummary(),
+      fetchPendingTasks(),
+      fetchHistoryAndRenderChart()
+    ])
+  } catch (error) {
+    console.error('加载 Dashboard 数据失败:', error)
+  } finally {
+    loading.value = false
+  }
 
   // 响应式调整
   window.addEventListener('resize', () => {
@@ -318,6 +406,10 @@ onUnmounted(() => {
 
 .stat-value.success {
   color: #52c41a;
+}
+
+.stat-value.danger {
+  color: #f5222d;
 }
 
 .stat-label {
