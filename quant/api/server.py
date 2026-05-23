@@ -804,6 +804,103 @@ def _normalize_symbols(value) -> list:
     return symbols
 
 
+def _validate_pagination_params(page, page_size, max_page_size=100):
+    """Validate and normalize pagination parameters.
+
+    Args:
+        page: Page number (may be None or default value from request.args)
+        page_size: Items per page (may be None or default value from request.args)
+        max_page_size: Maximum allowed page size, default 100
+
+    Returns:
+        (validated_page, validated_page_size) tuple, both integers
+
+    Raises:
+        ValueError: When parameters are invalid
+    """
+    if page is None:
+        page = 1
+    if page_size is None:
+        page_size = 10
+
+    if not isinstance(page, int):
+        raise ValueError("Invalid page parameter: must be an integer")
+    if not isinstance(page_size, int):
+        raise ValueError("Invalid pageSize parameter: must be an integer")
+
+    if page < 1:
+        raise ValueError("Invalid page parameter: must be >= 1")
+    if page_size < 1:
+        raise ValueError("Invalid pageSize parameter: must be >= 1")
+    if page_size > max_page_size:
+        raise ValueError(f"Invalid pageSize parameter: must be <= {max_page_size}")
+
+    return (page, page_size)
+
+
+def _calculate_pagination_metadata(page, page_size, total):
+    """Calculate pagination metadata.
+
+    Args:
+        page: Current page number
+        page_size: Items per page
+        total: Total record count
+
+    Returns:
+        Dict with page, pageSize, total, totalPages, hasNext, hasPrev
+    """
+    total_pages = math.ceil(total / page_size) if total > 0 else 0
+    return {
+        "page": page,
+        "pageSize": page_size,
+        "total": total,
+        "totalPages": total_pages,
+        "hasNext": page < total_pages,
+        "hasPrev": page > 1,
+    }
+
+
+def _paginate_query(query, params, page, page_size):
+    """Append LIMIT and OFFSET clauses to a SQL query.
+
+    Args:
+        query: Original SQL query string
+        params: Original query parameters list
+        page: Page number
+        page_size: Items per page
+
+    Returns:
+        (paginated_query, paginated_params) tuple
+    """
+    offset = (page - 1) * page_size
+    paginated_query = f"{query} LIMIT ? OFFSET ?"
+    paginated_params = params + [page_size, offset]
+    return (paginated_query, paginated_params)
+
+
+def _build_paginated_response(items, page, page_size, total, items_key="items"):
+    """Build standard paginated response format.
+
+    Args:
+        items: Data list
+        page: Current page number
+        page_size: Items per page
+        total: Total record count
+        items_key: Key name for the items list in response, default 'items'
+
+    Returns:
+        {"success": True, "data": {items_key: [...], "pagination": {...}}}
+    """
+    pagination = _calculate_pagination_metadata(page, page_size, total)
+    return {
+        "success": True,
+        "data": {
+            items_key: items,
+            "pagination": pagination,
+        },
+    }
+
+
 def _symbols_args(params: dict) -> list:
     symbols = _normalize_symbols(params.get('symbols'))
     return ['--symbols', ','.join(symbols)] if symbols else []
@@ -1205,6 +1302,7 @@ class PostgresCompatCursor:
         'signals': 'quant_compat.signals',
         'stocks': 'quant_compat.stocks',
         'stock_data_summary': 'quant_compat.stock_data_summary',
+        'position_history': 'quant.position_history',
     }
 
     def __init__(self, cursor):
@@ -4233,6 +4331,95 @@ def trigger_weekly_performance():
     """触发周度绩效计算"""
     result = _run_etl_script('weekly_performance.py')
     return jsonify(result)
+
+
+# =====================================================
+# 交易历史端点
+# =====================================================
+
+@app.route('/api/trades/list', methods=['GET'])
+def list_trades():
+    """获取交易历史列表"""
+    try:
+        page = request.args.get('page', type=int, default=1)
+        page_size = request.args.get('pageSize', type=int, default=20)
+        symbol = request.args.get('symbol')
+        direction = request.args.get('direction')  # buy/sell
+        keyword = request.args.get('keyword')
+
+        # 计算偏移量
+        offset = (page - 1) * page_size
+
+        # 构建查询
+        conn = get_db()
+
+        # 构建WHERE条件
+        conditions = []
+        params = []
+
+        if symbol:
+            conditions.append("symbol = ?")
+            params.append(symbol)
+
+        if direction:
+            conditions.append("action = ?")
+            params.append(direction)
+
+        if keyword:
+            conditions.append("(symbol LIKE ? OR notes LIKE ?)")
+            params.append(f'%{keyword}%')
+            params.append(f'%{keyword}%')
+
+        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+        # 获取总数
+        count_query = f"SELECT COUNT(*) FROM position_history {where_clause}"
+        cursor = conn.execute(count_query, params)
+        total = cursor.fetchone()[0]
+
+        # 获取数据
+        query = f"""
+            SELECT id, symbol, action, shares, price, amount, timestamp, notes, realized_pnl
+            FROM position_history
+            {where_clause}
+            ORDER BY timestamp DESC
+            LIMIT ? OFFSET ?
+        """
+        params.extend([page_size, offset])
+        cursor = conn.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # 转换为字典列表
+        trades = []
+        for row in rows:
+            trades.append({
+                'id': row[0],
+                'symbol': row[1],
+                'action': row[2],
+                'shares': float(row[3]) if row[3] is not None else 0.0,
+                'price': float(row[4]) if row[4] is not None else 0.0,
+                'amount': float(row[5]) if row[5] is not None else 0.0,
+                'timestamp': row[6],
+                'notes': row[7],
+                'realized_pnl': float(row[8]) if row[8] is not None else 0.0
+            })
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'trades': trades,
+                'total': total,
+                'page': page,
+                'pageSize': page_size,
+                'totalPages': (total + page_size - 1) // page_size
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 if __name__ == '__main__':
