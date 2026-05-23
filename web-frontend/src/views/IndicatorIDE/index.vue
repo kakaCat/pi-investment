@@ -933,4 +933,63 @@ onMounted(() => {
 :deep(.el-card__body) {
   padding: 16px; // p-4
 }
+
+// 按钮样式系统覆盖
+:deep(.el-button) {
+  border-radius: 8px; // rounded-lg
+  padding: 8px 16px; // px-4 py-2
+  font-size: 13px; // text-sm
+  font-weight: 500; // font-medium
+  height: auto;
+
+  .el-icon {
+    margin-right: 4px;
+  }
+}
+
+// 运行按钮 - 绿色
+:deep(.el-button--success) {
+  background-color: #16a34a; // green-600
+  border-color: #16a34a;
+
+  &:hover {
+    background-color: #15803d; // green-700
+    border-color: #15803d;
+  }
+}
+
+// 保存按钮 - 蓝色
+:deep(.el-button--primary) {
+  background-color: #2563eb; // blue-600
+  border-color: #2563eb;
+
+  &:hover {
+    background-color: #1d4ed8; // blue-700
+    border-color: #1d4ed8;
+  }
+}
+
+// 发布按钮 - 紫色
+:deep(.el-button--warning) {
+  background-color: #9333ea; // purple-600
+  border-color: #9333ea;
+  color: #ffffff;
+
+  &:hover {
+    background-color: #7e22ce; // purple-700
+    border-color: #7e22ce;
+  }
+}
+
+// 复制按钮 - 默认样式
+:deep(.el-button--default) {
+  background-color: #ffffff;
+  border-color: #e2e8f0; // border-slate-200
+  color: #334155; // text-slate-700
+
+  &:hover {
+    background-color: #f8fafc; // bg-slate-50
+    border-color: #cbd5e1;
+  }
+}
 </style>
