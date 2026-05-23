@@ -222,7 +222,7 @@ class DataMigrator:
                 print("❌ 账户不存在，请先迁移账户")
                 return False
 
-            account_id = result[0]
+            account_id = str(result[0])  # Convert UUID to string
             migrated_count = 0
 
             for holding in holdings:
@@ -258,8 +258,8 @@ class DataMigrator:
                     INSERT INTO {SCHEMA_NAME}.positions
                     (account_id, symbol, name, market, quantity, cost_basis,
                      entry_date, entry_reason, sector, notes, original_cost,
-                     total_invested, batch_plan, status, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                     total_invested, batch_plan, stop_loss, take_profit, status, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                 """, (
                     account_id,
                     symbol,
@@ -274,6 +274,8 @@ class DataMigrator:
                     holding.get('original_cost'),
                     holding.get('total_invested'),
                     json.dumps(holding.get('batch_plan')) if holding.get('batch_plan') else None,
+                    holding.get('stop_loss'),
+                    holding.get('target_price'),  # Maps to take_profit
                     'open'
                 ))
 
@@ -371,7 +373,7 @@ class DataMigrator:
                 print("❌ 账户不存在，请先迁移账户")
                 return False
 
-            account_id = result[0]
+            account_id = str(result[0])  # Convert UUID to string
 
             # 获取所有持仓的symbol->id映射（使用正确的列名）
             cursor.execute(f"""
