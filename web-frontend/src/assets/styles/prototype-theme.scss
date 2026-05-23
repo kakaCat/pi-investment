@@ -9,6 +9,12 @@
  */
 
 // ============================================
+// 响应式断点变量 - 必须在使用前定义
+// ============================================
+$breakpoint-tablet: 1180px;
+$breakpoint-mobile: 760px;
+
+// ============================================
 // 颜色系统 - 从原型HTML提取的Tailwind颜色值
 // ============================================
 
@@ -99,6 +105,15 @@
 }
 
 // ============================================
+// 全局基础样式 - 页面背景
+// ============================================
+
+body {
+  background-color: var(--slate-100);
+  color: var(--slate-900);
+}
+
+// ============================================
 // Element Plus 组件覆盖
 // ============================================
 
@@ -121,9 +136,27 @@
 
 // 按钮组件 - 统一圆角、字重、内边距
 :deep(.el-button) {
-  border-radius: 8px;
+  border-radius: 8px !important;
   font-weight: 500;
   padding: 8px 16px;
+
+  // 确保所有尺寸的按钮都使用8px圆角 - 使用更高优先级
+  &.el-button--large,
+  &.el-button--default,
+  &.el-button--small {
+    border-radius: 8px !important;
+  }
+}
+
+// 额外的全局规则确保按钮圆角
+.el-button {
+  border-radius: 8px !important;
+
+  &.el-button--large,
+  &.el-button--default,
+  &.el-button--small {
+    border-radius: 8px !important;
+  }
 
   &.el-button--primary {
     background-color: var(--blue-600);
@@ -299,10 +332,6 @@
 // ============================================
 // 响应式设计 - 统一断点和响应式规则
 // ============================================
-
-// 断点定义
-$breakpoint-tablet: 1180px;
-$breakpoint-mobile: 760px;
 
 // 响应式容器 - 3列→2列→1列
 .responsive-grid {
