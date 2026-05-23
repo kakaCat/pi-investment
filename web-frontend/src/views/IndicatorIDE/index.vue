@@ -818,20 +818,39 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px;
-    border-radius: 6px;
+    padding: 8px; // p-2
+    border-radius: 4px; // rounded
     cursor: pointer;
     transition: all 0.2s;
+    border: 1px solid transparent; // 添加透明边框
 
     &:hover {
-      background: #f1f5f9;
+      background: #f9fafb; // gray-50，从 #f1f5f9 改为 #f9fafb
     }
 
     &.active {
-      background: #dbeafe;
-      border: 1px solid #3b82f6;
-      color: #1e40af;
+      background: #eff6ff; // blue-50，从 #dbeafe 改为 #eff6ff
+      border-color: #bfdbfe; // blue-200，从 #3b82f6 改为 #bfdbfe
+      color: #1e3a8a; // blue-900，从 #1e40af 改为 #1e3a8a
       font-weight: 500;
+    }
+  }
+}
+
+// 搜索框样式覆盖
+:deep(.el-input) {
+  .el-input__wrapper {
+    border-radius: 8px; // rounded-lg
+    border: 1px solid #e2e8f0; // border-slate-200
+    padding: 8px 12px;
+
+    &:hover {
+      border-color: #cbd5e1; // slate-300
+    }
+
+    &.is-focus {
+      border-color: #3b82f6; // blue-500
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
   }
 }
