@@ -1,7 +1,8 @@
 // ========== API常量 ==========
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'
-export const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:5001'
+// 直连 quantsys-v2 Flask 后端 (127.0.0.1:5001)
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
+export const WS_URL = import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:5001'
 
 // API超时时间（毫秒）
 export const API_TIMEOUT = 30000

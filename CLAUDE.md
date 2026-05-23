@@ -16,11 +16,16 @@ AI stock investment advisor (A-share / HK stocks) built on the `@mariozechner/pi
 
 | 子项目 | 固定地址 | 配置方式 |
 |--------|----------|----------|
-| quant Flask API | `127.0.0.1:5002` | `QUANT_API_HOST` / `QUANT_API_PORT` 环境变量 |
-| quant-web Vite 开发服务器 | `127.0.0.1:3000` | `vite.config.ts`，代理 `/api` → `127.0.0.1:5002` |
+| quant Flask API (v1) | `127.0.0.1:5002` | `QUANT_API_HOST` / `QUANT_API_PORT` 环境变量 |
+| quantsys-v2 Flask API | `127.0.0.1:5001` | `QUANTSYS_API_HOST` / `QUANTSYS_API_PORT` / `QUANTSYS_API_URL` |
+| quant-web Vite | `127.0.0.1:3000` | 代理 `/api` → `127.0.0.1:5002` |
+| web-frontend Vite | `127.0.0.1:3001` | 代理 `/api` → `127.0.0.1:5001` |
 | TypeScript Agent | N/A (CLI) | 通过环境变量连接各服务 |
 | PostgreSQL | `127.0.0.1:5432` | `PGHOST` / `PGPORT` 环境变量 |
+| Redis | `127.0.0.1:6379` | `REDIS_HOST` / `REDIS_PORT` 环境变量 |
 | Kafka brokers | `127.0.0.1:19092-19094` | `docker/kafka-cluster.yaml` |
+
+> **注意：** `quantsys-v2/` 和 `web-frontend/` 是各自独立的 git 仓库。`quantsys-v2` 是量化系统 v2（后继版本），`web-frontend` 是 Vue 3 + Element Plus 前端，直连 quantsys-v2 后端。
 
 **Worktree 隔离规则：** 如果在 worktree 中做测试需要改 IP，必须在合并回主分支前改回固定值。不能在主分支上出现非固定 IP 的改动。
 
@@ -41,14 +46,22 @@ npm run test:watch       # Jest watch mode
 npm run test:coverage    # Jest with coverage
 npm run test:quant-web   # vitest tests in quant-web/
 
-# Python quant backend
+# Python quant backend (v1)
 cd quant && python api/server.py          # Start Flask API on port 5002
 cd quant && python -m pytest tests/       # Run Python tests
 cd quant && pip install -r requirements.txt
 
-# React dashboard
+# Python quant backend (v2)
+cd quantsys-v2 && python api/server.py    # Start Flask API on port 5001
+cd quantsys-v2 && python -m pytest tests/ # Run Python tests
+
+# React dashboard (quant-web)
 cd quant-web && npm run dev    # Vite dev server on port 3000
 cd quant-web && npm run build  # Production build
+
+# Vue 3 dashboard (web-frontend)
+cd web-frontend && npm run dev     # Vite dev server on port 3001
+cd web-frontend && npm run build   # Production build
 ```
 
 ## Architecture

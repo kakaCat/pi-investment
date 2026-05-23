@@ -151,7 +151,7 @@ class ApiClient {
   }
 }
 
-// 创建API客户端实例
+// 直连 quantsys-v2 Flask 后端 (127.0.0.1:5001)
 export const apiClient = new ApiClient(
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'
+  import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
 )
