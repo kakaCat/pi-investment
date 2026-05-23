@@ -364,7 +364,7 @@ export const checkStopLossTriggerTool: ToolDefinition = {
 
       // Dynamically import to allow ESM test mocking
       const { PortfolioService } = await import(
-        "../../services/portfolio/portfolio-service.js"
+        "../../../services/portfolio/portfolio-service.js"
       );
 
       const portfolioService = new PortfolioService(piDir);

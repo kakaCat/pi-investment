@@ -12,12 +12,16 @@ import { spawn, ChildProcess } from "child_process";
 import { join } from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
+import { existsSync } from "node:fs";
 import * as readline from "readline";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const QUANT_ROOT = join(__dirname, "..", "..", "..", "quant");
+const PROJECT_ROOT = join(__dirname, "..", "..", "..");
+const QUANT_ROOT = join(PROJECT_ROOT, "quant");
+const VENV_PYTHON = join(PROJECT_ROOT, ".venv", "bin", "python3");
 const RESTART_DELAY_MS = 1000;
 const REQUEST_TIMEOUT_MS = 150_000;
+const STARTUP_TIMEOUT_MS = 5000;
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -46,22 +50,35 @@ class QuantSysDaemon {
   private isShuttingDown = false;
   private restartTimer: NodeJS.Timeout | null = null;
   private rl: readline.Interface | null = null;
+  private startupPromise: Promise<void> | null = null;
 
   constructor() {
-    this.start();
+    this.startupPromise = this.start();
     process.on("exit", () => this.shutdown());
     process.on("SIGINT", () => this.shutdown());
     process.on("SIGTERM", () => this.shutdown());
   }
 
-  private start(): void {
+  private async start(): Promise<void> {
     if (this.isShuttingDown) return;
 
     try {
-      this.process = spawn("python3", ["-m", "quantsys.cli", "--daemon"], {
+      // Use venv Python if available, otherwise fall back to system python3
+      const pythonCmd = existsSync(VENV_PYTHON) ? VENV_PYTHON : "python3";
+
+      // Add QUANT_ROOT to PYTHONPATH so 'api' module can be imported
+      const pythonPath = process.env.PYTHONPATH
+        ? `${QUANT_ROOT}:${process.env.PYTHONPATH}`
+        : QUANT_ROOT;
+
+      this.process = spawn(pythonCmd, ["-m", "quantsys.cli", "--daemon"], {
         cwd: QUANT_ROOT,
         stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env, PYTHONUNBUFFERED: "1" },
+        env: {
+          ...process.env,
+          PYTHONUNBUFFERED: "1",
+          PYTHONPATH: pythonPath,
+        },
       });
 
       this.rl = readline.createInterface({
@@ -96,7 +113,9 @@ class QuantSysDaemon {
           console.log(
             `[quantsys-daemon] Restarting in ${RESTART_DELAY_MS}ms...`
           );
-          this.restartTimer = setTimeout(() => this.start(), RESTART_DELAY_MS);
+          this.restartTimer = setTimeout(() => {
+            this.startupPromise = this.start();
+          }, RESTART_DELAY_MS);
         }
       });
 
@@ -105,12 +124,30 @@ class QuantSysDaemon {
       });
 
       console.log(`[quantsys-daemon] Started (PID=${this.process.pid})`);
+
+      // Wait for daemon to be ready
+      await this.waitForReady();
     } catch (error) {
       console.error(`[quantsys-daemon] Failed to start:`, error);
       if (!this.isShuttingDown) {
-        this.restartTimer = setTimeout(() => this.start(), RESTART_DELAY_MS);
+        this.restartTimer = setTimeout(() => {
+          this.startupPromise = this.start();
+        }, RESTART_DELAY_MS);
       }
+      throw error;
     }
+  }
+
+  private async waitForReady(timeoutMs = STARTUP_TIMEOUT_MS): Promise<void> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (this.process && this.process.exitCode === null) {
+        // Process is alive, consider it ready
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    throw new Error(`QuantSys daemon failed to start within ${timeoutMs}ms`);
   }
 
   private cleanup(): void {
@@ -172,8 +209,27 @@ class QuantSysDaemon {
     method: string,
     params: Record<string, unknown> = {}
   ): Promise<string> {
+    // If daemon is not running, attempt to restart
     if (!this.process || this.process.exitCode !== null) {
-      throw new Error("QuantSys daemon is not running");
+      console.warn("[quantsys-daemon] Not running, attempting restart...");
+      this.startupPromise = this.start();
+
+      try {
+        await this.startupPromise;
+      } catch (error) {
+        throw new Error(
+          `QuantSys daemon is not running and failed to restart: ${
+            error instanceof Error ? error.message : String(error)
+          }\n\n` +
+          `To manually start the daemon, run:\n` +
+          `  cd quant && python3 -m quantsys.cli --daemon`
+        );
+      }
+    }
+
+    // Wait for any pending startup to complete
+    if (this.startupPromise) {
+      await this.startupPromise;
     }
 
     const id = ++this.requestId;

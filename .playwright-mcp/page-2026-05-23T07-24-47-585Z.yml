@@ -1,0 +1,211 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e5]:
+    - complementary [ref=e6]:
+      - heading "量化交易系统" [level=2] [ref=e8]
+      - menubar [ref=e9]:
+        - menuitem "核心功能" [expanded] [ref=e10]:
+          - generic [ref=e11] [cursor=pointer]:
+            - img [ref=e13]
+            - generic [ref=e15]: 核心功能
+            - img [ref=e17]
+          - menu [ref=e19]:
+            - menuitem "仪表盘" [ref=e20] [cursor=pointer]:
+              - img [ref=e22]
+              - generic [ref=e26]: 仪表盘
+            - menuitem "股票列表" [ref=e27] [cursor=pointer]:
+              - img [ref=e29]
+              - generic [ref=e31]: 股票列表
+            - menuitem "交易信号" [ref=e32] [cursor=pointer]:
+              - img [ref=e34]
+              - generic [ref=e38]: 交易信号
+            - menuitem "机会雷达" [ref=e39] [cursor=pointer]:
+              - generic [ref=e41]: 机会雷达
+            - menuitem "回测中心" [ref=e42] [cursor=pointer]:
+              - img [ref=e44]
+              - generic [ref=e48]: 回测中心
+            - menuitem "持仓管理" [ref=e49] [cursor=pointer]:
+              - img [ref=e51]
+              - generic [ref=e53]: 持仓管理
+            - menuitem "订单管理" [ref=e54] [cursor=pointer]:
+              - img [ref=e56]
+              - generic [ref=e58]: 订单管理
+            - menuitem "交易流水" [ref=e59] [cursor=pointer]:
+              - img [ref=e61]
+              - generic [ref=e63]: 交易流水
+        - menuitem "高级功能" [ref=e64]:
+          - generic [ref=e65] [cursor=pointer]:
+            - img [ref=e67]
+            - generic [ref=e69]: 高级功能
+            - img [ref=e71]
+        - menuitem "辅助功能" [ref=e73]:
+          - generic [ref=e74] [cursor=pointer]:
+            - img [ref=e76]
+            - generic [ref=e78]: 辅助功能
+            - img [ref=e80]
+    - generic [ref=e82]:
+      - generic [ref=e83]:
+        - heading "机会雷达" [level=3] [ref=e85]
+        - generic [ref=e86]:
+          - generic [ref=e87] [cursor=pointer]:
+            - img [ref=e89]
+            - superscript [ref=e93]: "3"
+          - generic [ref=e94] [cursor=pointer]: U
+      - main [ref=e95]:
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - heading "机会雷达" [level=2] [ref=e99]
+              - paragraph [ref=e100]: 实时扫描全市场，发现高质量交易机会
+            - button "开始扫描" [ref=e102] [cursor=pointer]:
+              - img [ref=e104]
+              - generic [ref=e106]: 开始扫描
+          - generic [ref=e107]:
+            - generic [ref=e110]:
+              - img [ref=e113]
+              - generic [ref=e115]:
+                - generic [ref=e116]: 今日机会数
+                - generic [ref=e117]: "0"
+            - generic [ref=e120]:
+              - img [ref=e123]
+              - generic [ref=e125]:
+                - generic [ref=e126]: 高置信度机会
+                - generic [ref=e127]: "0"
+            - generic [ref=e130]:
+              - img [ref=e133]
+              - generic [ref=e137]:
+                - generic [ref=e138]: 待处理
+                - generic [ref=e139]: "0"
+            - generic [ref=e142]:
+              - img [ref=e145]
+              - generic [ref=e147]:
+                - generic [ref=e148]: 已执行
+                - generic [ref=e149]: "0"
+          - generic [ref=e150]:
+            - generic [ref=e152]:
+              - generic [ref=e153]: 筛选条件
+              - generic [ref=e154]:
+                - button "保存筛选条件" [ref=e155] [cursor=pointer]:
+                  - generic [ref=e156]: 保存筛选条件
+                - button "加载预设" [ref=e157] [cursor=pointer]:
+                  - generic [ref=e158]: 加载预设
+                - button "重置" [ref=e159] [cursor=pointer]:
+                  - generic [ref=e160]: 重置
+            - generic [ref=e161]:
+              - generic [ref=e162]:
+                - generic [ref=e163]:
+                  - generic [ref=e164]: 📊 技术面
+                  - generic [ref=e165]:
+                    - generic [ref=e166] [cursor=pointer]:
+                      - generic [ref=e167]:
+                        - checkbox "RSI < 30 (超卖)" [checked]
+                      - generic [ref=e169]: RSI < 30 (超卖)
+                    - generic [ref=e170] [cursor=pointer]:
+                      - generic [ref=e171]:
+                        - checkbox "MACD 金叉" [checked]
+                      - generic [ref=e173]: MACD 金叉
+                    - generic [ref=e174] [cursor=pointer]:
+                      - generic [ref=e175]:
+                        - checkbox "突破布林带上轨"
+                      - generic [ref=e177]: 突破布林带上轨
+                    - generic [ref=e178] [cursor=pointer]:
+                      - generic [ref=e179]:
+                        - checkbox "成交量放大 > 2倍"
+                      - generic [ref=e181]: 成交量放大 > 2倍
+                - generic [ref=e182]:
+                  - generic [ref=e183]: 💰 基本面
+                  - generic [ref=e184]:
+                    - generic [ref=e185] [cursor=pointer]:
+                      - generic [ref=e186]:
+                        - checkbox "PE < 30" [checked]
+                      - generic [ref=e188]: PE < 30
+                    - generic [ref=e189] [cursor=pointer]:
+                      - generic [ref=e190]:
+                        - checkbox "ROE > 15%" [checked]
+                      - generic [ref=e192]: ROE > 15%
+                    - generic [ref=e193] [cursor=pointer]:
+                      - generic [ref=e194]:
+                        - checkbox "毛利率 > 30%"
+                      - generic [ref=e196]: 毛利率 > 30%
+                    - generic [ref=e197] [cursor=pointer]:
+                      - generic [ref=e198]:
+                        - checkbox "负债率 < 50%"
+                      - generic [ref=e200]: 负债率 < 50%
+                - generic [ref=e201]:
+                  - generic [ref=e202]: 💵 资金面
+                  - generic [ref=e203]:
+                    - generic [ref=e204] [cursor=pointer]:
+                      - generic [ref=e205]:
+                        - checkbox "主力净流入" [checked]
+                      - generic [ref=e207]: 主力净流入
+                    - generic [ref=e208] [cursor=pointer]:
+                      - generic [ref=e209]:
+                        - checkbox "北向资金流入"
+                      - generic [ref=e211]: 北向资金流入
+                    - generic [ref=e212] [cursor=pointer]:
+                      - generic [ref=e213]:
+                        - checkbox "机构持仓增加"
+                      - generic [ref=e215]: 机构持仓增加
+                    - generic [ref=e216] [cursor=pointer]:
+                      - generic [ref=e217]:
+                        - checkbox "融资余额增加"
+                      - generic [ref=e219]: 融资余额增加
+              - generic [ref=e221]:
+                - generic [ref=e223]:
+                  - generic [ref=e224]: 综合评分
+                  - group "综合评分" [ref=e226]:
+                    - generic [ref=e227] [cursor=pointer]:
+                      - slider "pick start value" [ref=e229]
+                      - slider "pick end value" [ref=e231]
+                      - generic [ref=e236]:
+                        - generic [ref=e237]: "0"
+                        - generic [ref=e238]: "50"
+                        - generic [ref=e239]: "100"
+                - generic [ref=e241]:
+                  - generic [ref=e242]: 置信度
+                  - group "置信度" [ref=e244]:
+                    - generic [ref=e245] [cursor=pointer]:
+                      - slider "pick start value" [ref=e247]
+                      - slider "pick end value" [ref=e249]
+                      - generic [ref=e254]:
+                        - generic [ref=e255]: 0%
+                        - generic [ref=e256]: 50%
+                        - generic [ref=e257]: 100%
+                - generic [ref=e259]:
+                  - generic [ref=e260]: 风险等级
+                  - generic [ref=e263] [cursor=pointer]:
+                    - generic:
+                      - combobox "风险等级" [ref=e265]
+                      - generic [ref=e266]: 全部
+                    - img [ref=e269]
+                - generic [ref=e272]:
+                  - generic [ref=e273]: 行业
+                  - generic [ref=e276] [cursor=pointer]:
+                    - generic:
+                      - combobox "行业" [ref=e278]
+                      - generic [ref=e279]: 全部
+                    - img [ref=e282]
+          - generic [ref=e284]:
+            - generic [ref=e286]:
+              - generic [ref=e287]: 发现机会：0 只股票
+              - generic [ref=e288]:
+                - generic [ref=e289]: 排序：
+                - generic [ref=e291] [cursor=pointer]:
+                  - generic:
+                    - combobox [ref=e293]
+                    - generic [ref=e294]: 综合评分 ▼
+                  - img [ref=e297]
+            - generic [ref=e301]:
+              - img [ref=e303]
+              - paragraph [ref=e320]: 暂无机会数据
+  - alert [ref=e321]:
+    - img [ref=e323]
+    - paragraph [ref=e325]: 请求的资源不存在
+  - alert [ref=e326]:
+    - img [ref=e328]
+    - paragraph [ref=e330]: 获取机会列表失败
+  - alert [ref=e331]:
+    - img [ref=e333]
+    - paragraph [ref=e335]: 请求的资源不存在
+  - alert [ref=e336]:
+    - img [ref=e338]
+    - paragraph [ref=e340]: 获取机会列表失败

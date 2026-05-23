@@ -16,6 +16,33 @@ from .stock_query import (
 )
 
 
+def _annualize_quarterly(value: float, report_date: str) -> float:
+    """年化单季度ROE（Q1×4, 中报×2, 三季报×4/3, 年报不变）。
+
+    同花顺「按报告期」返回的 ROE 是各报告期独立值：
+    - 一季报(03-31): 仅Q1 → ×4
+    - 中报(06-30):  仅Q2或H1 → 按H1处理 ×2
+    - 三季报(09-30): 前三季度 → ×4/3
+    - 年报(12-31):   全年 → 不变
+
+    报告日格式支持 YYYYMMDD 和 YYYY-MM-DD。
+    """
+    try:
+        clean_date = report_date.replace("-", "")
+        if clean_date.endswith("1231"):
+            return value
+        month = int(clean_date[4:6])
+        if month == 3:
+            return round(value * 4, 2)
+        elif month == 6:
+            return round(value * 2, 2)
+        elif month == 9:
+            return round(value * 4 / 3, 2)
+    except Exception:
+        pass
+    return value
+
+
 def get_financial_indicators(symbol: str) -> dict[str, Any]:
     """Return recent A-share financial ratios."""
     clean = _clean_symbol(symbol)
@@ -35,9 +62,11 @@ def get_financial_indicators(symbol: str) -> dict[str, Any]:
             return _safe_float(value)
 
         for _, row in frame.iterrows():
+            report_date = str(row.get("报告期", ""))
+            roe_raw = parse_pct(row.get("净资产收益率", 0))
             quarters.append({
-                "report_date": str(row.get("报告期", "")),
-                "roe": parse_pct(row.get("净资产收益率", 0)),
+                "report_date": report_date,
+                "roe": _annualize_quarterly(roe_raw, report_date),
                 "gross_margin": parse_pct(row.get("销售毛利率", 0)),
                 "net_margin": parse_pct(row.get("销售净利率", 0)),
                 "debt_ratio": parse_pct(row.get("资产负债率", 0)),
@@ -219,27 +248,129 @@ def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
+def _estimate_growth_rate(symbol: str) -> float:
+    """从利润表估算营收复合增长率作为格雷厄姆公式的 g 参数。
+
+    只取年报（12-31）数据计算 YoY CAGR，避免季度数据干扰。
+    返回 0.05~0.25 之间的值，数据不足时返回 0.10（默认）。
+    """
+    try:
+        income = _financial_report(symbol, "利润表", recent_n=10)
+        if "error" in income:
+            return 0.10
+        records = income.get("data", [])
+        if len(records) < 2:
+            return 0.10
+
+        # 只取年报（报告日以 1231 结尾，支持 YYYYMMDD/YYYY-MM-DD），提取营业收入
+        revenues = []
+        for rec in records:
+            report_date = str(rec.get("报告日", ""))
+            clean_date = report_date.replace("-", "")
+            if not clean_date.endswith("1231"):
+                continue
+            for key in rec:
+                if isinstance(key, str) and "营业" in key and ("收入" in key or "营收" in key):
+                    rev = _safe_float(rec.get(key, 0))
+                    if rev > 0:
+                        revenues.append((report_date, rev))
+                        break
+        if len(revenues) < 2:
+            return 0.10
+
+        revenues.sort(key=lambda x: x[0])
+        oldest = revenues[0][1]
+        newest = revenues[-1][1]
+        if oldest <= 0:
+            return 0.10
+
+        # 使用实际年数计算 CAGR（日期格式 YYYYMMDD 或 YYYY-MM-DD）
+        oldest_year = int(revenues[0][0].replace("-", "")[:4])
+        newest_year = int(revenues[-1][0].replace("-", "")[:4])
+        years = newest_year - oldest_year
+        if years <= 0:
+            return 0.10
+        cagr = (newest / oldest) ** (1.0 / years) - 1.0
+        return max(0.05, min(0.25, cagr))
+    except Exception:
+        return 0.10
+
+
 def get_stock_valuation(symbol: str) -> dict[str, Any]:
-    """获取股票估值数据：PE、PB、估值状态、合理价值估算"""
+    """获取股票估值数据：PE、PB、估值状态、合理价值估算
+
+    数据源优先级：
+    1. akshare (ak.stock_zh_a_spot_em) - 东方财富全市场数据
+    2. Fallback: get_stock_quote - 新浪财经 + 东方财富数据中心 API
+
+    格雷厄姆公允价值：EPS × (8.5 + 2g)，g 默认从利润表营收 CAGR 估算，
+    取 5%~25% 区间，数据不足时回退到 10%。
+    """
     clean = _clean_symbol(symbol)
+
+    # 预估增长率 g（供格雷厄姆公式用）
+    g = _estimate_growth_rate(clean)
+
+    # 方案1：尝试使用 akshare
     try:
         _disable_proxy_env()
         import akshare as ak
 
-        # 获取实时行情（包含PE、PB）
         df = ak.stock_zh_a_spot_em()
-        if df is None or df.empty:
-            return {"error": f"无法获取实时行情: {clean}", "symbol": clean}
+        if df is not None and not df.empty:
+            stock = df[df["代码"] == clean]
+            if not stock.empty:
+                row = stock.iloc[0]
+                current_price = _safe_float(row.get("最新价", 0))
+                pe = _safe_float(row.get("市盈率-动态", 0))
+                pb = _safe_float(row.get("市净率", 0))
+                name = str(row.get("名称", ""))
 
-        stock = df[df["代码"] == clean]
-        if stock.empty:
-            return {"error": f"未找到股票: {clean}", "symbol": clean}
+                # 估值状态判断
+                if pe <= 0:
+                    status = "unknown"
+                elif pe < 15:
+                    status = "cheap"
+                elif pe < 25:
+                    status = "fair"
+                elif pe < 40:
+                    status = "slightly_expensive"
+                else:
+                    status = "expensive"
 
-        row = stock.iloc[0]
-        current_price = _safe_float(row.get("最新价", 0))
-        pe = _safe_float(row.get("市盈率-动态", 0))
-        pb = _safe_float(row.get("市净率", 0))
-        name = str(row.get("名称", ""))
+                # 合理价值估算（格雷厄姆公式，g 从营收增速估算）
+                fair_value = None
+                if pe > 0 and current_price > 0:
+                    eps = current_price / pe
+                    fair_value = round(eps * (8.5 + 2 * g * 100), 2)
+
+                return {
+                    "symbol": clean,
+                    "name": name,
+                    "current_price": current_price,
+                    "pe": pe,
+                    "pb": pb,
+                    "valuation_status": status,
+                    "fair_value_estimate": fair_value,
+                    "growth_rate_used": round(g * 100, 1),
+                    "data_source": "akshare",
+                    "data_date": _today()
+                }
+    except Exception as akshare_error:
+        # akshare 失败，记录错误并尝试备用方案
+        import sys
+        print(f"[get_stock_valuation] akshare 失败，切换到备用数据源: {akshare_error}", file=sys.stderr)
+
+    # 方案2：Fallback - 使用新浪财经 API
+    try:
+        quote = get_stock_quote(symbol)
+        if "error" in quote:
+            return {"error": f"无法获取实时行情: {quote['error']}", "symbol": clean}
+
+        current_price = _safe_float(quote.get("price", 0))
+        pe = _safe_float(quote.get("pe_dynamic", 0))
+        pb = _safe_float(quote.get("pb", 0))
+        name = str(quote.get("name", ""))
 
         # 估值状态判断
         if pe <= 0:
@@ -253,11 +384,11 @@ def get_stock_valuation(symbol: str) -> dict[str, Any]:
         else:
             status = "expensive"
 
-        # 合理价值估算（格雷厄姆公式简化版）
+        # 合理价值估算（格雷厄姆公式，g 从营收增速估算）
         fair_value = None
         if pe > 0 and current_price > 0:
             eps = current_price / pe
-            fair_value = round(eps * (8.5 + 2 * 10), 2)  # 假设增长率10%
+            fair_value = round(eps * (8.5 + 2 * g * 100), 2)
 
         return {
             "symbol": clean,
@@ -267,6 +398,8 @@ def get_stock_valuation(symbol: str) -> dict[str, Any]:
             "pb": pb,
             "valuation_status": status,
             "fair_value_estimate": fair_value,
+            "growth_rate_used": round(g * 100, 1),
+            "data_source": "sina_fallback",
             "data_date": _today()
         }
     except Exception as exc:
@@ -274,20 +407,53 @@ def get_stock_valuation(symbol: str) -> dict[str, Any]:
 
 
 def get_pe_percentile(symbol: str, years: int = 3) -> dict[str, Any]:
-    """获取PE历史分位数：当前PE在过去N年中所处的百分位"""
+    """获取PE历史分位数：当前PE在过去N年中所处的百分位
+
+    数据源优先级：
+    1. akshare (ak.stock_zh_a_hist) - 东方财富历史数据
+    2. Fallback: get_stock_history - 新浪财经历史数据
+    """
     clean = _clean_symbol(symbol)
+    data_source = "unknown"
+
     try:
-        _disable_proxy_env()
-        import akshare as ak
         import pandas as pd
 
-        # 获取历史数据（日线）
+        # 方案1：尝试使用 akshare 获取历史数据
         days = min(years * 250, 750)  # 最多3年
-        df = ak.stock_zh_a_hist(symbol=clean, period="daily", adjust="qfq")
-        if df is None or df.empty or len(df) < 60:
-            return {"error": f"历史数据不足: {clean}", "symbol": clean}
+        data = None
 
-        df = df.tail(days)
+        try:
+            _disable_proxy_env()
+            import akshare as ak
+
+            df = ak.stock_zh_a_hist(symbol=clean, period="daily", adjust="qfq")
+            if df is not None and not df.empty and len(df) >= 60:
+                df = df.tail(days)
+                # 转换为统一格式
+                data = []
+                for _, row in df.iterrows():
+                    data.append({
+                        "date": str(row.get("日期", "")),
+                        "close": _safe_float(row.get("收盘", 0))
+                    })
+                data_source = "akshare"
+        except Exception as akshare_error:
+            # akshare 失败，记录错误并尝试备用方案
+            import sys
+            print(f"[get_pe_percentile] akshare 失败，切换到备用数据源: {akshare_error}", file=sys.stderr)
+
+        # 方案2：Fallback - 使用新浪财经 API
+        if data is None:
+            history = get_stock_history(symbol, period="daily", limit=days)
+            if "error" in history or not history.get("data"):
+                return {"error": f"历史数据不足: {clean}", "symbol": clean}
+
+            data = [{"date": item["date"], "close": item["close"]} for item in history["data"]]
+            data_source = "sina_fallback"
+
+        if len(data) < 60:
+            return {"error": f"历史数据不足: {clean}", "symbol": clean}
 
         # 获取当前PE
         valuation = get_stock_valuation(symbol)
@@ -304,14 +470,21 @@ def get_pe_percentile(symbol: str, years: int = 3) -> dict[str, Any]:
             return {"error": f"当前价格无效: {clean}", "symbol": clean}
 
         eps = current_price / current_pe
-        df["pe"] = df["收盘"].astype(float) / eps
-        df = df[df["pe"] > 0]  # 过滤无效PE
 
-        if len(df) < 60:
+        # 计算每日PE
+        pe_list = []
+        for item in data:
+            close = _safe_float(item.get("close", 0))
+            if close > 0:
+                pe = close / eps
+                if pe > 0:
+                    pe_list.append(pe)
+
+        if len(pe_list) < 60:
             return {"error": f"有效PE数据不足: {clean}", "symbol": clean}
 
         # 计算分位数
-        pe_values = df["pe"].values
+        pe_values = pd.Series(pe_list)
         percentile = (pe_values < current_pe).sum() / len(pe_values) * 100
 
         return {
@@ -320,9 +493,10 @@ def get_pe_percentile(symbol: str, years: int = 3) -> dict[str, Any]:
             "percentile": round(percentile, 2),
             "min_pe": round(float(pe_values.min()), 2),
             "max_pe": round(float(pe_values.max()), 2),
-            "median_pe": round(float(pd.Series(pe_values).median()), 2),
+            "median_pe": round(float(pe_values.median()), 2),
             "years": years,
             "data_points": len(pe_values),
+            "data_source": data_source,
             "data_date": _today()
         }
     except Exception as exc:

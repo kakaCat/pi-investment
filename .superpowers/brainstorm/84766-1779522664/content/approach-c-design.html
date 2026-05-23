@@ -1,0 +1,258 @@
+<h2>✅ 方案 C：完整重构方案 - 设计确认</h2>
+<p class="subtitle">建立完整的数据同步机制和 API 体系</p>
+
+<div class="section" style="background: #dcfce7; padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 4px solid #10b981;">
+  <h3 style="margin-top: 0; color: #065f46;">🎯 方案概述</h3>
+  <p style="margin: 0; color: #047857; font-size: 15px;">
+    建立完整的投资组合数据管理体系，包括定时任务、数据计算引擎、历史数据回填、API 端点，
+    确保数据一致性和高性能。
+  </p>
+</div>
+
+<div class="section">
+  <h3>🏗️ 系统架构</h3>
+</div>
+
+<div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-top: 16px;">
+  <pre style="margin: 0; font-size: 13px; line-height: 1.6; color: #1e293b;">
+┌─────────────────────────────────────────────────────────────┐
+│                      定时任务调度器                          │
+│                   (每日收盘后触发)                           │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   资产计算引擎                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │ 持仓数据     │  │ 最新价格     │  │ 交易记录     │     │
+│  │ portfolio_   │  │ klines       │  │ trades       │     │
+│  │ holdings     │  │              │  │              │     │
+│  └──────────────┘  └──────────────┘  └──────────────┘     │
+│                     │                                        │
+│                     ▼                                        │
+│         计算：总资产、盈亏、收益率、持仓统计                │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  写入数据表                                  │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ account_balance (账户余额快照)                       │  │
+│  │ - balance_date, total_assets, daily_return           │  │
+│  │ - cash, market_value, position_count                 │  │
+│  └──────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ portfolio_snapshots (持仓快照 - 新增)                │  │
+│  │ - snapshot_date, symbol, quantity, price             │  │
+│  │ - market_value, profit, profit_percent               │  │
+│  └──────────────────────────────────────────────────────┘  │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    API 端点                                  │
+│  GET /api/portfolio/summary      (读取最新快照)             │
+│  GET /api/portfolio/history      (读取历史快照)             │
+│  GET /api/portfolio/holdings     (读取持仓快照)             │
+│  GET /api/signals/today          (今日信号)                 │
+│  GET /api/backtest/recent        (最近回测)                 │
+└─────────────────────────────────────────────────────────────┘
+  </pre>
+</div>
+
+<div class="section" style="margin-top: 32px;">
+  <h3>📦 实施内容清单</h3>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+  <div style="background: white; padding: 16px; border-radius: 8px; border: 2px solid #3b82f6;">
+    <h4 style="margin: 0 0 12px 0; color: #1e40af;">1️⃣ 数据库扩展</h4>
+    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
+      <li>创建 <code>portfolio_snapshots</code> 表</li>
+      <li>为 <code>account_balance</code> 表添加索引优化</li>
+      <li>创建数据回填脚本</li>
+    </ul>
+    <div style="margin-top: 8px; padding: 8px; background: #eff6ff; border-radius: 4px; font-size: 12px; color: #1e40af;">
+      <strong>预计时间：</strong> 2-3 小时
+    </div>
+  </div>
+
+  <div style="background: white; padding: 16px; border-radius: 8px; border: 2px solid #3b82f6;">
+    <h4 style="margin: 0 0 12px 0; color: #1e40af;">2️⃣ 资产计算引擎</h4>
+    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
+      <li>实现 <code>PortfolioCalculator</code> 类</li>
+      <li>计算总资产、盈亏、收益率</li>
+      <li>计算持仓统计（盈利/亏损数量）</li>
+      <li>处理价格缺失的边界情况</li>
+    </ul>
+    <div style="margin-top: 8px; padding: 8px; background: #eff6ff; border-radius: 4px; font-size: 12px; color: #1e40af;">
+      <strong>预计时间：</strong> 3-4 小时
+    </div>
+  </div>
+
+  <div style="background: white; padding: 16px; border-radius: 8px; border: 2px solid #3b82f6;">
+    <h4 style="margin: 0 0 12px 0; color: #1e40af;">3️⃣ 定时任务系统</h4>
+    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
+      <li>创建 <code>DailySnapshotJob</code> 任务</li>
+      <li>集成到现有的 scheduler 系统</li>
+      <li>配置每日收盘后自动执行</li>
+      <li>添加任务监控和错误处理</li>
+    </ul>
+    <div style="margin-top: 8px; padding: 8px; background: #eff6ff; border-radius: 4px; font-size: 12px; color: #1e40af;">
+      <strong>预计时间：</strong> 2-3 小时
+    </div>
+  </div>
+
+  <div style="background: white; padding: 16px; border-radius: 8px; border: 2px solid #3b82f6;">
+    <h4 style="margin: 0 0 12px 0; color: #1e40af;">4️⃣ API 端点实现</h4>
+    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
+      <li>实现 3 个新 API 端点</li>
+      <li>调整 2 个现有接口</li>
+      <li>添加参数验证和错误处理</li>
+      <li>编写 API 文档</li>
+    </ul>
+    <div style="margin-top: 8px; padding: 8px; background: #eff6ff; border-radius: 4px; font-size: 12px; color: #1e40af;">
+      <strong>预计时间：</strong> 2-3 小时
+    </div>
+  </div>
+
+  <div style="background: white; padding: 16px; border-radius: 8px; border: 2px solid #3b82f6;">
+    <h4 style="margin: 0 0 12px 0; color: #1e40af;">5️⃣ 数据回填</h4>
+    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
+      <li>编写历史数据回填脚本</li>
+      <li>从 trades 表回溯计算历史净值</li>
+      <li>填充 account_balance 表</li>
+      <li>验证数据准确性</li>
+    </ul>
+    <div style="margin-top: 8px; padding: 8px; background: #eff6ff; border-radius: 4px; font-size: 12px; color: #1e40af;">
+      <strong>预计时间：</strong> 3-4 小时
+    </div>
+  </div>
+
+  <div style="background: white; padding: 16px; border-radius: 8px; border: 2px solid #3b82f6;">
+    <h4 style="margin: 0 0 12px 0; color: #1e40af;">6️⃣ 测试与集成</h4>
+    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
+      <li>单元测试（计算引擎）</li>
+      <li>集成测试（API 端点）</li>
+      <li>前端集成测试</li>
+      <li>性能测试</li>
+    </ul>
+    <div style="margin-top: 8px; padding: 8px; background: #eff6ff; border-radius: 4px; font-size: 12px; color: #1e40af;">
+      <strong>预计时间：</strong> 2-3 小时
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 32px;">
+  <h3>📋 详细实施步骤</h3>
+</div>
+
+<div style="background: white; padding: 20px; border-radius: 8px; margin-top: 16px; border: 1px solid #e2e8f0;">
+  <h4 style="margin: 0 0 12px 0; color: #1e293b;">阶段 1：数据库准备（Day 1 上午）</h4>
+  <ol style="margin: 0; padding-left: 20px; font-size: 14px; color: #475569; line-height: 1.8;">
+    <li>创建 <code>portfolio_snapshots</code> 表（存储每日持仓快照）</li>
+    <li>为 <code>account_balance</code> 表添加必要的索引</li>
+    <li>编写数据库迁移脚本</li>
+  </ol>
+</div>
+
+<div style="background: white; padding: 20px; border-radius: 8px; margin-top: 12px; border: 1px solid #e2e8f0;">
+  <h4 style="margin: 0 0 12px 0; color: #1e293b;">阶段 2：计算引擎开发（Day 1 下午）</h4>
+  <ol style="margin: 0; padding-left: 20px; font-size: 14px; color: #475569; line-height: 1.8;">
+    <li>创建 <code>core/portfolio_calculator.py</code></li>
+    <li>实现资产计算逻辑（总资产、盈亏、收益率）</li>
+    <li>实现持仓统计逻辑（盈利/亏损数量、行业分布）</li>
+    <li>编写单元测试</li>
+  </ol>
+</div>
+
+<div style="background: white; padding: 20px; border-radius: 8px; margin-top: 12px; border: 1px solid #e2e8f0;">
+  <h4 style="margin: 0 0 12px 0; color: #1e293b;">阶段 3：定时任务集成（Day 2 上午）</h4>
+  <ol style="margin: 0; padding-left: 20px; font-size: 14px; color: #475569; line-height: 1.8;">
+    <li>创建 <code>jobs/daily_snapshot_job.py</code></li>
+    <li>集成到现有的 scheduler 系统</li>
+    <li>配置每日 15:30（收盘后）自动执行</li>
+    <li>添加任务日志和错误通知</li>
+  </ol>
+</div>
+
+<div style="background: white; padding: 20px; border-radius: 8px; margin-top: 12px; border: 1px solid #e2e8f0;">
+  <h4 style="margin: 0 0 12px 0; color: #1e293b;">阶段 4：API 端点实现（Day 2 下午）</h4>
+  <ol style="margin: 0; padding-left: 20px; font-size: 14px; color: #475569; line-height: 1.8;">
+    <li>在 <code>api/server.py</code> 添加 3 个新端点</li>
+    <li>调整 <code>/api/signals</code> 和 <code>/api/backtest/results</code></li>
+    <li>添加参数验证和错误处理</li>
+    <li>编写 API 集成测试</li>
+  </ol>
+</div>
+
+<div style="background: white; padding: 20px; border-radius: 8px; margin-top: 12px; border: 1px solid #e2e8f0;">
+  <h4 style="margin: 0 0 12px 0; color: #1e293b;">阶段 5：数据回填（Day 2 晚上）</h4>
+  <ol style="margin: 0; padding-left: 20px; font-size: 14px; color: #475569; line-height: 1.8;">
+    <li>编写 <code>scripts/backfill_portfolio_history.py</code></li>
+    <li>从 trades 表回溯计算历史净值</li>
+    <li>填充 account_balance 表（最近 90 天）</li>
+    <li>验证数据准确性</li>
+  </ol>
+</div>
+
+<div style="background: white; padding: 20px; border-radius: 8px; margin-top: 12px; border: 1px solid #e2e8f0;">
+  <h4 style="margin: 0 0 12px 0; color: #1e293b;">阶段 6：前端集成与测试（Day 3）</h4>
+  <ol style="margin: 0; padding-left: 20px; font-size: 14px; color: #475569; line-height: 1.8;">
+    <li>更新 React Dashboard 调用新 API</li>
+    <li>添加投资组合价值、持仓数量等指标卡片</li>
+    <li>添加净值走势图表</li>
+    <li>端到端测试</li>
+  </ol>
+</div>
+
+<div class="section" style="margin-top: 32px; background: #fef3c7; padding: 20px; border-radius: 8px;">
+  <h3 style="margin-top: 0; color: #92400e;">⚠️ 关键决策点</h3>
+
+  <div style="background: white; padding: 12px; border-radius: 6px; margin-top: 12px;">
+    <strong style="color: #1e293b;">1. portfolio_snapshots 表是否需要？</strong>
+    <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
+      <strong>建议：</strong>暂时不创建，先用 account_balance 表。如果后续需要详细的持仓历史快照，再添加。
+    </p>
+  </div>
+
+  <div style="background: white; padding: 12px; border-radius: 6px; margin-top: 12px;">
+    <strong style="color: #1e293b;">2. 定时任务执行时间？</strong>
+    <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
+      <strong>建议：</strong>A股收盘后 15:30，港股收盘后 16:30。可以配置两个任务分别处理。
+    </p>
+  </div>
+
+  <div style="background: white; padding: 12px; border-radius: 6px; margin-top: 12px;">
+    <strong style="color: #1e293b;">3. 历史数据回填多少天？</strong>
+    <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
+      <strong>建议：</strong>最近 90 天。更早的数据可以后续按需回填。
+    </p>
+  </div>
+
+  <div style="background: white; padding: 12px; border-radius: 6px; margin-top: 12px;">
+    <strong style="color: #1e293b;">4. 现金余额如何获取？</strong>
+    <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
+      <strong>建议：</strong>从 trades 表计算（初始资金 - 买入金额 + 卖出金额）。或者手动配置初始现金。
+    </p>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 32px; background: #dcfce7; padding: 20px; border-radius: 8px; border-left: 4px solid #10b981;">
+  <h3 style="margin-top: 0; color: #065f46;">✅ 预期成果</h3>
+
+  <ul style="margin: 8px 0; padding-left: 20px; color: #047857; line-height: 1.8;">
+    <li>完整的投资组合数据管理体系</li>
+    <li>每日自动更新 account_balance 表</li>
+    <li>5 个生产可用的 API 端点</li>
+    <li>React Dashboard 展示完整的投资组合数据</li>
+    <li>历史净值走势图（最近 90 天）</li>
+    <li>可扩展的架构，支持后续功能迭代</li>
+  </ul>
+</div>
+
+<div style="margin-top: 24px; padding: 16px; background: #eff6ff; border-radius: 8px; border-left: 4px solid #3b82f6;">
+  <p style="margin: 0; font-weight: 600; color: #1e40af;">
+    👉 设计确认完成。接下来我将编写详细的设计文档，然后生成实施计划。确认继续？
+  </p>
+</div>

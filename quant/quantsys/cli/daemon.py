@@ -11,6 +11,7 @@ to stdout.
 from __future__ import annotations
 
 import json
+import math
 import sys
 import traceback
 from typing import Any, Callable, Dict
@@ -18,6 +19,22 @@ from typing import Any, Callable, Dict
 DaemonHandler = Callable[[Dict[str, Any]], Any]
 
 DAEMON_METHOD_MAP: Dict[str, DaemonHandler] = {}
+
+
+def _sanitize_for_json(obj: Any) -> Any:
+    """Recursively convert NaN/Infinity values to None for JSON serialization."""
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    elif isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_sanitize_for_json(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(_sanitize_for_json(item) for item in obj)
+    else:
+        return obj
 
 
 def register_daemon_method(method: str, handler: DaemonHandler) -> None:
@@ -49,6 +66,8 @@ def handle_request(request: dict) -> dict:
 
     try:
         result = handler(params)
+        # Sanitize result to replace NaN/Infinity with None
+        result = _sanitize_for_json(result)
         return {
             "jsonrpc": "2.0",
             "id": request_id,

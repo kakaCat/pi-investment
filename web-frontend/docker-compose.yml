@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  web-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pi-investment-web:latest
+    container_name: pi-investment-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - pi-investment-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "com.pi-investment.service=web-frontend"
+      - "com.pi-investment.version=1.0.0"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Nginx反向代理（可选，用于生产环境）
+  nginx-proxy:
+    image: nginx:1.25-alpine
+    container_name: pi-investment-nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-proxy.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx-cache:/var/cache/nginx
+    depends_on:
+      - web-frontend
+    networks:
+      - pi-investment-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  pi-investment-network:
+    driver: bridge
+
+volumes:
+  nginx-cache:
+    driver: local

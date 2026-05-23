@@ -28,7 +28,25 @@ import { resetTerminalModes } from "../../tui/pi-tui-compat.js";
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(__dirname, "..", "..", "..");
+export function findProjectRoot(startDir: string = __dirname): string {
+  let current = startDir;
+  while (true) {
+    if (
+      existsSync(join(current, "package.json")) &&
+      existsSync(join(current, "node_modules", ".bin", "tsx"))
+    ) {
+      return current;
+    }
+
+    const parent = dirname(current);
+    if (parent === current) {
+      return join(startDir, "..", "..", "..", "..");
+    }
+    current = parent;
+  }
+}
+
+const PROJECT_ROOT = findProjectRoot();
 const RESTART_DIR = join(PROJECT_ROOT, ".restart");
 const CONTEXT_FILE = join(RESTART_DIR, "context.json");
 

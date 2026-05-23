@@ -1,0 +1,320 @@
+<h2>React Dashboard 生产化改造方案</h2>
+<p class="subtitle">补充缺失的接口，让 Dashboard 达到生产可用标准</p>
+
+<div class="section" style="background: #dbeafe; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+  <h3 style="margin-top: 0; color: #1e40af;">🎯 目标明确</h3>
+  <p style="margin: 0; color: #1e293b; font-size: 15px;">
+    为 React Dashboard (<code>quant-web/src/components/dashboard/DashboardOverview.tsx</code>) 补充缺失的后端接口，
+    使其展示完整的投资组合数据，达到生产可用标准。
+  </p>
+</div>
+
+<div class="section">
+  <h3>📋 需要补充的接口清单</h3>
+  <p class="subtitle">基于 HTML 原型的功能，React Dashboard 缺少以下核心数据</p>
+</div>
+
+<div class="options" style="margin-top: 20px;">
+  <div class="option" data-choice="portfolio-summary" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>📊 GET /api/portfolio/summary</h3>
+      <p><strong>用途：</strong>获取投资组合核心指标</p>
+
+      <div style="margin-top: 12px; background: #f8fafc; padding: 12px; border-radius: 6px;">
+        <strong style="color: #475569; font-size: 13px;">返回数据结构：</strong>
+        <pre style="margin: 8px 0 0 0; font-size: 12px; color: #1e293b; background: white; padding: 8px; border-radius: 4px; overflow-x: auto;">{
+  "success": true,
+  "data": {
+    "totalValue": 1258400.00,        // 总资产价值
+    "dailyChange": 29447.68,          // 今日变动金额
+    "dailyChangePercent": 2.34,       // 今日涨跌幅 %
+    "holdingsCount": 8,                // 持仓数量
+    "profitCount": 6,                  // 盈利持仓数
+    "lossCount": 2,                    // 亏损持仓数
+    "availableCash": 50000.00,         // 可用资金
+    "totalCost": 1200000.00,           // 总成本
+    "totalProfit": 58400.00,           // 总盈亏
+    "totalProfitPercent": 4.87         // 总收益率 %
+  }
+}</pre>
+      </div>
+
+      <div style="margin-top: 8px; background: #fef3c7; padding: 8px 12px; border-radius: 4px;">
+        <strong style="color: #92400e; font-size: 13px;">🔧 后端实现：</strong>
+        <span style="color: #78350f; font-size: 13px;">查询 positions 表聚合计算</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="portfolio-history" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>📈 GET /api/portfolio/history</h3>
+      <p><strong>用途：</strong>获取组合净值历史数据（绘制走势图）</p>
+
+      <div style="margin-top: 12px; background: #f8fafc; padding: 12px; border-radius: 6px;">
+        <strong style="color: #475569; font-size: 13px;">请求参数：</strong>
+        <ul style="margin: 4px 0; padding-left: 20px; font-size: 13px; color: #64748b;">
+          <li><code>days</code>: 7 | 30 | 90 (默认 30)</li>
+        </ul>
+
+        <strong style="color: #475569; font-size: 13px; margin-top: 8px; display: block;">返回数据结构：</strong>
+        <pre style="margin: 8px 0 0 0; font-size: 12px; color: #1e293b; background: white; padding: 8px; border-radius: 4px; overflow-x: auto;">{
+  "success": true,
+  "data": {
+    "period": "30d",
+    "history": [
+      {
+        "date": "2026-04-21",
+        "value": 1200000.00,
+        "changePercent": 0.0
+      },
+      {
+        "date": "2026-04-22",
+        "value": 1205000.00,
+        "changePercent": 0.42
+      },
+      // ... 更多数据点
+      {
+        "date": "2026-05-23",
+        "value": 1258400.00,
+        "changePercent": 2.34
+      }
+    ]
+  }
+}</pre>
+      </div>
+
+      <div style="margin-top: 8px; background: #fef3c7; padding: 8px 12px; border-radius: 4px;">
+        <strong style="color: #92400e; font-size: 13px;">🔧 后端实现：</strong>
+        <span style="color: #78350f; font-size: 13px;">查询 portfolio_snapshots 表或实时计算</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="holdings-list" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>💼 GET /api/portfolio/holdings</h3>
+      <p><strong>用途：</strong>获取当前持仓列表</p>
+
+      <div style="margin-top: 12px; background: #f8fafc; padding: 12px; border-radius: 6px;">
+        <strong style="color: #475569; font-size: 13px;">返回数据结构：</strong>
+        <pre style="margin: 8px 0 0 0; font-size: 12px; color: #1e293b; background: white; padding: 8px; border-radius: 4px; overflow-x: auto;">{
+  "success": true,
+  "data": {
+    "holdings": [
+      {
+        "symbol": "600519.SH",
+        "name": "贵州茅台",
+        "quantity": 100,
+        "avgCost": 1650.00,
+        "currentPrice": 1680.00,
+        "marketValue": 168000.00,
+        "profit": 3000.00,
+        "profitPercent": 1.82,
+        "weight": 13.35              // 占组合比例 %
+      },
+      // ... 更多持仓
+    ],
+    "totalCount": 8
+  }
+}</pre>
+      </div>
+
+      <div style="margin-top: 8px; background: #fef3c7; padding: 8px 12px; border-radius: 4px;">
+        <strong style="color: #92400e; font-size: 13px;">🔧 后端实现：</strong>
+        <span style="color: #78350f; font-size: 13px;">查询 positions 表 + 关联最新价格</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="signals-today" onclick="toggleSelect(this)">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>⚡ GET /api/signals/today</h3>
+      <p><strong>用途：</strong>获取今日信号统计（简化版）</p>
+
+      <div style="margin-top: 12px; background: #f8fafc; padding: 12px; border-radius: 6px;">
+        <strong style="color: #475569; font-size: 13px;">返回数据结构：</strong>
+        <pre style="margin: 8px 0 0 0; font-size: 12px; color: #1e293b; background: white; padding: 8px; border-radius: 4px; overflow-x: auto;">{
+  "success": true,
+  "data": {
+    "totalCount": 12,
+    "buyCount": 5,
+    "sellCount": 3,
+    "holdCount": 4,
+    "highConfidenceCount": 8,        // 置信度 >= 0.8
+    "recentSignals": [
+      {
+        "id": 1234,
+        "symbol": "600519.SH",
+        "name": "贵州茅台",
+        "action": "BUY",
+        "confidence": 0.87,
+        "timestamp": "2026-05-23T10:32:00"
+      },
+      // ... 最近 5 条
+    ]
+  }
+}</pre>
+      </div>
+
+      <div style="margin-top: 8px; background: #dcfce7; padding: 8px 12px; border-radius: 4px;">
+        <strong style="color: #166534; font-size: 13px;">✅ 可能已存在：</strong>
+        <span style="color: #047857; font-size: 13px;">/api/signals 加过滤参数即可</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="jobs-recent" onclick="toggleSelect(this)">
+    <div class="letter">5</div>
+    <div class="content">
+      <h3>⚙️ GET /api/jobs/recent</h3>
+      <p><strong>用途：</strong>获取最近任务状态（数据更新、因子计算等）</p>
+
+      <div style="margin-top: 12px; background: #f8fafc; padding: 12px; border-radius: 6px;">
+        <strong style="color: #475569; font-size: 13px;">返回数据结构：</strong>
+        <pre style="margin: 8px 0 0 0; font-size: 12px; color: #1e293b; background: white; padding: 8px; border-radius: 4px; overflow-x: auto;">{
+  "success": true,
+  "data": {
+    "jobs": [
+      {
+        "id": "job_001",
+        "name": "HS300 日线更新",
+        "type": "data_update",
+        "status": "completed",        // completed | running | queued | failed
+        "progress": 100,
+        "startTime": "2026-05-23T09:00:00",
+        "endTime": "2026-05-23T09:05:00"
+      },
+      {
+        "id": "job_002",
+        "name": "持仓股票因子计算",
+        "type": "factor_compute",
+        "status": "running",
+        "progress": 65,
+        "startTime": "2026-05-23T09:10:00"
+      },
+      // ... 更多任务
+    ]
+  }
+}</pre>
+      </div>
+
+      <div style="margin-top: 8px; background: #dcfce7; padding: 8px 12px; border-radius: 4px;">
+        <strong style="color: #166534; font-size: 13px;">✅ 已存在：</strong>
+        <span style="color: #047857; font-size: 13px;">/api/jobs 已在用，可能只需调整返回格式</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="backtest-recent" onclick="toggleSelect(this)">
+    <div class="letter">6</div>
+    <div class="content">
+      <h3>🔬 GET /api/backtest/recent</h3>
+      <p><strong>用途：</strong>获取最近回测结果（简化版，用于 Dashboard 展示）</p>
+
+      <div style="margin-top: 12px; background: #f8fafc; padding: 12px; border-radius: 6px;">
+        <strong style="color: #475569; font-size: 13px;">请求参数：</strong>
+        <ul style="margin: 4px 0; padding-left: 20px; font-size: 13px; color: #64748b;">
+          <li><code>limit</code>: 默认 5</li>
+        </ul>
+
+        <strong style="color: #475569; font-size: 13px; margin-top: 8px; display: block;">返回数据结构：</strong>
+        <pre style="margin: 8px 0 0 0; font-size: 12px; color: #1e293b; background: white; padding: 8px; border-radius: 4px; overflow-x: auto;">{
+  "success": true,
+  "data": {
+    "backtests": [
+      {
+        "id": 123,
+        "strategyName": "MA 双均线",
+        "symbol": "600519.SH",
+        "returnPercent": 23.5,
+        "sharpeRatio": 1.85,
+        "timestamp": "2026-05-22T15:30:00"
+      },
+      // ... 更多回测
+    ]
+  }
+}</pre>
+      </div>
+
+      <div style="margin-top: 8px; background: #dcfce7; padding: 8px 12px; border-radius: 4px;">
+        <strong style="color: #166534; font-size: 13px;">✅ 已存在：</strong>
+        <span style="color: #047857; font-size: 13px;">/api/backtest/results 加 limit 参数即可</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 32px;">
+  <h3>🎯 接口优先级</h3>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 16px;">
+    <div style="background: #fee2e2; padding: 16px; border-radius: 8px; border-left: 4px solid #ef4444;">
+      <h4 style="margin: 0 0 8px 0; color: #991b1b;">🔴 必须新增</h4>
+      <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #7f1d1d;">
+        <li>/api/portfolio/summary</li>
+        <li>/api/portfolio/history</li>
+        <li>/api/portfolio/holdings</li>
+      </ul>
+      <p style="margin: 8px 0 0 0; font-size: 12px; color: #991b1b;">
+        <strong>原因：</strong>后端可能没有这些接口
+      </p>
+    </div>
+
+    <div style="background: #fef3c7; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+      <h4 style="margin: 0 0 8px 0; color: #92400e;">🟡 可能需要调整</h4>
+      <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #78350f;">
+        <li>/api/signals/today</li>
+        <li>/api/jobs/recent</li>
+        <li>/api/backtest/recent</li>
+      </ul>
+      <p style="margin: 8px 0 0 0; font-size: 12px; color: #92400e;">
+        <strong>原因：</strong>接口存在，但可能需要加参数或调整格式
+      </p>
+    </div>
+
+    <div style="background: #dcfce7; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981;">
+      <h4 style="margin: 0 0 8px 0; color: #065f46;">🟢 已经存在</h4>
+      <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #047857;">
+        <li>/api/health</li>
+        <li>/api/platform/status</li>
+        <li>/api/signals</li>
+        <li>/api/training/history</li>
+      </ul>
+      <p style="margin: 8px 0 0 0; font-size: 12px; color: #065f46;">
+        <strong>状态：</strong>React Dashboard 已在使用
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 32px; background: #eff6ff; padding: 20px; border-radius: 8px;">
+  <h3 style="margin-top: 0; color: #1e40af;">📝 总结</h3>
+
+  <div style="background: white; padding: 16px; border-radius: 6px; margin-top: 12px;">
+    <strong style="color: #1e293b;">需要补充的核心接口：</strong>
+    <ul style="margin: 8px 0; padding-left: 20px; color: #475569;">
+      <li><strong>3 个必须新增：</strong>投资组合摘要、历史净值、持仓列表</li>
+      <li><strong>3 个可能调整：</strong>今日信号、最近任务、最近回测</li>
+    </ul>
+  </div>
+
+  <div style="background: white; padding: 16px; border-radius: 6px; margin-top: 12px;">
+    <strong style="color: #1e293b;">后端数据源确认：</strong>
+    <ul style="margin: 8px 0; padding-left: 20px; color: #475569;">
+      <li>需要确认 quantsys-v2 数据库是否有 <code>positions</code> 表（持仓数据）</li>
+      <li>需要确认是否有 <code>portfolio_snapshots</code> 表（历史净值）</li>
+      <li>如果没有，需要先设计数据表结构</li>
+    </ul>
+  </div>
+</div>
+
+<div style="margin-top: 24px; padding: 16px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+  <p style="margin: 0; font-weight: 600; color: #92400e;">
+    👉 下一步：我需要检查 quantsys-v2 的数据库结构，确认是否已有持仓和组合数据表。要继续吗？
+  </p>
+</div>

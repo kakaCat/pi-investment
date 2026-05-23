@@ -141,18 +141,20 @@ export const getQualityScoreTool: ToolDefinition = {
   name: "get_quality_score",
   label: "基本面质量评分",
   description:
-    "Score a company's quality from 0 to 100 based on ROE, gross margin, debt ratio, operating cash flow, and revenue growth. " +
-    "Returns total score, Chinese rating (优秀/良好/一般/较差), and per-dimension scores. " +
-    "Use as a first filter before deep analysis — lower scores mean weaker profitability or cash quality. " +
-    "Prefer calling this before get_valuation or get_pe_percentile to avoid wasting calls on low-quality companies. " +
+    "Score a company's quality from 0 to 100. Auto-detects lifecycle stage and routes to appropriate framework:\n" +
+    "- Mature companies (银行/白酒/煤炭等): traditional scoring based on ROE, gross margin, debt ratio, cash flow\n" +
+    "- Tech/growth companies (半导体/AI/新能源等): growth scoring based on revenue growth, R&D intensity, operating leverage, market position\n" +
+    "Returns total score, Chinese rating, per-dimension breakdown, lifecycle_stage, and framework_used.\n" +
+    "Use framework='auto' (default) for automatic detection, 'traditional' for original scoring, 'tech_growth' to force new framework.\n" +
     "Returns {error} if financial data is unavailable.",
   parameters: Type.Object({
     symbol: Type.String({ description: "6-digit A-share code, e.g. '600519'" }),
+    framework: Type.Optional(Type.String({ description: "'auto' (default, auto-detect lifecycle), 'traditional' (original ROE-based), 'tech_growth' (explicit tech framework)" })),
   }),
   execute: async (_toolCallId, params: any) => {
     const err = requireAshare(params.symbol);
     if (err) return { content: [{ type: "text" as const, text: err }], details: undefined };
-    const result = await callQuantSysDaemon("get_quality_score", { symbol: params.symbol });
+    const result = await callQuantSysDaemon("get_quality_score", { symbol: params.symbol, framework: params.framework || "auto" });
     return { content: [{ type: "text" as const, text: result }], details: undefined };
   },
 };

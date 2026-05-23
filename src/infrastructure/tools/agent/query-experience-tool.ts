@@ -42,7 +42,7 @@ export const queryExperienceTool: ToolDefinition = {
   execute: async (_toolCallId: string, params: any) => {
     try {
       // Lazy import to avoid issues when experience file doesn't exist
-      const { queryAndFormatExperience } = await import('../../services/intelligence/experience-query.js');
+      const { queryAndFormatExperience } = await import('../../../services/intelligence/experience-query.js');
       const result = queryAndFormatExperience(params);
       return { content: [{ type: "text" as const, text: result }], details: undefined };
     } catch (e) {

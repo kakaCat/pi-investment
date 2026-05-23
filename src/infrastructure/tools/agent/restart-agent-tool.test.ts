@@ -8,7 +8,7 @@ jest.unstable_mockModule("child_process", () => ({
   execSync: execSyncMock,
 }));
 
-const { buildRestartContext, buildRestartExecPlan, resetTerminalForRestart } = await import("./restart-agent-tool.js");
+const { buildRestartContext, buildRestartExecPlan, findProjectRoot, resetTerminalForRestart } = await import("./restart-agent-tool.js");
 
 describe("buildRestartContext", () => {
   test("stores the SDK session file and id so restart can resume the same session", () => {
@@ -59,6 +59,12 @@ describe("resetTerminalForRestart", () => {
 });
 
 describe("buildRestartExecPlan", () => {
+  test("finds the repository root from a nested source directory", () => {
+    expect(findProjectRoot("/Users/mac/Documents/ai/pi-investment/src/infrastructure/tools/agent")).toBe(
+      "/Users/mac/Documents/ai/pi-investment",
+    );
+  });
+
   test("uses execve-compatible argv for the local tsx binary", () => {
     const plan = buildRestartExecPlan({
       projectRoot: "/project",
@@ -68,6 +74,14 @@ describe("buildRestartExecPlan", () => {
 
     expect(plan.file).toBe("/project/node_modules/.bin/tsx");
     expect(plan.args).toEqual(["/project/node_modules/.bin/tsx", "/project/src/index.ts"]);
+  });
+
+  test("uses the repository root by default so restart can find the local tsx binary", () => {
+    const plan = buildRestartExecPlan({
+      argv: ["/node", "/Users/mac/Documents/ai/pi-investment/src/index.ts"],
+    });
+
+    expect(plan.file).toBe("/Users/mac/Documents/ai/pi-investment/node_modules/.bin/tsx");
   });
 
   test("falls back to node plus the current argv when no local tsx binary is available", () => {

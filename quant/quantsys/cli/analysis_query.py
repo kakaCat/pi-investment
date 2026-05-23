@@ -63,6 +63,13 @@ def calculate_technical_indicators(symbol: str) -> dict[str, Any]:
             signals.append("RSI超卖")
         signals.append("MACD金叉" if _safe_float(dif.iloc[-1]) > _safe_float(dea.iloc[-1]) else "MACD死叉")
 
+        dif_val = _safe_float(dif.iloc[-1])
+        dea_val = _safe_float(dea.iloc[-1])
+        histogram_val = _safe_float((dif - dea).iloc[-1] * 2)
+        bb_upper = _safe_float((bb_mid + 2 * bb_std).iloc[-1])
+        bb_mid_val = _safe_float(bb_mid.iloc[-1])
+        bb_lower = _safe_float((bb_mid - 2 * bb_std).iloc[-1])
+
         return {
             "symbol": clean,
             "current_price": current,
@@ -73,15 +80,21 @@ def calculate_technical_indicators(symbol: str) -> dict[str, Any]:
                 "ma60": _safe_float(ma60) if ma60 is not None and not _is_nan(ma60) else None,
             },
             "macd": {
-                "dif": _safe_float(dif.iloc[-1]),
-                "dea": _safe_float(dea.iloc[-1]),
-                "histogram": _safe_float((dif - dea).iloc[-1] * 2),
+                "dif": dif_val,
+                "dea": dea_val,
+                "histogram": histogram_val,
+                "interpretation": _interpret_macd(dif_val, dea_val, histogram_val),
             },
-            "rsi_14": rsi_value,
+            "rsi": {
+                "value": rsi_value,
+                "interpretation": _interpret_rsi(rsi_value),
+            },
+            "rsi_14": rsi_value,  # 保留向后兼容
             "bollinger": {
-                "upper": _safe_float((bb_mid + 2 * bb_std).iloc[-1]),
-                "mid": _safe_float(bb_mid.iloc[-1]),
-                "lower": _safe_float((bb_mid - 2 * bb_std).iloc[-1]),
+                "upper": bb_upper,
+                "mid": bb_mid_val,
+                "lower": bb_lower,
+                "interpretation": _interpret_bollinger(current, bb_upper, bb_mid_val, bb_lower),
             },
             "signals": signals,
             "data_date": _today(),
@@ -151,6 +164,12 @@ def analyze_price_action(symbol: str, period: int = 60) -> dict[str, Any]:
         low_52w = float(recent_52w["low"].astype(float).min())
         streak_direction, streak_days = _streak(close.tolist())
 
+        # 计算交易建议价格
+        support = _safe_float(low.min())
+        resistance = _safe_float(high.max())
+        suggested_stop_loss = _safe_float(current - atr * 2)  # 当前价 - 2倍ATR
+        suggested_take_profit = _safe_float(current + atr * 3)  # 当前价 + 3倍ATR
+
         return {
             "symbol": clean,
             "period": lookback,
@@ -169,13 +188,18 @@ def analyze_price_action(symbol: str, period: int = 60) -> dict[str, Any]:
             },
             "cci": {"cci": _safe_float(cci_value), "signal": cci_signal},
             "support_resistance": {
-                "support": _safe_float(low.min()),
-                "resistance": _safe_float(high.max()),
+                "support": support,
+                "resistance": resistance,
             },
             "volatility": {
                 "atr": _safe_float(atr),
                 "atr_pct": _safe_float(atr / current * 100 if current else 0),
                 "max_drawdown_pct": _safe_float(max_drawdown),
+            },
+            "trading_levels": {
+                "suggested_stop_loss": suggested_stop_loss,
+                "suggested_take_profit": suggested_take_profit,
+                "risk_reward_ratio": _safe_float((suggested_take_profit - current) / (current - suggested_stop_loss) if current > suggested_stop_loss else 0),
             },
             "volume": {
                 "obv": _safe_float(obv.iloc[-1], decimals=0),
@@ -254,7 +278,7 @@ def calculate_buy_range(symbol: str, current_price: float | None = None) -> dict
         tech_support = _safe_float(sum(tech_supports[:2]) / min(2, len(tech_supports)))
         if fundamental_support and fundamental_support > 0:
             ideal_buy = _safe_float(tech_support * 0.7 + fundamental_support * 0.3)
-            safe_buy = _safe_float(min(tech_supports[0], fundamental_support * 0.95))
+            safe_buy = _safe_float(tech_supports[0])
         else:
             ideal_buy = tech_support
             safe_buy = _safe_float(tech_supports[0])
@@ -302,8 +326,12 @@ def calculate_buy_range(symbol: str, current_price: float | None = None) -> dict
         return {"error": str(exc), "symbol": clean}
 
 
+# ⚠️ DEPRECATED — 实际生效的是 financial_query.py 的同名函数。
+# main.py 导入 get_stock_valuation 来自 financial_query，
+# daemon 也只注册了 financial_query 版本。保留此函数以避免
+# 潜在的未发现调用方报错，但不再维护。
 def get_stock_valuation(symbol: str) -> dict[str, Any]:
-    """Analyze absolute valuation using PE, PB, and Graham-style fair value."""
+    """⚠️ DEPRECATED — 请使用 financial_query.get_stock_valuation。"""
     clean = _clean_symbol(symbol)
     try:
         quote = get_stock_quote(clean)
@@ -387,8 +415,23 @@ def get_pe_percentile(symbol: str, years: int = 5) -> dict[str, Any]:
         return {"error": str(exc), "symbol": clean}
 
 
-def get_quality_score(symbol: str) -> dict[str, Any]:
-    """Score company quality from recent financial indicators."""
+def get_quality_score(symbol: str, framework: str = "auto") -> dict[str, Any]:
+    """Score company quality from recent financial indicators.
+
+    Args:
+        symbol: Stock code
+        framework: 'auto' (detect lifecycle → route), 'traditional' (original),
+                   'tech_growth' (new tech framework)
+
+    When framework='auto' (default), the function:
+    1. Detects company lifecycle stage (investment / rampup / mature)
+    2. Routes to appropriate scoring framework
+    3. Returns additional lifecycle metadata fields
+
+    Traditional framework (unchanged): ROE, gross_margin, net_margin, debt_ratio
+    Tech framework: revenue_growth, innovation_intensity, operating_leverage,
+                    market_position, financial_health
+    """
     clean = _clean_symbol(symbol)
     try:
         financial = _get_financial_indicators(clean)
@@ -399,6 +442,44 @@ def get_quality_score(symbol: str) -> dict[str, Any]:
             return {"error": f"无财务数据: {clean}", "symbol": clean}
 
         latest = data[0]
+
+        # ---- Lifecycle detection & routing ----
+        if framework in ("auto", "tech_growth"):
+            # Fetch sector info for lifecycle classification
+            sector = ""
+            revenue_growth = None
+            try:
+                info = get_stock_info(clean)
+                if "error" not in info:
+                    sector = str(info.get("sector") or info.get("industry") or "")
+                    # Try to get revenue growth from market data
+                    quote = get_stock_quote(clean)
+                    rev_growth = info.get("revenue_growth")
+                    if rev_growth is not None:
+                        revenue_growth = _safe_float(rev_growth)
+            except Exception:
+                pass
+
+            from .lifecycle import classify_lifecycle
+
+            fin_dict = {
+                "roe": _safe_float(latest.get("roe", 0)),
+                "gross_margin": _safe_float(latest.get("gross_margin", 0)),
+                "net_margin": _safe_float(latest.get("net_margin", 0)),
+                "debt_ratio": _safe_float(latest.get("debt_ratio", 100)),
+            }
+            lifecycle = classify_lifecycle(fin_dict, sector, revenue_growth)
+
+            # If framework=auto and lifecycle says tech → use tech scoring
+            if framework == "auto" and lifecycle["framework"] == "tech_growth":
+                return _get_tech_quality_score(clean, fin_dict, lifecycle, revenue_growth, sector)
+            elif framework == "auto" and lifecycle["framework"] == "hybrid":
+                return _get_hybrid_quality_score(clean, fin_dict, lifecycle, revenue_growth)
+            elif framework == "tech_growth":
+                return _get_tech_quality_score(clean, fin_dict, lifecycle, revenue_growth, sector)
+            # else: framework=auto + lifecycle=mature → fall through to traditional
+
+        # ---- Traditional scoring (original, unchanged) ----
         score = 0
         details: dict[str, Any] = {}
         roe = _safe_float(latest.get("roe", 0))
@@ -472,10 +553,166 @@ def get_quality_score(symbol: str) -> dict[str, Any]:
             "grade": grade,
             "details": details,
             "advice": "建议投资" if score >= 65 else ("谨慎考虑" if score >= 50 else "建议回避"),
+            "framework_used": "traditional",
+            "lifecycle_stage": "mature",
             "data_date": _today(),
         }
     except Exception as exc:
         return {"error": str(exc), "symbol": clean}
+
+
+def _get_tech_quality_score(
+    symbol: str,
+    fin_dict: dict[str, Any],
+    lifecycle: dict[str, Any],
+    revenue_growth: float | None = None,
+    sector: str = "",
+) -> dict[str, Any]:
+    """Route to tech_growth scoring framework."""
+    from .tech_scoring import tech_quality_score, tech_valuation_score
+
+    # Get PE/PB for valuation
+    pe = None
+    pb = None
+    try:
+        quote = get_stock_quote(symbol)
+        if "error" not in quote:
+            pe = _safe_float(quote.get("pe_dynamic"))
+            pb = _safe_float(quote.get("pb"))
+    except Exception:
+        pass
+
+    q = tech_quality_score(fin_dict, revenue_growth)
+    v = tech_valuation_score(pe, pb, revenue_growth)
+
+    # Determine overall grade from tech score
+    score = q["score"]
+    if score >= 80:
+        overall_grade = "A（优质成长）"
+    elif score >= 65:
+        overall_grade = "B（良好成长）"
+    elif score >= 50:
+        overall_grade = "C（一般成长）"
+    elif score >= 35:
+        overall_grade = "D（成长存疑）"
+    else:
+        overall_grade = "E（成长乏力）"
+
+    return {
+        "symbol": symbol,
+        "score": score,
+        "grade": overall_grade,
+        "details": {
+            **q["dimensions"],
+            # Flat fallbacks for backward compat (screening_query expects these)
+            "roe": fin_dict.get("roe", 0),
+            "gross_margin": fin_dict.get("gross_margin", 0),
+            "net_margin": fin_dict.get("net_margin", 0),
+            "debt_ratio": fin_dict.get("debt_ratio", 0),
+        },
+        "valuation_score": v["score"],
+        "valuation_status": v.get("valuation_status", "未知"),
+        "valuation_details": {k: vv for k, vv in v.items() if k not in ("score", "valuation_status")},
+        "advice": "成长性良好" if score >= 65 else ("成长性一般" if score >= 50 else "成长性不足"),
+        "framework_used": "tech_growth",
+        "lifecycle_stage": lifecycle["stage"],
+        "lifecycle_reason": lifecycle["reason"],
+        "lifecycle_confidence": lifecycle["confidence"],
+        "data_date": _today(),
+    }
+
+
+def _get_hybrid_quality_score(
+    symbol: str,
+    fin_dict: dict[str, Any],
+    lifecycle: dict[str, Any],
+    revenue_growth: float | None = None,
+) -> dict[str, Any]:
+    """Blend traditional and tech scoring for rampup-phase companies.
+
+    Returns both scores + a blended recommendation, with traditional
+    scoring as the primary grade but tech dimensions visible.
+    """
+    from .tech_scoring import tech_quality_score, tech_valuation_score
+
+    # Traditional score (for backward compat)
+    roe = fin_dict["roe"]
+    gross_margin = fin_dict["gross_margin"]
+    net_margin = fin_dict["net_margin"]
+    debt_ratio = fin_dict["debt_ratio"]
+
+    trad_score = 0
+    if roe >= 20:
+        trad_score += 40
+    elif roe >= 15:
+        trad_score += 32
+    elif roe >= 12:
+        trad_score += 24
+    elif roe >= 8:
+        trad_score += 12
+    if debt_ratio < 30:
+        trad_score += 25
+    elif debt_ratio < 50:
+        trad_score += 18
+    elif debt_ratio < 65:
+        trad_score += 10
+    elif debt_ratio < 80:
+        trad_score += 3
+    if gross_margin >= 50:
+        trad_score += 20
+    elif gross_margin >= 35:
+        trad_score += 15
+    elif gross_margin >= 20:
+        trad_score += 10
+    elif gross_margin >= 10:
+        trad_score += 5
+    if net_margin >= 20:
+        trad_score += 15
+    elif net_margin >= 10:
+        trad_score += 10
+    elif net_margin >= 5:
+        trad_score += 5
+    trad_score = max(0, min(100, trad_score))
+
+    # Tech score
+    q = tech_quality_score(fin_dict, revenue_growth)
+    tech_score = q["score"]
+
+    # Blended: 60% traditional + 40% tech
+    blended = round(trad_score * 0.6 + tech_score * 0.4, 1)
+
+    if blended >= 80:
+        grade = "A（优质）"
+    elif blended >= 65:
+        grade = "B（良好）"
+    elif blended >= 50:
+        grade = "C（一般）"
+    elif blended >= 35:
+        grade = "D（较差）"
+    else:
+        grade = "E（差）"
+
+    return {
+        "symbol": symbol,
+        "score": blended,
+        "grade": grade,
+        "details": {
+            "traditional_score": trad_score,
+            "tech_growth_score": tech_score,
+            "tech_dimensions": q["dimensions"],
+            "blend_ratio": "传统60% + 科技40%",
+            "roe": roe,
+            "gross_margin": gross_margin,
+            "net_margin": net_margin,
+            "debt_ratio": debt_ratio,
+        },
+        "advice": "混合评估" if blended >= 50 else "建议回避",
+        "framework_used": "hybrid",
+        "lifecycle_stage": lifecycle["stage"],
+        "lifecycle_reason": lifecycle["reason"],
+        "hybrid_note": "处于爬坡期，同时参考传统和科技框架",
+        "data_date": _today(),
+    }
 
 
 def get_exit_plan(symbol: str, buy_price: float, shares: int = 100) -> dict[str, Any]:
@@ -597,6 +834,33 @@ def _history_frame(symbol: str, limit: int):
     return frame.dropna(subset=["open", "high", "low", "close", "volume"]).sort_values("date").reset_index(drop=True)
 
 
+def _annualize_quarterly(value: float, report_date: str) -> float:
+    """年化单季度ROE（Q1×4, 中报×2, 三季报×4/3, 年报不变）。
+
+    同花顺「按报告期」返回的 ROE 是各报告期独立值：
+    - 一季报(03-31): 仅Q1 → ×4
+    - 中报(06-30):  仅Q2或H1 → 按H1处理 ×2
+    - 三季报(09-30): 前三季度 → ×4/3
+    - 年报(12-31):   全年 → 不变
+
+    报告日格式支持 YYYYMMDD 和 YYYY-MM-DD。
+    """
+    try:
+        clean_date = report_date.replace("-", "")
+        if clean_date.endswith("1231"):
+            return value
+        month = int(clean_date[4:6])
+        if month == 3:
+            return round(value * 4, 2)
+        elif month == 6:
+            return round(value * 2, 2)
+        elif month == 9:
+            return round(value * 4 / 3, 2)
+    except Exception:
+        pass
+    return value
+
+
 def _get_financial_indicators(symbol: str) -> dict[str, Any]:
     try:
         _disable_proxy_env()
@@ -614,9 +878,11 @@ def _get_financial_indicators(symbol: str) -> dict[str, Any]:
             return _safe_float(value)
 
         for _, row in frame.iterrows():
+            report_date = str(row.get("报告期", ""))
+            roe_raw = parse_pct(row.get("净资产收益率", 0))
             quarters.append({
-                "report_date": str(row.get("报告期", "")),
-                "roe": parse_pct(row.get("净资产收益率", 0)),
+                "report_date": report_date,
+                "roe": _annualize_quarterly(roe_raw, report_date),
                 "gross_margin": parse_pct(row.get("销售毛利率", 0)),
                 "net_margin": parse_pct(row.get("销售净利率", 0)),
                 "debt_ratio": parse_pct(row.get("资产负债率", 0)),
@@ -923,6 +1189,52 @@ def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
+def _interpret_rsi(rsi_value: float) -> str:
+    """解读 RSI 指标"""
+    if rsi_value >= 70:
+        return f"RSI {rsi_value:.1f} 处于超买区域，短期可能面临回调压力"
+    elif rsi_value >= 60:
+        return f"RSI {rsi_value:.1f} 偏强，但尚未超买"
+    elif rsi_value >= 40:
+        return f"RSI {rsi_value:.1f} 在中性区域，无明显超买超卖"
+    elif rsi_value >= 30:
+        return f"RSI {rsi_value:.1f} 偏弱，但尚未超卖"
+    else:
+        return f"RSI {rsi_value:.1f} 处于超卖区域，可能存在反弹机会"
+
+
+def _interpret_macd(dif: float, dea: float, histogram: float) -> str:
+    """解读 MACD 指标"""
+    if dif > dea:
+        if histogram > 0 and dif > 0:
+            return f"MACD 金叉且在零轴上方（DIF={dif:.2f}, DEA={dea:.2f}），多头趋势强劲"
+        elif histogram > 0:
+            return f"MACD 金叉（DIF={dif:.2f}, DEA={dea:.2f}），短期看涨信号"
+        else:
+            return f"MACD 在零轴下方但金叉（DIF={dif:.2f}, DEA={dea:.2f}），弱势反弹"
+    else:
+        if histogram < 0 and dif < 0:
+            return f"MACD 死叉且在零轴下方（DIF={dif:.2f}, DEA={dea:.2f}），空头趋势强劲"
+        elif histogram < 0:
+            return f"MACD 死叉（DIF={dif:.2f}, DEA={dea:.2f}），短期看跌信号"
+        else:
+            return f"MACD 在零轴上方但死叉（DIF={dif:.2f}, DEA={dea:.2f}），强势回调"
+
+
+def _interpret_bollinger(current: float, upper: float, mid: float, lower: float) -> str:
+    """解读布林带指标"""
+    if current >= upper:
+        return f"价格触及布林带上轨（{upper:.2f}），可能超买"
+    elif current >= mid + (upper - mid) * 0.5:
+        return f"价格在布林带上半部（中轨={mid:.2f}），偏强"
+    elif current >= mid:
+        return f"价格在布林带中轨上方（{mid:.2f}），中性偏强"
+    elif current >= lower + (mid - lower) * 0.5:
+        return f"价格在布林带下半部（中轨={mid:.2f}），偏弱"
+    else:
+        return f"价格接近布林带下轨（{lower:.2f}），可能超卖"
+
+
 # === Daemon handler registration ===
 
 from .daemon import register_daemon_method
@@ -961,7 +1273,10 @@ def register_daemon_handlers() -> None:
         return compare_peers(params.get("symbol"))
 
     def _get_quality_score(params):
-        return get_quality_score(params.get("symbol"))
+        return get_quality_score(
+            params.get("symbol"),
+            framework=params.get("framework", "auto"),
+        )
 
     register_daemon_method("calculate_technical_indicators", _calculate_technical)
     register_daemon_method("analyze_technical", _calculate_technical)
@@ -972,3 +1287,4 @@ def register_daemon_handlers() -> None:
     register_daemon_method("get_exit_plan", _get_exit_plan)
     register_daemon_method("compare_peers", _compare_peers)
     register_daemon_method("get_quality_score", _get_quality_score)
+    register_daemon_method("get_tech_score", _get_quality_score)  # alias for explicit tech scoring

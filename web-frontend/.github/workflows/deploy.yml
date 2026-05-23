@@ -1,0 +1,122 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || 'production' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: web-frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./web-frontend
+        run: npm ci
+
+      - name: Build for production
+        working-directory: ./web-frontend
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Deploy to server via SSH
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          source: "web-frontend/dist/*"
+          target: "/tmp/pi-investment-web-${{ github.sha }}"
+          strip_components: 2
+
+      - name: Execute deployment script
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            # Backup current deployment
+            if [ -d /var/www/pi-investment-web ]; then
+              sudo mv /var/www/pi-investment-web /var/www/pi-investment-web.backup.$(date +%Y%m%d_%H%M%S)
+            fi
+
+            # Deploy new version
+            sudo mv /tmp/pi-investment-web-${{ github.sha }} /var/www/pi-investment-web
+
+            # Set permissions
+            sudo chown -R www-data:www-data /var/www/pi-investment-web
+            sudo chmod -R 755 /var/www/pi-investment-web
+
+            # Reload nginx
+            sudo nginx -t && sudo systemctl reload nginx
+
+            # Keep only last 3 backups
+            cd /var/www && ls -t pi-investment-web.backup.* 2>/dev/null | tail -n +4 | xargs -r sudo rm -rf
+
+      - name: Health check
+        run: |
+          sleep 5
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.DEPLOY_URL }})
+          if [ $response -eq 200 ]; then
+            echo "✅ Deployment successful! Site is responding with HTTP 200"
+          else
+            echo "❌ Deployment may have issues. HTTP status: $response"
+            exit 1
+          fi
+
+      - name: Notify deployment status
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Deployment to ${{ github.event.inputs.environment || 'production' }} ${{ job.status }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  deploy-docker:
+    name: Deploy via Docker
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'staging' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Deploy to Docker host
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DOCKER_HOST }}
+          username: ${{ secrets.DOCKER_USER }}
+          key: ${{ secrets.DOCKER_SSH_KEY }}
+          port: ${{ secrets.DOCKER_PORT || 22 }}
+          script: |
+            cd /opt/pi-investment
+            docker-compose pull web-frontend
+            docker-compose up -d web-frontend
+            docker-compose ps

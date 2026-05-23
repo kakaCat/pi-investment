@@ -1,0 +1,17 @@
+# 部署配置示例
+# 复制此文件为 .deploy.config 并填入实际值
+
+# SSH 部署配置
+DEPLOY_HOST=your-server-ip
+DEPLOY_USER=deploy
+DEPLOY_PATH=/var/www/pi-investment-web
+DEPLOY_PORT=22
+DEPLOY_URL=http://your-domain.com
+
+# Docker 部署配置
+DOCKER_HOST=your-docker-host
+DOCKER_USER=docker
+DOCKER_PORT=22
+
+# 环境
+ENVIRONMENT=production

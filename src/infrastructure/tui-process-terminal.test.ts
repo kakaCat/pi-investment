@@ -11,10 +11,12 @@ jest.unstable_mockModule("child_process", () => ({
 describe("pi-tui ProcessTerminal keyboard protocol patch", () => {
   const originalStdoutWrite = process.stdout.write;
   const originalStdinOn = process.stdin.on;
+  const originalStdinEmit = process.stdin.emit;
 
   afterEach(() => {
     process.stdout.write = originalStdoutWrite;
     process.stdin.on = originalStdinOn;
+    process.stdin.emit = originalStdinEmit;
     execSyncMock.mockReset();
     jest.restoreAllMocks();
   });
@@ -93,5 +95,14 @@ describe("pi-tui ProcessTerminal keyboard protocol patch", () => {
     process.stdin.setEncoding = originalSetEncoding;
     process.stdout.on = originalStdoutOn;
     process.kill = originalKill;
+  });
+
+  test("consumes TTY read EIO errors during restart instead of throwing", () => {
+    process.stdout.write = jest.fn(() => true) as unknown as typeof process.stdout.write;
+    const error = Object.assign(new Error("read EIO"), { code: "EIO" });
+
+    expect(() => {
+      process.stdin.emit("error", error);
+    }).not.toThrow();
   });
 });

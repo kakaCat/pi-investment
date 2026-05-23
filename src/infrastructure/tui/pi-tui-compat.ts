@@ -536,6 +536,13 @@ function installTerminalSafetyNet(): void {
   if (processWithFlag[TERMINAL_SAFETY_FLAG]) return;
   processWithFlag[TERMINAL_SAFETY_FLAG] = true;
 
+  process.stdin.on("error", (error: NodeJS.ErrnoException) => {
+    if (error.code === "EIO") {
+      resetTerminalModes({ restoreRawMode: true, runStty: true });
+      return;
+    }
+    throw error;
+  });
   process.on("exit", () => {
     resetTerminalModes();
   });

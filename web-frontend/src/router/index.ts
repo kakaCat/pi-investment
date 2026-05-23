@@ -1,0 +1,185 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router'
+import { ElLoading } from 'element-plus'
+
+// 懒加载布局组件
+const MainLayout = () => import('@/components/layout/MainLayout.vue')
+
+// 路由加载状态管理
+let loadingInstance: ReturnType<typeof ElLoading.service> | null = null
+let loadingTimer: ReturnType<typeof setTimeout> | null = null
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: '/',
+    component: MainLayout,
+    redirect: '/dashboard',
+    children: [
+      {
+        path: '/dashboard',
+        name: 'Dashboard',
+        component: () => import(/* webpackChunkName: "dashboard" */ '@/views/Dashboard/index.vue'),
+        meta: { title: '仪表盘', preload: true }
+      },
+      {
+        path: '/indicator-ide',
+        name: 'IndicatorIDE',
+        component: () => import(/* webpackChunkName: "indicator-ide" */ '@/views/IndicatorIDE/index.vue'),
+        meta: { title: '指标IDE' }
+      },
+      {
+        path: '/stock-list',
+        name: 'StockList',
+        component: () => import(/* webpackChunkName: "stock-list" */ '@/views/StockList/index.vue'),
+        meta: { title: '图表研究' }
+      },
+      {
+        path: '/stocks/:symbol',
+        name: 'StockDetail',
+        component: () => import(/* webpackChunkName: "stock-detail" */ '@/views/StockDetail/index.vue'),
+        meta: { title: '股票详情' }
+      },
+      {
+        path: '/factors',
+        name: 'FactorAnalysis',
+        component: () => import(/* webpackChunkName: "factor-analysis" */ '@/views/FactorAnalysis/index.vue'),
+        meta: { title: '因子分析' }
+      },
+      {
+        path: '/signals',
+        name: 'SignalList',
+        component: () => import(/* webpackChunkName: "signal-list" */ '@/views/SignalList/index.vue'),
+        meta: { title: '交易信号' }
+      },
+      {
+        path: '/opportunity-radar',
+        name: 'OpportunityRadar',
+        component: () => import(/* webpackChunkName: "opportunity-radar" */ '@/views/OpportunityRadar/index.vue'),
+        meta: { title: '机会雷达' }
+      },
+      {
+        path: '/backtest',
+        name: 'BacktestCenter',
+        component: () => import(/* webpackChunkName: "backtest-center" */ '@/views/BacktestCenter/index.vue'),
+        meta: { title: '回测与快速交易' }
+      },
+      {
+        path: '/portfolio',
+        name: 'Portfolio',
+        component: () => import(/* webpackChunkName: "portfolio" */ '@/views/Portfolio/index.vue'),
+        meta: { title: '持仓管理', preload: true }
+      },
+      {
+        path: '/orders',
+        name: 'Orders',
+        component: () => import(/* webpackChunkName: "orders" */ '@/views/Orders/index.vue'),
+        meta: { title: '订单管理' }
+      },
+      {
+        path: '/risk',
+        name: 'RiskCheck',
+        component: () => import(/* webpackChunkName: "risk-check" */ '@/views/RiskCheck/index.vue'),
+        meta: { title: '风控检查' }
+      },
+      {
+        path: '/strategy-center',
+        name: 'StrategyCenter',
+        component: () => import(/* webpackChunkName: "strategy-center" */ '@/views/StrategyCenter/index.vue'),
+        meta: { title: '策略运营中心' }
+      },
+      {
+        path: '/ml',
+        name: 'MLEngine',
+        component: () => import(/* webpackChunkName: "ml-engine" */ '@/views/MLEngine/index.vue'),
+        meta: { title: 'ML引擎' }
+      },
+      {
+        path: '/trades',
+        name: 'Trades',
+        component: () => import(/* webpackChunkName: "trades" */ '@/views/Trades/index.vue'),
+        meta: { title: '交易记录' }
+      },
+      {
+        path: '/quant-pipeline',
+        name: 'QuantPipeline',
+        component: () => import(/* webpackChunkName: "quant-pipeline" */ '@/views/QuantPipeline/index.vue'),
+        meta: { title: '量化链路' }
+      },
+      {
+        path: '/strategy-config',
+        name: 'StrategyConfig',
+        component: () => import(/* webpackChunkName: "strategy-config" */ '@/views/StrategyConfig/index.vue'),
+        meta: { title: '策略配置' }
+      },
+      {
+        path: '/scheduler',
+        name: 'Scheduler',
+        component: () => import(/* webpackChunkName: "scheduler" */ '@/views/Scheduler/index.vue'),
+        meta: { title: '定时任务' }
+      },
+      {
+        path: '/data-update',
+        name: 'DataUpdate',
+        component: () => import(/* webpackChunkName: "data-update" */ '@/views/DataUpdate/index.vue'),
+        meta: { title: '数据更新' }
+      },
+      {
+        path: '/daily-report',
+        name: 'DailyReport',
+        component: () => import(/* webpackChunkName: "daily-report" */ '@/views/DailyReport/index.vue'),
+        meta: { title: '日报' }
+      },
+      {
+        path: '/executions',
+        name: 'Executions',
+        component: () => import(/* webpackChunkName: "executions" */ '@/views/Executions/index.vue'),
+        meta: { title: '执行记录' }
+      }
+    ]
+  }
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes
+})
+
+// 路由守卫
+router.beforeEach((to, _from) => {
+  // 显示加载状态（延迟200ms，避免快速切换时闪烁）
+  loadingTimer = setTimeout(() => {
+    loadingInstance = ElLoading.service({
+      lock: true,
+      text: '加载中...',
+      background: 'rgba(0, 0, 0, 0.7)'
+    })
+  }, 200)
+
+  // 设置页面标题
+  if (to.meta.title) {
+    document.title = `${to.meta.title} - 量化交易系统`
+  }
+})
+
+router.afterEach(() => {
+  // 清除加载状态
+  if (loadingTimer) {
+    clearTimeout(loadingTimer)
+    loadingTimer = null
+  }
+  if (loadingInstance) {
+    loadingInstance.close()
+    loadingInstance = null
+  }
+})
+
+// 路由错误处理
+router.onError((error) => {
+  console.error('路由加载错误:', error)
+  if (loadingInstance) {
+    loadingInstance.close()
+    loadingInstance = null
+  }
+})
+
+export default router

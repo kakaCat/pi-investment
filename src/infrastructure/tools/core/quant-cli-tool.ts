@@ -8,6 +8,7 @@ type ParamRule = {
   enum?: string[];
   min?: number;
   symbol?: boolean;
+  positive?: boolean;
 };
 
 type CommandRule = {
@@ -245,32 +246,12 @@ const COMMANDS: Record<string, CommandRule> = {
     params: { symbol: { required: true, type: "string", symbol: true } },
     example: { symbol: "600519" },
   },
-  "analysis.price_action": {
-    domain: "analysis",
-    action: "price-action",
-    description: "分析走势结构、趋势强弱、动量、支撑阻力、波动率、量能和52周位置。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      period: { type: "integer", min: 60 },
-    },
-    example: { symbol: "600519", period: 80 },
-  },
   "analysis.candlestick": {
     domain: "analysis",
     action: "candlestick",
     description: "识别K线形态、趋势线、斐波那契回调位和跳空缺口。",
     params: { symbol: { required: true, type: "string", symbol: true } },
     example: { symbol: "600519" },
-  },
-  "analysis.buy_range": {
-    domain: "analysis",
-    action: "buy-range",
-    description: "计算参考买入区间、支撑位、止损位和目标价。仅作价格参考，不构成买入信号。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      current_price: { type: "number", min: 0 },
-    },
-    example: { symbol: "600519", current_price: 100.5 },
   },
   "analysis.valuation": {
     domain: "analysis",
@@ -295,17 +276,6 @@ const COMMANDS: Record<string, CommandRule> = {
     description: "基于 ROE、负债率、毛利率、净利率和趋势给公司质量打分。",
     params: { symbol: { required: true, type: "string", symbol: true } },
     example: { symbol: "600519" },
-  },
-  "analysis.exit_plan": {
-    domain: "analysis",
-    action: "exit-plan",
-    description: "根据买入价、持股数和估值计算三档止盈计划及当前盈亏。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      buy_price: { required: true, type: "number", min: 0 },
-      shares: { type: "integer", min: 1 },
-    },
-    example: { symbol: "600519", buy_price: 90, shares: 200 },
   },
   "analysis.peers": {
     domain: "analysis",

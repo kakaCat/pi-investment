@@ -1363,6 +1363,93 @@ def build_registry() -> CommandRegistry:
             handler=_handle_position_summary,
         )
     )
+    registry.register(
+        CommandSpec(
+            name="watchlist.list",
+            domain="watchlist",
+            action="list",
+            description="List watchlist items",
+            params={
+                "pool": {"type": "string", "required": False},
+                "priority": {"type": "integer", "required": False},
+                "status": {"type": "string", "required": False, "default": "watching"}
+            },
+            examples=["quant watchlist +list --json", "quant watchlist +list --pool A --priority 1 --json"],
+            handler=_handle_watchlist_list,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="watchlist.get",
+            domain="watchlist",
+            action="get",
+            description="Get watchlist item detail",
+            params={
+                "symbol": {"type": "string", "required": True}
+            },
+            examples=["quant watchlist +get --symbol 600519 --json"],
+            handler=_handle_watchlist_get,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="watchlist.add",
+            domain="watchlist",
+            action="add",
+            description="Add stock to watchlist",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "name": {"type": "string", "required": True},
+                "market": {"type": "string", "required": True},
+                "priority": {"type": "integer", "required": False},
+                "pool": {"type": "string", "required": False},
+                "status": {"type": "string", "required": False},
+                "buy_range_low": {"type": "number", "required": False},
+                "buy_range_high": {"type": "number", "required": False},
+                "target_price": {"type": "number", "required": False},
+                "stop_loss": {"type": "number", "required": False},
+                "reason": {"type": "string", "required": False},
+                "notes": {"type": "string", "required": False}
+            },
+            examples=["quant watchlist +add --symbol 600519 --name 贵州茅台 --market A --priority 1 --json"],
+            handler=_handle_watchlist_add,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="watchlist.remove",
+            domain="watchlist",
+            action="remove",
+            description="Remove stock from watchlist",
+            params={
+                "symbol": {"type": "string", "required": True}
+            },
+            examples=["quant watchlist +remove --symbol 600519 --json"],
+            handler=_handle_watchlist_remove,
+        )
+    )
+    registry.register(
+        CommandSpec(
+            name="watchlist.update",
+            domain="watchlist",
+            action="update",
+            description="Update watchlist item fields",
+            params={
+                "symbol": {"type": "string", "required": True},
+                "priority": {"type": "integer", "required": False},
+                "pool": {"type": "string", "required": False},
+                "status": {"type": "string", "required": False},
+                "buy_range_low": {"type": "number", "required": False},
+                "buy_range_high": {"type": "number", "required": False},
+                "target_price": {"type": "number", "required": False},
+                "stop_loss": {"type": "number", "required": False},
+                "reason": {"type": "string", "required": False},
+                "notes": {"type": "string", "required": False}
+            },
+            examples=["quant watchlist +update --symbol 600519 --priority 2 --pool B --json"],
+            handler=_handle_watchlist_update,
+        )
+    )
 
     for spec in _script_command_specs():
         registry.register(spec)
@@ -1472,6 +1559,11 @@ def parse_args(raw_args: list[str]) -> dict[str, Any]:
     parser.add_argument("--take-profit", type=float)
     parser.add_argument("--notes")
     parser.add_argument("--reason")
+    parser.add_argument("--pool")
+    parser.add_argument("--priority", type=int)
+    parser.add_argument("--buy-range-low", type=float)
+    parser.add_argument("--buy-range-high", type=float)
+    parser.add_argument("--target-price", type=float)
 
     namespace = parser.parse_args(raw_args)
     parsed = vars(namespace)
@@ -2201,6 +2293,140 @@ def _handle_position_summary(context: CliContext, params: dict[str, Any]) -> dic
     return {
         "params": params,
         "data": summary
+    }
+
+
+def _handle_watchlist_list(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 watchlist.list 命令"""
+    from ..db.dao import WatchlistDAO
+
+    dao = WatchlistDAO()
+    pool = params.get('pool')
+    priority = params.get('priority')
+    status = params.get('status', 'watching')
+
+    items = dao.list_watchlist(pool=pool, priority=priority, status=status)
+
+    return {
+        "params": params,
+        "data": {
+            "total": len(items),
+            "items": items
+        }
+    }
+
+
+def _handle_watchlist_get(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 watchlist.get 命令"""
+    from ..db.dao import WatchlistDAO
+
+    symbol = _require_param(params, "symbol")
+
+    dao = WatchlistDAO()
+    item = dao.get_watchlist_item(symbol=symbol)
+
+    if not item:
+        return {
+            "params": params,
+            "data": {
+                "error": f"Watchlist item not found for symbol {symbol}"
+            }
+        }
+
+    return {
+        "params": params,
+        "data": item
+    }
+
+
+def _handle_watchlist_add(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 watchlist.add 命令"""
+    from ..db.dao import WatchlistDAO
+
+    # Required fields
+    symbol = _require_param(params, "symbol")
+    name = _require_param(params, "name")
+    market = _require_param(params, "market")
+
+    # Build data dict
+    data = {
+        "symbol": symbol,
+        "name": name,
+        "market": market
+    }
+
+    # Optional fields
+    optional_fields = [
+        'priority', 'pool', 'status', 'buy_range_low', 'buy_range_high',
+        'target_price', 'stop_loss', 'reason', 'notes'
+    ]
+    for field in optional_fields:
+        if field in params:
+            data[field] = params[field]
+
+    dao = WatchlistDAO()
+    try:
+        item_id = dao.add_to_watchlist(data)
+        return {
+            "params": params,
+            "data": {
+                "id": item_id,
+                "symbol": symbol,
+                "status": "added"
+            }
+        }
+    except ValueError as e:
+        raise CliError("WATCHLIST_ADD_FAILED", str(e), exit_code=2) from e
+
+
+def _handle_watchlist_remove(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 watchlist.remove 命令"""
+    from ..db.dao import WatchlistDAO
+
+    symbol = _require_param(params, "symbol")
+
+    dao = WatchlistDAO()
+    rows_deleted = dao.remove_from_watchlist(symbol=symbol)
+
+    return {
+        "params": params,
+        "data": {
+            "symbol": symbol,
+            "rows_deleted": rows_deleted,
+            "status": "removed" if rows_deleted > 0 else "not_found"
+        }
+    }
+
+
+def _handle_watchlist_update(context: CliContext, params: dict[str, Any]) -> dict[str, Any]:
+    """处理 watchlist.update 命令"""
+    from ..db.dao import WatchlistDAO
+
+    symbol = _require_param(params, "symbol")
+
+    # Build update data dict
+    update_data = {}
+    allowed_fields = [
+        'priority', 'pool', 'status', 'buy_range_low', 'buy_range_high',
+        'target_price', 'stop_loss', 'reason', 'notes'
+    ]
+    for field in allowed_fields:
+        if field in params:
+            update_data[field] = params[field]
+
+    if not update_data:
+        raise CliError("MISSING_PARAMETER", "No update fields provided", exit_code=2)
+
+    dao = WatchlistDAO()
+    rows_updated = dao.update_watchlist_item(symbol=symbol, data=update_data)
+
+    return {
+        "params": params,
+        "data": {
+            "symbol": symbol,
+            "rows_updated": rows_updated,
+            "updated_fields": list(update_data.keys())
+        }
     }
 
 
