@@ -850,18 +850,18 @@ onMounted(() => {
 
 .code-editor {
   flex: 1;
-  background: #1e1e1e;
-  border-radius: 8px;
+  background: #1f2937; // gray-900，从 #1e1e1e 改为 #1f2937
+  border-radius: 8px; // rounded-lg
   overflow: hidden;
-  border: 1px solid #333;
+  border: none; // 移除原有的 border: 1px solid #333
 
   .code-textarea {
     width: 100%;
-    height: 100%;
-    min-height: 400px;
+    height: 384px; // h-96，从 min-height: 400px 改为固定 384px
+    min-height: 384px;
     padding: 16px;
-    background: #1e1e1e;
-    color: #4ec9b0;
+    background: #1f2937; // 从 #1e1e1e 改为 #1f2937
+    color: #4ade80; // green-400，从 #4ec9b0 改为 #4ade80
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
     font-size: 13px;
     line-height: 1.6;
@@ -873,9 +873,19 @@ onMounted(() => {
     overflow-x: auto;
 
     &::placeholder {
-      color: #6a9955;
+      color: #6b7280; // gray-500，从 #6a9955 改为 #6b7280
     }
   }
+}
+
+// 代码编辑器标签样式
+.text-xs.text-slate-500.uppercase.font-medium {
+  font-size: 11px;
+  color: #64748b; // slate-500
+  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
 }
 
 .preview-card {
