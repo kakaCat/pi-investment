@@ -175,3 +175,29 @@
     }
   }
 }
+
+// 输入框组件 - 统一圆角、边框、focus状态
+:deep(.el-input) {
+  .el-input__wrapper {
+    border-radius: 8px;
+    border: 1px solid var(--slate-200);
+    box-shadow: none;
+
+    &:hover {
+      border-color: var(--slate-300);
+    }
+
+    &.is-focus {
+      border-color: var(--blue-600);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+  }
+
+  .el-input__inner {
+    color: var(--slate-900);
+
+    &::placeholder {
+      color: var(--slate-400);
+    }
+  }
+}
