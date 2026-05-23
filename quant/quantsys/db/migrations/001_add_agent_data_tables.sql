@@ -2,6 +2,9 @@
 -- Date: 2026-05-23
 -- Description: Create watchlist table and extend positions, position_history, accounts tables
 
+-- 0. Create schema if not exists
+CREATE SCHEMA IF NOT EXISTS quant_agent;
+
 -- 1. Create trigger function for updated_at (reusable)
 CREATE OR REPLACE FUNCTION quant_agent.update_updated_at_column()
 RETURNS TRIGGER AS $$

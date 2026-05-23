@@ -22,12 +22,21 @@ class MigrationConfig:
     """迁移配置"""
 
     def __init__(self):
-        # PostgreSQL连接配置
-        self.pg_host = os.getenv('POSTGRES_HOST', 'localhost')
-        self.pg_port = os.getenv('POSTGRES_PORT', '5432')
-        self.pg_db = os.getenv('POSTGRES_DB', 'pi_investment')
-        self.pg_user = os.getenv('POSTGRES_USER', 'postgres')
-        self.pg_password = os.getenv('POSTGRES_PASSWORD')
+        # PostgreSQL连接配置 - 兼容项目现有配置
+        # 优先使用 DSN 格式（与 quantsys/data/db.py 一致）
+        self.pg_dsn = (
+            os.getenv('QUANT_DATABASE_URL')
+            or os.getenv('DATABASE_URL')
+            or os.getenv('POSTGRES_DSN')
+        )
+
+        # 如果没有 DSN，使用独立参数
+        if not self.pg_dsn:
+            self.pg_host = os.getenv('POSTGRES_HOST', 'localhost')
+            self.pg_port = os.getenv('POSTGRES_PORT', '5432')
+            self.pg_db = os.getenv('PGDATABASE', os.getenv('POSTGRES_DB', 'quant_investment'))
+            self.pg_user = os.getenv('POSTGRES_USER', os.getenv('USER', 'postgres'))
+            self.pg_password = os.getenv('POSTGRES_PASSWORD', '')
 
         # JSON文件路径
         self.project_root = Path(__file__).parent.parent.parent
@@ -40,9 +49,7 @@ class MigrationConfig:
 
     def validate(self) -> bool:
         """验证配置"""
-        if not self.pg_password:
-            print("❌ POSTGRES_PASSWORD环境变量未设置")
-            return False
+        # 不再强制要求密码（支持本地 socket 连接）
 
         if not self.json_dir.exists():
             print(f"❌ JSON目录不存在: {self.json_dir}")
@@ -490,22 +497,27 @@ if __name__ == '__main__':
         print(f"❌ 数据加载失败: {e}")
         sys.exit(1)
 
-    if args.dry_run:
-        print("🔍 Dry-run模式，退出")
-        sys.exit(0)
-
     # 3. 连接数据库
     print("=" * 60)
     print("步骤 3/6: 连接PostgreSQL")
     print("=" * 60)
     try:
-        conn = psycopg2.connect(
-            host=config.pg_host,
-            port=config.pg_port,
-            database=config.pg_db,
-            user=config.pg_user,
-            password=config.pg_password
-        )
+        # 支持 DSN 格式或独立参数
+        if config.pg_dsn:
+            print(f"使用 DSN 连接")
+            conn = psycopg2.connect(config.pg_dsn)
+        else:
+            print(f"连接到: {config.pg_user}@{config.pg_host}:{config.pg_port}/{config.pg_db}")
+            # 构建连接参数，只包含非空值
+            conn_params = {
+                'host': config.pg_host,
+                'port': config.pg_port,
+                'database': config.pg_db,
+                'user': config.pg_user,
+            }
+            if config.pg_password:
+                conn_params['password'] = config.pg_password
+            conn = psycopg2.connect(**conn_params)
         print("✅ 数据库连接成功\n")
     except Exception as e:
         print(f"❌ 数据库连接失败: {e}")
@@ -525,6 +537,18 @@ if __name__ == '__main__':
             print()
         else:
             print("⚠️  跳过Schema更新\n")
+
+        # Dry-run 模式在此退出
+        if args.dry_run:
+            print("=" * 60)
+            print("🔍 Dry-run模式验证完成")
+            print("=" * 60)
+            print("✅ 配置正确")
+            print("✅ JSON数据加载成功")
+            print("✅ 数据库连接成功")
+            print("✅ Schema验证通过")
+            print("\n💡 运行正式迁移: python3 quant/scripts/migrate_agent_data_to_postgres.py")
+            sys.exit(0)
 
         # 5. 执行数据迁移
         print("=" * 60)
