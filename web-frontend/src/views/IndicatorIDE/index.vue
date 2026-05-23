@@ -835,22 +835,22 @@ onMounted(() => {
       font-weight: 500;
     }
   }
-}
 
-// 搜索框样式覆盖
-:deep(.el-input) {
-  .el-input__wrapper {
-    border-radius: 8px; // rounded-lg
-    border: 1px solid #e2e8f0; // border-slate-200
-    padding: 8px 12px;
+  // 搜索框样式覆盖 - 限定作用域
+  :deep(.el-input) {
+    .el-input__wrapper {
+      border-radius: 8px; // rounded-lg
+      border: 1px solid #e2e8f0; // border-slate-200
+      padding: 8px 12px;
 
-    &:hover {
-      border-color: #cbd5e1; // slate-300
-    }
+      &:hover {
+        border-color: #cbd5e1; // slate-300
+      }
 
-    &.is-focus {
-      border-color: #3b82f6; // blue-500
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      &.is-focus {
+        border-color: #3b82f6; // blue-500
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      }
     }
   }
 }
