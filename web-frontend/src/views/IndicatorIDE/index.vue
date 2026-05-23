@@ -878,16 +878,6 @@ onMounted(() => {
   }
 }
 
-// 代码编辑器标签样式
-.text-xs.text-slate-500.uppercase.font-medium {
-  font-size: 11px;
-  color: #64748b; // slate-500
-  text-transform: uppercase;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  margin-bottom: 8px;
-}
-
 .preview-card {
   .chart-container {
     height: 280px;
