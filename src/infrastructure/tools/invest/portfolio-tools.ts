@@ -10,12 +10,10 @@ import { chinaDate } from "../../../utils/china-time.js";
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
 import { roundN, validatePositiveNumber } from "../shared/validators.js";
-import { WatchlistService } from "../../../services/portfolio/watchlist-service.js";
 
 const PI_DIR = join(process.cwd(), ".pi-invest");
 const _positionAdapter = new PositionCliAdapter();
 const _portfolioSvc = new PortfolioService(PI_DIR);
-const _watchlistSvc = new WatchlistService(PI_DIR);
 
 // ===== manage_portfolio =====
 export const managePortfolioTool: ToolDefinition = {
