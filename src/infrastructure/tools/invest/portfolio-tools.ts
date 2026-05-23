@@ -3,6 +3,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
+import { PositionCliAdapter } from "../../adapters/cli/position-cli-adapter.js";
 import { PortfolioService } from "../../../services/portfolio/portfolio-service.js";
 import { TradeService } from "../../../services/portfolio/trade-service.js";
 import { chinaDate } from "../../../utils/china-time.js";
@@ -12,6 +13,7 @@ import { roundN, validatePositiveNumber } from "../shared/validators.js";
 import { WatchlistService } from "../../../services/portfolio/watchlist-service.js";
 
 const PI_DIR = join(process.cwd(), ".pi-invest");
+const _positionAdapter = new PositionCliAdapter();
 const _portfolioSvc = new PortfolioService(PI_DIR);
 const _watchlistSvc = new WatchlistService(PI_DIR);
 
@@ -55,11 +57,13 @@ export const managePortfolioTool: ToolDefinition = {
     const { action, symbol, quantity, avg_cost, price_hkd, price, name, market, notes, commission, stop_loss, target_price } = params;
     try {
       if (action === "get") {
-        const data = _portfolioSvc.load();
-        return { content: [{ type: "text" as const, text: JSON.stringify(data) }], details: undefined };
+        const positions = await _positionAdapter.list({ status: 'open' });
+        return { content: [{ type: "text" as const, text: JSON.stringify(positions) }], details: undefined };
       }
       if (action === "get_with_pnl") {
-        const snapshot = await _portfolioSvc.getWithPnL();
+        const summary = await _positionAdapter.getSummary();
+        const positions = await _positionAdapter.list({ status: 'open' });
+        const snapshot = { summary, positions };
         return { content: [{ type: "text" as const, text: JSON.stringify(snapshot) }], details: undefined };
       }
       if (action === "add") {
