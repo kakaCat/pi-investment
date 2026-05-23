@@ -36,10 +36,12 @@ export class AccountCliAdapter extends BaseCliAdapter {
       notes?: string;
     }
   ): Promise<boolean> {
-    const result = await this.executeCommand('account', 'update', {
-      name,
-      ...data
-    });
+    const params: Record<string, string | number | boolean> = { name };
+    if (data.capital !== undefined) params.current_capital = data.capital;
+    if (data.currency !== undefined) params.currency = data.currency;
+    if (data.notes !== undefined) params.notes = data.notes;
+
+    const result = await this.executeCommand('account', 'update', params);
     return result.updated_rows > 0;
   }
 }

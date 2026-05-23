@@ -24,8 +24,8 @@ export class TradeCliAdapter extends BaseCliAdapter {
       quantity: t.quantity,
       price: t.price,
       timestamp: t.timestamp,
-      realizedPnl: t.realized_pnl,
-      notes: t.notes
+      realizedPnl: t.realized_pnl ?? 0,
+      notes: t.notes ?? ''
     }));
   }
 
@@ -34,7 +34,7 @@ export class TradeCliAdapter extends BaseCliAdapter {
    */
   async get(tradeId: string): Promise<Trade | null> {
     try {
-      const result = await this.executeCommand('trade', 'get', { tradeId });
+      const result = await this.executeCommand('trade', 'get', { trade_id: tradeId });
 
       // Map snake_case from CLI to camelCase for TypeScript
       return {
@@ -45,8 +45,8 @@ export class TradeCliAdapter extends BaseCliAdapter {
         quantity: result.quantity,
         price: result.price,
         timestamp: result.timestamp,
-        realizedPnl: result.realized_pnl,
-        notes: result.notes
+        realizedPnl: result.realized_pnl ?? 0,
+        notes: result.notes ?? ''
       };
     } catch (error) {
       if (error instanceof CliExecutionError && error.message.includes('not found')) {
