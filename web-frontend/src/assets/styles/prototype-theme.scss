@@ -201,3 +201,66 @@
     }
   }
 }
+
+// ============================================
+// 通用组件样式 - 原型中反复出现的UI模式
+// ============================================
+
+// 页面容器 - 统一背景色和内边距
+.page-container {
+  background-color: var(--slate-100);
+  min-height: 100vh;
+  padding: 24px;
+}
+
+// 标题样式 - 小号大写标题
+.section-title {
+  font-size: 12px;
+  color: var(--slate-500);
+  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+// 代码编辑器容器 - 深色背景
+.code-editor-container {
+  background-color: var(--gray-800);
+  border-radius: 8px;
+  padding: 16px;
+
+  .code-text {
+    color: var(--green-400);
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+}
+
+// 图表容器 - 白色背景，固定高度
+.chart-container {
+  background-color: white;
+  border-radius: 8px;
+  padding: 16px;
+  height: 220px;
+}
+
+// 统计卡片 - 用于显示数值指标
+.stat-card {
+  background-color: white;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--slate-200);
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--slate-500);
+    margin-bottom: 4px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--slate-900);
+  }
+}
