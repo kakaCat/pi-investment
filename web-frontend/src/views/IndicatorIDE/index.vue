@@ -1022,4 +1022,47 @@ onMounted(() => {
     border-color: #cbd5e1;
   }
 }
+
+// 响应式设计 - 中等屏幕 (1180px)
+@media (max-width: 1180px) {
+  .indicator-ide {
+    padding: 18px;
+
+    .grid.grid-cols-12 {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .col-span-3,
+    .col-span-5,
+    .col-span-4 {
+      grid-column: span 6 / span 6;
+    }
+  }
+}
+
+// 响应式设计 - 移动端 (760px)
+@media (max-width: 760px) {
+  .indicator-ide {
+    padding: 14px;
+
+    .grid.grid-cols-12 {
+      grid-template-columns: 1fr;
+    }
+
+    .col-span-3,
+    .col-span-5,
+    .col-span-4 {
+      grid-column: auto;
+    }
+
+    .code-editor .code-textarea {
+      height: 300px;
+      min-height: 300px;
+    }
+
+    .preview-card .chart-container {
+      height: 180px;
+    }
+  }
+}
 </style>
