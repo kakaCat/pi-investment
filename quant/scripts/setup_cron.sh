@@ -3,7 +3,7 @@
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 LOG_DIR="$SCRIPT_DIR/../logs"
-API_UPDATE_URL="http://localhost:5001/api/data/update"
+API_UPDATE_URL="${QUANT_API_URL:-http://127.0.0.1:5002}/api/data/update"
 
 # 创建日志目录
 mkdir -p "$LOG_DIR"

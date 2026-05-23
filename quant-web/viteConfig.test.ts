@@ -3,8 +3,8 @@ import { DEFAULT_API_TARGET, resolveApiTarget } from './vite.config'
 
 describe('vite api proxy target', () => {
   it('defaults to the Python quant API', () => {
-    expect(DEFAULT_API_TARGET).toBe('http://localhost:5001')
-    expect(resolveApiTarget({})).toBe('http://localhost:5001')
+    expect(DEFAULT_API_TARGET).toBe('http://127.0.0.1:5002')
+    expect(resolveApiTarget({})).toBe('http://127.0.0.1:5002')
   })
 
   it('allows overriding the API target for custom backends', () => {

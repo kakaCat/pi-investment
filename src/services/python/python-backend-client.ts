@@ -4,7 +4,7 @@ export class PythonBackendClient {
   private timeout: number;
 
   private constructor() {
-    this.baseURL = process.env.PYTHON_BACKEND_URL || "http://localhost:5000";
+    this.baseURL = process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:5002";
     this.timeout = parseInt(process.env.PYTHON_BACKEND_TIMEOUT || "30000", 10);
   }
 

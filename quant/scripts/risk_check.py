@@ -3,7 +3,7 @@
 持仓风险检查脚本（HTTP 客户端版）
 
 通过调用 Flask API 检查持仓风险。
-前置条件: Flask API 服务运行在 localhost:5001
+前置条件: Flask API 服务运行在 127.0.0.1:5002（可通过 QUANT_API_URL 环境变量覆盖）
 
 使用方法：
 python scripts/risk_check.py
@@ -15,7 +15,7 @@ import json
 import argparse
 import requests
 
-API_BASE = "http://localhost:5001"
+API_BASE = os.getenv("QUANT_API_URL", "http://127.0.0.1:5002")
 
 
 def main():

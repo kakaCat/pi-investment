@@ -7,7 +7,7 @@ ML预测脚本（HTTP 客户端版）
 2. 保存预测结果到 JSON 文件
 3. 展示统计摘要
 
-前置条件: Flask API 服务运行在 localhost:5001
+前置条件: Flask API 服务运行在 127.0.0.1:5002（可通过 QUANT_API_URL 环境变量覆盖）
 """
 
 import os
@@ -17,7 +17,7 @@ import logging
 from datetime import datetime
 import requests
 
-API_BASE = "http://localhost:5001"
+API_BASE = os.getenv("QUANT_API_URL", "http://127.0.0.1:5002")
 
 logging.basicConfig(
     level=logging.INFO,

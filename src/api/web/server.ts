@@ -81,7 +81,7 @@ async function getPostgresHealthInfo(): Promise<{
 
 // 中间件
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: process.env.CORS_ORIGIN || 'http://127.0.0.1:3000',
   credentials: true
 }));
 app.use(express.json());
@@ -183,9 +183,9 @@ app.use(errorHandler);
 
 // 启动服务器
 app.listen(PORT, () => {
-  console.log(`🚀 Quant API Server running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`🔗 CORS enabled for: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`);
+  console.log(`🚀 Quant API Server running on http://127.0.0.1:${PORT}`);
+  console.log(`📊 Health check: http://127.0.0.1:${PORT}/api/health`);
+  console.log(`🔗 CORS enabled for: ${process.env.CORS_ORIGIN || 'http://127.0.0.1:3000'}`);
 });
 
 export default app;

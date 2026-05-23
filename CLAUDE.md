@@ -1,75 +1,135 @@
-# pi-investment Project Guide
+# CLAUDE.md
 
-## gstack Configuration
-
-This project uses [gstack](https://github.com/garrytan/gstack) - Garry Tan's AI development toolkit with 53 specialized skills.
-
-### Browser Usage
-- **Always use `/browse` skill from gstack for all web browsing**
-- **Never use `mcp__claude-in-chrome__*` tools**
-
-### Available gstack Skills
-
-#### Planning & Strategy
-- `/office-hours` - Six forcing questions before coding
-- `/plan-ceo-review` - Product strategy review
-- `/plan-eng-review` - Architecture and technical review
-- `/plan-design-review` - Design system review
-- `/plan-devex-review` - Developer experience audit
-- `/autoplan` - Automated CEO → design → eng review
-
-#### Design
-- `/design-consultation` - Build complete design system
-- `/design-shotgun` - Generate multiple mockup variants
-- `/design-html` - Convert mockups to production HTML
-- `/design-review` - Audit and fix design issues
-
-#### Development & Review
-- `/review` - Find production bugs, auto-fix obvious ones
-- `/investigate` - Systematic root-cause debugging
-- `/codex` - Independent code review from OpenAI Codex
-
-#### Testing & QA
-- `/qa` - Test app in real browser, find and fix bugs
-- `/qa-only` - Pure bug report without code changes
-- `/devex-review` - Live DX audit with TTHW timing
-- `/cso` - OWASP Top 10 + STRIDE security audit
-
-#### Shipping & Deployment
-- `/ship` - Sync, test, push, open PR
-- `/land-and-deploy` - Merge PR, wait for CI/deploy, verify
-- `/canary` - Post-deploy monitoring
-- `/document-release` - Update all docs after shipping
-
-#### Browser & Automation
-- `/browse` - Real Chromium browser control
-- `/open-gstack-browser` - Launch AI-controlled browser
-- `/pair-agent` - Share browser with multiple AI agents
-- `/setup-browser-cookies` - Import cookies from Chrome/Arc/Brave/Edge
-
-#### Utilities
-- `/retro` - Weekly engineering retrospective
-- `/learn` - Manage gstack learning across sessions
-- `/careful` - Warn before destructive commands
-- `/freeze` - Lock edits to one directory
-- `/guard` - Full safety mode
-- `/gstack-upgrade` - Self-updater
-
-#### iOS Testing
-- `/ios-qa` - Drive real iPhone over USB
-- `/ios-fix`, `/ios-design-review`, `/ios-clean`, `/ios-sync` - iOS-specific workflows
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-TypeScript-based AI stock investment advisor using DeepSeek model.
+AI stock investment advisor (A-share / HK stocks) built on the `@mariozechner/pi-agent-core` SDK. Tri-component architecture:
 
-### Key Technologies
-- **Runtime**: Node.js with TypeScript
-- **AI Model**: DeepSeek
-- **Data Sources**: AkShare-TS, Tushare MCP
-- **Architecture**: Service layer with tool registry pattern
+- **`src/`** — TypeScript AI agent (primary). Interactive CLI/TUI with tool registry, Feishu bot integration, session management, and multi-layer system prompt builder.
+- **`quant/`** — Python quant backend. Flask REST API (port 5002) + `quantsys` package: 18+ strategies, 62 factors, XGBoost/LightGBM ML pipeline, backtesting engine, risk checks.
+- **`quant-web/`** — React dashboard (Vite + Ant Design + Recharts). Proxies `/api` to Flask backend on port 5002.
 
-### Important Notes
-- Economic data: Use WebSearch/WebFetch for external sources
-- ML Pipeline: Python backtesting in `ml-pipeline/`, TS integration via quant-tools
-- Agent Behavior: DeepSeek processes one tool at a time
+## Fixed IP / Port Convention
+
+每个子项目使用固定的 127.0.0.1 地址 + 固定端口。**主分支上的 IP/端口不允许随意修改。** 如果发现主分支上的 IP 被改动，必须修复回以下固定值：
+
+| 子项目 | 固定地址 | 配置方式 |
+|--------|----------|----------|
+| quant Flask API | `127.0.0.1:5002` | `QUANT_API_HOST` / `QUANT_API_PORT` 环境变量 |
+| quant-web Vite 开发服务器 | `127.0.0.1:3000` | `vite.config.ts`，代理 `/api` → `127.0.0.1:5002` |
+| TypeScript Agent | N/A (CLI) | 通过环境变量连接各服务 |
+| PostgreSQL | `127.0.0.1:5432` | `PGHOST` / `PGPORT` 环境变量 |
+| Kafka brokers | `127.0.0.1:19092-19094` | `docker/kafka-cluster.yaml` |
+
+**Worktree 隔离规则：** 如果在 worktree 中做测试需要改 IP，必须在合并回主分支前改回固定值。不能在主分支上出现非固定 IP 的改动。
+
+## Dev Commands
+
+```bash
+# TypeScript agent (primary app)
+npm run dev              # Start TUI agent (tsx src/index.ts)
+npm run feishu           # Start Feishu bot only
+
+# Build & production
+npm run build            # tsc -p tsconfig.build.json → dist/
+npm start                # node dist/index.js
+
+# Testing
+npm test                 # Jest (ESM via --experimental-vm-modules)
+npm run test:watch       # Jest watch mode
+npm run test:coverage    # Jest with coverage
+npm run test:quant-web   # vitest tests in quant-web/
+
+# Python quant backend
+cd quant && python api/server.py          # Start Flask API on port 5002
+cd quant && python -m pytest tests/       # Run Python tests
+cd quant && pip install -r requirements.txt
+
+# React dashboard
+cd quant-web && npm run dev    # Vite dev server on port 3000
+cd quant-web && npm run build  # Production build
+```
+
+## Architecture
+
+### TypeScript Agent (`src/`)
+
+Layered architecture:
+
+| Layer | Directory | Purpose |
+|-------|-----------|---------|
+| API | `src/api/` | Feishu bot, session manager, agent bootstrap |
+| Config | `src/config/` | Model config (DeepSeek), paths, bootstrap |
+| Core | `src/core/` | Agent loop, session, task management, system prompt |
+| Domain | `src/domain/` | Cache system (namespaces: daily, intraday, quarterly, static) |
+| Infrastructure | `src/infrastructure/` | Adapters (CLI, data sources), logging, monitoring, TUI |
+| Services | `src/services/` | Business logic: quant, portfolio, compaction, scheduler, notification, intelligence |
+| Tools | `src/tools/` | Agent tool definitions (core, invest, data, analysis) |
+| Types | `src/types/` | TypeScript type definitions |
+
+**Key patterns:**
+- **CLI Adapter pattern**: `src/infrastructure/adapters/cli/` — data access wrapped as shell commands (BaseCliAdapter, PositionCliAdapter, TradeCliAdapter, AccountCliAdapter, WatchlistCliAdapter). Active migration is moving tools from direct service calls to CLI adapters.
+- **Tool Registry**: Tools registered in `src/infrastructure/tools/`, categorized by domain.
+- **8-layer system prompt**: Built in `src/services/intelligence/system-prompt-builder.ts` — Identity → Soul → Tools → Skills → Memory → Bootstrap → Runtime → Channel.
+- **Data sources**: `src/infrastructure/data-sources/` — eastmoney, sina, sina-fx, stooq, technical indicators; falls back to Python/akshare bridge.
+
+### Python Quant Backend (`quant/`)
+
+Pipeline: resolve → data → factor → model → signal → risk → backtest → report.
+
+- `quant/api/server.py` — Flask API with token auth and CORS (port 5002)
+- `quant/api/quant_api.py` — CLI bridge for TypeScript → Python calls
+- `quant/quantsys/` — Core package: strategies, factors, ml, risk, backtest, data, live
+
+### React Frontend (`quant-web/`)
+
+Vite dev server on port 3000 proxies `/api` to Flask (port 5002, configurable via `VITE_API_TARGET`). Component pages: Dashboard, Research, Model Training, Data Management, Operations.
+
+## Environment Setup
+
+Required env vars (see `.env.example`):
+
+```bash
+# DeepSeek API (OpenAI-compatible)
+DEEPSEEK_API_KEY=sk-...
+DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
+OPENAI_API_KEY=...          # SDK reads this key; must match DEEPSEEK_API_KEY
+MODEL_ID=deepseek-chat
+
+# Fixed IP — Flask quant backend
+QUANT_API_HOST=127.0.0.1
+QUANT_API_PORT=5002
+PYTHON_BACKEND_URL=http://127.0.0.1:5002
+PYTHON_BACKEND_TIMEOUT=30000
+
+# Database (PostgreSQL required; SQLite removed)
+QUANT_DB_PROVIDER=postgres
+PGHOST=127.0.0.1
+PGPORT=5432
+PGDATABASE=quant_investment
+
+# Optional
+FEISHU_APP_ID=...           # Feishu/Lark bot
+TAVILY_API_KEY=...          # Web search
+```
+
+Node >= 22.0.0 required. Python >= 3.9 with packages from `quant/requirements.txt`.
+
+## Testing
+
+- **TypeScript**: Jest with `--experimental-vm-modules`. Test files co-located as `*.test.ts`. No jest.config file — config is in `package.json` jest section.
+- **Python**: pytest, tests in `quant/tests/`. Coverage currently ~19%.
+- **Frontend**: vitest, tests in `quant-web/src/`.
+
+## Kafka (Optional)
+
+Docker Compose cluster for event streaming: `docker compose -f docker/kafka-cluster.yaml up -d`. Topics: market.klines, market.ticks, signals.generated, orders.submitted, orders.filled, risk.alerts, events.store. Kafka UI on port 8080.
+
+## Active Conventions
+
+- No linter/formatter configured (no ESLint, Prettier, or Biome).
+- No CI/CD pipeline configured.
+- git worktrees used for feature isolation (evolution branches, worktree-agent branches).
+- Commit messages in Chinese are common.
+- The agent uses DeepSeek which processes one tool call at a time — tool definitions should account for this.

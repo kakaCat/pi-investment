@@ -3,7 +3,7 @@
 增强版报告 - 因子分析（HTTP 客户端版）
 
 通过 Flask API 获取因子数据，生成本地增强报告。
-前置条件: Flask API 服务运行在 localhost:5001
+前置条件: Flask API 服务运行在 127.0.0.1:5002（可通过 QUANT_API_URL 环境变量覆盖）
 """
 
 import os
@@ -13,7 +13,7 @@ from pathlib import Path
 from datetime import datetime
 import requests
 
-API_BASE = "http://localhost:5001"
+API_BASE = os.getenv("QUANT_API_URL", "http://127.0.0.1:5002")
 
 
 def interpret_factor(name: str, value: float) -> str:

@@ -3,7 +3,7 @@
 分析模型中哪些因子最重要（HTTP 客户端版）
 
 通过调用 Flask API 获取因子重要性排名。
-前置条件: Flask API 服务运行在 localhost:5001
+前置条件: Flask API 服务运行在 127.0.0.1:5002（可通过 QUANT_API_URL 环境变量覆盖）
 
 使用方法：
 python scripts/analyze_feature_importance.py
@@ -13,7 +13,7 @@ import sys
 import json
 import requests
 
-API_BASE = "http://localhost:5001"
+API_BASE = os.getenv("QUANT_API_URL", "http://127.0.0.1:5002")
 
 
 def main():

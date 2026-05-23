@@ -1358,7 +1358,7 @@ def _connect_postgres():
         return psycopg2.connect(database_url)
     return psycopg2.connect(
         dbname=os.environ.get('PGDATABASE', 'quant_investment'),
-        host=os.environ.get('PGHOST'),
+        host=os.environ.get('PGHOST', '127.0.0.1'),
         port=os.environ.get('PGPORT'),
         user=os.environ.get('PGUSER'),
         password=os.environ.get('PGPASSWORD'),
@@ -4446,8 +4446,8 @@ if __name__ == '__main__':
     print('🚀 启动量化系统API服务...')
     init_services()
     print('✅ 服务初始化完成')
-    print('📡 API地址: http://localhost:5001')
-    print('📊 健康检查: http://localhost:5001/api/health')
+    print(f'📡 API地址: http://{host}:{port}')
+    print(f'📊 健康检查: http://{host}:{port}/api/health')
     print('📈 可用端点:')
     print('   GET /api/health')
     print('   GET /api/feature-importance')
@@ -4481,4 +4481,8 @@ if __name__ == '__main__':
     print('   GET /api/scheduler/tasks')
     print('   POST /api/scheduler/tasks/<task_id>/trigger')
     print('   POST /api/scheduler/tasks/<task_id>/compensate')
-    app.run(host='0.0.0.0', port=5002, debug=False)
+    app.run(
+        host=os.environ.get('QUANT_API_HOST', '127.0.0.1'),
+        port=int(os.environ.get('QUANT_API_PORT', '5002')),
+        debug=False,
+    )

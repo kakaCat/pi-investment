@@ -3,7 +3,7 @@
 量化系统定时任务调度器（API 模式）
 
 使用 APScheduler 管理所有定时任务，通过 Flask API 触发。
-前置条件: Flask API 服务运行在 localhost:5001
+前置条件: Flask API 服务运行在 127.0.0.1:5002（可通过 QUANT_API_URL 环境变量覆盖）
 
 运行方式：python3 scripts/scheduler.py
 """
@@ -17,7 +17,7 @@ from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-API_BASE = "http://localhost:5001"
+API_BASE = os.getenv("QUANT_API_URL", "http://127.0.0.1:5002")
 
 # 禁用代理
 for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:

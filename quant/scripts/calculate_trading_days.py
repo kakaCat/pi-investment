@@ -3,7 +3,7 @@
 计算实际交易日天数（HTTP 客户端版）
 
 通过 Flask API 获取股票数据范围，计算交易日天数。
-前置条件: Flask API 服务运行在 localhost:5001
+前置条件: Flask API 服务运行在 127.0.0.1:5002（可通过 QUANT_API_URL 环境变量覆盖）
 """
 
 import sys
@@ -11,7 +11,7 @@ from datetime import datetime
 import requests
 import pandas as pd
 
-API_BASE = "http://localhost:5001"
+API_BASE = os.getenv("QUANT_API_URL", "http://127.0.0.1:5002")
 
 
 def calculate_trading_days(start_date: str, end_date: str) -> int:

@@ -3,7 +3,7 @@
 分析单只股票的因子贡献（HTTP 客户端版）
 
 通过调用 Flask API 获取因子分析和ML预测结果。
-前置条件: Flask API 服务运行在 localhost:5001
+前置条件: Flask API 服务运行在 127.0.0.1:5002（可通过 QUANT_API_URL 环境变量覆盖）
 
 使用方法：
 python scripts/analyze_stock_factors.py 000001
@@ -14,7 +14,7 @@ import sys
 import json
 import requests
 
-API_BASE = "http://localhost:5001"
+API_BASE = os.getenv("QUANT_API_URL", "http://127.0.0.1:5002")
 
 
 def main():
