@@ -44,9 +44,11 @@ CREATE TRIGGER trg_watchlist_updated_at
     EXECUTE FUNCTION quant_agent.update_updated_at_column();
 
 -- 3. Extend positions table
+-- Note: market column is nullable to allow safe migration of existing data
+-- A future migration will backfill market values and add NOT NULL constraint
 ALTER TABLE quant_agent.positions
 ADD COLUMN IF NOT EXISTS name TEXT,
-ADD COLUMN IF NOT EXISTS market TEXT NOT NULL DEFAULT 'A' CHECK (market IN ('A', 'HK', 'US')),
+ADD COLUMN IF NOT EXISTS market TEXT CHECK (market IN ('A', 'HK', 'US')),
 ADD COLUMN IF NOT EXISTS sector TEXT,
 ADD COLUMN IF NOT EXISTS notes TEXT,
 ADD COLUMN IF NOT EXISTS original_cost DOUBLE PRECISION,
