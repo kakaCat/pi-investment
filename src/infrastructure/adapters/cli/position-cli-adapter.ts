@@ -11,7 +11,22 @@ export class PositionCliAdapter extends BaseCliAdapter {
     status?: string;
   } = {}): Promise<Position[]> {
     const result = await this.executeCommand('position', 'list', params);
-    return result.positions || [];
+    const positions = result.positions || [];
+
+    // Map snake_case from CLI to camelCase for TypeScript
+    return positions.map((p: any) => ({
+      symbol: p.symbol,
+      name: p.name,
+      quantity: p.quantity,
+      costBasis: p.cost_basis,
+      currentPrice: p.current_price,
+      entryDate: p.entry_date,
+      stopLoss: p.stop_loss,
+      takeProfit: p.take_profit,
+      status: p.status,
+      accountId: p.account_id,
+      notes: p.notes
+    }));
   }
 
   /**
@@ -19,7 +34,22 @@ export class PositionCliAdapter extends BaseCliAdapter {
    */
   async get(symbol: string, accountId: string = 'default'): Promise<Position | null> {
     try {
-      return await this.executeCommand('position', 'get', { symbol, accountId });
+      const result = await this.executeCommand('position', 'get', { symbol, accountId });
+
+      // Map snake_case from CLI to camelCase for TypeScript
+      return {
+        symbol: result.symbol,
+        name: result.name,
+        quantity: result.quantity,
+        costBasis: result.cost_basis,
+        currentPrice: result.current_price,
+        entryDate: result.entry_date,
+        stopLoss: result.stop_loss,
+        takeProfit: result.take_profit,
+        status: result.status,
+        accountId: result.account_id,
+        notes: result.notes
+      };
     } catch (error) {
       if (error instanceof CliExecutionError && error.message.includes('not found')) {
         return null;
@@ -73,6 +103,16 @@ export class PositionCliAdapter extends BaseCliAdapter {
    * 获取持仓汇总
    */
   async getSummary(accountId: string = 'default'): Promise<PositionSummary> {
-    return await this.executeCommand('position', 'summary', { accountId });
+    const result = await this.executeCommand('position', 'summary', { accountId });
+
+    // Map snake_case from CLI to camelCase for TypeScript
+    return {
+      totalPositions: result.total_positions,
+      totalQuantity: result.total_quantity,
+      totalCost: result.total_cost,
+      totalMarketValue: result.total_market_value,
+      totalPnl: result.total_pnl,
+      totalPnlPct: result.total_pnl_pct
+    };
   }
 }

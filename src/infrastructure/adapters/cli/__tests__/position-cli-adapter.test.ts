@@ -26,13 +26,38 @@ describe('PositionCliAdapter', () => {
     it('should list positions with default parameters', async () => {
       const mockData = {
         total: 1,
-        positions: [{ symbol: '600036', quantity: 100 }]
+        positions: [{
+          symbol: '600036',
+          name: '招商银行',
+          quantity: 100,
+          cost_basis: 38.5,
+          current_price: 40.0,
+          entry_date: '2026-05-01',
+          stop_loss: 35.0,
+          take_profit: 45.0,
+          status: 'open',
+          account_id: 'default',
+          notes: 'Test position'
+        }]
       };
 
       jest.spyOn(adapter as any, 'executeCommand').mockResolvedValue(mockData);
 
       const result = await adapter.list();
-      expect(result).toEqual([{ symbol: '600036', quantity: 100 }]);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        symbol: '600036',
+        name: '招商银行',
+        quantity: 100,
+        costBasis: 38.5,
+        currentPrice: 40.0,
+        entryDate: '2026-05-01',
+        stopLoss: 35.0,
+        takeProfit: 45.0,
+        status: 'open',
+        accountId: 'default',
+        notes: 'Test position'
+      });
     });
 
     it('should list positions with filters', async () => {
@@ -51,12 +76,36 @@ describe('PositionCliAdapter', () => {
 
   describe('get', () => {
     it('should get single position', async () => {
-      const mockData = { symbol: '600036', quantity: 100 };
+      const mockData = {
+        symbol: '600036',
+        name: '招商银行',
+        quantity: 100,
+        cost_basis: 38.5,
+        current_price: 40.0,
+        entry_date: '2026-05-01',
+        stop_loss: 35.0,
+        take_profit: 45.0,
+        status: 'open',
+        account_id: 'default',
+        notes: 'Test position'
+      };
 
       jest.spyOn(adapter as any, 'executeCommand').mockResolvedValue(mockData);
 
       const result = await adapter.get('600036');
-      expect(result).toEqual({ symbol: '600036', quantity: 100 });
+      expect(result).toEqual({
+        symbol: '600036',
+        name: '招商银行',
+        quantity: 100,
+        costBasis: 38.5,
+        currentPrice: 40.0,
+        entryDate: '2026-05-01',
+        stopLoss: 35.0,
+        takeProfit: 45.0,
+        status: 'open',
+        accountId: 'default',
+        notes: 'Test position'
+      });
     });
 
     it('should return null when position not found', async () => {
@@ -103,12 +152,12 @@ describe('PositionCliAdapter', () => {
   describe('getSummary', () => {
     it('should get position summary', async () => {
       const mockData = {
-        totalPositions: 2,
-        totalQuantity: 100,
-        totalCost: 5000,
-        totalMarketValue: 6000,
-        totalPnl: 1000,
-        totalPnlPct: 20
+        total_positions: 2,
+        total_quantity: 100,
+        total_cost: 5000,
+        total_market_value: 6000,
+        total_pnl: 1000,
+        total_pnl_pct: 20
       };
 
       jest.spyOn(adapter as any, 'executeCommand').mockResolvedValue(mockData);
@@ -116,6 +165,14 @@ describe('PositionCliAdapter', () => {
       const result = await adapter.getSummary();
       expect(result.totalPositions).toBe(2);
       expect(result.totalPnl).toBe(1000);
+      expect(result).toEqual({
+        totalPositions: 2,
+        totalQuantity: 100,
+        totalCost: 5000,
+        totalMarketValue: 6000,
+        totalPnl: 1000,
+        totalPnlPct: 20
+      });
     });
   });
 });
