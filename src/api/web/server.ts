@@ -15,6 +15,8 @@ import { trainingRouter } from './routes/training.js';
 import { jobsRouter } from './routes/jobs.js';
 import { platformRouter } from './routes/platform.js';
 import { schedulerRouter } from './routes/scheduler.js';
+import { pipelineRouter } from './routes/pipeline.js';
+import { portfolioRouter } from './routes/portfolio.js';
 import { errorHandler } from './middleware/error-handler.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -101,6 +103,8 @@ app.use('/api/training', trainingRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/platform', platformRouter);
 app.use('/api/scheduler', schedulerRouter);
+app.use('/api/pipeline', pipelineRouter);
+app.use('/api/portfolio', portfolioRouter);
 app.use('/api', featuresRouter);
 
 // 健康检查 (放在 /api 下以便前端统一访问)
