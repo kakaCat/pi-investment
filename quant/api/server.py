@@ -299,6 +299,236 @@ def _timestamp_to_iso(value):
         return None
 
 
+# ── Scheduler task DB helpers ──────────────────────────────────────────
+
+def _seed_scheduler_tasks():
+    """将 SCHEDULER_TASK_DEFINITIONS 种子数据写入 quant.scheduler_tasks（仅当表为空时）。"""
+    conn = _connect_postgres()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM quant.scheduler_tasks")
+            count = cur.fetchone()[0]
+            if count > 0:
+                return
+        with conn.cursor() as cur:
+            for task in SCHEDULER_TASK_DEFINITIONS:
+                cur.execute("""
+                    INSERT INTO quant.scheduler_tasks
+                        (id, name, schedule_kind, schedule_expr, payload, enabled,
+                         compensation_enabled, compensation_check_after,
+                         compensation_max_attempts, delete_after_run)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO NOTHING
+                """, (
+                    task['id'],
+                    task['name'],
+                    task.get('scheduleKind', 'cron'),
+                    task.get('scheduleExpr', ''),
+                    json.dumps(task.get('payload', {})),
+                    True,
+                    task.get('compensationEnabled', False),
+                    task.get('compensationCheckAfter'),
+                    task.get('compensationMaxAttempts', 1),
+                    task.get('deleteAfterRun', False),
+                ))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _load_scheduler_tasks_from_db() -> list:
+    """从 quant.scheduler_tasks 加载所有任务定义。"""
+    conn = _connect_postgres()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT id, name, schedule_kind, schedule_expr, payload,
+                       enabled, compensation_enabled, compensation_check_after,
+                       compensation_max_attempts, delete_after_run,
+                       created_at, updated_at
+                FROM quant.scheduler_tasks
+                ORDER BY created_at
+            """)
+            rows = cur.fetchall()
+        tasks = []
+        for row in rows:
+            payload = row['payload'] if isinstance(row['payload'], dict) else json.loads(row['payload'] or '{}')
+            # normalize: ensure 'command' exists (frontend reads payload.command)
+            if not payload.get('command') and payload.get('job_type'):
+                payload['command'] = payload['job_type']
+            tasks.append({
+                'id': row['id'],
+                'name': row['name'],
+                'scheduleKind': row['schedule_kind'],
+                'scheduleExpr': row['schedule_expr'],
+                'payload': payload,
+                'enabled': row['enabled'],
+                'compensationEnabled': row['compensation_enabled'],
+                'compensationCheckAfter': str(row['compensation_check_after']) if row['compensation_check_after'] else None,
+                'compensationMaxAttempts': row['compensation_max_attempts'],
+                'deleteAfterRun': row['delete_after_run'],
+            })
+        return tasks
+    finally:
+        conn.close()
+
+
+def _get_scheduler_task_from_db(task_id: str) -> dict:
+    """从 DB 加载单个调度任务。"""
+    conn = _connect_postgres()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT id, name, schedule_kind, schedule_expr, payload,
+                       enabled, compensation_enabled, compensation_check_after,
+                       compensation_max_attempts, delete_after_run
+                FROM quant.scheduler_tasks
+                WHERE id = %s
+            """, (task_id,))
+            row = cur.fetchone()
+        if not row:
+            return None
+        payload = row['payload'] if isinstance(row['payload'], dict) else json.loads(row['payload'] or '{}')
+        if not payload.get('command') and payload.get('job_type'):
+            payload['command'] = payload['job_type']
+        return {
+            'id': row['id'],
+            'name': row['name'],
+            'scheduleKind': row['schedule_kind'],
+            'scheduleExpr': row['schedule_expr'],
+            'payload': payload,
+            'enabled': row['enabled'],
+            'compensationEnabled': row['compensation_enabled'],
+            'compensationCheckAfter': str(row['compensation_check_after']) if row['compensation_check_after'] else None,
+            'compensationMaxAttempts': row['compensation_max_attempts'],
+            'deleteAfterRun': row['delete_after_run'],
+        }
+    finally:
+        conn.close()
+
+
+def _save_scheduler_task_to_db(task: dict) -> dict:
+    """插入或更新一条调度任务到 DB。返回持久化后的任务字典。"""
+    task_id = task.get('id') or f"task_{uuid.uuid4().hex[:8]}"
+    conn = _connect_postgres()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO quant.scheduler_tasks
+                    (id, name, schedule_kind, schedule_expr, payload, enabled,
+                     compensation_enabled, compensation_check_after,
+                     compensation_max_attempts, delete_after_run)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    schedule_kind = EXCLUDED.schedule_kind,
+                    schedule_expr = EXCLUDED.schedule_expr,
+                    payload = EXCLUDED.payload,
+                    enabled = EXCLUDED.enabled,
+                    compensation_enabled = EXCLUDED.compensation_enabled,
+                    compensation_check_after = EXCLUDED.compensation_check_after,
+                    compensation_max_attempts = EXCLUDED.compensation_max_attempts,
+                    delete_after_run = EXCLUDED.delete_after_run,
+                    updated_at = NOW()
+            """, (
+                task_id,
+                task.get('name', ''),
+                task.get('scheduleKind', 'cron'),
+                task.get('scheduleExpr', ''),
+                json.dumps(task.get('payload', {})),
+                task.get('enabled', True),
+                task.get('compensationEnabled', False),
+                task.get('compensationCheckAfter'),
+                task.get('compensationMaxAttempts', 1),
+                task.get('deleteAfterRun', False),
+            ))
+        conn.commit()
+    finally:
+        conn.close()
+    return _get_scheduler_task_from_db(task_id)
+
+
+def _delete_scheduler_task_from_db(task_id: str) -> bool:
+    """从 DB 中删除一条调度任务。返回是否成功删除。"""
+    conn = _connect_postgres()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM quant.scheduler_tasks WHERE id = %s", (task_id,))
+            deleted = cur.rowcount > 0
+        conn.commit()
+        return deleted
+    finally:
+        conn.close()
+
+
+def _set_scheduler_task_enabled(task_id: str, enabled: bool) -> bool:
+    """启用或停用一条调度任务。"""
+    conn = _connect_postgres()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE quant.scheduler_tasks SET enabled = %s, updated_at = NOW() WHERE id = %s",
+                (enabled, task_id),
+            )
+            updated = cur.rowcount > 0
+        conn.commit()
+        return updated
+    finally:
+        conn.close()
+
+
+def _query_jobs_from_db(limit: int = 50, offset: int = 0,
+                        job_type: str = None, status: str = None) -> list:
+    """从 quant.jobs 查询任务运行记录。"""
+    conn = _connect_postgres()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            clauses = []
+            params = []
+            if job_type:
+                clauses.append("type = %s")
+                params.append(job_type)
+            if status:
+                clauses.append("status = %s")
+                params.append(status)
+            where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+            params.extend([limit, offset])
+            cur.execute(f"""
+                SELECT id, type, status, params, result, error, logs,
+                       created_at, updated_at, started_at, finished_at, attempts
+                FROM quant.jobs
+                {where}
+                ORDER BY created_at DESC
+                LIMIT %s OFFSET %s
+            """, params)
+            rows = cur.fetchall()
+        jobs = []
+        for row in rows:
+            jobs.append({
+                'job_id': row['id'],
+                'type': row['type'],
+                'status': row['status'],
+                'params': row['params'],
+                'result': row['result'],
+                'error': row['error'],
+                'logs': row['logs'],
+                'created_at': row['created_at'].timestamp() if row['created_at'] else None,
+                'updated_at': row['updated_at'].timestamp() if row['updated_at'] else None,
+                'started_at': row['started_at'].timestamp() if row['started_at'] else None,
+                'completed_at': row['finished_at'].timestamp() if row['finished_at'] else None,
+                'attempts': row['attempts'],
+            })
+        return jobs
+    finally:
+        conn.close()
+
+
+def _latest_job_for_type(job_type: str) -> dict:
+    """从 PostgreSQL 获取指定类型的最新任务（替代旧的基于文件的实现）。"""
+    jobs = _query_jobs_from_db(limit=1, job_type=job_type)
+    return jobs[0] if jobs else None
+
+
 def _normalize_job_for_web(job: dict) -> dict:
     job_id = job.get('id') or job.get('job_id')
     status = JOB_STATUS_MAP.get(job.get('status'), job.get('status', 'queued'))
@@ -701,6 +931,124 @@ def _run_data_update_job(job_id: str, data: dict):
         _update_job(job_id, status='failed', completed_at=time.time(), error=str(e))
 
 
+def _run_risk_check_job(job_id: str, data: dict):
+    """风险检查执行器：检查持仓集中度、止损、流动性风险。"""
+    try:
+        _update_job(job_id, status='running', started_at=time.time())
+        symbols = _normalize_symbols(data.get('symbols'))
+        account_value = data.get('account_value')
+
+        portfolio_path = _project_root / '.pi-invest' / 'portfolio.json'
+        holdings = []
+        if portfolio_path.exists():
+            with open(portfolio_path, 'r') as f:
+                pf = json.load(f)
+                holdings = pf.get('holdings', [])
+
+        if symbols:
+            holdings = [h for h in holdings if h.get('symbol') in symbols]
+
+        checks = []
+        total_risk_score = 100
+
+        for h in holdings:
+            symbol = h.get('symbol', 'unknown')
+            quantity = h.get('quantity', 0)
+            avg_cost = h.get('avg_cost', 0)
+            position_value = quantity * avg_cost
+
+            current_price = None
+            try:
+                conn = get_db()
+                cursor = conn.execute(
+                    "SELECT close FROM daily_klines WHERE symbol=? ORDER BY date DESC LIMIT 1",
+                    (symbol,)
+                )
+                row = cursor.fetchone()
+                conn.close()
+                if row:
+                    current_price = row[0]
+            except Exception:
+                pass
+
+            item_checks = []
+            item_score = 100
+
+            if account_value and account_value > 0:
+                concentration = (position_value / account_value) * 100
+                if concentration > 30:
+                    item_checks.append({'type': 'concentration', 'level': 'high',
+                                       'message': f'{symbol} 仓位集中度 {concentration:.1f}% > 30%',
+                                       'suggestion': '建议分散持仓'})
+                    item_score -= 30
+                elif concentration > 20:
+                    item_checks.append({'type': 'concentration', 'level': 'medium',
+                                       'message': f'{symbol} 仓位集中度 {concentration:.1f}% > 20%'})
+                    item_score -= 15
+
+            if current_price and avg_cost > 0:
+                pnl_pct = ((current_price - avg_cost) / avg_cost) * 100
+                if pnl_pct < -8:
+                    item_checks.append({'type': 'stop_loss', 'level': 'high',
+                                       'message': f'{symbol} 浮亏 {pnl_pct:.1f}%，已触及止损线',
+                                       'suggestion': '建议立即止损'})
+                    item_score -= 40
+                elif pnl_pct < -5:
+                    item_checks.append({'type': 'stop_loss', 'level': 'medium',
+                                       'message': f'{symbol} 浮亏 {pnl_pct:.1f}%，接近止损线'})
+                    item_score -= 20
+
+            checks.append({
+                'symbol': symbol,
+                'name': h.get('name', ''),
+                'position_value': position_value,
+                'current_price': current_price,
+                'avg_cost': avg_cost,
+                'pnl_pct': ((current_price - avg_cost) / avg_cost * 100) if current_price and avg_cost else None,
+                'checks': item_checks,
+                'score': max(0, item_score),
+            })
+            total_risk_score = min(total_risk_score, item_score)
+
+        if total_risk_score >= 80:
+            risk_level = 'low'
+        elif total_risk_score >= 50:
+            risk_level = 'medium'
+        else:
+            risk_level = 'high'
+
+        result = {
+            'risk_score': total_risk_score,
+            'risk_level': risk_level,
+            'holdings_count': len(holdings),
+            'checks': checks,
+        }
+        _update_job(job_id, status='completed', completed_at=time.time(), result=result)
+    except Exception as e:
+        _update_job(job_id, status='failed', completed_at=time.time(), error=str(e))
+
+
+def _run_daily_report_job(job_id: str, data: dict):
+    """日报生成执行器：调用 scripts/daily_report.py 生成每日报告。"""
+    try:
+        _update_job(job_id, status='running', started_at=time.time())
+        script = _scripts_dir / 'daily_report.py'
+        if not script.exists():
+            raise FileNotFoundError(f'日报脚本不存在: {script}')
+        proc = subprocess.run(
+            [sys.executable, str(script)],
+            capture_output=True, text=True, timeout=300,
+        )
+        if proc.returncode == 0:
+            _update_job(job_id, status='completed', completed_at=time.time(),
+                       result={'stdout': proc.stdout[-500:], 'stderr': proc.stderr[-500:]})
+        else:
+            _update_job(job_id, status='failed', completed_at=time.time(),
+                       error=proc.stderr[-1000:] or f'exit code {proc.returncode}')
+    except Exception as e:
+        _update_job(job_id, status='failed', completed_at=time.time(), error=str(e))
+
+
 def _models_dir() -> Path:
     return _project_root / 'quant' / 'quantsys' / 'ml' / 'models'
 
@@ -906,18 +1254,6 @@ def _symbols_args(params: dict) -> list:
     return ['--symbols', ','.join(symbols)] if symbols else []
 
 
-def _latest_job_for_type(job_type: str):
-    latest = None
-    for path in _jobs_dir.glob(f'{job_type}_*.json'):
-        try:
-            job = _load_json_file(path)
-        except Exception:
-            continue
-        if latest is None or path.stat().st_mtime > latest[0].stat().st_mtime:
-            latest = (path, job)
-    return latest[1] if latest else None
-
-
 def _scheduler_run_from_job(task: dict, job: dict, trigger_type: str) -> dict:
     normalized = _normalize_job_for_web(job)
     status = 'triggered'
@@ -949,7 +1285,9 @@ def _scheduler_run_from_job(task: dict, job: dict, trigger_type: str) -> dict:
 
 
 def _scheduler_task_summary(task: dict) -> dict:
-    latest_job = _latest_job_for_type(task['payload']['job_type'])
+    payload = task.get('payload') or {}
+    job_type = payload.get('command') or payload.get('job_type')
+    latest_job = _latest_job_for_type(job_type) if job_type else None
     last_run = _scheduler_run_from_job(task, latest_job, 'scheduled') if latest_job else None
     today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     today_triggered = bool(last_run and str(last_run.get('createdAt', '')).startswith(today))
@@ -957,7 +1295,7 @@ def _scheduler_task_summary(task: dict) -> dict:
 
     return {
         **task,
-        'enabled': True,
+        'enabled': task.get('enabled', True),
         'nextRunAt': None,
         'lastRun': last_run,
         'todayTriggered': today_triggered,
@@ -993,6 +1331,16 @@ def _start_job_for_type(job_type: str, data: dict) -> str:
     elif job_type == 'backtest_run':
         threading.Thread(
             target=lambda: _run_backtest_job(job_id, data),
+            daemon=True,
+        ).start()
+    elif job_type == 'risk_check':
+        threading.Thread(
+            target=lambda: _run_risk_check_job(job_id, data),
+            daemon=True,
+        ).start()
+    elif job_type == 'daily_report':
+        threading.Thread(
+            target=lambda: _run_daily_report_job(job_id, data),
             daemon=True,
         ).start()
     else:
@@ -1303,6 +1651,9 @@ class PostgresCompatCursor:
         'stocks': 'quant_compat.stocks',
         'stock_data_summary': 'quant_compat.stock_data_summary',
         'position_history': 'quant.position_history',
+        'trades': 'quant.trades',
+        'orders': 'quant.orders',
+        'agent_orders': 'quant.orders',
     }
 
     def __init__(self, cursor):
@@ -2044,13 +2395,15 @@ def get_stock_list():
         )
 
         market = request.args.get('market')
+        industry = request.args.get('industry')
+        keyword = request.args.get('keyword')
         has_data = request.args.get('has_data', type=bool, default=False)
 
         conn = get_db()
 
         if has_data:
             data_query = """
-                SELECT DISTINCT s.symbol, s.name, s.market
+                SELECT DISTINCT s.symbol, s.name, s.market, s.industry
                 FROM stocks s
                 INNER JOIN daily_klines k ON s.symbol = k.symbol
             """
@@ -2059,20 +2412,34 @@ def get_stock_list():
                 FROM stocks s
                 INNER JOIN daily_klines k ON s.symbol = k.symbol
             """
-            filter_clause = ""
+            conditions = []
             filter_params = []
             if market:
-                filter_clause = " WHERE s.market = ?"
-                filter_params = [market]
+                conditions.append("s.market = ?")
+                filter_params.append(market)
+            if industry:
+                conditions.append("s.industry = ?")
+                filter_params.append(industry)
+            if keyword:
+                conditions.append("(LOWER(s.symbol) LIKE LOWER(?) OR LOWER(s.name) LIKE LOWER(?))")
+                filter_params.extend([f"%{keyword}%", f"%{keyword}%"])
+            filter_clause = (" WHERE " + " AND ".join(conditions)) if conditions else ""
             order_clause = " ORDER BY s.symbol"
         else:
-            data_query = "SELECT symbol, name, market FROM stocks"
+            data_query = "SELECT symbol, name, market, industry FROM stocks"
             count_query = "SELECT COUNT(*) FROM stocks"
-            filter_clause = ""
+            conditions = []
             filter_params = []
             if market:
-                filter_clause = " WHERE market = ?"
-                filter_params = [market]
+                conditions.append("market = ?")
+                filter_params.append(market)
+            if industry:
+                conditions.append("industry = ?")
+                filter_params.append(industry)
+            if keyword:
+                conditions.append("(LOWER(symbol) LIKE LOWER(?) OR LOWER(name) LIKE LOWER(?))")
+                filter_params.extend([f"%{keyword}%", f"%{keyword}%"])
+            filter_clause = (" WHERE " + " AND ".join(conditions)) if conditions else ""
             order_clause = " ORDER BY symbol"
 
         # 获取总数
@@ -2094,7 +2461,8 @@ def get_stock_list():
             stocks.append({
                 'symbol': row[0],
                 'name': row[1],
-                'market': row[2]
+                'market': row[2],
+                'industry': row[3] or ''
             })
 
         return jsonify(_build_paginated_response(
@@ -2769,6 +3137,76 @@ def search_stocks():
         conn.close()
 
 
+@app.route('/api/stocks/my-stocks', methods=['GET'])
+def get_my_stocks():
+    """获取用户的持仓和自选股"""
+    try:
+        conn = get_db()
+
+        # Detect database provider
+        provider = get_db_provider()
+
+        # Query positions (quantity > 0)
+        if provider == 'postgres':
+            positions_query = """
+                SELECT symbol, name
+                FROM quant.positions
+                WHERE quantity > 0
+                ORDER BY symbol
+            """
+        else:
+            positions_query = """
+                SELECT symbol, name
+                FROM positions
+                WHERE quantity > 0
+                ORDER BY symbol
+            """
+
+        positions_cursor = conn.execute(positions_query)
+        positions_rows = positions_cursor.fetchall()
+
+        positions = [
+            {'symbol': row[0], 'name': row[1]}
+            for row in positions_rows
+        ]
+
+        # Query watchlist
+        if provider == 'postgres':
+            watchlist_query = """
+                SELECT symbol, name
+                FROM quant.watchlist
+                ORDER BY symbol
+            """
+        else:
+            watchlist_query = """
+                SELECT symbol, name
+                FROM watchlist
+                ORDER BY symbol
+            """
+
+        watchlist_cursor = conn.execute(watchlist_query)
+        watchlist_rows = watchlist_cursor.fetchall()
+
+        watchlist = [
+            {'symbol': row[0], 'name': row[1]}
+            for row in watchlist_rows
+        ]
+
+        conn.close()
+
+        return jsonify({
+            'positions': positions,
+            'watchlist': watchlist
+        })
+
+    except Exception as e:
+        logger.error(f'获取持仓和自选股失败: {e}')
+        return jsonify({
+            'positions': [],
+            'watchlist': []
+        }), 500
+
+
 def _lookup_local_stock(db: Database, symbol: str):
     rows = db.get_stock_identity_rows()
     for row in rows:
@@ -3036,24 +3474,118 @@ def cancel_pipeline_run(run_id):
     return jsonify({'success': True, 'data': run})
 
 
+def _resolve_job_type_and_params(task: dict):
+    """从 task payload 中提取 job_type 和 params，兼容新旧两种格式。"""
+    payload = task.get('payload') or {}
+    job_type = payload.get('command') or payload.get('job_type')
+    if 'params' in payload and isinstance(payload.get('params'), dict):
+        params = payload['params']
+    else:
+        params = {k: v for k, v in payload.items()
+                  if k not in ('command', 'description', 'job_type')}
+    return job_type, params
+
+
 @app.route('/api/scheduler/tasks', methods=['GET'])
 def list_scheduler_tasks():
     """返回 quant-web 运维页需要的调度任务摘要。"""
+    _seed_scheduler_tasks()
+    tasks = _load_scheduler_tasks_from_db()
     return jsonify({
         'success': True,
-        'tasks': [_scheduler_task_summary(task) for task in SCHEDULER_TASK_DEFINITIONS],
+        'tasks': [_scheduler_task_summary(task) for task in tasks],
     })
+
+
+@app.route('/api/scheduler/tasks', methods=['POST'])
+def create_scheduler_task():
+    """创建新的调度任务。"""
+    data = request.get_json() or {}
+    if not data.get('name') or not data.get('scheduleExpr'):
+        return jsonify({'success': False, 'error': '任务名称和 Cron 表达式为必填项'}), 400
+
+    payload = data.get('payload', {})
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except (json.JSONDecodeError, TypeError):
+            payload = {}
+
+    task = {
+        'name': data.get('name'),
+        'scheduleKind': data.get('scheduleKind', 'cron'),
+        'scheduleExpr': data.get('scheduleExpr'),
+        'payload': payload,
+        'enabled': data.get('enabled', True),
+    }
+    saved = _save_scheduler_task_to_db(task)
+    return jsonify({'success': True, 'data': _scheduler_task_summary(saved)}), 201
+
+
+@app.route('/api/scheduler/tasks/<task_id>', methods=['PUT'])
+def update_scheduler_task(task_id):
+    """更新调度任务。"""
+    existing = _get_scheduler_task_from_db(task_id)
+    if not existing:
+        return jsonify({'success': False, 'error': f'Scheduler task {task_id} not found'}), 404
+
+    data = request.get_json() or {}
+    payload = data.get('payload', {})
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except (json.JSONDecodeError, TypeError):
+            payload = {}
+
+    existing['name'] = data.get('name', existing['name'])
+    existing['scheduleKind'] = data.get('scheduleKind', existing['scheduleKind'])
+    existing['scheduleExpr'] = data.get('scheduleExpr', existing['scheduleExpr'])
+    existing['payload'] = payload if payload else existing['payload']
+    existing['enabled'] = data.get('enabled', existing['enabled'])
+
+    saved = _save_scheduler_task_to_db(existing)
+    return jsonify({'success': True, 'data': _scheduler_task_summary(saved)})
+
+
+@app.route('/api/scheduler/tasks/<task_id>', methods=['DELETE'])
+def delete_scheduler_task(task_id):
+    """删除调度任务。"""
+    deleted = _delete_scheduler_task_from_db(task_id)
+    if not deleted:
+        return jsonify({'success': False, 'error': f'Scheduler task {task_id} not found'}), 404
+    return jsonify({'success': True})
+
+
+@app.route('/api/scheduler/tasks/<task_id>/enable', methods=['POST'])
+def enable_scheduler_task(task_id):
+    """启用调度任务。"""
+    updated = _set_scheduler_task_enabled(task_id, True)
+    if not updated:
+        return jsonify({'success': False, 'error': f'Scheduler task {task_id} not found'}), 404
+    return jsonify({'success': True})
+
+
+@app.route('/api/scheduler/tasks/<task_id>/disable', methods=['POST'])
+def disable_scheduler_task(task_id):
+    """停用调度任务。"""
+    updated = _set_scheduler_task_enabled(task_id, False)
+    if not updated:
+        return jsonify({'success': False, 'error': f'Scheduler task {task_id} not found'}), 404
+    return jsonify({'success': True})
 
 
 @app.route('/api/scheduler/tasks/<task_id>/trigger', methods=['POST'])
 def trigger_scheduler_task(task_id):
     """手动触发一个调度任务。"""
-    task = next((item for item in SCHEDULER_TASK_DEFINITIONS if item['id'] == task_id), None)
+    task = _get_scheduler_task_from_db(task_id)
     if task is None:
         return jsonify({'success': False, 'error': f'Scheduler task {task_id} not found'}), 404
 
-    payload = task.get('payload') or {}
-    job_id = _start_job_for_type(payload['job_type'], payload.get('params') or {})
+    job_type, params = _resolve_job_type_and_params(task)
+    if not job_type:
+        return jsonify({'success': False, 'error': 'Task payload 中缺少 command/job_type'}), 400
+
+    job_id = _start_job_for_type(job_type, params)
     return jsonify({
         'success': True,
         'data': _scheduler_run_from_job(task, _get_job(job_id), 'manual'),
@@ -3063,18 +3595,87 @@ def trigger_scheduler_task(task_id):
 @app.route('/api/scheduler/tasks/<task_id>/compensate', methods=['POST'])
 def compensate_scheduler_task(task_id):
     """补偿触发一个调度任务。"""
-    task = next((item for item in SCHEDULER_TASK_DEFINITIONS if item['id'] == task_id), None)
+    task = _get_scheduler_task_from_db(task_id)
     if task is None:
         return jsonify({'success': False, 'error': f'Scheduler task {task_id} not found'}), 404
     if not task.get('compensationEnabled'):
         return jsonify({'success': False, 'error': f'Scheduler task {task_id} does not enable compensation'}), 409
 
-    payload = task.get('payload') or {}
-    job_id = _start_job_for_type(payload['job_type'], payload.get('params') or {})
+    job_type, params = _resolve_job_type_and_params(task)
+    if not job_type:
+        return jsonify({'success': False, 'error': 'Task payload 中缺少 command/job_type'}), 400
+
+    job_id = _start_job_for_type(job_type, params)
     return jsonify({
         'success': True,
         'data': _scheduler_run_from_job(task, _get_job(job_id), 'compensation'),
     }), 202
+
+
+@app.route('/api/scheduler/tasks/<task_id>/runs', methods=['GET'])
+def list_task_runs(task_id):
+    """返回指定调度任务的运行记录。"""
+    task = _get_scheduler_task_from_db(task_id)
+    if task is None:
+        return jsonify({'success': False, 'error': f'Scheduler task {task_id} not found'}), 404
+
+    limit = int(request.args.get('limit', 20))
+    job_type = (task.get('payload') or {}).get('command') or (task.get('payload') or {}).get('job_type')
+
+    jobs = _query_jobs_from_db(limit=limit, job_type=job_type) if job_type else []
+    runs = [_scheduler_run_from_job(task, job, 'scheduled') for job in jobs]
+
+    return jsonify({'success': True, 'runs': runs})
+
+
+@app.route('/api/scheduler/runs', methods=['GET'])
+def list_scheduler_runs():
+    """返回调度任务运行记录（支持 status 过滤）。"""
+    try:
+        limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
+        status = request.args.get('status')
+
+        jobs = _query_jobs_from_db(limit=limit, offset=offset, status=status)
+
+        _seed_scheduler_tasks()
+        tasks = _load_scheduler_tasks_from_db()
+        tasks_by_job_type = {}
+        for t in tasks:
+            jt = (t.get('payload') or {}).get('command') or (t.get('payload') or {}).get('job_type')
+            if jt:
+                tasks_by_job_type[jt] = t
+
+        runs = []
+        for job in jobs:
+            task = tasks_by_job_type.get(job.get('type', ''))
+            if task:
+                runs.append(_scheduler_run_from_job(task, job, 'scheduled'))
+            else:
+                normalized = _normalize_job_for_web(job)
+                runs.append({
+                    'id': normalized['id'],
+                    'taskId': job.get('type', ''),
+                    'taskName': job.get('type', ''),
+                    'scheduledFor': normalized.get('createdAt', ''),
+                    'triggerType': 'scheduled',
+                    'status': normalized['status'],
+                    'triggeredAt': normalized.get('createdAt'),
+                    'startedAt': normalized.get('startedAt'),
+                    'finishedAt': normalized.get('finishedAt'),
+                    'error': normalized.get('error'),
+                    'payload': job.get('params') or {},
+                    'createdAt': normalized.get('createdAt'),
+                    'updatedAt': normalized.get('updatedAt'),
+                })
+
+        return jsonify({
+            'success': True,
+            'count': len(runs),
+            'runs': runs,
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/scheduler/runs/failed', methods=['GET'])
@@ -3082,46 +3683,31 @@ def list_failed_scheduler_runs():
     """返回失败的调度任务运行记录。"""
     try:
         limit = int(request.args.get('limit', 50))
+        failed_jobs = _query_jobs_from_db(limit=limit, status='failed')
 
-        # 收集所有 job 文件
-        all_runs = []
-        if _jobs_dir.exists():
-            for job_file in _jobs_dir.glob('*.json'):
-                if job_file.name.startswith('.'):
-                    continue
-                try:
-                    with open(job_file, 'r') as f:
-                        job = json.load(f)
+        _seed_scheduler_tasks()
+        tasks = _load_scheduler_tasks_from_db()
+        tasks_by_job_type = {}
+        for t in tasks:
+            jt = (t.get('payload') or {}).get('command') or (t.get('payload') or {}).get('job_type')
+            if jt:
+                tasks_by_job_type[jt] = t
 
-                    # 查找对应的 task
-                    job_type = job.get('type', '')
-                    task = next((t for t in SCHEDULER_TASK_DEFINITIONS
-                                if t.get('payload', {}).get('job_type') == job_type), None)
-
-                    if task:
-                        run = _scheduler_run_from_job(task, job, 'scheduled')
-                        # 只收集失败状态的运行记录
-                        if run['status'] in ['failed', 'skipped']:
-                            all_runs.append(run)
-                except Exception:
-                    continue
-
-        # 按创建时间倒序排序
-        all_runs.sort(key=lambda x: x.get('createdAt', ''), reverse=True)
-
-        # 限制返回数量
-        failed_runs = all_runs[:limit]
+        failed_runs = []
+        for job in failed_jobs:
+            task = tasks_by_job_type.get(job.get('type', ''))
+            if task:
+                run = _scheduler_run_from_job(task, job, 'scheduled')
+                if run['status'] in ('failed', 'skipped'):
+                    failed_runs.append(run)
 
         return jsonify({
             'success': True,
             'count': len(failed_runs),
-            'runs': failed_runs
+            'runs': failed_runs,
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 # =====================================================
@@ -4373,11 +4959,11 @@ def list_trades():
         symbol = request.args.get('symbol')
         direction = request.args.get('direction')  # buy/sell
         keyword = request.args.get('keyword')
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
 
-        # 构建查询
         conn = get_db()
 
-        # 构建WHERE条件
         conditions = []
         params = []
 
@@ -4389,24 +4975,31 @@ def list_trades():
             conditions.append("action = ?")
             params.append(direction)
 
+        if start_date:
+            conditions.append("trade_date >= ?")
+            params.append(start_date)
+
+        if end_date:
+            conditions.append("trade_date <= ?")
+            params.append(end_date)
+
         if keyword:
-            conditions.append("(symbol LIKE ? OR notes LIKE ?)")
+            conditions.append("(symbol LIKE ? OR reason LIKE ?)")
             params.append(f'%{keyword}%')
             params.append(f'%{keyword}%')
 
         where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
-        # 获取总数
-        count_query = f"SELECT COUNT(*) FROM position_history {where_clause}"
+        count_query = f"SELECT COUNT(*) FROM trades {where_clause}"
         cursor = conn.execute(count_query, params)
         total = cursor.fetchone()[0]
 
-        # 执行分页查询
         base_query = f"""
-            SELECT id, symbol, action, shares, price, amount, timestamp, notes, realized_pnl
-            FROM position_history
+            SELECT id, symbol, name, action, price, quantity, amount,
+                   fee, stamp_duty, trade_date, reason, order_id, pnl, pnl_percent
+            FROM trades
             {where_clause}
-            ORDER BY timestamp DESC
+            ORDER BY trade_date DESC
         """
         paginated_query, paginated_params = _paginate_query(
             base_query, params, page, page_size
@@ -4415,19 +5008,23 @@ def list_trades():
         rows = cursor.fetchall()
         conn.close()
 
-        # 转换为字典列表
         trades = []
         for row in rows:
             trades.append({
                 'id': row[0],
                 'symbol': row[1],
-                'action': row[2],
-                'shares': float(row[3]) if row[3] is not None else 0.0,
+                'name': row[2],
+                'action': row[3],
                 'price': float(row[4]) if row[4] is not None else 0.0,
-                'amount': float(row[5]) if row[5] is not None else 0.0,
-                'timestamp': row[6],
-                'notes': row[7],
-                'realized_pnl': float(row[8]) if row[8] is not None else 0.0
+                'quantity': row[5],
+                'amount': float(row[6]) if row[6] is not None else 0.0,
+                'fee': float(row[7]) if row[7] is not None else 0.0,
+                'stampDuty': float(row[8]) if row[8] is not None else 0.0,
+                'tradeDate': str(row[9]) if row[9] is not None else None,
+                'reason': row[10],
+                'orderId': row[11],
+                'pnl': float(row[12]) if row[12] is not None else None,
+                'pnlPercent': float(row[13]) if row[13] is not None else None,
             })
 
         return jsonify(_build_paginated_response(
@@ -4442,7 +5039,131 @@ def list_trades():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+_cron_scheduler_started = False
+_cron_triggered_cache = set()  # (task_id, minute_key) tuples to prevent duplicate triggers
+
+
+def _cron_field_matches(field: str, actual: int) -> bool:
+    """检查单个 cron 字段是否匹配实际值。"""
+    if field == '*':
+        return True
+    for part in field.split(','):
+        part = part.strip()
+        if not part:
+            continue
+        if '/' in part:
+            base_str, step_str = part.split('/', 1)
+            base = 0 if base_str == '*' else int(base_str)
+            step = int(step_str)
+            if step <= 0:
+                continue
+            if actual >= base and (actual - base) % step == 0:
+                return True
+        elif '-' in part:
+            lo_str, hi_str = part.split('-', 1)
+            if int(lo_str) <= actual <= int(hi_str):
+                return True
+        else:
+            try:
+                if int(part) == actual:
+                    return True
+            except ValueError:
+                continue
+    return False
+
+
+def _cron_matches(cron_expr: str, dt: datetime) -> bool:
+    """检查 5 字段 cron 表达式是否匹配给定时间。"""
+    parts = cron_expr.strip().split()
+    if len(parts) != 5:
+        return False
+    minute_f, hour_f, dom_f, month_f, dow_f = parts
+
+    if not _cron_field_matches(minute_f, dt.minute):
+        return False
+    if not _cron_field_matches(hour_f, dt.hour):
+        return False
+    if not _cron_field_matches(dom_f, dt.day):
+        return False
+    if not _cron_field_matches(month_f, dt.month):
+        return False
+
+    # Python weekday(): 0=Mon .. 6=Sun
+    # Cron    dow:     0=Sun, 1=Mon .. 6=Sat, 7=Sun
+    python_dow = dt.weekday()
+    cron_dow = 7 if python_dow == 6 else python_dow + 1  # Mon=1 .. Sun=7
+    if _cron_field_matches(dow_f, cron_dow):
+        return True
+    if python_dow == 6 and _cron_field_matches(dow_f, 0):
+        return True
+    return False
+
+
+def _cron_scheduler_loop():
+    """后台线程：每分钟检查 DB 中的启用任务，cron 匹配时自动触发。"""
+    logger = logging.getLogger(__name__)
+    logger.info("Cron scheduler background thread started")
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            minute_key = now.strftime('%Y%m%d%H%M')
+            # 等 5 秒让秒针过整点
+            time.sleep(5)
+
+            tasks = _load_scheduler_tasks_from_db()
+            for task in tasks:
+                if not task.get('enabled'):
+                    continue
+                cron_expr = task.get('scheduleExpr', '')
+                if not cron_expr:
+                    continue
+                if not _cron_matches(cron_expr, now):
+                    continue
+
+                cache_key = (task['id'], minute_key)
+                if cache_key in _cron_triggered_cache:
+                    continue
+                _cron_triggered_cache.add(cache_key)
+
+                job_type, params = _resolve_job_type_and_params(task)
+                if not job_type:
+                    continue
+
+                _start_job_for_type(job_type, params)
+                logger.info("Cron triggered task %s (%s) at %s", task['id'], task['name'], minute_key)
+
+            # 清理旧缓存（保留最近 120 分钟的 key）
+            stale_keys = set()
+            for key in _cron_triggered_cache:
+                try:
+                    key_minute = key[1]
+                    if key_minute < now.strftime('%Y%m%d%H%M')[:10] + '0000':  # 跨天简化清理
+                        stale_keys.add(key)
+                except Exception:
+                    stale_keys.add(key)
+            if len(_cron_triggered_cache) > 500:
+                _cron_triggered_cache.clear()
+
+            # 等到下一分钟
+            time.sleep(55)
+        except Exception:
+            logging.getLogger(__name__).exception("Cron scheduler loop error")
+            time.sleep(60)
+
+
+def _start_cron_scheduler():
+    """启动 cron 调度后台线程（仅启动一次）。"""
+    global _cron_scheduler_started
+    if _cron_scheduler_started:
+        return
+    _cron_scheduler_started = True
+    t = threading.Thread(target=_cron_scheduler_loop, daemon=True, name='cron-scheduler')
+    t.start()
+
+
 if __name__ == '__main__':
+    host = os.environ.get('QUANT_API_HOST', '127.0.0.1')
+    port = int(os.environ.get('QUANT_API_PORT', '5002'))
     print('🚀 启动量化系统API服务...')
     init_services()
     print('✅ 服务初始化完成')
@@ -4481,8 +5202,5 @@ if __name__ == '__main__':
     print('   GET /api/scheduler/tasks')
     print('   POST /api/scheduler/tasks/<task_id>/trigger')
     print('   POST /api/scheduler/tasks/<task_id>/compensate')
-    app.run(
-        host=os.environ.get('QUANT_API_HOST', '127.0.0.1'),
-        port=int(os.environ.get('QUANT_API_PORT', '5002')),
-        debug=False,
-    )
+    _start_cron_scheduler()
+    app.run(host=host, port=port, debug=False)
