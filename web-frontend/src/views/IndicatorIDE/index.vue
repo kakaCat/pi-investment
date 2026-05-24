@@ -146,9 +146,50 @@
         <!-- 实时预览 -->
         <el-card class="preview-card mb-4">
           <template #header>
-            <div class="flex items-center gap-2">
-              <el-icon><TrendCharts /></el-icon>
-              <span class="font-bold">实时预览</span>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <el-icon><TrendCharts /></el-icon>
+                <span class="font-bold">实时预览</span>
+              </div>
+
+              <el-select
+                v-model="currentSymbol"
+                filterable
+                remote
+                reserve-keyword
+                placeholder="选择测试股票..."
+                :remote-method="handleStockSearch"
+                :loading="searchLoading"
+                style="width: 200px"
+                @change="handleStockChange"
+              >
+                <el-option-group v-if="positionStocks.length > 0" label="我的持仓">
+                  <el-option
+                    v-for="stock in positionStocks"
+                    :key="stock.symbol"
+                    :label="`${stock.symbol} - ${stock.name}`"
+                    :value="stock.symbol"
+                  />
+                </el-option-group>
+
+                <el-option-group v-if="watchlistStocks.length > 0" label="我的自选">
+                  <el-option
+                    v-for="stock in watchlistStocks"
+                    :key="stock.symbol"
+                    :label="`${stock.symbol} - ${stock.name}`"
+                    :value="stock.symbol"
+                  />
+                </el-option-group>
+
+                <el-option-group v-if="searchResults.length > 0" label="搜索结果">
+                  <el-option
+                    v-for="stock in searchResults"
+                    :key="stock.symbol"
+                    :label="`${stock.symbol} - ${stock.name}`"
+                    :value="stock.symbol"
+                  />
+                </el-option-group>
+              </el-select>
             </div>
           </template>
 
