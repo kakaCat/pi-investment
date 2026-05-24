@@ -128,6 +128,15 @@
               <el-icon><CopyDocument /></el-icon>
               复制代码
             </el-button>
+            <el-button
+              type="danger"
+              :disabled="!selectedIndicator || selectedIndicator.strategyType !== 'custom'"
+              data-test="delete-indicator"
+              @click="deleteSelectedIndicator"
+            >
+              <el-icon><Delete /></el-icon>
+              删除
+            </el-button>
           </div>
         </el-card>
       </div>
@@ -305,7 +314,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Search,
@@ -317,26 +326,44 @@ import {
   CopyDocument,
   TrendCharts,
   DataAnalysis,
-  Refresh
+  Refresh,
+  Delete
 } from '@element-plus/icons-vue'
+import { debounce } from 'lodash-es'
 import { useChart } from '@/composables/useChart'
 import { indicatorApi } from '@/services/api/indicator'
+import { stockApi } from '@/services/api/stock'
 import type { Indicator, IndicatorBacktest } from '@/types'
+import type {
+  IndicatorInfo,
+  IndicatorRunResult,
+  KlineData
+} from '@/types/indicator'
 import type { EChartsOption } from 'echarts'
 
 // 搜索关键词
 const searchKeyword = ref('')
 
 // 指标列表
-const myIndicators = ref<Indicator[]>([])
-const systemIndicators = ref<Indicator[]>([])
+const myIndicators = ref<IndicatorInfo[]>([])
+const systemIndicators = ref<IndicatorInfo[]>([])
 
 // 当前选中的指标
-const selectedIndicator = ref<Indicator | null>(null)
+const selectedIndicator = ref<IndicatorInfo | null>(null)
 
 // 当前编辑的指标
 const currentIndicatorName = ref('')
 const currentIndicatorCode = ref('')
+
+// 当前测试股票
+const currentSymbol = ref('600519')
+const currentSymbolName = ref('贵州茅台')
+
+// 股票选择器相关状态
+const positionStocks = ref<Array<{ symbol: string; name: string }>>([])
+const watchlistStocks = ref<Array<{ symbol: string; name: string }>>([])
+const searchResults = ref<Array<{ symbol: string; name: string; market?: string }>>([])
+const searchLoading = ref(false)
 
 // 加载状态
 const running = ref(false)
@@ -373,7 +400,9 @@ const previewData = ref<{
 const backtestResult = ref<IndicatorBacktest['result'] | null>(null)
 
 // 图表
-const { setOption, showLoading, hideLoading } = useChart({ theme: 'dark' })
+const chart = useChart({ theme: 'dark' })
+const chartRef = chart.chartRef
+const { setOption, showLoading, hideLoading } = chart
 
 // 过滤后的指标列表
 const filteredMyIndicators = computed(() => {
@@ -381,7 +410,7 @@ const filteredMyIndicators = computed(() => {
   const keyword = searchKeyword.value.toLowerCase()
   return myIndicators.value.filter(ind =>
     ind.name.toLowerCase().includes(keyword) ||
-    ind.description.toLowerCase().includes(keyword)
+    (ind.description || '').toLowerCase().includes(keyword)
   )
 })
 
@@ -390,8 +419,61 @@ const filteredSystemIndicators = computed(() => {
   const keyword = searchKeyword.value.toLowerCase()
   return systemIndicators.value.filter(ind =>
     ind.name.toLowerCase().includes(keyword) ||
-    ind.description.toLowerCase().includes(keyword)
+    (ind.description || '').toLowerCase().includes(keyword)
   )
+})
+
+// 加载持仓和自选股
+const loadMyStocks = async () => {
+  try {
+    const response = await stockApi.getMyStocks()
+    positionStocks.value = response.positions || []
+    watchlistStocks.value = response.watchlist || []
+  } catch (error) {
+    console.error('加载持仓/自选股失败:', error)
+    // 失败不阻塞，用户仍可搜索
+  }
+}
+
+// 防抖搜索
+const handleStockSearch = debounce(async (query: string) => {
+  if (!query || query.length < 2) {
+    searchResults.value = []
+    return
+  }
+
+  searchLoading.value = true
+  try {
+    const results = await stockApi.searchStocks(query)
+    searchResults.value = results
+  } catch (error) {
+    console.error('搜索股票失败:', error)
+    ElMessage.error('搜索股票失败')
+  } finally {
+    searchLoading.value = false
+  }
+}, 300)
+
+// 股票切换处理
+const handleStockChange = (symbol: string) => {
+  // 从所有列表中查找股票名称
+  const allStocks = [
+    ...positionStocks.value,
+    ...watchlistStocks.value,
+    ...searchResults.value
+  ]
+  const stock = allStocks.find(s => s.symbol === symbol)
+
+  if (stock) {
+    currentSymbolName.value = stock.name
+  }
+
+  // 不自动运行指标，等用户点击"运行"按钮
+}
+
+// 同步回测表单
+watch(currentSymbol, (newSymbol) => {
+  backtestForm.symbol = newSymbol
 })
 
 // 加载指标列表
@@ -400,7 +482,7 @@ const loadIndicators = async () => {
     const [myRes, systemRes] = await Promise.all([
       indicatorApi.getMyIndicators(),
       indicatorApi.getSystemIndicators()
-    ]) as any[]
+    ])
     // 处理可能的数组或对象响应
     myIndicators.value = Array.isArray(myRes) ? myRes : (myRes.items || [])
     systemIndicators.value = Array.isArray(systemRes) ? systemRes : (systemRes.items || [])
@@ -418,10 +500,10 @@ const loadIndicators = async () => {
 }
 
 // 选中指标
-const selectIndicator = (indicator: Indicator) => {
+const selectIndicator = (indicator: IndicatorInfo) => {
   selectedIndicator.value = indicator
   currentIndicatorName.value = indicator.name
-  currentIndicatorCode.value = indicator.code
+  currentIndicatorCode.value = indicator.codeContent || ''
 
   // 清空预览和回测结果
   previewData.value = null
@@ -432,26 +514,23 @@ const selectIndicator = (indicator: Indicator) => {
 const createNewIndicator = () => {
   selectedIndicator.value = null
   currentIndicatorName.value = '新指标'
-  currentIndicatorCode.value = `// 自定义指标
-indicator("新指标", overlay=false)
+  currentIndicatorCode.value = `# 自定义指标
 
-// 参数配置
-length = input(14, "周期")
+# @param ma_short int 5 短期均线
+# @param ma_long int 20 长期均线
+# @strategy stopLossPct 0.02
+# @strategy takeProfitPct 0.05
+# @strategy entryPct 0.25
 
-// 计算逻辑
-// ...
+# 计算双均线
+df['ma_short'] = df['close'].rolling(window=params['ma_short']).mean()
+df['ma_long'] = df['close'].rolling(window=params['ma_long']).mean()
 
-// 绘制
-plot(value, "指标", color.blue, 2)
+# 金叉买入：短期上穿长期
+df['buy'] = (df['ma_short'] > df['ma_long']) & (df['ma_short'].shift(1) <= df['ma_long'].shift(1))
 
-// 信号
-buySignal = crossover(value, threshold)
-sellSignal = crossunder(value, threshold)
-
-plotshape(buySignal, "买入", shape.triangleup,
-          location.bottom, color.green, size=size.small)
-plotshape(sellSignal, "卖出", shape.triangledown,
-          location.top, color.red, size=size.small)`
+# 死叉卖出：短期下穿长期
+df['sell'] = (df['ma_short'] < df['ma_long']) & (df['ma_short'].shift(1) >= df['ma_long'].shift(1))`
 
   previewData.value = null
   backtestResult.value = null
@@ -459,8 +538,8 @@ plotshape(sellSignal, "卖出", shape.triangledown,
 
 // 运行指标
 const runIndicator = async () => {
-  if (!currentIndicatorCode.value.trim()) {
-    ElMessage.warning('请输入指标代码')
+  if (!selectedIndicator.value || !currentSymbol.value) {
+    ElMessage.warning('请先选择指标和股票')
     return
   }
 
@@ -468,28 +547,42 @@ const runIndicator = async () => {
   showLoading()
 
   try {
-    // 模拟运行指标（实际应调用API）
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const result: IndicatorRunResult = await indicatorApi.runIndicator(
+      selectedIndicator.value.id.toString(),
+      { symbol: currentSymbol.value, limit: 100 }
+    )
 
-    // 生成模拟数据
-    const mockData = generateMockRSIData()
+    // 后端返回格式: { symbol, latestSignal, confidence, price, date, indicators: {...}, klineData: [...], indicatorSeries: {...} }
+    const indicatorValues = result.indicators || {}
+    const klineData = result.klineData || []
+    const indicatorSeries = result.indicatorSeries || {}
 
     // 设置预览数据
+    const latestSignal = result.latestSignal
     previewData.value = {
-      symbol: '600519',
-      symbolName: '贵州茅台',
-      currentValue: 28.5,
-      signal: 'buy',
-      signalTriggered: true
+      symbol: currentSymbol.value,
+      symbolName: result.symbol || currentSymbol.value,
+      currentValue: result.price || 0,
+      signal: latestSignal === 'buy' ? 'buy' : latestSignal === 'sell' ? 'sell' : undefined,
+      signalTriggered: latestSignal === 'buy' || latestSignal === 'sell'
     }
 
-    // 渲染图表
-    renderChart(mockData)
+    // 渲染K线图（如果有K线数据）
+    if (klineData.length > 0) {
+      renderKlineChart(klineData, indicatorSeries)
+    } else {
+      // 降级：显示指标柱状图
+      const chartData = Object.entries(indicatorValues).map(([key, value]: [string, any]) => ({
+        name: key,
+        value: typeof value === 'number' ? value : 0
+      }))
+      renderChart(chartData)
+    }
 
-    ElMessage.success('指标运行成功')
-  } catch (error) {
+    ElMessage.success('指标计算完成')
+  } catch (error: any) {
     console.error('运行指标失败:', error)
-    ElMessage.error('运行指标失败')
+    ElMessage.error(error?.message || '指标计算失败')
   } finally {
     running.value = false
     hideLoading()
@@ -503,8 +596,8 @@ const saveIndicator = async () => {
   // 如果是已有指标，填充表单
   if (selectedIndicator.value) {
     saveForm.name = currentIndicatorName.value
-    saveForm.description = selectedIndicator.value.description
-    saveForm.category = selectedIndicator.value.category
+    saveForm.description = selectedIndicator.value.description || ''
+    saveForm.category = selectedIndicator.value.category || 'custom'
   } else {
     saveForm.name = currentIndicatorName.value
     saveForm.description = ''
@@ -530,7 +623,7 @@ const publishIndicator = async () => {
       }
     )
 
-    await indicatorApi.publishIndicator(selectedIndicator.value.id)
+    await indicatorApi.publishIndicator(selectedIndicator.value.id.toString())
     ElMessage.success('指标发布成功')
 
     // 重新加载指标列表
@@ -559,6 +652,47 @@ const copyCode = async () => {
   }
 }
 
+// 删除当前选中的自定义指标
+const deleteSelectedIndicator = async () => {
+  if (!selectedIndicator.value) {
+    ElMessage.warning('请先选择要删除的指标')
+    return
+  }
+
+  if (selectedIndicator.value.strategyType !== 'custom') {
+    ElMessage.warning('系统指标不能删除')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定删除「${selectedIndicator.value.name}」吗？此操作不可恢复。`,
+      '确认删除',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    await indicatorApi.deleteIndicator(selectedIndicator.value.id.toString())
+    ElMessage.success('指标删除成功')
+
+    selectedIndicator.value = null
+    currentIndicatorName.value = ''
+    currentIndicatorCode.value = ''
+    previewData.value = null
+    backtestResult.value = null
+
+    await loadIndicators()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除指标失败:', error)
+      ElMessage.error('删除指标失败')
+    }
+  }
+}
+
 // 运行回测
 const runBacktest = async () => {
   if (!currentIndicatorCode.value.trim()) {
@@ -566,26 +700,12 @@ const runBacktest = async () => {
     return
   }
 
-  backtestDialogVisible.value = true
-}
-
-// 生成模拟RSI数据
-const generateMockRSIData = () => {
-  const data: number[] = []
-  const times: string[] = []
-
-  let value = 50
-  for (let i = 0; i < 50; i++) {
-    value += (Math.random() - 0.5) * 10
-    value = Math.max(0, Math.min(100, value))
-    data.push(value)
-
-    const hour = 9 + Math.floor(i / 12)
-    const minute = (i % 12) * 5
-    times.push(`${hour}:${minute.toString().padStart(2, '0')}`)
+  if (!selectedIndicator.value?.id) {
+    ElMessage.warning('请先保存指标后再进行回测')
+    return
   }
 
-  return { data, times }
+  backtestDialogVisible.value = true
 }
 
 // 提交保存指标
@@ -614,11 +734,11 @@ const submitSaveIndicator = async () => {
 
     if (selectedIndicator.value) {
       // 更新现有指标
-      await indicatorApi.updateIndicator(selectedIndicator.value.id, indicatorData)
+      await indicatorApi.updateIndicator(selectedIndicator.value.id.toString(), indicatorData)
       ElMessage.success('指标更新成功')
     } else {
       // 创建新指标
-      const res = await indicatorApi.createIndicator(indicatorData)
+      const res = await indicatorApi.createIndicator(indicatorData) as any
       selectedIndicator.value = res
       ElMessage.success('指标创建成功')
     }
@@ -660,18 +780,32 @@ const submitBacktest = async () => {
       return
     }
 
-    // 调用回测API
-    const backtestData: Partial<IndicatorBacktest> = {
-      indicatorId: selectedIndicator.value?.id || 'temp',
-      symbol: backtestForm.symbol,
-      startDate: backtestForm.startDate,
-      endDate: backtestForm.endDate
+    // 验证指标已保存
+    if (!selectedIndicator.value?.id) {
+      ElMessage.warning('请先保存指标后再进行回测')
+      backtesting.value = false
+      return
     }
 
-    const result = await indicatorApi.backtestIndicator(backtestData)
+    // 调用回测API
+    const backtestData = {
+      indicatorId: selectedIndicator.value.id.toString(),
+      symbol: backtestForm.symbol,
+      startDate: backtestForm.startDate,
+      endDate: backtestForm.endDate,
+      initialCash: backtestForm.initialCapital
+    }
 
-    // 设置回测结果
-    backtestResult.value = result.result
+    const result = await indicatorApi.backtestIndicator(backtestData) as any
+
+    // 后端返回: { totalReturn, sharpeRatio, maxDrawdown, winRate, totalTrades, trades, equityCurve }
+    backtestResult.value = {
+      winRate: result.winRate ?? 0,
+      totalReturn: result.totalReturn ?? 0,
+      sharpeRatio: result.sharpeRatio ?? 0,
+      maxDrawdown: result.maxDrawdown ?? 0,
+      trades: result.totalTrades ?? 0
+    }
 
     ElMessage.success('回测完成')
     backtestDialogVisible.value = false
@@ -706,90 +840,162 @@ const initBacktestDates = () => {
   backtestForm.startDate = startDate.toISOString().split('T')[0]
 }
 
+// 渲染K线图
+const renderKlineChart = (klineData: KlineData[], indicatorSeries: Record<string, (number | null)[]>) => {
+  const dates = klineData.map(k => k.date)
+  const ohlc = klineData.map(k => [k.open, k.close, k.low, k.high])
+  const volumes = klineData.map(k => k.volume)
+
+  // 构建指标线系列
+  const indicatorLines = Object.entries(indicatorSeries).map(([name, values]) => ({
+    name,
+    type: 'line' as const,
+    data: values,
+    smooth: true,
+    lineStyle: { width: 2 },
+    showSymbol: false
+  }))
+
+  const option: EChartsOption = {
+    backgroundColor: '#0a0a0f',
+    grid: [
+      { left: 60, right: 30, top: 40, bottom: 100, height: '60%' },
+      { left: 60, right: 30, top: '75%', bottom: 30, height: '15%' }
+    ],
+    xAxis: [
+      {
+        type: 'category',
+        data: dates,
+        gridIndex: 0,
+        axisLine: { lineStyle: { color: '#2a2e39' } },
+        axisLabel: { show: false },
+        splitLine: { show: false }
+      },
+      {
+        type: 'category',
+        data: dates,
+        gridIndex: 1,
+        axisLine: { lineStyle: { color: '#2a2e39' } },
+        axisLabel: { color: '#787b86', fontSize: 10, rotate: 30 },
+        splitLine: { show: false }
+      }
+    ],
+    yAxis: [
+      {
+        type: 'value',
+        gridIndex: 0,
+        scale: true,
+        axisLine: { lineStyle: { color: '#2a2e39' } },
+        axisLabel: { color: '#787b86', fontSize: 10 },
+        splitLine: { lineStyle: { color: '#1e293b', opacity: 0.3 } }
+      },
+      {
+        type: 'value',
+        gridIndex: 1,
+        axisLine: { lineStyle: { color: '#2a2e39' } },
+        axisLabel: { color: '#787b86', fontSize: 10 },
+        splitLine: { show: false }
+      }
+    ],
+    series: [
+      {
+        name: 'K线',
+        type: 'candlestick',
+        data: ohlc,
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        itemStyle: {
+          color: '#ef4444',
+          color0: '#22c55e',
+          borderColor: '#ef4444',
+          borderColor0: '#22c55e'
+        }
+      },
+      ...indicatorLines.map(line => ({ ...line, xAxisIndex: 0, yAxisIndex: 0 })),
+      {
+        name: '成交量',
+        type: 'bar',
+        data: volumes,
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        itemStyle: {
+          color: (params: any) => {
+            const idx = params.dataIndex
+            return ohlc[idx][1] >= ohlc[idx][0] ? '#ef4444' : '#22c55e'
+          }
+        }
+      }
+    ],
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross' },
+      backgroundColor: 'rgba(19, 23, 34, 0.9)',
+      borderColor: '#2a2e39',
+      textStyle: { color: '#d1d4dc' }
+    },
+    dataZoom: [
+      {
+        type: 'inside',
+        xAxisIndex: [0, 1],
+        start: 0,
+        end: 100
+      }
+    ]
+  }
+
+  setOption(option)
+}
+
 // 渲染图表
-const renderChart = (mockData: { data: number[]; times: string[] }) => {
+const renderChart = (chartData: { name: string; value: number }[]) => {
+  const names = chartData.map(d => d.name)
+  const values = chartData.map(d => d.value)
+
   const option: EChartsOption = {
     backgroundColor: '#0a0a0f',
     grid: {
-      left: 50,
-      right: 50,
+      left: 60,
+      right: 30,
       top: 40,
-      bottom: 40,
+      bottom: 60,
       containLabel: true
     },
     xAxis: {
       type: 'category',
-      data: mockData.times,
+      data: names,
       axisLine: { lineStyle: { color: '#2a2e39' } },
-      axisLabel: { color: '#787b86', fontSize: 10 },
+      axisLabel: { color: '#787b86', fontSize: 10, rotate: 30 },
       splitLine: { show: false }
     },
     yAxis: {
       type: 'value',
-      min: 0,
-      max: 100,
       axisLine: { lineStyle: { color: '#2a2e39' } },
       axisLabel: { color: '#787b86', fontSize: 10 },
       splitLine: { lineStyle: { color: '#1e293b', opacity: 0.3 } }
     },
     series: [
       {
-        name: 'RSI',
-        type: 'line',
-        data: mockData.data,
-        smooth: true,
-        lineStyle: {
-          color: '#3b82f6',
-          width: 2
-        },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(59, 130, 246, 0.2)' },
-              { offset: 1, color: 'rgba(59, 130, 246, 0.02)' }
-            ]
+        name: '因子值',
+        type: 'bar',
+        data: values.map((v) => ({
+          value: v,
+          itemStyle: {
+            color: v >= 0 ? '#22c55e' : '#ef4444',
+            borderRadius: [4, 4, 0, 0]
           }
-        },
-        markLine: {
-          silent: true,
-          symbol: 'none',
-          lineStyle: { type: 'dashed' },
-          data: [
-            { yAxis: 70, lineStyle: { color: '#ef4444' }, label: { formatter: '超买: 70', color: '#ef4444' } },
-            { yAxis: 50, lineStyle: { color: '#64748b' }, label: { formatter: '中线: 50', color: '#64748b' } },
-            { yAxis: 30, lineStyle: { color: '#10b981' }, label: { formatter: '超卖: 30', color: '#10b981' } }
-          ]
-        },
-        markPoint: {
-          symbol: 'pin',
-          symbolSize: 40,
-          data: [
-            {
-              name: 'buy',
-              coord: [10, mockData.data[10]],
-              value: 'BUY',
-              itemStyle: { color: '#10b981' }
-            },
-            {
-              name: 'sell',
-              coord: [30, mockData.data[30]],
-              value: 'SELL',
-              itemStyle: { color: '#ef4444' }
-            }
-          ]
-        }
+        })),
+        barWidth: '60%'
       }
     ],
     tooltip: {
       trigger: 'axis',
       backgroundColor: 'rgba(19, 23, 34, 0.9)',
       borderColor: '#2a2e39',
-      textStyle: { color: '#d1d4dc' }
+      textStyle: { color: '#d1d4dc' },
+      formatter: (params: any) => {
+        const item = Array.isArray(params) ? params[0] : params
+        return `${item.name}<br/>值: ${item.value}`
+      }
     }
   }
 
@@ -799,7 +1005,11 @@ const renderChart = (mockData: { data: number[]; times: string[] }) => {
 // 初始化
 onMounted(() => {
   loadIndicators()
+  loadMyStocks()
   initBacktestDates()
+  if (chartRef.value) {
+    chart.resize()
+  }
 })
 </script>
 
