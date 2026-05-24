@@ -18,6 +18,7 @@ AI stock investment advisor (A-share / HK stocks) built on the `@mariozechner/pi
 |--------|----------|----------|
 | quant Flask API (v1) | `127.0.0.1:5002` | `QUANT_API_HOST` / `QUANT_API_PORT` 环境变量 |
 | quantsys-v2 Flask API | `127.0.0.1:5001` | `QUANTSYS_API_HOST` / `QUANTSYS_API_PORT` / `QUANTSYS_API_URL` |
+| quantsys-v2 WebSocket | `127.0.0.1:5003` | `QUANTSYS_API_HOST` / `QUANTSYS_WS_PORT` 环境变量 |
 | quant-web Vite | `127.0.0.1:3000` | 代理 `/api` → `127.0.0.1:5002` |
 | web-frontend Vite | `127.0.0.1:3001` | 代理 `/api` → `127.0.0.1:5001` |
 | TypeScript Agent | N/A (CLI) | 通过环境变量连接各服务 |
@@ -52,8 +53,10 @@ cd quant && python -m pytest tests/       # Run Python tests
 cd quant && pip install -r requirements.txt
 
 # Python quant backend (v2)
-cd quantsys-v2 && python api/server.py    # Start Flask API on port 5001
-cd quantsys-v2 && python -m pytest tests/ # Run Python tests
+cd quantsys-v2 && python start_all.py               # 一键启动 REST API (5001) + WebSocket (5003)
+cd quantsys-v2 && python api/server.py              # 单独启动 REST API on port 5001
+cd quantsys-v2 && python api/server_websocket.py    # 单独启动 WebSocket on port 5003
+cd quantsys-v2 && python -m pytest tests/           # Run Python tests
 
 # React dashboard (quant-web)
 cd quant-web && npm run dev    # Vite dev server on port 3000
@@ -138,6 +141,73 @@ Node >= 22.0.0 required. Python >= 3.9 with packages from `quant/requirements.tx
 ## Kafka (Optional)
 
 Docker Compose cluster for event streaming: `docker compose -f docker/kafka-cluster.yaml up -d`. Topics: market.klines, market.ticks, signals.generated, orders.submitted, orders.filled, risk.alerts, events.store. Kafka UI on port 8080.
+
+## Opportunity Radar Feature
+
+### Overview
+Real-time stock opportunity scanning with multi-dimensional scoring (technical, fundamental, capital).
+
+### Architecture
+- **StockPoolService**: Manages hot stock pool (沪深300 + 创业板50 + 科创50, ~400 stocks)
+- **OpportunityScoringService**: Parallel scoring engine with ThreadPoolExecutor (10 workers)
+- **Batch Queries**: Optimized database access (no N+1 queries)
+
+### API Endpoint
+`POST /api/signals/scan`
+
+**Request:**
+```json
+{
+  "stocks": ["600519.SH"],  // Optional: specific stocks to scan
+  "minScore": 60,            // Optional: minimum score (0-100)
+  "maxRiskLevel": "medium",  // Optional: low/medium/high
+  "technical": ["rsi_oversold", "macd_golden_cross"],  // Optional filters
+  "fundamental": ["low_pe", "high_roe"]                // Optional filters
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "opportunities": [
+    {
+      "symbol": "600519.SH",
+      "name": "贵州茅台",
+      "score": 85,
+      "technical_score": 90,
+      "fundamental_score": 80,
+      "capital_score": 75,
+      "confidence": 0.85,
+      "risk_level": "low",
+      "signal_type": "buy",
+      "timestamp": "2026-05-24T12:00:00"
+    }
+  ],
+  "total": 1,
+  "scanned": 400
+}
+```
+
+### Scoring Algorithm
+- **Technical Score (50%)**: RSI, MACD, Bollinger Bands, Volume
+- **Fundamental Score (30%)**: PE, ROE, Gross Margin, Debt Ratio
+- **Capital Score (20%)**: Volume growth, consecutive increases, volume ratio
+
+**Formula**: `comprehensive_score = technical × 0.5 + fundamental × 0.3 + capital × 0.2`
+
+### Performance
+- 400 stocks: ~0.2 seconds
+- Batch queries: 3-5 total queries
+- Parallel processing: 10 workers
+- Memory: 50-100 MB
+
+### Files
+- `quantsys-v2/services/stock_pool_service.py` - Hot stock pool management
+- `quantsys-v2/services/opportunity_scoring_service.py` - Scoring engine
+- `quantsys-v2/repositories/kline_repository.py` - Batch K-line queries
+- `quantsys-v2/repositories/stock_repository.py` - Batch fundamental queries
+- `quantsys-v2/api/server.py` - `/api/signals/scan` endpoint
 
 ## Active Conventions
 
