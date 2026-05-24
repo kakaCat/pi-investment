@@ -1,11 +1,20 @@
 import { apiClient } from './client'
 import type {
-  KLineData,
   StockListRequest,
   StockDetailRequest,
   MarketDataRequest
 } from '@/types'
-import { adaptStock, adaptStockList } from './adapters'
+import { adaptKLine, adaptStock, adaptStockList } from './adapters'
+
+function normalizeBackendStockSymbol(symbol: string): string {
+  return symbol.replace(/\.(SZ|SH)$/i, '')
+}
+
+function compactParams(params: Record<string, any>) {
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '')
+  )
+}
 
 export const stockApi = {
   /**
@@ -20,8 +29,20 @@ export const stockApi = {
    * 获取股票详情
    */
   async getStockDetail(symbol: string, _params?: StockDetailRequest) {
-    const response = await apiClient.post('/api/stocks/resolve', { code: symbol })
-    return adaptStock(response)
+    const backendSymbol = normalizeBackendStockSymbol(symbol)
+    try {
+      const response = await apiClient.post('/api/stocks/resolve', { code: backendSymbol })
+      return adaptStock(response)
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        return adaptStock({
+          symbol,
+          name: symbol,
+          dataStatus: 'missing'
+        })
+      }
+      throw error
+    }
   },
 
   /**
@@ -39,14 +60,23 @@ export const stockApi = {
    * 获取K线数据
    */
   async getKLineData(params: MarketDataRequest) {
-    const response = await apiClient.get(`/api/stock/${params.symbol}/klines`, {
-      params: {
-        start_date: params.startDate,
-        end_date: params.endDate
+    const backendSymbol = normalizeBackendStockSymbol(params.symbol)
+    try {
+      const response = await apiClient.get(`/api/stock/${backendSymbol}/klines`, {
+        params: compactParams({
+          start_date: params.startDate,
+          end_date: params.endDate,
+          limit: params.limit
+        })
+      })
+      const klines = (response as any)?.klines ?? (response as any)?.data ?? response
+      return Array.isArray(klines) ? klines.map(adaptKLine) : []
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        return []
       }
-    })
-    const klines = (response as any)?.klines ?? (response as any)?.data ?? response
-    return Array.isArray(klines) ? klines as KLineData[] : []
+      throw error
+    }
   },
 
   /**
@@ -93,6 +123,13 @@ export const stockApi = {
    */
   getNews(symbol: string) {
     return apiClient.get(`/api/stocks/${symbol}/news`)
+  },
+
+  /**
+   * 添加股票到数据库
+   */
+  addStock(data: { symbol: string; name?: string; market?: string; industry?: string }) {
+    return apiClient.post('/api/stocks/add', data)
   },
 
   /**
@@ -161,5 +198,15 @@ export const stockApi = {
    */
   deleteWatchlistGroup(id: string) {
     return apiClient.delete(`/api/stocks/watchlist/groups/${id}`)
+  },
+
+  /**
+   * 获取我的股票（持仓 + 自选股）
+   */
+  getMyStocks() {
+    return apiClient.get<{
+      positions: Array<{ symbol: string; name: string }>
+      watchlist: Array<{ symbol: string; name: string }>
+    }>('/api/stocks/my-stocks')
   }
 }
