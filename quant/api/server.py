@@ -3140,6 +3140,7 @@ def search_stocks():
 @app.route('/api/stocks/my-stocks', methods=['GET'])
 def get_my_stocks():
     """获取用户的持仓和自选股"""
+    conn = None
     try:
         conn = get_db()
 
@@ -3196,8 +3197,6 @@ def get_my_stocks():
             for row in watchlist_rows
         ]
 
-        conn.close()
-
         return jsonify({
             'positions': positions,
             'watchlist': watchlist
@@ -3210,6 +3209,10 @@ def get_my_stocks():
             'positions': [],
             'watchlist': []
         }), 500
+    finally:
+        if conn:
+            conn.close()
+
 
 
 def _lookup_local_stock(db: Database, symbol: str):
