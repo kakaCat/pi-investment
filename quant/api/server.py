@@ -3146,20 +3146,22 @@ def get_my_stocks():
         # Detect database provider
         provider = get_db_provider()
 
-        # Query positions (quantity > 0)
+        # Query positions (quantity > 0) with JOIN to stocks table
         if provider == 'postgres':
             positions_query = """
-                SELECT symbol, name
-                FROM quant.positions
-                WHERE quantity > 0
-                ORDER BY symbol
+                SELECT p.symbol, s.name
+                FROM quant.positions p
+                JOIN quant.stocks s ON p.symbol = s.symbol
+                WHERE p.quantity > 0
+                ORDER BY p.symbol
             """
         else:
             positions_query = """
-                SELECT symbol, name
-                FROM positions
-                WHERE quantity > 0
-                ORDER BY symbol
+                SELECT p.symbol, s.name
+                FROM positions p
+                JOIN stocks s ON p.symbol = s.symbol
+                WHERE p.quantity > 0
+                ORDER BY p.symbol
             """
 
         positions_cursor = conn.execute(positions_query)
@@ -3170,18 +3172,20 @@ def get_my_stocks():
             for row in positions_rows
         ]
 
-        # Query watchlist
+        # Query watchlist with JOIN to stocks table
         if provider == 'postgres':
             watchlist_query = """
-                SELECT symbol, name
-                FROM quant.watchlist
-                ORDER BY symbol
+                SELECT w.symbol, s.name
+                FROM quant.watchlist w
+                JOIN quant.stocks s ON w.symbol = s.symbol
+                ORDER BY w.symbol
             """
         else:
             watchlist_query = """
-                SELECT symbol, name
-                FROM watchlist
-                ORDER BY symbol
+                SELECT w.symbol, s.name
+                FROM watchlist w
+                JOIN stocks s ON w.symbol = s.symbol
+                ORDER BY w.symbol
             """
 
         watchlist_cursor = conn.execute(watchlist_query)
@@ -3202,6 +3206,7 @@ def get_my_stocks():
     except Exception as e:
         logger.error(f'获取持仓和自选股失败: {e}')
         return jsonify({
+            'error': str(e),
             'positions': [],
             'watchlist': []
         }), 500
