@@ -1,108 +1,108 @@
 # PI Investment - AI 投资顾问
 
-基于 [piagent](https://github.com/user/piagent) 架构的 A 股/港股投资分析 Agent。通过 TypeScript 驱动 LLM 对话，优先走 TypeScript 原生数据源，必要时回退到 Python/akshare，提供投资分析和组合管理能力。
+面向 A 股/港股投研和量化交易的本地工作区。项目当前由三部分组成：TypeScript Agent 核心、Python 量化后端、Vue 前端控制台。
 
-## 架构
+## 当前入口
 
-本项目采用 **前后端分离架构**，前端通过 Vite 代理直接访问 Python Flask 后端。
+| 模块 | 路径 | 主要用途 |
+| --- | --- | --- |
+| Agent 核心 | `src/` | 投资助手、工具调用、组合管理、飞书集成 |
+| 量化后端 | `quant/` | Python 量化 API、数据、因子、回测、训练、调度 |
+| 重构后端 | `quantsys-v2/` | v2 API/CLI/WebSocket 和新量化架构 |
+| 前端控制台 | `web-frontend/` | Vue 3 + Vite 量化交易系统前端 |
+| 技能文件 | `skills/` | Agent 投研流程和领域知识 |
+| 文档 | `docs/` | 架构、迁移、报告、设计和计划 |
 
-```
+`quant-web/` 是旧前端目录，当前主要前端入口是 `web-frontend/`。
+
+## 架构概览
+
+```text
 pi-investment/
-├── quant-web/                       # React 前端应用
-│   ├── src/
-│   │   ├── components/             # UI 组件
-│   │   └── api/                    # API 客户端
-│   └── vite.config.ts              # Vite 配置（代理到 Python 后端）
-├── quant/                           # Python 量化后端
-│   ├── api/
-│   │   ├── server.py               # Flask API 服务器（端口 5002）
-│   │   └── quant_api.py            # 量化 API 端点
-│   ├── quantsys/                   # 量化核心库
-│   └── scripts/                    # 数据处理脚本
-├── src/                             # TypeScript Agent 核心
-│   ├── core/
-│   │   └── agent/
-│   │       └── system-prompt.ts    # 投资顾问系统提示词
-│   ├── services/
-│   │   └── intelligence/
-│   │       ├── system-prompt-builder.ts  # 8层提示词组装器
-│   │       └── bootstrap-loader.ts      # Bootstrap 文件加载器
-│   └── tools/
-│       ├── investment-tools.ts     # 投资工具注册
-│       └── akshare-bridge.ts       # TypeScript → Python 桥接
-├── python/
-│   └── akshare_bridge.py           # akshare 数据获取
-├── skills/                          # 投资技能文件
-│   ├── stock-screener.md           # 选股技能
-│   ├── deep-analysis.md            # 深度分析技能
-│   ├── risk-manager.md             # 风险管理技能
-│   ├── market-analysis.md          # 市场分析技能
-│   ├── portfolio-review.md         # 持仓复盘技能
-│   └── quant-strategy.md           # 量化策略技能
-├── package.json
-└── tsconfig.json
+├── src/                 # TypeScript Agent 核心和工具适配层
+├── quant/               # Python QuantSys 后端，默认 API 端口 5002
+├── quantsys-v2/         # 重构后端，HTTP 端口 5001，WebSocket 端口 5003
+├── web-frontend/        # Vue 3 前端，Vite 开发端口 3001
+├── skills/              # 投资技能文件
+├── scripts/             # 维护和迁移脚本
+├── docs/                # 项目文档和报告
+└── .pi-invest/          # 本地运行数据，默认不纳入版本控制
 ```
 
-### 服务架构
+## Agent 工具系统
 
-- **React Frontend (端口 3000)**: Vite 开发服务器，通过代理访问 Python 后端
-- **Python Flask Backend (端口 5002)**: 量化计算引擎，处理回测、信号生成、模型训练等，包含认证中间件
+项目为 AI Agent 提供了完整的量化投资工具链，采用六层架构设计（2025-05-25 重构完成）：
+
+- **L1 数据管道**：统一的数据获取接口（股票信息、K线、财务数据）
+- **L2 因子工厂**：批量因子计算和分析
+- **L3 模型层**：机器学习模型训练和预测（待实现）
+- **L4 组合构建**：持仓管理和再平衡
+- **L5 执行引擎**：订单管理和交易执行
+- **L6 监控运维**：实时监控和告警
+
+工具系统从 61 个分散工具精简至 30 个结构化工具，采用统一命名规范（`data_*`, `factor_*`, `portfolio_*`, `trade_*`, `monitor_*`）。
+
+详见 [CLAUDE.md](./CLAUDE.md) 了解完整的工具列表和使用指南。
+
+前端默认通过 `VITE_API_BASE_URL=http://127.0.0.1:5001` 访问 `quantsys-v2` HTTP API，并通过 `VITE_WS_URL=ws://127.0.0.1:5003` 连接 WebSocket。`quant/api/server.py` 仍保留为 QuantSys 后端入口，默认端口是 5002。
 
 ## 快速开始
 
 ### 前置依赖
 
-- Node.js >= 22
+- Node.js >= 22（根目录 Agent）
+- Node.js >= 18（`web-frontend/`）
 - Python >= 3.9
-- pip install akshare
+- PostgreSQL（当前量化数据层优先使用 PostgreSQL）
 
-### 安装
+### 安装依赖
 
 ```bash
 npm install
-pip install akshare
+cd web-frontend && npm install
+cd ../quant && pip install -r requirements.txt
 ```
 
-### 配置
-
-设置 API Key（DeepSeek 或其他 LLM 提供商）：
+如需使用 `quantsys-v2/`：
 
 ```bash
-export DEEPSEEK_API_KEY=your-key-here
-export OPENAI_API_KEY=your-key-here
+cd quantsys-v2
+pip install -r requirements.txt
 ```
 
-配置 Python 后端连接（可选，默认值如下）：
+### 启动前端和后端
+
+推荐前端连接 `quantsys-v2`：
 
 ```bash
-export PYTHON_BACKEND_URL=http://localhost:5000
-export PYTHON_BACKEND_TIMEOUT=30000
-```
+# 终端 1: HTTP API
+cd quantsys-v2
+python api/server.py
 
-如需启用飞书 Bot，还需要配置：
+# 终端 2: WebSocket API
+cd quantsys-v2
+python api/server_websocket.py
 
-```bash
-export FEISHU_APP_ID=cli_xxx
-export FEISHU_APP_SECRET=your-feishu-secret
-```
-
-### 启动
-
-**双服务启动（推荐）**：
-
-```bash
-# 终端 1: 启动 Python 量化后端
-source .venv/bin/activate
-python quant/api/server.py
-
-# 终端 2: 启动前端开发服务器
-cd quant-web
+# 终端 3: 前端
+cd web-frontend
 npm run dev
 ```
 
-Python 后端将在 `http://localhost:5002` 启动，前端开发服务器在 `http://localhost:3000` 启动并自动代理 API 请求到 Python 后端。
+默认地址：
 
-**其他命令**：
+- 前端: `http://localhost:3001`
+- `quantsys-v2` HTTP API: `http://127.0.0.1:5001`
+- `quantsys-v2` WebSocket: `ws://127.0.0.1:5003`
+- `quant` API: `http://127.0.0.1:5002`
+
+如需启动 `quant` 后端：
+
+```bash
+cd quant
+python api/server.py
+```
+
+### Agent 命令
 
 ```bash
 npm run portfolio
@@ -110,118 +110,62 @@ npm run feishu
 npm test
 ```
 
-### 故障排查
+## 配置
 
-**Python 后端连接失败**：
-- 确认 Python 后端已启动: `curl http://localhost:5002/api/health`
-- 检查 Vite 代理配置: `quant-web/vite.config.ts` 中的 `DEFAULT_API_TARGET`
-- 查看 Python 后端日志: `tail -f logs/python-backend.log`
-
-**端口冲突**：
-- Python 后端默认端口 5002，可在 `quant/api/server.py` 修改
-- 前端开发服务器默认端口 3000，可在 `quant-web/vite.config.ts` 修改
-- 注意: macOS AirPlay Receiver 占用 5000 端口
-
-**依赖问题**：
-- Python 依赖: `pip install -r requirements.txt`
-- 前端依赖: `cd quant-web && npm install`
-
-### 飞书 Bot
-
-飞书模式使用 WebSocket 长连接接收消息，每个 `chatId` 独立持久化会话，历史保存在 `.pi-invest/sessions/{chatId}/`。
-
-启动：
+常用环境变量：
 
 ```bash
-npm run feishu
+export OPENAI_API_KEY=your-key-here
+export DEEPSEEK_API_KEY=your-key-here
+export PYTHON_BACKEND_URL=http://localhost:5002
+export PYTHON_BACKEND_TIMEOUT=30000
 ```
 
-定时推送模板位于 `.pi-invest/FEISHU_CRON.json`。填入实际 `chatId` 后，可通过 `CronService` 定时向指定飞书会话发送投研请求。
+前端配置位于 `web-frontend/.env.development` 和 `web-frontend/.env.example`：
 
-## 可用工具
-
-### 行情数据
-| 工具 | 功能 | 输入 |
-|------|------|------|
-| `get_stock_price` | 获取实时价格 | symbol (如 '600519') |
-| `get_stock_info` | 获取公司基本信息 | symbol |
-| `get_stock_news` | 获取个股新闻舆情 | symbol |
-
-### 基本面分析
-| 工具 | 功能 | 输入 |
-|------|------|------|
-| `get_financial_data` | 财务数据(ROE/利润率/负债率) | symbol |
-| `get_valuation` | 估值数据(PE/PB/PEG) | symbol |
-
-### 技术分析
-| 工具 | 功能 | 输入 |
-|------|------|------|
-| `analyze_technical` | 技术指标(MA/MACD/RSI/布林带) | symbol |
-| `get_buy_range` | 计算合理买入区间 | symbol |
-
-### 选股筛选
-| 工具 | 功能 | 输入 |
-|------|------|------|
-| `screen_stocks` | 按条件筛选股票 | sector, max_pe, min_roe |
-
-### 宏观数据
-| 工具 | 功能 | 输入 |
-|------|------|------|
-| `get_market_overview` | 大盘指数概览 | - |
-| `get_north_flow` | 北向资金流向 | - |
-| `get_macro_data` | 宏观经济指标(PMI/CPI) | - |
-
-### 持仓管理
-| 工具 | 功能 | 输入 |
-|------|------|------|
-| `manage_portfolio` | 管理投资组合 | action: get/add/remove/update |
-
-## 技能系统
-
-技能文件（`skills/*.md`）为 Agent 提供投资领域的专业知识和工作流程指导：
-
-- **选股技能** - A 股优质股票筛选标准和流程
-- **深度分析** - 四维评分框架（基本面+估值+技术+消息）
-- **风险管理** - 仓位控制、止损原则、加仓策略
-- **市场分析** - 宏观指标解读、行业轮动框架
-- **持仓复盘** - 组合健康度评估、调仓建议
-- **量化策略** - 市场过滤、行业轮动、质量评分、趋势确认
-
-## 示例对话
-
-```
-用户: 帮我分析一下贵州茅台
-
-Agent: [调用 get_stock_info, get_stock_price, get_financial_data,
-        get_valuation, analyze_technical, get_stock_news]
-
-       ## 贵州茅台(600519) 深度分析报告
-       综合评分: 78分 - 推荐持有
-       ...
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:5001
+VITE_WS_URL=ws://127.0.0.1:5003
+VITE_USE_MOCK=false
 ```
 
-```
-用户: 帮我在新能源板块选几只好股票
+飞书 Bot 需要额外配置：
 
-Agent: [调用 screen_stocks("新能源", max_pe=35, min_roe=12)]
-       [对 Top-3 调用 get_financial_data + get_valuation]
-
-       ## 新能源板块选股推荐
-       | 排名 | 股票 | ROE | PE | 推荐理由 |
-       ...
+```bash
+export FEISHU_APP_ID=cli_xxx
+export FEISHU_APP_SECRET=your-feishu-secret
 ```
 
-```
-用户: 现在大盘环境怎么样？
+## 常用文档
 
-Agent: [调用 get_market_overview, get_north_flow, get_macro_data]
+- [项目索引](INDEX.md)
+- [Python 量化后端](quant/README.md)
+- [重构后端](quantsys-v2/README.md)
+- [前端控制台](web-frontend/README.md)
+- [测试指南](docs/testing-guide.md)
+- [2026-05 报告归档](docs/reports/2026-05/)
 
-       ## 市场分析报告
-       市场温度: 偏热
-       建议仓位: 60%
-       ...
+## 故障排查
+
+**前端请求失败**
+
+- 确认 `web-frontend/.env.development` 中的 `VITE_API_BASE_URL`
+- 确认对应后端端口已启动
+- 检查 Vite 代理配置：`web-frontend/vite.config.ts`
+
+**健康检查失败**
+
+```bash
+curl http://127.0.0.1:5001/api/health
+curl http://127.0.0.1:5002/api/health
 ```
+
+**端口冲突**
+
+- `QUANTSYS_API_PORT` 控制 `quantsys-v2/api/server.py`
+- `QUANTSYS_WS_PORT` 控制 `quantsys-v2/api/server_websocket.py`
+- `QUANT_API_PORT` 控制 `quant/api/server.py`
 
 ## 免责声明
 
-本工具提供的所有分析和建议仅供参考，不构成投资建议。投资有风险，入市需谨慎。请根据自身风险承受能力做出独立判断。
+本项目输出的分析和建议仅供研究参考，不构成投资建议。投资有风险，入市需谨慎。

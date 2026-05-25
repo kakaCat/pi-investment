@@ -90,6 +90,65 @@ Layered architecture:
 - **8-layer system prompt**: Built in `src/services/intelligence/system-prompt-builder.ts` — Identity → Soul → Tools → Skills → Memory → Bootstrap → Runtime → Channel.
 - **Data sources**: `src/infrastructure/data-sources/` — eastmoney, sina, sina-fx, stooq, technical indicators; falls back to Python/akshare bridge.
 
+## Agent 工具系统
+
+### 六层量化投资架构
+
+项目采用六层架构组织 Agent 工具，对应量化投资的完整流程（2025-05-25 重构完成，从 61 个工具精简至 30 个）：
+
+#### L1 数据管道层
+统一的数据获取接口，支持股票基本信息、行情数据、财务数据：
+- `data_fetch_stock` — 获取股票基本信息、实时价格、新闻、公告
+- `data_fetch_kline` — 获取 K 线数据（日线、周线、月线）
+- `data_fetch_financial` — 获取财务数据（利润表、资产负债表、现金流量表）
+
+#### L2 因子工厂层
+批量因子计算和分析：
+- `factor_calculate` — 批量计算技术因子和基本面因子
+
+#### L3 模型层（待实现）
+机器学习模型训练和预测：
+- 特征工程
+- 模型训练
+- 预测服务
+
+#### L4 组合构建层
+持仓管理和再平衡：
+- `portfolio_rebalance` — 组合再平衡和持仓管理
+
+#### L5 执行引擎层
+订单管理和交易执行：
+- `trade_manage_orders` — 订单管理和执行
+
+#### L6 监控运维层
+实时监控和告警：
+- `monitor_alert` — 告警通知和风险监控
+
+### 工具使用指南
+
+新工具采用统一的命名规范：
+- 数据管道：`data_*`
+- 因子工厂：`factor_*`
+- 模型层：`model_*`（待实现）
+- 组合构建：`portfolio_*`
+- 执行引擎：`trade_*`
+- 监控运维：`monitor_*`
+
+### 迁移说明
+
+**重大变更（2025-05-25）**：旧工具系统已完全移除，请使用新的六层架构工具。
+
+旧工具到新工具的映射：
+- 股票查询相关 → `data_fetch_stock`
+- K线数据相关 → `data_fetch_kline`
+- 财务数据相关 → `data_fetch_financial`
+- 因子计算相关 → `factor_calculate`
+- 持仓管理相关 → `portfolio_rebalance`
+- 订单管理相关 → `trade_manage_orders`
+- 告警通知相关 → `monitor_alert`
+
+工具实现位置：`src/infrastructure/tools/` 按层级组织（data/, factor/, portfolio/, trade/, monitor/）。
+
 ### Python Quant Backend (`quant/`)
 
 Pipeline: resolve → data → factor → model → signal → risk → backtest → report.
