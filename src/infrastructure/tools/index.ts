@@ -25,6 +25,13 @@ import { dataFetchFinancialTool } from "./data/fetch-financial-tool.js";
 // L2 因子工厂
 import { factorCalculateTool } from "./factor/calculate-tool.js";
 
+// L3 模型层
+import { modelTrainTool } from "./model/train-tool.js";
+import { modelPredictTool } from "./model/predict-tool.js";
+import { modelEvaluateTool } from "./model/evaluate-tool.js";
+import { modelMonitorTool } from "./model/monitor-tool.js";
+import { modelListTool } from "./model/list-tool.js";
+
 // L4 组合构建
 import { portfolioRebalanceTool } from "./portfolio/rebalance-tool.js";
 
@@ -85,7 +92,7 @@ export const allCustomTools = [
   /**
    * L1 数据管道: 行情数据、财务数据获取
    * L2 因子工厂: 因子计算、IC分析
-   * L3 模型层: 特征工程、模型训练（待实现）
+   * L3 模型层: 模型训练、预测、评估、监控
    * L4 组合构建: 持仓管理、再平衡
    * L5 执行引擎: 订单管理、交易执行
    * L6 监控运维: 告警通知、风险监控
@@ -97,6 +104,13 @@ export const allCustomTools = [
 
   // L2 因子工厂
   factorCalculateTool,            // factor_calculate - 计算技术/基本面因子
+
+  // L3 模型层
+  modelTrainTool,                 // model_train - 训练机器学习模型
+  modelPredictTool,               // model_predict - 模型预测信号
+  modelEvaluateTool,              // model_evaluate - 评估模型性能
+  modelMonitorTool,               // model_monitor - 监控模型漂移
+  modelListTool,                  // model_list - 列出所有模型
 
   // L4 组合构建
   portfolioRebalanceTool,         // portfolio_rebalance - 组合再平衡
