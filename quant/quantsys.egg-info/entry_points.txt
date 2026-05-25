@@ -1,0 +1,2 @@
+[console_scripts]
+quant = quantsys.cli.main:main

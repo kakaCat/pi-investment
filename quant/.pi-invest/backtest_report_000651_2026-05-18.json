@@ -1,0 +1,164 @@
+{
+  "report_date": "2026-05-18",
+  "symbol": "000651",
+  "backtest_period": {
+    "start": "2025-11-19",
+    "end": "2026-05-18"
+  },
+  "backtest_config": {
+    "initial_capital": 1000000.0,
+    "commission": 0.0003,
+    "slippage": 0.001
+  },
+  "results": [
+    {
+      "total_trades": 2,
+      "winning_trades": 2,
+      "losing_trades": 0,
+      "win_rate": 1.0,
+      "profit_factor": Infinity,
+      "expectancy": 66251.77300000016,
+      "total_return": 0.13124384081081023,
+      "total_pnl": 132503.54600000032,
+      "avg_win": 66251.77300000016,
+      "avg_loss": 0.0,
+      "max_win": 96572.39489000021,
+      "max_loss": 35931.15111000012,
+      "sharpe_ratio": 2.575197390444028,
+      "sortino_ratio": 15.439829358116766,
+      "calmar_ratio": 13.577325291293734,
+      "max_drawdown": 0.019881969376072985,
+      "avg_holding_period": 13.5,
+      "strategy_info": {
+        "name": "RSI_Reversal",
+        "type": "mean_reversion",
+        "parameters": {
+          "rsi_period": 14,
+          "oversold_threshold": 30,
+          "overbought_threshold": 70,
+          "stop_loss_pct": 0.05,
+          "take_profit_pct": 0.1
+        },
+        "description": "RSI Reversal: 14-period RSI",
+        "entry_rules": [
+          "Buy when RSI crosses below 30 (oversold)",
+          "Stop loss: 5.0%",
+          "Take profit: 10.0%"
+        ],
+        "exit_rules": [
+          "Sell when RSI crosses above 70 (overbought)",
+          "Or stop loss/take profit triggered"
+        ]
+      },
+      "final_capital": 1131243.8408108102,
+      "execution_time": 0.28881120681762695,
+      "strategy_name": "RSI反转",
+      "strategy_params": {
+        "rsi_period": 14,
+        "oversold_threshold": 30,
+        "overbought_threshold": 70,
+        "stop_loss_pct": 0.05,
+        "take_profit_pct": 0.1
+      }
+    },
+    {
+      "total_trades": 2,
+      "winning_trades": 0,
+      "losing_trades": 2,
+      "win_rate": 0.0,
+      "profit_factor": 0.0,
+      "expectancy": -23288.41264000004,
+      "total_return": -0.06682917426369002,
+      "total_pnl": -46576.82528000008,
+      "avg_win": 0.0,
+      "avg_loss": -23288.41264000004,
+      "max_win": -23021.58935999995,
+      "max_loss": -23555.235920000126,
+      "sharpe_ratio": -2.3299775369889977,
+      "sortino_ratio": -2.722058168298617,
+      "calmar_ratio": -2.020961800802546,
+      "max_drawdown": 0.07228034865381155,
+      "avg_holding_period": 8.0,
+      "strategy_info": {
+        "name": "MA_Cross",
+        "type": "trend_following",
+        "parameters": {
+          "fast_period": 5,
+          "slow_period": 20,
+          "stop_loss_pct": 0.05,
+          "take_profit_pct": 0.15
+        },
+        "description": "MA Crossover: 5/20",
+        "entry_rules": [
+          "Buy when MA5 crosses above MA20",
+          "Stop loss: 5.0%",
+          "Take profit: 15.0%"
+        ],
+        "exit_rules": [
+          "Sell when MA5 crosses below MA20",
+          "Or stop loss/take profit triggered"
+        ]
+      },
+      "final_capital": 700.6057363100117,
+      "execution_time": 0.3062469959259033,
+      "strategy_name": "均线突破",
+      "strategy_params": {
+        "fast_period": 5,
+        "slow_period": 20,
+        "stop_loss_pct": 0.05,
+        "take_profit_pct": 0.15
+      }
+    },
+    {
+      "total_trades": 2,
+      "winning_trades": 2,
+      "losing_trades": 0,
+      "win_rate": 1.0,
+      "profit_factor": Infinity,
+      "expectancy": 12918.023550000125,
+      "total_return": 0.024614932201938004,
+      "total_pnl": 25836.04710000025,
+      "avg_win": 12918.023550000125,
+      "avg_loss": 0.0,
+      "max_win": 24949.803000000164,
+      "max_loss": 886.2441000000854,
+      "sharpe_ratio": 0.25448686177715607,
+      "sortino_ratio": 0.34183315360344163,
+      "calmar_ratio": 1.0862007011145085,
+      "max_drawdown": 0.05403575631167764,
+      "avg_holding_period": 55.0,
+      "strategy_info": {
+        "name": "Bollinger_Breakout",
+        "type": "mean_reversion",
+        "parameters": {
+          "bb_period": 20,
+          "bb_std": 2.0,
+          "stop_loss_pct": 0.05,
+          "take_profit_pct": 0.1,
+          "period": 20,
+          "num_std": 2.0
+        },
+        "description": "Bollinger Bands: 20-period, 2.0σ",
+        "entry_rules": [
+          "Buy when price touches lower Bollinger Band",
+          "Stop loss: 5.0%",
+          "Take profit: 10.0%"
+        ],
+        "exit_rules": [
+          "Sell when price touches upper Bollinger Band",
+          "Or price reverts to middle band with profit",
+          "Or stop loss/take profit triggered"
+        ]
+      },
+      "final_capital": 1024614.932201938,
+      "execution_time": 0.3256101608276367,
+      "strategy_name": "布林带",
+      "strategy_params": {
+        "period": 20,
+        "num_std": 2.0,
+        "stop_loss_pct": 0.05,
+        "take_profit_pct": 0.1
+      }
+    }
+  ]
+}

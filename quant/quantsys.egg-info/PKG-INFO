@@ -1,0 +1,29 @@
+Metadata-Version: 2.4
+Name: quantsys
+Version: 1.0.0
+Summary: 量化交易系统 - 完整的Python量化交易框架
+Author: QuantTeam
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Financial and Insurance Industry
+Classifier: Topic :: Office/Business :: Financial :: Investment
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Requires-Python: >=3.9
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: akshare>=1.12.0
+Requires-Dist: scikit-learn>=1.3.0
+Requires-Dist: xgboost>=2.0.0
+Requires-Dist: lightgbm>=4.0.0
+Requires-Dist: optuna>=3.0.0
+Requires-Dist: apscheduler>=3.10.0
+Requires-Dist: psycopg2-binary>=2.9.9
+Requires-Dist: matplotlib>=3.7.0
+Requires-Dist: seaborn>=0.12.0
+Requires-Dist: tqdm>=4.65.0
+Dynamic: author
+Dynamic: classifier
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
