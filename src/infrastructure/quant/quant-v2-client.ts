@@ -294,38 +294,53 @@ export async function runQuantV2<T = unknown>(
 ): Promise<QuantCliResponse<T>> {
   const route = V2_ROUTES[command];
   if (!route) {
-    throw new Error(`QUANT_V2_NO_ROUTE: 命令 ${command} 没有 v2 端点映射`);
+    throw new QuantV2Error(
+      `命令 ${command} 没有 v2 端点映射`,
+      404,
+      command,
+    );
   }
 
   const { url, body } = buildRequest(route, params);
 
-  const response = await fetch(url, {
-    method: route.method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-    signal: opts.signal ?? AbortSignal.timeout(V2_TIMEOUT_MS),
-  });
+  try {
+    const response = await fetch(url, {
+      method: route.method,
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: opts.signal ?? AbortSignal.timeout(V2_TIMEOUT_MS),
+    });
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new Error(
-      `QUANT_V2_HTTP_${response.status}: ${text || response.statusText}`,
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new QuantV2Error(
+        `HTTP ${response.status}: ${text || response.statusText}`,
+        response.status,
+        url,
+      );
+    }
+
+    const raw = (await response.json()) as V2ApiResponse;
+
+    // 规范化响应格式：v2 用 { success, data } → 统一为 { ok, data }
+    return {
+      ok: raw.success !== false,
+      command,
+      params,
+      data: (raw.data ?? raw) as T | undefined,
+      warnings: raw.warnings ?? [],
+      error: raw.error
+        ? { message: typeof raw.error === "string" ? raw.error : JSON.stringify(raw.error) }
+        : null,
+    };
+  } catch (error) {
+    if (error instanceof QuantV2Error) throw error;
+    throw new QuantV2Error(
+      `请求异常: ${error instanceof Error ? error.message : String(error)}`,
+      undefined,
+      url,
     );
   }
-
-  const raw = (await response.json()) as V2ApiResponse;
-
-  // 规范化响应格式：v2 用 { success, data } → 统一为 { ok, data }
-  return {
-    ok: raw.success !== false,
-    command,
-    params,
-    data: (raw.data ?? raw) as T | undefined,
-    warnings: raw.warnings ?? [],
-    error: raw.error
-      ? { message: typeof raw.error === "string" ? raw.error : JSON.stringify(raw.error) }
-      : null,
-  };
 }
 
 // ─── 内部辅助 ────────────────────────────────────────────
@@ -385,6 +400,44 @@ function buildQueryString(params: Record<string, unknown>): string {
 // ─── 高级 API 方法 ────────────────────────────────────────
 
 /**
+ * 通用 HTTP 请求包装器，统一错误处理
+ */
+async function fetchV2<T>(
+  url: string,
+  options: {
+    method?: 'GET' | 'POST';
+    body?: unknown;
+  } = {},
+): Promise<T> {
+  try {
+    const response = await fetch(url, {
+      method: options.method ?? 'GET',
+      headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: AbortSignal.timeout(V2_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new QuantV2Error(
+        `HTTP ${response.status}: ${text || response.statusText}`,
+        response.status,
+        url,
+      );
+    }
+
+    return await response.json() as T;
+  } catch (error) {
+    if (error instanceof QuantV2Error) throw error;
+    throw new QuantV2Error(
+      `请求异常: ${error instanceof Error ? error.message : String(error)}`,
+      undefined,
+      url,
+    );
+  }
+}
+
+/**
  * 获取财务数据
  * @param symbol 股票代码
  * @param statementType 报表类型: 'income' | 'balance' | 'cash_flow' | 'all'
@@ -395,31 +448,12 @@ export async function getFinancials(
   statementType: 'income' | 'balance' | 'cash_flow' | 'all' = 'all',
   periods = 4,
 ): Promise<FinancialData> {
-  try {
-    const url = `${V2_API_BASE}/api/stock/${encodeURIComponent(symbol)}/financials?type=${statementType}&periods=${periods}`;
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(V2_TIMEOUT_MS),
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new QuantV2Error(
-        `获取财务数据失败: ${text || response.statusText}`,
-        response.status,
-        url,
-      );
-    }
-
-    const data = await response.json() as FinancialData;
-    return data;
-  } catch (error) {
-    if (error instanceof QuantV2Error) throw error;
-    throw new QuantV2Error(
-      `获取财务数据异常: ${error instanceof Error ? error.message : String(error)}`,
-      undefined,
-      `/api/stock/${symbol}/financials`,
-    );
+  if (!symbol || symbol.trim() === '') {
+    throw new QuantV2Error('股票代码不能为空', 400);
   }
+
+  const url = `${V2_API_BASE}/api/stock/${encodeURIComponent(symbol)}/financials?type=${statementType}&periods=${periods}`;
+  return fetchV2<FinancialData>(url);
 }
 
 /**
@@ -429,34 +463,12 @@ export async function getFinancials(
 export async function computeFactors(
   params: FactorComputeParams,
 ): Promise<FactorResult> {
-  try {
-    const url = `${V2_API_BASE}/api/compute/factors`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-      signal: AbortSignal.timeout(V2_TIMEOUT_MS),
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new QuantV2Error(
-        `计算因子失败: ${text || response.statusText}`,
-        response.status,
-        url,
-      );
-    }
-
-    const data = await response.json() as FactorResult;
-    return data;
-  } catch (error) {
-    if (error instanceof QuantV2Error) throw error;
-    throw new QuantV2Error(
-      `计算因子异常: ${error instanceof Error ? error.message : String(error)}`,
-      undefined,
-      '/api/compute/factors',
-    );
+  if (!params.symbols || params.symbols.length === 0) {
+    throw new QuantV2Error('股票列表不能为空', 400);
   }
+
+  const url = `${V2_API_BASE}/api/compute/factors`;
+  return fetchV2<FactorResult>(url, { method: 'POST', body: params });
 }
 
 /**
@@ -466,34 +478,15 @@ export async function computeFactors(
 export async function analyzeFactors(
   params: FactorAnalyzeParams,
 ): Promise<FactorAnalysis> {
-  try {
-    const url = `${V2_API_BASE}/api/portfolio/factor-analyze`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-      signal: AbortSignal.timeout(V2_TIMEOUT_MS),
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new QuantV2Error(
-        `因子分析失败: ${text || response.statusText}`,
-        response.status,
-        url,
-      );
-    }
-
-    const data = await response.json() as FactorAnalysis;
-    return data;
-  } catch (error) {
-    if (error instanceof QuantV2Error) throw error;
-    throw new QuantV2Error(
-      `因子分析异常: ${error instanceof Error ? error.message : String(error)}`,
-      undefined,
-      '/api/portfolio/factor-analyze',
-    );
+  if (!params.factors || params.factors.length === 0) {
+    throw new QuantV2Error('因子列表不能为空', 400);
   }
+  if (!params.start_date || !params.end_date) {
+    throw new QuantV2Error('开始日期和结束日期不能为空', 400);
+  }
+
+  const url = `${V2_API_BASE}/api/portfolio/factor-analyze`;
+  return fetchV2<FactorAnalysis>(url, { method: 'POST', body: params });
 }
 
 /**
@@ -503,34 +496,12 @@ export async function analyzeFactors(
 export async function scanOpportunities(
   params: OpportunityScanParams = {},
 ): Promise<Opportunity[]> {
-  try {
-    const url = `${V2_API_BASE}/api/signals/scan`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-      signal: AbortSignal.timeout(V2_TIMEOUT_MS),
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new QuantV2Error(
-        `扫描机会失败: ${text || response.statusText}`,
-        response.status,
-        url,
-      );
-    }
-
-    const result = await response.json() as { success: boolean; opportunities: Opportunity[] };
-    return result.opportunities || [];
-  } catch (error) {
-    if (error instanceof QuantV2Error) throw error;
-    throw new QuantV2Error(
-      `扫描机会异常: ${error instanceof Error ? error.message : String(error)}`,
-      undefined,
-      '/api/signals/scan',
-    );
-  }
+  const url = `${V2_API_BASE}/api/signals/scan`;
+  const result = await fetchV2<{ success: boolean; opportunities: Opportunity[] }>(
+    url,
+    { method: 'POST', body: params },
+  );
+  return result.opportunities || [];
 }
 
 /**
@@ -540,32 +511,19 @@ export async function scanOpportunities(
 export async function algoExecute(
   params: AlgoExecuteParams,
 ): Promise<AlgoOrder> {
-  try {
-    const url = `${V2_API_BASE}/api/algo/execute`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-      signal: AbortSignal.timeout(V2_TIMEOUT_MS),
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new QuantV2Error(
-        `执行算法订单失败: ${text || response.statusText}`,
-        response.status,
-        url,
-      );
-    }
-
-    const data = await response.json() as AlgoOrder;
-    return data;
-  } catch (error) {
-    if (error instanceof QuantV2Error) throw error;
-    throw new QuantV2Error(
-      `执行算法订单异常: ${error instanceof Error ? error.message : String(error)}`,
-      undefined,
-      '/api/algo/execute',
-    );
+  if (!params.symbol || params.symbol.trim() === '') {
+    throw new QuantV2Error('股票代码不能为空', 400);
   }
+  if (!params.side || !['buy', 'sell'].includes(params.side)) {
+    throw new QuantV2Error('交易方向必须是 buy 或 sell', 400);
+  }
+  if (!params.quantity || params.quantity <= 0) {
+    throw new QuantV2Error('交易数量必须大于 0', 400);
+  }
+  if (!params.algo || !['TWAP', 'VWAP'].includes(params.algo)) {
+    throw new QuantV2Error('算法类型必须是 TWAP 或 VWAP', 400);
+  }
+
+  const url = `${V2_API_BASE}/api/algo/execute`;
+  return fetchV2<AlgoOrder>(url, { method: 'POST', body: params });
 }
