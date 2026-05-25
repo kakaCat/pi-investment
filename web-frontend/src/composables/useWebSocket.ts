@@ -5,10 +5,19 @@ import { WS_URL } from '@/utils/constants'
 /**
  * WebSocket 组合式函数
  */
-export function useWebSocket(url: string = WS_URL) {
+interface UseWebSocketOptions {
+  autoConnect?: boolean
+}
+
+export function useWebSocket(url: string = WS_URL, options: UseWebSocketOptions = {}) {
+  const { autoConnect = true } = options
   const socket = ref<Socket>()
   const connected = ref(false)
   const error = ref<string | null>(null)
+  const isMounted = ref(true)
+
+  // 追踪所有注册的事件监听器，用于清理
+  const listeners: Array<{ event: string; callback: (...args: any[]) => void }> = []
 
   // 连接
   const connect = () => {
@@ -24,17 +33,20 @@ export function useWebSocket(url: string = WS_URL) {
     })
 
     socket.value.on('connect', () => {
+      if (!isMounted.value) return
       connected.value = true
       error.value = null
       console.log('WebSocket connected')
     })
 
     socket.value.on('disconnect', () => {
+      if (!isMounted.value) return
       connected.value = false
       console.log('WebSocket disconnected')
     })
 
     socket.value.on('error', (err: any) => {
+      if (!isMounted.value) return
       error.value = err.message
       console.error('WebSocket error:', err)
     })
@@ -42,6 +54,12 @@ export function useWebSocket(url: string = WS_URL) {
 
   // 断开连接
   const disconnect = () => {
+    isMounted.value = false
+    // 先移除所有自定义监听器，防止回调在组件卸载后触发
+    listeners.forEach(({ event, callback }) => {
+      socket.value?.off(event, callback)
+    })
+    listeners.length = 0
     if (socket.value) {
       socket.value.disconnect()
       socket.value = undefined
@@ -50,15 +68,21 @@ export function useWebSocket(url: string = WS_URL) {
 
   // 发送消息
   const emit = (event: string, data?: any) => {
+    if (!isMounted.value) return
     if (socket.value && connected.value) {
       socket.value.emit(event, data)
     }
   }
 
-  // 监听消息
+  // 监听消息（包装回调以检查组件存活状态）
   const on = (event: string, callback: (...args: any[]) => void) => {
+    const wrappedCallback = (...args: any[]) => {
+      if (!isMounted.value) return
+      callback(...args)
+    }
+    listeners.push({ event, callback: wrappedCallback })
     if (socket.value) {
-      socket.value.on(event, callback)
+      socket.value.on(event, wrappedCallback)
     }
   }
 
@@ -70,7 +94,9 @@ export function useWebSocket(url: string = WS_URL) {
   }
 
   onMounted(() => {
-    connect()
+    if (autoConnect) {
+      connect()
+    }
   })
 
   onUnmounted(() => {
@@ -81,6 +107,7 @@ export function useWebSocket(url: string = WS_URL) {
     socket,
     connected,
     error,
+    isMounted,
     connect,
     disconnect,
     emit,
@@ -92,8 +119,8 @@ export function useWebSocket(url: string = WS_URL) {
 /**
  * 市场行情 WebSocket
  */
-export function useMarketWebSocket() {
-  const ws = useWebSocket()
+export function useMarketWebSocket(options: UseWebSocketOptions = {}) {
+  const ws = useWebSocket(WS_URL, options)
   const quotes = ref<Map<string, any>>(new Map())
 
   // 订阅股票

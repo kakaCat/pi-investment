@@ -1,12 +1,14 @@
 import { apiClient } from './client'
-import type { TradingSignal, SignalFilters, SignalStatistics, PaginatedResponse } from '@/types/models'
+import { toPaginatedResponse } from './adapters'
+import type { TradingSignal, SignalFilters, SignalStatistics } from '@/types/models'
 
 export const signalApi = {
   /**
    * 获取信号列表
    */
-  getSignals(filters?: SignalFilters) {
-    return apiClient.get<PaginatedResponse<TradingSignal>>('/api/signals', { params: filters })
+  async getSignals(filters?: SignalFilters) {
+    const response = await apiClient.get('/api/signals', { params: filters })
+    return toPaginatedResponse<TradingSignal>(response, 'signals')
   },
 
   /**

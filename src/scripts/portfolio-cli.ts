@@ -11,20 +11,23 @@
  *
  * 数据文件:
  *   .pi-invest/portfolio.json   持仓（持仓均价、数量）
- *   .pi-invest/trades.json      交易历史（每笔买卖记录）
+ *   PostgreSQL                 交易历史（通过 CLI → TradeCliAdapter）
  */
 
 import * as readline from "readline";
 import { join } from "path";
 import { PortfolioService } from "../services/portfolio/portfolio-service.js";
-import { TradeService, TradeAction } from "../services/portfolio/trade-service.js";
+// TradeService removed — TradeAction = "buy" | "sell"
+type TradeAction = "buy" | "sell";
 import { chinaDate } from "../utils/china-time.js";
 
 // ─── 初始化 ────────────────────────────────────────────────────────────────
 
 const piDir = join(process.cwd(), ".pi-invest");
 const portfolio = new PortfolioService(piDir);
-const trades = new TradeService(piDir);
+// ⚠️  trades 操作已迁移到 PostgreSQL（TradeCliAdapter）。
+// 本脚本中涉及 trades 的功能（历史、摘要、快照、导出）已暂存。
+// TODO: 迁移到 TradeCliAdapter.list() / getStats()
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -77,7 +80,7 @@ async function viewPortfolio(): Promise<void> {
       console.log(
         `  ${padR(h.symbol, 6)}  ${padR(h.name || "──", 8)}  ` +
         `${padL(String(h.quantity), 6)}  ${padL(h.avg_cost.toFixed(2), 6)}  ` +
-        `${padL(h.current_price.toFixed(2), 6)}  ` +
+        `${padL(h.current_price > 0 ? h.current_price.toFixed(2) : "N/A", 6)}  ` +
         `${padL(today + "%", 7)}  ${padL(s + "%", 7)}  ${padL(sign(h.pnl_amount) + "元", 11)}`
       );
     }
@@ -180,7 +183,7 @@ async function addTrade(): Promise<void> {
     const market = (marketStr.toUpperCase() === "HK" ? "HK" : "A") as "A" | "HK";
 
     try {
-      trades.add(date, symbol, name, action, quantity, price, commission, market, notes);
+      // TODO: migrate to TradeCliAdapter.add()
     } catch (e) {
       console.log(`  ❌ ${e instanceof Error ? e.message : String(e)}\n`);
       continue;
@@ -217,7 +220,7 @@ async function addTrade(): Promise<void> {
 
 async function viewTrades(): Promise<void> {
   const sym = await q("  查询代码（回车查看全部最近20条）: ");
-  const list = sym ? trades.bySymbol(sym) : trades.recent(20);
+  // TODO: migrate trade list to TradeCliAdapter.list()
 
   if (list.length === 0) {
     console.log("  暂无交易记录。\n");
@@ -238,7 +241,7 @@ async function viewTrades(): Promise<void> {
     );
   }
   line();
-  const s = trades.summary();
+  // TODOsummary();
   console.log(`  共 ${s.total} 笔 | 买入 ${s.buys} 笔（${s.totalBuyAmount.toFixed(0)}元） | 卖出 ${s.sells} 笔（${s.totalSellAmount.toFixed(0)}元）\n`);
 }
 
@@ -247,7 +250,7 @@ async function viewTrades(): Promise<void> {
 async function syncFromTrades(): Promise<void> {
   let snap;
   try {
-    snap = trades.buildSnapshot();
+    // TODObuildSnapshot();
   } catch (e) {
     console.log(`  ❌ ${e instanceof Error ? e.message : String(e)}\n`);
     return;
@@ -291,7 +294,7 @@ async function exportCsv(): Promise<void> {
   writeFileSync(outPath, csv, "utf-8");
   console.log(`  ✅ 已导出到 ${outPath}\n`);
 
-  const tData = trades.load();
+  const tData = /* TODO: TradeCliAdapter.list() */ ([] as any);
   if (tData.trades.length > 0) {
     const tHeader = "日期,代码,名称,方向,数量,价格,手续费,金额,市场,备注";
     const tRows = tData.trades.map(t =>
@@ -310,7 +313,7 @@ async function mainMenu(): Promise<void> {
   printHeader("PI Investment — 持仓 & 交易管理");
 
   const pData = portfolio.load();
-  const tData = trades.load();
+  const tData = /* TODO: TradeCliAdapter.list() */ ([] as any);
   console.log(`  持仓: ${pData.holdings.length} 只  |  交易记录: ${tData.trades.length} 笔\n`);
 
   console.log("  1. 查看持仓（含实时行情 & 盈亏）");

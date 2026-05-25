@@ -15,6 +15,18 @@ export function formatPrice(value: number | string, decimals = 2): string {
 }
 
 /**
+ * 格式化带方向的人民币金额
+ * @param value 金额值
+ */
+export function formatSignedCurrency(value: number | string): string {
+  const num = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(num)) return '--'
+
+  const sign = num > 0 ? '+' : num < 0 ? '-' : ''
+  return `${sign}¥${Math.abs(num).toLocaleString('zh-CN')}`
+}
+
+/**
  * 格式化百分比
  * @param value 百分比值（0-100）
  * @param decimals 小数位数

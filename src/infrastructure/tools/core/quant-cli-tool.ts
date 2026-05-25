@@ -1,6 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { runQuantCli } from "../../quant/quant-cli-client.js";
+import { runQuantV2, pingV2, V2_COMMAND_LIST } from "../../quant/quant-v2-client.js";
 
 type ParamRule = {
   required?: boolean;
@@ -125,14 +126,15 @@ const COMMANDS: Record<string, CommandRule> = {
   "stock.klines": {
     domain: "stock",
     action: "klines",
-    description: "查询本地量化库中的股票 K 线数据。",
+    description: "查询本地量化库中的股票 K 线数据（日线）或通过 akshare 实时获取分钟线（1min/5min/15min/30min/60min）。",
     params: {
       symbol: { required: true, type: "string", symbol: true },
+      period: { type: "string", enum: ["daily", "1min", "5min", "15min", "30min", "60min"] },
       start_date: { type: "string" },
       end_date: { type: "string" },
       limit: { type: "integer", min: 1 },
     },
-    example: { symbol: "600519", limit: 100 },
+    example: { symbol: "600519", period: "5min", limit: 50 },
   },
   "stock.quote": {
     domain: "stock",
@@ -557,6 +559,23 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { date: "2026-05-20" },
   },
+  "signal.scan": {
+    domain: "signal",
+    action: "scan",
+    description: "扫描最新信号，查找新的交易机会。v2 端点。",
+    params: {
+      symbols: { type: "array" },
+      strategies: { type: "array" },
+    },
+    example: {},
+  },
+  "signal.statistics": {
+    domain: "signal",
+    action: "statistics",
+    description: "查询信号统计数据：各策略/方向的信号数量和置信度分布。v2 端点。",
+    params: {},
+    example: {},
+  },
   "performance.analyze": {
     domain: "performance",
     action: "analyze",
@@ -567,6 +586,22 @@ const COMMANDS: Record<string, CommandRule> = {
       signals_dir: { type: "string" },
     },
     example: { strategy_id: "rsi-strategy", days: 90 },
+  },
+  "performance.by_strategy": {
+    domain: "performance",
+    action: "by-strategy",
+    description: "查询单个策略的性能详情：收益、回撤、夏普比率。v2 端点。",
+    params: {
+      strategy_id: { required: true, type: "string" },
+    },
+    example: { strategy_id: "rsi-strategy" },
+  },
+  "performance.comparison": {
+    domain: "performance",
+    action: "comparison",
+    description: "多策略性能对比。v2 端点。",
+    params: {},
+    example: {},
   },
   "backtest.run": {
     domain: "backtest",
@@ -593,6 +628,34 @@ const COMMANDS: Record<string, CommandRule> = {
       date: { type: "string" },
     },
     example: { symbol: "600519" },
+  },
+  "orders.list": {
+    domain: "orders",
+    action: "list",
+    description: "查询所有订单列表。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "trades.list": {
+    domain: "trades",
+    action: "list",
+    description: "查询所有成交记录。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "executions.list": {
+    domain: "executions",
+    action: "list",
+    description: "查询信号执行记录列表。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "executions.stats": {
+    domain: "executions",
+    action: "stats",
+    description: "查询执行统计：成功率、平均延迟等。v2 端点。",
+    params: {},
+    example: {},
   },
   "ml.train": {
     domain: "ml",
@@ -642,6 +705,56 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbols: "600519,000001", days: 365 },
   },
+  "data.update": {
+    domain: "data",
+    action: "update",
+    description: "统一数据更新入口：K线、因子、信号等。v2 端点。",
+    params: {
+      source: { type: "string" },
+      symbols: { type: "string" },
+    },
+    example: { source: "klines" },
+  },
+  "jobs.list": {
+    domain: "jobs",
+    action: "list",
+    description: "查询异步任务列表和状态。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "scheduler.tasks": {
+    domain: "scheduler",
+    action: "tasks",
+    description: "查询调度器定时任务列表。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "factor.list": {
+    domain: "factor",
+    action: "list",
+    description: "列出某只股票的所有可用因子。v2 端点。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+    },
+    example: { symbol: "600519" },
+  },
+  "indicators.list": {
+    domain: "indicators",
+    action: "list",
+    description: "列出系统可用的所有技术指标。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "compute.factors": {
+    domain: "compute",
+    action: "factors",
+    description: "触发因子计算任务。v2 端点。",
+    params: {
+      symbols: { type: "string" },
+      force: { type: "boolean" },
+    },
+    example: { symbols: "600519" },
+  },
   "factor.compute": {
     domain: "factor",
     action: "compute",
@@ -684,6 +797,41 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { strategy_return: 0.12, benchmark_return: 0.08 },
   },
+  "portfolio.summary": {
+    domain: "portfolio",
+    action: "summary",
+    description: "查询组合概要：总资产、收益、持仓数等。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "portfolio.positions": {
+    domain: "portfolio",
+    action: "positions",
+    description: "查询组合当前持仓列表。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "portfolio.history": {
+    domain: "portfolio",
+    action: "history",
+    description: "查询组合历史净值曲线。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "portfolio.allocation": {
+    domain: "portfolio",
+    action: "allocation",
+    description: "查询组合行业/资产配置占比。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "portfolio.equity_curve": {
+    domain: "portfolio",
+    action: "equity-curve",
+    description: "查询组合权益曲线数据。v2 端点。",
+    params: {},
+    example: {},
+  },
   "portfolio.optimize": {
     domain: "portfolio",
     action: "optimize",
@@ -695,6 +843,32 @@ const COMMANDS: Record<string, CommandRule> = {
       volatilities: { type: "string" },
     },
     example: { symbols: "600519,000001", method: "risk_parity" },
+  },
+  "strategy.list": {
+    domain: "strategy",
+    action: "list",
+    description: "列出系统所有已注册策略。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "strategy.get": {
+    domain: "strategy",
+    action: "get",
+    description: "查询单个策略详情和参数。v2 端点。",
+    params: {
+      strategy_id: { required: true, type: "string" },
+    },
+    example: { strategy_id: "rsi-strategy" },
+  },
+  "strategy.create": {
+    domain: "strategy",
+    action: "create",
+    description: "创建新策略。v2 端点。",
+    params: {
+      name: { required: true, type: "string" },
+      code: { required: true, type: "string" },
+    },
+    example: { name: "my_strategy", code: "..." },
   },
   "strategy.optimize": {
     domain: "strategy",
@@ -834,10 +1008,226 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { forward_days: 5, lookback_days: 180 },
   },
+  "training.history": {
+    domain: "training",
+    action: "history",
+    description: "查询模型训练历史记录。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "training.reports": {
+    domain: "training",
+    action: "reports",
+    description: "查询模型训练报告列表。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "charts.accuracy": {
+    domain: "charts",
+    action: "accuracy",
+    description: "获取信号准确率图表数据。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "charts.equity": {
+    domain: "charts",
+    action: "equity",
+    description: "获取权益曲线图表数据。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "charts.comparison": {
+    domain: "charts",
+    action: "comparison",
+    description: "获取策略对比图表数据。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "charts.importance": {
+    domain: "charts",
+    action: "importance",
+    description: "获取特征重要性图表数据。v2 端点。",
+    params: {},
+    example: {},
+  },
+  "timeseries.arima": {
+    domain: "timeseries",
+    action: "arima",
+    description: "ARIMA时间序列建模：拟合、预测、自动选参。用于预测股价趋势、识别季节性模式。",
+    params: {
+      symbols: { required: true, type: "string" },
+      action_type: { type: "string", enum: ["fit", "forecast", "auto_order"] },
+      order: { type: "string" },
+      forecast_steps: { type: "integer" },
+      start_date: { type: "string" },
+      end_date: { type: "string" },
+    },
+    example: { symbols: "600519", action_type: "forecast", order: "1,1,1", forecast_steps: 10 },
+  },
+  "timeseries.garch": {
+    domain: "timeseries",
+    action: "garch",
+    description: "GARCH波动率建模：拟合、波动率预测、VaR计算。用于评估风险、设定止损。",
+    params: {
+      symbols: { required: true, type: "string" },
+      action_type: { type: "string", enum: ["fit", "forecast", "var"] },
+      p: { type: "integer" },
+      q: { type: "integer" },
+      forecast_steps: { type: "integer" },
+      confidence: { type: "number" },
+      start_date: { type: "string" },
+      end_date: { type: "string" },
+    },
+    example: { symbols: "600519", action_type: "forecast", p: 1, q: 1, forecast_steps: 5 },
+  },
+  "timeseries.kalman": {
+    domain: "timeseries",
+    action: "kalman",
+    description: "卡尔曼滤波：状态估计、趋势提取、平滑。用于去噪信号、估计隐藏趋势。",
+    params: {
+      symbols: { required: true, type: "string" },
+      action_type: { type: "string", enum: ["filter", "smooth", "local_level"] },
+      start_date: { type: "string" },
+      end_date: { type: "string" },
+    },
+    example: { symbols: "600519", action_type: "local_level" },
+  },
+  "factor.fama_french_3": {
+    domain: "factor",
+    action: "fama_french_3",
+    description: "Fama-French 3因子模型：市场、规模(SMB)、价值(HML)因子回归分析。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      start_date: { type: "string" },
+      end_date: { type: "string" },
+      mkt_rf: { type: "array" },
+      smb: { type: "array" },
+      hml: { type: "array" },
+      risk_free_rate: { type: "number" },
+    },
+    example: { symbol: "600519", start_date: "2024-01-01", end_date: "2024-12-31" },
+  },
+  "factor.fama_french_5": {
+    domain: "factor",
+    action: "fama_french_5",
+    description: "Fama-French 5因子模型：市场、规模、价值、盈利(RMW)、投资(CMA)因子回归。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      start_date: { type: "string" },
+      end_date: { type: "string" },
+      mkt_rf: { type: "array" },
+      smb: { type: "array" },
+      hml: { type: "array" },
+      rmw: { type: "array" },
+      cma: { type: "array" },
+      risk_free_rate: { type: "number" },
+    },
+    example: { symbol: "600519", start_date: "2024-01-01", end_date: "2024-12-31" },
+  },
+  "factor.carhart": {
+    domain: "factor",
+    action: "carhart",
+    description: "Carhart 4因子模型：Fama-French 3因子 + 动量(MOM)因子回归分析。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      start_date: { type: "string" },
+      end_date: { type: "string" },
+      mkt_rf: { type: "array" },
+      smb: { type: "array" },
+      hml: { type: "array" },
+      mom: { type: "array" },
+      risk_free_rate: { type: "number" },
+    },
+    example: { symbol: "600519", start_date: "2024-01-01", end_date: "2024-12-31" },
+  },
+  "factor.barra": {
+    domain: "factor",
+    action: "barra",
+    description: "Barra风险模型：多因子风险分解、因子暴露分析、风险归因。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      start_date: { type: "string" },
+      end_date: { type: "string" },
+      factor_exposures: { type: "object" },
+      factor_returns: { type: "object" },
+      risk_free_rate: { type: "number" },
+    },
+    example: { symbol: "600519", start_date: "2024-01-01", end_date: "2024-12-31" },
+  },
 };
 
 const COMMAND_LIST = Object.keys(COMMANDS).sort();
 const PUBLIC_COMMAND_LIST = ["help", ...COMMAND_LIST];
+
+// ── 一致性校验：确保 COMMANDS 和 V2_ROUTES 同步 ──
+(function checkCommandRouteConsistency() {
+  const cmdSet = new Set(COMMAND_LIST);
+  const routeSet = new Set(V2_COMMAND_LIST);
+
+  const cmdOnly = COMMAND_LIST.filter((c) => !routeSet.has(c));
+  const routeOnly = V2_COMMAND_LIST.filter((c) => !cmdSet.has(c));
+
+  if (cmdOnly.length > 0) {
+    console.warn(
+      `[quant_cli] COMMANDS 中有 ${cmdOnly.length} 个命令没有 V2_ROUTES 映射，将直接走旧桥接:`,
+      cmdOnly,
+    );
+  }
+  if (routeOnly.length > 0) {
+    console.warn(
+      `[quant_cli] V2_ROUTES 中有 ${routeOnly.length} 个映射没有 COMMANDS 定义:`,
+      routeOnly,
+    );
+  }
+})();
+
+// ── V2 降级遥测 ──
+
+type TelemetryEntry = {
+  v2Success: number;
+  v2Failure: number;   // v2 返回错误 → 降级
+  v2Unavailable: number; // v2 不存活 → 直接走旧桥接
+  totalFallback: number; // 最终走旧桥接的次数
+  lastDowngradeAt?: number;
+  lastDowngradeCmd?: string;
+  lastDowngradeError?: string;
+};
+
+const _telemetry: Record<string, TelemetryEntry> = {};
+
+function _getEntry(cmd: string): TelemetryEntry {
+  if (!_telemetry[cmd]) {
+    _telemetry[cmd] = { v2Success: 0, v2Failure: 0, v2Unavailable: 0, totalFallback: 0 };
+  }
+  return _telemetry[cmd];
+}
+
+/** Export telemetry snapshot (for debugging / health reporting). */
+export function getV2Telemetry(): Record<string, TelemetryEntry> {
+  return { ..._telemetry };
+}
+
+/** Export aggregate summary. */
+export function getV2TelemetrySummary() {
+  let totalSuccess = 0;
+  let totalFailure = 0;
+  let totalUnavailable = 0;
+  for (const e of Object.values(_telemetry)) {
+    totalSuccess += e.v2Success;
+    totalFailure += e.v2Failure;
+    totalUnavailable += e.v2Unavailable;
+  }
+  const total = totalSuccess + totalFailure + totalUnavailable;
+  return {
+    totalCalls: total,
+    v2Success: totalSuccess,
+    v2SuccessRate: total > 0 ? (totalSuccess / total * 100).toFixed(1) + '%' : 'N/A',
+    v2Failure: totalFailure,
+    v2Unavailable: totalUnavailable,
+    commandsTracked: Object.keys(_telemetry).length,
+    details: _telemetry,
+  };
+}
 
 export const quantCliTool: ToolDefinition = {
   name: "quant_cli",
@@ -907,15 +1297,47 @@ export const quantCliTool: ToolDefinition = {
     }
 
     try {
-      // Special handling: calibrate.run calls Python bridge directly
-      if (command === 'calibrate.run') {
-        const response = await runCalibrationBridge(params);
-        return {
-          content: [{ type: "text" as const, text: formatSuccess(command, response) }],
-          details: response,
-        };
+      // ── V2 路由：优先走 quantsys-v2 HTTP API ──
+      const useV2 = V2_COMMAND_LIST.includes(command);
+      let usedFallback = false;
+
+      if (useV2) {
+        const v2Alive = await pingV2();
+        if (v2Alive) {
+          try {
+            const response = await runQuantV2(command, params);
+            _getEntry(command).v2Success++;
+            return {
+              content: [{ type: "text" as const, text: formatSuccess(command, response) }],
+              details: response,
+            };
+          } catch (v2Error) {
+            const entry = _getEntry(command);
+            entry.v2Failure++;
+            entry.totalFallback++;
+            entry.lastDowngradeAt = Date.now();
+            entry.lastDowngradeCmd = command;
+            entry.lastDowngradeError = v2Error instanceof Error ? v2Error.message : String(v2Error);
+            usedFallback = true;
+            console.warn(
+              `[quant_cli] v2 调用失败，降级到旧桥接: ${command}:`,
+              v2Error instanceof Error ? v2Error.message : String(v2Error),
+            );
+          }
+        } else {
+          const entry = _getEntry(command);
+          entry.v2Unavailable++;
+          entry.totalFallback++;
+          entry.lastDowngradeAt = Date.now();
+          entry.lastDowngradeCmd = command;
+          usedFallback = true;
+        }
       }
 
+      // ── Fallback: 旧 Python 桥接 ──
+      if (!useV2) {
+        _getEntry(command).totalFallback++;
+      }
       const response = await runQuantCli(rule.domain, rule.action, params);
       return {
         content: [
@@ -1062,19 +1484,4 @@ function formatCommandHelp(command: string, rule: CommandRule): string {
 
 function formatSuccess(command: string, response: unknown): string {
   return `量化 CLI 执行完成: ${command}\n${JSON.stringify(response, null, 2)}`;
-}
-
-/**
- * Run confidence calibration via QuantSys daemon.
- * Calls the run_confidence_calibration handler registered in ml_query.py.
- */
-async function runCalibrationBridge(params: Record<string, unknown>) {
-  const { callPythonResilient } = await import('../shared/python-caller-resilient-adapter.js');
-  const resultJson = await callPythonResilient('run_confidence_calibration', {
-    forward_days: params.forward_days ?? 5,
-    return_threshold: params.return_threshold ?? 0.02,
-    max_symbols: params.max_symbols ?? 500,
-    lookback_days: params.lookback_days ?? 180,
-  });
-  return JSON.parse(resultJson);
 }

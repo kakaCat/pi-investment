@@ -18,38 +18,30 @@ async function testEvolution() {
   console.log("🧪 测试 Evolution 流程\n");
   console.log("=" .repeat(60));
 
-  // 测试 1: 检查数据文件
-  console.log("\n📋 测试 1: 检查数据文件");
+  // 测试 1: 检查数据（通过 CLI → PostgreSQL）
+  console.log("\n📋 测试 1: 检查数据");
   console.log("-".repeat(60));
 
-  const tradesPath = join(piDir, "trades.json");
-  const portfolioPath = join(piDir, "portfolio.json");
+  const { TradeCliAdapter } = await import("../infrastructure/adapters/cli/trade-cli-adapter.js");
+  const { PositionCliAdapter } = await import("../infrastructure/adapters/cli/position-cli-adapter.js");
 
-  if (existsSync(tradesPath)) {
-    const tradesData = JSON.parse(readFileSync(tradesPath, "utf-8"));
-    const trades = tradesData.trades || tradesData;
-    console.log(`✅ trades.json 存在: ${trades.length} 笔交易`);
+  const tradeAdapter = new TradeCliAdapter();
+  const trades = await tradeAdapter.list();
+  console.log(`✅ 交易记录: ${trades.length} 笔（PostgreSQL）`);
 
-    // 统计买入/卖出
-    const buyCount = trades.filter((t: any) => t.action === "buy").length;
-    const sellCount = trades.filter((t: any) => t.action === "sell").length;
-    console.log(`   - 买入: ${buyCount} 笔`);
-    console.log(`   - 卖出: ${sellCount} 笔`);
+  // 统计买入/卖出
+  const buyCount = trades.filter(t => t.action === "buy").length;
+  const sellCount = trades.filter(t => t.action === "sell").length;
+  console.log(`   - 买入: ${buyCount} 笔`);
+  console.log(`   - 卖出: ${sellCount} 笔`);
 
-    if (buyCount === 0 && sellCount > 0) {
-      console.log(`   ⚠️  只有卖出没有买入，无法计算已实现盈亏`);
-    }
-  } else {
-    console.log(`❌ trades.json 不存在`);
+  if (buyCount === 0 && sellCount > 0) {
+    console.log(`   ⚠️  只有卖出没有买入，无法计算已实现盈亏`);
   }
 
-  if (existsSync(portfolioPath)) {
-    const portfolioData = JSON.parse(readFileSync(portfolioPath, "utf-8"));
-    const holdings = portfolioData.holdings || portfolioData;
-    console.log(`✅ portfolio.json 存在: ${holdings.length || 0} 个持仓`);
-  } else {
-    console.log(`❌ portfolio.json 不存在`);
-  }
+  const positionAdapter = new PositionCliAdapter();
+  const positions = await positionAdapter.list({ status: 'open' });
+  console.log(`✅ 持仓数据: ${positions.length} 个（PostgreSQL）`);
 
   // 测试 2: 运行进化分析（捕获错误）
   console.log("\n📋 测试 2: 运行进化分析");
@@ -78,7 +70,7 @@ async function testEvolution() {
     console.log(`   ${error.message}`);
 
     if (error.message.includes("没有交易数据")) {
-      console.log("\n💡 建议: 添加交易记录到 .pi-invest/trades.json");
+      console.log("\n💡 建议: 添加交易记录（通过 manage_portfolio 工具）");
     } else if (error.message.includes("时间窗口内没有交易")) {
       console.log("\n💡 建议: 使用 --all 分析全部交易");
     }

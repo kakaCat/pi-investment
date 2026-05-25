@@ -33,7 +33,7 @@ npm install
 npm run dev
 ```
 
-应用将在 `http://localhost:3000` 启动。
+应用将在 `http://localhost:3001` 启动。
 
 ### 生产构建
 
@@ -63,10 +63,10 @@ npm run preview
 
 ```bash
 # API 基础地址
-VITE_API_BASE_URL=http://localhost:5001
+VITE_API_BASE_URL=http://127.0.0.1:5001
 
 # WebSocket 地址
-VITE_WS_URL=ws://localhost:5001
+VITE_WS_URL=ws://127.0.0.1:5003
 
 # 是否启用性能监控
 VITE_ENABLE_PERFORMANCE_MONITOR=true

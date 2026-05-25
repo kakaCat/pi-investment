@@ -46,7 +46,7 @@ describe('Responsive Layout', () => {
     })
 
     it('should have responsive :md breakpoint on stat cards', () => {
-      expect(content).toMatch(/:md="6"/)
+      expect(content).toMatch(/:md="8"/)
     })
 
     it('should have responsive breakpoints on chart column', () => {

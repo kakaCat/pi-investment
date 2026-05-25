@@ -119,7 +119,7 @@
             <div>
               <p class="text-xs text-gray-500 mb-1">持仓</p>
               <p class="text-lg font-bold">{{ strategy.positionCount }}只</p>
-              <p class="text-xs text-gray-500 truncate">{{ strategy.positions.join(', ') }}</p>
+              <p class="text-xs text-gray-500 truncate">{{ Array.isArray(strategy.positions) ? strategy.positions.join(', ') : (strategy.positionCount || 0) + '只' }}</p>
             </div>
 
             <div>
@@ -130,7 +130,7 @@
 
             <div>
               <p class="text-xs text-gray-500 mb-1">夏普比率</p>
-              <p class="text-lg font-bold">{{ strategy.sharpeRatio.toFixed(2) }}</p>
+              <p class="text-lg font-bold">{{ strategy.sharpeRatio?.toFixed(2) ?? '-' }}</p>
             </div>
 
             <div>
@@ -353,15 +353,76 @@ import { formatPrice, formatPercent, formatDate, formatDateTime } from '@/utils/
 
 // 总览数据
 const overview = reactive({
-  runningCount: 5,
-  profitCount: 3,
-  lossCount: 2,
-  todayPnl: 9300,
-  todayPnlPercent: 0.018,
-  totalPositions: 12,
-  riskLevel: '中',
-  positionUsage: 65
+  totalStrategies: 0,
+  runningCount: 0,
+  stoppedCount: 0,
+  profitCount: 0,
+  lossCount: 0,
+  todayPnl: 0,
+  todayPnlPercent: 0,
+  totalPositions: 0,
+  winRate: 0,
+  riskLevel: '低',
+  positionUsage: 0
 })
+
+// 从策略列表和绩效数据动态计算 overview
+const computeOverview = async () => {
+  try {
+    const strategyList = strategies.value || []
+
+    overview.totalStrategies = strategyList.length
+    overview.runningCount = strategyList.filter(s => s.status === 'running').length
+    overview.stoppedCount = strategyList.filter(s => s.status === 'stopped').length
+
+    // 加载各策略绩效来计算汇总（最多20个，避免请求过多）
+    let totalPnl = 0
+    let totalWinRate = 0
+    let performanceCount = 0
+    let totalPositions = 0
+    let profitCount = 0
+    let lossCount = 0
+
+    const maxFetch = Math.min(strategyList.length, 20)
+    for (let i = 0; i < maxFetch; i++) {
+      const strategy = strategyList[i]
+      try {
+        const perf = await strategyApi.getStrategyPerformance(strategy.id)
+        if (perf) {
+          const pnl = (perf as any).totalReturn || (perf as any).stats?.total_return || 0
+          totalPnl += pnl
+          if (pnl > 0) profitCount++
+          else if (pnl < 0) lossCount++
+
+          totalWinRate += (perf as any).winRate || (perf as any).stats?.win_rate || 0
+          totalPositions += (perf as any).positions || (perf as any).execution_count || 0
+          performanceCount++
+        }
+      } catch {
+        // 跳过无绩效数据的策略
+      }
+    }
+
+    overview.todayPnl = Math.round(totalPnl * 100) / 100
+    overview.profitCount = profitCount || overview.runningCount - overview.stoppedCount
+    overview.lossCount = lossCount
+    overview.winRate = performanceCount > 0
+      ? Math.round((totalWinRate / performanceCount) * 100) / 100
+      : 0
+    overview.totalPositions = totalPositions
+
+    // 从绩效数据估算百分比和风险等级
+    overview.todayPnlPercent = performanceCount > 0
+      ? Math.round((totalPnl / performanceCount) * 10000) / 10000
+      : 0
+    overview.positionUsage = performanceCount > 0
+      ? Math.min(Math.round((totalPositions / (performanceCount * 5)) * 100), 100)
+      : 0
+    overview.riskLevel = overview.positionUsage > 70 ? '高' : overview.positionUsage > 30 ? '中' : '低'
+  } catch (error) {
+    console.error('计算概览数据失败:', error)
+  }
+}
 
 // 策略列表
 const strategies = ref<any[]>([])
@@ -380,6 +441,7 @@ const loadStrategies = async () => {
       status: filters.status || undefined
     })
     strategies.value = data.items || []
+    await computeOverview()
   } catch (error) {
     ElMessage.error('加载策略列表失败')
   } finally {
@@ -523,6 +585,7 @@ const handleSubmitStrategy = async () => {
           name: strategyForm.name,
           description: strategyForm.description,
           type: strategyForm.type,
+          code: strategyForm.type,
           parameters: strategyForm.parameters,
           riskLevel: strategyForm.riskLevel
         })
@@ -567,8 +630,8 @@ const handleDeleteStrategy = async (strategy: any) => {
 }
 
 // 组件挂载
-onMounted(() => {
-  loadStrategies()
+onMounted(async () => {
+  await loadStrategies()
 })
 
 // 辅助函数

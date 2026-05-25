@@ -749,6 +749,7 @@ const handleSubmitSaveStrategy = async () => {
         name: saveStrategyForm.name,
         description: saveStrategyForm.description,
         type: 'trend',
+        code: backtestForm.strategy,
         parameters: {
           strategy: backtestForm.strategy,
           symbol: backtestForm.symbol,

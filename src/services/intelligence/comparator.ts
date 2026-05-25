@@ -13,7 +13,6 @@
 // @ts-nocheck
 
 import * as path from 'path';
-import { existsSync, readFileSync } from 'fs';
 import type { Holding } from './data-collector.js';
 import type {
   ComparisonResult,
@@ -42,17 +41,6 @@ interface Trade {
   pnl?: number | null;
   pnl_pct?: number | null;
   time?: string;
-}
-
-// ─── 数据加载 ──────────────────────────────────────────────────────────────
-
-function loadJson<T>(filePath: string): T | null {
-  try {
-    if (!existsSync(filePath)) return null;
-    return JSON.parse(readFileSync(filePath, 'utf-8'));
-  } catch {
-    return null;
-  }
 }
 
 // ─── Helper 函数 ──────────────────────────────────────────────────────────
@@ -102,7 +90,7 @@ function weekEndAfter(dateStr: string): string {
 // ─── 核心计算 ──────────────────────────────────────────────────────────────
 
 /**
- * 计算已实现盈亏（从 trades.json）
+ * 计算已实现盈亏
  * 用 FIFO 配对同一只股票的买卖
  */
 function calcRealizedPnL(trades: Trade[]): {
@@ -187,8 +175,8 @@ function calcRealizedPnL(trades: Trade[]): {
  * 估算当前持仓浮盈
  *
  * ⚠️ 不调用实时行情 API，基于以下逻辑估算：
- *   - 如果 trades.json 中有该股票的买入和卖出记录，用 FIFO 摊薄成本
- *   - 否则用 portfolio.json 的 avg_cost
+ *   - 如果交易记录中有该股票的买入和卖出记录，用 FIFO 摊薄成本
+ *   - 否则用持仓的 avg_cost
  *   - 浮盈用买入均价 vs 最近一次成交价（若有）估算
  *
  * 当数据不全时，浮盈标记为 unavailable 而非 0
@@ -347,7 +335,7 @@ function assessDataQuality(
 
   // 交易笔数
   if (trades.length === 0) {
-    warnings.push('没有交易记录（trades.json 为空），进化分析缺少买卖数据');
+    warnings.push('没有交易记录，进化分析缺少买卖数据');
     reliability = 'low';
   } else if (trades.length < 10) {
     warnings.push(`交易记录较少（${trades.length} 笔），统计结果可能不稳定`);
@@ -446,7 +434,7 @@ function buildPeriodPerformance(
  *
  * @param trades    所有交易记录
  * @param holdings  当前持仓
- * @param portfolioUnrealizedPnL 从 PortfolioService.getWithPnL() 获取的当前持仓浮盈（可选）
+ * @param portfolioUnrealizedPnL 从 PositionCliAdapter 获取的当前持仓浮盈（可选）
  * @returns ComparisonResult
  */
 export function compare(

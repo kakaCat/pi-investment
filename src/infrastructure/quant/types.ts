@@ -124,7 +124,7 @@ export interface AlgoExecuteParams {
 export interface AlgoOrder {
   success: boolean;
   order_id: string;
-  slices: OrderSlice[];
+  child_orders: OrderSlice[];
   status: string;
 }
 

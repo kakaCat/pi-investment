@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import { toPaginatedResponse } from './adapters'
 import type {
   BacktestRequest,
   BacktestResponse,
@@ -54,8 +55,9 @@ export const analysisApi = {
   /**
    * 获取机会列表
    */
-  getOpportunities(params?: any) {
-    return apiClient.get<PaginatedResponse<Opportunity>>('/api/signals', { params })
+  async getOpportunities(params?: any) {
+    const response = await apiClient.get('/api/signals', { params })
+    return toPaginatedResponse<Opportunity>(response, 'signals')
   },
 
   /**

@@ -10,6 +10,7 @@ export interface TradingSignal {
   symbolName: string
   type: SignalType
   price: number
+  time?: string // Legacy field, use createdAt
   triggerPrice?: number // Alias for price
   triggerTime?: string // Alias for createdAt
   confidence: number
@@ -115,6 +116,9 @@ export interface StockInfo {
   price?: number // Alias for currentPrice
   change: number
   changePercent: number
+  klineDays?: number // Number of K-line days available
+  factorCount?: number // Number of factors calculated
+  dataStatus?: string // Data completeness status: 'complete' | 'incomplete' | 'unknown'
 }
 
 // ========== 持仓信息 ==========
@@ -123,15 +127,24 @@ export interface Position {
   id: string
   symbol: string
   symbolName: string
+  name: string
   quantity: number
   avgCost: number
   currentPrice: number
   marketValue: number
+  totalCost: number
   unrealizedPnL: number
   unrealizedPnLPercent: number
+  profit: number
+  profitPercent: number
   weight: number
   buyDate: string
-  stopLoss?: StopLossRule
+  addedDate: string
+  market: string
+  sector: string | null
+  stopLoss?: number
+  targetPrice?: number
+  reason?: string
 }
 
 // ========== 止损规则 ==========
@@ -238,6 +251,23 @@ export interface RealtimeQuote {
   volume: number
   amount: number
   timestamp: string
+}
+
+// ========== 策略信息 ==========
+
+export interface Strategy {
+  id: string
+  name: string
+  type: string
+  status: 'running' | 'stopped' | 'paused' | 'error'
+  description?: string
+  code?: string
+  params?: Record<string, any>
+  performance?: any
+  positions?: number
+  createdAt?: string
+  updatedAt?: string
+  lastExecuted?: string
 }
 
 // ========== API响应 ==========

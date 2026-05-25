@@ -61,7 +61,7 @@
           :class="getStageClass(stages[0])"
         >
           <div class="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2" :class="getStageIconClass(stages[0])">
-            <el-icon :size="20"><Database /></el-icon>
+            <el-icon :size="20"><DataLine /></el-icon>
           </div>
           <div class="text-sm font-medium">1. 数据更新</div>
           <div class="text-xs mt-1">{{ getStageStatus(stages[0]) }}</div>
@@ -121,7 +121,7 @@
           :class="getStageClass(stages[4])"
         >
           <div class="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2" :class="getStageIconClass(stages[4])">
-            <el-icon :size="20"><Shield /></el-icon>
+            <el-icon :size="20"><Lock /></el-icon>
           </div>
           <div class="text-sm font-medium">5. 风险评估</div>
           <div class="text-xs mt-1">{{ getStageStatus(stages[4]) }}</div>
@@ -245,28 +245,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { VideoPlay, Operation, Cpu, TrendCharts, Refresh } from '@element-plus/icons-vue'
+import { VideoPlay, Operation, Cpu, TrendCharts, Refresh, DataLine, Lock } from '@element-plus/icons-vue'
 import { formatDateTime, formatPercent } from '@/utils/format'
 import { usePolling } from '@/composables/usePolling'
+import { pipelineApi, type PipelineRun, type StageStatus } from '@/services/api/pipeline'
 
-interface Stage {
-  name: string
-  status: 'pending' | 'running' | 'completed' | 'failed'
-  progress: number
-  detail: string
-}
-
-interface PipelineRun {
-  runId: string
-  startTime: string
-  stockCount: number
-  model: string
-  status: 'running' | 'completed' | 'failed'
-  signalCount: number | null
-  bestReturn: number | null
-  riskLevel: 'low' | 'medium' | 'high' | null
-  duration: number
-}
+type Stage = StageStatus
 
 // 配置
 const config = reactive({
@@ -317,34 +301,73 @@ const runPipeline = async () => {
   })
 
   try {
-    // 模拟运行流程
-    for (let i = 0; i < stages.length; i++) {
-      stages[i].status = 'running'
+    const result = await pipelineApi.runPipeline(config)
+    ElMessage.success(`流水线已启动: ${result.runId}`)
 
-      // 模拟进度更新
-      for (let p = 0; p <= 100; p += 10) {
-        stages[i].progress = p
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
-
-      stages[i].status = 'completed'
-      stages[i].progress = 100
-
-      // 更新详情
-      if (i === 0) stages[i].detail = '2,432条K线'
-      if (i === 1) stages[i].detail = '42因子 × 8股票'
-      if (i === 2) stages[i].detail = '12个信号'
-      if (i === 3) stages[i].detail = '+23.5%'
-      if (i === 4) stages[i].detail = '中风险'
-    }
-
-    ElMessage.success('流水线运行完成')
-    fetchHistory()
+    // 开始轮询获取进度
+    pollRunStatus(result.runId)
   } catch (error) {
-    ElMessage.error('流水线运行失败')
-  } finally {
+    ElMessage.error('流水线启动失败')
+    console.error('Pipeline run error:', error)
     running.value = false
   }
+}
+
+// 轮询运行状态
+const pollRunStatus = async (runId: string) => {
+  const maxAttempts = 120 // 最多轮询2分钟
+  let attempts = 0
+
+  const poll = async () => {
+    try {
+      const run = await pipelineApi.getRun(runId)
+
+      // 更新阶段状态
+      if (run.stages && Array.isArray(run.stages)) {
+        stages.forEach((stage, index) => {
+          if (run.stages[index]) {
+            Object.assign(stage, run.stages[index])
+          }
+        })
+      }
+
+      // 检查是否完成
+      if (run.status === 'completed' || run.status === 'failed') {
+        running.value = false
+        if (run.status === 'completed') {
+          ElMessage.success('流水线运行完成')
+        } else {
+          ElMessage.error('流水线运行失败' + (run.error ? ': ' + run.error : ''))
+        }
+        fetchHistory()
+        return
+      }
+
+      // 继续轮询
+      attempts++
+      if (attempts < maxAttempts) {
+        setTimeout(poll, 1000)
+      } else {
+        running.value = false
+        ElMessage.warning('轮询超时，请刷新查看状态')
+        fetchHistory()
+      }
+    } catch (error) {
+      // 降级：如果 getRun 失败，尝试从响应中推断运行仍在进行
+      if (attempts < 5) {
+        // 前几次尝试中，后端可能尚未写入记录，继续轮询
+        attempts++
+        setTimeout(poll, 2000)
+      } else {
+        console.error('Poll error:', error)
+        running.value = false
+        ElMessage.warning('获取运行状态失败，请手动刷新')
+        fetchHistory()
+      }
+    }
+  }
+
+  poll()
 }
 
 // 获取阶段样式
@@ -373,65 +396,37 @@ const getStageStatus = (stage: Stage) => {
 const fetchHistory = async () => {
   loading.value = true
   try {
-    // Mock数据
-    history.value = [
-      {
-        runId: '#P-042',
-        startTime: '2026-05-20 08:00:00',
-        stockCount: 300,
-        model: 'XGBoost',
-        status: 'completed',
-        signalCount: 12,
-        bestReturn: 23.5,
-        riskLevel: 'medium',
-        duration: 192
-      },
-      {
-        runId: '#P-041',
-        startTime: '2026-05-19 08:00:00',
-        stockCount: 300,
-        model: 'LightGBM',
-        status: 'completed',
-        signalCount: 8,
-        bestReturn: 15.2,
-        riskLevel: 'low',
-        duration: 245
-      },
-      {
-        runId: '#P-040',
-        startTime: '2026-05-18 08:00:00',
-        stockCount: 300,
-        model: 'XGBoost',
-        status: 'failed',
-        signalCount: null,
-        bestReturn: null,
-        riskLevel: null,
-        duration: 45
-      }
-    ]
-    total.value = 42
+    const response = await pipelineApi.getHistory(currentPage.value, pageSize.value)
+    history.value = response.items
+    total.value = response.pagination.total
   } catch (error) {
     ElMessage.error('获取历史记录失败')
+    console.error('Fetch history error:', error)
   } finally {
     loading.value = false
   }
 }
 
 // 查看日志
-const viewLogs = (run: PipelineRun) => {
-  logs.value = [
-    `[${run.startTime}] 开始运行流水线 ${run.runId}`,
-    `[${run.startTime}] 配置: 股票数=${run.stockCount}, 模型=${run.model}`,
-    `[${run.startTime}] Stage 1: 数据更新开始...`,
-    `[${run.startTime}] Stage 1: 完成 (2,432条K线)`,
-    `[${run.startTime}] Stage 2: 因子计算开始...`,
-    `[${run.startTime}] Stage 2: 完成 (42因子 × ${run.stockCount}股票)`,
-    `[${run.startTime}] Stage 3: ML预测开始...`,
-    run.status === 'failed'
-      ? `[${run.startTime}] Stage 3: 失败 - 模型加载错误`
-      : `[${run.startTime}] Stage 3: 完成 (${run.signalCount}个信号)`,
-  ]
-  logDialogVisible.value = true
+const viewLogs = async (run: PipelineRun) => {
+  // 后端无专用日志端点，直接使用 run 对象中的 logs
+  if (run.logs && run.logs.length > 0) {
+    logs.value = run.logs
+    logDialogVisible.value = true
+  } else {
+    // 尝试从 runs/list 获取最新日志（降级方案）
+    try {
+      const fetchedRun = await pipelineApi.getRun(run.runId)
+      if (fetchedRun.logs && fetchedRun.logs.length > 0) {
+        logs.value = fetchedRun.logs
+        logDialogVisible.value = true
+      } else {
+        ElMessage.warning('暂无日志数据')
+      }
+    } catch {
+      ElMessage.warning('暂无日志数据')
+    }
+  }
 }
 
 // 重试运行

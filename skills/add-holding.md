@@ -8,6 +8,13 @@ description: 录入或更新持仓信息（代码+数量+均价，加仓自动�
 ## 允许的工具
 - manage_portfolio()
 - get_stock_info()
+- get_stock_price()
+- get_financial_data()
+- get_financial_statements()
+- analyze_technical()
+- get_valuation()
+- get_pe_percentile()
+- get_quality_score()
 - clarify()
 
 ## 触发条件

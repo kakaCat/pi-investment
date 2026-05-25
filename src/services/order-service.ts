@@ -11,7 +11,7 @@
  *
  * 协作关系:
  *   - check_pending_orders 工具调用此服务检查触发条件
- *   - 成交后自动调用 PortfolioService.add/sell + TradeService.add
+ *   - 成交后自动调用 PositionCliAdapter.open/update/close + TradeCliAdapter.add
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
@@ -19,6 +19,8 @@ import { join } from "path";
 import { chinaDateTime } from "../utils/china-time.js";
 import { callQuantSysDaemon } from "../infrastructure/quant/quantsys-daemon-adapter.js";
 import { FileLockService } from "./file-lock.service.js";
+import type { PositionCliAdapter } from "../infrastructure/adapters/cli/position-cli-adapter.js";
+import type { TradeCliAdapter } from "../infrastructure/adapters/cli/trade-cli-adapter.js";
 
 // ─── 数据类型 ──────────────────────────────────────────────────────────────
 
@@ -115,8 +117,8 @@ export interface CheckOrdersResult {
 export class OrderService {
   private filePath: string;
   private piDir: string;
-  private portfolioService?: any;
-  private tradeService?: any;
+  private positionAdapter?: PositionCliAdapter;
+  private tradeAdapter?: TradeCliAdapter;
 
   constructor(piDir: string) {
     this.piDir = piDir;
@@ -126,11 +128,20 @@ export class OrderService {
   }
 
   /**
-   * 设置依赖服务（用于高层业务方法）
+   * 设置 CLI 适配器（通过 CLI → PostgreSQL 操作持仓和交易记录）
    */
-  setServices(portfolioService: any, tradeService: any): void {
-    this.portfolioService = portfolioService;
-    this.tradeService = tradeService;
+  setAdapters(positionAdapter: PositionCliAdapter, tradeAdapter: TradeCliAdapter): void {
+    this.positionAdapter = positionAdapter;
+    this.tradeAdapter = tradeAdapter;
+  }
+
+  /**
+   * @deprecated 使用 setAdapters() 替代。保留作为向后兼容。
+   */
+  setServices(_portfolioService: any, _tradeService: any): void {
+    console.warn("OrderService.setServices() 已弃用，请使用 setAdapters()");
+    // 不再支持旧 API — 调用者必须迁移到 setAdapters()
+    throw new Error("OrderService.setServices() 已弃用，请使用 setAdapters(positionAdapter, tradeAdapter)");
   }
 
   /**
@@ -469,8 +480,8 @@ export class OrderService {
     fillPrice: number,
     fillQuantity?: number,
   ): Promise<FillOrderResult> {
-    if (!this.portfolioService || !this.tradeService) {
-      throw new Error("OrderService.fillOrder() 需要先调用 setServices() 注入依赖");
+    if (!this.positionAdapter || !this.tradeAdapter) {
+      throw new Error("OrderService.fillOrder() 需要先调用 setAdapters() 注入依赖");
     }
 
     // 1. 验证挂单
@@ -528,10 +539,9 @@ export class OrderService {
       };
     }
 
-    // 2. 卖出前校验持仓
+    // 2. 卖出前校验持仓（通过 CLI → PostgreSQL）
     if (order.side === "sell") {
-      const portfolio = this.portfolioService.load();
-      const holding = portfolio.holdings.find((h: any) => h.symbol === order.symbol);
+      const holding = await this.positionAdapter!.get(order.symbol);
       const heldQty = holding?.quantity ?? 0;
       if (heldQty < fillQty) {
         return {
@@ -551,7 +561,6 @@ export class OrderService {
     let portfolioAction: "add" | "remove" | "update" | "noop" = "noop";
     let portfolioMessage = "";
     let tradeRecorded = false;
-    let sellResult: any = undefined;
 
     try {
       if (order.side === "buy") {
@@ -562,54 +571,86 @@ export class OrderService {
           fillQty,
           order.commission_rate
         );
-        const result = this.portfolioService.add(
-          order.symbol,
-          fillQty,
-          fillPrice,
-          commission,
-          order.name,
-          order.market,
-          `挂单成交 ${orderId} @${fillPrice}`,
-        );
+        const totalCost = fillPrice * fillQty + commission;
+        const costBasis = roundN(totalCost / fillQty, 4);
+
+        await this.positionAdapter!.open({
+          symbol: order.symbol,
+          quantity: fillQty,
+          costBasis,
+          entryReason: `挂单成交 [${orderId}]`,
+          notes: order.notes,
+        });
         portfolioAction = "add";
-        portfolioMessage = result.message;
+        portfolioMessage = `买入 ${order.name} ${fillQty}股 @ ${fillPrice} (成本均价 ${costBasis})`;
 
         // 记录交易
         try {
           const { chinaDate } = await import("../utils/china-time.js");
-          this.tradeService.add(
-            chinaDate(),
-            order.symbol,
-            order.name,
-            "buy",
-            fillQty,
-            fillPrice,
-            commission,
-            order.market,
-            `挂单成交 [${orderId}] ${order.notes}`,
-          );
+          await this.tradeAdapter!.add({
+            symbol: order.symbol,
+            stockName: order.name,
+            action: 'buy',
+            price: fillPrice,
+            quantity: fillQty,
+            amount: roundN(fillPrice * fillQty, 2),
+            tradeDate: chinaDate(),
+            fee: commission,
+            reason: `挂单成交 [${orderId}] ${order.notes || ''}`,
+            market: order.market as "A" | "HK",
+          });
           tradeRecorded = true;
         } catch (e) {
           console.warn("交易记录失败:", e);
         }
       } else {
-        // 卖出：计算手续费（优先使用挂单的自定义费率）并调用 PortfolioService.sell()
+        // 卖出：计算手续费 + 盈亏，通过 CLI → PostgreSQL 更新持仓
         const commission = this.calculateCommission(
           order.market,
           fillPrice,
           fillQty,
           order.commission_rate
         );
-        sellResult = this.portfolioService.sell(
-          order.symbol,
-          fillQty,
-          fillPrice,
-          commission,
-          `挂单成交 [${orderId}] ${order.notes}`,
-        );
-        portfolioAction = sellResult.remaining > 0 ? "update" : "remove";
-        portfolioMessage = sellResult.message;
-        tradeRecorded = sellResult.tradeRecorded;
+        // 获取当前持仓成本
+        const position = await this.positionAdapter!.get(order.symbol);
+        const costBasisPerShare = position?.costBasis ?? 0;
+        const grossProceeds = fillPrice * fillQty;
+        const netProceeds = grossProceeds - commission;
+        const costBasis = costBasisPerShare * fillQty;
+        const pnlAmount = roundN(netProceeds - costBasis, 2);
+        const pnlPct = costBasis > 0 ? roundN((pnlAmount / costBasis) * 100, 2) : 0;
+
+        const remainingQty = (position?.quantity ?? 0) - fillQty;
+        if (remainingQty <= 0) {
+          await this.positionAdapter!.close(order.symbol, `挂单成交 [${orderId}]`);
+          portfolioAction = "remove";
+        } else {
+          await this.positionAdapter!.update(order.symbol, { quantity: remainingQty });
+          portfolioAction = "update";
+        }
+        portfolioMessage = `${remainingQty <= 0 ? '清仓' : '减仓'} ${fillQty}股 @ ${fillPrice}，${pnlAmount >= 0 ? '盈利' : '亏损'} ${Math.abs(pnlAmount)} (${pnlPct}%)`;
+
+        // 记录交易
+        try {
+          const { chinaDate } = await import("../utils/china-time.js");
+          await this.tradeAdapter!.add({
+            symbol: order.symbol,
+            stockName: order.name,
+            action: 'sell',
+            price: fillPrice,
+            quantity: fillQty,
+            amount: roundN(fillPrice * fillQty, 2),
+            tradeDate: chinaDate(),
+            fee: commission,
+            reason: `挂单成交 [${orderId}] | P&L: ${pnlAmount >= 0 ? '+' : ''}${pnlAmount} (${pnlPct}%) ${order.notes || ''}`,
+            market: order.market as "A" | "HK",
+            pnl: pnlAmount,
+            pnlPercent: pnlPct,
+          });
+          tradeRecorded = true;
+        } catch (e) {
+          console.warn("交易记录失败:", e);
+        }
       }
     } catch (e) {
       return {
@@ -627,10 +668,8 @@ export class OrderService {
     // 4. 更新挂单状态
     this.fill(orderId, fillPrice, fillQty);
 
-    // 5. 获取更新后的持仓和剩余挂单
-    const updatedHolding = this.portfolioService
-      .load()
-      .holdings.find((h: any) => h.symbol === order.symbol);
+    // 5. 获取更新后的持仓和剩余挂单（通过 CLI → PostgreSQL）
+    const updatedHolding = await this.positionAdapter!.get(order.symbol);
     const remainingOrders = this.listPending();
 
     return {
@@ -659,8 +698,8 @@ export class OrderService {
     symbol?: string,
     dryRun = false,
   ): Promise<CheckOrdersResult> {
-    if (!this.portfolioService || !this.tradeService) {
-      throw new Error("OrderService.checkAndFillOrders() 需要先调用 setServices() 注入依赖");
+    if (!this.positionAdapter || !this.tradeAdapter) {
+      throw new Error("OrderService.checkAndFillOrders() 需要先调用 setAdapters() 注入依赖");
     }
 
     // 1. 清理过期挂单
@@ -788,10 +827,10 @@ export class OrderService {
       }
     }
 
-    // 7. 获取完整持仓快照和剩余挂单
+    // 7. 获取完整持仓快照和剩余挂单（通过 CLI → PostgreSQL）
     let portfolioSnapshot: any;
     try {
-      portfolioSnapshot = await this.portfolioService.getWithPnL();
+      portfolioSnapshot = await this.positionAdapter!.getSummary();
     } catch (e) {
       console.warn("获取持仓快照失败:", e);
     }

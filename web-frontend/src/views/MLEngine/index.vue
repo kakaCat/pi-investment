@@ -279,6 +279,8 @@ import {
   MagicStick
 } from '@element-plus/icons-vue'
 import { useChart } from '@/composables/useChart'
+import { mlApi } from '@/services/api/ml'
+import type { MLModelInfo } from '@/services/api/ml'
 
 // 类型定义
 interface MLModel {
@@ -378,16 +380,7 @@ const evaluation = ref<Evaluation | null>(null)
 const selectedFeatureModel = ref('xgboost-latest')
 const showConfusionMatrix = ref(false)
 
-const featureImportance = ref<FeatureImportance[]>([
-  { name: 'RSI(14)', importance: 18.5 },
-  { name: 'MACD', importance: 15.2 },
-  { name: 'MA20偏离', importance: 12.1 },
-  { name: '换手率', importance: 9.8 },
-  { name: '波动率', importance: 8.4 },
-  { name: 'PE分位', importance: 7.2 },
-  { name: '成交量比', importance: 5.9 },
-  { name: '其他34项', importance: 22.9 }
-])
+const featureImportance = ref<FeatureImportance[]>([])
 
 // 混淆矩阵图表
 const { setOption: setConfusionMatrixOption } = useChart({
@@ -403,47 +396,68 @@ const handleTrain = async () => {
   trainingProgress.message = '准备训练数据...'
   trainingLogs.value = []
 
+  const addLog = (message: string) => {
+    trainingLogs.value.push({
+      time: new Date().toLocaleTimeString(),
+      message
+    })
+  }
+
   try {
-    // 模拟训练过程
-    const steps = [
-      { percent: 10, message: '加载训练数据...' },
-      { percent: 30, message: '特征工程处理...' },
-      { percent: 50, message: '模型训练中...' },
-      { percent: 70, message: '模型验证中...' },
-      { percent: 90, message: '保存模型...' },
-      { percent: 100, message: '训练完成！' }
-    ]
+    addLog('开始训练模型...')
+    trainingProgress.percent = 20
+    trainingProgress.message = '正在提交训练任务...'
 
-    for (const step of steps) {
-      await new Promise(resolve => setTimeout(resolve, 800))
-      trainingProgress.percent = step.percent
-      trainingProgress.message = step.message
-      trainingLogs.value.push({
-        time: new Date().toLocaleTimeString(),
-        message: step.message
-      })
-    }
+    const result = await mlApi.train({
+      modelType: trainForm.modelType as 'xgboost' | 'lightgbm' | 'randomforest',
+      startDate: trainForm.startDate || undefined,
+      endDate: trainForm.endDate || undefined,
+      testSize: trainForm.testRatio / 100,
+      symbols: trainForm.symbols
+        ? trainForm.symbols.split(',').map(s => s.trim()).filter(Boolean)
+        : undefined,
+      params: {}
+    })
 
+    trainingProgress.percent = 100
     trainingProgress.status = 'success'
+    trainingProgress.message = '训练完成！'
+    addLog('模型训练完成')
 
-    // 添加新模型
+    // 计算百分比显示值（后端返回 0-1 小数）
+    const toPercent = (v: number) => Math.round(v * 1000) / 10
+
+    // 添加新模型（使用后端返回的真实版本号）
+    const backendVersion = result.version || `${new Date().toISOString().split('T')[0].replace(/-/g, '')}`
     const newModel: MLModel = {
-      id: `${trainForm.modelType}-${Date.now()}`,
-      name: `${trainForm.modelType.toUpperCase()} v${new Date().toISOString().split('T')[0].replace(/-/g, '')}`,
+      id: `${trainForm.modelType}-${backendVersion}`,
+      name: `${trainForm.modelType.toUpperCase()} v${backendVersion}`,
       type: trainForm.modelType,
       status: 'ready',
-      accuracy: 75 + Math.random() * 10,
+      accuracy: toPercent(result.trainAccuracy || result.testAccuracy),
       trainedAt: new Date().toISOString().split('T')[0]
     }
     models.value.unshift(newModel)
     predictForm.modelId = newModel.id
+    selectedFeatureModel.value = newModel.id
 
     // 显示评估结果
     evaluation.value = {
-      accuracy: 78.5,
-      precision: 76.3,
-      recall: 80.2,
-      f1Score: 78.2
+      accuracy: toPercent(result.trainAccuracy || result.testAccuracy),
+      precision: toPercent(result.precision),
+      recall: toPercent(result.recall),
+      f1Score: toPercent(result.f1Score)
+    }
+
+    // 更新特征重要性（标准化：所有特征重要性之和为100%）
+    if (result.featureImportance && Object.keys(result.featureImportance).length > 0) {
+      const total = Object.values(result.featureImportance as Record<string, number>).reduce((s, v) => s + v, 0) || 1
+      featureImportance.value = Object.entries(result.featureImportance)
+        .map(([name, importance]) => ({
+          name,
+          importance: Math.round((importance / total) * 1000) / 10
+        }))
+        .sort((a, b) => b.importance - a.importance)
     }
 
     // 显示混淆矩阵
@@ -456,7 +470,8 @@ const handleTrain = async () => {
   } catch (error: any) {
     trainingProgress.status = 'exception'
     trainingProgress.message = '训练失败'
-    ElMessage.error(error.message || '训练失败')
+    addLog(`训练失败: ${error?.message || '未知错误'}`)
+    ElMessage.error(error?.message || '训练失败')
   } finally {
     training.value = false
   }
@@ -478,20 +493,42 @@ const handlePredict = async () => {
   predictions.value = []
 
   try {
-    // 模拟预测
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const symbols = predictForm.symbols.split(',').map(s => s.trim()).filter(Boolean)
+    if (symbols.length === 0) {
+      ElMessage.warning('请输入有效的股票代码')
+      return
+    }
 
-    const symbols = predictForm.symbols.split(',').map(s => s.trim())
-    predictions.value = symbols.map(symbol => ({
-      symbol,
-      direction: Math.random() > 0.5 ? 'up' : 'down',
-      probability: Math.floor(55 + Math.random() * 25),
-      confidence: 0.6 + Math.random() * 0.3
+    // 从已选模型ID提取模型类型和版本 (id 格式: "{type}-{version}")
+    const selectedModel = models.value.find(m => m.id === predictForm.modelId)
+    const modelType = selectedModel?.type || 'xgboost'
+    const version = predictForm.modelId.includes('-')
+      ? predictForm.modelId.slice(predictForm.modelId.indexOf('-') + 1)
+      : 'latest'
+
+    const results = await mlApi.predict({
+      modelType,
+      symbols,
+      version
+    })
+
+    // 置信度映射: 字符串 → 数值
+    const confidenceMap: Record<string, number> = {
+      high: 0.85,
+      medium: 0.65,
+      low: 0.5
+    }
+
+    predictions.value = results.map(p => ({
+      symbol: p.symbol,
+      direction: p.predictedClass === 1 ? 'up' : 'down',
+      probability: Math.round(p.probability * 100),
+      confidence: confidenceMap[p.confidence] ?? 0.5
     }))
 
     ElMessage.success('预测完成！')
   } catch (error: any) {
-    ElMessage.error(error.message || '预测失败')
+    ElMessage.error(error?.message || '预测失败')
   } finally {
     predicting.value = false
   }
@@ -570,15 +607,79 @@ const renderConfusionMatrix = () => {
   setConfusionMatrixOption(option as any)
 }
 
-// 监听模型选择变化
-watch(selectedFeatureModel, () => {
-  // 这里可以加载对应模型的特征重要性
+// 加载中状态
+const featuresLoading = ref(false)
+
+// 监听模型选择变化，重新加载对应模型的特征重要性
+watch(selectedFeatureModel, async (newModelId) => {
+  const selectedModel = models.value.find(m => m.id === newModelId)
+  if (selectedModel && selectedModel.status === 'ready') {
+    try {
+      const features = await mlApi.getFeatures(selectedModel.type)
+      if (features.length > 0) {
+        featureImportance.value = features
+          .map(f => ({
+            name: f.name,
+            importance: Math.round(f.importance * 10) / 10
+          }))
+          .sort((a, b) => b.importance - a.importance)
+      }
+    } catch {
+      // 静默失败，保留已有数据
+    }
+  }
 })
 
-onMounted(() => {
+onMounted(async () => {
   // 设置默认模型
   if (models.value.length > 0) {
     predictForm.modelId = models.value[0].id
+  }
+
+  // 加载特征重要性（API 已返回 0-100 百分比值）
+  featuresLoading.value = true
+  try {
+    const features = await mlApi.getFeatures()
+    if (features.length > 0) {
+      featureImportance.value = features
+        .map(f => ({
+          name: f.name,
+          importance: Math.round(f.importance * 10) / 10
+        }))
+        .sort((a, b) => b.importance - a.importance)
+    }
+  } catch {
+    // 加载失败时保留空白
+  } finally {
+    featuresLoading.value = false
+  }
+
+  // 尝试加载已训练模型信息并更新模型列表
+  for (const modelType of ['xgboost', 'lightgbm', 'randomforest'] as const) {
+    try {
+      const info: MLModelInfo | null = await mlApi.getModelInfo(modelType)
+      if (info && info.version) {
+        // 检查是否已存在同名模型
+        const existingIdx = models.value.findIndex(
+          m => m.type === modelType && m.name.includes(info.version)
+        )
+        const trainedModel: MLModel = {
+          id: `${modelType}-${info.version}`,
+          name: `${modelType.toUpperCase()} v${info.version}`,
+          type: modelType,
+          status: 'ready',
+          accuracy: Math.round(info.accuracy * 1000) / 10,
+          trainedAt: info.trainingDate ? info.trainingDate.slice(0, 10) : ''
+        }
+        if (existingIdx >= 0) {
+          models.value[existingIdx] = trainedModel
+        } else {
+          models.value.push(trainedModel)
+        }
+      }
+    } catch {
+      // 静默失败
+    }
   }
 })
 </script>

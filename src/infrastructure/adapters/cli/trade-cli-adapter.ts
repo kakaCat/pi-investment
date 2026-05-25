@@ -4,6 +4,59 @@ import { CliExecutionError } from './types.js';
 
 export class TradeCliAdapter extends BaseCliAdapter {
   /**
+   * 添加交易记录
+   */
+  async add(params: {
+    symbol: string;
+    stockName: string;
+    action: 'buy' | 'sell';
+    price: number;
+    quantity: number;
+    amount: number;
+    tradeDate: string;
+    fee?: number;
+    stampDuty?: number;
+    reason?: string;
+    pnl?: number;
+    pnlPercent?: number;
+    market?: 'A' | 'HK';
+    priceHkd?: number;
+    fxRate?: number;
+  }): Promise<Trade> {
+    const cmdParams: Record<string, string | number | boolean> = {
+      symbol: params.symbol,
+      stockName: params.stockName,
+      action: params.action,
+      price: params.price,
+      quantity: params.quantity,
+      amount: params.amount,
+      tradeDate: params.tradeDate,
+      fee: params.fee ?? 0,
+      stampDuty: params.stampDuty ?? 0,
+      reason: params.reason ?? '',
+    };
+    if (params.pnl !== undefined) cmdParams.pnl = params.pnl;
+    if (params.pnlPercent !== undefined) cmdParams.pnlPercent = params.pnlPercent;
+    if (params.market !== undefined) cmdParams.market = params.market;
+    else cmdParams.market = 'A';
+    if (params.priceHkd !== undefined) cmdParams.priceHkd = params.priceHkd;
+    if (params.fxRate !== undefined) cmdParams.fxRate = params.fxRate;
+
+    const result = await this.executeCommand('trade', 'add', cmdParams);
+
+    return {
+      id: String(result.id),
+      symbol: result.symbol,
+      name: result.name,
+      action: result.action,
+      quantity: result.quantity,
+      price: result.price,
+      timestamp: result.trade_date,
+      realizedPnl: result.pnl ?? 0,
+      notes: result.reason ?? '',
+    };
+  }
+  /**
    * 列出交易记录
    */
   async list(params: {

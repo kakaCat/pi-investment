@@ -83,7 +83,7 @@
       <el-table :data="positionRisks" stripe v-loading="loading">
         <el-table-column prop="symbol" label="代码" width="120">
           <template #default="{ row }">
-            <router-link :to="{ name: 'StockDetail', params: { symbol: row.symbol } }" class="text-blue-600 hover:underline font-medium">
+            <router-link :to="`/stocks/${row.symbol}`" class="text-blue-600 hover:underline font-medium">
               {{ row.symbol }}
             </router-link>
           </template>
@@ -336,25 +336,28 @@
       <el-table :data="stopLossRules" stripe>
         <el-table-column prop="symbol" label="代码" width="120">
           <template #default="{ row }">
-            <router-link :to="{ name: 'StockDetail', params: { symbol: row.symbol } }" class="text-blue-600 hover:underline font-medium">
+            <router-link :to="`/stocks/${row.symbol}`" class="text-blue-600 hover:underline font-medium">
               {{ row.symbol }}
             </router-link>
           </template>
         </el-table-column>
 
-        <el-table-column prop="symbolName" label="名称" width="120" />
+        <el-table-column prop="stockName" label="公司名称" width="150" />
 
-        <el-table-column prop="type" label="类型" width="100">
+        <el-table-column prop="name" label="规则名称" width="150" />
+
+        <el-table-column prop="type" label="类型" width="120">
           <template #default="{ row }">
             <el-tag size="small">{{ getStopLossTypeText(row.type) }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column label="触发条件" width="200">
+        <el-table-column label="触发条件" width="150">
           <template #default="{ row }">
-            <span v-if="row.type === 'price'">¥{{ formatPrice(row.triggerPrice) }}</span>
-            <span v-else-if="row.type === 'percent'">-{{ row.triggerPercent }}%</span>
-            <span v-else-if="row.type === 'trailing'">回撤 {{ row.trailingPercent }}%</span>
+            <span v-if="row.type === 'fixed_price'">¥{{ formatPrice(row.stopLossPercent) }}</span>
+            <span v-else-if="row.type === 'fixed_percent'">-{{ row.stopLossPercent }}%</span>
+            <span v-else-if="row.type === 'trailing_stop'">回撤 {{ row.trailingPercent || row.stopLossPercent }}%</span>
+            <span v-else>{{ row.stopLossPercent }}</span>
           </template>
         </el-table-column>
 
@@ -413,24 +416,24 @@ const router = useRouter()
 const accountValue = ref(1258400)
 const loading = ref(false)
 
-// 风险概览
+// 风险概览（初始值为空，由 handleRunCheck 填充）
 const riskOverview = reactive({
-  level: 2,
-  warningCount: 3,
-  criticalCount: 1,
-  var: -0.032,
-  varAmount: -40269,
-  volatility: 0.158
+  level: 1,
+  warningCount: 0,
+  criticalCount: 0,
+  var: 0,
+  varAmount: 0,
+  volatility: 0
 })
 
-// 风险指标
+// 风险指标（初始值清零，由 handleRunCheck 从 API 数据动态计算）
 const riskIndicators = ref([
-  { name: '持仓集中度', value: 26.7, threshold: 30, status: '正常' },
-  { name: '单票风险敞口', value: 26.7, threshold: 30, status: '正常' },
-  { name: '行业集中度', value: 45.2, threshold: 50, status: '正常' },
-  { name: '最大回撤', value: 15.3, threshold: 20, status: '正常' },
-  { name: '波动率', value: 15.8, threshold: 25, status: '正常' },
-  { name: 'VaR风险价值', value: 3.2, threshold: 5, status: '正常' }
+  { name: '持仓集中度', value: 0, threshold: 30, status: '正常' },
+  { name: '单票风险敞口', value: 0, threshold: 30, status: '正常' },
+  { name: '行业集中度', value: 0, threshold: 50, status: '正常' },
+  { name: '最大回撤', value: 0, threshold: 20, status: '正常' },
+  { name: '波动率', value: 0, threshold: 25, status: '正常' },
+  { name: 'VaR风险价值', value: 0, threshold: 5, status: '正常' }
 ])
 
 // 持仓风险
@@ -469,22 +472,82 @@ const batchStopLossForm = reactive({
 const handleRunCheck = async () => {
   loading.value = true
   try {
-    const result = await riskApi.checkRisk({
-      accountValue: accountValue.value,
-      positions: []
+    const response = await riskApi.checkRisk({
+      accountValue: accountValue.value
     })
 
-    // 更新数据
-    Object.assign(riskOverview, {
-      riskLevel: result.riskLevel,
-      riskScore: result.riskScore,
-      var: result.var,
-      maxDrawdown: result.maxDrawdown
+    // 映射后端返回数据（兼容 snake_case 和 camelCase）
+    const data = response as any
+
+    // 提取所有检查项（后端返回 { total_holdings, checks: [{symbol, position_value, checks:[...]}], risk_level }）
+    const allChecks: any[] = (data.checks || []).flatMap((c: any) => c.checks || [])
+    const highChecks = allChecks.filter((c: any) => c.level === 'high')
+    const totalHoldings: number = data.total_holdings ?? data.totalHoldings ?? 0
+
+    // 更新风险概览
+    const rawLevel: string = data.riskLevel ?? data.risk_level ?? 'low'
+    const levelMap: Record<string, number> = { low: 1, medium: 3, high: 4 }
+    riskOverview.level = levelMap[rawLevel] ?? 2
+    riskOverview.warningCount = allChecks.length
+    riskOverview.criticalCount = highChecks.length
+    riskOverview.var = 0
+    riskOverview.varAmount = 0
+    riskOverview.volatility = 0
+
+    // 分类统计（计算百分比用于指标展示）
+    const concentrationChecks = allChecks.filter(c => c.type === 'concentration')
+    const varChecks = allChecks.filter(c => c.type === 'var')
+    const concentrationPct = totalHoldings > 0 ? Math.round((concentrationChecks.length / totalHoldings) * 100) : 0
+    const varPct = totalHoldings > 0 ? Math.round((varChecks.length / totalHoldings) * 100) : 0
+    const singleStockPct = totalHoldings > 0 ? Math.round((highChecks.length / totalHoldings) * 100) : 0
+
+    // 更新风险指标
+    riskIndicators.value = [
+      { name: '持仓集中度', value: concentrationPct, threshold: 30, status: concentrationChecks.some(c => c.level === 'high') ? '预警' : concentrationPct > 0 ? '关注' : '正常' },
+      { name: '单票风险敞口', value: singleStockPct, threshold: 30, status: highChecks.length > 0 ? '关注' : '正常' },
+      { name: '行业集中度', value: 0, threshold: 50, status: '正常' },
+      { name: '最大回撤', value: 0, threshold: 20, status: '正常' },
+      { name: '波动率', value: 0, threshold: 25, status: '正常' },
+      { name: 'VaR风险价值', value: varPct, threshold: 5, status: varChecks.some(c => c.level === 'high') ? '预警' : varPct > 0 ? '关注' : '正常' }
+    ]
+
+    // 映射持仓风险列表
+    const accountVal = accountValue.value
+    positionRisks.value = (data.checks || []).map((c: any) => {
+      const itemChecks: any[] = c.checks || []
+      const itemHighCount = itemChecks.filter((ch: any) => ch.level === 'high').length
+      return {
+        symbol: c.symbol,
+        name: c.symbol,
+        marketValue: c.position_value ?? 0,
+        positionPercent: accountVal > 0 ? ((c.position_value ?? 0) / accountVal) * 100 : 0,
+        var: c.var_95 ?? 0,
+        volatility: c.volatility ?? 0,
+        maxDrawdown: c.max_drawdown ?? 0,
+        currentPrice: c.current_price ?? 0,
+        checksPassed: itemChecks.length - itemHighCount,
+        totalChecks: itemChecks.length,
+        status: itemHighCount > 0 ? 'danger' : (itemChecks.length > 0 ? 'warning' : 'normal')
+      }
     })
 
-    ElMessage.success('风控检查完成')
-  } catch (error) {
-    ElMessage.error('风控检查失败')
+    // 映射风险预警列表
+    const typeMap: Record<string, string> = {
+      'concentration': '持仓集中度',
+      'sector_concentration': '行业集中度',
+      'var': 'VaR风险'
+    }
+    warnings.value = allChecks.map((c: any) => ({
+      time: new Date().toISOString(),
+      type: typeMap[c.type] || c.type,
+      level: c.level === 'high' ? '高' : c.level === 'medium' ? '中' : '低',
+      description: c.message || '',
+      status: 'pending'
+    }))
+
+    ElMessage.success('风险检查完成')
+  } catch (error: any) {
+    ElMessage.error(error?.message || '风险检查失败')
   } finally {
     loading.value = false
   }
@@ -494,7 +557,20 @@ const handleRunCheck = async () => {
 const loadStopLossRules = async () => {
   try {
     const data = await riskApi.getStopLossRules()
-    stopLossRules.value = data
+    // 为每个规则查询股票名称
+    const rulesWithNames = await Promise.all(
+      data.map(async (rule: any) => {
+        try {
+          const stockDetail = await stockApi.getStockDetail(rule.symbol)
+          console.log('Stock detail for', rule.symbol, ':', stockDetail)
+          return { ...rule, stockName: stockDetail.name || '未知' }
+        } catch (error) {
+          console.error('查询股票名称失败', rule.symbol, error)
+          return { ...rule, stockName: '未知' }
+        }
+      })
+    )
+    stopLossRules.value = rulesWithNames
   } catch (error) {
     console.error('加载止损规则失败', error)
   }
@@ -630,7 +706,7 @@ const handleDeleteStopLoss = async (rule: StopLossRule) => {
 
 // 查看详情
 const handleViewDetail = (row: any) => {
-  router.push({ name: 'StockDetail', params: { symbol: row.symbol } })
+  router.push(`/stocks/${row.symbol}`)
 }
 
 // 标记已处理
@@ -715,8 +791,12 @@ const getWarningLevelType = (level: string) => {
 
 const getStopLossTypeText = (type: string) => {
   const textMap: Record<string, string> = {
+    'fixed_price': '固定价格',
+    'fixed_percent': '百分比止损',
+    'trailing_stop': '追踪止损',
+    // 向后兼容旧格式
     'price': '固定价格',
-    'percent': '百分比',
+    'percent': '百分比止损',
     'trailing': '追踪止损'
   }
   return textMap[type] || type

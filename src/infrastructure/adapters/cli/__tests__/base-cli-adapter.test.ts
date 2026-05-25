@@ -4,8 +4,12 @@ import { CliExecutionError, CliParseError } from '../types.js';
 // 创建测试用的具体实现类
 class TestCliAdapter extends BaseCliAdapter {
   // 暴露 protected 方法用于测试
-  public testBuildCommand(domain: string, action: string, params: Record<string, string | number | boolean>): string[] {
-    return this.buildCommand(domain, action, params);
+  public testBuildCommand(domain: string, action: string, params: Record<string, string | number | boolean | undefined | null>): string[] {
+    // Narrow to valid types — the real buildCommand filters undefined/null at runtime
+    const clean: Record<string, string | number | boolean> = Object.fromEntries(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== null)
+    ) as Record<string, string | number | boolean>;
+    return this.buildCommand(domain, action, clean);
   }
 
   public testToCLIParam(key: string): string {

@@ -101,7 +101,7 @@ export function buildPortfolioSnapshotFromQuotes(
 
     if (h.market === "HK") {
       // HK stock logic: convert HKD price to CNY
-      const currentPriceHKD = Number(rt.price ?? 0);
+      const currentPriceHKD = Number(rt.price ?? 0) || (h.avg_cost_hkd ?? (h.avg_cost / fxRate));
       const currentPriceCNY = currentPriceHKD * fxRate;
       const changePct = Number(rt.change_pct ?? rt.pct_chg ?? 0);
       const marketValue = roundN(currentPriceCNY * h.quantity);
@@ -125,7 +125,7 @@ export function buildPortfolioSnapshotFromQuotes(
       };
     } else {
       // A-share logic (unchanged)
-      const curPrice = Number(rt.price ?? rt.current_price ?? 0);
+      const curPrice = Number(rt.price ?? rt.current_price ?? 0) || h.avg_cost;
       const changePct = Number(rt.change_pct ?? rt.pct_chg ?? 0);
       const pnlPct = h.avg_cost > 0 ? roundN((curPrice - h.avg_cost) / h.avg_cost * 100) : 0;
       const pnlAmt = roundN((curPrice - h.avg_cost) * h.quantity);
@@ -174,10 +174,10 @@ export class PortfolioService {
   }
 
   /**
-   * 设置 TradeService 依赖（用于高层业务方法）
+   * @deprecated TradeService 已移除，交易记录通过 TradeCliAdapter 管理
    */
-  setTradeService(tradeService: any): void {
-    this.tradeService = tradeService;
+  setTradeService(_tradeService: any): void {
+    // no-op: TradeService has been removed, use TradeCliAdapter instead
   }
 
   // ── 文件初始化 ────────────────────────────────────────────────────────────

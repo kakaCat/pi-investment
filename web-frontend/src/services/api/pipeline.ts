@@ -1,120 +1,122 @@
 import { apiClient } from './client'
 
-export interface PipelineTask {
-  id: string
+export interface StageStatus {
   name: string
-  type: 'data_update' | 'factor_calc' | 'ml_predict' | 'backtest' | 'risk_assess'
   status: 'pending' | 'running' | 'completed' | 'failed'
+  progress: number
+  detail: string
   startTime?: string
   endTime?: string
-  duration?: number
-  progress?: number
-  config?: PipelineConfig
-  logs?: string[]
-  error?: string
-  result?: PipelineResult
 }
 
 export interface PipelineConfig {
-  symbols?: string[]
-  days?: number
-  model?: 'XGBoost' | 'LightGBM' | 'RandomForest'
-  threshold?: number
-}
-
-export interface PipelineResult {
-  klineCount?: number
-  factorCount?: number
-  signalCount?: number
-  backtestReturn?: number
-  riskLevel?: 'low' | 'medium' | 'high'
+  stockRange?: string
+  days: number
+  model: string
+  threshold: number
 }
 
 export interface PipelineRun {
-  id: string
   runId: string
   startTime: string
   endTime?: string
-  status: 'pending' | 'running' | 'completed' | 'failed'
   stockCount: number
   model: string
-  signalCount?: number
-  backtestReturn?: number
-  riskLevel?: string
-  duration?: number
-  stages: PipelineTask[]
+  status: 'running' | 'completed' | 'failed'
+  signalCount: number | null
+  bestReturn: number | null
+  riskLevel: 'low' | 'medium' | 'high' | null
+  duration: number
+  config: PipelineConfig
+  stages: StageStatus[]
+  logs: string[]
+  error?: string
 }
 
-export interface PipelineStatistics {
-  runningTasks: number
-  completedToday: number
-  failedTasks: number
-  avgDuration: number
+export interface PipelineHistoryResult {
+  items: PipelineRun[]
+  pagination: {
+    page: number
+    pageSize: number
+    total: number
+    totalPages: number
+  }
+}
+
+/** 后端 runs/list 原始返回结构（来自 quantsys-v2 api_response） */
+interface RunsListRaw {
+  runs?: PipelineRun[]
+  items?: PipelineRun[]
+  total?: number
+  page?: number
+  pageSize?: number
+  [key: string]: any
 }
 
 export const pipelineApi = {
   /**
-   * 获取流水线统计
+   * 触发流水线 → POST /api/pipeline/trigger
+   * apiClient 自动解包 { success, data } → 返回 PipelineRun
    */
-  getStatistics() {
-    return apiClient.get<PipelineStatistics>('/api/pipeline/statistics')
+  async runPipeline(config: PipelineConfig): Promise<PipelineRun> {
+    return apiClient.post<PipelineRun>('/api/pipeline/trigger', config)
   },
 
   /**
-   * 获取流水线任务列表
+   * 获取任务列表 → GET /api/pipeline/tasks/list
+   * apiClient 自动解包 { success, data } → 返回 { items }
    */
-  getTasks(params?: { status?: string; limit?: number }) {
-    return apiClient.get<PipelineTask[]>('/api/pipeline/tasks/list', { params })
+  async getTasks(params?: { limit?: number; page?: number; pageSize?: number }): Promise<any> {
+    return apiClient.get('/api/pipeline/tasks/list', { params })
   },
 
   /**
-   * 获取任务详情
+   * 获取运行历史 → GET /api/pipeline/runs/list
+   * 适配后端返回格式为 PipelineHistoryResult
    */
-  getTaskById(taskId: string) {
-    return apiClient.get<PipelineTask>(`/api/pipeline/tasks/${taskId}`)
-  },
-
-  /**
-   * 获取历史运行记录
-   */
-  getRuns(params?: { limit?: number; offset?: number }) {
-    return apiClient.get<{ runs: PipelineRun[]; total: number }>('/api/pipeline/runs/list', {
-      params
+  async getHistory(page: number = 1, pageSize: number = 20): Promise<PipelineHistoryResult> {
+    const result: RunsListRaw = await apiClient.get<RunsListRaw>('/api/pipeline/runs/list', {
+      params: { page, pageSize }
     })
+    const items = result.runs || result.items || []
+    const total = result.total || 0
+    return {
+      items,
+      pagination: {
+        page: result.page || page,
+        pageSize: result.pageSize || pageSize,
+        total,
+        totalPages: Math.ceil(total / (result.pageSize || pageSize)) || 0
+      }
+    }
   },
 
   /**
-   * 获取运行详情
+   * 获取运行列表（原始格式，供测试和直接消费使用）
+   * → GET /api/pipeline/runs/list
    */
-  getRunById(runId: string) {
-    return apiClient.get<PipelineRun>(`/api/pipeline/runs/${runId}`)
+  async getRuns(params?: { limit?: number; page?: number; pageSize?: number }): Promise<any> {
+    return apiClient.get('/api/pipeline/runs/list', { params })
   },
 
   /**
-   * 手动触发流水线
+   * 运行详情 → GET /api/pipeline/runs/list?runId=xxx（降级方案）
+   * 后端无单独详情端点，从列表查找
    */
-  triggerPipeline(config: PipelineConfig) {
-    return apiClient.post<{ runId: string }>('/api/pipeline/trigger', config)
+  async getRun(runId: string): Promise<PipelineRun> {
+    const result: RunsListRaw = await apiClient.get<RunsListRaw>('/api/pipeline/runs/list', {
+      params: { runId, pageSize: 1 }
+    })
+    const run = result?.items?.[0] || result?.runs?.[0]
+    if (!run) throw new Error('运行记录未找到')
+    return run
   },
 
   /**
-   * 停止任务
+   * 统计信息 → GET /api/pipeline/statistics
+   * apiClient 自动解包 { success, data } → 返回统计数据
    */
-  stopTask(taskId: string) {
-    return apiClient.post(`/api/pipeline/tasks/${taskId}/stop`)
-  },
-
-  /**
-   * 重试任务
-   */
-  retryTask(taskId: string) {
-    return apiClient.post(`/api/pipeline/tasks/${taskId}/retry`)
-  },
-
-  /**
-   * 获取任务日志
-   */
-  getTaskLogs(taskId: string) {
-    return apiClient.get<{ logs: string[] }>(`/api/pipeline/tasks/${taskId}/logs`)
+  async getStatistics(): Promise<any> {
+    return apiClient.get('/api/pipeline/statistics')
   }
 }

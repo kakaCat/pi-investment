@@ -3,6 +3,15 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 describe('Scheduler prototype style parity', () => {
+  it('loads Tailwind v4 utilities used by the scheduler prototype classes', () => {
+    const globalStylesPath = path.resolve(process.cwd(), 'src/assets/styles/global.css')
+    const content = fs.readFileSync(globalStylesPath, 'utf-8')
+
+    expect(content).toContain('@import "tailwindcss";')
+    expect(content).toContain('@layer base {')
+    expect(content).not.toContain('@tailwind utilities;')
+  })
+
   it('uses the v2 prototype card grid and history table structure', () => {
     const schedulerPath = path.resolve(process.cwd(), 'src/views/Scheduler/index.vue')
     const content = fs.readFileSync(schedulerPath, 'utf-8')

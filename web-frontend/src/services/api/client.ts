@@ -104,24 +104,26 @@ class ApiClient {
         }
 
         if (error.response) {
-          const { status } = error.response
+          const { status, data } = error.response
+
+          // 优先使用后端返回的 error 消息
+          const backendMsg = (data as any)?.error
 
           switch (status) {
             case 401:
-              ElMessage.error('未授权，请重新登录')
-              // 可以跳转到登录页
+              ElMessage.error(backendMsg || '未授权，请重新登录')
               break
             case 403:
-              ElMessage.error('没有权限访问')
+              ElMessage.error(backendMsg || '没有权限访问')
               break
             case 404:
-              ElMessage.error('请求的资源不存在')
+              ElMessage.error(backendMsg || '请求的资源不存在')
               break
             case 500:
-              ElMessage.error('服务器错误')
+              ElMessage.error(backendMsg || '服务器错误')
               break
             default:
-              ElMessage.error(error.message || '请求失败')
+              ElMessage.error(backendMsg || error.message || '请求失败')
           }
         } else if (error.request) {
           ElMessage.error('网络错误，请检查网络连接')

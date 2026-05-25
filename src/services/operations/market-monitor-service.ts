@@ -2,10 +2,9 @@
  * MarketMonitorService - 实时盯盘服务
  */
 import { getSession } from "../../core/agent/agent-loop.js";
-import { PortfolioService } from "../portfolio/portfolio-service.js";
+import { PositionCliAdapter } from "../../infrastructure/adapters/cli/position-cli-adapter.js";
 import { callQuantSysDaemon } from "../../infrastructure/quant/quantsys-daemon-adapter.js";
 import { quickFilter, type Quote } from "./market-filter.js";
-import { paths } from "../../config/config.js";
 
 export function isWithinTradingHours(date: Date): boolean {
   const shanghai = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
@@ -58,17 +57,25 @@ const MONITOR_SYSTEM_PROMPT = `你是实时盯盘助手。
 - 理由具体可执行`;
 
 export class MarketMonitorService {
-  private portfolioService: PortfolioService;
+  private positionAdapter: PositionCliAdapter;
 
   constructor() {
-    this.portfolioService = new PortfolioService(paths.piDir);
+    this.positionAdapter = new PositionCliAdapter();
   }
 
   async tick(): Promise<void> {
     console.log('[Monitor] 开始盯盘检查...');
 
-    const snapshot = await this.portfolioService.getWithPnL();
-    const holdings = snapshot.holdings;
+    const positions = await this.positionAdapter.list({ status: 'open' });
+    const holdings = positions.map(p => ({
+      symbol: p.symbol,
+      name: p.name || p.symbol,
+      current_price: p.currentPrice ?? 0,
+      quantity: p.quantity,
+      cost: p.costBasis ?? 0,
+      pnl_pct: p.costBasis && p.costBasis > 0 && p.currentPrice
+        ? ((p.currentPrice - p.costBasis) / p.costBasis) * 100 : 0,
+    }));
 
     if (holdings.length === 0) {
       console.log('[Monitor] 无持仓，跳过');

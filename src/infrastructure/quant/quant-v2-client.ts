@@ -231,6 +231,17 @@ const V2_ROUTES: Record<
 
   // ── indicators ──
   "indicators.list": { path: "/api/indicators/list", method: "GET" },
+
+  // ── timeseries ──
+  "timeseries.arima": { path: "/api/timeseries/arima/{action_type}", method: "POST" },
+  "timeseries.garch": { path: "/api/timeseries/garch/{action_type}", method: "POST" },
+  "timeseries.kalman": { path: "/api/timeseries/kalman/{action_type}", method: "POST" },
+
+  // ── factor models ──
+  "factor.fama_french_3": { path: "/api/factor-models/fama-french-3/calculate", method: "POST" },
+  "factor.fama_french_5": { path: "/api/factor-models/fama-french-5/calculate", method: "POST" },
+  "factor.carhart": { path: "/api/factor-models/carhart/calculate", method: "POST" },
+  "factor.barra": { path: "/api/factor-models/barra/calculate", method: "POST" },
 };
 
 /** v2 不支持但可用的命令名列表（用于调试） */
@@ -524,6 +535,6 @@ export async function algoExecute(
     throw new QuantV2Error('算法类型必须是 TWAP 或 VWAP', 400);
   }
 
-  const url = `${V2_API_BASE}/api/algo/execute`;
+  const url = `${V2_API_BASE}/api/orders/algo-execute`;
   return fetchV2<AlgoOrder>(url, { method: 'POST', body: params });
 }

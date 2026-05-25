@@ -124,7 +124,7 @@
               size="small"
               effect="dark"
             >
-              {{ row.type.toUpperCase() }}
+              {{ row.type?.toUpperCase() || '-' }}
             </el-tag>
           </template>
         </el-table-column>

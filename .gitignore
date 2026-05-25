@@ -3,8 +3,11 @@ dist
 .env
 *.log
 .DS_Store
+.pytest_cache/
+**/.pytest_cache/
 .pi-invest/*
 !.pi-invest/FEISHU_CRON.json
+quant/.pi-invest/
 .worktrees
 python/__pycache__
 python/*.pyc
@@ -17,4 +20,12 @@ __pycache__/
 # bridge 目录包含核心的 Codex 桥接代码，应当被版本控制
 # bridge
 coverage/
+.coverage
+htmlcov/
+logs/
+.venv/
+.playwright-mcp/
+.superpowers/
+.restart/
+src/.restart/
 .gstack/

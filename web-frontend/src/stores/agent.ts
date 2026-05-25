@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AgentLog } from '@/types'
+import { agentApi } from '@/services/api/agent'
 
 export const useAgentStore = defineStore('agent', () => {
   // State
@@ -39,13 +40,12 @@ export const useAgentStore = defineStore('agent', () => {
   })
 
   // Actions
-  const fetchLogs = async (_params?: any) => {
+  const fetchLogs = async (params?: any) => {
     loading.value = true
     error.value = null
     try {
-      // TODO: 调用API
-      // const response = await agentApi.getLogs(_params)
-      // logs.value = response.items
+      const response = await agentApi.getLogs(params)
+      logs.value = response.items
     } catch (e: any) {
       error.value = e.message
       throw e
@@ -54,12 +54,11 @@ export const useAgentStore = defineStore('agent', () => {
     }
   }
 
-  const fetchLogById = async (_id: string) => {
+  const fetchLogById = async (id: string) => {
     loading.value = true
     error.value = null
     try {
-      // TODO: 调用API
-      // currentLog.value = await agentApi.getLogById(_id)
+      currentLog.value = await agentApi.getLogById(id)
     } catch (e: any) {
       error.value = e.message
       throw e
@@ -68,12 +67,11 @@ export const useAgentStore = defineStore('agent', () => {
     }
   }
 
-  const fetchPerformance = async (_startDate: string, _endDate: string) => {
+  const fetchPerformance = async (startDate: string, endDate: string) => {
     loading.value = true
     error.value = null
     try {
-      // TODO: 调用API
-      // performance.value = await agentApi.getPerformance({ startDate: _startDate, endDate: _endDate })
+      performance.value = await agentApi.getPerformance({ startDate, endDate })
     } catch (e: any) {
       error.value = e.message
       throw e

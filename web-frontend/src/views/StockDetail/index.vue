@@ -1,107 +1,153 @@
 <template>
   <div class="stock-detail">
-    <!-- 面包屑导航 -->
-    <el-breadcrumb separator="/" class="mb-4">
-      <el-breadcrumb-item :to="{ name: 'StockResearch' }">股票列表</el-breadcrumb-item>
-      <el-breadcrumb-item v-if="stockInfo">
-        {{ stockInfo.symbol }} {{ stockInfo.name }}
-      </el-breadcrumb-item>
-    </el-breadcrumb>
+    <div class="text-sm text-slate-400 mb-4">
+      <router-link :to="{ name: 'StockList' }" class="hover:text-blue-500 cursor-pointer no-underline text-slate-400">股票列表</router-link>
+      <span class="mx-2">/</span>
+      <span class="text-slate-700 font-medium">{{ displayStockCode }} {{ stockInfo?.name || symbol }}</span>
+    </div>
 
-    <!-- 股票基本信息 -->
-    <el-card class="stock-header mb-4" v-if="stockInfo">
-      <div class="flex items-center justify-between">
-        <div>
+    <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 mb-4" v-if="stockInfo">
+      <div class="stock-header-row">
+        <div class="min-w-0">
           <div class="flex items-center gap-3 mb-2">
-            <h2 class="text-2xl font-bold">{{ stockInfo.symbol }}</h2>
-            <span class="text-lg text-gray-500">{{ stockInfo.name }}</span>
-            <el-tag v-if="stockInfo.market" size="small">{{ stockInfo.market }}</el-tag>
-            <el-tag size="small" type="info">{{ stockInfo.industry }}</el-tag>
+            <h2 class="text-2xl font-bold text-slate-900">{{ displayStockCode }}</h2>
+            <span class="text-lg text-slate-500">{{ stockInfo.name }}</span>
+            <span v-if="stockInfo.market" class="text-xs bg-slate-100 px-2 py-0.5 rounded">{{ stockInfo.market }}</span>
+            <span class="text-xs bg-slate-100 px-2 py-0.5 rounded">{{ stockInfo.industry || stockInfo.sector || '未分类' }}</span>
           </div>
           <div class="flex items-center gap-4">
-            <span class="text-3xl font-bold">¥{{ formatPrice(stockInfo.price || stockInfo.currentPrice) }}</span>
-            <span :class="['text-lg font-semibold', stockInfo.changePercent >= 0 ? 'text-up' : 'text-down']">
-              {{ stockInfo.changePercent >= 0 ? '+' : '' }}{{ formatPrice(stockInfo.change) }}
-              ({{ stockInfo.changePercent >= 0 ? '+' : '' }}{{ formatPercent(stockInfo.changePercent) }})
+            <span class="text-3xl font-bold text-slate-900">¥{{ formatPrice(stockInfo.price || stockInfo.currentPrice) }}</span>
+            <span :class="['text-lg font-semibold', stockInfo.changePercent >= 0 ? 'stat-up' : 'stat-down']">
+              {{ signedPriceChange }}
             </span>
           </div>
         </div>
-        <div class="flex items-center gap-3">
-          <el-button type="primary" @click="handleCalculateFactors">计算因子</el-button>
-          <el-button
+        <div class="flex items-center gap-3 stock-header-actions">
+          <button class="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600" @click="handleCalculateFactors">计算因子</button>
+          <button
             v-if="!isInWatchlist"
-            type="success"
+            class="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50"
             @click="handleAddToWatchlist"
-            :loading="watchlistLoading"
+            :disabled="watchlistLoading"
           >
             加入自选
-          </el-button>
-          <el-button
+          </button>
+          <button
             v-else
+            class="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50"
             @click="handleRemoveFromWatchlist"
-            :loading="watchlistLoading"
+            :disabled="watchlistLoading"
           >
             <el-icon><StarFilled /></el-icon>
             已自选
-          </el-button>
+          </button>
         </div>
       </div>
-    </el-card>
+    </div>
 
-    <!-- Tab切换 -->
-    <el-card class="stock-tabs">
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <!-- K线图Tab -->
-        <el-tab-pane label="K线图" name="kline">
-          <div class="kline-container">
-            <!-- 图表工具栏 -->
-            <div class="chart-toolbar">
-              <div class="toolbar-section">
-                <span class="toolbar-label">时间周期</span>
-                <el-radio-group v-model="timeframe" size="small" @change="handleTimeframeChange">
-                  <el-radio-button label="1m">1分钟</el-radio-button>
-                  <el-radio-button label="5m">5分钟</el-radio-button>
-                  <el-radio-button label="15m">15分钟</el-radio-button>
-                  <el-radio-button label="30m">30分钟</el-radio-button>
-                  <el-radio-button label="1h">1小时</el-radio-button>
-                  <el-radio-button label="4h">4小时</el-radio-button>
-                  <el-radio-button label="1d">日线</el-radio-button>
-                  <el-radio-button label="1w">周线</el-radio-button>
-                </el-radio-group>
-              </div>
-              <div class="toolbar-section">
-                <span class="toolbar-label">技术指标</span>
-                <el-checkbox-group v-model="indicators" size="small" @change="handleIndicatorChange">
-                  <el-checkbox label="MA">均线</el-checkbox>
-                  <el-checkbox label="EMA">EMA</el-checkbox>
-                  <el-checkbox label="BOLL">布林带</el-checkbox>
-                  <el-checkbox label="VOL">成交量</el-checkbox>
-                  <el-checkbox label="MACD">MACD</el-checkbox>
-                  <el-checkbox label="RSI">RSI</el-checkbox>
-                  <el-checkbox label="KDJ">KDJ</el-checkbox>
-                </el-checkbox-group>
-                <el-divider direction="vertical" />
-                <el-checkbox v-model="showSignals" @change="handleShowSignalsChange">
-                  显示买卖点
-                </el-checkbox>
-              </div>
-            </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="border-b border-slate-200">
+        <div class="flex stock-detail-tabs">
+          <button
+            v-for="tab in detailTabs"
+            :key="tab.name"
+            :class="[
+              'px-5 py-3 text-sm transition-colors',
+              activeTab === tab.name
+                ? 'font-medium text-blue-600 border-b-2 border-blue-500 bg-blue-50/50'
+                : 'text-slate-500 hover:text-slate-700'
+            ]"
+            @click="setActiveTab(tab.name)"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+      </div>
 
-            <!-- K线图 -->
+      <div v-show="activeTab === 'kline'" class="p-0">
+        <div class="bg-slate-900 px-4 py-2 flex items-center justify-between border-b border-slate-700" :class="'chart-toolbar'">
+          <div class="flex items-center gap-1 chart-toolbar-group">
+            <span class="text-xs text-slate-400 mr-2">TIMEFRAME</span>
+            <button
+              v-for="option in timeframeOptions"
+              :key="option.value"
+              :class="[
+                'px-2 py-1 text-xs rounded',
+                timeframe === option.value ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+              ]"
+              @click="setTimeframe(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+
+          <div class="flex items-center gap-1 chart-toolbar-group">
+            <span class="text-xs text-slate-400 mr-2">INDICATOR</span>
+            <button
+              v-for="option in indicatorOptions"
+              :key="option.value"
+              :class="[
+                'px-2 py-1 text-xs rounded',
+                indicators.includes(option.value) ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-800'
+              ]"
+              @click="toggleIndicator(option.value)"
+            >
+              {{ option.label }}
+            </button>
+            <span class="mx-2 text-slate-600 toolbar-divider">|</span>
+            <button
+              :class="[
+                'px-2 py-1 text-xs rounded',
+                showSignals ? 'text-green-400 bg-green-900/30' : 'text-slate-300 hover:bg-slate-800'
+              ]"
+              @click="toggleSignals"
+            >
+              显示买卖点
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 px-4 py-2 flex items-center gap-6 text-xs border-b border-slate-700 stock-price-bar">
+          <span class="text-slate-400">Time: <span class="text-slate-200">{{ latestKline?.date || '--' }}</span></span>
+          <span class="text-slate-400">Open: <span class="text-slate-200">{{ latestKline ? formatPrice(latestKline.open) : '--' }}</span></span>
+          <span class="text-slate-400">High: <span class="text-red-400">{{ latestKline ? formatPrice(latestKline.high) : '--' }}</span></span>
+          <span class="text-slate-400">Low: <span class="text-green-400">{{ latestKline ? formatPrice(latestKline.low) : '--' }}</span></span>
+          <span class="text-slate-400">Close: <span class="text-slate-200 font-semibold">{{ latestKline ? formatPrice(latestKline.close) : '--' }}</span></span>
+          <span class="text-slate-400">{{ latestKlineTurnoverLabel }}: <span class="text-slate-200">{{ latestKlineTurnoverValue }}</span></span>
+          <span class="ml-auto text-slate-500 stock-price-note">{{ indicatorSummary }}</span>
+        </div>
+
+        <div class="professional-chart-area" :class="['relative', 'flex']">
+          <div class="w-12 bg-[#1e222d] border-r border-[#2a2e39] flex flex-col items-center py-3 gap-3 stock-chart-tools">
+            <button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-700 rounded" title="十字光标">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 0v16M0 8h16" stroke="currentColor" stroke-width="1.5"/></svg>
+            </button>
+            <button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-700 rounded" title="趋势线">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 14L14 2" stroke="currentColor" stroke-width="1.5"/></svg>
+            </button>
+            <button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-700 rounded" title="水平线">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h12" stroke="currentColor" stroke-width="1.5"/></svg>
+            </button>
+            <button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-700 rounded" title="矩形">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="4" width="10" height="8" stroke="currentColor" stroke-width="1.5"/></svg>
+            </button>
+          </div>
+          <div class="flex-1 min-w-0">
             <KLineChart
               v-if="klineData.length > 0"
               :data="klineData as any"
-              :indicators="indicators"
               :signals="showSignals ? signals : []"
-              :height="600 as any"
+              height="600px"
+              class="stock-kline-chart"
             />
-            <el-empty v-else description="暂无K线数据" />
+            <div v-else class="chart-empty-state">
+              暂无K线数据
+            </div>
           </div>
-        </el-tab-pane>
+        </div>
+      </div>
 
-        <!-- 因子一览Tab -->
-        <el-tab-pane label="因子一览" name="factors">
-          <div class="factors-container">
+      <div v-show="activeTab === 'factors'" class="p-5 factors-container">
             <el-table :data="factors" stripe>
               <el-table-column prop="name" label="因子名称" width="200" />
               <el-table-column prop="category" label="类别" width="120">
@@ -131,12 +177,9 @@
                 </template>
               </el-table-column>
             </el-table>
-          </div>
-        </el-tab-pane>
+      </div>
 
-        <!-- 技术指标Tab -->
-        <el-tab-pane label="技术指标" name="technical">
-          <div class="technical-container">
+      <div v-show="activeTab === 'technical'" class="p-5 technical-container">
             <el-row :gutter="16">
               <el-col :span="8" v-for="indicator in technicalIndicators" :key="indicator.name">
                 <el-card class="indicator-card mb-4">
@@ -157,12 +200,9 @@
                 </el-card>
               </el-col>
             </el-row>
-          </div>
-        </el-tab-pane>
+      </div>
 
-        <!-- 历史信号Tab -->
-        <el-tab-pane label="历史信号" name="signals">
-          <div class="signals-container">
+      <div v-show="activeTab === 'signals'" class="p-5 signals-container">
             <el-table :data="historicalSignals" stripe>
               <el-table-column prop="time" label="时间" width="180">
                 <template #default="{ row }">
@@ -209,10 +249,8 @@
                 @current-change="handleSignalPageChange"
               />
             </div>
-          </div>
-        </el-tab-pane>
-      </el-tabs>
-    </el-card>
+      </div>
+    </div>
 
     <!-- 添加到自选股弹窗 -->
     <el-dialog v-model="watchlistDialogVisible" title="添加到自选股" width="400px">
@@ -282,14 +320,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
+import { computed, ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { StarFilled } from '@element-plus/icons-vue'
 import KLineChart from '@/components/charts/KLineChart/index.vue'
 import { stockApi, signalApi } from '@/services/api'
 import { useMarketWebSocket } from '@/composables/useWebSocket'
-import { formatPrice, formatPercent, formatDateTime } from '@/utils/format'
+import { formatPrice, formatPercent, formatDateTime, formatStockCode, formatVolume } from '@/utils/format'
 import type { StockInfo, TradingSignal, WatchlistGroup } from '@/types/models'
 
 const route = useRoute()
@@ -300,6 +338,12 @@ const symbol = ref<string>(route.params.symbol as string)
 
 // Tab状态
 const activeTab = ref('kline')
+const detailTabs = [
+  { label: 'K线图', name: 'kline' },
+  { label: '因子一览', name: 'factors' },
+  { label: '技术指标', name: 'technical' },
+  { label: '历史信号', name: 'signals' }
+]
 
 // K线图相关
 const timeframe = ref('1d')
@@ -307,6 +351,23 @@ const indicators = ref<string[]>(['MA', 'VOL'])
 const showSignals = ref(true)
 const klineData = ref<any[]>([])
 const signals = ref<TradingSignal[]>([])
+const timeframeOptions = [
+  { label: '1m', value: '1m' },
+  { label: '5m', value: '5m' },
+  { label: '15m', value: '15m' },
+  { label: '1H', value: '1h' },
+  { label: '4H', value: '4h' },
+  { label: '1D', value: '1d' },
+  { label: '1W', value: '1w' }
+]
+const indicatorOptions = [
+  { label: 'SMA', value: 'MA' },
+  { label: 'EMA', value: 'EMA' },
+  { label: 'RSI', value: 'RSI' },
+  { label: 'MACD', value: 'MACD' },
+  { label: 'BB', value: 'BOLL' },
+  { label: 'ATR', value: 'ATR' }
+]
 
 // 因子数据
 const factors = ref<any[]>([])
@@ -343,7 +404,39 @@ const groupForm = reactive({
 })
 
 // WebSocket连接
-const { subscribe, unsubscribe, on } = useMarketWebSocket()
+const { subscribe, unsubscribe, on } = useMarketWebSocket({ autoConnect: false })
+
+const displayStockCode = computed(() => {
+  const code = stockInfo.value?.symbol || symbol.value
+  return formatStockCode(code)
+})
+
+const signedPriceChange = computed(() => {
+  if (!stockInfo.value) return '--'
+  const change = stockInfo.value.change || 0
+  const percent = stockInfo.value.changePercent || 0
+  const sign = change >= 0 ? '+' : ''
+  return `${sign}${formatPrice(change)} (${formatPercent(percent)})`
+})
+
+const latestKline = computed(() => klineData.value[klineData.value.length - 1])
+
+const latestKlineTurnoverLabel = computed(() => {
+  if (!latestKline.value) return 'Volume'
+  return latestKline.value.volume > 0 ? 'Volume' : 'Amount'
+})
+
+const latestKlineTurnoverValue = computed(() => {
+  if (!latestKline.value) return '--'
+  return latestKline.value.volume > 0
+    ? formatVolume(latestKline.value.volume)
+    : formatVolume(latestKline.value.amount)
+})
+
+const indicatorSummary = computed(() => {
+  if (!indicators.value.length) return '未选择技术指标'
+  return `${indicators.value.join('/')} active`
+})
 
 // 监听行情更新
 on('quote', (data: any) => {
@@ -394,10 +487,12 @@ const loadWatchlistGroups = async () => {
 // 加载K线数据
 const loadKlineData = async () => {
   try {
+    console.log('[StockDetail] loadKlineData called, symbol:', symbol.value)
     const data = await stockApi.getKLineData({
       symbol: symbol.value,
       timeFrame: timeframe.value
     })
+    console.log('[StockDetail] klineData received:', data?.length, 'items, first:', data?.[0])
     klineData.value = data
 
     // 如果显示买卖点，加载信号数据
@@ -405,6 +500,7 @@ const loadKlineData = async () => {
       await loadSignals()
     }
   } catch (error) {
+    console.error('[StockDetail] loadKlineData error:', error)
     ElMessage.error('加载K线数据失败')
   }
 }
@@ -415,8 +511,10 @@ const loadSignals = async () => {
     const data = await signalApi.getSignals({ symbol: symbol.value })
     signals.value = data.items.map((signal: TradingSignal) => ({
       time: signal.triggerTime || signal.createdAt,
+      createdAt: signal.triggerTime || signal.createdAt || '',
       type: signal.type,
-      price: signal.triggerPrice || signal.price
+      price: signal.triggerPrice || signal.price,
+      confidence: (signal as any).confidence ?? 0
     })) as any
   } catch (error) {
     console.error('加载信号数据失败', error)
@@ -479,6 +577,31 @@ const handleTabChange = (tabName: string) => {
       }
       break
   }
+}
+
+const setActiveTab = (tabName: string) => {
+  activeTab.value = tabName
+  handleTabChange(tabName)
+}
+
+const setTimeframe = (value: string) => {
+  if (timeframe.value === value) return
+  timeframe.value = value
+  handleTimeframeChange()
+}
+
+const toggleIndicator = (value: string) => {
+  if (indicators.value.includes(value)) {
+    indicators.value = indicators.value.filter(item => item !== value)
+  } else {
+    indicators.value = [...indicators.value, value]
+  }
+  handleIndicatorChange()
+}
+
+const toggleSignals = () => {
+  showSignals.value = !showSignals.value
+  handleShowSignalsChange()
 }
 
 // 时间周期切换
@@ -683,67 +806,68 @@ export default defineComponent({
 
 <style scoped lang="scss">
 .stock-detail {
-  .stock-header {
-    :deep(.el-card__body) {
-      padding: 20px;
-    }
-  }
+  max-width: 100%;
 
-  .stock-tabs {
-    :deep(.el-card__body) {
-      padding: 0;
-    }
-
-    :deep(.el-tabs__header) {
-      margin: 0;
-      padding: 0 20px;
-      background: #f5f7fa;
-    }
-
-    :deep(.el-tabs__content) {
-      padding: 20px;
-    }
-  }
-
-  .chart-toolbar {
+  .stock-header-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
-    background: #1e222d;
-    border-radius: 8px 8px 0 0;
-    margin-bottom: 0;
+    gap: 24px;
+  }
 
-    .toolbar-section {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+  .stock-header-actions button:disabled {
+    cursor: wait;
+    opacity: 0.72;
+  }
 
-    .toolbar-label {
-      font-size: 12px;
-      color: #9ca3af;
-      font-weight: 500;
-    }
+  .stat-up {
+    color: #26a69a;
+  }
 
-    :deep(.el-radio-button__inner) {
-      padding: 6px 12px;
-      font-size: 12px;
-    }
+  .stat-down {
+    color: #ef5350;
+  }
 
-    :deep(.el-checkbox) {
-      color: #d1d5db;
+  .chart-toolbar {
+    min-height: 41px;
+    overflow-x: auto;
 
-      .el-checkbox__label {
-        font-size: 12px;
-      }
+    button {
+      line-height: 1.25;
+      white-space: nowrap;
     }
   }
 
-  .kline-container {
+  .chart-toolbar-group {
+    flex-wrap: nowrap;
+  }
+
+  .stock-price-bar {
+    min-height: 37px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .stock-price-note {
+    min-width: max-content;
+  }
+
+  .professional-chart-area {
+    height: 600px;
     background: #131722;
-    border-radius: 8px;
-    overflow: hidden;
+  }
+
+  .stock-kline-chart {
+    background: #131722;
+  }
+
+  .chart-empty-state {
+    height: 600px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #787b86;
+    background: #131722;
   }
 
   .factors-container,
@@ -760,6 +884,54 @@ export default defineComponent({
 
     :deep(.el-card__body) {
       padding: 16px;
+    }
+  }
+}
+
+@media (max-width: 900px) {
+  .stock-detail {
+    .stock-header-row {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .stock-header-actions {
+      width: 100%;
+      flex-wrap: wrap;
+    }
+
+    .stock-detail-tabs {
+      overflow-x: auto;
+    }
+
+    .chart-toolbar {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stock-price-bar {
+      gap: 16px;
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  .stock-detail {
+    .professional-chart-area {
+      height: 520px;
+    }
+
+    .stock-chart-tools {
+      display: none;
+    }
+
+    .chart-empty-state {
+      height: 520px;
+    }
+
+    :deep(.stock-kline-chart) {
+      height: 520px !important;
     }
   }
 }

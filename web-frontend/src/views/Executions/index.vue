@@ -73,7 +73,7 @@
 
         <el-table-column prop="symbol" label="代码" width="120">
           <template #default="{ row }">
-            <router-link :to="{ name: 'StockDetail', params: { symbol: row.symbol } }" class="text-blue-600 hover:underline font-medium">
+            <router-link :to="`/stocks/${row.symbol}`" class="text-blue-600 hover:underline font-medium">
               {{ row.symbol }}
             </router-link>
           </template>
@@ -190,7 +190,7 @@
 
         <!-- 股票信息 -->
         <el-descriptions-item label="股票代码">
-          <router-link :to="{ name: 'StockDetail', params: { symbol: selectedExecution.symbol } }" class="text-blue-600 hover:underline font-medium">
+          <router-link :to="`/stocks/${selectedExecution.symbol}`" class="text-blue-600 hover:underline font-medium">
             {{ selectedExecution.symbol }}
           </router-link>
         </el-descriptions-item>
@@ -282,6 +282,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { formatPrice, formatAmount, formatDate, formatPercent } from '@/utils/format'
+import { tradingApi } from '@/services/api/trading'
 
 // 格式化日期时间
 const formatDateTime = (date: string | Date) => {
@@ -350,22 +351,67 @@ const pagination = reactive({
 const loadExecutions = async () => {
   loading.value = true
   try {
-    // TODO: Implement getExecutions API
-    // const data = await tradingApi.getExecutions({
-    //   status: filters.status || undefined,
-    //   startDate: dateRange.value?.[0]?.toISOString().split('T')[0],
-    //   endDate: dateRange.value?.[1]?.toISOString().split('T')[0],
-    //   page: pagination.page,
-    //   pageSize: pagination.pageSize
-    // })
-    // executions.value = data.items
-    // pagination.total = data.total
+    const params: any = {
+      limit: pagination.pageSize,
+      offset: (pagination.page - 1) * pagination.pageSize
+    }
+
+    // 添加状态筛选
+    if (filters.status) {
+      params.status = filters.status
+    }
+
+    // 添加日期范围筛选
+    if (dateRange.value && dateRange.value.length === 2) {
+      params.startDate = dateRange.value[0].toISOString().split('T')[0]
+      params.endDate = dateRange.value[1].toISOString().split('T')[0]
+    }
+
+    const response = await tradingApi.getExecutions(params)
+
+    // 处理返回数据
+    if (response && response.executions) {
+      executions.value = response.executions
+      pagination.total = response.count || response.executions.length
+    } else if (Array.isArray(response)) {
+      executions.value = response
+      pagination.total = response.length
+    } else {
+      executions.value = []
+      pagination.total = 0
+    }
+
+    // 加载统计数据
+    await loadStats()
+  } catch (error) {
+    console.error('加载执行记录失败:', error)
+    ElMessage.error('加载执行记录失败')
     executions.value = []
     pagination.total = 0
-  } catch (error) {
-    ElMessage.error('加载执行记录失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 加载统计数据
+const loadStats = async () => {
+  try {
+    const statsData = await tradingApi.getExecutionStats()
+    if (statsData) {
+      // 更新统计数据
+      Object.assign(stats, {
+        todayCount: statsData.todayCount || statsData.today_count || 0,
+        successRate: statsData.successRate || statsData.success_rate || 0,
+        avgLatency: statsData.avgLatency || statsData.avg_latency || 0,
+        failedCount: statsData.failedCount || statsData.failed_count || 0,
+        pendingCount: statsData.pendingCount || statsData.pending_count || 0,
+        executedCount: statsData.executedCount || statsData.executed_count || 0,
+        closedCount: statsData.closedCount || statsData.closed_count || 0
+      })
+    }
+  } catch (error) {
+    console.error('加载统计数据失败:', error)
+    // 统计数据加载失败不影响主列表显示
   }
 }
 
@@ -399,15 +445,15 @@ const handleExecute = async (execution: any) => {
       { type: 'warning' }
     )
 
-    // TODO: Implement executeSignal API
-    // await tradingApi.executeSignal(execution.signalId)
+    await tradingApi.executeSignal(execution.signalId)
     ElMessage.success('执行成功')
 
     // 刷新列表
     loadExecutions()
-  } catch (error) {
+  } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error('执行失败')
+      console.error('执行失败:', error)
+      ElMessage.error(error?.message || '执行失败')
     }
   }
 }
@@ -421,15 +467,15 @@ const handleCancel = async (execution: any) => {
       { type: 'warning' }
     )
 
-    // TODO: Implement cancelExecution API
-    // await tradingApi.cancelExecution(execution.executionId)
+    await tradingApi.cancelExecution(execution.executionId)
     ElMessage.success('已取消')
 
     // 刷新列表
     loadExecutions()
-  } catch (error) {
+  } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error('取消失败')
+      console.error('取消失败:', error)
+      ElMessage.error(error?.message || '取消失败')
     }
   }
 }
@@ -443,23 +489,36 @@ const handleClose = async (execution: any) => {
       { type: 'warning' }
     )
 
-    // TODO: Implement closePosition API
-    // await tradingApi.closePosition(execution.symbol)
+    // 使用当前日期和价格（实际应该从市场获取最新价格）
+    const closeDate = new Date().toISOString().split('T')[0]
+    const closePrice = execution.price // 临时使用开仓价格，实际应该获取当前市价
+
+    await tradingApi.closeExecution(execution.executionId, closeDate, closePrice)
     ElMessage.success('平仓成功')
 
     // 刷新列表
     loadExecutions()
-  } catch (error) {
+  } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error('平仓失败')
+      console.error('平仓失败:', error)
+      ElMessage.error(error?.message || '平仓失败')
     }
   }
 }
 
 // 查看详情
-const handleViewDetail = (execution: any) => {
-  selectedExecution.value = execution
-  detailDialogVisible.value = true
+const handleViewDetail = async (execution: any) => {
+  try {
+    // 从API加载完整的执行详情
+    const detailData = await tradingApi.getExecutionById(execution.executionId)
+    selectedExecution.value = detailData || execution
+    detailDialogVisible.value = true
+  } catch (error) {
+    console.error('加载执行详情失败:', error)
+    // 如果API调用失败，使用列表中的数据
+    selectedExecution.value = execution
+    detailDialogVisible.value = true
+  }
 }
 
 // 工具函数

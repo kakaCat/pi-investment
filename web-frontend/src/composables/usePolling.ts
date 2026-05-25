@@ -13,6 +13,21 @@ export function usePolling(
 ) {
   const isPolling = ref(false)
   const timerId = ref<number>()
+  const isMounted = ref(true)
+
+  // 包装回调，检查组件存活状态
+  const safeCallback = async () => {
+    if (!isMounted.value) return
+    try {
+      await callback()
+      // 异步操作完成后再次检查，防止在组件卸载后更新响应式状态
+      if (!isMounted.value) return
+    } catch (error) {
+      if (isMounted.value) {
+        console.error('Polling error:', error)
+      }
+    }
+  }
 
   // 开始轮询
   const start = () => {
@@ -23,13 +38,9 @@ export function usePolling(
     const poll = async () => {
       if (!isPolling.value) return
 
-      try {
-        await callback()
-      } catch (error) {
-        console.error('Polling error:', error)
-      }
+      await safeCallback()
 
-      if (isPolling.value) {
+      if (isPolling.value && isMounted.value) {
         timerId.value = window.setTimeout(poll, interval)
       }
     }
@@ -49,19 +60,22 @@ export function usePolling(
   // 重启轮询
   const restart = () => {
     stop()
-    start()
+    if (isMounted.value) {
+      start()
+    }
   }
 
   onMounted(() => {
     if (options?.enabled !== false) {
       if (options?.immediate) {
-        callback()
+        safeCallback()
       }
       start()
     }
   })
 
   onUnmounted(() => {
+    isMounted.value = false
     stop()
   })
 
