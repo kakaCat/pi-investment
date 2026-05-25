@@ -9,6 +9,9 @@ import { Type } from "@sinclair/typebox";
 import { detectMarket } from "../shared/validators.js";
 import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
 
+// Constants
+const DEFAULT_NEWS_COUNT = 10;
+
 type DataField = "info" | "price" | "news" | "announcements";
 
 interface FetchStockParams {
@@ -17,40 +20,46 @@ interface FetchStockParams {
   news_num?: number;
 }
 
+interface FetchResult {
+  field: DataField;
+  value: any | null;
+  error?: string;
+}
+
 /**
  * 智能路由：根据字段类型调用对应的 daemon 方法
  */
 async function fetchField(
   field: DataField,
   symbol: string,
-  newsNum: number = 10
-): Promise<{ key: string; value: any; error?: string }> {
+  newsNum: number = DEFAULT_NEWS_COUNT
+): Promise<FetchResult> {
   try {
     let result: string;
 
     switch (field) {
       case "info":
         result = await callQuantSysDaemon("get_stock_info", { symbol });
-        return { key: "info", value: JSON.parse(result) };
+        return { field: "info", value: JSON.parse(result) };
 
       case "price":
         result = await callQuantSysDaemon("get_stock_realtime_price", { symbol });
-        return { key: "price", value: JSON.parse(result) };
+        return { field: "price", value: JSON.parse(result) };
 
       case "news":
         result = await callQuantSysDaemon("get_stock_news", { symbol, num: newsNum });
-        return { key: "news", value: JSON.parse(result) };
+        return { field: "news", value: JSON.parse(result) };
 
       case "announcements":
         result = await callQuantSysDaemon("get_announcements", { symbol });
-        return { key: "announcements", value: JSON.parse(result) };
+        return { field: "announcements", value: JSON.parse(result) };
 
       default:
-        return { key: field, value: null, error: `Unknown field: ${field}` };
+        return { field, value: null, error: `Unknown field: ${field}` };
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    return { key: `${field}_error`, value: null, error: errorMsg };
+    return { field, value: null, error: errorMsg };
   }
 }
 
@@ -62,7 +71,7 @@ export const dataFetchStockTool: ToolDefinition = {
     "支持 A 股（6位代码）和港股（1-5位代码或 .HK 后缀）。" +
     "默认获取 info + price；可通过 fields 参数指定需要的字段组合。" +
     "返回 JSON 格式，包含请求的所有字段数据。" +
-    "如果某个字段获取失败，会在响应中包含 {field}_error 字段。",
+    "如果某个字段获取失败，该字段值为 null，错误信息存储在 {field}_error 字段中。",
 
   parameters: Type.Object({
     symbol: Type.String({
@@ -83,7 +92,7 @@ export const dataFetchStockTool: ToolDefinition = {
     ),
     news_num: Type.Optional(
       Type.Integer({
-        description: "新闻条数（仅当 fields 包含 'news' 时有效）。默认: 10",
+        description: `新闻条数（仅当 fields 包含 'news' 时有效）。默认: ${DEFAULT_NEWS_COUNT}`,
         minimum: 1,
         maximum: 50
       })
@@ -91,7 +100,7 @@ export const dataFetchStockTool: ToolDefinition = {
   }),
 
   execute: async (_toolCallId, params: FetchStockParams) => {
-    const { symbol, fields = ["info", "price"], news_num = 10 } = params;
+    const { symbol, fields = ["info", "price"], news_num = DEFAULT_NEWS_COUNT } = params;
 
     // 验证股票代码
     const market = detectMarket(symbol);
@@ -118,9 +127,11 @@ export const dataFetchStockTool: ToolDefinition = {
 
     for (const result of results) {
       if (result.error) {
-        response[result.key] = result.error;
+        // 错误响应结构：字段设为 null，错误信息存储在 {field}_error
+        response[result.field] = null;
+        response[`${result.field}_error`] = result.error;
       } else {
-        response[result.key] = result.value;
+        response[result.field] = result.value;
         hasAnySuccess = true;
       }
     }

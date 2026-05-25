@@ -11,6 +11,11 @@ jest.unstable_mockModule('../../quant/quantsys-daemon-adapter.js', () => ({
 
 const { dataFetchStockTool } = await import('./fetch-stock-tool.js');
 
+// Helper to extract text from tool result
+function getResponseText(result: any): string {
+  return result.content[0].text;
+}
+
 describe('data_fetch_stock tool', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -62,7 +67,7 @@ describe('data_fetch_stock tool', () => {
       expect(result.content).toHaveLength(1);
       expect(result.content[0].type).toBe('text');
 
-      const response = JSON.parse((result.content[0] as any).text);
+      const response = JSON.parse(getResponseText(result));
       expect(response.info).toBeDefined();
       expect(response.price).toBeDefined();
       expect(response.info.symbol).toBe('600519');
@@ -87,7 +92,7 @@ describe('data_fetch_stock tool', () => {
       expect(mockCallQuantSysDaemon).toHaveBeenCalledTimes(1);
       expect(mockCallQuantSysDaemon).toHaveBeenCalledWith('get_stock_info', { symbol: '600519' });
 
-      const response = JSON.parse((result.content[0] as any).text);
+      const response = JSON.parse(getResponseText(result));
       expect(response.info).toBeDefined();
       expect(response.price).toBeUndefined();
       expect(response.news).toBeUndefined();
@@ -111,7 +116,7 @@ describe('data_fetch_stock tool', () => {
       expect(mockCallQuantSysDaemon).toHaveBeenCalledTimes(1);
       expect(mockCallQuantSysDaemon).toHaveBeenCalledWith('get_stock_news', { symbol: '600519', num: 10 });
 
-      const response = JSON.parse((result.content[0] as any).text);
+      const response = JSON.parse(getResponseText(result));
       expect(response.news).toBeDefined();
     });
 
@@ -132,7 +137,7 @@ describe('data_fetch_stock tool', () => {
       expect(mockCallQuantSysDaemon).toHaveBeenCalledTimes(1);
       expect(mockCallQuantSysDaemon).toHaveBeenCalledWith('get_announcements', { symbol: '600519' });
 
-      const response = JSON.parse((result.content[0] as any).text);
+      const response = JSON.parse(getResponseText(result));
       expect(response.announcements).toBeDefined();
     });
 
@@ -151,7 +156,7 @@ describe('data_fetch_stock tool', () => {
 
       expect(mockCallQuantSysDaemon).toHaveBeenCalledTimes(2);
 
-      const response = JSON.parse((result.content[0] as any).text);
+      const response = JSON.parse(getResponseText(result));
       expect(response.info).toBeDefined();
       expect(response.news).toBeDefined();
       expect(response.price).toBeUndefined();
@@ -179,7 +184,7 @@ describe('data_fetch_stock tool', () => {
       expect(mockCallQuantSysDaemon).toHaveBeenCalledWith('get_stock_info', { symbol: '9988.HK' });
       expect(mockCallQuantSysDaemon).toHaveBeenCalledWith('get_stock_realtime_price', { symbol: '9988.HK' });
 
-      const response = JSON.parse((result.content[0] as any).text);
+      const response = JSON.parse(getResponseText(result));
       expect(response.info.symbol).toBe('9988.HK');
     });
 
@@ -200,7 +205,7 @@ describe('data_fetch_stock tool', () => {
 
       const result = await (dataFetchStockTool.execute as any)('test-call-id', { symbol: '9988' });
 
-      const response = JSON.parse((result.content[0] as any).text);
+      const response = JSON.parse(getResponseText(result));
       expect(response.info).toBeDefined();
     });
   });
@@ -211,20 +216,26 @@ describe('data_fetch_stock tool', () => {
 
       expect(mockCallQuantSysDaemon).not.toHaveBeenCalled();
 
-      const response = JSON.parse((result.content[0] as any).text);
+      const response = JSON.parse(getResponseText(result));
       expect(response.error).toBeDefined();
       expect(response.error).toContain('不支持的股票代码');
       expect(response.invalid_format).toBe(true);
     });
 
     it('should handle daemon errors gracefully', async () => {
-      mockCallQuantSysDaemon.mockRejectedValueOnce(new Error('Network timeout'));
+      mockCallQuantSysDaemon
+        .mockRejectedValueOnce(new Error('Network timeout'))
+        .mockRejectedValueOnce(new Error('Network timeout'));
 
       const result = await (dataFetchStockTool.execute as any)('test-call-id', { symbol: '600519' });
 
-      const response = JSON.parse((result.content[0] as any).text);
+      const response = JSON.parse(getResponseText(result));
       expect(response.error).toBeDefined();
       expect(response.error).toContain('Network timeout');
+      expect(response.info).toBeNull();
+      expect(response.info_error).toContain('Network timeout');
+      expect(response.price).toBeNull();
+      expect(response.price_error).toContain('Network timeout');
     });
 
     it('should handle partial failures', async () => {
@@ -236,10 +247,13 @@ describe('data_fetch_stock tool', () => {
 
       const result = await (dataFetchStockTool.execute as any)('test-call-id', { symbol: '600519' });
 
-      const response = JSON.parse((result.content[0] as any).text);
+      const response = JSON.parse(getResponseText(result));
       expect(response.info).toBeDefined();
+      expect(response.info.symbol).toBe('600519');
+      expect(response.price).toBeNull();
       expect(response.price_error).toBeDefined();
       expect(response.price_error).toContain('Price service unavailable');
+      expect(response.error).toBeUndefined(); // No top-level error when partial success
     });
   });
 
