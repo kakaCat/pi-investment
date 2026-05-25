@@ -7,7 +7,7 @@
 **完成时间**: 2026-05-25  
 **总耗时**: ~4 小时  
 **执行方式**: Subagent-Driven Development  
-**项目状态**: ✅ 全部完成
+**项目状态**: ⚠️ 基本完成，L3 层部分功能等待 v2 后端支持
 
 ## 执行摘要
 
@@ -104,12 +104,14 @@
 
 ### L3 模型层（Model Layer）
 
+**状态**: ⚠️ Agent 层完成，等待 v2 后端支持
+
 **工具**:
-- `model_train` - 模型训练
-- `model_predict` - 模型预测
-- `model_evaluate` - 模型评估
-- `model_monitor` - 模型监控
-- `model_list` - 模型列表
+- `model_train` - 模型训练 ⚠️
+- `model_predict` - 模型预测 ✅
+- `model_evaluate` - 模型评估 ⚠️
+- `model_monitor` - 模型监控 ⚠️
+- `model_list` - 模型列表 ⚠️
 
 **特性**:
 - 支持 XGBoost 和 LightGBM 模型
@@ -121,6 +123,12 @@
 
 **测试覆盖**: 100%（完美）
 **测试用例**: 129 个（32+29+17+25+26）
+
+**重要说明**:
+- Agent 层代码已完成（5 个工具 + 129 个测试）
+- `model_predict` 可以工作（v2 后端已有 `predict_signal_confidence`）
+- 其他 4 个工具需要 v2 团队添加 daemon 方法
+- 项目约束：只修改 agent 代码，不修改 v2 代码
 
 ### L4 组合构建层（Portfolio Construction）
 
