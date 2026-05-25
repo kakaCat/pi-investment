@@ -120,91 +120,114 @@ export function formatFinancialData(data: FinancialData): string {
 export function formatFactorResult(result: FactorResult): string {
   const lines: string[] = [];
 
-  lines.push(`股票代码: ${result.symbol}`);
-  lines.push(`股票名称: ${result.name}`);
-  lines.push(`计算时间: ${result.timestamp}`);
-  lines.push('');
-
-  // Technical factors
-  if (result.technical_factors && Object.keys(result.technical_factors).length > 0) {
-    lines.push('【技术因子】');
-    const tech = result.technical_factors;
-
-    if (tech.rsi !== undefined) {
-      lines.push(`  RSI(14): ${formatNumber(tech.rsi, 2)}`);
-    }
-    if (tech.macd !== undefined) {
-      lines.push(`  MACD: ${formatNumber(tech.macd, 4)}`);
-    }
-    if (tech.macd_signal !== undefined) {
-      lines.push(`  MACD信号线: ${formatNumber(tech.macd_signal, 4)}`);
-    }
-    if (tech.macd_hist !== undefined) {
-      lines.push(`  MACD柱: ${formatNumber(tech.macd_hist, 4)}`);
-    }
-    if (tech.kdj_k !== undefined) {
-      lines.push(`  KDJ-K: ${formatNumber(tech.kdj_k, 2)}`);
-    }
-    if (tech.kdj_d !== undefined) {
-      lines.push(`  KDJ-D: ${formatNumber(tech.kdj_d, 2)}`);
-    }
-    if (tech.kdj_j !== undefined) {
-      lines.push(`  KDJ-J: ${formatNumber(tech.kdj_j, 2)}`);
-    }
-    if (tech.boll_upper !== undefined) {
-      lines.push(`  布林上轨: ${formatNumber(tech.boll_upper, 2)}`);
-    }
-    if (tech.boll_mid !== undefined) {
-      lines.push(`  布林中轨: ${formatNumber(tech.boll_mid, 2)}`);
-    }
-    if (tech.boll_lower !== undefined) {
-      lines.push(`  布林下轨: ${formatNumber(tech.boll_lower, 2)}`);
-    }
-    lines.push('');
+  if (!result.success || !result.results || result.results.length === 0) {
+    return '因子计算失败或无结果';
   }
 
-  // Fundamental factors
-  if (result.fundamental_factors && Object.keys(result.fundamental_factors).length > 0) {
-    lines.push('【基本面因子】');
-    const fund = result.fundamental_factors;
+  // Process each symbol's result
+  for (const item of result.results) {
+    if (item.error) {
+      lines.push(`股票代码: ${item.symbol}`);
+      lines.push(`错误: ${item.error}`);
+      lines.push('');
+      continue;
+    }
 
-    if (fund.pe_ratio !== undefined) {
-      lines.push(`  市盈率(PE): ${formatNumber(fund.pe_ratio, 2)}`);
-    }
-    if (fund.pb_ratio !== undefined) {
-      lines.push(`  市净率(PB): ${formatNumber(fund.pb_ratio, 2)}`);
-    }
-    if (fund.roe !== undefined) {
-      lines.push(`  净资产收益率(ROE): ${formatPercent(fund.roe)}`);
-    }
-    if (fund.roa !== undefined) {
-      lines.push(`  总资产收益率(ROA): ${formatPercent(fund.roa)}`);
-    }
-    if (fund.gross_margin !== undefined) {
-      lines.push(`  毛利率: ${formatPercent(fund.gross_margin)}`);
-    }
-    if (fund.net_margin !== undefined) {
-      lines.push(`  净利率: ${formatPercent(fund.net_margin)}`);
-    }
-    if (fund.debt_ratio !== undefined) {
-      lines.push(`  资产负债率: ${formatPercent(fund.debt_ratio)}`);
-    }
+    lines.push(`股票代码: ${item.symbol}`);
+    lines.push(`计算时间: ${item.date}`);
+    lines.push(`因子数量: ${item.factor_count}`);
     lines.push('');
-  }
 
-  // Composite score
-  if (result.composite_score !== undefined) {
-    lines.push('【综合评分】');
-    lines.push(`  综合得分: ${formatNumber(result.composite_score, 2)}/100`);
+    const factors = item.factors;
 
-    if (result.composite_score >= 80) {
-      lines.push(`  评级: 优秀 ⭐⭐⭐⭐⭐`);
-    } else if (result.composite_score >= 60) {
-      lines.push(`  评级: 良好 ⭐⭐⭐⭐`);
-    } else if (result.composite_score >= 40) {
-      lines.push(`  评级: 中等 ⭐⭐⭐`);
-    } else {
-      lines.push(`  评级: 较差 ⭐⭐`);
+    // Technical factors
+    const technicalFactors: Record<string, string> = {};
+    if (factors.rsi !== undefined && factors.rsi !== null) {
+      technicalFactors['RSI(14)'] = formatNumber(factors.rsi, 2);
+    }
+    if (factors.macd !== undefined && factors.macd !== null) {
+      technicalFactors['MACD'] = formatNumber(factors.macd, 4);
+    }
+    if (factors.macd_signal !== undefined && factors.macd_signal !== null) {
+      technicalFactors['MACD信号线'] = formatNumber(factors.macd_signal, 4);
+    }
+    if (factors.macd_hist !== undefined && factors.macd_hist !== null) {
+      technicalFactors['MACD柱'] = formatNumber(factors.macd_hist, 4);
+    }
+    if (factors.kdj_k !== undefined && factors.kdj_k !== null) {
+      technicalFactors['KDJ-K'] = formatNumber(factors.kdj_k, 2);
+    }
+    if (factors.kdj_d !== undefined && factors.kdj_d !== null) {
+      technicalFactors['KDJ-D'] = formatNumber(factors.kdj_d, 2);
+    }
+    if (factors.kdj_j !== undefined && factors.kdj_j !== null) {
+      technicalFactors['KDJ-J'] = formatNumber(factors.kdj_j, 2);
+    }
+    if (factors.boll_upper !== undefined && factors.boll_upper !== null) {
+      technicalFactors['布林上轨'] = formatNumber(factors.boll_upper, 2);
+    }
+    if (factors.boll_mid !== undefined && factors.boll_mid !== null) {
+      technicalFactors['布林中轨'] = formatNumber(factors.boll_mid, 2);
+    }
+    if (factors.boll_lower !== undefined && factors.boll_lower !== null) {
+      technicalFactors['布林下轨'] = formatNumber(factors.boll_lower, 2);
+    }
+
+    if (Object.keys(technicalFactors).length > 0) {
+      lines.push('【技术因子】');
+      for (const [name, value] of Object.entries(technicalFactors)) {
+        lines.push(`  ${name}: ${value}`);
+      }
+      lines.push('');
+    }
+
+    // Fundamental factors
+    const fundamentalFactors: Record<string, string> = {};
+    if (factors.pe_ratio !== undefined && factors.pe_ratio !== null) {
+      fundamentalFactors['市盈率(PE)'] = formatNumber(factors.pe_ratio, 2);
+    }
+    if (factors.pb_ratio !== undefined && factors.pb_ratio !== null) {
+      fundamentalFactors['市净率(PB)'] = formatNumber(factors.pb_ratio, 2);
+    }
+    if (factors.roe !== undefined && factors.roe !== null) {
+      fundamentalFactors['净资产收益率(ROE)'] = formatPercent(factors.roe);
+    }
+    if (factors.roa !== undefined && factors.roa !== null) {
+      fundamentalFactors['总资产收益率(ROA)'] = formatPercent(factors.roa);
+    }
+    if (factors.gross_margin !== undefined && factors.gross_margin !== null) {
+      fundamentalFactors['毛利率'] = formatPercent(factors.gross_margin);
+    }
+    if (factors.net_margin !== undefined && factors.net_margin !== null) {
+      fundamentalFactors['净利率'] = formatPercent(factors.net_margin);
+    }
+    if (factors.debt_ratio !== undefined && factors.debt_ratio !== null) {
+      fundamentalFactors['资产负债率'] = formatPercent(factors.debt_ratio);
+    }
+
+    if (Object.keys(fundamentalFactors).length > 0) {
+      lines.push('【基本面因子】');
+      for (const [name, value] of Object.entries(fundamentalFactors)) {
+        lines.push(`  ${name}: ${value}`);
+      }
+      lines.push('');
+    }
+
+    // Composite score if available
+    if (factors.composite_score !== undefined && factors.composite_score !== null) {
+      lines.push('【综合评分】');
+      lines.push(`  综合得分: ${formatNumber(factors.composite_score, 2)}/100`);
+
+      if (factors.composite_score >= 80) {
+        lines.push(`  评级: 优秀 ⭐⭐⭐⭐⭐`);
+      } else if (factors.composite_score >= 60) {
+        lines.push(`  评级: 良好 ⭐⭐⭐⭐`);
+      } else if (factors.composite_score >= 40) {
+        lines.push(`  评级: 中等 ⭐⭐⭐`);
+      } else {
+        lines.push(`  评级: 较差 ⭐⭐`);
+      }
+      lines.push('');
     }
   }
 

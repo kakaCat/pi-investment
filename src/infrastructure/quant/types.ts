@@ -49,9 +49,18 @@ export interface FactorComputeParams {
   date?: string;
 }
 
+export interface FactorResultItem {
+  symbol: string;
+  date: string;
+  factor_count: number;
+  factors: Record<string, number | null>;
+  error?: string;
+}
+
 export interface FactorResult {
   success: boolean;
-  factors: Record<string, Record<string, number | null>>;
+  results: FactorResultItem[];
+  count: number;
 }
 
 // 因子分析类型
