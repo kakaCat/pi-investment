@@ -50,9 +50,12 @@ export const dataFetchFinancialTool: ToolDefinition = {
     }
 
     try {
+      // Map "cashflow" to "cash_flow" for v2 API
+      const mappedReportType = reportType === 'cashflow' ? 'cash_flow' : reportType;
+
       const data = await getFinancials(
         symbol,
-        reportType as 'income' | 'balance' | 'cash_flow' | 'all' | undefined
+        mappedReportType as 'income' | 'balance' | 'cash_flow' | 'all' | undefined
       );
 
       const formattedText = formatFinancialData(data);
