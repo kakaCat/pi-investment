@@ -242,6 +242,12 @@ const V2_ROUTES: Record<
   "factor.fama_french_5": { path: "/api/factor-models/fama-french-5/calculate", method: "POST" },
   "factor.carhart": { path: "/api/factor-models/carhart/calculate", method: "POST" },
   "factor.barra": { path: "/api/factor-models/barra/calculate", method: "POST" },
+
+  // ── portfolio optimization ──
+  "portfolio.markowitz": { path: "/api/portfolio/markowitz/optimize", method: "POST" },
+  "portfolio.black_litterman": { path: "/api/portfolio/black-litterman/optimize", method: "POST" },
+  "portfolio.risk_parity": { path: "/api/portfolio/risk-parity/optimize", method: "POST" },
+  "portfolio.risk_decomposition": { path: "/api/portfolio/risk-parity/risk-decomposition", method: "POST" },
 };
 
 /** v2 不支持但可用的命令名列表（用于调试） */

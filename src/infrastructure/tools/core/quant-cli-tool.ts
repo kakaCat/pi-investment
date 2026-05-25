@@ -1154,6 +1154,78 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbol: "600519", start_date: "2024-01-01", end_date: "2024-12-31" },
   },
+
+  // ── Portfolio Optimization ──
+  "portfolio.markowitz": {
+    domain: "portfolio",
+    action: "markowitz",
+    description: "Markowitz均值方差优化：最小方差、最大夏普比率、目标收益率优化。",
+    params: {
+      expected_returns: { required: true, type: "array" },
+      covariance_matrix: { required: true, type: "array" },
+      method: { type: "string", enum: ["min_variance", "max_sharpe", "target_return"] },
+      target_return: { type: "number" },
+      bounds: { type: "array" },
+      constraints: { type: "array" },
+      risk_free_rate: { type: "number" },
+    },
+    example: {
+      expected_returns: [0.12, 0.10, 0.08],
+      covariance_matrix: [[0.04, 0.01, 0.02], [0.01, 0.03, 0.015], [0.02, 0.015, 0.05]],
+      method: "max_sharpe",
+      risk_free_rate: 0.03,
+    },
+  },
+  "portfolio.black_litterman": {
+    domain: "portfolio",
+    action: "black-litterman",
+    description: "Black-Litterman模型：结合市场均衡和投资者观点的贝叶斯优化。",
+    params: {
+      market_weights: { required: true, type: "array" },
+      covariance_matrix: { required: true, type: "array" },
+      views: { type: "array" },
+      view_confidences: { type: "array" },
+      risk_aversion: { type: "number" },
+      tau: { type: "number" },
+      risk_free_rate: { type: "number" },
+    },
+    example: {
+      market_weights: [0.4, 0.3, 0.3],
+      covariance_matrix: [[0.04, 0.01, 0.02], [0.01, 0.03, 0.015], [0.02, 0.015, 0.05]],
+      views: [[1, 0, -1]],
+      view_confidences: [0.5],
+      risk_aversion: 2.5,
+      tau: 0.05,
+    },
+  },
+  "portfolio.risk_parity": {
+    domain: "portfolio",
+    action: "risk-parity",
+    description: "Risk Parity风险平价：等风险贡献组合优化。",
+    params: {
+      covariance_matrix: { required: true, type: "array" },
+      target_risk: { type: "array" },
+      bounds: { type: "array" },
+      constraints: { type: "array" },
+      risk_free_rate: { type: "number" },
+    },
+    example: {
+      covariance_matrix: [[0.04, 0.01, 0.02], [0.01, 0.03, 0.015], [0.02, 0.015, 0.05]],
+    },
+  },
+  "portfolio.risk_decomposition": {
+    domain: "portfolio",
+    action: "risk-decomposition",
+    description: "Risk Parity风险分解：计算各资产的风险贡献。",
+    params: {
+      weights: { required: true, type: "array" },
+      covariance_matrix: { required: true, type: "array" },
+    },
+    example: {
+      weights: [0.4, 0.3, 0.3],
+      covariance_matrix: [[0.04, 0.01, 0.02], [0.01, 0.03, 0.015], [0.02, 0.015, 0.05]],
+    },
+  },
 };
 
 const COMMAND_LIST = Object.keys(COMMANDS).sort();
