@@ -5,6 +5,7 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { tmpdir } from 'os';
 import { readFile, unlink } from 'fs/promises';
 import { join } from 'path';
+import { getResponseText } from '../test-utils.js';
 
 const mockCallQuantSysDaemon = jest.fn<(func: string, args?: Record<string, unknown>) => Promise<string>>();
 
@@ -13,11 +14,6 @@ jest.unstable_mockModule('../../quant/quantsys-daemon-adapter.js', () => ({
 }));
 
 const { dataFetchFinancialTool } = await import('./fetch-financial-tool.js');
-
-// Helper to extract text from tool result
-function getResponseText(result: any): string {
-  return result.content[0].text;
-}
 
 describe('data_fetch_financial tool', () => {
   beforeEach(() => {
@@ -262,6 +258,7 @@ describe('data_fetch_financial tool', () => {
       expect(mockCallQuantSysDaemon).not.toHaveBeenCalled();
 
       const response = JSON.parse(getResponseText(result));
+      expect(response.success).toBe(false);
       expect(response.error).toBeDefined();
       expect(response.error).toContain('暂不支持港股代码');
       expect(response.unsupported_for_hk).toBe(true);
@@ -273,6 +270,7 @@ describe('data_fetch_financial tool', () => {
       expect(mockCallQuantSysDaemon).not.toHaveBeenCalled();
 
       const response = JSON.parse(getResponseText(result));
+      expect(response.success).toBe(false);
       expect(response.error).toBeDefined();
       expect(response.error).toContain('暂不支持港股代码');
     });
@@ -283,6 +281,7 @@ describe('data_fetch_financial tool', () => {
       expect(mockCallQuantSysDaemon).not.toHaveBeenCalled();
 
       const response = JSON.parse(getResponseText(result));
+      expect(response.success).toBe(false);
       expect(response.error).toBeDefined();
       expect(response.error).toContain('不支持的股票代码');
       expect(response.invalid_format).toBe(true);
@@ -306,6 +305,7 @@ describe('data_fetch_financial tool', () => {
       expect(mockCallQuantSysDaemon).not.toHaveBeenCalled();
 
       const response = JSON.parse(getResponseText(result));
+      expect(response.success).toBe(false);
       expect(response.error).toBeDefined();
     });
   });

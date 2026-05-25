@@ -15,6 +15,10 @@ import { tmpdir } from "os";
 // Constants
 const DEFAULT_STATEMENT = "all";
 const DEFAULT_RECENT_N = 8;
+// 2000 字符约等于 DeepSeek 模型 ~500 tokens，超过此长度写入文件可避免：
+// 1) 响应过大导致 UI 渲染卡顿
+// 2) 超出单次工具调用的合理 token 预算
+// 3) 日志文件过大
 const MAX_INLINE_LENGTH = 2000;
 
 type StatementType = "income" | "balance" | "cashflow" | "all";

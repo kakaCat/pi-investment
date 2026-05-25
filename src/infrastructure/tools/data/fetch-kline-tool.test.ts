@@ -2,6 +2,7 @@
  * Data Fetch Kline Tool Tests
  */
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { getResponseText } from '../test-utils.js';
 
 const mockCallQuantSysDaemon = jest.fn<(func: string, args?: Record<string, unknown>) => Promise<string>>();
 
@@ -10,11 +11,6 @@ jest.unstable_mockModule('../../quant/quantsys-daemon-adapter.js', () => ({
 }));
 
 const { dataFetchKlineTool } = await import('./fetch-kline-tool.js');
-
-// Helper to extract text from tool result
-function getResponseText(result: any): string {
-  return result.content[0].text;
-}
 
 describe('data_fetch_kline tool', () => {
   beforeEach(() => {

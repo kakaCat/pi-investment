@@ -56,11 +56,13 @@ export function requireAshare(symbol: string): string | null {
   if (market === "ashare") return null;
   if (market === "hk") {
     return JSON.stringify({
+      success: false,
       error: `本功能暂不支持港股代码 "${symbol}"。财务报表、技术分析、估值、选股等功能仅支持A股（6位数字）。港股可使用 get_stock_price / get_stock_info / get_stock_history 查询行情。`,
       unsupported_for_hk: true,
     });
   }
   return JSON.stringify({
+    success: false,
     error: `不支持的股票代码 "${symbol}"。本系统支持A股（6位数字，如 600519）和港股（1-5位数字，如 9988 或 9988.HK）。`,
     invalid_format: true,
   });

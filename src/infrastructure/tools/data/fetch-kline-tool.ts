@@ -11,8 +11,9 @@ import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
 
 // Constants
 const DEFAULT_PERIOD = "daily";
-const MAX_DATA_POINTS = 60;
-const DEFAULT_LOOKBACK_DAYS = 90;
+// 以下常量仅用于工具描述文档，实际限制由 quantsys daemon 后端控制
+const MAX_DATA_POINTS = 60;        // 后端返回的最大数据点数
+const DEFAULT_LOOKBACK_DAYS = 90;  // 后端默认查询的回溯天数
 
 type Period = "daily" | "weekly" | "monthly";
 
