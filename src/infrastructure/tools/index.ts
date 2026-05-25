@@ -24,6 +24,7 @@ import { dataFetchFinancialTool } from "./data/fetch-financial-tool.js";
 
 // L2 因子工厂
 import { factorCalculateTool } from "./factor/calculate-tool.js";
+import { factorAnalyzeTool } from "./factor/factor-analyze-tool.js";
 
 // L3 模型层
 import { modelTrainTool } from "./model/train-tool.js";
@@ -104,6 +105,7 @@ export const allCustomTools = [
 
   // L2 因子工厂
   factorCalculateTool,            // factor_calculate - 计算技术/基本面因子
+  factorAnalyzeTool,              // factor_analyze - 分析因子IC/覆盖率/稳定性
 
   // L3 模型层
   modelTrainTool,                 // model_train - 训练机器学习模型

@@ -365,3 +365,37 @@ export function formatAlgoOrder(order: AlgoOrderResult): string {
 
   return lines.join('\n');
 }
+
+/**
+ * Format factor analysis result into readable text
+ */
+export function formatFactorAnalysis(analysis: import('./types.js').FactorAnalysis): string {
+  const lines: string[] = [];
+
+  if (!analysis.success || !analysis.factors || analysis.factors.length === 0) {
+    return '因子分析失败或无结果';
+  }
+
+  lines.push(`因子分析结果（共 ${analysis.factors.length} 个因子）:\n`);
+
+  for (const factor of analysis.factors) {
+    lines.push(`【${factor.name}】`);
+    lines.push(`  日度IC: ${formatNumber(factor.ic_daily, 4)}`);
+    lines.push(`  周度IC: ${formatNumber(factor.ic_weekly, 4)}`);
+    lines.push(`  月度IC: ${formatNumber(factor.ic_monthly, 4)}`);
+    lines.push(`  覆盖率: ${formatPercent(factor.coverage * 100, 2)}`);
+    lines.push(`  稳定性: ${formatNumber(factor.stability, 4)}`);
+
+    if (factor.decay_curve && factor.decay_curve.length > 0) {
+      const decayStr = factor.decay_curve
+        .slice(0, 10)  // Show first 10 periods
+        .map(v => formatNumber(v, 3))
+        .join(', ');
+      lines.push(`  衰减曲线: [${decayStr}${factor.decay_curve.length > 10 ? ', ...' : ''}]`);
+    }
+
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
