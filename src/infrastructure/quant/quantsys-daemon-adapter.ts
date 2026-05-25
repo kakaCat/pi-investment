@@ -17,7 +17,7 @@ import * as readline from "readline";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, "..", "..", "..");
-const QUANT_ROOT = join(PROJECT_ROOT, "quant");
+const QUANT_ROOT = join(PROJECT_ROOT, "quantsys-v2");
 const VENV_PYTHON = join(PROJECT_ROOT, ".venv", "bin", "python3");
 const RESTART_DELAY_MS = 1000;
 const REQUEST_TIMEOUT_MS = 150_000;
@@ -71,7 +71,7 @@ class QuantSysDaemon {
         ? `${QUANT_ROOT}:${process.env.PYTHONPATH}`
         : QUANT_ROOT;
 
-      this.process = spawn(pythonCmd, ["-m", "quantsys.cli", "--daemon"], {
+      this.process = spawn(pythonCmd, ["-m", "daemon.server"], {
         cwd: QUANT_ROOT,
         stdio: ["pipe", "pipe", "pipe"],
         env: {
@@ -222,7 +222,7 @@ class QuantSysDaemon {
             error instanceof Error ? error.message : String(error)
           }\n\n` +
           `To manually start the daemon, run:\n` +
-          `  cd quant && python3 -m quantsys.cli --daemon`
+          `  cd quantsys-v2 && python3 -m daemon.server`
         );
       }
     }
