@@ -105,12 +105,16 @@ Layered architecture:
 #### L2 因子工厂层
 批量因子计算和分析：
 - `factor_calculate` — 批量计算技术因子和基本面因子
+- `factor_analyze` — 分析因子有效性（IC、覆盖率、稳定性）
+- `invest_opportunity_scan` — 扫描投资机会（多因子评分）
 
-#### L3 模型层（待实现）
+#### L3 模型层
 机器学习模型训练和预测：
-- 特征工程
-- 模型训练
-- 预测服务
+- `model_train` — 训练机器学习模型
+- `model_predict` — 模型预测和信号生成
+- `model_evaluate` — 模型性能评估
+- `model_monitor` — 模型监控和漂移检测
+- `model_list` — 列出可用模型
 
 #### L4 组合构建层
 持仓管理和再平衡：
@@ -119,6 +123,7 @@ Layered architecture:
 #### L5 执行引擎层
 订单管理和交易执行：
 - `trade_manage_orders` — 订单管理和执行
+- `trade_algo_execute` — 算法交易执行（TWAP/VWAP）
 
 #### L6 监控运维层
 实时监控和告警：
@@ -138,16 +143,32 @@ Layered architecture:
 
 **重大变更（2025-05-25）**：旧工具系统已完全移除，请使用新的六层架构工具。
 
+**v2 迁移（2026-05-25）**：核心工具已从 v1 Python daemon 迁移到 quantsys-v2 Flask API (端口 5001)：
+- `data_fetch_financial` — 使用 v2 API `/api/data/financials`
+- `factor_calculate` — 使用 v2 API `/api/factors/compute`
+- `factor_analyze` — 使用 v2 API `/api/analysis/factors` (新增)
+- `invest_opportunity_scan` — 使用 v2 API `/api/signals/opportunities`
+- `trade_algo_execute` — 使用 v2 API `/api/orders/algo-execute` (新增)
+
+**v1 保留工具**（仍使用 Python daemon）：
+- `data_fetch_stock`, `data_fetch_kline` — 基础数据获取
+- `model_*` 系列 — 模型训练、预测、评估、监控
+
+所有 v2 工具通过 `QuantV2Client` 统一调用，提供类型安全和错误处理。详见设计文档：`docs/superpowers/specs/2026-05-25-agent-v2-migration-design.md`
+
 旧工具到新工具的映射：
 - 股票查询相关 → `data_fetch_stock`
 - K线数据相关 → `data_fetch_kline`
 - 财务数据相关 → `data_fetch_financial`
 - 因子计算相关 → `factor_calculate`
+- 因子分析相关 → `factor_analyze`
+- 投资机会扫描 → `invest_opportunity_scan`
 - 持仓管理相关 → `portfolio_rebalance`
 - 订单管理相关 → `trade_manage_orders`
+- 算法交易执行 → `trade_algo_execute`
 - 告警通知相关 → `monitor_alert`
 
-工具实现位置：`src/infrastructure/tools/` 按层级组织（data/, factor/, portfolio/, trade/, monitor/）。
+工具实现位置：`src/infrastructure/tools/` 按层级组织（data/, factor/, invest/, portfolio/, trade/, monitor/）。
 
 ### Python Quant Backend (`quant/`)
 
