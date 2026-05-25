@@ -47,35 +47,14 @@ import { queryExperienceTool } from "./agent/query-experience-tool.js";
 import { restartAgentTool } from "./agent/restart-agent-tool.js";
 
 // ===== 核心基础设施工具（向后兼容，待迁移） =====
-import { investTools } from "./core/invest-tools.js";
 import { quantCliTool } from "./core/quant-cli-tool.js";
 
 // ===== 数据管理工具 =====
 import { stockDBTools } from "./data/stock-db-tools.js";
 
-// ===== 量化分析工具 =====
-import { analyzeSectorRotationTool } from "./analysis/analyze-sector-rotation-tool.js";
-import { checkStopLossTriggerTool } from "./analysis/check-stop-loss-trigger-tool.js";
-import { testMarketSentimentTool } from "./analysis/test-market-sentiment-tool.js";
-
-// ===== 交易管理工具 =====
-import { checkPendingOrdersTool } from "./trading/check-pending-orders.js";
-import { manageOrdersTool } from "./trading/order-tools.js";
-import { tradeLogTool } from "./trading/trade-log-tools.js";
-import { manageWatchlistTool } from "./trading/watchlist-tools.js";
-
 // ===== 工具支持 =====
-import { wrapInvestToolWithSkillGuard } from "./skill-guard.js";
 import { monitorTools } from "../../tools/monitor-tools.js";
 import { notificationTools } from "../../tools/notification-tools.js";
-
-// ===== 风险管理工具 =====
-import { riskTools } from "./invest/risk-tools.js";
-
-// ===== V2 独有能力 =====
-import { strategyEngineTool } from "./invest/strategy-engine-tool.js";
-import { opportunityScanTool } from "./invest/opportunity-scan-tool.js";
-import { portfolioDashboardTool } from "./invest/portfolio-dashboard-tool.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
 export { initMemoryTools } from "./agent/memory-tool.js";
@@ -129,27 +108,11 @@ export const allCustomTools = [
   monitorAlertTool,               // monitor_alert - 告警通知
 
   // ===== 保留的旧工具（向后兼容，待迁移） =====
-  ...investTools.map(wrapInvestToolWithSkillGuard),
   ...stockDBTools,
   queryExperienceTool,            // 查询历史经验库
-  analyzeSectorRotationTool,      // 行业轮动分析
-  checkStopLossTriggerTool,       // 止损检查
-  checkPendingOrdersTool,         // 挂单检查（自动成交）
-  manageOrdersTool,               // 挂单管理（创建/撤销/查看/成交）
-  tradeLogTool,                   // 交易日志管理（创建/更新/追加记录）
-  manageWatchlistTool,            // 关注列表管理（自选池）
-  testMarketSentimentTool,        // NEW: 市场情绪分析
 
   // ===== 量化工具 — 统一通过 QuantSys CLI 调用 =====
   quantCliTool,                   // quant_cli
-
-  // ===== 风险管理工具 — 风控与仓位管理 =====
-  ...riskTools,                   // check_trade_risk, calculate_position_size, calculate_stop_loss
-
-  // ===== V2 独有能力 — 策略引擎 / 机会雷达 / 组合仪表盘 =====
-  strategyEngineTool,             // strategy_engine
-  opportunityScanTool,            // opportunity_scan
-  portfolioDashboardTool,         // portfolio_dashboard
 
   // ===== 通知工具 — 消息推送 =====
   ...notificationTools,
