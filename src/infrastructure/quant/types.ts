@@ -6,33 +6,40 @@
 export interface FinancialData {
   success: boolean;
   symbol: string;
-  data: {
-    income_statement?: FinancialStatement[];
-    balance_sheet?: BalanceSheet[];
-    cash_flow?: CashFlow[];
+  name: string;
+  report_date: string;
+  income_statement?: {
+    revenue: number;
+    operating_cost: number;
+    gross_profit: number;
+    net_profit: number;
+    net_profit_attr_parent: number;
+    gross_margin: number;
+    net_margin: number;
   };
-}
-
-export interface FinancialStatement {
-  period: string;
-  revenue: number;
-  net_profit: number;
-  gross_profit?: number;
-  operating_profit?: number;
-}
-
-export interface BalanceSheet {
-  period: string;
-  total_assets: number;
-  total_liabilities: number;
-  shareholders_equity: number;
-}
-
-export interface CashFlow {
-  period: string;
-  operating_cash_flow: number;
-  investing_cash_flow: number;
-  financing_cash_flow: number;
+  balance_sheet?: {
+    total_assets: number;
+    current_assets: number;
+    total_liabilities: number;
+    current_liabilities: number;
+    total_equity: number;
+    debt_ratio: number;
+    current_ratio: number;
+  };
+  cash_flow?: {
+    operating_cashflow: number;
+    investing_cashflow: number;
+    financing_cashflow: number;
+    net_cashflow: number;
+  };
+  metrics?: {
+    pe_ratio: number;
+    pb_ratio: number;
+    roe: number;
+    roa: number;
+    eps: number;
+    bvps: number;
+  };
 }
 
 // 因子计算类型
