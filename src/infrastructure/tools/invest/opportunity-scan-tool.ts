@@ -13,7 +13,7 @@ export const opportunityScanTool: ToolDefinition = {
   name: "opportunity_scan",
   label: "机会雷达",
   description:
-    "机会雷达扫描：对指定股票池进行三维评分（技术面40% + 基本面30% + 资金面30%），\n" +
+    "机会雷达扫描：对指定股票池进行三维评分（技术面50% + 基本面30% + 资金面20%），\n" +
     "输出综合评分 + 风险等级（low/medium/high）+ 信号理由。\n" +
     "支持筛选条件：RSI超卖、MACD金叉、PE合理区间、ROE门槛等。\n" +
     "适用于：市场扫描找机会、多股对比选优、策略信号确认。",

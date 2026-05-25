@@ -26,6 +26,9 @@ import { dataFetchFinancialTool } from "./data/fetch-financial-tool.js";
 import { factorCalculateTool } from "./factor/calculate-tool.js";
 import { factorAnalyzeTool } from "./factor/factor-analyze-tool.js";
 
+// L2.5 机会雷达（基于因子的综合评分）
+import { opportunityScanTool } from "./invest/opportunity-scan-tool.js";
+
 // L3 模型层
 import { modelTrainTool } from "./model/train-tool.js";
 import { modelPredictTool } from "./model/predict-tool.js";
@@ -106,6 +109,9 @@ export const allCustomTools = [
   // L2 因子工厂
   factorCalculateTool,            // factor_calculate - 计算技术/基本面因子
   factorAnalyzeTool,              // factor_analyze - 分析因子IC/覆盖率/稳定性
+
+  // L2.5 机会雷达（基于因子的综合评分）
+  opportunityScanTool,            // opportunity_scan - 多维评分扫描交易机会
 
   // L3 模型层
   modelTrainTool,                 // model_train - 训练机器学习模型
