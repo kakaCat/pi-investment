@@ -11,6 +11,11 @@ import type {
 } from './types.js';
 
 /**
+ * Constant for converting to 亿元 (hundred millions)
+ */
+const YI = 100000000;
+
+/**
  * Format a number with thousands separators
  */
 export function formatNumber(value: number | null | undefined, decimals = 2): string {
@@ -45,11 +50,16 @@ export function formatFinancialData(data: FinancialData): string {
   if (data.income_statement) {
     const income = data.income_statement;
     lines.push('【利润表】');
-    lines.push(`  营业收入: ${formatNumber(income.revenue / 100000000, 2)} 亿元`);
-    lines.push(`  营业成本: ${formatNumber(income.operating_cost / 100000000, 2)} 亿元`);
-    lines.push(`  毛利润: ${formatNumber(income.gross_profit / 100000000, 2)} 亿元`);
-    lines.push(`  净利润: ${formatNumber(income.net_profit / 100000000, 2)} 亿元`);
-    lines.push(`  归母净利润: ${formatNumber(income.net_profit_attr_parent / 100000000, 2)} 亿元`);
+    const revenue = income.revenue ?? 0;
+    const operatingCost = income.operating_cost ?? 0;
+    const grossProfit = income.gross_profit ?? 0;
+    const netProfit = income.net_profit ?? 0;
+    const netProfitAttrParent = income.net_profit_attr_parent ?? 0;
+    lines.push(`  营业收入: ${formatNumber(revenue / YI, 2)} 亿元`);
+    lines.push(`  营业成本: ${formatNumber(operatingCost / YI, 2)} 亿元`);
+    lines.push(`  毛利润: ${formatNumber(grossProfit / YI, 2)} 亿元`);
+    lines.push(`  净利润: ${formatNumber(netProfit / YI, 2)} 亿元`);
+    lines.push(`  归母净利润: ${formatNumber(netProfitAttrParent / YI, 2)} 亿元`);
     lines.push(`  毛利率: ${formatPercent(income.gross_margin)}`);
     lines.push(`  净利率: ${formatPercent(income.net_margin)}`);
     lines.push('');
@@ -59,11 +69,16 @@ export function formatFinancialData(data: FinancialData): string {
   if (data.balance_sheet) {
     const balance = data.balance_sheet;
     lines.push('【资产负债表】');
-    lines.push(`  总资产: ${formatNumber(balance.total_assets / 100000000, 2)} 亿元`);
-    lines.push(`  流动资产: ${formatNumber(balance.current_assets / 100000000, 2)} 亿元`);
-    lines.push(`  总负债: ${formatNumber(balance.total_liabilities / 100000000, 2)} 亿元`);
-    lines.push(`  流动负债: ${formatNumber(balance.current_liabilities / 100000000, 2)} 亿元`);
-    lines.push(`  股东权益: ${formatNumber(balance.total_equity / 100000000, 2)} 亿元`);
+    const totalAssets = balance.total_assets ?? 0;
+    const currentAssets = balance.current_assets ?? 0;
+    const totalLiabilities = balance.total_liabilities ?? 0;
+    const currentLiabilities = balance.current_liabilities ?? 0;
+    const totalEquity = balance.total_equity ?? 0;
+    lines.push(`  总资产: ${formatNumber(totalAssets / YI, 2)} 亿元`);
+    lines.push(`  流动资产: ${formatNumber(currentAssets / YI, 2)} 亿元`);
+    lines.push(`  总负债: ${formatNumber(totalLiabilities / YI, 2)} 亿元`);
+    lines.push(`  流动负债: ${formatNumber(currentLiabilities / YI, 2)} 亿元`);
+    lines.push(`  股东权益: ${formatNumber(totalEquity / YI, 2)} 亿元`);
     lines.push(`  资产负债率: ${formatPercent(balance.debt_ratio)}`);
     lines.push(`  流动比率: ${formatNumber(balance.current_ratio, 2)}`);
     lines.push('');
@@ -73,10 +88,14 @@ export function formatFinancialData(data: FinancialData): string {
   if (data.cash_flow) {
     const cashflow = data.cash_flow;
     lines.push('【现金流量表】');
-    lines.push(`  经营活动现金流: ${formatNumber(cashflow.operating_cashflow / 100000000, 2)} 亿元`);
-    lines.push(`  投资活动现金流: ${formatNumber(cashflow.investing_cashflow / 100000000, 2)} 亿元`);
-    lines.push(`  筹资活动现金流: ${formatNumber(cashflow.financing_cashflow / 100000000, 2)} 亿元`);
-    lines.push(`  现金净增加额: ${formatNumber(cashflow.net_cashflow / 100000000, 2)} 亿元`);
+    const operatingCashflow = cashflow.operating_cashflow ?? 0;
+    const investingCashflow = cashflow.investing_cashflow ?? 0;
+    const financingCashflow = cashflow.financing_cashflow ?? 0;
+    const netCashflow = cashflow.net_cashflow ?? 0;
+    lines.push(`  经营活动现金流: ${formatNumber(operatingCashflow / YI, 2)} 亿元`);
+    lines.push(`  投资活动现金流: ${formatNumber(investingCashflow / YI, 2)} 亿元`);
+    lines.push(`  筹资活动现金流: ${formatNumber(financingCashflow / YI, 2)} 亿元`);
+    lines.push(`  现金净增加额: ${formatNumber(netCashflow / YI, 2)} 亿元`);
     lines.push('');
   }
 
@@ -245,7 +264,10 @@ export function formatAlgoOrder(order: AlgoOrderResult): string {
   lines.push(`  目标数量: ${formatNumber(order.target_quantity, 0)} 股`);
   lines.push(`  已成交数量: ${formatNumber(order.filled_quantity, 0)} 股`);
   lines.push(`  剩余数量: ${formatNumber(order.remaining_quantity, 0)} 股`);
-  lines.push(`  完成进度: ${formatPercent((order.filled_quantity / order.target_quantity) * 100, 1)}`);
+  const progress = order.target_quantity > 0
+    ? (order.filled_quantity / order.target_quantity) * 100
+    : 0;
+  lines.push(`  完成进度: ${formatPercent(progress, 1)}`);
   lines.push('');
 
   if (order.limit_price) {
