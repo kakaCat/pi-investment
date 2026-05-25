@@ -12,6 +12,9 @@ import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
 // Constants
 const DEFAULT_FACTORS = ["technical", "valuation", "quality"] as const;
 const VALID_FACTORS = ["technical", "valuation", "quality", "pe_percentile", "price_action"] as const;
+const DEFAULT_QUALITY_FRAMEWORK = "auto";
+const DEFAULT_PE_YEARS = 3;
+const DEFAULT_PRICE_ACTION_PERIOD = 60;
 
 type FactorType = typeof VALID_FACTORS[number];
 
@@ -45,15 +48,15 @@ const FACTOR_ROUTES: Record<FactorType, { method: string; params: (symbol: strin
   },
   quality: {
     method: "get_quality_score",
-    params: (symbol) => ({ symbol, framework: "auto" })
+    params: (symbol) => ({ symbol, framework: DEFAULT_QUALITY_FRAMEWORK })
   },
   pe_percentile: {
     method: "get_pe_percentile",
-    params: (symbol) => ({ symbol, years: 3 })
+    params: (symbol) => ({ symbol, years: DEFAULT_PE_YEARS })
   },
   price_action: {
     method: "analyze_price_action",
-    params: (symbol) => ({ symbol, period: 60 })
+    params: (symbol) => ({ symbol, period: DEFAULT_PRICE_ACTION_PERIOD })
   }
 };
 
@@ -66,8 +69,8 @@ export const factorCalculateTool: ToolDefinition = {
     "1. 'technical' - 技术指标（MA, MACD, RSI, Bollinger）" +
     "2. 'valuation' - 估值分析（PE, PB, Graham fair value）" +
     "3. 'quality' - 基本面质量评分（0-100分）" +
-    "4. 'pe_percentile' - PE历史分位数（近3年）" +
-    "5. 'price_action' - 走势深度分析（近60日）" +
+    `4. 'pe_percentile' - PE历史分位数（近${DEFAULT_PE_YEARS}年）` +
+    `5. 'price_action' - 走势深度分析（近${DEFAULT_PRICE_ACTION_PERIOD}日）` +
     `默认计算: ${DEFAULT_FACTORS.join(", ")}。` +
     "仅支持A股（6位数字代码）。" +
     "并行获取多个因子，部分失败时其他因子仍返回。",
