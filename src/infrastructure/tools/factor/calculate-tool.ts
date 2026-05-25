@@ -60,10 +60,23 @@ export const factorCalculateTool: ToolDefinition = {
       });
 
       if (!result.success) {
+        // Extract meaningful error message from result
+        const errorMsg = result.results?.[0]?.error || result.message || "未知错误";
         return {
           content: [{
             type: "text" as const,
-            text: `因子计算失败: ${JSON.stringify(result)}`
+            text: `因子计算失败: ${errorMsg}`
+          }],
+          details: undefined
+        };
+      }
+
+      // Validate results array before using it
+      if (!result.results || !Array.isArray(result.results) || result.results.length === 0) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: "因子计算失败: 返回结果为空"
           }],
           details: undefined
         };
