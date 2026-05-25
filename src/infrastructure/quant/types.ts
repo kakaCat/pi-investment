@@ -124,8 +124,18 @@ export interface AlgoExecuteParams {
 export interface AlgoOrder {
   success: boolean;
   order_id: string;
-  child_orders: OrderSlice[];
+  symbol: string;
+  side: 'buy' | 'sell';
+  algo: 'TWAP' | 'VWAP';
   status: string;
+  parent_quantity: number;
+  child_orders: OrderSlice[];
+  execution_stats: {
+    total_slices: number;
+    avg_slice_size: number;
+    duration_minutes: number;
+    interval_minutes: number;
+  };
 }
 
 export interface OrderSlice {
