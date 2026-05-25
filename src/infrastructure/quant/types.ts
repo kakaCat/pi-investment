@@ -74,6 +74,7 @@ export interface FactorAnalyzeParams {
 export interface FactorAnalysis {
   success: boolean;
   factors: FactorMetrics[];
+  error?: string;
 }
 
 export interface FactorMetrics {

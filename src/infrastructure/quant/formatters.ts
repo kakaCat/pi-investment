@@ -387,11 +387,12 @@ export function formatFactorAnalysis(analysis: import('./types.js').FactorAnalys
     lines.push(`  稳定性: ${formatNumber(factor.stability, 4)}`);
 
     if (factor.decay_curve && factor.decay_curve.length > 0) {
+      const MAX_DECAY_DISPLAY = 10;
       const decayStr = factor.decay_curve
-        .slice(0, 10)  // Show first 10 periods
+        .slice(0, MAX_DECAY_DISPLAY)
         .map(v => formatNumber(v, 3))
         .join(', ');
-      lines.push(`  衰减曲线: [${decayStr}${factor.decay_curve.length > 10 ? ', ...' : ''}]`);
+      lines.push(`  衰减曲线: [${decayStr}${factor.decay_curve.length > MAX_DECAY_DISPLAY ? ', ...' : ''}]`);
     }
 
     lines.push('');

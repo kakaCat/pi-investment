@@ -50,39 +50,6 @@ export const factorAnalyzeTool: ToolDefinition = {
   execute: async (_toolCallId, params: FactorAnalyzeParams) => {
     const { factors, start_date, end_date, universe } = params;
 
-    // 验证参数
-    if (!factors || factors.length === 0) {
-      return {
-        content: [{
-          type: "text" as const,
-          text: "错误: 因子列表不能为空"
-        }],
-        details: undefined
-      };
-    }
-
-    if (!start_date || !end_date) {
-      return {
-        content: [{
-          type: "text" as const,
-          text: "错误: 开始日期和结束日期不能为空"
-        }],
-        details: undefined
-      };
-    }
-
-    // 验证日期格式
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(start_date) || !dateRegex.test(end_date)) {
-      return {
-        content: [{
-          type: "text" as const,
-          text: "错误: 日期格式必须为 YYYY-MM-DD"
-        }],
-        details: undefined
-      };
-    }
-
     try {
       // 调用 v2 API 分析因子
       const result = await analyzeFactors({
