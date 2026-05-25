@@ -9,6 +9,8 @@ import { requireAshare } from "../shared/validators.js";
 import { algoExecute } from "../../quant/quant-v2-client.js";
 import { formatAlgoOrder } from "../../quant/formatters.js";
 
+const ASHARE_LOT_SIZE = 100;
+
 export const algoExecuteTool: ToolDefinition = {
   name: "trade_algo_execute",
   label: "算法交易",
@@ -72,12 +74,12 @@ export const algoExecuteTool: ToolDefinition = {
       };
     }
 
-    // 验证数量
-    if (quantity <= 0 || quantity % 100 !== 0) {
+    // 验证开始时间格式
+    if (startTime && !/^\d{2}:\d{2}:\d{2}$/.test(startTime)) {
       return {
         content: [{
           type: "text" as const,
-          text: "交易数量必须是100的整数倍"
+          text: "开始时间格式错误，必须为 HH:MM:SS 格式（如 09:30:00）"
         }],
         details: undefined
       };
@@ -156,6 +158,9 @@ export const algoExecuteTool: ToolDefinition = {
 
 /**
  * Calculate end time based on start time and duration
+ * @param startTime - Start time in HH:MM:SS format
+ * @param durationMinutes - Duration in minutes
+ * @returns End time in HH:MM:SS format
  */
 function calculateEndTime(startTime: string, durationMinutes: number): string {
   const [hours, minutes, seconds] = startTime.split(':').map(Number);
