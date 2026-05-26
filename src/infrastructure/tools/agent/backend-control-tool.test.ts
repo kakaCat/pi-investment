@@ -145,3 +145,96 @@ describe("Health Check", () => {
     expect(result.error).toContain("ECONNREFUSED");
   });
 });
+
+describe("Start Operation", () => {
+  beforeEach(() => {
+    if (existsSync(TEST_BACKEND_DIR)) {
+      rmSync(TEST_BACKEND_DIR, { recursive: true });
+    }
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    if (existsSync(TEST_BACKEND_DIR)) {
+      rmSync(TEST_BACKEND_DIR, { recursive: true });
+    }
+  });
+
+  test("startService spawns correct command for rest service", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    const mockSpawn = jest.fn().mockReturnValue({
+      pid: 12345,
+      unref: jest.fn(),
+    });
+
+    const mockJson = jest.fn() as any;
+    mockJson.mockResolvedValue({ status: "ok", db_connected: true });
+
+    const mockFetch = jest.fn() as any;
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: mockJson,
+    });
+
+    const result = await mod.startService("rest", TEST_BACKEND_DIR, mockSpawn as any, mockFetch);
+
+    expect(mockSpawn).toHaveBeenCalledWith(
+      "python",
+      ["api/server.py"],
+      expect.objectContaining({
+        cwd: expect.stringContaining("quantsys-v2"),
+        detached: true,
+        stdio: "ignore",
+      })
+    );
+    expect(result.success).toBe(true);
+    expect(result.pid).toBe(12345);
+  });
+
+  test("startService spawns start_all.py for all services", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    const mockSpawn = jest.fn().mockReturnValue({
+      pid: 12345,
+      unref: jest.fn(),
+    });
+
+    const mockJson = jest.fn() as any;
+    mockJson.mockResolvedValue({ status: "ok", db_connected: true });
+
+    const mockFetch = jest.fn() as any;
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: mockJson,
+    });
+
+    const result = await mod.startService("all", TEST_BACKEND_DIR, mockSpawn as any, mockFetch);
+
+    expect(mockSpawn).toHaveBeenCalledWith(
+      "python",
+      ["start_all.py"],
+      expect.objectContaining({
+        cwd: expect.stringContaining("quantsys-v2"),
+      })
+    );
+    expect(result.success).toBe(true);
+  });
+
+  test("startService returns error if health check fails", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    const mockSpawn = jest.fn().mockReturnValue({
+      pid: 12345,
+      unref: jest.fn(),
+    });
+
+    const mockFetch = jest.fn() as any;
+    mockFetch.mockRejectedValue(new Error("ECONNREFUSED"));
+
+    const result = await mod.startService("rest", TEST_BACKEND_DIR, mockSpawn as any, mockFetch);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Health check failed");
+  }, 15000);
+});

@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { spawn } from "child_process";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PID_FILE_NAME = "pids.json";
@@ -176,6 +177,109 @@ export async function checkHealth(
     return {
       healthy: false,
       error: error.message || "Connection failed",
+    };
+  }
+}
+
+interface StartResult {
+  success: boolean;
+  pid?: number;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Starts a backend service
+ * @param service - Service to start ("rest", "websocket", or "all")
+ * @param backendDir - Directory to store PID file (defaults to .backend)
+ * @param spawnFn - Optional spawn function for testing
+ * @param fetchFn - Optional fetch function for testing
+ * @returns Start result with success status, PID, and message
+ */
+export async function startService(
+  service: "rest" | "websocket" | "all",
+  backendDir: string = DEFAULT_BACKEND_DIR,
+  spawnFn?: any,
+  fetchFn?: any
+): Promise<StartResult> {
+  const quantsysDir = join(PROJECT_ROOT, "quantsys-v2");
+
+  if (!existsSync(quantsysDir)) {
+    return {
+      success: false,
+      error: "quantsys-v2 directory not found",
+    };
+  }
+
+  let command: string;
+  let args: string[];
+  let targetPort: number;
+
+  if (service === "all") {
+    command = "python";
+    args = ["start_all.py"];
+    targetPort = 5001; // Check REST API port
+  } else if (service === "rest") {
+    command = "python";
+    args = ["api/server.py"];
+    targetPort = 5001;
+  } else {
+    command = "python";
+    args = ["api/server_websocket.py"];
+    targetPort = 5003;
+  }
+
+  try {
+    const spawnFunc = spawnFn || spawn;
+    const subprocess = spawnFunc(command, args, {
+      cwd: quantsysDir,
+      detached: true,
+      stdio: "ignore",
+    });
+
+    subprocess.unref();
+
+    if (!subprocess.pid) {
+      return {
+        success: false,
+        error: "Failed to spawn process",
+      };
+    }
+
+    // Save PID
+    if (service === "all") {
+      savePid("rest", subprocess.pid, backendDir);
+      savePid("websocket", subprocess.pid, backendDir);
+    } else {
+      savePid(service, subprocess.pid, backendDir);
+    }
+
+    // Wait for service to become healthy
+    const maxWaitMs = 10000;
+    const pollIntervalMs = 500;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitMs) {
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+
+      const health = await checkHealth(targetPort, 1000, fetchFn);
+      if (health.healthy) {
+        return {
+          success: true,
+          pid: subprocess.pid,
+          message: `Service ${service} started successfully`,
+        };
+      }
+    }
+
+    return {
+      success: false,
+      error: "Health check failed after 10 seconds",
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message || "Failed to start service",
     };
   }
 }
