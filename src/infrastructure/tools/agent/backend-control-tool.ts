@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { spawn } from "child_process";
+import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { Type } from "@sinclair/typebox";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PID_FILE_NAME = "pids.json";
@@ -460,3 +462,146 @@ export async function getServiceStatus(
     uptime: calculateUptime(startTime),
   };
 }
+
+interface RestartResult {
+  success: boolean;
+  pid?: number;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Restarts a backend service
+ * @param service - Service to restart ("rest", "websocket", or "all")
+ * @param backendDir - Directory containing PID file (defaults to .backend)
+ * @returns Restart result with success status, new PID, and message
+ */
+export async function restartService(
+  service: "rest" | "websocket" | "all",
+  backendDir: string = DEFAULT_BACKEND_DIR
+): Promise<RestartResult> {
+  const stopResult = await stopService(service, backendDir);
+
+  if (!stopResult.success) {
+    return {
+      success: false,
+      error: `Failed to stop service: ${stopResult.error}`,
+    };
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  const startResult = await startService(service, backendDir);
+
+  if (!startResult.success) {
+    return {
+      success: false,
+      error: `Failed to start service: ${startResult.error}`,
+    };
+  }
+
+  return {
+    success: true,
+    pid: startResult.pid,
+    message: `Service ${service} restarted successfully`,
+  };
+}
+
+export const backendControlTool: ToolDefinition = {
+  name: "backend_control",
+  label: "Backend Control",
+  description: "Manage quantsys-v2 backend services lifecycle (start/stop/restart/status)",
+  parameters: Type.Object({
+    action: Type.Union([
+      Type.Literal("start"),
+      Type.Literal("stop"),
+      Type.Literal("restart"),
+      Type.Literal("status"),
+    ], {
+      description: "Operation to perform",
+    }),
+    service: Type.Optional(Type.Union([
+      Type.Literal("all"),
+      Type.Literal("rest"),
+      Type.Literal("websocket"),
+    ], {
+      description: "Target service (default: all)",
+      default: "all",
+    })),
+  }),
+  execute: async (_toolCallId, args: any) => {
+    const service = (args.service || "all") as "rest" | "websocket" | "all";
+    const action = args.action;
+
+    let resultText = "";
+
+    try {
+      if (action === "start") {
+        const result = await startService(service);
+        if (!result.success) {
+          resultText = `❌ Failed to start service: ${result.error}`;
+        } else {
+          resultText = `✅ ${result.message}\nPID: ${result.pid}`;
+        }
+      } else if (action === "stop") {
+        const result = await stopService(service);
+        if (!result.success) {
+          resultText = `❌ Failed to stop service: ${result.error}`;
+        } else {
+          resultText = `✅ ${result.message}`;
+        }
+      } else if (action === "restart") {
+        const result = await restartService(service);
+        if (!result.success) {
+          resultText = `❌ Failed to restart service: ${result.error}`;
+        } else {
+          resultText = `✅ ${result.message}\nNew PID: ${result.pid}`;
+        }
+      } else if (action === "status") {
+        if (service === "all") {
+          const restStatus = await getServiceStatus("rest");
+          const wsStatus = await getServiceStatus("websocket");
+
+          resultText = `📊 Backend Services Status:
+
+REST API (port 5001):
+  Status: ${restStatus.status}
+  ${restStatus.pid ? `PID: ${restStatus.pid}` : ""}
+  ${restStatus.uptime ? `Uptime: ${restStatus.uptime}` : ""}
+  ${restStatus.error ? `Error: ${restStatus.error}` : ""}
+
+WebSocket (port 5003):
+  Status: ${wsStatus.status}
+  ${wsStatus.pid ? `PID: ${wsStatus.pid}` : ""}
+  ${wsStatus.uptime ? `Uptime: ${wsStatus.uptime}` : ""}
+  ${wsStatus.error ? `Error: ${wsStatus.error}` : ""}`;
+        } else {
+          const status = await getServiceStatus(service as "rest" | "websocket");
+          resultText = `📊 Service Status:
+  Status: ${status.status}
+  Port: ${status.port}
+  ${status.pid ? `PID: ${status.pid}` : ""}
+  ${status.uptime ? `Uptime: ${status.uptime}` : ""}
+  ${status.error ? `Error: ${status.error}` : ""}`;
+        }
+      } else {
+        resultText = `❌ Unknown action: ${action}`;
+      }
+    } catch (error: any) {
+      resultText = `❌ Error: ${error.message || "Unknown error"}`;
+    }
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: resultText,
+        },
+      ],
+      details: {
+        action,
+        service,
+      },
+    };
+  },
+};
