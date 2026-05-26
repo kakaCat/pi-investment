@@ -16,9 +16,6 @@ CREATE TABLE IF NOT EXISTS quant.minute_klines (
 );
 
 -- 创建索引
-CREATE INDEX IF NOT EXISTS idx_minute_klines_symbol
-    ON quant.minute_klines(symbol);
-
 CREATE INDEX IF NOT EXISTS idx_minute_klines_datetime
     ON quant.minute_klines(trade_datetime);
 
