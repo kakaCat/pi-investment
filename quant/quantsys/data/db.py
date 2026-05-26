@@ -8,6 +8,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 try:
+    import pandas as pd
+except ImportError:  # pragma: no cover - exercised when optional dependency is absent
+    pd = None  # type: ignore[assignment]
+
+try:
     import psycopg2
 except ImportError:  # pragma: no cover - exercised when optional dependency is absent
     psycopg2 = None  # type: ignore[assignment]
@@ -644,10 +649,10 @@ class Database:
             connection.rollback()
             raise RuntimeError(f"Failed to upsert minute kline records: {exc}") from exc
 
-    def get_minute_klines(self, symbol: str, start_date: str, end_date: str):
+    def get_minute_klines(self, symbol: str, start_date: str, end_date: str) -> "pd.DataFrame":
         """Get minute K-line data for a symbol within a date range."""
-        import pandas as pd
-
+        if pd is None:
+            raise RuntimeError("pandas is required for get_minute_klines")
         if self.provider != "postgres":
             raise RuntimeError("Minute klines are only supported with PostgreSQL")
 
