@@ -57,6 +57,7 @@ import { memoryWriteTool, memorySearchTool } from "./agent/memory-tool.js";
 import { evolutionRunTool } from "./agent/evolution-tool.js";
 import { queryExperienceTool } from "./agent/query-experience-tool.js";
 import { restartAgentTool } from "./agent/restart-agent-tool.js";
+import { backendControlTool } from "./agent/backend-control-tool.js";
 
 // ===== 核心基础设施工具（向后兼容，待迁移） =====
 import { quantCliTool } from "./core/quant-cli-tool.js";
@@ -149,6 +150,7 @@ export const allCustomTools = [
 
   // ===== 重启工具 — 运维操作 =====
   restartAgentTool,
+  backendControlTool,
 
   // ===== 中频 — 记忆 =====
   memoryWriteTool,
