@@ -129,6 +129,15 @@ Layered architecture:
 实时监控和告警：
 - `monitor_alert` — 告警通知和风险监控
 
+### Agent 元工具
+
+系统级操作工具：
+- `backend_control` — 管理 quantsys-v2 后端服务生命周期（启动/停止/重启/状态查询）
+  - 支持操作：`start`, `stop`, `restart`, `status`
+  - 支持服务：`all` (REST API + WebSocket), `rest` (仅 REST API), `websocket` (仅 WebSocket)
+  - REST API 端口：5001，WebSocket 端口：5003
+  - 自动健康检查和 PID 管理
+
 ### 工具使用指南
 
 新工具采用统一的命名规范：
@@ -210,7 +219,14 @@ FEISHU_APP_ID=...           # Feishu/Lark bot
 TAVILY_API_KEY=...          # Web search
 ```
 
-Node >= 22.0.0 required. Python >= 3.9 with packages from `quant/requirements.txt`.
+**Python Environment:**
+- **Required**: Python 3.13 (not 3.14 - numba incompatibility)
+- Virtual environment: `.venv-py313/`
+- Activation: `source activate-py313.sh`
+- Dependencies: `quant/requirements.txt` (includes pandas-ta, numba, akshare, etc.)
+
+**Node.js:**
+- Node >= 22.0.0 required
 
 ## Testing
 
