@@ -4,7 +4,7 @@ Progress tracker for backfill operations with resume capability.
 import json
 import os
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Set
 
 
 class ProgressTracker:
@@ -17,7 +17,12 @@ class ProgressTracker:
             "data_type": ["date1", "date2", ...]
         }
     }
+
+    Note: This tracker is designed for single-process use. Concurrent access
+    from multiple processes may result in lost updates.
     """
+
+    VALID_DATA_TYPES = {"daily", "minute"}
 
     def __init__(self, state_file: str = ".backfill_progress.json"):
         """
@@ -27,13 +32,14 @@ class ProgressTracker:
             state_file: Path to JSON file for storing progress state
         """
         self.state_file = state_file
-        self.state: Dict[str, Dict[str, List[str]]] = {}
+        self.state: Dict[str, Dict[str, Set[str]]] = {}
 
     def load(self) -> None:
         """
         Load progress state from JSON file.
 
         If file doesn't exist or contains invalid JSON, initializes empty state.
+        Converts lists from JSON to sets for O(1) lookup performance.
         """
         if not os.path.exists(self.state_file):
             self.state = {}
@@ -41,7 +47,15 @@ class ProgressTracker:
 
         try:
             with open(self.state_file, 'r') as f:
-                self.state = json.load(f)
+                loaded_state = json.load(f)
+                # Convert lists to sets for O(1) lookups
+                self.state = {
+                    symbol: {
+                        data_type: set(dates)
+                        for data_type, dates in data_types.items()
+                    }
+                    for symbol, data_types in loaded_state.items()
+                }
         except (json.JSONDecodeError, IOError):
             # Handle invalid JSON or read errors gracefully
             self.state = {}
@@ -52,6 +66,7 @@ class ProgressTracker:
 
         Creates parent directory if needed.
         Uses atomic write pattern (write to temp file, then rename).
+        Converts sets to lists for JSON serialization.
         """
         # Create parent directory if needed
         state_path = Path(self.state_file)
@@ -59,11 +74,26 @@ class ProgressTracker:
 
         # Atomic write: write to temp file, then rename
         temp_file = self.state_file + '.tmp'
-        with open(temp_file, 'w') as f:
-            json.dump(self.state, f, indent=2)
+        try:
+            # Convert sets to lists for JSON serialization
+            serializable_state = {
+                symbol: {
+                    data_type: list(dates)
+                    for data_type, dates in data_types.items()
+                }
+                for symbol, data_types in self.state.items()
+            }
 
-        # Atomic rename (overwrites existing file on Unix)
-        os.replace(temp_file, self.state_file)
+            with open(temp_file, 'w') as f:
+                json.dump(serializable_state, f, indent=2)
+
+            # Atomic rename (overwrites existing file on Unix)
+            os.replace(temp_file, self.state_file)
+        except Exception:
+            # Clean up temp file on error
+            if os.path.exists(temp_file):
+                os.unlink(temp_file)
+            raise
 
     def mark_completed(self, symbol: str, data_type: str, date: str) -> None:
         """
@@ -73,17 +103,22 @@ class ProgressTracker:
             symbol: Stock symbol (e.g., "600519.SH")
             data_type: Type of data ("daily" or "minute")
             date: Date string in ISO format (e.g., "2024-01-01")
+
+        Raises:
+            ValueError: If data_type is not "daily" or "minute"
         """
+        if data_type not in self.VALID_DATA_TYPES:
+            raise ValueError(f"Invalid data_type '{data_type}'. Must be one of {self.VALID_DATA_TYPES}")
+
         # Initialize nested structure if needed
         if symbol not in self.state:
             self.state[symbol] = {}
 
         if data_type not in self.state[symbol]:
-            self.state[symbol][data_type] = []
+            self.state[symbol][data_type] = set()
 
-        # Add date if not already present (avoid duplicates)
-        if date not in self.state[symbol][data_type]:
-            self.state[symbol][data_type].append(date)
+        # Add date (set automatically handles duplicates)
+        self.state[symbol][data_type].add(date)
 
     def is_completed(self, symbol: str, data_type: str, date: str) -> bool:
         """
@@ -96,7 +131,13 @@ class ProgressTracker:
 
         Returns:
             True if date is completed, False otherwise
+
+        Raises:
+            ValueError: If data_type is not "daily" or "minute"
         """
+        if data_type not in self.VALID_DATA_TYPES:
+            raise ValueError(f"Invalid data_type '{data_type}'. Must be one of {self.VALID_DATA_TYPES}")
+
         return (
             symbol in self.state and
             data_type in self.state[symbol] and
@@ -119,8 +160,14 @@ class ProgressTracker:
 
         Returns:
             List of dates that still need processing
+
+        Raises:
+            ValueError: If data_type is not "daily" or "minute"
         """
-        completed_dates = self.state.get(symbol, {}).get(data_type, [])
+        if data_type not in self.VALID_DATA_TYPES:
+            raise ValueError(f"Invalid data_type '{data_type}'. Must be one of {self.VALID_DATA_TYPES}")
+
+        completed_dates = self.state.get(symbol, {}).get(data_type, set())
         return [date for date in all_dates if date not in completed_dates]
 
     def clear_symbol(self, symbol: str) -> None:

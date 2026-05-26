@@ -54,7 +54,12 @@ class TestProgressTracker:
 
         tracker = ProgressTracker(temp_state_file)
         tracker.load()
-        assert tracker.state == test_data
+        # After loading, lists should be converted to sets
+        assert "600519.SH" in tracker.state
+        assert "daily" in tracker.state["600519.SH"]
+        assert isinstance(tracker.state["600519.SH"]["daily"], set)
+        assert "2024-01-01" in tracker.state["600519.SH"]["daily"]
+        assert "2024-01-02" in tracker.state["600519.SH"]["daily"]
 
     def test_load_invalid_json(self, temp_state_file):
         """Test loading file with invalid JSON."""
@@ -69,26 +74,30 @@ class TestProgressTracker:
         """Test that save creates the file."""
         os.unlink(temp_state_file)  # Ensure file doesn't exist
         tracker = ProgressTracker(temp_state_file)
-        tracker.state = {"test": "data"}
+        tracker.mark_completed("600519.SH", "daily", "2024-01-01")
         tracker.save()
 
         assert os.path.exists(temp_state_file)
         with open(temp_state_file, 'r') as f:
             data = json.load(f)
-        assert data == {"test": "data"}
+        assert "600519.SH" in data
+        assert "daily" in data["600519.SH"]
+        assert "2024-01-01" in data["600519.SH"]["daily"]
 
     def test_save_creates_parent_directory(self):
         """Test that save creates parent directory if needed."""
         with tempfile.TemporaryDirectory() as tmpdir:
             state_file = os.path.join(tmpdir, "subdir", "progress.json")
             tracker = ProgressTracker(state_file)
-            tracker.state = {"test": "data"}
+            tracker.mark_completed("600519.SH", "daily", "2024-01-01")
             tracker.save()
 
             assert os.path.exists(state_file)
             with open(state_file, 'r') as f:
                 data = json.load(f)
-            assert data == {"test": "data"}
+            assert "600519.SH" in data
+            assert "daily" in data["600519.SH"]
+            assert "2024-01-01" in data["600519.SH"]["daily"]
 
     def test_mark_completed_new_symbol(self, temp_state_file):
         """Test marking completion for a new symbol."""
@@ -115,7 +124,9 @@ class TestProgressTracker:
         tracker.mark_completed("600519.SH", "daily", "2024-01-01")
         tracker.mark_completed("600519.SH", "daily", "2024-01-01")
 
-        assert tracker.state["600519.SH"]["daily"].count("2024-01-01") == 1
+        # Sets automatically prevent duplicates
+        assert len(tracker.state["600519.SH"]["daily"]) == 1
+        assert "2024-01-01" in tracker.state["600519.SH"]["daily"]
 
     def test_is_completed_true(self, temp_state_file):
         """Test is_completed returns True for completed date."""
@@ -206,7 +217,7 @@ class TestProgressTracker:
     def test_atomic_write(self, temp_state_file):
         """Test that save uses atomic write pattern."""
         tracker = ProgressTracker(temp_state_file)
-        tracker.state = {"test": "data"}
+        tracker.mark_completed("600519.SH", "daily", "2024-01-01")
         tracker.save()
 
         # Verify temp file is cleaned up
@@ -217,4 +228,59 @@ class TestProgressTracker:
         assert os.path.exists(temp_state_file)
         with open(temp_state_file, 'r') as f:
             data = json.load(f)
-        assert data == {"test": "data"}
+        assert "600519.SH" in data
+        assert "daily" in data["600519.SH"]
+        assert "2024-01-01" in data["600519.SH"]["daily"]
+
+    def test_invalid_data_type_mark_completed(self, temp_state_file):
+        """Test that invalid data_type raises ValueError in mark_completed."""
+        tracker = ProgressTracker(temp_state_file)
+        with pytest.raises(ValueError, match="Invalid data_type 'hourly'"):
+            tracker.mark_completed("600519.SH", "hourly", "2024-01-01")
+
+    def test_invalid_data_type_is_completed(self, temp_state_file):
+        """Test that invalid data_type raises ValueError in is_completed."""
+        tracker = ProgressTracker(temp_state_file)
+        with pytest.raises(ValueError, match="Invalid data_type 'weekly'"):
+            tracker.is_completed("600519.SH", "weekly", "2024-01-01")
+
+    def test_invalid_data_type_get_pending_dates(self, temp_state_file):
+        """Test that invalid data_type raises ValueError in get_pending_dates."""
+        tracker = ProgressTracker(temp_state_file)
+        with pytest.raises(ValueError, match="Invalid data_type 'monthly'"):
+            tracker.get_pending_dates("600519.SH", "monthly", ["2024-01-01"])
+
+    def test_set_performance(self, temp_state_file):
+        """Test that internal storage uses sets for O(1) lookups."""
+        tracker = ProgressTracker(temp_state_file)
+        tracker.mark_completed("600519.SH", "daily", "2024-01-01")
+
+        # Verify internal state uses sets
+        assert isinstance(tracker.state["600519.SH"]["daily"], set)
+
+        # Verify save converts to list
+        tracker.save()
+        with open(temp_state_file, 'r') as f:
+            data = json.load(f)
+        assert isinstance(data["600519.SH"]["daily"], list)
+
+        # Verify load converts back to set
+        tracker2 = ProgressTracker(temp_state_file)
+        tracker2.load()
+        assert isinstance(tracker2.state["600519.SH"]["daily"], set)
+
+    def test_save_error_cleanup(self, temp_state_file):
+        """Test that temp file is cleaned up on save error."""
+        tracker = ProgressTracker(temp_state_file)
+        tracker.mark_completed("600519.SH", "daily", "2024-01-01")
+
+        # Make state un-serializable by directly modifying internal state
+        tracker.state["bad"] = {"data": {object()}}  # set with object() is not JSON serializable
+
+        temp_tmp = temp_state_file + '.tmp'
+        with pytest.raises(TypeError):
+            tracker.save()
+
+        # Verify temp file is cleaned up
+        assert not os.path.exists(temp_tmp)
+
