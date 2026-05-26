@@ -143,21 +143,9 @@ def get_symbol_list(db: Database, symbols_arg: str, market: str) -> List[str]:
         # Use symbols from command line
         return [s.strip() for s in symbols_arg.split(',')]
 
-    # Get all symbols from database and filter by market
-    all_symbols = db.get_all_symbols()
-
-    if market == 'A':
-        # A-share: .SH or .SZ suffix
-        filtered = [s for s in all_symbols
-                    if s.endswith('.SH') or s.endswith('.SZ')]
-    elif market == 'HK':
-        # HK: .HK suffix
-        filtered = [s for s in all_symbols
-                    if s.endswith('.HK')]
-    else:
-        filtered = all_symbols
-
-    return filtered
+    # Get all symbols from database filtered by market
+    # db.get_all_symbols() already supports market parameter
+    return db.get_all_symbols(market=market)
 
 
 def process_batch(
