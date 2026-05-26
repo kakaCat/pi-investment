@@ -121,3 +121,61 @@ export function removePid(
     throw new Error(`Failed to write PID file: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
+
+interface HealthCheckResult {
+  healthy: boolean;
+  dbConnected?: boolean;
+  error?: string;
+}
+
+/**
+ * Checks health of a backend service
+ * @param port - Port number of the service
+ * @param timeoutMs - Timeout in milliseconds (default: 3000)
+ * @param fetchFn - Optional fetch function for testing
+ * @returns Health check result with status and error details
+ */
+export async function checkHealth(
+  port: number,
+  timeoutMs: number = 3000,
+  fetchFn?: any
+): Promise<HealthCheckResult> {
+  const fetchFunc = fetchFn || ((input: string, init?: any) => fetch(input, init));
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetchFunc(`http://127.0.0.1:${port}/api/health`, {
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return {
+        healthy: false,
+        error: `HTTP ${response.status}`,
+      };
+    }
+
+    const data = await response.json();
+    return {
+      healthy: data.status === "ok",
+      dbConnected: data.db_connected === true,
+    };
+  } catch (error: any) {
+    clearTimeout(timeout);
+
+    if (error.name === "AbortError") {
+      return {
+        healthy: false,
+        error: "Health check timeout",
+      };
+    }
+
+    return {
+      healthy: false,
+      error: error.message || "Connection failed",
+    };
+  }
+}

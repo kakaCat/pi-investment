@@ -100,3 +100,48 @@ describe("PID Management", () => {
     expect(pids).toEqual({});
   });
 });
+
+describe("Health Check", () => {
+  test("checkHealth returns true for healthy service", async () => {
+    const { checkHealth } = await import("./backend-control-tool.js");
+
+    // @ts-expect-error - Mock fetch for testing
+    const mockFetch = jest.fn().mockResolvedValue({
+      ok: true,
+      // @ts-expect-error - Mock response
+      json: jest.fn().mockResolvedValue({ status: "ok", db_connected: true }),
+    });
+
+    const result = await checkHealth(5001, 3000, mockFetch as any);
+
+    expect(result.healthy).toBe(true);
+    expect(result.dbConnected).toBe(true);
+  });
+
+  test("checkHealth returns false on timeout", async () => {
+    const { checkHealth } = await import("./backend-control-tool.js");
+
+    const mockFetch = jest.fn().mockImplementation(() =>
+      new Promise((_, reject) => {
+        setTimeout(() => reject({ name: "AbortError" }), 50);
+      })
+    );
+
+    const result = await checkHealth(5001, 100, mockFetch as any);
+
+    expect(result.healthy).toBe(false);
+    expect(result.error).toContain("timeout");
+  });
+
+  test("checkHealth returns false on connection error", async () => {
+    const { checkHealth } = await import("./backend-control-tool.js");
+
+    // @ts-expect-error - Mock fetch for testing
+    const mockFetch = jest.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+
+    const result = await checkHealth(5001, 3000, mockFetch as any);
+
+    expect(result.healthy).toBe(false);
+    expect(result.error).toContain("ECONNREFUSED");
+  });
+});
