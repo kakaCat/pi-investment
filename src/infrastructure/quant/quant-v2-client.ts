@@ -15,7 +15,6 @@ import type {
   Opportunity,
   AlgoExecuteParams,
   AlgoOrder,
-  QuantV2Error as QuantV2ErrorType,
 } from "./types.js";
 import { QuantV2Error } from "./types.js";
 
@@ -177,6 +176,8 @@ const V2_ROUTES: Record<
   "strategy.list":   { path: "/api/strategies/list",           method: "GET" },
   "strategy.get":    { path: "/api/strategies/detail/{strategy_id}", method: "GET" },
   "strategy.create": { path: "/api/strategies/create",        method: "POST" },
+  "strategy.run":    { path: "/api/strategy/run",             method: "POST" },
+  "strategy.status": { path: "/api/strategy/status",          method: "GET" },
 
   // ── portfolio ──
   "portfolio.summary":  { path: "/api/portfolio/summary",    method: "GET" },
@@ -248,6 +249,12 @@ const V2_ROUTES: Record<
   "portfolio.black_litterman": { path: "/api/portfolio/black-litterman/optimize", method: "POST" },
   "portfolio.risk_parity": { path: "/api/portfolio/risk-parity/optimize", method: "POST" },
   "portfolio.risk_decomposition": { path: "/api/portfolio/risk-parity/risk-decomposition", method: "POST" },
+
+  // ── signal test ──
+  "signal.test_run":     { path: "/api/signal-test/run-strategy",  method: "POST" },
+  "signal.test_record":  { path: "/api/signal-test/record",         method: "POST" },
+  "signal.test_verify":  { path: "/api/signal-test/verify",         method: "POST" },
+  "signal.test_stats":   { path: "/api/signal-test/stats",          method: "GET" },
 };
 
 /** v2 不支持但可用的命令名列表（用于调试） */
@@ -352,8 +359,27 @@ export async function runQuantV2<T = unknown>(
     };
   } catch (error) {
     if (error instanceof QuantV2Error) throw error;
+
+    // 检查是否是连接失败（服务未启动）
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    if (errorMsg.includes('fetch failed') || errorMsg.includes('ECONNREFUSED')) {
+      // 检查服务状态
+      const isHealthy = await pingV2();
+      if (!isHealthy) {
+        throw new QuantV2Error(
+          `quantsys-v2 后端未启动。请先启动后端服务：\n` +
+          `  cd quantsys-v2 && python start_all.py\n` +
+          `或单独启动 REST API：\n` +
+          `  cd quantsys-v2 && python api/server.py\n` +
+          `预期端口：${V2_API_BASE}`,
+          503,
+          url,
+        );
+      }
+    }
+
     throw new QuantV2Error(
-      `请求异常: ${error instanceof Error ? error.message : String(error)}`,
+      `请求异常: ${errorMsg}`,
       undefined,
       url,
     );
@@ -446,8 +472,27 @@ async function fetchV2<T>(
     return await response.json() as T;
   } catch (error) {
     if (error instanceof QuantV2Error) throw error;
+
+    // 检查是否是连接失败（服务未启动）
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    if (errorMsg.includes('fetch failed') || errorMsg.includes('ECONNREFUSED')) {
+      // 检查服务状态
+      const isHealthy = await pingV2();
+      if (!isHealthy) {
+        throw new QuantV2Error(
+          `quantsys-v2 后端未启动。请先启动后端服务：\n` +
+          `  cd quantsys-v2 && python start_all.py\n` +
+          `或单独启动 REST API：\n` +
+          `  cd quantsys-v2 && python api/server.py\n` +
+          `预期端口：${V2_API_BASE}`,
+          503,
+          url,
+        );
+      }
+    }
+
     throw new QuantV2Error(
-      `请求异常: ${error instanceof Error ? error.message : String(error)}`,
+      `请求异常: ${errorMsg}`,
       undefined,
       url,
     );
