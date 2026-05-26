@@ -148,14 +148,14 @@ def get_symbol_list(db: Database, symbols_arg: str, market: str) -> List[str]:
 
     if market == 'A':
         # A-share: .SH or .SZ suffix
-        filtered = [s['symbol'] for s in all_symbols
-                    if s['symbol'].endswith('.SH') or s['symbol'].endswith('.SZ')]
+        filtered = [s for s in all_symbols
+                    if s.endswith('.SH') or s.endswith('.SZ')]
     elif market == 'HK':
         # HK: .HK suffix
-        filtered = [s['symbol'] for s in all_symbols
-                    if s['symbol'].endswith('.HK')]
+        filtered = [s for s in all_symbols
+                    if s.endswith('.HK')]
     else:
-        filtered = [s['symbol'] for s in all_symbols]
+        filtered = all_symbols
 
     return filtered
 
