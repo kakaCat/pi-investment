@@ -253,9 +253,9 @@ def main(args: List[str] = None) -> int:
         # Initialize components
         logger.info("Initializing components...")
         db = Database()
-        calendar = TradingCalendar(db)
+        calendar = TradingCalendar()
         gap_detector = GapDetector(db, calendar)
-        progress_tracker = ProgressTracker(db)
+        progress_tracker = ProgressTracker()
         backfiller = DataBackfiller(db, calendar, gap_detector, progress_tracker)
         logger.info("✓ Components initialized\n")
 
