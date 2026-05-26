@@ -378,3 +378,85 @@ export async function stopService(
     message: `Service ${service} stopped successfully`,
   };
 }
+
+interface ServiceStatus {
+  status: "running" | "stopped" | "unhealthy";
+  pid?: number;
+  port: number;
+  uptime?: string;
+  error?: string;
+}
+
+/**
+ * Calculates uptime from start time
+ * @param startTime - ISO timestamp of when process started
+ * @returns Human-readable uptime string
+ */
+function calculateUptime(startTime: string): string {
+  const start = new Date(startTime).getTime();
+  const now = Date.now();
+  const diffMs = now - start;
+
+  const hours = Math.floor(diffMs / 3600000);
+  const minutes = Math.floor((diffMs % 3600000) / 60000);
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${minutes}m`;
+}
+
+/**
+ * Gets the status of a backend service
+ * @param service - Service to check ("rest" or "websocket")
+ * @param backendDir - Directory containing PID file (defaults to .backend)
+ * @param fetchFn - Optional fetch function for testing
+ * @returns Service status with health information
+ */
+export async function getServiceStatus(
+  service: "rest" | "websocket",
+  backendDir: string = DEFAULT_BACKEND_DIR,
+  fetchFn?: any
+): Promise<ServiceStatus> {
+  const port = service === "rest" ? 5001 : 5003;
+  const pids = loadPids(backendDir);
+  const pidEntry = pids[service];
+
+  if (!pidEntry) {
+    return {
+      status: "stopped",
+      port,
+    };
+  }
+
+  const { pid, startTime } = pidEntry;
+
+  // Check if process is alive
+  if (!isProcessAlive(pid)) {
+    removePid(service, backendDir);
+    return {
+      status: "stopped",
+      port,
+    };
+  }
+
+  // Check health
+  const health = await checkHealth(port, 3000, fetchFn);
+
+  if (!health.healthy) {
+    return {
+      status: "unhealthy",
+      pid,
+      port,
+      uptime: calculateUptime(startTime),
+      error: health.error,
+    };
+  }
+
+  return {
+    status: "running",
+    pid,
+    port,
+    uptime: calculateUptime(startTime),
+  };
+}

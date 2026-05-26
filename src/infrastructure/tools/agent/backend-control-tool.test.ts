@@ -340,3 +340,75 @@ describe("Stop Operation", () => {
     process.kill = originalKill;
   }, 10000);
 });
+
+describe("Status Operation", () => {
+  beforeEach(() => {
+    if (existsSync(TEST_BACKEND_DIR)) {
+      rmSync(TEST_BACKEND_DIR, { recursive: true });
+    }
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    if (existsSync(TEST_BACKEND_DIR)) {
+      rmSync(TEST_BACKEND_DIR, { recursive: true });
+    }
+  });
+
+  test("getServiceStatus returns running status for healthy service", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    mod.savePid("rest", 12345, TEST_BACKEND_DIR);
+
+    const killMock = jest.fn() as any;
+    const originalKill = process.kill;
+    process.kill = killMock;
+
+    const mockJson = jest.fn() as any;
+    mockJson.mockResolvedValue({ status: "ok", db_connected: true });
+
+    const mockFetch = jest.fn() as any;
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: mockJson,
+    });
+
+    const result = await mod.getServiceStatus("rest", TEST_BACKEND_DIR, mockFetch);
+
+    expect(result.status).toBe("running");
+    expect(result.pid).toBe(12345);
+    expect(result.port).toBe(5001);
+    expect(result.uptime).toBeDefined();
+
+    process.kill = originalKill;
+  });
+
+  test("getServiceStatus returns stopped if no PID file", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    const result = await mod.getServiceStatus("rest", TEST_BACKEND_DIR);
+
+    expect(result.status).toBe("stopped");
+    expect(result.pid).toBeUndefined();
+  });
+
+  test("getServiceStatus returns unhealthy if health check fails", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    mod.savePid("rest", 12345, TEST_BACKEND_DIR);
+
+    const killMock = jest.fn() as any;
+    const originalKill = process.kill;
+    process.kill = killMock;
+
+    const mockFetch = jest.fn() as any;
+    mockFetch.mockRejectedValue(new Error("ECONNREFUSED"));
+
+    const result = await mod.getServiceStatus("rest", TEST_BACKEND_DIR, mockFetch);
+
+    expect(result.status).toBe("unhealthy");
+    expect(result.pid).toBe(12345);
+
+    process.kill = originalKill;
+  });
+});
