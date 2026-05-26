@@ -238,3 +238,105 @@ describe("Start Operation", () => {
     expect(result.error).toContain("Health check failed");
   }, 15000);
 });
+
+describe("Stop Operation", () => {
+  beforeEach(() => {
+    if (existsSync(TEST_BACKEND_DIR)) {
+      rmSync(TEST_BACKEND_DIR, { recursive: true });
+    }
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    if (existsSync(TEST_BACKEND_DIR)) {
+      rmSync(TEST_BACKEND_DIR, { recursive: true });
+    }
+  });
+
+  test("stopService sends SIGTERM to process", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    mod.savePid("rest", 12345, TEST_BACKEND_DIR);
+
+    let processKilled = false;
+    const killMock = jest.fn() as any;
+    killMock.mockImplementation((pid: number, signal: any) => {
+      if (signal === "SIGTERM") {
+        processKilled = true;
+        return;
+      }
+      if (signal === 0) {
+        // Check if process is alive
+        if (processKilled) {
+          const error: any = new Error("ESRCH");
+          error.code = "ESRCH";
+          throw error;
+        }
+        return;
+      }
+    });
+    const originalKill = process.kill;
+    process.kill = killMock;
+
+    const result = await mod.stopService("rest", TEST_BACKEND_DIR);
+
+    expect(killMock).toHaveBeenCalledWith(12345, "SIGTERM");
+    expect(result.success).toBe(true);
+
+    process.kill = originalKill;
+  });
+
+  test("stopService returns success if process not found", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    mod.savePid("rest", 12345, TEST_BACKEND_DIR);
+
+    const killMock = jest.fn().mockImplementation(() => {
+      const error: any = new Error("ESRCH");
+      error.code = "ESRCH";
+      throw error;
+    });
+    const originalKill = process.kill;
+    process.kill = killMock as any;
+
+    const result = await mod.stopService("rest", TEST_BACKEND_DIR);
+
+    expect(result.success).toBe(true);
+    expect(result.message).toContain("stopped");
+
+    process.kill = originalKill;
+  });
+
+  test("stopService sends SIGKILL after timeout", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    mod.savePid("rest", 12345, TEST_BACKEND_DIR);
+
+    let killCount = 0;
+    const killMock = jest.fn() as any;
+    killMock.mockImplementation((pid: number, signal: any) => {
+      killCount++;
+      if (killCount === 1 && signal === "SIGTERM") {
+        return; // Process still alive
+      }
+      if (signal === 0) {
+        return; // Process still alive (checking)
+      }
+      if (signal === "SIGKILL") {
+        // Process killed
+        const error: any = new Error("ESRCH");
+        error.code = "ESRCH";
+        throw error;
+      }
+    });
+    const originalKill = process.kill;
+    process.kill = killMock;
+
+    const result = await mod.stopService("rest", TEST_BACKEND_DIR, 100);
+
+    expect(killMock).toHaveBeenCalledWith(12345, "SIGTERM");
+    expect(killMock).toHaveBeenCalledWith(12345, "SIGKILL");
+
+    process.kill = originalKill;
+  }, 10000);
+});

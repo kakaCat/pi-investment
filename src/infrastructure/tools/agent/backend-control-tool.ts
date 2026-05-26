@@ -283,3 +283,98 @@ export async function startService(
     };
   }
 }
+
+interface StopResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Checks if a process is alive
+ * @param pid - Process ID to check
+ * @returns true if process is alive, false otherwise
+ */
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error: any) {
+    return error.code !== "ESRCH";
+  }
+}
+
+/**
+ * Stops a backend service
+ * @param service - Service to stop ("rest", "websocket", or "all")
+ * @param backendDir - Directory containing PID file (defaults to .backend)
+ * @param gracefulTimeoutMs - Timeout for graceful shutdown (default: 5000ms)
+ * @returns Stop result with success status and message
+ */
+export async function stopService(
+  service: "rest" | "websocket" | "all",
+  backendDir: string = DEFAULT_BACKEND_DIR,
+  gracefulTimeoutMs: number = 5000
+): Promise<StopResult> {
+  const pids = loadPids(backendDir);
+  const servicesToStop = service === "all" ? ["rest", "websocket"] : [service];
+
+  for (const svc of servicesToStop) {
+    const pidEntry = pids[svc as "rest" | "websocket"];
+
+    if (!pidEntry) {
+      continue;
+    }
+
+    const { pid } = pidEntry;
+
+    // Check if process exists
+    if (!isProcessAlive(pid)) {
+      removePid(svc as "rest" | "websocket", backendDir);
+      continue;
+    }
+
+    try {
+      // Send SIGTERM for graceful shutdown
+      process.kill(pid, "SIGTERM");
+
+      // Wait for process to exit
+      const startTime = Date.now();
+      while (Date.now() - startTime < gracefulTimeoutMs) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        if (!isProcessAlive(pid)) {
+          removePid(svc as "rest" | "websocket", backendDir);
+          break;
+        }
+      }
+
+      // If still alive, force kill
+      if (isProcessAlive(pid)) {
+        process.kill(pid, "SIGKILL");
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        removePid(svc as "rest" | "websocket", backendDir);
+      }
+    } catch (error: any) {
+      if (error.code === "ESRCH") {
+        // Process not found, clean up PID file
+        removePid(svc as "rest" | "websocket", backendDir);
+      } else if (error.code === "EPERM") {
+        return {
+          success: false,
+          error: `Cannot stop process (PID: ${pid}). Check process owner.`,
+        };
+      } else {
+        return {
+          success: false,
+          error: error.message || "Failed to stop service",
+        };
+      }
+    }
+  }
+
+  return {
+    success: true,
+    message: `Service ${service} stopped successfully`,
+  };
+}
