@@ -58,3 +58,14 @@ def test_cache_mechanism():
     trading_days_2 = calendar.get_trading_days(start_date, end_date)
 
     assert trading_days_1 == trading_days_2
+
+
+def test_invalid_date_range():
+    """测试无效的日期范围"""
+    calendar = TradingCalendar()
+    start_date = date(2024, 12, 31)
+    end_date = date(2024, 1, 1)
+
+    with pytest.raises(ValueError, match="start_date .* must be <= end_date"):
+        calendar.get_trading_days(start_date, end_date)
+
