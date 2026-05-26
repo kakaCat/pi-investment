@@ -86,7 +86,7 @@ export const algoExecuteTool: ToolDefinition = {
     }
 
     try {
-      const order = await algoExecute({
+      const response = await algoExecute({
         symbol,
         side,
         quantity,
@@ -95,33 +95,35 @@ export const algoExecuteTool: ToolDefinition = {
         start_time: startTime
       });
 
-      if (!order.success) {
+      if (!response.success || !response.data) {
         return {
           content: [{
             type: "text" as const,
-            text: `算法订单创建失败: ${JSON.stringify(order)}`
+            text: `算法订单创建失败: ${JSON.stringify(response)}`
           }],
           details: undefined
         };
       }
 
+      const order = response.data;
+
       // Convert AlgoOrder to AlgoOrderResult format for formatting
       const orderResult = {
-        order_id: order.order_id,
+        order_id: order.orderId,
         symbol: order.symbol,
         name: order.symbol, // Backend should provide name, fallback to symbol
         side: order.side,
         algo_type: order.algo,
         status: order.status,
-        target_quantity: order.parent_quantity,
+        target_quantity: order.parentQuantity,
         filled_quantity: 0,
-        remaining_quantity: order.parent_quantity,
+        remaining_quantity: order.parentQuantity,
         created_at: new Date().toISOString(),
         start_time: startTime || "09:30:00",
         end_time: calculateEndTime(startTime || "09:30:00", durationMinutes || 30),
         execution_stats: {
-          total_trades: order.execution_stats.total_slices,
-          avg_trade_size: order.execution_stats.avg_slice_size,
+          total_trades: order.executionStats.totalSlices,
+          avg_trade_size: order.executionStats.avgSliceSize,
         },
         algo_params: {
           time_limit: (durationMinutes || 30) * 60,
@@ -136,12 +138,12 @@ export const algoExecuteTool: ToolDefinition = {
           text: formattedText
         }],
         details: {
-          order_id: order.order_id,
+          order_id: order.orderId,
           symbol: order.symbol,
           side: order.side,
           algo: order.algo,
-          quantity: order.parent_quantity,
-          child_orders: order.child_orders
+          quantity: order.parentQuantity,
+          child_orders: order.childOrders
         }
       };
     } catch (error) {

@@ -142,8 +142,10 @@ export function formatFactorResult(result: FactorResult): string {
 
     // Technical factors
     const technicalFactors: Record<string, string> = {};
-    if (factors.rsi !== undefined && factors.rsi !== null) {
-      technicalFactors['RSI(14)'] = formatNumber(factors.rsi, 2);
+    // RSI - API returns rsi14
+    const rsi = factors.rsi14 ?? factors.rsi;
+    if (rsi !== undefined && rsi !== null) {
+      technicalFactors['RSI(14)'] = formatNumber(rsi, 2);
     }
     if (factors.macd !== undefined && factors.macd !== null) {
       technicalFactors['MACD'] = formatNumber(factors.macd, 4);
@@ -151,8 +153,10 @@ export function formatFactorResult(result: FactorResult): string {
     if (factors.macd_signal !== undefined && factors.macd_signal !== null) {
       technicalFactors['MACD信号线'] = formatNumber(factors.macd_signal, 4);
     }
-    if (factors.macd_hist !== undefined && factors.macd_hist !== null) {
-      technicalFactors['MACD柱'] = formatNumber(factors.macd_hist, 4);
+    // MACD histogram - API returns macd_histogram
+    const macdHist = factors.macd_histogram ?? factors.macd_hist;
+    if (macdHist !== undefined && macdHist !== null) {
+      technicalFactors['MACD柱'] = formatNumber(macdHist, 4);
     }
     if (factors.kdj_k !== undefined && factors.kdj_k !== null) {
       technicalFactors['KDJ-K'] = formatNumber(factors.kdj_k, 2);
@@ -163,14 +167,40 @@ export function formatFactorResult(result: FactorResult): string {
     if (factors.kdj_j !== undefined && factors.kdj_j !== null) {
       technicalFactors['KDJ-J'] = formatNumber(factors.kdj_j, 2);
     }
-    if (factors.boll_upper !== undefined && factors.boll_upper !== null) {
-      technicalFactors['布林上轨'] = formatNumber(factors.boll_upper, 2);
+    // Bollinger Bands - API returns bollinger_upper/middle/lower
+    const bollUpper = factors.bollinger_upper ?? factors.boll_upper;
+    if (bollUpper !== undefined && bollUpper !== null) {
+      technicalFactors['布林上轨'] = formatNumber(bollUpper, 2);
     }
-    if (factors.boll_mid !== undefined && factors.boll_mid !== null) {
-      technicalFactors['布林中轨'] = formatNumber(factors.boll_mid, 2);
+    const bollMid = factors.bollinger_middle ?? factors.boll_mid;
+    if (bollMid !== undefined && bollMid !== null) {
+      technicalFactors['布林中轨'] = formatNumber(bollMid, 2);
     }
-    if (factors.boll_lower !== undefined && factors.boll_lower !== null) {
-      technicalFactors['布林下轨'] = formatNumber(factors.boll_lower, 2);
+    const bollLower = factors.bollinger_lower ?? factors.boll_lower;
+    if (bollLower !== undefined && bollLower !== null) {
+      technicalFactors['布林下轨'] = formatNumber(bollLower, 2);
+    }
+    // Moving averages
+    if (factors.ma5 !== undefined && factors.ma5 !== null) {
+      technicalFactors['MA5'] = formatNumber(factors.ma5, 2);
+    }
+    if (factors.ma10 !== undefined && factors.ma10 !== null) {
+      technicalFactors['MA10'] = formatNumber(factors.ma10, 2);
+    }
+    if (factors.ma20 !== undefined && factors.ma20 !== null) {
+      technicalFactors['MA20'] = formatNumber(factors.ma20, 2);
+    }
+    // ATR
+    const atr = factors.atr14 ?? factors.atr;
+    if (atr !== undefined && atr !== null) {
+      technicalFactors['ATR(14)'] = formatNumber(atr, 2);
+    }
+    // Volume indicators
+    if (factors.volume_ma5 !== undefined && factors.volume_ma5 !== null) {
+      technicalFactors['成交量MA5'] = formatNumber(factors.volume_ma5, 0);
+    }
+    if (factors.volume_ratio !== undefined && factors.volume_ratio !== null) {
+      technicalFactors['量比'] = formatNumber(factors.volume_ratio, 2);
     }
 
     if (Object.keys(technicalFactors).length > 0) {
