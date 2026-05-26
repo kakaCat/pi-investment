@@ -179,6 +179,58 @@ class TestBackfillDaily:
         assert result["succeeded"] == 1
         assert result["failed"] == 1
 
+    def test_backfill_daily_handles_db_insertion_failure(self, backfiller, mock_gap_detector, mock_progress_tracker, mock_db):
+        """Test backfill_daily handles database insertion failure."""
+        missing_dates = [date(2026, 5, 20)]
+        mock_gap_detector.detect_daily_gaps.return_value = missing_dates
+        mock_progress_tracker.is_completed.return_value = False
+        mock_db.upsert_daily_klines.side_effect = Exception("Database error")
+
+        with patch.object(backfiller, '_download_daily_kline') as mock_download:
+            mock_download.return_value = {
+                "symbol": "600519.SH",
+                "date": "2026-05-20",
+                "open": 100.0,
+                "high": 105.0,
+                "low": 99.0,
+                "close": 103.0,
+                "volume": 1000000,
+                "amount": 102000000.0
+            }
+
+            result = backfiller.backfill_daily("600519.SH", target_days=730)
+
+        assert result["total"] == 1
+        assert result["succeeded"] == 0
+        assert result["failed"] == 1
+        # Progress tracker should NOT be marked as completed
+        mock_progress_tracker.mark_completed.assert_not_called()
+
+    @patch('quantsys.data.data_backfiller.time.sleep')
+    def test_backfill_daily_rate_limiting(self, mock_sleep, backfiller, mock_gap_detector, mock_progress_tracker, mock_db):
+        """Test backfill_daily applies rate limiting delay."""
+        missing_dates = [date(2026, 5, 20), date(2026, 5, 21)]
+        mock_gap_detector.detect_daily_gaps.return_value = missing_dates
+        mock_progress_tracker.is_completed.return_value = False
+
+        with patch.object(backfiller, '_download_daily_kline') as mock_download:
+            mock_download.return_value = {
+                "symbol": "600519.SH",
+                "date": "2026-05-20",
+                "open": 100.0,
+                "high": 105.0,
+                "low": 99.0,
+                "close": 103.0,
+                "volume": 1000000,
+                "amount": 102000000.0
+            }
+
+            backfiller.backfill_daily("600519.SH", target_days=730)
+
+        # Should call sleep with RATE_LIMIT_DELAY for each date
+        rate_limit_calls = [call for call in mock_sleep.call_args_list if call == call(0.1)]
+        assert len(rate_limit_calls) == 2
+
 
 class TestBackfillMinute:
     """Test backfill_minute method."""
@@ -256,6 +308,62 @@ class TestBackfillMinute:
         assert result["succeeded"] == 1
         assert result["failed"] == 1
 
+    def test_backfill_minute_handles_db_insertion_failure(self, backfiller, mock_gap_detector, mock_progress_tracker, mock_db):
+        """Test backfill_minute handles database insertion failure."""
+        missing_dates = [date(2026, 5, 20)]
+        mock_gap_detector.detect_minute_gaps.return_value = missing_dates
+        mock_progress_tracker.is_completed.return_value = False
+        mock_db.upsert_minute_klines.side_effect = Exception("Database error")
+
+        with patch.object(backfiller, '_download_minute_kline') as mock_download:
+            mock_download.return_value = [
+                {
+                    "symbol": "600519.SH",
+                    "trade_datetime": "2026-05-20 09:31:00",
+                    "open": 100.0,
+                    "high": 101.0,
+                    "low": 99.5,
+                    "close": 100.5,
+                    "volume": 10000,
+                    "amount": 1005000.0
+                }
+            ]
+
+            result = backfiller.backfill_minute("600519.SH", target_days=365)
+
+        assert result["total"] == 1
+        assert result["succeeded"] == 0
+        assert result["failed"] == 1
+        # Progress tracker should NOT be marked as completed
+        mock_progress_tracker.mark_completed.assert_not_called()
+
+    @patch('quantsys.data.data_backfiller.time.sleep')
+    def test_backfill_minute_rate_limiting(self, mock_sleep, backfiller, mock_gap_detector, mock_progress_tracker, mock_db):
+        """Test backfill_minute applies rate limiting delay."""
+        missing_dates = [date(2026, 5, 20), date(2026, 5, 21)]
+        mock_gap_detector.detect_minute_gaps.return_value = missing_dates
+        mock_progress_tracker.is_completed.return_value = False
+
+        with patch.object(backfiller, '_download_minute_kline') as mock_download:
+            mock_download.return_value = [
+                {
+                    "symbol": "600519.SH",
+                    "trade_datetime": "2026-05-20 09:31:00",
+                    "open": 100.0,
+                    "high": 101.0,
+                    "low": 99.5,
+                    "close": 100.5,
+                    "volume": 10000,
+                    "amount": 1005000.0
+                }
+            ]
+
+            backfiller.backfill_minute("600519.SH", target_days=365)
+
+        # Should call sleep with RATE_LIMIT_DELAY for each date
+        rate_limit_calls = [call for call in mock_sleep.call_args_list if call == call(0.1)]
+        assert len(rate_limit_calls) == 2
+
 
 class TestDownloadDailyKline:
     """Test _download_daily_kline helper method."""
@@ -324,6 +432,17 @@ class TestDownloadDailyKline:
         assert result is None
         assert mock_ak_hist.call_count == 3
 
+    @patch('quantsys.data.data_backfiller.ak.stock_zh_a_hist')
+    @patch('quantsys.data.data_backfiller.time.sleep')
+    def test_download_daily_kline_empty_dataframe(self, mock_sleep, mock_ak_hist, backfiller):
+        """Test returns None when akshare returns empty DataFrame."""
+        mock_ak_hist.return_value = pd.DataFrame()
+
+        result = backfiller._download_daily_kline("600519.SH", "2026-05-20")
+
+        assert result is None
+        mock_ak_hist.assert_called_once()
+
 
 class TestDownloadMinuteKline:
     """Test _download_minute_kline helper method."""
@@ -391,3 +510,15 @@ class TestDownloadMinuteKline:
 
         assert result is None
         assert mock_ak_hist_min.call_count == 3
+
+    @patch('quantsys.data.data_backfiller.ak.stock_zh_a_hist_min_em')
+    @patch('quantsys.data.data_backfiller.time.sleep')
+    def test_download_minute_kline_empty_dataframe(self, mock_sleep, mock_ak_hist_min, backfiller):
+        """Test returns None when akshare returns empty DataFrame."""
+        mock_ak_hist_min.return_value = pd.DataFrame()
+
+        result = backfiller._download_minute_kline("600519.SH", "2026-05-20")
+
+        assert result is None
+        mock_ak_hist_min.assert_called_once()
+

@@ -4,7 +4,7 @@ DataBackfiller - Downloads missing K-line data from akshare and stores in databa
 import logging
 import time
 from datetime import date
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Callable
 
 import akshare as ak
 import pandas as pd
@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 
 class DataBackfiller:
     """Downloads missing K-line data and stores in database."""
+
+    # Configuration constants
+    RATE_LIMIT_DELAY = 0.1  # Delay between requests in seconds
+    MAX_RETRIES = 3  # Maximum number of retry attempts
+    BACKOFF_BASE = 2  # Base for exponential backoff (2^attempt)
 
     def __init__(
         self,
@@ -92,15 +97,20 @@ class DataBackfiller:
             # Store in database
             try:
                 self.db.upsert_daily_klines([kline_data])
-                self.progress_tracker.mark_completed(symbol, missing_date, "daily")
                 succeeded += 1
                 logger.info(f"Successfully backfilled {symbol} {date_str}")
+
+                # Mark as completed only after successful DB insert
+                try:
+                    self.progress_tracker.mark_completed(symbol, missing_date, "daily")
+                except Exception as mark_error:
+                    logger.warning(f"Failed to mark {symbol} {date_str} as completed: {mark_error}")
             except Exception as e:
                 logger.error(f"Failed to store daily data for {symbol} {date_str}: {e}")
                 failed += 1
 
-            # Small delay to avoid rate limiting
-            time.sleep(0.1)
+            # Rate limiting delay
+            time.sleep(self.RATE_LIMIT_DELAY)
 
         logger.info(
             f"Daily backfill complete for {symbol}: "
@@ -166,15 +176,20 @@ class DataBackfiller:
             # Store in database
             try:
                 self.db.upsert_minute_klines(kline_data_list)
-                self.progress_tracker.mark_completed(symbol, missing_date, "minute")
                 succeeded += 1
                 logger.info(f"Successfully backfilled {symbol} {date_str} ({len(kline_data_list)} bars)")
+
+                # Mark as completed only after successful DB insert
+                try:
+                    self.progress_tracker.mark_completed(symbol, missing_date, "minute")
+                except Exception as mark_error:
+                    logger.warning(f"Failed to mark {symbol} {date_str} as completed: {mark_error}")
             except Exception as e:
                 logger.error(f"Failed to store minute data for {symbol} {date_str}: {e}")
                 failed += 1
 
-            # Small delay to avoid rate limiting
-            time.sleep(0.1)
+            # Rate limiting delay
+            time.sleep(self.RATE_LIMIT_DELAY)
 
         logger.info(
             f"Minute backfill complete for {symbol}: "
@@ -188,6 +203,43 @@ class DataBackfiller:
             "failed": failed,
             "skipped": skipped
         }
+
+    def _download_with_retry(
+        self,
+        download_func: Callable[[], Any],
+        symbol: str,
+        date_str: str,
+        data_type: str
+    ) -> Optional[Any]:
+        """
+        Execute download function with retry logic.
+
+        Args:
+            download_func: Function to execute (should return data or raise exception)
+            symbol: Stock symbol for logging
+            date_str: Date string for logging
+            data_type: Type of data ("daily" or "minute") for logging
+
+        Returns:
+            Result from download_func, or None if all retries fail
+        """
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                result = download_func()
+                return result
+            except Exception as e:
+                logger.warning(
+                    f"Attempt {attempt + 1}/{self.MAX_RETRIES} failed for {symbol} {date_str} ({data_type}): {e}"
+                )
+                if attempt < self.MAX_RETRIES - 1:
+                    # Exponential backoff
+                    sleep_time = self.BACKOFF_BASE ** attempt
+                    time.sleep(sleep_time)
+                else:
+                    logger.error(f"All retries exhausted for {symbol} {date_str} ({data_type})")
+                    return None
+
+        return None
 
     def _download_daily_kline(self, symbol: str, date_str: str) -> Optional[Dict[str, Any]]:
         """
@@ -204,49 +256,35 @@ class DataBackfiller:
         # Convert symbol format for akshare (remove .SH/.SZ suffix)
         ak_symbol = symbol.split('.')[0]
 
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                # Download data from akshare
-                df = ak.stock_zh_a_hist(
-                    symbol=ak_symbol,
-                    period="daily",
-                    start_date=date_str.replace('-', ''),
-                    end_date=date_str.replace('-', ''),
-                    adjust=""
-                )
+        def download():
+            # Download data from akshare
+            df = ak.stock_zh_a_hist(
+                symbol=ak_symbol,
+                period="daily",
+                start_date=date_str.replace('-', ''),
+                end_date=date_str.replace('-', ''),
+                adjust=""
+            )
 
-                if df.empty:
-                    logger.warning(f"No data returned for {symbol} {date_str}")
-                    return None
+            if df.empty:
+                logger.warning(f"No data returned for {symbol} {date_str}")
+                return None
 
-                # Extract first row (should be only row for single date)
-                row = df.iloc[0]
+            # Extract first row (should be only row for single date)
+            row = df.iloc[0]
 
-                return {
-                    "symbol": symbol,
-                    "date": date_str,
-                    "open": float(row['开盘']),
-                    "high": float(row['最高']),
-                    "low": float(row['最低']),
-                    "close": float(row['收盘']),
-                    "volume": int(row['成交量']),
-                    "amount": float(row['成交额'])
-                }
+            return {
+                "symbol": symbol,
+                "date": date_str,
+                "open": float(row['开盘']),
+                "high": float(row['最高']),
+                "low": float(row['最低']),
+                "close": float(row['收盘']),
+                "volume": int(row['成交量']),
+                "amount": float(row['成交额'])
+            }
 
-            except Exception as e:
-                logger.warning(
-                    f"Attempt {attempt + 1}/{max_retries} failed for {symbol} {date_str}: {e}"
-                )
-                if attempt < max_retries - 1:
-                    # Exponential backoff
-                    sleep_time = 2 ** attempt
-                    time.sleep(sleep_time)
-                else:
-                    logger.error(f"All retries exhausted for {symbol} {date_str}")
-                    return None
-
-        return None
+        return self._download_with_retry(download, symbol, date_str, "daily")
 
     def _download_minute_kline(self, symbol: str, date_str: str) -> Optional[List[Dict[str, Any]]]:
         """
@@ -263,48 +301,34 @@ class DataBackfiller:
         # Convert symbol format for akshare (remove .SH/.SZ suffix)
         ak_symbol = symbol.split('.')[0]
 
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                # Download data from akshare
-                df = ak.stock_zh_a_hist_min_em(
-                    symbol=ak_symbol,
-                    period="1",
-                    start_date=f"{date_str} 09:30:00",
-                    end_date=f"{date_str} 15:00:00",
-                    adjust=""
-                )
+        def download():
+            # Download data from akshare
+            df = ak.stock_zh_a_hist_min_em(
+                symbol=ak_symbol,
+                period="1",
+                start_date=f"{date_str} 09:30:00",
+                end_date=f"{date_str} 15:00:00",
+                adjust=""
+            )
 
-                if df.empty:
-                    logger.warning(f"No minute data returned for {symbol} {date_str}")
-                    return None
+            if df.empty:
+                logger.warning(f"No minute data returned for {symbol} {date_str}")
+                return None
 
-                # Convert DataFrame to list of dicts
-                result = []
-                for _, row in df.iterrows():
-                    result.append({
-                        "symbol": symbol,
-                        "trade_datetime": str(row['时间']),
-                        "open": float(row['开盘']),
-                        "high": float(row['最高']),
-                        "low": float(row['最低']),
-                        "close": float(row['收盘']),
-                        "volume": int(row['成交量']),
-                        "amount": float(row['成交额'])
-                    })
+            # Convert DataFrame to list of dicts
+            result = []
+            for _, row in df.iterrows():
+                result.append({
+                    "symbol": symbol,
+                    "trade_datetime": str(row['时间']),
+                    "open": float(row['开盘']),
+                    "high": float(row['最高']),
+                    "low": float(row['最低']),
+                    "close": float(row['收盘']),
+                    "volume": int(row['成交量']),
+                    "amount": float(row['成交额'])
+                })
 
-                return result
+            return result
 
-            except Exception as e:
-                logger.warning(
-                    f"Attempt {attempt + 1}/{max_retries} failed for {symbol} {date_str}: {e}"
-                )
-                if attempt < max_retries - 1:
-                    # Exponential backoff
-                    sleep_time = 2 ** attempt
-                    time.sleep(sleep_time)
-                else:
-                    logger.error(f"All retries exhausted for {symbol} {date_str}")
-                    return None
-
-        return None
+        return self._download_with_retry(download, symbol, date_str, "minute")
