@@ -240,3 +240,22 @@ class TestGapDetector:
         # Allow some flexibility in the exact start date calculation
         assert (end_date - start_date).days >= 360
         assert (end_date - start_date).days <= 370
+
+    def test_detect_minute_gaps_non_postgres_provider(self, gap_detector, mock_db, mock_calendar):
+        """Test detect_minute_gaps raises RuntimeError for non-PostgreSQL providers."""
+        # Mock: symbol has minute data
+        mock_db.get_minute_kline_dates.return_value = {
+            "min_date": "2024-01-02",
+            "max_date": "2024-01-10"
+        }
+
+        # Mock: trading calendar
+        mock_calendar.get_trading_days.return_value = [date(2024, 1, 2)]
+
+        # Mock: database provider is SQLite
+        mock_db.provider = "sqlite"
+
+        # Should raise RuntimeError
+        with pytest.raises(RuntimeError, match="Minute klines are only supported with PostgreSQL"):
+            gap_detector.detect_minute_gaps("600519.SH", target_days=10)
+

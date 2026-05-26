@@ -38,7 +38,9 @@ class GapDetector:
 
         Args:
             symbol: Stock symbol (e.g., "600519.SH")
-            target_days: Number of trading days to check backwards from last date
+            target_days: Number of calendar days to check backwards from last date
+                        (Note: This is calendar days, not trading days. 730 calendar days
+                        covers approximately 2 years of trading days)
 
         Returns:
             List of missing dates in "YYYY-MM-DD" format, sorted ascending.
@@ -55,7 +57,7 @@ class GapDetector:
         last_date_str = coverage["last_date"]
         last_date = date.fromisoformat(last_date_str)
 
-        # Calculate start date (target_days before last_date)
+        # Calculate start date (target_days calendar days before last_date)
         start_date = last_date - timedelta(days=target_days)
 
         # Get expected trading days from calendar
@@ -76,7 +78,9 @@ class GapDetector:
 
         Args:
             symbol: Stock symbol (e.g., "600519.SH")
-            target_days: Number of trading days to check backwards from last date
+            target_days: Number of calendar days to check backwards from last date
+                        (Note: This is calendar days, not trading days. 365 calendar days
+                        covers approximately 1 year of trading days)
 
         Returns:
             List of missing dates in "YYYY-MM-DD" format, sorted ascending.
@@ -93,7 +97,7 @@ class GapDetector:
         last_date_str = date_range["max_date"]
         last_date = date.fromisoformat(last_date_str)
 
-        # Calculate start date (target_days before last_date)
+        # Calculate start date (target_days calendar days before last_date)
         start_date = last_date - timedelta(days=target_days)
 
         # Get expected trading days from calendar
@@ -151,13 +155,8 @@ class GapDetector:
 
             rows = cursor.fetchall()
 
-            # Convert to set of date objects
-            result = set()
-            for row in rows:
-                date_str = row[0]
-                result.add(date.fromisoformat(date_str))
-
-            return result
+            # Convert to set of date objects using set comprehension
+            return {date.fromisoformat(row[0]) for row in rows}
 
         finally:
             cursor.close()
@@ -172,6 +171,9 @@ class GapDetector:
 
         Returns:
             Set of date objects representing dates with data in database
+
+        Raises:
+            RuntimeError: If database provider is not PostgreSQL
         """
         if self.db.provider != "postgres":
             raise RuntimeError("Minute klines are only supported with PostgreSQL")
@@ -194,13 +196,8 @@ class GapDetector:
 
             rows = cursor.fetchall()
 
-            # Convert to set of date objects
-            result = set()
-            for row in rows:
-                date_str = row[0]
-                result.add(date.fromisoformat(date_str))
-
-            return result
+            # Convert to set of date objects using set comprehension
+            return {date.fromisoformat(row[0]) for row in rows}
 
         finally:
             cursor.close()
