@@ -30,17 +30,23 @@ Examples:
 """
 import argparse
 import logging
+import os
 import sys
 from typing import List, Dict, Any
 
 # Add parent directory to path for imports
-sys.path.insert(0, '/Users/mac/Documents/ai/pi-investment/quant')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from quantsys.data.db import Database
 from quantsys.data.trading_calendar import TradingCalendar
 from quantsys.data.gap_detector import GapDetector
 from quantsys.data.progress_tracker import ProgressTracker
 from quantsys.data.data_backfiller import DataBackfiller
+
+# Configuration constants
+DEFAULT_BATCH_SIZE = 10  # Balance between progress save frequency and performance
+DEFAULT_DAILY_TARGET_DAYS = 730  # 2 years of daily data
+DEFAULT_MINUTE_TARGET_DAYS = 365  # 1 year of minute data
 
 # Configure logging
 logging.basicConfig(
@@ -96,8 +102,8 @@ def parse_args(args: List[str] = None) -> argparse.Namespace:
     parser.add_argument(
         '--batch-size',
         type=int,
-        default=10,
-        help='Number of symbols to process in one batch. Default: 10'
+        default=DEFAULT_BATCH_SIZE,
+        help=f'Number of symbols to process in one batch. Default: {DEFAULT_BATCH_SIZE}'
     )
 
     parser.add_argument(
@@ -110,7 +116,13 @@ def parse_args(args: List[str] = None) -> argparse.Namespace:
 
     # Set default target_days based on data_type if not provided
     if parsed.target_days is None:
-        parsed.target_days = 730 if parsed.data_type == 'daily' else 365
+        parsed.target_days = DEFAULT_DAILY_TARGET_DAYS if parsed.data_type == 'daily' else DEFAULT_MINUTE_TARGET_DAYS
+
+    # Validate positive values
+    if parsed.batch_size <= 0:
+        parser.error("--batch-size must be positive")
+    if parsed.target_days <= 0:
+        parser.error("--target-days must be positive")
 
     return parsed
 
@@ -316,8 +328,11 @@ def main(args: List[str] = None) -> int:
         logger.warning("\n\nInterrupted by user (Ctrl+C)")
         logger.info("Saving progress...")
         try:
-            progress_tracker.save()
-            logger.info("✓ Progress saved. You can resume by running the same command again.")
+            if 'progress_tracker' in locals():
+                progress_tracker.save()
+                logger.info("✓ Progress saved. You can resume by running the same command again.")
+            else:
+                logger.warning("Progress tracker not initialized, nothing to save.")
         except Exception as e:
             logger.error(f"Failed to save progress: {e}")
         return 1

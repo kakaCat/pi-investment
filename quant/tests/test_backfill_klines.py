@@ -1,6 +1,7 @@
 """
 Tests for backfill_klines.py main script.
 """
+import os
 import sys
 from datetime import date
 from io import StringIO
@@ -9,13 +10,16 @@ from unittest.mock import Mock, patch, MagicMock, call
 import pytest
 
 # Add parent directory to path for imports
-sys.path.insert(0, '/Users/mac/Documents/ai/pi-investment/quant')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from scripts.backfill_klines import (
     parse_args,
     get_symbol_list,
     process_batch,
-    main
+    main,
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_DAILY_TARGET_DAYS,
+    DEFAULT_MINUTE_TARGET_DAYS
 )
 
 
@@ -31,8 +35,8 @@ class TestParseArgs:
         assert args.data_type == 'daily'
         assert args.symbols == '600519.SH,000001.SZ'
         assert args.market == 'A'
-        assert args.target_days == 730
-        assert args.batch_size == 10
+        assert args.target_days == DEFAULT_DAILY_TARGET_DAYS
+        assert args.batch_size == DEFAULT_BATCH_SIZE
         assert args.reset_progress is False
 
     def test_parse_args_minute_with_market(self):
@@ -71,6 +75,26 @@ class TestParseArgs:
         """Test that invalid market raises error."""
         with pytest.raises(SystemExit):
             parse_args(['--data-type', 'daily', '--market', 'US'])
+
+    def test_parse_args_negative_batch_size(self):
+        """Test that negative batch size raises error."""
+        with pytest.raises(SystemExit):
+            parse_args(['--data-type', 'daily', '--batch-size', '-5'])
+
+    def test_parse_args_zero_batch_size(self):
+        """Test that zero batch size raises error."""
+        with pytest.raises(SystemExit):
+            parse_args(['--data-type', 'daily', '--batch-size', '0'])
+
+    def test_parse_args_negative_target_days(self):
+        """Test that negative target days raises error."""
+        with pytest.raises(SystemExit):
+            parse_args(['--data-type', 'daily', '--target-days', '-100'])
+
+    def test_parse_args_zero_target_days(self):
+        """Test that zero target days raises error."""
+        with pytest.raises(SystemExit):
+            parse_args(['--data-type', 'daily', '--target-days', '0'])
 
 
 class TestGetSymbolList:
