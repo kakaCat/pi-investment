@@ -15,6 +15,8 @@ import type {
   Opportunity,
   AlgoExecuteParams,
   AlgoOrder,
+  StrategyExecuteParams,
+  StrategySignal,
 } from "./types.js";
 import { QuantV2Error } from "./types.js";
 
@@ -171,6 +173,7 @@ const V2_ROUTES: Record<
   // ── backtest ──
   "backtest.run":     { path: "/api/backtest/run",      method: "POST" },
   "backtest.strategy": { path: "/api/backtest/strategy", method: "POST" },
+  "backtest.batch":   { path: "/api/backtest/batch",    method: "POST" },
   "backtest.results": { path: "/api/backtest/results",  method: "GET" },
 
   // ── strategy ──
@@ -232,7 +235,15 @@ const V2_ROUTES: Record<
   "jobs.list": { path: "/api/jobs", method: "GET" },
 
   // ── indicators ──
-  "indicators.list": { path: "/api/indicators/list", method: "GET" },
+  "indicators.list":   { path: "/api/indicators/list",                   method: "GET" },
+  "indicators.detail": { path: "/api/indicators/detail/{indicator_id}",  method: "GET" },
+  "indicators.create": { path: "/api/indicators/create",                method: "POST" },
+  "indicators.update": { path: "/api/indicators/update/{indicator_id}",  method: "POST" },
+  "indicators.delete": { path: "/api/indicators/delete/{indicator_id}",  method: "POST" },
+  "indicators.run":    { path: "/api/indicators/run/{indicator_id}",     method: "POST" },
+  "indicators.backtest": { path: "/api/indicators/backtest",             method: "POST" },
+  "indicators.compare":  { path: "/api/indicators/compare",              method: "POST" },
+  "indicators.sandbox_columns": { path: "/api/indicators/sandbox-columns", method: "GET" },
 
   // ── timeseries ──
   "timeseries.arima": { path: "/api/timeseries/arima/{action_type}", method: "POST" },
@@ -589,4 +600,22 @@ export async function algoExecute(
 
   const url = `${V2_API_BASE}/api/orders/algo-execute`;
   return fetchV2<AlgoOrder>(url, { method: 'POST', body: params });
+}
+
+/**
+ * 执行策略并返回信号（带风险管理参数）
+ * @param params 策略执行参数
+ */
+export async function executeStrategy(
+  params: StrategyExecuteParams,
+): Promise<StrategySignal> {
+  if (!params.symbol || params.symbol.trim() === '') {
+    throw new QuantV2Error('股票代码不能为空', 400, '/api/strategy/run');
+  }
+  if (!params.strategy_name || params.strategy_name.trim() === '') {
+    throw new QuantV2Error('策略名称不能为空', 400, '/api/strategy/run');
+  }
+
+  const url = `${V2_API_BASE}/api/strategy/run`;
+  return fetchV2<StrategySignal>(url, { method: 'POST', body: params });
 }
