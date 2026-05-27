@@ -430,3 +430,88 @@ export function formatFactorAnalysis(analysis: import('./types.js').FactorAnalys
 
   return lines.join('\n');
 }
+
+/**
+ * 格式化策略信号为可读文本
+ */
+export function formatStrategySignal(signal: import('./types.js').StrategySignal): string {
+  const lines: string[] = [];
+
+  // 标题
+  lines.push(`【策略信号】${signal.name} (${signal.symbol})`);
+  lines.push(`策略: ${signal.strategy}`);
+  lines.push(`时间: ${signal.timestamp}`);
+  lines.push('');
+
+  // 信号
+  const actionMap = { buy: '买入', sell: '卖出', hold: '持有' };
+  const actionText = actionMap[signal.action] || signal.action;
+  lines.push(`信号: ${actionText}`);
+  lines.push(`置信度: ${formatPercent(signal.confidence * 100, 1)}`);
+  lines.push(`理由: ${signal.reason}`);
+  lines.push('');
+
+  // 风险管理
+  if (signal.risk_management) {
+    lines.push('【风险管理】');
+
+    // 止损
+    if (signal.risk_management.stop_loss) {
+      const sl = signal.risk_management.stop_loss;
+      lines.push(`止损价格: ${formatNumber(sl.price, 2)} 元`);
+
+      if (sl.type === 'atr' && sl.params.atr_value !== undefined && sl.params.atr_multiplier !== undefined) {
+        lines.push(`  类型: ATR止损 (${sl.params.atr_multiplier}倍ATR)`);
+        lines.push(`  ATR值: ${formatNumber(sl.params.atr_value, 2)}`);
+      } else if (sl.type === 'percent' && sl.params.percent !== undefined) {
+        lines.push(`  类型: 固定百分比止损 (${formatPercent(sl.params.percent)})`);
+      } else if (sl.type === 'trailing' && sl.params.trailing_percent !== undefined) {
+        lines.push(`  类型: 追踪止损 (${formatPercent(sl.params.trailing_percent)})`);
+      } else if (sl.type === 'fixed') {
+        lines.push(`  类型: 固定价格止损`);
+      }
+    }
+
+    // 仓位管理
+    if (signal.risk_management.position_sizing) {
+      const ps = signal.risk_management.position_sizing;
+      lines.push('');
+      lines.push('仓位建议:');
+
+      if (ps.method === 'kelly' && ps.params.win_rate !== undefined && ps.params.profit_loss_ratio !== undefined) {
+        lines.push(`  方法: Kelly准则`);
+        lines.push(`  胜率: ${formatPercent(ps.params.win_rate, 1)}`);
+        lines.push(`  盈亏比: ${formatNumber(ps.params.profit_loss_ratio, 2)}`);
+        lines.push(`  Kelly系数: ${formatNumber(ps.params.kelly_fraction || 0.25, 2)}`);
+        lines.push(`  说明: 需要根据账户余额计算具体仓位`);
+      } else if (ps.method === 'fixed_percent' && ps.params.percent !== undefined) {
+        lines.push(`  方法: 固定比例`);
+        lines.push(`  比例: ${formatPercent(ps.params.percent)}`);
+      } else if (ps.method === 'fixed_shares' && ps.params.shares !== undefined) {
+        lines.push(`  方法: 固定股数`);
+        lines.push(`  股数: ${formatNumber(ps.params.shares, 0)} 股`);
+      }
+    }
+
+    // 止盈（可选）
+    if (signal.risk_management.take_profit) {
+      const tp = signal.risk_management.take_profit;
+      lines.push('');
+      lines.push(`止盈价格: ${formatNumber(tp.price, 2)} 元`);
+    }
+
+    lines.push('');
+  }
+
+  // 技术指标
+  if (signal.indicators && Object.keys(signal.indicators).length > 0) {
+    lines.push('【技术指标】');
+    for (const [key, value] of Object.entries(signal.indicators)) {
+      const displayName = key.toUpperCase();
+      lines.push(`${displayName}: ${formatNumber(value, 2)}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
