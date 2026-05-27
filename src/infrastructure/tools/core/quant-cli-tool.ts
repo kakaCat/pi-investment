@@ -1,6 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
-import { runQuantCli } from "../../quant/quant-cli-client.js";
+// import { runQuantCli } from "../../quant/quant-cli-client.js";
 import { runQuantV2, pingV2, V2_COMMAND_LIST } from "../../quant/quant-v2-client.js";
 
 type ParamRule = {
@@ -1437,55 +1437,19 @@ export const quantCliTool: ToolDefinition = {
     }
 
     try {
-      // ── V2 路由：优先走 quantsys-v2 HTTP API ──
-      const useV2 = V2_COMMAND_LIST.includes(command);
-
-      if (useV2) {
-        const v2Alive = await pingV2();
-        if (v2Alive) {
-          try {
-            const response = await runQuantV2(command, params);
-            _getEntry(command).v2Success++;
-            return {
-              content: [{ type: "text" as const, text: formatSuccess(command, response) }],
-              details: response,
-            };
-          } catch (v2Error) {
-            const entry = _getEntry(command);
-            entry.v2Failure++;
-            entry.totalFallback++;
-            entry.lastDowngradeAt = Date.now();
-            entry.lastDowngradeCmd = command;
-            entry.lastDowngradeError = v2Error instanceof Error ? v2Error.message : String(v2Error);
-            console.warn(
-              `[quant_cli] v2 调用失败，降级到旧桥接: ${command}:`,
-              v2Error instanceof Error ? v2Error.message : String(v2Error),
-            );
-          }
-        } else {
-          const entry = _getEntry(command);
-          entry.v2Unavailable++;
-          entry.totalFallback++;
-          entry.lastDowngradeAt = Date.now();
-          entry.lastDowngradeCmd = command;
-        }
-      }
-
-      // ── Fallback: 旧 Python 桥接 ──
-      if (!useV2) {
-        _getEntry(command).totalFallback++;
-      }
-      const response = await runQuantCli(rule.domain, rule.action, params);
+      // ── V2 路由：仅使用 quantsys-v2 HTTP API ──
+      const response = await runQuantV2(command, params);
+      _getEntry(command).v2Success++;
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: formatSuccess(command, response),
-          },
-        ],
+        content: [{ type: "text" as const, text: formatSuccess(command, response) }],
         details: response,
       };
     } catch (error) {
+      _getEntry(command).v2Failure++;
+      const entry = _getEntry(command);
+      entry.lastDowngradeAt = Date.now();
+      entry.lastDowngradeCmd = command;
+      entry.lastDowngradeError = error instanceof Error ? error.message : String(error);
       return {
         content: [
           {
