@@ -1,7 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
-// import { runQuantCli } from "../../quant/quant-cli-client.js";
-import { runQuantV2, pingV2, V2_COMMAND_LIST } from "../../quant/quant-v2-client.js";
+import { runQuantV2, V2_COMMAND_LIST } from "../../quant/quant-v2-client.js";
 
 type ParamRule = {
   required?: boolean;
