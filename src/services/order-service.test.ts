@@ -18,7 +18,7 @@ await jest.unstable_mockModule("../infrastructure/quant/stock-query-cli-adapter.
 
 const { OrderService } = await import("./order-service.js");
 import { PortfolioService } from "./portfolio/portfolio-service.js";
-import { TradeService } from "./portfolio/trade-service.js";
+// TradeService removed — tests use PositionCliAdapter + TradeCliAdapter now
 
 describe("OrderService - High-level business methods", () => {
   let testDir: string;

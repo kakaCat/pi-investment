@@ -1,32 +1,47 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Position } from '@/types'
+import type { Position, PortfolioSummaryResponse } from '@/types'
+import { tradingApi } from '@/services/api'
 
 export const usePortfolioStore = defineStore('portfolio', () => {
   // State
   const positions = ref<Position[]>([])
+  const summary = ref<PortfolioSummaryResponse | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
   // Getters
   const totalValue = computed(() =>
-    positions.value.reduce((sum, p) => sum + p.marketValue, 0)
+    summary.value?.totalValue ?? 0
   )
 
   const totalCost = computed(() =>
-    positions.value.reduce((sum, p) => sum + p.avgCost * p.quantity, 0)
+    summary.value?.totalCost ?? 0
   )
 
-  const totalPnL = computed(() => totalValue.value - totalCost.value)
+  const totalPnL = computed(() =>
+    summary.value?.totalPnl ?? 0
+  )
 
   const totalPnLPercent = computed(() =>
-    totalCost.value > 0 ? (totalPnL.value / totalCost.value) * 100 : 0
+    summary.value?.totalPnlPct ?? 0
   )
 
-  const positionCount = computed(() => positions.value.length)
+  const positionCount = computed(() =>
+    summary.value?.positions ?? positions.value.length
+  )
+
+  const cash = computed(() =>
+    summary.value?.cash ?? summary.value?.liquidAssets ?? 0
+  )
+
+  const dailyChange = computed(() =>
+    summary.value?.dailyChange ?? 0
+  )
 
   const allocation = computed(() => {
     const total = totalValue.value
+    if (total <= 0) return []
     return positions.value.map(p => ({
       symbol: p.symbol,
       symbolName: p.symbolName,
@@ -36,19 +51,57 @@ export const usePortfolioStore = defineStore('portfolio', () => {
   })
 
   // Actions
+  const fetchSummary = async () => {
+    try {
+      const data = await tradingApi.getPortfolioSummary()
+      summary.value = data as unknown as PortfolioSummaryResponse
+    } catch (e: any) {
+      console.error('获取持仓汇总失败:', e)
+    }
+  }
+
   const fetchPositions = async () => {
     loading.value = true
     error.value = null
     try {
-      // TODO: 调用API
-      // const response = await portfolioApi.getPositions()
-      // positions.value = response
+      const data = await tradingApi.getPositions()
+      const rawList: any[] = (data as any).positions ?? (data as any) ?? []
+
+      const totalMV = rawList.reduce((sum, p) => sum + (p.currentValue || 0), 0)
+
+      positions.value = rawList.map((p: any) => ({
+        id: p.symbol,
+        symbol: p.symbol,
+        symbolName: p.name,
+        name: p.name,
+        quantity: p.quantity,
+        avgCost: p.avgCost,
+        currentPrice: p.currentPrice,
+        marketValue: p.currentValue,
+        totalCost: p.totalCost || p.avgCost * p.quantity,
+        unrealizedPnL: p.profitLoss,
+        unrealizedPnLPercent: p.profitLossPct,
+        profit: p.profitLoss,
+        profitPercent: p.profitLossPct,
+        weight: totalMV > 0 ? (p.currentValue / totalMV) * 100 : 0,
+        buyDate: p.updatedAt || '',
+        addedDate: p.updatedAt || '',
+        market: p.market || '',
+        sector: p.sector || null,
+        stopLoss: undefined,
+        targetPrice: undefined,
+        reason: ''
+      })) as Position[]
     } catch (e: any) {
       error.value = e.message
-      throw e
+      console.error('获取持仓列表失败:', e)
     } finally {
       loading.value = false
     }
+  }
+
+  const fetchAll = async () => {
+    await Promise.all([fetchSummary(), fetchPositions()])
   }
 
   const updatePosition = (position: Position) => {
@@ -72,6 +125,7 @@ export const usePortfolioStore = defineStore('portfolio', () => {
   return {
     // State
     positions,
+    summary,
     loading,
     error,
     // Getters
@@ -80,9 +134,13 @@ export const usePortfolioStore = defineStore('portfolio', () => {
     totalPnL,
     totalPnLPercent,
     positionCount,
+    cash,
+    dailyChange,
     allocation,
     // Actions
+    fetchSummary,
     fetchPositions,
+    fetchAll,
     updatePosition,
     addPosition,
     removePosition

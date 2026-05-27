@@ -1,5 +1,5 @@
 <template>
-  <div class="strategy-config-page">
+  <div class="strategy-config-page" v-loading="loading">
     <!-- 策略卡片网格 -->
     <div class="grid grid-cols-3 gap-4 mb-4">
       <el-card
@@ -26,10 +26,10 @@
 
         <div class="flex items-center justify-between">
           <el-tag
-            :type="strategy.active ? 'success' : 'info'"
+            :type="strategy.active || strategy.status === 'running' ? 'success' : 'info'"
             size="small"
           >
-            {{ strategy.active ? '已激活' : '未激活' }}
+            {{ strategy.active || strategy.status === 'running' ? '已激活' : '未激活' }}
           </el-tag>
           <el-button type="primary" link @click="editStrategy(strategy)">
             编辑参数
@@ -114,7 +114,7 @@
           <el-slider
             v-model="voteThreshold"
             :min="1"
-            :max="activeStrategyCount"
+            :max="Math.max(1, activeStrategyCount)"
             :marks="voteMarks"
             show-stops
             style="width: 300px"
@@ -236,80 +236,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
+import { strategyApi } from '@/services/api'
+import type { Strategy } from '@/types'
 
-interface Strategy {
-  id: string
-  name: string
-  category: string
-  description: string
-  active: boolean
-  params: Record<string, number | string>
+interface StrategyConfig extends Strategy {
+  category?: string
+  active?: boolean
   stopLoss?: number
   takeProfit?: number
   maxPosition?: number
 }
 
 // 策略列表
-const strategies = ref<Strategy[]>([
-  {
-    id: '1',
-    name: 'MA 双均线',
-    category: '趋势跟踪',
-    description: '快慢均线交叉信号',
-    active: true,
-    params: { 快线: 5, 慢线: 20 },
-    stopLoss: 5,
-    takeProfit: 15,
-    maxPosition: 5
-  },
-  {
-    id: '2',
-    name: 'RSI 反转',
-    category: '均值回归',
-    description: '超买超卖反转',
-    active: true,
-    params: { 周期: 14, '超买/卖': '70/30' },
-    stopLoss: 3,
-    takeProfit: 10,
-    maxPosition: 3
-  },
-  {
-    id: '3',
-    name: '布林带突破',
-    category: '波动率突破',
-    description: '带宽收缩扩张',
-    active: false,
-    params: { 周期: 20, 标准差: 2.0 },
-    stopLoss: 4,
-    takeProfit: 12,
-    maxPosition: 4
-  },
-  {
-    id: '4',
-    name: '海龟交易',
-    category: '趋势跟踪',
-    description: 'Donchian通道突破',
-    active: false,
-    params: { 入场: '20日', 出场: '10日' },
-    stopLoss: 6,
-    takeProfit: 20,
-    maxPosition: 3
-  },
-  {
-    id: '5',
-    name: '动量策略',
-    category: '趋势跟踪',
-    description: '价格动量排序',
-    active: false,
-    params: { 回顾期: '60日', 持有: '20日' },
-    stopLoss: 5,
-    takeProfit: 15,
-    maxPosition: 5
-  }
-])
+const strategies = ref<StrategyConfig[]>([])
+const loading = ref(false)
 
 // 组合模式
 const combineMode = ref<'and' | 'vote' | 'or'>('vote')
@@ -317,7 +260,7 @@ const voteThreshold = ref(2)
 
 // 激活策略数量
 const activeStrategyCount = computed(() => {
-  return strategies.value.filter(s => s.active).length
+  return strategies.value.filter(s => s.active || s.status === 'running').length
 })
 
 // 投票标记
@@ -329,10 +272,49 @@ const voteMarks = computed(() => {
   return marks
 })
 
+// 加载策略配置
+const loadConfig = async () => {
+  loading.value = true
+  try {
+    const response = await strategyApi.getStrategies({
+      page: 1,
+      pageSize: 100
+    })
+
+    // 转换后端数据为前端格式
+    strategies.value = (response.items || []).map(item => ({
+      ...item,
+      category: getCategoryFromType(item.type),
+      active: item.status === 'running',
+      params: item.params || {},
+      stopLoss: item.params?.stopLoss || 5,
+      takeProfit: item.params?.takeProfit || 15,
+      maxPosition: item.params?.maxPosition || 5
+    }))
+  } catch (error) {
+    console.error('加载策略配置失败:', error)
+    ElMessage.error('加载策略配置失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 类型映射到分类
+const getCategoryFromType = (type: string): string => {
+  const categoryMap: Record<string, string> = {
+    trend: '趋势跟踪',
+    momentum: '动量策略',
+    meanReversion: '均值回归',
+    arbitrage: '套利策略',
+    volatility: '波动率突破'
+  }
+  return categoryMap[type] || '自定义'
+}
+
 // 编辑对话框
 const editDialogVisible = ref(false)
-const currentStrategy = ref<Strategy | null>(null)
-const editForm = reactive<Partial<Strategy>>({
+const currentStrategy = ref<StrategyConfig | null>(null)
+const editForm = reactive<Partial<StrategyConfig>>({
   name: '',
   description: '',
   active: false,
@@ -351,7 +333,7 @@ const addForm = reactive({
 })
 
 // 编辑策略
-const editStrategy = (strategy: Strategy) => {
+const editStrategy = (strategy: StrategyConfig) => {
   currentStrategy.value = strategy
   Object.assign(editForm, {
     name: strategy.name,
@@ -366,11 +348,40 @@ const editStrategy = (strategy: Strategy) => {
 }
 
 // 保存策略
-const saveStrategy = () => {
-  if (currentStrategy.value) {
-    Object.assign(currentStrategy.value, editForm)
+const saveStrategy = async () => {
+  if (!currentStrategy.value) return
+
+  try {
+    // 合并参数
+    const updatedParams = {
+      ...editForm.params,
+      stopLoss: editForm.stopLoss,
+      takeProfit: editForm.takeProfit,
+      maxPosition: editForm.maxPosition
+    }
+
+    await strategyApi.updateStrategy({
+      id: currentStrategy.value.id,
+      name: editForm.name,
+      description: editForm.description,
+      parameters: updatedParams
+    })
+
+    // 如果激活状态改变，启动或停止策略
+    if (editForm.active !== currentStrategy.value.active) {
+      if (editForm.active) {
+        await strategyApi.startStrategy(currentStrategy.value.id)
+      } else {
+        await strategyApi.stopStrategy(currentStrategy.value.id)
+      }
+    }
+
     ElMessage.success('策略配置已保存')
     editDialogVisible.value = false
+    await loadConfig() // 重新加载配置
+  } catch (error) {
+    console.error('保存策略失败:', error)
+    ElMessage.error('保存策略失败')
   }
 }
 
@@ -383,33 +394,80 @@ const showAddDialog = () => {
 }
 
 // 添加策略
-const addStrategy = () => {
+const addStrategy = async () => {
   if (!addForm.template || !addForm.name) {
     ElMessage.warning('请填写完整信息')
     return
   }
 
-  const newStrategy: Strategy = {
-    id: Date.now().toString(),
-    name: addForm.name,
-    category: '自定义',
-    description: addForm.description,
-    active: false,
-    params: {},
-    stopLoss: 5,
-    takeProfit: 15,
-    maxPosition: 5
-  }
+  try {
+    // 根据模板生成策略代码
+    const templateCode = getTemplateCode(addForm.template)
 
-  strategies.value.push(newStrategy)
-  ElMessage.success('策略已添加')
-  addDialogVisible.value = false
+    await strategyApi.createStrategy({
+      name: addForm.name,
+      description: addForm.description,
+      code: templateCode,
+      type: addForm.template,
+      parameters: {
+        stopLoss: 5,
+        takeProfit: 15,
+        maxPosition: 5
+      },
+      riskLevel: 'medium'
+    })
+
+    ElMessage.success('策略已添加')
+    addDialogVisible.value = false
+    await loadConfig() // 重新加载配置
+  } catch (error) {
+    console.error('添加策略失败:', error)
+    ElMessage.error('添加策略失败')
+  }
+}
+
+// 获取模板代码
+const getTemplateCode = (template: string): string => {
+  const templates: Record<string, string> = {
+    ma: '# MA双均线策略\ndef strategy():\n    pass',
+    rsi: '# RSI反转策略\ndef strategy():\n    pass',
+    macd: '# MACD金叉策略\ndef strategy():\n    pass',
+    boll: '# 布林带突破策略\ndef strategy():\n    pass',
+    turtle: '# 海龟交易策略\ndef strategy():\n    pass',
+    momentum: '# 动量策略\ndef strategy():\n    pass'
+  }
+  return templates[template] || '# 自定义策略\ndef strategy():\n    pass'
 }
 
 // 保存组合配置
-const saveCombineConfig = () => {
-  ElMessage.success('组合配置已保存')
+const saveCombineConfig = async () => {
+  try {
+    // TODO: 实现组合配置保存API
+    // 目前仅本地保存
+    localStorage.setItem('strategy_combine_mode', combineMode.value)
+    localStorage.setItem('strategy_vote_threshold', voteThreshold.value.toString())
+    ElMessage.success('组合配置已保存')
+  } catch (error) {
+    console.error('保存组合配置失败:', error)
+    ElMessage.error('保存组合配置失败')
+  }
 }
+
+// 页面加载时获取配置
+onMounted(() => {
+  loadConfig()
+
+  // 加载组合配置
+  const savedMode = localStorage.getItem('strategy_combine_mode')
+  if (savedMode) {
+    combineMode.value = savedMode as 'and' | 'vote' | 'or'
+  }
+
+  const savedThreshold = localStorage.getItem('strategy_vote_threshold')
+  if (savedThreshold) {
+    voteThreshold.value = parseInt(savedThreshold, 10)
+  }
+})
 </script>
 
 <style scoped>

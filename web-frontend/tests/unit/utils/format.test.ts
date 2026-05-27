@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   formatPrice,
+  formatSignedCurrency,
   formatPercent,
   formatAmount,
   formatLargeNumber,
@@ -39,6 +40,20 @@ describe('format.ts - Number Formatting', () => {
     it('should return -- for invalid input', () => {
       expect(formatPrice('invalid')).toBe('--')
       expect(formatPrice(NaN)).toBe('--')
+    })
+  })
+
+  describe('formatSignedCurrency', () => {
+    it('should format positive currency with plus sign', () => {
+      expect(formatSignedCurrency(14694.6)).toBe('+¥14,694.6')
+    })
+
+    it('should format negative currency with minus sign', () => {
+      expect(formatSignedCurrency(-14694.6)).toBe('-¥14,694.6')
+    })
+
+    it('should format zero currency without sign', () => {
+      expect(formatSignedCurrency(0)).toBe('¥0')
     })
   })
 

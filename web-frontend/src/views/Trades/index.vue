@@ -110,27 +110,27 @@
         :data="trades"
         stripe
       >
-        <el-table-column prop="tradeTime" label="日期" width="180">
+        <el-table-column prop="tradeDate" label="日期" width="180">
           <template #default="{ row }">
-            <span class="text-gray-500">{{ formatDateTime(row.tradeTime) }}</span>
+            <span class="text-gray-500">{{ formatDateTime(row.tradeDate) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="stockCode" label="代码" width="120">
+        <el-table-column prop="symbol" label="代码" width="120">
           <template #default="{ row }">
-            <span class="font-medium">{{ row.stockCode }}</span>
+            <span class="font-medium">{{ row.symbol }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="stockName" label="名称" width="100" />
+        <el-table-column prop="name" label="名称" width="100" />
 
-        <el-table-column prop="direction" label="操作" width="80">
+        <el-table-column prop="action" label="操作" width="80">
           <template #default="{ row }">
             <el-tag
-              :type="row.direction === 'buy' ? 'danger' : 'success'"
+              :type="row.action === 'buy' ? 'danger' : 'success'"
               size="small"
             >
-              {{ row.direction === 'buy' ? 'BUY' : 'SELL' }}
+              {{ row.action === 'buy' ? 'BUY' : 'SELL' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -153,15 +153,15 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="commission" label="佣金" width="100" align="right">
+        <el-table-column prop="fee" label="佣金" width="100" align="right">
           <template #default="{ row }">
-            {{ formatPrice(row.commission) }}
+            {{ formatPrice(row.fee) }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="tax" label="印花税" width="100" align="right">
+        <el-table-column prop="stampDuty" label="印花税" width="100" align="right">
           <template #default="{ row }">
-            {{ row.tax ? formatPrice(row.tax) : '-' }}
+            {{ row.stampDuty ? formatPrice(row.stampDuty) : '-' }}
           </template>
         </el-table-column>
 
@@ -216,20 +216,19 @@ import { tradingApi } from '@/services/api'
 import { formatPrice, formatPercent, formatAmount, formatDateTime } from '@/utils/format'
 
 interface Trade {
-  id: string
-  tradeTime: string
-  stockCode: string
-  stockName: string
-  direction: 'buy' | 'sell'
+  id: number
+  tradeDate: string
+  symbol: string
+  name: string
+  action: 'buy' | 'sell'
   price: number
   quantity: number
   amount: number
-  commission: number
-  tax: number
+  fee: number
+  stampDuty: number
   pnl: number | null
   pnlPercent: number | null
   orderId: string
-  signalSource: string
   reason: string
 }
 
@@ -311,15 +310,15 @@ const handleExport = () => {
     // 构建CSV内容
     const headers = ['日期', '代码', '名称', '操作', '价格', '数量', '金额', '佣金', '印花税', '盈亏', '盈亏比例', '关联订单', '理由']
     const rows = trades.value.map(trade => [
-      formatDateTime(trade.tradeTime),
-      trade.stockCode,
-      trade.stockName,
-      trade.direction === 'buy' ? '买入' : '卖出',
+      formatDateTime(trade.tradeDate),
+      trade.symbol,
+      trade.name,
+      trade.action === 'buy' ? '买入' : '卖出',
       trade.price,
       trade.quantity,
       trade.amount,
-      trade.commission,
-      trade.tax || '-',
+      trade.fee,
+      trade.stampDuty || '-',
       trade.pnl !== null ? trade.pnl : '-',
       trade.pnlPercent !== null ? `${trade.pnlPercent}%` : '-',
       trade.orderId,

@@ -71,7 +71,7 @@
         <el-table-column prop="code" label="代码" width="120">
           <template #default="{ row }">
             <router-link
-              :to="`/stock/${row.code}`"
+              :to="`/stocks/${row.code}`"
               class="text-blue-600 font-medium hover:underline"
             >
               {{ row.code }}
@@ -271,21 +271,21 @@ const checkSelectable = (row: StockInfo) => {
 
 // 查看详情
 const viewDetail = (code: string) => {
-  router.push(`/stock/${code}`)
+  router.push(`/stocks/${code}`)
 }
 
 // 添加到自选
 const addToFavorites = async (stock: StockInfo) => {
+  const symbol = stock.symbol || stock.code || ''
+  if (!symbol) {
+    ElMessage.warning('无效的股票代码')
+    return
+  }
   try {
-    if ((stock as any).isFavorite) {
-      ElMessage.info('已在自选列表中')
-    } else {
-      // 调用API添加自选
-      ElMessage.success('已添加到自选')
-      ;(stock as any).isFavorite = true
-    }
-  } catch (error) {
-    ElMessage.error('操作失败')
+    await stockApi.addToWatchlist(symbol)
+    ElMessage.success(`${symbol} 已添加到自选`)
+  } catch (error: any) {
+    ElMessage.error(error?.message || '添加自选失败')
   }
 }
 
@@ -315,17 +315,21 @@ const showAddStockDialog = () => {
 
 // 添加股票
 const handleAddStock = async () => {
-  if (!addStockForm.value.code || !addStockForm.value.name) {
-    ElMessage.warning('请填写完整信息')
+  if (!addStockForm.value.code) {
+    ElMessage.warning('请输入股票代码')
     return
   }
   try {
-    // 调用API添加股票
-    ElMessage.success('添加成功')
+    await stockApi.addStock({
+      symbol: addStockForm.value.code,
+      name: addStockForm.value.name,
+      market: addStockForm.value.market
+    })
+    ElMessage.success(`股票 ${addStockForm.value.code} 已添加`)
     addStockDialogVisible.value = false
     fetchStocks()
-  } catch (error) {
-    ElMessage.error('添加失败')
+  } catch (error: any) {
+    ElMessage.error(error?.message || '添加股票失败')
   }
 }
 

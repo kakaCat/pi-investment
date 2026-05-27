@@ -32,6 +32,7 @@ export interface MarketDataRequest {
   startDate?: string
   endDate?: string
   timeFrame?: string
+  limit?: number
 }
 
 export interface MarketDataResponse {
@@ -165,10 +166,11 @@ export interface StrategyListRequest extends PaginationParams {
 
 export interface CreateStrategyRequest {
   name: string
-  description: string
-  type: string
-  parameters: Record<string, any>
-  riskLevel: string
+  description?: string
+  type?: string
+  code: string
+  parameters?: Record<string, any>
+  riskLevel?: string
 }
 
 export interface UpdateStrategyRequest {
@@ -184,34 +186,43 @@ export interface UpdateStrategyRequest {
 export interface PortfolioSummaryResponse {
   totalValue: number
   totalCost: number
-  totalPnL: number
-  totalPnLPercent: number
-  positions: any[]
-  allocation: Record<string, number>
+  totalMarketValue: number
+  totalPnl: number
+  totalPnlPct: number
+  dailyChange: number
+  positions: number
+  cash: number
+  liquidAssets: number
 }
 
 // ========== 风控API ==========
 
 export interface RiskCheckRequest {
-  symbol?: string
-  type?: 'buy' | 'sell'
-  quantity?: number
-  price?: number
   accountValue?: number
-  positions?: any[]
+  symbols?: string[]
+}
+
+export interface RiskCheckItem {
+  type: 'concentration' | 'sector_concentration' | 'var'
+  level: 'high' | 'medium' | 'low'
+  message: string
+  suggestion: string
+}
+
+export interface RiskCheckPosition {
+  symbol: string
+  position_value: number
+  current_price: number
+  var_95: number
+  volatility: number
+  max_drawdown: number
+  checks: RiskCheckItem[]
 }
 
 export interface RiskCheckResponse {
-  passed: boolean
-  riskLevel: string
-  riskScore?: number
-  var?: number
-  maxDrawdown?: number
-  warnings: string[]
-  limits: {
-    positionLimit: number
-    currentPosition: number
-    industryConcentration: number
-    volatility: number
-  }
+  total_holdings: number
+  checks: RiskCheckPosition[]
+  risk_level: 'high' | 'medium' | 'low'
+  riskLevel?: string  // camelCase alias for compatibility
+  totalHoldings?: number  // camelCase alias for compatibility
 }

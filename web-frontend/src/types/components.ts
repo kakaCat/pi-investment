@@ -218,6 +218,7 @@ export interface Indicator {
   name: string
   description: string
   code: string
+  codeContent?: string // Legacy field alias for code
   parameters: Array<{
     name: string
     type: 'number' | 'string' | 'boolean'

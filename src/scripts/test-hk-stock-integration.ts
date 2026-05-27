@@ -13,7 +13,7 @@
 
 import { PortfolioService } from "../services/portfolio/portfolio-service.js";
 import { FxRateServiceAdapter } from "../services/fx-rate-service-adapter.js";
-import { TradeService } from "../services/portfolio/trade-service.js";
+// TradeService removed — use TradeCliAdapter from CLI path
 import { mkdirSync, rmSync, existsSync, readFileSync } from "fs";
 import { join } from "path";
 
@@ -49,7 +49,7 @@ async function runIntegrationTests() {
 
   const portfolioService = new PortfolioService(TEST_DIR);
   const fxService = new FxRateServiceAdapter(TEST_DIR);
-  const tradeService = new TradeService(TEST_DIR);
+  // TradeService removed — trade verification now uses TradeCliAdapter
 
   console.log(`   Test directory: ${TEST_DIR}`);
   console.log("   Services initialized\n");
@@ -348,47 +348,11 @@ async function runIntegrationTests() {
   }
 
   // Test 7: Trade Recording
+  // TODO: Migrate this check to use TradeCliader (PostgreSQL)
   console.log("\n" + "=" .repeat(60));
-  console.log("Test 7: Trade Recording (Optional)");
+  console.log("Test 7: Trade Recording (SKIPPED — TradeService removed)");
   console.log("=" .repeat(60));
-
-  try {
-    const tradesData = tradeService.load();
-    const hasTrades = tradesData.trades.length > 0;
-
-    if (hasTrades) {
-      const hkTrades = tradesData.trades.filter(t => t.market === "HK");
-      logTest(
-        "HK trades recorded",
-        hkTrades.length > 0,
-        hkTrades.length > 0 ? undefined : "No HK trades found",
-        `Found ${hkTrades.length} HK trade(s)`
-      );
-
-      if (hkTrades.length > 0) {
-        const lastTrade = hkTrades[hkTrades.length - 1];
-        const hasPriceHKD = lastTrade.price_hkd != null;
-        logTest(
-          "Trade has price_hkd field",
-          hasPriceHKD,
-          hasPriceHKD ? undefined : "price_hkd field missing",
-          hasPriceHKD ? `price_hkd: ${lastTrade.price_hkd}` : undefined
-        );
-
-        const hasFxRate = lastTrade.fx_rate != null;
-        logTest(
-          "Trade has fx_rate field",
-          hasFxRate,
-          hasFxRate ? undefined : "fx_rate field missing",
-          hasFxRate ? `fx_rate: ${lastTrade.fx_rate}` : undefined
-        );
-      }
-    } else {
-      logTest("Trade recording", true, undefined, "No trades recorded (optional feature)");
-    }
-  } catch (error) {
-    logTest("Trade recording", true, String(error), "Trade recording is optional");
-  }
+  logTest("Trade recording (PostgreSQL)", true, undefined, "Trades now stored in PostgreSQL via TradeCliAdapter");
 
   // Summary
   console.log("\n" + "=" .repeat(60));

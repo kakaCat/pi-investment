@@ -1,79 +1,27 @@
 /**
- * Factor Calculate Tool - L2 因子工厂层
+ * Factor Calculate Tool - L2 因子工厂层（v2 版本）
  *
- * 批量计算多个因子，支持技术指标、估值、质量评分、PE分位数、走势分析
- * 整合自 analyze_technical, get_valuation, get_quality_score, get_pe_percentile, analyze_price_action
+ * 批量计算多个因子，支持技术指标和基本面因子
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { requireAshare } from "../shared/validators.js";
-import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
-
-// Constants
-const DEFAULT_FACTORS = ["technical", "valuation", "quality"] as const;
-const VALID_FACTORS = ["technical", "valuation", "quality", "pe_percentile", "price_action"] as const;
-const DEFAULT_QUALITY_FRAMEWORK = "auto";
-const DEFAULT_PE_YEARS = 3;
-const DEFAULT_PRICE_ACTION_PERIOD = 60;
-
-type FactorType = typeof VALID_FACTORS[number];
+import { computeFactors } from "../../quant/quant-v2-client.js";
+import { formatFactorResult } from "../../quant/formatters.js";
 
 interface FactorCalculateParams {
   symbol: string;
-  factors?: FactorType[];
+  factors?: string[];
 }
-
-interface ErrorResponse {
-  success: false;
-  error: string;
-  invalid_format?: boolean;
-  unsupported_for_hk?: boolean;
-}
-
-interface FactorResult {
-  [key: string]: any;
-}
-
-/**
- * 因子计算路由映射
- */
-const FACTOR_ROUTES: Record<FactorType, { method: string; params: (symbol: string) => Record<string, any> }> = {
-  technical: {
-    method: "calculate_technical_indicators",
-    params: (symbol) => ({ symbol })
-  },
-  valuation: {
-    method: "get_stock_valuation",
-    params: (symbol) => ({ symbol })
-  },
-  quality: {
-    method: "get_quality_score",
-    params: (symbol) => ({ symbol, framework: DEFAULT_QUALITY_FRAMEWORK })
-  },
-  pe_percentile: {
-    method: "get_pe_percentile",
-    params: (symbol) => ({ symbol, years: DEFAULT_PE_YEARS })
-  },
-  price_action: {
-    method: "analyze_price_action",
-    params: (symbol) => ({ symbol, period: DEFAULT_PRICE_ACTION_PERIOD })
-  }
-};
 
 export const factorCalculateTool: ToolDefinition = {
   name: "factor_calculate",
   label: "计算因子",
   description:
     "L2 因子工厂工具：批量计算多个因子。" +
-    "支持的因子类型：" +
-    "1. 'technical' - 技术指标（MA, MACD, RSI, Bollinger）" +
-    "2. 'valuation' - 估值分析（PE, PB, Graham fair value）" +
-    "3. 'quality' - 基本面质量评分（0-100分）" +
-    `4. 'pe_percentile' - PE历史分位数（近${DEFAULT_PE_YEARS}年）` +
-    `5. 'price_action' - 走势深度分析（近${DEFAULT_PRICE_ACTION_PERIOD}日）` +
-    `默认计算: ${DEFAULT_FACTORS.join(", ")}。` +
-    "仅支持A股（6位数字代码）。" +
-    "并行获取多个因子，部分失败时其他因子仍返回。",
+    "支持技术因子（RSI, MACD, KDJ, 布林带等）和基本面因子（ROE, 毛利率, 净利率等）。" +
+    "默认计算所有可用因子。" +
+    "仅支持A股（6位数字代码）。",
 
   parameters: Type.Object({
     symbol: Type.String({
@@ -81,22 +29,16 @@ export const factorCalculateTool: ToolDefinition = {
     }),
     factors: Type.Optional(
       Type.Array(
-        Type.Union([
-          Type.Literal("technical"),
-          Type.Literal("valuation"),
-          Type.Literal("quality"),
-          Type.Literal("pe_percentile"),
-          Type.Literal("price_action")
-        ]),
+        Type.String(),
         {
-          description: `要计算的因子列表。默认: ${JSON.stringify(DEFAULT_FACTORS)}`
+          description: "要计算的因子列表（可选）。留空则计算所有因子"
         }
       )
     )
   }),
 
   execute: async (_toolCallId, params: FactorCalculateParams) => {
-    const { symbol, factors = [...DEFAULT_FACTORS] } = params;
+    const { symbol, factors } = params;
 
     // 验证A股代码
     const validationError = requireAshare(symbol);
@@ -110,60 +52,54 @@ export const factorCalculateTool: ToolDefinition = {
       };
     }
 
-    // 并行获取所有因子
-    const factorPromises = factors.map(async (factor) => {
-      try {
-        const route = FACTOR_ROUTES[factor];
-        const result = await callQuantSysDaemon(route.method, route.params(symbol));
-        return { factor, data: JSON.parse(result), error: null };
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        return { factor, data: null, error: errorMsg };
+    try {
+      // 调用 v2 API 计算因子
+      const result = await computeFactors({
+        symbols: [symbol],
+        factors: factors || undefined
+      });
+
+      if (!result.success) {
+        // Extract meaningful error message from result
+        const errorMsg = result.results?.[0]?.error || result.message || "未知错误";
+        return {
+          content: [{
+            type: "text" as const,
+            text: `因子计算失败: ${errorMsg}`
+          }],
+          details: undefined
+        };
       }
-    });
 
-    const results = await Promise.all(factorPromises);
-
-    // 构建响应
-    const response: FactorResult = {
-      success: true,
-      symbol,
-      factors: {}
-    };
-
-    let hasAnySuccess = false;
-    for (const result of results) {
-      if (result.error) {
-        response.factors[result.factor] = null;
-        response.factors[`${result.factor}_error`] = result.error;
-      } else {
-        response.factors[result.factor] = result.data;
-        hasAnySuccess = true;
+      // Validate results array before using it
+      if (!result.results || !Array.isArray(result.results) || result.results.length === 0) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: "因子计算失败: 返回结果为空"
+          }],
+          details: undefined
+        };
       }
-    }
 
-    // 如果所有因子都失败，标记为失败
-    if (!hasAnySuccess) {
-      const errorResponse: ErrorResponse = {
-        success: false,
-        error: "所有因子计算失败"
-      };
+      // 使用格式化工具将结果转换为可读文本
+      const formattedText = formatFactorResult(result);
 
       return {
         content: [{
           type: "text" as const,
-          text: JSON.stringify(errorResponse)
+          text: formattedText
+        }],
+        details: undefined
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text" as const,
+          text: `因子计算失败: ${error instanceof Error ? error.message : String(error)}`
         }],
         details: undefined
       };
     }
-
-    return {
-      content: [{
-        type: "text" as const,
-        text: JSON.stringify(response, null, 2)
-      }],
-      details: undefined
-    };
   }
 };

@@ -4,8 +4,6 @@ import type {
   RiskCheckResponse
 } from '@/types'
 
-let localStopLossRules: any[] = []
-
 export const riskApi = {
   /**
    * 风险检查
@@ -70,50 +68,42 @@ export const riskApi = {
   /**
    * 获取止损规则列表
    */
-  getStopLossRules(symbol?: string) {
-    return Promise.resolve(symbol
-      ? localStopLossRules.filter(rule => rule.symbol === symbol)
-      : localStopLossRules)
+  async getStopLossRules(symbol?: string) {
+    const result = await apiClient.get<any>('/api/risk/stop-loss/rules', {
+      params: symbol ? { symbol } : {}
+    })
+    return result.rules || result || []
   },
 
   /**
    * 创建止损规则
    */
-  createStopLossRule(data: any) {
-    const now = new Date().toISOString()
-    const rule = {
-      ...data,
-      id: `${Date.now()}`,
-      status: 'active',
-      createdAt: now,
-      updatedAt: now
-    }
-    localStopLossRules = [rule, ...localStopLossRules]
-    return Promise.resolve(rule)
+  async createStopLossRule(data: any) {
+    const result = await apiClient.post<any>('/api/risk/stop-loss/rules', data)
+    return result.rule || result
   },
 
   /**
    * 批量创建止损规则
    */
-  batchCreateStopLossRules(rules: any[]) {
-    return Promise.all(rules.map(rule => riskApi.createStopLossRule(rule)))
+  async batchCreateStopLossRules(rules: any[]) {
+    const result = await apiClient.post<any>('/api/risk/stop-loss/rules/batch', { rules })
+    return result.rules || result || []
   },
 
   /**
    * 更新止损规则
    */
-  updateStopLossRule(id: string, data: any) {
-    localStopLossRules = localStopLossRules.map(rule =>
-      rule.id === id ? { ...rule, ...data, updatedAt: new Date().toISOString() } : rule
-    )
-    return Promise.resolve(localStopLossRules.find(rule => rule.id === id))
+  async updateStopLossRule(id: string, data: any) {
+    const result = await apiClient.put<any>(`/api/risk/stop-loss/rules/${id}`, data)
+    return result.rule || result
   },
 
   /**
    * 删除止损规则
    */
-  deleteStopLossRule(id: string) {
-    localStopLossRules = localStopLossRules.filter(rule => rule.id !== id)
-    return Promise.resolve({ success: true })
+  async deleteStopLossRule(id: string) {
+    const result = await apiClient.delete<any>(`/api/risk/stop-loss/rules/${id}`)
+    return result
   }
 }

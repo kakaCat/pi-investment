@@ -4,20 +4,26 @@ import type {
   IndicatorBacktest,
   PaginatedResponse
 } from '@/types'
+import type {
+  IndicatorInfo,
+  IndicatorListResponse,
+  IndicatorRunResult,
+  IndicatorRunParams
+} from '@/types/indicator'
 
 export const indicatorApi = {
   /**
    * 获取指标列表
    */
   getIndicators(params?: any) {
-    return apiClient.get<PaginatedResponse<Indicator>>('/api/indicators/list', { params })
+    return apiClient.get<IndicatorListResponse>('/api/indicators/list', { params })
   },
 
   /**
    * 获取指标详情
    */
   getIndicatorById(indicatorId: string) {
-    return apiClient.get<Indicator>(`/api/indicators/detail/${indicatorId}`)
+    return apiClient.get<IndicatorInfo>(`/api/indicators/detail/${indicatorId}`)
   },
 
   /**
@@ -44,11 +50,8 @@ export const indicatorApi = {
   /**
    * 运行指标
    */
-  runIndicator(indicatorId: string, symbol: string, params?: any) {
-    return apiClient.post(`/api/indicators/run/${indicatorId}`, {
-      symbol,
-      ...params
-    })
+  runIndicator(indicatorId: string, options: IndicatorRunParams) {
+    return apiClient.post<IndicatorRunResult>(`/api/indicators/run/${indicatorId}`, options)
   },
 
   /**
@@ -62,7 +65,7 @@ export const indicatorApi = {
    * 获取我的指标
    */
   getMyIndicators() {
-    return apiClient.get<PaginatedResponse<Indicator>>('/api/indicators/list')
+    return apiClient.get<PaginatedResponse<Indicator>>('/api/indicators/list', { params: { type: 'my' } })
       .then(response => (response as any).items ?? [])
   },
 
@@ -70,34 +73,35 @@ export const indicatorApi = {
    * 获取系统指标
    */
   getSystemIndicators() {
-    return Promise.resolve<Indicator[]>([])
+    return apiClient.get<PaginatedResponse<Indicator>>('/api/indicators/list', { params: { type: 'system' } })
+      .then(response => (response as any).items ?? [])
   },
 
   /**
    * 获取社区指标
    */
   getCommunityIndicators(params?: any) {
-    return apiClient.get<PaginatedResponse<Indicator>>('/api/indicators/list', { params })
+    return apiClient.get<PaginatedResponse<Indicator>>('/api/indicators/list', { params: { ...params, isPublic: true } })
   },
 
   /**
    * 发布指标到社区
    */
   publishIndicator(indicatorId: string) {
-    return Promise.resolve({ id: indicatorId, published: true })
+    return apiClient.post<{ id: string; published: boolean }>(`/api/indicators/publish/${indicatorId}`)
   },
 
   /**
    * 收藏指标
    */
   favoriteIndicator(indicatorId: string) {
-    return Promise.resolve({ id: indicatorId, favorite: true })
+    return apiClient.post<{ id: string; favorite: boolean; favoriteCount: number }>(`/api/indicators/favorite/${indicatorId}`)
   },
 
   /**
    * 取消收藏指标
    */
   unfavoriteIndicator(indicatorId: string) {
-    return Promise.resolve({ id: indicatorId, favorite: false })
+    return apiClient.post<{ id: string; favorite: boolean; favoriteCount: number }>(`/api/indicators/unfavorite/${indicatorId}`)
   }
 }

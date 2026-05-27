@@ -2,7 +2,7 @@
  * Evolution Service - 进化服务主入口
  *
  * 协调各组件完成完整的进化流程。
- * 数据来源：portfolio.json / trades.json / reviews/
+ * 数据来源：PostgreSQL (via CLI Adapters) / reviews/
  */
 
 import * as fs from 'fs/promises';
@@ -10,7 +10,8 @@ import { readFileSync, existsSync, readdirSync } from 'fs';
 import * as path from 'path';
 import { Subtractor } from './subtractor.js';
 import { calculateGap, attributeGap } from './comparator.js';
-import { PortfolioService } from '../portfolio/portfolio-service.js';
+import { PositionCliAdapter } from '../../infrastructure/adapters/cli/position-cli-adapter.js';
+import { TradeCliAdapter } from '../../infrastructure/adapters/cli/trade-cli-adapter.js';
 import { determineOptimizerStrategy, generateOptimizationSuggestions } from './compensator.js';
 import { generateEvolutionReport, formatReportAsMarkdown } from './evolution-reporter.js';
 import { executeOptimizationSuggestions, saveExecutionResult } from './evolution-executor.js';
@@ -96,25 +97,44 @@ const DEFAULT_CONFIG: Required<EvolutionConfig> = {
   evolutionWindowLearning: 100,
 };
 
-// ─── 数据读取 ────────────────────────────────────────────────────────────────
+// ─── 数据读取 (CLI → PostgreSQL) ────────────────────────────────────────────
 
-function loadJson<T>(filePath: string): T | null {
-  try {
-    if (!existsSync(filePath)) return null;
-    return JSON.parse(readFileSync(filePath, 'utf-8'));
-  } catch {
-    return null;
-  }
+async function loadPortfolio(): Promise<Holding[]> {
+  const adapter = new PositionCliAdapter();
+  const positions = await adapter.list({ status: 'open' });
+  return positions.map(p => ({
+    symbol: p.symbol,
+    name: p.name || p.symbol,
+    quantity: p.quantity,
+    avg_cost: p.costBasis ?? 0,
+    market: 'A' as 'A' | 'HK',
+    notes: p.notes || '',
+    added_date: p.entryDate || '',
+    original_cost: p.costBasis ?? 0,
+    total_invested: (p.costBasis ?? 0) * p.quantity,
+    stop_loss: null,
+    target_price: null,
+    batch_plan: null,
+    sector: '',
+    buy_reason: p.notes || null,
+  } as Holding));
 }
 
-function loadPortfolio(): Holding[] {
-  const data = loadJson<{ holdings: Holding[] }>(path.join(PI_DIR, 'portfolio.json'));
-  return data?.holdings ?? [];
-}
-
-function loadTrades(): Trade[] {
-  const data = loadJson<{ trades: Trade[] }>(path.join(PI_DIR, 'trades.json'));
-  return data?.trades ?? [];
+async function loadTrades(): Promise<Trade[]> {
+  const adapter = new TradeCliAdapter();
+  const trades = await adapter.list();
+  return trades.map(t => ({
+    date: t.timestamp || '',
+    action: t.action,
+    symbol: t.symbol,
+    name: t.name,
+    quantity: t.quantity,
+    price: t.price,
+    amount: t.price * t.quantity,
+    market: 'A',
+    notes: t.notes || '',
+    time: t.timestamp || '',
+  } as Trade));
 }
 
 /**
@@ -193,8 +213,8 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
   console.log(`  - 进化历史（学习）: 最近 ${finalConfig.evolutionWindowLearning} 次`);
 
   // ── 1. 读取真实数据 ────────────────────────────────────────────────────
-  const holdings = loadPortfolio();
-  const allTrades = loadTrades();
+  const holdings = await loadPortfolio();
+  const allTrades = await loadTrades();
   const trades = filterTradesByWindow(allTrades, finalConfig.tradeWindowDays);
   const piDir = PI_DIR;
 
@@ -207,7 +227,7 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
   if (allTrades.length === 0) {
     throw new Error(
       '❌ 没有交易数据，无法运行进化分析。\n' +
-      '请先添加交易记录到 .pi-invest/trades.json'
+      '请先添加交易记录（通过 manage_portfolio 工具或 CLI）'
     );
   }
 
@@ -235,19 +255,31 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
   console.log(`✅ 数据检查通过，开始分析...\n`);
 
   // ── 2. 减法器：全维度比较 ────────────────────────────────────────────────
-  const portfolioService = new PortfolioService(piDir);
+  const positionAdapter = new PositionCliAdapter();
 
   // 获取完整的持仓数据（包含当前价格和浮盈）
-  let portfolioSnapshot;
+  let portfolioSnapshot: any;
   let currentPrices: Record<string, number> = {};
 
   try {
-    portfolioSnapshot = await portfolioService.getWithPnL();
+    const summary = await positionAdapter.getSummary();
+    const positions = await positionAdapter.list({ status: 'open' });
+    portfolioSnapshot = {
+      total_pnl: summary.totalPnl ?? 0,
+      total_pnl_pct: summary.totalPnlPct ?? 0,
+      holdings: positions.map(p => ({
+        symbol: p.symbol,
+        name: p.name,
+        current_price: p.currentPrice ?? 0,
+        quantity: p.quantity,
+        cost_basis: p.costBasis ?? 0,
+      })),
+    };
     console.log(`[进化] 持仓浮盈: ¥${portfolioSnapshot.total_pnl.toFixed(2)} (${portfolioSnapshot.total_pnl_pct.toFixed(2)}%)`);
 
     // 构建当前价格映射
-    portfolioSnapshot.holdings.forEach(h => {
-      currentPrices[h.symbol] = h.current_price;
+    positions.forEach(p => {
+      currentPrices[p.symbol] = p.currentPrice ?? 0;
     });
   } catch (e) {
     console.warn('[进化] 获取持仓浮盈失败，仅使用已实现盈亏:', e);
@@ -374,21 +406,21 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
 
   try {
     if (holdings.length > 0) {
-      // 获取当前价格
-      const snapshot = await portfolioService.getWithPnL();
-      const currentPrices = new Map<string, number>();
+      // 使用之前已获取的持仓数据和当前价格
+      const currentPricesMap = new Map<string, number>();
       const stockInfo = new Map<string, { name: string; sector?: string; marketCap?: number }>();
 
-      snapshot.holdings.forEach(h => {
-        currentPrices.set(h.symbol, h.current_price);
-        stockInfo.set(h.symbol, {
-          name: h.name,
+      const positions = await positionAdapter.list({ status: 'open' });
+      positions.forEach(p => {
+        currentPricesMap.set(p.symbol, p.currentPrice ?? 0);
+        stockInfo.set(p.symbol, {
+          name: p.name || p.symbol,
           sector: undefined, // TODO: 从数据源获取行业信息
           marketCap: undefined, // TODO: 从数据源获取市值信息
         });
       });
 
-      holdingAnalysis = await analyzeHoldingDimensions(holdings, currentPrices, stockInfo);
+      holdingAnalysis = await analyzeHoldingDimensions(holdings, currentPricesMap, stockInfo);
       console.log(`[进化] 持仓分析完成: ${holdingAnalysis.stocks.length} 只个股，${holdingAnalysis.sectors.length} 个行业`);
       console.log(`[进化] 发现 ${holdingAnalysis.issues.length} 个持仓问题`);
     } else {

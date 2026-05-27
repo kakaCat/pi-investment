@@ -23,6 +23,10 @@ import { existsSync, readFileSync, unlinkSync } from "fs";
 import { spawn } from "child_process";
 import type { AgentSession } from "@mariozechner/pi-coding-agent";
 import { addMessage, createUserMessage, createAssistantMessage } from "../core/agent/session-adapter.js";
+import { getTaskManager, getBackgroundManager } from "../infrastructure/tools/index.js";
+import type { TaskManager } from "../core/task/task-manager.js";
+import type { BackgroundTaskManager } from "../core/task/background-task-manager.js";
+import type { Task } from "../core/task/task-manager.js";
 
 // 加载环境变量
 config();
@@ -50,12 +54,100 @@ interface RestartContext {
     NODE_ENV: string;
     BACKGROUND_MODE: string;
   };
+  // 新增字段
+  tasks?: {
+    pending: Task[];
+    inProgress: Task[];
+    completed: Task[];
+  };
+  backgroundTasks?: {
+    interrupted: Array<{
+      id: string;
+      taskId: number;
+      toolName: string;
+      params: any;
+      startTime: number;
+      reason: string;
+    }>;
+  };
 }
 
 const RESTART_DIR = join(process.cwd(), ".restart");
 const RESTART_CONTEXT = join(RESTART_DIR, "context.json");
 
 let restartData: RestartContext | null = null;
+
+/**
+ * 恢复任务状态到管理器中
+ */
+function restoreTasksIntoManagers(
+  restartData: RestartContext,
+  taskManager: TaskManager,
+  backgroundTaskManager: BackgroundTaskManager
+): { taskCount: number; backgroundCount: number } {
+  let taskCount = 0;
+  let backgroundCount = 0;
+
+  // 恢复 TaskManager 任务
+  if (restartData.tasks) {
+    const allTasks = [
+      ...restartData.tasks.pending,
+      ...restartData.tasks.inProgress,
+      ...(restartData.tasks.completed || [])
+    ];
+
+    if (allTasks.length > 0) {
+      taskManager.restoreTasks(allTasks);
+      taskCount = restartData.tasks.pending.length + restartData.tasks.inProgress.length;
+      console.log(`📋 已恢复 ${taskCount} 个未完成任务 (pending: ${restartData.tasks.pending.length}, in_progress: ${restartData.tasks.inProgress.length})`);
+    }
+  }
+
+  // 恢复 BackgroundTaskManager 中断任务
+  if (restartData.backgroundTasks?.interrupted && restartData.backgroundTasks.interrupted.length > 0) {
+    backgroundTaskManager.restoreInterruptedTasks(restartData.backgroundTasks.interrupted);
+    backgroundCount = restartData.backgroundTasks.interrupted.length;
+    console.log(`⚠️  已标记 ${backgroundCount} 个后台任务为失败（被重启中断）`);
+  }
+
+  return { taskCount, backgroundCount };
+}
+
+/**
+ * 自动触发 agent 循环
+ */
+function triggerAgentLoop(session: AgentSession): void {
+  setImmediate(() => {
+    try {
+      // 触发 agent 响应（发送空消息）
+      if (typeof session.prompt === 'function') {
+        session.prompt("");
+      } else {
+        console.warn("⚠️  session.prompt 不可用，无法自动触发 agent 循环");
+      }
+    } catch (error) {
+      console.warn("⚠️  自动触发 agent 循环失败:", error);
+    }
+  });
+}
+
+/**
+ * 从重启上下文恢复任务（包装函数）
+ */
+function restoreTasksFromContext(): { taskCount: number; backgroundCount: number } {
+  if (!restartData) {
+    return { taskCount: 0, backgroundCount: 0 };
+  }
+
+  try {
+    const taskManager = getTaskManager();
+    const backgroundTaskManager = getBackgroundManager();
+    return restoreTasksIntoManagers(restartData, taskManager, backgroundTaskManager);
+  } catch (error) {
+    console.warn("⚠️  任务恢复失败:", error instanceof Error ? error.message : String(error));
+    return { taskCount: 0, backgroundCount: 0 };
+  }
+}
 
 function checkRestartContext(): void {
   if (process.env.PI_RESTARTED === "true" && existsSync(RESTART_CONTEXT)) {
@@ -92,8 +184,17 @@ function checkRestartContext(): void {
 }
 
 /** 将上一个 session 的对话历史恢复到新 session 中 */
-function restoreConversationIntoSession(session: AgentSession): void {
-  if (!restartData?.messages || restartData.messages.length === 0) return;
+function restoreConversationIntoSession(
+  session: AgentSession,
+  taskCounts: { taskCount: number; backgroundCount: number }
+): void {
+  if (!restartData?.messages || restartData.messages.length === 0) {
+    // 即使没有对话历史，如果有任务也要触发
+    if (taskCounts.taskCount > 0 || taskCounts.backgroundCount > 0) {
+      triggerAgentLoop(session);
+    }
+    return;
+  }
   if (restartData.sdkSessionFile) {
     console.log(`📋 已恢复 SDK 会话: ${restartData.sdkSessionId || restartData.sdkSessionFile}\n`);
     try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
@@ -122,14 +223,40 @@ function restoreConversationIntoSession(session: AgentSession): void {
   if (injected > 0) {
     console.log(`📋 已恢复 ${injected} 条对话消息（共 ${messages.length} 条）\n`);
 
-    // 添加一条系统提示消息，告诉 agent 继续之前的工作
-    const contextPrompt = `Agent 已重启完成，新工具已加载。
+    // 构建上下文提示消息
+    let contextPrompt = `Agent 已重启完成，新工具已加载。
 
 上下文已恢复：
 - 最后的用户请求：${lastUserMessage.slice(0, 200)}${lastUserMessage.length > 200 ? '...' : ''}
-- 你之前的回复：${lastAssistantMessage.slice(0, 200)}${lastAssistantMessage.length > 200 ? '...' : ''}
+- 你之前的回复：${lastAssistantMessage.slice(0, 200)}${lastAssistantMessage.length > 200 ? '...' : ''}`;
 
-请继续完成之前的任务。如果任务已完成，请总结结果。如果任务未完成，请继续执行。`;
+    // 如果有任务，添加任务信息
+    if (taskCounts.taskCount > 0 || taskCounts.backgroundCount > 0) {
+      contextPrompt += `
+
+任务状态已恢复：`;
+
+      if (restartData.tasks) {
+        if (restartData.tasks.pending.length > 0) {
+          contextPrompt += `\n- 待执行任务：${restartData.tasks.pending.length} 个`;
+        }
+        if (restartData.tasks.inProgress.length > 0) {
+          contextPrompt += `\n- 进行中任务：${restartData.tasks.inProgress.length} 个`;
+        }
+      }
+
+      if (taskCounts.backgroundCount > 0) {
+        contextPrompt += `\n- 中断的后台任务：${taskCounts.backgroundCount} 个（已标记为失败）`;
+      }
+
+      contextPrompt += `
+
+请使用 task_list 查看所有任务，然后继续执行未完成的工作。优先处理 in_progress 状态的任务。`;
+    } else {
+      contextPrompt += `
+
+请继续完成之前的任务。如果任务已完成，请总结结果。`;
+    }
 
     addMessage(session, createUserMessage(contextPrompt));
     console.log(`💡 已添加上下文提示，Agent 将自动继续之前的工作\n`);
@@ -138,6 +265,9 @@ function restoreConversationIntoSession(session: AgentSession): void {
   // 清理上下文文件
   try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
   restartData = null;
+
+  // 总是自动触发 agent 循环
+  triggerAgentLoop(session);
 }
 
 checkRestartContext();
@@ -203,8 +333,9 @@ async function main() {
     // 用工厂函数包装 session，注入 logger + 性能监控
     wrapSessionWithLogger(session, perfMonitor);
 
-    // 如果是从 restart_agent 重启，恢复对话历史
-    restoreConversationIntoSession(session);
+    // 如果是从 restart_agent 重启，先恢复任务，再恢复对话历史
+    const taskCounts = restoreTasksFromContext();
+    restoreConversationIntoSession(session, taskCounts);
 
     // 启动数据库调度器。CRON.json 已废弃，数据库是唯一任务来源。
     const schedulerRuntime = await startSchedulerRuntime({

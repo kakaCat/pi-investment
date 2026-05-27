@@ -8,6 +8,7 @@ const MainLayout = () => import('@/components/layout/MainLayout.vue')
 // 路由加载状态管理
 let loadingInstance: ReturnType<typeof ElLoading.service> | null = null
 let loadingTimer: ReturnType<typeof setTimeout> | null = null
+let loadingSequence = 0
 
 const routes: RouteRecordRaw[] = [
   {
@@ -146,13 +147,29 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to, _from) => {
+  // 清除上一次未触发的 loading timer
+  if (loadingTimer) {
+    clearTimeout(loadingTimer)
+    loadingTimer = null
+  }
+  // 关闭上一次未关闭的 loading 实例
+  if (loadingInstance) {
+    loadingInstance.close()
+    loadingInstance = null
+  }
+
+  // 使用递增序列号追踪本次导航，防止过期 timer 创建 loading
+  const seq = ++loadingSequence
+
   // 显示加载状态（延迟200ms，避免快速切换时闪烁）
   loadingTimer = setTimeout(() => {
-    loadingInstance = ElLoading.service({
-      lock: true,
-      text: '加载中...',
-      background: 'rgba(0, 0, 0, 0.7)'
-    })
+    if (loadingSequence === seq) {
+      loadingInstance = ElLoading.service({
+        lock: true,
+        text: '加载中...',
+        background: 'rgba(0, 0, 0, 0.7)'
+      })
+    }
   }, 200)
 
   // 设置页面标题
@@ -162,7 +179,8 @@ router.beforeEach((to, _from) => {
 })
 
 router.afterEach(() => {
-  // 清除加载状态
+  // 递增序列号，使任何待处理的 loading timer 失效
+  loadingSequence++
   if (loadingTimer) {
     clearTimeout(loadingTimer)
     loadingTimer = null

@@ -4,30 +4,30 @@
     <div class="grid grid-cols-4 gap-4 mb-4">
       <el-card class="stat-card">
         <div class="stat-label">总市值</div>
-        <div class="stat-value">¥{{ formatPrice(portfolioStats.totalValue) }}</div>
-        <div class="stat-sub">现金: ¥{{ formatPrice(portfolioStats.cash) }}</div>
+        <div class="stat-value">¥{{ formatPrice(portfolioStore.totalValue) }}</div>
+        <div class="stat-sub">现金: ¥{{ formatPrice(portfolioStore.cash) }}</div>
       </el-card>
 
       <el-card class="stat-card">
         <div class="stat-label">持仓数量</div>
-        <div class="stat-value">{{ portfolioStats.totalPositions }}</div>
+        <div class="stat-value">{{ portfolioStore.positionCount }}</div>
         <div class="stat-sub">
-          {{ portfolioStats.profitPositions }} 盈利 / {{ portfolioStats.lossPositions }} 亏损
+          {{ profitCount }} 盈利 / {{ lossCount }} 亏损
         </div>
       </el-card>
 
       <el-card class="stat-card">
         <div class="stat-label">总投入</div>
-        <div class="stat-value">¥{{ formatPrice(portfolioStats.totalCost) }}</div>
+        <div class="stat-value">¥{{ formatPrice(portfolioStore.totalCost) }}</div>
       </el-card>
 
       <el-card class="stat-card">
         <div class="stat-label">总盈亏</div>
-        <div :class="['stat-value', portfolioStats.totalProfit >= 0 ? 'text-up' : 'text-down']">
-          {{ portfolioStats.totalProfit >= 0 ? '+' : '' }}¥{{ formatPrice(Math.abs(portfolioStats.totalProfit)) }}
+        <div :class="['stat-value', portfolioStore.totalPnL >= 0 ? 'text-up' : 'text-down']">
+          {{ formatSignedCurrency(portfolioStore.totalPnL) }}
         </div>
-        <div :class="['stat-sub', portfolioStats.totalProfitPercent >= 0 ? 'text-up' : 'text-down']">
-          {{ portfolioStats.totalProfitPercent >= 0 ? '+' : '' }}{{ formatPercent(portfolioStats.totalProfitPercent) }}
+        <div :class="['stat-sub', portfolioStore.totalPnLPercent >= 0 ? 'text-up' : 'text-down']">
+          {{ formatPercent(portfolioStore.totalPnLPercent) }}
         </div>
       </el-card>
     </div>
@@ -49,7 +49,12 @@
         </div>
       </template>
 
-      <el-table :data="positions" stripe v-loading="loading">
+      <el-table :data="portfolioStore.positions" stripe v-loading="loading">
+        <el-table-column prop="updatedAt" label="日期" width="110">
+          <template #default="{ row }">
+            {{ row.addedDate?.slice(0, 10) || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="symbol" label="代码" width="120" fixed>
           <template #default="{ row }">
             <router-link :to="{ name: 'StockDetail', params: { symbol: row.symbol } }" class="text-blue-600 hover:underline">
@@ -66,9 +71,9 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="avgPrice" label="均价" width="100" align="right">
+        <el-table-column prop="avgCost" label="均价" width="100" align="right">
           <template #default="{ row }">
-            ¥{{ formatPrice(row.avgPrice) }}
+            ¥{{ formatPrice(row.avgCost) }}
           </template>
         </el-table-column>
 
@@ -88,22 +93,22 @@
           <template #default="{ row }">
             <div :class="row.profit >= 0 ? 'text-up' : 'text-down'">
               <div class="font-medium">
-                {{ row.profit >= 0 ? '+' : '' }}¥{{ formatPrice(Math.abs(row.profit)) }}
+                {{ formatSignedCurrency(row.profit) }}
               </div>
               <div class="text-xs">
-                ({{ row.profitPercent >= 0 ? '+' : '' }}{{ formatPercent(row.profitPercent) }})
+                ({{ formatPercent(row.profitPercent) }})
               </div>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column prop="positionPercent" label="占比" width="100" align="right">
+        <el-table-column prop="weight" label="占比" width="100" align="right">
           <template #default="{ row }">
             <el-progress
-              :percentage="row.positionPercent"
+              :percentage="row.weight"
               :stroke-width="8"
               :show-text="true"
-              :format="() => `${row.positionPercent.toFixed(1)}%`"
+              :format="() => `${(row.weight || 0).toFixed(1)}%`"
             />
           </template>
         </el-table-column>
@@ -220,30 +225,20 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { tradingApi } from '@/services/api'
+import { tradingApi, riskApi } from '@/services/api'
 import { usePortfolioStore } from '@/stores/portfolio'
 import { useMarketWebSocket } from '@/composables/useWebSocket'
-import { formatPrice, formatPercent } from '@/utils/format'
+import { formatPrice, formatPercent, formatSignedCurrency } from '@/utils/format'
 import type { Position } from '@/types/models'
 
 const router = useRouter()
 const portfolioStore = usePortfolioStore()
 
-// 持仓数据
-const positions = ref<Position[]>([])
 const loading = ref(false)
 
-// 统计数据
-const portfolioStats = computed(() => ({
-  totalValue: portfolioStore.totalValue,
-  cash: portfolioStore.totalValue - positions.value.reduce((sum, p) => sum + p.marketValue, 0),
-  totalPositions: positions.value.length,
-  profitPositions: positions.value.filter(p => p.unrealizedPnL > 0).length,
-  lossPositions: positions.value.filter(p => p.unrealizedPnL < 0).length,
-  totalCost: positions.value.reduce((sum, p) => sum + p.avgCost * p.quantity, 0),
-  totalProfit: positions.value.reduce((sum, p) => sum + p.unrealizedPnL, 0),
-  totalProfitPercent: portfolioStore.totalPnLPercent
-}))
+// 盈亏计数
+const profitCount = computed(() => portfolioStore.positions.filter(p => p.profit > 0).length)
+const lossCount = computed(() => portfolioStore.positions.filter(p => p.profit < 0).length)
 
 // 交易对话框
 const tradeDialogVisible = ref(false)
@@ -271,17 +266,29 @@ const stopLossPercent = computed(() => {
   return ((stopLossForm.stopLoss - stopLossForm.currentPrice) / stopLossForm.currentPrice) * 100
 })
 
+// 止损规则列表
+const stopLossRules = ref<any[]>([])
+
+const loadStopLossRules = async () => {
+  try {
+    const rules = await riskApi.getStopLossRules()
+    stopLossRules.value = rules || []
+  } catch (error) {
+    console.error('加载止损规则失败:', error)
+  }
+}
+
 // WebSocket连接
 const { subscribe, unsubscribe, on } = useMarketWebSocket()
 
 // 监听行情更新
 on('quote', (data: any) => {
-  const position = positions.value.find(p => p.symbol === data.symbol)
+  const position = portfolioStore.positions.find(p => p.symbol === data.symbol)
   if (position) {
     position.currentPrice = data.price
     position.marketValue = position.quantity * data.price
-    position.unrealizedPnL = position.marketValue - position.avgCost * position.quantity
-    position.unrealizedPnLPercent = (position.unrealizedPnL / (position.avgCost * position.quantity)) * 100
+    position.profit = position.marketValue - position.avgCost * position.quantity
+    position.profitPercent = position.totalCost > 0 ? (position.profit / position.totalCost) * 100 : 0
   }
 })
 
@@ -289,11 +296,10 @@ on('quote', (data: any) => {
 const loadPositions = async () => {
   loading.value = true
   try {
-    await portfolioStore.fetchPositions()
-    positions.value = portfolioStore.positions
+    await portfolioStore.fetchAll()
 
     // 订阅实时行情
-    const symbols = positions.value.map(p => p.symbol)
+    const symbols = portfolioStore.positions.map(p => p.symbol)
     symbols.forEach(symbol => subscribe(symbol))
   } catch (error) {
     ElMessage.error('加载持仓数据失败')
@@ -315,7 +321,7 @@ const handleCreateOrder = () => {
 // 买入（加仓）
 const handleBuy = (position: Position) => {
   tradeForm.symbol = position.symbol
-  tradeForm.name = position.symbolName
+  tradeForm.name = position.name
   tradeForm.type = 'BUY'
   tradeForm.priceType = 'market'
   tradeForm.currentPrice = position.currentPrice
@@ -327,7 +333,7 @@ const handleBuy = (position: Position) => {
 // 卖出
 const handleSell = (position: Position) => {
   tradeForm.symbol = position.symbol
-  tradeForm.name = position.symbolName
+  tradeForm.name = position.name
   tradeForm.type = 'SELL'
   tradeForm.priceType = 'market'
   tradeForm.currentPrice = position.currentPrice
@@ -374,25 +380,35 @@ const handleConfirmTrade = async () => {
 const handleSetStopLoss = (position: Position) => {
   stopLossForm.symbol = position.symbol
   stopLossForm.currentPrice = position.currentPrice
-  stopLossForm.stopLoss = position.currentPrice * 0.95 // TODO: Add stopLoss field to Position type
+  stopLossForm.stopLoss = position.stopLoss || position.currentPrice * 0.95
   stopLossDialogVisible.value = true
 }
 
 // 确认止损
 const handleConfirmStopLoss = async () => {
+  if (!stopLossForm.symbol) return
+
   try {
-    // TODO: Implement setStopLoss API
-    // await tradingApi.setStopLoss(stopLossForm.symbol, stopLossForm.stopLoss)
-    ElMessage.success('止损价设置成功')
+    await riskApi.createStopLossRule({
+      symbol: stopLossForm.symbol,
+      name: `${stopLossForm.symbol}止损`,
+      type: 'fixed_percent',
+      stopLossPercent: Math.abs(stopLossPercent.value)
+    })
+
+    ElMessage.success('止损规则已设置')
     stopLossDialogVisible.value = false
 
-    // 更新本地数据
-    // const position = positions.value.find(p => p.symbol === stopLossForm.symbol)
-    // if (position) {
-    //   position.stopLoss = stopLossForm.stopLoss
-    // }
-  } catch (error) {
-    ElMessage.error('设置止损价失败')
+    // 更新本地持仓数据中的止损价
+    const position = portfolioStore.positions.find(p => p.symbol === stopLossForm.symbol)
+    if (position) {
+      position.stopLoss = stopLossForm.stopLoss
+    }
+
+    // 刷新止损规则列表
+    await loadStopLossRules()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '设置止损失败')
   }
 }
 
@@ -403,7 +419,7 @@ onMounted(() => {
 
 // 组件卸载
 onUnmounted(() => {
-  const symbols = positions.value.map(p => p.symbol)
+  const symbols = portfolioStore.positions.map(p => p.symbol)
   symbols.forEach(symbol => unsubscribe(symbol))
 })
 </script>

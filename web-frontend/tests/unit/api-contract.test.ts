@@ -15,7 +15,7 @@ const { tradingApi } = await import('@/services/api/trading')
 const { strategyApi } = await import('@/services/api/strategy')
 const { indicatorApi } = await import('@/services/api/indicator')
 const { pipelineApi } = await import('@/services/api/pipeline')
-const { dataApi } = await import('@/services/api/data')
+const { dataApi, mapJobToDataUpdateJob } = await import('@/services/api/data')
 
 const mockedClient = vi.mocked(apiClient)
 
@@ -36,7 +36,7 @@ describe('QuantSys V2 API contract', () => {
     })
 
     stockApi.getKLineData({ symbol: '000001.SZ', startDate: '2024-01-01', endDate: '2024-02-01' })
-    expect(mockedClient.get).toHaveBeenLastCalledWith('/api/stock/000001.SZ/klines', {
+    expect(mockedClient.get).toHaveBeenLastCalledWith('/api/stock/000001/klines', {
       params: { start_date: '2024-01-01', end_date: '2024-02-01' }
     })
 
@@ -44,6 +44,55 @@ describe('QuantSys V2 API contract', () => {
     expect(mockedClient.get).toHaveBeenLastCalledWith('/api/stock/000001.SZ/technical', {
       params: { indicators: 'ma,macd' }
     })
+  })
+
+  it('adapts stock list search pagination from backend data wrapper', async () => {
+    mockedClient.get.mockResolvedValueOnce({
+      stocks: [
+        {
+          symbol: '000001.SZ',
+          name: '平安银行',
+          market: 'SZ',
+          industry: '银行'
+        }
+      ],
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        total: 1,
+        totalPages: 1
+      }
+    })
+
+    const result = await stockApi.getStocks({ page: 1, pageSize: 20, keyword: '平安' })
+
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0].code).toBe('000001.SZ')
+    expect(result.total).toBe(1)
+    expect(result.page).toBe(1)
+    expect(result.pageSize).toBe(20)
+  })
+
+  it('treats missing stock detail and klines as empty stock state', async () => {
+    const notFoundError = { response: { status: 404, data: { error: 'No kline data for 000001.SZ' } } }
+
+    mockedClient.post.mockRejectedValueOnce(notFoundError)
+    mockedClient.get.mockRejectedValueOnce(notFoundError)
+
+    await expect(stockApi.getStockDetail('000001.SZ')).resolves.toMatchObject({
+      symbol: '000001.SZ',
+      name: '000001.SZ',
+      dataStatus: 'missing'
+    })
+    await expect(stockApi.getKLineData({ symbol: '000001.SZ' })).resolves.toEqual([])
+  })
+
+  it('normalizes A-share suffixed symbols before calling stock detail endpoints', async () => {
+    mockedClient.post.mockResolvedValueOnce({ found: true, symbol: '000001', name: '平安银行' })
+
+    await stockApi.getStockDetail('000001.SZ')
+
+    expect(mockedClient.post).toHaveBeenLastCalledWith('/api/stocks/resolve', { code: '000001' })
   })
 
   it('uses existing trading endpoints and backend payload names', () => {
@@ -90,7 +139,7 @@ describe('QuantSys V2 API contract', () => {
       params: { page: 1 }
     })
 
-    indicatorApi.runIndicator('7', '000001.SZ', { limit: 20 })
+    indicatorApi.runIndicator('7', { symbol: '000001.SZ', limit: 20 })
     expect(mockedClient.post).toHaveBeenLastCalledWith('/api/indicators/run/7', {
       symbol: '000001.SZ',
       limit: 20
@@ -115,5 +164,20 @@ describe('QuantSys V2 API contract', () => {
       force: true,
       async: true
     })
+  })
+
+  it('maps completed data update jobs with failures to failed status', () => {
+    const job = mapJobToDataUpdateJob({
+      id: 'job-1',
+      type: 'data_update',
+      status: 'completed',
+      params: { source: 'hs300', days: 730, force: false },
+      result: { total: 300, succeeded: 0, failed: 300 },
+      createdAt: '2026-05-24T12:27:44'
+    })
+
+    expect(job.status).toBe('failed')
+    expect(job.success).toBe(0)
+    expect(job.failed).toBe(300)
   })
 })

@@ -186,4 +186,37 @@ export class TaskManager {
 
     return lines.join("\n");
   }
+
+  /**
+   * 获取所有任务（用于重启时收集）
+   */
+  getAllTasks(): Task[] {
+    if (!existsSync(this.dir)) return [];
+    const files = readdirSync(this.dir)
+      .filter(f => f.startsWith("task_") && f.endsWith(".json"));
+    return files.map(f => {
+      try {
+        return JSON.parse(readFileSync(join(this.dir, f), "utf-8"));
+      } catch (error) {
+        console.warn(`Warning: Failed to read task file ${f}:`, error);
+        return null;
+      }
+    }).filter(t => t !== null) as Task[];
+  }
+
+  /**
+   * 批量恢复任务（用于重启后恢复）
+   */
+  restoreTasks(tasks: Task[]): void {
+    for (const task of tasks) {
+      try {
+        this.save(task);
+        if (task.id >= this.nextId) {
+          this.nextId = task.id + 1;
+        }
+      } catch (error) {
+        console.warn(`Warning: Failed to restore task #${task.id}:`, error);
+      }
+    }
+  }
 }

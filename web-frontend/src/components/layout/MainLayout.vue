@@ -9,8 +9,8 @@
         </div>
         <el-menu
           :default-active="activeMenu"
-          router
           class="sidebar-menu"
+          @select="handleMenuSelect"
         >
           <div class="menu-group-title">总览</div>
           <el-menu-item index="/dashboard">
@@ -117,9 +117,10 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 
 const activeMenu = computed(() => route.path)
 
@@ -135,6 +136,11 @@ const checkMobile = () => {
   if (isMobile.value) {
     isCollapsed.value = true
   }
+}
+
+const handleMenuSelect = (index: string) => {
+  if (index === route.path) return
+  router.push(index)
 }
 
 const toggleSidebar = () => {

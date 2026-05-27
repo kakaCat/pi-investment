@@ -2,7 +2,7 @@
  * Subtractor（减法器）—— 投资账本切割引擎
  *
  * 核心职责：
- * 1. 从 trades.json + portfolio.json 提取所有交易记录
+ * 1. 从交易记录 + 持仓数据提取所有交易记录
  * 2. 按周/月/全周期三个时间维度切割账本
  * 3. 对每笔交易核算：
  *    - 基础盈亏（已实现）
@@ -22,7 +22,6 @@ import type {
   OptimizationTip,
 } from '../../types/evolution.js';
 
-import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { PriceService } from '../data/price-service.js';
 import { StockDBService } from '../data/stock-db-service.js';
@@ -164,8 +163,6 @@ interface DayTradeEffect {
 // ─── 减法器引擎 ─────────────────────────────────────────────────────────────
 
 export class Subtractor {
-  private portfolioPath: string;
-  private tradesPath: string;
   private priceService: PriceService;
 
   // 缓存
@@ -174,17 +171,12 @@ export class Subtractor {
   private estimatedBuys: EstimatedBuy[] = [];
   private matchedTrades: MatchedTrade[] = [];
   private prices: CurrentPriceMap = {};
+  private dataInjected = false;  // 标记是否已通过 injectData 注入数据，避免被 loadAll 覆盖
 
   constructor(options?: {
-    portfolioPath?: string;
-    tradesPath?: string;
     priceService?: PriceService;
   }) {
-    const base = process.cwd();
-    const piDir = join(base, '.pi-invest');
-    this.portfolioPath = options?.portfolioPath ?? join(piDir, 'portfolio.json');
-    this.tradesPath = options?.tradesPath ?? join(piDir, 'trades.json');
-    this.priceService = options?.priceService ?? new PriceService(StockDBService.getInstance(piDir));
+    this.priceService = options?.priceService ?? new PriceService(StockDBService.getInstance(join(process.cwd(), '.pi-invest')));
   }
 
   // ── 公开 API ──────────────────────────────────────────────────────────
@@ -222,45 +214,22 @@ export class Subtractor {
     this.holdings = holdings;
     this.estimatedBuys = [];
     this.matchedTrades = [];
+    this.dataInjected = true;
   }
 
   // ── 内部 ──────────────────────────────────────────────────────────────
 
   private loadAll(): void {
-    this.loadTrades();
-    this.loadHoldings();
-  }
-
-  private loadTrades(): void {
-    if (!existsSync(this.tradesPath)) {
-      this.trades = [];
-      return;
-    }
-    try {
-      const raw = JSON.parse(readFileSync(this.tradesPath, 'utf-8'));
-      this.trades = raw.trades ?? raw ?? [];
-    } catch {
-      this.trades = [];
-    }
-  }
-
-  private loadHoldings(): void {
-    if (!existsSync(this.portfolioPath)) {
-      this.holdings = [];
-      return;
-    }
-    try {
-      const raw = JSON.parse(readFileSync(this.portfolioPath, 'utf-8'));
-      this.holdings = raw.holdings ?? [];
-    } catch {
-      this.holdings = [];
-    }
+    // 如果已通过 injectData 注入数据，跳过文件读取
+    if (this.dataInjected) return;
+    this.trades = [];
+    this.holdings = [];
   }
 
   /**
    * 估算缺失的买入交易（从持仓反推）
    *
-   * trades.json 只有卖出记录，缺少买入记录。
+   * 交易记录只有卖出记录，缺少买入记录。
    * 这里从持仓数据反推买入交易，补全账本。
    */
   private estimateMissingBuys(): void {
@@ -271,7 +240,7 @@ export class Subtractor {
       // 如果有 total_invested 和 quantity，反推
       if (h.quantity > 0 && h.total_invested > 0) {
         const avgCost = h.total_invested / h.quantity;
-        // 判断：trades.json 是否有对应的买入记录？
+        // 判断：交易记录 是否有对应的买入记录？
         const buyExists = this.trades.some(t =>
           t.symbol === h.symbol && t.action === 'buy'
         );
@@ -302,10 +271,10 @@ export class Subtractor {
    * FIFO 配对：用真实 FIFO 匹配买入 vs 卖出
    *
    * 核心策略：
-   * 1. 如果 trades.json 有买入记录 → 直接从买入记录构建 FIFO 队列
+   * 1. 如果 交易记录 有买入记录 → 直接从买入记录构建 FIFO 队列
    * 2. 如果没有买入记录 → 从持仓反推一条初始买入
    * 3. 按时间顺序处理所有卖出，FIFO 匹配
-   * 4. 系统计算 realizedPnl（不依赖 trades.json 预填的 pnl 字段）
+   * 4. 系统计算 realizedPnl（不依赖 交易记录 预填的 pnl 字段）
    * 5. 标记做T交易（卖出后30天内买入，且最终仍持有）
    */
   private matchTrades(): void {
@@ -339,7 +308,7 @@ export class Subtractor {
     // 先声明 sells 用于后续反推和匹配
     const sells = stockTrades.filter(t => t.action === 'sell');
 
-    // 方式A：trades.json 的真实买入记录
+    // 方式A：交易记录 的真实买入记录
     const buys = stockTrades.filter(t => t.action === 'buy');
     for (const b of buys) {
       fifoQueue.push({ symbol, name, buyDate: b.date, buyPrice: b.price, remainingQty: b.quantity, originalQty: b.quantity, market });
@@ -656,7 +625,7 @@ export class Subtractor {
     const hasBuys = this.trades.some(t => t.action === 'buy');
 
     if (!hasBuys) {
-      warnings.push('trades.json 缺少买入记录，买入数据从持仓反推（估算）');
+      warnings.push('交易记录 缺少买入记录，买入数据从持仓反推（估算）');
     }
     if (this.estimatedBuys.length > 0) {
       warnings.push(`${this.estimatedBuys.length} 笔买入为估算数据，非实际成交记录`);
@@ -665,7 +634,7 @@ export class Subtractor {
     // 检查 notes 中的额外交易信息
     const notesTrades = this.holdings.filter(h => h.notes && /卖出|买入|成交/.test(h.notes));
     if (notesTrades.length > 0) {
-      warnings.push(`${notesTrades.length} 只持仓的 notes 中包含未记录到 trades.json 的交易信息`);
+      warnings.push(`${notesTrades.length} 只持仓的 notes 中包含未记录到 交易记录 的交易信息`);
     }
 
     // 增强：检查买入数量是否匹配卖出+持仓
@@ -884,8 +853,8 @@ export class Subtractor {
    * 导致加权平均成本变化（或已实现盈亏反映在剩余头寸上）。
    *
    * 这里的做T检测不依赖 dayTrade 标记，而是看：
-   * - 有卖出记录（从 trades.json）
-   * - 目前仍持仓（从 portfolio.json）
+   * - 有卖出记录（从 交易记录）
+   * - 目前仍持仓（从 持仓数据）
    * 只要同时满足 → 卖出对剩余仓位产生了成本/盈亏影响
    *
    * costReduction = 所有卖出的 realizedPnl 之和
@@ -897,7 +866,7 @@ export class Subtractor {
     for (const h of this.holdings) {
       if (h.quantity <= 0) continue;
 
-      // 该股票的所有卖出（从 matchedTrades 或 trades.json 取）
+      // 该股票的所有卖出（从 matchedTrades 或 交易记录 取）
       const stockSells = this.trades.filter(t => t.symbol === h.symbol && t.action === 'sell');
       const stockMatchedSells = this.matchedTrades.filter(m =>
         m.symbol === h.symbol && m.status === 'closed'

@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, toRaw } from 'vue'
 
 /**
  * 表格组合式函数
@@ -91,7 +91,7 @@ export function useTable<T = any>(options?: {
 
   // 选择行
   const selectRow = (row: T) => {
-    const index = selectedRows.value.findIndex((r) => r === row)
+    const index = selectedRows.value.findIndex((r) => toRaw(r) === row)
     if (index > -1) {
       selectedRows.value.splice(index, 1)
     } else {

@@ -4,11 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI stock investment advisor (A-share / HK stocks) built on the `@mariozechner/pi-agent-core` SDK. Tri-component architecture:
+AI stock investment advisor (A-share / HK stocks) built on the `@mariozechner/pi-agent-core` SDK. Dual-component architecture:
 
 - **`src/`** — TypeScript AI agent (primary). Interactive CLI/TUI with tool registry, Feishu bot integration, session management, and multi-layer system prompt builder.
-- **`quant/`** — Python quant backend. Flask REST API (port 5002) + `quantsys` package: 18+ strategies, 62 factors, XGBoost/LightGBM ML pipeline, backtesting engine, risk checks.
-- **`quant-web/`** — React dashboard (Vite + Ant Design + Recharts). Proxies `/api` to Flask backend on port 5002.
+- **`quant/`** — Python quant backend (v1). Flask REST API (port 5002) + `quantsys` package: 18+ strategies, 62 factors, XGBoost/LightGBM ML pipeline, backtesting engine, risk checks.
 
 ## Fixed IP / Port Convention
 
@@ -19,7 +18,6 @@ AI stock investment advisor (A-share / HK stocks) built on the `@mariozechner/pi
 | quant Flask API (v1) | `127.0.0.1:5002` | `QUANT_API_HOST` / `QUANT_API_PORT` 环境变量 |
 | quantsys-v2 Flask API | `127.0.0.1:5001` | `QUANTSYS_API_HOST` / `QUANTSYS_API_PORT` / `QUANTSYS_API_URL` |
 | quantsys-v2 WebSocket | `127.0.0.1:5003` | `QUANTSYS_API_HOST` / `QUANTSYS_WS_PORT` 环境变量 |
-| quant-web Vite | `127.0.0.1:3000` | 代理 `/api` → `127.0.0.1:5002` |
 | web-frontend Vite | `127.0.0.1:3001` | 代理 `/api` → `127.0.0.1:5001` |
 | TypeScript Agent | N/A (CLI) | 通过环境变量连接各服务 |
 | PostgreSQL | `127.0.0.1:5432` | `PGHOST` / `PGPORT` 环境变量 |
@@ -45,7 +43,6 @@ npm start                # node dist/index.js
 npm test                 # Jest (ESM via --experimental-vm-modules)
 npm run test:watch       # Jest watch mode
 npm run test:coverage    # Jest with coverage
-npm run test:quant-web   # vitest tests in quant-web/
 
 # Python quant backend (v1)
 cd quant && python api/server.py          # Start Flask API on port 5002
@@ -57,10 +54,6 @@ cd quantsys-v2 && python start_all.py               # 一键启动 REST API (500
 cd quantsys-v2 && python api/server.py              # 单独启动 REST API on port 5001
 cd quantsys-v2 && python api/server_websocket.py    # 单独启动 WebSocket on port 5003
 cd quantsys-v2 && python -m pytest tests/           # Run Python tests
-
-# React dashboard (quant-web)
-cd quant-web && npm run dev    # Vite dev server on port 3000
-cd quant-web && npm run build  # Production build
 
 # Vue 3 dashboard (web-frontend)
 cd web-frontend && npm run dev     # Vite dev server on port 3001
@@ -105,12 +98,16 @@ Layered architecture:
 #### L2 因子工厂层
 批量因子计算和分析：
 - `factor_calculate` — 批量计算技术因子和基本面因子
+- `factor_analyze` — 分析因子有效性（IC、覆盖率、稳定性）
+- `invest_opportunity_scan` — 扫描投资机会（多因子评分）
 
-#### L3 模型层（待实现）
+#### L3 模型层
 机器学习模型训练和预测：
-- 特征工程
-- 模型训练
-- 预测服务
+- `model_train` — 训练机器学习模型
+- `model_predict` — 模型预测和信号生成
+- `model_evaluate` — 模型性能评估
+- `model_monitor` — 模型监控和漂移检测
+- `model_list` — 列出可用模型
 
 #### L4 组合构建层
 持仓管理和再平衡：
@@ -119,10 +116,27 @@ Layered architecture:
 #### L5 执行引擎层
 订单管理和交易执行：
 - `trade_manage_orders` — 订单管理和执行
+- `trade_algo_execute` — 算法交易执行（TWAP/VWAP）
 
 #### L6 监控运维层
 实时监控和告警：
 - `monitor_alert` — 告警通知和风险监控
+
+### Agent 元工具
+
+系统级操作工具：
+- `backend_control` — 管理 quantsys-v2 后端服务生命周期（启动/停止/重启/状态查询）
+  - 支持操作：`start`, `stop`, `restart`, `status`
+  - 支持服务：`all` (REST API + WebSocket), `rest` (仅 REST API), `websocket` (仅 WebSocket)
+  - REST API 端口：5001，WebSocket 端口：5003
+  - 自动健康检查和 PID 管理
+- `restart_agent` — 重启 agent 进程（TypeScript + Python bridge）
+  - **保存并恢复对话历史**（最近 50 条消息）
+  - **保存并恢复任务状态**（TaskManager + BackgroundTaskManager）
+  - **自动触发 agent 循环**，无需用户手动输入
+  - 重启后自动恢复未完成任务（pending + in_progress）
+  - 中断的后台任务标记为失败，agent 可选择重试
+  - 适用场景：新工具注册、Python bridge 异常、性能下降
 
 ### 工具使用指南
 
@@ -138,16 +152,52 @@ Layered architecture:
 
 **重大变更（2025-05-25）**：旧工具系统已完全移除，请使用新的六层架构工具。
 
+**v2 迁移（2026-05-25）**：核心工具已从 v1 Python daemon 迁移到 quantsys-v2 Flask API (端口 5001)：
+- `data_fetch_financial` — 使用 v2 API `/api/data/financials`
+- `factor_calculate` — 使用 v2 API `/api/factors/compute`
+- `factor_analyze` — 使用 v2 API `/api/analysis/factors` (新增)
+- `invest_opportunity_scan` — 使用 v2 API `/api/signals/opportunities`
+- `trade_algo_execute` — 使用 v2 API `/api/orders/algo-execute` (新增)
+
+**v1 保留工具**（仍使用 Python daemon）：
+- `data_fetch_stock`, `data_fetch_kline` — 基础数据获取
+- `model_*` 系列 — 模型训练、预测、评估、监控
+
+所有 v2 工具通过 `QuantV2Client` 统一调用，提供类型安全和错误处理。详见设计文档：`docs/superpowers/specs/2026-05-25-agent-v2-migration-design.md`
+
 旧工具到新工具的映射：
 - 股票查询相关 → `data_fetch_stock`
 - K线数据相关 → `data_fetch_kline`
 - 财务数据相关 → `data_fetch_financial`
 - 因子计算相关 → `factor_calculate`
+- 因子分析相关 → `factor_analyze`
+- 投资机会扫描 → `invest_opportunity_scan`
 - 持仓管理相关 → `portfolio_rebalance`
 - 订单管理相关 → `trade_manage_orders`
+- 算法交易执行 → `trade_algo_execute`
 - 告警通知相关 → `monitor_alert`
 
-工具实现位置：`src/infrastructure/tools/` 按层级组织（data/, factor/, portfolio/, trade/, monitor/）。
+工具实现位置：`src/infrastructure/tools/` 按层级组织（data/, factor/, invest/, portfolio/, trade/, monitor/）。
+
+### 工具后端迁移（2026-05-27）
+
+**重要变更**：`quant_cli` 工具已从 v1 CLI 迁移到 quantsys-v2 HTTP API。
+
+- **旧架构**：spawn python -m quantsys.cli（已弃用）
+- **新架构**：HTTP 调用 quantsys-v2 API (port 5001)
+
+**新增命令**（v2 独有）：
+- `strategy.run` - 实时运行策略
+- `strategy.status` - 查询策略状态
+- `signal.test_run` - 运行信号测试
+- `signal.test_record` - 记录测试结果
+- `signal.test_verify` - 验证信号准确性
+- `signal.test_stats` - 信号测试统计
+
+**要求**：使用 Agent 前必须启动 quantsys-v2 服务：
+```bash
+cd quantsys-v2 && python start_all.py
+```
 
 ### Python Quant Backend (`quant/`)
 
@@ -157,9 +207,9 @@ Pipeline: resolve → data → factor → model → signal → risk → backtest
 - `quant/api/quant_api.py` — CLI bridge for TypeScript → Python calls
 - `quant/quantsys/` — Core package: strategies, factors, ml, risk, backtest, data, live
 
-### React Frontend (`quant-web/`)
+### Vue 3 Frontend (`web-frontend/`)
 
-Vite dev server on port 3000 proxies `/api` to Flask (port 5002, configurable via `VITE_API_TARGET`). Component pages: Dashboard, Research, Model Training, Data Management, Operations.
+Vite dev server on port 3001 proxies `/api` to quantsys-v2 Flask API (port 5001). Component pages: Dashboard, Research, Model Training, Data Management, Operations.
 
 ## Environment Setup
 
@@ -189,13 +239,20 @@ FEISHU_APP_ID=...           # Feishu/Lark bot
 TAVILY_API_KEY=...          # Web search
 ```
 
-Node >= 22.0.0 required. Python >= 3.9 with packages from `quant/requirements.txt`.
+**Python Environment:**
+- **Required**: Python 3.13 (not 3.14 - numba incompatibility)
+- Virtual environment: `.venv-py313/`
+- Activation: `source activate-py313.sh`
+- Dependencies: `quant/requirements.txt` (includes pandas-ta, numba, akshare, etc.)
+
+**Node.js:**
+- Node >= 22.0.0 required
 
 ## Testing
 
 - **TypeScript**: Jest with `--experimental-vm-modules`. Test files co-located as `*.test.ts`. No jest.config file — config is in `package.json` jest section.
 - **Python**: pytest, tests in `quant/tests/`. Coverage currently ~19%.
-- **Frontend**: vitest, tests in `quant-web/src/`.
+- **Frontend**: vitest, tests in `web-frontend/src/`.
 
 ## Kafka (Optional)
 

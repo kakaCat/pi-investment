@@ -8,6 +8,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 try:
+    import pandas as pd
+except ImportError:  # pragma: no cover - exercised when optional dependency is absent
+    pd = None  # type: ignore[assignment]
+
+try:
     import psycopg2
 except ImportError:  # pragma: no cover - exercised when optional dependency is absent
     psycopg2 = None  # type: ignore[assignment]
@@ -604,7 +609,7 @@ class Database:
             rows.append(
                 (
                     str(kline["symbol"]),
-                    kline["ts"],
+                    kline["trade_datetime"],
                     kline.get("open"),
                     kline.get("high"),
                     kline.get("low"),
@@ -622,9 +627,9 @@ class Database:
                     cursor.executemany(
                         """
                         INSERT INTO quant.minute_klines
-                        (symbol, ts, open, high, low, close, volume, amount)
+                        (symbol, trade_datetime, open, high, low, close, volume, amount)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT(symbol, ts) DO UPDATE SET
+                        ON CONFLICT(symbol, trade_datetime) DO UPDATE SET
                             open = excluded.open,
                             high = excluded.high,
                             low = excluded.low,
@@ -643,6 +648,67 @@ class Database:
         except Exception as exc:
             connection.rollback()
             raise RuntimeError(f"Failed to upsert minute kline records: {exc}") from exc
+
+    def get_minute_klines(self, symbol: str, start_date: str, end_date: str) -> "pd.DataFrame":
+        """Get minute K-line data for a symbol within a date range."""
+        if pd is None:
+            raise RuntimeError("pandas is required for get_minute_klines")
+        if self.provider != "postgres":
+            raise RuntimeError("Minute klines are only supported with PostgreSQL")
+
+        connection = self._get_connection()
+        cursor = connection.cursor()
+        try:
+            cursor.execute(
+                """
+                SELECT symbol, trade_datetime::text, open, high, low, close, volume, amount
+                FROM quant.minute_klines
+                WHERE symbol = %s
+                  AND trade_datetime::date >= %s::date
+                  AND trade_datetime::date <= %s::date
+                ORDER BY trade_datetime ASC
+                """,
+                (symbol, start_date, end_date),
+            )
+            rows = cursor.fetchall()
+
+            if not rows:
+                return pd.DataFrame(columns=["symbol", "trade_datetime", "open", "high", "low", "close", "volume", "amount"])
+
+            return pd.DataFrame(
+                rows,
+                columns=["symbol", "trade_datetime", "open", "high", "low", "close", "volume", "amount"]
+            )
+        except Exception as exc:
+            raise RuntimeError(f"Failed to fetch minute klines for {symbol}: {exc}") from exc
+        finally:
+            cursor.close()
+
+    def get_minute_kline_dates(self, symbol: str) -> Dict[str, Any]:
+        """Return min and max dates for a symbol's minute K-lines."""
+        if self.provider != "postgres":
+            raise RuntimeError("Minute klines are only supported with PostgreSQL")
+
+        connection = self._get_connection()
+        cursor = connection.cursor()
+        try:
+            cursor.execute(
+                """
+                SELECT MIN(trade_datetime::date)::text, MAX(trade_datetime::date)::text
+                FROM quant.minute_klines
+                WHERE symbol = %s
+                """,
+                (symbol,),
+            )
+            row = cursor.fetchone()
+
+            if row and row[0]:
+                return {"min_date": row[0], "max_date": row[1]}
+            return {"min_date": None, "max_date": None}
+        except Exception as exc:
+            raise RuntimeError(f"Failed to fetch minute kline dates for {symbol}: {exc}") from exc
+        finally:
+            cursor.close()
 
     def get_all_symbols(
         self,

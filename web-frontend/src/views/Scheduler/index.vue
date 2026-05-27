@@ -1,5 +1,10 @@
 <template>
   <div class="scheduler-page">
+    <!-- 提示横幅 -->
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-700">
+      <span class="font-medium">提示：</span>定时任务已接入后端调度系统，配置持久化在服务端。按 Cron 表达式自动执行，也可手动触发。
+    </div>
+
     <!-- 顶部操作栏 -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-4">
       <div class="flex items-center justify-between mb-4">
@@ -201,6 +206,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { formatDateTime, formatTime } from '@/utils/format'
+import { apiClient } from '@/services/api/client'
 
 interface Task {
   id: string
@@ -225,56 +231,117 @@ interface HistoryRecord {
   error: string
 }
 
-// 任务列表
-const tasks = ref<Task[]>([
-  {
-    id: '1',
-    name: '数据更新',
-    command: 'data_update',
-    cron: '0 8 * * 1-5',
-    params: 'source: hs300, days: 730',
-    description: '每个工作日早上8点更新股票数据',
-    enabled: true,
-    lastRun: '2026-05-21 08:00:00',
-    lastStatus: 'success'
-  },
-  {
-    id: '2',
-    name: '信号生成',
-    command: 'signal_generate',
-    cron: '30 9 * * 1-5',
-    params: 'source: portfolio',
-    description: '每个工作日早上9点30分生成交易信号',
-    enabled: true,
-    lastRun: '2026-05-21 09:30:00',
-    lastStatus: 'success'
-  },
-  {
-    id: '3',
-    name: '风控检查',
-    command: 'risk_check',
-    cron: '*/30 9-15 * * 1-5',
-    params: 'account_value: auto',
-    description: '交易时段每30分钟检查一次风险',
-    enabled: true,
-    lastRun: '2026-05-21 10:30:00',
-    lastStatus: 'success'
-  },
-  {
-    id: '4',
-    name: '日报生成',
-    command: 'report_daily',
-    cron: '0 15 * * 1-5',
-    params: '',
-    description: '每个工作日下午3点生成日报',
-    enabled: false,
-    lastRun: '2026-05-20 15:00:00',
-    lastStatus: 'failed'
+// ── Backend ↔ Frontend mappers ────────────────────────────────────────
+
+/** Map backend SchedulerTaskSummary → frontend Task */
+const mapTask = (t: Record<string, unknown>): Task => {
+  const payload = (t.payload ?? {}) as Record<string, unknown>
+  const lastRun = t.lastRun as Record<string, unknown> | undefined
+  const lastStatus = lastRun
+    ? (lastRun.status === 'success' || lastRun.status === 'compensated') ? 'success' as const
+    : (lastRun.status === 'failed' || lastRun.status === 'compensation_failed') ? 'failed' as const
+    : null
+    : null
+
+  return {
+    id: t.id as string,
+    name: t.name as string,
+    command: payload.command as string || '',
+    cron: t.scheduleKind === 'cron' ? (t.scheduleExpr as string || '') : '',
+    params: formatPayloadParams(payload),
+    description: payload.description as string || '',
+    enabled: Boolean(t.enabled),
+    lastRun: (lastRun?.finishedAt ?? lastRun?.startedAt ?? lastRun?.triggeredAt ?? null) as string | null,
+    lastStatus,
   }
-])
+}
+
+/** Format payload into key:value string for display (exclude command/description) */
+const formatPayloadParams = (payload: Record<string, unknown>): string => {
+  const { command, description, ...rest } = payload
+  const entries = Object.entries(rest)
+  if (entries.length === 0) return ''
+  return entries.map(([k, v]) => `${k}: ${v}`).join(', ')
+}
+
+/** Map backend SchedulerRun → frontend HistoryRecord */
+const mapRun = (r: Record<string, unknown>): HistoryRecord => ({
+  id: r.id as string,
+  taskName: r.taskName as string,
+  status: (r.status === 'success' || r.status === 'compensated') ? 'success' : 'failed',
+  startTime: (r.startedAt ?? r.triggeredAt ?? '') as string,
+  endTime: (r.finishedAt ?? '') as string,
+  duration: typeof r.durationMs === 'number' ? Math.round(r.durationMs / 1000) : 0,
+  result: typeof r.payload === 'object' ? JSON.stringify(r.payload) : String(r.payload ?? ''),
+  error: (r.error ?? '') as string,
+})
+
+/** Build backend payload object from task form data */
+const buildPayload = (form: Record<string, unknown>): Record<string, unknown> => {
+  const payload: Record<string, unknown> = {}
+  if (form.command) payload.command = form.command
+  if (form.description) payload.description = form.description
+
+  const paramsStr = String(form.params ?? '').trim()
+  if (paramsStr) {
+    try {
+      const parsed = JSON.parse(paramsStr)
+      if (typeof parsed === 'object' && parsed !== null) {
+        Object.assign(payload, parsed)
+      } else {
+        payload.params = form.params
+      }
+    } catch {
+      const pairs: Record<string, string> = {}
+      paramsStr.split(',').forEach((pair) => {
+        const colonIdx = pair.indexOf(':')
+        if (colonIdx > 0) {
+          pairs[pair.slice(0, colonIdx).trim()] = pair.slice(colonIdx + 1).trim()
+        }
+      })
+      if (Object.keys(pairs).length > 0) {
+        Object.assign(payload, pairs)
+      } else {
+        payload.params = form.params
+      }
+    }
+  }
+  return payload
+}
+
+// ── State ──────────────────────────────────────────────────────────────
+
+const loading = ref(false)
+const tasks = ref<Task[]>([])
+
+// 加载任务列表
+const loadTasks = async () => {
+  loading.value = true
+  try {
+    const result = await apiClient.get('/api/scheduler/tasks')
+    const list = (result as any).tasks || []
+    tasks.value = list.map(mapTask)
+  } catch (error) {
+    console.error('加载调度任务失败:', error)
+    ElMessage.error('加载调度任务失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 // 历史记录
 const history = ref<HistoryRecord[]>([])
+
+// 加载执行历史
+const loadHistory = async () => {
+  try {
+    const result = await apiClient.get('/api/scheduler/runs', { params: { limit: 50 } })
+    const runs = (result as any).runs || []
+    history.value = runs.map(mapRun)
+  } catch (error) {
+    console.error('加载执行历史失败:', error)
+  }
+}
 
 // 对话框
 const taskDialogVisible = ref(false)
@@ -289,57 +356,11 @@ const taskForm = reactive<Partial<Task>>({
   cron: '',
   params: '',
   description: '',
-  enabled: true
+  enabled: true,
 })
 
 // 日志
 const logs = ref<string[]>([])
-
-// 获取历史记录
-const fetchHistory = () => {
-  history.value = [
-    {
-      id: '1',
-      taskName: 'data_update',
-      status: 'success',
-      startTime: '2026-05-21 08:00:00',
-      endTime: '2026-05-21 08:12:35',
-      duration: 755,
-      result: '300/300 stocks',
-      error: ''
-    },
-    {
-      id: '2',
-      taskName: 'signal_generate',
-      status: 'success',
-      startTime: '2026-05-21 09:30:00',
-      endTime: '2026-05-21 09:31:18',
-      duration: 78,
-      result: '12 signals',
-      error: ''
-    },
-    {
-      id: '3',
-      taskName: 'risk_check',
-      status: 'success',
-      startTime: '2026-05-21 10:30:00',
-      endTime: '2026-05-21 10:30:05',
-      duration: 5,
-      result: '中等风险',
-      error: ''
-    },
-    {
-      id: '4',
-      taskName: 'report_daily',
-      status: 'failed',
-      startTime: '2026-05-20 15:00:00',
-      endTime: '2026-05-20 15:00:02',
-      duration: 2,
-      result: '',
-      error: '数据不足'
-    }
-  ]
-}
 
 // 显示新建对话框
 const showAddDialog = () => {
@@ -350,63 +371,76 @@ const showAddDialog = () => {
     cron: '',
     params: '',
     description: '',
-    enabled: true
+    enabled: true,
   })
   taskDialogVisible.value = true
 }
 
-// 保存任务
-const saveTask = () => {
+// 保存任务（创建 / 更新）
+const saveTask = async () => {
   if (!taskForm.name || !taskForm.command || !taskForm.cron) {
     ElMessage.warning('请填写完整信息')
     return
   }
 
-  if (isEdit.value) {
-    const task = tasks.value.find(t => t.id === taskForm.id)
-    if (task) {
-      Object.assign(task, taskForm)
-      ElMessage.success('任务已更新')
-    }
-  } else {
-    const newTask: Task = {
-      id: Date.now().toString(),
-      name: taskForm.name!,
-      command: taskForm.command!,
-      cron: taskForm.cron!,
-      params: taskForm.params || '',
-      description: taskForm.description || '',
-      enabled: taskForm.enabled!,
-      lastRun: null,
-      lastStatus: null
-    }
-    tasks.value.push(newTask)
-    ElMessage.success('任务已创建')
+  const body = {
+    name: taskForm.name,
+    enabled: taskForm.enabled !== false,
+    scheduleKind: 'cron' as const,
+    scheduleExpr: taskForm.cron,
+    payload: buildPayload(taskForm as Record<string, unknown>),
   }
 
-  taskDialogVisible.value = false
+  try {
+    if (isEdit.value && taskForm.id) {
+      await apiClient.put(`/api/scheduler/tasks/${taskForm.id}`, body)
+      ElMessage.success('任务已更新')
+    } else {
+      await apiClient.post('/api/scheduler/tasks', body)
+      ElMessage.success('任务已创建')
+    }
+    taskDialogVisible.value = false
+    await loadTasks()
+  } catch (error: any) {
+    const msg = error?.message || '保存失败'
+    ElMessage.error(msg)
+  }
 }
 
 // 触发任务
-const triggerTask = (task: Task) => {
-  ElMessage.success(`任务 ${task.name} 已触发`)
+const triggerTask = async (task: Task) => {
+  try {
+    await apiClient.post(`/api/scheduler/tasks/${task.id}/trigger`)
+    ElMessage.success(`任务 ${task.name} 已触发`)
+    await loadTasks()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '触发失败')
+  }
 }
 
-// 切换任务状态
-const toggleTask = (task: Task) => {
-  task.enabled = !task.enabled
-  ElMessage.success(`任务已${task.enabled ? '启用' : '暂停'}`)
+// 切换任务启用/暂停状态
+const toggleTask = async (task: Task) => {
+  const action = task.enabled ? 'disable' : 'enable'
+  try {
+    await apiClient.post(`/api/scheduler/tasks/${task.id}/${action}`)
+    ElMessage.success(`任务已${task.enabled ? '暂停' : '启用'}`)
+    await loadTasks()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '操作失败')
+  }
 }
 
 // 删除任务
 const deleteTask = (task: Task) => {
   ElMessageBox.confirm(`确定要删除任务 ${task.name} 吗？`, '确认删除', {
-    type: 'warning'
-  }).then(() => {
-    const index = tasks.value.findIndex(t => t.id === task.id)
-    if (index > -1) {
-      tasks.value.splice(index, 1)
+    type: 'warning',
+  }).then(async () => {
+    try {
+      await apiClient.delete(`/api/scheduler/tasks/${task.id}`)
       ElMessage.success('任务已删除')
+      await loadTasks()
+    } catch (error: any) {
+      ElMessage.error(error?.message || '删除失败')
     }
   }).catch(() => {})
 }
@@ -417,9 +451,8 @@ const showCronHelper = () => {
 }
 
 // 获取下次运行时间
-const getNextRunTime = (cron: string) => {
-  if (!cron) return '-'
-  // 简单示例，实际应该使用cron解析库
+const getNextRunTime = (_cron: string) => {
+  if (!_cron) return '-'
   return '2026-05-22 08:00:00'
 }
 
@@ -432,7 +465,8 @@ const formatDuration = (seconds: number) => {
 }
 
 onMounted(() => {
-  fetchHistory()
+  loadTasks()
+  loadHistory()
 })
 </script>
 

@@ -1,6 +1,6 @@
 <template>
   <div class="daily-report-page">
-    <el-card shadow="never">
+    <el-card shadow="never" v-loading="loading">
       <!-- 顶部日期选择 -->
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-base font-semibold">日报</h2>
@@ -217,10 +217,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, ArrowRight, Download } from '@element-plus/icons-vue'
 import { formatPercent, formatPrice } from '@/utils/format'
+import { apiClient } from '@/services/api/client'
 
 interface Report {
   signalCount: number
@@ -260,6 +261,7 @@ interface StrategyPerf {
 
 // 状态
 const selectedDate = ref(new Date().toISOString().split('T')[0])
+const loading = ref(false)
 
 // 报告数据
 const report = reactive<Report>({
@@ -351,8 +353,97 @@ const strategyPerformance = ref<StrategyPerf[]>([
 ])
 
 // 获取报告
-const fetchReport = () => {
-  ElMessage.success(`加载 ${selectedDate.value} 的日报`)
+const fetchReport = async () => {
+  loading.value = true
+  try {
+    const response = await apiClient.get('/api/report/daily', {
+      params: {
+        date: selectedDate.value
+      }
+    })
+
+    // 适配后端返回的数据结构
+    if (response.error) {
+      ElMessage.warning(response.error)
+      return
+    }
+
+    // 如果返回的是 markdown 格式
+    if (response.report?.format === 'markdown') {
+      ElMessage.info('报告为 Markdown 格式，暂不支持展示')
+      return
+    }
+
+    // 解析后端数据并更新前端状态
+    const signalsData = response.signals || {}
+    const riskData = response.risk || {}
+
+    // 更新报告摘要
+    Object.assign(report, {
+      signalCount: signalsData.total || 0,
+      buySignals: signalsData.buy_count || signalsData.buyCount || 0,
+      sellSignals: signalsData.sell_count || signalsData.sellCount || 0,
+      holdSignals: signalsData.hold_count || signalsData.holdCount || 0,
+      riskLevel: riskData.level || 'medium',
+      var: riskData.var || 0,
+      volatility: riskData.volatility || 0,
+      portfolioReturn: riskData.portfolio_return || riskData.portfolioReturn || 0,
+      annualizedReturn: riskData.annualized_return || riskData.annualizedReturn || 0
+    })
+
+    // 更新高置信度信号
+    const rawSignals = response.signals?.signals || []
+    topSignals.value = rawSignals
+      .filter((s: any) => (s.confidence || 0) > 0.7)
+      .slice(0, 5)
+      .map((s: any, idx: number) => ({
+        id: String(idx + 1),
+        type: s.signal === 'BUY' ? 'buy' : 'sell',
+        stockCode: s.symbol || s.stock_code || s.stockCode,
+        stockName: s.name || s.stock_name || s.stockName || '',
+        confidence: s.confidence || 0,
+        strategy: s.strategy || 'Unknown'
+      }))
+
+    // 更新风控提醒
+    const alerts = riskData.alerts || []
+    riskAlerts.value = alerts.map((alert: any) => ({
+      level: alert.level || 'warning',
+      title: alert.title || '风险提醒',
+      message: alert.message || alert.description || ''
+    }))
+
+    // 更新持仓变化
+    const changes = riskData.position_changes || riskData.positionChanges || {}
+    positionChanges.added = (changes.added || []).map((p: any) => ({
+      code: p.code || p.symbol,
+      name: p.name,
+      quantity: p.quantity || p.shares
+    }))
+    positionChanges.removed = (changes.removed || []).map((p: any) => ({
+      code: p.code || p.symbol,
+      name: p.name,
+      quantity: p.quantity || p.shares
+    }))
+
+    // 更新策略表现
+    const strategies = response.strategy_performance || response.strategyPerformance || []
+    strategyPerformance.value = strategies.map((s: any) => ({
+      name: s.name || s.strategy_name || s.strategyName,
+      signalCount: s.signal_count || s.signalCount || 0,
+      winRate: s.win_rate || s.winRate || 0,
+      pnl: s.pnl || 0,
+      avgReturn: s.avg_return || s.avgReturn || 0,
+      sharpe: s.sharpe || s.sharpe_ratio || s.sharpeRatio || 0
+    }))
+
+    ElMessage.success(`已加载 ${selectedDate.value} 的日报`)
+  } catch (error) {
+    console.error('获取每日报告失败:', error)
+    ElMessage.error('获取每日报告失败，请检查后端服务是否运行')
+  } finally {
+    loading.value = false
+  }
 }
 
 // 前一天
@@ -373,7 +464,30 @@ const nextDay = () => {
 
 // 导出报告
 const exportReport = () => {
-  ElMessage.success('报告导出成功')
+  try {
+    const reportData = {
+      date: selectedDate.value,
+      summary: report,
+      signals: topSignals.value,
+      riskAlerts: riskAlerts.value,
+      positionChanges,
+      strategyPerformance: strategyPerformance.value
+    }
+
+    const dataStr = JSON.stringify(reportData, null, 2)
+    const blob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `daily_report_${selectedDate.value}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+
+    ElMessage.success('报告导出成功')
+  } catch (error) {
+    console.error('导出报告失败:', error)
+    ElMessage.error('导出报告失败')
+  }
 }
 
 // 获取风险颜色
@@ -415,6 +529,11 @@ const getAlertIcon = (level: string) => {
 }
 
 onMounted(() => {
+  fetchReport()
+})
+
+// 监听日期变化
+watch(selectedDate, () => {
   fetchReport()
 })
 </script>

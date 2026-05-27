@@ -96,7 +96,7 @@
         <el-table-column prop="progress" label="进度" width="150">
           <template #default="{ row }">
             <el-progress
-              v-if="row.status === 'running'"
+              v-if="row.status === 'running' || row.status === 'queued'"
               :percentage="row.progress"
               :stroke-width="6"
             />
@@ -122,7 +122,7 @@
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button
-              v-if="row.status === 'running'"
+              v-if="row.status === 'running' || row.status === 'queued'"
               type="danger"
               link
               @click="stopJob(row)"
@@ -177,18 +177,23 @@ import { ElMessage } from 'element-plus'
 import { VideoPlay, Refresh } from '@element-plus/icons-vue'
 import { formatDateTime } from '@/utils/format'
 import { usePolling } from '@/composables/usePolling'
+import { dataApi } from '@/services/api'
 
 interface UpdateJob {
   jobId: string
   source: string
   days: number
-  status: 'running' | 'completed' | 'failed'
+  status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
   total: number | null
   success: number
   failed: number
   progress: number
   createdAt: string
   completedAt: string | null
+  type?: string
+  params?: any
+  result?: any
+  error?: string
 }
 
 // 状态
@@ -216,59 +221,33 @@ const logs = ref<string[]>([])
 const fetchJobs = async () => {
   loading.value = true
   try {
-    // Mock数据
-    jobs.value = [
-      {
-        jobId: 'j-20260521-001',
-        source: 'hs300',
-        days: 730,
-        status: 'completed',
-        total: 300,
-        success: 300,
-        failed: 0,
-        progress: 100,
-        createdAt: '2026-05-21 09:00:00',
-        completedAt: '2026-05-21 09:12:00'
-      },
-      {
-        jobId: 'j-20260520-003',
-        source: 'portfolio',
-        days: 365,
-        status: 'completed',
-        total: 8,
-        success: 8,
-        failed: 0,
-        progress: 100,
-        createdAt: '2026-05-20 18:00:00',
-        completedAt: '2026-05-20 18:03:00'
-      },
-      {
-        jobId: 'j-20260520-002',
-        source: 'watchlist',
-        days: 180,
-        status: 'failed',
-        total: 25,
-        success: 22,
-        failed: 3,
-        progress: 88,
-        createdAt: '2026-05-20 14:00:00',
-        completedAt: '2026-05-20 14:05:00'
-      },
-      {
-        jobId: 'j-20260520-001',
-        source: 'all',
-        days: 730,
-        status: 'running',
-        total: null,
-        success: 215,
-        failed: 2,
-        progress: 65,
-        createdAt: '2026-05-20 08:00:00',
-        completedAt: null
-      }
-    ]
-    total.value = 42
+    const response = await dataApi.getJobs({
+      page: currentPage.value,
+      pageSize: pageSize.value
+    })
+
+    // response 现在是 PaginatedResponse<DataUpdateJob> 格式
+    // items 已由 data.ts 中的 mapJobToDataUpdateJob 转换为标准格式
+    jobs.value = response.items.map(job => ({
+      jobId: job.jobId,
+      source: job.source,
+      days: job.days,
+      status: job.status,
+      total: job.total || null,
+      success: job.success,
+      failed: job.failed,
+      progress: job.progress,
+      createdAt: job.createdAt,
+      completedAt: job.completedAt || null,
+      type: job.type,
+      params: job.params,
+      result: job.result,
+      error: job.error
+    }))
+
+    total.value = response.total
   } catch (error) {
+    console.error('获取任务列表失败:', error)
     ElMessage.error('获取任务列表失败')
   } finally {
     loading.value = false
@@ -279,69 +258,89 @@ const fetchJobs = async () => {
 const startUpdate = async () => {
   updating.value = true
   try {
-    // 模拟创建更新任务
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    const newJob: UpdateJob = {
-      jobId: `j-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${String(jobs.value.length + 1).padStart(3, '0')}`,
-      source: updateConfig.source,
+    const result = await dataApi.startUpdate({
+      scope: updateConfig.source as 'hs300' | 'watchlist' | 'portfolio' | 'all',
       days: updateConfig.days,
-      status: 'running',
-      total: null,
-      success: 0,
-      failed: 0,
-      progress: 0,
-      createdAt: new Date().toISOString().replace('T', ' ').split('.')[0],
-      completedAt: null
-    }
+      forceUpdate: updateConfig.force
+    })
 
-    jobs.value.unshift(newJob)
-    ElMessage.success('更新任务已创建')
-  } catch (error) {
-    ElMessage.error('创建更新任务失败')
+    ElMessage.success(`数据更新任务已创建: ${result.jobId}`)
+
+    // 刷新任务列表
+    await fetchJobs()
+  } catch (error: any) {
+    console.error('启动数据更新失败:', error)
+    ElMessage.error(error?.message || '启动数据更新失败')
   } finally {
     updating.value = false
   }
 }
 
 // 停止任务
-const stopJob = (job: UpdateJob) => {
-  ElMessage.info(`停止任务 ${job.jobId}`)
-  job.status = 'failed'
+const stopJob = async (job: UpdateJob) => {
+  try {
+    await dataApi.cancelJob(job.jobId)
+    ElMessage.success('任务已取消')
+    await fetchJobs()
+  } catch (error: any) {
+    console.error('停止任务失败:', error)
+    ElMessage.error(error?.message || '停止任务失败')
+  }
 }
 
 // 重试任务
-const retryJob = (job: UpdateJob) => {
-  ElMessage.info(`重试任务 ${job.jobId}`)
-  job.status = 'running'
-  job.progress = 0
-  job.success = 0
-  job.failed = 0
+const retryJob = async (job: UpdateJob) => {
+  try {
+    await dataApi.retryJob(job.jobId)
+    ElMessage.success('任务已重新提交')
+    await fetchJobs()
+  } catch (error: any) {
+    console.error('重试任务失败:', error)
+    ElMessage.error(error?.message || '重试任务失败')
+  }
 }
 
 // 查看日志
 const viewLogs = (job: UpdateJob) => {
-  logs.value = [
-    `[${job.createdAt}] 任务开始: ${job.jobId}`,
-    `[${job.createdAt}] 数据源: ${job.source}, 天数: ${job.days}`,
-    `[${job.createdAt}] 开始获取股票列表...`,
-    `[${job.createdAt}] 找到 ${job.total || 300} 只股票`,
-    `[${job.createdAt}] 开始下载K线数据...`,
-    job.status === 'completed'
-      ? `[${job.completedAt}] 任务完成: 成功 ${job.success}, 失败 ${job.failed}`
-      : job.status === 'failed'
-      ? `[${job.completedAt}] 任务失败: 成功 ${job.success}, 失败 ${job.failed}`
-      : `[${new Date().toISOString().replace('T', ' ').split('.')[0]}] 运行中: 成功 ${job.success}, 失败 ${job.failed}, 进度 ${job.progress}%`
-  ]
+  const logLines: string[] = []
+
+  logLines.push(`[${job.createdAt}] 任务开始: ${job.jobId}`)
+  logLines.push(`[${job.createdAt}] 数据源: ${job.source}, 天数: ${job.days}`)
+
+  if (job.params) {
+    logLines.push(`[${job.createdAt}] 参数: ${JSON.stringify(job.params, null, 2)}`)
+  }
+
+  if (job.result) {
+    logLines.push(`[${job.createdAt}] 结果: 总数 ${job.total || 0}, 成功 ${job.success}, 失败 ${job.failed}`)
+  }
+
+  if (job.error) {
+    logLines.push(`[${job.completedAt || job.createdAt}] 错误: ${job.error}`)
+  }
+
+  if (job.status === 'success') {
+    logLines.push(`[${job.completedAt}] 任务完成: 成功 ${job.success}, 失败 ${job.failed}`)
+  } else if (job.status === 'failed') {
+    logLines.push(`[${job.completedAt}] 任务失败: 成功 ${job.success}, 失败 ${job.failed}`)
+  } else if (job.status === 'running') {
+    logLines.push(`[${new Date().toISOString()}] 运行中: 成功 ${job.success}, 失败 ${job.failed}, 进度 ${job.progress}%`)
+  }
+
+  logs.value = logLines
   logDialogVisible.value = true
 }
 
 // 获取状态类型
 const getStatusType = (status: string) => {
   const map: Record<string, any> = {
+    queued: 'info',
+    pending: 'info',
     running: 'primary',
+    success: 'success',
     completed: 'success',
-    failed: 'danger'
+    failed: 'danger',
+    cancelled: 'warning'
   }
   return map[status] || 'info'
 }
@@ -349,9 +348,13 @@ const getStatusType = (status: string) => {
 // 获取状态文本
 const getStatusText = (status: string) => {
   const map: Record<string, string> = {
+    queued: '排队中',
+    pending: '排队中',
     running: '运行中',
+    success: '完成',
     completed: '完成',
-    failed: '失败'
+    failed: '失败',
+    cancelled: '已取消'
   }
   return map[status] || status
 }

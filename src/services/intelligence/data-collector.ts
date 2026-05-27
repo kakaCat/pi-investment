@@ -1,11 +1,13 @@
 /**
  * Data Collector - 数据采集器
  *
- * 从 portfolio.json、trades.json、reviews/ 提取数据用于经验库构建
+ * 从 PostgreSQL（通过 CLI Adapters）和 reviews/ 提取数据用于经验库构建
  */
 
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { join } from 'path';
+import { PositionCliAdapter } from '../../infrastructure/adapters/cli/position-cli-adapter.js';
+import { TradeCliAdapter } from '../../infrastructure/adapters/cli/trade-cli-adapter.js';
 
 const DEFAULT_BASE_DIR = join(process.cwd(), '.pi-invest');
 
@@ -73,30 +75,33 @@ export interface ReviewData {
 // ============ Portfolio 解析器 ============
 
 /**
- * 加载持仓数据
+ * 加载持仓数据（通过 CLI → PostgreSQL）
  */
-export function loadPortfolio(baseDir: string = DEFAULT_BASE_DIR): Portfolio {
-  const filePath = join(baseDir, 'portfolio.json');
+export async function loadPortfolio(baseDir?: string): Promise<Portfolio> {
+  const adapter = new PositionCliAdapter();
+  const positions = await adapter.list({ status: 'open' });
 
-  if (!existsSync(filePath)) {
-    throw new Error(`Portfolio file not found: ${filePath}`);
-  }
+  const holdings: Holding[] = positions.map(p => ({
+    symbol: p.symbol,
+    name: p.name || p.symbol,
+    quantity: p.quantity,
+    avg_cost: p.costBasis ?? 0,
+    market: 'A' as 'A' | 'HK',  // CLI adapter doesn't provide market, default A
+    notes: p.notes || '',
+    added_date: p.entryDate || '',
+    original_cost: p.costBasis ?? 0,
+    total_invested: (p.costBasis ?? 0) * p.quantity,
+    stop_loss: null,
+    target_price: null,
+    batch_plan: null,
+    sector: '',
+    buy_reason: p.notes || null,
+  }));
 
-  try {
-    const content = readFileSync(filePath, 'utf-8');
-    const data = JSON.parse(content);
-
-    if (!data.holdings || !Array.isArray(data.holdings)) {
-      throw new Error('Invalid portfolio format: missing holdings array');
-    }
-
-    return data as Portfolio;
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      throw new Error(`Failed to parse portfolio.json: ${error.message}`);
-    }
-    throw error;
-  }
+  return {
+    holdings,
+    last_updated: new Date().toISOString(),
+  };
 }
 
 /**
@@ -131,30 +136,29 @@ export function parsePortfolio(
 // ============ Trades 解析器 ============
 
 /**
- * 加载交易记录
+ * 加载交易记录（通过 CLI → PostgreSQL）
  */
-export function loadTrades(baseDir: string = DEFAULT_BASE_DIR): TradeHistory {
-  const filePath = join(baseDir, 'trades.json');
+export async function loadTrades(baseDir?: string): Promise<TradeHistory> {
+  const adapter = new TradeCliAdapter();
+  const trades = await adapter.list();
 
-  if (!existsSync(filePath)) {
-    throw new Error(`Trades file not found: ${filePath}`);
-  }
+  const mappedTrades: Trade[] = trades.map(t => ({
+    date: t.timestamp || '',
+    action: t.action,
+    symbol: t.symbol,
+    name: t.name,
+    quantity: t.quantity,
+    price: t.price,
+    amount: t.price * t.quantity,
+    market: 'A' as 'A' | 'HK',  // CLI adapter doesn't provide market
+    notes: t.notes || '',
+    time: t.timestamp || '',
+  }));
 
-  try {
-    const content = readFileSync(filePath, 'utf-8');
-    const data = JSON.parse(content);
-
-    if (!data.trades || !Array.isArray(data.trades)) {
-      throw new Error('Invalid trades format: missing trades array');
-    }
-
-    return data as TradeHistory;
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      throw new Error(`Failed to parse trades.json: ${error.message}`);
-    }
-    throw error;
-  }
+  return {
+    trades: mappedTrades,
+    last_updated: new Date().toISOString(),
+  };
 }
 
 /**
@@ -380,10 +384,10 @@ export interface CollectedData {
 /**
  * 采集所有数据
  */
-export function collectAllData(baseDir: string = DEFAULT_BASE_DIR): CollectedData {
+export async function collectAllData(baseDir?: string): Promise<CollectedData> {
   try {
-    const portfolio = loadPortfolio(baseDir);
-    const tradeHistory = loadTrades(baseDir);
+    const portfolio = await loadPortfolio(baseDir);
+    const tradeHistory = await loadTrades(baseDir);
     const reviews = loadReviews(baseDir);
 
     const parsedPortfolio = parsePortfolio(portfolio);

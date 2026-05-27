@@ -18,16 +18,21 @@ export interface DataSource {
 
 export interface DataUpdateJob {
   jobId: string
+  type: string
   source: string
   scope: 'hs300' | 'watchlist' | 'portfolio' | 'all'
   days: number
-  status: 'pending' | 'running' | 'completed' | 'failed'
+  status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled'
   total: number
   success: number
   failed: number
+  progress: number
   createdAt: string
   completedAt?: string
   forceUpdate: boolean
+  params?: Record<string, any>
+  result?: Record<string, any>
+  error?: string
 }
 
 export interface DataUpdateLog {
@@ -61,6 +66,62 @@ export interface DataUpdateLogsRequest extends PaginationParams {
   endDate?: string
 }
 
+// ========== 数据转换辅助函数 ==========
+
+/**
+ * 将后端任务格式 ({ id, type, status, params, result, createdAt, finishedAt, ... })
+ * 转换为前端 DataUpdateJob 格式
+ */
+export function mapJobToDataUpdateJob(raw: any): DataUpdateJob {
+  // Normalize: params may be nested or at top level (legacy compat)
+  const params = raw.params || {}
+  const result = raw.result || {}
+  const total = result.total || 0
+  const succeeded = result.succeeded || 0
+  const failedCount = result.failed || 0
+
+  // 计算进度
+  let progress = 0
+  const rawStatus = raw.status || 'queued'
+  if (rawStatus === 'completed' || rawStatus === 'success') {
+    progress = 100
+  } else if (total > 0) {
+    progress = Math.round((succeeded / total) * 100)
+  }
+
+  // Read params fields, with top-level fallback for legacy jobs
+  const jobSource = params.source || raw.source || raw.type || 'unknown'
+  const jobDays = params.days || raw.days || 0
+  const jobForce = params.force || raw.force || false
+  const scope = (['hs300', 'watchlist', 'portfolio', 'all'].includes(jobSource) ? jobSource : 'all') as DataUpdateJob['scope']
+
+  // Normalize status: backend 'completed'/'pending' → frontend 'success'/'queued'
+  let status = rawStatus
+  if (status === 'completed') {
+    status = failedCount > 0 ? 'failed' : 'success'
+  }
+  if (status === 'pending') status = 'queued'
+
+  return {
+    jobId: raw.id || raw.jobId || '',
+    type: raw.type || 'unknown',
+    source: jobSource,
+    scope,
+    days: jobDays,
+    status,
+    total,
+    success: succeeded,
+    failed: failedCount,
+    progress,
+    forceUpdate: jobForce,
+    createdAt: raw.createdAt || '',
+    completedAt: raw.finishedAt || raw.completedAt || undefined,
+    params,
+    result,
+    error: raw.error || undefined
+  }
+}
+
 // ========== API 方法 ==========
 
 export const dataApi = {
@@ -81,13 +142,15 @@ export const dataApi = {
   /**
    * 开始数据更新
    */
-  startUpdate(request: StartUpdateRequest) {
-    return apiClient.post<{ jobId: string }>('/api/data/update', {
+  async startUpdate(request: StartUpdateRequest) {
+    const response = await apiClient.post<{ success: boolean; job_id: string; message: string }>('/api/data/update', {
       source: request.scope,
       days: request.days,
       force: request.forceUpdate ?? false,
       async: true
     })
+    // 转换后端格式 job_id -> jobId
+    return { jobId: response?.job_id }
   },
 
   /**
@@ -106,9 +169,23 @@ export const dataApi = {
 
   /**
    * 获取更新任务列表
+   * 后端返回: { success: true, jobs: [...], count: N }
+   * 适配为: PaginatedResponse<DataUpdateJob>
    */
   getJobs(params?: PaginationParams) {
-    return apiClient.get<PaginatedResponse<DataUpdateJob>>('/api/data/jobs', { params })
+    return apiClient.get<any>('/api/jobs', { params })
+      .then((response) => {
+        const jobsList: any[] = response.jobs || []
+        const pageSize = params?.pageSize || 20
+        const total = response.count || 0
+        return {
+          items: jobsList.map(mapJobToDataUpdateJob),
+          total,
+          page: params?.page || 1,
+          pageSize,
+          totalPages: Math.ceil(total / pageSize)
+        } as PaginatedResponse<DataUpdateJob>
+      })
   },
 
   /**
@@ -130,5 +207,19 @@ export const dataApi = {
    */
   updateSourceConfig(sourceId: string, config: any) {
     return apiClient.put(`/api/data/sources/${sourceId}/config`, config)
+  },
+
+  /**
+   * 重试失败的任务
+   */
+  retryJob(jobId: string) {
+    return apiClient.post(`/api/jobs/${jobId}/retry`)
+  },
+
+  /**
+   * 取消运行中的任务
+   */
+  cancelJob(jobId: string) {
+    return apiClient.post(`/api/jobs/${jobId}/cancel`)
   }
 }

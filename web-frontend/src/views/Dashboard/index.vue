@@ -1,8 +1,8 @@
 <template>
   <div class="dashboard-page">
     <el-row :gutter="24">
-      <!-- 统计卡片 -->
-      <el-col :xs="24" :sm="12" :md="6" :span="6">
+      <!-- Row 1: 总资产 / 流动资产 / 亏损 -->
+      <el-col :xs="24" :sm="12" :md="8" :span="8">
         <el-card class="stat-card">
           <div class="stat-content">
             <div class="stat-icon" style="background: #e6f7ff;">
@@ -16,7 +16,38 @@
         </el-card>
       </el-col>
 
-      <el-col :xs="24" :sm="12" :md="6" :span="6">
+      <el-col :xs="24" :sm="12" :md="8" :span="8">
+        <el-card class="stat-card">
+          <div class="stat-content">
+            <div class="stat-icon" style="background: #e6fffb;">
+              <el-icon :size="32" color="#13c2c2"><Money /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ liquidAssets }}</div>
+              <div class="stat-label">流动资产</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+
+      <el-col :xs="24" :sm="12" :md="8" :span="8">
+        <el-card class="stat-card">
+          <div class="stat-content">
+            <div class="stat-icon" style="background: #fff7e6;">
+              <el-icon :size="32" color="#fa8c16"><Warning /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value" :class="unrealizedPnLClass">{{ unrealizedPnL }}</div>
+              <div class="stat-label">持仓盈亏</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="24" style="margin-top: 24px;">
+      <!-- Row 2: 今日盈亏 / 待审批信号 / 风险预警 -->
+      <el-col :xs="24" :sm="12" :md="8" :span="8">
         <el-card class="stat-card">
           <div class="stat-content">
             <div class="stat-icon" style="background: #f6ffed;">
@@ -30,11 +61,11 @@
         </el-card>
       </el-col>
 
-      <el-col :xs="24" :sm="12" :md="6" :span="6">
+      <el-col :xs="24" :sm="12" :md="8" :span="8">
         <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-icon" style="background: #fff7e6;">
-              <el-icon :size="32" color="#fa8c16"><Bell /></el-icon>
+            <div class="stat-icon" style="background: #f9f0ff;">
+              <el-icon :size="32" color="#722ed1"><Bell /></el-icon>
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ pendingSignals }}</div>
@@ -44,11 +75,11 @@
         </el-card>
       </el-col>
 
-      <el-col :xs="24" :sm="12" :md="6" :span="6">
+      <el-col :xs="24" :sm="12" :md="8" :span="8">
         <el-card class="stat-card">
           <div class="stat-content">
             <div class="stat-icon" style="background: #fff1f0;">
-              <el-icon :size="32" color="#f5222d"><Warning /></el-icon>
+              <el-icon :size="32" color="#f5222d"><WarningFilled /></el-icon>
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ riskAlerts }}</div>
@@ -80,26 +111,20 @@
               <span>Agent今日工作</span>
             </div>
           </template>
-          <el-timeline>
-            <el-timeline-item timestamp="09:30" placement="top">
+          <el-timeline v-if="agentLogs.length > 0">
+            <el-timeline-item
+              v-for="log in agentLogs"
+              :key="log.id"
+              :timestamp="formatLogTime(log.timestamp)"
+              placement="top"
+            >
               <div class="timeline-content">
-                <div class="timeline-title">分析股票 600519</div>
-                <div class="timeline-desc">技术面评分: 85分</div>
-              </div>
-            </el-timeline-item>
-            <el-timeline-item timestamp="10:15" placement="top">
-              <div class="timeline-content">
-                <div class="timeline-title">生成买入信号</div>
-                <div class="timeline-desc">600519 建议买入</div>
-              </div>
-            </el-timeline-item>
-            <el-timeline-item timestamp="11:00" placement="top">
-              <div class="timeline-content">
-                <div class="timeline-title">风险检查</div>
-                <div class="timeline-desc">持仓集中度正常</div>
+                <div class="timeline-title">{{ log.action }}</div>
+                <div class="timeline-desc">{{ log.description }}</div>
               </div>
             </el-timeline-item>
           </el-timeline>
+          <el-empty v-else description="暂无今日工作记录" :image-size="80" />
         </el-card>
       </el-col>
     </el-row>
@@ -148,21 +173,29 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { TrendCharts, ArrowUp, Bell, Warning, Money, WarningFilled } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import { tradingApi } from '@/services/api/trading'
 import { apiClient } from '@/services/api/client'
+import { useAgentStore } from '@/stores/agent'
+import { formatSignedCurrency } from '@/utils/format'
 
 const router = useRouter()
+const agentStore = useAgentStore()
 
 // 统计数据
 const totalAssets = ref('¥0')
+const liquidAssets = ref('¥0')
+const unrealizedPnL = ref('¥0')
+const unrealizedPnLClass = ref('')
 const dailyPnL = ref('¥0')
 const dailyPnLClass = ref('')
 const pendingSignals = ref(0)
 const riskAlerts = ref(0)
 
 const pendingTasks = ref<any[]>([])
+const agentLogs = ref<any[]>([])
 const loading = ref(false)
 
 const chartRef = ref<HTMLElement>()
@@ -173,11 +206,20 @@ const fetchPortfolioSummary = async () => {
   try {
     const data = await tradingApi.getPortfolioSummary()
 
-    // 更新统计卡片数据
+    // 总资产 = 持仓市值 + 现金
     totalAssets.value = `¥${data.totalValue?.toLocaleString() || '0'}`
 
+    // 流动资产（现金）
+    const cash = data.cash || data.liquidAssets || 0
+    liquidAssets.value = `¥${Number(cash).toLocaleString()}`
+
+    // 持仓盈亏（未实现盈亏）
+    const pnl = data.totalPnl || 0
+    unrealizedPnL.value = formatSignedCurrency(pnl)
+    unrealizedPnLClass.value = pnl >= 0 ? 'success' : 'danger'
+
     const change = data.dailyChange || 0
-    dailyPnL.value = `${change >= 0 ? '+' : ''}¥${Math.abs(change).toLocaleString()}`
+    dailyPnL.value = formatSignedCurrency(change)
     dailyPnLClass.value = change >= 0 ? 'success' : 'danger'
 
     // TODO: 从其他接口获取待审批信号和风险预警数量
@@ -193,13 +235,13 @@ const fetchPendingTasks = async () => {
   try {
     const response = await apiClient.get('/api/signals', {
       params: {
-        date_filter: 'today',
+        date: 'today',
         limit: 10
       }
     })
 
     // 转换信号数据为待处理任务格式
-    pendingTasks.value = (response || []).map((signal: any) => ({
+    pendingTasks.value = (response?.items || []).map((signal: any) => ({
       type: signal.action === 'buy' ? '买入申请' : signal.action === 'sell' ? '卖出申请' : '信号',
       symbol: signal.symbol,
       description: signal.reason || '无描述',
@@ -213,12 +255,31 @@ const fetchPendingTasks = async () => {
   }
 }
 
+// 获取Agent今日工作日志
+const fetchAgentLogs = async () => {
+  try {
+    const today = new Date().toISOString().split('T')[0]
+    await agentStore.fetchLogs({ startDate: today, endDate: today, limit: 10 })
+    agentLogs.value = agentStore.recentLogs
+  } catch (error) {
+    console.error('获取Agent日志失败:', error)
+  }
+}
+
+const formatLogTime = (timestamp: string) => {
+  if (!timestamp) return ''
+  const d = new Date(timestamp)
+  return d.toTimeString().slice(0, 5)
+}
+
 // 获取历史数据并渲染图表
 const fetchHistoryAndRenderChart = async () => {
   try {
     const data = await apiClient.get('/api/portfolio/history', {
       params: { days: 30 }
     })
+
+    if (!isAlive.value) return
 
     if (!data || !data.history || data.history.length === 0) {
       console.warn('没有历史数据')
@@ -231,6 +292,7 @@ const fetchHistoryAndRenderChart = async () => {
 
     renderChart(dates, values)
   } catch (error) {
+    if (!isAlive.value) return
     console.error('获取历史数据失败:', error)
     renderChartWithMockData()
   }
@@ -333,6 +395,12 @@ const handleView = (row: any) => {
   router.push(`/opportunities/${row.symbol}`)
 }
 
+const handleResize = () => {
+  chartInstance?.resize()
+}
+
+const isAlive = ref(true)
+
 onMounted(async () => {
   loading.value = true
 
@@ -341,25 +409,29 @@ onMounted(async () => {
     await Promise.all([
       fetchPortfolioSummary(),
       fetchPendingTasks(),
-      fetchHistoryAndRenderChart()
+      fetchHistoryAndRenderChart(),
+      fetchAgentLogs()
     ])
   } catch (error) {
-    console.error('加载 Dashboard 数据失败:', error)
+    if (isAlive.value) {
+      console.error('加载 Dashboard 数据失败:', error)
+    }
   } finally {
-    loading.value = false
+    if (isAlive.value) {
+      loading.value = false
+    }
   }
 
   // 响应式调整
-  window.addEventListener('resize', () => {
-    chartInstance?.resize()
-  })
+  if (isAlive.value) {
+    window.addEventListener('resize', handleResize)
+  }
 })
 
 onUnmounted(() => {
+  isAlive.value = false
+  window.removeEventListener('resize', handleResize)
   chartInstance?.dispose()
-  window.removeEventListener('resize', () => {
-    chartInstance?.resize()
-  })
 })
 </script>
 
