@@ -2,51 +2,43 @@
 """
 K-line Data Backfill Script
 
-Command-line tool to backfill missing K-line data (daily or minute) for stocks.
-Integrates Database, TradingCalendar, GapDetector, ProgressTracker, and DataBackfiller.
+Downloads missing K-line data (daily or minute) from akshare and stores in database.
+Supports batch processing, progress tracking, and resume from interruption.
 
 Usage:
-    # Backfill daily data for specific symbols
-    python backfill_klines.py --data-type daily --symbols 600519.SH,000001.SZ
+    # Daily K-line backfill (2 years)
+    python scripts/backfill_klines.py --data-type daily --target-days 730
 
-    # Backfill minute data for all A-share stocks
-    python backfill_klines.py --data-type minute --market A --target-days 180
+    # Minute K-line backfill (1 year)
+    python scripts/backfill_klines.py --data-type minute --target-days 365
 
-    # Backfill with custom batch size and reset progress
-    python backfill_klines.py --data-type daily --market A --batch-size 20 --reset-progress
+    # Specific symbols
+    python scripts/backfill_klines.py --data-type daily --symbols "600519.SH,000001.SZ"
 
-Examples:
-    # Daily data for last 2 years (default)
-    python backfill_klines.py --data-type daily --symbols 600519.SH
-
-    # Minute data for last 1 year (default)
-    python backfill_klines.py --data-type minute --symbols 600519.SH
-
-    # All HK stocks, daily data
-    python backfill_klines.py --data-type daily --market HK
-
-    # Resume interrupted backfill (progress is saved automatically)
-    python backfill_klines.py --data-type daily --market A
+    # Reset progress and start fresh
+    python scripts/backfill_klines.py --data-type daily --reset-progress
 """
+
 import argparse
 import logging
 import os
 import sys
-from typing import List, Dict, Any
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+
+# Disable proxy for akshare (direct connection is faster and more stable)
+for _proxy_key in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY"):
+    os.environ.pop(_proxy_key, None)
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from quantsys.data.db import Database
 from quantsys.data.trading_calendar import TradingCalendar
 from quantsys.data.gap_detector import GapDetector
 from quantsys.data.progress_tracker import ProgressTracker
 from quantsys.data.data_backfiller import DataBackfiller
-
-# Configuration constants
-DEFAULT_BATCH_SIZE = 10  # Balance between progress save frequency and performance
-DEFAULT_DAILY_TARGET_DAYS = 730  # 2 years of daily data
-DEFAULT_MINUTE_TARGET_DAYS = 365  # 1 year of minute data
 
 # Configure logging
 logging.basicConfig(
@@ -56,279 +48,180 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def parse_args(args: List[str] = None) -> argparse.Namespace:
-    """
-    Parse command-line arguments.
-
-    Args:
-        args: List of arguments (for testing). If None, uses sys.argv.
-
-    Returns:
-        Parsed arguments namespace.
-    """
-    parser = argparse.ArgumentParser(
-        description='Backfill missing K-line data for stocks',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
-    )
-
-    parser.add_argument(
-        '--data-type',
-        required=True,
-        choices=['daily', 'minute'],
-        help='Type of K-line data to backfill'
-    )
-
-    parser.add_argument(
-        '--symbols',
-        type=str,
-        help='Comma-separated list of symbols (e.g., "600519.SH,000001.SZ")'
-    )
-
-    parser.add_argument(
-        '--market',
-        type=str,
-        choices=['A', 'HK'],
-        default='A',
-        help='Market filter (used if --symbols not provided). Default: A'
-    )
-
-    parser.add_argument(
-        '--target-days',
-        type=int,
-        help='Number of calendar days to backfill (default: 730 for daily, 365 for minute)'
-    )
-
-    parser.add_argument(
-        '--batch-size',
-        type=int,
-        default=DEFAULT_BATCH_SIZE,
-        help=f'Number of symbols to process in one batch. Default: {DEFAULT_BATCH_SIZE}'
-    )
-
-    parser.add_argument(
-        '--reset-progress',
-        action='store_true',
-        help='Clear progress tracker before starting'
-    )
-
-    parsed = parser.parse_args(args)
-
-    # Set default target_days based on data_type if not provided
-    if parsed.target_days is None:
-        parsed.target_days = DEFAULT_DAILY_TARGET_DAYS if parsed.data_type == 'daily' else DEFAULT_MINUTE_TARGET_DAYS
-
-    # Validate positive values
-    if parsed.batch_size <= 0:
-        parser.error("--batch-size must be positive")
-    if parsed.target_days <= 0:
-        parser.error("--target-days must be positive")
-
-    return parsed
-
-
-def get_symbol_list(db: Database, symbols_arg: str, market: str) -> List[str]:
+def get_symbol_list(db: Database, symbols_arg: Optional[str], market: str) -> List[str]:
     """
     Get list of symbols to process.
 
     Args:
         db: Database instance
-        symbols_arg: Comma-separated symbols from command line (or None)
-        market: Market filter ('A' or 'HK')
+        symbols_arg: Comma-separated symbol list (optional)
+        market: Market filter ("A", "HK", or "all")
 
     Returns:
-        List of symbol strings.
+        List of stock symbols
     """
     if symbols_arg:
-        # Use symbols from command line
-        return [s.strip() for s in symbols_arg.split(',')]
+        return [s.strip() for s in symbols_arg.split(",") if s.strip()]
 
     # Get all symbols from database filtered by market
-    # db.get_all_symbols() already supports market parameter
     return db.get_all_symbols(market=market)
 
 
-def process_batch(
-    backfiller: DataBackfiller,
-    symbols: List[str],
-    data_type: str,
-    target_days: int,
-    batch_num: int,
-    total_batches: int
-) -> List[Dict[str, Any]]:
-    """
-    Process a batch of symbols.
-
-    Args:
-        backfiller: DataBackfiller instance
-        symbols: List of symbols to process
-        data_type: 'daily' or 'minute'
-        target_days: Number of days to backfill
-        batch_num: Current batch number (1-indexed)
-        total_batches: Total number of batches
-
-    Returns:
-        List of result dictionaries from backfiller.
-    """
-    logger.info(f"\n{'='*60}")
-    logger.info(f"Processing Batch {batch_num}/{total_batches} ({len(symbols)} symbols)")
-    logger.info(f"{'='*60}")
-
-    results = []
-    total_symbols = len(symbols)
-
-    for idx, symbol in enumerate(symbols, 1):
-        logger.info(f"\nProcessing [{idx}/{total_symbols}] {symbol}...")
-
-        try:
-            if data_type == 'daily':
-                result = backfiller.backfill_daily(symbol, target_days)
-            else:
-                result = backfiller.backfill_minute(symbol, target_days)
-
-            results.append(result)
-
-            # Print per-symbol summary
-            status = "✓" if result['failed'] == 0 else "⚠"
-            logger.info(
-                f"{status} {symbol}: {result['succeeded']} succeeded, "
-                f"{result['failed']} failed, {result['skipped']} skipped"
-            )
-
-        except Exception as e:
-            logger.error(f"✗ {symbol}: Exception occurred: {e}", exc_info=True)
-            # Continue processing other symbols
-
-    # Print batch summary
-    succeeded_symbols = sum(1 for r in results if r['failed'] == 0)
-    logger.info(f"\n{'='*60}")
-    logger.info(
-        f"Batch {batch_num}/{total_batches} complete: "
-        f"{succeeded_symbols}/{total_symbols} symbols succeeded"
+def main():
+    """Main entry point."""
+    parser = argparse.ArgumentParser(
+        description="Backfill missing K-line data from akshare",
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    logger.info(f"{'='*60}\n")
 
-    return results
+    parser.add_argument(
+        "--data-type",
+        choices=["daily", "minute"],
+        required=True,
+        help="Type of K-line data to backfill"
+    )
 
+    parser.add_argument(
+        "--target-days",
+        type=int,
+        default=730,
+        help="Number of calendar days to look back (default: 730)"
+    )
 
-def main(args: List[str] = None) -> int:
-    """
-    Main function.
+    parser.add_argument(
+        "--symbols",
+        type=str,
+        help="Comma-separated list of symbols. If not provided, processes all symbols."
+    )
 
-    Args:
-        args: Command-line arguments (for testing). If None, uses sys.argv.
+    parser.add_argument(
+        "--market",
+        choices=["A", "HK", "all"],
+        default="A",
+        help="Market filter (default: A)"
+    )
 
-    Returns:
-        Exit code (0 for success, 1 for error).
-    """
-    try:
-        # Parse arguments
-        parsed_args = parse_args(args)
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=50,
+        help="Number of symbols to process per batch (default: 50)"
+    )
 
-        # Print configuration header
-        logger.info("\n" + "="*60)
-        logger.info("K-line Data Backfill")
-        logger.info("="*60)
-        logger.info(f"Data Type:    {parsed_args.data_type}")
-        logger.info(f"Target Days:  {parsed_args.target_days}")
-        logger.info(f"Batch Size:   {parsed_args.batch_size}")
-        logger.info(f"Market:       {parsed_args.market}")
-        if parsed_args.symbols:
-            logger.info(f"Symbols:      {parsed_args.symbols}")
-        logger.info(f"Reset Progress: {parsed_args.reset_progress}")
-        logger.info("="*60 + "\n")
+    parser.add_argument(
+        "--reset-progress",
+        action="store_true",
+        help="Reset progress tracker and start from scratch"
+    )
 
-        # Initialize components
-        logger.info("Initializing components...")
-        db = Database()
-        calendar = TradingCalendar()
-        gap_detector = GapDetector(db, calendar)
-        progress_tracker = ProgressTracker()
-        backfiller = DataBackfiller(db, calendar, gap_detector, progress_tracker)
-        logger.info("✓ Components initialized\n")
+    args = parser.parse_args()
 
-        # Reset progress if requested
-        if parsed_args.reset_progress:
-            logger.info("Resetting progress tracker...")
-            progress_tracker.reset()
-            logger.info("✓ Progress tracker reset\n")
+    # Print configuration
+    logger.info("\n" + "=" * 60)
+    logger.info("K-line Data Backfill")
+    logger.info("=" * 60)
+    logger.info(f"Data Type:    {args.data_type}")
+    logger.info(f"Target Days:  {args.target_days}")
+    logger.info(f"Batch Size:   {args.batch_size}")
+    logger.info(f"Market:       {args.market}")
+    logger.info(f"Reset Progress: {args.reset_progress}")
+    logger.info("=" * 60 + "\n")
 
-        # Get symbol list
-        logger.info("Loading symbol list...")
-        symbols = get_symbol_list(db, parsed_args.symbols, parsed_args.market)
-        total_symbols = len(symbols)
+    # Initialize components
+    logger.info("Initializing components...")
+    db = Database()
+    calendar = TradingCalendar()
+    gap_detector = GapDetector(db, calendar)
+    progress_tracker = ProgressTracker()
+    backfiller = DataBackfiller(db, calendar, gap_detector, progress_tracker)
+    logger.info("✓ Components initialized\n")
 
-        if total_symbols == 0:
-            logger.warning("No symbols to process. Exiting.")
-            return 0
+    # Reset progress if requested
+    if args.reset_progress:
+        logger.info("Resetting progress tracker...")
+        progress_tracker.reset()
+        logger.info("✓ Progress tracker reset\n")
+    else:
+        progress_tracker.load()
 
-        logger.info(f"✓ Loaded {total_symbols} symbols\n")
+    # Get symbol list
+    logger.info("Loading symbol list...")
+    symbols = get_symbol_list(db, args.symbols, args.market)
 
-        # Calculate number of batches
-        batch_size = parsed_args.batch_size
-        total_batches = (total_symbols + batch_size - 1) // batch_size
+    if not symbols:
+        logger.warning("No symbols to process. Exiting.")
+        return
 
-        # Process symbols in batches
-        all_results = []
+    logger.info(f"✓ Loaded {len(symbols)} symbols\n")
 
-        for batch_num in range(1, total_batches + 1):
-            start_idx = (batch_num - 1) * batch_size
-            end_idx = min(start_idx + batch_size, total_symbols)
-            batch_symbols = symbols[start_idx:end_idx]
+    # Process in batches
+    total_batches = (len(symbols) + args.batch_size - 1) // args.batch_size
+    overall_succeeded = 0
+    overall_failed = 0
+    overall_dates_backfilled = 0
+    overall_dates_failed = 0
+    overall_dates_skipped = 0
 
-            # Process batch
-            batch_results = process_batch(
-                backfiller=backfiller,
-                symbols=batch_symbols,
-                data_type=parsed_args.data_type,
-                target_days=parsed_args.target_days,
-                batch_num=batch_num,
-                total_batches=total_batches
-            )
+    for batch_num in range(total_batches):
+        start_idx = batch_num * args.batch_size
+        end_idx = min(start_idx + args.batch_size, len(symbols))
+        batch_symbols = symbols[start_idx:end_idx]
 
-            all_results.extend(batch_results)
+        logger.info("=" * 60)
+        logger.info(f"Processing Batch {batch_num + 1}/{total_batches} ({len(batch_symbols)} symbols)")
+        logger.info("=" * 60)
 
-            # Save progress after each batch
-            progress_tracker.save()
-            logger.info(f"✓ Progress saved after batch {batch_num}\n")
+        # Process batch
+        for i, symbol in enumerate(batch_symbols, 1):
+            logger.info(f"\nProcessing [{i}/{len(batch_symbols)}] {symbol}...")
 
-        # Print final summary
-        logger.info("\n" + "="*60)
-        logger.info("FINAL SUMMARY")
-        logger.info("="*60)
+            try:
+                if args.data_type == "daily":
+                    result = backfiller.backfill_daily(symbol, args.target_days)
+                else:
+                    result = backfiller.backfill_minute(symbol, args.target_days)
 
-        total_succeeded_symbols = sum(1 for r in all_results if r['failed'] == 0)
-        total_dates_backfilled = sum(r['succeeded'] for r in all_results)
-        total_dates_failed = sum(r['failed'] for r in all_results)
-        total_dates_skipped = sum(r['skipped'] for r in all_results)
+                overall_dates_backfilled += result["succeeded"]
+                overall_dates_failed += result["failed"]
+                overall_dates_skipped += result["skipped"]
 
-        logger.info(f"Symbols Processed:    {len(all_results)}/{total_symbols}")
-        logger.info(f"Symbols Succeeded:    {total_succeeded_symbols}")
-        logger.info(f"Dates Backfilled:     {total_dates_backfilled}")
-        logger.info(f"Dates Failed:         {total_dates_failed}")
-        logger.info(f"Dates Skipped:        {total_dates_skipped}")
-        logger.info("="*60 + "\n")
+                if result["failed"] > 0:
+                    logger.info(f"⚠ {symbol}: {result['succeeded']} succeeded, {result['failed']} failed, {result['skipped']} skipped")
+                    overall_failed += 1
+                else:
+                    logger.info(f"✓ {symbol}: {result['succeeded']} succeeded, {result['failed']} failed, {result['skipped']} skipped")
+                    overall_succeeded += 1
 
-        logger.info("✓ Backfill complete!")
-        return 0
+            except Exception as e:
+                logger.error(f"✗ {symbol}: Exception occurred: {e}")
+                import traceback
+                traceback.print_exc()
+                overall_failed += 1
 
-    except KeyboardInterrupt:
-        logger.warning("\n\nInterrupted by user (Ctrl+C)")
-        logger.info("Saving progress...")
-        try:
-            if 'progress_tracker' in locals():
-                progress_tracker.save()
-                logger.info("✓ Progress saved. You can resume by running the same command again.")
-            else:
-                logger.warning("Progress tracker not initialized, nothing to save.")
-        except Exception as e:
-            logger.error(f"Failed to save progress: {e}")
-        return 1
+        logger.info("\n" + "=" * 60)
+        logger.info(f"Batch {batch_num + 1}/{total_batches} complete: {len(batch_symbols)}/{len(batch_symbols)} symbols succeeded")
+        logger.info("=" * 60 + "\n")
 
-    except Exception as e:
-        logger.error(f"Fatal error: {e}", exc_info=True)
-        return 1
+        # Save progress after each batch
+        progress_tracker.save()
+        logger.info(f"✓ Progress saved after batch {batch_num + 1}\n")
+
+    # Print final summary
+    logger.info("\n" + "=" * 60)
+    logger.info("FINAL SUMMARY")
+    logger.info("=" * 60)
+    logger.info(f"Symbols Processed:    {overall_succeeded + overall_failed}/{len(symbols)}")
+    logger.info(f"Symbols Succeeded:    {overall_succeeded}")
+    logger.info(f"Dates Backfilled:     {overall_dates_backfilled}")
+    logger.info(f"Dates Failed:         {overall_dates_failed}")
+    logger.info(f"Dates Skipped:        {overall_dates_skipped}")
+    logger.info("=" * 60 + "\n")
+
+    logger.info("✓ Backfill complete!")
+
+    # Close database
+    db.close()
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
