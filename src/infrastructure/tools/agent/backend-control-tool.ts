@@ -2,7 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 
@@ -123,6 +123,89 @@ export function removePid(
   } catch (error) {
     throw new Error(`Failed to write PID file: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+/**
+ * Reads the last N lines from a service log file
+ * @param lines - Number of lines to read
+ * @param service - Service name ("rest", "websocket", or "all")
+ * @returns Array of log lines, or error message if file doesn't exist
+ */
+function readServiceLogs(lines: number, service: "rest" | "websocket" | "all"): string[] {
+  const logFile = service === "all"
+    ? "/tmp/quantsys-v2.log"
+    : `/tmp/quantsys-v2-${service}.log`;
+
+  if (!existsSync(logFile)) {
+    return ["日志文件不存在"];
+  }
+
+  try {
+    const content = execSync(`tail -n ${lines} "${logFile}"`, {
+      encoding: "utf-8",
+      timeout: 2000,
+    });
+    return content.trim().split("\n");
+  } catch (error: any) {
+    return [`读取日志失败: ${error.message}`];
+  }
+}
+
+/**
+ * Checks if a port is currently in use
+ * @param port - Port number to check
+ * @returns true if port is in use, false otherwise
+ */
+function isPortInUse(port: number): boolean {
+  try {
+    const result = execSync(`lsof -ti:${port}`, {
+      encoding: "utf-8",
+      timeout: 2000,
+    });
+    return result.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Gets the PID of the process using a port
+ * @param port - Port number to check
+ * @returns PID of the process, or null if port is not in use
+ */
+function getProcessOnPort(port: number): number | null {
+  try {
+    const result = execSync(`lsof -ti:${port}`, {
+      encoding: "utf-8",
+      timeout: 2000,
+    });
+    const pid = parseInt(result.trim().split("\n")[0]);
+    return isNaN(pid) ? null : pid;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Analyzes log lines for common error patterns
+ * @param logs - Array of log lines to analyze
+ * @returns Array of detected error lines
+ */
+function detectErrorsInLogs(logs: string[]): string[] {
+  const errorPatterns = [
+    /ModuleNotFoundError/,
+    /ImportError/,
+    /Address already in use/,
+    /Connection refused/,
+    /Database.*error/i,
+    /Exception/,
+    /Error:/,
+    /Failed to/,
+  ];
+
+  return logs.filter(line =>
+    errorPatterns.some(pattern => pattern.test(line))
+  );
 }
 
 interface HealthCheckResult {
