@@ -1,6 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
-// import { runQuantCli } from "../../quant/quant-cli-client.js";
+import { runQuantCli } from "../../quant/quant-cli-client.js";
 import { runQuantV2, pingV2, V2_COMMAND_LIST } from "../../quant/quant-v2-client.js";
 
 type ParamRule = {
@@ -1439,7 +1439,6 @@ export const quantCliTool: ToolDefinition = {
     try {
       // ── V2 路由：优先走 quantsys-v2 HTTP API ──
       const useV2 = V2_COMMAND_LIST.includes(command);
-      let usedFallback = false;
 
       if (useV2) {
         const v2Alive = await pingV2();
@@ -1458,7 +1457,6 @@ export const quantCliTool: ToolDefinition = {
             entry.lastDowngradeAt = Date.now();
             entry.lastDowngradeCmd = command;
             entry.lastDowngradeError = v2Error instanceof Error ? v2Error.message : String(v2Error);
-            usedFallback = true;
             console.warn(
               `[quant_cli] v2 调用失败，降级到旧桥接: ${command}:`,
               v2Error instanceof Error ? v2Error.message : String(v2Error),
@@ -1470,7 +1468,6 @@ export const quantCliTool: ToolDefinition = {
           entry.totalFallback++;
           entry.lastDowngradeAt = Date.now();
           entry.lastDowngradeCmd = command;
-          usedFallback = true;
         }
       }
 
@@ -1478,7 +1475,7 @@ export const quantCliTool: ToolDefinition = {
       if (!useV2) {
         _getEntry(command).totalFallback++;
       }
-      const response = await runQuantV2(command, params);
+      const response = await runQuantCli(rule.domain, rule.action, params);
       return {
         content: [
           {
