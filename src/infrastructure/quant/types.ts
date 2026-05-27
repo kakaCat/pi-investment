@@ -92,6 +92,13 @@ export interface OpportunityScanParams {
   symbols?: string[];
   conditions?: string[];
   limit?: number;
+  sectorFilter?: {
+    enabled: boolean;
+    topN?: number;
+    minSectorScore?: number;
+    excludeSectors?: string[];
+    market?: 'A' | 'HK';
+  };
 }
 
 export interface Opportunity {
@@ -106,6 +113,9 @@ export interface Opportunity {
   signal_type: string;
   reasons?: string[];
   timestamp: string;
+  industry?: string;
+  sector_score?: number;
+  sector_rank?: number;
 }
 
 // Alias for formatter compatibility
@@ -189,4 +199,58 @@ export class QuantV2Error extends Error {
     super(message);
     this.name = 'QuantV2Error';
   }
+}
+
+// 策略执行请求参数
+export interface StrategyExecuteParams {
+  symbol: string;           // 股票代码（如 "600519.SH"）
+  strategy_name: string;    // 策略名称（如 "VolatilityBreakout"）
+  date?: string;            // 可选：指定日期（默认最新）
+}
+
+// 止损配置
+export interface StopLossConfig {
+  type: 'atr' | 'percent' | 'trailing' | 'fixed';
+  price: number;            // 止损价格
+  params: {
+    atr_value?: number;           // ATR 值
+    atr_multiplier?: number;      // ATR 倍数
+    percent?: number;             // 百分比
+    trailing_percent?: number;    // 追踪百分比
+  };
+}
+
+// 仓位管理配置
+export interface PositionSizingConfig {
+  method: 'kelly' | 'fixed_percent' | 'fixed_shares';
+  value: number | null;     // 具体值（Kelly 返回 null，需要账户余额计算）
+  params: {
+    win_rate?: number;            // 胜率
+    profit_loss_ratio?: number;   // 盈亏比
+    kelly_fraction?: number;      // Kelly 系数
+    percent?: number;             // 固定百分比
+    shares?: number;              // 固定股数
+  };
+}
+
+// 风险管理配置
+export interface RiskManagement {
+  stop_loss?: StopLossConfig;
+  position_sizing?: PositionSizingConfig;
+  take_profit?: StopLossConfig;  // 可选：止盈（结构同止损）
+}
+
+// 策略信号
+export interface StrategySignal {
+  success: boolean;
+  symbol: string;
+  name: string;              // 股票名称
+  strategy: string;          // 策略名称
+  action: 'buy' | 'sell' | 'hold';
+  confidence: number;        // 0-1
+  reason: string;
+  risk_management?: RiskManagement;
+  indicators?: Record<string, number>;  // 技术指标
+  timestamp: string;
+  error?: string;
 }
