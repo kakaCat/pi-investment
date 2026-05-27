@@ -702,9 +702,48 @@ export const backendControlTool: ToolDefinition = {
       if (action === "start") {
         const result = await startService(service);
         if (!result.success) {
-          resultText = `❌ Failed to start service: ${result.error}`;
+          let errorText = `❌ Failed to start service: ${result.error}`;
+
+          if (result.diagnostics) {
+            errorText += `\n\n**诊断信息:**`;
+            errorText += `\n- 原因: ${result.diagnostics.reason}`;
+
+            if (result.diagnostics.elapsedMs) {
+              errorText += `\n- 等待时间: ${result.diagnostics.elapsedMs}ms`;
+            }
+
+            if (result.diagnostics.conflictingPid) {
+              errorText += `\n- 冲突进程 PID: ${result.diagnostics.conflictingPid}`;
+            }
+
+            if (result.diagnostics.hint) {
+              errorText += `\n- 建议: ${result.diagnostics.hint}`;
+            }
+
+            if (result.diagnostics.detectedErrors && result.diagnostics.detectedErrors.length > 0) {
+              errorText += `\n\n**检测到的错误:**`;
+              result.diagnostics.detectedErrors.slice(0, 5).forEach(err => {
+                errorText += `\n  ${err}`;
+              });
+            }
+
+            if (result.diagnostics.logs && result.diagnostics.logs.length > 0) {
+              errorText += `\n\n**最近日志 (最后10行):**`;
+              result.diagnostics.logs.slice(-10).forEach(log => {
+                errorText += `\n  ${log}`;
+              });
+            }
+          }
+
+          resultText = errorText;
         } else {
-          resultText = `✅ ${result.message}\nPID: ${result.pid}`;
+          let successText = `✅ ${result.message}\nPID: ${result.pid}`;
+
+          if (result.diagnostics?.elapsedMs) {
+            successText += `\n启动耗时: ${result.diagnostics.elapsedMs}ms`;
+          }
+
+          resultText = successText;
         }
       } else if (action === "stop") {
         const result = await stopService(service);
