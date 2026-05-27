@@ -36,6 +36,16 @@ export function getBackgroundManager(): BackgroundTaskManager {
 }
 
 /**
+ * 获取 TaskManager 实例（用于重启时访问）
+ */
+export function getTaskManager(): TaskManager {
+  if (!taskManager) {
+    throw new Error("TaskManager not initialized. Call initTaskTools() first.");
+  }
+  return taskManager;
+}
+
+/**
  * 确保 TaskManager 已初始化
  */
 function ensureInitialized(): void {
