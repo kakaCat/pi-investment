@@ -118,8 +118,14 @@ export class BackgroundTaskManager {
   }
 
   private _executeInWorker(id: string, toolName: string, params: any): void {
-    // 使用编译后的 JS 文件路径
-    const workerPath = join(__dirname, "tool-worker.js");
+    // 根据运行环境选择正确的文件扩展名
+    // 开发模式 (tsx): 使用 .ts 文件，因为 __dirname 指向 src/
+    // 生产模式 (node): 使用编译后的 .js 文件，因为 __dirname 指向 dist/
+    const isTsx = process.execArgv.some(arg =>
+      arg.includes('tsx') || arg.includes('preflight.cjs')
+    );
+    const ext = isTsx ? 'ts' : 'js';
+    const workerPath = join(__dirname, `tool-worker.${ext}`);
 
     const worker = new Worker(workerPath, {
       workerData: {
@@ -229,5 +235,56 @@ export class BackgroundTaskManager {
    */
   getRunningCount(): number {
     return Array.from(this.tasks.values()).filter(t => t.status === "running").length;
+  }
+
+  /**
+   * 获取运行中的任务（用于重启时收集）
+   */
+  getRunningTasks(): BackgroundTask[] {
+    return Array.from(this.tasks.values()).filter(t => t.status === "running");
+  }
+
+  /**
+   * 恢复中断的任务为失败状态（用于重启后恢复）
+   */
+  restoreInterruptedTasks(interrupted: Array<{
+    id: string;
+    taskId: number;
+    toolName: string;
+    params: any;
+    startTime: number;
+    reason: string;
+  }>): void {
+    for (const task of interrupted) {
+      const failedTask: BackgroundTask = {
+        id: task.id,
+        taskId: task.taskId,
+        status: "error",
+        toolName: task.toolName,
+        params: task.params,
+        startTime: task.startTime,
+        error: `Task interrupted by agent restart (reason: ${task.reason})`,
+        result: undefined
+      };
+
+      this.tasks.set(task.id, failedTask);
+
+      // 添加到通知队列，让 agent 知道这些任务失败了
+      this.notificationQueue.push({
+        taskId: task.taskId,
+        backgroundId: task.id,
+        status: "error",
+        result: `Task interrupted by agent restart`,
+        duration: Date.now() - task.startTime
+      });
+
+      // 记录事件
+      this.logEvent("background_task.restored_as_failed", {
+        background_id: task.id,
+        task_id: task.taskId,
+        tool_name: task.toolName,
+        reason: task.reason
+      });
+    }
   }
 }
