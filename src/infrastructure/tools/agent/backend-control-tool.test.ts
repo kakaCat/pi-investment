@@ -185,7 +185,6 @@ describe("Start Operation", () => {
       expect.objectContaining({
         cwd: expect.stringContaining("quantsys-v2"),
         detached: true,
-        stdio: "ignore",
       })
     );
     expect(result.success).toBe(true);
@@ -235,8 +234,160 @@ describe("Start Operation", () => {
     const result = await mod.startService("rest", TEST_BACKEND_DIR, mockSpawn as any, mockFetch);
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("Health check failed");
-  }, 15000);
+    expect(result.error).toBeDefined();
+    expect(result.diagnostics).toBeDefined();
+    expect(result.diagnostics?.elapsedMs).toBeGreaterThanOrEqual(15000);
+  }, 20000);
+});
+
+describe("startService with staged polling", () => {
+  beforeEach(() => {
+    if (existsSync(TEST_BACKEND_DIR)) {
+      rmSync(TEST_BACKEND_DIR, { recursive: true });
+    }
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    if (existsSync(TEST_BACKEND_DIR)) {
+      rmSync(TEST_BACKEND_DIR, { recursive: true });
+    }
+  });
+
+  test("should succeed in stage 1 for fast-starting services", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    const mockSpawn = jest.fn().mockReturnValue({
+      pid: 12345,
+      unref: jest.fn(),
+    });
+
+    let healthCheckCount = 0;
+    const mockFetch = jest.fn().mockImplementation(() => {
+      healthCheckCount++;
+      if (healthCheckCount >= 2) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ status: "ok", db_connected: true }),
+        });
+      }
+      return Promise.reject(new Error("Connection refused"));
+    });
+
+    const result = await mod.startService("rest", TEST_BACKEND_DIR, mockSpawn as any, mockFetch);
+
+    expect(result.success).toBe(true);
+    expect(result.pid).toBe(12345);
+    expect(healthCheckCount).toBeLessThanOrEqual(10);
+  });
+
+  test("should succeed in stage 2 for slow-starting services", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    const mockSpawn = jest.fn().mockReturnValue({
+      pid: 12345,
+      unref: jest.fn(),
+    });
+
+    let healthCheckCount = 0;
+    const mockFetch = jest.fn().mockImplementation(() => {
+      healthCheckCount++;
+      if (healthCheckCount >= 15) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ status: "ok", db_connected: true }),
+        });
+      }
+      return Promise.reject(new Error("Connection refused"));
+    });
+
+    const result = await mod.startService("rest", TEST_BACKEND_DIR, mockSpawn as any, mockFetch);
+
+    expect(result.success).toBe(true);
+    expect(result.pid).toBe(12345);
+  }, 20000);
+});
+
+describe("startService diagnostic errors", () => {
+  beforeEach(() => {
+    if (existsSync(TEST_BACKEND_DIR)) {
+      rmSync(TEST_BACKEND_DIR, { recursive: true });
+    }
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    if (existsSync(TEST_BACKEND_DIR)) {
+      rmSync(TEST_BACKEND_DIR, { recursive: true });
+    }
+  });
+
+  test("should detect process crash and return logs", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    const mockSpawn = jest.fn().mockReturnValue({
+      pid: 12345,
+      unref: jest.fn(),
+    });
+
+    const mockFetch = jest.fn() as any;
+    mockFetch.mockRejectedValue(new Error("Connection refused"));
+
+    const originalKill = process.kill;
+    process.kill = jest.fn().mockImplementation(() => {
+      const error: any = new Error("ESRCH");
+      error.code = "ESRCH";
+      throw error;
+    }) as any;
+
+    const result = await mod.startService("rest", TEST_BACKEND_DIR, mockSpawn as any, mockFetch);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("进程启动后崩溃");
+    expect(result.diagnostics?.reason).toBe("process_crashed");
+    expect(result.diagnostics?.logs).toBeDefined();
+
+    process.kill = originalKill;
+  }, 20000);
+
+  test("should return diagnostics with reason and elapsed time on timeout", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    const mockSpawn = jest.fn().mockReturnValue({
+      pid: 12345,
+      unref: jest.fn(),
+    });
+
+    const mockFetch = jest.fn() as any;
+    mockFetch.mockRejectedValue(new Error("Connection refused"));
+
+    const result = await mod.startService("rest", TEST_BACKEND_DIR, mockSpawn as any, mockFetch);
+
+    expect(result.success).toBe(false);
+    expect(result.diagnostics).toBeDefined();
+    expect(result.diagnostics?.reason).toMatch(/process_crashed|port_conflict|health_check_timeout/);
+    expect(result.diagnostics?.elapsedMs).toBeGreaterThanOrEqual(15000);
+    expect(result.diagnostics?.logs).toBeDefined();
+  }, 20000);
+
+  test("should include hint in diagnostics", async () => {
+    const mod = await import("./backend-control-tool.js");
+
+    const mockSpawn = jest.fn().mockReturnValue({
+      pid: 12345,
+      unref: jest.fn(),
+    });
+
+    const mockFetch = jest.fn() as any;
+    mockFetch.mockRejectedValue(new Error("Connection refused"));
+
+    const result = await mod.startService("rest", TEST_BACKEND_DIR, mockSpawn as any, mockFetch);
+
+    expect(result.success).toBe(false);
+    expect(result.diagnostics).toBeDefined();
+    expect(result.diagnostics?.hint).toBeDefined();
+    expect(typeof result.diagnostics?.hint).toBe("string");
+  }, 20000);
 });
 
 describe("Stop Operation", () => {
