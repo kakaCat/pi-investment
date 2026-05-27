@@ -271,6 +271,14 @@ interface StartResult {
   pid?: number;
   message?: string;
   error?: string;
+  diagnostics?: {
+    reason: "process_crashed" | "port_conflict" | "health_check_timeout";
+    logs?: string[];
+    detectedErrors?: string[];
+    hint?: string;
+    conflictingPid?: number;
+    elapsedMs?: number;
+  };
 }
 
 /**
