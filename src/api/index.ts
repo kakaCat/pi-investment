@@ -134,20 +134,19 @@ function triggerAgentLoop(session: AgentSession): void {
 /**
  * 从重启上下文恢复任务（包装函数）
  */
-function restoreTasksFromContext(session: AgentSession): { taskCount: number; backgroundCount: number } {
+function restoreTasksFromContext(): { taskCount: number; backgroundCount: number } {
   if (!restartData) {
     return { taskCount: 0, backgroundCount: 0 };
   }
 
-  const taskManager = getTaskManager();
-  const backgroundTaskManager = getBackgroundManager();
-
-  if (!taskManager || !backgroundTaskManager) {
-    console.warn("⚠️  无法恢复任务：taskManager 或 backgroundTaskManager 未初始化");
+  try {
+    const taskManager = getTaskManager();
+    const backgroundTaskManager = getBackgroundManager();
+    return restoreTasksIntoManagers(restartData, taskManager, backgroundTaskManager);
+  } catch (error) {
+    console.warn("⚠️  任务恢复失败:", error instanceof Error ? error.message : String(error));
     return { taskCount: 0, backgroundCount: 0 };
   }
-
-  return restoreTasksIntoManagers(restartData, taskManager, backgroundTaskManager);
 }
 
 function checkRestartContext(): void {
@@ -335,7 +334,7 @@ async function main() {
     wrapSessionWithLogger(session, perfMonitor);
 
     // 如果是从 restart_agent 重启，先恢复任务，再恢复对话历史
-    const taskCounts = restoreTasksFromContext(session);
+    const taskCounts = restoreTasksFromContext();
     restoreConversationIntoSession(session, taskCounts);
 
     // 启动数据库调度器。CRON.json 已废弃，数据库是唯一任务来源。
