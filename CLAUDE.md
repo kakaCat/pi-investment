@@ -130,6 +130,31 @@ Layered architecture:
   - 支持服务：`all` (REST API + WebSocket), `rest` (仅 REST API), `websocket` (仅 WebSocket)
   - REST API 端口：5001，WebSocket 端口：5003
   - 自动健康检查和 PID 管理
+
+### backend_control 工具增强（2026-05-27）
+
+**新特性：**
+- **分阶段健康检查**：快速轮询（前5秒，500ms间隔）+ 慢速轮询（后10秒，1000ms间隔）
+- **详细错误诊断**：
+  - 进程崩溃检测 + 日志捕获
+  - 端口冲突检测 + 冲突进程 PID
+  - 服务日志分析 + 错误模式识别
+- **日志重定向**：服务输出自动保存到 `/tmp/quantsys-v2-{service}.log`
+- **启动耗时统计**：成功启动时显示实际耗时
+
+**使用示例：**
+```typescript
+// 启动服务（自动等待健康检查）
+backend_control({ action: "start", service: "all" })
+
+// 如果失败，会显示详细诊断信息
+```
+
+**日志位置：**
+- REST API: `/tmp/quantsys-v2-rest.log`
+- WebSocket: `/tmp/quantsys-v2-websocket.log`
+- 全部服务: `/tmp/quantsys-v2.log`
+
 - `restart_agent` — 重启 agent 进程（TypeScript + Python bridge）
   - **保存并恢复对话历史**（最近 50 条消息）
   - **保存并恢复任务状态**（TaskManager + BackgroundTaskManager）
