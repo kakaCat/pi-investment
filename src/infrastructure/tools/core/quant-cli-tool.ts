@@ -645,18 +645,18 @@ const COMMANDS: Record<string, CommandRule> = {
   "backtest.run": {
     domain: "backtest",
     action: "run",
-    description: "运行策略回测。",
+    description: "运行策略回测。通过 strategy_id 或 strategy_name 指定策略。",
     params: {
-      symbol: { type: "string", symbol: true },
-      symbols: { type: "string" },
-      days: { type: "integer", min: 1 },
-      start: { type: "string" },
-      end: { type: "string" },
-      capital: { type: "number", min: 1 },
+      symbol: { required: true, type: "string", symbol: true },
+      strategy_id: { required: true, type: "string" },
+      strategy_name: { type: "string" },
+      start_date: { required: true, type: "string" },
+      end_date: { required: true, type: "string" },
+      initial_capital: { type: "number", min: 10000 },
       commission: { type: "number", min: 0 },
       slippage: { type: "number", min: 0 },
     },
-    example: { symbol: "600519", days: 365 },
+    example: { symbol: "600519", start_date: "2025-11-27", end_date: "2026-05-27", strategy_id: "53" },
   },
   "backtest.results": {
     domain: "backtest",
@@ -1514,9 +1514,9 @@ function validateParams(command: string, rule: CommandRule, params: Record<strin
     }
   }
 
-  // 特殊校验：backtest.run 至少需要 symbol 或 symbols 之一
-  if (command === "backtest.run" && !params.symbol && !params.symbols) {
-    return "backtest.run 至少需要 symbol 或 symbols 参数之一。原因：回测需要指定股票代码才能获取历史数据并执行策略测试。";
+  // 特殊校验：backtest.run 需要 strategy_id 或 strategy_name 之一
+  if (command === "backtest.run" && !params.strategy_id && !params.strategy_name) {
+    return "backtest.run 需要 strategy_id 或 strategy_name 参数。原因：回测需要指定策略来执行测试。";
   }
 
   return null;
