@@ -254,3 +254,98 @@ export interface StrategySignal {
   timestamp: string;
   error?: string;
 }
+
+// 批量回测类型
+export interface BatchBacktestJob {
+  strategy_id: number;
+  symbol: string;
+  start_date: string;
+  end_date: string;
+  initial_capital?: number;
+}
+
+export interface BatchBacktestRequest {
+  jobs: BatchBacktestJob[];
+  initial_capital?: number;
+}
+
+export interface BacktestResult {
+  strategy_id: number;
+  symbol: string;
+  total_return: number;
+  annual_return: number;
+  sharpe_ratio: number;
+  max_drawdown: number;
+  win_rate: number;
+  profit_factor: number;
+  total_trades: number;
+  start_date: string;
+  end_date: string;
+}
+
+export interface BatchBacktestResponse {
+  success: boolean;
+  summary: {
+    total: number;
+    success: number;
+    errors: number;
+    profitable: number;
+    best: BacktestResult | null;
+    worst: BacktestResult | null;
+  };
+  results: BacktestResult[];
+  errors: Array<{
+    strategy_id?: number;
+    symbol?: string;
+    error: string;
+  }>;
+}
+
+// 参数优化类型
+export interface StrategyOptimizeRequest {
+  strategy_id: number;
+  symbol: string;
+  start_date: string;
+  end_date: string;
+  metric: "sharpe" | "return" | "win_rate" | "calmar";
+  param_grid: Record<string, Array<number | string>>;
+  initial_capital?: number;
+  max_combinations?: number;
+}
+
+export interface OptimizedParams {
+  params: Record<string, number | string>;
+  score: number;
+  total_return: number;
+  sharpe_ratio: number;
+  max_drawdown: number;
+  win_rate: number;
+}
+
+export interface StrategyOptimizeResponse {
+  success: boolean;
+  data: {
+    strategy_id: number;
+    symbol: string;
+    metric: string;
+    total_runs: number;
+    best: OptimizedParams;
+    top10: OptimizedParams[];
+  };
+}
+
+// 信号生成类型
+export interface SignalGenerateRequest {
+  symbols?: string[];
+  date?: string;
+  strategy_ids?: number[];
+  async?: boolean;
+}
+
+export interface SignalGenerateResponse {
+  success: boolean;
+  run_id: string;
+  status: "running";
+  symbol_count: number;
+  message: string;
+}
