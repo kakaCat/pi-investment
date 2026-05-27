@@ -78,10 +78,11 @@ class DataBackfiller:
         skipped = 0
 
         for missing_date in missing_dates:
-            date_str = missing_date.strftime("%Y-%m-%d")
+            # missing_date is already a string in "YYYY-MM-DD" format
+            date_str = missing_date
 
             # Skip if already completed
-            if self.progress_tracker.is_completed(symbol, missing_date, "daily"):
+            if self.progress_tracker.is_completed(symbol, "daily", date_str):
                 logger.debug(f"Skipping {symbol} {date_str} (already completed)")
                 skipped += 1
                 continue
@@ -102,7 +103,7 @@ class DataBackfiller:
 
                 # Mark as completed only after successful DB insert
                 try:
-                    self.progress_tracker.mark_completed(symbol, missing_date, "daily")
+                    self.progress_tracker.mark_completed(symbol, "daily", date_str)
                 except Exception as mark_error:
                     logger.warning(f"Failed to mark {symbol} {date_str} as completed: {mark_error}")
             except Exception as e:
@@ -157,10 +158,11 @@ class DataBackfiller:
         skipped = 0
 
         for missing_date in missing_dates:
-            date_str = missing_date.strftime("%Y-%m-%d")
+            # missing_date is already a string in "YYYY-MM-DD" format
+            date_str = missing_date
 
             # Skip if already completed
-            if self.progress_tracker.is_completed(symbol, missing_date, "minute"):
+            if self.progress_tracker.is_completed(symbol, "minute", date_str):
                 logger.debug(f"Skipping {symbol} {date_str} (already completed)")
                 skipped += 1
                 continue
@@ -181,7 +183,7 @@ class DataBackfiller:
 
                 # Mark as completed only after successful DB insert
                 try:
-                    self.progress_tracker.mark_completed(symbol, missing_date, "minute")
+                    self.progress_tracker.mark_completed(symbol, "minute", date_str)
                 except Exception as mark_error:
                     logger.warning(f"Failed to mark {symbol} {date_str} as completed: {mark_error}")
             except Exception as e:
