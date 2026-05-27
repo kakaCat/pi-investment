@@ -576,6 +576,46 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {},
     example: {},
   },
+  "signal.test_run": {
+    domain: "signal",
+    action: "test-run",
+    description: "运行策略信号测试。",
+    params: {
+      strategy_id: { required: true, type: "string" },
+      symbol: { required: true, type: "string", symbol: true },
+      start_date: { type: "string" },
+      end_date: { type: "string" },
+    },
+    example: { strategy_id: "rsi_strategy", symbol: "600519.SH" },
+  },
+  "signal.test_record": {
+    domain: "signal",
+    action: "test-record",
+    description: "记录信号测试结果。",
+    params: {
+      test_id: { required: true, type: "string" },
+      result: { required: true, type: "string" },
+    },
+    example: { test_id: "test_001", result: "success" },
+  },
+  "signal.test_verify": {
+    domain: "signal",
+    action: "test-verify",
+    description: "验证信号准确性。",
+    params: {
+      test_id: { required: true, type: "string" },
+    },
+    example: { test_id: "test_001" },
+  },
+  "signal.test_stats": {
+    domain: "signal",
+    action: "test-stats",
+    description: "获取信号测试统计数据。",
+    params: {
+      strategy_id: { type: "string" },
+    },
+    example: { strategy_id: "rsi_strategy" },
+  },
   "performance.analyze": {
     domain: "performance",
     action: "analyze",
