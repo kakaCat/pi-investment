@@ -1478,7 +1478,7 @@ export const quantCliTool: ToolDefinition = {
       if (!useV2) {
         _getEntry(command).totalFallback++;
       }
-      const response = await runQuantCli(rule.domain, rule.action, params);
+      const response = await runQuantV2(command, params);
       return {
         content: [
           {
