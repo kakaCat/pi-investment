@@ -347,13 +347,16 @@ export async function startService(
       savePid(service, subprocess.pid, backendDir);
     }
 
-    // Wait for service to become healthy
-    const maxWaitMs = 10000;
-    const pollIntervalMs = 500;
+    // Wait for service to become healthy - staged polling
+    const stage1MaxMs = 5000;  // Stage 1: fast polling for 5 seconds
+    const stage2MaxMs = 10000; // Stage 2: slow polling for 10 seconds
+    const stage1IntervalMs = 500;
+    const stage2IntervalMs = 1000;
     const startTime = Date.now();
 
-    while (Date.now() - startTime < maxWaitMs) {
-      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    // Stage 1: Fast polling (0-5 seconds)
+    while (Date.now() - startTime < stage1MaxMs) {
+      await new Promise((resolve) => setTimeout(resolve, stage1IntervalMs));
 
       const health = await checkHealth(targetPort, 1000, fetchFn);
       if (health.healthy) {
@@ -365,9 +368,30 @@ export async function startService(
       }
     }
 
+    // Stage 2: Slow polling (5-15 seconds)
+    while (Date.now() - startTime < stage1MaxMs + stage2MaxMs) {
+      await new Promise((resolve) => setTimeout(resolve, stage2IntervalMs));
+
+      const health = await checkHealth(targetPort, 1000, fetchFn);
+      if (health.healthy) {
+        return {
+          success: true,
+          pid: subprocess.pid,
+          message: `Service ${service} started successfully`,
+        };
+      }
+    }
+
+    // Health check timeout - run diagnostics
+    const elapsedMs = Date.now() - startTime;
+
     return {
       success: false,
-      error: "Health check failed after 10 seconds",
+      error: "Health check failed after 15 seconds",
+      diagnostics: {
+        reason: "health_check_timeout",
+        elapsedMs,
+      },
     };
   } catch (error: any) {
     return {
