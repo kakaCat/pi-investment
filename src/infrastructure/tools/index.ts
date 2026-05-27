@@ -36,6 +36,9 @@ import { modelEvaluateTool } from "./model/evaluate-tool.js";
 import { modelMonitorTool } from "./model/monitor-tool.js";
 import { modelListTool } from "./model/list-tool.js";
 
+// L3.5 策略执行
+import { strategyExecuteTool } from "./strategy/execute-tool.js";
+
 // L4 组合构建
 import { portfolioRebalanceTool } from "./portfolio/rebalance-tool.js";
 
@@ -63,11 +66,10 @@ import { backendControlTool } from "./agent/backend-control-tool.js";
 import { quantCliTool } from "./core/quant-cli-tool.js";
 
 // ===== 数据管理工具 =====
-import { stockDBTools } from "./data/stock-db-tools.js";
+// manageStockDBTool 已删除 - 使用 quant_cli 的 data.update 或 v2 pipeline API 替代
 
 // ===== 工具支持 =====
-import { monitorTools } from "../../tools/monitor-tools.js";
-import { notificationTools } from "../../tools/notification-tools.js";
+import { scheduleNextCheckTool } from "../../tools/monitor-tools.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager, getTaskManager };
 export { initMemoryTools } from "./agent/memory-tool.js";
@@ -122,6 +124,9 @@ export const allCustomTools = [
   modelMonitorTool,               // model_monitor - 监控模型漂移
   modelListTool,                  // model_list - 列出所有模型
 
+  // L3.5 策略执行
+  strategyExecuteTool,            // strategy_execute - 执行单个策略并返回信号
+
   // L4 组合构建
   portfolioRebalanceTool,         // portfolio_rebalance - 组合再平衡
 
@@ -133,17 +138,13 @@ export const allCustomTools = [
   monitorAlertTool,               // monitor_alert - 告警通知
 
   // ===== 保留的旧工具（向后兼容，待迁移） =====
-  ...stockDBTools,
   queryExperienceTool,            // 查询历史经验库
 
   // ===== 量化工具 — 统一通过 QuantSys CLI 调用 =====
   quantCliTool,                   // quant_cli
 
-  // ===== 通知工具 — 消息推送 =====
-  ...notificationTools,
-
-  // ===== 监控工具 — 实时盯盘 =====
-  ...monitorTools,
+  // ===== 通知 & 监控工具 — 消息推送、实时盯盘 =====
+  scheduleNextCheckTool,          // schedule_next_check - 设置下次盯盘时间
 
   // ===== 进化工具 — 自我优化 =====
   evolutionRunTool,
