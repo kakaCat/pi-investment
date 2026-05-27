@@ -893,6 +893,23 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { strategy: "rsi", metric: "sharpe", trials: 9 },
   },
+  "strategy.run": {
+    domain: "strategy",
+    action: "run",
+    description: "实时运行策略生成信号。",
+    params: {
+      strategy_id: { required: true, type: "string" },
+      symbols: { type: "array" },
+    },
+    example: { strategy_id: "rsi_strategy", symbols: ["600519.SH"] },
+  },
+  "strategy.status": {
+    domain: "strategy",
+    action: "status",
+    description: "查询策略运行状态。",
+    params: {},
+    example: {},
+  },
   "watch.price_alert": {
     domain: "watch",
     action: "price-alert",
