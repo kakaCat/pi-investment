@@ -23,6 +23,10 @@ import { existsSync, readFileSync, unlinkSync } from "fs";
 import { spawn } from "child_process";
 import type { AgentSession } from "@mariozechner/pi-coding-agent";
 import { addMessage, createUserMessage, createAssistantMessage } from "../core/agent/session-adapter.js";
+import { getTaskManager, getBackgroundManager } from "../infrastructure/tools/index.js";
+import type { TaskManager } from "../core/task/task-manager.js";
+import type { BackgroundTaskManager } from "../core/task/background-task-manager.js";
+import type { Task } from "../core/task/task-manager.js";
 
 // 加载环境变量
 config();
@@ -50,12 +54,82 @@ interface RestartContext {
     NODE_ENV: string;
     BACKGROUND_MODE: string;
   };
+  // 新增字段
+  tasks?: {
+    pending: Task[];
+    inProgress: Task[];
+    completed: Task[];
+  };
+  backgroundTasks?: {
+    interrupted: Array<{
+      id: string;
+      taskId: number;
+      toolName: string;
+      params: any;
+      startTime: number;
+      reason: string;
+    }>;
+  };
 }
 
 const RESTART_DIR = join(process.cwd(), ".restart");
 const RESTART_CONTEXT = join(RESTART_DIR, "context.json");
 
 let restartData: RestartContext | null = null;
+
+/**
+ * 恢复任务状态到管理器中
+ */
+function restoreTasksIntoManagers(
+  restartData: RestartContext,
+  taskManager: TaskManager,
+  backgroundTaskManager: BackgroundTaskManager
+): { taskCount: number; backgroundCount: number } {
+  let taskCount = 0;
+  let backgroundCount = 0;
+
+  // 恢复 TaskManager 任务
+  if (restartData.tasks) {
+    const allTasks = [
+      ...restartData.tasks.pending,
+      ...restartData.tasks.inProgress,
+      ...(restartData.tasks.completed || [])
+    ];
+
+    if (allTasks.length > 0) {
+      taskManager.restoreTasks(allTasks);
+      taskCount = restartData.tasks.pending.length + restartData.tasks.inProgress.length;
+      console.log(`📋 已恢复 ${taskCount} 个未完成任务 (pending: ${restartData.tasks.pending.length}, in_progress: ${restartData.tasks.inProgress.length})`);
+    }
+  }
+
+  // 恢复 BackgroundTaskManager 中断任务
+  if (restartData.backgroundTasks?.interrupted && restartData.backgroundTasks.interrupted.length > 0) {
+    backgroundTaskManager.restoreInterruptedTasks(restartData.backgroundTasks.interrupted);
+    backgroundCount = restartData.backgroundTasks.interrupted.length;
+    console.log(`⚠️  已标记 ${backgroundCount} 个后台任务为失败（被重启中断）`);
+  }
+
+  return { taskCount, backgroundCount };
+}
+
+/**
+ * 自动触发 agent 循环
+ */
+function triggerAgentLoop(session: AgentSession): void {
+  setImmediate(() => {
+    try {
+      // 触发 agent 响应（发送空消息）
+      if (typeof session.prompt === 'function') {
+        session.prompt("");
+      } else {
+        console.warn("⚠️  session.prompt 不可用，无法自动触发 agent 循环");
+      }
+    } catch (error) {
+      console.warn("⚠️  自动触发 agent 循环失败:", error);
+    }
+  });
+}
 
 function checkRestartContext(): void {
   if (process.env.PI_RESTARTED === "true" && existsSync(RESTART_CONTEXT)) {

@@ -49,7 +49,7 @@ import { monitorAlertTool } from "./monitor/alert-tool.js";
 // ===== Agent 元工具 =====
 import { compactTool, initCompactTool } from "./agent/compact-tool.js";
 import { browserTool, initBrowserTool } from "./agent/browser-tool.js";
-import { taskCreateTool, taskUpdateTool, taskListTool, taskGetTool, taskExecuteAsyncTool, taskCheckBackgroundTool, initTaskTools, initBackgroundManager, getBackgroundManager } from "./agent/task-tools.js";
+import { taskCreateTool, taskUpdateTool, taskListTool, taskGetTool, taskExecuteAsyncTool, taskCheckBackgroundTool, initTaskTools, initBackgroundManager, getBackgroundManager, getTaskManager } from "./agent/task-tools.js";
 import { planTool } from "./agent/plan-tool.js";
 import { clarifyTool } from "./agent/clarify-tool.js";
 import { reflectTool } from "./agent/reflect-tool.js";
@@ -69,7 +69,7 @@ import { stockDBTools } from "./data/stock-db-tools.js";
 import { monitorTools } from "../../tools/monitor-tools.js";
 import { notificationTools } from "../../tools/notification-tools.js";
 
-export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager };
+export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager, getTaskManager };
 export { initMemoryTools } from "./agent/memory-tool.js";
 export { initRestartAgentTool } from "./agent/restart-agent-tool.js";
 
