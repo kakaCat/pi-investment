@@ -1,6 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
-import { runQuantCli } from "../../quant/quant-cli-client.js";
+// import { runQuantCli } from "../../quant/quant-cli-client.js";
 import { runQuantV2, pingV2, V2_COMMAND_LIST } from "../../quant/quant-v2-client.js";
 
 type ParamRule = {
@@ -745,6 +745,17 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {},
     example: {},
   },
+  "indicators.run": {
+    domain: "indicators",
+    action: "run",
+    description: "运行自定义指标。v2 端点。",
+    params: {
+      indicator_id: { required: true, type: "integer", min: 1 },
+      symbol: { required: true, type: "string", symbol: true },
+      limit: { type: "integer", min: 1 },
+    },
+    example: { indicator_id: 49, symbol: "600519", limit: 100 },
+  },
   "compute.factors": {
     domain: "compute",
     action: "factors",
@@ -1453,14 +1464,14 @@ function validateParams(command: string, rule: CommandRule, params: Record<strin
 
   for (const key of Object.keys(params)) {
     if (!allowed.has(key)) {
-      return `不支持的参数: ${key}`;
+      return `不支持的参数: ${key}。原因：该命令不接受此参数，请检查参数名称是否正确。`;
     }
   }
 
   for (const [key, paramRule] of Object.entries(rule.params)) {
     const value = params[key];
     if (paramRule.required && isEmpty(value)) {
-      return `缺少必填参数: ${key}`;
+      return `缺少必填参数: ${key}。原因：该参数是命令执行的必要条件，不能为空。`;
     }
     if (isEmpty(value)) {
       continue;
@@ -1472,22 +1483,23 @@ function validateParams(command: string, rule: CommandRule, params: Record<strin
     }
 
     if (paramRule.symbol && typeof value === "string" && !isValidSymbol(value)) {
-      return `${key} 必须是股票代码格式，例如 600519、000001、00700 或 AAPL`;
+      return `${key} 必须是股票代码格式，例如 600519、000001、00700 或 AAPL。原因：系统需要标准格式的股票代码才能查询数据。`;
     }
 
     if (paramRule.enum && typeof value === "string" && !paramRule.enum.includes(value)) {
       const readable = paramRule.enum.join(" 或 ");
-      return `${key} 只能是 ${readable}`;
+      return `${key} 只能是 ${readable}。原因：该参数只接受预定义的枚举值。`;
     }
 
     if (paramRule.min !== undefined && typeof value === "number" && value < paramRule.min) {
       const suffix = paramRule.min > 0 ? "正数" : `不小于 ${paramRule.min}`;
-      return `${key} 必须是${suffix}`;
+      return `${key} 必须是${suffix}。原因：参数值超出有效范围，可能导致计算错误或数据异常。`;
     }
   }
 
+  // 特殊校验：backtest.run 至少需要 symbol 或 symbols 之一
   if (command === "backtest.run" && !params.symbol && !params.symbols) {
-    return "backtest.run 至少需要 symbol 或 symbols";
+    return "backtest.run 至少需要 symbol 或 symbols 参数之一。原因：回测需要指定股票代码才能获取历史数据并执行策略测试。";
   }
 
   return null;
@@ -1499,19 +1511,19 @@ function validateType(key: string, value: unknown, rule: ParamRule): string | nu
   }
 
   if (rule.type === "array") {
-    return Array.isArray(value) ? null : `${key} 必须是数组`;
+    return Array.isArray(value) ? null : `${key} 必须是数组。原因：该参数需要接收多个值，请使用数组格式，例如 ["600519", "000001"]。`;
   }
   if (rule.type === "integer") {
-    return typeof value === "number" && Number.isInteger(value) ? null : `${key} 必须是整数`;
+    return typeof value === "number" && Number.isInteger(value) ? null : `${key} 必须是整数。原因：该参数不接受小数或非数字值。`;
   }
   if (rule.type === "number") {
-    return typeof value === "number" && Number.isFinite(value) ? null : `${key} 必须是数字`;
+    return typeof value === "number" && Number.isFinite(value) ? null : `${key} 必须是数字。原因：该参数需要数值类型进行计算。`;
   }
   if (rule.type === "boolean") {
-    return typeof value === "boolean" ? null : `${key} 必须是布尔值`;
+    return typeof value === "boolean" ? null : `${key} 必须是布尔值。原因：该参数只接受 true 或 false。`;
   }
   if (rule.type === "string") {
-    return typeof value === "string" ? null : `${key} 必须是字符串`;
+    return typeof value === "string" ? null : `${key} 必须是字符串。原因：该参数需要文本类型的值。`;
   }
 
   return null;
