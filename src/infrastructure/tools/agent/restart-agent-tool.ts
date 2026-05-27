@@ -24,6 +24,8 @@ import { writeFileSync, mkdirSync, existsSync, unlinkSync } from "fs";
 import { fileURLToPath } from "url";
 import { getSessionKey, getConversationMessages } from "../../logging/observable-logger.js";
 import { resetTerminalModes } from "../../tui/pi-tui-compat.js";
+import { getTaskManager, getBackgroundManager } from "./task-tools.js";
+import type { Task } from "../../../core/task/task-manager.js";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -96,7 +98,60 @@ interface BuildRestartContextInput {
   };
 }
 
-export function buildRestartContext(input: BuildRestartContextInput) {
+/**
+ * 收集任务状态（用于重启时保存）
+ */
+function collectTaskStates(): {
+  tasks: { pending: Task[]; inProgress: Task[]; completed: Task[] };
+  backgroundTasks: { interrupted: Array<{
+    id: string;
+    taskId: number;
+    toolName: string;
+    params: any;
+    startTime: number;
+    reason: "restart";
+  }> };
+} {
+  try {
+    const taskManager = getTaskManager();
+    const backgroundTaskManager = getBackgroundManager();
+
+    // 从 TaskManager 收集任务
+    const allTasks = taskManager.getAllTasks();
+    const tasks = {
+      pending: allTasks.filter((t: Task) => t.status === "pending"),
+      inProgress: allTasks.filter((t: Task) => t.status === "in_progress"),
+      completed: allTasks.filter((t: Task) => t.status === "completed").slice(-10) // 最近10个
+    };
+
+    // 从 BackgroundTaskManager 收集运行中的任务
+    const runningTasks = backgroundTaskManager.getRunningTasks();
+    const backgroundTasks = {
+      interrupted: runningTasks.map(t => ({
+        id: t.id,
+        taskId: t.taskId,
+        toolName: t.toolName,
+        params: t.params,
+        startTime: t.startTime,
+        reason: "restart" as const
+      }))
+    };
+
+    return { tasks, backgroundTasks };
+  } catch (error) {
+    // 如果任务管理器未初始化，返回空状态
+    console.warn("[restart] Failed to collect task states:", error);
+    return {
+      tasks: { pending: [], inProgress: [], completed: [] },
+      backgroundTasks: { interrupted: [] }
+    };
+  }
+}
+
+export function buildRestartContext(input: BuildRestartContextInput & {
+  tasks?: { pending: Task[]; inProgress: Task[]; completed: Task[] };
+  backgroundTasks?: { interrupted: Array<any> };
+}) {
   return {
     timestamp: new Date().toISOString(),
     cwd: input.cwd,
@@ -107,6 +162,8 @@ export function buildRestartContext(input: BuildRestartContextInput) {
     conversationMessageCount: input.conversationMessages.length,
     messages: input.conversationMessages.slice(-50),
     env: input.env,
+    tasks: input.tasks,
+    backgroundTasks: input.backgroundTasks,
   };
 }
 
@@ -255,6 +312,10 @@ export const restartAgentTool: ToolDefinition = {
         const conversationMessages = getConversationMessages();
 
         const currentSession = getCurrentSessionInfo();
+
+        // 收集任务状态
+        const taskStates = collectTaskStates();
+
         const context = buildRestartContext({
           cwd: process.cwd(),
           prevSessionKey,
@@ -265,6 +326,8 @@ export const restartAgentTool: ToolDefinition = {
             NODE_ENV: process.env.NODE_ENV || "development",
             BACKGROUND_MODE: process.env.BACKGROUND_MODE || "false",
           },
+          tasks: taskStates.tasks,
+          backgroundTasks: taskStates.backgroundTasks,
         });
 
         writeFileSync(CONTEXT_FILE, JSON.stringify(context, null, 2), "utf-8");
