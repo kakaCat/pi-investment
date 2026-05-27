@@ -385,11 +385,59 @@ export async function startService(
     // Health check timeout - run diagnostics
     const elapsedMs = Date.now() - startTime;
 
+    // Diagnostic Step 1: Check if process is still alive
+    if (!subprocess.pid || !isProcessAlive(subprocess.pid)) {
+      const logs = readServiceLogs(50, service);
+      const detectedErrors = detectErrorsInLogs(logs);
+
+      return {
+        success: false,
+        error: "进程启动后崩溃",
+        diagnostics: {
+          reason: "process_crashed",
+          logs,
+          detectedErrors,
+          hint: detectedErrors.length > 0
+            ? "检测到以下错误，请查看日志"
+            : "进程异常退出，未检测到明显错误",
+          elapsedMs,
+        },
+      };
+    }
+
+    // Diagnostic Step 2: Check for port conflicts
+    if (isPortInUse(targetPort)) {
+      const conflictingPid = getProcessOnPort(targetPort);
+
+      // Check if it's our process or another process
+      if (conflictingPid && conflictingPid !== subprocess.pid) {
+        return {
+          success: false,
+          error: `端口 ${targetPort} 已被其他进程占用`,
+          diagnostics: {
+            reason: "port_conflict",
+            conflictingPid,
+            hint: `使用 'kill ${conflictingPid}' 终止冲突进程，或使用 'backend_control stop' 清理旧进程`,
+            elapsedMs,
+          },
+        };
+      }
+    }
+
+    // Diagnostic Step 3: Analyze service logs
+    const logs = readServiceLogs(30, service);
+    const detectedErrors = detectErrorsInLogs(logs);
+
     return {
       success: false,
-      error: "Health check failed after 15 seconds",
+      error: "服务未响应健康检查",
       diagnostics: {
         reason: "health_check_timeout",
+        logs,
+        detectedErrors,
+        hint: detectedErrors.length > 0
+          ? "检测到以下错误，请查看日志"
+          : "未检测到明显错误，可能是启动时间过长或依赖服务未就绪",
         elapsedMs,
       },
     };
