@@ -1,5 +1,5 @@
 // src/infrastructure/tools/agent/backend-control-tool.ts
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, openSync, closeSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { spawn, execSync } from "child_process";
@@ -323,14 +323,25 @@ export async function startService(
   }
 
   try {
+    // Determine log file path
+    const logFile = service === "all"
+      ? "/tmp/quantsys-v2.log"
+      : `/tmp/quantsys-v2-${service}.log`;
+
+    // Open log file for writing
+    const logFd = openSync(logFile, "a");
+
     const spawnFunc = spawnFn || spawn;
     const subprocess = spawnFunc(command, args, {
       cwd: quantsysDir,
       detached: true,
-      stdio: "ignore",
+      stdio: ["ignore", logFd, logFd], // Redirect stdout and stderr to log file
     });
 
     subprocess.unref();
+
+    // Close log file descriptor after spawn
+    closeSync(logFd);
 
     if (!subprocess.pid) {
       return {
