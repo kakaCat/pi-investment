@@ -169,8 +169,9 @@ const V2_ROUTES: Record<
   "signal.statistics": { path: "/api/signals/statistics",   method: "GET" },
 
   // ── backtest ──
-  "backtest.run":     { path: "/api/backtest/run",     method: "POST" },
-  "backtest.results": { path: "/api/backtest/results", method: "GET" },
+  "backtest.run":     { path: "/api/backtest/run",      method: "POST" },
+  "backtest.strategy": { path: "/api/backtest/strategy", method: "POST" },
+  "backtest.results": { path: "/api/backtest/results",  method: "GET" },
 
   // ── strategy ──
   "strategy.list":   { path: "/api/strategies/list",           method: "GET" },

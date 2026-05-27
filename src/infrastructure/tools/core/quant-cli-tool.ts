@@ -645,18 +645,32 @@ const COMMANDS: Record<string, CommandRule> = {
   "backtest.run": {
     domain: "backtest",
     action: "run",
-    description: "运行策略回测。通过 strategy_id 或 strategy_name 指定策略。",
+    description: "运行简单移动平均交叉策略回测（内置策略）。",
     params: {
       symbol: { required: true, type: "string", symbol: true },
-      strategy_id: { required: true, type: "string" },
-      strategy_name: { type: "string" },
+      strategy_name: { required: true, type: "string" },
       start_date: { required: true, type: "string" },
       end_date: { required: true, type: "string" },
-      initial_capital: { type: "number", min: 10000 },
+      initial_capital: { required: true, type: "number", min: 10000 },
       commission: { type: "number", min: 0 },
       slippage: { type: "number", min: 0 },
+      ma_short: { type: "integer", min: 1 },
+      ma_long: { type: "integer", min: 1 },
     },
-    example: { symbol: "600519", start_date: "2025-11-27", end_date: "2026-05-27", strategy_id: "53" },
+    example: { symbol: "600519", strategy_name: "ma_cross", start_date: "2025-11-27", end_date: "2026-05-27", initial_capital: 100000, ma_short: 5, ma_long: 20 },
+  },
+  "backtest.strategy": {
+    domain: "backtest",
+    action: "strategy",
+    description: "运行自定义策略代码回测（通过 strategy_id 指定用户创建的策略）。",
+    params: {
+      strategy_id: { required: true, type: "string" },
+      symbol: { required: true, type: "string", symbol: true },
+      start_date: { required: true, type: "string" },
+      end_date: { required: true, type: "string" },
+      initial_cash: { type: "number", min: 10000 },
+    },
+    example: { strategy_id: "53", symbol: "600519.SH", start_date: "2025-11-27", end_date: "2026-05-27" },
   },
   "backtest.results": {
     domain: "backtest",
@@ -1512,11 +1526,6 @@ function validateParams(command: string, rule: CommandRule, params: Record<strin
       const suffix = paramRule.min > 0 ? "正数" : `不小于 ${paramRule.min}`;
       return `${key} 必须是${suffix}。原因：参数值超出有效范围，可能导致计算错误或数据异常。`;
     }
-  }
-
-  // 特殊校验：backtest.run 需要 strategy_id 或 strategy_name 之一
-  if (command === "backtest.run" && !params.strategy_id && !params.strategy_name) {
-    return "backtest.run 需要 strategy_id 或 strategy_name 参数。原因：回测需要指定策略来执行测试。";
   }
 
   return null;
