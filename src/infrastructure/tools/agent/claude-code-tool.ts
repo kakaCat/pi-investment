@@ -134,3 +134,142 @@ function checkPrerequisites(): {
     version,
   };
 }
+
+/**
+ * Execute Claude Code CLI with given parameters
+ */
+async function executeClaudeCode(params: ClaudeCodeParams): Promise<ClaudeCodeResult> {
+  const startTime = Date.now();
+  const timeoutMs = params.timeout || CONFIG.DEFAULT_TIMEOUT;
+
+  // Check prerequisites first
+  const prereqs = checkPrerequisites();
+  if (!prereqs.installed) {
+    return {
+      success: false,
+      output: '',
+      execution_time: Date.now() - startTime,
+      error: prereqs.error || 'Claude Code CLI not available',
+    };
+  }
+
+  return new Promise((resolve) => {
+    const ctx: ExecutionContext = {
+      process: null as any,
+      stdout: '',
+      stderr: '',
+      startTime,
+      timeoutHandle: undefined,
+    };
+
+    try {
+      // Spawn Claude Code process
+      const args: string[] = [];
+
+      ctx.process = spawn(CONFIG.CLI_PATH, args, {
+        cwd: PROJECT_ROOT,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env },
+      });
+
+      // Set up timeout
+      ctx.timeoutHandle = setTimeout(() => {
+        ctx.process.kill('SIGTERM');
+        resolve({
+          success: false,
+          output: ctx.stdout,
+          execution_time: Date.now() - startTime,
+          error: `Execution timeout after ${timeoutMs}ms`,
+        });
+      }, timeoutMs);
+
+      // Collect stdout
+      ctx.process.stdout?.on('data', (chunk: Buffer) => {
+        ctx.stdout += chunk.toString();
+      });
+
+      // Collect stderr
+      ctx.process.stderr?.on('data', (chunk: Buffer) => {
+        ctx.stderr += chunk.toString();
+      });
+
+      // Handle process exit
+      ctx.process.on('exit', (code: number | null) => {
+        if (ctx.timeoutHandle) {
+          clearTimeout(ctx.timeoutHandle);
+        }
+
+        const executionTime = Date.now() - startTime;
+
+        if (code === 0) {
+          resolve({
+            success: true,
+            output: ctx.stdout,
+            execution_time: executionTime,
+          });
+        } else {
+          resolve({
+            success: false,
+            output: ctx.stdout,
+            execution_time: executionTime,
+            error: `Process exited with code ${code}. stderr: ${ctx.stderr}`,
+          });
+        }
+      });
+
+      // Handle process errors
+      ctx.process.on('error', (error: Error) => {
+        if (ctx.timeoutHandle) {
+          clearTimeout(ctx.timeoutHandle);
+        }
+
+        const executionTime = Date.now() - startTime;
+
+        if ((error as any).code === 'ENOENT') {
+          resolve({
+            success: false,
+            output: '',
+            execution_time: executionTime,
+            error: 'Claude Code CLI not found in PATH',
+          });
+        } else if ((error as any).code === 'EACCES') {
+          resolve({
+            success: false,
+            output: '',
+            execution_time: executionTime,
+            error: 'Permission denied. Check Claude Code CLI permissions.',
+          });
+        } else {
+          resolve({
+            success: false,
+            output: '',
+            execution_time: executionTime,
+            error: `Process error: ${error.message}`,
+          });
+        }
+      });
+
+      // Write input to stdin
+      const input = JSON.stringify({
+        task: params.task,
+        context: params.context,
+        files: params.files,
+      });
+
+      ctx.process.stdin?.write(input);
+      ctx.process.stdin?.end();
+
+    } catch (error) {
+      if (ctx.timeoutHandle) {
+        clearTimeout(ctx.timeoutHandle);
+      }
+
+      resolve({
+        success: false,
+        output: '',
+        execution_time: Date.now() - startTime,
+        error: `Execution failed: ${error instanceof Error ? error.message : String(error)}`,
+      });
+    }
+  });
+}
