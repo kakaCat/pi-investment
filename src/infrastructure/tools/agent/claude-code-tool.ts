@@ -172,7 +172,7 @@ async function executeClaudeCode(params: ClaudeCodeParams): Promise<ClaudeCodeRe
 
     try {
       // Spawn Claude Code process
-      const args: string[] = [];
+      const args: string[] = ['--json'];
 
       ctx.process = spawn(CONFIG.CLI_PATH, args, {
         cwd: PROJECT_ROOT,
