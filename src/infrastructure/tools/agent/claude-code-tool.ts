@@ -45,7 +45,7 @@ interface ExecutionContext {
  */
 const CONFIG = {
   CLI_PATH: process.env.CLAUDE_CODE_CLI_PATH || 'claude-code',
-  DEFAULT_TIMEOUT: parseInt(process.env.CLAUDE_CODE_TIMEOUT || '120000', 10),
+  DEFAULT_TIMEOUT: Math.max(1000, parseInt(process.env.CLAUDE_CODE_TIMEOUT || '120000', 10) || 120000),
   ENABLED: process.env.CLAUDE_CODE_ENABLED !== 'false',
 } as const;
 
@@ -66,13 +66,14 @@ function findProjectRoot(startDir: string = __dirname): string {
     }
     const parent = dirname(current);
     if (parent === current) {
-      return join(startDir, '..', '..', '..', '..');
+      // Reached filesystem root
+      throw new Error(`Could not find project root from ${startDir}`);
     }
     current = parent;
     depth++;
   }
 
-  return join(startDir, '..', '..', '..', '..');
+  throw new Error(`Exceeded max depth (${maxDepth}) searching for project root from ${startDir}`);
 }
 
 const PROJECT_ROOT = findProjectRoot();
