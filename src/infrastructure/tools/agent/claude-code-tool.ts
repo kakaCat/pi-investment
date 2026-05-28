@@ -323,7 +323,7 @@ export const claudeCodeTool: ToolDefinition = {
       maximum: 600000,
     })),
   }),
-  execute: async (_toolCallId: string, params: ClaudeCodeParams) => {
+  execute: async (_toolCallId, params: any) => {
     // Check if tool is enabled
     if (!CONFIG.ENABLED) {
       return {
@@ -331,21 +331,33 @@ export const claudeCodeTool: ToolDefinition = {
           type: "text" as const,
           text: 'Claude Code integration is disabled. Set CLAUDE_CODE_ENABLED=true to enable.',
         }],
-        details: undefined,
+        details: {
+          enabled: false,
+        },
       };
     }
 
     // Execute Claude Code
-    const result = await executeClaudeCode(params);
+    const result = await executeClaudeCode(params as ClaudeCodeParams);
+
+    // Format response
+    let responseText = '';
+    if (result.success) {
+      responseText = `✅ Claude Code execution completed (${result.execution_time}ms)\n\n${result.output}`;
+    } else {
+      responseText = `❌ Claude Code execution failed (${result.execution_time}ms)\n\nError: ${result.error}\n\n${result.output ? `Output:\n${result.output}` : ''}`;
+    }
 
     return {
       content: [{
         type: "text" as const,
-        text: result.success
-          ? `${result.output}\n\nExecution time: ${result.execution_time}ms`
-          : `Error: ${result.error || 'Unknown error'}\n\nOutput: ${result.output}`,
+        text: responseText,
       }],
-      details: undefined,
+      details: {
+        success: result.success,
+        execution_time: result.execution_time,
+        files_modified: result.files_modified,
+      },
     };
   },
 };
