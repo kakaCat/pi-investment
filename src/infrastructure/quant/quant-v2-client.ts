@@ -20,6 +20,7 @@ import type {
   StrategySignal,
   StrategyBatchValidateParams,
   StrategyBatchValidateResponse,
+  DividendResponse,
 } from "./types.js";
 import { QuantV2Error } from "./types.js";
 
@@ -673,3 +674,90 @@ export async function batchValidateStrategies(
   const url = `${V2_API_BASE}/api/strategies/validate`;
   return fetchV2<StrategyBatchValidateResponse>(url, { method: 'POST', body: params });
 }
+
+/**
+ * 获取分红数据
+ * @param params 分红查询参数
+ */
+export async function getDividends(
+  params: {
+    mode: 'single' | 'screen' | 'calendar';
+    symbol?: string;
+    years?: number;
+    min_yield?: number;
+    min_years?: number;
+    min_payout_ratio?: number;
+    max_payout_ratio?: number;
+    limit?: number;
+    start_date?: string;
+    end_date?: string;
+    event?: string;
+  }
+): Promise<DividendResponse> {
+  const { mode, symbol, years, ...rest } = params;
+
+  try {
+    if (mode === 'single') {
+      if (!symbol) {
+        throw new QuantV2Error('single 模式必须提供 symbol 参数');
+      }
+
+      const url = `${V2_API_BASE}/api/stock/${symbol}/dividends?years=${years || 10}`;
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(V2_TIMEOUT_MS)
+      });
+
+      if (!response.ok) {
+        throw new QuantV2Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json() as DividendResponse;
+    }
+
+    if (mode === 'screen') {
+      const url = `${V2_API_BASE}/api/dividends/screen`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rest),
+        signal: AbortSignal.timeout(V2_TIMEOUT_MS)
+      });
+
+      if (!response.ok) {
+        throw new QuantV2Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json() as DividendResponse;
+    }
+
+    if (mode === 'calendar') {
+      const { start_date, end_date, event = 'ex_dividend' } = rest;
+
+      if (!start_date || !end_date) {
+        throw new QuantV2Error('calendar 模式必须提供 start_date 和 end_date 参数');
+      }
+
+      const url = `${V2_API_BASE}/api/dividends/calendar?start_date=${start_date}&end_date=${end_date}&event=${event}`;
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(V2_TIMEOUT_MS)
+      });
+
+      if (!response.ok) {
+        throw new QuantV2Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json() as DividendResponse;
+    }
+
+    throw new QuantV2Error(`未知查询模式: ${mode}`);
+
+  } catch (error) {
+    if (error instanceof QuantV2Error) {
+      throw error;
+    }
+    throw new QuantV2Error(
+      `分红数据查询失败: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
