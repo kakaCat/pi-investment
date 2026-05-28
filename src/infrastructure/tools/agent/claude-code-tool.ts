@@ -296,3 +296,56 @@ async function executeClaudeCode(params: ClaudeCodeParams): Promise<ClaudeCodeRe
     }
   });
 }
+
+/**
+ * Claude Code Tool Definition
+ *
+ * Delegates code-related tasks to Claude Code CLI for implementation,
+ * review, analysis, and refactoring.
+ */
+export const claudeCodeTool: ToolDefinition = {
+  name: 'claude_code',
+  label: 'Claude Code 集成',
+  description: 'Delegate code-related tasks to Claude Code for implementation, review, or analysis. Use for code review, refactoring, architecture analysis, bug fixing, and code generation.',
+  parameters: Type.Object({
+    task: Type.String({
+      description: 'Task description for Claude Code (e.g., "Review this service for code quality")',
+    }),
+    context: Type.Optional(Type.String({
+      description: 'Optional context information to help Claude Code understand the task',
+    })),
+    files: Type.Optional(Type.Array(Type.String(), {
+      description: 'Relevant file paths for the task',
+    })),
+    timeout: Type.Optional(Type.Number({
+      description: 'Timeout in milliseconds (default: 120000)',
+      minimum: 10000,
+      maximum: 600000,
+    })),
+  }),
+  execute: async (_toolCallId: string, params: ClaudeCodeParams) => {
+    // Check if tool is enabled
+    if (!CONFIG.ENABLED) {
+      return {
+        content: [{
+          type: "text" as const,
+          text: 'Claude Code integration is disabled. Set CLAUDE_CODE_ENABLED=true to enable.',
+        }],
+        details: undefined,
+      };
+    }
+
+    // Execute Claude Code
+    const result = await executeClaudeCode(params);
+
+    return {
+      content: [{
+        type: "text" as const,
+        text: result.success
+          ? `${result.output}\n\nExecution time: ${result.execution_time}ms`
+          : `Error: ${result.error || 'Unknown error'}\n\nOutput: ${result.output}`,
+      }],
+      details: undefined,
+    };
+  },
+};
