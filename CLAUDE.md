@@ -163,6 +163,17 @@ backend_control({ action: "start", service: "all" })
   - 中断的后台任务标记为失败，agent 可选择重试
   - 适用场景：新工具注册、Python bridge 异常、性能下降
 
+- `claude_code` — 委托代码相关任务给 Claude Code CLI
+  - **使用场景**：代码审查、重构、架构分析、Bug 修复、代码生成
+  - **自动触发**：检测到关键词（review/审查、refactor/重构、analyze/分析、fix/修复、generate/生成）
+  - **参数**：
+    - `task` (必需) - 任务描述
+    - `context` (可选) - 上下文信息
+    - `files` (可选) - 相关文件路径
+    - `timeout` (可选) - 超时时间（毫秒，默认 120000）
+  - **前置条件**：需要本地安装 Claude Code CLI
+  - **配置**：通过 `CLAUDE_CODE_*` 环境变量配置
+
 ### 工具使用指南
 
 新工具采用统一的命名规范：
