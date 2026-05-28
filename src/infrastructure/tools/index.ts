@@ -21,6 +21,7 @@ import { readTool } from "@mariozechner/pi-coding-agent";
 import { dataFetchStockTool } from "./data/fetch-stock-tool.js";
 import { dataFetchKlineTool } from "./data/fetch-kline-tool.js";
 import { dataFetchFinancialTool } from "./data/fetch-financial-tool.js";
+import { dataFetchDividendTool } from "./data/fetch-dividend-tool.js";
 
 // L2 因子工厂
 import { factorCalculateTool } from "./factor/calculate-tool.js";
@@ -112,6 +113,7 @@ export const allCustomTools = [
   dataFetchStockTool,             // data_fetch_stock - 获取股票基本信息
   dataFetchKlineTool,             // data_fetch_kline - 获取K线数据
   dataFetchFinancialTool,         // data_fetch_financial - 获取财务数据
+  dataFetchDividendTool,          // data_fetch_dividend - 获取分红送股数据
 
   // L2 因子工厂
   factorCalculateTool,            // factor_calculate - 计算技术/基本面因子
