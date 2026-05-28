@@ -1,5 +1,5 @@
 // src/infrastructure/tools/agent/claude-code-tool.ts
-import { spawn, type ChildProcess } from 'child_process';
+import { spawn, execSync, type ChildProcess } from 'child_process';
 import { Type } from '@sinclair/typebox';
 import type { ToolDefinition } from '../index.js';
 import { join, dirname } from 'path';
@@ -77,3 +77,60 @@ function findProjectRoot(startDir: string = __dirname): string {
 }
 
 const PROJECT_ROOT = findProjectRoot();
+
+/**
+ * Check if Claude Code CLI is installed and accessible
+ */
+async function checkClaudeCodeInstalled(): Promise<boolean> {
+  try {
+    execSync(`${CONFIG.CLI_PATH} --version`, {
+      stdio: 'pipe',
+      timeout: 5000,
+    });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Get Claude Code CLI version
+ */
+async function getClaudeCodeVersion(): Promise<string | null> {
+  try {
+    const output = execSync(`${CONFIG.CLI_PATH} --version`, {
+      encoding: 'utf-8',
+      stdio: 'pipe',
+      timeout: 5000,
+    });
+    return output.trim();
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Check all prerequisites and return status
+ */
+async function checkPrerequisites(): Promise<{
+  installed: boolean;
+  version: string | null;
+  error?: string;
+}> {
+  const installed = await checkClaudeCodeInstalled();
+
+  if (!installed) {
+    return {
+      installed: false,
+      version: null,
+      error: 'Claude Code CLI not found. Please install it first.',
+    };
+  }
+
+  const version = await getClaudeCodeVersion();
+
+  return {
+    installed: true,
+    version,
+  };
+}
