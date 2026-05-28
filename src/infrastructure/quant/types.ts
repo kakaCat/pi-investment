@@ -385,3 +385,64 @@ export interface StrategyBatchValidateResponse {
   };
   error?: string;
 }
+
+// Dividend data types
+export interface DividendRecord {
+  symbol: string;
+  name: string;
+  fiscal_year: string;
+  dividend_type: string;
+  cash_dividend: number;
+  cash_per_share: number;
+  stock_dividend: number;
+  bonus_shares: number;
+  dividend_yield: number;
+  payout_ratio: number;
+  announce_date: string;
+  shareholder_meeting_date: string;
+  ex_dividend_date: string;
+  record_date: string;
+  pay_date: string;
+  status: string;
+  total_dividend: number;
+  is_implemented: boolean;
+}
+
+export interface DividendSummary {
+  consecutive_years: number;
+  avg_yield: number;
+  total_cash_dividend: number;
+}
+
+export interface DividendResponse {
+  success: boolean;
+  error?: string;
+
+  // single mode
+  symbol?: string;
+  name?: string;
+  total_records?: number;
+  dividends?: DividendRecord[];
+  summary?: DividendSummary;
+
+  // screen mode
+  total?: number;
+  stocks?: Array<{
+    symbol: string;
+    name: string;
+    latest_yield: number;
+    consecutive_years: number;
+    avg_payout_ratio: number;
+  }>;
+
+  // calendar mode
+  period?: string;
+  event_type?: string;
+  events?: Array<{
+    date: string;
+    symbol: string;
+    name: string;
+    cash_per_share: number;
+    dividend_yield: number;
+  }>;
+}
