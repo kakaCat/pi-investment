@@ -515,3 +515,70 @@ export function formatStrategySignal(signal: import('./types.js').StrategySignal
 
   return lines.join('\n');
 }
+
+/**
+ * Format dividend data into readable text
+ */
+export function formatDividendData(data: import('./types.js').DividendResponse, mode: string): string {
+  if (!data.success) {
+    return `查询失败: ${data.error || '未知错误'}`;
+  }
+
+  if (mode === 'single') {
+    const { symbol, name, dividends, summary } = data;
+    let output = `【${name} (${symbol}) 分红历史】\n\n`;
+
+    if (summary) {
+      output += `连续分红: ${summary.consecutive_years}年\n`;
+      output += `平均股息率: ${summary.avg_yield.toFixed(2)}%\n`;
+      output += `累计每股派息: ${summary.total_cash_dividend.toFixed(2)}元\n\n`;
+    }
+
+    output += `近期分红记录:\n`;
+    dividends?.slice(0, 5).forEach(d => {
+      output += `  ${d.fiscal_year}年: 每股${d.cash_per_share.toFixed(2)}元, `;
+      output += `股息率${d.dividend_yield.toFixed(2)}%, `;
+      output += `除权日${d.ex_dividend_date}, ${d.status}\n`;
+    });
+
+    if (dividends && dividends.length > 5) {
+      output += `\n... 共 ${dividends.length} 条记录\n`;
+    }
+
+    return output;
+  }
+
+  if (mode === 'screen') {
+    const { total, stocks } = data;
+    let output = `【高股息股票筛选结果】共 ${total} 只\n\n`;
+
+    stocks?.slice(0, 20).forEach((s, i) => {
+      output += `${i + 1}. ${s.name} (${s.symbol})\n`;
+      output += `   股息率: ${s.latest_yield.toFixed(2)}%, `;
+      output += `连续分红: ${s.consecutive_years}年, `;
+      output += `平均分红率: ${s.avg_payout_ratio.toFixed(1)}%\n`;
+    });
+
+    if (stocks && stocks.length > 20) {
+      output += `\n... 仅显示前20只，共 ${stocks.length} 只\n`;
+    }
+
+    return output;
+  }
+
+  if (mode === 'calendar') {
+    const { period, event_type, total, events } = data;
+    let output = `【分红日历 - ${event_type}】\n`;
+    output += `时间范围: ${period}\n`;
+    output += `共 ${total} 只股票\n\n`;
+
+    events?.forEach(e => {
+      output += `${e.date} - ${e.name} (${e.symbol})\n`;
+      output += `  每股派息: ${e.cash_per_share.toFixed(2)}元, 股息率: ${e.dividend_yield.toFixed(2)}%\n`;
+    });
+
+    return output;
+  }
+
+  return '未知查询模式';
+}
