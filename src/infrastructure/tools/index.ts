@@ -45,6 +45,7 @@ import { portfolioRebalanceTool } from "./portfolio/rebalance-tool.js";
 // L5 执行引擎
 import { tradeManageOrdersTool } from "./trade/manage-orders-tool.js";
 import { algoExecuteTool } from "./trade/algo-execute-tool.js";
+import { signalExecutionTool } from "./execution/signal-execution-tool.js";
 
 // L6 监控运维
 import { monitorAlertTool } from "./monitor/alert-tool.js";
@@ -133,6 +134,7 @@ export const allCustomTools = [
   // L5 执行引擎
   tradeManageOrdersTool,          // trade_manage_orders - 订单管理
   algoExecuteTool,                // trade_algo_execute - 算法交易执行
+  signalExecutionTool,            // signal_execution - 信号执行管理
 
   // L6 监控运维
   monitorAlertTool,               // monitor_alert - 告警通知
