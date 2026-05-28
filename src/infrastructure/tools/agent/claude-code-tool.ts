@@ -39,3 +39,40 @@ interface ExecutionContext {
   startTime: number;
   timeoutHandle?: NodeJS.Timeout;
 }
+
+/**
+ * Configuration loaded from environment variables
+ */
+const CONFIG = {
+  CLI_PATH: process.env.CLAUDE_CODE_CLI_PATH || 'claude-code',
+  DEFAULT_TIMEOUT: parseInt(process.env.CLAUDE_CODE_TIMEOUT || '120000', 10),
+  ENABLED: process.env.CLAUDE_CODE_ENABLED !== 'false',
+} as const;
+
+/**
+ * Find project root directory
+ */
+function findProjectRoot(startDir: string = __dirname): string {
+  let current = startDir;
+  const maxDepth = 20;
+  let depth = 0;
+
+  while (depth < maxDepth) {
+    if (
+      existsSync(join(current, 'package.json')) &&
+      existsSync(join(current, 'src'))
+    ) {
+      return current;
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      return join(startDir, '..', '..', '..', '..');
+    }
+    current = parent;
+    depth++;
+  }
+
+  return join(startDir, '..', '..', '..', '..');
+}
+
+const PROJECT_ROOT = findProjectRoot();
