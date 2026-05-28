@@ -90,10 +90,11 @@ Layered architecture:
 项目采用六层架构组织 Agent 工具，对应量化投资的完整流程（2025-05-25 重构完成，从 61 个工具精简至 30 个）：
 
 #### L1 数据管道层
-统一的数据获取接口，支持股票基本信息、行情数据、财务数据：
+统一的数据获取接口，支持股票基本信息、行情数据、财务数据、分红数据：
 - `data_fetch_stock` — 获取股票基本信息、实时价格、新闻、公告
 - `data_fetch_kline` — 获取 K 线数据（日线、周线、月线）
 - `data_fetch_financial` — 获取财务数据（利润表、资产负债表、现金流量表）
+- `data_fetch_dividend` — 获取分红数据（历史分红、高股息筛选、分红日历）
 
 #### L2 因子工厂层
 批量因子计算和分析：
@@ -205,6 +206,7 @@ backend_control({ action: "start", service: "all" })
 - 股票查询相关 → `data_fetch_stock`
 - K线数据相关 → `data_fetch_kline`
 - 财务数据相关 → `data_fetch_financial`
+- 分红数据相关 → `data_fetch_dividend`
 - 因子计算相关 → `factor_calculate`
 - 因子分析相关 → `factor_analyze`
 - 投资机会扫描 → `invest_opportunity_scan`
@@ -360,6 +362,128 @@ Real-time stock opportunity scanning with multi-dimensional scoring (technical, 
 - `quantsys-v2/repositories/kline_repository.py` - Batch K-line queries
 - `quantsys-v2/repositories/stock_repository.py` - Batch fundamental queries
 - `quantsys-v2/api/server.py` - `/api/signals/scan` endpoint
+
+## Dividend Data Tool (data_fetch_dividend)
+
+### Overview
+获取股票分红数据，支持三种查询模式：单股历史分红、高股息筛选、分红日历。
+
+### Three Query Modes
+
+#### 1. Single Mode - 单股历史分红查询
+查询单只股票的历史分红记录，包含连续分红年数、平均股息率、累计派息等摘要指标。
+
+**使用示例：**
+```typescript
+data_fetch_dividend({
+  mode: "single",
+  symbol: "600519.SH",
+  years: 10
+})
+```
+
+**返回内容：**
+- 连续分红年数
+- 平均股息率（%）
+- 累计每股派息（元）
+- 近期分红记录（年度、每股派息、股息率、除权日、状态）
+
+**适用场景：**
+- 分析个股分红稳定性
+- 评估股息收益潜力
+- 高股息策略选股
+
+#### 2. Screen Mode - 高股息股票筛选
+批量筛选符合条件的高股息股票，支持按股息率、连续分红年数等条件过滤。
+
+**使用示例：**
+```typescript
+data_fetch_dividend({
+  mode: "screen",
+  min_yield: 3.0,        // 最低股息率 3%
+  min_years: 5,          // 至少连续分红 5 年
+  limit: 20              // 返回前 20 只
+})
+```
+
+**筛选参数：**
+- `min_yield` — 最低股息率（%）
+- `min_years` — 最少连续分红年数
+- `min_payout_ratio` — 最低分红率（%，预留）
+- `max_payout_ratio` — 最高分红率（%，预留）
+- `limit` — 返回数量限制（默认 50）
+
+**返回内容：**
+- 股票列表（按股息率降序排列）
+- 每只股票的最新股息率、连续分红年数
+
+**适用场景：**
+- 构建高股息投资组合
+- 寻找稳定分红标的
+- 红利策略选股
+
+**性能：**
+- 股票池：沪深300 + 创业板50 + 科创50（~400只）
+- 查询时间：< 30s
+- 并发查询：10 workers
+
+#### 3. Calendar Mode - 分红日历
+查询指定日期范围内的分红事件（除权除息日、股权登记日、派息日）。
+
+**使用示例：**
+```typescript
+data_fetch_dividend({
+  mode: "calendar",
+  start_date: "2026-06-01",
+  end_date: "2026-06-30",
+  event: "ex_dividend"    // 除权除息日
+})
+```
+
+**事件类型：**
+- `ex_dividend` — 除权除息日（默认）
+- `record_date` — 股权登记日
+- `pay_date` — 派息日
+
+**返回内容：**
+- 时间范围和事件类型
+- 事件列表（按日期排序）
+- 每个事件的股票名称、每股派息、股息率
+
+**适用场景：**
+- 规划分红收益时间表
+- 提前布局除权除息机会
+- 跟踪持仓分红日程
+
+**性能：**
+- 查询时间：< 20s
+
+### Data Source
+- **Primary**: akshare (实时查询，无数据库持久化)
+- **Coverage**: A股市场
+- **Update**: 实时获取最新数据
+
+### Known Issues
+- **py_mini_racer 环境问题**：部分环境下 single mode 可能遇到符号链接错误
+- **Workaround**: screen 和 calendar 模式不受影响；或修复 Python 环境
+
+### API Endpoints (quantsys-v2)
+- `GET /api/stock/{symbol}/dividends?years=N` — 单股查询
+- `POST /api/dividends/screen` — 批量筛选
+- `GET /api/dividends/calendar?start_date=X&end_date=Y&event=Z` — 分红日历
+
+### Files
+- Backend Service: `quantsys-v2/services/dividend_service.py`
+- Data Source: `quantsys-v2/services/dividend_data_source.py`
+- API Routes: `quantsys-v2/api/routes/dividends.py`
+- TypeScript Tool: `src/infrastructure/tools/data/fetch-dividend-tool.ts`
+- Client: `src/infrastructure/quant/quant-v2-client.ts` (getDividends)
+- Formatter: `src/infrastructure/quant/formatters.ts` (formatDividendData)
+
+### Testing
+- Unit Tests: `quantsys-v2/tests/services/test_dividend_service.py`
+- API Tests: `quantsys-v2/tests/api/test_dividends_routes.py`
+- E2E Tests: `docs/testing/dividend-tool-e2e-test.md`
 
 ## Active Conventions
 
