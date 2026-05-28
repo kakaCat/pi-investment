@@ -81,7 +81,7 @@ const PROJECT_ROOT = findProjectRoot();
 /**
  * Check if Claude Code CLI is installed and accessible
  */
-async function checkClaudeCodeInstalled(): Promise<boolean> {
+function checkClaudeCodeInstalled(): boolean {
   try {
     execSync(`${CONFIG.CLI_PATH} --version`, {
       stdio: 'pipe',
@@ -96,7 +96,7 @@ async function checkClaudeCodeInstalled(): Promise<boolean> {
 /**
  * Get Claude Code CLI version
  */
-async function getClaudeCodeVersion(): Promise<string | null> {
+function getClaudeCodeVersion(): string | null {
   try {
     const output = execSync(`${CONFIG.CLI_PATH} --version`, {
       encoding: 'utf-8',
@@ -112,12 +112,12 @@ async function getClaudeCodeVersion(): Promise<string | null> {
 /**
  * Check all prerequisites and return status
  */
-async function checkPrerequisites(): Promise<{
+function checkPrerequisites(): {
   installed: boolean;
   version: string | null;
   error?: string;
-}> {
-  const installed = await checkClaudeCodeInstalled();
+} {
+  const installed = checkClaudeCodeInstalled();
 
   if (!installed) {
     return {
@@ -127,7 +127,7 @@ async function checkPrerequisites(): Promise<{
     };
   }
 
-  const version = await getClaudeCodeVersion();
+  const version = getClaudeCodeVersion();
 
   return {
     installed: true,
