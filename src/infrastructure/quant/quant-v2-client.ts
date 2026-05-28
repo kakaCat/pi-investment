@@ -11,12 +11,15 @@ import type {
   FactorResult,
   FactorAnalyzeParams,
   FactorAnalysis,
+  FactorMetrics,
   OpportunityScanParams,
   Opportunity,
   AlgoExecuteParams,
   AlgoOrder,
   StrategyExecuteParams,
   StrategySignal,
+  StrategyBatchValidateParams,
+  StrategyBatchValidateResponse,
 } from "./types.js";
 import { QuantV2Error } from "./types.js";
 
@@ -418,8 +421,8 @@ function buildRequest(
   const remaining: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(params)) {
     if (k === "command") continue;
-    if (pathParams.has(k) && typeof v === "string") {
-      path = path.replace(`{${k}}`, encodeURIComponent(v));
+    if (pathParams.has(k) && (typeof v === "string" || typeof v === "number")) {
+      path = path.replace(`{${k}}`, encodeURIComponent(String(v)));
     } else if (v !== undefined && v !== null) {
       remaining[k] = v;
     }
@@ -560,7 +563,43 @@ export async function analyzeFactors(
   }
 
   const url = `${V2_API_BASE}/api/portfolio/factor-analyze`;
-  return fetchV2<FactorAnalysis>(url, { method: 'POST', body: params });
+
+  // API 返回格式: { success: true, data: { success: true, factors: [...] } }
+  // 需要解包 data 字段并转换 camelCase → snake_case
+  const response = await fetchV2<{
+    success: boolean;
+    data: {
+      success: boolean;
+      factors: Array<{
+        name: string;
+        icDaily: number;
+        icWeekly: number;
+        icMonthly: number;
+        coverage: number;
+        stability: number;
+        decayCurve: number[];
+      }>;
+      count?: number;
+      note?: string;
+      warning?: string;
+    };
+  }>(url, { method: 'POST', body: params });
+
+  // 转换字段名：camelCase → snake_case
+  const factors: FactorMetrics[] = (response.data.factors || []).map(f => ({
+    name: f.name,
+    ic_daily: f.icDaily,
+    ic_weekly: f.icWeekly,
+    ic_monthly: f.icMonthly,
+    coverage: f.coverage,
+    stability: f.stability,
+    decay_curve: f.decayCurve,
+  }));
+
+  return {
+    success: response.data.success,
+    factors,
+  };
 }
 
 /**
@@ -618,4 +657,19 @@ export async function executeStrategy(
 
   const url = `${V2_API_BASE}/api/strategy/run`;
   return fetchV2<StrategySignal>(url, { method: 'POST', body: params });
+}
+
+/**
+ * 批量验证策略有效性
+ * @param params 验证参数
+ */
+export async function batchValidateStrategies(
+  params: StrategyBatchValidateParams,
+): Promise<StrategyBatchValidateResponse> {
+  if (!params.startDate || !params.endDate) {
+    throw new QuantV2Error('开始日期和结束日期不能为空', 400, '/api/strategies/validate');
+  }
+
+  const url = `${V2_API_BASE}/api/strategies/validate`;
+  return fetchV2<StrategyBatchValidateResponse>(url, { method: 'POST', body: params });
 }

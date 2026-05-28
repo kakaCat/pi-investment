@@ -38,6 +38,7 @@ import { modelListTool } from "./model/list-tool.js";
 
 // L3.5 策略执行
 import { strategyExecuteTool } from "./strategy/execute-tool.js";
+import { strategyBatchValidateTool } from "./strategy/batch-validate-tool.js";
 
 // L4 组合构建
 import { portfolioRebalanceTool } from "./portfolio/rebalance-tool.js";
@@ -127,6 +128,7 @@ export const allCustomTools = [
 
   // L3.5 策略执行
   strategyExecuteTool,            // strategy_execute - 执行单个策略并返回信号
+  strategyBatchValidateTool,      // strategy_batch_validate - 批量验证策略有效性
 
   // L4 组合构建
   portfolioRebalanceTool,         // portfolio_rebalance - 组合再平衡

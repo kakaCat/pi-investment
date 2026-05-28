@@ -349,3 +349,39 @@ export interface SignalGenerateResponse {
   symbol_count: number;
   message: string;
 }
+
+// 策略批量验证类型
+export interface StrategyBatchValidateParams {
+  startDate: string;
+  endDate: string;
+  threshold?: number;
+  dryRun?: boolean;
+}
+
+export interface StrategyValidationDetail {
+  strategyId: number;
+  strategyName: string;
+  score: number;
+  status: 'passed' | 'failed';
+  metrics: {
+    annualReturn: number;
+    sharpeRatio: number;
+    maxDrawdown: number;
+    winRate: number;
+    profitFactor: number;
+  };
+  backtestCount: number;
+  errorCount: number;
+}
+
+export interface StrategyBatchValidateResponse {
+  success: boolean;
+  data: {
+    total: number;
+    passed: number;
+    failed: number;
+    duration: number;
+    details: StrategyValidationDetail[];
+  };
+  error?: string;
+}
