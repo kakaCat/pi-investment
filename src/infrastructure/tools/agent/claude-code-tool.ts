@@ -154,6 +154,14 @@ async function executeClaudeCode(params: ClaudeCodeParams): Promise<ClaudeCodeRe
   }
 
   return new Promise((resolve) => {
+    let resolved = false;
+    const safeResolve = (result: ClaudeCodeResult) => {
+      if (!resolved) {
+        resolved = true;
+        resolve(result);
+      }
+    };
+
     const ctx: ExecutionContext = {
       process: null as any,
       stdout: '',
@@ -175,7 +183,7 @@ async function executeClaudeCode(params: ClaudeCodeParams): Promise<ClaudeCodeRe
       // Set up timeout
       ctx.timeoutHandle = setTimeout(() => {
         ctx.process.kill('SIGTERM');
-        resolve({
+        safeResolve({
           success: false,
           output: ctx.stdout,
           execution_time: Date.now() - startTime,
@@ -202,13 +210,13 @@ async function executeClaudeCode(params: ClaudeCodeParams): Promise<ClaudeCodeRe
         const executionTime = Date.now() - startTime;
 
         if (code === 0) {
-          resolve({
+          safeResolve({
             success: true,
             output: ctx.stdout,
             execution_time: executionTime,
           });
         } else {
-          resolve({
+          safeResolve({
             success: false,
             output: ctx.stdout,
             execution_time: executionTime,
@@ -226,21 +234,21 @@ async function executeClaudeCode(params: ClaudeCodeParams): Promise<ClaudeCodeRe
         const executionTime = Date.now() - startTime;
 
         if ((error as any).code === 'ENOENT') {
-          resolve({
+          safeResolve({
             success: false,
             output: '',
             execution_time: executionTime,
             error: 'Claude Code CLI not found in PATH',
           });
         } else if ((error as any).code === 'EACCES') {
-          resolve({
+          safeResolve({
             success: false,
             output: '',
             execution_time: executionTime,
             error: 'Permission denied. Check Claude Code CLI permissions.',
           });
         } else {
-          resolve({
+          safeResolve({
             success: false,
             output: '',
             execution_time: executionTime,
@@ -250,21 +258,36 @@ async function executeClaudeCode(params: ClaudeCodeParams): Promise<ClaudeCodeRe
       });
 
       // Write input to stdin
-      const input = JSON.stringify({
-        task: params.task,
-        context: params.context,
-        files: params.files,
-      });
+      try {
+        const input = JSON.stringify({
+          task: params.task,
+          context: params.context,
+          files: params.files,
+        });
 
-      ctx.process.stdin?.write(input);
-      ctx.process.stdin?.end();
+        ctx.process.stdin?.write(input);
+        ctx.process.stdin?.end();
+      } catch (stdinError) {
+        // EPIPE or other stdin errors
+        if (ctx.timeoutHandle) {
+          clearTimeout(ctx.timeoutHandle);
+        }
+        ctx.process?.kill();
+        safeResolve({
+          success: false,
+          output: '',
+          execution_time: Date.now() - startTime,
+          error: `Failed to write to stdin: ${stdinError instanceof Error ? stdinError.message : String(stdinError)}`,
+        });
+      }
 
     } catch (error) {
       if (ctx.timeoutHandle) {
         clearTimeout(ctx.timeoutHandle);
       }
+      ctx.process?.kill();
 
-      resolve({
+      safeResolve({
         success: false,
         output: '',
         execution_time: Date.now() - startTime,
