@@ -5,7 +5,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
+import { evaluateModel } from "../../quant/quant-v2-client.js";
 
 interface ModelEvaluateParams {
   model_id?: string;
@@ -36,14 +36,25 @@ export const modelEvaluateTool: ToolDefinition = {
     const { model_id = "latest" } = params;
 
     try {
-      const result = await callQuantSysDaemon("evaluate_model", {
-        model_id
-      });
+      const response = await evaluateModel("xgboost", model_id);
+
+      if (!response.success) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: false,
+              error: response.error || "评估模型失败"
+            }, null, 2)
+          }],
+          details: undefined
+        };
+      }
 
       return {
         content: [{
           type: "text" as const,
-          text: result
+          text: JSON.stringify(response.evaluation, null, 2)
         }],
         details: undefined
       };
@@ -53,7 +64,7 @@ export const modelEvaluateTool: ToolDefinition = {
           type: "text" as const,
           text: JSON.stringify({
             success: false,
-            error: error.message
+            error: `API 调用失败: ${error.message}`
           }, null, 2)
         }],
         details: undefined
