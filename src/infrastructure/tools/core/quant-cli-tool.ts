@@ -1331,7 +1331,7 @@ export const quantCliTool: ToolDefinition = {
       }
     }
 
-    const validation = validateParams(command, rule, params);
+    const validation = await validateParams(command, rule, params);
     if (validation) {
       return validationError(validation, formatCommandHelp(command, rule));
     }
@@ -1472,7 +1472,7 @@ export async function fetchStrategyListHint(): Promise<string> {
   }
 }
 
-function validateParams(_command: string, rule: CommandRule, params: Record<string, unknown>): string | null {
+async function validateParams(_command: string, rule: CommandRule, params: Record<string, unknown>): Promise<string | null> {
   const allowed = new Set(Object.keys(rule.params));
 
   // 参数建议映射：常见错误参数 → 正确参数
@@ -1502,6 +1502,11 @@ function validateParams(_command: string, rule: CommandRule, params: Record<stri
   for (const [key, paramRule] of Object.entries(rule.params)) {
     const value = params[key];
     if (paramRule.required && isEmpty(value)) {
+      // Special handling for strategy_id: fetch and append strategy list hint
+      if (key === "strategy_id") {
+        const strategyHint = await fetchStrategyListHint();
+        return `缺少必填参数: ${key}。原因：该参数是命令执行的必要条件，不能为空。\n\n${strategyHint}`;
+      }
       return `缺少必填参数: ${key}。原因：该参数是命令执行的必要条件，不能为空。`;
     }
     if (isEmpty(value)) {

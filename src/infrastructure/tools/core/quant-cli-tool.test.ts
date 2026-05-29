@@ -1008,4 +1008,88 @@ describe("quantCliTool", () => {
       expect(hint).toContain("共 15 个策略，仅显示前 10 个");
     });
   });
+
+  describe("validateParams integration with strategy hint", () => {
+    test("should include strategy list in error when strategy_id is missing", async () => {
+      // Mock strategy.list call for hint
+      runQuantV2Mock.mockResolvedValueOnce({
+        strategies: [
+          { id: 53, name: "多因子波段策略v9" },
+          { id: 54, name: "RSI超买超卖策略" },
+        ],
+      });
+
+      const result = await (quantCliTool.execute as any)("call-1", {
+        command: "signal.generate",
+        params: {
+          symbols: ["600519", "000001"],
+          // Missing strategy_id
+        },
+      });
+
+      expect(runQuantV2Mock).toHaveBeenCalledWith("strategy.list", {});
+      expect(result.content[0].text).toContain("缺少必填参数: strategy_id");
+      expect(result.content[0].text).toContain("可用策略列表：");
+      expect(result.content[0].text).toContain("ID: 53, 名称: 多因子波段策略v9");
+      expect(result.content[0].text).toContain("ID: 54, 名称: RSI超买超卖策略");
+    });
+
+    test("should not fetch strategy list when other parameters are missing", async () => {
+      const result = await (quantCliTool.execute as any)("call-1", {
+        command: "stock.technical",
+        params: {
+          indicators: ["RSI"],
+          // Missing symbol (not strategy_id)
+        },
+      });
+
+      // Should not call strategy.list
+      expect(runQuantV2Mock).not.toHaveBeenCalled();
+      expect(result.content[0].text).toContain("缺少必填参数: symbol");
+      expect(result.content[0].text).not.toContain("可用策略列表");
+    });
+
+    test("should degrade gracefully when strategy.list fails during validation", async () => {
+      // Mock strategy.list to fail
+      runQuantV2Mock.mockRejectedValueOnce(new Error("Service unavailable"));
+
+      const result = await (quantCliTool.execute as any)("call-1", {
+        command: "backtest.strategy",
+        params: {
+          symbol: "600519",
+          start_date: "2025-01-01",
+          end_date: "2026-01-01",
+          // Missing strategy_id
+        },
+      });
+
+      expect(runQuantV2Mock).toHaveBeenCalledWith("strategy.list", {});
+      expect(result.content[0].text).toContain("缺少必填参数: strategy_id");
+      // Should show fallback hint
+      expect(result.content[0].text).toContain("使用 strategy.list 命令查看可用策略列表");
+    });
+
+    test("should include strategy hint for strategy.optimize when strategy_id is missing", async () => {
+      // Mock strategy.list call for hint
+      runQuantV2Mock.mockResolvedValueOnce({
+        strategies: [
+          { id: 53, name: "多因子波段策略v9" },
+        ],
+      });
+
+      const result = await (quantCliTool.execute as any)("call-1", {
+        command: "strategy.optimize",
+        params: {
+          symbol: "600519",
+          param_grid: { rsi_low: [25, 30] },
+          // Missing strategy_id
+        },
+      });
+
+      expect(runQuantV2Mock).toHaveBeenCalledWith("strategy.list", {});
+      expect(result.content[0].text).toContain("缺少必填参数: strategy_id");
+      expect(result.content[0].text).toContain("可用策略列表：");
+      expect(result.content[0].text).toContain("ID: 53, 名称: 多因子波段策略v9");
+    });
+  });
 });
