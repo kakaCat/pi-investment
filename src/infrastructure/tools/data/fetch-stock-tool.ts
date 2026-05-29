@@ -8,7 +8,6 @@ import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { detectMarket } from "../shared/validators.js";
 import { getStockData } from "../../quant/quant-v2-client.js";
-import type { StockData } from "../../quant/types.js";
 
 // Constants
 const DEFAULT_NEWS_COUNT = 10;
