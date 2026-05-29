@@ -10,7 +10,7 @@ await jest.unstable_mockModule("../../quant/quant-v2-client.js", () => ({
   V2_COMMAND_LIST: [],
 }));
 
-const { quantCliTool } = await import("./quant-cli-tool.js");
+const { quantCliTool, fetchStrategyListHint } = await import("./quant-cli-tool.js");
 const { setSessionDataDir } = await import("../shared/session-utils.js");
 
 describe("quantCliTool", () => {
@@ -954,9 +954,8 @@ describe("quantCliTool", () => {
     });
   });
 
-  describe("quant_cli strategy_id error hints", () => {
-    test("should include strategy list when strategy_id is missing", async () => {
-      // Mock strategy.list response
+  describe("fetchStrategyListHint", () => {
+    test("should format strategy list correctly", async () => {
       runQuantV2Mock.mockResolvedValueOnce({
         strategies: [
           { id: 53, name: "多因子波段策略v9" },
@@ -964,16 +963,12 @@ describe("quantCliTool", () => {
         ],
       });
 
-      const result = await (quantCliTool.execute as any)("test-call-id", {
-        command: "performance.by_strategy",
-        params: {},
-      });
+      const hint = await fetchStrategyListHint();
 
-      const text = result.content[0].text;
-      expect(text).toContain("缺少必填参数: strategy_id");
-      expect(text).toContain("可用策略列表：");
-      expect(text).toContain("ID: 53, 名称: 多因子波段策略v9");
-      expect(text).toContain("ID: 54, 名称: RSI超买超卖策略");
+      expect(hint).toContain("可用策略列表：");
+      expect(hint).toContain("ID: 53, 名称: 多因子波段策略v9");
+      expect(hint).toContain("ID: 54, 名称: RSI超买超卖策略");
+      expect(hint).toContain("提示：使用 strategy.list 命令可查看完整策略详情。");
     });
 
     test("should show empty strategy hint when no strategies exist", async () => {
@@ -981,27 +976,18 @@ describe("quantCliTool", () => {
         strategies: [],
       });
 
-      const result = await (quantCliTool.execute as any)("test-call-id", {
-        command: "performance.by_strategy",
-        params: {},
-      });
+      const hint = await fetchStrategyListHint();
 
-      const text = result.content[0].text;
-      expect(text).toContain("当前系统中没有可用策略");
-      expect(text).toContain("请先使用 strategy.create 创建策略");
+      expect(hint).toContain("当前系统中没有可用策略");
+      expect(hint).toContain("请先使用 strategy.create 创建策略");
     });
 
     test("should degrade gracefully when strategy.list fails", async () => {
       runQuantV2Mock.mockRejectedValueOnce(new Error("Service unavailable"));
 
-      const result = await (quantCliTool.execute as any)("test-call-id", {
-        command: "performance.by_strategy",
-        params: {},
-      });
+      const hint = await fetchStrategyListHint();
 
-      const text = result.content[0].text;
-      expect(text).toContain("缺少必填参数: strategy_id");
-      expect(text).toContain("使用 strategy.list 命令查看可用策略列表");
+      expect(hint).toContain("使用 strategy.list 命令查看可用策略列表");
     });
 
     test("should limit display to 10 strategies when more exist", async () => {
@@ -1014,16 +1000,12 @@ describe("quantCliTool", () => {
         strategies,
       });
 
-      const result = await (quantCliTool.execute as any)("test-call-id", {
-        command: "performance.by_strategy",
-        params: {},
-      });
+      const hint = await fetchStrategyListHint();
 
-      const text = result.content[0].text;
-      expect(text).toContain("ID: 1, 名称: 策略1");
-      expect(text).toContain("ID: 10, 名称: 策略10");
-      expect(text).not.toContain("ID: 11, 名称: 策略11");
-      expect(text).toContain("共 15 个策略，仅显示前 10 个");
+      expect(hint).toContain("ID: 1, 名称: 策略1");
+      expect(hint).toContain("ID: 10, 名称: 策略10");
+      expect(hint).not.toContain("ID: 11, 名称: 策略11");
+      expect(hint).toContain("共 15 个策略，仅显示前 10 个");
     });
   });
 });

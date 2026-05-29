@@ -1445,7 +1445,7 @@ function applyParameterMapping(params: Record<string, unknown>): void {
  * 获取策略列表提示文本（用于 strategy_id 参数缺失时的错误消息）
  * @returns 格式化的策略列表提示，或降级提示（查询失败时）
  */
-async function fetchStrategyListHint(): Promise<string> {
+export async function fetchStrategyListHint(): Promise<string> {
   try {
     const response = await runQuantV2("strategy.list", {});
     const strategies = (response as any)?.strategies || [];
