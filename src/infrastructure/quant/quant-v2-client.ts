@@ -773,8 +773,8 @@ export async function getDividends(
  * 获取K线历史数据
  * @param symbol 股票代码
  * @param period 周期 (daily/weekly/monthly)
- * @param startDate 开始日期 YYYYMMDD
- * @param endDate 结束日期 YYYYMMDD
+ * @param startDate 开始日期 YYYYMMDD 或 YYYY-MM-DD
+ * @param endDate 结束日期 YYYYMMDD 或 YYYY-MM-DD
  * @param limit 最大返回条数 (默认60)
  */
 export async function getKlineHistory(
@@ -793,34 +793,39 @@ export async function getKlineHistory(
     limit: Math.min(limit, 200),
   };
 
+  // Helper function to validate and convert date format
+  const convertDate = (date: string, fieldName: string): string => {
+    // Already in YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return date;
+    }
+    // YYYYMMDD format - convert to YYYY-MM-DD
+    if (/^\d{8}$/.test(date)) {
+      return `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
+    }
+    // Invalid format
+    throw new QuantV2Error(
+      `${fieldName} 格式无效: "${date}"。请使用 YYYYMMDD 或 YYYY-MM-DD 格式`,
+      400
+    );
+  };
+
   if (startDate) {
-    // Convert YYYYMMDD to YYYY-MM-DD
-    params.start_date = startDate.length === 8
-      ? `${startDate.slice(0, 4)}-${startDate.slice(4, 6)}-${startDate.slice(6, 8)}`
-      : startDate;
+    params.start_date = convertDate(startDate, 'start_date');
   }
 
   if (endDate) {
-    // Convert YYYYMMDD to YYYY-MM-DD
-    params.end_date = endDate.length === 8
-      ? `${endDate.slice(0, 4)}-${endDate.slice(4, 6)}-${endDate.slice(6, 8)}`
-      : endDate;
+    params.end_date = convertDate(endDate, 'end_date');
   }
 
-  const queryString = new URLSearchParams(
-    Object.entries(params).reduce((acc, [k, v]) => {
-      acc[k] = String(v);
-      return acc;
-    }, {} as Record<string, string>)
-  ).toString();
-
-  const url = `${V2_API_BASE}/api/stock/${encodeURIComponent(symbol)}/history?${queryString}`;
+  const queryString = buildQueryString(params);
+  const url = `${V2_API_BASE}/api/stock/${encodeURIComponent(symbol)}/history${queryString ? '?' + queryString : ''}`;
 
   try {
     const response = await fetchV2<KlineData>(url);
     return {
-      success: true,
       ...response,
+      success: response.success ?? true,
     };
   } catch (error) {
     if (error instanceof QuantV2Error) {
