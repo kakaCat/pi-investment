@@ -22,6 +22,11 @@ import type {
   StrategyBatchValidateResponse,
   DividendResponse,
   KlineData,
+  StockData,
+  StockInfo,
+  StockPrice,
+  StockNews,
+  StockAnnouncement,
 } from "./types.js";
 import { QuantV2Error } from "./types.js";
 
@@ -840,5 +845,108 @@ export async function getKlineHistory(
     }
     throw error;
   }
+}
+
+/**
+ * 获取股票基础数据（info/price/news/announcements）
+ * @param symbol 股票代码
+ * @param fields 要获取的字段列表
+ * @param newsNum 新闻条数（仅当fields包含news时有效）
+ */
+export async function getStockData(
+  symbol: string,
+  fields: Array<'info' | 'price' | 'news' | 'announcements'> = ['info', 'price'],
+  newsNum: number = 10,
+): Promise<StockData> {
+  if (!symbol || symbol.trim() === '') {
+    throw new QuantV2Error('股票代码不能为空', 400);
+  }
+
+  const result: StockData = { success: true };
+  const fetchPromises: Promise<void>[] = [];
+
+  // Fetch info
+  if (fields.includes('info')) {
+    fetchPromises.push(
+      (async () => {
+        try {
+          const url = `${V2_API_BASE}/api/stocks/${encodeURIComponent(symbol)}`;
+          const data = await fetchV2<StockInfo>(url);
+          result.info = data;
+        } catch (error) {
+          result.info = null;
+          result.info_error = error instanceof Error ? error.message : String(error);
+        }
+      })()
+    );
+  }
+
+  // Fetch price
+  if (fields.includes('price')) {
+    fetchPromises.push(
+      (async () => {
+        try {
+          const url = `${V2_API_BASE}/api/stock/${encodeURIComponent(symbol)}/quote`;
+          const data = await fetchV2<StockPrice>(url);
+          result.price = data;
+        } catch (error) {
+          result.price = null;
+          result.price_error = error instanceof Error ? error.message : String(error);
+        }
+      })()
+    );
+  }
+
+  // Fetch news
+  if (fields.includes('news')) {
+    fetchPromises.push(
+      (async () => {
+        try {
+          const url = `${V2_API_BASE}/api/stock/${encodeURIComponent(symbol)}/news?num=${newsNum}`;
+          const data = await fetchV2<{ news: StockNews[] }>(url);
+          result.news = data.news || [];
+        } catch (error) {
+          result.news = null;
+          result.news_error = error instanceof Error ? error.message : String(error);
+        }
+      })()
+    );
+  }
+
+  // Fetch announcements
+  if (fields.includes('announcements')) {
+    fetchPromises.push(
+      (async () => {
+        try {
+          const url = `${V2_API_BASE}/api/stock/${encodeURIComponent(symbol)}/announcements`;
+          const data = await fetchV2<{ announcements: StockAnnouncement[] }>(url);
+          result.announcements = data.announcements || [];
+        } catch (error) {
+          result.announcements = null;
+          result.announcements_error = error instanceof Error ? error.message : String(error);
+        }
+      })()
+    );
+  }
+
+  // Wait for all fetches to complete
+  await Promise.all(fetchPromises);
+
+  // Check if all fields failed
+  const hasAnySuccess = fields.some(field => {
+    if (field === 'info') return result.info !== null;
+    if (field === 'price') return result.price !== null;
+    if (field === 'news') return result.news !== null;
+    if (field === 'announcements') return result.announcements !== null;
+    return false;
+  });
+
+  if (!hasAnySuccess) {
+    result.success = false;
+    const firstError = result.info_error || result.price_error || result.news_error || result.announcements_error;
+    result.error = firstError || '所有数据获取失败';
+  }
+
+  return result;
 }
 
