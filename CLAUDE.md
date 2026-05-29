@@ -91,10 +91,18 @@ Layered architecture:
 
 #### L1 数据管道层
 统一的数据获取接口，支持股票基本信息、行情数据、财务数据、分红数据：
-- `data_fetch_stock` — 获取股票基本信息、实时价格、新闻、公告
+- `data_fetch_stock` — 获取股票基本信息、**实时价格**、新闻、公告（支持新浪财经实时行情，延迟 < 3秒）
 - `data_fetch_kline` — 获取 K 线数据（日线、周线、月线）
 - `data_fetch_financial` — 获取财务数据（利润表、资产负债表、现金流量表）
 - `data_fetch_dividend` — 获取分红数据（历史分红、高股息筛选、分红日历）
+
+**重要提示**：L1 层专用工具已替代 `quant_cli` 中的以下命令，请优先使用专用工具：
+- ~~`stock.quote`~~ → 使用 `data_fetch_stock` (fields: ["price"])
+- ~~`stock.info`~~ → 使用 `data_fetch_stock` (fields: ["info"])
+- ~~`stock.news`~~ → 使用 `data_fetch_stock` (fields: ["news"])
+- ~~`stock.announcements`~~ → 使用 `data_fetch_stock` (fields: ["announcements"])
+- ~~`stock.klines`~~ → 使用 `data_fetch_kline`
+- ~~`financial.statements`~~ → 使用 `data_fetch_financial`
 
 #### L2 因子工厂层
 批量因子计算和分析：
@@ -202,9 +210,9 @@ backend_control({ action: "start", service: "all" })
 - `invest_opportunity_scan` — 使用 v2 API `/api/signals/opportunities`
 - `trade_algo_execute` — 使用 v2 API `/api/orders/algo-execute`
 
-**v1 保留工具**（已全部迁移至 v2）：
+**v2 已迁移工具**：
 - ~~`data_fetch_stock`, `data_fetch_kline` — 基础数据获取~~ ✅ 已迁移
-- `model_*` 系列 — 模型训练、预测、评估、监控（待迁移）
+- `model_list`, `model_predict`, `model_train`, `model_evaluate`, `model_monitor` ✅ 已迁移 (2026-05-29)
 
 所有 v2 工具通过 `QuantV2Client` 统一调用，提供类型安全和错误处理。详见设计文档：`docs/superpowers/specs/2026-05-25-agent-v2-migration-design.md`
 
