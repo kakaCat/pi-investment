@@ -5,7 +5,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
+import { trainModel } from "../../quant/quant-v2-client.js";
 
 interface TrainModelParams {
   model_type?: "xgboost" | "lightgbm";
@@ -63,104 +63,43 @@ export const modelTrainTool: ToolDefinition = {
   }),
 
   execute: async (_toolCallId, params: TrainModelParams) => {
-    // 参数验证
-    if (params.days !== undefined && params.days < 1) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              success: false,
-              error: "days 参数必须大于 0"
-            })
-          }
-        ],
-        details: undefined
-      };
-    }
-
-    if (params.future_days !== undefined && params.future_days < 1) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              success: false,
-              error: "future_days 参数必须大于 0"
-            })
-          }
-        ],
-        details: undefined
-      };
-    }
-
-    if (
-      params.return_threshold !== undefined &&
-      (params.return_threshold < 0 || params.return_threshold > 1)
-    ) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              success: false,
-              error: "return_threshold 参数必须在 0 到 1 之间"
-            })
-          }
-        ],
-        details: undefined
-      };
-    }
-
-    if (params.cv_splits !== undefined && params.cv_splits < 2) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              success: false,
-              error: "cv_splits 参数必须大于等于 2"
-            })
-          }
-        ],
-        details: undefined
-      };
-    }
+    const {
+      model_type = "xgboost",
+      days = 180,
+      future_days = 5,
+      return_threshold = 0.05,
+      symbols,
+      cv_splits = 5
+    } = params;
 
     try {
-      const result = await callQuantSysDaemon("train_model", {
-        model_type: params.model_type || "xgboost",
-        days: params.days || 180,
-        future_days: params.future_days || 5,
-        return_threshold: params.return_threshold || 0.05,
-        symbols: params.symbols,
-        cv_splits: params.cv_splits || 5
+      const response = await trainModel({
+        model_type,
+        symbols,
+        params: {
+          days,
+          future_days,
+          return_threshold,
+          cv_splits
+        }
       });
 
-      // Parse the result to ensure it's valid JSON
-      const parsedResult = JSON.parse(result);
-
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(parsedResult, null, 2)
-          }
-        ],
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify(response, null, 2)
+        }],
         details: undefined
       };
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
+    } catch (error: any) {
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              success: false,
-              error: errorMsg
-            })
-          }
-        ],
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            success: false,
+            error: `API 调用失败: ${error.message}`
+          }, null, 2)
+        }],
         details: undefined
       };
     }
