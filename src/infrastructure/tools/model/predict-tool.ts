@@ -6,7 +6,7 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { detectMarket } from "../shared/validators.js";
-import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
+import { predictModel } from "../../quant/quant-v2-client.js";
 
 interface PredictParams {
   symbol: string;
@@ -49,14 +49,14 @@ export const modelPredictTool: ToolDefinition = {
           type: "text" as const,
           text: JSON.stringify({
             success: false,
-            error: "symbol 参数是必需的"
-          })
+            error: "参数错误：symbol 不能为空"
+          }, null, 2)
         }],
         details: undefined
       };
     }
 
-    // 验证股票代码格式
+    // 市场检测
     const market = detectMarket(symbol);
     if (market === "invalid") {
       return {
@@ -64,70 +64,34 @@ export const modelPredictTool: ToolDefinition = {
           type: "text" as const,
           text: JSON.stringify({
             success: false,
-            error: `不支持的股票代码 "${symbol}"。本系统支持A股（6位数字）和港股（1-5位数字或含.HK后缀）。`,
-            invalid_format: true
-          })
+            error: `不支持的股票代码 "${symbol}"。本系统支持A股（6位数字）和港股（1-5位数字或含.HK后缀）。`
+          }, null, 2)
         }],
         details: undefined
       };
     }
 
     try {
-      // 调用后端 daemon 方法
-      const result = await callQuantSysDaemon("predict_signal_confidence", {
-        symbol,
-        model_name: model_id,
-        features: features || undefined
+      const response = await predictModel({
+        version: model_id,
+        symbols: [symbol]
       });
-
-      // 解析响应
-      const prediction = JSON.parse(result);
-
-      // 验证响应格式
-      if (!prediction || typeof prediction !== "object") {
-        return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: false,
-              error: "模型预测返回了无效的响应格式"
-            })
-          }],
-          details: undefined
-        };
-      }
 
       return {
         content: [{
           type: "text" as const,
-          text: JSON.stringify(prediction, null, 2)
+          text: JSON.stringify(response, null, 2)
         }],
         details: undefined
       };
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-
-      // 特定错误处理
-      let errorResponse: Record<string, any> = {
-        success: false,
-        error: errorMsg
-      };
-
-      // 模型不存在错误
-      if (errorMsg.includes("not found") || errorMsg.includes("不存在")) {
-        errorResponse.model_not_found = true;
-        errorResponse.error = `模型 "${model_id}" 不存在。请使用 model_list 工具查看可用模型。`;
-      }
-      // Daemon 连接失败
-      else if (errorMsg.includes("daemon") || errorMsg.includes("timeout")) {
-        errorResponse.daemon_error = true;
-        errorResponse.error = `无法连接到量化系统后端：${errorMsg}`;
-      }
-
+    } catch (error: any) {
       return {
         content: [{
           type: "text" as const,
-          text: JSON.stringify(errorResponse)
+          text: JSON.stringify({
+            success: false,
+            error: `API 调用失败: ${error.message}`
+          }, null, 2)
         }],
         details: undefined
       };
