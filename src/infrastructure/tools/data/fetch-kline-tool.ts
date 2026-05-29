@@ -7,7 +7,8 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { detectMarket } from "../shared/validators.js";
-import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
+import { getKlineHistory } from "../../quant/quant-v2-client.js";
+import type { KlineData } from "../../quant/types.js";
 
 // Constants
 const DEFAULT_PERIOD = "daily";
@@ -86,19 +87,14 @@ export const dataFetchKlineTool: ToolDefinition = {
       };
     }
 
-    // 调用 quantsys daemon
+    // 调用 v2 API
     try {
-      const result = await callQuantSysDaemon("get_stock_history", {
-        symbol,
-        period,
-        start_date,
-        end_date
-      });
+      const result = await getKlineHistory(symbol, period, start_date, end_date);
 
       return {
         content: [{
           type: "text" as const,
-          text: result
+          text: JSON.stringify(result)
         }],
         details: undefined
       };

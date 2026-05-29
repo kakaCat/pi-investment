@@ -53,7 +53,7 @@ describe('data_fetch_kline tool', () => {
       const result = await (dataFetchKlineTool.execute as any)('test-call-id', { symbol: '600519' });
 
       expect(mockGetKlineHistory).toHaveBeenCalledTimes(1);
-      expect(mockGetKlineHistory).toHaveBeenCalledWith('600519', 'daily', undefined, undefined, undefined);
+      expect(mockGetKlineHistory).toHaveBeenCalledWith('600519', 'daily', undefined, undefined);
 
       expect(result.content).toHaveLength(1);
       expect(result.content[0].type).toBe('text');
@@ -81,7 +81,7 @@ describe('data_fetch_kline tool', () => {
         period: 'weekly'
       });
 
-      expect(mockGetKlineHistory).toHaveBeenCalledWith('600519', 'weekly', undefined, undefined, undefined);
+      expect(mockGetKlineHistory).toHaveBeenCalledWith('600519', 'weekly', undefined, undefined);
 
       const response = JSON.parse(getResponseText(result));
       expect(response.period).toBe('weekly');
@@ -103,7 +103,7 @@ describe('data_fetch_kline tool', () => {
         period: 'monthly'
       });
 
-      expect(mockGetKlineHistory).toHaveBeenCalledWith('600519', 'monthly', undefined, undefined, undefined);
+      expect(mockGetKlineHistory).toHaveBeenCalledWith('600519', 'monthly', undefined, undefined);
 
       const response = JSON.parse(getResponseText(result));
       expect(response.period).toBe('monthly');
@@ -126,7 +126,7 @@ describe('data_fetch_kline tool', () => {
         end_date: '20260520'
       });
 
-      expect(mockGetKlineHistory).toHaveBeenCalledWith('600519', 'daily', '20260101', '20260520', undefined);
+      expect(mockGetKlineHistory).toHaveBeenCalledWith('600519', 'daily', '20260101', '20260520');
     });
 
     it('should fetch kline data with all custom parameters', async () => {
@@ -147,7 +147,7 @@ describe('data_fetch_kline tool', () => {
         end_date: '20260520'
       });
 
-      expect(mockGetKlineHistory).toHaveBeenCalledWith('600519', 'weekly', '20260101', '20260520', undefined);
+      expect(mockGetKlineHistory).toHaveBeenCalledWith('600519', 'weekly', '20260101', '20260520');
     });
   });
 
@@ -165,7 +165,7 @@ describe('data_fetch_kline tool', () => {
 
       const result = await (dataFetchKlineTool.execute as any)('test-call-id', { symbol: '9988.HK' });
 
-      expect(mockGetKlineHistory).toHaveBeenCalledWith('9988.HK', 'daily', undefined, undefined, undefined);
+      expect(mockGetKlineHistory).toHaveBeenCalledWith('9988.HK', 'daily', undefined, undefined);
 
       const response = JSON.parse(getResponseText(result));
       expect(response.symbol).toBe('9988.HK');
@@ -184,7 +184,7 @@ describe('data_fetch_kline tool', () => {
 
       const result = await (dataFetchKlineTool.execute as any)('test-call-id', { symbol: '9988' });
 
-      expect(mockGetKlineHistory).toHaveBeenCalledWith('9988', 'daily', undefined, undefined, undefined);
+      expect(mockGetKlineHistory).toHaveBeenCalledWith('9988', 'daily', undefined, undefined);
     });
   });
 
