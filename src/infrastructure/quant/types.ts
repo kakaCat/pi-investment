@@ -600,3 +600,72 @@ export interface DividendResponse {
     dividend_yield: number;
   }>;
 }
+
+// ─── ML Model Types ──────────────────────────────────────────
+
+export interface MLModel {
+  id: number;
+  model_type: string;
+  version: string;
+  train_date: string;
+  test_accuracy: number;
+  f1_score?: number;
+  feature_count: number;
+  train_samples: number;
+  status: string;
+}
+
+export interface ListModelsResponse {
+  success: boolean;
+  models: MLModel[];
+  total: number;
+  error?: string;
+}
+
+export interface ModelMetrics {
+  train_accuracy: number;
+  test_accuracy: number;
+  precision: number;
+  recall: number;
+  f1_score: number;
+  roc_auc: number;
+}
+
+export interface ModelEvaluation {
+  model_type: string;
+  version: string;
+  metrics: ModelMetrics;
+  training_report: {
+    cv_scores?: number[];
+    feature_importance?: Record<string, number>;
+    confusion_matrix?: number[][];
+  };
+}
+
+export interface EvaluateModelResponse {
+  success: boolean;
+  evaluation?: ModelEvaluation;
+  error?: string;
+}
+
+export interface DriftFeature {
+  feature: string;
+  drift: number;
+}
+
+export interface ModelMonitor {
+  model_type: string;
+  version: string;
+  drift_detected: boolean;
+  drift_score: number;
+  threshold: number;
+  recommendation: string;
+  top_drift_features: DriftFeature[];
+  checked_at: string;
+}
+
+export interface MonitorModelResponse {
+  success: boolean;
+  monitor?: ModelMonitor;
+  error?: string;
+}
