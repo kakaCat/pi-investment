@@ -202,6 +202,22 @@ export class QuantV2Error extends Error {
 }
 
 // K线数据类型
+/**
+ * K线数据点
+ *
+ * 数据来源: quantsys-v2 API /api/stock/{symbol}/history
+ * 字段映射: 数据库 trade_date → API date
+ *
+ * @property date - 交易日期，格式 YYYY-MM-DD (数据库字段: trade_date)
+ * @property open - 开盘价
+ * @property high - 最高价
+ * @property low - 最低价
+ * @property close - 收盘价
+ * @property volume - 成交量
+ * @property change_pct - 涨跌幅 (%)，由后端计算 (当日收盘价 - 前日收盘价) / 前日收盘价 * 100
+ *
+ * 注意: 数据库还有 amount 字段，但 API 不返回
+ */
 export interface KlineDataPoint {
   date: string;
   open: number;
@@ -212,6 +228,14 @@ export interface KlineDataPoint {
   change_pct: number;
 }
 
+/**
+ * K线数据响应
+ *
+ * @property symbol - 股票代码
+ * @property period - 周期类型 (daily/weekly/monthly)
+ * @property count - 数据点数量
+ * @property data - K线数据数组，按日期升序排列
+ */
 export interface KlineData {
   success?: boolean;
   symbol: string;
@@ -222,6 +246,18 @@ export interface KlineData {
 }
 
 // 股票基础数据类型
+/**
+ * 股票基本信息
+ *
+ * @property symbol - 股票代码
+ * @property name - 股票名称
+ * @property market - 市场 (SH/SZ/BJ)
+ * @property industry - 所属行业
+ * @property sector - 所属板块
+ * @property market_cap - 市值
+ * @property pe_ratio - 市盈率
+ * @property pb_ratio - 市净率
+ */
 export interface StockInfo {
   symbol: string;
   name: string;
@@ -233,6 +269,19 @@ export interface StockInfo {
   pb_ratio?: number;
 }
 
+/**
+ * 股票实时价格
+ *
+ * @property symbol - 股票代码
+ * @property name - 股票名称
+ * @property price - 当前价格
+ * @property change_pct - 涨跌幅 (%)
+ * @property high - 当日最高价
+ * @property low - 当日最低价
+ * @property open - 开盘价
+ * @property volume - 成交量
+ * @property source - 数据源
+ */
 export interface StockPrice {
   symbol: string;
   name?: string;
@@ -245,6 +294,15 @@ export interface StockPrice {
   source?: string;
 }
 
+/**
+ * 股票新闻
+ *
+ * @property title - 新闻标题
+ * @property date - 发布日期，格式 YYYY-MM-DD
+ * @property source - 新闻来源
+ * @property url - 新闻链接
+ * @property summary - 新闻摘要
+ */
 export interface StockNews {
   title: string;
   date: string;
@@ -253,6 +311,14 @@ export interface StockNews {
   summary?: string;
 }
 
+/**
+ * 股票公告
+ *
+ * @property title - 公告标题
+ * @property date - 发布日期，格式 YYYY-MM-DD
+ * @property type - 公告类型
+ * @property url - 公告链接
+ */
 export interface StockAnnouncement {
   title: string;
   date: string;
@@ -260,6 +326,22 @@ export interface StockAnnouncement {
   url?: string;
 }
 
+/**
+ * 股票综合数据响应
+ *
+ * 支持部分成功：每个数据源独立查询，失败时对应字段为 null，错误信息记录在 *_error 字段
+ *
+ * @property success - 整体请求是否成功
+ * @property info - 基本信息，失败时为 null
+ * @property price - 实时价格，失败时为 null
+ * @property news - 新闻列表，失败时为 null
+ * @property announcements - 公告列表，失败时为 null
+ * @property info_error - 基本信息查询错误
+ * @property price_error - 价格查询错误
+ * @property news_error - 新闻查询错误
+ * @property announcements_error - 公告查询错误
+ * @property error - 整体错误信息
+ */
 export interface StockData {
   success?: boolean;
   info?: StockInfo | null;
