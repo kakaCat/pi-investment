@@ -201,6 +201,78 @@ export class QuantV2Error extends Error {
   }
 }
 
+// K线数据类型
+export interface KlineDataPoint {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  change_pct: number;
+}
+
+export interface KlineData {
+  success?: boolean;
+  symbol: string;
+  period: 'daily' | 'weekly' | 'monthly';
+  count: number;
+  data: KlineDataPoint[];
+  error?: string;
+}
+
+// 股票基础数据类型
+export interface StockInfo {
+  symbol: string;
+  name: string;
+  market?: string;
+  industry?: string;
+  sector?: string;
+  market_cap?: number;
+  pe_ratio?: number;
+  pb_ratio?: number;
+}
+
+export interface StockPrice {
+  symbol: string;
+  name?: string;
+  price: number;
+  change_pct: number;
+  high: number;
+  low: number;
+  open: number;
+  volume: number;
+  source?: string;
+}
+
+export interface StockNews {
+  title: string;
+  date: string;
+  source?: string;
+  url?: string;
+  summary?: string;
+}
+
+export interface StockAnnouncement {
+  title: string;
+  date: string;
+  type?: string;
+  url?: string;
+}
+
+export interface StockData {
+  success?: boolean;
+  info?: StockInfo | null;
+  price?: StockPrice | null;
+  news?: StockNews[] | null;
+  announcements?: StockAnnouncement[] | null;
+  info_error?: string;
+  price_error?: string;
+  news_error?: string;
+  announcements_error?: string;
+  error?: string;
+}
+
 // 策略执行请求参数
 export interface StrategyExecuteParams {
   symbol: string;           // 股票代码（如 "600519.SH"）
