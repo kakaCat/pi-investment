@@ -172,8 +172,11 @@ backend_control({ action: "start", service: "all" })
     - `context` (可选) - 上下文信息
     - `files` (可选) - 相关文件路径
     - `timeout` (可选) - 超时时间（毫秒，默认 120000）
-  - **前置条件**：需要本地安装 Claude Code CLI
+  - **CLI 命令**：`claude` (已安装在 `~/.local/bin/claude`)
   - **配置**：通过 `CLAUDE_CODE_*` 环境变量配置
+    - `CLAUDE_CODE_CLI_PATH` - CLI 路径（默认：`claude`）
+    - `CLAUDE_CODE_TIMEOUT` - 超时时间（默认：120000ms）
+    - `CLAUDE_CODE_ENABLED` - 启用/禁用（默认：true）
 
 ### 工具使用指南
 
@@ -189,16 +192,19 @@ backend_control({ action: "start", service: "all" })
 
 **重大变更（2025-05-25）**：旧工具系统已完全移除，请使用新的六层架构工具。
 
-**v2 迁移（2026-05-25）**：核心工具已从 v1 Python daemon 迁移到 quantsys-v2 Flask API (端口 5001)：
+**v2 迁移（2026-05-29）**：核心工具已从 v1 Python daemon 迁移到 quantsys-v2 Flask API (端口 5001)：
+- `data_fetch_kline` — 使用 v2 API `/api/stock/{symbol}/history`
+- `data_fetch_stock` — 使用 v2 API `/api/stocks/{symbol}`, `/api/stock/{symbol}/quote`, `/api/stock/{symbol}/news`, `/api/stock/{symbol}/announcements`
 - `data_fetch_financial` — 使用 v2 API `/api/data/financials`
+- `data_fetch_dividend` — 使用 v2 API `/api/stock/{symbol}/dividends`
 - `factor_calculate` — 使用 v2 API `/api/factors/compute`
-- `factor_analyze` — 使用 v2 API `/api/analysis/factors` (新增)
+- `factor_analyze` — 使用 v2 API `/api/analysis/factors`
 - `invest_opportunity_scan` — 使用 v2 API `/api/signals/opportunities`
-- `trade_algo_execute` — 使用 v2 API `/api/orders/algo-execute` (新增)
+- `trade_algo_execute` — 使用 v2 API `/api/orders/algo-execute`
 
-**v1 保留工具**（仍使用 Python daemon）：
-- `data_fetch_stock`, `data_fetch_kline` — 基础数据获取
-- `model_*` 系列 — 模型训练、预测、评估、监控
+**v1 保留工具**（已全部迁移至 v2）：
+- ~~`data_fetch_stock`, `data_fetch_kline` — 基础数据获取~~ ✅ 已迁移
+- `model_*` 系列 — 模型训练、预测、评估、监控（待迁移）
 
 所有 v2 工具通过 `QuantV2Client` 统一调用，提供类型安全和错误处理。详见设计文档：`docs/superpowers/specs/2026-05-25-agent-v2-migration-design.md`
 
