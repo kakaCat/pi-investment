@@ -21,6 +21,7 @@ import type {
   StrategyBatchValidateParams,
   StrategyBatchValidateResponse,
   DividendResponse,
+  KlineData,
 } from "./types.js";
 import { QuantV2Error } from "./types.js";
 
@@ -45,7 +46,7 @@ const V2_TIMEOUT_MS = parseInt(
  */
 const V2_ROUTES: Record<
   string,
-  { path: string; method: "GET" | "POST" }
+  { path: string; method: "GET" | "POST" | "DELETE" }
 > = {
   // ── stock ──
   "stock.list":      { path: "/api/stocks/list",          method: "GET" },
@@ -271,6 +272,13 @@ const V2_ROUTES: Record<
   "signal.test_record":  { path: "/api/signal-test/record",         method: "POST" },
   "signal.test_verify":  { path: "/api/signal-test/verify",         method: "POST" },
   "signal.test_stats":   { path: "/api/signal-test/stats",          method: "GET" },
+
+  // ── watchlist ──
+  "watchlist.list":      { path: "/api/stocks/watchlist",          method: "GET" },
+  "watchlist.add":       { path: "/api/stocks/watchlist",          method: "POST" },
+  "watchlist.remove":    { path: "/api/stocks/watchlist/{symbol}", method: "DELETE" },
+  "watchlist.check":     { path: "/api/stocks/watchlist/{symbol}/check", method: "GET" },
+  "watchlist.groups":    { path: "/api/stocks/watchlist/groups",   method: "GET" },
 };
 
 /** v2 不支持但可用的命令名列表（用于调试） */
@@ -405,7 +413,7 @@ export async function runQuantV2<T = unknown>(
 // ─── 内部辅助 ────────────────────────────────────────────
 
 function buildRequest(
-  route: { path: string; method: "GET" | "POST" },
+  route: { path: string; method: "GET" | "POST" | "DELETE" },
   params: Record<string, unknown>,
 ): { url: string; body: Record<string, unknown> | null } {
   let path = route.path;
@@ -429,7 +437,7 @@ function buildRequest(
     }
   }
 
-  if (route.method === "GET") {
+  if (route.method === "GET" || route.method === "DELETE") {
     const qs = buildQueryString(remaining);
     return { url: `${V2_API_BASE}${path}${qs ? "?" + qs : ""}`, body: null };
   }
@@ -758,6 +766,74 @@ export async function getDividends(
     throw new QuantV2Error(
       `分红数据查询失败: ${error instanceof Error ? error.message : String(error)}`
     );
+  }
+}
+
+/**
+ * 获取K线历史数据
+ * @param symbol 股票代码
+ * @param period 周期 (daily/weekly/monthly)
+ * @param startDate 开始日期 YYYYMMDD
+ * @param endDate 结束日期 YYYYMMDD
+ * @param limit 最大返回条数 (默认60)
+ */
+export async function getKlineHistory(
+  symbol: string,
+  period: 'daily' | 'weekly' | 'monthly' = 'daily',
+  startDate?: string,
+  endDate?: string,
+  limit: number = 60,
+): Promise<KlineData> {
+  if (!symbol || symbol.trim() === '') {
+    throw new QuantV2Error('股票代码不能为空', 400);
+  }
+
+  const params: Record<string, string | number> = {
+    period,
+    limit: Math.min(limit, 200),
+  };
+
+  if (startDate) {
+    // Convert YYYYMMDD to YYYY-MM-DD
+    params.start_date = startDate.length === 8
+      ? `${startDate.slice(0, 4)}-${startDate.slice(4, 6)}-${startDate.slice(6, 8)}`
+      : startDate;
+  }
+
+  if (endDate) {
+    // Convert YYYYMMDD to YYYY-MM-DD
+    params.end_date = endDate.length === 8
+      ? `${endDate.slice(0, 4)}-${endDate.slice(4, 6)}-${endDate.slice(6, 8)}`
+      : endDate;
+  }
+
+  const queryString = new URLSearchParams(
+    Object.entries(params).reduce((acc, [k, v]) => {
+      acc[k] = String(v);
+      return acc;
+    }, {} as Record<string, string>)
+  ).toString();
+
+  const url = `${V2_API_BASE}/api/stock/${encodeURIComponent(symbol)}/history?${queryString}`;
+
+  try {
+    const response = await fetchV2<KlineData>(url);
+    return {
+      success: true,
+      ...response,
+    };
+  } catch (error) {
+    if (error instanceof QuantV2Error) {
+      return {
+        success: false,
+        symbol,
+        period,
+        count: 0,
+        data: [],
+        error: error.message,
+      };
+    }
+    throw error;
   }
 }
 
