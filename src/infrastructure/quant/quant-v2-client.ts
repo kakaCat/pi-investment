@@ -27,6 +27,9 @@ import type {
   StockPrice,
   StockNews,
   StockAnnouncement,
+  ListModelsResponse,
+  EvaluateModelResponse,
+  MonitorModelResponse,
 } from "./types.js";
 import { QuantV2Error } from "./types.js";
 
@@ -948,5 +951,89 @@ export async function getStockData(
   }
 
   return result;
+}
+
+/**
+ * 列出模型
+ */
+export async function listModels(
+  modelType?: string,
+  status?: string,
+  limit?: number
+): Promise<ListModelsResponse> {
+  const params = new URLSearchParams();
+  if (modelType) params.append("model_type", modelType);
+  if (status) params.append("status", status);
+  if (limit) params.append("limit", limit.toString());
+
+  const url = `${V2_API_BASE}/api/ml/models${params.toString() ? `?${params.toString()}` : ""}`;
+  return fetchV2<ListModelsResponse>(url, { method: "GET" });
+}
+
+/**
+ * 评估模型
+ */
+export async function evaluateModel(
+  modelType: string = "xgboost",
+  version: string = "latest"
+): Promise<EvaluateModelResponse> {
+  const params = new URLSearchParams({ model_type: modelType, version });
+
+  return fetchV2<EvaluateModelResponse>(
+    `${V2_API_BASE}/api/ml/model/evaluate?${params.toString()}`,
+    { method: "GET" }
+  );
+}
+
+/**
+ * 监控模型漂移
+ */
+export async function monitorModel(
+  modelType: string = "xgboost",
+  version: string = "latest",
+  days: number = 30
+): Promise<MonitorModelResponse> {
+  const params = new URLSearchParams({
+    model_type: modelType,
+    version,
+    days: days.toString()
+  });
+
+  return fetchV2<MonitorModelResponse>(
+    `${V2_API_BASE}/api/ml/model/monitor?${params.toString()}`,
+    { method: "GET" }
+  );
+}
+
+/**
+ * 训练模型（复用现有端点）
+ */
+export async function trainModel(params: {
+  model_type?: string;
+  start_date?: string;
+  end_date?: string;
+  test_size?: number;
+  symbols?: string[];
+  params?: Record<string, any>;
+}): Promise<any> {
+  return fetchV2(`${V2_API_BASE}/api/ml/train`, {
+    method: "POST",
+    body: params
+  });
+}
+
+/**
+ * 模型预测（复用现有端点）
+ */
+export async function predictModel(params: {
+  model_type?: string;
+  version?: string;
+  symbols: string[];
+  date?: string;
+}): Promise<any> {
+  return fetchV2(`${V2_API_BASE}/api/ml/predict`, {
+    method: "POST",
+    body: params
+  });
 }
 
