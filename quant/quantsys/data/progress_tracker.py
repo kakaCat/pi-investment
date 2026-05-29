@@ -60,6 +60,14 @@ class ProgressTracker:
             # Handle invalid JSON or read errors gracefully
             self.state = {}
 
+    def reset(self) -> None:
+        """
+        Reset progress tracker by clearing state and removing state file.
+        """
+        self.state = {}
+        if os.path.exists(self.state_file):
+            os.unlink(self.state_file)
+
     def save(self) -> None:
         """
         Save current state to JSON file using atomic write.

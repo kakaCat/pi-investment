@@ -12,6 +12,9 @@ import {
   sendMarketBriefTool,
   sendRiskWarningTool
 } from "../../../tools/notification-tools.js";
+import { FeishuService } from "../../../services/notification/feishu-service.js";
+
+const feishuService = new FeishuService();
 
 export const monitorAlertTool: ToolDefinition = {
   name: "monitor_alert",
@@ -22,6 +25,7 @@ export const monitorAlertTool: ToolDefinition = {
     "- trade_signal: 交易信号（买入/卖出）\n" +
     "- market_brief: 市场简报\n" +
     "- risk_warning: 风险警告\n" +
+    "trade_signal 类型可通过 channel='feishu' 额外发送到飞书通知。\n" +
     "根据 type 参数自动路由到对应的通知渠道",
   parameters: Type.Object({
     type: Type.Union([
@@ -30,6 +34,10 @@ export const monitorAlertTool: ToolDefinition = {
       Type.Literal("market_brief"),
       Type.Literal("risk_warning")
     ], { description: "通知类型" }),
+    channel: Type.Optional(Type.Union([
+      Type.Literal("default"),
+      Type.Literal("feishu")
+    ], { description: "通知渠道（可选，仅 trade_signal 生效）。default=默认通知服务, feishu=额外发送飞书通知" })),
 
     // general 参数
     message: Type.Optional(Type.String({ description: "通知内容（general类型必填）" })),
@@ -102,7 +110,8 @@ export const monitorAlertTool: ToolDefinition = {
               details: undefined
             };
           }
-          return await sendTradeSignalTool.execute(toolCallId, {
+          // 主通知渠道
+          const result = await sendTradeSignalTool.execute(toolCallId, {
             action: params.action,
             symbol: params.symbol,
             name: params.name,
@@ -111,6 +120,24 @@ export const monitorAlertTool: ToolDefinition = {
             confidence: params.confidence,
             position_pct: params.position_pct
           }, signal, onUpdate, ctx);
+          // 可选：额外发送飞书通知
+          if (params.channel === "feishu") {
+            try {
+              await feishuService.sendTradeAlert({
+                action: params.action,
+                symbol: params.symbol,
+                name: params.name,
+                price: params.price,
+                reason: params.reason,
+                confidence: params.confidence,
+                position_pct: params.position_pct
+              });
+              console.log("[monitor_alert] 已额外发送飞书通知");
+            } catch (feishuError) {
+              console.error("[monitor_alert] 飞书通知发送失败:", feishuError);
+            }
+          }
+          return result;
 
         case "market_brief":
           if (!params.summary || !params.indices) {

@@ -115,10 +115,197 @@ class StockListFetcherTests(unittest.TestCase):
                     "name": "腾讯控股",
                     "market": "HK",
                     "market_cap": 56000.0,
+                    "total_mv": 56000.0,
+                    "circulating_mv": None,
                     "pe": 18.2,
                     "pb": 3.1,
                     "industry": None,
                 }
+            ],
+        )
+
+    def test_fetch_a_stocks_em_maps_rich_stock_fields(self) -> None:
+        """East Money A-share rows should preserve industry and valuation fields."""
+        database = MagicMock()
+        fetcher = StockListFetcher(database)
+        frame = pd.DataFrame(
+            [
+                {
+                    "代码": "600519",
+                    "名称": "贵州茅台",
+                    "总市值": 2_200_000_000_000,
+                    "流通市值": 2_150_000_000_000,
+                    "市盈率-动态": 25.5,
+                    "市净率": 8.2,
+                    "所属行业": "酿酒行业",
+                }
+            ]
+        )
+
+        with patch("quantsys.data.fetchers.stock_list.ak.stock_zh_a_spot_em", return_value=frame):
+            stocks = fetcher._fetch_a_stocks_em()
+
+        self.assertEqual(
+            stocks,
+            [
+                {
+                    "symbol": "600519",
+                    "name": "贵州茅台",
+                    "market": "A",
+                    "market_cap": 22000.0,
+                    "total_mv": 22000.0,
+                    "circulating_mv": 21500.0,
+                    "pe": 25.5,
+                    "pb": 8.2,
+                    "industry": "酿酒行业",
+                    "sector": "酿酒行业",
+                }
+            ],
+        )
+
+    def test_fetch_stock_fundamentals_maps_latest_financial_metrics(self) -> None:
+        """Financial indicator rows should map latest metrics into stock columns."""
+        database = MagicMock()
+        fetcher = StockListFetcher(database)
+        frame = pd.DataFrame(
+            [
+                {
+                    "报告期": "2025-03-31",
+                    "净资产收益率": "10.39%",
+                    "销售毛利率": "91.2%",
+                    "资产负债率": "14.1%",
+                    "净利润同比增长率": "11.6%",
+                },
+                {
+                    "报告期": "2025-06-30",
+                    "净资产收益率": "19.03%",
+                    "销售毛利率": "90.8%",
+                    "资产负债率": "14.8%",
+                    "净利润同比增长率": "8.8%",
+                },
+            ]
+        )
+
+        with patch(
+            "quantsys.data.fetchers.stock_list.ak.stock_financial_abstract_ths",
+            return_value=frame,
+        ):
+            result = fetcher._fetch_stock_fundamentals("600519")
+
+        self.assertEqual(
+            result,
+            {
+                "symbol": "600519",
+                "roe": 19.03,
+                "gross_margin": 90.8,
+                "debt_ratio": 14.8,
+                "net_profit_growth": 8.8,
+            },
+        )
+
+    def test_fetch_stock_fundamentals_passes_start_year_to_akshare(self) -> None:
+        """AkShare financial indicator API should receive a start_year argument."""
+        database = MagicMock()
+        fetcher = StockListFetcher(database)
+        frame = pd.DataFrame(
+            [
+                {
+                    "报告期": "2025-06-30",
+                    "净资产收益率": "19.03%",
+                    "销售毛利率": "90.8%",
+                    "资产负债率": "14.8%",
+                    "净利润同比增长率": "8.8%",
+                }
+            ]
+        )
+
+        with patch(
+            "quantsys.data.fetchers.stock_list.ak.stock_financial_abstract_ths",
+            return_value=frame,
+        ) as indicator:
+            fetcher._fetch_stock_fundamentals("600519")
+
+        self.assertEqual(indicator.call_args.kwargs["symbol"], "600519")
+        self.assertEqual(indicator.call_args.kwargs["indicator"], "按报告期")
+
+    def test_backfill_fundamentals_flushes_each_progress_batch(self) -> None:
+        """Fundamental backfill should persist successful rows incrementally."""
+        database = MagicMock()
+        database.upsert_stocks.side_effect = lambda rows: len(rows)
+        fetcher = StockListFetcher(database)
+        fetcher._PROGRESS_INTERVAL = 2
+
+        with patch.object(
+            fetcher,
+            "_fetch_stock_fundamentals",
+            side_effect=[
+                {"symbol": "000001", "roe": 1.0},
+                {"symbol": "000002", "roe": 2.0},
+                {"symbol": "000003", "roe": 3.0},
+            ],
+        ):
+            count = fetcher.backfill_fundamentals(["000001", "000002", "000003"])
+
+        self.assertEqual(count, 3)
+        self.assertEqual(database.upsert_stocks.call_count, 2)
+        self.assertEqual(
+            database.upsert_stocks.call_args_list[0].args[0],
+            [{"symbol": "000001", "roe": 1.0}, {"symbol": "000002", "roe": 2.0}],
+        )
+        self.assertEqual(
+            database.upsert_stocks.call_args_list[1].args[0],
+            [{"symbol": "000003", "roe": 3.0}],
+        )
+
+    def test_backfill_industries_maps_board_constituents_to_stock_rows(self) -> None:
+        """Industry backfill should persist industry and sector per constituent."""
+        database = MagicMock()
+        database.upsert_stocks.side_effect = lambda rows: len(rows)
+        fetcher = StockListFetcher(database)
+        boards = pd.DataFrame([{"板块名称": "酿酒行业"}, {"板块名称": "银行"}])
+        liquor = pd.DataFrame(
+            [
+                {"代码": "600519", "名称": "贵州茅台"},
+                {"代码": "000858", "名称": "五粮液"},
+            ]
+        )
+        banks = pd.DataFrame([{"代码": "000001", "名称": "平安银行"}])
+
+        with patch(
+            "quantsys.data.fetchers.stock_list.ak.stock_board_industry_name_em",
+            return_value=boards,
+        ), patch(
+            "quantsys.data.fetchers.stock_list.ak.stock_board_industry_cons_em",
+            side_effect=[liquor, banks],
+        ):
+            count = fetcher.backfill_industries()
+
+        self.assertEqual(count, 3)
+        self.assertEqual(database.upsert_stocks.call_count, 1)
+        self.assertEqual(
+            database.upsert_stocks.call_args.args[0],
+            [
+                {
+                    "symbol": "600519",
+                    "name": "贵州茅台",
+                    "market": "A",
+                    "industry": "酿酒行业",
+                    "sector": "酿酒行业",
+                },
+                {
+                    "symbol": "000858",
+                    "name": "五粮液",
+                    "market": "A",
+                    "industry": "酿酒行业",
+                    "sector": "酿酒行业",
+                },
+                {
+                    "symbol": "000001",
+                    "name": "平安银行",
+                    "market": "A",
+                    "industry": "银行",
+                    "sector": "银行",
+                },
             ],
         )
 

@@ -2,6 +2,9 @@
   "extends": "./tsconfig.json",
   "exclude": [
     "src/index-with-logger.ts",
+    "src/api/web/server.ts",
+    "src/scripts/portfolio-cli.ts",
+    "src/services/operations/job-audit-service.ts",
     "**/*.test.ts",
     "**/*.spec.ts"
   ]

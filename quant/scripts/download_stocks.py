@@ -6,6 +6,8 @@
     python scripts/download_stocks.py --market HK  # 下载港股列表 + 2年日线
     python scripts/download_stocks.py --days 365   # 只下载最近 1 年日线
     python scripts/download_stocks.py --stocks-only # 只下载股票列表
+    python scripts/download_stocks.py --with-fundamentals --stocks-only # 下载列表并回填基本面
+    python scripts/download_stocks.py --industries-only # 只回填行业/板块
     python scripts/download_stocks.py --klines-only # 只下载日线（需先有股票列表）
     python scripts/download_stocks.py --symbols 000001,600519  # 只下载指定股票
 """
@@ -43,6 +45,8 @@ def parse_args() -> argparse.Namespace:
   %(prog)s --market HK             下载港股列表 + 2年日线
   %(prog)s --market A --days 365   下载 A 股列表 + 1年日线
   %(prog)s --stocks-only           只下载 A 股列表
+  %(prog)s --with-fundamentals --stocks-only  下载 A 股列表并回填基本面
+  %(prog)s --industries-only       只回填 A 股行业/板块
   %(prog)s --klines-only --days 90 只下载最近 90 天日线
   %(prog)s --symbols 000001,600519 只下载指定股票的日线
         """,
@@ -71,6 +75,24 @@ def parse_args() -> argparse.Namespace:
         "--no-technicals", action="store_true",
         help="跳过技术指标计算",
     )
+    parser.add_argument(
+        "--with-fundamentals", action="store_true",
+        help="下载 A 股列表后回填 ROE/毛利率/负债率/净利润增速",
+    )
+    parser.add_argument(
+        "--fundamentals-only", action="store_true",
+        help="跳过股票列表和K线，只按数据库已有股票池回填基本面",
+    )
+    parser.add_argument(
+        "--industries-only", action="store_true",
+        help="跳过股票列表和K线，只回填 A 股行业/板块",
+    )
+    parser.add_argument(
+        "--symbol-prefixes",
+        type=str,
+        default="000,001,002,003,300,301,600,601,603,605,688",
+        help="基本面回填的股票代码前缀过滤，逗号分隔；传 all 表示不过滤",
+    )
     return parser.parse_args()
 
 
@@ -92,12 +114,12 @@ def print_db_status(db: Database) -> None:
         print(f"  K线范围: {stats['min_date']} ~ {stats['max_date']}")
 
 
-def download_stocks(db: Database, market: str) -> None:
+def download_stocks(db: Database, market: str, with_fundamentals: bool = False) -> None:
     """下载股票列表。"""
     print_header(f"📋 下载{market}股列表")
     fetcher = StockListFetcher(db)
     t0 = time.time()
-    fetcher.run(market=market, force=False)
+    fetcher.run(market=market, force=False, with_fundamentals=with_fundamentals)
     elapsed = time.time() - t0
     print(f"  ✅ 股票列表更新完成，耗时 {elapsed:.1f}s")
 
@@ -161,12 +183,54 @@ def download_technicals(db: Database, market: str) -> None:
     print(f"  ✅ 技术指标计算完成: 成功 {success}/{total}, 耗时 {elapsed:.1f}s")
 
 
+def download_fundamentals(
+    db: Database,
+    market: str,
+    symbols: list[str] | None,
+    prefixes: list[str] | None = None,
+) -> None:
+    """按数据库已有股票池回填基本面。"""
+    symbol_list = symbols or db.get_all_symbols(market)
+    if prefixes:
+        symbol_list = [symbol for symbol in symbol_list if any(symbol.startswith(prefix) for prefix in prefixes)]
+    if not symbol_list:
+        print("  ⚠️  数据库中没有股票，请先运行 --stocks-only 下载股票列表")
+        return
+
+    print_header(f"📊 回填基本面 ({len(symbol_list)} 只股票)")
+    fetcher = StockListFetcher(db)
+    t0 = time.time()
+    count = fetcher.backfill_fundamentals(symbol_list)
+    elapsed = time.time() - t0
+    print(f"  ✅ 基本面回填完成: 更新 {count} 只，耗时 {elapsed:.1f}s")
+
+
+def download_industries(db: Database, market: str) -> None:
+    """按行业板块成分回填行业和板块字段。"""
+    if market != "A":
+        print("  ⚠️  行业回填目前只支持 A 股")
+        return
+
+    print_header("🏷️  回填行业/板块")
+    fetcher = StockListFetcher(db)
+    t0 = time.time()
+    count = fetcher.backfill_industries()
+    elapsed = time.time() - t0
+    print(f"  ✅ 行业/板块回填完成: 更新 {count} 只，耗时 {elapsed:.1f}s")
+
+
 def main() -> int:
     args = parse_args()
 
     # 验证参数
     if args.days <= 0:
         print("错误: --days 必须大于 0", file=sys.stderr)
+        return 2
+    if args.fundamentals_only and args.market != "A":
+        print("错误: --fundamentals-only 目前只支持 A 股", file=sys.stderr)
+        return 2
+    if args.industries_only and args.market != "A":
+        print("错误: --industries-only 目前只支持 A 股", file=sys.stderr)
         return 2
 
     symbols = None
@@ -175,6 +239,10 @@ def main() -> int:
         if not symbols:
             print("错误: --symbols 不能为空", file=sys.stderr)
             return 2
+
+    prefixes = None
+    if args.symbol_prefixes.strip().lower() != "all":
+        prefixes = [p.strip() for p in args.symbol_prefixes.split(",") if p.strip()]
 
     # 连接数据库
     print_header("🔌 连接 PostgreSQL")
@@ -190,9 +258,25 @@ def main() -> int:
         print("  ✅ 已连接")
         print_db_status(db)
 
+        if args.fundamentals_only:
+            download_fundamentals(db, args.market, symbols, prefixes=prefixes)
+            print_header("📋 最终状态")
+            print_db_status(db)
+            print()
+            print("🎉 全部完成!")
+            return 0
+
+        if args.industries_only:
+            download_industries(db, args.market)
+            print_header("📋 最终状态")
+            print_db_status(db)
+            print()
+            print("🎉 全部完成!")
+            return 0
+
         # 1. 下载股票列表
         if not args.klines_only:
-            download_stocks(db, args.market)
+            download_stocks(db, args.market, with_fundamentals=args.with_fundamentals)
 
         # 2. 下载日线
         if not args.stocks_only:

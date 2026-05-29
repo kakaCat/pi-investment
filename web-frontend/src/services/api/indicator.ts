@@ -8,8 +8,13 @@ import type {
   IndicatorInfo,
   IndicatorListResponse,
   IndicatorRunResult,
-  IndicatorRunParams
+  IndicatorRunParams,
+  StrategyNotebook
 } from '@/types/indicator'
+
+type IndicatorUpdatePayload = Partial<Indicator> & {
+  notebook?: StrategyNotebook
+}
 
 export const indicatorApi = {
   /**
@@ -36,7 +41,7 @@ export const indicatorApi = {
   /**
    * 更新指标
    */
-  updateIndicator(indicatorId: string, data: Partial<Indicator>) {
+  updateIndicator(indicatorId: string, data: IndicatorUpdatePayload) {
     return apiClient.post<Indicator>(`/api/indicators/update/${indicatorId}`, data)
   },
 
@@ -64,16 +69,20 @@ export const indicatorApi = {
   /**
    * 获取我的指标
    */
-  getMyIndicators() {
-    return apiClient.get<PaginatedResponse<Indicator>>('/api/indicators/list', { params: { type: 'my' } })
+  getMyIndicators(params?: Record<string, any>) {
+    return apiClient.get<PaginatedResponse<Indicator>>('/api/indicators/list', {
+      params: { type: 'my', pageSize: 200, ...params }
+    })
       .then(response => (response as any).items ?? [])
   },
 
   /**
    * 获取系统指标
    */
-  getSystemIndicators() {
-    return apiClient.get<PaginatedResponse<Indicator>>('/api/indicators/list', { params: { type: 'system' } })
+  getSystemIndicators(params?: Record<string, any>) {
+    return apiClient.get<PaginatedResponse<Indicator>>('/api/indicators/list', {
+      params: { type: 'system', pageSize: 200, ...params }
+    })
       .then(response => (response as any).items ?? [])
   },
 

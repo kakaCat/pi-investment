@@ -178,6 +178,7 @@ import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import { tradingApi } from '@/services/api/trading'
 import { apiClient } from '@/services/api/client'
+import { asData } from '@/services/api/adapters'
 import { useAgentStore } from '@/stores/agent'
 import { formatSignedCurrency } from '@/utils/format'
 
@@ -240,8 +241,13 @@ const fetchPendingTasks = async () => {
       }
     })
 
+    const signalData = asData<any>(response)
+    const signals = Array.isArray(signalData)
+      ? signalData
+      : signalData?.items ?? signalData?.signals ?? []
+
     // 转换信号数据为待处理任务格式
-    pendingTasks.value = (response?.items || []).map((signal: any) => ({
+    pendingTasks.value = signals.map((signal: any) => ({
       type: signal.action === 'buy' ? '买入申请' : signal.action === 'sell' ? '卖出申请' : '信号',
       symbol: signal.symbol,
       description: signal.reason || '无描述',

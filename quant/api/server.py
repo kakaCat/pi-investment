@@ -1517,11 +1517,8 @@ model = None
 factor_calculator = None
 feature_engineer = None
 
-# 初始化数据库路径（模块级别，确保在Flask重启时也可用）
+# 初始化项目路径（模块级别，确保在Flask重启时也可用）
 _project_root = Path(__file__).parent.parent.parent  # quant/api/ → quant/ → project_root/
-_project_db = _project_root / '.pi-invest' / 'stock-db' / 'stocks.db'
-_home_db = Path.home() / '.pi-invest' / 'stock-db' / 'stocks.db'
-db_path = _project_db if _project_db.exists() else _home_db
 
 
 def init_services():
@@ -1588,7 +1585,17 @@ def _file_details(path: Path):
     }
 
 
-def _status_check(name: str, path: Path, healthy_message: str, missing_message: str, extra_details: dict = None):
+def _status_check(name: str, path: Path | None, healthy_message: str, missing_message: str, extra_details: dict = None):
+    if path is None:
+        details = dict(extra_details or {})
+        details['exists'] = True
+        return {
+            'name': name,
+            'status': 'healthy',
+            'message': healthy_message,
+            'details': details,
+        }
+
     details = _file_details(path)
     if not details:
         return {
@@ -1635,9 +1642,7 @@ def get_db_provider():
     provider = os.environ.get('QUANT_DB_PROVIDER', 'postgres').strip().lower()
     if provider in {'postgresql', 'pg'}:
         return 'postgres'
-    if provider not in {'sqlite', 'postgres'}:
-        return 'postgres'
-    return provider
+    return 'postgres'
 
 
 class PostgresCompatCursor:
@@ -1726,8 +1731,7 @@ def get_db():
 
 def _quant_database() -> Database:
     """Open the pipeline Database for write-oriented data operations."""
-    db_file = _project_root / '.pi-invest' / 'stock-db' / 'stocks.db'
-    return Database(str(db_file))
+    return Database()
 
 
 @app.route('/api/health', methods=['GET'])
@@ -1737,57 +1741,21 @@ def health_check():
     db_info = None
 
     try:
-        if get_db_provider() == 'postgres':
-            conn = get_db()
-            row = conn.execute(
-                "SELECT current_database(), pg_database_size(current_database())"
-            ).fetchone()
-            conn.close()
+        conn = get_db()
+        row = conn.execute(
+            "SELECT current_database(), pg_database_size(current_database())"
+        ).fetchone()
+        conn.close()
 
-            size_bytes = int(row[1]) if row and row[1] is not None else 0
-            size_mb = size_bytes / (1024 * 1024)
-            db_connected = True
-            db_info = {
-                'provider': 'postgres',
-                'database': row[0] if row else os.environ.get('PGDATABASE', 'quant_investment'),
-                'size_mb': round(size_mb, 2),
-                'size_display': f"{size_mb / 1024:.1f} GB" if size_mb >= 1024 else f"{size_mb:.1f} MB"
-            }
-            return jsonify({
-                'status': 'ok',
-                'model_loaded': model is not None,
-                'db_connected': db_connected,
-                'db_info': db_info
-            })
-
-        # Check if database file exists and is accessible
-        # Note: We don't actually connect to avoid lock issues with concurrent processes
-        if db_path.exists() and db_path.is_file():
-            # Verify it's a valid SQLite database by checking the header
-            with open(db_path, 'rb') as f:
-                header = f.read(16)
-                # SQLite files start with "SQLite format 3\x00"
-                if header.startswith(b'SQLite format 3'):
-                    db_connected = True
-
-            # Get database file info
-            size_bytes = db_path.stat().st_size
-            size_mb = size_bytes / (1024 * 1024)
-
-            # Format size display
-            if size_mb < 1:
-                size_display = f"{size_bytes / 1024:.1f} KB"
-            elif size_mb < 1024:
-                size_display = f"{size_mb:.1f} MB"
-            else:
-                size_display = f"{size_mb / 1024:.1f} GB"
-
-            db_info = {
-                'provider': 'sqlite',
-                'path': str(db_path),
-                'size_mb': round(size_mb, 2),
-                'size_display': size_display
-            }
+        size_bytes = int(row[1]) if row and row[1] is not None else 0
+        size_mb = size_bytes / (1024 * 1024)
+        db_connected = True
+        db_info = {
+            'provider': 'postgres',
+            'database': row[0] if row else os.environ.get('PGDATABASE', 'quant_investment'),
+            'size_mb': round(size_mb, 2),
+            'size_display': f"{size_mb / 1024:.1f} GB" if size_mb >= 1024 else f"{size_mb:.1f} MB"
+        }
     except Exception as e:
         import traceback
         print(f"Health check error: {e}", file=sys.stderr)
@@ -1866,46 +1834,36 @@ def platform_status():
         model_report_path = _project_root / 'quant' / 'quantsys' / 'ml' / 'models' / 'training_report_latest.json'
         daily_report_path = _project_root / 'quant' / '.pi-invest' / 'daily_report.json'
 
-        if get_db_provider() == 'postgres':
-            try:
-                conn = get_db()
-                row = conn.execute("SELECT current_database(), pg_database_size(current_database())").fetchone()
-                conn.close()
-                size_bytes = int(row[1]) if row and row[1] is not None else 0
-                size_mb = size_bytes / (1024 * 1024)
-                database_check = {
-                    'name': 'database',
-                    'status': 'healthy',
-                    'message': 'PostgreSQL database is connected.',
-                    'details': {
-                        'provider': 'postgres',
-                        'database': row[0] if row else os.environ.get('PGDATABASE', 'quant_investment'),
-                        'size_mb': round(size_mb, 2),
-                        'size_display': f"{size_mb / 1024:.1f} GB" if size_mb >= 1024 else f"{size_mb:.1f} MB",
-                        'exists': True,
-                    },
-                }
-            except Exception as db_error:
-                database_check = {
-                    'name': 'database',
-                    'status': 'unavailable',
-                    'message': 'PostgreSQL database is not connected.',
-                    'details': {
-                        'provider': 'postgres',
-                        'database': os.environ.get('PGDATABASE', 'quant_investment'),
-                        'error': str(db_error),
-                        'exists': False,
-                    },
-                }
-        else:
-            database_path = _project_root / '.pi-invest' / 'stock-db' / 'stocks.db'
-            database_check = _status_check(
-                'database',
-                database_path,
-                'SQLite stock database is present.',
-                'SQLite stock database was not found.',
-                {'provider': 'sqlite'},
-            )
+        try:
+            conn = get_db()
+            row = conn.execute("SELECT current_database(), pg_database_size(current_database())").fetchone()
+            conn.close()
+            size_bytes = int(row[1]) if row and row[1] is not None else 0
+            size_mb = size_bytes / (1024 * 1024)
+            database_check = {
+                'name': 'database',
+                'status': 'healthy',
+                'message': 'PostgreSQL database is connected.',
+                'details': {
+                    'provider': 'postgres',
+                    'database': row[0] if row else os.environ.get('PGDATABASE', 'quant_investment'),
+                    'size_mb': round(size_mb, 2),
+                    'size_display': f"{size_mb / 1024:.1f} GB" if size_mb >= 1024 else f"{size_mb:.1f} MB",
+                    'exists': True,
+                },
+            }
+        except Exception as db_error:
+            database_check = {
+                'name': 'database',
+                'status': 'unavailable',
+                'message': 'PostgreSQL database is not connected.',
+                'details': {
+                    'provider': 'postgres',
+                    'database': os.environ.get('PGDATABASE', 'quant_investment'),
+                    'error': str(db_error),
+                    'exists': False,
+                },
+            }
 
         checks = [
             database_check,
@@ -3928,8 +3886,7 @@ def _check_kline_coverage(db: Database, symbol: str) -> dict:
 
 def _execute_data_update(source: str, days: int, force: bool, symbols: list = None) -> dict:
     """执行数据更新核心逻辑（同步/异步共用）"""
-    db_path = Path(__file__).parent.parent.parent / '.pi-invest' / 'stock-db' / 'stocks.db'
-    db = Database(str(db_path))
+    db = Database()
     fetcher = KlineFetcher(db)
 
     normalized_symbols = _normalize_symbols(symbols)
@@ -4108,9 +4065,7 @@ def _execute_kline_download(symbols: list, period: str, days: int, market: str =
 
     # 分钟级数据暂时使用旧的 fetcher（待扩展 DataService 支持）
     if period in ['1min', '5min', '15min', '30min', '60min']:
-        # 对于分钟线，仍然使用 SQLite（待后续迁移）
-        db_path = Path(__file__).parent.parent.parent / '.pi-invest' / 'stock-db' / 'stocks.db'
-        db = Database(str(db_path))
+        db = Database()
         minute_period = period.replace('min', '')
         fetcher = MinuteKlineFetcher(db)
         result = fetcher.run(symbols=symbols, period=minute_period, market=market)
@@ -4249,8 +4204,7 @@ def add_stock():
         return jsonify({'success': False, 'error': 'market参数不能为空'}), 400
 
     try:
-        db_path = Path(__file__).parent.parent.parent / '.pi-invest' / 'stock-db' / 'stocks.db'
-        db = Database(str(db_path))
+        db = Database()
 
         # 检查股票是否已存在
         conn = db._get_connection()

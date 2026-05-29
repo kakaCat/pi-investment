@@ -7,6 +7,8 @@
 import { appendFileSync, writeFileSync, existsSync, mkdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { randomBytes } from 'crypto';
+import { formatMaybeLargeJsonToolOutput } from '../tools/shared/large-tool-output.js';
+import { setSessionDataDir } from '../tools/shared/session-utils.js';
 
 const LOGS_DIR = join(process.cwd(), '.pi-invest', 'sessions');
 const RUN_ID = randomBytes(4).toString('hex');
@@ -101,6 +103,7 @@ export function initSession(sessionId?: string) {
   eventsFile = join(sessionDir, 'events.jsonl');
   conversationFile = join(sessionDir, 'conversation.json');
   metadataFile = join(sessionDir, 'metadata.json');
+  setSessionDataDir(sessionDir);
 
   // 创建子目录
   const tasksDir = join(sessionDir, 'tasks');
@@ -257,14 +260,31 @@ export function logToolCall(toolName: string, toolId: string, input: any) {
 
 // 记录工具结果
 export function logToolResult(toolName: string, toolId: string, result: any, error?: any, durationMs?: number) {
+  const resultLength = result ? JSON.stringify(result).length : 0;
+  const loggedResult = resultLength
+    ? formatMaybeLargeJsonToolOutput(result, {
+        label: `工具结果: ${toolName}`,
+        filePrefix: `logged-tool-result-${toolName}`,
+        maxInlineChars: 200_000,
+        previewChars: 1_000,
+        metadata: { toolName, toolId },
+      })
+    : null;
   logEvent('tool.result', {
     turn_index: turnIndex,
     tool_name: toolName,
     tool_id: toolId,
     success: !error,
     error: serializeError(error),
-    result: result ?? null,
-    result_length: result ? JSON.stringify(result).length : 0,
+    result: loggedResult?.stored
+      ? {
+          stored: true,
+          filePath: loggedResult.filePath,
+          summary: loggedResult.text,
+          originalLength: loggedResult.originalLength,
+        }
+      : result ?? null,
+    result_length: resultLength,
     duration_ms: durationMs,
   });
 }

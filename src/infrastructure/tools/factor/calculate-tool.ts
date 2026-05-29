@@ -61,7 +61,7 @@ export const factorCalculateTool: ToolDefinition = {
 
       if (!result.success) {
         // Extract meaningful error message from result
-        const errorMsg = result.results?.[0]?.error || result.message || "未知错误";
+        const errorMsg = result.results?.[0]?.error || "未知错误";
         return {
           content: [{
             type: "text" as const,

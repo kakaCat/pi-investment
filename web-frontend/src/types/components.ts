@@ -217,6 +217,12 @@ export interface Indicator {
   id: string
   name: string
   description: string
+  notebook?: {
+    pros: string
+    cons: string
+    observations: string
+    nextSteps: string
+  }
   code: string
   codeContent?: string // Legacy field alias for code
   parameters: Array<{
@@ -237,6 +243,7 @@ export interface IndicatorBacktest {
   symbol: string
   startDate: string
   endDate: string
+  initialCash?: number
   result: {
     winRate: number
     totalReturn: number

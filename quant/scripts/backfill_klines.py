@@ -34,6 +34,28 @@ for _proxy_key in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "AL
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+
+def _load_env_defaults() -> None:
+    """Load repo-level .env values without overriding explicit environment."""
+    env_path = Path(__file__).resolve().parents[2] / ".env"
+    if not env_path.exists():
+        return
+
+    for line in env_path.read_text().splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+
+        key, value = stripped.split("=", 1)
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+
+        os.environ[key] = value.strip().strip('"').strip("'")
+
+
+_load_env_defaults()
+
 from quantsys.data.db import Database
 from quantsys.data.trading_calendar import TradingCalendar
 from quantsys.data.gap_detector import GapDetector
@@ -89,6 +111,12 @@ def main():
     )
 
     parser.add_argument(
+        "--end-date",
+        type=str,
+        help="End date to backfill through in YYYY-MM-DD format. Defaults to today."
+    )
+
+    parser.add_argument(
         "--symbols",
         type=str,
         help="Comma-separated list of symbols. If not provided, processes all symbols."
@@ -109,6 +137,13 @@ def main():
     )
 
     parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=None,
+        help="Override max download retries for this run"
+    )
+
+    parser.add_argument(
         "--reset-progress",
         action="store_true",
         help="Reset progress tracker and start from scratch"
@@ -122,7 +157,9 @@ def main():
     logger.info("=" * 60)
     logger.info(f"Data Type:    {args.data_type}")
     logger.info(f"Target Days:  {args.target_days}")
+    logger.info(f"End Date:     {args.end_date or 'today'}")
     logger.info(f"Batch Size:   {args.batch_size}")
+    logger.info(f"Max Retries:  {args.max_retries if args.max_retries is not None else 'default'}")
     logger.info(f"Market:       {args.market}")
     logger.info(f"Reset Progress: {args.reset_progress}")
     logger.info("=" * 60 + "\n")
@@ -134,6 +171,8 @@ def main():
     gap_detector = GapDetector(db, calendar)
     progress_tracker = ProgressTracker()
     backfiller = DataBackfiller(db, calendar, gap_detector, progress_tracker)
+    if args.max_retries is not None:
+        backfiller.MAX_RETRIES = max(1, args.max_retries)
     logger.info("✓ Components initialized\n")
 
     # Reset progress if requested
@@ -177,9 +216,18 @@ def main():
 
             try:
                 if args.data_type == "daily":
-                    result = backfiller.backfill_daily(symbol, args.target_days)
+                    result = backfiller.backfill_daily(
+                        symbol,
+                        args.target_days,
+                        end_date=args.end_date,
+                        include_new_symbols=True,
+                    )
                 else:
-                    result = backfiller.backfill_minute(symbol, args.target_days)
+                    result = backfiller.backfill_minute(
+                        symbol,
+                        args.target_days,
+                        end_date=args.end_date,
+                    )
 
                 overall_dates_backfilled += result["succeeded"]
                 overall_dates_failed += result["failed"]

@@ -21,17 +21,14 @@ export const dataFetchFinancialTool: ToolDefinition = {
     symbol: Type.String({
       description: "股票代码：A股6位数字（如 600519）"
     }),
-    reportType: Type.Optional(
-      Type.Union([
-        Type.Literal("income"),
-        Type.Literal("balance"),
-        Type.Literal("cashflow"),
-        Type.Literal("all")
-      ]),
-      {
-        description: "报表类型：income=利润表, balance=资产负债表, cashflow=现金流量表, all=全部（默认）"
-      }
-    )
+    reportType: Type.Optional(Type.Union([
+      Type.Literal("income"),
+      Type.Literal("balance"),
+      Type.Literal("cashflow"),
+      Type.Literal("all")
+    ], {
+      description: "报表类型：income=利润表, balance=资产负债表, cashflow=现金流量表, all=全部（默认）"
+    }))
   }),
 
   execute: async (_toolCallId, params: { symbol: string; reportType?: string }) => {

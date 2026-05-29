@@ -4,12 +4,14 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
 const mockExecuteStrategy = jest.fn<(params: any) => Promise<any>>();
+const mockFetch = jest.fn<typeof fetch>();
+global.fetch = mockFetch as any;
 
 jest.unstable_mockModule('../../quant/quant-v2-client.js', () => ({
   executeStrategy: mockExecuteStrategy
 }));
 
-const { strategyExecuteTool } = await import('./execute-tool.js');
+const { strategyExecuteTool, clearStrategiesCache } = await import('./execute-tool.js');
 
 describe('strategyExecuteTool', () => {
   beforeEach(() => {
@@ -132,6 +134,142 @@ describe('strategyExecuteTool', () => {
       symbol: '600519.SH',
       strategy_name: 'Momentum',
       date: '2026-01-15'
+    });
+  });
+
+  describe('Dynamic Strategy Support', () => {
+    beforeEach(() => {
+      // Clear cache before each test
+      clearStrategiesCache();
+    });
+
+    it('should have updated description mentioning 18+ strategies', () => {
+      expect(strategyExecuteTool.description).toContain('18');
+      expect(strategyExecuteTool.description).not.toContain('VolatilityBreakout');
+      expect(strategyExecuteTool.description).not.toContain('Turtle');
+    });
+
+    it('should return available strategies when strategy not found', async () => {
+      // Mock strategy execution failure
+      mockExecuteStrategy.mockResolvedValue({
+        success: false,
+        error: 'Strategy not found: invalid_strategy'
+      });
+
+      // Mock strategies list API
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            strategies: [
+              { strategyType: 'ma_cross', className: 'MACrossStrategy', category: 'trend_following', description: 'MA交叉策略' },
+              { strategyType: 'rsi_reversal', className: 'RSIReversalStrategy', category: 'mean_reversion', description: 'RSI反转策略' },
+              { strategyType: 'turtle', className: 'TurtleStrategy', category: 'trend_following', description: '海龟策略' },
+            ],
+            total: 3
+          }
+        })
+      } as Response);
+
+      const result = await (strategyExecuteTool.execute as any)('test-call-id', {
+        symbol: '600519.SH',
+        strategy: 'invalid_strategy'
+      });
+
+      expect((result.content[0] as any).text).toContain('策略不存在');
+      expect((result.content[0] as any).text).toContain('可用策略');
+      expect((result.content[0] as any).text).toContain('ma_cross');
+      expect((result.content[0] as any).text).toContain('rsi_reversal');
+      expect((result.content[0] as any).text).toContain('turtle');
+    });
+
+    it('should cache available strategies', async () => {
+      // First call - should fetch from API
+      mockExecuteStrategy.mockResolvedValue({
+        success: false,
+        error: 'Strategy not found'
+      });
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: { strategies: [{ strategyType: 'ma_cross', category: 'trend_following' }], total: 1 }
+        })
+      } as Response);
+
+      await (strategyExecuteTool.execute as any)('test-call-id', {
+        symbol: '600519.SH',
+        strategy: 'invalid1'
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      // Second call - should use cache
+      await (strategyExecuteTool.execute as any)('test-call-id', {
+        symbol: '600519.SH',
+        strategy: 'invalid2'
+      });
+
+      // Still only 1 fetch call (cache hit)
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should group strategies by category in error message', async () => {
+      mockExecuteStrategy.mockResolvedValue({
+        success: false,
+        error: 'Strategy not found'
+      });
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            strategies: [
+              { strategyType: 'ma_cross', category: 'trend_following', description: 'MA交叉' },
+              { strategyType: 'turtle', category: 'trend_following', description: '海龟' },
+              { strategyType: 'rsi_reversal', category: 'mean_reversion', description: 'RSI反转' },
+              { strategyType: 'bollinger_breakout', category: 'volatility', description: '布林突破' },
+            ],
+            total: 4
+          }
+        })
+      } as Response);
+
+      const result = await (strategyExecuteTool.execute as any)('test-call-id', {
+        symbol: '600519.SH',
+        strategy: 'invalid'
+      });
+
+      const text = (result.content[0] as any).text;
+      expect(text).toContain('趋势跟踪');
+      expect(text).toContain('均值回归');
+      expect(text).toContain('波动率');
+      expect(text).toContain('ma_cross');
+      expect(text).toContain('turtle');
+      expect(text).toContain('rsi_reversal');
+      expect(text).toContain('bollinger_breakout');
+    });
+
+    it('should handle API errors gracefully when fetching strategies', async () => {
+      mockExecuteStrategy.mockResolvedValue({
+        success: false,
+        error: 'Strategy not found'
+      });
+
+      mockFetch.mockResolvedValue({
+        ok: false,
+        statusText: 'Internal Server Error'
+      } as Response);
+
+      const result = await (strategyExecuteTool.execute as any)('test-call-id', {
+        symbol: '600519.SH',
+        strategy: 'invalid'
+      });
+
+      expect((result.content[0] as any).text).toContain('失败');
     });
   });
 });

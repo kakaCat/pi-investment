@@ -35,6 +35,14 @@ def normalize_symbol(symbol: str) -> str:
     return value
 
 
+def _is_placeholder_stock_name(symbol: str, name: str) -> bool:
+    """Return True when a stock name is just another representation of its code."""
+    stock_name = str(name or "").strip()
+    if not stock_name:
+        return True
+    return normalize_symbol(stock_name).upper() == normalize_symbol(symbol).upper()
+
+
 class Database:
     """Encapsulate pipeline stock and kline persistence."""
 
@@ -43,28 +51,24 @@ class Database:
 
         Set connect=False to defer connection (e.g., when used with context manager).
         """
-        self.provider = os.environ.get("QUANT_DB_PROVIDER", "sqlite").strip().lower()
+        self.provider = os.environ.get("QUANT_DB_PROVIDER", "postgres").strip().lower()
 
-        if self.provider not in {"postgres", "sqlite"}:
-            self.provider = "sqlite"
+        if self.provider in {"pg", "postgresql"}:
+            self.provider = "postgres"
+        if self.provider != "postgres":
+            raise RuntimeError("SQLite is no longer supported. Please use PostgreSQL (QUANT_DB_PROVIDER=postgres)")
 
         self.db_path: Optional[Path] = None
         self.conn: Any | None = None
         self._schema: str | None = None
 
         if connect:
-            if self.provider == "sqlite":
-                self._init_sqlite(db_path)
-            else:
-                self._init_postgres()
+            self._init_postgres()
 
     def __enter__(self) -> "Database":
         """Enter the context manager — connect if not already connected."""
         if self.conn is None:
-            if self.provider == "sqlite":
-                self._init_sqlite(str(self.db_path) if self.db_path else DEFAULT_DB_PATH)
-            else:
-                self._init_postgres()
+            self._init_postgres()
         return self
 
     @property
@@ -284,6 +288,7 @@ class Database:
                     volume DOUBLE PRECISION,
                     amount DOUBLE PRECISION,
                     turnover_rate DOUBLE PRECISION,
+                    remark TEXT,
                     PRIMARY KEY (symbol, trade_date)
                 );
 
@@ -337,6 +342,7 @@ class Database:
 
                 CREATE INDEX IF NOT EXISTS idx_quant_stocks_market ON quant.stocks(market);
                 CREATE INDEX IF NOT EXISTS idx_quant_stocks_updated_at ON quant.stocks(updated_at);
+                ALTER TABLE quant.daily_klines ADD COLUMN IF NOT EXISTS remark TEXT;
                 CREATE INDEX IF NOT EXISTS idx_quant_daily_klines_symbol_date_desc
                     ON quant.daily_klines(symbol, trade_date DESC);
                 CREATE INDEX IF NOT EXISTS idx_quant_factor_values_symbol_date
@@ -382,9 +388,10 @@ class Database:
             if not symbol:
                 raise ValueError("Stock entry missing required field: symbol")
 
-            name = str(stock.get("name") or symbol).strip()
+            incoming_name = str(stock.get("name") or "").strip()
+            name = None if _is_placeholder_stock_name(symbol, incoming_name) else incoming_name
             market = str(stock.get("market") or "A").strip() or "A"
-            stock_name = str(stock.get("name") or name)
+            stock_name = incoming_name or symbol
             is_st = int(stock.get("is_st")) if stock.get("is_st") is not None else int("ST" in stock_name.upper())
 
             rows.append(
@@ -443,7 +450,7 @@ class Database:
                         updated_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(symbol) DO UPDATE SET
-                        name = excluded.name,
+                        name = COALESCE(excluded.name, stocks.name),
                         market = excluded.market,
                         industry = COALESCE(excluded.industry, stocks.industry),
                         sector = COALESCE(excluded.sector, stocks.sector),
@@ -512,7 +519,7 @@ class Database:
                     updated_at
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT(symbol) DO UPDATE SET
-                    name = excluded.name,
+                    name = COALESCE(excluded.name, quant.stocks.name),
                     market = excluded.market,
                     industry = COALESCE(excluded.industry, quant.stocks.industry),
                     sector = COALESCE(excluded.sector, quant.stocks.sector),
@@ -546,9 +553,14 @@ class Database:
 
         rows = []
         for kline in klines:
+            symbol = str(kline["symbol"])
+            if self.provider == "postgres":
+                symbol = self._resolve_postgres_stock_symbol(symbol)
+            else:
+                symbol = normalize_symbol(symbol)
             rows.append(
                 (
-                    str(kline["symbol"]),
+                    symbol,
                     str(kline["date"]),
                     kline.get("open"),
                     kline.get("high"),
@@ -557,6 +569,7 @@ class Database:
                     kline.get("volume"),
                     kline.get("amount"),
                     kline.get("turnover_rate"),
+                    kline.get("remark"),
                 )
             )
 
@@ -568,8 +581,8 @@ class Database:
                     cursor.executemany(
                         """
                         INSERT INTO quant.daily_klines
-                        (symbol, trade_date, open, high, low, close, volume, amount, turnover_rate)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        (symbol, trade_date, open, high, low, close, volume, amount, turnover_rate, remark)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT(symbol, trade_date) DO UPDATE SET
                             open = excluded.open,
                             high = excluded.high,
@@ -577,7 +590,8 @@ class Database:
                             close = excluded.close,
                             volume = excluded.volume,
                             amount = excluded.amount,
-                            turnover_rate = COALESCE(excluded.turnover_rate, quant.daily_klines.turnover_rate)
+                            turnover_rate = COALESCE(excluded.turnover_rate, quant.daily_klines.turnover_rate),
+                            remark = excluded.remark
                         """,
                         rows,
                     )
@@ -591,13 +605,79 @@ class Database:
                     (symbol, date, open, high, low, close, volume, amount, turnover_rate)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    rows,
+                    [row[:9] for row in rows],
                 )
                 connection.commit()
             return len(rows)
         except Exception as exc:
             connection.rollback()
             raise RuntimeError(f"Failed to upsert daily kline records: {exc}") from exc
+
+    def upsert_daily_kline_remark(self, symbol: str, date: str, remark: str) -> int:
+        """Insert or update a daily K-line placeholder with a failure remark."""
+        connection = self._get_connection()
+        resolved_symbol = (
+            self._resolve_postgres_stock_symbol(symbol)
+            if self.provider == "postgres"
+            else normalize_symbol(symbol)
+        )
+        try:
+            if self.provider == "postgres":
+                cursor = connection.cursor()
+                try:
+                    cursor.execute(
+                        """
+                        INSERT INTO quant.daily_klines (symbol, trade_date, remark)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT(symbol, trade_date) DO UPDATE SET
+                            remark = excluded.remark
+                        """,
+                        (resolved_symbol, date, remark),
+                    )
+                    connection.commit()
+                finally:
+                    cursor.close()
+            else:
+                connection.execute(
+                    """
+                    INSERT OR REPLACE INTO daily_klines
+                    (symbol, date, open, high, low, close, volume, amount, turnover_rate)
+                    VALUES (?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+                    """,
+                    (resolved_symbol, date),
+                )
+                connection.commit()
+            return 1
+        except Exception as exc:
+            connection.rollback()
+            raise RuntimeError(f"Failed to upsert daily kline remark: {exc}") from exc
+
+    def _resolve_postgres_stock_symbol(self, symbol: str) -> str:
+        """Return a stock symbol that satisfies the PostgreSQL stocks FK."""
+        normalized_symbol = normalize_symbol(symbol)
+        raw_symbol = str(symbol).strip()
+        connection = self._get_connection()
+        cursor = connection.cursor()
+        try:
+            cursor.execute(
+                "SELECT symbol FROM quant.stocks WHERE symbol = %s",
+                (normalized_symbol,),
+            )
+            row = cursor.fetchone()
+            if row and row[0]:
+                return normalized_symbol
+
+            cursor.execute(
+                "SELECT symbol FROM quant.stocks WHERE symbol = %s",
+                (raw_symbol,),
+            )
+            row = cursor.fetchone()
+            if row and row[0]:
+                return raw_symbol
+
+            return normalized_symbol
+        finally:
+            cursor.close()
 
     def upsert_minute_klines(self, klines: List[Dict[str, Any]]) -> int:
         """Insert or update minute kline rows."""
@@ -706,6 +786,7 @@ class Database:
                 return {"min_date": row[0], "max_date": row[1]}
             return {"min_date": None, "max_date": None}
         except Exception as exc:
+            connection.rollback()  # Rollback transaction on error
             raise RuntimeError(f"Failed to fetch minute kline dates for {symbol}: {exc}") from exc
         finally:
             cursor.close()
@@ -1228,8 +1309,8 @@ class Database:
         symbols: Optional[List[str]] = None,
     ) -> int:
         """Replace trading signals and their factor details for one date, optionally scoped to symbols."""
-        if self.provider not in ("postgres", "sqlite"):
-            raise RuntimeError("Trading signal persistence requires PostgreSQL or SQLite")
+        if self.provider != "postgres":
+            raise RuntimeError("Trading signal persistence requires PostgreSQL")
 
         normalized_date = str(signal_date)
         normalized_symbols = sorted({normalize_symbol(symbol) for symbol in (symbols or []) if symbol})
@@ -1417,8 +1498,8 @@ class Database:
         limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Return trading signals joined with stock names and ordered by confidence/date."""
-        if self.provider not in ("postgres", "sqlite"):
-            raise RuntimeError("Trading signal queries require PostgreSQL or SQLite")
+        if self.provider != "postgres":
+            raise RuntimeError("Trading signal queries require PostgreSQL")
 
         connection = self._get_connection()
         clauses = []
@@ -1491,8 +1572,8 @@ class Database:
 
     def get_signal_history(self, days: int = 30) -> List[Dict[str, Any]]:
         """Return recent trading signals for dashboard/history use."""
-        if self.provider not in ("postgres", "sqlite"):
-            raise RuntimeError("Trading signal queries require PostgreSQL or SQLite")
+        if self.provider != "postgres":
+            raise RuntimeError("Trading signal queries require PostgreSQL")
 
         connection = self._get_connection()
         cursor = connection.cursor()

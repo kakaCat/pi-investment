@@ -151,20 +151,26 @@ export const taskUpdateTool: ToolDefinition = {
 };
 
 /**
- * 列出所有任务工具
+ * 列出任务工具（支持查询所有任务或单个任务详情）
  */
 export const taskListTool: ToolDefinition = {
   name: "task_list",
   label: "列出任务",
   description:
-    "List all tasks with their IDs, statuses, and dependency relationships. " +
+    "List all tasks or get details of a specific task. " +
+    "Without task_id: returns overview of all tasks with IDs, statuses, and dependency relationships. " +
+    "With task_id: returns full details of that task including description, status, dependencies, and owner. " +
     "Use to get an overview of what has been planned, what is in progress, and what remains. " +
     "Check this after completing a task to decide what to work on next.",
-  parameters: Type.Object({}),
-  execute: async () => {
+  parameters: Type.Object({
+    task_id: Type.Optional(Type.Integer({ description: "Optional: Task ID to get full details. Omit to list all tasks." }))
+  }),
+  execute: async (_toolCallId, params: any) => {
     try {
       ensureInitialized();
-      const result = taskManager.listAll();
+      const result = params.task_id !== undefined
+        ? taskManager.get(params.task_id)
+        : taskManager.listAll();
       return {
         content: [{ type: "text" as const, text: result }],
         details: undefined
@@ -173,36 +179,6 @@ export const taskListTool: ToolDefinition = {
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: "text" as const, text: `Error listing tasks: ${message}` }],
-        details: undefined
-      };
-    }
-  }
-};
-
-/**
- * 获取任务详情工具
- */
-export const taskGetTool: ToolDefinition = {
-  name: "task_get",
-  label: "获取任务详情",
-  description:
-    "Get full details of a specific task by ID, including description, status, and dependencies. " +
-    "Use when task_list output is not enough and you need to recall the original task description or check exact dependency state.",
-  parameters: Type.Object({
-    task_id: Type.Integer({ description: "Task ID" })
-  }),
-  execute: async (_toolCallId, params: any) => {
-    try {
-      ensureInitialized();
-      const result = taskManager.get(params.task_id);
-      return {
-        content: [{ type: "text" as const, text: result }],
-        details: undefined
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        content: [{ type: "text" as const, text: `Error getting task: ${message}` }],
         details: undefined
       };
     }

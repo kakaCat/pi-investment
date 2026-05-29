@@ -10,6 +10,7 @@ vi.mock('@/services/api/client', () => ({
 }))
 
 const { apiClient } = await import('@/services/api/client')
+const { adaptKLine } = await import('@/services/api/adapters')
 const { stockApi } = await import('@/services/api/stock')
 const { tradingApi } = await import('@/services/api/trading')
 const { strategyApi } = await import('@/services/api/strategy')
@@ -87,6 +88,26 @@ describe('QuantSys V2 API contract', () => {
     await expect(stockApi.getKLineData({ symbol: '000001.SZ' })).resolves.toEqual([])
   })
 
+  it('adapts backend kline fields for chart consumers', () => {
+    expect(adaptKLine({
+      tradeDate: '2026-05-27',
+      openPrice: '10.5',
+      closePrice: '11.2',
+      highPrice: '11.5',
+      lowPrice: '10.1',
+      volume: '1200',
+      amount: '13200'
+    })).toEqual({
+      date: '2026-05-27',
+      open: 10.5,
+      close: 11.2,
+      high: 11.5,
+      low: 10.1,
+      volume: 1200,
+      amount: 13200
+    })
+  })
+
   it('normalizes A-share suffixed symbols before calling stock detail endpoints', async () => {
     mockedClient.post.mockResolvedValueOnce({ found: true, symbol: '000001', name: '平安银行' })
 
@@ -125,7 +146,7 @@ describe('QuantSys V2 API contract', () => {
     })
   })
 
-  it('uses existing strategy and indicator endpoints', () => {
+  it('uses existing strategy and indicator endpoints', async () => {
     strategyApi.getStrategies({ page: 1, pageSize: 20 })
     expect(mockedClient.get).toHaveBeenLastCalledWith('/api/strategies/list', {
       params: { page: 1, pageSize: 20 }
@@ -137,6 +158,18 @@ describe('QuantSys V2 API contract', () => {
     indicatorApi.getIndicators({ page: 1 })
     expect(mockedClient.get).toHaveBeenLastCalledWith('/api/indicators/list', {
       params: { page: 1 }
+    })
+
+    mockedClient.get.mockResolvedValueOnce({ items: [] })
+    await indicatorApi.getMyIndicators()
+    expect(mockedClient.get).toHaveBeenLastCalledWith('/api/indicators/list', {
+      params: { type: 'my', pageSize: 200 }
+    })
+
+    mockedClient.get.mockResolvedValueOnce({ items: [] })
+    await indicatorApi.getSystemIndicators({ _t: 123 })
+    expect(mockedClient.get).toHaveBeenLastCalledWith('/api/indicators/list', {
+      params: { type: 'system', pageSize: 200, _t: 123 }
     })
 
     indicatorApi.runIndicator('7', { symbol: '000001.SZ', limit: 20 })

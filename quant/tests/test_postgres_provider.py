@@ -3,8 +3,15 @@
 from __future__ import annotations
 
 import os
+import sys
 import unittest
+from pathlib import Path
 from unittest.mock import patch
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+QUANT_ROOT = PROJECT_ROOT / "quant"
+if str(QUANT_ROOT) not in sys.path:
+    sys.path.insert(0, str(QUANT_ROOT))
 
 from api import server
 
@@ -14,9 +21,9 @@ class PostgresProviderTests(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             self.assertEqual(server.get_db_provider(), "postgres")
 
-    def test_sqlite_provider_can_be_selected_explicitly(self) -> None:
+    def test_sqlite_provider_is_rejected_explicitly(self) -> None:
         with patch.dict(os.environ, {"QUANT_DB_PROVIDER": "sqlite"}):
-            self.assertEqual(server.get_db_provider(), "sqlite")
+            self.assertEqual(server.get_db_provider(), "postgres")
 
     def test_postgres_connection_rewrites_sqlite_placeholders_and_tables(self) -> None:
         calls: list[tuple[str, object | None]] = []

@@ -223,6 +223,57 @@ backend_control({ action: "start", service: "all" })
 
 工具实现位置：`src/infrastructure/tools/` 按层级组织（data/, factor/, invest/, portfolio/, trade/, monitor/）。
 
+### 策略循环闭合（2026-05-29）
+
+**P2 完成**：实现"信号 → 执行 → 盈亏 → 统计 → 经验"完整闭环。
+
+#### 核心功能
+
+1. **信号追踪**：订单关联 `signal_id`，全程可追踪
+2. **盈亏计算**：卖出成交时自动计算并记录到 `strategy_performance` 表
+3. **统一统计**：`GET /api/signal-test/performance` 返回纸面+实盘综合数据
+4. **经验积累**：`ExperienceAccumulator` 自动从统计生成经验条目
+
+#### 数据流
+
+```
+策略信号 → signal_test_log (pending)
+    ↓
+创建订单 (signal_id)
+    ↓
+买入成交 → 更新 entry_price
+    ↓
+卖出成交 → 计算 pnl_pct → 写入 strategy_performance (source='live')
+    ↓
+统计 API → 纸面+实盘加权合并
+    ↓
+经验积累 → 生成推荐等级 (aggressive/moderate/cautious/avoid)
+    ↓
+Agent 查询经验 → 决策时参考历史表现
+```
+
+#### 关键组件
+
+- **strategy_performance 表**：存储实盘交易记录（entry_price, exit_price, pnl_pct, holding_days, source）
+- **StrategyPerformanceRepository**：CRUD + 统计查询
+- **_update_signal_tracking()**：订单成交时自动更新信号状态和盈亏
+- **ExperienceAccumulator**：样本 ≥ 10 时自动生成经验条目
+
+#### 推荐等级规则
+
+| 胜率 | 平均收益 | 推荐等级 |
+|------|---------|---------|
+| ≥ 70% | ≥ 3% | aggressive |
+| ≥ 60% | ≥ 2% | moderate |
+| ≥ 50% | ≥ 1% | cautious |
+| < 50% | < 1% | avoid |
+
+#### 相关文档
+
+- 完成文档：`docs/superpowers/specs/2026-05-29-strategy-loop-p2-completion.md`
+- 端到端测试：`docs/testing/strategy-loop-p2-e2e-test.md`
+- 实现计划：`docs/plans/strategy-loop-closure-plan.md`
+
 ### 工具后端迁移（2026-05-27）
 
 **重要变更**：`quant_cli` 工具已从 v1 CLI 迁移到 quantsys-v2 HTTP API。

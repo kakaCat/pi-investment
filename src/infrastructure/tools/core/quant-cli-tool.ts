@@ -1,6 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { runQuantV2, V2_COMMAND_LIST } from "../../quant/quant-v2-client.js";
+import { formatMaybeLargeToolOutput } from "../shared/large-tool-output.js";
 
 type ParamRule = {
   required?: boolean;
@@ -666,7 +667,7 @@ const COMMANDS: Record<string, CommandRule> = {
   "data.update_klines": {
     domain: "data",
     action: "update-klines",
-    description: "更新日线 K 线数据。",
+    description: "更新日线 K 线数据。支持单个或多个股票（逗号分隔）。",
     params: {
       symbols: { type: "string" },
       days: { type: "integer", min: 1 },
@@ -984,6 +985,51 @@ const COMMANDS: Record<string, CommandRule> = {
       last_price: { type: "number" },
     },
     example: { symbol: "600519", price: 105, above: 100 },
+  },
+  "watchlist.list": {
+    domain: "watchlist",
+    action: "list",
+    description: "获取自选股列表，可按分组筛选。",
+    params: {
+      group_id: { type: "string" },
+    },
+    example: { group_id: "default" },
+  },
+  "watchlist.add": {
+    domain: "watchlist",
+    action: "add",
+    description: "添加股票到自选股。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+      group_id: { type: "string" },
+      note: { type: "string" },
+    },
+    example: { symbol: "600519", group_id: "e379e813", note: "白酒龙头" },
+  },
+  "watchlist.remove": {
+    domain: "watchlist",
+    action: "remove",
+    description: "从自选股移除股票。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+    },
+    example: { symbol: "600519" },
+  },
+  "watchlist.check": {
+    domain: "watchlist",
+    action: "check",
+    description: "检查股票是否已加入自选股。",
+    params: {
+      symbol: { required: true, type: "string", symbol: true },
+    },
+    example: { symbol: "600519" },
+  },
+  "watchlist.groups": {
+    domain: "watchlist",
+    action: "groups",
+    description: "获取自选股分组列表。",
+    params: {},
+    example: {},
   },
   "stress.test": {
     domain: "stress",
@@ -1392,6 +1438,7 @@ export const quantCliTool: ToolDefinition = {
     "需要价格预警用 watch.price_alert；需要组合压力测试用 stress.test；需要交易前风控、Kelly仓位或止损价计算时，用 risk.trade_check、risk.position_size、risk.stop_loss；需要实盘和回测差异对比用 trade.verify。",
     "需要组合相关性矩阵用 portfolio.correlation；需要分析因子预测力随持有周期衰减用 factor.decay。",
     "查询单只股票买点或技术面时优先用 stock.technical，并结合 signal.list 或 stock.ml_predict。",
+    "需要管理自选股（添加/删除/查看/分组）时，用 watchlist.add、watchlist.remove、watchlist.list、watchlist.check、watchlist.groups。",
     "不确定命令或参数时先用 help / tools.list / tools.describe，不要猜测不存在的 command。",
     "工具会先做本地参数校验，校验失败时按错误提示修正参数后再调用。",
   ],
@@ -1470,11 +1517,15 @@ function normalizeParams(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function validateParams(command: string, rule: CommandRule, params: Record<string, unknown>): string | null {
+function validateParams(_command: string, rule: CommandRule, params: Record<string, unknown>): string | null {
   const allowed = new Set(Object.keys(rule.params));
 
   for (const key of Object.keys(params)) {
     if (!allowed.has(key)) {
+      // 特殊提示：symbol → symbols 的常见错误
+      if (key === "symbol" && allowed.has("symbols")) {
+        return `不支持的参数: ${key}。提示：该命令使用 symbols（复数）参数，支持单个或多个股票。示例：{ symbols: "688008" } 或 { symbols: "688008,600519" }`;
+      }
       return `不支持的参数: ${key}。原因：该命令不接受此参数，请检查参数名称是否正确。`;
     }
   }
@@ -1573,5 +1624,13 @@ function formatCommandHelp(command: string, rule: CommandRule): string {
 }
 
 function formatSuccess(command: string, response: unknown): string {
-  return `量化 CLI 执行完成: ${command}\n${JSON.stringify(response, null, 2)}`;
+  const responseJson = JSON.stringify(response, null, 2);
+  const fullText = `量化 CLI 执行完成: ${command}\n${responseJson}`;
+  const largeOutput = formatMaybeLargeToolOutput(responseJson, {
+    label: `量化 CLI 执行完成: ${command}`,
+    filePrefix: `quant-cli-${command}`,
+    extension: "json",
+    metadata: { command },
+  });
+  return largeOutput.stored ? largeOutput.text : fullText;
 }

@@ -59,6 +59,11 @@ def build_parser() -> FriendlyArgumentParser:
         action="store_true",
         help="强制刷新股票列表",
     )
+    stocks_parser.add_argument(
+        "--with-fundamentals",
+        action="store_true",
+        help="同步回填 A 股基本面指标",
+    )
 
     klines_parser = subparsers.add_parser(
         "update-klines",
@@ -141,13 +146,13 @@ def load_fetcher_class(module_name: str, class_name: str) -> type[Any]:
     return fetcher_class
 
 
-def run_update_stocks(market: str, force: bool) -> None:
+def run_update_stocks(market: str, force: bool, with_fundamentals: bool = False) -> None:
     """Execute the stock list update command."""
     fetcher_class = load_fetcher_class("stock_list", "StockListFetcher")
     database = Database()
     try:
         fetcher = fetcher_class(database)
-        fetcher.run(market=market, force=force)
+        fetcher.run(market=market, force=force, with_fundamentals=with_fundamentals)
     finally:
         database.close()
 
@@ -170,7 +175,7 @@ def run_full(market: str) -> None:
     database = Database()
     try:
         stock_fetcher = stock_fetcher_class(database)
-        stock_fetcher.run(market=market, force=False)
+        stock_fetcher.run(market=market, force=False, with_fundamentals=False)
 
         kline_fetcher = kline_fetcher_class(database)
         kline_fetcher.run(symbols=None, days=730, market=market)
@@ -207,7 +212,11 @@ def run_status() -> None:
 def dispatch_command(args: argparse.Namespace) -> None:
     """Route parsed arguments to the matching command handler."""
     if args.command == "update-stocks":
-        run_update_stocks(market=args.market, force=args.force)
+        run_update_stocks(
+            market=args.market,
+            force=args.force,
+            with_fundamentals=args.with_fundamentals,
+        )
         return
 
     if args.command == "update-klines":

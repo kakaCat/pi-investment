@@ -1,4 +1,7 @@
 import { describe, expect, jest, test, beforeEach } from "@jest/globals";
+import { mkdtempSync, readFileSync, rmSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
 const runQuantV2Mock = jest.fn<(command: string, params?: Record<string, unknown>) => Promise<any>>();
 
@@ -8,6 +11,7 @@ await jest.unstable_mockModule("../../quant/quant-v2-client.js", () => ({
 }));
 
 const { quantCliTool } = await import("./quant-cli-tool.js");
+const { setSessionDataDir } = await import("../shared/session-utils.js");
 
 describe("quantCliTool", () => {
   beforeEach(() => {
@@ -109,6 +113,43 @@ describe("quantCliTool", () => {
     });
     expect(result.content[0].text).toContain("stock.technical");
     expect(result.details.data).toEqual({ symbol: "600519", indicators: { RSI: 42 } });
+  });
+
+  test("stores oversized command output in a local artifact and returns a summary", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pi-tool-artifacts-"));
+    setSessionDataDir(dir);
+    const largeLog = "类别分布: " + "x".repeat(140_000);
+    runQuantV2Mock.mockResolvedValueOnce({
+      ok: true,
+      command: "data.full_status",
+      data: {
+        pipeline: {
+          latestRuns: [{ logs: [largeLog] }],
+        },
+      },
+      error: null,
+    });
+
+    try {
+      const result = await (quantCliTool.execute as any)("call-large", {
+        command: "data.full_status",
+      });
+
+      const text = result.content[0].text;
+      expect(text.length).toBeLessThan(20_000);
+      expect(text).toContain("完整结果已保存到");
+      expect(text).toContain("使用 read 工具查看完整内容");
+      expect(text).not.toContain("x".repeat(50_000));
+
+      const filePath = text.match(/完整结果已保存到: (.+\.json)/)?.[1];
+      expect(filePath).toBeTruthy();
+      const saved = readFileSync(filePath!, "utf-8");
+      expect(saved).toContain(largeLog);
+      expect(result.details.data.pipeline.latestRuns[0].logs[0]).toBe(largeLog);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+      setSessionDataDir("/tmp");
+    }
   });
 
   test("allows stock score and screen commands", async () => {

@@ -13,6 +13,45 @@ if str(QUANT_ROOT) not in sys.path:
 from api import server
 
 
+def test_get_stock_list_reads_from_postgres_compat(monkeypatch):
+    """股票列表接口应通过 PG compat 查询，不访问 SQLite 文件。"""
+    executed = []
+
+    class FakeCursor:
+        def __init__(self, rows):
+            self.rows = rows
+
+        def fetchone(self):
+            return self.rows[0]
+
+        def fetchall(self):
+            return self.rows
+
+    class FakeConnection:
+        def execute(self, sql, params=None):
+            executed.append((sql, params))
+            if sql.strip().startswith("SELECT COUNT"):
+                return FakeCursor([(1,)])
+            return FakeCursor([("600519", "贵州茅台", "A", "酿酒行业")])
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(server, "get_db", lambda: FakeConnection())
+
+    with server.app.test_client() as client:
+        response = client.get("/api/stocks/list?market=A&page=1&pageSize=10")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["success"] is True
+    assert payload["data"]["stocks"] == [
+        {"symbol": "600519", "name": "贵州茅台", "market": "A", "industry": "酿酒行业"}
+    ]
+    assert "FROM stocks" in executed[0][0]
+    assert executed[0][1] == ["A"]
+
+
 def test_get_my_stocks_success():
     """测试成功获取持仓和自选股"""
     with server.app.test_client() as client:

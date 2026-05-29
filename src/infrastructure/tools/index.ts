@@ -40,6 +40,7 @@ import { modelListTool } from "./model/list-tool.js";
 // L3.5 策略执行
 import { strategyExecuteTool } from "./strategy/execute-tool.js";
 import { strategyBatchValidateTool } from "./strategy/batch-validate-tool.js";
+import { strategyOptimizeTool } from "./strategy/optimize-tool.js";
 
 // L4 组合构建
 import { portfolioRebalanceTool } from "./portfolio/rebalance-tool.js";
@@ -55,13 +56,14 @@ import { monitorAlertTool } from "./monitor/alert-tool.js";
 // ===== Agent 元工具 =====
 import { compactTool, initCompactTool } from "./agent/compact-tool.js";
 import { browserTool, initBrowserTool } from "./agent/browser-tool.js";
-import { taskCreateTool, taskUpdateTool, taskListTool, taskGetTool, taskExecuteAsyncTool, taskCheckBackgroundTool, initTaskTools, initBackgroundManager, getBackgroundManager, getTaskManager } from "./agent/task-tools.js";
+import { taskCreateTool, taskUpdateTool, taskListTool, taskExecuteAsyncTool, taskCheckBackgroundTool, initTaskTools, initBackgroundManager, getBackgroundManager, getTaskManager } from "./agent/task-tools.js";
 import { planTool } from "./agent/plan-tool.js";
 import { clarifyTool } from "./agent/clarify-tool.js";
 import { reflectTool } from "./agent/reflect-tool.js";
 import { memoryWriteTool, memorySearchTool } from "./agent/memory-tool.js";
 import { evolutionRunTool } from "./agent/evolution-tool.js";
 import { queryExperienceTool } from "./agent/query-experience-tool.js";
+import { experienceWriteTool } from "./agent/experience-write-tool.js";
 import { restartAgentTool } from "./agent/restart-agent-tool.js";
 import { backendControlTool } from "./agent/backend-control-tool.js";
 import { claudeCodeTool } from './agent/claude-code-tool.js';
@@ -131,6 +133,7 @@ export const allCustomTools = [
 
   // L3.5 策略执行
   strategyExecuteTool,            // strategy_execute - 执行单个策略并返回信号
+  strategyOptimizeTool,           // strategy_optimize - 策略参数优化
   strategyBatchValidateTool,      // strategy_batch_validate - 批量验证策略有效性
 
   // L4 组合构建
@@ -144,8 +147,9 @@ export const allCustomTools = [
   // L6 监控运维
   monitorAlertTool,               // monitor_alert - 告警通知
 
-  // ===== 保留的旧工具（向后兼容，待迁移） =====
-  queryExperienceTool,            // 查询历史经验库
+  // ===== 经验库工具 =====
+  queryExperienceTool,            // experience_query - 查询历史经验库
+  experienceWriteTool,            // experience_write - 写入投资经验
 
   // ===== 量化工具 — 统一通过 QuantSys CLI 调用 =====
   quantCliTool,                   // quant_cli
@@ -166,8 +170,7 @@ export const allCustomTools = [
   memorySearchTool,
 
   // ===== 低频/专用 =====
-  taskGetTool,
-  taskCheckBackgroundTool,  // 新增：检查后台任务
+  taskCheckBackgroundTool,  // 检查后台任务
   compactTool,
   browserTool,
   readTool,

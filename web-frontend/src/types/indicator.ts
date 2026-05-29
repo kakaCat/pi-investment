@@ -48,6 +48,25 @@ export interface IndicatorRunResult {
   klineData?: KlineData[]
   /** 指标序列数据（用于在K线图上叠加） */
   indicatorSeries?: IndicatorSeries
+  /** 买卖信号序列（用于在K线图上标记） */
+  signalSeries?: {
+    buy?: (boolean | number | null)[]
+    sell?: (boolean | number | null)[]
+  }
+}
+
+/**
+ * 策略记事本
+ */
+export interface StrategyNotebook {
+  /** 策略优点 */
+  pros: string
+  /** 策略缺点 */
+  cons: string
+  /** 观察记录 */
+  observations: string
+  /** 后续优化 */
+  nextSteps: string
 }
 
 /**
@@ -62,6 +81,8 @@ export interface IndicatorInfo {
   strategyName?: string
   /** 描述 */
   description?: string
+  /** 策略记事本 */
+  notebook?: StrategyNotebook
   /** 代码类型 */
   codeType: 'indicator' | 'script'
   /** 策略类型 */

@@ -23,6 +23,26 @@ except ImportError:
             """Raise a clear error when AkShare is unavailable."""
             raise ImportError("akshare is required to fetch Hong Kong stock lists")
 
+        @staticmethod
+        def stock_financial_abstract_ths(symbol: str, indicator: str = "按报告期") -> pd.DataFrame:
+            """Raise a clear error when AkShare is unavailable."""
+            raise ImportError("akshare is required to fetch stock fundamentals")
+
+        @staticmethod
+        def stock_financial_analysis_indicator(symbol: str, start_year: str | None = None) -> pd.DataFrame:
+            """Raise a clear error when AkShare is unavailable."""
+            raise ImportError("akshare is required to fetch stock fundamentals")
+
+        @staticmethod
+        def stock_board_industry_name_em() -> pd.DataFrame:
+            """Raise a clear error when AkShare is unavailable."""
+            raise ImportError("akshare is required to fetch stock industries")
+
+        @staticmethod
+        def stock_board_industry_cons_em(symbol: str) -> pd.DataFrame:
+            """Raise a clear error when AkShare is unavailable."""
+            raise ImportError("akshare is required to fetch stock industries")
+
     ak = _AkShareUnavailable()
 
 from quantsys.data.db import Database
@@ -35,13 +55,15 @@ class StockListFetcher:
     _BASE_BACKOFF_SECONDS = 1
     _PROGRESS_INTERVAL = 100
     _SINA_FETCH_TIMEOUT = 60  # Sina source can take ~20-30s for full A-list
+    _FUNDAMENTAL_LOG_LIMIT = 20
 
     def __init__(self, db: Database) -> None:
         """Store the database dependency used for persistence."""
         self.db = db
+        self._fundamental_failures = 0
 
-    def run(self, market: str = "A", force: bool = False) -> None:
-        """Fetch the requested market's stock list and upsert it into SQLite."""
+    def run(self, market: str = "A", force: bool = False, with_fundamentals: bool = False) -> None:
+        """Fetch the requested market's stock list and upsert it into PostgreSQL."""
         normalized_market = market.strip().upper()
         print(f"[StockList] 开始更新 {normalized_market} 股列表...")
         if force:
@@ -56,6 +78,8 @@ class StockListFetcher:
 
         try:
             count = self.db.upsert_stocks(stocks)
+            if with_fundamentals and normalized_market == "A":
+                self.backfill_fundamentals([stock["symbol"] for stock in stocks])
         except Exception as exc:
             raise RuntimeError(f"{normalized_market} 股列表写入数据库失败: {exc}") from exc
 
@@ -163,14 +187,19 @@ class StockListFetcher:
 
     def _map_a_stock_row(self, row: pd.Series) -> Dict[str, Any]:
         """Normalize one A-share AkShare row (East Money) into a database payload."""
+        industry = self._to_optional_text(row.get("所属行业"))
+        total_mv = self._to_float(row.get("总市值"), scale=1e8)
         return {
             "symbol": self._require_text(row["代码"], "代码"),
             "name": self._require_text(row["名称"], "名称"),
             "market": "A",
-            "market_cap": self._to_float(row.get("总市值"), scale=1e8),
+            "market_cap": total_mv,
+            "total_mv": total_mv,
+            "circulating_mv": self._to_float(row.get("流通市值"), scale=1e8),
             "pe": self._to_float(row.get("市盈率-动态")),
             "pb": self._to_float(row.get("市净率")),
-            "industry": self._to_optional_text(row.get("所属行业")),
+            "industry": industry,
+            "sector": industry,
         }
 
     def _map_a_stock_row_sina(self, row: pd.Series) -> Dict[str, Any]:
@@ -200,10 +229,114 @@ class StockListFetcher:
             "name": self._require_text(row["名称"], "名称"),
             "market": "HK",
             "market_cap": self._to_float(row.get("总市值"), scale=1e8),
+            "total_mv": self._to_float(row.get("总市值"), scale=1e8),
+            "circulating_mv": self._to_float(row.get("流通市值"), scale=1e8),
             "pe": self._to_float(row.get("市盈率")),
             "pb": self._to_float(row.get("市净率")),
             "industry": self._to_optional_text(row.get("所属行业")),
         }
+
+    def backfill_fundamentals(self, symbols: List[str]) -> int:
+        """Fetch latest A-share financial indicators and persist them to stocks."""
+        fundamentals = []
+        total = len(symbols)
+        updated = 0
+
+        for index, symbol in enumerate(symbols, start=1):
+            metrics = self._fetch_stock_fundamentals(symbol)
+            if metrics:
+                fundamentals.append(metrics)
+
+            if index % self._PROGRESS_INTERVAL == 0:
+                if fundamentals:
+                    updated += self.db.upsert_stocks(fundamentals)
+                    fundamentals = []
+                print(f"[StockList] 基本面回填进度: {index}/{total}")
+
+        if not fundamentals:
+            return updated
+        return updated + self.db.upsert_stocks(fundamentals)
+
+    def backfill_industries(self) -> int:
+        """Fetch East Money industry boards and persist industry fields to stocks."""
+        board_frame = ak.stock_board_industry_name_em()
+        if board_frame is None or board_frame.empty:
+            return 0
+
+        industries: List[Dict[str, Any]] = []
+        total = len(board_frame.index)
+        for index, (_, board_row) in enumerate(board_frame.iterrows(), start=1):
+            industry = self._to_optional_text(
+                board_row.get("板块名称", board_row.get("名称", board_row.get("行业名称")))
+            )
+            if not industry:
+                continue
+
+            try:
+                cons_frame = ak.stock_board_industry_cons_em(symbol=industry)
+            except Exception as exc:
+                print(f"[StockList] 行业成分拉取失败: {industry} - {exc}")
+                continue
+
+            for _, stock_row in cons_frame.iterrows():
+                symbol = self._to_optional_text(stock_row.get("代码", stock_row.get("股票代码")))
+                if not symbol:
+                    continue
+
+                name = self._to_optional_text(stock_row.get("名称", stock_row.get("股票名称"))) or symbol
+                industries.append(
+                    {
+                        "symbol": symbol,
+                        "name": name,
+                        "market": "A",
+                        "industry": industry,
+                        "sector": industry,
+                    }
+                )
+
+            if index % 10 == 0:
+                print(f"[StockList] 行业回填进度: {index}/{total}")
+
+        if not industries:
+            return 0
+        return self.db.upsert_stocks(industries)
+
+    def _fetch_stock_fundamentals(self, symbol: str) -> Dict[str, Any] | None:
+        """Fetch latest financial indicator metrics for one A-share symbol."""
+        try:
+            frame = ak.stock_financial_abstract_ths(symbol=symbol, indicator="按报告期")
+        except Exception:
+            try:
+                frame = ak.stock_financial_analysis_indicator(
+                symbol=symbol,
+                start_year=str(pd.Timestamp.now().year - 1),
+                )
+            except Exception as exc:
+                self._fundamental_failures += 1
+                if self._fundamental_failures <= self._FUNDAMENTAL_LOG_LIMIT:
+                    print(f"[StockList] 基本面拉取失败: {symbol} - {exc}")
+                elif self._fundamental_failures == self._FUNDAMENTAL_LOG_LIMIT + 1:
+                    print("[StockList] 基本面失败过多，后续仅显示进度")
+                return None
+
+        if frame is None or frame.empty:
+            return None
+
+        sorted_frame = frame.copy()
+        date_column = "报告期" if "报告期" in sorted_frame.columns else "日期"
+        if date_column in sorted_frame.columns:
+            sorted_frame["_date_sort"] = pd.to_datetime(sorted_frame[date_column], errors="coerce")
+            sorted_frame = sorted_frame.sort_values("_date_sort")
+
+        row = sorted_frame.iloc[-1]
+        metrics = {
+            "symbol": symbol,
+            "roe": self._to_percent_float(row.get("净资产收益率", row.get("净资产收益率(%)"))),
+            "gross_margin": self._to_percent_float(row.get("销售毛利率", row.get("销售毛利率(%)"))),
+            "debt_ratio": self._to_percent_float(row.get("资产负债率", row.get("资产负债率(%)"))),
+            "net_profit_growth": self._to_percent_float(row.get("净利润同比增长率", row.get("净利润增长率(%)"))),
+        }
+        return metrics
 
     def _require_text(self, value: Any, field_name: str) -> str:
         """Return a non-empty string field or raise a readable error."""
@@ -221,7 +354,7 @@ class StockListFetcher:
 
     def _to_float(self, value: Any, scale: float = 1.0) -> float | None:
         """Convert numeric-like values into floats, handling missing values."""
-        if value is None or pd.isna(value):
+        if value is None or isinstance(value, bool) or pd.isna(value):
             return None
 
         if isinstance(value, str):
@@ -233,6 +366,12 @@ class StockListFetcher:
             number = float(value)
 
         return number / scale
+
+    def _to_percent_float(self, value: Any) -> float | None:
+        """Convert AkShare percentage strings like '19.03%' into floats."""
+        if isinstance(value, str):
+            value = value.replace("%", "")
+        return self._to_float(value)
 
     def _update_technical_indicators(self, market: str) -> None:
         """Calculate and persist technical indicators for a capped symbol batch."""

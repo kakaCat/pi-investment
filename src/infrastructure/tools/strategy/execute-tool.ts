@@ -6,13 +6,97 @@ import type { ToolDefinition } from "../index.js";
 import { executeStrategy } from "../../quant/quant-v2-client.js";
 import { formatStrategySignal } from "../../quant/formatters.js";
 
+// 策略列表缓存
+let strategiesCache: Array<{
+  strategyType: string;
+  className: string;
+  category: string;
+  description: string;
+}> | null = null;
+
+/**
+ * 清除策略缓存（用于测试）
+ */
+export function clearStrategiesCache() {
+  strategiesCache = null;
+}
+
+/**
+ * 获取可用策略列表（带缓存）
+ */
+async function getAvailableStrategies() {
+  if (strategiesCache) {
+    return strategiesCache;
+  }
+
+  try {
+    const apiUrl = process.env.QUANTSYS_V2_API_URL || 'http://127.0.0.1:5001';
+    const response = await fetch(`${apiUrl}/api/strategies/list?source=builtin`);
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.statusText}`);
+    }
+
+    const data: any = await response.json();
+    if (data.success && data.data?.strategies) {
+      strategiesCache = data.data.strategies;
+      return strategiesCache;
+    }
+
+    return [];
+  } catch (error) {
+    console.error('Failed to fetch strategies:', error);
+    return [];
+  }
+}
+
+/**
+ * 格式化策略列表错误消息
+ */
+function formatStrategiesError(strategies: Array<{ strategyType: string; category: string; description?: string }>) {
+  // 按分类分组
+  const categoryMap: Record<string, string> = {
+    'trend_following': '趋势跟踪',
+    'mean_reversion': '均值回归',
+    'volatility': '波动率',
+    'multi_factor': '多因子',
+    'breakout': '突破',
+    'momentum': '动量'
+  };
+
+  const grouped = strategies.reduce((acc, s) => {
+    const category = s.category || 'other';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(s);
+    return acc;
+  }, {} as Record<string, typeof strategies>);
+
+  let message = '策略不存在或执行失败。\n\n可用策略列表：\n\n';
+
+  for (const [category, items] of Object.entries(grouped)) {
+    const categoryName = categoryMap[category] || category;
+    message += `【${categoryName}】\n`;
+    for (const item of items) {
+      message += `  - ${item.strategyType}`;
+      if (item.description) {
+        message += ` (${item.description})`;
+      }
+      message += '\n';
+    }
+    message += '\n';
+  }
+
+  return message;
+}
+
 export const strategyExecuteTool: ToolDefinition = {
   name: "strategy_execute",
   label: "执行策略",
   description:
     "执行单个量化策略，返回交易信号和完整的风险管理参数。\n" +
-    "支持的策略包括：VolatilityBreakout（波动突破）、Turtle（海龟）、" +
-    "DonchianChannel（唐奇安通道）、Momentum（动量）等。\n" +
+    "支持 18+ 种内置策略，包括趋势跟踪、均值回归、波动率、多因子等类型。\n" +
     "返回内容：买卖信号、置信度、止损价格、仓位建议、技术指标。\n" +
     "适用场景：获取策略对特定股票的判断和风控建议。",
 
@@ -81,6 +165,20 @@ export const strategyExecuteTool: ToolDefinition = {
 
       // 检查 API 返回状态
       if (!signal.success) {
+        // 如果是策略不存在错误，返回可用策略列表
+        if (signal.error && (signal.error.includes('not found') || signal.error.includes('不存在'))) {
+          const strategies = await getAvailableStrategies();
+          if (strategies && strategies.length > 0) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: formatStrategiesError(strategies)
+              }],
+              details: undefined
+            };
+          }
+        }
+
         return {
           content: [{
             type: "text" as const,

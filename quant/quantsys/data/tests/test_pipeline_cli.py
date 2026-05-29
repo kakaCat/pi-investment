@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import io
+import sys
 import unittest
 from contextlib import redirect_stderr
+from pathlib import Path
 from types import ModuleType
 from unittest.mock import patch
 
-from pipeline import pipeline as pipeline_cli
+DATA_ROOT = Path(__file__).resolve().parents[1]
+if str(DATA_ROOT) not in sys.path:
+    sys.path.insert(0, str(DATA_ROOT))
+
+import pipeline as pipeline_cli
 
 
 class PipelineCliTests(unittest.TestCase):
@@ -26,8 +32,8 @@ class PipelineCliTests(unittest.TestCase):
             def __init__(self, database: FakeDatabase) -> None:
                 calls.append(("init", database))
 
-            def run(self, market: str, force: bool) -> None:
-                calls.append(("run", (market, force)))
+            def run(self, market: str, force: bool, with_fundamentals: bool = False) -> None:
+                calls.append(("run", (market, force, with_fundamentals)))
 
         with patch.object(pipeline_cli, "Database", FakeDatabase), patch.object(
             pipeline_cli, "load_fetcher_class", return_value=FakeFetcher
@@ -35,8 +41,31 @@ class PipelineCliTests(unittest.TestCase):
             exit_code = pipeline_cli.main(["update-stocks"])
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(calls[1], ("run", ("A", False)))
+        self.assertEqual(calls[1], ("run", ("A", False, False)))
         self.assertEqual(calls[-1], ("close", None))
+
+    def test_update_stocks_can_request_fundamental_backfill(self) -> None:
+        """update-stocks should pass the fundamental backfill flag to the fetcher."""
+        calls: list[tuple[str, object]] = []
+
+        class FakeDatabase:
+            def close(self) -> None:
+                calls.append(("close", None))
+
+        class FakeFetcher:
+            def __init__(self, database: FakeDatabase) -> None:
+                calls.append(("init", database))
+
+            def run(self, market: str, force: bool, with_fundamentals: bool = False) -> None:
+                calls.append(("run", (market, force, with_fundamentals)))
+
+        with patch.object(pipeline_cli, "Database", FakeDatabase), patch.object(
+            pipeline_cli, "load_fetcher_class", return_value=FakeFetcher
+        ):
+            exit_code = pipeline_cli.main(["update-stocks", "--market", "A", "--with-fundamentals"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(calls[1], ("run", ("A", False, True)))
 
     def test_update_klines_parses_symbols_and_days(self) -> None:
         """update-klines should split comma-separated symbols and pass days through."""
@@ -96,8 +125,8 @@ class PipelineCliTests(unittest.TestCase):
             def __init__(self, database: FakeDatabase) -> None:
                 calls.append(("stock-init", database))
 
-            def run(self, market: str, force: bool) -> None:
-                calls.append(("stock-run", (market, force)))
+            def run(self, market: str, force: bool, with_fundamentals: bool = False) -> None:
+                calls.append(("stock-run", (market, force, with_fundamentals)))
 
         class KlineFetcher:
             def __init__(self, database: FakeDatabase) -> None:
@@ -123,7 +152,7 @@ class PipelineCliTests(unittest.TestCase):
             calls,
             [
                 ("stock-init", unittest.mock.ANY),
-                ("stock-run", ("HK", False)),
+                ("stock-run", ("HK", False, False)),
                 ("kline-init", unittest.mock.ANY),
                 ("kline-run", (None, 730, "HK")),
                 ("close", None),

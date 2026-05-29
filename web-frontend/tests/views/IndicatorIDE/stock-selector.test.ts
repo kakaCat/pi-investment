@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import IndicatorIDE from '@/views/IndicatorIDE/index.vue'
 import { stockApi } from '@/services/api/stock'
+import { indicatorApi } from '@/services/api/indicator'
 
 vi.mock('@/services/api/stock')
 vi.mock('@/services/api/indicator')
@@ -10,6 +13,9 @@ vi.mock('@/services/api/indicator')
 describe('IndicatorIDE - Stock Selector', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(stockApi.getMyStocks).mockResolvedValue({ positions: [], watchlist: [] })
+    vi.mocked(indicatorApi.getMyIndicators).mockResolvedValue([])
+    vi.mocked(indicatorApi.getSystemIndicators).mockResolvedValue([])
   })
 
   it('should load positions and watchlist on mount', async () => {
@@ -75,5 +81,13 @@ describe('IndicatorIDE - Stock Selector', () => {
     await new Promise(resolve => setTimeout(resolve, 350))
 
     expect(stockApi.searchStocks).not.toHaveBeenCalled()
+  })
+
+  it('should render search results before positions and watchlist', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/views/IndicatorIDE/index.vue'), 'utf8')
+
+    expect(source.indexOf('label="搜索结果"')).toBeGreaterThanOrEqual(0)
+    expect(source.indexOf('label="搜索结果"')).toBeLessThan(source.indexOf('label="我的持仓"'))
+    expect(source.indexOf('label="搜索结果"')).toBeLessThan(source.indexOf('label="我的自选"'))
   })
 })

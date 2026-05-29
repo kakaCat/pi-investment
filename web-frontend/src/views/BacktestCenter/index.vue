@@ -13,12 +13,27 @@
 
           <el-form :model="backtestForm" :rules="formRules" ref="formRef" label-position="top">
             <el-form-item label="策略" prop="strategy">
-              <el-select v-model="backtestForm.strategy" placeholder="选择策略" class="w-full">
+              <el-select
+                v-model="backtestForm.strategy"
+                placeholder="选择策略"
+                class="w-full"
+                :loading="loadingStrategies"
+              >
+                <el-option-group v-if="myIndicators.length > 0" label="我的指标">
+                  <el-option
+                    v-for="indicator in myIndicators"
+                    :key="indicator.id"
+                    :label="indicator.name"
+                    :value="`indicator:${indicator.id}`"
+                  />
+                </el-option-group>
                 <el-option label="MA 双均线" value="ma_cross" />
                 <el-option label="RSI 反转" value="rsi_reversal" />
                 <el-option label="MACD 金叉" value="macd_golden" />
                 <el-option label="布林带突破" value="boll_breakout" />
                 <el-option label="KDJ 超买超卖" value="kdj_overbought" />
+                <el-option label="PE均值回归" value="pe_mean_reversion" />
+                <el-option label="PB均值回归" value="pb_mean_reversion" />
               </el-select>
             </el-form-item>
 
@@ -111,6 +126,81 @@
               <el-input-number v-model="backtestForm.rsiPeriod" :min="5" :max="50" class="w-full" />
             </el-form-item>
 
+            <!-- PE均值回归参数 -->
+            <template v-if="backtestForm.strategy === 'pe_mean_reversion'">
+              <el-form-item label="PE重仓买入线">
+                <el-input-number v-model="backtestForm.peHeavyBuy" :min="5" :max="30" :step="0.5" :precision="1" class="w-full" />
+                <span class="text-xs text-gray-400">PE ≤ 此值 → 重仓买入（60%仓位）</span>
+              </el-form-item>
+              <el-form-item label="PE分批买入线">
+                <el-input-number v-model="backtestForm.peBatchBuy" :min="5" :max="30" :step="0.5" :precision="1" class="w-full" />
+                <span class="text-xs text-gray-400">PE ≤ 此值 → 分批买入（40%仓位）</span>
+              </el-form-item>
+              <el-form-item label="PE减仓线">
+                <el-input-number v-model="backtestForm.peReduce" :min="5" :max="50" :step="0.5" :precision="1" class="w-full" />
+                <span class="text-xs text-gray-400">PE ≥ 此值 → 减仓至10%</span>
+              </el-form-item>
+              <el-form-item label="PE清仓线">
+                <el-input-number v-model="backtestForm.peLiquidate" :min="5" :max="50" :step="0.5" :precision="1" class="w-full" />
+                <span class="text-xs text-gray-400">PE ≥ 此值 → 清仓</span>
+              </el-form-item>
+              <el-form-item label="EPS起点（估算）">
+                <el-input-number v-model="backtestForm.epsStart" :min="0.1" :max="10" :step="0.01" :precision="2" class="w-full" />
+                <span class="text-xs text-gray-400">回测起始日EPS_TTM估算值</span>
+              </el-form-item>
+              <el-form-item label="EPS终点（估算）">
+                <el-input-number v-model="backtestForm.epsEnd" :min="0.1" :max="10" :step="0.01" :precision="2" class="w-full" />
+                <span class="text-xs text-gray-400">回测结束日EPS_TTM估算值</span>
+              </el-form-item>
+              <el-form-item label="止损比例(%)">
+                <el-input-number v-model="backtestForm.stopLossPct" :min="1" :max="30" :step="1" class="w-full" />
+              </el-form-item>
+              <el-form-item label="止盈比例(%)">
+                <el-input-number v-model="backtestForm.takeProfitPct" :min="5" :max="100" :step="5" class="w-full" />
+              </el-form-item>
+              <el-form-item label="年化股息率(%)">
+                <el-input-number v-model="backtestForm.dividendYield" :min="0" :max="10" :step="0.1" :precision="1" class="w-full" />
+                <span class="text-xs text-gray-400">长江电力约3.5%，模拟分红现金流入</span>
+              </el-form-item>
+            </template>
+
+            <template v-if="backtestForm.strategy === 'pb_mean_reversion'">
+              <el-form-item label="PB重仓买入线">
+                <el-input-number v-model="backtestForm.pbHeavyBuy" :min="0.5" :max="5" :step="0.1" :precision="1" class="w-full" />
+                <span class="text-xs text-gray-400">PB ≤ 此值 → 重仓买入（60%仓位）</span>
+              </el-form-item>
+              <el-form-item label="PB分批买入线">
+                <el-input-number v-model="backtestForm.pbBatchBuy" :min="0.5" :max="5" :step="0.1" :precision="1" class="w-full" />
+                <span class="text-xs text-gray-400">PB ≤ 此值 → 分批买入（40%仓位）</span>
+              </el-form-item>
+              <el-form-item label="PB减仓线">
+                <el-input-number v-model="backtestForm.pbReduce" :min="1" :max="10" :step="0.5" :precision="1" class="w-full" />
+                <span class="text-xs text-gray-400">PB ≥ 此值 → 减仓至10%</span>
+              </el-form-item>
+              <el-form-item label="PB清仓线">
+                <el-input-number v-model="backtestForm.pbLiquidate" :min="1" :max="10" :step="0.5" :precision="1" class="w-full" />
+                <span class="text-xs text-gray-400">PB ≥ 此值 → 清仓</span>
+              </el-form-item>
+              <el-form-item label="ROE均值（估算PB用）">
+                <el-input-number v-model="backtestForm.roeMean" :min="0.05" :max="0.60" :step="0.01" :precision="2" class="w-full" />
+                <span class="text-xs text-gray-400">紫金矿业约0.35（近3年ROE 33~41%）</span>
+              </el-form-item>
+              <el-form-item label="EPS起点（估算）">
+                <el-input-number v-model="backtestForm.epsStart" :min="0.1" :max="10" :step="0.01" :precision="2" class="w-full" />
+                <span class="text-xs text-gray-400">回测起始日EPS_TTM估算值</span>
+              </el-form-item>
+              <el-form-item label="EPS终点（估算）">
+                <el-input-number v-model="backtestForm.epsEnd" :min="0.1" :max="10" :step="0.01" :precision="2" class="w-full" />
+                <span class="text-xs text-gray-400">回测结束日EPS_TTM估算值</span>
+              </el-form-item>
+              <el-form-item label="止损比例(%)">
+                <el-input-number v-model="backtestForm.stopLossPct" :min="1" :max="30" :step="1" class="w-full" />
+              </el-form-item>
+              <el-form-item label="止盈比例(%)">
+                <el-input-number v-model="backtestForm.takeProfitPct" :min="5" :max="100" :step="5" class="w-full" />
+              </el-form-item>
+            </template>
+
             <el-form-item>
               <el-button type="primary" @click="handleStartBacktest" :loading="loading" class="w-full">
                 开始回测
@@ -192,18 +282,18 @@
             <div class="metric-card">
               <div class="metric-label">总收益率</div>
               <div :class="['metric-value', backtestResult.totalReturn >= 0 ? 'text-up' : 'text-down']">
-                {{ backtestResult.totalReturn >= 0 ? '+' : '' }}{{ formatPercent(backtestResult.totalReturn) }}
+                {{ formatBacktestPercent(backtestResult.totalReturn) }}
               </div>
             </div>
             <div class="metric-card">
               <div class="metric-label">年化收益</div>
               <div :class="['metric-value', backtestResult.annualReturn >= 0 ? 'text-up' : 'text-down']">
-                {{ backtestResult.annualReturn >= 0 ? '+' : '' }}{{ formatPercent(backtestResult.annualReturn) }}
+                {{ formatBacktestPercent(backtestResult.annualReturn) }}
               </div>
             </div>
             <div class="metric-card">
               <div class="metric-label">最大回撤</div>
-              <div class="metric-value text-down">{{ formatPercent(backtestResult.maxDrawdown) }}</div>
+              <div class="metric-value text-down">{{ formatBacktestPercent(backtestResult.maxDrawdown, false) }}</div>
             </div>
             <div class="metric-card">
               <div class="metric-label">夏普比率</div>
@@ -211,7 +301,7 @@
             </div>
             <div class="metric-card">
               <div class="metric-label">胜率</div>
-              <div class="metric-value">{{ formatPercent(backtestResult.winRate) }}</div>
+              <div class="metric-value">{{ formatBacktestPercent(backtestResult.winRate, false) }}</div>
             </div>
             <div class="metric-card">
               <div class="metric-label">盈亏比</div>
@@ -223,7 +313,7 @@
             </div>
           </div>
 
-          <!-- 净值曲线图 -->
+          <!-- 资产权益曲线图 -->
           <div class="chart-container mb-4">
             <div ref="equityChartRef" style="height: 300px"></div>
           </div>
@@ -285,14 +375,14 @@
                 <el-descriptions-item label="总交易次数">{{ backtestResult.totalTrades }}</el-descriptions-item>
                 <el-descriptions-item label="盈利次数">{{ backtestResult.winTrades }}</el-descriptions-item>
                 <el-descriptions-item label="亏损次数">{{ backtestResult.lossTrades }}</el-descriptions-item>
-                <el-descriptions-item label="胜率">{{ formatPercent(backtestResult.winRate) }}</el-descriptions-item>
+                <el-descriptions-item label="胜率">{{ formatBacktestPercent(backtestResult.winRate, false) }}</el-descriptions-item>
                 <el-descriptions-item label="平均盈利">¥{{ formatPrice(backtestResult.avgProfit) }}</el-descriptions-item>
                 <el-descriptions-item label="平均亏损">¥{{ formatPrice(backtestResult.avgLoss) }}</el-descriptions-item>
                 <el-descriptions-item label="最大单笔盈利">¥{{ formatPrice(backtestResult.maxProfit) }}</el-descriptions-item>
                 <el-descriptions-item label="最大单笔亏损">¥{{ formatPrice(backtestResult.maxLoss) }}</el-descriptions-item>
                 <el-descriptions-item label="盈亏比">{{ backtestResult.profitLossRatio.toFixed(2) }}</el-descriptions-item>
                 <el-descriptions-item label="夏普比率">{{ backtestResult.sharpeRatio.toFixed(2) }}</el-descriptions-item>
-                <el-descriptions-item label="最大回撤">{{ formatPercent(backtestResult.maxDrawdown) }}</el-descriptions-item>
+                <el-descriptions-item label="最大回撤">{{ formatBacktestPercent(backtestResult.maxDrawdown, false) }}</el-descriptions-item>
                 <el-descriptions-item label="回撤恢复天数">{{ backtestResult.recoveryDays }}天</el-descriptions-item>
               </el-descriptions>
             </el-tab-pane>
@@ -362,12 +452,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, nextTick } from 'vue'
+import { ref, reactive, nextTick, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import * as echarts from 'echarts'
-import { analysisApi, stockApi, tradingApi, strategyApi } from '@/services/api'
+import { analysisApi, stockApi, tradingApi, strategyApi, indicatorApi } from '@/services/api'
 import { formatPrice, formatPercent, formatDate } from '@/utils/format'
+import type { Indicator } from '@/types'
 
 // 表单引用
 const formRef = ref<FormInstance>()
@@ -383,7 +474,23 @@ const backtestForm = reactive({
   slippage: 0.001,
   fastPeriod: 5,
   slowPeriod: 20,
-  rsiPeriod: 14
+  rsiPeriod: 14,
+  // PE均值回归参数
+  peHeavyBuy: 16.0,
+  peBatchBuy: 17.0,
+  peReduce: 19.5,
+  peLiquidate: 20.5,
+  epsStart: 1.20,
+  epsEnd: 1.48,
+  stopLossPct: 8,
+  takeProfitPct: 25,
+  dividendYield: 3.5,  // 长江电力默认3.5%年化股息率
+  // PB均值回归参数
+  pbHeavyBuy: 2.0,
+  pbBatchBuy: 2.5,
+  pbReduce: 4.5,
+  pbLiquidate: 5.5,
+  roeMean: 0.35,  // 紫金矿业近3年ROE均值约35%
 })
 
 // 表单验证规则
@@ -408,6 +515,8 @@ const tradeForm = reactive({
 const backtestResult = ref<any>(null)
 const resultTab = ref('trades')
 const loading = ref(false)
+const loadingStrategies = ref(false)
+const myIndicators = ref<Indicator[]>([])
 
 // 图表引用
 const equityChartRef = ref<HTMLElement>()
@@ -433,6 +542,130 @@ const handleStockSelect = (item: any) => {
   backtestForm.symbol = item.symbol
 }
 
+const toDateString = (date: Date | string) => {
+  if (typeof date === 'string') return date
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const isIndicatorStrategy = (strategy: string) => strategy.startsWith('indicator:')
+
+const getIndicatorId = (strategy: string) => strategy.split(':')[1]
+
+const loadMyIndicators = async () => {
+  loadingStrategies.value = true
+  try {
+    myIndicators.value = await indicatorApi.getMyIndicators()
+  } catch (error) {
+    console.error('加载我的指标失败:', error)
+    ElMessage.error('加载我的指标失败')
+  } finally {
+    loadingStrategies.value = false
+  }
+}
+
+const toFiniteNumber = (value: any, fallback = 0) => {
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : fallback
+}
+
+const normalizeRatioMetric = (value: any) => {
+  const numberValue = toFiniteNumber(value)
+  return Math.abs(numberValue) <= 1 ? numberValue * 100 : numberValue
+}
+
+const formatBacktestPercent = (value: number | string, showSign = true) => {
+  return formatPercent(value, 2, showSign)
+}
+
+const normalizeTradeType = (trade: any) => {
+  const rawType = String(trade.type ?? trade.action ?? trade.side ?? '').toUpperCase()
+  if (rawType === 'BUY' || rawType === 'SELL') return rawType
+  if (trade.exit_date ?? trade.exitDate ?? trade.exit_price ?? trade.exitPrice) return 'SELL'
+  return rawType || '--'
+}
+
+const normalizeBacktestTrade = (trade: any) => {
+  const type = normalizeTradeType(trade)
+  const date = trade.date ?? trade.tradeDate ?? trade.trade_date ?? trade.exitDate ?? trade.exit_date ?? trade.entryDate ?? trade.entry_date
+  const entryDate = trade.entryDate ?? trade.entry_date ?? (type === 'BUY' ? date : undefined)
+  const exitDate = trade.exitDate ?? trade.exit_date ?? (type === 'SELL' ? date : undefined)
+  const price = toFiniteNumber(trade.price ?? trade.exitPrice ?? trade.exit_price ?? trade.entryPrice ?? trade.entry_price)
+  const quantity = toFiniteNumber(trade.quantity ?? trade.shares ?? trade.size ?? trade.volume, 0)
+  const amount = toFiniteNumber(trade.amount ?? trade.turnover ?? trade.value, price * quantity)
+  const commission = toFiniteNumber(trade.commission ?? trade.fee ?? trade.comm, 0)
+  const profitValue = trade.profit ?? trade.pnl ?? trade.realizedPnl ?? trade.realized_pnl
+  const balanceValue = trade.balance ?? trade.cash ?? trade.totalEquity ?? trade.total_equity ?? trade.equity
+
+  return {
+    ...trade,
+    date,
+    entryDate,
+    exitDate,
+    type,
+    price,
+    quantity,
+    amount,
+    commission,
+    profit: profitValue === undefined || profitValue === null ? null : toFiniteNumber(profitValue),
+    balance: balanceValue === undefined || balanceValue === null ? undefined : toFiniteNumber(balanceValue)
+  }
+}
+
+const normalizeBacktestResult = (result: any) => {
+  const source = result?.data ?? result?.result ?? result ?? {}
+  const summary = source?.summary ?? source?.metrics ?? {}
+  const equityCurve = (source?.equityCurve ?? source?.equity_curve ?? []).map((item: any) => ({
+    ...item,
+    date: item.date ?? item.tradeDate ?? item.trade_date,
+    value: toFiniteNumber(item.value ?? item.equity ?? item.totalEquity ?? item.total_equity ?? item.balance)
+  }))
+  const trades = (source?.trades ?? summary.trades ?? []).map(normalizeBacktestTrade)
+  const totalTrades = toFiniteNumber(source?.totalTrades ?? source?.total_trades ?? summary.totalTrades ?? summary.total_trades ?? trades.length)
+  const winTrades = toFiniteNumber(source?.winTrades ?? source?.winningTrades ?? source?.winning_trades ?? summary.winningTrades ?? summary.winning_trades)
+  const lossTrades = toFiniteNumber(source?.lossTrades ?? source?.losingTrades ?? source?.losing_trades ?? summary.losingTrades ?? summary.losing_trades)
+  const avgProfit = toFiniteNumber(source?.avgProfit ?? source?.avgWin ?? source?.avg_win ?? summary.avgWin ?? summary.avg_win)
+  const avgLoss = toFiniteNumber(source?.avgLoss ?? source?.avg_loss ?? summary.avgLoss ?? summary.avg_loss)
+  const profitLossRatio = toFiniteNumber(source?.profitLossRatio ?? source?.profit_loss_ratio ?? source?.profit_factor ?? summary.profitLossRatio ?? summary.profit_loss_ratio ?? summary.profitFactor ?? summary.profit_factor)
+  const finalCapital = toFiniteNumber(
+    source?.finalCapital ??
+    source?.final_capital ??
+    source?.finalEquity ??
+    source?.final_equity ??
+    summary.finalCapital ??
+    summary.final_capital ??
+    summary.finalEquity ??
+    summary.final_equity ??
+    equityCurve[equityCurve.length - 1]?.value ??
+    backtestForm.initialCapital,
+    backtestForm.initialCapital
+  )
+
+  return {
+    ...source,
+    finalCapital,
+    totalReturn: normalizeRatioMetric(source?.totalReturn ?? source?.total_return ?? summary.totalReturn ?? summary.total_return),
+    annualReturn: normalizeRatioMetric(source?.annualReturn ?? source?.annual_return ?? summary.annualReturn ?? summary.annual_return),
+    maxDrawdown: normalizeRatioMetric(source?.maxDrawdown ?? source?.max_drawdown ?? summary.maxDrawdown ?? summary.max_drawdown),
+    sharpeRatio: toFiniteNumber(source?.sharpeRatio ?? source?.sharpe_ratio ?? summary.sharpeRatio ?? summary.sharpe_ratio),
+    winRate: normalizeRatioMetric(source?.winRate ?? source?.win_rate ?? summary.winRate ?? summary.win_rate),
+    profitLossRatio,
+    totalTrades,
+    winTrades,
+    lossTrades,
+    avgProfit,
+    avgLoss,
+    maxProfit: toFiniteNumber(source?.maxProfit ?? summary.maxProfit),
+    maxLoss: toFiniteNumber(source?.maxLoss ?? summary.maxLoss),
+    recoveryDays: toFiniteNumber(source?.recoveryDays ?? summary.recoveryDays),
+    trades,
+    equityCurve,
+    monthlyReturns: source?.monthlyReturns ?? source?.monthly_returns ?? []
+  }
+}
+
 // 开始回测
 const handleStartBacktest = async () => {
   if (!formRef.value) return
@@ -442,22 +675,56 @@ const handleStartBacktest = async () => {
 
     loading.value = true
     try {
-      const result = await analysisApi.runBacktest({
-        strategy: backtestForm.strategy,
-        symbol: backtestForm.symbol,
-        startDate: backtestForm.startDate.toISOString().split('T')[0],
-        endDate: backtestForm.endDate.toISOString().split('T')[0],
-        initialCapital: backtestForm.initialCapital,
-        commission: backtestForm.commission,
-        slippage: backtestForm.slippage,
-        parameters: {
-          fastPeriod: backtestForm.fastPeriod,
-          slowPeriod: backtestForm.slowPeriod,
-          rsiPeriod: backtestForm.rsiPeriod
-        }
-      })
+      const startDate = toDateString(backtestForm.startDate)
+      const endDate = toDateString(backtestForm.endDate)
+      const result = isIndicatorStrategy(backtestForm.strategy)
+        ? await indicatorApi.backtestIndicator({
+          indicatorId: getIndicatorId(backtestForm.strategy),
+          symbol: backtestForm.symbol,
+          startDate,
+          endDate,
+          initialCash: backtestForm.initialCapital
+        })
+        : await analysisApi.runBacktest({
+          strategy: backtestForm.strategy,
+          symbol: backtestForm.symbol,
+          startDate,
+          endDate,
+          initialCapital: backtestForm.initialCapital,
+          commission: backtestForm.commission,
+          slippage: backtestForm.slippage,
+          parameters: backtestForm.strategy === 'pe_mean_reversion'
+            ? {
+                peHeavyBuy: backtestForm.peHeavyBuy,
+                peBatchBuy: backtestForm.peBatchBuy,
+                peReduce: backtestForm.peReduce,
+                peLiquidate: backtestForm.peLiquidate,
+                epsStart: backtestForm.epsStart,
+                epsEnd: backtestForm.epsEnd,
+                stopLossPct: backtestForm.stopLossPct / 100,
+                takeProfitPct: backtestForm.takeProfitPct / 100,
+                dividendYield: backtestForm.dividendYield / 100
+              }
+            : backtestForm.strategy === 'pb_mean_reversion'
+            ? {
+                pbHeavyBuy: backtestForm.pbHeavyBuy,
+                pbBatchBuy: backtestForm.pbBatchBuy,
+                pbReduce: backtestForm.pbReduce,
+                pbLiquidate: backtestForm.pbLiquidate,
+                roeMean: backtestForm.roeMean,
+                epsStart: backtestForm.epsStart,
+                epsEnd: backtestForm.epsEnd,
+                stopLossPct: backtestForm.stopLossPct / 100,
+                takeProfitPct: backtestForm.takeProfitPct / 100
+              }
+            : {
+                fastPeriod: backtestForm.fastPeriod,
+                slowPeriod: backtestForm.slowPeriod,
+                rsiPeriod: backtestForm.rsiPeriod
+              }
+        })
 
-      backtestResult.value = result
+      backtestResult.value = normalizeBacktestResult(result)
       ElMessage.success('回测完成')
 
       // 绘制图表
@@ -472,19 +739,72 @@ const handleStartBacktest = async () => {
   })
 }
 
-// 绘制净值曲线图
+const findEquityValueByDate = (date: string) => {
+  return backtestResult.value.equityCurve.find((item: any) => item.date === date)?.value
+}
+
+const buildTradeMarkers = () => {
+  if (!backtestResult.value?.trades?.length) return []
+
+  return backtestResult.value.trades.flatMap((trade: any) => {
+    const markers = []
+    if (trade.entryDate) {
+      const value = findEquityValueByDate(trade.entryDate)
+      if (value !== undefined) {
+        markers.push({
+          name: '买入',
+          value: '买',
+          coord: [trade.entryDate, value],
+          itemStyle: { color: '#ef4444' }
+        })
+      }
+    }
+    if (trade.exitDate) {
+      const value = findEquityValueByDate(trade.exitDate)
+      if (value !== undefined) {
+        markers.push({
+          name: '卖出',
+          value: '卖',
+          coord: [trade.exitDate, value],
+          itemStyle: { color: '#22c55e' }
+        })
+      }
+    }
+    return markers
+  })
+}
+
+// 绘制资产权益曲线图
 const renderEquityChart = () => {
   if (!equityChartRef.value || !backtestResult.value) return
 
   const chart = echarts.init(equityChartRef.value)
+  const tradeMarkers = buildTradeMarkers()
   const option = {
     backgroundColor: '#0a0a0f',
-    grid: { left: 50, right: 50, top: 40, bottom: 30 },
+    title: {
+      text: '资产权益曲线',
+      subtext: '现金 + 持仓市值，买/卖标记来自交易记录',
+      left: 18,
+      top: 10,
+      textStyle: { color: '#e5e7eb', fontSize: 14, fontWeight: 600 },
+      subtextStyle: { color: '#94a3b8', fontSize: 12 }
+    },
+    legend: {
+      top: 18,
+      right: 24,
+      textStyle: { color: '#94a3b8' }
+    },
+    grid: { left: 72, right: 78, top: 72, bottom: 36 },
     tooltip: {
       trigger: 'axis',
       backgroundColor: 'rgba(0, 0, 0, 0.8)',
       borderColor: '#333',
-      textStyle: { color: '#fff' }
+      textStyle: { color: '#fff' },
+      formatter: (params: any) => {
+        const point = Array.isArray(params) ? params[0] : params
+        return `${point.axisValue}<br/>资产权益: ¥${formatPrice(point.data)}`
+      }
     },
     xAxis: {
       type: 'category',
@@ -500,11 +820,18 @@ const renderEquityChart = () => {
     },
     series: [
       {
-        name: '净值',
+        name: '资产权益',
         type: 'line',
         data: backtestResult.value.equityCurve.map((item: any) => item.value),
         smooth: true,
         lineStyle: { color: '#10b981', width: 2 },
+        showSymbol: false,
+        markPoint: {
+          symbol: 'pin',
+          symbolSize: 46,
+          label: { color: '#ffffff', fontSize: 11, fontWeight: 600 },
+          data: tradeMarkers
+        },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: 'rgba(16, 185, 129, 0.3)' },
@@ -776,6 +1103,10 @@ const handleReset = () => {
   formRef.value?.resetFields()
   backtestResult.value = null
 }
+
+onMounted(() => {
+  loadMyIndicators()
+})
 </script>
 
 <script lang="ts">

@@ -1,8 +1,24 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { join } from 'path';
+import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import { CliExecutionError, CliParseError } from './types.js';
 
 const execFileAsync = promisify(execFile);
+
+// Resolve quant CLI binary absolute path (same .venv as the daemon adapter)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = join(__dirname, '..', '..', '..', '..');
+const VENV_QUANT = join(PROJECT_ROOT, '.venv', 'bin', 'quant');
+
+function resolveQuantPath(customPath?: string): string {
+  if (customPath) return customPath;
+  if (existsSync(VENV_QUANT)) return VENV_QUANT;
+  // fallback to PATH lookup
+  return 'quant';
+}
 
 export abstract class BaseCliAdapter {
   private readonly cliPath: string;
@@ -14,7 +30,7 @@ export abstract class BaseCliAdapter {
     timeout?: number;
     maxBuffer?: number;
   }) {
-    this.cliPath = config?.cliPath || 'quant';
+    this.cliPath = resolveQuantPath(config?.cliPath);
     this.timeout = config?.timeout || 30000;  // 30 seconds
     this.maxBuffer = config?.maxBuffer || 10 * 1024 * 1024;  // 10MB
   }

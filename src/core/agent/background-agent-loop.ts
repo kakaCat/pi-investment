@@ -13,7 +13,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import type { Message } from "../../types/index.js";
 import { compactTool } from "../../infrastructure/tools/agent/compact-tool.js";
-import { taskCreateTool, taskUpdateTool, taskListTool, taskGetTool, taskExecuteAsyncTool, taskCheckBackgroundTool, initTaskTools } from "../../infrastructure/tools/agent/task-tools.js";
+import { taskCreateTool, taskUpdateTool, taskListTool, taskExecuteAsyncTool, taskCheckBackgroundTool, initTaskTools } from "../../infrastructure/tools/agent/task-tools.js";
 import { microCompact } from "../../services/compaction/compaction-service.js";
 import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
 import { initSkillRouter, rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
@@ -53,7 +53,7 @@ export async function getSession(): Promise<AgentSession> {
         taskExecuteAsyncTool,
         taskCheckBackgroundTool,
         compactTool,
-        taskCreateTool, taskUpdateTool, taskListTool, taskGetTool
+        taskCreateTool, taskUpdateTool, taskListTool
       ],
       skills,
     } as any);

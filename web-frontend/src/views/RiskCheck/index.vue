@@ -407,6 +407,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { riskApi } from '@/services/api'
+import { stockApi } from '@/services/api/stock'
 import { formatPrice, formatPercent, formatDateTime } from '@/utils/format'
 import type { StopLossRule } from '@/types/models'
 

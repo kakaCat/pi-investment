@@ -250,6 +250,18 @@ class TestBackfillMinute:
         }
         mock_gap_detector.detect_minute_gaps.assert_called_once_with("600519.SH", 365)
 
+    def test_backfill_minute_passes_end_date_to_gap_detector(self, backfiller, mock_gap_detector):
+        """Test backfill_minute targets a fixed cutoff date when provided."""
+        mock_gap_detector.detect_minute_gaps.return_value = []
+
+        backfiller.backfill_minute("600519.SH", target_days=365, end_date="2026-05-27")
+
+        mock_gap_detector.detect_minute_gaps.assert_called_once_with(
+            "600519.SH",
+            365,
+            end_date="2026-05-27",
+        )
+
     def test_backfill_minute_with_gaps_success(self, backfiller, mock_gap_detector, mock_progress_tracker, mock_db):
         """Test backfill_minute successfully downloads missing data."""
         missing_dates = [date(2026, 5, 20)]
@@ -521,4 +533,3 @@ class TestDownloadMinuteKline:
 
         assert result is None
         mock_ak_hist_min.assert_called_once()
-

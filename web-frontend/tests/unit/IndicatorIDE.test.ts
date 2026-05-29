@@ -3,6 +3,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import IndicatorIDE from '@/views/IndicatorIDE/index.vue'
 import type { KlineData, IndicatorRunResult } from '@/types/indicator'
 
@@ -17,11 +19,24 @@ const indicatorApiMock = vi.hoisted(() => ({
   backtestIndicator: vi.fn()
 }))
 
+const elementPlusMock = vi.hoisted(() => ({
+  ElMessage: {
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn()
+  },
+  ElMessageBox: {
+    confirm: vi.fn(() => Promise.resolve())
+  }
+}))
+
 const chartApiMock = vi.hoisted(() => ({
   chartRef: undefined as any,
   setOption: vi.fn(),
   showLoading: vi.fn(),
-  hideLoading: vi.fn()
+  hideLoading: vi.fn(),
+  resize: vi.fn()
 }))
 
 vi.mock('@/services/api/indicator', () => ({
@@ -37,19 +52,19 @@ vi.mock('@/composables/useChart', async () => {
   }
 })
 
+vi.mock('echarts', () => ({
+  init: vi.fn(() => ({
+    setOption: vi.fn(),
+    resize: vi.fn(),
+    dispose: vi.fn()
+  }))
+}))
+
 vi.mock('element-plus', async () => {
   const actual = await vi.importActual<typeof import('element-plus')>('element-plus')
   return {
     ...actual,
-    ElMessage: {
-      success: vi.fn(),
-      error: vi.fn(),
-      warning: vi.fn(),
-      info: vi.fn()
-    },
-    ElMessageBox: {
-      confirm: vi.fn(() => Promise.resolve())
-    }
+    ...elementPlusMock
   }
 })
 
@@ -65,8 +80,8 @@ describe('IndicatorIDE', () => {
   })
 
   describe('Component Behavior', () => {
-    it('binds the preview chart container to useChart chartRef', async () => {
-      mount(IndicatorIDE, {
+    it('renders the lower real-time preview area', async () => {
+      const wrapper = mount(IndicatorIDE, {
         global: {
           stubs: {
             'el-icon': true
@@ -74,8 +89,8 @@ describe('IndicatorIDE', () => {
         }
       })
 
-      expect(chartApiMock.chartRef.value).toBeInstanceOf(HTMLElement)
-      expect(chartApiMock.chartRef.value?.classList.contains('chart-container')).toBe(true)
+      expect(wrapper.find('.preview-card').exists()).toBe(true)
+      expect(wrapper.find('.lower-grid').exists()).toBe(true)
     })
 
     it('deletes the selected custom indicator and reloads the list', async () => {
@@ -109,6 +124,214 @@ describe('IndicatorIDE', () => {
         expect(indicatorApiMock.deleteIndicator).toHaveBeenCalledWith('7')
       })
       expect(indicatorApiMock.getMyIndicators).toHaveBeenCalledTimes(2)
+    })
+
+    it('reloads the indicator library from the refresh button', async () => {
+      vi.spyOn(Date, 'now').mockReturnValue(123)
+      const wrapper = mount(IndicatorIDE, {
+        global: {
+          stubs: {
+            'el-icon': true
+          }
+        }
+      })
+
+      await vi.waitFor(() => {
+        expect(indicatorApiMock.getMyIndicators).toHaveBeenCalledTimes(1)
+      })
+
+      const source = readFileSync(resolve(process.cwd(), 'src/views/IndicatorIDE/index.vue'), 'utf8')
+      expect(source).toContain('data-test="refresh-indicators"')
+
+      await (wrapper.vm as any).refreshIndicators()
+
+      await vi.waitFor(() => {
+        expect(indicatorApiMock.getMyIndicators).toHaveBeenLastCalledWith({ _t: 123 })
+        expect(indicatorApiMock.getSystemIndicators).toHaveBeenLastCalledWith({ _t: 123 })
+      })
+    })
+
+    it('does not show refresh success when indicator library reload fails', async () => {
+      indicatorApiMock.getMyIndicators
+        .mockResolvedValueOnce([])
+        .mockRejectedValueOnce(new Error('backend down'))
+
+      const wrapper = mount(IndicatorIDE, {
+        global: {
+          stubs: {
+            'el-icon': true
+          }
+        }
+      })
+
+      await vi.waitFor(() => {
+        expect(indicatorApiMock.getMyIndicators).toHaveBeenCalledTimes(1)
+      })
+
+      await expect((wrapper.vm as any).refreshIndicators()).rejects.toThrow('backend down')
+      expect(elementPlusMock.ElMessage.success).not.toHaveBeenCalledWith(expect.stringContaining('指标库已刷新'))
+    })
+
+    it('runs full backtest for all preview stock cards', async () => {
+      indicatorApiMock.getMyIndicators.mockResolvedValueOnce([
+        {
+          id: 7,
+          name: 'multi-stock',
+          description: '',
+          codeContent: 'df',
+          codeType: 'indicator',
+          strategyType: 'custom',
+          category: 'custom'
+        }
+      ])
+      indicatorApiMock.backtestIndicator
+        .mockResolvedValueOnce({
+          winRate: 0.58,
+          totalReturn: 0.11,
+          sharpeRatio: 1.2,
+          maxDrawdown: -0.06,
+          totalTrades: 9
+        })
+        .mockResolvedValueOnce({
+          winRate: 0.62,
+          totalReturn: 0.18,
+          sharpeRatio: 1.7,
+          maxDrawdown: -0.08,
+          totalTrades: 12
+        })
+
+      const wrapper = mount(IndicatorIDE, {
+        global: {
+          stubs: {
+            'el-icon': true
+          }
+        }
+      })
+
+      await vi.waitFor(() => {
+        expect(wrapper.text()).toContain('multi-stock')
+      })
+
+      const vm = wrapper.vm as any
+      vm.previewResults = [
+        {
+          symbol: '600600',
+          symbolName: '青岛啤酒',
+          currentValue: 61.69,
+          date: '2026-05-26',
+          signalTriggered: false,
+          klineData: [],
+          indicatorSeries: {}
+        },
+        {
+          symbol: '600519',
+          symbolName: '贵州茅台',
+          currentValue: 1582.3,
+          date: '2026-05-26',
+          signalTriggered: false,
+          klineData: [],
+          indicatorSeries: {}
+        }
+      ]
+
+      await vm.runAllPreviewBacktests()
+
+      expect(indicatorApiMock.backtestIndicator).toHaveBeenCalledWith(
+        expect.objectContaining({
+          indicatorId: '7',
+          symbol: '600600'
+        })
+      )
+      expect(indicatorApiMock.backtestIndicator).toHaveBeenCalledWith(
+        expect.objectContaining({
+          indicatorId: '7',
+          symbol: '600519'
+        })
+      )
+      expect(indicatorApiMock.backtestIndicator).toHaveBeenCalledTimes(2)
+      expect(vm.previewResults[0].backtestResult.totalReturn).toBe(0.11)
+      expect(vm.previewResults[1].backtestResult.totalReturn).toBe(0.18)
+    })
+
+    it('shows editable dates next to the full backtest button', () => {
+      const source = readFileSync(resolve(process.cwd(), 'src/views/IndicatorIDE/index.vue'), 'utf8')
+
+      expect(source).toContain('data-test="preview-backtest-start-date"')
+      expect(source).toContain('data-test="preview-backtest-end-date"')
+      expect(source).toContain('data-test="preview-backtest-range-90d"')
+      expect(source).toContain('data-test="preview-backtest-range-half-year"')
+      expect(source).toContain('data-test="preview-backtest-range-one-year"')
+      expect(source).toContain('完整回测全部股票')
+      expect(source).not.toContain('完整回测全部股票 (90天)')
+    })
+
+    it('applies preset ranges to the preview backtest dates', () => {
+      const wrapper = mount(IndicatorIDE, {
+        global: {
+          stubs: {
+            'el-icon': true
+          }
+        }
+      })
+      const vm = wrapper.vm as any
+
+      vm.backtestForm.endDate = '2026-05-27'
+      vm.applyBacktestRange('oneYear')
+
+      expect(vm.backtestForm.startDate).toBe('2025-05-27')
+      expect(vm.backtestForm.endDate).toBe('2026-05-27')
+    })
+
+    it('uses one year as the default backtest range', () => {
+      const source = readFileSync(resolve(process.cwd(), 'src/views/IndicatorIDE/index.vue'), 'utf8')
+      const initStart = source.indexOf('const initBacktestDates = () => {')
+      const initEnd = source.indexOf('type BacktestRangePreset', initStart)
+      const initBacktestDatesSource = source.slice(initStart, initEnd)
+
+      expect(initBacktestDatesSource).toContain("applyBacktestRange('oneYear')")
+      expect(initBacktestDatesSource).not.toContain('startDate.setDate(startDate.getDate() - 90)')
+    })
+
+    it('requests one year of chart data for the real-time preview', async () => {
+      indicatorApiMock.getMyIndicators.mockResolvedValueOnce([
+        {
+          id: 7,
+          name: 'one-year-preview',
+          description: '',
+          codeContent: 'df',
+          codeType: 'indicator',
+          strategyType: 'custom',
+          category: 'custom'
+        }
+      ])
+      indicatorApiMock.runIndicator.mockResolvedValueOnce({
+        symbol: '600519',
+        latestSignal: 'hold',
+        price: 1582.3,
+        date: '2026-05-27',
+        klineData: [],
+        indicatorSeries: {}
+      })
+
+      const wrapper = mount(IndicatorIDE, {
+        global: {
+          stubs: {
+            'el-icon': true
+          }
+        }
+      })
+
+      await vi.waitFor(() => {
+        expect(wrapper.text()).toContain('one-year-preview')
+      })
+
+      await (wrapper.vm as any).runIndicator()
+
+      expect(indicatorApiMock.runIndicator).toHaveBeenCalledWith('7', {
+        symbol: '600519',
+        limit: 260,
+        chartLimit: 260
+      })
     })
   })
 

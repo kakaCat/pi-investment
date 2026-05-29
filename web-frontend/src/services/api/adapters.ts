@@ -30,11 +30,11 @@ export function toPaginatedResponse<T>(
 
 export function adaptKLine(raw: any): KLineData {
   return {
-    date: raw.trade_date ?? raw.date ?? '',
-    open: Number(raw.open ?? 0),
-    close: Number(raw.close ?? 0),
-    high: Number(raw.high ?? 0),
-    low: Number(raw.low ?? 0),
+    date: raw.tradeDate ?? raw.trade_date ?? raw.date ?? '',
+    open: Number(raw.open ?? raw.openPrice ?? raw.open_price ?? 0),
+    close: Number(raw.close ?? raw.closePrice ?? raw.close_price ?? 0),
+    high: Number(raw.high ?? raw.highPrice ?? raw.high_price ?? 0),
+    low: Number(raw.low ?? raw.lowPrice ?? raw.low_price ?? 0),
     volume: Number(raw.volume ?? 0),
     amount: Number(raw.amount ?? 0)
   }

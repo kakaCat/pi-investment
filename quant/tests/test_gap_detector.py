@@ -178,6 +178,39 @@ class TestGapDetector:
         assert "2024-01-04" in result
         assert "2024-01-09" in result
 
+    def test_detect_minute_gaps_uses_explicit_end_date(self, gap_detector, mock_db, mock_calendar):
+        """Test detect_minute_gaps can fill through a fixed cutoff date."""
+        mock_db.get_minute_kline_dates.return_value = {
+            "min_date": "2025-05-28",
+            "max_date": "2026-05-21"
+        }
+        mock_calendar.get_trading_days.return_value = [
+            date(2026, 5, 21),
+            date(2026, 5, 22),
+            date(2026, 5, 25),
+            date(2026, 5, 26),
+            date(2026, 5, 27),
+        ]
+
+        mock_cursor = Mock()
+        mock_cursor.fetchall.return_value = [("2026-05-21",)]
+        mock_db.get_connection.return_value.cursor.return_value = mock_cursor
+        mock_db.provider = "postgres"
+
+        result = gap_detector.detect_minute_gaps(
+            "600519.SH",
+            target_days=365,
+            end_date="2026-05-27",
+        )
+
+        assert result == ["2026-05-22", "2026-05-25", "2026-05-26", "2026-05-27"]
+        start_date, end_date_arg = mock_calendar.get_trading_days.call_args[0]
+        assert start_date == date(2025, 5, 27)
+        assert end_date_arg == date(2026, 5, 27)
+        executed_sql = mock_cursor.execute.call_args[0][0]
+        assert "AS trade_date" in executed_sql
+        assert "ORDER BY trade_date" in executed_sql
+
     def test_detect_minute_gaps_no_gaps(self, gap_detector, mock_db, mock_calendar):
         """Test detect_minute_gaps when there are no gaps."""
         # Mock: symbol has complete minute data
@@ -258,4 +291,3 @@ class TestGapDetector:
         # Should raise RuntimeError
         with pytest.raises(RuntimeError, match="Minute klines are only supported with PostgreSQL"):
             gap_detector.detect_minute_gaps("600519.SH", target_days=10)
-

@@ -43,4 +43,28 @@ describe("observable logger session resume", () => {
       "new message",
     ]);
   });
+
+  test("stores oversized tool results as artifacts instead of embedding them in events", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-logger-large-"));
+    process.chdir(tempDir);
+
+    const logger = await import("./observable-logger.js");
+    const sessionKey = "20260521020202_abcd5678";
+    logger.initSession(sessionKey);
+
+    const largeValue = "x".repeat(220_000);
+    logger.logToolResult("quant_cli", "call-large", {
+      content: [{ type: "text", text: largeValue }],
+      details: { largeValue },
+    });
+
+    const eventsFile = join(tempDir, ".pi-invest", "sessions", sessionKey, "events.jsonl");
+    const events = readFileSync(eventsFile, "utf-8").trim().split("\n").map((line) => JSON.parse(line));
+    const resultEvent = events.find((event) => event.event === "tool.result");
+
+    expect(JSON.stringify(resultEvent).length).toBeLessThan(20_000);
+    expect(resultEvent.result.stored).toBe(true);
+    expect(resultEvent.result.filePath).toContain(join(tempDir, ".pi-invest", "sessions", sessionKey, "tool-results"));
+    expect(readFileSync(resultEvent.result.filePath, "utf-8")).toContain(largeValue);
+  });
 });

@@ -1,4 +1,4 @@
-import { ProcessTerminal, setKittyProtocolActive, StdinBuffer } from "@mariozechner/pi-tui";
+import { ProcessTerminal, setKittyProtocolActive, StdinBuffer, Text } from "@mariozechner/pi-tui";
 import { execSync } from "child_process";
 import { appendFileSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
@@ -9,6 +9,8 @@ const BRACKETED_PASTE_END = "\x1b[201~";
 const PATCH_FLAG = Symbol.for("pi-investment.pi-tui.stdin-buffer-dedupe-patch");
 const TERMINAL_PATCH_FLAG = Symbol.for("pi-investment.pi-tui.disable-enhanced-keyboard-patch");
 const TERMINAL_SAFETY_FLAG = Symbol.for("pi-investment.terminal-safety-net");
+const TEXT_RENDER_PATCH_FLAG = Symbol.for("pi-investment.pi-tui.text-render-truncation-patch");
+const MAX_TUI_TEXT_RENDER_CHARS = 80_000;
 
 type PatchedStdinBuffer = StdinBuffer & {
   [PATCH_FLAG]?: boolean;
@@ -37,6 +39,29 @@ type StdinBufferConstructor = {
 };
 
 type RawEmit = (this: StdinBufferRuntime, eventName: string | symbol, ...args: unknown[]) => boolean;
+
+type TextRuntime = {
+  [TEXT_RENDER_PATCH_FLAG]?: boolean;
+  text: string;
+  cachedText?: string;
+  cachedWidth?: number;
+  cachedLines?: string[];
+  render: (width: number) => string[];
+};
+
+type TextConstructor = {
+  prototype: TextRuntime;
+};
+
+function truncateTextForRendering(text: string): string {
+  if (text.length <= MAX_TUI_TEXT_RENDER_CHARS) return text;
+
+  const omitted = text.length - MAX_TUI_TEXT_RENDER_CHARS;
+  return (
+    text.slice(0, MAX_TUI_TEXT_RENDER_CHARS) +
+    `\n\n[TUI output truncated: ${omitted.toLocaleString("en-US")} chars omitted]`
+  );
+}
 
 function parseUnmodifiedKittyPrintableCodepoint(sequence: string): number | undefined {
   const match = sequence.match(/^\x1b\[(\d+)(?::(\d*))?(?::(\d+))?(?:;(\d+))?(?::(\d+))?u$/);
@@ -473,6 +498,36 @@ export function patchPiTuiStdinBuffer(): void {
   proto[PATCH_FLAG] = true;
 }
 
+export function patchPiTuiTextRendering(): void {
+  const ctor = Text as unknown as TextConstructor;
+  const proto = ctor.prototype;
+  if (proto[TEXT_RENDER_PATCH_FLAG]) return;
+
+  const originalRender = proto.render;
+  proto.render = function patchedRender(this: TextRuntime, width: number): string[] {
+    const originalText = this.text;
+    const truncatedText = truncateTextForRendering(originalText);
+    if (truncatedText === originalText) {
+      return originalRender.call(this, width);
+    }
+
+    this.text = truncatedText;
+    this.cachedText = undefined;
+    this.cachedWidth = undefined;
+    this.cachedLines = undefined;
+    try {
+      return originalRender.call(this, width);
+    } finally {
+      this.text = originalText;
+      this.cachedText = undefined;
+      this.cachedWidth = undefined;
+      this.cachedLines = undefined;
+    }
+  };
+
+  proto[TEXT_RENDER_PATCH_FLAG] = true;
+}
+
 type ProcessTerminalRuntime = {
   [TERMINAL_PATCH_FLAG]?: boolean;
   setupStdinBuffer: () => void;
@@ -590,5 +645,6 @@ export function patchPiTuiProcessTerminalKeyboardProtocol(): void {
 }
 
 patchPiTuiStdinBuffer();
+patchPiTuiTextRendering();
 patchPiTuiProcessTerminalKeyboardProtocol();
 installTerminalSafetyNet();

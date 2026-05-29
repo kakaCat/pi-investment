@@ -7,7 +7,7 @@ against the trading calendar to identify missing daily and minute K-line data.
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import List, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from quantsys.data.db import Database
@@ -33,14 +33,23 @@ class GapDetector:
         self.db = db
         self.calendar = calendar
 
-    def detect_daily_gaps(self, symbol: str, target_days: int = 730) -> List[str]:
+    def detect_daily_gaps(
+        self,
+        symbol: str,
+        target_days: int = 730,
+        end_date: Optional[str | date] = None,
+        include_new_symbols: bool = False,
+    ) -> List[str]:
         """Detect missing daily K-line data for a symbol.
 
         Args:
             symbol: Stock symbol (e.g., "600519.SH")
-            target_days: Number of calendar days to check backwards from last date
+            target_days: Number of calendar days to check backwards from end_date
                         (Note: This is calendar days, not trading days. 730 calendar days
                         covers approximately 2 years of trading days)
+            end_date: Date to check through. Defaults to today.
+            include_new_symbols: If True, symbols with no rows return all trading days
+                         in the requested range.
 
         Returns:
             List of missing dates in "YYYY-MM-DD" format, sorted ascending.
@@ -49,23 +58,28 @@ class GapDetector:
         # Get existing coverage from database
         coverage = self.db.get_kline_coverage(symbol)
 
-        # If no data exists, return empty list (new symbol case)
-        if coverage["existing_days"] == 0 or coverage["last_date"] is None:
-            return []
+        if isinstance(end_date, str):
+            range_end = date.fromisoformat(end_date)
+        elif isinstance(end_date, date):
+            range_end = end_date
+        else:
+            range_end = date.today()
 
-        # Parse the last date
-        last_date_str = coverage["last_date"]
-        last_date = date.fromisoformat(last_date_str)
-
-        # Calculate start date (target_days calendar days before last_date)
-        start_date = last_date - timedelta(days=target_days)
+        # Calculate start date (target_days calendar days before end date)
+        start_date = range_end - timedelta(days=target_days)
 
         # Get expected trading days from calendar
-        expected_dates = self.calendar.get_trading_days(start_date, last_date)
+        expected_dates = self.calendar.get_trading_days(start_date, range_end)
         expected_dates_set = set(expected_dates)
 
+        # If no data exists, return requested trading days only when explicitly asked.
+        if coverage["existing_days"] == 0 or coverage["last_date"] is None:
+            if include_new_symbols:
+                return sorted([d.isoformat() for d in expected_dates])
+            return []
+
         # Get actual dates from database
-        actual_dates_set = self._get_daily_dates_from_db(symbol, start_date, last_date)
+        actual_dates_set = self._get_daily_dates_from_db(symbol, start_date, range_end)
 
         # Find missing dates
         missing_dates = expected_dates_set - actual_dates_set
@@ -73,39 +87,57 @@ class GapDetector:
         # Convert to sorted list of strings
         return sorted([d.isoformat() for d in missing_dates])
 
-    def detect_minute_gaps(self, symbol: str, target_days: int = 365) -> List[str]:
+    def detect_minute_gaps(
+        self,
+        symbol: str,
+        target_days: int = 365,
+        end_date: Optional[str | date] = None,
+    ) -> List[str]:
         """Detect missing minute K-line data for a symbol.
 
         Args:
             symbol: Stock symbol (e.g., "600519.SH")
-            target_days: Number of calendar days to check backwards from last date
+            target_days: Number of calendar days to check backwards from end date
                         (Note: This is calendar days, not trading days. 365 calendar days
                         covers approximately 1 year of trading days)
+            end_date: Date to check through. Defaults to the symbol's latest minute date,
+                      or today if the symbol has no minute data.
 
         Returns:
             List of missing dates in "YYYY-MM-DD" format, sorted ascending.
-            Returns empty list if symbol has no data (new symbol case).
+            If symbol has no data, returns all trading days in the target range.
         """
         # Get existing coverage from database
         date_range = self.db.get_minute_kline_dates(symbol)
 
-        # If no data exists, return empty list (new symbol case)
+        if isinstance(end_date, str):
+            range_end = date.fromisoformat(end_date)
+        elif isinstance(end_date, date):
+            range_end = end_date
+        else:
+            range_end = None
+
+        # If no data exists, return all trading days in target range
         if date_range["min_date"] is None or date_range["max_date"] is None:
-            return []
+            range_end = range_end or date.today()
+            start_date = range_end - timedelta(days=target_days)
+            expected_dates = self.calendar.get_trading_days(start_date, range_end)
+            return sorted([d.isoformat() for d in expected_dates])
 
-        # Parse the last date
-        last_date_str = date_range["max_date"]
-        last_date = date.fromisoformat(last_date_str)
+        if range_end is None:
+            # Parse the last date
+            last_date_str = date_range["max_date"]
+            range_end = date.fromisoformat(last_date_str)
 
-        # Calculate start date (target_days calendar days before last_date)
-        start_date = last_date - timedelta(days=target_days)
+        # Calculate start date (target_days calendar days before range_end)
+        start_date = range_end - timedelta(days=target_days)
 
         # Get expected trading days from calendar
-        expected_dates = self.calendar.get_trading_days(start_date, last_date)
+        expected_dates = self.calendar.get_trading_days(start_date, range_end)
         expected_dates_set = set(expected_dates)
 
         # Get actual dates from database
-        actual_dates_set = self._get_minute_dates_from_db(symbol, start_date, last_date)
+        actual_dates_set = self._get_minute_dates_from_db(symbol, start_date, range_end)
 
         # Find missing dates
         missing_dates = expected_dates_set - actual_dates_set
@@ -136,6 +168,7 @@ class GapDetector:
                     WHERE symbol = %s
                       AND trade_date >= %s::date
                       AND trade_date <= %s::date
+                      AND close IS NOT NULL
                     ORDER BY trade_date
                     """,
                     (symbol, start_date.isoformat(), end_date.isoformat()),
@@ -148,6 +181,7 @@ class GapDetector:
                     WHERE symbol = ?
                       AND date >= ?
                       AND date <= ?
+                      AND close IS NOT NULL
                     ORDER BY date
                     """,
                     (symbol, start_date.isoformat(), end_date.isoformat()),
@@ -184,12 +218,12 @@ class GapDetector:
         try:
             cursor.execute(
                 """
-                SELECT DISTINCT trade_datetime::date::text
+                SELECT DISTINCT trade_datetime::date::text AS trade_date
                 FROM quant.minute_klines
                 WHERE symbol = %s
                   AND trade_datetime::date >= %s::date
                   AND trade_datetime::date <= %s::date
-                ORDER BY trade_datetime::date
+                ORDER BY trade_date
                 """,
                 (symbol, start_date.isoformat(), end_date.isoformat()),
             )

@@ -44,7 +44,7 @@ interface ExecutionContext {
  * Configuration loaded from environment variables
  */
 const CONFIG = {
-  CLI_PATH: process.env.CLAUDE_CODE_CLI_PATH || 'claude-code',
+  CLI_PATH: process.env.CLAUDE_CODE_CLI_PATH || 'claude',
   DEFAULT_TIMEOUT: Math.max(1000, parseInt(process.env.CLAUDE_CODE_TIMEOUT || '120000', 10) || 120000),
   ENABLED: process.env.CLAUDE_CODE_ENABLED !== 'false',
 } as const;
@@ -171,12 +171,26 @@ async function executeClaudeCode(params: ClaudeCodeParams): Promise<ClaudeCodeRe
     };
 
     try {
-      // Spawn Claude Code process
-      const args: string[] = ['--json'];
+      // Build prompt with task, context, and files
+      let prompt = params.task;
+      if (params.context) {
+        prompt += `\n\nContext: ${params.context}`;
+      }
+      if (params.files && params.files.length > 0) {
+        prompt += `\n\nRelevant files: ${params.files.join(', ')}`;
+      }
+
+      // Spawn Claude Code process with correct arguments
+      const args: string[] = [
+        '-p',                          // Print mode (non-interactive)
+        '--output-format', 'json',     // JSON output
+        '--bare',                      // Minimal mode (skip hooks, LSP, etc.)
+        prompt,                        // The prompt as argument
+      ];
 
       ctx.process = spawn(CONFIG.CLI_PATH, args, {
         cwd: PROJECT_ROOT,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe'],  // No stdin needed
         env: { ...process.env },
       });
 
@@ -256,30 +270,6 @@ async function executeClaudeCode(params: ClaudeCodeParams): Promise<ClaudeCodeRe
           });
         }
       });
-
-      // Write input to stdin
-      try {
-        const input = JSON.stringify({
-          task: params.task,
-          context: params.context,
-          files: params.files,
-        });
-
-        ctx.process.stdin?.write(input);
-        ctx.process.stdin?.end();
-      } catch (stdinError) {
-        // EPIPE or other stdin errors
-        if (ctx.timeoutHandle) {
-          clearTimeout(ctx.timeoutHandle);
-        }
-        ctx.process?.kill();
-        safeResolve({
-          success: false,
-          output: '',
-          execution_time: Date.now() - startTime,
-          error: `Failed to write to stdin: ${stdinError instanceof Error ? stdinError.message : String(stdinError)}`,
-        });
-      }
 
     } catch (error) {
       if (ctx.timeoutHandle) {

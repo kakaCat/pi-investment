@@ -46,7 +46,7 @@ const MONITOR_SYSTEM_PROMPT = `你是实时盯盘助手。
 2. 根据市场状态决定下次检查时间
 
 决策逻辑：
-- 发现明确信号 → send_feishu_alert + schedule_next_check(30, "已发信号，等待执行")
+- 发现明确信号 → monitor_alert({type: "trade_signal", channel: "feishu"}) + schedule_next_check(30, "已发信号，等待执行")
 - 接近关键位 → schedule_next_check(1, "接近支撑位，密切关注")
 - 市场活跃但无信号 → schedule_next_check(5, "市场波动，保持关注")
 - 市场平淡 → schedule_next_check(30, "市场平淡")

@@ -13,10 +13,14 @@ export const evolutionRunTool: ToolDefinition = {
   name: "evolution_run",
   label: "运行进化分析",
   description:
-    "Run the agent evolution analysis. " +
-    "Calculates performance gap, performs attribution analysis, " +
-    "and generates optimization suggestions (tool adjustments, parameter tuning, experience updates). " +
-    "Call this when the user wants to review the agent's performance and evolve capabilities.",
+    "🚀 系统自我进化引擎 — 不是复盘总结，是让 Agent 自主改进。\n\n" +
+    "执行完整的自我进化循环：\n" +
+    "1. 分析执行历史（会话日志、交易记录、持仓变动）→ 计算决策质量 gap\n" +
+    "2. 归因分析 — 哪些工具调用低效？哪些参数需要调整？哪些决策模式有问题？\n" +
+    "3. 生成优化建议 — 工具权重调整、参数调优、经验库更新、提示词改进\n" +
+    "4. 自动执行可落地的建议，持久化到 .pi-invest/evolution/\n\n" +
+    "何时调用：每次复盘结束后、发现 agent 决策质量下降、定期（每 N 次交易后）维护。\n" +
+    "这不是「看看过去做了什么」— 这是「改变未来怎么做」。",
   parameters: Type.Object({}),
   execute: async (_toolCallId, _params: any) => {
     try {
