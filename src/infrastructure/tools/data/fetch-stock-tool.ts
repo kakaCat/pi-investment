@@ -7,7 +7,8 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { detectMarket } from "../shared/validators.js";
-import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
+import { getStockData } from "../../quant/quant-v2-client.js";
+import type { StockData } from "../../quant/types.js";
 
 // Constants
 const DEFAULT_NEWS_COUNT = 10;
@@ -20,48 +21,6 @@ interface FetchStockParams {
   news_num?: number;
 }
 
-interface FetchResult {
-  field: DataField;
-  value: any | null;
-  error?: string;
-}
-
-/**
- * 智能路由：根据字段类型调用对应的 daemon 方法
- */
-async function fetchField(
-  field: DataField,
-  symbol: string,
-  newsNum: number = DEFAULT_NEWS_COUNT
-): Promise<FetchResult> {
-  try {
-    let result: string;
-
-    switch (field) {
-      case "info":
-        result = await callQuantSysDaemon("get_stock_info", { symbol });
-        return { field: "info", value: JSON.parse(result) };
-
-      case "price":
-        result = await callQuantSysDaemon("get_stock_realtime_price", { symbol });
-        return { field: "price", value: JSON.parse(result) };
-
-      case "news":
-        result = await callQuantSysDaemon("get_stock_news", { symbol, num: newsNum });
-        return { field: "news", value: JSON.parse(result) };
-
-      case "announcements":
-        result = await callQuantSysDaemon("get_announcements", { symbol });
-        return { field: "announcements", value: JSON.parse(result) };
-
-      default:
-        return { field, value: null, error: `Unknown field: ${field}` };
-    }
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    return { field, value: null, error: errorMsg };
-  }
-}
 
 export const dataFetchStockTool: ToolDefinition = {
   name: "data_fetch_stock",
@@ -117,37 +76,29 @@ export const dataFetchStockTool: ToolDefinition = {
       };
     }
 
-    // 并行获取所有请求的字段
-    const fetchPromises = fields.map(field => fetchField(field, symbol, news_num));
-    const results = await Promise.all(fetchPromises);
+    // 调用 v2 API
+    try {
+      const result = await getStockData(symbol, fields, news_num);
 
-    // 组装响应对象
-    const response: Record<string, any> = {};
-    let hasAnySuccess = false;
-
-    for (const result of results) {
-      if (result.error) {
-        // 错误响应结构：字段设为 null，错误信息存储在 {field}_error
-        response[result.field] = null;
-        response[`${result.field}_error`] = result.error;
-      } else {
-        response[result.field] = result.value;
-        hasAnySuccess = true;
-      }
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify(result, null, 2)
+        }],
+        details: undefined
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            success: false,
+            error: `获取股票数据失败: ${errorMsg}`
+          })
+        }],
+        details: undefined
+      };
     }
-
-    // 如果所有字段都失败了，添加顶层 error 字段
-    if (!hasAnySuccess) {
-      const firstError = results.find(r => r.error);
-      response.error = firstError?.error || "所有数据获取失败";
-    }
-
-    return {
-      content: [{
-        type: "text" as const,
-        text: JSON.stringify(response, null, 2)
-      }],
-      details: undefined
-    };
   }
 };
