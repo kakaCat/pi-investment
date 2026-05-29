@@ -36,6 +36,108 @@ export function formatPercent(value: number | null | undefined, decimals = 2): s
 }
 
 /**
+ * Format stock price data with real-time indicator
+ */
+export function formatStockPrice(data: any): string {
+  if (!data) return '价格数据不可用';
+
+  const lines: string[] = [];
+
+  // Detect data source type
+  const realtimeSources = ['akshare', 'sina', 'eastmoney', 'tencent', 'netease'];
+  const isRealtime = data.source && realtimeSources.includes(data.source);
+  const isFallback = data.source === 'db_fallback';
+
+  // Source name mapping
+  const sourceNames: Record<string, string> = {
+    'sina': '新浪财经',
+    'eastmoney': '东方财富',
+    'tencent': '腾讯财经',
+    'netease': '网易财经',
+    'akshare': 'AKShare',
+    'db_fallback': '数据库'
+  };
+
+  // Header with data source indicator
+  if (isRealtime) {
+    const sourceName = sourceNames[data.source] || data.source;
+    lines.push(`【实时行情】（${sourceName}，延迟 < 3秒）`);
+  } else if (isFallback) {
+    lines.push('【最新收盘价】（数据库，非实时）');
+  } else {
+    lines.push('【行情数据】');
+  }
+
+  lines.push(`股票代码: ${data.symbol}`);
+  lines.push(`股票名称: ${data.name}`);
+  lines.push(`当前价格: ${formatNumber(data.price, 2)} 元`);
+
+  if (data.change_pct !== undefined && data.change_pct !== null) {
+    lines.push(`涨跌幅: ${formatPercent(data.change_pct)}`);
+  }
+
+  if (data.change !== undefined && data.change !== null) {
+    const sign = data.change > 0 ? '+' : '';
+    lines.push(`涨跌额: ${sign}${formatNumber(data.change, 2)} 元`);
+  }
+
+  if (data.open !== undefined && data.open !== null) {
+    lines.push(`今开: ${formatNumber(data.open, 2)} 元`);
+  }
+
+  if (data.high !== undefined && data.high !== null) {
+    lines.push(`最高: ${formatNumber(data.high, 2)} 元`);
+  }
+
+  if (data.low !== undefined && data.low !== null) {
+    lines.push(`最低: ${formatNumber(data.low, 2)} 元`);
+  }
+
+  if (data.prev_close !== undefined && data.prev_close !== null) {
+    lines.push(`昨收: ${formatNumber(data.prev_close, 2)} 元`);
+  }
+
+  if (data.volume !== undefined && data.volume !== null) {
+    const volumeInWan = data.volume / 10000;
+    lines.push(`成交量: ${formatNumber(volumeInWan, 0)} 万股`);
+  }
+
+  if (data.amount !== undefined && data.amount !== null) {
+    const amountInYi = data.amount / 100000000;
+    lines.push(`成交额: ${formatNumber(amountInYi, 2)} 亿元`);
+  }
+
+  // Data freshness note with timestamp/trade_date
+  if (isRealtime) {
+    if (data.timestamp) {
+      lines.push(`\n数据时间: ${data.timestamp}`);
+    }
+
+    const now = new Date();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const isTrading =
+      (hour === 9 && minute >= 30) ||
+      (hour >= 10 && hour < 11) ||
+      (hour === 11 && minute < 30) ||
+      (hour >= 13 && hour < 15);
+
+    if (isTrading) {
+      lines.push('💡 当前处于交易时段，数据为实时行情');
+    } else {
+      lines.push('💡 当前非交易时段，显示最新成交价');
+    }
+  } else if (isFallback) {
+    if (data.trade_date) {
+      lines.push(`\n交易日期: ${data.trade_date}`);
+    }
+    lines.push('⚠️ 实时行情获取失败，显示数据库最新收盘价');
+  }
+
+  return lines.join('\n');
+}
+
+/**
  * Format financial data into readable text
  */
 export function formatFinancialData(data: FinancialData): string {
@@ -233,6 +335,17 @@ export function formatFactorResult(result: FactorResult): string {
     }
     if (factors.debt_ratio !== undefined && factors.debt_ratio !== null) {
       fundamentalFactors['资产负债率'] = formatPercent(factors.debt_ratio);
+    }
+    // FSCORE and Earnings Quality (Piotroski fundamental factors)
+    if (factors.fscore !== undefined && factors.fscore !== null) {
+      const fscore = factors.fscore;
+      const label = fscore >= 7 ? '🟢' : fscore >= 4 ? '🟡' : '🔴';
+      fundamentalFactors[`Piotroski F-Score`] = `${fscore}/9 ${label}`;
+    }
+    if (factors.earnings_quality !== undefined && factors.earnings_quality !== null) {
+      const eq = factors.earnings_quality;
+      const label = eq >= 300 ? '🟢' : eq >= 200 ? '🟡' : '🔴';
+      fundamentalFactors[`盈利质量评分`] = `${formatNumber(eq, 1)}/400 ${label}`;
     }
 
     if (Object.keys(fundamentalFactors).length > 0) {
