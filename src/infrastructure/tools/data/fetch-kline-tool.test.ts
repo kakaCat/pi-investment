@@ -120,7 +120,7 @@ describe('data_fetch_kline tool', () => {
 
       mockGetKlineHistory.mockResolvedValueOnce(mockKlineResponse);
 
-      const result = await (dataFetchKlineTool.execute as any)('test-call-id', {
+      await (dataFetchKlineTool.execute as any)('test-call-id', {
         symbol: '600519',
         start_date: '20260101',
         end_date: '20260520'
@@ -140,7 +140,7 @@ describe('data_fetch_kline tool', () => {
 
       mockGetKlineHistory.mockResolvedValueOnce(mockKlineResponse);
 
-      const result = await (dataFetchKlineTool.execute as any)('test-call-id', {
+      await (dataFetchKlineTool.execute as any)('test-call-id', {
         symbol: '600519',
         period: 'weekly',
         start_date: '20260101',
@@ -182,7 +182,7 @@ describe('data_fetch_kline tool', () => {
 
       mockGetKlineHistory.mockResolvedValueOnce(mockKlineResponse);
 
-      const result = await (dataFetchKlineTool.execute as any)('test-call-id', { symbol: '9988' });
+      await (dataFetchKlineTool.execute as any)('test-call-id', { symbol: '9988' });
 
       expect(mockGetKlineHistory).toHaveBeenCalledWith('9988', 'daily', undefined, undefined);
     });
@@ -201,7 +201,7 @@ describe('data_fetch_kline tool', () => {
       expect(response.invalid_format).toBe(true);
     });
 
-    it('should handle daemon errors gracefully', async () => {
+    it('should handle API errors gracefully', async () => {
       mockGetKlineHistory.mockRejectedValueOnce(new Error('Network timeout'));
 
       const result = await (dataFetchKlineTool.execute as any)('test-call-id', { symbol: '600519' });

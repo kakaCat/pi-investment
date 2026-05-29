@@ -8,11 +8,10 @@ import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { detectMarket } from "../shared/validators.js";
 import { getKlineHistory } from "../../quant/quant-v2-client.js";
-import type { KlineData } from "../../quant/types.js";
 
 // Constants
 const DEFAULT_PERIOD = "daily";
-// 以下常量仅用于工具描述文档，实际限制由 quantsys daemon 后端控制
+// 以下常量仅用于工具描述文档，实际限制由 quantsys-v2 API 后端控制
 const MAX_DATA_POINTS = 60;        // 后端返回的最大数据点数
 const DEFAULT_LOOKBACK_DAYS = 90;  // 后端默认查询的回溯天数
 
