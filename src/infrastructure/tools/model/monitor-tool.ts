@@ -5,7 +5,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
+import { monitorModel } from "../../quant/quant-v2-client.js";
 
 interface MonitorModelParams {
   model_id?: string;
@@ -23,18 +23,28 @@ export const modelMonitorTool: ToolDefinition = {
     }))
   }),
   execute: async (_toolCallId, params: MonitorModelParams) => {
-    try {
-      const result = await callQuantSysDaemon("monitor_model", {
-        model_id: params.model_id || "latest"
-      });
+    const { model_id = "latest" } = params;
 
-      // Parse the result to ensure it's valid JSON
-      const parsedResult = JSON.parse(result);
+    try {
+      const response = await monitorModel("xgboost", model_id);
+
+      if (!response.success) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: false,
+              error: response.error || "监控模型失败"
+            }, null, 2)
+          }],
+          details: undefined
+        };
+      }
 
       return {
         content: [{
           type: "text" as const,
-          text: JSON.stringify(parsedResult, null, 2)
+          text: JSON.stringify(response.monitor, null, 2)
         }],
         details: undefined
       };
@@ -44,7 +54,7 @@ export const modelMonitorTool: ToolDefinition = {
           type: "text" as const,
           text: JSON.stringify({
             success: false,
-            error: error.message
+            error: `API 调用失败: ${error.message}`
           }, null, 2)
         }],
         details: undefined
