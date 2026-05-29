@@ -547,7 +547,97 @@ export async function getFinancials(
   }
 
   const url = `${V2_API_BASE}/api/stock/${encodeURIComponent(symbol)}/financials?type=${statementType}&periods=${periods}`;
-  return fetchV2<FinancialData>(url);
+
+  // API 返回格式: { success: true, data: { symbol, name, incomeStatement: [...], balanceSheet: [...], cashFlow: [...] } }
+  const response = await fetchV2<{
+    success: boolean;
+    data: {
+      symbol: string;
+      name: string;
+      statementType: string;
+      periods: number;
+      incomeStatement?: Array<Record<string, any>>;
+      balanceSheet?: Array<Record<string, any>>;
+      cashFlow?: Array<Record<string, any>>;
+    };
+  }>(url);
+
+  if (!response.success || !response.data) {
+    throw new QuantV2Error('财务数据获取失败', 500);
+  }
+
+  const { data } = response;
+
+  // 转换为 FinancialData 格式（取最新一期数据）
+  const result: FinancialData = {
+    success: true,
+    symbol: data.symbol,
+    name: data.name,
+    report_date: '', // 将从报表数据中提取
+  };
+
+  // 转换利润表
+  if (data.incomeStatement && data.incomeStatement.length > 0) {
+    const income = data.incomeStatement[0];
+    result.report_date = income['报告期'] || income['公告日期'] || '';
+
+    const revenue = income['营业总收入'] || income['营业收入'] || 0;
+    const operatingCost = income['营业总成本'] || income['营业成本'] || 0;
+    const netProfit = income['净利润'] || 0;
+    const netProfitAttrParent = income['归属于母公司所有者的净利润'] || netProfit;
+    const grossProfit = revenue - (income['营业成本'] || 0);
+
+    result.income_statement = {
+      revenue,
+      operating_cost: operatingCost,
+      gross_profit: grossProfit,
+      net_profit: netProfit,
+      net_profit_attr_parent: netProfitAttrParent,
+      gross_margin: revenue > 0 ? (grossProfit / revenue) * 100 : 0,
+      net_margin: revenue > 0 ? (netProfit / revenue) * 100 : 0,
+    };
+  }
+
+  // 转换资产负债表
+  if (data.balanceSheet && data.balanceSheet.length > 0) {
+    const balance = data.balanceSheet[0];
+    if (!result.report_date) {
+      result.report_date = balance['报告期'] || balance['公告日期'] || '';
+    }
+
+    const totalAssets = balance['资产总计'] || 0;
+    const currentAssets = balance['流动资产合计'] || 0;
+    const totalLiabilities = balance['负债合计'] || 0;
+    const currentLiabilities = balance['流动负债合计'] || 0;
+    const totalEquity = balance['股东权益合计'] || balance['所有者权益(或股东权益)合计'] || 0;
+
+    result.balance_sheet = {
+      total_assets: totalAssets,
+      current_assets: currentAssets,
+      total_liabilities: totalLiabilities,
+      current_liabilities: currentLiabilities,
+      total_equity: totalEquity,
+      debt_ratio: totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0,
+      current_ratio: currentLiabilities > 0 ? currentAssets / currentLiabilities : 0,
+    };
+  }
+
+  // 转换现金流量表
+  if (data.cashFlow && data.cashFlow.length > 0) {
+    const cashflow = data.cashFlow[0];
+    if (!result.report_date) {
+      result.report_date = cashflow['报告期'] || cashflow['公告日期'] || '';
+    }
+
+    result.cash_flow = {
+      operating_cashflow: cashflow['经营活动产生的现金流量净额'] || 0,
+      investing_cashflow: cashflow['投资活动产生的现金流量净额'] || 0,
+      financing_cashflow: cashflow['筹资活动产生的现金流量净额'] || 0,
+      net_cashflow: cashflow['现金及现金等价物净增加额'] || 0,
+    };
+  }
+
+  return result;
 }
 
 /**
@@ -855,11 +945,13 @@ export async function getKlineHistory(
  * @param symbol 股票代码
  * @param fields 要获取的字段列表
  * @param newsNum 新闻条数（仅当fields包含news时有效）
+ * @param source 数据源选择（realtime=实时数据，db=数据库，auto=自动选择，默认realtime）
  */
 export async function getStockData(
   symbol: string,
   fields: Array<'info' | 'price' | 'news' | 'announcements'> = ['info', 'price'],
   newsNum: number = 10,
+  source: 'realtime' | 'db' | 'auto' = 'realtime',
 ): Promise<StockData> {
   if (!symbol || symbol.trim() === '') {
     throw new QuantV2Error('股票代码不能为空', 400);
@@ -889,7 +981,7 @@ export async function getStockData(
     fetchPromises.push(
       (async () => {
         try {
-          const url = `${V2_API_BASE}/api/stock/${encodeURIComponent(symbol)}/quote`;
+          const url = `${V2_API_BASE}/api/stock/${encodeURIComponent(symbol)}/quote?source=${source}`;
           const data = await fetchV2<StockPrice>(url);
           result.price = data;
         } catch (error) {
