@@ -280,7 +280,9 @@ export interface StockInfo {
  * @property low - 当日最低价
  * @property open - 开盘价
  * @property volume - 成交量
- * @property source - 数据源
+ * @property source - 数据源 ('akshare' | 'sina' | 'eastmoney' | 'tencent' | 'netease' | 'db_fallback')
+ * @property timestamp - 实时数据的时间戳（ISO 8601 格式）
+ * @property trade_date - 数据库数据的交易日期（YYYY-MM-DD 格式）
  */
 export interface StockPrice {
   symbol: string;
@@ -291,7 +293,9 @@ export interface StockPrice {
   low: number;
   open: number;
   volume: number;
-  source?: string;
+  source?: 'akshare' | 'sina' | 'eastmoney' | 'tencent' | 'netease' | 'db_fallback';
+  timestamp?: string;
+  trade_date?: string;
 }
 
 /**
