@@ -5,7 +5,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { callQuantSysDaemon } from "../../quant/quantsys-daemon-adapter.js";
+import { listModels } from "../../quant/quant-v2-client.js";
 
 interface ModelListParams {
   status?: string;
@@ -38,14 +38,41 @@ export const modelListTool: ToolDefinition = {
     const { status = "all" } = params;
 
     try {
-      const result = await callQuantSysDaemon("list_models", {
-        status
-      });
+      const response = await listModels(undefined, status === "all" ? undefined : status);
+
+      if (!response.success) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: false,
+              error: response.error || "获取模型列表失败"
+            }, null, 2)
+          }],
+          details: undefined
+        };
+      }
+
+      // 格式化输出
+      const formatted = {
+        success: true,
+        total: response.total,
+        models: response.models.map(m => ({
+          model_type: m.model_type,
+          version: m.version,
+          train_date: m.train_date,
+          accuracy: m.test_accuracy,
+          f1_score: m.f1_score,
+          features: m.feature_count,
+          samples: m.train_samples,
+          status: m.status
+        }))
+      };
 
       return {
         content: [{
           type: "text" as const,
-          text: result
+          text: JSON.stringify(formatted, null, 2)
         }],
         details: undefined
       };
@@ -55,7 +82,7 @@ export const modelListTool: ToolDefinition = {
           type: "text" as const,
           text: JSON.stringify({
             success: false,
-            error: error.message
+            error: `API 调用失败: ${error.message}`
           }, null, 2)
         }],
         details: undefined
