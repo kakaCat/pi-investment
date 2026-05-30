@@ -311,6 +311,29 @@ Agent 查询经验 → 决策时参考历史表现
 cd quantsys-v2 && python start_all.py
 ```
 
+### quant_cli 工具增强（2026-05-29）
+
+**智能错误提示**：当缺少 `strategy_id` 必填参数时，错误消息会自动附加可用策略列表，减少工具调用次数。
+
+适用命令：
+- `performance.by_strategy`
+- `strategy.get`
+- `strategy.optimize`
+- `strategy.run`
+- `backtest.strategy`
+- `signal.generate`
+
+示例错误输出：
+```
+缺少必填参数: strategy_id。原因：该参数是命令执行的必要条件，不能为空。
+
+可用策略列表：
+  - ID: 53, 名称: 多因子波段策略v9
+  - ID: 54, 名称: RSI超买超卖策略
+```
+
+容错处理：如果 quantsys-v2 服务不可用，降级为通用提示。
+
 ### Python Quant Backend (`quant/`)
 
 Pipeline: resolve → data → factor → model → signal → risk → backtest → report.
