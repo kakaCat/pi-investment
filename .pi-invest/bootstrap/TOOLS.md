@@ -251,3 +251,120 @@ quant_cli(signal.arbitrate {date: "YYYY-MM-DD"})
 **利好信号**: 回购、增持、业绩预增、重大合同、战略合作、分红、股权激励
 **利空信号**: 减持、质押、诉讼/仲裁、业绩预减/亏损、监管处罚、高管离职
 **需深入判断**: 重组（看对价）、定增（看价格和用途）、股权变更（看买方背景）
+
+---
+
+## quant_cli 工具详解
+
+### strategy.execute - 统一策略执行
+
+**用途**: 执行量化策略，支持单股分析、批量生成、完整流程三种模式。
+
+**参数**:
+- `action` (required): 执行模式
+  - `single`: 单股快速分析
+  - `batch`: 批量信号生成
+  - `pipeline`: 完整自动化流程
+- `symbol`: 股票代码（single 模式必需）
+- `symbols`: 股票代码数组（batch/pipeline 模式必需）
+- `strategy`: 策略名称（必需）
+- `persist`: 是否持久化（默认 true）
+- `min_confidence`: 最低置信度过滤（batch 模式）
+- `create_orders`: 是否创建订单（pipeline 模式）
+- `risk_check`: 是否风控检查（pipeline 模式，默认 true）
+
+**示例 1: 单股分析**
+```typescript
+quant_cli({
+  command: "strategy.execute",
+  params: {
+    action: "single",
+    symbol: "600519.SH",
+    strategy: "Turtle"
+  }
+})
+```
+
+**返回**:
+```json
+{
+  "signal_type": "BUY",
+  "confidence": 0.85,
+  "entry_price": 1850.0,
+  "stop_loss": 1800.0,
+  "target_price": 1950.0,
+  "position_size": 0.15,
+  "indicators": {
+    "atr": 25.5,
+    "ma20": 1820.0
+  }
+}
+```
+
+**示例 2: 批量生成**
+```typescript
+quant_cli({
+  command: "strategy.execute",
+  params: {
+    action: "batch",
+    symbols: ["600519.SH", "000001.SZ", "000002.SZ"],
+    strategy: "Turtle",
+    min_confidence: 0.7
+  }
+})
+```
+
+**返回**:
+```json
+{
+  "signals": [
+    {
+      "symbol": "600519.SH",
+      "signal_type": "BUY",
+      "confidence": 0.85
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "success": 2,
+    "failed": 1,
+    "buy": 1,
+    "sell": 0,
+    "hold": 1
+  }
+}
+```
+
+**示例 3: 完整流程**
+```typescript
+quant_cli({
+  command: "strategy.execute",
+  params: {
+    action: "pipeline",
+    symbols: ["600519.SH", "000001.SZ"],
+    strategy: "Turtle",
+    create_orders: true,
+    risk_check: true
+  }
+})
+```
+
+**返回**:
+```json
+{
+  "signals_generated": 2,
+  "signals_passed": 1,
+  "signals_rejected": 1,
+  "orders_created": 1,
+  "rejection_reasons": {
+    "position_limit": 1
+  }
+}
+```
+
+**使用建议**:
+- 单股分析：获取详细风控参数，适合人工决策
+- 批量生成：筛选高置信度信号，适合选股
+- 完整流程：自动化交易，适合日终批处理
+
+**详细指南**: 参见 `docs/guides/strategy-execution-guide.md`
