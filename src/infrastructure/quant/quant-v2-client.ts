@@ -199,6 +199,7 @@ const V2_ROUTES: Record<
   "strategy.create": { path: "/api/strategies/create",        method: "POST" },
   "strategy.run":    { path: "/api/strategy/run",             method: "POST" },
   "strategy.status": { path: "/api/strategy/status",          method: "GET" },
+  "strategy.execute": { path: "/api/strategy/execute",        method: "POST" },
 
   // ── portfolio ──
   "portfolio.summary":  { path: "/api/portfolio/summary",    method: "GET" },
