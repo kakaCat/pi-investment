@@ -19,6 +19,8 @@ type CommandRule = {
   description: string;
   params: Record<string, ParamRule>;
   example: Record<string, unknown>;
+  deprecated?: boolean;
+  replacement?: string;
 };
 
 const COMMANDS: Record<string, CommandRule> = {
@@ -1317,7 +1319,7 @@ export const quantCliTool: ToolDefinition = {
       }),
     ),
   }),
-  execute: async (_toolCallId: string, rawParams: any) => {
+  execute: async (_toolCallId: string, rawParams: any, signal?: AbortSignal, onUpdate?: any, ctx?: any) => {
     let command = typeof rawParams?.command === "string" ? rawParams.command.trim() : "";
     const params = normalizeParams(rawParams?.params);
 
@@ -1343,7 +1345,7 @@ export const quantCliTool: ToolDefinition = {
           symbols: params.symbols,
           ...params
         }
-      });
+      }, signal, onUpdate, ctx);
     }
 
     const rule = COMMANDS[command];
