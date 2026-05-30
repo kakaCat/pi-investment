@@ -205,6 +205,36 @@ backend_control({ action: "start", service: "all" })
 - 执行引擎：`trade_*`
 - 监控运维：`monitor_*`
 
+### 策略执行统一（2026-05-30）
+
+**重要变更**：策略执行已统一到 `quant_cli` 的 `strategy.execute` 命令。
+
+**新的统一接口**：
+```typescript
+quant_cli({
+  command: "strategy.execute",
+  params: {
+    action: "single" | "batch" | "pipeline",  // 三种执行模式
+    symbol: "600000",      // single 模式：单股票
+    symbols: ["600000"],   // batch/pipeline 模式：多股票
+    strategy: "53",        // 策略 ID 或名称
+    risk_check: true,      // pipeline 模式：启用风控
+    auto_order: true       // pipeline 模式：自动创建订单
+  }
+})
+```
+
+**三种执行模式**：
+1. **single** — 单股票执行，返回详细信号和风险参数
+2. **batch** — 批量执行，返回汇总统计
+3. **pipeline** — 完整流水线（信号生成 → 风控筛选 → 订单创建）
+
+**已废弃的工具**（将在 v3.0 移除）：
+- ⚠️ `strategy_execute` 工具 → 使用 `quant_cli` 的 `strategy.execute` (action='single')
+- ⚠️ `signal.generate` 命令 → 使用 `strategy.execute` (action='batch')
+
+**迁移指南**：详见 `docs/migration/strategy-system-unification.md`
+
 ### 迁移说明
 
 **重大变更（2025-05-25）**：旧工具系统已完全移除，请使用新的六层架构工具。

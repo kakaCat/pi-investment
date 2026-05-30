@@ -92,8 +92,10 @@ function formatStrategiesError(strategies: Array<{ strategyType: string; categor
 
 export const strategyExecuteTool: ToolDefinition = {
   name: "strategy_execute",
-  label: "执行策略",
+  label: "执行策略 (DEPRECATED)",
   description:
+    "⚠️ DEPRECATED: 此工具已废弃，请使用 quant_cli 的 strategy.execute 命令（action='single'）。\n" +
+    "此工具将在 v3.0 移除。详见 docs/migration/strategy-system-unification.md\n\n" +
     "执行单个量化策略，返回交易信号和完整的风险管理参数。\n" +
     "支持 18+ 种内置策略，包括趋势跟踪、均值回归、波动率、多因子等类型。\n" +
     "返回内容：买卖信号、置信度、止损价格、仓位建议、技术指标。\n" +
@@ -112,6 +114,13 @@ export const strategyExecuteTool: ToolDefinition = {
   }),
 
   execute: async (_toolCallId: string, params: any) => {
+    // Deprecation warning
+    console.warn(
+      "⚠️ DEPRECATED: strategy_execute 工具已废弃，请使用 quant_cli 的 strategy.execute 命令。\n" +
+      "新用法: quant_cli({ command: 'strategy.execute', params: { action: 'single', symbol: '...', strategy: '...' } })\n" +
+      "此工具将在 v3.0 移除。详见 docs/migration/strategy-system-unification.md"
+    );
+
     try {
       // 参数验证
       if (!params?.symbol || typeof params.symbol !== 'string') {
