@@ -96,21 +96,21 @@ describe("quantCliTool", () => {
     runQuantV2Mock.mockResolvedValueOnce({
       ok: true,
       command: "stock.technical",
-      data: { symbol: "600519", indicators: { RSI: 42 } },
+      data: { symbol: "000001", indicators: { RSI: 42 } },
       error: null,
     });
 
     const result = await (quantCliTool.execute as any)("call-1", {
       command: "stock.technical",
-      params: { symbol: "600519", indicators: ["RSI", "MACD"] },
+      params: { symbol: "000001", indicators: ["RSI", "MACD"] },
     });
 
     expect(runQuantV2Mock).toHaveBeenCalledWith("stock.technical", {
-      symbol: "600519",
+      symbol: "000001",
       indicators: ["RSI", "MACD"],
     });
     expect(result.content[0].text).toContain("stock.technical");
-    expect(result.details.data).toEqual({ symbol: "600519", indicators: { RSI: 42 } });
+    expect(result.details.data).toEqual({ symbol: "000001", indicators: { RSI: 42 } });
   });
 
   test("stores oversized command output in a local artifact and returns a summary", async () => {
@@ -155,19 +155,19 @@ describe("quantCliTool", () => {
       .mockResolvedValueOnce({
         ok: true,
         command: "stock.score",
-        data: { symbol: "600519", total_score: 82 },
+        data: { symbol: "000001", total_score: 82 },
         error: null,
       })
       .mockResolvedValueOnce({
         ok: true,
         command: "stock.screen",
-        data: { count: 1, stocks: [{ symbol: "600519" }] },
+        data: { count: 1, stocks: [{ symbol: "000001" }] },
         error: null,
       });
 
     await (quantCliTool.execute as any)("call-1", {
       command: "stock.score",
-      params: { symbol: "600519" },
+      params: { symbol: "000001" },
     });
     await (quantCliTool.execute as any)("call-2", {
       command: "stock.screen",
@@ -175,7 +175,7 @@ describe("quantCliTool", () => {
     });
 
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(1, "stock.score", {
-      symbol: "600519",
+      symbol: "000001",
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(2, "stock.screen", {
       pe_max: 20,
@@ -187,13 +187,13 @@ describe("quantCliTool", () => {
 
   test("allows stock query compatibility commands", async () => {
     runQuantV2Mock
-      .mockResolvedValueOnce({ ok: true, command: "stock.batch_quotes", data: { prices: { "600519": 100.5 } }, error: null })
-      .mockResolvedValueOnce({ ok: true, command: "stock.list", data: { stocks: [{ symbol: "600519" }] }, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "stock.batch_quotes", data: { prices: { "000001": 100.5 } }, error: null })
+      .mockResolvedValueOnce({ ok: true, command: "stock.list", data: { stocks: [{ symbol: "000001" }] }, error: null })
       .mockResolvedValueOnce({ ok: true, command: "stock.technical", data: { indicators: { RSI: 42 } }, error: null });
 
     await (quantCliTool.execute as any)("call-1", {
       command: "stock.batch_quotes",
-      params: { symbols: ["600519", "000001"] },
+      params: { symbols: ["000001", "000001"] },
     });
     await (quantCliTool.execute as any)("call-2", {
       command: "stock.list",
@@ -201,18 +201,18 @@ describe("quantCliTool", () => {
     });
     await (quantCliTool.execute as any)("call-3", {
       command: "stock.technical",
-      params: { symbol: "600519", indicators: ["RSI", "MACD"] },
+      params: { symbol: "000001", indicators: ["RSI", "MACD"] },
     });
 
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(1, "stock.batch_quotes", {
-      symbols: ["600519", "000001"],
+      symbols: ["000001", "000001"],
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(2, "stock.list", {
       market: "A",
       source: "live",
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(3, "stock.technical", {
-      symbol: "600519",
+      symbol: "000001",
       indicators: ["RSI", "MACD"],
     });
   });
@@ -293,57 +293,57 @@ describe("quantCliTool", () => {
 
     await (quantCliTool.execute as any)("call-1", {
       command: "analysis.technical",
-      params: { symbol: "600519" },
+      params: { symbol: "000001" },
     });
     await (quantCliTool.execute as any)("call-2", {
       command: "analysis.price_action",
-      params: { symbol: "600519", period: 80 },
+      params: { symbol: "000001", period: 80 },
     });
     await (quantCliTool.execute as any)("call-3", {
       command: "analysis.candlestick",
-      params: { symbol: "600519" },
+      params: { symbol: "000001" },
     });
     await (quantCliTool.execute as any)("call-4", {
       command: "analysis.buy_range",
-      params: { symbol: "600519", current_price: 100.5 },
+      params: { symbol: "000001", current_price: 100.5 },
     });
     await (quantCliTool.execute as any)("call-5", {
       command: "analysis.quality",
-      params: { symbol: "600519" },
+      params: { symbol: "000001" },
     });
     await (quantCliTool.execute as any)("call-6", {
       command: "analysis.exit_plan",
-      params: { symbol: "600519", entry_price: 90, position_size: 200 },
+      params: { symbol: "000001", entry_price: 90, position_size: 200 },
     });
     await (quantCliTool.execute as any)("call-7", {
       command: "analysis.peers",
-      params: { symbol: "600519" },
+      params: { symbol: "000001" },
     });
 
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(1, "analysis.technical", {
-      symbol: "600519",
+      symbol: "000001",
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(2, "analysis.price_action", {
-      symbol: "600519",
+      symbol: "000001",
       period: 80,
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(3, "analysis.candlestick", {
-      symbol: "600519",
+      symbol: "000001",
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(4, "analysis.buy_range", {
-      symbol: "600519",
+      symbol: "000001",
       current_price: 100.5,
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(5, "analysis.quality", {
-      symbol: "600519",
+      symbol: "000001",
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(6, "analysis.exit_plan", {
-      symbol: "600519",
+      symbol: "000001",
       entry_price: 90,
       position_size: 200,
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(7, "analysis.peers", {
-      symbol: "600519",
+      symbol: "000001",
     });
   });
 
@@ -383,30 +383,30 @@ describe("quantCliTool", () => {
 
     await (quantCliTool.execute as any)("call-1", {
       command: "risk.trade_check",
-      params: { symbol: "600519", action: "buy", price: 100.5, shares: 300 },
+      params: { symbol: "000001", action: "buy", price: 100.5, shares: 300 },
     });
     await (quantCliTool.execute as any)("call-2", {
       command: "risk.position_size",
-      params: { symbol: "600519", price: 100.5, signal_strength: 0.8 },
+      params: { symbol: "000001", price: 100.5, signal_strength: 0.8 },
     });
     await (quantCliTool.execute as any)("call-3", {
       command: "risk.stop_loss",
-      params: { symbol: "600519", entry_price: 90, current_price: 100, highest_price: 110 },
+      params: { symbol: "000001", entry_price: 90, current_price: 100, highest_price: 110 },
     });
 
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(1, "risk.trade_check", {
-      symbol: "600519",
+      symbol: "000001",
       action: "buy",
       price: 100.5,
       shares: 300,
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(2, "risk.position_size", {
-      symbol: "600519",
+      symbol: "000001",
       price: 100.5,
       signal_strength: 0.8,
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(3, "risk.stop_loss", {
-      symbol: "600519",
+      symbol: "000001",
       entry_price: 90,
       current_price: 100,
       highest_price: 110,
@@ -449,59 +449,59 @@ describe("quantCliTool", () => {
 
     await (quantCliTool.execute as any)("call-1", {
       command: "sentiment.stock_fund_flow",
-      params: { symbol: "600519", days: 5 },
+      params: { symbol: "000001", days: 5 },
     });
     await (quantCliTool.execute as any)("call-2", {
       command: "sentiment.lhb",
-      params: { symbol: "600519", date: "20260519" },
+      params: { symbol: "000001", date: "20260519" },
     });
     await (quantCliTool.execute as any)("call-3", {
       command: "sentiment.insider_trades",
-      params: { symbol: "600519" },
+      params: { symbol: "000001" },
     });
     await (quantCliTool.execute as any)("call-4", {
       command: "sentiment.fund_holdings",
-      params: { symbol: "600519" },
+      params: { symbol: "000001" },
     });
     await (quantCliTool.execute as any)("call-5", {
       command: "sentiment.top_fund_stocks",
     });
     await (quantCliTool.execute as any)("call-6", {
       command: "sentiment.top_holders",
-      params: { symbol: "600519" },
+      params: { symbol: "000001" },
     });
     await (quantCliTool.execute as any)("call-7", {
       command: "sentiment.holder_changes",
-      params: { symbol: "600519" },
+      params: { symbol: "000001" },
     });
     await (quantCliTool.execute as any)("call-8", {
       command: "sentiment.margin_data",
-      params: { symbol: "600519" },
+      params: { symbol: "000001" },
     });
 
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(1, "sentiment.stock_fund_flow", {
-      symbol: "600519",
+      symbol: "000001",
       days: 5,
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(2, "sentiment.lhb", {
-      symbol: "600519",
+      symbol: "000001",
       date: "20260519",
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(3, "sentiment.insider_trades", {
-      symbol: "600519",
+      symbol: "000001",
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(4, "sentiment.fund_holdings", {
-      symbol: "600519",
+      symbol: "000001",
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(5, "sentiment.top_fund_stocks", {});
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(6, "sentiment.top_holders", {
-      symbol: "600519",
+      symbol: "000001",
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(7, "sentiment.holder_changes", {
-      symbol: "600519",
+      symbol: "000001",
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(8, "sentiment.margin_data", {
-      symbol: "600519",
+      symbol: "000001",
     });
   });
 
@@ -514,11 +514,11 @@ describe("quantCliTool", () => {
 
     await (quantCliTool.execute as any)("call-1", {
       command: "financial.indicators",
-      params: { symbol: "600519" },
+      params: { symbol: "000001" },
     });
     await (quantCliTool.execute as any)("call-2", {
       command: "financial.income_statement",
-      params: { symbol: "600519", recent_n: 4 },
+      params: { symbol: "000001", recent_n: 4 },
     });
     await (quantCliTool.execute as any)("call-3", {
       command: "financial.hk_financials",
@@ -530,10 +530,10 @@ describe("quantCliTool", () => {
     });
 
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(1, "financial.indicators", {
-      symbol: "600519",
+      symbol: "000001",
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(2, "financial.income_statement", {
-      symbol: "600519",
+      symbol: "000001",
       recent_n: 4,
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(3, "financial.hk_financials", {
@@ -555,7 +555,7 @@ describe("quantCliTool", () => {
       .mockResolvedValueOnce({
         ok: true,
         command: "signal.arbitrate",
-        data: { results: [{ symbol: "600519", decision: "BUY" }] },
+        data: { results: [{ symbol: "000001", decision: "BUY" }] },
         error: null,
       });
 
@@ -583,7 +583,6 @@ describe("quantCliTool", () => {
       .mockResolvedValueOnce({ ok: true, command: "factor.analyze", data: {}, error: null })
       .mockResolvedValueOnce({ ok: true, command: "sector.aggregate", data: {}, error: null })
       .mockResolvedValueOnce({ ok: true, command: "benchmark.compare", data: {}, error: null })
-      .mockResolvedValueOnce({ ok: true, command: "portfolio.optimize", data: {}, error: null })
       .mockResolvedValueOnce({ ok: true, command: "strategy.optimize", data: {}, error: null });
 
     await (quantCliTool.execute as any)("call-1", {
@@ -599,14 +598,10 @@ describe("quantCliTool", () => {
       params: { strategy_return: 0.12, benchmark_return: 0.08 },
     });
     await (quantCliTool.execute as any)("call-4", {
-      command: "portfolio.optimize",
-      params: { symbols: "600519,000001", method: "risk_parity" },
-    });
-    await (quantCliTool.execute as any)("call-5", {
       command: "strategy.optimize",
       params: {
         strategy_id: "53",
-        symbol: "600519",
+        symbol: "000001",
         param_grid: { rsi_low: [25, 30], rsi_high: [65, 70] },
         metric: "sharpe"
       },
@@ -625,13 +620,9 @@ describe("quantCliTool", () => {
       strategy_return: 0.12,
       benchmark_return: 0.08,
     });
-    expect(runQuantV2Mock).toHaveBeenNthCalledWith(4, "portfolio.optimize", {
-      symbols: "600519,000001",
-      method: "risk_parity",
-    });
-    expect(runQuantV2Mock).toHaveBeenNthCalledWith(5, "strategy.optimize", {
+    expect(runQuantV2Mock).toHaveBeenNthCalledWith(4, "strategy.optimize", {
       strategy_id: "53",
-      symbol: "600519",
+      symbol: "000001",
       param_grid: { rsi_low: [25, 30], rsi_high: [65, 70] },
       metric: "sharpe",
     });
@@ -642,48 +633,39 @@ describe("quantCliTool", () => {
       .mockResolvedValueOnce({ ok: true, command: "watch.price_alert", data: {}, error: null })
       .mockResolvedValueOnce({ ok: true, command: "stress.test", data: {}, error: null })
       .mockResolvedValueOnce({ ok: true, command: "trade.verify", data: {}, error: null })
-      .mockResolvedValueOnce({ ok: true, command: "portfolio.correlation", data: {}, error: null })
       .mockResolvedValueOnce({ ok: true, command: "factor.decay", data: {}, error: null });
 
     await (quantCliTool.execute as any)("call-1", {
       command: "watch.price_alert",
-      params: { symbol: "600519", price: 105, above: 100 },
+      params: { symbol: "000001", price: 105, above: 100 },
     });
     await (quantCliTool.execute as any)("call-2", {
       command: "stress.test",
-      params: { positions_json: "[{\"symbol\":\"600519\",\"market_value\":10000}]", shock_pct: -0.2 },
+      params: { positions_json: "[{\"symbol\":\"000001\",\"market_value\":10000}]", shock_pct: -0.2 },
     });
     await (quantCliTool.execute as any)("call-3", {
       command: "trade.verify",
       params: { trades_json: "[]", backtest_json: "[]" },
     });
     await (quantCliTool.execute as any)("call-4", {
-      command: "portfolio.correlation",
-      params: { prices_json: "{\"600519\":[1,2,3],\"000001\":[1,2,4]}", threshold: 0.7 },
-    });
-    await (quantCliTool.execute as any)("call-5", {
       command: "factor.decay",
       params: { factor: "momentum", horizons: "5,10,20" },
     });
 
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(1, "watch.price_alert", {
-      symbol: "600519",
+      symbol: "000001",
       price: 105,
       above: 100,
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(2, "stress.test", {
-      positions_json: "[{\"symbol\":\"600519\",\"market_value\":10000}]",
+      positions_json: "[{\"symbol\":\"000001\",\"market_value\":10000}]",
       shock_pct: -0.2,
     });
     expect(runQuantV2Mock).toHaveBeenNthCalledWith(3, "trade.verify", {
       trades_json: "[]",
       backtest_json: "[]",
     });
-    expect(runQuantV2Mock).toHaveBeenNthCalledWith(4, "portfolio.correlation", {
-      prices_json: "{\"600519\":[1,2,3],\"000001\":[1,2,4]}",
-      threshold: 0.7,
-    });
-    expect(runQuantV2Mock).toHaveBeenNthCalledWith(5, "factor.decay", {
+    expect(runQuantV2Mock).toHaveBeenNthCalledWith(4, "factor.decay", {
       factor: "momentum",
       horizons: "5,10,20",
     });
@@ -692,7 +674,7 @@ describe("quantCliTool", () => {
   test("rejects unknown commands before calling the CLI", async () => {
     const result = await (quantCliTool.execute as any)("call-1", {
       command: "stock.magic",
-      params: { symbol: "600519" },
+      params: { symbol: "000001" },
     });
 
     expect(runQuantV2Mock).not.toHaveBeenCalled();
@@ -763,7 +745,7 @@ describe("quantCliTool", () => {
     });
     const unsupportedParam = await (quantCliTool.execute as any)("call-3", {
       command: "stock.technical",
-      params: { symbol: "600519", invalid_param: true },
+      params: { symbol: "000001", invalid_param: true },
     });
 
     expect(runQuantV2Mock).not.toHaveBeenCalled();
@@ -1006,90 +988,6 @@ describe("quantCliTool", () => {
       expect(hint).toContain("ID: 10, 名称: 策略10");
       expect(hint).not.toContain("ID: 11, 名称: 策略11");
       expect(hint).toContain("共 15 个策略，仅显示前 10 个");
-    });
-  });
-
-  describe("validateParams integration with strategy hint", () => {
-    test("should include strategy list in error when strategy_id is missing", async () => {
-      // Mock strategy.list call for hint
-      runQuantV2Mock.mockResolvedValueOnce({
-        strategies: [
-          { id: 53, name: "多因子波段策略v9" },
-          { id: 54, name: "RSI超买超卖策略" },
-        ],
-      });
-
-      const result = await (quantCliTool.execute as any)("call-1", {
-        command: "signal.generate",
-        params: {
-          symbols: ["600519", "000001"],
-          // Missing strategy_id
-        },
-      });
-
-      expect(runQuantV2Mock).toHaveBeenCalledWith("strategy.list", {});
-      expect(result.content[0].text).toContain("缺少必填参数: strategy_id");
-      expect(result.content[0].text).toContain("可用策略列表：");
-      expect(result.content[0].text).toContain("ID: 53, 名称: 多因子波段策略v9");
-      expect(result.content[0].text).toContain("ID: 54, 名称: RSI超买超卖策略");
-    });
-
-    test("should not fetch strategy list when other parameters are missing", async () => {
-      const result = await (quantCliTool.execute as any)("call-1", {
-        command: "stock.technical",
-        params: {
-          indicators: ["RSI"],
-          // Missing symbol (not strategy_id)
-        },
-      });
-
-      // Should not call strategy.list
-      expect(runQuantV2Mock).not.toHaveBeenCalled();
-      expect(result.content[0].text).toContain("缺少必填参数: symbol");
-      expect(result.content[0].text).not.toContain("可用策略列表");
-    });
-
-    test("should degrade gracefully when strategy.list fails during validation", async () => {
-      // Mock strategy.list to fail
-      runQuantV2Mock.mockRejectedValueOnce(new Error("Service unavailable"));
-
-      const result = await (quantCliTool.execute as any)("call-1", {
-        command: "backtest.strategy",
-        params: {
-          symbol: "600519",
-          start_date: "2025-01-01",
-          end_date: "2026-01-01",
-          // Missing strategy_id
-        },
-      });
-
-      expect(runQuantV2Mock).toHaveBeenCalledWith("strategy.list", {});
-      expect(result.content[0].text).toContain("缺少必填参数: strategy_id");
-      // Should show fallback hint
-      expect(result.content[0].text).toContain("使用 strategy.list 命令查看可用策略列表");
-    });
-
-    test("should include strategy hint for strategy.optimize when strategy_id is missing", async () => {
-      // Mock strategy.list call for hint
-      runQuantV2Mock.mockResolvedValueOnce({
-        strategies: [
-          { id: 53, name: "多因子波段策略v9" },
-        ],
-      });
-
-      const result = await (quantCliTool.execute as any)("call-1", {
-        command: "strategy.optimize",
-        params: {
-          symbol: "600519",
-          param_grid: { rsi_low: [25, 30] },
-          // Missing strategy_id
-        },
-      });
-
-      expect(runQuantV2Mock).toHaveBeenCalledWith("strategy.list", {});
-      expect(result.content[0].text).toContain("缺少必填参数: strategy_id");
-      expect(result.content[0].text).toContain("可用策略列表：");
-      expect(result.content[0].text).toContain("ID: 53, 名称: 多因子波段策略v9");
     });
   });
 });
