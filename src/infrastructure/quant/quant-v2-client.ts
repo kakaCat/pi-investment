@@ -30,6 +30,11 @@ import type {
   ListModelsResponse,
   EvaluateModelResponse,
   MonitorModelResponse,
+  StrategyExecutionSignal,
+  StrategyBatchExecuteParams,
+  StrategyPipelineExecuteParams,
+  BatchExecutionResult,
+  PipelineExecutionResult,
 } from "./types.js";
 import { QuantV2Error } from "./types.js";
 
@@ -749,24 +754,6 @@ export async function algoExecute(
 }
 
 /**
- * 执行策略并返回信号（带风险管理参数）
- * @param params 策略执行参数
- */
-export async function executeStrategy(
-  params: StrategyExecuteParams,
-): Promise<StrategySignal> {
-  if (!params.symbol || params.symbol.trim() === '') {
-    throw new QuantV2Error('股票代码不能为空', 400, '/api/strategy/run');
-  }
-  if (!params.strategy_name || params.strategy_name.trim() === '') {
-    throw new QuantV2Error('策略名称不能为空', 400, '/api/strategy/run');
-  }
-
-  const url = `${V2_API_BASE}/api/strategy/run`;
-  return fetchV2<StrategySignal>(url, { method: 'POST', body: params });
-}
-
-/**
  * 批量验证策略有效性
  * @param params 验证参数
  */
@@ -1127,5 +1114,153 @@ export async function predictModel(params: {
     method: "POST",
     body: params
   });
+}
+
+// ─── 策略执行方法 (Strategy System Unification - Phase 2) ────
+
+/**
+ * 执行单个策略并返回信号
+ * @param params 策略执行参数
+ */
+export async function executeStrategy(
+  params: StrategyExecuteParams
+): Promise<StrategyExecutionSignal> {
+  const response = await fetch(`${V2_API_BASE}/api/strategies/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+    signal: AbortSignal.timeout(V2_TIMEOUT_MS)
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new QuantV2Error(
+      `HTTP ${response.status}: ${text || response.statusText}`,
+      response.status,
+      '/api/strategies/execute'
+    );
+  }
+
+  const result = await response.json() as { success: boolean; data: StrategyExecutionSignal; error?: string };
+
+  if (!result.success) {
+    throw new QuantV2Error(
+      result.error || 'Unknown error',
+      undefined,
+      '/api/strategies/execute'
+    );
+  }
+
+  return result.data;
+}
+
+/**
+ * 批量执行策略并返回信号（NDJSON 流式响应）
+ * @param params 批量执行参数
+ */
+export async function batchExecuteStrategy(
+  params: StrategyBatchExecuteParams
+): Promise<BatchExecutionResult> {
+  const response = await fetch(`${V2_API_BASE}/api/strategies/batch-execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+    signal: AbortSignal.timeout(V2_TIMEOUT_MS)
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new QuantV2Error(
+      `HTTP ${response.status}: ${text || response.statusText}`,
+      response.status,
+      '/api/strategies/batch-execute'
+    );
+  }
+
+  // Parse NDJSON response
+  const text = await response.text();
+  const lines = text.split('\n').filter(line => line.trim());
+
+  const signals: StrategyExecutionSignal[] = [];
+  const errors: Array<{ symbol: string; error: string }> = [];
+  let summary = {
+    total: 0,
+    success: 0,
+    failed: 0,
+    buy: 0,
+    sell: 0,
+    hold: 0,
+    duration_ms: 0,
+  };
+
+  for (const line of lines) {
+    try {
+      const item = JSON.parse(line);
+
+      if (item.type === 'signal') {
+        signals.push(item.data);
+      } else if (item.type === 'error') {
+        errors.push({
+          symbol: item.symbol,
+          error: item.error,
+        });
+      } else if (item.type === 'summary') {
+        summary = {
+          total: item.total,
+          success: item.success,
+          failed: item.failed,
+          buy: item.buy,
+          sell: item.sell,
+          hold: item.hold,
+          duration_ms: item.duration_ms,
+        };
+      }
+    } catch (parseError) {
+      // Skip malformed lines
+      continue;
+    }
+  }
+
+  return {
+    signals,
+    summary,
+    errors,
+  };
+}
+
+/**
+ * 执行策略管道（信号生成 → 风险检查 → 订单创建）
+ * @param params 管道执行参数
+ */
+export async function pipelineExecuteStrategy(
+  params: StrategyPipelineExecuteParams
+): Promise<PipelineExecutionResult> {
+  const response = await fetch(`${V2_API_BASE}/api/strategies/pipeline-execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+    signal: AbortSignal.timeout(V2_TIMEOUT_MS)
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new QuantV2Error(
+      `HTTP ${response.status}: ${text || response.statusText}`,
+      response.status,
+      '/api/strategies/pipeline-execute'
+    );
+  }
+
+  const result = await response.json() as { success: boolean; data: PipelineExecutionResult; error?: string };
+
+  if (!result.success) {
+    throw new QuantV2Error(
+      result.error || 'Unknown error',
+      undefined,
+      '/api/strategies/pipeline-execute'
+    );
+  }
+
+  return result.data;
 }
 
