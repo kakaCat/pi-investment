@@ -673,3 +673,74 @@ export interface MonitorModelResponse {
   monitor?: ModelMonitor;
   error?: string;
 }
+
+// ===== 策略执行相关类型 (Strategy System Unification - Phase 2) =====
+
+export interface StrategyExecuteParams {
+  symbol: string;
+  strategy_name: string;
+  date?: string;
+  persist?: boolean;
+  return_details?: boolean;
+}
+
+export interface StrategyBatchExecuteParams {
+  symbols: string[];
+  strategy_name: string;
+  date?: string;
+  persist?: boolean;
+  min_confidence?: number;
+}
+
+export interface StrategyPipelineExecuteParams {
+  symbols: string[];
+  strategy_name: string;
+  create_orders?: boolean;
+  risk_check?: boolean;
+}
+
+export interface StrategyExecutionSignal {
+  signal_id?: string;
+  symbol: string;
+  signal_type: 'BUY' | 'SELL' | 'HOLD';
+  confidence: number;
+  entry_price: number;
+  stop_loss?: number;
+  target_price?: number;
+  position_size?: number;
+  indicators?: Record<string, any>;
+}
+
+export interface BatchExecutionResult {
+  signals: StrategyExecutionSignal[];
+  summary: {
+    total: number;
+    success: number;
+    failed: number;
+    buy: number;
+    sell: number;
+    hold: number;
+    duration_ms: number;
+  };
+  errors: Array<{
+    symbol: string;
+    error: string;
+  }>;
+}
+
+export interface PipelineExecutionResult {
+  execution_date: string;
+  duration_ms: number;
+  signals_generated: number;
+  signals_approved: number;
+  signals_rejected: number;
+  orders_created: number;
+  rejection_reasons: Record<string, number>;
+  orders: Array<{
+    order_id: string;
+    symbol: string;
+    side: 'BUY' | 'SELL';
+    quantity?: number;
+    price: number;
+  }>;
+}
