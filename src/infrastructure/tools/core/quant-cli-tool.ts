@@ -897,6 +897,21 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {},
     example: {},
   },
+  "strategy.execute": {
+    domain: "strategy",
+    action: "execute",
+    description: "统一策略执行工具，支持三种模式：single（单股票执行）、batch（批量执行）、pipeline（流水线执行）。single 模式对单只股票运行策略并返回信号；batch 模式对多只股票批量运行策略并返回汇总统计；pipeline 模式运行完整策略流水线（信号生成 → 风控筛选 → 订单创建）。",
+    params: {
+      action: { required: true, type: "string", enum: ["single", "batch", "pipeline"] },
+      symbol: { type: "string", symbol: true },
+      symbols: { type: "array" },
+      strategy: { required: true, type: "string" },
+      params: { type: "object" },
+      risk_check: { type: "boolean" },
+      auto_order: { type: "boolean" },
+    },
+    example: { action: "single", symbol: "600000", strategy: "rsi-strategy" },
+  },
   "watch.price_alert": {
     domain: "watch",
     action: "price-alert",
@@ -1358,12 +1373,78 @@ export const quantCliTool: ToolDefinition = {
       }
     }
 
+    // ── strategy.execute 特殊验证 ──
+    if (command === "strategy.execute") {
+      const action = params.action as string;
+
+      // 验证 action 参数
+      if (!action) {
+        return validationError(
+          "缺少必填参数: action",
+          formatCommandHelp(command, rule),
+        );
+      }
+
+      if (!["single", "batch", "pipeline"].includes(action)) {
+        return validationError(
+          "action 只能是 single 或 batch 或 pipeline。原因：该参数只接受预定义的枚举值。",
+          formatCommandHelp(command, rule),
+        );
+      }
+
+      // single 模式需要 symbol
+      if (action === "single" && !params.symbol) {
+        return validationError(
+          "缺少必填参数: symbol。原因：single 模式需要指定单个股票代码。",
+          formatCommandHelp(command, rule),
+        );
+      }
+
+      // batch 模式需要 symbols
+      if (action === "batch" && !params.symbols) {
+        return validationError(
+          "缺少必填参数: symbols。原因：batch 模式需要指定股票列表。",
+          formatCommandHelp(command, rule),
+        );
+      }
+    }
+
     const validation = await validateParams(command, rule, params);
     if (validation) {
       return validationError(validation, formatCommandHelp(command, rule));
     }
 
     try {
+      // ── strategy.execute 特殊处理 ──
+      if (command === "strategy.execute") {
+        const response = await runQuantV2(command, params);
+        _getEntry(command).v2Success++;
+
+        const action = params.action as string;
+        let formattedText: string;
+
+        if (action === "single") {
+          // 导入 formatSingleSignal
+          const { formatSingleSignal } = await import("../../quant/formatters.js");
+          formattedText = formatSingleSignal(response as any);
+        } else if (action === "batch") {
+          // 导入 formatBatchSignals
+          const { formatBatchSignals } = await import("../../quant/formatters.js");
+          formattedText = formatBatchSignals(response as any);
+        } else if (action === "pipeline") {
+          // 导入 formatPipelineResult
+          const { formatPipelineResult } = await import("../../quant/formatters.js");
+          formattedText = formatPipelineResult(response as any);
+        } else {
+          formattedText = JSON.stringify(response, null, 2);
+        }
+
+        return {
+          content: [{ type: "text" as const, text: formattedText }],
+          details: response,
+        };
+      }
+
       // ── V2 路由：仅使用 quantsys-v2 HTTP API ──
       const response = await runQuantV2(command, params);
       _getEntry(command).v2Success++;
