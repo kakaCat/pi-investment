@@ -1,0 +1,393 @@
+/**
+ * Trade Manage Orders Tool (L5 执行引擎层)
+ *
+ * 统一命名规范为 trade_manage_orders
+ * 挂单管理一站式工具，支持创建、撤销、查看、成交、检查挂单
+ */
+
+import type { ToolDefinition } from "../index.js";
+import { Type } from "@sinclair/typebox";
+import { OrderService, type PendingOrder, type OrderSide, type OrderType, type OrderStatus } from "../../../services/order-service.js";
+import { PortfolioService } from "../../../services/portfolio/portfolio-service.js";
+import { chinaDate, chinaDateTime } from "../../../utils/china-time.js";
+
+const PI_DIR = ".pi-invest";
+
+// ─── 工具函数 ──────────────────────────────────────────────────────────────
+
+function fmtPrice(v: number): string {
+  return `¥${v.toFixed(2)}`;
+}
+
+function fmtPct(v: number): string {
+  return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
+}
+
+function fmtAmount(v: number): string {
+  const abs = Math.abs(v);
+  if (abs >= 1e8) return `${(v / 1e8).toFixed(2)}亿`;
+  if (abs >= 1e4) return `${(v / 1e4).toFixed(2)}万`;
+  return v.toFixed(2);
+}
+
+function statusEmoji(s: OrderStatus): string {
+  switch (s) {
+    case "pending": return "⏳";
+    case "filled": return "✅";
+    case "partial": return "🔶";
+    case "cancelled": return "❌";
+    case "expired": return "⌛";
+  }
+}
+
+function sideLabel(s: OrderSide): string {
+  return s === "buy" ? "买入" : "卖出";
+}
+
+function typeLabel(t: OrderType): string {
+  switch (t) {
+    case "limit": return "限价";
+    case "stop_loss": return "止损";
+    case "batch_plan": return "分批";
+  }
+}
+
+// ─── 各 action 实现 ────────────────────────────────────────────────────────
+
+/** 创建挂单 */
+async function handlePlace(params: {
+  symbol: string;
+  name: string;
+  side: OrderSide;
+  type: OrderType;
+  price: number;
+  quantity: number;
+  market: "A" | "HK";
+  commission_rate?: number;
+  notes?: string;
+  expires_in_minutes?: number;
+}): Promise<string> {
+  const service = new OrderService(PI_DIR);
+  const order = service.create(params);
+
+  const lines = [
+    `## 📋 挂单已创建\n`,
+    `| 项目 | 内容 |`,
+    `|------|------|`,
+    `| 股票 | ${order.name} (${order.symbol}) |`,
+    `| 方向 | ${sideLabel(order.side)} |`,
+    `| 类型 | ${typeLabel(order.type)} |`,
+    `| 价格 | ${fmtPrice(order.price)} |`,
+    `| 数量 | ${order.quantity}股 |`,
+    `| 市场 | ${order.market === "A" ? "A股" : "港股"} |`,
+    `| 手续费率 | ${order.commission_rate ? `${(order.commission_rate * 10000).toFixed(2)}‱` : "默认"} |`,
+    `| 挂单编号 | \`${order.id}\` |`,
+    `| 有效期限 | ${order.expires_at ? order.expires_at : "永久有效"} |`,
+    `| 备注 | ${order.notes || "-"} |`,
+    ``,
+    `💡 下次调用 \`trade_manage_orders check\` 时会自动检查此挂单是否成交。`,
+  ];
+
+  return lines.join("\n");
+}
+
+/** 撤销挂单 */
+async function handleCancel(params: { order_id: string; reason?: string }): Promise<string> {
+  const service = new OrderService(PI_DIR);
+  const order = service.get(params.order_id);
+  if (!order) {
+    return `❌ 未找到挂单 \`${params.order_id}\``;
+  }
+  if (order.status !== "pending") {
+    return `❌ 挂单 ${order.name}(${order.symbol}) 状态为 **${order.status}**，无法撤销`;
+  }
+
+  service.cancel(params.order_id, params.reason);
+  return [
+    `## ❌ 挂单已撤销\n`,
+    `| 项目 | 内容 |`,
+    `|------|------|`,
+    `| 股票 | ${order.name} (${order.symbol}) |`,
+    `| 方向 | ${sideLabel(order.side)} |`,
+    `| 挂单价 | ${fmtPrice(order.price)} |`,
+    `| 数量 | ${order.quantity}股 |`,
+    `| 原状态 | ${statusEmoji(order.status)} ${order.status} |`,
+    `| 原因 | ${params.reason || "主动撤销"} |`,
+  ].join("\n");
+}
+
+/** 查看挂单列表 */
+async function handleList(params: {
+  status?: OrderStatus | OrderStatus[];
+  symbol?: string;
+  side?: OrderSide;
+}): Promise<string> {
+  const service = new OrderService(PI_DIR);
+
+  const filter: any = {};
+  if (params.status) filter.status = params.status;
+  if (params.symbol) filter.symbol = params.symbol;
+  if (params.side) filter.side = params.side;
+
+  const orders = service.list(Object.keys(filter).length > 0 ? filter : undefined);
+
+  if (orders.length === 0) {
+    const filterDesc = params.symbol ? ` ${params.symbol} 的` : "";
+    return `📋 当前无${filterDesc}挂单`;
+  }
+
+  const lines = [
+    `## 📋 挂单列表（共 ${orders.length} 条）\n`,
+    `| # | ${statusEmoji(orders[0].status)}状态 | 股票 | 方向 | 价格 | 数量 | 已成交 | 创建时间 | 备注 |`,
+    `|---|------|------|------|------|------|--------|----------|------|`,
+  ];
+
+  orders.forEach((o, i) => {
+    lines.push(
+      `| ${i + 1} | ${statusEmoji(o.status)} ${o.status} | ${o.name}(${o.symbol}) | ${sideLabel(o.side)} | ${fmtPrice(o.price)} | ${o.quantity} | ${o.filled_quantity} | ${o.created_at.slice(5, 16)} | ${o.notes || "-"} |`,
+    );
+  });
+
+  lines.push("");
+  lines.push(`💡 挂单路径: .pi-invest/orders.json`);
+
+  return lines.join("\n");
+}
+
+/** 手动标记成交（供用户反馈"成交了"时使用） */
+async function handleFill(params: {
+  order_id: string;
+  fill_price: number;
+  fill_quantity?: number;
+}): Promise<string> {
+  const orderService = new OrderService(PI_DIR);
+  const portfolioService = new PortfolioService(PI_DIR);
+
+  // 注入依赖（通过 portfolioService 封装适配器）
+  orderService.setServices(portfolioService, undefined as any);
+
+  // 调用服务层方法
+  const result = await orderService.fillOrder(
+    params.order_id,
+    params.fill_price,
+    params.fill_quantity,
+  );
+
+  // 格式化输出
+  if (!result.success) {
+    return `❌ ${result.error}`;
+  }
+
+  const order = result.order;
+  const remainPct = order.quantity - result.fillQuantity > 0
+    ? `（剩余 ${order.quantity - result.fillQuantity}股继续挂单）`
+    : "";
+
+  return [
+    `## ✅ 挂单成交确认\n`,
+    `| 项目 | 内容 |`,
+    `|------|------|`,
+    `| 股票 | ${order.name} (${order.symbol}) |`,
+    `| 方向 | ${sideLabel(order.side)} |`,
+    `| 成交价 | ${fmtPrice(result.fillPrice)} |`,
+    `| 成交数量 | ${result.fillQuantity}股 ${remainPct} |`,
+    `| 挂单编号 | \`${order.id}\` |`,
+    `| 更新持仓 | ${result.portfolioMessage} |`,
+    `| 交易记录 | ${result.tradeRecorded ? "✅ 已写入 trades.json" : "❌ 记录失败"} |`,
+  ].join("\n");
+}
+
+/** 检查挂单触发（自动成交核心逻辑） */
+async function handleCheck(params: {
+  symbol?: string;
+  dry_run?: boolean;
+}): Promise<string> {
+  const orderService = new OrderService(PI_DIR);
+  const portfolioService = new PortfolioService(PI_DIR);
+
+  // 注入依赖（通过 portfolioService 封装适配器）
+  orderService.setServices(portfolioService, undefined as any);
+
+  // 调用服务层方法
+  const result = await orderService.checkAndFillOrders(params.symbol, params.dry_run);
+
+  // 格式化输出
+  const lines: string[] = [];
+  lines.push(`## 📋 挂单检查报告 — ${chinaDateTime()}`);
+  lines.push(`挂单总数: ${result.totalChecked} · ✅ 成交: ${result.fills.length} · ⏳ 等待: ${result.notYets.length} · ❌ 错误: ${result.errors.length}`);
+  if (result.expiredCount > 0) lines.push(`已自动清理 ${result.expiredCount} 个过期挂单`);
+  if (params.dry_run) lines.push("**【试运行模式】仅检查，未实际成交**\n");
+  lines.push("");
+
+  if (result.fills.length > 0) {
+    lines.push("### ✅ 本次成交");
+    lines.push("| 股票 | 方向 | 类型 | 成交价 | 成交数量 | 触发条件 |");
+    lines.push("|------|------|------|--------|----------|----------|");
+    result.fills.forEach((f) => {
+      lines.push(`| ${f.order.name}(${f.order.symbol}) | ${sideLabel(f.order.side)} | ${typeLabel(f.order.type)} | ${fmtPrice(f.result.fillPrice)} | ${f.fillQuantity}股 | ${f.triggerCondition} |`);
+    });
+    lines.push("");
+  }
+
+  if (result.notYets.length > 0) {
+    lines.push("### ⏳ 等待触发");
+    lines.push("| 股票 | 方向 | 类型 | 挂单价 | 当前价 | 距离 | 状态 |");
+    lines.push("|------|------|------|--------|--------|------|------|");
+    result.notYets.forEach((n) => {
+      lines.push(`| ${n.order.name}(${n.order.symbol}) | ${sideLabel(n.order.side)} | ${typeLabel(n.order.type)} | ${fmtPrice(n.order.price)} | ${fmtPrice(n.currentPrice)} | ${fmtPct(n.diffPct)} | ${n.reason} |`);
+    });
+    lines.push("");
+  }
+
+  if (result.errors.length > 0) {
+    lines.push("### ❌ 检查错误");
+    result.errors.forEach((e) => {
+      lines.push(`- ${e.order.name}(${e.order.symbol}): ${e.error}`);
+    });
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+// ─── Tool Definition ───────────────────────────────────────────────────────
+
+export const tradeManageOrdersTool: ToolDefinition = {
+  name: "trade_manage_orders",
+  label: "管理交易订单",
+  description:
+    "交易订单管理工具。使用 action 参数区分操作：\n" +
+    "- place: 创建挂单（限价买入/卖出、止损单），写入 orders.json\n" +
+    "- cancel: 撤销挂单\n" +
+    "- list: 查看挂单列表（可按状态/股票筛选）\n" +
+    "- fill: 手动标记挂单成交，自动计算手续费（A股万2.5/港股万5），更新持仓成本和交易记录，卖出时计算盈亏\n" +
+    "- check: 检查挂单是否触发（自动成交核心逻辑），获取实时价格对比触发条件，触发后自动计算手续费并成交",
+  promptSnippet: '需要查询待执行订单时',
+  promptGuidelines: [
+    '返回所有未成交的订单',
+    '包含订单状态、价格、数量',
+    '用于监控订单执行情况'
+  ],
+  parameters: Type.Object({
+    action: Type.String({
+      description:
+        "操作类型:\n" +
+        '  "place"   — 创建挂单\n' +
+        '  "cancel"  — 撤销挂单\n' +
+        '  "list"    — 查看挂单\n' +
+        '  "fill"    — 手动标记成交\n' +
+        '  "check"   — 检查触发条件并自动成交',
+    }),
+    // place 参数
+    symbol: Type.Optional(Type.String({ description: "股票代码，如 '688981'（place/check/list时使用）" })),
+    name: Type.Optional(Type.String({ description: "股票名称（place时使用）" })),
+    side: Type.Optional(Type.String({ description: "方向: 'buy'=买入, 'sell'=卖出（place时使用）" })),
+    type: Type.Optional(Type.String({ description: "挂单类型: 'limit'=限价, 'stop_loss'=止损, 'batch_plan'=分批（place时使用，默认limit）" })),
+    price: Type.Optional(Type.Number({ description: "挂单价/止损价（place时使用）" })),
+    quantity: Type.Optional(Type.Integer({ description: "挂单数量（股），如 300（place时使用）" })),
+    market: Type.Optional(Type.String({ description: "市场: 'A'=A股（默认）, 'HK'=港股（place时使用）" })),
+    commission_rate: Type.Optional(Type.Number({ description: "自定义手续费率（可选），如 0.0003 表示万3，不传则使用默认值（A股万2.5，港股万5）（place时使用）" })),
+    notes: Type.Optional(Type.String({ description: "备注（place时使用）" })),
+    expires_in_minutes: Type.Optional(Type.Integer({ description: "有效期（分钟），不传=永久有效（place时使用）" })),
+    // cancel 参数
+    order_id: Type.Optional(Type.String({ description: "挂单编号 ID（cancel/fill时使用）" })),
+    reason: Type.Optional(Type.String({ description: "撤销原因（cancel时使用）" })),
+    // fill 参数
+    fill_price: Type.Optional(Type.Number({ description: "实际成交价（fill时使用）" })),
+    fill_quantity: Type.Optional(Type.Integer({ description: "成交数量，不传=全额成交（fill时使用）" })),
+    // check 参数
+    dry_run: Type.Optional(Type.Boolean({ description: "试运行模式：只检查不成交（check时使用）" })),
+  }),
+  execute: async (toolCallId: string, params: any) => {
+    try {
+      const action = params.action;
+
+      switch (action) {
+        case "place": {
+          if (!params.symbol) return { content: [{ type: "text" as const, text: "❌ symbol 不能为空" }], details: { action: "place", error: "missing symbol" } };
+          if (!params.name) return { content: [{ type: "text" as const, text: "❌ name 不能为空" }], details: { action: "place", error: "missing name" } };
+          if (!params.side) return { content: [{ type: "text" as const, text: "❌ side 必须为 'buy' 或 'sell'" }], details: { action: "place", error: "missing side" } };
+          if (params.side !== "buy" && params.side !== "sell") {
+            return { content: [{ type: "text" as const, text: `❌ side 无效: ${params.side}，必须为 'buy' 或 'sell'` }], details: { action: "place", error: `invalid side: ${params.side}` } };
+          }
+          if (params.price == null || params.price <= 0) return { content: [{ type: "text" as const, text: `❌ price 必须大于0，当前值: ${params.price}` }], details: { action: "place", error: "invalid price" } };
+          if (params.quantity == null || params.quantity <= 0) return { content: [{ type: "text" as const, text: `❌ quantity 必须大于0，当前值: ${params.quantity}` }], details: { action: "place", error: "invalid quantity" } };
+          if (params.expires_in_minutes != null && params.expires_in_minutes <= 0) {
+            return { content: [{ type: "text" as const, text: `❌ expires_in_minutes 必须大于0，当前值: ${params.expires_in_minutes}` }], details: { action: "place", error: "invalid expires_in_minutes" } };
+          }
+
+          const text = await handlePlace({
+            symbol: params.symbol,
+            name: params.name,
+            side: params.side,
+            type: params.type || "limit",
+            price: params.price,
+            quantity: params.quantity,
+            market: params.market || "A",
+            commission_rate: params.commission_rate,
+            notes: params.notes,
+            expires_in_minutes: params.expires_in_minutes,
+          });
+
+          return {
+            content: [{ type: "text" as const, text }],
+            details: { action: "place", symbol: params.symbol, side: params.side, price: params.price, quantity: params.quantity },
+          };
+        }
+
+        case "cancel": {
+          if (!params.order_id) return { content: [{ type: "text" as const, text: "❌ order_id 不能为空" }], details: { action: "cancel", error: "missing order_id" } };
+          const text = await handleCancel({ order_id: params.order_id, reason: params.reason });
+          return { content: [{ type: "text" as const, text }], details: { action: "cancel", order_id: params.order_id } };
+        }
+
+        case "list": {
+          const text = await handleList({
+            status: params.status,
+            symbol: params.symbol,
+            side: params.side,
+          });
+          return { content: [{ type: "text" as const, text }], details: { action: "list" } };
+        }
+
+        case "fill": {
+          if (!params.order_id) return { content: [{ type: "text" as const, text: "❌ order_id 不能为空" }], details: { action: "fill", error: "missing order_id" } };
+          if (params.fill_price == null || params.fill_price <= 0) return { content: [{ type: "text" as const, text: `❌ fill_price 必须大于0，当前值: ${params.fill_price}` }], details: { action: "fill", error: "invalid fill_price" } };
+          if (params.fill_quantity != null && params.fill_quantity <= 0) {
+            return { content: [{ type: "text" as const, text: `❌ fill_quantity 必须大于0，当前值: ${params.fill_quantity}` }], details: { action: "fill", error: "invalid fill_quantity" } };
+          }
+          const text = await handleFill({
+            order_id: params.order_id,
+            fill_price: params.fill_price,
+            fill_quantity: params.fill_quantity,
+          });
+          return { content: [{ type: "text" as const, text }], details: { action: "fill", order_id: params.order_id } };
+        }
+
+        case "check": {
+          const text = await handleCheck({
+            symbol: params.symbol,
+            dry_run: params.dry_run,
+          });
+          return { content: [{ type: "text" as const, text }], details: { action: "check", symbol: params.symbol, dry_run: !!params.dry_run } };
+        }
+
+        default:
+          return {
+            content: [{ type: "text" as const, text: `❌ 未知操作: ${action}。支持: place, cancel, list, fill, check` }],
+            details: { action, error: `unknown action: ${action}` },
+          };
+      }
+    } catch (e) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `挂单操作失败: ${e instanceof Error ? e.message : String(e)}`,
+          },
+        ],
+        details: { error: e instanceof Error ? e.message : String(e) },
+      };
+    }
+  },
+};

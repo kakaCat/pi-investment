@@ -17,7 +17,6 @@ import type {
   AlgoExecuteParams,
   AlgoOrder,
   StrategyExecuteParams,
-  StrategySignal,
   StrategyBatchValidateParams,
   StrategyBatchValidateResponse,
   DividendResponse,

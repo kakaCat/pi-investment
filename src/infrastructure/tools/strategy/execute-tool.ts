@@ -4,7 +4,6 @@
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { executeStrategy } from "../../quant/quant-v2-client.js";
-import { formatStrategySignal } from "../../quant/formatters.js";
 
 // 策略列表缓存
 let strategiesCache: Array<{
@@ -163,47 +162,64 @@ export const strategyExecuteTool: ToolDefinition = {
         date: params.date
       });
 
-      // 检查 API 返回状态
-      if (!signal.success) {
-        // 如果是策略不存在错误，返回可用策略列表
-        if (signal.error && (signal.error.includes('not found') || signal.error.includes('不存在'))) {
-          const strategies = await getAvailableStrategies();
-          if (strategies && strategies.length > 0) {
-            return {
-              content: [{
-                type: "text" as const,
-                text: formatStrategiesError(strategies)
-              }],
-              details: undefined
-            };
-          }
-        }
+      // 格式化输出 (StrategyExecutionSignal)
+      const lines: string[] = [];
+      lines.push(`【策略信号】${symbol}`);
+      lines.push(`策略: ${params.strategy}`);
+      lines.push('');
 
-        return {
-          content: [{
-            type: "text" as const,
-            text: `策略执行失败: ${signal.error || '未知错误'}`
-          }],
-          details: undefined
-        };
+      const actionMap = { 'BUY': '买入', 'SELL': '卖出', 'HOLD': '持有' };
+      lines.push(`信号: ${actionMap[signal.signal_type] || signal.signal_type}`);
+      lines.push(`置信度: ${(signal.confidence * 100).toFixed(1)}%`);
+      lines.push(`入场价格: ${signal.entry_price.toFixed(2)} 元`);
+
+      if (signal.stop_loss) {
+        lines.push(`止损价格: ${signal.stop_loss.toFixed(2)} 元`);
+      }
+      if (signal.target_price) {
+        lines.push(`目标价格: ${signal.target_price.toFixed(2)} 元`);
+      }
+      if (signal.position_size) {
+        lines.push(`建议仓位: ${(signal.position_size * 100).toFixed(1)}%`);
       }
 
-      // 格式化输出
-      const formattedText = formatStrategySignal(signal);
+      if (signal.indicators && Object.keys(signal.indicators).length > 0) {
+        lines.push('');
+        lines.push('【技术指标】');
+        for (const [key, value] of Object.entries(signal.indicators)) {
+          lines.push(`${key}: ${typeof value === 'number' ? value.toFixed(2) : value}`);
+        }
+      }
 
       return {
         content: [{
           type: "text" as const,
-          text: formattedText
+          text: lines.join('\n')
         }],
         details: signal  // 保留原始信号数据
       };
 
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // 如果是策略不存在错误，返回可用策略列表
+      if (errorMessage.includes('not found') || errorMessage.includes('不存在')) {
+        const strategies = await getAvailableStrategies();
+        if (strategies && strategies.length > 0) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: formatStrategiesError(strategies)
+            }],
+            details: undefined
+          };
+        }
+      }
+
       return {
         content: [{
           type: "text" as const,
-          text: `策略执行失败: ${error instanceof Error ? error.message : String(error)}`
+          text: `策略执行失败: ${errorMessage}`
         }],
         details: undefined
       };

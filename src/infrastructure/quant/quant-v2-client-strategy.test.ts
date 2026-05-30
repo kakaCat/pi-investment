@@ -10,7 +10,6 @@ import type {
   StrategyBatchExecuteParams,
   StrategyPipelineExecuteParams,
   StrategyExecutionSignal,
-  BatchExecutionResult,
   PipelineExecutionResult,
 } from './types.js';
 
