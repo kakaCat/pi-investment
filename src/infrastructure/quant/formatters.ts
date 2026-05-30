@@ -695,3 +695,159 @@ export function formatDividendData(data: import('./types.js').DividendResponse, 
 
   return '未知查询模式';
 }
+
+/**
+ * Format single strategy execution signal into readable text
+ */
+export function formatSingleSignal(signal: import('./types.js').StrategyExecutionSignal): string {
+  const lines: string[] = [];
+
+  // Signal type emoji
+  const signalEmoji = {
+    'BUY': '🟢',
+    'SELL': '🔴',
+    'HOLD': '🟡',
+  };
+
+  const signalText = {
+    'BUY': '买入',
+    'SELL': '卖出',
+    'HOLD': '持有',
+  };
+
+  // Header
+  lines.push(`${signalEmoji[signal.signal_type]} 【策略信号】${signal.symbol}`);
+  if (signal.signal_id) {
+    lines.push(`信号ID: ${signal.signal_id}`);
+  }
+  lines.push('');
+
+  // Signal details
+  lines.push(`信号类型: ${signalText[signal.signal_type]}`);
+  lines.push(`置信度: ${formatPercent(signal.confidence * 100)}`);
+  lines.push(`入场价格: ${formatNumber(signal.entry_price, 2)} 元`);
+  lines.push('');
+
+  // Risk management
+  if (signal.stop_loss || signal.target_price || signal.position_size) {
+    lines.push('【风险管理】');
+    if (signal.stop_loss) {
+      lines.push(`止损价格: ${formatNumber(signal.stop_loss, 2)} 元`);
+    }
+    if (signal.target_price) {
+      lines.push(`目标价格: ${formatNumber(signal.target_price, 2)} 元`);
+    }
+    if (signal.position_size) {
+      lines.push(`建议仓位: ${formatNumber(signal.position_size, 0)} 股`);
+    }
+    lines.push('');
+  }
+
+  // Technical indicators
+  if (signal.indicators && Object.keys(signal.indicators).length > 0) {
+    lines.push('【技术指标】');
+    for (const [key, value] of Object.entries(signal.indicators)) {
+      const displayName = key.toUpperCase();
+      lines.push(`${displayName}: ${formatNumber(value, 2)}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Format batch execution result into readable text with signal distribution table
+ */
+export function formatBatchSignals(result: import('./types.js').BatchExecutionResult): string {
+  const lines: string[] = [];
+
+  lines.push('【批量执行完成】');
+  lines.push('');
+
+  // Summary statistics
+  lines.push('执行统计:');
+  lines.push(`  总数: ${result.summary.total}`);
+  lines.push(`  成功: ${result.summary.success}`);
+  lines.push(`  失败: ${result.summary.failed}`);
+  lines.push(`  耗时: ${formatNumber(result.summary.duration_ms / 1000, 2)} 秒`);
+  lines.push('');
+
+  // Signal distribution table
+  lines.push('信号分布:');
+  lines.push(`  买入: ${result.summary.buy}`);
+  lines.push(`  卖出: ${result.summary.sell}`);
+  lines.push(`  持有: ${result.summary.hold}`);
+  lines.push('');
+
+  // Errors
+  if (result.errors.length > 0) {
+    lines.push('执行错误:');
+    result.errors.forEach(err => {
+      lines.push(`  ${err.symbol}: ${err.error}`);
+    });
+    lines.push('');
+  }
+
+  // Signal list
+  if (result.signals.length > 0) {
+    lines.push(`信号列表 (共 ${result.signals.length} 个):`);
+    result.signals.forEach((signal, index) => {
+      const signalText = {
+        'BUY': '买入',
+        'SELL': '卖出',
+        'HOLD': '持有',
+      };
+      lines.push(`  ${index + 1}. ${signal.symbol} - ${signalText[signal.signal_type]} (置信度: ${formatPercent(signal.confidence * 100)})`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Format pipeline execution result into readable text with rejection reasons
+ */
+export function formatPipelineResult(result: import('./types.js').PipelineExecutionResult): string {
+  const lines: string[] = [];
+
+  lines.push('【策略流水线执行完成】');
+  lines.push('');
+
+  // Execution summary
+  lines.push(`执行日期: ${result.execution_date}`);
+  lines.push(`执行耗时: ${formatNumber(result.duration_ms / 1000, 2)} 秒`);
+  lines.push('');
+
+  // Signal statistics
+  lines.push('信号统计:');
+  lines.push(`  生成信号: ${result.signals_generated}`);
+  lines.push(`  通过: ${result.signals_approved}`);
+  lines.push(`  拒绝: ${result.signals_rejected}`);
+  lines.push(`  创建订单: ${result.orders_created}`);
+  lines.push('');
+
+  // Rejection reasons distribution
+  if (Object.keys(result.rejection_reasons).length > 0) {
+    lines.push('拒绝原因分布:');
+    const sortedReasons = Object.entries(result.rejection_reasons)
+      .sort((a, b) => b[1] - a[1]);
+    sortedReasons.forEach(([reason, count]) => {
+      lines.push(`  ${reason}: ${count}`);
+    });
+    lines.push('');
+  }
+
+  // Orders created
+  if (result.orders.length > 0) {
+    lines.push(`订单列表 (共 ${result.orders.length} 个):`);
+    result.orders.forEach((order, index) => {
+      const sideText = order.side === 'BUY' ? '买入' : '卖出';
+      lines.push(`  ${index + 1}. ${order.symbol} - ${sideText} @ ${formatNumber(order.price, 2)} 元`);
+      if (order.quantity) {
+        lines.push(`     数量: ${formatNumber(order.quantity, 0)} 股`);
+      }
+    });
+  }
+
+  return lines.join('\n');
+}
