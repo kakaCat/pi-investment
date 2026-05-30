@@ -124,56 +124,12 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbol: "sh000001", start_date: "2026-01-01", end_date: "2026-05-20" },
   },
-  "stock.klines": {
-    domain: "stock",
-    action: "klines",
-    description: "查询本地量化库中的股票 K 线数据（日线）或通过 akshare 实时获取分钟线（1min/5min/15min/30min/60min）。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      period: { type: "string", enum: ["daily", "1min", "5min", "15min", "30min", "60min"] },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-      limit: { type: "integer", min: 1 },
-    },
-    example: { symbol: "600519", period: "5min", limit: 50 },
-  },
-  "stock.quote": {
-    domain: "stock",
-    action: "quote",
-    description: "通过量化后端查询 A 股或港股实时行情。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
-  },
   "stock.batch_quotes": {
     domain: "stock",
     action: "batch-quotes",
     description: "通过量化后端批量查询 A 股或港股实时价格。",
     params: { symbols: { required: true, type: "array" } },
-    example: { symbols: ["600519", "000001"] },
-  },
-  "stock.info": {
-    domain: "stock",
-    action: "info",
-    description: "通过量化后端查询 A 股或港股基础信息。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
-  },
-  "stock.news": {
-    domain: "stock",
-    action: "news",
-    description: "通过量化后端查询个股新闻。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      num: { type: "integer", min: 1 },
-    },
-    example: { symbol: "600519", num: 10 },
-  },
-  "stock.announcements": {
-    domain: "stock",
-    action: "announcements",
-    description: "通过量化后端查询个股公告。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbols: ["600000", "000001"] },
   },
   "stock.technical": {
     domain: "stock",
@@ -183,7 +139,7 @@ const COMMANDS: Record<string, CommandRule> = {
       symbol: { required: true, type: "string", symbol: true },
       indicators: { type: "array" },
     },
-    example: { symbol: "600519", indicators: ["RSI", "MACD"] },
+    example: { symbol: "600000", indicators: ["RSI", "MACD"] },
   },
   "stock.list": {
     domain: "stock",
@@ -201,14 +157,14 @@ const COMMANDS: Record<string, CommandRule> = {
     action: "ml-predict",
     description: "对单只股票运行本地 ML 预测。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "stock.score": {
     domain: "stock",
     action: "score",
     description: "计算单只股票的技术面、基本面、动量、质量、估值综合评分。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "stock.screen": {
     domain: "stock",
@@ -234,28 +190,28 @@ const COMMANDS: Record<string, CommandRule> = {
     action: "technical",
     description: "计算 MA、MACD、RSI、布林带和技术信号。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "analysis.candlestick": {
     domain: "analysis",
     action: "candlestick",
     description: "识别K线形态、趋势线、斐波那契回调位和跳空缺口。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "analysis.quality": {
     domain: "analysis",
     action: "quality",
     description: "基于 ROE、负债率、毛利率、净利率和趋势给公司质量打分。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "analysis.peers": {
     domain: "analysis",
     action: "peers",
     description: "返回目标股关键指标和行业名称，用于后续同行对比工作流。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "screening.sector": {
     domain: "screening",
@@ -317,7 +273,7 @@ const COMMANDS: Record<string, CommandRule> = {
       symbol: { required: true, type: "string", symbol: true },
       days: { type: "integer", min: 1 },
     },
-    example: { symbol: "600519", days: 5 },
+    example: { symbol: "600000", days: 5 },
   },
   "sentiment.lhb": {
     domain: "sentiment",
@@ -334,14 +290,14 @@ const COMMANDS: Record<string, CommandRule> = {
     action: "insider-trades",
     description: "查询高管增减持记录。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "sentiment.fund_holdings": {
     domain: "sentiment",
     action: "fund-holdings",
     description: "查询持有指定股票的基金列表。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "sentiment.top_fund_stocks": {
     domain: "sentiment",
@@ -355,46 +311,35 @@ const COMMANDS: Record<string, CommandRule> = {
     action: "top-holders",
     description: "查询前十大股东。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "sentiment.holder_changes": {
     domain: "sentiment",
     action: "holder-changes",
     description: "查询股东人数变化。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "sentiment.margin_data": {
     domain: "sentiment",
     action: "margin-data",
     description: "查询个股融资融券数据。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "financial.indicators": {
     domain: "financial",
     action: "indicators",
     description: "查询最近财务指标：ROE、毛利率、净利率、负债率等。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
-  },
-  "financial.statements": {
-    domain: "financial",
-    action: "statements",
-    description: "查询利润表、资产负债表、现金流量表或三表合集。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      statement: { type: "string", enum: ["income", "balance", "cashflow", "all"] },
-      recent_n: { type: "integer", min: 1 },
-    },
-    example: { symbol: "600519", statement: "income", recent_n: 4 },
+    example: { symbol: "600000" },
   },
   "financial.valuation": {
     domain: "financial",
     action: "valuation",
     description: "获取股票估值数据：PE、PB、估值状态（cheap/fair/expensive）、合理价值估算。",
     params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "financial.pe_percentile": {
     domain: "financial",
@@ -404,7 +349,7 @@ const COMMANDS: Record<string, CommandRule> = {
       symbol: { required: true, type: "string", symbol: true },
       years: { type: "number", positive: true },
     },
-    example: { symbol: "600519", years: 3 },
+    example: { symbol: "600000", years: 3 },
   },
   "financial.income_statement": {
     domain: "financial",
@@ -414,7 +359,7 @@ const COMMANDS: Record<string, CommandRule> = {
       symbol: { required: true, type: "string", symbol: true },
       recent_n: { type: "number", positive: true },
     },
-    example: { symbol: "600519", recent_n: 8 },
+    example: { symbol: "600000", recent_n: 8 },
   },
   "financial.cash_flow": {
     domain: "financial",
@@ -424,7 +369,7 @@ const COMMANDS: Record<string, CommandRule> = {
       symbol: { required: true, type: "string", symbol: true },
       recent_n: { type: "number", positive: true },
     },
-    example: { symbol: "600519", recent_n: 8 },
+    example: { symbol: "600000", recent_n: 8 },
   },
   "analysis.price_action": {
     domain: "analysis",
@@ -434,7 +379,7 @@ const COMMANDS: Record<string, CommandRule> = {
       symbol: { required: true, type: "string", symbol: true },
       period: { type: "number", positive: true },
     },
-    example: { symbol: "600519", period: 60 },
+    example: { symbol: "600000", period: 60 },
   },
   "analysis.buy_range": {
     domain: "analysis",
@@ -444,7 +389,7 @@ const COMMANDS: Record<string, CommandRule> = {
       symbol: { required: true, type: "string", symbol: true },
       current_price: { type: "number", positive: true },
     },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "analysis.exit_plan": {
     domain: "analysis",
@@ -455,7 +400,7 @@ const COMMANDS: Record<string, CommandRule> = {
       entry_price: { required: true, type: "number", positive: true },
       position_size: { type: "number", positive: true },
     },
-    example: { symbol: "600519", entry_price: 1200, position_size: 100 },
+    example: { symbol: "600000", entry_price: 1200, position_size: 100 },
   },
   "financial.hk_financials": {
     domain: "financial",
@@ -485,17 +430,17 @@ const COMMANDS: Record<string, CommandRule> = {
   "signal.generate": {
     domain: "signal",
     action: "generate",
-    description: "使用指定策略对股票列表生成最新交易信号（real strategy execution）。传入 strategy_id 和 symbols，返回每只股票的 buy/sell/hold 信号和置信度。",
+    description: "使用指定策略对股票列表生成最新交易信号（real strategy execution）。传入 strategy_id 和 symbols，返回每只股票的 buy/sell/hold 信号和置信度。生成的信号会写入数据库（status='pending'），可通过 signal.arbitrate 进行仲裁筛选。",
     params: {
       strategy_id: { required: true, type: "string" },
       symbols: { type: "array" },
     },
-    example: { strategy_id: 53, symbols: ["600519", "000425"] },
+    example: { strategy_id: 53, symbols: ["600000", "000425"] },
   },
   "signal.arbitrate": {
     domain: "signal",
     action: "arbitrate",
-    description: "按股票聚合同日 BUY/SELL 信号，处理冲突并给出最终裁决。",
+    description: "对已生成的交易信号进行仲裁：按股票聚合同日 BUY/SELL 信号，处理冲突并给出最终裁决。⚠️ 前置条件：需要先调用 signal.generate 生成信号，或确保数据库中有 pending 状态的信号记录。如果没有待仲裁的信号，将返回空结果。",
     params: {
       date: { type: "string" },
       signals_dir: { type: "string" },
@@ -563,7 +508,7 @@ const COMMANDS: Record<string, CommandRule> = {
       ma_short: { type: "integer", min: 1 },
       ma_long: { type: "integer", min: 1 },
     },
-    example: { symbol: "600519", strategy_name: "ma_cross", start_date: "2025-11-27", end_date: "2026-05-27", initial_capital: 100000, ma_short: 5, ma_long: 20 },
+    example: { symbol: "600000", strategy_name: "ma_cross", start_date: "2025-11-27", end_date: "2026-05-27", initial_capital: 100000, ma_short: 5, ma_long: 20 },
   },
   "backtest.strategy": {
     domain: "backtest",
@@ -576,7 +521,7 @@ const COMMANDS: Record<string, CommandRule> = {
       end_date: { required: true, type: "string" },
       initial_cash: { type: "number", min: 10000 },
     },
-    example: { strategy_id: "53", symbol: "600519.SH", start_date: "2025-11-27", end_date: "2026-05-27" },
+    example: { strategy_id: "53", symbol: "600000.SH", start_date: "2025-11-27", end_date: "2026-05-27" },
   },
   "backtest.batch": {
     domain: "backtest",
@@ -586,7 +531,7 @@ const COMMANDS: Record<string, CommandRule> = {
       jobs: { required: true, type: "array" },
       initial_capital: { type: "number", min: 10000 },
     },
-    example: { jobs: [{ strategy_id: 53, symbol: "600519", start_date: "2025-01-01", end_date: "2026-01-01" }], initial_capital: 100000 },
+    example: { jobs: [{ strategy_id: 53, symbol: "600000", start_date: "2025-01-01", end_date: "2026-01-01" }], initial_capital: 100000 },
   },
   "backtest.results": {
     domain: "backtest",
@@ -596,7 +541,7 @@ const COMMANDS: Record<string, CommandRule> = {
       symbol: { type: "string", symbol: true },
       date: { type: "string" },
     },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "orders.list": {
     domain: "orders",
@@ -672,7 +617,7 @@ const COMMANDS: Record<string, CommandRule> = {
       symbols: { type: "string" },
       days: { type: "integer", min: 1 },
     },
-    example: { symbols: "600519,000001", days: 365 },
+    example: { symbols: "600000,000001", days: 365 },
   },
   "data.update": {
     domain: "data",
@@ -705,7 +650,7 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {
       symbol: { required: true, type: "string", symbol: true },
     },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "indicators.list": {
     domain: "indicators",
@@ -776,7 +721,7 @@ const COMMANDS: Record<string, CommandRule> = {
       symbol: { required: true, type: "string", symbol: true },
       limit: { type: "integer", min: 1 },
     },
-    example: { indicator_id: 49, symbol: "600519", limit: 100 },
+    example: { indicator_id: 49, symbol: "600000", limit: 100 },
   },
   "indicators.backtest": {
     domain: "indicators",
@@ -789,7 +734,7 @@ const COMMANDS: Record<string, CommandRule> = {
       end_date: { required: true, type: "string" },
       initial_cash: { type: "number", min: 10000 },
     },
-    example: { indicator_id: 49, symbol: "600519", start_date: "2025-01-01", end_date: "2026-05-27" },
+    example: { indicator_id: 49, symbol: "600000", start_date: "2025-01-01", end_date: "2026-05-27" },
   },
   "indicators.compare": {
     domain: "indicators",
@@ -803,7 +748,7 @@ const COMMANDS: Record<string, CommandRule> = {
       end_date: { required: true, type: "string" },
       initial_cash: { type: "number", min: 10000 },
     },
-    example: { indicator_id_a: 49, indicator_id_b: 53, symbol: "600519", start_date: "2025-01-01", end_date: "2026-05-27" },
+    example: { indicator_id_a: 49, indicator_id_b: 53, symbol: "600000", start_date: "2025-01-01", end_date: "2026-05-27" },
   },
   "indicators.sandbox_columns": {
     domain: "indicators",
@@ -812,7 +757,7 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {
       symbol: { required: true, type: "string", symbol: true },
     },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "compute.factors": {
     domain: "compute",
@@ -822,7 +767,7 @@ const COMMANDS: Record<string, CommandRule> = {
       symbols: { type: "string" },
       force: { type: "boolean" },
     },
-    example: { symbols: "600519" },
+    example: { symbols: "600000" },
   },
   "factor.compute": {
     domain: "factor",
@@ -866,52 +811,32 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { strategy_return: 0.12, benchmark_return: 0.08 },
   },
-  "portfolio.summary": {
-    domain: "portfolio",
-    action: "summary",
-    description: "查询组合概要：总资产、收益、持仓数等。v2 端点。",
-    params: {},
-    example: {},
-  },
-  "portfolio.positions": {
-    domain: "portfolio",
-    action: "positions",
-    description: "查询组合当前持仓列表。v2 端点。",
-    params: {},
-    example: {},
-  },
-  "portfolio.history": {
-    domain: "portfolio",
-    action: "history",
-    description: "查询组合历史净值曲线。v2 端点。",
-    params: {},
-    example: {},
-  },
-  "portfolio.allocation": {
-    domain: "portfolio",
-    action: "allocation",
-    description: "查询组合行业/资产配置占比。v2 端点。",
-    params: {},
-    example: {},
-  },
-  "portfolio.equity_curve": {
-    domain: "portfolio",
-    action: "equity-curve",
-    description: "查询组合权益曲线数据。v2 端点。",
-    params: {},
-    example: {},
-  },
   "portfolio.optimize": {
     domain: "portfolio",
     action: "optimize",
-    description: "用等权、风险平价或简化最大夏普方法优化组合权重。",
+    description: "基于历史数据优化投资组合权重，支持均值方差、最小方差、风险平价、最大夏普等方法。",
     params: {
-      symbols: { required: true, type: "string" },
-      method: { type: "string", enum: ["equal_weight", "risk_parity", "max_sharpe"] },
-      expected_returns: { type: "string" },
-      volatilities: { type: "string" },
+      symbols: { required: true, type: "array" },
+      start_date: { type: "string" },
+      end_date: { type: "string" },
+      method: { type: "string", enum: ["mean_variance", "min_variance", "risk_parity", "max_sharpe", "equal_weight"] },
+      risk_free_rate: { type: "number" },
+      target_return: { type: "number" },
+      constraints: { type: "object" },
     },
-    example: { symbols: "600519,000001", method: "risk_parity" },
+    example: { symbols: ["600000.SH", "000001.SZ", "600519.SH"], method: "max_sharpe", risk_free_rate: 0.03 },
+  },
+  "portfolio.correlation": {
+    domain: "portfolio",
+    action: "correlation",
+    description: "计算投资组合内股票的相关性矩阵，用于分散化分析。",
+    params: {
+      symbols: { required: true, type: "array" },
+      start_date: { type: "string" },
+      end_date: { type: "string" },
+      method: { type: "string", enum: ["pearson", "spearman"] },
+    },
+    example: { symbols: ["600000.SH", "000001.SZ", "600519.SH"], method: "pearson" },
   },
   "strategy.list": {
     domain: "strategy",
@@ -953,7 +878,7 @@ const COMMANDS: Record<string, CommandRule> = {
       initial_capital: { type: "number", min: 10000 },
       max_combinations: { type: "integer", min: 1, max: 200 },
     },
-    example: { strategy_id: 53, symbol: "600519", param_grid: { rsi_low: [25, 30, 35], rsi_high: [65, 70, 75] }, metric: "sharpe" },
+    example: { strategy_id: 53, symbol: "600000", param_grid: { rsi_low: [25, 30, 35], rsi_high: [65, 70, 75] }, metric: "sharpe" },
   },
   "strategy.run": {
     domain: "strategy",
@@ -963,7 +888,7 @@ const COMMANDS: Record<string, CommandRule> = {
       strategy_id: { required: true, type: "string" },
       symbols: { type: "array" },
     },
-    example: { strategy_id: "rsi_strategy", symbols: ["600519.SH"] },
+    example: { strategy_id: "rsi_strategy", symbols: ["600000.SH"] },
   },
   "strategy.status": {
     domain: "strategy",
@@ -984,7 +909,7 @@ const COMMANDS: Record<string, CommandRule> = {
       change_pct: { type: "number" },
       last_price: { type: "number" },
     },
-    example: { symbol: "600519", price: 105, above: 100 },
+    example: { symbol: "600000", price: 105, above: 100 },
   },
   "watchlist.list": {
     domain: "watchlist",
@@ -1004,7 +929,7 @@ const COMMANDS: Record<string, CommandRule> = {
       group_id: { type: "string" },
       note: { type: "string" },
     },
-    example: { symbol: "600519", group_id: "e379e813", note: "白酒龙头" },
+    example: { symbol: "600000", group_id: "e379e813", note: "白酒龙头" },
   },
   "watchlist.remove": {
     domain: "watchlist",
@@ -1013,7 +938,7 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {
       symbol: { required: true, type: "string", symbol: true },
     },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "watchlist.check": {
     domain: "watchlist",
@@ -1022,7 +947,7 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {
       symbol: { required: true, type: "string", symbol: true },
     },
-    example: { symbol: "600519" },
+    example: { symbol: "600000" },
   },
   "watchlist.groups": {
     domain: "watchlist",
@@ -1040,7 +965,7 @@ const COMMANDS: Record<string, CommandRule> = {
       shock_pct: { required: true, type: "number" },
       cash: { type: "number" },
     },
-    example: { positions_json: "[{\"symbol\":\"600519\",\"market_value\":10000}]", shock_pct: -0.2 },
+    example: { positions_json: "[{\"symbol\":\"600000\",\"market_value\":10000}]", shock_pct: -0.2 },
   },
   "risk.trade_check": {
     domain: "risk",
@@ -1052,7 +977,7 @@ const COMMANDS: Record<string, CommandRule> = {
       price: { required: true, type: "number", min: 0 },
       shares: { required: true, type: "integer", min: 1 },
     },
-    example: { symbol: "600519", action: "buy", price: 100, shares: 300 },
+    example: { symbol: "600000", action: "buy", price: 100, shares: 300 },
   },
   "risk.position_size": {
     domain: "risk",
@@ -1063,7 +988,7 @@ const COMMANDS: Record<string, CommandRule> = {
       price: { required: true, type: "number", min: 0 },
       signal_strength: { type: "number", min: 0 },
     },
-    example: { symbol: "600519", price: 100, signal_strength: 0.8 },
+    example: { symbol: "600000", price: 100, signal_strength: 0.8 },
   },
   "risk.stop_loss": {
     domain: "risk",
@@ -1075,7 +1000,7 @@ const COMMANDS: Record<string, CommandRule> = {
       current_price: { type: "number", min: 0 },
       highest_price: { type: "number", min: 0 },
     },
-    example: { symbol: "600519", entry_price: 90, current_price: 100, highest_price: 110 },
+    example: { symbol: "600000", entry_price: 90, current_price: 100, highest_price: 110 },
   },
   "trade.verify": {
     domain: "trade",
@@ -1086,16 +1011,6 @@ const COMMANDS: Record<string, CommandRule> = {
       backtest_json: { required: true, type: "string" },
     },
     example: { trades_json: "[]", backtest_json: "[]" },
-  },
-  "portfolio.correlation": {
-    domain: "portfolio",
-    action: "correlation",
-    description: "基于价格序列计算组合相关性矩阵，并标出高相关股票对。",
-    params: {
-      prices_json: { required: true, type: "string" },
-      threshold: { type: "number", min: 0 },
-    },
-    example: { prices_json: "{\"600519\":[1,2,3],\"000001\":[1,2,4]}", threshold: 0.7 },
   },
   "factor.decay": {
     domain: "factor",
@@ -1115,7 +1030,7 @@ const COMMANDS: Record<string, CommandRule> = {
       symbols: { type: "string" },
       account_value: { type: "number", min: 1 },
     },
-    example: { symbols: "600519,000001" },
+    example: { symbols: "600000,000001" },
   },
   "report.daily": {
     domain: "report",
@@ -1169,7 +1084,7 @@ const COMMANDS: Record<string, CommandRule> = {
       start_date: { type: "string" },
       end_date: { type: "string" },
     },
-    example: { symbols: "600519", action_type: "forecast", order: "1,1,1", forecast_steps: 10 },
+    example: { symbols: "600000", action_type: "forecast", order: "1,1,1", forecast_steps: 10 },
   },
   "timeseries.garch": {
     domain: "timeseries",
@@ -1185,7 +1100,7 @@ const COMMANDS: Record<string, CommandRule> = {
       start_date: { type: "string" },
       end_date: { type: "string" },
     },
-    example: { symbols: "600519", action_type: "forecast", p: 1, q: 1, forecast_steps: 5 },
+    example: { symbols: "600000", action_type: "forecast", p: 1, q: 1, forecast_steps: 5 },
   },
   "timeseries.kalman": {
     domain: "timeseries",
@@ -1197,7 +1112,7 @@ const COMMANDS: Record<string, CommandRule> = {
       start_date: { type: "string" },
       end_date: { type: "string" },
     },
-    example: { symbols: "600519", action_type: "local_level" },
+    example: { symbols: "600000", action_type: "local_level" },
   },
   "factor.fama_french_3": {
     domain: "factor",
@@ -1212,7 +1127,7 @@ const COMMANDS: Record<string, CommandRule> = {
       hml: { type: "array" },
       risk_free_rate: { type: "number" },
     },
-    example: { symbol: "600519", start_date: "2024-01-01", end_date: "2024-12-31" },
+    example: { symbol: "600000", start_date: "2024-01-01", end_date: "2024-12-31" },
   },
   "factor.fama_french_5": {
     domain: "factor",
@@ -1229,7 +1144,7 @@ const COMMANDS: Record<string, CommandRule> = {
       cma: { type: "array" },
       risk_free_rate: { type: "number" },
     },
-    example: { symbol: "600519", start_date: "2024-01-01", end_date: "2024-12-31" },
+    example: { symbol: "600000", start_date: "2024-01-01", end_date: "2024-12-31" },
   },
   "factor.carhart": {
     domain: "factor",
@@ -1245,7 +1160,7 @@ const COMMANDS: Record<string, CommandRule> = {
       mom: { type: "array" },
       risk_free_rate: { type: "number" },
     },
-    example: { symbol: "600519", start_date: "2024-01-01", end_date: "2024-12-31" },
+    example: { symbol: "600000", start_date: "2024-01-01", end_date: "2024-12-31" },
   },
   "factor.barra": {
     domain: "factor",
@@ -1259,80 +1174,10 @@ const COMMANDS: Record<string, CommandRule> = {
       factor_returns: {},
       risk_free_rate: { type: "number" },
     },
-    example: { symbol: "600519", start_date: "2024-01-01", end_date: "2024-12-31" },
+    example: { symbol: "600000", start_date: "2024-01-01", end_date: "2024-12-31" },
   },
 
   // ── Portfolio Optimization ──
-  "portfolio.markowitz": {
-    domain: "portfolio",
-    action: "markowitz",
-    description: "Markowitz均值方差优化：最小方差、最大夏普比率、目标收益率优化。",
-    params: {
-      expected_returns: { required: true, type: "array" },
-      covariance_matrix: { required: true, type: "array" },
-      method: { type: "string", enum: ["min_variance", "max_sharpe", "target_return"] },
-      target_return: { type: "number" },
-      bounds: { type: "array" },
-      constraints: { type: "array" },
-      risk_free_rate: { type: "number" },
-    },
-    example: {
-      expected_returns: [0.12, 0.10, 0.08],
-      covariance_matrix: [[0.04, 0.01, 0.02], [0.01, 0.03, 0.015], [0.02, 0.015, 0.05]],
-      method: "max_sharpe",
-      risk_free_rate: 0.03,
-    },
-  },
-  "portfolio.black_litterman": {
-    domain: "portfolio",
-    action: "black-litterman",
-    description: "Black-Litterman模型：结合市场均衡和投资者观点的贝叶斯优化。",
-    params: {
-      market_weights: { required: true, type: "array" },
-      covariance_matrix: { required: true, type: "array" },
-      views: { type: "array" },
-      view_confidences: { type: "array" },
-      risk_aversion: { type: "number" },
-      tau: { type: "number" },
-      risk_free_rate: { type: "number" },
-    },
-    example: {
-      market_weights: [0.4, 0.3, 0.3],
-      covariance_matrix: [[0.04, 0.01, 0.02], [0.01, 0.03, 0.015], [0.02, 0.015, 0.05]],
-      views: [[1, 0, -1]],
-      view_confidences: [0.5],
-      risk_aversion: 2.5,
-      tau: 0.05,
-    },
-  },
-  "portfolio.risk_parity": {
-    domain: "portfolio",
-    action: "risk-parity",
-    description: "Risk Parity风险平价：等风险贡献组合优化。",
-    params: {
-      covariance_matrix: { required: true, type: "array" },
-      target_risk: { type: "array" },
-      bounds: { type: "array" },
-      constraints: { type: "array" },
-      risk_free_rate: { type: "number" },
-    },
-    example: {
-      covariance_matrix: [[0.04, 0.01, 0.02], [0.01, 0.03, 0.015], [0.02, 0.015, 0.05]],
-    },
-  },
-  "portfolio.risk_decomposition": {
-    domain: "portfolio",
-    action: "risk-decomposition",
-    description: "Risk Parity风险分解：计算各资产的风险贡献。",
-    params: {
-      weights: { required: true, type: "array" },
-      covariance_matrix: { required: true, type: "array" },
-    },
-    example: {
-      weights: [0.4, 0.3, 0.3],
-      covariance_matrix: [[0.04, 0.01, 0.02], [0.01, 0.03, 0.015], [0.02, 0.015, 0.05]],
-    },
-  },
 };
 
 const COMMAND_LIST = Object.keys(COMMANDS).sort();
@@ -1416,21 +1261,21 @@ export const quantCliTool: ToolDefinition = {
     "它的使用方式接近 bash CLI：先用 help 获取使用说明书，再按手册执行具体 command。 " +
     "help 等价于 tools.list；help + params.name 等价于 tools.describe，可查看单个命令的参数、示例和用途。 " +
     "适用场景：查询实时行情/批量行情/股票池/基础信息/历史行情/新闻/公告、市场概览/指数历史/行业板块/概念股/宏观/资金流/市场新闻/热搜股票、港股指数/南向资金/技术分析/人气排行、资金流/龙虎榜/高管增减持/基金持仓/股东/融资融券、财务指标/财务报表/港股财务、单只股票买点/技术指标/K线、股票综合评分、多条件选股、因子分析、行业聚合、基准对比、组合优化、策略参数优化、价格预警、压力测试、实盘和回测对比、组合相关性矩阵、因子时效性、生成或读取交易信号、信号裁决、策略表现分析、运行回测、训练模型、查看数据状态和报告。 " +
-    "参数格式：command 使用白名单命令名，params 传该命令参数，例如 { command: \"stock.technical\", params: { symbol: \"600519\" } }。 " +
-    "常用命令：help、market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、market.sentiment、stock.quote、stock.batch_quotes、stock.list、stock.info、stock.klines、stock.news、stock.announcements、analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.quality、analysis.exit_plan、analysis.peers、indicators.list、indicators.detail、indicators.run、indicators.backtest、indicators.compare、indicators.sandbox_columns、strategy.list、strategy.get、strategy.create、strategy.run、strategy.status、screening.sector、screening.quality、hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank、sentiment.stock_fund_flow、sentiment.lhb、sentiment.insider_trades、sentiment.fund_holdings、sentiment.top_fund_stocks、sentiment.top_holders、sentiment.holder_changes、sentiment.margin_data、financial.indicators、financial.statements、financial.valuation、financial.pe_percentile、financial.income_statement、financial.cash_flow、financial.hk_financials、financial.hk_analysis、stock.score、stock.screen、stock.technical、stock.ml_predict、factor.analyze、factor.decay、sector.aggregate、benchmark.compare、portfolio.optimize、portfolio.correlation、strategy.optimize、watch.price_alert、stress.test、risk.trade_check、risk.position_size、risk.stop_loss、trade.verify、signal.list、signal.generate、signal.arbitrate、performance.analyze、backtest.run、backtest.results、ml.train、ml.history、data.status、data.full_status、data.update_klines、risk.check、report.daily、report.read_daily、tools.list、tools.describe。 " +
+    "参数格式：command 使用白名单命令名，params 传该命令参数，例如 { command: \"stock.technical\", params: { symbol: \"600000\" } }。 " +
+    "常用命令：help、market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、market.sentiment、stock.batch_quotes、stock.list、analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.quality、analysis.exit_plan、analysis.peers、indicators.list、indicators.detail、indicators.run、indicators.backtest、indicators.compare、indicators.sandbox_columns、strategy.list、strategy.get、strategy.create、strategy.run、strategy.status、screening.sector、screening.quality、hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank、sentiment.stock_fund_flow、sentiment.lhb、sentiment.insider_trades、sentiment.fund_holdings、sentiment.top_fund_stocks、sentiment.top_holders、sentiment.holder_changes、sentiment.margin_data、financial.indicators、financial.valuation、financial.pe_percentile、financial.income_statement、financial.cash_flow、financial.hk_financials、financial.hk_analysis、stock.score、stock.screen、stock.technical、stock.ml_predict、factor.analyze、factor.decay、sector.aggregate、benchmark.compare、portfolio.optimize、portfolio.correlation、strategy.optimize、watch.price_alert、stress.test、risk.trade_check、risk.position_size、risk.stop_loss、trade.verify、signal.list、signal.generate、signal.arbitrate、performance.analyze、backtest.run、backtest.results、ml.train、ml.history、data.status、data.full_status、data.update_klines、risk.check、report.daily、report.read_daily、tools.list、tools.describe。 " +
     "不要臆造 command 或参数；不确定时先调用 help、tools.list 或 tools.describe。",
   promptSnippet:
     "量化相关能力统一使用 quant_cli。像 bash 一样先用 command=help 查使用说明书，再选择白名单 command 并把参数放进 params；不要调用旧的分散量化工具。",
   promptGuidelines: [
     "不知道量化 CLI 能做什么时，先调用 quant_cli({ command: \"help\" }) 获取命令清单。",
     "不知道某个命令参数时，调用 quant_cli({ command: \"help\", params: { name: \"stock.technical\" } }) 获取单命令说明书。",
-    "需要实时行情、批量价格、股票池、股票基础信息、历史行情、新闻或公告时，优先用 stock.quote、stock.batch_quotes、stock.list、stock.info、stock.klines、stock.news、stock.announcements。",
+    "需要实时行情、批量价格、股票池时，用 stock.batch_quotes、stock.list。对于单股数据（实时价格、基本信息、K线、新闻、公告、财务），优先使用 data_fetch_stock、data_fetch_kline、data_fetch_financial、data_fetch_dividend 等专用工具。",
     "需要市场概览、指数历史、行业板块、概念、宏观、资金流、市场新闻或热搜股票时，用 market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、market.sentiment。",
     "需要技术分析、走势结构、K线形态、买入区间、质量评分、止盈计划或同行对比时，用 analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.quality、analysis.exit_plan、analysis.peers。",
     "需要按行业板块筛选股票时，用 screening.sector；需要行业候选股同时按基本面质量评分排序时，用 screening.quality。",
     "需要港股市场概览、南向资金、港股技术面或港股人气排行时，用 hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank。",
     "需要资金流向、龙虎榜、高管增减持、基金持仓、股东变化或融资融券时，用 sentiment.stock_fund_flow、sentiment.lhb、sentiment.insider_trades、sentiment.fund_holdings、sentiment.top_fund_stocks、sentiment.top_holders、sentiment.holder_changes、sentiment.margin_data。",
-    "需要财务指标、财务报表或港股财务分析时，用 financial.indicators、financial.statements、financial.hk_financials、financial.hk_analysis。",
+    "需要财务指标或港股财务分析时，用 financial.indicators、financial.hk_financials、financial.hk_analysis。对于 A 股财务报表，优先使用 data_fetch_financial 专用工具。",
     "需要综合评价单只股票时用 stock.score；需要按 PE/ROE/负债率/RSI/综合分选股时用 stock.screen。",
     "需要看策略历史信号质量时用 performance.analyze；同一股票多信号冲突时用 signal.arbitrate。",
     "需要分析因子有效性用 factor.analyze；需要行业/板块聚合用 sector.aggregate。",
@@ -1471,7 +1316,49 @@ export const quantCliTool: ToolDefinition = {
       );
     }
 
-    const validation = validateParams(command, rule, params);
+    // ── 股票代码标准化：去掉 .SH / .SZ / .HK / .BJ 后缀 ──
+    normalizeSymbolParams(params);
+
+    // ── 参数映射：统一常见参数名称 ──
+    applyParameterMapping(params);
+
+    // ── 策略名称自动转换 ──
+    if (command === "signal.generate" && params.strategy_names && !params.strategy_id) {
+      try {
+        const strategyNames = Array.isArray(params.strategy_names)
+          ? params.strategy_names
+          : [params.strategy_names];
+
+        // 查询策略列表
+        const strategiesResponse = await runQuantV2("strategy.list", {});
+        const strategies = (strategiesResponse as any)?.strategies || [];
+
+        // 匹配第一个策略名称
+        const targetName = strategyNames[0];
+        const matched = strategies.find((s: any) =>
+          s.name === targetName || s.name.toLowerCase() === targetName.toLowerCase()
+        );
+
+        if (!matched) {
+          const availableNames = strategies.map((s: any) => s.name).join(", ");
+          return validationError(
+            `未找到策略: ${targetName}`,
+            `可用策略: ${availableNames || "无"}。请使用 strategy.list 查看完整列表。`,
+          );
+        }
+
+        // 转换为 strategy_id
+        params.strategy_id = String(matched.id);
+        delete params.strategy_names;
+      } catch (error) {
+        return validationError(
+          `策略名称转换失败: ${error instanceof Error ? error.message : String(error)}`,
+          `无法查询策略列表。请直接使用 strategy_id 参数，或确保 quantsys-v2 服务正常运行。`,
+        );
+      }
+    }
+
+    const validation = await validateParams(command, rule, params);
     if (validation) {
       return validationError(validation, formatCommandHelp(command, rule));
     }
@@ -1517,15 +1404,124 @@ function normalizeParams(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function validateParams(_command: string, rule: CommandRule, params: Record<string, unknown>): string | null {
+/**
+ * 标准化股票代码：去掉 .SH / .SZ / .HK / .BJ 等后缀
+ * 例如：600000.SH → 600000, 000001.SZ → 000001
+ */
+function normalizeSymbol(symbol: string): string {
+  return symbol.replace(/\.(SH|SZ|HK|BJ)$/i, "");
+}
+
+/**
+ * 标准化参数中的所有股票代码字段
+ */
+function normalizeSymbolParams(params: Record<string, unknown>): void {
+  // 处理单个 symbol 参数
+  if (typeof params.symbol === "string") {
+    params.symbol = normalizeSymbol(params.symbol);
+  }
+
+  // 处理 symbols 数组参数
+  if (Array.isArray(params.symbols)) {
+    params.symbols = params.symbols.map((s) =>
+      typeof s === "string" ? normalizeSymbol(s) : s
+    );
+  }
+
+  // 处理 symbols 字符串参数（逗号分隔）
+  if (typeof params.symbols === "string") {
+    params.symbols = params.symbols
+      .split(",")
+      .map((s) => normalizeSymbol(s.trim()))
+      .join(",");
+  }
+}
+
+/**
+ * 参数映射：将常见的参数名称映射到后端要求的参数名称
+ *
+ * 映射规则：
+ * - quantity/amount → shares（股数）
+ * - side/direction → action（买卖方向）
+ *
+ * 如果目标参数已存在，则不进行映射（保留用户明确指定的参数），但仍然删除源参数以避免验证错误
+ */
+function applyParameterMapping(params: Record<string, unknown>): void {
+  // quantity/amount → shares
+  if (params.quantity !== undefined || params.amount !== undefined) {
+    if (!params.shares) {
+      params.shares = params.quantity ?? params.amount;
+    }
+    // 无论是否映射，都删除源参数
+    delete params.quantity;
+    delete params.amount;
+  }
+
+  // side/direction → action
+  if (params.side !== undefined || params.direction !== undefined) {
+    if (!params.action) {
+      params.action = params.side ?? params.direction;
+    }
+    // 无论是否映射，都删除源参数
+    delete params.side;
+    delete params.direction;
+  }
+}
+
+/**
+ * 获取策略列表提示文本（用于 strategy_id 参数缺失时的错误消息）
+ * @returns 格式化的策略列表提示，或降级提示（查询失败时）
+ */
+export async function fetchStrategyListHint(): Promise<string> {
+  try {
+    const response = await runQuantV2("strategy.list", {});
+    const strategies = (response as any)?.strategies || [];
+
+    if (strategies.length === 0) {
+      return "提示：当前系统中没有可用策略。请先使用 strategy.create 创建策略。";
+    }
+
+    // 格式化策略列表（最多显示前 10 个）
+    const displayStrategies = strategies.slice(0, 10);
+    const strategyLines = displayStrategies.map((s: any) =>
+      `  - ID: ${s.id}, 名称: ${s.name}`
+    ).join('\n');
+
+    const moreHint = strategies.length > 10
+      ? `\n\n（共 ${strategies.length} 个策略，仅显示前 10 个）`
+      : '';
+
+    return `可用策略列表：\n${strategyLines}${moreHint}\n\n提示：使用 strategy.list 命令可查看完整策略详情。`;
+
+  } catch (error) {
+    // 降级：查询失败时返回通用提示
+    return "提示：使用 strategy.list 命令查看可用策略列表。";
+  }
+}
+
+async function validateParams(_command: string, rule: CommandRule, params: Record<string, unknown>): Promise<string | null> {
   const allowed = new Set(Object.keys(rule.params));
+
+  // 参数建议映射：常见错误参数 → 正确参数
+  const paramSuggestions: Record<string, string> = {
+    'quantity': 'shares',
+    'amount': 'shares',
+    'side': 'action',
+    'direction': 'action',
+  };
 
   for (const key of Object.keys(params)) {
     if (!allowed.has(key)) {
       // 特殊提示：symbol → symbols 的常见错误
       if (key === "symbol" && allowed.has("symbols")) {
-        return `不支持的参数: ${key}。提示：该命令使用 symbols（复数）参数，支持单个或多个股票。示例：{ symbols: "688008" } 或 { symbols: "688008,600519" }`;
+        return `不支持的参数: ${key}。提示：该命令使用 symbols（复数）参数，支持单个或多个股票。示例：{ symbols: "688008" } 或 { symbols: "688008,600000" }`;
       }
+
+      // 提供参数建议
+      if (paramSuggestions[key]) {
+        return `不支持的参数: ${key}。提示：您可能想使用 '${paramSuggestions[key]}' 参数。`;
+      }
+
       return `不支持的参数: ${key}。原因：该命令不接受此参数，请检查参数名称是否正确。`;
     }
   }
@@ -1533,6 +1529,11 @@ function validateParams(_command: string, rule: CommandRule, params: Record<stri
   for (const [key, paramRule] of Object.entries(rule.params)) {
     const value = params[key];
     if (paramRule.required && isEmpty(value)) {
+      // 特殊处理：strategy_id 参数缺失时附加策略列表
+      if (key === 'strategy_id') {
+        const strategyListHint = await fetchStrategyListHint();
+        return `缺少必填参数: ${key}。原因：该参数是命令执行的必要条件，不能为空。\n\n${strategyListHint}`;
+      }
       return `缺少必填参数: ${key}。原因：该参数是命令执行的必要条件，不能为空。`;
     }
     if (isEmpty(value)) {
@@ -1545,7 +1546,7 @@ function validateParams(_command: string, rule: CommandRule, params: Record<stri
     }
 
     if (paramRule.symbol && typeof value === "string" && !isValidSymbol(value)) {
-      return `${key} 必须是股票代码格式，例如 600519、000001、00700 或 AAPL。原因：系统需要标准格式的股票代码才能查询数据。`;
+      return `${key} 必须是股票代码格式，例如 600000、000001、00700 或 AAPL。原因：系统需要标准格式的股票代码才能查询数据。`;
     }
 
     if (paramRule.enum && typeof value === "string" && !paramRule.enum.includes(value)) {
@@ -1568,7 +1569,7 @@ function validateType(key: string, value: unknown, rule: ParamRule): string | nu
   }
 
   if (rule.type === "array") {
-    return Array.isArray(value) ? null : `${key} 必须是数组。原因：该参数需要接收多个值，请使用数组格式，例如 ["600519", "000001"]。`;
+    return Array.isArray(value) ? null : `${key} 必须是数组。原因：该参数需要接收多个值，请使用数组格式，例如 ["600000", "000001"]。`;
   }
   if (rule.type === "integer") {
     return typeof value === "number" && Number.isInteger(value) ? null : `${key} 必须是整数。原因：该参数不接受小数或非数字值。`;
