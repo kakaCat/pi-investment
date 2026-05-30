@@ -430,12 +430,17 @@ const COMMANDS: Record<string, CommandRule> = {
   "signal.generate": {
     domain: "signal",
     action: "generate",
-    description: "使用指定策略对股票列表生成最新交易信号（real strategy execution）。传入 strategy_id 和 symbols，返回每只股票的 buy/sell/hold 信号和置信度。生成的信号会写入数据库（status='pending'），可通过 signal.arbitrate 进行仲裁筛选。",
+    description:
+      "⚠️ DEPRECATED: 请使用 strategy.execute 命令（action='batch'）。\n" +
+      "此命令将在 v3.0 移除。自动映射到 strategy.execute。\n\n" +
+      "使用指定策略对股票列表生成最新交易信号（real strategy execution）。传入 strategy_id 和 symbols，返回每只股票的 buy/sell/hold 信号和置信度。生成的信号会写入数据库（status='pending'），可通过 signal.arbitrate 进行仲裁筛选。",
     params: {
       strategy_id: { required: true, type: "string" },
       symbols: { type: "array" },
     },
     example: { strategy_id: 53, symbols: ["600000", "000425"] },
+    deprecated: true,
+    replacement: "strategy.execute"
   },
   "signal.arbitrate": {
     domain: "signal",
@@ -1320,6 +1325,25 @@ export const quantCliTool: ToolDefinition = {
       command = typeof params.name === "string" && params.name.trim()
         ? "tools.describe"
         : "tools.list";
+    }
+
+    // ── 向后兼容：signal.generate → strategy.execute ──
+    if (command === "signal.generate") {
+      console.warn(
+        "⚠️ DEPRECATED: signal.generate 命令已废弃，请使用 strategy.execute。\n" +
+        "此命令将在 v3.0 移除。自动映射到 strategy.execute action='batch'。"
+      );
+
+      // 映射到 strategy.execute
+      return quantCliTool.execute(_toolCallId, {
+        command: "strategy.execute",
+        params: {
+          action: "batch",
+          strategy: params.strategy_id,
+          symbols: params.symbols,
+          ...params
+        }
+      });
     }
 
     const rule = COMMANDS[command];
