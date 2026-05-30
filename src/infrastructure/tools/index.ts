@@ -38,7 +38,6 @@ import { modelMonitorTool } from "./model/monitor-tool.js";
 import { modelListTool } from "./model/list-tool.js";
 
 // L3.5 策略执行
-import { strategyExecuteTool } from "./strategy/execute-tool.js";
 import { strategyBatchValidateTool } from "./strategy/batch-validate-tool.js";
 import { strategyOptimizeTool } from "./strategy/optimize-tool.js";
 
@@ -132,9 +131,6 @@ export const allCustomTools = [
   modelListTool,                  // model_list - 列出所有模型
 
   // L3.5 策略执行
-  // ⚠️ DEPRECATED: strategyExecuteTool 已废弃，请使用 quant_cli 的 strategy.execute 命令
-  // 此工具将在 v3.0 移除。详见 docs/migration/strategy-system-unification.md
-  strategyExecuteTool,            // strategy_execute - 执行单个策略并返回信号 (DEPRECATED)
   strategyOptimizeTool,           // strategy_optimize - 策略参数优化
   strategyBatchValidateTool,      // strategy_batch_validate - 批量验证策略有效性
 
