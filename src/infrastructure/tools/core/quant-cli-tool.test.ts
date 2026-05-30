@@ -991,3 +991,82 @@ describe("quantCliTool", () => {
     });
   });
 });
+
+describe('quant_cli strategy_id validation integration', () => {
+  beforeEach(() => {
+    runQuantV2Mock.mockReset();
+  });
+
+  test('should include strategy list when strategy_id is missing', async () => {
+    runQuantV2Mock.mockResolvedValueOnce({
+      strategies: [
+        { id: 53, name: '多因子波段策略v9' },
+        { id: 54, name: 'RSI超买超卖策略' },
+      ],
+    });
+
+    const result = await (quantCliTool.execute as any)('test-call-id', {
+      command: 'performance.by_strategy',
+      params: {},
+    });
+
+    const text = result.content[0].text;
+    expect(text).toContain('缺少必填参数: strategy_id');
+    expect(text).toContain('可用策略列表：');
+    expect(text).toContain('ID: 53, 名称: 多因子波段策略v9');
+    expect(text).toContain('ID: 54, 名称: RSI超买超卖策略');
+  });
+
+  test('should not fetch strategy list for other missing parameters', async () => {
+    const result = await (quantCliTool.execute as any)('test-call-id', {
+      command: 'stock.technical',
+      params: {},
+    });
+
+    const text = result.content[0].text;
+    expect(text).toContain('缺少必填参数: symbol');
+    expect(text).not.toContain('可用策略列表');
+    expect(runQuantV2Mock).not.toHaveBeenCalled();
+  });
+
+  test('should degrade gracefully when strategy.list fails during validation', async () => {
+    runQuantV2Mock.mockRejectedValueOnce(
+      new Error('Service unavailable')
+    );
+
+    const result = await (quantCliTool.execute as any)('test-call-id', {
+      command: 'performance.by_strategy',
+      params: {},
+    });
+
+    const text = result.content[0].text;
+    expect(text).toContain('缺少必填参数: strategy_id');
+    expect(text).toContain('使用 strategy.list 命令查看可用策略列表');
+  });
+
+  test('should work for all strategy_id-dependent commands', async () => {
+    const commands = [
+      'strategy.get',
+      'strategy.optimize',
+      'strategy.run',
+      'backtest.strategy',
+      'signal.generate',
+      'performance.by_strategy',
+    ];
+
+    for (const command of commands) {
+      runQuantV2Mock.mockResolvedValueOnce({
+        strategies: [{ id: 1, name: 'Test Strategy' }],
+      });
+
+      const result = await (quantCliTool.execute as any)('test-call-id', {
+        command,
+        params: {},
+      });
+
+      const text = result.content[0].text;
+      expect(text).toContain('缺少必填参数: strategy_id');
+      expect(text).toContain('可用策略列表：');
+    }
+  });
+});
