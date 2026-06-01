@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 AI stock investment advisor (A-share / HK stocks) built on the `@mariozechner/pi-agent-core` SDK. Dual-component architecture:
 
 - **`src/`** — TypeScript AI agent (primary). Interactive CLI/TUI with tool registry, Feishu bot integration, session management, and multi-layer system prompt builder.
-- **`quant/`** — Python quant backend (v1). Flask REST API (port 5002) + `quantsys` package: 18+ strategies, 62 factors, XGBoost/LightGBM ML pipeline, backtesting engine, risk checks.
+- **`quantsys-v2/`** — Python quant backend (v2). Flask REST API (port 5001) + WebSocket (port 5003): strategies, factors, ML pipeline, backtesting, risk checks.
 
 ## Fixed IP / Port Convention
 
@@ -15,7 +15,6 @@ AI stock investment advisor (A-share / HK stocks) built on the `@mariozechner/pi
 
 | 子项目 | 固定地址 | 配置方式 |
 |--------|----------|----------|
-| quant Flask API (v1) | `127.0.0.1:5002` | `QUANT_API_HOST` / `QUANT_API_PORT` 环境变量 |
 | quantsys-v2 Flask API | `127.0.0.1:5001` | `QUANTSYS_API_HOST` / `QUANTSYS_API_PORT` / `QUANTSYS_API_URL` |
 | quantsys-v2 WebSocket | `127.0.0.1:5003` | `QUANTSYS_API_HOST` / `QUANTSYS_WS_PORT` 环境变量 |
 | web-frontend Vite | `127.0.0.1:3001` | 代理 `/api` → `127.0.0.1:5001` |
@@ -44,15 +43,10 @@ npm test                 # Jest (ESM via --experimental-vm-modules)
 npm run test:watch       # Jest watch mode
 npm run test:coverage    # Jest with coverage
 
-# Python quant backend (v1)
-cd quant && python api/server.py          # Start Flask API on port 5002
-cd quant && python -m pytest tests/       # Run Python tests
-cd quant && pip install -r requirements.txt
-
 # Python quant backend (v2)
-cd quantsys-v2 && python start_all.py               # 一键启动 REST API (5001) + WebSocket (5003)
-cd quantsys-v2 && python api/server.py              # 单独启动 REST API on port 5001
-cd quantsys-v2 && python api/server_websocket.py    # 单独启动 WebSocket on port 5003
+cd quantsys-v2 && python start_all.py               # Start REST API (5001) + WebSocket (5003)
+cd quantsys-v2 && python api/server.py              # Start REST API only on port 5001
+cd quantsys-v2 && python api/server_websocket.py    # Start WebSocket only on port 5003
 cd quantsys-v2 && python -m pytest tests/           # Run Python tests
 
 # Vue 3 dashboard (web-frontend)
@@ -118,6 +112,26 @@ Layered architecture:
 - `factor_calculate` — 批量计算技术因子和基本面因子
 - `factor_analyze` — 分析因子有效性（IC、覆盖率、稳定性）
 - `invest_opportunity_scan` — 扫描投资机会（多因子评分）
+
+#### L2.7 股票池管理层
+股票池筛选、管理和策略验证（2026-06-01 新增）：
+- `pool_manage` — 股票池 CRUD（创建/列表/查看/更新/删除/刷新/筛选建池）
+  - 支持静态池（手动指定stocks）和动态池（保存filter_template，可定时刷新）
+  - `scan_create` 操作：执行多因子扫描后自动创建池子
+- `pool_validate` — 多策略批量回测验证
+  - 对池内所有股票 × 多个策略跑回测，按综合评分排名
+  - 自动推荐最优策略 + 最佳股票组合（top 5）
+  - 评分公式：收益率40% + 夏普20% + 回撤15% + 胜率15% + 盈亏比10%
+
+**API 端点**：
+- `POST /api/pools` — 创建池子
+- `GET /api/pools` — 列出所有池子
+- `GET /api/pools/:id` — 获取池子详情
+- `PUT /api/pools/:id` — 更新池子
+- `DELETE /api/pools/:id` — 删除池子
+- `POST /api/pools/:id/refresh` — 刷新动态池
+- `POST /api/pools/:id/validate` — 执行策略验证
+- `POST /api/pools/scan-and-create` — 筛选+建池一步完成
 
 #### L3 模型层
 机器学习模型训练和预测：
@@ -364,13 +378,15 @@ cd quantsys-v2 && python start_all.py
 
 容错处理：如果 quantsys-v2 服务不可用，降级为通用提示。
 
-### Python Quant Backend (`quant/`)
+### Python Quant Backend (`quantsys-v2/`)
 
 Pipeline: resolve → data → factor → model → signal → risk → backtest → report.
 
-- `quant/api/server.py` — Flask API with token auth and CORS (port 5002)
-- `quant/api/quant_api.py` — CLI bridge for TypeScript → Python calls
-- `quant/quantsys/` — Core package: strategies, factors, ml, risk, backtest, data, live
+- `quantsys-v2/api/server.py` — Flask REST API (port 5001)
+- `quantsys-v2/api/server_websocket.py` — WebSocket server (port 5003)
+- `quantsys-v2/services/` — Business logic: strategies, factors, ML, risk, backtest
+- `quantsys-v2/repositories/` — Data access layer
+- `quantsys-v2/daemon/` — JSON-RPC daemon server for legacy compatibility
 
 ### Vue 3 Frontend (`web-frontend/`)
 
@@ -387,11 +403,9 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
 OPENAI_API_KEY=...          # SDK reads this key; must match DEEPSEEK_API_KEY
 MODEL_ID=deepseek-chat
 
-# Fixed IP — Flask quant backend
-QUANT_API_HOST=127.0.0.1
-QUANT_API_PORT=5002
-PYTHON_BACKEND_URL=http://127.0.0.1:5002
-PYTHON_BACKEND_TIMEOUT=30000
+# quantsys-v2 backend
+QUANTSYS_V2_API_URL=http://127.0.0.1:5001
+QUANTSYS_V2_TIMEOUT=30000
 
 # Database (PostgreSQL required; SQLite removed)
 QUANT_DB_PROVIDER=postgres
@@ -408,7 +422,7 @@ TAVILY_API_KEY=...          # Web search
 - **Required**: Python 3.13 (not 3.14 - numba incompatibility)
 - Virtual environment: `.venv-py313/`
 - Activation: `source activate-py313.sh`
-- Dependencies: `quant/requirements.txt` (includes pandas-ta, numba, akshare, etc.)
+- Dependencies: `quantsys-v2/requirements.txt` (includes pandas-ta, numba, akshare, etc.)
 
 **Node.js:**
 - Node >= 22.0.0 required
@@ -416,7 +430,7 @@ TAVILY_API_KEY=...          # Web search
 ## Testing
 
 - **TypeScript**: Jest with `--experimental-vm-modules`. Test files co-located as `*.test.ts`. No jest.config file — config is in `package.json` jest section.
-- **Python**: pytest, tests in `quant/tests/`. Coverage currently ~19%.
+- **Python**: pytest, tests in `quantsys-v2/tests/`. Coverage tracked via pytest-cov.
 - **Frontend**: vitest, tests in `web-frontend/src/`.
 
 ## Kafka (Optional)
