@@ -111,7 +111,7 @@
     </el-dialog>
 
     <!-- 筛选建池弹窗 -->
-    <el-dialog v-model="showScanDialog" title="筛选建池" width="600px">
+    <el-dialog v-model="showScanDialog" title="筛选建池" width="700px">
       <el-form :model="scanForm" label-width="100px">
         <el-form-item label="名称" required>
           <el-input v-model="scanForm.name" placeholder="如：低估值蓝筹池" />
@@ -122,25 +122,30 @@
             <el-radio value="dynamic">动态池</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="技术面条件">
-          <el-checkbox-group v-model="scanForm.technical">
-            <el-checkbox value="rsi_oversold">RSI超卖</el-checkbox>
-            <el-checkbox value="macd_golden_cross">MACD金叉</el-checkbox>
-            <el-checkbox value="bollinger_breakout">布林突破</el-checkbox>
-            <el-checkbox value="volume_surge">放量突破</el-checkbox>
-          </el-checkbox-group>
+
+        <el-form-item label="筛选条件">
+          <div style="width: 100%;">
+            <div v-for="(cond, index) in scanForm.conditions" :key="index" style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <el-select v-model="cond.field" placeholder="选择字段" style="flex: 2;">
+                <el-option v-for="opt in fieldOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
+              <el-select v-model="cond.operator" placeholder="运算符" style="flex: 1;">
+                <el-option v-for="opt in operatorOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
+              <el-input-number v-model="cond.value" :controls="false" placeholder="阈值" style="flex: 1;" />
+              <el-button type="danger" :icon="Delete" circle @click="removeCondition(index)" :disabled="scanForm.conditions.length === 1" />
+            </div>
+            <el-button type="primary" :icon="Plus" size="small" @click="addCondition">添加条件</el-button>
+          </div>
         </el-form-item>
-        <el-form-item label="基本面条件">
-          <el-checkbox-group v-model="scanForm.fundamental">
-            <el-checkbox value="pe_low">低PE</el-checkbox>
-            <el-checkbox value="roe_high">高ROE</el-checkbox>
-            <el-checkbox value="gross_margin_high">高毛利</el-checkbox>
-            <el-checkbox value="debt_ratio_low">低负债</el-checkbox>
-          </el-checkbox-group>
+
+        <el-form-item label="条件逻辑">
+          <el-radio-group v-model="scanForm.logic">
+            <el-radio value="AND">AND (所有条件都满足)</el-radio>
+            <el-radio value="OR">OR (任一条件满足)</el-radio>
+          </el-radio-group>
         </el-form-item>
-        <el-form-item label="最低评分">
-          <el-slider v-model="scanForm.minScore" :min="0" :max="100" :step="5" show-input />
-        </el-form-item>
+
         <el-form-item label="取前N只">
           <el-input-number v-model="scanForm.topN" :min="5" :max="100" :step="5" />
         </el-form-item>
@@ -166,6 +171,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete, Plus } from '@element-plus/icons-vue'
 import { poolApi } from '@/services/api'
 
 const router = useRouter()
@@ -186,13 +192,46 @@ const showScanDialog = ref(false)
 const scanForm = ref({
   name: '',
   poolType: 'dynamic' as 'static' | 'dynamic',
-  technical: [] as string[],
-  fundamental: [] as string[],
-  minScore: 60,
+  conditions: [
+    { field: 'roe', operator: '>=', value: 15 }
+  ] as Array<{ field: string; operator: string; value: number }>,
+  logic: 'AND' as 'AND' | 'OR',
   topN: 20,
   refreshInterval: 'weekly' as 'daily' | 'weekly',
   description: '',
 })
+
+const fieldOptions = [
+  { value: 'roe', label: 'ROE净资产收益率 (%)' },
+  { value: 'pe', label: '市盈率PE (倍)' },
+  { value: 'pb', label: '市净率PB (倍)' },
+  { value: 'gross_margin', label: '毛利率 (%)' },
+  { value: 'debt_ratio', label: '资产负债率 (%)' },
+  { value: 'net_profit_growth', label: '净利润增长率 (%)' },
+  { value: 'market_cap', label: '总市值 (亿元)' },
+  { value: 'circulating_mv', label: '流通市值 (亿元)' },
+  { value: 'rsi', label: 'RSI指标 (0-100)' },
+  { value: 'volume_ratio_5d', label: '5日量比 (倍)' }
+]
+
+const operatorOptions = [
+  { value: '>=', label: '≥ 大于等于' },
+  { value: '<=', label: '≤ 小于等于' },
+  { value: '>', label: '> 大于' },
+  { value: '<', label: '< 小于' },
+  { value: '==', label: '= 等于' },
+  { value: '!=', label: '≠ 不等于' }
+]
+
+const addCondition = () => {
+  scanForm.value.conditions.push({ field: 'roe', operator: '>=', value: 0 })
+}
+
+const removeCondition = (index: number) => {
+  if (scanForm.value.conditions.length > 1) {
+    scanForm.value.conditions.splice(index, 1)
+  }
+}
 
 const fetchPools = async () => {
   loading.value = true
@@ -238,16 +277,19 @@ const handleScanCreate = async () => {
     ElMessage.warning('请填写名称')
     return
   }
+  if (scanForm.value.conditions.length === 0) {
+    ElMessage.warning('请至少添加一个筛选条件')
+    return
+  }
   submitting.value = true
   try {
     await poolApi.scanAndCreate({
       name: scanForm.value.name,
       poolType: scanForm.value.poolType,
       filter: {
-        technical: scanForm.value.technical,
-        fundamental: scanForm.value.fundamental,
-        min_score: scanForm.value.minScore,
-        top_n: scanForm.value.topN,
+        conditions: scanForm.value.conditions,
+        logic: scanForm.value.logic,
+        top_n: scanForm.value.topN
       },
       refreshInterval: scanForm.value.poolType === 'dynamic' ? scanForm.value.refreshInterval : undefined,
       description: scanForm.value.description || undefined,
