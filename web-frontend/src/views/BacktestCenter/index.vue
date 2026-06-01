@@ -19,21 +19,12 @@
                 class="w-full"
                 :loading="loadingStrategies"
               >
-                <el-option-group v-if="myIndicators.length > 0" label="我的指标">
-                  <el-option
-                    v-for="indicator in myIndicators"
-                    :key="indicator.id"
-                    :label="indicator.name"
-                    :value="`indicator:${indicator.id}`"
-                  />
-                </el-option-group>
-                <el-option label="MA 双均线" value="ma_cross" />
-                <el-option label="RSI 反转" value="rsi_reversal" />
-                <el-option label="MACD 金叉" value="macd_golden" />
-                <el-option label="布林带突破" value="boll_breakout" />
-                <el-option label="KDJ 超买超卖" value="kdj_overbought" />
-                <el-option label="PE均值回归" value="pe_mean_reversion" />
-                <el-option label="PB均值回归" value="pb_mean_reversion" />
+                <el-option
+                  v-for="option in strategyOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
               </el-select>
             </el-form-item>
 
@@ -77,6 +68,14 @@
                   </el-form-item>
                 </el-col>
               </el-row>
+            </el-form-item>
+
+            <el-form-item label="K线周期">
+              <el-segmented
+                v-model="backtestForm.klinePeriod"
+                :options="klinePeriodOptions"
+                class="w-full"
+              />
             </el-form-item>
 
             <el-form-item label="初始资金" prop="initialCapital">
@@ -273,118 +272,137 @@
             </div>
           </template>
 
-          <!-- 关键指标卡片 -->
-          <div class="grid grid-cols-4 gap-3 mb-4">
-            <div class="metric-card">
-              <div class="metric-label">最终资金</div>
-              <div class="metric-value">¥{{ formatPrice(backtestResult.finalCapital) }}</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-label">总收益率</div>
-              <div :class="['metric-value', backtestResult.totalReturn >= 0 ? 'text-up' : 'text-down']">
-                {{ formatBacktestPercent(backtestResult.totalReturn) }}
+          <el-tabs v-model="activeTab" class="result-tabs">
+            <el-tab-pane label="回测结果" name="result">
+              <!-- 关键指标卡片 -->
+              <div class="grid grid-cols-4 gap-3 mb-4">
+                <div class="metric-card">
+                  <div class="metric-label">最终资金</div>
+                  <div class="metric-value">¥{{ formatPrice(backtestResult.finalCapital) }}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">总收益率</div>
+                  <div :class="['metric-value', backtestResult.totalReturn >= 0 ? 'text-up' : 'text-down']">
+                    {{ formatBacktestPercent(backtestResult.totalReturn) }}
+                  </div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">年化收益</div>
+                  <div :class="['metric-value', backtestResult.annualReturn >= 0 ? 'text-up' : 'text-down']">
+                    {{ formatBacktestPercent(backtestResult.annualReturn) }}
+                  </div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">最大回撤</div>
+                  <div class="metric-value text-down">{{ formatBacktestPercent(backtestResult.maxDrawdown, false) }}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">夏普比率</div>
+                  <div class="metric-value">{{ backtestResult.sharpeRatio.toFixed(2) }}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">胜率</div>
+                  <div class="metric-value">{{ formatBacktestPercent(backtestResult.winRate, false) }}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">盈亏比</div>
+                  <div class="metric-value">{{ backtestResult.profitLossRatio.toFixed(2) }}</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">交易次数</div>
+                  <div class="metric-value">{{ backtestResult.totalTrades }}</div>
+                </div>
               </div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-label">年化收益</div>
-              <div :class="['metric-value', backtestResult.annualReturn >= 0 ? 'text-up' : 'text-down']">
-                {{ formatBacktestPercent(backtestResult.annualReturn) }}
+
+              <div class="backtest-chart-panel mb-4">
+                <div class="chart-section-title">K线走势</div>
+                <KLineChart
+                  v-if="backtestKlineData.length"
+                  :data="backtestKlineData"
+                  :signals="backtestTradeSignals"
+                  height="520px"
+                />
+                <el-empty v-else description="暂无K线数据" />
               </div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-label">最大回撤</div>
-              <div class="metric-value text-down">{{ formatBacktestPercent(backtestResult.maxDrawdown, false) }}</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-label">夏普比率</div>
-              <div class="metric-value">{{ backtestResult.sharpeRatio.toFixed(2) }}</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-label">胜率</div>
-              <div class="metric-value">{{ formatBacktestPercent(backtestResult.winRate, false) }}</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-label">盈亏比</div>
-              <div class="metric-value">{{ backtestResult.profitLossRatio.toFixed(2) }}</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-label">交易次数</div>
-              <div class="metric-value">{{ backtestResult.totalTrades }}</div>
-            </div>
-          </div>
 
-          <!-- 资产权益曲线图 -->
-          <div class="chart-container mb-4">
-            <div ref="equityChartRef" style="height: 300px"></div>
-          </div>
+              <div class="backtest-chart-panel mb-4">
+                <div class="chart-section-title">策略 vs 标的</div>
+                <div ref="equityChartRef" class="equity-comparison-chart"></div>
+              </div>
 
-          <!-- Tab切换 -->
-          <el-tabs v-model="resultTab">
-            <el-tab-pane label="交易记录" name="trades">
-              <el-table :data="backtestResult.trades" stripe max-height="400">
-                <el-table-column prop="date" label="日期" width="120">
-                  <template #default="{ row }">
-                    {{ formatDate(row.date) }}
-                  </template>
-                </el-table-column>
-                <el-table-column prop="type" label="类型" width="80">
-                  <template #default="{ row }">
-                    <el-tag :type="row.type === 'BUY' ? 'danger' : 'success'" size="small">
-                      {{ row.type }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="price" label="价格" width="100">
-                  <template #default="{ row }">
-                    ¥{{ formatPrice(row.price) }}
-                  </template>
-                </el-table-column>
-                <el-table-column prop="quantity" label="数量" width="100" />
-                <el-table-column prop="amount" label="金额" width="120">
-                  <template #default="{ row }">
-                    ¥{{ formatPrice(row.amount) }}
-                  </template>
-                </el-table-column>
-                <el-table-column prop="commission" label="手续费" width="100">
-                  <template #default="{ row }">
-                    ¥{{ formatPrice(row.commission) }}
-                  </template>
-                </el-table-column>
-                <el-table-column prop="profit" label="盈亏" width="120">
-                  <template #default="{ row }">
-                    <span v-if="row.profit !== null" :class="row.profit >= 0 ? 'text-up' : 'text-down'">
-                      {{ row.profit >= 0 ? '+' : '' }}¥{{ formatPrice(Math.abs(row.profit)) }}
-                    </span>
-                    <span v-else class="text-gray-400">-</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="balance" label="余额" width="120">
-                  <template #default="{ row }">
-                    ¥{{ formatPrice(row.balance) }}
-                  </template>
-                </el-table-column>
-              </el-table>
+              <!-- Tab切换 -->
+              <el-tabs v-model="resultTab">
+                <el-tab-pane label="交易记录" name="trades">
+                  <el-table :data="backtestResult.trades" stripe max-height="400">
+                    <el-table-column prop="date" label="日期" width="120">
+                      <template #default="{ row }">
+                        {{ formatDate(row.date) }}
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="type" label="类型" width="80">
+                      <template #default="{ row }">
+                        <el-tag :type="row.type === 'BUY' ? 'danger' : 'success'" size="small">
+                          {{ row.type }}
+                        </el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="price" label="价格" width="100">
+                      <template #default="{ row }">
+                        ¥{{ formatPrice(row.price) }}
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="quantity" label="数量" width="100" />
+                    <el-table-column prop="amount" label="金额" width="120">
+                      <template #default="{ row }">
+                        ¥{{ formatPrice(row.amount) }}
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="commission" label="手续费" width="100">
+                      <template #default="{ row }">
+                        ¥{{ formatPrice(row.commission) }}
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="profit" label="盈亏" width="120">
+                      <template #default="{ row }">
+                        <span v-if="row.profit !== null" :class="row.profit >= 0 ? 'text-up' : 'text-down'">
+                          {{ row.profit >= 0 ? '+' : '' }}¥{{ formatPrice(Math.abs(row.profit)) }}
+                        </span>
+                        <span v-else class="text-gray-400">-</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="balance" label="余额" width="120">
+                      <template #default="{ row }">
+                        ¥{{ formatPrice(row.balance) }}
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </el-tab-pane>
+
+                <el-tab-pane label="月度收益" name="monthly">
+                  <div ref="monthlyChartRef" style="height: 300px"></div>
+                </el-tab-pane>
+
+                <el-tab-pane label="详细统计" name="stats">
+                  <el-descriptions :column="2" border>
+                    <el-descriptions-item label="总交易次数">{{ backtestResult.totalTrades }}</el-descriptions-item>
+                    <el-descriptions-item label="盈利次数">{{ backtestResult.winTrades }}</el-descriptions-item>
+                    <el-descriptions-item label="亏损次数">{{ backtestResult.lossTrades }}</el-descriptions-item>
+                    <el-descriptions-item label="胜率">{{ formatBacktestPercent(backtestResult.winRate, false) }}</el-descriptions-item>
+                    <el-descriptions-item label="平均盈利">¥{{ formatPrice(backtestResult.avgProfit) }}</el-descriptions-item>
+                    <el-descriptions-item label="平均亏损">¥{{ formatPrice(backtestResult.avgLoss) }}</el-descriptions-item>
+                    <el-descriptions-item label="最大单笔盈利">¥{{ formatPrice(backtestResult.maxProfit) }}</el-descriptions-item>
+                    <el-descriptions-item label="最大单笔亏损">¥{{ formatPrice(backtestResult.maxLoss) }}</el-descriptions-item>
+                    <el-descriptions-item label="盈亏比">{{ backtestResult.profitLossRatio.toFixed(2) }}</el-descriptions-item>
+                    <el-descriptions-item label="夏普比率">{{ backtestResult.sharpeRatio.toFixed(2) }}</el-descriptions-item>
+                    <el-descriptions-item label="最大回撤">{{ formatBacktestPercent(backtestResult.maxDrawdown, false) }}</el-descriptions-item>
+                    <el-descriptions-item label="回撤恢复天数">{{ backtestResult.recoveryDays }}天</el-descriptions-item>
+                  </el-descriptions>
+                </el-tab-pane>
+              </el-tabs>
             </el-tab-pane>
 
-            <el-tab-pane label="月度收益" name="monthly">
-              <div ref="monthlyChartRef" style="height: 300px"></div>
-            </el-tab-pane>
-
-            <el-tab-pane label="详细统计" name="stats">
-              <el-descriptions :column="2" border>
-                <el-descriptions-item label="总交易次数">{{ backtestResult.totalTrades }}</el-descriptions-item>
-                <el-descriptions-item label="盈利次数">{{ backtestResult.winTrades }}</el-descriptions-item>
-                <el-descriptions-item label="亏损次数">{{ backtestResult.lossTrades }}</el-descriptions-item>
-                <el-descriptions-item label="胜率">{{ formatBacktestPercent(backtestResult.winRate, false) }}</el-descriptions-item>
-                <el-descriptions-item label="平均盈利">¥{{ formatPrice(backtestResult.avgProfit) }}</el-descriptions-item>
-                <el-descriptions-item label="平均亏损">¥{{ formatPrice(backtestResult.avgLoss) }}</el-descriptions-item>
-                <el-descriptions-item label="最大单笔盈利">¥{{ formatPrice(backtestResult.maxProfit) }}</el-descriptions-item>
-                <el-descriptions-item label="最大单笔亏损">¥{{ formatPrice(backtestResult.maxLoss) }}</el-descriptions-item>
-                <el-descriptions-item label="盈亏比">{{ backtestResult.profitLossRatio.toFixed(2) }}</el-descriptions-item>
-                <el-descriptions-item label="夏普比率">{{ backtestResult.sharpeRatio.toFixed(2) }}</el-descriptions-item>
-                <el-descriptions-item label="最大回撤">{{ formatBacktestPercent(backtestResult.maxDrawdown, false) }}</el-descriptions-item>
-                <el-descriptions-item label="回撤恢复天数">{{ backtestResult.recoveryDays }}天</el-descriptions-item>
-              </el-descriptions>
+            <el-tab-pane label="策略诊断" name="diagnosis">
+              <DiagnosisTab :backtest-result="backtestResult" />
             </el-tab-pane>
           </el-tabs>
         </el-card>
@@ -452,13 +470,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, nextTick, onMounted } from 'vue'
+import { computed, ref, reactive, nextTick, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import * as echarts from 'echarts'
 import { analysisApi, stockApi, tradingApi, strategyApi, indicatorApi } from '@/services/api'
 import { formatPrice, formatPercent, formatDate } from '@/utils/format'
-import type { Indicator } from '@/types'
+import KLineChart from '@/components/charts/KLineChart/index.vue'
+import DiagnosisTab from './DiagnosisTab.vue'
+import type { Indicator, KLineData, TradingSignal } from '@/types'
 
 // 表单引用
 const formRef = ref<FormInstance>()
@@ -467,6 +487,7 @@ const formRef = ref<FormInstance>()
 const backtestForm = reactive({
   strategy: 'ma_cross',
   symbol: '',
+  klinePeriod: 'daily',
   startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
   endDate: new Date(),
   initialCapital: 1000000,
@@ -513,10 +534,31 @@ const tradeForm = reactive({
 
 // 回测结果
 const backtestResult = ref<any>(null)
+const backtestKlineData = ref<KLineData[]>([])
 const resultTab = ref('trades')
+const activeTab = ref('result')
 const loading = ref(false)
 const loadingStrategies = ref(false)
 const myIndicators = ref<Indicator[]>([])
+
+const fallbackStrategies = [
+  { label: 'MA 双均线', value: 'ma_cross' },
+  { label: 'RSI 反转', value: 'rsi_reversal' },
+  { label: 'MACD 金叉', value: 'macd_golden' },
+  { label: '布林带突破', value: 'boll_breakout' },
+  { label: 'KDJ 超买超卖', value: 'kdj_overbought' },
+  { label: 'PE均值回归', value: 'pe_mean_reversion' },
+  { label: 'PB均值回归', value: 'pb_mean_reversion' }
+]
+const strategyOptions = ref([...fallbackStrategies])
+const klinePeriodOptions = [
+  { label: '日线', value: 'daily' },
+  { label: '1分钟', value: '1min' },
+  { label: '5分钟', value: '5min' },
+  { label: '15分钟', value: '15min' },
+  { label: '30分钟', value: '30min' },
+  { label: '60分钟', value: '60min' }
+]
 
 // 图表引用
 const equityChartRef = ref<HTMLElement>()
@@ -554,13 +596,54 @@ const isIndicatorStrategy = (strategy: string) => strategy.startsWith('indicator
 
 const getIndicatorId = (strategy: string) => strategy.split(':')[1]
 
-const loadMyIndicators = async () => {
+const normalizeStrategyResponseItems = (response: any) => {
+  if (Array.isArray(response)) return response
+  return response?.strategies ?? response?.items ?? response?.data?.strategies ?? response?.data?.items ?? []
+}
+
+const dedupeStrategyOptions = (options: Array<{ label: string, value: string }>) => {
+  const seen = new Set<string>()
+  return options.filter(option => {
+    if (!option.value || seen.has(option.value)) return false
+    seen.add(option.value)
+    return true
+  })
+}
+
+const formatBuiltinStrategyLabel = (strategy: any) => {
+  return strategy.className ?? strategy.name ?? strategy.strategyName ?? strategy.strategy_type ?? strategy.strategyType
+}
+
+const loadStrategyOptions = async () => {
   loadingStrategies.value = true
   try {
-    myIndicators.value = await indicatorApi.getMyIndicators()
+    const [personalIndicators, systemIndicators, builtinStrategies] = await Promise.all([
+      indicatorApi.getMyIndicators(),
+      indicatorApi.getSystemIndicators(),
+      strategyApi.getStrategies({ source: 'builtin', pageSize: 200 } as any)
+    ])
+
+    myIndicators.value = personalIndicators
+
+    strategyOptions.value = dedupeStrategyOptions([
+      ...personalIndicators.map((indicator: any) => ({
+        label: indicator.name,
+        value: `indicator:${indicator.id}`
+      })),
+      ...systemIndicators.map((indicator: any) => ({
+        label: indicator.name,
+        value: `indicator:${indicator.id}`
+      })),
+      ...normalizeStrategyResponseItems(builtinStrategies).map((strategy: any) => ({
+        label: formatBuiltinStrategyLabel(strategy),
+        value: strategy.strategyType ?? strategy.strategy_type ?? strategy.name
+      })),
+      ...fallbackStrategies
+    ])
   } catch (error) {
-    console.error('加载我的指标失败:', error)
-    ElMessage.error('加载我的指标失败')
+    console.error('加载策略失败:', error)
+    strategyOptions.value = [...fallbackStrategies]
+    ElMessage.error('加载策略失败，已使用基础策略')
   } finally {
     loadingStrategies.value = false
   }
@@ -666,6 +749,43 @@ const normalizeBacktestResult = (result: any) => {
   }
 }
 
+const backtestTradeSignals = computed(() => {
+  if (!backtestResult.value?.trades?.length) return []
+
+  return backtestResult.value.trades
+    .filter((trade: any) => trade.date && (trade.type === 'BUY' || trade.type === 'SELL'))
+    .map((trade: any, index: number) => ({
+      id: `${trade.type}-${trade.date}-${index}`,
+      symbol: backtestForm.symbol,
+      symbolName: backtestForm.symbol,
+      type: trade.type === 'BUY' ? 'buy' : 'sell',
+      price: trade.price,
+      triggerPrice: trade.price,
+      confidence: 1,
+      reasons: [],
+      status: 'executed',
+      operator: 'agent',
+      createdAt: trade.date,
+      updatedAt: trade.date
+    })) as TradingSignal[]
+})
+
+const loadBacktestKlines = async (startDate: string, endDate: string) => {
+  backtestKlineData.value = []
+  try {
+    backtestKlineData.value = await stockApi.getKLineData({
+      symbol: backtestForm.symbol,
+      startDate,
+      endDate,
+      timeFrame: backtestForm.klinePeriod,
+      limit: 500
+    })
+  } catch (error) {
+    console.error('加载回测K线失败:', error)
+    ElMessage.warning('回测完成，但K线数据加载失败')
+  }
+}
+
 // 开始回测
 const handleStartBacktest = async () => {
   if (!formRef.value) return
@@ -725,6 +845,7 @@ const handleStartBacktest = async () => {
         })
 
       backtestResult.value = normalizeBacktestResult(result)
+      await loadBacktestKlines(startDate, endDate)
       ElMessage.success('回测完成')
 
       // 绘制图表
@@ -743,18 +864,62 @@ const findEquityValueByDate = (date: string) => {
   return backtestResult.value.equityCurve.find((item: any) => item.date === date)?.value
 }
 
+const findKlineCloseByDate = (date: string) => {
+  return backtestKlineData.value.find(item => item.date === date)?.close
+}
+
+const getBacktestInitialCapital = () => toFiniteNumber(
+  backtestResult.value?.initialCapital ?? backtestForm.initialCapital,
+  backtestForm.initialCapital
+)
+
+const buildEquityComparison = () => {
+  const equityCurve = backtestResult.value?.equityCurve ?? []
+  const initialCapital = getBacktestInitialCapital()
+  const firstComparableClose = equityCurve
+    .map((item: any) => findKlineCloseByDate(item.date))
+    .find((close: any) => Number.isFinite(close) && close > 0)
+
+  const strategyReturn = equityCurve.map((item: any) => {
+    return Number((((item.value - initialCapital) / initialCapital) * 100).toFixed(2))
+  })
+  const buyHoldReturn = equityCurve.map((item: any) => {
+    const close = findKlineCloseByDate(item.date)
+    if (!firstComparableClose || typeof close !== 'number' || !Number.isFinite(close)) return null
+    return Number((((close - firstComparableClose) / firstComparableClose) * 100).toFixed(2))
+  })
+  const excessReturn = equityCurve.map((_: any, index: number) => {
+    const buyHold = buyHoldReturn[index]
+    if (buyHold === null) return null
+    return Number((strategyReturn[index] - buyHold).toFixed(2))
+  })
+
+  return {
+    dates: equityCurve.map((item: any) => item.date),
+    strategyReturn,
+    buyHoldReturn,
+    excessReturn
+  }
+}
+
+const shortBacktestDate = (date: string) => date.split(' ')[0].slice(5, 10)
+
 const buildTradeMarkers = () => {
   if (!backtestResult.value?.trades?.length) return []
 
-  return backtestResult.value.trades.flatMap((trade: any) => {
+  const initialCapital = getBacktestInitialCapital()
+
+  return backtestResult.value.trades.flatMap((trade: any, index: number) => {
     const markers = []
+    const order = index + 1
     if (trade.entryDate) {
       const value = findEquityValueByDate(trade.entryDate)
       if (value !== undefined) {
         markers.push({
           name: '买入',
-          value: '买',
-          coord: [trade.entryDate, value],
+          value: `买${order}`,
+          tradeDate: trade.entryDate,
+          coord: [trade.entryDate, Number((((value - initialCapital) / initialCapital) * 100).toFixed(2))],
           itemStyle: { color: '#ef4444' }
         })
       }
@@ -764,8 +929,9 @@ const buildTradeMarkers = () => {
       if (value !== undefined) {
         markers.push({
           name: '卖出',
-          value: '卖',
-          coord: [trade.exitDate, value],
+          value: `卖${order}`,
+          tradeDate: trade.exitDate,
+          coord: [trade.exitDate, Number((((value - initialCapital) / initialCapital) * 100).toFixed(2))],
           itemStyle: { color: '#22c55e' }
         })
       }
@@ -774,17 +940,75 @@ const buildTradeMarkers = () => {
   })
 }
 
-// 绘制资产权益曲线图
+const buildHoldingBands = () => {
+  if (!backtestResult.value?.trades?.length) return []
+
+  return backtestResult.value.trades
+    .filter((trade: any) => trade.entryDate && trade.exitDate)
+    .map((trade: any) => [{ xAxis: trade.entryDate }, { xAxis: trade.exitDate }])
+}
+
+const buildTradeReferenceLines = () => {
+  if (!backtestResult.value?.trades?.length) return []
+
+  return backtestResult.value.trades.flatMap((trade: any, index: number) => {
+    const order = index + 1
+    const lines = []
+
+    if (trade.entryDate) {
+      lines.push({
+        name: `买${order}`,
+        xAxis: trade.entryDate,
+        lineStyle: { color: 'rgba(239, 68, 68, 0.44)', width: 1, type: 'dashed' },
+        label: {
+          show: false,
+          formatter: `买${order}\n${shortBacktestDate(trade.entryDate)}`,
+          color: '#f8fafc',
+          fontSize: 10,
+          lineHeight: 13,
+          backgroundColor: 'rgba(127, 29, 29, 0.84)',
+          borderRadius: 3,
+          padding: [3, 5]
+        }
+      })
+    }
+
+    if (trade.exitDate) {
+      lines.push({
+        name: `卖${order}`,
+        xAxis: trade.exitDate,
+        lineStyle: { color: 'rgba(34, 197, 94, 0.44)', width: 1, type: 'dashed' },
+        label: {
+          show: false,
+          formatter: `卖${order}\n${shortBacktestDate(trade.exitDate)}`,
+          color: '#f8fafc',
+          fontSize: 10,
+          lineHeight: 13,
+          backgroundColor: 'rgba(20, 83, 45, 0.84)',
+          borderRadius: 3,
+          padding: [3, 5]
+        }
+      })
+    }
+
+    return lines
+  })
+}
+
+// 绘制策略与标的对照图
 const renderEquityChart = () => {
   if (!equityChartRef.value || !backtestResult.value) return
 
   const chart = echarts.init(equityChartRef.value)
   const tradeMarkers = buildTradeMarkers()
+  const holdingBands = buildHoldingBands()
+  const tradeReferenceLines = buildTradeReferenceLines()
+  const comparison = buildEquityComparison()
   const option = {
     backgroundColor: '#0a0a0f',
     title: {
-      text: '资产权益曲线',
-      subtext: '现金 + 持仓市值，买/卖标记来自交易记录',
+      text: '策略 vs 标的',
+      subtext: '策略收益率、买入持有收益率与超额收益率同轴对照',
       left: 18,
       top: 10,
       textStyle: { color: '#e5e7eb', fontSize: 14, fontWeight: 600 },
@@ -793,50 +1017,129 @@ const renderEquityChart = () => {
     legend: {
       top: 18,
       right: 24,
+      data: ['策略收益率', '买入持有收益率', '超额收益率'],
       textStyle: { color: '#94a3b8' }
     },
-    grid: { left: 72, right: 78, top: 72, bottom: 36 },
+    grid: [
+      { left: 72, right: 82, top: 82, height: 170 },
+      { left: 72, right: 82, top: 286, height: 70 }
+    ],
     tooltip: {
       trigger: 'axis',
       backgroundColor: 'rgba(0, 0, 0, 0.8)',
       borderColor: '#333',
       textStyle: { color: '#fff' },
       formatter: (params: any) => {
-        const point = Array.isArray(params) ? params[0] : params
-        return `${point.axisValue}<br/>资产权益: ¥${formatPrice(point.data)}`
+        const items = Array.isArray(params) ? params : [params]
+        const lines = items.map((item: any) => `${item.marker}${item.seriesName}: ${Number(item.data ?? 0).toFixed(2)}%`)
+        return `${items[0]?.axisValue ?? ''}<br/>${lines.join('<br/>')}`
       }
     },
-    xAxis: {
-      type: 'category',
-      data: backtestResult.value.equityCurve.map((item: any) => item.date),
-      axisLine: { lineStyle: { color: '#2a2e39' } },
-      axisLabel: { color: '#64748b' }
+    axisPointer: {
+      link: [{ xAxisIndex: [0, 1] }]
     },
-    yAxis: {
-      type: 'value',
-      axisLine: { lineStyle: { color: '#2a2e39' } },
-      axisLabel: { color: '#64748b', formatter: '¥{value}' },
-      splitLine: { lineStyle: { color: '#2a2e39' } }
-    },
+    xAxis: [
+      {
+        type: 'category',
+        data: comparison.dates,
+        axisLine: { lineStyle: { color: '#2a2e39' } },
+        axisLabel: { show: false },
+        axisTick: { show: false }
+      },
+      {
+        type: 'category',
+        gridIndex: 1,
+        data: comparison.dates,
+        axisLine: { lineStyle: { color: '#2a2e39' } },
+        axisLabel: {
+          color: '#64748b',
+          hideOverlap: true,
+          showMinLabel: true,
+          showMaxLabel: true,
+          formatter: shortBacktestDate
+        }
+      }
+    ],
+    yAxis: [
+      {
+        type: 'value',
+        axisLine: { lineStyle: { color: '#2a2e39' } },
+        axisLabel: { color: '#64748b', formatter: '{value}%' },
+        splitLine: { lineStyle: { color: '#2a2e39' } }
+      },
+      {
+        type: 'value',
+        gridIndex: 1,
+        axisLine: { lineStyle: { color: '#2a2e39' } },
+        axisLabel: { color: '#64748b', formatter: '{value}%' },
+        splitLine: { lineStyle: { color: '#2a2e39' } }
+      }
+    ],
     series: [
       {
-        name: '资产权益',
+        name: '策略收益率',
         type: 'line',
-        data: backtestResult.value.equityCurve.map((item: any) => item.value),
+        data: comparison.strategyReturn,
         smooth: true,
         lineStyle: { color: '#10b981', width: 2 },
         showSymbol: false,
         markPoint: {
-          symbol: 'pin',
-          symbolSize: 46,
-          label: { color: '#ffffff', fontSize: 11, fontWeight: 600 },
+          symbol: 'circle',
+          symbolSize: 16,
+          label: {
+            color: '#ffffff',
+            fontSize: 10,
+            fontWeight: 600,
+            lineHeight: 13,
+            backgroundColor: 'rgba(15, 23, 42, 0.88)',
+            borderRadius: 3,
+            padding: [3, 5],
+            formatter: (params: any) => {
+              const marker = params.data ?? params
+              return marker.value
+            }
+          },
           data: tradeMarkers
+        },
+        markLine: {
+          symbol: 'none',
+          silent: true,
+          data: tradeReferenceLines
+        },
+        markArea: {
+          silent: true,
+          itemStyle: { color: 'rgba(34, 197, 94, 0.08)' },
+          data: holdingBands
         },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: 'rgba(16, 185, 129, 0.3)' },
             { offset: 1, color: 'rgba(16, 185, 129, 0.02)' }
           ])
+        }
+      },
+      {
+        name: '买入持有收益率',
+        type: 'line',
+        data: comparison.buyHoldReturn,
+        smooth: true,
+        showSymbol: false,
+        connectNulls: true,
+        lineStyle: { color: '#60a5fa', width: 1.8, type: 'dashed' }
+      },
+      {
+        name: '超额收益率',
+        type: 'bar',
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        data: comparison.excessReturn,
+        connectNulls: true,
+        barWidth: '55%',
+        itemStyle: {
+          color: (params: any) => {
+            const value = Number(params.data ?? 0)
+            return value >= 0 ? 'rgba(34, 197, 94, 0.46)' : 'rgba(239, 68, 68, 0.42)'
+          }
         }
       }
     ]
@@ -1102,10 +1405,11 @@ const handleSubmitSaveStrategy = async () => {
 const handleReset = () => {
   formRef.value?.resetFields()
   backtestResult.value = null
+  backtestKlineData.value = []
 }
 
 onMounted(() => {
-  loadMyIndicators()
+  loadStrategyOptions()
 })
 </script>
 
@@ -1137,10 +1441,23 @@ export default defineComponent({
     }
   }
 
-  .chart-container {
+  .backtest-chart-panel {
     background: #0a0a0f;
     border-radius: 8px;
     padding: 16px;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .equity-comparison-chart {
+    height: 380px;
+  }
+
+  .chart-section-title {
+    color: #e5e7eb;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
   }
 
   :deep(.el-input-number) {
