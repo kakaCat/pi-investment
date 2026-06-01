@@ -59,6 +59,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '机会雷达' }
       },
       {
+        path: '/pools',
+        name: 'PoolList',
+        component: () => import(/* webpackChunkName: "pool-list" */ '@/views/PoolList/index.vue'),
+        meta: { title: '股票池' }
+      },
+      {
+        path: '/pools/:id',
+        name: 'PoolDetail',
+        component: () => import(/* webpackChunkName: "pool-detail" */ '@/views/PoolDetail/index.vue'),
+        meta: { title: '股票池详情' }
+      },
+      {
         path: '/backtest',
         name: 'BacktestCenter',
         component: () => import(/* webpackChunkName: "backtest-center" */ '@/views/BacktestCenter/index.vue'),
