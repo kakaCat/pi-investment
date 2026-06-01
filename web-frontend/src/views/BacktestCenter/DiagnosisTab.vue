@@ -123,7 +123,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { DataAnalysis, Document, CircleCheck, CircleClose, Lightbulb } from '@element-plus/icons-vue'
+import { DataAnalysis, Document, CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import DiagnosisCards from './DiagnosisCards.vue'
 import { runDiagnosis, type DiagnosisResult } from '@/services/api/diagnosis'
 
