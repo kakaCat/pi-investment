@@ -85,9 +85,10 @@
         </div>
 
         <!-- 优化建议 -->
+        <!-- Note: Using emoji 💡 instead of <Lightbulb /> because Element Plus doesn't have a Lightbulb icon -->
         <div v-if="diagnosisResult.diagnosis.suggestions.length > 0" class="section">
           <h4 class="section-title">
-            <el-icon color="#409EFF"><Lightbulb /></el-icon>
+            <span class="icon-lightbulb">💡</span>
             优化建议
           </h4>
           <ol class="list suggestions">
@@ -122,7 +123,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { DataAnalysis, Document, CircleCheck, CircleClose, Lightbulb } from '@element-plus/icons-vue'
+import { DataAnalysis, Document, CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import DiagnosisCards from './DiagnosisCards.vue'
 import { runDiagnosis, type DiagnosisResult } from '@/services/api/diagnosis'
 
