@@ -16,7 +16,10 @@ export const reflectTool = {
     "Use after finishing a task (or a major phase of work) to catch gaps, omissions, or misalignments before delivering the result. " +
     "Provide the user's original goal and a summary of what was done; the reflect agent returns a structured verdict with any gaps and recommended next steps. " +
     "Do NOT use as a substitute for task_list (which tracks execution) — reflect evaluates quality and goal alignment, not completion status. " +
-    "Do NOT use after every small action — call it once at the end of a meaningful unit of work.",
+    "Do NOT use after every small action — call it once at the end of a meaningful unit of work. " +
+    "⚠️ CRITICAL: After receiving the reflect evaluation, you MUST continue — " +
+    "present the final results to the user, address any gaps found, or explain what was done. " +
+    "reflect is a checkpoint, NOT the finish line. Never go silent after reflect returns.",
   parameters: Type.Object({
     goal: Type.String({ description: "The user's original goal or request, as stated." }),
     outcome: Type.String({ description: "Summary of what was actually done (tasks completed, files changed, results produced)." }),
