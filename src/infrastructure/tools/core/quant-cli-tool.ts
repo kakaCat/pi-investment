@@ -423,11 +423,12 @@ const COMMANDS: Record<string, CommandRule> = {
     action: "list",
     description: "读取已生成的交易信号，可按日期、方向和置信度过滤。",
     params: {
+      days: { type: "integer", min: 1, max: 365 },
       date: { type: "string" },
       signal_type: { type: "string", enum: ["BUY", "SELL"] },
       min_confidence: { type: "number", min: 0 },
     },
-    example: { signal_type: "BUY", min_confidence: 0.7 },
+    example: { days: 30 },
   },
   "signal.generate": {
     domain: "signal",
@@ -1275,6 +1276,21 @@ export function getV2TelemetrySummary() {
   };
 }
 
+/**
+ * 将市场风格代码转换为中文名称
+ */
+function getStyleName(style: string): string {
+  const styleNames: Record<string, string> = {
+    'momentum': '动量市',
+    'oscillation': '震荡市',
+    'low_volatility': '低波市',
+    'value': '价值市',
+    'mixed_market': '混合市场',
+    'unknown': '未知市场'
+  };
+  return styleNames[style] || style;
+}
+
 export const quantCliTool: ToolDefinition = {
   name: "quant_cli",
   label: "QuantSys CLI",
@@ -1446,6 +1462,39 @@ export const quantCliTool: ToolDefinition = {
         const response = await runQuantV2(command, params);
         _getEntry(command).v2Success++;
 
+        // ── 集成市场风格检测 ──
+        let marketStyleInfo: any = null;
+        try {
+          // 查询当前市场风格
+          const marketStyleResponse = await fetch('http://127.0.0.1:5001/api/market/style');
+          if (marketStyleResponse.ok) {
+            const marketStyleData = await marketStyleResponse.json();
+            if (marketStyleData.success && marketStyleData.data) {
+              const marketStyle = marketStyleData.data.style;
+
+              // 查询策略权重调整
+              const strategyName = params.strategy || params.strategy_id;
+              const weightResponse = await fetch(
+                `http://127.0.0.1:5001/api/strategies/${strategyName}/weight?market_style=${marketStyle}`
+              );
+
+              if (weightResponse.ok) {
+                const weightData = await weightResponse.json();
+                if (weightData.success && weightData.data) {
+                  marketStyleInfo = {
+                    market_style: marketStyle,
+                    weight_adjustment: weightData.data.weight_adjustment,
+                    style_recommendation: `当前为${getStyleName(marketStyle)}，策略权重调整为${weightData.data.weight_adjustment.toFixed(2)}`
+                  };
+                }
+              }
+            }
+          }
+        } catch (styleError) {
+          // 市场风格查询失败不影响主流程，静默处理
+          console.warn('Market style detection failed:', styleError);
+        }
+
         const action = params.action as string;
         let formattedText: string;
 
@@ -1465,9 +1514,19 @@ export const quantCliTool: ToolDefinition = {
           formattedText = JSON.stringify(response, null, 2);
         }
 
+        // 附加市场风格信息到格式化文本
+        if (marketStyleInfo) {
+          formattedText += `\n\n【市场风格分析】\n${marketStyleInfo.style_recommendation}`;
+        }
+
+        // 合并市场风格信息到响应详情
+        const enrichedResponse = marketStyleInfo
+          ? { ...response, ...marketStyleInfo }
+          : response;
+
         return {
           content: [{ type: "text" as const, text: formattedText }],
-          details: response,
+          details: enrichedResponse,
         };
       }
 
