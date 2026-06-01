@@ -1276,21 +1276,6 @@ export function getV2TelemetrySummary() {
   };
 }
 
-/**
- * 将市场风格代码转换为中文名称
- */
-function getStyleName(style: string): string {
-  const styleNames: Record<string, string> = {
-    'momentum': '动量市',
-    'oscillation': '震荡市',
-    'low_volatility': '低波市',
-    'value': '价值市',
-    'mixed_market': '混合市场',
-    'unknown': '未知市场'
-  };
-  return styleNames[style] || style;
-}
-
 export const quantCliTool: ToolDefinition = {
   name: "quant_cli",
   label: "QuantSys CLI",
@@ -1465,10 +1450,23 @@ export const quantCliTool: ToolDefinition = {
         // ── 集成市场风格检测 ──
         let marketStyleInfo: any = null;
         try {
+          // Helper function to convert market style codes to Chinese names
+          const getStyleName = (style: string): string => {
+            const styleNames: Record<string, string> = {
+              'momentum': '动量市',
+              'oscillation': '震荡市',
+              'low_volatility': '低波市',
+              'value': '价值市',
+              'mixed_market': '混合市场',
+              'unknown': '未知市场'
+            };
+            return styleNames[style] || style;
+          };
+
           // 查询当前市场风格
           const marketStyleResponse = await fetch('http://127.0.0.1:5001/api/market/style');
           if (marketStyleResponse.ok) {
-            const marketStyleData = await marketStyleResponse.json();
+            const marketStyleData = await marketStyleResponse.json() as any;
             if (marketStyleData.success && marketStyleData.data) {
               const marketStyle = marketStyleData.data.style;
 
@@ -1479,7 +1477,7 @@ export const quantCliTool: ToolDefinition = {
               );
 
               if (weightResponse.ok) {
-                const weightData = await weightResponse.json();
+                const weightData = await weightResponse.json() as any;
                 if (weightData.success && weightData.data) {
                   marketStyleInfo = {
                     market_style: marketStyle,
