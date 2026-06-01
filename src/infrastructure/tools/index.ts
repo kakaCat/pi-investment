@@ -30,6 +30,13 @@ import { factorAnalyzeTool } from "./factor/factor-analyze-tool.js";
 // L2.5 机会雷达（基于因子的综合评分）
 import { opportunityScanTool } from "./invest/opportunity-scan-tool.js";
 
+// L2.6 ZigZag 波段买卖点分析
+import { swingPointsTool } from "./invest/swing-points-tool.js";
+
+// L2.7 股票池管理
+import { poolManageTool } from "./pool/pool-manage-tool.js";
+import { poolValidateTool } from "./pool/pool-validate-tool.js";
+
 // L3 模型层
 import { modelTrainTool } from "./model/train-tool.js";
 import { modelPredictTool } from "./model/predict-tool.js";
@@ -41,11 +48,23 @@ import { modelListTool } from "./model/list-tool.js";
 import { strategyBatchValidateTool } from "./strategy/batch-validate-tool.js";
 import { strategyOptimizeTool } from "./strategy/optimize-tool.js";
 
+// 指标工具（独立工具，从 quant_cli 提取）
+import { indicatorListTool } from "./indicator/list-tool.js";
+import { indicatorDetailTool } from "./indicator/detail-tool.js";
+import { indicatorCreateTool } from "./indicator/create-tool.js";
+import { indicatorUpdateTool } from "./indicator/update-tool.js";
+import { indicatorDeleteTool } from "./indicator/delete-tool.js";
+import { indicatorRunTool } from "./indicator/run-tool.js";
+import { indicatorBacktestTool } from "./indicator/backtest-tool.js";
+import { strategyWriteTool } from "./indicator/strategy-write-tool.js";
+import { indicatorCompareTool } from "./indicator/compare-tool.js";
+import { indicatorSandboxColumnsTool } from "./indicator/sandbox-columns-tool.js";
+
 // L4 组合构建
-import { portfolioRebalanceTool } from "./portfolio/rebalance-tool.js";
+// portfolioRebalanceTool 已删除（依赖已移除的服务）
 
 // L5 执行引擎
-import { tradeManageOrdersTool } from "./trade/manage-orders-tool.js";
+// tradeManageOrdersTool 已删除（依赖已移除的服务）
 import { algoExecuteTool } from "./trade/algo-execute-tool.js";
 import { signalExecutionTool } from "./execution/signal-execution-tool.js";
 
@@ -122,6 +141,11 @@ export const allCustomTools = [
 
   // L2.5 机会雷达（基于因子的综合评分）
   opportunityScanTool,            // opportunity_scan - 多维评分扫描交易机会
+  swingPointsTool,                // analysis_swing_points - ZigZag 波段买卖点
+
+  // L2.7 股票池管理
+  poolManageTool,                 // pool_manage - 股票池 CRUD + 筛选建池
+  poolValidateTool,               // pool_validate - 多策略批量回测验证
 
   // L3 模型层
   modelTrainTool,                 // model_train - 训练机器学习模型
@@ -134,11 +158,23 @@ export const allCustomTools = [
   strategyOptimizeTool,           // strategy_optimize - 策略参数优化
   strategyBatchValidateTool,      // strategy_batch_validate - 批量验证策略有效性
 
+  // 指标工具
+  indicatorListTool,              // indicator_list - 列出可用指标
+  indicatorDetailTool,            // indicator_detail - 查看指标详情
+  indicatorCreateTool,            // indicator_create - 创建自定义指标
+  indicatorUpdateTool,            // indicator_update - 更新指标
+  indicatorDeleteTool,            // indicator_delete - 删除指标
+  indicatorRunTool,               // indicator_run - 运行指标
+  indicatorBacktestTool,          // indicator_backtest - 指标历史回测
+  strategyWriteTool,              // strategy_write - 编写/更新策略代码，配合回测迭代
+  indicatorCompareTool,           // indicator_compare - 对比两个指标
+  indicatorSandboxColumnsTool,    // indicator_sandbox_columns - 沙箱可用列
+
   // L4 组合构建
-  portfolioRebalanceTool,         // portfolio_rebalance - 组合再平衡
+  // portfolioRebalanceTool 已删除
 
   // L5 执行引擎
-  tradeManageOrdersTool,          // trade_manage_orders - 订单管理
+  // tradeManageOrdersTool 已删除
   algoExecuteTool,                // trade_algo_execute - 算法交易执行
   signalExecutionTool,            // signal_execution - 信号执行管理
 
