@@ -58,14 +58,14 @@ const V2_TIMEOUT_MS = parseInt(
  */
 const V2_ROUTES: Record<
   string,
-  { path: string; method: "GET" | "POST" | "DELETE" }
+  { path: string; method: "GET" | "POST" | "DELETE"; paramMap?: Record<string, string> }
 > = {
   // ── stock ──
   "stock.list":      { path: "/api/stocks/list",          method: "GET" },
-  "stock.info":      { path: "/api/stocks/{symbol}",       method: "GET" },
-  "stock.quote":     { path: "/api/stock/{symbol}/quote",  method: "GET" },
-  "stock.klines":    { path: "/api/stock/{symbol}/klines", method: "GET" },
-  "stock.history":   { path: "/api/stock/{symbol}/history", method: "GET" },
+  // stock.info 已移除 — 使用专用工具 data_fetch_stock
+  // stock.quote 已移除 — 使用专用工具 data_fetch_stock
+  // stock.klines 已移除 — 使用专用工具 data_fetch_kline
+  // stock.history 已移除 — 使用专用工具 data_fetch_kline
   "stock.technical": { path: "/api/stock/{symbol}/technical", method: "GET" },
 
   // ── analysis (复用 stock 端点) ──
@@ -94,7 +94,7 @@ const V2_ROUTES: Record<
 
   // ── financial ──
   "financial.indicators":   { path: "/api/stock/{symbol}/indicators",    method: "GET" },
-  "financial.statements":   { path: "/api/stock/{symbol}/financials",    method: "GET" },
+  // financial.statements 已移除 — 使用专用工具 data_fetch_financial
   "financial.valuation":    { path: "/api/stock/{symbol}/valuation",     method: "GET" },
   "financial.pe_percentile":{ path: "/api/stock/{symbol}/pe-percentile", method: "GET" },
 
@@ -117,8 +117,8 @@ const V2_ROUTES: Record<
 
   // ── stock queries ──
   "stock.batch_quotes":  { path: "/api/stocks/batch-quotes",         method: "POST" },
-  "stock.announcements": { path: "/api/stock/{symbol}/announcements", method: "GET" },
-  "stock.news":          { path: "/api/stock/{symbol}/news",         method: "GET" },
+  // stock.announcements 已移除 — 使用专用工具 data_fetch_stock
+  // stock.news 已移除 — 使用专用工具 data_fetch_stock
 
   // ── sentiment extra ──
   "sentiment.insider_trades": { path: "/api/stock/{symbol}/insider-trades", method: "GET" },
@@ -126,6 +126,7 @@ const V2_ROUTES: Record<
   // ── analysis ──
   "analysis.peers":      { path: "/api/stock/{symbol}/peers",          method: "GET" },
   "analysis.peer_comparison": { path: "/api/stock/{symbol}/peers",          method: "GET" },  // alias
+  "analysis.swing_points": { path: "/api/analysis/swing-points",       method: "POST" },
 
   // ── HK market ──
   "hk.market_overview":   { path: "/api/hk/overview",              method: "GET" },
@@ -154,17 +155,17 @@ const V2_ROUTES: Record<
   "portfolio.optimize":    { path: "/api/portfolio/optimize",    method: "POST" },
   "portfolio.correlation": { path: "/api/portfolio/correlation", method: "POST" },
 
-  "factor.analyze":      { path: "/api/portfolio/factor-analyze",      method: "POST" },
+  // factor.analyze 已移除 — 使用专用工具 factor_analyze
   "factor.decay":        { path: "/api/portfolio/factor-decay",        method: "POST" },
   "sector.aggregate":    { path: "/api/portfolio/sector-aggregate",    method: "POST" },
-  "strategy.optimize":   { path: "/api/portfolio/strategy-optimize",   method: "POST" },
+  // strategy.optimize 已移除 — 使用专用工具 strategy_optimize
   "performance.analyze": { path: "/api/portfolio/performance-analyze", method: "POST" },
   "signal.arbitrate":    { path: "/api/portfolio/signal-arbitrate",    method: "POST" },
-  "stock.ml_predict":   { path: "/api/cli/ml-predict",  method: "POST" },
-  "ml.history":         { path: "/api/ml/history",   method: "GET"  },
+  // stock.ml_predict 已移除 — 使用专用工具 model_predict
+  // ml.history 已移除 — 使用专用工具 model_list
   "calibrate.run":      { path: "/api/cli/calibrate",       method: "POST" },
-  "factor.compute":     { path: "/api/cli/factor-compute",  method: "POST" },
-  "ml.train":           { path: "/api/cli/ml-train",        method: "POST" },
+  // factor.compute 已移除 — 使用专用工具 factor_calculate
+  // ml.train 已移除 — 使用专用工具 model_train
   "signal.generate":    { path: "/api/cli/signal-generate", method: "POST" },
 
   // ── market north flow ──
@@ -184,22 +185,22 @@ const V2_ROUTES: Record<
 
   // ── signal ──
   "signal.list":       { path: "/api/signals",              method: "GET" },
-  "signal.scan":       { path: "/api/signals/scan",         method: "POST" },
+  // signal.scan 已移除 — 使用专用工具 opportunity_scan
   "signal.statistics": { path: "/api/signals/statistics",   method: "GET" },
 
   // ── backtest ──
   "backtest.run":     { path: "/api/backtest/run",      method: "POST" },
   "backtest.strategy": { path: "/api/backtest/strategy", method: "POST" },
-  "backtest.batch":   { path: "/api/backtest/batch",    method: "POST" },
+  // backtest.batch 已移除 — 使用专用工具 strategy_batch_validate
   "backtest.results": { path: "/api/backtest/results",  method: "GET" },
 
   // ── strategy ──
   "strategy.list":   { path: "/api/strategies/list",           method: "GET" },
   "strategy.get":    { path: "/api/strategies/detail/{strategy_id}", method: "GET" },
-  "strategy.create": { path: "/api/strategies/create",        method: "POST" },
+  "strategy.create": { path: "/api/strategies",               method: "POST" },
   "strategy.run":    { path: "/api/strategy/run",             method: "POST" },
   "strategy.status": { path: "/api/strategy/status",          method: "GET" },
-  "strategy.execute": { path: "/api/strategy/execute",        method: "POST" },
+  "strategy.execute": { path: "/api/strategies/execute",      method: "POST", paramMap: { strategy: "strategyName" } },
 
   // ── portfolio ──
   "portfolio.summary":  { path: "/api/portfolio/summary",    method: "GET" },
@@ -238,7 +239,7 @@ const V2_ROUTES: Record<
   "scheduler.tasks": { path: "/api/scheduler/tasks", method: "GET" },
 
   // ── compute ──
-  "compute.factors": { path: "/api/compute/factors", method: "POST" },
+  // compute.factors 已移除 — 使用专用工具 factor_calculate
 
   // ── charts ──
   "charts.accuracy":    { path: "/api/charts/accuracy",    method: "GET" },
@@ -426,10 +427,20 @@ export async function runQuantV2<T = unknown>(
 // ─── 内部辅助 ────────────────────────────────────────────
 
 function buildRequest(
-  route: { path: string; method: "GET" | "POST" | "DELETE" },
+  route: { path: string; method: "GET" | "POST" | "DELETE"; paramMap?: Record<string, string> },
   params: Record<string, unknown>,
 ): { url: string; body: Record<string, unknown> | null } {
   let path = route.path;
+
+  // 参数重映射 → 将客户端键名转换为服务器端名
+  if (route.paramMap) {
+    for (const [from, to] of Object.entries(route.paramMap)) {
+      if (from in params && !(to in params)) {
+        params[to] = params[from];
+        delete params[from];
+      }
+    }
+  }
 
   // 提取 URL 路径占位符
   const pathParams = new Set<string>();
@@ -485,8 +496,9 @@ function buildQueryString(params: Record<string, unknown>): string {
 async function fetchV2<T>(
   url: string,
   options: {
-    method?: 'GET' | 'POST';
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
     body?: unknown;
+    signal?: AbortSignal;
   } = {},
 ): Promise<T> {
   try {
@@ -494,7 +506,7 @@ async function fetchV2<T>(
       method: options.method ?? 'GET',
       headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
       body: options.body ? JSON.stringify(options.body) : undefined,
-      signal: AbortSignal.timeout(V2_TIMEOUT_MS),
+      signal: options.signal ?? AbortSignal.timeout(V2_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -1032,6 +1044,70 @@ export async function getStockData(
   return result;
 }
 
+// ── 策略写入（从 quant_cli 提取为独立工具） ─
+
+/**
+ * 创建新策略/指标
+ */
+export async function createIndicator(params: {
+  name: string;
+  code: string;
+  description?: string;
+  category?: string;
+  params?: Record<string, unknown>;
+}): Promise<{
+  success: boolean;
+  data?: {
+    strategy_id: number;
+    name: string;
+    code_type: string;
+    validation: {
+      valid: boolean;
+      error?: string;
+      syntax_ok: boolean;
+      has_buy_signal: boolean;
+      has_sell_signal: boolean;
+      params: Array<{ name: string; default: unknown; type: string }>;
+      risk_config: Record<string, unknown>;
+      metadata: Record<string, unknown>;
+    };
+  };
+  message?: string;
+  error?: string;
+}> {
+  if (!params.name || !params.code) {
+    throw new QuantV2Error('name 和 code 不能为空', 400);
+  }
+
+  const url = `${V2_API_BASE}/api/indicators/create`;
+  return fetchV2(url, { method: 'POST', body: params });
+}
+
+/**
+ * 更新已有策略/指标
+ */
+export async function updateIndicator(
+  indicatorId: number,
+  params: {
+    code?: string;
+    name?: string;
+    description?: string;
+    category?: string;
+    is_active?: boolean;
+    params?: Record<string, unknown>;
+  }
+): Promise<{
+  success: boolean;
+  data?: Record<string, unknown>;
+  message?: string;
+  error?: string;
+}> {
+  const url = `${V2_API_BASE}/api/indicators/update/${indicatorId}`;
+  return fetchV2(url, { method: 'POST', body: params });
+}
+
+// backtestIndicator 已移除 — 使用专用工具 indicator_backtest (通过 runQuantV2 调用)
+
 /**
  * 列出模型
  */
@@ -1086,7 +1162,10 @@ export async function monitorModel(
 
 /**
  * 训练模型（复用现有端点）
+ * ML训练是长耗时操作（数据拉取+特征工程+训练），使用 5 分钟超时
  */
+const ML_TRAIN_TIMEOUT_MS = 300_000; // 5 minutes
+
 export async function trainModel(params: {
   model_type?: string;
   start_date?: string;
@@ -1095,10 +1174,17 @@ export async function trainModel(params: {
   symbols?: string[];
   params?: Record<string, any>;
 }): Promise<any> {
-  return fetchV2(`${V2_API_BASE}/api/ml/train`, {
-    method: "POST",
-    body: params
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ML_TRAIN_TIMEOUT_MS);
+  try {
+    return await fetchV2(`${V2_API_BASE}/api/ml/train`, {
+      method: "POST",
+      body: params,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 /**
@@ -1264,3 +1350,75 @@ export async function pipelineExecuteStrategy(
   return result.data;
 }
 
+// ── Stock Pool Management ──
+
+export interface PoolCreateParams {
+  name: string;
+  pool_type: "static" | "dynamic";
+  symbols?: string[];
+  filter_template?: Record<string, unknown>;
+  refresh_interval?: "daily" | "weekly";
+  description?: string;
+}
+
+export interface PoolValidateParams {
+  strategy_ids?: number[];
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface PoolScanCreateParams {
+  name: string;
+  pool_type: "static" | "dynamic";
+  filter: Record<string, unknown>;
+  refresh_interval?: "daily" | "weekly";
+  description?: string;
+}
+
+export async function createPool(params: PoolCreateParams): Promise<any> {
+  const url = `${V2_API_BASE}/api/pools`;
+  return fetchV2(url, { method: "POST", body: params });
+}
+
+export async function listPools(): Promise<any> {
+  const url = `${V2_API_BASE}/api/pools`;
+  return fetchV2(url, { method: "GET" });
+}
+
+export async function getPool(poolId: number): Promise<any> {
+  const url = `${V2_API_BASE}/api/pools/${poolId}`;
+  return fetchV2(url, { method: "GET" });
+}
+
+export async function updatePool(
+  poolId: number,
+  data: Partial<PoolCreateParams>,
+): Promise<any> {
+  const url = `${V2_API_BASE}/api/pools/${poolId}`;
+  return fetchV2(url, { method: "PUT", body: data });
+}
+
+export async function deletePool(poolId: number): Promise<any> {
+  const url = `${V2_API_BASE}/api/pools/${poolId}`;
+  return fetchV2(url, { method: "DELETE" });
+}
+
+export async function refreshPool(poolId: number): Promise<any> {
+  const url = `${V2_API_BASE}/api/pools/${poolId}/refresh`;
+  return fetchV2(url, { method: "POST" });
+}
+
+export async function validatePool(
+  poolId: number,
+  params?: PoolValidateParams,
+): Promise<any> {
+  const url = `${V2_API_BASE}/api/pools/${poolId}/validate`;
+  return fetchV2(url, { method: "POST", body: params ?? {} });
+}
+
+export async function scanAndCreatePool(
+  params: PoolScanCreateParams,
+): Promise<any> {
+  const url = `${V2_API_BASE}/api/pools/scan-and-create`;
+  return fetchV2(url, { method: "POST", body: params });
+}
