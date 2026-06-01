@@ -36,8 +36,27 @@
     <!-- 筛选条件标签 -->
     <div v-if="pool.filter_template" style="margin-top: 16px;">
       <span style="color: var(--el-text-color-secondary); margin-right: 8px;">筛选条件:</span>
-      <el-tag v-for="t in pool.filter_template?.technical || []" :key="t" size="small" style="margin-right: 4px;">{{ filterLabels[t] || t }}</el-tag>
-      <el-tag v-for="f in pool.filter_template?.fundamental || []" :key="f" type="warning" size="small" style="margin-right: 4px;">{{ filterLabels[f] || f }}</el-tag>
+
+      <!-- 新格式：条件数组 -->
+      <template v-if="pool.filter_template.conditions && pool.filter_template.conditions.length > 0">
+        <el-tag
+          v-for="(cond, i) in pool.filter_template.conditions"
+          :key="i"
+          type="primary"
+          size="small"
+          style="margin-right: 4px;"
+        >
+          {{ formatCondition(cond) }}
+        </el-tag>
+        <el-tag type="info" size="small">逻辑: {{ pool.filter_template.logic || 'AND' }}</el-tag>
+      </template>
+
+      <!-- 旧格式：布尔标签（向后兼容） -->
+      <template v-else>
+        <el-tag v-for="t in pool.filter_template?.technical || []" :key="t" size="small" style="margin-right: 4px;">{{ filterLabels[t] || t }}</el-tag>
+        <el-tag v-for="f in pool.filter_template?.fundamental || []" :key="f" type="warning" size="small" style="margin-right: 4px;">{{ filterLabels[f] || f }}</el-tag>
+      </template>
+
       <el-tag v-if="pool.filter_template?.min_score" type="info" size="small" style="margin-right: 4px;">最低分: {{ pool.filter_template.min_score }}</el-tag>
       <el-tag v-if="pool.filter_template?.top_n" type="info" size="small">Top {{ pool.filter_template.top_n }}</el-tag>
     </div>
@@ -49,6 +68,11 @@
         <el-table :data="memberRows" stripe>
           <el-table-column prop="index" label="序号" width="80" />
           <el-table-column prop="symbol" label="股票代码" />
+          <el-table-column prop="name" label="股票名称">
+            <template #default="{ row }">
+              {{ row.name || '—' }}
+            </template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -119,9 +143,14 @@
 
           <!-- 推荐组合 -->
           <h4 style="margin-top: 24px;">💡 推荐组合</h4>
-          <el-table :data="validation.recommended_pairs || []" stripe style="margin-top: 8px;">
+          <el-table :data="recommendedPairRows" stripe style="margin-top: 8px;">
             <el-table-column type="index" label="序号" width="60" />
             <el-table-column prop="symbol" label="股票代码" />
+            <el-table-column prop="name" label="股票名称">
+              <template #default="{ row }">
+                {{ row.name || '—' }}
+              </template>
+            </el-table-column>
             <el-table-column prop="expected_return" label="预期收益%" width="120">
               <template #default="{ row }">
                 <span :style="{ color: row.expected_return >= 0 ? '#67C23A' : '#F56C6C' }">{{ row.expected_return }}</span>
@@ -188,8 +217,42 @@ const pool = ref<any>({})
 const activeTab = ref('members')
 
 const validation = computed(() => pool.value.last_validation)
-const memberRows = computed(() =>
-  (pool.value.symbols || []).map((s: string, i: number) => ({ index: i + 1, symbol: s }))
+const stockNameBySymbol = computed(() => {
+  const names: Record<string, string> = {}
+  const members = Array.isArray(pool.value.members) ? pool.value.members : []
+
+  members.forEach((member: { symbol?: string; name?: string; stock_name?: string; stockName?: string }) => {
+    const symbol = member.symbol
+    const name = member.name || member.stock_name || member.stockName
+    if (symbol && name) {
+      names[symbol] = name
+    }
+  })
+
+  return names
+})
+const memberRows = computed(() => {
+  const members = Array.isArray(pool.value.members) && pool.value.members.length > 0
+    ? pool.value.members
+    : (pool.value.symbols || [])
+
+  return members.map((member: string | { symbol?: string; name?: string; stock_name?: string; stockName?: string }, i: number) => {
+    if (typeof member === 'string') {
+      return { index: i + 1, symbol: member, name: undefined }
+    }
+
+    return {
+      index: i + 1,
+      symbol: member.symbol || '',
+      name: member.name || member.stock_name || member.stockName,
+    }
+  })
+})
+const recommendedPairRows = computed(() =>
+  (validation.value?.recommended_pairs || []).map((pair: { symbol?: string; [key: string]: any }) => ({
+    ...pair,
+    name: pair.symbol ? stockNameBySymbol.value[pair.symbol] : undefined,
+  }))
 )
 
 const filterLabels: Record<string, string> = {
@@ -201,6 +264,27 @@ const filterLabels: Record<string, string> = {
   roe_high: '高ROE',
   gross_margin_high: '高毛利',
   debt_ratio_low: '低负债',
+}
+
+const fieldOptions = [
+  { value: 'roe', label: 'ROE' },
+  { value: 'pe', label: 'PE' },
+  { value: 'pb', label: 'PB' },
+  { value: 'gross_margin', label: '毛利率' },
+  { value: 'debt_ratio', label: '负债率' },
+  { value: 'net_profit_growth', label: '净利润增长' },
+  { value: 'market_cap', label: '总市值' },
+  { value: 'circulating_mv', label: '流通市值' },
+  { value: 'rsi', label: 'RSI' },
+  { value: 'volume_ratio_5d', label: '5日量比' }
+]
+
+const formatCondition = (cond: any) => {
+  const fieldLabel = fieldOptions.find(f => f.value === cond.field)?.label || cond.field
+  const operatorSymbol = {
+    '>=': '≥', '<=': '≤', '>': '>', '<': '<', '==': '=', '!=': '≠'
+  }[cond.operator] || cond.operator
+  return `${fieldLabel} ${operatorSymbol} ${cond.value}`
 }
 
 // Validate dialog
