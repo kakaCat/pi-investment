@@ -122,7 +122,26 @@
 
       <div class="filter-advanced">
         <el-row :gutter="16">
-          <el-col :span="6">
+          <el-col :xs="24" :sm="12" :lg="6">
+            <el-form-item label="扫描策略">
+              <el-select
+                v-model="filters.strategyId"
+                placeholder="综合评分"
+                clearable
+                filterable
+                :loading="strategyLoading"
+              >
+                <el-option label="综合评分模型" value="" />
+                <el-option
+                  v-for="strategy in strategyOptions"
+                  :key="strategy.id"
+                  :label="strategy.name"
+                  :value="strategy.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12" :lg="6">
             <el-form-item label="综合评分">
               <el-slider
                 v-model="filters.scoreRange"
@@ -133,7 +152,7 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="6">
+          <el-col :xs="24" :sm="12" :lg="6">
             <el-form-item label="置信度">
               <el-slider
                 v-model="filters.confidenceRange"
@@ -144,7 +163,7 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="6">
+          <el-col :xs="24" :sm="12" :lg="6">
             <el-form-item label="风险等级">
               <el-select v-model="filters.riskLevel" placeholder="全部" clearable>
                 <el-option label="低风险" value="low" />
@@ -153,7 +172,7 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="6">
+          <el-col :xs="24" :sm="12" :lg="6">
             <el-form-item label="行业">
               <el-select v-model="filters.industries" placeholder="全部" multiple clearable>
                 <el-option label="白酒" value="白酒" />
@@ -390,13 +409,14 @@ import {
   Check
 } from '@element-plus/icons-vue'
 import { useTable } from '@/composables/useTable'
-import { usePolling } from '@/composables/usePolling'
 import { analysisApi } from '@/services/api/analysis'
+import { strategyApi } from '@/services/api/strategy'
 import { tradingApi } from '@/services/api/trading'
-import type { Opportunity, OpportunityFilters, CreateOrderRequest } from '@/types'
+import type { Opportunity, OpportunityFilters, CreateOrderRequest, Strategy } from '@/types'
 
 // 筛选条件
 const filters = reactive<{
+  strategyId: string
   technical: Record<string, boolean>
   fundamental: Record<string, boolean>
   sentiment: Record<string, boolean>
@@ -405,6 +425,7 @@ const filters = reactive<{
   riskLevel: string
   industries: string[]
 }>({
+  strategyId: '',
   technical: {
     rsiOversold: true,
     macdGoldenCross: true,
@@ -440,6 +461,8 @@ const stats = reactive({
 // 扫描状态
 const scanning = ref(false)
 const lastScanTime = ref<string>('')
+const strategyLoading = ref(false)
+const strategyOptions = ref<Array<Pick<Strategy, 'id' | 'name'>>>([])
 
 // 排序
 const sortBy = ref('score')
@@ -508,6 +531,45 @@ const fetchOpportunities = async () => {
   }
 }
 
+const loadStrategies = async () => {
+  strategyLoading.value = true
+  try {
+    const response = await strategyApi.getStrategies({ page: 1, pageSize: 200 })
+    strategyOptions.value = (response.items || []).map((strategy: any) => ({
+      id: String(strategy.id),
+      name: formatStrategyOptionLabel(strategy)
+    }))
+  } catch (error) {
+    console.error('Failed to load strategies:', error)
+    ElMessage.error('获取策略列表失败')
+  } finally {
+    strategyLoading.value = false
+  }
+}
+
+const formatStrategyOptionLabel = (strategy: any): string => {
+  const id = String(strategy.id ?? '')
+  const rawName = strategy.name || strategy.strategyName || strategy.strategy_name
+  const description = strategy.description || ''
+  const codeTitle = extractStrategyCodeTitle(strategy.code)
+  const name = String(rawName || description || codeTitle || `策略 ${id}`).trim()
+
+  return id && !name.includes(`#${id}`) ? `${name} #${id}` : name
+}
+
+const extractStrategyCodeTitle = (code?: string): string => {
+  if (!code) return ''
+
+  const firstComment = code
+    .split('\n')
+    .map(line => line.trim())
+    .find(line => line.startsWith('#'))
+
+  return firstComment
+    ? firstComment.replace(/^#+\s*/, '').trim()
+    : ''
+}
+
 // 更新统计数据
 const updateStats = (data: Opportunity[]) => {
   stats.total = total.value
@@ -521,6 +583,7 @@ const handleScan = async () => {
   scanning.value = true
   try {
     const apiFilters: OpportunityFilters = {
+      strategyId: filters.strategyId || undefined,
       minScore: filters.scoreRange[0],
       maxRiskLevel: filters.riskLevel || undefined,
       industries: filters.industries.length > 0 ? filters.industries : undefined,
@@ -528,10 +591,11 @@ const handleScan = async () => {
       fundamental: filters.fundamental
     }
 
-    await analysisApi.scanOpportunities(apiFilters)
+    const response = await analysisApi.scanOpportunities(apiFilters)
     lastScanTime.value = new Date().toISOString()
+    setData(response.opportunities, response.total)
+    updateStats(response.opportunities)
     ElMessage.success('扫描完成')
-    await fetchOpportunities()
   } catch (error) {
     console.error('Scan failed:', error)
     ElMessage.error('扫描失败')
@@ -626,6 +690,7 @@ const handleResetFilters = () => {
     institutionalIncrease: false,
     marginIncrease: false
   }
+  filters.strategyId = ''
   filters.scoreRange = [60, 100]
   filters.confidenceRange = [50, 100]
   filters.riskLevel = ''
@@ -764,15 +829,9 @@ const deletePreset = (index: number) => {
   })
 }
 
-// 轮询刷新
-const { start: _startPolling, stop: _stopPolling } = usePolling(
-  fetchOpportunities,
-  30000, // 30秒刷新一次
-  { immediate: false, enabled: true }
-)
-
 // 初始化
 onMounted(() => {
+  loadStrategies()
   fetchOpportunities()
 })
 </script>

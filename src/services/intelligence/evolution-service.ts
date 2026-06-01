@@ -27,7 +27,7 @@ import {
   generateExperienceSummary,
   saveExperienceSummary,
 } from './experience-learner.js';
-import { collectMarketContext } from './market-data-collector.js';
+// market-data-collector 已删除
 import { parseSessionLog } from './session-log-parser.js';
 import { analyzeToolEfficiency } from './tool-efficiency-analyzer.js';
 import { analyzeHoldingDimensions } from './holding-dimension-analyzer.js';
@@ -344,26 +344,9 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
   let marketContext: MarketContext | undefined;
   let market = 5; // 默认大盘参考（无实时数据时用 5%）
 
-  try {
-    marketContext = await collectMarketContext(
-      dataQuality.earliestTradeDate ?? undefined,
-      dataQuality.latestTradeDate ?? undefined,
-      finalConfig.tradeWindowDays
-    );
-
-    // 使用上证指数作为市场基准
-    market = marketContext.indices.sh000001.return;
-
-    console.log(`[进化] 市场环境:`);
-    console.log(`  - 上证指数: ${marketContext.indices.sh000001.return.toFixed(2)}% (${marketContext.indices.sh000001.trend})`);
-    console.log(`  - 深证成指: ${marketContext.indices.sz399001.return.toFixed(2)}% (${marketContext.indices.sz399001.trend})`);
-    console.log(`  - 创业板指: ${marketContext.indices.sz399006.return.toFixed(2)}% (${marketContext.indices.sz399006.trend})`);
-    console.log(`  - 市场情绪: ${marketContext.sentiment.sentiment}`);
-    console.log(`  - 数据质量: ${marketContext.dataQuality.reliability}`);
-  } catch (error) {
-    console.warn('[进化] 收集市场环境数据失败，使用默认值:', error);
-    marketContext = undefined;
-  }
+  // market-data-collector 已删除，跳过市场环境收集
+  console.warn('[进化] 市场环境数据收集功能已禁用（服务已删除）');
+  marketContext = undefined;
 
   // ── 4. 收益率 ──────────────────────────────────────────────────────────
   const target = finalConfig.targetReturn;

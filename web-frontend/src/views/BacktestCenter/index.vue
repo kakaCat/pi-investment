@@ -479,6 +479,7 @@ import { formatPrice, formatPercent, formatDate } from '@/utils/format'
 import KLineChart from '@/components/charts/KLineChart/index.vue'
 import DiagnosisTab from './DiagnosisTab.vue'
 import type { Indicator, KLineData, TradingSignal } from '@/types'
+import type { KlinePeriod } from '@/types'
 
 // 表单引用
 const formRef = ref<FormInstance>()
@@ -487,7 +488,7 @@ const formRef = ref<FormInstance>()
 const backtestForm = reactive({
   strategy: 'ma_cross',
   symbol: '',
-  klinePeriod: 'daily',
+  klinePeriod: 'daily' as KlinePeriod,
   startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
   endDate: new Date(),
   initialCapital: 1000000,
@@ -547,6 +548,7 @@ const fallbackStrategies = [
   { label: 'MACD 金叉', value: 'macd_golden' },
   { label: '布林带突破', value: 'boll_breakout' },
   { label: 'KDJ 超买超卖', value: 'kdj_overbought' },
+  { label: 'GridTradingStrategy', value: 'grid_trading' },
   { label: 'PE均值回归', value: 'pe_mean_reversion' },
   { label: 'PB均值回归', value: 'pb_mean_reversion' }
 ]
@@ -803,13 +805,15 @@ const handleStartBacktest = async () => {
           symbol: backtestForm.symbol,
           startDate,
           endDate,
-          initialCash: backtestForm.initialCapital
+          initialCash: backtestForm.initialCapital,
+          period: backtestForm.klinePeriod
         })
         : await analysisApi.runBacktest({
           strategy: backtestForm.strategy,
           symbol: backtestForm.symbol,
           startDate,
           endDate,
+          period: backtestForm.klinePeriod,
           initialCapital: backtestForm.initialCapital,
           commission: backtestForm.commission,
           slippage: backtestForm.slippage,

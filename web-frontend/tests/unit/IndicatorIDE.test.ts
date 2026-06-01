@@ -19,6 +19,20 @@ const indicatorApiMock = vi.hoisted(() => ({
   backtestIndicator: vi.fn()
 }))
 
+const analysisApiMock = vi.hoisted(() => ({
+  runBacktest: vi.fn()
+}))
+
+const strategyApiMock = vi.hoisted(() => ({
+  getStrategies: vi.fn()
+}))
+
+const stockApiMock = vi.hoisted(() => ({
+  getMyStocks: vi.fn(),
+  searchStocks: vi.fn(),
+  getKLineData: vi.fn()
+}))
+
 const elementPlusMock = vi.hoisted(() => ({
   ElMessage: {
     success: vi.fn(),
@@ -41,6 +55,18 @@ const chartApiMock = vi.hoisted(() => ({
 
 vi.mock('@/services/api/indicator', () => ({
   indicatorApi: indicatorApiMock
+}))
+
+vi.mock('@/services/api/analysis', () => ({
+  analysisApi: analysisApiMock
+}))
+
+vi.mock('@/services/api/strategy', () => ({
+  strategyApi: strategyApiMock
+}))
+
+vi.mock('@/services/api/stock', () => ({
+  stockApi: stockApiMock
 }))
 
 vi.mock('@/composables/useChart', async () => {
@@ -74,6 +100,24 @@ describe('IndicatorIDE', () => {
     indicatorApiMock.getMyIndicators.mockResolvedValue([])
     indicatorApiMock.getSystemIndicators.mockResolvedValue([])
     indicatorApiMock.deleteIndicator.mockResolvedValue({})
+    analysisApiMock.runBacktest.mockResolvedValue({
+      totalReturn: 0.12,
+      sharpeRatio: 1.3,
+      maxDrawdown: -0.05,
+      winRate: 0.6,
+      totalTrades: 4,
+      trades: [],
+      equityCurve: []
+    })
+    strategyApiMock.getStrategies.mockResolvedValue({
+      strategies: [],
+      total: 0
+    })
+    stockApiMock.getMyStocks.mockResolvedValue({ positions: [], watchlist: [] })
+    stockApiMock.searchStocks.mockResolvedValue([])
+    stockApiMock.getKLineData.mockResolvedValue([
+      { date: '2026-05-27', open: 10, high: 11, low: 9.8, close: 10.5, volume: 1000 }
+    ])
     if (chartApiMock.chartRef) {
       chartApiMock.chartRef.value = undefined
     }
@@ -213,6 +257,7 @@ describe('IndicatorIDE', () => {
       })
 
       const vm = wrapper.vm as any
+      vm.selectedStrategy = 'indicator:7'
       vm.previewResults = [
         {
           symbol: '600600',
@@ -325,13 +370,148 @@ describe('IndicatorIDE', () => {
         expect(wrapper.text()).toContain('one-year-preview')
       })
 
-      await (wrapper.vm as any).runIndicator()
+      const vm = wrapper.vm as any
+      vm.selectedStrategy = 'indicator:7'
+      await vm.runIndicator()
 
       expect(indicatorApiMock.runIndicator).toHaveBeenCalledWith('7', {
         symbol: '600519',
         limit: 260,
-        chartLimit: 260
+        chartLimit: 260,
+        period: 'daily'
       })
+    })
+
+    it('passes the selected frequency to indicator runs and backtests', async () => {
+      indicatorApiMock.getMyIndicators.mockResolvedValueOnce([
+        {
+          id: 7,
+          name: 'frequency-aware',
+          description: '',
+          codeContent: 'df',
+          codeType: 'indicator',
+          strategyType: 'custom',
+          category: 'custom'
+        }
+      ])
+      indicatorApiMock.runIndicator.mockResolvedValueOnce({
+        symbol: '600519',
+        latestSignal: 'hold',
+        price: 1582.3,
+        date: '2026-05-27',
+        klineData: [],
+        indicatorSeries: {}
+      })
+      indicatorApiMock.backtestIndicator.mockResolvedValueOnce({
+        winRate: 0.58,
+        totalReturn: 0.11,
+        sharpeRatio: 1.2,
+        maxDrawdown: -0.06,
+        totalTrades: 9
+      })
+
+      const wrapper = mount(IndicatorIDE, {
+        global: {
+          stubs: {
+            'el-icon': true
+          }
+        }
+      })
+
+      await vi.waitFor(() => {
+        expect(wrapper.text()).toContain('frequency-aware')
+      })
+
+      const vm = wrapper.vm as any
+      vm.selectedStrategy = 'indicator:7'
+      vm.backtestForm.period = '30min'
+      await vm.runIndicator()
+
+      expect(indicatorApiMock.runIndicator).toHaveBeenCalledWith('7', expect.objectContaining({
+        symbol: '600519',
+        period: '30min'
+      }))
+
+      vm.previewResults = [
+        {
+          symbol: '600519',
+          symbolName: '贵州茅台',
+          currentValue: 1582.3,
+          date: '2026-05-26',
+          signalTriggered: false,
+          klineData: [],
+          indicatorSeries: {}
+        }
+      ]
+
+      await vm.runAllPreviewBacktests()
+
+      expect(indicatorApiMock.backtestIndicator).toHaveBeenCalledWith(expect.objectContaining({
+        indicatorId: '7',
+        symbol: '600519',
+        period: '30min'
+      }))
+    })
+
+    it('uses the same builtin strategies as backtest center for preview backtests', async () => {
+      strategyApiMock.getStrategies.mockResolvedValueOnce({
+        strategies: [
+          {
+            strategyType: 'adx_trend',
+            className: 'ADXTrendStrategy'
+          }
+        ],
+        total: 1
+      })
+
+      const wrapper = mount(IndicatorIDE, {
+        global: {
+          stubs: {
+            'el-icon': true
+          }
+        }
+      })
+
+      await vi.waitFor(() => {
+        expect(strategyApiMock.getStrategies).toHaveBeenCalledWith({ source: 'builtin', pageSize: 200 })
+        expect((wrapper.vm as any).strategyOptions.map((option: any) => option.value)).toContain('ma_cross')
+        expect((wrapper.vm as any).strategyOptions.map((option: any) => option.value)).toContain('grid_trading')
+        expect((wrapper.vm as any).strategyOptions.map((option: any) => option.value)).toContain('adx_trend')
+      })
+
+      const vm = wrapper.vm as any
+      vm.selectedStrategy = 'ma_cross'
+      vm.backtestForm.period = '15min'
+      vm.backtestForm.startDate = '2025-05-27'
+      vm.backtestForm.endDate = '2026-05-27'
+      vm.previewResults = [
+        {
+          symbol: '600519',
+          symbolName: '贵州茅台',
+          currentValue: 10.5,
+          date: '2026-05-27',
+          signalTriggered: false,
+          klineData: [],
+          indicatorSeries: {}
+        }
+      ]
+
+      await vm.runAllPreviewBacktests()
+
+      expect(analysisApiMock.runBacktest).toHaveBeenCalledWith(expect.objectContaining({
+        strategy: 'ma_cross',
+        symbol: '600519',
+        startDate: '2025-05-27',
+        endDate: '2026-05-27',
+        period: '15min',
+        initialCapital: 100000,
+        parameters: expect.objectContaining({
+          fastPeriod: 5,
+          slowPeriod: 20
+        })
+      }))
+      expect(indicatorApiMock.backtestIndicator).not.toHaveBeenCalled()
+      expect(vm.previewResults[0].backtestResult.totalReturn).toBe(0.12)
     })
   })
 

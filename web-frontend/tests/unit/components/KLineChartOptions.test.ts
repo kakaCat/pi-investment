@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildKLineChartOption, calculateMovingAverage } from '@/components/charts/KLineChart/chart-options'
-import type { KLineData } from '@/types/models'
+import type { KLineData, TradingSignal } from '@/types/models'
 
 const sampleData: KLineData[] = [
   { date: '2026-05-06', open: 39, close: 39.84, low: 39, high: 40.61, volume: 0, amount: 15071 },
@@ -32,5 +32,54 @@ describe('KLineChart options', () => {
 
   it('keeps MA values aligned with source dates', () => {
     expect(calculateMovingAverage(sampleData, 5)).toEqual([null, null, null, null, 42.12])
+  })
+
+  it('uses readable Chinese trade labels and holding bands', () => {
+    const signals = [
+      { type: 'buy', price: 40.72, createdAt: '2026-05-07', confidence: 1 },
+      { type: 'sell', price: 45, createdAt: '2026-05-11', confidence: 1 }
+    ] as TradingSignal[]
+
+    const option = buildKLineChartOption({ data: sampleData, signals, showVolume: true }) as any
+    const markPoint = option.series[0].markPoint.data
+
+    expect(markPoint[0]).toMatchObject({
+      name: '买入',
+      value: '买1',
+      label: expect.objectContaining({
+        formatter: expect.any(Function)
+      })
+    })
+    expect(markPoint[1]).toMatchObject({
+      name: '卖出',
+      value: '卖1',
+      label: expect.objectContaining({
+        formatter: expect.any(Function)
+      })
+    })
+    expect(markPoint[0].label.formatter(markPoint[0])).toBe('买1')
+    expect(markPoint[1].label.formatter(markPoint[1])).toBe('卖1')
+    expect(option.series[0].markArea.data).toEqual([
+      [
+        { xAxis: '2026-05-07' },
+        { xAxis: '2026-05-11' }
+      ]
+    ])
+    expect(option.series[0].markLine.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: '买1',
+          xAxis: '2026-05-07',
+          label: expect.objectContaining({ formatter: '05-07' })
+        }),
+        expect.objectContaining({
+          name: '卖1',
+          xAxis: '2026-05-11',
+          label: expect.objectContaining({ formatter: '05-11' })
+        })
+      ])
+    )
+    expect(option.xAxis[0].axisLabel.showMinLabel).toBe(true)
+    expect(option.xAxis[0].axisLabel.showMaxLabel).toBe(true)
   })
 })

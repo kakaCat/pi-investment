@@ -36,13 +36,13 @@ export const dataFetchKlineTool: ToolDefinition = {
   description:
     "L1 数据管道工具：获取历史OHLCV数据（开盘价、最高价、最低价、收盘价、成交量、涨跌幅）。" +
     `默认返回最近 ${DEFAULT_LOOKBACK_DAYS} 天的日K线数据（前复权），最多 ${MAX_DATA_POINTS} 个数据点。` +
-    "支持 A 股（6位代码）和港股（1-5位代码或 .HK 后缀）。" +
+    "仅支持 A 股（6位代码），港股 K 线数据暂不可用（v2 数据库无港股数据）。" +
     "用于趋势分析和技术分析上下文 — 不用于查询当前价格（请使用 data_fetch_stock 的 price 字段）。" +
     "如果股票在请求的日期范围内没有交易数据，返回 {error}。",
 
   parameters: Type.Object({
     symbol: Type.String({
-      description: "股票代码：A股6位数字（如 600519）或港股1-5位数字（如 9988 或 9988.HK）"
+      description: "股票代码：A股6位数字（如 600519）。港股暂不可用。"
     }),
     period: Type.Optional(
       Type.Union([
@@ -73,7 +73,7 @@ export const dataFetchKlineTool: ToolDefinition = {
     if (market === "invalid") {
       const errorResponse: ErrorResponse = {
         success: false,
-        error: `不支持的股票代码 "${symbol}"。本系统支持A股（6位数字）和港股（1-5位数字或含.HK后缀）。`,
+        error: `不支持的股票代码 "${symbol}"。本系统仅支持A股（6位数字，如 600519）。港股数据暂不可用。`,
         invalid_format: true
       };
 

@@ -27,11 +27,13 @@ export interface PaginationParams {
 
 // ========== 市场数据API ==========
 
+export type KlinePeriod = 'daily' | '1min' | '5min' | '15min' | '30min' | '60min'
+
 export interface MarketDataRequest {
   symbol: string
   startDate?: string
   endDate?: string
-  timeFrame?: string
+  timeFrame?: KlinePeriod | string
   limit?: number
 }
 
@@ -107,6 +109,7 @@ export interface BacktestRequest {
   strategy: string
   startDate: string
   endDate: string
+  period?: KlinePeriod
   initialCapital: number
   commission?: number
   slippage?: number

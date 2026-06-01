@@ -31,7 +31,7 @@ export const dataFetchStockTool: ToolDefinition = {
   name: "data_fetch_stock",
   label: "获取股票数据（支持实时行情）",
   description:
-    "获取股票基础数据（info/price/news/announcements）。支持 A 股和港股。" +
+    "获取股票基础数据（info/price/news/announcements）。仅支持 A 股（6位数字代码），港股数据暂不可用（v2 数据库无港股数据）。" +
     "price 字段支持多数据源：realtime（实时行情，延迟<3秒，默认），db（数据库收盘价），auto（自动选择）。" +
     "实时数据源包括：新浪财经、东方财富、腾讯财经、网易财经、AKShare。" +
     "返回数据包含 source 字段标识实际数据来源，timestamp（实时）或 trade_date（数据库）字段标识数据时间。" +
@@ -39,7 +39,7 @@ export const dataFetchStockTool: ToolDefinition = {
 
   parameters: Type.Object({
     symbol: Type.String({
-      description: "股票代码：A股6位数字（如 600519）或港股1-5位数字（如 9988 或 9988.HK）"
+      description: "股票代码：A股6位数字（如 600519）。港股暂不可用。"
     }),
     fields: Type.Optional(
       Type.Array(
@@ -82,7 +82,7 @@ export const dataFetchStockTool: ToolDefinition = {
         content: [{
           type: "text" as const,
           text: JSON.stringify({
-            error: `不支持的股票代码 "${symbol}"。本系统支持A股（6位数字）和港股（1-5位数字或含.HK后缀）。`,
+            error: `不支持的股票代码 "${symbol}"。本系统仅支持A股（6位数字，如 600519）。港股数据暂不可用。`,
             invalid_format: true
           })
         }],

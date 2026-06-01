@@ -49,9 +49,10 @@ export interface RestoreResult {
 const LOCAL_STATE_PATHS = [
   ".pi-invest/jobs",
   ".pi-invest/audit",
-  "quant/.pi-invest/signals.json",
-  "quant/.pi-invest/daily_report.json",
-  "quant/quantsys/ml/models/training_report_latest.json",
+  // 以下路径已废弃（quant/ 目录已删除）
+  // "quant/.pi-invest/signals.json",
+  // "quant/.pi-invest/daily_report.json",
+  // "quant/quantsys/ml/models/training_report_latest.json",
 ] as const;
 
 export class BackupService {

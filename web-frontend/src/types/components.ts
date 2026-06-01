@@ -200,15 +200,30 @@ export interface Opportunity {
   expectedReturn: number
   confidence: number
   createdAt: string
+  strategyId?: string | number
+  strategyName?: string
+  price?: number
 }
 
 export interface OpportunityFilters {
+  strategyId?: string
+  strategy_id?: string
   minScore?: number
   maxRiskLevel?: string
   industries?: string[]
   marketCap?: { min?: number; max?: number }
   technical?: Record<string, any>
   fundamental?: Record<string, any>
+}
+
+export interface OpportunityScanResponse {
+  success: boolean
+  scanMode: 'score' | 'strategy'
+  opportunities: Opportunity[]
+  total: number
+  scanned: number
+  strategyId?: string | number
+  sectorInfo?: any
 }
 
 // ========== 指标IDE类型 ==========
@@ -243,6 +258,7 @@ export interface IndicatorBacktest {
   symbol: string
   startDate: string
   endDate: string
+  period?: 'daily' | '1min' | '5min' | '15min' | '30min' | '60min'
   initialCash?: number
   result: {
     winRate: number

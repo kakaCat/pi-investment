@@ -229,6 +229,35 @@
 
               <div class="preview-actions">
                 <el-select
+                  v-model="selectedStrategy"
+                  placeholder="选择策略"
+                  class="strategy-select"
+                  :loading="loadingStrategies"
+                  data-test="indicator-strategy-select"
+                  @change="handleStrategyChange"
+                >
+                  <el-option
+                    v-for="option in strategyOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+                <el-select
+                  v-model="backtestForm.period"
+                  placeholder="频率"
+                  class="frequency-select"
+                  data-test="indicator-frequency-select"
+                  @change="handleFrequencyChange"
+                >
+                  <el-option
+                    v-for="option in frequencyOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+                <el-select
                   v-model="selectedSymbols"
                   multiple
                   filterable
@@ -458,6 +487,22 @@
             value-format="YYYY-MM-DD"
           />
         </el-form-item>
+        <el-form-item label="K线频率">
+          <el-select
+            v-model="backtestForm.period"
+            placeholder="请选择K线频率"
+            style="width: 100%"
+            data-test="backtest-frequency-select"
+            @change="handleFrequencyChange"
+          >
+            <el-option
+              v-for="option in frequencyOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="初始资金">
           <el-input-number
             v-model="backtestForm.initialCapital"
@@ -511,7 +556,6 @@ import {
   Upload,
   CopyDocument,
   TrendCharts,
-  DataAnalysis,
   Refresh,
   Delete,
   Notebook
@@ -519,7 +563,9 @@ import {
 import { debounce } from 'lodash-es'
 import PreviewChart from './PreviewChart.vue'
 import { indicatorApi } from '@/services/api/indicator'
+import { analysisApi } from '@/services/api/analysis'
 import { stockApi } from '@/services/api/stock'
+import { strategyApi } from '@/services/api/strategy'
 import type { Indicator, IndicatorBacktest } from '@/types'
 import type {
   IndicatorInfo,
@@ -544,6 +590,8 @@ interface PreviewResult {
   backtestLoading?: boolean
   backtestResult?: IndicatorBacktest['result']
 }
+
+type KlinePeriod = 'daily' | '1min' | '5min' | '15min' | '30min' | '60min'
 
 // 搜索关键词
 const searchKeyword = ref('')
@@ -579,6 +627,7 @@ const saving = ref(false)
 const backtesting = ref(false)
 const savingNotebook = ref(false)
 const loadingIndicators = ref(false)
+const loadingStrategies = ref(false)
 
 // 保存指标弹窗
 const saveDialogVisible = ref(false)
@@ -594,8 +643,48 @@ const backtestForm = reactive({
   symbol: '600519',
   startDate: '',
   endDate: '',
-  initialCapital: 100000
+  period: 'daily' as KlinePeriod,
+  initialCapital: 100000,
+  fastPeriod: 5,
+  slowPeriod: 20,
+  rsiPeriod: 14,
+  peHeavyBuy: 16.0,
+  peBatchBuy: 17.0,
+  peReduce: 19.5,
+  peLiquidate: 20.5,
+  epsStart: 1.20,
+  epsEnd: 1.48,
+  stopLossPct: 8,
+  takeProfitPct: 25,
+  dividendYield: 3.5,
+  pbHeavyBuy: 2.0,
+  pbBatchBuy: 2.5,
+  pbReduce: 4.5,
+  pbLiquidate: 5.5,
+  roeMean: 0.35
 })
+
+const fallbackStrategies = [
+  { label: 'MA 双均线', value: 'ma_cross' },
+  { label: 'RSI 反转', value: 'rsi_reversal' },
+  { label: 'MACD 金叉', value: 'macd_golden' },
+  { label: '布林带突破', value: 'boll_breakout' },
+  { label: 'KDJ 超买超卖', value: 'kdj_overbought' },
+  { label: 'GridTradingStrategy', value: 'grid_trading' },
+  { label: 'PE均值回归', value: 'pe_mean_reversion' },
+  { label: 'PB均值回归', value: 'pb_mean_reversion' }
+]
+const selectedStrategy = ref(fallbackStrategies[0].value)
+const strategyOptions = ref([...fallbackStrategies])
+
+const frequencyOptions: Array<{ label: string; value: KlinePeriod }> = [
+  { label: '日线', value: 'daily' },
+  { label: '1分钟', value: '1min' },
+  { label: '5分钟', value: '5min' },
+  { label: '15分钟', value: '15min' },
+  { label: '30分钟', value: '30min' },
+  { label: '60分钟', value: '60min' }
+]
 
 // 策略笔记
 const strategyNotebook = reactive<StrategyNotebook>({
@@ -675,6 +764,127 @@ const getStockName = (symbol: string) => {
   return currentSymbolNameBySymbol[symbol] || getAllSelectableStocks().find(s => s.symbol === symbol)?.name || symbol
 }
 
+const isIndicatorStrategy = (strategy: string) => strategy.startsWith('indicator:')
+
+const getIndicatorId = (strategy: string) => strategy.split(':')[1]
+
+const normalizeStrategyResponseItems = (response: any) => {
+  if (Array.isArray(response)) return response
+  return response?.strategies ?? response?.items ?? response?.data?.strategies ?? response?.data?.items ?? []
+}
+
+const dedupeStrategyOptions = (options: Array<{ label: string, value: string }>) => {
+  const seen = new Set<string>()
+  return options.filter(option => {
+    if (!option.value || seen.has(option.value)) return false
+    seen.add(option.value)
+    return true
+  })
+}
+
+const formatBuiltinStrategyLabel = (strategy: any) => {
+  return strategy.className ?? strategy.name ?? strategy.strategyName ?? strategy.strategy_type ?? strategy.strategyType
+}
+
+const buildStrategyOptions = (personalIndicators: any[], systemIndicators: any[], builtinStrategies: any) => dedupeStrategyOptions([
+  ...personalIndicators.map((indicator: any) => ({
+    label: indicator.name,
+    value: `indicator:${indicator.id}`
+  })),
+  ...systemIndicators.map((indicator: any) => ({
+    label: indicator.name,
+    value: `indicator:${indicator.id}`
+  })),
+  ...normalizeStrategyResponseItems(builtinStrategies).map((strategy: any) => ({
+    label: formatBuiltinStrategyLabel(strategy),
+    value: strategy.strategyType ?? strategy.strategy_type ?? strategy.name
+  })),
+  ...fallbackStrategies
+])
+
+const findIndicatorByStrategy = (strategy: string) => {
+  const indicatorId = getIndicatorId(strategy)
+  return [...myIndicators.value, ...systemIndicators.value].find(indicator => indicator.id.toString() === indicatorId)
+}
+
+const getSelectedStrategyLabel = () => {
+  return strategyOptions.value.find(option => option.value === selectedStrategy.value)?.label || selectedStrategy.value
+}
+
+const buildBacktestParameters = (strategy = selectedStrategy.value) => {
+  if (strategy === 'pe_mean_reversion') {
+    return {
+      peHeavyBuy: backtestForm.peHeavyBuy,
+      peBatchBuy: backtestForm.peBatchBuy,
+      peReduce: backtestForm.peReduce,
+      peLiquidate: backtestForm.peLiquidate,
+      epsStart: backtestForm.epsStart,
+      epsEnd: backtestForm.epsEnd,
+      stopLossPct: backtestForm.stopLossPct / 100,
+      takeProfitPct: backtestForm.takeProfitPct / 100,
+      dividendYield: backtestForm.dividendYield / 100
+    }
+  }
+
+  if (strategy === 'pb_mean_reversion') {
+    return {
+      pbHeavyBuy: backtestForm.pbHeavyBuy,
+      pbBatchBuy: backtestForm.pbBatchBuy,
+      pbReduce: backtestForm.pbReduce,
+      pbLiquidate: backtestForm.pbLiquidate,
+      roeMean: backtestForm.roeMean,
+      epsStart: backtestForm.epsStart,
+      epsEnd: backtestForm.epsEnd,
+      stopLossPct: backtestForm.stopLossPct / 100,
+      takeProfitPct: backtestForm.takeProfitPct / 100
+    }
+  }
+
+  return {
+    fastPeriod: backtestForm.fastPeriod,
+    slowPeriod: backtestForm.slowPeriod,
+    rsiPeriod: backtestForm.rsiPeriod
+  }
+}
+
+const getBacktestSource = (result: any) => result?.data ?? result?.result ?? result ?? {}
+
+const getBacktestTrades = (result: any) => {
+  const source = getBacktestSource(result)
+  const trades = source?.trades ?? source?.summary?.trades ?? []
+  return Array.isArray(trades) ? trades : []
+}
+
+const runBuiltinBacktest = (symbol: string) => analysisApi.runBacktest({
+  strategy: selectedStrategy.value,
+  symbol,
+  startDate: backtestForm.startDate,
+  endDate: backtestForm.endDate,
+  period: backtestForm.period,
+  initialCapital: backtestForm.initialCapital,
+  parameters: buildBacktestParameters()
+})
+
+const buildSignalSeriesFromTrades = (trades: any[], klineData: KlineData[]) => {
+  const buy = klineData.map(() => false)
+  const sell = klineData.map(() => false)
+
+  trades.forEach((trade) => {
+    const date = trade.date ?? trade.tradeDate ?? trade.trade_date ?? trade.entryDate ?? trade.entry_date ?? trade.exitDate ?? trade.exit_date
+    const index = klineData.findIndex(kline => kline.date === date)
+    if (index < 0) return
+
+    const type = String(trade.type ?? trade.action ?? trade.side ?? '').toLowerCase()
+    if (type === 'buy' || trade.entryDate || trade.entry_date) {
+      buy[index] = true
+    } else if (type === 'sell' || trade.exitDate || trade.exit_date) {
+      sell[index] = true
+    }
+  })
+
+  return { buy, sell }
+}
+
 // 股票切换处理
 const handleStockChange = (symbols: string[] | string) => {
   const allStocks = [
@@ -697,6 +907,28 @@ const handleStockChange = (symbols: string[] | string) => {
   }
 
   // 不自动运行指标，等用户点击"运行"按钮
+}
+
+const handleFrequencyChange = () => {
+  previewResults.value = []
+  previewData.value = null
+  backtestResult.value = null
+}
+
+const handleStrategyChange = (strategy: string) => {
+  if (isIndicatorStrategy(strategy)) {
+    const indicator = findIndicatorByStrategy(strategy)
+    if (indicator) selectIndicator(indicator)
+    return
+  }
+
+  selectedIndicator.value = null
+  currentIndicatorName.value = getSelectedStrategyLabel()
+  currentIndicatorCode.value = ''
+  applyStrategyNotebook(emptyNotebook())
+  previewData.value = null
+  previewResults.value = []
+  backtestResult.value = null
 }
 
 // 同步回测表单
@@ -758,14 +990,18 @@ const applyStrategyNotebook = (notebook: StrategyNotebook) => {
 // 加载指标列表
 const loadIndicators = async (params: Record<string, any> = {}) => {
   loadingIndicators.value = true
+  loadingStrategies.value = true
   try {
-    const [myRes, systemRes] = await Promise.all([
+    const previousStrategy = selectedStrategy.value
+    const [myRes, systemRes, builtinStrategies] = await Promise.all([
       indicatorApi.getMyIndicators(params),
-      indicatorApi.getSystemIndicators(params)
+      indicatorApi.getSystemIndicators(params),
+      strategyApi.getStrategies({ source: 'builtin', pageSize: 200 } as any)
     ])
     // 处理可能的数组或对象响应
     myIndicators.value = Array.isArray(myRes) ? myRes : (myRes.items || [])
     systemIndicators.value = Array.isArray(systemRes) ? systemRes : (systemRes.items || [])
+    strategyOptions.value = buildStrategyOptions(myIndicators.value, systemIndicators.value, builtinStrategies)
 
     // 默认选中第一个指标
     if (myIndicators.value.length > 0) {
@@ -773,12 +1009,18 @@ const loadIndicators = async (params: Record<string, any> = {}) => {
     } else if (systemIndicators.value.length > 0) {
       selectIndicator(systemIndicators.value[0])
     }
+    selectedStrategy.value = strategyOptions.value.some(option => option.value === previousStrategy)
+      ? previousStrategy
+      : fallbackStrategies[0].value
   } catch (error) {
     console.error('加载指标列表失败:', error)
+    strategyOptions.value = [...fallbackStrategies]
+    selectedStrategy.value = fallbackStrategies[0].value
     ElMessage.error('加载指标列表失败')
     throw error
   } finally {
     loadingIndicators.value = false
+    loadingStrategies.value = false
   }
 }
 
@@ -791,6 +1033,7 @@ const refreshIndicators = async () => {
 // 选中指标
 const selectIndicator = (indicator: IndicatorInfo) => {
   selectedIndicator.value = indicator
+  selectedStrategy.value = `indicator:${indicator.id}`
   currentIndicatorName.value = indicator.name
   currentIndicatorCode.value = indicator.codeContent || ''
   applyStrategyNotebook(parseStrategyNotebook(indicator))
@@ -832,8 +1075,8 @@ df['sell'] = (df['ma_short'] < df['ma_long']) & (df['ma_short'].shift(1) >= df['
 // 运行指标
 const runIndicator = async () => {
   const symbols = selectedSymbols.value.length > 0 ? selectedSymbols.value : [currentSymbol.value].filter(Boolean)
-  if (!selectedIndicator.value || symbols.length === 0) {
-    ElMessage.warning('请先选择指标和股票')
+  if (!selectedStrategy.value || symbols.length === 0) {
+    ElMessage.warning('请先选择策略和股票')
     return
   }
 
@@ -841,9 +1084,43 @@ const runIndicator = async () => {
 
   try {
     const results = await Promise.all(symbols.map(async (symbol) => {
+      if (!isIndicatorStrategy(selectedStrategy.value)) {
+        const [klineData, result] = await Promise.all([
+          stockApi.getKLineData({
+            symbol,
+            timeFrame: backtestForm.period,
+            limit: PREVIEW_KLINE_LIMIT
+          }),
+          runBuiltinBacktest(symbol)
+        ])
+        const trades = getBacktestTrades(result)
+        const normalizedResult = buildBacktestResult(result)
+        const latestTrade = trades.at(-1)
+        const latestTradeType = String(latestTrade?.type ?? latestTrade?.action ?? latestTrade?.side ?? '').toLowerCase()
+
+        return {
+          symbol,
+          symbolName: getStockName(symbol),
+          currentValue: klineData.at(-1)?.close || 0,
+          date: klineData.at(-1)?.date || '',
+          signal: latestTradeType === 'buy' ? 'buy' as const : latestTradeType === 'sell' ? 'sell' as const : undefined,
+          signalTriggered: latestTradeType === 'buy' || latestTradeType === 'sell',
+          klineData,
+          indicatorSeries: {},
+          signalSeries: buildSignalSeriesFromTrades(trades, klineData),
+          backtestResult: normalizedResult
+        }
+      }
+
+      const indicatorId = getIndicatorId(selectedStrategy.value)
       const result: IndicatorRunResult = await indicatorApi.runIndicator(
-        selectedIndicator.value!.id.toString(),
-        { symbol, limit: PREVIEW_KLINE_LIMIT, chartLimit: PREVIEW_KLINE_LIMIT }
+        indicatorId,
+        {
+          symbol,
+          period: backtestForm.period,
+          limit: PREVIEW_KLINE_LIMIT,
+          chartLimit: PREVIEW_KLINE_LIMIT
+        }
       )
       const latestSignal = result.latestSignal
 
@@ -978,21 +1255,6 @@ const deleteSelectedIndicator = async () => {
   }
 }
 
-// 运行回测
-const runBacktest = async () => {
-  if (!currentIndicatorCode.value.trim()) {
-    ElMessage.warning('请先编写指标代码')
-    return
-  }
-
-  if (!selectedIndicator.value?.id) {
-    ElMessage.warning('请先保存指标后再进行回测')
-    return
-  }
-
-  backtestDialogVisible.value = true
-}
-
 // 提交保存指标
 const submitSaveIndicator = async () => {
   if (!saveForm.name.trim()) {
@@ -1063,42 +1325,16 @@ const saveStrategyNotebook = async () => {
   }
 }
 
-const buildBacktestResult = (result: any): IndicatorBacktest['result'] => ({
-  winRate: result.winRate ?? 0,
-  totalReturn: result.totalReturn ?? 0,
-  sharpeRatio: result.sharpeRatio ?? 0,
-  maxDrawdown: result.maxDrawdown ?? 0,
-  trades: result.totalTrades ?? result.trades ?? 0
-})
+const buildBacktestResult = (result: any): IndicatorBacktest['result'] => {
+  const source = getBacktestSource(result)
+  const trades = getBacktestTrades(result)
 
-const runPreviewBacktest = async (preview: PreviewResult) => {
-  if (!currentIndicatorCode.value.trim()) {
-    ElMessage.warning('请先编写指标代码')
-    return
-  }
-
-  if (!selectedIndicator.value?.id) {
-    ElMessage.warning('请先保存指标后再进行回测')
-    return
-  }
-
-  preview.backtestLoading = true
-  try {
-    const result = await indicatorApi.backtestIndicator({
-      indicatorId: selectedIndicator.value.id.toString(),
-      symbol: preview.symbol,
-      startDate: backtestForm.startDate,
-      endDate: backtestForm.endDate,
-      initialCash: backtestForm.initialCapital
-    }) as any
-
-    preview.backtestResult = buildBacktestResult(result)
-    ElMessage.success(`${preview.symbolName} 回测完成`)
-  } catch (error) {
-    console.error('预览股票回测失败:', error)
-    ElMessage.error('回测失败')
-  } finally {
-    preview.backtestLoading = false
+  return {
+    winRate: source.winRate ?? source.win_rate ?? 0,
+    totalReturn: source.totalReturn ?? source.total_return ?? 0,
+    sharpeRatio: source.sharpeRatio ?? source.sharpe_ratio ?? 0,
+    maxDrawdown: source.maxDrawdown ?? source.max_drawdown ?? 0,
+    trades: source.totalTrades ?? source.total_trades ?? trades.length
   }
 }
 
@@ -1108,12 +1344,12 @@ const runAllPreviewBacktests = async () => {
     return
   }
 
-  if (!currentIndicatorCode.value.trim()) {
+  if (isIndicatorStrategy(selectedStrategy.value) && !currentIndicatorCode.value.trim()) {
     ElMessage.warning('请先编写指标代码')
     return
   }
 
-  if (!selectedIndicator.value?.id) {
+  if (isIndicatorStrategy(selectedStrategy.value) && !selectedIndicator.value?.id) {
     ElMessage.warning('请先保存指标后再进行回测')
     return
   }
@@ -1126,13 +1362,16 @@ const runAllPreviewBacktests = async () => {
   try {
     await Promise.all(previewResults.value.map(async (preview) => {
       try {
-        const result = await indicatorApi.backtestIndicator({
-          indicatorId: selectedIndicator.value!.id.toString(),
-          symbol: preview.symbol,
-          startDate: backtestForm.startDate,
-          endDate: backtestForm.endDate,
-          initialCash: backtestForm.initialCapital
-        }) as any
+        const result = isIndicatorStrategy(selectedStrategy.value)
+          ? await indicatorApi.backtestIndicator({
+            indicatorId: getIndicatorId(selectedStrategy.value),
+            symbol: preview.symbol,
+            startDate: backtestForm.startDate,
+            endDate: backtestForm.endDate,
+            initialCash: backtestForm.initialCapital,
+            period: backtestForm.period
+          }) as any
+          : await runBuiltinBacktest(preview.symbol) as any
 
         preview.backtestResult = buildBacktestResult(result)
       } finally {
@@ -1168,29 +1407,30 @@ const submitBacktest = async () => {
 
   try {
     // 验证代码
-    if (!currentIndicatorCode.value.trim()) {
+    if (isIndicatorStrategy(selectedStrategy.value) && !currentIndicatorCode.value.trim()) {
       ElMessage.warning('请先编写指标代码')
       backtesting.value = false
       return
     }
 
     // 验证指标已保存
-    if (!selectedIndicator.value?.id) {
+    if (isIndicatorStrategy(selectedStrategy.value) && !selectedIndicator.value?.id) {
       ElMessage.warning('请先保存指标后再进行回测')
       backtesting.value = false
       return
     }
 
     // 调用回测API
-    const backtestData = {
-      indicatorId: selectedIndicator.value.id.toString(),
-      symbol: backtestForm.symbol,
-      startDate: backtestForm.startDate,
-      endDate: backtestForm.endDate,
-      initialCash: backtestForm.initialCapital
-    }
-
-    const result = await indicatorApi.backtestIndicator(backtestData) as any
+    const result = isIndicatorStrategy(selectedStrategy.value)
+      ? await indicatorApi.backtestIndicator({
+        indicatorId: getIndicatorId(selectedStrategy.value),
+        symbol: backtestForm.symbol,
+        startDate: backtestForm.startDate,
+        endDate: backtestForm.endDate,
+        initialCash: backtestForm.initialCapital,
+        period: backtestForm.period
+      }) as any
+      : await runBuiltinBacktest(backtestForm.symbol) as any
 
     // 后端返回: { totalReturn, sharpeRatio, maxDrawdown, winRate, totalTrades, trades, equityCurve }
     backtestResult.value = buildBacktestResult(result)

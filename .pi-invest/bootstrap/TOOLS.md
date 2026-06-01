@@ -7,7 +7,7 @@
 【评分】XX/100 (技术XX/基本XX/动量XX/质量XX/估值XX)
 【信号】ML预测: XX 置信度XX | 策略信号: X个看多 X个看空
 【决策】✅买入 / ⏸️观望 / ❌回避
-买入价: XX~XX | 止损: XX | 止盈: XX/XX/XX
+入场价=市价 XX | 止损: XX | 止盈: XX/XX/XX
 ```
 
 **第二段：【关键数据】**（2-3行）
@@ -27,25 +27,22 @@ PE XX | ROE XX% | 负债率 XX% | total_score XX
 - ❌ "一、基本信息"
 - ❌ "二、财务数据分析"
 - ❌ 任何超过3段的结构
-- ❌ 使用旧版「【数据】质量 XX/100 | 估值 PE XX倍(XX%分位)」格式
 
 ---
 
 ### ⚡ 并行执行原则
 
-#### 量化工具的并行优势
+量化工具之间互不依赖，可在一个消息中并行调用。专用工具（data_fetch_*, factor_*, model_*）也可与 quant_cli 命令并行。
 
-`quant_cli` 命令之间互不依赖，可在一个消息中并行调用多个：
-```
-✅ 一次并行:
-  quant_cli(stock.score {600519})
-  quant_cli(stock.technical {600519})
-  quant_cli(stock.ml_predict {600519})
-  quant_cli(signal.list {BUY, 0.7})
-→ 所有结果一起返回，一次完成评分+信号+技术面
-```
-
-**传统工具（get_stock_info, get_financial_data等）是补充验证，放在量化之后。**
+**工具选择优先顺序**：
+单股数据(fields:info/price/news) → `data_fetch_stock`（不用 quant_cli stock.*）
+财务数据 → `data_fetch_financial`（不用 quant_cli financial.*）
+技术因子 → `factor_calculate`（不用 quant_cli stock.technical）
+ML预测 → `model_predict`（不用 quant_cli stock.ml_predict）
+综合评分 → `quant_cli stock.score`
+多条件选股 → `quant_cli stock.screen`
+策略执行 → `quant_cli strategy.execute`
+市场数据/资金流/龙虎榜 → `quant_cli market.*` / `quant_cli sentiment.*`
 
 ---
 
@@ -78,15 +75,14 @@ PE XX | ROE XX% | 负债率 XX% | total_score XX
 
 #### Path C — 量化深度分析（A股核心流程）⭐
 
-> 这是最常用的个股分析路径。量化优先，传统工具辅助。
+> 最常用的个股分析路径。量化优先，专用工具辅助。
 
-**第1轮（并行，5个量化工具同时调）**：
+**第1轮（并行调用）**：
 ```
-quant_cli(stock.score {symbol: "XXXXXX"})
-quant_cli(stock.technical {symbol: "XXXXXX"})
-quant_cli(stock.ml_predict {symbol: "XXXXXX"})
-quant_cli(signal.list {signal_type: "BUY", min_confidence: 0.7})
-get_stock_price(symbol)
+quant_cli(stock.score {symbol: "XXXXXX"})       → 五维评分
+factor_calculate(symbol: "XXXXXX")               → 技术因子(RSI/MACD/布林带)
+model_predict(symbol: "XXXXXX")                  → ML预测信号
+data_fetch_stock(symbol: "XXXXXX", fields: ["price"])   → 实时价格
 ```
 
 **第2轮（评分<50 → 直接输出❌回避，停止）**：
@@ -96,22 +92,19 @@ get_stock_price(symbol)
 
 **第3轮（补充验证，并行）**：
 ```
-get_stock_info(symbol)
-get_financial_data(symbol)
-get_stock_fund_flow(symbol, days=5)
+data_fetch_stock(symbol, fields: ["info"])        → 基本信息
+data_fetch_financial(symbol)                      → 财务报表
+quant_cli(sentiment.stock_fund_flow {symbol})     → 资金流向
 ```
 
-**第4轮（信号冲突时）**：
-- 如果该标的 BUY + SELL 信号同时存在 → `signal.arbitrate`
-- 如果不确定策略表现 → `performance.analyze(strategy_id)`
+**第4轮（买入决策前必须）**：
+- `query_experience(scenario, symbol)` → 查历史经验库
+- `quant_cli risk.check {symbols: "XXXXXX"}` → 风控检查
 
 **第5轮（输出量化结论）**：
 按3段式格式输出，评分和信号为决策核心依据。
 
-**港股**（1-5位数字代码）：
-→ `get_hk_analysis`（一次调用获取价格+技术面+财务）
-→ 补充 `get_hk_technical(symbol)` 做技术分析
-→ 明确告知：PE历史分位、龙虎榜、北向资金、融资融券**不支持港股**
+**港股**：港股数据源全线不可用（v2 数据库无港股 K线，v1 quantsys 模块已废弃），分析前明确告知此限制。
 
 ---
 
@@ -124,13 +117,12 @@ get_stock_fund_flow(symbol, days=5)
 # 路径1：多因子筛选
 quant_cli(stock.screen {pe_max: 40, roe_min: 0.08, debt_ratio_max: 0.6, min_score: 50, sort_by: "total_score", limit: 20})
 
-# 路径2：信号驱动选股
-quant_cli(signal.list {signal_type: "BUY", min_confidence: 0.7})
+# 路径2：机会雷达扫描
+opportunity_scan(symbols: [...], conditions: [...])
 ```
 
-**第2轮（交集验证）**：
-- 对 stock.screen 的 top 5，逐一调用 `stock.score` + `stock.ml_predict` → 排序
-- 信号列表与筛选列表取交集 → 双重确认的优先
+**第2轮（对 Top 5 逐一深度分析）**：
+- 对筛选结果 top 5 调 `quant_cli stock.score` + `model_predict` → 排序
 
 **第3轮（输出排名）**：
 ```
@@ -140,40 +132,52 @@ quant_cli(signal.list {signal_type: "BUY", min_confidence: 0.7})
 ...
 ```
 
-**传统选股（行业/板块）降级路径**：
-如果用户要特定行业 → `screen_stocks_quality(sector)` 替代 `stock.screen`。
-
 ---
 
 #### Path E — 宏观市场分析
 例："现在市场怎么样"、"适合加仓吗"
-→ 第1轮并行：`get_market_overview` + `get_sector_fund_flow` + `get_market_margin`
-→ 第2轮：`get_macro_data` + `test_market_sentiment` → 综合判断
+→ 并行调用：
+```
+quant_cli(market.overview)
+quant_cli(market.sector_flow)
+quant_cli(market.margin)
+quant_cli(market.sentiment)
+quant_cli(market.macro)
+```
+→ 综合判断
 
 ---
 
 #### Path F — 持仓管理
 例："看一下我的持仓"、"帮我记录买了茅台100股"
-→ `manage_portfolio(action="get/add/remove")`
+→ 读取 `.pi-invest/portfolio.json`
 
 **持仓分析增强**：
-→ 先 `manage_portfolio('get_with_pnl')` 获取持仓
-→ 对每只持仓调用 `stock.score` 并行 → 评分<50的标红
+→ 读取持仓列表
+→ 对每只持仓调用 `quant_cli stock.score` 并行 → 评分<50的标红
 → 输出持仓健康度排名
 
 ---
 
 #### Path G — 聪明钱追踪
 例："最近龙虎榜有什么值得关注的"、"茅台机构在买还是卖"
-→ 第1轮并行：`get_lhb` + `get_stock_fund_flow`
-→ 第2轮并行：`get_fund_holdings` + `get_holder_changes` → 判断主力意图
-→ 对龙虎榜标的调 `stock.score` 验证质量 → 排除游资炒作垃圾股
+→ 并行：
+```
+quant_cli(sentiment.lhb)
+quant_cli(sentiment.stock_fund_flow {symbol})
+quant_cli(sentiment.fund_holdings {symbol})
+quant_cli(sentiment.holder_changes {symbol})
+```
+→ 对龙虎榜标的调 `quant_cli stock.score` 验证质量
 
 ---
 
 #### Path H — 公告事件驱动
 例："茅台最近有什么公告"、"有没有重组消息"
-→ 并行：`get_announcements` + `get_stock_news`
+→ 并行：
+```
+data_fetch_stock(symbol, fields: ["news", "announcements"])
+```
 → 对每条公告标题判断：利好/利空/中性
 → 给出事件影响评级和操作决策
 
@@ -181,7 +185,7 @@ quant_cli(signal.list {signal_type: "BUY", min_confidence: 0.7})
 
 #### Path I — 历史经验查询
 例："查询类似情况的历史案例"、"这种情况历史上胜率如何"
-→ `query_experience(scenario="相似条件", symbol)` 
+→ `query_experience(scenario="相似条件", symbol, conditions)` 
 → 结合量化评分给出综合决策
 
 ---
@@ -192,20 +196,19 @@ quant_cli(signal.list {signal_type: "BUY", min_confidence: 0.7})
 
 **第1轮（信号生成 + 多因子筛选）**：
 ```
-quant_cli(signal.generate)                                          → 生成今日信号
-quant_cli(stock.screen {min_score: 60, pe_max: 40, limit: 30})    → 全市场筛选
+quant_cli(stock.screen {min_score: 60, pe_max: 40, limit: 30})
+opportunity_scan(symbols: [...])
 ```
 
 **第2轮（信号读取 + 策略表现）**：
 ```
-quant_cli(signal.list {signal_type: "BUY", min_confidence: 0.6})   → 今日高置信度买入
-quant_cli(performance.analyze {days: 60})                           → 策略近期表现
+quant_cli(signal.list {signal_type: "BUY", min_confidence: 0.6})
+quant_cli(performance.analyze {days: 60})
 ```
 
 **第3轮（交集处理 + 持仓对照）**：
-- signal.list 与 stock.screen 取交集 → 双重确认候选
-- 对照 `manage_portfolio('get_with_pnl')` → 标记已持仓/新标的
-- 对每个候选调 `stock.score` → 最终排名
+- 与持仓列表对照 → 标记已持仓/新标的
+- 对每个候选调 `quant_cli stock.score` → 最终排名
 
 **第4轮（输出每日扫描报告）**：
 ```
@@ -216,7 +219,6 @@ quant_cli(performance.analyze {days: 60})                           → 策略�
 1. 600XXX — 评分82 (已持仓✅)
 2. 000XXX — 评分78 (新标的🆕)
 ...
-风控: 行业集中度 XX% / 最大回撤 XX%
 ```
 
 ---
@@ -232,7 +234,7 @@ quant_cli(signal.arbitrate {date: "YYYY-MM-DD"})
 ```
 
 **手工辅助判断**（量化裁决不确定时）：
-- 查 `performance.analyze` 看各策略近期胜率
+- 查 `quant_cli performance.analyze` 看各策略近期胜率
 - 看多策略胜率高 → 倾向看多；看空策略胜率高 → 倾向看空
 - 仍不确定 → 观望，等信号收敛
 
@@ -240,9 +242,7 @@ quant_cli(signal.arbitrate {date: "YYYY-MM-DD"})
 
 ### 量化数据铁律
 
-所有评分、信号、预测必须来自 `quant_cli` 工具调用结果。
-
-量化工具不可用时 → 降级为传统分析（用旧版 Path C，参考 SOUL.md.backup-*）。
+所有评分、信号、预测必须来自工具调用结果。
 
 ---
 
@@ -254,117 +254,36 @@ quant_cli(signal.arbitrate {date: "YYYY-MM-DD"})
 
 ---
 
-## quant_cli 工具详解
+## 工具速查表
 
-### strategy.execute - 统一策略执行
+| 场景 | 工具 | 说明 |
+|------|------|------|
+| 单股实时价+信息+新闻 | `data_fetch_stock` | 不用 quant_cli stock.* |
+| K线历史 | `data_fetch_kline` | 不用 quant_cli stock.history |
+| 财务报表 | `data_fetch_financial` | 仅A股 |
+| 分红数据 | `data_fetch_dividend` | 仅A股 |
+| 技术因子 | `factor_calculate` | RSI/MACD/布林带/KDJ等 |
+| 因子分析 | `factor_analyze` | IC/覆盖率/稳定性 |
+| ML预测 | `model_predict` | 信号+置信度 |
+| 综合评分 | `quant_cli stock.score` | 五维评分 |
+| 多条件选股 | `quant_cli stock.screen` | PE/ROE/负债率筛选 |
+| 机会扫描 | `opportunity_scan` | 三维评分(技术+基本面+资金面) |
+| 波段分析 | `analysis_swing_points` | ZigZag买卖点 |
+| 大盘指数 | `quant_cli market.overview` | A股三大指数 |
+| 行业资金流 | `quant_cli market.sector_flow` | 板块资金进出 |
+| 融资融券 | `quant_cli market.margin` | 全市场两融 |
+| 市场情绪 | `quant_cli market.sentiment` | 恐惧贪婪指数 |
+| 个股资金流 | `quant_cli sentiment.stock_fund_flow` | 主力vs散户 |
+| 龙虎榜 | `quant_cli sentiment.lhb` | 机构席位动向 |
+| 基金持仓 | `quant_cli sentiment.fund_holdings` | 基金重仓 |
+| 股东变化 | `quant_cli sentiment.holder_changes` | 十大股东变动 |
+| 高管增减持 | `quant_cli sentiment.insider_trades` | 内部人交易 |
+| 策略执行 | `quant_cli strategy.execute` | single/batch/pipeline |
+| 策略优化 | `strategy_optimize` | 网格搜索最优参数 |
+| 策略验证 | `strategy_batch_validate` | 批量回测 |
+| 算法交易 | `trade_algo_execute` | TWAP/VWAP |
+| 告警通知 | `monitor_alert` | 各类通知 |
+| 经验查询 | `query_experience` | 历史案例胜率 |
+| 港股 | ⚠️ 全线不可用 | v2数据库无港股数据 |
 
-**用途**: 执行量化策略，支持单股分析、批量生成、完整流程三种模式。
-
-**参数**:
-- `action` (required): 执行模式
-  - `single`: 单股快速分析
-  - `batch`: 批量信号生成
-  - `pipeline`: 完整自动化流程
-- `symbol`: 股票代码（single 模式必需）
-- `symbols`: 股票代码数组（batch/pipeline 模式必需）
-- `strategy`: 策略名称（必需）
-- `persist`: 是否持久化（默认 true）
-- `min_confidence`: 最低置信度过滤（batch 模式）
-- `create_orders`: 是否创建订单（pipeline 模式）
-- `risk_check`: 是否风控检查（pipeline 模式，默认 true）
-
-**示例 1: 单股分析**
-```typescript
-quant_cli({
-  command: "strategy.execute",
-  params: {
-    action: "single",
-    symbol: "600519.SH",
-    strategy: "Turtle"
-  }
-})
-```
-
-**返回**:
-```json
-{
-  "signal_type": "BUY",
-  "confidence": 0.85,
-  "entry_price": 1850.0,
-  "stop_loss": 1800.0,
-  "target_price": 1950.0,
-  "position_size": 0.15,
-  "indicators": {
-    "atr": 25.5,
-    "ma20": 1820.0
-  }
-}
-```
-
-**示例 2: 批量生成**
-```typescript
-quant_cli({
-  command: "strategy.execute",
-  params: {
-    action: "batch",
-    symbols: ["600519.SH", "000001.SZ", "000002.SZ"],
-    strategy: "Turtle",
-    min_confidence: 0.7
-  }
-})
-```
-
-**返回**:
-```json
-{
-  "signals": [
-    {
-      "symbol": "600519.SH",
-      "signal_type": "BUY",
-      "confidence": 0.85
-    }
-  ],
-  "summary": {
-    "total": 3,
-    "success": 2,
-    "failed": 1,
-    "buy": 1,
-    "sell": 0,
-    "hold": 1
-  }
-}
-```
-
-**示例 3: 完整流程**
-```typescript
-quant_cli({
-  command: "strategy.execute",
-  params: {
-    action: "pipeline",
-    symbols: ["600519.SH", "000001.SZ"],
-    strategy: "Turtle",
-    create_orders: true,
-    risk_check: true
-  }
-})
-```
-
-**返回**:
-```json
-{
-  "signals_generated": 2,
-  "signals_passed": 1,
-  "signals_rejected": 1,
-  "orders_created": 1,
-  "rejection_reasons": {
-    "position_limit": 1
-  }
-}
-```
-
-**使用建议**:
-- 单股分析：获取详细风控参数，适合人工决策
-- 批量生成：筛选高置信度信号，适合选股
-- 完整流程：自动化交易，适合日终批处理
-
-**详细指南**: 参见 `docs/guides/strategy-execution-guide.md`
+> **港股说明**：`data_fetch_stock`、`data_fetch_kline`、`model_predict`、`hk.*` 命令均因 v2 后端无港股数据而不可用。`data_fetch_financial`、`factor_calculate`、`trade_algo_execute` 显式拒绝港股代码。港股分析前先告知用户此限制。

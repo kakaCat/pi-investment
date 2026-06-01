@@ -7,7 +7,7 @@ import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 
 interface OptimizeResult {
-  strategy_id: number;
+  strategy_id: string | number;
   symbol: string;
   metric: string;
   total_combinations: number;
@@ -35,8 +35,8 @@ export const strategyOptimizeTool: ToolDefinition = {
     "支持多种优化目标：sharpe（夏普比率）、return（总收益）、win_rate（胜率）、calmar（卡玛比率）。",
 
   parameters: Type.Object({
-    strategy_id: Type.Integer({
-      description: "策略ID（数据库中的策略记录ID）",
+    strategy_id: Type.Union([Type.Integer(), Type.String()], {
+      description: "策略ID（数据库中的策略记录ID，支持数字或字符串）",
     }),
     symbol: Type.String({
       description: "股票代码，如 600519.SH",
@@ -112,29 +112,29 @@ export const strategyOptimizeTool: ToolDefinition = {
         };
       }
 
-      // 准备请求参数
+      // 准备请求参数（v2 API 使用 camelCase）
       const payload: any = {
-        strategy_id: params.strategy_id,
+        strategyId: params.strategy_id,
         symbol: params.symbol,
-        start_date: params.start_date || "2025-01-01",
-        end_date: params.end_date || new Date().toISOString().split("T")[0],
-        metric: params.metric || "sharpe",
-        param_grid: params.param_grid,
-        initial_capital: params.initial_capital || 1000000,
+        startDate: params.start_date || "2025-01-01",
+        endDate: params.end_date || new Date().toISOString().split("T")[0],
+        sortBy: params.metric || "sharpe_ratio",
+        paramRanges: params.param_grid,
+        initialCash: params.initial_capital || 1000000,
       };
 
       if (params.max_combinations) {
-        payload.max_combinations = params.max_combinations;
+        payload.maxCombinations = params.max_combinations;
       }
 
       // 直接调用 v2 API
-      const url = `${process.env.QUANTSYS_V2_API_URL || "http://127.0.0.1:5001"}/api/portfolio/strategy-optimize`;
+      const url = `${process.env.QUANTSYS_V2_API_URL || "http://127.0.0.1:5001"}/api/strategies/optimize`;
 
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(60000), // 优化可能需要更长时间
+        signal: AbortSignal.timeout(300000), // 优化可能需要较长时间（5分钟）
       });
 
       if (!response.ok) {
@@ -148,30 +148,61 @@ export const strategyOptimizeTool: ToolDefinition = {
         };
       }
 
-      const result = (await response.json()) as {
+      const rawResult = (await response.json()) as {
         success: boolean;
-        data?: OptimizeResult;
+        results?: Array<{
+          params: Record<string, unknown>;
+          sharpeRatio?: number;
+          totalReturn?: number;
+          maxDrawdown?: number;
+          winRate?: number;
+          totalTrades?: number;
+        }>;
+        totalCombinations?: number;
+        successfulCombinations?: number;
         error?: string;
       };
 
-      if (!result.success || !result.data) {
+      if (!rawResult.success || !rawResult.results || rawResult.results.length === 0) {
         return {
           content: [{
             type: "text" as const,
-            text: `❌ 优化失败: ${result.error || "未知错误"}`
+            text: `❌ 优化失败: ${rawResult.error || "无有效参数组合"}`
           }],
           details: undefined
         };
       }
 
+      // 将 camelCase API 响应转换为 OptimizeResult
+      const best = rawResult.results[0]!;
+      const data: OptimizeResult = {
+        strategy_id: params.strategy_id,
+        symbol: params.symbol,
+        metric: params.metric || "sharpe",
+        total_combinations: rawResult.totalCombinations ?? rawResult.results.length,
+        successful: rawResult.successfulCombinations ?? rawResult.results.length,
+        best: {
+          params: best.params,
+          score: best.sharpeRatio ?? 0,
+          total_return: best.totalReturn,
+          sharpe_ratio: best.sharpeRatio,
+          max_drawdown: best.maxDrawdown,
+          win_rate: best.winRate,
+        },
+        top10: rawResult.results.slice(0, 10).map((r, i) => ({
+          params: r.params,
+          score: r.sharpeRatio ?? i,  // fallback to index if no sharpe
+        })),
+      };
+
       // 格式化输出
-      const formattedText = formatOptimizeResult(result.data);
+      const formattedText = formatOptimizeResult(data);
       return {
         content: [{
           type: "text" as const,
           text: formattedText
         }],
-        details: result.data
+        details: data
       };
 
     } catch (error) {

@@ -6,6 +6,7 @@ import type {
   FactorAnalysis,
   Opportunity,
   OpportunityFilters,
+  OpportunityScanResponse,
   PaginatedResponse
 } from '@/types'
 
@@ -48,8 +49,17 @@ export const analysisApi = {
   /**
    * 机会雷达扫描
    */
-  scanOpportunities(filters?: OpportunityFilters) {
-    return apiClient.post<Opportunity[]>('/api/signals/scan', filters)
+  async scanOpportunities(filters?: OpportunityFilters): Promise<OpportunityScanResponse> {
+    const response = await apiClient.post<any>('/api/signals/scan', filters)
+    return {
+      success: response.success !== false,
+      scanMode: response.scanMode ?? response.scan_mode ?? 'score',
+      opportunities: (response.opportunities ?? []).map(adaptOpportunity),
+      total: Number(response.total ?? response.opportunities?.length ?? 0),
+      scanned: Number(response.scanned ?? 0),
+      strategyId: response.strategyId ?? response.strategy_id,
+      sectorInfo: response.sectorInfo ?? response.sector_info
+    }
   },
 
   /**
@@ -104,5 +114,26 @@ export const analysisApi = {
    */
   getIndustryAnalysis(industry: string) {
     return apiClient.get(`/api/analysis/industry/${industry}`)
+  }
+}
+
+function adaptOpportunity(raw: any): Opportunity {
+  const confidence = Number(raw.confidence ?? 0)
+  return {
+    id: String(raw.id ?? `${raw.strategy_id ?? raw.strategyId ?? 'scan'}-${raw.symbol ?? ''}-${raw.timestamp ?? raw.created_at ?? raw.createdAt ?? ''}`),
+    symbol: raw.symbol ?? '',
+    symbolName: raw.symbolName ?? raw.symbol_name ?? raw.name ?? raw.symbol ?? '',
+    score: Number(raw.score ?? 0),
+    technicalScore: Number(raw.technicalScore ?? raw.technical_score ?? 0),
+    fundamentalScore: Number(raw.fundamentalScore ?? raw.fundamental_score ?? 0),
+    sentimentScore: Number(raw.sentimentScore ?? raw.sentiment_score ?? raw.capital_score ?? 0),
+    reasons: raw.reasons ?? (raw.reason ? [raw.reason] : []),
+    riskLevel: raw.riskLevel ?? raw.risk_level ?? 'medium',
+    expectedReturn: Number(raw.expectedReturn ?? raw.expected_return ?? 0),
+    confidence: confidence <= 1 ? confidence * 100 : confidence,
+    createdAt: raw.createdAt ?? raw.created_at ?? raw.timestamp ?? raw.signal_date ?? '',
+    strategyId: raw.strategyId ?? raw.strategy_id,
+    strategyName: raw.strategyName ?? raw.strategy_name,
+    price: raw.price !== undefined ? Number(raw.price) : undefined
   }
 }

@@ -12,6 +12,7 @@ vi.mock('@/services/api/client', () => ({
 const { apiClient } = await import('@/services/api/client')
 const { adaptKLine } = await import('@/services/api/adapters')
 const { stockApi } = await import('@/services/api/stock')
+const { analysisApi } = await import('@/services/api/analysis')
 const { tradingApi } = await import('@/services/api/trading')
 const { strategyApi } = await import('@/services/api/strategy')
 const { indicatorApi } = await import('@/services/api/indicator')
@@ -36,9 +37,9 @@ describe('QuantSys V2 API contract', () => {
       params: { q: '平安' }
     })
 
-    stockApi.getKLineData({ symbol: '000001.SZ', startDate: '2024-01-01', endDate: '2024-02-01' })
+    stockApi.getKLineData({ symbol: '000001.SZ', startDate: '2024-01-01', endDate: '2024-02-01', timeFrame: '5min' })
     expect(mockedClient.get).toHaveBeenLastCalledWith('/api/stock/000001/klines', {
-      params: { start_date: '2024-01-01', end_date: '2024-02-01' }
+      params: { start_date: '2024-01-01', end_date: '2024-02-01', period: '5min' }
     })
 
     stockApi.getTechnicalIndicators('000001.SZ', ['ma', 'macd'])
@@ -144,6 +145,33 @@ describe('QuantSys V2 API contract', () => {
     expect(mockedClient.get).toHaveBeenLastCalledWith('/api/trades/list', {
       params: { page: 1, pageSize: 20 }
     })
+  })
+
+  it('posts opportunity scan filters including selected strategy id', async () => {
+    mockedClient.post.mockResolvedValueOnce({
+      success: true,
+      scan_mode: 'strategy',
+      strategy_id: 193,
+      opportunities: [],
+      total: 0,
+      scanned: 12
+    })
+
+    const result = await analysisApi.scanOpportunities({
+      strategyId: '193',
+      minScore: 60,
+      maxRiskLevel: 'medium'
+    })
+
+    expect(mockedClient.post).toHaveBeenLastCalledWith('/api/signals/scan', {
+      strategyId: '193',
+      minScore: 60,
+      maxRiskLevel: 'medium'
+    })
+    expect(result.scanMode).toBe('strategy')
+    expect(result.strategyId).toBe(193)
+    expect(result.total).toBe(0)
+    expect(result.scanned).toBe(12)
   })
 
   it('uses existing strategy and indicator endpoints', async () => {

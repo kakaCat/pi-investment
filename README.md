@@ -7,8 +7,7 @@
 | 模块 | 路径 | 主要用途 |
 | --- | --- | --- |
 | Agent 核心 | `src/` | 投资助手、工具调用、组合管理、飞书集成 |
-| 量化后端 | `quant/` | Python 量化 API、数据、因子、回测、训练、调度 |
-| 重构后端 | `quantsys-v2/` | v2 API/CLI/WebSocket 和新量化架构 |
+| 量化后端 | `quantsys-v2/` | v2 API/CLI/WebSocket 和新量化架构 |
 | 前端控制台 | `web-frontend/` | Vue 3 + Vite 量化交易系统前端 |
 | 技能文件 | `skills/` | Agent 投研流程和领域知识 |
 | 文档 | `docs/` | 架构、迁移、报告、设计和计划 |
@@ -20,8 +19,7 @@
 ```text
 pi-investment/
 ├── src/                 # TypeScript Agent 核心和工具适配层
-├── quant/               # Python QuantSys 后端，默认 API 端口 5002
-├── quantsys-v2/         # 重构后端，HTTP 端口 5001，WebSocket 端口 5003
+├── quantsys-v2/         # Python 量化后端，HTTP 端口 5001，WebSocket 端口 5003
 ├── web-frontend/        # Vue 3 前端，Vite 开发端口 3001
 ├── skills/              # 投资技能文件
 ├── scripts/             # 维护和迁移脚本
@@ -44,7 +42,7 @@ pi-investment/
 
 详见 [CLAUDE.md](./CLAUDE.md) 了解完整的工具列表和使用指南。
 
-前端默认通过 `VITE_API_BASE_URL=http://127.0.0.1:5001` 访问 `quantsys-v2` HTTP API，并通过 `VITE_WS_URL=ws://127.0.0.1:5003` 连接 WebSocket。`quant/api/server.py` 仍保留为 QuantSys 后端入口，默认端口是 5002。
+前端默认通过 `VITE_API_BASE_URL=http://127.0.0.1:5001` 访问 `quantsys-v2` HTTP API，并通过 `VITE_WS_URL=ws://127.0.0.1:5003` 连接 WebSocket。
 
 ## 快速开始
 
@@ -139,8 +137,7 @@ export FEISHU_APP_SECRET=your-feishu-secret
 ## 常用文档
 
 - [项目索引](INDEX.md)
-- [Python 量化后端](quant/README.md)
-- [重构后端](quantsys-v2/README.md)
+- [量化后端](quantsys-v2/README.md)
 - [前端控制台](web-frontend/README.md)
 - [测试指南](docs/testing-guide.md)
 - [2026-05 报告归档](docs/reports/2026-05/)
@@ -157,14 +154,12 @@ export FEISHU_APP_SECRET=your-feishu-secret
 
 ```bash
 curl http://127.0.0.1:5001/api/health
-curl http://127.0.0.1:5002/api/health
 ```
 
 **端口冲突**
 
-- `QUANTSYS_API_PORT` 控制 `quantsys-v2/api/server.py`
-- `QUANTSYS_WS_PORT` 控制 `quantsys-v2/api/server_websocket.py`
-- `QUANT_API_PORT` 控制 `quant/api/server.py`
+- `QUANTSYS_API_PORT` 控制 `quantsys-v2/api/server.py`（默认 5001）
+- `QUANTSYS_WS_PORT` 控制 `quantsys-v2/api/server_websocket.py`（默认 5003）
 
 ## 免责声明
 

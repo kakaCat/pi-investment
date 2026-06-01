@@ -66,6 +66,7 @@ export const stockApi = {
         params: compactParams({
           start_date: params.startDate,
           end_date: params.endDate,
+          period: params.timeFrame,
           limit: params.limit
         })
       })

@@ -4,6 +4,7 @@ import BacktestCenter from '@/views/BacktestCenter/index.vue'
 
 const indicatorApiMock = vi.hoisted(() => ({
   getMyIndicators: vi.fn(),
+  getSystemIndicators: vi.fn(),
   backtestIndicator: vi.fn()
 }))
 
@@ -12,7 +13,8 @@ const analysisApiMock = vi.hoisted(() => ({
 }))
 
 const stockApiMock = vi.hoisted(() => ({
-  searchStocks: vi.fn()
+  searchStocks: vi.fn(),
+  getKLineData: vi.fn()
 }))
 
 const tradingApiMock = vi.hoisted(() => ({
@@ -20,6 +22,7 @@ const tradingApiMock = vi.hoisted(() => ({
 }))
 
 const strategyApiMock = vi.hoisted(() => ({
+  getStrategies: vi.fn(),
   createStrategy: vi.fn()
 }))
 
@@ -89,8 +92,8 @@ describe('BacktestCenter', () => {
         },
         'el-form-item': { template: '<div><slot /></div>' },
         'el-select': { template: '<div><slot /></div>' },
+        'el-segmented': { props: ['modelValue', 'options'], template: '<div>{{ options.map((option) => option.label).join(" ") }}</div>' },
         'el-option': { props: ['label'], template: '<div>{{ label }}</div>' },
-        'el-option-group': { props: ['label'], template: '<div><span>{{ label }}</span><slot /></div>' },
         'el-autocomplete': { template: '<div><slot :item="{ symbol: `600519`, name: `贵州茅台` }" /></div>' },
         'el-date-picker': true,
         'el-row': { template: '<div><slot /></div>' },
@@ -110,7 +113,11 @@ describe('BacktestCenter', () => {
         'el-dialog': { template: '<div><slot /><slot name="footer" /></div>' },
         'el-input': true,
         'el-alert': { template: '<div><slot /></div>' },
-        'el-icon': true
+        'el-icon': true,
+        KLineChart: {
+          props: ['data', 'signals', 'height'],
+          template: '<div class="kline-chart-stub">{{ data.length }}</div>'
+        }
       }
     }
   })
@@ -119,6 +126,7 @@ describe('BacktestCenter', () => {
     vi.clearAllMocks()
     echartsSetOptionMock.mockClear()
     indicatorApiMock.getMyIndicators.mockResolvedValue([])
+    indicatorApiMock.getSystemIndicators.mockResolvedValue([])
     indicatorApiMock.backtestIndicator.mockResolvedValue({
       totalReturn: 0.12,
       annualReturn: 0.1,
@@ -144,9 +152,16 @@ describe('BacktestCenter', () => {
       equityCurve: [],
       monthlyReturns: []
     })
+    stockApiMock.getKLineData.mockResolvedValue([
+      { date: '2025-06-03', open: 1456.45, close: 1457.44, high: 1467.44, low: 1453.46, volume: 28979, amount: 42235153.76 }
+    ])
+    strategyApiMock.getStrategies.mockResolvedValue({
+      strategies: [],
+      total: 0
+    })
   })
 
-  it('loads my indicators into the strategy selector', async () => {
+  it('loads all backtest strategies into a flat selector', async () => {
     indicatorApiMock.getMyIndicators.mockResolvedValueOnce([
       {
         id: 53,
@@ -156,13 +171,39 @@ describe('BacktestCenter', () => {
         category: 'custom'
       }
     ])
+    indicatorApiMock.getSystemIndicators.mockResolvedValueOnce([
+      {
+        id: 88,
+        name: '系统布林指标',
+        codeType: 'indicator',
+        strategyType: 'system',
+        category: 'system'
+      }
+    ])
+    strategyApiMock.getStrategies.mockResolvedValueOnce({
+      strategies: [
+        {
+          strategyType: 'adx_trend',
+          className: 'ADXTrendStrategy',
+          description: 'ADX trend strength strategy.'
+        }
+      ],
+      total: 1
+    })
 
     const wrapper = mountBacktestCenter()
 
     await vi.waitFor(() => {
       expect(indicatorApiMock.getMyIndicators).toHaveBeenCalled()
+      expect(indicatorApiMock.getSystemIndicators).toHaveBeenCalled()
+      expect(strategyApiMock.getStrategies).toHaveBeenCalledWith({ source: 'builtin', pageSize: 200 })
       expect(wrapper.text()).toContain('我的RSI指标')
+      expect(wrapper.text()).toContain('系统布林指标')
+      expect(wrapper.text()).toContain('ADXTrendStrategy')
+      expect(wrapper.text()).toContain('GridTradingStrategy')
     })
+
+    expect(wrapper.findComponent({ name: 'ElOptionGroup' }).exists()).toBe(false)
   })
 
   it('runs selected custom indicator through indicator backtest API', async () => {
@@ -185,6 +226,7 @@ describe('BacktestCenter', () => {
     const vm = wrapper.vm as any
     vm.backtestForm.strategy = 'indicator:53'
     vm.backtestForm.symbol = '600519'
+    vm.backtestForm.klinePeriod = '30min'
     vm.backtestForm.startDate = new Date('2025-05-27T00:00:00')
     vm.backtestForm.endDate = new Date('2026-05-27T00:00:00')
 
@@ -195,9 +237,35 @@ describe('BacktestCenter', () => {
       symbol: '600519',
       startDate: '2025-05-27',
       endDate: '2026-05-27',
-      initialCash: 1000000
+      initialCash: 1000000,
+      period: '30min'
     })
     expect(analysisApiMock.runBacktest).not.toHaveBeenCalled()
+  })
+
+  it('runs selected builtin strategy with the selected kline period', async () => {
+    const wrapper = mountBacktestCenter()
+
+    const vm = wrapper.vm as any
+    vm.backtestForm.strategy = 'ma_cross'
+    vm.backtestForm.symbol = '600519'
+    vm.backtestForm.klinePeriod = '15min'
+    vm.backtestForm.startDate = new Date('2025-05-27T00:00:00')
+    vm.backtestForm.endDate = new Date('2026-05-27T00:00:00')
+
+    await vm.handleStartBacktest()
+
+    expect(analysisApiMock.runBacktest).toHaveBeenCalledWith(expect.objectContaining({
+      strategy: 'ma_cross',
+      symbol: '600519',
+      startDate: '2025-05-27',
+      endDate: '2026-05-27',
+      period: '15min'
+    }))
+    expect(stockApiMock.getKLineData).toHaveBeenCalledWith(expect.objectContaining({
+      symbol: '600519',
+      timeFrame: '15min'
+    }))
   })
 
   it('normalizes backend trade fields for the trade table', () => {
@@ -269,13 +337,18 @@ describe('BacktestCenter', () => {
     expect(vm.formatBacktestPercent(normalized.winRate, false)).toBe('83.33%')
   })
 
-  it('adds buy and sell markers to the equity chart', () => {
+  it('renders strategy equity against buy-and-hold benchmark', () => {
     const wrapper = mountBacktestCenter()
     const vm = wrapper.vm as any
     const chartEl = document.createElement('div')
 
     vm.equityChartRef = chartEl
+    vm.backtestKlineData = [
+      { date: '2025-08-28', open: 10, close: 10, high: 11, low: 9, volume: 1000, amount: 10000 },
+      { date: '2025-09-12', open: 12, close: 12, high: 13, low: 11, volume: 1200, amount: 14400 }
+    ]
     vm.backtestResult = vm.normalizeBacktestResult({
+      initialCapital: 1000000,
       trades: [
         {
           entry_date: '2025-08-28',
@@ -295,11 +368,107 @@ describe('BacktestCenter', () => {
     vm.renderEquityChart()
 
     const option = echartsSetOptionMock.mock.calls.at(-1)?.[0]
-    expect(option.title.text).toBe('资产权益曲线')
-    expect(option.series[0].name).toBe('资产权益')
-    expect(option.series[0].markPoint.data).toEqual([
-      expect.objectContaining({ name: '买入', coord: ['2025-08-28', 1000000] }),
-      expect.objectContaining({ name: '卖出', coord: ['2025-09-12', 985170] })
+    expect(option.title.text).toBe('策略 vs 标的')
+    expect(option.legend.data).toEqual(['策略收益率', '买入持有收益率', '超额收益率'])
+    expect(option.xAxis[1].axisLabel.formatter('2025-09-12')).toBe('09-12')
+    expect(option.xAxis[1].axisLabel.formatter('2025-09-12 10:30:00')).toBe('09-12')
+    expect(option.yAxis[0].axisLabel.formatter).toBe('{value}%')
+    expect(option.yAxis[1].axisLabel.formatter).toBe('{value}%')
+    expect(option.series[0].name).toBe('策略收益率')
+    expect(option.series[0].data).toEqual([0, -1.48])
+    expect(option.series[1].name).toBe('买入持有收益率')
+    expect(option.series[1].data).toEqual([0, 20])
+    expect(option.series[2].name).toBe('超额收益率')
+    expect(option.series[2].type).toBe('bar')
+    expect(option.series[2].xAxisIndex).toBe(1)
+    expect(option.series[2].yAxisIndex).toBe(1)
+    expect(option.series[2].data).toEqual([0, -21.48])
+    expect(option.series[0].markArea.data).toEqual([
+      [
+        { xAxis: '2025-08-28' },
+        { xAxis: '2025-09-12' }
+      ]
     ])
+    expect(option.series[0].markPoint.data).toEqual([
+      expect.objectContaining({ name: '买入', value: '买1', coord: ['2025-08-28', 0] }),
+      expect.objectContaining({ name: '卖出', value: '卖1', coord: ['2025-09-12', -1.48] })
+    ])
+    expect(option.series[0].markPoint.label.formatter(option.series[0].markPoint.data[0])).toBe('买1')
+    expect(option.series[0].markPoint.label.formatter(option.series[0].markPoint.data[1])).toBe('卖1')
+    expect(option.series[0].markLine.data).toEqual([
+      expect.objectContaining({ name: '买1', xAxis: '2025-08-28' }),
+      expect.objectContaining({ name: '卖1', xAxis: '2025-09-12' })
+    ])
+  })
+
+  it('places kline chart above strategy comparison chart', async () => {
+    const wrapper = mountBacktestCenter()
+    const vm = wrapper.vm as any
+
+    vm.backtestForm.symbol = '600519'
+    await vm.handleStartBacktest()
+
+    await vi.waitFor(() => {
+      expect(wrapper.find('.kline-chart-stub').exists()).toBe(true)
+    })
+
+    const html = wrapper.html()
+    expect(html.indexOf('K线走势')).toBeLessThan(html.indexOf('策略 vs 标的'))
+  })
+
+  it('loads and renders stock klines after a backtest completes', async () => {
+    const wrapper = mountBacktestCenter()
+    const vm = wrapper.vm as any
+
+    vm.backtestForm.symbol = '600519'
+    vm.backtestForm.startDate = new Date('2025-06-01T00:00:00')
+    vm.backtestForm.endDate = new Date('2026-06-01T00:00:00')
+
+    await vm.handleStartBacktest()
+
+    await vi.waitFor(() => {
+      expect(stockApiMock.getKLineData).toHaveBeenCalledWith({
+        symbol: '600519',
+        startDate: '2025-06-01',
+        endDate: '2026-06-01',
+        timeFrame: 'daily',
+        limit: 500
+      })
+    })
+    await wrapper.vm.$nextTick()
+
+    expect(stockApiMock.getKLineData).toHaveBeenCalledWith({
+      symbol: '600519',
+      startDate: '2025-06-01',
+      endDate: '2026-06-01',
+      timeFrame: 'daily',
+      limit: 500
+    })
+    expect(vm.backtestKlineData).toEqual([
+      { date: '2025-06-03', open: 1456.45, close: 1457.44, high: 1467.44, low: 1453.46, volume: 28979, amount: 42235153.76 }
+    ])
+    expect(wrapper.find('.kline-chart-stub').text()).toBe('1')
+  })
+
+  it('passes the selected kline period to the kline API', async () => {
+    const wrapper = mountBacktestCenter()
+    const vm = wrapper.vm as any
+
+    expect(wrapper.text()).toContain('日线')
+    expect(wrapper.text()).toContain('1分钟')
+
+    vm.backtestForm.symbol = '600519'
+    vm.backtestForm.klinePeriod = '5min'
+
+    await vm.handleStartBacktest()
+
+    await vi.waitFor(() => {
+      expect(stockApiMock.getKLineData).toHaveBeenCalledWith(
+        expect.objectContaining({
+          symbol: '600519',
+          timeFrame: '5min'
+        })
+      )
+    })
   })
 })

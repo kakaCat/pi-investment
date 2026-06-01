@@ -22,10 +22,6 @@ import type {
   OptimizationTip,
 } from '../../types/evolution.js';
 
-import { join } from 'path';
-import { PriceService } from '../data/price-service.js';
-import { StockDBService } from '../data/stock-db-service.js';
-
 // ─── 数据模型 ───────────────────────────────────────────────────────────────
 
 interface TradeRecord {
@@ -163,7 +159,7 @@ interface DayTradeEffect {
 // ─── 减法器引擎 ─────────────────────────────────────────────────────────────
 
 export class Subtractor {
-  private priceService: PriceService;
+  private priceService?: any; // Optional: for future price fetching integration
 
   // 缓存
   private trades: TradeRecord[] = [];
@@ -174,9 +170,9 @@ export class Subtractor {
   private dataInjected = false;  // 标记是否已通过 injectData 注入数据，避免被 loadAll 覆盖
 
   constructor(options?: {
-    priceService?: PriceService;
+    priceService?: any;
   }) {
-    this.priceService = options?.priceService ?? new PriceService(StockDBService.getInstance(join(process.cwd(), '.pi-invest')));
+    this.priceService = options?.priceService;
   }
 
   // ── 公开 API ──────────────────────────────────────────────────────────
@@ -811,6 +807,11 @@ export class Subtractor {
    * 对 getPrice() 返回 null 的股票，批量从数据库/API获取实时价。
    */
   private async enrichPrices(): Promise<void> {
+    // Skip if no price service is configured
+    if (!this.priceService) {
+      return;
+    }
+
     // 收集需要获取价格的 symbols
     const needPrice = new Set<string>();
 

@@ -123,6 +123,8 @@ export interface IndicatorListResponse {
 export interface IndicatorRunParams {
   /** 股票代码 */
   symbol: string
+  /** K线周期 */
+  period?: 'daily' | '1min' | '5min' | '15min' | '30min' | '60min'
   /** K线数量 */
   limit?: number
   /** 图表显示的K线数量 */

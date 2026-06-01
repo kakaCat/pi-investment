@@ -19,13 +19,13 @@ export const modelPredictTool: ToolDefinition = {
   label: "模型预测",
   description:
     "L3 模型层工具：使用训练好的机器学习模型预测股票信号和置信度。" +
-    "支持 A 股（6位代码）和港股（1-5位代码或 .HK 后缀）。" +
+    "仅支持 A 股（6位代码），港股预测暂不可用（需 K 线数据计算特征）。" +
     "默认使用最新训练的模型；可通过 model_id 参数指定特定模型版本。" +
     "返回预测信号（buy/sell/hold）、置信度（0-1）、特征值等信息。",
 
   parameters: Type.Object({
     symbol: Type.String({
-      description: "股票代码：A股6位数字（如 600519）或港股1-5位数字（如 9988 或 9988.HK）"
+      description: "股票代码：A股6位数字（如 600519）。港股暂不可用。"
     }),
     model_id: Type.Optional(
       Type.String({
@@ -64,7 +64,7 @@ export const modelPredictTool: ToolDefinition = {
           type: "text" as const,
           text: JSON.stringify({
             success: false,
-            error: `不支持的股票代码 "${symbol}"。本系统支持A股（6位数字）和港股（1-5位数字或含.HK后缀）。`
+            error: `不支持的股票代码 "${symbol}"。本系统仅支持A股（6位数字，如 600519）。港股数据暂不可用。`
           }, null, 2)
         }],
         details: undefined

@@ -44,9 +44,16 @@ import { modelEvaluateTool } from "./model/evaluate-tool.js";
 import { modelMonitorTool } from "./model/monitor-tool.js";
 import { modelListTool } from "./model/list-tool.js";
 
-// L3.5 策略执行
-import { strategyBatchValidateTool } from "./strategy/batch-validate-tool.js";
+// L3.5 策略（从 quant_cli 提取为独立工具）
+import { strategyListTool } from "./strategy/list-tool.js";
+import { strategyDetailTool } from "./strategy/detail-tool.js";
+import { strategyCreateTool } from "./strategy/create-tool.js";
+import { strategyRunTool } from "./strategy/run-tool.js";
+import { strategyStatusTool } from "./strategy/status-tool.js";
+import { strategyExecuteTool } from "./strategy/execute-tool.js";
+import { strategyWriteTool } from "./strategy/write-tool.js";
 import { strategyOptimizeTool } from "./strategy/optimize-tool.js";
+import { strategyBatchValidateTool } from "./strategy/batch-validate-tool.js";
 
 // 指标工具（独立工具，从 quant_cli 提取）
 import { indicatorListTool } from "./indicator/list-tool.js";
@@ -56,7 +63,6 @@ import { indicatorUpdateTool } from "./indicator/update-tool.js";
 import { indicatorDeleteTool } from "./indicator/delete-tool.js";
 import { indicatorRunTool } from "./indicator/run-tool.js";
 import { indicatorBacktestTool } from "./indicator/backtest-tool.js";
-import { strategyWriteTool } from "./indicator/strategy-write-tool.js";
 import { indicatorCompareTool } from "./indicator/compare-tool.js";
 import { indicatorSandboxColumnsTool } from "./indicator/sandbox-columns-tool.js";
 
@@ -154,7 +160,14 @@ export const allCustomTools = [
   modelMonitorTool,               // model_monitor - 监控模型漂移
   modelListTool,                  // model_list - 列出所有模型
 
-  // L3.5 策略执行
+  // L3.5 策略（独立工具）
+  strategyListTool,               // strategy_list - 列出所有策略
+  strategyDetailTool,             // strategy_detail - 查看策略详情
+  strategyCreateTool,             // strategy_create - 创建新策略
+  strategyWriteTool,              // strategy_write - 编写/更新策略代码
+  strategyRunTool,                // strategy_run - 实时运行策略
+  strategyExecuteTool,            // strategy_execute - 统一策略执行（single/batch/pipeline）
+  strategyStatusTool,             // strategy_status - 查询策略运行状态
   strategyOptimizeTool,           // strategy_optimize - 策略参数优化
   strategyBatchValidateTool,      // strategy_batch_validate - 批量验证策略有效性
 
@@ -166,7 +179,6 @@ export const allCustomTools = [
   indicatorDeleteTool,            // indicator_delete - 删除指标
   indicatorRunTool,               // indicator_run - 运行指标
   indicatorBacktestTool,          // indicator_backtest - 指标历史回测
-  strategyWriteTool,              // strategy_write - 编写/更新策略代码，配合回测迭代
   indicatorCompareTool,           // indicator_compare - 对比两个指标
   indicatorSandboxColumnsTool,    // indicator_sandbox_columns - 沙箱可用列
 

@@ -11,8 +11,6 @@ import * as logger from "../infrastructure/logging/observable-logger.js";
 import { wrapSessionWithLogger } from "../infrastructure/session/session-factory.js";
 import { PerformanceMonitor } from "../infrastructure/monitoring/performance-monitor.js";
 import { startSchedulerRuntime } from "../services/scheduler/scheduler-runtime.js";
-import { DailyReviewService } from "../services/operations/daily-review-service.js";
-import { StopLossAlertService } from "../services/operations/stop-loss-alert-service.js";
 import { FxRateServiceAdapter } from "../services/fx-rate-service-adapter.js";
 import { runWeeklyEvolution } from "../services/intelligence/evolution-service.js";
 import { saveSessionMemoryAsync } from "../services/intelligence/session-memory-saver.js";
@@ -293,24 +291,8 @@ async function main() {
     logger.initSession(restartData?.prevSessionKey);
     console.log(`📋 Session: ${logger.getSessionKey()}\n`);
 
-    // 初始化服务
-    const reviewService = new DailyReviewService(piDir);
-    const alertService = new StopLossAlertService(piDir);
-    const fxRateService = new FxRateServiceAdapter(piDir);
-
-    // 启动时自动复盘检查（工作日收盘后，且今日未复盘）
-    if (reviewService.shouldAutoRun()) {
-      console.log("📋 检测到今日复盘尚未完成，自动执行复盘...\n");
-      try {
-        const report = await reviewService.run();
-        console.log(report);
-        console.log();
-      } catch (e) {
-        console.warn(`[复盘] 自动复盘失败: ${e instanceof Error ? e.message : String(e)}\n`);
-      }
-    } else if (reviewService.isReviewDone()) {
-      console.log("✅ 今日持仓复盘已完成\n");
-    }
+    // 注意：DailyReviewService 和 StopLossAlertService 已被移除
+    // 如需复盘和止损告警功能，请使用 Agent 工具
 
     // 根据环境变量选择 agent loop
     const session = USE_BACKGROUND_MODE

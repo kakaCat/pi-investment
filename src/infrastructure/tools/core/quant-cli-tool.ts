@@ -154,13 +154,7 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { market: "A", source: "live" },
   },
-  "stock.ml_predict": {
-    domain: "stock",
-    action: "ml-predict",
-    description: "对单只股票运行本地 ML 预测。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
+  // stock.ml_predict 已移除 — 使用专用工具 model_predict
   "stock.score": {
     domain: "stock",
     action: "score",
@@ -215,6 +209,7 @@ const COMMANDS: Record<string, CommandRule> = {
     params: { symbol: { required: true, type: "string", symbol: true } },
     example: { symbol: "600000" },
   },
+  // analysis.swing_points 已移除 — 使用专用工具 analysis_swing_points
   "screening.sector": {
     domain: "screening",
     action: "sector",
@@ -242,30 +237,38 @@ const COMMANDS: Record<string, CommandRule> = {
   "hk.market_overview": {
     domain: "hk",
     action: "market-overview",
-    description: "查询恒生指数、国企指数、恒生科技指数等港股主要指数概览。",
+    description: "⚠️ 暂不可用：v1 quantsys 模块已废弃，v2 尚未实现港股概览端点。调用将返回错误。",
     params: {},
     example: {},
+    deprecated: true,
+    replacement: "港股市场概览功能暂不可用，等待 v2 实现",
   },
   "hk.south_flow": {
     domain: "hk",
     action: "south-flow",
-    description: "查询港股通南向资金最近流入流出情况。",
+    description: "⚠️ 暂不可用：v1 quantsys 模块已废弃，v2 尚未实现南向资金端点。调用将返回错误。",
     params: {},
     example: {},
+    deprecated: true,
+    replacement: "港股通南向资金功能暂不可用，等待 v2 实现",
   },
   "hk.technical": {
     domain: "hk",
     action: "technical",
-    description: "计算港股个股 MA、MACD、RSI、布林带和技术信号。",
+    description: "⚠️ 暂不可用：v1 quantsys 模块已废弃，v2 数据库无港股 K 线数据。调用将返回错误。",
     params: { symbol: { required: true, type: "string", symbol: true } },
     example: { symbol: "9988" },
+    deprecated: true,
+    replacement: "港股技术分析功能暂不可用，等待 v2 实现",
   },
   "hk.hot_rank": {
     domain: "hk",
     action: "hot-rank",
-    description: "查询东方财富港股人气排行。",
+    description: "⚠️ 暂不可用：v1 quantsys 模块已废弃，v2 尚未实现港股人气排行端点。调用将返回错误。",
     params: {},
     example: {},
+    deprecated: true,
+    replacement: "港股人气排行功能暂不可用，等待 v2 实现",
   },
   "sentiment.stock_fund_flow": {
     domain: "sentiment",
@@ -457,16 +460,7 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { date: "2026-05-20" },
   },
-  "signal.scan": {
-    domain: "signal",
-    action: "scan",
-    description: "扫描最新信号，查找新的交易机会。v2 端点。",
-    params: {
-      symbols: { type: "array" },
-      strategies: { type: "array" },
-    },
-    example: {},
-  },
+  // signal.scan 已移除 — 使用专用工具 opportunity_scan
   "signal.statistics": {
     domain: "signal",
     action: "statistics",
@@ -531,16 +525,7 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { strategy_id: "53", symbol: "600000.SH", start_date: "2025-11-27", end_date: "2026-05-27" },
   },
-  "backtest.batch": {
-    domain: "backtest",
-    action: "batch",
-    description: "批量回测：对多个 (策略ID, 股票) 组合依次回测并排名。传入 jobs 数组，每个 job 含 strategy_id/symbol/start_date/end_date。返回按总收益率降序的结果列表和汇总统计。",
-    params: {
-      jobs: { required: true, type: "array" },
-      initial_capital: { type: "number", min: 10000 },
-    },
-    example: { jobs: [{ strategy_id: 53, symbol: "600000", start_date: "2025-01-01", end_date: "2026-01-01" }], initial_capital: 100000 },
-  },
+  // backtest.batch 已移除 — 使用专用工具 strategy_batch_validate
   "backtest.results": {
     domain: "backtest",
     action: "results",
@@ -579,30 +564,8 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {},
     example: {},
   },
-  "ml.train": {
-    domain: "ml",
-    action: "train",
-    description: "训练或重新训练量化信号模型。",
-    params: {
-      days: { type: "integer", min: 1 },
-      future_days: { type: "integer", min: 1 },
-      threshold: { type: "number", min: 0 },
-      model: { type: "string" },
-      tune: { type: "boolean" },
-      trials: { type: "integer", min: 1 },
-      cv_splits: { type: "integer", min: 2 },
-      db_path: { type: "string" },
-      use_feature_engineering: { type: "boolean" },
-    },
-    example: { days: 730, model: "xgboost" },
-  },
-  "ml.history": {
-    domain: "ml",
-    action: "history",
-    description: "读取模型训练历史。",
-    params: {},
-    example: {},
-  },
+  // ml.train 已移除 — 使用专用工具 model_train
+  // ml.history 已移除 — 使用专用工具 model_list
   "data.status": {
     domain: "data",
     action: "status",
@@ -630,12 +593,14 @@ const COMMANDS: Record<string, CommandRule> = {
   "data.update": {
     domain: "data",
     action: "update",
-    description: "统一数据更新入口：K线、因子、信号等。v2 端点。",
+    description: "统一数据更新入口。source 必填：portfolio(持仓)、watchlist(自选)、hs300(沪深300)、all(全部)。可选 days(天数,默认730)、force(强制全量)、async(异步执行)。",
     params: {
-      source: { type: "string" },
-      symbols: { type: "string" },
+      source: { required: true, type: "string" },
+      days: { type: "integer", min: 1 },
+      force: { type: "boolean" },
+      async: { type: "boolean" },
     },
-    example: { source: "klines" },
+    example: { source: "all" },
   },
   "jobs.list": {
     domain: "jobs",
@@ -660,141 +625,7 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbol: "600000" },
   },
-  "indicators.list": {
-    domain: "indicators",
-    action: "list",
-    description: "列出系统可用的所有技术指标（自定义 + 系统内置）。可选按 type='my'|'system' 过滤。v2 端点。",
-    params: {
-      type: { type: "string", enum: ["my", "system"] },
-      page: { type: "integer", min: 1 },
-      pageSize: { type: "integer", min: 1, max: 100 },
-    },
-    example: { type: "my" },
-  },
-  "indicators.detail": {
-    domain: "indicators",
-    action: "detail",
-    description: "获取单个指标的完整详情（代码、参数、描述等）。v2 端点。",
-    params: {
-      indicator_id: { required: true, type: "integer", min: 1 },
-    },
-    example: { indicator_id: 49 },
-  },
-  "indicators.create": {
-    domain: "indicators",
-    action: "create",
-    description: "创建新的自定义指标。需要 name 和 code（Python 策略代码）。v2 端点。",
-    params: {
-      name: { required: true, type: "string" },
-      code: { required: true, type: "string" },
-      params: { type: "object" },
-      description: { type: "string" },
-      category: { type: "string" },
-      is_public: { type: "boolean" },
-    },
-    example: { name: "my_rsi", code: "def run(df): ...", description: "自定义RSI策略" },
-  },
-  "indicators.update": {
-    domain: "indicators",
-    action: "update",
-    description: "更新已有指标（代码、参数、名称、描述等）。v2 端点。",
-    params: {
-      indicator_id: { required: true, type: "integer", min: 1 },
-      code: { type: "string" },
-      params: { type: "object" },
-      name: { type: "string" },
-      description: { type: "string" },
-      is_public: { type: "boolean" },
-      category: { type: "string" },
-      is_active: { type: "boolean" },
-      notebook: { type: "object" },
-    },
-    example: { indicator_id: 49, name: "多因子波段v10", description: "更新后的策略" },
-  },
-  "indicators.delete": {
-    domain: "indicators",
-    action: "delete",
-    description: "软删除指定指标。v2 端点。",
-    params: {
-      indicator_id: { required: true, type: "integer", min: 1 },
-    },
-    example: { indicator_id: 49 },
-  },
-  "indicators.run": {
-    domain: "indicators",
-    action: "run",
-    description: "在指定股票上运行自定义指标，返回信号和指标值。v2 端点。",
-    params: {
-      indicator_id: { required: true, type: "integer", min: 1 },
-      symbol: { required: true, type: "string", symbol: true },
-      limit: { type: "integer", min: 1 },
-    },
-    example: { indicator_id: 49, symbol: "600000", limit: 100 },
-  },
-  "indicators.backtest": {
-    domain: "indicators",
-    action: "backtest",
-    description: "对指定指标进行历史回测，返回权益曲线、交易记录和摘要指标（收益率、夏普比率、最大回撤等）。v2 端点。",
-    params: {
-      indicator_id: { required: true, type: "integer", min: 1 },
-      symbol: { required: true, type: "string", symbol: true },
-      start_date: { required: true, type: "string" },
-      end_date: { required: true, type: "string" },
-      initial_cash: { type: "number", min: 10000 },
-    },
-    example: { indicator_id: 49, symbol: "600000", start_date: "2025-01-01", end_date: "2026-05-27" },
-  },
-  "indicators.compare": {
-    domain: "indicators",
-    action: "compare",
-    description: "对比两个指标的回测表现（收益率、信号差异、过滤交易等）。v2 端点。",
-    params: {
-      indicator_id_a: { required: true, type: "integer", min: 1 },
-      indicator_id_b: { required: true, type: "integer", min: 1 },
-      symbol: { required: true, type: "string", symbol: true },
-      start_date: { required: true, type: "string" },
-      end_date: { required: true, type: "string" },
-      initial_cash: { type: "number", min: 10000 },
-    },
-    example: { indicator_id_a: 49, indicator_id_b: 53, symbol: "600000", start_date: "2025-01-01", end_date: "2026-05-27" },
-  },
-  "indicators.sandbox_columns": {
-    domain: "indicators",
-    action: "sandbox-columns",
-    description: "获取指定股票在沙箱中可用的数据列（技术指标、财务指标）及其覆盖率。用于编写指标代码前了解可用数据。v2 端点。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-    },
-    example: { symbol: "600000" },
-  },
-  "compute.factors": {
-    domain: "compute",
-    action: "factors",
-    description: "触发因子计算任务。v2 端点。",
-    params: {
-      symbols: { type: "string" },
-      force: { type: "boolean" },
-    },
-    example: { symbols: "600000" },
-  },
-  "factor.compute": {
-    domain: "factor",
-    action: "compute",
-    description: "计算因子值。",
-    params: {},
-    example: {},
-  },
-  "factor.analyze": {
-    domain: "factor",
-    action: "analyze",
-    description: "分析因子分布、覆盖度和 IC 就绪情况。",
-    params: {
-      top_n: { type: "integer", min: 1 },
-      min_observations: { type: "integer", min: 1 },
-      sample_limit: { type: "integer", min: 0 },
-    },
-    example: { top_n: 20, min_observations: 30, sample_limit: 50000 },
-  },
+  // indicators.* 已移除 — 使用专用工具 indicator_list / indicator_detail / indicator_create / indicator_update / indicator_delete / indicator_run / indicator_backtest / indicator_compare / indicator_sandbox_columns
   "sector.aggregate": {
     domain: "sector",
     action: "aggregate",
@@ -846,69 +677,65 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbols: ["600000.SH", "000001.SZ", "600519.SH"], method: "pearson" },
   },
+  // strategy.* 已移除 — 使用独立工具 strategy_list / strategy_detail / strategy_create / strategy_run / strategy_status / strategy_execute
   "strategy.list": {
     domain: "strategy",
     action: "list",
-    description: "列出系统所有已注册策略。v2 端点。",
+    description: "⚠️ DEPRECATED: 请使用独立工具 strategy_list。",
     params: {},
     example: {},
+    deprecated: true,
+    replacement: "strategy_list",
   },
   "strategy.get": {
     domain: "strategy",
     action: "get",
-    description: "查询单个策略详情和参数。v2 端点。",
+    description: "⚠️ DEPRECATED: 请使用独立工具 strategy_detail。",
     params: {
       strategy_id: { required: true, type: "string" },
     },
     example: { strategy_id: "rsi-strategy" },
+    deprecated: true,
+    replacement: "strategy_detail",
   },
   "strategy.create": {
     domain: "strategy",
     action: "create",
-    description: "创建新策略。v2 端点。",
+    description: "⚠️ DEPRECATED: 请使用独立工具 strategy_create 或 strategy_write。",
     params: {
       name: { required: true, type: "string" },
       code: { required: true, type: "string" },
     },
     example: { name: "my_strategy", code: "..." },
+    deprecated: true,
+    replacement: "strategy_create",
   },
-  "strategy.optimize": {
-    domain: "strategy",
-    action: "optimize",
-    description: "策略参数网格搜索优化（真实回测版）。传入 strategy_id 和 param_grid，对所有参数组合运行回测，按指定指标（sharpe/return/win_rate/calmar）评分，返回最优参数和 top10。",
-    params: {
-      strategy_id: { required: true, type: "string" },
-      symbol: { required: true, type: "string", symbol: true },
-      param_grid: { required: true, type: "object" },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-      metric: { type: "string", enum: ["sharpe", "return", "win_rate", "calmar"] },
-      initial_capital: { type: "number", min: 10000 },
-      max_combinations: { type: "integer", min: 1, max: 200 },
-    },
-    example: { strategy_id: 53, symbol: "600000", param_grid: { rsi_low: [25, 30, 35], rsi_high: [65, 70, 75] }, metric: "sharpe" },
-  },
+  // strategy.optimize 已移除 — 使用专用工具 strategy_optimize
   "strategy.run": {
     domain: "strategy",
     action: "run",
-    description: "实时运行策略生成信号。",
+    description: "⚠️ DEPRECATED: 请使用独立工具 strategy_run。",
     params: {
       strategy_id: { required: true, type: "string" },
       symbols: { type: "array" },
     },
     example: { strategy_id: "rsi_strategy", symbols: ["600000.SH"] },
+    deprecated: true,
+    replacement: "strategy_run",
   },
   "strategy.status": {
     domain: "strategy",
     action: "status",
-    description: "查询策略运行状态。",
+    description: "⚠️ DEPRECATED: 请使用独立工具 strategy_status。",
     params: {},
     example: {},
+    deprecated: true,
+    replacement: "strategy_status",
   },
   "strategy.execute": {
     domain: "strategy",
     action: "execute",
-    description: "统一策略执行工具，支持三种模式：single（单股票执行）、batch（批量执行）、pipeline（流水线执行）。single 模式对单只股票运行策略并返回信号；batch 模式对多只股票批量运行策略并返回汇总统计；pipeline 模式运行完整策略流水线（信号生成 → 风控筛选 → 订单创建）。",
+    description: "⚠️ DEPRECATED: 请使用独立工具 strategy_execute。",
     params: {
       action: { required: true, type: "string", enum: ["single", "batch", "pipeline"] },
       symbol: { type: "string", symbol: true },
@@ -919,6 +746,8 @@ const COMMANDS: Record<string, CommandRule> = {
       auto_order: { type: "boolean" },
     },
     example: { action: "single", symbol: "600000", strategy: "rsi-strategy" },
+    deprecated: true,
+    replacement: "strategy_execute",
   },
   "watch.price_alert": {
     domain: "watch",
@@ -1081,13 +910,7 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { forward_days: 5, lookback_days: 180 },
   },
-  "training.history": {
-    domain: "training",
-    action: "history",
-    description: "查询模型训练历史记录。v2 端点。",
-    params: {},
-    example: {},
-  },
+  // training.history 已移除 — 使用专用工具 model_list
   "training.reports": {
     domain: "training",
     action: "reports",
@@ -1285,30 +1108,91 @@ export const quantCliTool: ToolDefinition = {
     "help 等价于 tools.list；help + params.name 等价于 tools.describe，可查看单个命令的参数、示例和用途。 " +
     "适用场景：查询实时行情/批量行情/股票池/基础信息/历史行情/新闻/公告、市场概览/指数历史/行业板块/概念股/宏观/资金流/市场新闻/热搜股票、港股指数/南向资金/技术分析/人气排行、资金流/龙虎榜/高管增减持/基金持仓/股东/融资融券、财务指标/财务报表/港股财务、单只股票买点/技术指标/K线、股票综合评分、多条件选股、因子分析、行业聚合、基准对比、组合优化、策略参数优化、价格预警、压力测试、实盘和回测对比、组合相关性矩阵、因子时效性、生成或读取交易信号、信号裁决、策略表现分析、运行回测、训练模型、查看数据状态和报告。 " +
     "参数格式：command 使用白名单命令名，params 传该命令参数，例如 { command: \"stock.technical\", params: { symbol: \"600000\" } }。 " +
-    "常用命令：help、market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、market.sentiment、stock.batch_quotes、stock.list、analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.quality、analysis.exit_plan、analysis.peers、indicators.list、indicators.detail、indicators.run、indicators.backtest、indicators.compare、indicators.sandbox_columns、strategy.list、strategy.get、strategy.create、strategy.run、strategy.status、screening.sector、screening.quality、hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank、sentiment.stock_fund_flow、sentiment.lhb、sentiment.insider_trades、sentiment.fund_holdings、sentiment.top_fund_stocks、sentiment.top_holders、sentiment.holder_changes、sentiment.margin_data、financial.indicators、financial.valuation、financial.pe_percentile、financial.income_statement、financial.cash_flow、financial.hk_financials、financial.hk_analysis、stock.score、stock.screen、stock.technical、stock.ml_predict、factor.analyze、factor.decay、sector.aggregate、benchmark.compare、portfolio.optimize、portfolio.correlation、strategy.optimize、watch.price_alert、stress.test、risk.trade_check、risk.position_size、risk.stop_loss、trade.verify、signal.list、signal.generate、signal.arbitrate、performance.analyze、backtest.run、backtest.results、ml.train、ml.history、data.status、data.full_status、data.update_klines、risk.check、report.daily、report.read_daily、tools.list、tools.describe。 " +
+    "常用命令：help、market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、market.sentiment、stock.batch_quotes、stock.list、analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.quality、analysis.exit_plan、analysis.peers、indicators.list、indicators.detail、indicators.run、indicators.backtest、indicators.compare、indicators.sandbox_columns、strategy.list、strategy.get、strategy.create、strategy.run、strategy.status、screening.sector、screening.quality、hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank、sentiment.stock_fund_flow、sentiment.lhb、sentiment.insider_trades、sentiment.fund_holdings、sentiment.top_fund_stocks、sentiment.top_holders、sentiment.holder_changes、sentiment.margin_data、financial.indicators、financial.valuation、financial.pe_percentile、financial.income_statement、financial.cash_flow、financial.hk_financials、financial.hk_analysis、stock.score、stock.screen、stock.technical、factor.decay、sector.aggregate、benchmark.compare、portfolio.optimize、portfolio.correlation、watch.price_alert、stress.test、risk.trade_check、risk.position_size、risk.stop_loss、trade.verify、signal.list、signal.generate、signal.arbitrate、performance.analyze、backtest.run、backtest.results、data.status、data.full_status、data.update_klines、risk.check、report.daily、report.read_daily、tools.list、tools.describe。" +
     "不要臆造 command 或参数；不确定时先调用 help、tools.list 或 tools.describe。",
   promptSnippet:
     "量化相关能力统一使用 quant_cli。像 bash 一样先用 command=help 查使用说明书，再选择白名单 command 并把参数放进 params；不要调用旧的分散量化工具。",
   promptGuidelines: [
+    // ── 元规则 ──
     "不知道量化 CLI 能做什么时，先调用 quant_cli({ command: \"help\" }) 获取命令清单。",
     "不知道某个命令参数时，调用 quant_cli({ command: \"help\", params: { name: \"stock.technical\" } }) 获取单命令说明书。",
-    "需要实时行情、批量价格、股票池时，用 stock.batch_quotes、stock.list。对于单股数据（实时价格、基本信息、K线、新闻、公告、财务），优先使用 data_fetch_stock、data_fetch_kline、data_fetch_financial、data_fetch_dividend 等专用工具。",
-    "需要市场概览、指数历史、行业板块、概念、宏观、资金流、市场新闻或热搜股票时，用 market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、market.sentiment。",
-    "需要技术分析、走势结构、K线形态、买入区间、质量评分、止盈计划或同行对比时，用 analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.quality、analysis.exit_plan、analysis.peers。",
-    "需要按行业板块筛选股票时，用 screening.sector；需要行业候选股同时按基本面质量评分排序时，用 screening.quality。",
-    "需要港股市场概览、南向资金、港股技术面或港股人气排行时，用 hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank。",
-    "需要资金流向、龙虎榜、高管增减持、基金持仓、股东变化或融资融券时，用 sentiment.stock_fund_flow、sentiment.lhb、sentiment.insider_trades、sentiment.fund_holdings、sentiment.top_fund_stocks、sentiment.top_holders、sentiment.holder_changes、sentiment.margin_data。",
-    "需要财务指标或港股财务分析时，用 financial.indicators、financial.hk_financials、financial.hk_analysis。对于 A 股财务报表，优先使用 data_fetch_financial 专用工具。",
-    "需要综合评价单只股票时用 stock.score；需要按 PE/ROE/负债率/RSI/综合分选股时用 stock.screen。",
-    "需要看策略历史信号质量时用 performance.analyze；同一股票多信号冲突时用 signal.arbitrate。",
-    "需要分析因子有效性用 factor.analyze；需要行业/板块聚合用 sector.aggregate。",
-    "需要策略相对指数表现用 benchmark.compare；需要组合权重建议用 portfolio.optimize；需要搜索策略参数用 strategy.optimize。",
-    "需要价格预警用 watch.price_alert；需要组合压力测试用 stress.test；需要交易前风控、Kelly仓位或止损价计算时，用 risk.trade_check、risk.position_size、risk.stop_loss；需要实盘和回测差异对比用 trade.verify。",
-    "需要组合相关性矩阵用 portfolio.correlation；需要分析因子预测力随持有周期衰减用 factor.decay。",
-    "查询单只股票买点或技术面时优先用 stock.technical，并结合 signal.list 或 stock.ml_predict。",
-    "需要管理自选股（添加/删除/查看/分组）时，用 watchlist.add、watchlist.remove、watchlist.list、watchlist.check、watchlist.groups。",
     "不确定命令或参数时先用 help / tools.list / tools.describe，不要猜测不存在的 command。",
-    "工具会先做本地参数校验，校验失败时按错误提示修正参数后再调用。",
+
+    // ── 场景决策树（每个场景只给一个工具，不在两个中二选一）──
+
+    // 数据获取
+    "单只股票实时价格/信息/新闻/公告 → data_fetch_stock（不要用 quant_cli stock.batch_quotes 或 stock.info）",
+    "批量股票实时价格（3只以上）→ quant_cli stock.batch_quotes",
+    "K线历史数据 → data_fetch_kline",
+    "财务报表（利润表/资产负债表/现金流）→ data_fetch_financial",
+    "分红数据（历史分红/高股息筛选/分红日历）→ data_fetch_dividend",
+    "财务指标/估值/PE分位 → quant_cli financial.indicators / financial.valuation / financial.pe_percentile",
+    "股票列表/股票池 → quant_cli stock.list",
+
+    // 个股分析
+    "综合评分（技术+基本面+动量+质量+估值）→ quant_cli stock.score（每只标的必调入口）",
+    "技术因子（RSI/MACD/布林带/均线/KDJ）→ factor_calculate（替代 quant_cli stock.technical / analysis.technical）",
+    "ML模型预测信号 → model_predict",
+    "质量评分 → quant_cli analysis.quality",
+    "技术分析+信号判断 → quant_cli analysis.technical",
+    "价格行为/支撑阻力 → quant_cli analysis.price_action",
+    "K线形态 → quant_cli analysis.candlestick",
+    "买入区间计算 → quant_cli analysis.buy_range",
+    "止盈计划 → quant_cli analysis.exit_plan",
+    "同行对比 → quant_cli analysis.peers",
+    "波段买卖点(ZigZag) → analysis_swing_points",
+
+    // 选股与扫描
+    "多条件选股（PE/ROE/负债率筛选）→ quant_cli stock.screen",
+    "投资机会扫描（三维评分）→ opportunity_scan",
+    "行业板块筛选 → quant_cli screening.sector",
+    "行业质量排序 → quant_cli screening.quality",
+    "因子分析（IC/覆盖率/稳定性）→ factor_analyze",
+    "因子衰减分析 → quant_cli factor.decay",
+
+    // 市场大盘
+    "市场概览/指数 → quant_cli market.overview",
+    "指数历史 → quant_cli market.index_history",
+    "行业资金流向 → quant_cli market.sector_flow",
+    "融资融券余额 → quant_cli market.margin",
+    "市场情绪/恐惧贪婪 → quant_cli market.sentiment",
+    "宏观数据 → quant_cli market.macro",
+    "市场新闻/热搜 → quant_cli market.news / market.hot_stocks",
+
+    // 资金面
+    "个股资金流向 → quant_cli sentiment.stock_fund_flow",
+    "龙虎榜 → quant_cli sentiment.lhb",
+    "高管增减持 → quant_cli sentiment.insider_trades",
+    "基金持仓 → quant_cli sentiment.fund_holdings",
+    "基金重仓排行 → quant_cli sentiment.top_fund_stocks",
+    "股东变化 → quant_cli sentiment.holder_changes",
+    "融资融券个股 → quant_cli sentiment.margin_data",
+
+    // 策略与信号
+    "策略执行（单股/批量/流水线）→ quant_cli strategy.execute",
+    "策略参数优化 → strategy_optimize",
+    "批量策略验证 → strategy_batch_validate",
+    "信号列表/统计/仲裁 → quant_cli signal.list / signal.statistics / signal.arbitrate",
+
+    // ML模型
+    "ML模型训练/预测/评估/监控/列表 → model_train / model_predict / model_evaluate / model_monitor / model_list",
+
+    // 风控与交易
+    "交易前风控/Kelly仓位/止损/组合风险检查 → quant_cli risk.trade_check / risk.position_size / risk.stop_loss / risk.check",
+    "算法交易（TWAP/VWAP）→ trade_algo_execute",
+    "压力测试 → quant_cli stress.test",
+    "价格预警 → quant_cli watch.price_alert",
+    "实盘回测对比 → quant_cli trade.verify",
+
+    // 组合
+    "组合权重优化/相关性/基准对比/行业聚合 → quant_cli portfolio.optimize / portfolio.correlation / benchmark.compare / sector.aggregate",
+
+    // 港股
+    "⚠️ 港股不支持。data_fetch_stock/data_fetch_kline/model_predict对港股均返回错误，hk.* 命令已废弃。分析港股前先告知用户。",
+
+    // 其他
+    "自选股管理 → quant_cli watchlist.*",
+    "因子模型（Fama-French/Barra）→ quant_cli factor.fama_french_3 / factor.fama_french_5 / factor.carhart / factor.barra",
   ],
   parameters: Type.Object({
     command: Type.String({
@@ -1330,23 +1214,12 @@ export const quantCliTool: ToolDefinition = {
         : "tools.list";
     }
 
-    // ── 向后兼容：signal.generate → strategy.execute ──
+    // ── 向后兼容：signal.generate → 提示使用独立工具 strategy_execute ──
     if (command === "signal.generate") {
-      console.warn(
-        "⚠️ DEPRECATED: signal.generate 命令已废弃，请使用 strategy.execute。\n" +
-        "此命令将在 v3.0 移除。自动映射到 strategy.execute action='batch'。"
+      return validationError(
+        "⚠️ DEPRECATED: signal.generate 命令已废弃。",
+        "请使用独立工具 strategy_execute（action='batch'）替代。此命令将在 v3.0 移除。",
       );
-
-      // 映射到 strategy.execute
-      return quantCliTool.execute(_toolCallId, {
-        command: "strategy.execute",
-        params: {
-          action: "batch",
-          strategy: params.strategy_id,
-          symbols: params.symbols,
-          ...params
-        }
-      }, signal, onUpdate, ctx);
     }
 
     const rule = COMMANDS[command];
@@ -1355,6 +1228,14 @@ export const quantCliTool: ToolDefinition = {
       return validationError(
         `不支持的量化命令: ${command || "(空)"}`,
         `可用命令: ${PUBLIC_COMMAND_LIST.join(", ")}。不确定时先用 help。`,
+      );
+    }
+
+    // ── 废弃命令提前返回，不走后端 ──
+    if (rule.deprecated) {
+      return validationError(
+        `⚠️ 命令 ${command} 已废弃或暂不可用。`,
+        rule.replacement || "请参考 promptGuidelines 使用替代工具。",
       );
     }
 

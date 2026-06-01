@@ -40,8 +40,20 @@ function signalDate(signal: TradingSignal): string {
   return (signal.createdAt || (signal as any).time || '').split(' ')[0]
 }
 
+function shortDate(date: string): string {
+  if (date.includes(' ')) return date.slice(5, 16)
+  return date.slice(5, 10)
+}
+
+function signalOrderLabel(signal: TradingSignal, order: number): string {
+  return `${signal.type === 'buy' ? '买' : '卖'}${order}`
+}
+
 function buildSignalMarks(data: KLineData[], signals: TradingSignal[]) {
   const dates = data.map(item => item.date)
+  let buyOrder = 0
+  let sellOrder = 0
+
   return signals
     .map(signal => {
       const index = dates.indexOf(signalDate(signal))
@@ -49,25 +61,89 @@ function buildSignalMarks(data: KLineData[], signals: TradingSignal[]) {
       if (index < 0 || typeof price !== 'number') return null
 
       const isBuy = signal.type === 'buy'
+      const order = isBuy ? ++buyOrder : ++sellOrder
+      const date = signalDate(signal)
       return {
-        name: isBuy ? 'buy' : 'sell',
+        name: isBuy ? '买入' : '卖出',
         coord: [index, price],
-        value: (((signal as any).confidence ?? 0) * 100).toFixed(0),
+        value: signalOrderLabel(signal, order),
+        tradeDate: date,
+        tradePrice: price,
         symbol: 'triangle',
-        symbolSize: 12,
+        symbolSize: 18,
         symbolRotate: isBuy ? 0 : 180,
         itemStyle: { color: isBuy ? DOWN_COLOR : UP_COLOR },
         label: {
           show: true,
-          formatter: isBuy ? 'B' : 'S',
+          formatter: (params: any) => {
+            const marker = params.data ?? params
+            return marker.value
+          },
           position: isBuy ? 'bottom' : 'top',
-          color: isBuy ? DOWN_COLOR : UP_COLOR,
-          fontSize: 11,
-          fontWeight: 700
+          color: '#ffffff',
+          fontSize: 10,
+          fontWeight: 700,
+          lineHeight: 13,
+          backgroundColor: isBuy ? 'rgba(38, 166, 154, 0.92)' : 'rgba(239, 83, 80, 0.92)',
+          borderRadius: 3,
+          padding: [3, 5]
         }
       }
     })
     .filter(Boolean)
+}
+
+function buildHoldingBands(signals: TradingSignal[]) {
+  const ordered = [...signals]
+    .filter(signal => signalDate(signal))
+    .sort((a, b) => signalDate(a).localeCompare(signalDate(b)))
+  const bands = []
+  let entryDate: string | null = null
+
+  for (const signal of ordered) {
+    if (signal.type === 'buy' && !entryDate) {
+      entryDate = signalDate(signal)
+    } else if (signal.type === 'sell' && entryDate) {
+      bands.push([{ xAxis: entryDate }, { xAxis: signalDate(signal) }])
+      entryDate = null
+    }
+  }
+
+  return bands
+}
+
+function buildTradeReferenceLines(signals: TradingSignal[]) {
+  let buyOrder = 0
+  let sellOrder = 0
+
+  return signals
+    .filter(signal => signalDate(signal))
+    .map(signal => {
+      const isBuy = signal.type === 'buy'
+      const order = isBuy ? ++buyOrder : ++sellOrder
+      const label = signalOrderLabel(signal, order)
+      const date = signalDate(signal)
+
+      return {
+        name: label,
+        xAxis: date,
+        lineStyle: {
+          color: isBuy ? 'rgba(38, 166, 154, 0.46)' : 'rgba(239, 83, 80, 0.46)',
+          width: 1,
+          type: 'dashed'
+        },
+        label: {
+          show: true,
+          formatter: shortDate(date),
+          color: '#dce5f4',
+          fontSize: 10,
+          lineHeight: 13,
+          backgroundColor: 'rgba(15, 20, 29, 0.86)',
+          borderRadius: 3,
+          padding: [3, 5]
+        }
+      }
+    })
 }
 
 export function buildKLineChartOption(params: BuildKLineChartOptionParams): EChartsOption {
@@ -77,6 +153,20 @@ export function buildKLineChartOption(params: BuildKLineChartOptionParams): ECha
   const volumeData = data.map(pickVolumeValue)
   const latest = data[data.length - 1]
   const volumeName = volumeSeriesName(data)
+  const tradeReferenceLines = buildTradeReferenceLines(signals)
+  const latestLine = latest
+    ? {
+        yAxis: latest.close,
+        lineStyle: { color: '#7182a8', type: 'dashed', width: 1 },
+        label: {
+          color: '#dce5f4',
+          backgroundColor: '#263147',
+          borderRadius: 4,
+          padding: [3, 7],
+          formatter: '最新 {c}'
+        }
+      }
+    : undefined
 
   return {
     backgroundColor: PANEL_BG,
@@ -164,7 +254,10 @@ export function buildKLineChartOption(params: BuildKLineChartOptionParams): ECha
         axisLabel: {
           color: '#7d899d',
           margin: 12,
-          hideOverlap: true
+          hideOverlap: true,
+          showMinLabel: true,
+          showMaxLabel: true,
+          formatter: (value: string) => value.slice(5)
         },
         splitLine: {
           show: true,
@@ -268,19 +361,16 @@ export function buildKLineChartOption(params: BuildKLineChartOptionParams): ECha
         markPoint: {
           data: buildSignalMarks(data, signals)
         },
+        markArea: {
+          silent: true,
+          itemStyle: { color: 'rgba(34, 197, 94, 0.08)' },
+          data: buildHoldingBands(signals)
+        },
         markLine: latest
           ? {
               symbol: 'none',
               silent: true,
-              label: {
-                color: '#dce5f4',
-                backgroundColor: '#263147',
-                borderRadius: 4,
-                padding: [3, 7],
-                formatter: '最新 {c}'
-              },
-              lineStyle: { color: '#7182a8', type: 'dashed', width: 1 },
-              data: [{ yAxis: latest.close }]
+              data: latestLine ? [...tradeReferenceLines, latestLine] : tradeReferenceLines
             }
           : undefined
       } as any,
