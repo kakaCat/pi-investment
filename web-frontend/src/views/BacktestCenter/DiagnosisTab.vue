@@ -87,7 +87,7 @@
         <!-- 优化建议 -->
         <div v-if="diagnosisResult.diagnosis.suggestions.length > 0" class="section">
           <h4 class="section-title">
-            <el-icon color="#409EFF"><InfoFilled /></el-icon>
+            <el-icon color="#409EFF"><Lightbulb /></el-icon>
             优化建议
           </h4>
           <ol class="list suggestions">
@@ -122,7 +122,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { DataAnalysis, Document, CircleCheck, CircleClose, InfoFilled } from '@element-plus/icons-vue'
+import { DataAnalysis, Document, CircleCheck, CircleClose, Lightbulb } from '@element-plus/icons-vue'
 import DiagnosisCards from './DiagnosisCards.vue'
 import { runDiagnosis, type DiagnosisResult } from '@/services/api/diagnosis'
 
@@ -207,7 +207,7 @@ const comparisonData = computed(() => {
       strategy: formatPercent(metrics.maxDrawdown),
       benchmark: formatPercent(benchmark.maxDrawdown),
       diff: formatPercent(metrics.maxDrawdown - benchmark.maxDrawdown),
-      diffClass: metrics.maxDrawdown >= benchmark.maxDrawdown ? 'text-up' : 'text-down'
+      diffClass: metrics.maxDrawdown <= benchmark.maxDrawdown ? 'text-down' : 'text-up'
     }
   ]
 })
@@ -266,6 +266,10 @@ const comparisonData = computed(() => {
   font-size: 15px;
   font-weight: 600;
   margin-bottom: 12px;
+}
+
+.icon-lightbulb {
+  font-size: 18px;
 }
 
 .list {
