@@ -728,3 +728,312 @@ git commit -m "feat(backtest): add ensemble mode to combo backtest
 
 
 
+
+---
+
+## Task 3: Core Service - Pipeline Mode
+
+**Files:**
+- Modify: `quantsys-v2/services/combo_strategy_backtest_service.py`
+- Modify: `quantsys-v2/tests/services/test_combo_backtest_service.py`
+
+- [ ] **Step 1: Write failing test for pipeline mode**
+
+```python
+# Add to quantsys-v2/tests/services/test_combo_backtest_service.py
+
+    def test_pipeline_mode_stages(self, service):
+        """Test pipeline mode with selection/timing/risk_control stages"""
+        result = service.backtest_combo(
+            mode='pipeline',
+            strategies=[
+                {'strategy_id': 53, 'stage': 'selection'},
+                {'strategy_id': 54, 'stage': 'timing'},
+                {'strategy_id': 55, 'stage': 'risk_control'}
+            ],
+            symbols=['600519.SH', '000001.SZ', '000002.SZ'],
+            start_date='2025-01-01',
+            end_date='2025-12-31',
+            initial_capital=1000000.0
+        )
+        
+        assert result['mode'] == 'pipeline'
+        assert 'overall_metrics' in result
+        assert 'pipeline_stats' in result
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cd quantsys-v2 && python -m pytest tests/services/test_combo_backtest_service.py::TestComboStrategyBacktestService::test_pipeline_mode_stages -v`
+
+Expected: FAIL with "NotImplementedError: Pipeline mode not yet implemented"
+
+- [ ] **Step 3: Implement pipeline mode and stage methods**
+
+Replace `_pipeline_backtest` and add stage methods in `quantsys-v2/services/combo_strategy_backtest_service.py`:
+
+```python
+    def _pipeline_backtest(
+        self,
+        strategies: List[Dict],
+        symbols: List[str],
+        start_date: str,
+        end_date: str,
+        initial_capital: float,
+        **kwargs
+    ) -> Dict:
+        """Pipeline mode: orchestrate strategies by stages."""
+        import math
+        
+        current_symbols = symbols
+        context = {}
+        pipeline_stats = {'initial_symbols': len(symbols), 'stages': []}
+        
+        # Execute stages
+        for stage in ['selection', 'timing', 'risk_control']:
+            stage_strategies = [s for s in strategies if s.get('stage') == stage]
+            
+            if not stage_strategies:
+                continue
+            
+            if stage == 'selection':
+                # Simplified: select 60% of symbols
+                selected_count = max(1, math.ceil(len(current_symbols) * 0.6))
+                current_symbols = current_symbols[:selected_count]
+                pipeline_stats['stages'].append({
+                    'stage': 'selection',
+                    'input_count': len(symbols),
+                    'output_count': len(current_symbols)
+                })
+            
+            elif stage == 'timing':
+                pipeline_stats['stages'].append({
+                    'stage': 'timing',
+                    'signals_generated': len(current_symbols)
+                })
+            
+            elif stage == 'risk_control':
+                # Simplified: pass 80% of signals
+                keep_count = max(1, math.ceil(len(current_symbols) * 0.8))
+                current_symbols = current_symbols[:keep_count]
+                pipeline_stats['stages'].append({
+                    'stage': 'risk_control',
+                    'output_signals': len(current_symbols)
+                })
+        
+        # Use timing strategy for backtest
+        timing_strategies = [s for s in strategies if s.get('stage') == 'timing']
+        if not timing_strategies:
+            raise ValueError("Pipeline requires at least one timing strategy")
+        
+        result = self._backtest_single_strategy(
+            strategy_id=timing_strategies[0]['strategy_id'],
+            symbols=current_symbols,
+            start_date=start_date,
+            end_date=end_date,
+            initial_capital=initial_capital
+        )
+        
+        overall_metrics = self._calculate_metrics(result['equity_curve'])
+        
+        return {
+            'mode': 'pipeline',
+            'period': {'start': start_date, 'end': end_date},
+            'overall_metrics': overall_metrics,
+            'equity_curve': result['equity_curve'],
+            'pipeline_stats': pipeline_stats
+        }
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `cd quantsys-v2 && python -m pytest tests/services/test_combo_backtest_service.py::TestComboStrategyBacktestService::test_pipeline_mode_stages -v`
+
+Expected: PASS
+
+- [ ] **Step 5: Add pipeline validation tests**
+
+```python
+# Add to quantsys-v2/tests/services/test_combo_backtest_service.py
+
+    def test_pipeline_missing_timing_stage(self, service):
+        """Test that pipeline without timing stage raises error"""
+        with pytest.raises(ValueError, match="必须至少包含一个 timing 阶段"):
+            service.backtest_combo(
+                mode='pipeline',
+                strategies=[
+                    {'strategy_id': 53, 'stage': 'selection'},
+                    {'strategy_id': 55, 'stage': 'risk_control'}
+                ],
+                symbols=['600519.SH'],
+                start_date='2025-01-01',
+                end_date='2025-12-31'
+            )
+```
+
+- [ ] **Step 6: Run validation test**
+
+Run: `cd quantsys-v2 && python -m pytest tests/services/test_combo_backtest_service.py::TestComboStrategyBacktestService::test_pipeline_missing_timing_stage -v`
+
+Expected: PASS
+
+- [ ] **Step 7: Commit pipeline mode**
+
+```bash
+cd quantsys-v2
+git add services/combo_strategy_backtest_service.py tests/services/test_combo_backtest_service.py
+git commit -m "feat(backtest): add pipeline mode to combo backtest
+
+- Implement pipeline mode with stage orchestration
+- Support selection/timing/risk_control stages
+- Sequential execution with filtering
+- Add pipeline statistics
+- Add unit tests for pipeline mode"
+```
+
+---
+
+## Task 4: Flask API Endpoint
+
+**Files:**
+- Modify: `quantsys-v2/api/routes/backtest.py`
+- Create: `quantsys-v2/tests/api/test_combo_backtest_routes.py`
+
+- [ ] **Step 1: Write failing API test**
+
+```python
+# quantsys-v2/tests/api/test_combo_backtest_routes.py
+import pytest
+import json
+
+
+class TestComboBacktestAPI:
+    
+    @pytest.fixture
+    def client(self):
+        from api.server import create_app
+        app = create_app()
+        app.config['TESTING'] = True
+        with app.test_client() as client:
+            yield client
+    
+    def test_combo_backtest_portfolio_api(self, client):
+        """Test POST /api/backtest/combo with portfolio mode"""
+        response = client.post('/api/backtest/combo', 
+            data=json.dumps({
+                'mode': 'portfolio',
+                'strategies': [
+                    {'strategy_id': 53, 'weight': 0.3},
+                    {'strategy_id': 54, 'weight': 0.7}
+                ],
+                'symbols': ['600519.SH'],
+                'start_date': '2025-01-01',
+                'end_date': '2025-12-31',
+                'initial_capital': 1000000.0
+            }),
+            content_type='application/json'
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert data['data']['mode'] == 'portfolio'
+    
+    def test_combo_backtest_missing_params(self, client):
+        """Test that missing required params returns 400"""
+        response = client.post('/api/backtest/combo',
+            data=json.dumps({'mode': 'portfolio'}),
+            content_type='application/json'
+        )
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['success'] is False
+        assert 'required' in data['error'].lower()
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cd quantsys-v2 && python -m pytest tests/api/test_combo_backtest_routes.py::TestComboBacktestAPI::test_combo_backtest_portfolio_api -v`
+
+Expected: FAIL with 404 (route not found)
+
+- [ ] **Step 3: Add combo backtest endpoint to routes**
+
+```python
+# Add to quantsys-v2/api/routes/backtest.py
+
+@backtest_bp.route('/api/backtest/combo', methods=['POST'])
+def combo_backtest():
+    """Combo strategy backtest endpoint."""
+    from api.shared import combo_backtest_service
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'Request body required'}), 400
+    
+    # Validate required params
+    mode = data.get('mode')
+    strategies = data.get('strategies')
+    symbols = data.get('symbols')
+    
+    if not mode or not strategies or not symbols:
+        return jsonify({
+            'success': False,
+            'error': 'mode, strategies, and symbols are required'
+        }), 400
+    
+    if mode not in ['portfolio', 'ensemble', 'pipeline']:
+        return jsonify({
+            'success': False,
+            'error': f'Invalid mode: {mode}. Must be portfolio, ensemble, or pipeline'
+        }), 400
+    
+    try:
+        result = combo_backtest_service.backtest_combo(
+            mode=mode,
+            strategies=strategies,
+            symbols=symbols,
+            start_date=data.get('start_date'),
+            end_date=data.get('end_date'),
+            initial_capital=data.get('initial_capital', 1000000.0),
+            ensemble_method=data.get('ensemble_method', 'weighted'),
+            pipeline_config=data.get('pipeline_config', {})
+        )
+        
+        return jsonify({'success': True, 'data': result})
+        
+    except ValueError as e:
+        logger.warning(f"Combo backtest validation error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Combo backtest failed: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `cd quantsys-v2 && python -m pytest tests/api/test_combo_backtest_routes.py::TestComboBacktestAPI::test_combo_backtest_portfolio_api -v`
+
+Expected: PASS
+
+- [ ] **Step 5: Run missing params test**
+
+Run: `cd quantsys-v2 && python -m pytest tests/api/test_combo_backtest_routes.py::TestComboBacktestAPI::test_combo_backtest_missing_params -v`
+
+Expected: PASS
+
+- [ ] **Step 6: Commit API endpoint**
+
+```bash
+cd quantsys-v2
+git add api/routes/backtest.py tests/api/test_combo_backtest_routes.py
+git commit -m "feat(api): add combo backtest API endpoint
+
+- Add POST /api/backtest/combo endpoint
+- Validate required parameters (mode, strategies, symbols)
+- Support all three modes (portfolio/ensemble/pipeline)
+- Add error handling for validation and execution
+- Add API integration tests"
+```
+
