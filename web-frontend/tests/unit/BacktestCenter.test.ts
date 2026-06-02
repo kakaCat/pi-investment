@@ -80,7 +80,11 @@ describe('BacktestCenter', () => {
     global: {
       stubs: {
         'el-card': { template: '<section><slot name="header" /><slot /></section>' },
-        'el-button': { template: '<button type="button"><slot /></button>' },
+        'el-button': {
+          props: ['loading'],
+          emits: ['click'],
+          template: '<button type="button" :data-loading="loading ? `true` : `false`" @click="$emit(`click`)"><slot /></button>'
+        },
         'el-form': {
           template: '<form><slot /></form>',
           methods: {
@@ -204,6 +208,39 @@ describe('BacktestCenter', () => {
     })
 
     expect(wrapper.findComponent({ name: 'ElOptionGroup' }).exists()).toBe(false)
+  })
+
+  it('lets users refresh the strategy selector manually', async () => {
+    strategyApiMock.getStrategies
+      .mockResolvedValueOnce({
+        strategies: [],
+        total: 0
+      })
+      .mockResolvedValueOnce({
+        strategies: [
+          {
+            strategyType: 'refreshed_strategy',
+            className: 'RefreshedStrategy'
+          }
+        ],
+        total: 1
+      })
+
+    const wrapper = mountBacktestCenter()
+
+    await vi.waitFor(() => {
+      expect(strategyApiMock.getStrategies).toHaveBeenCalledTimes(1)
+    })
+
+    const refreshButton = wrapper.findAll('button').find(button => button.text().includes('刷新策略'))
+    expect(refreshButton).toBeTruthy()
+
+    await refreshButton!.trigger('click')
+
+    await vi.waitFor(() => {
+      expect(strategyApiMock.getStrategies).toHaveBeenCalledTimes(2)
+      expect(wrapper.text()).toContain('RefreshedStrategy')
+    })
   })
 
   it('runs selected custom indicator through indicator backtest API', async () => {

@@ -13,19 +13,29 @@
 
           <el-form :model="backtestForm" :rules="formRules" ref="formRef" label-position="top">
             <el-form-item label="策略" prop="strategy">
-              <el-select
-                v-model="backtestForm.strategy"
-                placeholder="选择策略"
-                class="w-full"
-                :loading="loadingStrategies"
-              >
-                <el-option
-                  v-for="option in strategyOptions"
-                  :key="option.value"
-                  :label="option.label"
-                  :value="option.value"
-                />
-              </el-select>
+              <div class="strategy-selector-row">
+                <el-select
+                  v-model="backtestForm.strategy"
+                  placeholder="选择策略"
+                  class="flex-1"
+                  :loading="loadingStrategies"
+                >
+                  <el-option
+                    v-for="option in strategyOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+                <el-button
+                  size="small"
+                  :loading="loadingStrategies"
+                  @click="loadStrategyOptions"
+                >
+                  <el-icon><Refresh /></el-icon>
+                  刷新策略
+                </el-button>
+              </div>
             </el-form-item>
 
             <el-form-item label="股票代码" prop="symbol">
@@ -472,6 +482,7 @@
 <script setup lang="ts">
 import { computed, ref, reactive, nextTick, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Refresh } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import * as echarts from 'echarts'
 import { analysisApi, stockApi, tradingApi, strategyApi, indicatorApi } from '@/services/api'
@@ -1426,6 +1437,13 @@ export default defineComponent({
 
 <style scoped lang="scss">
 .backtest-center {
+  .strategy-selector-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
   .metric-card {
     background: #f8fafc;
     border-radius: 8px;

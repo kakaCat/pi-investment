@@ -154,6 +154,97 @@ if result.success:
 
 ## Agent 工具系统
 
+本项目实现了完整的 Agent 工具生态系统，包括：
+- ✅ 统一的输出格式化系统（12个格式化函数）
+- ✅ 统一的错误处理和性能监控系统
+- ✅ 模块化的CLI工具架构（8个领域工具 + 1个核心工具）
+
+**工具架构更新** (2026-06-02):
+- 原 `quant_cli` 工具已拆分为多个领域CLI工具
+- 每个领域工具职责单一，更易维护
+- 所有工具集成了统一的错误处理和性能监控
+- 文件大小减少31%（1,472行 → 1,025行）
+
+### CLI工具系统
+
+#### 核心CLI工具
+- `quant_cli` — 核心和专用命令（46个）
+  - indicators.* (8个) - 指标管理
+  - portfolio.* (2个) - 组合管理  
+  - risk.* (4个) - 风控命令
+  - performance.* (3个) - 绩效分析
+  - data.* (3个) - 数据管理
+  - report.* (2个) - 报告生成
+  - 其他专用命令
+
+#### 领域CLI工具（推荐使用）
+
+**市场数据查询** - `market_cli` (12个命令):
+- market.overview, market.index_history, market.sectors
+- market.concept_stocks, market.concepts, market.macro
+- market.north_flow, market.sector_flow, market.margin
+- market.news, market.hot_stocks, market.sentiment
+
+**个股数据查询** - `stock_cli` (5个命令):
+- stock.batch_quotes, stock.list, stock.score
+- stock.screen, stock.technical
+
+**财务数据查询** - `financial_cli` (7个命令):
+- financial.indicators, financial.valuation, financial.pe_percentile
+- financial.income_statement, financial.cash_flow
+- financial.hk_financials, financial.hk_analysis
+
+**市场情绪分析** - `sentiment_cli` (8个命令):
+- sentiment.stock_fund_flow, sentiment.lhb, sentiment.insider_trades
+- sentiment.fund_holdings, sentiment.top_fund_stocks
+- sentiment.top_holders, sentiment.holder_changes, sentiment.margin_data
+
+**股票分析工具** - `analysis_cli` (7个命令):
+- analysis.technical, analysis.price_action, analysis.candlestick
+- analysis.buy_range, analysis.quality, analysis.exit_plan, analysis.peers
+
+**信号测试管理** - `signal_cli` (4个命令):
+- signal.list, signal.generate, signal.arbitrate, signal.statistics
+
+**策略回测工具** - `backtest_cli` (3个命令):
+- backtest.run, backtest.results, backtest.strategy
+
+**自选股管理** - `watchlist_cli` (5个命令):
+- watchlist.list, watchlist.add, watchlist.remove
+- watchlist.update, watchlist.groups
+
+**使用示例**:
+```typescript
+// 查询市场概览
+market_cli({ command: "market.overview" })
+
+// 股票评分
+stock_cli({ command: "stock.score", params: { symbol: "600000" } })
+
+// 财务指标
+financial_cli({ command: "financial.indicators", params: { symbol: "600000" } })
+
+// 回测策略
+backtest_cli({ 
+  command: "backtest.run", 
+  params: { 
+    strategy_id: "53", 
+    start_date: "2025-01-01", 
+    end_date: "2025-12-31" 
+  } 
+})
+```
+
+**工具特性**:
+- ✅ 统一的错误处理和友好提示
+- ✅ 自动的性能监控和慢工具告警
+- ✅ 完整的调用统计（成功率、耗时）
+- ✅ 一致的输出格式
+
+**相关文档**:
+- [工具开发指南](docs/tools/tool-development-guide.md)
+- [工具拆分报告](docs/reviews/2026-06-02-quant-cli-split-success.md)
+
 ### 六层量化投资架构
 
 项目采用六层架构组织 Agent 工具，对应量化投资的完整流程（2025-05-25 重构完成，从 61 个工具精简至 30 个）：
@@ -277,6 +368,89 @@ if result.success:
   - REST API 端口：5001，WebSocket 端口：5003
   - 自动健康检查和 PID 管理
 
+### CLI工具系统（2026-06-02 新增）
+
+本项目已将原 `quant_cli` 工具拆分为模块化的CLI工具系统，提供更清晰的职责划分和更好的可维护性。
+
+#### 核心CLI工具
+- `quant_cli` — 核心和专用命令（46个）
+  - indicators.* (8个) - 指标管理
+  - portfolio.* (2个) - 组合管理
+  - risk.* (4个) - 风控命令
+  - performance.* (3个) - 绩效分析
+  - data.* (3个) - 数据管理
+  - report.* (2个) - 报告生成
+  - 其他专用命令
+
+#### 领域CLI工具（推荐使用）
+- `market_cli` — 市场数据查询（12个命令）
+  - market.overview, market.index_history, market.sectors
+  - market.concept_stocks, market.concepts, market.macro
+  - market.north_flow, market.sector_flow, market.margin
+  - market.news, market.hot_stocks, market.sentiment
+
+- `stock_cli` — 个股数据查询（5个命令）
+  - stock.batch_quotes, stock.list, stock.score
+  - stock.screen, stock.technical
+
+- `financial_cli` — 财务数据查询（7个命令）
+  - financial.indicators, financial.valuation, financial.pe_percentile
+  - financial.income_statement, financial.cash_flow
+  - financial.hk_financials, financial.hk_analysis
+
+- `sentiment_cli` — 市场情绪分析（8个命令）
+  - sentiment.stock_fund_flow, sentiment.lhb, sentiment.insider_trades
+  - sentiment.fund_holdings, sentiment.top_fund_stocks
+  - sentiment.top_holders, sentiment.holder_changes, sentiment.margin_data
+
+- `analysis_cli` — 股票分析工具（7个命令）
+  - analysis.technical, analysis.price_action, analysis.candlestick
+  - analysis.buy_range, analysis.quality, analysis.exit_plan, analysis.peers
+
+- `signal_cli` — 信号测试管理（4个命令）
+  - signal.list, signal.generate, signal.arbitrate, signal.statistics
+
+- `backtest_cli` — 策略回测工具（3个命令）
+  - backtest.run, backtest.results, backtest.strategy
+
+- `watchlist_cli` — 自选股管理（5个命令）
+  - watchlist.list, watchlist.add, watchlist.remove
+  - watchlist.update, watchlist.groups
+
+**使用示例**:
+```typescript
+// 查询市场概览
+market_cli({ command: "market.overview" })
+
+// 股票评分
+stock_cli({ command: "stock.score", params: { symbol: "600000" } })
+
+// 财务指标
+financial_cli({ command: "financial.indicators", params: { symbol: "600000" } })
+
+// 回测策略
+backtest_cli({ 
+  command: "backtest.run", 
+  params: { 
+    strategy_id: "53", 
+    start_date: "2025-01-01", 
+    end_date: "2025-12-31" 
+  } 
+})
+```
+
+**工具特性**:
+- ✅ 统一的错误处理和友好提示
+- ✅ 自动的性能监控和慢工具告警
+- ✅ 完整的调用统计（成功率、耗时）
+- ✅ 一致的输出格式
+
+**相关文档**:
+- [工具开发指南](docs/tools/tool-development-guide.md)
+- [quant_cli拆分报告](docs/reviews/2026-06-02-quant-cli-split-success.md)
+
+### Agent 元工具（系统级）
+
 ### backend_control 工具增强（2026-05-27）
 
 **新特性：**
@@ -333,35 +507,44 @@ backend_control({ action: "start", service: "all" })
 - 执行引擎：`trade_*`
 - 监控运维：`monitor_*`
 
-### 策略执行统一（2026-05-30）
+### 策略工具统一（2026-06-02 更新）
 
-**重要变更**：策略执行已统一到 `quant_cli` 的 `strategy.execute` 命令。
+**重要变更**：策略管理已完全迁移到独立工具，`quant_cli` 不再支持 `strategy.*` 命令。
 
-**新的统一接口**：
-```typescript
-quant_cli({
-  command: "strategy.execute",
-  params: {
-    action: "single" | "batch" | "pipeline",  // 三种执行模式
-    symbol: "600000",      // single 模式：单股票
-    symbols: ["600000"],   // batch/pipeline 模式：多股票
-    strategy: "53",        // 策略 ID 或名称
-    risk_check: true,      // pipeline 模式：启用风控
-    auto_order: true       // pipeline 模式：自动创建订单
-  }
-})
-```
+**独立策略工具**（推荐使用）：
+| 工具名 | 功能 | 示例 |
+|--------|------|------|
+| `strategy_list` | 列出所有策略 | `strategy_list()` |
+| `strategy_detail` | 查看策略详情 | `strategy_detail({ strategy_id: "53" })` |
+| `strategy_create` | 创建新策略 | `strategy_create({ name: "my_strategy", code: "..." })` |
+| `strategy_write` | 编写/更新策略代码 | `strategy_write({ strategy_id: "53", code: "..." })` |
+| `strategy_run` | 实时运行策略 | `strategy_run({ strategy_id: "53", symbols: ["600000"] })` |
+| `strategy_execute` | 统一策略执行 | `strategy_execute({ action: "single", symbol: "600000", strategy: "53" })` |
+| `strategy_status` | 查询策略运行状态 | `strategy_status()` |
+| `strategy_optimize` | 策略参数优化 | `strategy_optimize({ strategy_id: "53", ... })` |
+| `strategy_batch_validate` | 批量验证策略 | `strategy_batch_validate({ strategy_ids: ["53", "54"], ... })` |
 
-**三种执行模式**：
+**strategy_execute 三种执行模式**：
 1. **single** — 单股票执行，返回详细信号和风险参数
 2. **batch** — 批量执行，返回汇总统计
 3. **pipeline** — 完整流水线（信号生成 → 风控筛选 → 订单创建）
 
-**已废弃的工具**（将在 v3.0 移除）：
-- ⚠️ `strategy_execute` 工具 → 使用 `quant_cli` 的 `strategy.execute` (action='single')
-- ⚠️ `signal.generate` 命令 → 使用 `strategy.execute` (action='batch')
+**已移除**（2026-06-02）：
+- ❌ `quant_cli` 的 `strategy.list` / `strategy.get` / `strategy.create` / `strategy.run` / `strategy.status` / `strategy.execute` 命令
+- ⚠️ `signal.generate` 命令标记为废弃，将在 v3.0 移除
 
-**迁移指南**：详见 `docs/migration/strategy-system-unification.md`
+**迁移指南**：
+```typescript
+// ❌ 旧方式（已不支持）
+quant_cli({ command: "strategy.list" })
+quant_cli({ command: "strategy.execute", params: { action: "single", symbol: "600000", strategy: "53" } })
+
+// ✅ 新方式（推荐）
+strategy_list()
+strategy_execute({ action: "single", symbol: "600000", strategy: "53" })
+```
+
+**详细文档**：`docs/reviews/2026-06-02-quant-cli-strategy-cleanup.md`
 
 ### 迁移说明
 
@@ -457,12 +640,12 @@ Agent 查询经验 → 决策时参考历史表现
 - **新架构**：HTTP 调用 quantsys-v2 API (port 5001)
 
 **新增命令**（v2 独有）：
-- `strategy.run` - 实时运行策略
-- `strategy.status` - 查询策略状态
 - `signal.test_run` - 运行信号测试
 - `signal.test_record` - 记录测试结果
 - `signal.test_verify` - 验证信号准确性
 - `signal.test_stats` - 信号测试统计
+
+**注意**：策略管理命令（`strategy.*`）已从 quant_cli 移除，请使用独立的 strategy 工具。
 
 **要求**：使用 Agent 前必须启动 quantsys-v2 服务：
 ```bash
@@ -475,11 +658,8 @@ cd quantsys-v2 && python start_all.py
 
 适用命令：
 - `performance.by_strategy`
-- `strategy.get`
-- `strategy.optimize`
-- `strategy.run`
 - `backtest.strategy`
-- `signal.generate`
+- `signal.generate`（已废弃，推荐使用 `strategy_execute`）
 
 示例错误输出：
 ```
@@ -488,6 +668,8 @@ cd quantsys-v2 && python start_all.py
 可用策略列表：
   - ID: 53, 名称: 多因子波段策略v9
   - ID: 54, 名称: RSI超买超卖策略
+
+提示：使用独立工具 strategy_list 可查看完整策略详情。
 ```
 
 容错处理：如果 quantsys-v2 服务不可用，降级为通用提示。

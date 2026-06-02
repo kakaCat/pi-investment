@@ -67,10 +67,36 @@
       <el-tab-pane label="成员列表" name="members">
         <el-table :data="memberRows" stripe>
           <el-table-column prop="index" label="序号" width="80" />
-          <el-table-column prop="symbol" label="股票代码" />
-          <el-table-column prop="name" label="股票名称">
+          <el-table-column prop="symbol" label="股票代码" width="120" />
+          <el-table-column prop="name" label="股票名称" width="120">
             <template #default="{ row }">
               {{ row.name || '—' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="description" label="描述" min-width="180">
+            <template #default="{ row }">
+              {{ row.description || '—' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="buy_point" label="关注买点" width="120">
+            <template #default="{ row }">
+              {{ row.buy_point || '—' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="sell_point" label="关注卖点" width="120">
+            <template #default="{ row }">
+              {{ row.sell_point || '—' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="tags" label="标签" width="150">
+            <template #default="{ row }">
+              <el-tag v-for="tag in row.tags || []" :key="tag" size="small" style="margin-right: 4px;">{{ tag }}</el-tag>
+              <span v-if="!row.tags || row.tags.length === 0">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="100" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openMemberEditDialog(row)">编辑</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -197,6 +223,36 @@
         <el-button type="primary" :loading="submitting" @click="handleEdit">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 编辑成员弹窗 -->
+    <el-dialog v-model="showMemberEditDialog" title="编辑股票信息" width="500px">
+      <el-form :model="memberEditForm" label-width="80px">
+        <el-form-item label="股票代码">
+          <el-input v-model="memberEditForm.symbol" disabled />
+        </el-form-item>
+        <el-form-item label="股票名称">
+          <el-input v-model="memberEditForm.name" disabled />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="memberEditForm.description" type="textarea" :rows="3" placeholder="例如：高ROE成长股，基本面优秀" />
+        </el-form-item>
+        <el-form-item label="关注买点">
+          <el-input v-model="memberEditForm.buy_point" placeholder="例如：25.5-26.0 或 突破30日均线" />
+        </el-form-item>
+        <el-form-item label="关注卖点">
+          <el-input v-model="memberEditForm.sell_point" placeholder="例如：32.0 或 跌破支撑位28.5" />
+        </el-form-item>
+        <el-form-item label="标签">
+          <el-select v-model="memberEditForm.tags" multiple filterable allow-create placeholder="选择或输入标签" style="width: 100%;">
+            <el-option v-for="tag in commonTags" :key="tag" :label="tag" :value="tag" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showMemberEditDialog = false">取消</el-button>
+        <el-button type="primary" :loading="submittingMember" @click="handleMemberEdit">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -213,6 +269,7 @@ const poolId = computed(() => Number(route.params.id))
 const loading = ref(false)
 const refreshing = ref(false)
 const submitting = ref(false)
+const submittingMember = ref(false)
 const pool = ref<any>({})
 const activeTab = ref('members')
 
@@ -236,15 +293,27 @@ const memberRows = computed(() => {
     ? pool.value.members
     : (pool.value.symbols || [])
 
-  return members.map((member: string | { symbol?: string; name?: string; stock_name?: string; stockName?: string }, i: number) => {
+  return members.map((member: string | { symbol?: string; name?: string; stock_name?: string; stockName?: string; description?: string; buy_point?: string; sell_point?: string; tags?: string[] }, i: number) => {
     if (typeof member === 'string') {
-      return { index: i + 1, symbol: member, name: undefined }
+      return {
+        index: i + 1,
+        symbol: member,
+        name: undefined,
+        description: undefined,
+        buy_point: undefined,
+        sell_point: undefined,
+        tags: []
+      }
     }
 
     return {
       index: i + 1,
       symbol: member.symbol || '',
       name: member.name || member.stock_name || member.stockName,
+      description: member.description,
+      buy_point: member.buy_point,
+      sell_point: member.sell_point,
+      tags: member.tags || []
     }
   })
 })
@@ -298,6 +367,24 @@ const validateForm = ref({
 // Edit dialog
 const showEditDialog = ref(false)
 const editForm = ref({ name: '', description: '' })
+
+// Member edit dialog
+const showMemberEditDialog = ref(false)
+const memberEditForm = ref({
+  symbol: '',
+  name: '',
+  description: '',
+  buy_point: '',
+  sell_point: '',
+  tags: [] as string[]
+})
+
+// Common tags for selection
+const commonTags = [
+  '价值股', '成长股', '周期股', '防御股',
+  '高股息', '低估值', '高ROE', '高毛利',
+  '技术突破', '基本面优秀', '行业龙头', '概念股'
+]
 
 const fetchPool = async () => {
   loading.value = true
@@ -378,6 +465,37 @@ const handleDelete = async () => {
     router.push('/pools')
   } catch (e: any) {
     if (e !== 'cancel') ElMessage.error('删除失败')
+  }
+}
+
+const openMemberEditDialog = (row: any) => {
+  memberEditForm.value = {
+    symbol: row.symbol,
+    name: row.name || '',
+    description: row.description || '',
+    buy_point: row.buy_point || '',
+    sell_point: row.sell_point || '',
+    tags: row.tags || []
+  }
+  showMemberEditDialog.value = true
+}
+
+const handleMemberEdit = async () => {
+  submittingMember.value = true
+  try {
+    await poolApi.updateMember(poolId.value, memberEditForm.value.symbol, {
+      description: memberEditForm.value.description || undefined,
+      buyPoint: memberEditForm.value.buy_point || undefined,
+      sellPoint: memberEditForm.value.sell_point || undefined,
+      tags: memberEditForm.value.tags
+    })
+    ElMessage.success('更新成功')
+    showMemberEditDialog.value = false
+    await fetchPool()
+  } catch {
+    ElMessage.error('更新失败')
+  } finally {
+    submittingMember.value = false
   }
 }
 

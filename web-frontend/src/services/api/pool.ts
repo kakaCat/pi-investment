@@ -62,5 +62,9 @@ export const poolApi = {
 
   scanAndCreate(data: PoolScanCreateParams) {
     return apiClient.post('/api/pools/scan-and-create', data)
+  },
+
+  updateMember(poolId: number, symbol: string, data: { description?: string; buyPoint?: string; sellPoint?: string; tags?: string[] }) {
+    return apiClient.put(`/api/pools/${poolId}/members/${symbol}`, data)
   }
 }

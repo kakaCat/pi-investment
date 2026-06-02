@@ -11,6 +11,7 @@ import {
   deletePool,
   refreshPool,
   scanAndCreatePool,
+  updatePoolMember,
 } from "../../quant/quant-v2-client.js";
 
 export const poolManageTool: ToolDefinition = {
@@ -19,7 +20,8 @@ export const poolManageTool: ToolDefinition = {
   description:
     "管理股票池：创建静态/动态池、列出所有池、查看详情、更新、删除、刷新动态池、筛选建池。" +
     "动态池保存筛选条件(filter_template)，可定时自动刷新。" +
-    "筛选建池(scan_create)：执行多因子扫描后自动创建池子。",
+    "筛选建池(scan_create)：执行多因子扫描后自动创建池子。" +
+    "成员管理：update_member 更新单个股票的描述/买点/卖点/标签，get_member 查看单个股票详情。",
   parameters: Type.Object({
     action: Type.Union(
       [
@@ -30,6 +32,8 @@ export const poolManageTool: ToolDefinition = {
         Type.Literal("delete"),
         Type.Literal("refresh"),
         Type.Literal("scan_create"),
+        Type.Literal("update_member"),
+        Type.Literal("get_member"),
       ],
       { description: "操作类型" },
     ),
@@ -85,6 +89,23 @@ export const poolManageTool: ToolDefinition = {
     description: Type.Optional(
       Type.String({ description: "池子描述" }),
     ),
+    symbol: Type.Optional(
+      Type.String({ description: "股票代码 (update_member/get_member 需要)" }),
+    ),
+    member_description: Type.Optional(
+      Type.String({ description: "股票描述 (update_member 使用)" }),
+    ),
+    buy_point: Type.Optional(
+      Type.String({ description: "关注买点 (update_member 使用)" }),
+    ),
+    sell_point: Type.Optional(
+      Type.String({ description: "关注卖点 (update_member 使用)" }),
+    ),
+    tags: Type.Optional(
+      Type.Array(Type.String(), {
+        description: "标签列表 (update_member 使用)",
+      }),
+    ),
   }),
   execute: async (_toolCallId: string, rawParams: any) => {
     const {
@@ -96,6 +117,11 @@ export const poolManageTool: ToolDefinition = {
       filter,
       refresh_interval,
       description,
+      symbol,
+      member_description,
+      buy_point,
+      sell_point,
+      tags,
     } = rawParams;
 
     try {
@@ -157,6 +183,31 @@ export const poolManageTool: ToolDefinition = {
           });
           break;
 
+        case "update_member":
+          if (!pool_id || !symbol) {
+            return _err("update_member 需要 pool_id 和 symbol 参数");
+          }
+          result = await updatePoolMember(pool_id, symbol, {
+            description: member_description,
+            buy_point,
+            sell_point,
+            tags,
+          });
+          break;
+
+        case "get_member":
+          if (!pool_id || !symbol) {
+            return _err("get_member 需要 pool_id 和 symbol 参数");
+          }
+          const poolData = await getPool(pool_id);
+          const members = poolData?.data?.members || [];
+          const member = members.find((m: any) => m.symbol === symbol);
+          if (!member) {
+            return _err(`股票 ${symbol} 不在池子 ${pool_id} 中`);
+          }
+          result = { data: member };
+          break;
+
         default:
           return _err(`未知操作: ${action}`);
       }
@@ -198,10 +249,30 @@ function _formatResult(action: string, data: any): string {
     }
 
     case "get": {
-      const syms = data.symbols || [];
+      const members = data.members || [];
       let text = `📊 池子详情: ${data.name} (${data.pool_type})\n`;
-      text += `  成员 (${syms.length}只): ${syms.slice(0, 10).join(", ")}`;
-      if (syms.length > 10) text += ` ... 等${syms.length}只`;
+      text += `  成员 (${members.length}只):\n`;
+
+      // 显示前10个成员的详细信息
+      const displayMembers = members.slice(0, 10);
+      for (const member of displayMembers) {
+        text += `    • ${member.symbol} ${member.name || ''}`;
+        if (member.description) {
+          text += `\n      描述: ${member.description}`;
+        }
+        if (member.buy_point || member.sell_point) {
+          text += `\n      买点: ${member.buy_point || '—'} | 卖点: ${member.sell_point || '—'}`;
+        }
+        if (member.tags && member.tags.length > 0) {
+          text += `\n      标签: ${member.tags.join(', ')}`;
+        }
+        text += '\n';
+      }
+
+      if (members.length > 10) {
+        text += `    ... 还有 ${members.length - 10} 只股票\n`;
+      }
+
       if (data.filter_template) {
         text += `\n  筛选条件: ${JSON.stringify(data.filter_template)}`;
       }
@@ -210,6 +281,37 @@ function _formatResult(action: string, data: any): string {
         text += `\n  最优策略: ${best.name || best.id} (评分: ${best.score})`;
       }
       return text;
+    }
+
+    case "get_member": {
+      let text = `📋 成员详情: ${data.symbol} ${data.name || ''}\n`;
+      if (data.description) {
+        text += `  描述: ${data.description}\n`;
+      }
+      if (data.buy_point) {
+        text += `  关注买点: ${data.buy_point}\n`;
+      }
+      if (data.sell_point) {
+        text += `  关注卖点: ${data.sell_point}\n`;
+      }
+      if (data.tags && data.tags.length > 0) {
+        text += `  标签: ${data.tags.join(', ')}\n`;
+      }
+      return text;
+    }
+
+    case "update_member": {
+      const members = data.members || [];
+      const updatedMember = members.find((m: any) => m.symbol === data.symbol);
+      if (updatedMember) {
+        return (
+          `✅ 成员信息已更新: ${updatedMember.symbol} ${updatedMember.name || ''}\n` +
+          `  描述: ${updatedMember.description || '—'}\n` +
+          `  买点: ${updatedMember.buy_point || '—'} | 卖点: ${updatedMember.sell_point || '—'}\n` +
+          `  标签: ${updatedMember.tags?.join(', ') || '—'}`
+        );
+      }
+      return `✅ 成员信息已更新`;
     }
 
     case "create":

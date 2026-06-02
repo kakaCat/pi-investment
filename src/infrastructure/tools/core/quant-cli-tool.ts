@@ -38,177 +38,7 @@ const COMMANDS: Record<string, CommandRule> = {
     params: { name: { required: true, type: "string" } },
     example: { name: "stock.technical" },
   },
-  "market.overview": {
-    domain: "market",
-    action: "overview",
-    description: "查询主要 A 股指数概览。",
-    params: {},
-    example: {},
-  },
-  "market.sectors": {
-    domain: "market",
-    action: "sectors",
-    description: "查询 A 股行业板块列表。",
-    params: {},
-    example: {},
-  },
-  "market.concept_stocks": {
-    domain: "market",
-    action: "concept-stocks",
-    description: "查询概念/主题板块成分股。",
-    params: { concept: { required: true, type: "string" } },
-    example: { concept: "人工智能" },
-  },
-  "market.concepts": {
-    domain: "market",
-    action: "concepts",
-    description: "查询全部概念/主题板块列表。",
-    params: {},
-    example: {},
-  },
-  "market.macro": {
-    domain: "market",
-    action: "macro",
-    description: "查询 PMI、CPI、GDP 等宏观指标。",
-    params: { indicators: { type: "array" } },
-    example: { indicators: ["pmi", "cpi"] },
-  },
-  "market.north_flow": {
-    domain: "market",
-    action: "north-flow",
-    description: "查询北向资金流向。",
-    params: {},
-    example: {},
-  },
-  "market.sector_flow": {
-    domain: "market",
-    action: "sector-flow",
-    description: "查询行业资金流向排行。",
-    params: {},
-    example: {},
-  },
-  "market.margin": {
-    domain: "market",
-    action: "margin",
-    description: "查询全市场融资融券余额趋势。",
-    params: {},
-    example: {},
-  },
-  "market.news": {
-    domain: "market",
-    action: "news",
-    description: "查询市场综合新闻。",
-    params: { num: { type: "integer", min: 1 } },
-    example: { num: 20 },
-  },
-  "market.hot_stocks": {
-    domain: "market",
-    action: "hot-stocks",
-    description: "查询热搜股票排行。",
-    params: { market: { type: "string", enum: ["全部", "A股", "港股", "美股"] } },
-    example: { market: "A股" },
-  },
-  "market.sentiment": {
-    domain: "market",
-    action: "sentiment",
-    description: "分析市场情绪指标，返回综合恐惧/贪婪评分（0-100）。",
-    params: {},
-    example: {},
-  },
-  "market.index_history": {
-    domain: "market",
-    action: "index-history",
-    description: "查询主要指数历史 OHLCV 数据。",
-    params: {
-      symbol: { required: true, type: "string" },
-      start_date: { required: true, type: "string" },
-      end_date: { required: true, type: "string" },
-    },
-    example: { symbol: "sh000001", start_date: "2026-01-01", end_date: "2026-05-20" },
-  },
-  "stock.batch_quotes": {
-    domain: "stock",
-    action: "batch-quotes",
-    description: "通过量化后端批量查询 A 股或港股实时价格。",
-    params: { symbols: { required: true, type: "array" } },
-    example: { symbols: ["600000", "000001"] },
-  },
-  "stock.technical": {
-    domain: "stock",
-    action: "technical",
-    description: "计算单只股票的技术指标，如 RSI、均线和 MACD。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      indicators: { type: "array" },
-    },
-    example: { symbol: "600000", indicators: ["RSI", "MACD"] },
-  },
-  "stock.list": {
-    domain: "stock",
-    action: "list",
-    description: "列出本地量化数据库中的股票，或用 source=live 拉取实时股票池。",
-    params: {
-      market: { type: "string" },
-      has_data: { type: "boolean" },
-      source: { type: "string", enum: ["local", "live"] },
-    },
-    example: { market: "A", source: "live" },
-  },
   // stock.ml_predict 已移除 — 使用专用工具 model_predict
-  "stock.score": {
-    domain: "stock",
-    action: "score",
-    description: "计算单只股票的技术面、基本面、动量、质量、估值综合评分。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
-  "stock.screen": {
-    domain: "stock",
-    action: "screen",
-    description: "按估值、质量、负债率、RSI 和综合分筛选股票并排序。",
-    params: {
-      limit: { type: "integer", min: 1 },
-      pe_max: { type: "number", min: 0 },
-      pe_min: { type: "number", min: 0 },
-      pb_max: { type: "number", min: 0 },
-      pb_min: { type: "number", min: 0 },
-      roe_min: { type: "number" },
-      debt_ratio_max: { type: "number", min: 0 },
-      rsi_max: { type: "number", min: 0 },
-      rsi_min: { type: "number", min: 0 },
-      min_score: { type: "number", min: 0 },
-      sort_by: { type: "string", enum: ["total_score", "technical_score", "fundamental_score", "momentum_score", "quality_score", "valuation_score", "pe", "pb", "roe", "debt_ratio", "rsi"] },
-    },
-    example: { pe_max: 20, roe_min: 0.15, debt_ratio_max: 0.5, limit: 20 },
-  },
-  "analysis.technical": {
-    domain: "analysis",
-    action: "technical",
-    description: "计算 MA、MACD、RSI、布林带和技术信号。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
-  "analysis.candlestick": {
-    domain: "analysis",
-    action: "candlestick",
-    description: "识别K线形态、趋势线、斐波那契回调位和跳空缺口。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
-  "analysis.quality": {
-    domain: "analysis",
-    action: "quality",
-    description: "基于 ROE、负债率、毛利率、净利率和趋势给公司质量打分。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
-  "analysis.peers": {
-    domain: "analysis",
-    action: "peers",
-    description: "返回目标股关键指标和行业名称，用于后续同行对比工作流。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
   // analysis.swing_points 已移除 — 使用专用工具 analysis_swing_points
   "screening.sector": {
     domain: "screening",
@@ -234,240 +64,12 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { sector: "白酒", min_score: 65, max_pe: 30, limit: 10 },
   },
-  "hk.market_overview": {
-    domain: "hk",
-    action: "market-overview",
-    description: "⚠️ 暂不可用：v1 quantsys 模块已废弃，v2 尚未实现港股概览端点。调用将返回错误。",
-    params: {},
-    example: {},
-    deprecated: true,
-    replacement: "港股市场概览功能暂不可用，等待 v2 实现",
-  },
-  "hk.south_flow": {
-    domain: "hk",
-    action: "south-flow",
-    description: "⚠️ 暂不可用：v1 quantsys 模块已废弃，v2 尚未实现南向资金端点。调用将返回错误。",
-    params: {},
-    example: {},
-    deprecated: true,
-    replacement: "港股通南向资金功能暂不可用，等待 v2 实现",
-  },
-  "hk.technical": {
-    domain: "hk",
-    action: "technical",
-    description: "⚠️ 暂不可用：v1 quantsys 模块已废弃，v2 数据库无港股 K 线数据。调用将返回错误。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "9988" },
-    deprecated: true,
-    replacement: "港股技术分析功能暂不可用，等待 v2 实现",
-  },
-  "hk.hot_rank": {
-    domain: "hk",
-    action: "hot-rank",
-    description: "⚠️ 暂不可用：v1 quantsys 模块已废弃，v2 尚未实现港股人气排行端点。调用将返回错误。",
-    params: {},
-    example: {},
-    deprecated: true,
-    replacement: "港股人气排行功能暂不可用，等待 v2 实现",
-  },
-  "sentiment.stock_fund_flow": {
-    domain: "sentiment",
-    action: "stock-fund-flow",
-    description: "查询个股资金流向，包括主力、大单、中单、小单净流入。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      days: { type: "integer", min: 1 },
-    },
-    example: { symbol: "600000", days: 5 },
-  },
-  "sentiment.lhb": {
-    domain: "sentiment",
-    action: "lhb",
-    description: "查询龙虎榜全榜或个股近期龙虎榜记录。",
-    params: {
-      symbol: { type: "string", symbol: true },
-      date: { type: "string" },
-    },
-    example: { date: "20260519" },
-  },
-  "sentiment.insider_trades": {
-    domain: "sentiment",
-    action: "insider-trades",
-    description: "查询高管增减持记录。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
-  "sentiment.fund_holdings": {
-    domain: "sentiment",
-    action: "fund-holdings",
-    description: "查询持有指定股票的基金列表。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
-  "sentiment.top_fund_stocks": {
-    domain: "sentiment",
-    action: "top-fund-stocks",
-    description: "查询基金重仓股排行（若上游接口可用）。",
-    params: {},
-    example: {},
-  },
-  "sentiment.top_holders": {
-    domain: "sentiment",
-    action: "top-holders",
-    description: "查询前十大股东。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
-  "sentiment.holder_changes": {
-    domain: "sentiment",
-    action: "holder-changes",
-    description: "查询股东人数变化。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
-  "sentiment.margin_data": {
-    domain: "sentiment",
-    action: "margin-data",
-    description: "查询个股融资融券数据。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
-  "financial.indicators": {
-    domain: "financial",
-    action: "indicators",
-    description: "查询最近财务指标：ROE、毛利率、净利率、负债率等。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
-  "financial.valuation": {
-    domain: "financial",
-    action: "valuation",
-    description: "获取股票估值数据：PE、PB、估值状态（cheap/fair/expensive）、合理价值估算。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "600000" },
-  },
-  "financial.pe_percentile": {
-    domain: "financial",
-    action: "pe-percentile",
-    description: "获取PE历史分位数：当前PE在过去N年中所处的百分位（0=历史最低，100=历史最高）。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      years: { type: "number", positive: true },
-    },
-    example: { symbol: "600000", years: 3 },
-  },
-  "financial.income_statement": {
-    domain: "financial",
-    action: "income-statement",
-    description: "获取利润表：营业收入、营业成本、净利润、毛利率、净利率等。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      recent_n: { type: "number", positive: true },
-    },
-    example: { symbol: "600000", recent_n: 8 },
-  },
-  "financial.cash_flow": {
-    domain: "financial",
-    action: "cash-flow",
-    description: "获取现金流量表：经营活动现金流、投资活动现金流、筹资活动现金流。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      recent_n: { type: "number", positive: true },
-    },
-    example: { symbol: "600000", recent_n: 8 },
-  },
-  "analysis.price_action": {
-    domain: "analysis",
-    action: "price-action",
-    description: "价格行为分析：趋势、支撑阻力、成交量、突破信号、动量、波动率。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      period: { type: "number", positive: true },
-    },
-    example: { symbol: "600000", period: 60 },
-  },
-  "analysis.buy_range": {
-    domain: "analysis",
-    action: "buy-range",
-    description: "买入区间计算：基于技术支撑位计算安全价、理想价、止损位、目标价，并给出分批建仓建议。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      current_price: { type: "number", positive: true },
-    },
-    example: { symbol: "600000" },
-  },
-  "analysis.exit_plan": {
-    domain: "analysis",
-    action: "exit-plan",
-    description: "止盈计划：基于买入价和PE计算分批止盈目标（保守/中等/激进），给出卖出建议。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      entry_price: { required: true, type: "number", positive: true },
-      position_size: { type: "number", positive: true },
-    },
-    example: { symbol: "600000", entry_price: 1200, position_size: 100 },
-  },
-  "financial.hk_financials": {
-    domain: "financial",
-    action: "hk-financials",
-    description: "查询港股财务数据。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "9988" },
-  },
-  "financial.hk_analysis": {
-    domain: "financial",
-    action: "hk-analysis",
-    description: "查询港股综合分析：价格、技术摘要和财务数据。",
-    params: { symbol: { required: true, type: "string", symbol: true } },
-    example: { symbol: "9988" },
-  },
-  "signal.list": {
-    domain: "signal",
-    action: "list",
-    description: "读取已生成的交易信号，可按日期、方向和置信度过滤。",
-    params: {
-      days: { type: "integer", min: 1, max: 365 },
-      date: { type: "string" },
-      signal_type: { type: "string", enum: ["BUY", "SELL"] },
-      min_confidence: { type: "number", min: 0 },
-    },
-    example: { days: 30 },
-  },
-  "signal.generate": {
-    domain: "signal",
-    action: "generate",
-    description:
-      "⚠️ DEPRECATED: 请使用 strategy.execute 命令（action='batch'）。\n" +
-      "此命令将在 v3.0 移除。自动映射到 strategy.execute。\n\n" +
-      "使用指定策略对股票列表生成最新交易信号（real strategy execution）。传入 strategy_id 和 symbols，返回每只股票的 buy/sell/hold 信号和置信度。生成的信号会写入数据库（status='pending'），可通过 signal.arbitrate 进行仲裁筛选。",
-    params: {
-      strategy_id: { required: true, type: "string" },
-      symbols: { type: "array" },
-    },
-    example: { strategy_id: 53, symbols: ["600000", "000425"] },
-    deprecated: true,
-    replacement: "strategy.execute"
-  },
-  "signal.arbitrate": {
-    domain: "signal",
-    action: "arbitrate",
-    description: "对已生成的交易信号进行仲裁：按股票聚合同日 BUY/SELL 信号，处理冲突并给出最终裁决。⚠️ 前置条件：需要先调用 signal.generate 生成信号，或确保数据库中有 pending 状态的信号记录。如果没有待仲裁的信号，将返回空结果。",
-    params: {
-      date: { type: "string" },
-      signals_dir: { type: "string" },
-      signals_json: { type: "string" },
-      min_confidence_gap: { type: "number", min: 0 },
-    },
-    example: { date: "2026-05-20" },
-  },
+  // ── 港股相关命令已移除（2026-06-02）──
+  // 原因：v1 quantsys 模块已废弃，v2 数据库无港股数据，无实现计划
+  // 已移除命令：hk.market_overview, hk.south_flow, hk.technical, hk.hot_rank
+  // 替代方案：暂无，港股功能不在当前支持范围
+
   // signal.scan 已移除 — 使用专用工具 opportunity_scan
-  "signal.statistics": {
-    domain: "signal",
-    action: "statistics",
-    description: "查询信号统计数据：各策略/方向的信号数量和置信度分布。v2 端点。",
-    params: {},
-    example: {},
-  },
   "performance.analyze": {
     domain: "performance",
     action: "analyze",
@@ -495,47 +97,7 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {},
     example: {},
   },
-  "backtest.run": {
-    domain: "backtest",
-    action: "run",
-    description: "运行简单移动平均交叉策略回测（内置策略）。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      strategy_name: { required: true, type: "string" },
-      start_date: { required: true, type: "string" },
-      end_date: { required: true, type: "string" },
-      initial_capital: { required: true, type: "number", min: 10000 },
-      commission: { type: "number", min: 0 },
-      slippage: { type: "number", min: 0 },
-      ma_short: { type: "integer", min: 1 },
-      ma_long: { type: "integer", min: 1 },
-    },
-    example: { symbol: "600000", strategy_name: "ma_cross", start_date: "2025-11-27", end_date: "2026-05-27", initial_capital: 100000, ma_short: 5, ma_long: 20 },
-  },
-  "backtest.strategy": {
-    domain: "backtest",
-    action: "strategy",
-    description: "运行自定义策略代码回测（通过 strategy_id 指定用户创建的策略）。",
-    params: {
-      strategy_id: { required: true, type: "string" },
-      symbol: { required: true, type: "string", symbol: true },
-      start_date: { required: true, type: "string" },
-      end_date: { required: true, type: "string" },
-      initial_cash: { type: "number", min: 10000 },
-    },
-    example: { strategy_id: "53", symbol: "600000.SH", start_date: "2025-11-27", end_date: "2026-05-27" },
-  },
   // backtest.batch 已移除 — 使用专用工具 strategy_batch_validate
-  "backtest.results": {
-    domain: "backtest",
-    action: "results",
-    description: "读取已生成的回测结果。",
-    params: {
-      symbol: { type: "string", symbol: true },
-      date: { type: "string" },
-    },
-    example: { symbol: "600000" },
-  },
   "orders.list": {
     domain: "orders",
     action: "list",
@@ -677,78 +239,7 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbols: ["600000.SH", "000001.SZ", "600519.SH"], method: "pearson" },
   },
-  // strategy.* 已移除 — 使用独立工具 strategy_list / strategy_detail / strategy_create / strategy_run / strategy_status / strategy_execute
-  "strategy.list": {
-    domain: "strategy",
-    action: "list",
-    description: "⚠️ DEPRECATED: 请使用独立工具 strategy_list。",
-    params: {},
-    example: {},
-    deprecated: true,
-    replacement: "strategy_list",
-  },
-  "strategy.get": {
-    domain: "strategy",
-    action: "get",
-    description: "⚠️ DEPRECATED: 请使用独立工具 strategy_detail。",
-    params: {
-      strategy_id: { required: true, type: "string" },
-    },
-    example: { strategy_id: "rsi-strategy" },
-    deprecated: true,
-    replacement: "strategy_detail",
-  },
-  "strategy.create": {
-    domain: "strategy",
-    action: "create",
-    description: "⚠️ DEPRECATED: 请使用独立工具 strategy_create 或 strategy_write。",
-    params: {
-      name: { required: true, type: "string" },
-      code: { required: true, type: "string" },
-    },
-    example: { name: "my_strategy", code: "..." },
-    deprecated: true,
-    replacement: "strategy_create",
-  },
-  // strategy.optimize 已移除 — 使用专用工具 strategy_optimize
-  "strategy.run": {
-    domain: "strategy",
-    action: "run",
-    description: "⚠️ DEPRECATED: 请使用独立工具 strategy_run。",
-    params: {
-      strategy_id: { required: true, type: "string" },
-      symbols: { type: "array" },
-    },
-    example: { strategy_id: "rsi_strategy", symbols: ["600000.SH"] },
-    deprecated: true,
-    replacement: "strategy_run",
-  },
-  "strategy.status": {
-    domain: "strategy",
-    action: "status",
-    description: "⚠️ DEPRECATED: 请使用独立工具 strategy_status。",
-    params: {},
-    example: {},
-    deprecated: true,
-    replacement: "strategy_status",
-  },
-  "strategy.execute": {
-    domain: "strategy",
-    action: "execute",
-    description: "⚠️ DEPRECATED: 请使用独立工具 strategy_execute。",
-    params: {
-      action: { required: true, type: "string", enum: ["single", "batch", "pipeline"] },
-      symbol: { type: "string", symbol: true },
-      symbols: { type: "array" },
-      strategy: { required: true, type: "string" },
-      params: { type: "object" },
-      risk_check: { type: "boolean" },
-      auto_order: { type: "boolean" },
-    },
-    example: { action: "single", symbol: "600000", strategy: "rsi-strategy" },
-    deprecated: true,
-    replacement: "strategy_execute",
-  },
+  // strategy.* 命令已完全移除 — 使用独立工具: strategy_list, strategy_detail, strategy_create, strategy_write, strategy_run, strategy_status, strategy_execute, strategy_optimize, strategy_batch_validate
   "watch.price_alert": {
     domain: "watch",
     action: "price-alert",
@@ -763,35 +254,6 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbol: "600000", price: 105, above: 100 },
   },
-  "watchlist.list": {
-    domain: "watchlist",
-    action: "list",
-    description: "获取自选股列表，可按分组筛选。",
-    params: {
-      group_id: { type: "string" },
-    },
-    example: { group_id: "default" },
-  },
-  "watchlist.add": {
-    domain: "watchlist",
-    action: "add",
-    description: "添加股票到自选股。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      group_id: { type: "string" },
-      note: { type: "string" },
-    },
-    example: { symbol: "600000", group_id: "e379e813", note: "白酒龙头" },
-  },
-  "watchlist.remove": {
-    domain: "watchlist",
-    action: "remove",
-    description: "从自选股移除股票。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-    },
-    example: { symbol: "600000" },
-  },
   "watchlist.check": {
     domain: "watchlist",
     action: "check",
@@ -800,13 +262,6 @@ const COMMANDS: Record<string, CommandRule> = {
       symbol: { required: true, type: "string", symbol: true },
     },
     example: { symbol: "600000" },
-  },
-  "watchlist.groups": {
-    domain: "watchlist",
-    action: "groups",
-    description: "获取自选股分组列表。",
-    params: {},
-    example: {},
   },
   "stress.test": {
     domain: "stress",
@@ -1108,7 +563,7 @@ export const quantCliTool: ToolDefinition = {
     "help 等价于 tools.list；help + params.name 等价于 tools.describe，可查看单个命令的参数、示例和用途。 " +
     "适用场景：查询实时行情/批量行情/股票池/基础信息/历史行情/新闻/公告、市场概览/指数历史/行业板块/概念股/宏观/资金流/市场新闻/热搜股票、港股指数/南向资金/技术分析/人气排行、资金流/龙虎榜/高管增减持/基金持仓/股东/融资融券、财务指标/财务报表/港股财务、单只股票买点/技术指标/K线、股票综合评分、多条件选股、因子分析、行业聚合、基准对比、组合优化、策略参数优化、价格预警、压力测试、实盘和回测对比、组合相关性矩阵、因子时效性、生成或读取交易信号、信号裁决、策略表现分析、运行回测、训练模型、查看数据状态和报告。 " +
     "参数格式：command 使用白名单命令名，params 传该命令参数，例如 { command: \"stock.technical\", params: { symbol: \"600000\" } }。 " +
-    "常用命令：help、market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、market.sentiment、stock.batch_quotes、stock.list、analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.quality、analysis.exit_plan、analysis.peers、indicators.list、indicators.detail、indicators.run、indicators.backtest、indicators.compare、indicators.sandbox_columns、strategy.list、strategy.get、strategy.create、strategy.run、strategy.status、screening.sector、screening.quality、hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank、sentiment.stock_fund_flow、sentiment.lhb、sentiment.insider_trades、sentiment.fund_holdings、sentiment.top_fund_stocks、sentiment.top_holders、sentiment.holder_changes、sentiment.margin_data、financial.indicators、financial.valuation、financial.pe_percentile、financial.income_statement、financial.cash_flow、financial.hk_financials、financial.hk_analysis、stock.score、stock.screen、stock.technical、factor.decay、sector.aggregate、benchmark.compare、portfolio.optimize、portfolio.correlation、watch.price_alert、stress.test、risk.trade_check、risk.position_size、risk.stop_loss、trade.verify、signal.list、signal.generate、signal.arbitrate、performance.analyze、backtest.run、backtest.results、data.status、data.full_status、data.update_klines、risk.check、report.daily、report.read_daily、tools.list、tools.describe。" +
+    "常用命令：help、market.overview、market.index_history、market.sectors、market.concept_stocks、market.concepts、market.macro、market.north_flow、market.sector_flow、market.margin、market.news、market.hot_stocks、market.sentiment、stock.batch_quotes、stock.list、analysis.technical、analysis.price_action、analysis.candlestick、analysis.buy_range、analysis.quality、analysis.exit_plan、analysis.peers、indicators.list、indicators.detail、indicators.run、indicators.backtest、indicators.compare、indicators.sandbox_columns、screening.sector、screening.quality、hk.market_overview、hk.south_flow、hk.technical、hk.hot_rank、sentiment.stock_fund_flow、sentiment.lhb、sentiment.insider_trades、sentiment.fund_holdings、sentiment.top_fund_stocks、sentiment.top_holders、sentiment.holder_changes、sentiment.margin_data、financial.indicators、financial.valuation、financial.pe_percentile、financial.income_statement、financial.cash_flow、financial.hk_financials、financial.hk_analysis、stock.score、stock.screen、stock.technical、factor.decay、sector.aggregate、benchmark.compare、portfolio.optimize、portfolio.correlation、watch.price_alert、stress.test、risk.trade_check、risk.position_size、risk.stop_loss、trade.verify、signal.list、signal.generate、signal.arbitrate、performance.analyze、backtest.run、backtest.results、data.status、data.full_status、data.update_klines、risk.check、report.daily、report.read_daily、tools.list、tools.describe。" +
     "不要臆造 command 或参数；不确定时先调用 help、tools.list 或 tools.describe。",
   promptSnippet:
     "量化相关能力统一使用 quant_cli。像 bash 一样先用 command=help 查使用说明书，再选择白名单 command 并把参数放进 params；不要调用旧的分散量化工具。",
@@ -1169,7 +624,7 @@ export const quantCliTool: ToolDefinition = {
     "融资融券个股 → quant_cli sentiment.margin_data",
 
     // 策略与信号
-    "策略执行（单股/批量/流水线）→ quant_cli strategy.execute",
+    "策略执行（单股/批量/流水线）→ strategy_execute（独立工具）",
     "策略参数优化 → strategy_optimize",
     "批量策略验证 → strategy_batch_validate",
     "信号列表/统计/仲裁 → quant_cli signal.list / signal.statistics / signal.arbitrate",
@@ -1188,7 +643,7 @@ export const quantCliTool: ToolDefinition = {
     "组合权重优化/相关性/基准对比/行业聚合 → quant_cli portfolio.optimize / portfolio.correlation / benchmark.compare / sector.aggregate",
 
     // 港股
-    "⚠️ 港股不支持。data_fetch_stock/data_fetch_kline/model_predict对港股均返回错误，hk.* 命令已废弃。分析港股前先告知用户。",
+    "⚠️ 港股不支持。本工具仅支持A股，港股相关命令已移除（2026-06-02）。分析港股前先告知用户暂不支持。",
 
     // 其他
     "自选股管理 → quant_cli watchlist.*",
@@ -1247,74 +702,10 @@ export const quantCliTool: ToolDefinition = {
 
     // ── 策略名称自动转换 ──
     if (command === "signal.generate" && params.strategy_names && !params.strategy_id) {
-      try {
-        const strategyNames = Array.isArray(params.strategy_names)
-          ? params.strategy_names
-          : [params.strategy_names];
-
-        // 查询策略列表
-        const strategiesResponse = await runQuantV2("strategy.list", {});
-        const strategies = (strategiesResponse as any)?.strategies || [];
-
-        // 匹配第一个策略名称
-        const targetName = strategyNames[0];
-        const matched = strategies.find((s: any) =>
-          s.name === targetName || s.name.toLowerCase() === targetName.toLowerCase()
-        );
-
-        if (!matched) {
-          const availableNames = strategies.map((s: any) => s.name).join(", ");
-          return validationError(
-            `未找到策略: ${targetName}`,
-            `可用策略: ${availableNames || "无"}。请使用 strategy.list 查看完整列表。`,
-          );
-        }
-
-        // 转换为 strategy_id
-        params.strategy_id = String(matched.id);
-        delete params.strategy_names;
-      } catch (error) {
-        return validationError(
-          `策略名称转换失败: ${error instanceof Error ? error.message : String(error)}`,
-          `无法查询策略列表。请直接使用 strategy_id 参数，或确保 quantsys-v2 服务正常运行。`,
-        );
-      }
-    }
-
-    // ── strategy.execute 特殊验证 ──
-    if (command === "strategy.execute") {
-      const action = params.action as string;
-
-      // 验证 action 参数
-      if (!action) {
-        return validationError(
-          "缺少必填参数: action",
-          formatCommandHelp(command, rule),
-        );
-      }
-
-      if (!["single", "batch", "pipeline"].includes(action)) {
-        return validationError(
-          "action 只能是 single 或 batch 或 pipeline。原因：该参数只接受预定义的枚举值。",
-          formatCommandHelp(command, rule),
-        );
-      }
-
-      // single 模式需要 symbol
-      if (action === "single" && !params.symbol) {
-        return validationError(
-          "缺少必填参数: symbol。原因：single 模式需要指定单个股票代码。",
-          formatCommandHelp(command, rule),
-        );
-      }
-
-      // batch 模式需要 symbols
-      if (action === "batch" && !params.symbols) {
-        return validationError(
-          "缺少必填参数: symbols。原因：batch 模式需要指定股票列表。",
-          formatCommandHelp(command, rule),
-        );
-      }
+      return validationError(
+        "strategy_names 参数已废弃",
+        "请使用独立工具 strategy_list 查询策略列表，然后通过 strategy_id 参数指定策略。",
+      );
     }
 
     const validation = await validateParams(command, rule, params);
@@ -1323,92 +714,6 @@ export const quantCliTool: ToolDefinition = {
     }
 
     try {
-      // ── strategy.execute 特殊处理 ──
-      if (command === "strategy.execute") {
-        const response = await runQuantV2(command, params);
-        _getEntry(command).v2Success++;
-
-        // ── 集成市场风格检测 ──
-        let marketStyleInfo: any = null;
-        try {
-          // Helper function to convert market style codes to Chinese names
-          const getStyleName = (style: string): string => {
-            const styleNames: Record<string, string> = {
-              'momentum': '动量市',
-              'oscillation': '震荡市',
-              'low_volatility': '低波市',
-              'value': '价值市',
-              'mixed_market': '混合市场',
-              'unknown': '未知市场'
-            };
-            return styleNames[style] || style;
-          };
-
-          // 查询当前市场风格
-          const marketStyleResponse = await fetch('http://127.0.0.1:5001/api/market/style');
-          if (marketStyleResponse.ok) {
-            const marketStyleData = await marketStyleResponse.json() as any;
-            if (marketStyleData.success && marketStyleData.data) {
-              const marketStyle = marketStyleData.data.style;
-
-              // 查询策略权重调整
-              const strategyName = params.strategy || params.strategy_id;
-              const weightResponse = await fetch(
-                `http://127.0.0.1:5001/api/strategies/${strategyName}/weight?market_style=${marketStyle}`
-              );
-
-              if (weightResponse.ok) {
-                const weightData = await weightResponse.json() as any;
-                if (weightData.success && weightData.data) {
-                  marketStyleInfo = {
-                    market_style: marketStyle,
-                    weight_adjustment: weightData.data.weight_adjustment,
-                    style_recommendation: `当前为${getStyleName(marketStyle)}，策略权重调整为${weightData.data.weight_adjustment.toFixed(2)}`
-                  };
-                }
-              }
-            }
-          }
-        } catch (styleError) {
-          // 市场风格查询失败不影响主流程，静默处理
-          console.warn('Market style detection failed:', styleError);
-        }
-
-        const action = params.action as string;
-        let formattedText: string;
-
-        if (action === "single") {
-          // 导入 formatSingleSignal
-          const { formatSingleSignal } = await import("../../quant/formatters.js");
-          formattedText = formatSingleSignal(response as any);
-        } else if (action === "batch") {
-          // 导入 formatBatchSignals
-          const { formatBatchSignals } = await import("../../quant/formatters.js");
-          formattedText = formatBatchSignals(response as any);
-        } else if (action === "pipeline") {
-          // 导入 formatPipelineResult
-          const { formatPipelineResult } = await import("../../quant/formatters.js");
-          formattedText = formatPipelineResult(response as any);
-        } else {
-          formattedText = JSON.stringify(response, null, 2);
-        }
-
-        // 附加市场风格信息到格式化文本
-        if (marketStyleInfo) {
-          formattedText += `\n\n【市场风格分析】\n${marketStyleInfo.style_recommendation}`;
-        }
-
-        // 合并市场风格信息到响应详情
-        const enrichedResponse = marketStyleInfo
-          ? { ...response, ...marketStyleInfo }
-          : response;
-
-        return {
-          content: [{ type: "text" as const, text: formattedText }],
-          details: enrichedResponse,
-        };
-      }
-
       // ── V2 路由：仅使用 quantsys-v2 HTTP API ──
       const response = await runQuantV2(command, params);
       _getEntry(command).v2Success++;
@@ -1515,15 +820,22 @@ function applyParameterMapping(params: Record<string, unknown>): void {
 
 /**
  * 获取策略列表提示文本（用于 strategy_id 参数缺失时的错误消息）
+ * 注意：strategy.* 命令已移除，使用独立工具 strategy_list
  * @returns 格式化的策略列表提示，或降级提示（查询失败时）
  */
 export async function fetchStrategyListHint(): Promise<string> {
   try {
-    const response = await runQuantV2("strategy.list", {});
-    const strategies = (response as any)?.strategies || [];
+    // 直接调用 v2 API（避免使用已移除的 strategy.list 命令）
+    const response = await fetch('http://127.0.0.1:5001/api/strategies');
+    if (!response.ok) {
+      return "提示：使用独立工具 strategy_list 查看可用策略列表。";
+    }
+
+    const data = await response.json() as any;
+    const strategies = data?.strategies || [];
 
     if (strategies.length === 0) {
-      return "提示：当前系统中没有可用策略。请先使用 strategy.create 创建策略。";
+      return "提示：当前系统中没有可用策略。请先使用 strategy_create 创建策略。";
     }
 
     // 格式化策略列表（最多显示前 10 个）
@@ -1536,11 +848,11 @@ export async function fetchStrategyListHint(): Promise<string> {
       ? `\n\n（共 ${strategies.length} 个策略，仅显示前 10 个）`
       : '';
 
-    return `可用策略列表：\n${strategyLines}${moreHint}\n\n提示：使用 strategy.list 命令可查看完整策略详情。`;
+    return `可用策略列表：\n${strategyLines}${moreHint}\n\n提示：使用独立工具 strategy_list 可查看完整策略详情。`;
 
   } catch (error) {
     // 降级：查询失败时返回通用提示
-    return "提示：使用 strategy.list 命令查看可用策略列表。";
+    return "提示：使用独立工具 strategy_list 查看可用策略列表。";
   }
 }
 

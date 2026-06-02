@@ -7,9 +7,9 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "dev:log": "tsx src/index-with-logger.ts",
-    "feishu": "tsx src/api/feishu.ts",
+    "dev": "NODE_OPTIONS='--max-old-space-size=8192' tsx src/index.ts",
+    "dev:log": "NODE_OPTIONS='--max-old-space-size=8192' tsx src/index-with-logger.ts",
+    "feishu": "NODE_OPTIONS='--max-old-space-size=8192' tsx src/api/feishu.ts",
     "dashboard": "bash start-dashboard.sh",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",

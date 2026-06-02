@@ -83,7 +83,7 @@ const V2_ROUTES: Record<
   // ── market ──
   "market.overview":      { path: "/api/stocks/market/overview",          method: "GET" },
   "market.sectors":       { path: "/api/market/sectors",                 method: "GET" },
-  "market.sentiment":     { path: "/api/market/sentiment",               method: "GET" },
+  "market.sentiment":     { path: "/api/market/sentiment",               method: "GET" },  // ✅ v2 原生实现完成
   "market.macro":         { path: "/api/market/macro",                   method: "GET" },
   "market.news":          { path: "/api/market/news",                    method: "GET" },
   "market.margin":        { path: "/api/market/margin",                  method: "GET" },
@@ -96,24 +96,24 @@ const V2_ROUTES: Record<
   "financial.indicators":   { path: "/api/stock/{symbol}/indicators",    method: "GET" },
   // financial.statements 已移除 — 使用专用工具 data_fetch_financial
   "financial.valuation":    { path: "/api/stock/{symbol}/valuation",     method: "GET" },
-  "financial.pe_percentile":{ path: "/api/stock/{symbol}/pe-percentile", method: "GET" },
+  "financial.pe_percentile":{ path: "/api/stock/{symbol}/pe-percentile", method: "GET" },  // ✅ v2 原生实现完成
 
   // ── screening ──
   "screening.sector":  { path: "/api/market/sector/{sector}",  method: "GET" },
   "screening.quality": { path: "/api/screening/quality",        method: "GET" },
 
   // ── sentiment ──
-  "sentiment.stock_fund_flow": { path: "/api/stock/{symbol}/fund-flow",     method: "GET" },
-  "sentiment.margin_data":     { path: "/api/stock/{symbol}/margin",         method: "GET" },
+  "sentiment.stock_fund_flow": { path: "/api/stock/{symbol}/fund-flow",     method: "GET" },  // ✅ v2 原生实现完成
+  "sentiment.margin_data":     { path: "/api/stock/{symbol}/margin",         method: "GET" },  // ✅ v2 原生实现完成
   "sentiment.lhb":             { path: "/api/stock/{symbol}/lhb",            method: "GET" },
-  "sentiment.fund_holdings":   { path: "/api/stock/{symbol}/fund-holdings", method: "GET" },
-  "sentiment.top_fund_stocks": { path: "/api/funds/top-stocks",              method: "GET" },
-  "sentiment.top_holders":     { path: "/api/stock/{symbol}/top-holders",   method: "GET" },
-  "sentiment.holder_changes":  { path: "/api/stock/{symbol}/holder-changes",method: "GET" },
+  "sentiment.fund_holdings":   { path: "/api/stock/{symbol}/fund-holdings",  method: "GET" },  // ✅ v2 原生实现完成
+  "sentiment.top_fund_stocks": { path: "/api/sentiment/top-fund-stocks",     method: "GET" },  // ✅ v2 原生实现完成
+  "sentiment.top_holders":     { path: "/api/stock/{symbol}/top-holders",    method: "GET" },  // ✅ v2 原生实现完成
+  "sentiment.holder_changes":  { path: "/api/stock/{symbol}/holder-changes", method: "GET" },  // ✅ v2 原生实现完成
 
   // ── stock analytics ──
-  "stock.score":  { path: "/api/stock/{symbol}/score", method: "GET" },
-  "stock.screen": { path: "/api/stocks/screen",        method: "GET" },
+  "stock.score":  { path: "/api/stock/{symbol}/score", method: "GET" },  // ✅ v2 原生实现完成
+  "stock.screen": { path: "/api/stocks/screen",        method: "GET" },  // ✅ v2 原生实现完成
 
   // ── stock queries ──
   "stock.batch_quotes":  { path: "/api/stocks/batch-quotes",         method: "POST" },
@@ -121,12 +121,14 @@ const V2_ROUTES: Record<
   // stock.news 已移除 — 使用专用工具 data_fetch_stock
 
   // ── sentiment extra ──
-  "sentiment.insider_trades": { path: "/api/stock/{symbol}/insider-trades", method: "GET" },
+  "sentiment.insider_trades":  { path: "/api/stock/{symbol}/insider-trades", method: "GET" },  // ✅ v2 原生实现完成
 
   // ── analysis ──
   "analysis.peers":      { path: "/api/stock/{symbol}/peers",          method: "GET" },
   "analysis.peer_comparison": { path: "/api/stock/{symbol}/peers",          method: "GET" },  // alias
   "analysis.swing_points": { path: "/api/analysis/swing-points",       method: "POST" },
+  // "analysis.candlestick": 未实现 - 依赖 v1 quantsys 模块
+  // "analysis.quality": 未实现 - 依赖 v1 quantsys 模块
 
   // ── HK market ──
   "hk.market_overview":   { path: "/api/hk/overview",              method: "GET" },
@@ -1421,6 +1423,22 @@ export async function scanAndCreatePool(
 ): Promise<any> {
   const url = `${V2_API_BASE}/api/pools/scan-and-create`;
   return fetchV2(url, { method: "POST", body: params });
+}
+
+export interface PoolMemberUpdateParams {
+  description?: string;
+  buy_point?: string;
+  sell_point?: string;
+  tags?: string[];
+}
+
+export async function updatePoolMember(
+  poolId: number,
+  symbol: string,
+  data: PoolMemberUpdateParams,
+): Promise<any> {
+  const url = `${V2_API_BASE}/api/pools/${poolId}/members/${symbol}`;
+  return fetchV2(url, { method: "PUT", body: data });
 }
 
 // ─── Combo Backtest ───────────────────────────────────────

@@ -69,11 +69,11 @@ import { indicatorBacktestTool } from "./indicator/backtest-tool.js";
 import { indicatorCompareTool } from "./indicator/compare-tool.js";
 import { indicatorSandboxColumnsTool } from "./indicator/sandbox-columns-tool.js";
 
-// L4 组合构建
-// portfolioRebalanceTool 已删除（依赖已移除的服务）
+// L4 组合构建层
+// 注：portfolioRebalanceTool 已移除（2026-05-27，依赖已废弃的本地服务）
 
-// L5 执行引擎
-// tradeManageOrdersTool 已删除（依赖已移除的服务）
+// L5 执行引擎层
+// 注：tradeManageOrdersTool 已移除（2026-05-27，依赖已废弃的本地服务）
 import { algoExecuteTool } from "./trade/algo-execute-tool.js";
 import { signalExecutionTool } from "./execution/signal-execution-tool.js";
 
@@ -94,6 +94,19 @@ import { experienceWriteTool } from "./agent/experience-write-tool.js";
 import { restartAgentTool } from "./agent/restart-agent-tool.js";
 import { backendControlTool } from "./agent/backend-control-tool.js";
 import { claudeCodeTool } from './agent/claude-code-tool.js';
+import { toolStatsQueryTool } from './agent/tool-stats-tool.js';
+
+// ===== CLI 领域工具（拆分自 quant-cli-tool）=====
+import {
+  marketCliTool,
+  stockCliTool,
+  financialCliTool,
+  sentimentCliTool,
+  analysisCliTool,
+  signalCliTool,
+  backtestCliTool,
+  watchlistCliTool
+} from './cli/index.js';
 
 // ===== 核心基础设施工具（向后兼容，待迁移） =====
 import { quantCliTool } from "./core/quant-cli-tool.js";
@@ -188,11 +201,8 @@ export const allCustomTools = [
   indicatorCompareTool,           // indicator_compare - 对比两个指标
   indicatorSandboxColumnsTool,    // indicator_sandbox_columns - 沙箱可用列
 
-  // L4 组合构建
-  // portfolioRebalanceTool 已删除
-
-  // L5 执行引擎
-  // tradeManageOrdersTool 已删除
+  // L4 组合构建层（已移除工具：portfolio_rebalance）
+  // L5 执行引擎层（已移除工具：trade_manage_orders）
   algoExecuteTool,                // trade_algo_execute - 算法交易执行
   signalExecutionTool,            // signal_execution - 信号执行管理
 
@@ -204,7 +214,17 @@ export const allCustomTools = [
   experienceWriteTool,            // experience_write - 写入投资经验
 
   // ===== 量化工具 — 统一通过 QuantSys CLI 调用 =====
-  quantCliTool,                   // quant_cli
+  quantCliTool,                   // quant_cli - 原统一CLI工具（向后兼容）
+
+  // ===== CLI 领域工具（推荐使用）=====
+  marketCliTool,                  // market_cli - 市场数据查询
+  stockCliTool,                   // stock_cli - 个股数据查询
+  financialCliTool,               // financial_cli - 财务数据查询
+  sentimentCliTool,               // sentiment_cli - 市场情绪分析
+  analysisCliTool,                // analysis_cli - 股票分析工具
+  signalCliTool,                  // signal_cli - 信号测试管理
+  backtestCliTool,                // backtest_cli - 策略回测工具
+  watchlistCliTool,               // watchlist_cli - 自选股管理
 
   // ===== 通知 & 监控工具 — 消息推送、实时盯盘 =====
   scheduleNextCheckTool,          // schedule_next_check - 设置下次盯盘时间
@@ -216,6 +236,7 @@ export const allCustomTools = [
   restartAgentTool,
   backendControlTool,
   claudeCodeTool,
+  toolStatsQueryTool,             // tool_stats_query - 工具使用统计查询
 
   // ===== 中频 — 记忆 =====
   memoryWriteTool,
