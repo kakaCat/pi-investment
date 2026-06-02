@@ -77,6 +77,81 @@ Layered architecture:
 - **8-layer system prompt**: Built in `src/services/intelligence/system-prompt-builder.ts` — Identity → Soul → Tools → Skills → Memory → Bootstrap → Runtime → Channel.
 - **Data sources**: `src/infrastructure/data-sources/` — eastmoney, sina, sina-fx, stooq, technical indicators; falls back to Python/akshare bridge.
 
+### Python Quant Backend (`quantsys-v2/`)
+
+#### 多数据源抽象架构（2026-06-02 新增）
+
+**背景**：统一数据访问，消除直接 `import akshare`，支持多数据源自动 failover。
+
+**核心组件**：
+- **DataSourceManager** (`data_sources/manager.py`) — 统一数据访问入口
+  - 管理多个数据源（AkShare、东方财富、新浪、腾讯等）
+  - 按优先级自动 failover
+  - 集成熔断器防止持续调用失败源
+  - 集成缓存减少重复 API 调用
+  - 统计追踪（成功率、延迟、缓存命中率）
+
+- **CircuitBreaker** (`data_sources/circuit_breaker.py`) — 熔断器
+  - 三状态：CLOSED（正常）→ OPEN（熔断）→ HALF_OPEN（测试恢复）
+  - 失败达到阈值后自动打开
+  - 超时后尝试恢复
+
+- **DataSourceCache** (`data_sources/cache.py`) — TTL 缓存
+  - 基于方法名和参数自动生成缓存键
+  - LRU 淘汰策略
+  - 仅缓存成功的响应
+
+**配置文件**：`data_sources/sources_config.yaml`
+```yaml
+market_data:
+  sources:
+    - name: akshare
+      priority: 1          # 优先级（1 最高）
+      enabled: true
+      timeout: 10
+      max_failures: 3      # 熔断器阈值
+      circuit_timeout: 60  # 恢复测试超时
+    - name: eastmoney
+      priority: 2
+      ...
+  fallback_strategy: sequential  # 顺序尝试
+  cache:
+    enabled: true
+    ttl: 60              # 缓存 60 秒
+    max_size: 1000       # 最大 1000 条
+```
+
+**使用方式**：
+```python
+from data_sources.manager import get_data_source_manager
+
+manager = get_data_source_manager()
+
+# 自动尝试所有数据源，直到成功
+result = manager.get_stock_info("600000.SH")
+if result.success:
+    print(result.data)
+```
+
+**已实现功能**：
+- ✅ 多数据源管理和自动 failover
+- ✅ 熔断器（防止级联失败）
+- ✅ TTL 缓存（减少 API 调用）
+- ✅ 统计追踪（成功率、缓存命中率）
+- ✅ 方法级数据源覆盖
+- ✅ 单元测试（9/9 通过）
+
+**待实现功能**（Phase 2-5）：
+- ⏳ 新增数据源：EastMoneySource、SinaSource、TencentSource
+- ⏳ LLM 浏览器兜底（WebSearch/WebFetch）
+- ⏳ Services 层重构（使用 DataSourceManager）
+- ⏳ 扩展 BaseMarketAdapter（覆盖更多 API）
+
+**文档位置**：
+- 设计方案：`.claude/plans/multi-source-data-abstraction-plan.md`
+- Phase 1 报告：`docs/features/multi-source-data-abstraction-phase1-report.md`
+- 演示脚本：`data_sources/demo.py`
+
 ## Agent 工具系统
 
 ### 六层量化投资架构
