@@ -8,6 +8,9 @@ import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { runQuantV2 } from "../../quant/quant-v2-client.js";
 import { wrapToolExecution } from "../shared/error-handler.js";
+import { writeFileSync, mkdirSync } from "fs";
+import { join } from "path";
+import { paths } from "../../../config/config.js";
 
 type CommandRule = {
   domain: string;
@@ -152,14 +155,44 @@ export const marketCliTool: ToolDefinition = {
         // 调用 v2 API
         const response = await runQuantV2(command, params);
 
+        // 确保输出目录存在
+        mkdirSync(paths.toolOutputsDir, { recursive: true });
+
+        // 生成文件名：命令名-时间戳.json
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `${command.replace(/\./g, '-')}-${timestamp}.json`;
+        const filePath = join(paths.toolOutputsDir, fileName);
+
+        // 写入文件
+        const outputData = {
+          command,
+          params,
+          timestamp: new Date().toISOString(),
+          data: response
+        };
+        writeFileSync(filePath, JSON.stringify(outputData, null, 2), 'utf-8');
+
+        // 返回文件路径信息
+        const resultText = `数据已保存到文件: ${filePath}\n\n` +
+          `文件包含以下内容：\n` +
+          `- 命令: ${command}\n` +
+          `- 参数: ${JSON.stringify(params)}\n` +
+          `- 时间戳: ${outputData.timestamp}\n` +
+          `- 数据: 请使用 Read 工具读取完整数据\n\n` +
+          `相对路径: .pi-invest/tool-outputs/${fileName}`;
+
         return {
           content: [{
             type: "text" as const,
-            text: typeof response === 'string'
-              ? response
-              : JSON.stringify(response, null, 2)
+            text: resultText
           }],
-          details: response
+          details: {
+            filePath,
+            fileName,
+            command,
+            params,
+            timestamp: outputData.timestamp
+          }
         };
       },
       {

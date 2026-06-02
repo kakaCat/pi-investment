@@ -29,21 +29,6 @@ const SIGNAL_COMMANDS: Record<string, CommandRule> = {
     },
     example: { date: "2026-06-01", status: "pending", limit: 20 },
   },
-  "signal.generate": {
-    domain: "signal",
-    action: "generate",
-    description:
-      "⚠️ DEPRECATED: 请使用独立工具 strategy_execute（action='batch'）。\n" +
-      "此命令将在 v3.0 移除。\n\n" +
-      "使用指定策略对股票列表生成最新交易信号（real strategy execution）。",
-    params: {
-      strategy_id: { required: true, type: "string" },
-      symbols: { type: "array" },
-    },
-    example: { strategy_id: "53", symbols: ["600000", "000425"] },
-    deprecated: true,
-    replacement: "strategy_execute"
-  },
   "signal.arbitrate": {
     domain: "signal",
     action: "arbitrate",
@@ -73,9 +58,8 @@ export const signalCliTool: ToolDefinition = {
   name: "signal_cli",
   label: "信号测试管理",
   description:
-    "管理交易信号：查询历史信号、生成信号（已废弃）、信号仲裁、准确率统计。" +
-    "适用场景：信号回测、准确率分析、冲突处理。" +
-    "注意：signal.generate 已废弃，请使用 strategy_execute 工具。",
+    "管理交易信号：查询历史信号、信号仲裁、准确率统计。" +
+    "适用场景：信号回测、准确率分析、冲突处理。",
 
   parameters: Type.Object({
     command: Type.Union(

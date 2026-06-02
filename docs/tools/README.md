@@ -69,7 +69,7 @@
 - **多策略验证** → `pool_validate`
 
 ### 回测和验证
-- **单策略回测** → `backtest_cli`
+- **指标回测** → `indicator_backtest`
 - **组合策略回测** → `strategy_combo_backtest` (支持 Portfolio/Ensemble/Pipeline 三种模式)
 - **历史绩效分析** → `quant_cli performance.*`
 

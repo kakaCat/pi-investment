@@ -1,9 +1,11 @@
 /**
  * BackgroundTaskManager - 异步工具调用管理器
  *
- * 参考 s08_background_tasks.py，但专注于工具调用而非 shell 命令
+ * 注意：由于 tsx + Worker 的模块解析限制，改用主线程异步执行
+ * 虽然不是真正的并行（CPU密集型任务仍会阻塞），但对于 I/O 密集型工具
+ * （如网络请求、数据库查询）仍能实现并发效果。
  *
- * 核心机制：实现真正的并行工具调用
+ * 核心机制：实现异步工具调用
  * ==========================================
  *
  * 问题：Agent 直接调用工具是同步的（串行执行）
@@ -12,11 +14,11 @@
  * - 调用 get_financial_data → 等待 2 秒 → 返回
  * 总耗时：7 秒
  *
- * 解决：使用 Worker 线程实现真并行
+ * 解决：使用 Promise.all 实现并发执行
  * - background_run(1, "get_stock_info", {...}) → 立即返回
  * - background_run(2, "get_quality_score", {...}) → 立即返回
  * - background_run(3, "get_financial_data", {...}) → 立即返回
- * - 三个工具在独立的 Worker 线程中并行执行
+ * - 三个工具作为 Promise 并发执行（I/O 异步）
  * - 下一轮通过 drainNotifications() 获取所有完成的结果
  * 总耗时：3 秒（最慢的那个工具）
  *
@@ -29,17 +31,11 @@
  *
  * 关键点：
  * - background_run 不阻塞，立即返回任务 ID
- * - 工具在 Worker 线程中执行，不影响主线程
- * - 多个 background_run 可以真正并行执行
+ * - 工具在主线程异步执行，I/O 操作仍能并发
+ * - 多个 background_run 可以并发执行（异步 I/O）
  * - Agent 必须在系统提示词中被告知使用这个机制
  */
-import { Worker } from "worker_threads";
 import { randomUUID } from "crypto";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // 动态导入 logger（避免循环依赖）
 let logEvent: ((event: string, data: any) => void) | null = null;
@@ -87,7 +83,7 @@ export class BackgroundTaskManager {
   }
 
   /**
-   * 异步执行工具调用
+   * 异步执行工具调用（在主线程中，使用 Promise 异步执行）
    */
   async run(taskId: number, toolName: string, params: any): Promise<string> {
     const id = randomUUID().slice(0, 8);
@@ -111,91 +107,93 @@ export class BackgroundTaskManager {
       params
     });
 
-    // 使用 Worker 线程执行工具
-    this._executeInWorker(id, toolName, params);
+    // 在主线程中异步执行工具（不阻塞，立即返回）
+    this._executeAsync(id, toolName, params).catch(error => {
+      // 捕获未处理的错误
+      console.error(`[BackgroundTask ${id}] Unhandled error:`, error);
+    });
 
     return `Background task ${id} started for task #${taskId}: ${toolName}`;
   }
 
-  private _executeInWorker(id: string, toolName: string, params: any): void {
-    // 根据运行环境选择正确的文件扩展名
-    // 开发模式 (tsx): 使用 .ts 文件，因为 __dirname 指向 src/
-    // 生产模式 (node): 使用编译后的 .js 文件，因为 __dirname 指向 dist/
-    const isTsx = process.execArgv.some(arg =>
-      arg.includes('tsx') || arg.includes('preflight.cjs')
-    );
-    const ext = isTsx ? 'ts' : 'js';
-    const workerPath = join(__dirname, `tool-worker.${ext}`);
+  /**
+   * 在主线程中异步执行工具
+   */
+  private async _executeAsync(id: string, toolName: string, params: any): Promise<void> {
+    const task = this.tasks.get(id);
+    if (!task) return;
 
-    const worker = new Worker(workerPath, {
-      workerData: {
-        toolName,
-        params,
-        timeout: this.timeout
+    try {
+      // 动态导入工具注册表
+      const { allCustomTools } = await import("../../infrastructure/tools/index.js");
+      const tool = allCustomTools.find(t => t.name === toolName);
+
+      if (!tool) {
+        throw new Error(`Tool not found: ${toolName}`);
       }
-    });
 
-    worker.on("message", (result: { output?: any; error?: string }) => {
-      const task = this.tasks.get(id);
-      if (!task) return;
+      // 创建 AbortSignal 和超时
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => {
+        abortController.abort();
+      }, this.timeout);
+
+      // 执行工具
+      const result = await tool.execute(
+        "background-call",
+        params,
+        abortController.signal,
+        undefined, // onUpdate callback
+        {} as any  // ExtensionContext (minimal mock)
+      );
+
+      clearTimeout(timeoutId);
 
       const duration = Date.now() - task.startTime;
+      task.status = "completed";
+      task.result = result;
 
-      if (result.error) {
-        task.status = "error";
-        task.error = result.error;
-        this.notificationQueue.push({
-          taskId: task.taskId,
-          backgroundId: id,
-          status: "error",
-          result: result.error,
-          duration,
-        });
-
-        // 记录错误事件
-        this.logEvent("background_task.error", {
-          background_id: id,
-          task_id: task.taskId,
-          tool_name: task.toolName,
-          error: result.error,
-          duration_ms: duration
-        });
-      } else {
-        task.status = "completed";
-        task.result = result.output;
-        this.notificationQueue.push({
-          taskId: task.taskId,
-          backgroundId: id,
-          status: "completed",
-          result: result.output,
-          duration,
-        });
-
-        // 记录完成事件
-        this.logEvent("background_task.completed", {
-          background_id: id,
-          task_id: task.taskId,
-          tool_name: task.toolName,
-          duration_ms: duration,
-          result_preview: JSON.stringify(result.output).slice(0, 200)
-        });
-      }
-    });
-
-    worker.on("error", (error) => {
-      const task = this.tasks.get(id);
-      if (!task) return;
-
-      task.status = "error";
-      task.error = error.message;
       this.notificationQueue.push({
         taskId: task.taskId,
         backgroundId: id,
-        status: "error",
-        result: `Worker error: ${error.message}`,
-        duration: Date.now() - task.startTime,
+        status: "completed",
+        result: result,
+        duration,
       });
-    });
+
+      // 记录完成事件
+      this.logEvent("background_task.completed", {
+        background_id: id,
+        task_id: task.taskId,
+        tool_name: task.toolName,
+        duration_ms: duration,
+        result_preview: JSON.stringify(result).slice(0, 200)
+      });
+
+    } catch (error) {
+      const duration = Date.now() - task.startTime;
+      const message = error instanceof Error ? error.message : String(error);
+
+      task.status = error instanceof Error && error.name === "AbortError" ? "timeout" : "error";
+      task.error = message;
+
+      this.notificationQueue.push({
+        taskId: task.taskId,
+        backgroundId: id,
+        status: task.status,
+        result: message,
+        duration,
+      });
+
+      // 记录错误事件
+      this.logEvent("background_task.error", {
+        background_id: id,
+        task_id: task.taskId,
+        tool_name: task.toolName,
+        error: message,
+        duration_ms: duration
+      });
+    }
   }
 
   /**

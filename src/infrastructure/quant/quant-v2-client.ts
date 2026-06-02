@@ -62,8 +62,8 @@ const V2_ROUTES: Record<
 > = {
   // ── stock ──
   "stock.list":      { path: "/api/stocks/list",          method: "GET" },
-  // stock.info 已移除 — 使用专用工具 data_fetch_stock
-  // stock.quote 已移除 — 使用专用工具 data_fetch_stock
+  // stock.info 已移除 — 使用专用工具 data_fetch_quote
+  // stock.quote 已移除 — 使用专用工具 data_fetch_quote
   // stock.klines 已移除 — 使用专用工具 data_fetch_kline
   // stock.history 已移除 — 使用专用工具 data_fetch_kline
   "stock.technical": { path: "/api/stock/{symbol}/technical", method: "GET" },
@@ -117,8 +117,8 @@ const V2_ROUTES: Record<
 
   // ── stock queries ──
   "stock.batch_quotes":  { path: "/api/stocks/batch-quotes",         method: "POST" },
-  // stock.announcements 已移除 — 使用专用工具 data_fetch_stock
-  // stock.news 已移除 — 使用专用工具 data_fetch_stock
+  // stock.announcements 已移除 — 功能已整合到 stock_cli
+  // stock.news 已移除 — 功能已整合到 stock_cli
 
   // ── sentiment extra ──
   "sentiment.insider_trades":  { path: "/api/stock/{symbol}/insider-trades", method: "GET" },  // ✅ v2 原生实现完成

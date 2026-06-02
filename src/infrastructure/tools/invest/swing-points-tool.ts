@@ -21,8 +21,8 @@ function formatSwingResult(data: Record<string, unknown>): string {
   const lines: string[] = [];
   const symbol = data.symbol as string;
   const period = data.period as Record<string, string>;
-  const minChange = data.min_change as number;
-  const klineCount = data.kline_count as number;
+  const minChange = data.minChange as number;
+  const klineCount = data.klineCount as number;
 
   lines.push(`📊 ${symbol} ZigZag 波段分析`);
   lines.push(`📅 ${period?.start} ~ ${period?.end}（${klineCount} 根K线）`);
@@ -30,12 +30,12 @@ function formatSwingResult(data: Record<string, unknown>): string {
   lines.push("");
 
   // 买卖点列表
-  const points = (data.swing_points || []) as Array<Record<string, unknown>>;
+  const points = (data.swingPoints || []) as Array<Record<string, unknown>>;
   if (points.length > 0) {
     lines.push(`🔄 拐点列表（共 ${points.length} 个）：`);
     for (const pt of points) {
       const icon = pt.type === "low" ? "🟢买" : "🔴卖";
-      const change = pt.change_pct as number;
+      const change = pt.changePct as number;
       const changeStr = change > 0 ? `+${change}%` : change < 0 ? `${change}%` : "";
       lines.push(`  ${icon} ${pt.date}  ¥${pt.price}  ${changeStr}`);
     }
@@ -48,11 +48,11 @@ function formatSwingResult(data: Record<string, unknown>): string {
     lines.push(`💰 交易配对（共 ${trades.length} 笔）：`);
     for (let i = 0; i < trades.length; i++) {
       const t = trades[i];
-      const pct = t.profit_pct as number;
+      const pct = t.profitPct as number;
       const icon = pct >= 0 ? "✅" : "❌";
       lines.push(
-        `  ${i + 1}. ${icon} 买 ${t.buy_date} ¥${t.buy_price} → 卖 ${t.sell_date} ¥${t.sell_price}  ` +
-          `${pct >= 0 ? "+" : ""}${pct}%  持仓${t.holding_days}天`
+        `  ${i + 1}. ${icon} 买 ${t.buyDate} ¥${t.buyPrice} → 卖 ${t.sellDate} ¥${t.sellPrice}  ` +
+          `${pct >= 0 ? "+" : ""}${pct}%  持仓${t.holdingDays}天`
       );
     }
     lines.push("");
@@ -60,15 +60,15 @@ function formatSwingResult(data: Record<string, unknown>): string {
 
   // 统计摘要
   const s = data.summary as Record<string, unknown>;
-  if (s && (s.total_trades as number) > 0) {
+  if (s && (s.totalTrades as number) > 0) {
     lines.push("📈 统计摘要：");
-    lines.push(`  交易次数: ${s.total_trades}（盈${s.win_count}/亏${s.loss_count}）`);
-    lines.push(`  胜率: ${s.win_rate}%`);
-    lines.push(`  累计收益: ${(s.total_return as number) >= 0 ? "+" : ""}${s.total_return}%`);
-    lines.push(`  平均收益: ${(s.avg_return as number) >= 0 ? "+" : ""}${s.avg_return}%`);
-    lines.push(`  最大盈利: +${s.max_return}%`);
-    lines.push(`  最大亏损: ${s.max_loss}%`);
-    lines.push(`  平均持仓: ${s.avg_holding_days} 天`);
+    lines.push(`  交易次数: ${s.totalTrades}（盈${s.winCount}/亏${s.lossCount}）`);
+    lines.push(`  胜率: ${s.winRate}%`);
+    lines.push(`  累计收益: ${(s.totalReturn as number) >= 0 ? "+" : ""}${s.totalReturn}%`);
+    lines.push(`  平均收益: ${(s.avgReturn as number) >= 0 ? "+" : ""}${s.avgReturn}%`);
+    lines.push(`  最大盈利: +${s.maxReturn}%`);
+    lines.push(`  最大亏损: ${s.maxLoss}%`);
+    lines.push(`  平均持仓: ${s.avgHoldingDays} 天`);
   }
 
   if (data.message) {

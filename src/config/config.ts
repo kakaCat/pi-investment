@@ -55,6 +55,8 @@ export const paths = {
     join(process.cwd(), "plugins"),
     join(process.cwd(), ".pi-invest", "plugins"),
   ],
+  /** 工具输出目录：存储工具生成的文件供 LLM 读取 */
+  toolOutputsDir: join(process.cwd(), ".pi-invest", "tool-outputs"),
 };
 
 /**

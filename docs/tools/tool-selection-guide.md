@@ -117,7 +117,8 @@
 ```
 回测类型？
   ├─ 单策略回测
-  │   → backtest_cli (command="backtest.run", strategy_id, start_date, end_date)
+  │   → indicator_backtest (indicator_id, symbol, start_date, end_date)
+  │   专门用于指标回测
   │
   ├─ 组合策略回测（新功能 2026-06-02）
   │   → strategy_combo_backtest
@@ -189,7 +190,7 @@
   ├─ 信号测试 → signal_cli
   │   4个命令：signal.list, signal.generate 等
   │
-  ├─ 回测 → backtest_cli
+  ├─ 回测 → indicator_backtest
   │   3个命令：backtest.run, backtest.results 等
   │
   └─ 自选股 → watchlist_cli

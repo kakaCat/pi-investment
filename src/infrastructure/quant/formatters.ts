@@ -630,6 +630,21 @@ export function formatStrategySignal(signal: import('./types.js').StrategySignal
 }
 
 /**
+ * Helper function to format date field, handling NaN values
+ */
+function formatDateField(dateStr: string | number | null | undefined): string {
+  if (dateStr === null || dateStr === undefined) return '未公布';
+
+  const str = String(dateStr).toLowerCase();
+  // Check for NaN, nan, null, undefined, empty string
+  if (str === 'nan' || str === 'null' || str === 'undefined' || str.trim() === '') {
+    return '未公布';
+  }
+
+  return String(dateStr);
+}
+
+/**
  * Format dividend data into readable text
  */
 export function formatDividendData(data: import('./types.js').DividendResponse, mode: string): string {
@@ -651,7 +666,7 @@ export function formatDividendData(data: import('./types.js').DividendResponse, 
     dividends?.slice(0, 5).forEach(d => {
       output += `  ${d.fiscal_year}年: 每股${d.cash_per_share.toFixed(2)}元, `;
       output += `股息率${d.dividend_yield.toFixed(2)}%, `;
-      output += `除权日${d.ex_dividend_date}, ${d.status}\n`;
+      output += `除权日${formatDateField(d.ex_dividend_date)}, ${d.status}\n`;
     });
 
     if (dividends && dividends.length > 5) {

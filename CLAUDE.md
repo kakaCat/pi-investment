@@ -206,9 +206,6 @@ if result.success:
 **信号测试管理** - `signal_cli` (4个命令):
 - signal.list, signal.generate, signal.arbitrate, signal.statistics
 
-**策略回测工具** - `backtest_cli` (3个命令):
-- backtest.run, backtest.results, backtest.strategy
-
 **自选股管理** - `watchlist_cli` (5个命令):
 - watchlist.list, watchlist.add, watchlist.remove
 - watchlist.update, watchlist.groups
@@ -224,14 +221,12 @@ stock_cli({ command: "stock.score", params: { symbol: "600000" } })
 // 财务指标
 financial_cli({ command: "financial.indicators", params: { symbol: "600000" } })
 
-// 回测策略
-backtest_cli({ 
-  command: "backtest.run", 
-  params: { 
-    strategy_id: "53", 
-    start_date: "2025-01-01", 
-    end_date: "2025-12-31" 
-  } 
+// 指标回测（专用工具）
+indicator_backtest({ 
+  indicator_id: 1, 
+  symbol: "600000", 
+  start_date: "2025-01-01", 
+  end_date: "2025-12-31" 
 })
 ```
 
@@ -410,9 +405,6 @@ backtest_cli({
 - `signal_cli` — 信号测试管理（4个命令）
   - signal.list, signal.generate, signal.arbitrate, signal.statistics
 
-- `backtest_cli` — 策略回测工具（3个命令）
-  - backtest.run, backtest.results, backtest.strategy
-
 - `watchlist_cli` — 自选股管理（5个命令）
   - watchlist.list, watchlist.add, watchlist.remove
   - watchlist.update, watchlist.groups
@@ -428,14 +420,12 @@ stock_cli({ command: "stock.score", params: { symbol: "600000" } })
 // 财务指标
 financial_cli({ command: "financial.indicators", params: { symbol: "600000" } })
 
-// 回测策略
-backtest_cli({ 
-  command: "backtest.run", 
-  params: { 
-    strategy_id: "53", 
-    start_date: "2025-01-01", 
-    end_date: "2025-12-31" 
-  } 
+// 指标回测（专用工具）
+indicator_backtest({ 
+  indicator_id: 1, 
+  symbol: "600000", 
+  start_date: "2025-01-01", 
+  end_date: "2025-12-31" 
 })
 ```
 

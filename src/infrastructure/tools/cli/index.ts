@@ -8,5 +8,4 @@ export { financialCliTool } from './financial-cli-tool.js';
 export { sentimentCliTool } from './sentiment-cli-tool.js';
 export { analysisCliTool } from './analysis-cli-tool.js';
 export { signalCliTool } from './signal-cli-tool.js';
-export { backtestCliTool } from './backtest-cli-tool.js';
 export { watchlistCliTool } from './watchlist-cli-tool.js';

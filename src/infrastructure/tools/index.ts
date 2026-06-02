@@ -18,7 +18,7 @@ import { readTool } from "@mariozechner/pi-coding-agent";
 
 // ===== 六层量化投资架构工具 =====
 // L1 数据管道
-import { dataFetchStockTool } from "./data/fetch-stock-tool.js";
+import { dataFetchQuoteTool } from "./data/fetch-stock-tool.js";
 import { dataFetchKlineTool } from "./data/fetch-kline-tool.js";
 import { dataFetchFinancialTool } from "./data/fetch-financial-tool.js";
 import { dataFetchDividendTool } from "./data/fetch-dividend-tool.js";
@@ -64,10 +64,7 @@ import { indicatorDetailTool } from "./indicator/detail-tool.js";
 import { indicatorCreateTool } from "./indicator/create-tool.js";
 import { indicatorUpdateTool } from "./indicator/update-tool.js";
 import { indicatorDeleteTool } from "./indicator/delete-tool.js";
-import { indicatorRunTool } from "./indicator/run-tool.js";
 import { indicatorBacktestTool } from "./indicator/backtest-tool.js";
-import { indicatorCompareTool } from "./indicator/compare-tool.js";
-import { indicatorSandboxColumnsTool } from "./indicator/sandbox-columns-tool.js";
 
 // L4 组合构建层
 // 注：portfolioRebalanceTool 已移除（2026-05-27，依赖已废弃的本地服务）
@@ -104,7 +101,6 @@ import {
   sentimentCliTool,
   analysisCliTool,
   signalCliTool,
-  backtestCliTool,
   watchlistCliTool
 } from './cli/index.js';
 
@@ -152,7 +148,7 @@ export const allCustomTools = [
    * L6 监控运维: 告警通知、风险监控
    */
   // L1 数据管道
-  dataFetchStockTool,             // data_fetch_stock - 获取股票基本信息
+  dataFetchQuoteTool,             // data_fetch_quote - 获取股票实时行情
   dataFetchKlineTool,             // data_fetch_kline - 获取K线数据
   dataFetchFinancialTool,         // data_fetch_financial - 获取财务数据
   dataFetchDividendTool,          // data_fetch_dividend - 获取分红送股数据
@@ -196,10 +192,7 @@ export const allCustomTools = [
   indicatorCreateTool,            // indicator_create - 创建自定义指标
   indicatorUpdateTool,            // indicator_update - 更新指标
   indicatorDeleteTool,            // indicator_delete - 删除指标
-  indicatorRunTool,               // indicator_run - 运行指标
   indicatorBacktestTool,          // indicator_backtest - 指标历史回测
-  indicatorCompareTool,           // indicator_compare - 对比两个指标
-  indicatorSandboxColumnsTool,    // indicator_sandbox_columns - 沙箱可用列
 
   // L4 组合构建层（已移除工具：portfolio_rebalance）
   // L5 执行引擎层（已移除工具：trade_manage_orders）
@@ -223,7 +216,6 @@ export const allCustomTools = [
   sentimentCliTool,               // sentiment_cli - 市场情绪分析
   analysisCliTool,                // analysis_cli - 股票分析工具
   signalCliTool,                  // signal_cli - 信号测试管理
-  backtestCliTool,                // backtest_cli - 策略回测工具
   watchlistCliTool,               // watchlist_cli - 自选股管理
 
   // ===== 通知 & 监控工具 — 消息推送、实时盯盘 =====

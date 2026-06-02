@@ -1,209 +1,125 @@
 /**
- * Data Fetch Stock Tool Tests
+ * Data Fetch Quote Tool Tests
  */
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
-const mockGetStockData = jest.fn<(symbol: string, fields?: Array<'info' | 'price' | 'news' | 'announcements'>, newsNum?: number) => Promise<any>>();
+const mockGetStockData = jest.fn<(symbol: string, fields?: Array<'price'>, newsNum?: number, source?: 'realtime' | 'db' | 'auto') => Promise<any>>();
+const mockFormatStockPrice = jest.fn<(priceData: any) => string>();
 
 jest.unstable_mockModule('../../quant/quant-v2-client.js', () => ({
   getStockData: mockGetStockData
 }));
 
-const { dataFetchStockTool } = await import('./fetch-stock-tool.js');
+jest.unstable_mockModule('../../quant/formatters.js', () => ({
+  formatStockPrice: mockFormatStockPrice
+}));
+
+const { dataFetchQuoteTool } = await import('./fetch-stock-tool.js');
 
 // Helper to extract text from tool result
 function getResponseText(result: any): string {
   return result.content[0].text;
 }
 
-describe('data_fetch_stock tool', () => {
+describe('data_fetch_quote tool', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe('Tool Definition', () => {
     it('should have correct name and label', () => {
-      expect(dataFetchStockTool.name).toBe('data_fetch_stock');
-      expect(dataFetchStockTool.label).toBe('获取股票数据');
+      expect(dataFetchQuoteTool.name).toBe('data_fetch_quote');
+      expect(dataFetchQuoteTool.label).toBe('获取股票实时行情');
     });
 
     it('should have description', () => {
-      expect(dataFetchStockTool.description).toBeDefined();
-      expect(dataFetchStockTool.description.length).toBeGreaterThan(0);
+      expect(dataFetchQuoteTool.description).toBeDefined();
+      expect(dataFetchQuoteTool.description.length).toBeGreaterThan(0);
     });
 
     it('should have execute function', () => {
-      expect(dataFetchStockTool.execute).toBeDefined();
-      expect(typeof dataFetchStockTool.execute).toBe('function');
+      expect(dataFetchQuoteTool.execute).toBeDefined();
+      expect(typeof dataFetchQuoteTool.execute).toBe('function');
     });
   });
 
-  describe('Default behavior (info + price)', () => {
-    it('should fetch info and price by default', async () => {
-      mockGetStockData.mockResolvedValueOnce({
-        success: true,
-        info: {
+  describe('Default behavior (auto mode)', () => {
+    it('should fetch price with auto source by default', async () => {
+      const mockPriceData = {
+        data: {
           symbol: '600519',
           name: '贵州茅台',
-          sector: '食品饮料',
-          market_cap: 2250000000000
-        },
-        price: {
-          symbol: '600519',
           price: 1800.50,
-          change_pct: 2.5,
-          volume: 1500000
-        }
+          changePct: 2.5,
+          volume: 1500000,
+          source: 'sina',
+          timestamp: '2026-06-02T10:30:00'
+        },
+        success: true
+      };
+
+      mockGetStockData.mockResolvedValueOnce({
+        success: true,
+        price: mockPriceData
       });
 
-      const result = await (dataFetchStockTool.execute as any)('test-call-id', { symbol: '600519' });
+      mockFormatStockPrice.mockReturnValueOnce('贵州茅台 (600519)\n价格: 1800.50');
+
+      const result = await (dataFetchQuoteTool.execute as any)('test-call-id', { symbol: '600519' });
 
       expect(mockGetStockData).toHaveBeenCalledTimes(1);
-      expect(mockGetStockData).toHaveBeenCalledWith('600519', ['info', 'price'], 10);
+      expect(mockGetStockData).toHaveBeenCalledWith('600519', ['price'], 10, 'auto');
+      expect(mockFormatStockPrice).toHaveBeenCalledWith(mockPriceData);
 
-      const response = JSON.parse(getResponseText(result));
-      expect(response.info).toBeDefined();
-      expect(response.price).toBeDefined();
-      expect(response.info.symbol).toBe('600519');
-      expect(response.price.price).toBe(1800.50);
+      const responseText = getResponseText(result);
+      expect(responseText).toContain('贵州茅台');
+      expect(responseText).toContain('1800.50');
     });
   });
 
-  describe('Field-specific queries', () => {
-    it('should fetch only info when fields=["info"]', async () => {
+  describe('Source parameter', () => {
+    it('should support realtime source', async () => {
       mockGetStockData.mockResolvedValueOnce({
         success: true,
-        info: {
-          symbol: '600519',
-          name: '贵州茅台'
-        }
-      });
-
-      const result = await (dataFetchStockTool.execute as any)('test-call-id', {
-        symbol: '600519',
-        fields: ['info']
-      });
-
-      expect(mockGetStockData).toHaveBeenCalledTimes(1);
-      expect(mockGetStockData).toHaveBeenCalledWith('600519', ['info'], 10);
-
-      const response = JSON.parse(getResponseText(result));
-      expect(response.info).toBeDefined();
-      expect(response.price).toBeUndefined();
-      expect(response.news).toBeUndefined();
-      expect(response.announcements).toBeUndefined();
-    });
-
-    it('should fetch news when fields=["news"]', async () => {
-      mockGetStockData.mockResolvedValueOnce({
-        success: true,
-        news: {
-          news: [
-            { title: '茅台发布年报', date: '2026-05-20' }
-          ]
-        }
-      });
-
-      const result = await (dataFetchStockTool.execute as any)('test-call-id', {
-        symbol: '600519',
-        fields: ['news']
-      });
-
-      expect(mockGetStockData).toHaveBeenCalledTimes(1);
-      expect(mockGetStockData).toHaveBeenCalledWith('600519', ['news'], 10);
-
-      const response = JSON.parse(getResponseText(result));
-      expect(response.news).toBeDefined();
-    });
-
-    it('should fetch announcements when fields=["announcements"]', async () => {
-      mockGetStockData.mockResolvedValueOnce({
-        success: true,
-        announcements: {
-          announcements: [
-            { title: '2025年年度报告', date: '2026-04-30' }
-          ]
-        }
-      });
-
-      const result = await (dataFetchStockTool.execute as any)('test-call-id', {
-        symbol: '600519',
-        fields: ['announcements']
-      });
-
-      expect(mockGetStockData).toHaveBeenCalledTimes(1);
-      expect(mockGetStockData).toHaveBeenCalledWith('600519', ['announcements'], 10);
-
-      const response = JSON.parse(getResponseText(result));
-      expect(response.announcements).toBeDefined();
-    });
-
-    it('should fetch multiple fields', async () => {
-      mockGetStockData.mockResolvedValueOnce({
-        success: true,
-        info: { symbol: '600519', name: '贵州茅台' },
-        news: { news: [] }
-      });
-
-      const result = await (dataFetchStockTool.execute as any)('test-call-id', {
-        symbol: '600519',
-        fields: ['info', 'news']
-      });
-
-      expect(mockGetStockData).toHaveBeenCalledTimes(1);
-
-      const response = JSON.parse(getResponseText(result));
-      expect(response.info).toBeDefined();
-      expect(response.news).toBeDefined();
-      expect(response.price).toBeUndefined();
-    });
-  });
-
-  describe('HK stock support', () => {
-    it('should support HK stock with .HK suffix', async () => {
-      mockGetStockData.mockResolvedValueOnce({
-        success: true,
-        info: {
-          symbol: '9988.HK',
-          name: '阿里巴巴-SW'
-        },
         price: {
-          symbol: '9988.HK',
-          price: 85.50
+          data: { symbol: '600519', price: 1800.50, source: 'sina' },
+          success: true
         }
       });
 
-      const result = await (dataFetchStockTool.execute as any)('test-call-id', { symbol: '9988.HK' });
+      mockFormatStockPrice.mockReturnValueOnce('Mock formatted output');
 
-      expect(mockGetStockData).toHaveBeenCalledWith('9988.HK', ['info', 'price'], 10);
+      await (dataFetchQuoteTool.execute as any)('test-call-id', {
+        symbol: '600519',
+        source: 'realtime'
+      });
 
-      const response = JSON.parse(getResponseText(result));
-      expect(response.info.symbol).toBe('9988.HK');
+      expect(mockGetStockData).toHaveBeenCalledWith('600519', ['price'], 10, 'realtime');
     });
 
-    it('should support HK stock without suffix', async () => {
+    it('should support db source', async () => {
       mockGetStockData.mockResolvedValueOnce({
         success: true,
-        info: {
-          symbol: '9988',
-          name: '阿里巴巴-SW'
-        },
         price: {
-          symbol: '9988',
-          price: 85.50
+          data: { symbol: '600519', price: 1800.50, source: 'db_fallback', tradeDate: '2026-06-01' },
+          success: true
         }
       });
 
-      const result = await (dataFetchStockTool.execute as any)('test-call-id', { symbol: '9988' });
+      mockFormatStockPrice.mockReturnValueOnce('Mock formatted output');
 
-      const response = JSON.parse(getResponseText(result));
-      expect(response.info).toBeDefined();
+      await (dataFetchQuoteTool.execute as any)('test-call-id', {
+        symbol: '600519',
+        source: 'db'
+      });
+
+      expect(mockGetStockData).toHaveBeenCalledWith('600519', ['price'], 10, 'db');
     });
   });
 
   describe('Error handling', () => {
     it('should reject invalid stock code', async () => {
-      const result = await (dataFetchStockTool.execute as any)('test-call-id', { symbol: 'AAPL' });
+      const result = await (dataFetchQuoteTool.execute as any)('test-call-id', { symbol: 'AAPL' });
 
       expect(mockGetStockData).not.toHaveBeenCalled();
 
@@ -216,48 +132,49 @@ describe('data_fetch_stock tool', () => {
     it('should handle v2 client errors gracefully', async () => {
       mockGetStockData.mockRejectedValueOnce(new Error('Network timeout'));
 
-      const result = await (dataFetchStockTool.execute as any)('test-call-id', { symbol: '600519' });
+      const result = await (dataFetchQuoteTool.execute as any)('test-call-id', { symbol: '600519' });
 
       const response = JSON.parse(getResponseText(result));
       expect(response.success).toBe(false);
       expect(response.error).toBeDefined();
-      expect(response.error).toContain('获取股票数据失败');
+      expect(response.error).toContain('获取股票行情失败');
       expect(response.error).toContain('Network timeout');
     });
 
-    it('should handle partial failures from v2 API', async () => {
+    it('should handle price_error from v2 API', async () => {
       mockGetStockData.mockResolvedValueOnce({
-        success: true,
-        info: { symbol: '600519', name: '贵州茅台' },
+        success: false,
         price: null,
-        price_error: 'Price service unavailable'
+        price_error: 'HTTP 502: 无法获取实时行情'
       });
 
-      const result = await (dataFetchStockTool.execute as any)('test-call-id', { symbol: '600519' });
+      const result = await (dataFetchQuoteTool.execute as any)('test-call-id', { symbol: '600519' });
 
       const response = JSON.parse(getResponseText(result));
-      expect(response.info).toBeDefined();
-      expect(response.info.symbol).toBe('600519');
-      expect(response.price).toBeNull();
-      expect(response.price_error).toBeDefined();
-      expect(response.price_error).toContain('Price service unavailable');
+      expect(response.success).toBe(false);
+      expect(response.error).toBeDefined();
+      expect(response.error).toContain('无法获取实时行情');
     });
-  });
 
-  describe('Custom parameters', () => {
-    it('should pass num parameter to news query', async () => {
+    it('should add friendly message for non-trading hours', async () => {
+      // Mock non-trading time (e.g., Sunday 10:00)
+      const mockDate = new Date('2026-06-07T10:00:00'); // Sunday
+      jest.useFakeTimers();
+      jest.setSystemTime(mockDate);
+
       mockGetStockData.mockResolvedValueOnce({
-        success: true,
-        news: { news: [] }
+        success: false,
+        price: null,
+        price_error: 'HTTP 502: 无法获取 600519 的实时行情'
       });
 
-      await (dataFetchStockTool.execute as any)('test-call-id', {
-        symbol: '600519',
-        fields: ['news'],
-        news_num: 20
-      });
+      const result = await (dataFetchQuoteTool.execute as any)('test-call-id', { symbol: '600519' });
 
-      expect(mockGetStockData).toHaveBeenCalledWith('600519', ['news'], 20);
+      const response = JSON.parse(getResponseText(result));
+      expect(response.error).toContain('💡 提示：当前非交易时段');
+      expect(response.error).toContain('A股交易时间：周一至周五 9:30-11:30, 13:00-15:00');
+
+      jest.useRealTimers();
     });
   });
 });

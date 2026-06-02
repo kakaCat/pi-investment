@@ -99,25 +99,19 @@ signal_cli({
 })
 ```
 
-#### 7. 策略回测
+#### 7. 指标回测
 ```typescript
-// 运行回测
-backtest_cli({ 
-  command: "backtest.run",
-  params: {
-    strategy_id: "53",
-    symbols: ["600000", "000001"],
-    start_date: "2025-01-01",
-    end_date: "2025-12-31",
-    initial_capital: 100000
-  }
+// 指标回测（专用工具）
+indicator_backtest({ 
+  indicator_id: 1,
+  symbol: "600000",
+  start_date: "2025-01-01",
+  end_date: "2025-12-31",
+  initial_cash: 1000000
 })
 
 // 查询结果
-backtest_cli({ 
-  command: "backtest.results",
-  params: { backtest_id: "bt_20260601_001" }
-})
+// 回测结果会直接返回在 indicator_backtest 的响应中
 ```
 
 #### 8. 自选股管理
@@ -286,7 +280,7 @@ A: 根据数据类型选择：
 - 情绪数据 → `sentiment_cli`
 - 分析功能 → `analysis_cli`
 - 信号管理 → `signal_cli`
-- 策略回测 → `backtest_cli`
+- 指标回测 → `indicator_backtest`
 - 自选股 → `watchlist_cli`
 
 ### Q: 工具执行失败怎么办？
