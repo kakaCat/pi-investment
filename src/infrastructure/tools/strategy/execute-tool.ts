@@ -134,7 +134,8 @@ export const strategyExecuteTool: ToolDefinition = {
   }),
 
   execute: async (_toolCallId, rawParams: ExecuteParams) => {
-    const { action, strategy, symbol, symbols } = rawParams;
+    const { action, symbol, symbols } = rawParams;
+    let { strategy } = rawParams;
 
     // ── 参数校验 ──
 
@@ -158,11 +159,41 @@ export const strategyExecuteTool: ToolDefinition = {
       };
     }
 
+    // ── 数字ID转换：查询策略名称 ──
+    if (/^\d+$/.test(strategy)) {
+      try {
+        const baseUrl = process.env.QUANTSYS_V2_API_URL ?? "http://127.0.0.1:5001";
+        const response = await fetch(`${baseUrl}/api/strategies/${strategy}`, {
+          signal: AbortSignal.timeout(5_000),
+        });
+
+        if (!response.ok) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: `策略ID ${strategy} 不存在。请使用 strategy_list 查看可用策略。`,
+            }],
+            details: undefined,
+          };
+        }
+
+        const data = (await response.json()) as any;
+        if (data.success && data.data?.strategy_type) {
+          const originalId = strategy;
+          strategy = data.data.strategy_type;
+          console.log(`[strategy_execute] ID ${originalId} → 名称 ${strategy}`);
+        }
+      } catch (error) {
+        // ID转换失败，继续使用原值（可能是内置策略名称恰好全是数字）
+        console.warn(`[strategy_execute] ID转换失败: ${error}`);
+      }
+    }
+
     try {
       // ── 执行策略 ──
       const response = await runQuantV2(
         "strategy.execute",
-        rawParams as unknown as Record<string, unknown>
+        { ...rawParams, strategy } as unknown as Record<string, unknown>
       );
 
       // ── 市场风格检测（静默） ──
