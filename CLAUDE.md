@@ -133,6 +133,45 @@ Layered architecture:
 - `POST /api/pools/:id/validate` — 执行策略验证
 - `POST /api/pools/scan-and-create` — 筛选+建池一步完成
 
+#### L2.8 组合策略回测（2026-06-02 新增）
+多策略组合回测，支持三种组合模式：
+
+**工具：** `strategy_combo_backtest`
+
+**三种模式：**
+1. **Portfolio 模式**（仓位分配）
+   - 多个策略按权重分配资金，独立运行
+   - 适用场景：分散风险，平衡激进/保守策略
+   - 权重和必须为 1.0
+   - 示例：30% 趋势策略 + 70% 均值回归策略
+
+2. **Ensemble 模式**（信号融合）
+   - 多个策略信号加权融合为单一信号
+   - 适用场景：提高信号质量，降低误判
+   - 融合方法：weighted（加权）、majority（多数投票）、and（全部一致）、or（任一触发）
+   - 示例：技术面 50% + 基本面 30% + 资金面 20%
+
+3. **Pipeline 模式**（流程编排）
+   - 策略按阶段串行执行，前一阶段输出作为后一阶段输入
+   - 三个阶段：selection（选股）→ timing（择时）→ risk_control（风控）
+   - 示例：多因子选股 → MACD择时 → 动态止损
+
+**API 端点：** `POST /api/backtest/combo`
+
+**后端实现：**
+- Service: `quantsys-v2/services/combo_strategy_backtest_service.py`
+- Routes: `quantsys-v2/api/routes/backtest.py`
+- 复用组件：`SmartBacktestEngine`、`StrategyCombiner`
+
+**性能指标：**
+- 2策略 × 10股票：< 5秒
+- 3策略 × 50股票：< 30秒
+- 5策略 × 100股票：< 120秒
+
+**相关文档：**
+- 设计文档：`docs/superpowers/specs/2026-06-01-combo-strategy-backtest-design.md`
+- 实现计划：`docs/superpowers/plans/2026-06-01-combo-strategy-backtest.md`
+
 #### L3 模型层
 机器学习模型训练和预测：
 - `model_train` — 训练机器学习模型
