@@ -37,6 +37,9 @@ import { swingPointsTool } from "./invest/swing-points-tool.js";
 import { poolManageTool } from "./pool/pool-manage-tool.js";
 import { poolValidateTool } from "./pool/pool-validate-tool.js";
 
+// L2.8 组合策略回测
+import { comboBacktestTool } from "./backtest/combo-backtest-tool.js";
+
 // L3 模型层
 import { modelTrainTool } from "./model/train-tool.js";
 import { modelPredictTool } from "./model/predict-tool.js";
@@ -152,6 +155,9 @@ export const allCustomTools = [
   // L2.7 股票池管理
   poolManageTool,                 // pool_manage - 股票池 CRUD + 筛选建池
   poolValidateTool,               // pool_validate - 多策略批量回测验证
+
+  // L2.8 组合策略回测
+  comboBacktestTool,              // strategy_combo_backtest - 多策略组合回测
 
   // L3 模型层
   modelTrainTool,                 // model_train - 训练机器学习模型

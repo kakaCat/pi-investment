@@ -1422,3 +1422,81 @@ export async function scanAndCreatePool(
   const url = `${V2_API_BASE}/api/pools/scan-and-create`;
   return fetchV2(url, { method: "POST", body: params });
 }
+
+// ─── Combo Backtest ───────────────────────────────────────
+
+export interface ComboBacktestRequest {
+  mode: 'portfolio' | 'ensemble' | 'pipeline';
+  strategies: Array<{
+    strategy_id: number;
+    weight?: number;
+    signal_weight?: number;
+    stage?: string;
+  }>;
+  symbols: string[];
+  start_date?: string;
+  end_date?: string;
+  initial_capital?: number;
+  ensemble_method?: 'weighted' | 'majority' | 'and' | 'or';
+  pipeline_config?: {
+    stages?: string[];
+  };
+}
+
+export interface ComboBacktestResult {
+  mode: string;
+  period: { start: string; end: string };
+  overall_metrics: {
+    total_return: number;
+    annual_return: number;
+    sharpe_ratio: number;
+    max_drawdown: number;
+    win_rate: number;
+    profit_loss_ratio: number;
+  };
+  strategy_breakdown: Array<{
+    strategy_id: number;
+    strategy_name: string;
+    weight?: number;
+    signal_weight?: number;
+    return: number;
+    sharpe: number;
+    contribution: number;
+  }>;
+  equity_curve: Array<{ date: string; value: number }>;
+  ensemble_method?: string;
+  pipeline_stats?: {
+    initial_symbols: number;
+    stages: Array<{
+      stage: string;
+      input_count?: number;
+      output_count?: number;
+      signals_generated?: number;
+    }>;
+  };
+}
+
+export async function comboBacktest(
+  request: ComboBacktestRequest
+): Promise<ComboBacktestResult> {
+  const response = await fetch(`${V2_API_BASE}/api/backtest/combo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+    signal: AbortSignal.timeout(V2_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    const error: any = await response.json().catch(() => ({}));
+    throw new Error(
+      error.error || `HTTP ${response.status}: ${response.statusText}`
+    );
+  }
+
+  const data: any = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || 'Combo backtest failed');
+  }
+
+  return data.data;
+}
