@@ -187,12 +187,6 @@
   ├─ 股票分析 → analysis_cli
   │   7个命令：analysis.technical, analysis.quality 等
   │
-  ├─ 信号测试 → signal_cli
-  │   4个命令：signal.list, signal.generate 等
-  │
-  ├─ 回测 → indicator_backtest
-  │   3个命令：backtest.run, backtest.results 等
-  │
   └─ 自选股 → watchlist_cli
       5个命令：watchlist.list, watchlist.add 等
 ```

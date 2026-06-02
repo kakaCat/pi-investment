@@ -203,9 +203,6 @@ if result.success:
 - analysis.technical, analysis.price_action, analysis.candlestick
 - analysis.buy_range, analysis.quality, analysis.exit_plan, analysis.peers
 
-**信号测试管理** - `signal_cli` (4个命令):
-- signal.list, signal.generate, signal.arbitrate, signal.statistics
-
 **自选股管理** - `watchlist_cli` (5个命令):
 - watchlist.list, watchlist.add, watchlist.remove
 - watchlist.update, watchlist.groups
@@ -402,9 +399,6 @@ indicator_backtest({
   - analysis.technical, analysis.price_action, analysis.candlestick
   - analysis.buy_range, analysis.quality, analysis.exit_plan, analysis.peers
 
-- `signal_cli` — 信号测试管理（4个命令）
-  - signal.list, signal.generate, signal.arbitrate, signal.statistics
-
 - `watchlist_cli` — 自选股管理（5个命令）
   - watchlist.list, watchlist.add, watchlist.remove
   - watchlist.update, watchlist.groups
@@ -521,7 +515,7 @@ backend_control({ action: "start", service: "all" })
 
 **已移除**（2026-06-02）：
 - ❌ `quant_cli` 的 `strategy.list` / `strategy.get` / `strategy.create` / `strategy.run` / `strategy.status` / `strategy.execute` 命令
-- ⚠️ `signal.generate` 命令标记为废弃，将在 v3.0 移除
+- ❌ `signal_cli` 工具（后端未实现 signal.arbitrate，其他功能已被更好的 API 替代）
 
 **迁移指南**：
 ```typescript
@@ -649,7 +643,6 @@ cd quantsys-v2 && python start_all.py
 适用命令：
 - `performance.by_strategy`
 - `backtest.strategy`
-- `signal.generate`（已废弃，推荐使用 `strategy_execute`）
 
 示例错误输出：
 ```

@@ -84,22 +84,7 @@ analysis_cli({
 })
 ```
 
-#### 6. 信号管理
-```typescript
-// 查询信号列表
-signal_cli({ 
-  command: "signal.list",
-  params: { date: "2026-06-01", limit: 20 }
-})
-
-// 信号统计
-signal_cli({ 
-  command: "signal.statistics",
-  params: { strategy_id: "53" }
-})
-```
-
-#### 7. 指标回测
+#### 8. 自选股管理
 ```typescript
 // 指标回测（专用工具）
 indicator_backtest({ 
@@ -114,7 +99,7 @@ indicator_backtest({
 // 回测结果会直接返回在 indicator_backtest 的响应中
 ```
 
-#### 8. 自选股管理
+#### 7. 自选股管理
 ```typescript
 // 列出自选股
 watchlist_cli({ command: "watchlist.list" })
@@ -279,7 +264,6 @@ A: 根据数据类型选择：
 - 财务数据 → `financial_cli`
 - 情绪数据 → `sentiment_cli`
 - 分析功能 → `analysis_cli`
-- 信号管理 → `signal_cli`
 - 指标回测 → `indicator_backtest`
 - 自选股 → `watchlist_cli`
 

@@ -100,7 +100,6 @@ import {
   financialCliTool,
   sentimentCliTool,
   analysisCliTool,
-  signalCliTool,
   watchlistCliTool
 } from './cli/index.js';
 
@@ -215,7 +214,6 @@ export const allCustomTools = [
   financialCliTool,               // financial_cli - 财务数据查询
   sentimentCliTool,               // sentiment_cli - 市场情绪分析
   analysisCliTool,                // analysis_cli - 股票分析工具
-  signalCliTool,                  // signal_cli - 信号测试管理
   watchlistCliTool,               // watchlist_cli - 自选股管理
 
   // ===== 通知 & 监控工具 — 消息推送、实时盯盘 =====
