@@ -6,7 +6,7 @@
 
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
-import { runQuantV2 } from "../../quant/quant-v2-client.js";
+import { runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
 import { wrapToolExecution, validateParams } from "../shared/error-handler.js";
 
 type CommandRule = {
@@ -47,26 +47,6 @@ const FINANCIAL_COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbol: "600000", years: 5 },
   },
-  "financial.income_statement": {
-    domain: "financial",
-    action: "income-statement",
-    description: "利润表（营业收入、净利润、毛利率等）。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      periods: { type: "integer", min: 1, max: 20 }
-    },
-    example: { symbol: "600000", periods: 8 },
-  },
-  "financial.cash_flow": {
-    domain: "financial",
-    action: "cash-flow",
-    description: "现金流量表（经营/投资/筹资现金流）。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      periods: { type: "integer", min: 1, max: 20 }
-    },
-    example: { symbol: "600000", periods: 8 },
-  },
   "financial.hk_financials": {
     domain: "financial",
     action: "hk-financials",
@@ -89,10 +69,11 @@ const FINANCIAL_COMMANDS: Record<string, CommandRule> = {
 
 export const financialCliTool: ToolDefinition = {
   name: "financial_cli",
-  label: "财务数据查询",
+  label: "财务分析工具",
   description:
-    "查询财务数据：财务指标、估值、PE分位数、利润表、现金流量表、港股财务。" +
-    "适用场景：基本面分析、估值判断、财务健康度评估、A股/港股财务对比。",
+    "财务分析专用工具：财务指标分析、估值指标、PE分位数、港股财务分析。" +
+    "适用场景：基本面分析、估值判断、财务健康度评估、A股/港股财务对比。" +
+    "注意：获取原始财务报表数据请使用 data_fetch_financial 工具。",
 
   parameters: Type.Object({
     command: Type.Union(

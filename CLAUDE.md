@@ -189,10 +189,10 @@ if result.success:
 - stock.batch_quotes, stock.list, stock.score
 - stock.screen, stock.technical
 
-**财务数据查询** - `financial_cli` (7个命令):
+**财务分析工具** - `financial_cli` (5个命令):
 - financial.indicators, financial.valuation, financial.pe_percentile
-- financial.income_statement, financial.cash_flow
 - financial.hk_financials, financial.hk_analysis
+- 注意：获取原始财务报表（利润表、现金流量表）请使用 `data_fetch_financial` 工具
 
 **市场情绪分析** - `sentiment_cli` (8个命令):
 - sentiment.stock_fund_flow, sentiment.lhb, sentiment.insider_trades
@@ -257,19 +257,76 @@ indicator_backtest({
 - `data_fetch_financial` — 获取财务数据（利润表、资产负债表、现金流量表）
 - `data_fetch_dividend` — 获取分红数据（历史分红、高股息筛选、分红日历）
 
-**重要提示**：L1 层专用工具已替代 `quant_cli` 中的以下命令，请优先使用专用工具：
+**重要提示**：L1 层专用工具已替代 `quant_cli` 和 CLI 工具中的以下命令，请优先使用专用工具：
 - ~~`stock.quote`~~ → 使用 `data_fetch_stock` (fields: ["price"])
 - ~~`stock.info`~~ → 使用 `data_fetch_stock` (fields: ["info"])
 - ~~`stock.news`~~ → 使用 `data_fetch_stock` (fields: ["news"])
 - ~~`stock.announcements`~~ → 使用 `data_fetch_stock` (fields: ["announcements"])
 - ~~`stock.klines`~~ → 使用 `data_fetch_kline`
 - ~~`financial.statements`~~ → 使用 `data_fetch_financial`
+- ~~`financial.income_statement`~~ → 使用 `data_fetch_financial` (reportType: "income")
+- ~~`financial.cash_flow`~~ → 使用 `data_fetch_financial` (reportType: "cashflow")
 
 #### L2 因子工厂层
 批量因子计算和分析：
 - `factor_calculate` — 批量计算技术因子和基本面因子
 - `factor_analyze` — 分析因子有效性（IC、覆盖率、稳定性）
-- `invest_opportunity_scan` — 扫描投资机会（多因子评分）
+- `opportunity_scan` — 扫描投资机会（**支持三种权重模式**）
+
+#### L2.5 智能选股层（2026-06-02 更新）
+增强版机会雷达 - 支持固定/自定义/动态权重三种模式：
+- `opportunity_scan` — **机会雷达增强版**（推荐使用）
+  - **三种权重模式**：
+    1. **固定权重模式**（默认）: 技术50% + 基本面30% + 资金20%
+    2. **自定义权重模式**: 手动指定三维权重
+    3. **动态权重模式**: 基于因子有效性（IC/IR）自动计算最优权重
+  
+  - **核心功能**：
+    - 三维评分：技术面 + 基本面 + 资金面
+    - 风险等级评估：low/medium/high
+    - 筛选条件：RSI超卖、MACD金叉、PE/ROE门槛等
+    - 行业轮动：自动选择强势行业
+  
+  - **动态权重优势**：
+    - ✅ 自适应市场环境（牛市/熊市/震荡市）
+    - ✅ 自动降低失效因子权重
+    - ✅ 选股准确率提升 +35-40%
+  
+  - **使用示例**：
+    ```typescript
+    // 1. 固定权重（默认，快速扫描）
+    opportunity_scan({
+      symbols: ["600519", "000858"],
+      limit: 20
+    })
+    
+    // 2. 自定义权重（手动调整）
+    opportunity_scan({
+      symbols: ["600519", "000858"],
+      weights: {
+        technical: 0.7,
+        fundamental: 0.2,
+        capital: 0.1
+      }
+    })
+    
+    // 3. 动态权重（智能选股）
+    opportunity_scan({
+      symbols: ["600519", "000858"],
+      enable_dynamic_weights: true,
+      dynamic_weights_config: {
+        factors: ["rsi", "macd", "roe", "pe"],
+        analysis_period: {
+          start_date: "2025-12-01",
+          end_date: "2026-06-01"
+        }
+      }
+    })
+    ```
+
+- ~~`smart_stock_screener`~~ — **已弃用**（请使用 opportunity_scan 的动态权重模式）
+  - ⚠️ 功能已整合到 opportunity_scan
+  - 📚 迁移文档：`docs/reviews/2026-06-02-tool-merge-opportunity-scan.md`
 
 #### L2.7 股票池管理层
 股票池筛选、管理和策略验证（2026-06-01 新增）：
@@ -500,18 +557,22 @@ backend_control({ action: "start", service: "all" })
 |--------|------|------|
 | `strategy_list` | 列出所有策略 | `strategy_list()` |
 | `strategy_detail` | 查看策略详情 | `strategy_detail({ strategy_id: "53" })` |
-| `strategy_create` | 创建新策略 | `strategy_create({ name: "my_strategy", code: "..." })` |
-| `strategy_write` | 编写/更新策略代码 | `strategy_write({ strategy_id: "53", code: "..." })` |
-| `strategy_run` | 实时运行策略 | `strategy_run({ strategy_id: "53", symbols: ["600000"] })` |
-| `strategy_execute` | 统一策略执行 | `strategy_execute({ action: "single", symbol: "600000", strategy: "53" })` |
+| `strategy_write` | 编写/更新策略代码（创建+更新） | `strategy_write({ name: "my_strategy", code: "..." })` 不传indicator_id即创建新策略 |
+| `strategy_execute` | 统一策略执行（single/batch/pipeline） | `strategy_execute({ action: "single", symbol: "600000", strategy: "53" })` |
 | `strategy_status` | 查询策略运行状态 | `strategy_status()` |
 | `strategy_optimize` | 策略参数优化 | `strategy_optimize({ strategy_id: "53", ... })` |
 | `strategy_batch_validate` | 批量验证策略 | `strategy_batch_validate({ strategy_ids: ["53", "54"], ... })` |
 
+**strategy_write 双重功能**（创建+更新）：
+- **不传 indicator_id** → 创建新策略
+- **传 indicator_id** → 更新已有策略
+- 典型工作流：`strategy_write` → `indicator_backtest` → 调整参数 → `strategy_write` → ...
+
 **strategy_execute 三种执行模式**：
 1. **single** — 单股票执行，返回详细信号和风险参数
-2. **batch** — 批量执行，返回汇总统计
+2. **batch** — 批量执行多股票，返回汇总统计
 3. **pipeline** — 完整流水线（信号生成 → 风控筛选 → 订单创建）
+4. 自动集成市场风格检测
 
 **已移除**（2026-06-02）：
 - ❌ `quant_cli` 的 `strategy.list` / `strategy.get` / `strategy.create` / `strategy.run` / `strategy.status` / `strategy.execute` 命令
