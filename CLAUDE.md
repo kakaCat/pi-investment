@@ -19,7 +19,7 @@ AI stock investment advisor (A-share / HK stocks) built on the `@mariozechner/pi
 | quantsys-v2 WebSocket | `127.0.0.1:5003` | `QUANTSYS_API_HOST` / `QUANTSYS_WS_PORT` 环境变量 |
 | web-frontend Vite | `127.0.0.1:3001` | 代理 `/api` → `127.0.0.1:5001` |
 | TypeScript Agent | N/A (CLI) | 通过环境变量连接各服务 |
-| PostgreSQL | `127.0.0.1:5432` | `PGHOST` / `PGPORT` 环境变量 |
+| PostgreSQL | `127.0.0.1:5432` | 仅用于 quantsys-v2 后端 |
 | Redis | `127.0.0.1:6379` | `REDIS_HOST` / `REDIS_PORT` 环境变量 |
 | Kafka brokers | `127.0.0.1:19092-19094` | `docker/kafka-cluster.yaml` |
 
@@ -76,6 +76,11 @@ Layered architecture:
 - **Tool Registry**: Tools registered in `src/infrastructure/tools/`, categorized by domain.
 - **8-layer system prompt**: Built in `src/services/intelligence/system-prompt-builder.ts` — Identity → Soul → Tools → Skills → Memory → Bootstrap → Runtime → Channel.
 - **Data sources**: `src/infrastructure/data-sources/` — eastmoney, sina, sina-fx, stooq, technical indicators; falls back to Python/akshare bridge.
+
+**调度器架构变更（2026-06-03）：**
+- TypeScript Agent 使用 `InMemorySchedulerStore`（内存调度器）
+- 应用重启后任务需重新注册
+- 数据补充任务由 quantsys-v2 Python 后端负责
 
 ### Python Quant Backend (`quantsys-v2/`)
 
@@ -747,11 +752,12 @@ MODEL_ID=deepseek-chat
 QUANTSYS_V2_API_URL=http://127.0.0.1:5001
 QUANTSYS_V2_TIMEOUT=30000
 
-# Database (PostgreSQL required; SQLite removed)
+# Database (PostgreSQL - 仅用于 Python 后端 quantsys-v2)
 QUANT_DB_PROVIDER=postgres
-PGHOST=127.0.0.1
-PGPORT=5432
 PGDATABASE=quant_investment
+
+# 注意：TypeScript Agent 不再直接连接 PostgreSQL
+# 数据库连接由 quantsys-v2 后端管理
 
 # Optional
 FEISHU_APP_ID=...           # Feishu/Lark bot
