@@ -33,7 +33,6 @@
     "better-sqlite3": "^12.8.0",
     "dotenv": "^17.3.1",
     "openai": "^4.77.0",
-    "pg": "^8.21.0",
     "playwright": "^1.58.2",
     "proper-lockfile": "^4.1.2",
     "uuid": "^14.0.0"
@@ -43,7 +42,6 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "^29.5.12",
     "@types/node": "^22.0.0",
-    "@types/pg": "^8.20.0",
     "@types/proper-lockfile": "^4.1.4",
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.18.1",
