@@ -3,11 +3,11 @@
  */
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { getResponseText } from '../test-utils.js';
-import type { KlineData } from '../../quant/types.js';
+import type { KlineData } from '../../adapters/quant/types.js';
 
 const mockGetKlineHistory = jest.fn<(symbol: string, period?: string, startDate?: string, endDate?: string, limit?: number) => Promise<KlineData>>();
 
-jest.unstable_mockModule('../../quant/quant-v2-client.js', () => ({
+jest.unstable_mockModule('../../adapters/quant/quant-v2-client.js', () => ({
   getKlineHistory: mockGetKlineHistory
 }));
 

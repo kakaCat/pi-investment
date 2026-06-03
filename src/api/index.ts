@@ -114,12 +114,13 @@ function restoreTasksIntoManagers(
 /**
  * 自动触发 agent 循环
  */
-function triggerAgentLoop(session: AgentSession): void {
+function triggerAgentLoop(session: AgentSession, contextPrompt?: string): void {
   setImmediate(() => {
     try {
-      // 触发 agent 响应（发送空消息）
+      // 触发 agent 响应（发送实际消息，而非空消息）
       if (typeof session.prompt === 'function') {
-        session.prompt("");
+        const message = contextPrompt || "继续之前的工作";
+        session.prompt(message);
       } else {
         console.warn("⚠️  session.prompt 不可用，无法自动触发 agent 循环");
       }
@@ -189,7 +190,8 @@ function restoreConversationIntoSession(
   if (!restartData?.messages || restartData.messages.length === 0) {
     // 即使没有对话历史，如果有任务也要触发
     if (taskCounts.taskCount > 0 || taskCounts.backgroundCount > 0) {
-      triggerAgentLoop(session);
+      const prompt = "Agent 已重启完成。请使用 task_list 查看恢复的任务，然后继续执行未完成的工作。";
+      triggerAgentLoop(session, prompt);
     }
     return;
   }
@@ -256,16 +258,20 @@ function restoreConversationIntoSession(
 请继续完成之前的任务。如果任务已完成，请总结结果。`;
     }
 
-    addMessage(session, createUserMessage(contextPrompt));
-    console.log(`💡 已添加上下文提示，Agent 将自动继续之前的工作\n`);
+    // 不要使用 addMessage，而是直接通过 prompt 触发
+    console.log(`💡 准备自动触发 Agent 继续之前的工作\n`);
+
+    // 清理上下文文件
+    try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
+    restartData = null;
+
+    // 直接发送上下文提示消息，触发 agent 循环
+    triggerAgentLoop(session, contextPrompt);
+  } else {
+    // 清理上下文文件
+    try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
+    restartData = null;
   }
-
-  // 清理上下文文件
-  try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
-  restartData = null;
-
-  // 总是自动触发 agent 循环
-  triggerAgentLoop(session);
 }
 
 checkRestartContext();

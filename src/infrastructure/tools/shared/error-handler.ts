@@ -8,11 +8,11 @@ import { formatErrorOutput, formatSuccessOutput } from './output-formatters.js';
 import { getStatsManager } from './tool-stats-manager.js';
 
 /**
- * Tool result type - compatible with pi-agent ToolResult
+ * Tool result type - compatible with pi-agent AgentToolResult
  */
 export interface ToolResult {
   content: Array<{ type: "text"; text: string }>;
-  details?: any;
+  details: any;  // Required field for SDK compatibility
 }
 
 /**

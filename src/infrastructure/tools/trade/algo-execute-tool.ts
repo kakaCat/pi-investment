@@ -6,8 +6,8 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { requireAshare } from "../shared/validators.js";
-import { algoExecute } from "../../quant/quant-v2-client.js";
-import { formatAlgoOrder } from "../../quant/formatters.js";
+import { algoExecute } from "../../adapters/quant/quant-v2-client.js";
+import { formatAlgoOrder } from "../../adapters/quant/formatters.js";
 
 const ASHARE_LOT_SIZE = 100;
 

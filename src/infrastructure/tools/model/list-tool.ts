@@ -5,7 +5,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { listModels } from "../../quant/quant-v2-client.js";
+import { listModels } from "../../adapters/quant/quant-v2-client.js";
 
 interface ModelListParams {
   status?: string;

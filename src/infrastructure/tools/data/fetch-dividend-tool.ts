@@ -8,8 +8,8 @@
  */
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
-import { getDividends } from "../../quant/quant-v2-client.js";
-import { formatDividendData } from "../../quant/formatters.js";
+import { getDividends } from "../../adapters/quant/quant-v2-client.js";
+import { formatDividendData } from "../../adapters/quant/formatters.js";
 
 export const dataFetchDividendTool: ToolDefinition = {
   name: "data_fetch_dividend",

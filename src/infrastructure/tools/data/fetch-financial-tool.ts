@@ -6,8 +6,8 @@
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { requireAshare } from "../shared/validators.js";
-import { getFinancials } from "../../quant/quant-v2-client.js";
-import { formatFinancialData } from "../../quant/formatters.js";
+import { getFinancials } from "../../adapters/quant/quant-v2-client.js";
+import { formatFinancialData } from "../../adapters/quant/formatters.js";
 
 export const dataFetchFinancialTool: ToolDefinition = {
   name: "data_fetch_financial",

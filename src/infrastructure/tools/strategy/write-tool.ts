@@ -11,7 +11,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { createIndicator, updateIndicator } from "../../quant/quant-v2-client.js";
+import { createIndicator, updateIndicator } from "../../adapters/quant/quant-v2-client.js";
 
 // ── 参数类型 ─
 

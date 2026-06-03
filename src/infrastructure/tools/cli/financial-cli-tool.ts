@@ -87,7 +87,7 @@ export const financialCliTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, input: any) => {
+  execute: async (_toolCallId: string, input: any, _signal?: AbortSignal) => {
     return wrapToolExecution(
       async () => {
         const { command, params = {} } = input as { command: string; params?: Record<string, any> };

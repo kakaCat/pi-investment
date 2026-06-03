@@ -11,7 +11,7 @@ import {
   sendTradeSignalTool,
   sendMarketBriefTool,
   sendRiskWarningTool
-} from "../../../tools/notification-tools.js";
+} from "../shared/notification-tools.js";
 import { FeishuService } from "../../../services/notification/feishu-service.js";
 
 const feishuService = new FeishuService();

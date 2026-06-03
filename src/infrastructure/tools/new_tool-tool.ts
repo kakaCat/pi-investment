@@ -6,21 +6,14 @@ export const new_toolTool: ToolDefinition = {
   label: "new_tool",
   description: "新工具",
   parameters: Type.Object({
-    input: Type.Optional(Type.String({ description: "输入文本" })),
+    input: Type.Optional(Type.String()),
   }),
   execute: async (_toolCallId, params: any) => {
-    const normalizedParams =
-      params && typeof params === "object" && !Array.isArray(params)
-        ? params
-        : {};
-
-    const input =
-      typeof normalizedParams.input === "string"
-        ? normalizedParams.input
-        : "";
+    const input = typeof params?.input === "string" ? params.input : "";
+    const resultText = input ? `结果文本: ${input}` : "结果文本";
 
     return {
-      content: [{ type: "text" as const, text: "结果文本" }],
+      content: [{ type: "text" as const, text: resultText }],
       details: {
         success: true,
         input,

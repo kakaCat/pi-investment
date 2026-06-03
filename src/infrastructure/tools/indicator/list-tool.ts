@@ -8,7 +8,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { runQuantV2 } from "../../quant/quant-v2-client.js";
+import { runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
 
 interface ListParams {
   type?: "my" | "system";

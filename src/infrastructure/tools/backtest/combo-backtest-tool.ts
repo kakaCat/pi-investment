@@ -1,6 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
-import { comboBacktest } from "../../quant/quant-v2-client.js";
+import { comboBacktest } from "../../adapters/quant/quant-v2-client.js";
 
 export const comboBacktestTool: ToolDefinition = {
   name: "strategy_combo_backtest",

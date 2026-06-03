@@ -5,7 +5,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { trainModel } from "../../quant/quant-v2-client.js";
+import { trainModel } from "../../adapters/quant/quant-v2-client.js";
 
 interface TrainModelParams {
   model_type?: "xgboost" | "lightgbm";

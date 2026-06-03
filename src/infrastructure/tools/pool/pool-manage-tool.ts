@@ -12,7 +12,7 @@ import {
   refreshPool,
   scanAndCreatePool,
   updatePoolMember,
-} from "../../quant/quant-v2-client.js";
+} from "../../adapters/quant/quant-v2-client.js";
 
 export const poolManageTool: ToolDefinition = {
   name: "pool_manage",

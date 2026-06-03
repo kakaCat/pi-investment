@@ -6,7 +6,7 @@
 
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
-import { fetchSinaFxRate } from "../infrastructure/data-sources/sina-fx.js";
+import { fetchSinaFxRate } from "../infrastructure/providers/market/sina-fx.js";
 import { chinaDate, chinaDateTime } from "../utils/china-time.js";
 import { CacheManager } from "../domain/cache/core/cache-manager.js";
 

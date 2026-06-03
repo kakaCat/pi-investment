@@ -3,7 +3,7 @@
  */
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
-import { validatePool } from "../../quant/quant-v2-client.js";
+import { validatePool } from "../../adapters/quant/quant-v2-client.js";
 
 export const poolValidateTool: ToolDefinition = {
   name: "pool_validate",

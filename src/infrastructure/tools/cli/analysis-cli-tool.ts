@@ -6,7 +6,7 @@
 
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
-import { runQuantV2 } from "../../quant/quant-v2-client.js";
+import { runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
 import { wrapToolExecution, validateParams } from "../shared/error-handler.js";
 
 type CommandRule = {
@@ -107,7 +107,7 @@ export const analysisCliTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, input: any) => {
+  execute: async (_toolCallId: string, input: any, _signal?: AbortSignal) => {
     return wrapToolExecution(
       async () => {
         const { command, params = {} } = input as { command: string; params?: Record<string, any> };

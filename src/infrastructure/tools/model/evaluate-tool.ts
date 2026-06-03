@@ -5,7 +5,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { evaluateModel } from "../../quant/quant-v2-client.js";
+import { evaluateModel } from "../../adapters/quant/quant-v2-client.js";
 
 interface ModelEvaluateParams {
   model_id?: string;

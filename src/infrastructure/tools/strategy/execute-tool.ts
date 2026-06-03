@@ -11,12 +11,12 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { runQuantV2 } from "../../quant/quant-v2-client.js";
+import { runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
 import {
   formatSingleSignal,
   formatBatchSignals,
   formatPipelineResult,
-} from "../../quant/formatters.js";
+} from "../../adapters/quant/formatters.js";
 
 interface ExecuteParams {
   action: "single" | "batch" | "pipeline";
@@ -178,10 +178,14 @@ export const strategyExecuteTool: ToolDefinition = {
         }
 
         const data = (await response.json()) as any;
-        if (data.success && data.data?.strategy_type) {
-          const originalId = strategy;
-          strategy = data.data.strategy_type;
-          console.log(`[strategy_execute] ID ${originalId} → 名称 ${strategy}`);
+        if (data.success) {
+          // Try strategy name first, fall back to strategyType
+          const strategyName = data.data?.name || data.data?.strategy_type || data.data?.strategyType;
+          if (strategyName) {
+            const originalId = strategy;
+            strategy = strategyName;
+            console.log(`[strategy_execute] ID ${originalId} → 名称 ${strategy}`);
+          }
         }
       } catch (error) {
         // ID转换失败，继续使用原值（可能是内置策略名称恰好全是数字）
@@ -203,11 +207,11 @@ export const strategyExecuteTool: ToolDefinition = {
       let formattedText: string;
 
       if (action === "single") {
-        formattedText = formatSingleSignal(response as any);
+        formattedText = formatSingleSignal(response.data as any);
       } else if (action === "batch") {
-        formattedText = formatBatchSignals(response as any);
+        formattedText = formatBatchSignals(response.data as any);
       } else if (action === "pipeline") {
-        formattedText = formatPipelineResult(response as any);
+        formattedText = formatPipelineResult(response.data as any);
       } else {
         formattedText = JSON.stringify(response, null, 2);
       }
@@ -218,8 +222,8 @@ export const strategyExecuteTool: ToolDefinition = {
       }
 
       const enrichedResponse = marketStyleInfo
-        ? { ...response, ...marketStyleInfo }
-        : response;
+        ? { ...(response.data as any), ...marketStyleInfo }
+        : response.data;
 
       return {
         content: [{ type: "text" as const, text: formattedText }],

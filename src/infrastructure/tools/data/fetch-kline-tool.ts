@@ -7,7 +7,7 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { detectMarket } from "../shared/validators.js";
-import { getKlineHistory } from "../../quant/quant-v2-client.js";
+import { getKlineHistory } from "../../adapters/quant/quant-v2-client.js";
 
 // Constants
 const DEFAULT_PERIOD = "daily";

@@ -5,6 +5,9 @@
     "src/api/web/server.ts",
     "src/scripts/portfolio-cli.ts",
     "src/services/operations/job-audit-service.ts",
+    "src/services/quant/backtest-engine.ts",
+    "src/services/quant/signal-generator.ts",
+    "src/services/quant/signal-arbiter-example.ts",
     "**/*.test.ts",
     "**/*.spec.ts"
   ]

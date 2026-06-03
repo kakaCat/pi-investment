@@ -5,8 +5,8 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { analyzeFactors } from "../../quant/quant-v2-client.js";
-import { formatFactorAnalysis } from "../../quant/formatters.js";
+import { analyzeFactors } from "../../adapters/quant/quant-v2-client.js";
+import { formatFactorAnalysis } from "../../adapters/quant/formatters.js";
 
 interface FactorAnalyzeParams {
   factors: string[];

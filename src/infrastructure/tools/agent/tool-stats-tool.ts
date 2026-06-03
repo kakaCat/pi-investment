@@ -46,8 +46,15 @@ export const toolStatsQueryTool: ToolDefinition = {
     }))
   }),
 
-  execute: async (_toolCallId, params) => {
-    const { action, tool_name, from_date, top_n = 20, output_path, retention_days = 30 } = params;
+  execute: async (_toolCallId, params: any) => {
+    const { action, tool_name, from_date, top_n = 20, output_path, retention_days = 30 } = params as {
+      action: 'stats' | 'report' | 'export' | 'cleanup';
+      tool_name?: string;
+      from_date?: string;
+      top_n?: number;
+      output_path?: string;
+      retention_days?: number;
+    };
     const statsManager = getStatsManager();
 
     try {

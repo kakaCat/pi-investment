@@ -11,8 +11,8 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { detectMarket } from "../shared/validators.js";
-import { getStockData } from "../../quant/quant-v2-client.js";
-import { formatStockPrice } from "../../quant/formatters.js";
+import { getStockData } from "../../adapters/quant/quant-v2-client.js";
+import { formatStockPrice } from "../../adapters/quant/formatters.js";
 
 /**
  * 判断当前是否是 A 股交易时段

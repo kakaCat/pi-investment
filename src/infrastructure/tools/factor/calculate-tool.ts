@@ -6,8 +6,8 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { requireAshare } from "../shared/validators.js";
-import { computeFactors } from "../../quant/quant-v2-client.js";
-import { formatFactorResult } from "../../quant/formatters.js";
+import { computeFactors } from "../../adapters/quant/quant-v2-client.js";
+import { formatFactorResult } from "../../adapters/quant/formatters.js";
 
 interface FactorCalculateParams {
   symbol: string;

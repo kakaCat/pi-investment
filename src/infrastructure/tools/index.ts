@@ -50,8 +50,6 @@ import { modelListTool } from "./model/list-tool.js";
 // L3.5 策略（从 quant_cli 提取为独立工具）
 import { strategyListTool } from "./strategy/list-tool.js";
 import { strategyDetailTool } from "./strategy/detail-tool.js";
-import { strategyCreateTool } from "./strategy/create-tool.js";
-import { strategyRunTool } from "./strategy/run-tool.js";
 import { strategyStatusTool } from "./strategy/status-tool.js";
 import { strategyExecuteTool } from "./strategy/execute-tool.js";
 import { strategyWriteTool } from "./strategy/write-tool.js";
@@ -110,7 +108,7 @@ import { quantCliTool } from "./core/quant-cli-tool.js";
 // manageStockDBTool 已删除 - 使用 quant_cli 的 data.update 或 v2 pipeline API 替代
 
 // ===== 工具支持 =====
-import { scheduleNextCheckTool } from "../../tools/monitor-tools.js";
+import { scheduleNextCheckTool } from "./monitor/monitor-schedule-tool.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager, getTaskManager };
 export { initMemoryTools } from "./agent/memory-tool.js";
@@ -157,7 +155,7 @@ export const allCustomTools = [
   factorAnalyzeTool,              // factor_analyze - 分析因子IC/覆盖率/稳定性
 
   // L2.5 机会雷达（基于因子的综合评分）
-  opportunityScanTool,            // opportunity_scan - 多维评分扫描交易机会
+  opportunityScanTool,            // opportunity_scan - 多维评分扫描交易机会（支持固定/自定义/动态权重）
   swingPointsTool,                // analysis_swing_points - ZigZag 波段买卖点
 
   // L2.7 股票池管理
@@ -177,9 +175,7 @@ export const allCustomTools = [
   // L3.5 策略（独立工具）
   strategyListTool,               // strategy_list - 列出所有策略
   strategyDetailTool,             // strategy_detail - 查看策略详情
-  strategyCreateTool,             // strategy_create - 创建新策略
-  strategyWriteTool,              // strategy_write - 编写/更新策略代码
-  strategyRunTool,                // strategy_run - 实时运行策略
+  strategyWriteTool,              // strategy_write - 编写/更新策略代码（创建+更新）
   strategyExecuteTool,            // strategy_execute - 统一策略执行（single/batch/pipeline）
   strategyStatusTool,             // strategy_status - 查询策略运行状态
   strategyOptimizeTool,           // strategy_optimize - 策略参数优化

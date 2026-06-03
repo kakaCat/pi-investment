@@ -5,7 +5,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { monitorModel } from "../../quant/quant-v2-client.js";
+import { monitorModel } from "../../adapters/quant/quant-v2-client.js";
 
 interface MonitorModelParams {
   model_id?: string;

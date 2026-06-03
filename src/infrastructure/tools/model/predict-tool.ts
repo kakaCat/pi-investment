@@ -6,7 +6,7 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { detectMarket } from "../shared/validators.js";
-import { predictModel } from "../../quant/quant-v2-client.js";
+import { predictModel } from "../../adapters/quant/quant-v2-client.js";
 
 interface PredictParams {
   symbol: string;

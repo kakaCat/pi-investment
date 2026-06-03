@@ -24,6 +24,9 @@ type CommandRule = {
 };
 
 const COMMANDS: Record<string, CommandRule> = {
+  // ========================================
+  // 工具命令
+  // ========================================
   "tools.list": {
     domain: "tools",
     action: "list",
@@ -38,8 +41,10 @@ const COMMANDS: Record<string, CommandRule> = {
     params: { name: { required: true, type: "string" } },
     example: { name: "stock.technical" },
   },
-  // stock.ml_predict 已移除 — 使用专用工具 model_predict
-  // analysis.swing_points 已移除 — 使用专用工具 analysis_swing_points
+
+  // ========================================
+  // 筛选工具
+  // ========================================
   "screening.sector": {
     domain: "screening",
     action: "sector",
@@ -64,12 +69,10 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { sector: "白酒", min_score: 65, max_pe: 30, limit: 10 },
   },
-  // ── 港股相关命令已移除（2026-06-02）──
-  // 原因：v1 quantsys 模块已废弃，v2 数据库无港股数据，无实现计划
-  // 已移除命令：hk.market_overview, hk.south_flow, hk.technical, hk.hot_rank
-  // 替代方案：暂无，港股功能不在当前支持范围
 
-  // signal.scan 已移除 — 使用专用工具 opportunity_scan
+  // ========================================
+  // 性能分析（高频使用）
+  // ========================================
   "performance.analyze": {
     domain: "performance",
     action: "analyze",
@@ -97,7 +100,10 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {},
     example: {},
   },
-  // backtest.batch 已移除 — 使用专用工具 strategy_batch_validate
+
+  // ========================================
+  // 订单/交易管理（高频使用）
+  // ========================================
   "orders.list": {
     domain: "orders",
     action: "list",
@@ -126,8 +132,10 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {},
     example: {},
   },
-  // ml.train 已移除 — 使用专用工具 model_train
-  // ml.history 已移除 — 使用专用工具 model_list
+
+  // ========================================
+  // 核心数据管理（高频使用）
+  // ========================================
   "data.status": {
     domain: "data",
     action: "status",
@@ -164,6 +172,10 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { source: "all" },
   },
+
+  // ========================================
+  // 异步任务与调度
+  // ========================================
   "jobs.list": {
     domain: "jobs",
     action: "list",
@@ -178,6 +190,10 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {},
     example: {},
   },
+
+  // ========================================
+  // 因子计算（学术级）
+  // ========================================
   "factor.list": {
     domain: "factor",
     action: "list",
@@ -187,7 +203,10 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbol: "600000" },
   },
-  // indicators.* 已移除 — 使用专用工具 indicator_list / indicator_detail / indicator_create / indicator_update / indicator_delete / indicator_backtest
+
+  // ========================================
+  // 行业与基准分析
+  // ========================================
   "sector.aggregate": {
     domain: "sector",
     action: "aggregate",
@@ -212,6 +231,10 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { strategy_return: 0.12, benchmark_return: 0.08 },
   },
+
+  // ========================================
+  // 组合优化（重要功能）
+  // ========================================
   "portfolio.optimize": {
     domain: "portfolio",
     action: "optimize",
@@ -239,7 +262,10 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbols: ["600000.SH", "000001.SZ", "600519.SH"], method: "pearson" },
   },
-  // strategy.* 命令已完全移除 — 使用独立工具: strategy_list, strategy_detail, strategy_create, strategy_write, strategy_run, strategy_status, strategy_execute, strategy_optimize, strategy_batch_validate
+
+  // ========================================
+  // 监控与预警
+  // ========================================
   "watch.price_alert": {
     domain: "watch",
     action: "price-alert",
@@ -263,6 +289,10 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbol: "600000" },
   },
+
+  // ========================================
+  // 风险控制（高频使用）
+  // ========================================
   "stress.test": {
     domain: "stress",
     action: "test",
@@ -309,6 +339,10 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { symbol: "600000", entry_price: 90, current_price: 100, highest_price: 110 },
   },
+
+  // ========================================
+  // 交易验证
+  // ========================================
   "trade.verify": {
     domain: "trade",
     action: "verify",
@@ -353,6 +387,10 @@ const COMMANDS: Record<string, CommandRule> = {
     params: { date: { type: "string" } },
     example: {},
   },
+
+  // ========================================
+  // 置信度校准（内部工具）
+  // ========================================
   "calibrate.run": {
     domain: "calibrate",
     action: "run",
@@ -365,7 +403,10 @@ const COMMANDS: Record<string, CommandRule> = {
     },
     example: { forward_days: 5, lookback_days: 180 },
   },
-  // training.history 已移除 — 使用专用工具 model_list
+
+  // ========================================
+  // 模型训练报告
+  // ========================================
   "training.reports": {
     domain: "training",
     action: "reports",
@@ -373,6 +414,10 @@ const COMMANDS: Record<string, CommandRule> = {
     params: {},
     example: {},
   },
+
+  // ========================================
+  // 时间序列分析（专业功能）
+  // ========================================
   "timeseries.arima": {
     domain: "timeseries",
     action: "arima",

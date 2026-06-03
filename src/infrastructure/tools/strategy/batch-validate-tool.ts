@@ -5,7 +5,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { batchValidateStrategies } from "../../quant/quant-v2-client.js";
+import { batchValidateStrategies } from "../../adapters/quant/quant-v2-client.js";
 
 interface StrategyBatchValidateParams {
   startDate: string;

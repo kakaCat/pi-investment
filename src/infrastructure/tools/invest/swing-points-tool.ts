@@ -6,7 +6,7 @@
  */
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
-import { runQuantV2 } from "../../quant/quant-v2-client.js";
+import { runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
 
 interface SwingPointsParams {
   symbol: string;
