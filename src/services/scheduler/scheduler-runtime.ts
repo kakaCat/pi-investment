@@ -1,10 +1,9 @@
-import { createSchedulerPgPool } from "./postgres-client.js";
-import { PostgresSchedulerStore } from "./postgres-scheduler-store.js";
+import { InMemorySchedulerStore } from "./scheduler-service.js";
 import { createSchedulerExecutor, type SchedulerExecutorOptions } from "./scheduler-executor.js";
 import { SchedulerService, type SchedulerServiceOptions } from "./scheduler-service.js";
 
 let runtime: {
-  store: PostgresSchedulerStore;
+  store: InMemorySchedulerStore;
   service: SchedulerService;
 } | null = null;
 
@@ -15,10 +14,9 @@ export async function getSchedulerRuntime(
     return runtime;
   }
 
-  const store = options.store instanceof PostgresSchedulerStore
+  const store = options.store instanceof InMemorySchedulerStore
     ? options.store
-    : new PostgresSchedulerStore(createSchedulerPgPool());
-  await store.migrate();
+    : new InMemorySchedulerStore();
 
   const service = new SchedulerService({
     store,
