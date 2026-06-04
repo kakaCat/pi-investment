@@ -1,3 +1,4 @@
+import type { FinancialDataSource } from "./types.js";
 /**
  * QuantSys V2 HTTP 客户端
  *
@@ -34,6 +35,10 @@ import type {
   StrategyPipelineExecuteParams,
   BatchExecutionResult,
   PipelineExecutionResult,
+  RiskMetrics,
+  RiskMetricsParams,
+  PortfolioOptimizationParams,
+  PortfolioOptimizationResult,
 } from "./types.js";
 import { QuantV2Error } from "./types.js";
 
@@ -58,7 +63,7 @@ const V2_TIMEOUT_MS = parseInt(
  */
 const V2_ROUTES: Record<
   string,
-  { path: string; method: "GET" | "POST" | "DELETE"; paramMap?: Record<string, string> }
+  { path: string; method: "GET" | "POST" | "PUT" | "DELETE"; paramMap?: Record<string, string> }
 > = {
   // ── stock ──
   "stock.list":      { path: "/api/stocks/list",          method: "GET" },
@@ -73,7 +78,7 @@ const V2_ROUTES: Record<
   "analysis.valuation":    { path: "/api/stock/{symbol}/valuation",    method: "GET" },
   "analysis.price_action": { path: "/api/stock/{symbol}/price-action", method: "GET" },
   "analysis.buy_range":    { path: "/api/stock/{symbol}/buy-range",    method: "GET" },
-  "analysis.exit_plan":    { path: "/api/stock/{symbol}/exit-plan",    method: "GET" },
+  "analysis.exit_plan":    { path: "/api/stock/{symbol}/exit-plan",    method: "GET", paramMap: { entry_price: "buy_price" } },
   "analysis.pe_percentile":{ path: "/api/stock/{symbol}/pe-percentile",method: "GET" },
   "analysis.candlestick":  { path: "/api/stock/{symbol}/candlestick",  method: "GET" },
   "analysis.quality":      { path: "/api/stock/{symbol}/quality",     method: "GET" },
@@ -85,6 +90,7 @@ const V2_ROUTES: Record<
   "market.sectors":       { path: "/api/market/sectors",                 method: "GET" },
   "market.sentiment":     { path: "/api/market/sentiment",               method: "GET" },  // ✅ v2 原生实现完成
   "market.macro":         { path: "/api/market/macro",                   method: "GET" },
+  "market.style":         { path: "/api/market/style",                   method: "GET" },  // ✅ 市场风格检测
   "market.news":          { path: "/api/market/news",                    method: "GET" },
   "market.margin":        { path: "/api/market/margin",                  method: "GET" },
   "market.hot_stocks":    { path: "/api/market/hot-stocks",              method: "GET" },
@@ -204,6 +210,11 @@ const V2_ROUTES: Record<
   "strategy.status": { path: "/api/strategy/status",          method: "GET" },
   "strategy.execute": { path: "/api/strategies/execute",      method: "POST", paramMap: { strategy: "strategyName" } },
 
+  // ── discovery ──
+  "discovery.run": { path: "/api/discovery/run", method: "POST" },
+  "discovery.archetypes": { path: "/api/discovery/archetypes", method: "GET" },
+  "discovery.result": { path: "/api/discovery/result/{run_id}", method: "GET" },
+
   // ── portfolio ──
   "portfolio.summary":  { path: "/api/portfolio/summary",    method: "GET" },
   "portfolio.positions":{ path: "/api/portfolio/positions",  method: "GET" },
@@ -224,6 +235,10 @@ const V2_ROUTES: Record<
 
   // ── data ──
   "data.status": { path: "/api/stocks/data-status", method: "GET" },
+  "data.quality-report": { path: "/api/data/quality-report", method: "GET" },
+  "data.quality-stats": { path: "/api/data/quality-stats", method: "GET" },
+  "data.quality-summary": { path: "/api/data/quality-summary", method: "GET" },
+  "data.quality-trend": { path: "/api/data/quality-trend", method: "GET" },
 
   // ── performance ──
   "performance.by_strategy":  { path: "/api/performance/strategy/{strategy_id}", method: "GET" },
@@ -238,7 +253,15 @@ const V2_ROUTES: Record<
   "trades.list": { path: "/api/trades/list", method: "GET" },
 
   // ── scheduler ──
-  "scheduler.tasks": { path: "/api/scheduler/tasks", method: "GET" },
+  "scheduler.tasks.list": { path: "/api/scheduler/tasks", method: "GET" },
+  "scheduler.tasks.create": { path: "/api/scheduler/tasks", method: "POST" },
+  "scheduler.tasks.update": { path: "/api/scheduler/tasks/{task_id}", method: "PUT" },
+  "scheduler.tasks.enable": { path: "/api/scheduler/tasks/{task_id}/enable", method: "POST" },
+  "scheduler.tasks.disable": { path: "/api/scheduler/tasks/{task_id}/disable", method: "POST" },
+  "scheduler.tasks.delete": { path: "/api/scheduler/tasks/{task_id}", method: "DELETE" },
+  "scheduler.tasks.trigger": { path: "/api/scheduler/tasks/{task_id}/trigger", method: "POST" },
+  "scheduler.tasks.runs": { path: "/api/scheduler/tasks/{task_id}/runs", method: "GET" },
+  "scheduler.runs.failed": { path: "/api/scheduler/runs/failed", method: "GET" },
 
   // ── compute ──
   // compute.factors 已移除 — 使用专用工具 factor_calculate
@@ -429,7 +452,7 @@ export async function runQuantV2<T = unknown>(
 // ─── 内部辅助 ────────────────────────────────────────────
 
 function buildRequest(
-  route: { path: string; method: "GET" | "POST" | "DELETE"; paramMap?: Record<string, string> },
+  route: { path: string; method: "GET" | "POST" | "PUT" | "DELETE"; paramMap?: Record<string, string> },
   params: Record<string, unknown>,
 ): { url: string; body: Record<string, unknown> | null } {
   let path = route.path;
@@ -675,7 +698,7 @@ export async function computeFactors(
 }
 
 /**
- * 因子分析
+ * 因子分析（v2 增强版 - alphalens）
  * @param params 因子分析参数
  */
 export async function analyzeFactors(
@@ -690,41 +713,176 @@ export async function analyzeFactors(
 
   const url = `${V2_API_BASE}/api/portfolio/factor-analyze`;
 
-  // API 返回格式: { success: true, data: { success: true, factors: [...] } }
-  // 需要解包 data 字段并转换 camelCase → snake_case
+  // API 返回格式（增强版）
   const response = await fetchV2<{
     success: boolean;
     data: {
       success: boolean;
-      factors: Array<{
-        name: string;
-        icDaily: number;
-        icWeekly: number;
-        icMonthly: number;
-        coverage: number;
-        stability: number;
-        decayCurve: number[];
-      }>;
+      factors: Array<any>;
+      method?: 'alphalens' | 'fallback';
+      period?: {
+        start: string;
+        end: string;
+      };
+      universe_size?: number | string;
       count?: number;
       note?: string;
       warning?: string;
     };
   }>(url, { method: 'POST', body: params });
 
-  // 转换字段名：camelCase → snake_case
-  const factors: FactorMetrics[] = (response.data.factors || []).map(f => ({
-    name: f.name,
-    ic_daily: f.icDaily,
-    ic_weekly: f.icWeekly,
-    ic_monthly: f.icMonthly,
-    coverage: f.coverage,
-    stability: f.stability,
-    decay_curve: f.decayCurve,
-  }));
+  // 转换因子数据（支持 alphalens 和 fallback 两种格式）
+  const factors: FactorMetrics[] = (response.data.factors || []).map(f => {
+    // 基础字段
+    const factor: FactorMetrics = {
+      name: f.name,
+      coverage: f.coverage,
+      data_points: f.data_points || f.dataPoints,
+    };
+
+    // alphalens 增强字段
+    if (f.ic_analysis || f.icAnalysis) {
+      const ic = f.ic_analysis || f.icAnalysis;
+      factor.ic_analysis = {
+        ic_mean: ic.ic_mean || ic.icMean,
+        ic_std: ic.ic_std || ic.icStd,
+        ic_ir: ic.ic_ir || ic.icIr,
+        t_stat: ic.t_stat || ic.tStat,
+        p_value: ic.p_value || ic.pValue,
+        ic_by_period: ic.ic_by_period || ic.icByPeriod || {},
+      };
+    }
+
+    if (f.returns_analysis || f.returnsAnalysis) {
+      const returns = f.returns_analysis || f.returnsAnalysis;
+      factor.returns_analysis = {
+        mean_return_by_quantile: returns.mean_return_by_quantile || returns.meanReturnByQuantile || {},
+        mean_return_spread: returns.mean_return_spread || returns.meanReturnSpread || {},
+      };
+    }
+
+    if (f.turnover_analysis || f.turnoverAnalysis) {
+      const turnover = f.turnover_analysis || f.turnoverAnalysis;
+      factor.turnover_analysis = {
+        mean_turnover: turnover.mean_turnover || turnover.meanTurnover,
+        autocorrelation: turnover.autocorrelation || {},
+      };
+    }
+
+    // 向后兼容字段（fallback 模式）
+    if (f.ic_daily !== undefined || f.icDaily !== undefined) {
+      factor.ic_daily = f.ic_daily || f.icDaily;
+      factor.ic_weekly = f.ic_weekly || f.icWeekly;
+      factor.ic_monthly = f.ic_monthly || f.icMonthly;
+      factor.stability = f.stability;
+      factor.decay_curve = f.decay_curve || f.decayCurve || [];
+    }
+
+    return factor;
+  });
 
   return {
     success: response.data.success,
     factors,
+    method: response.data.method,
+    period: response.data.period,
+    universe_size: response.data.universe_size,
+    note: response.data.note,
+    warning: response.data.warning,
+  };
+}
+
+/**
+ * 生成因子分析 HTML 报告
+ * @param params 报告生成参数
+ */
+export async function generateFactorReport(params: {
+  factors: string[];
+  start_date: string;
+  end_date: string;
+  universe?: string[];
+  output_dir?: string;
+}): Promise<{
+  success: boolean;
+  reports?: Array<{
+    factor: string;
+    success: boolean;
+    report_path?: string;
+    file_size?: number;
+    url?: string;
+    error?: string;
+  }>;
+  total?: number;
+  success_count?: number;
+  failed_count?: number;
+  method?: string;
+  period?: { start: string; end: string };
+  universe_size?: number;
+  error?: string;
+}> {
+  const url = `${V2_API_BASE}/api/analysis/factor-report`;
+
+  const response = await fetchV2<{
+    success: boolean;
+    data?: {
+      reports: Array<{
+        factor: string;
+        success: boolean;
+        report_path?: string;
+        reportPath?: string;
+        file_size?: number;
+        fileSize?: number;
+        url?: string;
+        error?: string;
+      }>;
+      total: number;
+      success_count?: number;
+      successCount?: number;
+      failed_count?: number;
+      failedCount?: number;
+      method: string;
+      period: { start: string; end: string };
+      universe_size?: number;
+      universeSize?: number;
+    };
+    error?: string;
+  }>(url, {
+    method: 'POST',
+    body: {
+      factors: params.factors,
+      start_date: params.start_date,
+      end_date: params.end_date,
+      universe: params.universe,
+      output_dir: params.output_dir,
+    },
+  });
+
+  if (!response.success || !response.data) {
+    return {
+      success: false,
+      error: response.error || '生成报告失败',
+    };
+  }
+
+  // 转换响应（支持 camelCase 和 snake_case）
+  const reports = response.data.reports.map((r) => ({
+    factor: r.factor,
+    success: r.success,
+    report_path: r.report_path || r.reportPath,
+    file_size: r.file_size || r.fileSize,
+    url: r.url,
+    error: r.error,
+  }));
+
+  return {
+    success: true,
+    reports,
+    total: response.data.total,
+    success_count: response.data.success_count || response.data.successCount,
+    failed_count: response.data.failed_count || response.data.failedCount,
+    method: response.data.method,
+    period: response.data.period,
+    universe_size: response.data.universe_size || response.data.universeSize,
   };
 }
 
@@ -869,12 +1027,13 @@ export async function getDividends(
 }
 
 /**
- * 获取K线历史数据
+ * 获取K线历史数据（带自动验证、清洗和质量日志）
  * @param symbol 股票代码
  * @param period 周期 (daily/weekly/monthly)
  * @param startDate 开始日期 YYYYMMDD 或 YYYY-MM-DD
  * @param endDate 结束日期 YYYYMMDD 或 YYYY-MM-DD
  * @param limit 最大返回条数 (默认60)
+ * @param options 可选配置
  */
 export async function getKlineHistory(
   symbol: string,
@@ -882,7 +1041,21 @@ export async function getKlineHistory(
   startDate?: string,
   endDate?: string,
   limit: number = 60,
+  options: {
+    enableValidation?: boolean;    // 启用验证（默认true）
+    enableCleaning?: boolean;       // 启用清洗（默认true）
+    enableQualityLog?: boolean;     // 启用质量日志（默认true）
+  } = {},
 ): Promise<KlineData> {
+  const startTime = Date.now();
+
+  // 默认启用所有质量控制功能
+  const {
+    enableValidation = true,
+    enableCleaning = true,
+    enableQualityLog = true,
+  } = options;
+
   if (!symbol || symbol.trim() === '') {
     throw new QuantV2Error('股票代码不能为空', 400);
   }
@@ -922,10 +1095,107 @@ export async function getKlineHistory(
 
   try {
     const response = await fetchV2<KlineData>(url);
-    return {
+    const klineData = {
       ...response,
       success: response.success ?? true,
     };
+
+    // 如果没有数据或请求失败，直接返回
+    if (!klineData.success || !klineData.data || klineData.data.length === 0) {
+      return klineData;
+    }
+
+    // ─── 数据质量控制流程 ───
+
+    const originalData = klineData.data;
+    const originalCount = originalData.length;
+
+    // 1. 数据验证
+    let validationResult;
+    if (enableValidation) {
+      const { validateKlineData } = await import('./kline-data-quality.js');
+      validationResult = validateKlineData(originalData);
+    } else {
+      validationResult = {
+        isValid: true,
+        errors: [],
+        warnings: [],
+      };
+    }
+
+    // 2. 数据清洗
+    let cleaningResult;
+    if (enableCleaning && validationResult.errors.length > 0) {
+      const { cleanKlineData } = await import('./kline-data-quality.js');
+      cleaningResult = cleanKlineData(originalData, validationResult);
+
+      // 使用清洗后的数据
+      klineData.data = cleaningResult.cleaned;
+      klineData.count = cleaningResult.cleaned.length;
+
+      // 在响应中添加清洗信息
+      (klineData as any).quality = {
+        original_count: originalCount,
+        cleaned_count: cleaningResult.cleaned.length,
+        removed: cleaningResult.removed,
+        fixed: cleaningResult.fixed,
+        has_issues: validationResult.errors.length > 0 || validationResult.warnings.length > 0,
+      };
+    } else {
+      cleaningResult = {
+        cleaned: originalData,
+        removed: 0,
+        fixed: 0,
+        operations: [],
+      };
+    }
+
+    // 3. 计算质量指标
+    const { calculateQualityMetrics, getQualityGrade } = await import('./kline-data-quality.js');
+    const metrics = calculateQualityMetrics(
+      originalCount,
+      validationResult,
+      cleaningResult
+    );
+
+    // 4. 记录质量日志
+    if (enableQualityLog) {
+      const { logDataQuality } = await import('./kline-data-quality.js');
+      const durationMs = Date.now() - startTime;
+
+      logDataQuality({
+        timestamp: new Date().toISOString(),
+        symbol,
+        period,
+        requestedRange: {
+          startDate: params.start_date as string,
+          endDate: params.end_date as string,
+          limit: params.limit as number,
+        },
+        validation: validationResult,
+        cleaning: cleaningResult,
+        metrics,
+        durationMs,
+      });
+    }
+
+    // 5. 在响应中添加质量信息（用于调试）
+    if (validationResult.errors.length > 0 || validationResult.warnings.length > 0) {
+      (klineData as any).quality = {
+        ...(klineData as any).quality,
+        grade: getQualityGrade(metrics.overall),
+        score: Math.round(metrics.overall * 100),
+        errors: validationResult.errors.length,
+        warnings: validationResult.warnings.length,
+        metrics: {
+          completeness: Math.round(metrics.completeness * 100),
+          consistency: Math.round(metrics.consistency * 100),
+          accuracy: Math.round(metrics.accuracy * 100),
+        },
+      };
+    }
+
+    return klineData;
   } catch (error) {
     if (error instanceof QuantV2Error) {
       return {
@@ -1097,6 +1367,9 @@ export async function updateIndicator(
     description?: string;
     category?: string;
     is_active?: boolean;
+    is_public?: boolean;
+    notebook?: Record<string, unknown>;
+    strategy_profile?: Record<string, unknown>;
     params?: Record<string, unknown>;
   }
 ): Promise<{
@@ -1519,3 +1792,313 @@ export async function comboBacktest(
 
   return data.data;
 }
+
+/**
+ * 计算风险指标
+ * @param params 风险指标参数
+ */
+export async function calculateRiskMetrics(
+  params: RiskMetricsParams
+): Promise<RiskMetrics> {
+  if (!params.returns || params.returns.length === 0) {
+    throw new QuantV2Error('收益率序列不能为空', 400);
+  }
+
+  const url = `${V2_API_BASE}/api/risk/metrics`;
+
+  const response = await fetchV2<{
+    success: boolean;
+    data?: RiskMetrics;
+    error?: string;
+  }>(url, {
+    method: 'POST',
+    body: {
+      returns: params.returns,
+      benchmark_returns: params.benchmark_returns,
+      risk_free_rate: params.risk_free_rate,
+    },
+  });
+
+  if (!response.success || !response.data) {
+    throw new QuantV2Error(
+      response.error || '风险指标计算失败',
+      500
+    );
+  }
+
+  return response.data;
+}
+
+
+/**
+ * 组合优化
+ * @param params 组合优化参数
+ */
+export async function optimizePortfolio(
+  params: PortfolioOptimizationParams
+): Promise<PortfolioOptimizationResult> {
+  if (!params.symbols || params.symbols.length === 0) {
+    throw new QuantV2Error('股票列表不能为空', 400);
+  }
+
+  const url = `${V2_API_BASE}/api/portfolio/optimize`;
+
+  const response = await fetchV2<{
+    success: boolean;
+    data?: PortfolioOptimizationResult;
+    error?: string;
+  }>(url, {
+    method: 'POST',
+    body: {
+      symbols: params.symbols,
+      expected_returns: params.expected_returns,
+      cov_matrix: params.cov_matrix,
+      method: params.method,
+      risk_aversion: params.risk_aversion,
+      risk_free_rate: params.risk_free_rate,
+      constraints: params.constraints,
+      start_date: params.start_date,
+      end_date: params.end_date,
+    },
+  });
+
+  if (!response.success || !response.data) {
+    throw new QuantV2Error(
+      response.error || '组合优化失败',
+      500
+    );
+  }
+
+  return response.data;
+}
+
+// ========================================
+// 数据质量管理 API (2026-06-04)
+// ========================================
+
+/**
+ * 检查数据质量
+ */
+export async function checkDataQuality(params: {
+  symbols?: string[];
+  start_date?: string;
+  end_date?: string;
+  include_report?: boolean;
+}): Promise<{
+  success: boolean;
+  summary?: {
+    total_stocks: number;
+    stocks_with_issues: number;
+    total_missing_days: number;
+    avg_coverage_rate: number;
+    data_quality_score: number;
+  };
+  stocks_with_issues?: Array<{
+    symbol: string;
+    missing_days_count: number;
+    coverage_rate: number;
+    quality_score: number;
+    has_duplicates: boolean;
+    duplicate_count: number;
+    has_anomalies: boolean;
+    anomaly_count: number;
+  }>;
+  report_url?: string;
+  timestamp?: string;
+  error?: string;
+}> {
+  const queryParams = new URLSearchParams();
+  if (params.symbols) queryParams.append('symbols', params.symbols.join(','));
+  if (params.start_date) queryParams.append('start_date', params.start_date);
+  if (params.end_date) queryParams.append('end_date', params.end_date);
+  if (params.include_report) queryParams.append('include_report', 'true');
+
+  const url = `${V2_API_BASE}/api/data/check?${queryParams.toString()}`;
+
+  const response = await fetchV2<any>(url, { method: 'GET' });
+  return response;
+}
+
+/**
+ * 检测缺失数据
+ */
+export async function detectMissingData(params: {
+  symbols?: string[];
+  start_date?: string;
+  end_date?: string;
+}): Promise<{
+  success: boolean;
+  summary?: {
+    total_stocks: number;
+    stocks_with_gaps: number;
+    total_missing_days: number;
+    avg_coverage_rate: number;
+    worst_stocks: Array<{
+      symbol: string;
+      coverage_rate: number;
+      missing_days: number;
+    }>;
+  };
+  gaps?: Record<string, {
+    symbol: string;
+    total_trading_days: number;
+    actual_days: number;
+    missing_days_count: number;
+    missing_days: string[];
+    missing_segments: Array<{
+      start: string;
+      end: string;
+      days: number;
+    }>;
+    coverage_rate: number;
+  }>;
+  timestamp?: string;
+  error?: string;
+}> {
+  const url = `${V2_API_BASE}/api/data/detect-gaps`;
+
+  const response = await fetchV2<any>(url, {
+    method: 'POST',
+    body: {
+      symbols: params.symbols,
+      start_date: params.start_date,
+      end_date: params.end_date,
+    },
+  });
+
+  return response;
+}
+
+/**
+ * 补充缺失数据
+ */
+export async function backfillMissingData(params: {
+  symbols?: string[];
+  start_date?: string;
+  end_date?: string;
+  mode?: 'auto' | 'force';
+  max_workers?: number;
+}): Promise<{
+  success: boolean;
+  summary?: {
+    total_stocks: number;
+    success_count: number;
+    failed_count: number;
+    total_days_filled: number;
+    elapsed_time: number;
+  };
+  failed_symbols?: string[];
+  timestamp?: string;
+  error?: string;
+}> {
+  const url = `${V2_API_BASE}/api/data/backfill`;
+
+  const response = await fetchV2<any>(url, {
+    method: 'POST',
+    body: {
+      symbols: params.symbols,
+      start_date: params.start_date,
+      end_date: params.end_date,
+      mode: params.mode || 'auto',
+      max_workers: params.max_workers || 8,
+    },
+  });
+
+  return response;
+}
+
+/**
+ * 验证数据质量
+ */
+export async function validateDataQuality(params: {
+  symbols?: string[];
+  start_date?: string;
+  end_date?: string;
+}): Promise<{
+  success: boolean;
+  summary?: {
+    total_stocks: number;
+    stocks_with_issues: number;
+  };
+  validation_results?: Array<{
+    symbol: string;
+    valid: boolean;
+    total_records: number;
+    invalid_records: number;
+    validation_errors: Array<{
+      index: number;
+      date: string;
+      symbol: string;
+      errors: string[];
+    }>;
+    has_duplicates: boolean;
+    duplicate_count: number;
+    has_anomalies: boolean;
+    anomaly_count: number;
+  }>;
+  timestamp?: string;
+  error?: string;
+}> {
+  const url = `${V2_API_BASE}/api/data/validate`;
+
+  const response = await fetchV2<any>(url, {
+    method: 'POST',
+    body: {
+      symbols: params.symbols,
+      start_date: params.start_date,
+      end_date: params.end_date,
+    },
+  });
+
+  return response;
+}
+
+/**
+ * QuantV2Client - 统一的客户端对象，包装所有 API 函数
+ */
+export const QuantV2Client = {
+  // 基础功能
+  ping: pingV2,
+  run: runQuantV2,
+  
+  // 数据获取
+  getFinancials,
+  getDividends,
+  getKlineHistory,
+  getStockData,
+  
+  // 因子相关
+  computeFactors,
+  analyzeFactors,
+  generateFactorReport,
+  
+  // 投资机会
+  scanOpportunities,
+  
+  // 策略相关
+  batchValidateStrategies,
+  
+  // 指标相关
+  createIndicator,
+  updateIndicator,
+  
+  // 模型相关
+  listModels,
+  evaluateModel,
+  monitorModel,
+  trainModel,
+  
+  // 算法交易
+  algoExecute,
+  
+  // 数据质量
+  checkDataQuality,
+  detectMissingData,
+  backfillMissingData,
+  validateDataQuality,
+};
+
+/**
+ * 默认客户端实例（向后兼容）
+ */
+export const quantV2Client = QuantV2Client;

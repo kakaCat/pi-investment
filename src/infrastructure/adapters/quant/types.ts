@@ -63,28 +63,146 @@ export interface FactorResult {
   count: number;
 }
 
-// 因子分析类型
+// 因子分析类型（v2 增强版 - alphalens）
 export interface FactorAnalyzeParams {
   factors: string[];
   start_date: string;
   end_date: string;
   universe?: string[];
+  use_alphalens?: boolean;
 }
 
 export interface FactorAnalysis {
   success: boolean;
   factors: FactorMetrics[];
+  method?: 'alphalens' | 'fallback';
+  period?: {
+    start: string;
+    end: string;
+  };
+  universe_size?: number | string;
+  note?: string;
+  warning?: string;
   error?: string;
 }
 
 export interface FactorMetrics {
   name: string;
-  ic_daily: number;
-  ic_weekly: number;
-  ic_monthly: number;
-  coverage: number;
-  stability: number;
-  decay_curve: number[];
+  // alphalens 增强字段
+  ic_analysis?: {
+    ic_mean: number;
+    ic_std: number;
+    ic_ir: number;
+    t_stat: number;
+    p_value: number;
+    ic_by_period: {
+      [key: string]: {
+        mean: number;
+        std: number;
+      };
+    };
+  };
+  returns_analysis?: {
+    mean_return_by_quantile: {
+      [period: string]: {
+        [quantile: string]: number;
+      };
+    };
+    mean_return_spread: {
+      [period: string]: number;
+    };
+  };
+  turnover_analysis?: {
+    mean_turnover: number;
+    autocorrelation: {
+      [period: string]: number;
+    };
+  };
+  // 覆盖率分析（新增）
+  coverage_analysis?: {
+    coverage_ratio: number;
+    total_samples: number;
+    valid_samples: number;
+    missing_samples: number;
+    coverage_by_date?: {
+      [date: string]: number;
+    };
+  };
+  // 单调性分析（新增）
+  monotonicity_analysis?: {
+    monotonicity_ratio: number;
+    is_monotonic: boolean;
+    direction: 'increasing' | 'decreasing' | 'mixed';
+    monotonic_periods: number;
+    total_periods: number;
+    increasing_periods: number;
+    decreasing_periods: number;
+    violations_count: number;
+    violations_sample?: Array<{
+      date: string;
+      returns: number[];
+    }>;
+  };
+  coverage: number;  // 保留向后兼容
+  data_points?: number;
+  // 向后兼容字段（fallback 模式）
+  ic_daily?: number;
+  ic_weekly?: number;
+  ic_monthly?: number;
+  stability?: number;
+  decay_curve?: number[];
+}
+
+// 风险指标类型
+export interface RiskMetrics {
+  sharpe_ratio: number;
+  sortino_ratio: number;
+  calmar_ratio: number;
+  max_drawdown: number;
+  alpha?: number;
+  beta?: number;
+  var_95: number;
+  cvar_95: number;
+  annual_return: number;
+  annual_volatility: number;
+}
+
+export interface RiskMetricsParams {
+  returns: number[];
+  benchmark_returns?: number[];
+  risk_free_rate?: number;
+}
+
+// 组合优化类型
+export interface PortfolioOptimizationParams {
+  symbols: string[];
+  expected_returns?: number[];
+  cov_matrix?: number[][];
+  method: 'mean_variance' | 'min_variance' | 'max_sharpe' | 'risk_parity';
+  risk_aversion?: number;
+  risk_free_rate?: number;
+  constraints?: {
+    long_only?: boolean;
+    max_weight?: number;
+    min_weight?: number;
+    sector_neutral?: boolean;
+    turnover_limit?: number;
+  };
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface PortfolioWeights {
+  [symbol: string]: number;
+}
+
+export interface PortfolioOptimizationResult {
+  weights: PortfolioWeights;
+  method: string;
+  expected_return?: number;
+  risk?: number;
+  sharpe?: number;
+  risk_contributions?: PortfolioWeights;
 }
 
 // 机会扫描类型
@@ -768,3 +886,8 @@ export interface QuantCliResponse<T = unknown> {
     hint?: string;
   } | null;
 }
+
+/**
+ * Data source strategy for financial data queries
+ */
+export type FinancialDataSource = 'auto' | 'fresh' | 'cache_only';
