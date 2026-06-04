@@ -4,7 +4,7 @@
  * 基于 pi-coding-agent SDK 构建的命令行交互式投资分析 Agent
  */
 import { config } from "dotenv";
-import { InteractiveMode } from "@mariozechner/pi-coding-agent";
+import { InteractiveMode, AgentSessionRuntime } from "@mariozechner/pi-coding-agent";
 import { getSession as getSessionNormal } from "../core/agent/agent-loop.js";
 import { getSession as getSessionBackground } from "../core/agent/background-agent-loop.js";
 import * as logger from "../infrastructure/logging/observable-logger.js";
@@ -374,7 +374,8 @@ async function main() {
     });
 
     // 启动交互式模式
-    const mode = new InteractiveMode(session);
+    const runtime = new AgentSessionRuntime(session, { cwd: process.cwd() }, async () => ({ session }));
+    const mode = new InteractiveMode(runtime);
     await mode.run();
 
     // 正常退出时保存会话记忆

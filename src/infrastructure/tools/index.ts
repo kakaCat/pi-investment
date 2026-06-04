@@ -14,7 +14,9 @@ export interface ToolDefinition extends BaseToolDefinition {
   promptSnippet?: string;
   promptGuidelines?: string[];
 }
-import { readTool } from "@mariozechner/pi-coding-agent";
+import { createReadTool } from "@mariozechner/pi-coding-agent";
+
+const readTool = createReadTool();
 
 // ===== 六层量化投资架构工具 =====
 // L1 数据管道
@@ -22,16 +24,59 @@ import { dataFetchQuoteTool } from "./data/fetch-stock-tool.js";
 import { dataFetchKlineTool } from "./data/fetch-kline-tool.js";
 import { dataFetchFinancialTool } from "./data/fetch-financial-tool.js";
 import { dataFetchDividendTool } from "./data/fetch-dividend-tool.js";
+import { dataFetchMacroTool } from "./data/fetch-macro-tool.js";  // 新增：宏观经济数据
+import { dataFetchNorthFlowTool } from "./data/fetch-north-flow-tool.js";  // 新增：北向资金流向
+import { dataFetchMarketSentimentTool } from "./data/fetch-market-sentiment-tool.js";  // 新增：市场情绪分析
+import { dataManagerTool } from "./data/data-manager-tool.js";  // 新增：数据管理工具
+import { dataQualityReportTool } from "./data/data-quality-report-tool.js";  // 新增：数据质量监控
+import { dataQualityManageTool } from "./data/quality-manage-tool.js";  // 新增：数据补救管理（2026-06-04）
+
+// 风险控制
+import { riskControllerTool } from "./risk/risk-controller-tool.js";  // 新增：风险控制工具
+import { riskMetricsTool } from "./risk/risk-metrics-tool.js";         // 新增：风险指标工具
+import { riskBarraDecompositionTool } from "./risk/barra-decomposition-tool.js";  // 新增：Barra风险分解
+
+// 分析工具
+import { factorModelAttributionTool } from "./analysis/factor-model-attribution-tool.js";  // 新增：因子模型归因
+import { strategyComparisonTool } from "./analysis/strategy-comparison-tool.js";  // 新增：策略性能对比
+import { backtestStatsTool } from "./analysis/backtest-stats-tool.js";  // 新增：回测统计
+import { backtestHistoryTool } from "./analysis/backtest-history-tool.js";  // 新增：回测历史查询
+
+// 交易监控
+import { tradeMonitorTool } from "./trade/trade-monitor-tool.js";  // 新增：交易监控工具
+
+// 组合优化
+import { portfolioOptimizerTool } from "./portfolio/portfolio-optimizer-tool.js";  // 新增：组合优化工具
+
+// 性能分析
+import { performanceAnalyzerTool } from "./performance/performance-analyzer-tool.js";  // 新增：性能分析工具
+
+// 学术因子
+import { factorAcademicTool } from "./academic/factor-academic-tool.js";  // 新增：学术因子工具
+
+// 时间序列分析
+import { timeseriesAnalyzerTool } from "./timeseries/timeseries-analyzer-tool.js";  // 新增：时间序列分析工具
+
+// 市场分析
+import { marketStyleDetectTool } from "./market/market-style-detect-tool.js";  // 新增：市场风格检测工具
+
+// 调度器管理
+import { schedulerManageTool } from "./scheduler/scheduler-manage-tool.js";  // 新增：调度器管理工具
 
 // L2 因子工厂
 import { factorCalculateTool } from "./factor/calculate-tool.js";
 import { factorAnalyzeTool } from "./factor/factor-analyze-tool.js";
+import { factorLayeringBacktestTool } from "./factor/layering-backtest-tool.js";
+import { batchFactorLayeringBacktestTool } from "./factor/batch-layering-backtest-tool.js";
 
 // L2.5 机会雷达（基于因子的综合评分）
 import { opportunityScanTool } from "./invest/opportunity-scan-tool.js";
 
 // L2.6 ZigZag 波段买卖点分析
 import { swingPointsTool } from "./invest/swing-points-tool.js";
+
+// L2.65 实时信号扫描（解决信号滞后问题）
+import { realtimeSignalTool } from "./signal/realtime-signal-tool.js";
 
 // L2.7 股票池管理
 import { poolManageTool } from "./pool/pool-manage-tool.js";
@@ -55,6 +100,8 @@ import { strategyExecuteTool } from "./strategy/execute-tool.js";
 import { strategyWriteTool } from "./strategy/write-tool.js";
 import { strategyOptimizeTool } from "./strategy/optimize-tool.js";
 import { strategyBatchValidateTool } from "./strategy/batch-validate-tool.js";
+import { strategyDeleteTool } from "./strategy/delete-tool.js";
+import { strategyDiscoveryTool } from "./strategy/strategy-discovery-tool.js";  // 新增：策略发现工具
 
 // 指标工具（独立工具，从 quant_cli 提取）
 import { indicatorListTool } from "./indicator/list-tool.js";
@@ -95,7 +142,6 @@ import { toolStatsQueryTool } from './agent/tool-stats-tool.js';
 import {
   marketCliTool,
   stockCliTool,
-  financialCliTool,
   sentimentCliTool,
   analysisCliTool,
   watchlistCliTool
@@ -149,14 +195,23 @@ export const allCustomTools = [
   dataFetchKlineTool,             // data_fetch_kline - 获取K线数据
   dataFetchFinancialTool,         // data_fetch_financial - 获取财务数据
   dataFetchDividendTool,          // data_fetch_dividend - 获取分红送股数据
+  dataFetchMacroTool,             // data_fetch_macro - 获取宏观经济数据（新增）
+  dataFetchNorthFlowTool,         // data_fetch_north_flow - 获取北向资金流向（新增）
+  dataFetchMarketSentimentTool,   // data_fetch_market_sentiment - 获取市场情绪分析（新增）
+  dataManagerTool,                // data_manager - 数据管理工具（新增：从quant_cli拆分）
+  dataQualityReportTool,          // data_quality_report - 数据质量监控（新增）
+  dataQualityManageTool,          // data_quality_manage - 数据补救管理（新增：2026-06-04）
 
   // L2 因子工厂
   factorCalculateTool,            // factor_calculate - 计算技术/基本面因子
   factorAnalyzeTool,              // factor_analyze - 分析因子IC/覆盖率/稳定性
+  factorLayeringBacktestTool,     // factor_layering_backtest - 因子分层回测验证有效性
+  batchFactorLayeringBacktestTool, // batch_factor_layering_backtest - 批量因子分层回测
 
   // L2.5 机会雷达（基于因子的综合评分）
   opportunityScanTool,            // opportunity_scan - 多维评分扫描交易机会（支持固定/自定义/动态权重）
   swingPointsTool,                // analysis_swing_points - ZigZag 波段买卖点
+  realtimeSignalTool,             // realtime_signal_scan - 实时信号扫描（解决信号滞后问题）
 
   // L2.7 股票池管理
   poolManageTool,                 // pool_manage - 股票池 CRUD + 筛选建池
@@ -180,6 +235,8 @@ export const allCustomTools = [
   strategyStatusTool,             // strategy_status - 查询策略运行状态
   strategyOptimizeTool,           // strategy_optimize - 策略参数优化
   strategyBatchValidateTool,      // strategy_batch_validate - 批量验证策略有效性
+  strategyDeleteTool,             // strategy_delete - 软删除策略（设置 is_active=false）
+  strategyDiscoveryTool,          // strategy_discovery - 策略发现工具（新增）
 
   // 指标工具
   indicatorListTool,              // indicator_list - 列出可用指标
@@ -202,12 +259,29 @@ export const allCustomTools = [
   experienceWriteTool,            // experience_write - 写入投资经验
 
   // ===== 量化工具 — 统一通过 QuantSys CLI 调用 =====
-  quantCliTool,                   // quant_cli - 原统一CLI工具（向后兼容）
+  quantCliTool,                   // quant_cli - 原统一CLI工具（向后兼容，逐步废弃）
+
+  // ===== 独立业务工具（从 quant_cli 拆分）=====
+  dataManagerTool,                // data_manager - 数据管理工具
+  riskMetricsTool,               // risk_metrics - 风险指标分析（empyrical）
+  riskControllerTool,             // risk_controller - 风险控制工具
+  riskBarraDecompositionTool,     // risk_barra_decomposition - Barra风险分解（新增）
+  factorModelAttributionTool,     // factor_model_attribution - 因子模型归因（新增）
+  marketStyleDetectTool,          // market_style_detect - 市场风格检测（新增）
+  schedulerManageTool,            // scheduler_manage - 调度器管理（新增）
+  strategyComparisonTool,         // strategy_performance_comparison - 策略性能对比（新增）
+  backtestStatsTool,              // backtest_stats - 回测统计（新增）
+  backtestHistoryTool,            // backtest_history - 回测历史查询（新增）
+  marketStyleDetectTool,          // market_style_detect - 市场风格检测（新增）
+  tradeMonitorTool,               // trade_monitor - 交易监控工具
+  portfolioOptimizerTool,         // portfolio_optimizer - 组合优化工具
+  performanceAnalyzerTool,        // performance_analyzer - 性能分析工具
+  factorAcademicTool,             // factor_academic - 学术因子工具
+  timeseriesAnalyzerTool,         // timeseries_analyzer - 时间序列分析工具
 
   // ===== CLI 领域工具（推荐使用）=====
   marketCliTool,                  // market_cli - 市场数据查询
   stockCliTool,                   // stock_cli - 个股数据查询
-  financialCliTool,               // financial_cli - 财务数据查询
   sentimentCliTool,               // sentiment_cli - 市场情绪分析
   analysisCliTool,                // analysis_cli - 股票分析工具
   watchlistCliTool,               // watchlist_cli - 自选股管理
