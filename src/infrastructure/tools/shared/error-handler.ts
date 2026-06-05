@@ -232,7 +232,7 @@ function formatToolResult(result: any): ToolResult {
   if (typeof result === 'string') {
     return {
       content: [{ type: "text" as const, text: result }],
-      details: undefined
+      details: null
     };
   }
 
@@ -248,7 +248,7 @@ function formatToolResult(result: any): ToolResult {
   // 其他类型，转为字符串
   return {
     content: [{ type: "text" as const, text: String(result) }],
-    details: undefined
+    details: null
   };
 }
 
