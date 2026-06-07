@@ -81,6 +81,17 @@ export const stockApi = {
   },
 
   /**
+   * 修复当前股票数据：触发后端 K 线补齐/刷新任务
+   */
+  repairStockData(symbol: string, days = 730) {
+    const backendSymbol = normalizeBackendStockSymbol(symbol)
+    return apiClient.post('/api/stocks/data-update-klines', {
+      symbols: [backendSymbol],
+      days
+    })
+  },
+
+  /**
    * 获取股票基本面数据
    */
   getFundamentals(symbol: string) {

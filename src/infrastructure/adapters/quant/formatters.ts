@@ -72,13 +72,16 @@ export function formatStockPrice(data: any): string {
   lines.push(`股票名称: ${data.name}`);
   lines.push(`当前价格: ${formatNumber(data.price, 2)} 元`);
 
-  if (data.change_pct !== undefined && data.change_pct !== null) {
-    lines.push(`涨跌幅: ${formatPercent(data.change_pct)}`);
+  // Support both camelCase (changePct) and snake_case (change_pct)
+  const changePct = data.changePct ?? data.change_pct;
+  if (changePct !== undefined && changePct !== null) {
+    lines.push(`涨跌幅: ${formatPercent(changePct)}`);
   }
 
-  if (data.change !== undefined && data.change !== null) {
-    const sign = data.change > 0 ? '+' : '';
-    lines.push(`涨跌额: ${sign}${formatNumber(data.change, 2)} 元`);
+  const change = data.change;
+  if (change !== undefined && change !== null) {
+    const sign = change > 0 ? '+' : '';
+    lines.push(`涨跌额: ${sign}${formatNumber(change, 2)} 元`);
   }
 
   if (data.open !== undefined && data.open !== null) {
@@ -93,8 +96,10 @@ export function formatStockPrice(data: any): string {
     lines.push(`最低: ${formatNumber(data.low, 2)} 元`);
   }
 
-  if (data.prev_close !== undefined && data.prev_close !== null) {
-    lines.push(`昨收: ${formatNumber(data.prev_close, 2)} 元`);
+  // Support both camelCase (prevClose) and snake_case (prev_close)
+  const prevClose = data.prevClose ?? data.prev_close;
+  if (prevClose !== undefined && prevClose !== null) {
+    lines.push(`昨收: ${formatNumber(prevClose, 2)} 元`);
   }
 
   if (data.volume !== undefined && data.volume !== null) {
@@ -413,6 +418,84 @@ export function formatOpportunities(opportunities: OpportunityResult[]): string 
 }
 
 /**
+ * Format factor report generation result into readable text
+ */
+export function formatFactorReport(result: {
+  success: boolean;
+  reports?: Array<{
+    factor: string;
+    success: boolean;
+    report_path?: string;
+    file_size?: number;
+    url?: string;
+    error?: string;
+  }>;
+  total?: number;
+  success_count?: number;
+  failed_count?: number;
+  method?: string;
+  period?: { start: string; end: string };
+  universe_size?: number;
+  error?: string;
+}): string {
+  const lines: string[] = [];
+
+  if (!result.success) {
+    lines.push(`❌ 生成因子报告失败: ${result.error || '未知错误'}`);
+    return lines.join('\n');
+  }
+
+  lines.push(`📊 因子分析 HTML 报告生成完成`);
+  lines.push('');
+  lines.push(`总计: ${result.total} 个因子`);
+  lines.push(`✅ 成功: ${result.success_count}`);
+  if (result.failed_count && result.failed_count > 0) {
+    lines.push(`❌ 失败: ${result.failed_count}`);
+  }
+  lines.push(`分析方法: ${result.method === 'alphalens' ? '专业分析（alphalens）' : '基础分析'}`);
+
+  if (result.period) {
+    lines.push(`时间范围: ${result.period.start} ~ ${result.period.end}`);
+  }
+
+  if (result.universe_size) {
+    lines.push(`股票池大小: ${result.universe_size} 只`);
+  }
+
+  lines.push('');
+  lines.push('【报告详情】');
+
+  if (result.reports && result.reports.length > 0) {
+    result.reports.forEach((report, index) => {
+      lines.push(`${index + 1}. ${report.factor}`);
+
+      if (report.success) {
+        lines.push(`   ✅ 报告生成成功`);
+        if (report.report_path) {
+          lines.push(`   📄 文件路径: ${report.report_path}`);
+        }
+        if (report.file_size) {
+          const sizeKB = (report.file_size / 1024).toFixed(1);
+          lines.push(`   📦 文件大小: ${sizeKB} KB`);
+        }
+        if (report.url) {
+          lines.push(`   🔗 浏览器访问: ${report.url}`);
+        }
+      } else {
+        lines.push(`   ❌ 生成失败: ${report.error || '未知错误'}`);
+      }
+
+      lines.push('');
+    });
+  }
+
+  lines.push('💡 提示: 可在浏览器中打开 HTML 文件查看完整的可视化报告');
+  lines.push('   报告包含: IC 时间序列图、因子分层收益图、累计收益曲线、换手率分析等');
+
+  return lines.join('\n');
+}
+
+/**
  * Format algo order result into readable text
  */
 export function formatAlgoOrder(order: AlgoOrderResult): string {
@@ -510,7 +593,7 @@ export function formatAlgoOrder(order: AlgoOrderResult): string {
 }
 
 /**
- * Format factor analysis result into readable text
+ * Format factor analysis result into readable text (v2 enhanced - alphalens)
  */
 export function formatFactorAnalysis(analysis: import('./types.js').FactorAnalysis): string {
   const lines: string[] = [];
@@ -519,26 +602,157 @@ export function formatFactorAnalysis(analysis: import('./types.js').FactorAnalys
     return '因子分析失败或无结果';
   }
 
-  lines.push(`因子分析结果（共 ${analysis.factors.length} 个因子）:\n`);
+  // 标题
+  const methodText = analysis.method === 'alphalens' ? '专业分析（alphalens）' : '基础分析';
+  lines.push(`因子分析结果 - ${methodText}（共 ${analysis.factors.length} 个因子）`);
+
+  if (analysis.period) {
+    lines.push(`分析区间: ${analysis.period.start} ~ ${analysis.period.end}`);
+  }
+
+  if (analysis.universe_size) {
+    lines.push(`股票池规模: ${analysis.universe_size}`);
+  }
+
+  lines.push('');
 
   for (const factor of analysis.factors) {
     lines.push(`【${factor.name}】`);
-    lines.push(`  日度IC: ${formatNumber(factor.ic_daily, 4)}`);
-    lines.push(`  周度IC: ${formatNumber(factor.ic_weekly, 4)}`);
-    lines.push(`  月度IC: ${formatNumber(factor.ic_monthly, 4)}`);
-    lines.push(`  覆盖率: ${formatPercent(factor.coverage * 100, 2)}`);
-    lines.push(`  稳定性: ${formatNumber(factor.stability, 4)}`);
 
-    if (factor.decay_curve && factor.decay_curve.length > 0) {
-      const MAX_DECAY_DISPLAY = 10;
-      const decayStr = factor.decay_curve
-        .slice(0, MAX_DECAY_DISPLAY)
-        .map(v => formatNumber(v, 3))
-        .join(', ');
-      lines.push(`  衰减曲线: [${decayStr}${factor.decay_curve.length > MAX_DECAY_DISPLAY ? ', ...' : ''}]`);
+    // alphalens 增强分析
+    if (factor.ic_analysis) {
+      lines.push('  ► IC 分析:');
+      lines.push(`    平均IC: ${formatNumber(factor.ic_analysis.ic_mean, 4)}`);
+      lines.push(`    IC标准差: ${formatNumber(factor.ic_analysis.ic_std, 4)}`);
+      lines.push(`    信息比率(IR): ${formatNumber(factor.ic_analysis.ic_ir, 4)}`);
+      lines.push(`    t统计量: ${formatNumber(factor.ic_analysis.t_stat, 2)}`);
+      lines.push(`    p值: ${formatNumber(factor.ic_analysis.p_value, 4)}`);
+
+      if (factor.ic_analysis.ic_by_period) {
+        lines.push('    多周期IC:');
+        for (const [period, stats] of Object.entries(factor.ic_analysis.ic_by_period)) {
+          lines.push(`      ${period}: ${formatNumber(stats.mean, 4)} (±${formatNumber(stats.std, 4)})`);
+        }
+      }
+    }
+
+    // 分层收益分析
+    if (factor.returns_analysis) {
+      lines.push('  ► 分层收益:');
+      if (factor.returns_analysis.mean_return_spread) {
+        for (const [period, spread] of Object.entries(factor.returns_analysis.mean_return_spread)) {
+          lines.push(`    ${period}多空价差: ${formatPercent(spread * 100, 2)}`);
+        }
+      }
+
+      // 显示第一个周期的分位数收益
+      if (factor.returns_analysis.mean_return_by_quantile) {
+        const firstPeriod = Object.keys(factor.returns_analysis.mean_return_by_quantile)[0];
+        if (firstPeriod) {
+          const quantiles = factor.returns_analysis.mean_return_by_quantile[firstPeriod];
+          const quantileStr = Object.entries(quantiles)
+            .map(([q, ret]) => `${q}:${formatPercent((ret as number) * 100, 2)}`)
+            .join(', ');
+          lines.push(`    ${firstPeriod}分位数收益: ${quantileStr}`);
+        }
+      }
+    }
+
+    // 换手率分析
+    if (factor.turnover_analysis) {
+      lines.push('  ► 换手率:');
+      lines.push(`    平均换手率: ${formatPercent(factor.turnover_analysis.mean_turnover * 100, 2)}`);
+      if (factor.turnover_analysis.autocorrelation) {
+        const autocorrStr = Object.entries(factor.turnover_analysis.autocorrelation)
+          .map(([period, corr]) => `${period}:${formatNumber(corr as number, 3)}`)
+          .join(', ');
+        lines.push(`    自相关性: ${autocorrStr}`);
+      }
+    }
+
+    // 覆盖率分析（新增）
+    if (factor.coverage_analysis) {
+      lines.push('  ► 覆盖率:');
+      const coverage = factor.coverage_analysis.coverage_ratio;
+      const qualityText = coverage > 0.9 ? '优秀' : coverage > 0.7 ? '良好' : '较差';
+      lines.push(`    总体覆盖率: ${formatPercent(coverage * 100, 2)} (${qualityText})`);
+      lines.push(`    有效样本: ${factor.coverage_analysis.valid_samples} / ${factor.coverage_analysis.total_samples}`);
+      if (factor.coverage_analysis.missing_samples > 0) {
+        lines.push(`    缺失样本: ${factor.coverage_analysis.missing_samples}`);
+      }
+
+      // 按日期覆盖率（可选，如果数据太多则不显示）
+      if (factor.coverage_analysis.coverage_by_date) {
+        const dateCount = Object.keys(factor.coverage_analysis.coverage_by_date).length;
+        if (dateCount <= 5) {
+          lines.push('    按日期覆盖率:');
+          for (const [date, ratio] of Object.entries(factor.coverage_analysis.coverage_by_date)) {
+            lines.push(`      ${date}: ${formatPercent((ratio as number) * 100, 1)}`);
+          }
+        }
+      }
+    }
+
+    // 单调性分析（新增）
+    if (factor.monotonicity_analysis) {
+      lines.push('  ► 单调性:');
+      const mono = factor.monotonicity_analysis.monotonicity_ratio;
+      const qualityText = mono > 0.8 ? '优秀' : mono > 0.6 ? '良好' : mono > 0.4 ? '一般' : '较差';
+      const statusIcon = factor.monotonicity_analysis.is_monotonic ? '✓' : '✗';
+      lines.push(`    单调性比例: ${formatPercent(mono * 100, 2)} (${qualityText}) ${statusIcon}`);
+      lines.push(`    方向: ${factor.monotonicity_analysis.direction === 'increasing' ? '单调递增' : factor.monotonicity_analysis.direction === 'decreasing' ? '单调递减' : '混合'}`);
+      lines.push(`    单调期数: ${factor.monotonicity_analysis.monotonic_periods} / ${factor.monotonicity_analysis.total_periods}`);
+
+      if (factor.monotonicity_analysis.violations_count > 0) {
+        lines.push(`    违反单调性: ${factor.monotonicity_analysis.violations_count} 次`);
+
+        // 显示前2个违反案例
+        if (factor.monotonicity_analysis.violations_sample && factor.monotonicity_analysis.violations_sample.length > 0) {
+          lines.push('    示例（前2次）:');
+          for (const violation of factor.monotonicity_analysis.violations_sample.slice(0, 2)) {
+            const returnsStr = violation.returns.map((r: number) => formatPercent(r * 100, 1)).join(' → ');
+            lines.push(`      ${violation.date}: ${returnsStr}`);
+          }
+        }
+      }
+    }
+
+    // 向后兼容：fallback 模式字段
+    if (factor.ic_daily !== undefined) {
+      lines.push(`  日度IC: ${formatNumber(factor.ic_daily, 4)}`);
+      if (factor.ic_weekly !== undefined) lines.push(`  周度IC: ${formatNumber(factor.ic_weekly, 4)}`);
+      if (factor.ic_monthly !== undefined) lines.push(`  月度IC: ${formatNumber(factor.ic_monthly, 4)}`);
+      if (factor.stability !== undefined) {
+        lines.push(`  稳定性: ${formatNumber(factor.stability, 4)}`);
+      }
+
+      if (factor.decay_curve && factor.decay_curve.length > 0) {
+        const MAX_DECAY_DISPLAY = 10;
+        const decayStr = factor.decay_curve
+          .slice(0, MAX_DECAY_DISPLAY)
+          .map(v => formatNumber(v, 3))
+          .join(', ');
+        lines.push(`  衰减曲线: [${decayStr}${factor.decay_curve.length > MAX_DECAY_DISPLAY ? ', ...' : ''}]`);
+      }
+    }
+
+    // 共同字段（保留向后兼容）
+    if (!factor.coverage_analysis && factor.coverage !== undefined) {
+      lines.push(`  覆盖率: ${formatPercent(factor.coverage * 100, 2)}`);
+    }
+    if (factor.data_points) {
+      lines.push(`  数据点数: ${factor.data_points}`);
     }
 
     lines.push('');
+  }
+
+  // 注释和警告
+  if (analysis.note) {
+    lines.push(`📝 ${analysis.note}`);
+  }
+  if (analysis.warning) {
+    lines.push(`⚠️  ${analysis.warning}`);
   }
 
   return lines.join('\n');
@@ -862,6 +1076,384 @@ export function formatPipelineResult(result: import('./types.js').PipelineExecut
         lines.push(`     数量: ${formatNumber(order.quantity, 0)} 股`);
       }
     });
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Format risk metrics into readable text
+ */
+export function formatRiskMetrics(metrics: any): string {
+  const lines: string[] = [];
+
+  lines.push('📊 风险与收益指标');
+  lines.push('');
+
+  // 收益指标
+  lines.push('【收益指标】');
+  if (metrics.annual_return !== undefined) {
+    lines.push(`  年化收益率: ${formatPercent(metrics.annual_return * 100, 2)}`);
+  }
+  if (metrics.annual_volatility !== undefined) {
+    lines.push(`  年化波动率: ${formatPercent(metrics.annual_volatility * 100, 2)}`);
+  }
+  lines.push('');
+
+  // 风险调整收益
+  lines.push('【风险调整收益】');
+  if (metrics.sharpe_ratio !== undefined) {
+    const sharpeColor = metrics.sharpe_ratio > 1 ? '✅' : metrics.sharpe_ratio > 0 ? '⚠️' : '❌';
+    lines.push(`  ${sharpeColor} 夏普比率: ${formatNumber(metrics.sharpe_ratio, 4)}`);
+  }
+  if (metrics.sortino_ratio !== undefined) {
+    const sortinoColor = metrics.sortino_ratio > 1 ? '✅' : metrics.sortino_ratio > 0 ? '⚠️' : '❌';
+    lines.push(`  ${sortinoColor} 索提诺比率: ${formatNumber(metrics.sortino_ratio, 4)}`);
+  }
+  if (metrics.calmar_ratio !== undefined) {
+    const calmarColor = metrics.calmar_ratio > 1 ? '✅' : metrics.calmar_ratio > 0 ? '⚠️' : '❌';
+    lines.push(`  ${calmarColor} 卡尔马比率: ${formatNumber(metrics.calmar_ratio, 4)}`);
+  }
+  lines.push('');
+
+  // 回撤指标
+  lines.push('【回撤指标】');
+  if (metrics.max_drawdown !== undefined) {
+    const ddColor = metrics.max_drawdown > -0.1 ? '✅' : metrics.max_drawdown > -0.2 ? '⚠️' : '❌';
+    lines.push(`  ${ddColor} 最大回撤: ${formatPercent(metrics.max_drawdown * 100, 2)}`);
+  }
+  lines.push('');
+
+  // Alpha/Beta 分析
+  if (metrics.alpha !== undefined && metrics.beta !== undefined) {
+    lines.push('【Alpha/Beta 分析】');
+    const alphaColor = metrics.alpha > 0 ? '✅' : '❌';
+    lines.push(`  ${alphaColor} Alpha: ${formatPercent(metrics.alpha * 100, 4)}`);
+    lines.push(`  Beta: ${formatNumber(metrics.beta, 4)}`);
+    lines.push('');
+  }
+
+  // 尾部风险
+  lines.push('【尾部风险】');
+  if (metrics.var_95 !== undefined) {
+    lines.push(`  VaR (95%): ${formatPercent(metrics.var_95 * 100, 2)}`);
+  }
+  if (metrics.cvar_95 !== undefined) {
+    lines.push(`  CVaR (95%): ${formatPercent(metrics.cvar_95 * 100, 2)}`);
+  }
+
+  // 指标说明
+  lines.push('');
+  lines.push('💡 指标说明:');
+  lines.push('  夏普比率 > 1: 优秀，0-1: 良好，< 0: 差');
+  lines.push('  索提诺比率: 只惩罚下行波动，比夏普更合理');
+  lines.push('  卡尔马比率: 收益/最大回撤，衡量回撤调整后收益');
+  lines.push('  VaR: 95%置信度下的最大损失');
+  lines.push('  CVaR: 超过VaR的平均损失（尾部期望）');
+
+  return lines.join('\n');
+}
+
+/**
+ * Format backtest result into readable text with summary
+ */
+export function formatBacktestResult(result: any): string {
+  const lines: string[] = [];
+
+  lines.push('📈 指标回测结果');
+  lines.push('');
+
+  // Summary metrics — merge top-level & summary, support both camelCase & snake_case (Bug 3 fix)
+  // Python backend returns camelCase (totalReturn, winRate), but legacy paths use snake_case
+  const s = { ...result, ...(result.summary || {}) };
+  const g = (camel: string, snake: string) => s[camel] ?? s[snake];
+
+  const totalReturn = g('totalReturn', 'total_return');
+  const annualReturn = g('annualReturn', 'annual_return');
+  const sharpeRatio = g('sharpeRatio', 'sharpe_ratio');
+  const maxDrawdown = g('maxDrawdown', 'max_drawdown');
+  const winRate = g('winRate', 'win_rate');
+  const profitLossRatio = g('profitLossRatio', 'profit_loss_ratio');
+  const profitFactor = g('profitFactor', 'profit_factor');
+
+  const hasSummary = [totalReturn, sharpeRatio, maxDrawdown, winRate].some(v => v !== undefined);
+  if (hasSummary) {
+    lines.push('【回测摘要】');
+
+    if (totalReturn !== undefined) {
+      const returnColor = totalReturn > 0 ? '✅' : '❌';
+      lines.push(`  ${returnColor} 总收益率: ${formatPercent(totalReturn * 100, 2)}`);
+    }
+
+    if (annualReturn !== undefined) {
+      lines.push(`  年化收益率: ${formatPercent(annualReturn * 100, 2)}`);
+    }
+
+    if (sharpeRatio !== undefined) {
+      const sharpeColor = sharpeRatio > 1 ? '✅' : sharpeRatio > 0 ? '⚠️' : '❌';
+      lines.push(`  ${sharpeColor} 夏普比率: ${formatNumber(sharpeRatio, 2)}`);
+    }
+
+    if (maxDrawdown !== undefined) {
+      const ddColor = maxDrawdown > -0.1 ? '✅' : maxDrawdown > -0.2 ? '⚠️' : '❌';
+      lines.push(`  ${ddColor} 最大回撤: ${formatPercent(maxDrawdown * 100, 2)}`);
+    }
+
+    if (winRate !== undefined) {
+      const winColor = winRate > 0.6 ? '✅' : winRate > 0.5 ? '⚠️' : '❌';
+      lines.push(`  ${winColor} 胜率: ${formatPercent(winRate * 100, 1)}`);
+    }
+
+    if (profitLossRatio !== undefined) {
+      lines.push(`  盈亏比: ${formatNumber(profitLossRatio, 2)}`);
+    } else if (profitFactor !== undefined) {
+      lines.push(`  盈亏比: ${formatNumber(profitFactor, 2)}`);
+    }
+
+    lines.push('');
+  }
+
+  // Trade statistics
+  if (result.trades && Array.isArray(result.trades)) {
+    lines.push('【交易统计】');
+    lines.push(`  总交易次数: ${result.trades.length}`);
+
+    // Python backend returns 'pnl' (profit & loss amount) and 'return' (decimal return)
+    // NOT 'profit' or 'profit_pct' — Bug 1 fix
+    const profitTrades = result.trades.filter((t: any) => (t.pnl ?? t.profit ?? 0) > 0).length;
+    const lossTrades = result.trades.filter((t: any) => (t.pnl ?? t.profit ?? 0) < 0).length;
+    lines.push(`  盈利交易: ${profitTrades} 次`);
+    lines.push(`  亏损交易: ${lossTrades} 次`);
+
+    if (result.trades.length > 0) {
+      const avgReturn = result.trades.reduce((sum: number, t: any) => sum + ((t.return ?? t.profit_pct ?? 0) * 100), 0) / result.trades.length;
+      lines.push(`  平均收益率: ${formatPercent(avgReturn, 2)}`);
+    }
+
+    lines.push('');
+  }
+
+  // Equity curve info
+  if (result.equity_curve && Array.isArray(result.equity_curve)) {
+    lines.push('【权益曲线】');
+    lines.push(`  数据点数: ${result.equity_curve.length}`);
+
+    if (result.equity_curve.length > 0) {
+      const firstEquity = result.equity_curve[0].equity;
+      const lastEquity = result.equity_curve[result.equity_curve.length - 1].equity;
+      const totalReturn = ((lastEquity - firstEquity) / firstEquity) * 100;
+      lines.push(`  初始权益: ${formatNumber(firstEquity, 2)} 元`);
+      lines.push(`  最终权益: ${formatNumber(lastEquity, 2)} 元`);
+      lines.push(`  权益增长: ${formatPercent(totalReturn, 2)}`);
+    }
+
+    lines.push('');
+  }
+
+  // Additional metrics
+  if (result.metrics) {
+    lines.push('【其他指标】');
+    const m = result.metrics;
+
+    if (m.volatility !== undefined) {
+      lines.push(`  年化波动率: ${formatPercent(m.volatility * 100, 2)}`);
+    }
+
+    if (m.sortino_ratio !== undefined) {
+      lines.push(`  索提诺比率: ${formatNumber(m.sortino_ratio, 2)}`);
+    }
+
+    if (m.calmar_ratio !== undefined) {
+      lines.push(`  卡尔马比率: ${formatNumber(m.calmar_ratio, 2)}`);
+    }
+
+    lines.push('');
+  }
+
+  lines.push('💡 提示: 完整的交易记录和权益曲线已保存到本地文件');
+
+  return lines.join('\n');
+}
+
+/**
+ * Format strategy detail into readable text
+ */
+export function formatStrategyDetail(strategy: any): string {
+  const lines: string[] = [];
+
+  lines.push('📋 策略详情');
+  lines.push('');
+
+  // Basic info
+  lines.push('【基本信息】');
+  if (strategy.id) {
+    lines.push(`  策略ID: ${strategy.id}`);
+  }
+  if (strategy.name) {
+    lines.push(`  策略名称: ${strategy.name}`);
+  }
+  if (strategy.description) {
+    lines.push(`  描述: ${strategy.description}`);
+  }
+  if (strategy.created_at) {
+    lines.push(`  创建时间: ${strategy.created_at}`);
+  }
+  if (strategy.updated_at) {
+    lines.push(`  更新时间: ${strategy.updated_at}`);
+  }
+  lines.push('');
+
+  // Strategy type and parameters
+  if (strategy.type) {
+    lines.push('【策略类型】');
+    lines.push(`  类型: ${strategy.type}`);
+    lines.push('');
+  }
+
+  if (strategy.parameters && Object.keys(strategy.parameters).length > 0) {
+    lines.push('【策略参数】');
+    for (const [key, value] of Object.entries(strategy.parameters)) {
+      lines.push(`  ${key}: ${JSON.stringify(value)}`);
+    }
+    lines.push('');
+  }
+
+  // Lifecycle status
+  lines.push('【生命周期】');
+  const isActive = strategy.is_active !== undefined ? strategy.is_active : true;
+  lines.push(`  状态: ${isActive ? '✅ 活跃' : '❌ 停用'}`);
+  const validationStatus = strategy.validation_status ?? '?';
+  lines.push(`  验证: ${validationStatus}`);
+  const tags = Array.isArray(strategy.tags) ? strategy.tags : [];
+  if (tags.length > 0) {
+    lines.push(`  标签: ${tags.join(', ')}`);
+  }
+  if (strategy.strategy_profile && Object.keys(strategy.strategy_profile).length > 0) {
+    const profile = strategy.strategy_profile;
+    if (profile.strategy_type) lines.push(`  策略类型: ${profile.strategy_type}`);
+    if (profile.risk_level) lines.push(`  风险等级: ${profile.risk_level}`);
+    if (profile.market_condition) {
+      const mc = Array.isArray(profile.market_condition) ? profile.market_condition.join(', ') : profile.market_condition;
+      lines.push(`  适用市场: ${mc}`);
+    }
+    if (profile.stop_loss_pct !== undefined) lines.push(`  止损: ${profile.stop_loss_pct}%`);
+    if (profile.take_profit_pct !== undefined) lines.push(`  止盈: ${profile.take_profit_pct}%`);
+  }
+  lines.push('');
+
+  // Performance summary (if available)
+  if (strategy.performance) {
+    lines.push('【历史表现】');
+    const p = strategy.performance;
+
+    if (p.total_trades !== undefined) {
+      lines.push(`  总交易次数: ${p.total_trades}`);
+    }
+    if (p.win_rate !== undefined) {
+      const winColor = p.win_rate > 0.6 ? '✅' : p.win_rate > 0.5 ? '⚠️' : '❌';
+      lines.push(`  ${winColor} 胜率: ${formatPercent(p.win_rate * 100, 1)}`);
+    }
+    if (p.avg_return !== undefined) {
+      lines.push(`  平均收益率: ${formatPercent(p.avg_return * 100, 2)}`);
+    }
+    if (p.sharpe_ratio !== undefined) {
+      lines.push(`  夏普比率: ${formatNumber(p.sharpe_ratio, 2)}`);
+    }
+    lines.push('');
+  }
+
+  // Strategy code
+  if (strategy.code) {
+    lines.push('【策略代码】');
+    lines.push('```python');
+    lines.push(strategy.code);
+    lines.push('```');
+    lines.push('');
+  }
+
+  // Configuration
+  if (strategy.config && Object.keys(strategy.config).length > 0) {
+    lines.push('【配置信息】');
+    for (const [key, value] of Object.entries(strategy.config)) {
+      lines.push(`  ${key}: ${JSON.stringify(value)}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Format portfolio optimization result
+ */
+export function formatPortfolioWeights(result: any): string {
+  const lines: string[] = [];
+
+  lines.push(`📊 组合优化结果 (${result.method})`);
+  lines.push('');
+
+  // 权重分配
+  lines.push('【权重分配】');
+  
+  const weights = Object.entries(result.weights as Record<string, number>)
+    .sort((a, b) => b[1] - a[1]);
+  
+  for (const [symbol, weight] of weights) {
+    const weightPct = weight * 100;
+    const bar = '█'.repeat(Math.round(weight * 20));
+    lines.push(`  ${symbol}: ${formatPercent(weightPct, 2)} ${bar}`);
+  }
+  
+  lines.push('');
+  
+  // 组合指标
+  if (result.expected_return !== undefined || result.risk !== undefined || result.sharpe !== undefined) {
+    lines.push('【组合指标】');
+    
+    if (result.expected_return !== undefined) {
+      lines.push(`  预期收益率: ${formatPercent(result.expected_return * 100, 2)}`);
+    }
+    
+    if (result.risk !== undefined) {
+      lines.push(`  组合风险: ${formatPercent(result.risk * 100, 2)}`);
+    }
+    
+    if (result.sharpe !== undefined) {
+      const sharpeColor = result.sharpe > 1 ? '✅' : result.sharpe > 0 ? '⚠️' : '❌';
+      lines.push(`  ${sharpeColor} 夏普比率: ${formatNumber(result.sharpe, 4)}`);
+    }
+    
+    lines.push('');
+  }
+  
+  // 风险贡献（如果有）
+  if (result.risk_contributions) {
+    lines.push('【风险贡献】');
+    
+    const contribs = Object.entries(result.risk_contributions as Record<string, number>)
+      .sort((a, b) => b[1] - a[1]);
+    
+    for (const [symbol, contrib] of contribs) {
+      lines.push(`  ${symbol}: ${formatPercent(contrib * 100, 4)}`);
+    }
+    
+    lines.push('');
+  }
+  
+  // 优化方法说明
+  lines.push('💡 优化方法:');
+  if (result.method === 'mean_variance') {
+    lines.push('  均值-方差优化（马科维茨模型）');
+    lines.push('  目标: 最大化 (收益 - 风险厌恶系数 × 方差)');
+  } else if (result.method === 'min_variance') {
+    lines.push('  最小方差优化');
+    lines.push('  目标: 最小化组合风险');
+  } else if (result.method === 'max_sharpe') {
+    lines.push('  最大夏普比率优化');
+    lines.push('  目标: 最大化 (收益 - 无风险利率) / 风险');
+  } else if (result.method === 'risk_parity') {
+    lines.push('  风险平价优化');
+    lines.push('  目标: 每个资产贡献相同的风险');
   }
 
   return lines.join('\n');

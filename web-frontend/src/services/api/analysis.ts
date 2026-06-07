@@ -56,6 +56,9 @@ export const analysisApi = {
       scanMode: response.scanMode ?? response.scan_mode ?? 'score',
       opportunities: (response.opportunities ?? []).map(adaptOpportunity),
       total: Number(response.total ?? response.opportunities?.length ?? 0),
+      page: Number(response.page ?? 1),
+      pageSize: Number(response.pageSize ?? response.page_size ?? 20),
+      totalPages: Number(response.totalPages ?? response.total_pages ?? 0),
       scanned: Number(response.scanned ?? 0),
       strategyId: response.strategyId ?? response.strategy_id,
       sectorInfo: response.sectorInfo ?? response.sector_info

@@ -343,7 +343,7 @@
               <!-- Tab切换 -->
               <el-tabs v-model="resultTab">
                 <el-tab-pane label="交易记录" name="trades">
-                  <el-table :data="backtestResult.trades" stripe max-height="400">
+                  <el-table :data="backtestTradeRows" stripe max-height="400">
                     <el-table-column prop="date" label="日期" width="120">
                       <template #default="{ row }">
                         {{ formatDate(row.date) }}
@@ -489,7 +489,7 @@ import { analysisApi, stockApi, tradingApi, strategyApi, indicatorApi } from '@/
 import { formatPrice, formatPercent, formatDate } from '@/utils/format'
 import KLineChart from '@/components/charts/KLineChart/index.vue'
 import DiagnosisTab from './DiagnosisTab.vue'
-import type { Indicator, KLineData, TradingSignal } from '@/types'
+import { OperatorType, SignalStatus, SignalType, type Indicator, type KLineData, type TradingSignal } from '@/types'
 import type { KlinePeriod } from '@/types'
 
 // 表单引用
@@ -614,6 +614,8 @@ const normalizeStrategyResponseItems = (response: any) => {
   return response?.strategies ?? response?.items ?? response?.data?.strategies ?? response?.data?.items ?? []
 }
 
+const isActiveStrategyItem = (item: any) => item?.isActive !== false && item?.is_active !== false
+
 const dedupeStrategyOptions = (options: Array<{ label: string, value: string }>) => {
   const seen = new Set<string>()
   return options.filter(option => {
@@ -624,7 +626,17 @@ const dedupeStrategyOptions = (options: Array<{ label: string, value: string }>)
 }
 
 const formatBuiltinStrategyLabel = (strategy: any) => {
-  return strategy.className ?? strategy.name ?? strategy.strategyName ?? strategy.strategy_type ?? strategy.strategyType
+  const id = strategy.id ?? strategy.strategyId ?? strategy.strategy_id
+  const name = strategy.className ?? strategy.name ?? strategy.strategyName ?? strategy.strategy_name ?? strategy.strategy_type ?? strategy.strategyType
+  return formatStrategyLabel(id, name)
+}
+
+const formatStrategyLabel = (id: any, name: any) => {
+  const normalizedId = id === undefined || id === null ? '' : String(id).trim()
+  const normalizedName = name === undefined || name === null ? '' : String(name).trim()
+
+  if (normalizedId && normalizedName) return `${normalizedId} : ${normalizedName}`
+  return normalizedName || normalizedId
 }
 
 const loadStrategyOptions = async () => {
@@ -639,15 +651,15 @@ const loadStrategyOptions = async () => {
     myIndicators.value = personalIndicators
 
     strategyOptions.value = dedupeStrategyOptions([
-      ...personalIndicators.map((indicator: any) => ({
-        label: indicator.name,
+      ...personalIndicators.filter(isActiveStrategyItem).map((indicator: any) => ({
+        label: formatStrategyLabel(indicator.id, indicator.name),
         value: `indicator:${indicator.id}`
       })),
-      ...systemIndicators.map((indicator: any) => ({
-        label: indicator.name,
+      ...systemIndicators.filter(isActiveStrategyItem).map((indicator: any) => ({
+        label: formatStrategyLabel(indicator.id, indicator.name),
         value: `indicator:${indicator.id}`
       })),
-      ...normalizeStrategyResponseItems(builtinStrategies).map((strategy: any) => ({
+      ...normalizeStrategyResponseItems(builtinStrategies).filter(isActiveStrategyItem).map((strategy: any) => ({
         label: formatBuiltinStrategyLabel(strategy),
         value: strategy.strategyType ?? strategy.strategy_type ?? strategy.name
       })),
@@ -672,6 +684,11 @@ const normalizeRatioMetric = (value: any) => {
   return Math.abs(numberValue) <= 1 ? numberValue * 100 : numberValue
 }
 
+const normalizeBacktestDate = (date: any) => {
+  if (!date) return undefined
+  return String(date).split(' ')[0]
+}
+
 const formatBacktestPercent = (value: number | string, showSign = true) => {
   return formatPercent(value, 2, showSign)
 }
@@ -692,7 +709,9 @@ const normalizeBacktestTrade = (trade: any) => {
   const quantity = toFiniteNumber(trade.quantity ?? trade.shares ?? trade.size ?? trade.volume, 0)
   const amount = toFiniteNumber(trade.amount ?? trade.turnover ?? trade.value, price * quantity)
   const commission = toFiniteNumber(trade.commission ?? trade.fee ?? trade.comm, 0)
-  const profitValue = trade.profit ?? trade.pnl ?? trade.realizedPnl ?? trade.realized_pnl
+  const profitValue = Object.prototype.hasOwnProperty.call(trade, 'profit')
+    ? trade.profit
+    : trade.pnl ?? trade.realizedPnl ?? trade.realized_pnl
   const balanceValue = trade.balance ?? trade.cash ?? trade.totalEquity ?? trade.total_equity ?? trade.equity
 
   return {
@@ -762,25 +781,110 @@ const normalizeBacktestResult = (result: any) => {
   }
 }
 
+const createBacktestTradeRow = (trade: any, overrides: Record<string, any>) => {
+  const row = normalizeBacktestTrade({
+    ...trade,
+    ...overrides
+  })
+  return {
+    ...row,
+    pairIndex: trade.pairIndex ?? overrides.pairIndex,
+    exitReason: trade.exitReason ?? trade.exit_reason
+  }
+}
+
+const backtestTradeRows = computed(() => {
+  if (!backtestResult.value?.trades?.length) return []
+
+  return backtestResult.value.trades.flatMap((trade: any, index: number) => {
+    const pairIndex = index + 1
+    const rows = []
+
+    const entryDate = trade.entryDate ?? trade.entry_date
+    const entryPrice = trade.entryPrice ?? trade.entry_price
+    if (entryDate && toFiniteNumber(entryPrice) > 0) {
+      const quantity = toFiniteNumber(trade.size ?? trade.quantity ?? trade.shares, 0)
+      rows.push(createBacktestTradeRow(trade, {
+        pairIndex,
+        date: entryDate,
+        type: 'BUY',
+        price: entryPrice,
+        quantity,
+        amount: toFiniteNumber(entryPrice) * quantity,
+        profit: null,
+        balance: undefined
+      }))
+    }
+
+    const exitDate = trade.exitDate ?? trade.exit_date
+    const exitPrice = trade.exitPrice ?? trade.exit_price
+    if (exitDate && toFiniteNumber(exitPrice) > 0) {
+      const quantity = toFiniteNumber(trade.size ?? trade.quantity ?? trade.shares, 0)
+      rows.push(createBacktestTradeRow(trade, {
+        pairIndex,
+        date: exitDate,
+        type: 'SELL',
+        price: exitPrice,
+        quantity,
+        amount: toFiniteNumber(exitPrice) * quantity,
+        profit: trade.profit ?? trade.pnl ?? trade.realizedPnl ?? trade.realized_pnl
+      }))
+    }
+
+    if (!rows.length) {
+      rows.push(createBacktestTradeRow(trade, { pairIndex }))
+    }
+
+    return rows
+  })
+})
+
 const backtestTradeSignals = computed(() => {
   if (!backtestResult.value?.trades?.length) return []
 
-  return backtestResult.value.trades
-    .filter((trade: any) => trade.date && (trade.type === 'BUY' || trade.type === 'SELL'))
-    .map((trade: any, index: number) => ({
-      id: `${trade.type}-${trade.date}-${index}`,
-      symbol: backtestForm.symbol,
-      symbolName: backtestForm.symbol,
-      type: trade.type === 'BUY' ? 'buy' : 'sell',
-      price: trade.price,
-      triggerPrice: trade.price,
-      confidence: 1,
-      reasons: [],
-      status: 'executed',
-      operator: 'agent',
-      createdAt: trade.date,
-      updatedAt: trade.date
-    })) as TradingSignal[]
+  return backtestResult.value.trades.flatMap((trade: any, index: number) => {
+    const signals: TradingSignal[] = []
+    const entryDate = normalizeBacktestDate(trade.entryDate ?? trade.entry_date ?? (trade.type === 'BUY' ? trade.date : undefined))
+    const exitDate = normalizeBacktestDate(trade.exitDate ?? trade.exit_date ?? (trade.type === 'SELL' ? trade.date : undefined))
+    const entryPrice = toFiniteNumber(trade.entryPrice ?? trade.entry_price ?? (trade.type === 'BUY' ? trade.price : undefined))
+    const exitPrice = toFiniteNumber(trade.exitPrice ?? trade.exit_price ?? (trade.type === 'SELL' ? trade.price : undefined))
+
+    if (entryDate && entryPrice > 0) {
+      signals.push({
+        id: `BUY-${entryDate}-${index}`,
+        symbol: backtestForm.symbol,
+        symbolName: backtestForm.symbol,
+        type: SignalType.BUY,
+        price: entryPrice,
+        triggerPrice: entryPrice,
+        confidence: 1,
+        reasons: [],
+        status: SignalStatus.EXECUTED,
+        operator: OperatorType.AGENT,
+        createdAt: entryDate,
+        updatedAt: entryDate
+      })
+    }
+
+    if (exitDate && exitPrice > 0) {
+      signals.push({
+        id: `SELL-${exitDate}-${index}`,
+        symbol: backtestForm.symbol,
+        symbolName: backtestForm.symbol,
+        type: SignalType.SELL,
+        price: exitPrice,
+        triggerPrice: exitPrice,
+        confidence: 1,
+        reasons: [],
+        status: SignalStatus.EXECUTED,
+        operator: OperatorType.AGENT,
+        createdAt: exitDate,
+        updatedAt: exitDate
+      })
+    }
+
+    return signals
+  })
 })
 
 const loadBacktestKlines = async (startDate: string, endDate: string) => {

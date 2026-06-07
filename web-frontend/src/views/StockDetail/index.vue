@@ -23,6 +23,13 @@
           </div>
         </div>
         <div class="flex items-center gap-3 stock-header-actions">
+          <button
+            class="px-4 py-2 border border-amber-200 bg-amber-50 text-amber-700 rounded-lg text-sm font-medium hover:bg-amber-100"
+            @click="handleRepairData"
+            :disabled="repairLoading"
+          >
+            {{ repairLoading ? '修复中...' : '修复数据' }}
+          </button>
           <button class="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600" @click="handleCalculateFactors">计算因子</button>
           <button
             v-if="!isInWatchlist"
@@ -371,6 +378,7 @@ const indicatorOptions = [
 
 // 因子数据
 const factors = ref<any[]>([])
+const repairLoading = ref(false)
 
 // 技术指标数据
 const technicalIndicators = ref<any[]>([])
@@ -627,6 +635,27 @@ const handleCalculateFactors = async () => {
     ElMessage.warning('因子计算功能开发中')
   } catch (error) {
     ElMessage.error('提交因子计算任务失败')
+  }
+}
+
+// 修复当前股票数据
+const handleRepairData = async () => {
+  if (repairLoading.value) return
+
+  repairLoading.value = true
+  try {
+    const result = await stockApi.repairStockData(symbol.value)
+    const runId = result?.run_id || result?.runId
+    ElMessage.success(runId ? `数据修复任务已提交：${runId}` : '数据修复任务已提交')
+    await Promise.all([
+      loadStockInfo(),
+      loadKlineData()
+    ])
+  } catch (error) {
+    console.error('[StockDetail] repair data failed:', error)
+    ElMessage.error('提交数据修复任务失败')
+  } finally {
+    repairLoading.value = false
   }
 }
 

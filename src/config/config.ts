@@ -37,7 +37,10 @@ export function createDeepSeekModel(): Model<'openai-completions'> {
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 64000,
-    maxTokens: 8000                  // 恢复到8000，真正问题是reasoning配置
+    maxTokens: 8000,                 // 恢复到8000，真正问题是reasoning配置
+    // HTTP超时配置 - 防止API调用卡死
+    timeout: 120000,                 // 120秒超时
+    maxRetries: 2                    // 失败后重试2次
   } as any;
 }
 

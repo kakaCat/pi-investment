@@ -42,73 +42,112 @@
       </div>
     </div>
 
-    <!-- 任务卡片网格 -->
-    <div class="task-level-list mb-4">
-      <section v-for="group in taskLevelGroups" :key="group.level" class="task-level-section">
-        <div class="task-level-heading">
-          <span :class="getTaskLevelDotClass(group.level)" />
-          <strong>{{ group.label }}</strong>
-          <span>{{ group.tasks.length }}</span>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div
-            v-for="task in group.tasks"
+    <!-- 任务列表 -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-4">
+      <table class="w-full scheduler-task-table">
+        <thead>
+          <tr class="bg-slate-50 border-b border-slate-200">
+            <th class="w-8"></th>
+            <th>任务名称</th>
+            <th>描述</th>
+            <th>状态</th>
+            <th>Cron</th>
+            <th>命令</th>
+            <th>上次运行</th>
+            <th>下次执行</th>
+            <th class="text-center">操作</th>
+          </tr>
+        </thead>
+        <tbody class="text-sm">
+          <tr
+            v-for="task in taskLevelGroups.flatMap(g => g.tasks)"
             :key="task.id"
-            class="bg-white rounded-xl shadow-sm border border-slate-200 p-5"
+            class="border-b border-slate-100 hover:bg-slate-50"
+            :class="getTaskRowClass(task.level)"
           >
-            <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center gap-2">
-                <span
-                  class="w-2 h-2 rounded-full"
-                  :class="task.enabled ? 'bg-green-500' : 'bg-slate-400'"
-                />
-                <h3 class="font-semibold text-slate-800">{{ task.name }}</h3>
-              </div>
-              <span class="text-xs px-2 py-0.5 rounded-full" :class="getTaskLevelClass(task.level)">
+            <td class="text-center">
+              <span
+                class="inline-block w-2 h-2 rounded-full"
+                :class="task.enabled ? 'bg-green-500' : 'bg-slate-400'"
+                :title="task.enabled ? '已启用' : '已暂停'"
+              />
+              <span
+                v-if="isTaskActionLocked(task)"
+                class="inline-block w-2 h-2 rounded-full bg-blue-500 animate-pulse ml-1"
+                :title="isTaskTriggering(task) ? '触发中' : '运行中'"
+              />
+            </td>
+            <td class="font-medium text-slate-800">{{ task.name }}</td>
+            <td class="text-slate-600 text-xs" :title="task.description">
+              {{ task.description || '-' }}
+            </td>
+            <td>
+              <span class="text-xs px-2 py-0.5 rounded-full whitespace-nowrap" :class="getTaskLevelClass(task.level)">
                 {{ getTaskLevelText(task.level) }}
               </span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <span class="text-xs text-slate-400">Cron</span>
-                <div class="font-mono text-sm">{{ task.cron }}</div>
+            </td>
+            <td class="font-mono text-xs">{{ task.cron }}</td>
+            <td class="text-xs">{{ task.command }}</td>
+            <td class="text-xs">
+              {{ task.lastRun ? formatDateTime(task.lastRun) : '-' }}
+              <span v-if="task.lastStatus" :class="getRunLevelTextClass(task.lastStatus)" class="ml-1">
+                {{ getRunLevelMark(task.lastStatus) }}
+              </span>
+            </td>
+            <td class="text-xs">{{ task.nextRun ? formatDateTime(task.nextRun) : '-' }}</td>
+            <td>
+              <div class="flex items-center justify-center gap-1">
+                <button
+                  v-if="task.enabled && !isTaskActionLocked(task)"
+                  class="text-xs px-2 py-1 border border-slate-200 rounded hover:bg-slate-100 transition-colors"
+                  @click="handleTriggerTask(task)"
+                  title="立即触发任务"
+                >
+                  触发
+                </button>
+                <button
+                  v-if="task.enabled && isTaskActionLocked(task)"
+                  class="text-xs px-2 py-1 border border-blue-200 rounded text-blue-500 bg-blue-50 cursor-not-allowed"
+                  disabled
+                  :title="isTaskTriggering(task) ? '任务正在触发，不可重复点击' : '任务运行中，不可重复触发'"
+                >
+                  {{ isTaskTriggering(task) ? '触发中...' : '运行中...' }}
+                </button>
+                <button
+                  v-if="!task.enabled"
+                  class="text-xs px-2 py-1 border border-slate-200 rounded hover:bg-slate-100 transition-colors"
+                  @click="handleToggleTask(task)"
+                  title="启用任务"
+                >
+                  启用
+                </button>
+                <button
+                  v-if="task.enabled"
+                  class="text-xs px-2 py-1 border border-slate-200 rounded hover:bg-slate-100 transition-colors"
+                  :disabled="isTaskActionLocked(task)"
+                  :class="{ 'opacity-50 cursor-not-allowed': isTaskActionLocked(task) }"
+                  @click="handleToggleTask(task)"
+                  :title="isTaskActionLocked(task) ? '任务处理中，无法暂停' : '暂停任务'"
+                >
+                  暂停
+                </button>
+                <button
+                  class="text-xs px-2 py-1 border border-red-200 rounded text-red-500 hover:bg-red-50 transition-colors"
+                  :disabled="isTaskActionLocked(task)"
+                  :class="{ 'opacity-50 cursor-not-allowed': isTaskActionLocked(task) }"
+                  @click="handleDeleteTask(task)"
+                  :title="isTaskActionLocked(task) ? '任务处理中，无法删除' : '删除任务'"
+                >
+                  删除
+                </button>
               </div>
-              <div>
-                <span class="text-xs text-slate-400">命令</span>
-                <div class="text-sm">{{ task.command }}</div>
-              </div>
-              <div>
-                <span class="text-xs text-slate-400">参数</span>
-                <div class="text-sm text-slate-600">{{ task.params || '-' }}</div>
-              </div>
-              <div>
-                <span class="text-xs text-slate-400">上次运行</span>
-                <div class="text-sm">
-                  {{ task.lastRun ? formatDateTime(task.lastRun) : '-' }}
-                  <span v-if="task.lastStatus" :class="getRunLevelTextClass(task.lastStatus)" class="text-xs">
-                    {{ getRunLevelMark(task.lastStatus) }}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <span class="text-xs text-slate-400">下次执行</span>
-                <div class="text-sm">{{ task.nextRun ? formatDateTime(task.nextRun) : '-' }}</div>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
-              <button class="text-xs px-3 py-1 border border-slate-200 rounded hover:bg-slate-50" @click="task.enabled ? triggerTask(task) : toggleTask(task)">
-                {{ task.enabled ? '立即触发' : '启用' }}
-              </button>
-              <button class="text-xs px-3 py-1 border border-slate-200 rounded hover:bg-slate-50" @click="task.enabled ? toggleTask(task) : triggerTask(task)">
-                {{ task.enabled ? '暂停' : '立即触发' }}
-              </button>
-              <button class="text-xs px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 text-red-500" @click="deleteTask(task)">删除</button>
-            </div>
-          </div>
-        </div>
-      </section>
+            </td>
+          </tr>
+          <tr v-if="taskLevelGroups.flatMap(g => g.tasks).length === 0">
+            <td colspan="9" class="text-center text-slate-400 py-8">暂无任务</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <div class="mb-4 flex justify-end">
@@ -149,8 +188,8 @@
                 {{ getRunLevelText(row.status) }}
               </span>
             </td>
-            <td>{{ formatTime(row.startTime) }}</td>
-            <td>{{ formatTime(row.endTime) }}</td>
+            <td>{{ formatDateTime(row.startTime) }}</td>
+            <td>{{ formatDateTime(row.endTime) }}</td>
             <td>{{ formatDuration(row.duration) }}</td>
             <td class="text-xs result-cell" :title="row.resultDetail">{{ row.result || '-' }}</td>
             <td>
@@ -232,21 +271,8 @@
 
       <template #footer>
         <el-button @click="taskDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveTask">保存</el-button>
+        <el-button type="primary" @click="handleSaveTask">保存</el-button>
       </template>
-    </el-dialog>
-
-    <!-- 日志对话框 -->
-    <el-dialog
-      v-model="logDialogVisible"
-      title="执行日志"
-      width="800px"
-    >
-      <div class="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm h-96 overflow-y-auto">
-        <div v-for="(log, index) in logs" :key="index" class="mb-1">
-          {{ log }}
-        </div>
-      </div>
     </el-dialog>
 
     <!-- Cron帮助对话框 -->
@@ -273,282 +299,52 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { formatDateTime, formatTime } from '@/utils/format'
-import { apiClient } from '@/services/api/client'
+import { ref, reactive, onMounted } from 'vue'
+import { formatDateTime } from '@/utils/format'
+import { useScheduler } from '@/composables/useScheduler'
+import type { Task, TaskForm, TaskLevel, RunLevel } from '@/types/scheduler'
 
-interface Task {
-  id: string
-  name: string
-  command: string
-  cron: string
-  params: string
-  description: string
-  enabled: boolean
-  lastRun: string | null
-  nextRun: string | null
-  lastStatus: RunLevel | null
-  level: TaskLevel
-}
+// ========== 使用 Composable ==========
+const {
+  // 任务列表
+  // loading,  // 暂未在模板中使用
+  // tasks,    // 暂未在模板中使用
+  taskPage,
+  taskPageSize,
+  taskTotal,
+  taskStats,
+  taskLevelStats,
+  taskLevelGroups,
+  loadTasks,
+  handleTaskPageSizeChange,
+  createTask,
+  updateTask,
+  triggerTask,
+  isTaskTriggering,
+  toggleTask,
+  deleteTask,
 
-type TaskLevel = 'healthy' | 'warning' | 'failed' | 'paused' | 'idle'
-type RunLevel = 'success' | 'failed' | 'internal_failed' | 'skipped'
+  // 运行历史
+  history,
+  historyPage,
+  historyPageSize,
+  historyTotal,
+  historyLevelStats,
+  loadHistory,
+  handleHistoryPageSizeChange,
 
-const taskLevelOrder: TaskLevel[] = ['failed', 'warning', 'paused', 'idle', 'healthy']
-const historyLevelOrder: RunLevel[] = ['failed', 'internal_failed', 'skipped', 'success']
+  // 工具函数
+  getTaskLevelText,
+  getRunLevelText,
+} = useScheduler()
 
-interface HistoryRecord {
-  id: string
-  taskName: string
-  status: RunLevel
-  startTime: string
-  endTime: string
-  duration: number
-  result: string
-  resultDetail: string
-  error: string
-}
-
-// ── Backend ↔ Frontend mappers ────────────────────────────────────────
-
-/** Map backend SchedulerTaskSummary → frontend Task */
-const mapTask = (t: Record<string, unknown>): Task => {
-  const payload = (t.payload ?? {}) as Record<string, unknown>
-  const lastRun = t.lastRun as Record<string, unknown> | undefined
-  const lastStatus = lastRun ? getRunLevel(lastRun) : null
-  const enabled = Boolean(t.enabled)
-
-  return {
-    id: t.id as string,
-    name: t.name as string,
-    command: payload.command as string || '',
-    cron: t.scheduleKind === 'cron' ? (t.scheduleExpr as string || '') : '',
-    params: formatPayloadParams(payload),
-    description: payload.description as string || '',
-    enabled,
-    lastRun: (lastRun?.finishedAt ?? lastRun?.startedAt ?? lastRun?.triggeredAt ?? null) as string | null,
-    nextRun: (t.nextRunAt ?? null) as string | null,
-    lastStatus,
-    level: getTaskLevel(enabled, lastStatus),
-  }
-}
-
-/** Format payload into key:value string for display (exclude command/description) */
-const formatPayloadParams = (payload: Record<string, unknown>): string => {
-  const { command, description, ...rest } = payload
-  const entries = Object.entries(rest)
-  if (entries.length === 0) return ''
-  return entries.map(([k, v]) => `${k}: ${v}`).join(', ')
-}
-
-const isDeletedTaskSummary = (t: Record<string, unknown>): boolean => {
-  const payload = (t.payload ?? {}) as Record<string, unknown>
-  return Boolean(payload._deleted_at || t.deletedAt || t.deleted_at)
-}
-
-const getRunLevel = (r: Record<string, unknown>): RunLevel => {
-  const payload = (r.payload ?? {}) as Record<string, unknown>
-  if (r.status === 'failed' || r.status === 'compensation_failed') return 'failed'
-  if (r.status === 'skipped' || payload.status === 'skipped') return 'skipped'
-  if (payload.status === 'failed' || payload.status === 'error') return 'internal_failed'
-  return 'success'
-}
-
-const getTaskLevel = (enabled: boolean, lastStatus: RunLevel | null): TaskLevel => {
-  if (!enabled) return 'paused'
-  if (!lastStatus) return 'idle'
-  if (lastStatus === 'failed') return 'failed'
-  if (lastStatus === 'internal_failed' || lastStatus === 'skipped') return 'warning'
-  return 'healthy'
-}
-
-const summarizePayload = (payload: unknown): { summary: string; detail: string } => {
-  if (!payload) return { summary: '', detail: '' }
-  if (typeof payload !== 'object') {
-    const value = String(payload)
-    return { summary: value, detail: value }
-  }
-
-  const record = payload as Record<string, unknown>
-  const detail = JSON.stringify(record)
-  const parts = [
-    record.action ? String(record.action) : '',
-    record.status ? `status=${record.status}` : '',
-    typeof record.errors === 'number' ? `errors=${record.errors}` : '',
-    Array.isArray(record.errors) ? `errors=${record.errors.length}` : '',
-    typeof record.symbols_checked === 'number' ? `checked=${record.symbols_checked}` : '',
-    typeof record.symbols_updated === 'number' ? `updated=${record.symbols_updated}` : '',
-    typeof record.symbols_processed === 'number' ? `processed=${record.symbols_processed}` : '',
-    typeof record.symbols_computed === 'number' ? `computed=${record.symbols_computed}` : '',
-  ].filter(Boolean)
-
-  return {
-    summary: parts.join(', ') || detail,
-    detail,
-  }
-}
-
-/** Map backend SchedulerRun → frontend HistoryRecord */
-const mapRun = (r: Record<string, unknown>): HistoryRecord => {
-  const payload = summarizePayload(r.payload)
-  return {
-    id: String(r.id ?? ''),
-    taskName: r.taskName as string,
-    status: getRunLevel(r),
-    startTime: (r.startedAt ?? r.triggeredAt ?? '') as string,
-    endTime: (r.finishedAt ?? '') as string,
-    duration: typeof r.durationMs === 'number' ? Math.round(r.durationMs / 1000) : 0,
-    result: payload.summary,
-    resultDetail: payload.detail,
-    error: (r.error ?? '') as string,
-  }
-}
-
-/** Build backend payload object from task form data */
-const buildPayload = (form: Record<string, unknown>): Record<string, unknown> => {
-  const payload: Record<string, unknown> = {}
-  if (form.command) payload.command = form.command
-  if (form.description) payload.description = form.description
-
-  const paramsStr = String(form.params ?? '').trim()
-  if (paramsStr) {
-    try {
-      const parsed = JSON.parse(paramsStr)
-      if (typeof parsed === 'object' && parsed !== null) {
-        Object.assign(payload, parsed)
-      } else {
-        payload.params = form.params
-      }
-    } catch {
-      const pairs: Record<string, string> = {}
-      paramsStr.split(',').forEach((pair) => {
-        const colonIdx = pair.indexOf(':')
-        if (colonIdx > 0) {
-          pairs[pair.slice(0, colonIdx).trim()] = pair.slice(colonIdx + 1).trim()
-        }
-      })
-      if (Object.keys(pairs).length > 0) {
-        Object.assign(payload, pairs)
-      } else {
-        payload.params = form.params
-      }
-    }
-  }
-  return payload
-}
-
-// ── State ──────────────────────────────────────────────────────────────
-
-const loading = ref(false)
-const tasks = ref<Task[]>([])
-const taskPage = ref(1)
-const taskPageSize = ref(12)
-const taskTotal = ref(0)
-const taskStats = reactive({
-  enabled: 0,
-  paused: 0,
-  problem: 0,
-})
-
-const taskLevelStats = computed(() => taskLevelOrder.map(level => ({
-  level,
-  label: getTaskLevelText(level),
-  count: tasks.value.filter(task => task.level === level).length,
-})))
-
-const taskLevelGroups = computed(() => taskLevelStats.value
-  .map(group => ({
-    ...group,
-    tasks: tasks.value.filter(task => task.level === group.level),
-  }))
-  .filter(group => group.tasks.length > 0))
-
-const getResponsePageItems = <T,>(items: T[], page: number, pageSize: number, hasServerPagination: boolean): T[] => {
-  if (hasServerPagination) return items
-  const start = (page - 1) * pageSize
-  return items.slice(start, start + pageSize)
-}
-
-// 加载任务列表
-const loadTasks = async () => {
-  loading.value = true
-  try {
-    const result = await apiClient.get('/api/scheduler/tasks', {
-      params: {
-        page: taskPage.value,
-        pageSize: taskPageSize.value,
-      },
-    })
-    const list = (((result as any).tasks || []) as Record<string, unknown>[]).filter(item => !isDeletedTaskSummary(item))
-    const pagination = (result as any).pagination || {}
-    const hasServerPagination = Boolean((result as any).pagination || (result as any).total !== undefined || (result as any).count !== undefined)
-    const pageItems = getResponsePageItems(list, taskPage.value, taskPageSize.value, hasServerPagination)
-    tasks.value = pageItems.map(mapTask)
-    taskTotal.value = hasServerPagination
-      ? Number((result as any).total ?? (result as any).count ?? pagination.total ?? list.length)
-      : list.length
-    taskStats.enabled = tasks.value.filter(task => task.enabled).length
-    taskStats.paused = tasks.value.filter(task => !task.enabled).length
-    taskStats.problem = tasks.value.filter(task => task.level === 'failed' || task.level === 'warning').length
-  } catch (error) {
-    console.error('加载调度任务失败:', error)
-    ElMessage.error('加载调度任务失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-// 历史记录
-const history = ref<HistoryRecord[]>([])
-const historyPage = ref(1)
-const historyPageSize = ref(20)
-const historyTotal = ref(0)
-
-const historyLevelStats = computed(() => historyLevelOrder.map(level => ({
-  level,
-  label: getRunLevelText(level),
-  count: history.value.filter(row => row.status === level).length,
-})))
-
-// 加载执行历史
-const loadHistory = async () => {
-  try {
-    const result = await apiClient.get('/api/scheduler/runs', {
-      params: {
-        page: historyPage.value,
-        pageSize: historyPageSize.value,
-      },
-    })
-    const runs = (((result as any).runs || []) as Record<string, unknown>[])
-    const pagination = (result as any).pagination || {}
-    const hasServerPagination = Boolean((result as any).pagination || (result as any).total !== undefined || (result as any).count !== undefined)
-    const pageItems = getResponsePageItems(runs, historyPage.value, historyPageSize.value, hasServerPagination)
-    history.value = pageItems.map(mapRun)
-    historyTotal.value = Number((result as any).total ?? (result as any).count ?? pagination.total ?? runs.length)
-  } catch (error) {
-    console.error('加载执行历史失败:', error)
-  }
-}
-
-const handleTaskPageSizeChange = () => {
-  taskPage.value = 1
-  loadTasks()
-}
-
-const handleHistoryPageSizeChange = () => {
-  historyPage.value = 1
-  loadHistory()
-}
-
-// 对话框
+// ========== 对话框状态 ==========
 const taskDialogVisible = ref(false)
-const logDialogVisible = ref(false)
 const cronHelpVisible = ref(false)
 const isEdit = ref(false)
 
-// 表单
-const taskForm = reactive<Partial<Task>>({
+// ========== 任务表单 ==========
+const taskForm = reactive<TaskForm>({
   name: '',
   command: '',
   cron: '',
@@ -557,10 +353,11 @@ const taskForm = reactive<Partial<Task>>({
   enabled: true,
 })
 
-// 日志
-const logs = ref<string[]>([])
+// ========== 对话框操作 ==========
 
-// 显示新建对话框
+/**
+ * 显示新建任务对话框
+ */
 const showAddDialog = () => {
   isEdit.value = false
   Object.assign(taskForm, {
@@ -574,81 +371,63 @@ const showAddDialog = () => {
   taskDialogVisible.value = true
 }
 
-// 保存任务（创建 / 更新）
-const saveTask = async () => {
+/**
+ * 保存任务（创建或更新）
+ */
+const handleSaveTask = async () => {
   if (!taskForm.name || !taskForm.command || !taskForm.cron) {
-    ElMessage.warning('请填写完整信息')
     return
-  }
-
-  const body = {
-    name: taskForm.name,
-    enabled: taskForm.enabled !== false,
-    scheduleKind: 'cron' as const,
-    scheduleExpr: taskForm.cron,
-    payload: buildPayload(taskForm as Record<string, unknown>),
   }
 
   try {
     if (isEdit.value && taskForm.id) {
-      await apiClient.put(`/api/scheduler/tasks/${taskForm.id}`, body)
-      ElMessage.success('任务已更新')
+      await updateTask(taskForm)
     } else {
-      await apiClient.post('/api/scheduler/tasks', body)
-      ElMessage.success('任务已创建')
+      await createTask(taskForm)
     }
     taskDialogVisible.value = false
-    await loadTasks()
   } catch (error: any) {
-    const msg = error?.message || '保存失败'
-    ElMessage.error(msg)
+    // 错误已在 composable 中处理
   }
 }
 
-// 触发任务
-const triggerTask = async (task: Task) => {
-  try {
-    await apiClient.post(`/api/scheduler/tasks/${task.id}/trigger`)
-    ElMessage.success(`任务 ${task.name} 已触发`)
-    await loadTasks()
-  } catch (error: any) {
-    ElMessage.error(error?.message || '触发失败')
-  }
-}
-
-// 切换任务启用/暂停状态
-const toggleTask = async (task: Task) => {
-  const action = task.enabled ? 'disable' : 'enable'
-  try {
-    await apiClient.post(`/api/scheduler/tasks/${task.id}/${action}`)
-    ElMessage.success(`任务已${task.enabled ? '暂停' : '启用'}`)
-    await loadTasks()
-  } catch (error: any) {
-    ElMessage.error(error?.message || '操作失败')
-  }
-}
-
-// 删除任务
-const deleteTask = (task: Task) => {
-  ElMessageBox.confirm(`确定要删除任务 ${task.name} 吗？`, '确认删除', {
-    type: 'warning',
-  }).then(async () => {
-    try {
-      await apiClient.delete(`/api/scheduler/tasks/${task.id}`)
-      ElMessage.success('任务已删除')
-      await loadTasks()
-    } catch (error: any) {
-      ElMessage.error(error?.message || '删除失败')
-    }
-  }).catch(() => {})
-}
-
-// 显示Cron帮助
+/**
+ * 显示 Cron 帮助
+ */
 const showCronHelper = () => {
   cronHelpVisible.value = true
 }
 
-// 格式化耗时
+// ========== 任务操作包装 ==========
+
+/**
+ * 触发任务
+ */
+const handleTriggerTask = async (task: Task) => {
+  await triggerTask(task)
+}
+
+/**
+ * 切换任务启用状态
+ */
+const handleToggleTask = async (task: Task) => {
+  await toggleTask(task)
+}
+
+/**
+ * 删除任务
+ */
+const handleDeleteTask = async (task: Task) => {
+  await deleteTask(task)
+}
+
+const isTaskActionLocked = (task: Task) => task.isRunning || isTaskTriggering(task)
+
+// ========== 工具函数 ==========
+
+/**
+ * 格式化耗时
+ */
 const formatDuration = (seconds: number) => {
   if (seconds < 60) return `${seconds}s`
   const m = Math.floor(seconds / 60)
@@ -656,14 +435,9 @@ const formatDuration = (seconds: number) => {
   return `${m}m${s}s`
 }
 
-const getTaskLevelText = (level: TaskLevel) => ({
-  healthy: '正常',
-  warning: '需关注',
-  failed: '失败',
-  paused: '已暂停',
-  idle: '待运行',
-}[level])
-
+/**
+ * 获取任务级别样式类
+ */
 const getTaskLevelClass = (level: TaskLevel) => ({
   healthy: 'bg-green-100 text-green-700',
   warning: 'bg-amber-100 text-amber-700',
@@ -672,6 +446,9 @@ const getTaskLevelClass = (level: TaskLevel) => ({
   idle: 'bg-blue-100 text-blue-700',
 }[level])
 
+/**
+ * 获取任务级别边框样式类
+ */
 const getTaskLevelBorderClass = (level: TaskLevel) => ({
   healthy: 'level-healthy',
   warning: 'level-warning',
@@ -680,21 +457,9 @@ const getTaskLevelBorderClass = (level: TaskLevel) => ({
   idle: 'level-idle',
 }[level])
 
-const getTaskLevelDotClass = (level: TaskLevel) => ({
-  healthy: 'level-dot bg-green-500',
-  warning: 'level-dot bg-amber-500',
-  failed: 'level-dot bg-red-500',
-  paused: 'level-dot bg-slate-400',
-  idle: 'level-dot bg-blue-500',
-}[level])
-
-const getRunLevelText = (level: RunLevel) => ({
-  success: '成功',
-  failed: '失败',
-  internal_failed: '内部失败',
-  skipped: '跳过',
-}[level])
-
+/**
+ * 获取运行级别样式类
+ */
 const getRunLevelClass = (level: RunLevel) => ({
   success: 'bg-green-100 text-green-700',
   failed: 'bg-red-100 text-red-700',
@@ -702,6 +467,9 @@ const getRunLevelClass = (level: RunLevel) => ({
   skipped: 'bg-slate-100 text-slate-500',
 }[level])
 
+/**
+ * 获取运行级别文本样式类
+ */
 const getRunLevelTextClass = (level: RunLevel) => ({
   success: 'text-green-600',
   failed: 'text-red-500',
@@ -709,6 +477,9 @@ const getRunLevelTextClass = (level: RunLevel) => ({
   skipped: 'text-slate-400',
 }[level])
 
+/**
+ * 获取运行级别标记
+ */
 const getRunLevelMark = (level: RunLevel) => ({
   success: '✓',
   failed: '✗',
@@ -716,6 +487,9 @@ const getRunLevelMark = (level: RunLevel) => ({
   skipped: '-',
 }[level])
 
+/**
+ * 获取运行行样式类
+ */
 const getRunRowClass = (level: RunLevel) => ({
   success: 'run-row-success',
   failed: 'run-row-failed',
@@ -723,6 +497,18 @@ const getRunRowClass = (level: RunLevel) => ({
   skipped: 'run-row-skipped',
 }[level])
 
+/**
+ * 获取任务行样式类
+ */
+const getTaskRowClass = (level: TaskLevel) => ({
+  healthy: '',
+  warning: 'task-row-warning',
+  failed: 'task-row-failed',
+  paused: 'task-row-paused',
+  idle: '',
+}[level])
+
+// ========== 生命周期 ==========
 onMounted(() => {
   loadTasks()
   loadHistory()
@@ -807,6 +593,52 @@ onMounted(() => {
   border-left-color: #3b82f6;
 }
 
+/* ========== 任务表格样式 ========== */
+.scheduler-task-table {
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.scheduler-task-table th {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 12px 16px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.scheduler-task-table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+
+.scheduler-task-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+/* 任务行状态背景色 */
+.task-row-failed {
+  background: #fef2f2;
+}
+
+.task-row-warning {
+  background: #fffbeb;
+}
+
+.task-row-paused {
+  background: #f8fafc;
+}
+
+/* 描述列最大宽度 */
+.scheduler-task-table td:nth-child(3) {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 旧的卡片样式（已移除，保留用于参考）*/
 .task-level-list {
   display: flex;
   flex-direction: column;
@@ -891,7 +723,7 @@ td {
 .scheduler-history-table td:nth-child(3),
 .scheduler-history-table th:nth-child(4),
 .scheduler-history-table td:nth-child(4) {
-  width: 92px;
+  width: 160px;
 }
 
 .scheduler-history-table th:nth-child(5),

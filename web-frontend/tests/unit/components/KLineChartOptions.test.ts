@@ -82,4 +82,17 @@ describe('KLineChart options', () => {
     expect(option.xAxis[0].axisLabel.showMinLabel).toBe(true)
     expect(option.xAxis[0].axisLabel.showMaxLabel).toBe(true)
   })
+
+  it('lists multiple same-day trade signals in the tooltip', () => {
+    const signals = [
+      { type: 'buy', price: 40.72, createdAt: '2026-05-07', confidence: 1 },
+      { type: 'sell', price: 41.1, createdAt: '2026-05-07', confidence: 1 }
+    ] as TradingSignal[]
+
+    const option = buildKLineChartOption({ data: sampleData, signals, showVolume: true }) as any
+    const tooltipHtml = option.tooltip.formatter([{ dataIndex: 1, marker: '', seriesName: 'K线' }])
+
+    expect(tooltipHtml).toContain('买入信号')
+    expect(tooltipHtml).toContain('卖出信号')
+  })
 })

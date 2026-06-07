@@ -64,6 +64,25 @@
             {{ row.has_validation ? '✅' : '—' }}
           </template>
         </el-table-column>
+        <el-table-column prop="scan_enabled" label="每日扫描" width="100">
+          <template #default="{ row }">
+            <el-switch
+              :model-value="row.scan_enabled !== false"
+              @change="handleToggleScan(row.id, $event)"
+              active-text="开启"
+              inactive-text="关闭"
+              :loading="scanSwitchLoading[row.id]"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column prop="signals_count" label="今日信号" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.signals_count > 0" type="success">
+              {{ row.signals_count }}个
+            </el-tag>
+            <span v-else style="color: #999;">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="150">
           <template #default="{ row }">
             {{ row.created_at?.slice(0, 19) }}
@@ -178,6 +197,7 @@ const router = useRouter()
 const loading = ref(false)
 const submitting = ref(false)
 const pools = ref<any[]>([])
+const scanSwitchLoading = ref<Record<number, boolean>>({})
 
 // Create dialog
 const showCreateDialog = ref(false)
@@ -322,6 +342,20 @@ const handleDelete = async (id: number, name: string) => {
     await fetchPools()
   } catch (e: any) {
     if (e !== 'cancel') ElMessage.error('删除失败')
+  }
+}
+
+const handleToggleScan = async (id: number, enabled: boolean) => {
+  scanSwitchLoading.value[id] = true
+  try {
+    await poolApi.toggleScan(id, enabled)
+    ElMessage.success(`已${enabled ? '开启' : '关闭'}每日扫描`)
+    await fetchPools()
+  } catch (err) {
+    ElMessage.error('切换失败')
+    await fetchPools() // 刷新以恢复状态
+  } finally {
+    scanSwitchLoading.value[id] = false
   }
 }
 

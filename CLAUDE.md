@@ -160,9 +160,83 @@ if result.success:
 ## Agent 工具系统
 
 本项目实现了完整的 Agent 工具生态系统，包括：
-- ✅ 统一的输出格式化系统（12个格式化函数）
+- ✅ 统一的输出格式化系统（13个格式化函数）
+- ✅ 统一的数据持久化系统（智能保存大数据，避免污染上下文）
 - ✅ 统一的错误处理和性能监控系统
 - ✅ 模块化的CLI工具架构（8个领域工具 + 1个核心工具）
+- ✅ 因子库系统（104个技术因子，策略执行时自动注入）
+
+### 数据持久化系统（2026-06-03 新增）
+
+针对大数据返回工具（回测、批量查询等），实现了统一的持久化机制，避免污染 LLM 上下文。
+
+**核心特性**：
+- 智能持久化：根据数据大小自动决定是否保存到文件（默认阈值 30-100KB）
+- 自动清理：过期文件（默认 24 小时）自动删除
+- 统一格式化：集成现有 13 个格式化函数
+- 零侵入：通过包装器模式，无需重写工具逻辑
+
+**存储位置**：`{sessionDir}/tool-results/`（基于当前 session，文件格式：`{toolName}_YYYYMMDD_HHmmss.json`）  
+**示例路径**：`.pi-invest/sessions/20260603T15183_70a27e94/tool-results/`  
+**Fallback**：如果没有 session 目录，降级到 `.cache/tool-results/`
+
+**已集成工具**：
+- `indicator_backtest` — 指标回测（阈值 30KB）
+- `strategy_detail` — 策略详情（阈值 40KB）
+- `pool_validate` — 股票池验证（阈值 50KB）
+- `strategy_batch_validate` — 策略批量验证（阈值 100KB）
+- `factor_calculate` — 因子计算（阈值 40KB）
+
+**效果**：
+- 单次回测节省 ~150KB 上下文
+- 批量验证节省 ~1MB 上下文
+- 上下文占用减少 **99%**
+
+**使用方式**：
+```typescript
+import { handleToolResponse } from '../utils/index.js';
+
+execute: async (_toolCallId, params) => {
+  const result = await apiCall(params);
+  return handleToolResponse({
+    toolName: 'my_tool',
+    data: result,
+    formatter: formatMyData,  // 可选：使用现有格式化函数
+    threshold: 30 * 1024,      // 可选：自定义阈值
+  });
+}
+```
+
+**详细文档**：
+- 使用指南：`docs/tools/unified-response-system.md`
+- 集成报告：`docs/tools/tool-persistence-integration-report.md`
+- 单元测试：`src/infrastructure/tools/utils/result-persister.test.ts`
+
+### 因子库系统
+
+策略代码可直接使用 104 个预计算因子，无需手动实现技术指标：
+
+**6 大类因子**：
+- **动量因子** (15个): rsi6/14/24, macd, roc, momentum_6m, momentum_52w_high, acceleration
+- **趋势因子** (20个): adx, cci, aroon_up/down, sar, di_plus/minus, dmi
+- **波动率因子** (9个): atr14/20, bollinger_upper/middle/lower, keltner_*, volatility_20
+- **成交量因子** (7个): obv, mfi14, vwap, volume_ma5/10, volume_ratio, turnover_rate
+- **均线因子** (10个): ma5/10/20/60/120, ema5/10/20
+- **反转因子** (3个): reversal_1d/5d, overnight_return
+
+**使用方式**：
+```python
+# 策略代码中直接使用（无需导入或计算）
+df['buy'] = (df['momentum_6m'] > 0.1) & (df['adx'] > 25) & (df['rsi14'] < 70)
+df['sell'] = df['rsi14'] > 80
+```
+
+**技术特性**：
+- 策略执行时自动注入所有因子到 DataFrame
+- 使用 TA-Lib C 实现，性能比 pandas 快 10 倍
+- 向后兼容：保留原有 13 个常用因子名称
+
+**完整文档**：[docs/FACTOR_LIBRARY_REFERENCE.md](docs/FACTOR_LIBRARY_REFERENCE.md) — 包含每个因子的说明、计算方法、数值范围、使用场景
 
 **工具架构更新** (2026-06-02):
 - 原 `quant_cli` 工具已拆分为多个领域CLI工具
@@ -194,11 +268,6 @@ if result.success:
 - stock.batch_quotes, stock.list, stock.score
 - stock.screen, stock.technical
 
-**财务分析工具** - `financial_cli` (5个命令):
-- financial.indicators, financial.valuation, financial.pe_percentile
-- financial.hk_financials, financial.hk_analysis
-- 注意：获取原始财务报表（利润表、现金流量表）请使用 `data_fetch_financial` 工具
-
 **市场情绪分析** - `sentiment_cli` (8个命令):
 - sentiment.stock_fund_flow, sentiment.lhb, sentiment.insider_trades
 - sentiment.fund_holdings, sentiment.top_fund_stocks
@@ -220,8 +289,8 @@ market_cli({ command: "market.overview" })
 // 股票评分
 stock_cli({ command: "stock.score", params: { symbol: "600000" } })
 
-// 财务指标
-financial_cli({ command: "financial.indicators", params: { symbol: "600000" } })
+// 财务数据（使用增强版 data_fetch_financial）
+data_fetch_financial({ symbol: "600000", dataType: "pe_percentile", years: 5 })
 
 // 指标回测（专用工具）
 indicator_backtest({ 
@@ -248,6 +317,30 @@ indicator_backtest({
 
 #### L1 数据管道层
 统一的数据获取接口，支持股票基本信息、行情数据、财务数据、分红数据：
+
+**⭐ 财务数据统一工具（2026-06-03 增强）**：
+- `data_fetch_financial` — **统一财务数据查询入口**
+  - **数据类型**：
+    - `statements` — 财务报表（利润表、资产负债表、现金流量表）
+    - `indicators` — 财务指标（ROE、净利润、营收增长率等）
+    - `valuation` — 估值指标（PE、PB、PS、PEG）
+    - `pe_percentile` — PE 历史分位数（估值高低判断）
+    - `all` — 一次性获取全部数据
+  - **智能容错**：部分数据源失败不影响其他数据
+  - **向后兼容**：保持原有 `reportType` 参数
+  - **使用示例**：
+    ```typescript
+    // 获取利润表（向后兼容）
+    data_fetch_financial({ symbol: "600519", reportType: "income" })
+    
+    // 获取 PE 分位数
+    data_fetch_financial({ symbol: "600519", dataType: "pe_percentile", years: 5 })
+    
+    // 一站式查询全部财务数据
+    data_fetch_financial({ symbol: "600519", dataType: "all" })
+    ```
+
+**其他数据工具**：
 - `data_fetch_stock` — 获取股票基本信息、**实时价格**、新闻、公告
   - **多数据源支持**：5 个实时行情数据源（新浪财经、东方财富、腾讯财经、网易财经、雪球）
   - **source 参数**：
@@ -261,9 +354,11 @@ indicator_backtest({
 - `data_fetch_kline` — 获取 K 线数据（日线、周线、月线）
 - `data_fetch_financial` — 获取财务数据（利润表、资产负债表、现金流量表）
 - `data_fetch_dividend` — 获取分红数据（历史分红、高股息筛选、分红日历）
+- `data_fetch_macro` — 获取宏观经济数据（GDP、CPI、PMI、利率、汇率等）
+- `data_fetch_north_flow` — 获取北向资金流向（沪股通+深股通）
+- `data_fetch_market_sentiment` — 获取市场整体情绪分析（恐慌/贪婪指数、涨跌比）
 
 **重要提示**：L1 层专用工具已替代 `quant_cli` 和 CLI 工具中的以下命令，请优先使用专用工具：
-- ~~`stock.quote`~~ → 使用 `data_fetch_stock` (fields: ["price"])
 - ~~`stock.info`~~ → 使用 `data_fetch_stock` (fields: ["info"])
 - ~~`stock.news`~~ → 使用 `data_fetch_stock` (fields: ["news"])
 - ~~`stock.announcements`~~ → 使用 `data_fetch_stock` (fields: ["announcements"])
@@ -271,11 +366,19 @@ indicator_backtest({
 - ~~`financial.statements`~~ → 使用 `data_fetch_financial`
 - ~~`financial.income_statement`~~ → 使用 `data_fetch_financial` (reportType: "income")
 - ~~`financial.cash_flow`~~ → 使用 `data_fetch_financial` (reportType: "cashflow")
+- ~~`market.macro`~~ → 使用 `data_fetch_macro`
+- ~~`market.north_flow`~~ → 使用 `data_fetch_north_flow`
+- ~~`market.sentiment`~~ → 使用 `data_fetch_market_sentiment`
 
 #### L2 因子工厂层
 批量因子计算和分析：
 - `factor_calculate` — 批量计算技术因子和基本面因子
-- `factor_analyze` — 分析因子有效性（IC、覆盖率、稳定性）
+- `factor_analyze` — 分析因子有效性（**IC/IR/覆盖率/单调性**）
+  - **✨ 2026-06-04 增强**：新增覆盖率和单调性指标
+  - **IC/IR**：信息系数和信息比率，衡量预测能力
+  - **覆盖率**：因子数据完整性（> 90% 优秀，< 70% 存疑）
+  - **单调性**：因子分层收益是否单调递增/递减（> 80% 优秀，< 50% 失效）
+  - 详细文档：`docs/features/factor-coverage-monotonicity-quick-start.md`
 - `opportunity_scan` — 扫描投资机会（**支持三种权重模式**）
 
 #### L2.5 智能选股层（2026-06-02 更新）
@@ -392,6 +495,60 @@ indicator_backtest({
 - 设计文档：`docs/superpowers/specs/2026-06-01-combo-strategy-backtest-design.md`
 - 实现计划：`docs/superpowers/plans/2026-06-01-combo-strategy-backtest.md`
 
+#### L2.9 策略发现（2026-06-04 新增）
+
+自动化策略挖掘和参数优化：
+
+**工具：** `strategy_discovery`
+
+**功能特性**：
+- 自动遍历多个策略原型
+- 网格搜索最优参数组合
+- 多股票池批量测试
+- 按Sharpe/收益率/胜率排序
+- 推荐最优策略和参数
+
+**三种操作**：
+1. **run** - 运行策略发现流水线
+2. **archetypes** - 列出所有可用策略原型
+3. **result** - 查询历史发现结果
+
+**使用示例**：
+```typescript
+// 运行策略发现
+strategy_discovery({
+  action: "run",
+  symbols: ["600519.SH", "000858.SZ", "000001.SZ"],
+  start_date: "2023-01-01",
+  end_date: "2025-12-31",
+  metric: "sharpe",           // 优化目标：sharpe/return/win_rate
+  max_combinations: 30,       // 每个原型最多测试30个参数组合
+  archetype_filter: ["RSI均值回归", "MACD趋势跟踪"]  // 可选：只测试特定原型
+})
+
+// 输出：
+// - 发现的最优策略列表（Top 10）
+// - 每个策略的参数配置
+// - 完整绩效指标（Sharpe、收益率、回撤、胜率）
+// - 策略评估和建议
+
+// 列出可用策略原型
+strategy_discovery({
+  action: "archetypes"
+})
+```
+
+**API 端点**：
+- `POST /api/discovery/run` - 运行策略发现
+- `GET /api/discovery/archetypes` - 列出策略原型
+- `GET /api/discovery/result/:run_id` - 查询历史结果
+
+**应用场景**：
+- 策略开发：快速找到有效策略
+- 参数优化：自动搜索最优参数
+- 策略评估：对比多个策略效果
+- 因子挖掘：发现有效的因子组合
+
 #### L3 模型层
 机器学习模型训练和预测：
 - `model_train` — 训练机器学习模型
@@ -413,6 +570,65 @@ indicator_backtest({
 实时监控和告警：
 - `monitor_alert` — 告警通知和风险监控
 
+#### L7 绩效分析层（2026-06-04 新增）
+因子模型归因和风险分解：
+- `factor_model_attribution` — 因子模型归因分析
+  - 支持模型：Fama-French 三因子/五因子、Carhart 四因子、Barra 风险模型
+  - Alpha/Beta 分解：识别超额收益来源
+  - 因子暴露分析：市场、规模、价值、盈利、投资、动量
+  - 风格分析：量化投资风格偏好
+  - 应用场景：绩效归因、策略评估、风险预算
+  
+- `risk_barra_decomposition` — Barra 风险分解
+  - 总风险分解：因子风险（系统性）+ 特质风险（个股）
+  - 行业因子暴露：识别行业集中度风险
+  - 风格因子暴露：规模、价值、成长、动量、波动率等
+  - 边际风险贡献（Marginal VaR）：每只股票的风险贡献
+  - 应用场景：风险管理、组合优化、压力测试
+
+**使用示例**：
+```typescript
+// Fama-French 五因子归因
+factor_model_attribution({
+  model: "fama_french_5",
+  portfolio: ["600519.SH", "000858.SZ"],
+  weights: [0.6, 0.4],
+  start_date: "2025-01-01",
+  end_date: "2026-06-04"
+})
+// 输出：Alpha、市场Beta、规模因子、价值因子、盈利因子、投资因子、R²
+
+// Barra 风险分解
+risk_barra_decomposition({
+  portfolio: ["600519.SH", "000858.SZ", "000001.SZ"],
+  weights: [0.4, 0.3, 0.3]
+})
+// 输出：总风险、因子风险、特质风险、行业暴露、风格暴露、边际VaR
+```
+
+#### 市场分析工具（2026-06-04 新增）
+
+市场风格检测和自适应策略：
+- `market_style_detect` — 市场风格检测
+  - 自动识别牛市/熊市/震荡市
+  - 基于多维度指标：趋势斜率、波动率、动量、成交量
+  - 提供投资建议和策略推荐
+  - 应用场景：策略自适应、风险控制、择时交易、风格轮动
+
+**使用示例**：
+```typescript
+// 检测当前市场风格
+market_style_detect({
+  lookback_days: 60  // 回溯60天分析趋势
+})
+// 输出：
+// - 市场风格：牛市/熊市/震荡市（置信度）
+// - 市场指标：趋势斜率、波动率、动量评分
+// - 投资建议：针对当前市场风格的操作建议
+// - 策略推荐：适合当前市场的策略类型
+// - 风格历史：最近的风格变化记录
+```
+
 ### Agent 元工具
 
 系统级操作工具：
@@ -421,6 +637,42 @@ indicator_backtest({
   - 支持服务：`all` (REST API + WebSocket), `rest` (仅 REST API), `websocket` (仅 WebSocket)
   - REST API 端口：5001，WebSocket 端口：5003
   - 自动健康检查和 PID 管理
+
+- `scheduler_manage` — 调度器管理（2026-06-04 新增）
+  - 完整的定时任务管理（任务CRUD、启用/禁用、手动触发）
+  - 支持Cron表达式定义执行时间
+  - 查询执行历史和失败任务
+  - 支持补偿执行
+  - 应用场景：数据自动更新、组合再平衡、策略执行、风险监控
+
+**调度器使用示例**：
+```typescript
+// 创建定时任务
+scheduler_manage({
+  action: "create",
+  name: "daily_portfolio_rebalance",
+  cron: "0 9 * * 1-5",  // 工作日每天9点
+  command: "portfolio.rebalance",
+  params: { strategy_id: 123 },
+  enabled: true
+})
+
+// 列出所有任务
+scheduler_manage({ action: "list" })
+
+// 手动触发任务
+scheduler_manage({
+  action: "trigger",
+  task_id: "1"
+})
+
+// 查询执行历史
+scheduler_manage({
+  action: "runs",
+  task_id: "1",
+  limit: 20
+})
+```
 
 ### CLI工具系统（2026-06-02 新增）
 
@@ -447,11 +699,6 @@ indicator_backtest({
   - stock.batch_quotes, stock.list, stock.score
   - stock.screen, stock.technical
 
-- `financial_cli` — 财务数据查询（7个命令）
-  - financial.indicators, financial.valuation, financial.pe_percentile
-  - financial.income_statement, financial.cash_flow
-  - financial.hk_financials, financial.hk_analysis
-
 - `sentiment_cli` — 市场情绪分析（8个命令）
   - sentiment.stock_fund_flow, sentiment.lhb, sentiment.insider_trades
   - sentiment.fund_holdings, sentiment.top_fund_stocks
@@ -473,8 +720,8 @@ market_cli({ command: "market.overview" })
 // 股票评分
 stock_cli({ command: "stock.score", params: { symbol: "600000" } })
 
-// 财务指标
-financial_cli({ command: "financial.indicators", params: { symbol: "600000" } })
+// 财务数据（使用增强版 data_fetch_financial）
+data_fetch_financial({ symbol: "600000", dataType: "pe_percentile", years: 5 })
 
 // 指标回测（专用工具）
 indicator_backtest({ 

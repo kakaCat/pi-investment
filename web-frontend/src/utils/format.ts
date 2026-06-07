@@ -349,6 +349,24 @@ export function throttle<T extends (...args: any[]) => any>(
   }
 }
 
+// ========== 字符串转换 ==========
+
+/**
+ * 转换为 snake_case
+ * @param str camelCase 字符串
+ */
+export function toSnakeCase(str: string): string {
+  return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
+}
+
+/**
+ * 转换为 camelCase
+ * @param str snake_case 字符串
+ */
+export function toCamelCase(str: string): string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+}
+
 // ========== 下载工具 ==========
 
 /**

@@ -202,9 +202,11 @@ export function buildKLineChartOption(params: BuildKLineChartOptionParams): ECha
         const tone = up ? UP_COLOR : DOWN_COLOR
         const change = item.close - item.open
 
-        const matchedSignal = signals.find(signal => signalDate(signal) === item.date)
-        const signalHtml = matchedSignal
-          ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #273142;color:${matchedSignal.type === 'buy' ? DOWN_COLOR : UP_COLOR};font-weight:700">${matchedSignal.type === 'buy' ? '买入信号' : '卖出信号'} ${(((matchedSignal as any).confidence ?? 0) * 100).toFixed(0)}%</div>`
+        const matchedSignals = signals.filter(signal => signalDate(signal) === item.date)
+        const signalHtml = matchedSignals.length
+          ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #273142">${matchedSignals.map(signal => (
+              `<div style="color:${signal.type === 'buy' ? DOWN_COLOR : UP_COLOR};font-weight:700">${signal.type === 'buy' ? '买入信号' : '卖出信号'} ${(((signal as any).confidence ?? 0) * 100).toFixed(0)}%</div>`
+            )).join('')}</div>`
           : ''
 
         return `

@@ -18,6 +18,7 @@
           @click="handleRefresh"
           :loading="refreshing"
         >刷新池子</el-button>
+        <el-button @click="handleSyncStockNames" :loading="syncingStockNames">同步股票名称</el-button>
         <el-button type="primary" @click="showValidateDialog = true">验证策略</el-button>
         <el-button @click="openEditDialog">编辑</el-button>
         <el-button type="danger" @click="handleDelete">删除</el-button>
@@ -187,6 +188,205 @@
           </el-table>
         </template>
       </el-tab-pane>
+
+      <!-- 买卖信号 Tab -->
+      <el-tab-pane name="signals">
+        <template #label>
+          <span>
+            买卖信号
+            <el-badge
+              v-if="signalData?.summary?.buy > 0"
+              :value="signalData.summary.buy"
+              type="success"
+              style="margin-left: 4px;"
+            />
+          </span>
+        </template>
+
+        <!-- 扫描控制 -->
+        <el-card style="margin-bottom: 16px;">
+          <el-row :gutter="24" align="middle">
+            <el-col :span="12">
+              <div v-if="signalData?.scanned_at">
+                <span style="color: #909399;">扫描时间：</span>
+                <span>{{ formatDateTime(signalData.scanned_at) }}</span>
+              </div>
+              <div v-else style="color: #909399;">
+                尚未扫描信号
+              </div>
+            </el-col>
+            <el-col :span="12" style="text-align: right;">
+              <el-button
+                type="primary"
+                @click="handleScanSignals"
+                :loading="scanningSignals"
+              >
+                <el-icon><Refresh /></el-icon>
+                {{ signalData ? '重新扫描' : '立即扫描' }}
+              </el-button>
+            </el-col>
+          </el-row>
+        </el-card>
+
+        <!-- 信号统计 -->
+        <el-row :gutter="16" style="margin-bottom: 16px;">
+          <el-col :span="6">
+            <el-card class="stat-card stat-success">
+              <div class="stat-value">{{ signalData?.summary?.buy || 0 }}</div>
+              <div class="stat-label">✅ 买入信号</div>
+            </el-card>
+          </el-col>
+          <el-col :span="6">
+            <el-card class="stat-card stat-danger">
+              <div class="stat-value">{{ signalData?.summary?.sell || 0 }}</div>
+              <div class="stat-label">❌ 卖出信号</div>
+            </el-card>
+          </el-col>
+          <el-col :span="6">
+            <el-card class="stat-card">
+              <div class="stat-value">{{ signalData?.summary?.hold || 0 }}</div>
+              <div class="stat-label">⏸️ 观望</div>
+            </el-card>
+          </el-col>
+          <el-col :span="6">
+            <el-card class="stat-card stat-warning">
+              <div class="stat-value">{{ signalData?.summary?.error || 0 }}</div>
+              <div class="stat-label">⚠️ 失败</div>
+            </el-card>
+          </el-col>
+        </el-row>
+
+        <!-- 买入信号列表 -->
+        <el-card v-if="signalData?.buy_signals?.length > 0">
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span>🎯 买入推荐清单</span>
+              <el-button
+                type="primary"
+                size="small"
+                @click="handleExportSignals"
+              >
+                <el-icon><Download /></el-icon>
+                导出清单
+              </el-button>
+            </div>
+          </template>
+
+          <el-table
+            :data="buySignalRows"
+            stripe
+            :row-class-name="getSignalRowClassName"
+          >
+            <el-table-column type="index" label="#" width="50" />
+
+            <el-table-column prop="symbol" label="股票代码" width="120">
+              <template #default="{ row }">
+                <el-button
+                  type="primary"
+                  link
+                  @click="handleViewStock(row.symbol)"
+                >
+                  {{ row.symbol }}
+                </el-button>
+              </template>
+            </el-table-column>
+
+            <el-table-column prop="name" label="股票名称" width="120">
+              <template #default="{ row }">
+                {{ row.name || '—' }}
+              </template>
+            </el-table-column>
+
+            <el-table-column prop="current_price" label="当前价" width="100">
+              <template #default="{ row }">
+                <span style="font-weight: bold; color: #303133;">
+                  ¥{{ row.current_price.toFixed(2) }}
+                </span>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="止损价" width="110">
+              <template #default="{ row }">
+                <div style="color: #F56C6C; font-weight: bold;">
+                  ¥{{ row.trade_params.stop_loss.toFixed(2) }}
+                  <div style="font-size: 12px; color: #909399;">(-3%)</div>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="止盈价" width="110">
+              <template #default="{ row }">
+                <div style="color: #67C23A; font-weight: bold;">
+                  ¥{{ row.trade_params.take_profit.toFixed(2) }}
+                  <div style="font-size: 12px; color: #909399;">(+8%)</div>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="建议仓位" width="100" align="center">
+              <template #default="{ row }">
+                <el-tag type="info">
+                  {{ (row.trade_params.suggested_position * 100).toFixed(0) }}%
+                </el-tag>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="买入理由" min-width="250">
+              <template #default="{ row }">
+                <el-tag
+                  v-for="(reason, index) in row.reasons"
+                  :key="index"
+                  size="small"
+                  type="success"
+                  style="margin-right: 4px; margin-bottom: 4px;"
+                >
+                  {{ reason }}
+                </el-tag>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="技术指标" width="150">
+              <template #default="{ row }">
+                <div style="font-size: 12px; color: #606266; line-height: 1.6;">
+                  <div v-if="row.indicators?.rsi || row.indicators?.rsi14">
+                    RSI: {{ (row.indicators.rsi || row.indicators.rsi14).toFixed(1) }}
+                  </div>
+                  <div v-if="row.indicators?.macd">
+                    MACD: {{ row.indicators.macd.toFixed(3) }}
+                  </div>
+                  <div v-if="row.indicators?.volume_ratio">
+                    量比: {{ row.indicators.volume_ratio.toFixed(2) }}
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column prop="trade_date" label="交易日期" width="110" />
+          </el-table>
+        </el-card>
+
+        <!-- 无信号提示 -->
+        <el-empty
+          v-else-if="signalData && signalData.buy_signals?.length === 0"
+          description="当前没有买入信号"
+          style="margin-top: 40px;"
+        >
+          <el-button type="primary" @click="handleScanSignals">
+            重新扫描
+          </el-button>
+        </el-empty>
+
+        <!-- 未扫描提示 -->
+        <el-empty
+          v-else
+          description="尚未扫描信号"
+          style="margin-top: 40px;"
+        >
+          <el-button type="primary" @click="handleScanSignals">
+            立即扫描
+          </el-button>
+        </el-empty>
+      </el-tab-pane>
     </el-tabs>
 
     <!-- 验证策略弹窗 -->
@@ -259,7 +459,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
+import { ElMessage, ElMessageBox, ElLoading, ElNotification } from 'element-plus'
 import { poolApi } from '@/services/api'
 
 const router = useRouter()
@@ -268,12 +468,15 @@ const poolId = computed(() => Number(route.params.id))
 
 const loading = ref(false)
 const refreshing = ref(false)
+const syncingStockNames = ref(false)
 const submitting = ref(false)
 const submittingMember = ref(false)
 const pool = ref<any>({})
 const activeTab = ref('members')
 
 const validation = computed(() => pool.value.last_validation)
+const signalData = computed(() => pool.value.last_signal_scan)
+const scanningSignals = ref(false)
 const stockNameBySymbol = computed(() => {
   const names: Record<string, string> = {}
   const members = Array.isArray(pool.value.members) ? pool.value.members : []
@@ -320,7 +523,13 @@ const memberRows = computed(() => {
 const recommendedPairRows = computed(() =>
   (validation.value?.recommended_pairs || []).map((pair: { symbol?: string; [key: string]: any }) => ({
     ...pair,
-    name: pair.symbol ? stockNameBySymbol.value[pair.symbol] : undefined,
+    name: pair.name || (pair.symbol ? stockNameBySymbol.value[pair.symbol] : undefined),
+  }))
+)
+const buySignalRows = computed(() =>
+  (signalData.value?.buy_signals || []).map((signal: { symbol?: string; name?: string; [key: string]: any }) => ({
+    ...signal,
+    name: signal.name || (signal.symbol ? stockNameBySymbol.value[signal.symbol] : undefined),
   }))
 )
 
@@ -350,9 +559,10 @@ const fieldOptions = [
 
 const formatCondition = (cond: any) => {
   const fieldLabel = fieldOptions.find(f => f.value === cond.field)?.label || cond.field
-  const operatorSymbol = {
+  const operatorSymbols: Record<string, string> = {
     '>=': '≥', '<=': '≤', '>': '>', '<': '<', '==': '=', '!=': '≠'
-  }[cond.operator] || cond.operator
+  }
+  const operatorSymbol = operatorSymbols[cond.operator] || cond.operator
   return `${fieldLabel} ${operatorSymbol} ${cond.value}`
 }
 
@@ -407,6 +617,19 @@ const handleRefresh = async () => {
     ElMessage.error('刷新失败')
   } finally {
     refreshing.value = false
+  }
+}
+
+const handleSyncStockNames = async () => {
+  syncingStockNames.value = true
+  try {
+    await poolApi.syncStockNames(poolId.value)
+    ElMessage.success('股票名称同步成功')
+    await fetchPool()
+  } catch {
+    ElMessage.error('股票名称同步失败')
+  } finally {
+    syncingStockNames.value = false
   }
 }
 
@@ -499,6 +722,87 @@ const handleMemberEdit = async () => {
   }
 }
 
+// 信号扫描相关方法
+const handleScanSignals = async () => {
+  scanningSignals.value = true
+  try {
+    const response = await poolApi.scanSignals(poolId.value, { strategy_id: 272 })
+    const scanResult = response?.data || response
+
+    if (scanResult?.summary) {
+      // 直接更新 pool.value.last_signal_scan，触发 signalData 的响应式更新
+      pool.value.last_signal_scan = scanResult
+
+      ElMessage.success('信号扫描完成')
+
+      const buyCount = scanResult.summary.buy
+      if (buyCount > 0) {
+        ElNotification({
+          title: '发现买入机会！',
+          message: `${buyCount}只股票有买入信号`,
+          type: 'success',
+          duration: 5000
+        })
+      }
+    }
+  } catch (error) {
+    ElMessage.error('扫描失败')
+  } finally {
+    scanningSignals.value = false
+  }
+}
+
+const handleExportSignals = () => {
+  if (!signalData.value?.buy_signals) return
+
+  const csv = generateCSV(signalData.value.buy_signals)
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+
+  link.href = url
+  link.download = `买入清单_${pool.value.name}_${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+
+  URL.revokeObjectURL(url)
+  ElMessage.success('导出成功')
+}
+
+const generateCSV = (signals: any[]) => {
+  const headers = ['股票代码', '股票名称', '当前价', '止损价', '止盈价', '建议仓位', '买入理由', '交易日期']
+  const rows = signals.map(s => [
+    s.symbol,
+    s.name || stockNameBySymbol.value[s.symbol] || '',
+    s.current_price.toFixed(2),
+    s.trade_params.stop_loss.toFixed(2),
+    s.trade_params.take_profit.toFixed(2),
+    `${(s.trade_params.suggested_position * 100).toFixed(0)}%`,
+    s.reasons.join('; '),
+    s.trade_date
+  ])
+
+  return [headers, ...rows].map(row => row.join(',')).join('\n')
+}
+
+const handleViewStock = (symbol: string) => {
+  router.push(`/stocks/${symbol}`)
+}
+
+const getSignalRowClassName = ({ rowIndex }: { rowIndex: number }) => {
+  return rowIndex === 0 ? 'highlight-row' : ''
+}
+
+const formatDateTime = (dateTime: string) => {
+  if (!dateTime) return '-'
+  return new Date(dateTime).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 onMounted(() => {
   fetchPool()
 })
@@ -529,4 +833,58 @@ onMounted(() => {
   color: var(--el-text-color-secondary);
   margin-top: 4px;
 }
+
+/* 买卖信号相关样式 */
+.stat-card {
+  text-align: center;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.stat-card .stat-value {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.stat-card .stat-label {
+  font-size: 14px;
+  color: #606266;
+}
+
+.stat-card.stat-success {
+  background: linear-gradient(135deg, #67C23A 0%, #85CE61 100%);
+  color: white;
+}
+
+.stat-card.stat-success .stat-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.stat-card.stat-danger {
+  background: linear-gradient(135deg, #F56C6C 0%, #F78989 100%);
+  color: white;
+}
+
+.stat-card.stat-danger .stat-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.stat-card.stat-warning {
+  background: linear-gradient(135deg, #E6A23C 0%, #EBB563 100%);
+  color: white;
+}
+
+.stat-card.stat-warning .stat-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.highlight-row {
+  background-color: #FFF7E6 !important;
+}
+
+.highlight-row:hover {
+  background-color: #FFE7BA !important;
+}
+
 </style>

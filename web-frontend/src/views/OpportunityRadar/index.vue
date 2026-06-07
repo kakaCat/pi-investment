@@ -412,6 +412,7 @@ import { useTable } from '@/composables/useTable'
 import { analysisApi } from '@/services/api/analysis'
 import { strategyApi } from '@/services/api/strategy'
 import { tradingApi } from '@/services/api/trading'
+import { toSnakeCase } from '@/utils/format'
 import type { Opportunity, OpportunityFilters, CreateOrderRequest, Strategy } from '@/types'
 
 // 筛选条件
@@ -504,15 +505,30 @@ const hasMore = computed(() => {
   return total.value > currentPage.value * pageSize.value
 })
 
+// 将筛选条件转换为后端期望的数组格式
+const buildFilterArrays = () => {
+  const technicalArray = Object.keys(filters.technical)
+    .filter(key => filters.technical[key])
+    .map(key => toSnakeCase(key))
+
+  const fundamentalArray = Object.keys(filters.fundamental)
+    .filter(key => filters.fundamental[key])
+    .map(key => toSnakeCase(key))
+
+  return { technicalArray, fundamentalArray }
+}
+
 // 获取机会列表
 const fetchOpportunities = async () => {
   try {
+    const { technicalArray, fundamentalArray } = buildFilterArrays()
+
     const apiFilters: OpportunityFilters = {
       minScore: filters.scoreRange[0],
       maxRiskLevel: filters.riskLevel || undefined,
       industries: filters.industries.length > 0 ? filters.industries : undefined,
-      technical: filters.technical,
-      fundamental: filters.fundamental
+      technical: technicalArray,
+      fundamental: fundamentalArray
     }
 
     const response = await analysisApi.getOpportunities({
@@ -582,20 +598,24 @@ const updateStats = (data: Opportunity[]) => {
 const handleScan = async () => {
   scanning.value = true
   try {
+    const { technicalArray, fundamentalArray } = buildFilterArrays()
+
     const apiFilters: OpportunityFilters = {
       strategyId: filters.strategyId || undefined,
       minScore: filters.scoreRange[0],
       maxRiskLevel: filters.riskLevel || undefined,
       industries: filters.industries.length > 0 ? filters.industries : undefined,
-      technical: filters.technical,
-      fundamental: filters.fundamental
+      technical: technicalArray,
+      fundamental: fundamentalArray,
+      page: currentPage.value,
+      pageSize: pageSize.value
     }
 
     const response = await analysisApi.scanOpportunities(apiFilters)
     lastScanTime.value = new Date().toISOString()
     setData(response.opportunities, response.total)
     updateStats(response.opportunities)
-    ElMessage.success('扫描完成')
+    ElMessage.success(`扫描完成，发现 ${response.total} 个机会`)
   } catch (error) {
     console.error('Scan failed:', error)
     ElMessage.error('扫描失败')
@@ -606,7 +626,7 @@ const handleScan = async () => {
 
 // 排序
 const handleSort = () => {
-  fetchOpportunities()
+  handleScan()  // 使用 handleScan 而不是 fetchOpportunities
 }
 
 // 查看详情
@@ -695,13 +715,13 @@ const handleResetFilters = () => {
   filters.confidenceRange = [50, 100]
   filters.riskLevel = ''
   filters.industries = []
-  fetchOpportunities()
+  handleScan()  // 使用 handleScan 而不是 fetchOpportunities
 }
 
 // 加载更多
 const handleLoadMore = () => {
   changePage(currentPage.value + 1)
-  fetchOpportunities()
+  handleScan()  // 使用 handleScan 而不是 fetchOpportunities，保持一致
 }
 
 // 获取星级评分
@@ -811,7 +831,7 @@ const applyPreset = (preset: any) => {
   Object.assign(filters, preset.filters)
   loadPresetDialogVisible.value = false
   ElMessage.success(`已应用预设：${preset.name}`)
-  fetchOpportunities()
+  handleScan()  // 使用 handleScan 而不是 fetchOpportunities
 }
 
 // 删除预设
@@ -832,7 +852,7 @@ const deletePreset = (index: number) => {
 // 初始化
 onMounted(() => {
   loadStrategies()
-  fetchOpportunities()
+  handleScan()  // 直接扫描，而不是 fetchOpportunities
 })
 </script>
 

@@ -212,8 +212,10 @@ export interface OpportunityFilters {
   maxRiskLevel?: string
   industries?: string[]
   marketCap?: { min?: number; max?: number }
-  technical?: Record<string, any>
-  fundamental?: Record<string, any>
+  technical?: string[] | Record<string, any>
+  fundamental?: string[] | Record<string, any>
+  page?: number
+  pageSize?: number
 }
 
 export interface OpportunityScanResponse {
@@ -221,6 +223,9 @@ export interface OpportunityScanResponse {
   scanMode: 'score' | 'strategy'
   opportunities: Opportunity[]
   total: number
+  page?: number
+  pageSize?: number
+  totalPages?: number
   scanned: number
   strategyId?: string | number
   sectorInfo?: any

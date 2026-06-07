@@ -574,53 +574,58 @@ async function fetchV2<T>(
 }
 
 /**
- * 获取财务数据
+ * 获取财务数据（使用多数据源 V2 端点）
  * @param symbol 股票代码
  * @param statementType 报表类型: 'income' | 'balance' | 'cash_flow' | 'all'
  * @param periods 期数，默认 4
+ * @param source 数据源策略: 'auto' | 'fresh' | 'cache_only'
  */
 export async function getFinancials(
   symbol: string,
   statementType: 'income' | 'balance' | 'cash_flow' | 'all' = 'all',
   periods = 4,
+  source: 'auto' | 'fresh' | 'cache_only' = 'auto',
 ): Promise<FinancialData> {
   if (!symbol || symbol.trim() === '') {
     throw new QuantV2Error('股票代码不能为空', 400);
   }
 
-  const url = `${V2_API_BASE}/api/stock/${encodeURIComponent(symbol)}/financials?type=${statementType}&periods=${periods}`;
+  // 使用 V2 多数据源端点
+  const url = `${V2_API_BASE}/api/v2/stock/${encodeURIComponent(symbol)}/financials?statement_type=${statementType}&periods=${periods}&source=${source}`;
 
-  // API 返回格式: { success: true, data: { symbol, name, incomeStatement: [...], balanceSheet: [...], cashFlow: [...] } }
+  // V2 API 返回格式: { success: true, data: { cached: false, data: { balanceSheet: [...], incomeStatement: [...], cashFlow: [...] }, source: "sina_web" } }
   const response = await fetchV2<{
     success: boolean;
     data: {
-      symbol: string;
-      name: string;
-      statementType: string;
-      periods: number;
-      incomeStatement?: Array<Record<string, any>>;
-      balanceSheet?: Array<Record<string, any>>;
-      cashFlow?: Array<Record<string, any>>;
+      cached: boolean;
+      source: string;
+      data: {
+        balanceSheet?: Array<Record<string, any>>;
+        incomeStatement?: Array<Record<string, any>>;
+        cashFlow?: Array<Record<string, any>>;
+      };
     };
   }>(url);
 
-  if (!response.success || !response.data) {
+  if (!response.success || !response.data || !response.data.data) {
     throw new QuantV2Error('财务数据获取失败', 500);
   }
 
-  const { data } = response;
+  const financialData = response.data.data;
+  const dataSource = response.data.source;
+  const dataCached = response.data.cached;
 
   // 转换为 FinancialData 格式（取最新一期数据）
   const result: FinancialData = {
     success: true,
-    symbol: data.symbol,
-    name: data.name,
+    symbol: symbol,
+    name: '', // V2 API 不返回名称，需要从其他地方获取
     report_date: '', // 将从报表数据中提取
   };
 
   // 转换利润表
-  if (data.incomeStatement && data.incomeStatement.length > 0) {
-    const income = data.incomeStatement[0];
+  if (financialData.incomeStatement && financialData.incomeStatement.length > 0) {
+    const income = financialData.incomeStatement[0];
     result.report_date = income['报告期'] || income['公告日期'] || '';
 
     const revenue = income['营业总收入'] || income['营业收入'] || 0;
@@ -641,8 +646,8 @@ export async function getFinancials(
   }
 
   // 转换资产负债表
-  if (data.balanceSheet && data.balanceSheet.length > 0) {
-    const balance = data.balanceSheet[0];
+  if (financialData.balanceSheet && financialData.balanceSheet.length > 0) {
+    const balance = financialData.balanceSheet[0];
     if (!result.report_date) {
       result.report_date = balance['报告期'] || balance['公告日期'] || '';
     }
@@ -665,8 +670,8 @@ export async function getFinancials(
   }
 
   // 转换现金流量表
-  if (data.cashFlow && data.cashFlow.length > 0) {
-    const cashflow = data.cashFlow[0];
+  if (financialData.cashFlow && financialData.cashFlow.length > 0) {
+    const cashflow = financialData.cashFlow[0];
     if (!result.report_date) {
       result.report_date = cashflow['报告期'] || cashflow['公告日期'] || '';
     }
@@ -1715,6 +1720,67 @@ export async function updatePoolMember(
   return fetchV2(url, { method: "PUT", body: data });
 }
 
+export interface PoolSignalScanParams {
+  strategy_id: number;
+  lookback_days?: number;
+}
+
+export interface PoolSignalScanResult {
+  strategy_id: number;
+  strategy_name: string;
+  total_symbols: number;
+  buy_signals: Array<{
+    symbol: string;
+    signal: string;
+    current_price: number;
+    reasons: string[];
+    indicators: Record<string, number>;
+    trade_params: {
+      stop_loss: number;
+      take_profit: number;
+      suggested_position: number;
+    };
+    trade_date: string;
+  }>;
+  sell_signals: Array<{
+    symbol: string;
+    signal: string;
+    current_price: number;
+    reasons: string[];
+    indicators: Record<string, number>;
+    trade_params: Record<string, any>;
+    trade_date: string;
+  }>;
+  hold_signals: Array<{
+    symbol: string;
+    signal: string;
+    current_price: number;
+    reasons: string[];
+    indicators: Record<string, number>;
+    trade_params: Record<string, any>;
+    trade_date: string;
+  }>;
+  errors: Array<{
+    symbol: string;
+    error: string;
+  }>;
+  scanned_at: string;
+  summary: {
+    buy: number;
+    sell: number;
+    hold: number;
+    error: number;
+  };
+}
+
+export async function scanPoolSignals(
+  poolId: number,
+  params: PoolSignalScanParams,
+): Promise<{ success: boolean; data?: PoolSignalScanResult; error?: string }> {
+  const url = `${V2_API_BASE}/api/pools/${poolId}/scan-signals`;
+  return fetchV2(url, { method: "POST", body: params });
+}
+
 // ─── Combo Backtest ───────────────────────────────────────
 
 export interface ComboBacktestRequest {
@@ -2060,37 +2126,55 @@ export const QuantV2Client = {
   // 基础功能
   ping: pingV2,
   run: runQuantV2,
-  
+
+  // 通用 HTTP 方法
+  get: async <T = any>(path: string, params?: Record<string, unknown>): Promise<T> => {
+    const url = new URL(path, V2_API_BASE);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          url.searchParams.append(key, String(value));
+        }
+      });
+    }
+    return fetchV2<T>(url.toString(), { method: 'GET' });
+  },
+
+  post: async <T = any>(path: string, body?: unknown): Promise<T> => {
+    const url = `${V2_API_BASE}${path}`;
+    return fetchV2<T>(url, { method: 'POST', body });
+  },
+
   // 数据获取
   getFinancials,
   getDividends,
   getKlineHistory,
   getStockData,
-  
+
   // 因子相关
   computeFactors,
   analyzeFactors,
   generateFactorReport,
-  
+
   // 投资机会
   scanOpportunities,
-  
+
   // 策略相关
   batchValidateStrategies,
-  
+
   // 指标相关
   createIndicator,
   updateIndicator,
-  
+
   // 模型相关
   listModels,
   evaluateModel,
   monitorModel,
   trainModel,
-  
+
   // 算法交易
   algoExecute,
-  
+
   // 数据质量
   checkDataQuality,
   detectMissingData,

@@ -187,6 +187,7 @@ describe('BacktestCenter', () => {
     strategyApiMock.getStrategies.mockResolvedValueOnce({
       strategies: [
         {
+          id: 101,
           strategyType: 'adx_trend',
           className: 'ADXTrendStrategy',
           description: 'ADX trend strength strategy.'
@@ -201,9 +202,9 @@ describe('BacktestCenter', () => {
       expect(indicatorApiMock.getMyIndicators).toHaveBeenCalled()
       expect(indicatorApiMock.getSystemIndicators).toHaveBeenCalled()
       expect(strategyApiMock.getStrategies).toHaveBeenCalledWith({ source: 'builtin', pageSize: 200 })
-      expect(wrapper.text()).toContain('我的RSI指标')
-      expect(wrapper.text()).toContain('系统布林指标')
-      expect(wrapper.text()).toContain('ADXTrendStrategy')
+      expect(wrapper.text()).toContain('53 : 我的RSI指标')
+      expect(wrapper.text()).toContain('88 : 系统布林指标')
+      expect(wrapper.text()).toContain('101 : ADXTrendStrategy')
       expect(wrapper.text()).toContain('GridTradingStrategy')
     })
 
@@ -351,6 +352,78 @@ describe('BacktestCenter', () => {
       profit: null,
       balance: 885234
     })
+  })
+
+  it('expands completed trades into buy and sell chart signals', () => {
+    const wrapper = mountBacktestCenter()
+    const vm = wrapper.vm as any
+
+    vm.backtestForm.symbol = '600737'
+    vm.backtestResult = vm.normalizeBacktestResult({
+      trades: [
+        {
+          entryDate: '2025-08-25 00:00:00',
+          entryPrice: 15.92,
+          exitDate: '2025-09-01 00:00:00',
+          exitPrice: 17.79,
+          exitReason: 'Take Profit',
+          pnl: 29365.58,
+          return: 0.1175,
+          size: 15703.5175879397
+        }
+      ]
+    })
+
+    expect(vm.backtestTradeSignals).toEqual([
+      expect.objectContaining({
+        type: 'buy',
+        price: 15.92,
+        createdAt: '2025-08-25'
+      }),
+      expect.objectContaining({
+        type: 'sell',
+        price: 17.79,
+        createdAt: '2025-09-01'
+      })
+    ])
+  })
+
+  it('expands paired backtest trades into buy and sell table rows', () => {
+    const wrapper = mountBacktestCenter()
+    const vm = wrapper.vm as any
+
+    vm.backtestResult = vm.normalizeBacktestResult({
+      trades: [
+        {
+          entryDate: '2025-06-06 00:00:00',
+          entryPrice: 53.63,
+          exitDate: '2025-06-19 00:00:00',
+          exitPrice: 52.15,
+          exitReason: 'Stop Loss',
+          pnl: -6899.12,
+          return: -0.0276,
+          size: 4661.570016781652
+        }
+      ]
+    })
+
+    expect(vm.backtestTradeRows[0]).toMatchObject({
+      date: '2025-06-06 00:00:00',
+      type: 'BUY',
+      price: 53.63,
+      quantity: 4661.570016781652,
+      profit: null
+    })
+    expect(vm.backtestTradeRows[0].amount).toBeCloseTo(250000)
+    expect(vm.backtestTradeRows[1]).toMatchObject({
+      date: '2025-06-19 00:00:00',
+      type: 'SELL',
+      price: 52.15,
+      quantity: 4661.570016781652,
+      profit: -6899.12,
+      exitReason: 'Stop Loss'
+    })
+    expect(vm.backtestTradeRows[1].amount).toBeCloseTo(243100.8763751632)
   })
 
   it('normalizes ratio metrics into display percentages', () => {

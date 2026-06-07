@@ -12,11 +12,43 @@ vi.mock('@/services/api/client', () => ({
 }))
 
 describe('stockApi', () => {
-  describe('getMyStocks', () => {
-    beforeEach(() => {
-      vi.clearAllMocks()
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  describe('repairStockData', () => {
+    it('should trigger kline data update for the current stock only', async () => {
+      const mockResponse = {
+        success: true,
+        run_id: '#D-12345678',
+        symbols: ['600726'],
+        days: 730
+      }
+
+      vi.mocked(apiClient.post).mockResolvedValue(mockResponse)
+
+      const result = await stockApi.repairStockData('600726.SH')
+
+      expect(apiClient.post).toHaveBeenCalledWith('/api/stocks/data-update-klines', {
+        symbols: ['600726'],
+        days: 730
+      })
+      expect(result).toEqual(mockResponse)
     })
 
+    it('should allow a custom repair window', async () => {
+      vi.mocked(apiClient.post).mockResolvedValue({ success: true })
+
+      await stockApi.repairStockData('600726', 120)
+
+      expect(apiClient.post).toHaveBeenCalledWith('/api/stocks/data-update-klines', {
+        symbols: ['600726'],
+        days: 120
+      })
+    })
+  })
+
+  describe('getMyStocks', () => {
     it('should fetch positions and watchlist successfully', async () => {
       const mockResponse = {
         positions: [
