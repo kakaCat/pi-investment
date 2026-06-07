@@ -30,6 +30,7 @@ const strategyApiMock = vi.hoisted(() => ({
 const stockApiMock = vi.hoisted(() => ({
   getMyStocks: vi.fn(),
   searchStocks: vi.fn(),
+  resolveBacktestSymbol: vi.fn(),
   getKLineData: vi.fn()
 }))
 
@@ -115,6 +116,7 @@ describe('IndicatorIDE', () => {
     })
     stockApiMock.getMyStocks.mockResolvedValue({ positions: [], watchlist: [] })
     stockApiMock.searchStocks.mockResolvedValue([])
+    stockApiMock.resolveBacktestSymbol.mockImplementation(async (symbol: string) => symbol.replace(/\.(SZ|SH)$/i, ''))
     stockApiMock.getKLineData.mockResolvedValue([
       { date: '2026-05-27', open: 10, high: 11, low: 9.8, close: 10.5, volume: 1000 }
     ])
@@ -450,6 +452,56 @@ describe('IndicatorIDE', () => {
         indicatorId: '7',
         symbol: '600519',
         period: '30min'
+      }))
+    })
+
+    it('resolves a typed stock name before single indicator backtest', async () => {
+      indicatorApiMock.getMyIndicators.mockResolvedValueOnce([
+        {
+          id: 7,
+          name: 'name-resolution',
+          description: '',
+          codeContent: 'df',
+          codeType: 'indicator',
+          strategyType: 'custom',
+          category: 'custom'
+        }
+      ])
+      stockApiMock.resolveBacktestSymbol.mockResolvedValueOnce('002714')
+      indicatorApiMock.backtestIndicator.mockResolvedValueOnce({
+        winRate: 0.58,
+        totalReturn: 0.11,
+        sharpeRatio: 1.2,
+        maxDrawdown: -0.06,
+        totalTrades: 9
+      })
+
+      const wrapper = mount(IndicatorIDE, {
+        global: {
+          stubs: {
+            'el-icon': true
+          }
+        }
+      })
+
+      await vi.waitFor(() => {
+        expect(wrapper.text()).toContain('name-resolution')
+      })
+
+      const vm = wrapper.vm as any
+      vm.selectedStrategy = 'indicator:7'
+      vm.selectedIndicator = { id: 7 }
+      vm.currentIndicatorCode = 'df'
+      vm.backtestForm.symbol = '牧原股份'
+      vm.backtestForm.startDate = '2025-06-07'
+      vm.backtestForm.endDate = '2026-06-07'
+
+      await vm.submitBacktest()
+
+      expect(stockApiMock.resolveBacktestSymbol).toHaveBeenCalledWith('牧原股份')
+      expect(indicatorApiMock.backtestIndicator).toHaveBeenCalledWith(expect.objectContaining({
+        indicatorId: '7',
+        symbol: '002714'
       }))
     })
 

@@ -738,6 +738,13 @@ const normalizeBacktestResult = (result: any) => {
     value: toFiniteNumber(item.value ?? item.equity ?? item.totalEquity ?? item.total_equity ?? item.balance)
   }))
   const trades = (source?.trades ?? summary.trades ?? []).map(normalizeBacktestTrade)
+  const tradeRecords = (
+    source?.tradeRecords ??
+    source?.trade_records ??
+    source?.executionRecords ??
+    source?.execution_records ??
+    []
+  ).map(normalizeBacktestTrade)
   const totalTrades = toFiniteNumber(source?.totalTrades ?? source?.total_trades ?? summary.totalTrades ?? summary.total_trades ?? trades.length)
   const winTrades = toFiniteNumber(source?.winTrades ?? source?.winningTrades ?? source?.winning_trades ?? summary.winningTrades ?? summary.winning_trades)
   const lossTrades = toFiniteNumber(source?.lossTrades ?? source?.losingTrades ?? source?.losing_trades ?? summary.losingTrades ?? summary.losing_trades)
@@ -776,6 +783,7 @@ const normalizeBacktestResult = (result: any) => {
     maxLoss: toFiniteNumber(source?.maxLoss ?? summary.maxLoss),
     recoveryDays: toFiniteNumber(source?.recoveryDays ?? summary.recoveryDays),
     trades,
+    tradeRecords,
     equityCurve,
     monthlyReturns: source?.monthlyReturns ?? source?.monthly_returns ?? []
   }
@@ -794,9 +802,12 @@ const createBacktestTradeRow = (trade: any, overrides: Record<string, any>) => {
 }
 
 const backtestTradeRows = computed(() => {
-  if (!backtestResult.value?.trades?.length) return []
+  const displayTrades = backtestResult.value?.tradeRecords?.length
+    ? backtestResult.value.tradeRecords
+    : backtestResult.value?.trades
+  if (!displayTrades?.length) return []
 
-  return backtestResult.value.trades.flatMap((trade: any, index: number) => {
+  return displayTrades.flatMap((trade: any, index: number) => {
     const pairIndex = index + 1
     const rows = []
 
@@ -840,9 +851,12 @@ const backtestTradeRows = computed(() => {
 })
 
 const backtestTradeSignals = computed(() => {
-  if (!backtestResult.value?.trades?.length) return []
+  const displayTrades = backtestResult.value?.tradeRecords?.length
+    ? backtestResult.value.tradeRecords
+    : backtestResult.value?.trades
+  if (!displayTrades?.length) return []
 
-  return backtestResult.value.trades.flatMap((trade: any, index: number) => {
+  return displayTrades.flatMap((trade: any, index: number) => {
     const signals: TradingSignal[] = []
     const entryDate = normalizeBacktestDate(trade.entryDate ?? trade.entry_date ?? (trade.type === 'BUY' ? trade.date : undefined))
     const exitDate = normalizeBacktestDate(trade.exitDate ?? trade.exit_date ?? (trade.type === 'SELL' ? trade.date : undefined))
@@ -887,11 +901,11 @@ const backtestTradeSignals = computed(() => {
   })
 })
 
-const loadBacktestKlines = async (startDate: string, endDate: string) => {
+const loadBacktestKlines = async (symbol: string, startDate: string, endDate: string) => {
   backtestKlineData.value = []
   try {
     backtestKlineData.value = await stockApi.getKLineData({
-      symbol: backtestForm.symbol,
+      symbol,
       startDate,
       endDate,
       timeFrame: backtestForm.klinePeriod,
@@ -914,10 +928,11 @@ const handleStartBacktest = async () => {
     try {
       const startDate = toDateString(backtestForm.startDate)
       const endDate = toDateString(backtestForm.endDate)
+      const backtestSymbol = await stockApi.resolveBacktestSymbol(backtestForm.symbol)
       const result = isIndicatorStrategy(backtestForm.strategy)
         ? await indicatorApi.backtestIndicator({
           indicatorId: getIndicatorId(backtestForm.strategy),
-          symbol: backtestForm.symbol,
+          symbol: backtestSymbol,
           startDate,
           endDate,
           initialCash: backtestForm.initialCapital,
@@ -925,7 +940,7 @@ const handleStartBacktest = async () => {
         })
         : await analysisApi.runBacktest({
           strategy: backtestForm.strategy,
-          symbol: backtestForm.symbol,
+          symbol: backtestSymbol,
           startDate,
           endDate,
           period: backtestForm.klinePeriod,
@@ -964,7 +979,7 @@ const handleStartBacktest = async () => {
         })
 
       backtestResult.value = normalizeBacktestResult(result)
-      await loadBacktestKlines(startDate, endDate)
+      await loadBacktestKlines(backtestSymbol, startDate, endDate)
       ElMessage.success('回测完成')
 
       // 绘制图表
@@ -1024,11 +1039,14 @@ const buildEquityComparison = () => {
 const shortBacktestDate = (date: string) => date.split(' ')[0].slice(5, 10)
 
 const buildTradeMarkers = () => {
-  if (!backtestResult.value?.trades?.length) return []
+  const displayTrades = backtestResult.value?.tradeRecords?.length
+    ? backtestResult.value.tradeRecords
+    : backtestResult.value?.trades
+  if (!displayTrades?.length) return []
 
   const initialCapital = getBacktestInitialCapital()
 
-  return backtestResult.value.trades.flatMap((trade: any, index: number) => {
+  return displayTrades.flatMap((trade: any, index: number) => {
     const markers = []
     const order = index + 1
     if (trade.entryDate) {
@@ -1060,17 +1078,23 @@ const buildTradeMarkers = () => {
 }
 
 const buildHoldingBands = () => {
-  if (!backtestResult.value?.trades?.length) return []
+  const displayTrades = backtestResult.value?.tradeRecords?.length
+    ? backtestResult.value.tradeRecords
+    : backtestResult.value?.trades
+  if (!displayTrades?.length) return []
 
-  return backtestResult.value.trades
+  return displayTrades
     .filter((trade: any) => trade.entryDate && trade.exitDate)
     .map((trade: any) => [{ xAxis: trade.entryDate }, { xAxis: trade.exitDate }])
 }
 
 const buildTradeReferenceLines = () => {
-  if (!backtestResult.value?.trades?.length) return []
+  const displayTrades = backtestResult.value?.tradeRecords?.length
+    ? backtestResult.value.tradeRecords
+    : backtestResult.value?.trades
+  if (!displayTrades?.length) return []
 
-  return backtestResult.value.trades.flatMap((trade: any, index: number) => {
+  return displayTrades.flatMap((trade: any, index: number) => {
     const order = index + 1
     const lines = []
 

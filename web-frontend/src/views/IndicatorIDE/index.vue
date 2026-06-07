@@ -1420,17 +1420,19 @@ const submitBacktest = async () => {
       return
     }
 
+    const backtestSymbol = await stockApi.resolveBacktestSymbol(backtestForm.symbol)
+
     // 调用回测API
     const result = isIndicatorStrategy(selectedStrategy.value)
       ? await indicatorApi.backtestIndicator({
         indicatorId: getIndicatorId(selectedStrategy.value),
-        symbol: backtestForm.symbol,
+        symbol: backtestSymbol,
         startDate: backtestForm.startDate,
         endDate: backtestForm.endDate,
         initialCash: backtestForm.initialCapital,
         period: backtestForm.period
       }) as any
-      : await runBuiltinBacktest(backtestForm.symbol) as any
+      : await runBuiltinBacktest(backtestSymbol) as any
 
     // 后端返回: { totalReturn, sharpeRatio, maxDrawdown, winRate, totalTrades, trades, equityCurve }
     backtestResult.value = buildBacktestResult(result)

@@ -16,6 +16,42 @@ describe('stockApi', () => {
     vi.clearAllMocks()
   })
 
+  describe('resolveBacktestSymbol', () => {
+    it('returns plain stock codes unchanged', async () => {
+      await expect(stockApi.resolveBacktestSymbol('002714')).resolves.toBe('002714')
+
+      expect(apiClient.get).not.toHaveBeenCalled()
+    })
+
+    it('strips A-share suffixes before backtest requests', async () => {
+      await expect(stockApi.resolveBacktestSymbol('002714.SZ')).resolves.toBe('002714')
+    })
+
+    it('resolves an exact stock name to its code', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue({
+        stocks: [
+          { symbol: '002714', name: '牧原股份' }
+        ]
+      })
+
+      await expect(stockApi.resolveBacktestSymbol('牧原股份')).resolves.toBe('002714')
+
+      expect(apiClient.get).toHaveBeenCalledWith('/api/stocks/search', {
+        params: { q: '牧原股份' }
+      })
+    })
+
+    it('throws when a stock name cannot be resolved exactly', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue({
+        stocks: [
+          { symbol: '002714', name: '牧原股份' }
+        ]
+      })
+
+      await expect(stockApi.resolveBacktestSymbol('牧原')).rejects.toThrow('未找到股票: 牧原')
+    })
+  })
+
   describe('repairStockData', () => {
     it('should trigger kline data update for the current stock only', async () => {
       const mockResponse = {

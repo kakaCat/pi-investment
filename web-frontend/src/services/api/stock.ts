@@ -10,6 +10,11 @@ function normalizeBackendStockSymbol(symbol: string): string {
   return symbol.replace(/\.(SZ|SH)$/i, '')
 }
 
+function isStockCode(value: string): boolean {
+  const normalized = normalizeBackendStockSymbol(value.trim())
+  return /^\d{4,6}$/.test(normalized)
+}
+
 function compactParams(params: Record<string, any>) {
   return Object.fromEntries(
     Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '')
@@ -54,6 +59,19 @@ export const stockApi = {
     })
     const stocks = (response as any)?.stocks ?? response ?? []
     return Array.isArray(stocks) ? stocks.map(adaptStock) : []
+  },
+
+  async resolveBacktestSymbol(input: string) {
+    const value = input.trim()
+    if (!value) return value
+    if (isStockCode(value)) return normalizeBackendStockSymbol(value)
+
+    const matches = await this.searchStocks(value)
+    const exactMatch = matches.find((stock: any) => stock.name === value || stock.symbol === value)
+    if (!exactMatch?.symbol) {
+      throw new Error(`未找到股票: ${value}`)
+    }
+    return normalizeBackendStockSymbol(exactMatch.symbol)
   },
 
   /**

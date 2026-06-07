@@ -14,6 +14,7 @@ const analysisApiMock = vi.hoisted(() => ({
 
 const stockApiMock = vi.hoisted(() => ({
   searchStocks: vi.fn(),
+  resolveBacktestSymbol: vi.fn(),
   getKLineData: vi.fn()
 }))
 
@@ -159,6 +160,13 @@ describe('BacktestCenter', () => {
     stockApiMock.getKLineData.mockResolvedValue([
       { date: '2025-06-03', open: 1456.45, close: 1457.44, high: 1467.44, low: 1453.46, volume: 28979, amount: 42235153.76 }
     ])
+    stockApiMock.resolveBacktestSymbol.mockImplementation(async (symbol: string) => {
+      if (symbol === '牧原股份') {
+        await stockApiMock.searchStocks(symbol)
+        return '002714'
+      }
+      return symbol.replace(/\.(SZ|SH)$/i, '')
+    })
     strategyApiMock.getStrategies.mockResolvedValue({
       strategies: [],
       total: 0
@@ -281,6 +289,41 @@ describe('BacktestCenter', () => {
     expect(analysisApiMock.runBacktest).not.toHaveBeenCalled()
   })
 
+  it('resolves a typed stock name to a stock code before indicator backtest', async () => {
+    indicatorApiMock.getMyIndicators.mockResolvedValueOnce([
+      {
+        id: 53,
+        name: '我的RSI指标',
+        codeType: 'indicator',
+        strategyType: 'custom',
+        category: 'custom'
+      }
+    ])
+    stockApiMock.searchStocks.mockResolvedValueOnce([
+      { symbol: '002714', name: '牧原股份' }
+    ])
+
+    const wrapper = mountBacktestCenter()
+
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain('我的RSI指标')
+    })
+
+    const vm = wrapper.vm as any
+    vm.backtestForm.strategy = 'indicator:53'
+    vm.backtestForm.symbol = '牧原股份'
+    vm.backtestForm.startDate = new Date('2025-06-07T00:00:00')
+    vm.backtestForm.endDate = new Date('2026-06-07T00:00:00')
+
+    await vm.handleStartBacktest()
+
+    expect(stockApiMock.searchStocks).toHaveBeenCalledWith('牧原股份')
+    expect(indicatorApiMock.backtestIndicator).toHaveBeenCalledWith(expect.objectContaining({
+      indicatorId: '53',
+      symbol: '002714'
+    }))
+  })
+
   it('runs selected builtin strategy with the selected kline period', async () => {
     const wrapper = mountBacktestCenter()
 
@@ -384,6 +427,49 @@ describe('BacktestCenter', () => {
         type: 'sell',
         price: 17.79,
         createdAt: '2025-09-01'
+      })
+    ])
+  })
+
+  it('uses execution records for unclosed buy signals and table rows', () => {
+    const wrapper = mountBacktestCenter()
+    const vm = wrapper.vm as any
+
+    vm.backtestForm.symbol = '002714'
+    vm.backtestResult = vm.normalizeBacktestResult({
+      totalTrades: 0,
+      trades: [],
+      tradeRecords: [
+        {
+          date: '2026-05-25 00:00:00',
+          action: 'buy',
+          type: 'BUY',
+          price: 26.33,
+          shares: 37900,
+          amount: 997907,
+          cash: 2093,
+          positionShares: 37900
+        }
+      ]
+    })
+
+    expect(vm.backtestResult.totalTrades).toBe(0)
+    expect(vm.backtestTradeRows).toEqual([
+      expect.objectContaining({
+        date: '2026-05-25 00:00:00',
+        type: 'BUY',
+        price: 26.33,
+        quantity: 37900,
+        amount: 997907,
+        balance: 2093,
+        profit: null
+      })
+    ])
+    expect(vm.backtestTradeSignals).toEqual([
+      expect.objectContaining({
+        type: 'buy',
+        price: 26.33,
+        createdAt: '2026-05-25'
       })
     ])
   })
