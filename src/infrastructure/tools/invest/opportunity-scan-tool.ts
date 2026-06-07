@@ -8,11 +8,14 @@
  * - 支持固定权重（默认 50%/30%/20%）
  * - 支持动态权重（基于因子有效性自动计算）
  * - 支持自定义权重
+ *
+ * 🆕 集成统一响应处理系统：大结果集自动持久化
  */
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { analyzeFactors, scanOpportunities } from "../../adapters/quant/quant-v2-client.js";
 import { formatOpportunities } from "../../adapters/quant/formatters.js";
+import { handleToolResponse, createErrorResponse } from "../utils/index.js";
 
 interface FactorWeight {
   technical: number;
@@ -79,7 +82,8 @@ export const opportunityScanTool: ToolDefinition = {
     "• 市场扫描找机会\n" +
     "• 策略开发前的股票池构建\n" +
     "• 定期选股调仓\n" +
-    "• 多因子策略优化",
+    "• 多因子策略优化\n\n" +
+    "💾 大结果集（>60只股票）自动保存到本地文件，避免污染上下文。",
 
   parameters: Type.Object({
     symbols: Type.Optional(Type.Array(Type.String(), {
@@ -233,29 +237,24 @@ export const opportunityScanTool: ToolDefinition = {
 
       outputText += `扫描完成: ${opportunities.length} 只股票\n\n`;
 
-      // === Step 3: 格式化结果 ===
+      // === Step 3: 格式化并返回结果 ===
       const formattedText = formatOpportunities(opportunities);
       outputText += formattedText;
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: outputText,
-          },
-        ],
-        details: undefined,
-      };
+      // 使用统一响应处理（大结果集持久化）
+      return handleToolResponse({
+        toolName: 'opportunity_scan',
+        data: { opportunities, weights: finalWeights, output: outputText },
+        formatter: (data) => data.output,
+        metadata: {
+          symbol_count: rawParams?.symbols?.length || 'market',
+          opportunity_count: opportunities.length,
+          enable_dynamic_weights: rawParams?.enable_dynamic_weights || false,
+        },
+        threshold: 30 * 1024, // 30KB，约对应20-30只股票的详细信息
+      });
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `机会雷达扫描失败: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-        details: undefined,
-      };
+      return createErrorResponse(error);
     }
   },
 };

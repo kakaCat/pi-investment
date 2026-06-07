@@ -3,11 +3,14 @@
  *
  * 获取历史K线数据（OHLCV）
  * 重命名自 get_stock_history
+ *
+ * 🆕 集成统一响应处理系统：长周期数据自动持久化
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { detectMarket } from "../shared/validators.js";
 import { getKlineHistory } from "../../adapters/quant/quant-v2-client.js";
+import { handleToolResponse, createErrorResponse } from "../utils/index.js";
 
 // Constants
 const DEFAULT_PERIOD = "daily";
@@ -38,7 +41,8 @@ export const dataFetchKlineTool: ToolDefinition = {
     `默认返回最近 ${DEFAULT_LOOKBACK_DAYS} 天的日K线数据（前复权），最多 ${MAX_DATA_POINTS} 个数据点。` +
     "仅支持 A 股（6位代码），港股 K 线数据暂不可用（v2 数据库无港股数据）。" +
     "用于趋势分析和技术分析上下文 — 不用于查询当前价格（请使用 data_fetch_stock 的 price 字段）。" +
-    "如果股票在请求的日期范围内没有交易数据，返回 {error}。",
+    "如果股票在请求的日期范围内没有交易数据，返回 {error}。" +
+    "\n\n💾 长周期数据（> 30天）自动保存到本地文件。",
 
   parameters: Type.Object({
     symbol: Type.String({
@@ -82,7 +86,7 @@ export const dataFetchKlineTool: ToolDefinition = {
           type: "text" as const,
           text: JSON.stringify(errorResponse)
         }],
-        details: undefined
+        details: null
       };
     }
 
@@ -90,27 +94,58 @@ export const dataFetchKlineTool: ToolDefinition = {
     try {
       const result = await getKlineHistory(symbol, period, start_date, end_date);
 
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(result)
-        }],
-        details: undefined
-      };
+      // 使用统一响应处理（长周期数据持久化）
+      return handleToolResponse({
+        toolName: 'data_fetch_kline',
+        data: result,
+        formatter: _formatKlineData,
+        metadata: {
+          symbol,
+          period,
+          start_date,
+          end_date,
+        },
+        threshold: 20 * 1024, // 20KB，约对应30-40天日K线数据
+      });
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      const errorResponse: ErrorResponse = {
-        success: false,
-        error: `获取K线数据失败: ${errorMsg}`
-      };
-
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(errorResponse)
-        }],
-        details: undefined
-      };
+      return createErrorResponse(error);
     }
   }
 };
+
+/**
+ * 格式化K线数据
+ */
+function _formatKlineData(result: any): string {
+  if (!result.success) {
+    return JSON.stringify(result);
+  }
+
+  const data = result.data;
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return JSON.stringify(result);
+  }
+
+  const lines: string[] = [];
+  lines.push(`📊 K线数据: ${result.symbol || ''}`);
+  lines.push(`周期: ${result.period || 'daily'}`);
+  lines.push(`数据点数: ${data.length}`);
+
+  if (data.length > 0) {
+    const first = data[0];
+    const last = data[data.length - 1];
+    lines.push(`时间范围: ${first.trade_date || first.date} ~ ${last.trade_date || last.date}`);
+
+    // 显示最近5个数据点
+    lines.push('\n最近数据:');
+    const recent = data.slice(-5);
+    recent.forEach(item => {
+      const date = item.trade_date || item.date;
+      const close = item.close?.toFixed(2) || 'N/A';
+      const change = item.pct_chg !== undefined ? `${item.pct_chg > 0 ? '+' : ''}${item.pct_chg.toFixed(2)}%` : 'N/A';
+      lines.push(`  ${date}: 收盘 ${close} (${change})`);
+    });
+  }
+
+  return lines.join('\n');
+}

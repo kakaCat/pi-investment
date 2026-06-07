@@ -10,6 +10,7 @@ import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { getDividends } from "../../adapters/quant/quant-v2-client.js";
 import { formatDividendData } from "../../adapters/quant/formatters.js";
+import { handleToolResponse } from "../utils/index.js";
 
 export const dataFetchDividendTool: ToolDefinition = {
   name: "data_fetch_dividend",
@@ -84,14 +85,14 @@ export const dataFetchDividendTool: ToolDefinition = {
       if (params.mode === 'single' && !params.symbol) {
         return {
           content: [{ type: "text" as const, text: "single 模式必须提供 symbol 参数" }],
-          details: undefined
+          details: null
         };
       }
 
       if (params.mode === 'calendar' && (!params.start_date || !params.end_date)) {
         return {
           content: [{ type: "text" as const, text: "calendar 模式必须提供 start_date 和 end_date 参数" }],
-          details: undefined
+          details: null
         };
       }
 
@@ -101,24 +102,27 @@ export const dataFetchDividendTool: ToolDefinition = {
       if (!data.success) {
         return {
           content: [{ type: "text" as const, text: `查询失败: ${data.error || '未知错误'}` }],
-          details: undefined
+          details: null
         };
       }
 
-      // 格式化输出
+      // 格式化输出并使用统一响应处理
       const formattedText = formatDividendData(data, params.mode);
 
-      return {
-        content: [{ type: "text" as const, text: formattedText }],
-        details: undefined
-      };
+      return handleToolResponse({
+        toolName: 'data_fetch_dividend',
+        data: { formattedText, rawData: data, mode: params.mode },
+        formatter: (d) => d.formattedText,
+        metadata: { mode: params.mode, symbol: params.symbol },
+        threshold: 25 * 1024, // 25KB (screen模式可能返回大量股票)
+      });
     } catch (error) {
       return {
         content: [{
           type: "text" as const,
           text: `分红数据获取失败: ${error instanceof Error ? error.message : String(error)}`
         }],
-        details: undefined
+        details: null
       };
     }
   }

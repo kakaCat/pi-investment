@@ -52,7 +52,7 @@ export const modelPredictTool: ToolDefinition = {
             error: "参数错误：symbol 不能为空"
           }, null, 2)
         }],
-        details: undefined
+        details: null
       };
     }
 
@@ -67,7 +67,7 @@ export const modelPredictTool: ToolDefinition = {
             error: `不支持的股票代码 "${symbol}"。本系统仅支持A股（6位数字，如 600519）。港股数据暂不可用。`
           }, null, 2)
         }],
-        details: undefined
+        details: null
       };
     }
 
@@ -82,7 +82,7 @@ export const modelPredictTool: ToolDefinition = {
           type: "text" as const,
           text: JSON.stringify(response, null, 2)
         }],
-        details: undefined
+        details: null
       };
     } catch (error: any) {
       return {
@@ -93,7 +93,7 @@ export const modelPredictTool: ToolDefinition = {
             error: `API 调用失败: ${error.message}`
           }, null, 2)
         }],
-        details: undefined
+        details: null
       };
     }
   }

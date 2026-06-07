@@ -71,109 +71,6 @@ const COMMANDS: Record<string, CommandRule> = {
   },
 
   // ========================================
-  // 性能分析（高频使用）
-  // ========================================
-  "performance.analyze": {
-    domain: "performance",
-    action: "analyze",
-    description: "分析策略信号表现，返回胜率、平均收益、最大回撤和夏普比率。",
-    params: {
-      strategy_id: { type: "string" },
-      days: { type: "integer", min: 1 },
-      signals_dir: { type: "string" },
-    },
-    example: { strategy_id: "rsi-strategy", days: 90 },
-  },
-  "performance.by_strategy": {
-    domain: "performance",
-    action: "by-strategy",
-    description: "查询单个策略的性能详情：收益、回撤、夏普比率。v2 端点。",
-    params: {
-      strategy_id: { required: true, type: "string" },
-    },
-    example: { strategy_id: "rsi-strategy" },
-  },
-  "performance.comparison": {
-    domain: "performance",
-    action: "comparison",
-    description: "多策略性能对比。v2 端点。",
-    params: {},
-    example: {},
-  },
-
-  // ========================================
-  // 订单/交易管理（高频使用）
-  // ========================================
-  "orders.list": {
-    domain: "orders",
-    action: "list",
-    description: "查询所有订单列表。v2 端点。",
-    params: {},
-    example: {},
-  },
-  "trades.list": {
-    domain: "trades",
-    action: "list",
-    description: "查询所有成交记录。v2 端点。",
-    params: {},
-    example: {},
-  },
-  "executions.list": {
-    domain: "executions",
-    action: "list",
-    description: "查询信号执行记录列表。v2 端点。",
-    params: {},
-    example: {},
-  },
-  "executions.stats": {
-    domain: "executions",
-    action: "stats",
-    description: "查询执行统计：成功率、平均延迟等。v2 端点。",
-    params: {},
-    example: {},
-  },
-
-  // ========================================
-  // 核心数据管理（高频使用）
-  // ========================================
-  "data.status": {
-    domain: "data",
-    action: "status",
-    description: "查看本地量化数据库状态。",
-    params: { db_path: { type: "string" } },
-    example: {},
-  },
-  "data.full_status": {
-    domain: "data",
-    action: "full-status",
-    description: "查看股票数据和因子覆盖完整性。",
-    params: {},
-    example: {},
-  },
-  "data.update_klines": {
-    domain: "data",
-    action: "update-klines",
-    description: "更新日线 K 线数据。支持单个或多个股票（逗号分隔）。",
-    params: {
-      symbols: { type: "string" },
-      days: { type: "integer", min: 1 },
-    },
-    example: { symbols: "600000,000001", days: 365 },
-  },
-  "data.update": {
-    domain: "data",
-    action: "update",
-    description: "统一数据更新入口。source 必填：portfolio(持仓)、watchlist(自选)、hs300(沪深300)、all(全部)。可选 days(天数,默认730)、force(强制全量)、async(异步执行)。",
-    params: {
-      source: { required: true, type: "string" },
-      days: { type: "integer", min: 1 },
-      force: { type: "boolean" },
-      async: { type: "boolean" },
-    },
-    example: { source: "all" },
-  },
-
-  // ========================================
   // 异步任务与调度
   // ========================================
   "jobs.list": {
@@ -189,19 +86,6 @@ const COMMANDS: Record<string, CommandRule> = {
     description: "查询调度器定时任务列表。v2 端点。",
     params: {},
     example: {},
-  },
-
-  // ========================================
-  // 因子计算（学术级）
-  // ========================================
-  "factor.list": {
-    domain: "factor",
-    action: "list",
-    description: "列出某只股票的所有可用因子。v2 端点。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-    },
-    example: { symbol: "600000" },
   },
 
   // ========================================
@@ -230,37 +114,6 @@ const COMMANDS: Record<string, CommandRule> = {
       benchmark: { type: "string" },
     },
     example: { strategy_return: 0.12, benchmark_return: 0.08 },
-  },
-
-  // ========================================
-  // 组合优化（重要功能）
-  // ========================================
-  "portfolio.optimize": {
-    domain: "portfolio",
-    action: "optimize",
-    description: "基于历史数据优化投资组合权重，支持均值方差、最小方差、风险平价、最大夏普等方法。",
-    params: {
-      symbols: { required: true, type: "array" },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-      method: { type: "string", enum: ["mean_variance", "min_variance", "risk_parity", "max_sharpe", "equal_weight"] },
-      risk_free_rate: { type: "number" },
-      target_return: { type: "number" },
-      constraints: { type: "object" },
-    },
-    example: { symbols: ["600000.SH", "000001.SZ", "600519.SH"], method: "max_sharpe", risk_free_rate: 0.03 },
-  },
-  "portfolio.correlation": {
-    domain: "portfolio",
-    action: "correlation",
-    description: "计算投资组合内股票的相关性矩阵，用于分散化分析。",
-    params: {
-      symbols: { required: true, type: "array" },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-      method: { type: "string", enum: ["pearson", "spearman"] },
-    },
-    example: { symbols: ["600000.SH", "000001.SZ", "600519.SH"], method: "pearson" },
   },
 
   // ========================================
@@ -294,56 +147,6 @@ const COMMANDS: Record<string, CommandRule> = {
   // 风险控制（高频使用）
   // ========================================
   "stress.test": {
-    domain: "stress",
-    action: "test",
-    description: "按市场冲击比例模拟组合压力测试，估算损失、权益和仓位影响。",
-    params: {
-      positions_json: { required: true, type: "string" },
-      shock_pct: { required: true, type: "number" },
-      cash: { type: "number" },
-    },
-    example: { positions_json: "[{\"symbol\":\"600000\",\"market_value\":10000}]", shock_pct: -0.2 },
-  },
-  "risk.trade_check": {
-    domain: "risk",
-    action: "trade-check",
-    description: "对单笔 A 股买卖订单执行交易前风控检查。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      action: { required: true, type: "string", enum: ["buy", "sell"] },
-      price: { required: true, type: "number", min: 0 },
-      shares: { required: true, type: "integer", min: 1 },
-    },
-    example: { symbol: "600000", action: "buy", price: 100, shares: 300 },
-  },
-  "risk.position_size": {
-    domain: "risk",
-    action: "position-size",
-    description: "按 Kelly 公式和组合风控参数计算建议仓位。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      price: { required: true, type: "number", min: 0 },
-      signal_strength: { type: "number", min: 0 },
-    },
-    example: { symbol: "600000", price: 100, signal_strength: 0.8 },
-  },
-  "risk.stop_loss": {
-    domain: "risk",
-    action: "stop-loss",
-    description: "基于入场价、当前价和最高价计算固定或移动止损价。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      entry_price: { required: true, type: "number", min: 0 },
-      current_price: { type: "number", min: 0 },
-      highest_price: { type: "number", min: 0 },
-    },
-    example: { symbol: "600000", entry_price: 90, current_price: 100, highest_price: 110 },
-  },
-
-  // ========================================
-  // 交易验证
-  // ========================================
-  "trade.verify": {
     domain: "trade",
     action: "verify",
     description: "对比实盘交易记录和回测交易记录，识别价格、方向和缺失差异。",
@@ -352,26 +155,6 @@ const COMMANDS: Record<string, CommandRule> = {
       backtest_json: { required: true, type: "string" },
     },
     example: { trades_json: "[]", backtest_json: "[]" },
-  },
-  "factor.decay": {
-    domain: "factor",
-    action: "decay",
-    description: "分析指定因子在多个预测周期上的 IC 衰减和时效性。",
-    params: {
-      factor: { required: true, type: "string" },
-      horizons: { type: "string" },
-    },
-    example: { factor: "momentum", horizons: "5,10,20" },
-  },
-  "risk.check": {
-    domain: "risk",
-    action: "check",
-    description: "运行组合风险检查。",
-    params: {
-      symbols: { type: "string" },
-      account_value: { type: "number", min: 1 },
-    },
-    example: { symbols: "600000,000001" },
   },
   "report.daily": {
     domain: "report",
@@ -415,113 +198,6 @@ const COMMANDS: Record<string, CommandRule> = {
     example: {},
   },
 
-  // ========================================
-  // 时间序列分析（专业功能）
-  // ========================================
-  "timeseries.arima": {
-    domain: "timeseries",
-    action: "arima",
-    description: "ARIMA时间序列建模：拟合、预测、自动选参。用于预测股价趋势、识别季节性模式。",
-    params: {
-      symbols: { required: true, type: "string" },
-      action_type: { type: "string", enum: ["fit", "forecast", "auto_order"] },
-      order: { type: "string" },
-      forecast_steps: { type: "integer" },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-    },
-    example: { symbols: "600000", action_type: "forecast", order: "1,1,1", forecast_steps: 10 },
-  },
-  "timeseries.garch": {
-    domain: "timeseries",
-    action: "garch",
-    description: "GARCH波动率建模：拟合、波动率预测、VaR计算。用于评估风险、设定止损。",
-    params: {
-      symbols: { required: true, type: "string" },
-      action_type: { type: "string", enum: ["fit", "forecast", "var"] },
-      p: { type: "integer" },
-      q: { type: "integer" },
-      forecast_steps: { type: "integer" },
-      confidence: { type: "number" },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-    },
-    example: { symbols: "600000", action_type: "forecast", p: 1, q: 1, forecast_steps: 5 },
-  },
-  "timeseries.kalman": {
-    domain: "timeseries",
-    action: "kalman",
-    description: "卡尔曼滤波：状态估计、趋势提取、平滑。用于去噪信号、估计隐藏趋势。",
-    params: {
-      symbols: { required: true, type: "string" },
-      action_type: { type: "string", enum: ["filter", "smooth", "local_level"] },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-    },
-    example: { symbols: "600000", action_type: "local_level" },
-  },
-  "factor.fama_french_3": {
-    domain: "factor",
-    action: "fama_french_3",
-    description: "Fama-French 3因子模型：市场、规模(SMB)、价值(HML)因子回归分析。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-      mkt_rf: { type: "array" },
-      smb: { type: "array" },
-      hml: { type: "array" },
-      risk_free_rate: { type: "number" },
-    },
-    example: { symbol: "600000", start_date: "2024-01-01", end_date: "2024-12-31" },
-  },
-  "factor.fama_french_5": {
-    domain: "factor",
-    action: "fama_french_5",
-    description: "Fama-French 5因子模型：市场、规模、价值、盈利(RMW)、投资(CMA)因子回归。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-      mkt_rf: { type: "array" },
-      smb: { type: "array" },
-      hml: { type: "array" },
-      rmw: { type: "array" },
-      cma: { type: "array" },
-      risk_free_rate: { type: "number" },
-    },
-    example: { symbol: "600000", start_date: "2024-01-01", end_date: "2024-12-31" },
-  },
-  "factor.carhart": {
-    domain: "factor",
-    action: "carhart",
-    description: "Carhart 4因子模型：Fama-French 3因子 + 动量(MOM)因子回归分析。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-      mkt_rf: { type: "array" },
-      smb: { type: "array" },
-      hml: { type: "array" },
-      mom: { type: "array" },
-      risk_free_rate: { type: "number" },
-    },
-    example: { symbol: "600000", start_date: "2024-01-01", end_date: "2024-12-31" },
-  },
-  "factor.barra": {
-    domain: "factor",
-    action: "barra",
-    description: "Barra风险模型：多因子风险分解、因子暴露分析、风险归因。",
-    params: {
-      symbol: { required: true, type: "string", symbol: true },
-      start_date: { type: "string" },
-      end_date: { type: "string" },
-      factor_exposures: {},
-      factor_returns: {},
-      risk_free_rate: { type: "number" },
-    },
-    example: { symbol: "600000", start_date: "2024-01-01", end_date: "2024-12-31" },
-  },
 
   // ── Portfolio Optimization ──
 };
@@ -625,9 +301,9 @@ export const quantCliTool: ToolDefinition = {
     "批量股票实时价格（3只以上）→ quant_cli stock.batch_quotes",
     "K线历史数据 → data_fetch_kline",
     "财务报表（利润表/资产负债表/现金流）→ data_fetch_financial",
+    "财务指标/估值/PE分位数 → data_fetch_financial（dataType参数）",
     "分红数据（历史分红/高股息筛选/分红日历）→ data_fetch_dividend",
-    "财务指标/估值/PE分位 → financial_cli（不要用 quant_cli）",
-    "港股财务数据/分析 → financial_cli",
+    "港股财务数据/分析 → 使用专用港股工具或 data_fetch_financial",
     "股票列表/股票池 → quant_cli stock.list",
 
     // 个股分析

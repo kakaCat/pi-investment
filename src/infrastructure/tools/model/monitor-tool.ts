@@ -6,6 +6,7 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { monitorModel } from "../../adapters/quant/quant-v2-client.js";
+import { handleToolResponse } from "../utils/index.js";
 
 interface MonitorModelParams {
   model_id?: string;
@@ -37,17 +38,18 @@ export const modelMonitorTool: ToolDefinition = {
               error: response.error || "监控模型失败"
             }, null, 2)
           }],
-          details: undefined
+          details: null
         };
       }
 
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(response.monitor, null, 2)
-        }],
-        details: undefined
-      };
+      // 使用统一响应处理（模型监控数据可能较大）
+      return handleToolResponse({
+        toolName: 'model_monitor',
+        data: response.monitor,
+        formatter: (data) => JSON.stringify(data, null, 2),
+        metadata: { model_id },
+        threshold: 15 * 1024, // 15KB
+      });
     } catch (error: any) {
       return {
         content: [{
@@ -57,7 +59,7 @@ export const modelMonitorTool: ToolDefinition = {
             error: `API 调用失败: ${error.message}`
           }, null, 2)
         }],
-        details: undefined
+        details: null
       };
     }
   }

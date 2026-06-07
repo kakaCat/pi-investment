@@ -49,7 +49,7 @@ export const modelListTool: ToolDefinition = {
               error: response.error || "获取模型列表失败"
             }, null, 2)
           }],
-          details: undefined
+          details: null
         };
       }
 
@@ -74,7 +74,7 @@ export const modelListTool: ToolDefinition = {
           type: "text" as const,
           text: JSON.stringify(formatted, null, 2)
         }],
-        details: undefined
+        details: null
       };
     } catch (error: any) {
       return {
@@ -85,7 +85,7 @@ export const modelListTool: ToolDefinition = {
             error: `API 调用失败: ${error.message}`
           }, null, 2)
         }],
-        details: undefined
+        details: null
       };
     }
   }

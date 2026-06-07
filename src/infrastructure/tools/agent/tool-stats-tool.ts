@@ -63,7 +63,7 @@ export const toolStatsQueryTool: ToolDefinition = {
       if (from_date && isNaN(fromDate!.getTime())) {
         return {
           content: [{ type: "text" as const, text: `错误：无效的日期格式 "${from_date}"，应为 YYYY-MM-DD` }],
-          details: undefined
+          details: null
         };
       }
 
@@ -75,7 +75,7 @@ export const toolStatsQueryTool: ToolDefinition = {
           if (stats.length === 0) {
             return {
               content: [{ type: "text" as const, text: "暂无统计数据" }],
-              details: undefined
+              details: null
             };
           }
 
@@ -106,7 +106,7 @@ export const toolStatsQueryTool: ToolDefinition = {
 
           return {
             content: [{ type: "text" as const, text: report }],
-            details: undefined
+            details: null
           };
         }
 
@@ -115,7 +115,7 @@ export const toolStatsQueryTool: ToolDefinition = {
           if (!output_path) {
             return {
               content: [{ type: "text" as const, text: "错误：导出CSV需要提供 output_path 参数" }],
-              details: undefined
+              details: null
             };
           }
 
@@ -123,7 +123,7 @@ export const toolStatsQueryTool: ToolDefinition = {
 
           return {
             content: [{ type: "text" as const, text: `✅ 统计数据已导出到: ${output_path}` }],
-            details: undefined
+            details: null
           };
         }
 
@@ -143,7 +143,7 @@ export const toolStatsQueryTool: ToolDefinition = {
         default:
           return {
             content: [{ type: "text" as const, text: `错误：未知的操作类型 "${action}"` }],
-            details: undefined
+            details: null
           };
       }
     } catch (error) {
@@ -152,7 +152,7 @@ export const toolStatsQueryTool: ToolDefinition = {
           type: "text" as const,
           text: `❌ 统计查询失败\n\n错误: ${error instanceof Error ? error.message : String(error)}`
         }],
-        details: undefined
+        details: null
       };
     }
   }

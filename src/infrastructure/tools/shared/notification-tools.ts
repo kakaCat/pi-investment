@@ -52,7 +52,7 @@ export const sendNotificationTool: ToolDefinition = {
             message: '通知已发送'
           })
         }],
-        details: undefined
+        details: null
       };
     } catch (error) {
       return {
@@ -63,7 +63,7 @@ export const sendNotificationTool: ToolDefinition = {
             error: error instanceof Error ? error.message : String(error)
           })
         }],
-        details: undefined
+        details: null
       };
     }
   }
@@ -127,7 +127,7 @@ export const sendTradeSignalTool: ToolDefinition = {
             message: `${actionText}信号已发送`
           })
         }],
-        details: undefined
+        details: null
       };
     } catch (error) {
       return {
@@ -138,7 +138,7 @@ export const sendTradeSignalTool: ToolDefinition = {
             error: error instanceof Error ? error.message : String(error)
           })
         }],
-        details: undefined
+        details: null
       };
     }
   }
@@ -203,7 +203,7 @@ export const sendMarketBriefTool: ToolDefinition = {
             message: '市场简报已发送'
           })
         }],
-        details: undefined
+        details: null
       };
     } catch (error) {
       return {
@@ -214,7 +214,7 @@ export const sendMarketBriefTool: ToolDefinition = {
             error: error instanceof Error ? error.message : String(error)
           })
         }],
-        details: undefined
+        details: null
       };
     }
   }
@@ -275,7 +275,7 @@ export const sendRiskWarningTool: ToolDefinition = {
             message: '风险警告已发送'
           })
         }],
-        details: undefined
+        details: null
       };
     } catch (error) {
       return {
@@ -286,7 +286,7 @@ export const sendRiskWarningTool: ToolDefinition = {
             error: error instanceof Error ? error.message : String(error)
           })
         }],
-        details: undefined
+        details: null
       };
     }
   }

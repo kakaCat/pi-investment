@@ -141,7 +141,7 @@ export const experienceWriteTool: ToolDefinition = {
             ),
           },
         ],
-        details: undefined,
+        details: null,
       };
     } catch (e) {
       return {
@@ -158,7 +158,7 @@ export const experienceWriteTool: ToolDefinition = {
             ),
           },
         ],
-        details: undefined,
+        details: null,
       };
     }
   },

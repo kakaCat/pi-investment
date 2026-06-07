@@ -42,12 +42,12 @@ export const memoryWriteTool: ToolDefinition = {
       const result = store.writeMemory(params.content, params.category || "general");
       return {
         content: [{ type: "text" as const, text: result }],
-        details: undefined,
+        details: null,
       };
     } catch (e) {
       return {
         content: [{ type: "text" as const, text: `Error writing memory: ${e}` }],
-        details: undefined,
+        details: null,
       };
     }
   },
@@ -83,7 +83,7 @@ export const memorySearchTool: ToolDefinition = {
       if (!results.length) {
         return {
           content: [{ type: "text" as const, text: "No relevant memories found." }],
-          details: undefined,
+          details: null,
         };
       }
       const text = results
@@ -91,12 +91,12 @@ export const memorySearchTool: ToolDefinition = {
         .join("\n");
       return {
         content: [{ type: "text" as const, text: text }],
-        details: undefined,
+        details: null,
       };
     } catch (e) {
       return {
         content: [{ type: "text" as const, text: `Error searching memory: ${e}` }],
-        details: undefined,
+        details: null,
       };
     }
   },

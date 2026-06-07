@@ -17,6 +17,8 @@ import {
   formatBatchSignals,
   formatPipelineResult,
 } from "../../adapters/quant/formatters.js";
+import { handleToolResponse } from "../utils/index.js";
+import { resolveStrategyId } from "../utils/strategy-helpers.js";
 
 interface ExecuteParams {
   action: "single" | "batch" | "pipeline";
@@ -145,7 +147,7 @@ export const strategyExecuteTool: ToolDefinition = {
           type: "text" as const,
           text: "缺少必填参数: symbol。single 模式需要指定单个股票代码。",
         }],
-        details: undefined,
+        details: null,
       };
     }
 
@@ -155,42 +157,22 @@ export const strategyExecuteTool: ToolDefinition = {
           type: "text" as const,
           text: `缺少必填参数: symbols。${action} 模式需要指定股票列表。`,
         }],
-        details: undefined,
+        details: null,
       };
     }
 
     // ── 数字ID转换：查询策略名称 ──
-    if (/^\d+$/.test(strategy)) {
-      try {
-        const baseUrl = process.env.QUANTSYS_V2_API_URL ?? "http://127.0.0.1:5001";
-        const response = await fetch(`${baseUrl}/api/strategies/${strategy}`, {
-          signal: AbortSignal.timeout(5_000),
-        });
-
-        if (!response.ok) {
-          return {
-            content: [{
-              type: "text" as const,
-              text: `策略ID ${strategy} 不存在。请使用 strategy_list 查看可用策略。`,
-            }],
-            details: undefined,
-          };
-        }
-
-        const data = (await response.json()) as any;
-        if (data.success) {
-          // Try strategy name first, fall back to strategyType
-          const strategyName = data.data?.name || data.data?.strategy_type || data.data?.strategyType;
-          if (strategyName) {
-            const originalId = strategy;
-            strategy = strategyName;
-            console.log(`[strategy_execute] ID ${originalId} → 名称 ${strategy}`);
-          }
-        }
-      } catch (error) {
-        // ID转换失败，继续使用原值（可能是内置策略名称恰好全是数字）
-        console.warn(`[strategy_execute] ID转换失败: ${error}`);
-      }
+    try {
+      strategy = await resolveStrategyId(strategy);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{
+          type: "text" as const,
+          text: `策略解析失败: ${errorMsg}`,
+        }],
+        details: null,
+      };
     }
 
     try {
@@ -225,10 +207,16 @@ export const strategyExecuteTool: ToolDefinition = {
         ? { ...(response.data as any), ...marketStyleInfo }
         : response.data;
 
-      return {
-        content: [{ type: "text" as const, text: formattedText }],
-        details: enrichedResponse,
-      };
+      // 使用统一响应处理（batch/pipeline 模式数据量大，需持久化）
+      const threshold = action === 'single' ? 50 * 1024 : 25 * 1024; // single 更详细，阈值更大
+
+      return handleToolResponse({
+        toolName: 'strategy_execute',
+        data: { formattedText, rawData: enrichedResponse, action, strategy },
+        formatter: (d) => d.formattedText,
+        metadata: { action, strategy, symbol, symbols },
+        threshold,
+      });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       return {
@@ -236,7 +224,7 @@ export const strategyExecuteTool: ToolDefinition = {
           type: "text" as const,
           text: `策略执行失败: ${errorMsg}`,
         }],
-        details: undefined,
+        details: null,
       };
     }
   },

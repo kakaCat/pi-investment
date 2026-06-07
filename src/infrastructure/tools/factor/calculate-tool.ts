@@ -2,12 +2,15 @@
  * Factor Calculate Tool - L2 因子工厂层（v2 版本）
  *
  * 批量计算多个因子，支持技术指标和基本面因子
+ *
+ * 🆕 集成统一响应处理系统：大批量因子数据自动持久化
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { requireAshare } from "../shared/validators.js";
 import { computeFactors } from "../../adapters/quant/quant-v2-client.js";
 import { formatFactorResult } from "../../adapters/quant/formatters.js";
+import { handleToolResponse, createErrorResponse } from "../utils/index.js";
 
 interface FactorCalculateParams {
   symbol: string;
@@ -21,7 +24,8 @@ export const factorCalculateTool: ToolDefinition = {
     "L2 因子工厂工具：批量计算多个因子。" +
     "支持技术因子（RSI, MACD, KDJ, 布林带等）和基本面因子（ROE, 毛利率, 净利率等）。" +
     "默认计算所有可用因子。" +
-    "仅支持A股（6位数字代码）。",
+    "仅支持A股（6位数字代码）。" +
+    "\n\n💾 大批量因子数据自动保存到本地文件。",
 
   parameters: Type.Object({
     symbol: Type.String({
@@ -48,7 +52,7 @@ export const factorCalculateTool: ToolDefinition = {
           type: "text" as const,
           text: validationError
         }],
-        details: undefined
+        details: null
       };
     }
 
@@ -59,47 +63,19 @@ export const factorCalculateTool: ToolDefinition = {
         factors: factors || undefined
       });
 
-      if (!result.success) {
-        // Extract meaningful error message from result
-        const errorMsg = result.results?.[0]?.error || "未知错误";
-        return {
-          content: [{
-            type: "text" as const,
-            text: `因子计算失败: ${errorMsg}`
-          }],
-          details: undefined
-        };
-      }
-
-      // Validate results array before using it
-      if (!result.results || !Array.isArray(result.results) || result.results.length === 0) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: "因子计算失败: 返回结果为空"
-          }],
-          details: undefined
-        };
-      }
-
-      // 使用格式化工具将结果转换为可读文本
-      const formattedText = formatFactorResult(result);
-
-      return {
-        content: [{
-          type: "text" as const,
-          text: formattedText
-        }],
-        details: undefined
-      };
+      // 使用统一响应处理（自动决定格式化或持久化）
+      return handleToolResponse({
+        toolName: 'factor_calculate',
+        data: result,
+        formatter: formatFactorResult,
+        metadata: {
+          symbol,
+          factor_count: factors?.length || 'all',
+        },
+        threshold: 40 * 1024, // 40KB，多因子计算可能较大
+      });
     } catch (error) {
-      return {
-        content: [{
-          type: "text" as const,
-          text: `因子计算失败: ${error instanceof Error ? error.message : String(error)}`
-        }],
-        details: undefined
-      };
+      return createErrorResponse(error);
     }
   }
 };

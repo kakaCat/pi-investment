@@ -27,7 +27,7 @@ export const compactTool = {
     if (!sessionRef) {
       return {
         content: [{ type: "text" as const, text: "Session not initialized" }],
-        details: undefined,
+        details: null,
       };
     }
 
@@ -43,14 +43,14 @@ export const compactTool = {
 
       return {
         content: [{ type: "text" as const, text: `✅ Compaction triggered (${beforeCount} messages).${params.focus ? `\nFocus: ${params.focus}` : ""}` }],
-        details: undefined,
+        details: null,
         triggerCompaction: true
       };
     } catch (e) {
       console.warn("⚠️  压缩失败:", e instanceof Error ? e.message : String(e));
       return {
         content: [{ type: "text" as const, text: `❌ Compaction failed: ${e instanceof Error ? e.message : String(e)}` }],
-        details: undefined,
+        details: null,
       };
     }
   }

@@ -44,10 +44,10 @@ export const queryExperienceTool: ToolDefinition = {
       // Lazy import to avoid issues when experience file doesn't exist
       const { queryAndFormatExperience } = await import('../../../services/intelligence/experience-query.js');
       const result = queryAndFormatExperience(params);
-      return { content: [{ type: "text" as const, text: result }], details: undefined };
+      return { content: [{ type: "text" as const, text: result }], details: null };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return { content: [{ type: "text" as const, text: `查询经验库失败: ${msg}` }], details: undefined };
+      return { content: [{ type: "text" as const, text: `查询经验库失败: ${msg}` }], details: null };
     }
   }
 };

@@ -18,7 +18,7 @@ export const scheduleNextCheckTool: ToolDefinition = {
       success: true,
       next_check_minutes: params.minutes,
       reason: params.reason
-    }) }], details: undefined };
+    }) }], details: null };
   }
 };
 

@@ -8,9 +8,7 @@ import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
 import { wrapToolExecution } from "../shared/error-handler.js";
-import { writeFileSync, mkdirSync } from "fs";
-import { join } from "path";
-import { paths } from "../../../config/config.js";
+import { handleToolResponse } from "../utils/index.js";
 
 type CommandRule = {
   domain: string;
@@ -51,7 +49,7 @@ const MARKET_COMMANDS: Record<string, CommandRule> = {
   "market.concept_stocks": {
     domain: "market",
     action: "concept-stocks",
-    description: "查询概念/主题板块成分股。",
+    description: "查询概念/主题板块成分股。使用前请先调用 market.concepts 获取可用概念列表。",
     params: { concept: { required: true, type: "string" } },
     example: { concept: "人工智能" },
   },
@@ -59,20 +57,6 @@ const MARKET_COMMANDS: Record<string, CommandRule> = {
     domain: "market",
     action: "concepts",
     description: "查询全部概念/主题板块列表。",
-    params: {},
-    example: {},
-  },
-  "market.macro": {
-    domain: "market",
-    action: "macro",
-    description: "查询 PMI、CPI、GDP 等宏观指标。",
-    params: { indicators: { type: "array" } },
-    example: { indicators: ["pmi", "cpi"] },
-  },
-  "market.north_flow": {
-    domain: "market",
-    action: "north-flow",
-    description: "查询北向资金流向。",
     params: {},
     example: {},
   },
@@ -104,21 +88,15 @@ const MARKET_COMMANDS: Record<string, CommandRule> = {
     params: {},
     example: {},
   },
-  "market.sentiment": {
-    domain: "market",
-    action: "sentiment",
-    description: "查询市场情绪指标（涨跌家数、涨停跌停等）。",
-    params: {},
-    example: {},
-  },
 };
 
 export const marketCliTool: ToolDefinition = {
   name: "market_cli",
   label: "市场数据查询",
   description:
-    "查询 A 股市场数据：指数概览/历史、行业板块、概念股、宏观指标、资金流向、融资融券、市场新闻、热搜股票、市场情绪。" +
-    "适用场景：了解市场整体情况、行业轮动、资金流向、热点追踪。",
+    "查询 A 股市场数据：指数概览/历史、行业板块、概念股、资金流向、融资融券、市场新闻、热搜股票。" +
+    "适用场景：了解市场整体情况、行业轮动、资金流向、热点追踪。" +
+    "注意：宏观数据、北向资金、市场情绪请使用 L1 专用工具（data_fetch_macro、data_fetch_north_flow、data_fetch_market_sentiment）。",
 
   parameters: Type.Object({
     command: Type.Union(
@@ -145,55 +123,28 @@ export const marketCliTool: ToolDefinition = {
         // 验证必填参数
         for (const [key, paramRule] of Object.entries(rule.params)) {
           if ((paramRule as any).required && !params[key]) {
-            throw new Error(
-              `缺少必填参数: ${key}。` +
-              `示例: ${JSON.stringify(rule.example)}`
-            );
+            let errorMsg = `缺少必填参数: ${key}。示例: ${JSON.stringify(rule.example)}`;
+
+            // 特殊提示：concept_stocks 需要先查询可用概念
+            if (command === 'market.concept_stocks' && key === 'concept') {
+              errorMsg += '\n\n💡 提示：请先调用 market.concepts 获取所有可用的概念板块列表，然后从中选择一个概念名称。';
+            }
+
+            throw new Error(errorMsg);
           }
         }
 
         // 调用 v2 API
         const response = await runQuantV2(command, params);
 
-        // 确保输出目录存在
-        mkdirSync(paths.toolOutputsDir, { recursive: true });
-
-        // 生成文件名：命令名-时间戳.json
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const fileName = `${command.replace(/\./g, '-')}-${timestamp}.json`;
-        const filePath = join(paths.toolOutputsDir, fileName);
-
-        // 写入文件
-        const outputData = {
-          command,
-          params,
-          timestamp: new Date().toISOString(),
-          data: response
-        };
-        writeFileSync(filePath, JSON.stringify(outputData, null, 2), 'utf-8');
-
-        // 返回文件路径信息
-        const resultText = `数据已保存到文件: ${filePath}\n\n` +
-          `文件包含以下内容：\n` +
-          `- 命令: ${command}\n` +
-          `- 参数: ${JSON.stringify(params)}\n` +
-          `- 时间戳: ${outputData.timestamp}\n` +
-          `- 数据: 请使用 Read 工具读取完整数据\n\n` +
-          `相对路径: .pi-invest/tool-outputs/${fileName}`;
-
-        return {
-          content: [{
-            type: "text" as const,
-            text: resultText
-          }],
-          details: {
-            filePath,
-            fileName,
-            command,
-            params,
-            timestamp: outputData.timestamp
-          }
-        };
+        // 使用统一响应处理（大数据自动持久化）
+        return handleToolResponse({
+          toolName: 'market_cli',
+          data: response,
+          formatter: (data) => typeof data === 'string' ? data : JSON.stringify(data, null, 2),
+          metadata: { command, params },
+          threshold: 20 * 1024, // 20KB
+        });
       },
       {
         toolName: "market_cli",

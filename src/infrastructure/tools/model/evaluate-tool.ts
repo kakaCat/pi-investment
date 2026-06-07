@@ -47,7 +47,7 @@ export const modelEvaluateTool: ToolDefinition = {
               error: response.error || "评估模型失败"
             }, null, 2)
           }],
-          details: undefined
+          details: null
         };
       }
 
@@ -56,7 +56,7 @@ export const modelEvaluateTool: ToolDefinition = {
           type: "text" as const,
           text: JSON.stringify(response.evaluation, null, 2)
         }],
-        details: undefined
+        details: null
       };
     } catch (error: any) {
       return {
@@ -67,7 +67,7 @@ export const modelEvaluateTool: ToolDefinition = {
             error: `API 调用失败: ${error.message}`
           }, null, 2)
         }],
-        details: undefined
+        details: null
       };
     }
   }

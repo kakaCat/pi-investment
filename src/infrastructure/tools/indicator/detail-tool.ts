@@ -35,7 +35,7 @@ export const indicatorDetailTool: ToolDefinition = {
           type: "text" as const,
           text: JSON.stringify(result.data ?? result, null, 2),
         }],
-        details: undefined,
+        details: null,
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -44,7 +44,7 @@ export const indicatorDetailTool: ToolDefinition = {
           type: "text" as const,
           text: `获取指标详情失败: ${errorMsg}`,
         }],
-        details: undefined,
+        details: null,
       };
     }
   },

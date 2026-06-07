@@ -70,7 +70,7 @@ export const algoExecuteTool: ToolDefinition = {
           type: "text" as const,
           text: validationError
         }],
-        details: undefined
+        details: null
       };
     }
 
@@ -81,7 +81,7 @@ export const algoExecuteTool: ToolDefinition = {
           type: "text" as const,
           text: "开始时间格式错误，必须为 HH:MM:SS 格式（如 09:30:00）"
         }],
-        details: undefined
+        details: null
       };
     }
 
@@ -101,7 +101,7 @@ export const algoExecuteTool: ToolDefinition = {
             type: "text" as const,
             text: `算法订单创建失败: ${JSON.stringify(response)}`
           }],
-          details: undefined
+          details: null
         };
       }
 

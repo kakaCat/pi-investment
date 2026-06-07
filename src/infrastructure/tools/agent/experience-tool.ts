@@ -48,7 +48,7 @@ export const experienceQueryTool: ToolDefinition = {
               data: [],
             }, null, 2),
           }],
-          details: undefined,
+          details: null,
         };
       }
 
@@ -73,7 +73,7 @@ export const experienceQueryTool: ToolDefinition = {
             data: formattedResults,
           }, null, 2),
         }],
-        details: undefined,
+        details: null,
       };
     } catch (e) {
       return {
@@ -85,7 +85,7 @@ export const experienceQueryTool: ToolDefinition = {
             data: [],
           }, null, 2),
         }],
-        details: undefined,
+        details: null,
       };
     }
   },

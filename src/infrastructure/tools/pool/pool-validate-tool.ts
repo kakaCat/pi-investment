@@ -1,9 +1,12 @@
 /**
  * Pool validation tool — run multi-strategy batch backtest against a stock pool.
+ *
+ * 🆕 集成统一响应处理系统：大数据自动持久化
  */
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { validatePool } from "../../adapters/quant/quant-v2-client.js";
+import { handleToolResponse, createErrorResponse } from "../utils/index.js";
 
 export const poolValidateTool: ToolDefinition = {
   name: "pool_validate",
@@ -12,7 +15,8 @@ export const poolValidateTool: ToolDefinition = {
     "对股票池执行多策略批量回测对比：每个策略在池内所有股票上跑回测，" +
     "按综合评分(收益率40%+夏普20%+回撤15%+胜率15%+盈亏比10%)排名，" +
     "自动推荐最优策略+股票组合(top 5)。" +
-    "strategy_ids为空时使用所有活跃策略，时间范围默认近6个月。",
+    "strategy_ids为空时使用所有活跃策略，时间范围默认近6个月。" +
+    "\n\n💾 大数据自动保存到本地文件。",
   parameters: Type.Object({
     pool_id: Type.Number({ description: "股票池ID (必需)" }),
     strategy_ids: Type.Optional(
@@ -33,7 +37,7 @@ export const poolValidateTool: ToolDefinition = {
     if (!pool_id) {
       return {
         content: [{ type: "text" as const, text: "❌ 需要 pool_id 参数" }],
-        details: undefined,
+        details: null,
       };
     }
 
@@ -44,18 +48,21 @@ export const poolValidateTool: ToolDefinition = {
         end_date,
       });
       const data = resp?.data ?? resp;
-      const text = _formatValidation(data);
-      return { content: [{ type: "text" as const, text }], details: undefined };
+
+      // 使用统一响应处理（自动决定格式化或持久化）
+      return handleToolResponse({
+        toolName: 'pool_validate',
+        data,
+        formatter: _formatValidation,
+        metadata: {
+          pool_id,
+          strategy_count: strategy_ids?.length || 'all',
+          period: `${start_date || 'auto'} ~ ${end_date || 'today'}`,
+        },
+        threshold: 50 * 1024, // 50KB，股票池验证通常较大
+      });
     } catch (error) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `❌ 验证失败: ${error instanceof Error ? error.message : String(error)}`,
-          },
-        ],
-        details: undefined,
-      };
+      return createErrorResponse(error);
     }
   },
 };

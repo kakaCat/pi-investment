@@ -57,15 +57,13 @@ export const dataFetchFinancialTool: ToolDefinition = {
       description: "PE分位数年限（默认3年）",
       minimum: 1,
       maximum: 10
-    }),
+    })),
     source: Type.Optional(Type.Union([
       Type.Literal("auto"),
       Type.Literal("fresh"),
       Type.Literal("cache_only")
     ], {
       description: "数据源策略：auto=缓存优先（默认），fresh=强制刷新，cache_only=仅缓存"
-    }))
-    source?: "auto" | "fresh" | "cache_only";
     }))
   }),
 
@@ -87,7 +85,7 @@ export const dataFetchFinancialTool: ToolDefinition = {
           type: "text" as const,
           text: validationError
         }],
-        details: undefined
+        details: null
       };
     }
 
@@ -193,7 +191,7 @@ export const dataFetchFinancialTool: ToolDefinition = {
           type: "text" as const,
           text: `财务数据获取失败: ${error instanceof Error ? error.message : String(error)}`
         }],
-        details: undefined
+        details: null
       };
     }
   }

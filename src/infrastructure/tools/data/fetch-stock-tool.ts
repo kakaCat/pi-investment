@@ -86,7 +86,7 @@ export const dataFetchQuoteTool: ToolDefinition = {
             invalid_format: true
           })
         }],
-        details: undefined
+        details: null
       };
     }
 
@@ -102,7 +102,7 @@ export const dataFetchQuoteTool: ToolDefinition = {
             type: "text" as const,
             text: formattedPrice
           }],
-          details: undefined
+          details: null
         };
       }
 
@@ -125,7 +125,7 @@ export const dataFetchQuoteTool: ToolDefinition = {
               error: errorMsg
             }, null, 2)
           }],
-          details: undefined
+          details: null
         };
       }
 
@@ -138,7 +138,7 @@ export const dataFetchQuoteTool: ToolDefinition = {
             error: '未能获取股票行情数据'
           })
         }],
-        details: undefined
+        details: null
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -150,7 +150,7 @@ export const dataFetchQuoteTool: ToolDefinition = {
             error: `获取股票行情失败: ${errorMsg}`
           })
         }],
-        details: undefined
+        details: null
       };
     }
   }

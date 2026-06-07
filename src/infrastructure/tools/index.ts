@@ -68,6 +68,10 @@ import { factorCalculateTool } from "./factor/calculate-tool.js";
 import { factorAnalyzeTool } from "./factor/factor-analyze-tool.js";
 import { factorLayeringBacktestTool } from "./factor/layering-backtest-tool.js";
 import { batchFactorLayeringBacktestTool } from "./factor/batch-layering-backtest-tool.js";
+import { factorListTool } from "./factor/list-tool.js";
+import { factorCorrelationTool } from "./factor/correlation-tool.js";
+import { factorPortfolioOptimizeTool } from "./factor/portfolio-optimize-tool.js";
+import { factorICMonitorTool } from "./factor/ic-monitor-tool.js";
 
 // L2.5 机会雷达（基于因子的综合评分）
 import { opportunityScanTool } from "./invest/opportunity-scan-tool.js";
@@ -207,6 +211,10 @@ export const allCustomTools = [
   factorAnalyzeTool,              // factor_analyze - 分析因子IC/覆盖率/稳定性
   factorLayeringBacktestTool,     // factor_layering_backtest - 因子分层回测验证有效性
   batchFactorLayeringBacktestTool, // batch_factor_layering_backtest - 批量因子分层回测
+  factorListTool,                 // factor_list - 查看所有可用因子及分类（新增）
+  factorCorrelationTool,          // factor_correlation - 因子相关性分析（新增）
+  factorPortfolioOptimizeTool,    // factor_portfolio_optimize - 因子组合优化（新增）
+  factorICMonitorTool,            // factor_ic_monitor - 因子IC时序监控（新增）
 
   // L2.5 机会雷达（基于因子的综合评分）
   opportunityScanTool,            // opportunity_scan - 多维评分扫描交易机会（支持固定/自定义/动态权重）

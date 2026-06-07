@@ -93,7 +93,7 @@ export const monitorAlertTool: ToolDefinition = {
           if (!params.message) {
             return {
               content: [{ type: "text" as const, text: JSON.stringify({ error: "general 类型需要 message 参数" }) }],
-              details: undefined
+              details: null
             };
           }
           return await sendNotificationTool.execute(toolCallId, {
@@ -107,7 +107,7 @@ export const monitorAlertTool: ToolDefinition = {
               content: [{ type: "text" as const, text: JSON.stringify({
                 error: "trade_signal 类型需要 action, symbol, name, price, reason, confidence 参数"
               }) }],
-              details: undefined
+              details: null
             };
           }
           // 主通知渠道
@@ -145,7 +145,7 @@ export const monitorAlertTool: ToolDefinition = {
               content: [{ type: "text" as const, text: JSON.stringify({
                 error: "market_brief 类型需要 summary, indices 参数"
               }) }],
-              details: undefined
+              details: null
             };
           }
           return await sendMarketBriefTool.execute(toolCallId, {
@@ -160,7 +160,7 @@ export const monitorAlertTool: ToolDefinition = {
               content: [{ type: "text" as const, text: JSON.stringify({
                 error: "risk_warning 类型需要 warning, severity 参数"
               }) }],
-              details: undefined
+              details: null
             };
           }
           return await sendRiskWarningTool.execute(toolCallId, {
@@ -176,7 +176,7 @@ export const monitorAlertTool: ToolDefinition = {
               error: `未知通知类型: ${type}`,
               valid_types: ["general", "trade_signal", "market_brief", "risk_warning"]
             }) }],
-            details: undefined
+            details: null
           };
       }
     } catch (e) {
@@ -184,7 +184,7 @@ export const monitorAlertTool: ToolDefinition = {
         content: [{ type: "text" as const, text: JSON.stringify({
           error: e instanceof Error ? e.message : String(e)
         }) }],
-        details: undefined
+        details: null
       };
     }
   }

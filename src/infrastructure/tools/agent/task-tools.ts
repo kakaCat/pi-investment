@@ -87,13 +87,13 @@ export const taskCreateTool: ToolDefinition = {
       const result = taskManager.createBatch(params.tasks);
       return {
         content: [{ type: "text" as const, text: result }],
-        details: undefined
+        details: null
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: "text" as const, text: `Error creating tasks: ${message}` }],
-        details: undefined
+        details: null
       };
     }
   }
@@ -138,13 +138,13 @@ export const taskUpdateTool: ToolDefinition = {
       }
       return {
         content: [{ type: "text" as const, text: results.join("\n") }],
-        details: undefined
+        details: null
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: "text" as const, text: `Error updating tasks: ${message}` }],
-        details: undefined
+        details: null
       };
     }
   }
@@ -173,13 +173,13 @@ export const taskListTool: ToolDefinition = {
         : taskManager.listAll();
       return {
         content: [{ type: "text" as const, text: result }],
-        details: undefined
+        details: null
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: "text" as const, text: `Error listing tasks: ${message}` }],
-        details: undefined
+        details: null
       };
     }
   }
@@ -226,13 +226,13 @@ export const taskExecuteAsyncTool: ToolDefinition = {
 
       return {
         content: [{ type: "text" as const, text: results.join("\n") }],
-        details: undefined
+        details: null
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: "text" as const, text: `Error executing async tasks: ${message}` }],
-        details: undefined
+        details: null
       };
     }
   }
@@ -264,13 +264,13 @@ export const taskCheckBackgroundTool: ToolDefinition = {
       const result = bg.check(params.background_id);
       return {
         content: [{ type: "text" as const, text: result }],
-        details: undefined
+        details: null
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: "text" as const, text: `Error checking background tasks: ${message}` }],
-        details: undefined
+        details: null
       };
     }
   }

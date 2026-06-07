@@ -8,6 +8,7 @@ import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
 import { wrapToolExecution, validateParams } from "../shared/error-handler.js";
+import { handleToolResponse } from "../utils/index.js";
 
 type CommandRule = {
   domain: string;
@@ -139,15 +140,14 @@ export const sentimentCliTool: ToolDefinition = {
         // 调用 v2 API
         const response = await runQuantV2(command, params);
 
-        return {
-          content: [{
-            type: "text" as const,
-            text: typeof response === 'string'
-              ? response
-              : JSON.stringify(response, null, 2)
-          }],
-          details: response
-        };
+        // 使用统一响应处理（大数据自动持久化）
+        return handleToolResponse({
+          toolName: 'sentiment_cli',
+          data: response,
+          formatter: (data) => typeof data === 'string' ? data : JSON.stringify(data, null, 2),
+          metadata: { command, params },
+          threshold: 20 * 1024, // 20KB
+        });
       },
       {
         toolName: "sentiment_cli",

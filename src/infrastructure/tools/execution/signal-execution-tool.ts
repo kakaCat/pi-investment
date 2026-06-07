@@ -79,12 +79,12 @@ export const signalExecutionTool: ToolDefinition = {
 
       return {
         content: [{ type: "text" as const, text }],
-        details: undefined
+        details: null
       };
     } catch (error: any) {
       return {
         content: [{ type: "text" as const, text: `❌ 执行失败: ${error.message}` }],
-        details: undefined
+        details: null
       };
     }
   }

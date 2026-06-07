@@ -90,7 +90,7 @@ export const strategyOptimizeTool: ToolDefinition = {
             type: "text" as const,
             text: "错误：缺少必需参数 strategy_id"
           }],
-          details: undefined
+          details: null
         };
       }
       if (!params?.symbol) {
@@ -99,7 +99,7 @@ export const strategyOptimizeTool: ToolDefinition = {
             type: "text" as const,
             text: "错误：缺少必需参数 symbol"
           }],
-          details: undefined
+          details: null
         };
       }
       if (!params?.param_grid) {
@@ -108,7 +108,7 @@ export const strategyOptimizeTool: ToolDefinition = {
             type: "text" as const,
             text: "错误：缺少必需参数 param_grid"
           }],
-          details: undefined
+          details: null
         };
       }
 
@@ -144,7 +144,7 @@ export const strategyOptimizeTool: ToolDefinition = {
             type: "text" as const,
             text: `❌ HTTP ${response.status}: ${text || response.statusText}`
           }],
-          details: undefined
+          details: null
         };
       }
 
@@ -169,7 +169,7 @@ export const strategyOptimizeTool: ToolDefinition = {
             type: "text" as const,
             text: `❌ 优化失败: ${rawResult.error || "无有效参数组合"}`
           }],
-          details: undefined
+          details: null
         };
       }
 
@@ -221,7 +221,7 @@ export const strategyOptimizeTool: ToolDefinition = {
               "  cd quantsys-v2 && python api/server.py"
             )
           }],
-          details: undefined
+          details: null
         };
       }
 
@@ -230,7 +230,7 @@ export const strategyOptimizeTool: ToolDefinition = {
           type: "text" as const,
           text: `❌ 优化失败: ${errorMsg}`
         }],
-        details: undefined
+        details: null
       };
     }
   },

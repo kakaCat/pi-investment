@@ -8,6 +8,7 @@ import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
 import { wrapToolExecution, validateParams } from "../shared/error-handler.js";
+import { handleToolResponse } from "../utils/index.js";
 
 type CommandRule = {
   domain: string;
@@ -69,10 +70,10 @@ const ANALYSIS_COMMANDS: Record<string, CommandRule> = {
   "analysis.exit_plan": {
     domain: "analysis",
     action: "exit-plan",
-    description: "生成退出计划（止盈、止损、分批卖出策略）。",
+    description: "生成退出计划（止盈、止损、分批卖出策略）。entry_price可选，不提供时使用当前价格。",
     params: {
       symbol: { required: true, type: "string", symbol: true },
-      entry_price: { required: true, type: "number" },
+      entry_price: { required: false, type: "number" },
       position_size: { type: "number" }
     },
     example: { symbol: "600000", entry_price: 10.5, position_size: 1000 },
@@ -132,15 +133,14 @@ export const analysisCliTool: ToolDefinition = {
         // 调用 v2 API
         const response = await runQuantV2(command, params);
 
-        return {
-          content: [{
-            type: "text" as const,
-            text: typeof response === 'string'
-              ? response
-              : JSON.stringify(response, null, 2)
-          }],
-          details: response
-        };
+        // 使用统一响应处理（大数据自动持久化）
+        return handleToolResponse({
+          toolName: 'analysis_cli',
+          data: response,
+          formatter: (data) => typeof data === 'string' ? data : JSON.stringify(data, null, 2),
+          metadata: { command, params },
+          threshold: 20 * 1024, // 20KB
+        });
       },
       {
         toolName: "analysis_cli",

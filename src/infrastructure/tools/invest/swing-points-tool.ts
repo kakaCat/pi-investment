@@ -128,7 +128,7 @@ export const swingPointsTool: ToolDefinition = {
 
       return {
         content: [{ type: "text" as const, text }],
-        details: undefined,
+        details: null,
       };
     } catch (error) {
       return {
@@ -138,7 +138,7 @@ export const swingPointsTool: ToolDefinition = {
             text: `ZigZag 波段分析失败: ${error instanceof Error ? error.message : String(error)}`,
           },
         ],
-        details: undefined,
+        details: null,
       };
     }
   },

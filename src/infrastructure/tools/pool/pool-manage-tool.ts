@@ -12,16 +12,18 @@ import {
   refreshPool,
   scanAndCreatePool,
   updatePoolMember,
+  scanPoolSignals,
 } from "../../adapters/quant/quant-v2-client.js";
 
 export const poolManageTool: ToolDefinition = {
   name: "pool_manage",
   label: "股票池管理",
   description:
-    "管理股票池：创建静态/动态池、列出所有池、查看详情、更新、删除、刷新动态池、筛选建池。" +
+    "管理股票池：创建静态/动态池、列出所有池、查看详情、更新、删除、刷新动态池、筛选建池、扫描信号。" +
     "动态池保存筛选条件(filter_template)，可定时自动刷新。" +
     "筛选建池(scan_create)：执行多因子扫描后自动创建池子。" +
-    "成员管理：update_member 更新单个股票的描述/买点/卖点/标签，get_member 查看单个股票详情。",
+    "成员管理：update_member 更新单个股票的描述/买点/卖点/标签，get_member 查看单个股票详情。" +
+    "信号扫描(scan_signals)：对池内所有股票执行策略，检测实时买卖信号。",
   parameters: Type.Object({
     action: Type.Union(
       [
@@ -34,6 +36,7 @@ export const poolManageTool: ToolDefinition = {
         Type.Literal("scan_create"),
         Type.Literal("update_member"),
         Type.Literal("get_member"),
+        Type.Literal("scan_signals"),
       ],
       { description: "操作类型" },
     ),
@@ -106,6 +109,12 @@ export const poolManageTool: ToolDefinition = {
         description: "标签列表 (update_member 使用)",
       }),
     ),
+    strategy_id: Type.Optional(
+      Type.Number({ description: "策略ID (scan_signals 需要)" }),
+    ),
+    lookback_days: Type.Optional(
+      Type.Number({ description: "回溯天数，用于计算技术指标 (scan_signals 使用，默认60)" }),
+    ),
   }),
   execute: async (_toolCallId: string, rawParams: any) => {
     const {
@@ -122,6 +131,8 @@ export const poolManageTool: ToolDefinition = {
       buy_point,
       sell_point,
       tags,
+      strategy_id,
+      lookback_days,
     } = rawParams;
 
     try {
@@ -208,6 +219,16 @@ export const poolManageTool: ToolDefinition = {
           result = { data: member };
           break;
 
+        case "scan_signals":
+          if (!pool_id || !strategy_id) {
+            return _err("scan_signals 需要 pool_id 和 strategy_id 参数");
+          }
+          result = await scanPoolSignals(pool_id, {
+            strategy_id,
+            lookback_days,
+          });
+          break;
+
         default:
           return _err(`未知操作: ${action}`);
       }
@@ -216,7 +237,7 @@ export const poolManageTool: ToolDefinition = {
       const text = _formatResult(action, data);
       return {
         content: [{ type: "text" as const, text }],
-        details: undefined,
+        details: null,
       };
     } catch (error) {
       return _err(
@@ -229,7 +250,7 @@ export const poolManageTool: ToolDefinition = {
 function _err(msg: string) {
   return {
     content: [{ type: "text" as const, text: `❌ ${msg}` }],
-    details: undefined,
+    details: null,
   };
 }
 
@@ -334,6 +355,62 @@ function _formatResult(action: string, data: any): string {
 
     case "update":
       return `✏️ 池子已更新: ${data.name}`;
+
+    case "scan_signals": {
+      const summary = data.summary || {};
+      let text = `🔍 信号扫描完成: ${data.strategy_name || `策略 ${data.strategy_id}`}\n`;
+      text += `  扫描股票: ${data.total_symbols}只\n`;
+      text += `  扫描时间: ${data.scanned_at}\n\n`;
+      text += `📊 信号统计:\n`;
+      text += `  🟢 买入: ${summary.buy || 0}只\n`;
+      text += `  🔴 卖出: ${summary.sell || 0}只\n`;
+      text += `  ⚪ 持币观望: ${summary.hold || 0}只\n`;
+      text += `  ⚠️ 错误: ${summary.error || 0}只\n`;
+
+      const buySignals = data.buy_signals || [];
+      if (buySignals.length > 0) {
+        text += `\n🟢 买入信号 (${buySignals.length}只):\n`;
+        buySignals.slice(0, 10).forEach((s: any) => {
+          text += `  • ${s.symbol} @ ¥${s.current_price}\n`;
+          if (s.reasons && s.reasons.length > 0) {
+            text += `    理由: ${s.reasons.join(', ')}\n`;
+          }
+          if (s.trade_params) {
+            text += `    止损: ¥${s.trade_params.stop_loss} | 止盈: ¥${s.trade_params.take_profit}\n`;
+          }
+        });
+        if (buySignals.length > 10) {
+          text += `  ... 还有 ${buySignals.length - 10} 只\n`;
+        }
+      }
+
+      const sellSignals = data.sell_signals || [];
+      if (sellSignals.length > 0) {
+        text += `\n🔴 卖出信号 (${sellSignals.length}只):\n`;
+        sellSignals.slice(0, 5).forEach((s: any) => {
+          text += `  • ${s.symbol} @ ¥${s.current_price}\n`;
+          if (s.reasons && s.reasons.length > 0) {
+            text += `    理由: ${s.reasons.join(', ')}\n`;
+          }
+        });
+        if (sellSignals.length > 5) {
+          text += `  ... 还有 ${sellSignals.length - 5} 只\n`;
+        }
+      }
+
+      const errors = data.errors || [];
+      if (errors.length > 0) {
+        text += `\n⚠️ 错误 (${errors.length}只):\n`;
+        errors.slice(0, 3).forEach((e: any) => {
+          text += `  • ${e.symbol}: ${e.error}\n`;
+        });
+        if (errors.length > 3) {
+          text += `  ... 还有 ${errors.length - 3} 只\n`;
+        }
+      }
+
+      return text;
+    }
 
     default:
       return JSON.stringify(data, null, 2);

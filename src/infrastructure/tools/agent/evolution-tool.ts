@@ -42,7 +42,7 @@ export const evolutionRunTool: ToolDefinition = {
           type: "text" as const,
           text: `进化分析失败: ${e instanceof Error ? e.message : String(e)}`,
         }],
-        details: undefined,
+        details: null,
       };
     }
   },
