@@ -223,9 +223,38 @@ export const opportunityScanTool: ToolDefinition = {
       if (rawParams?.symbols && Array.isArray(rawParams.symbols)) {
         scanParams.symbols = rawParams.symbols;
       }
+
+      // Bug #1 修复：将 conditions 拆分为 technical 和 fundamental
       if (rawParams?.conditions && Array.isArray(rawParams.conditions)) {
-        scanParams.conditions = rawParams.conditions;
+        const technicalConditions: string[] = [];
+        const fundamentalConditions: string[] = [];
+
+        // 根据条件类型分类
+        for (const cond of rawParams.conditions) {
+          if (typeof cond === 'string') {
+            // 技术面条件：rsi_*, macd_*, bollinger_*, volume_*, adx_*
+            if (cond.startsWith('rsi_') || cond.startsWith('macd_') ||
+                cond.startsWith('bollinger_') || cond.startsWith('volume_') ||
+                cond.startsWith('adx_')) {
+              technicalConditions.push(cond);
+            }
+            // 基本面条件：pe_*, roe_*, gross_margin_*, debt_ratio_*, revenue_growth_*
+            else if (cond.startsWith('pe_') || cond.startsWith('roe_') ||
+                     cond.startsWith('gross_margin_') || cond.startsWith('debt_ratio_') ||
+                     cond.startsWith('revenue_growth_')) {
+              fundamentalConditions.push(cond);
+            }
+          }
+        }
+
+        if (technicalConditions.length > 0) {
+          scanParams.technical = technicalConditions;
+        }
+        if (fundamentalConditions.length > 0) {
+          scanParams.fundamental = fundamentalConditions;
+        }
       }
+
       if (rawParams?.limit !== undefined) {
         scanParams.limit = rawParams.limit;
       }
