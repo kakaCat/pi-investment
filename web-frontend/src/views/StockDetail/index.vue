@@ -257,6 +257,80 @@
               />
             </div>
       </div>
+
+      <div v-show="activeTab === 'chan'" class="chan-container">
+        <!-- 顶部信息栏 -->
+        <div class="bg-slate-900 px-4 py-3 flex items-center justify-between border-b border-slate-700">
+          <div class="flex items-center gap-4">
+            <span class="text-xs text-slate-400">走势类型：</span>
+            <span v-if="chanLoading" class="text-sm text-slate-400">分析中...</span>
+            <span v-else :class="['text-sm font-semibold px-3 py-1 rounded', chanTrendClass]">
+              {{ chanResult?.trend_type || '--' }}
+            </span>
+          </div>
+          <div class="flex items-center gap-6 text-xs text-slate-400">
+            <span>笔: <span class="text-slate-200 font-medium">{{ chanResult?.bis?.length || 0 }}</span></span>
+            <span>线段: <span class="text-slate-200 font-medium">{{ chanResult?.segments?.length || 0 }}</span></span>
+            <span>中枢: <span class="text-slate-200 font-medium">{{ chanResult?.zhongshus?.length || 0 }}</span></span>
+            <span>买卖点: <span class="text-slate-200 font-medium">{{ chanResult?.buypoints?.length || 0 }}</span></span>
+          </div>
+        </div>
+
+        <!-- K线图 + 缠论标注 -->
+        <div class="professional-chart-area relative flex">
+          <div class="flex-1 min-w-0">
+            <div v-if="chanLoading" class="chart-empty-state">
+              <el-icon class="is-loading" :size="32"><Loading /></el-icon>
+              <div class="mt-2">正在分析中...</div>
+            </div>
+            <KLineChart
+              v-else-if="klineData.length > 0"
+              :data="klineData"
+              :signals="chanBuypoints"
+              height="600px"
+              class="stock-kline-chart"
+            />
+            <div v-else class="chart-empty-state">
+              暂无K线数据
+            </div>
+          </div>
+        </div>
+
+        <!-- 买卖点列表 -->
+        <div class="p-5 bg-slate-50">
+          <div class="mb-3 text-sm font-semibold text-slate-700">买卖点信号</div>
+          <el-table :data="chanResult?.buypoints || []" stripe>
+            <el-table-column prop="type" label="类型" width="100">
+              <template #default="{ row }">
+                <el-tag :type="row.type.includes('买') ? 'success' : 'danger'" size="small">
+                  {{ row.type }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="date" label="日期" width="120" />
+            <el-table-column prop="price" label="价格" width="100">
+              <template #default="{ row }">
+                ¥{{ formatPrice(row.price) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="confidence" label="置信度" width="120">
+              <template #default="{ row }">
+                <el-progress :percentage="row.confidence * 100" :stroke-width="8" />
+              </template>
+            </el-table-column>
+            <el-table-column prop="position_ratio" label="建议仓位" width="100">
+              <template #default="{ row }">
+                {{ (row.position_ratio * 100).toFixed(0) }}%
+              </template>
+            </el-table-column>
+            <el-table-column prop="reason" label="原因" show-overflow-tooltip />
+          </el-table>
+
+          <div v-if="!chanResult?.buypoints?.length && !chanLoading" class="text-center py-8 text-slate-400">
+            暂无买卖点信号
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 添加到自选股弹窗 -->
@@ -330,7 +404,7 @@
 import { computed, ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { StarFilled } from '@element-plus/icons-vue'
+import { StarFilled, Loading } from '@element-plus/icons-vue'
 import KLineChart from '@/components/charts/KLineChart/index.vue'
 import { stockApi, signalApi } from '@/services/api'
 import { useMarketWebSocket } from '@/composables/useWebSocket'
@@ -349,7 +423,8 @@ const detailTabs = [
   { label: 'K线图', name: 'kline' },
   { label: '因子一览', name: 'factors' },
   { label: '技术指标', name: 'technical' },
-  { label: '历史信号', name: 'signals' }
+  { label: '历史信号', name: 'signals' },
+  { label: '缠论分析', name: 'chan' }
 ]
 
 // K线图相关
@@ -390,6 +465,10 @@ const signalPagination = reactive({
   pageSize: 20,
   total: 0
 })
+
+// 缠论分析相关
+const chanResult = ref<any>(null)
+const chanLoading = ref(false)
 
 // 自选股相关
 const isInWatchlist = ref(false)
@@ -444,6 +523,25 @@ const latestKlineTurnoverValue = computed(() => {
 const indicatorSummary = computed(() => {
   if (!indicators.value.length) return '未选择技术指标'
   return `${indicators.value.join('/')} active`
+})
+
+// 缠论相关计算属性
+const chanBuypoints = computed(() => {
+  if (!chanResult.value?.buypoints) return []
+  return chanResult.value.buypoints.map((bp: any) => ({
+    type: bp.type.includes('买') ? 'buy' : 'sell',
+    price: bp.price,
+    createdAt: bp.date,
+    time: bp.date,
+    confidence: bp.confidence
+  }))
+})
+
+const chanTrendClass = computed(() => {
+  const trend = chanResult.value?.trend_type
+  if (trend === '上涨') return 'bg-green-500/20 text-green-400'
+  if (trend === '下跌') return 'bg-red-500/20 text-red-400'
+  return 'bg-slate-500/20 text-slate-400'
 })
 
 // 监听行情更新
@@ -561,6 +659,33 @@ const loadHistoricalSignals = async () => {
   }
 }
 
+// 加载缠论分析
+const loadChanAnalysis = async () => {
+  chanLoading.value = true
+  try {
+    const response = await fetch('http://localhost:5001/api/chan/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbol: symbol.value,
+        startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0]
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error('API请求失败')
+    }
+
+    chanResult.value = await response.json()
+  } catch (error) {
+    console.error('加载缠论分析失败:', error)
+    ElMessage.error('加载缠论分析失败')
+  } finally {
+    chanLoading.value = false
+  }
+}
+
 // Tab切换
 const handleTabChange = (tabName: string) => {
   switch (tabName) {
@@ -582,6 +707,11 @@ const handleTabChange = (tabName: string) => {
     case 'signals':
       if (historicalSignals.value.length === 0) {
         loadHistoricalSignals()
+      }
+      break
+    case 'chan':
+      if (!chanResult.value) {
+        loadChanAnalysis()
       }
       break
   }

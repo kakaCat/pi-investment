@@ -1,0 +1,15 @@
+{
+  "toolName": "test_tool",
+  "timestamp": "2026-06-19T16:36:14.348Z",
+  "metadata": {
+    "param1": "value1"
+  },
+  "data": {
+    "foo": "bar",
+    "items": [
+      1,
+      2,
+      3
+    ]
+  }
+}

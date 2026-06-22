@@ -1,0 +1,40 @@
+(node:67016) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/infrastructure/tools/agent/backend-control-tool.test.ts (75.826 s)
+  PID Management
+    ✓ savePid creates directory and writes PID file (200 ms)
+    ✓ loadPids returns empty object if file does not exist (1 ms)
+    ✓ loadPids reads existing PID file (1 ms)
+    ✓ removePid deletes specific service entry (1 ms)
+    ✓ loadPids returns empty object for corrupted JSON file (1 ms)
+    ✓ removePid handles non-existent service gracefully (1 ms)
+    ✓ removePid writes empty object when removing last service (1 ms)
+  Health Check
+    ✓ checkHealth returns true for healthy service (1 ms)
+    ✓ checkHealth returns false on timeout (51 ms)
+    ✓ checkHealth returns false on connection error
+  Start Operation
+    ✓ startService spawns correct command for rest service (507 ms)
+    ✓ startService spawns start_all.py for all services (506 ms)
+    ✓ startService returns error if health check fails (15054 ms)
+  startService with staged polling
+    ✓ should succeed in stage 1 for fast-starting services (1010 ms)
+    ✓ should succeed in stage 2 for slow-starting services (10022 ms)
+  startService diagnostic errors
+    ✓ should detect process crash and return logs (15049 ms)
+    ✓ should return diagnostics with reason and elapsed time on timeout (15033 ms)
+    ✓ should include hint in diagnostics (15045 ms)
+  Stop Operation
+    ✓ stopService sends SIGTERM to process (506 ms)
+    ✓ stopService returns success if process not found (5 ms)
+    ✓ stopService sends SIGKILL after timeout (506 ms)
+  Status Operation
+    ✓ getServiceStatus returns running status for healthy service (3 ms)
+    ✓ getServiceStatus returns stopped if no PID file (2 ms)
+    ✓ getServiceStatus returns unhealthy if health check fails (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       24 passed, 24 total
+Snapshots:   0 total
+Time:        75.98 s
+Ran all test suites matching /src\/infrastructure\/tools\/agent\/backend-control-tool.test.ts/i.
