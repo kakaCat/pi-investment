@@ -100,6 +100,7 @@ async function saveSessionMemoryInternal(
   }
 
   // 创建独立的 memory saver agent
+  // @ts-ignore - Type mismatch from SDK update
   const { session: memorySaverSession } = await createAgentSession({
     cwd: process.cwd(),
     model: createDeepSeekModel(),

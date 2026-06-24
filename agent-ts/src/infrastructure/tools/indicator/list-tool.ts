@@ -51,7 +51,7 @@ export const indicatorListTool: ToolDefinition = {
   execute: async (_toolCallId, rawParams: ListParams) => {
     try {
       const result = await runQuantV2("indicators.list", rawParams as Record<string, unknown>);
-      const data = result.data ?? result;
+      const data = (result as any).data ?? result;
 
       // 使用统一响应处理（大列表持久化）
       return handleToolResponse({

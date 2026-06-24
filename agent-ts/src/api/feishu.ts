@@ -56,6 +56,7 @@ function ensurePiDir(): void {
 
 function loadProjectSkills(): Skill[] {
   try {
+    // @ts-ignore - Type mismatch from SDK update
     const result = loadSkills({ cwd: paths.root, skillPaths: [paths.skillsDir] });
     return result.skills;
   } catch (error) {
@@ -84,8 +85,8 @@ function extractReply(session: FeishuAgentSession): string {
     if (msg.role !== "assistant" || !msg.content) continue;
 
     const text = msg.content
-      .filter((block: any) => block.type === "text" && typeof block.text === "string")
-      .map((block: any) => block.text ?? "")
+      .filter((block: any) => block.type === "text" && typeof (block as any).text === "string")
+      .map((block: any) => (block as any).text ?? "")
       .join("\n")
       .trim();
 

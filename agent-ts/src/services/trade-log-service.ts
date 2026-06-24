@@ -296,7 +296,7 @@ export class TradeLogService {
     if (follow_up_items.length === 0) {
       md += `- [ ] 暂无\n`;
     } else {
-      follow_up_items.forEach((item) => {
+      follow_up_items.forEach((item: any) => {
         md += `- [ ] ${item}\n`;
       });
     }

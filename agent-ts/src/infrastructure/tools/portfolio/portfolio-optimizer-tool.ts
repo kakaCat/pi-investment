@@ -108,20 +108,20 @@ export const portfolioOptimizerTool: ToolDefinition = {
         const result = await runQuantV2(fullCommand, params);
 
         if (!result.ok) {
-          const errorMsg = typeof result.error === 'string'
-            ? result.error
-            : result.error?.message || `命令执行失败: ${fullCommand}`;
+          const errorMsg = typeof (result as any).error === 'string'
+            ? (result as any).error
+            : (result as any).error?.message || `命令执行失败: ${fullCommand}`;
           throw new Error(errorMsg);
         }
 
         // 格式化输出
         let output = `✅ 命令执行成功: ${command}\n\n`;
 
-        if (result.data) {
-          if (typeof result.data === 'string') {
-            output += result.data;
+        if ((result as any).data) {
+          if (typeof (result as any).data === 'string') {
+            output += (result as any).data;
           } else {
-            output += JSON.stringify(result.data, null, 2);
+            output += JSON.stringify((result as any).data, null, 2);
           }
         }
 

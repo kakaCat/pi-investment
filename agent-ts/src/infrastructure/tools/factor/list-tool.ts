@@ -72,11 +72,11 @@ export const factorListTool: ToolDefinition = {
 
       const result = await response.json();
 
-      if (!result.success) {
-        throw new Error(result.error || '获取因子列表失败');
+      if (!(result as any).success) {
+        throw new Error((result as any).error || '获取因子列表失败');
       }
 
-      const data = result.data;
+      const data = (result as any).data;
 
       // 如果指定了分类，只返回该分类
       if (category) {

@@ -332,10 +332,10 @@ export const claudeCodeTool: ToolDefinition = {
 
     // Format response
     let responseText = '';
-    if (result.success) {
+    if ((result as any).success) {
       responseText = `✅ Claude Code execution completed (${result.execution_time}ms)\n\n${result.output}`;
     } else {
-      responseText = `❌ Claude Code execution failed (${result.execution_time}ms)\n\nError: ${result.error}\n\n${result.output ? `Output:\n${result.output}` : ''}`;
+      responseText = `❌ Claude Code execution failed (${result.execution_time}ms)\n\nError: ${(result as any).error}\n\n${result.output ? `Output:\n${result.output}` : ''}`;
     }
 
     return {

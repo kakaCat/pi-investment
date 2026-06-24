@@ -136,14 +136,14 @@ export const strategyWriteTool: ToolDefinition = {
                 {
                   action: "update",
                   indicator_id,
-                  name: name || result.data?.name,
+                  name: name || (result as any).data?.name,
                   code_stats: {
                     lines: codeLines,
                     chars: codeChars,
                     preview: codePreview,
                   },
                   success: result.success,
-                  message: result.message,
+                  message: (result as any).message,
                   hint: "已更新。用 indicator_backtest 验证新代码。",
                 },
                 null,
@@ -174,11 +174,11 @@ export const strategyWriteTool: ToolDefinition = {
           category,
         });
 
-        const strategyId = result.data?.strategy_id;
-        const valid = result.data?.validation?.valid;
-        const hasBuy = result.data?.validation?.has_buy_signal;
-        const hasSell = result.data?.validation?.has_sell_signal;
-        const validationError = result.data?.validation?.error;
+        const strategyId = (result as any).data?.strategy_id;
+        const valid = (result as any).data?.validation?.valid;
+        const hasBuy = (result as any).data?.validation?.has_buy_signal;
+        const hasSell = (result as any).data?.validation?.has_sell_signal;
+        const validationError = (result as any).data?.validation?.error;
 
         return {
           content: [
@@ -201,7 +201,7 @@ export const strategyWriteTool: ToolDefinition = {
                     error: validationError || null,
                   },
                   success: result.success,
-                  message: result.message,
+                  message: (result as any).message,
                   hint: valid
                     ? "创建成功。用 indicator_backtest({ indicator_id: " +
                       strategyId +

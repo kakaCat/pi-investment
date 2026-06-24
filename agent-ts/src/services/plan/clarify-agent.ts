@@ -63,5 +63,5 @@ export async function createClarifyAgent(request: string, context?: string): Pro
   });
 
   const textContent = result.content.find(c => c.type === "text");
-  return textContent && "text" in textContent ? textContent.text : "Clarify Agent 未能生成有效分析";
+  return textContent && "text" in textContent ? (textContent as any).text : "Clarify Agent 未能生成有效分析";
 }

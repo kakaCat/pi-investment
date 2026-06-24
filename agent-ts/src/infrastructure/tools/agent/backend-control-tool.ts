@@ -737,8 +737,8 @@ export const backendControlTool: ToolDefinition = {
     try {
       if (action === "start") {
         const result = await startService(service);
-        if (!result.success) {
-          let errorText = `❌ Failed to start service: ${result.error}`;
+        if (!(result as any).success) {
+          let errorText = `❌ Failed to start service: ${(result as any).error}`;
 
           if (result.diagnostics) {
             errorText += `\n\n**诊断信息:**`;
@@ -773,7 +773,7 @@ export const backendControlTool: ToolDefinition = {
 
           resultText = errorText;
         } else {
-          let successText = `✅ ${result.message}\nPID: ${result.pid}`;
+          let successText = `✅ ${(result as any).message}\nPID: ${result.pid}`;
 
           if (result.diagnostics?.elapsedMs) {
             successText += `\n启动耗时: ${result.diagnostics.elapsedMs}ms`;
@@ -783,17 +783,17 @@ export const backendControlTool: ToolDefinition = {
         }
       } else if (action === "stop") {
         const result = await stopService(service);
-        if (!result.success) {
-          resultText = `❌ Failed to stop service: ${result.error}`;
+        if (!(result as any).success) {
+          resultText = `❌ Failed to stop service: ${(result as any).error}`;
         } else {
-          resultText = `✅ ${result.message}`;
+          resultText = `✅ ${(result as any).message}`;
         }
       } else if (action === "restart") {
         const result = await restartService(service);
-        if (!result.success) {
-          resultText = `❌ Failed to restart service: ${result.error}`;
+        if (!(result as any).success) {
+          resultText = `❌ Failed to restart service: ${(result as any).error}`;
         } else {
-          resultText = `✅ ${result.message}\nNew PID: ${result.pid}`;
+          resultText = `✅ ${(result as any).message}\nNew PID: ${result.pid}`;
         }
       } else if (action === "status") {
         if (service === "all") {

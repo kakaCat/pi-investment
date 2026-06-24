@@ -28,11 +28,11 @@ describe('factor_academic tool', () => {
     const result = await factorAcademicTool.execute('test', {
       command: 'list',
       params: { symbol: '600519' }
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('命令执行成功');
+      expect((content as any).text).toContain('命令执行成功');
     }
   });
 
@@ -60,11 +60,11 @@ describe('factor_academic tool', () => {
         symbols: ['600000', '000001'],
         start_date: '2023-01-01'
       }
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('命令执行成功');
+      expect((content as any).text).toContain('命令执行成功');
     }
   });
 
@@ -72,11 +72,11 @@ describe('factor_academic tool', () => {
     const result = await factorAcademicTool.execute('test', {
       command: 'invalid_command',
       params: {}
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('未知命令');
+      expect((content as any).text).toContain('未知命令');
     }
   });
 
@@ -84,11 +84,11 @@ describe('factor_academic tool', () => {
     const result = await factorAcademicTool.execute('test', {
       command: 'fama_french_5',
       params: {} // missing required 'symbols'
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('参数');
+      expect((content as any).text).toContain('参数');
     }
   });
 });

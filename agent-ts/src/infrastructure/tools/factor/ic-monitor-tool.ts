@@ -110,11 +110,11 @@ export const factorICMonitorTool: ToolDefinition = {
 
       const result = await response.json();
 
-      if (!result.success) {
-        throw new Error(result.error || '因子IC监控失败');
+      if (!(result as any).success) {
+        throw new Error((result as any).error || '因子IC监控失败');
       }
 
-      const data = result.data;
+      const data = (result as any).data;
 
       // 提取关键指标
       const icStats = data.ic_statistics || {};

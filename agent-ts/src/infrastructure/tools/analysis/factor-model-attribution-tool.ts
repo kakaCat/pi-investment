@@ -123,13 +123,13 @@ export const factorModelAttributionTool: ToolDefinition = {
       });
 
       if (!result.ok) {
-        throw new Error(result.error || "因子归因分析失败");
+        throw new Error((result as any).error || "因子归因分析失败");
       }
 
       // 格式化输出
       const formattedOutput = formatAttributionResult(
         model,
-        result.data as AttributionResult,
+        (result as any).data as AttributionResult,
         portfolio,
         weights
       );
@@ -139,7 +139,7 @@ export const factorModelAttributionTool: ToolDefinition = {
           type: "text" as const,
           text: formattedOutput
         }],
-        details: result.data
+        details: (result as any).data
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

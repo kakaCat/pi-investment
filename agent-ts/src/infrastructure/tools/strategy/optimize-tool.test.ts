@@ -67,9 +67,18 @@ describe('strategy_optimize tool', () => {
 
     expect(result.content[0]).toHaveProperty('type', 'text');
     if (result.content[0].type === 'text') {
-      expect(result.content[0].text).toContain('最优参数');
-      expect(result.content[0].text).toContain('rsi_low: 30');
-      expect(result.content[0].text).toContain('2.15');
+      const content0 = result.content[0];
+      if (content0.type === 'text') {
+        expect(content0.text).toContain('最优参数');
+      }
+      const content0 = result.content[0];
+      if (content0.type === 'text') {
+        expect(content0.text).toContain('rsi_low: 30');
+      }
+      const content0 = result.content[0];
+      if (content0.type === 'text') {
+        expect(content0.text).toContain('2.15');
+      }
     }
   });
 
@@ -87,7 +96,10 @@ describe('strategy_optimize tool', () => {
 
     expect(result.content[0]).toHaveProperty('type', 'text');
     if (result.content[0].type === 'text') {
-      expect(result.content[0].text).toContain('strategy_id');
+      const content0 = result.content[0];
+      if (content0.type === 'text') {
+        expect(content0.text).toContain('strategy_id');
+      }
     }
   });
 
@@ -114,8 +126,14 @@ describe('strategy_optimize tool', () => {
 
     expect(result.content[0]).toHaveProperty('type', 'text');
     if (result.content[0].type === 'text') {
-      expect(result.content[0].text).toContain('失败');
-      expect(result.content[0].text).toContain('参数组合过多');
+      const content0 = result.content[0];
+      if (content0.type === 'text') {
+        expect(content0.text).toContain('失败');
+      }
+      const content0 = result.content[0];
+      if (content0.type === 'text') {
+        expect(content0.text).toContain('参数组合过多');
+      }
     }
   });
 

@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect, jest } from '@jest/globals';
+import { vi } from 'vitest';
 import { tradeMonitorTool } from './trade-monitor-tool.js';
 import * as quantV2Client from '../../adapters/quant/quant-v2-client.js';
 
@@ -28,11 +29,11 @@ describe('trade_monitor tool', () => {
     const result = await tradeMonitorTool.execute('test', {
       command: 'orders',
       params: {}
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('命令执行成功');
+      expect((content as any).text).toContain('命令执行成功');
     }
   });
 
@@ -49,11 +50,11 @@ describe('trade_monitor tool', () => {
     const result = await tradeMonitorTool.execute('test', {
       command: 'stats',
       params: {}
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('命令执行成功');
+      expect((content as any).text).toContain('命令执行成功');
     }
   });
 
@@ -61,11 +62,11 @@ describe('trade_monitor tool', () => {
     const result = await tradeMonitorTool.execute('test', {
       command: 'invalid_command',
       params: {}
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('未知命令');
+      expect((content as any).text).toContain('未知命令');
     }
   });
 });

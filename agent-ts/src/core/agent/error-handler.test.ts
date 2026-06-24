@@ -11,8 +11,8 @@ import {
 } from './error-handler.js';
 
 describe('Error Handler', () => {
-  let consoleWarnSpy;
-  let consoleErrorSpy;
+  let consoleWarnSpy: any;
+  let consoleErrorSpy: any;
 
   beforeEach(() => {
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});

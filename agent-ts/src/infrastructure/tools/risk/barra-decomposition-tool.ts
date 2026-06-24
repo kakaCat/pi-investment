@@ -123,12 +123,12 @@ export const riskBarraDecompositionTool: ToolDefinition = {
       });
 
       if (!result.ok) {
-        throw new Error(result.error || "Barra风险分解失败");
+        throw new Error((result as any).error || "Barra风险分解失败");
       }
 
       // 格式化输出
       const formattedOutput = formatBarraResult(
-        result.data as BarraResult,
+        (result as any).data as BarraResult,
         portfolio,
         weights
       );
@@ -138,7 +138,7 @@ export const riskBarraDecompositionTool: ToolDefinition = {
           type: "text" as const,
           text: formattedOutput
         }],
-        details: result.data
+        details: (result as any).data
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

@@ -36,7 +36,7 @@ export const strategyDetailTool: ToolDefinition = {
     try {
       // 1. 获取策略详情
       const result = await runQuantV2("strategy.get", rawParams as unknown as Record<string, unknown>);
-      const data = result.data ?? result;
+      const data = (result as any).data ?? result;
 
       // 2. 获取该策略的回测统计（如果有）
       let backtestStats = null;

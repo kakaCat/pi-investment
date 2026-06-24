@@ -125,8 +125,8 @@ export const factorAnalyzeTool: ToolDefinition = {
         use_alphalens
       });
 
-      if (!result.success) {
-        return createErrorResponse(result.error || "未知错误");
+      if (!(result as any).success) {
+        return createErrorResponse((result as any).error || "未知错误");
       }
 
       // 使用统一响应处理（自动持久化）

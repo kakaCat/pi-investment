@@ -215,16 +215,16 @@ export const schedulerManageTool: ToolDefinition = {
       const result = await runQuantV2(command, apiParams);
 
       if (!result.ok) {
-        const errorMsg = typeof result.error === 'string'
-          ? result.error
-          : result.error?.message || "调度器操作失败";
+        const errorMsg = typeof (result as any).error === 'string'
+          ? (result as any).error
+          : (result as any).error?.message || "调度器操作失败";
         throw new Error(errorMsg);
       }
 
       // 格式化输出
       const formattedOutput = formatSchedulerResult(
         action,
-        result.data as SchedulerResult,
+        (result as any).data as SchedulerResult,
         params
       );
 
@@ -233,7 +233,7 @@ export const schedulerManageTool: ToolDefinition = {
           type: "text" as const,
           text: formattedOutput
         }],
-        details: result.data
+        details: (result as any).data
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

@@ -151,11 +151,11 @@ export const factorPortfolioOptimizeTool: ToolDefinition = {
 
       const result = await response.json();
 
-      if (!result.success) {
-        throw new Error(result.error || '因子组合优化失败');
+      if (!(result as any).success) {
+        throw new Error((result as any).error || '因子组合优化失败');
       }
 
-      const data = result.data;
+      const data = (result as any).data;
 
       // 格式化输出
       const selectedFactors = data.selected_factors || [];

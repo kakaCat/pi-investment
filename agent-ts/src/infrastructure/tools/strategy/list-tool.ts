@@ -21,7 +21,7 @@ export const strategyListTool: ToolDefinition = {
   execute: async (_toolCallId) => {
     try {
       const result = await runQuantV2("strategy.list", {});
-      const data = result.data ?? result;
+      const data = (result as any).data ?? result;
       const items = data.items ?? data.strategies ?? data;
 
       // 格式化输出，显示 is_active / validation_status / tags

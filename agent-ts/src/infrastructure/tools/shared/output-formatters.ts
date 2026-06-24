@@ -115,7 +115,7 @@ export function formatListOutput(
     maxItems = 50,
     bullet = '•',
     emptyMessage = '暂无数据',
-    formatter = (item) => String(item)
+    formatter = (item: any) => String(item)
   } = options;
 
   if (!items || items.length === 0) {

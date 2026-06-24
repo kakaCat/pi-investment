@@ -53,17 +53,17 @@ export const strategyDeleteTool: ToolDefinition = {
         strategy_profile,
       });
 
-      if (result.error) {
+      if ((result as any).error) {
         return {
           content: [{
             type: "text" as const,
-            text: `❌ 停用策略失败: ${result.error}`,
+            text: `❌ 停用策略失败: ${(result as any).error}`,
           }],
-          details: { error: result.error },
+          details: { error: (result as any).error },
         };
       }
 
-      const data = result.data ?? result;
+      const data = (result as any).data ?? result;
       return {
         content: [{
           type: "text" as const,

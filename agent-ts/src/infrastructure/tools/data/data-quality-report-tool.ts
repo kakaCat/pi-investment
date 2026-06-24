@@ -137,16 +137,16 @@ export const dataQualityReportTool: ToolDefinition = {
       const result = await runQuantV2(command, queryParams);
 
       if (!result.ok) {
-        const errorMsg = typeof result.error === 'string'
-          ? result.error
-          : result.error?.message || "数据质量查询失败";
+        const errorMsg = typeof (result as any).error === 'string'
+          ? (result as any).error
+          : (result as any).error?.message || "数据质量查询失败";
         throw new Error(errorMsg);
       }
 
       // 格式化输出
       const formattedOutput = formatDataQualityResult(
         action,
-        result.data as DataQualityResult,
+        (result as any).data as DataQualityResult,
         params
       );
 
@@ -155,7 +155,7 @@ export const dataQualityReportTool: ToolDefinition = {
           type: "text" as const,
           text: formattedOutput
         }],
-        details: result.data
+        details: (result as any).data
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

@@ -118,5 +118,5 @@ export async function createReflectAgent(
   });
 
   const textContent = result.content.find(c => c.type === "text");
-  return textContent && "text" in textContent ? textContent.text : "Reflect Agent 未能生成有效评估";
+  return textContent && "text" in textContent ? (textContent as any).text : "Reflect Agent 未能生成有效评估";
 }

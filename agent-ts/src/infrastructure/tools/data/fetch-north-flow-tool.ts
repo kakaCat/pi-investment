@@ -116,10 +116,10 @@ export const dataFetchNorthFlowTool: ToolDefinition = {
       });
 
       if (!result.ok) {
-        throw new Error(result.error?.message || "获取北向资金数据失败");
+        throw new Error((result as any).error?.message || "获取北向资金数据失败");
       }
 
-      const nfData = result.data as NorthFlowData;
+      const nfData = (result as any).data as NorthFlowData;
 
       // API 成功但无数据：同样走 browser 兜底，避免 agent 拿到空结果直接停止
       if (!nfData || !nfData.data || nfData.data.length === 0) {
@@ -137,7 +137,7 @@ export const dataFetchNorthFlowTool: ToolDefinition = {
 
       return handleToolResponse({
         toolName: 'data_fetch_north_flow',
-        data: { formattedText: formattedOutput, rawData: result.data },
+        data: { formattedText: formattedOutput, rawData: (result as any).data },
         formatter: (d) => d.formattedText,
         metadata: { start_date, end_date },
         threshold: 15 * 1024, // 15KB

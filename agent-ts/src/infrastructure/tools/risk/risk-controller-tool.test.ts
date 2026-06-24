@@ -33,12 +33,12 @@ describe('risk_controller tool', () => {
         price: 1800,
         shares: 100
       }
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('命令执行成功');
-      expect(content.text).toContain('passed');
+      expect((content as any).text).toContain('命令执行成功');
+      expect((content as any).text).toContain('passed');
     }
   });
 
@@ -59,11 +59,11 @@ describe('risk_controller tool', () => {
         price: 1800,
         signal_strength: 0.8
       }
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('命令执行成功');
+      expect((content as any).text).toContain('命令执行成功');
     }
   });
 
@@ -71,11 +71,11 @@ describe('risk_controller tool', () => {
     const result = await riskControllerTool.execute('test', {
       command: 'invalid_command',
       params: {}
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('未知命令');
+      expect((content as any).text).toContain('未知命令');
     }
   });
 
@@ -83,11 +83,11 @@ describe('risk_controller tool', () => {
     const result = await riskControllerTool.execute('test', {
       command: 'trade_check',
       params: { symbol: '600519' } // missing required params
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('参数');
+      expect((content as any).text).toContain('参数');
     }
   });
 });

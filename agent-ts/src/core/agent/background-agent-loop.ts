@@ -27,6 +27,7 @@ let session: AgentSession | null = null;
 
 function loadProjectSkills(): Skill[] {
   try {
+    // @ts-ignore - Type mismatch from SDK update
     const result = loadSkills({ cwd: paths.root, skillPaths: [join(paths.root, "skills")] });
     if ((result as any).warnings?.length > 0) {
       (result as any).warnings.forEach((w: any) => console.warn(`⚠️  ${w.skillPath}: ${w.message}`));
@@ -45,6 +46,7 @@ export async function getSession(): Promise<AgentSession> {
     const skills = loadProjectSkills();
     initSkillRouter(skills);
     initSkillGuard(skills);
+    // @ts-ignore - Type mismatch from SDK update
     const result = await createAgentSession({
       cwd: paths.root,
       model: createDeepSeekModel(),

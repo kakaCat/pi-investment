@@ -69,7 +69,7 @@ export const indicatorBacktestTool: ToolDefinition = {
   execute: async (_toolCallId, rawParams: BacktestParams) => {
     try {
       const result = await runQuantV2("indicators.backtest", rawParams as unknown as Record<string, unknown>);
-      const data = result.data ?? result;
+      const data = (result as any).data ?? result;
 
       // 使用统一的响应处理器（自动格式化和持久化）
       return handleToolResponse({

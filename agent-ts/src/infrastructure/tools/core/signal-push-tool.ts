@@ -43,7 +43,7 @@ export const signalPushTool: ToolDefinition = {
 
       const result = await response.json() as { success: boolean; clients_notified?: number; error?: string };
 
-      if (result.success) {
+      if ((result as any).success) {
         return {
           content: [{
             type: "text" as const,
@@ -61,7 +61,7 @@ export const signalPushTool: ToolDefinition = {
             type: "text" as const,
             text: JSON.stringify({
               success: false,
-              error: result.error || '推送失败'
+              error: (result as any).error || '推送失败'
             }, null, 2)
           }],
           details: result,

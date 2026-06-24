@@ -117,11 +117,11 @@ export const dataFetchKlineTool: ToolDefinition = {
  * 格式化K线数据
  */
 function _formatKlineData(result: any): string {
-  if (!result.success) {
+  if (!(result as any).success) {
     return JSON.stringify(result);
   }
 
-  const data = result.data;
+  const data = (result as any).data;
   if (!data || !Array.isArray(data) || data.length === 0) {
     return JSON.stringify(result);
   }

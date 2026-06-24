@@ -17,7 +17,7 @@ const { modelListTool } = await import('./list-tool.js');
 // Helper to extract text from result
 const getText = (result: any): string => {
   const content = result.content[0];
-  return content.type === 'text' ? content.text : '';
+  return content.type === 'text' ? (content as any).text : '';
 };
 
 describe('modelListTool - Tool Definition', () => {

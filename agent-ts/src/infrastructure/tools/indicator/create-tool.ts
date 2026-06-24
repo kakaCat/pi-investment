@@ -60,7 +60,7 @@ export const indicatorCreateTool: ToolDefinition = {
       return {
         content: [{
           type: "text" as const,
-          text: JSON.stringify(result.data ?? result, null, 2),
+          text: JSON.stringify((result as any).data ?? result, null, 2),
         }],
         details: null,
       };

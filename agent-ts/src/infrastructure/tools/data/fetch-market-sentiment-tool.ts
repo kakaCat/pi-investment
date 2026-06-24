@@ -47,15 +47,15 @@ export const dataFetchMarketSentimentTool: ToolDefinition = {
       const result = await runQuantV2("market.sentiment", {});
 
       if (!result.ok) {
-        throw new Error(result.error || "获取市场情绪失败");
+        throw new Error((result as any).error || "获取市场情绪失败");
       }
 
       // 格式化输出并使用统一响应处理
-      const formattedOutput = formatSentimentData(result.data as SentimentData);
+      const formattedOutput = formatSentimentData((result as any).data as SentimentData);
 
       return handleToolResponse({
         toolName: 'data_fetch_market_sentiment',
-        data: { formattedText: formattedOutput, rawData: result.data },
+        data: { formattedText: formattedOutput, rawData: (result as any).data },
         formatter: (d) => d.formattedText,
         metadata: { timestamp: new Date().toISOString() },
         threshold: 10 * 1024, // 10KB (情绪数据通常较小)

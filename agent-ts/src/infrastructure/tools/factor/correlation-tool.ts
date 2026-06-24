@@ -106,11 +106,11 @@ export const factorCorrelationTool: ToolDefinition = {
 
       const result = await response.json();
 
-      if (!result.success) {
-        throw new Error(result.error || '计算因子相关性失败');
+      if (!(result as any).success) {
+        throw new Error((result as any).error || '计算因子相关性失败');
       }
 
-      const data = result.data;
+      const data = (result as any).data;
       const correlationMatrix = data.correlation_matrix;
       const highCorrelations = data.high_correlations || [];
 

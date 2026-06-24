@@ -240,8 +240,8 @@ export function extractTextContent(message: SessionMessage): string {
   // Handle array of content blocks
   if (Array.isArray(message.content)) {
     return message.content
-      .filter((block): block is TextBlock => block.type === "text" && typeof block.text === "string")
-      .map(block => block.text)
+      .filter((block): block is TextBlock => block.type === "text" && typeof (block as any).text === "string")
+      .map(block => (block as any).text)
       .join("\n")
       .trim();
   }

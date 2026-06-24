@@ -32,12 +32,12 @@ describe('performance_analyzer tool', () => {
     const result = await performanceAnalyzerTool.execute('test', {
       command: 'by_strategy',
       params: { strategy_id: 'rsi-strategy' }
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('命令执行成功');
-      expect(content.text).toContain('total_return');
+      expect((content as any).text).toContain('命令执行成功');
+      expect((content as any).text).toContain('total_return');
     }
   });
 
@@ -59,11 +59,11 @@ describe('performance_analyzer tool', () => {
     const result = await performanceAnalyzerTool.execute('test', {
       command: 'comparison',
       params: {}
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('命令执行成功');
+      expect((content as any).text).toContain('命令执行成功');
     }
   });
 
@@ -71,11 +71,11 @@ describe('performance_analyzer tool', () => {
     const result = await performanceAnalyzerTool.execute('test', {
       command: 'invalid_command',
       params: {}
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('未知命令');
+      expect((content as any).text).toContain('未知命令');
     }
   });
 });

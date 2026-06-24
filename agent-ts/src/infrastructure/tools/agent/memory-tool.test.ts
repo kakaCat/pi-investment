@@ -28,7 +28,10 @@ describe("memory tools", () => {
     });
 
     expect(writeMemoryMock).toHaveBeenCalledWith("Project uses strict TypeScript", "fact");
-    expect(result.content[0].text).toBe("Memory stored");
+    const content0 = result.content[0];
+    if (content0.type === 'text') {
+      expect(content0.text).toBe("Memory stored");
+    }
   });
 
   test("writes to general memory with default category", async () => {
@@ -39,7 +42,10 @@ describe("memory tools", () => {
     });
 
     expect(writeMemoryMock).toHaveBeenCalledWith("User prefers dark mode", "general");
-    expect(result.content[0].text).toBe("Memory stored");
+    const content0 = result.content[0];
+    if (content0.type === 'text') {
+      expect(content0.text).toBe("Memory stored");
+    }
   });
 
   test("searches memory with hybrid search", async () => {
@@ -57,7 +63,10 @@ describe("memory tools", () => {
     });
 
     expect(hybridSearchMock).toHaveBeenCalledWith("package manager preference", 3);
-    expect(result.content[0].text).toBe("[memory/2026-03-30.jsonl] (score: 0.91) User prefers pnpm over npm");
+    const content0 = result.content[0];
+    if (content0.type === 'text') {
+      expect(content0.text).toBe("[memory/2026-03-30.jsonl] (score: 0.91) User prefers pnpm over npm");
+    }
   });
 
   test("uses default top_k when not provided", async () => {
@@ -68,7 +77,10 @@ describe("memory tools", () => {
     });
 
     expect(hybridSearchMock).toHaveBeenCalledWith("test query", 5);
-    expect(result.content[0].text).toBe("No relevant memories found.");
+    const content0 = result.content[0];
+    if (content0.type === 'text') {
+      expect(content0.text).toBe("No relevant memories found.");
+    }
   });
 
   test("returns no results message when search is empty", async () => {
@@ -79,7 +91,10 @@ describe("memory tools", () => {
       top_k: 10,
     });
 
-    expect(result.content[0].text).toBe("No relevant memories found.");
+    const content0 = result.content[0];
+    if (content0.type === 'text') {
+      expect(content0.text).toBe("No relevant memories found.");
+    }
   });
 });
 

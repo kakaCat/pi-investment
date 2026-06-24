@@ -142,5 +142,5 @@ export async function createPlanAgent(
   });
 
   const textContent = result.content.find(c => c.type === "text");
-  return textContent && "text" in textContent ? textContent.text : "Plan Agent 未能生成有效计划";
+  return textContent && "text" in textContent ? (textContent as any).text : "Plan Agent 未能生成有效计划";
 }

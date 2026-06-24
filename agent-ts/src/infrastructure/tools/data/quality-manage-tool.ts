@@ -144,8 +144,8 @@ export const dataQualityManageTool: Tool = {
 // ========================================
 
 function formatCheckResult(result: any): string {
-  if (!result.success) {
-    return `❌ 检查失败: ${result.error}`;
+  if (!(result as any).success) {
+    return `❌ 检查失败: ${(result as any).error}`;
   }
 
   const { summary, stocks_with_issues } = result;
@@ -214,8 +214,8 @@ function formatCheckResult(result: any): string {
 }
 
 function formatDetectResult(result: any): string {
-  if (!result.success) {
-    return `❌ 检测失败: ${result.error}`;
+  if (!(result as any).success) {
+    return `❌ 检测失败: ${(result as any).error}`;
   }
 
   const { summary, gaps } = result;
@@ -266,8 +266,8 @@ function formatDetectResult(result: any): string {
 }
 
 function formatBackfillResult(result: any): string {
-  if (!result.success) {
-    return `❌ 补充失败: ${result.error}`;
+  if (!(result as any).success) {
+    return `❌ 补充失败: ${(result as any).error}`;
   }
 
   const { summary, failed_symbols } = result;
@@ -317,8 +317,8 @@ function formatBackfillResult(result: any): string {
 }
 
 function formatValidateResult(result: any): string {
-  if (!result.success) {
-    return `❌ 验证失败: ${result.error}`;
+  if (!(result as any).success) {
+    return `❌ 验证失败: ${(result as any).error}`;
   }
 
   const { summary, validation_results } = result;

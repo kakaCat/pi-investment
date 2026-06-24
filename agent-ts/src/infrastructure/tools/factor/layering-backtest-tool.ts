@@ -88,8 +88,8 @@ export const factorLayeringBacktestTool: ToolDefinition = {
 
       const result = await response.json();
 
-      if (!result.success) {
-        throw new Error(result.error || '因子分层回测失败');
+      if (!(result as any).success) {
+        throw new Error((result as any).error || '因子分层回测失败');
       }
 
       // 使用统一响应处理（自动持久化）

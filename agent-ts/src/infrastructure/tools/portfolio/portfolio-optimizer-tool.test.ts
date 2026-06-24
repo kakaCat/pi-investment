@@ -35,12 +35,12 @@ describe('portfolio_optimizer tool', () => {
         symbols: ['600000', '000001', '600519'],
         method: 'max_sharpe'
       }
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('命令执行成功');
-      expect(content.text).toContain('weights');
+      expect((content as any).text).toContain('命令执行成功');
+      expect((content as any).text).toContain('weights');
     }
   });
 
@@ -61,11 +61,11 @@ describe('portfolio_optimizer tool', () => {
       params: {
         symbols: ['600000', '000001']
       }
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('命令执行成功');
+      expect((content as any).text).toContain('命令执行成功');
     }
   });
 
@@ -73,11 +73,11 @@ describe('portfolio_optimizer tool', () => {
     const result = await portfolioOptimizerTool.execute('test', {
       command: 'invalid_command',
       params: {}
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('未知命令');
+      expect((content as any).text).toContain('未知命令');
     }
   });
 
@@ -85,11 +85,11 @@ describe('portfolio_optimizer tool', () => {
     const result = await portfolioOptimizerTool.execute('test', {
       command: 'optimize',
       params: {} // missing required 'symbols'
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('参数');
+      expect((content as any).text).toContain('参数');
     }
   });
 });

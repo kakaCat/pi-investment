@@ -85,20 +85,20 @@ export const dataFetchMacroTool: ToolDefinition = {
       });
 
       if (!result.ok) {
-        const errorMsg = typeof result.error === 'string'
-          ? result.error
-          : result.error?.message || "获取宏观数据失败";
+        const errorMsg = typeof (result as any).error === 'string'
+          ? (result as any).error
+          : (result as any).error?.message || "获取宏观数据失败";
         throw new Error(errorMsg);
       }
 
       // 格式化输出并使用统一响应处理
       // Note: Backend returns { gdp: [...], cpi: [...] } directly, not wrapped in "indicators"
-      const macroData = { indicators: result.data } as MacroData;
+      const macroData = { indicators: (result as any).data } as MacroData;
       const formattedOutput = formatMacroData(macroData);
 
       return handleToolResponse({
         toolName: 'data_fetch_macro',
-        data: { formattedText: formattedOutput, rawData: result.data },
+        data: { formattedText: formattedOutput, rawData: (result as any).data },
         formatter: (d) => d.formattedText,
         metadata: { indicators, start_date, end_date },
         threshold: 20 * 1024, // 20KB

@@ -238,7 +238,7 @@ function formatToolResult(result: any): ToolResult {
 
   // 如果结果是对象，提取 text 或序列化
   if (typeof result === 'object' && result !== null) {
-    const text = result.text || result.message || JSON.stringify(result, null, 2);
+    const text = result.text || (result as any).message || JSON.stringify(result, null, 2);
     return {
       content: [{ type: "text" as const, text }],
       details: result

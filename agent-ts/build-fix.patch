@@ -1,0 +1,69 @@
+--- a/src/infrastructure/tools/index.ts
++++ b/src/infrastructure/tools/index.ts
+@@ -16,7 +16,7 @@ export interface ToolDefinition extends BaseToolDefinition {
+ }
+ import { createReadTool } from "@mariozechner/pi-coding-agent";
+
+-const readTool = createReadTool();
++const readTool = createReadTool(process.cwd());
+
+ // ===== 六层量化投资架构工具 =====
+ // L1 数据管道
+--- a/src/core/agent/agent-loop.ts
++++ b/src/core/agent/agent-loop.ts
+@@ -72,7 +72,11 @@ function ensurePiDir(): void {
+  */
+ function loadProjectSkills(): Skill[] {
+   try {
+-    const result = loadSkills({ cwd: paths.root, skillPaths: [join(paths.root, "skills")] });
++    const result = loadSkills({
++      cwd: paths.root,
++      skillPaths: [join(paths.root, "skills")],
++      agentDir: paths.root,
++      includeDefaults: true
++    });
+
+     if ((result as any).warnings?.length > 0) {
+       console.warn("⚠️  Skills 加载警告:");
+--- a/src/core/agent/background-agent-loop.ts
++++ b/src/core/agent/background-agent-loop.ts
+@@ -27,7 +27,11 @@ let session: AgentSession | null = null;
+
+ function loadProjectSkills(): Skill[] {
+   try {
+-    const result = loadSkills({ cwd: paths.root, skillPaths: [join(paths.root, "skills")] });
++    const result = loadSkills({
++      cwd: paths.root,
++      skillPaths: [join(paths.root, "skills")],
++      agentDir: paths.root,
++      includeDefaults: true
++    });
+     if ((result as any).warnings?.length > 0) {
+       (result as any).warnings.forEach((w: any) => console.warn(`⚠️  ${w.skillPath}: ${w.message}`));
+     }
+--- a/src/api/feishu.ts
++++ b/src/api/feishu.ts
+@@ -56,7 +56,11 @@ function ensurePiDir(): void {
+
+ function loadProjectSkills(): Skill[] {
+   try {
+-    const result = loadSkills({ cwd: paths.root, skillPaths: [paths.skillsDir] });
++    const result = loadSkills({
++      cwd: paths.root,
++      skillPaths: [paths.skillsDir],
++      agentDir: paths.root,
++      includeDefaults: true
++    });
+     return result.skills;
+   } catch (error) {
+     console.warn("⚠️ Skills 加载失败:", error instanceof Error ? error.message : String(error));
+@@ -83,7 +87,8 @@ function extractReply(session: FeishuAgentSession): string {
+     const msg = messages[i];
+     if (msg.role !== "assistant" || !msg.content) continue;
+
+-    const text = msg.content
++    const contentBlocks = Array.isArray(msg.content) ? msg.content : [];
++    const text = contentBlocks
+       .filter((block: any) => block.type === "text" && typeof block.text === "string")
+       .map((block: any) => block.text ?? "")
+       .join("\n")

@@ -28,12 +28,12 @@ describe('data_manager tool', () => {
     const result = await dataManagerTool.execute('test', {
       command: 'status',
       params: {}
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('命令执行成功');
-      expect(content.text).toContain('total_stocks');
+      expect((content as any).text).toContain('命令执行成功');
+      expect((content as any).text).toContain('total_stocks');
     }
   });
 
@@ -50,11 +50,11 @@ describe('data_manager tool', () => {
     const result = await dataManagerTool.execute('test', {
       command: 'update',
       params: { source: 'all' }
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('命令执行成功');
+      expect((content as any).text).toContain('命令执行成功');
     }
   });
 
@@ -62,11 +62,11 @@ describe('data_manager tool', () => {
     const result = await dataManagerTool.execute('test', {
       command: 'invalid_command',
       params: {}
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('未知命令');
+      expect((content as any).text).toContain('未知命令');
     }
   });
 
@@ -74,11 +74,11 @@ describe('data_manager tool', () => {
     const result = await dataManagerTool.execute('test', {
       command: 'update',
       params: {} // missing required 'source'
-    });
+    }, undefined, undefined, {} as any);
 
     const content = result.content[0];
     if (content.type === 'text') {
-      expect(content.text).toContain('参数');
+      expect((content as any).text).toContain('参数');
     }
   });
 });

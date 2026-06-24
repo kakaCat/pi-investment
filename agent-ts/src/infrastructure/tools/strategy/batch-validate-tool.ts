@@ -58,23 +58,23 @@ export const strategyBatchValidateTool: ToolDefinition = {
         dryRun
       });
 
-      if (!result.success) {
-        return createErrorResponse(result.error || "未知错误");
+      if (!(result as any).success) {
+        return createErrorResponse((result as any).error || "未知错误");
       }
 
       // 使用统一响应处理（自动决定格式化或持久化）
       return handleToolResponse({
         toolName: 'strategy_batch_validate',
-        data: result.data,
+        data: (result as any).data,
         formatter: (data) => _formatBatchValidation(data, startDate, endDate, threshold, dryRun),
         metadata: {
           startDate,
           endDate,
           threshold,
           dryRun,
-          total: result.data.total,
-          passed: result.data.passed,
-          failed: result.data.failed,
+          total: (result as any).data.total,
+          passed: (result as any).data.passed,
+          failed: (result as any).data.failed,
         },
         threshold: 100 * 1024, // 100KB，批量验证数据通常很大
       });

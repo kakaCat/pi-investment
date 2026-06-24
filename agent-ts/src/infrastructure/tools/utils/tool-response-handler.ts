@@ -121,7 +121,7 @@ export function wrapToolExecution<TParams, TData>(
       const result = await executor(params);
       return handleToolResponse({
         ...options,
-        data: result.data,
+        data: (result as any).data,
         metadata: result.metadata,
       });
     } catch (error) {

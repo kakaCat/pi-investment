@@ -62,15 +62,15 @@ export const marketStyleDetectTool: ToolDefinition = {
       });
 
       if (!result.ok) {
-        const errorMsg = typeof result.error === 'string'
-          ? result.error
-          : result.error?.message || "市场风格检测失败";
+        const errorMsg = typeof (result as any).error === 'string'
+          ? (result as any).error
+          : (result as any).error?.message || "市场风格检测失败";
         throw new Error(errorMsg);
       }
 
       // 格式化输出
       const formattedOutput = formatMarketStyleResult(
-        result.data as MarketStyleResult,
+        (result as any).data as MarketStyleResult,
         lookback_days
       );
 
@@ -79,7 +79,7 @@ export const marketStyleDetectTool: ToolDefinition = {
           type: "text" as const,
           text: formattedOutput
         }],
-        details: result.data
+        details: (result as any).data
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

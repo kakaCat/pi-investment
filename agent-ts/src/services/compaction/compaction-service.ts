@@ -68,9 +68,9 @@ export function microCompact(
     if (msg.role === "toolResult") {
       // 清空 content 数组中的长文本
       for (const content of msg.content) {
-        if (content.type === "text" && content.text.length > minLength) {
-          const originalLength = content.text.length;
-          content.text = `[Compacted: ${toolName} result (${originalLength} chars)]`;
+        if (content.type === "text" && (content as any).text.length > minLength) {
+          const originalLength = (content as any).text.length;
+          (content as any).text = `[Compacted: ${toolName} result (${originalLength} chars)]`;
           compactedCount++;
         }
       }
@@ -135,15 +135,15 @@ export function compactConversationHistory(
     if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
 
     for (const block of msg.content) {
-      if (block.type === "text" && typeof block.text === "string" && block.text.length > assistantSummaryChars) {
+      if (block.type === "text" && typeof (block as any).text === "string" && (block as any).text.length > assistantSummaryChars) {
         // 提取前几行作为摘要（通常是结论性语句）
-        const lines = block.text.split("\n");
+        const lines = (block as any).text.split("\n");
         let summary = "";
         for (const line of lines) {
           if (summary.length + line.length > assistantSummaryChars) break;
           summary += (summary ? "\n" : "") + line;
         }
-        block.text = summary + `\n\n[已压缩，原文 ${block.text.length} 字符]`;
+        (block as any).text = summary + `\n\n[已压缩，原文 ${(block as any).text.length} 字符]`;
         compactedCount++;
       }
     }
@@ -181,10 +181,10 @@ export function getCompactionStats(messages: AgentMessage[]): {
       toolResultCount++;
       for (const content of msg.content) {
         if (content.type === "text") {
-          totalSize += content.text.length;
-          if (content.text.startsWith("[Compacted:")) {
+          totalSize += (content as any).text.length;
+          if ((content as any).text.startsWith("[Compacted:")) {
             compactedCount++;
-            compactedSize += content.text.length;
+            compactedSize += (content as any).text.length;
           }
         }
       }
