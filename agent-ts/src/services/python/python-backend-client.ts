@@ -4,7 +4,7 @@ export class PythonBackendClient {
   private timeout: number;
 
   private constructor() {
-    this.baseURL = process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:5002";
+    this.baseURL = process.env.QUANTSYS_V2_API_URL || "http://127.0.0.1:5001";
     this.timeout = parseInt(process.env.PYTHON_BACKEND_TIMEOUT || "30000", 10);
   }
 
