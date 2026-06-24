@@ -115,6 +115,12 @@ export const poolManageTool: ToolDefinition = {
     lookback_days: Type.Optional(
       Type.Number({ description: "回溯天数，用于计算技术指标 (scan_signals 使用，默认60)" }),
     ),
+    max_buy_signals: Type.Optional(
+      Type.Number({ description: "最多返回买入信号数 (scan_signals 使用，默认10)" }),
+    ),
+    max_sell_signals: Type.Optional(
+      Type.Number({ description: "最多返回卖出信号数 (scan_signals 使用，默认5)" }),
+    ),
   }),
   execute: async (_toolCallId: string, rawParams: any) => {
     const {
@@ -133,6 +139,8 @@ export const poolManageTool: ToolDefinition = {
       tags,
       strategy_id,
       lookback_days,
+      max_buy_signals,
+      max_sell_signals,
     } = rawParams;
 
     try {
@@ -230,6 +238,8 @@ export const poolManageTool: ToolDefinition = {
           result = await scanPoolSignals(pool_id, {
             strategy_id,
             lookback_days,
+            max_buy_signals,
+            max_sell_signals,
           });
           break;
 
