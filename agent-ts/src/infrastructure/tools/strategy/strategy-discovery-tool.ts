@@ -104,7 +104,7 @@ export const strategyDiscoveryTool: ToolDefinition = {
     }))
   }),
 
-  execute: async (_toolCallId, params: StrategyDiscoveryParams) => {
+  execute: async (_toolCallId: string, params: StrategyDiscoveryParams) => {
     try {
       const { action, ...otherParams } = params;
 
@@ -205,17 +205,17 @@ function formatRunResult(data: DiscoveryResult, params: StrategyDiscoveryParams)
 
   // 运行信息
   output += `### 运行信息\n\n`;
-  if (data.run_id) {
+  if ((data as any).run_id) {
     output += `- **运行ID**：${data.run_id}\n`;
   }
-  if (data.status) {
+  if ((data as any).status) {
     output += `- **状态**：${getStatusText(data.status)}\n`;
   }
   if (params.symbols) {
     output += `- **测试股票**：${params.symbols.join(", ")}\n`;
   }
-  if (params.start_date && params.end_date) {
-    output += `- **回测周期**：${params.start_date} 至 ${params.end_date}\n`;
+  if (params.start_date! && params.end_date!) {
+    output += `- **回测周期**：${params.start_date!} 至 ${params.end_date!}\n`;
   }
   if (data.total_tested !== undefined) {
     output += `- **测试组合数**：${data.total_tested}个\n`;
@@ -314,7 +314,7 @@ function formatArchetypes(data: DiscoveryResult): string {
 function formatHistoryResult(data: DiscoveryResult): string {
   let output = `### 📋 历史运行结果\n\n`;
 
-  if (data.run_id) {
+  if ((data as any).run_id) {
     output += `**运行ID**：${data.run_id}\n\n`;
   }
 

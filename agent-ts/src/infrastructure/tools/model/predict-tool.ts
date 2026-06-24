@@ -39,7 +39,7 @@ export const modelPredictTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: PredictParams) => {
+  execute: async (_toolCallId: string, params: PredictParams) => {
     const { symbol, model_id = "latest", features } = params;
 
     // 参数验证：symbol 必需

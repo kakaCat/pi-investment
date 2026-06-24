@@ -313,7 +313,7 @@ export const claudeCodeTool: ToolDefinition = {
       maximum: 600000,
     })),
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     // Check if tool is enabled
     if (!CONFIG.ENABLED) {
       return {

@@ -13,7 +13,7 @@ const { modelPredictTool } = await import('./predict-tool.js');
 
 // Helper to extract text from tool result
 function getResponseText(result: any): string {
-  return result.content[0].text;
+  return ((result.content[0] as any).text);
 }
 
 describe('model_predict tool', () => {

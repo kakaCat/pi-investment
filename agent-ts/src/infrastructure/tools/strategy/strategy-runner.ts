@@ -87,7 +87,7 @@ export async function runStrategy(
   const resp: QuantCliResponse<V2StrategyResponse> = await runQuantV2(
     "strategy.run",
     {
-      market: params.market,
+      market: params.market!,
       sector_data: params.sectorData,
       stock_data: params.stockData,
       ml_predictions: params.mlPredictions,
@@ -95,14 +95,14 @@ export async function runStrategy(
     }
   );
 
-  if (!resp.ok || !resp.data) {
+  if (!resp.ok || !(resp as any).data) {
     return {
       success: false,
       error: resp.error?.message ?? "Strategy execution failed",
     };
   }
 
-  const d = resp.data;
+  const d = (resp as any).data;
   if (!d.success) {
     return { success: false, error: d.error ?? "Strategy execution failed" };
   }
@@ -110,14 +110,14 @@ export async function runStrategy(
   return {
     success: true,
     data: {
-      market: d.data?.market ?? "",
-      sectors: d.data?.sectors ?? [],
-      sectorScores: d.data?.sector_scores ?? [],
-      candidates: d.data?.candidates ?? {},
-      finalPortfolio: d.data?.final_portfolio ?? [],
-      allocation: d.data?.allocation ?? {},
-      mlPassRate: d.data?.ml_pass_rate ?? 0,
-      warnings: d.data?.warnings ?? [],
+      market: (d as any).data?.market ?? "",
+      sectors: (d as any).data?.sectors ?? [],
+      sectorScores: (d as any).data?.sector_scores ?? [],
+      candidates: (d as any).data?.candidates ?? {},
+      finalPortfolio: (d as any).data?.final_portfolio ?? [],
+      allocation: (d as any).data?.allocation ?? {},
+      mlPassRate: (d as any).data?.ml_pass_rate ?? 0,
+      warnings: (d as any).data?.warnings ?? [],
     },
   };
 }
@@ -128,15 +128,15 @@ export async function getStrategyStatus(): Promise<StrategyStatus> {
     {}
   );
 
-  if (!resp.ok || !resp.data?.success) {
+  if (!resp.ok || !(resp as any).data?.success) {
     return { success: false };
   }
 
   return {
     success: true,
     data: {
-      a_consecutive_counts: resp.data.data?.a_consecutive_counts ?? {},
-      hk_consecutive_counts: resp.data.data?.hk_consecutive_counts ?? {},
+      a_consecutive_counts: (resp as any).data.data?.a_consecutive_counts ?? {},
+      hk_consecutive_counts: (resp as any).data.data?.hk_consecutive_counts ?? {},
     },
   };
 }

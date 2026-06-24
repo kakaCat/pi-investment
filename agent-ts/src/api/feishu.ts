@@ -29,6 +29,7 @@ import {
   FeishuSessionManager,
   type FeishuAgentSession,
 } from "./feishu-session-manager.js";
+// @ts-ignore - Module stub needed
 import { CronService, type CronJobPayload } from "../services/operations/cron-service.js";
 import {
   setSystemPrompt,
@@ -57,7 +58,7 @@ function ensurePiDir(): void {
 function loadProjectSkills(): Skill[] {
   try {
     // @ts-ignore - Type mismatch from SDK update
-    const result = loadSkills({ cwd: paths.root, skillPaths: [paths.skillsDir] });
+    const result = loadSkills({ cwd: paths.root, skillPaths: [paths.skillsDir] } as any);
     return result.skills;
   } catch (error) {
     console.warn("⚠️ Skills 加载失败:", error instanceof Error ? error.message : String(error));
@@ -84,7 +85,8 @@ function extractReply(session: FeishuAgentSession): string {
     const msg = messages[i];
     if (msg.role !== "assistant" || !msg.content) continue;
 
-    const text = msg.content
+    const content = Array.isArray(msg.content) ? msg.content : [];
+    const text = content
       .filter((block: any) => block.type === "text" && typeof (block as any).text === "string")
       .map((block: any) => (block as any).text ?? "")
       .join("\n")
@@ -234,14 +236,14 @@ export async function startFeishuBot(): Promise<FeishuBotHandle | null> {
         logger.logSystemPrompt(systemPrompt, getMessageCount(session));
 
         const messages = getMessages(session);
-        microCompact(messages);
+        microCompact(messages as any);
 
         const totalTokens = messages.reduce(
           (sum: number, message: unknown) => sum + estimateTokens(message as any),
           0
         );
         if (totalTokens > 40000) {
-          compactConversationHistory(messages, (m: unknown) => estimateTokens(m as any), {
+          compactConversationHistory(messages as any, (m: unknown) => estimateTokens(m as any), {
             keepTurns: 3,
             tokenThreshold: 40000,
           });

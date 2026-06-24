@@ -69,7 +69,7 @@ export const dataFetchKlineTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: FetchKlineParams) => {
+  execute: async (_toolCallId: string, params: FetchKlineParams) => {
     const { symbol, period = DEFAULT_PERIOD, start_date, end_date } = params;
 
     // 验证股票代码

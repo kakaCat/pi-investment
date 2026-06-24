@@ -106,11 +106,11 @@ export abstract class BaseCliAdapter {
       }
 
       // Validate that data exists when status is success
-      if (parsed.status === 'success' && parsed.data === undefined) {
+      if (parsed.status === 'success' && (parsed as any).data === undefined) {
         throw new CliParseError('CLI returned success but data is missing', stdout);
       }
 
-      return parsed.data;
+      return (parsed as any).data;
     } catch (error: any) {
       if (error instanceof SyntaxError) {
         throw new CliParseError('Failed to parse CLI JSON output', stdout);

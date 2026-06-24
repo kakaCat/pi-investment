@@ -256,8 +256,8 @@ describe("query_experience Tool", () => {
 
       expect(result.content).toBeDefined();
       if (result.content[0] && "text" in result.content[0]) {
-        expect(typeof result.content[0].text).toBe("string");
-        const text = result.content[0].text;
+        expect(typeof ((result.content[0] as any).text)).toBe("string");
+        const text = ((result.content[0] as any).text);
         expect(text).toContain("经验");
       }
     } finally {
@@ -284,7 +284,7 @@ describe("query_experience Tool", () => {
 
       expect(result.content).toBeDefined();
       if (result.content[0] && "text" in result.content[0]) {
-        const text = result.content[0].text;
+        const text = ((result.content[0] as any).text);
         expect(text).toContain("未找到");
       }
     } finally {

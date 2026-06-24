@@ -51,7 +51,7 @@ export const factorListTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: FactorListParams) => {
+  execute: async (_toolCallId: string, params: FactorListParams) => {
     const { category, show_count_only } = params;
 
     try {

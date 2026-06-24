@@ -76,7 +76,7 @@ export class PositionCliAdapter extends BaseCliAdapter {
     accountId?: string;
   }): Promise<Position> {
     const cmdParams: Record<string, string | number | boolean> = {
-      symbol: params.symbol,
+      symbol: params.symbol!,
       quantity: params.quantity,
       cost_basis: params.costBasis,
     };

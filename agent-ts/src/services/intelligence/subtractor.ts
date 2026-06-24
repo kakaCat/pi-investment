@@ -891,7 +891,7 @@ export class Subtractor {
       // 置信度
       const hasRealBuys = this.trades.some(t => t.symbol === h.symbol && t.action === 'buy');
       let confidence: 'high' | 'medium' | 'low';
-      let confidenceNote: string | undefined;
+      let confidenceNote: string;
 
       if (hasRealBuys) {
         confidence = 'high';
@@ -1400,8 +1400,8 @@ export class Subtractor {
       overallScore = Math.max(0, Math.min(100, Math.round(overallScore)));
 
       const pnlFromRegressions = tips
-        .filter(t => t.data?.pnlImpact && t.data.pnlImpact > 0)
-        .reduce((s, t) => s + (t.data?.pnlImpact || 0), 0);
+        .filter(t => (t as any).data?.pnlImpact && (t as any).data.pnlImpact > 0)
+        .reduce((s, t) => s + ((t as any).data?.pnlImpact || 0), 0);
       totalOptimizablePnL += pnlFromRegressions;
 
       stocks.push({

@@ -48,35 +48,35 @@ export const strategyComparisonTool: ToolDefinition = {
     required: ['strategy_names']
   },
 
-  execute: async (_toolCallId, params: StrategyComparisonParams) => {
+  execute: async (_toolCallId: string, params: StrategyComparisonParams) => {
     try {
       if (!params.strategy_names || params.strategy_names.length === 0) {
-        return `❌ 参数错误: 请提供至少一个策略名称`;
+        return { content: [{ type: "text" as const, text: `❌ 参数错误: 请提供至少一个策略名称` }] };
       }
 
       const requestBody = {
         strategy_names: params.strategy_names,
-        symbol: params.symbol,
+        symbol: params.symbol!,
         metric: params.metric || 'sharpe_ratio'
       };
 
       const response = await client.post('/api/strategies/performance-comparison', requestBody);
 
       if (!response.success) {
-        return `❌ 对比失败: ${response.error}`;
+        return { content: [{ type: "text" as const, text: `❌ 对比失败: ${response.error}` }] };
       }
 
-      const { comparison, ranking } = response.data;
+      const { comparison, ranking } = (response as any).data;
 
       if (comparison.length === 0) {
-        return `📊 未找到回测数据\n\n请确认策略名称正确，且已有回测记录。`;
+        return { content: [{ type: "text" as const, text: `📊 未找到回测数据\n\n请确认策略名称正确，且已有回测记录。` }] };
       }
 
       // 格式化输出
       let output = `📊 策略性能对比报告\n\n`;
       output += `🎯 排序指标: ${params.metric || 'sharpe_ratio'}\n`;
-      if (params.symbol) {
-        output += `📌 指定股票: ${params.symbol}\n`;
+      if (params.symbol!) {
+        output += `📌 指定股票: ${params.symbol!}\n`;
       }
       output += `\n`;
 
@@ -119,7 +119,7 @@ export const strategyComparisonTool: ToolDefinition = {
       return output;
 
     } catch (error: any) {
-      return `❌ 策略对比失败: ${error.message}`;
+      return { content: [{ type: "text" as const, text: `❌ 策略对比失败: ${error.message}` }] };
     }
   }
 };

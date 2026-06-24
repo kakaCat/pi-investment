@@ -9,6 +9,7 @@ jest.mock('../../../services/feishu/feishu-notification-service.js', () => ({
   getFeishuService: jest.fn()
 }));
 
+// @ts-ignore - Module stub needed
 import { getFeishuService } from '../../../services/feishu/feishu-notification-service.js';
 
 describe('feishu-notify-tool', () => {
@@ -171,7 +172,7 @@ describe('feishu-notify-tool', () => {
 
   describe('Service Unavailable', () => {
     it('should handle missing service gracefully', async () => {
-      (getFeishuService as any).mockReturnValue(null);
+      (getFeishuService as any).mockReturnValue(null as any);
 
       const params = {
         messageType: 'text',

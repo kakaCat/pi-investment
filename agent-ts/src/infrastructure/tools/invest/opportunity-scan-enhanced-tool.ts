@@ -59,7 +59,7 @@ export const opportunityScanEnhancedTool: ToolDefinition = {
     }
   },
 
-  execute: async (_toolCallId, params: OpportunityScanParams) => {
+  execute: async (_toolCallId: string, params: OpportunityScanParams) => {
     try {
       const strategyIds = params.strategy_ids || [272, 273];
       const minScore = params.min_score || 70;
@@ -117,7 +117,7 @@ export const opportunityScanEnhancedTool: ToolDefinition = {
       return output;
 
     } catch (error: any) {
-      return `❌ 扫描失败: ${error.message}`;
+      return { content: [{ type: "text" as const, text: `❌ 扫描失败: ${error.message}` }] };
     }
   }
 };

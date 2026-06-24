@@ -55,7 +55,7 @@ export const factorLayeringBacktestTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: FactorLayeringBacktestParams) => {
+  execute: async (_toolCallId: string, params: FactorLayeringBacktestParams) => {
     const { factor_name, symbols, start_date, end_date, n_quantiles, holding_period } = params;
 
     try {
@@ -82,7 +82,7 @@ export const factorLayeringBacktestTool: ToolDefinition = {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: response.statusText }));
+        const errorData: any = await response.json().catch(() => ({ error: response.statusText }));
         throw new Error(`API请求失败: ${errorData.error || response.statusText}`);
       }
 

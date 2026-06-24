@@ -25,7 +25,7 @@ export const clarifyTool = {
   }),
   execute: async (_toolCallId: string, params: { request: string; context?: string }) => {
     const startTime = Date.now();
-    logSubagentStart("clarify", params.request);
+    logSubagentStart("clarify" as any as any, params.request);
 
     try {
       console.log("\n🔍 启动 Clarify Agent...");
@@ -34,7 +34,7 @@ export const clarifyTool = {
       const questions = await createClarifyAgent(params.request, params.context);
 
       console.log("✅ 意图分析完成\n");
-      logSubagentEnd("clarify", questions, 1, 0, Date.now() - startTime);
+      logSubagentEnd("clarify" as any as any, questions, 1, 0, Date.now() - startTime);
 
       return {
         content: [{ type: "text" as const, text: questions }],
@@ -43,7 +43,7 @@ export const clarifyTool = {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error("❌ Clarify Agent 执行失败:", errorMsg);
-      logSubagentEnd("clarify", `Error: ${errorMsg}`, 0, 0, Date.now() - startTime);
+      logSubagentEnd("clarify" as any as any, `Error: ${errorMsg}`, 0, 0, Date.now() - startTime);
 
       return {
         content: [{ type: "text" as const, text: `Clarify Agent 执行失败: ${errorMsg}` }],

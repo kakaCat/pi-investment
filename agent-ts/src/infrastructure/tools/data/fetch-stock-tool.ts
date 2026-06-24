@@ -72,7 +72,7 @@ export const dataFetchQuoteTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: FetchStockParams) => {
+  execute: async (_toolCallId: string, params: FetchStockParams) => {
     const { symbol, source = 'auto' } = params;
 
     // 验证股票代码

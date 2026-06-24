@@ -85,7 +85,7 @@ export const factorModelAttributionTool: ToolDefinition = {
     })
   }),
 
-  execute: async (_toolCallId, params: FactorAttributionParams) => {
+  execute: async (_toolCallId: string, params: FactorAttributionParams) => {
     try {
       const { model, portfolio, weights, start_date, end_date } = params;
 

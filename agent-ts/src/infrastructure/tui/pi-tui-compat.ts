@@ -112,7 +112,7 @@ function writeInputDebug(event: string, payload: Record<string, unknown>): void 
   }
 }
 
-function normalizeKittyFunctionalSequence(sequence: string): string | undefined {
+function normalizeKittyFunctionalSequence(sequence: string): string {
   const match = sequence.match(/^\x1b\[(\d+)(?:;(\d+)(?::\d+)?)?u$/);
   if (!match) return undefined;
 
@@ -144,7 +144,7 @@ function normalizeKittyFunctionalSequence(sequence: string): string | undefined 
   }
 }
 
-function normalizeStrayArrowTail(sequence: string): string | undefined {
+function normalizeStrayArrowTail(sequence: string): string {
   switch (sequence) {
     case "OA":
     case "[A":
@@ -189,7 +189,7 @@ function isKittyKeyReleaseSequence(sequence: string): boolean {
   );
 }
 
-function normalizeLineFeedSubmit(sequence: string): string | undefined {
+function normalizeLineFeedSubmit(sequence: string): string {
   return sequence === "\n" ? "\r" : undefined;
 }
 

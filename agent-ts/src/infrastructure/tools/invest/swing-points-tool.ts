@@ -16,7 +16,7 @@ interface SwingPointsParams {
 }
 
 function formatSwingResult(data: Record<string, unknown>): string {
-  if (data.error) return `⚠️ ${data.error}`;
+  if ((data as any).error) return `⚠️ ${data.error}`;
 
   const lines: string[] = [];
   const symbol = data.symbol as string;
@@ -71,7 +71,7 @@ function formatSwingResult(data: Record<string, unknown>): string {
     lines.push(`  平均持仓: ${s.avgHoldingDays} 天`);
   }
 
-  if (data.message) {
+  if ((data as any).message) {
     lines.push(`\n💡 ${data.message}`);
   }
 
@@ -112,16 +112,16 @@ export const swingPointsTool: ToolDefinition = {
   execute: async (_toolCallId: string, params: SwingPointsParams) => {
     try {
       const result = await runQuantV2("analysis.swing_points", {
-        symbol: params.symbol,
-        start_date: params.start_date,
-        end_date: params.end_date,
+        symbol: params.symbol!,
+        start_date: params.start_date!,
+        end_date: params.end_date!,
         min_change: params.min_change,
       });
 
       const raw = result as unknown as Record<string, unknown>;
       const data =
         raw && typeof raw === "object" && "data" in raw
-          ? raw.data
+          ? (raw as any).data
           : raw;
 
       const text = formatSwingResult(data as Record<string, unknown>);

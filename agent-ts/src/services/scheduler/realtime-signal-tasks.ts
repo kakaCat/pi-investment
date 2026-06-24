@@ -26,12 +26,12 @@ export const realtimeSignalTasks: CronTask[] = [
           minScore: 65,
         });
 
-        if (!scan?.success || !scan.data?.opportunities?.length) {
+        if (!scan?.success || !(scan as any).data?.opportunities?.length) {
           logger.warn('未找到投资机会');
           return;
         }
 
-        const opportunities = scan.data.opportunities;
+        const opportunities = (scan as any).data.opportunities;
         logger.info(`找到 ${opportunities.length} 个投资机会`);
 
         // 2. 筛选高质量标的（评分>75，低风险）
@@ -111,8 +111,8 @@ export const realtimeSignalTasks: CronTask[] = [
             minScore: 70,
           });
 
-          if (scan?.success && scan.data?.opportunities?.length > 0) {
-            watchList = scan.data.opportunities
+          if (scan?.success && (scan as any).data?.opportunities?.length > 0) {
+            watchList = (scan as any).data.opportunities
               .slice(0, 15)
               .map((o: any) => o.symbol);
             sessionContext?.set('realtime_watch_list', watchList);
@@ -135,8 +135,8 @@ export const realtimeSignalTasks: CronTask[] = [
               return_detail: true,
             });
 
-            if (result?.success && result.data) {
-              const signal = result.data;
+            if (result?.success && (result as any).data) {
+              const signal = (result as any).data;
 
               // 只记录买入/卖出信号（忽略 hold）
               if (signal.signal !== 'hold' && signal.risk_level !== 'high') {

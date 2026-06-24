@@ -36,7 +36,7 @@ export const memoryWriteTool: ToolDefinition = {
         "Omit to default to 'general'.",
     })),
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
       const store = getMemoryStore();
       const result = store.writeMemory(params.content, params.category || "general");
@@ -76,7 +76,7 @@ export const memorySearchTool: ToolDefinition = {
       description: "Maximum results to return. Default: 5. Use 1–3 for targeted lookups; increase to 10–15 for broad recall.",
     })),
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
       const store = getMemoryStore();
       const results = store.hybridSearch(params.query, params.top_k || 5);

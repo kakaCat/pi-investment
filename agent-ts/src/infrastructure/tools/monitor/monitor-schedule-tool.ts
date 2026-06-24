@@ -12,7 +12,7 @@ export const scheduleNextCheckTool: ToolDefinition = {
     minutes: Type.Number({ minimum: 1, maximum: 60, description: "多少分钟后检查" }),
     reason: Type.String({ description: "为什么选择这个时间间隔" })
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     console.log(`[Monitor] 下次检查: ${params.minutes}分钟后 (${params.reason})`);
     return { content: [{ type: "text" as const, text: JSON.stringify({
       success: true,

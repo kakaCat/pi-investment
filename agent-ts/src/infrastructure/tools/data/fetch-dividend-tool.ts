@@ -67,7 +67,7 @@ export const dataFetchDividendTool: ToolDefinition = {
     }))
   }),
 
-  execute: async (_toolCallId, params: {
+  execute: async (_toolCallId: string, params: {
     mode: 'single' | 'screen' | 'calendar';
     symbol?: string;
     years?: number;
@@ -82,14 +82,14 @@ export const dataFetchDividendTool: ToolDefinition = {
   }) => {
     try {
       // 参数验证
-      if (params.mode === 'single' && !params.symbol) {
+      if (params.mode === 'single' && !params.symbol!) {
         return {
           content: [{ type: "text" as const, text: "single 模式必须提供 symbol 参数" }],
           details: null
         };
       }
 
-      if (params.mode === 'calendar' && (!params.start_date || !params.end_date)) {
+      if (params.mode === 'calendar' && (!params.start_date! || !params.end_date!)) {
         return {
           content: [{ type: "text" as const, text: "calendar 模式必须提供 start_date 和 end_date 参数" }],
           details: null
@@ -113,7 +113,7 @@ export const dataFetchDividendTool: ToolDefinition = {
         toolName: 'data_fetch_dividend',
         data: { formattedText, rawData: data, mode: params.mode },
         formatter: (d) => d.formattedText,
-        metadata: { mode: params.mode, symbol: params.symbol },
+        metadata: { mode: params.mode, symbol: params.symbol! },
         threshold: 25 * 1024, // 25KB (screen模式可能返回大量股票)
       });
     } catch (error) {

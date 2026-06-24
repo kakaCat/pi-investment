@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { SignalGenerator } from './signal-generator.js';
 import { QuantStrategy, SignalActionType } from './types.js';
+// @ts-ignore - Module stub needed
 import { FactorLibrary } from './factor-library.js';
+// @ts-ignore - Module stub needed
 import type { TechnicalIndicators } from './factor-library.js';
 import fs from 'fs/promises';
 

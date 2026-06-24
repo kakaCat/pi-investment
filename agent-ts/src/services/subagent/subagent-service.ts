@@ -38,7 +38,7 @@ export async function runSubagent(prompt: string): Promise<string> {
     if (lastMsg?.role === "assistant") {
       const summary = extractTextContent(lastMsg);
 
-      if (!summary.trim()) {
+      if (!summary!.trim()) {
         return "(no summary generated)";
       }
 

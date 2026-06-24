@@ -72,7 +72,7 @@ export const factorICMonitorTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: FactorICMonitorParams) => {
+  execute: async (_toolCallId: string, params: FactorICMonitorParams) => {
     const {
       factor_name,
       symbols,

@@ -46,7 +46,7 @@ export const strategyBatchValidateTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: StrategyBatchValidateParams) => {
+  execute: async (_toolCallId: string, params: StrategyBatchValidateParams) => {
     const { startDate, endDate, threshold = 60, dryRun = false } = params;
 
     try {

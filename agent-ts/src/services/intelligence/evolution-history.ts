@@ -270,7 +270,7 @@ function scoreSuggestion(
   toolStats: ToolEfficiency[]
 ): SuggestionScore {
   if (suggestion.type === 'add_tool') {
-    const toolName = suggestion.data?.toolName || suggestion.data?.name || 'unknown';
+    const toolName = (suggestion as any).data?.toolName || (suggestion as any).data?.name || 'unknown';
     const toolStat = toolStats.find(t => t.tool_name === toolName);
 
     if (!toolStat) {
@@ -314,7 +314,7 @@ function scoreSuggestion(
   // remove_tool 和其他类型的评分逻辑（简化处理）
   return {
     suggestionId: suggestion.id,
-    toolName: suggestion.data?.toolName || suggestion.data?.name || 'unknown',
+    toolName: (suggestion as any).data?.toolName || (suggestion as any).data?.name || 'unknown',
     score: 50,
     metrics: null,
     verdict: 'neutral',

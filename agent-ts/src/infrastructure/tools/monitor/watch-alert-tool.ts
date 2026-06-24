@@ -33,9 +33,9 @@ export const watchAlertTool: ToolDefinition = {
       description: "上一次价格（用于计算涨跌幅）"
     }))
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     // 参数验证
-    if (!params.symbol) {
+    if (!params.symbol!) {
       return {
         content: [{
           type: "text" as const,

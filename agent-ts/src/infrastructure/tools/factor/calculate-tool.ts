@@ -41,7 +41,7 @@ export const factorCalculateTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: FactorCalculateParams) => {
+  execute: async (_toolCallId: string, params: FactorCalculateParams) => {
     const { symbol, factors } = params;
 
     // 验证A股代码

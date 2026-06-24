@@ -93,8 +93,8 @@ describe("experience_write Tool", () => {
       const text = content0.text;
       const data = JSON.parse(text);
       expect(data.success).toBe(true);
-      expect(data.data.action).toBe("buy");
-      expect(data.data.recommendation).toBe("moderate");
+      expect((data as any).data.action).toBe("buy");
+      expect((data as any).data.recommendation).toBe("moderate");
 
       // 验证文件被写入
       const expFile = join(EXPERIENCE_DIR, "experiences.json");
@@ -160,14 +160,10 @@ describe("experience_write Tool", () => {
         symbol: "600036",
       });
 
-      const content0 = result.content[0];
-      if (!content0 || !("text" in content0)) {
-        throw new Error("Expected text content");
-      }
       const text = content0.text;
       const data = JSON.parse(text);
       expect(data.success).toBe(true);
-      expect(data.data.action).toBe("sell");
+      expect((data as any).data.action).toBe("sell");
     } finally {
       process.cwd = origCwd;
     }

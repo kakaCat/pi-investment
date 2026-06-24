@@ -54,7 +54,7 @@ describe("SessionMemorySaver", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSession = {} as AgentSession;
-    mockPrompt.mockResolvedValue(undefined);
+    mockPrompt.mockResolvedValue(undefined as any);
     mockCreateAgentSession.mockResolvedValue({
       session: {
         prompt: mockPrompt
@@ -141,13 +141,13 @@ describe("SessionMemorySaver", () => {
     test("should extract key decisions from messages", async () => {
       const summary = await extractSessionSummary(mockSession);
 
-      expect(summary.keyDecisions.length).toBeGreaterThan(0);
+      expect(summary!.keyDecisions.length).toBeGreaterThan(0);
     });
 
     test("should extract user preferences", async () => {
       const summary = await extractSessionSummary(mockSession);
 
-      expect(summary.userPreferences.length).toBeGreaterThan(0);
+      expect(summary!.userPreferences.length).toBeGreaterThan(0);
     });
 
     test("should return empty summary for empty messages", async () => {
@@ -155,11 +155,11 @@ describe("SessionMemorySaver", () => {
 
       const summary = await extractSessionSummary(mockSession);
 
-      expect(summary.keyDecisions).toEqual([]);
-      expect(summary.importantFacts).toEqual([]);
-      expect(summary.userPreferences).toEqual([]);
-      expect(summary.unfinishedTasks).toEqual([]);
-      expect(summary.lessonsLearned).toEqual([]);
+      expect(summary!.keyDecisions).toEqual([]);
+      expect(summary!.importantFacts).toEqual([]);
+      expect(summary!.userPreferences).toEqual([]);
+      expect(summary!.unfinishedTasks).toEqual([]);
+      expect(summary!.lessonsLearned).toEqual([]);
     });
   });
 });

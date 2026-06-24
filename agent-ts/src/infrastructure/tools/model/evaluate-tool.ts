@@ -32,7 +32,7 @@ export const modelEvaluateTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: ModelEvaluateParams) => {
+  execute: async (_toolCallId: string, params: ModelEvaluateParams) => {
     const { model_id = "latest" } = params;
 
     try {

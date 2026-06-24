@@ -23,7 +23,7 @@ export const modelMonitorTool: ToolDefinition = {
       description: "模型ID，默认监控最新模型（latest）"
     }))
   }),
-  execute: async (_toolCallId, params: MonitorModelParams) => {
+  execute: async (_toolCallId: string, params: MonitorModelParams) => {
     const { model_id = "latest" } = params;
 
     try {

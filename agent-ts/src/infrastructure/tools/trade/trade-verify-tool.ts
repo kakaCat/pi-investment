@@ -21,7 +21,7 @@ export const tradeVerifyTool: ToolDefinition = {
       description: "回测交易记录 JSON 字符串，格式：[{symbol, date, price, direction, quantity}]"
     })
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     // 参数验证
     if (!params.trades_json) {
       return {

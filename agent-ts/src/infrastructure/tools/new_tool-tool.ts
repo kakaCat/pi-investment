@@ -11,7 +11,7 @@ export const new_toolTool: ToolDefinition = {
     },
     { additionalProperties: true }
   ),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     const safeParams = params && typeof params === "object" ? params : {};
 
     return {

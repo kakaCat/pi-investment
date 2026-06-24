@@ -480,7 +480,7 @@ export function priceGaps(
       if (gapPct >= minGapPct) {
         // Check if filled: any subsequent bar closes into the gap [prevHigh, curLow]
         let filled = false;
-        let fillDate: string | undefined;
+        let fillDate: string;
         for (let j = i + 1; j < n; j++) {
           if (low[j] <= prevHigh) {
             filled = true;
@@ -498,7 +498,7 @@ export function priceGaps(
       const gapPct = Math.round((gapSize / prevLow) * 10000) / 100;
       if (gapPct >= minGapPct) {
         let filled = false;
-        let fillDate: string | undefined;
+        let fillDate: string;
         for (let j = i + 1; j < n; j++) {
           if (high[j] >= prevLow) {
             filled = true;

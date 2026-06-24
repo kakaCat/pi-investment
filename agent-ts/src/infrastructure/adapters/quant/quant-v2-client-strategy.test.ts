@@ -144,9 +144,9 @@ describe('QuantV2Client Strategy Methods', () => {
       expect(result.signals[0].signal_type).toBe('BUY');
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].symbol).toBe('600000.SH');
-      expect(result.summary.total).toBe(3);
-      expect(result.summary.success).toBe(2);
-      expect(result.summary.buy).toBe(1);
+      expect(result.summary!.total).toBe(3);
+      expect(result.summary!.success).toBe(2);
+      expect(result.summary!.buy).toBe(1);
     });
 
     it('should handle errors in NDJSON stream', async () => {
@@ -186,7 +186,7 @@ describe('QuantV2Client Strategy Methods', () => {
 
       // Should skip invalid line and continue
       expect(result.signals).toHaveLength(1);
-      expect(result.summary.total).toBe(1);
+      expect(result.summary!.total).toBe(1);
     });
   });
 

@@ -82,7 +82,7 @@ function _formatIndicatorList(data: any): string {
   const lines: string[] = [];
   lines.push(`📋 指标列表 (共 ${data.total || data.indicators.length} 个)`);
 
-  if (data.page) {
+  if ((data as any).page) {
     lines.push(`页码: ${data.page}/${data.totalPages || '?'}`);
   }
 

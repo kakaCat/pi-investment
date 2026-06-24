@@ -253,7 +253,7 @@ ${this.formatWatchlist(data.watchlist || [])}`;
         timeout: 10000
       });
 
-      const result = response.data;
+      const result = (response as any).data;
 
       if (result.code === 0 || result.StatusCode === 0) {
         console.log('[Feishu] Message sent successfully');

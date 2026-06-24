@@ -133,7 +133,7 @@ export function formatStockPrice(data: any): string {
 
   // Data freshness note with timestamp/trade_date
   if (isRealtime) {
-    if (data.timestamp) {
+    if ((data as any).timestamp) {
       lines.push(`\n数据时间: ${data.timestamp}`);
     }
 
@@ -152,7 +152,7 @@ export function formatStockPrice(data: any): string {
       lines.push('💡 当前非交易时段，显示最新成交价');
     }
   } else if (isFallback) {
-    if (data.trade_date) {
+    if ((data as any).trade_date) {
       lines.push(`\n交易日期: ${data.trade_date}`);
     }
     lines.push('⚠️ 实时行情获取失败，显示数据库最新收盘价');
@@ -173,51 +173,51 @@ export function formatFinancialData(data: FinancialData): string {
   lines.push('');
 
   // Income statement
-  if (data.income_statement) {
+  if ((data as any).income_statement) {
     const income = data.income_statement;
     lines.push('【利润表】');
-    const revenue = income.revenue ?? 0;
-    const operatingCost = income.operating_cost ?? 0;
-    const grossProfit = income.gross_profit ?? 0;
-    const netProfit = income.net_profit ?? 0;
-    const netProfitAttrParent = income.net_profit_attr_parent ?? 0;
+    const revenue = income!.revenue ?? 0;
+    const operatingCost = income!.operating_cost ?? 0;
+    const grossProfit = income!.gross_profit ?? 0;
+    const netProfit = income!.net_profit ?? 0;
+    const netProfitAttrParent = income!.net_profit_attr_parent ?? 0;
     lines.push(`  营业收入: ${formatNumber(revenue / YI, 2)} 亿元`);
     lines.push(`  营业成本: ${formatNumber(operatingCost / YI, 2)} 亿元`);
     lines.push(`  毛利润: ${formatNumber(grossProfit / YI, 2)} 亿元`);
     lines.push(`  净利润: ${formatNumber(netProfit / YI, 2)} 亿元`);
     lines.push(`  归母净利润: ${formatNumber(netProfitAttrParent / YI, 2)} 亿元`);
-    lines.push(`  毛利率: ${formatPercent(income.gross_margin)}`);
-    lines.push(`  净利率: ${formatPercent(income.net_margin)}`);
+    lines.push(`  毛利率: ${formatPercent(income!.gross_margin)}`);
+    lines.push(`  净利率: ${formatPercent(income!.net_margin)}`);
     lines.push('');
   }
 
   // Balance sheet
-  if (data.balance_sheet) {
+  if ((data as any).balance_sheet) {
     const balance = data.balance_sheet;
     lines.push('【资产负债表】');
-    const totalAssets = balance.total_assets ?? 0;
-    const currentAssets = balance.current_assets ?? 0;
-    const totalLiabilities = balance.total_liabilities ?? 0;
-    const currentLiabilities = balance.current_liabilities ?? 0;
-    const totalEquity = balance.total_equity ?? 0;
+    const totalAssets = balance!.total_assets ?? 0;
+    const currentAssets = balance!.current_assets ?? 0;
+    const totalLiabilities = balance!.total_liabilities ?? 0;
+    const currentLiabilities = balance!.current_liabilities ?? 0;
+    const totalEquity = balance!.total_equity ?? 0;
     lines.push(`  总资产: ${formatNumber(totalAssets / YI, 2)} 亿元`);
     lines.push(`  流动资产: ${formatNumber(currentAssets / YI, 2)} 亿元`);
     lines.push(`  总负债: ${formatNumber(totalLiabilities / YI, 2)} 亿元`);
     lines.push(`  流动负债: ${formatNumber(currentLiabilities / YI, 2)} 亿元`);
     lines.push(`  股东权益: ${formatNumber(totalEquity / YI, 2)} 亿元`);
-    lines.push(`  资产负债率: ${formatPercent(balance.debt_ratio)}`);
-    lines.push(`  流动比率: ${formatNumber(balance.current_ratio, 2)}`);
+    lines.push(`  资产负债率: ${formatPercent(balance!.debt_ratio)}`);
+    lines.push(`  流动比率: ${formatNumber(balance!.current_ratio, 2)}`);
     lines.push('');
   }
 
   // Cash flow statement
-  if (data.cash_flow) {
+  if ((data as any).cash_flow) {
     const cashflow = data.cash_flow;
     lines.push('【现金流量表】');
-    const operatingCashflow = cashflow.operating_cashflow ?? 0;
-    const investingCashflow = cashflow.investing_cashflow ?? 0;
-    const financingCashflow = cashflow.financing_cashflow ?? 0;
-    const netCashflow = cashflow.net_cashflow ?? 0;
+    const operatingCashflow = cashflow!.operating_cashflow ?? 0;
+    const investingCashflow = cashflow!.investing_cashflow ?? 0;
+    const financingCashflow = cashflow!.financing_cashflow ?? 0;
+    const netCashflow = cashflow!.net_cashflow ?? 0;
     lines.push(`  经营活动现金流: ${formatNumber(operatingCashflow / YI, 2)} 亿元`);
     lines.push(`  投资活动现金流: ${formatNumber(investingCashflow / YI, 2)} 亿元`);
     lines.push(`  筹资活动现金流: ${formatNumber(financingCashflow / YI, 2)} 亿元`);
@@ -226,15 +226,15 @@ export function formatFinancialData(data: FinancialData): string {
   }
 
   // Key metrics
-  if (data.metrics) {
+  if ((data as any).metrics) {
     const metrics = data.metrics;
     lines.push('【关键指标】');
-    lines.push(`  市盈率(PE): ${formatNumber(metrics.pe_ratio, 2)}`);
-    lines.push(`  市净率(PB): ${formatNumber(metrics.pb_ratio, 2)}`);
-    lines.push(`  净资产收益率(ROE): ${formatPercent(metrics.roe)}`);
-    lines.push(`  总资产收益率(ROA): ${formatPercent(metrics.roa)}`);
-    lines.push(`  每股收益(EPS): ${formatNumber(metrics.eps, 2)} 元`);
-    lines.push(`  每股净资产(BVPS): ${formatNumber(metrics.bvps, 2)} 元`);
+    lines.push(`  市盈率(PE): ${formatNumber(metrics!.pe_ratio, 2)}`);
+    lines.push(`  市净率(PB): ${formatNumber(metrics!.pb_ratio, 2)}`);
+    lines.push(`  净资产收益率(ROE): ${formatPercent(metrics!.roe)}`);
+    lines.push(`  总资产收益率(ROA): ${formatPercent(metrics!.roa)}`);
+    lines.push(`  每股收益(EPS): ${formatNumber(metrics!.eps, 2)} 元`);
+    lines.push(`  每股净资产(BVPS): ${formatNumber(metrics!.bvps, 2)} 元`);
   }
 
   return lines.join('\n');
@@ -890,9 +890,9 @@ export function formatDividendData(data: import('./types.js').DividendResponse, 
     let output = `【${name} (${symbol}) 分红历史】\n\n`;
 
     if (summary) {
-      output += `连续分红: ${summary.consecutive_years}年\n`;
-      output += `平均股息率: ${summary.avg_yield.toFixed(2)}%\n`;
-      output += `累计每股派息: ${summary.total_cash_dividend.toFixed(2)}元\n\n`;
+      output += `连续分红: ${summary!.consecutive_years}年\n`;
+      output += `平均股息率: ${summary!.avg_yield.toFixed(2)}%\n`;
+      output += `累计每股派息: ${summary!.total_cash_dividend.toFixed(2)}元\n\n`;
     }
 
     output += `近期分红记录:\n`;
@@ -1014,17 +1014,17 @@ export function formatBatchSignals(result: import('./types.js').BatchExecutionRe
 
   // Summary statistics
   lines.push('执行统计:');
-  lines.push(`  总数: ${result.summary.total}`);
-  lines.push(`  成功: ${result.summary.success}`);
-  lines.push(`  失败: ${result.summary.failed}`);
-  lines.push(`  耗时: ${formatNumber(result.summary.duration_ms / 1000, 2)} 秒`);
+  lines.push(`  总数: ${result.summary!.total}`);
+  lines.push(`  成功: ${result.summary!.success}`);
+  lines.push(`  失败: ${result.summary!.failed}`);
+  lines.push(`  耗时: ${formatNumber(result.summary!.duration_ms / 1000, 2)} 秒`);
   lines.push('');
 
   // Signal distribution table
   lines.push('信号分布:');
-  lines.push(`  买入: ${result.summary.buy}`);
-  lines.push(`  卖出: ${result.summary.sell}`);
-  lines.push(`  持有: ${result.summary.hold}`);
+  lines.push(`  买入: ${result.summary!.buy}`);
+  lines.push(`  卖出: ${result.summary!.sell}`);
+  lines.push(`  持有: ${result.summary!.hold}`);
   lines.push('');
 
   // Errors
@@ -1111,54 +1111,54 @@ export function formatRiskMetrics(metrics: any): string {
 
   // 收益指标
   lines.push('【收益指标】');
-  if (metrics.annual_return !== undefined) {
-    lines.push(`  年化收益率: ${formatPercent(metrics.annual_return * 100, 2)}`);
+  if (metrics!.annual_return !== undefined) {
+    lines.push(`  年化收益率: ${formatPercent(metrics!.annual_return * 100, 2)}`);
   }
-  if (metrics.annual_volatility !== undefined) {
-    lines.push(`  年化波动率: ${formatPercent(metrics.annual_volatility * 100, 2)}`);
+  if (metrics!.annual_volatility !== undefined) {
+    lines.push(`  年化波动率: ${formatPercent(metrics!.annual_volatility * 100, 2)}`);
   }
   lines.push('');
 
   // 风险调整收益
   lines.push('【风险调整收益】');
-  if (metrics.sharpe_ratio !== undefined) {
-    const sharpeColor = metrics.sharpe_ratio > 1 ? '✅' : metrics.sharpe_ratio > 0 ? '⚠️' : '❌';
-    lines.push(`  ${sharpeColor} 夏普比率: ${formatNumber(metrics.sharpe_ratio, 4)}`);
+  if (metrics!.sharpe_ratio !== undefined) {
+    const sharpeColor = metrics!.sharpe_ratio > 1 ? '✅' : metrics!.sharpe_ratio > 0 ? '⚠️' : '❌';
+    lines.push(`  ${sharpeColor} 夏普比率: ${formatNumber(metrics!.sharpe_ratio, 4)}`);
   }
-  if (metrics.sortino_ratio !== undefined) {
-    const sortinoColor = metrics.sortino_ratio > 1 ? '✅' : metrics.sortino_ratio > 0 ? '⚠️' : '❌';
-    lines.push(`  ${sortinoColor} 索提诺比率: ${formatNumber(metrics.sortino_ratio, 4)}`);
+  if (metrics!.sortino_ratio !== undefined) {
+    const sortinoColor = metrics!.sortino_ratio > 1 ? '✅' : metrics!.sortino_ratio > 0 ? '⚠️' : '❌';
+    lines.push(`  ${sortinoColor} 索提诺比率: ${formatNumber(metrics!.sortino_ratio, 4)}`);
   }
-  if (metrics.calmar_ratio !== undefined) {
-    const calmarColor = metrics.calmar_ratio > 1 ? '✅' : metrics.calmar_ratio > 0 ? '⚠️' : '❌';
-    lines.push(`  ${calmarColor} 卡尔马比率: ${formatNumber(metrics.calmar_ratio, 4)}`);
+  if (metrics!.calmar_ratio !== undefined) {
+    const calmarColor = metrics!.calmar_ratio > 1 ? '✅' : metrics!.calmar_ratio > 0 ? '⚠️' : '❌';
+    lines.push(`  ${calmarColor} 卡尔马比率: ${formatNumber(metrics!.calmar_ratio, 4)}`);
   }
   lines.push('');
 
   // 回撤指标
   lines.push('【回撤指标】');
-  if (metrics.max_drawdown !== undefined) {
-    const ddColor = metrics.max_drawdown > -0.1 ? '✅' : metrics.max_drawdown > -0.2 ? '⚠️' : '❌';
-    lines.push(`  ${ddColor} 最大回撤: ${formatPercent(metrics.max_drawdown * 100, 2)}`);
+  if (metrics!.max_drawdown !== undefined) {
+    const ddColor = metrics!.max_drawdown > -0.1 ? '✅' : metrics!.max_drawdown > -0.2 ? '⚠️' : '❌';
+    lines.push(`  ${ddColor} 最大回撤: ${formatPercent(metrics!.max_drawdown * 100, 2)}`);
   }
   lines.push('');
 
   // Alpha/Beta 分析
-  if (metrics.alpha !== undefined && metrics.beta !== undefined) {
+  if (metrics!.alpha !== undefined && metrics!.beta !== undefined) {
     lines.push('【Alpha/Beta 分析】');
-    const alphaColor = metrics.alpha > 0 ? '✅' : '❌';
-    lines.push(`  ${alphaColor} Alpha: ${formatPercent(metrics.alpha * 100, 4)}`);
-    lines.push(`  Beta: ${formatNumber(metrics.beta, 4)}`);
+    const alphaColor = metrics!.alpha > 0 ? '✅' : '❌';
+    lines.push(`  ${alphaColor} Alpha: ${formatPercent(metrics!.alpha * 100, 4)}`);
+    lines.push(`  Beta: ${formatNumber(metrics!.beta, 4)}`);
     lines.push('');
   }
 
   // 尾部风险
   lines.push('【尾部风险】');
-  if (metrics.var_95 !== undefined) {
-    lines.push(`  VaR (95%): ${formatPercent(metrics.var_95 * 100, 2)}`);
+  if (metrics!.var_95 !== undefined) {
+    lines.push(`  VaR (95%): ${formatPercent(metrics!.var_95 * 100, 2)}`);
   }
-  if (metrics.cvar_95 !== undefined) {
-    lines.push(`  CVaR (95%): ${formatPercent(metrics.cvar_95 * 100, 2)}`);
+  if (metrics!.cvar_95 !== undefined) {
+    lines.push(`  CVaR (95%): ${formatPercent(metrics!.cvar_95 * 100, 2)}`);
   }
 
   // 指标说明

@@ -33,7 +33,7 @@ export const planTool = {
     const startTime = Date.now();
     const prompt = `${params.task}${params.context ? `\n\n上下文: ${params.context}` : ''}`;
 
-    logSubagentStart('plan', prompt);
+    logSubagentStart("plan" as any as any, prompt);
 
     try {
       console.log("\n🎯 启动 Plan Agent...");
@@ -48,7 +48,7 @@ export const planTool = {
 
       console.log("✅ 计划生成完成\n");
 
-      logSubagentEnd('plan', plan, 1, 0, Date.now() - startTime);
+      logSubagentEnd("plan" as any as any, plan, 1, 0, Date.now() - startTime);
 
       return {
         content: [{
@@ -64,7 +64,7 @@ export const planTool = {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error("❌ Plan Agent 执行失败:", errorMsg);
 
-      logSubagentEnd('plan', `Error: ${errorMsg}`, 0, 0, Date.now() - startTime);
+      logSubagentEnd("plan" as any as any, `Error: ${errorMsg}`, 0, 0, Date.now() - startTime);
 
       return {
         content: [{

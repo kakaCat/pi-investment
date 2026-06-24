@@ -67,7 +67,7 @@ export const dataFetchFinancialTool: ToolDefinition = {
     }))
   }),
 
-  execute: async (_toolCallId, params: {
+  execute: async (_toolCallId: string, params: {
     symbol: string;
     dataType?: string;
     reportType?: string;
@@ -148,8 +148,8 @@ export const dataFetchFinancialTool: ToolDefinition = {
             results.push(`\n【PE 历史分位数】\n${response}`);
           } else if (response && typeof response === 'object') {
             const data = response as any;
-            if (data.success && data.data) {
-              const pe = data.data;
+            if (data.success && (data as any).data) {
+              const pe = (data as any).data;
               results.push(
                 `\n【PE 历史分位数】（${years}年数据）\n` +
                 `  当前价格: ${pe.currentPrice} 元\n` +

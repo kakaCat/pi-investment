@@ -20,14 +20,14 @@ export const strategyValidationTasks: CronTask[] = [
 
         // 1. 获取所有活跃策略
         const strategyListTool = toolRegistry.getTool('strategy_list');
-        const strategies = await strategyListTool.execute('', {});
+        const strategies: any[] = await strategyListTool.execute('', {});
 
-        if (!strategies?.success || !strategies.data?.length) {
+        if (!strategies?.success || !(strategies as any).data?.length) {
           logger.warn('未找到活跃策略');
           return;
         }
 
-        logger.info(`找到 ${strategies.data.length} 个策略，开始验证...`);
+        logger.info(`找到 ${(strategies as any).data.length} 个策略，开始验证...`);
 
         // 2. 批量验证（最近30天）
         const now = new Date();
@@ -35,7 +35,7 @@ export const strategyValidationTasks: CronTask[] = [
 
         const batchValidateTool = toolRegistry.getTool('strategy_batch_validate');
         const validation = await batchValidateTool.execute('', {
-          strategy_ids: strategies.data.map((s: any) => s.id),
+          strategy_ids: (strategies as any).data.map((s: any) => s.id),
           symbols: [
             '600519.SH', // 贵州茅台（代表消费）
             '000858.SZ', // 五粮液（代表白酒）
@@ -53,7 +53,7 @@ export const strategyValidationTasks: CronTask[] = [
         }
 
         // 3. 分析结果，标记失效策略
-        const results = validation.data?.results || [];
+        const results = (validation as any).data?.results || [];
         const failedStrategies = results.filter((r: any) =>
           r.win_rate < 0.4 || r.sharpe < 0.5
         );
@@ -151,12 +151,12 @@ export const strategyValidationTasks: CronTask[] = [
           minScore: 70,
         });
 
-        if (!opportunities?.success || !opportunities.data?.opportunities?.length) {
+        if (!opportunities?.success || !(opportunities as any).data?.opportunities?.length) {
           logger.warn('未找到合适的测试股票');
           return;
         }
 
-        const topSymbols = opportunities.data.opportunities
+        const topSymbols = (opportunities as any).data.opportunities
           .slice(0, 10)
           .map((o: any) => o.symbol);
 
@@ -179,7 +179,7 @@ export const strategyValidationTasks: CronTask[] = [
         }
 
         // 3. 输出发现的策略
-        const discovered = discovery.data?.strategies || [];
+        const discovered = (discovery as any).data?.strategies || [];
         logger.info(`发现 ${discovered.length} 个潜在策略`);
 
         if (discovered.length > 0) {

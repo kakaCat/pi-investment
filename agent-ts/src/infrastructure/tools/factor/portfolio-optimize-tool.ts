@@ -88,7 +88,7 @@ export const factorPortfolioOptimizeTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: FactorPortfolioOptimizeParams) => {
+  execute: async (_toolCallId: string, params: FactorPortfolioOptimizeParams) => {
     const {
       candidate_factors,
       symbols,

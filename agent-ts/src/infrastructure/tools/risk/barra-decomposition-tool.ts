@@ -77,7 +77,7 @@ export const riskBarraDecompositionTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: BarraDecompositionParams) => {
+  execute: async (_toolCallId: string, params: BarraDecompositionParams) => {
     try {
       const { portfolio, weights, date } = params;
 
@@ -397,7 +397,7 @@ function generateRiskManagementAdvice(data: BarraResult, portfolio: string[]): s
   }
 
   // 行业集中度
-  if (data.industry_exposure) {
+  if ((data as any).industry_exposure) {
     const maxIndustryExp = Math.max(...Object.values(data.industry_exposure));
     if (maxIndustryExp > 0.4) {
       advice.push("🏭 **行业集中度高**：单一行业暴露超过40%，建议跨行业配置");

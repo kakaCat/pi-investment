@@ -24,7 +24,7 @@ export class TradeCliAdapter extends BaseCliAdapter {
     fxRate?: number;
   }): Promise<Trade> {
     const cmdParams: Record<string, string | number | boolean> = {
-      symbol: params.symbol,
+      symbol: params.symbol!,
       stockName: params.stockName,
       action: params.action,
       price: params.price,
@@ -37,7 +37,7 @@ export class TradeCliAdapter extends BaseCliAdapter {
     };
     if (params.pnl !== undefined) cmdParams.pnl = params.pnl;
     if (params.pnlPercent !== undefined) cmdParams.pnlPercent = params.pnlPercent;
-    if (params.market !== undefined) cmdParams.market = params.market;
+    if (params.market! !== undefined) cmdParams.market = params.market!;
     else cmdParams.market = 'A';
     if (params.priceHkd !== undefined) cmdParams.priceHkd = params.priceHkd;
     if (params.fxRate !== undefined) cmdParams.fxRate = params.fxRate;

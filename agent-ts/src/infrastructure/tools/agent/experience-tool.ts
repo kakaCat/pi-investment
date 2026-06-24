@@ -30,11 +30,11 @@ export const experienceQueryTool: ToolDefinition = {
         "Filters experiences that match any of the provided conditions.",
     })),
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
       const results = queryExperience({
         scenario: params.scenario,
-        symbol: params.symbol,
+        symbol: params.symbol!,
         conditions: params.conditions,
       });
 

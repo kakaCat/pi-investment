@@ -45,15 +45,15 @@ export const backtestHistoryTool: ToolDefinition = {
     }
   },
 
-  execute: async (_toolCallId, params: BacktestHistoryParams) => {
+  execute: async (_toolCallId: string, params: BacktestHistoryParams) => {
     try {
       const queryParams: Record<string, string> = {};
 
       if (params.strategy_name) {
         queryParams.strategy_name = params.strategy_name;
       }
-      if (params.symbol) {
-        queryParams.symbol = params.symbol;
+      if (params.symbol!) {
+        queryParams.symbol = params.symbol!;
       }
       if (params.limit) {
         queryParams.limit = params.limit.toString();
@@ -62,13 +62,13 @@ export const backtestHistoryTool: ToolDefinition = {
       const response = await client.get('/api/backtest/history', queryParams);
 
       if (!response.success) {
-        return `❌ 查询失败: ${response.error}`;
+        return { content: [{ type: "text" as const, text: `❌ 查询失败: ${response.error}` }] };
       }
 
-      const { items, count } = response.data;
+      const { items, count } = (response as any).data;
 
       if (count === 0) {
-        return `📊 未找到回测记录\n\n筛选条件：\n${params.strategy_name ? `  策略: ${params.strategy_name}\n` : ''}${params.symbol ? `  股票: ${params.symbol}\n` : ''}`;
+        return { content: [{ type: "text" as const, text: `📊 未找到回测记录\n\n筛选条件：\n${params.strategy_name ? `  策略: ${params.strategy_name}\n` : ''}${params.symbol! ? `  股票: ${params.symbol!}\n` : ''}` }] };
       }
 
       // 格式化输出
@@ -102,7 +102,7 @@ export const backtestHistoryTool: ToolDefinition = {
       return output;
 
     } catch (error: any) {
-      return `❌ 查询回测历史失败: ${error.message}`;
+      return { content: [{ type: "text" as const, text: `❌ 查询回测历史失败: ${error.message}` }] };
     }
   }
 };

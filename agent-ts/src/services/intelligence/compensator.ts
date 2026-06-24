@@ -319,14 +319,14 @@ function applyIntelligentFilters(
   // 过滤1: 智能去重（只过滤成功的建议，失败的允许重试）
   if (recentEvolutions && recentEvolutions.length > 0) {
     const recentSuggestions = recentEvolutions.flatMap(e => e.suggestions);
-    console.log(`[补偿器] 历史建议数量: ${recentSuggestions.length}`, recentSuggestions.map(s => s.data?.toolName || s.type));
+    console.log(`[补偿器] 历史建议数量: ${recentSuggestions.length}`, recentSuggestions.map(s => (s as any).data?.toolName || s.type));
 
     filtered = filtered.filter(s => {
       // 查找历史中相同的建议
       const matchingHistory = recentEvolutions.filter(e =>
         e.suggestions.some(prev =>
           prev.type === s.type &&
-          prev.data?.toolName === s.data?.toolName
+          (prev as any).data?.toolName === (s as any).data?.toolName
         )
       );
 
@@ -373,7 +373,7 @@ function applyIntelligentFilters(
 
     filtered = filtered.filter(s => {
       if (s.type === 'add_tool') {
-        const toolName = s.data?.toolName;
+        const toolName = (s as any).data?.toolName;
         if (notRecommendedTools.includes(toolName)) {
           console.log(`[补偿器] 过滤不推荐工具: ${toolName} (历史平均评分: ${
             experienceSummary.toolPatterns.find(p => p.toolName === toolName)?.avgScore
@@ -460,7 +460,7 @@ function sortSuggestionsByPriority(
       if (match) return parseFloat(match[1]);
 
       // 尝试从 data 中提取 pnlImpact
-      if (s.data?.pnlImpact) return s.data.pnlImpact / 1000; // 转换为百分比量级
+      if ((s as any).data?.pnlImpact) return (s as any).data.pnlImpact / 1000; // 转换为百分比量级
 
       // 根据类型给默认权重
       if (s.type === 'remove_tool') return 2; // 移除低效工具预期收益2%

@@ -2,6 +2,7 @@
  * Notification Tools Tests
  */
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+// @ts-ignore - Module stub needed
 import { NotificationService } from '../services/notification/notification-service.js';
 import {
   initNotificationService,
@@ -23,8 +24,8 @@ describe('Notification Tools', () => {
     service = initNotificationService();
 
     // Spy on methods
-    sendSpy = jest.spyOn(service, 'send').mockResolvedValue(undefined);
-    sendCardSpy = jest.spyOn(service, 'sendCard').mockResolvedValue(undefined);
+    sendSpy = jest.spyOn(service, 'send').mockResolvedValue(undefined as any);
+    sendCardSpy = jest.spyOn(service, 'sendCard').mockResolvedValue(undefined as any);
   });
 
   afterEach(() => {

@@ -16,7 +16,7 @@ describe('Strategy Execution Types', () => {
       strategy_name: 'VolatilityBreakout',
     };
 
-    expect(params.symbol).toBe('600519.SH');
+    expect(params.symbol!).toBe('600519.SH');
     expect(params.strategy_name).toBe('VolatilityBreakout');
 
     // Test optional fields

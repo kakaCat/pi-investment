@@ -116,7 +116,7 @@ export const schedulerManageTool: ToolDefinition = {
     }))
   }),
 
-  execute: async (_toolCallId, params: SchedulerParams) => {
+  execute: async (_toolCallId: string, params: SchedulerParams) => {
     try {
       const { action, ...otherParams } = params;
 
@@ -337,15 +337,15 @@ function formatTaskList(data: SchedulerResult): string {
 function formatTaskCreated(data: SchedulerResult): string {
   let output = "### ✅ 任务创建成功\n\n";
 
-  if (data.task) {
-    output += `**任务ID**：${data.task.id}\n`;
-    output += `**任务名称**：${data.task.name}\n`;
-    output += `**Cron表达式**：\`${data.task.cron}\`\n`;
-    output += `**执行命令**：${data.task.command}\n`;
-    output += `**状态**：${data.task.enabled ? '✅ 已启用' : '⏸️ 已禁用'}\n`;
+  if ((data as any).task) {
+    output += `**任务ID**：${data.task!.id}\n`;
+    output += `**任务名称**：${data.task!.name}\n`;
+    output += `**Cron表达式**：\`${data.task!.cron}\`\n`;
+    output += `**执行命令**：${data.task!.command}\n`;
+    output += `**状态**：${data.task!.enabled ? '✅ 已启用' : '⏸️ 已禁用'}\n`;
 
-    if (data.task.next_run) {
-      output += `**下次执行**：${data.task.next_run}\n`;
+    if (data.task!.next_run) {
+      output += `**下次执行**：${data.task!.next_run}\n`;
     }
 
     output += "\n";
@@ -360,12 +360,12 @@ function formatTaskCreated(data: SchedulerResult): string {
 function formatTaskUpdated(data: SchedulerResult): string {
   let output = "### ✅ 任务更新成功\n\n";
 
-  if (data.task) {
-    output += `**任务ID**：${data.task.id}\n`;
-    output += `**任务名称**：${data.task.name}\n`;
-    output += `**Cron表达式**：\`${data.task.cron}\`\n`;
-    output += `**执行命令**：${data.task.command}\n`;
-    output += `**状态**：${data.task.enabled ? '✅ 已启用' : '⏸️ 已禁用'}\n\n`;
+  if ((data as any).task) {
+    output += `**任务ID**：${data.task!.id}\n`;
+    output += `**任务名称**：${data.task!.name}\n`;
+    output += `**Cron表达式**：\`${data.task!.cron}\`\n`;
+    output += `**执行命令**：${data.task!.command}\n`;
+    output += `**状态**：${data.task!.enabled ? '✅ 已启用' : '⏸️ 已禁用'}\n\n`;
   }
 
   return output;
@@ -377,10 +377,10 @@ function formatTaskUpdated(data: SchedulerResult): string {
 function formatTaskEnabled(data: SchedulerResult): string {
   let output = "### ✅ 任务已启用\n\n";
 
-  if (data.task) {
-    output += `**任务名称**：${data.task.name}\n`;
-    if (data.task.next_run) {
-      output += `**下次执行**：${data.task.next_run}\n`;
+  if ((data as any).task) {
+    output += `**任务名称**：${data.task!.name}\n`;
+    if (data.task!.next_run) {
+      output += `**下次执行**：${data.task!.next_run}\n`;
     }
     output += "\n";
   }
@@ -394,8 +394,8 @@ function formatTaskEnabled(data: SchedulerResult): string {
 function formatTaskDisabled(data: SchedulerResult): string {
   let output = "### ⏸️ 任务已禁用\n\n";
 
-  if (data.task) {
-    output += `**任务名称**：${data.task.name}\n`;
+  if ((data as any).task) {
+    output += `**任务名称**：${data.task!.name}\n`;
     output += `任务已暂停，不会自动执行\n\n`;
   }
 
@@ -415,8 +415,8 @@ function formatTaskDeleted(params: SchedulerParams): string {
 function formatTaskTriggered(data: SchedulerResult): string {
   let output = "### 🚀 任务已触发\n\n";
 
-  if (data.task) {
-    output += `**任务名称**：${data.task.name}\n`;
+  if ((data as any).task) {
+    output += `**任务名称**：${data.task!.name}\n`;
     output += `任务已添加到执行队列，正在运行中...\n\n`;
   }
 

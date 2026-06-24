@@ -105,7 +105,7 @@ export const dataFetchNorthFlowTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: NorthFlowParams) => {
+  execute: async (_toolCallId: string, params: NorthFlowParams) => {
     try {
       const { start_date, end_date } = params;
 
@@ -122,7 +122,7 @@ export const dataFetchNorthFlowTool: ToolDefinition = {
       const nfData = (result as any).data as NorthFlowData;
 
       // API 成功但无数据：同样走 browser 兜底，避免 agent 拿到空结果直接停止
-      if (!nfData || !nfData.data || nfData.data.length === 0) {
+      if (!nfData || !(nfData as any).data || (nfData as any).data.length === 0) {
         return {
           content: [{
             type: "text" as const,
@@ -160,35 +160,35 @@ export const dataFetchNorthFlowTool: ToolDefinition = {
  * 格式化北向资金数据输出
  */
 function formatNorthFlowData(data: NorthFlowData): string {
-  if (!data || !data.data || data.data.length === 0) {
+  if (!data || !(data as any).data || (data as any).data.length === 0) {
     return "❌ 未获取到北向资金数据";
   }
 
-  const flowData = data.data;
+  const flowData = (data as any).data;
   let output = "💰 **北向资金流向**\n\n";
 
   // 1. 汇总统计
-  if (data.summary) {
+  if ((data as any).summary) {
     output += "### 📊 汇总统计\n\n";
     const summary = data.summary;
 
-    if (summary.net_flow !== undefined) {
-      const netFlowFormatted = formatAmount(summary.net_flow);
-      const flowType = summary.net_flow >= 0 ? "净流入" : "净流出";
-      const emoji = summary.net_flow >= 0 ? "📈" : "📉";
+    if (summary!.net_flow !== undefined) {
+      const netFlowFormatted = formatAmount(summary!.net_flow);
+      const flowType = summary!.net_flow >= 0 ? "净流入" : "净流出";
+      const emoji = summary!.net_flow >= 0 ? "📈" : "📉";
       output += `- **区间净流向**：${emoji} ${flowType} ${netFlowFormatted}\n`;
     }
 
-    if (summary.total_inflow !== undefined) {
-      output += `- **累计流入**：${formatAmount(summary.total_inflow)}\n`;
+    if (summary!.total_inflow !== undefined) {
+      output += `- **累计流入**：${formatAmount(summary!.total_inflow)}\n`;
     }
 
-    if (summary.total_outflow !== undefined) {
-      output += `- **累计流出**：${formatAmount(Math.abs(summary.total_outflow))}\n`;
+    if (summary!.total_outflow !== undefined) {
+      output += `- **累计流出**：${formatAmount(Math.abs(summary!.total_outflow))}\n`;
     }
 
-    if (summary.avg_daily_flow !== undefined) {
-      output += `- **日均流向**：${formatAmount(summary.avg_daily_flow)}\n`;
+    if (summary!.avg_daily_flow !== undefined) {
+      output += `- **日均流向**：${formatAmount(summary!.avg_daily_flow)}\n`;
     }
 
     output += "\n";

@@ -52,7 +52,7 @@ export const algoExecuteTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: {
+  execute: async (_toolCallId: string, params: {
     symbol: string;
     side: 'buy' | 'sell';
     quantity: number;
@@ -95,7 +95,7 @@ export const algoExecuteTool: ToolDefinition = {
         start_time: startTime
       });
 
-      if (!response.success || !response.data) {
+      if (!response.success || !(response as any).data) {
         return {
           content: [{
             type: "text" as const,
@@ -105,7 +105,7 @@ export const algoExecuteTool: ToolDefinition = {
         };
       }
 
-      const order = response.data;
+      const order = (response as any).data;
 
       // Convert AlgoOrder to AlgoOrderResult format for formatting
       const orderResult = {

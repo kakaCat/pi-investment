@@ -10,6 +10,7 @@ await jest.unstable_mockModule("../../infrastructure/quant/market-query-cli-adap
   getSectorFundFlowViaQuantCli: getSectorFundFlowViaQuantCliMock,
 }));
 
+// @ts-ignore - Module stub needed
 const { collectMarketContext } = await import("./market-data-collector.js");
 
 describe("market-data-collector", () => {

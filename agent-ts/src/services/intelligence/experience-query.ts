@@ -60,7 +60,7 @@ import type { Experience, ExperienceBase } from '../../types/evolution.js';
 /**
  * 计算文本相似度（支持中文）
  */
-function calculateSimilarity(text1: string | undefined, text2: string | undefined): number {
+function calculateSimilarity(text1: string, text2: string): number {
   if (!text1 || !text2) return 0;
 
   // 转换为小写

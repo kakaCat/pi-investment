@@ -508,13 +508,13 @@ export function formatReportAsMarkdown(report: EvolutionReport, recentHistories?
     lines.push('');
     lines.push('| 指标 | 数值 |');
     lines.push('|------|------|');
-    lines.push(`| 总市值 | ¥${ha.summary.totalValue.toFixed(2)} |`);
-    lines.push(`| 未实现盈亏 | ¥${ha.summary.totalPnL.toFixed(2)} |`);
-    lines.push(`| 平均收益率 | ${ha.summary.avgReturn.toFixed(2)}% |`);
-    lines.push(`| 盈利个股 | ${ha.summary.winningStocks}/${ha.stocks.length} |`);
-    lines.push(`| 胜率 | ${ha.summary.winRate.toFixed(1)}% |`);
-    lines.push(`| 最大单股占比 | ${ha.summary.maxSingleStockWeight.toFixed(2)}% |`);
-    lines.push(`| 最大行业占比 | ${ha.summary.maxSectorWeight.toFixed(2)}% |`);
+    lines.push(`| 总市值 | ¥${ha.summary!.totalValue.toFixed(2)} |`);
+    lines.push(`| 未实现盈亏 | ¥${ha.summary!.totalPnL.toFixed(2)} |`);
+    lines.push(`| 平均收益率 | ${ha.summary!.avgReturn.toFixed(2)}% |`);
+    lines.push(`| 盈利个股 | ${ha.summary!.winningStocks}/${ha.stocks.length} |`);
+    lines.push(`| 胜率 | ${ha.summary!.winRate.toFixed(1)}% |`);
+    lines.push(`| 最大单股占比 | ${ha.summary!.maxSingleStockWeight.toFixed(2)}% |`);
+    lines.push(`| 最大行业占比 | ${ha.summary!.maxSectorWeight.toFixed(2)}% |`);
     lines.push('');
 
     // 表现最好的个股

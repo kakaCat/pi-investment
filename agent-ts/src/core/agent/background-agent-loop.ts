@@ -28,7 +28,7 @@ let session: AgentSession | null = null;
 function loadProjectSkills(): Skill[] {
   try {
     // @ts-ignore - Type mismatch from SDK update
-    const result = loadSkills({ cwd: paths.root, skillPaths: [join(paths.root, "skills")] });
+    const result = loadSkills({ cwd: paths.root, skillPaths: [join(paths.root, "skills")] } as any);
     if ((result as any).warnings?.length > 0) {
       (result as any).warnings.forEach((w: any) => console.warn(`⚠️  ${w.skillPath}: ${w.message}`));
     }
@@ -69,7 +69,7 @@ export async function getSession(): Promise<AgentSession> {
     const tasksDir = join(paths.sessionsDir, sessionUuid, "tasks");
     initTaskTools(tasksDir);
   }
-  return session;
+  return session!;
 }
 
 export async function agentLoop(messages: Message[]): Promise<void> {

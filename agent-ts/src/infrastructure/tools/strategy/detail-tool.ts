@@ -49,8 +49,8 @@ export const strategyDetailTool: ToolDefinition = {
           strategy_name: data.name
         });
 
-        if (statsResponse.success && statsResponse.data.totalBacktests > 0) {
-          backtestStats = statsResponse.data;
+        if (statsResponse.success && (statsResponse as any).data.totalBacktests > 0) {
+          backtestStats = (statsResponse as any).data;
         }
       } catch (statsErr) {
         // 静默失败，不影响策略详情显示

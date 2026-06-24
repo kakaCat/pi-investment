@@ -26,12 +26,12 @@ async function indicatorBacktestExample(params: {
   const result = await saveToolResult({
     toolName: 'indicator_backtest',
     data: backtestResult,
-    summary: `指标${params.indicator_id}在${params.symbol}的回测完成`,
+    summary: `指标${params.indicator_id}在${params.symbol!}的回测完成`,
     metadata: {
       indicator_id: params.indicator_id,
-      symbol: params.symbol,
-      start_date: params.start_date,
-      end_date: params.end_date,
+      symbol: params.symbol!,
+      start_date: params.start_date!,
+      end_date: params.end_date!,
     },
   });
 

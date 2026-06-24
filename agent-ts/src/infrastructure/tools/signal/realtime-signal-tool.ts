@@ -79,7 +79,7 @@ export const realtimeSignalTool: ToolDefinition = {
     notify: Type.Optional(Type.Boolean({ description: '是否推送通知（早盘扫描模式）', default: false }))
   }),
 
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     const { mode, strategy_ids, symbols, signals, max_gap_pct = 3.0, notify = false } = params;
 
     try {
@@ -111,9 +111,9 @@ export const realtimeSignalTool: ToolDefinition = {
 
           // 格式化输出
           let output = `📊 早盘扫描完成\n\n`;
-          output += `扫描股票数: ${summary.total_scanned}\n`;
-          output += `生成信号数: ${summary.signals_generated}\n`;
-          output += `可执行信号: ${summary.executable}\n\n`;
+          output += `扫描股票数: ${summary!.total_scanned}\n`;
+          output += `生成信号数: ${summary!.signals_generated}\n`;
+          output += `可执行信号: ${summary!.executable}\n\n`;
 
           if (data.length > 0) {
             output += `🎯 可执行信号列表：\n\n`;
@@ -185,13 +185,13 @@ export const realtimeSignalTool: ToolDefinition = {
             },
           });
 
-          const { executable, rejected } = response.data;
+          const { executable, rejected } = (response as any).data;
           const summary = response.summary;
 
           let output = `🔍 信号验证完成\n\n`;
-          output += `总信号数: ${summary.total}\n`;
-          output += `可执行: ${summary.executable} ✅\n`;
-          output += `已拒绝: ${summary.rejected} ❌\n\n`;
+          output += `总信号数: ${summary!.total}\n`;
+          output += `可执行: ${summary!.executable} ✅\n`;
+          output += `已拒绝: ${summary!.rejected} ❌\n\n`;
 
           if (executable.length > 0) {
             output += `✅ 可执行信号：\n\n`;
@@ -242,7 +242,7 @@ export const realtimeSignalTool: ToolDefinition = {
               },
             });
 
-            results.push(...response.data);
+            results.push(...(response as any).data);
           }
 
           let output = `📅 T+1 信号生成完成\n\n`;

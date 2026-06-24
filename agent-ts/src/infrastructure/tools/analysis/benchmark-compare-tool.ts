@@ -33,7 +33,7 @@ export const benchmarkCompareTool: ToolDefinition = {
       description: "基准对应的指数代码"
     }))
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     // 参数验证
     if (params.strategy_return === undefined) {
       return {

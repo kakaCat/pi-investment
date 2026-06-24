@@ -73,7 +73,7 @@ function getEffectiveTools(): ToolDefinition[] {
 function loadProjectSkills(): Skill[] {
   try {
     // @ts-ignore - Type mismatch from SDK update
-    const result = loadSkills({ cwd: paths.root, skillPaths: [join(paths.root, "skills")] });
+    const result = loadSkills({ cwd: paths.root, skillPaths: [join(paths.root, "skills")] } as any);
 
     if ((result as any).warnings?.length > 0) {
       console.warn("⚠️  Skills 加载警告:");
@@ -198,7 +198,7 @@ export async function getSession(context?: SessionContext): Promise<AgentSession
       });
     }
   }
-  return session;
+  return session!;
 }
 
 /**
@@ -267,15 +267,15 @@ export async function agentLoop(messages: Message[]): Promise<void> {
 
     const agentState = getAgentState(agentSession);
     if (agentState) {
-      microCompact(agentState.messages);
+      microCompact(agentState.messages as any);
     }
 
     // 自动记忆保存：接近上下文窗口时异步触发（不阻塞用户流程）
     const totalTokens = getMessages(agentSession).reduce(
-      (sum, msg) => sum + estimateTokens(msg), 0
+      (sum, msg) => sum + estimateTokens(msg as any), 0
     );
     if (totalTokens > 50000 && agentState) {
-      compactConversationHistory(agentState.messages, (m: unknown) => estimateTokens(m as any), {
+      compactConversationHistory(agentState.messages as any, (m: unknown) => estimateTokens(m as any), {
         keepTurns: 3,
         tokenThreshold: 50000,
       });

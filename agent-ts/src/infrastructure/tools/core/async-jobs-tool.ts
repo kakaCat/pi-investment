@@ -28,7 +28,7 @@ export const asyncJobsTool: ToolDefinition = {
       minimum: 1
     }))
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
       const response = await runQuantV2("jobs", "list", params);
       return handleToolResponse({

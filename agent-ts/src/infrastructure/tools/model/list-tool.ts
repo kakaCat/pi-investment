@@ -34,7 +34,7 @@ export const modelListTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: ModelListParams) => {
+  execute: async (_toolCallId: string, params: ModelListParams) => {
     const { status = "all" } = params;
 
     try {

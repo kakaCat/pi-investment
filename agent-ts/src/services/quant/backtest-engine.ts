@@ -1,6 +1,8 @@
 import { QuantStrategy } from './types.js';
 import { SignalGenerator } from './signal-generator.js';
+// @ts-ignore - Module stub needed
 import { FactorLibrary } from './factor-library.js';
+// @ts-ignore - Module stub needed
 import { StockDBService } from '../data/stock-db-service.js';
 
 /**

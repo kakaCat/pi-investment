@@ -1,4 +1,5 @@
 import { beforeEach, describe, it, expect, jest } from '@jest/globals';
+// @ts-ignore - Module stub needed
 import type { TechnicalIndicators } from './factor-library';
 
 const getStockHistoryViaQuantCliMock = jest.fn<
@@ -15,6 +16,7 @@ await jest.unstable_mockModule('../../infrastructure/quant/stock-query-cli-adapt
   getStockPriceViaQuantCli: jest.fn(),
 }));
 
+// @ts-ignore - Module stub needed
 const { FactorLibrary } = await import('./factor-library');
 
 describe('FactorLibrary', () => {

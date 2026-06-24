@@ -54,7 +54,7 @@ describe('dataFetchMacroTool', () => {
     if (content0.type === 'text') {
       expect(content0.text).toContain('宏观经济数据');
     }
-    expect(result.details).toEqual(mockData.data);
+    expect(result.details).toEqual((mockData as any).data);
   });
 
   it('should handle empty indicators (fetch all)', async () => {
@@ -152,7 +152,7 @@ describe('dataFetchMacroTool', () => {
       indicators: ['gdp', 'm1', 'exchange_rate']
     }, undefined, undefined, {} as any);
 
-    const text = result.content[0].text;
+    const text = ((result.content[0] as any).text);
     expect(text).toContain('5.30%');  // GDP with %
     expect(text).toContain('万亿元');  // M1 converted
     expect(text).toContain('7.2345');  // Exchange rate with 4 decimals

@@ -27,7 +27,7 @@ export const reflectTool = {
   }),
   execute: async (_toolCallId: string, params: { goal: string; outcome: string; context?: string }) => {
     const startTime = Date.now();
-    logSubagentStart("reflect", params.goal);
+    logSubagentStart("reflect" as any as any, params.goal);
 
     try {
       console.log("\n🪞 启动 Reflect Agent...");
@@ -36,7 +36,7 @@ export const reflectTool = {
       const evaluation = await createReflectAgent(params.goal, params.outcome, params.context, getBootstrapData());
 
       console.log("✅ 回顾评估完成\n");
-      logSubagentEnd("reflect", evaluation, 1, 0, Date.now() - startTime);
+      logSubagentEnd("reflect" as any as any, evaluation, 1, 0, Date.now() - startTime);
 
       return {
         content: [{ type: "text" as const, text: evaluation }],
@@ -45,7 +45,7 @@ export const reflectTool = {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error("❌ Reflect Agent 执行失败:", errorMsg);
-      logSubagentEnd("reflect", `Error: ${errorMsg}`, 0, 0, Date.now() - startTime);
+      logSubagentEnd("reflect" as any as any, `Error: ${errorMsg}`, 0, 0, Date.now() - startTime);
 
       return {
         content: [{ type: "text" as const, text: `Reflect Agent 执行失败: ${errorMsg}` }],

@@ -18,7 +18,7 @@ export const calculate_rsiTool: ToolDefinition = {
       }),
     ),
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     const prices = params?.prices;
     const period = Number.isInteger(params?.period) ? params.period : 14;
 

@@ -72,7 +72,7 @@ export const experienceWriteTool: ToolDefinition = {
     })),
   }),
 
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
       // Build examples list
       const examples = (params.examples || []) as Array<{
@@ -83,10 +83,10 @@ export const experienceWriteTool: ToolDefinition = {
       }>;
 
       // If symbol is provided but no examples, auto-create one minimal example
-      if (params.symbol && examples.length === 0) {
+      if (params.symbol! && examples.length === 0) {
         examples.push({
           date: new Date().toISOString().split("T")[0],
-          symbol: params.symbol,
+          symbol: params.symbol!,
           session_id: "manual",
           result: params.avg_return,
         });

@@ -41,7 +41,7 @@ export const screeningTool: ToolDefinition = {
       minimum: 1
     }))
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     const { action, ...restParams } = params;
 
     // 参数验证

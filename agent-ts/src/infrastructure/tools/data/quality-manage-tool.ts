@@ -81,7 +81,7 @@ export const dataQualityManageTool: Tool = {
     required: ['action']
   },
 
-  execute: async (_toolCallId, params: DataQualityParams) => {
+  execute: async (_toolCallId: string, params: DataQualityParams) => {
     const { action, symbols, start_date, end_date, mode, max_workers, include_report } = params;
 
     logger.info(`执行数据质量管理: action=${action}, symbols=${symbols?.length || 'all'}`);
@@ -154,16 +154,16 @@ function formatCheckResult(result: any): string {
     '=' .repeat(60),
     '',
     '📈 总体统计：',
-    `  • 检查股票数: ${summary.total_stocks}`,
-    `  • 有问题股票: ${summary.stocks_with_issues}`,
-    `  • 缺失交易日: ${summary.total_missing_days}`,
-    `  • 平均覆盖率: ${summary.avg_coverage_rate}%`,
-    `  • 数据质量分: ${summary.data_quality_score}/100`,
+    `  • 检查股票数: ${summary!.total_stocks}`,
+    `  • 有问题股票: ${summary!.stocks_with_issues}`,
+    `  • 缺失交易日: ${summary!.total_missing_days}`,
+    `  • 平均覆盖率: ${summary!.avg_coverage_rate}%`,
+    `  • 数据质量分: ${summary!.data_quality_score}/100`,
     ''
   ];
 
   // 质量评级
-  const score = summary.data_quality_score;
+  const score = summary!.data_quality_score;
   let grade = '';
   if (score >= 95) grade = '🟢 优秀 (A+)';
   else if (score >= 90) grade = '🟢 良好 (A)';
@@ -224,19 +224,19 @@ function formatDetectResult(result: any): string {
     '=' .repeat(60),
     '',
     '📊 缺失统计：',
-    `  • 检查股票数: ${summary.total_stocks}`,
-    `  • 缺失股票数: ${summary.stocks_with_gaps}`,
-    `  • 总缺失天数: ${summary.total_missing_days}`,
-    `  • 平均覆盖率: ${summary.avg_coverage_rate}%`,
+    `  • 检查股票数: ${summary!.total_stocks}`,
+    `  • 缺失股票数: ${summary!.stocks_with_gaps}`,
+    `  • 总缺失天数: ${summary!.total_missing_days}`,
+    `  • 平均覆盖率: ${summary!.avg_coverage_rate}%`,
     ''
   ];
 
-  if (summary.stocks_with_gaps === 0) {
+  if (summary!.stocks_with_gaps === 0) {
     lines.push('✅ 未发现数据缺失！');
   } else {
     lines.push('📋 缺失详情（覆盖率最低的前10只）：', '');
 
-    const worstStocks = summary.worst_stocks.slice(0, 10);
+    const worstStocks = summary!.worst_stocks.slice(0, 10);
     for (const stock of worstStocks) {
       const gap = gaps[stock.symbol];
       lines.push(
@@ -276,18 +276,18 @@ function formatBackfillResult(result: any): string {
     '=' .repeat(60),
     '',
     '📊 补充统计：',
-    `  • 处理股票数: ${summary.total_stocks}`,
-    `  • 成功股票数: ${summary.success_count}`,
-    `  • 失败股票数: ${summary.failed_count}`,
-    `  • 补充交易日: ${summary.total_days_filled} 天`,
-    `  • 耗时: ${summary.elapsed_time}s`,
+    `  • 处理股票数: ${summary!.total_stocks}`,
+    `  • 成功股票数: ${summary!.success_count}`,
+    `  • 失败股票数: ${summary!.failed_count}`,
+    `  • 补充交易日: ${summary!.total_days_filled} 天`,
+    `  • 耗时: ${summary!.elapsed_time}s`,
     ''
   ];
 
   // 成功率
-  const successRate = (summary.success_count / summary.total_stocks * 100).toFixed(1);
+  const successRate = (summary!.success_count / summary!.total_stocks * 100).toFixed(1);
   let statusIcon = '';
-  if (summary.failed_count === 0) {
+  if (summary!.failed_count === 0) {
     statusIcon = '✅';
   } else if (parseFloat(successRate) >= 90) {
     statusIcon = '🟡';
@@ -327,12 +327,12 @@ function formatValidateResult(result: any): string {
     '=' .repeat(60),
     '',
     '📊 验证统计：',
-    `  • 验证股票数: ${summary.total_stocks}`,
-    `  • 有问题股票: ${summary.stocks_with_issues}`,
+    `  • 验证股票数: ${summary!.total_stocks}`,
+    `  • 有问题股票: ${summary!.stocks_with_issues}`,
     ''
   ];
 
-  if (summary.stocks_with_issues === 0) {
+  if (summary!.stocks_with_issues === 0) {
     lines.push('✅ 所有股票数据验证通过！');
   } else {
     lines.push('⚠️  验证问题列表（前10个）：', '');

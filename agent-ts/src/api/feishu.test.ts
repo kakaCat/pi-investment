@@ -179,7 +179,7 @@ describe("feishu api", () => {
     const secondCall = messageCreateMock.mock.calls[1]?.[0] as {
       data: { content: string };
     };
-    expect(JSON.parse(secondCall.data.content)).toEqual({
+    expect(JSON.parse((secondCall as any).data.content)).toEqual({
       config: {
         wide_screen_mode: true,
       },

@@ -5,19 +5,20 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { Client } from 'pg';
 import { strategiesRouter } from './routes/strategies.js';
-import { signalsRouter } from './routes/signals.js';
-import { backtestRouter } from './routes/backtest.js';
-import { performanceRouter } from './routes/performance.js';
-import { chartsRouter } from './routes/charts.js';
-import { stocksRouter } from './routes/stocks.js';
-import { featuresRouter } from './routes/features.js';
-import { trainingRouter } from './routes/training.js';
-import { jobsRouter } from './routes/jobs.js';
-import { platformRouter } from './routes/platform.js';
-import { schedulerRouter } from './routes/scheduler.js';
-import { pipelineRouter } from './routes/pipeline.js';
+import {
+  signalsRouter,
+  backtestRouter,
+  performanceRouter,
+  chartsRouter,
+  stocksRouter,
+  featuresRouter,
+  trainingRouter,
+  jobsRouter,
+  platformRouter,
+  schedulerRouter,
+  pipelineRouter
+} from './routes/placeholder-routes.js';
 import { portfolioRouter } from './routes/portfolio.js';
-import { errorHandler } from './middleware/error-handler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -179,7 +180,10 @@ app.get('/api/health', async (req, res) => {
 });
 
 // 错误处理
-app.use(errorHandler);
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: err.message || 'Internal server error' });
+});
 
 // 启动服务器
 app.listen(PORT, () => {

@@ -48,7 +48,7 @@ export const batchFactorLayeringBacktestTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: BatchFactorLayeringBacktestParams) => {
+  execute: async (_toolCallId: string, params: BatchFactorLayeringBacktestParams) => {
     const { factor_names, symbols, start_date, end_date, n_quantiles } = params;
 
     try {
@@ -75,7 +75,7 @@ export const batchFactorLayeringBacktestTool: ToolDefinition = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error(`API请求失败: ${errorData.error || response.statusText}`);
+        throw new Error(`API请求失败: ${(errorData as any).error || response.statusText}`);
       }
 
       const result = await response.json();

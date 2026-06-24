@@ -81,7 +81,7 @@ export const taskCreateTool: ToolDefinition = {
       { description: "Tasks to create (one or more)", minItems: 1 }
     )
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
       ensureInitialized();
       const result = taskManager.createBatch(params.tasks);
@@ -125,7 +125,7 @@ export const taskUpdateTool: ToolDefinition = {
       { description: "Tasks to update (one or more)", minItems: 1 }
     )
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
       ensureInitialized();
       const results: string[] = [];
@@ -165,7 +165,7 @@ export const taskListTool: ToolDefinition = {
   parameters: Type.Object({
     task_id: Type.Optional(Type.Integer({ description: "Optional: Task ID to get full details. Omit to list all tasks." }))
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
       ensureInitialized();
       const result = params.task_id !== undefined
@@ -212,7 +212,7 @@ export const taskExecuteAsyncTool: ToolDefinition = {
       { description: "Tasks to execute in parallel", minItems: 1 }
     )
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
       ensureInitialized();
       const bg = getBackgroundManager();
@@ -258,7 +258,7 @@ export const taskCheckBackgroundTool: ToolDefinition = {
   parameters: Type.Object({
     background_id: Type.Optional(Type.String({ description: "Background task ID (8-char UUID)" }))
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
       const bg = getBackgroundManager();
       const result = bg.check(params.background_id);

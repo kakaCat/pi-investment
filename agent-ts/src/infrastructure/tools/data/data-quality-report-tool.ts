@@ -116,7 +116,7 @@ export const dataQualityReportTool: ToolDefinition = {
     }))
   }),
 
-  execute: async (_toolCallId, params: DataQualityParams) => {
+  execute: async (_toolCallId: string, params: DataQualityParams) => {
     try {
       const { action, ...queryParams } = params;
 
@@ -187,11 +187,11 @@ function formatDataQualityResult(
   // 查询条件
   output += `### 查询条件\n\n`;
   output += `- **操作类型**：${getActionName(action)}\n`;
-  if (params.symbol) {
-    output += `- **股票代码**：${params.symbol}\n`;
+  if (params.symbol!) {
+    output += `- **股票代码**：${params.symbol!}\n`;
   }
-  if (params.start_date || params.end_date) {
-    output += `- **时间范围**：${params.start_date || '不限'} 至 ${params.end_date || '不限'}\n`;
+  if (params.start_date! || params.end_date!) {
+    output += `- **时间范围**：${params.start_date! || '不限'} 至 ${params.end_date! || '不限'}\n`;
   }
   output += "\n";
 
@@ -311,25 +311,25 @@ function formatQualityStats(stats: QualityStats): string {
 function formatQualitySummary(summary: any): string {
   let output = `### 🎯 质量概要\n\n`;
 
-  if (summary.overall_score !== undefined) {
-    const gradeEmoji = getGradeEmoji(summary.overall_grade);
-    output += `**总体评分**：${summary.overall_score.toFixed(1)}分\n`;
-    output += `**总体评级**：${gradeEmoji} ${summary.overall_grade}\n`;
+  if (summary!.overall_score !== undefined) {
+    const gradeEmoji = getGradeEmoji(summary!.overall_grade);
+    output += `**总体评分**：${summary!.overall_score.toFixed(1)}分\n`;
+    output += `**总体评级**：${gradeEmoji} ${summary!.overall_grade}\n`;
   }
 
-  if (summary.total_symbols !== undefined) {
-    output += `**覆盖股票**：${summary.total_symbols}只\n`;
+  if (summary!.total_symbols !== undefined) {
+    output += `**覆盖股票**：${summary!.total_symbols}只\n`;
   }
 
-  if (summary.total_days !== undefined) {
-    output += `**覆盖天数**：${summary.total_days}天\n`;
+  if (summary!.total_days !== undefined) {
+    output += `**覆盖天数**：${summary!.total_days}天\n`;
   }
 
   output += "\n";
 
   // 质量判断
-  if (summary.overall_score !== undefined) {
-    const score = summary.overall_score;
+  if (summary!.overall_score !== undefined) {
+    const score = summary!.overall_score;
     let assessment = "";
 
     if (score >= 90) {

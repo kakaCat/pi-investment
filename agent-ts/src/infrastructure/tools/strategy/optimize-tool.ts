@@ -115,9 +115,9 @@ export const strategyOptimizeTool: ToolDefinition = {
       // 准备请求参数（v2 API 使用 camelCase）
       const payload: any = {
         strategyId: params.strategy_id,
-        symbol: params.symbol,
-        startDate: params.start_date || "2025-01-01",
-        endDate: params.end_date || new Date().toISOString().split("T")[0],
+        symbol: params.symbol!,
+        startDate: params.start_date! || "2025-01-01",
+        endDate: params.end_date! || new Date().toISOString().split("T")[0],
         sortBy: params.metric || "sharpe_ratio",
         paramRanges: params.param_grid,
         initialCash: params.initial_capital || 1000000,
@@ -177,7 +177,7 @@ export const strategyOptimizeTool: ToolDefinition = {
       const best = rawResult.results[0]!;
       const data: OptimizeResult = {
         strategy_id: params.strategy_id,
-        symbol: params.symbol,
+        symbol: params.symbol!,
         metric: params.metric || "sharpe",
         total_combinations: rawResult.totalCombinations ?? rawResult.results.length,
         successful: rawResult.successfulCombinations ?? rawResult.results.length,

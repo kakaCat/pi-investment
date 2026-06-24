@@ -298,7 +298,7 @@ export const restartAgentTool: ToolDefinition = {
       }),
     ),
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     const preserveContext = params.preserve_context !== false;
 
     // ── 1. 保存重启上下文 ──────────────────────────────────────────

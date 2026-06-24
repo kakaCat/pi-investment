@@ -35,7 +35,7 @@ export const calibrateTool: ToolDefinition = {
       minimum: 50
     }))
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
       const response = await runQuantV2("calibrate", "run", params);
       return handleToolResponse({

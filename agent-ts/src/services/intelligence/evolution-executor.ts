@@ -166,7 +166,7 @@ async function executeExperienceUpdate(
 
   try {
     // 从建议数据中提取经验模式
-    const pattern = suggestion.data?.pattern;
+    const pattern = (suggestion as any).data?.pattern;
     if (!pattern) {
       logEntry.status = 'error';
       logEntry.error = '缺少经验模式数据';
@@ -248,7 +248,7 @@ async function executeToolAddition(
   const originalBranch = await getCurrentBranch();
 
   try {
-    const toolData = suggestion.data as ToolAddition;
+    const toolData = (suggestion as any).data as ToolAddition;
     if (!toolData?.name || !toolData?.description) {
       throw new Error('缺少工具名称或描述');
     }
@@ -433,7 +433,7 @@ async function executeToolRemoval(
   };
 
   try {
-    const toolData = suggestion.data as ToolRemoval;
+    const toolData = (suggestion as any).data as ToolRemoval;
     if (!toolData?.name) {
       throw new Error('缺少工具名称');
     }
@@ -488,7 +488,7 @@ async function executeParameterAdjustment(
   };
 
   try {
-    const paramData = suggestion.data;
+    const paramData = (suggestion as any).data;
     if (!paramData?.paramName || paramData?.newValue === undefined) {
       throw new Error('缺少参数名称或新值');
     }

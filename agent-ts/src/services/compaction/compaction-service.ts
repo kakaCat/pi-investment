@@ -140,7 +140,7 @@ export function compactConversationHistory(
         const lines = (block as any).text.split("\n");
         let summary = "";
         for (const line of lines) {
-          if (summary.length + line.length > assistantSummaryChars) break;
+          if (summary!.length + line.length > assistantSummaryChars) break;
           summary += (summary ? "\n" : "") + line;
         }
         (block as any).text = summary + `\n\n[已压缩，原文 ${(block as any).text.length} 字符]`;

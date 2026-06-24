@@ -8,7 +8,7 @@ export const test_toolTool: ToolDefinition = {
   parameters: Type.Object({
     input: Type.Optional(Type.String({ description: "测试输入" })),
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     const input = typeof params?.input === "string" ? params.input : "";
     const text = input ? `测试工具执行成功: ${input}` : "测试工具执行成功";
 

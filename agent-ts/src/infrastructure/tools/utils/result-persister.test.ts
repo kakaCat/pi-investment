@@ -73,7 +73,7 @@ describe('ToolResultPersister', () => {
 
     const readResult = await persister.readResult(saveResult.filePath);
     expect(readResult.toolName).toBe('test_tool');
-    expect(readResult.data).toEqual({ message: 'hello' });
+    expect((readResult as any).data).toEqual({ message: 'hello' });
   });
 
   it('应该列出所有结果', async () => {
@@ -131,8 +131,8 @@ describe('handleToolResponse', () => {
       threshold: 1024,
     });
 
-    expect(response.content[0].text).toContain('123');
-    expect(response.content[0].text).not.toContain('数据已保存');
+    expect(((response.content[0] as any).text)).toContain('123');
+    expect(((response.content[0] as any).text)).not.toContain('数据已保存');
   });
 
   it('大数据应该持久化', async () => {
@@ -146,9 +146,9 @@ describe('handleToolResponse', () => {
       threshold: 1024, // 1KB threshold
     });
 
-    expect(response.content[0].text).toContain('数据已保存');
-    expect(response.content[0].text).toContain('.json');
-    expect(response.content[0].text).toContain('Read');
+    expect(((response.content[0] as any).text)).toContain('数据已保存');
+    expect(((response.content[0] as any).text)).toContain('.json');
+    expect(((response.content[0] as any).text)).toContain('Read');
   });
 
   it('应该使用自定义格式化函数', async () => {
@@ -159,7 +159,7 @@ describe('handleToolResponse', () => {
       threshold: 1024,
     });
 
-    expect(response.content[0].text).toBe('总数: 10');
+    expect(((response.content[0] as any).text)).toBe('总数: 10');
   });
 });
 
@@ -173,7 +173,7 @@ describe('wrapToolExecution', () => {
     );
 
     const response = await executor('tool-call-id', { value: 5 });
-    expect(response.content[0].text).toContain('10');
+    expect(((response.content[0] as any).text)).toContain('10');
   });
 
   it('应该捕获并格式化错误', async () => {
@@ -185,8 +185,8 @@ describe('wrapToolExecution', () => {
     );
 
     const response = await executor('tool-call-id', {});
-    expect(response.content[0].text).toContain('执行失败');
-    expect(response.content[0].text).toContain('模拟错误');
+    expect(((response.content[0] as any).text)).toContain('执行失败');
+    expect(((response.content[0] as any).text)).toContain('模拟错误');
   });
 });
 

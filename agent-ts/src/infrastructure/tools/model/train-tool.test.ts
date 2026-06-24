@@ -13,7 +13,7 @@ const { modelTrainTool } = await import('./train-tool.js');
 
 // Helper to extract text from tool result
 function getResponseText(result: any): string {
-  return result.content[0].text;
+  return ((result.content[0] as any).text);
 }
 
 describe('model_train tool', () => {
@@ -516,9 +516,9 @@ describe('model_train tool', () => {
       const result = await (modelTrainTool.execute as any)('test-call-id', {});
 
       const response = JSON.parse(getResponseText(result));
-      expect(response.data).toBeDefined();
-      expect(response.data.n_samples).toBeGreaterThan(0);
-      expect(response.data.n_features).toBeGreaterThan(0);
+      expect((response as any).data).toBeDefined();
+      expect((response as any).data.n_samples).toBeGreaterThan(0);
+      expect((response as any).data.n_features).toBeGreaterThan(0);
     });
 
     it('should include cv_results in report', async () => {

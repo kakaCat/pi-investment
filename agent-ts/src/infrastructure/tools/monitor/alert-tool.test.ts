@@ -378,6 +378,7 @@ describe('monitorAlertTool - Business Logic', () => {
     });
 
     it('should handle service errors gracefully', async () => {
+// @ts-ignore - Module stub needed
       const { sendNotificationTool } = await import('../../../tools/notification-tools.js');
       (sendNotificationTool.execute as any).mockRejectedValueOnce(new Error('Network error'));
 

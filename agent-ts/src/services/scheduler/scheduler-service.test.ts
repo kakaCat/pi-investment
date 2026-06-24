@@ -95,7 +95,7 @@ describe("SchedulerService", () => {
         compensationMaxAttempts: 1,
       }),
     ]);
-    const executor = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const executor = jest.fn<() => Promise<void>>().mockResolvedValue(undefined as any);
     const service = new SchedulerService({
       store,
       executor: async () => executor(),
@@ -138,7 +138,7 @@ describe("SchedulerService", () => {
       createdAt: "2026-05-20T00:31:00.000Z",
       updatedAt: "2026-05-20T00:31:00.000Z",
     });
-    const executor = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const executor = jest.fn<() => Promise<void>>().mockResolvedValue(undefined as any);
     const service = new SchedulerService({
       store,
       executor: async () => executor(),

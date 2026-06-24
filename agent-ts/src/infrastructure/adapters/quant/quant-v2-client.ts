@@ -414,7 +414,7 @@ export async function runQuantV2<T = unknown>(
       ok: raw.success !== false,
       command,
       params,
-      data: (raw.data ?? raw) as T | undefined,
+      data: ((raw as any).data ?? raw) as T | undefined,
       warnings: raw.warnings ?? [],
       error: raw.error
         ? { message: typeof raw.error === "string" ? raw.error : JSON.stringify(raw.error) }
@@ -605,13 +605,13 @@ export async function getFinancials(
     };
   }>(url);
 
-  if (!response.success || !response.data || !response.data.data) {
+  if (!response.success || !(response as any).data || !(response as any).data.data) {
     throw new QuantV2Error('财务数据获取失败', 500);
   }
 
-  const financialData = response.data.data;
-  const dataSource = response.data.source;
-  const dataCached = response.data.cached;
+  const financialData = (response as any).data.data;
+  const dataSource = (response as any).data.source;
+  const dataCached = (response as any).data.cached;
 
   // 转换为 FinancialData 格式（取最新一期数据）
   const result: FinancialData = {
@@ -710,7 +710,7 @@ export async function analyzeFactors(
   if (!params.factors || params.factors.length === 0) {
     throw new QuantV2Error('因子列表不能为空', 400);
   }
-  if (!params.start_date || !params.end_date) {
+  if (!params.start_date! || !params.end_date!) {
     throw new QuantV2Error('开始日期和结束日期不能为空', 400);
   }
 
@@ -735,7 +735,7 @@ export async function analyzeFactors(
   }>(url, { method: 'POST', body: params });
 
   // 转换因子数据（支持 alphalens 和 fallback 两种格式）
-  const factors: FactorMetrics[] = (response.data.factors || []).map(f => {
+  const factors: FactorMetrics[] = ((response as any).data.factors || []).map(f => {
     // 基础字段
     const factor: FactorMetrics = {
       name: f.name,
@@ -784,14 +784,13 @@ export async function analyzeFactors(
     return factor;
   });
 
-  return {
-    success: response.data.success,
+  return { success:  (response as any).data.success,
     factors,
-    method: response.data.method,
-    period: response.data.period,
-    universe_size: response.data.universe_size,
-    note: response.data.note,
-    warning: response.data.warning,
+    method: (response as any).data.method,
+    period: (response as any).data.period,
+    universe_size: (response as any).data.universe_size,
+    note: (response as any).data.note,
+    warning: (response as any).data.warning,
   };
 }
 
@@ -853,22 +852,21 @@ export async function generateFactorReport(params: {
     method: 'POST',
     body: {
       factors: params.factors,
-      start_date: params.start_date,
-      end_date: params.end_date,
+      start_date: params.start_date!,
+      end_date: params.end_date!,
       universe: params.universe,
       output_dir: params.output_dir,
     },
   });
 
-  if (!response.success || !response.data) {
-    return {
-      success: false,
+  if (!response.success || !(response as any).data) {
+    return { success:  false,
       error: response.error || '生成报告失败',
     };
   }
 
   // 转换响应（支持 camelCase 和 snake_case）
-  const reports = response.data.reports.map((r) => ({
+  const reports = (response as any).data.reports.map((r: any) => ({
     factor: r.factor,
     success: r.success,
     report_path: r.report_path || r.reportPath,
@@ -877,15 +875,14 @@ export async function generateFactorReport(params: {
     error: r.error,
   }));
 
-  return {
-    success: true,
+  return { success:  true,
     reports,
-    total: response.data.total,
-    success_count: response.data.success_count || response.data.successCount,
-    failed_count: response.data.failed_count || response.data.failedCount,
-    method: response.data.method,
-    period: response.data.period,
-    universe_size: response.data.universe_size || response.data.universeSize,
+    total: (response as any).data.total,
+    success_count: (response as any).data.success_count || (response as any).data.successCount,
+    failed_count: (response as any).data.failed_count || (response as any).data.failedCount,
+    method: (response as any).data.method,
+    period: (response as any).data.period,
+    universe_size: (response as any).data.universe_size || (response as any).data.universeSize,
   };
 }
 
@@ -911,7 +908,7 @@ export async function scanOpportunities(
 export async function algoExecute(
   params: AlgoExecuteParams,
 ): Promise<AlgoOrder> {
-  if (!params.symbol || params.symbol.trim() === '') {
+  if (!params.symbol! || params.symbol!.trim() === '') {
     throw new QuantV2Error('股票代码不能为空', 400);
   }
   if (!params.side || !['buy', 'sell'].includes(params.side)) {
@@ -1086,11 +1083,11 @@ export async function getKlineHistory(
   };
 
   if (startDate) {
-    params.start_date = convertDate(startDate, 'start_date');
+    params.start_date! = convertDate(startDate, 'start_date');
   }
 
   if (endDate) {
-    params.end_date = convertDate(endDate, 'end_date');
+    params.end_date! = convertDate(endDate, 'end_date');
   }
 
   const queryString = buildQueryString(params);
@@ -1101,7 +1098,7 @@ export async function getKlineHistory(
 
     // 后端返回格式: { data: { count: number, data: Array<...> } }
     // 需要解包嵌套结构
-    const rawData = response.data;
+    const rawData = (response as any).data;
     const klineData: KlineData = {
       success: response.success ?? true,
       data: rawData?.data ?? [],
@@ -1111,15 +1108,15 @@ export async function getKlineHistory(
     // 如果没有数据或请求失败，直接返回
     if (
       !klineData.success ||
-      !klineData.data ||
-      klineData.data.length === 0
+      !(klineData as any).data ||
+      (klineData as any).data.length === 0
     ) {
       return klineData;
     }
 
     // ─── 数据质量控制流程 ───
 
-    const originalData = klineData.data;
+    const originalData = (klineData as any).data;
     const originalCount = originalData.length;
 
     // 1. 数据验证
@@ -1142,7 +1139,7 @@ export async function getKlineHistory(
       cleaningResult = cleanKlineData(originalData, validationResult);
 
       // 使用清洗后的数据
-      klineData.data = cleaningResult.cleaned;
+      (klineData as any).data = cleaningResult.cleaned;
       klineData.count = cleaningResult.cleaned.length;
 
       // 在响应中添加清洗信息
@@ -1180,8 +1177,8 @@ export async function getKlineHistory(
         symbol,
         period,
         requestedRange: {
-          startDate: params.start_date as string,
-          endDate: params.end_date as string,
+          startDate: params.start_date! as string,
+          endDate: params.end_date! as string,
           limit: params.limit as number,
         },
         validation: validationResult,
@@ -1210,8 +1207,7 @@ export async function getKlineHistory(
     return klineData;
   } catch (error) {
     if (error instanceof QuantV2Error) {
-      return {
-        success: false,
+      return { success:  false,
         symbol,
         period,
         count: 0,
@@ -1525,7 +1521,7 @@ export async function executeStrategy(
     );
   }
 
-  return result.data;
+  return (result as any).data;
 }
 
 /**
@@ -1572,7 +1568,7 @@ export async function batchExecuteStrategy(
       const item = JSON.parse(line);
 
       if (item.type === 'signal') {
-        signals.push(item.data);
+        signals.push((item as any).data);
       } else if (item.type === 'error') {
         errors.push({
           symbol: item.symbol,
@@ -1635,7 +1631,7 @@ export async function pipelineExecuteStrategy(
     );
   }
 
-  return result.data;
+  return (result as any).data;
 }
 
 // ── Stock Pool Management ──
@@ -1865,7 +1861,7 @@ export async function comboBacktest(
     throw new Error(data.error || 'Combo backtest failed');
   }
 
-  return data.data;
+  return (data as any).data;
 }
 
 /**
@@ -1894,14 +1890,14 @@ export async function calculateRiskMetrics(
     },
   });
 
-  if (!response.success || !response.data) {
+  if (!response.success || !(response as any).data) {
     throw new QuantV2Error(
       response.error || '风险指标计算失败',
       500
     );
   }
 
-  return response.data;
+  return (response as any).data;
 }
 
 
@@ -1932,19 +1928,19 @@ export async function optimizePortfolio(
       risk_aversion: params.risk_aversion,
       risk_free_rate: params.risk_free_rate,
       constraints: params.constraints,
-      start_date: params.start_date,
-      end_date: params.end_date,
+      start_date: params.start_date!,
+      end_date: params.end_date!,
     },
   });
 
-  if (!response.success || !response.data) {
+  if (!response.success || !(response as any).data) {
     throw new QuantV2Error(
       response.error || '组合优化失败',
       500
     );
   }
 
-  return response.data;
+  return (response as any).data;
 }
 
 // ========================================
@@ -1984,8 +1980,8 @@ export async function checkDataQuality(params: {
 }> {
   const queryParams = new URLSearchParams();
   if (params.symbols) queryParams.append('symbols', params.symbols.join(','));
-  if (params.start_date) queryParams.append('start_date', params.start_date);
-  if (params.end_date) queryParams.append('end_date', params.end_date);
+  if (params.start_date!) queryParams.append('start_date', params.start_date!);
+  if (params.end_date!) queryParams.append('end_date', params.end_date!);
   if (params.include_report) queryParams.append('include_report', 'true');
 
   const url = `${V2_API_BASE}/api/data/check?${queryParams.toString()}`;
@@ -2036,8 +2032,8 @@ export async function detectMissingData(params: {
     method: 'POST',
     body: {
       symbols: params.symbols,
-      start_date: params.start_date,
-      end_date: params.end_date,
+      start_date: params.start_date!,
+      end_date: params.end_date!,
     },
   });
 
@@ -2072,8 +2068,8 @@ export async function backfillMissingData(params: {
     method: 'POST',
     body: {
       symbols: params.symbols,
-      start_date: params.start_date,
-      end_date: params.end_date,
+      start_date: params.start_date!,
+      end_date: params.end_date!,
       mode: params.mode || 'auto',
       max_workers: params.max_workers || 8,
     },
@@ -2120,8 +2116,8 @@ export async function validateDataQuality(params: {
     method: 'POST',
     body: {
       symbols: params.symbols,
-      start_date: params.start_date,
-      end_date: params.end_date,
+      start_date: params.start_date!,
+      end_date: params.end_date!,
     },
   });
 

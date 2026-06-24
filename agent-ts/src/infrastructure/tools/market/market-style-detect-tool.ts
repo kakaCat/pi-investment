@@ -52,7 +52,7 @@ export const marketStyleDetectTool: ToolDefinition = {
     }))
   }),
 
-  execute: async (_toolCallId, params: MarketStyleParams) => {
+  execute: async (_toolCallId: string, params: MarketStyleParams) => {
     try {
       const { lookback_days = 60 } = params;
 
@@ -113,7 +113,7 @@ function formatMarketStyleResult(
   output += `- **分析日期**：${new Date().toISOString().split('T')[0]}\n\n`;
 
   // 当前市场风格
-  if (data.current_style) {
+  if ((data as any).current_style) {
     output += `### 🎯 当前市场风格\n\n`;
 
     const styleInfo = getStyleInfo(data.current_style);
@@ -168,9 +168,9 @@ function formatMarketStyleResult(
   if (data.recommendation || data.current_style) {
     output += `### 💡 投资建议\n\n`;
 
-    if (data.recommendation) {
+    if ((data as any).recommendation) {
       output += `${data.recommendation}\n\n`;
-    } else if (data.current_style) {
+    } else if ((data as any).current_style) {
       const advice = getStyleAdvice(data.current_style);
       output += advice.map(a => `- ${a}`).join('\n');
       output += "\n\n";
@@ -178,9 +178,9 @@ function formatMarketStyleResult(
   }
 
   // 策略建议
-  if (data.current_style) {
+  if ((data as any).current_style) {
     output += `### 🎲 策略建议\n\n`;
-    const strategies = getRecommendedStrategies(data.current_style);
+    const strategies: any[] = getRecommendedStrategies(data.current_style);
     output += `**适合策略**：\n`;
     output += strategies.map(s => `- ${s}`).join('\n');
     output += "\n\n";

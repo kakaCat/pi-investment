@@ -32,7 +32,7 @@ export const backtestStatsTool: ToolDefinition = {
     }
   },
 
-  execute: async (_toolCallId, params: BacktestStatsParams) => {
+  execute: async (_toolCallId: string, params: BacktestStatsParams) => {
     try {
       const queryParams: Record<string, string> = {};
 
@@ -43,13 +43,13 @@ export const backtestStatsTool: ToolDefinition = {
       const response = await client.get('/api/backtest/stats', queryParams);
 
       if (!response.success) {
-        return `❌ 查询失败: ${response.error}`;
+        return { content: [{ type: "text" as const, text: `❌ 查询失败: ${response.error}` }] };
       }
 
-      const stats = response.data;
+      const stats = (response as any).data;
 
       if (stats.totalBacktests === 0) {
-        return `📊 未找到回测统计数据\n\n${params.strategy_name ? `策略 "${params.strategy_name}" 还没有回测记录。` : '系统中还没有任何回测记录。'}`;
+        return { content: [{ type: "text" as const, text: `📊 未找到回测统计数据\n\n${params.strategy_name ? `策略 "${params.strategy_name}" 还没有回测记录。` : '系统中还没有任何回测记录。'}` }] };
       }
 
       // 格式化输出
@@ -96,7 +96,7 @@ export const backtestStatsTool: ToolDefinition = {
       return output;
 
     } catch (error: any) {
-      return `❌ 查询统计信息失败: ${error.message}`;
+      return { content: [{ type: "text" as const, text: `❌ 查询统计信息失败: ${error.message}` }] };
     }
   }
 };

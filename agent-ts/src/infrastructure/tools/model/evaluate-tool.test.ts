@@ -124,10 +124,10 @@ describe('model_evaluate tool', () => {
       const result = await (modelEvaluateTool.execute as any)('test-call-id', {});
 
       const response = JSON.parse(getResponseText(result));
-      expect(response.data).toBeDefined();
-      expect(response.data.n_samples).toBe(5000);
-      expect(response.data.n_features).toBe(62);
-      expect(response.data.positive_ratio).toBe(0.35);
+      expect((response as any).data).toBeDefined();
+      expect((response as any).data.n_samples).toBe(5000);
+      expect((response as any).data.n_features).toBe(62);
+      expect((response as any).data.positive_ratio).toBe(0.35);
     });
   });
 

@@ -98,7 +98,7 @@ function formatSentimentData(data: SentimentData): string {
   }
 
   // 情绪等级（如果有单独字段）
-  if (data.sentiment_level) {
+  if ((data as any).sentiment_level) {
     output += `**情绪等级**：${getSentimentEmoji(data.sentiment_level)} ${data.sentiment_level}\n\n`;
   }
 
@@ -110,7 +110,7 @@ function formatSentimentData(data: SentimentData): string {
   }
 
   // 2. 涨跌统计
-  if (data.advance_decline) {
+  if ((data as any).advance_decline) {
     output += "### 📈 涨跌统计\n\n";
     const { advancing, declining, unchanged } = data.advance_decline;
     const total = advancing + declining + unchanged;

@@ -27,7 +27,7 @@ export const dailyReportTool: ToolDefinition = {
       description: "输出目录（仅 generate 模式）"
     }))
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     const { action, date, output_dir } = params;
 
     // 参数验证

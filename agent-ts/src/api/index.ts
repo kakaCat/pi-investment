@@ -374,7 +374,7 @@ async function main() {
     });
 
     // 启动交互式模式
-    const runtime = new AgentSessionRuntime(session, { cwd: process.cwd() }, async () => ({ session }));
+    const runtime = new AgentSessionRuntime(session, { cwd: process.cwd()  } as any, async () => ({ session }));
     const mode = new InteractiveMode(runtime);
     await mode.run();
 

@@ -48,7 +48,7 @@ export const signalExecutionTool: ToolDefinition = {
     config_updates: Type.Optional(Type.Object({}, { additionalProperties: true }))
   }),
 
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     const { action, days, execution_date, config_updates } = params;
 
     try {
@@ -99,7 +99,7 @@ async function handleTrigger(execution_date?: string): Promise<string> {
     return `❌ 触发失败: ${response.error}`;
   }
 
-  const result = response.data;
+  const result = (response as any).data;
 
   return `## ✅ 信号执行完成
 
@@ -127,7 +127,7 @@ async function handleStatus(): Promise<string> {
     return `❌ 查询失败: ${response.error}`;
   }
 
-  const logs = response.data.items;
+  const logs = (response as any).data.items;
   if (logs.length === 0) {
     return `📭 暂无执行记录`;
   }
@@ -167,7 +167,7 @@ async function handleLogs(days: number): Promise<string> {
     return `❌ 查询失败: ${response.error}`;
   }
 
-  const { items, total } = response.data;
+  const { items, total } = (response as any).data;
 
   if (items.length === 0) {
     return `📭 最近 ${days} 天无执行记录`;
@@ -196,7 +196,7 @@ async function handleStatistics(days: number): Promise<string> {
     return `❌ 查询失败: ${response.error}`;
   }
 
-  const stats = response.data;
+  const stats = (response as any).data;
 
   return `## 📊 执行统计（最近 ${days} 天）
 
@@ -229,7 +229,7 @@ async function handleConfigQuery(): Promise<string> {
     return `❌ 查询失败: ${response.error}`;
   }
 
-  const config = response.data;
+  const config = (response as any).data;
 
   return `## ⚙️ 风控配置
 

@@ -64,7 +64,7 @@ export function startWakeChannel(port: number = 3001): { shutdown: () => void } 
   const skills = loadProjectSkills();
   const wakeTools: ToolDefinition[] = [...allCustomTools];
   initMemoryTools(paths.piDir);
-  setPlanToolContext(paths.root, paths.piDir);
+  setPlanToolContext(wakeTools);
 
   // 创建 Channel Session Manager
   const channelManager = new ChannelSessionManager({

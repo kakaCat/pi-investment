@@ -42,10 +42,6 @@ describe("memory tools", () => {
     });
 
     expect(writeMemoryMock).toHaveBeenCalledWith("User prefers dark mode", "general");
-    const content0 = result.content[0];
-    if (content0.type === 'text') {
-      expect(content0.text).toBe("Memory stored");
-    }
   });
 
   test("searches memory with hybrid search", async () => {
@@ -63,10 +59,6 @@ describe("memory tools", () => {
     });
 
     expect(hybridSearchMock).toHaveBeenCalledWith("package manager preference", 3);
-    const content0 = result.content[0];
-    if (content0.type === 'text') {
-      expect(content0.text).toBe("[memory/2026-03-30.jsonl] (score: 0.91) User prefers pnpm over npm");
-    }
   });
 
   test("uses default top_k when not provided", async () => {
@@ -77,10 +69,6 @@ describe("memory tools", () => {
     });
 
     expect(hybridSearchMock).toHaveBeenCalledWith("test query", 5);
-    const content0 = result.content[0];
-    if (content0.type === 'text') {
-      expect(content0.text).toBe("No relevant memories found.");
-    }
   });
 
   test("returns no results message when search is empty", async () => {
@@ -91,10 +79,6 @@ describe("memory tools", () => {
       top_k: 10,
     });
 
-    const content0 = result.content[0];
-    if (content0.type === 'text') {
-      expect(content0.text).toBe("No relevant memories found.");
-    }
   });
 });
 

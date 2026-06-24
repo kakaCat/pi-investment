@@ -265,8 +265,8 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
     const summary = await positionAdapter.getSummary();
     const positions = await positionAdapter.list({ status: 'open' });
     portfolioSnapshot = {
-      total_pnl: summary.totalPnl ?? 0,
-      total_pnl_pct: summary.totalPnlPct ?? 0,
+      total_pnl: summary!.totalPnl ?? 0,
+      total_pnl_pct: summary!.totalPnlPct ?? 0,
       holdings: positions.map(p => ({
         symbol: p.symbol,
         name: p.name,

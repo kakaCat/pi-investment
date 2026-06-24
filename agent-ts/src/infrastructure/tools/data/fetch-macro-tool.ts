@@ -73,7 +73,7 @@ export const dataFetchMacroTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: MacroParams) => {
+  execute: async (_toolCallId: string, params: MacroParams) => {
     try {
       const { indicators, start_date, end_date } = params;
 

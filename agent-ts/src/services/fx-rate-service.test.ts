@@ -8,8 +8,8 @@ import { chinaDate, chinaDateTime } from "../utils/china-time.js";
 jest.mock("../domain/cache/core/cache-manager.js", () => ({
   CacheManager: {
     getInstance: jest.fn(() => ({
-      get: jest.fn().mockResolvedValue(null),
-      set: jest.fn().mockResolvedValue(undefined),
+      get: jest.fn().mockResolvedValue(null as any),
+      set: jest.fn().mockResolvedValue(undefined as any),
     })),
   },
 }));

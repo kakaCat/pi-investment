@@ -60,7 +60,7 @@ describe('data_fetch_kline tool', () => {
 
       const response = JSON.parse(getResponseText(result));
       expect(response.symbol).toBe('600519');
-      expect(response.data).toHaveLength(2);
+      expect((response as any).data).toHaveLength(2);
     });
   });
 

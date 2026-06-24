@@ -100,7 +100,7 @@ export function setSystemPrompt(session: AgentSession | any, prompt: string): vo
 /**
  * Get the current system prompt
  */
-export function getSystemPrompt(session: AgentSession | any): string | undefined {
+export function getSystemPrompt(session: AgentSession | any): string {
   if (hasAgentState(session)) {
     return (session as any).agent.state.systemPrompt;
   }
@@ -138,12 +138,12 @@ export function normalizeAssistantUsages(session: AgentSession | any): void {
   for (const message of getMessages(session)) {
     if (message?.role !== "assistant") continue;
 
-    const usage = message.usage ?? {};
+    const usage: any = message.usage ?? {};
     const input = usage.input ?? usage.input_tokens ?? 0;
     const output = usage.output ?? usage.output_tokens ?? 0;
     const cacheRead = usage.cacheRead ?? usage.cache_read ?? 0;
     const cacheWrite = usage.cacheWrite ?? usage.cache_write ?? 0;
-    const cost = usage.cost ?? {};
+    const cost: any = usage.cost ?? {};
 
     const normalizedUsage: UsageInfo = {
       input,

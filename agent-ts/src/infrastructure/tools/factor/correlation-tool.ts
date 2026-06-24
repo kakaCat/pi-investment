@@ -65,7 +65,7 @@ export const factorCorrelationTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: FactorCorrelationParams) => {
+  execute: async (_toolCallId: string, params: FactorCorrelationParams) => {
     const { factors, symbols, start_date, end_date, method = "pearson" } = params;
 
     // 参数验证

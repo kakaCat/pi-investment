@@ -308,7 +308,7 @@ function _formatResult(action: string, data: any): string {
         text += `    ... 还有 ${members.length - 10} 只股票\n`;
       }
 
-      if (data.filter_template) {
+      if ((data as any).filter_template) {
         text += `\n  筛选条件: ${JSON.stringify(data.filter_template)}`;
       }
       if (data.last_validation?.best_strategy) {
@@ -320,13 +320,13 @@ function _formatResult(action: string, data: any): string {
 
     case "get_member": {
       let text = `📋 成员详情: ${data.symbol} ${data.name || ''}\n`;
-      if (data.description) {
+      if ((data as any).description) {
         text += `  描述: ${data.description}\n`;
       }
-      if (data.buy_point) {
+      if ((data as any).buy_point) {
         text += `  关注买点: ${data.buy_point}\n`;
       }
-      if (data.sell_point) {
+      if ((data as any).sell_point) {
         text += `  关注卖点: ${data.sell_point}\n`;
       }
       if (data.tags && data.tags.length > 0) {
@@ -376,10 +376,10 @@ function _formatResult(action: string, data: any): string {
       text += `  扫描股票: ${data.total_symbols}只\n`;
       text += `  扫描时间: ${data.scanned_at}\n\n`;
       text += `📊 信号统计:\n`;
-      text += `  🟢 买入: ${summary.buy || 0}只\n`;
-      text += `  🔴 卖出: ${summary.sell || 0}只\n`;
-      text += `  ⚪ 持币观望: ${summary.hold || 0}只\n`;
-      text += `  ⚠️ 错误: ${summary.error || 0}只\n`;
+      text += `  🟢 买入: ${summary!.buy || 0}只\n`;
+      text += `  🔴 卖出: ${summary!.sell || 0}只\n`;
+      text += `  ⚪ 持币观望: ${summary!.hold || 0}只\n`;
+      text += `  ⚠️ 错误: ${summary!.error || 0}只\n`;
 
       const buySignals = data.buy_signals || [];
       if (buySignals.length > 0) {

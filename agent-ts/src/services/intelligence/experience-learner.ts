@@ -49,7 +49,7 @@ export async function generateExperienceSummary(
 export async function loadExperienceSummary(
   piDir: string
 ): Promise<ExperienceSummary | null> {
-  const experiencePath = path.join(piDir, 'evolution/experience-summary.json');
+  const experiencePath = path.join(piDir, 'evolution/experience-summary!.json');
 
   if (!existsSync(experiencePath)) {
     return null;
@@ -71,7 +71,7 @@ export async function saveExperienceSummary(
   summary: ExperienceSummary,
   piDir: string
 ): Promise<void> {
-  const experiencePath = path.join(piDir, 'evolution/experience-summary.json');
+  const experiencePath = path.join(piDir, 'evolution/experience-summary!.json');
 
   try {
     await fs.writeFile(experiencePath, JSON.stringify(summary, null, 2), 'utf-8');
@@ -231,7 +231,7 @@ function extractLearnings(history: EvolutionHistory[]): Learning[] {
       rule: '及时移除低胜率工具（<50%）能减少噪音，提升决策质量',
       confidence: 0.75,
       evidence: removedTools.map(t => t.id),
-      examples: removedTools.map(t => `移除 ${t.data?.toolName || t.data?.name || 'unknown'}`),
+      examples: removedTools.map(t => `移除 ${(t as any).data?.toolName || (t as any).data?.name || 'unknown'}`),
     });
   }
 

@@ -81,7 +81,7 @@ export const factorAnalyzeTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: FactorAnalyzeParams) => {
+  execute: async (_toolCallId: string, params: FactorAnalyzeParams) => {
     const { factors, start_date, end_date, universe, use_alphalens = true, generate_report = false, output_dir } = params;
 
     try {

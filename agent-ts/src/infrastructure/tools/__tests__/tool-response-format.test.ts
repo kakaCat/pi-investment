@@ -29,7 +29,7 @@ describe('Tool Response Format', () => {
     expect(Array.isArray(response.content)).toBe(true);
     expect(response.content.length).toBeGreaterThan(0);
     expect(response.content[0]).toHaveProperty('type', 'text');
-    expect(response.content[0].text).toContain('Test error');
+    expect(((response.content[0] as any).text)).toContain('Test error');
   });
 
   it('should have details property (not undefined)', async () => {

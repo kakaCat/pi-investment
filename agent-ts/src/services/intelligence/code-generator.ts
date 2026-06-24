@@ -100,11 +100,11 @@ function buildCodeGenPrompt(toolSpec: ToolAddition, exampleCode: string): string
    - label: "${toolSpec.label || toolSpec.name}"
    - description: "${toolSpec.description}"
    - parameters: Type.Object({ ... })
-   - execute: async (_toolCallId, params: any) => { ... }
+   - execute: async (_toolCallId: string, params: any) => { ... }
 
 4. **execute 函数签名**:
    \`\`\`typescript
-   execute: async (_toolCallId, params: any) => {
+   execute: async (_toolCallId: string, params: any) => {
      // 实现逻辑
      return {
        content: [{ type: "text" as const, text: "结果文本" }],

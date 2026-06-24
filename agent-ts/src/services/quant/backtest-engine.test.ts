@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { BacktestEngine, BacktestResult } from './backtest-engine.js';
+// @ts-ignore - Module stub needed
 import { QuantService } from './quant-service.js';
 import { QuantStrategy } from './types.js';
 import * as fs from 'fs';

@@ -29,7 +29,7 @@ export const signalPushTool: ToolDefinition = {
     ], { description: '风险等级' })),
     confidence: Type.Optional(Type.Number({ description: '信号置信度（0-1）' }))
   }),
-  execute: async (_toolCallId, params: any) => {
+  execute: async (_toolCallId: string, params: any) => {
     try {
       // 调用后端推送API
       const apiUrl = process.env.QUANTSYS_V2_API_URL || 'http://127.0.0.1:5001';

@@ -283,16 +283,16 @@ export async function extractSessionSummary(
     const lower = content.toLowerCase();
 
     if (lower.includes("decided") || lower.includes("chose") || lower.includes("选择")) {
-      summary.keyDecisions.push(content.slice(0, 200));
+      summary!.keyDecisions.push(content.slice(0, 200));
     }
     if (lower.includes("prefer") || lower.includes("like") || lower.includes("喜欢")) {
-      summary.userPreferences.push(content.slice(0, 200));
+      summary!.userPreferences.push(content.slice(0, 200));
     }
     if (lower.includes("todo") || lower.includes("未完成") || lower.includes("继续")) {
-      summary.unfinishedTasks.push(content.slice(0, 200));
+      summary!.unfinishedTasks.push(content.slice(0, 200));
     }
     if (lower.includes("learned") || lower.includes("fixed") || lower.includes("解决")) {
-      summary.lessonsLearned.push(content.slice(0, 200));
+      summary!.lessonsLearned.push(content.slice(0, 200));
     }
   }
 

@@ -62,7 +62,7 @@ export const modelTrainTool: ToolDefinition = {
     )
   }),
 
-  execute: async (_toolCallId, params: TrainModelParams) => {
+  execute: async (_toolCallId: string, params: TrainModelParams) => {
     const {
       model_type = "xgboost",
       days = 180,

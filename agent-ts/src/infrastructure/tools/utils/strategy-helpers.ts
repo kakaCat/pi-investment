@@ -46,10 +46,10 @@ export async function resolveStrategyId(strategyIdOrName: string): Promise<strin
 
     // 尝试多个字段获取策略名称
     const strategyName =
-      data.data?.name ||
-      data.data?.strategy_name ||
-      data.data?.strategy_type ||
-      data.data?.strategyType;
+      (data as any).data?.name ||
+      (data as any).data?.strategy_name ||
+      (data as any).data?.strategy_type ||
+      (data as any).data?.strategyType;
 
     if (!strategyName) {
       throw new Error(`策略ID ${strategyIdOrName} 缺少名称字段`);

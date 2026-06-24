@@ -16,7 +16,7 @@ export interface ToolDefinition extends BaseToolDefinition {
 }
 import { createReadTool } from "@mariozechner/pi-coding-agent";
 
-const readTool = createReadTool();
+const readTool = createReadTool(process.cwd());
 
 // ===== 六层量化投资架构工具 =====
 // L1 数据管道

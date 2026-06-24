@@ -41,20 +41,20 @@ export function parseSessionEvents(
     switch (event.event) {
       case 'user_message':
         if (!userQuery) {
-          userQuery = event.data?.content || '';
+          userQuery = (event as any).data?.content || '';
         }
         break;
 
       case 'tool_call':
         toolCalls.push({
-          tool_name: event.data?.tool || '',
-          arguments: event.data?.args || {},
+          tool_name: (event as any).data?.tool || '',
+          arguments: (event as any).data?.args || {},
           timestamp: new Date(event.ts * 1000).toISOString()
         });
         break;
 
       case 'assistant_message':
-        const content = event.data?.content || '';
+        const content = (event as any).data?.content || '';
         if (content.includes('买入')) {
           decision.action = 'buy';
         } else if (content.includes('卖出')) {
@@ -66,8 +66,8 @@ export function parseSessionEvents(
         break;
 
       case 'llm_call':
-        totalTokens += event.data?.tokens || 0;
-        totalCost += event.data?.cost || 0;
+        totalTokens += (event as any).data?.tokens || 0;
+        totalCost += (event as any).data?.cost || 0;
         break;
     }
   }
@@ -247,7 +247,7 @@ function parseSessionFile(content: string): SessionEvent[] {
         events.push({
           ts: entry.ts || entry.timestamp || Date.now() / 1000,
           event: entry.event,
-          data: entry.data || entry
+          data: (entry as any).data || entry
         });
       } else if (entry.type) {
         // 兼容 type 字段

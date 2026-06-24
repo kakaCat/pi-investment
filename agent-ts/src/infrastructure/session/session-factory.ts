@@ -30,10 +30,10 @@ export function normalizeUsage(usage: any): any {
     };
   }
 
-  const input = usage.input ?? usage.input_tokens ?? 0;
-  const output = usage.output ?? usage.output_tokens ?? 0;
-  const cacheRead = usage.cacheRead ?? usage.cache_read ?? 0;
-  const cacheWrite = usage.cacheWrite ?? usage.cache_write ?? 0;
+  const input = (usage as any).input ?? (usage as any).input_tokens ?? 0;
+  const output = (usage as any).output ?? (usage as any).output_tokens ?? 0;
+  const cacheRead = (usage as any).cacheRead ?? (usage as any).cache_read ?? 0;
+  const cacheWrite = (usage as any).cacheWrite ?? (usage as any).cache_write ?? 0;
   const totalTokens = usage.totalTokens ?? usage.total_tokens ?? input + output + cacheRead + cacheWrite;
   const cost = usage.cost ?? {};
 

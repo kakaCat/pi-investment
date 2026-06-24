@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+// @ts-ignore - Module stub needed
 import { resolveStrategyId, resolveStrategyIds, getQuantV2BaseUrl } from '../../../src/infrastructure/tools/utils/strategy-helpers.js';
 
 describe('Strategy Helpers', () => {
@@ -76,7 +77,7 @@ describe('Strategy Helpers', () => {
 
   describe('resolveStrategyIds', () => {
     it('should resolve multiple strategy names', async () => {
-      const strategies = ['策略A', '策略B', '策略C'];
+      const strategies: any[] = ['策略A', '策略B', '策略C'];
 
       const results = await resolveStrategyIds(strategies);
 
@@ -85,7 +86,7 @@ describe('Strategy Helpers', () => {
     });
 
     it('should handle empty array', async () => {
-      const strategies = [];
+      const strategies: any[] = [];
 
       const results = await resolveStrategyIds(strategies);
 
@@ -93,7 +94,7 @@ describe('Strategy Helpers', () => {
     });
 
     it('should handle mixed numeric and name strategies', async () => {
-      const strategies = ['策略A', 'strategy_b'];
+      const strategies: any[] = ['策略A', 'strategy_b'];
 
       const results = await resolveStrategyIds(strategies);
 
@@ -105,7 +106,7 @@ describe('Strategy Helpers', () => {
 
     it('should handle failures gracefully', async () => {
       // 即使某些策略解析失败，也应该返回结果
-      const strategies = ['valid_strategy', 'another_strategy'];
+      const strategies: any[] = ['valid_strategy', 'another_strategy'];
 
       const results = await resolveStrategyIds(strategies);
 
