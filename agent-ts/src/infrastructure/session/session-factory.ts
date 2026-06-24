@@ -133,7 +133,20 @@ export function attachLogger(session: AgentSession, agentType: AgentType, perfMo
       case 'tool_execution_start': {
         startTimes.set(event.toolCallId, Date.now());
         toolNames.set(event.toolCallId, event.toolName);
-        logger.logToolCall(event.toolName, event.toolCallId, event.input);
+
+        // Try multiple sources for input params (SDK may use different field names)
+        const toolInput = event.input || event.toolInput || event.params;
+        logger.logToolCall(event.toolName, event.toolCallId, toolInput);
+
+        // Debug logging for bash commands to help diagnose failures
+        if (event.toolName === 'bash' && toolInput) {
+          const cmd = toolInput.command || toolInput.cmd;
+          if (cmd) {
+            const preview = typeof cmd === 'string' ? cmd.substring(0, 150) : JSON.stringify(cmd).substring(0, 150);
+            console.log(`🐚 Bash command: ${preview}${cmd.length > 150 ? '...' : ''}`);
+          }
+        }
+
         if (agentType === 'main') {
           perfMonitor?.startToolCall?.(event.toolName);
         }

@@ -41,6 +41,26 @@ export function formatPercent(value: number | null | undefined, decimals = 2): s
 export function formatStockPrice(data: any): string {
   if (!data) return '价格数据不可用';
 
+  // ===== 数据验证：防止异常数据 =====
+  const price = data.price ?? 0;
+  const changePct = data.changePct ?? data.change_pct ?? 0;
+  const prevClose = data.prevClose ?? data.prev_close ?? 0;
+
+  // 验证价格范围（A股正常价格 0.01 - 10000 元）
+  if (price > 100000 || price < 0) {
+    return `❌ 数据异常：股票 ${data.symbol} 价格超出合理范围 (${price} 元)。请检查数据源。`;
+  }
+
+  // 验证涨跌幅范围（A股单日涨跌幅限制约 ±20%，ST股票 ±5%）
+  if (Math.abs(changePct) > 30) {
+    return `❌ 数据异常：股票 ${data.symbol} 涨跌幅超出合理范围 (${changePct.toFixed(2)}%)。请检查数据源。`;
+  }
+
+  // 验证昨收价格
+  if (prevClose > 100000 || prevClose < 0) {
+    return `❌ 数据异常：股票 ${data.symbol} 昨收价超出合理范围 (${prevClose} 元)。请检查数据源。`;
+  }
+
   const lines: string[] = [];
 
   // Detect data source type
@@ -70,10 +90,9 @@ export function formatStockPrice(data: any): string {
 
   lines.push(`股票代码: ${data.symbol}`);
   lines.push(`股票名称: ${data.name}`);
-  lines.push(`当前价格: ${formatNumber(data.price, 2)} 元`);
+  lines.push(`当前价格: ${formatNumber(price, 2)} 元`);
 
   // Support both camelCase (changePct) and snake_case (change_pct)
-  const changePct = data.changePct ?? data.change_pct;
   if (changePct !== undefined && changePct !== null) {
     lines.push(`涨跌幅: ${formatPercent(changePct)}`);
   }
@@ -97,7 +116,7 @@ export function formatStockPrice(data: any): string {
   }
 
   // Support both camelCase (prevClose) and snake_case (prev_close)
-  const prevClose = data.prevClose ?? data.prev_close;
+  // prevClose already declared at line 47
   if (prevClose !== undefined && prevClose !== null) {
     lines.push(`昨收: ${formatNumber(prevClose, 2)} 元`);
   }

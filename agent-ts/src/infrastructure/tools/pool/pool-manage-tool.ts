@@ -164,11 +164,15 @@ export const poolManageTool: ToolDefinition = {
 
         case "update":
           if (!pool_id) return _err("update 需要 pool_id 参数");
-          result = await updatePool(pool_id, {
-            name,
-            symbols,
-            description,
-          } as any);
+          const updateData: Partial<{
+            name: string;
+            symbols: string[];
+            description: string;
+          }> = {};
+          if (name !== undefined) updateData.name = name;
+          if (symbols !== undefined) updateData.symbols = symbols;
+          if (description !== undefined) updateData.description = description;
+          result = await updatePool(pool_id, updateData);
           break;
 
         case "delete":

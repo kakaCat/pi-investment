@@ -30,14 +30,14 @@ const DATA_COMMANDS: Record<string, CommandRule> = {
   },
   "full_status": {
     domain: "data",
-    action: "full-status",
+    action: "full_status",
     description: "查看股票数据和因子覆盖完整性。",
     params: {},
     example: {},
   },
   "update_klines": {
     domain: "data",
-    action: "update-klines",
+    action: "update_klines",
     description: "更新日线 K 线数据。支持单个或多个股票（逗号分隔）。",
     params: {
       symbols: { type: "string" },

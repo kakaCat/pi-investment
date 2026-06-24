@@ -110,3 +110,6 @@ scripts/pgbouncer-ctl.sh
 # Web frontend dev docs
 web-frontend/docs/refactoring/
 web-frontend/docs/testing/
+
+# Archive directory for temporary files
+.archive/
