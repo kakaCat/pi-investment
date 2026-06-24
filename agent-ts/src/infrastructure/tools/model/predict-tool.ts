@@ -85,12 +85,32 @@ export const modelPredictTool: ToolDefinition = {
         details: null
       };
     } catch (error: any) {
+      // Enhanced error handling with fallback suggestions
+      const errorMessage = error.message || String(error);
+
+      // Check for specific error patterns
+      const isSegfault = errorMessage.includes('exit code 139') ||
+                         errorMessage.includes('Segmentation Fault');
+      const isDataError = errorMessage.includes('Insufficient data') ||
+                          errorMessage.includes('NaN') ||
+                          errorMessage.includes('invalid value');
+
+      let fallbackMessage = '';
+      if (isSegfault || isDataError) {
+        fallbackMessage = '\n\n💡 建议使用替代工具：\n' +
+          '- opportunity_scan: 基于因子的多维评分\n' +
+          '- strategy_execute: 规则策略信号\n' +
+          '- realtime_signal_scan: 实时信号扫描';
+      }
+
       return {
         content: [{
           type: "text" as const,
           text: JSON.stringify({
             success: false,
-            error: `API 调用失败: ${error.message}`
+            error: `ML 预测失败: ${errorMessage}`,
+            fallback_available: isSegfault || isDataError,
+            message: fallbackMessage || '如果问题持续，可尝试使用其他分析工具。'
           }, null, 2)
         }],
         details: null
