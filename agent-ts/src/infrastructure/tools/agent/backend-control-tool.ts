@@ -331,14 +331,17 @@ export async function startService(
   let targetPort: number;
 
   if (service === "all") {
+    // Spring Boot style unified process - single server.py includes scheduler
     command = "python";
-    args = ["start_all.py"];
-    targetPort = 5001; // Check REST API port
+    args = ["adapters/inbound/api/server.py"];
+    targetPort = 5001;
   } else if (service === "rest") {
+    // Spring Boot style unified process - single server.py includes scheduler
     command = "python";
-    args = ["api/server.py"];
+    args = ["adapters/inbound/api/server.py"];
     targetPort = 5001;
   } else {
+    // WebSocket service (if still using separate process)
     command = "python";
     args = ["api/server_websocket.py"];
     targetPort = 5003;

@@ -181,7 +181,7 @@ describe("Start Operation", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       "python",
-      ["api/server.py"],
+      ["adapters/inbound/api/server.py"],
       expect.objectContaining({
         cwd: expect.stringContaining("quantsys-v2"),
         detached: true,
@@ -191,7 +191,7 @@ describe("Start Operation", () => {
     expect(result.pid).toBe(12345);
   });
 
-  test("startService spawns start_all.py for all services", async () => {
+  test("startService spawns server.py for all services (Spring Boot style)", async () => {
     const mod = await import("./backend-control-tool.js");
 
     const mockSpawn = jest.fn().mockReturnValue({
@@ -212,7 +212,7 @@ describe("Start Operation", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       "python",
-      ["start_all.py"],
+      ["adapters/inbound/api/server.py"],
       expect.objectContaining({
         cwd: expect.stringContaining("quantsys-v2"),
       })

@@ -431,9 +431,8 @@ export async function runQuantV2<T = unknown>(
       if (!isHealthy) {
         throw new QuantV2Error(
           `quantsys-v2 后端未启动。请先启动后端服务：\n` +
-          `  cd quantsys-v2 && python start_all.py\n` +
-          `或单独启动 REST API：\n` +
-          `  cd quantsys-v2 && python api/server.py\n` +
+          `  cd quantsys-v2 && python adapters/inbound/api/server.py\n` +
+          `(新架构: Spring Boot 风格单进程,自动启动 Scheduler)\n` +
           `预期端口：${V2_API_BASE}`,
           503,
           url,
@@ -555,9 +554,8 @@ async function fetchV2<T>(
       if (!isHealthy) {
         throw new QuantV2Error(
           `quantsys-v2 后端未启动。请先启动后端服务：\n` +
-          `  cd quantsys-v2 && python start_all.py\n` +
-          `或单独启动 REST API：\n` +
-          `  cd quantsys-v2 && python api/server.py\n` +
+          `  cd quantsys-v2 && python adapters/inbound/api/server.py\n` +
+          `(新架构: Spring Boot 风格单进程,自动启动 Scheduler)\n` +
           `预期端口：${V2_API_BASE}`,
           503,
           url,
@@ -1732,6 +1730,8 @@ export async function updatePoolMember(
 export interface PoolSignalScanParams {
   strategy_id: number;
   lookback_days?: number;
+  max_buy_signals?: number;
+  max_sell_signals?: number;
 }
 
 export interface PoolSignalScanResult {

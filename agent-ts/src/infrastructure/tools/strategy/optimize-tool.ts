@@ -216,9 +216,8 @@ export const strategyOptimizeTool: ToolDefinition = {
             text: (
               "❌ quantsys-v2 后端未启动\n\n" +
               "请先启动后端服务：\n" +
-              "  cd quantsys-v2 && python start_all.py\n\n" +
-              "或单独启动 REST API：\n" +
-              "  cd quantsys-v2 && python api/server.py"
+              "  cd quantsys-v2 && python adapters/inbound/api/server.py\n\n" +
+              "(新架构: Spring Boot 风格单进程,自动启动 Scheduler)"
             )
           }],
           details: null
