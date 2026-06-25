@@ -113,3 +113,20 @@ web-frontend/docs/testing/
 
 # Archive directory for temporary files
 .archive/
+
+# Temporary cache files
+agent-ts/.cache/tool-results/*.json
+
+# Archived documents
+docs/archive/
+
+# Temporary reports
+*_REPORT.md
+*_SUMMARY.md
+*_COMPLETE.md
+*_STATUS.md
+*_GUIDE.md
+*_ANALYSIS.md
+
+# Keep important docs
+!CLAUDE_UPDATE_REPORT.md
