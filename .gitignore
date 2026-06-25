@@ -120,13 +120,22 @@ agent-ts/.cache/tool-results/*.json
 # Archived documents
 docs/archive/
 
-# Temporary reports
+# Temporary reports and work documents
 *_REPORT.md
 *_SUMMARY.md
 *_COMPLETE.md
 *_STATUS.md
 *_GUIDE.md
 *_ANALYSIS.md
+*_CHECK.md
+*_PLAN.md
+*WORK_SUMMARY*.md
+DAILY_*.md
+MEMORY_UPDATE*.md
 
-# Keep important docs
-!CLAUDE_UPDATE_REPORT.md
+# Cleanup and organization files
+cleanup-*.sh
+DOCUMENT_ORGANIZATION_PLAN.md
+
+# Keep important docs - none currently needed
+# !IMPORTANT_DOC.md
