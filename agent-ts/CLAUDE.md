@@ -4,8 +4,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI stock investment advisor (A-share / HK stocks) built on the `@mariozechner/pi-agent-core` SDK. Dual-component architecture:
+**Autonomous AI Investment Agent** — A self-directed AI employee that makes investment decisions and executes trades with minimal human intervention.
 
+### System Role in Three-Layer Architecture
+
+This agent is the **intelligent core** of the PI Investment system:
+
+```
+Human User → Monitor & Configure
+      ↓
+   agent-ts (this project) → Autonomous AI Employee
+      ↓ Tool calls
+   quantsys-v2 → Backend Service (data, computation, persistence)
+      ↑ Query
+   web-frontend → Monitoring Dashboard (visualize agent work)
+```
+
+### Core Mission: Profitability Through Intelligence
+
+**Goal**: Sustained profitability in financial markets by outperforming opponents:
+- Retail investors (emotional, reactive)
+- Hot money traders (pump-and-dump)
+- Institutions (information/capital advantages)
+- Other AI trading systems
+
+**Intelligence Metrics**:
+- Win rate in real trades
+- Sharpe ratio vs market
+- Ability to avoid traps (institutional distribution, hot-money schemes)
+- Speed of adaptation to market regime changes
+
+### Agent Characteristics
+
+✅ **Autonomous**: Executes scheduled tasks without human prompts
+✅ **Proactive**: Monitors markets and responds to opportunities
+✅ **Self-learning**: Analyzes results and improves decision quality
+✅ **Game-aware**: Identifies opponent behavior and exploits mistakes
+
+**Architecture**:
 - **`src/`** — TypeScript AI agent (primary). Interactive CLI/TUI with tool registry, Feishu bot integration, session management, and multi-layer system prompt builder.
 - **`quantsys-v2/`** — Python quant backend (v2). Flask REST API (port 5001) + WebSocket (port 5003): strategies, factors, ML pipeline, backtesting, risk checks.
 
@@ -1219,6 +1255,77 @@ data_fetch_dividend({
 - API Tests: `quantsys-v2/tests/api/test_dividends_routes.py`
 - E2E Tests: `docs/testing/dividend-tool-e2e-test.md`
 
+## Agent Autonomy & Scheduled Tasks
+
+### Autonomous Operation Model
+
+The agent operates on **scheduled tasks** and **event triggers**, not just user requests:
+
+**Daily Schedule Example**:
+- **02:00** - Refresh dynamic stock pools, validate strategies
+- **09:00** - Scan buy signals before market open
+- **15:30** - Analyze day's performance, adjust positions
+- **Weekly** - Review all pools, optimize parameters
+
+**Event-driven Triggers**:
+- Abnormal volatility → Risk assessment
+- Pool health deterioration → Auto-refresh
+- Signal quality decline → Strategy adjustment
+
+**Implementation**: Uses in-memory scheduler (`InMemorySchedulerStore`) for task scheduling. Critical data refresh tasks are handled by quantsys-v2 backend.
+
+### Game Theory in Stock Pools
+
+Stock pools are **battlefield selection** tools for competitive advantage:
+
+**Strategic Patterns**:
+1. **Harvest Retail Panic** — Buy quality during fear-driven selloffs
+2. **Avoid Institutional Traps** — Exit when institutions distribute
+3. **Snipe Hot-Money Aftermath** — Bottom-fish after pump-and-dump
+4. **Sector Rotation** — Switch to winning sectors
+
+**Required Intelligence**:
+- Opponent flow tracking (retail/institution/hot-money)
+- Risk signal detection (abnormal volume, insider action)
+- Opportunity windows (oversold quality stocks)
+- Fast battlefield switching
+
+**Tool Enhancement Needed** (see quantsys-v2 roadmap):
+- `GET /api/market/opponent-behavior` — Track opponent flows
+- `GET /api/pools/{id}/battlefield-assessment` — Competitive advantage score
+- `WebSocket /ws/game-alerts` — Real-time opportunity/risk alerts
+
+## Agent Decision Framework
+
+### Decision Context (Not Just Data)
+
+When calling backend APIs, the agent should receive:
+- **What**: The data/result
+- **Why**: Analysis of anomalies, trends, patterns
+- **Suggested Action**: Recommendations with confidence scores
+- **Game Context**: Who's winning, who's losing, who's making mistakes
+
+### Audit Trail for Learning
+
+Every significant decision is logged to quantsys-v2:
+```typescript
+{
+  decision_id: 101,
+  timestamp: "2026-06-25T02:00:00",
+  type: "pool_refresh",
+  context: { pool_id: 5, reason: "Scheduled maintenance" },
+  parameters: { min_roe: 15 },
+  reasoning: "Standard ROE threshold for quality stocks",
+  result: { stocks_added: 3, stocks_removed: 2 },
+  outcome: "pending"  // Later updated with performance data
+}
+```
+
+This enables:
+- Performance attribution (which decisions led to profit/loss?)
+- Strategy improvement (which parameters work best?)
+- Failure analysis (why did this trade lose money?)
+
 ## Active Conventions
 
 - No linter/formatter configured (no ESLint, Prettier, or Biome).
@@ -1226,3 +1333,5 @@ data_fetch_dividend({
 - git worktrees used for feature isolation (evolution branches, worktree-agent branches).
 - Commit messages in Chinese are common.
 - The agent uses DeepSeek which processes one tool call at a time — tool definitions should account for this.
+- **Agent is autonomous**: Design features around scheduled tasks, not just user prompts.
+- **Game-theoretic mindset**: Tools should help identify opponent mistakes, not just "good stocks".
