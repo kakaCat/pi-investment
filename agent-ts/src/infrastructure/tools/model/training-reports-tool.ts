@@ -25,7 +25,7 @@ export const trainingReportsTool: ToolDefinition = {
   }),
   execute: async (_toolCallId: string, params: any) => {
     try {
-      const response = await runQuantV2("training", "reports", params);
+      const response = await runQuantV2("training.reports", params);
       return handleToolResponse({
         toolName: 'training_reports',
         data: response,

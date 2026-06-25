@@ -7,6 +7,7 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import {
+  initNotificationService,
   sendNotificationTool,
   sendTradeSignalTool,
   sendMarketBriefTool,
@@ -86,6 +87,8 @@ export const monitorAlertTool: ToolDefinition = {
     suggestion: Type.Optional(Type.String({ description: "应对建议（risk_warning类型可选）" }))
   }),
   execute: async (toolCallId: string, params: any, signal: AbortSignal | undefined, onUpdate: any, ctx: any) => {
+    // 确保通知服务已初始化
+    initNotificationService();
     try {
       const { type } = params;
 

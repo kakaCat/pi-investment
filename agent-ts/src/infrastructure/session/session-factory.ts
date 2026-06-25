@@ -10,8 +10,8 @@
  * - message_start / message_end (role: user | assistant | toolResult)
  * - tool_execution_start / tool_execution_end
  */
-import { createAgentSession } from "@mariozechner/pi-coding-agent";
-import type { AgentSession } from "@mariozechner/pi-coding-agent";
+import { createAgentSession } from "../../sdk-facade.js";
+import type { AgentSession } from "../../sdk-facade.js";
 import * as logger from "../logging/observable-logger.js";
 import { rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
 import { getExplicitSkillFromPrompt, withForcedSkillScope } from "../tools/skill-guard.js";

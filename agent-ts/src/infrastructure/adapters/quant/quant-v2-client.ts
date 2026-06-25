@@ -373,12 +373,43 @@ export interface V2ClientOptions {
  * 通过 HTTP 调用 quantsys-v2 API 执行量化命令。
  *
  * 返回格式与旧 `runQuantCli` 兼容（QuantCliResponse<T>）。
+ *
+ * 支持两种调用签名：
+ * - 新签名: runQuantV2(command, params?, opts?)
+ * - 旧签名: runQuantV2(module, action, params?, opts?) — 自动拼接为 "module.action"
  */
 export async function runQuantV2<T = unknown>(
   command: string,
-  params: Record<string, unknown> = {},
-  opts: V2ClientOptions = {},
+  params?: Record<string, unknown>,
+  opts?: V2ClientOptions,
+): Promise<QuantCliResponse<T>>;
+export async function runQuantV2<T = unknown>(
+  module: string,
+  action: string,
+  params?: Record<string, unknown>,
+  opts?: V2ClientOptions,
+): Promise<QuantCliResponse<T>>;
+export async function runQuantV2<T = unknown>(
+  commandOrModule: string,
+  actionOrParams?: string | Record<string, unknown>,
+  paramsOrOpts?: Record<string, unknown> | V2ClientOptions,
+  opts?: V2ClientOptions,
 ): Promise<QuantCliResponse<T>> {
+  // 兼容旧签名: runQuantV2(module, action, params, opts)
+  let command: string;
+  let params: Record<string, unknown>;
+  if (typeof actionOrParams === 'string') {
+    // 旧签名: module + action → 拼接为 "module.action"
+    command = `${commandOrModule}.${actionOrParams}`;
+    params = (paramsOrOpts as Record<string, unknown>) || {};
+    opts = (opts as V2ClientOptions | undefined) || {};
+  } else {
+    // 新签名: command + params
+    command = commandOrModule;
+    params = actionOrParams || {};
+    opts = (paramsOrOpts as V2ClientOptions | undefined) || {};
+  }
+
   const route = V2_ROUTES[command];
   if (!route) {
     throw new QuantV2Error(
@@ -395,7 +426,7 @@ export async function runQuantV2<T = unknown>(
       method: route.method,
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
-      signal: opts.signal ?? AbortSignal.timeout(V2_TIMEOUT_MS),
+      signal: opts?.signal ?? AbortSignal.timeout(V2_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -591,46 +622,85 @@ export async function getFinancials(
   // 使用 V2 多数据源端点
   const url = `${V2_API_BASE}/api/v2/stock/${encodeURIComponent(symbol)}/financials?statement_type=${statementType}&periods=${periods}&source=${source}`;
 
-  // V2 API 返回格式: { success: true, data: { cached: false, data: { balanceSheet: [...], incomeStatement: [...], cashFlow: [...] }, source: "sina_web" } }
+  // V2 API 返回格式（兼容两种结构）:
+  //   Flat (current): { success, data: { income_statement: [...], balance_sheet: [...], cash_flow: [...], source, cached } }
+  //   Nested (legacy): { success, data: { data: { incomeStatement: [...], ... }, source, cached } }
   const response = await fetchV2<{
     success: boolean;
     data: {
-      cached: boolean;
-      source: string;
-      data: {
+      cached?: boolean;
+      source?: string;
+      data?: {
         balanceSheet?: Array<Record<string, any>>;
         incomeStatement?: Array<Record<string, any>>;
         cashFlow?: Array<Record<string, any>>;
       };
+      // flat fields (current backend format)
+      income_statement?: Array<Record<string, any>>;
+      balance_sheet?: Array<Record<string, any>>;
+      cash_flow?: Array<Record<string, any>>;
     };
   }>(url);
 
-  if (!response.success || !(response as any).data || !(response as any).data.data) {
+  if (!response.success || !(response as any).data) {
     throw new QuantV2Error('财务数据获取失败', 500);
   }
 
-  const financialData = (response as any).data.data;
-  const dataSource = (response as any).data.source;
-  const dataCached = (response as any).data.cached;
+  const raw = (response as any).data;
+
+  // Accept both nested { data: { data: {...} } } and flat { data: {...} } formats
+  const inner = raw?.data || raw;
+  const incomeStatement: Array<Record<string, any>> =
+    inner?.incomeStatement || inner?.income_statement || [];
+  const balanceSheet: Array<Record<string, any>> =
+    inner?.balanceSheet || inner?.balance_sheet || [];
+  const cashFlow: Array<Record<string, any>> =
+    inner?.cashFlow || inner?.cash_flow || [];
+  const dataSource: string = raw?.source || '';
+  const _dataCached: boolean = raw?.cached || false;
+
+  // 辅助：从记录中提取字段值（兼容中文名和英文名）
+  const getField = (record: Record<string, any>, ...names: string[]): number => {
+    for (const n of names) {
+      const v = record[n];
+      if (v !== undefined && v !== null) return Number(v);
+    }
+    return 0;
+  };
+
+  // 辅助：提取日期
+  const getDate = (record: Record<string, any>, ...names: string[]): string => {
+    for (const n of names) {
+      const v = record[n];
+      if (v) {
+        // 截取日期部分 (YYYY-MM-DD)
+        const d = String(v).split(' ')[0]?.split('T')[0] || '';
+        if (d) return d;
+      }
+    }
+    return '';
+  };
 
   // 转换为 FinancialData 格式（取最新一期数据）
   const result: FinancialData = {
     success: true,
     symbol: symbol,
-    name: '', // V2 API 不返回名称，需要从其他地方获取
-    report_date: '', // 将从报表数据中提取
+    name: '',
+    report_date: '',
   };
 
   // 转换利润表
-  if (financialData.incomeStatement && financialData.incomeStatement.length > 0) {
-    const income = financialData.incomeStatement[0];
-    result.report_date = income['报告期'] || income['公告日期'] || '';
+  if (incomeStatement.length > 0) {
+    const income = incomeStatement[0];
+    result.report_date = result.report_date || getDate(income,
+      '报告期', '公告日期', 'report_date', 'REPORTDATE', 'REPORT_DATE');
 
-    const revenue = income['营业总收入'] || income['营业收入'] || 0;
-    const operatingCost = income['营业总成本'] || income['营业成本'] || 0;
-    const netProfit = income['净利润'] || 0;
-    const netProfitAttrParent = income['归属于母公司所有者的净利润'] || netProfit;
-    const grossProfit = revenue - (income['营业成本'] || 0);
+    // 字段名按优先级排列：provider 转换后的英文名 → 原始API英文字段 → 中文字段
+    const revenue = getField(income, 'total_revenue', 'revenue', '营业总收入', '营业收入', 'TOTAL_OPERATE_INCOME');
+    const operatingCost = getField(income, 'total_cost', 'operating_cost', '营业总成本', '营业成本', 'TOTAL_OPERATE_COST');
+    const netProfit = getField(income, 'net_profit', '净利润', 'NETPROFIT');
+    const netProfitAttrParent = getField(income, 'parent_net_profit', '归母净利润', '归属于母公司所有者的净利润', 'PARENT_NETPROFIT') || netProfit;
+    const grossProfit = revenue - getField(income, 'operating_cost', '营业成本', 'OPERATE_COST');
 
     result.income_statement = {
       revenue,
@@ -644,17 +714,16 @@ export async function getFinancials(
   }
 
   // 转换资产负债表
-  if (financialData.balanceSheet && financialData.balanceSheet.length > 0) {
-    const balance = financialData.balanceSheet[0];
-    if (!result.report_date) {
-      result.report_date = balance['报告期'] || balance['公告日期'] || '';
-    }
+  if (balanceSheet.length > 0) {
+    const balance = balanceSheet[0];
+    result.report_date = result.report_date || getDate(balance,
+      '报告期', '公告日期', 'report_date', 'REPORTDATE', 'REPORT_DATE');
 
-    const totalAssets = balance['资产总计'] || 0;
-    const currentAssets = balance['流动资产合计'] || 0;
-    const totalLiabilities = balance['负债合计'] || 0;
-    const currentLiabilities = balance['流动负债合计'] || 0;
-    const totalEquity = balance['股东权益合计'] || balance['所有者权益(或股东权益)合计'] || 0;
+    const totalAssets = getField(balance, 'total_assets', '资产总计', '总资产', 'TOTAL_ASSETS');
+    const currentAssets = getField(balance, 'current_assets', '流动资产合计', '流动资产', 'CURRENT_ASSETS');
+    const totalLiabilities = getField(balance, 'total_liabilities', '负债合计', '总负债', 'TOTAL_LIABILITIES');
+    const currentLiabilities = getField(balance, 'current_liabilities', '流动负债合计', '流动负债', 'CURRENT_LIABILITIES');
+    const totalEquity = getField(balance, 'total_equity', '股东权益合计', '所有者权益(或股东权益)合计', 'TOTAL_EQUITY');
 
     result.balance_sheet = {
       total_assets: totalAssets,
@@ -668,17 +737,20 @@ export async function getFinancials(
   }
 
   // 转换现金流量表
-  if (financialData.cashFlow && financialData.cashFlow.length > 0) {
-    const cashflow = financialData.cashFlow[0];
-    if (!result.report_date) {
-      result.report_date = cashflow['报告期'] || cashflow['公告日期'] || '';
-    }
+  if (cashFlow.length > 0) {
+    const cf = cashFlow[0];
+    result.report_date = result.report_date || getDate(cf,
+      '报告期', '公告日期', 'report_date', 'REPORTDATE', 'REPORT_DATE');
 
     result.cash_flow = {
-      operating_cashflow: cashflow['经营活动产生的现金流量净额'] || 0,
-      investing_cashflow: cashflow['投资活动产生的现金流量净额'] || 0,
-      financing_cashflow: cashflow['筹资活动产生的现金流量净额'] || 0,
-      net_cashflow: cashflow['现金及现金等价物净增加额'] || 0,
+      operating_cashflow: getField(cf,
+        'operating_cash_flow', '经营现金流', '经营活动产生的现金流量净额', 'OPERATE_CASH_FLOW_NET', 'NETCASH_OPERATE'),
+      investing_cashflow: getField(cf,
+        'investing_cash_flow', '投资现金流', '投资活动产生的现金流量净额', 'INVEST_CASH_FLOW_NET', 'NETCASH_INVEST'),
+      financing_cashflow: getField(cf,
+        'financing_cash_flow', '筹资现金流', '筹资活动产生的现金流量净额', 'FINANCE_CASH_FLOW_NET', 'NETCASH_FINANCE'),
+      net_cashflow: getField(cf,
+        'cash_increase', '现金及现金等价物净增加额', 'CCE_ADD', 'NETCASH_CHANGE'),
     };
   }
 
@@ -735,7 +807,7 @@ export async function analyzeFactors(
   }>(url, { method: 'POST', body: params });
 
   // 转换因子数据（支持 alphalens 和 fallback 两种格式）
-  const factors: FactorMetrics[] = ((response as any).data.factors || []).map(f => {
+  const factors: FactorMetrics[] = ((response as any).data.factors || []).map((f: any) => {
     // 基础字段
     const factor: FactorMetrics = {
       name: f.name,
@@ -1101,6 +1173,8 @@ export async function getKlineHistory(
     const rawData = (response as any).data;
     const klineData: KlineData = {
       success: response.success ?? true,
+      symbol,
+      period,
       data: rawData?.data ?? [],
       count: rawData?.count ?? 0,
     };

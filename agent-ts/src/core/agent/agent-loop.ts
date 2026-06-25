@@ -14,7 +14,7 @@ import {
   SessionManager,
   type Skill,
   estimateTokens
-} from "@mariozechner/pi-coding-agent";
+} from "../../sdk-facade.js";
 import type { Message } from "../../types/index.js";
 import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initMemoryTools, initBackgroundManager, getBackgroundManager, initRestartAgentTool } from "../../infrastructure/tools/index.js";
 import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
@@ -64,7 +64,7 @@ let sessionContext: SessionContext | null = null;
 
 /** 返回内置工具 + 插件工具的合并列表 */
 function getEffectiveTools(): ToolDefinition[] {
-  return [...allCustomTools, ...pluginTools];
+  return [...allCustomTools, ...pluginTools as any[]] as ToolDefinition[];
 }
 
 /**
@@ -133,7 +133,7 @@ export async function getSession(context?: SessionContext): Promise<AgentSession
       const skills = loadProjectSkills();
 
       const pluginRegistry = await loadPlugins(paths.pluginDirs);
-      pluginTools = pluginRegistry.tools;
+      pluginTools = pluginRegistry.tools as any;
 
       if (pluginRegistry.records.length > 0) {
         console.log("🔌 插件加载完毕:");

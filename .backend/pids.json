@@ -1,15 +1,11 @@
 {
   "frontend": {
-    "pid": 19116,
-    "startTime": "2026-06-24T19:21:00.000Z",
+    "pid": 63391,
+    "startTime": "2026-06-25T06:05:00.000Z",
     "url": "http://localhost:3001/"
   },
-  "websocket": {
-    "pid": 20342,
-    "startTime": "2026-06-24T11:24:34.624Z"
-  },
   "rest": {
-    "pid": 28030,
-    "startTime": "2026-06-24T11:39:19.390Z"
+    "pid": 12986,
+    "startTime": "2026-06-25T05:36:34.348Z"
   }
 }

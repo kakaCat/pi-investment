@@ -11,7 +11,7 @@
  * - All consumers remain unchanged
  */
 
-import type { AgentSession } from "@mariozechner/pi-coding-agent";
+import type { AgentSession } from "../../sdk-facade.js";
 
 /**
  * Message content block types
@@ -104,7 +104,7 @@ export function getSystemPrompt(session: AgentSession | any): string {
   if (hasAgentState(session)) {
     return (session as any).agent.state.systemPrompt;
   }
-  return undefined;
+  return "";
 }
 
 /**

@@ -147,6 +147,51 @@ const routes: RouteRecordRaw[] = [
         name: 'Executions',
         component: () => import(/* webpackChunkName: "executions" */ '@/views/Executions/index.vue'),
         meta: { title: '执行记录' }
+      },
+      // 博弈智能系统
+      {
+        path: '/game-intelligence',
+        name: 'GameIntelligence',
+        redirect: '/game-intelligence/dashboard',
+        meta: { title: '博弈智能' },
+        children: [
+          {
+            path: 'dashboard',
+            name: 'GameIntelligenceDashboard',
+            component: () => import(/* webpackChunkName: "game-intelligence" */ '@/views/GameIntelligence/Dashboard.vue'),
+            meta: { title: '博弈智能 - 总览' }
+          },
+          {
+            path: 'opponent-behavior',
+            name: 'OpponentBehavior',
+            component: () => import(/* webpackChunkName: "game-intelligence" */ '@/views/GameIntelligence/OpponentBehavior.vue'),
+            meta: { title: '博弈智能 - 对手行为' }
+          },
+          {
+            path: 'alerts',
+            name: 'AlertCenter',
+            component: () => import(/* webpackChunkName: "game-intelligence" */ '@/views/GameIntelligence/AlertCenter.vue'),
+            meta: { title: '博弈智能 - 预警中心' }
+          },
+          {
+            path: 'learning-loop',
+            name: 'LearningLoop',
+            component: () => import(/* webpackChunkName: "game-intelligence" */ '@/views/GameIntelligence/LearningLoop.vue'),
+            meta: { title: '博弈智能 - 学习闭环' }
+          },
+          {
+            path: 'automation-monitor',
+            name: 'AutomationMonitor',
+            component: () => import(/* webpackChunkName: "game-intelligence" */ '@/views/GameIntelligence/AutomationMonitor.vue'),
+            meta: { title: '博弈智能 - 自动化监控' }
+          },
+          {
+            path: 'automation-config',
+            name: 'AutomationConfig',
+            component: () => import(/* webpackChunkName: "game-intelligence" */ '@/views/GameIntelligence/AutomationConfig.vue'),
+            meta: { title: '博弈智能 - 自动化配置' }
+          }
+        ]
       }
     ]
   }

@@ -4,7 +4,7 @@
  * 用途：查询策略的历史回测记录，分析性能变化趋势
  */
 
-import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
+import type { ToolDefinition } from "../index.js";
 import { QuantV2Client } from '../../../infrastructure/adapters/quant/quant-v2-client.js';
 
 const client = QuantV2Client;
@@ -17,6 +17,7 @@ interface BacktestHistoryParams {
 
 export const backtestHistoryTool: ToolDefinition = {
   name: 'backtest_history',
+  label: '回测历史',
   description: `查询策略的历史回测记录，分析性能变化趋势。
 
 使用场景：
@@ -45,7 +46,7 @@ export const backtestHistoryTool: ToolDefinition = {
     }
   },
 
-  execute: async (_toolCallId: string, params: BacktestHistoryParams) => {
+  execute: async (_toolCallId: string, params: BacktestHistoryParams, _signal?: AbortSignal, _onUpdate?: any, _ctx?: any) => {
     try {
       const queryParams: Record<string, string> = {};
 
@@ -62,13 +63,13 @@ export const backtestHistoryTool: ToolDefinition = {
       const response = await client.get('/api/backtest/history', queryParams);
 
       if (!response.success) {
-        return { content: [{ type: "text" as const, text: `❌ 查询失败: ${response.error}` }] };
+        return { details: {} as any, content: [{ type: "text" as const, text: `❌ 查询失败: ${response.error}` }] };
       }
 
       const { items, count } = (response as any).data;
 
       if (count === 0) {
-        return { content: [{ type: "text" as const, text: `📊 未找到回测记录\n\n筛选条件：\n${params.strategy_name ? `  策略: ${params.strategy_name}\n` : ''}${params.symbol! ? `  股票: ${params.symbol!}\n` : ''}` }] };
+        return { details: {} as any, content: [{ type: "text" as const, text: `📊 未找到回测记录\n\n筛选条件：\n${params.strategy_name ? `  策略: ${params.strategy_name}\n` : ''}${params.symbol! ? `  股票: ${params.symbol!}\n` : ''}` }] };
       }
 
       // 格式化输出
@@ -99,10 +100,10 @@ export const backtestHistoryTool: ToolDefinition = {
         output += `  夏普比率: ${avgSharpe.toFixed(2)}\n`;
       }
 
-      return output;
+      return { details: {} as any, content: [{ type: "text" as const, text: output }] };
 
     } catch (error: any) {
-      return { content: [{ type: "text" as const, text: `❌ 查询回测历史失败: ${error.message}` }] };
+      return { details: {} as any, content: [{ type: "text" as const, text: `❌ 查询回测历史失败: ${error.message}` }] };
     }
   }
 };

@@ -11,8 +11,47 @@ import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { requireAshare } from "../shared/validators.js";
 import { getFinancials, runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
+import { QuantV2Error } from "../../adapters/quant/types.js";
 import { formatFinancialData } from "../../adapters/quant/formatters.js";
 import { handleToolResponse } from "../utils/index.js";
+
+/**
+ * 构建浏览器查询引导信息。
+ * 当量化后端无法获取财务数据（5xx/网络错误）时，引导 Agent 使用 browser 工具
+ * 直接从公开财经网站抓取数据。
+ */
+function buildBrowserGuidance(symbol: string, reportType: string): string {
+  const reportLabel =
+    reportType === 'income' ? '利润表' :
+    reportType === 'balance' ? '资产负债表' :
+    reportType === 'cashflow' || reportType === 'cash_flow' ? '现金流量表' : '财务报表';
+
+  // A 股代码分市场：60xxxx → 沪市主板, 00xxxx/30xxxx → 深市
+  const market = symbol.startsWith('60') ? 'sh' : 'sz';
+
+  return [
+    `🐛 量化后端数据源均不可用（可能原因：上游网站反爬、接口变更、网络波动）。`,
+    ``,
+    `📌 请使用 browser 工具从公开财经网站手动抓取【${reportLabel}】：`,
+    ``,
+    `1️⃣ 新浪财经（推荐 - 报表结构清晰）`,
+    `   URL: https://vip.stock.finance.sina.com.cn/corp/go.php/vFD_FinanceSummary/stockid/${symbol}/displaytype/4.phtml`,
+    `   或搜索: "新浪财经 ${symbol} 财务数据"`,
+    ``,
+    `2️⃣ 东方财富（报表详细）`,
+    `   URL: https://emweb.securities.eastmoney.com/pc_hsfi/pcindex.html#/cwfx?type=web&code=${market === 'sh' ? 'SH' : 'SZ'}${symbol}`,
+    `   或搜索: "东方财富 ${symbol} 财务报表"`,
+    ``,
+    `3️⃣ 网易财经`,
+    `   URL: https://quotes.money.163.com/f10/cwbbzy_${symbol}.html`,
+    `   或搜索: "网易财经 ${symbol} 财务指标"`,
+    ``,
+    `📋 操作建议：`,
+    `   - 使用 browser navigate 打开上述任一 URL`,
+    `   - 使用 browser getText 提取报表内容`,
+    `   - 或通过 browser search 搜索 "${symbol} 财务数据" 找到合适的财经网站`,
+  ].join('\n');
+}
 
 export const dataFetchFinancialTool: ToolDefinition = {
   name: "data_fetch_financial",
@@ -106,7 +145,23 @@ export const dataFetchFinancialTool: ToolDefinition = {
           results.push(formatFinancialData(data));
         } catch (error) {
           hasError = true;
-          results.push(`【财务报表】\n⚠️ 暂时不可用: ${error instanceof Error ? error.message : String(error)}`);
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          const isServerError =
+            error instanceof QuantV2Error &&
+            error.statusCode !== undefined &&
+            error.statusCode >= 500;
+          const isNetworkError =
+            errorMsg.includes('fetch failed') ||
+            errorMsg.includes('ECONNREFUSED');
+
+          if (isServerError || isNetworkError || errorMsg.includes('HTTP 5')) {
+            // 量化后端不可用 → 引导 Agent 使用 browser 工具
+            results.push(
+              `【财务报表】\n⚠️ 量化后端返回错误: ${errorMsg}\n\n${buildBrowserGuidance(symbol, reportType)}`
+            );
+          } else {
+            results.push(`【财务报表】\n⚠️ 暂时不可用: ${errorMsg}`);
+          }
         }
       }
 

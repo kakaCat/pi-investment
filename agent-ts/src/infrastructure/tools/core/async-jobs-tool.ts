@@ -30,7 +30,7 @@ export const asyncJobsTool: ToolDefinition = {
   }),
   execute: async (_toolCallId: string, params: any) => {
     try {
-      const response = await runQuantV2("jobs", "list", params);
+      const response = await runQuantV2("jobs.list", params);
       return handleToolResponse({
         toolName: 'async_jobs',
         data: response,

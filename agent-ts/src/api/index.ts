@@ -4,7 +4,7 @@
  * 基于 pi-coding-agent SDK 构建的命令行交互式投资分析 Agent
  */
 import { config } from "dotenv";
-import { InteractiveMode, AgentSessionRuntime } from "@mariozechner/pi-coding-agent";
+import { InteractiveMode, AgentSessionRuntime } from "../sdk-facade.js";
 import { getSession as getSessionNormal } from "../core/agent/agent-loop.js";
 import { getSession as getSessionBackground } from "../core/agent/background-agent-loop.js";
 import * as logger from "../infrastructure/logging/observable-logger.js";
@@ -19,7 +19,7 @@ import type { FeishuBotHandle } from "./feishu.js";
 import { join } from "path";
 import { existsSync, readFileSync, unlinkSync } from "fs";
 import { spawn } from "child_process";
-import type { AgentSession } from "@mariozechner/pi-coding-agent";
+import type { AgentSession } from "../sdk-facade.js";
 import { addMessage, createUserMessage, createAssistantMessage } from "../core/agent/session-adapter.js";
 import { getTaskManager, getBackgroundManager } from "../infrastructure/tools/index.js";
 import type { TaskManager } from "../core/task/task-manager.js";
@@ -374,7 +374,7 @@ async function main() {
     });
 
     // 启动交互式模式
-    const runtime = new AgentSessionRuntime(session, { cwd: process.cwd()  } as any, async () => ({ session }));
+    const runtime = new AgentSessionRuntime(session, { cwd: process.cwd()  } as any, async () => ({ session } as any));
     const mode = new InteractiveMode(runtime);
     await mode.run();
 

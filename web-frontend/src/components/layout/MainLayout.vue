@@ -80,6 +80,32 @@
             <span>ML 引擎</span>
           </el-menu-item>
 
+          <div class="menu-group-title">博弈智能</div>
+          <el-menu-item index="/game-intelligence/dashboard">
+            <el-icon><DataAnalysis /></el-icon>
+            <span>博弈总览</span>
+          </el-menu-item>
+          <el-menu-item index="/game-intelligence/opponent-behavior">
+            <el-icon><User /></el-icon>
+            <span>对手行为</span>
+          </el-menu-item>
+          <el-menu-item index="/game-intelligence/alerts">
+            <el-icon><BellFilled /></el-icon>
+            <span>预警中心</span>
+          </el-menu-item>
+          <el-menu-item index="/game-intelligence/learning-loop">
+            <el-icon><TrendCharts /></el-icon>
+            <span>学习闭环</span>
+          </el-menu-item>
+          <el-menu-item index="/game-intelligence/automation-monitor">
+            <el-icon><Monitor /></el-icon>
+            <span>任务监控</span>
+          </el-menu-item>
+          <el-menu-item index="/game-intelligence/automation-config">
+            <el-icon><Setting /></el-icon>
+            <span>自动化配置</span>
+          </el-menu-item>
+
           <div class="menu-group-title">系统运维</div>
           <el-menu-item index="/scheduler">
             <el-icon><Clock /></el-icon>

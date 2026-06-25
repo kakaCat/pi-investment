@@ -5,7 +5,7 @@ import {
   estimateTokens,
   loadSkills,
   type Skill,
-} from "@mariozechner/pi-coding-agent";
+} from "../sdk-facade.js";
 import { existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import * as logger from "../infrastructure/logging/observable-logger.js";
@@ -187,8 +187,8 @@ export async function startFeishuBot(): Promise<FeishuBotHandle | null> {
 
   const feishuTools: ToolDefinition[] = [
     ...allCustomTools,
-    ...pluginRegistry.tools,
-  ];
+    ...pluginRegistry.tools as any[],
+  ] as ToolDefinition[];
   setPlanToolContext(feishuTools);
 
   const client = new lark.Client({

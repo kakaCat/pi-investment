@@ -11,18 +11,18 @@
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { join, resolve } from "path";
 import type { PluginApi, PluginManifest, PluginRegistry, PluginSkill } from "./types.js";
-import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { PiToolDefinition } from "../../sdk-facade.js";
 
 function createRegistry(): PluginRegistry {
   return { tools: [], skills: [], records: [] };
 }
 
 function createPluginApi(
-  tools: ToolDefinition[],
+  tools: PiToolDefinition[],
   skills: PluginSkill[],
 ): PluginApi {
   return {
-    registerTool(tool) {
+    registerTool(tool: any) {
       tools.push(tool);
     },
     registerSkill(skill) {
@@ -52,7 +52,7 @@ async function loadPlugin(dir: string, registry: PluginRegistry): Promise<void> 
   }
 
   const id = manifest.id || dir;
-  const pluginTools: ToolDefinition[] = [];
+  const pluginTools: PiToolDefinition[] = [];
   const pluginSkills: PluginSkill[] = [];
 
   // 按优先级尝试入口文件

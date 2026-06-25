@@ -5,16 +5,16 @@
  * 1. 在此目录或 services/ 下创建工具文件
  * 2. 在下方 import 并加入 allCustomTools 数组
  */
-import type { ToolDefinition as BaseToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { PiToolDefinition } from "../../sdk-facade.js";
+import { createReadTool } from "../../sdk-facade.js";
 
 /**
  * Extended ToolDefinition with prompt guidance fields
  */
-export interface ToolDefinition extends BaseToolDefinition {
+export interface ToolDefinition extends PiToolDefinition {
   promptSnippet?: string;
   promptGuidelines?: string[];
 }
-import { createReadTool } from "@mariozechner/pi-coding-agent";
 
 const readTool = createReadTool(process.cwd());
 
@@ -60,8 +60,17 @@ import { timeseriesAnalyzerTool } from "./timeseries/timeseries-analyzer-tool.js
 // 市场分析
 import { marketStyleDetectTool } from "./market/market-style-detect-tool.js";  // 新增：市场风格检测工具
 
+// 博弈情报
+import { opponentBehaviorTool } from "./game/opponent-behavior-tool.js";  // 新增：对手行为分析
+import { poolBattlefieldTool } from "./game/pool-battlefield-tool.js";    // 新增：池子战场评估
+import { manipulationDetectTool } from "./game/manipulation-detect-tool.js"; // 新增：操纵检测
+
+// 决策追踪
+import { decisionHistoryTool } from "./decision/decision-history-tool.js";  // 新增：决策历史查询
+
 // 调度器管理
 import { schedulerManageTool } from "./scheduler/scheduler-manage-tool.js";  // 新增：调度器管理工具
+import { feishuNotifyTool } from "./notification/feishu-notify-tool.js";  // 新增：飞书通知工具
 
 // L2 因子工厂
 import { factorCalculateTool } from "./factor/calculate-tool.js";
@@ -301,7 +310,12 @@ export const allCustomTools = [
   riskBarraDecompositionTool,     // risk_barra_decomposition - Barra风险分解（新增）
   factorModelAttributionTool,     // factor_model_attribution - 因子模型归因（新增）
   marketStyleDetectTool,          // market_style_detect - 市场风格检测（新增）
+  opponentBehaviorTool,           // opponent_behavior - 对手行为分析（博弈情报）
+  poolBattlefieldTool,            // pool_battlefield - 池子战场评估（博弈情报）
+  manipulationDetectTool,         // manipulation_detect - 操纵检测（博弈情报）
+  decisionHistoryTool,            // decision_history - 决策历史查询（决策追踪）
   schedulerManageTool,            // scheduler_manage - 调度器管理（新增）
+  feishuNotifyTool,               // feishu_notify - 飞书通知工具（新增）
   strategyComparisonTool,         // strategy_performance_comparison - 策略性能对比（新增）
   backtestStatsTool,              // backtest_stats - 回测统计（新增）
   backtestHistoryTool,            // backtest_history - 回测历史查询（新增）

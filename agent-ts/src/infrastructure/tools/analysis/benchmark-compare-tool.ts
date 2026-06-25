@@ -56,7 +56,7 @@ export const benchmarkCompareTool: ToolDefinition = {
     }
 
     try {
-      const response = await runQuantV2("benchmark", "compare", params);
+      const response = await runQuantV2("benchmark.compare", params);
       return handleToolResponse({
         toolName: 'benchmark_compare',
         data: response,

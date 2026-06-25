@@ -29,7 +29,7 @@ export const sectorAnalysisTool: ToolDefinition = {
   }),
   execute: async (_toolCallId: string, params: any) => {
     try {
-      const response = await runQuantV2("sector", "aggregate", params);
+      const response = await runQuantV2("sector.aggregate", params);
       return handleToolResponse({
         toolName: 'sector_analysis',
         data: response,
@@ -38,15 +38,31 @@ export const sectorAnalysisTool: ToolDefinition = {
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
+
+      // 提供更友好的错误提示
+      let userFriendlyMsg = '行业分析失败';
+      if (errorMsg.includes('sys') && errorMsg.includes('not defined')) {
+        userFriendlyMsg += ': 后端服务配置错误，请检查Python环境';
+      } else if (errorMsg.includes('500')) {
+        userFriendlyMsg += ': 服务器内部错误';
+      } else if (errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT')) {
+        userFriendlyMsg += ': 请求超时，请稍后重试';
+      } else if (errorMsg.includes('ECONNREFUSED')) {
+        userFriendlyMsg += ': 无法连接到后端服务，请确认服务已启动';
+      } else {
+        userFriendlyMsg += `: ${errorMsg}`;
+      }
+
       return {
         content: [{
           type: "text" as const,
-          text: `行业分析失败: ${errorMsg}`
+          text: `${userFriendlyMsg}\n\n详细信息: ${errorMsg}\n\n参数: ${JSON.stringify(params, null, 2)}`
         }],
         details: {
           success: false,
           error: errorMsg,
-          params
+          params,
+          userFriendlyMessage: userFriendlyMsg
         }
       };
     }

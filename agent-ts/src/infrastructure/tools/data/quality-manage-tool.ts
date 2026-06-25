@@ -3,7 +3,8 @@
  *
  * 提供数据质量检查、缺失检测、数据补充等功能
  */
-import type { Tool } from '@mariozechner/pi-agent-core';
+import type { ToolDefinition } from "../index.js";
+import { wrapToolResult } from '../utils/tool-result-wrapper.js';
 import { logger } from '../../../infrastructure/logging/index.js';
 import {
   checkDataQuality,
@@ -22,8 +23,9 @@ interface DataQualityParams {
   include_report?: boolean;
 }
 
-export const dataQualityManageTool: Tool = {
+export const dataQualityManageTool: ToolDefinition = {
   name: 'data_quality_manage',
+  label: '数据质量管理',
   description: `数据质量管理工具 - 检测和修复数据缺失、验证数据质量
 
 **功能：**
@@ -81,7 +83,7 @@ export const dataQualityManageTool: Tool = {
     required: ['action']
   },
 
-  execute: async (_toolCallId: string, params: DataQualityParams) => {
+  execute: async (_toolCallId: string, params: DataQualityParams, _signal?: AbortSignal, _onUpdate?: any, _ctx?: any) => {
     const { action, symbols, start_date, end_date, mode, max_workers, include_report } = params;
 
     logger.info(`执行数据质量管理: action=${action}, symbols=${symbols?.length || 'all'}`);
@@ -98,7 +100,7 @@ export const dataQualityManageTool: Tool = {
             end_date,
             include_report
           });
-          return formatCheckResult(result);
+          return wrapToolResult(formatCheckResult(result));
 
         case 'detect':
           // 检测缺失数据
@@ -107,7 +109,7 @@ export const dataQualityManageTool: Tool = {
             start_date,
             end_date
           });
-          return formatDetectResult(result);
+          return wrapToolResult(formatDetectResult(result));
 
         case 'backfill':
           // 补充缺失数据
@@ -118,7 +120,7 @@ export const dataQualityManageTool: Tool = {
             mode: mode || 'auto',
             max_workers: max_workers || 8
           });
-          return formatBackfillResult(result);
+          return wrapToolResult(formatBackfillResult(result));
 
         case 'validate':
           // 验证数据质量
@@ -127,14 +129,14 @@ export const dataQualityManageTool: Tool = {
             start_date,
             end_date
           });
-          return formatValidateResult(result);
+          return wrapToolResult(formatValidateResult(result));
 
         default:
-          return `错误：未知操作类型 "${action}"`;
+          return wrapToolResult(`错误：未知操作类型 "${action}"`);
       }
     } catch (error: any) {
       logger.error(`数据质量管理失败: ${error.message}`);
-      return `执行失败: ${error.message}`;
+      return wrapToolResult(`执行失败: ${error.message}`);
     }
   }
 };

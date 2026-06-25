@@ -1,4 +1,4 @@
-import type { Skill } from "@mariozechner/pi-coding-agent";
+import type { Skill } from "../../sdk-facade.js";
 
 interface RouteRule {
   skillName: string;

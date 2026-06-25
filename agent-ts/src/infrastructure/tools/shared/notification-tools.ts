@@ -1,7 +1,7 @@
 /**
  * Notification Tools - 通知工具集
  */
-import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 // @ts-ignore - Module stub needed
 import { NotificationService } from "../../../services/notification/notification-service.js";
@@ -44,7 +44,11 @@ export const sendNotificationTool: ToolDefinition = {
   execute: async (_toolCallId: string, params: any) => {
     try {
       const service = getNotificationService();
-      await service.send(params.message);
+      await service.broadcast({
+        title: '通知',
+        content: params.message,
+        level: 'info',
+      });
 
       return {
         content: [{

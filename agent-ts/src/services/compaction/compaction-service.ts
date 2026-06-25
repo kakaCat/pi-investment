@@ -5,7 +5,7 @@
  * 2. Conversation compaction: 超过 token 阈值时压缩旧轮次对话
  * 3. Compact tool: Agent 可主动触发压缩
  */
-import type { AgentMessage } from "@mariozechner/pi-agent-core";
+import type { AgentMessage } from "../../sdk-facade.js";
 import { compactionConfig } from "../../config/config.js";
 
 /**

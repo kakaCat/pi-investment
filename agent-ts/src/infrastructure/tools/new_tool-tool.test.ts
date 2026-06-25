@@ -9,11 +9,15 @@ describe("new_toolTool", () => {
 
     expect(result.content).toBeDefined();
     expect(result.details).toBeDefined();
+    expect(result.content[0].type).toBe("text");
+    expect(result.details.success).toBe(true);
   });
 
   it("should handle invalid params gracefully", async () => {
     const result = await (new_toolTool.execute as any)("test-id", {});
 
     expect(result.content).toBeDefined();
+    expect(result.details).toBeDefined();
+    expect(result.content[0].text).toBe("结果文本");
   });
 });

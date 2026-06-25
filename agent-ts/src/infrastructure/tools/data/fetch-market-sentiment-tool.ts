@@ -89,7 +89,7 @@ function formatSentimentData(data: SentimentData): string {
   // 恐慌/贪婪指数
   if (data.fear_greed_index !== undefined) {
     const index = data.fear_greed_index;
-    const { level, emoji, description } = getSentimentLevel(index);
+    const { level, emoji, description } = getSentimentLevel(index || 0);
 
     output += `**恐慌/贪婪指数**\n`;
     output += `- 数值：${emoji} **${index}** / 100\n`;
@@ -99,7 +99,7 @@ function formatSentimentData(data: SentimentData): string {
 
   // 情绪等级（如果有单独字段）
   if ((data as any).sentiment_level) {
-    output += `**情绪等级**：${getSentimentEmoji(data.sentiment_level)} ${data.sentiment_level}\n\n`;
+    output += `**情绪等级**：${getSentimentEmoji(data.sentiment_level || "")} ${data.sentiment_level}\n\n`;
   }
 
   // 市场温度
@@ -112,7 +112,7 @@ function formatSentimentData(data: SentimentData): string {
   // 2. 涨跌统计
   if ((data as any).advance_decline) {
     output += "### 📈 涨跌统计\n\n";
-    const { advancing, declining, unchanged } = data.advance_decline;
+    const ad = data.advance_decline! as any; const advancing = ad.advancing, declining = ad.declining, unchanged = ad.unchanged;
     const total = advancing + declining + unchanged;
     const ratio = declining > 0 ? (advancing / declining).toFixed(2) : "N/A";
 

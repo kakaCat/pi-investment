@@ -12,7 +12,7 @@
  */
 
 // Re-export for plugin authors
-export type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+export type { PiToolDefinition as ToolDefinition } from "../../sdk-facade.js";
 
 /**
  * 插件注册的 Skill（注入到系统提示词中）
@@ -28,9 +28,10 @@ export interface PluginSkill {
 
 /**
  * 插件 API —— 传给插件的 register 函数
+ * 使用 any 接受任意工具类型（兼容 SDK 和内部 PiToolDefinition）
  */
 export interface PluginApi {
-  registerTool(tool: import("@mariozechner/pi-coding-agent").ToolDefinition): void;
+  registerTool(tool: any): void;
   registerSkill(skill: PluginSkill): void;
 }
 
@@ -59,9 +60,10 @@ export interface PluginRecord {
 
 /**
  * 插件注册表 —— 所有已加载插件贡献的工具和技能
+ * 使用 PiToolDefinition 作为内部类型
  */
 export interface PluginRegistry {
-  tools: import("@mariozechner/pi-coding-agent").ToolDefinition[];
+  tools: Array<{ name: string; description: string; parameters: any; execute: (...args: any[]) => any; [key: string]: any }>;
   skills: PluginSkill[];
   records: PluginRecord[];
 }

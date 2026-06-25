@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import { AsyncLocalStorage } from "async_hooks";
-import type { Skill, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { Skill, ToolDefinition } from "../../sdk-facade.js";
 
 const TOOL_CALL_RE = /`([A-Za-z_][A-Za-z0-9_]*)\(/g;
 

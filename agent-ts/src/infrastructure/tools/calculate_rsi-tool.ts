@@ -1,6 +1,50 @@
 import type { ToolDefinition } from "./index.js";
 import { Type } from "@sinclair/typebox";
 
+type RsiPoint = {
+  index: number;
+  close: number;
+  gain: number;
+  loss: number;
+  averageGain: number;
+  averageLoss: number;
+  rsi: number;
+};
+
+function round(value: number, digits = 4): number {
+  return Number(value.toFixed(digits));
+}
+
+function calculateRsi(prices: number[], period: number): RsiPoint[] {
+  const changes = prices.slice(1).map((price, index) => price - prices[index]);
+  const gains = changes.map((change) => Math.max(change, 0));
+  const losses = changes.map((change) => Math.max(-change, 0));
+
+  let averageGain = gains.slice(0, period).reduce((sum, value) => sum + value, 0) / period;
+  let averageLoss = losses.slice(0, period).reduce((sum, value) => sum + value, 0) / period;
+
+  const values: RsiPoint[] = [];
+
+  for (let i = period; i < changes.length; i += 1) {
+    averageGain = (averageGain * (period - 1) + gains[i]) / period;
+    averageLoss = (averageLoss * (period - 1) + losses[i]) / period;
+
+    const rsi = averageLoss === 0 ? 100 : 100 - 100 / (1 + averageGain / averageLoss);
+
+    values.push({
+      index: i + 1,
+      close: prices[i + 1],
+      gain: round(gains[i]),
+      loss: round(losses[i]),
+      averageGain: round(averageGain),
+      averageLoss: round(averageLoss),
+      rsi: round(rsi),
+    });
+  }
+
+  return values;
+}
+
 export const calculate_rsiTool: ToolDefinition = {
   name: "calculate_rsi",
   label: "calculate_rsi",
@@ -14,91 +58,52 @@ export const calculate_rsiTool: ToolDefinition = {
       Type.Integer({
         minimum: 1,
         default: 14,
-        description: "RSI计算周期",
+        description: "RSI计算周期，默认14",
       }),
     ),
   }),
   execute: async (_toolCallId: string, params: any) => {
-    const prices = params?.prices;
+    const prices = Array.isArray(params?.prices) ? params.prices : undefined;
     const period = Number.isInteger(params?.period) ? params.period : 14;
 
-    if (
-      !Array.isArray(prices) ||
-      !Number.isInteger(period) ||
-      period <= 0 ||
-      prices.length < period + 1 ||
-      prices.some((price) => typeof price !== "number" || !Number.isFinite(price))
-    ) {
+    if (!prices || prices.some((price: any) => typeof price !== "number" || !Number.isFinite(price))) {
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: "参数无效：prices必须包含至少period + 1个有效价格，period必须为正整数",
-          },
-        ],
+        content: [{ type: "text" as const, text: "参数无效：prices必须是有效数字数组" }],
         details: {
           success: false,
-          error: "Invalid parameters",
-          period,
-          pricesCount: Array.isArray(prices) ? prices.length : 0,
+          error: "prices must be an array of finite numbers",
+          received: params,
         },
       };
     }
 
-    let gainSum = 0;
-    let lossSum = 0;
-
-    for (let i = 1; i <= period; i += 1) {
-      const change = prices[i] - prices[i - 1];
-
-      if (change > 0) {
-        gainSum += change;
-      } else {
-        lossSum += Math.abs(change);
-      }
+    if (period < 1 || prices.length <= period + 1) {
+      return {
+        content: [{ type: "text" as const, text: "参数无效：价格数量必须大于RSI周期+1" }],
+        details: {
+          success: false,
+          error: "prices length must be greater than period + 1",
+          period,
+          pricesLength: prices.length,
+        },
+      };
     }
 
-    let averageGain = gainSum / period;
-    let averageLoss = lossSum / period;
-    const series: Array<{ index: number; rsi: number }> = [];
-
-    const calculateRsiValue = () => {
-      if (averageLoss === 0) return 100;
-      if (averageGain === 0) return 0;
-
-      const relativeStrength = averageGain / averageLoss;
-      return 100 - 100 / (1 + relativeStrength);
-    };
-
-    series.push({
-      index: period,
-      rsi: Number(calculateRsiValue().toFixed(4)),
-    });
-
-    for (let i = period + 1; i < prices.length; i += 1) {
-      const change = prices[i] - prices[i - 1];
-      const gain = change > 0 ? change : 0;
-      const loss = change < 0 ? Math.abs(change) : 0;
-
-      averageGain = (averageGain * (period - 1) + gain) / period;
-      averageLoss = (averageLoss * (period - 1) + loss) / period;
-
-      series.push({
-        index: i,
-        rsi: Number(calculateRsiValue().toFixed(4)),
-      });
-    }
-
-    const rsi = series[series.length - 1].rsi;
+    const values = calculateRsi(prices, period);
+    const latestRsi = values.length > 0 ? values[values.length - 1].rsi : null;
 
     return {
-      content: [{ type: "text" as const, text: `RSI(${period}) = ${rsi}` }],
+      content: [
+        {
+          type: "text" as const,
+          text: latestRsi === null ? "RSI计算完成，但没有生成有效结果" : `RSI(${period}) = ${latestRsi}`,
+        },
+      ],
       details: {
         success: true,
-        rsi,
         period,
-        pricesCount: prices.length,
-        series,
+        latestRsi,
+        values,
       },
     };
   },

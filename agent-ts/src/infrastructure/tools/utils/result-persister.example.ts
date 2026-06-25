@@ -55,8 +55,8 @@ async function poolValidateExample(params: {
   // 自定义摘要信息
   const summary = `
     验证池子${params.pool_id}的${params.strategy_ids.length}个策略
-    最优策略: ${validateResult.best_strategy?.name || 'N/A'}
-    最佳股票: ${validateResult.top_stocks?.slice(0, 3).join(', ') || 'N/A'}
+    最优策略: ${(validateResult as any).best_strategy?.name || 'N/A'}
+    最佳股票: ${(validateResult as any).top_stocks?.slice(0, 3).join(', ') || 'N/A'}
   `.trim();
 
   return await saveToolResult({
@@ -119,7 +119,7 @@ export const indicatorBacktestToolDefinition = {
       const persisted = await saveToolResult({
         toolName: 'indicator_backtest',
         data,
-        summary: `指标 ${params.indicator_id} 回测完成：收益率 ${data.return_pct?.toFixed(2)}%`,
+        summary: `指标 ${params.indicator_id} 回测完成：收益率 ${(data as any).return_pct?.toFixed(2)}%`,
         metadata: params,
       });
 

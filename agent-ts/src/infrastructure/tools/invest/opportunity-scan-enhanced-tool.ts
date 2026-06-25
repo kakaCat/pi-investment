@@ -4,7 +4,7 @@
  * 用途：扫描股票池，发现符合策略的买入信号
  */
 
-import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
+import type { ToolDefinition } from "../index.js";
 import { QuantV2Client } from '../../adapters/quant/quant-v2-client.js';
 
 const client = QuantV2Client;
@@ -18,6 +18,7 @@ interface OpportunityScanParams {
 
 export const opportunityScanEnhancedTool: ToolDefinition = {
   name: 'opportunity_scan_enhanced',
+  label: '机会扫描',
   description: `扫描股票池，发现买入信号（增强版）
 
 使用场景：
@@ -59,7 +60,7 @@ export const opportunityScanEnhancedTool: ToolDefinition = {
     }
   },
 
-  execute: async (_toolCallId: string, params: OpportunityScanParams) => {
+  execute: async (_toolCallId: string, params: OpportunityScanParams, _signal?: AbortSignal, _onUpdate?: any, _ctx?: any) => {
     try {
       const strategyIds = params.strategy_ids || [272, 273];
       const minScore = params.min_score || 70;
@@ -114,10 +115,10 @@ export const opportunityScanEnhancedTool: ToolDefinition = {
       output += `  -d '{"limit": ${limit}, "min_score": ${minScore}}'\n`;
       output += `\`\`\`\n`;
 
-      return output;
+      return { details: {} as any, content: [{ type: "text" as const, text: output }] };
 
     } catch (error: any) {
-      return { content: [{ type: "text" as const, text: `❌ 扫描失败: ${error.message}` }] };
+      return { details: {} as any, content: [{ type: "text" as const, text: `❌ 扫描失败: ${error.message}` }] };
     }
   }
 };

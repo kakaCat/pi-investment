@@ -135,7 +135,7 @@ export function queryExperience(params: {
   const textMatches = experienceBase.experiences
     .map(exp => ({
       experience: exp,
-      similarity: calculateSimilarity(exp.scenario, scenario)
+      similarity: calculateSimilarity((exp.scenario as string) || "", (scenario as string) || "")
     }))
     .filter(item => item.similarity > 0.3); // 相似度阈值
 

@@ -10,7 +10,7 @@ import {
   createAgentSession,
   loadSkills,
   type Skill
-} from "@mariozechner/pi-coding-agent";
+} from "../../sdk-facade.js";
 import type { Message } from "../../types/index.js";
 import { compactTool } from "../../infrastructure/tools/agent/compact-tool.js";
 import { taskCreateTool, taskUpdateTool, taskListTool, taskExecuteAsyncTool, taskCheckBackgroundTool, initTaskTools } from "../../infrastructure/tools/agent/task-tools.js";
@@ -92,7 +92,7 @@ export async function agentLoop(messages: Message[]): Promise<void> {
 
     const agentState = getAgentState(agentSession);
     if (agentState) {
-      microCompact(agentState.messages);
+      microCompact(agentState.messages as any);
     }
 
     const routed = rewritePromptWithSkill(userContent);

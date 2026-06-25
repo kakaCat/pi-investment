@@ -4,7 +4,7 @@
  * 通过WebSocket实时推送买卖信号，供前端展示和通知
  */
 
-import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
+import type { ToolDefinition } from "../index.js";
 import { Type } from '@sinclair/typebox';
 
 export const signalPushTool: ToolDefinition = {

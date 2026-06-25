@@ -3,7 +3,7 @@
  *
  * 在会话结束时派发独立 agent 回顾对话历史，提取关键信息并写入记忆
  */
-import { createAgentSession, type AgentSession } from "@mariozechner/pi-coding-agent";
+import { createSession, type AgentSession } from "../../sdk-facade.js";
 import { createDeepSeekModel } from "../../config/config.js";
 import { memoryWriteTool, memorySearchTool } from "../../infrastructure/tools/agent/memory-tool.js";
 import { getMessages, type SessionMessage } from "../../core/agent/session-adapter.js";
@@ -86,7 +86,7 @@ async function saveSessionMemoryInternal(
       const content = typeof msg.content === "string"
         ? msg.content
         : Array.isArray(msg.content)
-          ? msg.content.find((c: unknown) => typeof c === "object" && c !== null && "text" in c)?.text || ""
+          ? (msg.content.find((c: unknown) => typeof c === "object" && c !== null && "text" in c && (c as any).type === "text") as any)?.text || ""
           : "";
       return `${msg.role === "user" ? "User" : "Assistant"}: ${content.slice(0, 500)}`;
     })
@@ -101,7 +101,7 @@ async function saveSessionMemoryInternal(
 
   // 创建独立的 memory saver agent
   // @ts-ignore - Type mismatch from SDK update
-  const { session: memorySaverSession } = await createAgentSession({
+  const { session: memorySaverSession } = await createSession({
     cwd: process.cwd(),
     model: createDeepSeekModel(),
     systemPrompt: buildMemorySaverSystemPrompt(),
@@ -277,7 +277,7 @@ export async function extractSessionSummary(
     const content = typeof msg.content === "string"
       ? msg.content
       : Array.isArray(msg.content)
-        ? msg.content.find((c: unknown) => typeof c === "object" && c !== null && "text" in c)?.text || ""
+        ? (msg.content.find((c: any) => typeof c === "object" && c !== null && c.type === "text") as any)?.text || ""
         : "";
 
     const lower = content.toLowerCase();

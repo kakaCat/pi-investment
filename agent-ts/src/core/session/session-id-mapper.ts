@@ -100,6 +100,6 @@ export class SessionIdMapper {
    * 通过友好ID获取UUID
    */
   getUuid(friendlyId: string): string {
-    return this.friendlyToUuid.get(friendlyId);
+    return this.friendlyToUuid.get(friendlyId) || "";
   }
 }

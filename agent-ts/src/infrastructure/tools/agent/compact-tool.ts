@@ -2,8 +2,8 @@
  * Compact Tool - 手动触发上下文压缩
  */
 import { Type } from "@sinclair/typebox";
-import { generateSummary } from "@mariozechner/pi-coding-agent";
-import type { AgentSession } from "@mariozechner/pi-coding-agent";
+import { generateSummary } from "../../../sdk-facade.js";
+import type { AgentSession } from "../../../sdk-facade.js";
 import { getMessages, getModel } from "../../../core/agent/session-adapter.js";
 
 let sessionRef: AgentSession | null = null;
@@ -39,7 +39,7 @@ export const compactTool = {
       const model = getModel(sessionRef);
       const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY || "";
 
-      await generateSummary(messages, model, 16384, apiKey, undefined, params.focus);
+      await generateSummary(messages as any, model, 16384, apiKey);
 
       return {
         content: [{ type: "text" as const, text: `✅ Compaction triggered (${beforeCount} messages).${params.focus ? `\nFocus: ${params.focus}` : ""}` }],

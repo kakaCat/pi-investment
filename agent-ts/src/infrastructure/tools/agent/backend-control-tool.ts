@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, openSync, closeSync
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { spawn, execSync } from "child_process";
-import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

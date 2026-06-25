@@ -209,7 +209,7 @@ function formatRunResult(data: DiscoveryResult, params: StrategyDiscoveryParams)
     output += `- **运行ID**：${data.run_id}\n`;
   }
   if ((data as any).status) {
-    output += `- **状态**：${getStatusText(data.status)}\n`;
+    output += `- **状态**：${getStatusText(data.status || "")}\n`;
   }
   if (params.symbols) {
     output += `- **测试股票**：${params.symbols.join(", ")}\n`;

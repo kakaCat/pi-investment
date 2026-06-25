@@ -7,7 +7,7 @@
  * - 今日每日记忆读取
  * - 将以上内容装配成最终的系统提示词
  */
-import { type Skill } from "@mariozechner/pi-coding-agent";
+import { type Skill } from "../../sdk-facade.js";
 import { join } from "path";
 import { readFileSync, existsSync } from "fs";
 import { getMemoryStore } from "../../services/intelligence/memory-store.js";

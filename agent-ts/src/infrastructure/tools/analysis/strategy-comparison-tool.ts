@@ -4,7 +4,7 @@
  * 用途：对比多个策略的历史回测表现，找出最优策略
  */
 
-import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
+import type { ToolDefinition } from "../index.js";
 import { QuantV2Client } from '../../../infrastructure/adapters/quant/quant-v2-client.js';
 
 const client = QuantV2Client;
@@ -17,6 +17,7 @@ interface StrategyComparisonParams {
 
 export const strategyComparisonTool: ToolDefinition = {
   name: 'strategy_performance_comparison',
+  label: '策略对比',
   description: `对比多个策略的历史回测表现，生成性能排名。
 
 使用场景：
@@ -48,10 +49,10 @@ export const strategyComparisonTool: ToolDefinition = {
     required: ['strategy_names']
   },
 
-  execute: async (_toolCallId: string, params: StrategyComparisonParams) => {
+  execute: async (_toolCallId: string, params: StrategyComparisonParams, _signal?: AbortSignal, _onUpdate?: any, _ctx?: any) => {
     try {
       if (!params.strategy_names || params.strategy_names.length === 0) {
-        return { content: [{ type: "text" as const, text: `❌ 参数错误: 请提供至少一个策略名称` }] };
+        return { details: {} as any, content: [{ type: "text" as const, text: `❌ 参数错误: 请提供至少一个策略名称` }] };
       }
 
       const requestBody = {
@@ -63,13 +64,13 @@ export const strategyComparisonTool: ToolDefinition = {
       const response = await client.post('/api/strategies/performance-comparison', requestBody);
 
       if (!response.success) {
-        return { content: [{ type: "text" as const, text: `❌ 对比失败: ${response.error}` }] };
+        return { details: {} as any, content: [{ type: "text" as const, text: `❌ 对比失败: ${response.error}` }] };
       }
 
       const { comparison, ranking } = (response as any).data;
 
       if (comparison.length === 0) {
-        return { content: [{ type: "text" as const, text: `📊 未找到回测数据\n\n请确认策略名称正确，且已有回测记录。` }] };
+        return { details: {} as any, content: [{ type: "text" as const, text: `📊 未找到回测数据\n\n请确认策略名称正确，且已有回测记录。` }] };
       }
 
       // 格式化输出
@@ -116,10 +117,10 @@ export const strategyComparisonTool: ToolDefinition = {
         output += `  ❌ 所有策略表现较差，建议重新设计\n`;
       }
 
-      return output;
+      return { details: {} as any, content: [{ type: "text" as const, text: output }] };
 
     } catch (error: any) {
-      return { content: [{ type: "text" as const, text: `❌ 策略对比失败: ${error.message}` }] };
+      return { details: {} as any, content: [{ type: "text" as const, text: `❌ 策略对比失败: ${error.message}` }] };
     }
   }
 };

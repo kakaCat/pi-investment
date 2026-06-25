@@ -11,7 +11,7 @@ import cors from 'cors';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { ChannelSessionManager, type ChannelAgentSession } from './channel-session-manager.js';
-import { SessionManager, type Skill, loadSkills } from "@mariozechner/pi-coding-agent";
+import { SessionManager, type Skill, loadSkills } from "../sdk-facade.js";
 import { createTrackedSession } from "../infrastructure/session/session-factory.js";
 import { allCustomTools, initMemoryTools } from "../infrastructure/tools/index.js";
 import type { ToolDefinition } from "../infrastructure/tools/index.js";
@@ -62,7 +62,8 @@ export function startWakeChannel(port: number = 3001): { shutdown: () => void } 
   ensureWakeDir();
 
   const skills = loadProjectSkills();
-  const wakeTools: ToolDefinition[] = [...allCustomTools];
+  const wakeTools: ToolDefinition[] = [...allCustomTools] as ToolDefinition[];
+  console.log(`[Wake] 已加载 ${wakeTools.length} 个工具, feishu_notify: ${wakeTools.some(t => t.name === 'feishu_notify') ? '✅' : '❌'}`);
   initMemoryTools(paths.piDir);
   setPlanToolContext(wakeTools);
 
@@ -146,7 +147,7 @@ export function startWakeChannel(port: number = 3001): { shutdown: () => void } 
       // 构造 Agent 提示词
       const promptText = buildPromptFromEvent(event, task_id, task_name, data);
 
-      // 通过 ChannelSessionManager 处理消息
+      // 通过 ChannelSessionManager 处理消息，Agent 会调用 feishu_notify 工具
       const reply = await channelManager.processMessage(sessionId, messageId, promptText);
 
       console.log(`✅ [Wake] 事件处理完成: ${event}`);
@@ -218,6 +219,9 @@ export function startWakeChannel(port: number = 3001): { shutdown: () => void } 
 }
 
 /**
+ * 直接发送飞书通知（不依赖 Agent 调用工具）
+ */
+/**
  * 根据事件类型构造 Agent 提示词
  */
 function buildPromptFromEvent(
@@ -230,7 +234,19 @@ function buildPromptFromEvent(
 
   switch (event) {
     case 'market_alert':
-      return `市场异动提醒：${data?.index || '指数'}发生异常波动。上证指数涨跌：${data?.sh_change || 'N/A'}，深证成指涨跌：${data?.sz_change || 'N/A'}。请使用 feishu_notify 工具推送告警通知。`;
+      return `【任务】请按以下步骤处理市场异动：
+
+1. 分析当前市场数据：上证 ${data?.sh_change || 'N/A'}，深证 ${data?.sz_change || 'N/A'}，${data?.reason || ''}。
+2. 用 market_sentiment 工具查看市场情绪。
+3. 如果是大跌，用 opportunity_scan 扫描超跌机会。
+4. 综合以上信息，用 feishu_notify 工具给用户发送一份完整的分析报告，内容包括：
+   - 市场发生了什么
+   - 原因分析
+   - 情绪面判断
+   - 发现的投资机会
+   - 操作建议
+
+不要只报告数据，要做真正的投资分析，所有分析结果必须通过飞书发送给用户。`;
 
     case 'daily_report':
       return `生成每日投资报告（任务：${taskInfo}）。请使用 daily_report 工具生成报告，然后通过 feishu_notify 推送。`;

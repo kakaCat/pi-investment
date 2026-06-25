@@ -891,7 +891,7 @@ export class Subtractor {
       // 置信度
       const hasRealBuys = this.trades.some(t => t.symbol === h.symbol && t.action === 'buy');
       let confidence: 'high' | 'medium' | 'low';
-      let confidenceNote: string;
+      let confidenceNote: string = "";
 
       if (hasRealBuys) {
         confidence = 'high';

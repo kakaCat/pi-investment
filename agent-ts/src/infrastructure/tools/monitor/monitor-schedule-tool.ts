@@ -1,7 +1,7 @@
 /**
  * Monitor Tools - 实时盯盘工具
  */
-import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 
 export const scheduleNextCheckTool: ToolDefinition = {

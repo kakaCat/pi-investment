@@ -4,7 +4,7 @@
  * 用途：获取策略的回测统计信息，快速了解策略整体表现
  */
 
-import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
+import type { ToolDefinition } from "../index.js";
 import { QuantV2Client } from '../../../infrastructure/adapters/quant/quant-v2-client.js';
 
 const client = QuantV2Client;
@@ -15,6 +15,7 @@ interface BacktestStatsParams {
 
 export const backtestStatsTool: ToolDefinition = {
   name: 'backtest_stats',
+  label: '回测统计',
   description: `获取策略的回测统计信息，包括平均夏普比率、平均收益、回测次数等。
 
 使用场景：
@@ -32,7 +33,7 @@ export const backtestStatsTool: ToolDefinition = {
     }
   },
 
-  execute: async (_toolCallId: string, params: BacktestStatsParams) => {
+  execute: async (_toolCallId: string, params: BacktestStatsParams, _signal?: AbortSignal, _onUpdate?: any, _ctx?: any) => {
     try {
       const queryParams: Record<string, string> = {};
 
@@ -43,13 +44,13 @@ export const backtestStatsTool: ToolDefinition = {
       const response = await client.get('/api/backtest/stats', queryParams);
 
       if (!response.success) {
-        return { content: [{ type: "text" as const, text: `❌ 查询失败: ${response.error}` }] };
+        return { details: {} as any, content: [{ type: "text" as const, text: `❌ 查询失败: ${response.error}` }] };
       }
 
       const stats = (response as any).data;
 
       if (stats.totalBacktests === 0) {
-        return { content: [{ type: "text" as const, text: `📊 未找到回测统计数据\n\n${params.strategy_name ? `策略 "${params.strategy_name}" 还没有回测记录。` : '系统中还没有任何回测记录。'}` }] };
+        return { details: {} as any, content: [{ type: "text" as const, text: `📊 未找到回测统计数据\n\n${params.strategy_name ? `策略 "${params.strategy_name}" 还没有回测记录。` : '系统中还没有任何回测记录。'}` }] };
       }
 
       // 格式化输出
@@ -93,10 +94,10 @@ export const backtestStatsTool: ToolDefinition = {
         output += `  建议：大幅改进或重新设计\n`;
       }
 
-      return output;
+      return { details: {} as any, content: [{ type: "text" as const, text: output }] };
 
     } catch (error: any) {
-      return { content: [{ type: "text" as const, text: `❌ 查询统计信息失败: ${error.message}` }] };
+      return { details: {} as any, content: [{ type: "text" as const, text: `❌ 查询统计信息失败: ${error.message}` }] };
     }
   }
 };

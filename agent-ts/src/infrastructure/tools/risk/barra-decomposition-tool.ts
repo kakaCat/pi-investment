@@ -233,7 +233,7 @@ function formatBarraResult(
     output += "\n";
 
     // 行业集中度分析
-    const maxExposure = Math.max(...Object.values(data.industry_exposure));
+    const maxExposure = Math.max(...Object.values(data.industry_exposure || {} as Record<string, number>));
     if (maxExposure > 0.3) {
       const topIndustry = Object.entries(data.industry_exposure)
         .find(([_, exp]) => exp === maxExposure)?.[0];
@@ -398,7 +398,7 @@ function generateRiskManagementAdvice(data: BarraResult, portfolio: string[]): s
 
   // 行业集中度
   if ((data as any).industry_exposure) {
-    const maxIndustryExp = Math.max(...Object.values(data.industry_exposure));
+    const maxIndustryExp = Math.max(0, ...Object.values(data.industry_exposure as Record<string, number>));
     if (maxIndustryExp > 0.4) {
       advice.push("🏭 **行业集中度高**：单一行业暴露超过40%，建议跨行业配置");
     }

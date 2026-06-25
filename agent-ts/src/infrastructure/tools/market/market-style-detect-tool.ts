@@ -116,7 +116,7 @@ function formatMarketStyleResult(
   if ((data as any).current_style) {
     output += `### 🎯 当前市场风格\n\n`;
 
-    const styleInfo = getStyleInfo(data.current_style);
+    const styleInfo = getStyleInfo(data.current_style || "");
     const confidence = data.confidence ? (data.confidence * 100).toFixed(1) : '未知';
 
     output += `**市场风格**：${styleInfo.emoji} **${styleInfo.name}**\n`;
@@ -171,7 +171,7 @@ function formatMarketStyleResult(
     if ((data as any).recommendation) {
       output += `${data.recommendation}\n\n`;
     } else if ((data as any).current_style) {
-      const advice = getStyleAdvice(data.current_style);
+      const advice = getStyleAdvice(data.current_style || "");
       output += advice.map(a => `- ${a}`).join('\n');
       output += "\n\n";
     }
@@ -180,7 +180,7 @@ function formatMarketStyleResult(
   // 策略建议
   if ((data as any).current_style) {
     output += `### 🎲 策略建议\n\n`;
-    const strategies: any[] = getRecommendedStrategies(data.current_style);
+    const strategies: any[] = getRecommendedStrategies(data.current_style || "");
     output += `**适合策略**：\n`;
     output += strategies.map(s => `- ${s}`).join('\n');
     output += "\n\n";

@@ -37,7 +37,7 @@ export const calibrateTool: ToolDefinition = {
   }),
   execute: async (_toolCallId: string, params: any) => {
     try {
-      const response = await runQuantV2("calibrate", "run", params);
+      const response = await runQuantV2("calibrate.run", params);
       return handleToolResponse({
         toolName: 'calibrate_confidence',
         data: response,

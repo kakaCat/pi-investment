@@ -44,9 +44,9 @@ export const dailyReportTool: ToolDefinition = {
     try {
       let response;
       if (action === "generate") {
-        response = await runQuantV2("report", "daily", { output_dir });
+        response = await runQuantV2("report.daily", { output_dir });
       } else {
-        response = await runQuantV2("report", "read-daily", { date });
+        response = await runQuantV2("report.read-daily", { date });
       }
       return handleToolResponse({
         toolName: 'daily_report',

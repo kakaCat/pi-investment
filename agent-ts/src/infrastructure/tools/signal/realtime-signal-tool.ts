@@ -1,4 +1,4 @@
-import type { ToolDefinition } from '@mariozechner/pi-coding-agent';
+import type { ToolDefinition } from "../index.js";
 import { Type } from '@sinclair/typebox';
 import { logger } from '../../logging/index.js';
 
@@ -27,7 +27,7 @@ async function fetchV2Api<T>(path: string, options?: {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
 
-  return await response.json();
+  return await response.json() as T;
 }
 
 /**
