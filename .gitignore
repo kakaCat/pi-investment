@@ -113,6 +113,9 @@ web-frontend/docs/testing/
 
 # Archive directory for temporary files
 .archive/
+# But allow README documentation
+!.archive/README.md
+!.archive/*/README.md
 
 # Temporary cache files
 agent-ts/.cache/tool-results/*.json
@@ -135,7 +138,8 @@ MEMORY_UPDATE*.md
 
 # Cleanup and organization files
 cleanup-*.sh
-DOCUMENT_ORGANIZATION_PLAN.md
+# But keep planning documents
+!*CLEANUP_PLAN.md
 
 # Keep important docs - none currently needed
 # !IMPORTANT_DOC.md
