@@ -5,7 +5,11 @@
     "url": "http://localhost:3001/"
   },
   "rest": {
-    "pid": 52146,
-    "startTime": "2026-06-29T02:50:49.474Z"
+    "pid": 57192,
+    "startTime": "2026-06-29T08:40:41.308Z"
+  },
+  "websocket": {
+    "pid": 57192,
+    "startTime": "2026-06-29T08:40:41.308Z"
   }
 }

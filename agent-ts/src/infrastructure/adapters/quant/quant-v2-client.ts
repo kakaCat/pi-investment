@@ -88,7 +88,7 @@ const V2_ROUTES: Record<
   // ── market ──
   "market.overview":      { path: "/api/stocks/market/overview",          method: "GET" },
   "market.sectors":       { path: "/api/market/sectors",                 method: "GET" },
-  "market.sentiment":     { path: "/api/market/sentiment",               method: "GET" },  // ✅ v2 原生实现完成
+  "market.sentiment":     { path: "/api/sentiment/market",               method: "GET" },  // ✅ v2 原生实现完成 (FastAPI路径)
   "market.macro":         { path: "/api/market/macro",                   method: "GET" },
   "market.style":         { path: "/api/market/style",                   method: "GET" },  // ✅ 市场风格检测
   "market.news":          { path: "/api/market/news",                    method: "GET" },
@@ -97,6 +97,7 @@ const V2_ROUTES: Record<
   "market.sector_flow":   { path: "/api/market/sector-flow",             method: "GET" },
   "market.concepts":      { path: "/api/market/concepts",                method: "GET" },
   "market.concept_stocks":{ path: "/api/market/concept/{concept}/stocks",method: "GET" },
+  "market.opponent_behavior": { path: "/api/game/market/opponent-behavior", method: "GET" },  // ✅ 对手行为分析
 
   // ── financial ──
   "financial.indicators":   { path: "/api/stock/{symbol}/indicators",    method: "GET" },

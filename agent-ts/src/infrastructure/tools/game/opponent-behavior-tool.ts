@@ -65,8 +65,8 @@ export const opponentBehaviorTool: ToolDefinition = {
 
   execute: async (_toolCallId: string, params: OpponentBehaviorParams) => {
     try {
-      // 调用 V2 API
-      const result = await runQuantV2('/api/game/market/opponent-behavior', 'GET');
+      // 调用 V2 API（使用命令格式）
+      const result = await runQuantV2('market.opponent_behavior', {});
 
       if (!result.ok) {
         const errorMsg = typeof (result as any).error === 'string'
