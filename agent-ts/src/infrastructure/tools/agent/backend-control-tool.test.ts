@@ -6,6 +6,39 @@ import { join } from "path";
 const TEST_BACKEND_DIR = join(process.cwd(), ".backend-test");
 const TEST_PID_FILE = join(TEST_BACKEND_DIR, "pids.json");
 
+describe("Python command resolution", () => {
+  const TMP_DIR = join(process.cwd(), ".venv-resolve-test");
+
+  beforeEach(() => {
+    if (existsSync(TMP_DIR)) {
+      rmSync(TMP_DIR, { recursive: true });
+    }
+  });
+
+  afterEach(() => {
+    if (existsSync(TMP_DIR)) {
+      rmSync(TMP_DIR, { recursive: true });
+    }
+  });
+
+  test("resolvePythonCommand prefers quantsysDir/venv/bin/python when it exists", async () => {
+    const { resolvePythonCommand } = await import("./backend-control-tool.js");
+
+    mkdirSync(join(TMP_DIR, "venv", "bin"), { recursive: true });
+    writeFileSync(join(TMP_DIR, "venv", "bin", "python"), "");
+
+    expect(resolvePythonCommand(TMP_DIR)).toBe(join(TMP_DIR, "venv", "bin", "python"));
+  });
+
+  test("resolvePythonCommand falls back to bare 'python' when venv is missing", async () => {
+    const { resolvePythonCommand } = await import("./backend-control-tool.js");
+
+    mkdirSync(TMP_DIR, { recursive: true });
+
+    expect(resolvePythonCommand(TMP_DIR)).toBe("python");
+  });
+});
+
 describe("PID Management", () => {
   beforeEach(() => {
     if (existsSync(TEST_BACKEND_DIR)) {
@@ -177,10 +210,13 @@ describe("Start Operation", () => {
       json: mockJson,
     });
 
+    const expectedPython = mod.resolvePythonCommand(
+      join(process.cwd(), "..", "quantsys-v2")
+    );
     const result = await mod.startService("rest", TEST_BACKEND_DIR, mockSpawn as any, mockFetch);
 
     expect(mockSpawn).toHaveBeenCalledWith(
-      "python",
+      expectedPython,
       ["adapters/inbound/api/server.py"],
       expect.objectContaining({
         cwd: expect.stringContaining("quantsys-v2"),
@@ -208,10 +244,13 @@ describe("Start Operation", () => {
       json: mockJson,
     });
 
+    const expectedPythonAll = mod.resolvePythonCommand(
+      join(process.cwd(), "..", "quantsys-v2")
+    );
     const result = await mod.startService("all", TEST_BACKEND_DIR, mockSpawn as any, mockFetch);
 
     expect(mockSpawn).toHaveBeenCalledWith(
-      "python",
+      expectedPythonAll,
       ["adapters/inbound/api/server.py"],
       expect.objectContaining({
         cwd: expect.stringContaining("quantsys-v2"),

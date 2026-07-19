@@ -49,6 +49,19 @@ function findProjectRoot(startDir: string = __dirname): string | null {
 }
 
 const PROJECT_ROOT = findProjectRoot();
+
+/**
+ * Resolve the Python interpreter used to spawn quantsys-v2 services.
+ *
+ * The project venv (<quantsysDir>/venv/bin/python) carries all runtime
+ * dependencies (psycopg2, flask, ...). Spawning bare "python" resolves via
+ * PATH and misses those packages, crashing the service on startup.
+ * Falls back to "python" when the venv does not exist.
+ */
+export function resolvePythonCommand(quantsysDir: string): string {
+  const venvPython = join(quantsysDir, "venv", "bin", "python");
+  return existsSync(venvPython) ? venvPython : "python";
+}
 // PROJECT_ROOT may be null when quantsys-v2 cannot be located. PID bookkeeping
 // still needs a directory, so fall back to cwd; startService re-validates the
 // real quantsys-v2 path before spawning and returns a clear error if missing.
@@ -330,19 +343,21 @@ export async function startService(
   let args: string[];
   let targetPort: number;
 
+  const pythonCommand = resolvePythonCommand(quantsysDir);
+
   if (service === "all") {
     // Spring Boot style unified process - single server.py includes scheduler
-    command = "python";
+    command = pythonCommand;
     args = ["adapters/inbound/api/server.py"];
     targetPort = 5001;
   } else if (service === "rest") {
     // Spring Boot style unified process - single server.py includes scheduler
-    command = "python";
+    command = pythonCommand;
     args = ["adapters/inbound/api/server.py"];
     targetPort = 5001;
   } else {
     // WebSocket service (if still using separate process)
-    command = "python";
+    command = pythonCommand;
     args = ["api/server_websocket.py"];
     targetPort = 5003;
   }
