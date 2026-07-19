@@ -11,9 +11,102 @@ interface PortfolioStatusInput {
   detailed?: boolean;
 }
 
+export interface PortfolioHolding {
+  symbol: string;
+  shares: number;
+  cost_price: number;
+  current_price: number;
+  market_value: number;
+  pnl: number;
+  pnl_pct: number;
+  days_held: number;
+}
+
+export interface PortfolioView {
+  success: true;
+  cash: number;
+  holdings: PortfolioHolding[];
+  holdings_count: number;
+  total_market_value: number;
+  total_assets: number;
+  total_pnl: number;
+  total_pnl_pct: number;
+  cumulative_return?: number;
+  last_updated?: string;
+  summary: string;
+}
+
+/**
+ * 将 simulation API 的账户数据换算为视图模型。
+ *
+ * API 语义（已核实）：`total_value` = 总资产（含现金），
+ * `cash` = 可用资金。因此：
+ *   总资产   = total_value
+ *   持仓市值 = total_value - cash
+ * 禁止再把 cash + total_value 相加（会导致资产翻倍的历史 bug）。
+ */
+export function computePortfolioView(portfolio: any): PortfolioView {
+  const cash = Number(portfolio.cash) || 0;
+  const apiTotalValue = Number(portfolio.total_value ?? portfolio.totalValue);
+
+  // 格式化持仓信息 (simulation API返回positions而不是holdings)
+  const positions = portfolio.positions || portfolio.holdings || [];
+  let totalPnl = 0;
+  let positionsValue = 0;
+
+  const holdings: PortfolioHolding[] = positions.map((h: any) => {
+    const profit = Number(h.profit ?? h.pnl) || 0;
+    const marketValue = Number(h.market_value) || 0;
+    totalPnl += profit;
+    positionsValue += marketValue;
+
+    return {
+      symbol: h.symbol,
+      shares: Number(h.shares) || 0,
+      cost_price: Number(h.avg_price ?? h.cost_price ?? h.cost) || 0,
+      current_price: Number(h.current_price) || 0,
+      market_value: marketValue,
+      pnl: profit,
+      pnl_pct: Number(h.profit_rate ?? h.pnl_pct) || 0,
+      days_held: Number(h.days_held) || 0
+    };
+  });
+
+  // 总资产：优先采用 API 的 total_value；缺失时回退为 现金+持仓市值
+  const totalAssets = Number.isFinite(apiTotalValue) && apiTotalValue > 0
+    ? apiTotalValue
+    : cash + positionsValue;
+  // 持仓市值：恒等式推导，保证 总资产 = 现金 + 持仓市值 永远成立
+  const totalMarketValue = Math.max(totalAssets - cash, 0);
+
+  const totalPnlPct = totalAssets > 0 ? (totalPnl / (totalAssets - totalPnl)) * 100 : 0;
+  const cumulativeReturn = Number(portfolio.cumulative_return);
+
+  return {
+    success: true,
+    cash,
+    holdings,
+    holdings_count: holdings.length,
+    total_market_value: totalMarketValue,
+    total_assets: totalAssets,
+    total_pnl: totalPnl,
+    total_pnl_pct: totalPnlPct,
+    cumulative_return: Number.isFinite(cumulativeReturn) ? cumulativeReturn : undefined,
+    last_updated: portfolio.last_updated || portfolio.lastUpdated || portfolio.last_rebalance_date,
+    summary: `
+持仓概况：
+  可用资金：¥${cash.toFixed(2)}
+  持仓数量：${holdings.length}只
+  持仓市值：¥${totalMarketValue.toFixed(2)}
+  总资产：¥${totalAssets.toFixed(2)}
+  总盈亏：¥${totalPnl.toFixed(2)} (${totalPnlPct.toFixed(2)}%)${Number.isFinite(cumulativeReturn) ? `\n  累计收益率：${(cumulativeReturn * 100).toFixed(2)}%` : ""}
+    `.trim()
+  };
+}
+
 async function getPortfolioStatus(input: PortfolioStatusInput) {
   try {
-    const response = await fetch('http://127.0.0.1:5001/api/portfolio', {
+    const response = await fetch('http://127.0.0.1:5001/api/simulation/accounts/default', {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -21,39 +114,7 @@ async function getPortfolioStatus(input: PortfolioStatusInput) {
     const result = await response.json() as any;
 
     if (result.success) {
-      const portfolio = result.data;
-
-      // 格式化持仓信息
-      const holdings = portfolio.holdings?.map((h: any) => ({
-        symbol: h.symbol,
-        shares: h.shares,
-        cost_price: h.cost_price || h.cost,
-        current_price: h.current_price,
-        market_value: h.market_value || (h.shares * h.current_price),
-        pnl: h.pnl,
-        pnl_pct: h.pnl_pct,
-        days_held: h.days_held || 0
-      })) || [];
-
-      return {
-        success: true,
-        cash: portfolio.cash || 0,
-        holdings: holdings,
-        holdings_count: holdings.length,
-        total_market_value: portfolio.total_market_value || portfolio.totalValue || 0,
-        total_assets: portfolio.total_assets || (portfolio.cash + portfolio.totalValue) || 0,
-        total_pnl: portfolio.total_pnl || portfolio.totalPnl || 0,
-        total_pnl_pct: portfolio.total_pnl_pct || portfolio.totalPnlPct || 0,
-        last_updated: portfolio.last_updated || portfolio.lastUpdated,
-        summary: `
-持仓概况：
-  可用资金：¥${(portfolio.cash || 0).toFixed(2)}
-  持仓数量：${holdings.length}只
-  持仓市值：¥${(portfolio.total_market_value || portfolio.totalValue || 0).toFixed(2)}
-  总资产：¥${(portfolio.total_assets || (portfolio.cash + portfolio.totalValue) || 0).toFixed(2)}
-  总盈亏：¥${(portfolio.total_pnl || portfolio.totalPnl || 0).toFixed(2)} (${(portfolio.total_pnl_pct || portfolio.totalPnlPct || 0).toFixed(2)}%)
-        `.trim()
-      };
+      return computePortfolioView(result.data);
     } else {
       return {
         success: false,

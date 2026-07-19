@@ -14,6 +14,9 @@ const router = Router();
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
+    // TODO(P1): 旧账本 portfolio.json 已于 2026-07-19 归档（.pi-invest/archive/），
+    // 此路由应迁移到 v2 simulation API (http://127.0.0.1:5001/api/simulation/accounts/default)
+    // 作为唯一账本来源。当前文件缺失时降级返回空数据。
     const piDir = join(process.cwd(), '.pi-invest');
     const portfolioPath = join(piDir, 'portfolio.json');
 
