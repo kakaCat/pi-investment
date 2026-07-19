@@ -16,6 +16,8 @@ type CommandRule = {
   domain: string;
   action: string;
   description: string;
+  /** 后端路由 /{domain}/{action}/{action_type} 的路径参数，调用时注入（可被 params 覆盖） */
+  actionType?: string;
   params: Record<string, any>;
   example: Record<string, unknown>;
 };
@@ -25,12 +27,14 @@ const TIMESERIES_COMMANDS: Record<string, CommandRule> = {
     domain: "timeseries",
     action: "arima",
     description: "ARIMA 时间序列预测模型。",
+    actionType: "forecast",
     params: {
       symbol: { required: true, type: "string", symbol: true },
       periods: { type: "integer", min: 1 },
       p: { type: "integer" },
       d: { type: "integer" },
       q: { type: "integer" },
+      action_type: { type: "string" },
     },
     example: { symbol: "600000", periods: 5, p: 1, d: 1, q: 1 },
   },
@@ -38,11 +42,13 @@ const TIMESERIES_COMMANDS: Record<string, CommandRule> = {
     domain: "timeseries",
     action: "garch",
     description: "GARCH 波动率预测模型。",
+    actionType: "forecast",
     params: {
       symbol: { required: true, type: "string", symbol: true },
       periods: { type: "integer", min: 1 },
       p: { type: "integer" },
       q: { type: "integer" },
+      action_type: { type: "string" },
     },
     example: { symbol: "600000", periods: 5, p: 1, q: 1 },
   },
@@ -50,10 +56,12 @@ const TIMESERIES_COMMANDS: Record<string, CommandRule> = {
     domain: "timeseries",
     action: "kalman",
     description: "卡尔曼滤波器进行状态估计和预测。",
+    actionType: "filter",
     params: {
       symbol: { required: true, type: "string", symbol: true },
       observation_noise: { type: "number" },
       process_noise: { type: "number" },
+      action_type: { type: "string" },
     },
     example: { symbol: "600000", observation_noise: 0.1, process_noise: 0.01 },
   },
@@ -121,8 +129,13 @@ export const timeseriesAnalyzerTool: ToolDefinition = {
         // 构造完整的命令名称
         const fullCommand = `${rule.domain}.${rule.action}`;
 
+        // 注入后端路由所需的 action_type 路径参数（用户显式传入时优先）
+        const apiParams = rule.actionType
+          ? { action_type: rule.actionType, ...params }
+          : params;
+
         // 调用 quantsys-v2 API
-        const result = await runQuantV2(fullCommand, params);
+        const result = await runQuantV2(fullCommand, apiParams);
 
         if (!result.ok) {
           const errorMsg = typeof (result as any).error === 'string'

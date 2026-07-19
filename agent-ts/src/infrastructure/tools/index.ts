@@ -154,14 +154,10 @@ import { backendControlTool } from "./agent/backend-control-tool.js";
 import { claudeCodeTool } from './agent/claude-code-tool.js';
 import { toolStatsQueryTool } from './agent/tool-stats-tool.js';
 
-// ===== CLI 领域工具（拆分自 quant-cli-tool）=====
-import {
-  marketCliTool,
-  stockCliTool,
-  sentimentCliTool,
-  analysisCliTool,
-  watchlistCliTool
-} from './cli/index.js';
+// ===== CLI 领域工具已全部移除（2026-07-19 P0 清理）=====
+// market_cli/stock_cli/sentiment_cli/analysis_cli/watchlist_cli 从未注册进
+// allCustomTools（死代码），统计数据中的调用为历史化石。数据访问请走
+// data_fetch_* / factor_* / opportunity_scan 等 v2 工具。
 
 // ===== 从 quant_cli 拆分的独立工具 =====
 import { screeningTool } from "./screening/screening-tool.js";

@@ -88,7 +88,7 @@ const V2_ROUTES: Record<
   // ── market ──
   "market.overview":      { path: "/api/stocks/market/overview",          method: "GET" },
   "market.sectors":       { path: "/api/market/sectors",                 method: "GET" },
-  "market.sentiment":     { path: "/api/sentiment/market",               method: "GET" },  // ✅ v2 原生实现完成 (FastAPI路径)
+  "market.sentiment":     { path: "/api/market/sentiment",               method: "GET" },  // ✅ v2 原生实现完成 (Flask路径)
   "market.macro":         { path: "/api/market/macro",                   method: "GET" },
   "market.style":         { path: "/api/market/style",                   method: "GET" },  // ✅ 市场风格检测
   "market.news":          { path: "/api/market/news",                    method: "GET" },
@@ -98,6 +98,8 @@ const V2_ROUTES: Record<
   "market.concepts":      { path: "/api/market/concepts",                method: "GET" },
   "market.concept_stocks":{ path: "/api/market/concept/{concept}/stocks",method: "GET" },
   "market.opponent_behavior": { path: "/api/game/market/opponent-behavior", method: "GET" },  // ✅ 对手行为分析
+  "market.manipulation_detect": { path: "/api/game/market/manipulation-detect", method: "GET" },  // ✅ 操纵检测
+  "pool.battlefield_assessment": { path: "/api/game/pools/{pool_id}/battlefield-assessment", method: "GET" },  // ✅ 池子战场评估
 
   // ── financial ──
   "financial.indicators":   { path: "/api/stock/{symbol}/indicators",    method: "GET" },
@@ -159,6 +161,10 @@ const V2_ROUTES: Record<
   "stress.test":     { path: "/api/risk/stress-test",   method: "POST" },
   "watch.price_alert": { path: "/api/risk/price-alert",  method: "POST" },
   "trade.verify":    { path: "/api/risk/trade-verify",  method: "POST" },
+
+  // ── game alerts ──
+  "alerts.check":      { path: "/api/alerts/check",      method: "GET" },
+  "alerts.statistics": { path: "/api/alerts/statistics", method: "GET" },
 
   "benchmark.compare":     { path: "/api/portfolio/benchmark",   method: "POST" },
   "portfolio.optimize":    { path: "/api/portfolio/optimize",    method: "POST" },
@@ -688,9 +694,13 @@ export async function getFinancials(
     symbol: symbol,
     name: '',
     report_date: '',
+    // 保留完整数组用于趋势分析
+    income_statements: incomeStatement,
+    balance_sheets: balanceSheet,
+    cash_flows: cashFlow,
   };
 
-  // 转换利润表
+  // 转换利润表（最新一期）
   if (incomeStatement.length > 0) {
     const income = incomeStatement[0];
     result.report_date = result.report_date || getDate(income,
@@ -698,10 +708,15 @@ export async function getFinancials(
 
     // 字段名按优先级排列：provider 转换后的英文名 → 原始API英文字段 → 中文字段
     const revenue = getField(income, 'total_revenue', 'revenue', '营业总收入', '营业收入', 'TOTAL_OPERATE_INCOME');
-    const operatingCost = getField(income, 'total_cost', 'operating_cost', '营业总成本', '营业成本', 'TOTAL_OPERATE_COST');
+    let operatingCost = getField(income, 'total_cost', 'operating_cost', '营业总成本', '营业成本', 'TOTAL_OPERATE_COST');
+    // 若 API 未提供 total_cost，从毛利率反推（东方财富只返回 XSMLL/gross_margin）
+    const apiGrossMargin = getField(income, 'gross_margin');  // 已是百分比值，如 33.26
+    if (!operatingCost && apiGrossMargin > 0 && revenue > 0) {
+      operatingCost = revenue * (1 - apiGrossMargin / 100);
+    }
     const netProfit = getField(income, 'net_profit', '净利润', 'NETPROFIT');
     const netProfitAttrParent = getField(income, 'parent_net_profit', '归母净利润', '归属于母公司所有者的净利润', 'PARENT_NETPROFIT') || netProfit;
-    const grossProfit = revenue - getField(income, 'operating_cost', '营业成本', 'OPERATE_COST');
+    const grossProfit = revenue - operatingCost;
 
     result.income_statement = {
       revenue,
@@ -709,12 +724,12 @@ export async function getFinancials(
       gross_profit: grossProfit,
       net_profit: netProfit,
       net_profit_attr_parent: netProfitAttrParent,
-      gross_margin: revenue > 0 ? (grossProfit / revenue) * 100 : 0,
-      net_margin: revenue > 0 ? (netProfit / revenue) * 100 : 0,
+      gross_margin: apiGrossMargin > 0 ? apiGrossMargin : (revenue > 0 ? (grossProfit / revenue) * 100 : 0),
+      net_margin: revenue > 0 ? ((netProfit || netProfitAttrParent) / revenue) * 100 : 0,
     };
   }
 
-  // 转换资产负债表
+  // 转换资产负债表（最新一期）
   if (balanceSheet.length > 0) {
     const balance = balanceSheet[0];
     result.report_date = result.report_date || getDate(balance,
@@ -737,7 +752,7 @@ export async function getFinancials(
     };
   }
 
-  // 转换现金流量表
+  // 转换现金流量表（最新一期）
   if (cashFlow.length > 0) {
     const cf = cashFlow[0];
     result.report_date = result.report_date || getDate(cf,
@@ -1972,7 +1987,37 @@ export async function calculateRiskMetrics(
     );
   }
 
-  return (response as any).data;
+  return normalizeRiskMetrics((response as any).data);
+}
+
+/**
+ * 归一化风险指标响应。
+ *
+ * 后端 /api/risk/metrics 返回 camelCase（sharpeRatio 等），
+ * 本接口约定 snake_case —— 两种命名都接受，缺失字段回退为 0/undefined。
+ */
+export function normalizeRiskMetrics(raw: any): RiskMetrics {
+  const num = (v: any): number => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const opt = (v: any): number | undefined => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const r = raw ?? {};
+  return {
+    sharpe_ratio: num(r.sharpe_ratio ?? r.sharpeRatio),
+    sortino_ratio: num(r.sortino_ratio ?? r.sortinoRatio),
+    calmar_ratio: num(r.calmar_ratio ?? r.calmarRatio),
+    max_drawdown: num(r.max_drawdown ?? r.maxDrawdown),
+    alpha: opt(r.alpha),
+    beta: opt(r.beta),
+    var_95: num(r.var_95 ?? r.var95),
+    cvar_95: num(r.cvar_95 ?? r.cvar95),
+    annual_return: num(r.annual_return ?? r.annualReturn),
+    annual_volatility: num(r.annual_volatility ?? r.annualVolatility),
+  };
 }
 
 

@@ -292,39 +292,18 @@ df['sell'] = df['rsi14'] > 80
   - report.* (2个) - 报告生成
   - 其他专用命令
 
-#### 领域CLI工具（推荐使用）
+#### ~~领域CLI工具~~（已于 2026-07-19 移除）
 
-**市场数据查询** - `market_cli` (12个命令):
-- market.overview, market.index_history, market.sectors
-- market.concept_stocks, market.concepts, market.macro
-- market.north_flow, market.sector_flow, market.margin
-- market.news, market.hot_stocks, market.sentiment
-
-**个股数据查询** - `stock_cli` (5个命令):
-- stock.batch_quotes, stock.list, stock.score
-- stock.screen, stock.technical
-
-**市场情绪分析** - `sentiment_cli` (8个命令):
-- sentiment.stock_fund_flow, sentiment.lhb, sentiment.insider_trades
-- sentiment.fund_holdings, sentiment.top_fund_stocks
-- sentiment.top_holders, sentiment.holder_changes, sentiment.margin_data
-
-**股票分析工具** - `analysis_cli` (7个命令):
-- analysis.technical, analysis.price_action, analysis.candlestick
-- analysis.buy_range, analysis.quality, analysis.exit_plan, analysis.peers
-
-**自选股管理** - `watchlist_cli` (5个命令):
-- watchlist.list, watchlist.add, watchlist.remove
-- watchlist.update, watchlist.groups
+`market_cli` / `stock_cli` / `sentiment_cli` / `analysis_cli` / `watchlist_cli`
+从未注册进工具表（死代码），已全部删除。**禁止使用这些工具**，数据访问走：
+- 行情/个股 → `data_fetch_quote`、`data_fetch_kline`
+- 财务/估值 → `data_fetch_financial`
+- 宏观/北向/情绪 → `data_fetch_macro`、`data_fetch_north_flow`、`data_fetch_market_sentiment`
+- 技术分析 → `factor_calculate`、`analysis_swing_points`
+- 选股/评分 → `opportunity_scan`、`screening`
 
 **使用示例**:
 ```typescript
-// 查询市场概览
-market_cli({ command: "market.overview" })
-
-// 股票评分
-stock_cli({ command: "stock.score", params: { symbol: "600000" } })
-
 // 财务数据（使用增强版 data_fetch_financial）
 data_fetch_financial({ symbol: "600000", dataType: "pe_percentile", years: 5 })
 
@@ -724,38 +703,13 @@ scheduler_manage({
   - report.* (2个) - 报告生成
   - 其他专用命令
 
-#### 领域CLI工具（推荐使用）
-- `market_cli` — 市场数据查询（12个命令）
-  - market.overview, market.index_history, market.sectors
-  - market.concept_stocks, market.concepts, market.macro
-  - market.north_flow, market.sector_flow, market.margin
-  - market.news, market.hot_stocks, market.sentiment
-
-- `stock_cli` — 个股数据查询（5个命令）
-  - stock.batch_quotes, stock.list, stock.score
-  - stock.screen, stock.technical
-
-- `sentiment_cli` — 市场情绪分析（8个命令）
-  - sentiment.stock_fund_flow, sentiment.lhb, sentiment.insider_trades
-  - sentiment.fund_holdings, sentiment.top_fund_stocks
-  - sentiment.top_holders, sentiment.holder_changes, sentiment.margin_data
-
-- `analysis_cli` — 股票分析工具（7个命令）
-  - analysis.technical, analysis.price_action, analysis.candlestick
-  - analysis.buy_range, analysis.quality, analysis.exit_plan, analysis.peers
-
-- `watchlist_cli` — 自选股管理（5个命令）
-  - watchlist.list, watchlist.add, watchlist.remove
-  - watchlist.update, watchlist.groups
+#### ~~领域CLI工具~~（已于 2026-07-19 移除）
+- `market_cli` / `stock_cli` / `sentiment_cli` / `analysis_cli` / `watchlist_cli`
+  从未注册进工具表（死代码），已全部删除。**禁止使用**，数据访问走
+  `data_fetch_*` / `factor_*` / `opportunity_scan` 路径。
 
 **使用示例**:
 ```typescript
-// 查询市场概览
-market_cli({ command: "market.overview" })
-
-// 股票评分
-stock_cli({ command: "stock.score", params: { symbol: "600000" } })
-
 // 财务数据（使用增强版 data_fetch_financial）
 data_fetch_financial({ symbol: "600000", dataType: "pe_percentile", years: 5 })
 
@@ -1025,11 +979,20 @@ Vite dev server on port 3001 proxies `/api` to quantsys-v2 Flask API (port 5001)
 Required env vars (see `.env.example`):
 
 ```bash
+# LLM provider: deepseek (默认) 或 kimi
+LLM_PROVIDER=deepseek
+
 # DeepSeek API (OpenAI-compatible)
 DEEPSEEK_API_KEY=sk-...
 DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
 OPENAI_API_KEY=...          # SDK reads this key; must match DEEPSEEK_API_KEY
 MODEL_ID=deepseek-chat
+
+# Kimi / Moonshot API (LLM_PROVIDER=kimi 时生效)
+# KIMI_API_KEY=sk-...
+# KIMI_BASE_URL=https://api.moonshot.cn/v1
+# MODEL_ID=kimi-k3          # 可覆盖为具体版本，如 kimi-k3-xxxx-preview
+# 通用覆盖: LLM_API_KEY / LLM_BASE_URL / LLM_REASONING / LLM_CONTEXT_WINDOW / LLM_MAX_TOKENS
 
 # quantsys-v2 backend
 QUANTSYS_V2_API_URL=http://127.0.0.1:5001

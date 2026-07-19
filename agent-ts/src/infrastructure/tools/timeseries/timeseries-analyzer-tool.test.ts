@@ -2,14 +2,22 @@
  * Timeseries Analyzer Tool - 测试文件
  */
 
-import { describe, it, expect, jest } from '@jest/globals';
-import { vi } from 'vitest';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { timeseriesAnalyzerTool } from './timeseries-analyzer-tool.js';
-import * as quantV2Client from '../../adapters/quant/quant-v2-client.js';
 
-jest.mock('../../adapters/quant/quant-v2-client.js');
+// Mock runQuantV2
+jest.mock('../../adapters/quant/quant-v2-client.js', () => ({
+  runQuantV2: jest.fn()
+}));
+
+import { runQuantV2 } from '../../adapters/quant/quant-v2-client.js';
+const mockRunQuantV2 = runQuantV2 as jest.MockedFunction<typeof runQuantV2>;
 
 describe('timeseries_analyzer tool', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('should have correct metadata', () => {
     expect(timeseriesAnalyzerTool.name).toBe('timeseries_analyzer');
     expect(timeseriesAnalyzerTool.label).toBe('时间序列分析');
@@ -17,7 +25,7 @@ describe('timeseries_analyzer tool', () => {
   });
 
   it('should execute arima command', async () => {
-    const mockResult = {
+    mockRunQuantV2.mockResolvedValue({
       ok: true,
       command: 'timeseries.arima',
       data: {
@@ -25,9 +33,7 @@ describe('timeseries_analyzer tool', () => {
         confidence_intervals: [[98, 102], [99, 103]]
       },
       error: null,
-    };
-
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(mockResult);
+    } as any);
 
     const result = await timeseriesAnalyzerTool.execute('test', {
       command: 'arima',
@@ -40,17 +46,64 @@ describe('timeseries_analyzer tool', () => {
     }
   });
 
+  it('should pass action_type=forecast to backend path substitution for arima', async () => {
+    mockRunQuantV2.mockResolvedValue({
+      ok: true, command: 'timeseries.arima', data: { predictions: [100] }, error: null,
+    } as any);
+
+    await timeseriesAnalyzerTool.execute('test', {
+      command: 'arima',
+      params: { symbol: '600519', periods: 5 }
+    }, undefined, undefined, {} as any);
+
+    // 后端路由为 /api/timeseries/arima/{action_type}，缺少 action_type 会 404
+    expect(mockRunQuantV2).toHaveBeenCalledWith(
+      'timeseries.arima',
+      expect.objectContaining({ action_type: 'forecast' })
+    );
+  });
+
+  it('should pass action_type=filter for kalman command', async () => {
+    mockRunQuantV2.mockResolvedValue({
+      ok: true, command: 'timeseries.kalman', data: { filtered: [1, 2] }, error: null,
+    } as any);
+
+    await timeseriesAnalyzerTool.execute('test', {
+      command: 'kalman',
+      params: { symbol: '600519' }
+    }, undefined, undefined, {} as any);
+
+    expect(mockRunQuantV2).toHaveBeenCalledWith(
+      'timeseries.kalman',
+      expect.objectContaining({ action_type: 'filter' })
+    );
+  });
+
+  it('should allow action_type override via params', async () => {
+    mockRunQuantV2.mockResolvedValue({
+      ok: true, command: 'timeseries.arima', data: {}, error: null,
+    } as any);
+
+    await timeseriesAnalyzerTool.execute('test', {
+      command: 'arima',
+      params: { symbol: '600519', periods: 5, action_type: 'fit' }
+    }, undefined, undefined, {} as any);
+
+    expect(mockRunQuantV2).toHaveBeenCalledWith(
+      'timeseries.arima',
+      expect.objectContaining({ action_type: 'fit' })
+    );
+  });
+
   it('should execute garch command', async () => {
-    const mockResult = {
+    mockRunQuantV2.mockResolvedValue({
       ok: true,
       command: 'timeseries.garch',
       data: {
         volatility_forecast: [0.02, 0.021, 0.019]
       },
       error: null,
-    };
-
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(mockResult);
+    } as any);
 
     const result = await timeseriesAnalyzerTool.execute('test', {
       command: 'garch',
