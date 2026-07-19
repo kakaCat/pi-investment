@@ -31,16 +31,38 @@ interface SchedulerParams {
 }
 
 interface SchedulerTask {
-  id: number;
+  id: number | string;
   name: string;
   cron: string;
   command: string;
-  params: Record<string, any>;
   enabled: boolean;
-  last_run?: string;
-  next_run?: string;
-  run_count?: number;
-  fail_count?: number;
+  last_run_at?: string | null;
+  last_run_status?: string | null;
+  next_run?: string | null;
+  today_triggered?: boolean;
+  [key: string]: any;
+}
+
+/**
+ * 归一化 v2 调度器任务响应。
+ *
+ * v2 enterprise API 返回 camelCase（scheduleExpr/nextRunAt/lastRun/
+ * payload.command），老接口返回 snake_case（cron/next_run）——
+ * 两种都接受，缺失字段回退为空字符串/null，绝不产生 undefined。
+ */
+export function normalizeSchedulerTask(raw: any): SchedulerTask {
+  const lastRun = raw?.lastRun ?? null;
+  return {
+    id: raw?.id ?? "",
+    name: raw?.name ?? "",
+    cron: raw?.cron ?? raw?.scheduleExpr ?? raw?.cron_expression ?? "",
+    command: raw?.command ?? raw?.payload?.command ?? "",
+    enabled: Boolean(raw?.enabled ?? raw?.is_enabled),
+    last_run_at: raw?.last_run_at ?? lastRun?.finishedAt ?? null,
+    last_run_status: raw?.last_run_status ?? lastRun?.status ?? null,
+    next_run: raw?.next_run ?? raw?.nextRunAt ?? raw?.next_run_at ?? null,
+    today_triggered: raw?.today_triggered ?? raw?.todayTriggered ?? undefined,
+  };
 }
 
 interface SchedulerResult {
@@ -137,7 +159,8 @@ export const schedulerManageTool: ToolDefinition = {
           command = "scheduler.tasks.create";
           apiParams = {
             name: otherParams.name,
-            cron: otherParams.cron,
+            schedule_kind: "cron",
+            schedule_expr: otherParams.cron,
             command: otherParams.command,
             params: otherParams.params,
             enabled: otherParams.enabled !== false
@@ -152,7 +175,7 @@ export const schedulerManageTool: ToolDefinition = {
           apiParams = {
             task_id: otherParams.task_id,
             name: otherParams.name,
-            cron: otherParams.cron,
+            schedule_expr: otherParams.cron,
             command: otherParams.command,
             params: otherParams.params,
             enabled: otherParams.enabled
@@ -262,6 +285,11 @@ function formatSchedulerResult(
 
   let output = "⏰ **调度器管理**\n\n";
 
+  // 单任务响应统一归一化（create/update/enable/disable/trigger 路径）
+  if ((data as any)?.task) {
+    (data as any).task = normalizeSchedulerTask((data as any).task);
+  }
+
   switch (action) {
     case "list":
       output += formatTaskList(data);
@@ -298,23 +326,32 @@ function formatSchedulerResult(
 /**
  * 格式化任务列表
  */
-function formatTaskList(data: SchedulerResult): string {
+export function formatTaskList(data: SchedulerResult): string {
   let output = "### 📋 定时任务列表\n\n";
 
   if (!data.tasks || data.tasks.length === 0) {
     return output + "暂无定时任务\n\n";
   }
 
-  output += `**任务总数**：${data.total || data.tasks.length}个\n\n`;
+  // 幂等归一化：raw API 任务与已归一化对象都安全
+  const tasks = data.tasks.map((t) => normalizeSchedulerTask(t));
 
-  output += "| ID | 任务名称 | Cron表达式 | 命令 | 状态 | 执行次数 | 失败次数 |\n";
-  output += "|----|----------|-----------|------|------|----------|----------|\n";
+  output += `**任务总数**：${data.total || tasks.length}个\n\n`;
 
-  for (const task of data.tasks) {
+  output += "| ID | 任务名称 | Cron表达式 | 状态 | 下次执行 | 上次执行 |\n";
+  output += "|----|----------|-----------|------|----------|----------|\n";
+
+  for (const task of tasks) {
     const statusEmoji = task.enabled ? "✅" : "⏸️";
     const status = task.enabled ? "启用" : "禁用";
+    const nextRun = task.next_run ? String(task.next_run).slice(0, 16) : "—";
+    let lastRun = "—";
+    if (task.last_run_at) {
+      const icon = task.last_run_status === "success" ? "✅" : task.last_run_status === "failed" ? "❌" : "•";
+      lastRun = `${icon} ${String(task.last_run_at).slice(0, 16)}`;
+    }
 
-    output += `| ${task.id} | ${task.name} | \`${task.cron}\` | ${task.command} | ${statusEmoji} ${status} | ${task.run_count || 0} | ${task.fail_count || 0} |\n`;
+    output += `| ${task.id} | ${task.name} | \`${task.cron}\` | ${statusEmoji} ${status} | ${nextRun} | ${lastRun} |\n`;
   }
 
   output += "\n";
