@@ -12,6 +12,11 @@
  * 8. Channel    - 渠道提示（terminal / api）
  */
 
+import {
+  getLastHealthReport,
+  formatHealthForPrompt,
+} from "../health/startup-health-check.js";
+
 export interface BuildSystemPromptOptions {
   bootstrap: Record<string, string>;
   skillsBlock?: string;
@@ -34,6 +39,12 @@ const CHANNEL_HINTS: Record<string, string> = {
   terminal: "You are responding via a terminal REPL. Markdown is supported.",
   api: "You are responding via API. Be concise and structured.",
 };
+
+/** 读取启动健康自检结果（未执行自检时返回 null） */
+function loadHealthSummary(): string | null {
+  const report = getLastHealthReport();
+  return report ? formatHealthForPrompt(report) : null;
+}
 
 export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
   const {
@@ -158,13 +169,17 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
   }
 
   // 第 7 层: 运行时上下文
-  sections.push(
-    `## Runtime Context\n\n` +
-    `- Model: ${model}\n` +
-    `- Current date: ${date}\n` +
-    `- Current working directory: ${cwd}\n` +
-    `- Prompt mode: ${mode}`
-  );
+  const runtimeLines = [
+    `- Model: ${model}`,
+    `- Current date: ${date}`,
+    `- Current working directory: ${cwd}`,
+    `- Prompt mode: ${mode}`,
+  ];
+  const healthSummary = loadHealthSummary();
+  if (healthSummary) {
+    runtimeLines.push(``, `### System Health（启动自检）`, healthSummary);
+  }
+  sections.push(`## Runtime Context\n\n` + runtimeLines.join("\n"));
 
   // 第 8 层: 渠道提示
   sections.push(`## Channel\n\n${CHANNEL_HINTS[channel] ?? `You are responding via ${channel}.`}`);
