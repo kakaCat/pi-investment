@@ -136,6 +136,7 @@ const V2_ROUTES: Record<
   "analysis.peers":      { path: "/api/stock/{symbol}/peers",          method: "GET" },
   "analysis.peer_comparison": { path: "/api/stock/{symbol}/peers",          method: "GET" },  // alias
   "analysis.swing_points": { path: "/api/analysis/swing-points",       method: "POST" },
+  "analysis.data_health":  { path: "/api/stock/{symbol}/data-health",   method: "GET"  },
   // "analysis.candlestick": 未实现 - 依赖 v1 quantsys 模块
   // "analysis.quality": 未实现 - 依赖 v1 quantsys 模块
 
@@ -325,6 +326,20 @@ const V2_ROUTES: Record<
   "watchlist.remove":    { path: "/api/stocks/watchlist/{symbol}", method: "DELETE" },
   "watchlist.check":     { path: "/api/stocks/watchlist/{symbol}/check", method: "GET" },
   "watchlist.groups":    { path: "/api/stocks/watchlist/groups",   method: "GET" },
+
+  // ── agent rotation (工具链反馈节点) ──
+  "agent.rotation_proposal":  { path: "/api/agent/rotation/proposal",  method: "GET" },
+  "agent.rotation_simulate":  { path: "/api/agent/rotation/simulate",  method: "POST" },
+  "agent.rotation_execute":   { path: "/api/agent/rotation/execute",   method: "POST" },
+  "agent.rotation_verify":    { path: "/api/agent/rotation/verify",    method: "GET" },
+  "agent.performance":        { path: "/api/agent/performance",        method: "GET" },
+  "agent.performance_quick":  { path: "/api/agent/performance/quick",  method: "GET" },
+  "agent.orchestrator_status":{ path: "/api/agent/orchestrator/status",method: "GET" },
+  "agent.positions":          { path: "/api/agent/positions",          method: "GET" },
+  "agent.strategies_active":  { path: "/api/agent/strategies/active",  method: "GET" },
+  "agent.decision_log":       { path: "/api/agent/decision/log",       method: "POST" },
+  "agent.risk_update":        { path: "/api/agent/risk/update",        method: "POST" },
+  "agent.strategy_weight":    { path: "/api/agent/strategy/weight",    method: "POST" },
 };
 
 /** v2 不支持但可用的命令名列表（用于调试） */
