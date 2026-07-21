@@ -24,11 +24,11 @@ export const queryExperienceTool: ToolDefinition = {
 - 置信度评分`,
 
   parameters: Type.Object({
-    scenario: Type.String({
-      description: '场景描述，例如："MACD金叉且成交量放大"、"跌破止损位"、"追涨买入"'
-    }),
+    scenario: Type.Optional(Type.String({
+      description: '场景描述，例如："MACD金叉且成交量放大"、"跌破止损位"、"追涨买入"。与 symbol 至少提供一个'
+    })),
     symbol: Type.Optional(Type.String({
-      description: '可选：股票代码，用于查询该股票的历史经验'
+      description: '股票代码，用于查询该股票的历史经验。与 scenario 至少提供一个'
     })),
     conditions: Type.Optional(Type.Array(Type.String(), {
       description: '可选：条件列表，例如 ["RSI>70", "涨幅>5%"]'

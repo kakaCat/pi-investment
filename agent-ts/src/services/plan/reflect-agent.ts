@@ -9,7 +9,7 @@
  * 实现：直接调用 LLM，无工具循环
  */
 import { completeSimple } from "@mariozechner/pi-ai";
-import { createDeepSeekModel } from "../../config/config.js";
+import { createModel } from "../../config/config.js";
 
 const REFLECT_SYSTEM_PROMPT = `You are a reflection-only agent. Your ONLY job is to evaluate whether completed work actually achieves the user's original goal.
 
@@ -112,7 +112,7 @@ export async function createReflectAgent(
     userPrompt += `\n\n补充上下文：\n${context}`;
   }
 
-  const result = await completeSimple(createDeepSeekModel(), {
+  const result = await completeSimple(createModel(), {
     systemPrompt,
     messages: [{ role: "user", content: userPrompt, timestamp: Date.now() }],
   });

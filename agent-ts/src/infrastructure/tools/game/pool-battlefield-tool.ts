@@ -61,10 +61,7 @@ export const poolBattlefieldTool: ToolDefinition = {
       const { pool_id } = params;
 
       // 调用 V2 API
-      const result = await runQuantV2(
-        `/api/game/pools/${pool_id}/battlefield-assessment`,
-        'GET'
-      );
+      const result = await runQuantV2('pool.battlefield_assessment', { pool_id });
 
       if (!result.ok) {
         const errorMsg = typeof (result as any).error === 'string'

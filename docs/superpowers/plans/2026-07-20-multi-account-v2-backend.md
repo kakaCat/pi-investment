@@ -15,6 +15,10 @@
 2. FastAPI parity 单独一个 Task（Task 10），Flask 先行（生产 5001 当前是 Flask）。
 3. `orders.py` 的 `/api/portfolio/*` 本次只切源 `positions` 与 `summary` 两个端点（Task 8）；`history`/`holdings`/`allocation`/`equity-curve`/`positions/<symbol>` 维持旧体系只读，避免在未知消费方响应契约的情况下盲改，统一放到后续迭代。
 
+**执行期修正记录（2026-07-20）：**
+- `settle_t1` 改为日期感知实现：`shares_available = shares_total − 当日买入量`（幂等自校正，无需状态标记），支持注入参照日期（测试/回放模拟次日）。
+- `AccountTradingService.execute_trade` **不再**在交易路径内调用 settle_t1（会用真实日期冲掉测试注入的结转）；T+1 由每日任务结转，交易事务自身维护可用数（买入当日 +0、卖出即时扣减）。
+
 **新发现（已纳入 Task 7）：** `SimulationTrader._save_daily_snapshot` 写入全局表 `quant.account_balance`（只有 `balance_date`，**无 account_name**）——v13/v14 的每日快照互相覆盖，这是又一处隔离漏洞，本次改为写新的按账户隔离的快照表。
 
 ---

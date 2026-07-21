@@ -162,6 +162,112 @@ export function formatStockPrice(data: any): string {
 }
 
 /**
+ * 辅助函数：从财报记录中提取字段值
+ */
+function getFieldValue(record: Record<string, any>, ...names: string[]): number {
+  for (const n of names) {
+    const v = record[n];
+    if (v !== undefined && v !== null) return Number(v);
+  }
+  return 0;
+}
+
+/**
+ * 辅助函数：从财报记录中提取日期
+ */
+function getReportDate(record: Record<string, any>): string {
+  const names = ['report_date', 'REPORT_DATE', 'REPORTDATE', '报告期', '公告日期'];
+  for (const n of names) {
+    const v = record[n];
+    if (v) {
+      const d = String(v).split(' ')[0]?.split('T')[0] || '';
+      if (d) return d;
+    }
+  }
+  return '';
+}
+
+/**
+ * 辅助函数：解析季度（从日期判断 Q1/Q2/Q3/Q4）
+ */
+function parseQuarter(date: string): { year: number; quarter: number } | null {
+  if (!date) return null;
+  const match = date.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+
+  let quarter = 0;
+  if (month === 3) quarter = 1;
+  else if (month === 6) quarter = 2;
+  else if (month === 9) quarter = 3;
+  else if (month === 12) quarter = 4;
+
+  return quarter > 0 ? { year, quarter } : null;
+}
+
+/**
+ * 辅助函数：拆分累计财报为单季度
+ */
+function splitCumulativeToQuarterly(statements: Array<Record<string, any>>): Array<{
+  date: string;
+  year: number;
+  quarter: number;
+  revenue: number;
+  netProfit: number;
+}> {
+  const result: Array<{ date: string; year: number; quarter: number; revenue: number; netProfit: number }> = [];
+
+  // 按年份分组
+  const byYear = new Map<number, Map<number, { date: string; revenue: number; netProfit: number }>>();
+
+  for (const stmt of statements) {
+    const date = getReportDate(stmt);
+    const q = parseQuarter(date);
+    if (!q) continue;
+
+    const revenue = getFieldValue(stmt, 'total_revenue', 'revenue', '营业总收入', '营业收入', 'TOTAL_OPERATE_INCOME');
+    const netProfit = getFieldValue(stmt, 'parent_net_profit', '归母净利润', '归属于母公司所有者的净利润', 'PARENT_NETPROFIT', 'net_profit', '净利润', 'NETPROFIT');
+
+    if (!byYear.has(q.year)) {
+      byYear.set(q.year, new Map());
+    }
+    byYear.get(q.year)!.set(q.quarter, { date, revenue, netProfit });
+  }
+
+  // 拆分每年的累计数据
+  byYear.forEach((quarters, year) => {
+    let prevRevenue = 0;
+    let prevNetProfit = 0;
+
+    for (let q = 1; q <= 4; q++) {
+      const data = quarters.get(q);
+      if (!data) continue;
+
+      const singleRevenue = data.revenue - prevRevenue;
+      const singleNetProfit = data.netProfit - prevNetProfit;
+
+      result.push({
+        date: data.date,
+        year,
+        quarter: q,
+        revenue: singleRevenue,
+        netProfit: singleNetProfit,
+      });
+
+      prevRevenue = data.revenue;
+      prevNetProfit = data.netProfit;
+    }
+  });
+
+  // 按日期倒序排列（最新在前）
+  result.sort((a, b) => b.date.localeCompare(a.date));
+
+  return result;
+}
+
+/**
  * Format financial data into readable text
  */
 export function formatFinancialData(data: FinancialData): string {
@@ -235,6 +341,55 @@ export function formatFinancialData(data: FinancialData): string {
     lines.push(`  总资产收益率(ROA): ${formatPercent(metrics!.roa)}`);
     lines.push(`  每股收益(EPS): ${formatNumber(metrics!.eps, 2)} 元`);
     lines.push(`  每股净资产(BVPS): ${formatNumber(metrics!.bvps, 2)} 元`);
+  }
+
+  // Quarterly trend analysis (if multiple periods available)
+  if (data.income_statements && data.income_statements.length > 1) {
+    const quarterly = splitCumulativeToQuarterly(data.income_statements);
+
+    if (quarterly.length > 0) {
+      lines.push('');
+      lines.push('【季度趋势】（累计值已拆分为单季度）');
+
+      // 限制显示最近8期
+      const displayData = quarterly.slice(0, 8);
+
+      // 表头
+      lines.push('季度        营收(亿)    净利润(亿)   YoY营收    YoY净利');
+      lines.push('─'.repeat(60));
+
+      // 构建YoY查找表（按 year-quarter 索引）
+      const dataMap = new Map<string, { revenue: number; netProfit: number }>();
+      for (const item of quarterly) {
+        dataMap.set(`${item.year}-${item.quarter}`, { revenue: item.revenue, netProfit: item.netProfit });
+      }
+
+      // 输出每行数据
+      for (const item of displayData) {
+        const quarterLabel = `${item.year}Q${item.quarter}`;
+        const revenue = formatNumber(item.revenue / YI, 2).padStart(8);
+        const netProfit = formatNumber(item.netProfit / YI, 2).padStart(11);
+
+        // 计算YoY（与去年同期对比）
+        const lastYearKey = `${item.year - 1}-${item.quarter}`;
+        const lastYearData = dataMap.get(lastYearKey);
+
+        let yoyRevenue = '-';
+        let yoyNetProfit = '-';
+
+        if (lastYearData && lastYearData.revenue > 0) {
+          const revenueGrowth = ((item.revenue - lastYearData.revenue) / lastYearData.revenue) * 100;
+          yoyRevenue = (revenueGrowth >= 0 ? '+' : '') + formatNumber(revenueGrowth, 1) + '%';
+        }
+
+        if (lastYearData && lastYearData.netProfit !== 0) {
+          const profitGrowth = ((item.netProfit - lastYearData.netProfit) / Math.abs(lastYearData.netProfit)) * 100;
+          yoyNetProfit = (profitGrowth >= 0 ? '+' : '') + formatNumber(profitGrowth, 1) + '%';
+        }
+
+        lines.push(`${quarterLabel.padEnd(10)}${revenue}${netProfit}  ${yoyRevenue.padStart(9)}  ${yoyNetProfit.padStart(9)}`);
+      }
+    }
   }
 
   return lines.join('\n');

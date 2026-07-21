@@ -6,7 +6,7 @@
  * - 只返回最终摘要给父 agent
  * - 共享文件系统，但不共享对话历史
  */
-import { createDeepSeekModel, paths } from "../../config/config.js";
+import { createModel, paths } from "../../config/config.js";
 import { createTrackedSession } from "../../infrastructure/session/session-factory.js";
 import { getLastMessage, extractTextContent } from "../../core/agent/session-adapter.js";
 
@@ -25,7 +25,7 @@ export async function runSubagent(prompt: string): Promise<string> {
       agentType: 'subagent',
       createOptions: {
         cwd: paths.root,
-        model: createDeepSeekModel(),
+        model: createModel(),
       },
     });
 

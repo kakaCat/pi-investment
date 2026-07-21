@@ -26,24 +26,123 @@ export function getBootstrapData(): Record<string, string> {
 export const bootstrapData = _bootstrapLoader.loadAll("full");
 
 /**
- * 模型配置
+ * LLM Provider 配置
+ *
+ * 通过 LLM_PROVIDER 环境变量切换模型提供方（默认 deepseek）。
+ * 所有 provider 均走 OpenAI 兼容接口（api: 'openai-completions'），
+ * 区别仅在于 baseUrl / apiKey / modelId / 上下文参数。
  */
-export function createDeepSeekModel(): Model<'openai-completions'> {
-  const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1';
-  const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY;
+export type LLMProviderName = 'deepseek' | 'kimi';
+
+interface ProviderPreset {
+  /** 展示名称 */
+  name: string;
+  baseUrl: string;
+  /** 默认模型 ID（可被 MODEL_ID 覆盖） */
+  modelId: string;
+  /** API key 环境变量，按优先级依次尝试 */
+  apiKeyEnv: string[];
+  contextWindow: number;
+  maxTokens: number;
+  /** 是否按 reasoning 模型解析（思考内容单独返回） */
+  reasoning: boolean;
+}
+
+const PROVIDER_PRESETS: Record<LLMProviderName, ProviderPreset> = {
+  deepseek: {
+    name: 'DeepSeek Chat',
+    baseUrl: 'https://api.deepseek.com/v1',
+    modelId: 'deepseek-chat',
+    apiKeyEnv: ['DEEPSEEK_API_KEY', 'OPENAI_API_KEY'],
+    contextWindow: 64000,
+    maxTokens: 8000,
+    reasoning: true, // DeepSeek支持reasoning，设为true避免解析错误
+  },
+  kimi: {
+    name: 'Kimi (Moonshot)',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    modelId: 'kimi-k3', // 可用 MODEL_ID 覆盖为具体版本（如 kimi-k3-xxxx-preview）
+    apiKeyEnv: ['KIMI_API_KEY', 'MOONSHOT_API_KEY', 'OPENAI_API_KEY'],
+    contextWindow: 256000,
+    maxTokens: 8000,
+    reasoning: true, // K3 为思考模型；若改用非思考模型可设 LLM_REASONING=false
+  },
+};
+
+/**
+ * 当前激活的 LLM provider（LLM_PROVIDER 环境变量，默认 deepseek）
+ */
+export function getActiveProvider(): LLMProviderName {
+  const p = (process.env.LLM_PROVIDER || 'deepseek').toLowerCase();
+  if (p in PROVIDER_PRESETS) return p as LLMProviderName;
+  console.warn(`[config] 未知 LLM_PROVIDER="${p}"，回退到 deepseek`);
+  return 'deepseek';
+}
+
+/**
+ * 当前激活 provider 的 API key
+ * 优先级：LLM_API_KEY > provider 专用 key 环境变量 > OPENAI_API_KEY
+ */
+export function getActiveApiKey(): string {
+  const preset = PROVIDER_PRESETS[getActiveProvider()];
+  return process.env.LLM_API_KEY
+    || preset.apiKeyEnv.map((k) => process.env[k]).find(Boolean)
+    || "";
+}
+
+/**
+ * 当前激活的模型 ID
+ * 优先级：{PROVIDER}_MODEL_ID（如 KIMI_MODEL_ID）> MODEL_ID > provider 默认值
+ */
+export function getActiveModelId(): string {
+  const provider = getActiveProvider();
+  return process.env[`${provider.toUpperCase()}_MODEL_ID`]
+    || process.env.MODEL_ID
+    || PROVIDER_PRESETS[provider].modelId;
+}
+
+/**
+ * 模型配置 — 根据 LLM_PROVIDER 创建对应 provider 的模型
+ *
+ * 通用覆盖环境变量：
+ * - LLM_API_KEY       覆盖任意 provider 的 key
+ * - LLM_BASE_URL      覆盖任意 provider 的 baseUrl
+ * - LLM_REASONING     "false" 关闭 reasoning 解析
+ * - LLM_CONTEXT_WINDOW / LLM_MAX_TOKENS  覆盖上下文/输出上限
+ */
+export function createModel(): Model<'openai-completions'> {
+  const provider = getActiveProvider();
+  const preset = PROVIDER_PRESETS[provider];
+
+  const apiKey = getActiveApiKey();
+
+  // 关键：pi-ai SDK 不读取 model.apiKey，openai provider 的 key 只从
+  // OPENAI_API_KEY 环境变量解析。这里把当前 provider 的 key 同步过去，
+  // 否则切换 provider 后会带着旧 key 请求新端点（401 Invalid Authentication）。
+  if (apiKey) {
+    process.env.OPENAI_API_KEY = apiKey;
+  }
+
+  // 保留各 provider 自己的 BASE_URL 环境变量（如 DEEPSEEK_BASE_URL / KIMI_BASE_URL）
+  const baseUrl = process.env.LLM_BASE_URL
+    || process.env[`${provider.toUpperCase()}_BASE_URL`]
+    || preset.baseUrl;
+  const reasoning = process.env.LLM_REASONING
+    ? process.env.LLM_REASONING !== 'false'
+    : preset.reasoning;
 
   return {
-    id: process.env.MODEL_ID || 'deepseek-chat',
-    name: 'DeepSeek Chat',
+    id: getActiveModelId(),
+    name: preset.name,
     api: 'openai-completions',
     provider: 'openai',              // SDK 要求 openai provider 才能正确路由 key
     apiKey,
     baseUrl,                         // ← 始终显式设置，不依赖 SDK 默认值
-    reasoning: true,                 // DeepSeek支持reasoning，设为true避免解析错误
+    reasoning,
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 64000,
-    maxTokens: 8000,                 // 恢复到8000，真正问题是reasoning配置
+    contextWindow: Number(process.env.LLM_CONTEXT_WINDOW) || preset.contextWindow,
+    maxTokens: Number(process.env.LLM_MAX_TOKENS) || preset.maxTokens,
     // HTTP超时配置 - 防止API调用卡死
     timeout: 120000,                 // 120秒超时
     maxRetries: 2                    // 失败后重试2次

@@ -4,8 +4,8 @@
  * 基于 pi-coding-agent SDK 构建的命令行交互式投资分析 Agent
  */
 import { config } from "dotenv";
-import { InteractiveMode, AgentSessionRuntime } from "../sdk-facade.js";
-import { getSession as getSessionNormal } from "../core/agent/agent-loop.js";
+import { InteractiveMode, createAgentSessionRuntime, getAgentDir } from "../sdk-facade.js";
+import { getSession as getSessionNormal, createRuntimeForSession } from "../core/agent/agent-loop.js";
 import { getSession as getSessionBackground } from "../core/agent/background-agent-loop.js";
 import * as logger from "../infrastructure/logging/observable-logger.js";
 import { wrapSessionWithLogger } from "../infrastructure/session/session-factory.js";
@@ -197,6 +197,28 @@ function restoreConversationIntoSession(
   }
   if (restartData.sdkSessionFile) {
     console.log(`📋 已恢复 SDK 会话: ${restartData.sdkSessionId || restartData.sdkSessionFile}\n`);
+
+    // SDK 会话恢复不代表任务会自己继续——有未完成任务时必须显式触发 agent，
+    // 否则任务只被恢复到 TaskManager 却永远得不到执行（agent 空转等待输入）
+    if (taskCounts.taskCount > 0 || taskCounts.backgroundCount > 0) {
+      let contextPrompt = `Agent 已重启完成，SDK 会话已恢复。`;
+      if (restartData.tasks) {
+        if (restartData.tasks.pending.length > 0) {
+          contextPrompt += `\n- 待执行任务：${restartData.tasks.pending.length} 个`;
+        }
+        if (restartData.tasks.inProgress.length > 0) {
+          contextPrompt += `\n- 进行中任务：${restartData.tasks.inProgress.length} 个`;
+        }
+      }
+      if (taskCounts.backgroundCount > 0) {
+        contextPrompt += `\n- 中断的后台任务：${taskCounts.backgroundCount} 个（已标记为失败）`;
+      }
+      contextPrompt += `\n\n请使用 task_list 查看所有任务，然后继续执行未完成的工作。优先处理 in_progress 状态的任务。`;
+
+      console.log(`💡 准备自动触发 Agent 继续之前的工作\n`);
+      triggerAgentLoop(session, contextPrompt);
+    }
+
     try { unlinkSync(RESTART_CONTEXT); } catch { /* ignore */ }
     restartData = null;
     return;
@@ -374,8 +396,18 @@ async function main() {
     });
 
     // 启动交互式模式
-    const runtime = new AgentSessionRuntime(session, { cwd: process.cwd()  } as any, async () => ({ session } as any));
-    const mode = new InteractiveMode(runtime);
+    // 使用 createAgentSessionRuntime 正确构造 runtime，支持 /resume 命令
+    // SDK 0.73+：services 由 runtime factory（createRuntimeForSession）内部通过
+    // createAgentSessionServices 创建，此处只需提供 cwd / agentDir / sessionManager
+    const runtime = await createAgentSessionRuntime(
+      createRuntimeForSession as any,
+      {
+        cwd: process.cwd(),
+        agentDir: getAgentDir(),
+        sessionManager: (session as any).sessionManager,
+      },
+    );
+    const mode = new InteractiveMode(runtime as any);
     await mode.run();
 
     // 正常退出时保存会话记忆

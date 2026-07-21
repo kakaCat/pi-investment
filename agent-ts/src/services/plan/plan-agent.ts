@@ -9,7 +9,7 @@
  * 实现：直接调用 LLM，无工具循环
  */
 import { completeSimple } from "@mariozechner/pi-ai";
-import { createDeepSeekModel } from "../../config/config.js";
+import { createModel } from "../../config/config.js";
 
 const PLAN_SYSTEM_PROMPT = `You are a planning-only agent for an AI investment advisor. Your ONLY job is to think deeply and output a plan as text. You do NOT execute anything.
 
@@ -136,7 +136,7 @@ export async function createPlanAgent(
     userPrompt += `\n\n上下文信息：\n${context}`;
   }
 
-  const result = await completeSimple(createDeepSeekModel(), {
+  const result = await completeSimple(createModel(), {
     systemPrompt,
     messages: [{ role: "user", content: userPrompt, timestamp: Date.now() }],
   });

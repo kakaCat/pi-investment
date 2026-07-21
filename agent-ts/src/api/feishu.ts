@@ -14,7 +14,7 @@ import { allCustomTools, initMemoryTools } from "../infrastructure/tools/index.j
 import type { ToolDefinition } from "../infrastructure/tools/index.js";
 import { setPlanToolContext } from "../infrastructure/tools/agent/plan-tool.js";
 import { loadPlugins } from "../infrastructure/plugins/index.js";
-import { createDeepSeekModel, paths } from "../config/config.js";
+import { createModel, paths } from "../config/config.js";
 import {
   autoRecall,
   buildAgentSystemPrompt,
@@ -204,7 +204,7 @@ export async function startFeishuBot(): Promise<FeishuBotHandle | null> {
         createOptions: {
           cwd: paths.root,
           sessionManager: SessionManager.continueRecent(paths.root, sessionDir),
-          model: createDeepSeekModel(),
+          model: createModel(),
           systemPrompt: () => buildAgentSystemPrompt({
             memoryContext: "",
             dailyMemory: "",

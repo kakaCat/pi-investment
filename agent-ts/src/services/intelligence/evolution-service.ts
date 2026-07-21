@@ -10,8 +10,8 @@ import { readFileSync, existsSync, readdirSync } from 'fs';
 import * as path from 'path';
 import { Subtractor } from './subtractor.js';
 import { calculateGap, attributeGap } from './comparator.js';
-import { PositionCliAdapter } from '../../infrastructure/adapters/cli/position-cli-adapter.js';
-import { TradeCliAdapter } from '../../infrastructure/adapters/cli/trade-cli-adapter.js';
+// 2026-07-19 修复：v1 quant CLI 已删除，统一改用 quantsys-v2 HTTP API
+const V2_API_BASE = process.env.QUANTSYS_V2_API_URL ?? 'http://127.0.0.1:5001';
 import { determineOptimizerStrategy, generateOptimizationSuggestions } from './compensator.js';
 import { generateEvolutionReport, formatReportAsMarkdown } from './evolution-reporter.js';
 import { executeOptimizationSuggestions, saveExecutionResult } from './evolution-executor.js';
@@ -97,44 +97,60 @@ const DEFAULT_CONFIG: Required<EvolutionConfig> = {
   evolutionWindowLearning: 100,
 };
 
-// ─── 数据读取 (CLI → PostgreSQL) ────────────────────────────────────────────
+// ─── 数据读取 (quantsys-v2 HTTP API) ───────────────────────────────────────
 
 async function loadPortfolio(): Promise<Holding[]> {
-  const adapter = new PositionCliAdapter();
-  const positions = await adapter.list({ status: 'open' });
-  return positions.map(p => ({
-    symbol: p.symbol,
-    name: p.name || p.symbol,
-    quantity: p.quantity,
-    avg_cost: p.costBasis ?? 0,
-    market: 'A' as 'A' | 'HK',
-    notes: p.notes || '',
-    added_date: p.entryDate || '',
-    original_cost: p.costBasis ?? 0,
-    total_invested: (p.costBasis ?? 0) * p.quantity,
-    stop_loss: null,
-    target_price: null,
-    batch_plan: null,
-    sector: '',
-    buy_reason: p.notes || null,
-  } as Holding));
+  const resp = await fetch(`${V2_API_BASE}/api/simulation/accounts/default`);
+  const json = (await resp.json()) as any;
+  if (!json.success) {
+    throw new Error(json.error || '获取模拟账户持仓失败');
+  }
+  const positions: any[] = json.data?.positions ?? [];
+  return positions.map(p => {
+    const quantity = p.shares ?? p.quantity ?? 0;
+    const avgCost = p.avg_price ?? p.cost_basis ?? 0;
+    return {
+      symbol: p.symbol,
+      name: p.name || p.symbol,
+      quantity,
+      avg_cost: avgCost,
+      market: 'A' as 'A' | 'HK',
+      notes: p.notes || '',
+      added_date: p.entry_date || '',
+      original_cost: avgCost,
+      total_invested: avgCost * quantity,
+      stop_loss: p.stop_loss ?? null,
+      target_price: null,
+      batch_plan: null,
+      sector: p.sector || '',
+      buy_reason: p.entry_reason || null,
+    } as Holding;
+  });
 }
 
 async function loadTrades(): Promise<Trade[]> {
-  const adapter = new TradeCliAdapter();
-  const trades = await adapter.list();
-  return trades.map(t => ({
-    date: t.timestamp || '',
-    action: t.action,
-    symbol: t.symbol,
-    name: t.name,
-    quantity: t.quantity,
-    price: t.price,
-    amount: t.price * t.quantity,
-    market: 'A',
-    notes: t.notes || '',
-    time: t.timestamp || '',
-  } as Trade));
+  const resp = await fetch(`${V2_API_BASE}/api/simulation/trades?limit=10000`);
+  const json = (await resp.json()) as any;
+  if (!json.success) {
+    throw new Error(json.error || '获取模拟交易记录失败');
+  }
+  const trades: any[] = json.data ?? [];
+  return trades.map(t => {
+    const quantity = t.shares ?? t.quantity ?? 0;
+    const price = t.price ?? t.filled_price ?? 0;
+    return {
+      date: t.trade_date || t.timestamp || '',
+      action: String(t.action || '').toLowerCase(),
+      symbol: t.symbol,
+      name: t.name,
+      quantity,
+      price,
+      amount: t.amount ?? price * quantity,
+      market: 'A',
+      notes: t.notes || '',
+      time: t.timestamp || t.trade_date || '',
+    } as Trade;
+  });
 }
 
 /**
@@ -255,31 +271,34 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
   console.log(`✅ 数据检查通过，开始分析...\n`);
 
   // ── 2. 减法器：全维度比较 ────────────────────────────────────────────────
-  const positionAdapter = new PositionCliAdapter();
 
   // 获取完整的持仓数据（包含当前价格和浮盈）
   let portfolioSnapshot: any;
   let currentPrices: Record<string, number> = {};
 
   try {
-    const summary = await positionAdapter.getSummary();
-    const positions = await positionAdapter.list({ status: 'open' });
+    const resp = await fetch(`${V2_API_BASE}/api/simulation/accounts/default`);
+    const json = (await resp.json()) as any;
+    const positions: any[] = json.data?.positions ?? [];
+    const totalPnl = positions.reduce((sum, p) => sum + (p.profit ?? 0), 0);
+    const totalInvested = positions.reduce(
+      (sum, p) => sum + (p.avg_price ?? 0) * (p.shares ?? p.quantity ?? 0), 0);
     portfolioSnapshot = {
-      total_pnl: summary!.totalPnl ?? 0,
-      total_pnl_pct: summary!.totalPnlPct ?? 0,
+      total_pnl: totalPnl,
+      total_pnl_pct: totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0,
       holdings: positions.map(p => ({
         symbol: p.symbol,
         name: p.name,
-        current_price: p.currentPrice ?? 0,
-        quantity: p.quantity,
-        cost_basis: p.costBasis ?? 0,
+        current_price: p.current_price ?? 0,
+        quantity: p.shares ?? p.quantity ?? 0,
+        cost_basis: p.avg_price ?? p.cost_basis ?? 0,
       })),
     };
     console.log(`[进化] 持仓浮盈: ¥${portfolioSnapshot.total_pnl.toFixed(2)} (${portfolioSnapshot.total_pnl_pct.toFixed(2)}%)`);
 
     // 构建当前价格映射
     positions.forEach(p => {
-      currentPrices[p.symbol] = p.currentPrice ?? 0;
+      currentPrices[p.symbol] = p.current_price ?? 0;
     });
   } catch (e) {
     console.warn('[进化] 获取持仓浮盈失败，仅使用已实现盈亏:', e);
@@ -389,16 +408,14 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
 
   try {
     if (holdings.length > 0) {
-      // 使用之前已获取的持仓数据和当前价格
-      const currentPricesMap = new Map<string, number>();
+      // 复用第 2 步已获取的持仓价格（避免重复请求）
+      const currentPricesMap = new Map<string, number>(Object.entries(currentPrices));
       const stockInfo = new Map<string, { name: string; sector?: string; marketCap?: number }>();
 
-      const positions = await positionAdapter.list({ status: 'open' });
-      positions.forEach(p => {
-        currentPricesMap.set(p.symbol, p.currentPrice ?? 0);
-        stockInfo.set(p.symbol, {
-          name: p.name || p.symbol,
-          sector: undefined, // TODO: 从数据源获取行业信息
+      holdings.forEach(h => {
+        stockInfo.set(h.symbol, {
+          name: h.name || h.symbol,
+          sector: h.sector || undefined,
           marketCap: undefined, // TODO: 从数据源获取市值信息
         });
       });

@@ -6,8 +6,11 @@
 
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { join } from 'path';
-import { PositionCliAdapter } from '../../infrastructure/adapters/cli/position-cli-adapter.js';
-import { TradeCliAdapter } from '../../infrastructure/adapters/cli/trade-cli-adapter.js';
+
+// 2026-07-19 修复：v1 quant CLI（.venv/bin/quant）已删除，
+// PositionCliAdapter/TradeCliAdapter 全部失败（spawn quant ENOENT），
+// 数据源迁移到 quantsys-v2 HTTP API（模拟交易账户）。
+const V2_API_BASE = process.env.QUANTSYS_V2_API_URL ?? 'http://127.0.0.1:5001';
 
 const DEFAULT_BASE_DIR = join(process.cwd(), '.pi-invest');
 
@@ -78,25 +81,33 @@ export interface ReviewData {
  * 加载持仓数据（通过 CLI → PostgreSQL）
  */
 export async function loadPortfolio(baseDir?: string): Promise<Portfolio> {
-  const adapter = new PositionCliAdapter();
-  const positions = await adapter.list({ status: 'open' });
+  const resp = await fetch(`${V2_API_BASE}/api/simulation/accounts/default`);
+  const json = (await resp.json()) as any;
+  if (!json.success) {
+    throw new Error(json.error || '获取模拟账户持仓失败');
+  }
+  const positions: any[] = json.data?.positions ?? [];
 
-  const holdings: Holding[] = positions.map(p => ({
-    symbol: p.symbol,
-    name: p.name || p.symbol,
-    quantity: p.quantity,
-    avg_cost: p.costBasis ?? 0,
-    market: 'A' as 'A' | 'HK',  // CLI adapter doesn't provide market, default A
-    notes: p.notes || '',
-    added_date: p.entryDate || '',
-    original_cost: p.costBasis ?? 0,
-    total_invested: (p.costBasis ?? 0) * p.quantity,
-    stop_loss: null,
-    target_price: null,
-    batch_plan: null,
-    sector: '',
-    buy_reason: p.notes || null,
-  }));
+  const holdings: Holding[] = positions.map(p => {
+    const quantity = p.shares ?? p.quantity ?? 0;
+    const avgCost = p.avg_price ?? p.cost_basis ?? 0;
+    return {
+      symbol: p.symbol,
+      name: p.name || p.symbol,
+      quantity,
+      avg_cost: avgCost,
+      market: 'A' as 'A' | 'HK',
+      notes: p.notes || '',
+      added_date: p.entry_date || '',
+      original_cost: avgCost,
+      total_invested: avgCost * quantity,
+      stop_loss: p.stop_loss ?? null,
+      target_price: null,
+      batch_plan: null,
+      sector: p.sector || '',
+      buy_reason: p.entry_reason || null,
+    };
+  });
 
   return {
     holdings,
@@ -136,24 +147,32 @@ export function parsePortfolio(
 // ============ Trades 解析器 ============
 
 /**
- * 加载交易记录（通过 CLI → PostgreSQL）
+ * 加载交易记录（quantsys-v2 模拟交易账户）
  */
 export async function loadTrades(baseDir?: string): Promise<TradeHistory> {
-  const adapter = new TradeCliAdapter();
-  const trades = await adapter.list();
+  const resp = await fetch(`${V2_API_BASE}/api/simulation/trades?limit=10000`);
+  const json = (await resp.json()) as any;
+  if (!json.success) {
+    throw new Error(json.error || '获取模拟交易记录失败');
+  }
+  const trades: any[] = json.data ?? [];
 
-  const mappedTrades: Trade[] = trades.map(t => ({
-    date: t.timestamp || '',
-    action: t.action,
-    symbol: t.symbol,
-    name: t.name,
-    quantity: t.quantity,
-    price: t.price,
-    amount: t.price * t.quantity,
-    market: 'A' as 'A' | 'HK',  // CLI adapter doesn't provide market
-    notes: t.notes || '',
-    time: t.timestamp || '',
-  }));
+  const mappedTrades: Trade[] = trades.map(t => {
+    const quantity = t.shares ?? t.quantity ?? 0;
+    const price = t.price ?? t.filled_price ?? 0;
+    return {
+      date: t.trade_date || t.timestamp || '',
+      action: String(t.action || '').toLowerCase() as 'buy' | 'sell',
+      symbol: t.symbol,
+      name: t.name,
+      quantity,
+      price,
+      amount: t.amount ?? price * quantity,
+      market: 'A' as 'A' | 'HK',
+      notes: t.notes || '',
+      time: t.timestamp || t.trade_date || '',
+    };
+  });
 
   return {
     trades: mappedTrades,

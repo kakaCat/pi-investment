@@ -62,10 +62,7 @@ export const manipulationDetectTool: ToolDefinition = {
   execute: async (_toolCallId: string, params: {}) => {
     try {
       // 调用 V2 API
-      const result = await runQuantV2(
-        '/api/game/market/manipulation-detect',
-        'GET'
-      );
+      const result = await runQuantV2('market.manipulation_detect', {});
 
       if (!result.ok) {
         const errorMsg = typeof (result as any).error === 'string'

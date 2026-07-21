@@ -3,6 +3,25 @@ import { Type } from "@sinclair/typebox";
 
 const V2_API_BASE = process.env.QUANTSYS_V2_API_URL ?? "http://127.0.0.1:5001";
 
+/**
+ * v2 API 的 api_response 会把所有 key 转成 camelCase，
+ * 本工具的展示层统一使用 snake_case，这里递归转回。
+ */
+function toSnakeCaseKeys(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(toSnakeCaseKeys);
+  }
+  if (obj !== null && typeof obj === "object") {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const snakeKey = key.replace(/(?<!^)(?=[A-Z])/g, "_").toLowerCase();
+      result[snakeKey] = toSnakeCaseKeys(value);
+    }
+    return result;
+  }
+  return obj;
+}
+
 async function apiCall(method: string, path: string, data?: any): Promise<any> {
   const url = `${V2_API_BASE}${path}`;
   const options: RequestInit = {
@@ -13,14 +32,16 @@ async function apiCall(method: string, path: string, data?: any): Promise<any> {
   if (data) {
     if (method === "GET") {
       const params = new URLSearchParams(data);
-      return fetch(`${url}?${params}`, options).then(r => r.json());
+      const json = await fetch(`${url}?${params}`, options).then(r => r.json());
+      return toSnakeCaseKeys(json);
     } else {
       options.body = JSON.stringify(data);
     }
   }
 
   const response = await fetch(url, options);
-  return response.json();
+  const json = await response.json();
+  return toSnakeCaseKeys(json);
 }
 
 export const signalExecutionTool: ToolDefinition = {
@@ -197,29 +218,33 @@ async function handleStatistics(days: number): Promise<string> {
   }
 
   const stats = (response as any).data;
+  const executions = stats.executions ?? {};
+  const signals = stats.signals ?? {};
+  const orders = stats.orders ?? {};
+  const performance = stats.performance ?? {};
 
   return `## 📊 执行统计（最近 ${days} 天）
 
 ### 总体统计
-- 总执行次数: ${stats.total_executions}
-- 成功次数: ${stats.successful_executions}
-- 失败次数: ${stats.failed_executions}
-- 成功率: ${stats.success_rate}%
+- 总执行次数: ${executions.total ?? 0}
+- 成功次数: ${executions.successful ?? 0}
+- 失败次数: ${executions.failed ?? 0}
+- 成功率: ${executions.success_rate ?? 0}%
 
 ### 信号统计
-- 总生成信号: ${stats.total_signals_generated}
-- 总通过风控: ${stats.total_signals_approved}
-- 总被拒绝: ${stats.total_signals_rejected}
-- 通过率: ${stats.approval_rate}%
+- 总生成信号: ${signals.total_generated ?? 0}
+- 总通过风控: ${signals.total_approved ?? 0}
+- 总被拒绝: ${signals.total_rejected ?? 0}
+- 通过率: ${signals.approval_rate ?? 0}%
 
 ### 订单统计
-- 总创建订单: ${stats.total_orders_created}
-- 平均每次: ${stats.avg_orders_per_execution}
+- 总创建订单: ${orders.total_created ?? 0}
+- 订单执行率: ${orders.execution_rate ?? 0}%
 
 ### 性能统计
-- 平均耗时: ${stats.avg_duration_ms}ms
-- 最长耗时: ${stats.max_duration_ms}ms
-- 最短耗时: ${stats.min_duration_ms}ms`;
+- 平均耗时: ${Math.round(performance.avg_duration_ms ?? 0)}ms
+- 日均信号: ${Math.round(performance.avg_signals_per_day ?? 0)}
+- 日均订单: ${Math.round(performance.avg_orders_per_day ?? 0)}`;
 }
 
 async function handleConfigQuery(): Promise<string> {
@@ -253,7 +278,7 @@ async function handleConfigQuery(): Promise<string> {
 }
 
 async function handleConfigUpdate(updates: any): Promise<string> {
-  const response = await apiCall('PUT', '/api/signal-execution/config', updates);
+  const response = await apiCall('POST', '/api/signal-execution/config', updates);
 
   if (!response.success) {
     return `❌ 更新失败: ${response.error}`;

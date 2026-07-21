@@ -68,8 +68,12 @@ import { opponentBehaviorTool } from "./game/opponent-behavior-tool.js";  // 新
 import { poolBattlefieldTool } from "./game/pool-battlefield-tool.js";    // 新增：池子战场评估
 import { manipulationDetectTool } from "./game/manipulation-detect-tool.js"; // 新增：操纵检测
 
+// 策略轮动决策工具链
+import { rotationProposalTool, rotationSimulateTool, rotationExecuteTool, rotationVerifyTool } from "./rotation/index.js";
+
 // 决策追踪
 import { decisionHistoryTool } from "./decision/decision-history-tool.js";  // 新增：决策历史查询
+import { decisionRecordTool } from "./decision/decision-record-tool.js";  // 新增：决策记录
 
 // 调度器管理
 import { schedulerManageTool } from "./scheduler/scheduler-manage-tool.js";  // 新增：调度器管理工具
@@ -303,6 +307,12 @@ export const allCustomTools = [
   // ===== 系统工具（从 quant_cli 拆分）=====
   asyncJobsTool,                  // async_jobs - 异步任务管理
 
+  // ===== 策略轮动决策工具链 =====
+  rotationProposalTool,           // rotation_proposal - 获取轮动方案（决策链第1步）
+  rotationSimulateTool,           // rotation_simulate - 模拟轮动执行（决策链第2步）
+  rotationExecuteTool,            // rotation_execute - 执行轮动（决策链第3步）
+  rotationVerifyTool,             // rotation_verify - 验证轮动效果（决策链第4步）
+
   // ===== 独立业务工具 =====
   riskMetricsTool,               // risk_metrics - 风险指标分析（empyrical）
   riskControllerTool,             // risk_controller - 风险控制工具
@@ -313,6 +323,7 @@ export const allCustomTools = [
   poolBattlefieldTool,            // pool_battlefield - 池子战场评估（博弈情报）
   manipulationDetectTool,         // manipulation_detect - 操纵检测（博弈情报）
   decisionHistoryTool,            // decision_history - 决策历史查询（决策追踪）
+  decisionRecordTool,             // decision_record - 决策记录（审计轨迹落库）
   schedulerManageTool,            // scheduler_manage - 调度器管理（新增）
   feishuNotifyTool,               // feishu_notify - 飞书通知工具（新增）
   strategyComparisonTool,         // strategy_performance_comparison - 策略性能对比（新增）

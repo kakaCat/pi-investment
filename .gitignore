@@ -54,12 +54,16 @@ check-*.sh
 check_*.py
 daily_*.sh
 demo-*.js
+demo-*.py
 scan_*.py
 install-*.sh
 final-*.sh
 update_*.py
 verify-*.sh
 test-*.ts
+test-*.sh
+test-*.py
+test-*.js
 .git-commit-*.md
 .git-commit-*.txt
 
@@ -125,16 +129,29 @@ docs/archive/
 
 # Temporary reports and work documents
 *_REPORT.md
+*_REPORT.txt
 *_SUMMARY.md
+*_SUMMARY.txt
 *_COMPLETE.md
+*_COMPLETE.txt
 *_STATUS.md
+*_STATUS.txt
 *_GUIDE.md
+*_GUIDE.txt
 *_ANALYSIS.md
+*_ANALYSIS.txt
 *_CHECK.md
+*_CHECK.txt
 *_PLAN.md
+*_PLAN.txt
+*_FIX.txt
+*_FINAL.txt
 *WORK_SUMMARY*.md
+*WORK_SUMMARY*.txt
 DAILY_*.md
+DAILY_*.txt
 MEMORY_UPDATE*.md
+MEMORY_UPDATE*.txt
 
 # Cleanup and organization files
 cleanup-*.sh
@@ -143,3 +160,7 @@ cleanup-*.sh
 
 # Keep important docs - none currently needed
 # !IMPORTANT_DOC.md
+venv/
+
+# Work directory for Claude Code temporary files (added 2026-07-17)
+.work/

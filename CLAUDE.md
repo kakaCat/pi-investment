@@ -323,11 +323,13 @@ TAVILY_API_KEY=...
 
 - [Agent Architecture](agent-ts/CLAUDE.md)
 - [Backend API Reference](quantsys-v2/CLAUDE.md)
-- [Stock Pool Design](docs/stock-pool-game-theory.md) *(to be created)*
-- [Agent Autonomy Guide](docs/agent-autonomy.md) *(to be created)*
-- [Game Theory Framework](docs/game-theory-framework.md) *(to be created)*
+- [Web Frontend Guide](web-frontend/CLAUDE.md)
+- [Stock Pool Game Theory](docs/stock-pool-game-theory.md) - Battlefield selection and opponent exploitation
+- [Agent Autonomy Guide](docs/agent-autonomy.md) - Autonomous operation and decision-making
+- [Game Theory Framework](docs/game-theory-framework.md) - Theoretical foundation and competitive intelligence
 
 ## Version History
 
+- 2026-06-29: Documentation consolidation - created game theory framework docs
 - 2026-06-25: Added system philosophy, game theory framework, autonomous agent design
 - 2026-06-03: Initial three-layer architecture documentation

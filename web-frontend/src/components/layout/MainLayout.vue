@@ -67,6 +67,15 @@
             <el-icon><Operation /></el-icon>
             <span>策略运营中心</span>
           </el-menu-item>
+          <el-menu-item index="/simulation-trading">
+            <el-icon><TrendCharts /></el-icon>
+            <span>V13模拟交易</span>
+          </el-menu-item>
+
+          <el-menu-item index="/v14-trading">
+            <el-icon><Trophy /></el-icon>
+            <span>V14量化交易</span>
+          </el-menu-item>
           <el-menu-item index="/quant-pipeline">
             <el-icon><Connection /></el-icon>
             <span>量化链路</span>

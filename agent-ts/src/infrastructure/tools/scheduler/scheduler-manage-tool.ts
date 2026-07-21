@@ -498,13 +498,19 @@ function formatFailedRuns(data: SchedulerResult): string {
     return output + "✅ 暂无失败记录\n\n";
   }
 
-  output += `**失败记录数**：${data.runs.length}条\n\n`;
+  // API 返回 camelCase 字段（taskId/startedAt/taskName），需兼容
+  const total = (data as any).pagination?.total ?? (data as any).count ?? data.runs.length;
+  output += `**失败记录数**：${total}条（显示最近 ${data.runs.length} 条）\n\n`;
 
   for (const run of data.runs) {
-    output += `**执行ID**：${run.id}\n`;
-    output += `**任务ID**：${run.task_id}\n`;
-    output += `**开始时间**：${run.start_time}\n`;
-    output += `**错误信息**：${run.error || '未知错误'}\n`;
+    const r = run as any;
+    const taskId = r.task_id ?? r.taskId ?? '-';
+    const taskName = r.task_name ?? r.taskName ?? '';
+    const startTime = r.start_time ?? r.startedAt ?? '-';
+    output += `**执行ID**：${r.id}\n`;
+    output += `**任务ID**：${taskId}${taskName ? `（${taskName}）` : ''}\n`;
+    output += `**开始时间**：${startTime}\n`;
+    output += `**错误信息**：${r.error || '未知错误'}\n`;
     output += "\n";
   }
 

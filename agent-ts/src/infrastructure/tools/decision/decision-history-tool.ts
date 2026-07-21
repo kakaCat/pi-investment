@@ -5,7 +5,10 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
+
+// 2026-07-19 修复：原实现误用 runQuantV2（命令式路由表），
+// 把 URL 当命令名导致“没有 v2 端点映射”。改为直接 fetch。
+const V2_API_BASE = process.env.QUANTSYS_V2_API_URL ?? "http://127.0.0.1:5001";
 
 interface DecisionHistoryParams {
   entity_type?: string;
@@ -80,20 +83,17 @@ export const decisionHistoryTool: ToolDefinition = {
       queryParams.append('limit', limit.toString());
 
       // 调用 V2 API
-      const result = await runQuantV2(
-        `/api/decisions/history?${queryParams.toString()}`,
-        'GET'
+      const resp = await fetch(
+        `${V2_API_BASE}/api/decisions/history?${queryParams.toString()}`
       );
+      const result = (await resp.json()) as any;
 
-      if (!result.ok) {
-        const errorMsg = typeof (result as any).error === 'string'
-          ? (result as any).error
-          : (result as any).error?.message || "查询决策历史失败";
-        throw new Error(errorMsg);
+      if (!result.success) {
+        throw new Error(result.error || "查询决策历史失败");
       }
 
       // 提取数据
-      const decisions = (result as any).data || [];
+      const decisions = result.data || [];
 
       // 构建可读的历史报告
       const report = formatDecisionHistory(decisions, params);

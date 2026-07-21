@@ -14,6 +14,7 @@ import { createAgentSession } from "../../sdk-facade.js";
 import type { AgentSession } from "../../sdk-facade.js";
 import * as logger from "../logging/observable-logger.js";
 import { rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
+import { getActiveModelId } from "../../config/config.js";
 import { getExplicitSkillFromPrompt, withForcedSkillScope } from "../tools/skill-guard.js";
 
 export type AgentType = 'main' | 'subagent' | 'plan';
@@ -100,12 +101,12 @@ export function attachLogger(session: AgentSession, agentType: AgentType, perfMo
           const duration = turnStartTime ? Date.now() - turnStartTime : 0;
 
           if (agentType === 'main') {
-            const llmRunId = logger.logLLMStart('deepseek-chat', 1);
+            const llmRunId = logger.logLLMStart(getActiveModelId(), 1);
             logger.logLLMEnd(llmRunId, usage, text, duration, thinking);
             logger.logAgentEnd(msg.stopReason || 'stop', usage, text);
             perfMonitor?.endLLMCall?.(undefined, usage, duration);
           } else {
-            const llmRunId = logger.logLLMStart('deepseek-chat', 1);
+            const llmRunId = logger.logLLMStart(getActiveModelId(), 1);
             logger.logLLMEnd(llmRunId, usage, text, duration, thinking);
           }
         }

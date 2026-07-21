@@ -95,7 +95,7 @@ export type { AgentToolResult, AgentToolUpdateCallback } from "@mariozechner/pi-
 // 4. 子 facade 导入
 // ═══════════════════════════════════════════════════════════════════════════
 
-export { createSession, createSession as createAgentSession, type CreateSessionOptions } from "./session-facade";
+export { createSession, createSession as createAgentSession, type CreateSessionOptions, type CreateSessionResult, type AgentSessionServices } from "./session-facade";
 export { estimateTokens, generateSummary } from "./compaction-facade";
 
 // 向后兼容：部分文件使用 ToolDefinition 作为类型名（重导出自身）
@@ -109,5 +109,5 @@ export type { AgentMessage } from "@mariozechner/pi-agent-core";
 // ═══════════════════════════════════════════════════════════════════════════
 
 export { createReadTool } from "@mariozechner/pi-coding-agent";
-export { InteractiveMode, AgentSessionRuntime } from "@mariozechner/pi-coding-agent";
+export { InteractiveMode, AgentSessionRuntime, createAgentSessionRuntime, createAgentSessionServices, getAgentDir } from "@mariozechner/pi-coding-agent";
 export type { CreateAgentSessionRuntimeResult } from "@mariozechner/pi-coding-agent";

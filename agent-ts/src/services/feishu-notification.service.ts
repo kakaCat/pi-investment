@@ -68,25 +68,53 @@ export class FeishuNotificationService {
 
   async sendDailyReport(data: Record<string, any>): Promise<boolean> {
     const date = data.date || new Date().toISOString().split('T')[0];
-    const content = `**📈 市场表现**
-上证指数: ${data.sh_index_change || 'N/A'}
-深证成指: ${data.sz_index_change || 'N/A'}
-北向资金: ${data.north_flow || 'N/A'}
 
-**💰 持仓表现**
-今日收益: ${data.daily_pnl || 'N/A'}
-总收益率: ${data.total_return || 'N/A'}
-新增信号: ${data.new_signals || 0}个`;
+    // 使用真实的数据字段（来自 portfolio_status 和其他工具）
+    const totalAssets = data.total_assets !== undefined ? `¥${Number(data.total_assets).toFixed(2)}` : 'N/A';
+    const cash = data.cash !== undefined ? `¥${Number(data.cash).toFixed(2)}` : 'N/A';
+    const holdingsCount = data.holdings_count !== undefined ? `${data.holdings_count}只` : 'N/A';
+    const totalPnl = data.total_pnl !== undefined ? `¥${Number(data.total_pnl).toFixed(2)}` : 'N/A';
+    const totalPnlPct = data.total_pnl_pct !== undefined ? `${Number(data.total_pnl_pct).toFixed(2)}%` : 'N/A';
+
+    const content = `**💰 持仓表现**
+总资产: ${totalAssets}
+可用资金: ${cash}
+持仓数量: ${holdingsCount}
+总盈亏: ${totalPnl} (${totalPnlPct})
+
+**📊 交易情况**
+${data.trades_today !== undefined ? `今日交易: ${data.trades_today}笔` : ''}
+${data.buy_count !== undefined ? `买入: ${data.buy_count}笔` : ''}
+${data.sell_count !== undefined ? `卖出: ${data.sell_count}笔` : ''}
+
+**💡 关键发现**
+${data.key_findings || '正常运行，无异常'}`;
+
     return this.sendCard({ title: `📊 每日投资报告 - ${date}`, content });
   }
 
   async sendWeeklyReport(data: Record<string, any>): Promise<boolean> {
-    const week = data.week || 'N/A';
+    const week = data.week || new Date().toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+
+    const weeklyReturn = data.weekly_return !== undefined ? `${Number(data.weekly_return).toFixed(2)}%` : 'N/A';
+    const winRate = data.win_rate !== undefined ? `${Number(data.win_rate).toFixed(2)}%` : 'N/A';
+    const cumulativeReturn = data.total_pnl_pct !== undefined ? `${Number(data.total_pnl_pct).toFixed(2)}%` : 'N/A';
+    const totalTrades = data.total_trades !== undefined ? data.total_trades : 'N/A';
+
     const content = `**📈 本周表现**
-周收益: ${data.weekly_return || 'N/A'}
-胜率: ${data.win_rate || 'N/A'}
-累计: ${data.cumulative_return || 'N/A'}`;
-    return this.sendCard({ title: `📊 投资周报 - 第${week}周`, content });
+周收益: ${weeklyReturn}
+交易次数: ${totalTrades}
+胜率: ${winRate}
+累计收益: ${cumulativeReturn}
+
+**📊 持仓状况**
+总资产: ${data.total_assets !== undefined ? `¥${Number(data.total_assets).toFixed(2)}` : 'N/A'}
+持仓数: ${data.holdings_count || 0}只
+
+**💡 本周总结**
+${data.summary || '继续观察市场，保持策略纪律'}`;
+
+    return this.sendCard({ title: `📊 投资周报 - ${week}`, content });
   }
 
   async sendAlert(opts: AlertOptions): Promise<boolean> {
@@ -95,13 +123,33 @@ export class FeishuNotificationService {
 
   async sendPremarketReport(data: Record<string, any>): Promise<boolean> {
     const date = data.date || new Date().toISOString().split('T')[0];
+
+    const opportunities = data.opportunities || [];
+    const opportunitiesText = opportunities.length > 0
+      ? opportunities.map((o: any) => `• ${o.symbol} ${o.name || ''}: ${o.reason || '待分析'}`).join('\n')
+      : '暂无高质量信号';
+
+    const alerts = data.alerts || [];
+    const alertsText = alerts.length > 0
+      ? alerts.map((a: any) => `⚠️ ${a.title}: ${a.message}`).join('\n')
+      : '无预警';
+
     const content = `**✅ 数据检查**
 数据完整性: ${data.data_integrity || '正常'}
-股票池: ${data.pool_updated || '已更新'}
+股票池: ${data.pools_count || 0}个
+最新更新: ${data.last_update || '未知'}
 
 **💡 今日机会**
-${(data.opportunities || []).map((o: any) => `• ${o.symbol}: ${o.reason}`).join('\n') || '暂无'}`;
-    return this.sendCard({ title: `📋 盘前准备 - ${date}`, content });
+${opportunitiesText}
+
+**⚠️ 风险提示**
+${alertsText}
+
+**📊 持仓状况**
+可用资金: ${data.cash !== undefined ? `¥${Number(data.cash).toFixed(2)}` : 'N/A'}
+持仓数: ${data.holdings_count || 0}只`;
+
+    return this.sendCard({ title: `🌅 盘前准备 - ${date}`, content });
   }
 
   private async send(payload: any): Promise<boolean> {

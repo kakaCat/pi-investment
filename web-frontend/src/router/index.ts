@@ -148,6 +148,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import(/* webpackChunkName: "executions" */ '@/views/Executions/index.vue'),
         meta: { title: '执行记录' }
       },
+      {
+        path: '/simulation-trading',
+        name: 'SimulationTrading',
+        component: () => import(/* webpackChunkName: "simulation-trading" */ '@/views/SimulationTrading/index.vue'),
+        meta: { title: 'V13模拟交易' }
+      },
+      {
+        path: '/v14-trading',
+        name: 'V14Trading',
+        component: () => import(/* webpackChunkName: "v14-trading" */ '@/views/V14Trading/index.vue'),
+        meta: { title: 'V14量化交易 P0优化版' }
+      },
       // 博弈智能系统
       {
         path: '/game-intelligence',

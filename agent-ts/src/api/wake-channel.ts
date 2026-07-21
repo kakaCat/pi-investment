@@ -16,7 +16,7 @@ import { createTrackedSession } from "../infrastructure/session/session-factory.
 import { allCustomTools, initMemoryTools } from "../infrastructure/tools/index.js";
 import type { ToolDefinition } from "../infrastructure/tools/index.js";
 import { setPlanToolContext } from "../infrastructure/tools/agent/plan-tool.js";
-import { createDeepSeekModel, paths } from "../config/config.js";
+import { createModel, paths } from "../config/config.js";
 import {
   autoRecall,
   buildAgentSystemPrompt,
@@ -79,7 +79,7 @@ export function startWakeChannel(port: number = 3001): { shutdown: () => void } 
         createOptions: {
           cwd: paths.root,
           sessionManager: SessionManager.continueRecent(paths.root, sessionDir),
-          model: createDeepSeekModel(),
+          model: createModel(),
           systemPrompt: () => buildAgentSystemPrompt({
             memoryContext: "",
             dailyMemory: "",
@@ -233,20 +233,67 @@ function buildPromptFromEvent(
   const taskInfo = task_name || task_id || 'unknown';
 
   switch (event) {
+    case 'strategy_rotation':
+      return `【策略轮动决策】V2 检测到策略轮动需求。
+
+市场风格: ${data?.market_style || 'N/A'}，置信度: ${data?.confidence || 'N/A'}
+触发原因: ${data?.trigger || 'N/A'}
+
+请按以下决策链操作（每步都要看返回结果再决定下一步）：
+
+1. 调用 rotation_proposal 获取轮动方案
+   → 看市场风格是否可信、策略表现数据
+
+2. 如需独立验证，调用 market_style_detect 交叉确认
+   → 对比 V2 的风格判断和你自己的分析
+
+3. 调用 rotation_simulate 模拟执行
+   → 检查模拟交易是否合理、风险变化是否可接受
+
+4. 基于以上信息做决策：
+   - 同意 → 调用 rotation_execute (decision="approve")
+   - 部分同意 → 修改 actions 后执行
+   - 否决 → 调用 rotation_execute (decision="reject", reason="...")
+
+5. 调用 decision_record 记录你的决策原因和预期
+
+6. 通过 feishu_notify 通知用户轮动结果
+
+注意：不要跳过步骤直接执行。每一步的返回数据都是你决策的依据。`;
+
+    case 'daily_review':
+      return `【盘后复盘】今日交易已结束（${data?.trade_date || '今日'}）。
+
+今日绩效: ${JSON.stringify(data?.performance || {})}
+
+请按以下步骤复盘：
+
+1. 调用 portfolio_status 查看今日持仓和盈亏
+2. 调用 performance_analyzer 分析今日绩效
+3. 调用 rotation_verify 检查近期轮动效果
+4. 调用 decision_history 回顾今日决策
+5. 综合分析：
+   - 哪些决策正确？为什么？
+   - 哪些决策失误？如何改进？
+   - 明日操作方向建议
+6. 调用 experience_write 写入经验
+7. 通过 feishu_notify 发送复盘报告`;
+
     case 'market_alert':
-      return `【任务】请按以下步骤处理市场异动：
+      return `【市场异动】上证 ${data?.sh_change || 'N/A'}，深证 ${data?.sz_change || 'N/A'}，${data?.reason || ''}
 
-1. 分析当前市场数据：上证 ${data?.sh_change || 'N/A'}，深证 ${data?.sz_change || 'N/A'}，${data?.reason || ''}。
-2. 用 market_sentiment 工具查看市场情绪。
-3. 如果是大跌，用 opportunity_scan 扫描超跌机会。
-4. 综合以上信息，用 feishu_notify 工具给用户发送一份完整的分析报告，内容包括：
-   - 市场发生了什么
-   - 原因分析
-   - 情绪面判断
-   - 发现的投资机会
-   - 操作建议
+请按以下工具链操作：
 
-不要只报告数据，要做真正的投资分析，所有分析结果必须通过飞书发送给用户。`;
+1. 调用 portfolio_status 查看当前持仓受影响情况
+2. 调用 market_style_detect 判断市场风格是否变化
+3. 调用 data_fetch_market_sentiment 查看市场情绪
+4. 综合判断：
+   - 如果是大跌且风格转空 → 考虑调用 portfolio_trade 减仓
+   - 如果是超跌且风格未变 → 调用 opportunity_scan 扫描机会
+5. 调用 decision_record 记录你的判断
+6. 通过 feishu_notify 发送分析报告（包含：发生了什么、原因、情绪、机会、建议）
+
+不要只报告数据，要做真正的投资分析。`;
 
     case 'daily_report':
       return `生成每日投资报告（任务：${taskInfo}）。请使用 daily_report 工具生成报告，然后通过 feishu_notify 推送。`;

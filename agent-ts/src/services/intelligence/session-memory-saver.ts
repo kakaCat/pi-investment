@@ -4,7 +4,7 @@
  * 在会话结束时派发独立 agent 回顾对话历史，提取关键信息并写入记忆
  */
 import { createSession, type AgentSession } from "../../sdk-facade.js";
-import { createDeepSeekModel } from "../../config/config.js";
+import { createModel } from "../../config/config.js";
 import { memoryWriteTool, memorySearchTool } from "../../infrastructure/tools/agent/memory-tool.js";
 import { getMessages, type SessionMessage } from "../../core/agent/session-adapter.js";
 
@@ -103,7 +103,7 @@ async function saveSessionMemoryInternal(
   // @ts-ignore - Type mismatch from SDK update
   const { session: memorySaverSession } = await createSession({
     cwd: process.cwd(),
-    model: createDeepSeekModel(),
+    model: createModel(),
     systemPrompt: buildMemorySaverSystemPrompt(),
     customTools: [memoryWriteTool, memorySearchTool],
     skills: [],

@@ -70,7 +70,7 @@ export async function initAgentDecisionTasks() {
     console.log('💡 提示:');
     console.log('  - 这些任务会唤醒 Agent AI 自主决策');
     console.log('  - Agent 会使用工具获取数据并做出判断');
-    console.log('  - 确保 promptAgent 函数已正确配置');
+    console.log('  - 数据更新由 quantsys-v2 调度器负责');
     console.log('  - 任务执行日志会记录 Agent 的决策过程\n');
 
   } catch (error) {

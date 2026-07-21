@@ -5,6 +5,7 @@ import { Type } from "@sinclair/typebox";
 import { generateSummary } from "../../../sdk-facade.js";
 import type { AgentSession } from "../../../sdk-facade.js";
 import { getMessages, getModel } from "../../../core/agent/session-adapter.js";
+import { getActiveApiKey } from "../../../config/config.js";
 
 let sessionRef: AgentSession | null = null;
 
@@ -37,7 +38,7 @@ export const compactTool = {
 
       // 生成摘要（SDK 会自动处理压缩和保存 CompactionEntry）
       const model = getModel(sessionRef);
-      const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY || "";
+      const apiKey = getActiveApiKey();
 
       await generateSummary(messages as any, model, 16384, apiKey);
 

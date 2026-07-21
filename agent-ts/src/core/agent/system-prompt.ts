@@ -12,7 +12,7 @@ import { join } from "path";
 import { readFileSync, existsSync } from "fs";
 import { getMemoryStore } from "../../services/intelligence/memory-store.js";
 import { buildSystemPrompt } from "../../services/intelligence/system-prompt-builder.js";
-import { getBootstrapData } from "../../config/config.js";
+import { getBootstrapData, getActiveModelId } from "../../config/config.js";
 import type { PluginSkill } from "../../infrastructure/plugins/index.js";
 import { chinaDate } from "../../utils/china-time.js";
 import { ErrorHandlers } from "./error-handler.js";
@@ -128,7 +128,7 @@ export function buildAgentSystemPrompt(params: {
     dailyMemory,
     date: chinaDate(now),
     cwd: workspaceDir,
-    model: "deepseek-chat",
+    model: getActiveModelId(),
     channel: "terminal",
     mode: "full",
     customToolsBlock,

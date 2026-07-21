@@ -19,7 +19,7 @@ import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
 import { initSkillRouter, rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
 import { join } from "path";
 import { SessionIdMapper } from "../session/session-id-mapper.js";
-import { createDeepSeekModel, paths } from "../../config/config.js";
+import { createModel, paths } from "../../config/config.js";
 import { getAgentState, getLastMessage, extractTextContent } from "./session-adapter.js";
 import { ErrorHandlers, handleAgentError, ErrorSeverity } from "./error-handler.js";
 
@@ -49,7 +49,7 @@ export async function getSession(): Promise<AgentSession> {
     // @ts-ignore - Type mismatch from SDK update
     const result = await createAgentSession({
       cwd: paths.root,
-      model: createDeepSeekModel(),
+      model: createModel(),
       systemPrompt: (defaultPrompt: any) => defaultPrompt,
       customTools: [
         taskExecuteAsyncTool,

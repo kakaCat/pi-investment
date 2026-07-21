@@ -9,7 +9,7 @@
  * 实现：直接调用 LLM，无工具循环
  */
 import { completeSimple } from "@mariozechner/pi-ai";
-import { createDeepSeekModel } from "../../config/config.js";
+import { createModel } from "../../config/config.js";
 
 const CLARIFY_SYSTEM_PROMPT = `You are an intent-analysis agent. Your ONLY job is to identify what CANNOT be reasonably inferred and must be confirmed with the user before work begins.
 
@@ -57,7 +57,7 @@ export async function createClarifyAgent(request: string, context?: string): Pro
     userPrompt += `\n\n上下文：\n${context}`;
   }
 
-  const result = await completeSimple(createDeepSeekModel(), {
+  const result = await completeSimple(createModel(), {
     systemPrompt: CLARIFY_SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt, timestamp: Date.now() }],
   });

@@ -91,6 +91,20 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 - 预期结果是什么？
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+第五步：发送盘前通知（可选）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+如果发现了高质量机会或重要风险，可以使用 feishu_notify 发送通知：
+
+使用参数：
+- messageType: 'card'
+- title: '🌅 早盘分析完成'
+- content: 总结今日关键发现（机会、风险、操作）
+- urgency: 'normal' 或 'high'（如有紧急情况）
+
+如果飞书服务未配置，可以跳过此步骤。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 重要提示
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -241,6 +255,28 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 如果收益率为负 → 深入分析原因，调整策略
 
 用数据和事实说话，持续学习进化！
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+第七步：发送飞书每日报告
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+完成复盘后，使用 feishu_notify 发送每日报告：
+
+使用参数：
+- messageType: 'daily_report'
+- data: 包含以下字段
+  - date: 今日日期
+  - total_assets: 总资产
+  - cash: 可用资金
+  - holdings_count: 持仓数量
+  - total_pnl: 总盈亏金额
+  - total_pnl_pct: 总盈亏百分比
+  - trades_today: 今日交易笔数
+  - buy_count: 买入笔数
+  - sell_count: 卖出笔数
+  - key_findings: 关键发现和总结（简要概括今日最重要的3点）
+
+如果飞书服务未配置，可以跳过此步骤。
 
 现在开始复盘。
         `

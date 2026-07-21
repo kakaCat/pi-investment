@@ -52,7 +52,7 @@ const metadata = {
   session_key: '',
   run_id: RUN_ID,
   start_time: new Date().toISOString(),
-  model: 'deepseek-chat',
+  model: process.env.MODEL_ID || (process.env.LLM_PROVIDER === 'kimi' ? 'kimi-k3' : 'deepseek-chat'),
   cwd: process.cwd(),
   workspace: process.cwd(),
 };
@@ -214,7 +214,9 @@ export function logLLMEnd(llmRunId: string, usage: any, output?: string, duratio
   totalTokens += normalizedUsage.totalTokens;
   totalCost += normalizedUsage.cost.total;
 
-  const maxTokens = 32000; // DeepSeek context window
+  // 上下文使用率估算基准（按 provider 取近似窗口，仅用于日志展示）
+  const maxTokens = Number(process.env.LLM_CONTEXT_WINDOW)
+    || (process.env.LLM_PROVIDER === 'kimi' ? 256000 : 64000);
   const contextUsage = normalizedUsage.input ? (normalizedUsage.input / maxTokens * 100).toFixed(1) : 0;
 
   logEvent('llm.end', {

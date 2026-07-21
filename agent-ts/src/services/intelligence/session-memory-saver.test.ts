@@ -38,7 +38,7 @@ jest.unstable_mockModule("@mariozechner/pi-coding-agent", () => ({
 }));
 
 jest.unstable_mockModule("../../config/config.js", () => ({
-  createDeepSeekModel: jest.fn(() => ({ model: "deepseek-chat" }))
+  createModel: jest.fn(() => ({ model: "deepseek-chat" }))
 }));
 
 jest.unstable_mockModule("../../infrastructure/tools/memory-tool.js", () => ({

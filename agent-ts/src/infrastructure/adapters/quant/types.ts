@@ -40,6 +40,10 @@ export interface FinancialData {
     eps: number;
     bvps: number;
   };
+  // 完整期间数据（用于趋势分析）
+  income_statements?: Array<Record<string, any>>;
+  balance_sheets?: Array<Record<string, any>>;
+  cash_flows?: Array<Record<string, any>>;
 }
 
 // 因子计算类型

@@ -146,9 +146,21 @@ function formatMacroData(data: MacroData): string {
       output += "|------|------|\n";
 
       for (const item of recent) {
-        // 后端返回中文字段：日期、今值
-        const date = item['日期'] || item.date || 'N/A';
-        const value = item['今值'] !== undefined && item['今值'] !== null ? item['今值'] : item.value;
+        // 后端返回中文字段：日期、今值（CPI/PMI等）
+        // GDP特殊字段：季度、国内生产总值-同比增长
+        let date = 'N/A';
+        let value: number | string | undefined = undefined;
+
+        if (indicator === 'gdp') {
+          // GDP使用季度和同比增长字段
+          date = item['季度'] || item['日期'] || item.date || 'N/A';
+          value = item['国内生产总值-同比增长'] !== undefined ? item['国内生产总值-同比增长'] : item.value;
+        } else {
+          // 其他指标使用日期和今值
+          date = item['日期'] || item.date || 'N/A';
+          value = item['今值'] !== undefined && item['今值'] !== null ? item['今值'] : item.value;
+        }
+
         const formattedValue = value !== undefined && value !== null ? formatValue(indicator, value) : 'N/A';
         output += `| ${date} | ${formattedValue} |\n`;
       }
@@ -157,8 +169,19 @@ function formatMacroData(data: MacroData): string {
       if (values.length >= 2) {
         const latest = values[values.length - 1];
         const previous = values[values.length - 2];
-        const latestValue = latest['今值'] !== undefined && latest['今值'] !== null ? latest['今值'] : latest.value;
-        const previousValue = previous['今值'] !== undefined && previous['今值'] !== null ? previous['今值'] : previous.value;
+
+        let latestValue: number | string | undefined = undefined;
+        let previousValue: number | string | undefined = undefined;
+
+        if (indicator === 'gdp') {
+          // GDP使用特殊字段
+          latestValue = latest['国内生产总值-同比增长'] !== undefined ? latest['国内生产总值-同比增长'] : latest.value;
+          previousValue = previous['国内生产总值-同比增长'] !== undefined ? previous['国内生产总值-同比增长'] : previous.value;
+        } else {
+          // 其他指标使用今值字段
+          latestValue = latest['今值'] !== undefined && latest['今值'] !== null ? latest['今值'] : latest.value;
+          previousValue = previous['今值'] !== undefined && previous['今值'] !== null ? previous['今值'] : previous.value;
+        }
 
         if (latestValue !== undefined && previousValue !== undefined && latestValue !== null && previousValue !== null) {
           const trend = analyzeTrend(indicator, previousValue, latestValue);

@@ -70,7 +70,7 @@ jest.unstable_mockModule("../infrastructure/plugins/index.js", () => ({
 }));
 
 jest.unstable_mockModule("../config/config.js", () => ({
-  createDeepSeekModel: jest.fn(),
+  createModel: jest.fn(),
   paths: {
     root: "/tmp/pi-investment",
     piDir: "/tmp/pi-investment/.pi-invest",

@@ -13,8 +13,8 @@ interface PortfolioAnalyzeInput {
 
 async function analyzePortfolio(input: PortfolioAnalyzeInput) {
   try {
-    // 获取持仓状态
-    const response = await fetch('http://127.0.0.1:5001/api/portfolio');
+    // 获取持仓状态 - 使用simulation账户API
+    const response = await fetch('http://127.0.0.1:5001/api/simulation/accounts/default');
     const result = await response.json() as any;
 
     if (!result.success) {
@@ -25,7 +25,7 @@ async function analyzePortfolio(input: PortfolioAnalyzeInput) {
     }
 
     const portfolio = result.data;
-    const holdings = portfolio.holdings || [];
+    const holdings = portfolio.positions || portfolio.holdings || [];
 
     // 如果空仓
     if (holdings.length === 0) {
@@ -44,7 +44,7 @@ async function analyzePortfolio(input: PortfolioAnalyzeInput) {
     const analysis = [];
 
     for (let holding of holdings) {
-      const pnl_pct = holding.pnl_pct || 0;
+      const pnl_pct = holding.profit_rate || holding.pnl_pct || 0;
       const days_held = holding.days_held || 0;
 
       let action = 'hold';
@@ -91,9 +91,9 @@ async function analyzePortfolio(input: PortfolioAnalyzeInput) {
       analysis.push({
         symbol: holding.symbol,
         shares: holding.shares,
-        cost_price: holding.cost_price || holding.cost,
+        cost_price: holding.avg_price || holding.cost_price || holding.cost,
         current_price: holding.current_price,
-        pnl: holding.pnl,
+        pnl: holding.profit || holding.pnl,
         pnl_pct: pnl_pct,
         days_held: days_held,
         action: action,
@@ -106,7 +106,7 @@ async function analyzePortfolio(input: PortfolioAnalyzeInput) {
     analysis.sort((a, b) => b.priority - a.priority);
 
     // 生成总结
-    const total_pnl_pct = portfolio.totalPnlPct || 0;
+    const total_pnl_pct = portfolio.cumulative_return || portfolio.totalPnlPct || 0;
     const needs_action = analysis.filter(a => a.priority >= 2);
 
     let summary = `当前${holdings.length}个持仓，总收益${total_pnl_pct.toFixed(2)}%`;
