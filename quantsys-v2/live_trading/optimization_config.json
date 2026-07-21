@@ -1,0 +1,64 @@
+{
+  "optimization_date": "2026-07-01 00:36:06",
+  "target": "提高年化收益率到30%+",
+  "optimizations": {
+    "1_model_hyperparameters": {
+      "learning_rate": 0.05,
+      "max_depth": 4,
+      "n_estimators": 200,
+      "min_child_weight": 3,
+      "subsample": 0.8,
+      "colsample_bytree": 0.8,
+      "gamma": 0.1,
+      "reg_alpha": 0.1,
+      "reg_lambda": 1.0
+    },
+    "2_kelly_position": {
+      "use_kelly": true,
+      "win_rate": 0.6,
+      "avg_profit_loss_ratio": 1.5,
+      "max_single_position": 0.15,
+      "total_position": 0.85
+    },
+    "3_trailing_stop": {
+      "initial_stop_loss": -0.15,
+      "trailing_stops": [
+        {
+          "profit": 0.2,
+          "stop": 0.0
+        },
+        {
+          "profit": 0.3,
+          "stop": 0.1
+        },
+        {
+          "profit": 0.5,
+          "stop": 0.2
+        }
+      ],
+      "take_profit_levels": [
+        {
+          "profit": 0.3,
+          "reduce": 0.3
+        },
+        {
+          "profit": 0.5,
+          "reduce": 0.3
+        }
+      ]
+    }
+  },
+  "expected_improvements": {
+    "选股准确率": "+10-15% (通过超参数优化)",
+    "资金利用率": "+5-10% (通过Kelly仓位)",
+    "盈亏比": "+20-30% (通过移动止损)",
+    "综合年化收益": "+50-80% (复合效应)"
+  },
+  "next_steps": [
+    "1. 使用优化参数重新训练模型",
+    "2. 实施Kelly动态仓位策略",
+    "3. 配置移动止损规则",
+    "4. 回测验证优化效果",
+    "5. 小资金实盘验证"
+  ]
+}

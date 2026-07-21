@@ -1,0 +1,90 @@
+{
+  "timestamp": "2026-05-25 13:09:25",
+  "run_results": [
+    {
+      "id": "database",
+      "script": "service:database",
+      "status": "success",
+      "returncode": 0,
+      "elapsed_seconds": 0.5245199203491211,
+      "stdout": "Built-in database benchmark complete: 3 scenarios",
+      "stderr": ""
+    }
+  ],
+  "benchmark_results": {
+    "benchmark_database": {
+      "test_name": "database_queries",
+      "source": "BenchmarkService",
+      "timestamp": "2026-05-25 13:09:25",
+      "scenarios": [
+        {
+          "name": "10 queries",
+          "n_queries": 10,
+          "sync": {
+            "mean_time": 0.0012810556703091909,
+            "std_time": 1.531739533297063e-05,
+            "qps": 7806.062009456964
+          },
+          "async": {
+            "mean_time": 0.00026173632553157705,
+            "std_time": 3.104038967467233e-05,
+            "qps": 38206.38950168785
+          },
+          "speedup": 4.894451191317876
+        },
+        {
+          "name": "100 queries",
+          "n_queries": 100,
+          "sync": {
+            "mean_time": 0.013075958006083965,
+            "std_time": 8.924551683209655e-05,
+            "qps": 7647.623214564633
+          },
+          "async": {
+            "mean_time": 0.002554013995298495,
+            "std_time": 7.398835578825186e-05,
+            "qps": 39154.05326050796
+          },
+          "speedup": 5.11976756202377
+        },
+        {
+          "name": "1000 queries",
+          "n_queries": 1000,
+          "sync": {
+            "mean_time": 0.13143784766240665,
+            "std_time": 0.000840145926418188,
+            "qps": 7608.158668030412
+          },
+          "async": {
+            "mean_time": 0.025187264332392562,
+            "std_time": 0.0004982861293977906,
+            "qps": 39702.604729245286
+          },
+          "speedup": 5.218424912203288
+        }
+      ],
+      "real_database": null
+    }
+  },
+  "summary": {
+    "benchmark_count": 1,
+    "speedups": [
+      {
+        "benchmark": "benchmark_database",
+        "scenario": "10 queries",
+        "speedup": 4.894451191317876
+      },
+      {
+        "benchmark": "benchmark_database",
+        "scenario": "100 queries",
+        "speedup": 5.11976756202377
+      },
+      {
+        "benchmark": "benchmark_database",
+        "scenario": "1000 queries",
+        "speedup": 5.218424912203288
+      }
+    ],
+    "average_speedup": 5.077547888514978
+  }
+}

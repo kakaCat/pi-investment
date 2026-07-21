@@ -1,0 +1,109 @@
+# Data Sources Configuration
+
+# Priority: lower number = higher priority (1 is highest)
+# Timeout: request timeout in seconds
+# Max failures: number of failures before circuit breaker opens
+# Circuit timeout: seconds to wait before attempting recovery
+
+market_data:
+  sources:
+    - name: akshare
+      priority: 1
+      enabled: true
+      timeout: 10
+      max_failures: 3
+      circuit_timeout: 60
+      description: "AkShare - 免费开源财经数据接口"
+
+    - name: baostock
+      priority: 2
+      enabled: true
+      timeout: 15
+      max_failures: 3
+      circuit_timeout: 60
+      description: "BaoStock - A股历史数据备用源"
+
+    - name: eastmoney
+      priority: 3
+      enabled: true
+      timeout: 10
+      max_failures: 3
+      circuit_timeout: 60
+      description: "东方财富 - 实时行情和板块数据"
+
+    - name: sina
+      priority: 4
+      enabled: true
+      timeout: 5
+      max_failures: 3
+      circuit_timeout: 60
+      description: "新浪财经 - 实时行情数据"
+
+    - name: tencent
+      priority: 5
+      enabled: false
+      timeout: 5
+      max_failures: 3
+      circuit_timeout: 60
+      description: "腾讯财经 - 备用数据源"
+
+    - name: llm_browser
+      priority: 99
+      enabled: true
+      timeout: 30
+      max_failures: 1
+      circuit_timeout: 300
+      description: "LLM 浏览器 - 最后兜底方案"
+
+  # Fallback strategy
+  # - sequential: 按优先级依次尝试，直到成功
+  # - parallel: 并行请求所有数据源，取最快响应
+  # - fastest: 并行请求，取最快的成功响应
+  fallback_strategy: sequential
+
+  # Cache settings
+  cache:
+    enabled: true
+    ttl: 60  # 缓存时间（秒）
+    max_size: 1000  # 最大缓存条目数
+
+  # Health check
+  health_check:
+    enabled: true
+    interval: 300  # 健康检查间隔（秒）
+
+  # Monitoring
+  monitoring:
+    enabled: true
+    log_requests: false  # 记录所有请求（调试用）
+    log_failures: true   # 记录失败请求
+
+# 特定方法的数据源覆盖配置
+# 某些方法可能只支持特定数据源
+method_overrides:
+  get_dividend_data:
+    sources: [akshare]  # 只有 akshare 支持分红数据
+
+  get_lhb_data:
+    sources: [akshare]  # 只有 akshare 支持龙虎榜
+
+  get_north_flow:
+    sources: [akshare, eastmoney]  # 北向资金流向
+
+  get_sector_list:
+    sources: [akshare, eastmoney]  # 行业板块列表
+
+  get_klines:
+    sources: [akshare, baostock]  # K线数据支持自动切换
+    cache_ttl: 300  # K线数据缓存5分钟
+
+  get_stock_info:
+    sources: [akshare, baostock]  # 股票信息支持自动切换
+
+  get_realtime_quote:
+    sources: [sina, akshare, eastmoney]  # 实时行情优先使用新浪（baostock不支持实时）
+    cache_ttl: 3  # 实时数据缓存时间更短
+
+  get_hot_stocks:
+    sources: [eastmoney, xueqiu, ths]  # 热搜股票：东方财富 → 雪球 → 同花顺
+    cache_ttl: 60  # 热搜数据缓存1分钟

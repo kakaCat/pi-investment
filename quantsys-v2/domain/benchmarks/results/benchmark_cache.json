@@ -1,0 +1,31 @@
+{
+  "test_name": "cache_performance",
+  "timestamp": "2026-05-22 00:01:10",
+  "backends": [
+    {
+      "backend": "memory",
+      "write": {
+        "mean_time": 0.002436930352511505,
+        "std_time": 0.00038736781316155497,
+        "ops_per_sec": 410352.31022068317
+      },
+      "read": {
+        "mean_time": 0.0011778193681190412,
+        "std_time": 0.00011031232941477482,
+        "ops_per_sec": 849026.6224752137
+      },
+      "hit_rate": {
+        "hits": 1000,
+        "misses": 0,
+        "hit_rate": 1.0
+      }
+    }
+  ],
+  "real_scenario": {
+    "no_cache_time": 1.3391685416378702,
+    "no_cache_std": 0.01607448131596458,
+    "with_cache_time": 0.006801514032607277,
+    "with_cache_std": 0.006176059648534803,
+    "speedup": 196.89271171355892
+  }
+}

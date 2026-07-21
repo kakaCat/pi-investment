@@ -1,0 +1,14 @@
+{
+  "version": "V14_P0_Optimized",
+  "train_start": "2022-01-01",
+  "train_end": "2025-06-01",
+  "stock_count": 500,
+  "sample_count": 257130,
+  "factor_count": 78,
+  "train_date": "2026-07-02 22:42:47",
+  "improvements": [
+    "\u79fb\u9664turnover_ma_ratio\u56e0\u5b50\uff0896.3%\u4e3aNaN\uff09",
+    "\u4f7f\u7528\u524d\u5411\u586b\u5145+\u4e2d\u4f4d\u6570\u586b\u5145\u5904\u7406\u5269\u4f59NaN",
+    "\u6709\u6548\u6837\u672c\u4ece160\u6761\u63d0\u5347\u5230257,130\u6761 (+160,606%)"
+  ]
+}

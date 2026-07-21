@@ -1,0 +1,8 @@
+{
+  "train_start": "2024-06-01",
+  "train_end": "2026-06-01",
+  "stock_count": 500,
+  "sample_count": 160,
+  "factor_count": 73,
+  "train_date": "2026-07-01 00:44:29"
+}

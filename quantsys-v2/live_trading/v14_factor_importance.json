@@ -1,0 +1,95 @@
+{
+  "top_20_factors": [
+    {
+      "rank": 1,
+      "factor": "debt_ratio_proxy_q",
+      "importance": 0.2950287461280823
+    },
+    {
+      "rank": 2,
+      "factor": "relative_volatility",
+      "importance": 0.20774145424365997
+    },
+    {
+      "rank": 3,
+      "factor": "volatility_20d",
+      "importance": 0.19277255237102509
+    },
+    {
+      "rank": 4,
+      "factor": "bollinger_upper",
+      "importance": 0.13775546848773956
+    },
+    {
+      "rank": 5,
+      "factor": "beta_proxy",
+      "importance": 0.13219772279262543
+    },
+    {
+      "rank": 6,
+      "factor": "gross_margin_proxy_y",
+      "importance": 0.1293947696685791
+    },
+    {
+      "rank": 7,
+      "factor": "relative_strength_5d",
+      "importance": 0.12832140922546387
+    },
+    {
+      "rank": 8,
+      "factor": "ma_10",
+      "importance": 0.1201130598783493
+    },
+    {
+      "rank": 9,
+      "factor": "macd_signal",
+      "importance": 0.11821739375591278
+    },
+    {
+      "rank": 10,
+      "factor": "distance_from_high",
+      "importance": 0.11350838094949722
+    },
+    {
+      "rank": 11,
+      "factor": "net_profit_margin_proxy_y",
+      "importance": 0.11263144016265869
+    },
+    {
+      "rank": 12,
+      "factor": "price_position",
+      "importance": 0.11064720153808594
+    },
+    {
+      "rank": 13,
+      "factor": "ma_ratio_5",
+      "importance": 0.10605631023645401
+    },
+    {
+      "rank": 14,
+      "factor": "channel_position",
+      "importance": 0.10524678975343704
+    },
+    {
+      "rank": 15,
+      "factor": "relative_momentum_change",
+      "importance": 0.10059013217687607
+    }
+  ],
+  "category_importance": {
+    "基本面因子": 0.5370549559593201,
+    "技术因子": 0.48214223235845566,
+    "相对强度因子": 0.46826058626174927,
+    "波动率因子": 0.19277255237102509,
+    "动量因子": 0.10059013217687607,
+    "资金流因子": 0.0,
+    "情绪因子": 0.0,
+    "形态因子": 0.0
+  },
+  "insights": {
+    "top_factor": "debt_ratio_proxy_q",
+    "top_category": "基本面因子",
+    "top5_concentration": "45.8%",
+    "top20_concentration": "100.0%"
+  }
+}

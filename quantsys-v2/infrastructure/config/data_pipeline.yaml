@@ -1,0 +1,60 @@
+# config/data_pipeline.yaml
+
+version: "1.0"
+
+pipeline:
+  name: "daily_data_update"
+
+  # Data sources (in priority order)
+  sources:
+    - akshare
+    - tushare
+
+  # Stock pool configuration
+  symbols:
+    type: "index_components"
+    index: "000300.SH"  # 沪深300
+
+  # Calendar and timezone
+  calendar: "SSE"
+  timezone: "Asia/Shanghai"
+
+  # Conflict resolution strategy
+  conflict_strategy: "priority"  # options: priority, voting, weighted
+
+  # Execution settings
+  execution:
+    mode: "incremental"  # options: incremental, full_rebuild
+    batch_size: 50
+    parallel: true
+    max_workers: 4  # range: 1-16, recommended: 4-8 for typical workloads
+
+  # Quality thresholds
+  quality:
+    min_score: 60
+    max_error_rate: 0.1
+    price_jump_threshold: 0.5  # 50% price change
+    volume_zscore_threshold: 3.0
+
+  # Imputation strategies
+  imputation:
+    price_method: "ffill"  # forward fill
+    volume_method: "zero"  # fill with 0
+
+  # Retry settings
+  retry:
+    max_retries: 3  # range: 0-10, recommended: 3-5
+    backoff_seconds: [5, 10, 20]  # exponential backoff delays
+
+  # Failure handling
+  failure_handling:
+    on_all_sources_fail: "use_cache"  # options: fail, use_cache, skip
+    on_quality_threshold_breach: "log_warning"  # options: fail, log_warning, continue
+    stale_data_max_age_days: 7  # maximum age for cached data fallback
+
+  # Alert settings
+  alerts:
+    enabled: true
+    max_duration_seconds: 3600  # 1 hour
+    min_quality_score: 60
+    max_error_rate: 0.1

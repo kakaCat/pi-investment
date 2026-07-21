@@ -1,0 +1,52 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+.DS_Store
+
+# Generated / runtime artifacts
+*.bak
+*.pkl
+*.db
+.pi-invest/
+
+# One-off scripts & tools
+scripts/
+quantlib/tools/
+fix_typing_imports.py
+*_test_log.py
+signal_test.py
+ensemble_vote_strategy.py
+multi_factor_swing_strategy.py
+
+# Ad-hoc docs & reports
+docs/data-recovery-report.md
+docs/scheduler-analysis.md
+docs/scheduler-solution-proposal.md
+*.md.tmp
+数据补救完成总结.md
+
+# Runtime logs
+runtime-logs/
+*.log
+
+# Git worktrees
+.claude/worktrees/
+.worktrees/
+
+# Cache directories
+.cache/
+infrastructure/.cache/
+reports/
+
+# Temporary test files
+test_dataframe_fix.py
+BUG_FIX_COMMIT_MESSAGE.txt

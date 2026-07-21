@@ -1,0 +1,113 @@
+================================================================================
+指标管理 API 实现完成报告
+================================================================================
+
+✅ 任务完成状态：7/7 接口已实现
+
+================================================================================
+实现的接口列表
+================================================================================
+
+1. GET    /api/indicators/list                    - 获取指标列表（分页）
+2. GET    /api/indicators/detail/<indicator_id>   - 获取指标详情
+3. POST   /api/indicators/create                  - 创建指标
+4. POST   /api/indicators/update/<indicator_id>   - 更新指标
+5. POST   /api/indicators/delete/<indicator_id>   - 删除指标
+6. POST   /api/indicators/run/<indicator_id>      - 运行指标
+7. POST   /api/indicators/backtest                - 回测指标
+
+================================================================================
+实现位置
+================================================================================
+
+文件：/Users/mac/Documents/ai/pi-investment/quantsys-v2/api/server.py
+区域：第1480-1656行（"指标管理" 区域）
+
+================================================================================
+核心设计
+================================================================================
+
+指标复用策略服务（StrategyCodeService）：
+
+  # 列表查询
+  indicators = strategy_service.list_strategies(code_type='indicator')
+
+  # 创建指标
+  result = strategy_service.create_strategy(
+      name=name,
+      code=code,
+      code_type='indicator',  # 关键：指定类型
+      params=params,
+      description=description
+  )
+
+  # 其他操作
+  - get_strategy(indicator_id)
+  - update_strategy(strategy_id, code, params, is_active)
+  - delete_strategy(strategy_id)
+  - run_strategy(strategy_id, symbol, limit)
+  - backtest_strategy(strategy_id, symbol, start_date, end_date, initial_cash)
+
+================================================================================
+技术特性
+================================================================================
+
+✓ 统一错误处理（@handle_api_error 装饰器）
+✓ 自动命名转换（驼峰 ↔ 下划线）
+✓ 统一响应格式（success, data, message）
+✓ 类型验证（确保只操作 indicator 类型）
+✓ 参数验证（必需参数检查）
+✓ 数据清理（NaN/Infinity/日期处理）
+
+================================================================================
+测试方法
+================================================================================
+
+1. 使用测试脚本：
+   cd /Users/mac/Documents/ai/pi-investment/quantsys-v2
+   ./test_indicator_apis.sh
+
+2. 手动测试示例：
+
+   # 获取列表
+   curl "http://localhost:5000/api/indicators/list"
+
+   # 创建指标
+   curl -X POST http://localhost:5000/api/indicators/create \
+     -H "Content-Type: application/json" \
+     -d '{"name":"测试指标","code":"def calculate(df):\n    return df"}'
+
+   # 运行指标
+   curl -X POST http://localhost:5000/api/indicators/run/1 \
+     -H "Content-Type: application/json" \
+     -d '{"symbol":"000001.SZ"}'
+
+================================================================================
+文件清单
+================================================================================
+
+✓ api/server.py                          - 主实现文件（已修改）
+✓ test_indicator_apis.sh                 - 测试脚本（新建）
+✓ INDICATOR_API_IMPLEMENTATION.md        - 详细文档（新建）
+✓ IMPLEMENTATION_SUMMARY.txt             - 本文件（新建）
+
+================================================================================
+依赖服务
+================================================================================
+
+- StrategyCodeService          - 策略代码管理
+- IndicatorStrategyExecutor    - 指标执行引擎
+- CodeValidator                - 代码验证器
+- ParamParser                  - 参数解析器
+- KlineRepository              - K线数据仓储
+
+================================================================================
+下一步
+================================================================================
+
+1. 启动 API 服务器：python api/server.py
+2. 运行测试脚本验证接口
+3. 集成到前端应用
+4. 添加更多指标模板
+
+================================================================================

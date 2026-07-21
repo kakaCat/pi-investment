@@ -1,0 +1,42 @@
+# V13 策略配置
+# V13 XGBoost Multi-Factor Strategy Configuration
+
+strategy:
+  name: "V13 XGBoost Multi-Factor"
+  version: "1.0.0"
+  description: "基于XGBoost的多因子选股策略，5日调仓周期，最多持仓8只股票"
+  account_name: "v13_simulation"  # 数据库账户名称
+  enabled: true
+
+model:
+  model_path: "live_trading/models/v13_model.json"
+  factors_path: "live_trading/models/v13_valid_factors.json"
+  factors_count: 68
+  ic_value: 0.5465
+
+trading:
+  rebalance_days: 5          # 调仓周期（天）
+  max_positions: 8           # 最大持仓数量
+  max_position_pct: 0.85     # 最大总仓位比例
+  top_n: 8                   # 选股数量
+  min_score: 0.5             # 最低预测分数
+
+risk:
+  single_stock_stop_loss: -0.15     # 单股止损线（-15%）
+  portfolio_stop_loss: -0.20        # 组合止损线（-20%）
+  single_stock_weight: 0.15         # 单股权重（~15%）
+  max_single_stock_weight: 0.20     # 单股最大权重
+  min_market_cap: 50                # 最小市值（亿）
+  min_liquidity: 1000000            # 最小日成交量
+
+schedule:
+  hour: 15        # 定时任务执行小时
+  minute: 30      # 定时任务执行分钟
+  timezone: "Asia/Shanghai"
+
+performance:
+  expected_annual_return: 0.30      # 预期年化收益（~30%）
+  expected_sharpe: 1.5              # 预期夏普比率
+  training_samples: 100000          # 训练样本数（约）
+
+initial_capital: 100000             # 初始资金

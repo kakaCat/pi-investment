@@ -1,0 +1,16 @@
+{
+  "version": "V14_P0_Optimized",
+  "test_date": "2026-07-01",
+  "test_period": "2025-06-01 to 2026-06-01",
+  "performance": {
+    "annual_return": 0.14002553024659647,
+    "max_drawdown": -0.16377663187984204,
+    "sharpe_ratio": 2.1274869274269634,
+    "win_rate": 0.5064935064935064
+  },
+  "vs_v14": {
+    "v14_annual": 0.213,
+    "p0_annual": 0.14002553024659647,
+    "improvement": -34.26031443821762
+  }
+}

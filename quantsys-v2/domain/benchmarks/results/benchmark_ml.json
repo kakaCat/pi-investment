@@ -1,0 +1,159 @@
+{
+  "test_name": "machine_learning",
+  "timestamp": "2026-05-21 23:59:59",
+  "scenarios": [
+    {
+      "name": "1K\u6837\u672c\u00d750\u7279\u5f81",
+      "n_samples": 1000,
+      "n_features": 50,
+      "n_train": 800,
+      "n_test": 200,
+      "models": [
+        {
+          "name": "\u968f\u673a\u68ee\u6797",
+          "type": "random_forest",
+          "cpu": {
+            "train_time_mean": 0.2758219242095947,
+            "train_time_std": 0.005294790876150391,
+            "train_time_min": 0.27120494842529297,
+            "predict_time_mean": 0.006612638710066676,
+            "predict_time_std": 0.00016352198336893234,
+            "score_mean": 0.8133333333333334,
+            "score_std": 0.004714045207910268
+          },
+          "gpu": null
+        },
+        {
+          "name": "\u903b\u8f91\u56de\u5f52",
+          "type": "logistic_regression",
+          "cpu": {
+            "train_time_mean": 0.0026416778564453125,
+            "train_time_std": 0.0011683528232997575,
+            "train_time_min": 0.0016031265258789062,
+            "predict_time_mean": 0.0003596250123033921,
+            "predict_time_std": 4.656915589779832e-05,
+            "score_mean": 0.98,
+            "score_std": 0.0
+          },
+          "gpu": null
+        },
+        {
+          "name": "XGBoost",
+          "type": "xgboost",
+          "cpu": {
+            "train_time_mean": 0.28872934977213544,
+            "train_time_std": 0.005024278624000753,
+            "train_time_min": 0.2836740016937256,
+            "predict_time_mean": 0.0011754166334867477,
+            "predict_time_std": 6.227292938703657e-05,
+            "score_mean": 0.8000000000000002,
+            "score_std": 1.1102230246251565e-16
+          },
+          "gpu": null
+        }
+      ]
+    },
+    {
+      "name": "10K\u6837\u672c\u00d750\u7279\u5f81",
+      "n_samples": 10000,
+      "n_features": 50,
+      "n_train": 8000,
+      "n_test": 2000,
+      "models": [
+        {
+          "name": "\u968f\u673a\u68ee\u6797",
+          "type": "random_forest",
+          "cpu": {
+            "train_time_mean": 2.9155253569285073,
+            "train_time_std": 0.009624788065571181,
+            "train_time_min": 2.905863046646118,
+            "predict_time_mean": 0.024049013969488442,
+            "predict_time_std": 0.00020018046173578318,
+            "score_mean": 0.856,
+            "score_std": 0.005338539126015671
+          },
+          "gpu": null
+        },
+        {
+          "name": "\u903b\u8f91\u56de\u5f52",
+          "type": "logistic_regression",
+          "cpu": {
+            "train_time_mean": 0.006567160288492839,
+            "train_time_std": 0.00032127304336117463,
+            "train_time_min": 0.006159067153930664,
+            "predict_time_mean": 0.0005179999861866236,
+            "predict_time_std": 4.7322439306675115e-05,
+            "score_mean": 0.9940000000000001,
+            "score_std": 1.1102230246251565e-16
+          },
+          "gpu": null
+        },
+        {
+          "name": "XGBoost",
+          "type": "xgboost",
+          "cpu": {
+            "train_time_mean": 0.44081902503967285,
+            "train_time_std": 0.005647505681663632,
+            "train_time_min": 0.4332239627838135,
+            "predict_time_mean": 0.0016424860029170911,
+            "predict_time_std": 3.69377337155024e-05,
+            "score_mean": 0.886,
+            "score_std": 0.0
+          },
+          "gpu": null
+        }
+      ]
+    },
+    {
+      "name": "50K\u6837\u672c\u00d750\u7279\u5f81",
+      "n_samples": 50000,
+      "n_features": 50,
+      "n_train": 40000,
+      "n_test": 10000,
+      "models": [
+        {
+          "name": "\u968f\u673a\u68ee\u6797",
+          "type": "random_forest",
+          "cpu": {
+            "train_time_mean": 17.053802410761516,
+            "train_time_std": 0.02679961727103792,
+            "train_time_min": 17.02992582321167,
+            "predict_time_mean": 0.10162545802692573,
+            "predict_time_std": 0.0005053290047256976,
+            "score_mean": 0.8543333333333334,
+            "score_std": 0.00147271480229161
+          },
+          "gpu": null
+        },
+        {
+          "name": "\u903b\u8f91\u56de\u5f52",
+          "type": "logistic_regression",
+          "cpu": {
+            "train_time_mean": 0.038343588511149086,
+            "train_time_std": 0.0009569295784600077,
+            "train_time_min": 0.037065982818603516,
+            "predict_time_mean": 0.0009298886482914289,
+            "predict_time_std": 3.311137171617601e-05,
+            "score_mean": 0.9987,
+            "score_std": 0.0
+          },
+          "gpu": null
+        },
+        {
+          "name": "XGBoost",
+          "type": "xgboost",
+          "cpu": {
+            "train_time_mean": 0.6812144120534261,
+            "train_time_std": 0.03481355413223197,
+            "train_time_min": 0.6393861770629883,
+            "predict_time_mean": 0.004547402650738756,
+            "predict_time_std": 0.00015424986192994508,
+            "score_mean": 0.9027,
+            "score_std": 0.0
+          },
+          "gpu": null
+        }
+      ]
+    }
+  ]
+}

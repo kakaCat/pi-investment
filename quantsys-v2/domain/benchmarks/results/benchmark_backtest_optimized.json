@@ -1,0 +1,208 @@
+{
+  "test_name": "backtest_optimization_comparison",
+  "timestamp": "2026-05-22 00:17:42",
+  "cpu_count": 8,
+  "scenarios": [
+    {
+      "name": "100\u80a1\u7968\u00d71\u5e74",
+      "n_stocks": 100,
+      "n_days": 252,
+      "methods": [
+        {
+          "method": "serial",
+          "mean_time": 0.15203172236215323,
+          "std_time": 0.003210001083196165,
+          "min_time": 0.1479983750032261,
+          "n_stocks": 100,
+          "throughput": 657.7574630233486,
+          "speedup": 1.0,
+          "efficiency": 100
+        },
+        {
+          "method": "parallel_baseline",
+          "mean_time": 0.7177425139816478,
+          "std_time": 0.04280424560832101,
+          "min_time": 0.6864454579772428,
+          "n_stocks": 100,
+          "throughput": 139.32573040052208,
+          "speedup": 0.21181930762156384,
+          "efficiency": 2.647741345269548
+        },
+        {
+          "method": "parallel_batched",
+          "mean_time": 0.5364098886881644,
+          "std_time": 0.053098908249586865,
+          "min_time": 0.49884883302729577,
+          "n_stocks": 100,
+          "throughput": 186.42460198591496,
+          "speedup": 0.28342453330597545,
+          "efficiency": 3.542806666324693
+        },
+        {
+          "method": "parallel_threaded",
+          "mean_time": 0.16925556930558136,
+          "std_time": 0.002209324879953349,
+          "min_time": 0.16692874999716878,
+          "n_stocks": 100,
+          "throughput": 590.8225082948712,
+          "speedup": 0.8982376354639684,
+          "efficiency": 11.227970443299604
+        },
+        {
+          "method": "parallel_shared_memory",
+          "mean_time": 0.7416611250179509,
+          "std_time": 0.025151846473556134,
+          "min_time": 0.7217595000984147,
+          "n_stocks": 100,
+          "throughput": 134.83246812697595,
+          "speedup": 0.20498812359684285,
+          "efficiency": 2.5623515449605354
+        },
+        {
+          "method": "parallel_hybrid",
+          "mean_time": 0.15325590234715492,
+          "std_time": 0.00047324048477192116,
+          "min_time": 0.15278929099440575,
+          "n_stocks": 100,
+          "throughput": 652.5034172809882,
+          "speedup": 0.9920121837641941,
+          "efficiency": 12.400152297052426
+        }
+      ]
+    },
+    {
+      "name": "500\u80a1\u7968\u00d71\u5e74",
+      "n_stocks": 500,
+      "n_days": 252,
+      "methods": [
+        {
+          "method": "serial",
+          "mean_time": 0.7591432916233316,
+          "std_time": 0.008697599680996206,
+          "min_time": 0.7509691249579191,
+          "n_stocks": 500,
+          "throughput": 658.6371842011716,
+          "speedup": 1.0,
+          "efficiency": 100
+        },
+        {
+          "method": "parallel_baseline",
+          "mean_time": 0.8894378473050892,
+          "std_time": 0.03337499169218353,
+          "min_time": 0.8636197079904377,
+          "n_stocks": 500,
+          "throughput": 562.1528266589416,
+          "speedup": 0.8535090944504582,
+          "efficiency": 10.668863680630727
+        },
+        {
+          "method": "parallel_batched",
+          "mean_time": 0.8710648746152098,
+          "std_time": 0.017905413117806634,
+          "min_time": 0.8469516249606386,
+          "n_stocks": 500,
+          "throughput": 574.0100589188302,
+          "speedup": 0.8715117711050866,
+          "efficiency": 10.893897138813582
+        },
+        {
+          "method": "parallel_threaded",
+          "mean_time": 0.8249793753105527,
+          "std_time": 0.002782827543755074,
+          "min_time": 0.8223633749876171,
+          "n_stocks": 500,
+          "throughput": 606.0757577264056,
+          "speedup": 0.9201966913870568,
+          "efficiency": 11.50245864233821
+        },
+        {
+          "method": "parallel_shared_memory",
+          "mean_time": 0.9024034723794708,
+          "std_time": 0.012942349640240412,
+          "min_time": 0.8870205830316991,
+          "n_stocks": 500,
+          "throughput": 554.0758821346205,
+          "speedup": 0.8412459779455539,
+          "efficiency": 10.515574724319423
+        },
+        {
+          "method": "parallel_hybrid",
+          "mean_time": 0.8227163749979809,
+          "std_time": 0.01788974571212494,
+          "min_time": 0.8023004169808701,
+          "n_stocks": 500,
+          "throughput": 607.7428567059056,
+          "speedup": 0.9227278254005759,
+          "efficiency": 11.534097817507199
+        }
+      ]
+    },
+    {
+      "name": "1000\u80a1\u7968\u00d71\u5e74",
+      "n_stocks": 1000,
+      "n_days": 252,
+      "methods": [
+        {
+          "method": "serial",
+          "mean_time": 1.4419622083660215,
+          "std_time": 0.019002174888676986,
+          "min_time": 1.4261117919813842,
+          "n_stocks": 1000,
+          "throughput": 693.4994510939113,
+          "speedup": 1.0,
+          "efficiency": 100
+        },
+        {
+          "method": "parallel_baseline",
+          "mean_time": 1.1214812913288672,
+          "std_time": 0.021657787847687716,
+          "min_time": 1.0931110000237823,
+          "n_stocks": 1000,
+          "throughput": 891.6778262213171,
+          "speedup": 1.2857657274491041,
+          "efficiency": 16.0720715931138
+        },
+        {
+          "method": "parallel_batched",
+          "mean_time": 1.1283428053138778,
+          "std_time": 0.11000987784284708,
+          "min_time": 1.0041329578962177,
+          "n_stocks": 1000,
+          "throughput": 886.2554848495924,
+          "speedup": 1.2779469161102175,
+          "efficiency": 15.974336451377718
+        },
+        {
+          "method": "parallel_threaded",
+          "mean_time": 1.6088742086431012,
+          "std_time": 0.05149643537522777,
+          "min_time": 1.5495867499848828,
+          "n_stocks": 1000,
+          "throughput": 621.5526326594445,
+          "speedup": 0.8962554068053272,
+          "efficiency": 11.20319258506659
+        },
+        {
+          "method": "parallel_shared_memory",
+          "mean_time": 1.1114822219824418,
+          "std_time": 0.012621875335541098,
+          "min_time": 1.0943549999501556,
+          "n_stocks": 1000,
+          "throughput": 899.6995005609699,
+          "speedup": 1.2973326786947028,
+          "efficiency": 16.216658483683783
+        },
+        {
+          "method": "parallel_hybrid",
+          "mean_time": 1.5544953193360318,
+          "std_time": 0.016565221809403553,
+          "min_time": 1.5374687080038711,
+          "n_stocks": 1000,
+          "throughput": 643.2956005471459,
+          "speedup": 0.9276079447971086,
+          "efficiency": 11.595099309963858
+        }
+      ]
+    }
+  ]
+}

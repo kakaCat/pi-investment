@@ -1,0 +1,76 @@
+# Docker 构建忽略文件
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# 虚拟环境
+.venv/
+venv/
+ENV/
+env/
+
+# 测试和覆盖率
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 日志和临时文件
+*.log
+logs/
+*.pid
+.DS_Store
+
+# 项目特定
+.pi-invest/
+.backend/
+.claude/
+.claude_plan/
+reports/
+examples/output/
+
+# Git
+.git/
+.gitignore
+
+# 文档
+docs/
+*.md
+!README.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# 环境文件（安全）
+.env
+.env.local
+.env.*.local
+
+# 测试数据
+test_*.py
+*_test.py
+tests/
+conftest.py
+
+# 临时脚本
+test_*.py
+demo_*.py
+fix_*.py

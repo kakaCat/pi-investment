@@ -1,0 +1,72 @@
+{
+  "model_type": "xgboost",
+  "train_date": "2026-05-21T11:47:24.441805",
+  "train_size": 16,
+  "test_size": 4,
+  "feature_count": 10,
+  "feature_names": [
+    "ma5",
+    "ma10",
+    "ma20",
+    "rsi14",
+    "macd",
+    "macd_signal",
+    "bollinger_upper",
+    "bollinger_lower",
+    "volume_ratio",
+    "atr14"
+  ],
+  "params": {
+    "objective": "binary:logistic",
+    "eval_metric": "logloss",
+    "max_depth": 5,
+    "learning_rate": 0.1,
+    "n_estimators": 50,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "random_state": 42,
+    "n_jobs": -1
+  },
+  "train_accuracy": 1.0,
+  "train_precision": 1.0,
+  "train_recall": 1.0,
+  "train_f1": 1.0,
+  "train_roc_auc": 1.0,
+  "train_confusion_matrix": [
+    [
+      5,
+      0
+    ],
+    [
+      0,
+      11
+    ]
+  ],
+  "test_accuracy": 0.75,
+  "test_precision": 1.0,
+  "test_recall": 0.6666666666666666,
+  "test_f1": 0.8,
+  "test_roc_auc": 1.0,
+  "test_confusion_matrix": [
+    [
+      1,
+      0
+    ],
+    [
+      1,
+      2
+    ]
+  ],
+  "feature_importance": {
+    "ma5": 0.0,
+    "ma10": 0.0,
+    "ma20": 0.0,
+    "rsi14": 0.5897707343101501,
+    "macd": 0.27295950055122375,
+    "macd_signal": 0.0,
+    "bollinger_upper": 0.0,
+    "bollinger_lower": 0.0,
+    "volume_ratio": 0.1372697949409485,
+    "atr14": 0.0
+  }
+}

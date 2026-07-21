@@ -1,0 +1,122 @@
+# V13策略模拟交易配置
+
+# 交易模式
+mode: simulation  # simulation/live
+
+# 初始资金
+initial_capital: 100000  # 10万模拟资金
+
+# V13策略参数 (优化后 2026-07-01)
+strategy:
+  name: "V13_85_Factors_Optimized"
+  stock_pool: "gem"  # 创业板
+  top_n: 5  # 持仓5只 (优化: 从8只集中到5只，提升Alpha)
+  rebalance_days: 7  # 7天调仓 (优化: 从5天延长到7天，降低交易成本)
+
+  # 持仓权重 (优化: Kelly准则)
+  position_weight: 0.18  # 单只18%
+
+  # 止盈策略 (优化: 让利润奔跑)
+  take_profit_levels:
+    - threshold: 0.60  # 浮盈60%才开始减仓
+      position: 0.4     # 减到40%
+    - threshold: 0.40  # 浮盈40%
+      position: 0.7     # 减到70%
+
+  # 止损策略
+  drawdown_stops:
+    - threshold: -0.20
+      position: 0.3
+    - threshold: -0.15
+      position: 0.6
+    - threshold: -0.10
+      position: 0.8
+
+# 交易参数
+trading:
+  rebalance_time: "14:30"  # 调仓时间（收盘前30分钟）
+  commission_rate: 0.0003  # 万3手续费
+  slippage_rate: 0.001  # 千1滑点
+  min_order_amount: 1000  # 最小下单金额
+
+# 风控参数 (优化后)
+risk_control:
+  # 止损控制 (优化: 动态止损)
+  single_stock_stop_loss: -0.12  # 单股止损-12% (优化: 从-15%放宽到-12%)
+  portfolio_stop_loss: -0.20  # 组合止损-20%
+
+  # 移动止损策略 (新增)
+  trailing_stop:
+    enabled: true
+    levels:
+      - profit: 0.20   # 浮盈20%
+        stop: 0.00     # 止损线上移到成本价（保本）
+      - profit: 0.30   # 浮盈30%
+        stop: 0.10     # 止损线上移到+10%
+      - profit: 0.50   # 浮盈50%
+        stop: 0.20     # 止损线上移到+20%
+
+  # 仓位控制 (优化: 提高资金利用率)
+  max_position: 0.90  # 最大仓位90% (优化: 从85%提升到90%)
+  min_position: 0.70  # 最小仓位70%
+  max_single_weight: 0.18  # 单股最大权重18% (优化: 从15%提升到18%)
+  top_n: 5  # 持仓数量5只 (优化: 从8只集中到5只)
+
+  # 历史参数（兼容）
+  daily_loss_limit: -0.05  # 单日止损5%
+  max_drawdown_limit: -0.20  # 最大回撤20%
+  min_daily_volume: 5000000  # 最小日成交额500万
+  skip_limit_up: true  # 跳过涨停
+  skip_suspended: true  # 跳过停牌
+  skip_st: true  # 跳过ST
+
+# 数据源
+data:
+  source: "akshare"  # 数据来源
+  update_time: "09:00"  # 数据更新时间
+
+# 监控报警
+monitoring:
+  enable_alert: true
+  alert_methods: ["log", "print"]  # log/email/wechat
+  alert_rules:
+    critical:
+      - "单日亏损>5%"
+      - "持仓回撤>15%"
+    warning:
+      - "单日亏损>3%"
+      - "持仓回撤>10%"
+    info:
+      - "调仓执行完成"
+      - "持仓股票停牌"
+
+# 飞书通知配置
+feishu:
+  enable: true  # 是否启用飞书通知
+  webhook_url: "${FEISHU_WEBHOOK_URL}"  # 从环境变量读取
+  notifications:
+    rebalance: true          # 调仓通知
+    verification: true       # 5天后验证通知
+    risk_alert: true         # 风险预警
+    weekly_report: true      # 周报
+    final_summary: true      # 观察期总结
+
+  # 观察期配置
+  observation_period:
+    enabled: true            # 启用观察期模式
+    cycles: 3                # 观察3个调仓周期
+    stop_loss_threshold: -0.05   # 累计收益<-5%触发预警
+    underperform_threshold: 0.05  # 跑输指数5%触发预警
+
+# 日志配置
+logging:
+  level: "INFO"
+  log_dir: "./live_trading/logs"
+  save_trades: true
+  save_positions: true
+
+# 数据存储
+storage:
+  positions_file: "./live_trading/data/positions.json"
+  trades_file: "./live_trading/data/trades.csv"
+  daily_report_file: "./live_trading/reports/daily_{date}.json"

@@ -1,0 +1,20 @@
+# ==========================================
+# 标准化改造新增依赖
+# ==========================================
+
+# 错误监控
+sentry-sdk>=1.40.0
+
+# 结构化日志
+structlog>=24.1.0
+python-json-logger>=2.0.7
+
+# JWT 认证
+pyjwt>=2.8.0
+
+# API 限流
+flask-limiter>=3.5.0
+
+# 性能监控（可选）
+prometheus-client>=0.19.0
+prometheus-flask-exporter>=0.23.0

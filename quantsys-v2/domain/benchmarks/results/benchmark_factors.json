@@ -1,0 +1,54 @@
+{
+  "test_name": "factor_calculation",
+  "timestamp": "2026-05-21 23:59:53",
+  "scenarios": [
+    {
+      "name": "100\u80a1\u7968\u00d7252\u5929",
+      "n_stocks": 100,
+      "n_days": 252,
+      "n_rows": 25200,
+      "cpu": {
+        "mean_time": 0.005313069676049054,
+        "std_time": 0.0003133053173193953,
+        "min_time": 0.004939958918839693,
+        "max_time": 0.005706583033315837,
+        "n_factors": 5,
+        "n_rows": 25200
+      },
+      "gpu": null,
+      "speedup": null
+    },
+    {
+      "name": "1K\u80a1\u7968\u00d7252\u5929",
+      "n_stocks": 1000,
+      "n_days": 252,
+      "n_rows": 252000,
+      "cpu": {
+        "mean_time": 0.03522224999809017,
+        "std_time": 0.0021032338542343104,
+        "min_time": 0.03242575004696846,
+        "max_time": 0.03749804198741913,
+        "n_factors": 5,
+        "n_rows": 252000
+      },
+      "gpu": null,
+      "speedup": null
+    },
+    {
+      "name": "5K\u80a1\u7968\u00d7252\u5929",
+      "n_stocks": 5000,
+      "n_days": 252,
+      "n_rows": 1260000,
+      "cpu": {
+        "mean_time": 0.1679060273260499,
+        "std_time": 0.014893222074677557,
+        "min_time": 0.15282741596456617,
+        "max_time": 0.18818066595122218,
+        "n_factors": 5,
+        "n_rows": 1260000
+      },
+      "gpu": null,
+      "speedup": null
+    }
+  ]
+}

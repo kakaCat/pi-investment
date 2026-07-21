@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模拟交易监控面板</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        h1 { color: #333; margin-bottom: 10px; }
+        .subtitle { color: #666; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric:last-child { border-bottom: none; }
+        .metric-label { color: #666; font-weight: 500; }
+        .metric-value { color: #333; font-weight: 700; font-size: 1.1em; }
+        .positive { color: #10b981; }
+        .negative { color: #ef4444; }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            margin-top: 15px;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .position {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .position-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .position-symbol {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #333;
+        }
+        .position-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .status-active { background: #d1fae5; color: #065f46; }
+        .status-skip { background: #fef3c7; color: #92400e; }
+        .last-update {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 模拟交易监控面板</h1>
+            <p class="subtitle">实时监控V13策略运行状态</p>
+        </div>
+
+        <div class="grid">
+            <!-- 策略信息卡片 -->
+            <div class="card">
+                <h2>📊 策略信息</h2>
+                <div id="strategy-info" class="loading">加载中...</div>
+            </div>
+
+            <!-- 账户状态卡片 -->
+            <div class="card">
+                <h2>💰 账户状态</h2>
+                <div id="account-info" class="loading">加载中...</div>
+            </div>
+
+            <!-- 持仓明细卡片 -->
+            <div class="card" style="grid-column: 1 / -1;">
+                <h2>📈 持仓明细</h2>
+                <div id="positions" class="loading">加载中...</div>
+            </div>
+
+            <!-- 执行策略卡片 -->
+            <div class="card">
+                <h2>⚡ 执行策略</h2>
+                <button id="run-btn" class="btn" onclick="runStrategy()">执行V13策略</button>
+                <div id="run-result" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+
+        <div class="last-update" id="last-update"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:5001/api/simulation';
+
+        // 加载策略信息
+        async function loadStrategy() {
+            try {
+                const res = await fetch(`${API_BASE}/strategies/v13`);
+                const data = await res.json();
+                const strategy = data.data;
+                
+                document.getElementById('strategy-info').innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">策略名称</span>
+                        <span class="metric-value">${strategy.name}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">版本</span>
+                        <span class="metric-value">${strategy.version}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">调仓周期</span>
+                        <span class="metric-value">${strategy.rebalance_days} 天</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">最大持仓</span>
+                        <span class="metric-value">${strategy.max_positions} 只</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">状态</span>
+                        <span class="status-badge status-active">运行中</span>
+                    </div>
+                `;
+            } catch (err) {
+                document.getElementById('strategy-info').innerHTML = `<p style="color: red;">加载失败: ${err.message}</p>`;
+            }
+        }
+
+        // 加载账户信息
+        async function loadAccount() {
+            try {
+                const res = await fetch(`${API_BASE}/accounts/default`);
+                const data = await res.json();
+                const account = data.data;
+                
+                const returnPct = (parseFloat(account.cumulative_return) * 100).toFixed(2);
+                const returnClass = parseFloat(account.cumulative_return) >= 0 ? 'positive' : 'negative';
+                
+                document.getElementById('account-info').innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">总资产</span>
+                        <span class="metric-value">¥${parseFloat(account.total_value).toLocaleString()}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">现金</span>
+                        <span class="metric-value">¥${parseFloat(account.cash).toLocaleString()}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">收益率</span>
+                        <span class="metric-value ${returnClass}">${returnPct}%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">持仓数量</span>
+                        <span class="metric-value">${account.positions_count} 只</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">上次调仓</span>
+                        <span class="metric-value">${account.last_rebalance_date || '未知'}</span>
+                    </div>
+                `;
+                
+                // 加载持仓
+                loadPositions(account.positions);
+            } catch (err) {
+                document.getElementById('account-info').innerHTML = `<p style="color: red;">加载失败: ${err.message}</p>`;
+            }
+        }
+
+        // 加载持仓明细
+        function loadPositions(positions) {
+            if (!positions || positions.length === 0) {
+                document.getElementById('positions').innerHTML = '<p style="text-align: center; color: #666;">暂无持仓</p>';
+                return;
+            }
+
+            const html = positions.map(pos => {
+                const profit = parseFloat(pos.profit || 0);
+                const profitClass = profit >= 0 ? 'positive' : 'negative';
+                const profitRate = (parseFloat(pos.profit_rate || 0) * 100).toFixed(2);
+                
+                return `
+                    <div class="position">
+                        <div class="position-header">
+                            <span class="position-symbol">${pos.symbol}</span>
+                            <span class="metric-value ${profitClass}">${profitRate}%</span>
+                        </div>
+                        <div class="position-details">
+                            <div>持仓: ${pos.shares} 股</div>
+                            <div>市值: ¥${parseFloat(pos.market_value).toLocaleString()}</div>
+                            <div>成本: ¥${parseFloat(pos.avg_price).toFixed(2)}</div>
+                            <div>盈亏: ¥${profit.toFixed(2)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('positions').innerHTML = html;
+        }
+
+        // 执行策略
+        async function runStrategy() {
+            const btn = document.getElementById('run-btn');
+            const result = document.getElementById('run-result');
+            
+            btn.disabled = true;
+            btn.textContent = '执行中...';
+            result.innerHTML = '';
+            
+            try {
+                const res = await fetch(`${API_BASE}/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ strategy_id: 'v13' })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    const action = data.data.action;
+                    if (action === 'skip') {
+                        result.innerHTML = `
+                            <div style="background: #fef3c7; padding: 15px; border-radius: 8px; color: #92400e;">
+                                <strong>无需调仓</strong><br>
+                                ${data.data.message}
+                            </div>
+                        `;
+                    } else {
+                        result.innerHTML = `
+                            <div style="background: #d1fae5; padding: 15px; border-radius: 8px; color: #065f46;">
+                                <strong>调仓成功</strong><br>
+                                信号数: ${data.data.signals_count}<br>
+                                交易数: ${data.data.trades_count}
+                            </div>
+                        `;
+                        // 刷新账户信息
+                        setTimeout(() => loadAccount(), 1000);
+                    }
+                } else {
+                    result.innerHTML = `<p style="color: red;">执行失败: ${data.error}</p>`;
+                }
+            } catch (err) {
+                result.innerHTML = `<p style="color: red;">执行失败: ${err.message}</p>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '执行V13策略';
+            }
+        }
+
+        // 初始化加载
+        async function init() {
+            await loadStrategy();
+            await loadAccount();
+            document.getElementById('last-update').textContent = `最后更新: ${new Date().toLocaleString('zh-CN')}`;
+        }
+
+        // 自动刷新
+        init();
+        setInterval(() => {
+            loadAccount();
+            document.getElementById('last-update').textContent = `最后更新: ${new Date().toLocaleString('zh-CN')}`;
+        }, 30000); // 每30秒刷新
+    </script>
+</body>
+</html>

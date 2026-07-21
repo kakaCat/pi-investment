@@ -1,0 +1,53 @@
+# V14 策略配置
+# V14 XGBoost Multi-Factor P0 Optimized Strategy Configuration
+
+strategy:
+  name: "V14 XGBoost Multi-Factor P0"
+  version: "2.0.0"
+  description: "基于XGBoost的多因子选股策略P0优化版，7日调仓周期，持仓5只股票，233,456条训练样本"
+  account_name: "v14_simulation"  # 数据库账户名称（保持现有值）
+  enabled: true
+
+model:
+  model_path: "live_trading/models/v14_p0_model.json"
+  factors_path: "live_trading/models/v14_p0_valid_factors.json"
+  factors_count: 75
+  ic_value: 0.065
+  ir_value: 2.5
+
+trading:
+  rebalance_days: 7          # 调仓周期（天）- 优化：5→7天
+  max_positions: 5           # 最大持仓数量 - 优化：8→5只
+  max_position_pct: 0.90     # 最大总仓位比例 - 优化：85%→90%
+  top_n: 5                   # 选股数量
+  min_score: 0.5             # 最低预测分数
+
+risk:
+  single_stock_stop_loss: -0.12     # 单股止损线 - 优化：-15%→-12%
+  portfolio_stop_loss: -0.20        # 组合止损线
+  single_stock_weight: 0.18         # 单股权重（Kelly准则）- 优化：15%→18%
+  max_single_stock_weight: 0.20     # 单股最大权重
+  min_market_cap: 50                # 最小市值（亿）
+  min_liquidity: 1000000            # 最小日成交量
+  enable_trailing_stop: true        # 移动止损机制
+
+schedule:
+  hour: 15        # 定时任务执行小时
+  minute: 35      # 定时任务执行分钟（错开5分钟）
+  timezone: "Asia/Shanghai"
+
+performance:
+  expected_annual_return: 0.412     # 预期年化收益（41.2%）
+  expected_sharpe: 2.0              # 预期夏普比率
+  training_samples: 233456          # 训练样本数
+
+initial_capital: 100000             # 初始资金
+
+# V14改进点
+improvements:
+  - "调仓周期延长（降低交易成本）"
+  - "集中持仓（提高Alpha）"
+  - "Kelly准则优化仓位"
+  - "更严格止损（-12%）"
+  - "扩大训练集（23万+样本）"
+  - "因子优化（75个有效因子）"

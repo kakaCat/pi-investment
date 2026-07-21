@@ -1,0 +1,91 @@
+{
+  "test_name": "strategy_backtest",
+  "timestamp": "2026-05-22 00:01:24",
+  "cpu_count": 8,
+  "scenarios": [
+    {
+      "name": "50\u80a1\u7968\u00d71\u5e74",
+      "n_stocks": 50,
+      "n_days": 252,
+      "serial": {
+        "mean_time": 0.07170399969133238,
+        "std_time": 0.0015882639071253292,
+        "min_time": 0.07054870808497071,
+        "n_stocks": 50,
+        "throughput": 697.3111711374174
+      },
+      "parallel": {
+        "mean_time": 0.7062028887060782,
+        "std_time": 0.029917054934595733,
+        "min_time": 0.6640325000043958,
+        "n_stocks": 50,
+        "throughput": 70.80118305889572
+      },
+      "speedup": 0.10153456016402053,
+      "n_workers": 8
+    },
+    {
+      "name": "100\u80a1\u7968\u00d71\u5e74",
+      "n_stocks": 100,
+      "n_days": 252,
+      "serial": {
+        "mean_time": 0.14711131966517618,
+        "std_time": 0.0035314776345306874,
+        "min_time": 0.1441708339843899,
+        "n_stocks": 100,
+        "throughput": 679.7573444898662
+      },
+      "parallel": {
+        "mean_time": 0.66304845836324,
+        "std_time": 0.012714681140517,
+        "min_time": 0.6539257500553504,
+        "n_stocks": 100,
+        "throughput": 150.81853933700978
+      },
+      "speedup": 0.22187114351841794,
+      "n_workers": 8
+    },
+    {
+      "name": "200\u80a1\u7968\u00d71\u5e74",
+      "n_stocks": 200,
+      "n_days": 252,
+      "serial": {
+        "mean_time": 0.2872242776211351,
+        "std_time": 0.0047859113293237015,
+        "min_time": 0.2820313749834895,
+        "n_stocks": 200,
+        "throughput": 696.3199686894545
+      },
+      "parallel": {
+        "mean_time": 0.6964019026684886,
+        "std_time": 0.011716826137770952,
+        "min_time": 0.6829950000392273,
+        "n_stocks": 200,
+        "throughput": 287.19048473824597
+      },
+      "speedup": 0.4124403975930316,
+      "n_workers": 8
+    },
+    {
+      "name": "100\u80a1\u7968\u00d73\u5e74",
+      "n_stocks": 100,
+      "n_days": 756,
+      "serial": {
+        "mean_time": 0.1465321109862998,
+        "std_time": 0.002422741840892326,
+        "min_time": 0.1436110829235986,
+        "n_stocks": 100,
+        "throughput": 682.4442733193792
+      },
+      "parallel": {
+        "mean_time": 0.7014800700126216,
+        "std_time": 0.0073991221636483424,
+        "min_time": 0.6911328340647742,
+        "n_stocks": 100,
+        "throughput": 142.55572506600325
+      },
+      "speedup": 0.2088899132710403,
+      "n_workers": 8
+    }
+  ]
+}

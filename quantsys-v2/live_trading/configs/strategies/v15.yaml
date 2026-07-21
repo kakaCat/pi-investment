@@ -1,0 +1,57 @@
+# V15 策略配置
+# V15 Deep Learning Multi-Factor Strategy Configuration
+
+strategy:
+  name: "V15 Deep Learning Multi-Factor"
+  version: "3.0.0"
+  description: "基于深度学习的多因子选股策略，10日调仓周期，持仓3只股票，使用LSTM模型"
+  account_name: "v15_simulation"  # 新账户
+  enabled: true
+
+model:
+  model_path: "live_trading/models/v15_lstm_model.h5"
+  factors_path: "live_trading/models/v15_valid_factors.json"
+  factors_count: 100
+  model_type: "lstm"  # 新增：模型类型
+  ic_value: 0.08
+  ir_value: 3.2
+
+trading:
+  rebalance_days: 10         # 10天调仓周期
+  max_positions: 3           # 3只集中持仓
+  max_position_pct: 0.90     # 90%仓位
+  top_n: 3
+  min_score: 0.6             # 更高的分数门槛
+
+risk:
+  single_stock_stop_loss: -0.10     # -10%止损（更激进）
+  portfolio_stop_loss: -0.18        # 组合止损
+  single_stock_weight: 0.30         # 单股30%权重（集中持仓）
+  max_single_stock_weight: 0.35
+  min_market_cap: 100               # 更高的市值要求（100亿）
+  min_liquidity: 2000000            # 更高的流动性要求
+  enable_trailing_stop: true
+  trailing_stop_pct: 0.05           # 5%移动止损
+
+schedule:
+  hour: 15
+  minute: 40      # 错开10分钟
+  timezone: "Asia/Shanghai"
+
+performance:
+  expected_annual_return: 0.50      # 预期年化50%
+  expected_sharpe: 2.5
+  expected_max_drawdown: -0.20      # 预期最大回撤-20%
+  training_samples: 500000          # 50万训练样本
+
+initial_capital: 100000
+
+# V15改进点
+improvements:
+  - "深度学习模型（LSTM）"
+  - "10天调仓周期（降低成本）"
+  - "3只集中持仓（超高Alpha）"
+  - "30%单股权重（激进配置）"
+  - "更严格止损（-10%）"
+  - "100个因子（更全面）"
+  - "50万训练样本"

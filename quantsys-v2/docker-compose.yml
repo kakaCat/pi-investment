@@ -1,0 +1,172 @@
+version: '3.8'
+
+services:
+  # ========================================
+  # quantsys-v2 API 服务
+  # ========================================
+  quantsys-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: quantsys-api
+    ports:
+      - "5001:5001"  # REST API
+      - "5003:5003"  # WebSocket
+    environment:
+      # 数据库配置
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGDATABASE=${PGDATABASE:-quant_investment}
+      - PGUSER=${PGUSER:-postgres}
+      - PGPASSWORD=${PGPASSWORD:-postgres}
+
+      # Redis 配置
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - USE_REDIS_CACHE=true
+
+      # 监控配置
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+
+      # 应用配置
+      - QUANTSYS_API_HOST=0.0.0.0
+      - QUANTSYS_API_PORT=5001
+      - QUANTSYS_WS_PORT=5003
+      - INITIAL_CASH=1000000.0
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+    restart: unless-stopped
+
+    networks:
+      - quantsys-net
+
+    volumes:
+      # 日志持久化
+      - ./logs:/app/logs
+      # 数据持久化
+      - ./.pi-invest:/app/.pi-invest
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  # ========================================
+  # PostgreSQL 数据库
+  # ========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: quantsys-postgres
+    environment:
+      - POSTGRES_DB=${PGDATABASE:-quant_investment}
+      - POSTGRES_USER=${PGUSER:-postgres}
+      - POSTGRES_PASSWORD=${PGPASSWORD:-postgres}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # 初始化脚本（可选）
+      # - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - quantsys-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========================================
+  # Redis 缓存
+  # ========================================
+  redis:
+    image: redis:7-alpine
+    container_name: quantsys-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    networks:
+      - quantsys-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # ========================================
+  # Prometheus 监控
+  # ========================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: quantsys-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - quantsys-net
+    restart: unless-stopped
+
+  # ========================================
+  # Grafana 可视化
+  # ========================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: quantsys-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infrastructure/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - quantsys-net
+    restart: unless-stopped
+
+# ========================================
+# 数据卷
+# ========================================
+volumes:
+  pgdata:
+    driver: local
+  redisdata:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+# ========================================
+# 网络
+# ========================================
+networks:
+  quantsys-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
