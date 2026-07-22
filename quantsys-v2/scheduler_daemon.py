@@ -155,6 +155,9 @@ class SchedulerDaemon:
             
             # 注册日常编排器（状态机驱动每日投资循环）
             self._register_orchestrator()
+
+            # 注册 WatchEngine 实时盯盘引擎（后台线程）
+            self._register_watch_engine()
             
             # 启动调度器
             logger.info("Starting scheduler...")
@@ -233,6 +236,14 @@ class SchedulerDaemon:
             
         except Exception as e:
             logger.error(f"Failed to register IntradayMonitor: {e}")
+
+    def _register_watch_engine(self):
+        """注册 WatchEngine 实时盯盘引擎（后台线程）"""
+        try:
+            from application.services.watch_engine.factory import start_watch_engine_in_thread
+            start_watch_engine_in_thread()
+        except Exception as e:
+            logger.error(f"Failed to register WatchEngine: {e}")
 
     def _keep_running(self):
         """保持进程运行"""
