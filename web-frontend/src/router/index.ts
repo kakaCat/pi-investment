@@ -152,13 +152,11 @@ const routes: RouteRecordRaw[] = [
         path: '/simulation-trading',
         name: 'SimulationTrading',
         component: () => import(/* webpackChunkName: "simulation-trading" */ '@/views/SimulationTrading/index.vue'),
-        meta: { title: 'V13模拟交易' }
+        meta: { title: '模拟交易' }
       },
       {
         path: '/v14-trading',
-        name: 'V14Trading',
-        component: () => import(/* webpackChunkName: "v14-trading" */ '@/views/V14Trading/index.vue'),
-        meta: { title: 'V14量化交易 P0优化版' }
+        redirect: { path: '/simulation-trading', query: { account: 'v14_simulation' } }
       },
       // 博弈智能系统
       {
