@@ -50,6 +50,7 @@ import { portfolioOptimizerTool } from "./portfolio/portfolio-optimizer-tool.js"
 import { portfolioTradeTool } from "./portfolio/portfolio-trade-tool.js";  // 新增：虚拟仓交易
 import { portfolioStatusTool } from "./portfolio/portfolio-status-tool.js";  // 新增：虚拟仓状态
 import { portfolioAnalyzeTool } from "./portfolio/portfolio-analyze-tool.js";  // 新增：持仓分析
+import { portfolioAccountTool } from "./portfolio/portfolio-account-tool.js";  // 新增：账户管理
 
 // 性能分析
 import { performanceAnalyzerTool } from "./performance/performance-analyzer-tool.js";  // 新增：性能分析工具
@@ -334,6 +335,7 @@ export const allCustomTools = [
   portfolioTradeTool,             // portfolio_trade - Agent虚拟仓交易
   portfolioStatusTool,            // portfolio_status - 查看虚拟仓状态
   portfolioAnalyzeTool,           // portfolio_analyze - 分析持仓给出建议
+  portfolioAccountTool,           // portfolio_account - 账户管理（开户）
   performanceAnalyzerTool,        // performance_analyzer - 性能分析工具
   factorAcademicTool,             // factor_academic - 学术因子工具
   timeseriesAnalyzerTool,         // timeseries_analyzer - 时间序列分析工具
