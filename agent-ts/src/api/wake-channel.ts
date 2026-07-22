@@ -268,7 +268,7 @@ function buildPromptFromEvent(
 
 请按以下步骤复盘：
 
-1. 调用 portfolio_status 查看今日持仓和盈亏
+1. 调用 portfolio_status({ action: 'list' }) 查看各账户，再 get 查看今日持仓和盈亏
 2. 调用 performance_analyzer 分析今日绩效
 3. 调用 rotation_verify 检查近期轮动效果
 4. 调用 decision_history 回顾今日决策
@@ -284,11 +284,11 @@ function buildPromptFromEvent(
 
 请按以下工具链操作：
 
-1. 调用 portfolio_status 查看当前持仓受影响情况
+1. 调用 portfolio_status({ action: 'list' }) 查看各账户持仓受影响情况
 2. 调用 market_style_detect 判断市场风格是否变化
 3. 调用 data_fetch_market_sentiment 查看市场情绪
 4. 综合判断：
-   - 如果是大跌且风格转空 → 考虑调用 portfolio_trade 减仓
+   - 如果是大跌且风格转空 → 考虑调用 portfolio_trade（须指定 account）减仓
    - 如果是超跌且风格未变 → 调用 opportunity_scan 扫描机会
 5. 调用 decision_record 记录你的判断
 6. 通过 feishu_notify 发送分析报告（包含：发生了什么、原因、情绪、机会、建议）

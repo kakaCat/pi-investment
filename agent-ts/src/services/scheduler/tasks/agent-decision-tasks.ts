@@ -24,12 +24,12 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 第一步：检查虚拟仓持仓
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. 使用 portfolio_status 查看当前虚拟仓状态
-   - 有持仓吗？持仓几只？
-   - 可用资金多少？
-   - 当前总盈亏如何？
+1. 使用 portfolio_status({ action: 'list' }) 查看所有代管账户
+   - 你是策略账户的操盘手，先确认要操作哪个账户
+   - 然后用 portfolio_status({ action: 'get', account: '<账户名>' }) 查看该账户
+   - 有持仓吗？持仓几只？可用资金多少？当前总盈亏如何？
 
-2. 如果有持仓，使用 portfolio_analyze 分析
+2. 如果有持仓，使用 portfolio_analyze({ account: '<账户名>' }) 分析
    - 哪些需要止盈？（盈利≥10%）
    - 哪些需要止损？（亏损≥5%）
    - 哪些继续持有？
@@ -137,7 +137,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 **检查项**：
 1. 使用 alert_check 查看是否有新的紧急预警
 2. 如果有 critical 级别预警，立即分析并决策
-3. 使用 portfolio_status 快速查看持仓状态
+3. 使用 portfolio_status({ action: 'list' }) 快速查看各账户状态
 
 **注意**：
 - 这是快速检查，不需要详细分析
@@ -170,11 +170,9 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 第一步：查看虚拟仓表现
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. 使用 portfolio_status 查看当前绩效
-   - 总资产多少？
-   - 今日盈亏？
-   - 累计收益率？
-   - 持仓情况？
+1. 使用 portfolio_status({ action: 'list' }) 查看各账户绩效
+   - 再用 portfolio_status({ action: 'get', account: '<账户名>' }) 逐个查看
+   - 总资产多少？今日盈亏？累计收益率？持仓情况？
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 第二步：回顾今日交易
