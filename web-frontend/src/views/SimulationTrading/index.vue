@@ -17,10 +17,13 @@
           <template #header>
             <div class="card-header">
               <span>📊 策略信息</span>
-              <el-tag type="success" size="small">运行中</el-tag>
+              <el-tag v-if="hasStrategy" type="success" size="small">运行中</el-tag>
             </div>
           </template>
-          <div v-loading="loading.strategy">
+          <div v-if="!hasStrategy" style="padding: 20px 0; text-align: center; color: #999;">
+            该账户未绑定策略
+          </div>
+          <div v-else v-loading="loading.strategy">
             <div v-if="strategy" class="info-list">
               <div class="info-item">
                 <span class="label">策略名称</span>
@@ -61,16 +64,20 @@
                 <span class="value">¥{{ formatNumber(account.total_value) }}</span>
               </div>
               <div class="info-item">
-                <span class="label">现金</span>
-                <span class="value">¥{{ formatNumber(account.cash) }}</span>
+                <span class="label">可用资金</span>
+                <span class="value">¥{{ formatNumber(account.cash_available) }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">冻结资金</span>
+                <span class="value">¥{{ formatNumber(account.cash_frozen) }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">持仓市值</span>
+                <span class="value">¥{{ formatNumber(account.position_value) }}</span>
               </div>
               <div class="info-item">
                 <span class="label">收益率</span>
                 <span class="value" :class="returnClass">{{ returnPercent }}%</span>
-              </div>
-              <div class="info-item">
-                <span class="label">持仓数量</span>
-                <span class="value">{{ account.positions_count }} 只</span>
               </div>
               <div class="info-item">
                 <span class="label">上次调仓</span>
@@ -90,14 +97,15 @@
             </div>
           </template>
           <div>
-            <el-button 
-              type="primary" 
-              size="large" 
+            <el-button
+              type="primary"
+              size="large"
               style="width: 100%"
               @click="runStrategy"
               :loading="loading.run"
+              :disabled="!hasStrategy"
             >
-              执行V13策略
+              执行{{ strategyId ? strategyId.toUpperCase() + '策略' : '策略' }}
             </el-button>
             <el-alert 
               v-if="runResult" 
@@ -149,10 +157,15 @@
               <span v-else style="color: #999;">加载中...</span>
             </template>
           </el-table-column>
-          <el-table-column prop="shares" label="持仓数量" width="120" />
+          <el-table-column label="持仓(可用)" width="130">
+            <template #default="scope">
+              {{ scope.row.shares_total }}
+              <span style="color: #999; font-size: 12px">({{ scope.row.shares_available }}可卖)</span>
+            </template>
+          </el-table-column>
           <el-table-column label="成本价" width="120">
             <template #default="scope">
-              ¥{{ parseFloat(scope.row.avg_price).toFixed(2) }}
+              ¥{{ parseFloat(scope.row.avg_cost ?? 0).toFixed(2) }}
             </template>
           </el-table-column>
           <el-table-column label="当前价" width="120">
@@ -168,17 +181,24 @@
               ¥{{ formatNumber(scope.row.market_value) }}
             </template>
           </el-table-column>
-          <el-table-column label="盈亏" width="120">
+          <el-table-column label="浮动盈亏" width="120">
             <template #default="scope">
-              <span :class="parseFloat(scope.row.profit) >= 0 ? 'positive' : 'negative'">
-                ¥{{ parseFloat(scope.row.profit).toFixed(2) }}
+              <span :class="parseFloat(scope.row.profit_total ?? 0) >= 0 ? 'positive' : 'negative'">
+                ¥{{ parseFloat(scope.row.profit_total ?? 0).toFixed(2) }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="当日盈亏" width="110">
+            <template #default="scope">
+              <span :class="parseFloat(scope.row.profit_today ?? 0) >= 0 ? 'positive' : 'negative'">
+                ¥{{ parseFloat(scope.row.profit_today ?? 0).toFixed(2) }}
               </span>
             </template>
           </el-table-column>
           <el-table-column label="收益率">
             <template #default="scope">
-              <span :class="parseFloat(scope.row.profit_rate) >= 0 ? 'positive' : 'negative'">
-                {{ (parseFloat(scope.row.profit_rate) * 100).toFixed(2) }}%
+              <span :class="parseFloat(scope.row.profit_total_rate ?? 0) >= 0 ? 'positive' : 'negative'">
+                {{ (parseFloat(scope.row.profit_total_rate ?? 0) * 100).toFixed(2) }}%
               </span>
             </template>
           </el-table-column>
@@ -232,6 +252,25 @@
               ¥{{ formatNumber(parseFloat(scope.row.shares) * parseFloat(scope.row.price)) }}
             </template>
           </el-table-column>
+          <el-table-column label="费用" width="100">
+            <template #default="scope">
+              ¥{{ (parseFloat(scope.row.commission || 0) + parseFloat(scope.row.stamp_duty || 0)).toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="已实现盈亏" width="120">
+            <template #default="scope">
+              <span v-if="scope.row.realized_pnl != null"
+                    :class="parseFloat(scope.row.realized_pnl) >= 0 ? 'positive' : 'negative'">
+                ¥{{ parseFloat(scope.row.realized_pnl).toFixed(2) }}
+              </span>
+              <span v-else style="color: #999;">--</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="理由" min-width="180">
+            <template #default="scope">
+              <span style="font-size: 12px; color: #666">{{ scope.row.reason || '--' }}</span>
+            </template>
+          </el-table-column>
         </el-table>
         <el-empty v-if="tradeRecords.length === 0 && !loading.trades" description="暂无交易记录" />
       </div>
@@ -241,7 +280,7 @@
     <el-card shadow="hover" style="margin-top: 20px;">
       <template #header>
         <div class="card-header">
-          <span>⏰ V13调度任务</span>
+          <span>⏰ {{ strategyId ? strategyId.toUpperCase() + '调度任务' : '调度任务' }}</span>
           <el-button type="primary" size="small" @click="loadSchedulerTasks" :loading="loading.scheduler">
             刷新
           </el-button>
