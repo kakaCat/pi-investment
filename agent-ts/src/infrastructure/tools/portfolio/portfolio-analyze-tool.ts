@@ -6,25 +6,25 @@
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { wrapToolExecution } from "../shared/error-handler.js";
+import { getAccount } from "../../adapters/quant/quant-v2-client.js";
 
 interface PortfolioAnalyzeInput {
+  account: string;
   check_risk?: boolean;
 }
 
-async function analyzePortfolio(input: PortfolioAnalyzeInput) {
+export async function analyzePortfolio(input: PortfolioAnalyzeInput) {
   try {
-    // 获取持仓状态 - 使用simulation账户API
-    const response = await fetch('http://127.0.0.1:5001/api/simulation/accounts/default');
-    const result = await response.json() as any;
-
-    if (!result.success) {
+    if (!input.account) {
       return {
         success: false,
-        error: '无法获取持仓信息'
+        error: '缺少必填参数 account（代管账户名）',
+        hint: '先用 portfolio_status({ action: "list" }) 查看可用账户'
       };
     }
 
-    const portfolio = result.data;
+    // 获取持仓状态 - 多账户域 simulation API
+    const portfolio = await getAccount(input.account);
     const holdings = portfolio.positions || portfolio.holdings || [];
 
     // 如果空仓
@@ -44,15 +44,15 @@ async function analyzePortfolio(input: PortfolioAnalyzeInput) {
     const analysis = [];
 
     for (let holding of holdings) {
-      const pnl_pct = holding.profit_rate || holding.pnl_pct || 0;
-      const days_held = holding.days_held || 0;
+      const pnl_pct = Number(holding.profit_total_rate ?? holding.profit_rate ?? holding.pnl_pct ?? 0) * 100;
+      const sharesAvailable = Number(holding.shares_available ?? holding.shares_total ?? holding.shares ?? 0);
 
       let action = 'hold';
       let reason = '';
       let priority = 0;  // 优先级：0=持有，1=可选，2=建议，3=强烈建议
 
-      // T+1检查（最高优先级）
-      if (days_held === 0) {
+      // T+1检查（最高优先级）：可用数量为0表示今日买入，不可卖
+      if (sharesAvailable <= 0) {
         action = 'wait_t1';
         reason = '今日买入，需等待T+1才能卖出';
         priority = 0;
@@ -90,12 +90,12 @@ async function analyzePortfolio(input: PortfolioAnalyzeInput) {
 
       analysis.push({
         symbol: holding.symbol,
-        shares: holding.shares,
-        cost_price: holding.avg_price || holding.cost_price || holding.cost,
+        shares: Number(holding.shares_total ?? holding.shares ?? 0),
+        shares_available: sharesAvailable,
+        cost_price: Number(holding.avg_cost ?? holding.avg_price ?? holding.cost_price ?? holding.cost ?? 0),
         current_price: holding.current_price,
-        pnl: holding.profit || holding.pnl,
+        pnl: Number(holding.profit_total ?? holding.profit ?? holding.pnl ?? 0),
         pnl_pct: pnl_pct,
-        days_held: days_held,
         action: action,
         reason: reason,
         priority: priority
@@ -142,7 +142,7 @@ export const portfolioAnalyzeTool: ToolDefinition = {
   name: "portfolio_analyze",
   label: "分析持仓",
   description:
-    "智能分析Agent虚拟仓持仓，给出操作建议。" +
+    "智能分析指定模拟账户持仓，给出操作建议。account 必填（代管账户名）。" +
     "\n\n分析内容：" +
     "\n  • 每只股票的盈亏状态" +
     "\n  • 是否需要止盈（盈利≥10%）" +
@@ -163,6 +163,9 @@ export const portfolioAnalyzeTool: ToolDefinition = {
     "\n  portfolio_analyze({ check_risk: true }) - 包含风险检查",
 
   parameters: Type.Object({
+    account: Type.String({
+      description: "代管账户名（必填），如 v13_simulation。不确定时先 portfolio_status({ action: 'list' })"
+    }),
     check_risk: Type.Optional(Type.Boolean({
       description: "是否进行风险检查（默认true）",
       default: true
