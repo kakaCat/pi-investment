@@ -43,7 +43,7 @@ export const watchManageTool: ToolDefinition = {
       description: "盯盘时段，如 [\"09:30-10:30\",\"14:30-15:00\"]，默认全交易时段"
     })),
     expires_at: Type.Optional(Type.String({ description: "过期时间 ISO 格式，如 2026-07-25T15:00:00" })),
-    enabled: Type.Optional(Type.Boolean({ description: "启用/停用（update 用）" })),
+    enabled: Type.Optional(Type.Boolean({ description: "启用/停用（update 用；list 用作过滤）" })),
     limit: Type.Optional(Type.Number({ description: "triggers 返回条数，默认50" })),
   }),
   execute: async (_toolCallId: string, params: any) => {
