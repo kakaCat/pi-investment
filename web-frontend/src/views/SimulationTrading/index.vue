@@ -2,6 +2,14 @@
   <div class="simulation-trading">
     <el-page-header @back="$router.back()" content="模拟交易监控" />
 
+    <!-- 账户切换工具栏 -->
+    <div class="account-toolbar">
+      <AccountSwitcher
+        :initial-account="(route.query.account as string) || undefined"
+        @change="onAccountChange"
+      />
+    </div>
+
     <el-row :gutter="20" style="margin-top: 20px;">
       <!-- 策略信息 -->
       <el-col :xs="24" :sm="12" :md="8">
@@ -485,12 +493,22 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
+import AccountSwitcher from '@/components/AccountSwitcher.vue'
+import { simulationApi } from '@/services/api/simulation'
+import type { AccountSummary } from '@/services/api/simulation'
 
-const API_BASE = 'http://127.0.0.1:5001/api/simulation'
 const STOCK_API = 'http://127.0.0.1:5001/api/stocks'
 const SCHEDULER_API = 'http://127.0.0.1:5001/api/scheduler'
+
+const route = useRoute()
+// 当前账户（单一数据源，由 AccountSwitcher 驱动）
+const selectedAccount = ref<string>('')
+const currentAccount = ref<AccountSummary | null>(null)
+const strategyId = computed(() => currentAccount.value?.strategy_name || null)
+const hasStrategy = computed(() => !!strategyId.value)
 
 const loading = ref({
   strategy: false,
@@ -535,6 +553,19 @@ const positionsWithNames = computed(() => {
 })
 const runResult = ref<any>(null)
 let refreshTimer: number | null = null
+
+async function onAccountChange(accountName: string, account: AccountSummary | any) {
+  selectedAccount.value = accountName
+  currentAccount.value = account
+  await Promise.all([
+    loadAccount(),
+    loadTradeRecords(),
+    loadPerformance(),
+    loadExecutionHistory(),
+    strategyId.value ? loadStrategy() : Promise.resolve((strategy.value = null)),
+    loadSchedulerTasks()
+  ])
+}
 
 const returnPercent = computed(() => {
   if (!account.value) return '0.00'
@@ -634,13 +665,14 @@ async function loadSchedulerTasks() {
     const tasksData = await tasksRes.json()
 
     if (tasksData.success) {
-      // 只显示V13相关的任务
+      // 只显示当前账户绑定策略相关的任务
       const allTasks = tasksData.tasks || tasksData.data || []
+      const strategyKey = (strategyId.value || '').toLowerCase()
       const v13Tasks = allTasks
         .filter((task: any) => {
+          if (!strategyKey) return false
           const taskName = task.name || task.task_name || ''
-          // 只筛选包含v13的任务
-          return taskName.toLowerCase().includes('v13')
+          return taskName.toLowerCase().includes(strategyKey)
         })
         .map((task: any) => ({
           ...task,
@@ -728,16 +760,11 @@ async function triggerTask(task: any) {
 }
 
 async function loadStrategy() {
+  if (!strategyId.value) { strategy.value = null; return }
   loading.value.strategy = true
   try {
-    const res = await fetch(`${API_BASE}/strategies/v13`)
-    const data = await res.json()
-    if (data.success) {
-      strategy.value = data.data
-    } else {
-      console.warn('策略v13不存在，跳过加载')
-      strategy.value = null
-    }
+    const res = await simulationApi.getStrategyInfo(strategyId.value)
+    strategy.value = res.success ? res.data : null
   } catch (err: any) {
     console.error('加载策略失败:', err)
     // 策略失败不影响其他功能，不显示错误提示
@@ -747,14 +774,14 @@ async function loadStrategy() {
 }
 
 async function loadAccount() {
+  if (!selectedAccount.value) return
   loading.value.account = true
   try {
-    const res = await fetch(`${API_BASE}/accounts/default`)
-    const data = await res.json()
-    if (data.success) {
-      account.value = data.data
+    const res = await simulationApi.getAccount(selectedAccount.value)
+    if (res.success) {
+      account.value = res.data
       // 加载持仓股票的名称
-      await loadStockNames(data.data.positions)
+      await loadStockNames(res.data.positions)
     }
   } catch (err: any) {
     ElMessage.error(`加载账户失败: ${err.message}`)
@@ -797,15 +824,11 @@ async function refreshAccount() {
 }
 
 async function runStrategy() {
+  if (!strategyId.value || !selectedAccount.value) return
   loading.value.run = true
   runResult.value = null
   try {
-    const res = await fetch(`${API_BASE}/run`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ strategy_id: 'v13' })
-    })
-    const data = await res.json()
+    const data = await simulationApi.runStrategy(strategyId.value, selectedAccount.value)
 
     if (data.success) {
       const action = data.data.action
@@ -845,52 +868,46 @@ async function runStrategy() {
 }
 
 async function loadExecutionHistory() {
+  if (!selectedAccount.value) return
   loading.value.history = true
   try {
-    const res = await fetch(`${API_BASE}/execution-history`)
-    const data = await res.json()
-    if (data.success) {
-      executionHistory.value = data.data || []
+    const res = await simulationApi.getExecutionHistory(selectedAccount.value, 50)
+    if (res.success) {
+      executionHistory.value = res.data || []
     }
   } catch (err: any) {
     console.error('加载执行历史失败:', err)
-    ElMessage.error(`加载执行历史失败: ${err.message}`)
   } finally {
     loading.value.history = false
   }
 }
 
 async function loadTradeRecords() {
+  if (!selectedAccount.value) return
   loading.value.trades = true
   try {
-    const res = await fetch(`${API_BASE}/trades?account_name=default&limit=50`)
-    const data = await res.json()
-    if (data.success) {
-      tradeRecords.value = data.data || []
+    const res = await simulationApi.getTrades(selectedAccount.value, 50)
+    if (res.success) {
+      tradeRecords.value = res.data || []
     }
   } catch (err: any) {
     console.error('加载交易记录失败:', err)
-    ElMessage.error(`加载交易记录失败: ${err.message}`)
   } finally {
     loading.value.trades = false
   }
 }
 
 async function loadPerformance() {
+  if (!selectedAccount.value) return
   loading.value.performance = true
   try {
-    const res = await fetch(`${API_BASE}/performance?account_name=default`)
-    const data = await res.json()
-
-    console.log('Performance API response:', data)
-
-    if (data.success && data.data) {
+    const res = await simulationApi.getPerformance(selectedAccount.value)
+    if (res.success && res.data) {
       await nextTick()
-      renderChart(data.data)
+      renderChart(res.data)
     }
   } catch (err: any) {
     console.error('加载收益数据失败:', err)
-    ElMessage.error(`加载收益数据失败: ${err.message}`)
   } finally {
     loading.value.performance = false
   }
@@ -1030,17 +1047,13 @@ function renderChart(performanceData: any) {
 }
 
 onMounted(() => {
-  loadStrategy()
-  loadAccount()
-  loadExecutionHistory()
-  loadPerformance()
-  loadSchedulerTasks()
-  loadTradeRecords()
-
+  // 首次加载由 AccountSwitcher change 触发（支持 ?account=xxx 预选）
   // 每30秒自动刷新
   refreshTimer = window.setInterval(() => {
-    loadAccount()
-    loadSchedulerTasks()
+    if (selectedAccount.value) {
+      loadAccount()
+      loadSchedulerTasks()
+    }
   }, 30000)
 
   // 响应式调整图表大小
@@ -1048,6 +1061,8 @@ onMounted(() => {
     chartInstance?.resize()
   })
 })
+
+defineExpose({ onAccountChange, runStrategy, hasStrategy, selectedAccount })
 
 onUnmounted(() => {
   if (refreshTimer) {
@@ -1065,6 +1080,13 @@ onUnmounted(() => {
 <style scoped>
 .simulation-trading {
   padding: 20px;
+}
+
+.account-toolbar {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .card-header {
