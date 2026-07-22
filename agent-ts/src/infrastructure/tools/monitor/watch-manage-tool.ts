@@ -14,7 +14,7 @@ const ConditionSchema = Type.Object({
     description: "条件类型: price_break(价格上下破) | pct_change(涨跌幅) | pnl_pct(盈亏%) | velocity(瞬时涨速) | volume_surge(量能异动)"
   }),
   params: Type.Record(Type.String(), Type.Any(), {
-    description: "条件参数。price_break: {direction, price}; pct_change: {direction, pct}; pnl_pct: {direction, pct}; velocity: {pct, window_min}; volume_surge: {multiple}。direction: above|below；pct 为百分数(3.0=3%)"
+    description: "条件参数。price_break: {direction, price}; pct_change: {direction, pct}; pnl_pct: {direction, pct}; velocity: {pct, window_min}; volume_surge: {multiple}。direction: above|below；pct 为百分数带符号（above 传正值如 3.0=涨3%，below 传负值如 -8.0=跌8%止损）"
   }),
   cooldown_sec: Type.Optional(Type.Number({ description: "触发冷却秒数，默认300" })),
 });

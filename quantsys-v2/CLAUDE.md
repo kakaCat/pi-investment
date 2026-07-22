@@ -144,6 +144,12 @@ python check_migration.py        # 检查迁移完成度
 python auto_migrate.py --help     # 自动生成路由模板
 ```
 
+### WatchEngine 实时盯盘（2026-07-22 新增）
+
+WatchEngine 常驻线程**仅由 `scheduler_daemon.py` 启动**（`_register_watch_engine`）。
+Flask server.py 和 FastAPI main.py 都不会启动它——若未来迁移部署方式，盯盘会静默消失。
+规则管理 API：`/api/watch/rules` CRUD（Flask + FastAPI parity）。
+
 ### Flask (已废弃，仅用于回滚)
 ```bash
 # ⚠️ 以下命令已不再使用，保留仅供紧急回滚
