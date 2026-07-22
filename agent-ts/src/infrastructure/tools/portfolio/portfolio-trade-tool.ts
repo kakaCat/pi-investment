@@ -6,10 +6,12 @@
 import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { wrapToolExecution } from "../shared/error-handler.js";
+import { executeAccountTrade } from "../../adapters/quant/quant-v2-client.js";
 
 interface PortfolioTradeInput {
   action: 'buy' | 'sell';
   symbol: string;
+  account: string;
   reason: string;
   amount?: number;
   shares?: number;
@@ -17,7 +19,16 @@ interface PortfolioTradeInput {
   strategy?: string;
 }
 
-async function executePortfolioTrade(input: PortfolioTradeInput) {
+export async function executePortfolioTrade(input: PortfolioTradeInput) {
+  // 验证：必须指定代管账户
+  if (!input.account) {
+    return {
+      success: false,
+      error: '缺少必填参数 account（代管账户名）',
+      hint: '先用 portfolio_status({ action: "list" }) 查看可用账户'
+    };
+  }
+
   // 验证：必须有交易理由
   if (!input.reason || input.reason.trim().length < 10) {
     return {
@@ -27,60 +38,42 @@ async function executePortfolioTrade(input: PortfolioTradeInput) {
     };
   }
 
-  // 调用quantsys-v2的虚拟仓API
+  // 调用quantsys-v2的多账户交易API
   try {
-    const response = await fetch('http://127.0.0.1:5001/api/portfolio/trade', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: input.action,
-        symbol: input.symbol,
-        amount: input.amount,
-        shares: input.shares,
-        price_limit: input.price_limit,
-        metadata: {
-          agent_reason: input.reason,
-          strategy: input.strategy,
-          timestamp: new Date().toISOString(),
-          source: 'agent_ai'
-        }
-      })
+    const data = await executeAccountTrade(input.account, {
+      action: input.action,
+      symbol: input.symbol,
+      amount: input.amount,
+      shares: input.shares,
+      price_limit: input.price_limit,
+      reason: `${input.reason}${input.strategy ? ` [策略:${input.strategy}]` : ''}`,
     });
 
-    const result = await response.json() as any;
-
-    if (result.success) {
-      const data = result.data;
-
-      return {
-        success: true,
-        order_id: data.order_id,
-        message: `${input.action === 'buy' ? '买入' : '卖出'}订单已提交`,
-        details: {
-          symbol: input.symbol,
-          action: input.action,
-          price: data.price,
-          shares: data.shares,
-          amount: data.amount,
-          reason: input.reason
-        },
-        note: input.action === 'buy'
-          ? 'T+1规则：今日买入，明日才能卖出'
-          : '卖出订单已提交'
-      };
-    } else {
-      return {
-        success: false,
-        error: result.error || '交易执行失败',
-        details: result
-      };
-    }
+    return {
+      success: true,
+      order_id: data.order_id,
+      message: `${input.action === 'buy' ? '买入' : '卖出'}订单已成交`,
+      details: {
+        account: input.account,
+        symbol: input.symbol,
+        action: input.action,
+        price: data.price,
+        shares: data.shares,
+        amount: data.amount,
+        commission: data.commission,
+        realized_pnl: data.realized_pnl ?? undefined,
+        reason: input.reason
+      },
+      note: input.action === 'buy'
+        ? 'T+1规则：今日买入，明日才能卖出'
+        : '卖出已成交，已实现盈亏见 realized_pnl'
+    };
 
   } catch (error) {
     return {
       success: false,
-      error: `API调用失败: ${error instanceof Error ? error.message : String(error)}`,
-      hint: '请检查quantsys-v2服务是否运行 (http://127.0.0.1:5001)'
+      error: `交易执行失败: ${error instanceof Error ? error.message : String(error)}`,
+      hint: '账户名错误或风控拦截；先用 portfolio_status({ action: "list" }) 确认账户'
     };
   }
 }
@@ -89,7 +82,9 @@ export const portfolioTradeTool: ToolDefinition = {
   name: "portfolio_trade",
   label: "虚拟仓交易",
   description:
-    "Agent执行虚拟仓交易 - 买入或卖出股票。" +
+    "Agent执行模拟账户交易 - 买入或卖出股票。Agent 是策略账户的操盘手：" +
+    "每笔交易必须指定 account（代管账户名）和 reason（交易理由）。" +
+    "不确定账户时先用 portfolio_status({ action: 'list' })。" +
     "\n\n功能：" +
     "\n  • 买入股票（需要有可用资金）" +
     "\n  • 卖出股票（需要有持仓且T+1可卖）" +
@@ -113,6 +108,10 @@ export const portfolioTradeTool: ToolDefinition = {
       Type.Literal('sell')
     ], {
       description: "交易动作：buy=买入, sell=卖出"
+    }),
+
+    account: Type.String({
+      description: "代管账户名（必填），如 v13_simulation。不确定时先 portfolio_status({ action: 'list' })"
     }),
 
     symbol: Type.String({
