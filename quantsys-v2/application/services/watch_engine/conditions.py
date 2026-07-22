@@ -26,7 +26,7 @@ class EvalResult:
 @dataclass
 class EvalContext:
     cost_price: Optional[float] = None
-    price_history: Tuple = ()            # tuple[(datetime, price), ...]，按时间升序
+    price_history: Tuple[Tuple[datetime, float], ...] = ()  # tuple[(datetime, price), ...]，按时间升序
     avg_volume_20d: Optional[float] = None
     elapsed_fraction: float = 1.0        # 当日已过交易时间比例 0~1
 
@@ -40,6 +40,8 @@ def validate_condition(cond: dict) -> None:
     if ctype == 'price_break':
         if 'price' not in params:
             raise ValueError('price_break 需要 params.price')
+        if params['price'] <= 0:
+            raise ValueError('price_break 的 price 必须为正数')
         if params.get('direction') not in ('above', 'below'):
             raise ValueError('price_break 需要 params.direction: above|below')
     elif ctype in ('pct_change', 'pnl_pct'):
@@ -50,14 +52,22 @@ def validate_condition(cond: dict) -> None:
     elif ctype == 'velocity':
         if 'pct' not in params or 'window_min' not in params:
             raise ValueError('velocity 需要 params.pct 和 params.window_min')
+        if params['pct'] <= 0:
+            raise ValueError('velocity 的 pct 必须为正数')
+        if params['window_min'] <= 0:
+            raise ValueError('velocity 的 window_min 必须为正数')
     elif ctype == 'volume_surge':
         if 'multiple' not in params:
             raise ValueError('volume_surge 需要 params.multiple')
+        if params['multiple'] <= 0:
+            raise ValueError('volume_surge 的 multiple 必须为正数')
 
 
 def evaluate(cond: dict, quote, ctx: EvalContext, now: Optional[datetime] = None) -> EvalResult:
     """评估单个条件。quote 需有 .price，可选 .prev_close / .change_pct / .volume"""
     ctype = cond['type']
+    if ctype not in _HANDLERS:
+        raise ValueError(f'未知条件类型: {ctype}')
     params = cond.get('params') or {}
     handler = _HANDLERS[ctype]
     return handler(params, quote, ctx, now or datetime.now())
@@ -134,7 +144,7 @@ def _eval_velocity(params, quote, ctx, now) -> EvalResult:
 def _eval_volume_surge(params, quote, ctx, now) -> EvalResult:
     if not ctx.avg_volume_20d or getattr(quote, 'volume', None) is None:
         return EvalResult(False, None, None, '无均量或成交量数据')
-    baseline = ctx.avg_volume_20d * max(ctx.elapsed_fraction, 0.01)
+    baseline = ctx.avg_volume_20d * min(1.0, max(ctx.elapsed_fraction, 0.01))
     ratio = float(quote.volume) / baseline
     multiple = float(params['multiple'])
     triggered = ratio >= multiple

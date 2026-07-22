@@ -36,6 +36,20 @@ class TestValidate:
         with pytest.raises(ValueError):
             validate_condition({'type': 'price_break', 'params': {'direction': 'above'}})
 
+    def test_evaluate_unknown_type_raises_value_error(self):
+        with pytest.raises(ValueError, match='未知条件类型'):
+            evaluate({'type': 'magic', 'params': {}}, make_quote(), EvalContext())
+
+    @pytest.mark.parametrize('cond', [
+        {'type': 'price_break', 'params': {'direction': 'above', 'price': -1}},
+        {'type': 'velocity', 'params': {'pct': -1, 'window_min': 5}},
+        {'type': 'velocity', 'params': {'pct': 2, 'window_min': 0}},
+        {'type': 'volume_surge', 'params': {'multiple': 0}},
+    ])
+    def test_non_positive_params_rejected(self, cond):
+        with pytest.raises(ValueError):
+            validate_condition(cond)
+
 
 class TestPriceBreak:
     def test_above_triggered(self):
@@ -151,3 +165,9 @@ class TestVolumeSurge:
                      make_quote(), ctx)
         assert r.triggered is False
         assert r.distance_ratio is None
+
+    def test_elapsed_fraction_clamped(self):
+        ctx = EvalContext(avg_volume_20d=10_000_000, elapsed_fraction=1.5)
+        r = evaluate({'type': 'volume_surge', 'params': {'multiple': 2.0}},
+                     make_quote(volume=25_000_000), ctx)
+        assert r.value == pytest.approx(2.5)  # 按 1.0 折算而非 1.5
