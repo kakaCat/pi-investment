@@ -22,8 +22,11 @@ def make_avg_volume_provider():
         from adapters.outbound.datasources.manager import get_data_provider_manager
         end = datetime.now().strftime('%Y-%m-%d')
         start = (datetime.now() - timedelta(days=40)).strftime('%Y-%m-%d')
-        result = get_data_provider_manager().get_klines(symbol, 'daily', start, end)
+        # 归一化为裸代码：akshare 只接受 6 位代码，DB miss 时 fallback 会失败
+        bare_symbol = symbol.split('.')[0]
+        result = get_data_provider_manager().get_klines(bare_symbol, 'daily', start, end)
         if not result.get('success'):
+            logger.warning('均量获取失败，volume_surge 降级', symbol=symbol)
             return None
         # data 为 List[KlineData] dataclass（非 dict），用属性访问；兼容 dict 兜底
         volumes = []
@@ -31,7 +34,10 @@ def make_avg_volume_provider():
             v = k.get('volume') if isinstance(k, dict) else getattr(k, 'volume', None)
             if v:
                 volumes.append(v)
-        return sum(volumes) / len(volumes) if volumes else None
+        if not volumes:
+            logger.warning('均量获取失败，volume_surge 降级', symbol=symbol, reason='empty_volumes')
+            return None
+        return sum(volumes) / len(volumes)
     return provider
 
 
@@ -48,10 +54,10 @@ def create_watch_engine() -> WatchEngine:
     )
 
 
-def start_watch_engine_in_thread() -> threading.Thread:
-    """daemon 线程启动引擎，随主进程退出"""
+def start_watch_engine_in_thread() -> tuple[WatchEngine, threading.Thread]:
+    """daemon 线程启动引擎，随主进程退出。返回 (engine, thread) 供调用方留存句柄优雅停止"""
     engine = create_watch_engine()
     thread = threading.Thread(target=engine.run_forever, name='watch-engine', daemon=True)
     thread.start()
     logger.info('✓ WatchEngine 已在后台线程启动')
-    return thread
+    return engine, thread
