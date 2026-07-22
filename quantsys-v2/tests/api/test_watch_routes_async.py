@@ -91,3 +91,22 @@ def test_list_triggers(client):
 def test_list_triggers_invalid_limit_falls_back(client):
     resp = client.get('/api/watch/triggers?limit=abc')
     assert resp.status_code == 200
+
+
+def test_create_empty_conditions_400(client):
+    resp = client.post('/api/watch/rules', json={'symbol': '600519.SH', 'conditions': []})
+    assert resp.status_code == 400
+
+
+def test_update_invalid_conditions_400(client, created_rule):
+    resp = client.put(f'/api/watch/rules/{created_rule}',
+                      json={'conditions': [{'type': 'magic'}]})
+    assert resp.status_code == 400
+
+
+def test_list_filter_by_symbol(client, created_rule):
+    resp = client.get('/api/watch/rules?symbol=000001.SZ')
+    assert resp.status_code == 200
+    rules = resp.json()['rules']
+    assert len(rules) > 0
+    assert all(r['symbol'] == '000001.SZ' for r in rules)
