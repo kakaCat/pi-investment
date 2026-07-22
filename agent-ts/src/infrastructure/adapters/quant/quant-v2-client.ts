@@ -320,6 +320,13 @@ const V2_ROUTES: Record<
   "signal.test_verify":  { path: "/api/signal-test/verify",         method: "POST" },
   "signal.test_stats":   { path: "/api/signal-test/stats",          method: "GET" },
 
+  // ── watch (实时盯盘) ──
+  "watch.rules.list":    { path: "/api/watch/rules",              method: "GET" },
+  "watch.rules.create":  { path: "/api/watch/rules",              method: "POST" },
+  "watch.rules.update":  { path: "/api/watch/rules/{id}",         method: "PUT" },
+  "watch.rules.remove":  { path: "/api/watch/rules/{id}",         method: "DELETE" },
+  "watch.triggers.list": { path: "/api/watch/triggers",           method: "GET" },
+
   // ── watchlist ──
   "watchlist.list":      { path: "/api/stocks/watchlist",          method: "GET" },
   "watchlist.add":       { path: "/api/stocks/watchlist",          method: "POST" },

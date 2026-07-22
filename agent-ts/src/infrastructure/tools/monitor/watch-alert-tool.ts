@@ -67,7 +67,7 @@ export const watchAlertTool: ToolDefinition = {
     }
 
     try {
-      const response = await runQuantV2("watch.price-alert", params);
+      const response = await runQuantV2("watch.price_alert", params);
       return handleToolResponse({
         toolName: 'watch_price_alert',
         data: response,

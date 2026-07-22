@@ -169,6 +169,7 @@ import { screeningTool } from "./screening/screening-tool.js";
 import { sectorAnalysisTool } from "./analysis/sector-analysis-tool.js";
 import { benchmarkCompareTool } from "./analysis/benchmark-compare-tool.js";
 import { watchAlertTool } from "./monitor/watch-alert-tool.js";
+import { watchManageTool } from "./monitor/watch-manage-tool.js";
 import { tradeVerifyTool } from "./trade/trade-verify-tool.js";
 import { dailyReportTool } from "./report/daily-report-tool.js";
 import { asyncJobsTool } from "./core/async-jobs-tool.js";
@@ -294,6 +295,7 @@ export const allCustomTools = [
 
   // ===== 监控与预警工具（从 quant_cli 拆分）=====
   watchAlertTool,                 // watch_price_alert - 价格预警
+  watchManageTool,                // watch_manage - 实时盯盘规则管理
 
   // ===== 交易验证工具（从 quant_cli 拆分）=====
   tradeVerifyTool,                // trade_verify - 交易记录验证
