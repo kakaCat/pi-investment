@@ -52,6 +52,10 @@ class TestCreate:
         resp = client.post('/api/watch/rules', json={'symbol': '600519.SH', 'conditions': []})
         assert resp.status_code == 400
 
+    def test_conditions_not_list_400(self, client):
+        resp = client.post('/api/watch/rules', json={'symbol': '600519.SH', 'conditions': 'abc'})
+        assert resp.status_code == 400
+
 
 class TestList:
     def test_list_contains_created(self, client, created_rule):
@@ -63,6 +67,7 @@ class TestList:
     def test_filter_by_symbol(self, client, created_rule):
         resp = client.get('/api/watch/rules?symbol=600519.SH')
         rules = resp.get_json()['rules']
+        assert len(rules) > 0
         assert all(r['symbol'] == '600519.SH' for r in rules)
 
 
@@ -81,6 +86,10 @@ class TestUpdate:
                           json={'conditions': [{'type': 'magic'}]})
         assert resp.status_code == 400
 
+    def test_update_invalid_expires_at_400(self, client, created_rule):
+        resp = client.put(f'/api/watch/rules/{created_rule}', json={'expires_at': 'garbage'})
+        assert resp.status_code == 400
+
 
 class TestDelete:
     def test_delete(self, client, created_rule):
@@ -97,3 +106,7 @@ class TestTriggers:
         resp = client.get('/api/watch/triggers?limit=5')
         assert resp.status_code == 200
         assert 'triggers' in resp.get_json()
+
+    def test_invalid_limit_falls_back(self, client):
+        resp = client.get('/api/watch/triggers?limit=abc')
+        assert resp.status_code == 200
