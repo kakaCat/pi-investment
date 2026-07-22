@@ -11,7 +11,7 @@ const getText = (result: any): string => {
 };
 
 // Mock notification tools
-jest.mock('../../../tools/notification-tools.js', () => ({
+jest.mock('../shared/notification-tools.js', () => ({
   sendNotificationTool: {
     execute: jest.fn(async () => ({
       content: [{ type: 'text', text: '通知已发送' }],
@@ -379,7 +379,7 @@ describe('monitorAlertTool - Business Logic', () => {
 
     it('should handle service errors gracefully', async () => {
 // @ts-ignore - Module stub needed
-      const { sendNotificationTool } = await import('../../../tools/notification-tools.js');
+      const { sendNotificationTool } = await import('../shared/notification-tools.js');
       (sendNotificationTool.execute as any).mockRejectedValueOnce(new Error('Network error'));
 
       const result = await monitorAlertTool.execute('test-id', {
