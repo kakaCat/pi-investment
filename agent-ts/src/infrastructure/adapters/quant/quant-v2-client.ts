@@ -2326,3 +2326,85 @@ export const QuantV2Client = {
  * 默认客户端实例（向后兼容）
  */
 export const quantV2Client = QuantV2Client;
+
+// ==================== 多账户域（simulation accounts） ====================
+
+export interface AccountSummary {
+  account_name: string;
+  display_name: string | null;
+  strategy_name: string | null;
+  status: string;
+  cash_available: number;
+  cash_frozen: number;
+  position_value: number;
+  total_value: number;
+  cumulative_return: number;
+  positions_count: number;
+}
+
+export interface AccountTradeRequest {
+  action: "buy" | "sell";
+  symbol: string;
+  shares?: number;
+  amount?: number;
+  price_limit?: number;
+  reason: string;
+}
+
+/** 账户发现：列出账户 + 摘要 */
+export async function listAccounts(): Promise<{ accounts: AccountSummary[]; total: number }> {
+  const result = await fetchV2<{ success: boolean; data: { accounts: AccountSummary[]; total: number } }>(
+    `${V2_API_BASE}/api/simulation/accounts`,
+  );
+  return result.data;
+}
+
+/** 查询账户详情（资金两态 + 持仓） */
+export async function getAccount(accountName: string): Promise<any> {
+  const result = await fetchV2<{ success: boolean; data: any }>(
+    `${V2_API_BASE}/api/simulation/accounts/${encodeURIComponent(accountName)}`,
+  );
+  return result.data;
+}
+
+/** 开户 */
+export async function createAccount(params: {
+  account_name: string;
+  initial_capital: number;
+  display_name?: string;
+  strategy_name?: string;
+}): Promise<{ account_name: string }> {
+  const result = await fetchV2<{ success: boolean; data: { account_name: string } }>(
+    `${V2_API_BASE}/api/simulation/accounts`,
+    { method: "POST", body: params },
+  );
+  return result.data;
+}
+
+/** 手工/代管交易（agent 虚拟仓核心） */
+export async function executeAccountTrade(
+  accountName: string,
+  req: AccountTradeRequest,
+): Promise<any> {
+  const result = await fetchV2<{ success: boolean; data: any }>(
+    `${V2_API_BASE}/api/simulation/accounts/${encodeURIComponent(accountName)}/trade`,
+    { method: "POST", body: req },
+  );
+  return result.data;
+}
+
+/** 账户交易记录 */
+export async function getAccountTrades(accountName: string, limit = 50): Promise<any[]> {
+  const result = await fetchV2<{ success: boolean; data: any[] }>(
+    `${V2_API_BASE}/api/simulation/trades?account_name=${encodeURIComponent(accountName)}&limit=${limit}`,
+  );
+  return result.data;
+}
+
+/** 账户绩效（净值快照） */
+export async function getAccountPerformance(accountName: string): Promise<any> {
+  const result = await fetchV2<{ success: boolean; data: any }>(
+    `${V2_API_BASE}/api/simulation/performance?account_name=${encodeURIComponent(accountName)}`,
+  );
+  return result.data;
+}
