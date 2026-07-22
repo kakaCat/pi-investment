@@ -358,6 +358,14 @@ def register_routes():
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import watchlist_async: {e}")
 
+    # 实时盯盘（watch 域，WatchEngine parity 迁移）
+    try:
+        from adapters.inbound.fastapi_app.routes.watch_async import router as watch_router
+        app.include_router(watch_router)
+        logger.info("✅ Registered: watch (WatchEngine parity 迁移)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import watch_async: {e}")
+
     # 订单/交易/投资组合（orders 域，P5 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.orders_async import router as orders_router
