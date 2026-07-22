@@ -160,6 +160,8 @@ def create_app():
     app.register_blueprint(training_bp)
     from adapters.inbound.api.routes.watchlist import watchlist_bp
     app.register_blueprint(watchlist_bp)
+    from adapters.inbound.api.routes.watch import watch_bp
+    app.register_blueprint(watch_bp)
     from adapters.inbound.api.routes.diagnosis import diagnosis_bp
     app.register_blueprint(diagnosis_bp)
     from adapters.inbound.api.routes.data_quality import data_quality_bp
