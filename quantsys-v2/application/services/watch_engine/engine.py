@@ -55,6 +55,7 @@ class WatchEngine:
         self._history: Dict[str, List[Tuple[datetime, float]]] = {}
         self._last_triggered: Dict[Tuple[int, int], datetime] = {}
         self._avg_volume_cache: Dict[str, float] = {}
+        self._state_date = None  # 状态所属日期，跨天重置
         self.fast_mode = False
         self._stopped = False
 
@@ -87,6 +88,7 @@ class WatchEngine:
 
     def tick(self) -> List[dict]:
         now = self.now_fn()
+        self._reset_daily_state_if_needed(now)
         rules = self.rule_repo.list_enabled()
         events = []
         fast = False
@@ -113,7 +115,12 @@ class WatchEngine:
                     continue
                 if self._in_cooldown(rule.id, idx, cond, now):
                     continue
-                self.notifier.notify(rule, cond, quote, result)
+                try:
+                    self.notifier.notify(rule, cond, quote, result)
+                except Exception as e:
+                    # 不设置 _last_triggered，下个 tick 重试（at-least-once）
+                    logger.error('通知发送失败', rule_id=rule.id, cond=cond, error=str(e))
+                    continue
                 self._last_triggered[(rule.id, idx)] = now
                 events.append({'rule_id': rule.id, 'symbol': rule.symbol,
                                'condition': cond, 'price': float(quote.price),
@@ -124,13 +131,34 @@ class WatchEngine:
 
     # ── 内部 ────────────────────────────────────────────────
 
+    def _reset_daily_state_if_needed(self, now: datetime):
+        """跨天重置：均量缓存过期 + 清理已删除规则的残留状态"""
+        current_date = now.date()
+        if self._state_date == current_date:
+            return
+        self._state_date = current_date
+        self._avg_volume_cache.clear()
+        active_ids = {r.id for r in self.rule_repo.list_enabled()}
+        self._last_triggered = {k: v for k, v in self._last_triggered.items()
+                                if k[0] in active_ids}
+        active_symbols = {r.symbol for r in self.rule_repo.list_enabled()}
+        self._history = {s: buf for s, buf in self._history.items()
+                         if s in active_symbols}
+
     def _in_active_window(self, rule, now: datetime) -> bool:
         windows = getattr(rule, 'active_window', None)
         if not windows:
             return True
         current = now.strftime('%H:%M')
-        return any(start <= current <= end for w in windows
-                   for start, end in [w.split('-')])
+        try:
+            return any(start <= current <= end for w in windows
+                       for start, end in [w.split('-')])
+        except (ValueError, AttributeError, TypeError) as e:
+            # 畸形窗口格式 fail-open：记 warning，不丢监控
+            logger.warning('active_window 格式错误，放行监控',
+                           rule_id=getattr(rule, 'id', None),
+                           active_window=windows, error=str(e))
+            return True
 
     def _build_ctx(self, rule, now: datetime) -> EvalContext:
         cost = getattr(rule, 'cost_price', None)

@@ -126,6 +126,43 @@ class TestTick:
         engine = make_engine([rule], {'600519.SH': 101.0})
         assert len(engine.tick()) == 1
 
+    def test_active_window_malformed_fails_open(self):
+        # 畸形格式（无分隔符）不应毒化 tick，fail-open 继续监控
+        rule = make_rule(active_window=['14301500'])
+        engine = make_engine([rule], {'600519.SH': 101.0})
+        assert len(engine.tick()) == 1
+
+    def test_day_rollover_resets_avg_volume_cache(self):
+        calls = []
+        def provider(symbol):
+            calls.append(symbol)
+            return 10_000_000.0
+        clock = {'now': NOW}
+        engine = WatchEngine(FakeRepo([make_rule()]), FakeQuoteService({'600519.SH': 99.0}),
+                             FakeNotifier(), avg_volume_provider=provider,
+                             now_fn=lambda: clock['now'])
+        engine.tick()
+        engine.tick()  # 同一天，用缓存
+        assert len(calls) == 1
+        clock['now'] = NOW + timedelta(days=1)  # 跨天 → 缓存失效重新取
+        engine.tick()
+        assert len(calls) == 2
+
+    def test_notify_failure_retries_next_tick(self):
+        class FlakyNotifier:
+            def __init__(self):
+                self.calls = 0
+            def notify(self, rule, condition, quote, result):
+                self.calls += 1
+                if self.calls == 1:
+                    raise RuntimeError('feishu down')
+                return True
+        notifier = FlakyNotifier()
+        engine = make_engine([make_rule()], {'600519.SH': 101.0}, notifier)
+        assert engine.tick() == []  # 第一次抛异常，无事件
+        assert len(engine.tick()) == 1  # 未记 _last_triggered，下个 tick 重试成功
+        assert notifier.calls == 2
+
 
 class TestAdaptiveFrequency:
     def test_fast_mode_when_near_threshold(self):
