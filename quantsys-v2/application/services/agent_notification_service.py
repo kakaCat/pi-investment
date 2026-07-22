@@ -24,9 +24,10 @@ class AgentNotificationService:
     V2 任务执行完成后，通过此服务唤醒 Agent 进行智能分析和推送
     """
 
-    def __init__(self, agent_url: Optional[str] = None):
+    def __init__(self, agent_url: Optional[str] = None, timeout: Optional[int] = None):
         self.agent_url = agent_url or os.getenv('AGENT_API_URL', 'http://localhost:3001')
-        self.timeout = int(os.getenv('AGENT_TIMEOUT', '30'))
+        # timeout 显式传入优先（如盯盘路径需要更短超时），否则读环境变量
+        self.timeout = timeout if timeout is not None else int(os.getenv('AGENT_TIMEOUT', '30'))
         self.enabled = os.getenv('AGENT_NOTIFY_ENABLED', 'true').lower() == 'true'
 
     def notify_agent(self, event: str, data: Dict[str, Any]) -> bool:
@@ -39,9 +40,20 @@ class AgentNotificationService:
         Returns:
             是否成功通知
         """
+        return self.notify_agent_detailed(event, data) == 'ok'
+
+    def notify_agent_detailed(self, event: str, data: Dict[str, Any]) -> str:
+        """通知 Agent 并返回详细结果
+
+        Returns:
+            'ok'      - 成功送达并确认
+            'timeout' - 请求超时（事件大概率已送达，Agent 正在处理，不应重试）
+            'error'   - 连接失败/其他错误（事件未送达，可重试）
+            'disabled'- 通知被禁用
+        """
         if not self.enabled:
             logger.debug(f"Agent notify disabled, skipping: {event}")
-            return False
+            return 'disabled'
 
         try:
             payload = {
@@ -63,23 +75,23 @@ class AgentNotificationService:
                 result = response.json()
                 if result.get('success'):
                     logger.info(f"Agent notified successfully: {event}")
-                    return True
+                    return 'ok'
                 else:
                     logger.warning(f"Agent notification failed: {result.get('error')}")
-                    return False
+                    return 'error'
             else:
                 logger.error(f"Agent API error {response.status_code}: {response.text}")
-                return False
+                return 'error'
 
         except requests.exceptions.Timeout:
             logger.error(f"Agent notification timeout: {event}")
-            return False
+            return 'timeout'
         except requests.exceptions.ConnectionError:
             logger.error(f"Cannot connect to Agent at {self.agent_url}")
-            return False
+            return 'error'
         except Exception as e:
             logger.error(f"Failed to notify Agent: {e}")
-            return False
+            return 'error'
 
     def send_reminder(self, agent_id: str, message: str,
                       remind_at: Optional[str] = None) -> bool:

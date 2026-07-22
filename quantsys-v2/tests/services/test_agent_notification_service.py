@@ -67,6 +67,66 @@ def test_send_reminder_returns_false_when_agent_unreachable():
         assert service.send_reminder(agent_id='a', message='m', remind_at=None) is False
 
 
+def test_notify_agent_detailed_ok():
+    """200 且 success → 'ok'，且 notify_agent 返回 True"""
+    from application.services.agent_notification_service import AgentNotificationService
+
+    service = AgentNotificationService(agent_url='http://agent.test:3001')
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {'success': True}
+
+    with patch('application.services.agent_notification_service.requests.post',
+               return_value=mock_resp):
+        assert service.notify_agent_detailed('watch_triggered', {}) == 'ok'
+        assert service.notify_agent('watch_triggered', {}) is True
+
+
+def test_notify_agent_detailed_timeout():
+    """Timeout → 'timeout'，且 notify_agent 返回 False"""
+    import requests as real_requests
+    from application.services.agent_notification_service import AgentNotificationService
+
+    service = AgentNotificationService(agent_url='http://agent.test:3001')
+
+    with patch('application.services.agent_notification_service.requests.post',
+               side_effect=real_requests.exceptions.Timeout('slow')):
+        assert service.notify_agent_detailed('watch_triggered', {}) == 'timeout'
+        assert service.notify_agent('watch_triggered', {}) is False
+
+
+def test_notify_agent_detailed_error():
+    """ConnectionError → 'error'，且 notify_agent 返回 False"""
+    import requests as real_requests
+    from application.services.agent_notification_service import AgentNotificationService
+
+    service = AgentNotificationService(agent_url='http://agent.test:3001')
+
+    with patch('application.services.agent_notification_service.requests.post',
+               side_effect=real_requests.exceptions.ConnectionError('refused')):
+        assert service.notify_agent_detailed('watch_triggered', {}) == 'error'
+        assert service.notify_agent('watch_triggered', {}) is False
+
+
+def test_notify_agent_detailed_disabled():
+    """通知禁用 → 'disabled'，不发请求"""
+    from application.services.agent_notification_service import AgentNotificationService
+
+    service = AgentNotificationService(agent_url='http://agent.test:3001')
+    service.enabled = False
+
+    with patch('application.services.agent_notification_service.requests.post') as mock_post:
+        assert service.notify_agent_detailed('watch_triggered', {}) == 'disabled'
+        mock_post.assert_not_called()
+
+
+def test_init_timeout_override():
+    """显式 timeout 参数优先于环境变量"""
+    from application.services.agent_notification_service import AgentNotificationService
+
+    assert AgentNotificationService(timeout=10).timeout == 10
+
+
 def test_handle_agent_reminder_success_when_agent_unreachable():
     """调度任务 handler 在 agent 不可达时降级为记日志，仍返回 success"""
     from application.services.scheduler_tasks import handle_agent_reminder

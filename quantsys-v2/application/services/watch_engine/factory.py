@@ -43,7 +43,7 @@ def make_avg_volume_provider():
 
 def create_watch_engine() -> WatchEngine:
     notifier = WatchNotifier(
-        agent_service=AgentNotificationService(),
+        agent_service=AgentNotificationService(timeout=10),
         trigger_repo=WatchTriggerRepository(),
     )
     return WatchEngine(

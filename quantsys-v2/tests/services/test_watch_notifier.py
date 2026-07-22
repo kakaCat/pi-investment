@@ -23,12 +23,12 @@ RESULT = EvalResult(triggered=True, value=1801.5, distance_ratio=0.0,
 
 class FakeAgentService:
     def __init__(self, results):
-        self.results = list(results)  # 每次调用的返回值
+        self.results = list(results)  # 每次调用的详细返回值（'ok'/'timeout'/'error'/'disabled'）
         self.calls = []
 
-    def notify_agent(self, event, data):
+    def notify_agent_detailed(self, event, data):
         self.calls.append((event, data))
-        return self.results.pop(0) if self.results else False
+        return self.results.pop(0) if self.results else 'error'
 
 
 class FakeTriggerRepo:
@@ -42,7 +42,7 @@ class FakeTriggerRepo:
 
 class TestNotify:
     def test_payload_contains_context_and_pnl(self):
-        agent = FakeAgentService([True])
+        agent = FakeAgentService(['ok'])
         repo = FakeTriggerRepo()
         notifier = WatchNotifier(agent, repo, ws_url=None)
         ok = notifier.notify(make_rule(), COND, make_quote(), RESULT)
@@ -60,21 +60,29 @@ class TestNotify:
         assert repo.records[0]['trigger_price'] == 1801.5
 
     def test_retry_on_failure_then_success(self):
-        agent = FakeAgentService([False, False, True])
+        agent = FakeAgentService(['error', 'error', 'ok'])
         repo = FakeTriggerRepo()
         notifier = WatchNotifier(agent, repo, ws_url=None, max_retries=3, retry_interval=0)
         assert notifier.notify(make_rule(), COND, make_quote(), RESULT) is True
         assert len(agent.calls) == 3
 
     def test_all_retries_fail_still_records(self):
-        agent = FakeAgentService([False, False, False])
+        agent = FakeAgentService(['error', 'error', 'error'])
         repo = FakeTriggerRepo()
         notifier = WatchNotifier(agent, repo, ws_url=None, max_retries=3, retry_interval=0)
         assert notifier.notify(make_rule(), COND, make_quote(), RESULT) is False
         assert repo.records[0]['notified'] is False  # 落库待补发
 
+    def test_timeout_not_retried(self):
+        agent = FakeAgentService(['timeout'])
+        repo = FakeTriggerRepo()
+        notifier = WatchNotifier(agent, repo, ws_url=None, max_retries=3, retry_interval=0)
+        assert notifier.notify(make_rule(), COND, make_quote(), RESULT) is True
+        assert len(agent.calls) == 1  # 超时不重试
+        assert repo.records[0]['notified'] is True
+
     def test_ws_broadcast_fire_and_forget(self):
-        agent = FakeAgentService([True])
+        agent = FakeAgentService(['ok'])
         notifier = WatchNotifier(agent, FakeTriggerRepo(),
                                  ws_url='http://127.0.0.1:5003/broadcast/market_data')
         with patch('application.services.watch_engine.notifier.requests.post') as mock_post:
@@ -85,7 +93,7 @@ class TestNotify:
             assert kwargs['json']['type'] == 'watch_triggered'
 
     def test_ws_failure_does_not_break_notify(self):
-        agent = FakeAgentService([True])
+        agent = FakeAgentService(['ok'])
         notifier = WatchNotifier(agent, FakeTriggerRepo(),
                                  ws_url='http://127.0.0.1:5003/broadcast/market_data')
         with patch('application.services.watch_engine.notifier.requests.post',

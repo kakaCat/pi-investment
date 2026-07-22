@@ -51,7 +51,12 @@ class WatchNotifier:
 
     def _notify_agent_with_retry(self, payload) -> bool:
         for attempt in range(1, self.max_retries + 1):
-            if self.agent_service.notify_agent('watch_triggered', payload):
+            result = self.agent_service.notify_agent_detailed('watch_triggered', payload)
+            if result == 'ok':
+                return True
+            if result == 'timeout':
+                # 事件大概率已送达（wake 同步等待 LLM 决策，超时是常态），不重试避免重复唤醒
+                logger.info('唤醒 Agent 超时（事件已送达，不重试）', symbol=payload['symbol'])
                 return True
             logger.warning('唤醒 Agent 失败，重试', attempt=attempt,
                            symbol=payload['symbol'])
