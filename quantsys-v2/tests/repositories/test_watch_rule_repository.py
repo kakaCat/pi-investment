@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime, timedelta
 
 from adapters.outbound.repositories.watch_rule_repository import (
-    WatchRuleRepository, WatchTriggerRepository,
+    WatchRuleRepository, WatchTriggerRepository, rule_to_dict,
 )
 
 
@@ -13,8 +13,11 @@ class TestWatchRuleRepository:
         self.repo = WatchRuleRepository()
         self.trigger_repo = WatchTriggerRepository()
         self._created_ids = []
+        self._created_trigger_ids = []
 
     def teardown_method(self):
+        for tid in self._created_trigger_ids:
+            self.trigger_repo.delete_by_id(tid)
         for rid in self._created_ids:
             self.repo.delete_by_id(rid)
 
@@ -37,6 +40,18 @@ class TestWatchRuleRepository:
         assert fetched.enabled is True
         assert fetched.conditions[0]['type'] == 'price_break'
         assert float(fetched.cost_price) == 1700.0
+
+    def test_rule_to_dict_serialization(self):
+        rule = self._make_rule()
+        d = rule_to_dict(rule)
+        assert set(d.keys()) == {
+            'id', 'symbol', 'enabled', 'conditions', 'context', 'cost_price',
+            'active_window', 'expires_at', 'created_by', 'created_at', 'updated_at',
+        }
+        assert isinstance(d['cost_price'], float)
+        assert d['cost_price'] == 1700.0
+        assert isinstance(d['created_at'], str) and 'T' in d['created_at']
+        assert isinstance(d['updated_at'], str) and 'T' in d['updated_at']
 
     def test_list_enabled_excludes_disabled_and_expired(self):
         active = self._make_rule('000001.SZ')
@@ -66,5 +81,6 @@ class TestWatchRuleRepository:
             notified=True,
         )
         assert trigger.id is not None
+        self._created_trigger_ids.append(trigger.id)
         rows = self.trigger_repo.list_by_symbol(rule.symbol, limit=10)
         assert any(t.id == trigger.id for t in rows)
