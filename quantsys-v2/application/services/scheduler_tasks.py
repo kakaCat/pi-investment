@@ -55,9 +55,9 @@ def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
     # 获取股票列表
     try:
-        from infrastructure.repositories.stock_repository import StockRepository
-        repo = StockRepository()
-        stocks = repo.list_stocks(limit=500)
+        from adapters.outbound.repositories.stock_repository import StockORMRepository
+        repo = StockORMRepository()
+        stocks = repo.get_all(limit=500)
         symbols = [s['symbol'] for s in stocks]
     except Exception as e:
         logger.error(f"Failed to fetch stock list: {e}")
@@ -438,9 +438,9 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
         # 获取股票列表（如果没有指定）
         symbols = params.get('symbols')
         if not symbols:
-            from infrastructure.repositories.stock_repository import StockRepository
-            repo = StockRepository()
-            stocks = repo.list_stocks(limit=500)
+            from adapters.outbound.repositories.stock_repository import StockORMRepository
+            repo = StockORMRepository()
+            stocks = repo.get_all(limit=500)
             symbols = [s['symbol'] for s in stocks]
 
         # 执行因子计算
@@ -480,9 +480,9 @@ def handle_model_train(params: Dict[str, Any] = None) -> Dict[str, Any]:
         # 获取训练数据
         symbols = params.get('symbols')
         if not symbols:
-            from infrastructure.repositories.stock_repository import StockRepository
-            repo = StockRepository()
-            stocks = repo.list_stocks(limit=100)
+            from adapters.outbound.repositories.stock_repository import StockORMRepository
+            repo = StockORMRepository()
+            stocks = repo.get_all(limit=100)
             symbols = [s['symbol'] for s in stocks]
 
         # 准备特征数据
@@ -569,12 +569,13 @@ def handle_market_style_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
         detector = MarketStyleDetector()
 
         # 检测当前市场风格
-        current_style = detector.detect_current_style(
+        current_style = detector.detect_market_style(
             lookback_days=params.get('lookback_days', 20)
         )
 
-        # 更新市场风格记录
-        style_update = detector.update_style_history(current_style)
+        # 风格历史由 strategy_rotation_engine 自行维护，
+        # 原 detector.update_style_history 已不存在（2026-07-23 修复）
+        style_update = {'changes': []}
 
         return {
             "action": "market_style_update",
@@ -858,9 +859,9 @@ def handle_strategy_discover_weekly(params: Dict[str, Any] = None) -> Dict[str, 
         # 获取股票池
         symbols = params.get('symbols')
         if not symbols:
-            from infrastructure.repositories.stock_repository import StockRepository
-            repo = StockRepository()
-            stocks = repo.list_stocks(limit=50)  # 限制数量避免太慢
+            from adapters.outbound.repositories.stock_repository import StockORMRepository
+            repo = StockORMRepository()
+            stocks = repo.get_all(limit=50)  # 限制数量避免太慢
             symbols = [s['symbol'] for s in stocks]
 
         # 运行策略发现

@@ -94,8 +94,16 @@ class DailyOrchestrator:
         if today.weekday() >= 5:
             return
 
-        # 获取或创建今日状态
-        state = self._get_or_create_state(today)
+        try:
+            # 获取或创建今日状态
+            state = self._get_or_create_state(today)
+        except Exception as e:
+            # 数据库异常（缺表/连接断开）必须 rollback——否则单例 Session
+            # 卡在中止事务里，后续每次 tick 都抛 PendingRollbackError，
+            # 编排器永久死亡直到进程重启（2026-07-23 code review 发现）
+            logger.error(f"orchestrator_tick_state_error", error=str(e))
+            self.session.rollback()
+            return
 
         # 判断当前应处于哪个阶段
         target_phase = self._determine_phase(now.time())
