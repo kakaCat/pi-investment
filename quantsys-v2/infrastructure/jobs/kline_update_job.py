@@ -89,25 +89,26 @@ def update_gem_klines(**params):
 
         for i, (symbol, name) in enumerate(stocks, 1):
             try:
-                # 使用多数据源获取数据（自动fallback）
-                df = manager.get_klines(
+                # 使用多数据源获取数据（自动fallback：tencent → akshare）
+                # 注意：manager.get_klines 返回 {'success', 'data', 'source'} 字典，
+                # data 是 KlineData 对象列表，不是 DataFrame（2026-07-23 修复
+                # "'dict' object has no attribute 'iterrows'" 契约错位）
+                result = manager.get_klines(
                     symbol,
-                    start_date=start_date,
-                    end_date=end_date,
-                    period='daily'
+                    'daily',
+                    start_date,
+                    end_date,
                 )
+                klines = result.get('data') if result.get('success') else None
 
-                if df is None or len(df) == 0:
+                if not klines:
                     skipped += 1
                     logger.debug(f"[{i}/{total}] {symbol} - 无数据")
                     continue
 
                 # 插入数据库
                 inserted = 0
-                for _, row in df.iterrows():
-                    # 兼容不同字段名
-                    trade_date = row.get('trade_date') or row.get('date') or row.name
-
+                for k in klines:
                     cursor.execute("""
                         INSERT INTO quant.daily_klines
                         (symbol, trade_date, open, high, low, close, volume, amount, turnover_rate)
@@ -123,14 +124,14 @@ def update_gem_klines(**params):
                             turnover_rate = EXCLUDED.turnover_rate
                     """, (
                         symbol,
-                        trade_date,
-                        float(row.get('open', 0)),
-                        float(row.get('high', 0)),
-                        float(row.get('low', 0)),
-                        float(row.get('close', 0)),
-                        int(row.get('volume', 0)),
-                        float(row.get('amount', 0) or row.get('vol', 0)),
-                        float(row.get('turnover_rate', 0) or row.get('turnover', 0) or 0)
+                        k.date,
+                        float(k.open),
+                        float(k.high),
+                        float(k.low),
+                        float(k.close),
+                        int(k.volume),
+                        0.0,  # amount: KlineData 契约无此字段
+                        0.0,  # turnover_rate: 同上
                     ))
                     inserted += 1
 
