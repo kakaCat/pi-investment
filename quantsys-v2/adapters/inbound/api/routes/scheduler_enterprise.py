@@ -9,6 +9,24 @@ from adapters.outbound.repositories.scheduler_repository import SchedulerReposit
 scheduler_enterprise_bp = Blueprint('scheduler_enterprise', __name__, url_prefix='/api/scheduler')
 
 
+def _shared_jobstore_job_count() -> int:
+    """共享 apscheduler_jobs 表中的任务数。
+
+    scheduler_daemon 的 UnifiedSchedulerService 与本调度器共用该表
+    （APScheduler 无跨进程锁）。非空说明 daemon 已持有任务——此时在
+    web 进程启动第二个调度器会双重执行所有任务（2026-07-23 code review）。
+    """
+    from sqlalchemy import create_engine, text
+    from infrastructure.persistence.database.base_repository import _resolve_db_dsn
+
+    engine = create_engine(_resolve_db_dsn())
+    try:
+        with engine.connect() as conn:
+            return conn.execute(text('SELECT COUNT(*) FROM apscheduler_jobs')).scalar()
+    finally:
+        engine.dispose()
+
+
 @scheduler_enterprise_bp.route('/status', methods=['GET'])
 def get_scheduler_status():
     """获取调度器状态"""
@@ -29,8 +47,25 @@ def get_scheduler_status():
 
 @scheduler_enterprise_bp.route('/start', methods=['POST'])
 def start_scheduler():
-    """启动调度器"""
+    """启动调度器
+
+    防护：共享 jobstore 已有任务（daemon 在跑）时拒绝启动第二调度器，
+    除非显式 ?force=true（此时调用方确认接受双重执行风险）。
+    """
     try:
+        force = request.args.get('force', '').lower() == 'true'
+        if not force:
+            job_count = _shared_jobstore_job_count()
+            if job_count > 0:
+                return jsonify({
+                    'success': False,
+                    'error': (
+                        f'apscheduler_jobs 已有 {job_count} 个任务（scheduler_daemon 在运行），'
+                        f'在本进程启动第二个调度器会双重执行所有任务。'
+                        f'确认风险后可用 ?force=true 强制启动。'
+                    )
+                }), 409
+
         scheduler = get_scheduler()
         scheduler.start()
         
