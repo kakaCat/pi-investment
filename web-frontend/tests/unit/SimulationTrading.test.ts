@@ -49,20 +49,21 @@ const ACCOUNT_STATUS = {
   positions: [{ symbol: '601888', shares_total: 700, shares_available: 700, avg_cost: 52.87, current_price: 54.65, market_value: 38255, profit_total: 1246, profit_total_rate: 0.0337, profit_today: 100 }]
 }
 
-const ACCOUNT_LIST = { success: true, data: { accounts: [
+// apiClient 拦截器已解包信封，mock 直接返回内层载荷
+const ACCOUNT_LIST = { accounts: [
   { account_name: 'v13_simulation', display_name: 'V13', strategy_name: 'v13', status: 'active', cash_available: 0, cash_frozen: 0, position_value: 0, total_value: 148285, cumulative_return: 0.48, positions_count: 1 },
   { account_name: 'v14_simulation', display_name: 'V14', strategy_name: 'v14', status: 'active', cash_available: 0, cash_frozen: 0, position_value: 0, total_value: 144859, cumulative_return: 0.45, positions_count: 5 }
-], total: 2 } }
+], total: 2 }
 
 describe('SimulationTrading 统一账户页', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     simulationApiMock.listAccounts.mockResolvedValue(ACCOUNT_LIST)
-    simulationApiMock.getAccount.mockResolvedValue({ success: true, data: ACCOUNT_STATUS })
-    simulationApiMock.getTrades.mockResolvedValue({ success: true, data: [] })
-    simulationApiMock.getPerformance.mockResolvedValue({ success: true, data: { equity_curve: [], initial_capital: 100000, current_value: 148285, cumulative_return: 48.3, max_drawdown: -5 } })
-    simulationApiMock.getExecutionHistory.mockResolvedValue({ success: true, data: [] })
-    simulationApiMock.getStrategyInfo.mockResolvedValue({ success: true, data: { name: 'V13', version: '1.0.0', rebalance_days: 5, max_positions: 8 } })
+    simulationApiMock.getAccount.mockResolvedValue(ACCOUNT_STATUS)
+    simulationApiMock.getTrades.mockResolvedValue([])
+    simulationApiMock.getPerformance.mockResolvedValue({ equity_curve: [], initial_capital: 100000, current_value: 148285, cumulative_return: 48.3, max_drawdown: -5 })
+    simulationApiMock.getExecutionHistory.mockResolvedValue([])
+    simulationApiMock.getStrategyInfo.mockResolvedValue({ name: 'V13', version: '1.0.0', rebalance_days: 5, max_positions: 8 })
   })
 
   it('首载后所有数据请求携带默认账户 account_name', async () => {
@@ -85,7 +86,7 @@ describe('SimulationTrading 统一账户页', () => {
   })
 
   it('执行策略时携带 account_name', async () => {
-    simulationApiMock.runStrategy.mockResolvedValue({ success: true, data: { action: 'skip', message: 'no rebalance' } })
+    simulationApiMock.runStrategy.mockResolvedValue({ action: 'skip', message: 'no rebalance' })
     const wrapper = mountPage()
     await nextTick(); await nextTick(); await nextTick(); await nextTick()
     await wrapper.vm.runStrategy()

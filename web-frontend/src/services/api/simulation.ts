@@ -89,48 +89,48 @@ export interface TradeRequest {
   reason: string
 }
 
-interface Envelope<T> { success: boolean; data: T; error?: string }
-
+// 注意：apiClient 响应拦截器会把后端 { success, data } 信封解包，
+// 这里泛型写的是解包后的内层载荷类型；失败时拦截器直接 reject。
 export const simulationApi = {
   listAccounts(status = 'active') {
-    return apiClient.get<Envelope<{ accounts: AccountSummary[]; total: number }>>(
+    return apiClient.get<{ accounts: AccountSummary[]; total: number }>(
       '/api/simulation/accounts', { params: { status } })
   },
 
   createAccount(req: CreateAccountRequest) {
-    return apiClient.post<Envelope<{ account_name: string }>>(
+    return apiClient.post<{ account_name: string }>(
       '/api/simulation/accounts', { ...req, strategy_name: req.strategy_name })
   },
 
   getAccount(accountName: string) {
-    return apiClient.get<Envelope<AccountStatus>>(`/api/simulation/accounts/${accountName}`)
+    return apiClient.get<AccountStatus>(`/api/simulation/accounts/${accountName}`)
   },
 
   trade(accountName: string, req: TradeRequest) {
-    return apiClient.post<Envelope<any>>(`/api/simulation/accounts/${accountName}/trade`, req)
+    return apiClient.post<any>(`/api/simulation/accounts/${accountName}/trade`, req)
   },
 
   getTrades(accountName: string, limit = 50) {
-    return apiClient.get<Envelope<TradeItem[]>>(
+    return apiClient.get<TradeItem[]>(
       '/api/simulation/trades', { params: { account_name: accountName, limit } })
   },
 
   getPerformance(accountName: string) {
-    return apiClient.get<Envelope<PerformanceData>>(
+    return apiClient.get<PerformanceData>(
       '/api/simulation/performance', { params: { account_name: accountName } })
   },
 
   getExecutionHistory(accountName: string, limit = 50) {
-    return apiClient.get<Envelope<any[]>>(
+    return apiClient.get<any[]>(
       '/api/simulation/execution-history', { params: { account_name: accountName, limit } })
   },
 
   runStrategy(strategyId: string, accountName: string) {
-    return apiClient.post<Envelope<any>>(
+    return apiClient.post<any>(
       '/api/simulation/run', { strategy_id: strategyId, account_name: accountName })
   },
 
   getStrategyInfo(strategyId: string) {
-    return apiClient.get<Envelope<any>>(`/api/simulation/strategies/${strategyId}`)
+    return apiClient.get<any>(`/api/simulation/strategies/${strategyId}`)
   }
 }

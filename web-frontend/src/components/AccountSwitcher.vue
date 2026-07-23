@@ -72,16 +72,16 @@ function formatWan(v: number) {
 }
 
 async function loadAccounts(selectName?: string) {
-  const res = await simulationApi.listAccounts()
-  if (res.success) {
-    accounts.value = res.data.accounts
+  try {
+    const res = await simulationApi.listAccounts()
+    accounts.value = res.accounts
     const target = selectName
       || (props.initialAccount && accounts.value.find(a => a.account_name === props.initialAccount)?.account_name)
       || accounts.value[0]?.account_name
     if (target) {
       selected.value = target  // watch 会触发 onChange → emit('change')
     }
-  } else {
+  } catch {
     ElMessage.error('加载账户列表失败')
   }
 }
@@ -105,19 +105,17 @@ async function submitCreate() {
   }
   creating.value = true
   try {
-    const res = await simulationApi.createAccount({
+    await simulationApi.createAccount({
       account_name: createForm.account_name,
       display_name: createForm.display_name || undefined,
       initial_capital: createForm.initial_capital,
       strategy_name: createForm.strategy_name || undefined
     })
-    if (res.success) {
-      ElMessage.success('开户成功')
-      createVisible.value = false
-      await loadAccounts(createForm.account_name)
-    } else {
-      ElMessage.error(`开户失败: ${(res as any).error || '未知错误'}`)
-    }
+    ElMessage.success('开户成功')
+    createVisible.value = false
+    await loadAccounts(createForm.account_name)
+  } catch (err: any) {
+    ElMessage.error(`开户失败: ${err?.message || '未知错误'}`)
   } finally {
     creating.value = false
   }
