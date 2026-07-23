@@ -58,7 +58,7 @@ function loadProjectSkills(): Skill[] {
 /**
  * 创建 Wake Channel 的 HTTP Server
  */
-export function startWakeChannel(port: number = 3001): { shutdown: () => void } {
+export function startWakeChannel(port: number = 3100): { shutdown: () => void } {
   ensureWakeDir();
 
   const skills = loadProjectSkills();

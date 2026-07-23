@@ -54,6 +54,7 @@ Human User → Monitor & Configure
 | quantsys-v2 Flask API | `127.0.0.1:5001` | `QUANTSYS_API_HOST` / `QUANTSYS_API_PORT` / `QUANTSYS_API_URL` |
 | quantsys-v2 WebSocket | `127.0.0.1:5003` | `QUANTSYS_API_HOST` / `QUANTSYS_WS_PORT` 环境变量 |
 | web-frontend Vite | `127.0.0.1:3001` | 代理 `/api` → `127.0.0.1:5001` |
+| agent-ts Wake Channel | `127.0.0.1:3100` | `WAKE_CHANNEL_PORT`；v2 侧对应 `AGENT_API_URL=http://127.0.0.1:3100` |
 | TypeScript Agent | N/A (CLI) | 通过环境变量连接各服务 |
 | PostgreSQL | `127.0.0.1:5432` | 仅用于 quantsys-v2 后端 |
 | Redis | `127.0.0.1:6379` | `REDIS_HOST` / `REDIS_PORT` 环境变量 |

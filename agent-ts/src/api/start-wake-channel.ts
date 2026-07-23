@@ -10,7 +10,7 @@ import { startWakeChannel } from "./wake-channel.js";
 // 加载环境变量
 config();
 
-const PORT = process.env.WAKE_CHANNEL_PORT ? parseInt(process.env.WAKE_CHANNEL_PORT) : 3001;
+const PORT = process.env.WAKE_CHANNEL_PORT ? parseInt(process.env.WAKE_CHANNEL_PORT) : 3100;
 
 console.log("🚀 启动 Wake Channel...");
 
