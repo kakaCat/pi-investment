@@ -32,6 +32,13 @@ from infrastructure.persistence.database.base_repository import _resolve_db_dsn
 
 logger = structlog.get_logger(__name__)
 
+# Misfire 宽限时间：12 小时。
+# 调度 daemon 运行在会休眠的笔记本上，APScheduler 的 monotonic 定时器在
+# 系统睡眠期间冻结，机器唤醒时任务往往已迟到数小时。宽限 12h 覆盖一次完整
+# 的夜间休眠，配合 coalesce=True，唤醒后立即补跑一次错过的每日任务，
+# 避免"睡眠日 = 无数据更新日"（2026-07-22 根因分析）。
+DEFAULT_MISFIRE_GRACE_TIME = 12 * 3600
+
 
 class UnifiedSchedulerService:
     """统一调度器服务
@@ -76,7 +83,7 @@ class UnifiedSchedulerService:
         job_defaults = {
             'coalesce': True,  # 合并错过的多次执行为一次
             'max_instances': 1,  # 同一任务最多1个实例运行
-            'misfire_grace_time': 300  # 错过5分钟内仍执行
+            'misfire_grace_time': DEFAULT_MISFIRE_GRACE_TIME  # 错过12小时内仍补跑（覆盖夜间休眠）
         }
 
         # 创建调度器
@@ -181,6 +188,9 @@ class UnifiedSchedulerService:
         args: tuple = None,
         kwargs: dict = None,
         executor: str = 'default',
+        misfire_grace_time: int = None,
+        coalesce: bool = None,
+        max_instances: int = None,
         **cron_kwargs
     ) -> str:
         """添加Cron定时任务
@@ -228,6 +238,16 @@ class UnifiedSchedulerService:
 
         trigger = CronTrigger(**cron_kwargs, timezone='Asia/Shanghai')
 
+        # 仅显式传入时才覆盖 job_defaults——APScheduler 的回退哨兵是
+        # undefined 而非 None，显式传 None 反而表示"无限宽限"
+        job_opts = {}
+        if misfire_grace_time is not None:
+            job_opts['misfire_grace_time'] = misfire_grace_time
+        if coalesce is not None:
+            job_opts['coalesce'] = coalesce
+        if max_instances is not None:
+            job_opts['max_instances'] = max_instances
+
         job = self.scheduler.add_job(
             func=func,
             trigger=trigger,
@@ -236,20 +256,23 @@ class UnifiedSchedulerService:
             args=args or (),
             kwargs=kwargs or {},
             executor=executor,
-            replace_existing=True
+            replace_existing=True,
+            **job_opts
         )
 
         # 记录到注册表
+        # 注意：调度器未启动时 job 处于 pending 状态，没有 next_run_time 属性
+        next_run = getattr(job, 'next_run_time', None)
         self.task_registry[job.id] = {
             'id': job.id,
             'name': job.name,
             'func': func.__name__,
             'trigger': str(trigger),
             'executor': executor,
-            'next_run': job.next_run_time
+            'next_run': next_run
         }
 
-        logger.info(f"Added cron job: {job.id}, next run: {job.next_run_time}")
+        logger.info(f"Added cron job: {job.id}, next run: {next_run}")
         return job.id
 
     def add_interval_job(
@@ -437,19 +460,16 @@ class UnifiedSchedulerService:
             def wrapped_handler():
                 return handler(params)
 
-            # 注册到APScheduler
-            job_defaults = {
-                'max_instances': config.get('max_instances', 1),
-                'misfire_grace_time': config.get('misfire_grace_time', 300),
-                'coalesce': config.get('coalesce', True)
-            }
-
+            # 注册到APScheduler（per-task 配置直接传给 add_cron_job）
             self.add_cron_job(
                 func=wrapped_handler,
                 cron_expr=cron_expr,
                 job_id=f"db_{task_name}",
                 name=task_name,
-                executor=config.get('executor', 'default')
+                executor=config.get('executor', 'default'),
+                misfire_grace_time=config.get('misfire_grace_time'),
+                coalesce=config.get('coalesce'),
+                max_instances=config.get('max_instances'),
             )
 
             logger.info(f"✓ Registered database task: {task_name}")

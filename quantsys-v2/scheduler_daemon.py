@@ -88,14 +88,18 @@ class SchedulerDaemon:
                     # 动态导入Job函数
                     job_func = self._dynamic_import_job_func(config.command)
                     
-                    # 添加到调度器
+                    # 添加到调度器（per-task 的 misfire/coalesce/max_instances
+                    # 从 DB 配置接线：交易类任务用小宽限，数据类任务用大宽限）
                     job_id = self.scheduler_service.add_cron_job(
                         func=job_func,
                         cron_expr=config.cron_expression,
                         job_id=config.task_name,
                         name=config.description or config.task_name,
                         kwargs=config.params or {},
-                        executor=config.executor or 'default'
+                        executor=config.executor or 'default',
+                        misfire_grace_time=config.misfire_grace_time,
+                        coalesce=config.coalesce,
+                        max_instances=config.max_instances,
                     )
                     
                     self.job_registry[config.task_name] = job_id
@@ -183,6 +187,10 @@ class SchedulerDaemon:
     
     def _register_orchestrator(self):
         """注册日常编排器和盘中监控到调度器"""
+        # 注意：必须注册模块级包装函数而非绑定方法——SQLAlchemyJobStore
+        # 需要 pickle 任务函数，绑定方法会连带序列化 ORM Session 导致崩溃
+        from infrastructure.jobs import monitor_jobs
+
         try:
             from application.services.daily_orchestrator import get_daily_orchestrator
             
@@ -190,7 +198,7 @@ class SchedulerDaemon:
             
             # 每分钟 tick（工作日 08:00-17:59）
             self.scheduler_service.add_cron_job(
-                func=orchestrator.tick,
+                func=monitor_jobs.daily_orchestrator_tick,
                 job_id='daily_orchestrator_tick',
                 name='日常编排器 Tick',
                 minute='*',
@@ -214,7 +222,7 @@ class SchedulerDaemon:
             
             # 上午 09:30-11:30 每30分钟
             self.scheduler_service.add_cron_job(
-                func=monitor.check,
+                func=monitor_jobs.intraday_monitor_check,
                 job_id='intraday_monitor_am',
                 name='盘中监控(上午)',
                 minute='0,30',
@@ -224,7 +232,7 @@ class SchedulerDaemon:
             
             # 下午 13:00-15:00 每30分钟
             self.scheduler_service.add_cron_job(
-                func=monitor.check,
+                func=monitor_jobs.intraday_monitor_check,
                 job_id='intraday_monitor_pm',
                 name='盘中监控(下午)',
                 minute='0,30',
