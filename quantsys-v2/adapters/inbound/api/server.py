@@ -179,6 +179,10 @@ def create_app():
     from adapters.inbound.api.routes.decision_tracking import decision_tracking_bp
     app.register_blueprint(decision_tracking_bp)
 
+    # Agent Session 审计 - 事件摄入与诊断（2026-07-24 gateway 项目）
+    from adapters.inbound.api.routes.agent_sessions import agent_sessions_bp
+    app.register_blueprint(agent_sessions_bp)
+
     # 知识管理和学习系统 - 已启用（使用mock数据）
     from adapters.inbound.api.routes.knowledge_management import knowledge_management_bp
     app.register_blueprint(knowledge_management_bp)
