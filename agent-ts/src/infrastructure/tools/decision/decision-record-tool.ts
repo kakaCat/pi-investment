@@ -6,6 +6,7 @@
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
+import { getSessionContext } from "../../../api/gateway/session-events.js";
 
 const V2_API_BASE = process.env.QUANTSYS_V2_API_URL ?? "http://127.0.0.1:5001";
 
@@ -71,6 +72,8 @@ export const decisionRecordTool: ToolDefinition = {
         decision_type: params.decision_type,
         reasoning: params.reasoning,
       };
+      const sessionCtx = getSessionContext();
+      if (sessionCtx) body.session_key = sessionCtx.sessionKey;
       if (params.context) body.context = params.context;
       if (params.parameters) body.parameters = params.parameters;
       if (params.related_entity_type) body.related_entity_type = params.related_entity_type;
