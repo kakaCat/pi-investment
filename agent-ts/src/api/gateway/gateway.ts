@@ -10,6 +10,7 @@ export interface AgentGatewayOptions {
   sessionsRootDir: string;
   createSession: (sessionKey: string, sessionDir: string) => Promise<ChannelAgentSession>;
   beforePrompt?: (session: ChannelAgentSession, sessionKey: string, text: string, sessionDir: string) => Promise<void>;
+  extractReply?: (session: ChannelAgentSession, sessionKey: string) => string;
 }
 
 export class AgentGateway {
@@ -21,6 +22,7 @@ export class AgentGateway {
       sessionsRootDir: options.sessionsRootDir,
       createSession: options.createSession,
       beforePrompt: options.beforePrompt,
+      extractReply: options.extractReply,
     });
   }
 

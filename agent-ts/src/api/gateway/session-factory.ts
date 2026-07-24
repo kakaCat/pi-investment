@@ -30,6 +30,43 @@ export interface GatewaySessionFactory {
   beforePrompt(session: ChannelAgentSession, sessionKey: string, text: string, sessionDir: string): Promise<void>;
 }
 
+/**
+ * 提取回复：收集最后一条 user 消息之后的所有 assistant 长文本
+ * （搬运自原 feishu.ts，过滤短中间片段）
+ */
+export function extractChannelReply(session: ChannelAgentSession): string {
+  const messages = getMessages(session as any);
+
+  let lastUserIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") {
+      lastUserIdx = i;
+      break;
+    }
+  }
+  if (lastUserIdx === -1) return "";
+
+  const texts: string[] = [];
+  for (let i = lastUserIdx + 1; i < messages.length; i++) {
+    const msg = messages[i];
+    if (msg.role !== "assistant" || !msg.content) continue;
+
+    const content = Array.isArray(msg.content) ? msg.content : [];
+    const text = content
+      .filter((block: any) => block.type === "text" && typeof (block as any).text === "string")
+      .map((block: any) => (block as any).text ?? "")
+      .join("\n")
+      .trim();
+
+    // 过滤短中间片段（如 "Now let me record this."）
+    if (text.length > 80) {
+      texts.push(text);
+    }
+  }
+
+  return texts.join("\n\n");
+}
+
 export function createGatewaySessionFactory(
   tools: ToolDefinition[],
   skills: Skill[],
