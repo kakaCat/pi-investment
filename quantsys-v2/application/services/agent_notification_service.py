@@ -25,10 +25,11 @@ class AgentNotificationService:
     """
 
     def __init__(self, agent_url: Optional[str] = None, timeout: Optional[int] = None):
-        self.agent_url = agent_url or os.getenv('AGENT_API_URL', 'http://127.0.0.1:3100')
+        self.agent_url = agent_url or os.getenv('AGENT_API_URL', 'http://127.0.0.1:3002')
         # timeout 显式传入优先（如盯盘路径需要更短超时），否则读环境变量
         self.timeout = timeout if timeout is not None else int(os.getenv('AGENT_TIMEOUT', '30'))
         self.enabled = os.getenv('AGENT_NOTIFY_ENABLED', 'true').lower() == 'true'
+        self.token = os.getenv('AGENT_API_TOKEN')
 
     def notify_agent(self, event: str, data: Dict[str, Any]) -> bool:
         """通知 Agent 处理事件
@@ -64,11 +65,14 @@ class AgentNotificationService:
 
             logger.info(f"Notifying Agent: {event}")
 
+            headers = {'Content-Type': 'application/json'}
+            if self.token:
+                headers['X-Wake-Token'] = self.token
             response = requests.post(
                 f'{self.agent_url}/wake',
                 json=payload,
                 timeout=self.timeout,
-                headers={'Content-Type': 'application/json'}
+                headers=headers
             )
 
             if response.status_code == 200:
