@@ -308,25 +308,44 @@ def handle_pool_refresh_daily(
 
 
 def handle_signal_execution_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """每日信号执行任务"""
+    """每日信号汇总推送（兜底重推）
+
+    2026-07-24 盈利闭环改造：v2 不再自动下单。本任务只把当日 pending
+    信号再次推送给 Agent（orchestrator MARKET_OPEN 推送的兜底），
+    Agent 侧按信号 ID 判重，重复推送不会重复交易。
+    """
     params = params or {}
 
     from application.services.signal_execution_scheduler import SignalExecutionScheduler
 
-    logger.info("Starting daily signal execution")
+    logger.info("Starting daily signal summary push (fallback)")
 
     try:
         scheduler = SignalExecutionScheduler()
-        result = scheduler.execute_daily_signals()
+        signals = scheduler._collect_signals(date.today().strftime('%Y-%m-%d'))
+
+        pushed = False
+        if signals and not params.get('skip_notify'):
+            from application.services.agent_notification_service import agent_service
+            result = agent_service.notify_agent_detailed('signals_ready', {
+                'trade_date': date.today().isoformat(),
+                'signal_count': len(signals),
+                'signals': signals[:20],
+                'account': 'agent_virtual',
+                'source': 'signal_execution_daily_fallback',
+            })
+            # timeout 视为已送达（agent 正在处理），不重推
+            pushed = result in ('ok', 'timeout')
 
         return {
             "action": "signal_execution_daily",
             "status": "success",
-            "signals_executed": result.get('executed', 0),
-            "timestamp": result.get('timestamp')
+            "signals_pending": len(signals),
+            "pushed": pushed,
+            "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
-        logger.error(f"Signal execution failed: {e}")
+        logger.error(f"Signal summary push failed: {e}")
         return {
             "action": "signal_execution_daily",
             "status": "failed",
