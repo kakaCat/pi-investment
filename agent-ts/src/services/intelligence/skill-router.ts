@@ -116,7 +116,11 @@ const ROUTE_RULES: RouteRule[] = [
 
 let availableSkillNames = new Set<string>();
 
+let skillRouterInitialized = false;
+
 export function initSkillRouter(skills: Skill[]): void {
+  if (skillRouterInitialized) return;
+  skillRouterInitialized = true;
   availableSkillNames = new Set(skills.map(skill => skill.name));
 }
 

@@ -19,7 +19,11 @@ function extractAllowedTools(skillContent: string): Set<string> {
   return allowed;
 }
 
+let skillGuardInitialized = false;
+
 export function initSkillGuard(skills: Skill[]): void {
+  if (skillGuardInitialized) return;
+  skillGuardInitialized = true;
   allowedToolsBySkill.clear();
 
   for (const skill of skills) {

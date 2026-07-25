@@ -12,7 +12,11 @@ import { getBootstrapData } from "../../../config/config.js";
 
 let availableTools: ToolDefinition[] = [];
 
+let planToolContextInitialized = false;
+
 export function setPlanToolContext(tools: ToolDefinition[]) {
+  if (planToolContextInitialized) return;
+  planToolContextInitialized = true;
   availableTools = tools;
 }
 

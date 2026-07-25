@@ -308,7 +308,11 @@ export class MemoryStore {
 
 let memoryStore: MemoryStore;
 
+let memoryStoreInitialized = false;
+
 export function initMemoryStore(piDir: string): void {
+  if (memoryStoreInitialized) return;
+  memoryStoreInitialized = true;
   memoryStore = new MemoryStore(piDir);
 }
 

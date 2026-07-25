@@ -46,7 +46,11 @@ function buildAvailableSkillsXml(sdkSkills: Skill[]): string {
  * skillsBlock 只含 <available_skills> XML + plugin skills 内联内容，
  * 不含 mandatory 指令前缀（前缀由 system-prompt-builder.ts 统一注入）。
  */
+let skillsBlockInitialized = false;
+
 export function initSkillsBlock(sdkSkills: Skill[], pluginSkills: PluginSkill[]): void {
+  if (skillsBlockInitialized) return;
+  skillsBlockInitialized = true;
   if (sdkSkills.length === 0 && pluginSkills.length === 0) {
     skillsBlock = "";
     return;

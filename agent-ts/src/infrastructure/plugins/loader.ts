@@ -102,8 +102,12 @@ async function loadPlugin(dir: string, registry: PluginRegistry): Promise<void> 
 /**
  * 从多个插件目录加载所有插件，返回合并的注册表
  */
+let cachedRegistry: PluginRegistry | null = null;
+
 export async function loadPlugins(pluginDirs: string[]): Promise<PluginRegistry> {
+  if (cachedRegistry) return cachedRegistry;
   const registry = createRegistry();
+  cachedRegistry = registry;
 
   for (const dir of pluginDirs) {
     if (!existsSync(dir)) continue;
