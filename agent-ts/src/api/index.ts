@@ -305,6 +305,7 @@ const piDir = join(process.cwd(), ".pi-invest");
 
 async function main() {
   let feishuBot: FeishuBotHandle | null = null;
+  let gatewayHandle: import("./gateway/start-gateway.js").GatewayHandle | null = null;
 
   try {
     console.log("🚀 启动 PI Investment - AI 股票投资顾问...\n");
@@ -313,6 +314,17 @@ async function main() {
     feishuBot = await startFeishuBot();
     if (feishuBot) {
       console.log("");
+    }
+
+    // Wake channel（gateway WakeAdapter）：与 TUI/feishu 同进程提供 /wake 接收
+    // 失败仅降级警告，不影响 TUI 与 feishu
+    try {
+      const { startGateway } = await import("./gateway/start-gateway.js");
+      const { WakeAdapter } = await import("./gateway/adapters/wake-adapter.js");
+      gatewayHandle = await startGateway([new WakeAdapter()]);
+      console.log("🔔 Wake channel 已集成启动（127.0.0.1:3002）");
+    } catch (err) {
+      console.warn("⚠️ Wake channel 启动失败（降级，不影响 TUI/feishu）:", err instanceof Error ? err.message : err);
     }
 
     // 先初始化 logger（在创建 session 之前）
@@ -374,6 +386,7 @@ async function main() {
     process.on('SIGINT', async () => {
       schedulerRuntime?.service.stop();
       if (feishuBot) feishuBot.shutdown();
+      if (gatewayHandle) await gatewayHandle.shutdown();
       console.log(perfMonitor.getReport());
       logger.logSessionEnd();
 
