@@ -49,7 +49,7 @@ export async function initAgentDecisionTasks() {
     // 显示任务摘要
     const summaries = await service.listTaskSummaries();
     const agentTasks = summaries.filter(s =>
-      ['morning_ai_analysis', 'realtime_quick_check', 'daily_ai_review'].includes(s.name)
+      ['morning_ai_analysis', 'realtime_quick_check', 'daily_ai_review', 'weekly_evolution'].includes(s.name)
     );
 
     console.log('📊 Agent AI 决策任务摘要:\n');

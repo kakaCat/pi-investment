@@ -7,7 +7,7 @@ Date: 2026-06-27
 """
 import structlog
 from typing import Dict, Any, Callable
-from datetime import datetime
+from datetime import datetime, date
 
 logger = structlog.get_logger(__name__)
 
@@ -55,9 +55,9 @@ def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
     # 获取股票列表
     try:
-        from infrastructure.repositories.stock_repository import StockRepository
-        repo = StockRepository()
-        stocks = repo.list_stocks(limit=500)
+        from adapters.outbound.repositories.stock_repository import StockORMRepository
+        repo = StockORMRepository()
+        stocks = repo.get_all(limit=500)
         symbols = [s['symbol'] for s in stocks]
     except Exception as e:
         logger.error(f"Failed to fetch stock list: {e}")
@@ -226,26 +226,126 @@ def handle_signal_generate(params: Dict[str, Any] = None) -> Dict[str, Any]:
         }
 
 
+def _is_pool_refresh_due(pool: Dict[str, Any], today: date) -> bool:
+    """判断动态池是否到期该刷新。
+
+    refresh_interval 约定：'daily' 每个交易日刷；'weekly' 距上次 ≥7 天；
+    其他/缺失值按 daily 处理（宁多刷不漏刷）。
+    """
+    interval = (pool.get('refresh_interval') or 'daily').lower()
+    if interval == 'weekly':
+        last = pool.get('last_refreshed_at')
+        if not last:
+            return True
+        try:
+            last_date = datetime.fromisoformat(str(last).split(' ')[0]).date()
+            return (today - last_date).days >= 7
+        except ValueError:
+            return True
+    return True
+
+
+def handle_pool_refresh_daily(
+    params: Dict[str, Any] = None,
+    service=None,
+) -> Dict[str, Any]:
+    """每日动态池刷新任务（02:00）
+
+    刷新所有到期动态池，记录成员变更；有变更时通知 Agent（pool_changed）。
+    service 参数用于测试注入；默认使用 API 共享单例。
+    """
+    params = params or {}
+    logger.info("Starting pool_refresh_daily task")
+
+    if service is None:
+        from adapters.inbound.api.shared import stock_pool_service
+        service = stock_pool_service
+
+    today = date.today()
+    refreshed, skipped, failed = [], [], []
+
+    for pool in service.list_pools():
+        if pool.get('pool_type') != 'dynamic':
+            continue
+        if not _is_pool_refresh_due(pool, today):
+            skipped.append({'pool_id': pool['id'], 'name': pool['name']})
+            continue
+        try:
+            before_symbols = set(service.get_pool(pool['id']).get('symbols', []))
+            service.refresh_pool(pool['id'])
+            after_symbols = set(service.get_pool(pool['id']).get('symbols', []))
+            refreshed.append({
+                'pool_id': pool['id'],
+                'name': pool['name'],
+                'added': sorted(after_symbols - before_symbols),
+                'removed': sorted(before_symbols - after_symbols),
+            })
+        except Exception as e:
+            logger.error(f"Failed to refresh pool {pool['id']}: {e}")
+            failed.append({'pool_id': pool['id'], 'name': pool['name'], 'error': str(e)})
+
+    changed = [r for r in refreshed if r['added'] or r['removed']]
+    if changed and not params.get('skip_notify'):
+        try:
+            from application.services.agent_notification_service import agent_service
+            agent_service.notify_agent('pool_changed', {
+                'trade_date': today.isoformat(),
+                'pools_changed': changed,
+                'account': 'agent_virtual',
+            })
+        except Exception as e:
+            logger.warning(f"pool_changed notify failed: {e}")
+
+    return {
+        "action": "pool_refresh_daily",
+        "status": "success" if not failed else "partial",
+        "refreshed": len(refreshed),
+        "changed": len(changed),
+        "skipped": len(skipped),
+        "failed": failed,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
 def handle_signal_execution_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """每日信号执行任务"""
+    """每日信号汇总推送（兜底重推）
+
+    2026-07-24 盈利闭环改造：v2 不再自动下单。本任务只把当日 pending
+    信号再次推送给 Agent（orchestrator MARKET_OPEN 推送的兜底），
+    Agent 侧按信号 ID 判重，重复推送不会重复交易。
+    """
     params = params or {}
 
     from application.services.signal_execution_scheduler import SignalExecutionScheduler
 
-    logger.info("Starting daily signal execution")
+    logger.info("Starting daily signal summary push (fallback)")
 
     try:
         scheduler = SignalExecutionScheduler()
-        result = scheduler.execute_daily_signals()
+        signals = scheduler._collect_signals(date.today().strftime('%Y-%m-%d'))
+
+        pushed = False
+        if signals and not params.get('skip_notify'):
+            from application.services.agent_notification_service import agent_service
+            result = agent_service.notify_agent_detailed('signals_ready', {
+                'trade_date': date.today().isoformat(),
+                'signal_count': len(signals),
+                'signals': signals[:20],
+                'account': 'agent_virtual',
+                'source': 'signal_execution_daily_fallback',
+            })
+            # timeout 视为已送达（agent 正在处理），不重推
+            pushed = result in ('ok', 'timeout')
 
         return {
             "action": "signal_execution_daily",
             "status": "success",
-            "signals_executed": result.get('executed', 0),
-            "timestamp": result.get('timestamp')
+            "signals_pending": len(signals),
+            "pushed": pushed,
+            "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
-        logger.error(f"Signal execution failed: {e}")
+        logger.error(f"Signal summary push failed: {e}")
         return {
             "action": "signal_execution_daily",
             "status": "failed",
@@ -438,9 +538,9 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
         # 获取股票列表（如果没有指定）
         symbols = params.get('symbols')
         if not symbols:
-            from infrastructure.repositories.stock_repository import StockRepository
-            repo = StockRepository()
-            stocks = repo.list_stocks(limit=500)
+            from adapters.outbound.repositories.stock_repository import StockORMRepository
+            repo = StockORMRepository()
+            stocks = repo.get_all(limit=500)
             symbols = [s['symbol'] for s in stocks]
 
         # 执行因子计算
@@ -480,9 +580,9 @@ def handle_model_train(params: Dict[str, Any] = None) -> Dict[str, Any]:
         # 获取训练数据
         symbols = params.get('symbols')
         if not symbols:
-            from infrastructure.repositories.stock_repository import StockRepository
-            repo = StockRepository()
-            stocks = repo.list_stocks(limit=100)
+            from adapters.outbound.repositories.stock_repository import StockORMRepository
+            repo = StockORMRepository()
+            stocks = repo.get_all(limit=100)
             symbols = [s['symbol'] for s in stocks]
 
         # 准备特征数据
@@ -569,12 +669,13 @@ def handle_market_style_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
         detector = MarketStyleDetector()
 
         # 检测当前市场风格
-        current_style = detector.detect_current_style(
+        current_style = detector.detect_market_style(
             lookback_days=params.get('lookback_days', 20)
         )
 
-        # 更新市场风格记录
-        style_update = detector.update_style_history(current_style)
+        # 风格历史由 strategy_rotation_engine 自行维护，
+        # 原 detector.update_style_history 已不存在（2026-07-23 修复）
+        style_update = {'changes': []}
 
         return {
             "action": "market_style_update",
@@ -858,9 +959,9 @@ def handle_strategy_discover_weekly(params: Dict[str, Any] = None) -> Dict[str, 
         # 获取股票池
         symbols = params.get('symbols')
         if not symbols:
-            from infrastructure.repositories.stock_repository import StockRepository
-            repo = StockRepository()
-            stocks = repo.list_stocks(limit=50)  # 限制数量避免太慢
+            from adapters.outbound.repositories.stock_repository import StockORMRepository
+            repo = StockORMRepository()
+            stocks = repo.get_all(limit=50)  # 限制数量避免太慢
             symbols = [s['symbol'] for s in stocks]
 
         # 运行策略发现
@@ -1002,6 +1103,7 @@ _TASK_HANDLERS: Dict[str, Callable] = {
     "data_pipeline_daily": handle_data_pipeline_daily,
     "data_pipeline_weekly": handle_data_pipeline_weekly,
     "signal_generate": handle_signal_generate,
+    "pool_refresh_daily": handle_pool_refresh_daily,
     "signal_execution_daily": handle_signal_execution_daily,
     "risk_check": handle_risk_check,
     "report_daily": handle_report_daily,

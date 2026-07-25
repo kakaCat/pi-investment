@@ -11,6 +11,7 @@ from adapters.outbound.datasources.providers.stock.akshare import AkshareStockPr
 from adapters.outbound.datasources.providers.dividend.akshare import AkshareDividendProvider
 from adapters.outbound.datasources.providers.market.akshare import AkshareMarketProvider
 from adapters.outbound.datasources.providers.kline.database import DatabaseKlineProvider
+from adapters.outbound.datasources.providers.kline.tencent import TencentKlineProvider
 from adapters.outbound.datasources.providers.kline.akshare import AkshareKlineProvider
 from adapters.outbound.datasources.providers.sector.eastmoney import EastmoneySectorProvider
 
@@ -50,10 +51,12 @@ class DataProviderManager:
         self.stock_providers = [
             AkshareStockProvider(),
         ]
-        # Kline providers: database first (fast), then akshare (fallback)
+        # Kline providers: database first (fast), then tencent (eastmoney 被封后的
+        # 主力网络源, 2026-07-23), akshare(eastmoney) 最后兜底
         self.kline_providers = []
         if ds and hasattr(ds, 'kline'):
             self.kline_providers.append(DatabaseKlineProvider(ds.kline))
+        self.kline_providers.append(TencentKlineProvider())
         self.kline_providers.append(AkshareKlineProvider())
 
         # Health tracking (cache provider channel status)

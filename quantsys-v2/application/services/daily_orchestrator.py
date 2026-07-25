@@ -63,6 +63,9 @@ PHASE_ORDER = [
     Phase.REVIEW,
 ]
 
+# 唯一交易账本（2026-07-24 盈利闭环改造）
+TRADING_ACCOUNT = 'agent_virtual'
+
 
 # ============================================================
 # 编排器
@@ -94,8 +97,16 @@ class DailyOrchestrator:
         if today.weekday() >= 5:
             return
 
-        # 获取或创建今日状态
-        state = self._get_or_create_state(today)
+        try:
+            # 获取或创建今日状态
+            state = self._get_or_create_state(today)
+        except Exception as e:
+            # 数据库异常（缺表/连接断开）必须 rollback——否则单例 Session
+            # 卡在中止事务里，后续每次 tick 都抛 PendingRollbackError，
+            # 编排器永久死亡直到进程重启（2026-07-23 code review 发现）
+            logger.error(f"orchestrator_tick_state_error", error=str(e))
+            self.session.rollback()
+            return
 
         # 判断当前应处于哪个阶段
         target_phase = self._determine_phase(now.time())
@@ -237,20 +248,40 @@ class DailyOrchestrator:
         return results
 
     def _phase_market_open(self, state: DailyOrchestratorState) -> Dict[str, Any]:
-        """开盘阶段：执行买入信号"""
-        from application.services.signal_execution_scheduler import SignalExecutionScheduler
+        """开盘阶段：汇总当日待处理信号并推送 Agent 决策。
 
-        logger.info("market_open: execute_signals")
-        scheduler = SignalExecutionScheduler()
-        result = scheduler.execute_daily_signals()
+        2026-07-24 盈利闭环改造：v2 不再自动下单。
+        买卖决策唯一执行者是 Agent（LLM），账本为 agent_virtual。
+        本阶段只负责"信号准备 + 事件推送"。
+        """
+        signals = self._collect_pending_signals()
 
-        # 保存执行结果到上下文
         self._update_context(state, {
-            'signals_executed': result.get('signals_approved', 0),
-            'orders_created': result.get('orders_created', 0),
+            'signals_ready_count': len(signals),
         })
 
-        return result
+        self._notify_agent('signals_ready', {
+            'trade_date': str(state.trade_date),
+            'signal_count': len(signals),
+            'signals': signals[:20],
+            'account': 'agent_virtual',
+            'instructions': (
+                '请使用工具链处理今日信号：\n'
+                '1. decision_history → 检查今日是否已处理过这些信号（按信号ID判重）\n'
+                '2. portfolio_status → 查看 agent_virtual 持仓与可用资金\n'
+                '3. 逐信号评估后决定买入：portfolio_trade(account=agent_virtual)\n'
+                '4. 放弃的信号也要 decision_record 记录理由\n'
+                '5. 全部处理完：knowledge_record 摘要 + feishu_notify 简报'
+            ),
+        })
+
+        return {'status': 'signals_pushed', 'signal_count': len(signals)}
+
+    def _collect_pending_signals(self) -> List[Dict[str, Any]]:
+        """收集当日 pending 信号（复用 SignalExecutionScheduler 的收集逻辑，不下单）"""
+        from application.services.signal_execution_scheduler import SignalExecutionScheduler
+        scheduler = SignalExecutionScheduler()
+        return scheduler._collect_signals(date.today().strftime('%Y-%m-%d'))
 
     def _phase_intraday(self, state: DailyOrchestratorState) -> Dict[str, Any]:
         """盘中阶段：持仓监控 + 止损止盈
@@ -269,11 +300,11 @@ class DailyOrchestrator:
         repo = SimulationORMRepository()
 
         # T+1 结转：今日买入的股票明日才可卖出
-        settled = repo.settle_t1('rotation_main')
+        settled = repo.settle_t1(TRADING_ACCOUNT)
 
         # 更新最终市值（使用收盘价）
         from live_trading.paper_trading_engine import PaperTradingEngine
-        engine = PaperTradingEngine(account_name='rotation_main')
+        engine = PaperTradingEngine(account_name=TRADING_ACCOUNT)
 
         # 获取持仓并更新价格
         positions = engine.get_current_positions()
@@ -298,7 +329,7 @@ class DailyOrchestrator:
         from live_trading.paper_trading_engine import PaperTradingEngine
         from application.services.scheduler_tasks import handle_factor_compute
 
-        engine = PaperTradingEngine(account_name='rotation_main')
+        engine = PaperTradingEngine(account_name=TRADING_ACCOUNT)
 
         # 1. 拍摄每日净值快照
         snapshot = engine.take_daily_snapshot()
@@ -342,7 +373,7 @@ class DailyOrchestrator:
             from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
             sim_repo = SimulationORMRepository()
             trades = sim_repo.get_trades_by_account(
-                'rotation_main',
+                TRADING_ACCOUNT,
                 start_date=str(state.trade_date),
                 end_date=str(state.trade_date),
             )

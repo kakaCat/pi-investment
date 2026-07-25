@@ -1,0 +1,58 @@
+/**
+ * AgentGateway — 入站通道的统一汇聚点
+ * 所有 adapter 把消息规范化为 InboundEvent 后交给 dispatch
+ */
+import { ChannelSessionManager, type ChannelAgentSession } from "./channel-session-manager.js";
+import { buildSessionKey } from "./session-key.js";
+import type { GatewayHandlers, InboundEvent } from "./types.js";
+
+export interface AgentGatewayOptions {
+  sessionsRootDir: string;
+  createSession: (sessionKey: string, sessionDir: string) => Promise<ChannelAgentSession>;
+  beforePrompt?: (session: ChannelAgentSession, sessionKey: string, text: string, sessionDir: string) => Promise<void>;
+  extractReply?: (session: ChannelAgentSession, sessionKey: string) => string;
+}
+
+export class AgentGateway {
+  private manager: ChannelSessionManager;
+
+  constructor(options: AgentGatewayOptions) {
+    this.manager = new ChannelSessionManager({
+      channelName: "Gateway",
+      sessionsRootDir: options.sessionsRootDir,
+      createSession: options.createSession,
+      beforePrompt: options.beforePrompt,
+      extractReply: options.extractReply,
+    });
+  }
+
+  isDuplicate(messageId: string): boolean {
+    return this.manager.isDuplicate(messageId);
+  }
+
+  isProcessing(sessionKey: string): boolean {
+    return this.manager.isProcessing(sessionKey);
+  }
+
+  async dispatch(event: InboundEvent): Promise<string> {
+    const sessionKey = buildSessionKey(event.channel, event.peerId);
+    return this.manager.processMessage(sessionKey, event.messageId, event.text);
+  }
+
+  async abort(sessionKey: string): Promise<boolean> {
+    return this.manager.abort(sessionKey);
+  }
+
+  /** 提供给 adapter 的处理器集合 */
+  handlers(): GatewayHandlers {
+    return {
+      dispatch: (event) => this.dispatch(event),
+      isProcessing: (sessionKey) => this.isProcessing(sessionKey),
+      abort: (sessionKey) => this.abort(sessionKey),
+    };
+  }
+
+  shutdown(): void {
+    this.manager.shutdown();
+  }
+}

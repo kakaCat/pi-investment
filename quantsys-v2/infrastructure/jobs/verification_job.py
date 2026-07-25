@@ -305,5 +305,11 @@ def main():
     job.run()
 
 
+# Job注册点 - scheduler会调用这个函数
+def execute(**params):
+    """Scheduler调用的入口函数"""
+    main()
+
+
 if __name__ == '__main__':
     main()

@@ -72,4 +72,22 @@ describe("decisionRecordTool", () => {
     expect((result.content[0] as any).text).toContain("fetch failed");
     expect(result.details).toBeNull();
   });
+
+  it("有会话上下文时自动携带 session_key", async () => {
+    const { setSessionContext, resetSessionEventState } = await import("../../../api/gateway/session-events.js");
+    setSessionContext("agent:main:wake:default", "/tmp/x");
+
+    mockFetch.mockResolvedValue({
+      json: async () => ({ success: true, data: { decision_id: "dec_9" } }),
+    });
+
+    await decisionRecordTool.execute("call-4", {
+      decision_type: "refresh_pool",
+      reasoning: "定时刷新",
+    });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.session_key).toBe("agent:main:wake:default");
+    resetSessionEventState();
+  });
 });

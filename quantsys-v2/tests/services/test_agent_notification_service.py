@@ -146,3 +146,21 @@ def test_agent_reminder_handler_registered_once():
     assert handler is _TASK_HANDLERS['agent_reminder']
     result = handler({'message': 'test'})
     assert result['status'] == 'success'
+
+
+def test_notify_sends_token_header_and_default_port_3002(monkeypatch):
+    """token 配置时请求带 X-Wake-Token；默认 URL 为 3002"""
+    from unittest.mock import patch, MagicMock
+    monkeypatch.delenv('AGENT_API_URL', raising=False)
+    monkeypatch.setenv('AGENT_API_TOKEN', 'tok-123')
+    from application.services.agent_notification_service import AgentNotificationService
+
+    service = AgentNotificationService()
+    assert service.agent_url == 'http://127.0.0.1:3002'
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {'success': True}
+    with patch('application.services.agent_notification_service.requests.post', return_value=mock_resp) as mock_post:
+        assert service.notify_agent('agent_reminder', {'message': 'hi'}) is True
+    assert mock_post.call_args.kwargs['headers']['X-Wake-Token'] == 'tok-123'

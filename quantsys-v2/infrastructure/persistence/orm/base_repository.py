@@ -58,6 +58,27 @@ class BaseORMRepository(Generic[T]):
             self._session = get_session()
         return self._session
 
+    def _get_cursor(self):
+        """向后兼容旧 BaseRepository 的裸 cursor 接口。
+
+        遗留服务（data_gap_detector / data_validator / strategy_weight_adjuster
+        / risk_check_service / signals 路由等）仍用原生 SQL + cursor 访问数据，
+        但注入的 repo 已迁移为 ORM 版——缺少本方法时抛 AttributeError，
+        曾被上层吞掉导致 data_quality_check "检查0只股票、评分100" 的假成功
+        （2026-07-17 起，2026-07-23 定位）。
+
+        Returns:
+            psycopg2 RealDictCursor（行以 dict 返回）。调用方负责 close()。
+            连接从 Engine 池 lazy 获取（pool_pre_ping 自动处理坏连接），
+            挂在实例上复用，关闭后下次调用自动重建。
+        """
+        from psycopg2.extras import RealDictCursor
+        from infrastructure.persistence.database.engine import get_engine
+
+        if getattr(self, '_raw_conn', None) is None or self._raw_conn.closed:
+            self._raw_conn = get_engine().connect()
+        return self._raw_conn.connection.cursor(cursor_factory=RealDictCursor)
+
     def get_by_id(self, id_value: Any) -> Optional[T]:
         """根据主键获取对象
 

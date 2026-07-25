@@ -6,6 +6,8 @@
  */
 import { appendFileSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
+import { emitSessionEvent } from "./session-events.js";
+import { parseSessionKey } from "./session-key.js";
 
 export interface ChannelAgentSession {
   prompt(text: string): Promise<void>;
@@ -45,6 +47,7 @@ interface SessionState {
   contextFile: string;
   queue: QueueItem[];
   processing: boolean;
+  aborting: boolean;
   lastActiveAt: string;
 }
 
@@ -106,6 +109,11 @@ export class ChannelSessionManager {
     const state = await this.getOrCreateSession(sessionId);
 
     return new Promise((resolve, reject) => {
+      // abort 进行期间提交的消息直接拒绝，避免与 abort 的 splice 竞争导致悬挂
+      if (state.aborting) {
+        reject(new Error("Task cancelled"));
+        return;
+      }
       state.queue.push({ messageId, text, resolve, reject });
       if (!state.processing) {
         void this.drainQueue(state);
@@ -119,15 +127,34 @@ export class ChannelSessionManager {
       return false;
     }
 
+    // 标记 abort 进行中，此后提交的消息立即拒绝
+    state.aborting = true;
+
+    // 先 reject 排队中的消息，避免调用方悬挂
+    const queued = state.queue.splice(0);
+    const cancellationError = new Error("Task cancelled");
+    for (const item of queued) {
+      item.reject(cancellationError);
+    }
+
     try {
       await state.session.abort();
-      state.queue.length = 0;
-      state.processing = false;
       return true;
     } catch (error) {
       console.error(`❌ [${this.options.channelName}] 中断会话失败:`, error);
       return false;
+    } finally {
+      state.aborting = false;
     }
+  }
+
+  /** 释放所有 session（进程退出时调用） */
+  shutdown(): void {
+    for (const state of this.sessions.values()) {
+      state.session.dispose();
+    }
+    this.sessions.clear();
+    this.messageIds.clear();
   }
 
   private async getOrCreateSession(sessionId: string): Promise<SessionState> {
@@ -153,11 +180,19 @@ export class ChannelSessionManager {
       contextFile,
       queue: [],
       processing: false,
+      aborting: false,
       lastActiveAt: this.now().toISOString(),
     };
 
     this.sessions.set(sessionId, state);
     this.logConversation(state, `[Session Created] ${this.now().toISOString()}\n`);
+
+    try {
+      const { channel, peerId, agentId } = parseSessionKey(sessionId);
+      emitSessionEvent(sessionId, { type: "session_start", channel, peerId, agentId });
+    } catch {
+      // 非 canonical key（如测试用的短 id）不发射事件
+    }
 
     return state;
   }
@@ -174,6 +209,7 @@ export class ChannelSessionManager {
 
       try {
         this.logConversation(state, `\n[User ${this.now().toISOString()}] ${item.text}\n`);
+        emitSessionEvent(state.sessionId, { type: "user_message", messageId: item.messageId, text: item.text });
 
         if (this.beforePrompt) {
           await this.beforePrompt(state.session, state.sessionId, item.text, state.sessionDir);
@@ -183,12 +219,16 @@ export class ChannelSessionManager {
 
         const reply = this.extractReply(state.session, state.sessionId);
         this.logConversation(state, `\n[Agent ${this.now().toISOString()}] ${reply}\n`);
+        if (reply) {
+          emitSessionEvent(state.sessionId, { type: "assistant_reply", text: reply, replyLength: reply.length });
+        }
 
         item.resolve(reply);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`❌ [${this.options.channelName}] 消息处理失败:`, errorMessage);
         this.logConversation(state, `\n[Error ${this.now().toISOString()}] ${errorMessage}\n`);
+        emitSessionEvent(state.sessionId, { type: "error", stage: "prompt", message: errorMessage });
         item.reject(error instanceof Error ? error : new Error(errorMessage));
       }
     }

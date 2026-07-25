@@ -3,6 +3,7 @@
 事务流: 校验 → 委托单 → 成交+费用 → 资金流水(add_trade自动) → 持仓 → 账户 → 快照
 """
 import structlog
+from datetime import date
 from typing import Dict, Optional
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
@@ -23,6 +24,8 @@ class AccountTradingService:
     TRANSFER_FEE_RATE = 0.00001    # 过户费
     MAX_SINGLE_POSITION_RATIO = 0.30
     MAX_TOTAL_POSITION_RATIO = 0.80
+    MAX_DAILY_BUY_COUNT = 5              # 单日买入笔数上限
+    MAX_DAILY_BUY_AMOUNT_RATIO = 0.50    # 单日买入金额占总资产上限
 
     def __init__(self, repo: Optional[SimulationORMRepository] = None):
         self.repo = repo or SimulationORMRepository()
@@ -33,6 +36,28 @@ class AccountTradingService:
         if not quote or not quote.price or quote.price <= 0:
             raise TradingError(f'无法获取 {symbol} 实时价格', 502)
         return float(quote.price)
+
+    def _check_daily_buy_limits(
+        self, account_name: str, trade_amount: float, total_value: float
+    ) -> None:
+        """账户级日买入限额（服务端硬护栏，防 LLM 失控）。
+
+        超限抛 TradingError，拒绝原因会返回给调用方（agent 记录后不再重试）。
+        """
+        today = date.today().isoformat()
+        trades = self.repo.get_trades_by_account(
+            account_name, start_date=today, end_date=today)
+        buys = [t for t in trades if t.action == 'buy']
+        if len(buys) >= self.MAX_DAILY_BUY_COUNT:
+            raise TradingError(
+                f'单日买入笔数超限: 今日已买 {len(buys)} 笔，'
+                f'上限 {self.MAX_DAILY_BUY_COUNT} 笔', 422)
+        bought_amount = sum(float(t.amount or 0) for t in buys)
+        if (bought_amount + trade_amount) / total_value > self.MAX_DAILY_BUY_AMOUNT_RATIO:
+            raise TradingError(
+                f'单日买入金额超限: 今日已买 ¥{bought_amount:,.0f}，'
+                f'本次 ¥{trade_amount:,.0f}，'
+                f'超过总资产 {self.MAX_DAILY_BUY_AMOUNT_RATIO:.0%}', 422)
 
     def execute_trade(
         self,
@@ -95,6 +120,7 @@ class AccountTradingService:
         realized_pnl = None
         realized_pnl_rate = None
         if action == 'buy':
+            self._check_daily_buy_limits(account_name, trade_amount, total_value)
             total_cost = trade_amount + commission + transfer_fee
             if total_cost > float(account.cash_available):
                 raise TradingError(

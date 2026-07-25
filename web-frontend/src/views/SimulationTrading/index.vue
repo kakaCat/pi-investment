@@ -803,7 +803,7 @@ async function loadStrategy() {
   loading.value.strategy = true
   try {
     const res = await simulationApi.getStrategyInfo(strategyId.value)
-    strategy.value = res.success ? res.data : null
+    strategy.value = res || null
   } catch (err: any) {
     console.error('加载策略失败:', err)
     // 策略失败不影响其他功能，不显示错误提示
@@ -817,11 +817,9 @@ async function loadAccount() {
   loading.value.account = true
   try {
     const res = await simulationApi.getAccount(selectedAccount.value)
-    if (res.success) {
-      account.value = res.data
-      // 加载持仓股票的名称
-      await loadStockNames(res.data.positions)
-    }
+    account.value = res
+    // 加载持仓股票的名称
+    await loadStockNames(res.positions)
   } catch (err: any) {
     ElMessage.error(`加载账户失败: ${err.message}`)
   } finally {
@@ -869,31 +867,23 @@ async function runStrategy() {
   try {
     const data = await simulationApi.runStrategy(strategyId.value, selectedAccount.value)
 
-    if (data.success) {
-      const action = data.data.action
-      if (action === 'skip') {
-        runResult.value = {
-          type: 'warning',
-          title: '无需调仓',
-          message: data.data.message
-        }
-      } else {
-        runResult.value = {
-          type: 'success',
-          title: '调仓成功',
-          message: `信号数: ${data.data.signals_count}, 交易数: ${data.data.trades_count}`
-        }
-        setTimeout(() => {
-          loadAccount()
-          loadExecutionHistory()
-        }, 1000)
+    const action = data.action
+    if (action === 'skip') {
+      runResult.value = {
+        type: 'warning',
+        title: '无需调仓',
+        message: data.message
       }
     } else {
       runResult.value = {
-        type: 'error',
-        title: '执行失败',
-        message: data.error
+        type: 'success',
+        title: '调仓成功',
+        message: `信号数: ${data.signals_count}, 交易数: ${data.trades_count}`
       }
+      setTimeout(() => {
+        loadAccount()
+        loadExecutionHistory()
+      }, 1000)
     }
   } catch (err: any) {
     runResult.value = {
@@ -911,9 +901,7 @@ async function loadExecutionHistory() {
   loading.value.history = true
   try {
     const res = await simulationApi.getExecutionHistory(selectedAccount.value, 50)
-    if (res.success) {
-      executionHistory.value = res.data || []
-    }
+    executionHistory.value = res || []
   } catch (err: any) {
     console.error('加载执行历史失败:', err)
   } finally {
@@ -926,9 +914,7 @@ async function loadTradeRecords() {
   loading.value.trades = true
   try {
     const res = await simulationApi.getTrades(selectedAccount.value, 50)
-    if (res.success) {
-      tradeRecords.value = res.data || []
-    }
+    tradeRecords.value = res || []
   } catch (err: any) {
     console.error('加载交易记录失败:', err)
   } finally {
@@ -941,9 +927,9 @@ async function loadPerformance() {
   loading.value.performance = true
   try {
     const res = await simulationApi.getPerformance(selectedAccount.value)
-    if (res.success && res.data) {
+    if (res) {
       await nextTick()
-      renderChart(res.data)
+      renderChart(res)
     }
   } catch (err: any) {
     console.error('加载收益数据失败:', err)

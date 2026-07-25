@@ -39,6 +39,7 @@ class AgentDecision(Base):
     success = Column(Boolean)
     related_entity_type = Column(String(50))
     related_entity_id = Column(String(50))
+    session_key = Column(String(200))  # 关联的 agent 会话（gateway 审计联动）
 
 
 # 兼容旧代码中对模型名的引用
@@ -68,6 +69,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
                 related_entity_type=decision_data.get('related_entity_type'),
                 related_entity_id=(str(decision_data['related_entity_id'])
                                    if decision_data.get('related_entity_id') is not None else None),
+                session_key=decision_data.get('session_key'),
                 evaluation_status='pending',
             )
             created = self.create(row)
@@ -260,6 +262,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             'success': r.success,
             'related_entity_type': r.related_entity_type,
             'related_entity_id': r.related_entity_id,
+            'session_key': r.session_key,
         }
 
 

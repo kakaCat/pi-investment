@@ -18,7 +18,7 @@ const ACCOUNTS = [
 describe('AccountSwitcher', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    simulationApiMock.listAccounts.mockResolvedValue({ success: true, data: { accounts: ACCOUNTS, total: 2 } })
+    simulationApiMock.listAccounts.mockResolvedValue({ accounts: ACCOUNTS, total: 2 })
   })
 
   it('挂载后加载账户列表并默认选中第一个', async () => {
@@ -39,7 +39,7 @@ describe('AccountSwitcher', () => {
   })
 
   it('开户成功后刷新列表并选中新账户', async () => {
-    simulationApiMock.createAccount.mockResolvedValue({ success: true, data: { account_name: 'new_acc' } })
+    simulationApiMock.createAccount.mockResolvedValue({ account_name: 'new_acc' })
     const wrapper = mount(AccountSwitcher)
     await nextTick(); await nextTick()
     await wrapper.vm.openCreateDialog()
