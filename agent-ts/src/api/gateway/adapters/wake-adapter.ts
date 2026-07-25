@@ -125,6 +125,27 @@ export function buildPromptFromEvent(
     case "premarket_report":
       return `生成盘前准备报告（任务：${taskInfo}）。请分析今日市场预期并通过 feishu_notify 推送。`;
 
+    case "watch_triggered":
+      return `【盯盘触发】${data?.name || ""}(${data?.symbol || "N/A"}) ${data?.message || "监视条件触发"}
+
+当前价格: ${data?.price ?? "N/A"}，涨跌幅: ${data?.change_pct ?? "N/A"}%${data?.pnl_pct != null ? `，持仓盈亏: ${data.pnl_pct}%` : ""}
+触发条件: ${JSON.stringify(data?.condition || {})}
+你当时的监视理由: ${data?.context || "（未填写）"}
+
+请按以下决策链操作（每步都要看返回结果再决定下一步）：
+
+1. 回顾你的监视理由（上面的 context），判断这次触发意味着什么
+2. 调用 portfolio_status({ action: 'list' }) 确认是否持有该股票及仓位
+3. 如需最新行情细节，调用 data_fetch_quote 补充
+4. 做出决策：
+   - 止损/止盈卖出 → 调用 portfolio_trade（须指定 account）
+   - 继续持有观察 → 调用 watch_manage({ action: 'update', rule_id: ${data?.rule_id ?? "<rule_id>"}, ... }) 调整阈值或条件
+   - 监视目的已达成 → 调用 watch_manage({ action: 'remove', rule_id: ${data?.rule_id ?? "<rule_id>"} }) 删除规则；若仍想继续监视则保留（同一条件有冷却期，不会立刻重复触发）
+5. 调用 decision_record 记录决策原因
+6. 通过 feishu_notify 通知用户（触发原因 + 你的决策）
+
+注意：不要无视触发。即使决定不操作，也要明确记录"为什么不操作"。`;
+
     case "agent_reminder":
       return `【提醒】${data?.message || "你有一个提醒"}。请按提醒内容执行相应操作，必要时通过 feishu_notify 告知用户。`;
 
