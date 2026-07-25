@@ -63,6 +63,9 @@ PHASE_ORDER = [
     Phase.REVIEW,
 ]
 
+# 唯一交易账本（2026-07-24 盈利闭环改造）
+TRADING_ACCOUNT = 'agent_virtual'
+
 
 # ============================================================
 # 编排器
@@ -297,11 +300,11 @@ class DailyOrchestrator:
         repo = SimulationORMRepository()
 
         # T+1 结转：今日买入的股票明日才可卖出
-        settled = repo.settle_t1('rotation_main')
+        settled = repo.settle_t1(TRADING_ACCOUNT)
 
         # 更新最终市值（使用收盘价）
         from live_trading.paper_trading_engine import PaperTradingEngine
-        engine = PaperTradingEngine(account_name='rotation_main')
+        engine = PaperTradingEngine(account_name=TRADING_ACCOUNT)
 
         # 获取持仓并更新价格
         positions = engine.get_current_positions()
@@ -326,7 +329,7 @@ class DailyOrchestrator:
         from live_trading.paper_trading_engine import PaperTradingEngine
         from application.services.scheduler_tasks import handle_factor_compute
 
-        engine = PaperTradingEngine(account_name='rotation_main')
+        engine = PaperTradingEngine(account_name=TRADING_ACCOUNT)
 
         # 1. 拍摄每日净值快照
         snapshot = engine.take_daily_snapshot()
@@ -370,7 +373,7 @@ class DailyOrchestrator:
             from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
             sim_repo = SimulationORMRepository()
             trades = sim_repo.get_trades_by_account(
-                'rotation_main',
+                TRADING_ACCOUNT,
                 start_date=str(state.trade_date),
                 end_date=str(state.trade_date),
             )
