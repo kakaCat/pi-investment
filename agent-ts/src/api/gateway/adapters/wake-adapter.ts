@@ -119,6 +119,34 @@ export function buildPromptFromEvent(
     case "position_alert":
       return `持仓告警：${data?.symbol || "股票"}触发${data?.alert_type === "stop_loss" ? "止损" : "止盈"}。当前价格：${data?.current_price}，成本价：${data?.cost_price}。请使用 feishu_notify 推送告警。`;
 
+    case "signals_ready": {
+      const signalList: any[] = data?.signals || [];
+      const signalLines = signalList.length > 0
+        ? signalList.map((s: any, i: number) =>
+            `${i + 1}. [ID:${s.id ?? "N/A"}] ${s.symbol || "N/A"} ${s.signal_type || ""} 强度:${s.strength ?? "N/A"} 策略:${s.strategy_name || s.strategy || "N/A"}`
+          ).join("\n")
+        : "（今日无信号）";
+      return `【今日信号就绪】${data?.trade_date || "今日"} V2 已生成 ${data?.signal_count ?? signalList.length} 个待处理信号。
+
+信号列表:
+${signalLines}
+
+你操作的唯一账本是 agent_virtual。请按以下决策链操作（每步都要看返回结果再决定下一步）：
+
+1. 调用 decision_history 检查今日是否已处理过这些信号
+   → 按信号 ID 判重：已决策过的信号直接跳过（本事件可能因兜底机制重推）
+2. 调用 portfolio_status({ action: 'get', account: 'agent_virtual' }) 查看持仓与可用资金
+3. 逐信号评估：是否已持仓？与现有持仓是否同板块重复？信号强度是否 ≥70？
+4. 决定买入的信号：调用 portfolio_trade({ account: 'agent_virtual', action: 'buy', symbol, amount, reason })
+   → reason 必须 ≥10 字，引用信号 ID 和理由
+   → 服务端硬护栏：单股≤30%、最多3只、总仓≤80%、单日买入≤5笔、单日买入≤总资产50%
+   → 被护栏拒绝时：decision_record 记录原因，降仓位最多重试一次，不要反复重试
+5. 放弃的信号：调用 decision_record 记录放弃理由（这也是学习数据）
+6. 全部处理完：调用 knowledge_record 写今日信号处理摘要，feishu_notify 通知用户（处理了几条、买了什么、放弃了什么）
+
+注意：不要因为信号多就全买。没有把握就全部放弃并记录理由——空仓也是合法决策。`;
+    }
+
     case "signal_generated":
       return `新交易信号生成（任务：${taskInfo}）。生成了 ${data?.signal_count || 0} 个新信号。请使用 feishu_notify 推送信号通知。`;
 
