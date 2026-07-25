@@ -196,6 +196,26 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         self.session.commit()
         return True
 
+    def set_account_status(self, account_name: str, status: str) -> bool:
+        """设置账户状态（active/frozen/archived）。
+
+        frozen 账户被 execute_trade 拒绝写操作（status != 'active' 检查），
+        用于退役旧账本但保留历史数据。
+        """
+        try:
+            account = self.get_account(account_name)
+            if not account:
+                logger.warning(f"Account {account_name} not found")
+                return False
+            account.status = status
+            self.session.commit()
+            logger.info(f"账户状态变更: {account_name} → {status}")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting status for {account_name}: {e}")
+            self.session.rollback()
+            return False
+
     def update_account(
         self,
         account_name: str,
