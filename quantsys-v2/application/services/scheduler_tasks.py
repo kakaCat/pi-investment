@@ -7,7 +7,7 @@ Date: 2026-06-27
 """
 import structlog
 from typing import Dict, Any, Callable
-from datetime import datetime
+from datetime import datetime, date
 
 logger = structlog.get_logger(__name__)
 
@@ -224,6 +224,87 @@ def handle_signal_generate(params: Dict[str, Any] = None) -> Dict[str, Any]:
             "status": "failed",
             "error": str(e)
         }
+
+
+def _is_pool_refresh_due(pool: Dict[str, Any], today: date) -> bool:
+    """判断动态池是否到期该刷新。
+
+    refresh_interval 约定：'daily' 每个交易日刷；'weekly' 距上次 ≥7 天；
+    其他/缺失值按 daily 处理（宁多刷不漏刷）。
+    """
+    interval = (pool.get('refresh_interval') or 'daily').lower()
+    if interval == 'weekly':
+        last = pool.get('last_refreshed_at')
+        if not last:
+            return True
+        try:
+            last_date = datetime.fromisoformat(str(last).split(' ')[0]).date()
+            return (today - last_date).days >= 7
+        except ValueError:
+            return True
+    return True
+
+
+def handle_pool_refresh_daily(
+    params: Dict[str, Any] = None,
+    service=None,
+) -> Dict[str, Any]:
+    """每日动态池刷新任务（02:00）
+
+    刷新所有到期动态池，记录成员变更；有变更时通知 Agent（pool_changed）。
+    service 参数用于测试注入；默认使用 API 共享单例。
+    """
+    params = params or {}
+    logger.info("Starting pool_refresh_daily task")
+
+    if service is None:
+        from adapters.inbound.api.shared import stock_pool_service
+        service = stock_pool_service
+
+    today = date.today()
+    refreshed, skipped, failed = [], [], []
+
+    for pool in service.list_pools():
+        if pool.get('pool_type') != 'dynamic':
+            continue
+        if not _is_pool_refresh_due(pool, today):
+            skipped.append({'pool_id': pool['id'], 'name': pool['name']})
+            continue
+        try:
+            before_symbols = set(service.get_pool(pool['id']).get('symbols', []))
+            service.refresh_pool(pool['id'])
+            after_symbols = set(service.get_pool(pool['id']).get('symbols', []))
+            refreshed.append({
+                'pool_id': pool['id'],
+                'name': pool['name'],
+                'added': sorted(after_symbols - before_symbols),
+                'removed': sorted(before_symbols - after_symbols),
+            })
+        except Exception as e:
+            logger.error(f"Failed to refresh pool {pool['id']}: {e}")
+            failed.append({'pool_id': pool['id'], 'name': pool['name'], 'error': str(e)})
+
+    changed = [r for r in refreshed if r['added'] or r['removed']]
+    if changed and not params.get('skip_notify'):
+        try:
+            from application.services.agent_notification_service import agent_service
+            agent_service.notify_agent('pool_changed', {
+                'trade_date': today.isoformat(),
+                'pools_changed': changed,
+                'account': 'agent_virtual',
+            })
+        except Exception as e:
+            logger.warning(f"pool_changed notify failed: {e}")
+
+    return {
+        "action": "pool_refresh_daily",
+        "status": "success" if not failed else "partial",
+        "refreshed": len(refreshed),
+        "changed": len(changed),
+        "skipped": len(skipped),
+        "failed": failed,
+        "timestamp": datetime.now().isoformat(),
+    }
 
 
 def handle_signal_execution_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -1003,6 +1084,7 @@ _TASK_HANDLERS: Dict[str, Callable] = {
     "data_pipeline_daily": handle_data_pipeline_daily,
     "data_pipeline_weekly": handle_data_pipeline_weekly,
     "signal_generate": handle_signal_generate,
+    "pool_refresh_daily": handle_pool_refresh_daily,
     "signal_execution_daily": handle_signal_execution_daily,
     "risk_check": handle_risk_check,
     "report_daily": handle_report_daily,
