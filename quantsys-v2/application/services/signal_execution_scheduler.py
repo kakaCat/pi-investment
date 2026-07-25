@@ -39,10 +39,19 @@ class SignalExecutionScheduler:
         self.signal_repo = SignalORMRepository()
         self.log_repo = SignalExecutionLogORMRepository()
         self.strategy_repo = StrategyORMRepository()
-        self.paper_engine = PaperTradingEngine(
-            account_name='rotation_main',
-            initial_capital=1_000_000,
-        )
+        # 懒加载：只有真正下单的路径（_batch_create_orders）才创建引擎。
+        # 2026-07-24 盈利闭环改造：orchestrator 只收集信号不下单，
+        # 不应因构造 scheduler 就绑定 rotation_main 账户。
+        self._paper_engine = None
+
+    @property
+    def paper_engine(self):
+        if self._paper_engine is None:
+            self._paper_engine = PaperTradingEngine(
+                account_name='rotation_main',
+                initial_capital=1_000_000,
+            )
+        return self._paper_engine
 
     def execute_daily_signals(self) -> Dict[str, Any]:
         """
