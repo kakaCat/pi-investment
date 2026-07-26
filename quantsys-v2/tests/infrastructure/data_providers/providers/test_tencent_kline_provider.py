@@ -58,6 +58,38 @@ def test_symbol_prefix_mapping():
     assert TencentKlineProvider._to_tencent_code('600519.SH') == 'sh600519'
 
 
+INDEX_RESPONSE = {
+    "code": 0,
+    "msg": "",
+    "data": {
+        "sz399006": {
+            "day": [
+                ["2026-07-23", "3596.730", "3575.520", "3621.730", "3538.110", "181766334.000"],
+                ["2026-07-24", "3515.500", "3480.870", "3561.350", "3480.870", "168793607.000"],
+            ]
+        }
+    }
+}
+
+
+def test_shenzhen_index_symbol_mapping():
+    """399 前缀是深市指数代码段（399001 深成指、399006 创业板指）→ sz399xxx"""
+    assert TencentKlineProvider._to_tencent_code('399006') == 'sz399006'
+    assert TencentKlineProvider._to_tencent_code('399001') == 'sz399001'
+
+
+def test_index_klines_parse_day_field():
+    """指数无复权数据，腾讯返回 day 而非 qfqday，必须能解析"""
+    with _mock_get(INDEX_RESPONSE):
+        klines = TencentKlineProvider().get_klines(
+            '399006', 'daily', '2026-07-23', '2026-07-24')
+
+    assert klines is not None and len(klines) == 2
+    assert klines[0].close == 3575.52
+    assert klines[1].close == 3480.87
+    assert klines[1].change_pct == round((3480.87 - 3575.52) / 3575.52 * 100, 2)
+
+
 def test_non_daily_period_returns_none():
     assert TencentKlineProvider().get_klines('300001', '5m', '2026-07-15', '2026-07-22') is None
 

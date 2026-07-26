@@ -28,11 +28,12 @@ class TencentKlineProvider(KlineProvider):
 
     @staticmethod
     def _to_tencent_code(symbol: str) -> Optional[str]:
-        """600519 -> sh600519, 300001 -> sz300001, 920xxx -> bj920xxx"""
+        """600519 -> sh600519, 300001 -> sz300001, 920xxx -> bj920xxx, 399006(指数) -> sz399006"""
         symbol = symbol.split('.')[0]  # 容忍 600519.SH 形式
         if symbol.startswith(('60', '68', '11', '51')):
             return f'sh{symbol}'
-        if symbol.startswith(('00', '30', '12', '15')):
+        # '39' 为深市指数代码段（399001 深成指、399006 创业板指）
+        if symbol.startswith(('00', '30', '12', '15', '39')):
             return f'sz{symbol}'
         if symbol.startswith(('4', '8', '92')):
             return f'bj{symbol}'
