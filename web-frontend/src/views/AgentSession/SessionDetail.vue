@@ -181,6 +181,7 @@ async function loadAll() {
 }
 
 function renderSlowToolChart() {
+  if (!chartRef.value) return
   const toolMax = new Map<string, number>()
   for (const e of events.value) {
     if (e.event_type !== 'tool_call') continue
