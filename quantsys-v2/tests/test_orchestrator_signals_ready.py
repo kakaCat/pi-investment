@@ -28,13 +28,16 @@ def test_market_open_pushes_signals_ready_without_executing():
     ]
 
     with patch('application.services.signal_execution_scheduler.SignalExecutionScheduler') as MockSched, \
-         patch('application.services.daily_orchestrator.agent_service') as mock_agent:
+         patch('application.services.daily_orchestrator.agent_service') as mock_agent, \
+         patch('adapters.outbound.repositories.SimulationORMRepository') as MockRepo:
         MockSched.return_value._collect_signals.return_value = fake_signals
 
         result = orch._phase_market_open(state)
 
     # 不再自动下单
     MockSched.return_value.execute_daily_signals.assert_not_called()
+    # 开盘前先 T+1 结转（前日持仓开盘即可卖）
+    MockRepo.return_value.settle_t1.assert_called_once_with('agent_virtual')
     # 推送 signals_ready
     mock_agent.notify_agent.assert_called_once()
     event, data = mock_agent.notify_agent.call_args[0]
@@ -53,7 +56,8 @@ def test_market_open_with_zero_signals_still_notifies():
     state = _make_state()
 
     with patch('application.services.signal_execution_scheduler.SignalExecutionScheduler') as MockSched, \
-         patch('application.services.daily_orchestrator.agent_service') as mock_agent:
+         patch('application.services.daily_orchestrator.agent_service') as mock_agent, \
+         patch('adapters.outbound.repositories.SimulationORMRepository'):
         MockSched.return_value._collect_signals.return_value = []
 
         result = orch._phase_market_open(state)

@@ -254,6 +254,11 @@ class DailyOrchestrator:
         买卖决策唯一执行者是 Agent（LLM），账本为 agent_virtual。
         本阶段只负责"信号准备 + 事件推送"。
         """
+        # 开盘前 T+1 结转：前日买入的持仓转为可卖（9:25 结转，9:30 开盘即可卖）
+        from adapters.outbound.repositories import SimulationORMRepository
+        settled = SimulationORMRepository().settle_t1(TRADING_ACCOUNT)
+        logger.info("market_open: t1_settled", positions=settled)
+
         signals = self._collect_pending_signals()
 
         self._update_context(state, {
