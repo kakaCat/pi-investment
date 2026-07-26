@@ -26,6 +26,10 @@ class TencentKlineProvider(KlineProvider):
     def name(self) -> str:
         return "tencent"
 
+    def __init__(self):
+        # 最近一次失败的具体原因，供 DataProviderManager 聚合返回给调用方
+        self.last_error: Optional[str] = None
+
     @staticmethod
     def _to_tencent_code(symbol: str) -> Optional[str]:
         """600519 -> sh600519, 300001 -> sz300001, 920xxx -> bj920xxx, 399006(指数) -> sz399006"""
@@ -51,12 +55,19 @@ class TencentKlineProvider(KlineProvider):
         Returns:
             List of KlineData if successful, None if failed
         """
+        self.last_error = None
+
         if period != 'daily':
+            self.last_error = f"仅支持 daily 周期，收到: {period}"
             logger.debug(f"Tencent provider only supports daily, got: {period}")
             return None
 
         code = self._to_tencent_code(symbol)
         if not code:
+            self.last_error = (
+                f"代码 {symbol} 无法映射到交易所前缀"
+                "（支持: 沪市 60/68/11/51, 深市 00/30/12/15, 深市指数 399, 北交所 4/8/92）"
+            )
             logger.warning(f"Cannot map symbol to tencent code: {symbol}")
             return None
 
@@ -72,6 +83,7 @@ class TencentKlineProvider(KlineProvider):
             payload = resp.json()
 
             if payload.get('code') != 0:
+                self.last_error = f"腾讯 API 返回错误: {payload.get('msg')}"
                 logger.warning(f"Tencent API error for {symbol}: {payload.get('msg')}")
                 return None
 
@@ -79,6 +91,7 @@ class TencentKlineProvider(KlineProvider):
             # 前复权键为 qfqday；无复权数据时退化为 day
             rows = node.get('qfqday') or node.get('day') or []
             if not rows:
+                self.last_error = f"腾讯无 {symbol} 的K线数据（代码不存在或该时段无交易）"
                 logger.warning(f"Tencent returned no data for {symbol}")
                 return None
 
@@ -113,5 +126,6 @@ class TencentKlineProvider(KlineProvider):
             return result
 
         except Exception as e:
+            self.last_error = f"网络/解析异常: {type(e).__name__}: {e}"
             logger.error(f"Tencent kline provider failed for {symbol}: {e}")
             return None

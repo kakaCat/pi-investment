@@ -18,6 +18,8 @@ class DatabaseKlineProvider(KlineProvider):
             kline_repo: KlineRepository instance from ds.kline
         """
         self.kline_repo = kline_repo
+        # 最近一次失败的具体原因，供 DataProviderManager 聚合返回给调用方
+        self.last_error: Optional[str] = None
 
     @property
     def name(self) -> str:
@@ -41,9 +43,11 @@ class DatabaseKlineProvider(KlineProvider):
         Returns:
             List of KlineData if successful, None if failed
         """
+        self.last_error = None
         try:
             # Only support daily/weekly/monthly from database
             if period not in ['daily', 'weekly', 'monthly']:
+                self.last_error = f"数据库不支持周期: {period}（分钟线仅走网络源）"
                 logger.warning(f"Database provider does not support period: {period}")
                 return None
 
@@ -51,6 +55,10 @@ class DatabaseKlineProvider(KlineProvider):
             klines_df = self.kline_repo.get_daily_klines(symbol, start_date, end_date)
 
             if klines_df.is_empty():
+                self.last_error = (
+                    f"数据库无 {symbol} 的K线缓存"
+                    "（本地仅缓存个股池标的，指数/冷门标的无数据）"
+                )
                 logger.warning(f"No kline data in database for {symbol}")
                 return None
 
@@ -90,5 +98,6 @@ class DatabaseKlineProvider(KlineProvider):
             return result
 
         except Exception as e:
+            self.last_error = f"数据库查询异常: {type(e).__name__}: {e}"
             logger.error(f"Database kline provider failed for {symbol}: {e}")
             return None

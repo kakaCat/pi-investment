@@ -1217,6 +1217,11 @@ export async function getKlineHistory(
       count: rawData?.count ?? 0,
     };
 
+    // 透传后端提示（如 000xxx 歧义警告），agent 需要看到以防静默错查
+    if (rawData?.note) {
+      (klineData as any).note = rawData.note;
+    }
+
     // 如果没有数据或请求失败，直接返回
     if (
       !klineData.success ||

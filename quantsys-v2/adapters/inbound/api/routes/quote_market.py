@@ -180,6 +180,34 @@ def get_stock_quote(symbol):
     return jsonify({"success": False, "error": f"无法获取 {symbol} 的实时行情"}), 502
 
 
+def _kline_failure_suggestion(symbol: str, period: str, provider_errors: dict) -> str:
+    """根据各数据源的具体失败原因，生成可行动的修复建议（供 agent 自我纠正）"""
+    joined = ' '.join(provider_errors.values())
+    hints = []
+
+    if '无法映射' in joined:
+        hints.append(
+            "代码无法映射到任何数据源：A股个股为 60/68(沪)、00/30(深)、4/8/92(北) 开头；"
+            "深市指数用 399xxx（如创业板指 399006、深成指 399001）；"
+            "上证指数(000xxx段)与深市个股代码歧义，暂不支持"
+        )
+    if symbol.split('.')[0].startswith('000'):
+        hints.append(
+            "000xxx 按深市个股解析（000001=平安银行）；"
+            "若你想查的是上证指数，当前不支持，可改用深市指数 399001"
+        )
+    if any(k in joined for k in ('timeout', 'Timeout', 'Connection', 'RemoteDisconnected', '502', 'Max retries')):
+        hints.append("存在网络型失败：数据源可能临时限流/封禁，可稍后重试，或缩短日期范围")
+    if '数据库无' in joined and len(provider_errors) > 1:
+        hints.append("本地数据库无该代码缓存（指数/冷门标的属正常），关键在网络源是否可用")
+    if period != 'daily':
+        hints.append("周/月线由日线聚合，分钟线仅支持个股最近30天；可先用 daily 验证代码本身是否可取数")
+    if not hints:
+        hints.append("请检查：代码是否正确（6位数字）、是否已上市/已退市、日期范围内是否有交易")
+
+    return '；'.join(hints)
+
+
 @quote_market_bp.route('/api/stock/<symbol>/history', methods=['GET'])
 @handle_api_error
 def get_stock_history(symbol):
@@ -223,9 +251,12 @@ def get_stock_history(symbol):
         if not result['success']:
             error_msg = result.get('error', 'No kline data available')
             attempted = result.get('attempted_sources', [])
+            provider_errors = result.get('provider_errors', {})
             return jsonify({
                 "success": False,
-                "error": f"{error_msg} (尝试数据源: {', '.join(attempted)})"
+                "error": f"{error_msg} (尝试数据源: {', '.join(attempted)})",
+                "provider_errors": provider_errors,
+                "suggestion": _kline_failure_suggestion(symbol, period, provider_errors),
             }), 404
 
         # 转换 KlineData 列表为 API 响应格式
@@ -253,13 +284,21 @@ def get_stock_history(symbol):
         # 限制返回数量
         records = records[-limit:]
 
-        return api_response({
+        payload = {
             "symbol": symbol,
             "period": period,
             "count": len(records),
             "data": records,
             "source": data_source,  # 标识实际使用的数据源
-        })
+        }
+        # 000xxx 存在歧义：既是深市个股（如 000001 平安银行），也常被用来
+        # 指上证指数。当前一律按深市个股解析，显式告知调用方防止静默错查。
+        if symbol.split('.')[0].startswith('000'):
+            payload["note"] = (
+                "注意: 000xxx 代码按深市个股解析"
+                "（000001=平安银行，而非上证指数）；上证指数K线暂不支持"
+            )
+        return api_response(payload)
 
     except Exception as e:
         logger.error(f"Failed to get kline data for {symbol}: {e}")

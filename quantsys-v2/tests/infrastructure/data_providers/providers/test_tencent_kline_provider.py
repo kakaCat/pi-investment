@@ -120,3 +120,66 @@ def test_manager_kline_chain_has_tencent_before_akshare():
     names = [p.name for p in manager.kline_providers]
     assert 'tencent' in names and 'akshare' in names
     assert names.index('tencent') < names.index('akshare')
+
+
+def test_last_error_records_unmappable_symbol():
+    """无法映射的代码必须留下具体原因（供 manager 聚合返回）"""
+    p = TencentKlineProvider()
+    assert p.get_klines('ABC123', 'daily', '2026-07-15', '2026-07-22') is None
+    assert p.last_error and '无法映射' in p.last_error
+
+
+def test_last_error_records_non_daily():
+    p = TencentKlineProvider()
+    assert p.get_klines('600519', '5m', '2026-07-15', '2026-07-22') is None
+    assert p.last_error and 'daily' in p.last_error
+
+
+def test_last_error_records_api_empty_data():
+    p = TencentKlineProvider()
+    with _mock_get({"code": 0, "data": {"sz300001": {}}}):
+        assert p.get_klines('300001', 'daily', '2026-07-15', '2026-07-22') is None
+    assert p.last_error and '无' in p.last_error
+
+
+def test_last_error_cleared_on_success():
+    """成功后 last_error 复位，避免残留上次的失败原因"""
+    p = TencentKlineProvider()
+    p.get_klines('ABC123', 'daily', '2026-07-15', '2026-07-22')
+    assert p.last_error is not None
+    with _mock_get(SAMPLE_RESPONSE):
+        assert p.get_klines('300001', 'daily', '2026-07-15', '2026-07-22') is not None
+    assert p.last_error is None
+
+
+def test_try_providers_aggregates_failure_reasons():
+    """manager 必须聚合每个 provider 的具体失败原因到 provider_errors"""
+    from adapters.outbound.datasources.manager import DataProviderManager
+
+    class DummyProvider:
+        def __init__(self, name, reason=None, exc=None):
+            self._name, self.last_error, self._exc = name, reason, exc
+
+        @property
+        def name(self):
+            return self._name
+
+        def get_klines(self, *args):
+            if self._exc:
+                raise self._exc
+            return None
+
+    manager = DataProviderManager()
+    manager.kline_providers = [
+        DummyProvider('database', reason='数据库无 399006 的K线缓存'),
+        DummyProvider('tencent', reason='代码无法映射'),
+        DummyProvider('akshare', exc=ConnectionError('reset by peer')),
+    ]
+    result = manager.get_klines('399006', 'daily', '2026-07-01', '2026-07-24')
+
+    assert result['success'] is False
+    assert result['provider_errors'] == {
+        'database': '数据库无 399006 的K线缓存',
+        'tencent': '代码无法映射',
+        'akshare': 'ConnectionError: reset by peer',
+    }

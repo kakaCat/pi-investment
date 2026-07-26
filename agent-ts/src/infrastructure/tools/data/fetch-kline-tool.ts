@@ -39,14 +39,19 @@ export const dataFetchKlineTool: ToolDefinition = {
   description:
     "L1 数据管道工具：获取历史OHLCV数据（开盘价、最高价、最低价、收盘价、成交量、涨跌幅）。" +
     `默认返回最近 ${DEFAULT_LOOKBACK_DAYS} 天的日K线数据（前复权），最多 ${MAX_DATA_POINTS} 个数据点。` +
-    "仅支持 A 股（6位代码），港股 K 线数据暂不可用（v2 数据库无港股数据）。" +
+    "支持 A 股个股（6位代码，如 600519/000001/300750）和深市指数（399xxx，如创业板指 399006、深成指 399001）。" +
+    "注意：000001 是平安银行（深市个股），不是上证指数；上证指数K线暂不支持。港股 K 线暂不可用。" +
     "用于趋势分析和技术分析上下文 — 不用于查询当前价格（请使用 data_fetch_stock 的 price 字段）。" +
-    "如果股票在请求的日期范围内没有交易数据，返回 {error}。" +
+    "\n\n❌ 失败处理：返回的 error 中包含结构化 JSON，" +
+    "provider_errors 字段逐一列出每个数据源（database/tencent/akshare）的具体失败原因，" +
+    "suggestion 字段给出修复建议。请根据原因自我纠正：" +
+    "代码无法映射→检查代码前缀是否符合上述规则；网络型失败→稍后重试或缩短日期范围；" +
+    "数据库无缓存但网络源可用→属正常现象不影响结果。" +
     "\n\n💾 长周期数据（> 30天）自动保存到本地文件。",
 
   parameters: Type.Object({
     symbol: Type.String({
-      description: "股票代码：A股6位数字（如 600519）。港股暂不可用。"
+      description: "股票代码：A股6位数字（如 600519）或深市指数 399xxx（如 399006 创业板指）。000001=平安银行而非上证指数。港股暂不可用。"
     }),
     period: Type.Optional(
       Type.Union([
@@ -130,6 +135,11 @@ function _formatKlineData(result: any): string {
   lines.push(`📊 K线数据: ${result.symbol || ''}`);
   lines.push(`周期: ${result.period || 'daily'}`);
   lines.push(`数据点数: ${data.length}`);
+
+  // 后端提示（如 000xxx 歧义警告）必须展示给 agent
+  if ((result as any).note) {
+    lines.push(`⚠️ ${(result as any).note}`);
+  }
 
   if (data.length > 0) {
     const first = data[0];

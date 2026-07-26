@@ -95,7 +95,10 @@ class DataProviderManager:
                 - source: provider name if success
                 - error: error message if all providers failed
                 - attempted_sources: list of attempted provider names if failed
+                - provider_errors: {provider_name: 具体失败原因} if failed，
+                  供调用方（API 路由）返回可行动的错误提示
         """
+        provider_errors: Dict[str, str] = {}
         for provider in providers:
             try:
                 method = getattr(provider, method_name)
@@ -109,17 +112,22 @@ class DataProviderManager:
                         'source': provider.name
                     }
 
+                # provider 可通过 self.last_error 暴露具体失败原因
+                reason = getattr(provider, 'last_error', None) or '返回空数据或数据校验未通过'
+                provider_errors[provider.name] = reason
                 self._record_failure(provider.name)
 
             except Exception as e:
                 logger.warning(f"Provider {provider.name}.{method_name} failed: {e}")
+                provider_errors[provider.name] = f"{type(e).__name__}: {e}"
                 self._record_failure(provider.name)
 
         # All providers failed
         return {
             'success': False,
             'error': 'All data providers failed',
-            'attempted_sources': [p.name for p in providers]
+            'attempted_sources': [p.name for p in providers],
+            'provider_errors': provider_errors,
         }
 
     def _is_valid(self, data) -> bool:

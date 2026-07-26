@@ -17,6 +17,10 @@ class AkshareKlineProvider(KlineProvider):
     def name(self) -> str:
         return "akshare"
 
+    def __init__(self):
+        # 最近一次失败的具体原因，供 DataProviderManager 聚合返回给调用方
+        self.last_error: Optional[str] = None
+
     def get_klines(
         self,
         symbol: str,
@@ -35,6 +39,8 @@ class AkshareKlineProvider(KlineProvider):
         Returns:
             List of KlineData if successful, None if failed
         """
+        self.last_error = None
+
         # Disable proxy for AkShare
         env_patch = {
             'HTTP_PROXY': '',
@@ -65,6 +71,7 @@ class AkshareKlineProvider(KlineProvider):
 
                 akshare_period = period_map.get(period)
                 if not akshare_period:
+                    self.last_error = f"不支持的周期: {period}"
                     logger.warning(f"Unsupported period for AkShare: {period}")
                     return None
 
@@ -89,6 +96,10 @@ class AkshareKlineProvider(KlineProvider):
                     )
 
                 if df is None or df.empty:
+                    self.last_error = (
+                        f"akshare(eastmoney) 无 {symbol} 数据"
+                        "（代码不存在，或该接口仅支持个股、不支持指数）"
+                    )
                     logger.warning(f"AkShare returned no data for {symbol}")
                     return None
 
@@ -134,5 +145,6 @@ class AkshareKlineProvider(KlineProvider):
                 return result
 
         except Exception as e:
+            self.last_error = f"akshare(eastmoney) 调用失败: {type(e).__name__}: {e}"
             logger.error(f"AkShare kline provider failed for {symbol}: {e}")
             return None
