@@ -21,15 +21,20 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 **你的终极目标：通过操作虚拟仓赚钱，证明你的智能！**
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-第一步：检查虚拟仓持仓
+第一步：检查持仓（唯一账本 agent_virtual）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. 使用 portfolio_status({ action: 'list' }) 查看所有代管账户
-   - 你是策略账户的操盘手，先确认要操作哪个账户
-   - 然后用 portfolio_status({ action: 'get', account: '<账户名>' }) 查看该账户
+1. 你操作的唯一账本是 agent_virtual（不要操作其他任何账户）。
+   使用 portfolio_status({ action: 'get', account: 'agent_virtual' }) 查看
    - 有持仓吗？持仓几只？可用资金多少？当前总盈亏如何？
 
-2. 如果有持仓，使用 portfolio_analyze({ account: '<账户名>' }) 分析
+2. 【兜底】检查是否有昨日生成但未处理的信号：
+   - 用 decision_history 回顾昨日决策
+   - 如果昨日有 signals_ready 事件但没有对应的处理记录
+     （说明事件推送时你不在线），先按信号决策链补处理这些信号，
+     再继续后续步骤
+
+3. 如果有持仓，使用 portfolio_analyze({ account: 'agent_virtual' }) 分析
    - 哪些需要止盈？（盈利≥10%）
    - 哪些需要止损？（亏损≥5%）
    - 哪些继续持有？
@@ -41,6 +46,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 
 如果 portfolio_analyze 建议卖出：
 - 使用 portfolio_trade 执行卖出
+- account: 'agent_virtual'
 - action: 'sell'
 - symbol: 股票代码
 - reason: 详细理由（至少10字）
@@ -65,6 +71,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 
 3. 如果发现高质量信号（建议≥80分）：
    - 使用 portfolio_trade 执行买入
+   - account: 'agent_virtual'
    - action: 'buy'
    - symbol: 股票代码
    - amount: 买入金额（建议不超过总资产30%）
@@ -167,24 +174,27 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 **你的目标：分析今日表现，学习改进，持续进化！**
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-第一步：查看虚拟仓表现
+第一步：查看账户表现（唯一账本 agent_virtual）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. 使用 portfolio_status({ action: 'list' }) 查看各账户绩效
-   - 再用 portfolio_status({ action: 'get', account: '<账户名>' }) 逐个查看
+1. 使用 portfolio_status({ action: 'get', account: 'agent_virtual' }) 查看
    - 总资产多少？今日盈亏？累计收益率？持仓情况？
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 第二步：回顾今日交易
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. 使用 trade_monitor 查看今日交易记录
+1. 统计今日信号处理覆盖率：
+   - 今日收到几条 signals_ready 信号？处理了几条？成交了几笔？
+   - 用 decision_history 核对，把"收到N/处理N/成交N"写入 knowledge_record
+
+2. 使用 trade_monitor 查看今日交易记录
    - command: 'stats' - 查看统计
    - 今天买了什么？为什么买？
    - 今天卖了什么？为什么卖？
    - 交易结果如何？
 
-2. 使用 portfolio_analyze 分析当前持仓
+3. 使用 portfolio_analyze({ account: 'agent_virtual' }) 分析当前持仓
    - 持仓表现如何？
    - 哪些需要明日关注？
 
@@ -282,6 +292,21 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
       compensationEnabled: true,
       compensationCheckAfter: '19:00',
       compensationMaxAttempts: 1,
+      deleteAfterRun: false
+    },
+
+    // 4. 每周进化 - 绩效归因 + 经验评审 + 策略调整建议
+    {
+      name: 'weekly_evolution',
+      enabled: true,
+      scheduleKind: 'cron',
+      scheduleExpr: '0 20 * * 0',  // 每周日 20:00
+      payload: {
+        kind: 'weekly_evolution',
+      },
+      compensationEnabled: false,
+      compensationCheckAfter: undefined,
+      compensationMaxAttempts: 0,
       deleteAfterRun: false
     }
   ];
