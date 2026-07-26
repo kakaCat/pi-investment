@@ -140,6 +140,8 @@ ${signalLines}
 4. 决定买入的信号：调用 portfolio_trade({ account: 'agent_virtual', action: 'buy', symbol, amount, reason })
    → reason 必须 ≥10 字，引用信号 ID 和理由
    → 服务端硬护栏：单股≤30%、最多3只、总仓≤80%、单日买入≤5笔、单日买入≤总资产50%
+   → 交易时段：A股只有 9:30-11:30 / 13:00-15:00 能成交；当前若未到 9:30，
+     先完成评估并 decision_record 记录"待开盘执行"，等开盘后再下单，不要反复重试
    → 被护栏拒绝时：decision_record 记录原因，降仓位最多重试一次，不要反复重试
 5. 放弃的信号：调用 decision_record 记录放弃理由（这也是学习数据）
 6. 全部处理完：调用 knowledge_record 写今日信号处理摘要，feishu_notify 通知用户（处理了几条、买了什么、放弃了什么）
