@@ -202,6 +202,27 @@ const routes: RouteRecordRaw[] = [
             meta: { title: '博弈智能 - 自动化配置' }
           }
         ]
+      },
+      // Agent Session 可视化
+      {
+        path: '/agent-session',
+        name: 'AgentSession',
+        redirect: '/agent-session/list',
+        meta: { title: 'Agent 会话' },
+        children: [
+          {
+            path: 'list',
+            name: 'AgentSessionList',
+            component: () => import(/* webpackChunkName: "agent-session" */ '@/views/AgentSession/SessionList.vue'),
+            meta: { title: 'Agent 会话 - 列表' }
+          },
+          {
+            path: ':key',
+            name: 'AgentSessionDetail',
+            component: () => import(/* webpackChunkName: "agent-session" */ '@/views/AgentSession/SessionDetail.vue'),
+            meta: { title: 'Agent 会话 - 详情' }
+          }
+        ]
       }
     ]
   }
