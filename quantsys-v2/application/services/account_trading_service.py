@@ -3,7 +3,7 @@
 事务流: 校验 → 委托单 → 成交+费用 → 资金流水(add_trade自动) → 持仓 → 账户 → 快照
 """
 import structlog
-from datetime import date
+from datetime import date, datetime, time as dt_time
 from typing import Dict, Optional
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
@@ -26,9 +26,18 @@ class AccountTradingService:
     MAX_TOTAL_POSITION_RATIO = 0.80
     MAX_DAILY_BUY_COUNT = 5              # 单日买入笔数上限
     MAX_DAILY_BUY_AMOUNT_RATIO = 0.50    # 单日买入金额占总资产上限
+    # A股交易时段（交易日才允许成交）
+    TRADING_SESSIONS = (
+        (dt_time(9, 30), dt_time(11, 30)),
+        (dt_time(13, 0), dt_time(15, 0)),
+    )
 
-    def __init__(self, repo: Optional[SimulationORMRepository] = None):
+    def __init__(self, repo: Optional[SimulationORMRepository] = None, calendar=None):
         self.repo = repo or SimulationORMRepository()
+        if calendar is None:
+            from application.services.trading_calendar_service import TradingCalendarService
+            calendar = TradingCalendarService()
+        self.calendar = calendar
 
     def _get_price(self, symbol: str) -> float:
         from application.services.realtime_quote_service import RealtimeQuoteService
@@ -36,6 +45,21 @@ class AccountTradingService:
         if not quote or not quote.price or quote.price <= 0:
             raise TradingError(f'无法获取 {symbol} 实时价格', 502)
         return float(quote.price)
+
+    def _check_trading_window(self, now: datetime) -> None:
+        """A股交易时段护栏：只有交易日的 9:30-11:30 / 13:00-15:00 才能成交。
+
+        非交易日或非交易时段抛 TradingError（422），
+        拒绝原因返回给调用方（agent 记录后应等下一交易时段）。
+        """
+        day_str = now.date().isoformat()
+        if not self.calendar.is_trading_day(day_str):
+            raise TradingError(f'非交易日（{day_str}），A股不开市，委托拒绝', 422)
+        t = now.time()
+        if not any(start <= t <= end for start, end in self.TRADING_SESSIONS):
+            raise TradingError(
+                f'非交易时段（{t.strftime("%H:%M")}），'
+                f'A股交易时段为 9:30-11:30 / 13:00-15:00，委托拒绝', 422)
 
     def _check_daily_buy_limits(
         self, account_name: str, trade_amount: float, total_value: float
@@ -70,6 +94,7 @@ class AccountTradingService:
         reason: Optional[str] = None,
         max_positions: int = 10,
         price: Optional[float] = None,
+        allow_off_hours: bool = False,
     ) -> Dict:
         # ---- 校验 ----
         if not reason or len(reason.strip()) < 10:
@@ -77,6 +102,8 @@ class AccountTradingService:
         action = (action or '').lower()
         if action not in ('buy', 'sell'):
             raise TradingError("action 必须是 'buy' 或 'sell'", 400)
+        if not allow_off_hours:
+            self._check_trading_window(datetime.now())
         account = self.repo.get_account(account_name)
         if not account:
             raise TradingError(f'账户不存在: {account_name}', 404)

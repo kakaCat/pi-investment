@@ -230,6 +230,7 @@ def manual_trade(account_name):
             reason=data.get('reason'),
             max_positions=data.get('max_positions', 10),
             price=data.get('price'),  # 可选注入价格（回放/测试）
+            allow_off_hours=bool(data.get('allow_off_hours', False)),  # 回放/测试绕过时段护栏
         )
         return jsonify({'success': True, 'data': result})
     except TradingError as e:
