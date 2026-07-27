@@ -14,7 +14,7 @@ import structlog
 from adapters.inbound.fastapi_app.shared import (
     api_response, error_response, handle_api_error, convert_keys_to_snake, strategy_service,
 )
-from adapters.inbound.api.utils.response import normalize_indicator_fields
+from adapters.shared.response_helpers import normalize_indicator_fields
 
 logger = structlog.get_logger(__name__)
 

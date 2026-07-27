@@ -47,7 +47,7 @@ from adapters.inbound.api.shared import (
     enrich_stock_data,
     signal_to_opportunity,
 )
-from adapters.inbound.api.utils.response import normalize_indicator_fields
+from adapters.shared.response_helpers import normalize_indicator_fields
 from adapters.outbound.repositories import KlineORMRepository
 
 logger = logging.getLogger(__name__)

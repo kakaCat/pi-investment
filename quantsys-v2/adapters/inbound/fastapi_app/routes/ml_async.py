@@ -15,8 +15,8 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from adapters.inbound.fastapi_app.shared import ds
-# 复用 ml_routes.py 的模块级辅助函数（同一实现）
-from adapters.inbound.api.ml_routes import (
+# 复用中立层 ml_helpers 的辅助函数（同一实现）
+from adapters.shared.ml_helpers import (
     MODEL_DIR, _json, _get_model_repo, _convert_keys_to_snake, _sanitize_for_json,
     _ml_error_handler, _strip_suffix, _normalize_kline, _confidence_label,
     _save_ml_predictions, _resolve_latest_version,

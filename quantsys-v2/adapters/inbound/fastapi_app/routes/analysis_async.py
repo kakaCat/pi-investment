@@ -27,7 +27,7 @@ router = APIRouter(tags=["Analysis - 分析"])
 @router.post('/api/backtest')
 def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     """运行回测 - 支持 strategy_name、strategy_id 或 indicator_id"""
-    from adapters.inbound.api.routes.backtest import (
+    from adapters.shared.backtest_helpers import (
         save_simple_backtest, run_pe_mean_reversion_backtest, run_pb_mean_reversion_backtest,
     )
     raw_data = payload or {}
@@ -116,7 +116,7 @@ def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
 @router.post('/api/compute/factors')
 def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
     """计算因子（支持单个symbol或批量symbols）"""
-    from adapters.inbound.api.routes.jobs import (
+    from adapters.shared.fund_flow_helpers import (
         _inject_fund_flow_to_klines, _fetch_financial_data, _extract_fund_flow_factors,
     )
     data = payload or {}
