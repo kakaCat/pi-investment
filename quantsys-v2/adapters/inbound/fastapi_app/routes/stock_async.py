@@ -329,6 +329,54 @@ def data_update_klines(payload: Optional[Dict[str, Any]] = Body(None)):
         return error_response({'success': False, 'error': str(e)}, 500)
 
 
+@router.post('/api/data/update')
+@handle_api_error
+def data_update(payload: Optional[Dict[str, Any]] = Body(None)):
+    """触发数据更新（agent data.update 调度命令）— 与 data-update-klines 同一机制"""
+    try:
+        data = payload or {}
+        symbols_raw = data.get('symbols', [])
+        days = data.get('days', 730)
+
+        if isinstance(symbols_raw, str) and symbols_raw.strip():
+            symbols = [s.strip() for s in symbols_raw.split(',') if s.strip()]
+        elif isinstance(symbols_raw, list):
+            symbols = symbols_raw
+        else:
+            symbols = []
+
+        if not isinstance(days, int) or days < 1:
+            return error_response({'success': False, 'error': 'days 参数必须是大于 0 的整数'}, 400)
+
+        run_id = f"#D-{str(uuid.uuid4())[:8].upper()}"
+        if not acquire_task('data_update', run_id):
+            existing = get_running_tasks_snapshot().get('data_update', '?')
+            return error_response({'success': False, 'error': f'数据更新已在运行中 (run_id={existing})'}, 409)
+
+        now = datetime.now().isoformat()
+        run_record = {
+            'runId': run_id, 'run_id': run_id, 'status': 'running', 'startTime': now,
+            'symbols': symbols if symbols else ['ALL'], 'stages': ['data_update'],
+            'stages_list': ['data_update'], 'logs': [f'[{now}] K线数据更新触发: {run_id}, days={days}'],
+            'signalCount': 0, 'factorCount': 0, 'days': days,
+        }
+        runs = _load_pipeline_runs()
+        runs.append(run_record)
+        _save_pipeline_runs(runs)
+
+        from adapters.shared.pipeline_exec import _execute_pipeline_stages_with_error_handling
+        threading.Thread(
+            target=_execute_pipeline_stages_with_error_handling,
+            args=(run_id, symbols if symbols else ['000001.SZ'], ['data_update'], 'data_update'),
+            kwargs={'days': days},
+            daemon=True,
+        ).start()
+        return api_response({'success': True, 'run_id': run_id, 'symbols': symbols if symbols else 'ALL',
+                             'days': days, 'message': f'数据更新已触发，run_id={run_id}'})
+    except Exception as e:
+        return error_response({'success': False, 'error': str(e)}, 500)
+
+
 # ============ 实时行情（quote_market.py，agent data_fetch_quote 缺口补齐） ============
 
 def _get_db_quote(symbol: str):

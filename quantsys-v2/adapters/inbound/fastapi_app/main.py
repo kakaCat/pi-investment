@@ -414,6 +414,14 @@ def register_routes():
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import signal_test_async: {e}")
 
+    # 市场预警（alerts 域，agent 新建）
+    try:
+        from adapters.inbound.fastapi_app.routes.alerts_async import router as alerts_router
+        app.include_router(alerts_router)
+        logger.info("✅ Registered: alerts (agent 新建)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import alerts_async: {e}")
+
     # 策略发现（discovery 域，agent 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.discovery_async import router as discovery_router

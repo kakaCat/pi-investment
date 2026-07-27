@@ -6,7 +6,7 @@ _normalize_kline/_get_model_repo 等）与 ML 服务（MLTrainer/FeatureEngineer
 """
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -346,6 +346,148 @@ def ml_model_info(model_type: str = Query("xgboost"), version: str = Query("late
         except (_json.JSONDecodeError, OSError):
             pass
     return {"success": True, "data": {"model_info": _sanitize_for_json(info)}}
+
+
+@router.get('/api/ml/model/evaluate')
+@_ml_error_handler
+def ml_model_evaluate(model_type: str = Query("xgboost"), version: str = Query("latest")):
+    """评估模型（agent model_evaluate）— 返回 ModelEvaluation（metrics + training_report）"""
+    if model_type == "randomforest":
+        model_type = "xgboost"
+    db_model = _get_model_repo().get_by_type_version(model_type, version)
+    if not db_model:
+        return {"success": False, "error": f"模型不存在: {model_type} {version}"}
+
+    fi_raw = db_model.get("feature_importance") or {}
+    if isinstance(fi_raw, str):
+        fi_raw = _json.loads(fi_raw)
+
+    metrics = {
+        "train_accuracy": float(db_model.get("train_accuracy") or 0),
+        "test_accuracy": float(db_model.get("test_accuracy") or 0),
+        "precision": float(db_model.get("precision") or 0),
+        "recall": float(db_model.get("recall") or 0),
+        "f1_score": float(db_model.get("f1_score") or 0),
+        "roc_auc": float(db_model.get("roc_auc") or 0),
+    }
+    training_report: dict = {"feature_importance": fi_raw}
+    for key, out_key in (("confusion_matrix", "confusion_matrix"), ("cv_scores", "cv_scores")):
+        val = db_model.get(key)
+        if val is not None:
+            training_report[out_key] = _json.loads(val) if isinstance(val, str) else val
+
+    return {"success": True, "evaluation": _sanitize_for_json({
+        "model_type": db_model.get("model_type", model_type),
+        "version": db_model.get("version", ""),
+        "metrics": metrics,
+        "training_report": training_report,
+    })}
+
+
+@router.get('/api/ml/model/monitor')
+@_ml_error_handler
+def ml_model_monitor(model_type: str = Query("xgboost"), version: str = Query("latest"), days: int = Query(30)):
+    """监控模型漂移（agent model_monitor）— 比较近期 vs 基线数据分布，返回 ModelMonitor"""
+    if model_type == "randomforest":
+        model_type = "xgboost"
+    db_model = _get_model_repo().get_by_type_version(model_type, version)
+    if not db_model:
+        return {"success": False, "error": f"模型不存在: {model_type} {version}"}
+
+    fi_raw = db_model.get("feature_importance") or {}
+    if isinstance(fi_raw, str):
+        fi_raw = _json.loads(fi_raw)
+    top_features = sorted(fi_raw.items(), key=lambda kv: -abs(kv[1]))[:5] if fi_raw else []
+
+    drift_score, top_drift = _compute_drift(top_features, days)
+
+    threshold = 0.5
+    drift_detected = drift_score > threshold
+    if drift_score > 1.0:
+        recommendation = "建议尽快重新训练模型（数据分布已显著漂移）"
+    elif drift_detected:
+        recommendation = "建议密切监控并准备重新训练（检测到中等漂移）"
+    else:
+        recommendation = "模型状态正常，无需操作"
+
+    return {"success": True, "monitor": _sanitize_for_json({
+        "model_type": db_model.get("model_type", model_type),
+        "version": db_model.get("version", ""),
+        "drift_detected": drift_detected,
+        "drift_score": round(drift_score, 3),
+        "threshold": threshold,
+        "recommendation": recommendation,
+        "top_drift_features": top_drift,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+    })}
+
+
+def _compute_drift(top_features, days: int):
+    """计算数据分布漂移（近期 days 天 vs 其前 days 天基线），返回 (drift_score, top_drift_features)。
+
+    用样本股票近期 K 线计算关键特征（日收益、波动率、RSI）的分布偏移，
+    按 |近期均值-基线均值|/(基线标准差+eps) 衡量漂移。
+    """
+    import math
+    sample_symbols = ['600519', '000001']
+    feature_recent: dict = {}
+    feature_baseline: dict = {}
+
+    closes_all: list = []
+    for sym in sample_symbols:
+        try:
+            kdf = ds.kline.get_daily_klines(
+                sym,
+                (datetime.now() - timedelta(days=days * 2 + 30)).strftime('%Y-%m-%d'),
+                datetime.now().strftime('%Y-%m-%d'))
+            if kdf is None or kdf.is_empty():
+                continue
+            closes = [float(k.get('close', 0)) for k in kdf.to_dicts()]
+            closes_all.append(closes)
+        except Exception:
+            continue
+
+    def _features(closes, start, end):
+        seg = closes[start:end]
+        if len(seg) < 3:
+            return None
+        rets = [(seg[i] - seg[i-1]) / seg[i-1] for i in range(1, len(seg)) if seg[i-1] != 0]
+        if not rets:
+            return None
+        mean_ret = sum(rets) / len(rets)
+        var = sum((r - mean_ret) ** 2 for r in rets) / len(rets)
+        vol = math.sqrt(var)
+        gains = [r for r in rets if r > 0]
+        losses = [-r for r in rets if r < 0]
+        avg_gain = sum(gains) / len(gains) if gains else 0
+        avg_loss = sum(losses) / len(losses) if losses else 1e-9
+        rsi = 100 - 100 / (1 + (avg_gain / avg_loss if avg_loss else 0)) if rets else 50
+        return {'daily_return': mean_ret, 'volatility': vol, 'rsi': rsi}
+
+    for closes in closes_all:
+        if len(closes) < days * 2:
+            continue
+        base = _features(closes, 0, days)
+        recent = _features(closes, days, days * 2)
+        if base and recent:
+            for k in base:
+                feature_baseline.setdefault(k, []).append(base[k])
+                feature_recent.setdefault(k, []).append(recent[k])
+
+    drifts = []
+    for k in feature_baseline:
+        b = feature_baseline[k]
+        r = feature_recent[k]
+        mean_b = sum(b) / len(b)
+        mean_r = sum(r) / len(r)
+        std_b = math.sqrt(sum((x - mean_b) ** 2 for x in b) / len(b)) if len(b) > 1 else 0
+        drift = abs(mean_r - mean_b) / (std_b + 1e-9)
+        drifts.append({'feature': k, 'drift': round(drift, 3)})
+
+    drifts.sort(key=lambda x: -x['drift'])
+    drift_score = drifts[0]['drift'] if drifts else 0.0
+    return drift_score, drifts[:5]
+
 
 
 @router.get('/api/ml/features')
