@@ -94,7 +94,8 @@ def test_resolve_empty(flask_client, fastapi_client):
 
 
 def test_batch_quotes(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", BATCH_Q, json_body={"symbols": ["600519"]})
+    # 实时行情价/量在两次顺序调用间会变动，只能结构比对（与 peers 同理）
+    assert_structural_parity(flask_client, fastapi_client, "POST", BATCH_Q, json_body={"symbols": ["600519"]})
 
 
 def test_batch_quotes_empty(flask_client, fastapi_client):

@@ -183,7 +183,7 @@ async def platform_status():
     返回数据库、信号、模型、报告等状态
     """
     try:
-        from adapters.inbound.api.shared import ds
+        from adapters.shared import ds
 
         holdings = ds.portfolio.get_all_holdings() if hasattr(ds, 'portfolio') else []
         balance = ds.risk.get_latest_balance() if hasattr(ds, 'risk') else None

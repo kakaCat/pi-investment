@@ -445,7 +445,7 @@ def backtest_strategy_v2(payload: Optional[Dict[str, Any]] = Body(None)):
 @flask_parity_router.post('/api/backtest/combo')
 def combo_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     """Combo strategy backtest endpoint."""
-    from adapters.inbound.api.shared import combo_backtest_service
+    from adapters.shared import combo_backtest_service
 
     data = payload
     if not data:

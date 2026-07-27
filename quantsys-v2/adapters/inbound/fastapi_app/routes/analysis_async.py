@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Query, Body, Request
 import structlog
 
-from adapters.inbound.api.shared import _V2_ROOT
+from adapters.shared import _V2_ROOT
 from adapters.inbound.fastapi_app.shared import (
     ds, api_response, error_response, handle_api_error, sanitize_for_json,
     convert_keys_to_snake, convert_keys_to_camel, strategy_service, scoring_service,
@@ -556,7 +556,7 @@ def get_valuation(symbol: str):
 @handle_api_error
 def get_stock_score(symbol: str):
     """多因子评分 - 使用 v2 StockScoringService"""
-    from adapters.inbound.api.shared import stock_scoring_service
+    from adapters.shared import stock_scoring_service
 
     result = stock_scoring_service.calculate_comprehensive_score(symbol)
     if 'error' in result:
