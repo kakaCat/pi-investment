@@ -36,4 +36,12 @@ describe('Router', () => {
     expect(content).toMatch(
       /path:\s*'\/simulation-trading'[\s\S]{0,300}title:\s*'模拟交易'/)
   })
+  it('注册 Agent Session 路由', () => {
+    const routerPath = path.resolve(process.cwd(), 'src/router/index.ts')
+    const content = fs.readFileSync(routerPath, 'utf-8')
+
+    expect(content).toContain("path: '/agent-session'")
+    expect(content).toContain("redirect: '/agent-session/list'")
+    expect(content).toContain("name: 'AgentSessionDetail'")
+  })
 })

@@ -55,3 +55,15 @@ def get_events(session_key):
 def get_diagnosis(session_key):
     diagnosis = SessionService().get_diagnosis(session_key)
     return jsonify({'success': True, 'data': diagnosis})
+
+
+@agent_sessions_bp.route('/<path:session_key>/ai-diagnosis', methods=['POST'])
+@handle_errors
+def ai_diagnosis(session_key):
+    """AI 诊断（DeepSeek，缓存）；?refresh=true 强制重新生成"""
+    refresh = request.args.get('refresh', '').lower() == 'true'
+    try:
+        result = SessionService().ai_diagnosis(session_key, refresh=refresh)
+    except RuntimeError as e:
+        return jsonify({'success': False, 'error': str(e)}), 503
+    return jsonify({'success': True, 'data': result})

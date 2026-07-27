@@ -25,7 +25,7 @@ from adapters.inbound.fastapi_app.shared import (
     _load_pipeline_runs, _save_pipeline_runs,
     acquire_task, get_running_tasks_snapshot,
 )
-from adapters.inbound.api.shared import _PROJECT_ROOT_PATH
+from adapters.shared import _PROJECT_ROOT_PATH
 # 复用 Flask pipeline.py 的后台执行函数（同一实现，保证行为一致）
 from adapters.inbound.api.routes.pipeline import (
     _execute_calibration, _execute_signal_generate_v2,

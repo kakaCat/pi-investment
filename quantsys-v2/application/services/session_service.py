@@ -6,6 +6,7 @@ Session 服务 — agent session 事件摄入、查询与诊断
 import json
 import structlog
 from typing import Dict, Any, List, Optional
+from datetime import datetime, timezone
 from infrastructure.persistence.database.base_repository import BaseRepository
 
 logger = structlog.get_logger(__name__)
@@ -179,6 +180,78 @@ class SessionService:
             "decisions": decisions,
             "insight": insight,
         }
+
+    def ai_diagnosis(self, session_key: str, refresh: bool = False) -> Dict[str, Any]:
+        """AI 诊断：压缩事件流 → DeepSeek 三段分析 → 缓存到 agent_sessions
+
+        Returns:
+            {analysis, generated_at, cached}
+        """
+        repo = BaseRepository()
+        cursor = repo._get_cursor()
+
+        # 缓存命中
+        if not refresh:
+            cursor.execute(
+                "SELECT ai_diagnosis, ai_diagnosis_at FROM quant.agent_sessions WHERE session_key = %s",
+                (session_key,),
+            )
+            row = cursor.fetchone()
+            if row and row['ai_diagnosis']:
+                return {
+                    'analysis': row['ai_diagnosis'].get('analysis', ''),
+                    'generated_at': row['ai_diagnosis_at'].isoformat() if row['ai_diagnosis_at'] else None,
+                    'cached': True,
+                }
+
+        events = self.get_events(session_key, limit=500)
+        prompt = self._build_diagnosis_prompt(session_key, events)
+
+        from application.services.llm_service import chat_completion
+        analysis = chat_completion(prompt)
+
+        now = datetime.now(timezone.utc)
+        cursor.execute(
+            """UPDATE quant.agent_sessions
+               SET ai_diagnosis = %s::jsonb, ai_diagnosis_at = %s
+               WHERE session_key = %s""",
+            (json.dumps({'analysis': analysis}), now, session_key),
+        )
+        repo.db.commit()
+
+        return {'analysis': analysis, 'generated_at': now.isoformat(), 'cached': False}
+
+    @staticmethod
+    def _build_diagnosis_prompt(session_key: str, events: List[Dict[str, Any]]) -> str:
+        """压缩事件流为 ≤4K token 的诊断 prompt"""
+        lines = [f"请诊断以下 AI 投资助手的工作会话（{session_key}）：\n"]
+        tool_stats: Dict[str, Dict[str, int]] = {}
+
+        for e in events:
+            etype = e['event_type']
+            p = e['payload'] or {}
+            if etype == 'user_message':
+                lines.append(f"用户: {str(p.get('text', ''))[:200]}")
+            elif etype == 'assistant_reply':
+                lines.append(f"助手回复: {str(p.get('text', ''))[:200]}")
+            elif etype == 'tool_call':
+                name = p.get('toolName', 'unknown')
+                stat = tool_stats.setdefault(name, {'ok': 0, 'fail': 0, 'max_ms': 0})
+                stat['ok' if p.get('success') else 'fail'] += 1
+                stat['max_ms'] = max(stat['max_ms'], int(p.get('durationMs') or 0))
+            elif etype == 'error':
+                lines.append(f"错误[{p.get('stage', '')}]: {p.get('message', '')}")
+
+        if tool_stats:
+            lines.append("\n工具调用统计:")
+            for name, s in tool_stats.items():
+                lines.append(f"  {name}: 成功{s['ok']} 失败{s['fail']} 最慢{s['max_ms']}ms")
+
+        lines.append(
+            "\n请用中文输出三段分析（每段不超过100字）：\n"
+            "1. 做得好的地方\n2. 问题与根因\n3. 下次改进建议"
+        )
+        return '\n'.join(lines)[:6000]
 
     @staticmethod
     def _build_insight(success_rate, total, tool, errors) -> str:

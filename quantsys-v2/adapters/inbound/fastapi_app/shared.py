@@ -1,9 +1,9 @@
 """
 FastAPI 共享辅助模块
 
-从 Flask adapters/inbound/api/shared.py 复用框架无关实现（同一 ds 单例 +
-同一序列化逻辑），并提供 FastAPI 兼容的 api_response / handle_api_error /
-error_response，保证迁移后响应契约与 Flask 完全一致（parity）。
+从中立共享层 adapters.shared 复用框架无关实现（同一 ds 单例 + 同一序列化逻辑），
+并提供 FastAPI 兼容的 api_response / handle_api_error / error_response，
+保证迁移后响应契约与 Flask 完全一致（parity）。
 """
 import functools
 from typing import Any, Dict, Optional
@@ -11,8 +11,8 @@ from typing import Any, Dict, Optional
 from fastapi.responses import JSONResponse
 import structlog
 
-# 复用 Flask shared 的框架无关部分（同一 ds 单例 + 同一序列化 → 保证 parity）
-from adapters.inbound.api.shared import (
+# 复用中立共享层（同一 ds 单例 + 同一序列化 → 保证 parity）；不依赖 Flask 路径
+from adapters.shared import (
     ds,
     sanitize_for_json,
     convert_keys_to_camel,

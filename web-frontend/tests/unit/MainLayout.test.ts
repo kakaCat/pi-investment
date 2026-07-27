@@ -30,12 +30,13 @@ describe('MainLayout', () => {
     const mainLayoutPath = path.resolve(process.cwd(), 'src/components/layout/MainLayout.vue')
     const content = fs.readFileSync(mainLayoutPath, 'utf-8')
 
-    const expectedGroups = ['总览', '研究分析', '交易风控', '策略运营', '系统运维']
+    const expectedGroups = ['总览', '研究分析', '交易风控', '策略运营', '博弈智能', '系统运维']
     const expectedItems = [
       '仪表盘',
       '指标IDE',
       '图表研究',
       '机会雷达',
+      '股票池',
       '回测与快速交易',
       '持仓管理',
       '交易记录',
@@ -43,13 +44,22 @@ describe('MainLayout', () => {
       '风控检查',
       '执行记录',
       '策略运营中心',
+      '模拟交易',
       '量化链路',
       '策略配置',
       'ML 引擎',
+      '博弈总览',
+      '对手行为',
+      '预警中心',
+      '学习闭环',
+      '任务监控',
+      '自动化配置',
+      'Agent 会话',
       '定时任务',
       '数据更新',
       '日报'
     ]
+    
 
     const groups = Array.from(content.matchAll(/<div class="menu-group-title">([^<]+)<\/div>/g)).map(
       (match) => match[1]

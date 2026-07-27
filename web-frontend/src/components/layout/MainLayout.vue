@@ -109,6 +109,10 @@
             <el-icon><Setting /></el-icon>
             <span>自动化配置</span>
           </el-menu-item>
+          <el-menu-item index="/agent-session/list">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>Agent 会话</span>
+          </el-menu-item>
 
           <div class="menu-group-title">系统运维</div>
           <el-menu-item index="/scheduler">

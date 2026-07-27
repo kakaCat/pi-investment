@@ -273,3 +273,49 @@ export interface Strategy {
 // ========== API响应 ==========
 
 export type { ApiResponse, PaginatedResponse } from './api'
+
+// ===== Agent Session 可视化（2026-07-26）=====
+
+export interface AgentSession {
+  session_key: string
+  channel: 'wake' | 'feishu' | 'cli' | string
+  peer_id: string
+  agent_id: string
+  started_at: string
+  last_active_at: string
+  status: 'active' | 'idle' | string
+  message_count: number
+  tool_call_count: number
+  error_count: number
+}
+
+export interface SessionEvent {
+  seq: number
+  event_type: 'session_start' | 'user_message' | 'tool_call' | 'assistant_reply' | 'error' | 'session_idle' | 'legacy_note' | string
+  payload: Record<string, any>
+  created_at: string
+}
+
+export interface SessionDiagnosis {
+  session_key: string
+  tool_success_rate: number | null
+  tool_call_count: number
+  avg_tool_duration_ms: number
+  max_tool_duration_ms: number
+  error_count: number
+  top_errors: Array<{ message: string; cnt: number }>
+  decisions: Array<{
+    decision_id: string
+    decision_type: string
+    reasoning: string | null
+    evaluation_status: string
+    success: boolean | null
+  }>
+  insight: string
+}
+
+export interface AiDiagnosis {
+  analysis: string
+  generated_at: string
+  cached: boolean
+}

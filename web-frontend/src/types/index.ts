@@ -4,11 +4,15 @@ export * from './api'
 export * from './components'
 export type {
   AgentLog,
+  AgentSession,
+  AiDiagnosis,
   CreateStopLossRequest,
   KLineData,
   Order,
   Position,
   RealtimeQuote,
+  SessionDiagnosis,
+  SessionEvent,
   SignalAnalysis,
   SignalExecution,
   SignalFilters,
