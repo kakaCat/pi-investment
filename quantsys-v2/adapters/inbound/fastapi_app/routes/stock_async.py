@@ -315,7 +315,7 @@ def data_update_klines(payload: Optional[Dict[str, Any]] = Body(None)):
         runs.append(run_record)
         _save_pipeline_runs(runs)
 
-        from adapters.inbound.api.routes.pipeline import _execute_pipeline_stages_with_error_handling
+        from adapters.shared.pipeline_exec import _execute_pipeline_stages_with_error_handling
         threading.Thread(
             target=_execute_pipeline_stages_with_error_handling,
             args=(run_id, symbols if symbols else ['000001.SZ'], ['data_update'], 'data_update'),

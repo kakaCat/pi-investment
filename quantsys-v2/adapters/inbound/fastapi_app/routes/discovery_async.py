@@ -1,6 +1,6 @@
 """策略发现 API - FastAPI 版（从 Flask discovery.py 迁移，响应契约保持一致）
 
-结果存储在 Flask discovery.py 的模块级内存字典 _results_store（两边共享）。
+结果存储在中立层 adapters/shared/discovery_state（Flask discovery.py 也再导出同一实例）。
 """
 from typing import Any, Dict, Optional
 
@@ -8,8 +8,8 @@ from fastapi import APIRouter, Query, Body
 from fastapi.responses import JSONResponse
 import structlog
 
-# 复用 Flask discovery.py 的内存结果存储（同一单例，保证 parity）
-from adapters.inbound.api.routes.discovery import _results_store
+# 复用中立层的内存结果存储（同一单例，保证 parity）
+from adapters.shared.discovery_state import _results_store
 
 logger = structlog.get_logger(__name__)
 

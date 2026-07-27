@@ -15,8 +15,8 @@ from adapters.inbound.fastapi_app.shared import (
     error_response, sanitize_for_json, convert_keys_to_snake,
 )
 
-# 从 health.py 导入共享的 Job 基础设施（与 Flask jobs.py 一致）
-from adapters.inbound.api.routes.health import (
+# 从中立共享层导入共享的 Job 基础设施（Flask health.py 也再导出同一实例）
+from adapters.shared.jobs_state import (
     _jobs, _jobs_lock, _audit_job, _execute_job_by_type, _JOB_TYPES,
 )
 

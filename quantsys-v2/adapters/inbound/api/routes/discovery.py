@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 discovery_bp = Blueprint('discovery', __name__)
 
-# 简易内存存储（重启丢失，后续可迁到 DB）
-_results_store: dict = {}
+# 简易内存存储（重启丢失）— 已解耦到中立层，向后兼容再导出
+from adapters.shared.discovery_state import _results_store
 
 
 def _get_service() -> StrategyDiscoveryService:

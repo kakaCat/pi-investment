@@ -18,7 +18,7 @@ from adapters.inbound.fastapi_app.shared import (
     acquire_task, get_running_tasks_snapshot,
 )
 # 复用 Flask pipeline.py 的后台执行函数（同一实现，保证行为一致）
-from adapters.inbound.api.routes.pipeline import _execute_pipeline_stages
+from adapters.shared.pipeline_exec import _execute_pipeline_stages
 
 logger = structlog.get_logger(__name__)
 

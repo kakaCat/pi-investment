@@ -97,54 +97,15 @@ __all__ = [
     'ServiceFactory',
 ]
 
-# ── 后台任务并发控制 ──
+# ── 后台任务并发控制（已解耦到中立层，向后兼容再导出，保证跨框架共享同一任务锁） ──
 
-_running_tasks: Dict[str, str] = {}
-_task_lock = threading.Lock()
-
-
-def acquire_task(task_type: str, run_id: str) -> bool:
-    """获取任务执行权限
-
-    Args:
-        task_type: 任务类型
-        run_id: 运行ID
-
-    Returns:
-        是否成功获取执行权限
-    """
-    with _task_lock:
-        if task_type in _running_tasks:
-            return False
-        _running_tasks[task_type] = run_id
-        return True
-
-
-def release_task(task_type: str, run_id: str) -> bool:
-    """释放任务执行权限
-
-    Args:
-        task_type: 任务类型
-        run_id: 运行ID
-
-    Returns:
-        是否成功释放
-    """
-    with _task_lock:
-        if _running_tasks.get(task_type) == run_id:
-            del _running_tasks[task_type]
-            return True
-        return False
-
-
-def get_running_tasks() -> Dict[str, str]:
-    """获取当前运行的任务列表
-
-    Returns:
-        任务类型到运行ID的映射
-    """
-    with _task_lock:
-        return dict(_running_tasks)
+from adapters.shared.tasks import (
+    _running_tasks,
+    _task_lock,
+    acquire_task,
+    release_task,
+    get_running_tasks,
+)
 
 
 # ── 通用工具函数 ──
