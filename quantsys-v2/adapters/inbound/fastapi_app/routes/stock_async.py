@@ -1,6 +1,7 @@
 """股票数据 API - FastAPI 版（从 Flask stock.py 迁移，响应契约保持一致）"""
 import threading
 import uuid
+import re
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -326,3 +327,80 @@ def data_update_klines(payload: Optional[Dict[str, Any]] = Body(None)):
                              'days': days, 'message': f'K线更新已触发，run_id={run_id}'})
     except Exception as e:
         return error_response({'success': False, 'error': str(e)}, 500)
+
+
+# ============ 实时行情（quote_market.py，agent data_fetch_quote 缺口补齐） ============
+
+def _get_db_quote(symbol: str):
+    """从数据库获取最新K线数据作为行情（与 Flask quote_market.py 一致）。"""
+    try:
+        latest = ds.kline.get_latest_daily_kline(symbol)
+        if latest and latest.get("close"):
+            stock = ds.stock.get_by_symbol(symbol) or {}
+            return {
+                "symbol": symbol,
+                "name": stock.get("name", symbol),
+                "price": float(latest["close"]),
+                "change_pct": float(latest.get("change_pct", 0) or 0),
+                "high": float(latest.get("high", 0) or 0),
+                "low": float(latest.get("low", 0) or 0),
+                "open": float(latest.get("open", 0) or 0),
+                "volume": float(latest.get("volume", 0) or 0),
+                "trade_date": latest.get("trade_date", ""),
+                "source": "db_fallback",
+            }
+    except Exception as e:
+        logger.warning(f"DB quote failed for {symbol}: {e}")
+    return None
+
+
+@router.get('/api/stock/{symbol}/quote')
+@handle_api_error
+def get_stock_quote(symbol: str, source: str = Query('realtime')):
+    """实时行情端点（source: realtime|db|auto，数据源优先级 akshare→sina→eastmoney→tencent→netease）"""
+    source = source.lower()
+    if source not in ['realtime', 'db', 'auto']:
+        return error_response({"success": False, "error": f"Invalid source parameter: {source}. Must be one of: realtime, db, auto"}, 400)
+
+    clean_symbol = re.sub(r'[^A-Za-z0-9.]', '', symbol)
+
+    if source == 'db':
+        db_result = _get_db_quote(clean_symbol)
+        if db_result:
+            return api_response(db_result)
+        return error_response({"success": False, "error": f"无法从数据库获取 {symbol} 的行情"}, 404)
+
+    # realtime 或 auto 模式：使用 RealtimeQuoteService
+    try:
+        from application.services.realtime_quote_service import RealtimeQuoteService
+        quote_service = RealtimeQuoteService()
+        quote_data = quote_service.get_realtime_quote(clean_symbol)
+        if quote_data:
+            result = {
+                "symbol": quote_data.symbol,
+                "name": quote_data.name,
+                "price": quote_data.price,
+                "open": quote_data.open,
+                "high": quote_data.high,
+                "low": quote_data.low,
+                "prev_close": quote_data.prev_close,
+                "volume": quote_data.volume,
+                "amount": quote_data.amount,
+                "change": quote_data.change,
+                "change_pct": quote_data.change_pct,
+                "source": quote_data.source,
+                "timestamp": quote_data.timestamp,
+            }
+            return api_response(result)
+    except Exception as e:
+        logger.warning(f"RealtimeQuoteService failed for {symbol}: {e}")
+
+    if source == 'realtime':
+        return error_response({"success": False, "error": f"无法获取 {symbol} 的实时行情"}, 502)
+
+    # auto 模式：fallback 到数据库
+    db_result = _get_db_quote(clean_symbol)
+    if db_result:
+        return api_response(db_result)
+    return error_response({"success": False, "error": f"无法获取 {symbol} 的实时行情"}, 502)
+

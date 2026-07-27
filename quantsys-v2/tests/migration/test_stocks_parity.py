@@ -117,3 +117,17 @@ def test_watchlist_list(flask_client, fastapi_client):
 
 def test_watchlist_check(flask_client, fastapi_client):
     assert_parity(flask_client, fastapi_client, "GET", WL_CHECK)
+
+
+def test_stock_quote_db_mode(flask_client, fastapi_client):
+    # db 模式：两边都查不到（测试库无该股近期K线）→ 404，确定性
+    assert_parity(flask_client, fastapi_client, "GET", "/api/stock/999999/quote?source=db")
+
+
+def test_stock_quote_invalid_source(flask_client, fastapi_client):
+    assert_parity(flask_client, fastapi_client, "GET", "/api/stock/600519/quote?source=invalid")
+
+
+def test_stock_quote_realtime(flask_client, fastapi_client):
+    # realtime 模式用真实数据源（非确定实时价），结构比对
+    assert_structural_parity(flask_client, fastapi_client, "GET", "/api/stock/600519/quote?source=realtime")
