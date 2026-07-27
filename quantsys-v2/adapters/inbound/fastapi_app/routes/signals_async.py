@@ -50,13 +50,15 @@ def get_signals_statistics(request: Request):
     cursor = signal_repo._get_cursor()
 
     cursor.execute("""
-        SELECT COUNT(*) as total,
+        SELECT
+            COUNT(*) as total,
             COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
             COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
             COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected,
             COUNT(CASE WHEN status = 'error' THEN 1 END) as error,
             COUNT(CASE WHEN status = 'executed' THEN 1 END) as executed
-        FROM quant.signals WHERE signal_date >= %s AND signal_date <= %s
+        FROM quant.signals
+        WHERE signal_date >= %s AND signal_date <= %s
     """, (start_date, end_date))
     status_result = cursor.fetchone()
 
