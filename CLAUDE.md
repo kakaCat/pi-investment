@@ -204,6 +204,16 @@ Based on our discussion, stock pools need enhancements to support game-theoretic
    - Flag pump-and-dump schemes
    - Identify post-manipulation bottom-fishing opportunities
 
+## 多会话并行工作规则（Worktree 隔离）
+
+本仓库常有多个 Claude 会话与人工并行工作。**修改代码必须创建 worktree，完成并合并后再提交 GitHub。**
+
+1. **每个独立工作线必须在独立 worktree 中开发**：`git worktree add .claude/worktrees/<name> -b feat/<name>`，不在共享主工作区直接做 feature 提交
+2. **会话开始先确认分支**：`git branch --show-current` 与预期不符时停手确认，不要在被切换的分支上继续提交
+3. **合并与推送**：工作线在 worktree 内完成并验证后，合并回 main（临时 worktree 或 PR），再推送 GitHub
+4. **禁止在脏工作区批量覆盖**：不执行 `git checkout <ref> -- .`、`git restore --source=<ref> .` 等命令；提交前 `git status` 出现不属于自己的改动 = 停手信号，只 add 自己任务的文件
+5. **IP/端口约定**：worktree 中因测试改 IP/端口的，合并前必须改回固定值（见 agent-ts/CLAUDE.md 固定端口表）
+
 ## Development Guidelines
 
 ### Agent Tool Development

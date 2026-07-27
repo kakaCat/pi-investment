@@ -1294,7 +1294,7 @@ This enables:
 
 - No linter/formatter configured (no ESLint, Prettier, or Biome).
 - No CI/CD pipeline configured.
-- git worktrees used for feature isolation (evolution branches, worktree-agent branches).
+- **修改代码必须创建 worktree，完成并合并后再提交 GitHub**——见根 CLAUDE.md「多会话并行工作规则（Worktree 隔离）」。
 - Commit messages in Chinese are common.
 - The agent uses DeepSeek which processes one tool call at a time — tool definitions should account for this.
 - **Agent is autonomous**: Design features around scheduled tasks, not just user prompts.
