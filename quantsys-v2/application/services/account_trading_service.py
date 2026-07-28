@@ -173,6 +173,30 @@ class AccountTradingService:
 
         # ---- 单事务执行 ----
         try:
+            # 行级锁串行化同账户并发交易，防 lost update：
+            # 锁定后 account 被刷新为数据库最新值，资金类校验必须在锁内复核
+            locked_account = self.repo.get_account_for_update(account_name)
+            if not locked_account:
+                raise TradingError(f'账户不存在: {account_name}', 404)
+            account = locked_account
+            if action == 'buy':
+                total_cost_locked = trade_amount + commission + transfer_fee
+                if total_cost_locked > float(account.cash_available):
+                    raise TradingError(
+                        f'可用资金不足(锁内复核): 需要 ¥{total_cost_locked:,.2f}'
+                        f'，可用 ¥{float(account.cash_available):,.2f}', 422)
+
+            # 锁内重读持仓：之前读取的 pos/positions 可能是并发事务提交前的旧值
+            self.repo.session.expire_all()
+            positions = self.repo.get_all_positions(account_name)
+            pos = next((p for p in positions if p.symbol == symbol), None)
+            if action == 'sell':
+                if pos is None or pos.shares_total <= 0:
+                    raise TradingError(f'无 {symbol} 持仓，无法卖出', 422)
+                if shares > pos.shares_available:
+                    raise TradingError(
+                        f'T+1 可卖数量不足: 可卖 {pos.shares_available} 股，委托 {shares} 股', 422)
+
             order = self.repo.create_order(
                 account_name=account_name, action=action, symbol=symbol,
                 shares=shares, price_limit=price_limit, reason=reason,

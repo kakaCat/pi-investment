@@ -108,6 +108,26 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             logger.error(f"Error getting account {account_name}: {e}")
             return None
 
+    def get_account_for_update(self, account_name: str) -> Optional[SimulationAccount]:
+        """获取账户并加行级锁（SELECT ... FOR UPDATE）。
+
+        用于交易事务：防止并发请求读到相同的 cash_available 后互相覆盖
+        （lost update——2026-07-28 agent_virtual 曾因此虚增现金 ¥23,346）。
+        锁持有者提交前，同账户的其他事务阻塞等待，从而实现串行化。
+        populate_existing 强制以数据库最新值刷新会话中已缓存的实体。
+        """
+        try:
+            return (
+                self.session.query(SimulationAccount)
+                .filter_by(account_name=account_name)
+                .populate_existing()
+                .with_for_update()
+                .first()
+            )
+        except Exception as e:
+            logger.error(f"Error locking account {account_name}: {e}")
+            return None
+
     def create_account(
         self,
         account_name: str,
@@ -325,17 +345,25 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         return float(flow.balance_after) if flow else None
 
     def verify_cash_flow_invariant(self, account_name: str) -> Dict:
-        """校验不变式: 末条流水余额 == cash_available + cash_frozen"""
+        """校验不变式（双重）：
+        1. 末条流水余额 == cash_available + cash_frozen
+        2. 全部流水 amount 之和 == cash_available + cash_frozen
+           （强不变式：能检出并发 lost update 造成的链条断裂，
+           此类问题中末条余额可能恰好与现金一致，单看 1 无法发现）
+        """
         account = self.get_account(account_name)
         flows = self.get_cash_flows(account_name, limit=100000)
         flow_balance = float(flows[-1].balance_after) if flows else 0.0
+        flow_sum = sum(float(f.amount or 0) for f in flows)
         cash = (float(account.cash_available or 0) + float(account.cash_frozen or 0)) if account else 0.0
         return {
             'account_name': account_name,
             'flow_balance': flow_balance,
+            'flow_sum': round(flow_sum, 2),
             'account_cash': cash,
             'flow_count': len(flows),
             'invariant_ok': abs(flow_balance - cash) < 0.01,
+            'sum_invariant_ok': abs(flow_sum - cash) < 0.01,
         }
 
     # ==================== 委托单 ====================

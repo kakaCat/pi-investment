@@ -70,6 +70,7 @@ def _make_tradable_svc():
     account.initial_capital = 100000.0
     account.peak_value = 100000.0
     repo.get_account.return_value = account
+    repo.get_account_for_update.return_value = account  # 事务内锁行后复核使用
     repo.get_all_positions.return_value = []
     repo.create_order.return_value = MagicMock(id=1)
     repo.add_trade.return_value = 1
