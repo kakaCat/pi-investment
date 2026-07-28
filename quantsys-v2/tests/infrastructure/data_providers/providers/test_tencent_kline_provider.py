@@ -44,7 +44,9 @@ def test_parse_qfqday_field_order():
     assert k.close == 32.28
     assert k.high == 33.61
     assert k.low == 31.40
-    assert k.volume == 260109
+    # volume 原始单位为手，契约统一归一为股（×100），amount = 股×收盘价
+    assert k.volume == 26010900
+    assert k.amount == 26010900 * 32.28
     assert k.source == 'tencent'
     # 第二天 change_pct = (31.28-32.28)/32.28 = -3.10%
     assert klines[1].change_pct == -3.10
