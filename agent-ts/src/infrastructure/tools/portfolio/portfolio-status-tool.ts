@@ -29,6 +29,19 @@ export interface PortfolioHolding {
   price_updated_at?: string;
 }
 
+export interface PortfolioBenchmark {
+  symbol: string;
+  benchmark_name?: string;
+  /** 以下收益率均为小数比率（0.023 = 2.3%），展示时 ×100 */
+  benchmark_return_1m: number;
+  account_return_1m: number;
+  excess_return_1m: number;
+  alpha?: number | null;
+  beta?: number | null;
+  sharpe?: number | null;
+  aligned_days?: number;
+}
+
 export interface PortfolioView {
   success: true;
   cash: number;
@@ -43,6 +56,8 @@ export interface PortfolioView {
   last_updated?: string;
   /** 行情获取失败、价格为陈旧值时为 true */
   price_stale?: boolean;
+  /** 沪深300 基准对比（后端取数/快照不足时缺失） */
+  benchmark?: PortfolioBenchmark;
   summary: string;
 }
 
@@ -108,6 +123,14 @@ export function computePortfolioView(portfolio: any): PortfolioView {
   const totalPnlPct = totalAssets > 0 ? (totalPnl / (totalAssets - totalPnl)) * 100 : 0;
   const cumulativeReturn = Number(portfolio.cumulative_return);
   const priceStale = portfolio.price_stale === true;
+  const benchmark: PortfolioBenchmark | undefined = portfolio.benchmark ?? undefined;
+
+  // 基准对比行：收益率字段是小数比率，展示 ×100
+  const benchmarkLine = benchmark
+    ? `\n  近30日：账户 ${(benchmark.account_return_1m * 100).toFixed(2)}% vs ${benchmark.benchmark_name ?? "沪深300"} ${(benchmark.benchmark_return_1m * 100).toFixed(2)}%（超额 ${(benchmark.excess_return_1m * 100).toFixed(2)}%）` +
+      `${benchmark.sharpe != null ? `\n  夏普比率：${benchmark.sharpe.toFixed(2)}` : ""}` +
+      `${benchmark.alpha != null ? `，年化Alpha：${(benchmark.alpha * 100).toFixed(2)}%` : ""}`
+    : "";
 
   return {
     success: true,
@@ -122,13 +145,14 @@ export function computePortfolioView(portfolio: any): PortfolioView {
     // 只认后端响应生成时间；last_rebalance_date 是"最后调仓日"，语义不同不作回退
     last_updated: portfolio.last_updated || portfolio.lastUpdated || undefined,
     price_stale: priceStale ? true : undefined,
+    benchmark,
     summary: `
 持仓概况：
   可用资金：¥${cash.toFixed(2)}
   持仓数量：${holdings.length}只
   持仓市值：¥${totalMarketValue.toFixed(2)}
   总资产：¥${totalAssets.toFixed(2)}
-  总盈亏：¥${totalPnl.toFixed(2)} (${totalPnlPct.toFixed(2)}%)${Number.isFinite(cumulativeReturn) ? `\n  累计收益率：${(cumulativeReturn * 100).toFixed(2)}%` : ""}${priceStale ? `\n  ⚠️ 行情获取失败，持仓价格为陈旧数据，禁止据此做止盈止损判断` : ""}
+  总盈亏：¥${totalPnl.toFixed(2)} (${totalPnlPct.toFixed(2)}%)${Number.isFinite(cumulativeReturn) ? `\n  累计收益率：${(cumulativeReturn * 100).toFixed(2)}%` : ""}${benchmarkLine}${priceStale ? `\n  ⚠️ 行情获取失败，持仓价格为陈旧数据，禁止据此做止盈止损判断` : ""}
     `.trim()
   };
 }

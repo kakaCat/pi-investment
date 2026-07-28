@@ -98,3 +98,46 @@ class TestGetAccountStatus:
         svc._fetch_current_prices = fake_fetch
         result = svc.get_account_status("test_account")
         assert result["positions"][0]["price_updated_at"] == "2026-07-28T09:31:00"
+
+
+class TestBenchmarkBlock:
+    def _setup_snapshots(self, svc):
+        from datetime import date as _date
+        snaps = []
+        for d, r, v in [(1, 0.01, 101000.0), (2, 0.0, 101000.0), (3, -0.01, 99990.0)]:
+            s = MagicMock()
+            s.snapshot_date = _date(2026, 7, d)
+            s.daily_return = Decimal(str(r))
+            s.total_value = Decimal(str(v))
+            snaps.append(s)
+        # repo 按日期倒序返回
+        svc.repo.get_equity_snapshots.return_value = list(reversed(snaps))
+
+    def test_benchmark_included_when_data_available(self):
+        svc = _make_service()
+        TestGetAccountStatus()._setup_repo(svc, [])
+        self._setup_snapshots(svc)
+        svc._fetch_benchmark_klines = lambda symbol, start, end: [
+            {"date": "2026-07-01", "close": 100.0},
+            {"date": "2026-07-02", "close": 101.0},
+            {"date": "2026-07-03", "close": 100.0},
+        ]
+        result = svc.get_account_status("test_account")
+        assert result["benchmark"] is not None
+        assert result["benchmark"]["benchmark_return_1m"] == 0.0
+        assert abs(result["benchmark"]["account_return_1m"] - (-0.0001)) < 1e-6
+
+    def test_benchmark_none_when_fetch_fails(self):
+        svc = _make_service()
+        TestGetAccountStatus()._setup_repo(svc, [])
+        self._setup_snapshots(svc)
+        svc._fetch_benchmark_klines = lambda symbol, start, end: []
+        result = svc.get_account_status("test_account")
+        assert result["benchmark"] is None
+
+    def test_benchmark_none_when_no_snapshots(self):
+        svc = _make_service()
+        TestGetAccountStatus()._setup_repo(svc, [])
+        svc.repo.get_equity_snapshots.return_value = []
+        result = svc.get_account_status("test_account")
+        assert result["benchmark"] is None

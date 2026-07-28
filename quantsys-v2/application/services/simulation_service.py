@@ -185,8 +185,50 @@ class SimulationService:
             'last_updated': datetime.now().isoformat(),
             'price_stale': price_stale,
             'positions_count': len(positions),
-            'positions': position_dicts
+            'positions': position_dicts,
+            'benchmark': self._benchmark_block(account_name)
         }
+
+    def _fetch_benchmark_klines(self, symbol: str, start_date: str, end_date: str) -> List[Dict]:
+        """薄封装，便于测试打桩"""
+        from application.services.benchmark_comparison import fetch_benchmark_klines
+        return fetch_benchmark_klines(symbol, start_date, end_date)
+
+    def _benchmark_block(self, account_name: str, symbol: str = 'sh000300') -> Optional[Dict]:
+        """
+        基准对比块（沪深300）：账户近30日收益 vs 同期基准，含 alpha/beta/sharpe。
+        任何一步失败都降级为 None，绝不让基准计算拖垮账户查询主链路。
+        """
+        try:
+            from application.services.benchmark_comparison import compute_benchmark_comparison
+
+            snapshots = self.repo.get_equity_snapshots(account_name, limit=30)
+            if not snapshots or len(snapshots) < 2:
+                return None
+
+            series = sorted(
+                (
+                    s.snapshot_date.isoformat(),
+                    float(s.daily_return or 0),
+                    float(s.total_value or 0),
+                )
+                for s in snapshots if s.snapshot_date
+            )
+            if len(series) < 2:
+                return None
+
+            klines = self._fetch_benchmark_klines(symbol, series[0][0], series[-1][0])
+            if not klines:
+                return None
+
+            result = compute_benchmark_comparison(series, klines)
+            if result:
+                result['symbol'] = symbol
+                result['benchmark_name'] = '沪深300'
+            return result
+        except Exception as e:
+            self.logger.warning(f"基准对比计算失败（降级为无基准）: {e}")
+            return None
 
     def _fetch_current_prices(self, symbols: List[str]) -> Dict[str, float]:
         """

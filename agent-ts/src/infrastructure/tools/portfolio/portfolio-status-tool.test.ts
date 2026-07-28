@@ -146,4 +146,25 @@ describe("computePortfolioView 数据契约（A线）", () => {
     });
     expect(view.price_stale).toBe(true);
   });
+
+  test("benchmark 块透传并写入 summary：跑赢/跑输基准一眼可见", () => {
+    const view = computePortfolioView({
+      cash: "40000",
+      total_value: "100000",
+      positions: [],
+      benchmark: {
+        symbol: "sh000300",
+        benchmark_name: "沪深300",
+        benchmark_return_1m: 0.023,
+        account_return_1m: 0.0125,
+        excess_return_1m: -0.0105,
+        sharpe: 0.8,
+        aligned_days: 20,
+      },
+    });
+    expect(view.benchmark?.benchmark_return_1m).toBeCloseTo(0.023);
+    expect(view.summary).toContain("沪深300");
+    expect(view.summary).toContain("2.30%");
+    expect(view.summary).toContain("1.25%");
+  });
 });
