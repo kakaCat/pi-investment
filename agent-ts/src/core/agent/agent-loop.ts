@@ -27,6 +27,7 @@ import { getMemoryStore } from "../../services/intelligence/memory-store.js";
 import { microCompact, compactConversationHistory } from "../../services/compaction/compaction-service.js";
 import { join } from "path";
 import { createModel, paths } from "../../config/config.js";
+import { createAppResourceLoader } from "../../api/extensions/model-command.js";
 import { getSessionDir, getSessionKey, logSystemPrompt, logBootstrapFiles } from "../../infrastructure/logging/observable-logger.js";
 import { initSkillsBlock, autoRecall, readDailyMemory, buildAgentSystemPrompt } from "./system-prompt.js";
 import { getBootstrapData } from "../../config/config.js";
@@ -196,6 +197,7 @@ async function createSessionInternal(
     cwd: paths.root,
     model: createModel(),
     sessionManager,
+    resourceLoader: await createAppResourceLoader(paths.root),
     systemPrompt: () => buildSystemPromptForContext(sessionContext),
     customTools: cachedTools,
     skills: cachedSkills,
