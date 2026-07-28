@@ -140,12 +140,19 @@ def close_session():
     3. 脚本退出前
 
     效果：
-    - 提交未完成的事务
+    - 回滚失败的事务（防止连接池污染）
     - 关闭数据库连接（归还连接池）
     - 清理Session状态
     """
     if _SessionFactory:
-        _SessionFactory.remove()
+        try:
+            session = _SessionFactory()
+            if session.is_active:
+                session.rollback()
+        except Exception:
+            pass  # 即使 rollback 失败也不影响 remove
+        finally:
+            _SessionFactory.remove()
 
 
 def register_session_teardown(app) -> None:

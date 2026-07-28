@@ -38,8 +38,8 @@ PROCESSES = [
     {
         'name': 'v2-api',
         'cwd': str(ROOT / 'quantsys-v2'),
-        'cmd': [str(VENV_PY), 'adapters/inbound/api/server.py'],
-        'health': {'type': 'http', 'url': 'http://127.0.0.1:5001/api/health'},
+        'cmd': [str(VENV_PY), 'adapters/inbound/fastapi_app/main.py'],
+        'health': {'type': 'http', 'url': 'http://127.0.0.1:5001/health'},
     },
     {
         'name': 'v2-daemon',
