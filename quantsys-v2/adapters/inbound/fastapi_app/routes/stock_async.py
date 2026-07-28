@@ -461,37 +461,39 @@ def get_stock_quote(symbol: str, source: str = Query('realtime')):
             return api_response(db_result)
         return error_response({"success": False, "error": f"无法从数据库获取 {symbol} 的行情"}, 404)
 
-    # realtime 或 auto 模式：使用 RealtimeQuoteService
+    # realtime 或 auto 模式：直连 DataProviderManager（拿到各数据源失败原因，供 agent 诊断）
+    quote_result = None
     try:
-        from application.services.realtime_quote_service import RealtimeQuoteService
-        quote_service = RealtimeQuoteService()
-        quote_data = quote_service.get_realtime_quote(clean_symbol)
-        if quote_data:
-            result = {
-                "symbol": quote_data.symbol,
-                "name": quote_data.name,
-                "price": quote_data.price,
-                "open": quote_data.open,
-                "high": quote_data.high,
-                "low": quote_data.low,
-                "prev_close": quote_data.prev_close,
-                "volume": quote_data.volume,
-                "amount": quote_data.amount,
-                "change": quote_data.change,
-                "change_pct": quote_data.change_pct,
-                "source": quote_data.source,
-                "timestamp": quote_data.timestamp,
-            }
-            return api_response(result)
+        from adapters.outbound.datasources import get_data_provider_manager
+        quote_result = get_data_provider_manager().get_quote(clean_symbol)
     except Exception as e:
-        logger.warning(f"RealtimeQuoteService failed for {symbol}: {e}")
+        logger.warning(f"DataProviderManager.get_quote failed for {symbol}: {e}")
+
+    if quote_result and quote_result.get('success'):
+        quote_data = quote_result['data']
+        result = {
+            "symbol": quote_data.symbol,
+            "name": quote_data.name,
+            "price": quote_data.price,
+            "open": quote_data.open,
+            "high": quote_data.high,
+            "low": quote_data.low,
+            "prev_close": quote_data.prev_close,
+            "volume": quote_data.volume,
+            "amount": quote_data.amount,
+            "change": quote_data.change,
+            "change_pct": quote_data.change_pct,
+            "source": quote_data.source,
+            "timestamp": quote_data.timestamp,
+        }
+        return api_response(result)
 
     if source == 'realtime':
-        return error_response({"success": False, "error": f"无法获取 {symbol} 的实时行情"}, 502)
+        return error_response(_build_quote_failure_body(symbol, quote_result), 502)
 
     # auto 模式：fallback 到数据库
     db_result = _get_db_quote(clean_symbol)
     if db_result:
         return api_response(db_result)
-    return error_response({"success": False, "error": f"无法获取 {symbol} 的实时行情"}, 502)
+    return error_response(_build_quote_failure_body(symbol, quote_result), 502)
 
