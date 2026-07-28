@@ -17,10 +17,9 @@ Generate professional daily trading recommendations through systematic analysis.
 ### 1. Collect Market Data (Parallel)
 
 Fetch in parallel to minimize latency:
-- `get_market_overview` - 5 major indices
-- `get_north_flow` - Foreign capital flow
-- `get_sector_list` - Sector performance
-- `get_sector_fund_flow` - Sector capital ranking
+- `data_fetch_market_sentiment` - 5 major indices
+- `data_fetch_north_flow` - Foreign capital flow
+- `sector_analysis` - Sector performance and capital ranking
 
 ### 2. Analyze Market Sentiment
 
@@ -44,8 +43,8 @@ Fetch in parallel to minimize latency:
 
 Identify top 3 by combining fund flow + momentum:
 
-1. Sort `get_sector_fund_flow` by net inflow (desc)
-2. Cross-check `get_sector_list` for positive change %
+1. Sort `sector_analysis` results by net inflow (desc)
+2. Cross-check `sector_analysis` for positive change %
 3. Select sectors with **both** high inflow AND momentum
 
 Format:
@@ -61,7 +60,8 @@ Top 3 Sectors:
 For each of top 3 sectors:
 
 ```
-screen_stocks_quality({
+screening({
+  action: "quality",
   sector: sector_name,
   min_score: 60,
   limit: 3
@@ -71,8 +71,8 @@ screen_stocks_quality({
 Then for each candidate (max 2 per sector):
 
 **Parallel fetch**:
-- `analyze_technical` - MACD, RSI, MA20/60
-- `get_buy_range` - Entry zone, stop loss, target
+- `factor_calculate` - MACD, RSI, MA20/60
+- `risk_controller`（command: 'position_size'） - Entry zone, stop loss, target
 
 **Signal rules**:
 - MACD > 0 + RSI < 40 + MA20 > MA60 = **BUY**

@@ -6,15 +6,13 @@ description: 逐只复盘持仓健康度（盈亏分析+基本面验证+调仓�
 # 持仓复盘技能 (Portfolio Review)
 
 ## 允许的工具
-- manage_portfolio()
-- get_stock_price()
-- get_stock_info()
-- analyze_price_action()
-- get_stock_news()
-- get_exit_plan()
-- get_quality_score()
-- get_financial_data()
-- get_buy_range()
+- portfolio_status()
+- portfolio_trade()
+- data_fetch_quote()（新闻：fields: ['news']）
+- analysis_swing_points()
+- risk_controller()（command: 'stop_loss' / 'position_size'）
+- screening()
+- data_fetch_financial()
 
 ## 触发条件
 
@@ -24,8 +22,8 @@ description: 逐只复盘持仓健康度（盈亏分析+基本面验证+调仓�
 
 ## 工作流程
 
-1. **获取持仓+实时盈亏** - `manage_portfolio(action="get_with_pnl")` 一次调用获取持仓列表及当前价格、盈亏
-2. **计算盈亏** - 数据已包含在 get_with_pnl 结果中，直接使用
+1. **获取持仓+实时盈亏** - `portfolio_status({ action: 'get', account: '<账户名>' })` 一次调用获取持仓列表及当前价格、盈亏（不确定账户名时先 `portfolio_status({ action: 'list' })`）
+2. **计算盈亏** - 数据已包含在 portfolio_status get 结果中，直接使用
 4. **识别问题** - 找出亏损超过 15% 的持仓
 5. **验证逻辑** - 检查亏损持仓的投资逻辑是否仍然成立
 6. **给出建议** - 对每只持仓给出操作建议：持有/加仓/减仓/清仓

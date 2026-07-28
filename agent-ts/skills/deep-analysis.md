@@ -97,18 +97,18 @@ opportunity_scan({ conditions: [...], sectorFilter: {...}, limit: 5 })
 
 ```
 共享任务：
-  T0: 获取市场概览 — quant_cli market.overview
+  T0: 获取市场概览 — data_fetch_market_sentiment
 
 每只股票独立任务（以 600519 为例）：
-  T1: 股票信息        — data_fetch_stock {symbol:"600519", fields:["info"]}
-  T2: 实时价格        — data_fetch_stock {symbol:"600519", fields:["price"]}
+  T1: 股票信息        — data_fetch_quote {symbol:"600519"}
+  T2: 实时价格        — data_fetch_quote {symbol:"600519", source:"realtime"}
   T3: 财务数据        — data_fetch_financial {symbol:"600519", reportType:"all"}
-  T4: PE历史分位      — quant_cli financial.pe_percentile {symbol:"600519"}
+  T4: PE历史分位      — data_fetch_financial {symbol:"600519", dataType:"pe_percentile"}
   T5: 技术因子        — factor_calculate {symbol:"600519"}
   T6: ML模型预测      — model_predict {symbol:"600519"}
-  T7: 资金流向        — quant_cli sentiment.stock_fund_flow {symbol:"600519"}
-  T8: 技术分析        — quant_cli analysis.technical {symbol:"600519"}
-  T9: 新闻舆情        — data_fetch_stock {symbol:"600519", fields:["news"], news_num:10}
+  T7: 资金流向        — sector_analysis {}
+  T8: 技术分析        — factor_calculate {symbol:"600519"}
+  T9: 新闻舆情        — data_fetch_quote {symbol:"600519", fields:["news"], news_num:10}
   T10: 历史经验       — query_experience {symbol:"600519", scenario:"综合技术面基本面分析"}
 ```
 
@@ -123,10 +123,10 @@ opportunity_scan({ conditions: [...], sectorFilter: {...}, limit: 5 })
 ```
 task_execute_async({
   executions: [
-    {task_id: T0, tool_name: "quant_cli", params: {command: "market.overview"}},
+    {task_id: T0, tool_name: "data_fetch_market_sentiment", params: {}},
     // 每只股票：
-    {task_id: T1-600519, tool_name: "data_fetch_stock", params: {symbol: "600519", fields: ["info"]}},
-    {task_id: T2-600519, tool_name: "data_fetch_stock", params: {symbol: "600519", fields: ["price"]}},
+    {task_id: T1-600519, tool_name: "data_fetch_quote", params: {symbol: "600519"}},
+    {task_id: T2-600519, tool_name: "data_fetch_quote", params: {symbol: "600519", source: "realtime"}},
     {task_id: T3-600519, tool_name: "data_fetch_financial", params: {symbol: "600519", reportType: "all"}},
     // ... 其他股票的同批任务
   ]
@@ -141,11 +141,11 @@ task_execute_async({
 ```
 task_execute_async({
   executions: [
-    {task_id: T4-600519, tool_name: "quant_cli", params: {command: "financial.pe_percentile", params: {symbol: "600519"}}},
+    {task_id: T4-600519, tool_name: "data_fetch_financial", params: {symbol: "600519", dataType: "pe_percentile"}},
     {task_id: T5-600519, tool_name: "factor_calculate", params: {symbol: "600519"}},
     {task_id: T6-600519, tool_name: "model_predict", params: {symbol: "600519"}},
-    {task_id: T7-600519, tool_name: "quant_cli", params: {command: "sentiment.stock_fund_flow", params: {symbol: "600519"}}},
-    {task_id: T8-600519, tool_name: "quant_cli", params: {command: "analysis.technical", params: {symbol: "600519"}}},
+    {task_id: T7-600519, tool_name: "sector_analysis", params: {}},
+    {task_id: T8-600519, tool_name: "factor_calculate", params: {symbol: "600519"}},
     // ... 其他股票的同批任务
   ]
 })
@@ -156,7 +156,7 @@ task_execute_async({
 ```
 task_execute_async({
   executions: [
-    {task_id: T9-600519,  tool_name: "data_fetch_stock", params: {symbol: "600519", fields: ["news"], news_num: 10}},
+    {task_id: T9-600519,  tool_name: "data_fetch_quote", params: {symbol: "600519", fields: ["news"], news_num: 10}},
     {task_id: T10-600519, tool_name: "query_experience", params: {symbol: "600519", scenario: "综合技术面基本面分析"}},
     // ... 其他股票的同批任务
   ]

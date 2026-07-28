@@ -276,7 +276,7 @@ class DailyOrchestrator:
                 '2. portfolio_status → 查看 agent_virtual 持仓与可用资金\n'
                 '3. 逐信号评估后决定买入：portfolio_trade(account=agent_virtual)\n'
                 '4. 放弃的信号也要 decision_record 记录理由\n'
-                '5. 全部处理完：knowledge_record 摘要 + feishu_notify 简报'
+                '5. 全部处理完：experience_write 摘要 + feishu_notify 简报'
             ),
         })
 

@@ -6,9 +6,9 @@ description: 快速查看当前持仓和实时盈亏（只看不分析，深度�
 # 查看持仓 (View Portfolio)
 
 ## 允许的工具
-- `manage_portfolio()`
-- `get_stock_price()`
-- `get_buy_range()`
+- `portfolio_status()`
+- `data_fetch_quote()`
+- `risk_controller()`（command: 'position_size'）
 
 ## 触发条件
 
@@ -18,7 +18,7 @@ description: 快速查看当前持仓和实时盈亏（只看不分析，深度�
 
 ## 工作流程
 
-1. **获取持仓含盈亏** - 调用 `manage_portfolio(action="get_with_pnl")`
+1. **获取持仓含盈亏** - 调用 `portfolio_status({ action: 'get', account: '<账户名>' })`（不确定账户名时先 `portfolio_status({ action: 'list' })`）
    - 该调用会实时拉取每只股票当前价格，并计算浮动盈亏
 
 2. **如果持仓为空** - 提示用户使用 `/add-holding` 录入持仓

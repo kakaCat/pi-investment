@@ -192,7 +192,7 @@ export const taskExecuteAsyncTool: ToolDefinition = {
   label: "异步并行执行任务",
   description:
     "Execute one or more tasks asynchronously in parallel using background threads. " +
-    "Each task calls an investment tool (e.g. get_stock_info, calculate_technical_indicators). " +
+    "Each task calls an investment tool (e.g. data_fetch_quote, factor_calculate). " +
     "Returns immediately with task IDs. Results are delivered via <background-results> in the next agent turn. " +
     "Use for independent data fetching operations like: analyzing multiple stocks, fetching batch market data. " +
     "Do NOT use for sequential operations that depend on each other's results.",
@@ -206,7 +206,7 @@ export const taskExecuteAsyncTool: ToolDefinition = {
     executions: Type.Array(
       Type.Object({
         task_id: Type.Integer({ description: "Task ID to execute" }),
-        tool_name: Type.String({ description: "Investment tool name (e.g. 'get_stock_info', 'get_stock_history')" }),
+        tool_name: Type.String({ description: "Investment tool name (e.g. 'data_fetch_quote', 'data_fetch_kline')" }),
         params: Type.Object({}, { description: "Tool parameters as key-value pairs", additionalProperties: true })
       }),
       { description: "Tasks to execute in parallel", minItems: 1 }

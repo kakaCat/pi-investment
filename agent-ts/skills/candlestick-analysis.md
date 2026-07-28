@@ -6,10 +6,9 @@ description: 识别K线形态信号（锤子线/吞没/十字星+趋势线突破
 # K线形态分析技能
 
 ## 允许的工具
-- get_stock_history()
-- analyze_candlestick()
-- analyze_price_action()
-- get_stock_price()
+- data_fetch_kline()
+- analysis_swing_points()
+- data_fetch_quote()
 
 ## 触发条件
 
@@ -20,7 +19,7 @@ description: 识别K线形态信号（锤子线/吞没/十字星+趋势线突破
 ## 工具调用
 
 1. 请用户提供股票代码（如果未提供）
-2. 调用 `analyze_candlestick(symbol)` 获取结构化分析数据
+2. 调用 `analysis_swing_points({symbol})` 获取结构化分析数据
 
 ## 结果解读规则
 

@@ -7,18 +7,16 @@ description: 设计或执行A股量化框架（市场过滤+行业轮动+质量�
 
 ## 允许的工具
 
-- get_market_overview()
-- get_north_flow()
-- get_macro_data()
-- get_sector_fund_flow()
-- screen_stocks_quality()
-- get_quality_score()
-- get_financial_data()
-- get_pe_percentile()
-- get_valuation()
-- analyze_price_action()
-- get_stock_price()
-- manage_portfolio()
+- data_fetch_market_sentiment()
+- data_fetch_north_flow()
+- data_fetch_macro()
+- sector_analysis()
+- screening()（action: 'quality' / 'sector'）
+- data_fetch_financial()（估值/PE分位：dataType: 'valuation' / 'pe_percentile'）
+- analysis_swing_points()
+- data_fetch_quote()
+- portfolio_status()
+- portfolio_trade()
 
 ## 触发条件
 
@@ -54,9 +52,9 @@ description: 设计或执行A股量化框架（市场过滤+行业轮动+质量�
 
 先并行获取:
 
-- `get_market_overview()`
-- `get_north_flow()`
-- `get_macro_data()`
+- `data_fetch_market_sentiment()`
+- `data_fetch_north_flow()`
+- `data_fetch_macro()`
 
 给出市场结论:
 
@@ -68,7 +66,7 @@ description: 设计或执行A股量化框架（市场过滤+行业轮动+质量�
 
 ### 2. 行业层筛选
 
-调用 `get_sector_fund_flow()` 找出资金净流入和相对强势行业。
+调用 `sector_analysis()` 找出资金净流入和相对强势行业。
 
 只保留 Top 3 到 Top 5 板块。
 
@@ -76,14 +74,14 @@ description: 设计或执行A股量化框架（市场过滤+行业轮动+质量�
 
 对每个候选板块调用:
 
-`screen_stocks_quality(sector, min_score=60, limit=10)`
+`screening({action: "quality", sector, min_score: 60, limit: 10})`
 
 然后对 Top 候选补充调用:
 
-- `get_quality_score(symbol)`
-- `get_financial_data(symbol)`
-- `get_pe_percentile(symbol)` 或 `get_valuation(symbol)`
-- `analyze_price_action(symbol)`
+- `screening({action: "quality", sector, min_score: 60})`（质量分复核）
+- `data_fetch_financial({symbol, dataType: "indicators"})`
+- `data_fetch_financial({symbol, dataType: "pe_percentile"})` 或 `data_fetch_financial({symbol, dataType: "valuation"})`
+- `analysis_swing_points({symbol})`
 
 ### 4. 评分逻辑
 

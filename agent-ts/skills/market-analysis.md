@@ -6,11 +6,10 @@ description: 评估当前市场环境（大盘指数+北向资金+宏观经济�
 # 市场分析技能 (Market Analysis)
 
 ## 允许的工具
-- get_market_overview()
-- get_north_flow()
-- get_sector_fund_flow()
-- get_market_margin()
-- get_macro_data()
+- data_fetch_market_sentiment()
+- data_fetch_north_flow()
+- sector_analysis()
+- data_fetch_macro()
 
 ## 触发条件
 
@@ -20,9 +19,9 @@ description: 评估当前市场环境（大盘指数+北向资金+宏观经济�
 
 ## 数据获取
 
-1. `get_market_overview()` - 主要指数表现（上证、深证、沪深300、创业板）
-2. `get_north_flow()` - 北向资金（沪股通+深股通）流向
-3. `get_macro_data()` - 宏观经济指标（PMI、CPI、PPI）
+1. `data_fetch_market_sentiment()` - 主要指数表现（上证、深证、沪深300、创业板）
+2. `data_fetch_north_flow()` - 北向资金（沪股通+深股通）流向
+3. `data_fetch_macro()` - 宏观经济指标（PMI、CPI、PPI）
 
 ## 市场环境评分
 

@@ -60,11 +60,11 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 
 1. 分析市场环境
    - 使用 opponent_behavior 分析对手行为
-   - 使用 alert_check 检查预警
+   - 使用 market_alert 检查预警
    - 判断市场情况
 
 2. 寻找高质量信号
-   - 使用 pool_list 获取所有池
+   - 使用 pool_manage({ action: 'list' }) 获取所有池
    - 扫描池寻找机会
    - 按优先级尝试不同方法
    - 0信号不要停止，要思考并解决
@@ -95,7 +95,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 第四步：记录决策
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-使用 decision_record（如有）记录：
+使用 decision_record 记录：
 - 今天做了什么操作？
 - 为什么这样做？
 - 预期结果是什么？
@@ -145,7 +145,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 快速检查当前市场状态，发现异常立即处理。
 
 **检查项**：
-1. 使用 alert_check 查看是否有新的紧急预警
+1. 使用 market_alert 查看是否有新的紧急预警
 2. 如果有 critical 级别预警，立即分析并决策
 3. 使用 portfolio_status({ action: 'list' }) 快速查看各账户状态
 
@@ -180,7 +180,9 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 第一步：查看账户表现（唯一账本 agent_virtual）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. 使用 portfolio_status({ action: 'get', account: 'agent_virtual' }) 查看
+1. 先用 portfolio_daily_brief({ account: 'agent_virtual' }) 拿每日对账单：
+   昨日操作 → 今日验证 → 持仓健康度 → 基准标尺 → 一句话结论
+2. 再用 portfolio_status({ action: 'get', account: 'agent_virtual' }) 看细节：
    - 总资产多少？今日盈亏？累计收益率？持仓情况？
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -189,7 +191,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 
 1. 统计今日信号处理覆盖率：
    - 今日收到几条 signals_ready 信号？处理了几条？成交了几笔？
-   - 用 decision_history 核对，把"收到N/处理N/成交N"写入 knowledge_record
+   - 用 decision_history 核对，把"收到N/处理N/成交N"用 decision_record 记录
 
 2. 使用 trade_monitor 查看今日交易记录
    - command: 'stats' - 查看统计
@@ -226,9 +228,11 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 第四步：计算绩效指标
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-计算并报告：
+计算并报告（portfolio_status 返回的 benchmark 块已含以下数据，直接使用）：
 - 今日收益率
 - 累计收益率
+- 近30日收益率 vs 同期沪深300（超额收益）——没有标尺的盈利是自欺
+- 夏普比率、年化Alpha（如有）
 - 交易次数
 - 胜率（如有足够交易）
 
@@ -236,7 +240,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 第五步：学习沉淀
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-使用 knowledge_record（如有）保存：
+使用 experience_write 保存：
 - 今日发现的有效模式
 - 需要避免的错误
 - 策略优化建议

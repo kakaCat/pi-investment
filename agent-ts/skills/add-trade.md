@@ -6,8 +6,9 @@ description: 记录一笔买卖交易并自动同步持仓（卖出自动减仓�
 # 录入交易 (Add Trade)
 
 ## 允许的工具
-- manage_portfolio()
-- get_stock_info()
+- portfolio_trade()
+- portfolio_status()
+- data_fetch_quote()
 - clarify()
 
 ## 触发条件
@@ -28,9 +29,10 @@ description: 记录一笔买卖交易并自动同步持仓（卖出自动减仓�
    - 备注（可选）
 
 2. **调用工具**：
-   - 先调用 `manage_portfolio` 记录到持仓：
-     - 买入：`manage_portfolio(action="add", symbol=..., quantity=..., avg_cost=...)`
-     - 卖出：先 `manage_portfolio(action="get")` 查看当前持仓，再 `manage_portfolio(action="update", symbol=..., quantity=新数量)` 或 `manage_portfolio(action="remove", symbol=...)` 如果清仓
+   - 先调用 `portfolio_trade` 记录到持仓：
+     - 买入：`portfolio_trade({action:"buy", account:"<账户名>", symbol:..., shares:..., reason:"..."})`
+     - 卖出：先 `portfolio_status({action:"get", account:"<账户名>"})` 查看当前持仓，再 `portfolio_trade({action:"sell", account:"<账户名>", symbol:..., shares:..., reason:"..."})`
+   - 不确定账户名时先 `portfolio_status({action:"list"})` 确认
 
 3. **确认结果** - 展示交易记录和持仓变化：
    - 买入：显示新的均价和总持股数

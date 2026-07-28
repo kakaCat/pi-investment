@@ -6,15 +6,12 @@ description: 录入或更新持仓信息（代码+数量+均价，加仓自动�
 # 录入持仓 (Add Holding)
 
 ## 允许的工具
-- manage_portfolio()
-- get_stock_info()
-- get_stock_price()
-- get_financial_data()
-- get_financial_statements()
-- analyze_technical()
-- get_valuation()
-- get_pe_percentile()
-- get_quality_score()
+- portfolio_trade()
+- portfolio_status()
+- data_fetch_quote()
+- data_fetch_financial()（dataType: 'statements' / 'indicators' / 'valuation' / 'pe_percentile'）
+- factor_calculate()
+- screening()
 - clarify()
 
 ## 触发条件
@@ -33,7 +30,7 @@ description: 录入或更新持仓信息（代码+数量+均价，加仓自动�
    - 股票名称（可选，如不填则留空）
    - 备注（可选，如"第一批建仓"）
 
-2. **录入持仓** - 调用 `manage_portfolio(action="add", symbol=..., quantity=..., avg_cost=..., market=..., name=..., notes=...)`
+2. **录入持仓** - 调用 `portfolio_trade({action:"buy", account:"<账户名>", symbol:..., shares:..., reason:"..."})`（不确定账户名时先 `portfolio_status({action:"list"})`）
 
 3. **确认结果** - 展示录入结果，如果是加仓则显示新的加权均价和总持股数
 
@@ -59,6 +56,6 @@ description: 录入或更新持仓信息（代码+数量+均价，加仓自动�
 用户: 1450
 助手: 市场类型 A股/港股？(默认A)
 用户: A
-→ 调用 manage_portfolio(action="add", symbol="600519", quantity=100, avg_cost=1450, market="A", name="贵州茅台")
+→ 调用 portfolio_trade({action:"buy", account:"<账户名>", symbol:"600519", shares:100, reason:"第一批建仓，均价约1450元"})
 → 返回: 600519 已录入持仓，100股，均价1450.00元
 ```

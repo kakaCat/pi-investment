@@ -144,7 +144,7 @@ ${signalLines}
      先完成评估并 decision_record 记录"待开盘执行"，等开盘后再下单，不要反复重试
    → 被护栏拒绝时：decision_record 记录原因，降仓位最多重试一次，不要反复重试
 5. 放弃的信号：调用 decision_record 记录放弃理由（这也是学习数据）
-6. 全部处理完：调用 knowledge_record 写今日信号处理摘要，feishu_notify 通知用户（处理了几条、买了什么、放弃了什么）
+6. 全部处理完：调用 experience_write 写今日信号处理摘要，feishu_notify 通知用户（处理了几条、买了什么、放弃了什么）
 
 注意：不要因为信号多就全买。没有把握就全部放弃并记录理由——空仓也是合法决策。`;
     }

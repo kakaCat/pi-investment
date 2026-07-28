@@ -6,15 +6,10 @@ description: 按板块或条件筛选股票并逐一验证质量（输出 Top �
 # 选股技能 (Stock Screener)
 
 ## 允许的工具
-- screen_stocks_by_sector()
-- screen_stocks_quality()
-- get_sector_list()
-- get_concept_stocks()
-- get_quality_score()
-- get_financial_data()
-- get_valuation()
-- get_stock_price()
-- get_stock_info()
+- screening()（action: 'sector' / 'quality'）
+- sector_analysis()
+- data_fetch_financial()（估值：dataType: 'valuation'）
+- data_fetch_quote()
 
 ## 触发条件
 
@@ -26,11 +21,11 @@ description: 按板块或条件筛选股票并逐一验证质量（输出 Top �
 
 1. **澄清需求** - 确认用户感兴趣的板块/概念
    - 如果用户未指定，询问：行业偏好、风险偏好、投资期限
-2. **初筛+质量评分** - 调用 `screen_stocks_quality(sector, min_score=50, max_pe)`（自动筛选+评分，替代旧版两步调用）
+2. **初筛+质量评分** - 调用 `screening({action: "quality", sector, min_score: 50, max_pe})`（自动筛选+评分，替代旧版两步调用）
 3. **获取候选** - 从结果中取 Top 5 候选（min_score 已过滤低质股）
 4. **逐一验证** - 对每个 Top-3 候选调用:
-   - `get_financial_data(symbol)` - 确认财务质量
-   - `get_valuation(symbol)` - 确认估值合理性
+   - `data_fetch_financial({symbol, dataType: "indicators"})` - 确认财务质量
+   - `data_fetch_financial({symbol, dataType: "valuation"})` - 确认估值合理性
 5. **质量评分** - 按以下标准打分排序
 6. **输出推荐** - 给出推荐列表，附带理由和风险提示
 
