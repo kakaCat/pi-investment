@@ -122,7 +122,7 @@ def get_stock_quote(symbol):
             - auto: 实时失败后 fallback 到数据库
 
     数据源优先级（realtime/auto 模式）:
-        akshare → sina → eastmoney → tencent → netease
+        tencent → sina → eastmoney → akshare（与 DataProviderManager.quote_providers 一致）
     """
     # 参数验证
     source = request.args.get('source', 'realtime').lower()
@@ -141,43 +141,66 @@ def get_stock_quote(symbol):
             return api_response(db_result)
         return jsonify({"success": False, "error": f"无法从数据库获取 {symbol} 的行情"}), 404
 
-    # realtime 或 auto 模式：使用 RealtimeQuoteService
+    # realtime 或 auto 模式：直连 DataProviderManager（拿到各数据源失败原因，供 agent 诊断）
+    quote_result = None
     try:
-        quote_service = RealtimeQuoteService()
-        quote_data = quote_service.get_realtime_quote(clean_symbol)
-
-        if quote_data:
-            # 转换 QuoteData 为 API 响应格式
-            result = {
-                "symbol": quote_data.symbol,
-                "name": quote_data.name,
-                "price": quote_data.price,
-                "open": quote_data.open,
-                "high": quote_data.high,
-                "low": quote_data.low,
-                "prev_close": quote_data.prev_close,
-                "volume": quote_data.volume,
-                "amount": quote_data.amount,
-                "change": quote_data.change,
-                "change_pct": quote_data.change_pct,
-                "source": quote_data.source,
-                "timestamp": quote_data.timestamp,
-            }
-            return api_response(result)
-
+        from adapters.outbound.datasources import get_data_provider_manager
+        quote_result = get_data_provider_manager().get_quote(clean_symbol)
     except Exception as e:
-        logging.getLogger(__name__).warning(f"RealtimeQuoteService failed for {symbol}: {e}")
+        logging.getLogger(__name__).warning(f"DataProviderManager.get_quote failed for {symbol}: {e}")
 
-    # realtime 模式：所有数据源失败，返回 502
+    if quote_result and quote_result.get('success'):
+        quote_data = quote_result['data']
+        # 转换 QuoteData 为 API 响应格式
+        result = {
+            "symbol": quote_data.symbol,
+            "name": quote_data.name,
+            "price": quote_data.price,
+            "open": quote_data.open,
+            "high": quote_data.high,
+            "low": quote_data.low,
+            "prev_close": quote_data.prev_close,
+            "volume": quote_data.volume,
+            "amount": quote_data.amount,
+            "change": quote_data.change,
+            "change_pct": quote_data.change_pct,
+            "source": quote_data.source,
+            "timestamp": quote_data.timestamp,
+        }
+        return api_response(result)
+
+    # realtime 模式：所有数据源失败，返回 502 + 诊断信息
     if source == 'realtime':
-        return jsonify({"success": False, "error": f"无法获取 {symbol} 的实时行情"}), 502
+        return jsonify(_build_quote_failure_body(symbol, quote_result)), 502
 
     # auto 模式：fallback 到数据库
     db_result = _get_db_quote(clean_symbol)
     if db_result:
         return api_response(db_result)
 
-    return jsonify({"success": False, "error": f"无法获取 {symbol} 的实时行情"}), 502
+    return jsonify(_build_quote_failure_body(symbol, quote_result)), 502
+
+
+def _build_quote_failure_body(symbol: str, quote_result) -> dict:
+    """组装 quote 失败的结构化诊断响应体（供 agent 自我纠正）"""
+    if quote_result:
+        error_msg = quote_result.get('error', 'All data providers failed')
+        attempted = quote_result.get('attempted_sources', [])
+        provider_errors = quote_result.get('provider_errors', {})
+    else:
+        error_msg, attempted, provider_errors = '行情服务异常', [], {}
+
+    if attempted:
+        error_text = f"{error_msg} (尝试数据源: {', '.join(attempted)})"
+    else:
+        error_text = f"无法获取 {symbol} 的实时行情：{error_msg}"
+
+    return {
+        "success": False,
+        "error": error_text,
+        "provider_errors": provider_errors,
+        "suggestion": _quote_failure_suggestion(symbol, provider_errors),
+    }
 
 
 def _quote_failure_suggestion(symbol: str, provider_errors: dict) -> str:
