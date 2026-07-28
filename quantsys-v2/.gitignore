@@ -23,7 +23,7 @@ scripts/
 quantlib/tools/
 fix_typing_imports.py
 *_test_log.py
-signal_test.py
+/signal_test.py
 ensemble_vote_strategy.py
 multi_factor_swing_strategy.py
 
