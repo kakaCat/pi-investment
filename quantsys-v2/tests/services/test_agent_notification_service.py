@@ -128,10 +128,19 @@ def test_init_timeout_override():
 
 
 def test_handle_agent_reminder_success_when_agent_unreachable():
-    """调度任务 handler 在 agent 不可达时降级为记日志，仍返回 success"""
+    """调度任务 handler 在 agent 不可达时降级为记日志，仍返回 success
+
+    注意：必须 mock send_reminder——handler 内部会真实实例化
+    AgentNotificationService 并 POST 到 agent wake channel（默认 127.0.0.1:3002）。
+    不 mock 的话，agent 在线时测试会把"复盘时间到"真的推送给运行中的 agent
+    （2026-07-28 事故：pytest 跑出的提醒把 agent 唤醒了两次）。
+    """
     from application.services.scheduler_tasks import handle_agent_reminder
 
-    result = handle_agent_reminder({'agent_id': 'a', 'message': '复盘时间到'})
+    with patch('application.services.agent_notification_service.'
+               'AgentNotificationService.send_reminder',
+               side_effect=ConnectionError('agent unreachable')):
+        result = handle_agent_reminder({'agent_id': 'a', 'message': '复盘时间到'})
 
     assert result['action'] == 'agent_reminder'
     assert result['status'] == 'success'
@@ -139,13 +148,17 @@ def test_handle_agent_reminder_success_when_agent_unreachable():
 
 
 def test_agent_reminder_handler_registered_once():
-    """agent_reminder 只注册一次且指向有效 handler"""
+    """agent_reminder 只注册一次且指向有效 handler（通知层 mock，不触碰真实 agent）"""
     from application.services.scheduler_tasks import _TASK_HANDLERS, get_task_handler
 
     handler = get_task_handler('agent_reminder')
     assert handler is _TASK_HANDLERS['agent_reminder']
-    result = handler({'message': 'test'})
+    with patch('application.services.agent_notification_service.'
+               'AgentNotificationService.send_reminder',
+               return_value=True) as mock_send:
+        result = handler({'message': 'test'})
     assert result['status'] == 'success'
+    mock_send.assert_called_once()
 
 
 def test_notify_sends_token_header_and_default_port_3002(monkeypatch):
