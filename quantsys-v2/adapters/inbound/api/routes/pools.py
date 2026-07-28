@@ -215,6 +215,51 @@ def update_member(pool_id, symbol):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@pools_bp.route('/api/pools/<int:pool_id>/members', methods=['POST'])
+def add_members(pool_id):
+    """批量添加池子成员（幂等：已在池中的跳过）"""
+    svc, _ = _get_services()
+    data = request.get_json() or {}
+    symbols = data.get('symbols')
+    if not symbols or not isinstance(symbols, list):
+        return jsonify({'success': False, 'error': 'symbols must be a non-empty array'}), 400
+    try:
+        result = svc.add_members(
+            pool_id=pool_id,
+            symbols=symbols,
+            member_data={
+                'description': data.get('description'),
+                'buy_point': data.get('buyPoint') or data.get('buy_point'),
+                'sell_point': data.get('sellPoint') or data.get('sell_point'),
+                'tags': data.get('tags', [])
+            }
+        )
+        return jsonify({'success': True, 'data': result})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 404
+    except Exception as e:
+        logger.error(f"Add members failed: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@pools_bp.route('/api/pools/<int:pool_id>/members', methods=['DELETE'])
+def remove_members(pool_id):
+    """批量移除池子成员（幂等：不在池中的跳过）"""
+    svc, _ = _get_services()
+    data = request.get_json() or {}
+    symbols = data.get('symbols')
+    if not symbols or not isinstance(symbols, list):
+        return jsonify({'success': False, 'error': 'symbols must be a non-empty array'}), 400
+    try:
+        result = svc.remove_members(pool_id=pool_id, symbols=symbols)
+        return jsonify({'success': True, 'data': result})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 404
+    except Exception as e:
+        logger.error(f"Remove members failed: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @pools_bp.route('/api/pools/<int:pool_id>/validate', methods=['POST'])
 def validate_pool(pool_id):
     _, val_svc = _get_services()
