@@ -180,6 +180,27 @@ def get_stock_quote(symbol):
     return jsonify({"success": False, "error": f"无法获取 {symbol} 的实时行情"}), 502
 
 
+def _quote_failure_suggestion(symbol: str, provider_errors: dict) -> str:
+    """根据各数据源的具体失败原因，生成可行动的修复建议（供 agent 自我纠正）"""
+    joined = ' '.join(provider_errors.values())
+    hints = []
+
+    code = symbol.split('.')[0]
+    if symbol.endswith('.HK') or (code.isdigit() and len(code) <= 5):
+        hints.append(
+            f"疑似港股代码：本接口主要支持 6 位 A 股代码，港股请尝试 {code.zfill(5)}.HK 格式"
+        )
+    if any(k in joined for k in ('timeout', 'Timeout', 'Connection', 'RemoteDisconnected', '502', 'Max retries')):
+        hints.append("存在网络型失败：数据源可能临时限流/封禁，可稍后重试")
+    if code.isdigit() and len(code) == 6:
+        hints.append("请检查代码是否正确、是否已上市/已退市")
+    if not hints:
+        hints.append("请检查代码格式（A股为 6 位数字，可带 .SH/.SZ 后缀）")
+    hints.append("也可用 source=db 查询本地缓存（如有）")
+
+    return '；'.join(hints)
+
+
 def _kline_failure_suggestion(symbol: str, period: str, provider_errors: dict) -> str:
     """根据各数据源的具体失败原因，生成可行动的修复建议（供 agent 自我纠正）"""
     joined = ' '.join(provider_errors.values())
