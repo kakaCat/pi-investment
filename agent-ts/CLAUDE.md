@@ -457,6 +457,8 @@ indicator_backtest({
 - `pool_manage` — 股票池 CRUD（创建/列表/查看/更新/删除/刷新/筛选建池）
   - 支持静态池（手动指定stocks）和动态池（保存filter_template，可定时刷新）
   - `scan_create` 操作：执行多因子扫描后自动创建池子
+  - `add_member` / `remove_member`：批量增删池成员（幂等；动态池手动改动可能在 refresh 时被覆盖，响应附 warning）
+  - `update_member` / `get_member`：单成员元数据（描述/买点/卖点/标签）管理
 - `pool_validate` — 多策略批量回测验证
   - 对池内所有股票 × 多个策略跑回测，按综合评分排名
   - 自动推荐最优策略 + 最佳股票组合（top 5）
@@ -469,6 +471,8 @@ indicator_backtest({
 - `PUT /api/pools/:id` — 更新池子
 - `DELETE /api/pools/:id` — 删除池子
 - `POST /api/pools/:id/refresh` — 刷新动态池
+- `POST /api/pools/:id/members` — 批量添加池成员
+- `DELETE /api/pools/:id/members` — 批量移除池成员
 - `POST /api/pools/:id/validate` — 执行策略验证
 - `POST /api/pools/scan-and-create` — 筛选+建池一步完成
 
