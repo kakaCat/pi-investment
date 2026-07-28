@@ -7,7 +7,7 @@ Date: 2026-06-27
 """
 import structlog
 from typing import Dict, Any, Callable
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 logger = structlog.get_logger(__name__)
 
@@ -525,36 +525,70 @@ def handle_backtest_run(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
 
 def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """因子计算任务"""
+    """因子计算任务（盘后批量重算并落库，为次日信号做准备）
+
+    注意：不要调用 FactorAnalysisService —— 它是 IC/收益分析服务，
+    没有 compute_factors 入口。批量计算走 FactorStage（与
+    adapters/inbound/api/routes/jobs.py 的 compute_factors 同一条路径）。
+    """
     params = params or {}
 
     logger.info("Starting factor_compute task")
 
     try:
-        from application.services.factor_analysis_service import FactorAnalysisService
+        from infrastructure.services.service_factory import get_data_service
+        from domain.quantlib.stages.factor_stage import FactorStage
 
-        service = FactorAnalysisService()
+        ds = get_data_service()
 
         # 获取股票列表（如果没有指定）
         symbols = params.get('symbols')
         if not symbols:
             from adapters.outbound.repositories.stock_repository import StockORMRepository
             repo = StockORMRepository()
-            stocks = repo.get_all(limit=500)
+            stocks = repo.get_all(limit=params.get('max_symbols', 500))
             symbols = [s['symbol'] for s in stocks]
 
-        # 执行因子计算
-        results = service.compute_factors(
-            symbols=symbols,
-            factors=params.get('factors', ['all']),
-            lookback_days=params.get('lookback_days', 250)
-        )
+        requested = params.get('factors') or None
+        if requested == ['all']:
+            requested = None  # None = FactorStage 默认全量技术因子
+
+        lookback_days = params.get('lookback_days', 250)
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
+
+        computed = 0
+        failed = []
+        for sym in symbols:
+            try:
+                klines_df = ds.kline.get_daily_klines(sym, start_date, end_date)
+                if klines_df is None or klines_df.is_empty():
+                    failed.append(sym)
+                    continue
+
+                klines = klines_df.to_dicts()
+                stage = FactorStage(name='factors', factor_names=requested)
+                stage_input = {'symbol': sym, 'klines': klines}
+                if requested:
+                    stage_input['requested_factors'] = requested
+
+                result = stage.process(stage_input)
+                factors = result.get('factors', {})
+
+                last_row = klines[-1]
+                latest_date = last_row.get('trade_date') or last_row.get('date') or ''
+                ds.factor.save_factors(sym, str(latest_date), factors)
+                computed += 1
+            except Exception as sym_err:
+                logger.warning(f"factor compute failed for {sym}: {sym_err}")
+                failed.append(sym)
 
         return {
             "action": "factor_compute",
             "status": "success",
             "symbols_count": len(symbols),
-            "factors_computed": len(results),
+            "factors_computed": computed,
+            "failed": failed[:20],
             "timestamp": datetime.now().isoformat()
         }
 

@@ -259,9 +259,11 @@ class VerificationJob:
                 f"实际{actual_return*100:+.2f}%"
             )
 
-        # 获取账户变化
-        initial_value = account.initial_capital + (account.cumulative_return * account.initial_capital)
-        current_value = self.repo.get_account_total_value(account_name='default')
+        # 获取账户变化（多账户重构后 total_value 由 update_position_prices 维护；
+        # 旧的 get_account_total_value() 已移除）
+        # ORM Numeric 字段返回 Decimal，统一转 float 避免算术/JSON 序列化问题
+        initial_value = float(account.initial_capital or 0) * (1 + float(account.cumulative_return or 0))
+        current_value = float(account.total_value or 0)
         period_return = (current_value - initial_value) / initial_value
 
         # 获取指数收益
