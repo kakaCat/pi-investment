@@ -279,8 +279,8 @@ class DataServiceORM:
         Returns:
             持仓列表
         """
-        holdings = self.portfolio.get_all_holdings(market=market)
-        return [h.to_dict() for h in holdings]
+        # get_all_holdings 已恢复 List[Dict] 契约（见 portfolio_repository）
+        return self.portfolio.get_all_holdings(market=market)
 
     # ==================== 信号相关 ====================
 

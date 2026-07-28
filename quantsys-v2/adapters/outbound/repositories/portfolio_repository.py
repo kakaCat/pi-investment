@@ -149,19 +149,8 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             return 0
 
     def _holding_to_dict(self, holding: PortfolioHolding) -> Dict[str, Any]:
-        """将PortfolioHolding对象转换为字典"""
-        return {
-            'id': holding.id,
-            'portfolio_name': holding.portfolio_name,
-            'symbol': holding.symbol,
-            'name': holding.name,
-            'quantity': holding.quantity,
-            'available_quantity': holding.available_quantity,
-            'avg_cost': holding.avg_cost,
-            'total_invested': holding.total_invested,
-            'market': holding.market,
-            'added_date': holding.added_date.isoformat() if holding.added_date else None,
-        }
+        """将PortfolioHolding对象转换为字典（委托给 model.to_dict）"""
+        return holding.to_dict()
 
     # ==================== 查询方法 ====================
 
@@ -186,15 +175,22 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         self,
         market: Optional[str] = None,
         sector: Optional[str] = None
-    ) -> List[PortfolioHolding]:
+    ) -> List[Dict]:
         """查询所有持仓
+
+        注：8f06ae1 DDD 重构把返回类型从 List[Dict] 改成了
+        List[PortfolioHolding]，但路由层（risk/orders/stock）与
+        risk_rules/stress_test/risk_check_service 等存量调用方全部
+        按 dict 使用（h['symbol'] / h.get(...)），导致
+        'PortfolioHolding' object is not subscriptable。
+        此处恢复旧的 List[Dict] 契约。
 
         Args:
             market: 市场筛选 (A/HK)
             sector: 行业筛选
 
         Returns:
-            PortfolioHolding对象列表
+            持仓字典列表
         """
         try:
             query = self.session.query(PortfolioHolding)
@@ -204,7 +200,8 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             if sector:
                 query = query.filter(PortfolioHolding.sector == sector)
 
-            return query.order_by(PortfolioHolding.total_invested.desc()).all()
+            holdings = query.order_by(PortfolioHolding.total_invested.desc()).all()
+            return [h.to_dict() for h in holdings]
 
         except Exception as e:
             logger.error(f"Error getting all holdings: {e}")
@@ -382,13 +379,13 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             holdings = self.get_all_holdings()
 
             total_count = len(holdings)
-            total_invested = sum(float(h.total_invested) for h in holdings)
-            total_quantity = sum(h.quantity for h in holdings)
+            total_invested = sum(float(h['total_invested']) for h in holdings)
+            total_quantity = sum(h['quantity'] for h in holdings)
 
             # 按市场分组
             market_stats = {}
             for holding in holdings:
-                market = holding.market
+                market = holding['market']
                 if market not in market_stats:
                     market_stats[market] = {
                         'count': 0,
@@ -396,20 +393,20 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
                         'total_quantity': 0
                     }
                 market_stats[market]['count'] += 1
-                market_stats[market]['total_invested'] += float(holding.total_invested)
-                market_stats[market]['total_quantity'] += holding.quantity
+                market_stats[market]['total_invested'] += float(holding['total_invested'])
+                market_stats[market]['total_quantity'] += holding['quantity']
 
             # 按行业分组
             sector_stats = {}
             for holding in holdings:
-                sector = holding.sector or '未分类'
+                sector = holding.get('sector') or '未分类'
                 if sector not in sector_stats:
                     sector_stats[sector] = {
                         'count': 0,
                         'total_invested': 0
                     }
                 sector_stats[sector]['count'] += 1
-                sector_stats[sector]['total_invested'] += float(holding.total_invested)
+                sector_stats[sector]['total_invested'] += float(holding['total_invested'])
 
             return {
                 'total_count': total_count,
