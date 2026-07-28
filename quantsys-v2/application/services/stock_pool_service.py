@@ -285,6 +285,110 @@ class StockPoolService:
         logger.info(f"Successfully updated pool {pool_id}")
         return self.get_pool(pool_id)
 
+    # 动态池手动增删成员的覆盖警告
+    DYNAMIC_POOL_WARNING = (
+        '动态池 refresh 将按筛选条件重建成员，手动增删的成员可能被覆盖'
+    )
+
+    def _ensure_members(self, pool: dict) -> list:
+        """返回池的 members 列表；为空时从 symbols 重建（不持久化）。"""
+        members = pool.get('members') or []
+        if members:
+            return list(members)
+        symbols = pool.get('symbols') or []
+        names_by_symbol = self.stock_repo.batch_get_names(symbols) if symbols else {}
+        return [
+            {'symbol': s, 'name': names_by_symbol.get(s), 'description': None,
+             'buy_point': None, 'sell_point': None, 'tags': []}
+            for s in symbols
+        ]
+
+    def add_members(self, pool_id: int, symbols: List[str],
+                    member_data: dict = None) -> dict:
+        """
+        批量添加池子成员（幂等：已在池中的跳过）。
+
+        Returns:
+            {pool, added, skipped, warning?}
+        """
+        if not self._pool_repo:
+            raise RuntimeError("StockPoolRepository not configured")
+        pool = self._pool_repo.get_pool(pool_id)
+        if not pool:
+            raise ValueError(f"Pool {pool_id} not found")
+
+        member_data = member_data or {}
+        current_symbols = list(pool.get('symbols') or [])
+        members = self._ensure_members(pool)
+
+        existing = set(current_symbols)
+        to_add = [s for s in symbols if s not in existing]
+        skipped = [s for s in symbols if s in existing]
+
+        if to_add:
+            names_by_symbol = self.stock_repo.batch_get_names(to_add)
+            for s in to_add:
+                members.append({
+                    'symbol': s,
+                    'name': names_by_symbol.get(s),
+                    'description': member_data.get('description'),
+                    'buy_point': member_data.get('buy_point'),
+                    'sell_point': member_data.get('sell_point'),
+                    'tags': member_data.get('tags') or [],
+                })
+                current_symbols.append(s)
+            updated = self._pool_repo.update(
+                pool_id, {'symbols': current_symbols, 'members': members})
+            if not updated:
+                raise ValueError(f"Failed to update pool {pool_id}")
+
+        result = {
+            'pool': self.get_pool(pool_id),
+            'added': to_add,
+            'skipped': skipped,
+        }
+        if pool.get('pool_type') == 'dynamic':
+            result['warning'] = self.DYNAMIC_POOL_WARNING
+        return result
+
+    def remove_members(self, pool_id: int, symbols: List[str]) -> dict:
+        """
+        批量移除池子成员（幂等：不在池中的跳过）。
+
+        Returns:
+            {pool, removed, skipped, warning?}
+        """
+        if not self._pool_repo:
+            raise RuntimeError("StockPoolRepository not configured")
+        pool = self._pool_repo.get_pool(pool_id)
+        if not pool:
+            raise ValueError(f"Pool {pool_id} not found")
+
+        current_symbols = list(pool.get('symbols') or [])
+        members = self._ensure_members(pool)
+
+        existing = set(current_symbols)
+        to_remove = [s for s in symbols if s in existing]
+        skipped = [s for s in symbols if s not in existing]
+
+        if to_remove:
+            remove_set = set(to_remove)
+            current_symbols = [s for s in current_symbols if s not in remove_set]
+            members = [m for m in members if m.get('symbol') not in remove_set]
+            updated = self._pool_repo.update(
+                pool_id, {'symbols': current_symbols, 'members': members})
+            if not updated:
+                raise ValueError(f"Failed to update pool {pool_id}")
+
+        result = {
+            'pool': self.get_pool(pool_id),
+            'removed': to_remove,
+            'skipped': skipped,
+        }
+        if pool.get('pool_type') == 'dynamic':
+            result['warning'] = self.DYNAMIC_POOL_WARNING
+        return result
+
     def sync_stock_names(self, pool_id: int) -> dict:
         """同步股票池成员名称并持久化到 members 字段。"""
         if not self._pool_repo:
