@@ -9,6 +9,8 @@ os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
 import sys
+import time
+import random
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -42,6 +44,9 @@ def update_gem_klines(**params):
 
     days = params.get('days', 5)
     specific_symbols = params.get('symbols', None)
+    # 请求限速：每只股票之间的间隔秒数区间（防 WAF 封禁，2026-07-28）
+    # interval_seconds=0 关闭（测试/小批量用）
+    interval = params.get('interval_seconds', (0.3, 0.8))
 
     engine = None
     conn = None
@@ -88,6 +93,9 @@ def update_gem_klines(**params):
         skipped = 0
 
         for i, (symbol, name) in enumerate(stocks, 1):
+            # 限速：首只之前不 sleep
+            if i > 1 and interval and interval[1] > 0:
+                time.sleep(random.uniform(*interval))
             try:
                 # 使用多数据源获取数据（自动fallback：tencent → akshare）
                 # 注意：manager.get_klines 返回 {'success', 'data', 'source'} 字典，
@@ -148,10 +156,20 @@ def update_gem_klines(**params):
 
         cursor.close()
 
+        # 封禁/故障降级检测：样本足够且成功率过低时标记（2026-07-28）
+        processed = success + failed + skipped
+        provider_health = 'ok'
+        if processed >= 20 and success < processed * 0.5:
+            provider_health = 'degraded'
+            logger.critical(
+                f"⚠️ K线数据源疑似被封/故障: {processed}只仅{success}只成功，"
+                f"请检查 provider 状态（WAF/IP封禁）")
+
         result = {
             'action': 'kline_update',
             'status': 'success',
             'timestamp': datetime.now().isoformat(),
+            'provider_health': provider_health,
             'total': total,
             'success': success,
             'failed': failed,
