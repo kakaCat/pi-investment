@@ -24,7 +24,7 @@ agent-ts 的 LLM provider **不是写死的**：[config.ts](../../../agent-ts/sr
 ## 架构
 
 ```
-┌─ 入口1: /model 斜杠命令 (extension) ─┐
+┌─ 入口1: /provider 斜杠命令 (extension) ─┐
 │                                      ├─→ model-switcher (运行时状态) ─→ getActiveProvider()
 ├─ 入口2: model_switch agent 工具 ─────┘                                      │
                                                                               ↓
@@ -46,14 +46,16 @@ export function isProviderConfigured(p: LLMProviderName): boolean;
 
 `getActiveProvider()` 先读 `model-switcher` 运行时状态，未设置再回退 `LLM_PROVIDER` 环境变量。`createModel()` 无需改动 —— 它每次调用现读 provider/key，且已有 `OPENAI_API_KEY` 同步逻辑（SDK 只从该环境变量读 key）。
 
-### 组件 3：CLI 斜杠命令 `/model`
+### 组件 3：CLI 斜杠命令 `/provider`
+
+> 命名说明：SDK 内置 `/model` 命令（模型选择器）已存在，为避免冲突自定义命令命名为 `/provider`。
 
 新增 `src/api/extensions/model-command.ts`，用 SDK extension 的 `registerCommand` 注册，session 创建时挂载：
 
 | 用法 | 行为 |
 |------|------|
-| `/model` | 显示当前 provider、模型 ID、各 provider key 配置状态 |
-| `/model kimi` / `/model deepseek` | `setRuntimeProvider()` + `session.setModel(createModel())`，TUI 打印确认 |
+| `/provider` | 显示当前 provider、模型 ID、各 provider key 配置状态 |
+| `/provider kimi` / `/provider deepseek` | `setRuntimeProvider()` + `session.setModel(createModel())`，TUI 打印确认 |
 
 ### 组件 4：Agent 工具 `model_switch`
 
@@ -63,11 +65,11 @@ export function isProviderConfigured(p: LLMProviderName): boolean;
 - 执行：`setRuntimeProvider()`
 - 返回：切换前后 provider、新模型 ID、决策上下文（"切换已生效，后续会话与定时任务将使用 Kimi"）
 
-**生效范围**：工具拿不到当前会话的 session 句柄（execute 签名为 `(toolCallId, args)`，无 session 注入），因此**当前正在运行的会话保持原模型直到会话结束**；新会话立即生效。这对自主运行场景恰好是主要路径——定时任务每次都 `createSession()`（index.ts:48），唤醒即用新模型。若 agent 希望"本会话立即换"，它应提示用户用 `/model` 命令。
+**生效范围**：工具拿不到当前会话的 session 句柄（execute 签名为 `(toolCallId, args)`，无 session 注入），因此**当前正在运行的会话保持原模型直到会话结束**；新会话立即生效。这对自主运行场景恰好是主要路径——定时任务每次都 `createSession()`（index.ts:48），唤醒即用新模型。若 agent 希望"本会话立即换"，它应提示用户用 `/provider` 命令。
 
 ## 切换语义
 
-- 斜杠命令 `/model`：**当前会话立即生效**（`session.setModel()`，正在流式输出的回复不中断，下轮起用新模型）
+- 斜杠命令 `/provider`：**当前会话立即生效**（`session.setModel()`，正在流式输出的回复不中断，下轮起用新模型）
 - Agent 工具 `model_switch`：**新会话生效**（定时任务唤醒、subagent、下一个人工会话），当前会话保持原模型
 - 两者都是全进程级状态：gateway 模式多并行会话共享同一进程时，新建会话都用新 provider（设计意图）
 - `setModel()` 是 SDK 公开 API（agent-session.d.ts:402），auth 校验风险见「风险」
@@ -76,7 +78,7 @@ export function isProviderConfigured(p: LLMProviderName): boolean;
 
 1. 目标 provider = 当前 provider → 幂等返回"已是当前模型"
 2. 目标 provider key 未配置 → 拒绝，提示缺哪个环境变量
-3. Agent 工具额外限制：每会话最多切换 3 次，超出拒绝并提示人工 `/model` 处理（防 DeepSeek↔Kimi 报错来回抖动）
+3. Agent 工具额外限制：每会话最多切换 3 次，超出拒绝并提示人工 `/provider` 处理（防 DeepSeek↔Kimi 报错来回抖动）
 4. 每次切换写日志：时间、从→到、触发方（human/agent）
 
 ## 测试
@@ -97,9 +99,9 @@ export function isProviderConfigured(p: LLMProviderName): boolean;
 
 ### 手动验证（npm run dev）
 
-1. `/model` 显示当前 deepseek
-2. `/model kimi` → 确认 → 发问，日志确认请求打到 `api.kimi.com/coding/v1`
-3. `/model deepseek` 切回
+1. `/provider` 显示当前 deepseek
+2. `/provider kimi` → 确认 → 发问，日志确认请求打到 `api.kimi.com/coding/v1`
+3. `/provider deepseek` 切回
 4. 让 agent 调 `model_switch`，观察下一轮行为与日志
 
 ## 风险
