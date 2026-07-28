@@ -22,7 +22,8 @@
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "test:quant-web": "npm --prefix quant-web test",
     "test:notification": "tsx src/scripts/test-notification.ts",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "check:tool-refs": "tsx src/infrastructure/tools/tool-reference-check-cli.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.38.0",

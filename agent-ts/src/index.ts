@@ -12,6 +12,7 @@ import {
   formatHealthForConsole,
 } from "./services/health/startup-health-check.js";
 import { startService } from "./infrastructure/tools/agent/backend-control-tool.js";
+import { runToolReferenceCheckOnStartup } from "./infrastructure/tools/tool-reference-check.js";
 
 // 注意：调度器已迁移到 quantsys-v2
 // Agent 只保留 AI 决策任务，通过 agent_turn 类型执行
@@ -31,6 +32,9 @@ async function main() {
       },
     });
     console.log(formatHealthForConsole(healthReport));
+
+    // 0.5 工具引用 sanity check：skill/任务模板引用了不存在的工具名时 warn（不阻断）
+    await runToolReferenceCheckOnStartup(process.cwd());
 
     // 1. 初始化 Agent AI 决策任务
     await initAgentDecisionTasks();
