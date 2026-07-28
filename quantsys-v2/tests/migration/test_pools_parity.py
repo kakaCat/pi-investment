@@ -46,3 +46,21 @@ def test_scan_results(flask_client, fastapi_client):
 
 def test_validate_pool_not_found(flask_client, fastapi_client):
     assert_parity(flask_client, fastapi_client, "POST", VALIDATE, json_body={})
+
+
+ADD_MEMBERS_NF = "/api/pools/999999/members"   # 不存在 → 404
+
+
+def test_add_members_not_found(flask_client, fastapi_client):
+    assert_parity(flask_client, fastapi_client, "POST", ADD_MEMBERS_NF,
+                  json_body={"symbols": ["600519.SH"]})
+
+
+def test_add_members_missing_symbols(flask_client, fastapi_client):
+    assert_parity(flask_client, fastapi_client, "POST", ADD_MEMBERS_NF,
+                  json_body={})
+
+
+def test_remove_members_not_found(flask_client, fastapi_client):
+    assert_parity(flask_client, fastapi_client, "DELETE", ADD_MEMBERS_NF,
+                  json_body={"symbols": ["600519.SH"]})

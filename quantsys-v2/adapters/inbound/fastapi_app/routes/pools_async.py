@@ -267,6 +267,45 @@ def update_member(pool_id: int, symbol: str, payload: Optional[Dict[str, Any]] =
         return error_response({'success': False, 'error': str(e)}, 500)
 
 
+@router.post('/api/pools/{pool_id}/members')
+def add_members(pool_id: int, payload: Optional[Dict[str, Any]] = Body(None)):
+    data = payload or {}
+    symbols = data.get('symbols')
+    if not symbols or not isinstance(symbols, list):
+        return error_response({'success': False, 'error': 'symbols must be a non-empty array'}, 400)
+    try:
+        result = svc.add_members(
+            pool_id=pool_id, symbols=symbols,
+            member_data={
+                'description': data.get('description'),
+                'buy_point': data.get('buyPoint') or data.get('buy_point'),
+                'sell_point': data.get('sellPoint') or data.get('sell_point'),
+                'tags': data.get('tags', []),
+            })
+        return {'success': True, 'data': result}
+    except ValueError as e:
+        return error_response({'success': False, 'error': str(e)}, 404)
+    except Exception as e:
+        logger.error(f"Add members failed: {e}")
+        return error_response({'success': False, 'error': str(e)}, 500)
+
+
+@router.delete('/api/pools/{pool_id}/members')
+def remove_members(pool_id: int, payload: Optional[Dict[str, Any]] = Body(None)):
+    data = payload or {}
+    symbols = data.get('symbols')
+    if not symbols or not isinstance(symbols, list):
+        return error_response({'success': False, 'error': 'symbols must be a non-empty array'}, 400)
+    try:
+        result = svc.remove_members(pool_id=pool_id, symbols=symbols)
+        return {'success': True, 'data': result}
+    except ValueError as e:
+        return error_response({'success': False, 'error': str(e)}, 404)
+    except Exception as e:
+        logger.error(f"Remove members failed: {e}")
+        return error_response({'success': False, 'error': str(e)}, 500)
+
+
 @router.post('/api/pools/{pool_id}/validate')
 def validate_pool(pool_id: int, payload: Optional[Dict[str, Any]] = Body(None)):
     data = payload or {}
