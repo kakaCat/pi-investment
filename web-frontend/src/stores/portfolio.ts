@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Position, PortfolioSummaryResponse } from '@/types'
-import { tradingApi, DEFAULT_ACCOUNT } from '@/services/api'
+import { tradingApi } from '@/services/api'
 
 export const usePortfolioStore = defineStore('portfolio', () => {
   // State
@@ -9,12 +9,7 @@ export const usePortfolioStore = defineStore('portfolio', () => {
   const summary = ref<PortfolioSummaryResponse | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
-  // 多账户：当前查看的账户（默认 agent 唯一交易账本）
-  const currentAccount = ref<string>(DEFAULT_ACCOUNT)
-
-  const setAccount = (account: string) => {
-    currentAccount.value = account
-  }
+  const currentAccount = ref<string>('')
 
   // Getters
   const totalValue = computed(() =>
@@ -57,43 +52,46 @@ export const usePortfolioStore = defineStore('portfolio', () => {
   })
 
   // Actions
-  const fetchSummary = async () => {
+  const fetchSummary = async (accountName: string) => {
+    if (!accountName) return
     try {
-      const data = await tradingApi.getPortfolioSummary(currentAccount.value)
+      const data = await tradingApi.getPortfolioSummary(accountName)
       summary.value = data as unknown as PortfolioSummaryResponse
     } catch (e: any) {
       console.error('获取持仓汇总失败:', e)
     }
   }
 
-  const fetchPositions = async () => {
+  const fetchPositions = async (accountName: string) => {
+    if (!accountName) return
     loading.value = true
     error.value = null
     try {
-      const data = await tradingApi.getPositions(currentAccount.value)
-      const rawList: any[] = (data as any).positions ?? (data as any) ?? []
+      const data = await tradingApi.getPositions(accountName)
+      const rawList: any[] = (data as any).positions ?? []
 
-      const totalMV = rawList.reduce((sum, p) => sum + (p.currentValue || 0), 0)
+      const totalMV = rawList.reduce((sum, p) => sum + (p.current_value || 0), 0)
 
       positions.value = rawList.map((p: any) => ({
         id: p.symbol,
         symbol: p.symbol,
-        symbolName: p.name,
-        name: p.name,
+        symbolName: p.name || p.symbol,
+        name: p.name || p.symbol,
         quantity: p.quantity,
-        avgCost: p.avgCost,
-        currentPrice: p.currentPrice,
-        marketValue: p.currentValue,
-        totalCost: p.totalCost || p.avgCost * p.quantity,
-        unrealizedPnL: p.profitLoss,
-        unrealizedPnLPercent: p.profitLossPct,
-        profit: p.profitLoss,
-        profitPercent: p.profitLossPct,
-        weight: totalMV > 0 ? (p.currentValue / totalMV) * 100 : 0,
-        buyDate: p.updatedAt || '',
-        addedDate: p.updatedAt || '',
-        market: p.market || '',
-        sector: p.sector || null,
+        sharesAvailable: p.shares_available,
+        avgCost: p.avg_cost,
+        currentPrice: p.current_price,
+        marketValue: p.current_value,
+        totalCost: p.total_cost || p.avg_cost * p.quantity,
+        unrealizedPnL: p.profit_loss,
+        unrealizedPnLPercent: p.profit_loss_pct,
+        profit: p.profit_loss,
+        profitPercent: p.profit_loss_pct,
+        weight: totalMV > 0 ? (p.current_value / totalMV) * 100 : 0,
+        buyDate: '',
+        addedDate: '',
+        market: '',
+        sector: null,
         stopLoss: undefined,
         targetPrice: undefined,
         reason: ''
@@ -106,8 +104,10 @@ export const usePortfolioStore = defineStore('portfolio', () => {
     }
   }
 
-  const fetchAll = async () => {
-    await Promise.all([fetchSummary(), fetchPositions()])
+  const fetchAll = async (accountName: string) => {
+    if (!accountName) return
+    currentAccount.value = accountName
+    await Promise.all([fetchSummary(accountName), fetchPositions(accountName)])
   }
 
   const updatePosition = (position: Position) => {
@@ -145,7 +145,6 @@ export const usePortfolioStore = defineStore('portfolio', () => {
     dailyChange,
     allocation,
     // Actions
-    setAccount,
     fetchSummary,
     fetchPositions,
     fetchAll,
