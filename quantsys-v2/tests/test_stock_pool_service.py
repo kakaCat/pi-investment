@@ -14,7 +14,7 @@ class TestStockPoolService:
     @pytest.fixture
     def mock_stock_repo(self):
         """创建mock的StockRepository"""
-        return Mock(spec=StockRepository)
+        return Mock(spec=StockORMRepository)
 
     @pytest.fixture
     def service(self, mock_stock_repo):
@@ -183,7 +183,7 @@ class TestStockPoolService:
     def test_get_pool_includes_member_names(self, mock_stock_repo):
         """股票池详情返回成员列表和股票名称。"""
         pool_repo = Mock()
-        pool_repo.get_by_id.return_value = {
+        pool_repo.get_pool.return_value = {
             'id': 4,
             'name': '高波动池',
             'pool_type': 'static',
@@ -207,7 +207,7 @@ class TestStockPoolService:
     def test_sync_stock_names_persists_member_names(self, mock_stock_repo):
         """同步股票名称会保留成员元数据并回写 members。"""
         pool_repo = Mock()
-        pool_repo.get_by_id.return_value = {
+        pool_repo.get_pool.return_value = {
             'id': 4,
             'name': '高波动池',
             'pool_type': 'static',
@@ -272,3 +272,115 @@ class TestStockPoolService:
             },
         ]})
         assert result['members'][0]['name'] == '宁德时代'
+
+
+class TestPoolMemberOps:
+    """add_members / remove_members 单元测试"""
+
+    @pytest.fixture
+    def mock_stock_repo(self):
+        repo = Mock()
+        repo.batch_get_names.return_value = {
+            '600519.SH': '贵州茅台', '000858.SZ': '五粮液', '000001.SZ': '平安银行',
+        }
+        return repo
+
+    def _make_service(self, mock_stock_repo, pool):
+        pool_repo = Mock()
+        pool_repo.get_pool.return_value = pool
+        pool_repo.update.return_value = dict(pool) if pool else None
+        return StockPoolService(mock_stock_repo, pool_repo=pool_repo), pool_repo
+
+    def _static_pool(self):
+        return {
+            'id': 1, 'name': '测试池', 'pool_type': 'static',
+            'symbols': ['600519.SH'],
+            'members': [
+                {'symbol': '600519.SH', 'name': '贵州茅台', 'description': None,
+                 'buy_point': None, 'sell_point': None, 'tags': []},
+            ],
+        }
+
+    def test_add_members_adds_new_with_names_and_metadata(self, mock_stock_repo):
+        svc, pool_repo = self._make_service(mock_stock_repo, self._static_pool())
+        result = svc.add_members(1, ['000858.SZ', '000001.SZ'],
+                                 member_data={'description': '关注', 'tags': ['白酒']})
+        assert result['added'] == ['000858.SZ', '000001.SZ']
+        assert result['skipped'] == []
+        assert 'warning' not in result
+        pool_repo.update.assert_called_once()
+        args = pool_repo.update.call_args[0]
+        assert args[0] == 1
+        assert args[1]['symbols'] == ['600519.SH', '000858.SZ', '000001.SZ']
+        new_members = args[1]['members'][1:]
+        assert new_members[0]['name'] == '五粮液'
+        assert new_members[0]['description'] == '关注'
+        assert new_members[0]['tags'] == ['白酒']
+        assert new_members[1]['name'] == '平安银行'
+
+    def test_add_members_skips_existing(self, mock_stock_repo):
+        svc, pool_repo = self._make_service(mock_stock_repo, self._static_pool())
+        result = svc.add_members(1, ['600519.SH', '000858.SZ'])
+        assert result['added'] == ['000858.SZ']
+        assert result['skipped'] == ['600519.SH']
+
+    def test_add_members_all_existing_no_update(self, mock_stock_repo):
+        svc, pool_repo = self._make_service(mock_stock_repo, self._static_pool())
+        result = svc.add_members(1, ['600519.SH'])
+        assert result['added'] == []
+        assert result['skipped'] == ['600519.SH']
+        pool_repo.update.assert_not_called()
+
+    def test_add_members_pool_not_found(self, mock_stock_repo):
+        svc, _ = self._make_service(mock_stock_repo, None)
+        with pytest.raises(ValueError, match="Pool 999 not found"):
+            svc.add_members(999, ['600519.SH'])
+
+    def test_add_members_dynamic_pool_warning(self, mock_stock_repo):
+        pool = self._static_pool()
+        pool['pool_type'] = 'dynamic'
+        svc, _ = self._make_service(mock_stock_repo, pool)
+        result = svc.add_members(1, ['000858.SZ'])
+        assert 'warning' in result
+        assert 'refresh' in result['warning']
+
+    def test_add_members_rebuilds_members_from_symbols(self, mock_stock_repo):
+        pool = {'id': 1, 'name': '旧池', 'pool_type': 'static',
+                'symbols': ['600519.SH'], 'members': []}
+        svc, pool_repo = self._make_service(mock_stock_repo, pool)
+        svc.add_members(1, ['000858.SZ'])
+        args = pool_repo.update.call_args[0]
+        assert [m['symbol'] for m in args[1]['members']] == ['600519.SH', '000858.SZ']
+
+    def test_remove_members_removes_from_symbols_and_members(self, mock_stock_repo):
+        pool = self._static_pool()
+        pool['symbols'].append('000858.SZ')
+        pool['members'].append({'symbol': '000858.SZ', 'name': '五粮液',
+                                'description': None, 'buy_point': None,
+                                'sell_point': None, 'tags': []})
+        svc, pool_repo = self._make_service(mock_stock_repo, pool)
+        result = svc.remove_members(1, ['000858.SZ'])
+        assert result['removed'] == ['000858.SZ']
+        assert result['skipped'] == []
+        args = pool_repo.update.call_args[0]
+        assert args[1]['symbols'] == ['600519.SH']
+        assert [m['symbol'] for m in args[1]['members']] == ['600519.SH']
+
+    def test_remove_members_skips_missing(self, mock_stock_repo):
+        svc, pool_repo = self._make_service(mock_stock_repo, self._static_pool())
+        result = svc.remove_members(1, ['000858.SZ'])
+        assert result['removed'] == []
+        assert result['skipped'] == ['000858.SZ']
+        pool_repo.update.assert_not_called()
+
+    def test_remove_members_pool_not_found(self, mock_stock_repo):
+        svc, _ = self._make_service(mock_stock_repo, None)
+        with pytest.raises(ValueError, match="Pool 999 not found"):
+            svc.remove_members(999, ['600519.SH'])
+
+    def test_remove_members_dynamic_pool_warning(self, mock_stock_repo):
+        pool = self._static_pool()
+        pool['pool_type'] = 'dynamic'
+        svc, _ = self._make_service(mock_stock_repo, pool)
+        result = svc.remove_members(1, ['600519.SH'])
+        assert 'warning' in result
