@@ -1508,7 +1508,7 @@ class SchedulerService:
         Returns:
             Result dictionary with execution status and account state
         """
-        from infrastructure.jobs.v13_trading_job import execute
+        from infrastructure.jobs.strategy_trading_job import v13_daily_check as execute
 
         logger.info("Executing v13_daily_check command")
         return execute(**params)
