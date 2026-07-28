@@ -208,8 +208,11 @@ class RiskCheckJob:
             logger.warning("账户不存在，跳过风险检查")
             return
 
-        current_value = self.repo.get_account_total_value(account_name='default')
-        cumulative_return = account.cumulative_return
+        # 账户总资产（多账户重构后由 update_position_prices 实时维护；
+        # 旧的 get_account_total_value() 已移除）
+        current_value = float(account.total_value or 0)
+        # ORM Numeric 字段返回 Decimal，与 float 做算术会 TypeError，统一转 float
+        cumulative_return = float(account.cumulative_return or 0)
 
         logger.info(f"当前累计收益: {cumulative_return*100:.2f}%")
 
