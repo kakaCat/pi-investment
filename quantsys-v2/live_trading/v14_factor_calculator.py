@@ -170,6 +170,24 @@ class V14FactorCalculator:
         """获取数据源健康报告"""
         return self.fetcher.get_health_report()
 
+    def get_latest_factors(self, symbols, days=100):
+        """
+        与 V13FactorCalculator 接口对齐：返回每只股票最新一天的因子值
+
+        SimulationTrader.rebalance 统一调用此方法。
+
+        Args:
+            symbols: 股票列表 [{'symbol': '300750', 'name': '宁德时代'}, ...]
+            days: 获取天数
+
+        Returns:
+            DataFrame: 每只股票最新一天的因子值（失败时返回空 DataFrame）
+        """
+        factors = self.calculate_latest_factors(symbols, days)
+        if factors.empty:
+            return factors
+        return factors.groupby('symbol').tail(1).copy()
+
 
 if __name__ == '__main__':
     # 测试V14因子计算器

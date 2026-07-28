@@ -179,3 +179,37 @@ def test_stop_loss_skipped_when_portfolio_empty():
     trader.run_daily_check()
     trader._get_current_prices.assert_not_called()
     trader._execute_stop_loss.assert_not_called()
+
+
+def test_v14_factor_calculator_get_latest_factors():
+    """V14FactorCalculator 必须提供与 V13 对齐的 get_latest_factors（每股最新一天）
+
+    回归：2026-07-28 v14 首跑调仓失败 AttributeError: no attribute 'get_latest_factors'
+    """
+    import pandas as pd
+    from live_trading.v14_factor_calculator import V14FactorCalculator
+
+    calc = V14FactorCalculator()
+    two_days = pd.DataFrame({
+        'symbol': ['300162', '300162', '300432', '300432'],
+        'date': ['2026-07-27', '2026-07-28', '2026-07-27', '2026-07-28'],
+        'factor_a': [1.0, 2.0, 3.0, 4.0],
+    })
+    calc.calculate_latest_factors = MagicMock(return_value=two_days)
+
+    latest = calc.get_latest_factors(['300162', '300432'])
+
+    assert len(latest) == 2
+    assert set(latest['symbol']) == {'300162', '300432'}
+    # 每只股票只保留最新一天（factor_a 为第二天的值）
+    assert latest.set_index('symbol')['factor_a'].to_dict() == {'300162': 2.0, '300432': 4.0}
+
+
+def test_v14_get_latest_factors_empty_passthrough():
+    """因子计算失败（空 df）时原样返回空"""
+    import pandas as pd
+    from live_trading.v14_factor_calculator import V14FactorCalculator
+
+    calc = V14FactorCalculator()
+    calc.calculate_latest_factors = MagicMock(return_value=pd.DataFrame())
+    assert calc.get_latest_factors(['300162']).empty
