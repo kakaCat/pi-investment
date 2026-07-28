@@ -48,3 +48,29 @@ def test_factor_calculator_unknown_raises():
     """未知的因子计算器键名应报错"""
     with pytest.raises(ValueError, match='factor_calculator'):
         _make_trader(factor_calculator='v99')
+
+
+def test_load_model_uses_instance_paths(tmp_path):
+    """load_model 必须读 self.model_path/self.factors_path（回归：此前硬编码 v13 模型）"""
+    import json
+    import numpy as np
+    import xgboost as xgb
+    from live_trading.simulation_trader import SimulationTrader
+
+    # 构造一个可加载的临时模型与因子文件（save_model 要求先 fit）
+    model_file = tmp_path / 'test_model.json'
+    factors_file = tmp_path / 'test_factors.json'
+    m = xgb.XGBRegressor(n_jobs=1, n_estimators=2)
+    m.fit(np.array([[0.0], [1.0]]), np.array([0.0, 1.0]))
+    m.save_model(str(model_file))
+    factors_file.write_text(json.dumps(['__test_factor_a__', '__test_factor_b__']))
+
+    trader = object.__new__(SimulationTrader)
+    trader.model = None
+    trader.valid_factors = None
+    trader.model_path = str(model_file)
+    trader.factors_path = str(factors_file)
+    trader.load_model()
+
+    assert trader.valid_factors == ['__test_factor_a__', '__test_factor_b__']
+    assert trader.model is not None

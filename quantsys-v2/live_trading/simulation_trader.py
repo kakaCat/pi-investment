@@ -665,14 +665,14 @@ class SimulationTrader:
         return valid_factors
 
     def load_model(self):
-        """加载已训练的模型"""
-        # 使用绝对路径（从当前文件位置计算）
-        base_dir = Path(__file__).parent
-        model_file = base_dir / 'models' / 'v13_model.json'
-        factors_file = base_dir / 'models' / 'valid_factors.json'
+        """加载已训练的模型（路径来自 self.model_path / self.factors_path）"""
+        model_file = Path(self.model_path)
+        factors_file = Path(self.factors_path)
 
         if not model_file.exists():
             raise FileNotFoundError(f"模型文件不存在: {model_file}")
+        if not factors_file.exists():
+            raise FileNotFoundError(f"因子文件不存在: {factors_file}")
 
         self.model = xgb.XGBRegressor(n_jobs=1)  # 使用单线程避免段错误
         self.model.load_model(str(model_file))
@@ -680,7 +680,7 @@ class SimulationTrader:
         with open(factors_file, 'r') as f:
             self.valid_factors = json.load(f)
 
-        logging.info(f"模型加载完成: {len(self.valid_factors)}个因子")
+        logging.info(f"模型加载完成: {len(self.valid_factors)}个因子 ({model_file.name})")
 
     def _is_trading_day(self, date_str: str) -> bool:
         """
