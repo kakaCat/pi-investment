@@ -21,7 +21,9 @@ export const queryExperienceTool: ToolDefinition = {
 - 历史案例的胜率和平均收益
 - 具体的成功/失败案例
 - 基于历史数据的建议（aggressive/moderate/cautious/avoid）
-- 置信度评分`,
+- 置信度评分
+- 新陈代谢标注：权重 / 有效权重（随时间衰减，半衰期默认 30 天）/ 最近验证时间
+- 连续 3 次验证失败的经验会被自动弃用，默认不返回（可设 include_deprecated 查看）`,
 
   parameters: Type.Object({
     scenario: Type.Optional(Type.String({
@@ -36,6 +38,10 @@ export const queryExperienceTool: ToolDefinition = {
     limit: Type.Optional(Type.Number({
       description: '返回结果数量限制，默认 5 条',
       default: 5
+    })),
+    include_deprecated: Type.Optional(Type.Boolean({
+      description: '是否包含已弃用（连续3次验证失败）的经验，默认 false',
+      default: false
     }))
   }),
 

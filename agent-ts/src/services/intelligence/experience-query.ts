@@ -56,6 +56,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import type { Experience, ExperienceBase } from '../../types/evolution.js';
+import { computeEffectiveWeight, normalizeExperience } from './experience-manager.js';
 
 /**
  * 计算文本相似度（支持中文）
@@ -105,12 +106,16 @@ function matchConditions(
 
 /**
  * 查询经验库
+ *
+ * 默认过滤 deprecated（连续 3 次验证失败被弃用）的经验；
+ * 传 include_deprecated: true 可显式包含。
  */
 export function queryExperience(params: {
   scenario?: string;
   symbol?: string;
   conditions?: string[];
   minConfidence?: number;
+  include_deprecated?: boolean;
 }): Experience[] {
   const piDir = join(process.cwd(), '.pi-invest');
   const experienceFile = join(piDir, 'experience', 'experience-base.json');
@@ -129,10 +134,15 @@ export function queryExperience(params: {
     return [];
   }
 
-  const { scenario, symbol, conditions = [], minConfidence = 0.5 } = params;
+  const { scenario, symbol, conditions = [], minConfidence = 0.5, include_deprecated = false } = params;
+
+  // 0. 弃用过滤（连续 3 次验证失败的经验默认不再返回）
+  const pool = include_deprecated
+    ? experienceBase.experiences
+    : experienceBase.experiences.filter(exp => exp.deprecated !== true);
 
   // 1. 文本相似度匹配
-  const textMatches = experienceBase.experiences
+  const textMatches = pool
     .map(exp => ({
       experience: exp,
       similarity: calculateSimilarity((exp.scenario as string) || "", (scenario as string) || "")
@@ -164,7 +174,13 @@ export function queryExperience(params: {
     return scoreB - scoreA;
   });
 
-  const results = filtered.map(item => item.experience);
+  // 6. 归一化（旧格式补默认字段）+ 有效权重标注
+  const now = new Date();
+  const results = filtered.map(item => {
+    const normalized = normalizeExperience(item.experience);
+    normalized.effective_weight = computeEffectiveWeight(normalized, now);
+    return normalized;
+  });
 
   console.log(`[经验查询] 场景: "${scenario}", 找到 ${results.length} 条相关经验`);
 
@@ -177,7 +193,18 @@ export function queryExperience(params: {
 export function formatExperience(experience: Experience): string {
   const lines: string[] = [];
 
+  // 新陈代谢标注：权重 / 有效权重（时间衰减后）/ 最近验证时间 / 弃用状态
+  const normalized = normalizeExperience(experience);
+  const effectiveWeight =
+    experience.effective_weight ?? computeEffectiveWeight(normalized);
+
   lines.push(`场景: ${experience.scenario}`);
+  if (normalized.deprecated) {
+    lines.push(`状态: 已弃用（连续 ${normalized.consecutive_failures} 次验证失败）`);
+  }
+  lines.push(`权重: ${normalized.weight!.toFixed(2)}`);
+  lines.push(`有效权重: ${effectiveWeight.toFixed(2)}（随时间衰减，半衰期 ${normalized.half_life_days} 天）`);
+  lines.push(`最近验证: ${normalized.last_verified_at ?? '从未验证'}`);
   lines.push(`建议: ${experience.recommendation}`);
   lines.push(`原因: ${experience.reason}`);
   lines.push(`置信度: ${(experience.confidence * 100).toFixed(0)}%`);
@@ -211,6 +238,7 @@ export function queryAndFormatExperience(params: {
   symbol?: string;
   conditions?: string[];
   limit?: number;
+  include_deprecated?: boolean;
 }): string {
   const { limit = 5, ...queryParams } = params;
 

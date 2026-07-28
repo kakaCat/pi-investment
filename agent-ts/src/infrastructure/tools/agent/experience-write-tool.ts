@@ -16,6 +16,9 @@ export const experienceWriteTool: ToolDefinition = {
     "Write investment experience to the experience base. Call this after making trade decisions " +
     "and verifying outcomes — records scenario, pattern, outcomes, and recommendation for future reference. " +
     "Automatically deduplicates by ID (updates existing entries). " +
+    "Note: experiences decay over time (effective weight halves every 30 days unless re-verified), " +
+    "and are automatically deprecated after 3 consecutive failed verifications — re-verify important " +
+    "experiences regularly to keep them fresh. " +
     "Use after: completing a trade, verifying P&L, observing a pattern that played out as expected/unexpected.",
   parameters: Type.Object({
     scenario: Type.String({
@@ -117,6 +120,12 @@ export const experienceWriteTool: ToolDefinition = {
         examples,
         confidence: params.confidence,
         last_updated: new Date().toISOString().split("T")[0],
+        // 新陈代谢机制：新经验初始化为满权重、未验证、无失败记录
+        weight: 1.0,
+        last_verified_at: null,
+        consecutive_failures: 0,
+        half_life_days: 30,
+        deprecated: false,
       };
 
       addExperience(experience);

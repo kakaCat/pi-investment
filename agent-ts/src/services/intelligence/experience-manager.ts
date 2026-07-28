@@ -12,6 +12,14 @@ import type { ExperienceBase, Experience } from '../../types/evolution.js';
 const DEFAULT_BASE_DIR = join(process.cwd(), '.pi-invest');
 const MAX_BACKUPS = 10;
 
+// ─── 新陈代谢机制常量 ──────────────────────────────────────────────────────
+const DEFAULT_WEIGHT = 1.0;
+const DEFAULT_HALF_LIFE_DAYS = 30;
+const CONFIRM_WEIGHT_DELTA = 0.1;
+const REFUTE_WEIGHT_DELTA = 0.2;
+const DEPRECATE_FAILURE_THRESHOLD = 3;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 /**
  * 获取经验库目录路径
  */
@@ -349,6 +357,93 @@ interface QueryParams {
   scenario?: string;
   symbol?: string;
   conditions?: string[];
+  /** 是否包含已弃用（deprecated）的经验，默认 false */
+  include_deprecated?: boolean;
+}
+
+// ─── 新陈代谢机制 ──────────────────────────────────────────────────────────
+//
+// 经验只进不出会变成偏见仓库。新陈代谢机制：
+// 1. 时间衰减：effective_weight = weight * 0.5^(距最近验证或创建天数 / half_life_days)
+// 2. 验证反馈：confirmed → weight +0.1（封顶 1），refuted → weight -0.2（封底 0）
+// 3. 自动弃用：连续 3 次验证失败 → deprecated = true，查询默认过滤
+
+/**
+ * 归一化经验条目：为旧格式条目（缺省新字段）填充默认值
+ * 返回新对象，不修改入参
+ */
+export function normalizeExperience(exp: Experience): Experience {
+  return {
+    ...exp,
+    weight: exp.weight ?? DEFAULT_WEIGHT,
+    last_verified_at: exp.last_verified_at ?? null,
+    consecutive_failures: exp.consecutive_failures ?? 0,
+    half_life_days: exp.half_life_days ?? DEFAULT_HALF_LIFE_DAYS,
+    deprecated: exp.deprecated ?? false,
+  };
+}
+
+/**
+ * 计算有效权重（时间衰减）
+ *
+ * effective_weight = weight * 0.5^(days_since_last_verified_or_created / half_life_days)
+ *
+ * 衰减基准时间：last_verified_at 优先，从未验证的旧条目回退到 last_updated（创建/更新时间的代理）
+ */
+export function computeEffectiveWeight(exp: Experience, now: Date = new Date()): number {
+  const normalized = normalizeExperience(exp);
+  const baseTimeStr = normalized.last_verified_at ?? normalized.last_updated;
+  const baseTime = new Date(baseTimeStr).getTime();
+
+  if (isNaN(baseTime)) {
+    return normalized.weight!;
+  }
+
+  const daysSince = Math.max(0, (now.getTime() - baseTime) / MS_PER_DAY);
+  const decay = Math.pow(0.5, daysSince / normalized.half_life_days!);
+  return normalized.weight! * decay;
+}
+
+/**
+ * 验证经验（证实/打脸反馈）
+ *
+ * - confirmed：consecutive_failures 归零，weight = min(1, weight + 0.1)，last_verified_at 更新
+ * - refuted：consecutive_failures +1，weight = max(0, weight - 0.2)，last_verified_at 更新
+ * - consecutive_failures >= 3 时标记 deprecated = true（查询默认过滤）
+ * - confirmed 后 failures 归零，deprecated 自动解除（经验被"复活"）
+ *
+ * @returns 更新后的经验条目；id 不存在时返回 null
+ */
+export function verifyExperience(
+  id: string,
+  outcome: 'confirmed' | 'refuted',
+  baseDir: string = DEFAULT_BASE_DIR
+): Experience | null {
+  const base = loadExperienceBase(baseDir);
+  const index = base.experiences.findIndex(e => e.id === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const exp = normalizeExperience(base.experiences[index]);
+  const now = new Date().toISOString();
+
+  if (outcome === 'confirmed') {
+    exp.consecutive_failures = 0;
+    exp.weight = Math.min(1, exp.weight! + CONFIRM_WEIGHT_DELTA);
+  } else {
+    exp.consecutive_failures = exp.consecutive_failures! + 1;
+    exp.weight = Math.max(0, exp.weight! - REFUTE_WEIGHT_DELTA);
+  }
+
+  exp.last_verified_at = now;
+  exp.deprecated = exp.consecutive_failures! >= DEPRECATE_FAILURE_THRESHOLD;
+
+  base.experiences[index] = exp;
+  saveExperienceBase(base, baseDir);
+
+  return exp;
 }
 
 /**
@@ -392,6 +487,9 @@ function matchConditions(patternConditions: string[], queryConditions: string[])
 
 /**
  * 查询经验
+ *
+ * 默认过滤 deprecated 条目（include_deprecated: true 时包含）。
+ * 返回的条目经过归一化（旧格式自动补默认字段），并附带 effective_weight（时间衰减后的有效权重）。
  */
 export function queryExperience(
   params: QueryParams,
@@ -399,6 +497,11 @@ export function queryExperience(
 ): Experience[] {
   const base = loadExperienceBase(baseDir);
   let results = base.experiences;
+
+  // 0. 弃用过滤
+  if (!params.include_deprecated) {
+    results = results.filter(exp => exp.deprecated !== true);
+  }
 
   // 1. 场景文本匹配
   if (params.scenario) {
@@ -414,6 +517,14 @@ export function queryExperience(
     );
   }
 
-  // 3. 按置信度排序
-  return results.sort((a, b) => b.confidence - a.confidence);
+  // 3. 归一化 + 有效权重标注（不修改存储中的原始数据）
+  const now = new Date();
+  const annotated = results.map(exp => {
+    const normalized = normalizeExperience(exp);
+    normalized.effective_weight = computeEffectiveWeight(normalized, now);
+    return normalized;
+  });
+
+  // 4. 按置信度排序
+  return annotated.sort((a, b) => b.confidence - a.confidence);
 }

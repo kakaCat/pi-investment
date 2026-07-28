@@ -175,6 +175,21 @@ export interface Experience {
   }>;
   confidence: number;
   last_updated: string;
+
+  // ─── 新陈代谢机制（经验只进不出会变成偏见仓库）─────────────────────────
+  // 全部为可选字段，旧格式条目缺省时按默认值处理（见 experience-manager.normalizeExperience）
+  /** 经验权重 0-1，默认 1.0；confirmed +0.1（封顶 1），refuted -0.2（封底 0） */
+  weight?: number;
+  /** 最近被验证（证实/打脸）的时间，ISO 格式；null 表示从未验证 */
+  last_verified_at?: string | null;
+  /** 连续验证失败次数，默认 0；>= 3 时自动标记 deprecated */
+  consecutive_failures?: number;
+  /** 时间衰减半衰期（天），默认 30 */
+  half_life_days?: number;
+  /** 连续失败 >= 3 次后标记弃用；查询默认过滤，除非显式 include_deprecated */
+  deprecated?: boolean;
+  /** 查询时计算（不持久化）：weight * 0.5^(距最近验证或创建天数 / half_life_days) */
+  effective_weight?: number;
 }
 
 export interface ExperienceBase {
