@@ -7,7 +7,11 @@ from datetime import datetime
 
 @dataclass
 class KlineData:
-    """Kline data point"""
+    """Kline data point
+
+    volume 单位统一为股（providers 负责把手的原始单位 ×100 归一），
+    amount 为成交额（元），无原始数据时 provider 按 volume×close 估算。
+    """
     symbol: str
     date: str  # YYYY-MM-DD or YYYY-MM-DD HH:MM:SS
     open: float
@@ -16,6 +20,7 @@ class KlineData:
     close: float
     volume: int
     change_pct: float = 0.0
+    amount: float = 0.0
     source: str = ""
     timestamp: str = ""  # ISO format
 

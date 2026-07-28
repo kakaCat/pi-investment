@@ -130,8 +130,8 @@ def update_gem_klines(**params):
                         float(k.low),
                         float(k.close),
                         int(k.volume),
-                        0.0,  # amount: KlineData 契约无此字段
-                        0.0,  # turnover_rate: 同上
+                        float(k.amount),
+                        0.0,  # turnover_rate: KlineData 契约无此字段
                     ))
                     inserted += 1
 

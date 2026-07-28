@@ -119,7 +119,13 @@ class AkshareKlineProvider(KlineProvider):
                     open_p = float(row[open_col])
                     high = float(row[high_col])
                     low = float(row[low_col])
-                    volume = int(row[volume_col])
+                    # 成交量单位为手，归一为股（契约单位）
+                    volume = int(row[volume_col]) * 100
+                    # 成交额：日K 有成交额列直接用；否则按 股×收盘价 估算
+                    amount = (
+                        float(row['成交额']) if '成交额' in df.columns
+                        else volume * close
+                    )
 
                     # Calculate change_pct
                     if i > 0:
@@ -137,6 +143,7 @@ class AkshareKlineProvider(KlineProvider):
                         close=close,
                         volume=volume,
                         change_pct=change_pct,
+                        amount=amount,
                         source=self.name,
                         timestamp=datetime.now().isoformat()
                     ))

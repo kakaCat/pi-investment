@@ -99,10 +99,13 @@ class TencentKlineProvider(KlineProvider):
             prev_close = None
             for row in rows:
                 # 字段顺序: [date, open, close, high, low, volume(手)]
-                date_str, open_p, close, high, low, volume = (
+                date_str, open_p, close, high, low, volume_lots = (
                     row[0], float(row[1]), float(row[2]),
                     float(row[3]), float(row[4]), int(float(row[5])),
                 )
+                # 归一为股（契约单位），成交额按 股×收盘价 估算
+                volume = volume_lots * 100
+                amount = volume * close
                 change_pct = (
                     round((close - prev_close) / prev_close * 100, 2)
                     if prev_close else 0.0
@@ -118,6 +121,7 @@ class TencentKlineProvider(KlineProvider):
                     close=close,
                     volume=volume,
                     change_pct=change_pct,
+                    amount=amount,
                     source=self.name,
                     timestamp=datetime.now().isoformat()
                 ))
