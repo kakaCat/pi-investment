@@ -18,7 +18,8 @@ import {
 } from "../../sdk-facade.js";
 import type { Message } from "../../types/index.js";
 import { createServicesSafely, openSessionManagerSafely } from "./session-services.js";
-import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initMemoryTools, initBackgroundManager, getBackgroundManager, initRestartAgentTool } from "../../infrastructure/tools/index.js";
+import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initMemoryTools, initBackgroundManager, getBackgroundManager, initRestartAgentTool, initToolGroups } from "../../infrastructure/tools/index.js";
+import { CORE_TOOLS, registerToolSwitcher, setActiveToolNames } from "../../infrastructure/tools/tool-groups.js";
 import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
 import type { ToolDefinition } from "../../infrastructure/tools/index.js";
 import { setPlanToolContext } from "../../infrastructure/tools/agent/plan-tool.js";
@@ -153,6 +154,12 @@ async function initBaseOnce(): Promise<void> {
   initSkillsBlock(cachedSkills, pluginRegistry.skills);
   initSkillGuard(cachedSkills);
 
+  // 初始化工具分组系统（支持 load_tools 动态加载）
+  const effectiveTools = getEffectiveTools();
+  initToolGroups(effectiveTools);
+  const coreCount = effectiveTools.filter(t => CORE_TOOLS.includes(t.name)).length;
+  console.log(`🔧 工具分组系统就绪: ${coreCount} Core + ${effectiveTools.length - coreCount} On-Demand = ${effectiveTools.length} 总工具`);
+
   cachedTools = getToolsForContext(sessionContext);
 
   // 初始化 plan tool 的工具上下文
@@ -202,6 +209,34 @@ async function createSessionInternal(
   } as any);
 
   session = result.session;
+
+  // === 动态工具分层: 启动时仅激活 Core 工具 (~34个) ===
+  // SDK 的 includeAllExtensionTools 会激活全部75个工具，
+  // 这里立刻切换为 Core 以减少 API 工具定义 token 消耗
+  const coreToolNames = [...CORE_TOOLS];
+  setActiveToolNames(coreToolNames);
+  try {
+    await session.setActiveToolsByName(coreToolNames);
+    // SDK rebuild 会覆盖我们的 prompt，立即恢复
+    (session as any).agent.state.systemPrompt = buildSystemPromptForContext(sessionContext);
+    console.log(`🔧 工具分层: 初始激活 ${coreToolNames.length} Core 工具 (共 ${cachedTools.length} 可用)`);
+  } catch (e) {
+    console.warn(`[agent-loop] 工具分层初始化失败，回退全量工具:`, e);
+  }
+
+  // 注册动态工具切换桥接 — load_tools 工具通过此函数加载额外工具组
+  const boundSession = session; // 捕获当前 session 引用
+  registerToolSwitcher(async (toolNames: string[]) => {
+    try {
+      await boundSession.setActiveToolsByName(toolNames);
+      // SDK 的 _rebuildSystemPrompt 会覆盖自定义 prompt，恢复
+      (boundSession as any).agent.state.systemPrompt = buildSystemPromptForContext(sessionContext);
+    } catch (e) {
+      console.error('[tool-groups] 工具切换失败:', e);
+      throw e;
+    }
+  });
+
   normalizeAssistantUsages(session);
   initCompactTool(session);
   initRestartAgentTool(session);

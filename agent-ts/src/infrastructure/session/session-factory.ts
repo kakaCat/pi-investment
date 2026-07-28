@@ -16,6 +16,7 @@ import * as logger from "../logging/observable-logger.js";
 import { rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
 import { getActiveModelId } from "../../config/config.js";
 import { getExplicitSkillFromPrompt, withForcedSkillScope } from "../tools/skill-guard.js";
+import { promptWithDynamicTools } from "../tools/tool-groups.js";
 
 export type AgentType = 'main' | 'subagent' | 'plan';
 
@@ -193,7 +194,10 @@ export function wrapSessionWithLogger(session: AgentSession, perfMonitor?: any):
         console.log(`🎯 强制技能路由: ${routed.forcedSkill}`);
       }
       const activeSkill = routed.forcedSkill ?? getExplicitSkillFromPrompt(routed.prompt);
-      return await withForcedSkillScope(activeSkill, () => originalPrompt(routed.prompt, options));
+      // promptWithDynamicTools：run 前按关键词预加载工具组；
+      // run 内模型调用 load_tools 后自动续跑，让新工具进入下一次 run 的快照
+      return await withForcedSkillScope(activeSkill, () =>
+        promptWithDynamicTools((msg) => originalPrompt(msg, options), routed.prompt));
     } catch (error) {
       throw error;
     }
@@ -204,10 +208,18 @@ export function wrapSessionWithLogger(session: AgentSession, perfMonitor?: any):
 
 /**
  * 创建带 logger 追踪的 AgentSession（subagent / plan 用）
+ *
+ * agentType='main'（如 gateway 渠道会话）走 wrapSessionWithLogger：
+ * 记录 user.input / turn / llm / tool 完整轨迹，并把消息写入 conversation.json，
+ * 保证 restart_agent 能恢复渠道会话历史。
  */
 export async function createTrackedSession(opts: CreateTrackedSessionOptions): Promise<AgentSession> {
   const { agentType, createOptions } = opts;
   const { session } = await createAgentSession(createOptions as any);
+
+  if (agentType === 'main') {
+    return wrapSessionWithLogger(session);
+  }
 
   attachLogger(session, agentType);
 

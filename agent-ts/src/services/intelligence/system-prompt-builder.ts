@@ -87,26 +87,28 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
     toolsSections.push('### 执行策略（何时用什么工具）\n\n' + toolsMd);
   }
 
-  // 3.2 工具列表
+  // 3.2 工具列表（精简 — SDK 已通过 API tools 参数发送完整定义）
+  // 仅保留高频工具的简要提示
   if (customToolsBlock) {
-    const toolListHeader = `### 工具列表（按使用频率排序，优先考虑靠前的工具）
-
-以下是所有可用工具，按使用频率从高到低排列。选择工具时，优先考虑列表前面的工具。
-
-`;
-    toolsSections.push(toolListHeader + customToolsBlock);
+    const compactList = customToolsBlock
+      .split('\n')
+      .filter(line => line.trim())
+      // Keep only tool names, drop long descriptions (SDK sends full definitions)
+      .map(line => {
+        const match = line.match(/^- (\S+): (.{0,60})/);
+        return match ? `- ${match[1]}: ${match[2]}` : line;
+      })
+      .join('\n');
+    if (compactList.length < customToolsBlock.length * 0.7) {
+      toolsSections.push('### 工具列表\n\n' + compactList);
+    }
   }
 
-  // 3.3 工具使用细则
+  // 3.3 工具使用细则（仅保留有 promptGuidelines 的工具）
   if (customTools && customTools.length > 0) {
     const guidelines = buildToolGuidelines(customTools);
-    if (guidelines.trim()) {
-      const guidelinesHeader = `### 工具使用细则（复杂工具的特殊注意事项）
-
-以下工具有特殊的使用规则或注意事项，使用前请仔细阅读：
-
-`;
-      toolsSections.push(guidelinesHeader + guidelines);
+    if (guidelines.trim() && guidelines.length < 2000) {
+      toolsSections.push('### 工具使用细则\n\n' + guidelines);
     }
   }
 

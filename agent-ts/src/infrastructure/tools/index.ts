@@ -182,9 +182,14 @@ import { trainingReportsTool } from "./model/training-reports-tool.js";
 // ===== 工具支持 =====
 import { scheduleNextCheckTool } from "./monitor/monitor-schedule-tool.js";
 
+// ===== 动态工具加载系统 =====
+import { loadToolsTool } from "./agent/load-tools-tool.js";
+import { initToolGroups, getCoreTools, CORE_TOOLS } from "./tool-groups.js";
+
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager, getTaskManager };
 export { initMemoryTools } from "./agent/memory-tool.js";
 export { initRestartAgentTool } from "./agent/restart-agent-tool.js";
+export { initToolGroups, getCoreTools, CORE_TOOLS } from "./tool-groups.js";
 
 /**
  * 内置工具列表
@@ -206,6 +211,9 @@ export const allCustomTools = [
   taskExecuteAsyncTool,  // 新增：异步并行执行
   taskListTool,
   reflectTool,
+
+  // ===== 动态工具加载（始终在 Core 中） =====
+  loadToolsTool,
 
   // ===== 六层量化投资架构工具 =====
   /**

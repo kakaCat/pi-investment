@@ -73,8 +73,10 @@ export function createGatewaySessionFactory(
 ): GatewaySessionFactory {
   return {
     createSession: async (_sessionKey, sessionDir) => {
+      // agentType='main'：渠道会话是用户交互的主入口，需要完整日志轨迹
+      // （turn/llm/tool 事件 + conversation.json 消息），restart_agent 才能恢复历史
       const trackedSession = await createTrackedSession({
-        agentType: "subagent",
+        agentType: "main",
         createOptions: {
           cwd: paths.root,
           sessionManager: SessionManager.continueRecent(paths.root, sessionDir),
