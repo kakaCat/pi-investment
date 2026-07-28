@@ -17,6 +17,7 @@ interface PortfolioTradeInput {
   shares?: number;
   price_limit?: number;
   strategy?: string;
+  execute_at?: 'market_open';
 }
 
 export async function executePortfolioTrade(input: PortfolioTradeInput) {
@@ -47,7 +48,25 @@ export async function executePortfolioTrade(input: PortfolioTradeInput) {
       shares: input.shares,
       price_limit: input.price_limit,
       reason: `${input.reason}${input.strategy ? ` [策略:${input.strategy}]` : ''}`,
+      execute_at: input.execute_at,
     });
+
+    // 条件委托挂单：非交易时段 + execute_at='market_open'
+    if (data.status === 'pending') {
+      return {
+        success: true,
+        pending: true,
+        pending_order_id: data.pending_order_id,
+        message: `已挂单：开盘 9:31 起自动撮合（${input.action === 'buy' ? '买入' : '卖出'} ${input.symbol}）`,
+        details: {
+          account: input.account,
+          symbol: input.symbol,
+          action: input.action,
+          reason: input.reason,
+        },
+        note: '挂单会在开盘后经完整风控护栏撮合；撮合失败（如资金不足、价格超限）会标记失败，盘中检查时可用 portfolio_status 核对',
+      };
+    }
 
     return {
       success: true,
@@ -100,6 +119,7 @@ export const portfolioTradeTool: ToolDefinition = {
     "\n\n注意：" +
     "\n  • T+1规则：今日买入明日才能卖" +
     "\n  • 交易理由至少10字" +
+    "\n  • 盘前（9:30前）决策用 execute_at: 'market_open' 挂单，开盘自动撮合，不要等开盘再下单" +
     "\n  • 这是虚拟仓，用于验证Agent智能",
 
   parameters: Type.Object({
@@ -141,6 +161,11 @@ export const portfolioTradeTool: ToolDefinition = {
 
     strategy: Type.Optional(Type.String({
       description: "使用的策略名称（可选）"
+    })),
+
+    execute_at: Type.Optional(Type.Literal('market_open', {
+      description: "条件委托：非交易时段（如早盘9:00分析时）传 'market_open'，委托先挂单，开盘 9:31 起由后端自动撮合。" +
+        "这样分析完工作即结束，不依赖 agent 在线等待。交易时段内传此参数则立即成交。"
     }))
   }),
 

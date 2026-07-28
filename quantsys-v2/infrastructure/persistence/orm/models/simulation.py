@@ -7,7 +7,7 @@
 3. SimulationTrade - 模拟交易记录
 """
 from sqlalchemy import (
-    Column, String, Integer, Date, DateTime, Numeric,
+    Column, String, Integer, Date, DateTime, Numeric, Text,
     Index, CheckConstraint
 )
 from sqlalchemy.orm import relationship
@@ -18,6 +18,7 @@ from ..base import Base
 __all__ = [
     'SimulationAccount', 'SimulationPosition', 'SimulationTrade',
     'SimulationOrder', 'SimulationCashFlow', 'SimulationEquitySnapshot',
+    'SimulationPendingOrder',
 ]
 
 
@@ -451,4 +452,60 @@ class SimulationEquitySnapshot(Base):
             'daily_return': float(self.daily_return or 0),
             'cumulative_return': float(self.cumulative_return or 0),
             'drawdown': float(self.drawdown or 0),
+        }
+
+
+class SimulationPendingOrder(Base):
+    """条件委托（挂单）表 quant.simulation_pending_orders
+
+    非交易时段下的 execute_at='market_open' 挂单，
+    开盘后 9:31 起由 daily_orchestrator MARKET_OPEN tick 自动撮合。
+    """
+    __tablename__ = 'simulation_pending_orders'
+    __table_args__ = (
+        Index('idx_simulation_pending_orders_account', 'account_name'),
+        Index('idx_simulation_pending_orders_status', 'status'),
+        {'schema': 'quant'}
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    account_name = Column(String(50), nullable=False, comment='账户名称')
+    symbol = Column(String(20), nullable=False, comment='股票代码')
+    action = Column(String(10), nullable=False, comment='buy/sell')
+    shares = Column(Integer, comment='委托数量（可空，与 amount 二选一）')
+    amount = Column(Numeric(15, 2), comment='委托金额（可空，与 shares 二选一）')
+    price_limit = Column(Numeric(10, 2), comment='限价')
+    reason = Column(Text, comment='交易理由')
+    execute_at = Column(String(20), nullable=False, default='market_open',
+                        comment='撮合时机（market_open）')
+    status = Column(String(20), nullable=False, default='pending',
+                    comment='pending/executed/failed/cancelled')
+    fail_reason = Column(Text, comment='撮合失败原因（护栏拒绝理由）')
+    executed_trade_id = Column(Integer, comment='撮合成功后关联的 simulation_trades.id')
+    created_at = Column(DateTime(timezone=False), default=datetime.now, comment='创建时间')
+    updated_at = Column(DateTime(timezone=False), default=datetime.now,
+                        onupdate=datetime.now, comment='更新时间')
+
+    def __repr__(self):
+        return (
+            f"<SimulationPendingOrder(id={self.id}, account='{self.account_name}', "
+            f"{self.action} {self.symbol}, status={self.status})>"
+        )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'account_name': self.account_name,
+            'symbol': self.symbol,
+            'action': self.action,
+            'shares': self.shares,
+            'amount': float(self.amount) if self.amount is not None else None,
+            'price_limit': float(self.price_limit) if self.price_limit is not None else None,
+            'reason': self.reason,
+            'execute_at': self.execute_at,
+            'status': self.status,
+            'fail_reason': self.fail_reason,
+            'executed_trade_id': self.executed_trade_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

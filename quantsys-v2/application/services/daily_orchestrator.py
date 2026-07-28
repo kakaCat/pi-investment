@@ -131,6 +131,27 @@ class DailyOrchestrator:
                 if not self._is_phase_completed(state, phase.value):
                     self._execute_phase(state, phase)
 
+        # 条件委托撮合：MARKET_OPEN 窗口（9:25-9:35）内 9:31 起的每个 tick 都撮合。
+        # 必须挂在 tick 层——_phase_market_open 只在进入阶段时执行一次（通常 9:25，
+        # 早于 9:31 门槛），挂在那里会导致挂单永远不被撮合。
+        # 幂等：已处理的订单不再是 pending，重复调用无副作用。
+        if target_phase == Phase.MARKET_OPEN and now.time() >= time(9, 31):
+            self._match_pending_orders()
+
+    def _match_pending_orders(self) -> None:
+        """撮合盘前挂单（execute_at='market_open'），失败不阻断主流程"""
+        try:
+            from application.services.account_trading_service import (
+                AccountTradingService,
+            )
+            match_result = AccountTradingService().execute_pending_orders()
+            if match_result['executed'] or match_result['failed']:
+                logger.info("market_open: pending_orders_matched",
+                            executed=match_result['executed'],
+                            failed=match_result['failed'])
+        except Exception as e:
+            logger.error("market_open: pending_orders_match_error", error=str(e))
+
     def run_phase(self, phase_name: str) -> Dict[str, Any]:
         """手动触发某个阶段（用于调试/补跑）
 
@@ -279,6 +300,11 @@ class DailyOrchestrator:
                 '5. 全部处理完：experience_write 摘要 + feishu_notify 简报'
             ),
         })
+
+        # 条件委托撮合：盘前挂单（execute_at='market_open'）在 9:31 起自动撮合。
+        # 主挂载点在 tick()（每个 tick 幂等）；此处兜底覆盖手动 run_phase/迟到启动场景。
+        if datetime.now().time() >= time(9, 31):
+            self._match_pending_orders()
 
         return {'status': 'signals_pushed', 'signal_count': len(signals)}
 

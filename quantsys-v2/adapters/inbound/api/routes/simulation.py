@@ -231,12 +231,47 @@ def manual_trade(account_name):
             max_positions=data.get('max_positions', 10),
             price=data.get('price'),  # 可选注入价格（回放/测试）
             allow_off_hours=bool(data.get('allow_off_hours', False)),  # 回放/测试绕过时段护栏
+            execute_at=data.get('execute_at'),  # 条件委托：'market_open' 盘前挂单
         )
         return jsonify({'success': True, 'data': result})
     except TradingError as e:
         return jsonify({'success': False, 'error': str(e)}), e.status_code
     except Exception as e:
         logger.error(f"manual_trade failed: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@simulation_bp.route('/accounts/<account_name>/pending-orders', methods=['GET'])
+def list_pending_orders(account_name):
+    """挂单列表（默认只返回 pending，可用 ?status= 过滤，status=all 返回全部）"""
+    try:
+        status = request.args.get('status', 'pending')
+        if status == 'all':
+            status = None
+        svc = AccountTradingService()
+        orders = svc.repo.get_pending_orders(
+            account_name=account_name, status=status)
+        return jsonify({
+            'success': True,
+            'data': [o.to_dict() for o in orders]
+        })
+    except Exception as e:
+        logger.error(f"list_pending_orders failed: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@simulation_bp.route('/accounts/<account_name>/pending-orders/<int:order_id>/cancel',
+                     methods=['POST'])
+def cancel_pending_order(account_name, order_id):
+    """取消挂单（仅 pending 状态可取消）"""
+    try:
+        svc = AccountTradingService()
+        result = svc.cancel_pending_order(account_name, order_id)
+        return jsonify({'success': True, 'data': result})
+    except TradingError as e:
+        return jsonify({'success': False, 'error': str(e)}), e.status_code
+    except Exception as e:
+        logger.error(f"cancel_pending_order failed: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

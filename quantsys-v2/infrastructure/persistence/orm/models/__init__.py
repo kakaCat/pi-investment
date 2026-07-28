@@ -28,6 +28,7 @@ from .signal import Signal, SignalExecution
 from .simulation import (
     SimulationAccount, SimulationPosition, SimulationTrade,
     SimulationOrder, SimulationCashFlow, SimulationEquitySnapshot,
+    SimulationPendingOrder,
 )
 from .portfolio import PortfolioHolding
 from .trade import Trade
@@ -56,6 +57,7 @@ __all__ = [
     'SimulationEquitySnapshot',
     'SimulationPosition',
     'SimulationTrade',
+    'SimulationPendingOrder',
 
     # 持仓相关
     'PortfolioHolding',

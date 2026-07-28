@@ -2385,6 +2385,8 @@ export interface AccountTradeRequest {
   amount?: number;
   price_limit?: number;
   reason: string;
+  /** 条件委托：'market_open' 表示非交易时段先挂单，开盘 9:31 起自动撮合 */
+  execute_at?: "market_open";
 }
 
 /** 账户发现：列出账户 + 摘要 */

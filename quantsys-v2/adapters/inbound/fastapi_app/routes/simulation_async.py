@@ -83,7 +83,36 @@ async def manual_trade(account_name: str, payload: Dict[str, Any] = Body(...)):
             reason=payload.get('reason'),
             max_positions=payload.get('max_positions', 10),
             price=payload.get('price'),
+            execute_at=payload.get('execute_at'),  # 条件委托：'market_open' 盘前挂单
         )
+        return {'success': True, 'data': result}
+    except TradingError as e:
+        return JSONResponse(status_code=e.status_code,
+                            content={'success': False, 'error': str(e)})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={'success': False, 'error': str(e)})
+
+
+@router.get("/accounts/{account_name}/pending-orders")
+async def list_pending_orders(account_name: str,
+                              status: Optional[str] = Query('pending')):
+    """挂单列表（默认只返回 pending，?status=all 返回全部）"""
+    try:
+        svc = AccountTradingService()
+        orders = svc.repo.get_pending_orders(
+            account_name=account_name,
+            status=None if status == 'all' else status)
+        return {'success': True, 'data': [o.to_dict() for o in orders]}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={'success': False, 'error': str(e)})
+
+
+@router.post("/accounts/{account_name}/pending-orders/{order_id}/cancel")
+async def cancel_pending_order(account_name: str, order_id: int):
+    """取消挂单（仅 pending 状态可取消）"""
+    try:
+        svc = AccountTradingService()
+        result = svc.cancel_pending_order(account_name, order_id)
         return {'success': True, 'data': result}
     except TradingError as e:
         return JSONResponse(status_code=e.status_code,

@@ -25,6 +25,7 @@ from infrastructure.persistence.orm.models import (
     SimulationOrder,
     SimulationCashFlow,
     SimulationEquitySnapshot,
+    SimulationPendingOrder,
 )
 from domain.ports import ISimulationRepository
 
@@ -402,6 +403,79 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         else:
             self.session.flush()  # 拿到 order.id
         return order
+
+    # ==================== 条件委托（挂单） ====================
+
+    def create_pending_order(
+        self,
+        account_name: str,
+        action: str,
+        symbol: str,
+        shares: Optional[int] = None,
+        amount: Optional[float] = None,
+        price_limit: Optional[float] = None,
+        reason: Optional[str] = None,
+        execute_at: str = 'market_open',
+        commit: bool = True
+    ) -> SimulationPendingOrder:
+        """创建条件委托（挂单），初始状态 pending"""
+        order = SimulationPendingOrder(
+            account_name=account_name,
+            action=action,
+            symbol=symbol,
+            shares=shares,
+            amount=amount,
+            price_limit=price_limit,
+            reason=reason,
+            execute_at=execute_at,
+            status='pending',
+        )
+        self.session.add(order)
+        if commit:
+            self.session.commit()
+            self.session.refresh(order)
+        else:
+            self.session.flush()
+        return order
+
+    def get_pending_order(self, order_id: int) -> Optional[SimulationPendingOrder]:
+        """按 id 取单个挂单"""
+        return self.session.query(SimulationPendingOrder).filter_by(id=order_id).first()
+
+    def get_pending_orders(
+        self,
+        account_name: Optional[str] = None,
+        status: Optional[str] = 'pending'
+    ) -> List[SimulationPendingOrder]:
+        """查询挂单（默认只取 pending，按 id 升序保证撮合顺序）"""
+        query = self.session.query(SimulationPendingOrder)
+        if account_name:
+            query = query.filter_by(account_name=account_name)
+        if status:
+            query = query.filter_by(status=status)
+        return query.order_by(SimulationPendingOrder.id).all()
+
+    def update_pending_order_status(
+        self,
+        order_id: int,
+        status: str,
+        fail_reason: Optional[str] = None,
+        executed_trade_id: Optional[int] = None,
+        commit: bool = True
+    ) -> bool:
+        """更新挂单状态（executed/failed/cancelled）"""
+        order = self.get_pending_order(order_id)
+        if not order:
+            return False
+        order.status = status
+        if fail_reason is not None:
+            order.fail_reason = fail_reason
+        if executed_trade_id is not None:
+            order.executed_trade_id = executed_trade_id
+        order.updated_at = datetime.now()
+        if commit:
+            self.session.commit()
+        return True
 
     # ==================== 净值快照 ====================
 
