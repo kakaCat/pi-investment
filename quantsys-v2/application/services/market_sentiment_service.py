@@ -51,29 +51,48 @@ class MarketSentimentService:
             }
         """
         try:
-            # 1. 获取涨跌家数比
+            # 1. 全市场涨跌家数
             advance_decline = self._get_advance_decline_ratio()
 
-            # 2. 获取市场成交量
+            # 2. 全市场成交额趋势
             volume_indicator = self._get_volume_indicator()
 
-            # 3. 获取主要指数表现
+            # 3. 市场趋势（等权日收益）
             index_performance = self._get_index_performance()
 
-            # 4. 计算市场波动率
+            # 4. 市场波动率
             volatility = self._calculate_market_volatility()
 
-            # 5. 获取新高新低比
+            # 5. 新高新低比
             new_high_low = self._get_new_high_low_ratio()
 
-            # 6. 综合计算情绪分数
-            sentiment_score = self._calculate_sentiment_score({
+            # 收集降级维度（返回 {'error': ...} 的维度不计分、显式列出）
+            degraded_dimensions = []
+            dimension_map = {
                 'advance_decline': advance_decline,
                 'volume': volume_indicator,
                 'index': index_performance,
                 'volatility': volatility,
                 'new_high_low': new_high_low,
-            })
+            }
+            for name, dim in dimension_map.items():
+                if isinstance(dim, dict) and dim.get('error'):
+                    degraded_dimensions.append({'dimension': name, 'reason': dim['error']})
+
+            # 覆盖率守卫：涨跌统计股票数过少（K线更新异常）时判断必然失真，
+            # 数据"存在"不等于数据"够"——显式降级而非给出貌似完整的结论
+            ad = dimension_map.get('advance_decline', {})
+            if isinstance(ad, dict) and not ad.get('error'):
+                ad_total = (ad.get('up_count') or 0) + (ad.get('down_count') or 0) \
+                    + (ad.get('flat_count') or 0)
+                if 0 < ad_total < 1000:
+                    degraded_dimensions.append({
+                        'dimension': 'coverage',
+                        'reason': f'K线覆盖不足（涨跌统计仅 {ad_total} 只股票，正常应 >4000），结果可能失真',
+                    })
+
+            # 6. 综合计算情绪分数
+            sentiment_score = self._calculate_sentiment_score(dimension_map)
 
             # 7. 判断情绪等级和市场阶段
             sentiment_level = self._get_sentiment_level(sentiment_score)
@@ -92,6 +111,8 @@ class MarketSentimentService:
                     'volatility': volatility,
                     'new_high_low': new_high_low,
                 },
+                'degraded_dimensions': degraded_dimensions,
+                'degraded': len(degraded_dimensions) > 0,
                 'market_phase': market_phase,
                 'recommendation': recommendation,
                 'timestamp': datetime.now().isoformat()
@@ -103,53 +124,25 @@ class MarketSentimentService:
 
     def _get_advance_decline_ratio(self) -> Dict:
         """
-        获取涨跌家数比
+        获取涨跌家数比（全市场聚合，最新交易日 vs 前一交易日）
 
         涨跌比 > 2: 市场强势
         涨跌比 > 1: 市场偏强
         涨跌比 < 0.5: 市场弱势
         """
         try:
-            # 获取今日涨跌家数
-            # 这里简化实现：从数据库查询所有A股的涨跌情况
-            stocks = self.ds.stock.get_all(market='A')
-
-            if not stocks:
-                return {'error': '无法获取股票数据'}
-
-            up_count = 0
-            down_count = 0
-            flat_count = 0
-
-            # 获取每只股票的最新K线
-            for stock in stocks[:100]:  # 限制数量，避免查询过多
-                try:
-                    kline = self.ds.kline.get_latest_daily_kline(stock['symbol'])
-                    if kline:
-                        change = kline.get('pct_change', 0)
-                        if change > 0:
-                            up_count += 1
-                        elif change < 0:
-                            down_count += 1
-                        else:
-                            flat_count += 1
-                except:
-                    continue
-
-            total = up_count + down_count + flat_count
-
-            if total == 0:
-                return {'error': '无有效数据'}
-
-            ratio = up_count / down_count if down_count > 0 else 999
+            breadth = self.ds.kline.get_market_breadth()
+            if not breadth:
+                return {'error': 'daily_klines 无有效涨跌数据'}
 
             return {
-                'up_count': up_count,
-                'down_count': down_count,
-                'flat_count': flat_count,
-                'ratio': round(ratio, 2),
-                'up_percentage': round(up_count / total * 100, 2),
-                'strength': self._classify_ad_ratio(ratio)
+                'data_date': breadth['data_date'],
+                'up_count': breadth['up_count'],
+                'down_count': breadth['down_count'],
+                'flat_count': breadth['flat_count'],
+                'ratio': breadth['ratio'],
+                'up_percentage': breadth['up_percentage'],
+                'strength': self._classify_ad_ratio(breadth['ratio'])
             }
 
         except Exception as e:
@@ -158,33 +151,30 @@ class MarketSentimentService:
 
     def _get_volume_indicator(self) -> Dict:
         """
-        获取市场成交量指标
+        获取市场成交量指标（全市场成交量：近5日均值 vs 前20日均值）
 
         成交量放大：市场活跃
         成交量萎缩：市场低迷
         """
         try:
-            # 简化实现：使用主要指数的成交量作为市场成交量
-            end_date = datetime.now().strftime('%Y-%m-%d')
-            start_date = (datetime.now() - timedelta(days=60)).strftime('%Y-%m-%d')
+            daily_volumes = self.ds.kline.get_market_turnover_by_day(days=30)
 
-            # 获取上证指数成交量
-            klines = self.ds.kline.get_daily_klines('000001.SH', start_date, end_date)
+            if len(daily_volumes) < 10:
+                return {'error': f'成交量数据不足（{len(daily_volumes)} 天）'}
 
-            if not klines or len(klines) < 20:
-                return {'volume_ratio': 1.0, 'status': 'normal'}
+            recent = [d['total_volume'] for d in daily_volumes[:5]]
+            base = [d['total_volume'] for d in daily_volumes[5:25]]
 
-            # 最近5日平均成交量
-            recent_volumes = [k['volume'] for k in klines[-5:] if k.get('volume')]
-            recent_avg = sum(recent_volumes) / len(recent_volumes) if recent_volumes else 0
+            recent_avg = sum(recent) / len(recent) if recent else 0
+            base_avg = sum(base) / len(base) if base else 0
 
-            # 前20日平均成交量
-            base_volumes = [k['volume'] for k in klines[-25:-5] if k.get('volume')]
-            base_avg = sum(base_volumes) / len(base_volumes) if base_volumes else 1
+            if base_avg <= 0:
+                return {'error': '基准成交量为 0'}
 
-            volume_ratio = recent_avg / base_avg if base_avg > 0 else 1.0
+            volume_ratio = recent_avg / base_avg
 
             return {
+                'data_date': daily_volumes[0]['trade_date'],
                 'recent_avg_volume': round(recent_avg, 2),
                 'base_avg_volume': round(base_avg, 2),
                 'volume_ratio': round(volume_ratio, 2),
@@ -193,79 +183,51 @@ class MarketSentimentService:
 
         except Exception as e:
             logger.error(f"获取成交量指标失败: {e}")
-            return {'volume_ratio': 1.0, 'status': 'normal'}
+            return {'error': str(e)}
 
     def _get_index_performance(self) -> Dict:
         """
-        获取主要指数表现
+        获取市场趋势（全市场等权日收益，近 5 日）
 
-        上证指数、深证成指、创业板指
+        注：daily_klines 中指数代码与股票代码冲突（'000001' 是平安银行），
+        不能用指数代码查询，故改用全市场等权收益衡量市场趋势。
         """
         try:
-            indices = {
-                '000001.SH': '上证指数',
-                '399001.SZ': '深证成指',
-                '399006.SZ': '创业板指',
-            }
+            returns = self.ds.kline.get_market_daily_returns(days=10)
+            returns = [r for r in returns if r.get('avg_return') is not None]
 
-            results = {}
-            positive_count = 0
+            if len(returns) < 3:
+                return {'error': f'市场收益数据不足（{len(returns)} 天）'}
 
-            for symbol, name in indices.items():
-                try:
-                    kline = self.ds.kline.get_latest_daily_kline(symbol)
-                    if kline:
-                        change = kline.get('pct_change', 0)
-                        results[symbol] = {
-                            'name': name,
-                            'change': round(change, 2),
-                            'close': round(kline.get('close', 0), 2)
-                        }
-                        if change > 0:
-                            positive_count += 1
-                except:
-                    continue
+            recent5 = returns[:5]
+            positive_count = sum(1 for r in recent5 if r['avg_return'] > 0)
+            avg_return_5d = sum(r['avg_return'] for r in recent5) / len(recent5)
 
             return {
-                'indices': results,
+                'data_date': returns[0]['trade_date'],
                 'positive_count': positive_count,
-                'total_count': len(results),
-                'market_trend': self._classify_index_trend(positive_count, len(results))
+                'total_count': len(recent5),
+                'avg_return_5d_pct': round(avg_return_5d * 100, 3),
+                'market_trend': self._classify_index_trend(positive_count, len(recent5))
             }
 
         except Exception as e:
-            logger.error(f"获取指数表现失败: {e}")
-            return {'indices': {}, 'market_trend': 'neutral'}
+            logger.error(f"获取市场趋势失败: {e}")
+            return {'error': str(e)}
 
     def _calculate_market_volatility(self) -> Dict:
         """
-        计算市场波动率
-
-        使用上证指数的历史波动率
+        计算市场波动率（全市场等权日收益的近 30 日标准差）
         """
         try:
-            end_date = datetime.now().strftime('%Y-%m-%d')
-            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+            returns = self.ds.kline.get_market_daily_returns(days=40)
+            returns = [r['avg_return'] for r in returns if r.get('avg_return') is not None]
 
-            klines = self.ds.kline.get_daily_klines('000001.SH', start_date, end_date)
-
-            if not klines or len(klines) < 10:
-                return {'volatility': 0, 'level': 'normal'}
-
-            # 计算收益率标准差
-            returns = []
-            for i in range(1, len(klines)):
-                prev_close = klines[i-1]['close']
-                curr_close = klines[i]['close']
-                if prev_close > 0:
-                    ret = (curr_close - prev_close) / prev_close
-                    returns.append(ret)
-
-            if not returns:
-                return {'volatility': 0, 'level': 'normal'}
+            if len(returns) < 10:
+                return {'error': f'波动率数据不足（{len(returns)} 天）'}
 
             import statistics
-            volatility = statistics.stdev(returns) * 100  # 转换为百分比
+            volatility = statistics.stdev(returns[:30]) * 100  # 转换为百分比
 
             return {
                 'volatility': round(volatility, 2),
@@ -274,27 +236,32 @@ class MarketSentimentService:
 
         except Exception as e:
             logger.error(f"计算波动率失败: {e}")
-            return {'volatility': 0, 'level': 'normal'}
+            return {'error': str(e)}
 
     def _get_new_high_low_ratio(self) -> Dict:
         """
-        获取新高新低比
-
-        创新高的股票数量 vs 创新低的股票数量
+        获取新高新低比（近一年新高/新低家数，最新交易日收盘价判定）
         """
         try:
-            # 简化实现：返回模拟数据
-            # 实际应该查询达到52周新高/新低的股票数量
+            counts = self.ds.kline.get_new_high_low_counts(window_days=365)
+            if not counts:
+                return {'error': '新高新低数据不可用'}
+
+            high = counts['new_high_count']
+            low = counts['new_low_count']
+            ratio = high / low if low > 0 else (999 if high > 0 else 1.0)
+
             return {
-                'new_high_count': 50,
-                'new_low_count': 30,
-                'ratio': 1.67,
-                'signal': 'bullish'
+                'data_date': counts['data_date'],
+                'new_high_count': high,
+                'new_low_count': low,
+                'ratio': round(ratio, 2),
+                'signal': 'bullish' if ratio > 1.5 else ('bearish' if ratio < 0.67 else 'neutral')
             }
 
         except Exception as e:
             logger.error(f"获取新高新低比失败: {e}")
-            return {'ratio': 1.0, 'signal': 'neutral'}
+            return {'error': str(e)}
 
     def _calculate_sentiment_score(self, indicators: Dict) -> float:
         """
@@ -340,11 +307,11 @@ class MarketSentimentService:
         if idx and 'positive_count' in idx:
             pos = idx['positive_count']
             total = idx['total_count']
-            if pos == total:
+            if total > 0 and pos == total:
                 score += 25
-            elif pos >= total * 0.66:
+            elif total > 0 and pos >= total * 0.66:
                 score += 15
-            elif pos <= total * 0.33:
+            elif total > 0 and pos <= total * 0.33:
                 score -= 15
 
         # 波动率 (15分) - 低波动加分，高波动减分

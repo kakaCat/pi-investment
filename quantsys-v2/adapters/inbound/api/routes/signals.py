@@ -181,9 +181,9 @@ def scan_signals():
     sector_filter = snake_data.get('sector_filter', {})
     weights = snake_data.get('weights')  # 动态权重参数
 
-    # 分页参数
+    # 分页参数（agent 工具传 limit，兼容映射到 page_size）
     page = max(1, int(snake_data.get('page', 1)))
-    page_size = min(int(snake_data.get('page_size', 20)), 100)
+    page_size = min(int(snake_data.get('page_size', snake_data.get('limit', 20))), 100)
 
     try:
         if strategy_id not in (None, ''):
@@ -290,6 +290,31 @@ def scan_signals():
 
         logger.info(f"扫描完成: 扫描{len(symbols)}只, 筛选后{total}只, 返回第{page}页({len(paginated)}只)")
 
+        # 诊断信息：让调用方能区分「没有机会」和「没有数据」
+        # （2026-07-28 前：池为空/K线不足时静默返回 total=0，agent 无法察觉数据断供）
+        scoring_diag = getattr(scoring_service, 'last_diagnostics', None) or {}
+        diagnostics = {
+            'universe_size': len(symbols),
+            'pool_source': (
+                'explicit' if stocks_param else
+                'industries' if industries else
+                f"watchlist+hot_pool({getattr(stock_pool_service, '_hot_pool_source', 'unknown')})"
+            ),
+            'scored': scoring_diag.get('scored', len(opportunities)),
+            'skipped_insufficient_klines': scoring_diag.get('skipped_insufficient_klines', 0),
+            'skipped_condition_filter': scoring_diag.get('skipped_condition_filter', 0),
+        }
+        degraded = len(symbols) == 0 or (
+            diagnostics['universe_size'] > 0
+            and diagnostics['skipped_insufficient_klines'] >= diagnostics['universe_size'] * 0.9
+        )
+        if degraded:
+            diagnostics['degraded_reason'] = (
+                '扫描池为空（index_constituents 无数据且 watchlist 为空）'
+                if len(symbols) == 0 else
+                '绝大多数股票 K 线不足 30 条（K线更新任务异常，检查 daily_klines 新鲜度）'
+            )
+
         result = {
             'success': True,
             'scan_mode': 'strategy' if strategy_id is not None else 'score',
@@ -298,7 +323,9 @@ def scan_signals():
             'page': page,
             'page_size': page_size,
             'total_pages': total_pages,
-            'scanned': len(symbols)
+            'scanned': len(symbols),
+            'degraded': degraded,
+            'diagnostics': diagnostics,
         }
 
         if strategy_id is not None:

@@ -14,20 +14,49 @@ import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
 import { wrapToolExecution } from "../shared/error-handler.js";
-import { handleToolResponse } from "../utils/index.js";
+import { handleToolResponse, snakeize } from "../utils/index.js";
 
 interface SentimentData {
-  fear_greed_index?: number;
-  rise_fall_ratio?: number;
-  volume_ratio?: number;
-  advance_decline?: {
-    advancing: number;
-    declining: number;
-    unchanged: number;
-  };
-  sentiment_level?: string;
-  market_temperature?: number;
   sentiment_score?: number;
+  sentiment_level?: string;
+  fear_greed_index?: number;
+  market_phase?: string;
+  recommendation?: string;
+  degraded?: boolean;
+  degraded_dimensions?: Array<{ dimension: string; reason: string }>;
+  indicators?: {
+    advance_decline?: {
+      data_date?: string;
+      up_count?: number;
+      down_count?: number;
+      flat_count?: number;
+      ratio?: number;
+      up_percentage?: number;
+      error?: string;
+    };
+    volume?: {
+      data_date?: string;
+      volume_ratio?: number;
+      status?: string;
+      error?: string;
+    };
+    index_performance?: {
+      data_date?: string;
+      positive_count?: number;
+      total_count?: number;
+      avg_return_5d_pct?: number;
+      market_trend?: string;
+      error?: string;
+    };
+    volatility?: { volatility?: number; level?: string; error?: string };
+    new_high_low?: {
+      data_date?: string;
+      new_high_count?: number;
+      new_low_count?: number;
+      ratio?: number;
+      error?: string;
+    };
+  };
   [key: string]: any;
 }
 
@@ -50,8 +79,8 @@ export const dataFetchMarketSentimentTool: ToolDefinition = {
         throw new Error((result as any).error || "获取市场情绪失败");
       }
 
-      // 格式化输出并使用统一响应处理
-      const formattedOutput = formatSentimentData((result as any).data as SentimentData);
+      // 格式化输出并使用统一响应处理（snakeize：后端 api_response 统一 camelCase）
+      const formattedOutput = formatSentimentData(snakeize<SentimentData>((result as any).data));
 
       return handleToolResponse({
         toolName: 'data_fetch_market_sentiment',
@@ -75,81 +104,94 @@ export const dataFetchMarketSentimentTool: ToolDefinition = {
 
 /**
  * 格式化市场情绪数据输出
+ *
+ * 契约（2026-07-28 对齐 quantsys-v2 market_sentiment_service）：
+ * 指标在 indicators.* 下；维度失败时该维度含 error 且列入
+ * degraded_dimensions——必须展示降级警告，不能把残缺数据当成完整判断。
  */
 function formatSentimentData(data: SentimentData): string {
   if (!data) {
     return "❌ 未获取到市场情绪数据";
   }
+  if (data.error) {
+    return `❌ 市场情绪分析失败: ${data.error}`;
+  }
 
+  const ind = data.indicators || {};
   let output = "🎭 **市场情绪分析**\n\n";
 
-  // 1. 核心指标卡片
-  output += "### 📊 核心指标\n\n";
+  // 降级警告（最重要，放最前）
+  if (data.degraded && data.degraded_dimensions?.length) {
+    output += "⚠️ **部分维度数据不可用，以下判断基于残缺数据**：\n";
+    for (const d of data.degraded_dimensions) {
+      output += `- ${d.dimension}: ${d.reason}\n`;
+    }
+    output += "\n";
+  }
 
-  // 恐慌/贪婪指数
+  // 1. 核心指标
+  output += "### 📊 核心指标\n\n";
   if (data.fear_greed_index !== undefined) {
     const index = data.fear_greed_index;
     const { level, emoji, description } = getSentimentLevel(index || 0);
-
     output += `**恐慌/贪婪指数**\n`;
     output += `- 数值：${emoji} **${index}** / 100\n`;
-    output += `- 评级：${level}\n`;
+    output += `- 评级：${level}（${data.sentiment_level || '-'}）\n`;
     output += `- 说明：${description}\n\n`;
   }
-
-  // 情绪等级（如果有单独字段）
-  if ((data as any).sentiment_level) {
-    output += `**情绪等级**：${getSentimentEmoji(data.sentiment_level || "")} ${data.sentiment_level}\n\n`;
+  if (data.market_phase) {
+    output += `**市场阶段**：${data.market_phase}\n\n`;
   }
 
-  // 市场温度
-  if (data.market_temperature !== undefined) {
-    const temp = data.market_temperature;
-    const tempStatus = getTemperatureStatus(temp);
-    output += `**市场温度**：${tempStatus.emoji} ${temp}°C (${tempStatus.description})\n\n`;
+  // 2. 涨跌统计（真实字段：up_count/down_count/flat_count）
+  const ad = ind.advance_decline;
+  if (ad && !ad.error && ad.up_count !== undefined) {
+    output += "### 📈 涨跌统计（全市场）\n\n";
+    const up = ad.up_count || 0;
+    const down = ad.down_count || 0;
+    const flat = ad.flat_count || 0;
+    const total = up + down + flat;
+    output += `| 类型 | 数量 | 占比 |\n|------|------|------|\n`;
+    output += `| 上涨 | ${up} | ${((up / total) * 100).toFixed(1)}% |\n`;
+    output += `| 下跌 | ${down} | ${((down / total) * 100).toFixed(1)}% |\n`;
+    output += `| 平盘 | ${flat} | ${((flat / total) * 100).toFixed(1)}% |\n`;
+    output += `| **涨跌比** | **${ad.ratio}** | - |\n\n`;
+    output += `数据日期：${ad.data_date || '-'}\n\n`;
   }
 
-  // 2. 涨跌统计
-  if ((data as any).advance_decline) {
-    output += "### 📈 涨跌统计\n\n";
-    const ad = data.advance_decline! as any; const advancing = ad.advancing, declining = ad.declining, unchanged = ad.unchanged;
-    const total = advancing + declining + unchanged;
-    const ratio = declining > 0 ? (advancing / declining).toFixed(2) : "N/A";
-
-    output += `| 类型 | 数量 | 占比 |\n`;
-    output += `|------|------|------|\n`;
-    output += `| 上涨 | ${advancing} | ${((advancing / total) * 100).toFixed(1)}% |\n`;
-    output += `| 下跌 | ${declining} | ${((declining / total) * 100).toFixed(1)}% |\n`;
-    output += `| 平盘 | ${unchanged} | ${((unchanged / total) * 100).toFixed(1)}% |\n`;
-    output += `| **涨跌比** | **${ratio}** | - |\n\n`;
-
-    // 涨跌比分析
-    const ratioNum = parseFloat(ratio);
-    if (!isNaN(ratioNum)) {
-      if (ratioNum >= 2) {
-        output += `💡 涨跌比 > 2，市场强势，多头占优\n\n`;
-      } else if (ratioNum >= 1) {
-        output += `💡 涨跌比 > 1，市场偏强，多头略占优\n\n`;
-      } else if (ratioNum >= 0.5) {
-        output += `💡 涨跌比 < 1，市场偏弱，空头略占优\n\n`;
-      } else {
-        output += `💡 涨跌比 < 0.5，市场弱势，空头占优\n\n`;
-      }
-    }
+  // 3. 成交量
+  const vol = ind.volume;
+  if (vol && !vol.error && vol.volume_ratio !== undefined) {
+    const s = getVolumeStatus(vol.volume_ratio);
+    output += "### 💹 成交量（全市场，近5日 vs 前20日）\n\n";
+    output += `- **量比**：${s.emoji} ${vol.volume_ratio.toFixed(2)}（${vol.status || s.description}）\n`;
+    output += `- 数据日期：${vol.data_date || '-'}\n\n`;
   }
 
-  // 3. 成交量分析
-  if (data.volume_ratio !== undefined) {
-    output += "### 💹 成交量分析\n\n";
-    const volumeRatio = data.volume_ratio;
-    const volumeStatus = getVolumeStatus(volumeRatio);
-
-    output += `- **量比**：${volumeStatus.emoji} ${volumeRatio.toFixed(2)}\n`;
-    output += `- **状态**：${volumeStatus.description}\n\n`;
+  // 4. 市场趋势与波动率
+  const trend = ind.index_performance;
+  if (trend && !trend.error) {
+    output += "### 📉 市场趋势（全市场等权，近5日）\n\n";
+    output += `- 上涨天数：${trend.positive_count}/${trend.total_count}，5日均收益：${trend.avg_return_5d_pct}%\n`;
+    output += `- 趋势：${trend.market_trend}（数据日期：${trend.data_date || '-'}）\n\n`;
+  }
+  const vola = ind.volatility;
+  if (vola && !vola.error && vola.volatility !== undefined) {
+    output += `**波动率**：${vola.volatility}%（${vola.level}）\n\n`;
   }
 
-  // 4. 综合判断
-  output += generateSentimentSummary(data);
+  // 5. 新高新低
+  const nhl = ind.new_high_low;
+  if (nhl && !nhl.error) {
+    output += `**一年新高/新低**：${nhl.new_high_count} / ${nhl.new_low_count}（比值 ${nhl.ratio}，数据日期：${nhl.data_date || '-'}）\n\n`;
+  }
+
+  // 6. 后端建议
+  if (data.recommendation) {
+    output += `### 💡 综合建议\n\n${data.recommendation}\n\n`;
+  }
+
+  output += "⚠️ **风险提示**：市场情绪分析仅供参考，不构成投资建议。\n\n";
 
   return output;
 }
@@ -192,37 +234,6 @@ function getSentimentLevel(index: number): { level: string; emoji: string; descr
 }
 
 /**
- * 获取情绪表情
- */
-function getSentimentEmoji(level: string): string {
-  const emojiMap: Record<string, string> = {
-    "极度恐慌": "😱",
-    "恐慌": "😰",
-    "中性": "😐",
-    "贪婪": "😃",
-    "极度贪婪": "🤑"
-  };
-  return emojiMap[level] || "😐";
-}
-
-/**
- * 获取市场温度状态
- */
-function getTemperatureStatus(temp: number): { emoji: string; description: string } {
-  if (temp <= 20) {
-    return { emoji: "❄️", description: "极冷，市场冰点" };
-  } else if (temp <= 40) {
-    return { emoji: "🥶", description: "偏冷，情绪低迷" };
-  } else if (temp <= 60) {
-    return { emoji: "😐", description: "温和，情绪平稳" };
-  } else if (temp <= 80) {
-    return { emoji: "🔥", description: "偏热，情绪活跃" };
-  } else {
-    return { emoji: "🌡️", description: "过热，谨防过热" };
-  }
-}
-
-/**
  * 获取成交量状态
  */
 function getVolumeStatus(ratio: number): { emoji: string; description: string } {
@@ -237,75 +248,4 @@ function getVolumeStatus(ratio: number): { emoji: string; description: string } 
   } else {
     return { emoji: "📉", description: "缩量明显，市场冷清" };
   }
-}
-
-/**
- * 生成综合判断
- */
-function generateSentimentSummary(data: SentimentData): string {
-  let output = "### 💡 综合判断\n\n";
-
-  const index = data.fear_greed_index || 50;
-  const volumeRatio = data.volume_ratio || 1;
-  const advanceDecline = data.advance_decline;
-
-  let signals: string[] = [];
-
-  // 恐慌信号
-  if (index <= 20) {
-    signals.push("极度恐慌可能是抄底机会，但需确认止跌信号");
-  } else if (index <= 40) {
-    signals.push("市场恐慌情绪浓厚，可关注超跌优质股");
-  }
-
-  // 贪婪信号
-  if (index >= 80) {
-    signals.push("市场过度贪婪，建议降低仓位，控制风险");
-  } else if (index >= 60) {
-    signals.push("市场乐观情绪升温，注意追高风险");
-  }
-
-  // 量能信号
-  if (volumeRatio >= 3) {
-    signals.push("成交量放大明显，市场活跃度高");
-  } else if (volumeRatio < 0.8) {
-    signals.push("成交量萎缩，市场观望情绪浓厚");
-  }
-
-  // 涨跌比信号
-  if (advanceDecline) {
-    const ratio = advanceDecline.declining > 0
-      ? advanceDecline.advancing / advanceDecline.declining
-      : 0;
-
-    if (ratio >= 2) {
-      signals.push("涨跌比强势，多头占优，可积极操作");
-    } else if (ratio < 0.5) {
-      signals.push("涨跌比弱势，空头占优，谨慎操作");
-    }
-  }
-
-  // 综合建议
-  let advice = "";
-  if (index <= 30 && volumeRatio < 1) {
-    advice = "**建议**：市场处于底部区域，可分批建仓优质标的";
-  } else if (index >= 70 && volumeRatio >= 2) {
-    advice = "**建议**：市场过热，建议减仓或获利了结";
-  } else if (index >= 40 && index <= 60) {
-    advice = "**建议**：市场情绪中性，保持适度仓位，均衡配置";
-  } else {
-    advice = "**建议**：根据个股基本面和技术面，灵活操作";
-  }
-
-  if (signals.length > 0) {
-    output += signals.map(s => `- ${s}`).join("\n");
-    output += "\n\n";
-  }
-
-  output += `${advice}\n\n`;
-
-  // 风险提示
-  output += "⚠️ **风险提示**：市场情绪分析仅供参考，不构成投资建议。请结合基本面和技术面综合判断。\n\n";
-
-  return output;
 }

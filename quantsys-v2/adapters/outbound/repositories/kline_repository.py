@@ -698,3 +698,172 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         except Exception as e:
             logger.error(f"Error batch getting recent klines: {e}")
             return {symbol: [] for symbol in symbols}
+
+    # ==================== 全市场聚合查询（市场情绪分析用） ====================
+    # 注意：daily_klines 中指数代码与股票代码冲突（如 '000001' 是平安银行
+    # 而非上证指数），因此市场维度指标一律用全市场聚合计算，不读指数代码。
+
+    def get_market_breadth(self, lookback_days: int = 10) -> Optional[Dict]:
+        """全市场涨跌家数（最新交易日，与其前一交易日比较）
+
+        Returns:
+            {data_date, up_count, down_count, flat_count, total,
+             up_percentage, ratio}；无数据返回 None
+        """
+        from sqlalchemy import text
+        try:
+            rows = self.session.execute(text("""
+                WITH recent AS (
+                    SELECT symbol, trade_date, close,
+                           ROW_NUMBER() OVER (PARTITION BY symbol
+                                              ORDER BY trade_date DESC) AS rn
+                    FROM quant.daily_klines
+                    WHERE trade_date >= CURRENT_DATE - (:days || ' days')::interval
+                )
+                SELECT a.trade_date AS data_date,
+                       COUNT(*) FILTER (WHERE a.close > b.close) AS up_count,
+                       COUNT(*) FILTER (WHERE a.close < b.close) AS down_count,
+                       COUNT(*) FILTER (WHERE a.close = b.close) AS flat_count
+                FROM recent a
+                JOIN recent b ON a.symbol = b.symbol AND b.rn = 2
+                WHERE a.rn = 1
+                GROUP BY a.trade_date
+                ORDER BY a.trade_date DESC
+                LIMIT 1
+            """), {'days': lookback_days}).fetchone()
+
+            if not rows or rows[1] is None:
+                return None
+
+            data_date, up, down, flat = rows[0], int(rows[1]), int(rows[2]), int(rows[3])
+            total = up + down + flat
+            if total == 0:
+                return None
+            return {
+                'data_date': data_date.isoformat() if data_date else None,
+                'up_count': up,
+                'down_count': down,
+                'flat_count': flat,
+                'total': total,
+                'up_percentage': round(up / total * 100, 2),
+                'ratio': round(up / down, 2) if down > 0 else 999,
+            }
+        except Exception as e:
+            logger.error(f"Error in get_market_breadth: {e}")
+            return None
+
+    def get_market_turnover_by_day(self, days: int = 30) -> List[Dict]:
+        """全市场成交量按日汇总（倒序）
+
+        注：用 volume（股数）而非 amount——腾讯 K 线源不写 amount 字段，
+        2026-07 起 daily_klines 近期数据的 amount 全为 0。
+
+        Returns:
+            [{trade_date, total_volume}]，最新在前
+        """
+        from sqlalchemy import text
+        try:
+            rows = self.session.execute(text("""
+                SELECT trade_date, SUM(volume) AS total_volume
+                FROM quant.daily_klines
+                WHERE trade_date >= CURRENT_DATE - (:days || ' days')::interval
+                GROUP BY trade_date
+                ORDER BY trade_date DESC
+                LIMIT :days
+            """), {'days': days}).fetchall()
+            return [{'trade_date': r[0].isoformat() if r[0] else None,
+                     'total_volume': float(r[1] or 0)} for r in rows]
+        except Exception as e:
+            logger.error(f"Error in get_market_turnover_by_day: {e}")
+            return []
+
+    def get_market_daily_returns(self, days: int = 40) -> List[Dict]:
+        """全市场等权日收益序列（倒序），用于波动率与趋势计算
+
+        Returns:
+            [{trade_date, avg_return}]（小数，非百分比），最新在前
+        """
+        from sqlalchemy import text
+        try:
+            rows = self.session.execute(text("""
+                WITH k AS (
+                    SELECT symbol, trade_date, close,
+                           LAG(close) OVER (PARTITION BY symbol
+                                            ORDER BY trade_date) AS prev_close
+                    FROM quant.daily_klines
+                    WHERE trade_date >= CURRENT_DATE - (:days || ' days')::interval
+                )
+                SELECT trade_date, AVG((close - prev_close) / NULLIF(prev_close, 0)) AS avg_return
+                FROM k
+                WHERE prev_close IS NOT NULL AND prev_close > 0
+                GROUP BY trade_date
+                ORDER BY trade_date DESC
+                LIMIT :days
+            """), {'days': days}).fetchall()
+            return [{'trade_date': r[0].isoformat() if r[0] else None,
+                     'avg_return': float(r[1]) if r[1] is not None else None}
+                    for r in rows]
+        except Exception as e:
+            logger.error(f"Error in get_market_daily_returns: {e}")
+            return []
+
+    def get_new_high_low_counts(self, window_days: int = 365) -> Optional[Dict]:
+        """创 window 期内新高/新低的股票家数（最新交易日收盘价判定）
+
+        Returns:
+            {data_date, new_high_count, new_low_count}；无数据返回 None
+        """
+        from sqlalchemy import text
+        try:
+            row = self.session.execute(text("""
+                WITH recent AS (
+                    SELECT symbol, trade_date, close,
+                           MAX(close) OVER (PARTITION BY symbol) AS max_close,
+                           MIN(close) OVER (PARTITION BY symbol) AS min_close,
+                           ROW_NUMBER() OVER (PARTITION BY symbol
+                                              ORDER BY trade_date DESC) AS rn
+                    FROM quant.daily_klines
+                    WHERE trade_date >= CURRENT_DATE - (:days || ' days')::interval
+                )
+                SELECT trade_date AS data_date,
+                       COUNT(*) FILTER (WHERE close >= max_close) AS new_high_count,
+                       COUNT(*) FILTER (WHERE close <= min_close) AS new_low_count
+                FROM recent
+                WHERE rn = 1
+                GROUP BY trade_date
+                ORDER BY trade_date DESC
+                LIMIT 1
+            """), {'days': window_days}).fetchone()
+
+            if not row:
+                return None
+            return {
+                'data_date': row[0].isoformat() if row[0] else None,
+                'new_high_count': int(row[1] or 0),
+                'new_low_count': int(row[2] or 0),
+            }
+        except Exception as e:
+            logger.error(f"Error in get_new_high_low_counts: {e}")
+            return None
+
+    def get_active_symbols(self, days: int = 15, min_days: int = 3,
+                           limit: int = 500) -> List[str]:
+        """近期有 K 线且成交活跃的股票（按成交量降序）
+
+        用途：index_constituents 为空时，机会扫描热门池的 fallback。
+        """
+        from sqlalchemy import text
+        try:
+            rows = self.session.execute(text("""
+                SELECT symbol, SUM(volume) AS tv
+                FROM quant.daily_klines
+                WHERE trade_date >= CURRENT_DATE - (:days || ' days')::interval
+                GROUP BY symbol
+                HAVING COUNT(*) >= :min_days
+                ORDER BY tv DESC
+                LIMIT :limit
+            """), {'days': days, 'min_days': min_days, 'limit': limit}).fetchall()
+            return [r[0] for r in rows]
+        except Exception as e:
+            logger.error(f"Error in get_active_symbols: {e}")
+            return []

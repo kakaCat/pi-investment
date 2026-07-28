@@ -205,7 +205,13 @@ def get_north_flow_v2():
     result = market_data_service.get_north_flow(start_date=start_date, end_date=end_date)
     if not result.get('success', False):
         return jsonify(result), 503
-    return api_response(result.get('data', {}))
+    # 透传 summary（季度估算语义/覆盖率/增减持榜单都在 summary 里，
+    # 只返回 data 会把「这是季度估算而非每日资金流」的上下文丢掉）
+    return api_response({
+        'data': result.get('data', []),
+        'summary': result.get('summary', {}),
+        'stale': result.get('stale', False),
+    })
 
 
 @market_bp.route('/api/market/index-history', methods=['GET'])
