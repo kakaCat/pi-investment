@@ -5,7 +5,7 @@
 """
 import logging
 from typing import Dict, List, Optional, Any
-from datetime import datetime
+from datetime import datetime, date
 
 from domain.strategies import get_registry, Signal
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
@@ -139,7 +139,8 @@ class SimulationService:
 
         positions = self.repo.get_all_positions(account_name)
 
-        # 更新持仓价格
+        # 更新持仓价格；price_stale 标记行情获取失败（陈旧价）让调用方可区分
+        price_stale = False
         if positions:
             self.logger.info(f"Updating prices for {len(positions)} positions")
             try:
@@ -151,10 +152,24 @@ class SimulationService:
                     # 重新获取positions以获取更新后的价格
                     positions = self.repo.get_all_positions(account_name)
                     account = self.repo.get_account(account_name)
+                    # 部分 symbol 拉价失败同样视为陈旧
+                    price_stale = len(prices) < len(set(symbols))
                 else:
+                    price_stale = True
                     self.logger.warning("No prices fetched")
             except Exception as e:
+                price_stale = True
                 self.logger.error(f"Failed to update position prices: {e}", exc_info=True)
+
+        # 合并行情时间戳到持仓
+        price_timestamps = getattr(self, '_price_timestamps', {}) or {}
+        position_dicts = []
+        for p in positions:
+            d = self._position_to_dict(p)
+            ts = price_timestamps.get(d.get('symbol'))
+            if ts:
+                d['price_updated_at'] = ts
+            position_dicts.append(d)
 
         return {
             'account_name': account_name,
@@ -167,8 +182,10 @@ class SimulationService:
             'initial_capital': float(getattr(account, 'initial_capital', 0) or 0),
             'cumulative_return': float(getattr(account, 'cumulative_return', 0) or 0),
             'last_rebalance_date': str(getattr(account, 'last_rebalance_date', None)) if getattr(account, 'last_rebalance_date', None) else None,
+            'last_updated': datetime.now().isoformat(),
+            'price_stale': price_stale,
             'positions_count': len(positions),
-            'positions': [self._position_to_dict(p) for p in positions]
+            'positions': position_dicts
         }
 
     def _fetch_current_prices(self, symbols: List[str]) -> Dict[str, float]:
@@ -185,11 +202,18 @@ class SimulationService:
             from application.services.realtime_quote_service import RealtimeQuoteService
             quote_service = RealtimeQuoteService()
             prices = {}
+            # 记录每个 symbol 的行情时间戳，供 get_account_status 透传
+            self._price_timestamps = {}
             for symbol in symbols:
                 try:
                     quote = quote_service.get_realtime_quote(symbol)
                     if quote and quote.price and quote.price > 0:
                         prices[symbol] = float(quote.price)
+                        ts = getattr(quote, 'timestamp', None)
+                        if ts:
+                            self._price_timestamps[symbol] = (
+                                ts.isoformat() if hasattr(ts, 'isoformat') else str(ts)
+                            )
                         self.logger.info(f"Updated price for {symbol}: {quote.price}")
                 except Exception as e:
                     self.logger.warning(f"Failed to fetch price for {symbol}: {e}")
@@ -301,10 +325,18 @@ class SimulationService:
         }
     
     def _position_to_dict(self, position) -> Dict:
-        """将持仓记录转换为字典"""
+        """将持仓记录转换为字典（含建仓时间与持有天数）"""
         if isinstance(position, dict):
             return position
-        return {
+
+        created_at = getattr(position, 'created_at', None)
+        days_held = None
+        if created_at is not None:
+            created_date = created_at.date() if hasattr(created_at, 'date') else None
+            if created_date:
+                days_held = max((date.today() - created_date).days, 0)
+
+        result = {
             'symbol': getattr(position, 'symbol', None),
             'shares_total': getattr(position, 'shares_total', None),
             'shares_available': getattr(position, 'shares_available', None),
@@ -314,4 +346,9 @@ class SimulationService:
             'profit_total': float(position.profit_total) if getattr(position, 'profit_total', None) else None,
             'profit_total_rate': float(position.profit_total_rate) if getattr(position, 'profit_total_rate', None) else None,
             'profit_today': float(position.profit_today) if getattr(position, 'profit_today', None) else None,
+            'created_at': created_at.isoformat() if hasattr(created_at, 'isoformat') else (str(created_at) if created_at else None),
         }
+        # days_held 缺失时省略字段，绝不返回假 0（T+1 风控关键字段）
+        if days_held is not None:
+            result['days_held'] = days_held
+        return result
