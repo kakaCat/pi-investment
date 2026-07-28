@@ -85,3 +85,31 @@ describe('listProviders', () => {
     ]);
   });
 });
+
+describe('config 集成：getActiveProvider / createModel', () => {
+  it('未切换时 getActiveProvider 读 LLM_PROVIDER 环境变量', async () => {
+    const { getActiveProvider } = await import('./config.js');
+    expect(getActiveProvider()).toBe('deepseek'); // env 缺省
+    process.env.LLM_PROVIDER = 'kimi';
+    expect(getActiveProvider()).toBe('kimi');
+  });
+
+  it('切换后 getActiveProvider 优先返回运行时 override', async () => {
+    process.env.LLM_PROVIDER = 'deepseek';
+    setRuntimeProvider('kimi');
+    const { getActiveProvider } = await import('./config.js');
+    expect(getActiveProvider()).toBe('kimi');
+  });
+
+  it('切换后 createModel 返回新 provider 的模型并同步 OPENAI_API_KEY', async () => {
+    process.env.KIMI_API_KEY = 'sk-kimi-test';
+    process.env.KIMI_BASE_URL = 'https://api.kimi.com/coding/v1';
+    process.env.KIMI_MODEL_ID = 'k3';
+    setRuntimeProvider('kimi');
+    const { createModel } = await import('./config.js');
+    const model = createModel();
+    expect(model.id).toBe('k3');
+    expect(model.baseUrl).toBe('https://api.kimi.com/coding/v1');
+    expect(process.env.OPENAI_API_KEY).toBe('sk-kimi-test');
+  });
+});

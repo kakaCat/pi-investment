@@ -5,6 +5,7 @@ import { Model } from "@mariozechner/pi-ai";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { BootstrapLoader } from "../services/intelligence/bootstrap-loader.js";
+import { getRuntimeOverride } from "./model-switcher.js";
 
 // 获取 agent-ts 根目录（无论从哪里运行都指向固定位置）
 const __filename = fileURLToPath(import.meta.url);
@@ -70,9 +71,13 @@ const PROVIDER_PRESETS: Record<LLMProviderName, ProviderPreset> = {
 };
 
 /**
- * 当前激活的 LLM provider（LLM_PROVIDER 环境变量，默认 deepseek）
+ * 当前激活的 LLM provider
+ * 优先级：运行时 override（/provider 命令或 model_switch 工具设置）
+ *        > LLM_PROVIDER 环境变量 > 默认 deepseek
  */
 export function getActiveProvider(): LLMProviderName {
+  const override = getRuntimeOverride();
+  if (override) return override;
   const p = (process.env.LLM_PROVIDER || 'deepseek').toLowerCase();
   if (p in PROVIDER_PRESETS) return p as LLMProviderName;
   console.warn(`[config] 未知 LLM_PROVIDER="${p}"，回退到 deepseek`);
