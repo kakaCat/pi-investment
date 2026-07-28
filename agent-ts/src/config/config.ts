@@ -71,16 +71,36 @@ const PROVIDER_PRESETS: Record<LLMProviderName, ProviderPreset> = {
 };
 
 /**
+ * LLM_PROVIDER 别名映射（小写）。常见误写兜底：
+ * 把模型 ID（k3、kimi-k3、deepseek-chat 等）误填进 LLM_PROVIDER 时
+ * 映射回正确 provider，避免静默回退 deepseek 导致"配置与实跑模型不一致"。
+ */
+const PROVIDER_ALIASES: Record<string, LLMProviderName> = {
+  kimi: 'kimi',
+  moonshot: 'kimi',
+  k3: 'kimi',
+  'kimi-k3': 'kimi',
+  deepseek: 'deepseek',
+  'deepseek-chat': 'deepseek',
+  'deepseek-v4-pro': 'deepseek',
+  'deepseek-reasoner': 'deepseek',
+};
+
+/**
  * 当前激活的 LLM provider
  * 优先级：运行时 override（/provider 命令或 model_switch 工具设置）
- *        > LLM_PROVIDER 环境变量 > 默认 deepseek
+ *        > LLM_PROVIDER 环境变量（含别名） > 默认 deepseek
  */
 export function getActiveProvider(): LLMProviderName {
   const override = getRuntimeOverride();
   if (override) return override;
   const p = (process.env.LLM_PROVIDER || 'deepseek').toLowerCase();
-  if (p in PROVIDER_PRESETS) return p as LLMProviderName;
-  console.warn(`[config] 未知 LLM_PROVIDER="${p}"，回退到 deepseek`);
+  const alias = PROVIDER_ALIASES[p];
+  if (alias) {
+    if (alias !== p) console.warn(`[config] LLM_PROVIDER="${p}" 按别名解析为 ${alias}`);
+    return alias;
+  }
+  console.warn(`[config] 未知 LLM_PROVIDER="${p}"，回退到 deepseek（有效值：deepseek/kimi）`);
   return 'deepseek';
 }
 

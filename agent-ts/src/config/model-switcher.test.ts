@@ -112,4 +112,20 @@ describe('config 集成：getActiveProvider / createModel', () => {
     expect(model.baseUrl).toBe('https://api.kimi.com/coding/v1');
     expect(process.env.OPENAI_API_KEY).toBe('sk-kimi-test');
   });
+
+  it('LLM_PROVIDER 支持别名：k3/moonshot/kimi-k3 → kimi', async () => {
+    const { getActiveProvider } = await import('./config.js');
+    for (const alias of ['k3', 'moonshot', 'kimi-k3', 'K3']) {
+      process.env.LLM_PROVIDER = alias;
+      expect(getActiveProvider()).toBe('kimi');
+    }
+  });
+
+  it('LLM_PROVIDER 支持别名：deepseek-chat/deepseek-v4-pro → deepseek', async () => {
+    const { getActiveProvider } = await import('./config.js');
+    for (const alias of ['deepseek-chat', 'deepseek-v4-pro', 'DeepSeek']) {
+      process.env.LLM_PROVIDER = alias;
+      expect(getActiveProvider()).toBe('deepseek');
+    }
+  });
 });
