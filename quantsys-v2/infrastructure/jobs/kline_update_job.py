@@ -85,12 +85,23 @@ def update_gem_klines(**params):
                 ORDER BY symbol
             """)
         else:
+            # 全市场：K线是全市场功能（机会扫描/市场情绪/行业分析）的共同
+            # 上游，只更创业板会让其余 4500 只股票静默饿死（2026-07-28 定位）
+            #
+            # 按陈旧度排序（最久未更新的排最前）：腾讯源每窗口约放行
+            # 1500-2500 只后限流断流，若按代码排序，每次运行都从头补
+            # 00xxxx，60xxxx 永远轮不到；按陈旧度排序后多次运行自动收敛
             cursor.execute("""
-                SELECT symbol, name
-                FROM quant.stocks
-                WHERE name NOT LIKE '%退%'
-                  AND name NOT LIKE '%ST%'
-                ORDER BY symbol
+                SELECT s.symbol, s.name
+                FROM quant.stocks s
+                LEFT JOIN (
+                    SELECT symbol, MAX(trade_date) AS max_date
+                    FROM quant.daily_klines
+                    GROUP BY symbol
+                ) k ON k.symbol = s.symbol
+                WHERE s.name NOT LIKE '%退%'
+                  AND s.name NOT LIKE '%ST%'
+                ORDER BY k.max_date ASC NULLS FIRST, s.symbol
             """)
 
         stocks = cursor.fetchall()
