@@ -2,7 +2,7 @@
 export { apiClient } from './client'
 export { signalApi } from './signal'
 export { stockApi } from './stock'
-export { tradingApi } from './trading'
+export { tradingApi, DEFAULT_ACCOUNT } from './trading'
 export { analysisApi } from './analysis'
 export { agentApi } from './agent'
 export { riskApi } from './risk'

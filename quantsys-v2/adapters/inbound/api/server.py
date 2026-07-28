@@ -235,6 +235,16 @@ def create_app():
     except Exception as e:
         print(f"⚠️  Failed to register V13 strategy: {e}")
 
+    # 注册V14策略（v14_simulation 账户的 strategy_name 指向它；
+    # 缺注册会导致 /api/simulation/strategies/v14 404，模拟交易页报错）
+    try:
+        from domain.strategies.v14_strategy import V14Strategy
+
+        registry.register('v14', V14Strategy())
+        print("✓ V14 strategy registered")
+    except Exception as e:
+        print(f"⚠️  Failed to register V14 strategy: {e}")
+
     # Add basic health check since health_bp is disabled
     @app.route('/api/health')
     def health_check():
