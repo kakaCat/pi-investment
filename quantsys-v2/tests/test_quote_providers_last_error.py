@@ -65,3 +65,29 @@ class TestSinaLastError:
             assert provider.get_quote('600519') is None
         assert provider.last_error is not None
         assert '1600519' in provider.last_error
+
+
+class TestEastmoneyLastError:
+    def test_no_data_sets_last_error(self):
+        """东方财富 data 为空需设置 last_error（裸 00836 映射为深市 0.00836）"""
+        provider = EastmoneyQuoteProvider()
+        resp = _mock_response(json_data={'data': None})
+        with patch(
+            'adapters.outbound.datasources.providers.quote.eastmoney.requests.get',
+            return_value=resp,
+        ):
+            assert provider.get_quote('00836') is None
+        assert provider.last_error is not None
+        assert '0.00836' in provider.last_error
+
+    def test_invalid_price_sets_last_error(self):
+        """东方财富价格字段为 0（解析返回 None）需设置 last_error"""
+        provider = EastmoneyQuoteProvider()
+        resp = _mock_response(json_data={'data': {'f43': 0, 'f58': 'X'}})
+        with patch(
+            'adapters.outbound.datasources.providers.quote.eastmoney.requests.get',
+            return_value=resp,
+        ):
+            assert provider.get_quote('600519') is None
+        assert provider.last_error is not None
+        assert '1.600519' in provider.last_error

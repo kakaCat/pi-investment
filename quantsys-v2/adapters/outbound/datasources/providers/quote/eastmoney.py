@@ -32,6 +32,7 @@ class EastmoneyQuoteProvider(QuoteProvider):
         Raises:
             Exception: 网络错误或解析失败
         """
+        self.last_error = None
         try:
             # Convert symbol to Eastmoney secid format
             secid = self._convert_to_secid(symbol)
@@ -55,9 +56,13 @@ class EastmoneyQuoteProvider(QuoteProvider):
 
             # Check if data exists
             if not data or 'data' not in data or not data['data']:
+                self.last_error = f"东方财富无 {secid} 数据（代码不存在或该市场不支持）"
                 return None
 
-            return self._parse_quote(symbol, data['data'])
+            quote = self._parse_quote(symbol, data['data'])
+            if quote is None:
+                self.last_error = f"东方财富返回价格无效 ({secid})"
+            return quote
 
         except Exception as e:
             raise Exception(f"东方财富查询失败: {e}") from e
