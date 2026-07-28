@@ -402,6 +402,49 @@ def _get_db_quote(symbol: str):
     return None
 
 
+def _build_quote_failure_body(symbol: str, quote_result: Optional[dict]) -> dict:
+    """组装 quote 失败的结构化诊断响应体（供 agent 自我纠正）。与 Flask quote_market.py 镜像。"""
+    if quote_result:
+        error_msg = quote_result.get('error', 'All data providers failed')
+        attempted = quote_result.get('attempted_sources', [])
+        provider_errors = quote_result.get('provider_errors', {})
+    else:
+        error_msg, attempted, provider_errors = '行情服务异常', [], {}
+
+    if attempted:
+        error_text = f"{error_msg} (尝试数据源: {', '.join(attempted)})"
+    else:
+        error_text = f"无法获取 {symbol} 的实时行情：{error_msg}"
+
+    return {
+        "success": False,
+        "error": error_text,
+        "provider_errors": provider_errors,
+        "suggestion": _quote_failure_suggestion(symbol, provider_errors),
+    }
+
+
+def _quote_failure_suggestion(symbol: str, provider_errors: dict) -> str:
+    """根据各数据源的具体失败原因，生成可行动的修复建议（供 agent 自我纠正）。与 Flask quote_market.py 镜像。"""
+    joined = ' '.join(provider_errors.values())
+    hints = []
+
+    code = symbol.split('.')[0]
+    if symbol.endswith('.HK') or (code.isdigit() and len(code) <= 5):
+        hints.append(
+            f"疑似港股代码：本接口主要支持 6 位 A 股代码，港股请尝试 {code.zfill(5)}.HK 格式"
+        )
+    if any(k in joined for k in ('timeout', 'Timeout', 'Connection', 'RemoteDisconnected', '502', 'Max retries')):
+        hints.append("存在网络型失败：数据源可能临时限流/封禁，可稍后重试")
+    if code.isdigit() and len(code) == 6:
+        hints.append("请检查代码是否正确、是否已上市/已退市")
+    if not hints:
+        hints.append("请检查代码格式（A股为 6 位数字，可带 .SH/.SZ 后缀）")
+    hints.append("也可用 source=db 查询本地缓存（如有）")
+
+    return '；'.join(hints)
+
+
 @router.get('/api/stock/{symbol}/quote')
 @handle_api_error
 def get_stock_quote(symbol: str, source: str = Query('realtime')):
