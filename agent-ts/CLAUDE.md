@@ -986,7 +986,14 @@ Required env vars (see `.env.example`):
 ```bash
 # LLM provider: deepseek (默认) 或 kimi
 LLM_PROVIDER=deepseek
+```
 
+**运行时热切换（2026-07-28）：** 不重启进程切换 provider：
+- 人工：TUI 中 `/provider` 查看状态，`/provider kimi` / `/provider deepseek` 切换（当前会话立即生效）
+- Agent：`model_switch` 工具（仅新会话生效，1 小时内限 3 次）
+- 仅内存生效，重启后回到 `LLM_PROVIDER`；切换审计日志在 `.pi-invest/model-switch.log`
+
+```bash
 # DeepSeek API (OpenAI-compatible)
 DEEPSEEK_API_KEY=sk-...
 DEEPSEEK_BASE_URL=https://api.deepseek.com/v1

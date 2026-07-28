@@ -20,6 +20,7 @@ import { initSkillRouter, rewritePromptWithSkill } from "../../services/intellig
 import { join } from "path";
 import { SessionIdMapper } from "../session/session-id-mapper.js";
 import { createModel, paths } from "../../config/config.js";
+import { createAppResourceLoader } from "../../api/extensions/model-command.js";
 import { getAgentState, getLastMessage, extractTextContent } from "./session-adapter.js";
 import { ErrorHandlers, handleAgentError, ErrorSeverity } from "./error-handler.js";
 
@@ -50,6 +51,7 @@ export async function getSession(): Promise<AgentSession> {
     const result = await createAgentSession({
       cwd: paths.root,
       model: createModel(),
+      resourceLoader: await createAppResourceLoader(paths.root),
       systemPrompt: (defaultPrompt: any) => defaultPrompt,
       customTools: [
         taskExecuteAsyncTool,
