@@ -360,9 +360,9 @@ def batch_create_stop_loss_rules():
                     'triggerPercent': rule.get('stop_loss_percent'),
                     'trailingPercent': rule.get('trailing_percent'),
                     'atrMultiplier': rule.get('atr_multiplier'),
-                    'status': rule_dict.get('status'),
-                    'createdAt': rule_dict.get('created_at'),
-                    'updatedAt': rule_dict.get('updated_at')
+                    'status': rule.get('status'),
+                    'createdAt': rule.get('created_at'),
+                    'updatedAt': rule.get('updated_at')
                 }
                 created.append(formatted_rule)
 
@@ -417,13 +417,13 @@ def update_stop_loss_rule(rule_id):
                 'symbol': rule.get('symbol'),
                 'name': rule.get('name'),
                 'type': rule.get('type'),
-                'stopLossPercent': rule_dict.get('stop_loss_percent'),
-                'triggerPercent': rule_dict.get('stop_loss_percent'),
-                'trailingPercent': rule_dict.get('trailing_percent'),
-                'atrMultiplier': rule_dict.get('atr_multiplier'),
-                'status': rule_dict.get('status'),
-                'createdAt': rule_dict.get('created_at'),
-                'updatedAt': rule_dict.get('updated_at')
+                'stopLossPercent': rule.get('stop_loss_percent'),
+                'triggerPercent': rule.get('stop_loss_percent'),
+                'trailingPercent': rule.get('trailing_percent'),
+                'atrMultiplier': rule.get('atr_multiplier'),
+                'status': rule.get('status'),
+                'createdAt': rule.get('created_at'),
+                'updatedAt': rule.get('updated_at')
             }
             return jsonify({'success': True, 'rule': formatted_rule})
         else:

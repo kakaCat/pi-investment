@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 from datetime import date, datetime, timedelta
 import structlog
 
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from infrastructure.persistence.orm import BaseORMRepository, get_session
 from sqlalchemy import Column, Integer, String, Float, Date, Text, BigInteger, DateTime
 from infrastructure.persistence.orm.base import Base
@@ -41,6 +41,59 @@ class AccountBalance(Base):
     total_return = Column(Float)
     position_count = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True))
+
+
+class StopLossRule(Base):
+    __tablename__ = 'stop_loss_rules'
+    __table_args__ = {'schema': 'quant'}
+
+    id = Column(String, primary_key=True)
+    symbol = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    type = Column(String, nullable=False)
+    stop_loss_percent = Column(Float)
+    trailing_percent = Column(Float)
+    atr_multiplier = Column(Float)
+    status = Column(String, nullable=False, default='active')
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now())
+
+
+_STOP_LOSS_TYPES = ('fixed_price', 'fixed_percent', 'trailing_stop')
+_STOP_LOSS_STATUSES = ('active', 'inactive', 'triggered')
+
+
+def _validate_symbol(symbol: str) -> bool:
+    """校验股票代码格式（对齐旧 BaseRepository._validate_symbol 行为）"""
+    if not symbol:
+        raise ValueError("股票代码不能为空")
+    if not isinstance(symbol, str):
+        raise ValueError("股票代码必须是字符串")
+
+    base = symbol.strip().upper()
+    for suffix in (".SZ", ".SH", ".HK"):
+        if base.endswith(suffix):
+            base = base[: -len(suffix)]
+            break
+
+    if not base.isdigit() or not (4 <= len(base) <= 6):
+        raise ValueError(f"股票代码格式错误: {symbol}")
+    return True
+
+
+def _stop_loss_rule_to_dict(rule: StopLossRule) -> Dict[str, Any]:
+    return {
+        'id': rule.id,
+        'symbol': rule.symbol,
+        'name': rule.name,
+        'type': rule.type,
+        'stop_loss_percent': rule.stop_loss_percent,
+        'trailing_percent': rule.trailing_percent,
+        'atr_multiplier': rule.atr_multiplier,
+        'status': rule.status,
+        'created_at': rule.created_at,
+        'updated_at': rule.updated_at,
+    }
 
 from domain.ports import IRiskRepository
 
@@ -203,3 +256,149 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
         except Exception as e:
             logger.error(f"Error getting latest risk metrics for {symbol}: {e}", exc_info=True)
             return None
+
+    # ==================== 止损规则 (stop_loss_rules) ====================
+    # 注：8f06ae1 DDD 重构误删了这组方法，但 routes/risk.py 与
+    # fastapi_app/routes/risk_async.py 仍在调用，导致止损规则接口 500。
+    # 此处按 ORM 风格恢复，保持原有方法签名与返回形状（dict）。
+
+    def list_stop_loss_rules(
+        self,
+        symbol: str = None,
+        status: str = None
+    ) -> List[Dict]:
+        """
+        查询止损规则列表
+
+        Args:
+            symbol: 股票代码 (可选，不传则查所有)
+            status: 状态过滤 (active/inactive/triggered，可选)
+
+        Returns:
+            止损规则列表（dict）
+        """
+        if symbol:
+            _validate_symbol(symbol)
+        if status and status not in _STOP_LOSS_STATUSES:
+            raise ValueError(f"无效的状态值: {status}")
+
+        query = self.session.query(StopLossRule)
+        if symbol:
+            query = query.filter(StopLossRule.symbol == symbol)
+        if status:
+            query = query.filter(StopLossRule.status == status)
+
+        rules = query.order_by(StopLossRule.created_at.desc()).all()
+        return [_stop_loss_rule_to_dict(r) for r in rules]
+
+    def get_stop_loss_rule(self, rule_id: str) -> Optional[Dict]:
+        """
+        查询单个止损规则
+
+        Args:
+            rule_id: 规则ID
+
+        Returns:
+            止损规则详情（dict），不存在返回 None
+        """
+        rule = self.session.query(StopLossRule).get(rule_id)
+        return _stop_loss_rule_to_dict(rule) if rule else None
+
+    def create_stop_loss_rule(self, rule_data: Dict) -> str:
+        """
+        创建止损规则
+
+        Args:
+            rule_data: 规则数据
+                必需字段: id, symbol, name, type
+                可选字段: stop_loss_percent, trailing_percent, atr_multiplier, status
+
+        Returns:
+            创建的规则ID
+        """
+        required_fields = ['id', 'symbol', 'name', 'type']
+        for field in required_fields:
+            if field not in rule_data:
+                raise ValueError(f"缺少必需字段: {field}")
+
+        _validate_symbol(rule_data['symbol'])
+
+        if rule_data['type'] not in _STOP_LOSS_TYPES:
+            raise ValueError(f"无效的规则类型: {rule_data['type']}")
+
+        rule = StopLossRule(
+            id=rule_data['id'],
+            symbol=rule_data['symbol'],
+            name=rule_data['name'],
+            type=rule_data['type'],
+            stop_loss_percent=rule_data.get('stop_loss_percent'),
+            trailing_percent=rule_data.get('trailing_percent'),
+            atr_multiplier=rule_data.get('atr_multiplier'),
+            status=rule_data.get('status') or 'active',
+        )
+
+        try:
+            self.session.add(rule)
+            self.session.commit()
+            return rule.id
+        except Exception as e:
+            self.session.rollback()
+            raise Exception(f"创建止损规则失败: {str(e)}") from e
+
+    def update_stop_loss_rule(self, rule_id: str, rule_data: Dict) -> bool:
+        """
+        更新止损规则
+
+        Args:
+            rule_id: 规则ID
+            rule_data: 要更新的字段（name/type/stop_loss_percent/
+                       trailing_percent/atr_multiplier/status）
+
+        Returns:
+            是否成功
+        """
+        allowed_fields = [
+            'name', 'type', 'stop_loss_percent', 'trailing_percent',
+            'atr_multiplier', 'status'
+        ]
+
+        updates = {f: rule_data[f] for f in allowed_fields if f in rule_data}
+        if not updates:
+            return True
+
+        rule = self.session.query(StopLossRule).get(rule_id)
+        if not rule:
+            return False
+
+        for field, value in updates.items():
+            setattr(rule, field, value)
+        rule.updated_at = datetime.now()
+
+        try:
+            self.session.commit()
+            return True
+        except Exception as e:
+            self.session.rollback()
+            raise Exception(f"更新止损规则失败: {str(e)}") from e
+
+    def delete_stop_loss_rule(self, rule_id: str) -> bool:
+        """
+        删除止损规则
+
+        Args:
+            rule_id: 规则ID
+
+        Returns:
+            是否成功
+        """
+        rule = self.session.query(StopLossRule).get(rule_id)
+        if not rule:
+            return False
+
+        try:
+            self.session.delete(rule)
+            self.session.commit()
+            return True
+        except Exception as e:
+            self.session.rollback()
+            raise Exception(f"删除止损规则失败: {str(e)}") from e

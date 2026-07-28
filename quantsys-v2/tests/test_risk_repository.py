@@ -203,5 +203,106 @@ class TestRiskMetrics:
             pytest.skip(f"数据库写入测试跳过: {str(e)}")
 
 
+class TestStopLossRules:
+    """止损规则 CRUD 测试（quant.stop_loss_rules 表）
+
+    回归测试：8f06ae1 DDD 重构删掉了这些方法，但 routes/risk.py 仍在调用，
+    导致 /api/risk/check 页面相关接口 500（'RiskORMRepository' object has
+    no attribute 'list_stop_loss_rules'）。
+    """
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, db_connection):
+        self.repo = RiskORMRepository()
+        self._created_ids = []
+        yield
+        for rule_id in self._created_ids:
+            try:
+                self.repo.delete_stop_loss_rule(rule_id)
+            except Exception:
+                pass
+
+    def _make_rule(self, rule_id="test-sl-1", **overrides):
+        rule_data = {
+            "id": rule_id,
+            "symbol": "000001.SZ",
+            "name": "测试止损",
+            "type": "fixed_percent",
+            "stop_loss_percent": 8.0,
+        }
+        rule_data.update(overrides)
+        self._created_ids.append(rule_id)
+        return rule_data
+
+    # ==================== 参数校验测试 ====================
+
+    def test_create_missing_required_fields(self):
+        with pytest.raises(ValueError, match="缺少必需字段"):
+            self.repo.create_stop_loss_rule({"id": "x", "symbol": "000001.SZ"})
+
+    def test_create_invalid_type(self):
+        with pytest.raises(ValueError, match="无效的规则类型"):
+            self.repo.create_stop_loss_rule(self._make_rule(type="bad_type"))
+
+    def test_list_invalid_status(self):
+        with pytest.raises(ValueError, match="无效的状态值"):
+            self.repo.list_stop_loss_rules(status="bad_status")
+
+    # ==================== CRUD 测试 ====================
+
+    def test_create_and_get_rule(self):
+        rule_id = self.repo.create_stop_loss_rule(self._make_rule())
+        assert rule_id == "test-sl-1"
+
+        rule = self.repo.get_stop_loss_rule(rule_id)
+        assert rule is not None
+        assert rule["symbol"] == "000001.SZ"
+        assert rule["type"] == "fixed_percent"
+        assert rule["status"] == "active"
+        assert "created_at" in rule
+
+    def test_get_rule_not_found(self):
+        assert self.repo.get_stop_loss_rule("nonexistent-id") is None
+
+    def test_list_rules_filter(self):
+        self.repo.create_stop_loss_rule(self._make_rule("test-sl-a", symbol="000001.SZ"))
+        self.repo.create_stop_loss_rule(self._make_rule("test-sl-b", symbol="600000.SH"))
+
+        all_rules = self.repo.list_stop_loss_rules()
+        listed_ids = {r["id"] for r in all_rules}
+        assert {"test-sl-a", "test-sl-b"} <= listed_ids
+
+        filtered = self.repo.list_stop_loss_rules(symbol="600000.SH")
+        filtered_ids = {r["id"] for r in filtered}
+        assert "test-sl-b" in filtered_ids
+        assert "test-sl-a" not in filtered_ids
+
+        active = self.repo.list_stop_loss_rules(status="active")
+        assert {r["id"] for r in active} >= {"test-sl-a", "test-sl-b"}
+
+    def test_update_rule(self):
+        self.repo.create_stop_loss_rule(self._make_rule())
+
+        ok = self.repo.update_stop_loss_rule("test-sl-1", {
+            "stop_loss_percent": 5.0,
+            "status": "inactive",
+        })
+        assert ok is True
+
+        rule = self.repo.get_stop_loss_rule("test-sl-1")
+        assert rule["stop_loss_percent"] == pytest.approx(5.0)
+        assert rule["status"] == "inactive"
+
+    def test_update_rule_not_found(self):
+        assert self.repo.update_stop_loss_rule("nonexistent-id", {"name": "x"}) is False
+
+    def test_delete_rule(self):
+        self.repo.create_stop_loss_rule(self._make_rule())
+
+        assert self.repo.delete_stop_loss_rule("test-sl-1") is True
+        assert self.repo.get_stop_loss_rule("test-sl-1") is None
+        assert self.repo.delete_stop_loss_rule("test-sl-1") is False
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

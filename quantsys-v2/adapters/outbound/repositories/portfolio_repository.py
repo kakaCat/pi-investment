@@ -70,6 +70,13 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
                 raw_conn = self._session.connection().connection
                 return raw_conn.cursor(cursor_factory=RealDictCursor)
 
+            def close(self):
+                """兼容旧测试 teardown（self.repo.db.close()）。
+
+                连接生命周期由 scoped session 统一管理，这里无需也不能
+                单独关闭底层连接，否则会让 session 持有已关闭的连接。
+                """
+
         return DBWrapper(self.session)
 
     # ==================== IPortfolioRepository接口实现 ====================
@@ -415,6 +422,65 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         except Exception as e:
             logger.error(f"Error getting holdings summary: {e}")
             return {}
+
+    def get_holdings_stats(self) -> Dict:
+        """
+        获取持仓统计信息
+
+        注：8f06ae1 DDD 重构误删了本方法，但 routes/risk.py 的
+        /api/risk/check 与 fastapi_app/routes/risk_async.py 仍在调用，
+        导致风险检查接口 500。此处恢复原有实现与返回形状。
+
+        Returns:
+            统计信息 {total_positions, total_invested, total_cost,
+                      sector_distribution, market_distribution}
+        """
+        query = """
+            SELECT
+                COUNT(*) as total_positions,
+                COALESCE(SUM(total_invested), 0) as total_invested,
+                COALESCE(SUM(quantity * avg_cost), 0) as total_cost
+            FROM quant.portfolio_holdings
+        """
+
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(query)
+            result = cursor.fetchone()
+            stats = dict(result) if result else {
+                'total_positions': 0, 'total_invested': 0, 'total_cost': 0
+            }
+        finally:
+            cursor.close()
+
+        # 按行业分布
+        cursor = self.db.cursor()
+        try:
+            cursor.execute("""
+                SELECT COALESCE(sector, '未知') as sector, COUNT(*) as count,
+                       SUM(total_invested) as invested
+                FROM quant.portfolio_holdings
+                GROUP BY sector
+                ORDER BY invested DESC
+            """)
+            stats['sector_distribution'] = [dict(row) for row in cursor.fetchall()]
+        finally:
+            cursor.close()
+
+        # 按市场分布
+        cursor = self.db.cursor()
+        try:
+            cursor.execute("""
+                SELECT market, COUNT(*) as count, SUM(total_invested) as invested
+                FROM quant.portfolio_holdings
+                GROUP BY market
+                ORDER BY invested DESC
+            """)
+            stats['market_distribution'] = [dict(row) for row in cursor.fetchall()]
+        finally:
+            cursor.close()
+
+        return stats
 
     def get_top_holdings(self, limit: int = 10) -> List[PortfolioHolding]:
         """获取投入金额最大的前N个持仓
