@@ -131,3 +131,51 @@ def test_manual_rebalance_passes_current_date():
     current_date = kwargs.get('current_date') or (args[0] if args else None)
     assert current_date is not None  # 形如 '2026-07-28'
     assert result['status'] == 'success'
+
+
+def _make_bare_trader(portfolio, stop_loss=-0.12):
+    """绕过 __init__ 构造最小可用 trader 用于止损链路测试"""
+    from live_trading.simulation_trader import SimulationTrader
+    from live_trading.risk_control import RiskController
+
+    trader = object.__new__(SimulationTrader)
+    trader.model = MagicMock()
+    trader.portfolio = portfolio
+    trader.risk_controller = RiskController({'single_stock_stop_loss': stop_loss})
+    trader.config = {'strategy': {'rebalance_days': 7}}
+    trader.last_rebalance_date = '2026-07-20'
+    trader._get_current_prices = MagicMock(
+        return_value={s: p['current'] for s, p in portfolio.items()})
+    trader._execute_stop_loss = MagicMock()
+    trader._save_account_to_db = MagicMock()
+    trader.should_rebalance = MagicMock(return_value=False)
+    return trader
+
+
+def test_stop_loss_triggers_below_threshold():
+    """浮亏超过阈值 → 触发止损卖出（v14 场景：300162 成本13.12 现价6.88 = -47.6%）"""
+    trader = _make_bare_trader({
+        '300162': {'shares': 900, 'avg_price': 13.12, 'current': 6.88},
+    })
+    trader.run_daily_check()
+    trader._execute_stop_loss.assert_called_once()
+    symbols = trader._execute_stop_loss.call_args[0][0]
+    assert symbols == ['300162']
+    trader._save_account_to_db.assert_called_once()
+
+
+def test_stop_loss_not_triggered_above_threshold():
+    """浮亏未达阈值 → 不止损"""
+    trader = _make_bare_trader({
+        '300432': {'shares': 500, 'avg_price': 19.75, 'current': 18.50},  # -6.3%
+    })
+    trader.run_daily_check()
+    trader._execute_stop_loss.assert_not_called()
+
+
+def test_stop_loss_skipped_when_portfolio_empty():
+    """空仓 → 不查价不止损（回归保护：default 空仓场景应静默跳过而非误操作）"""
+    trader = _make_bare_trader({})
+    trader.run_daily_check()
+    trader._get_current_prices.assert_not_called()
+    trader._execute_stop_loss.assert_not_called()
