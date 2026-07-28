@@ -13,6 +13,8 @@ import {
   scanAndCreatePool,
   updatePoolMember,
   scanPoolSignals,
+  addPoolMembers,
+  removePoolMembers,
 } from "../../adapters/quant/quant-v2-client.js";
 
 export const poolManageTool: ToolDefinition = {
@@ -22,7 +24,9 @@ export const poolManageTool: ToolDefinition = {
     "管理股票池：创建静态/动态池、列出所有池、查看详情、更新、删除、刷新动态池、筛选建池、扫描信号。" +
     "动态池保存筛选条件(filter_template)，可定时自动刷新。" +
     "筛选建池(scan_create)：执行多因子扫描后自动创建池子。" +
-    "成员管理：update_member 更新单个股票的描述/买点/卖点/标签，get_member 查看单个股票详情。" +
+    "成员管理：add_member 批量加股票（幂等，可附描述/买点/卖点/标签），remove_member 批量删股票，" +
+    "update_member 更新单个股票的描述/买点/卖点/标签，get_member 查看单个股票详情。" +
+    "注意：动态池的成员由 filter_template 定时重建，add_member/remove_member 的手动改动可能在 refresh 时被覆盖。" +
     "信号扫描(scan_signals)：对池内所有股票执行策略，检测实时买卖信号。",
   parameters: Type.Object({
     action: Type.Union(
@@ -34,6 +38,8 @@ export const poolManageTool: ToolDefinition = {
         Type.Literal("delete"),
         Type.Literal("refresh"),
         Type.Literal("scan_create"),
+        Type.Literal("add_member"),
+        Type.Literal("remove_member"),
         Type.Literal("update_member"),
         Type.Literal("get_member"),
         Type.Literal("scan_signals"),
@@ -53,7 +59,7 @@ export const poolManageTool: ToolDefinition = {
     ),
     symbols: Type.Optional(
       Type.Array(Type.String(), {
-        description: "股票代码列表 (create static 时手动指定)",
+        description: "股票代码列表 (create static 手动指定；add_member/remove_member 批量增删)",
       }),
     ),
     filter: Type.Optional(
@@ -96,17 +102,17 @@ export const poolManageTool: ToolDefinition = {
       Type.String({ description: "股票代码 (update_member/get_member 需要)" }),
     ),
     member_description: Type.Optional(
-      Type.String({ description: "股票描述 (update_member 使用)" }),
+      Type.String({ description: "股票描述 (add_member/update_member 使用)" }),
     ),
     buy_point: Type.Optional(
-      Type.String({ description: "关注买点 (update_member 使用)" }),
+      Type.String({ description: "关注买点 (add_member/update_member 使用)" }),
     ),
     sell_point: Type.Optional(
-      Type.String({ description: "关注卖点 (update_member 使用)" }),
+      Type.String({ description: "关注卖点 (add_member/update_member 使用)" }),
     ),
     tags: Type.Optional(
       Type.Array(Type.String(), {
-        description: "标签列表 (update_member 使用)",
+        description: "标签列表 (add_member/update_member 使用)",
       }),
     ),
     strategy_id: Type.Optional(
@@ -204,6 +210,28 @@ export const poolManageTool: ToolDefinition = {
             refresh_interval,
             description,
           });
+          break;
+
+        case "add_member":
+          if (!pool_id) return _err("add_member 需要 pool_id 参数");
+          if (!symbols || symbols.length === 0) {
+            return _err("add_member 需要 symbols 参数（非空数组）");
+          }
+          result = await addPoolMembers(pool_id, {
+            symbols,
+            description: member_description,
+            buy_point,
+            sell_point,
+            tags,
+          });
+          break;
+
+        case "remove_member":
+          if (!pool_id) return _err("remove_member 需要 pool_id 参数");
+          if (!symbols || symbols.length === 0) {
+            return _err("remove_member 需要 symbols 参数（非空数组）");
+          }
+          result = await removePoolMembers(pool_id, symbols);
           break;
 
         case "update_member":
@@ -332,6 +360,34 @@ function _formatResult(action: string, data: any): string {
       if (data.tags && data.tags.length > 0) {
         text += `  标签: ${data.tags.join(', ')}\n`;
       }
+      return text;
+    }
+
+    case "add_member": {
+      const added: string[] = data.added || [];
+      const skipped: string[] = data.skipped || [];
+      const members = data.pool?.members || [];
+      let text = `✅ 已添加 ${added.length} 只股票` +
+        (added.length > 0 ? `: ${added.join(", ")}` : "") + "\n";
+      if (skipped.length > 0) {
+        text += `⏭️ 跳过（已在池中）: ${skipped.join(", ")}\n`;
+      }
+      text += `  当前池成员: ${members.length}只`;
+      if (data.warning) text += `\n⚠️ ${data.warning}`;
+      return text;
+    }
+
+    case "remove_member": {
+      const removed: string[] = data.removed || [];
+      const skipped: string[] = data.skipped || [];
+      const members = data.pool?.members || [];
+      let text = `🗑️ 已移除 ${removed.length} 只股票` +
+        (removed.length > 0 ? `: ${removed.join(", ")}` : "") + "\n";
+      if (skipped.length > 0) {
+        text += `⏭️ 跳过（不在池中）: ${skipped.join(", ")}\n`;
+      }
+      text += `  当前池成员: ${members.length}只`;
+      if (data.warning) text += `\n⚠️ ${data.warning}`;
       return text;
     }
 
