@@ -38,6 +38,19 @@
         <div class="flex items-center justify-between">
           <span class="font-semibold">持仓明细</span>
           <div class="flex items-center gap-2">
+            <el-select
+              :model-value="portfolioStore.currentAccount"
+              size="small"
+              style="width: 200px"
+              @change="handleAccountChange"
+            >
+              <el-option
+                v-for="acc in accounts"
+                :key="acc.account_name"
+                :label="`${acc.display_name || acc.account_name}`"
+                :value="acc.account_name"
+              />
+            </el-select>
             <el-button size="small" @click="handleRefresh" :loading="loading">
               <el-icon><Refresh /></el-icon>
               刷新
@@ -225,16 +238,34 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { tradingApi, riskApi } from '@/services/api'
+import { tradingApi, riskApi, simulationApi } from '@/services/api'
 import { usePortfolioStore } from '@/stores/portfolio'
 import { useMarketWebSocket } from '@/composables/useWebSocket'
 import { formatPrice, formatPercent, formatSignedCurrency } from '@/utils/format'
 import type { Position } from '@/types/models'
+import type { AccountSummary } from '@/services/api/simulation'
 
 const router = useRouter()
 const portfolioStore = usePortfolioStore()
 
 const loading = ref(false)
+
+// 多账户：账户列表与切换（后端 portfolio 接口 account_name 必填）
+const accounts = ref<AccountSummary[]>([])
+
+const loadAccounts = async () => {
+  try {
+    const data = await simulationApi.listAccounts()
+    accounts.value = data.accounts || []
+  } catch (e) {
+    console.error('加载账户列表失败:', e)
+  }
+}
+
+const handleAccountChange = (account: string) => {
+  portfolioStore.setAccount(account)
+  loadPositions()
+}
 
 // 盈亏计数
 const profitCount = computed(() => portfolioStore.positions.filter(p => p.profit > 0).length)
@@ -414,6 +445,7 @@ const handleConfirmStopLoss = async () => {
 
 // 组件挂载
 onMounted(() => {
+  loadAccounts()
   loadPositions()
 })
 

@@ -7,6 +7,14 @@ import { performanceMonitor } from '@/utils/performance'
 // 扩展 Axios 配置以支持性能监控
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _startTime?: number
+  /** 为 true 时拦截器不弹全局错误提示，由调用方自行处理（用于非关键可选请求） */
+  silent?: boolean
+}
+
+// 调用方可传的扩展选项（会透传进 axios config）
+export interface ApiRequestOptions extends AxiosRequestConfig {
+  /** 为 true 时拦截器不弹全局错误提示，由调用方自行处理（用于非关键可选请求） */
+  silent?: boolean
 }
 
 class ApiClient {
@@ -103,6 +111,11 @@ class ApiClient {
           )
         }
 
+        // 调用方声明静默：不弹全局错误提示，直接 reject 交由调用方处理
+        if (config?.silent) {
+          return Promise.reject(error)
+        }
+
         if (error.response) {
           const { status, data } = error.response
 
@@ -136,19 +149,19 @@ class ApiClient {
     )
   }
 
-  public get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  public get<T = any>(url: string, config?: ApiRequestOptions): Promise<T> {
     return this.instance.get(url, config)
   }
 
-  public post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+  public post<T = any>(url: string, data?: any, config?: ApiRequestOptions): Promise<T> {
     return this.instance.post(url, data, config)
   }
 
-  public put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+  public put<T = any>(url: string, data?: any, config?: ApiRequestOptions): Promise<T> {
     return this.instance.put(url, data, config)
   }
 
-  public delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  public delete<T = any>(url: string, config?: ApiRequestOptions): Promise<T> {
     return this.instance.delete(url, config)
   }
 }

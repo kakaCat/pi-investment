@@ -61,6 +61,6 @@ describe('simulationApi', () => {
   it('getStrategyInfo 查询策略详情', async () => {
     apiClientMock.get.mockResolvedValue({})
     await simulationApi.getStrategyInfo('v13')
-    expect(apiClientMock.get).toHaveBeenCalledWith('/api/simulation/strategies/v13')
+    expect(apiClientMock.get).toHaveBeenCalledWith('/api/simulation/strategies/v13', { silent: true })
   })
 })

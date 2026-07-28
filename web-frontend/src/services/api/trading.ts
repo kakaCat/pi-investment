@@ -8,6 +8,10 @@ import type {
   PortfolioSummaryResponse
 } from '@/types'
 
+// 多账户改造后（2026-07-21）portfolio 接口必须传 account_name；
+// agent_virtual 是 agent 唯一交易账本（盈利闭环约定），作为默认账户
+export const DEFAULT_ACCOUNT = 'agent_virtual'
+
 export const tradingApi = {
   /**
    * 获取订单列表
@@ -52,10 +56,12 @@ export const tradingApi = {
   },
 
   /**
-   * 获取持仓列表
+   * 获取持仓列表（后端 account_name 必填，缺省用 DEFAULT_ACCOUNT）
    */
-  getPositions() {
-    return apiClient.get('/api/portfolio/positions')
+  getPositions(accountName: string = DEFAULT_ACCOUNT) {
+    return apiClient.get('/api/portfolio/positions', {
+      params: { account_name: accountName }
+    })
   },
 
   /**
@@ -66,10 +72,12 @@ export const tradingApi = {
   },
 
   /**
-   * 获取持仓汇总
+   * 获取持仓汇总（后端 account_name 必填，缺省用 DEFAULT_ACCOUNT）
    */
-  getPortfolioSummary() {
-    return apiClient.get<PortfolioSummaryResponse>('/api/portfolio/summary')
+  getPortfolioSummary(accountName: string = DEFAULT_ACCOUNT) {
+    return apiClient.get<PortfolioSummaryResponse>('/api/portfolio/summary', {
+      params: { account_name: accountName }
+    })
   },
 
   /**

@@ -131,6 +131,8 @@ export const simulationApi = {
   },
 
   getStrategyInfo(strategyId: string) {
-    return apiClient.get<any>(`/api/simulation/strategies/${strategyId}`)
+    // silent：策略信息是非关键装饰数据（账户可能指向未注册的策略，如 v15），
+    // 404 时由页面静默降级，不弹全局错误提示
+    return apiClient.get<any>(`/api/simulation/strategies/${strategyId}`, { silent: true })
   }
 }

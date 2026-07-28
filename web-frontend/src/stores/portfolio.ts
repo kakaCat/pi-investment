@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Position, PortfolioSummaryResponse } from '@/types'
-import { tradingApi } from '@/services/api'
+import { tradingApi, DEFAULT_ACCOUNT } from '@/services/api'
 
 export const usePortfolioStore = defineStore('portfolio', () => {
   // State
@@ -9,6 +9,12 @@ export const usePortfolioStore = defineStore('portfolio', () => {
   const summary = ref<PortfolioSummaryResponse | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  // 多账户：当前查看的账户（默认 agent 唯一交易账本）
+  const currentAccount = ref<string>(DEFAULT_ACCOUNT)
+
+  const setAccount = (account: string) => {
+    currentAccount.value = account
+  }
 
   // Getters
   const totalValue = computed(() =>
@@ -53,7 +59,7 @@ export const usePortfolioStore = defineStore('portfolio', () => {
   // Actions
   const fetchSummary = async () => {
     try {
-      const data = await tradingApi.getPortfolioSummary()
+      const data = await tradingApi.getPortfolioSummary(currentAccount.value)
       summary.value = data as unknown as PortfolioSummaryResponse
     } catch (e: any) {
       console.error('获取持仓汇总失败:', e)
@@ -64,7 +70,7 @@ export const usePortfolioStore = defineStore('portfolio', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await tradingApi.getPositions()
+      const data = await tradingApi.getPositions(currentAccount.value)
       const rawList: any[] = (data as any).positions ?? (data as any) ?? []
 
       const totalMV = rawList.reduce((sum, p) => sum + (p.currentValue || 0), 0)
@@ -128,6 +134,7 @@ export const usePortfolioStore = defineStore('portfolio', () => {
     summary,
     loading,
     error,
+    currentAccount,
     // Getters
     totalValue,
     totalCost,
@@ -138,6 +145,7 @@ export const usePortfolioStore = defineStore('portfolio', () => {
     dailyChange,
     allocation,
     // Actions
+    setAccount,
     fetchSummary,
     fetchPositions,
     fetchAll,
