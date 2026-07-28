@@ -96,3 +96,54 @@ describe("computePortfolioView 新域模型", () => {
     expect(view.holdings[0].pnl).toBeCloseTo(1246, 2);
   });
 });
+
+describe("computePortfolioView 数据契约（A线）", () => {
+  test("days_held 真实透传，缺失时为 undefined 而非假 0", () => {
+    const view = computePortfolioView({
+      cash: "40000",
+      total_value: "100000",
+      positions: [
+        { symbol: "600519", shares: 40, market_value: "60000", profit: "0", days_held: 3 },
+        { symbol: "000001", shares: 100, market_value: "0", profit: "0" },
+      ],
+    });
+    expect(view.holdings[0].days_held).toBe(3);
+    expect(view.holdings[1].days_held).toBeUndefined();
+  });
+
+  test("pnl_pct 统一为百分数：profit_total_rate=0.0122 → 1.22", () => {
+    const view = computePortfolioView({
+      cash: "40000",
+      total_value: "100000",
+      positions: [{
+        symbol: "600519", shares: 40, market_value: "60000",
+        profit: "732", profit_total_rate: "0.0122",
+      }],
+    });
+    // 个仓 pnl_pct 与组合 total_pnl_pct 必须同单位（百分数）
+    expect(view.holdings[0].pnl_pct).toBeCloseTo(1.22, 2);
+    expect(view.holdings[0].pnl_pct).toBeGreaterThan(0.1); // 不是 0.0122 小数形式
+    expect(Math.abs(view.holdings[0].pnl_pct - view.total_pnl_pct)).toBeLessThan(5);
+  });
+
+  test("last_updated 优先用后端响应生成时间，不回退到 last_rebalance_date", () => {
+    const view = computePortfolioView({
+      cash: "40000",
+      total_value: "40000",
+      positions: [],
+      last_updated: "2026-07-28T09:31:00",
+      last_rebalance_date: "2026-07-17",
+    });
+    expect(view.last_updated).toBe("2026-07-28T09:31:00");
+  });
+
+  test("price_stale 标志透传：行情获取失败时调用方必须可见", () => {
+    const view = computePortfolioView({
+      cash: "40000",
+      total_value: "40000",
+      positions: [],
+      price_stale: true,
+    });
+    expect(view.price_stale).toBe(true);
+  });
+});

@@ -21,8 +21,12 @@ export interface PortfolioHolding {
   current_price: number;
   market_value: number;
   pnl: number;
+  /** 持仓盈亏百分比（百分数，如 1.22 表示 +1.22%） */
   pnl_pct: number;
-  days_held: number;
+  /** 首次建仓至今天数；后端未提供时为 undefined，绝不显示假 0 */
+  days_held?: number;
+  /** 当前价的行情时间戳（ISO）；行情源失败时可能缺失 */
+  price_updated_at?: string;
 }
 
 export interface PortfolioView {
@@ -33,9 +37,12 @@ export interface PortfolioView {
   total_market_value: number;
   total_assets: number;
   total_pnl: number;
+  /** 总盈亏百分比（百分数） */
   total_pnl_pct: number;
   cumulative_return?: number;
   last_updated?: string;
+  /** 行情获取失败、价格为陈旧值时为 true */
+  price_stale?: boolean;
   summary: string;
 }
 
@@ -63,6 +70,18 @@ export function computePortfolioView(portfolio: any): PortfolioView {
     totalPnl += profit;
     positionsValue += marketValue;
 
+    // 单位契约：profit_total_rate / profit_rate 是小数比率（0.0122），统一 ×100 为百分数；
+    // pnl_pct 字段按命名约定已是百分数，直接透传。个仓与组合口径必须一致。
+    const rate = h.profit_total_rate ?? h.profit_rate;
+    const pnlPct = rate != null
+      ? Number(rate) * 100
+      : Number(h.pnl_pct) || 0;
+
+    // days_held 是 T+1 风控关键字段：后端缺失时保持 undefined，绝不用假 0 误导
+    const daysHeld = h.days_held != null && Number.isFinite(Number(h.days_held))
+      ? Number(h.days_held)
+      : undefined;
+
     return {
       symbol: h.symbol,
       shares: Number(h.shares_total ?? h.shares) || 0,
@@ -70,8 +89,9 @@ export function computePortfolioView(portfolio: any): PortfolioView {
       current_price: Number(h.current_price) || 0,
       market_value: marketValue,
       pnl: profit,
-      pnl_pct: Number(h.profit_total_rate ?? h.profit_rate ?? h.pnl_pct) || 0,
-      days_held: Number(h.days_held) || 0
+      pnl_pct: pnlPct,
+      days_held: daysHeld,
+      price_updated_at: h.price_updated_at ?? undefined
     };
   });
 
@@ -87,6 +107,7 @@ export function computePortfolioView(portfolio: any): PortfolioView {
 
   const totalPnlPct = totalAssets > 0 ? (totalPnl / (totalAssets - totalPnl)) * 100 : 0;
   const cumulativeReturn = Number(portfolio.cumulative_return);
+  const priceStale = portfolio.price_stale === true;
 
   return {
     success: true,
@@ -98,14 +119,16 @@ export function computePortfolioView(portfolio: any): PortfolioView {
     total_pnl: totalPnl,
     total_pnl_pct: totalPnlPct,
     cumulative_return: Number.isFinite(cumulativeReturn) ? cumulativeReturn : undefined,
-    last_updated: portfolio.last_updated || portfolio.lastUpdated || portfolio.last_rebalance_date,
+    // 只认后端响应生成时间；last_rebalance_date 是"最后调仓日"，语义不同不作回退
+    last_updated: portfolio.last_updated || portfolio.lastUpdated || undefined,
+    price_stale: priceStale ? true : undefined,
     summary: `
 持仓概况：
   可用资金：¥${cash.toFixed(2)}
   持仓数量：${holdings.length}只
   持仓市值：¥${totalMarketValue.toFixed(2)}
   总资产：¥${totalAssets.toFixed(2)}
-  总盈亏：¥${totalPnl.toFixed(2)} (${totalPnlPct.toFixed(2)}%)${Number.isFinite(cumulativeReturn) ? `\n  累计收益率：${(cumulativeReturn * 100).toFixed(2)}%` : ""}
+  总盈亏：¥${totalPnl.toFixed(2)} (${totalPnlPct.toFixed(2)}%)${Number.isFinite(cumulativeReturn) ? `\n  累计收益率：${(cumulativeReturn * 100).toFixed(2)}%` : ""}${priceStale ? `\n  ⚠️ 行情获取失败，持仓价格为陈旧数据，禁止据此做止盈止损判断` : ""}
     `.trim()
   };
 }
@@ -157,6 +180,10 @@ export const portfolioStatusTool: ToolDefinition = {
     "\n\n两种用法：" +
     "\n  • action=list：账户发现，列出所有代管账户（名称/策略/总资产/收益率）" +
     "\n  • action=get：查看指定账户详情（资金两态/持仓/盈亏），account 必填" +
+    "\n\n数据契约：" +
+    "\n  • pnl_pct / total_pnl_pct 均为百分数（1.22 表示 +1.22%）" +
+    "\n  • days_held 为首次建仓天数；缺失时字段不存在（不是 0）" +
+    "\n  • price_stale=true 表示行情获取失败、价格为陈旧数据，禁止据此止盈止损" +
     "\n\n典型用法：" +
     "\n  portfolio_status({ action: 'list' }) - 列出所有账户" +
     "\n  portfolio_status({ action: 'get', account: 'v13_simulation' }) - 查看指定账户",
