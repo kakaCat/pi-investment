@@ -1,7 +1,13 @@
 """
 K线数据更新Job - 使用多数据源自动更新
 
-每日自动更新创业板K线数据，支持多数据源fallback
+每日自动更新K线数据，支持多数据源fallback（tencent → akshare）
+
+scope:
+- all: 全市场（默认）。K线是全市场功能（机会扫描/市场情绪/行业分析）的
+  共同上游——只更创业板会让其余 4500 只股票静默饿死（2026-07-28 定位：
+  07-22 后全市场日更覆盖率从 1351 只逐日衰减到 1 只）
+- gem: 仅创业板（旧行为，保留兼容）
 """
 import os
 os.environ['OMP_NUM_THREADS'] = '1'
@@ -9,6 +15,7 @@ os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
 import sys
+import time
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -25,18 +32,25 @@ logger = logging.getLogger(__name__)
 
 def update_gem_klines(**params):
     """
-    更新创业板K线数据
+    更新K线数据
 
     Args:
         **params: 任务参数
             - days: 更新最近N天的数据（默认5天）
             - symbols: 指定股票代码列表（可选）
+            - scope: 'all' 全市场（默认）| 'gem' 仅创业板
+            - pause: 每只股票请求间隔秒数（默认0.3；腾讯源对高频请求会
+              限流——2026-07-28 实测 pause=0.05 跑约770只后被断流，
+              连空 50 只会自适应休眠 30s）
 
     Returns:
         dict: 执行结果
     """
+    scope = params.get('scope', 'all')
+    pause = float(params.get('pause', 0.3))
+
     logger.info("="*70)
-    logger.info("创业板K线数据更新任务开始")
+    logger.info(f"K线数据更新任务开始 (scope={scope})")
     logger.info(f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*70)
 
@@ -61,12 +75,20 @@ def update_gem_klines(**params):
                 WHERE symbol IN ({placeholders})
                 ORDER BY symbol
             """, specific_symbols)
-        else:
+        elif scope == 'gem':
             cursor.execute("""
                 SELECT symbol, name
                 FROM quant.stocks
                 WHERE (symbol LIKE '300%' OR symbol LIKE '301%')
                   AND name NOT LIKE '%退%'
+                  AND name NOT LIKE '%ST%'
+                ORDER BY symbol
+            """)
+        else:
+            cursor.execute("""
+                SELECT symbol, name
+                FROM quant.stocks
+                WHERE name NOT LIKE '%退%'
                   AND name NOT LIKE '%ST%'
                 ORDER BY symbol
             """)
@@ -86,6 +108,7 @@ def update_gem_klines(**params):
         success = 0
         failed = 0
         skipped = 0
+        consecutive_empty = 0
 
         for i, (symbol, name) in enumerate(stocks, 1):
             try:
@@ -103,8 +126,17 @@ def update_gem_klines(**params):
 
                 if not klines:
                     skipped += 1
+                    consecutive_empty += 1
+                    if consecutive_empty >= 50:
+                        # 数据源大概率被限流，休眠冷却后重试这批
+                        logger.warning(
+                            f"连续 {consecutive_empty} 只无数据，疑似数据源限流，休眠 30s")
+                        time.sleep(30)
+                        consecutive_empty = 0
                     logger.debug(f"[{i}/{total}] {symbol} - 无数据")
                     continue
+
+                consecutive_empty = 0
 
                 # 插入数据库
                 inserted = 0
@@ -138,7 +170,10 @@ def update_gem_klines(**params):
                 conn.commit()
                 success += 1
 
-                if i % 100 == 0:
+                if pause > 0:
+                    time.sleep(pause)
+
+                if i % 200 == 0:
                     logger.info(f"进度: [{i}/{total}] 成功{success} 失败{failed} 跳过{skipped}")
 
             except Exception as e:
@@ -151,6 +186,7 @@ def update_gem_klines(**params):
         result = {
             'action': 'kline_update',
             'status': 'success',
+            'scope': scope,
             'timestamp': datetime.now().isoformat(),
             'total': total,
             'success': success,
@@ -161,7 +197,7 @@ def update_gem_klines(**params):
         }
 
         logger.info("="*70)
-        logger.info(f"✅ K线更新完成")
+        logger.info(f"✅ K线更新完成 (scope={scope})")
         logger.info(f"  成功: {success}只")
         logger.info(f"  失败: {failed}只")
         logger.info(f"  跳过: {skipped}只")
