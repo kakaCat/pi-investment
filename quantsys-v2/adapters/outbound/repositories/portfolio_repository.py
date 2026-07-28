@@ -19,6 +19,7 @@ from sqlalchemy import func, and_, or_, case
 from infrastructure.persistence.orm import BaseORMRepository
 from domain.ports import IPortfolioRepository
 from infrastructure.persistence.orm.models import PortfolioHolding, Trade
+from adapters.outbound.repositories.risk_repository import _validate_symbol, _validate_date
 
 logger = structlog.get_logger(__name__)
 
@@ -76,6 +77,12 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
                 连接生命周期由 scoped session 统一管理，这里无需也不能
                 单独关闭底层连接，否则会让 session 持有已关闭的连接。
                 """
+
+            def commit(self):
+                self._session.commit()
+
+            def rollback(self):
+                self._session.rollback()
 
         return DBWrapper(self.session)
 
@@ -154,15 +161,8 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
 
     # ==================== 查询方法 ====================
 
-    def get_holding(self, symbol: str) -> Optional[PortfolioHolding]:
-        """查询指定股票的持仓
-
-        Args:
-            symbol: 股票代码
-
-        Returns:
-            PortfolioHolding对象，不存在返回None
-        """
+    def _get_holding_model(self, symbol: str) -> Optional[PortfolioHolding]:
+        """查询持仓 ORM 对象（内部使用：更新/删除场景）"""
         try:
             return self.session.query(PortfolioHolding).filter_by(
                 symbol=symbol
@@ -170,6 +170,25 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         except Exception as e:
             logger.error(f"Error getting holding for {symbol}: {e}")
             return None
+
+    def get_holding(self, symbol: str) -> Optional[Dict]:
+        """查询指定股票的持仓
+
+        注：旧契约为 Dict（order_service/risk_check_service 均按
+        holding.get('quantity') 使用），8f06ae1 重构误改为返回 ORM
+        对象导致下游 AttributeError。此处恢复 dict 契约；
+        需要 ORM 对象的内部调用方改用 _get_holding_model。
+
+        Args:
+            symbol: 股票代码
+
+        Returns:
+            持仓字典，不存在返回None
+        """
+        _validate_symbol(symbol)
+
+        holding = self._get_holding_model(symbol)
+        return holding.to_dict() if holding else None
 
     def get_all_holdings(
         self,
@@ -246,15 +265,17 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         """
         required_fields = ['symbol', 'name', 'quantity', 'avg_cost', 'total_invested', 'market', 'added_date']
 
-        # 验证必需字段
+        # 验证必需字段（旧契约：缺字段/格式错误抛 ValueError）
         for field in required_fields:
             if field not in holding_data:
-                logger.error(f"Missing required field: {field}")
-                return False
+                raise ValueError(f"缺少必需字段: {field}")
+
+        _validate_symbol(holding_data['symbol'])
+        _validate_date(holding_data['added_date'])
 
         try:
             # 查找现有持仓
-            holding = self.get_holding(holding_data['symbol'])
+            holding = self._get_holding_model(holding_data['symbol'])
 
             if holding:
                 # 更新现有持仓
@@ -285,7 +306,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             成功返回True
         """
         try:
-            holding = self.get_holding(symbol)
+            holding = self._get_holding_model(symbol)
             if not holding:
                 logger.warning(f"Holding {symbol} not found")
                 return False
@@ -312,7 +333,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             成功返回True
         """
         try:
-            holding = self.get_holding(symbol)
+            holding = self._get_holding_model(symbol)
             if holding:
                 self.session.delete(holding)
                 self.session.commit()
@@ -557,7 +578,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
                 if not symbol:
                     continue
 
-                holding = self.get_holding(symbol)
+                holding = self._get_holding_model(symbol)
                 if holding:
                     for key, value in update_data.items():
                         if key != 'symbol' and hasattr(holding, key):
@@ -651,31 +672,472 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             logger.error(f"Error getting trades by order_id {order_id}: {e}")
             return []
 
-    def get_orders(self, limit: int = 100, status: Optional[str] = None, symbol: Optional[str] = None) -> List[Dict]:
-        """获取订单列表
+    # ==================== 订单管理 (orders) ====================
+    # 注：8f06ae1 重构误删/误改了这组方法（get_orders 懒加载一个不存在的
+    # Order model 导致永远返回 []；create_order/get_order/update_order_status
+    # /cancel_order/get_pending_orders/get_order_stats 被删），但
+    # order_service.py 与 routes/orders.py 仍在调用，下单/撤单功能实际
+    # 已损坏。此处按旧契约恢复（raw SQL + dict 返回）。
 
-        Args:
-            limit: 返回记录数量限制
-            status: 可选的订单状态过滤
-            symbol: 可选的股票代码过滤
+    _ORDER_VALID_STATUSES = ('pending', 'partial', 'filled', 'cancelled', 'expired')
+    _ORDER_VALID_TYPES = ('limit', 'market', 'stop')
+
+    def get_order(self, order_id: int) -> Optional[Dict]:
+        """查询单条订单，不存在返回 None"""
+        query = "SELECT * FROM quant.orders WHERE id = %s"
+
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(query, (order_id,))
+            result = cursor.fetchone()
+            return dict(result) if result else None
+        finally:
+            cursor.close()
+
+    def get_order_by_id(self, order_id: int) -> Optional[Dict]:
+        """get_order 别名（兼容 API 调用）"""
+        return self.get_order(order_id)
+
+    def get_orders(
+        self,
+        symbol: str = None,
+        status: str = None,
+        limit: int = 100
+    ) -> List[Dict]:
+        """查询订单列表（按创建时间降序）"""
+        conditions = []
+        params = []
+
+        if symbol:
+            _validate_symbol(symbol)
+            conditions.append("symbol = %s")
+            params.append(symbol)
+        if status:
+            if status not in self._ORDER_VALID_STATUSES:
+                raise ValueError(
+                    f"无效的订单状态: {status}，"
+                    f"必须是 {', '.join(self._ORDER_VALID_STATUSES)}"
+                )
+            conditions.append("status = %s")
+            params.append(status)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query = f"""
+            SELECT *
+            FROM quant.orders
+            WHERE {where_clause}
+            ORDER BY created_at DESC
+            LIMIT %s
+        """
+        params.append(limit)
+
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+            return [dict(row) for row in results]
+        finally:
+            cursor.close()
+
+    def get_pending_orders(self) -> List[Dict]:
+        """获取所有待处理订单"""
+        return self.get_orders(status='pending', limit=1000)
+
+    def create_order(self, order_data: Dict) -> int:
+        """
+        创建新订单
+
+        必需字段: symbol, name, order_type, action, quantity, status
+        可选字段: price, filled_quantity, avg_filled_price, reason,
+                 signal_id, expires_at
 
         Returns:
-            订单记录字典列表
+            新创建的订单ID
         """
+        required_fields = ['symbol', 'name', 'order_type', 'action', 'quantity', 'status']
+        for field in required_fields:
+            if field not in order_data:
+                raise ValueError(f"缺少必需字段: {field}")
+
+        if order_data['order_type'] not in self._ORDER_VALID_TYPES:
+            raise ValueError(f"无效的订单类型: {order_data['order_type']}")
+
+        if order_data['action'] not in ('buy', 'sell'):
+            raise ValueError(f"无效的订单方向: {order_data['action']}")
+
+        if order_data['status'] not in self._ORDER_VALID_STATUSES:
+            raise ValueError(f"无效的订单状态: {order_data['status']}")
+
+        _validate_symbol(order_data['symbol'])
+
+        query = """
+            INSERT INTO quant.orders (
+                symbol, name, order_type, action, price, quantity, status,
+                filled_quantity, avg_filled_price, reason, signal_id, expires_at
+            ) VALUES (
+                %(symbol)s, %(name)s, %(order_type)s, %(action)s, %(price)s, %(quantity)s, %(status)s,
+                %(filled_quantity)s, %(avg_filled_price)s, %(reason)s, %(signal_id)s, %(expires_at)s
+            )
+            RETURNING id
+        """
+
+        cursor = self.db.cursor()
         try:
-            from infrastructure.persistence.orm.models import Order
-
-            query = self.session.query(Order).order_by(Order.created_at.desc())
-
-            if status:
-                query = query.filter(Order.status == status)
-            if symbol:
-                query = query.filter(Order.symbol == symbol)
-
-            orders = query.limit(limit).all()
-            return [order.to_dict() for order in orders]
-
+            cursor.execute(query, order_data)
+            order_id = cursor.fetchone()['id']
+            self.db.commit()
+            return order_id
         except Exception as e:
-            logger.error(f"Error getting orders: {e}")
-            return []
+            self.db.rollback()
+            raise Exception(f"创建订单失败: {str(e)}")
+        finally:
+            cursor.close()
+
+    def create_order_with_risk_params(
+        self,
+        symbol: str,
+        name: str,
+        action: str,
+        order_type: str,
+        quantity: int,
+        price: float,
+        status: str = 'pending',
+        stop_loss_price: float = None,
+        take_profit_price: float = None,
+        parent_order_id: int = None,
+        order_group: str = None,
+        risk_params: dict = None,
+        reason: str = None,
+        signal_id: int = None,
+        expires_at: str = None
+    ) -> int:
+        """
+        创建订单（兼容旧的风控参数签名）
+
+        注意：当前 quant.orders 表已无 stop_loss_price / take_profit_price /
+        parent_order_id / order_group / risk_params 列（多账户改造后移除），
+        这些参数被接受但不落库。OCO 订单组能力待 schema 迁移恢复。
+
+        Returns:
+            订单 ID
+        """
+        from datetime import datetime, timedelta
+
+        if expires_at is None:
+            expires_at = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+
+        query = """
+            INSERT INTO quant.orders (
+                symbol, name, action, order_type, quantity, price, status,
+                filled_quantity, reason, signal_id, expires_at, created_at
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()
+            ) RETURNING id
+        """
+
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(query, (
+                symbol, name, action, order_type, quantity, price, status,
+                0, reason, signal_id, expires_at
+            ))
+            result = cursor.fetchone()
+            order_id = result['id'] if result else None
+            self.db.commit()
+            return order_id
+        except Exception as e:
+            self.db.rollback()
+            raise Exception(f"创建订单失败: {str(e)}")
+        finally:
+            cursor.close()
+
+    def update_order_status(
+        self,
+        order_id: int,
+        status: str,
+        filled_quantity: int = None,
+        avg_filled_price: float = None
+    ) -> bool:
+        """更新订单状态（可选同时更新成交数量/均价）"""
+        if status not in self._ORDER_VALID_STATUSES:
+            raise ValueError(f"无效的订单状态: {status}")
+
+        set_clauses = ["status = %s", "updated_at = CURRENT_TIMESTAMP"]
+        params = [status]
+
+        if filled_quantity is not None:
+            set_clauses.append("filled_quantity = %s")
+            params.append(filled_quantity)
+        if avg_filled_price is not None:
+            set_clauses.append("avg_filled_price = %s")
+            params.append(avg_filled_price)
+
+        params.append(order_id)
+
+        query = f"""
+            UPDATE quant.orders
+            SET {', '.join(set_clauses)}
+            WHERE id = %s
+        """
+
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(query, params)
+            self.db.commit()
+            affected = cursor.rowcount
+            return affected > 0
+        except Exception as e:
+            self.db.rollback()
+            raise Exception(f"更新订单状态失败: {str(e)}")
+        finally:
+            cursor.close()
+
+    def cancel_order(self, order_id: int) -> bool:
+        """取消订单"""
+        return self.update_order_status(order_id, 'cancelled')
+
+    def get_order_stats(self, symbol: str = None) -> Dict:
+        """
+        获取订单统计信息
+
+        Returns:
+            {total_orders, pending, partial, filled, cancelled, expired,
+             limit_orders, market_orders, stop_orders}
+        """
+        conditions = []
+        params = []
+
+        if symbol:
+            _validate_symbol(symbol)
+            conditions.append("symbol = %s")
+            params.append(symbol)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query = f"""
+            SELECT
+                COUNT(*) as total_orders,
+                COUNT(*) FILTER (WHERE status = 'pending') as pending,
+                COUNT(*) FILTER (WHERE status = 'partial') as partial,
+                COUNT(*) FILTER (WHERE status = 'filled') as filled,
+                COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled,
+                COUNT(*) FILTER (WHERE status = 'expired') as expired,
+                COUNT(*) FILTER (WHERE order_type = 'limit') as limit_orders,
+                COUNT(*) FILTER (WHERE order_type = 'market') as market_orders,
+                COUNT(*) FILTER (WHERE order_type = 'stop') as stop_orders
+            FROM quant.orders
+            WHERE {where_clause}
+        """
+
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+            return dict(result) if result else {}
+        finally:
+            cursor.close()
+
+    # ==================== 交易记录 (trades，旧契约恢复) ====================
+
+    def get_trade(self, trade_id: int) -> Optional[Dict]:
+        """查询单条交易记录，不存在返回 None"""
+        query = "SELECT * FROM quant.trades WHERE id = %s"
+
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(query, (trade_id,))
+            result = cursor.fetchone()
+            return dict(result) if result else None
+        finally:
+            cursor.close()
+
+    def get_trades_by_symbol(
+        self,
+        symbol: str,
+        start_date: str = None,
+        end_date: str = None
+    ) -> List[Dict]:
+        """查询指定股票的交易记录（按日期降序）"""
+        _validate_symbol(symbol)
+
+        conditions = ["symbol = %s"]
+        params = [symbol]
+
+        if start_date:
+            _validate_date(start_date)
+            conditions.append("trade_date >= %s")
+            params.append(start_date)
+        if end_date:
+            _validate_date(end_date)
+            conditions.append("trade_date <= %s")
+            params.append(end_date)
+
+        where_clause = " AND ".join(conditions)
+
+        query = f"""
+            SELECT *
+            FROM quant.trades
+            WHERE {where_clause}
+            ORDER BY trade_date DESC, created_at DESC
+        """
+
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+            return [dict(row) for row in results]
+        finally:
+            cursor.close()
+
+    def get_trades_by_date(
+        self,
+        start_date: str,
+        end_date: str,
+        action: str = None
+    ) -> List[Dict]:
+        """按日期范围查询交易记录（可选按 buy/sell 筛选）"""
+        _validate_date(start_date)
+        _validate_date(end_date)
+
+        conditions = ["trade_date >= %s", "trade_date <= %s"]
+        params = [start_date, end_date]
+
+        if action:
+            if action not in ('buy', 'sell'):
+                raise ValueError(f"无效的交易方向: {action}，必须是 buy 或 sell")
+            conditions.append("action = %s")
+            params.append(action)
+
+        where_clause = " AND ".join(conditions)
+
+        query = f"""
+            SELECT *
+            FROM quant.trades
+            WHERE {where_clause}
+            ORDER BY trade_date DESC, created_at DESC
+        """
+
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+            return [dict(row) for row in results]
+        finally:
+            cursor.close()
+
+    def record_trade(self, trade_data: Dict) -> int:
+        """
+        记录一笔交易
+
+        必需字段: symbol, name, action, price, quantity, amount, trade_date
+        可选字段: fee, stamp_duty, reason, order_id
+
+        Returns:
+            新创建的交易ID
+        """
+        required_fields = ['symbol', 'name', 'action', 'price', 'quantity', 'amount', 'trade_date']
+        for field in required_fields:
+            if field not in trade_data:
+                raise ValueError(f"缺少必需字段: {field}")
+
+        if trade_data['action'] not in ('buy', 'sell'):
+            raise ValueError(f"无效的交易方向: {trade_data['action']}")
+
+        _validate_symbol(trade_data['symbol'])
+        _validate_date(trade_data['trade_date'])
+
+        query = """
+            INSERT INTO quant.trades (
+                symbol, name, action, price, quantity, amount,
+                fee, stamp_duty, trade_date, reason, order_id
+            ) VALUES (
+                %(symbol)s, %(name)s, %(action)s, %(price)s, %(quantity)s, %(amount)s,
+                %(fee)s, %(stamp_duty)s, %(trade_date)s, %(reason)s, %(order_id)s
+            )
+            RETURNING id
+        """
+
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(query, trade_data)
+            trade_id = cursor.fetchone()['id']
+            self.db.commit()
+            return trade_id
+        except Exception as e:
+            self.db.rollback()
+            raise Exception(f"记录交易失败: {str(e)}")
+        finally:
+            cursor.close()
+
+    def get_trade_stats(
+        self,
+        symbol: str = None,
+        start_date: str = None,
+        end_date: str = None
+    ) -> Dict:
+        """
+        获取交易统计信息
+
+        Returns:
+            {total_trades, buy_trades, sell_trades, total_buy_amount,
+             total_sell_amount, total_fee}
+        """
+        conditions = []
+        params = []
+
+        if symbol:
+            _validate_symbol(symbol)
+            conditions.append("symbol = %s")
+            params.append(symbol)
+        if start_date:
+            _validate_date(start_date)
+            conditions.append("trade_date >= %s")
+            params.append(start_date)
+        if end_date:
+            _validate_date(end_date)
+            conditions.append("trade_date <= %s")
+            params.append(end_date)
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        query = f"""
+            SELECT
+                COUNT(*) as total_trades,
+                COUNT(*) FILTER (WHERE action = 'buy') as buy_trades,
+                COUNT(*) FILTER (WHERE action = 'sell') as sell_trades,
+                COALESCE(SUM(amount) FILTER (WHERE action = 'buy'), 0) as total_buy_amount,
+                COALESCE(SUM(amount) FILTER (WHERE action = 'sell'), 0) as total_sell_amount,
+                COALESCE(SUM(fee + stamp_duty), 0) as total_fee
+            FROM quant.trades
+            WHERE {where_clause}
+        """
+
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+            return dict(result) if result else {}
+        finally:
+            cursor.close()
+
+    # ==================== 持仓删除 ====================
+
+    def remove_holding(self, symbol: str) -> bool:
+        """删除持仓记录（order_service 清仓时调用）"""
+        _validate_symbol(symbol)
+
+        query = "DELETE FROM quant.portfolio_holdings WHERE symbol = %s"
+
+        cursor = self.db.cursor()
+        try:
+            cursor.execute(query, (symbol,))
+            self.db.commit()
+            affected = cursor.rowcount
+            return affected > 0
+        except Exception as e:
+            self.db.rollback()
+            raise Exception(f"删除持仓失败: {str(e)}")
+        finally:
+            cursor.close()
 
