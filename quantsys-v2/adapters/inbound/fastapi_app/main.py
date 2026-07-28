@@ -422,6 +422,14 @@ def register_routes():
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import alerts_async: {e}")
 
+    # Agent 会话事件（sessions 域，parity 迁移——syncer 事件摄入 + web 查询/诊断）
+    try:
+        from adapters.inbound.fastapi_app.routes.agent_sessions_async import router as agent_sessions_router
+        app.include_router(agent_sessions_router)
+        logger.info("✅ Registered: agent_sessions (parity 迁移)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import agent_sessions_async: {e}")
+
     # 策略发现（discovery 域，agent 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.discovery_async import router as discovery_router
