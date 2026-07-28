@@ -91,3 +91,29 @@ class TestEastmoneyLastError:
             assert provider.get_quote('600519') is None
         assert provider.last_error is not None
         assert '1.600519' in provider.last_error
+
+
+class TestAkshareLastError:
+    def test_a_share_not_found_sets_last_error(self):
+        """akshare A 股全表无该代码需设置 last_error"""
+        provider = AkshareQuoteProvider()
+        df = pd.DataFrame({'代码': ['600519'], '名称': ['贵州茅台']})
+        with patch(
+            'adapters.outbound.datasources.providers.quote.akshare.ak.stock_zh_a_spot_em',
+            return_value=df,
+        ):
+            assert provider.get_quote('999999') is None
+        assert provider.last_error is not None
+        assert '999999' in provider.last_error
+
+    def test_hk_not_found_sets_last_error(self):
+        """akshare 港股全表无该代码需设置 last_error（裸 00836 走港股分支）"""
+        provider = AkshareQuoteProvider()
+        df = pd.DataFrame({'代码': ['00700'], '名称': ['腾讯控股']})
+        with patch(
+            'adapters.outbound.datasources.providers.quote.akshare.ak.stock_hk_spot_em',
+            return_value=df,
+        ):
+            assert provider.get_quote('00836') is None
+        assert provider.last_error is not None
+        assert '00836' in provider.last_error

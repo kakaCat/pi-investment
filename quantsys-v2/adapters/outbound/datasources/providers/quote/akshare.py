@@ -34,6 +34,7 @@ class AkshareQuoteProvider(QuoteProvider):
         """
         # Disable proxy by patching environment variables before akshare makes requests
         # This ensures akshare's internal requests session doesn't use proxy
+        self.last_error = None
         env_patch = {
             'HTTP_PROXY': '',
             'HTTPS_PROXY': '',
@@ -73,6 +74,7 @@ class AkshareQuoteProvider(QuoteProvider):
         row = df[df['代码'] == clean_symbol]
 
         if row.empty:
+            self.last_error = f"akshare A股无 {clean_symbol} 数据（代码不存在或已退市）"
             return None
 
         # Extract data from first row
@@ -119,6 +121,7 @@ class AkshareQuoteProvider(QuoteProvider):
         row = df[df['代码'] == clean_symbol]
 
         if row.empty:
+            self.last_error = f"akshare 港股无 {clean_symbol} 数据（代码不存在或未上市）"
             return None
 
         # Extract data from first row
