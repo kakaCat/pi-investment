@@ -74,3 +74,60 @@ def test_load_model_uses_instance_paths(tmp_path):
 
     assert trader.valid_factors == ['__test_factor_a__', '__test_factor_b__']
     assert trader.model is not None
+
+
+def test_create_trader_uses_strategy_config():
+    """_create_trader 必须把账户/因子计算器注入构造函数，且风控/调仓参数真正生效"""
+    from types import SimpleNamespace
+    from application.services.strategy_service import StrategyService
+
+    service = StrategyService.__new__(StrategyService)
+    service._configs_cache = {}
+    from pathlib import Path
+    service.config_dir = Path('live_trading/configs/strategies')
+
+    mock_trader = MagicMock()
+    mock_trader.config = {'strategy': {'rebalance_days': 5}}
+    mock_trader.risk_controller = SimpleNamespace(single_stop_loss=-0.10)
+
+    with patch('application.services.strategy_service.SimulationTrader',
+               return_value=mock_trader) as MockTrader:
+        config = service.get_config('v14')
+        trader = service._create_trader(config)
+
+    # 账户与因子计算器通过构造函数注入（不是事后赋值）
+    _, kwargs = MockTrader.call_args
+    assert kwargs.get('account_name') == 'v14_simulation'
+    assert kwargs.get('factor_calculator') == 'v14'
+
+    # 调仓周期与止损阈值写入 trader 真正读取的位置
+    assert trader.config['strategy']['rebalance_days'] == 7
+    assert trader.risk_controller.single_stop_loss == -0.12
+
+    # 模型路径按策略配置覆盖
+    assert trader.model_path == 'live_trading/models/v14_p0_model.json'
+    assert trader.factors_path == 'live_trading/models/v14_p0_valid_factors.json'
+    trader.load_model.assert_called_once()
+
+
+def test_manual_rebalance_passes_current_date():
+    """manual_rebalance 必须传 current_date（回归：此前调用必 TypeError）"""
+    from application.services.strategy_service import StrategyService
+
+    service = StrategyService.__new__(StrategyService)
+    service._configs_cache = {}
+    from pathlib import Path
+    service.config_dir = Path('live_trading/configs/strategies')
+
+    mock_trader = MagicMock()
+    mock_trader.account_name = 'v13_simulation'
+    mock_trader.rebalance.return_value = {'success': True}
+
+    with patch.object(service, '_create_trader', return_value=mock_trader), \
+         patch.object(service, 'get_config', return_value={'strategy': {'account_name': 'v13_simulation'}}):
+        result = service.manual_rebalance('v13')
+
+    args, kwargs = mock_trader.rebalance.call_args
+    current_date = kwargs.get('current_date') or (args[0] if args else None)
+    assert current_date is not None  # 形如 '2026-07-28'
+    assert result['status'] == 'success'
