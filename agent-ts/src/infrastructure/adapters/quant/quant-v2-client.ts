@@ -1840,6 +1840,30 @@ export async function updatePoolMember(
   return fetchV2(url, { method: "PUT", body: data });
 }
 
+export interface PoolMembersAddParams {
+  symbols: string[];
+  description?: string;
+  buy_point?: string;
+  sell_point?: string;
+  tags?: string[];
+}
+
+export async function addPoolMembers(
+  poolId: number,
+  params: PoolMembersAddParams,
+): Promise<any> {
+  const url = `${V2_API_BASE}/api/pools/${poolId}/members`;
+  return fetchV2(url, { method: "POST", body: params });
+}
+
+export async function removePoolMembers(
+  poolId: number,
+  symbols: string[],
+): Promise<any> {
+  const url = `${V2_API_BASE}/api/pools/${poolId}/members`;
+  return fetchV2(url, { method: "DELETE", body: { symbols } });
+}
+
 export interface PoolSignalScanParams {
   strategy_id: number;
   lookback_days?: number;
