@@ -49,6 +49,7 @@ import { tradeMonitorTool } from "./trade/trade-monitor-tool.js";  // 新增：�
 import { portfolioOptimizerTool } from "./portfolio/portfolio-optimizer-tool.js";  // 新增：组合优化工具
 import { portfolioTradeTool } from "./portfolio/portfolio-trade-tool.js";  // 新增：虚拟仓交易
 import { portfolioStatusTool } from "./portfolio/portfolio-status-tool.js";  // 新增：虚拟仓状态
+import { portfolioDailyBriefTool } from "./portfolio/portfolio-daily-brief-tool.js";  // 新增：每日对账单
 import { portfolioAnalyzeTool } from "./portfolio/portfolio-analyze-tool.js";  // 新增：持仓分析
 import { portfolioAccountTool } from "./portfolio/portfolio-account-tool.js";  // 新增：账户管理
 
@@ -142,6 +143,7 @@ import { signalExecutionTool } from "./execution/signal-execution-tool.js";
 
 // L6 监控运维
 import { monitorAlertTool } from "./monitor/alert-tool.js";
+import { marketAlertTool } from "./alert/market-alert-tool.js";
 
 // ===== Agent 元工具 =====
 import { compactTool, initCompactTool } from "./agent/compact-tool.js";
@@ -284,6 +286,7 @@ export const allCustomTools = [
 
   // L6 监控运维
   monitorAlertTool,               // monitor_alert - 告警通知
+  marketAlertTool,                // market_alert - 市场预警查询（盘前/盘后例行检查）
 
   // ===== 经验库工具 =====
   queryExperienceTool,            // experience_query - 查询历史经验库
@@ -337,6 +340,7 @@ export const allCustomTools = [
   portfolioOptimizerTool,         // portfolio_optimizer - 组合优化工具
   portfolioTradeTool,             // portfolio_trade - Agent虚拟仓交易
   portfolioStatusTool,            // portfolio_status - 查看虚拟仓状态
+  portfolioDailyBriefTool,        // portfolio_daily_brief - 每日对账单（复盘入口）
   portfolioAnalyzeTool,           // portfolio_analyze - 分析持仓给出建议
   portfolioAccountTool,           // portfolio_account - 账户管理（开户）
   performanceAnalyzerTool,        // performance_analyzer - 性能分析工具
