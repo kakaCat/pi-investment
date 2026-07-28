@@ -51,6 +51,9 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 - symbol: 股票代码
 - reason: 详细理由（至少10字）
   例如："盈利12%达到止盈目标，技术面RSI超买"
+- 若是亏损平仓：卖出后 decision_record 必须带 opponent_attribution——
+  这笔钱被谁赚走了？散户恐慌盘 / 机构出货 / 游资拉高出货 / 自己追高。
+  这是最有价值的学习数据
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 第三步：寻找买入机会
@@ -88,15 +91,16 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 - 必须说明交易理由（≥10字）
 - 记住T+1：今天买入明天才能卖
 - 记住交易时段：A股只有 9:30-11:30 / 13:00-15:00 能成交。
-  本任务在 9:00 执行（开盘前），所有"决定买/卖"先 decision_record 记录为"待开盘执行"，
-  等 9:30 后由 signals_ready 事件或盘中巡检实际下单，不要在开盘前反复重试被拒的委托
+  本任务在 9:00 执行（开盘前），决定买/卖时用 portfolio_trade 加 execute_at: 'market_open'
+  直接下条件单——开盘 9:31 起后端自动撮合，分析完工作即结束，
+  不要等开盘、不要反复重试被拒的委托
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 第四步：记录决策
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-使用 decision_record 记录：
-- 今天做了什么操作？
+使用 decision_record 记录（成交类交易服务端已自动记账，无需重复记录）：
+- 今天做了什么决策？（特别是放弃的机会和选择不交易的理由）
 - 为什么这样做？
 - 预期结果是什么？
 
@@ -216,6 +220,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 **失败的交易：**
 - 为什么失败？
 - 哪里判断错误？
+- 这笔钱被谁赚走了？（散户恐慌盘/机构出货/游资出货/自己追高——写入 opponent_attribution）
 - 如何避免？
 - 有什么教训？
 
@@ -310,6 +315,49 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
       scheduleExpr: '0 20 * * 0',  // 每周日 20:00
       payload: {
         kind: 'weekly_evolution',
+      },
+      compensationEnabled: false,
+      compensationCheckAfter: undefined,
+      compensationMaxAttempts: 0,
+      deleteAfterRun: false
+    },
+
+    // 5. 每周工具 ROI 审查 - 找出低回报工具，下线或合并
+    {
+      name: 'weekly_tool_roi_review',
+      enabled: true,
+      scheduleKind: 'cron',
+      scheduleExpr: '0 19 * * 0',  // 每周日 19:00（进化任务前）
+      payload: {
+        kind: 'agent_turn',
+        message: `
+📊 每周工具 ROI 审查
+
+**目标：找出"调用多但从未影响最终决策"的低 ROI 工具，减少工具表面积。**
+
+每个工具调用都是 token 和延迟成本。tool_stats_query 已经在收集调用数据，
+但没人用——今天你来用。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+步骤
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 使用 tool_stats_query 拉取本周工具调用统计
+   - 哪些工具被高频调用？
+   - 哪些工具调用成功但结果从未被后续决策引用？
+   - 哪些工具从未被调用（死工具）？
+
+2. 生成"低 ROI 工具清单"：
+   - 高调用 + 低决策影响 → 候选下线或合并
+   - 零调用 → 候选删除（注意区分：保活类工具如 backend_control 低频但必要）
+
+3. 用 decision_record 记录审查结论（decision_type: 'tool_roi_review'），
+   内容包括：候选下线清单 + 理由 + 预计节省的上下文成本
+
+4. 如发现高价值但低频的工具（应该多用），也一并记录建议
+
+注意：你只产出建议清单，不要直接修改工具注册表——下线决策由人工确认。
+        `
       },
       compensationEnabled: false,
       compensationCheckAfter: undefined,
