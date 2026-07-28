@@ -158,6 +158,7 @@ import { restartAgentTool } from "./agent/restart-agent-tool.js";
 import { backendControlTool } from "./agent/backend-control-tool.js";
 import { claudeCodeTool } from './agent/claude-code-tool.js';
 import { toolStatsQueryTool } from './agent/tool-stats-tool.js';
+import { modelSwitchTool } from './agent/model-switch-tool.js';
 
 // ===== CLI 领域工具已全部移除（2026-07-19 P0 清理）=====
 // market_cli/stock_cli/sentiment_cli/analysis_cli/watchlist_cli 从未注册进
@@ -353,6 +354,7 @@ export const allCustomTools = [
   backendControlTool,
   claudeCodeTool,
   toolStatsQueryTool,             // tool_stats_query - 工具使用统计查询
+  modelSwitchTool,                // model_switch - LLM provider 热切换
 
   // ===== 中频 — 记忆 =====
   memoryWriteTool,
