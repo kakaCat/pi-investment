@@ -115,6 +115,23 @@ def _ensure_test_tables(conn):
         )
     """)
 
+    # Create stop_loss_rules table if not exists (mirrors production schema)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS quant.stop_loss_rules (
+            id TEXT PRIMARY KEY,
+            symbol TEXT NOT NULL,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL CHECK (type IN ('fixed_price', 'fixed_percent', 'trailing_stop')),
+            stop_loss_percent REAL,
+            trailing_percent REAL,
+            atr_multiplier REAL,
+            status TEXT NOT NULL DEFAULT 'active'
+                CHECK (status IN ('active', 'inactive', 'triggered')),
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     cursor.close()
 
