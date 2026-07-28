@@ -32,12 +32,15 @@ class AccountTradingService:
         (dt_time(13, 0), dt_time(15, 0)),
     )
 
-    def __init__(self, repo: Optional[SimulationORMRepository] = None, calendar=None):
+    def __init__(self, repo: Optional[SimulationORMRepository] = None, calendar=None,
+                 now_fn=None):
         self.repo = repo or SimulationORMRepository()
         if calendar is None:
             from application.services.trading_calendar_service import TradingCalendarService
             calendar = TradingCalendarService()
         self.calendar = calendar
+        # 时间源可注入（测试用固定时间）；默认真实时钟
+        self.now_fn = now_fn or datetime.now
 
     def _get_price(self, symbol: str) -> float:
         from application.services.realtime_quote_service import RealtimeQuoteService
@@ -60,6 +63,14 @@ class AccountTradingService:
             raise TradingError(
                 f'非交易时段（{t.strftime("%H:%M")}），'
                 f'A股交易时段为 9:30-11:30 / 13:00-15:00，委托拒绝', 422)
+
+    def _is_in_trading_window(self, now: datetime) -> bool:
+        """复用 _check_trading_window 的判定逻辑，返回布尔而不抛异常"""
+        try:
+            self._check_trading_window(now)
+            return True
+        except TradingError:
+            return False
 
     def _check_daily_buy_limits(
         self, account_name: str, trade_amount: float, total_value: float
@@ -95,6 +106,7 @@ class AccountTradingService:
         max_positions: int = 10,
         price: Optional[float] = None,
         allow_off_hours: bool = False,
+        execute_at: Optional[str] = None,
     ) -> Dict:
         # ---- 校验 ----
         if not reason or len(reason.strip()) < 10:
@@ -102,8 +114,35 @@ class AccountTradingService:
         action = (action or '').lower()
         if action not in ('buy', 'sell'):
             raise TradingError("action 必须是 'buy' 或 'sell'", 400)
-        if not allow_off_hours:
-            self._check_trading_window(datetime.now())
+        if execute_at is not None and execute_at != 'market_open':
+            raise TradingError("execute_at 仅支持 'market_open'", 400)
+
+        now = self.now_fn()
+        in_window = self._is_in_trading_window(now)
+
+        # 条件委托：非交易时段 + execute_at='market_open' → 挂单，开盘后 9:31 起撮合。
+        # 仍校验账户存在且 active，但不查行情/资金/持仓——这些护栏在撮合时复核。
+        if execute_at == 'market_open' and not in_window:
+            account = self.repo.get_account(account_name)
+            if not account:
+                raise TradingError(f'账户不存在: {account_name}', 404)
+            if account.status != 'active':
+                raise TradingError(f'账户已归档，拒绝写操作: {account_name}', 409)
+            pending = self.repo.create_pending_order(
+                account_name=account_name, action=action, symbol=symbol,
+                shares=shares, amount=amount, price_limit=price_limit,
+                reason=reason, execute_at='market_open')
+            logger.info("pending_order_placed",
+                        account=account_name, action=action, symbol=symbol,
+                        pending_order_id=pending.id)
+            return {
+                'status': 'pending',
+                'pending_order_id': pending.id,
+                'message': '已挂单，开盘后 9:31 起自动撮合',
+            }
+
+        if not allow_off_hours and not in_window:
+            self._check_trading_window(now)  # 抛出带具体原因的 422
         account = self.repo.get_account(account_name)
         if not account:
             raise TradingError(f'账户不存在: {account_name}', 404)
@@ -268,6 +307,12 @@ class AccountTradingService:
             logger.error("trade_transaction_failed_rollback", error=str(e), exc_info=True)
             raise TradingError(f'交易执行失败: {e}', 500)
 
+        # 成交后自动写决策审计记录：簿记下沉服务端，不再依赖 LLM 自觉调 decision_record
+        self._auto_record_decision(
+            account_name=account_name, action=action, symbol=symbol,
+            shares=shares, price=px, amount=trade_amount,
+            reason=reason, realized_pnl=realized_pnl)
+
         return {
             'order_id': order.id,
             'order_status': 'filled',
@@ -283,3 +328,94 @@ class AccountTradingService:
             'realized_pnl': realized_pnl,
             'realized_pnl_rate': realized_pnl_rate,
         }
+
+    # ==================== 条件委托（挂单） ====================
+
+    def _auto_record_decision(
+        self, account_name: str, action: str, symbol: str,
+        shares: int, price: float, amount: float,
+        reason: Optional[str], realized_pnl: Optional[float],
+    ) -> None:
+        """成交后自动写 agent_decisions 审计记录。
+
+        失败只记日志不影响交易结果（审计不能拖垮主链路）。
+        Agent 只需在"放弃信号/不交易"时显式 decision_record——
+        成交类记录由本方法保证。
+        """
+        try:
+            from application.services.decision_service import DecisionService
+            DecisionService().record_decision({
+                'decision_type': f'trade_{action}',
+                'reasoning': reason or '',
+                'context': {'account': account_name, 'auto_recorded': True},
+                'parameters': {
+                    'symbol': symbol,
+                    'shares': shares,
+                    'price': price,
+                    'amount': amount,
+                    'realized_pnl': realized_pnl,
+                },
+                'related_entity_type': 'stock',
+                'related_entity_id': symbol,
+            })
+        except Exception as e:
+            logger.warning(f"auto_record_decision_failed（不影响成交）: {e}")
+
+    def execute_pending_orders(self, now: Optional[datetime] = None) -> Dict:
+        """撮合所有 pending 挂单（由 orchestrator 在开盘后 9:31 起调用）。
+
+        每个挂单走完整 execute_trade 护栏（不带 execute_at）：
+        - 成功 → status='executed' + executed_trade_id
+        - 护栏拒绝（TradingError）→ status='failed' + fail_reason
+        幂等：已处理的订单不再是 pending，重复调用无副作用。
+        """
+        now = now or self.now_fn()
+        pending = self.repo.get_pending_orders(status='pending')
+        executed = 0
+        failed = 0
+        details = []
+        for po in pending:
+            try:
+                result = self.execute_trade(
+                    account_name=po.account_name,
+                    action=po.action,
+                    symbol=po.symbol,
+                    shares=po.shares,
+                    amount=float(po.amount) if po.amount is not None else None,
+                    price_limit=float(po.price_limit) if po.price_limit is not None else None,
+                    reason=po.reason,
+                )
+                self.repo.update_pending_order_status(
+                    po.id, 'executed', executed_trade_id=result['trade_id'])
+                executed += 1
+                details.append({
+                    'pending_order_id': po.id,
+                    'status': 'executed',
+                    'trade_id': result['trade_id'],
+                })
+            except TradingError as e:
+                self.repo.update_pending_order_status(
+                    po.id, 'failed', fail_reason=str(e))
+                failed += 1
+                details.append({
+                    'pending_order_id': po.id,
+                    'status': 'failed',
+                    'fail_reason': str(e),
+                })
+        if executed or failed:
+            logger.info("pending_orders_matched",
+                        executed=executed, failed=failed, at=now.isoformat())
+        return {'executed': executed, 'failed': failed, 'details': details}
+
+    def cancel_pending_order(self, account_name: str, order_id: int) -> Dict:
+        """取消挂单（仅 pending 状态可取消）"""
+        order = self.repo.get_pending_order(order_id)
+        if not order or order.account_name != account_name:
+            raise TradingError(f'挂单不存在: {order_id}', 404)
+        if order.status != 'pending':
+            raise TradingError(
+                f'仅 pending 状态可取消，当前状态: {order.status}', 409)
+        self.repo.update_pending_order_status(order_id, 'cancelled')
+        logger.info("pending_order_cancelled",
+                    account=account_name, pending_order_id=order_id)
+        return {'status': 'cancelled', 'pending_order_id': order_id}
