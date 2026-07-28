@@ -1442,7 +1442,13 @@ def sector_aggregate():
         for stock_raw in stocks:
             # 修复：Stock 是 ORM 对象，需要先转为字典
             stock = stock_raw.to_dict() if hasattr(stock_raw, 'to_dict') else stock_raw
-            sector_name = stock.get(sector_field) or stock.get('sector', '未分类')
+            # fallback 链：请求字段 → sector → industry → 未分类
+            # （2026-07-28 前 fallback 写错：sector_field='sector' 时 fallback
+            # 还是查 sector 本身，sector 列从未填充导致全市场落入「未分类」）
+            sector_name = (stock.get(sector_field)
+                           or stock.get('sector')
+                           or stock.get('industry')
+                           or '未分类')
             if not sector_name:
                 sector_name = '未分类'
 
@@ -1479,6 +1485,10 @@ def sector_aggregate():
         # 按股票数量降序排序
         sectors_result.sort(key=lambda x: x['stock_count'], reverse=True)
 
+        # 未分类股票数（>0 说明 stocks 表 sector/industry 列有缺口）
+        unclassified_count = next(
+            (s['stock_count'] for s in sectors_result if s['name'] == '未分类'), 0)
+
         # 限制返回数量
         if limit:
             sectors_result = sectors_result[:limit]
@@ -1487,7 +1497,9 @@ def sector_aggregate():
             'sectors': sectors_result,
             'count': len(sectors_result),
             'sector_field': sector_field,
-            'total_stocks': len(stocks)
+            'total_stocks': len(stocks),
+            'unclassified_count': unclassified_count,
+            'degraded': unclassified_count > len(stocks) * 0.5,
         })
 
     except Exception as e:
