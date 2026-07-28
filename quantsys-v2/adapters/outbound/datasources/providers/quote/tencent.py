@@ -32,6 +32,7 @@ class TencentQuoteProvider(QuoteProvider):
         Raises:
             Exception: 网络错误或解析失败
         """
+        self.last_error = None
         try:
             # Convert symbol to Tencent format
             tencent_code = self._convert_to_tencent_code(symbol)
@@ -47,9 +48,13 @@ class TencentQuoteProvider(QuoteProvider):
 
             # Check for empty response
             if not response.text or '""' in response.text:
+                self.last_error = f"腾讯无 {tencent_code} 数据（代码不存在或该市场不支持）"
                 return None
 
-            return self._parse_quote(symbol, response.text)
+            quote = self._parse_quote(symbol, response.text)
+            if quote is None:
+                self.last_error = f"腾讯返回数据无法解析或代码无匹配 ({tencent_code})"
+            return quote
 
         except Exception as e:
             raise Exception(f"腾讯财经查询失败: {e}") from e
