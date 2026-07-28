@@ -56,9 +56,9 @@ export const tradingApi = {
   },
 
   /**
-   * 获取持仓列表（后端 account_name 必填，缺省用 DEFAULT_ACCOUNT）
+   * 获取持仓列表（account_name 必填）
    */
-  getPositions(accountName: string = DEFAULT_ACCOUNT) {
+  getPositions(accountName: string) {
     return apiClient.get('/api/portfolio/positions', {
       params: { account_name: accountName }
     })
@@ -72,9 +72,9 @@ export const tradingApi = {
   },
 
   /**
-   * 获取持仓汇总（后端 account_name 必填，缺省用 DEFAULT_ACCOUNT）
+   * 获取持仓汇总（account_name 必填）
    */
-  getPortfolioSummary(accountName: string = DEFAULT_ACCOUNT) {
+  getPortfolioSummary(accountName: string) {
     return apiClient.get<PortfolioSummaryResponse>('/api/portfolio/summary', {
       params: { account_name: accountName }
     })
