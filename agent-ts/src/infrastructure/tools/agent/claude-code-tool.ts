@@ -185,8 +185,24 @@ async function executeClaudeCode(params: ClaudeCodeParams): Promise<ClaudeCodeRe
         '-p',                          // Print mode (non-interactive)
         '--output-format', 'json',     // JSON output
         '--bare',                      // Minimal mode (skip hooks, LSP, etc.)
-        prompt,                        // The prompt as argument
       ];
+
+      // 额外允许目录（如 git worktree）：CLAUDE_CODE_ADD_DIRS=/path/a,/path/b
+      // 否则 Claude Code 权限系统会拒绝访问 cwd(PROJECT_ROOT) 之外的文件
+      const addDirs = (process.env.CLAUDE_CODE_ADD_DIRS || '')
+        .split(',')
+        .map((d) => d.trim())
+        .filter(Boolean);
+      for (const dir of addDirs) {
+        args.push('--add-dir', dir);
+      }
+
+      // print 模式无法应答交互式权限确认，需要显式跳过（CLAUDE_CODE_SKIP_PERMISSIONS=true）
+      if (process.env.CLAUDE_CODE_SKIP_PERMISSIONS === 'true') {
+        args.push('--dangerously-skip-permissions');
+      }
+
+      args.push(prompt);                 // The prompt as argument
 
       ctx.process = spawn(CONFIG.CLI_PATH, args, {
         cwd: PROJECT_ROOT,
