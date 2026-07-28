@@ -41,7 +41,7 @@ def register_v14_task():
     v14_config = {
         'task_name': 'v14_daily_trading',
         'description': 'V14量化交易每日检查（P0优化版，7天周期，5只持仓）',
-        'command': 'infrastructure.jobs.v14_trading_job.v14_daily_check',
+        'command': 'infrastructure.jobs.strategy_trading_job.v14_daily_check',
         'cron_expression': '30 15 * * 1-5',  # 交易日每天15:30
         'params': {
             'model_path': 'live_trading/models/v14_p0_model.json',

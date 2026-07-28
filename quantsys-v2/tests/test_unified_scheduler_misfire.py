@@ -76,8 +76,8 @@ def test_all_enabled_db_tasks_have_importable_execute():
     commands = [
         'infrastructure.jobs.kline_update_job.execute',
         'infrastructure.jobs.data_quality_check_job.execute',
-        'infrastructure.jobs.v13_trading_job.execute',
-        'infrastructure.jobs.v14_trading_job.v14_daily_check',
+        'infrastructure.jobs.strategy_trading_job.v13_daily_check',
+        'infrastructure.jobs.strategy_trading_job.v14_daily_check',
         'infrastructure.jobs.risk_check_job.execute',
         'infrastructure.jobs.verification_job.execute',
         'infrastructure.jobs.weekly_report_job.execute',

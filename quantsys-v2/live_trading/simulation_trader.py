@@ -34,6 +34,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from application.services.data_service import DataService
 from live_trading.factor_calculator import V13FactorCalculator
+from live_trading.v14_factor_calculator import V14FactorCalculator
+
+# 因子计算器注册表：新策略引入全新因子体系时在此注册一行
+FACTOR_CALCULATORS = {
+    'v13': V13FactorCalculator,
+    'v14': V14FactorCalculator,
+}
 from live_trading.simulation_broker import SimulationBroker
 from adapters.outbound.repositories import SimulationORMRepository
 from live_trading.v13_factors import get_factor_names
@@ -55,11 +62,29 @@ import psycopg2
 class SimulationTrader:
     """V13策略模拟交易器（使用数据库持久化）"""
 
-    def __init__(self, config_path='live_trading/config_simulation.yaml'):
-        """初始化"""
+    def __init__(self, config_path='live_trading/config_simulation.yaml',
+                 account_name='default', factor_calculator='v13'):
+        """初始化
+
+        Args:
+            config_path: 交易参数配置文件路径
+            account_name: 数据库账户名（必须在 _load_account_from_db 之前确定）
+            factor_calculator: 因子计算器，FACTOR_CALCULATORS 注册表键名或实例
+        """
         self.config = self._load_config(config_path)
         self.ds = DataService()
-        self.factor_calc = V13FactorCalculator()
+
+        # 因子计算器：注册表键名或直接传实例
+        if isinstance(factor_calculator, str):
+            if factor_calculator not in FACTOR_CALCULATORS:
+                raise ValueError(
+                    f"未知 factor_calculator: {factor_calculator}，"
+                    f"可用: {sorted(FACTOR_CALCULATORS)}"
+                )
+            self.factor_calc = FACTOR_CALCULATORS[factor_calculator]()
+        else:
+            self.factor_calc = factor_calculator
+
         self.broker = SimulationBroker(
             commission_rate=self.config['trading']['commission_rate'],
             slippage_rate=self.config['trading']['slippage_rate']
@@ -77,8 +102,13 @@ class SimulationTrader:
         self.model = None
         self.valid_factors = None
 
-        # 设置默认账户名称（可以被子类或外部修改）
-        self.account_name = 'default'
+        # 模型文件路径（load_model 读取，可在构造后由调用方覆盖）
+        base_dir = Path(__file__).parent
+        self.model_path = str(base_dir / 'models' / 'v13_model.json')
+        self.factors_path = str(base_dir / 'models' / 'valid_factors.json')
+
+        # 账户名称（必须在 _load_account_from_db 之前赋值）
+        self.account_name = account_name
 
         # 初始化风险控制
         self.risk_controller = RiskController(self.config['risk_control'])
@@ -635,14 +665,14 @@ class SimulationTrader:
         return valid_factors
 
     def load_model(self):
-        """加载已训练的模型"""
-        # 使用绝对路径（从当前文件位置计算）
-        base_dir = Path(__file__).parent
-        model_file = base_dir / 'models' / 'v13_model.json'
-        factors_file = base_dir / 'models' / 'valid_factors.json'
+        """加载已训练的模型（路径来自 self.model_path / self.factors_path）"""
+        model_file = Path(self.model_path)
+        factors_file = Path(self.factors_path)
 
         if not model_file.exists():
             raise FileNotFoundError(f"模型文件不存在: {model_file}")
+        if not factors_file.exists():
+            raise FileNotFoundError(f"因子文件不存在: {factors_file}")
 
         self.model = xgb.XGBRegressor(n_jobs=1)  # 使用单线程避免段错误
         self.model.load_model(str(model_file))
@@ -650,7 +680,7 @@ class SimulationTrader:
         with open(factors_file, 'r') as f:
             self.valid_factors = json.load(f)
 
-        logging.info(f"模型加载完成: {len(self.valid_factors)}个因子")
+        logging.info(f"模型加载完成: {len(self.valid_factors)}个因子 ({model_file.name})")
 
     def _is_trading_day(self, date_str: str) -> bool:
         """

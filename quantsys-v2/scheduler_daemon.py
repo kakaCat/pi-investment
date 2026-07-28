@@ -59,7 +59,7 @@ class SchedulerDaemon:
         动态导入Job函数
         
         Args:
-            command: 函数路径，如 "infrastructure.jobs.v13_trading_job.execute"
+            command: 函数路径，如 "infrastructure.jobs.strategy_trading_job.v13_daily_check"
             
         Returns:
             可调用的函数对象

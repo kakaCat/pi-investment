@@ -32,6 +32,8 @@ logger = logging.getLogger(__name__)
 class WeeklyReportJob:
     """周报任务"""
 
+    ACCOUNT_NAME = 'v13_simulation'  # V13 策略账户（此前误用已冻结的 default）
+
     def __init__(self, config_path: str):
         """初始化"""
         # 加载配置
@@ -77,7 +79,7 @@ class WeeklyReportJob:
         """
         # TODO: 实现准确的历史账户价值查询
         # 这里简化处理
-        account = self.repo.get_account(account_name='default')
+        account = self.repo.get_account(account_name=self.ACCOUNT_NAME)
         if not account:
             return 100000.0
 
@@ -94,7 +96,7 @@ class WeeklyReportJob:
         Returns:
             收益率列表
         """
-        positions = self.repo.list_positions(account_name='default')
+        positions = self.repo.get_all_positions(account_name=self.ACCOUNT_NAME)
         returns = []
 
         from infrastructure.persistence.repositories.kline_repository import KlineRepository
@@ -189,11 +191,11 @@ class WeeklyReportJob:
 
     def _get_next_rebalance_date(self) -> str:
         """获取下次调仓日期"""
-        account = self.repo.get_account(account_name='default')
+        account = self.repo.get_account(account_name=self.ACCOUNT_NAME)
         if not account or not account.last_rebalance_date:
             return "未知"
 
-        last_rebalance = datetime.strptime(account.last_rebalance_date, '%Y-%m-%d')
+        last_rebalance = datetime.strptime(str(account.last_rebalance_date), '%Y-%m-%d')
         rebalance_days = self.config['strategy']['rebalance_days']
 
         # 简化计算，实际应该按交易日计算
@@ -210,21 +212,21 @@ class WeeklyReportJob:
         logger.info(f"统计周期: {start_date} ~ {end_date}")
 
         # 获取账户信息
-        account = self.repo.get_account(account_name='default')
+        account = self.repo.get_account(account_name=self.ACCOUNT_NAME)
         if not account:
             logger.warning("账户不存在，跳过周报生成")
             return
 
         # 计算周初和周末账户价值
         initial_value = self._get_account_value_at_date(start_date)
-        final_value = self.repo.get_account_total_value(account_name='default')
+        final_value = float(account.total_value)
 
         # 计算本周收益
         weekly_return = (final_value - initial_value) / initial_value
 
         # 获取本周交易数据
-        trades = self.repo.get_trades_between(
-            account_name='default',
+        trades = self.repo.get_trades_by_account(
+            account_name=self.ACCOUNT_NAME,
             start_date=start_date,
             end_date=end_date
         )
@@ -232,7 +234,7 @@ class WeeklyReportJob:
         # 统计调仓次数（买入交易日期去重）
         rebalance_dates = set()
         for trade in trades:
-            if trade.direction == 'buy':
+            if trade.action == 'BUY':
                 rebalance_dates.add(trade.trade_date)
 
         rebalance_count = len(rebalance_dates)
@@ -251,8 +253,8 @@ class WeeklyReportJob:
         max_drawdown = min(position_returns) if position_returns else 0
 
         # 获取当前仓位水平
-        positions = self.repo.list_positions(account_name='default')
-        cash = account.cash
+        positions = self.repo.get_all_positions(account_name=self.ACCOUNT_NAME)
+        cash = float(account.cash_available)
         position_level = (final_value - cash) / final_value if final_value > 0 else 0
 
         # 止损次数（简化，从交易记录中统计卖出且亏损的）
@@ -267,7 +269,8 @@ class WeeklyReportJob:
         next_rebalance_date = self._get_next_rebalance_date()
 
         # 观察期进度
-        total_rebalances = self.repo.count_rebalances(account_name='default')
+        all_trades = self.repo.get_trades_by_account(account_name=self.ACCOUNT_NAME)
+        total_rebalances = len({t.trade_date for t in all_trades if t.action == 'BUY'})
         observation_cycles = self.config['feishu']['observation_period']['cycles']
         observation_progress = f"{total_rebalances}/{observation_cycles}"
 

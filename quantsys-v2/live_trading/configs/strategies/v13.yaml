@@ -10,7 +10,8 @@ strategy:
 
 model:
   model_path: "live_trading/models/v13_model.json"
-  factors_path: "live_trading/models/v13_valid_factors.json"
+  factor_calculator: v13
+  factors_path: "live_trading/models/valid_factors.json"
   factors_count: 68
   ic_value: 0.5465
 

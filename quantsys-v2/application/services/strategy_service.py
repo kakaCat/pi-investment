@@ -203,7 +203,7 @@ class StrategyService:
         trader = self._create_trader(config, **kwargs)
 
         # 执行调仓
-        result = trader.rebalance()
+        result = trader.rebalance(current_date=datetime.now().strftime('%Y-%m-%d'))
 
         logger.info(f"✅ {strategy_name} 调仓完成")
 
@@ -280,22 +280,24 @@ class StrategyService:
         Returns:
             SimulationTrader: 配置好的交易器实例
         """
-        trader = SimulationTrader()
+        # 账户与因子计算器必须在构造时注入（账户状态在 __init__ 内加载）
+        trader = SimulationTrader(
+            account_name=config['strategy']['account_name'],
+            factor_calculator=config['model'].get('factor_calculator', 'v13'),
+        )
 
-        # 基础配置
-        trader.account_name = config['strategy']['account_name']
+        # 模型文件路径（load_model 读取实例属性）
         trader.model_path = config['model']['model_path']
         trader.factors_path = config['model']['factors_path']
 
-        # 交易参数
-        trader.rebalance_days = kwargs.get('rebalance_days', config['trading']['rebalance_days'])
-        trader.max_positions = kwargs.get('max_positions', config['trading']['max_positions'])
-        trader.position_scale = kwargs.get('position_scale', config['trading']['max_position_pct'])
-        trader.top_n = kwargs.get('top_n', config['trading']['top_n'])
+        # 调仓周期：should_rebalance 读 config['strategy']['rebalance_days']
+        trader.config['strategy']['rebalance_days'] = kwargs.get(
+            'rebalance_days', config['trading']['rebalance_days'])
 
-        # 风险参数
+        # 止损阈值：check_single_stock_stop_loss 读 risk_controller.single_stop_loss
         if 'risk' in config:
-            trader.stop_loss_pct = kwargs.get('stop_loss_pct', config['risk']['single_stock_stop_loss'])
+            trader.risk_controller.single_stop_loss = kwargs.get(
+                'stop_loss_pct', config['risk']['single_stock_stop_loss'])
 
         # 加载模型
         trader.load_model()
@@ -303,8 +305,8 @@ class StrategyService:
         logger.info(f"交易器已配置:")
         logger.info(f"  账户: {trader.account_name}")
         logger.info(f"  模型: {trader.model_path}")
-        logger.info(f"  调仓周期: {trader.rebalance_days}天")
-        logger.info(f"  最大持仓: {trader.max_positions}只")
+        logger.info(f"  调仓周期: {trader.config['strategy']['rebalance_days']}天")
+        logger.info(f"  单股止损: {trader.risk_controller.single_stop_loss:.0%}")
 
         return trader
 

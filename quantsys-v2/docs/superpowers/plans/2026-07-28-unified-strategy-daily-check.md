@@ -1,6 +1,6 @@
 # 统一 v13/v14 策略每日检查实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 修复并启用 StrategyService 统一架构，让 v13/v14 的止损/调仓真正按各自配置运行，新策略纯配置化接入。
 
@@ -18,7 +18,7 @@
 - Modify: `live_trading/simulation_trader.py:58-95`（`__init__`）
 - Test: `tests/test_strategy_service_unified.py`（新建）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 创建 `tests/test_strategy_service_unified.py`：
 
@@ -75,12 +75,12 @@ def test_factor_calculator_unknown_raises():
         _make_trader(factor_calculator='v99')
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `cd quantsys-v2 && venv/bin/python -m pytest tests/test_strategy_service_unified.py -v`
 Expected: FAIL — `TypeError: SimulationTrader.__init__() got an unexpected keyword argument 'account_name'`
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 修改 `live_trading/simulation_trader.py`：
 
@@ -155,12 +155,12 @@ b) 修改 `__init__` 签名与账户/因子计算器赋值（约 58-95 行）：
 
 注意：删除原来的 `self.factor_calc = V13FactorCalculator()`（62 行）和 `self.account_name = 'default'`（81 行）两处旧赋值。
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `venv/bin/python -m pytest tests/test_strategy_service_unified.py -v`
 Expected: 5 个测试全 PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add quantsys-v2/live_trading/simulation_trader.py quantsys-v2/tests/test_strategy_service_unified.py
@@ -178,7 +178,7 @@ git commit -m "feat(quantsys-v2): SimulationTrader 构造函数参数化 account
 - Modify: `live_trading/simulation_trader.py:637-655`（`load_model`）
 - Test: `tests/test_strategy_service_unified.py`（追加）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 追加到 `tests/test_strategy_service_unified.py`：
 
@@ -206,12 +206,12 @@ def test_load_model_uses_instance_paths(tmp_path):
     assert trader.model is not None
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `venv/bin/python -m pytest tests/test_strategy_service_unified.py::test_load_model_uses_instance_paths -v`
 Expected: FAIL — 断言不成立（旧代码加载仓库默认的 75 因子文件而非临时文件）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 修改 `live_trading/simulation_trader.py` 的 `load_model`：
 
@@ -235,12 +235,12 @@ Expected: FAIL — 断言不成立（旧代码加载仓库默认的 75 因子文
         logging.info(f"模型加载完成: {len(self.valid_factors)}个因子 ({model_file.name})")
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `venv/bin/python -m pytest tests/test_strategy_service_unified.py -v`
 Expected: 全 PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add quantsys-v2/live_trading/simulation_trader.py quantsys-v2/tests/test_strategy_service_unified.py
@@ -256,7 +256,7 @@ git commit -m "fix(quantsys-v2): load_model 改用实例属性，v14 不再错�
 - Modify: `live_trading/configs/strategies/v13.yaml`、`live_trading/configs/strategies/v14.yaml`（model 节加一行）
 - Test: `tests/test_strategy_service_unified.py`（追加）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 追加：
 
@@ -318,12 +318,12 @@ def test_manual_rebalance_passes_current_date():
     assert result['status'] == 'success'
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `venv/bin/python -m pytest tests/test_strategy_service_unified.py -k "create_trader or manual_rebalance" -v`
 Expected: FAIL（构造调用无 kwargs；rebalance 缺 current_date）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 a) 修改 `application/services/strategy_service.py` 的 `_create_trader`：
 
@@ -394,12 +394,12 @@ d) `live_trading/configs/strategies/v14.yaml` 的 `model:` 节加一行：
   factor_calculator: v14
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `venv/bin/python -m pytest tests/test_strategy_service_unified.py -v`
 Expected: 全 PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add quantsys-v2/application/services/strategy_service.py \
@@ -416,7 +416,7 @@ git commit -m "fix(quantsys-v2): StrategyService 配置真正生效（账户/模
 **Files:**
 - Test: `tests/test_strategy_service_unified.py`（追加）
 
-- [ ] **Step 1: 写测试（此任务为纯测试加固，应直接通过）**
+- [x] **Step 1: 写测试（此任务为纯测试加固，应直接通过）**
 
 追加：
 
@@ -471,12 +471,12 @@ def test_stop_loss_skipped_when_portfolio_empty():
 
 注意：`run_daily_check` 内 `if self.portfolio:` 为 False 时不会调用 `_get_current_prices`。
 
-- [ ] **Step 2: 运行测试**
+- [x] **Step 2: 运行测试**
 
 Run: `venv/bin/python -m pytest tests/test_strategy_service_unified.py -v`
 Expected: 全 PASS（若有 FAIL 说明 Task 1-3 改动破坏了 run_daily_check 链路，回查而非改测试）
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add quantsys-v2/tests/test_strategy_service_unified.py
@@ -497,7 +497,7 @@ git commit -m "test(quantsys-v2): 止损触发链路回归测试（触发/未触
 - Modify: `domain/strategies/v14_strategy.py:88`（注释）
 - Delete: `infrastructure/jobs/v13_trading_job.py`、`infrastructure/jobs/v14_trading_job.py`
 
-- [ ] **Step 1: 迁移所有 import/引用**
+- [x] **Step 1: 迁移所有 import/引用**
 
 a) 三个 v14 路由文件（`adapters/inbound/web/v14_api.py`、`adapters/inbound/fastapi_app/routes/v14_trading.py`、`adapters/inbound/api/routes/v14_trading.py`）第 10 行统一改为：
 
@@ -540,7 +540,7 @@ e) `tests/test_unified_scheduler_misfire.py:79-80` 两个 command 字符串改�
 
 f) `domain/strategies/v14_strategy.py:88` 注释改为 `# 实际交易通过 strategy_trading_job（统一入口）执行`。
 
-- [ ] **Step 2: 删除旧 job 文件并确认零残留**
+- [x] **Step 2: 删除旧 job 文件并确认零残留**
 
 ```bash
 rm quantsys-v2/infrastructure/jobs/v13_trading_job.py quantsys-v2/infrastructure/jobs/v14_trading_job.py
@@ -549,12 +549,12 @@ grep -rn "v13_trading_job\|v14_trading_job" quantsys-v2 --include="*.py" | grep 
 
 Expected: 无输出（scheduler_daemon.py:62 docstring 中的示例字符串除外——把它也改成 `infrastructure.jobs.strategy_trading_job.v13_daily_check` 后即应无输出）
 
-- [ ] **Step 3: 运行受影响测试**
+- [x] **Step 3: 运行受影响测试**
 
 Run: `venv/bin/python -m pytest tests/test_v13_scheduler.py tests/test_unified_scheduler_misfire.py tests/test_strategy_service_unified.py -v`
 Expected: 全 PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A quantsys-v2
@@ -571,7 +571,7 @@ git commit -m "refactor(quantsys-v2): 全部引用迁移到统一 strategy_tradi
 
 背景：`run()` 调用了 4 个不存在/不匹配的 repo 接口：`get_account_total_value`、`get_trades_between`、`list_positions`（2 处）、`count_rebalances`，且 `trade.direction`、`account.cash` 字段名错误，账户硬编码 `'default'`。repo 真实接口：`get_account`（返回 ORM，含 `total_value`/`cash_available`/`initial_capital`/`last_rebalance_date`(date)/`created_at`）、`get_trades_by_account(account, start_date, end_date)`（trade.action 为 'BUY'/'SELL'）、`get_all_positions(account)`。
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 创建 `tests/test_weekly_report_job.py`：
 
@@ -619,12 +619,12 @@ def test_run_completes_with_existing_repo_methods():
     job.repo.get_trades_by_account.assert_called()
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `venv/bin/python -m pytest tests/test_weekly_report_job.py -v`
 Expected: FAIL — `AttributeError: ... get_account_total_value`（或 account_name 断言失败）
 
-- [ ] **Step 3: 实现**
+- [x] **Step 3: 实现**
 
 修改 `infrastructure/jobs/weekly_report_job.py`：
 
@@ -692,12 +692,12 @@ e) `_get_account_value_at_date`、`_get_next_rebalance_date`、`_calculate_posit
         last_rebalance = datetime.strptime(str(account.last_rebalance_date), '%Y-%m-%d')
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `venv/bin/python -m pytest tests/test_weekly_report_job.py -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add quantsys-v2/infrastructure/jobs/weekly_report_job.py quantsys-v2/tests/test_weekly_report_job.py
@@ -711,7 +711,7 @@ git commit -m "fix(quantsys-v2): 周报任务改用现有 repo 接口与 v13_sim
 **Files:**
 - DB: `quant.scheduler_task_configs`（2 行 UPDATE）、`public.scheduler_tasks`（1 行 DELETE）
 
-- [ ] **Step 1: 切换调度命令到统一 job**
+- [x] **Step 1: 切换调度命令到统一 job**
 
 ```bash
 cd quantsys-v2 && set -a && source .env && set +a && psql "$PGDATABASE" <<'SQL'
@@ -736,12 +736,12 @@ psql "$PGDATABASE" -c "SELECT task_name, command, cron_expression FROM quant.sch
 
 Expected: 两行 command 均为 `infrastructure.jobs.strategy_trading_job.*`，cron 不变（14:25 / 15:30）
 
-- [ ] **Step 2: 全量测试**
+- [x] **Step 2: 全量测试**
 
 Run: `venv/bin/python -m pytest tests/ -q`
 Expected: 全 PASS（若有与本次无关的历史失败，记录并在交付说明中列出，不在本计划内修）
 
-- [ ] **Step 3: 重启 scheduler_daemon（必须用 venv python）**
+- [x] **Step 3: 重启 scheduler_daemon（必须用 venv python）**
 
 当前 daemon 进程用的是 homebrew Python（PID 35470），重启为：
 
@@ -752,14 +752,14 @@ cd quantsys-v2 && nohup venv/bin/python scheduler_daemon.py >> logs/scheduler_da
 
 验证：新进程启动日志中出现 `✓ Task loaded: v13_daily_trading` / `v14_daily_trading`，且 14:25/15:30 触发时日志显示统一 job 的 "使用旧接口 v13_daily_check()，建议迁移到 strategy_daily_check('v13')" 字样（兼容壳输出，证明走的是统一入口）。
 
-- [ ] **Step 4: 首跑人工验证（可选，交易日 14:25 后）**
+- [x] **Step 4: 首跑人工验证（可选，交易日 14:25 后）**
 
 ⚠️ v14 首跑将按设计立即止损卖出 300162/300432（已与用户确认）。验证点：
 1. daemon 日志 v14 任务出现 `触发单股止损: ['300162', '300432']`
 2. `psql "$PGDATABASE" -c "SELECT symbol, action, shares, price, trade_date FROM quant.simulation_trades WHERE account_name='v14_simulation' ORDER BY id DESC LIMIT 5;"` 出现 SELL 记录
 3. v14 日志显示 `模型加载完成: 78个因子 (v14_p0_model.json)`（此前误载 v13 的 75 因子）
 
-- [ ] **Step 5: Commit（如有文档/脚本变更）**
+- [x] **Step 5: Commit（如有文档/脚本变更）**
 
 无代码变更则跳过 commit；在交付说明中汇报 DB 变更与 daemon 重启结果。
 

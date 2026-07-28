@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 from datetime import datetime
 import logging
 
-from infrastructure.jobs.v14_trading_job import v14_daily_check, v14_manual_rebalance
+from infrastructure.jobs.strategy_trading_job import v14_daily_check, v14_manual_rebalance
 from live_trading.simulation_trader import SimulationTrader
 
 logger = logging.getLogger(__name__)

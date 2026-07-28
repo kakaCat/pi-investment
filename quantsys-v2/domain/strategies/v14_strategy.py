@@ -85,7 +85,7 @@ class V14Strategy(BaseStrategy):
 
         # 这里应该调用trader的选股逻辑
         # 由于SimulationTrader是完整流程，这里返回空列表
-        # 实际交易通过v14_trading_job执行
+        # 实际交易通过 strategy_trading_job（统一入口）执行
 
         return signals
 

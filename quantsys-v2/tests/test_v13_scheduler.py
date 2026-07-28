@@ -26,7 +26,7 @@ def test_job():
     print("="*70)
 
     try:
-        from infrastructure.jobs.v13_trading_job import execute
+        from infrastructure.jobs.strategy_trading_job import v13_daily_check as execute
         print("✅ Job模块导入成功")
 
         result = execute(
