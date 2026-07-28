@@ -50,6 +50,7 @@ import { portfolioOptimizerTool } from "./portfolio/portfolio-optimizer-tool.js"
 import { portfolioTradeTool } from "./portfolio/portfolio-trade-tool.js";  // 新增：虚拟仓交易
 import { portfolioStatusTool } from "./portfolio/portfolio-status-tool.js";  // 新增：虚拟仓状态
 import { portfolioDailyBriefTool } from "./portfolio/portfolio-daily-brief-tool.js";  // 新增：每日对账单
+import { tradeJournalTool } from "./journal/trade-journal-tool.js";  // 新增：统一交易簿记
 import { portfolioAnalyzeTool } from "./portfolio/portfolio-analyze-tool.js";  // 新增：持仓分析
 import { portfolioAccountTool } from "./portfolio/portfolio-account-tool.js";  // 新增：账户管理
 
@@ -183,7 +184,6 @@ import { trainingReportsTool } from "./model/training-reports-tool.js";
 // manageStockDBTool 已删除 - 使用独立的 data 工具替代
 
 // ===== 工具支持 =====
-import { scheduleNextCheckTool } from "./monitor/monitor-schedule-tool.js";
 
 export { initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, getBackgroundManager, getTaskManager };
 export { initMemoryTools } from "./agent/memory-tool.js";
@@ -341,6 +341,7 @@ export const allCustomTools = [
   portfolioTradeTool,             // portfolio_trade - Agent虚拟仓交易
   portfolioStatusTool,            // portfolio_status - 查看虚拟仓状态
   portfolioDailyBriefTool,        // portfolio_daily_brief - 每日对账单（复盘入口）
+  tradeJournalTool,               // trade_journal - 统一交易簿记（record/experience/status/daily_report）
   portfolioAnalyzeTool,           // portfolio_analyze - 分析持仓给出建议
   portfolioAccountTool,           // portfolio_account - 账户管理（开户）
   performanceAnalyzerTool,        // performance_analyzer - 性能分析工具
@@ -348,7 +349,6 @@ export const allCustomTools = [
   timeseriesAnalyzerTool,         // timeseries_analyzer - 时间序列分析工具
 
   // ===== 通知 & 监控工具 — 消息推送、实时盯盘 =====
-  scheduleNextCheckTool,          // schedule_next_check - 设置下次盯盘时间
 
   // ===== 进化工具 — 自我优化 =====
   evolutionRunTool,
