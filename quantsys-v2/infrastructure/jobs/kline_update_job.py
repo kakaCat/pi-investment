@@ -16,6 +16,7 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
 import sys
 import time
+import random
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -39,15 +40,16 @@ def update_gem_klines(**params):
             - days: 更新最近N天的数据（默认5天）
             - symbols: 指定股票代码列表（可选）
             - scope: 'all' 全市场（默认）| 'gem' 仅创业板
-            - pause: 每只股票请求间隔秒数（默认0.3；腾讯源对高频请求会
-              限流——2026-07-28 实测 pause=0.05 跑约770只后被断流，
-              连空 50 只会自适应休眠 30s）
+            - interval_seconds: 每只股票请求间隔秒数区间 (low, high)，
+              默认 (0.3, 0.8) 随机抖动（防 WAF 封禁——2026-07-28 实测
+              间隔 0.05s 跑约770只后被断流；连空 50 只会自适应休眠 30s）。
+              interval_seconds=0 关闭（测试/小批量用）
+            - pause: （已废弃别名）等价于 interval_seconds=(pause, pause)
 
     Returns:
         dict: 执行结果
     """
     scope = params.get('scope', 'all')
-    pause = float(params.get('pause', 0.3))
 
     logger.info("="*70)
     logger.info(f"K线数据更新任务开始 (scope={scope})")
@@ -56,6 +58,11 @@ def update_gem_klines(**params):
 
     days = params.get('days', 5)
     specific_symbols = params.get('symbols', None)
+    # 请求限速：每只股票之间的间隔秒数区间（防 WAF 封禁，2026-07-28）
+    # interval_seconds=0 关闭（测试/小批量用）；pause 为废弃别名
+    pause = params.get('pause', None)
+    default_interval = (0.3, 0.8) if pause is None else (float(pause), float(pause))
+    interval = params.get('interval_seconds', default_interval)
 
     engine = None
     conn = None
@@ -122,6 +129,9 @@ def update_gem_klines(**params):
         consecutive_empty = 0
 
         for i, (symbol, name) in enumerate(stocks, 1):
+            # 限速：首只之前不 sleep
+            if i > 1 and interval and interval[1] > 0:
+                time.sleep(random.uniform(*interval))
             try:
                 # 使用多数据源获取数据（自动fallback：tencent → akshare）
                 # 注意：manager.get_klines 返回 {'success', 'data', 'source'} 字典，
@@ -174,15 +184,12 @@ def update_gem_klines(**params):
                         float(k.close),
                         int(k.volume),
                         float(k.amount),
-                        0.0,  # turnover_rate: KlineData 契约无此字段
+                        float(k.turnover_rate),
                     ))
                     inserted += 1
 
                 conn.commit()
                 success += 1
-
-                if pause > 0:
-                    time.sleep(pause)
 
                 if i % 200 == 0:
                     logger.info(f"进度: [{i}/{total}] 成功{success} 失败{failed} 跳过{skipped}")
@@ -194,11 +201,21 @@ def update_gem_klines(**params):
 
         cursor.close()
 
+        # 封禁/故障降级检测：样本足够且成功率过低时标记（2026-07-28）
+        processed = success + failed + skipped
+        provider_health = 'ok'
+        if processed >= 20 and success < processed * 0.5:
+            provider_health = 'degraded'
+            logger.critical(
+                f"⚠️ K线数据源疑似被封/故障: {processed}只仅{success}只成功，"
+                f"请检查 provider 状态（WAF/IP封禁）")
+
         result = {
             'action': 'kline_update',
             'status': 'success',
             'scope': scope,
             'timestamp': datetime.now().isoformat(),
+            'provider_health': provider_health,
             'total': total,
             'success': success,
             'failed': failed,

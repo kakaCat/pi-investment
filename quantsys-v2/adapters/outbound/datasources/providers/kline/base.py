@@ -21,6 +21,7 @@ class KlineData:
     volume: int
     change_pct: float = 0.0
     amount: float = 0.0
+    turnover_rate: float = 0.0  # 换手率 %（仅 baostock 提供原始值）
     source: str = ""
     timestamp: str = ""  # ISO format
 
