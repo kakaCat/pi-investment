@@ -290,7 +290,7 @@ class MarketDataService:
         thread = threading.Thread(target=fetch_data)
         thread.daemon = True
         thread.start()
-        thread.join(timeout=15)  # 15秒超时
+        thread.join(timeout=60)  # CCASS 首次抓取需 4 次 POST（约 4MB），给足 60 秒
 
         if thread.is_alive():
             self.logger.warning("北向资金数据源超时 (15秒)，尝试使用旧缓存")
@@ -298,6 +298,7 @@ class MarketDataService:
             stale_cache = self.cache.get_stale(cache_key)
             if stale_cache:
                 self.logger.warning(f"使用旧缓存数据: {cache_key}")
+                stale_cache['stale'] = True
                 return stale_cache
 
             return {
@@ -313,6 +314,7 @@ class MarketDataService:
             stale_cache = self.cache.get_stale(cache_key)
             if stale_cache:
                 self.logger.warning(f"使用旧缓存数据: {cache_key}")
+                stale_cache['stale'] = True
                 return stale_cache
             raise error[0]
 
@@ -324,130 +326,116 @@ class MarketDataService:
 
     def _fetch_north_flow_data(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, Any]:
         """
-        实际获取北向资金数据的内部方法
+        北向资金估算（港交所 CCASS 持股变化法）
+
+        背景：交易所自 2024-08-17 起停止披露北向每日净买入，东财相关接口
+        全部失效（2026-07 实测不可恢复）。改用港交所官方 CCASS 北向持股
+        数据：净买入估算 = (今日持股量 - 前日持股量) × 收盘价。
+
+        返回契约（与 TS fetch-north-flow-tool.ts 对齐）：
+            {success, data: [{trade_date, net_flow, sh_net_flow, sz_net_flow}],
+             summary: {total_net_flow, latest_date, method, estimated,
+                       top_inflows, top_outflows, coverage}}
         """
         try:
-            import akshare as ak
+            from adapters.outbound.datasources.north_flow_ccass import NorthHoldingsCCASSSource
+            from adapters.outbound.repositories import KlineORMRepository
 
-            self.logger.info(f"获取北向资金流向: start_date={start_date}, end_date={end_date}")
+            source = NorthHoldingsCCASSSource()
 
-            # 设置默认日期范围（最近30天）
-            if not end_date:
-                end_date = datetime.now().strftime("%Y%m%d")
-            if not start_date:
-                start_date = (datetime.now() - timedelta(days=30)).strftime("%Y%m%d")
-
-            # Normalize dates
-            start = start_date.replace('-', '')
-            end = end_date.replace('-', '')
-            today = datetime.now().strftime("%Y%m%d")
-
-            flow_data = []
-
-            # 1. Get historical data from 沪股通 and 深股通 (valid until 2024-08-16)
-            for symbol in ["沪股通", "深股通"]:
-                try:
-                    df_hist = ak.stock_hsgt_hist_em(symbol=symbol)
-                    if df_hist is not None and not df_hist.empty:
-                        for _, row in df_hist.iterrows():
-                            date_raw = row.get("日期") or row.get("date")
-                            if date_raw is None or pd.isna(date_raw):
-                                continue
-                            date_str = str(date_raw)[:10].replace("-", "")
-
-                            # Skip if outside date range
-                            if date_str < start or date_str > end:
-                                continue
-
-                            net_flow = row.get("当日成交净买额", row.get("净流入"))
-                            # Skip NaN values (data source issue from 2024-08-17 onwards)
-                            if net_flow is None or pd.isna(net_flow):
-                                continue
-                            net_flow = float(net_flow)
-
-                            # Format date as YYYY-MM-DD
-                            if len(date_str) == 8:
-                                date_display = f'{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}'
-                            else:
-                                date_display = date_str
-
-                            # Find existing entry for this date or create new
-                            existing = next((item for item in flow_data if item['date'] == date_display), None)
-                            if existing:
-                                existing['net_flow'] += net_flow
-                            else:
-                                flow_data.append({
-                                    'date': date_display,
-                                    'net_flow': net_flow,
-                                })
-                except Exception as e:
-                    self.logger.warning(f"{symbol} 数据获取失败: {e}")
-                    pass
-
-            # 2. Get today's data if requested
-            if today >= start and today <= end:
-                try:
-                    df_today = ak.stock_hsgt_fund_flow_summary_em()
-                    if df_today is not None and not df_today.empty:
-                        # Filter for northbound (北向) data only
-                        north_data = df_today[df_today['资金方向'] == '北向']
-
-                        if not north_data.empty:
-                            # Sum up 沪股通 and 深股通
-                            total_net_flow = north_data['成交净买额'].sum()
-
-                            # Format today's date
-                            today_display = f'{today[:4]}-{today[4:6]}-{today[6:8]}'
-
-                            # Only add if not already in historical data
-                            if not any(item['date'] == today_display for item in flow_data):
-                                flow_data.append({
-                                    'date': today_display,
-                                    'net_flow': float(total_net_flow),
-                                })
-                except Exception as e:
-                    self.logger.warning(f"今日数据获取失败: {e}")
-                    pass
-
-            # Sort by date
-            flow_data.sort(key=lambda x: x['date'])
-
-            if not flow_data:
+            # 1. 找最近两个实际披露日（2024-08 起北向持股改为季度披露）
+            dates = source.find_latest_two_disclosures()
+            if len(dates) < 2:
                 return {
                     'success': False,
-                    'error': '暂无北向资金流向数据',
+                    'error': 'CCASS 北向持股披露数据不可用',
                     'data': None
                 }
 
-            # 计算统计数据
-            total_net_flow = sum(item.get('net_flow', 0) for item in flow_data)
-            avg_net_flow = total_net_flow / len(flow_data) if flow_data else 0
+            latest_date, prev_date = dates[0], dates[1]
+            self.logger.info(f"北向持股对比（季度）: {prev_date} -> {latest_date}")
+
+            # 2. 拉两个日期的沪深持股快照
+            snapshots = {}
+            for d in (latest_date, prev_date):
+                snapshots[d] = (
+                    source.fetch_holdings(d, 'sh') + source.fetch_holdings(d, 'sz')
+                )
+
+            # 3. 收盘价（用对比日的最新 K 线）
+            kline_repo = KlineORMRepository()
+            symbols = list({r['symbol'] for r in snapshots[latest_date]}
+                           | {r['symbol'] for r in snapshots[prev_date]})
+            klines = kline_repo.get_latest_daily_klines_batch(symbols)
+            prices = {s: (k.get('close') if k else None) for s, k in klines.items()}
+
+            # 4. 持股变化 × 收盘价 = 估算净买入
+            prev_map = {r['symbol']: r for r in snapshots[prev_date]}
+            latest_map = {r['symbol']: r for r in snapshots[latest_date]}
+
+            sh_net = 0.0
+            sz_net = 0.0
+            priced_count = 0
+            changes = []
+            for symbol, cur in latest_map.items():
+                prev_shares = prev_map.get(symbol, {}).get('shares_held', 0)
+                delta = cur['shares_held'] - prev_shares
+                if delta == 0:
+                    continue
+                price = prices.get(symbol)
+                if not price:
+                    continue
+                value = delta * price
+                priced_count += 1
+                if symbol.startswith('6'):
+                    sh_net += value
+                else:
+                    sz_net += value
+                changes.append({
+                    'symbol': symbol,
+                    'name': cur.get('name'),
+                    'delta_shares': delta,
+                    'close': price,
+                    'estimated_value': round(value, 2),
+                })
+
+            total_net = sh_net + sz_net
+            changes.sort(key=lambda x: x['estimated_value'], reverse=True)
+            coverage = priced_count / len(latest_map) if latest_map else 0
+
+            flow_data = [{
+                'trade_date': latest_date,
+                'net_flow': round(total_net, 2),
+                'sh_net_flow': round(sh_net, 2),
+                'sz_net_flow': round(sz_net, 2),
+            }]
 
             return {
                 'success': True,
-                'data': {
-                    'flow_data': flow_data,
-                    'statistics': {
-                        'total_net_flow': round(total_net_flow, 2),
-                        'avg_net_flow': round(avg_net_flow, 2),
-                        'days': len(flow_data)
-                    },
-                    'update_time': datetime.now().isoformat()
-                }
+                'data': flow_data,
+                'summary': {
+                    'total_net_flow': round(total_net, 2),
+                    'latest_date': latest_date,
+                    'prev_date': prev_date,
+                    'days': 1,
+                    'method': 'ccass_holdings_change',
+                    'disclosure_frequency': 'quarterly',
+                    'estimated': True,
+                    'note': '北向每日净买入已于 2024-08 停止披露（交易所规则变更）；'
+                            '此为港交所 CCASS 季度持股变化 × 收盘价的估算值，'
+                            '反映外资季度级调仓方向，不代表每日资金流',
+                    'coverage': round(coverage, 3),
+                    'top_inflows': changes[:10],
+                    'top_outflows': changes[-10:][::-1],
+                },
+                'update_time': datetime.now().isoformat()
             }
 
-        except ImportError as e:
-            self.logger.error(f"模块导入失败: {e}")
-            return {
-                'success': False,
-                'error': f'模块不可用: {str(e)}',
-                'data': None
-            }
         except Exception as e:
-            self.logger.error(f"获取北向资金流向失败: {e}", exc_info=True)
+            self.logger.error(f"北向资金估算失败: {e}", exc_info=True)
             return {
                 'success': False,
-                'error': f'数据获取失败: {str(e)}',
+                'error': f'北向资金估算失败: {str(e)}',
                 'data': None
             }
 
