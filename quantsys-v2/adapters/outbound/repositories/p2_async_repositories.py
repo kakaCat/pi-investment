@@ -94,17 +94,20 @@ class PositionAsyncRepository(AsyncBaseORMRepository[Position]):
 
 # ==================== FundFlow ====================
 class FundFlow(Base):
-    """资金流向ORM"""
-    __tablename__ = 'fund_flows'
+    """资金流向ORM（quant.stock_fund_flow，金额单位：万元）"""
+    __tablename__ = 'stock_fund_flow'
     __table_args__ = {'schema': 'quant', 'extend_existing': True}
 
-    id = Column(BigInteger, primary_key=True)
+    id = Column(Integer, primary_key=True)
     symbol = Column(String(20))
-    flow_date = Column(Date)
-    main_inflow = Column(Float)
-    main_outflow = Column(Float)
-    retail_inflow = Column(Float)
-    retail_outflow = Column(Float)
+    trade_date = Column(Date)
+    close_price = Column(Float)
+    change_pct = Column(Float)
+    main_net_inflow = Column(Float)
+    large_net_inflow = Column(Float)
+    big_net_inflow = Column(Float)
+    medium_net_inflow = Column(Float)
+    small_net_inflow = Column(Float)
 
 
 class FundFlowAsyncRepository(AsyncBaseORMRepository[FundFlow]):
@@ -125,13 +128,18 @@ class FundFlowAsyncRepository(AsyncBaseORMRepository[FundFlow]):
             if symbol:
                 stmt = stmt.where(FundFlow.symbol == symbol)
             if start_date:
-                stmt = stmt.where(FundFlow.flow_date >= start_date)
-            stmt = stmt.order_by(desc(FundFlow.flow_date)).limit(limit)
+                stmt = stmt.where(FundFlow.trade_date >= start_date)
+            stmt = stmt.order_by(desc(FundFlow.trade_date)).limit(limit)
 
             result = await self.session.execute(stmt)
             flows = result.scalars().all()
-            return [{'symbol': f.symbol, 'flow_date': f.flow_date.isoformat() if f.flow_date else None,
-                     'main_inflow': f.main_inflow, 'main_outflow': f.main_outflow} for f in flows]
+            return [{'symbol': f.symbol, 'trade_date': f.trade_date.isoformat() if f.trade_date else None,
+                     'close_price': f.close_price, 'change_pct': f.change_pct,
+                     'main_net_inflow': f.main_net_inflow,
+                     'large_net_inflow': f.large_net_inflow,
+                     'big_net_inflow': f.big_net_inflow,
+                     'medium_net_inflow': f.medium_net_inflow,
+                     'small_net_inflow': f.small_net_inflow} for f in flows]
         except Exception as e:
             logger.error(f"Error getting flows: {e}")
             return []

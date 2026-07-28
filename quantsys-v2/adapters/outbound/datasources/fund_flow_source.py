@@ -1,9 +1,11 @@
 """
 资金流向数据源
 
-支持多数据源策略：
-1. 东方财富 (primary)
-2. AkShare (fallback)
+数据源：东方财富（唯一真实源）
+
+⚠️ 历史上曾有 AkShareFundFlowSource 备用源用 random.uniform 生成模拟资金流
+还标记 source: 'api'，污染下游所有资金分析，已于 2026-07-28 删除。
+主源失败时必须显式报错，绝不返回假数据。
 """
 import logging
 from typing import Dict, List, Optional
@@ -14,12 +16,11 @@ logger = logging.getLogger(__name__)
 
 
 class FundFlowDataSource:
-    """资金流向数据源 - 多数据源策略 + 本地缓存"""
+    """资金流向数据源 - 东方财富 + 本地缓存"""
 
     def __init__(self):
         self.sources = [
             EastMoneyFundFlowSource(),
-            AkShareFundFlowSource(),
         ]
         # 新增：本地缓存 Repository
         try:
@@ -340,52 +341,206 @@ class EastMoneyFundFlowSource:
                 elif key in os.environ:
                     del os.environ[key]
 
+    # 全市场 A 股范围（沪深京）
+    _MARKET_FS = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048"
+    # 金额字段均为元，落库前 /10000 转万元
+    _CLIST_FIELDS = "f12,f14,f2,f3,f62,f184,f66,f69,f72,f75,f78,f81,f84,f87"
 
-class AkShareFundFlowSource:
-    """AkShare 资金流向数据源（备用）"""
+    def fetch_market_wide_flow(self, page_size: int = 100,
+                               page_pause: float = 1.5,
+                               max_retries: int = 4) -> List[Dict]:
+        """全市场资金流快照（东财 push2 clist 分页扫描）
 
-    name = "akshare_fallback"
+        约 60 页即可覆盖全部 A 股，比逐股调用 akshare 快两个数量级，
+        供每日批量采集任务（scripts/update_fund_flows.py）使用。
 
-    def fetch(self, symbol: str, days: int) -> List[Dict]:
+        注意：东财 WAF 对本机房 IP 有频率限制（2026-07-22 起观测到
+        RemoteDisconnected 式临时封禁，冷却后可恢复），因此：
+        - 页间默认 sleep 1.5s（page_pause 可调）
+        - 单页连接被断时指数退避重试 max_retries 次，仍失败则整批放弃
+          （宁缺毋滥：部分页缺失会让聚合资金流失真，不如显式失败）
+
+        Returns:
+            缓存格式记录列表（不含 trade_date，由调用方补上），金额单位：万元
         """
-        备用方案：返回模拟数据用于测试
+        import time
 
-        注意：这是临时方案，仅在网络不可用时使用
-        生产环境应该使用真实的 akshare 数据
+        import requests
+
+        url = "https://push2.eastmoney.com/api/qt/clist/get"
+        headers = {"Referer": "https://data.eastmoney.com/"}
+        # 绕过系统代理（ClashX 会导致国内数据源 502），与 kline/tencent.py 同一模式
+        no_proxy = {"http": None, "https": None}
+
+        def _fetch_page(page: int) -> dict:
+            params = {
+                "pn": page,
+                "pz": page_size,
+                "po": 1,
+                "np": 1,
+                "fltt": 2,
+                "invt": 2,
+                "fid": "f62",
+                "fs": self._MARKET_FS,
+                "fields": self._CLIST_FIELDS,
+            }
+            delay = 2.0
+            for attempt in range(max_retries):
+                try:
+                    resp = requests.get(url, params=params, headers=headers,
+                                        proxies=no_proxy, timeout=10)
+                    resp.raise_for_status()
+                    return resp.json()
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        raise
+                    logger.warning(f"第 {page} 页获取失败（{type(e).__name__}），"
+                                   f"{delay:.0f}s 后重试 ({attempt + 1}/{max_retries})")
+                    time.sleep(delay)
+                    delay *= 3  # WAF 冷却需要较长时间
+            return {}
+
+        records: List[Dict] = []
+        page = 1
+        while True:
+            payload = _fetch_page(page)
+            diff = (payload.get("data") or {}).get("diff") or []
+            if not diff:
+                break
+
+            for item in diff:
+                def _yi(key):
+                    v = item.get(key)
+                    return round(v / 10000, 2) if isinstance(v, (int, float)) else None
+
+                records.append({
+                    'symbol': item.get('f12'),
+                    'close_price': item.get('f2') if isinstance(item.get('f2'), (int, float)) else None,
+                    'change_pct': item.get('f3') if isinstance(item.get('f3'), (int, float)) else None,
+                    'main_net_inflow': _yi('f62'),
+                    'main_net_inflow_rate': item.get('f184') if isinstance(item.get('f184'), (int, float)) else None,
+                    'large_net_inflow': _yi('f66'),
+                    'large_net_inflow_rate': item.get('f69') if isinstance(item.get('f69'), (int, float)) else None,
+                    'big_net_inflow': _yi('f72'),
+                    'big_net_inflow_rate': item.get('f75') if isinstance(item.get('f75'), (int, float)) else None,
+                    'medium_net_inflow': _yi('f78'),
+                    'medium_net_inflow_rate': item.get('f81') if isinstance(item.get('f81'), (int, float)) else None,
+                    'small_net_inflow': _yi('f84'),
+                    'small_net_inflow_rate': item.get('f87') if isinstance(item.get('f87'), (int, float)) else None,
+                    'source': 'eastmoney_clist',
+                })
+
+            total = (payload.get("data") or {}).get("total") or 0
+            if page * page_size >= total:
+                break
+            page += 1
+            time.sleep(page_pause)
+
+        logger.info(f"全市场资金流扫描完成: {len(records)} 只股票, {page} 页")
+        return records
+
+
+class SinaFundFlowSource:
+    """新浪资金流向数据源（全市场分页排行）
+
+    东财 IP 被 WAF 封锁时（2026-07-22 起观测到）的替代源。
+    端点：vip.stock.finance.sina.com.cn MoneyFlow.ssl_bkzj_ssggzj
+    粒度：r0=超大单（主力）、r3=小单（散户），无大单/中单细分。
+    """
+
+    name = "sina"
+
+    _URL = ("https://vip.stock.finance.sina.com.cn/quotes_service/api/"
+            "json_v2.php/MoneyFlow.ssl_bkzj_ssggzj")
+
+    def fetch_market_wide_flow(self, page_size: int = 80,
+                               page_pause: float = 0.5,
+                               max_retries: int = 3) -> List[Dict]:
+        """全市场资金流快照（新浪分页扫描）
+
+        Returns:
+            缓存格式记录列表（不含 trade_date），金额单位：万元。
+            仅 main（r0 超大单）与 small（r3 小单）有值，其余档位为 None。
         """
-        import random
-        from datetime import datetime, timedelta
+        import json
+        import time
 
-        logger.warning(f"使用模拟数据作为 {symbol} 资金流向备用方案")
+        import requests
 
-        # 生成模拟数据
-        result = []
-        base_date = datetime.now()
+        records: List[Dict] = []
+        page = 1
+        no_proxy = {"http": None, "https": None}
 
-        for i in range(days):
-            date = (base_date - timedelta(days=i)).strftime('%Y-%m-%d')
+        while True:
+            params = {
+                "page": page,
+                "num": page_size,
+                "sort": "symbol",
+                "asc": 1,
+                "bankuai": "",
+                "shichang": "",
+            }
+            payload = None
+            for attempt in range(max_retries):
+                try:
+                    resp = requests.get(self._URL, params=params,
+                                        proxies=no_proxy, timeout=10)
+                    resp.raise_for_status()
+                    payload = resp.json()
+                    break
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        raise
+                    logger.warning(f"新浪第 {page} 页获取失败（{type(e).__name__}），重试 {attempt + 1}/{max_retries}")
+                    time.sleep(2 * (attempt + 1))
 
-            # 模拟随机资金流向
-            main_inflow = random.uniform(-50000, 50000)  # -5亿到5亿
-            main_rate = random.uniform(-10, 10)
+            if not payload or not isinstance(payload, list):
+                break
 
-            result.append({
-                'date': date,
-                'close_price': 42.0 + random.uniform(-2, 2),
-                'change_pct': random.uniform(-3, 3),
-                'main_net_inflow': main_inflow / 10000,  # 转万元
-                'main_net_inflow_rate': main_rate,
-                'large_net_inflow': main_inflow * 0.6 / 10000,
-                'large_net_inflow_rate': main_rate * 0.6,
-                'big_net_inflow': main_inflow * 0.4 / 10000,
-                'big_net_inflow_rate': main_rate * 0.4,
-                'medium_net_inflow': -main_inflow * 0.5 / 10000,
-                'medium_net_inflow_rate': -main_rate * 0.5,
-                'small_net_inflow': -main_inflow * 0.5 / 10000,
-                'small_net_inflow_rate': -main_rate * 0.5,
-            })
+            for item in payload:
+                def _wan(key):
+                    v = item.get(key)
+                    try:
+                        return round(float(v) / 10000, 2)
+                    except (TypeError, ValueError):
+                        return None
 
-        return result
+                def _pct(key):
+                    v = item.get(key)
+                    try:
+                        return round(float(v) * 100, 4)
+                    except (TypeError, ValueError):
+                        return None
+
+                raw_symbol = str(item.get('symbol') or '')  # 形如 sh600519
+                symbol = raw_symbol[2:] if len(raw_symbol) > 2 else raw_symbol
+                if not symbol:
+                    continue
+
+                records.append({
+                    'symbol': symbol,
+                    'close_price': float(item['trade']) if item.get('trade') not in (None, '') else None,
+                    'change_pct': _pct('changeratio'),
+                    'main_net_inflow': _wan('r0_net'),
+                    'main_net_inflow_rate': _pct('r0_ratio'),
+                    'large_net_inflow': None,
+                    'large_net_inflow_rate': None,
+                    'big_net_inflow': None,
+                    'big_net_inflow_rate': None,
+                    'medium_net_inflow': None,
+                    'medium_net_inflow_rate': None,
+                    'small_net_inflow': _wan('r3_net'),
+                    'small_net_inflow_rate': _pct('r3_ratio'),
+                    'source': 'sina',
+                })
+
+            if len(payload) < page_size:
+                break
+            page += 1
+            time.sleep(page_pause)
+
+        logger.info(f"新浪全市场资金流扫描完成: {len(records)} 只股票, {page} 页")
+        return records
 
 
 class DataSourceError(Exception):

@@ -44,7 +44,10 @@ class OpponentBehaviorService:
 
             # 2. 分析机构行为
             institution = self._analyze_institution_behavior()
-            logger.info(f"机构行为: {institution['behavior']}, 净流入: {institution['net_flow']/100000000:.1f}亿")
+            inst_flow = institution['net_flow']
+            logger.info(f"机构行为: {institution['behavior']}, 净流入: "
+                        f"{inst_flow/100000000:.1f}亿" if inst_flow is not None
+                        else f"机构行为: {institution['behavior']}, 净流入: 数据不可用")
 
             # 3. 分析游资行为
             hot_money = self._analyze_hot_money_behavior()
@@ -86,6 +89,7 @@ class OpponentBehaviorService:
                 'market_phase': market_phase,
                 'risk_appetite': risk_appetite,
                 'opportunity_map': opportunity_map,
+                'degraded': bool(retail.get('degraded') or institution.get('degraded')),
                 'timestamp': datetime.now().isoformat()
             }
 
@@ -118,9 +122,19 @@ class OpponentBehaviorService:
             # TODO: 这里需要获取市场整体资金流向，暂时使用模拟逻辑
             # 实际实现时应该聚合所有股票或使用指数的资金流向
 
-            # 计算散户净流入（小单 + 中单）
-            # 散户通常是小额交易者
+            # 计算散户净流入（小单 + 中单），数据不可用时返回 None
             retail_flow = self._calculate_retail_flow(start_date, end_date)
+
+            if retail_flow is None:
+                return {
+                    'behavior': 'unknown',
+                    'net_flow': None,
+                    'emotion_index': None,
+                    'common_mistakes': [],
+                    'degraded': True,
+                    'reason': 'stock_fund_flow 无数据（等待每日采集任务 fund_flow_update）',
+                    'description': '资金流数据不可用，无法判断散户行为'
+                }
 
             # 判断行为模式
             if retail_flow < -30_0000_0000:  # -30亿
@@ -145,12 +159,14 @@ class OpponentBehaviorService:
             }
 
         except Exception as e:
-            logger.warning(f"分析散户行为失败，使用默认值: {e}")
+            logger.warning(f"分析散户行为失败: {e}")
             return {
-                'behavior': 'neutral',
-                'net_flow': 0,
-                'emotion_index': 50.0,
+                'behavior': 'unknown',
+                'net_flow': None,
+                'emotion_index': None,
                 'common_mistakes': [],
+                'degraded': True,
+                'reason': str(e),
                 'description': '数据不足，无法判断'
             }
 
@@ -173,8 +189,19 @@ class OpponentBehaviorService:
             end_date = datetime.now()
             start_date = end_date - timedelta(days=5)
 
-            # 计算机构净流入（大单 + 特大单）
+            # 计算机构净流入（超大单 + 大单），数据不可用时返回 None
             institution_flow = self._calculate_institution_flow(start_date, end_date)
+
+            if institution_flow is None:
+                return {
+                    'behavior': 'unknown',
+                    'net_flow': None,
+                    'target_sectors': [],
+                    'position_change': 'unknown',
+                    'degraded': True,
+                    'reason': 'stock_fund_flow 无数据（等待每日采集任务 fund_flow_update）',
+                    'description': '资金流数据不可用，无法判断机构行为'
+                }
 
             # 判断行为模式
             if institution_flow > 20_0000_0000:  # +20亿
@@ -199,12 +226,14 @@ class OpponentBehaviorService:
             }
 
         except Exception as e:
-            logger.warning(f"分析机构行为失败，使用默认值: {e}")
+            logger.warning(f"分析机构行为失败: {e}")
             return {
-                'behavior': 'neutral',
-                'net_flow': 0,
+                'behavior': 'unknown',
+                'net_flow': None,
                 'target_sectors': [],
-                'position_change': 'stable',
+                'position_change': 'unknown',
+                'degraded': True,
+                'reason': str(e),
                 'description': '数据不足，无法判断'
             }
 
@@ -223,18 +252,15 @@ class OpponentBehaviorService:
             }
         """
         try:
-            # TODO: 实现龙虎榜数据分析
-            # 1. 查询近期龙虎榜上的游资席位
-            # 2. 识别连续涨停的小盘股
-            # 3. 分析成交量异常放大的个股
-
-            # 暂时返回默认值
+            # 游资行为暂无真实数据源（龙虎榜席位数据未接入），
+            # 显式标注 estimated，避免被当作真实分析结果
             return {
                 'behavior': 'inactive',
                 'target_stocks': [],
                 'stage': None,
                 'activity_level': 'low',
-                'description': '游资活跃度较低，市场以价值投资为主'
+                'estimated': True,
+                'description': '游资活跃度较低，市场以价值投资为主（估算值，龙虎榜数据未接入）'
             }
 
         except Exception as e:
@@ -270,6 +296,10 @@ class OpponentBehaviorService:
         retail_behavior = retail['behavior']
         institution_behavior = institution['behavior']
 
+        # 数据不可用时显式返回 unknown，不伪装成 consolidation
+        if retail_behavior == 'unknown' or institution_behavior == 'unknown':
+            return 'unknown'
+
         # 吸筹阶段：机构建仓，散户恐慌抛售
         if institution_behavior == 'accumulating' and retail_behavior == 'panic_selling':
             return 'accumulation'
@@ -302,6 +332,9 @@ class OpponentBehaviorService:
             'high' | 'medium' | 'low'
         """
         emotion_index = retail['emotion_index']
+
+        if emotion_index is None:
+            return 'unknown'
 
         if emotion_index > 70:
             return 'high'
@@ -373,101 +406,94 @@ class OpponentBehaviorService:
 
     # ==================== 辅助方法 ====================
 
-    def _calculate_retail_flow(self, start_date: datetime, end_date: datetime) -> float:
+    def _calculate_retail_flow(self, start_date: datetime, end_date: datetime) -> float | None:
         """
         计算散户资金净流入（小单+中单）
 
-        Args:
-            start_date: 开始日期
-            end_date: 结束日期
-
         Returns:
-            散户净流入金额（元）
+            散户净流入金额（元）；无数据时返回 None（由调用方显式降级，
+            不再静默返回 0.0 伪装成"中性"）
         """
         try:
-            # 获取市场聚合资金流向
             flows = self.fund_flow_repo.get_market_aggregate_flow(
                 start_date.strftime('%Y-%m-%d'),
                 end_date.strftime('%Y-%m-%d')
             )
 
             if not flows:
-                logger.warning("未获取到资金流向数据，返回0")
-                return 0.0
+                logger.warning("stock_fund_flow 无市场聚合资金流数据")
+                return None
 
-            # 计算散户净流入（小单 + 中单）
+            # repo 返回单位万元，×1e4 转元
             total_retail_flow = sum([
                 (row.get('total_small_flow') or 0) + (row.get('total_medium_flow') or 0)
                 for row in flows
-            ])
+            ]) * 10000
 
             logger.debug(f"散户资金流向: {total_retail_flow/100000000:.2f}亿元")
             return float(total_retail_flow)
 
         except Exception as e:
             logger.error(f"计算散户资金流失败: {e}")
-            return 0.0
+            return None
 
-    def _calculate_institution_flow(self, start_date: datetime, end_date: datetime) -> float:
+    def _calculate_institution_flow(self, start_date: datetime, end_date: datetime) -> float | None:
         """
-        计算机构资金净流入（大单+特大单）
+        计算机构/主力资金净流入
 
-        Args:
-            start_date: 开始日期
-            end_date: 结束日期
-
-        Returns:
-            机构净流入金额（元）
+        优先用主力净流入（total_main_flow，东财=主力合计、新浪=r0超大单）；
+        东财 4 档数据齐全时回退为超大单+大单口径。
+        无数据时返回 None。
         """
         try:
-            # 获取市场聚合资金流向
             flows = self.fund_flow_repo.get_market_aggregate_flow(
                 start_date.strftime('%Y-%m-%d'),
                 end_date.strftime('%Y-%m-%d')
             )
 
             if not flows:
-                logger.warning("未获取到资金流向数据，返回0")
-                return 0.0
+                logger.warning("stock_fund_flow 无市场聚合资金流数据")
+                return None
 
-            # 计算机构净流入（大单 + 特大单）
-            # large = 大单, big = 特大单
+            # repo 返回单位万元，×1e4 转元。
+            # 优先 main（主力）口径：东财/新浪两个源都有该字段；
+            # large+big 四档口径仅东财源有，缺失时为 0 不代表无流入。
             total_institution_flow = sum([
-                (row.get('total_large_flow') or 0) + (row.get('total_big_flow') or 0)
+                (row.get('total_main_flow') or 0)
+                or (row.get('total_large_flow') or 0) + (row.get('total_big_flow') or 0)
                 for row in flows
-            ])
+            ]) * 10000
 
             logger.debug(f"机构资金流向: {total_institution_flow/100000000:.2f}亿元")
             return float(total_institution_flow)
 
         except Exception as e:
             logger.error(f"计算机构资金流失败: {e}")
-            return 0.0
+            return None
 
     def _identify_target_sectors(self, is_buying: bool) -> List[str]:
         """
         识别机构目标板块
 
-        基于各行业资金流向，识别机构重点买入/卖出的板块
-
-        Args:
-            is_buying: 机构是否在买入
-
-        Returns:
-            目标板块列表
+        基于最新交易日各行业主力净流入排序：买入取流入最多，卖出取流出最多。
+        无数据时返回空列表（调用方已在 degraded 分支处理，这里不再返回硬编码板块）。
         """
         try:
-            # TODO: 实现真实的板块识别逻辑
-            # 需要：
-            # 1. 获取行业分类数据
-            # 2. 按行业聚合资金流向
-            # 3. 排序找出资金流入/流出最多的行业
+            latest = self.fund_flow_repo.get_latest_trade_date()
+            if not latest:
+                return []
 
-            # 暂时返回常见板块
+            industry_flows = self.fund_flow_repo.get_industry_aggregate_flow(latest)
+            if not industry_flows:
+                return []
+
             if is_buying:
-                return ['医药', '消费', '科技']
+                top = industry_flows[:5]
             else:
-                return ['周期', '地产', '金融']
+                top = sorted(industry_flows, key=lambda x: x['main_net_inflow'])[:5]
+
+            # industry 形如「制造业-医药制造业」，取末级细分行业
+            return [item['industry'].split('-')[-1] for item in top]
 
         except Exception as e:
             logger.error(f"识别目标板块失败: {e}")
