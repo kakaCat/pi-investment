@@ -13,7 +13,7 @@ import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
 import { wrapToolExecution } from "../shared/error-handler.js";
-import { handleToolResponse } from "../utils/index.js";
+import { handleToolResponse, snakeize } from "../utils/index.js";
 
 interface NorthFlowParams {
   start_date?: string;
@@ -21,21 +21,36 @@ interface NorthFlowParams {
 }
 
 interface FlowDataPoint {
-  date: string;
-  shanghai_flow?: number;
-  shenzhen_flow?: number;
-  total_flow?: number;
+  trade_date: string;
+  net_flow: number;        // 估算净买入（元）
+  sh_net_flow?: number;
+  sz_net_flow?: number;
   [key: string]: any;
+}
+
+interface HoldingChange {
+  symbol: string;
+  name?: string;
+  delta_shares?: number;
+  close?: number;
+  estimated_value?: number;  // 元
 }
 
 interface NorthFlowData {
   data?: FlowDataPoint[];
   summary?: {
-    total_inflow?: number;
-    total_outflow?: number;
-    net_flow?: number;
-    avg_daily_flow?: number;
+    total_net_flow?: number;   // 元
+    latest_date?: string;
+    prev_date?: string;
+    method?: string;
+    disclosure_frequency?: string;
+    estimated?: boolean;
+    note?: string;
+    coverage?: number;
+    top_inflows?: HoldingChange[];
+    top_outflows?: HoldingChange[];
   };
+  stale?: boolean;
   [key: string]: any;
 }
 
@@ -85,10 +100,10 @@ export const dataFetchNorthFlowTool: ToolDefinition = {
   name: "data_fetch_north_flow",
   label: "获取北向资金流向",
   description:
-    "获取北向资金（沪股通+深股通）的历史流入流出数据。" +
-    "北向资金是外资通过互联互通机制买入A股的资金，是重要的市场情绪指标。" +
-    "正值表示净流入，负值表示净流出。" +
-    "适用场景：跟踪外资动向、判断市场情绪、分析资金面。",
+    "获取北向资金动向。注意：北向【每日】净买入已于2024-08停止官方披露；" +
+    "本工具返回港交所CCASS季度持股变化估算（外资季度调仓方向+增减持个股榜单），" +
+    "适合判断外资中长期态度，不可当作每日资金流。" +
+    "适用场景：跟踪外资季度调仓方向、识别外资增减持个股。",
 
   parameters: Type.Object({
     start_date: Type.Optional(
@@ -119,7 +134,7 @@ export const dataFetchNorthFlowTool: ToolDefinition = {
         throw new Error((result as any).error?.message || "获取北向资金数据失败");
       }
 
-      const nfData = (result as any).data as NorthFlowData;
+      const nfData = snakeize<NorthFlowData>((result as any).data);
 
       // API 成功但无数据：同样走 browser 兜底，避免 agent 拿到空结果直接停止
       if (!nfData || !(nfData as any).data || (nfData as any).data.length === 0) {
@@ -158,153 +173,74 @@ export const dataFetchNorthFlowTool: ToolDefinition = {
 
 /**
  * 格式化北向资金数据输出
+ *
+ * 契约（2026-07-28 起）：北向每日净买入已于 2024-08 停止披露（交易所
+ * 规则变更，无免费替代）。后端改用港交所 CCASS 季度持股变化估算，
+ * 金额单位为元。输出必须强调「季度估算」语义，避免 agent 当成每日资金流。
  */
 function formatNorthFlowData(data: NorthFlowData): string {
-  if (!data || !(data as any).data || (data as any).data.length === 0) {
+  if (!data || !data.data || data.data.length === 0) {
     return "❌ 未获取到北向资金数据";
   }
 
-  const flowData = (data as any).data;
-  let output = "💰 **北向资金流向**\n\n";
+  const summary = data.summary || {};
+  let output = "💰 **北向资金（外资季度调仓估算）**\n\n";
 
-  // 1. 汇总统计
-  if ((data as any).summary) {
-    output += "### 📊 汇总统计\n\n";
-    const summary = data.summary;
+  // 语义警告（最重要，放最前）
+  output += "⚠️ **数据性质说明**：北向【每日】净买入已于 2024-08 停止官方披露，";
+  output += "以下为港交所 CCASS **季度持股变化 × 收盘价**的估算值，";
+  output += "反映外资**季度级**调仓方向，不能当作每日资金流使用。\n\n";
 
-    if (summary!.net_flow !== undefined) {
-      const netFlowFormatted = formatAmount(summary!.net_flow);
-      const flowType = summary!.net_flow >= 0 ? "净流入" : "净流出";
-      const emoji = summary!.net_flow >= 0 ? "📈" : "📉";
-      output += `- **区间净流向**：${emoji} ${flowType} ${netFlowFormatted}\n`;
+  if (data.stale) {
+    output += "⚠️ 本次返回的是过期缓存（数据源暂时不可用）\n\n";
+  }
+
+  // 汇总
+  if (summary.total_net_flow !== undefined) {
+    const total = summary.total_net_flow / 1e8;
+    const emoji = total >= 0 ? "📈" : "📉";
+    const dir = total >= 0 ? "增持" : "减持";
+    output += "### 📊 季度持股变化\n\n";
+    output += `- **对比区间**：${summary.prev_date} → ${summary.latest_date}\n`;
+    output += `- **外资${dir}估算**：${emoji} **${total >= 0 ? '+' : ''}${total.toFixed(1)} 亿元**\n`;
+    if (summary.coverage !== undefined) {
+      output += `- **价格覆盖率**：${(summary.coverage * 100).toFixed(0)}%（有收盘价的持仓占比）\n`;
     }
-
-    if (summary!.total_inflow !== undefined) {
-      output += `- **累计流入**：${formatAmount(summary!.total_inflow)}\n`;
-    }
-
-    if (summary!.total_outflow !== undefined) {
-      output += `- **累计流出**：${formatAmount(Math.abs(summary!.total_outflow))}\n`;
-    }
-
-    if (summary!.avg_daily_flow !== undefined) {
-      output += `- **日均流向**：${formatAmount(summary!.avg_daily_flow)}\n`;
-    }
-
     output += "\n";
   }
 
-  // 2. 最近10条数据
-  output += "### 📅 最近流向记录\n\n";
-  output += "| 日期 | 沪股通 | 深股通 | 合计 | 趋势 |\n";
-  output += "|------|--------|--------|------|------|\n";
-
-  const recentData = flowData.slice(-10);
-
-  for (const item of recentData) {
-    const shanghaiFlow = item.shanghai_flow || 0;
-    const shenzhenFlow = item.shenzhen_flow || 0;
-    const totalFlow = item.total_flow || (shanghaiFlow + shenzhenFlow);
-
-    const shanghaiFormatted = formatAmount(shanghaiFlow, true);
-    const shenzhenFormatted = formatAmount(shenzhenFlow, true);
-    const totalFormatted = formatAmount(totalFlow, true);
-    const trend = getTrendEmoji(totalFlow);
-
-    output += `| ${item.date} | ${shanghaiFormatted} | ${shenzhenFormatted} | ${totalFormatted} | ${trend} |\n`;
-  }
-
-  output += "\n";
-
-  // 3. 趋势分析
-  if (flowData.length >= 5) {
-    output += analyzeTrend(flowData);
-  }
-
-  return output;
-}
-
-/**
- * 格式化金额（亿元）
- */
-function formatAmount(amount: number, withSign: boolean = false): string {
-  const absAmount = Math.abs(amount);
-  const formatted = absAmount >= 100
-    ? absAmount.toFixed(0)
-    : absAmount.toFixed(2);
-
-  let result = `${formatted} 亿`;
-
-  if (withSign) {
-    if (amount > 0) {
-      result = `+${result}`;
-    } else if (amount < 0) {
-      result = `-${result}`;
+  // 增持榜
+  if (summary.top_inflows?.length) {
+    output += "### 🟢 外资增持 TOP\n\n";
+    output += "| 股票 | 持股变化 | 估算金额 |\n|------|----------|----------|\n";
+    for (const item of summary.top_inflows.slice(0, 5)) {
+      output += `| ${item.name || item.symbol} (${item.symbol}) | ${formatShares(item.delta_shares)} | +${((item.estimated_value || 0) / 1e8).toFixed(1)}亿 |\n`;
     }
+    output += "\n";
   }
 
-  return result;
-}
-
-/**
- * 获取趋势表情
- */
-function getTrendEmoji(flow: number): string {
-  if (flow > 50) return "🔥"; // 大幅流入
-  if (flow > 10) return "📈"; // 流入
-  if (flow > -10) return "➡️"; // 持平
-  if (flow > -50) return "📉"; // 流出
-  return "❄️"; // 大幅流出
-}
-
-/**
- * 分析趋势
- */
-function analyzeTrend(data: FlowDataPoint[]): string {
-  const recent5 = data.slice(-5);
-  const inflowDays = recent5.filter(d => (d.total_flow || 0) > 0).length;
-  const outflowDays = recent5.filter(d => (d.total_flow || 0) < 0).length;
-
-  const totalFlow5d = recent5.reduce((sum, d) => sum + (d.total_flow || 0), 0);
-  const avgFlow = totalFlow5d / 5;
-
-  let output = "### 💡 趋势分析（近5日）\n\n";
-
-  // 流向统计
-  output += `- **流向天数**：流入 ${inflowDays} 天，流出 ${outflowDays} 天\n`;
-  output += `- **日均流向**：${formatAmount(avgFlow)}\n`;
-
-  // 趋势判断
-  let trendDescription = "";
-  if (inflowDays >= 4) {
-    trendDescription = "🔥 **持续流入**，外资做多情绪强烈";
-  } else if (inflowDays >= 3) {
-    trendDescription = "📈 **净流入为主**，外资偏积极";
-  } else if (outflowDays >= 4) {
-    trendDescription = "❄️ **持续流出**，外资做空情绪明显";
-  } else if (outflowDays >= 3) {
-    trendDescription = "📉 **净流出为主**，外资偏谨慎";
-  } else {
-    trendDescription = "➡️ **流向分化**，外资观望为主";
+  // 减持榜
+  if (summary.top_outflows?.length) {
+    output += "### 🔴 外资减持 TOP\n\n";
+    output += "| 股票 | 持股变化 | 估算金额 |\n|------|----------|----------|\n";
+    for (const item of summary.top_outflows.slice(0, 5)) {
+      output += `| ${item.name || item.symbol} (${item.symbol}) | ${formatShares(item.delta_shares)} | ${((item.estimated_value || 0) / 1e8).toFixed(1)}亿 |\n`;
+    }
+    output += "\n";
   }
 
-  output += `- **整体判断**：${trendDescription}\n`;
-
-  // 连续性判断
-  const latestFlow = recent5[recent5.length - 1].total_flow || 0;
-  const previousFlow = recent5[recent5.length - 2]?.total_flow || 0;
-
-  if (latestFlow > 0 && previousFlow > 0) {
-    output += `- **连续性**：连续流入，外资持续加仓\n`;
-  } else if (latestFlow < 0 && previousFlow < 0) {
-    output += `- **连续性**：连续流出，外资持续减仓\n`;
-  } else if (latestFlow > 0 && previousFlow < 0) {
-    output += `- **连续性**：由流出转为流入，情绪改善\n`;
-  } else if (latestFlow < 0 && previousFlow > 0) {
-    output += `- **连续性**：由流入转为流出，情绪转弱\n`;
+  if (summary.note) {
+    output += `> ${summary.note}\n`;
   }
-
-  output += "\n";
 
   return output;
+}
+
+/** 持股数量格式化（万股/亿股） */
+function formatShares(shares?: number): string {
+  if (shares === undefined || shares === null) return "-";
+  const sign = shares >= 0 ? "+" : "-";
+  const abs = Math.abs(shares);
+  if (abs >= 1e8) return `${sign}${(abs / 1e8).toFixed(2)}亿股`;
+  return `${sign}${(abs / 1e4).toFixed(0)}万股`;
 }

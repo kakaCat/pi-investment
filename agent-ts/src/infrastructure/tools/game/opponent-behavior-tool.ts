@@ -6,6 +6,7 @@
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { runQuantV2 } from "../../adapters/quant/quant-v2-client.js";
+import { snakeize } from "../utils/index.js";
 
 interface OpponentBehaviorParams {
   // 无参数，分析当前市场状态
@@ -14,16 +15,20 @@ interface OpponentBehaviorParams {
 interface OpponentBehaviorResult {
   retail?: {
     behavior?: string;
-    net_flow?: number;
-    emotion_index?: number;
+    net_flow?: number | null;
+    emotion_index?: number | null;
     common_mistakes?: string[];
+    degraded?: boolean;
+    reason?: string;
     description?: string;
   };
   institution?: {
     behavior?: string;
-    net_flow?: number;
+    net_flow?: number | null;
     target_sectors?: string[];
     position_change?: string;
+    degraded?: boolean;
+    reason?: string;
     description?: string;
   };
   hot_money?: {
@@ -31,6 +36,7 @@ interface OpponentBehaviorResult {
     target_stocks?: string[];
     stage?: string | null;
     activity_level?: string;
+    estimated?: boolean;
     description?: string;
   };
   market_phase?: string;
@@ -75,8 +81,8 @@ export const opponentBehaviorTool: ToolDefinition = {
         throw new Error(errorMsg);
       }
 
-      // 提取数据
-      const data: OpponentBehaviorResult = (result as any).data || {};
+      // 提取数据（snakeize：后端部分路由经 api_response 转 camelCase）
+      const data: OpponentBehaviorResult = snakeize<OpponentBehaviorResult>((result as any).data || {});
 
       // 构建可读的分析报告
       const report = formatOpponentBehaviorReport(data);
@@ -113,9 +119,13 @@ function formatOpponentBehaviorReport(data: OpponentBehaviorResult): string {
   // 散户行为
   if (data.retail) {
     lines.push('## 💰 散户行为');
-    lines.push(`- **行为模式**: ${translateBehavior(data.retail.behavior || '', 'retail')}`);
-    lines.push(`- **资金流向**: ${formatFlow(data.retail.net_flow || 0)}`);
-    lines.push(`- **情绪指数**: ${(data.retail.emotion_index || 50).toFixed(1)}/100 ${getEmotionLabel(data.retail.emotion_index || 50)}`);
+    if (data.retail.degraded) {
+      lines.push(`- ⚠️ **数据不可用**: ${data.retail.reason || '资金流数据缺失'}`);
+    } else {
+      lines.push(`- **行为模式**: ${translateBehavior(data.retail.behavior || '', 'retail')}`);
+      lines.push(`- **资金流向**: ${formatFlow(data.retail.net_flow)}`);
+      lines.push(`- **情绪指数**: ${data.retail.emotion_index != null ? `${data.retail.emotion_index.toFixed(1)}/100 ${getEmotionLabel(data.retail.emotion_index)}` : '数据不可用'}`);
+    }
     lines.push(`- **说明**: ${data.retail.description || ''}`);
     if (data.retail.common_mistakes && data.retail.common_mistakes.length > 0) {
       lines.push(`- **常见错误**: ${data.retail.common_mistakes.join('、')}`);
@@ -126,11 +136,15 @@ function formatOpponentBehaviorReport(data: OpponentBehaviorResult): string {
   // 机构行为
   if (data.institution) {
     lines.push('## 🏛️ 机构行为');
-    lines.push(`- **行为模式**: ${translateBehavior(data.institution.behavior || '', 'institution')}`);
-    lines.push(`- **资金流向**: ${formatFlow(data.institution.net_flow || 0)}`);
-    lines.push(`- **仓位变化**: ${translatePositionChange(data.institution.position_change || '')}`);
-    if (data.institution.target_sectors && data.institution.target_sectors.length > 0) {
-      lines.push(`- **目标板块**: ${data.institution.target_sectors.join('、')}`);
+    if (data.institution.degraded) {
+      lines.push(`- ⚠️ **数据不可用**: ${data.institution.reason || '资金流数据缺失'}`);
+    } else {
+      lines.push(`- **行为模式**: ${translateBehavior(data.institution.behavior || '', 'institution')}`);
+      lines.push(`- **资金流向**: ${formatFlow(data.institution.net_flow)}`);
+      lines.push(`- **仓位变化**: ${translatePositionChange(data.institution.position_change || '')}`);
+      if (data.institution.target_sectors && data.institution.target_sectors.length > 0) {
+        lines.push(`- **目标板块**: ${data.institution.target_sectors.join('、')}`);
+      }
     }
     lines.push(`- **说明**: ${data.institution.description || ''}`);
     lines.push('');
@@ -220,7 +234,10 @@ function translateBehavior(behavior: string, participant: string): string {
   return map[behavior] || behavior;
 }
 
-function formatFlow(flow: number): string {
+function formatFlow(flow?: number | null): string {
+  if (flow === null || flow === undefined) {
+    return '数据不可用';
+  }
   const yi = flow / 100000000;
   const sign = yi >= 0 ? '+' : '';
   return `${sign}${yi.toFixed(2)}亿元`;
