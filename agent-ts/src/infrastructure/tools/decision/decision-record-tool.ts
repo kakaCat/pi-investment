@@ -17,6 +17,7 @@ interface DecisionRecordParams {
   parameters?: Record<string, any>;
   related_entity_type?: string;
   related_entity_id?: string;
+  opponent_attribution?: string;
 }
 
 export const decisionRecordTool: ToolDefinition = {
@@ -63,6 +64,11 @@ export const decisionRecordTool: ToolDefinition = {
     })),
     related_entity_id: Type.Optional(Type.String({
       description: "关联实体ID"
+    })),
+    opponent_attribution: Type.Optional(Type.String({
+      description: "对手归因（亏损平仓必填）：这笔亏损的钱被谁赚走了？" +
+        "散户恐慌盘 / 机构出货 / 游资拉高出货 / 自己追高或割在低点。" +
+        "三个月后这些数据比任何因子都值钱"
     }))
   }),
 
@@ -78,6 +84,9 @@ export const decisionRecordTool: ToolDefinition = {
       if (params.parameters) body.parameters = params.parameters;
       if (params.related_entity_type) body.related_entity_type = params.related_entity_type;
       if (params.related_entity_id) body.related_entity_id = params.related_entity_id;
+      if (params.opponent_attribution) {
+        body.context = { ...(params.context ?? {}), opponent_attribution: params.opponent_attribution };
+      }
 
       const resp = await fetch(`${V2_API_BASE}/api/decisions/record`, {
         method: "POST",
