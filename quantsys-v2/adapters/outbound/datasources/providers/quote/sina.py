@@ -29,6 +29,7 @@ class SinaQuoteProvider(QuoteProvider):
         Raises:
             Exception: 网络错误或解析失败
         """
+        self.last_error = None
         try:
             # Convert symbol to Sina format
             sina_code = self._convert_to_sina_code(symbol)
@@ -40,13 +41,17 @@ class SinaQuoteProvider(QuoteProvider):
 
             # Check for empty response
             if not response.text or '""' in response.text:
+                self.last_error = f"新浪无 {sina_code} 数据（代码不存在或该市场不支持）"
                 return None
 
             # Parse based on market
             if symbol.endswith('.HK'):
-                return self._parse_sina_hk_quote(symbol, response.text)
+                quote = self._parse_sina_hk_quote(symbol, response.text)
             else:
-                return self._parse_sina_a_quote(symbol, response.text)
+                quote = self._parse_sina_a_quote(symbol, response.text)
+            if quote is None:
+                self.last_error = f"新浪返回数据不完整 ({sina_code})"
+            return quote
 
         except Exception as e:
             raise Exception(f"新浪财经查询失败: {e}") from e

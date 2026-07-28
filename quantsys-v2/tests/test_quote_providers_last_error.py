@@ -39,3 +39,29 @@ class TestTencentLastError:
             assert provider.get_quote('600519') is None
         assert provider.last_error is not None
         assert 'sh600519' in provider.last_error
+
+
+class TestSinaLastError:
+    def test_empty_response_sets_last_error(self):
+        """新浪空响应需设置 last_error（裸 00836 会被映射为 A 股 000836）"""
+        provider = SinaQuoteProvider()
+        resp = _mock_response(text='')
+        with patch(
+            'adapters.outbound.datasources.providers.quote.sina.requests.get',
+            return_value=resp,
+        ):
+            assert provider.get_quote('00836') is None
+        assert provider.last_error is not None
+        assert '000836' in provider.last_error
+
+    def test_incomplete_data_sets_last_error(self):
+        """新浪返回字段不足（解析返回 None）需设置 last_error"""
+        provider = SinaQuoteProvider()
+        resp = _mock_response(text='var hq_str_1600519="贵州茅台,1308.0";')
+        with patch(
+            'adapters.outbound.datasources.providers.quote.sina.requests.get',
+            return_value=resp,
+        ):
+            assert provider.get_quote('600519') is None
+        assert provider.last_error is not None
+        assert '1600519' in provider.last_error
