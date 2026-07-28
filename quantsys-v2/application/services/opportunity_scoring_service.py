@@ -53,6 +53,13 @@ class OpportunityScoringService:
             评分结果列表，每个元素包含 symbol, score, technical_score 等字段
         """
         if not symbols:
+            self.last_diagnostics = {
+                'universe_size': 0,
+                'scored': 0,
+                'skipped_insufficient_klines': 0,
+                'skipped_condition_filter': 0,
+                'errors': 0,
+            }
             return []
 
         # 验证和归一化权重
@@ -64,6 +71,15 @@ class OpportunityScoringService:
 
         # 批量查询基本面数据
         fundamentals_map = self.stock_repo.batch_get_fundamentals(symbols)
+
+        # 诊断计数：让调用方能区分「没有机会」和「没有数据」
+        diagnostics = {
+            'universe_size': len(symbols),
+            'scored': 0,
+            'skipped_insufficient_klines': 0,
+            'skipped_condition_filter': 0,
+            'errors': 0,
+        }
 
         # 并行处理每只股票
         opportunities = []
@@ -84,11 +100,22 @@ class OpportunityScoringService:
                 try:
                     result = future.result()
                     if result is not None:
-                        opportunities.append(result)
+                        skipped = result.pop('_skipped', None)
+                        if skipped == 'insufficient_klines':
+                            diagnostics['skipped_insufficient_klines'] += 1
+                        elif skipped == 'condition_filter':
+                            diagnostics['skipped_condition_filter'] += 1
+                        elif skipped == 'error':
+                            diagnostics['errors'] += 1
+                        else:
+                            diagnostics['scored'] += 1
+                            opportunities.append(result)
                 except Exception as e:
+                    diagnostics['errors'] += 1
                     symbol = futures[future]
                     logger.error(f"{symbol}: 评分失败 - {e}")
 
+        self.last_diagnostics = diagnostics
         return opportunities
 
     def _score_single_stock(
@@ -115,7 +142,7 @@ class OpportunityScoringService:
             # 检查K线数据是否充足
             if len(klines) < 30:
                 logger.warning(f"{symbol}: K线数据不足 ({len(klines)}条)")
-                return None
+                return {'_skipped': 'insufficient_klines'}
 
             # 计算技术指标因子
             factors = self._calculate_factors(klines)
@@ -126,7 +153,7 @@ class OpportunityScoringService:
 
             if conditions:
                 if not self._evaluate_conditions(conditions, logic, fundamental or {}, factors):
-                    return None  # 不满足条件，跳过
+                    return {'_skipped': 'condition_filter'}  # 不满足条件，跳过
 
 
             # === 使用 TechnicalScorer 计算技术面评分 ===
@@ -159,9 +186,9 @@ class OpportunityScoringService:
                 weights
             )
 
-            # 获取股票名称
-            stock_info = self.stock_repo.get_by_symbol(symbol, ['name'])
-            stock_name = stock_info['name'] if stock_info else symbol
+            # 获取股票名称（get_by_symbol 只接受 symbol 一个参数）
+            stock_obj = self.stock_repo.get_by_symbol(symbol)
+            stock_name = stock_obj.name if stock_obj and stock_obj.name else symbol
 
             return {
                 'symbol': symbol,
@@ -178,7 +205,7 @@ class OpportunityScoringService:
 
         except Exception as e:
             logger.error(f"{symbol}: 评分失败 - {e}", exc_info=True)
-            return None
+            return {'_skipped': 'error'}
 
     def _calculate_factors(self, klines: List[Dict]) -> Dict:
         """计算技术指标因子

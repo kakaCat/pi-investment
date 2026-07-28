@@ -42,6 +42,8 @@ class StockPoolService:
         self._cache = None
         self._cache_time = 0
         self._cache_ttl = 3600  # 1 hour
+        # 热门池数据来源：'index_constituents' | 'fallback_active_stocks'
+        self._hot_pool_source = None
 
     def get_hot_stocks(self) -> List[str]:
         """
@@ -69,14 +71,25 @@ class StockPoolService:
             # 查询指数成分股
             constituents = self.stock_repo.get_index_constituents(self.HOT_INDEX_CODES)
 
-            # 去重（保持顺序）
-            unique_stocks = list(dict.fromkeys(constituents))
+            if not constituents:
+                # index_constituents 表为空（采集任务未跑过）时，不能让扫描池
+                # 静默变空——降级为「近期活跃股票」并显式标记来源
+                from adapters.outbound.repositories import KlineORMRepository
+                fallback = KlineORMRepository().get_active_symbols(days=15, min_days=3, limit=500)
+                logger.warning(
+                    f"index_constituents 为空，热门池降级为活跃股票 fallback: {len(fallback)} 只")
+                self._hot_pool_source = 'fallback_active_stocks'
+                unique_stocks = fallback
+            else:
+                self._hot_pool_source = 'index_constituents'
+                # 去重（保持顺序）
+                unique_stocks = list(dict.fromkeys(constituents))
 
             # 更新缓存
             self._cache = unique_stocks
             self._cache_time = current_time
 
-            logger.info(f"Hot stocks fetched: {len(unique_stocks)} stocks")
+            logger.info(f"Hot stocks fetched: {len(unique_stocks)} stocks (source={self._hot_pool_source})")
             return unique_stocks
 
         except Exception as e:

@@ -304,11 +304,18 @@ class FundamentalScorer(BaseScorer):
         """
         resonance = 0.0
 
-        pe = data.get('pe', float('inf'))
-        roe = data.get('roe', 0)
-        gross_margin = data.get('gross_margin', 0)
-        revenue_growth = data.get('revenue_growth', 0)
-        debt_ratio = data.get('debt_ratio', 100)
+        # 字段可能为 None（stocks 表基本面列未填充），必须先经 _to_float
+        pe = self._to_float(data.get('pe'))
+        roe = self._to_float(data.get('roe'))
+        gross_margin = self._to_float(data.get('gross_margin'))
+        revenue_growth = self._to_float(data.get('revenue_growth'))
+        debt_ratio = self._to_float(data.get('debt_ratio'))
+
+        pe = pe if pe is not None else float('inf')
+        roe = roe if roe is not None else 0
+        gross_margin = gross_margin if gross_margin is not None else 0
+        revenue_growth = revenue_growth if revenue_growth is not None else 0
+        debt_ratio = debt_ratio if debt_ratio is not None else 100
 
         # 规则1：价值 + 高盈利
         if pe < 20 and pe > 0 and roe > 15:
