@@ -47,6 +47,12 @@ interface ProviderPreset {
   maxTokens: number;
   /** 是否按 reasoning 模型解析（思考内容单独返回） */
   reasoning: boolean;
+  /** pi-ai SDK 兼容模式覆盖（见 providers/openai-completions.js getCompat） */
+  compat?: {
+    supportsDeveloperRole?: boolean;
+    supportsStore?: boolean;
+    maxTokensField?: 'max_tokens' | 'max_completion_tokens';
+  };
 }
 
 const PROVIDER_PRESETS: Record<LLMProviderName, ProviderPreset> = {
@@ -67,6 +73,15 @@ const PROVIDER_PRESETS: Record<LLMProviderName, ProviderPreset> = {
     contextWindow: 256000,
     maxTokens: 8000,
     reasoning: true, // K3 为思考模型；若改用非思考模型可设 LLM_REASONING=false
+    // api.kimi.com / 本地代理 不匹配 SDK 的 isMoonshot 检测（只认 api.moonshot.*），
+    // 会被当作标准 OpenAI：reasoning=true 时 system prompt 以 role:"developer" 发送，
+    // Kimi 端点不认识该 role，报 400 Invalid request: tokenization failed。
+    // 这里显式按 Moonshot 兼容模式声明。⚠️ 勿删——已两次因丢失此配置出事故。
+    compat: {
+      supportsDeveloperRole: false,
+      supportsStore: false,
+      maxTokensField: 'max_tokens',
+    },
   },
 };
 
@@ -166,6 +181,7 @@ export function createModel(): Model<'openai-completions'> {
     reasoning,
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    ...(preset.compat ? { compat: preset.compat } : {}),
     contextWindow: Number(process.env.LLM_CONTEXT_WINDOW) || preset.contextWindow,
     maxTokens: Number(process.env.LLM_MAX_TOKENS) || preset.maxTokens,
     // HTTP超时配置 - 防止API调用卡死
