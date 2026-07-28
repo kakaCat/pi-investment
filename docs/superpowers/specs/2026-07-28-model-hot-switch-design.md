@@ -60,13 +60,16 @@ export function isProviderConfigured(p: LLMProviderName): boolean;
 新增 `src/infrastructure/tools/agent/model-switch-tool.ts`，注册进工具表：
 
 - 参数：`provider: "deepseek" | "kimi"`
-- 执行：`setRuntimeProvider()`（当前会话下一轮即生效）
-- 返回：切换前后 provider、新模型 ID、决策上下文（"切换已生效，后续任务将使用 Kimi"）
+- 执行：`setRuntimeProvider()`
+- 返回：切换前后 provider、新模型 ID、决策上下文（"切换已生效，后续会话与定时任务将使用 Kimi"）
+
+**生效范围**：工具拿不到当前会话的 session 句柄（execute 签名为 `(toolCallId, args)`，无 session 注入），因此**当前正在运行的会话保持原模型直到会话结束**；新会话立即生效。这对自主运行场景恰好是主要路径——定时任务每次都 `createSession()`（index.ts:48），唤醒即用新模型。若 agent 希望"本会话立即换"，它应提示用户用 `/model` 命令。
 
 ## 切换语义
 
-- 切换影响"下一次模型调用"起的行为；正在流式输出的回复不中断
-- 全进程生效：gateway 模式多并行会话共享同一进程时，切换影响所有会话（设计意图）
+- 斜杠命令 `/model`：**当前会话立即生效**（`session.setModel()`，正在流式输出的回复不中断，下轮起用新模型）
+- Agent 工具 `model_switch`：**新会话生效**（定时任务唤醒、subagent、下一个人工会话），当前会话保持原模型
+- 两者都是全进程级状态：gateway 模式多并行会话共享同一进程时，新建会话都用新 provider（设计意图）
 - `setModel()` 是 SDK 公开 API（agent-session.d.ts:402），auth 校验风险见「风险」
 
 ## 护栏（两个入口共用）
