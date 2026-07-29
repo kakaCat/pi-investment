@@ -87,7 +87,7 @@ def test_kline_update_job_writes_amount():
 
     kline = KlineData(symbol='300001', date='2026-07-16', open=31.79,
                       high=33.61, low=31.40, close=32.28,
-                      volume=26010900, amount=839878123.0)
+                      volume=26010900, amount=839878123.0, turnover_rate=2.5)
 
     cursor = MagicMock()
     cursor.fetchall.return_value = [('300001', '测试股')]
@@ -110,3 +110,4 @@ def test_kline_update_job_writes_amount():
     params = insert_calls[0][0][1]
     # 参数顺序: symbol, trade_date, open, high, low, close, volume, amount, turnover_rate
     assert params[7] == 839878123.0
+    assert params[8] == 2.5
