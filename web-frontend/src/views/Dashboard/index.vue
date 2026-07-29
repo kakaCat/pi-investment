@@ -177,6 +177,7 @@ import { TrendCharts, ArrowUp, Bell, Warning, Money, WarningFilled } from '@elem
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import { tradingApi } from '@/services/api/trading'
+import { simulationApi } from '@/services/api/simulation'
 import { apiClient } from '@/services/api/client'
 import { asData } from '@/services/api/adapters'
 import { useAgentStore } from '@/stores/agent'
@@ -202,10 +203,14 @@ const loading = ref(false)
 const chartRef = ref<HTMLElement>()
 let chartInstance: echarts.ECharts | null = null
 
-// 获取投资组合概览数据
+// 获取投资组合概览数据（多账户：优先 agent_virtual，否则第一个账户）
 const fetchPortfolioSummary = async () => {
   try {
-    const data = await tradingApi.getPortfolioSummary()
+    const { accounts } = await simulationApi.listAccounts()
+    const account = accounts.find(a => a.account_name === 'agent_virtual') || accounts[0]
+    if (!account) return  // 无账户时静默显示 0
+
+    const data = await tradingApi.getPortfolioSummary(account.account_name)
 
     // 总资产 = 持仓市值 + 现金
     totalAssets.value = `¥${data.totalValue?.toLocaleString() || '0'}`
@@ -223,9 +228,8 @@ const fetchPortfolioSummary = async () => {
     dailyPnL.value = formatSignedCurrency(change)
     dailyPnLClass.value = change >= 0 ? 'success' : 'danger'
 
-    // TODO: 从其他接口获取待审批信号和风险预警数量
-    pendingSignals.value = 0
-    riskAlerts.value = 0
+    // 注意：pendingSignals/riskAlerts 由 fetchPendingTasks 负责，这里不要重置
+    // （onMounted 中两者并发执行，此处置 0 会与 fetchPendingTasks 形成竞态）
   } catch (error) {
     console.error('获取投资组合概览失败:', error)
   }

@@ -129,6 +129,7 @@ export interface Position {
   symbolName: string
   name: string
   quantity: number
+  sharesAvailable?: number   // T+1 可用股数（simulation 体系）
   avgCost: number
   currentPrice: number
   marketValue: number

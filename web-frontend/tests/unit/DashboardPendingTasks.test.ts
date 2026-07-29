@@ -19,6 +19,15 @@ vi.mock('@/services/api/trading', () => ({
   }
 }))
 
+vi.mock('@/services/api/simulation', () => ({
+  simulationApi: {
+    listAccounts: vi.fn().mockResolvedValue({
+      accounts: [{ account_name: 'agent_virtual' }],
+      total: 1
+    })
+  }
+}))
+
 vi.mock('vue-router', () => ({
   useRouter: () => ({
     push: vi.fn()
@@ -94,5 +103,8 @@ describe('Dashboard pending tasks', () => {
       description: '突破均线',
       confidence: 82
     })
+
+    const { tradingApi } = await import('@/services/api/trading')
+    expect(tradingApi.getPortfolioSummary).toHaveBeenCalledWith('agent_virtual')
   })
 })

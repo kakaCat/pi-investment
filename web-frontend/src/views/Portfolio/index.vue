@@ -1,5 +1,13 @@
 <template>
   <div class="portfolio">
+    <!-- 账户切换工具栏 -->
+    <div class="account-toolbar mb-4">
+      <AccountSwitcher
+        :initial-account="(route.query.account as string) || undefined"
+        @change="onAccountChange"
+      />
+    </div>
+
     <!-- 顶部统计卡片 -->
     <div class="grid grid-cols-4 gap-4 mb-4">
       <el-card class="stat-card">
@@ -38,25 +46,9 @@
         <div class="flex items-center justify-between">
           <span class="font-semibold">持仓明细</span>
           <div class="flex items-center gap-2">
-            <el-select
-              :model-value="portfolioStore.currentAccount"
-              size="small"
-              style="width: 200px"
-              @change="handleAccountChange"
-            >
-              <el-option
-                v-for="acc in accounts"
-                :key="acc.account_name"
-                :label="`${acc.display_name || acc.account_name}`"
-                :value="acc.account_name"
-              />
-            </el-select>
             <el-button size="small" @click="handleRefresh" :loading="loading">
               <el-icon><Refresh /></el-icon>
               刷新
-            </el-button>
-            <el-button type="primary" size="small" @click="handleCreateOrder">
-              + 新建订单
             </el-button>
           </div>
         </div>
@@ -78,9 +70,10 @@
 
         <el-table-column prop="name" label="名称" width="120" />
 
-        <el-table-column prop="quantity" label="持仓量" width="100" align="right">
+        <el-table-column prop="quantity" label="持仓量" width="110" align="right">
           <template #default="{ row }">
-            {{ row.quantity }}
+            <div>{{ row.quantity }}</div>
+            <div class="text-xs text-gray-400">可用 {{ row.sharesAvailable ?? row.quantity }}</div>
           </template>
         </el-table-column>
 
@@ -133,19 +126,6 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="targetPrice" label="目标价" width="100" align="right">
-          <template #default="{ row }">
-            <span v-if="row.targetPrice" class="text-green-600">¥{{ formatPrice(row.targetPrice) }}</span>
-            <span v-else class="text-gray-400">-</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="reason" label="买入理由" min-width="150" show-overflow-tooltip>
-          <template #default="{ row }">
-            <el-tag size="small" type="info">{{ row.reason }}</el-tag>
-          </template>
-        </el-table-column>
-
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button-group size="small">
@@ -184,6 +164,15 @@
           <el-input-number v-model="tradeForm.quantity" :min="100" :step="100" class="w-full" />
         </el-form-item>
 
+        <el-form-item label="交易理由" required>
+          <el-input
+            v-model="tradeForm.reason"
+            type="textarea"
+            :rows="2"
+            placeholder="必填，至少 10 个字（后端审计要求）"
+          />
+        </el-form-item>
+
         <el-form-item label="预计金额">
           <div class="text-lg font-semibold">
             ¥{{ formatPrice(tradeForm.quantity * (tradeForm.priceType === 'limit' ? tradeForm.price : tradeForm.currentPrice)) }}
@@ -197,6 +186,7 @@
           :type="tradeForm.type === 'BUY' ? 'danger' : 'success'"
           @click="handleConfirmTrade"
           :loading="tradeLoading"
+          :disabled="tradeForm.reason.trim().length < 10"
         >
           确认{{ tradeForm.type === 'BUY' ? '买入' : '卖出' }}
         </el-button>
@@ -235,37 +225,21 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { tradingApi, riskApi, simulationApi } from '@/services/api'
+import { riskApi } from '@/services/api'
+import { simulationApi } from '@/services/api/simulation'
+import AccountSwitcher from '@/components/AccountSwitcher.vue'
 import { usePortfolioStore } from '@/stores/portfolio'
 import { useMarketWebSocket } from '@/composables/useWebSocket'
 import { formatPrice, formatPercent, formatSignedCurrency } from '@/utils/format'
 import type { Position } from '@/types/models'
-import type { AccountSummary } from '@/services/api/simulation'
 
-const router = useRouter()
+const route = useRoute()
 const portfolioStore = usePortfolioStore()
 
 const loading = ref(false)
-
-// 多账户：账户列表与切换（后端 portfolio 接口 account_name 必填）
-const accounts = ref<AccountSummary[]>([])
-
-const loadAccounts = async () => {
-  try {
-    const data = await simulationApi.listAccounts()
-    accounts.value = data.accounts || []
-  } catch (e) {
-    console.error('加载账户列表失败:', e)
-  }
-}
-
-const handleAccountChange = (account: string) => {
-  portfolioStore.setAccount(account)
-  loadPositions()
-}
 
 // 盈亏计数
 const profitCount = computed(() => portfolioStore.positions.filter(p => p.profit > 0).length)
@@ -281,7 +255,8 @@ const tradeForm = reactive({
   priceType: 'market' as 'market' | 'limit',
   price: 0,
   currentPrice: 0,
-  quantity: 100
+  quantity: 100,
+  reason: ''
 })
 
 // 止损对话框
@@ -323,15 +298,24 @@ on('quote', (data: any) => {
   }
 })
 
-// 加载持仓数据
+// 账户切换：加载数据并刷新行情订阅
+const subscribedSymbols = ref<string[]>([])
+
+const onAccountChange = async (accountName: string) => {
+  subscribedSymbols.value.forEach(s => unsubscribe(s))
+  subscribedSymbols.value = []
+  await portfolioStore.fetchAll(accountName)
+  const symbols = portfolioStore.positions.map(p => p.symbol)
+  symbols.forEach(s => subscribe(s))
+  subscribedSymbols.value = symbols
+}
+
+// 加载持仓数据（刷新当前账户）
 const loadPositions = async () => {
+  if (!portfolioStore.currentAccount) return
   loading.value = true
   try {
-    await portfolioStore.fetchAll()
-
-    // 订阅实时行情
-    const symbols = portfolioStore.positions.map(p => p.symbol)
-    symbols.forEach(symbol => subscribe(symbol))
+    await portfolioStore.fetchAll(portfolioStore.currentAccount)
   } catch (error) {
     ElMessage.error('加载持仓数据失败')
   } finally {
@@ -344,11 +328,6 @@ const handleRefresh = () => {
   loadPositions()
 }
 
-// 新建订单
-const handleCreateOrder = () => {
-  router.push({ name: 'Orders' })
-}
-
 // 买入（加仓）
 const handleBuy = (position: Position) => {
   tradeForm.symbol = position.symbol
@@ -358,18 +337,21 @@ const handleBuy = (position: Position) => {
   tradeForm.currentPrice = position.currentPrice
   tradeForm.price = position.currentPrice
   tradeForm.quantity = 100
+  tradeForm.reason = ''
   tradeDialogVisible.value = true
 }
 
 // 卖出
 const handleSell = (position: Position) => {
+  const available = position.sharesAvailable ?? position.quantity
   tradeForm.symbol = position.symbol
   tradeForm.name = position.name
   tradeForm.type = 'SELL'
   tradeForm.priceType = 'market'
   tradeForm.currentPrice = position.currentPrice
   tradeForm.price = position.currentPrice
-  tradeForm.quantity = Math.min(position.quantity, 100)
+  tradeForm.quantity = Math.min(available, 100)
+  tradeForm.reason = ''
   tradeDialogVisible.value = true
 }
 
@@ -377,30 +359,27 @@ const handleSell = (position: Position) => {
 const handleConfirmTrade = async () => {
   try {
     await ElMessageBox.confirm(
-      `确认${tradeForm.type === 'BUY' ? '买入' : '卖出'} ${tradeForm.symbol} ${tradeForm.quantity}股？`,
+      `确认${tradeForm.type === 'BUY' ? '买入' : '卖出'} ${tradeForm.symbol} ${tradeForm.quantity}股（账户 ${portfolioStore.currentAccount}）？`,
       '确认交易',
       { type: 'warning' }
     )
 
     tradeLoading.value = true
-    await tradingApi.createOrder({
+    await simulationApi.trade(portfolioStore.currentAccount, {
+      action: tradeForm.type.toLowerCase() as 'buy' | 'sell',
       symbol: tradeForm.symbol,
-      type: tradeForm.type.toLowerCase() as 'buy' | 'sell',
-      priceType: tradeForm.priceType,
-      price: tradeForm.priceType === 'limit' ? tradeForm.price : undefined,
-      quantity: tradeForm.quantity
+      shares: tradeForm.quantity,
+      price_limit: tradeForm.priceType === 'limit' ? tradeForm.price : undefined,
+      reason: tradeForm.reason.trim()
     })
 
-    ElMessage.success('订单已提交')
+    ElMessage.success('交易已成交')
     tradeDialogVisible.value = false
-
-    // 刷新持仓
-    setTimeout(() => {
-      loadPositions()
-    }, 1000)
-  } catch (error) {
+    await loadPositions()
+  } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error('下单失败')
+      // 后端拒单（非交易时段/限价不满足/可用不足等）直接展示后端文案
+      ElMessage.error(error?.message || '交易失败')
     }
   } finally {
     tradeLoading.value = false
@@ -445,14 +424,12 @@ const handleConfirmStopLoss = async () => {
 
 // 组件挂载
 onMounted(() => {
-  loadAccounts()
-  loadPositions()
+  // 首次加载由 AccountSwitcher change 触发（支持 ?account=xxx 预选）
 })
 
 // 组件卸载
 onUnmounted(() => {
-  const symbols = portfolioStore.positions.map(p => p.symbol)
-  symbols.forEach(symbol => unsubscribe(symbol))
+  subscribedSymbols.value.forEach(s => unsubscribe(s))
 })
 </script>
 
@@ -465,6 +442,11 @@ export default defineComponent({
 
 <style scoped lang="scss">
 .portfolio {
+  .account-toolbar {
+    display: flex;
+    align-items: center;
+  }
+
   .stat-card {
     :deep(.el-card__body) {
       padding: 16px;
