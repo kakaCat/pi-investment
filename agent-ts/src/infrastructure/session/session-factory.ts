@@ -9,6 +9,7 @@
  * - turn_start / turn_end
  * - message_start / message_end (role: user | assistant | toolResult)
  * - tool_execution_start / tool_execution_end
+ * - auto_retry_start / auto_retry_end (SDK 内置 LLM 错误重试)
  */
 import { createAgentSession } from "../../sdk-facade.js";
 import type { AgentSession } from "../../sdk-facade.js";
@@ -171,6 +172,34 @@ export function attachLogger(session: AgentSession, agentType: AgentType, perfMo
           logger.logSubagentEnd(agentType as 'subagent' | 'plan', text, llmCalls, toolCalls, duration);
         }
         break;
+
+      case 'auto_retry_start': {
+        const delaySec = Math.round((event.delayMs ?? 0) / 1000);
+        console.log(`🔄 LLM 连接中断，${delaySec}s 后重试 (${event.attempt}/${event.maxAttempts}): ${event.errorMessage}`);
+        logger.logLLMRetry({
+          phase: 'start',
+          attempt: event.attempt,
+          maxAttempts: event.maxAttempts,
+          delayMs: event.delayMs,
+          errorMessage: event.errorMessage,
+        });
+        break;
+      }
+
+      case 'auto_retry_end': {
+        if (event.success) {
+          console.log(`✅ LLM 重试成功（第 ${event.attempt} 次）`);
+        } else {
+          console.error(`❌ LLM 重试耗尽（${event.attempt} 次）: ${event.finalError ?? 'unknown'}`);
+        }
+        logger.logLLMRetry({
+          phase: 'end',
+          attempt: event.attempt,
+          success: event.success,
+          finalError: event.finalError,
+        });
+        break;
+      }
     }
   });
 }
