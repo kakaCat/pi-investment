@@ -103,42 +103,53 @@ class MarketRegimeDetector:
                 logger.warning("未提供K线仓储，使用默认判断")
                 return self._get_default_regime()
 
-            # 计算各项指标
-            signals = {}
-
-            # 1. 趋势强度（ADX）
-            signals['adx'] = self._calculate_adx(df)
-            signals['trend_strength'] = 'strong' if signals['adx'] > 25 else 'weak'
-
-            # 2. 价格相对位置（52周高低点）
-            signals['price_position'] = self._calculate_price_position(df)
-
-            # 3. 均线排列
-            signals['ma_arrangement'] = self._analyze_ma_arrangement(df)
-
-            # 4. 波动率水平
-            signals['volatility'] = self._calculate_volatility(df)
-            signals['volatility_level'] = self._classify_volatility(signals['volatility'])
-
-            # 5. 价格动量
-            signals['momentum_20'] = (df['close'].iloc[-1] / df['close'].iloc[-21] - 1) if len(df) >= 21 else 0
-            signals['momentum_60'] = (df['close'].iloc[-1] / df['close'].iloc[-61] - 1) if len(df) >= 61 else 0
-
-            # 综合判断
-            regime, confidence = self._determine_regime(signals)
-
-            return {
-                'regime': regime,
-                'confidence': round(confidence, 2),
-                'signals': {k: round(v, 4) if isinstance(v, float) else v
-                           for k, v in signals.items()},
-                'characteristics': self.REGIME_CHARACTERISTICS[regime],
-                'detected_at': datetime.now().isoformat(),
-            }
+            # 计算各项指标并判定（委托公共方法）
+            return self.detect_from_dataframe(df)
 
         except Exception as e:
             logger.error(f"市场环境识别失败: {e}")
             return self._get_default_regime()
+
+    def detect_from_dataframe(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """从已构建的指数K线 DataFrame 识别市场环境（公共方法）
+
+        Args:
+            df: 含 date/open/high/low/close/volume 列，按日期升序，≥120 行
+
+        Returns:
+            {'regime', 'confidence', 'signals', 'characteristics', 'detected_at'}
+        """
+        signals = {}
+
+        # 1. 趋势强度（ADX）
+        signals['adx'] = self._calculate_adx(df)
+        signals['trend_strength'] = 'strong' if signals['adx'] > 25 else 'weak'
+
+        # 2. 价格相对位置（52周高低点）
+        signals['price_position'] = self._calculate_price_position(df)
+
+        # 3. 均线排列
+        signals['ma_arrangement'] = self._analyze_ma_arrangement(df)
+
+        # 4. 波动率水平
+        signals['volatility'] = self._calculate_volatility(df)
+        signals['volatility_level'] = self._classify_volatility(signals['volatility'])
+
+        # 5. 价格动量
+        signals['momentum_20'] = (df['close'].iloc[-1] / df['close'].iloc[-21] - 1) if len(df) >= 21 else 0
+        signals['momentum_60'] = (df['close'].iloc[-1] / df['close'].iloc[-61] - 1) if len(df) >= 61 else 0
+
+        # 综合判断
+        regime, confidence = self._determine_regime(signals)
+
+        return {
+            'regime': regime,
+            'confidence': round(confidence, 2),
+            'signals': {k: round(v, 4) if isinstance(v, float) else v
+                       for k, v in signals.items()},
+            'characteristics': self.REGIME_CHARACTERISTICS[regime],
+            'detected_at': datetime.now().isoformat(),
+        }
 
     def _calculate_adx(self, df: pd.DataFrame, period: int = 14) -> float:
         """
