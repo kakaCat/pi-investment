@@ -67,6 +67,61 @@ describe('data_fetch_market_sentiment', () => {
     expect(text).not.toContain('NaN');
   });
 
+  it('K线覆盖不足时输出自助修复指引（引导 agent 调用 backfill）', async () => {
+    mockRunQuantV2.mockResolvedValue({
+      ok: true,
+      data: {
+        sentiment_score: 50,
+        sentiment_level: 'neutral',
+        fear_greed_index: 50,
+        degraded: true,
+        degraded_dimensions: [{
+          dimension: 'coverage',
+          reason: 'K线覆盖不足（涨跌统计仅 353 只股票，正常应 >4000），结果可能失真',
+        }],
+        indicators: {
+          advance_decline: {
+            data_date: '2026-07-30', up_count: 180, down_count: 160,
+            flat_count: 13, ratio: 1.13, up_percentage: 51.0,
+          },
+        },
+      },
+      error: null,
+    } as any);
+
+    const result = await dataFetchMarketSentimentTool.execute('t', {} as any);
+    const text = textOf(result);
+
+    // 覆盖不足警告照常展示
+    expect(text).toContain('K线覆盖不足');
+    // 必须告诉 agent 可以自行修补数据及具体修复动作
+    expect(text).toContain('自助修复');
+    expect(text).toContain('data_quality_manage');
+    expect(text).toContain('backfill');
+    expect(text).not.toContain('undefined');
+  });
+
+  it('非 coverage 降级时不附加 K线修复指引', async () => {
+    mockRunQuantV2.mockResolvedValue({
+      ok: true,
+      data: {
+        sentiment_score: 50,
+        sentiment_level: 'neutral',
+        fear_greed_index: 50,
+        degraded: true,
+        degraded_dimensions: [{ dimension: 'new_high_low', reason: '数据不可用' }],
+        indicators: {},
+      },
+      error: null,
+    } as any);
+
+    const result = await dataFetchMarketSentimentTool.execute('t', {} as any);
+    const text = textOf(result);
+
+    expect(text).toContain('部分维度数据不可用');
+    expect(text).not.toContain('自助修复');
+  });
+
   it('兼容后端 api_response 的 camelCase 键名（snakeize 转换）', async () => {
     // 后端 api_response 用 convert_keys_to_camel 序列化——真实响应是 camelCase
     mockRunQuantV2.mockResolvedValue({

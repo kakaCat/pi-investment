@@ -127,6 +127,18 @@ function formatSentimentData(data: SentimentData): string {
       output += `- ${d.dimension}: ${d.reason}\n`;
     }
     output += "\n";
+
+    // K线覆盖不足时给出自助修复指引——错误信息即指令，告诉 agent 如何自己补数据
+    const coverageIssue = data.degraded_dimensions.find(
+      (d) => d.dimension === 'coverage' || (d.reason || '').includes('K线覆盖不足')
+    );
+    if (coverageIssue) {
+      output += "🔧 **可自助修复**：K线覆盖不足通常因 daily_klines 更新滞后或回补中断，" +
+        "你可以自己修补数据，不必等人工处理：\n";
+      output += "1. 调用 `data_quality_manage(action=\"backfill\")` 回填全市场缺失K线" +
+        "（多数据源自动 failover，耗时数分钟，可先继续其他分析）；\n";
+      output += "2. 回填完成后重新调用本工具，即可获得基于完整数据的情绪判断。\n\n";
+    }
   }
 
   // 1. 核心指标
