@@ -180,6 +180,7 @@ def scan_signals():
     fundamental = snake_data.get('fundamental', [])
     sector_filter = snake_data.get('sector_filter', {})
     weights = snake_data.get('weights')  # 动态权重参数
+    no_cache = bool(snake_data.get('no_cache', False))  # 跳过评分缓存强制重算
 
     # 分页参数（agent 工具传 limit，兼容映射到 page_size）
     page = max(1, int(snake_data.get('page', 1)))
@@ -255,7 +256,8 @@ def scan_signals():
                     'technical': technical,
                     'fundamental': fundamental
                 },
-                weights=weights
+                weights=weights,
+                no_cache=no_cache
             )
 
         # 附加行业信息
@@ -303,6 +305,10 @@ def scan_signals():
             'scored': scoring_diag.get('scored', len(opportunities)),
             'skipped_insufficient_klines': scoring_diag.get('skipped_insufficient_klines', 0),
             'skipped_condition_filter': scoring_diag.get('skipped_condition_filter', 0),
+            # 动态评分诊断（2026-07-30）：降级计数 + 数据自愈报告 + 耗时
+            'scoring_degraded': scoring_diag.get('degraded', {}),
+            'repair_report': scoring_diag.get('repair_report', {}),
+            'elapsed_ms': scoring_diag.get('elapsed_ms'),
         }
         degraded = len(symbols) == 0 or (
             diagnostics['universe_size'] > 0

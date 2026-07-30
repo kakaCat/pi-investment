@@ -135,6 +135,7 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
     fundamental = snake_data.get('fundamental', [])
     sector_filter = snake_data.get('sector_filter', {})
     weights = snake_data.get('weights')
+    no_cache = bool(snake_data.get('no_cache', False))  # 跳过评分缓存强制重算
     page = max(1, int(snake_data.get('page', 1)))
     page_size = min(int(snake_data.get('page_size', 20)), 100)
 
@@ -176,7 +177,8 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
             opportunities = _scan_strategy_opportunities(strategy_id, symbols)
         else:
             opportunities = scoring_service.score_stocks(
-                symbols=symbols, filters={'technical': technical, 'fundamental': fundamental}, weights=weights)
+                symbols=symbols, filters={'technical': technical, 'fundamental': fundamental},
+                weights=weights, no_cache=no_cache)
 
         if selected_sectors_info:
             sector_score_map = {s['name']: s for s in selected_sectors_info['selected_sectors']}
@@ -201,11 +203,22 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
         paginated = sorted_opps[offset:offset + page_size]
         total_pages = math.ceil(total / page_size) if page_size > 0 else 0
 
+        # 动态评分诊断（与 Flask signals.py parity）
+        scoring_diag = getattr(scoring_service, 'last_diagnostics', None) or {}
         result = {
             'success': True,
             'scan_mode': 'strategy' if strategy_id is not None else 'score',
             'opportunities': paginated, 'total': total, 'page': page,
             'page_size': page_size, 'total_pages': total_pages, 'scanned': len(symbols),
+            'diagnostics': {
+                'universe_size': len(symbols),
+                'scored': scoring_diag.get('scored', len(opportunities)),
+                'skipped_insufficient_klines': scoring_diag.get('skipped_insufficient_klines', 0),
+                'skipped_condition_filter': scoring_diag.get('skipped_condition_filter', 0),
+                'scoring_degraded': scoring_diag.get('degraded', {}),
+                'repair_report': scoring_diag.get('repair_report', {}),
+                'elapsed_ms': scoring_diag.get('elapsed_ms'),
+            },
         }
         if strategy_id is not None:
             result['strategy_id'] = strategy_id

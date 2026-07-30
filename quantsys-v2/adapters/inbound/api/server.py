@@ -122,8 +122,6 @@ def create_app():
     app.register_blueprint(pool_scan_bp)
     from adapters.inbound.api.routes.pool_scan_switch import pool_scan_switch_bp
     app.register_blueprint(pool_scan_switch_bp)
-    from adapters.inbound.api.routes.opportunities import opportunities_bp
-    app.register_blueprint(opportunities_bp)
     from adapters.inbound.api.routes.portfolio import portfolio_bp
     app.register_blueprint(portfolio_bp)
     from adapters.inbound.api.routes.quote_market import quote_market_bp
