@@ -214,7 +214,8 @@ w_cap  = base.cap  × (1 + 0.5 × (liquidity_heat - 0.5))   # 量能越热资金
       "score_breakdown": {
         "technical":   {"total": 72, "weight": 0.28, "weighted": 20.2,
                         "details": {"rsi": 18.5, "macd": 15.0, "adx": 10.0, "volume": 16.0, "resonance": 10.0}},
-        "fundamental": {"total": 65, "weight": 0.22, "weighted": 14.3, "details": {}},
+        "fundamental": {"total": 65, "weight": 0.22, "weighted": 14.3,
+                        "details": {"pe": 8.0, "roe": 14.0, "gross_margin": 10.0, "debt_ratio": 12.0, "revenue_growth": 8.0, "resonance": 10.0}},
         "capital":     {"total": 81, "weight": 0.22, "weighted": 17.8, "details": {"main_inflow": 28}},
         "cycle":       {"total": 87, "weight": 0.28, "weighted": 24.4,
                         "details": {"margin_qoq": 30, "from_52w_high": 32, "alignment": 25}}
