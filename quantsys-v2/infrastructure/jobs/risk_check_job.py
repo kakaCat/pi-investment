@@ -57,7 +57,7 @@ class RiskCheckJob:
         start_date = account.created_at.strftime('%Y-%m-%d')
         current_date = datetime.now().strftime('%Y-%m-%d')
 
-        from infrastructure.persistence.repositories.kline_repository import KlineRepository
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
         kline_repo = KlineRepository()
 
         # 创业板指数代码
@@ -174,7 +174,7 @@ class RiskCheckJob:
 
         for pos in positions:
             # 获取当前价格
-            from infrastructure.persistence.repositories.kline_repository import KlineRepository
+            from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
             kline_repo = KlineRepository()
 
             cursor = kline_repo.session.connection().connection.cursor()

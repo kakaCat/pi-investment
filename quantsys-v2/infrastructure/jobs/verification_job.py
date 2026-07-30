@@ -53,7 +53,7 @@ class VerificationJob:
             return False
 
         # 检查数据库中是否有K线数据
-        from infrastructure.persistence.repositories.kline_repository import KlineRepository
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
         kline_repo = KlineRepository()
 
         # 简单检查：如果任意股票在该日期有K线数据，则认为是交易日
@@ -94,7 +94,7 @@ class VerificationJob:
         Returns:
             收益率（小数形式）
         """
-        from infrastructure.persistence.repositories.kline_repository import KlineRepository
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
         kline_repo = KlineRepository()
 
         # 获取起始价格
@@ -146,7 +146,7 @@ class VerificationJob:
         Returns:
             收益率（小数形式）
         """
-        from infrastructure.persistence.repositories.kline_repository import KlineRepository
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
         kline_repo = KlineRepository()
 
         # 创业板指数代码

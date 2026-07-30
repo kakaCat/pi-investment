@@ -75,13 +75,22 @@ def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
         }
 
     # 并行更新
-    data_service = DataService()
+    # 注意：DataService 内部持有 ORM session，不是线程安全的，
+    # 必须每个任务独立实例，不能跨线程共享（2026-07-30 并发报错修复）
+    def _fetch_one(symbol: str):
+        from infrastructure.persistence.orm import close_session
+        try:
+            return DataService().kline.get_latest_daily_kline(symbol)
+        finally:
+            # 释放线程级 session，避免连接滞留
+            close_session()
+
     updated = 0
     errors = []
 
     with ThreadPoolExecutor(max_workers=8) as executor:
         futures = {
-            executor.submit(data_service.kline.get_latest_daily_kline, symbol): symbol
+            executor.submit(_fetch_one, symbol): symbol
             for symbol in symbols
         }
 
@@ -177,6 +186,49 @@ def handle_data_pipeline_weekly(params: Dict[str, Any] = None) -> Dict[str, Any]
         }
 
 
+# 与 pool_scanner_service.scanner_config['strategies'] 保持一致
+DEFAULT_SCAN_STRATEGY_IDS = [272, 273]
+
+
+def _scan_pool_signals_by_name(
+    pool_name: str,
+    strategy_ids=None,
+    lookback_days: int = 60,
+) -> list:
+    """按池名扫描信号：解析池→symbols，调用 PoolSignalScanner。
+
+    Returns: 买入/卖出信号列表，每个信号附带 pool/strategy_id/signal_type。
+    """
+    from application.services.pool_signal_scanner import PoolSignalScanner
+    from adapters.outbound.repositories import KlineORMRepository, StrategyORMRepository
+    from adapters.inbound.api.shared import stock_pool_service
+
+    strategy_ids = strategy_ids or DEFAULT_SCAN_STRATEGY_IDS
+
+    # 解析池名 → pool_id → symbols
+    pools_by_name = {p['name']: p for p in stock_pool_service.list_pools()}
+    if pool_name not in pools_by_name:
+        raise ValueError(f"股票池不存在: {pool_name}")
+    pool = stock_pool_service.get_pool(pools_by_name[pool_name]['id'])
+    symbols = pool.get('symbols', [])
+    if not symbols:
+        return []
+
+    scanner = PoolSignalScanner(KlineORMRepository(), StrategyORMRepository())
+    signals = []
+    for strategy_id in strategy_ids:
+        result = scanner.scan_pool_signals(
+            symbols=symbols,
+            strategy_id=strategy_id,
+            lookback_days=lookback_days,
+        )
+        for s in result.get('buy_signals', []):
+            signals.append({**s, 'pool': pool_name, 'strategy_id': strategy_id, 'signal_type': 'buy'})
+        for s in result.get('sell_signals', []):
+            signals.append({**s, 'pool': pool_name, 'strategy_id': strategy_id, 'signal_type': 'sell'})
+    return signals
+
+
 def handle_signal_generate(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """信号生成任务"""
     params = params or {}
@@ -184,28 +236,22 @@ def handle_signal_generate(params: Dict[str, Any] = None) -> Dict[str, Any]:
     logger.info("Starting signal_generate task")
 
     try:
-        from application.services.pool_signal_scanner import PoolSignalScanner
-
-        scanner = PoolSignalScanner()
-
         # 获取要扫描的池子
         pools = params.get('pools', ['主选池', '备选池'])
+        strategy_ids = params.get('strategy_ids')
 
         all_signals = []
         pools_scanned = 0
 
         for pool_name in pools:
             try:
-                signals = scanner.scan_pool_signals(
-                    pool_name,
-                    signal_types=params.get('signal_types', ['买入', '卖出', '观察'])
-                )
+                signals = _scan_pool_signals_by_name(pool_name, strategy_ids=strategy_ids)
                 all_signals.extend(signals)
                 pools_scanned += 1
             except Exception as e:
                 logger.warning(f"Failed to scan pool {pool_name}: {e}")
 
-        # 按信号强度排序
+        # 按信号强度排序（无 strength 字段的信号排最后）
         all_signals.sort(key=lambda x: x.get('strength', 0), reverse=True)
 
         return {
@@ -850,9 +896,6 @@ def handle_market_scan_preopen(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
     try:
         from application.services.market_monitor_scheduler import MarketMonitorScheduler
-        from application.services.pool_signal_scanner import PoolSignalScanner
-
-        scanner = PoolSignalScanner()
 
         # 扫描主要池子的开盘信号
         pools_to_scan = params.get('pools', ['主选池', '备选池'])
@@ -860,10 +903,7 @@ def handle_market_scan_preopen(params: Dict[str, Any] = None) -> Dict[str, Any]:
         scan_results = []
         for pool_name in pools_to_scan:
             try:
-                signals = scanner.scan_pool_signals(
-                    pool_name,
-                    signal_types=['突破', '反转', '强势']
-                )
+                signals = _scan_pool_signals_by_name(pool_name)
                 scan_results.append({
                     'pool': pool_name,
                     'signals_count': len(signals),
@@ -900,10 +940,8 @@ def handle_signal_monitor_realtime(params: Dict[str, Any] = None) -> Dict[str, A
 
     try:
         from application.services.signal_monitoring import SignalMonitor
-        from application.services.pool_signal_scanner import PoolSignalScanner
 
         monitor = SignalMonitor()
-        scanner = PoolSignalScanner()
 
         # 扫描活跃池的信号
         active_pools = params.get('pools', ['主选池', '观察池'])
@@ -911,7 +949,7 @@ def handle_signal_monitor_realtime(params: Dict[str, Any] = None) -> Dict[str, A
         signals_found = []
         for pool_name in active_pools:
             try:
-                signals = scanner.scan_pool_signals(pool_name)
+                signals = _scan_pool_signals_by_name(pool_name)
                 signals_found.extend(signals)
             except Exception as e:
                 logger.warning(f"Failed to scan pool {pool_name}: {e}")

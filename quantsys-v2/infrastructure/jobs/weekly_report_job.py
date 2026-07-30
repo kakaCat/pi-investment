@@ -99,7 +99,7 @@ class WeeklyReportJob:
         positions = self.repo.get_all_positions(account_name=self.ACCOUNT_NAME)
         returns = []
 
-        from infrastructure.persistence.repositories.kline_repository import KlineRepository
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
         kline_repo = KlineRepository()
 
         for pos in positions:
@@ -146,7 +146,7 @@ class WeeklyReportJob:
 
     def _get_index_return(self, start_date: str, end_date: str) -> float:
         """获取创业板指数收益率"""
-        from infrastructure.persistence.repositories.kline_repository import KlineRepository
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
         kline_repo = KlineRepository()
 
         index_symbol = '399006'
