@@ -68,3 +68,51 @@ describe("observable logger session resume", () => {
     expect(readFileSync(resultEvent.result.filePath, "utf-8")).toContain(largeValue);
   });
 });
+
+describe("logLLMRetry", () => {
+  test("writes llm.retry event with start phase fields", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-logger-retry-"));
+    process.chdir(tempDir);
+
+    const logger = await import("./observable-logger.js");
+    logger.initSession("20260730010101_retry0001");
+
+    logger.logLLMRetry({
+      phase: "start",
+      attempt: 1,
+      maxAttempts: 5,
+      delayMs: 3000,
+      errorMessage: "terminated",
+    });
+
+    const eventsFile = join(tempDir, ".pi-invest", "sessions", "20260730010101_retry0001", "events.jsonl");
+    const events = readFileSync(eventsFile, "utf-8").trim().split("\n").map((line) => JSON.parse(line));
+    const retryEvent = events.find((event) => event.event === "llm.retry");
+
+    expect(retryEvent).toBeDefined();
+    expect(retryEvent.phase).toBe("start");
+    expect(retryEvent.attempt).toBe(1);
+    expect(retryEvent.maxAttempts).toBe(5);
+    expect(retryEvent.delayMs).toBe(3000);
+    expect(retryEvent.errorMessage).toBe("terminated");
+  });
+
+  test("writes llm.retry event with end phase fields", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-logger-retry-end-"));
+    process.chdir(tempDir);
+
+    const logger = await import("./observable-logger.js");
+    logger.initSession("20260730010202_retry0002");
+
+    logger.logLLMRetry({ phase: "end", attempt: 3, success: false, finalError: "terminated" });
+
+    const eventsFile = join(tempDir, ".pi-invest", "sessions", "20260730010202_retry0002", "events.jsonl");
+    const events = readFileSync(eventsFile, "utf-8").trim().split("\n").map((line) => JSON.parse(line));
+    const retryEvent = events.find((event) => event.event === "llm.retry");
+
+    expect(retryEvent.phase).toBe("end");
+    expect(retryEvent.attempt).toBe(3);
+    expect(retryEvent.success).toBe(false);
+    expect(retryEvent.finalError).toBe("terminated");
+  });
+});

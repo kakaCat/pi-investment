@@ -435,6 +435,22 @@ export function logSubagentEnd(agentType: 'subagent' | 'plan' | 'clarify' | 'ref
   });
 }
 
+// 记录 LLM 自动重试（SDK auto_retry_start / auto_retry_end 事件）
+export function logLLMRetry(data: {
+  phase: 'start' | 'end';
+  attempt: number;
+  maxAttempts?: number;
+  delayMs?: number;
+  errorMessage?: string;
+  success?: boolean;
+  finalError?: string;
+}) {
+  logEvent('llm.retry', {
+    turn_index: turnIndex,
+    ...data,
+  });
+}
+
 export const observableLogger = {
   initSession,
   logTurnStart,
@@ -451,4 +467,5 @@ export const observableLogger = {
   logSystemPrompt,
   logSubagentStart,
   logSubagentEnd,
+  logLLMRetry,
 };
