@@ -83,6 +83,33 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
             logger.error(f"Error in get_latest_fund_flow: {e}")
             return []
 
+    def batch_get_latest_flows(
+        self, symbols: List[str], days: int = 5
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """批量查询多只股票最近 N 条资金流（按交易日倒序）
+
+        Returns:
+            {symbol: [flow_dict, ...]}，每股最多 days 条，最新在前
+        """
+        if not symbols:
+            return {}
+        try:
+            rows = (self.session.query(self.model)
+                    .filter(self.model.symbol.in_(symbols))
+                    .order_by(self.model.symbol,
+                              self.model.trade_date.desc())
+                    .all())
+            result: Dict[str, List[Dict[str, Any]]] = {s: [] for s in symbols}
+            for r in rows:
+                lst = result.get(r.symbol)
+                if lst is not None and len(lst) < days:
+                    lst.append({c.name: getattr(r, c.name)
+                                for c in self.model.__table__.columns})
+            return result
+        except Exception as e:
+            logger.error(f"Error in batch_get_latest_flows: {e}")
+            return {s: [] for s in symbols}
+
     def batch_upsert(self, records: List[Dict[str, Any]]) -> int:
         """批量 upsert 资金流记录（按 symbol+trade_date 去重），返回写入条数"""
         if not records:

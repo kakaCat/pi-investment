@@ -128,6 +128,37 @@ class FinancialORMRepository(BaseORMRepository[IncomeStatement], IFinancialRepos
             logger.error(f"Error querying balance sheets for {symbol}: {e}")
             return []
 
+    def batch_get_quarterly_margins(
+        self, symbols: List[str], quarters: int = 8
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """批量查询多只股票近 N 个季度利润表（用于周期/成长分类）
+
+        Args:
+            symbols: 股票代码列表
+            quarters: 每股最多返回季度数（默认 8）
+
+        Returns:
+            {symbol: [income_dict, ...]}，按 report_date 倒序，仅 period_type='Q'
+        """
+        if not symbols:
+            return {}
+        try:
+            rows = (self.session.query(IncomeStatement)
+                    .filter(IncomeStatement.symbol.in_(symbols),
+                            IncomeStatement.period_type == 'Q')
+                    .order_by(IncomeStatement.symbol,
+                              IncomeStatement.report_date.desc())
+                    .all())
+            result: Dict[str, List[Dict[str, Any]]] = {s: [] for s in symbols}
+            for r in rows:
+                lst = result.get(r.symbol)
+                if lst is not None and len(lst) < quarters:
+                    lst.append(_row_to_dict(r))
+            return result
+        except SQLAlchemyError as e:
+            logger.error(f"Error batch querying quarterly margins: {e}")
+            return {s: [] for s in symbols}
+
     def list_all(self, limit: int = 100) -> List:
         try:
             return self.session.query(self.model).limit(limit).all()
