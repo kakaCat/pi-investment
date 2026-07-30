@@ -9,24 +9,43 @@
 from typing import List, Dict, Optional
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 from adapters.outbound.repositories import KlineORMRepository
 from adapters.outbound.repositories import StockORMRepository
 from domain.quantlib.adapters import get_factor_adapter
 from application.services.scoring.technical_scorer import TechnicalScorer
 from application.services.scoring.fundamental_scorer import FundamentalScorer
+from application.services.scoring.capital_scorer import CapitalScorer
+from application.services.scoring.cycle_position_scorer import CyclePositionScorer
+from application.services.scoring.stock_profile_classifier import StockProfileClassifier
+from application.services.scoring.weight_calculator import (
+    base_weights, apply_regime, feature_pct_for)
+from application.services.scoring.regime_signal_provider import RegimeSignalProvider
+from application.services.scoring.data_quality_gate import DataQualityGate
+from infrastructure.cache.cache_service import get_cache_service
 import structlog
 
 logger = structlog.get_logger(__name__)
 
 
 class OpportunityScoringService:
-    """机会评分引擎"""
+    """机会评分引擎（动态 profile + regime 权重 + 证据链）"""
+
+    # 缓存 TTL（秒）
+    TTL_QUARTERLY = 86400    # 季度财报 24h
+    TTL_FUND_FLOW = 300      # 资金流 5min
+    TTL_FUNDAMENTALS = 3600  # 基本面快照 1h
 
     def __init__(
         self,
         kline_repo: KlineORMRepository,
         stock_repo: StockORMRepository,
-        factor_adapter
+        factor_adapter,
+        financial_repo=None,
+        fund_flow_repo=None,
+        regime_provider=None,
+        quality_gate=None,
+        cache=None,
     ):
         self.kline_repo = kline_repo
         self.stock_repo = stock_repo
@@ -34,51 +53,88 @@ class OpportunityScoringService:
         # 初始化评分器
         self.technical_scorer = TechnicalScorer(factor_adapter)
         self.fundamental_scorer = FundamentalScorer()
+        # 动态评分组件
+        self.capital_scorer = CapitalScorer()
+        self.cycle_scorer = CyclePositionScorer()
+        self.profile_classifier = StockProfileClassifier()
+        self.cache = cache or get_cache_service()
+        if financial_repo is None:
+            from adapters.outbound.repositories.financial_repository import FinancialORMRepository
+            financial_repo = FinancialORMRepository()
+        if fund_flow_repo is None:
+            from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
+            fund_flow_repo = FundFlowORMRepository()
+        self.financial_repo = financial_repo
+        self.fund_flow_repo = fund_flow_repo
+        self.regime_provider = regime_provider or RegimeSignalProvider(
+            kline_repo, cache=self.cache)
+        if quality_gate is None:
+            data_provider = None
+            try:
+                from adapters.outbound.datasources.manager import get_data_provider_manager
+                data_provider = get_data_provider_manager()
+            except Exception as e:
+                logger.warning(f"DataProviderManager 不可用，K线补抓禁用: {e}")
+            quality_gate = DataQualityGate(data_provider=data_provider)
+        self.quality_gate = quality_gate
 
     def score_stocks(
         self,
         symbols: List[str],
         filters: Dict,
-        weights: Optional[Dict] = None
+        weights: Optional[Dict] = None,
+        no_cache: bool = False
     ) -> List[Dict]:
-        """批量评分股票
+        """批量评分股票（动态 profile + regime 权重）
 
         Args:
             symbols: 股票代码列表
-            filters: 筛选条件，包含 technical 和 fundamental 列表
-            weights: 动态权重字典，如 {'technical': 0.5, 'fundamental': 0.3, 'capital': 0.2}
-                    如果为 None，使用默认固定权重
+            filters: 筛选条件 {'technical': [...], 'fundamental': [...], 'conditions': [...]}
+            weights: 显式权重（传入=覆盖动态机制）
+            no_cache: True=跳过所有缓存强制重算
 
         Returns:
-            评分结果列表，每个元素包含 symbol, score, technical_score 等字段
+            评分结果列表，含 score_breakdown/reasons/applied_context 证据链
         """
+        started = time.time()
         if not symbols:
             self.last_diagnostics = {
-                'universe_size': 0,
-                'scored': 0,
+                'universe_size': 0, 'scored': 0,
                 'skipped_insufficient_klines': 0,
-                'skipped_condition_filter': 0,
-                'errors': 0,
+                'skipped_condition_filter': 0, 'errors': 0,
+                'degraded': {}, 'repair_report': {}, 'elapsed_ms': 0,
             }
             return []
 
-        # 验证和归一化权重
         if weights is not None:
             weights = self._normalize_weights(weights)
 
-        # 批量查询K线数据
-        klines_map = self.kline_repo.batch_get_recent_klines(symbols, days=120)
+        # regime 信号（全扫描一次）
+        regime_signals = self.regime_provider.get_signals(no_cache=no_cache)
 
-        # 批量查询基本面数据
-        fundamentals_map = self.stock_repo.batch_get_fundamentals(symbols)
+        # 批量取数（K线 250 天：52 周高点需要）
+        klines_map = self.kline_repo.batch_get_recent_klines(symbols, days=250)
+        fundamentals_map, fund_status = self._cached_batch(
+            symbols, 'fund', self.TTL_FUNDAMENTALS, no_cache,
+            lambda miss: self.stock_repo.batch_get_fundamentals(miss))
+        quarterly_map, q_status = self._cached_batch(
+            symbols, 'quarterly', self.TTL_QUARTERLY, no_cache,
+            lambda miss: self.financial_repo.batch_get_quarterly_margins(miss, quarters=8))
+        flows_map, flow_status = self._cached_batch(
+            symbols, 'flow', self.TTL_FUND_FLOW, no_cache,
+            lambda miss: self.fund_flow_repo.batch_get_latest_flows(miss, days=5))
 
-        # 诊断计数：让调用方能区分「没有机会」和「没有数据」
+        # 逐股 profile 分类（一次，池内分位需要全池数据）
+        profiles = self.profile_classifier.classify_batch(
+            symbols, quarterly_map, fundamentals_map)
+
         diagnostics = {
             'universe_size': len(symbols),
             'scored': 0,
             'skipped_insufficient_klines': 0,
             'skipped_condition_filter': 0,
             'errors': 0,
+            'degraded': {'fund_flow_missing': 0, 'quarterly_insufficient': 0},
         }
 
         # 并行处理每只股票
@@ -91,7 +147,19 @@ class OpportunityScoringService:
                     klines_map.get(symbol, []),
                     fundamentals_map.get(symbol),
                     filters,
-                    weights
+                    weights,
+                    {
+                        'profile': profiles.get(symbol),
+                        'regime': regime_signals,
+                        'fund_flows': flows_map.get(symbol) or [],
+                        'quarterly': quarterly_map.get(symbol) or [],
+                        'cache_status': {
+                            'fundamentals': fund_status.get(symbol, 'computed'),
+                            'fund_flow': flow_status.get(symbol, 'computed'),
+                            'quarterly': q_status.get(symbol, 'computed'),
+                            'regime': 'hit' if not no_cache else 'computed',
+                        },
+                    }
                 ): symbol
                 for symbol in symbols
             }
@@ -109,14 +177,42 @@ class OpportunityScoringService:
                             diagnostics['errors'] += 1
                         else:
                             diagnostics['scored'] += 1
+                            if result.pop('_degraded_flow', False):
+                                diagnostics['degraded']['fund_flow_missing'] += 1
+                            if result.pop('_degraded_quarterly', False):
+                                diagnostics['degraded']['quarterly_insufficient'] += 1
                             opportunities.append(result)
                 except Exception as e:
                     diagnostics['errors'] += 1
                     symbol = futures[future]
                     logger.error(f"{symbol}: 评分失败 - {e}")
 
+        diagnostics['repair_report'] = dict(self.quality_gate.repair_report)
+        diagnostics['elapsed_ms'] = int((time.time() - started) * 1000)
         self.last_diagnostics = diagnostics
+
+        opportunities.sort(key=lambda x: x.get('score', 0), reverse=True)
         return opportunities
+
+    def _cached_batch(self, symbols, kind, ttl, no_cache, fetch):
+        """per-symbol 缓存的批量取数。返回 (map, {symbol: 'hit'|'computed'})"""
+        result, status, missing = {}, {}, []
+        for s in symbols:
+            cached = None if no_cache else self.cache.get('scoring', f'{kind}:{s}')
+            if cached is not None:
+                result[s] = cached
+                status[s] = 'hit'
+            else:
+                missing.append(s)
+        if missing:
+            fresh = fetch(missing) or {}
+            for s in missing:
+                value = fresh.get(s)
+                if value is not None:
+                    self.cache.set('scoring', f'{kind}:{s}', value, ttl)
+                result[s] = value
+                status[s] = 'computed'
+        return result, status
 
     def _score_single_stock(
         self,
@@ -124,30 +220,32 @@ class OpportunityScoringService:
         klines: List[Dict],
         fundamental: Optional[Dict],
         filters: Dict,
-        weights: Optional[Dict] = None
+        weights: Optional[Dict] = None,
+        context: Optional[Dict] = None,
     ) -> Optional[Dict]:
-        """评分单只股票
-
-        Args:
-            symbol: 股票代码
-            klines: K线数据列表
-            fundamental: 基本面数据
-            filters: 筛选条件
-            weights: 动态权重字典
-
-        Returns:
-            评分结果字典，如果数据不足返回 None
-        """
+        """评分单只股票（动态 profile + regime 权重 + 证据链）"""
         try:
-            # 检查K线数据是否充足
-            if len(klines) < 30:
-                logger.warning(f"{symbol}: K线数据不足 ({len(klines)}条)")
-                return {'_skipped': 'insufficient_klines'}
+            context = context or {}
+            profile_info = context.get('profile') or {
+                'profile': 'balanced', 'signals': {},
+                'reason': '无分类信息，按平衡型处理'}
+            regime = context.get('regime') or RegimeSignalProvider.DEFAULT_SIGNALS
+            flows = context.get('fund_flows') or []
+            quarterly = context.get('quarterly') or []
+
+            reasons: List[str] = [profile_info['reason']]
+
+            # === 数据质量门（脏bar剔除 + 近端补抓）===
+            report = self.quality_gate.check(symbol, klines)
+            reasons.extend(report.repairs)
+            if not report.ok:
+                return {'_skipped': report.skip_reason or 'insufficient_klines'}
+            klines = report.klines
 
             # 计算技术指标因子
             factors = self._calculate_factors(klines)
 
-            # 新增：评估筛选条件（优先使用新格式）
+            # 筛选条件（保持原逻辑）
             conditions = filters.get('conditions', [])
             logic = filters.get('logic', 'AND')
 
@@ -155,36 +253,76 @@ class OpportunityScoringService:
                 if not self._evaluate_conditions(conditions, logic, fundamental or {}, factors):
                     return {'_skipped': 'condition_filter'}  # 不满足条件，跳过
 
-
-            # === 使用 TechnicalScorer 计算技术面评分 ===
+            # === 技术面 ===
             tech_result = self.technical_scorer.score(factors)
             tech_score = tech_result['total']
-            # 可选：记录评分明细用于调试
-            # logger.debug(f"{symbol} 技术面明细: {tech_result['breakdown']}")
+            reasons.extend(self._tech_reasons(factors, tech_result))
 
-            # === 使用 FundamentalScorer 计算基本面评分 ===
-            if fundamental and not filters.get('fundamental'):
-                # 无筛选条件时使用新评分器
-                fund_result = self.fundamental_scorer.score(fundamental)
-                fund_score = fund_result['total']
-                # 可选：记录评分明细用于调试
-                # logger.debug(f"{symbol} 基本面明细: {fund_result['breakdown']}")
+            # === 基本面（修复 key 错位：pe_ratio→pe 等）===
+            fund_input = self._map_fundamental_keys(fundamental or {})
+            fund_result = self.fundamental_scorer.score(fund_input)
+            fund_score = fund_result['total']
+
+            # === 资金面 ===
+            cap_result = self.capital_scorer.score({
+                'fund_flows': flows,
+                'market_cap': (fundamental or {}).get('market_cap'),
+                'volume_ratio_5d': factors.get('volume_ratio_5d', 1.0),
+                'volume_ma5': factors.get('volume_ma5', 0),
+                'volume_ma20': factors.get('volume_ma20', 0),
+                'change_pct': self._latest_change_pct(klines),
+            })
+            capital_score = cap_result['total']
+            reasons.extend(cap_result['reasons'])
+
+            # === 周期位置（仅 cyclical）===
+            profile = profile_info['profile']
+            cycle_result = None
+            if profile == 'cyclical':
+                cycle_result = self.cycle_scorer.score({
+                    'quarterly_margins': quarterly,
+                    'pct_from_52w_high': self._pct_from_52w_high(klines),
+                })
+                reasons.extend(cycle_result['reasons'])
+
+            # === 权重 ===
+            if weights is not None:
+                final_weights = weights
+                weights_source = 'override'
+                reasons.append('使用调用方指定权重')
             else:
-                # 有筛选条件时使用旧逻辑（保持向后兼容）
-                fund_score = self._calculate_fundamental_score(
-                    fundamental,
-                    filters.get('fundamental', [])
-                )
+                pct = feature_pct_for(profile, profile_info.get('signals') or {})
+                final_weights = apply_regime(base_weights(profile, pct), regime)
+                weights_source = 'auto'
+                reasons.append(
+                    f"当前{self._regime_label(regime.get('label'))}，"
+                    f"权重已按市场环境调整")
 
-            capital_score = self._calculate_capital_score(factors)
+            # === 综合分 ===
+            dim_scores = {'technical': tech_score, 'fundamental': fund_score,
+                          'capital': capital_score}
+            if cycle_result is not None:
+                dim_scores['cycle'] = cycle_result['total']
+            total_score = sum(dim_scores[d] * final_weights.get(d, 0)
+                              for d in dim_scores)
 
-            # 计算综合评分
-            total_score = self._calculate_comprehensive_score(
-                tech_score,
-                fund_score,
-                capital_score,
-                weights
-            )
+            # === 证据链 ===
+            details_map = {
+                'technical': tech_result.get('breakdown', {}),
+                'fundamental': fund_result.get('breakdown', {}),
+                'capital': cap_result.get('breakdown', {}),
+            }
+            if cycle_result is not None:
+                details_map['cycle'] = cycle_result.get('breakdown', {})
+            score_breakdown = {
+                d: {
+                    'total': round(dim_scores[d], 2),
+                    'weight': round(final_weights.get(d, 0), 4),
+                    'weighted': round(dim_scores[d] * final_weights.get(d, 0), 2),
+                    'details': details_map[d],
+                }
+                for d in dim_scores
+            }
 
             # 获取股票名称（get_by_symbol 只接受 symbol 一个参数）
             stock_obj = self.stock_repo.get_by_symbol(symbol)
@@ -200,12 +338,86 @@ class OpportunityScoringService:
                 'confidence': round(total_score / 100, 2),
                 'risk_level': self._calculate_risk_level(total_score),
                 'signal_type': 'buy',
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now().isoformat(),
+                'score_breakdown': score_breakdown,
+                'reasons': reasons,
+                'reason': reasons[0] if reasons else '',
+                'applied_context': {
+                    'profile': profile,
+                    'profile_signals': profile_info.get('signals') or {},
+                    'market_regime': regime,
+                    'final_weights': {k: round(v, 4)
+                                      for k, v in final_weights.items()},
+                    'weights_source': weights_source,
+                    'cache': context.get('cache_status', {}),
+                },
+                '_degraded_flow': len(flows) == 0,
+                '_degraded_quarterly': (
+                    profile == 'cyclical' and len(quarterly) < 4),
             }
 
         except Exception as e:
             logger.error(f"{symbol}: 评分失败 - {e}", exc_info=True)
             return {'_skipped': 'error'}
+
+    @staticmethod
+    def _map_fundamental_keys(fundamental: Dict) -> Dict:
+        """修复 key 错位：repo 返回 pe_ratio，FundamentalScorer 读 pe"""
+        return {
+            'pe': fundamental.get('pe_ratio'),
+            'roe': fundamental.get('roe'),
+            'gross_margin': fundamental.get('gross_margin'),
+            'debt_ratio': fundamental.get('debt_ratio'),
+            'revenue_growth': fundamental.get('revenue_growth'),
+            'net_profit_margin': fundamental.get('net_profit_margin'),
+        }
+
+    @staticmethod
+    def _pct_from_52w_high(klines: List[Dict]) -> Optional[float]:
+        try:
+            highs = [float(k['high']) for k in klines
+                     if k.get('high') is not None]
+            close = float(klines[-1]['close'])
+            if not highs or close <= 0:
+                return None
+            high_52w = max(highs)
+            if high_52w <= 0:
+                return None
+            return (close - high_52w) / high_52w
+        except (TypeError, ValueError, IndexError, KeyError):
+            return None
+
+    @staticmethod
+    def _latest_change_pct(klines: List[Dict]) -> float:
+        try:
+            if len(klines) < 2:
+                return 0.0
+            prev = float(klines[-2]['close'])
+            cur = float(klines[-1]['close'])
+            return (cur / prev - 1) * 100 if prev > 0 else 0.0
+        except (TypeError, ValueError, IndexError, KeyError):
+            return 0.0
+
+    @staticmethod
+    def _regime_label(label) -> str:
+        return {'bull': '牛市', 'bear': '熊市', 'sideways': '震荡市'}.get(
+            label, '震荡市')
+
+    @staticmethod
+    def _tech_reasons(factors: Dict, tech_result: Dict) -> List[str]:
+        """从技术面因子生成可读理由"""
+        reasons = []
+        rsi = factors.get('rsi')
+        if rsi is not None and rsi < 30:
+            reasons.append(f'RSI超卖({rsi:.1f})')
+        elif rsi is not None and rsi > 70:
+            reasons.append(f'RSI超买({rsi:.1f})')
+        if tech_result.get('breakdown', {}).get('macd', 0) > 10:
+            reasons.append('MACD金叉')
+        if rsi is not None and rsi < 30 and \
+                tech_result.get('breakdown', {}).get('macd', 0) > 10:
+            reasons.append('RSI超卖+MACD金叉共振')
+        return reasons
 
     def _calculate_factors(self, klines: List[Dict]) -> Dict:
         """计算技术指标因子
