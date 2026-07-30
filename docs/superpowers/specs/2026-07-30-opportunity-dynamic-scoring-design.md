@@ -6,17 +6,21 @@
 
 ## 1. 背景与问题
 
-`POST /api/opportunities/scan` 路由（`adapters/inbound/api/routes/opportunities.py`）当前返回**硬编码 `score: 75`** 的占位数据。但评分基础设施其实已经存在：
+**2026-07-30 实施前核查修正**：最初假设"评分引擎写好了但没接入"是过时的。实际调用链：
+
+- agent-ts `opportunity_scan` 工具 → `POST /api/signals/scan` → [signals.py](quantsys-v2/adapters/inbound/api/routes/signals.py)（Flask）/ [signals_async.py](quantsys-v2/adapters/inbound/fastapi_app/routes/signals_async.py)（FastAPI parity）→ **已经在调用 `scoring_service.score_stocks()` 真实评分**
+- 硬编码 `score: 75` 的 `/api/opportunities/scan`（[opportunities.py](quantsys-v2/adapters/inbound/api/routes/opportunities.py)）经全仓 grep **无任何调用方**（agent-ts / web-frontend 都不调），是死代码
 
 | 组件 | 状态 |
 |---|---|
-| `application/services/opportunity_scoring_service.py`（710 行） | ✅ 完整实现：TechnicalScorer + FundamentalScorer + 量能资金分 + 权重归一化 + 条件筛选 + 线程池并行 + diagnostics，已注册进 DI 容器，**但路由没调用** |
-| `application/services/opportunity_scoring_service_v2.py`（660 行） | ✅ 有 `_generate_reasons` 思路；无测试、未注册 DI |
+| `application/services/opportunity_scoring_service.py`（710 行） | ✅ 已接入 `/api/signals/scan`；但评分不区分股票类型、不感知市场环境、资金分仅成交量、**响应无 reasons/breakdown**（agent 无法归因） |
+| `application/services/opportunity_scoring_service_v2.py`（660 行） | 有 `_generate_reasons` 思路；无测试、未注册 DI |
 | `application/services/scoring/technical_scorer.py` | ✅ RSI/MACD/ADX/量能灰度化评分 |
-| `application/services/scoring/fundamental_scorer.py` | ✅ PE/ROE/毛利率/负债/增长灰度化评分 |
+| `application/services/scoring/fundamental_scorer.py` | ✅ PE/ROE/毛利率/负债/增长灰度化评分（⚠️ 服务传入的 key 是 `pe_ratio` 而 scorer 读 `pe`，存在 key 错位 latent bug，PE 维度一直得 0 分） |
 | `application/services/market_regime_detector.py` | ✅ 牛/熊/震荡判定（ADX + 均线排列 + 波动率），未接入评分 |
+| `adapters/inbound/api/routes/opportunities.py` | ❌ 死代码（硬编码 score=75，无调用方），删除 |
 
-**缺口**：路由没接服务；评分不区分股票类型（周期股用成长股权重打分）；不感知市场环境；打分没有理由输出，agent 无法归因学习。
+**真实缺口**：服务评分逻辑本身——不区分股票类型（周期股用成长股权重打分）、不感知市场环境、资金分维度单薄、无打分理由输出。
 
 ## 2. 设计目标
 
@@ -32,11 +36,12 @@
 ## 3. 整体架构
 
 ```
-POST /api/opportunities/scan  {symbols, conditions, limit, weights?, no_cache?}
-  │
+POST /api/signals/scan  {symbols/stocks, conditions, limit, weights?, no_cache?}
+  │  （agent-ts opportunity_scan 的实际调用入口；Flask + FastAPI parity 双实现，
+  │    两者都已调用同一个 OpportunityScoringService，增强服务即双端同时受益）
   ▼
-routes/opportunities.py（重写为薄路由，~30 行：参数解析 + 调服务 + 响应包装）
-  │  从 DI 容器取 OpportunityScoringService
+routes/signals.py / signals_async.py（保持薄，仅补 diagnostics 透传）
+  │
   ▼
 OpportunityScoringService.score_stocks()
   │
@@ -65,10 +70,11 @@ OpportunityScoringService.score_stocks()
 
 **关键决策**：
 
-1. **路由变薄**：现有 90 行业务逻辑全部下沉服务。
+1. **删除死路由** `routes/opportunities.py`（无调用方，符合仓库"删除废弃代码"约定）；真正的入口 `/api/signals/scan` 已经是薄路由，只需在响应里补 `diagnostics`。
 2. **regime 全扫描只判一次**——它是市场级状态。
 3. **收编 v2 服务**：`_generate_reasons` 思路合并进 v1 服务后，删除 `opportunity_scoring_service_v2.py`（无测试无 DI 注册，避免再次新旧并存）。
-4. **常量兜底 + 程序计算 + TTL 缓存三层**（见 §5），兜底常量在代码里（`DEFAULT_*`），不单独配置文件。
+4. **修复 fundamental key 错位**：服务调 FundamentalScorer 前把 `pe_ratio`→`pe` 等 key 映射正确（latent bug，PE 维度目前恒 0 分）。
+5. **常量兜底 + 程序计算 + TTL 缓存三层**（见 §5），兜底常量在代码里（`DEFAULT_*`），不单独配置文件。
 
 ## 4. 程序化分类与评分
 
@@ -192,9 +198,11 @@ w_cap  = base.cap  × (1 + 0.5 × (liquidity_heat - 0.5))   # 量能越热资金
 
 ### 请求（向后兼容，只加可选字段）
 
+`POST /api/signals/scan`（Flask + FastAPI parity 同步生效）
+
 ```json
 {
-  "symbols": ["600519"],      // 可选，不变
+  "symbols": ["600519"],      // 可选，不变（也兼容 stocks 字段）
   "limit": 20,                 // 不变
   "conditions": [...],         // 不变
   "weights": {...},            // 可选，传入=覆盖动态机制
@@ -288,9 +296,9 @@ w_cap  = base.cap  × (1 + 0.5 × (liquidity_heat - 0.5))   # 量能越热资金
 1. 新增批量取数方法（季度 income_statements、fund_flows 5 日）+ 单测
 2. CapitalScorer / CyclePositionScorer + 单测
 3. StockProfileClassifier + 权重函数 + 单测
-4. MarketRegimeDetector 暴露连续信号值 + 缓存封装
+4. MarketRegimeDetector 暴露连续信号值（detect_from_dataframe）+ 缓存封装
 5. DataQualityGate + 修复预算 + 单测
-6. OpportunityScoringService 编排整合（合并 v2 reasons 思路）+ 集成测试
-7. 路由重写为薄路由 + 删除 opportunity_scoring_service_v2.py
-8. agent-ts formatter/测试更新
+6. OpportunityScoringService 编排整合（合并 v2 reasons 思路 + fundamental key 映射修复）+ 集成测试
+7. signals 路由补 diagnostics 透传 + 删除死路由 opportunities.py + 删除 opportunity_scoring_service_v2.py
+8. agent-ts 类型/formatter/测试更新
 9. 全量回归（注意预存在失败清单，区分回归）
