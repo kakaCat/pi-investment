@@ -46,7 +46,7 @@ describe('opportunity_scan 工具定义', () => {
 
   it('权重参数定义完整', () => {
     const params = opportunityScanTool.parameters;
-    const weightsParam = params.properties.weights;
+    const weightsParam = (params.properties as any).weights;
 
     expect(weightsParam).toBeDefined();
     expect(weightsParam.properties).toHaveProperty('technical');
@@ -56,7 +56,7 @@ describe('opportunity_scan 工具定义', () => {
 
   it('动态权重配置参数完整', () => {
     const params = opportunityScanTool.parameters;
-    const dynamicConfig = params.properties.dynamic_weights_config;
+    const dynamicConfig = (params.properties as any).dynamic_weights_config;
 
     expect(dynamicConfig).toBeDefined();
     expect(dynamicConfig.properties).toHaveProperty('factors');

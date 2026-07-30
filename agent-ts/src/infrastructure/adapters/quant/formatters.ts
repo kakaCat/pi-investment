@@ -577,6 +577,31 @@ export function formatOpportunities(opportunities: OpportunityResult[]): string 
     lines.push(`   风险等级: ${opp.risk_level}`);
     lines.push(`   信号类型: ${opp.signal_type}`);
 
+    // 动态评分证据链（2026-07-30）：类型/环境/权重/得分构成
+    if (opp.applied_context) {
+      const ctx = opp.applied_context;
+      const profileLabel: Record<string, string> = {
+        growth: '成长股', value: '价值股',
+        cyclical: '周期股', balanced: '平衡型',
+      };
+      const regimeLabel: Record<string, string> = {
+        bull: '牛市', bear: '熊市', sideways: '震荡市',
+      };
+      lines.push(`   股票类型: ${profileLabel[ctx.profile] || ctx.profile}`);
+      lines.push(`   市场环境: ${regimeLabel[ctx.market_regime.label] || ctx.market_regime.label}` +
+        `（趋势${ctx.market_regime.trend_strength.toFixed(2)} ` +
+        `风险${ctx.market_regime.market_risk.toFixed(2)}）`);
+      const w = Object.entries(ctx.final_weights)
+        .map(([k, v]) => `${k}:${(v * 100).toFixed(0)}%`).join(' ');
+      lines.push(`   实际权重: ${w}${ctx.weights_source === 'override' ? '（指定）' : ''}`);
+    }
+    if (opp.score_breakdown) {
+      const bd = Object.entries(opp.score_breakdown)
+        .map(([k, v]) => `${k} ${v.total.toFixed(0)}×${(v.weight * 100).toFixed(0)}%=${v.weighted.toFixed(1)}`)
+        .join(' | ');
+      lines.push(`   得分构成: ${bd}`);
+    }
+
     if (opp.reasons && opp.reasons.length > 0) {
       lines.push(`   推荐理由:`);
       opp.reasons.forEach(reason => {

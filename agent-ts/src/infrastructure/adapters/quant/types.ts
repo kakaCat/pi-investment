@@ -214,6 +214,7 @@ export interface OpportunityScanParams {
   symbols?: string[];
   conditions?: string[];
   limit?: number;
+  no_cache?: boolean;
   weights?: {
     technical?: number;
     fundamental?: number;
@@ -239,10 +240,31 @@ export interface Opportunity {
   risk_level: string;
   signal_type: string;
   reasons?: string[];
+  reason?: string;
   timestamp: string;
   industry?: string;
   sector_score?: number;
   sector_rank?: number;
+  // 动态评分证据链（2026-07-30）
+  score_breakdown?: Record<string, {
+    total: number;
+    weight: number;
+    weighted: number;
+    details: Record<string, number | null>;
+  }>;
+  applied_context?: {
+    profile: 'growth' | 'value' | 'cyclical' | 'balanced';
+    profile_signals: Record<string, number | null>;
+    market_regime: {
+      label: string;
+      trend_strength: number;
+      market_risk: number;
+      liquidity_heat: number;
+    };
+    final_weights: Record<string, number>;
+    weights_source: 'auto' | 'override';
+    cache: Record<string, string>;
+  };
 }
 
 // Alias for formatter compatibility
