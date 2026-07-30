@@ -45,6 +45,16 @@ class TestDirtyBars:
         assert not report.ok
         assert report.skip_reason == 'insufficient_klines'
 
+    def test_historical_amount_zero_tolerated(self):
+        """07-13 事故遗留：历史 bar amount=0 不容剔除（指标不依赖 amount）"""
+        gate = DataQualityGate(data_provider=None)
+        bars = _klines(130)
+        for b in bars[:-10]:  # 除最近10根外全部 amount=0（事故遗留模式）
+            b['amount'] = 0
+        report = gate.check('A', bars)
+        assert report.ok
+        assert len(report.klines) == 130
+
 
 class TestGapRepair:
     def test_recent_gap_triggers_repair(self):

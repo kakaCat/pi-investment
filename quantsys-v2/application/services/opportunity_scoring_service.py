@@ -266,7 +266,7 @@ class OpportunityScoringService:
             # === 资金面 ===
             cap_result = self.capital_scorer.score({
                 'fund_flows': flows,
-                'market_cap': (fundamental or {}).get('market_cap'),
+                'market_cap': self._market_cap_yuan(fundamental),
                 'volume_ratio_5d': factors.get('volume_ratio_5d', 1.0),
                 'volume_ma5': factors.get('volume_ma5', 0),
                 'volume_ma20': factors.get('volume_ma20', 0),
@@ -371,6 +371,17 @@ class OpportunityScoringService:
             'revenue_growth': fundamental.get('revenue_growth'),
             'net_profit_margin': fundamental.get('net_profit_margin'),
         }
+
+    @staticmethod
+    def _market_cap_yuan(fundamental: Optional[Dict]) -> Optional[float]:
+        """stocks.market_cap 单位为【亿元】，CapitalScorer 契约是元 → ×1e8"""
+        mc = (fundamental or {}).get('market_cap')
+        if mc is None:
+            return None
+        try:
+            return float(mc) * 1e8
+        except (TypeError, ValueError):
+            return None
 
     @staticmethod
     def _pct_from_52w_high(klines: List[Dict]) -> Optional[float]:

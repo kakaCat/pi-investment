@@ -31,6 +31,7 @@ class DataQualityGate:
 
     MIN_KLINES = 120
     STALE_DAYS = 4           # 最后一根 K 线距今超过此天数 = 近端缺口
+    RECENT_DIRTY_WINDOW = 10  # amount=0 脏数据仅判定最近 N 根（历史 07-13 遗留容忍）
 
     def __init__(self, data_provider=None, repair_budget: int = 20):
         self.data_provider = data_provider
@@ -49,8 +50,13 @@ class DataQualityGate:
         repairs.extend(gap_notes)
 
         # 2. 脏 bar 剔除
+        # close<=0：任何位置都剔除
+        # amount=0 且 volume>0：仅剔除最近 RECENT_DIRTY_WINDOW 根——历史 amount=0
+        # 是 07-13 事故遗留（指标计算不依赖 amount），剔除会把K线清空
         before = len(bars)
-        bars = [b for b in bars if self._is_clean(b)]
+        n = len(bars)
+        bars = [b for i, b in enumerate(bars)
+                if self._is_clean(b, is_recent=(i >= n - self.RECENT_DIRTY_WINDOW))]
         removed = before - len(bars)
         if removed:
             repairs.append(f'剔除脏K线{removed}根(amount=0/价格异常)')
@@ -65,14 +71,15 @@ class DataQualityGate:
     # ---------- 内部 ----------
 
     @staticmethod
-    def _is_clean(bar: Dict) -> bool:
+    def _is_clean(bar: Dict, is_recent: bool = True) -> bool:
         try:
             if float(bar.get('close') or 0) <= 0:
                 return False
-            vol = float(bar.get('volume') or 0)
-            amt = bar.get('amount')
-            if amt is not None and vol > 0 and float(amt) == 0:
-                return False
+            if is_recent:
+                vol = float(bar.get('volume') or 0)
+                amt = bar.get('amount')
+                if amt is not None and vol > 0 and float(amt) == 0:
+                    return False
             return True
         except (TypeError, ValueError):
             return False
