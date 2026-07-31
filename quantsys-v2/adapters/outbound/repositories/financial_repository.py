@@ -159,6 +159,50 @@ class FinancialORMRepository(BaseORMRepository[IncomeStatement], IFinancialRepos
             logger.error(f"Error batch querying quarterly margins: {e}")
             return {s: [] for s in symbols}
 
+    def upsert_income_statements(self, records: List[Dict[str, Any]]) -> int:
+        """批量 upsert 利润表记录（按 symbol+report_date+period_type 去重）
+
+        Args:
+            records: [{symbol, report_date, period_type, revenue, gross_margin,
+                       net_profit, operating_cost, gross_profit, ...}]
+
+        Returns:
+            写入条数
+        """
+        if not records:
+            return 0
+        try:
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            now = datetime.now()
+            cols = ('symbol', 'report_date', 'period_type', 'revenue',
+                    'operating_revenue', 'operating_cost', 'gross_profit',
+                    'gross_margin', 'operating_profit', 'total_profit',
+                    'net_profit', 'net_profit_parent', 'eps', 'eps_diluted')
+            rows = []
+            for r in records:
+                row = {k: r.get(k) for k in cols if r.get(k) is not None}
+                row['updated_at'] = now
+                rows.append(row)
+
+            stmt = pg_insert(IncomeStatement).values(rows)
+            update_cols = {c: getattr(stmt.excluded, c) for c in
+                           ('revenue', 'operating_revenue', 'operating_cost',
+                            'gross_profit', 'gross_margin', 'operating_profit',
+                            'total_profit', 'net_profit', 'net_profit_parent',
+                            'eps', 'eps_diluted', 'updated_at')}
+            stmt = stmt.on_conflict_do_update(
+                index_elements=['symbol', 'report_date', 'period_type'],
+                set_=update_cols,
+            )
+            self.session.execute(stmt)
+            self.session.commit()
+            return len(rows)
+        except SQLAlchemyError as e:
+            logger.error(f"Error upserting income statements: {e}")
+            self.session.rollback()
+            return 0
+
     def list_all(self, limit: int = 100) -> List:
         try:
             return self.session.query(self.model).limit(limit).all()
