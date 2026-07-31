@@ -120,6 +120,19 @@ def update_gem_klines(**params):
         start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
         logger.info(f"日期范围: {start_date} -> {end_date}")
 
+        # stale 校验的基准日：最近一个"应当已有 EOD 数据"的交易日。
+        # 盘中/早盘/非交易日跑任务时，当天本来就没有日K，不能拿今天当
+        # 基准（否则全部误报 stale，2026-07-31 回填时 4364 只全误报）。
+        # 规则：工作日且已过 15:00 → 今天；否则 → 上一个工作日。
+        # （无交易日历，节假日会稍偏保守，仅影响 stale 计数不影响入库）
+        now = datetime.now()
+        target_date = end_date
+        if now.weekday() >= 5 or now.hour < 15:
+            d = now - timedelta(days=1)
+            while d.weekday() >= 5:
+                d -= timedelta(days=1)
+            target_date = d.strftime('%Y-%m-%d')
+
         # 初始化数据源管理器
         manager = DataProviderManager()
 
@@ -193,14 +206,15 @@ def update_gem_klines(**params):
 
                 # 目标日期校验：数据有效但只到更早日期时（如 baostock 当日
                 # EOD 尚未发布），仍入库但计为 stale 而非 success——避免
-                # 07-29 式假成功（报"成功5268只"实际仅355只有当日数据）
+                # 07-29 式假成功（报"成功5268只"实际仅355只有当日数据）。
+                # 基准是 target_date（最近已收盘交易日），不是 end_date
                 latest_date = max(str(k.date)[:10] for k in klines)
-                if latest_date < end_date:
+                if latest_date < target_date:
                     stale += 1
                     if stale <= 5 or stale % 500 == 0:
                         logger.warning(
                             f"[{i}/{total}] {symbol} - 数据仅到 {latest_date}，"
-                            f"未覆盖目标日期 {end_date}")
+                            f"未覆盖基准日 {target_date}")
                 else:
                     success += 1
 
@@ -223,11 +237,11 @@ def update_gem_klines(**params):
                 f"⚠️ K线数据源疑似被封/故障: {processed}只仅{success}只成功，"
                 f"请检查 provider 状态（WAF/IP封禁）")
 
-        # 陈旧数据预警：大量股票未覆盖目标日期（通常意味着首选源当日
+        # 陈旧数据预警：大量股票未覆盖基准日（通常意味着首选源当日
         # EOD 未发布，需要晚些补跑），不算任务失败但必须可见（2026-07-30）
         if stale > 0:
             logger.warning(
-                f"⚠️ {stale}只股票数据未覆盖目标日期 {end_date}"
+                f"⚠️ {stale}只股票数据未覆盖基准日 {target_date}"
                 f"（上游 EOD 未发布），建议稍后补跑")
 
         result = {
@@ -242,7 +256,8 @@ def update_gem_klines(**params):
             'skipped': skipped,
             'stale': stale,
             'date_range': f"{start_date} -> {end_date}",
-            'message': f'K线更新完成: 成功{success}只, 失败{failed}只, 跳过{skipped}只, 未覆盖当日{stale}只'
+            'target_date': target_date,
+            'message': f'K线更新完成: 成功{success}只, 失败{failed}只, 跳过{skipped}只, 未覆盖基准日{stale}只'
         }
 
         logger.info("="*70)
@@ -250,7 +265,7 @@ def update_gem_klines(**params):
         logger.info(f"  成功: {success}只")
         logger.info(f"  失败: {failed}只")
         logger.info(f"  跳过: {skipped}只")
-        logger.info(f"  未覆盖当日: {stale}只")
+        logger.info(f"  未覆盖基准日({target_date}): {stale}只")
         logger.info("="*70)
 
         return result
