@@ -249,6 +249,9 @@ export interface HeatmapStock {
   changePct: number
   marketCap: number
   inScope: boolean
+  /** 实际用于计算的区间（容忍配对下可能窄于请求验证窗） */
+  startDate?: string
+  endDate?: string
   signals?: HeatmapSignal[]
   poolEvents?: HeatmapPoolEvent[]
 }

@@ -166,3 +166,55 @@ class TestScopeDegraded:
         # 退化后 in_scope 为空（无信号/持仓）→ 行业为空，且标记 degraded
         assert d['scope_degraded'] is True
         assert d['industries'] == []
+
+
+S0, S1, S2 = date(2009, 3, 2), date(2009, 3, 3), date(2009, 3, 4)   # 周一~周三
+
+
+@pytest.fixture
+def seeded_sparse():
+    """回填稀疏场景：TST300 完整三天；TST301 缺 S0 只有 S1/S2（容忍配对应纳入）；
+    TST302 只有 S0 一根（区间内不足 2 个交易日应剔除）"""
+    repo = HeatmapRepository()
+    s = repo.session
+    s.add_all([
+        Stock(symbol='TST300', name='完整股', industry='测试稀疏', market='A', market_cap=100.0),
+        Stock(symbol='TST301', name='缺首日股', industry='测试稀疏', market='A', market_cap=80.0),
+        Stock(symbol='TST302', name='单根股', industry='测试稀疏', market='A', market_cap=60.0),
+    ])
+    klines = []
+    for sym, closes in [('TST300', [(S0, 10.0), (S1, 10.5), (S2, 11.0)]),
+                        ('TST301', [(S1, 20.0), (S2, 22.0)]),
+                        ('TST302', [(S0, 30.0)])]:
+        for td, c in closes:
+            klines.append(DailyKline(symbol=sym, trade_date=td, open=c, high=c, low=c, close=c, volume=1, amount=1))
+    s.add_all(klines)
+    s.add(PortfolioHolding(symbol='TST300', name='完整股', quantity=100, avg_cost=10.0,
+                           total_invested=1000.0, added_date=date(2009, 2, 20), market='A'))
+    s.commit()
+    yield HeatmapService()
+    syms = ['TST300', 'TST301', 'TST302']
+    s.query(DailyKline).filter(DailyKline.symbol.in_(syms)).delete()
+    s.query(PortfolioHolding).filter(PortfolioHolding.symbol.in_(syms)).delete()
+    s.query(Stock).filter(Stock.symbol.in_(syms)).delete()
+    s.commit()
+
+
+class TestTolerantWindowPairing:
+    def test_missing_d0_falls_back_to_first_available(self, seeded_sparse):
+        r = seeded_sparse.get_heatmap(date='2009-03-02', window=20)
+        assert r['success'] is True
+        ind = next((i for i in r['data']['industries'] if i['name'] == '测试稀疏'), None)
+        assert ind is not None
+        by_symbol = {s['symbol']: s for s in ind['stocks']}
+        # TST301 缺 S0 → 用 S1→S2 计算：+10%
+        assert 'TST301' in by_symbol
+        assert by_symbol['TST301']['change_pct'] == pytest.approx(10.0)
+        assert by_symbol['TST301']['start_date'] == '2009-03-03'
+        assert by_symbol['TST301']['end_date'] == '2009-03-04'
+        # TST300 完整 → S0→S2：+10%
+        assert by_symbol['TST300']['change_pct'] == pytest.approx(10.0)
+        assert by_symbol['TST300']['start_date'] == '2009-03-02'
+        # TST302 区间内仅 1 根 → 剔除
+        assert 'TST302' not in by_symbol
+        assert r['data']['excluded_count'] >= 1

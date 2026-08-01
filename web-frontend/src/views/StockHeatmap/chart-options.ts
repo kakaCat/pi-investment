@@ -96,6 +96,9 @@ export function buildHeatmapOption({ data, overlays }: BuildHeatmapOptionParams)
           `验证窗涨跌: ${stock.changePct > 0 ? '+' : ''}${stock.changePct}%`,
           `市值: ${(stock.marketCap / 1e8).toFixed(1)} 亿`,
         ]
+        if (stock.startDate && stock.endDate) {
+          lines.push(`计算区间: ${stock.startDate} → ${stock.endDate}`)
+        }
         if (stock.inScope) {
           stock.signals?.forEach((s) =>
             lines.push(`信号: ${s.type === 'buy' ? '买入' : '卖出'} @ ${s.date} (${s.strategy ?? '-'}) → ${judgeSignal(s.type, stock.changePct) === 'right' ? '✅对' : judgeSignal(s.type, stock.changePct) === 'wrong' ? '❌错' : '—'}`))
