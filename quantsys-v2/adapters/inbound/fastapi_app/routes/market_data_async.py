@@ -39,6 +39,17 @@ def get_sectors_v2():
     return api_response(result.get('data', {}))
 
 
+@router.get('/api/market/heatmap')
+@handle_api_error
+def get_market_heatmap(date: Optional[str] = Query(None), window: int = Query(5)):
+    """市场热力图 - 行业×个股验证窗涨跌 + agent 判断痕迹叠加（本地 DB 聚合）"""
+    from application.services.heatmap_service import heatmap_service
+    result = heatmap_service.get_heatmap(date=date, window=window)
+    if not result.get('success', False):
+        return error_response(result, 400)
+    return api_response(result.get('data', {}))
+
+
 @router.get('/api/market/macro')
 @handle_api_error
 def get_macro():
