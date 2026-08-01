@@ -111,12 +111,12 @@ pytest --cov=. --cov-report=html
 
 ## Dev Commands
 
-### ⚠️ 重要: Flask → FastAPI 迁移进行中（2026-07-19 更新）
+### ⚠️ 重要: Flask → FastAPI 迁移（2026-08-02 更新：已切换）
 
-**现状**：Flask → FastAPI 迁移**尚未完成**。生产 5001 端口目前仍由旧 Flask
-`adapters/inbound/api/server.py` 提供服务；FastAPI 入口为
-`adapters/inbound/fastapi_app/main.py`（覆盖部分路由，详见迁移设计
-`docs/superpowers/specs/2026-07-19-flask-to-fastapi-migration-design.md`）。
+**现状**：生产 5001 端口自 2026-08-02 起由 FastAPI
+`adapters/inbound/fastapi_app/main.py` 提供服务（nohup 启动，日志 `logs/fastapi_5001.log`）。
+Flask `adapters/inbound/api/server.py` 已停止，仅保留作紧急回滚。
+新功能**只写 FastAPI 路由**，不再维护 Flask parity。
 `start_all.py` 已不存在。
 
 ```bash
