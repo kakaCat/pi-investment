@@ -59,6 +59,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '机会雷达' }
       },
       {
+        path: '/stock-heatmap',
+        name: 'StockHeatmap',
+        component: () => import(/* webpackChunkName: "stock-heatmap" */ '@/views/StockHeatmap/index.vue'),
+        meta: { title: '市场热力图' }
+      },
+      {
         path: '/pools',
         name: 'PoolList',
         component: () => import(/* webpackChunkName: "pool-list" */ '@/views/PoolList/index.vue'),

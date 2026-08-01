@@ -31,6 +31,10 @@
             <el-icon><Aim /></el-icon>
             <span>机会雷达</span>
           </el-menu-item>
+          <el-menu-item index="/stock-heatmap">
+            <el-icon><Grid /></el-icon>
+            <span>市场热力图</span>
+          </el-menu-item>
           <el-menu-item index="/pools">
             <el-icon><Grid /></el-icon>
             <span>股票池</span>
