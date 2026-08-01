@@ -4,7 +4,7 @@
 
 **Goal:** 在 web-frontend 新增「市场热力图」页：行业→个股两级 treemap，颜色=验证窗实际涨跌，叠加 agent 信号/池调整/行业判断痕迹，用于人工校验 agent 判断对错。
 
-**Architecture:** quantsys-v2 新增只读聚合端点 `GET /api/market/heatmap?date=D&window=N`（HeatmapService 纯 SQL 聚合 daily_klines/stocks/signals/pool_change_log/stock_pools/portfolio_holdings，无外部行情调用），Flask + FastAPI parity 双路由共享同一 service 单例；web-frontend 新增 StockHeatmap 视图（ECharts 6 内置 treemap，无新依赖），纯函数 option 构建器 + 对错判定器可单测。
+**Architecture:** quantsys-v2 新增只读聚合端点 `GET /api/market/heatmap?date=D&window=N`（HeatmapService 纯 SQL 聚合 daily_klines/stocks/signals/pool_change_log/stock_pools/portfolio_holdings，无外部行情调用），**仅 FastAPI 路由**（Flask 已废弃仅用于回滚，见 quantsys-v2/CLAUDE.md「Flask (已废弃，仅用于回滚)」）；web-frontend 新增 StockHeatmap 视图（ECharts 6 内置 treemap，无新依赖），纯函数 option 构建器 + 对错判定器可单测。
 
 **Tech Stack:** Python 3.13 / SQLAlchemy / Flask / FastAPI / pytest（真实 quant_test DB）；Vue 3 / Element Plus / ECharts 6 / Vitest。
 
@@ -15,7 +15,7 @@
 **关键契约（跨任务一致）：**
 - 后端 service 返回 snake_case dict；路由层 `api_response()` 会把所有 key 转 **camelCase**，所以前端拿到的字段是：`changePct / marketCap / inScope / poolEvents / agentStance / actualEndDate / scopeDegraded / excludedCount`
 - `market_cap` 单位与 `quant.stocks` 表存储一致，**不做换算**（treemap 面积只用相对值）
-- 响应结构见 spec §4.2，冻结后由 parity 测试守护
+- 响应结构见 spec §4.2，冻结后由 FastAPI 契约测试守护
 
 ---
 
@@ -24,9 +24,8 @@
 **后端（quantsys-v2/）：**
 - 新建 `adapters/outbound/repositories/heatmap_repository.py` — 只读跨表查询（唯一 SQL 出口）
 - 新建 `application/services/heatmap_service.py` — 聚合逻辑 + stance 推导 + in_scope 口径
-- 修改 `adapters/inbound/api/routes/market.py` — Flask 路由
-- 修改 `adapters/inbound/fastapi_app/routes/market_data_async.py` — FastAPI parity 路由
-- 新建 `tests/services/test_heatmap_service.py`、`tests/api/test_market_heatmap_route.py`、`tests/migration/test_market_heatmap_parity.py`
+- 修改 `adapters/inbound/fastapi_app/routes/market_data_async.py` — FastAPI 路由（唯一对外路由；不写 Flask 路由）
+- 新建 `tests/services/test_heatmap_service.py`、`tests/api/test_market_heatmap_route.py`（FastAPI TestClient 契约测试）
 
 **前端（web-frontend/）：**
 - 修改 `src/types/api.ts` — Heatmap* 类型
@@ -852,30 +851,28 @@ git commit -m "feat(heatmap): HeatmapService 窗口聚合+in_scope口径+stance�
 
 ---
 
-## Task 4: Flask 路由
+## Task 4: FastAPI 路由 + 契约测试
 
 **Files:**
-- Modify: `quantsys-v2/adapters/inbound/api/routes/market.py`
+- Modify: `quantsys-v2/adapters/inbound/fastapi_app/routes/market_data_async.py`
 - Test: `quantsys-v2/tests/api/test_market_heatmap_route.py`
 
 - [ ] **Step 1: 写失败测试**
 
 ```python
 # quantsys-v2/tests/api/test_market_heatmap_route.py
-"""GET /api/market/heatmap Flask 路由测试（mock service 层）"""
+"""GET /api/market/heatmap FastAPI 路由契约测试（TestClient + mock service 层）"""
 from unittest.mock import patch
 
 import pytest
+from fastapi.testclient import TestClient
 
-from adapters.inbound.api.server import create_app
+from adapters.inbound.fastapi_app.main import app
 
 
 @pytest.fixture
 def client():
-    app = create_app()
-    app.config['TESTING'] = True
-    with app.test_client() as client:
-        yield client
+    return TestClient(app, raise_server_exceptions=False)
 
 
 def _ok_payload():
@@ -898,9 +895,9 @@ class TestMarketHeatmapRoute:
     def test_success_camelcase_contract(self, client):
         with patch('application.services.heatmap_service.heatmap_service') as mock_svc:
             mock_svc.get_heatmap.return_value = _ok_payload()
-            resp = client.get('/api/market/heatmap?date=2026-07-24&window=5')
+            resp = client.get('/api/market/heatmap', params={'date': '2026-07-24', 'window': 5})
         assert resp.status_code == 200
-        body = resp.get_json()
+        body = resp.json()
         assert body['success'] is True
         data = body['data']
         # api_response 转 camelCase 的契约冻结
@@ -923,12 +920,12 @@ class TestMarketHeatmapRoute:
     def test_service_error_returns_400(self, client):
         with patch('application.services.heatmap_service.heatmap_service') as mock_svc:
             mock_svc.get_heatmap.return_value = {'success': False, 'error': 'window 必须是 (1, 5, 20) 之一'}
-            resp = client.get('/api/market/heatmap?window=7')
+            resp = client.get('/api/market/heatmap', params={'window': 7})
         assert resp.status_code == 400
-        assert resp.get_json()['success'] is False
+        assert resp.json()['success'] is False
 ```
 
-注意：mock 打在 `application.services.heatmap_service.heatmap_service`（模块级单例），路由必须以 `from application.services.heatmap_service import heatmap_service` 在**函数体内**延迟 import（与 market.py 现有路由同模式），patch 才生效。
+注意：mock 打在 `application.services.heatmap_service.heatmap_service`（模块级单例），路由必须以 `from application.services.heatmap_service import heatmap_service` 在**函数体内**延迟 import（与 market_data_async.py 现有路由同模式），patch 才生效。
 
 - [ ] **Step 2: 运行确认失败**
 
@@ -939,23 +936,21 @@ cd quantsys-v2 && venv/bin/python -m pytest tests/api/test_market_heatmap_route.
 
 - [ ] **Step 3: 实现路由**
 
-在 `quantsys-v2/adapters/inbound/api/routes/market.py` 中，紧跟 `get_sectors_v2` 路由之后添加：
+在 `quantsys-v2/adapters/inbound/fastapi_app/routes/market_data_async.py` 中，紧跟 `get_sectors_v2` 之后添加：
 
 ```python
-@market_bp.route('/api/market/heatmap', methods=['GET'])
+@router.get('/api/market/heatmap')
 @handle_api_error
-def get_market_heatmap():
+def get_market_heatmap(date: Optional[str] = Query(None), window: int = Query(5)):
     """市场热力图 - 行业×个股验证窗涨跌 + agent 判断痕迹叠加（本地 DB 聚合）"""
     from application.services.heatmap_service import heatmap_service
-    date_arg = request.args.get('date', None)
-    window = request.args.get('window', 5, type=int)
-    result = heatmap_service.get_heatmap(date=date_arg, window=window)
+    result = heatmap_service.get_heatmap(date=date, window=window)
     if not result.get('success', False):
-        return jsonify(result), 400
+        return error_response(result, 400)
     return api_response(result.get('data', {}))
 ```
 
-确认文件顶部已有 `from flask import request, jsonify` 和 `from adapters.inbound.api.shared import api_response, handle_api_error`（market.py 现有 import，无需新增）。
+确认文件顶部已有 `Optional`、`Query`、`api_response`、`error_response`、`handle_api_error` 的 import（该文件现有，无需新增）。router 已在 `main.py` 注册，无需改注册代码。**不要**在 `adapters/inbound/api/routes/`（Flask，已废弃）添加任何路由。
 
 - [ ] **Step 4: 运行确认通过**
 
@@ -967,84 +962,19 @@ cd quantsys-v2 && venv/bin/python -m pytest tests/api/test_market_heatmap_route.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add quantsys-v2/adapters/inbound/api/routes/market.py quantsys-v2/tests/api/test_market_heatmap_route.py
-git commit -m "feat(heatmap): Flask 路由 GET /api/market/heatmap + camelCase 契约测试"
+git add quantsys-v2/adapters/inbound/fastapi_app/routes/market_data_async.py quantsys-v2/tests/api/test_market_heatmap_route.py
+git commit -m "feat(heatmap): FastAPI 路由 GET /api/market/heatmap + camelCase 契约测试"
 ```
 
 ---
 
-## Task 5: FastAPI parity 路由 + parity 测试
-
-**Files:**
-- Modify: `quantsys-v2/adapters/inbound/fastapi_app/routes/market_data_async.py`
-- Test: `quantsys-v2/tests/migration/test_market_heatmap_parity.py`
-
-- [ ] **Step 1: 写失败测试**
-
-```python
-# quantsys-v2/tests/migration/test_market_heatmap_parity.py
-"""Flask ↔ FastAPI parity：/api/market/heatmap（同 DB 同代码路径，精确比对）"""
-from tests.migration.parity import assert_parity
-
-
-def test_heatmap_parity(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", "/api/market/heatmap",
-                  params={"date": "2026-07-24", "window": 5})
-
-
-def test_heatmap_invalid_window_parity(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", "/api/market/heatmap",
-                  params={"window": 7})
-```
-
-- [ ] **Step 2: 运行确认失败**
-
-```bash
-cd quantsys-v2 && venv/bin/python -m pytest tests/migration/test_market_heatmap_parity.py -v --no-cov
-```
-预期：FAIL（FastAPI 404，两端 status 不一致）
-
-- [ ] **Step 3: 实现 parity 路由**
-
-在 `quantsys-v2/adapters/inbound/fastapi_app/routes/market_data_async.py` 中，紧跟 `get_sectors_v2` 之后添加：
-
-```python
-@router.get('/api/market/heatmap')
-@handle_api_error
-def get_market_heatmap(date: Optional[str] = Query(None), window: int = Query(5)):
-    """市场热力图 - Flask parity（共享 heatmap_service 单例）"""
-    from application.services.heatmap_service import heatmap_service
-    result = heatmap_service.get_heatmap(date=date, window=window)
-    if not result.get('success', False):
-        return error_response(result, 400)
-    return api_response(result.get('data', {}))
-```
-
-确认文件顶部已有 `Optional`、`Query`、`api_response`、`error_response`、`handle_api_error` 的 import（该文件现有，无需新增）。router 已在 `main.py` 注册，无需改注册代码。
-
-- [ ] **Step 4: 运行确认通过**
-
-```bash
-cd quantsys-v2 && venv/bin/python -m pytest tests/migration/test_market_heatmap_parity.py -v --no-cov
-```
-预期：2 个测试全 PASS
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add quantsys-v2/adapters/inbound/fastapi_app/routes/market_data_async.py quantsys-v2/tests/migration/test_market_heatmap_parity.py
-git commit -m "feat(heatmap): FastAPI parity 路由 + Flask/FastAPI parity 测试"
-```
-
----
-
-## Task 6: 前端类型 + adapter + API 方法
+## Task 5: 前端类型 + adapter + API 方法
 
 **Files:**
 - Modify: `web-frontend/src/types/api.ts`
 - Modify: `web-frontend/src/services/api/adapters.ts`
 - Modify: `web-frontend/src/services/api/stock.ts`
-- Test: `web-frontend/tests/unit/stock-heatmap.test.ts`（本任务先建 API 部分，Task 7/8 继续追加）
+- Test: `web-frontend/tests/unit/stock-heatmap.test.ts`（本任务先建 API 部分，Task 6 继续追加 verdict 测试）
 
 - [ ] **Step 1: 写失败测试（API 契约部分）**
 
@@ -1218,7 +1148,7 @@ git commit -m "feat(heatmap-web): Heatmap 类型 + adaptHeatmap + stockApi.getHe
 
 ---
 
-## Task 7: 对错判定纯函数 verdict.ts
+## Task 6: 对错判定纯函数 verdict.ts
 
 **Files:**
 - Create: `web-frontend/src/views/StockHeatmap/verdict.ts`
@@ -1319,7 +1249,7 @@ git commit -m "feat(heatmap-web): verdict 对错判定纯函数（信号/池事�
 
 ---
 
-## Task 8: treemap option 构建器 chart-options.ts
+## Task 7: treemap option 构建器 chart-options.ts
 
 **Files:**
 - Create: `web-frontend/src/views/StockHeatmap/chart-options.ts`
@@ -1552,7 +1482,7 @@ git commit -m "feat(heatmap-web): treemap option 构建器（红涨绿跌/池外
 
 ---
 
-## Task 9: StockHeatmap 视图 + 路由 + 菜单
+## Task 8: StockHeatmap 视图 + 路由 + 菜单
 
 **Files:**
 - Create: `web-frontend/src/views/StockHeatmap/index.vue`
@@ -1765,7 +1695,7 @@ git commit -m "feat(heatmap-web): StockHeatmap 视图 + 路由 + 研究分析菜
 
 ---
 
-## Task 10: 真实数据冒烟 + 全量回归
+## Task 9: 真实数据冒烟 + 全量回归
 
 **Files:** 无新文件（验证任务）
 
@@ -1804,10 +1734,10 @@ cd web-frontend && npm run dev
 - [ ] **Step 3: 全量回归**
 
 ```bash
-cd quantsys-v2 && venv/bin/python -m pytest tests/repositories/test_heatmap_repository.py tests/repositories/test_heatmap_repository_events.py tests/services/test_heatmap_service.py tests/api/test_market_heatmap_route.py tests/migration/test_market_heatmap_parity.py -v --no-cov
+cd quantsys-v2 && venv/bin/python -m pytest tests/repositories/test_heatmap_repository.py tests/repositories/test_heatmap_repository_events.py tests/services/test_heatmap_service.py tests/api/test_market_heatmap_route.py -v --no-cov
 cd web-frontend && npx vitest run
 ```
-预期：后端热力图相关 25 个测试全 PASS；前端热力图相关 13 个测试全 PASS，其余与基线一致（基线失败清单见 memory，不由本计划引入）。
+预期：后端热力图相关 23 个测试全 PASS；前端热力图相关 13 个测试全 PASS，其余与基线一致（基线失败清单见 memory，不由本计划引入）。
 
 - [ ] **Step 4: 更新 spec 状态 + 收尾 commit**
 

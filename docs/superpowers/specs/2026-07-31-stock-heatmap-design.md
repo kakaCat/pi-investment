@@ -35,7 +35,7 @@ quantsys-v2  HeatmapService（纯 SQL 聚合）
 ```
 
 - 前端：Vue 3 + Element Plus + ECharts 6（内置 treemap，**无新依赖**）
-- 后端：Flask 生产路由（:5001）+ FastAPI parity 路由各一份，遵循现有迁移模式
+- 后端：**仅 FastAPI 路由**（Flask 已废弃仅用于回滚，见 quantsys-v2/CLAUDE.md；2026-08-01 用户确认）
 - 一次请求返回全量数据；日期/验证窗切换才重新请求，叠加层开关纯前端控制
 
 ## 4. 后端设计
