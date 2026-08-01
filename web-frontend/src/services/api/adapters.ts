@@ -1,4 +1,4 @@
-import type { KLineData, PaginatedResponse, StockInfo } from '@/types'
+import type { HeatmapResponse, KLineData, PaginatedResponse, StockInfo } from '@/types'
 
 export function asData<T = any>(response: any): T {
   if (response && typeof response === 'object' && 'data' in response && response.success !== false) {
@@ -67,5 +67,33 @@ export function adaptStockList(response: any): PaginatedResponse<StockInfo> {
   return {
     ...page,
     items: page.items.map(adaptStock)
+  }
+}
+
+export function adaptHeatmap(response: any): HeatmapResponse {
+  const raw = asData<any>(response) ?? {}
+  const industries = Array.isArray(raw.industries) ? raw.industries : []
+  return {
+    date: raw.date ?? '',
+    window: Number(raw.window ?? 5),
+    actualEndDate: raw.actualEndDate ?? raw.actual_end_date ?? null,
+    partial: Boolean(raw.partial),
+    scopeDegraded: Boolean(raw.scopeDegraded ?? raw.scope_degraded),
+    excludedCount: Number(raw.excludedCount ?? raw.excluded_count ?? 0),
+    message: raw.message,
+    industries: industries.map((ind: any) => ({
+      name: ind.name ?? '',
+      changePct: Number(ind.changePct ?? ind.change_pct ?? 0),
+      agentStance: ind.agentStance ?? ind.agent_stance ?? 'neutral',
+      stocks: (Array.isArray(ind.stocks) ? ind.stocks : []).map((s: any) => ({
+        symbol: s.symbol ?? '',
+        name: s.name ?? '',
+        changePct: Number(s.changePct ?? s.change_pct ?? 0),
+        marketCap: Number(s.marketCap ?? s.market_cap ?? 0),
+        inScope: Boolean(s.inScope ?? s.in_scope),
+        signals: s.signals,
+        poolEvents: s.poolEvents ?? s.pool_events,
+      })),
+    })),
   }
 }

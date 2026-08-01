@@ -229,3 +229,49 @@ export interface RiskCheckResponse {
   riskLevel?: string  // camelCase alias for compatibility
   totalHoldings?: number  // camelCase alias for compatibility
 }
+
+// ---- 市场热力图（/api/market/heatmap）----
+export interface HeatmapSignal {
+  type: 'buy' | 'sell'
+  date: string
+  strategy?: string
+}
+
+export interface HeatmapPoolEvent {
+  action: 'add' | 'remove'
+  pool: string
+  date: string
+}
+
+export interface HeatmapStock {
+  symbol: string
+  name: string
+  changePct: number
+  marketCap: number
+  inScope: boolean
+  signals?: HeatmapSignal[]
+  poolEvents?: HeatmapPoolEvent[]
+}
+
+export interface HeatmapIndustry {
+  name: string
+  changePct: number
+  agentStance: 'bullish' | 'bearish' | 'neutral'
+  stocks: HeatmapStock[]
+}
+
+export interface HeatmapResponse {
+  date: string
+  window: number
+  actualEndDate: string | null
+  partial: boolean
+  scopeDegraded: boolean
+  excludedCount: number
+  industries: HeatmapIndustry[]
+  message?: string
+}
+
+export interface HeatmapRequest {
+  date?: string
+  window?: number
+}

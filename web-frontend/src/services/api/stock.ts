@@ -2,9 +2,11 @@ import { apiClient } from './client'
 import type {
   StockListRequest,
   StockDetailRequest,
-  MarketDataRequest
+  MarketDataRequest,
+  HeatmapRequest,
+  HeatmapResponse
 } from '@/types'
-import { adaptKLine, adaptStock, adaptStockList } from './adapters'
+import { adaptHeatmap, adaptKLine, adaptStock, adaptStockList } from './adapters'
 
 function normalizeBackendStockSymbol(symbol: string): string {
   return symbol.replace(/\.(SZ|SH)$/i, '')
@@ -28,6 +30,16 @@ export const stockApi = {
   async getStocks(params?: StockListRequest) {
     const response = await apiClient.get('/api/stocks/list', { params })
     return adaptStockList(response)
+  },
+
+  /**
+   * 市场热力图：行业×个股验证窗涨跌 + agent 判断痕迹
+   */
+  async getHeatmap(params?: HeatmapRequest): Promise<HeatmapResponse> {
+    const response = await apiClient.get('/api/market/heatmap', {
+      params: compactParams({ date: params?.date, window: params?.window })
+    })
+    return adaptHeatmap(response)
   },
 
   /**
