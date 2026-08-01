@@ -35,6 +35,18 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
         )
         return [r[0] for r in rows]
 
+    def get_trade_dates_up_to(self, d: date, count: int) -> list[date]:
+        """d（含）之前最近 count 个不重复交易日，升序"""
+        rows = (
+            self.session.query(DailyKline.trade_date)
+            .filter(DailyKline.trade_date <= d)
+            .distinct()
+            .order_by(DailyKline.trade_date.desc())
+            .limit(count)
+            .all()
+        )
+        return sorted(r[0] for r in rows)
+
     def get_window_closes(self, symbols: list[str], d0: date, dn: date) -> dict[str, dict]:
         """每只股票在 d0 / dn 两日的收盘价：{symbol: {'close_d0': x, 'close_dn': y}}（缺日期的 key 不出现）"""
         if not symbols:

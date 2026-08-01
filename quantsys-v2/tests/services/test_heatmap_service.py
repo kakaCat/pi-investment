@@ -127,6 +127,16 @@ class TestGetHeatmap:
         assert r['success'] is True
         assert r['data']['industries'] == []
 
+    def test_default_date_anchors_to_completed_window(self, seeded):
+        # 不传日期 → 默认锚到"最近一个已走完的验证窗"起点（最新交易日前推 window 个交易日），
+        # 否则首屏必然 partial 且 d0==dn 导致全量剔除（2026-08-02 默认空图 bug）
+        r = seeded.get_heatmap(date=None, window=1)
+        assert r['success'] is True
+        d = r['data']
+        assert d['partial'] is False
+        assert d['actual_end_date'] is not None
+        assert d['date'] < d['actual_end_date']
+
 
 @pytest.fixture
 def seeded_no_pool_log():

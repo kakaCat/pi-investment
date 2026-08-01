@@ -25,7 +25,7 @@ class HeatmapService:
         try:
             if window not in VALID_WINDOWS:
                 return {'success': False, 'error': f'window 必须是 {VALID_WINDOWS} 之一'}
-            anchor = self._resolve_anchor(date)
+            anchor = self._resolve_anchor(date, window)
             if anchor is None:
                 return {'success': True, 'data': self._empty_data(date, window)}
 
@@ -73,9 +73,13 @@ class HeatmapService:
 
     # ---- 内部方法 ----
 
-    def _resolve_anchor(self, date_arg: Optional[str]) -> Optional[date]:
-        target = date.fromisoformat(date_arg) if date_arg else date.today()
-        return self.repo.get_last_trade_date_on_or_before(target)
+    def _resolve_anchor(self, date_arg: Optional[str], window: int) -> Optional[date]:
+        if date_arg:
+            return self.repo.get_last_trade_date_on_or_before(date.fromisoformat(date_arg))
+        # 默认：锚到"最近一个已走完的验证窗"起点（最新交易日前推 window 个交易日）。
+        # 否则首屏必然 partial 且 d0==dn，全量股票被剔除、页面空图（2026-08-02 bug）
+        dates = self.repo.get_trade_dates_up_to(date.today(), window + 1)
+        return dates[0] if dates else None
 
     def _replay_pool_members(self, d0: date) -> tuple[set[str], bool]:
         """回放 d0 时点池成员：从当前成员倒序撤销 d0 之后的事件（add→剔除，remove→加回）。
