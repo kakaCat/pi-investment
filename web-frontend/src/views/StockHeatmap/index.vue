@@ -74,7 +74,7 @@ import { buildHeatmapOption } from './chart-options'
 import { judgePoolEvent, judgeSignal, judgeStance } from './verdict'
 
 const router = useRouter()
-const { chartRef, chartInstance, setOption } = useChart()
+const { chartRef, chartInstance, initChart, setOption } = useChart()
 
 const queryDate = ref<string>('')
 const windowDays = ref<number>(5)
@@ -115,6 +115,9 @@ async function loadData() {
       window: windowDays.value,
     })
     await nextTick()
+    // 图表容器在 v-if 内，onMounted 时不存在 → useChart 的自动 init 被跳过，
+    // 必须在数据到达、容器渲染后手动 init（否则 setOption 永远空转，页面白图）
+    if (!chartInstance.value) initChart()
     renderChart()
   } catch {
     ElMessage.error('获取热力图数据失败')
