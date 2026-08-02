@@ -923,6 +923,15 @@ class SchedulerService:
                 "status": "failed",
                 "error": error_msg,
             }
+        finally:
+            # 任务在调度线程内执行可能遗留 ORM scoped session（idle in transaction
+            # 连接泄漏——2026-08-02 FastAPI 托管 SchedulerService 后实测每次任务
+            # 执行泄漏 1 个连接）。每次执行后强制回收。
+            try:
+                from infrastructure.persistence.orm import close_session
+                close_session()
+            except Exception:
+                pass
 
     def run_loop(self) -> None:
         """Blocking loop that checks for due tasks every 30 seconds.

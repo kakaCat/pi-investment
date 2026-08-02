@@ -31,6 +31,63 @@ from infrastructure.persistence.database.engine import get_engine
 logger = logging.getLogger(__name__)
 
 
+def build_stock_query(scope: str, specific_symbols=None):
+    """构建选股 SQL（抽出以便单测，2026-08-02）。
+
+    过滤规则：all/gem 范围排除退市股（is_delisted）和名称含"退"/"ST"的；
+    显式指定的 symbols 不过滤（调用方明确要查就尊重）。
+
+    Returns:
+        (sql, params) 元组，可直接 cursor.execute(sql, params)。
+    """
+    if specific_symbols:
+        placeholders = ','.join(['%s'] * len(specific_symbols))
+        return (
+            f"""
+                SELECT symbol, name
+                FROM quant.stocks
+                WHERE symbol IN ({placeholders})
+                ORDER BY symbol
+            """,
+            list(specific_symbols),
+        )
+    if scope == 'gem':
+        return (
+            """
+                SELECT symbol, name
+                FROM quant.stocks
+                WHERE (symbol LIKE '300%' OR symbol LIKE '301%')
+                  AND name NOT LIKE '%退%'
+                  AND name NOT LIKE '%ST%'
+                  AND NOT is_delisted
+                ORDER BY symbol
+            """,
+            None,
+        )
+    # 全市场：K线是全市场功能（机会扫描/市场情绪/行业分析）的共同
+    # 上游，只更创业板会让其余 4500 只股票静默饿死（2026-07-28 定位）
+    #
+    # 按陈旧度排序（最久未更新的排最前）：腾讯源每窗口约放行
+    # 1500-2500 只后限流断流，若按代码排序，每次运行都从头补
+    # 00xxxx，60xxxx 永远轮不到；按陈旧度排序后多次运行自动收敛
+    return (
+        """
+            SELECT s.symbol, s.name
+            FROM quant.stocks s
+            LEFT JOIN (
+                SELECT symbol, MAX(trade_date) AS max_date
+                FROM quant.daily_klines
+                GROUP BY symbol
+            ) k ON k.symbol = s.symbol
+            WHERE s.name NOT LIKE '%退%'
+              AND s.name NOT LIKE '%ST%'
+              AND NOT s.is_delisted
+            ORDER BY k.max_date ASC NULLS FIRST, s.symbol
+        """,
+        None,
+    )
+
+
 def update_gem_klines(**params):
     """
     更新K线数据
@@ -73,43 +130,14 @@ def update_gem_klines(**params):
         conn = engine.raw_connection()
         cursor = conn.cursor()
 
-        # 获取股票列表
-        if specific_symbols:
-            placeholders = ','.join(['%s'] * len(specific_symbols))
-            cursor.execute(f"""
-                SELECT symbol, name
-                FROM quant.stocks
-                WHERE symbol IN ({placeholders})
-                ORDER BY symbol
-            """, specific_symbols)
-        elif scope == 'gem':
-            cursor.execute("""
-                SELECT symbol, name
-                FROM quant.stocks
-                WHERE (symbol LIKE '300%' OR symbol LIKE '301%')
-                  AND name NOT LIKE '%退%'
-                  AND name NOT LIKE '%ST%'
-                ORDER BY symbol
-            """)
+        # 获取股票列表（选股 SQL 已抽出为 build_stock_query，含退市过滤）
+        # 注意：SQL 内含 LIKE '%退%'，params 为 None 时必须单参调用，
+        # 否则 psycopg2 会把 % 当占位符插值报 IndexError
+        sql, query_params = build_stock_query(scope, specific_symbols)
+        if query_params:
+            cursor.execute(sql, query_params)
         else:
-            # 全市场：K线是全市场功能（机会扫描/市场情绪/行业分析）的共同
-            # 上游，只更创业板会让其余 4500 只股票静默饿死（2026-07-28 定位）
-            #
-            # 按陈旧度排序（最久未更新的排最前）：腾讯源每窗口约放行
-            # 1500-2500 只后限流断流，若按代码排序，每次运行都从头补
-            # 00xxxx，60xxxx 永远轮不到；按陈旧度排序后多次运行自动收敛
-            cursor.execute("""
-                SELECT s.symbol, s.name
-                FROM quant.stocks s
-                LEFT JOIN (
-                    SELECT symbol, MAX(trade_date) AS max_date
-                    FROM quant.daily_klines
-                    GROUP BY symbol
-                ) k ON k.symbol = s.symbol
-                WHERE s.name NOT LIKE '%退%'
-                  AND s.name NOT LIKE '%ST%'
-                ORDER BY k.max_date ASC NULLS FIRST, s.symbol
-            """)
+            cursor.execute(sql)
 
         stocks = cursor.fetchall()
         total = len(stocks)

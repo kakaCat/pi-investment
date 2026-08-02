@@ -71,6 +71,8 @@ class Stock(Base):
     # 状态标记
     is_st = Column(Boolean, nullable=False, default=False, comment='是否ST股票')
     is_suspended = Column(Boolean, nullable=False, default=False, comment='是否停牌/退市')
+    is_delisted = Column(Boolean, nullable=False, default=False, comment='是否已退市（2026-08-02 新增，K线更新/选股直接过滤）')
+    delist_date = Column(Date, comment='退市日期')
 
     # 时间戳
     updated_at = Column(
