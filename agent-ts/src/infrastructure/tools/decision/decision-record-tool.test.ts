@@ -4,9 +4,10 @@
  * 覆盖链路三（agent 操作 → 落库 → web 展示）的写路径：
  * agent 通过该工具把决策记录 POST 到 v2 /api/decisions/record
  */
+import { jest } from "@jest/globals";
 import { decisionRecordTool } from "./decision-record-tool.js";
 
-const mockFetch = jest.fn();
+const mockFetch = jest.fn<(...args: any[]) => Promise<any>>();
 (global as any).fetch = mockFetch;
 
 describe("decisionRecordTool", () => {
@@ -70,6 +71,25 @@ describe("decisionRecordTool", () => {
 
     expect((result.content[0] as any).text).toContain("❌");
     expect((result.content[0] as any).text).toContain("fetch failed");
+    expect(result.details).toBeNull();
+  });
+
+  it("HTTP 错误（如 404 路由不存在）时透出状态码和后端 detail", async () => {
+    // 复现 2026-08-02 事故：5001 切 FastAPI 后 /api/decisions/record 404，
+    // 响应体 {"detail":"Not Found"} 无 success 字段，旧代码只报「记录决策失败」无定位信息
+    mockFetch.mockResolvedValue({
+      status: 404,
+      ok: false,
+      json: async () => ({ detail: "Not Found" }),
+    });
+
+    const result = await decisionRecordTool.execute("call-5", {
+      decision_type: "screening",
+      reasoning: "test",
+    });
+
+    expect((result.content[0] as any).text).toContain("HTTP 404");
+    expect((result.content[0] as any).text).toContain("Not Found");
     expect(result.details).toBeNull();
   });
 

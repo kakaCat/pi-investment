@@ -93,7 +93,19 @@ export const decisionRecordTool: ToolDefinition = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const result = (await resp.json()) as any;
+
+      let result: any;
+      try {
+        result = await resp.json();
+      } catch {
+        throw new Error(`HTTP ${resp.status}: 响应不是 JSON（路由可能不存在或服务异常）`);
+      }
+
+      // HTTP 错误（如 404 路由不存在）：透出状态码和后端 detail，避免无信息兜底
+      if (resp.status >= 400) {
+        const detail = result?.error ?? result?.detail ?? JSON.stringify(result).slice(0, 200);
+        throw new Error(`HTTP ${resp.status}: ${detail}`);
+      }
 
       if (!result.success) {
         throw new Error(result.error || "记录决策失败");

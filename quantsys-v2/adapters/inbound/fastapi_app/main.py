@@ -538,7 +538,15 @@ def register_routes():
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import simulation_async: {e}")
 
-    # 决策跟踪
+    # 决策追踪（/api/decisions/*，走 DecisionService → PG，Flask parity）
+    try:
+        from adapters.inbound.fastapi_app.routes.decisions_async import router as decisions_router
+        app.include_router(decisions_router)
+        logger.info("✅ Registered: decisions (/api/decisions/*, PG 持久化)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import decisions_async: {e}")
+
+    # 决策跟踪（旧内存桩，/api/decision-tracking/*，保留兼容）
     try:
         from adapters.inbound.fastapi_app.routes.decision_tracking_async import router as decision_tracking_router
         app.include_router(decision_tracking_router, prefix="/api")
