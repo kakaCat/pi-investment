@@ -76,6 +76,26 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Strategy sync failed: {e}")
 
+    # 启动 SchedulerService 后台线程（quant.scheduler_tasks 的 ~20 个任务的执行器）。
+    # 原宿主是 Flask server.py（2026-08-02 Flask 退役后随迁）；pytest 下不启动，
+    # 避免测试进程拉起调度循环。
+    import sys as _sys
+    if 'pytest' not in _sys.modules:
+        try:
+            import threading
+            from infrastructure.scheduler.scheduler import SchedulerService
+
+            def _run_scheduler():
+                try:
+                    SchedulerService().run_loop()
+                except Exception as e:
+                    logger.error(f"Scheduler thread crashed: {e}", exc_info=True)
+
+            threading.Thread(target=_run_scheduler, name="scheduler-thread", daemon=True).start()
+            logger.info("✅ SchedulerService background thread started")
+        except Exception as e:
+            logger.error(f"❌ SchedulerService startup failed: {e}")
+
     logger.info("📖 API Documentation: http://localhost:5001/docs")
     logger.info("📚 ReDoc: http://localhost:5001/redoc")
 

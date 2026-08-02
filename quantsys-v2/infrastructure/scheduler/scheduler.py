@@ -1011,13 +1011,23 @@ class SchedulerService:
             "financial_data_update": self._handle_financial_data_update,  # 财务数据更新
             "market_scan_preopen": self._handle_market_scan_preopen,  # 盘前扫描
             "strategy_discover_weekly": self._handle_strategy_discover_weekly,  # 每周策略发现
+            "kline_update": self._handle_kline_update,  # K线日更（2026-08-02 接管：07-28 起每日 Unknown command）
         }
 
         handler = handlers.get(command)
         if handler is None:
+            # fallback：应用层 _TASK_HANDLERS（如 pool_refresh_daily 只在那里注册）
+            from application.services.scheduler_tasks import _TASK_HANDLERS
+            handler = _TASK_HANDLERS.get(command)
+        if handler is None:
             raise ValueError(f"Unknown scheduler command: {command!r}")
 
         return handler(params)
+
+    def _handle_kline_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """K 线日更：委托 infrastructure.jobs.kline_update_job.execute（多数据源 fallback + 限速防封）"""
+        from infrastructure.jobs.kline_update_job import execute
+        return execute(**(params or {}))
 
     # -- individual handlers -------------------------------------------
 
