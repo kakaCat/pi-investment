@@ -112,9 +112,9 @@ export function buildHeatmapOption({ data, overlays }: BuildHeatmapOptionParams)
     },
     series: [{
       type: 'treemap',
-      roam: false,
-      nodeClick: false,
-      breadcrumb: { show: false },
+      roam: true,                    // 拖拽平移 + 滚轮缩放（700+ 方块时必需）
+      nodeClick: 'zoomToNode',       // 点击行业下钻；叶子节点的跳 StockDetail 由视图层 click 处理
+      breadcrumb: { show: true },    // 下钻后返回上一级
       width: '100%',
       height: '100%',
       label: { show: true, fontSize: 11, color: '#fff' },

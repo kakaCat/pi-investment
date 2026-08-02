@@ -151,7 +151,7 @@ loadData()
 .page-title { margin: 0; font-size: 20px; }
 .page-subtitle { margin: 0; color: #888; font-size: 13px; flex-basis: 100%; }
 .header-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.chart-wrap { flex: 1; min-height: 480px; }
-.chart { width: 100%; height: 100%; min-height: 480px; }
+.chart-wrap { flex: 1; min-height: 65vh; }
+.chart { width: 100%; height: 100%; min-height: 65vh; }
 .verdict-stats { display: flex; gap: 8px; }
 </style>

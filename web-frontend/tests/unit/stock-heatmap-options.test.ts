@@ -65,4 +65,15 @@ describe('buildHeatmapOption', () => {
     const option = buildHeatmapOption({ data: empty, overlays: { signals: true, pool: true, industry: true } })
     expect((option.series as any[])[0].data).toHaveLength(0)
   })
+
+  it('支持行业下钻：zoomToNode + 面包屑 + roam 缩放', () => {
+    const option = buildHeatmapOption({ data: fixture(), overlays: { signals: true, pool: true, industry: true } })
+    const series = (option.series as any[])[0]
+    // 点击行业节点可下钻放大（700+ 方块时小方块看不清的必需交互）
+    expect(series.nodeClick).toBe('zoomToNode')
+    // 面包屑可返回上一级
+    expect(series.breadcrumb.show).toBe(true)
+    // 允许拖拽/滚轮缩放平移
+    expect(series.roam).toBe(true)
+  })
 })
