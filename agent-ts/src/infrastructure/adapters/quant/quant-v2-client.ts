@@ -89,6 +89,7 @@ const V2_ROUTES: Record<
   "market.overview":      { path: "/api/stocks/market/overview",          method: "GET" },
   "market.sectors":       { path: "/api/market/sectors",                 method: "GET" },
   "market.sentiment":     { path: "/api/market/sentiment",               method: "GET" },  // ✅ v2 原生实现完成 (Flask路径)
+  "market.heatmap":       { path: "/api/market/heatmap",                 method: "GET" },  // ✅ 热力图：验证窗涨跌+agent判断痕迹（FastAPI-only）
   "market.macro":         { path: "/api/market/macro",                   method: "GET" },
   "market.style":         { path: "/api/market/style",                   method: "GET" },  // ✅ 市场风格检测
   "market.news":          { path: "/api/market/news",                    method: "GET" },

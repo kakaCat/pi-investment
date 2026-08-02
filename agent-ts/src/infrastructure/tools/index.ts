@@ -70,6 +70,7 @@ import { marketStyleDetectTool } from "./market/market-style-detect-tool.js";  /
 import { opponentBehaviorTool } from "./game/opponent-behavior-tool.js";  // 新增：对手行为分析
 import { poolBattlefieldTool } from "./game/pool-battlefield-tool.js";    // 新增：池子战场评估
 import { manipulationDetectTool } from "./game/manipulation-detect-tool.js"; // 新增：操纵检测
+import { verifyJudgmentsTool } from "./learning/verify-judgments-tool.js";     // 新增：判断自校验（学习闭环）
 
 // 策略轮动决策工具链
 import { rotationProposalTool, rotationSimulateTool, rotationExecuteTool, rotationVerifyTool } from "./rotation/index.js";
@@ -329,6 +330,7 @@ export const allCustomTools = [
   opponentBehaviorTool,           // opponent_behavior - 对手行为分析（博弈情报）
   poolBattlefieldTool,            // pool_battlefield - 池子战场评估（博弈情报）
   manipulationDetectTool,         // manipulation_detect - 操纵检测（博弈情报）
+  verifyJudgmentsTool,            // verify_judgments - 判断自校验（学习闭环）
   decisionHistoryTool,            // decision_history - 决策历史查询（决策追踪）
   decisionRecordTool,             // decision_record - 决策记录（审计轨迹落库）
   schedulerManageTool,            // scheduler_manage - 调度器管理（新增）
