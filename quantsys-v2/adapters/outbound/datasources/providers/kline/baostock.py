@@ -17,6 +17,11 @@ logger = logging.getLogger(__name__)
 # 日K 查询字段（baostock 文档）
 _DAILY_FIELDS = 'date,code,open,high,low,close,volume,amount,turn'
 
+# 会话级错误特征（长连接断开后的报错文案/异常），命中则重登重试一次。
+# 永久错误（代码不支持、无数据）不在此列，绝不重试（2026-08-02 回填事故：
+# 会话中断后几千只股票全部「网络接收错误」，provider 缓存会话从不重登）
+_SESSION_ERROR_MARKERS = ('网络接收错误', '接收数据异常', 'Broken pipe', 'Connection aborted', 'RemoteDisconnected')
+
 
 class BaostockKlineProvider(KlineProvider):
     """Kline provider using baostock TCP service (daily only)"""
@@ -66,6 +71,19 @@ class BaostockKlineProvider(KlineProvider):
             logger.error(self.last_error)
             return None
 
+    def _reset_session(self):
+        """会话失效后重置（logout 旧会话并清空缓存），下次 _ensure_login 重新登录"""
+        try:
+            if self._bs is not None:
+                self._bs.logout()
+        except Exception:
+            pass
+        self._bs = None
+
+    @staticmethod
+    def _is_session_error(msg: str) -> bool:
+        return any(m in msg for m in _SESSION_ERROR_MARKERS)
+
     def get_klines(
         self,
         symbol: str,
@@ -87,21 +105,37 @@ class BaostockKlineProvider(KlineProvider):
             logger.warning(f"Cannot map symbol to baostock code: {symbol}")
             return None
 
-        bs = self._ensure_login()
-        if bs is None:
-            return None
-
-        try:
-            rs = bs.query_history_k_data_plus(
-                code, _DAILY_FIELDS,
-                start_date=start_date, end_date=end_date,
-                frequency='d', adjustflag='2',  # 前复权，与 tencent qfq 对齐
-            )
+        # 查询（会话级错误重登重试一次；永久错误/空数据不重试）
+        rs = None
+        for attempt in range(2):
+            bs = self._ensure_login()
+            if bs is None:
+                return None
+            try:
+                rs = bs.query_history_k_data_plus(
+                    code, _DAILY_FIELDS,
+                    start_date=start_date, end_date=end_date,
+                    frequency='d', adjustflag='2',  # 前复权，与 tencent qfq 对齐
+                )
+            except Exception as e:
+                if attempt == 0 and self._is_session_error(str(e)):
+                    logger.warning(f"baostock 会话失效（{e}），重登后重试 {symbol}")
+                    self._reset_session()
+                    continue
+                self.last_error = f"查询/解析异常: {type(e).__name__}: {e}"
+                logger.error(f"Baostock kline provider failed for {symbol}: {e}")
+                return None
             if rs.error_code != '0':
+                if attempt == 0 and self._is_session_error(rs.error_msg):
+                    logger.warning(f"baostock 会话失效（{rs.error_msg}），重登后重试 {symbol}")
+                    self._reset_session()
+                    continue
                 self.last_error = f"baostock 查询失败: {rs.error_msg}"
                 logger.warning(f"Baostock query error for {symbol}: {rs.error_msg}")
                 return None
+            break
 
+        try:
             result = []
             prev_close = None
             while rs.next():
