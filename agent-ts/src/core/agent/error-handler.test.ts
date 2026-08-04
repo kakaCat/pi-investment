@@ -149,7 +149,7 @@ describe('Error Handler', () => {
     });
 
     it('should return default value on error', () => {
-      const fn = () => { throw new Error('test'); };
+      const fn = (): string => { throw new Error('test'); };
       const wrapped = withErrorHandling(fn, 'test', ErrorSeverity.RECOVERABLE, 'default');
 
       const result = wrapped();
@@ -168,7 +168,7 @@ describe('Error Handler', () => {
     });
 
     it('should return default value on error', async () => {
-      const fn = async () => { throw new Error('test'); };
+      const fn = async (): Promise<string> => { throw new Error('test'); };
       const wrapped = withAsyncErrorHandling(fn, 'test', ErrorSeverity.RECOVERABLE, 'default');
 
       const result = await wrapped();
