@@ -107,17 +107,18 @@ class ChanService:
             return pd.DataFrame()
 
     def _format_bi(self, bi: Bi) -> Dict[str, Any]:
-        """格式化笔数据"""
+        """格式化笔数据（契约对齐 domain.chan.types.Bi：
+        start_fenxing/end_fenxing/price_change）"""
         return {
             "direction": bi.direction,
-            "start_index": bi.start.index,
-            "end_index": bi.end.index,
-            "start_price": float(bi.start.price),
-            "end_price": float(bi.end.price),
+            "start_index": bi.start_fenxing.index,
+            "end_index": bi.end_fenxing.index,
+            "start_price": float(bi.start_fenxing.price),
+            "end_price": float(bi.end_fenxing.price),
             "high": float(bi.high),
             "low": float(bi.low),
             "length": bi.length,
-            "amplitude": float(bi.amplitude)
+            "price_change": float(bi.price_change)
         }
 
     def _format_segment(self, segment: Segment) -> Dict[str, Any]:
