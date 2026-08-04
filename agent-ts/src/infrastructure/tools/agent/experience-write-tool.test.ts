@@ -160,6 +160,10 @@ describe("experience_write Tool", () => {
         symbol: "600036",
       });
 
+      const content0 = result.content[0];
+      if (!content0 || !("text" in content0)) {
+        throw new Error("unexpected tool result shape");
+      }
       const text = content0.text;
       const data = JSON.parse(text);
       expect(data.success).toBe(true);
