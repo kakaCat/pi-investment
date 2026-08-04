@@ -26,6 +26,14 @@ def _confidence_for(samples: int) -> float:
     return 0.7
 
 
+def _sig_get(signal, key):
+    """信号字段访问：兼容 dict（测试）与 Signal ORM 对象（生产
+    get_signals_by_date_range 返回 List[Signal]）"""
+    if isinstance(signal, dict):
+        return signal.get(key)
+    return getattr(signal, key, None)
+
+
 class ChanKnowledgeDistiller:
     """缠论信号胜率 → agent_knowledge"""
 
@@ -66,20 +74,20 @@ class ChanKnowledgeDistiller:
 
         all_signals = self._signal_repo.get_signals_by_date_range(start, end)
         chan_signals = [s for s in all_signals
-                        if str(s.get('strategy_id', '')).startswith('chan_')
-                        and s.get('action') == 'buy']
+                        if str(_sig_get(s, 'strategy_id') or '').startswith('chan_')
+                        and _sig_get(s, 'action') == 'buy']
 
         stats: Dict[str, Dict[str, Any]] = {}
         excluded = 0
         for s in chan_signals:
-            sig_date = s['signal_date']
+            sig_date = _sig_get(s, 'signal_date')
             if isinstance(sig_date, str):
                 sig_date = datetime.strptime(sig_date[:10], '%Y-%m-%d').date()
-            ret = self._future_return(s['symbol'], sig_date)
+            ret = self._future_return(_sig_get(s, 'symbol'), sig_date)
             if ret is None:
                 excluded += 1
                 continue
-            st = stats.setdefault(s['strategy_id'], {'wins': 0, 'returns': []})
+            st = stats.setdefault(_sig_get(s, 'strategy_id'), {'wins': 0, 'returns': []})
             st['returns'].append(ret)
             if ret > 0:  # buy & 涨 = 胜（与 verify_judgments 一致；0 不计胜）
                 st['wins'] += 1

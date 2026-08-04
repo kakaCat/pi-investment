@@ -74,3 +74,27 @@ class TestDistiller:
         result = ChanKnowledgeDistiller(window_days=20, lookback_days=90).distill()
         assert upserts[0]['validation_count'] == 1
         assert result['signals_excluded'] == 1
+
+    @patch('application.services.chan_knowledge_distiller.AgentKnowledgeORMRepository')
+    @patch('application.services.chan_knowledge_distiller.KlineORMRepository')
+    @patch('application.services.chan_knowledge_distiller.SignalORMRepository')
+    def test_orm_signal_objects_supported(self, mock_sig, mock_kline, mock_know):
+        """生产 get_signals_by_date_range 返回 Signal ORM 对象（非 dict）——
+        蒸馏器必须兼容属性访问（回填演示 AttributeError: 'Signal' object has no attribute 'get'）"""
+        from types import SimpleNamespace
+        base = date(2026, 6, 1)
+        orm_signals = [
+            SimpleNamespace(symbol='600519', signal_date=base, strategy_id='chan_1买', action='buy'),
+            SimpleNamespace(symbol='000858', signal_date=base, strategy_id='chan_1买', action='buy'),
+        ]
+        mock_sig.return_value.get_signals_by_date_range.return_value = orm_signals
+        mock_kline.return_value.get_daily_klines.side_effect = [
+            _klines(100.0, 110.0), _klines(100.0, 95.0),
+        ]
+        upserts = []
+        mock_know.return_value.upsert_knowledge.side_effect = lambda **kw: upserts.append(kw)
+
+        result = ChanKnowledgeDistiller(window_days=20, lookback_days=90).distill()
+        assert result['strategies_distilled'] == 1
+        assert upserts[0]['validation_count'] == 2
+        assert upserts[0]['success_count'] == 1
