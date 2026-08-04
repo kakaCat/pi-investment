@@ -258,6 +258,15 @@ class SchedulerService:
             self._ds = DataService()
         return self._ds
 
+    def _create_data_service(self):
+        """任务线程专用的 DataService 工厂（ORM session 非线程安全，每任务独立实例）。
+
+        若构造时显式注入了 ds（如测试），则复用注入实例。"""
+        if self._ds is not None:
+            return self._ds
+        from application.services.data_service import DataService
+        return DataService()
+
     # ------------------------------------------------------------------
     # Database connection (scheduler-specific tables)
     # ------------------------------------------------------------------
@@ -1329,7 +1338,7 @@ class SchedulerService:
             market: (optional) market filter, e.g. ``"A"``.
             symbols: (optional) list of symbols.
         """
-        from quantlib.stages.factor_stage import FactorStage
+        from domain.quantlib.stages.factor_stage import FactorStage
 
         market = params.get("market")
         symbols = params.get("symbols", [])
@@ -1343,14 +1352,27 @@ class SchedulerService:
         factor_count = 0
 
         def _compute_one(symbol: str) -> tuple[bool, bool, int]:
+            # 每个任务独立 DataService：DataService 内部持有 ORM session，
+            # 不是线程安全的，不能跨线程共享（2026-07-30 并发报错修复的同型病）
+            from infrastructure.persistence.orm import close_session
+            ds = self._create_data_service()
             try:
                 # Fetch K-line data (last 120 days)
                 end_date = datetime.now().strftime('%Y-%m-%d')
                 start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-                klines = self.ds.kline.get_daily_klines(symbol, start_date, end_date)
+                klines_raw = ds.kline.get_daily_klines(symbol, start_date, end_date)
 
-                if not klines or len(klines) < 20:
-                    return (False, False, 0)
+                # get_daily_klines 自 ORM 重构后返回 polars DataFrame；
+                # FactorStage 契约是 list-of-dicts——在此单点适配（2026-08-04 根因：
+                # `if not klines` 对 DataFrame 抛 TypeError → 5528 只全灭假成功）
+                if hasattr(klines_raw, 'is_empty'):  # polars DataFrame
+                    if klines_raw.is_empty() or len(klines_raw) < 20:
+                        return (False, False, 0)
+                    klines = klines_raw.to_dicts()
+                else:
+                    if not klines_raw or len(klines_raw) < 20:
+                        return (False, False, 0)
+                    klines = klines_raw
 
                 # Compute factors using FactorStage
                 stage = FactorStage(name="factors")
@@ -1364,12 +1386,14 @@ class SchedulerService:
                 # Strip exchange suffix to match historical data format (600000.SH -> 600000)
                 symbol_without_suffix = symbol.split('.')[0] if '.' in symbol else symbol
                 latest_date = klines[-1].get('trade_date') or klines[-1].get('date')
-                self.ds.factor.save_factors(symbol_without_suffix, str(latest_date), factors)
+                ds.factor.save_factors(symbol_without_suffix, str(latest_date), factors)
 
                 return (True, False, len(factors))
             except Exception as e:
                 logger.warning(f"Factor computation failed for {symbol}: {e}")
                 return (False, True, 0)
+            finally:
+                close_session()
 
         with ThreadPoolExecutor(max_workers=8) as executor:
             futures = {executor.submit(_compute_one, sym): sym for sym in symbols}
@@ -1381,8 +1405,18 @@ class SchedulerService:
                 if error:
                     errors += 1
 
+        # 假成功防护：全部报错时显式 failed，不能让"0 计算"披着 success 外衣
+        # （2026-08-04 根因复盘：DataFrame 契约破坏导致 5528 只全灭仍报 success）
+        status = 'failed' if symbols and computed == 0 and errors > 0 else 'success'
+        if status == 'failed':
+            logger.error(
+                "factor_compute 全部失败: %d/%d 错误，请检查上游契约",
+                errors, len(symbols),
+            )
+
         return {
             "action": "factor_compute",
+            "status": status,
             "symbols_processed": len(symbols),
             "symbols_computed": computed,
             "factor_count": factor_count,
