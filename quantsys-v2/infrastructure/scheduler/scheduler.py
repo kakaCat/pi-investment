@@ -235,6 +235,9 @@ class SchedulerService:
         scheduler.run_loop()   # blocking — checks every 30 s
     """
 
+    # running 超过该时长的 run 视为僵尸（进程被杀残留），自动判死放行
+    ZOMBIE_RUN_TIMEOUT = timedelta(hours=6)
+
     def __init__(self, ds=None):
         """
         Args:
@@ -603,6 +606,22 @@ class SchedulerService:
     # Run lifecycle
     # ==================================================================
 
+    @staticmethod
+    def _parse_started_at(value: Any) -> Optional[datetime]:
+        """把 started_at（datetime 或 ISO 字符串）统一解析为带时区的 datetime。
+
+        解析失败返回 None（调用方按非僵尸处理，保持原有阻塞语义）。
+        """
+        if isinstance(value, datetime):
+            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        if isinstance(value, str):
+            try:
+                dt = datetime.fromisoformat(value)
+            except ValueError:
+                return None
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        return None
+
     def create_run(self, task_id: int) -> int:
         """Record a new run for *task_id*, mark task as ``'running'``.
 
@@ -884,12 +903,31 @@ class SchedulerService:
         # Prevent duplicate submissions: check if task is already running
         running_tasks = self.list_runs(task_id=task_id, statuses=['running'], limit=1)
         if running_tasks:
-            run_id = running_tasks[0]['id']
-            started_at = running_tasks[0].get('started_at', 'unknown')
-            raise ValueError(
-                f"Task {task_id} is already running (run_id={run_id}, started at {started_at}). "
-                f"Please wait for the current execution to complete."
-            )
+            running = running_tasks[0]
+            started_at = self._parse_started_at(running.get('started_at'))
+            if started_at is not None and (
+                datetime.now(timezone.utc) - started_at > self.ZOMBIE_RUN_TIMEOUT
+            ):
+                # 僵尸 run：进程被杀导致 running 记录滞留（run 1666/2035 事故），
+                # 判死后放行，否则任务被永久阻塞
+                logger.warning(
+                    "Zombie run id=%s for task %s reaped (started_at=%s, timeout=%s)",
+                    running['id'], task_id, started_at, self.ZOMBIE_RUN_TIMEOUT,
+                )
+                self.complete_run(
+                    running['id'],
+                    success=False,
+                    error=(
+                        f"zombie run reaped: running 超过 {self.ZOMBIE_RUN_TIMEOUT}，"
+                        f"进程疑似被杀，自动判死放行"
+                    ),
+                )
+            else:
+                run_id = running['id']
+                raise ValueError(
+                    f"Task {task_id} is already running (run_id={run_id}, started at {running.get('started_at', 'unknown')}). "
+                    f"Please wait for the current execution to complete."
+                )
 
         task_name = task.get("name", str(task_id))
         command = task["command"]
