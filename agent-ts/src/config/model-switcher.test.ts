@@ -8,6 +8,8 @@ import {
   resetRuntimeProviderForTests,
   isProviderConfigured,
   listProviders,
+  getRuntimeModelOverride,
+  setRuntimeModelOverride,
 } from './model-switcher.js';
 
 const ENV_KEYS = [
@@ -45,6 +47,23 @@ describe('运行时 provider 状态', () => {
     setRuntimeProvider('kimi');
     resetRuntimeProviderForTests();
     expect(getRuntimeOverride()).toBeNull();
+  });
+});
+
+describe('运行时模型 override（模型粒度热切换）', () => {
+  it('默认无模型 override', () => {
+    expect(getRuntimeModelOverride()).toBeNull();
+  });
+
+  it('setRuntimeModelOverride 后可读取，且记录所属 provider', () => {
+    setRuntimeModelOverride('deepseek', 'deepseek-v4-pro');
+    expect(getRuntimeModelOverride()).toEqual({ provider: 'deepseek', modelId: 'deepseek-v4-pro' });
+  });
+
+  it('resetRuntimeProviderForTests 同时清除模型 override', () => {
+    setRuntimeModelOverride('deepseek', 'deepseek-v4-pro');
+    resetRuntimeProviderForTests();
+    expect(getRuntimeModelOverride()).toBeNull();
   });
 });
 

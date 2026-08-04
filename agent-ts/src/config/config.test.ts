@@ -11,8 +11,8 @@
  * 此测试防止该修复被后续改动意外移除。
  */
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { createModel } from './config.js';
-import { resetRuntimeProviderForTests } from './model-switcher.js';
+import { createModel, getActiveModelId, resolveModelTarget } from './config.js';
+import { resetRuntimeProviderForTests, setRuntimeModelOverride, setRuntimeProvider } from './model-switcher.js';
 
 const ENV_KEYS = [
   'LLM_PROVIDER', 'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_REASONING',
@@ -87,5 +87,48 @@ describe('deepseek v4 默认模型', () => {
     expect(model.contextWindow).toBe(128000);
     process.env.LLM_CONTEXT_WINDOW = '1000000';
     expect((createModel() as any).contextWindow).toBe(1000000);
+  });
+});
+
+describe('getActiveModelId 运行时模型 override', () => {
+  it('runtime 模型 override 优先级最高（压过 DEEPSEEK_MODEL_ID 和 MODEL_ID）', () => {
+    process.env.LLM_PROVIDER = 'deepseek';
+    process.env.DEEPSEEK_MODEL_ID = 'deepseek-v4-flash';
+    setRuntimeModelOverride('deepseek', 'deepseek-v4-pro');
+    expect(getActiveModelId()).toBe('deepseek-v4-pro');
+  });
+
+  it('override 不跨 provider 泄漏：provider 切走后用新 provider 的模型', () => {
+    setRuntimeModelOverride('deepseek', 'deepseek-v4-pro');
+    setRuntimeProvider('kimi');
+    expect(getActiveModelId()).toBe('kimi-k3');
+  });
+
+  it('无 override 时保持原有优先级：DEEPSEEK_MODEL_ID > MODEL_ID > preset', () => {
+    process.env.MODEL_ID = 'some-other';
+    expect(getActiveModelId()).toBe('some-other');
+    process.env.DEEPSEEK_MODEL_ID = 'deepseek-v4-pro';
+    expect(getActiveModelId()).toBe('deepseek-v4-pro');
+  });
+});
+
+describe('resolveModelTarget 模型目标解析', () => {
+  it('短别名：flash/pro 解析为 deepseek 对应模型', () => {
+    expect(resolveModelTarget('flash')).toEqual({ provider: 'deepseek', modelId: 'deepseek-v4-flash' });
+    expect(resolveModelTarget('pro')).toEqual({ provider: 'deepseek', modelId: 'deepseek-v4-pro' });
+  });
+
+  it('完整模型 ID 解析到所属 provider', () => {
+    expect(resolveModelTarget('deepseek-v4-pro')).toEqual({ provider: 'deepseek', modelId: 'deepseek-v4-pro' });
+    expect(resolveModelTarget('kimi-k3')).toEqual({ provider: 'kimi', modelId: 'kimi-k3' });
+  });
+
+  it('大小写不敏感', () => {
+    expect(resolveModelTarget('PRO')).toEqual({ provider: 'deepseek', modelId: 'deepseek-v4-pro' });
+  });
+
+  it('provider 名和未知字符串返回 null（走 provider 切换路径）', () => {
+    expect(resolveModelTarget('deepseek')).toBeNull();
+    expect(resolveModelTarget('gpt-5')).toBeNull();
   });
 });

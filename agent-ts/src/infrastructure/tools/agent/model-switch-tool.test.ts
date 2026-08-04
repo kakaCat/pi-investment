@@ -6,6 +6,7 @@ import { modelSwitchTool, resetSwitchHistoryForTests } from './model-switch-tool
 import {
   resetRuntimeProviderForTests,
   getRuntimeOverride,
+  getRuntimeModelOverride,
 } from '../../../config/model-switcher.js';
 
 const ENV_KEYS = ['LLM_API_KEY', 'DEEPSEEK_API_KEY', 'KIMI_API_KEY', 'MOONSHOT_API_KEY'];
@@ -63,5 +64,32 @@ describe('model_switch 工具', () => {
     expect(await run('kimi')).toContain('kimi');
     const fourth = await run('deepseek');
     expect(fourth).toContain('过于频繁');
+  });
+
+  it('模型粒度切换：pro 别名切到 deepseek-v4-pro', async () => {
+    process.env.DEEPSEEK_API_KEY = 'sk-a';
+    const text = await run('pro');
+    expect(getRuntimeModelOverride()).toEqual({ provider: 'deepseek', modelId: 'deepseek-v4-pro' });
+    expect(text).toContain('deepseek-v4-pro');
+  });
+
+  it('模型粒度切换：完整模型 ID 同样支持', async () => {
+    process.env.DEEPSEEK_API_KEY = 'sk-a';
+    const text = await run('deepseek-v4-pro');
+    expect(getRuntimeModelOverride()).toEqual({ provider: 'deepseek', modelId: 'deepseek-v4-pro' });
+    expect(text).toContain('deepseek-v4-pro');
+  });
+
+  it('模型切换幂等：已是目标模型时不重复切换', async () => {
+    process.env.DEEPSEEK_API_KEY = 'sk-a';
+    const text = await run('flash'); // 当前默认就是 deepseek-v4-flash
+    expect(text).toContain('已是');
+    expect(getRuntimeModelOverride()).toBeNull();
+  });
+
+  it('模型目标 provider key 未配置时拒绝', async () => {
+    const text = await run('kimi-k3'); // kimi 无 key
+    expect(text).toContain('未配置');
+    expect(getRuntimeModelOverride()).toBeNull();
   });
 });

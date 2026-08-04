@@ -5,7 +5,7 @@ import { Model } from "@mariozechner/pi-ai";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { BootstrapLoader } from "../services/intelligence/bootstrap-loader.js";
-import { getRuntimeOverride } from "./model-switcher.js";
+import { getRuntimeOverride, getRuntimeModelOverride } from "./model-switcher.js";
 
 // 获取 agent-ts 根目录（无论从哪里运行都指向固定位置）
 const __filename = fileURLToPath(import.meta.url);
@@ -138,13 +138,35 @@ export function getActiveApiKey(): string {
 
 /**
  * 当前激活的模型 ID
- * 优先级：{PROVIDER}_MODEL_ID（如 KIMI_MODEL_ID）> MODEL_ID > provider 默认值
+ * 优先级：运行时模型 override（/provider flash|pro 或 model_switch 工具设置，
+ *        仅在 provider 匹配时生效，防跨 provider 泄漏）
+ *        > {PROVIDER}_MODEL_ID（如 KIMI_MODEL_ID）> MODEL_ID > provider 默认值
  */
 export function getActiveModelId(): string {
   const provider = getActiveProvider();
+  const runtimeModel = getRuntimeModelOverride();
+  if (runtimeModel && runtimeModel.provider === provider) return runtimeModel.modelId;
   return process.env[`${provider.toUpperCase()}_MODEL_ID`]
     || process.env.MODEL_ID
     || PROVIDER_PRESETS[provider].modelId;
+}
+
+/**
+ * 可热切换的模型目标（/provider 命令与 model_switch 工具共用）。
+ * 短别名 + 完整模型 ID 都解析到 {provider, modelId}；
+ * provider 名本身和未知字符串返回 null（走 provider 切换路径）。
+ */
+const MODEL_TARGETS: Record<string, { provider: LLMProviderName; modelId: string }> = {
+  flash: { provider: 'deepseek', modelId: 'deepseek-v4-flash' },
+  pro: { provider: 'deepseek', modelId: 'deepseek-v4-pro' },
+  'deepseek-v4-flash': { provider: 'deepseek', modelId: 'deepseek-v4-flash' },
+  'deepseek-v4-pro': { provider: 'deepseek', modelId: 'deepseek-v4-pro' },
+  'kimi-k3': { provider: 'kimi', modelId: 'kimi-k3' },
+  k3: { provider: 'kimi', modelId: 'kimi-k3' },
+};
+
+export function resolveModelTarget(input: string): { provider: LLMProviderName; modelId: string } | null {
+  return MODEL_TARGETS[input.trim().toLowerCase()] ?? null;
 }
 
 /**

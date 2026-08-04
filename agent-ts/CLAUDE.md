@@ -190,10 +190,10 @@ FEISHU_APP_ID=...           # Feishu/Lark bot
 TAVILY_API_KEY=...          # Web search
 ```
 
-**运行时热切换 provider**（不重启进程）：
-- 人工：TUI 中 `/provider` 查看状态，`/provider kimi` / `/provider deepseek` 切换（当前会话立即生效）
-- Agent：`model_switch` 工具（仅新会话生效，1 小时内限 3 次）
-- 仅内存生效，重启后回到 `LLM_PROVIDER`；切换审计日志在 `.pi-invest/model-switch.log`
+**运行时热切换 provider/模型**（不重启进程）：
+- 人工：TUI 中 `/provider` 查看状态，`/provider kimi` / `/provider deepseek` 切 provider，`/provider flash` / `/provider pro` 在 deepseek 内切模型档位（当前会话立即生效）
+- Agent：`model_switch` 工具（参数同 `/provider`，仅新会话生效，1 小时内限 3 次）
+- 仅内存生效，重启后回到 `LLM_PROVIDER` + `MODEL_ID`/`DEEPSEEK_MODEL_ID`；切换审计日志在 `.pi-invest/model-switch.log`
 
 **Python Environment:**
 - Required: Python 3.13（3.14 与 numba 不兼容）

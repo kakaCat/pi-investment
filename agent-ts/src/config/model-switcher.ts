@@ -31,6 +31,13 @@ const PROVIDER_KEY_ENV: Record<RuntimeProviderName, string[]> = {
 
 let runtimeProvider: RuntimeProviderName | null = null;
 
+/**
+ * 模型粒度 override（如 deepseek-v4-flash ↔ deepseek-v4-pro）。
+ * 记录所属 provider：provider 切走后旧模型 override 不得泄漏
+ * （getActiveModelId 只在 provider 匹配时采用）。
+ */
+let runtimeModel: { provider: RuntimeProviderName; modelId: string } | null = null;
+
 /** 当前运行时 override；null 表示未切换过（用 LLM_PROVIDER 环境变量） */
 export function getRuntimeOverride(): RuntimeProviderName | null {
   return runtimeProvider;
@@ -40,9 +47,20 @@ export function setRuntimeProvider(p: RuntimeProviderName): void {
   runtimeProvider = p;
 }
 
+/** 当前运行时模型 override；null 表示未设置 */
+export function getRuntimeModelOverride(): { provider: RuntimeProviderName; modelId: string } | null {
+  return runtimeModel;
+}
+
+export function setRuntimeModelOverride(p: RuntimeProviderName, modelId: string): void {
+  runtimeProvider = p;
+  runtimeModel = { provider: p, modelId };
+}
+
 /** 仅测试使用：清除运行时 override */
 export function resetRuntimeProviderForTests(): void {
   runtimeProvider = null;
+  runtimeModel = null;
 }
 
 /** 目标 provider 的 API key 是否已配置（LLM_API_KEY 通用覆盖也算） */
