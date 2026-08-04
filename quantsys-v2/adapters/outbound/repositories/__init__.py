@@ -22,11 +22,12 @@ from .signal_execution_repository import SignalExecutionORMRepository
 from .risk_repository import RiskORMRepository
 from .strategy_repository import StrategyORMRepository
 from .financial_repository import FinancialORMRepository
-from .stock_pool_repository import StockPoolORMRepository
+from .stock_pool_repository import StockPoolRepository, StockPoolORMRepository
 from .position_repository import PositionORMRepository
 from .risk_config_repository import RiskConfigORMRepository
 from .strategy_performance_repository import StrategyPerformanceRepository, StrategyPerformanceORMRepository
 from .fund_flow_repository import FundFlowORMRepository
+FundFlowRepository = FundFlowORMRepository  # 旧名兼容（enhanced_risk_assessor/pool_health_tracker 在用）
 from .market_style_repository import MarketStyleORMRepository
 from .data_quality_repository import DataQualityORMRepository
 from .ml_model_repository import MlModelORMRepository
@@ -60,12 +61,14 @@ __all__ = [
     'RiskORMRepository',
     'StrategyORMRepository',
     'FinancialORMRepository',
+    'StockPoolRepository',
     'StockPoolORMRepository',
     'PositionORMRepository',
     'RiskConfigORMRepository',
     'StrategyPerformanceRepository',
     'StrategyPerformanceORMRepository',
     'FundFlowORMRepository',
+    'FundFlowRepository',
     'MarketStyleORMRepository',
     'DataQualityORMRepository',
     'MlModelORMRepository',

@@ -114,29 +114,37 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             self.session.rollback()
             return None
 
-    def update_evaluation(self, decision_id: str, evaluation: Dict[str, Any]) -> bool:
-        """写入评估结果"""
+    def update_evaluation(self, decision_id: str, evaluation: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """写入评估结果，返回更新后的决策 dict（不存在返回 None）。
+
+        evaluation_status 写 'evaluated'：decision_service 统计报表按
+        'evaluated' 计数算 success_rate，之前写 'completed' 导致报表恒 0。
+        生产调用方（decision_evaluator/strategy_rotation_engine）忽略返回值，
+        bool→dict 无影响。
+        """
         try:
             row = (self.session.query(self.model)
                    .filter_by(decision_id=decision_id).first())
             if row is None:
                 logger.warning(f"Decision not found for evaluation: {decision_id}")
-                return False
+                return None
 
-            row.evaluation_status = 'completed'
+            row.evaluation_status = 'evaluated'
             row.evaluation_result = evaluation
             row.evaluation_date = datetime.now()
             if 'success' in evaluation:
                 row.success = evaluation['success']
             if 'learned_lesson' in evaluation:
                 row.learned_lesson = evaluation['learned_lesson']
+            if 'confidence_score' in evaluation:
+                row.confidence_score = evaluation['confidence_score']
 
             self.session.commit()
-            return True
+            return self._to_dict(row)
         except SQLAlchemyError as e:
             logger.error(f"Error updating evaluation for {decision_id}: {e}")
             self.session.rollback()
-            return False
+            return None
 
     def get_decisions_by_entity(self, entity_type: str, entity_id: str,
                                 limit: int = 50) -> List[Dict[str, Any]]:

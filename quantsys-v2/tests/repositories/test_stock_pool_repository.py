@@ -7,8 +7,9 @@ from adapters.outbound.repositories import StockPoolORMRepository
 @pytest.fixture
 def repo():
     r = StockPoolORMRepository()
-    # Clean up before each test
+    # Clean up before each test（pool_change_log 有 FK 引用 stock_pools，先清子表）
     cursor = r.db.cursor()
+    cursor.execute("DELETE FROM quant.pool_change_log")
     cursor.execute("DELETE FROM quant.stock_pools")
     cursor.close()
     r.db.commit()
