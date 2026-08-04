@@ -31,17 +31,19 @@ jest.unstable_mockModule("../../core/agent/session-adapter.js", () => ({
 }));
 
 const mockPrompt = jest.fn<(prompt: string) => Promise<void>>();
-const mockCreateAgentSession = jest.fn<() => Promise<{ session: { prompt: typeof mockPrompt } }>>();
+const mockCreateSession = jest.fn<() => Promise<{ session: { prompt: typeof mockPrompt } }>>();
 
-jest.unstable_mockModule("@mariozechner/pi-coding-agent", () => ({
-  createAgentSession: mockCreateAgentSession
+// mock sdk-facade（而非 SDK 本体）：源码经 facade 拿 createSession；
+// 同时避免 jest ESM linker 解析 SDK re-export 链（estimateTokens 事故）
+jest.unstable_mockModule("../../sdk-facade.js", () => ({
+  createSession: mockCreateSession
 }));
 
 jest.unstable_mockModule("../../config/config.js", () => ({
   createModel: jest.fn(() => ({ model: "deepseek-chat" }))
 }));
 
-jest.unstable_mockModule("../../infrastructure/tools/memory-tool.js", () => ({
+jest.unstable_mockModule("../../infrastructure/tools/agent/memory-tool.js", () => ({
   memoryWriteTool: { name: "memory_write" },
   memorySearchTool: { name: "memory_search" }
 }));
@@ -55,7 +57,7 @@ describe("SessionMemorySaver", () => {
     jest.clearAllMocks();
     mockSession = {} as AgentSession;
     mockPrompt.mockResolvedValue(undefined as any);
-    mockCreateAgentSession.mockResolvedValue({
+    mockCreateSession.mockResolvedValue({
       session: {
         prompt: mockPrompt
       }
@@ -89,7 +91,7 @@ describe("SessionMemorySaver", () => {
     test("should create memory saver agent with correct config", async () => {
       await saveSessionMemorySync(mockSession, { verbose: false });
 
-      expect(mockCreateAgentSession).toHaveBeenCalledWith(
+      expect(mockCreateSession).toHaveBeenCalledWith(
         expect.objectContaining({
           cwd: process.cwd(),
           customTools: expect.arrayContaining([
@@ -116,7 +118,7 @@ describe("SessionMemorySaver", () => {
 
       await saveSessionMemorySync(mockSession, { verbose: false });
 
-      expect(mockCreateAgentSession).not.toHaveBeenCalled();
+      expect(mockCreateSession).not.toHaveBeenCalled();
       expect(mockPrompt).not.toHaveBeenCalled();
     });
 
