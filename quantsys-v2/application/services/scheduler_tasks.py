@@ -1192,6 +1192,32 @@ def handle_chan_scan(params: Dict[str, Any] = None) -> Dict[str, Any]:
         }
 
 
+def handle_chan_knowledge_distill(params: Dict[str, Any] = None) -> Dict[str, Any]:
+    """缠论信号胜率蒸馏（每周）"""
+    from application.services.chan_knowledge_distiller import ChanKnowledgeDistiller
+
+    logger.info("Starting chan_knowledge_distill task")
+    try:
+        params = params or {}
+        result = ChanKnowledgeDistiller(
+            window_days=params.get('window_days', 20),
+            lookback_days=params.get('lookback_days', 90),
+        ).distill()
+        return {
+            "action": "chan_knowledge_distill",
+            "status": "success",
+            **result,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"chan_knowledge_distill failed: {e}")
+        return {
+            "action": "chan_knowledge_distill",
+            "status": "failed",
+            "error": str(e)
+        }
+
+
 _TASK_HANDLERS: Dict[str, Callable] = {
     "data_quality_check": handle_data_quality_check,
     "data_update": handle_data_update,
@@ -1224,6 +1250,7 @@ _TASK_HANDLERS: Dict[str, Callable] = {
     "strategy_rotation": handle_strategy_rotation,
     # 缠论学习闭环
     "chan_scan": handle_chan_scan,
+    "chan_knowledge_distill": handle_chan_knowledge_distill,
 }
 
 
