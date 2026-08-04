@@ -42,7 +42,7 @@ class TestChanScan:
         assert result['scanned'] == 2
         assert result['signals_written'] == 1
         call = mock_sig.return_value.create_signal.call_args[0][0]
-        assert call['symbol'] == '600519.SH'
+        assert call['symbol'] == '600519'  # 归一为无后缀（signals.symbol FK 契约）
         assert call['action'] == 'buy'
         assert call['strategy_id'] == 'chan_1买'
         assert call['confidence'] == 90.0          # 0.9 → 0-100 映射
@@ -86,15 +86,16 @@ class TestPoolSymbols:
     @patch('application.services.chan_scan_service.StockPoolORMRepository')
     @patch('application.services.chan_scan_service.ChanService')
     def test_symbol_suffix_normalized_and_deduped(self, mock_chan, mock_pool, mock_sig):
-        """无后缀代码按规则补后缀（6→SH，0/3→SZ），且与有后缀形式去重——
-        生产池里 002475 与 002475.SZ 并存，会重复扫描+重复信号"""
+        """统一归一为无后缀形式（stocks/signals 表全部无后缀，signals.symbol
+        有 FK 到 stocks.symbol——带后缀写入会 FK 冲突被吞成"duplicates"），
+        且 002475 与 002475.SZ 两种池内写法去重"""
         mock_pool.return_value.get_all.return_value = [{
             'id': 1, 'name': 'p', 'scan_enabled': True,
             'members': [{'symbol': '002475', 'name': 'a'},
                         {'symbol': '002475.SZ', 'name': 'a'},
-                        {'symbol': '600519', 'name': 'b'},
+                        {'symbol': '600519.SH', 'name': 'b'},
                         {'symbol': '300059.SZ', 'name': 'c'}],
         }]
         symbols = ChanScanService()._pool_symbols()
         codes = [s['symbol'] for s in symbols]
-        assert codes == ['002475.SZ', '600519.SH', '300059.SZ']
+        assert codes == ['002475', '600519', '300059']

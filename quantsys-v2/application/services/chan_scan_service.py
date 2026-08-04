@@ -33,16 +33,14 @@ class ChanScanService:
 
     @staticmethod
     def _normalize_symbol(symbol: str) -> str:
-        """无后缀代码补交易所后缀（6→.SH，0/3→.SZ）；已有后缀原样返回"""
-        if '.' in symbol:
-            return symbol
-        if symbol.startswith('6'):
-            return f'{symbol}.SH'
-        return f'{symbol}.SZ'
+        """统一为无后缀形式：stocks/signals 表全部无后缀，
+        signals.symbol 有 FK → stocks.symbol，带后缀写入会 FK 冲突。
+        K 线 repo 内部本就会去后缀，无后缀全链路通用。"""
+        return symbol.split('.')[0] if '.' in symbol else symbol
 
     def _pool_symbols(self) -> List[Dict[str, str]]:
         """全部池成员去重 [{symbol, name}]（scan_enabled=False 的池跳过；
-        symbol 统一归一化为带后缀形式，避免 002475 与 002475.SZ 重复扫描）"""
+        symbol 统一归一为无后缀，避免 002475 与 002475.SZ 重复扫描+FK 冲突）"""
         seen: Dict[str, str] = {}
         for pool in self._pool_repo.get_all():
             if not pool.get('scan_enabled', True):
