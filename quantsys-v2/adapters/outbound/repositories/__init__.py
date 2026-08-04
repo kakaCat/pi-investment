@@ -25,7 +25,7 @@ from .financial_repository import FinancialORMRepository
 from .stock_pool_repository import StockPoolORMRepository
 from .position_repository import PositionORMRepository
 from .risk_config_repository import RiskConfigORMRepository
-from .strategy_performance_repository import StrategyPerformanceORMRepository
+from .strategy_performance_repository import StrategyPerformanceRepository, StrategyPerformanceORMRepository
 from .fund_flow_repository import FundFlowORMRepository
 from .market_style_repository import MarketStyleORMRepository
 from .data_quality_repository import DataQualityORMRepository
@@ -63,6 +63,7 @@ __all__ = [
     'StockPoolORMRepository',
     'PositionORMRepository',
     'RiskConfigORMRepository',
+    'StrategyPerformanceRepository',
     'StrategyPerformanceORMRepository',
     'FundFlowORMRepository',
     'MarketStyleORMRepository',

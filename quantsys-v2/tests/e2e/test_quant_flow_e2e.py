@@ -30,7 +30,7 @@ def signal_log():
 @pytest.fixture
 def perf_repo():
     """创建 StrategyPerformanceRepository 实例"""
-    return StrategyPerformanceORMRepository()
+    return StrategyPerformanceRepository()
 
 
 @pytest.fixture

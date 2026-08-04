@@ -11,7 +11,7 @@ from adapters.outbound.repositories import StrategyPerformanceRepository
 @pytest.fixture
 def repo():
     """创建测试 repository"""
-    repo = StrategyPerformanceORMRepository()
+    repo = StrategyPerformanceRepository()
 
     # 清理测试数据
     cursor = repo.db.cursor()
