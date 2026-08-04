@@ -245,6 +245,10 @@ class SchedulerService:
                 if not supplied.
         """
         self._ds = ds  # DataService (lazy)
+        # 区分「显式注入」与「lazy 缓存」：只有显式注入的 ds 才被工作线程复用。
+        # lazy 缓存的实例若被 _create_data_service 复用，8 个任务线程会共享
+        # 同一个 ORM session（2026-08-04 全量回填 IllegalStateChangeError 根因）
+        self._ds_injected = ds is not None
         self._conn: Any = None
         self._running = False
         self._loop_interval = 30  # seconds
@@ -264,8 +268,9 @@ class SchedulerService:
     def _create_data_service(self):
         """任务线程专用的 DataService 工厂（ORM session 非线程安全，每任务独立实例）。
 
-        若构造时显式注入了 ds（如测试），则复用注入实例。"""
-        if self._ds is not None:
+        仅当构造时**显式注入** ds（如测试）才复用注入实例；lazy 缓存的实例
+        绝不返回给工作线程（防共享 session）。"""
+        if self._ds_injected:
             return self._ds
         from application.services.data_service import DataService
         return DataService()
@@ -1382,7 +1387,13 @@ class SchedulerService:
         symbols = params.get("symbols", [])
 
         if not symbols:
-            stocks = self.ds.stock.get_all(market=market)  # all stocks, no limit
+            from infrastructure.persistence.orm import close_session
+            lister = self._create_data_service()
+            try:
+                stocks = lister.stock.get_all(market=market)  # all stocks, no limit
+            finally:
+                if not self._ds_injected:
+                    close_session()
             symbols = [s["symbol"] for s in stocks]
 
         computed = 0

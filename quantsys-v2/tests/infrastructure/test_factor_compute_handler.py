@@ -75,3 +75,22 @@ class TestFactorComputeHandler:
         assert result['symbols_computed'] == 0
         assert result['errors'] == 0
         assert result['status'] == 'success'
+
+
+class TestDataServiceFactory:
+    def test_injected_ds_is_reused(self):
+        """显式注入的 ds（测试/调用方提供）被复用"""
+        ds = _make_ds(_fake_klines_df())
+        svc = SchedulerService(ds=ds)
+        assert svc._create_data_service() is ds
+
+    def test_lazy_ds_not_shared_across_threads(self):
+        """未注入时每次返回新实例——防止 lazy property 缓存后 8 线程共享
+        （2026-08-04 全量回填 IllegalStateChangeError 根因）"""
+        svc = SchedulerService()
+        with patch('application.services.data_service.DataService') as MockDS:
+            MockDS.side_effect = lambda: MagicMock(name='ds')
+            _ = svc.ds          # 模拟 handler 选股时触发 lazy 缓存
+            cached = svc._ds
+            b = svc._create_data_service()
+        assert b is not cached   # 工作线程必须拿新实例，不是缓存的共享实例
