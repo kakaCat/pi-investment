@@ -1,18 +1,22 @@
 import { describe, test, expect, beforeEach, afterEach, jest } from "@jest/globals";
-import { FxRateServiceAdapter, FxRatesFile } from "./fx-rate-service-adapter.js";
+import type { FxRatesFile } from "./fx-rate-service-adapter.js";
 import { mkdirSync, rmSync, existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { chinaDate, chinaDateTime } from "../utils/china-time.js";
 
 // Mock CacheManager to avoid real cache operations in tests
-jest.mock("../domain/cache/core/cache-manager.js", () => ({
+// ESM 下 jest.mock 不提升，必须用 unstable_mockModule + 动态 import；
+// 否则真实 CacheManager 的持久缓存会跨测试/跨运行污染（读到 live 汇率）
+jest.unstable_mockModule("../domain/cache/core/cache-manager.js", () => ({
   CacheManager: {
-    getInstance: jest.fn(() => ({
-      get: jest.fn().mockResolvedValue(null as any),
-      set: jest.fn().mockResolvedValue(undefined as any),
-    })),
+    getInstance: () => ({
+      get: jest.fn(async () => null),
+      set: jest.fn(async () => undefined),
+    }),
   },
 }));
+
+const { FxRateServiceAdapter } = await import("./fx-rate-service-adapter.js");
 
 const TEST_DIR = join(process.cwd(), ".test-fx-rates");
 
