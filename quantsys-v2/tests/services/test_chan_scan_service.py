@@ -79,3 +79,22 @@ class TestChanScan:
         result = ChanScanService().scan()
         assert result['signals_written'] == 0
         assert result['duplicates'] == 1
+
+
+class TestPoolSymbols:
+    @patch('application.services.chan_scan_service.SignalORMRepository')
+    @patch('application.services.chan_scan_service.StockPoolORMRepository')
+    @patch('application.services.chan_scan_service.ChanService')
+    def test_symbol_suffix_normalized_and_deduped(self, mock_chan, mock_pool, mock_sig):
+        """无后缀代码按规则补后缀（6→SH，0/3→SZ），且与有后缀形式去重——
+        生产池里 002475 与 002475.SZ 并存，会重复扫描+重复信号"""
+        mock_pool.return_value.get_all.return_value = [{
+            'id': 1, 'name': 'p', 'scan_enabled': True,
+            'members': [{'symbol': '002475', 'name': 'a'},
+                        {'symbol': '002475.SZ', 'name': 'a'},
+                        {'symbol': '600519', 'name': 'b'},
+                        {'symbol': '300059.SZ', 'name': 'c'}],
+        }]
+        symbols = ChanScanService()._pool_symbols()
+        codes = [s['symbol'] for s in symbols]
+        assert codes == ['002475.SZ', '600519.SH', '300059.SZ']

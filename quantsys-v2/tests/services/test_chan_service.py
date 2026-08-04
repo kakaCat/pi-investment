@@ -128,3 +128,22 @@ class TestChanServiceKnowledge:
         assert len(result['buypoints']) == 2
         for bp in result['buypoints']:
             assert bp['knowledge'] is None
+
+    @patch('application.services.chan_service.AgentKnowledgeORMRepository')
+    @patch('application.services.chan_service.KlineORMRepository')
+    def test_default_buypoint_types_not_none(self, mock_repo_cls, mock_know_cls):
+        """buypoint_types 缺省（None）时必须回落默认列表——
+        直接传 None 会让 analyzer 的 `bp.type in None` 炸 TypeError
+        （生产扫描 14/54 errors 根因：有买卖点的股票全灭）"""
+        mock_repo_cls.return_value.get_daily_klines.return_value = _make_klines()
+        mock_know_cls.return_value.get_by_domain.return_value = []
+
+        service = ChanService()
+        service.analyzer = _mock_analyzer_with_buypoints()
+        result = service.analyze('600519.SH')  # 不传 buypoint_types
+
+        assert len(result['buypoints']) == 2  # 不炸且未误过滤
+        # 关键契约：传给 analyzer 的 enable_buypoints 不得为 None
+        call_args = service.analyzer.analyze.call_args
+        enable = call_args[0][2] if len(call_args[0]) > 2 else call_args[1].get('enable_buypoints')
+        assert enable is not None and '1买' in enable

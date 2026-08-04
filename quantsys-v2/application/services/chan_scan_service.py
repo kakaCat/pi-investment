@@ -31,15 +31,26 @@ class ChanScanService:
         self._pool_repo = StockPoolORMRepository()
         self._signal_repo = SignalORMRepository()
 
+    @staticmethod
+    def _normalize_symbol(symbol: str) -> str:
+        """无后缀代码补交易所后缀（6→.SH，0/3→.SZ）；已有后缀原样返回"""
+        if '.' in symbol:
+            return symbol
+        if symbol.startswith('6'):
+            return f'{symbol}.SH'
+        return f'{symbol}.SZ'
+
     def _pool_symbols(self) -> List[Dict[str, str]]:
-        """全部池成员去重 [{symbol, name}]（scan_enabled=False 的池跳过）"""
+        """全部池成员去重 [{symbol, name}]（scan_enabled=False 的池跳过；
+        symbol 统一归一化为带后缀形式，避免 002475 与 002475.SZ 重复扫描）"""
         seen: Dict[str, str] = {}
         for pool in self._pool_repo.get_all():
             if not pool.get('scan_enabled', True):
                 continue
             for m in pool.get('members') or []:
-                symbol = m.get('symbol') if isinstance(m, dict) else str(m)
+                raw = m.get('symbol') if isinstance(m, dict) else str(m)
                 name = m.get('name', '') if isinstance(m, dict) else ''
+                symbol = self._normalize_symbol(raw) if raw else ''
                 if symbol and symbol not in seen:
                     seen[symbol] = name
         return [{'symbol': s, 'name': n} for s, n in seen.items()]

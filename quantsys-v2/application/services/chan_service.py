@@ -55,8 +55,11 @@ class ChanService:
                 "klines": []
             }
 
-        # 执行缠论分析
-        result = self.analyzer.analyze(symbol, klines_df, buypoint_types)
+        # 执行缠论分析（buypoint_types 缺省必须回落默认列表——
+        # 直接传 None 会让 analyzer 的 `bp.type in None` 炸 TypeError）
+        result = self.analyzer.analyze(
+            symbol, klines_df,
+            buypoint_types or ['1买', '2买', '3买', '1卖', '2卖', '3卖'])
 
         # 附加历史胜率知识（chan_knowledge_distill 蒸馏产物；失败不阻塞分析）
         knowledge_map = self._load_knowledge_map()
