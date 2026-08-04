@@ -52,6 +52,20 @@ class TestChanServiceAnalyze:
         assert result['trend_type'] == '无数据'
         assert result['bis'] == [] and result['buypoints'] == []
 
+    @patch('application.services.chan_service.KlineORMRepository')
+    def test_analyze_with_string_dates(self, mock_repo_cls):
+        """生产 K 线 date 列可能是字符串（polars→pandas 未转 datetime），
+        analyze 不应报 'str' object has no attribute 'strftime'（线上事故回归）"""
+        df = _make_klines().with_columns(
+            pl.col('date').dt.strftime('%Y-%m-%d').alias('date')
+        )
+        mock_repo_cls.return_value.get_daily_klines.return_value = df
+        result = ChanService().analyze('600519.SH')
+        assert result['symbol'] == '600519.SH'
+        assert isinstance(result['klines'], list) and len(result['klines']) > 0
+        # klines 日期输出仍为 YYYY-MM-DD 字符串
+        assert isinstance(result['klines'][0]['date'], str)
+
 
 def _mock_analyzer_with_buypoints():
     """让 service.analyzer 返回确定性的 1买/2买 买卖点（合成K线不保证产生买卖点）"""

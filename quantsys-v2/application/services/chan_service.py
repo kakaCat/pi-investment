@@ -137,6 +137,10 @@ class ChanService:
                     else:
                         raise ValueError(f"缺少必需列: {col}")
 
+            # 归一化日期类型：生产 K 线 date 列可能是字符串，
+            # 下游 _format_klines/_format_buypoint 调 .strftime 需要 datetime
+            df['date'] = pd.to_datetime(df['date'])
+
             return df[required_cols]
 
         except Exception as e:
