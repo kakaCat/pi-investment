@@ -1169,6 +1169,29 @@ def handle_strategy_rotation(params: Dict[str, Any] = None) -> Dict[str, Any]:
         logger.error(f"Strategy rotation failed: {e}")
         return {"action": "strategy_rotation", "status": "failed", "error": str(e)}
 
+
+def handle_chan_scan(params: Dict[str, Any] = None) -> Dict[str, Any]:
+    """缠论买卖点池内扫描（每日收盘后）"""
+    from application.services.chan_scan_service import ChanScanService
+
+    logger.info("Starting chan_scan task")
+    try:
+        summary = ChanScanService().scan()
+        return {
+            "action": "chan_scan",
+            "status": "success",
+            **summary,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"chan_scan failed: {e}")
+        return {
+            "action": "chan_scan",
+            "status": "failed",
+            "error": str(e)
+        }
+
+
 _TASK_HANDLERS: Dict[str, Callable] = {
     "data_quality_check": handle_data_quality_check,
     "data_update": handle_data_update,
@@ -1199,6 +1222,8 @@ _TASK_HANDLERS: Dict[str, Callable] = {
     "intraday_monitor": handle_intraday_monitor,
     "performance_report": handle_performance_report,
     "strategy_rotation": handle_strategy_rotation,
+    # 缠论学习闭环
+    "chan_scan": handle_chan_scan,
 }
 
 
