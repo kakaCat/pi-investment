@@ -17,6 +17,21 @@ class PoolSignalScanner:
         self._kline_repo = kline_repo
         self._strategy_repo = strategy_repo
 
+    @staticmethod
+    def _normalize_params(raw) -> dict:
+        """parsed_params 归一为 {name: value}：
+        dict → 原样；[{name, default, ...}] → {name: default}；
+        ['a','b']（仅名字无默认值）→ {}；None/其他 → {}"""
+        if isinstance(raw, dict):
+            return raw
+        if isinstance(raw, list):
+            out = {}
+            for item in raw:
+                if isinstance(item, dict) and 'name' in item:
+                    out[item['name']] = item.get('default')
+            return out
+        return {}
+
     def scan_pool_signals(
         self,
         symbols: List[str],
@@ -45,8 +60,14 @@ class PoolSignalScanner:
         if not strategy:
             raise ValueError(f"Strategy {strategy_id} not found")
 
-        strategy_code = strategy.get('code', '')
+        # get_by_id 返回的代码键是 code_content（旧键名 code 不存在——
+        # 此前 strategy.get('code','') 恒为空串，exec 空码导致全部股票静默
+        # 判 hold，0 信号 0 报错（2026-08-04 信号断流最深一层根因）
+        strategy_code = strategy.get('code') or strategy.get('code_content', '')
         strategy_name = strategy.get('name', f'Strategy {strategy_id}')
+        # 指标策略代码需要 params（与 strategy_executor 的注入契约一致）；
+        # parsed_params 列有三种形态（NULL/名字列表/{name,default}列表），归一为 dict
+        strategy_params = self._normalize_params(strategy.get('parsed_params'))
 
         logger.info(f"Scanning {len(symbols)} symbols with strategy {strategy_name}")
 
@@ -64,7 +85,8 @@ class PoolSignalScanner:
                     symbol,
                     strategy_code,
                     start_date.strftime('%Y-%m-%d'),
-                    end_date.strftime('%Y-%m-%d')
+                    end_date.strftime('%Y-%m-%d'),
+                    params=strategy_params,
                 )
 
                 if signal_info['error']:
@@ -108,7 +130,8 @@ class PoolSignalScanner:
         symbol: str,
         strategy_code: str,
         start_date: str,
-        end_date: str
+        end_date: str,
+        params=None,
     ) -> Dict:
         """
         检查单只股票的信号
@@ -162,7 +185,7 @@ class PoolSignalScanner:
                 df['trade_date'] = df['trade_date'].astype(str)
 
             # 执行策略代码获取信号
-            signal_result = self._execute_strategy_on_df(df, strategy_code)
+            signal_result = self._execute_strategy_on_df(df, strategy_code, params=params)
 
             return {
                 'symbol': symbol,
@@ -188,7 +211,7 @@ class PoolSignalScanner:
                 'trade_date': end_date
             }
 
-    def _execute_strategy_on_df(self, df, strategy_code: str) -> Dict:
+    def _execute_strategy_on_df(self, df, strategy_code: str, params=None) -> Dict:
         """
         在DataFrame上执行策略代码，获取最新信号
 
@@ -197,8 +220,8 @@ class PoolSignalScanner:
         import pandas as pd
         import numpy as np
 
-        # 执行策略代码（添加buy/sell列）
-        local_vars = {'df': df, 'pd': pd, 'np': np}
+        # 执行策略代码（添加buy/sell列）；params 注入与 strategy_executor 契约一致
+        local_vars = {'df': df, 'pd': pd, 'np': np, 'params': params}
         exec(strategy_code, {}, local_vars)
         df = local_vars['df']
 

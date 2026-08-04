@@ -21,6 +21,13 @@ from psycopg2.extras import RealDictCursor
 
 from infrastructure.persistence.database.base_repository import _resolve_db_dsn
 
+# 信号生成链路的依赖（模块级导入便于测试 patch；均有惰性单例语义无副作用）
+from adapters.outbound.repositories.heatmap_repository import HeatmapRepository
+from adapters.outbound.repositories.kline_repository import KlineORMRepository
+from adapters.outbound.repositories.signal_repository import SignalORMRepository
+from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
+from application.services.pool_signal_scanner import PoolSignalScanner
+
 logger = logging.getLogger(__name__)
 
 
@@ -1222,46 +1229,89 @@ class SchedulerService:
             timeout_seconds=timeout_seconds,
         )
 
-    def _handle_signal_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate trading signals using factor data.
+    # 信号生成的默认策略集（strategy_configs 中的活跃策略；可被任务 params.strategy_ids 覆盖）
+    DEFAULT_SIGNAL_STRATEGY_IDS = [162, 166, 179, 180]
 
-        Uses ``DataService.signal`` and ``DataService.factor``.
+    def _handle_signal_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """扫描 agent 宇宙（非空池成员 ∪ 当前持仓）× 活跃策略，买卖信号落库。
+
+        2026-08-04 重写：旧实现是桩——只统计 stocks_with_factors 不落任何信号
+        （signals 表自 06-26 断流的直接原因）。链路：PoolSignalScanner 扫描 →
+        buy/sell 经 SignalORMRepository.create_signal 落库（唯一键幂等去重）。
 
         Expected params:
-            market: (optional) market filter.
-            date: (optional) signal date, default today.
-            strategy_id: (optional) strategy to use.
+            strategy_ids: (optional) 策略 ID 列表，默认 DEFAULT_SIGNAL_STRATEGY_IDS
+            date: (optional) 信号日期，默认今天
+            lookback_days: (optional) 扫描回溯天数，默认 60
         """
         from datetime import date as date_type
 
-        market = params.get("market")
+        strategy_ids = params.get("strategy_ids") or self.DEFAULT_SIGNAL_STRATEGY_IDS
         signal_date = params.get("date", date_type.today().isoformat())
+        lookback_days = params.get("lookback_days", 60)
 
-        stocks = self.ds.stock.get_all(market=market)  # all stocks, no limit
+        repo = HeatmapRepository()
+        universe = repo.get_pool_members_now() | repo.get_current_holding_symbols()
+        # 统一去交易所后缀：stocks/signals 用裸代码（signals.symbol 有 FK 到
+        # stocks.symbol，带后缀会 ForeignKeyViolation），Kline repo 自会规范化
+        symbols = sorted({s.split('.')[0] for s in universe})
 
-        def check_stock_factors(stock: Dict[str, Any]) -> bool:
-            """Check if a stock has factors. Returns True if factors exist."""
+        if not symbols:
+            return {
+                "action": "signal_generate",
+                "status": "success",
+                "date": signal_date,
+                "universe_size": 0,
+                "signals_found": 0,
+                "signals_saved": 0,
+                "duplicates": 0,
+                "strategy_errors": [],
+                "note": "宇宙为空（无非空池成员且无持仓）",
+            }
+
+        names = {s: m['name'] for s, m in repo.get_stocks_meta(symbols).items()}
+        scanner = PoolSignalScanner(KlineORMRepository(), StrategyORMRepository())
+        sig_repo = SignalORMRepository()
+
+        found = saved = duplicates = 0
+        strategy_errors = []
+        for sid in strategy_ids:
             try:
-                symbol = stock["symbol"]
-                factors = self.ds.factor.get_latest_factors(symbol)
-                return bool(factors)
-            except Exception:
-                return False
+                result = scanner.scan_pool_signals(
+                    symbols=symbols, strategy_id=sid, lookback_days=lookback_days)
+                for sig in result.get('buy_signals', []) + result.get('sell_signals', []):
+                    found += 1
+                    signal_id = sig_repo.create_signal({
+                        'signal_date': signal_date,
+                        'symbol': sig['symbol'],
+                        'name': names.get(sig['symbol'], ''),
+                        'action': sig['signal'],
+                        'strategy_id': str(sid),
+                        'price': sig.get('current_price'),
+                        'reason': '; '.join(sig.get('reasons', [])),
+                        'indicators': sig.get('indicators'),
+                        'status': 'pending',
+                    })
+                    if signal_id > 0:
+                        saved += 1
+                    else:
+                        duplicates += 1
+            except Exception as e:
+                logger.warning(f"signal_generate: strategy {sid} 扫描失败: {e}")
+                strategy_errors.append(f"{sid}: {e}")
 
-        generated = 0
-
-        # Parallelize factor checks with 8 workers
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            futures = {executor.submit(check_stock_factors, stock): stock for stock in stocks}
-            for future in as_completed(futures):
-                if future.result():
-                    generated += 1
-
+        # 假成功防护：有宇宙但一个策略都没跑成且零落库 → 显式 failed
+        status = 'failed' if strategy_errors and len(strategy_errors) == len(strategy_ids) and saved == 0 else 'success'
         return {
             "action": "signal_generate",
-            "stocks_checked": len(stocks),
-            "stocks_with_factors": generated,
+            "status": status,
             "date": signal_date,
+            "universe_size": len(symbols),
+            "strategies": strategy_ids,
+            "signals_found": found,
+            "signals_saved": saved,
+            "duplicates": duplicates,
+            "strategy_errors": strategy_errors,
         }
 
     def _handle_risk_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
