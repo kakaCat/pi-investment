@@ -92,30 +92,56 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
     def create_signal(self, signal_data: Dict[str, Any]) -> int:
         """创建信号（ISignalRepository接口实现）
 
-        Args:
-            signal_data: 信号数据字典
+        契约（2026-08-04 修复——旧实现传 volume=/metadata= 两个模型不存在
+        的字段，每条创建都 TypeError 被吞返回 0）：
+        - 必填：signal_date, symbol, name, action, strategy_id
+        - action_type 缺省时按 action 推导：buy→1, sell→2
+        - 唯一键 (symbol, signal_date, strategy_id) 冲突 → 返回 0（幂等跳过）
 
         Returns:
-            信号ID
+            信号ID；冲突或失败返回 0
         """
         try:
+            action = signal_data.get('action')
+            action_type = signal_data.get('action_type')
+            if action_type is None and action:
+                action_type = {'buy': 1, 'sell': 2}.get(str(action).lower(), 0)
+
+            # 幂等：唯一键 (symbol, signal_date, strategy_id) 已存在则跳过
+            existing = (
+                self.session.query(Signal.id)
+                .filter(
+                    Signal.symbol == signal_data.get('symbol'),
+                    Signal.signal_date == signal_data.get('signal_date'),
+                    Signal.strategy_id == str(signal_data.get('strategy_id')),
+                )
+                .first()
+            )
+            if existing:
+                logger.debug(
+                    f"Signal already exists: {signal_data.get('symbol')} "
+                    f"{signal_data.get('signal_date')} {signal_data.get('strategy_id')}")
+                return 0
+
             signal = Signal(
                 symbol=signal_data.get('symbol'),
                 signal_date=signal_data.get('signal_date'),
-                action=signal_data.get('action'),
-                strategy_id=signal_data.get('strategy_id'),
+                name=signal_data.get('name') or '',
+                action=action,
+                action_type=action_type,
+                strategy_id=str(signal_data.get('strategy_id')),
                 price=signal_data.get('price'),
-                volume=signal_data.get('volume'),
                 confidence=signal_data.get('confidence'),
                 reason=signal_data.get('reason'),
+                indicators=signal_data.get('indicators'),
                 status=signal_data.get('status', 'pending'),
-                metadata=signal_data.get('metadata'),
             )
             created = self.create(signal)
             return created.id if created else 0
 
         except Exception as e:
             logger.error(f"Error creating signal: {e}")
+            self.session.rollback()
             return 0
 
     def _signal_to_dict(self, signal: Signal) -> Dict[str, Any]:
@@ -350,57 +376,6 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             return None
 
     # ==================== 创建和更新 ====================
-
-    def create_signal(
-        self,
-        signal_date: str,
-        symbol: str,
-        name: str,
-        action: str,
-        action_type: int,
-        strategy_id: str,
-        price: Optional[float] = None,
-        confidence: Optional[float] = None,
-        reason: Optional[str] = None,
-        indicators: Optional[Dict] = None
-    ) -> Optional[Signal]:
-        """创建交易信号
-
-        Args:
-            signal_date: 信号日期
-            symbol: 股票代码
-            name: 股票名称
-            action: 操作类型 (BUY/SELL/HOLD)
-            action_type: 操作类型代码
-            strategy_id: 策略ID
-            price: 信号价格
-            confidence: 置信度
-            reason: 信号原因
-            indicators: 指标数据（JSON）
-
-        Returns:
-            创建的Signal对象
-        """
-        try:
-            signal = Signal(
-                signal_date=signal_date,
-                symbol=symbol,
-                name=name,
-                action=action,
-                action_type=action_type,
-                strategy_id=strategy_id,
-                price=price,
-                confidence=confidence,
-                reason=reason,
-                indicators=indicators,
-                status='pending'
-            )
-
-            return self.create(signal, commit=True)
-
-        except Exception as e:
-            logger.error(f"Error creating signal: {e}")
-            return None
 
     def batch_create_signals(self, signals: List[Signal]) -> bool:
         """批量创建信号
