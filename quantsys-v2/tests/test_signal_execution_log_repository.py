@@ -96,7 +96,7 @@ class TestSignalExecutionLogORMRepository:
         # Assert
         assert log is not None
         assert log["id"] == log_id
-        assert log["execution_date"] == date(2026, 5, 28)
+        assert log["execution_date"] == "2026-05-28"  # ORM 序列化为 ISO 字符串（对齐 HTTP 契约）
         assert log["status"] == "running"
 
     def test_get_nonexistent_log(self, repo):
@@ -132,8 +132,8 @@ class TestSignalExecutionLogORMRepository:
         # Assert
         assert len(logs) >= 2
         for log in logs:
-            assert log["execution_date"] >= date(2026, 5, 26)
-            assert log["execution_date"] <= date(2026, 5, 27)
+            assert log["execution_date"] >= "2026-05-26"  # ISO 字符串字典序即日期序
+            assert log["execution_date"] <= "2026-05-27"
 
     def test_get_logs_by_date_range_empty(self, repo):
         """Test querying logs with no results"""

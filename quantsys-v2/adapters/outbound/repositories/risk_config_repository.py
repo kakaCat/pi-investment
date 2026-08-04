@@ -69,10 +69,14 @@ class RiskConfigORMRepository(BaseORMRepository[RiskConfig], IRiskConfigReposito
     # ---------- 业务方法 ----------
 
     def get_config(self, config_name: str = 'default') -> Optional[Dict[str, Any]]:
-        """按名称查询风控配置，返回字典（不存在返回 None）"""
+        """按名称查询风控配置，返回字典（不存在或已停用返回 None）。
+
+        is_active 过滤是旧契约（停用配置视为不存在，风控服务走兜底）；
+        ORM 迁移时丢失该过滤会导致停用配置照样生效——2026-08-04 恢复。
+        """
         try:
             row = (self.session.query(self.model)
-                   .filter_by(config_name=config_name)
+                   .filter_by(config_name=config_name, is_active=True)
                    .first())
             return self._to_dict(row) if row else None
         except SQLAlchemyError as e:
