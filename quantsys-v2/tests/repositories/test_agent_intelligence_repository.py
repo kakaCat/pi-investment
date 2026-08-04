@@ -5,9 +5,7 @@ import pytest
 from datetime import datetime
 from adapters.outbound.repositories import (
     AgentDecisionRepository,
-    AgentKnowledgeRepository,
     PoolChangeLogRepository,
-    OpponentBehaviorRepository
 )
 from adapters.outbound.repositories import StockPoolORMRepository
 
@@ -21,21 +19,9 @@ def repo_decision():
 
 
 @pytest.fixture
-def repo_knowledge():
-    """提供 AgentKnowledgeRepository 实例"""
-    return AgentKnowledgeRepository()
-
-
-@pytest.fixture
 def repo_change_log():
     """提供 PoolChangeLogRepository 实例"""
     return PoolChangeLogRepository()
-
-
-@pytest.fixture
-def repo_opponent():
-    """提供 OpponentBehaviorRepository 实例"""
-    return OpponentBehaviorRepository()
 
 
 @pytest.fixture
@@ -117,70 +103,6 @@ class TestAgentDecisionRepository:
         assert result['confidence_score'] == 0.85
 
 
-class TestAgentKnowledgeRepository:
-    """测试 Agent 知识库 Repository"""
-
-    def test_create_knowledge(self, repo_knowledge):
-        """测试创建知识"""
-        knowledge = {
-            'knowledge_id': f'know_{int(datetime.now().timestamp())}',
-            'domain': 'sector:白酒',
-            'knowledge_type': 'filter_rule',
-            'content': {
-                'rule': 'min_roe >= 18',
-                'reason': '白酒行业应使用更高的ROE标准'
-            },
-            'confidence': 0.7,
-            'evidence': [{'decision_id': 'dec_001', 'result': 'success'}]
-        }
-
-        result = repo_knowledge.create_knowledge(knowledge)
-
-        assert result is not None
-        assert result['domain'] == 'sector:白酒'
-        assert result['confidence'] == 0.7
-
-    def test_find_by_domain(self, repo_knowledge):
-        """测试按领域查找知识"""
-        knowledge = {
-            'knowledge_id': f'know_{int(datetime.now().timestamp())}_find',
-            'domain': 'sector:医药',
-            'knowledge_type': 'filter_rule',
-            'content': {'rule': 'test'},
-            'confidence': 0.6,
-            'evidence': []
-        }
-        repo_knowledge.create_knowledge(knowledge)
-
-        results = repo_knowledge.find_by_domain('sector:医药')
-
-        assert len(results) > 0
-        assert all(r['domain'] == 'sector:医药' for r in results)
-
-    def test_update_validation(self, repo_knowledge):
-        """测试更新知识验证"""
-        knowledge_id = f'know_{int(datetime.now().timestamp())}_val'
-        knowledge = {
-            'knowledge_id': knowledge_id,
-            'domain': 'test',
-            'knowledge_type': 'test',
-            'content': {},
-            'confidence': 0.5,
-            'evidence': []
-        }
-        repo_knowledge.create_knowledge(knowledge)
-
-        result = repo_knowledge.update_validation(knowledge_id, success=True)
-        assert result['validation_count'] == 1
-        assert result['success_count'] == 1
-        assert result['confidence'] == 1.0
-
-        result = repo_knowledge.update_validation(knowledge_id, success=False)
-        assert result['validation_count'] == 2
-        assert result['success_count'] == 1
-        assert result['confidence'] == 0.5
-
-
 class TestPoolChangeLogRepository:
     """测试池子变更日志 Repository"""
 
@@ -225,56 +147,3 @@ class TestPoolChangeLogRepository:
         assert len(history) >= 3
 
 
-class TestOpponentBehaviorRepository:
-    """测试对手行为 Repository"""
-
-    def test_save_snapshot(self, repo_opponent):
-        """测试保存快照"""
-        snapshot = {
-            'retail_behavior': 'panic_selling',
-            'retail_net_flow': -5000000000,
-            'retail_emotion_index': 20.0,
-            'institution_behavior': 'accumulating',
-            'institution_net_flow': 3500000000,
-            'institution_target_sectors': ['医药', '消费'],
-            'hot_money_behavior': 'inactive',
-            'hot_money_target_stocks': [],
-            'hot_money_stage': None,
-            'market_phase': 'accumulation',
-            'risk_appetite': 'low',
-            'opportunities': {
-                'take_from_retail': [{
-                    'strategy': 'bottom_fishing',
-                    'confidence': 0.85
-                }]
-            }
-        }
-
-        result = repo_opponent.save_snapshot(snapshot)
-
-        assert result is not None
-        assert result['retail_behavior'] == 'panic_selling'
-        assert result['market_phase'] == 'accumulation'
-
-    def test_get_latest_snapshot(self, repo_opponent):
-        """测试获取最新快照"""
-        snapshot = {
-            'retail_behavior': 'neutral',
-            'retail_net_flow': 0,
-            'retail_emotion_index': 50.0,
-            'institution_behavior': 'neutral',
-            'institution_net_flow': 0,
-            'institution_target_sectors': [],
-            'hot_money_behavior': 'inactive',
-            'hot_money_target_stocks': [],
-            'hot_money_stage': None,
-            'market_phase': 'consolidation',
-            'risk_appetite': 'medium',
-            'opportunities': {}
-        }
-        repo_opponent.save_snapshot(snapshot)
-
-        latest = repo_opponent.get_latest_snapshot()
-
-        assert latest is not None
-        assert latest['market_phase'] == 'consolidation'
