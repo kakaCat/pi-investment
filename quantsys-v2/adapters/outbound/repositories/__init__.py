@@ -37,7 +37,6 @@ from .traceability_repository import TraceabilityORMRepository
 from .agent_intelligence_repository import AgentIntelligenceORMRepository, AgentDecisionRepository
 from .pool_change_log_repository import PoolChangeLogRepository
 from .signal_execution_log_repository import SignalExecutionLogORMRepository
-from .async_kline_repository import AsyncKlineORMRepository
 from .async_factor_repository import AsyncFactorORMRepository
 
 # 批次4（调度器和监控）✅
@@ -79,7 +78,6 @@ __all__ = [
     'AgentDecisionRepository',
     'PoolChangeLogRepository',
     'SignalExecutionLogORMRepository',
-    'AsyncKlineORMRepository',
     'AsyncFactorORMRepository',
 
     # 批次4（调度器和监控）
