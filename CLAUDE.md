@@ -294,7 +294,7 @@ Create `.env` in `agent-ts/` directory:
 # AI Model
 DEEPSEEK_API_KEY=sk-...
 OPENAI_API_KEY=sk-...  # Same as DEEPSEEK_API_KEY
-MODEL_ID=deepseek-chat
+MODEL_ID=deepseek-v4-flash  # 或 deepseek-v4-pro
 
 # Backend
 QUANTSYS_V2_API_URL=http://127.0.0.1:5001

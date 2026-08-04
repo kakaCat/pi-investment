@@ -59,9 +59,14 @@ const PROVIDER_PRESETS: Record<LLMProviderName, ProviderPreset> = {
   deepseek: {
     name: 'DeepSeek Chat',
     baseUrl: 'https://api.deepseek.com/v1',
-    modelId: 'deepseek-chat',
+    // 官方模型列表现仅 deepseek-v4-flash / deepseek-v4-pro（deepseek-chat 为遗留别名）。
+    // 切换 pro：DEEPSEEK_MODEL_ID=deepseek-v4-pro
+    modelId: 'deepseek-v4-flash',
     apiKeyEnv: ['DEEPSEEK_API_KEY', 'OPENAI_API_KEY'],
-    contextWindow: 64000,
+    // v4 全系实际上下文 1M / 最大输出 384K（官方文档确认）。这里按 128K 工作窗口
+    // 配置：agent 每轮全量重发上下文，窗口越大单轮成本越高；需要长上下文时
+    // 用 LLM_CONTEXT_WINDOW 覆盖（上限 1048576）。
+    contextWindow: 128000,
     maxTokens: 8000,
     reasoning: true, // DeepSeek支持reasoning，设为true避免解析错误
   },
@@ -97,6 +102,7 @@ const PROVIDER_ALIASES: Record<string, LLMProviderName> = {
   'kimi-k3': 'kimi',
   deepseek: 'deepseek',
   'deepseek-chat': 'deepseek',
+  'deepseek-v4-flash': 'deepseek',
   'deepseek-v4-pro': 'deepseek',
   'deepseek-reasoner': 'deepseek',
 };

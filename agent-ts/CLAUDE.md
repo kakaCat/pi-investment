@@ -169,7 +169,7 @@ LLM_PROVIDER=deepseek
 DEEPSEEK_API_KEY=sk-...
 DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
 OPENAI_API_KEY=...          # SDK reads this key; must match DEEPSEEK_API_KEY
-MODEL_ID=deepseek-chat
+MODEL_ID=deepseek-v4-flash  # 或 deepseek-v4-pro
 
 # Kimi / Moonshot API (LLM_PROVIDER=kimi 时生效)
 # KIMI_API_KEY=sk-...

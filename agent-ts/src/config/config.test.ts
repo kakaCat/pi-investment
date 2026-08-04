@@ -18,7 +18,7 @@ const ENV_KEYS = [
   'LLM_PROVIDER', 'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_REASONING',
   'LLM_CONTEXT_WINDOW', 'LLM_MAX_TOKENS', 'MODEL_ID',
   'DEEPSEEK_API_KEY', 'KIMI_API_KEY', 'MOONSHOT_API_KEY', 'OPENAI_API_KEY',
-  'KIMI_BASE_URL', 'KIMI_MODEL_ID', 'DEEPSEEK_BASE_URL',
+  'KIMI_BASE_URL', 'KIMI_MODEL_ID', 'DEEPSEEK_BASE_URL', 'DEEPSEEK_MODEL_ID',
 ];
 let savedEnv: Record<string, string | undefined>;
 
@@ -61,5 +61,31 @@ describe('createModel compat 透传', () => {
     process.env.DEEPSEEK_API_KEY = 'test-key';
     const model = createModel() as any;
     expect(model.compat).toBeUndefined();
+  });
+});
+
+describe('deepseek v4 默认模型', () => {
+  it('默认模型为 deepseek-v4-flash（deepseek-chat 已不在官方模型列表）', () => {
+    process.env.LLM_PROVIDER = 'deepseek';
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const model = createModel() as any;
+    expect(model.id).toBe('deepseek-v4-flash');
+  });
+
+  it('DEEPSEEK_MODEL_ID 可切换为 deepseek-v4-pro', () => {
+    process.env.LLM_PROVIDER = 'deepseek';
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    process.env.DEEPSEEK_MODEL_ID = 'deepseek-v4-pro';
+    const model = createModel() as any;
+    expect(model.id).toBe('deepseek-v4-pro');
+  });
+
+  it('deepseek 工作上下文窗口默认 128K（v4 实际 1M，可用 LLM_CONTEXT_WINDOW 上调）', () => {
+    process.env.LLM_PROVIDER = 'deepseek';
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const model = createModel() as any;
+    expect(model.contextWindow).toBe(128000);
+    process.env.LLM_CONTEXT_WINDOW = '1000000';
+    expect((createModel() as any).contextWindow).toBe(1000000);
   });
 });

@@ -121,9 +121,9 @@ describe('config 集成：getActiveProvider / createModel', () => {
     }
   });
 
-  it('LLM_PROVIDER 支持别名：deepseek-chat/deepseek-v4-pro → deepseek', async () => {
+  it('LLM_PROVIDER 支持别名：deepseek-chat/deepseek-v4-flash/deepseek-v4-pro → deepseek', async () => {
     const { getActiveProvider } = await import('./config.js');
-    for (const alias of ['deepseek-chat', 'deepseek-v4-pro', 'DeepSeek']) {
+    for (const alias of ['deepseek-chat', 'deepseek-v4-flash', 'deepseek-v4-pro', 'DeepSeek']) {
       process.env.LLM_PROVIDER = alias;
       expect(getActiveProvider()).toBe('deepseek');
     }

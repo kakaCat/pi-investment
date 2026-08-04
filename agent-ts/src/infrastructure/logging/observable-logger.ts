@@ -52,7 +52,7 @@ const metadata = {
   session_key: '',
   run_id: RUN_ID,
   start_time: new Date().toISOString(),
-  model: process.env.MODEL_ID || (process.env.LLM_PROVIDER === 'kimi' ? 'kimi-k3' : 'deepseek-chat'),
+  model: process.env.MODEL_ID || (process.env.LLM_PROVIDER === 'kimi' ? 'kimi-k3' : 'deepseek-v4-flash'),
   cwd: process.cwd(),
   workspace: process.cwd(),
 };
