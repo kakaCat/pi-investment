@@ -11,7 +11,6 @@ from pathlib import Path
 import structlog
 
 from application.services.signal_test_log import SignalTestLog
-from adapters.outbound.repositories import StrategyPerformanceRepository
 
 logger = structlog.get_logger(__name__)
 

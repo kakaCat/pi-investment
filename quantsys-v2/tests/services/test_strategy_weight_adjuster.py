@@ -25,7 +25,7 @@ def test_get_weight_static_mode(db_connection):
 
 def test_get_weight_dynamic_mode(db_connection):
     """测试动态模式权重计算（样本 >= 30）"""
-    from adapters.outbound.repositories import StrategyPerformanceRepository
+    from adapters.outbound.repositories import StrategyPerformanceORMRepository
     from datetime import date, timedelta
 
     # 准备测试数据：创建 >= 30 笔交易记录
@@ -95,7 +95,7 @@ def test_get_weight_mixed_market(db_connection):
 
 def test_get_weight_fallback_on_error(db_connection):
     """测试动态模式失败时回退到静态模式"""
-    from adapters.outbound.repositories import StrategyPerformanceRepository
+    from adapters.outbound.repositories import StrategyPerformanceORMRepository
     from datetime import date, timedelta
 
     # 准备测试数据：创建 >= 30 笔交易记录，但没有 market_style 标签
