@@ -30,6 +30,43 @@ logger = structlog.get_logger(__name__)
 __all__ = ['KlineORMRepository']
 
 
+# to_dict() 输出的显式 schema。
+# 不用 pl.DataFrame(rows) 默认推断：infer_schema_length=100 只采样前 100 行，
+# 某列前 100 行全 NULL 被判 Null 类型，第 101+ 行非空值 append 直接 ComputeError
+# （2026-08-04 事故：turnover_rate 老数据 NULL 近期回填 0.0 / remark 被回填任务写入错误字符串）
+_DAILY_KLINE_SCHEMA = {
+    'symbol': pl.Utf8,
+    'trade_date': pl.Utf8,
+    'open': pl.Float64,
+    'high': pl.Float64,
+    'low': pl.Float64,
+    'close': pl.Float64,
+    'volume': pl.Float64,
+    'amount': pl.Float64,
+    'turnover_rate': pl.Float64,
+    'remark': pl.Utf8,
+}
+
+_MINUTE_KLINE_SCHEMA = {
+    'symbol': pl.Utf8,
+    'trade_datetime': pl.Utf8,
+    'open': pl.Float64,
+    'high': pl.Float64,
+    'low': pl.Float64,
+    'close': pl.Float64,
+    'volume': pl.Float64,
+    'amount': pl.Float64,
+}
+
+
+def _rows_to_df(rows: list, schema: dict) -> pl.DataFrame:
+    """to_dict rows → polars DataFrame（显式 schema，按 rows 实际键取子集）"""
+    if not rows:
+        return pl.DataFrame(schema=schema)
+    sub_schema = {k: v for k, v in schema.items() if k in rows[0]}
+    return pl.DataFrame(rows, schema=sub_schema)
+
+
 class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
     """K线ORM Repository
 
@@ -191,7 +228,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             result = {}
             for symbol, klines in batch_data.items():
                 if klines:
-                    result[symbol] = pl.DataFrame(klines)
+                    result[symbol] = _rows_to_df(klines, _DAILY_KLINE_SCHEMA)
                 else:
                     result[symbol] = pl.DataFrame()
             return result
@@ -265,7 +302,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                     row = {k: v for k, v in row.items() if k in fields}
                 rows.append(row)
 
-            return pl.DataFrame(rows)
+            return _rows_to_df(rows, _DAILY_KLINE_SCHEMA)
 
         except Exception as e:
             logger.error(f"Error getting daily klines for {symbol}: {e}")
@@ -288,7 +325,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             ).order_by(DailyKline.trade_date.desc()).first()
 
             if kline:
-                return pl.DataFrame([kline.to_dict()])
+                return _rows_to_df([kline.to_dict()], _DAILY_KLINE_SCHEMA)
             return None
 
         except Exception as e:
@@ -326,7 +363,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                 })
 
             # 转换为DataFrame并按日期升序排列
-            df = pl.DataFrame([k.to_dict() for k in reversed(klines)])
+            df = _rows_to_df([k.to_dict() for k in reversed(klines)], _DAILY_KLINE_SCHEMA)
             return df
 
         except Exception as e:
@@ -539,7 +576,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                 })
 
             rows = [kline.to_dict() for kline in klines]
-            return pl.DataFrame(rows)
+            return _rows_to_df(rows, _MINUTE_KLINE_SCHEMA)
 
         except Exception as e:
             logger.error(f"Error getting minute klines for {symbol}: {e}")
