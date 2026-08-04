@@ -6,11 +6,11 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 const mockGetStockData = jest.fn<(symbol: string, fields?: Array<'price'>, newsNum?: number, source?: 'realtime' | 'db' | 'auto') => Promise<any>>();
 const mockFormatStockPrice = jest.fn<(priceData: any) => string>();
 
-jest.unstable_mockModule('../../quant/quant-v2-client.js', () => ({
+jest.unstable_mockModule('../../adapters/quant/quant-v2-client.js', () => ({
   getStockData: mockGetStockData
 }));
 
-jest.unstable_mockModule('../../quant/formatters.js', () => ({
+jest.unstable_mockModule('../../adapters/quant/formatters.js', () => ({
   formatStockPrice: mockFormatStockPrice
 }));
 

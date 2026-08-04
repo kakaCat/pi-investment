@@ -4,7 +4,7 @@ const writeMemoryMock = jest.fn<(content: string, category: string) => string>()
 const hybridSearchMock = jest.fn<(query: string, topK: number) => Array<{ path: string; score: number; snippet: string }>>();
 const initMemoryStoreMock = jest.fn();
 
-jest.unstable_mockModule("../../services/intelligence/memory-store.js", () => ({
+jest.unstable_mockModule("../../../services/intelligence/memory-store.js", () => ({
   getMemoryStore: () => ({
     writeMemory: writeMemoryMock,
     hybridSearch: hybridSearchMock,

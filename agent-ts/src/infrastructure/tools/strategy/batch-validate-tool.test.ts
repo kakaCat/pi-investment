@@ -5,7 +5,7 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
 const mockBatchValidateStrategies = jest.fn<(params: any) => Promise<any>>();
 
-jest.unstable_mockModule('../../quant/quant-v2-client.js', () => ({
+jest.unstable_mockModule('../../adapters/quant/quant-v2-client.js', () => ({
   batchValidateStrategies: mockBatchValidateStrategies
 }));
 
@@ -84,7 +84,7 @@ describe('strategyBatchValidateTool', () => {
     // Assert
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe('text');
-    expect((result.content[0] as any).text).toContain('策略批量验证失败');
+    expect((result.content[0] as any).text).toContain('执行失败');
     expect((result.content[0] as any).text).toContain('API error');
   });
 });

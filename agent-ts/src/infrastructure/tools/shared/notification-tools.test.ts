@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 // @ts-ignore - Module stub needed
-import { NotificationService } from '../services/notification/notification-service.js';
+import { NotificationService } from '../../../services/notification/notification-service.js';
 import {
   initNotificationService,
   getNotificationService,
@@ -18,6 +18,7 @@ describe('Notification Tools', () => {
   let service: NotificationService;
   let sendSpy: jest.SpiedFunction<typeof service.send>;
   let sendCardSpy: jest.SpiedFunction<typeof service.sendCard>;
+  let broadcastSpy: jest.SpiedFunction<typeof service.broadcast>;
 
   beforeEach(() => {
     // Initialize service
@@ -26,6 +27,8 @@ describe('Notification Tools', () => {
     // Spy on methods
     sendSpy = jest.spyOn(service, 'send').mockResolvedValue(undefined as any);
     sendCardSpy = jest.spyOn(service, 'sendCard').mockResolvedValue(undefined as any);
+    // send_notification 走 broadcast({title, content, level})（send/sendCard 是另一契约）
+    broadcastSpy = jest.spyOn(service, 'broadcast').mockResolvedValue(undefined as any);
   });
 
   afterEach(() => {
@@ -55,7 +58,7 @@ describe('Notification Tools', () => {
 
       const result = await (sendNotificationTool.execute as any)('test-call-id', params);
 
-      expect(sendSpy).toHaveBeenCalledWith('Test notification');
+      expect(broadcastSpy).toHaveBeenCalledWith(expect.objectContaining({ content: 'Test notification' }));
       expect(result.content).toHaveLength(1);
       expect(result.content[0].type).toBe('text');
 
@@ -71,12 +74,12 @@ describe('Notification Tools', () => {
 
       const result = await (sendNotificationTool.execute as any)('test-call-id', params);
 
-      expect(sendSpy).toHaveBeenCalledWith('Simple message');
-      expect(result.details).toBeUndefined();
+      expect(broadcastSpy).toHaveBeenCalledWith(expect.objectContaining({ content: 'Simple message' }));
+      expect(result.details).toBeNull();  // 工具现行契约 details: null
     });
 
     it('should handle service errors gracefully', async () => {
-      sendSpy.mockRejectedValue(new Error('Network error'));
+      broadcastSpy.mockRejectedValue(new Error('Network error'));
 
       const params = {
         message: 'Test message'

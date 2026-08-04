@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 // @ts-ignore - Module stub needed
-import { resolveStrategyId, resolveStrategyIds, getQuantV2BaseUrl } from '../../../src/infrastructure/tools/utils/strategy-helpers.js';
+import { resolveStrategyId, resolveStrategyIds, getQuantV2BaseUrl } from './strategy-helpers.js';
 
 describe('Strategy Helpers', () => {
   describe('getQuantV2BaseUrl', () => {
