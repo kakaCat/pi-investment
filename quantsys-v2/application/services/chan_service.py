@@ -1,11 +1,12 @@
 """缠论分析服务"""
 from datetime import datetime, timedelta
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import pandas as pd
 
 from domain.chan.chan_analyzer import ChanAnalyzer
 from domain.chan.types import Bi, Segment, ZhongShu, BuyPoint
 from adapters.outbound.repositories import KlineORMRepository
+from adapters.outbound.repositories.agent_knowledge_repository import AgentKnowledgeORMRepository
 
 
 class ChanService:
@@ -57,6 +58,12 @@ class ChanService:
         # 执行缠论分析
         result = self.analyzer.analyze(symbol, klines_df, buypoint_types)
 
+        # 附加历史胜率知识（chan_knowledge_distill 蒸馏产物；失败不阻塞分析）
+        knowledge_map = self._load_knowledge_map()
+        buypoints = [self._format_buypoint(bp) for bp in result.buypoints]
+        for bp in buypoints:
+            bp['knowledge'] = knowledge_map.get(f"chan_{bp['type']}")
+
         # 转换为前端格式
         return {
             "symbol": symbol,
@@ -64,9 +71,41 @@ class ChanService:
             "bis": [self._format_bi(bi) for bi in result.bis],
             "segments": [self._format_segment(seg) for seg in result.segments],
             "zhongshus": [self._format_zhongshu(zs) for zs in result.zhongshus],
-            "buypoints": [self._format_buypoint(bp) for bp in result.buypoints],
+            "buypoints": buypoints,
             "klines": self._format_klines(result.klines)
         }
+
+    def _load_knowledge_map(self) -> Dict[str, Optional[Dict[str, Any]]]:
+        """加载 chan_theory 蒸馏知识 → {strategy: {win_rate, samples, suggested_confidence}}
+        任何异常返回空 map（知识是增强项，不阻塞分析）"""
+        try:
+            repo = AgentKnowledgeORMRepository()
+            rows = repo.get_by_domain('chan_theory', 'signal_effectiveness')
+            out = {}
+            for r in rows:
+                c = r.get('content') or {}
+                strategy = c.get('strategy')
+                if not strategy:
+                    continue
+                samples = c.get('samples', 0)
+                win_rate = c.get('win_rate', 0)
+                if samples < 10:
+                    suggested = '低（样本不足）'
+                elif win_rate >= 0.6:
+                    suggested = '中高'
+                elif win_rate >= 0.45:
+                    suggested = '中'
+                else:
+                    suggested = '低'
+                out[strategy] = {
+                    'win_rate': win_rate,
+                    'samples': samples,
+                    'suggested_confidence': suggested,
+                }
+            return out
+        except Exception as e:
+            print(f"加载缠论知识失败（不阻塞分析）: {e}")
+            return {}
 
     def _fetch_kline_data(self, symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
         """获取K线数据"""
