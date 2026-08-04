@@ -1,10 +1,10 @@
 """
-Tests for RiskConfigRepository
+Tests for RiskConfigORMRepository
 
 Following TDD approach - tests written before implementation
 """
 import pytest
-from adapters.outbound.repositories import RiskConfigRepository
+from adapters.outbound.repositories import RiskConfigORMRepository
 
 
 def test_get_config():

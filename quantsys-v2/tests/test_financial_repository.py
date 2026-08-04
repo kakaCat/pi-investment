@@ -1,12 +1,12 @@
 # tests/test_financial_repository.py
 import pytest
 from datetime import date
-from adapters.outbound.repositories import FinancialRepository
+from adapters.outbound.repositories import FinancialORMRepository
 
 
 @pytest.fixture
 def financial_repo():
-    """创建FinancialRepository实例"""
+    """创建FinancialORMRepository实例"""
     repo = FinancialORMRepository()
     yield repo
     if hasattr(repo, 'db') and repo.db:
@@ -34,7 +34,7 @@ def sample_income_statement():
     }
 
 
-class TestFinancialRepositoryIncomeStatements:
+class TestFinancialORMRepositoryIncomeStatements:
     """利润表操作测试"""
 
     def test_save_income_statement(self, financial_repo, sample_income_statement):
@@ -145,7 +145,7 @@ def sample_cash_flow():
     }
 
 
-class TestFinancialRepositoryBalanceSheets:
+class TestFinancialORMRepositoryBalanceSheets:
     """资产负债表操作测试"""
 
     def test_save_balance_sheet(self, financial_repo, sample_balance_sheet):
@@ -174,7 +174,7 @@ class TestFinancialRepositoryBalanceSheets:
         assert result[0]['debt_ratio'] == 33.33
 
 
-class TestFinancialRepositoryCashFlows:
+class TestFinancialORMRepositoryCashFlows:
     """现金流量表操作测试"""
 
     def test_save_cash_flow(self, financial_repo, sample_cash_flow):

@@ -1,15 +1,15 @@
 """
-Tests for SignalExecutionLogRepository
+Tests for SignalExecutionLogORMRepository
 
 Following TDD approach - tests written before implementation
 """
 import pytest
 from datetime import datetime, date
-from adapters.outbound.repositories import SignalExecutionLogRepository
+from adapters.outbound.repositories import SignalExecutionLogORMRepository
 
 
-class TestSignalExecutionLogRepository:
-    """Test suite for SignalExecutionLogRepository"""
+class TestSignalExecutionLogORMRepository:
+    """Test suite for SignalExecutionLogORMRepository"""
 
     @pytest.fixture
     def repo(self):

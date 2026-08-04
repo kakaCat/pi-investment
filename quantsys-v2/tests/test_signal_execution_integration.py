@@ -7,7 +7,7 @@
 import pytest
 from datetime import date
 from application.services.signal_execution_scheduler import SignalExecutionScheduler
-from adapters.outbound.repositories import SignalExecutionLogRepository
+from adapters.outbound.repositories import SignalExecutionLogORMRepository
 
 
 def test_end_to_end_signal_execution():

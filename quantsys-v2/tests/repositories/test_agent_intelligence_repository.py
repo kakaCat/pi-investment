@@ -9,7 +9,7 @@ from adapters.outbound.repositories import (
     PoolChangeLogRepository,
     OpponentBehaviorRepository
 )
-from adapters.outbound.repositories import StockPoolRepository
+from adapters.outbound.repositories import StockPoolORMRepository
 
 
 # ==================== Fixtures ====================

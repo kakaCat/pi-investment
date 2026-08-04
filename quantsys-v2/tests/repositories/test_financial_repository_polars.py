@@ -1,9 +1,9 @@
 import polars as pl
 import pytest
-from adapters.outbound.repositories import FinancialRepository
+from adapters.outbound.repositories import FinancialORMRepository
 
 
-class TestFinancialRepositoryPolars:
+class TestFinancialORMRepositoryPolars:
     def test_get_income_statements_returns_polars_dataframe(self):
         """Test that get_income_statements returns polars DataFrame"""
         # Arrange

@@ -1,9 +1,9 @@
 """
-MarketStyleRepository 测试
+MarketStyleORMRepository 测试
 """
 import pytest
 from datetime import date, timedelta
-from adapters.outbound.repositories import MarketStyleRepository
+from adapters.outbound.repositories import MarketStyleORMRepository
 
 
 @pytest.fixture(autouse=True)

@@ -1,8 +1,8 @@
 """
-StrategyWeightRepository 测试
+StrategyWeightORMRepository 测试
 """
 import pytest
-from adapters.outbound.repositories import StrategyWeightRepository
+from adapters.outbound.repositories import StrategyWeightORMRepository
 
 
 @pytest.fixture(autouse=True)

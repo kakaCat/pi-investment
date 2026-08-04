@@ -1,7 +1,7 @@
-"""Tests for StockPoolRepository CRUD operations."""
+"""Tests for StockPoolORMRepository CRUD operations."""
 import json
 import pytest
-from adapters.outbound.repositories import StockPoolRepository
+from adapters.outbound.repositories import StockPoolORMRepository
 
 
 @pytest.fixture
@@ -15,7 +15,7 @@ def repo():
     return r
 
 
-class TestStockPoolRepository:
+class TestStockPoolORMRepository:
     def test_create_static_pool(self, repo):
         pool = repo.create({
             'name': '测试静态池',

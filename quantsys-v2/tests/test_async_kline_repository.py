@@ -1,5 +1,5 @@
 """
-AsyncKlineRepository单元测试
+AsyncKlineORMRepository单元测试
 
 测试异步K线数据仓库的功能，包括：
 - 连接池管理
@@ -9,7 +9,7 @@ AsyncKlineRepository单元测试
 """
 import pytest
 import pytest_asyncio
-from adapters.outbound.repositories import AsyncKlineRepository
+from adapters.outbound.repositories import AsyncKlineORMRepository
 from infrastructure.persistence.database.async_base_repository import AsyncConnectionPool, init_async_pool, close_async_pool
 
 
@@ -76,7 +76,7 @@ class TestAsyncConnectionPool:
         assert results == list(range(10))
 
 
-class TestAsyncKlineRepository:
+class TestAsyncKlineORMRepository:
     """异步K线仓库测试"""
 
     # ==================== 参数校验测试 ====================
