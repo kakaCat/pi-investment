@@ -1,6 +1,25 @@
 """多账户域模型测试"""
 import pytest
-from datetime import date
+from datetime import date, datetime
+from types import SimpleNamespace
+
+
+@pytest.fixture(autouse=True)
+def _fixed_trading_clock(monkeypatch):
+    """固定交易时段时钟：49d0b2b 引入交易时段护栏后，非交易时段跑本文件
+    一律 422。交易判定是生产行为、非本文件测试目标，统一注入
+    固定交易时间 + 常真日历，使测试与时间无关。"""
+    from application.services import account_trading_service as ats
+    real_init = ats.AccountTradingService.__init__
+
+    def patched_init(self, repo=None, calendar=None, now_fn=None):
+        real_init(self, repo=repo, calendar=calendar, now_fn=now_fn)
+        if now_fn is None:
+            self.now_fn = lambda: datetime(2026, 8, 3, 10, 0)  # 周一 10:00，交易时段内
+        if calendar is None:
+            self.calendar = SimpleNamespace(is_trading_day=lambda d: True)
+
+    monkeypatch.setattr(ats.AccountTradingService, '__init__', patched_init)
 
 
 class TestORMModels:
