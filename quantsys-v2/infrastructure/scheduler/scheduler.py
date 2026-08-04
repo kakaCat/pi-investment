@@ -1229,8 +1229,11 @@ class SchedulerService:
             timeout_seconds=timeout_seconds,
         )
 
-    # 信号生成的默认策略集（strategy_configs 中的活跃策略；可被任务 params.strategy_ids 覆盖）
-    DEFAULT_SIGNAL_STRATEGY_IDS = [162, 166, 179, 180]
+    # 信号生成的默认策略集（strategy_configs 中的活跃策略；可被任务 params.strategy_ids 覆盖）。
+    # 2026-08-04 策略体检后换血：旧 [162,166,179,180] → [179,178,163,193]（3 月×20 股
+    # 回测胜率/期望双正且样本足：179=55.8%/+0.30%(n=95)、178=55.1%/+0.41%(n=178)、
+    # 163=55.0%/+0.37%(n=151)、193=65.4%/+1.86%(n=26)）。任务表 params 已同步。
+    DEFAULT_SIGNAL_STRATEGY_IDS = [179, 178, 163, 193]
 
     def _handle_signal_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """扫描 agent 宇宙（非空池成员 ∪ 当前持仓）× 活跃策略，买卖信号落库。
