@@ -53,6 +53,34 @@ def cleanup(ds, signal_log, perf_repo):
             (symbol, name, 'SH' if symbol.endswith('.SH') else 'SZ')
         )
 
+    # quant_test 缺 account_balance 表（schema 落后生产），按 ORM 模型补齐
+    # （adapters/outbound/repositories/risk_repository.py AccountBalance）
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS quant.account_balance (
+            id BIGSERIAL PRIMARY KEY,
+            balance_date DATE NOT NULL UNIQUE,
+            cash DOUBLE PRECISION NOT NULL,
+            market_value DOUBLE PRECISION NOT NULL,
+            total_assets DOUBLE PRECISION NOT NULL,
+            daily_pnl DOUBLE PRECISION,
+            daily_return DOUBLE PRECISION,
+            total_pnl DOUBLE PRECISION,
+            total_return DOUBLE PRECISION,
+            position_count INTEGER DEFAULT 0,
+            created_at TIMESTAMPTZ
+        )
+        """
+    )
+    # create_order 买入校验资金（ds.risk.get_latest_balance），种子一条余额
+    cursor.execute(
+        """
+        INSERT INTO quant.account_balance (balance_date, cash, market_value, total_assets)
+        VALUES (CURRENT_DATE, 1000000, 0, 1000000)
+        ON CONFLICT (balance_date) DO UPDATE SET cash = 1000000
+        """
+    )
+
     conn.commit()
     cursor.close()
     conn.close()
@@ -71,7 +99,28 @@ def cleanup(ds, signal_log, perf_repo):
         cursor.execute("DELETE FROM quant.signal_test_log WHERE symbol = %s", (symbol,))
         cursor.execute("DELETE FROM quant.strategy_performance WHERE symbol = %s", (symbol,))
         cursor.execute("DELETE FROM quant.positions WHERE symbol = %s", (symbol,))
+        cursor.execute("DELETE FROM quant.signals WHERE symbol = %s", (symbol,))
 
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def _mirror_signal_to_signals_table(signal_log, signal_id: int, symbol: str, name: str,
+                                    strategy_id: str, action: str):
+    """create_order 的信号存在性校验查 quant.signals（生产信号源），
+    而本测试信号写 signal_test_log（_update_signal_tracking 回写目标）。
+    两表按 id 对齐，这里镜像一行到 signals 表使校验通过。"""
+    conn = signal_log._get_conn()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO quant.signals (id, signal_date, symbol, name, strategy_id, action, action_type, status)
+        VALUES (%s, CURRENT_DATE, %s, %s, %s, %s, %s, 'pending')
+        ON CONFLICT (id) DO NOTHING
+        """,
+        (signal_id, symbol, name, strategy_id, action, 1 if action == 'buy' else 2)
+    )
     conn.commit()
     cursor.close()
     conn.close()
@@ -92,6 +141,7 @@ def test_fill_order_updates_signal_test_log_entry_price(ds, signal_log, cleanup)
         'stop_loss': 9.0,
         'reason': '测试信号'
     })
+    _mirror_signal_to_signals_table(signal_log, signal_id, '600000.SH', '浦发银行', 'ma_cross', 'buy')
 
     # 2. 创建订单（关联信号）
     order_id = create_order(
@@ -133,13 +183,15 @@ def test_sell_order_updates_signal_test_log_and_performance(ds, signal_log, perf
     # 0. 先创建持仓记录（卖出需要有持仓）
     conn = signal_log._get_conn()
     cursor = conn.cursor()
+    # 生产持仓读 quant.portfolio_holdings（PortfolioHolding ORM），不是 quant.positions；
+    # 清掉历史测试残留行避免读到脏数据
+    cursor.execute("DELETE FROM quant.portfolio_holdings WHERE symbol = %s", ('000001.SZ',))
     cursor.execute(
         """
-        INSERT INTO quant.positions (symbol, quantity, avg_cost, current_price, market_value)
-        VALUES (%s, %s, %s, %s, %s)
-        ON CONFLICT (symbol) DO UPDATE SET quantity = EXCLUDED.quantity
+        INSERT INTO quant.portfolio_holdings (symbol, name, quantity, avg_cost, total_invested, market, added_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """,
-        ('000001.SZ', 100, 20.5, 22.0, 2200.0)
+        ('000001.SZ', '平安银行', 100, 20.5, 2050.0, 'A', date.today())
     )
     conn.commit()
     cursor.close()
@@ -158,6 +210,7 @@ def test_sell_order_updates_signal_test_log_and_performance(ds, signal_log, perf
         'stop_loss': 18.0,
         'reason': '测试买入信号'
     })
+    _mirror_signal_to_signals_table(signal_log, signal_id, '000001.SZ', '平安银行', 'turtle', 'buy')
 
     # 2. 创建卖出订单（关联同一个信号）
     order_id = create_order(
@@ -207,7 +260,7 @@ def test_sell_order_updates_signal_test_log_and_performance(ds, signal_log, perf
     record = records[0]
     assert record['entry_price'] == 20.5
     assert record['exit_price'] == 22.5
-    assert record['pnl_pct'] == pytest.approx(9.76, rel=0.01)
+    assert float(record['pnl_pct']) == pytest.approx(9.76, rel=0.01)  # pnl_pct 是 Decimal，转 float 再做近似运算
     assert record['source'] == 'live'
 
 
@@ -250,6 +303,7 @@ def test_partial_fill_updates_entry_price_once(ds, signal_log, cleanup):
         'stop_loss': 27.0,
         'reason': '测试部分成交'
     })
+    _mirror_signal_to_signals_table(signal_log, signal_id, '000002.SZ', '万科A', 'breakout', 'buy')
 
     # 2. 创建订单
     order_id = create_order(

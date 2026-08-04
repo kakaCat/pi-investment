@@ -56,10 +56,13 @@ def create_order(
 
     # 如果提供了 signal_id，验证信号是否存在
     if signal_id is not None:
-        signal = ds.portfolio.get_signal_by_id(signal_id)
+        # 信号查询属于 signal 域（SignalORMRepository.get_signal 返回 Signal 对象）。
+        # 历史上这里误调 ds.portfolio.get_signal_by_id（从不存在的方法），
+        # 信号链路订单在此必炸 AttributeError——2026-08-04 修复。
+        signal = ds.signal.get_signal(signal_id)
         if signal is None:
             raise ValueError(f"信号不存在: signal_id={signal_id}")
-        logger.info(f"订单关联信号: signal_id={signal_id} strategy={signal.get('strategy_id')}")
+        logger.info(f"订单关联信号: signal_id={signal_id} strategy={signal.strategy_id}")
 
     # 校验股票代码
     validate_symbol(symbol)
@@ -152,7 +155,7 @@ def create_order(
     # 构建订单数据
     order_data = {
         'symbol': symbol,
-        'name': stock.get('name', symbol),
+        'name': getattr(stock, 'name', None) or symbol,  # get_by_symbol 返回 Stock ORM 对象非 dict
         'order_type': order_type,
         'action': action,
         'price': price,
@@ -458,7 +461,7 @@ def _update_position_on_sell(ds: DataService, order: Dict, fill_price: float, fi
             'name': existing.get('name', ''),
             'quantity': new_qty,
             'avg_cost': float(existing['avg_cost']),
-            'original_cost': float(existing.get('original_cost', existing['avg_cost'])),
+            'original_cost': float(existing.get('original_cost') or existing['avg_cost']),  # original_cost 可空，None 时回退 avg_cost
             'total_invested': round(new_invested, 2),
             'market': existing.get('market', 'A'),
             'sector': existing.get('sector'),
