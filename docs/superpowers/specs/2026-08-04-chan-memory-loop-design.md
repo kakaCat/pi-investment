@@ -64,7 +64,7 @@ signals(pending) → SignalExecutionScheduler._collect_signals（不过滤策略
   - `bi.end.index` → `bi.end_fenxing.index`
   - `bi.start.price` → `bi.start_fenxing.price`
   - `bi.end.price` → `bi.end_fenxing.price`
-  - `bi.amplitude` → `bi.price_change`（响应字段名同步改为 `price_change`）
+  - `bi.amplitude` → `bi.price_change`（响应字段名同步改为 `price_change`；已确认前端 StockDetail 只读 trend_type/计数/buypoints 字段，不读 bi 明细，重命名无契约风险）
 - 补 ChanService 格式化契约测试（mock kline repo，断言响应字段与 domain 类型一致）
 
 **agent-ts 侧**：
