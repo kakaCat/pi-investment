@@ -18,11 +18,12 @@ def _signals():
 
 
 def _klines(start_price: float, end_price: float, days: int = 30) -> pl.DataFrame:
-    """线性价格序列 polars df"""
+    """线性价格序列 polars df（date 用 ISO 字符串——对齐生产 kline repo
+    显式 schema 后 trade_date 恒为 Utf8 的契约）"""
     base = date(2026, 6, 1)
     step = (end_price - start_price) / (days - 1)
     return pl.DataFrame({
-        'date': [base + timedelta(days=i) for i in range(days)],
+        'date': [(base + timedelta(days=i)).isoformat() for i in range(days)],
         'open': [start_price] * days,
         'high': [start_price] * days,
         'low': [start_price] * days,

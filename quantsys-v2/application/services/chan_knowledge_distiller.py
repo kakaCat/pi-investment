@@ -9,7 +9,7 @@ confidence 爬坡：<10 样本 → 0.3；10-30 → 0.5；>30 → 0.7。
 from datetime import date, datetime, timedelta
 from typing import Dict, Any, List, Optional
 import structlog
-from pandas import Timestamp as pd_timestamp
+from pandas import Timestamp as pd_timestamp, to_datetime as pd_to_datetime
 
 from adapters.outbound.repositories.signal_repository import SignalORMRepository
 from adapters.outbound.repositories import KlineORMRepository
@@ -57,6 +57,8 @@ class ChanKnowledgeDistiller:
             return None
         pdf = df.to_pandas()
         date_col = 'date' if 'date' in pdf.columns else 'trade_date'
+        # 生产 kline repo 显式 schema 后日期列恒为 ISO 字符串，先归一为 datetime 再比较
+        pdf[date_col] = pd_to_datetime(pdf[date_col])
         pdf = pdf.sort_values(date_col)
         base_close = float(pdf.iloc[0]['close'])
         target = pdf[pdf[date_col] >= pd_timestamp(signal_date + timedelta(days=self._window))]
