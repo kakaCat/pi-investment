@@ -735,9 +735,11 @@ class StrategyRotationEngine:
             from infrastructure.persistence.orm import get_session
             from sqlalchemy import text
             session = get_session()
+            # 注意：表里没有 detected_at 列（实际为 created_at），用错列名会被
+            # 下面 except 吞掉导致风格历史恒为空——2026-08-04 修复
             rows = session.execute(text(
-                "SELECT style, confidence, detected_at FROM quant.market_style_state "
-                "ORDER BY detected_at DESC LIMIT :limit"
+                "SELECT style, confidence, created_at FROM quant.market_style_state "
+                "ORDER BY created_at DESC LIMIT :limit"
             ), {'limit': limit}).fetchall()
             return [
                 {'style': r[0], 'confidence': float(r[1]) if r[1] else 0, 'date': str(r[2])}
