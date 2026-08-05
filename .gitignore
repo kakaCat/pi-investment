@@ -1,8 +1,21 @@
 node_modules
 dist
 .env
+.env.*
+!.env.example
+!.env.test
 *.log
 .DS_Store
+
+# Runtime PID/state dirs（2026-08-05 仓库卫生清理）
+.backend/
+.playwright-mcp/
+.superpowers/
+/data/
+
+# Syncthing 同步工具产物
+.stfolder/
+.stignore
 .pytest_cache/
 **/.pytest_cache/
 .pi-invest/*
@@ -25,8 +38,6 @@ coverage/
 htmlcov/
 logs/
 .venv/
-.playwright-mcp/
-.superpowers/
 .restart/
 src/.restart/
 .gstack/

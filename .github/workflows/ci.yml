@@ -115,7 +115,7 @@ jobs:
         source .venv/bin/activate
         cd quantsys-v2
         if [ -d tests ]; then
-          pytest tests/ -v --tb=short || echo "⚠️  部分测试失败"
+          pytest tests/ -v --tb=short
         else
           echo "ℹ️  未找到测试目录，跳过"
         fi
