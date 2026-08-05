@@ -55,9 +55,9 @@ const V2_TIMEOUT_MS = parseInt(
 // ─── 瞬时故障重试策略 ────────────────────────────────────
 //
 // 后端数据源常被 IP 封禁/抖动，瞬时故障值得有界重试：
-//   - fetch 抛网络错误（连接重置、DNS、fetch failed 等）
-//   - HTTP 502 / 503 / 504（网关/服务抖动）
-//   - 本层超时（AbortSignal.timeout 触发）
+//   - HTTP 502 / 503 / 504（网关拒绝、服务端未处理，任何方法重试均安全）
+//   - fetch 网络错误（连接重置、fetch failed 等）与本层超时 —— 仅 GET 重试：
+//     响应可能"服务端已处理但丢失"，非幂等 POST（建任务/建策略等）重试会重复执行
 // 不重试：4xx、其他 HTTP 错误、业务错误（{success:false}）、
 // 调用方自带 signal 的外部取消。
 //
@@ -94,6 +94,10 @@ function sleep(ms: number): Promise<void> {
 /**
  * 带有界重试的 fetch 包装：仅对瞬时故障重试，指数退避，重试记日志。
  *
+ * 重试范围（质量审查 2026-08-06 收窄）：
+ * - 502/503/504：任意方法（网关拒绝 = 服务端未处理，重试安全）
+ * - 网络错误/本层超时：仅 GET（非幂等 POST 可能"服务端已处理、响应丢失"，重试会重复执行）
+ *
  * signal 语义：
  * - 调用方传入 signal → 所有尝试共享该 signal，外部取消立即终止（不重试）
  * - 未传入 → 每次尝试独立创建 AbortSignal.timeout（上次超时触发的 signal 不可复用）
@@ -104,6 +108,7 @@ async function fetchWithRetry(
   opts: { callerSignal?: AbortSignal; timeoutMs: number; label?: string },
 ): Promise<Response> {
   const { enabled, maxRetries, baseDelayMs } = getRetryConfig();
+  const method = (init.method ?? "GET").toUpperCase();
   let attempt = 0;
 
   for (;;) {
@@ -124,8 +129,8 @@ async function fetchWithRetry(
         // 外部主动取消 —— 不是瞬时故障，直接抛出
         throw networkError;
       }
-      // 网络错误或本层超时
-      retryable = true;
+      // 网络错误或本层超时：仅幂等的 GET 可重试（POST 有重复执行风险）
+      retryable = method === "GET";
       reason = networkError instanceof Error ? networkError.message : String(networkError);
     } else if (response && RETRYABLE_HTTP_STATUS.has(response.status)) {
       retryable = true;

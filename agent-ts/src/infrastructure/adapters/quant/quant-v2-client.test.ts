@@ -231,8 +231,10 @@ describe('QuantV2Client - Factor Analysis', () => {
  */
 describe('QuantV2Client - transient retry', () => {
   const RETRY_ENV = 'QUANT_CLIENT_RETRY';
+  const RETRY_MAX_ENV = 'QUANT_CLIENT_RETRY_MAX';
   const DELAY_ENV = 'QUANT_CLIENT_RETRY_DELAY_MS';
   let savedRetry: string | undefined;
+  let savedRetryMax: string | undefined;
   let savedDelay: string | undefined;
 
   function httpResponse(status: number, body: any = {}): Response {
@@ -247,14 +249,19 @@ describe('QuantV2Client - transient retry', () => {
 
   beforeEach(() => {
     savedRetry = process.env[RETRY_ENV];
+    savedRetryMax = process.env[RETRY_MAX_ENV];
     savedDelay = process.env[DELAY_ENV];
+    // 清理调用时机读取的三个开关，防止开发者 shell export 污染用例
     delete process.env[RETRY_ENV];
+    delete process.env[RETRY_MAX_ENV];
     process.env[DELAY_ENV] = '1';
   });
 
   afterEach(() => {
     if (savedRetry === undefined) delete process.env[RETRY_ENV];
     else process.env[RETRY_ENV] = savedRetry;
+    if (savedRetryMax === undefined) delete process.env[RETRY_MAX_ENV];
+    else process.env[RETRY_MAX_ENV] = savedRetryMax;
     if (savedDelay === undefined) delete process.env[DELAY_ENV];
     else process.env[DELAY_ENV] = savedDelay;
   });
@@ -293,6 +300,41 @@ describe('QuantV2Client - transient retry', () => {
     }) as any;
 
     const result = await runQuantV2('stock.list');
+
+    expect(result.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it('POST + 网络错误 → 不重试（非幂等，防重复执行）', async () => {
+    let postCalls = 0;
+    globalThis.fetch = jest.fn(async (input: any) => {
+      const url = String(input);
+      // runQuantV2 捕获网络错误后会 ping /api/health 探活，放行使其快速返回
+      if (url.includes('/api/health')) {
+        return httpResponse(200, { success: true });
+      }
+      if (url.includes('/api/strategies')) {
+        postCalls++;
+        throw new TypeError('fetch failed');
+      }
+      return httpResponse(200, { success: true, data: {} });
+    }) as any;
+
+    await expect(
+      runQuantV2('strategy.create', { name: 's', code: 'x' })
+    ).rejects.toThrow();
+    expect(postCalls).toBe(1);
+  });
+
+  it('POST + 503 → 仍重试（网关拒绝 = 服务端未处理，重试安全）', async () => {
+    let calls = 0;
+    globalThis.fetch = jest.fn(async () => {
+      calls++;
+      if (calls === 1) return httpResponse(503, { error: 'unavailable' });
+      return httpResponse(200, { success: true, data: { strategy_id: 1 } });
+    }) as any;
+
+    const result = await runQuantV2('strategy.create', { name: 's', code: 'x' });
 
     expect(result.ok).toBe(true);
     expect(calls).toBe(2);
