@@ -46,15 +46,16 @@ class FactorComputeStage:
             kline_repo: KlineRepository interface (injected by Application layer)
             factor_repo: FactorRepository interface (injected by Application layer)
 
-        Note:
-            Repositories are optional for backward compatibility
+        Raises:
+            ValueError: 任一 repository 未注入。domain 层不再自行创建 adapters
+                具体仓储(六边形架构依赖方向),请由 Application/CLI 层注入。
         """
-        # 临时兼容：如果未注入则自动创建（违反 DDD）
-        # TODO: 移除后备逻辑，要求调用方必须注入
         if kline_repo is None or factor_repo is None:
-            from adapters.outbound.repositories import KlineORMRepository, FactorORMRepository
-            kline_repo = kline_repo or KlineORMRepository()
-            factor_repo = factor_repo or FactorORMRepository()
+            raise ValueError(
+                "FactorComputeStage requires kline_repo and factor_repo injection "
+                "(e.g. KlineORMRepository/FactorORMRepository from "
+                "adapters.outbound.repositories, wired by the Application layer)"
+            )
 
         self.kline_repo = kline_repo
         self.factor_repo = factor_repo

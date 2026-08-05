@@ -37,14 +37,16 @@ class StorageStage:
         Args:
             kline_repo: KlineRepository interface (injected by Application layer)
 
-        Note:
-            Repository is optional for backward compatibility
+        Raises:
+            ValueError: kline_repo 未注入。domain 层不再自行创建 adapters
+                具体仓储(六边形架构依赖方向),请由 Application/CLI 层注入。
         """
-        # 临时兼容：如果未注入则自动创建（违反 DDD）
-        # TODO: 移除后备逻辑，要求调用方必须注入
         if kline_repo is None:
-            from adapters.outbound.repositories import KlineORMRepository
-            kline_repo = KlineORMRepository()
+            raise ValueError(
+                "StorageStage requires kline_repo injection "
+                "(e.g. KlineORMRepository from adapters.outbound.repositories, "
+                "wired by the Application layer)"
+            )
 
         self.kline_repo = kline_repo
 
