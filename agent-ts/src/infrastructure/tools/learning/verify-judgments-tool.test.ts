@@ -4,11 +4,15 @@
  * agent 判断自校验：调 /api/market/heatmap，把信号/池操作/行业判断与验证窗实际涨跌对照，
  * 返回结论（✅/❌ + 统计 + 学习提示）而非数据堆。
  */
-import { describe, it, expect, vi } from 'vitest';
-import { verifyJudgmentsTool } from './verify-judgments-tool.js';
-import * as quantV2Client from '../../adapters/quant/quant-v2-client.js';
+import { describe, it, expect, jest } from '@jest/globals';
 
-vi.mock('../../adapters/quant/quant-v2-client.js');
+const mockRunQuantV2 = jest.fn<(...args: any[]) => Promise<any>>();
+
+jest.unstable_mockModule('../../adapters/quant/quant-v2-client.js', () => ({
+  runQuantV2: mockRunQuantV2,
+}));
+
+const { verifyJudgmentsTool } = await import('./verify-judgments-tool.js');
 
 function heatmapPayload(overrides: any = {}) {
   return {
@@ -57,13 +61,13 @@ describe('verify_judgments tool', () => {
   });
 
   it('should call market.heatmap with window param', async () => {
-    const spy = vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(heatmapPayload());
+    const spy = mockRunQuantV2.mockResolvedValue(heatmapPayload());
     await verifyJudgmentsTool.execute('test', { window: 5 }, undefined, undefined, {} as any);
     expect(spy).toHaveBeenCalledWith('market.heatmap', expect.objectContaining({ window: 5 }));
   });
 
   it('should judge signals, pool events and industry stance with stats', async () => {
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(heatmapPayload());
+    mockRunQuantV2.mockResolvedValue(heatmapPayload());
     const result = await verifyJudgmentsTool.execute('test', { window: 5 }, undefined, undefined, {} as any);
     const text = (result.content[0] as any).text as string;
 
@@ -85,7 +89,7 @@ describe('verify_judgments tool', () => {
   });
 
   it('should hint when nothing to verify', async () => {
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(heatmapPayload({
+    mockRunQuantV2.mockResolvedValue(heatmapPayload({
       industries: [{
         name: '医药', changePct: -1.0, agentStance: 'neutral',
         stocks: [{ symbol: '600276', name: '恒瑞医药', changePct: -1.0, marketCap: 3e11, inScope: true }],
@@ -97,14 +101,14 @@ describe('verify_judgments tool', () => {
   });
 
   it('should warn on partial window', async () => {
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(heatmapPayload({ partial: true }));
+    mockRunQuantV2.mockResolvedValue(heatmapPayload({ partial: true }));
     const result = await verifyJudgmentsTool.execute('test', {}, undefined, undefined, {} as any);
     const text = (result.content[0] as any).text as string;
     expect(text).toContain('验证窗未满');
   });
 
   it('should return error content when backend fails', async () => {
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue({ ok: false, error: 'window 必须是 (1, 5, 20) 之一' } as any);
+    mockRunQuantV2.mockResolvedValue({ ok: false, error: 'window 必须是 (1, 5, 20) 之一' } as any);
     const result = await verifyJudgmentsTool.execute('test', { window: 7 }, undefined, undefined, {} as any);
     const text = (result.content[0] as any).text as string;
     expect(text).toContain('失败');

@@ -2,11 +2,15 @@
  * Risk Controller Tool - 测试文件
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { riskControllerTool } from './risk-controller-tool.js';
-import * as quantV2Client from '../../adapters/quant/quant-v2-client.js';
+import { describe, it, expect, jest } from '@jest/globals';
 
-vi.mock('../../adapters/quant/quant-v2-client.js');
+const mockRunQuantV2 = jest.fn<(...args: any[]) => Promise<any>>();
+
+jest.unstable_mockModule('../../adapters/quant/quant-v2-client.js', () => ({
+  runQuantV2: mockRunQuantV2,
+}));
+
+const { riskControllerTool } = await import('./risk-controller-tool.js');
 
 describe('risk_controller tool', () => {
   it('should have correct metadata', () => {
@@ -23,7 +27,7 @@ describe('risk_controller tool', () => {
       error: null,
     };
 
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(mockResult);
+    mockRunQuantV2.mockResolvedValue(mockResult);
 
     const result = await riskControllerTool.execute('test', {
       command: 'trade_check',
@@ -50,7 +54,7 @@ describe('risk_controller tool', () => {
       error: null,
     };
 
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(mockResult);
+    mockRunQuantV2.mockResolvedValue(mockResult);
 
     const result = await riskControllerTool.execute('test', {
       command: 'position_size',

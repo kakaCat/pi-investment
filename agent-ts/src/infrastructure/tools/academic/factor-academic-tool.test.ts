@@ -2,11 +2,15 @@
  * Factor Academic Tool - 测试文件
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { factorAcademicTool } from './factor-academic-tool.js';
-import * as quantV2Client from '../../adapters/quant/quant-v2-client.js';
+import { describe, it, expect, jest } from '@jest/globals';
 
-vi.mock('../../adapters/quant/quant-v2-client.js');
+const mockRunQuantV2 = jest.fn<(...args: any[]) => Promise<any>>();
+
+jest.unstable_mockModule('../../adapters/quant/quant-v2-client.js', () => ({
+  runQuantV2: mockRunQuantV2,
+}));
+
+const { factorAcademicTool } = await import('./factor-academic-tool.js');
 
 describe('factor_academic tool', () => {
   it('should have correct metadata', () => {
@@ -23,7 +27,7 @@ describe('factor_academic tool', () => {
       error: null,
     };
 
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(mockResult);
+    mockRunQuantV2.mockResolvedValue(mockResult);
 
     const result = await factorAcademicTool.execute('test', {
       command: 'list',
@@ -52,7 +56,7 @@ describe('factor_academic tool', () => {
       error: null,
     };
 
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(mockResult);
+    mockRunQuantV2.mockResolvedValue(mockResult);
 
     const result = await factorAcademicTool.execute('test', {
       command: 'fama_french_5',

@@ -3,19 +3,19 @@
  */
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { timeseriesAnalyzerTool } from './timeseries-analyzer-tool.js';
 
-// Mock runQuantV2
-jest.mock('../../adapters/quant/quant-v2-client.js', () => ({
-  runQuantV2: jest.fn()
+// ESM 下 jest.mock 不提升，必须 unstable_mockModule + 动态 import
+const mockRunQuantV2 = jest.fn<(...args: any[]) => Promise<any>>();
+
+jest.unstable_mockModule('../../adapters/quant/quant-v2-client.js', () => ({
+  runQuantV2: mockRunQuantV2,
 }));
 
-import { runQuantV2 } from '../../adapters/quant/quant-v2-client.js';
-const mockRunQuantV2 = runQuantV2 as jest.MockedFunction<typeof runQuantV2>;
+const { timeseriesAnalyzerTool } = await import('./timeseries-analyzer-tool.js');
 
 describe('timeseries_analyzer tool', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockRunQuantV2.mockReset();
   });
 
   it('should have correct metadata', () => {

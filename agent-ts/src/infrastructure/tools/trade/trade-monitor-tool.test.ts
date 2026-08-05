@@ -3,11 +3,14 @@
  */
 
 import { describe, it, expect, jest } from '@jest/globals';
-import { vi } from 'vitest';
-import { tradeMonitorTool } from './trade-monitor-tool.js';
-import * as quantV2Client from '../../adapters/quant/quant-v2-client.js';
 
-jest.mock('../../adapters/quant/quant-v2-client.js');
+const mockRunQuantV2 = jest.fn<(...args: any[]) => Promise<any>>();
+
+jest.unstable_mockModule('../../adapters/quant/quant-v2-client.js', () => ({
+  runQuantV2: mockRunQuantV2,
+}));
+
+const { tradeMonitorTool } = await import('./trade-monitor-tool.js');
 
 describe('trade_monitor tool', () => {
   it('should have correct metadata', () => {
@@ -24,7 +27,7 @@ describe('trade_monitor tool', () => {
       error: null,
     };
 
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(mockResult);
+    mockRunQuantV2.mockResolvedValue(mockResult);
 
     const result = await tradeMonitorTool.execute('test', {
       command: 'orders',
@@ -45,7 +48,7 @@ describe('trade_monitor tool', () => {
       error: null,
     };
 
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(mockResult);
+    mockRunQuantV2.mockResolvedValue(mockResult);
 
     const result = await tradeMonitorTool.execute('test', {
       command: 'stats',

@@ -2,11 +2,15 @@
  * Performance Analyzer Tool - 测试文件
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { performanceAnalyzerTool } from './performance-analyzer-tool.js';
-import * as quantV2Client from '../../adapters/quant/quant-v2-client.js';
+import { describe, it, expect, jest } from '@jest/globals';
 
-vi.mock('../../adapters/quant/quant-v2-client.js');
+const mockRunQuantV2 = jest.fn<(...args: any[]) => Promise<any>>();
+
+jest.unstable_mockModule('../../adapters/quant/quant-v2-client.js', () => ({
+  runQuantV2: mockRunQuantV2,
+}));
+
+const { performanceAnalyzerTool } = await import('./performance-analyzer-tool.js');
 
 describe('performance_analyzer tool', () => {
   it('should have correct metadata', () => {
@@ -27,7 +31,7 @@ describe('performance_analyzer tool', () => {
       error: null,
     };
 
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(mockResult);
+    mockRunQuantV2.mockResolvedValue(mockResult);
 
     const result = await performanceAnalyzerTool.execute('test', {
       command: 'by_strategy',
@@ -54,7 +58,7 @@ describe('performance_analyzer tool', () => {
       error: null,
     };
 
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(mockResult);
+    mockRunQuantV2.mockResolvedValue(mockResult);
 
     const result = await performanceAnalyzerTool.execute('test', {
       command: 'comparison',

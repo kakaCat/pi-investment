@@ -2,11 +2,15 @@
  * Data Manager Tool - 测试文件
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { dataManagerTool } from './data-manager-tool.js';
-import * as quantV2Client from '../../adapters/quant/quant-v2-client.js';
+import { describe, it, expect, jest } from '@jest/globals';
 
-vi.mock('../../adapters/quant/quant-v2-client.js');
+const mockRunQuantV2 = jest.fn<(...args: any[]) => Promise<any>>();
+
+jest.unstable_mockModule('../../adapters/quant/quant-v2-client.js', () => ({
+  runQuantV2: mockRunQuantV2,
+}));
+
+const { dataManagerTool } = await import('./data-manager-tool.js');
 
 describe('data_manager tool', () => {
   it('should have correct metadata', () => {
@@ -23,7 +27,7 @@ describe('data_manager tool', () => {
       error: null,
     };
 
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(mockResult);
+    mockRunQuantV2.mockResolvedValue(mockResult);
 
     const result = await dataManagerTool.execute('test', {
       command: 'status',
@@ -45,7 +49,7 @@ describe('data_manager tool', () => {
       error: null,
     };
 
-    vi.spyOn(quantV2Client, 'runQuantV2').mockResolvedValue(mockResult);
+    mockRunQuantV2.mockResolvedValue(mockResult);
 
     const result = await dataManagerTool.execute('test', {
       command: 'update',
