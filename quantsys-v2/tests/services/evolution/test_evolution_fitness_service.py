@@ -37,6 +37,14 @@ def _make_window(end: date, n_days: int = 20):
     return bench
 
 
+class TestDefaultConstruction:
+    def test_default_repos_importable(self):
+        """无 mock 构造（连 quant_test）——防默认仓储类名漂移（SimulationORMRepository）"""
+        svc = EvolutionFitnessService()
+        assert svc.sim_repo is not None
+        assert svc.fitness_repo is not None
+
+
 class TestComputeAllAccounts:
     def test_upserts_per_account_with_status(self):
         end = date(2026, 8, 5)
