@@ -230,7 +230,7 @@ async function checkPortfolioSanity(
       timeoutMs
     );
     const data = body?.data ?? body;
-    const cash = Number(data?.cash);
+    const cash = Number(data?.cash ?? data?.cash_available ?? data?.cashAvailable);
     const totalValue = Number(data?.total_value ?? data?.totalValue);
 
     if (!Number.isFinite(cash) || !Number.isFinite(totalValue)) {

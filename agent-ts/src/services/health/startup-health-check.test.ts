@@ -142,6 +142,26 @@ describe("runStartupHealthCheck", () => {
     expect(report.level).toBe("red");
   });
 
+  test("虚拟仓返回 cash_available 字段（真实 API 形状）→ 正常校验", async () => {
+    const routes = {
+      ...healthyRoutes,
+      "/api/simulation/accounts/default": {
+        ok: true,
+        body: { success: true, data: { cash_available: "147070.15", total_value: "147070.15" } },
+      },
+    };
+
+    const report = await runStartupHealthCheck({
+      apiUrl: API,
+      fetchFn: mockFetch(routes),
+      now: sunday,
+    });
+
+    const portfolio = report.checks.find((c) => c.name === "portfolio_sanity");
+    expect(portfolio?.status).toBe("ok");
+    expect(portfolio?.message).toContain("账目正常");
+  });
+
   test("账目恒等式被破坏 → red 且 blocking", async () => {
     const routes = {
       ...healthyRoutes,

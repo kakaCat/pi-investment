@@ -270,6 +270,14 @@ def register_routes():
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import market_data_async: {e}")
 
+    # 行情K线（quote_market 域迁移：/api/stock/{symbol}/history，agent data_fetch_kline 依赖）
+    try:
+        from adapters.inbound.fastapi_app.routes.quote_market_async import router as quote_market_router
+        app.include_router(quote_market_router)
+        logger.info("✅ Registered: quote_market (stock/history 迁移)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import quote_market_async: {e}")
+
     # 图表数据
     try:
         from adapters.inbound.fastapi_app.routes.charts_async import router as charts_router
