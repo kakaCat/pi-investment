@@ -77,11 +77,12 @@ describe("buildRestartExecPlan", () => {
   });
 
   test("uses the repository root by default so restart can find the local tsx binary", () => {
+    // 不写死主工作区绝对路径（worktree 里路径不同）——期望 = 当前 agent-ts 根
     const plan = buildRestartExecPlan({
       argv: ["/node", "/Users/mac/Documents/ai/pi-investment/src/index.ts"],
     });
 
-    expect(plan.file).toBe("/Users/mac/Documents/ai/pi-investment/agent-ts/node_modules/.bin/tsx");
+    expect(plan.file).toBe(`${process.cwd()}/node_modules/.bin/tsx`);
   });
 
   test("falls back to node plus the current argv when no local tsx binary is available", () => {
