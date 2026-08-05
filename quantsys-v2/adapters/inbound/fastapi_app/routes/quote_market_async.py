@@ -14,12 +14,35 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from adapters.inbound.fastapi_app.shared import api_response
-from adapters.inbound.api.shared import _aggregate_weekly, _aggregate_monthly
 from adapters.inbound.api.routes.quote_market import _kline_failure_suggestion
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Quote Market - 行情数据"])
+
+
+def _aggregate_kline_records(records, freq):
+    """将日K记录聚合为周/月K（records 含 date/open/high/low/close/volume）。
+
+    Flask 旧版复用只认 trade_date 的 _aggregate_weekly/_aggregate_monthly，
+    records 的 date 列对不上导致 resample 恒 500；这里直接在 date 索引上重采样。
+    若数据源本身返回周/月K（如 baostock 原生 frequency=w/m），重采样幂等
+    （每个周期仅一条记录，first/max/min/last/sum 后值不变），仅日期标签归一到周期末。
+    """
+    import pandas as pd
+    if not records:
+        return []
+    df = pd.DataFrame(records)
+    df['date'] = pd.to_datetime(df['date'])
+    df.set_index('date', inplace=True)
+    out = df.resample(freq).agg({
+        'open': 'first', 'high': 'max', 'low': 'min',
+        'close': 'last', 'volume': 'sum',
+    }).dropna()
+    out['change_pct'] = (out['close'].pct_change() * 100).round(2).fillna(0.0)
+    out.reset_index(inplace=True)
+    out['date'] = out['date'].dt.strftime('%Y-%m-%d')
+    return out.to_dict('records')
 
 
 @router.get('/api/stock/{symbol}/history')
@@ -51,9 +74,12 @@ def get_stock_history(
         start_date = start_dt.strftime('%Y-%m-%d')
 
     provider_manager = get_data_provider_manager()
+    # 周/月线按日线取数后聚合：数据库只存日线，传 weekly/monthly 会绕过本地缓存
+    # 直接打网络源（慢且易被封）；分钟线原样透传
+    fetch_period = 'daily' if period in ('weekly', 'monthly') else period
 
     try:
-        result = provider_manager.get_klines(symbol, period, start_date, end_date)
+        result = provider_manager.get_klines(symbol, fetch_period, start_date, end_date)
 
         if not result['success']:
             error_msg = result.get('error', 'No kline data available')
@@ -83,9 +109,9 @@ def get_stock_history(
 
         # 应用周期聚合（如果需要）
         if period == 'weekly':
-            records = _aggregate_weekly(records)
+            records = _aggregate_kline_records(records, 'W')
         elif period == 'monthly':
-            records = _aggregate_monthly(records)
+            records = _aggregate_kline_records(records, 'ME')
 
         # 限制返回数量
         records = records[-limit:]

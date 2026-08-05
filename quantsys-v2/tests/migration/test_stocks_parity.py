@@ -56,6 +56,41 @@ def test_klines(flask_client, fastapi_client):
                   params={"start_date": "2026-06-01", "end_date": "2026-06-10", "limit": 10})
 
 
+def test_history_daily(flask_client, fastapi_client):
+    # agent data_fetch_kline 工具调用的端点；固定日期范围保证确定性
+    assert_parity(flask_client, fastapi_client, "GET", "/api/stock/600519/history",
+                  params={"period": "daily", "start_date": "2026-06-01",
+                          "end_date": "2026-06-10", "limit": 10})
+
+
+def test_history_weekly_fastapi(fastapi_client):
+    resp = fastapi_client.get("/api/stock/600519/history",
+                              params={"period": "weekly", "start_date": "2026-05-01",
+                                      "end_date": "2026-06-10", "limit": 10})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["success"] is True
+    payload = body["data"]
+    assert payload["period"] == "weekly"
+    assert payload["count"] == len(payload["data"]) > 0
+    bar = payload["data"][0]
+    assert {"date", "open", "high", "low", "close", "volume"} <= set(bar)
+
+
+def test_history_monthly_fastapi(fastapi_client):
+    resp = fastapi_client.get("/api/stock/600519/history",
+                              params={"period": "monthly", "start_date": "2026-03-01",
+                                      "end_date": "2026-06-10", "limit": 10})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["success"] is True
+    payload = body["data"]
+    assert payload["period"] == "monthly"
+    assert payload["count"] == len(payload["data"]) > 0
+    bar = payload["data"][0]
+    assert {"date", "open", "high", "low", "close", "volume"} <= set(bar)
+
+
 def test_data_update_klines(flask_client, fastapi_client):
     # acquire_task 是共享锁（_running_tasks[task_type]=run_id）：Flask 先获取后，
     # FastAPI 会 409。两次调用间用快照取 run_id 并释放任务锁。
