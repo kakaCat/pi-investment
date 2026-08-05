@@ -2,18 +2,61 @@
  * Evolution Executor Tests
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { Type } from '@sinclair/typebox';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import {
+import type { OptimizationSuggestion } from '../../types/evolution.js';
+import type { ExecutionResult, ActuatorConfig } from './evolution-executor.js';
+
+// add_tool 新架构（Codex 代码生成 + git 分支流）依赖外部 CLI 与 git 操作，
+// 单元测试 mock 三个边界模块使其可hermetic运行
+const mockGenerateToolCode = jest.fn<(...args: any[]) => Promise<any>>();
+const mockWriteGeneratedCode = jest.fn<(...args: any[]) => Promise<any>>();
+
+jest.unstable_mockModule('./code-generator.js', () => ({
+  generateToolCode: mockGenerateToolCode,
+  writeGeneratedCode: mockWriteGeneratedCode,
+}));
+
+jest.unstable_mockModule('./sandbox-validator.js', () => ({
+  validateInSandbox: jest.fn(async () => []),
+  allValidationsPassed: jest.fn(() => true),
+  formatValidationResults: jest.fn(() => ''),
+}));
+
+jest.unstable_mockModule('./evolution-branch-manager.js', () => ({
+  getCurrentBranch: jest.fn(async () => 'main'),
+  createEvolutionBranch: jest.fn(async () => 'evolution/test-branch'),
+  commitChanges: jest.fn(async () => 'abc1234'),
+  mergeToBranch: jest.fn(async () => undefined),
+  rollbackToBranch: jest.fn(async () => undefined),
+}));
+
+const {
   executeOptimizationSuggestions,
   rollbackExecution,
   getExecutionHistory,
-  type ExecutionResult,
-  type ActuatorConfig,
-} from './evolution-executor.js';
-import type { OptimizationSuggestion } from '../../types/evolution.js';
+} = await import('./evolution-executor.js');
+
+/** add_tool 全 mock 成功的建议项（name/toolFileName 精确命中 index.ts 已有 import，
+ *  registerToolToIndex 早退不写真实文件） */
+function makeAddToolSuggestion(id: string, description = '测试工具'): OptimizationSuggestion {
+  return {
+    id,
+    type: 'add_tool',
+    priority: 'medium',
+    description: '添加工具',
+    reason: '测试',
+    expectedImpact: '无',
+    data: {
+      name: 'modelSwitch',
+      description,
+      reason: '测试',
+      expectedImpact: '无',
+    },
+  };
+}
 
 const TEST_PI_DIR = path.join(process.cwd(), '.pi-invest-test');
 const TEST_EVOLUTION_DIR = path.join(TEST_PI_DIR, 'evolution');
@@ -58,35 +101,28 @@ describe('Evolution Executor', () => {
     });
 
     it('should execute tool addition suggestion', async () => {
-      const suggestions: OptimizationSuggestion[] = [
-        {
-          id: 'sug_002',
-          type: 'add_tool',
-          priority: 'medium',
-          description: '添加技术指标工具',
-          reason: '需要更多技术分析能力',
-          expectedImpact: '提升技术分析准确性',
-          data: {
-            name: 'calculate_rsi',
-            description: '计算RSI相对强弱指标',
-            reason: '补充技术分析工具',
-            expectedImpact: '提升超买超卖判断',
-          },
-        },
-      ];
+      mockGenerateToolCode.mockResolvedValue({
+        toolFileName: 'agent/model-switch-tool.ts',
+        toolCode: '// tool',
+        testFileName: 'agent/model-switch-tool.test.ts',
+        testCode: '// test',
+      });
+      mockWriteGeneratedCode.mockResolvedValue({
+        toolPath: '/tmp/model-switch-tool.ts',
+        testPath: '/tmp/model-switch-tool.test.ts',
+      });
 
-      const result = await executeOptimizationSuggestions(suggestions, TEST_PI_DIR);
+      const result = await executeOptimizationSuggestions(
+        [makeAddToolSuggestion('sug_002', '计算RSI相对强弱指标')],
+        TEST_PI_DIR
+      );
 
       expect(result.applied).toHaveLength(1);
       expect(result.applied[0].status).toBe('success');
       expect(result.applied[0].type).toBe('add_tool');
-
-      const registryPath = path.join(TEST_EVOLUTION_DIR, 'dynamic-tools.json');
-      const registryContent = await fs.readFile(registryPath, 'utf-8');
-      const registry = JSON.parse(registryContent);
-
-      expect(registry.tools).toHaveLength(1);
-      expect(registry.tools[0].name).toBe('calculate_rsi');
+      // 新架构 rollbackData：git 分支信息（非旧 registry 契约）
+      expect(result.applied[0].rollbackData.branchName).toBe('evolution/test-branch');
+      expect(result.applied[0].rollbackData.commitHash).toBe('abc1234');
     });
 
     it('should execute tool removal suggestion', async () => {
@@ -246,44 +282,30 @@ describe('Evolution Executor', () => {
 
   describe('rollbackExecution', () => {
     it('should rollback tool addition', async () => {
-      const registryPath = path.join(TEST_EVOLUTION_DIR, 'dynamic-tools.json');
-      const originalRegistry = {
-        tools: [
-          {
-            name: 'existing_tool',
-            description: '现有工具',
-            parameters: Type.Object({}),
-          },
-        ],
-      };
+      mockGenerateToolCode.mockResolvedValue({
+        toolFileName: 'agent/model-switch-tool.ts',
+        toolCode: '// tool',
+        testFileName: 'agent/model-switch-tool.test.ts',
+        testCode: '// test',
+      });
+      mockWriteGeneratedCode.mockResolvedValue({
+        toolPath: '/tmp/model-switch-tool.ts',
+        testPath: '/tmp/model-switch-tool.test.ts',
+      });
 
-      await fs.writeFile(registryPath, JSON.stringify(originalRegistry), 'utf-8');
-
-      const suggestions: OptimizationSuggestion[] = [
-        {
-          id: 'sug_008',
-          type: 'add_tool',
-          priority: 'medium',
-          description: '添加工具',
-          reason: '测试回滚',
-          expectedImpact: '无',
-          data: {
-            name: 'new_tool',
-            description: '新工具',
-          },
-        },
-      ];
-
-      const result = await executeOptimizationSuggestions(suggestions, TEST_PI_DIR);
+      const result = await executeOptimizationSuggestions(
+        [makeAddToolSuggestion('sug_008')],
+        TEST_PI_DIR
+      );
       const rollbackData = result.applied[0].rollbackData;
 
+      // 新架构：rollback 写入 execution-log（add_tool 的回滚动作是删分支/提交，由人工或流程处理）
       await rollbackExecution('sug_008', rollbackData, TEST_PI_DIR);
 
-      const registryContent = await fs.readFile(registryPath, 'utf-8');
-      const registry = JSON.parse(registryContent);
-
-      expect(registry.tools).toHaveLength(1);
-      expect(registry.tools[0].name).toBe('existing_tool');
+      const history = await getExecutionHistory(TEST_PI_DIR, 10);
+      const rollbackEntry = history.find((h: any) => h.type === 'rollback' && h.suggestionId === 'sug_008');
+      expect(rollbackEntry).toBeDefined();
+      expect(rollbackEntry!.status).toBe('success');
     });
 
     it('should rollback parameter adjustment', async () => {
@@ -361,32 +383,24 @@ describe('Evolution Executor', () => {
 
   describe('execution logging', () => {
     it('should log tool changes to history file', async () => {
-      const suggestions: OptimizationSuggestion[] = [
-        {
-          id: 'sug_011',
-          type: 'add_tool',
-          priority: 'medium',
-          description: '测试日志',
-          reason: '测试',
-          expectedImpact: '无',
-          data: {
-            name: 'test_tool',
-            description: '测试工具',
-          },
-        },
-      ];
+      mockGenerateToolCode.mockResolvedValue({
+        toolFileName: 'agent/model-switch-tool.ts',
+        toolCode: '// tool',
+        testFileName: 'agent/model-switch-tool.test.ts',
+        testCode: '// test',
+      });
+      mockWriteGeneratedCode.mockResolvedValue({
+        toolPath: '/tmp/model-switch-tool.ts',
+        testPath: '/tmp/model-switch-tool.test.ts',
+      });
 
-      await executeOptimizationSuggestions(suggestions, TEST_PI_DIR);
+      await executeOptimizationSuggestions([makeAddToolSuggestion('sug_011')], TEST_PI_DIR);
 
-      const historyPath = path.join(TEST_EVOLUTION_DIR, 'tool-changes.jsonl');
-      const historyContent = await fs.readFile(historyPath, 'utf-8');
-      const lines = historyContent.trim().split('\n');
-
-      expect(lines.length).toBeGreaterThan(0);
-
-      const lastLog = JSON.parse(lines[lines.length - 1]);
-      expect(lastLog.action).toBe('add');
-      expect(lastLog.toolName).toBe('test_tool');
+      // 新架构：工具变更记录在 execution-log.json（tool-changes.jsonl 仅参数调整使用）
+      const history = await getExecutionHistory(TEST_PI_DIR, 10);
+      const addEntry = history.find((h: any) => h.type === 'add_tool' && h.suggestionId === 'sug_011');
+      expect(addEntry).toBeDefined();
+      expect(addEntry!.status).toBe('success');
     });
 
     it('should log parameter changes to history file', async () => {

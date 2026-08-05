@@ -22,7 +22,7 @@ describe("skill-guard", () => {
 
   test("allows tools declared in the active skill", async () => {
     await expect(withForcedSkillScope("deep-analysis", async () => {
-      assertToolAllowedForActiveSkill("data_fetch_stock");
+      assertToolAllowedForActiveSkill("data_fetch_quote");  // data_fetch_stock 已在工具清理中移除，skill 现行声明为 data_fetch_quote
     })).resolves.toBeUndefined();
   });
 

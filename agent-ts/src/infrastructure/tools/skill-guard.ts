@@ -3,6 +3,10 @@ import { AsyncLocalStorage } from "async_hooks";
 import type { Skill, ToolDefinition } from "../../sdk-facade.js";
 
 const TOOL_CALL_RE = /`([A-Za-z_][A-Za-z0-9_]*)\(/g;
+// skill 的 T 步骤格式：— tool_name {params}（可选反引号）。
+// 84daffc 幽灵工具清理后 skill 全面改用此格式，只匹配旧反引号+括号格式会
+// 把 skill 自己声明的 data_fetch_* 流程全部挡掉（白名单只剩 plan_task）。
+const TOOL_BRACE_RE = /[—\-]\s*`?([A-Za-z_][A-Za-z0-9_]*)\s*\{/g;
 
 const skillContext = new AsyncLocalStorage<{ skillName: string | null }>();
 const allowedToolsBySkill = new Map<string, Set<string>>();
@@ -14,6 +18,9 @@ function getSkillPath(skill: Skill): string {
 function extractAllowedTools(skillContent: string): Set<string> {
   const allowed = new Set<string>();
   for (const match of skillContent.matchAll(TOOL_CALL_RE)) {
+    allowed.add(match[1]);
+  }
+  for (const match of skillContent.matchAll(TOOL_BRACE_RE)) {
     allowed.add(match[1]);
   }
   return allowed;
