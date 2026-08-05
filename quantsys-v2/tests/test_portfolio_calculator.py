@@ -4,23 +4,31 @@ from unittest.mock import Mock, patch
 from domain.quantlib.core.portfolio_calculator import PortfolioCalculator
 
 
+def make_calculator(**kwargs):
+    """构造注入 mock 仓储的 PortfolioCalculator。"""
+    kwargs.setdefault('portfolio_repo', Mock())
+    kwargs.setdefault('kline_repo', Mock())
+    kwargs.setdefault('risk_repo', Mock())
+    return PortfolioCalculator(**kwargs)
+
+
 class TestPortfolioCalculator:
 
     def test_calculator_initialization(self):
         """Test calculator initializes with default initial cash"""
-        calculator = PortfolioCalculator()
+        calculator = make_calculator()
 
         assert calculator.initial_cash == 1000000.0
 
     def test_calculator_initialization_with_custom_cash(self):
         """Test calculator initializes with custom initial cash"""
-        calculator = PortfolioCalculator(initial_cash=500000.0)
+        calculator = make_calculator(initial_cash=500000.0)
 
         assert calculator.initial_cash == 500000.0
 
     def test_calculate_cash_balance_no_trades(self):
         """Test cash balance equals initial cash when no trades"""
-        calculator = PortfolioCalculator(initial_cash=1000000.0)
+        calculator = make_calculator(initial_cash=1000000.0)
 
         # Mock portfolio_repo to return empty trades
         calculator.portfolio_repo.get_trades_by_date = Mock(return_value=[])
@@ -31,7 +39,7 @@ class TestPortfolioCalculator:
 
     def test_calculate_cash_balance_with_buy_trade(self):
         """Test cash balance decreases after buy trade"""
-        calculator = PortfolioCalculator(initial_cash=1000000.0)
+        calculator = make_calculator(initial_cash=1000000.0)
 
         # Mock a buy trade
         mock_trades = [
@@ -51,7 +59,7 @@ class TestPortfolioCalculator:
 
     def test_calculate_cash_balance_with_sell_trade(self):
         """Test cash balance increases after sell trade"""
-        calculator = PortfolioCalculator(initial_cash=1000000.0)
+        calculator = make_calculator(initial_cash=1000000.0)
 
         # Mock buy and sell trades
         mock_trades = [
@@ -77,7 +85,7 @@ class TestPortfolioCalculator:
 
     def test_calculate_market_value_no_holdings(self):
         """Test market value is zero when no holdings"""
-        calculator = PortfolioCalculator()
+        calculator = make_calculator()
 
         calculator.portfolio_repo.get_holdings_as_of = Mock(return_value=[])
 
@@ -87,7 +95,7 @@ class TestPortfolioCalculator:
 
     def test_calculate_market_value_with_holdings(self):
         """Test market value calculation with holdings reconstructed from trades"""
-        calculator = PortfolioCalculator()
+        calculator = make_calculator()
 
         mock_holdings = [
             {'symbol': '000001.SH', 'name': '浦发银行', 'quantity': 100},
@@ -108,7 +116,7 @@ class TestPortfolioCalculator:
 
     def test_calculate_snapshot(self):
         """Test complete snapshot calculation"""
-        calculator = PortfolioCalculator(initial_cash=1000000.0)
+        calculator = make_calculator(initial_cash=1000000.0)
 
         # Mock cash balance
         calculator.calculate_cash_balance = Mock(return_value=900000.0)

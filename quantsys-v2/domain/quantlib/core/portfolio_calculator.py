@@ -36,25 +36,21 @@ class PortfolioCalculator:
             risk_repo: Risk repository interface (injected by Application layer)
             initial_cash: Initial capital, defaults to INITIAL_CASH env var or 1000000.0
 
-        Note:
-            Repositories are optional for backward compatibility, but should be injected
+        Raises:
+            ValueError: 任一 repository 未注入。domain 层不再自行创建 adapters
+                具体仓储(六边形架构依赖方向),请由 Application/CLI 层注入。
         """
         if initial_cash is None:
             initial_cash = float(os.getenv('INITIAL_CASH', 1000000.0))
 
         self.initial_cash = initial_cash
 
-        # 临时兼容：如果未注入则自动创建（违反 DDD）
-        # TODO: 移除后备逻辑，要求调用方必须注入
         if portfolio_repo is None or kline_repo is None or risk_repo is None:
-            from adapters.outbound.repositories import (
-                PortfolioORMRepository,
-                KlineORMRepository,
-                RiskORMRepository,
+            raise ValueError(
+                "PortfolioCalculator requires portfolio_repo, kline_repo and "
+                "risk_repo injection (e.g. ORM repositories from "
+                "adapters.outbound.repositories, wired by the Application layer)"
             )
-            portfolio_repo = portfolio_repo or PortfolioORMRepository()
-            kline_repo = kline_repo or KlineORMRepository()
-            risk_repo = risk_repo or RiskORMRepository()
 
         self.portfolio_repo = portfolio_repo
         self.kline_repo = kline_repo
