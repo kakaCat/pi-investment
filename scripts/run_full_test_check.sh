@@ -22,24 +22,31 @@ if [ "$JEST_FAIL" -gt 0 ]; then
 fi
 
 # --- quantsys-v2 (pytest) ---
-echo "--- quantsys-v2 pytest ---"
-cd "$ROOT/quantsys-v2"
-PYTEST_OUT=$("$ROOT/quantsys-v2/venv/bin/python" -m pytest tests/ --no-header -q 2>&1 | tail -5)
-echo "$PYTEST_OUT" | grep -E "passed|failed|error" | tail -2
-if echo "$PYTEST_OUT" | grep -qE "[1-9][0-9]* (failed|error)"; then
-  FAILED=1
-  echo "❌ pytest 有失败/错误（详见输出）"
-fi
+# venv 只存在于主工作区；worktree/其他环境跳过 python 段而非误报
+PYBIN="$ROOT/quantsys-v2/venv/bin/python"
+if [ -x "$PYBIN" ]; then
+  echo "--- quantsys-v2 pytest ---"
+  cd "$ROOT/quantsys-v2"
+  PYTEST_LOG=$(mktemp /tmp/pi-pytest-XXXXXX.log)
+  "$PYBIN" -m pytest tests/ --no-header -q > "$PYTEST_LOG" 2>&1
+  PYTEST_RC=$?
+  tail -5 "$PYTEST_LOG" | grep -E "passed|failed|error" | tail -2
+  if [ "$PYTEST_RC" -ne 0 ]; then
+    FAILED=1
+    echo "❌ pytest 有失败/错误（退出码 $PYTEST_RC）"
+  fi
 
-# --- schema 漂移检查 ---
-echo "--- quant_test schema 漂移 ---"
-cd "$ROOT/quantsys-v2"
-if ! "$ROOT/quantsys-v2/venv/bin/python" scripts/check_test_schema_drift.py > /tmp/schema-drift.log 2>&1; then
-  FAILED=1
-  echo "❌ schema 漂移（前 10 行）："
-  head -10 /tmp/schema-drift.log
+  # --- schema 漂移检查 ---
+  echo "--- quant_test schema 漂移 ---"
+  if ! "$PYBIN" scripts/check_test_schema_drift.py > /tmp/schema-drift.log 2>&1; then
+    FAILED=1
+    echo "❌ schema 漂移（前 10 行）："
+    head -10 /tmp/schema-drift.log
+  else
+    echo "✅ 无漂移"
+  fi
 else
-  echo "✅ 无漂移"
+  echo "--- quantsys-v2 pytest + schema：跳过（venv 不存在：$PYBIN）---"
 fi
 
 if [ "$FAILED" -eq 0 ]; then
