@@ -28,6 +28,7 @@ describe('stockApi.getHeatmap', () => {
         stocks: [{
           symbol: '688981', name: '中芯国际', change_pct: 8.2,
           market_cap: 4.5e11, in_scope: true,
+          start_date: '2026-07-25', end_date: '2026-07-31',
           signals: [{ type: 'buy', date: '2026-07-23', strategy: 'v13' }]
         }]
       }]
@@ -42,6 +43,8 @@ describe('stockApi.getHeatmap', () => {
     expect(st.marketCap).toBe(4.5e11)
     expect(st.inScope).toBe(true)
     expect(st.signals?.[0].type).toBe('buy')
+    expect(st.startDate).toBe('2026-07-25')
+    expect(st.endDate).toBe('2026-07-31')
   })
 })
 

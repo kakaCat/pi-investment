@@ -91,6 +91,8 @@ export function adaptHeatmap(response: any): HeatmapResponse {
         changePct: Number(s.changePct ?? s.change_pct ?? 0),
         marketCap: Number(s.marketCap ?? s.market_cap ?? 0),
         inScope: Boolean(s.inScope ?? s.in_scope),
+        startDate: s.startDate ?? s.start_date,
+        endDate: s.endDate ?? s.end_date,
         signals: s.signals,
         poolEvents: s.poolEvents ?? s.pool_events,
       })),
