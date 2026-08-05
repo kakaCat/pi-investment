@@ -146,7 +146,7 @@ describe('monitorAlertTool - Business Logic', () => {
       }, undefined, undefined, {} as any);
 
       const text = getText(result);
-      expect(text).toContain('交易信号已发送');
+      expect(text).toContain('信号已发送');  // 新文案按方向区分：买入/卖出信号已发送
     });
 
     it('should send trade signal with optional position_pct', async () => {
@@ -162,7 +162,7 @@ describe('monitorAlertTool - Business Logic', () => {
       }, undefined, undefined, {} as any);
 
       const text = getText(result);
-      expect(text).toContain('交易信号已发送');
+      expect(text).toContain('信号已发送');  // 新文案按方向区分：买入/卖出信号已发送
     });
 
     it('should reject trade signal without action', async () => {
@@ -378,17 +378,22 @@ describe('monitorAlertTool - Business Logic', () => {
     });
 
     it('should handle service errors gracefully', async () => {
-// @ts-ignore - Module stub needed
       const { sendNotificationTool } = await import('../shared/notification-tools.js');
-      (sendNotificationTool.execute as any).mockRejectedValueOnce(new Error('Network error'));
+      // execute 不是 jest mock，临时替换模拟通知层故障（finally 恢复）
+      const originalExecute = sendNotificationTool.execute;
+      (sendNotificationTool as any).execute = async () => { throw new Error('Network error'); };
 
-      const result = await monitorAlertTool.execute('test-id', {
-        type: 'general',
-        message: '测试消息'
-      }, undefined, undefined, {} as any);
+      try {
+        const result = await monitorAlertTool.execute('test-id', {
+          type: 'general',
+          message: '测试消息'
+        }, undefined, undefined, {} as any);
 
-      const response = JSON.parse(getText(result));
-      expect(response.error).toContain('Network error');
+        const response = JSON.parse(getText(result));
+        expect(response.error).toContain('Network error');
+      } finally {
+        (sendNotificationTool as any).execute = originalExecute;
+      }
     });
   });
 });

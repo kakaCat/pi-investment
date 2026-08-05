@@ -2,7 +2,7 @@
  * Factor Calculate Tool Tests (V2)
  */
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { getResponseText } from '../test-utils.js';
+import { getResponseText } from '../testing-utils.js';
 
 // Mock the v2 client
 const mockComputeFactors = jest.fn<typeof import('../../adapters/quant/quant-v2-client.js').computeFactors>();
@@ -186,7 +186,8 @@ describe('factor_calculate tool', () => {
       });
 
       const text = getResponseText(result);
-      expect(text).toContain('因子计算失败');
+      // 统一错误契约：createErrorResponse 输出 "执行失败: <原因>"
+      expect(text).toContain('执行失败');
       expect(text).toContain('Network timeout');
     });
 

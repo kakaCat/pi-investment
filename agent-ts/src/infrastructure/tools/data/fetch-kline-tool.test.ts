@@ -2,7 +2,7 @@
  * Data Fetch Kline Tool Tests
  */
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { getResponseText } from '../test-utils.js';
+import { getResponseText } from '../testing-utils.js';
 import type { KlineData } from '../../adapters/quant/types.js';
 
 const mockGetKlineHistory = jest.fn<(symbol: string, period?: string, startDate?: string, endDate?: string, limit?: number) => Promise<KlineData>>();
@@ -58,9 +58,11 @@ describe('data_fetch_kline tool', () => {
       expect(result.content).toHaveLength(1);
       expect(result.content[0].type).toBe('text');
 
-      const response = JSON.parse(getResponseText(result));
-      expect(response.symbol).toBe('600519');
-      expect((response as any).data).toHaveLength(2);
+      // 工具现行契约：text 为格式化可读文本，原始数据在 details
+      const text = getResponseText(result);
+      expect(text).toContain('600519');
+      expect((result as any).details.symbol).toBe('600519');
+      expect((result as any).details.data).toHaveLength(2);
     });
   });
 
@@ -206,11 +208,10 @@ describe('data_fetch_kline tool', () => {
 
       const result = await (dataFetchKlineTool.execute as any)('test-call-id', { symbol: '600519' });
 
-      const response = JSON.parse(getResponseText(result));
-      expect(response.success).toBe(false);
-      expect(response.error).toBeDefined();
-      expect(response.error).toContain('获取K线数据失败');
-      expect(response.error).toContain('Network timeout');
+      // 统一错误契约：createErrorResponse 输出 "执行失败: <原因>"
+      const text = getResponseText(result);
+      expect(text).toContain('执行失败');
+      expect(text).toContain('Network timeout');
     });
 
     it('should handle US stock code rejection', async () => {

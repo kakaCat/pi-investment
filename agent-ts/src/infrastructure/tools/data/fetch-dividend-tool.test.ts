@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { dataFetchDividendTool } from './fetch-dividend-tool.js';
-import { getResponseText } from '../test-utils.js';
+import { getResponseText } from '../testing-utils.js';
 
 describe('dataFetchDividendTool', () => {
   it('should have correct metadata', () => {
