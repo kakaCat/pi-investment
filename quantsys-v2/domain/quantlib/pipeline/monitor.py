@@ -25,8 +25,7 @@ class DataPipelineMonitor:
     - Errors encountered
 
     Usage:
-        >>> from infrastructure.events.event_bus import event_bus
-        >>> monitor = DataPipelineMonitor(event_bus)
+        >>> monitor = DataPipelineMonitor(event_bus)  # event_bus 由外层注入(可选)
         >>> monitor.on_stage_start('DataFetchStage')
         >>> # ... stage execution ...
         >>> monitor.on_stage_complete('DataFetchStage', result)
