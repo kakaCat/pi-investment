@@ -19,6 +19,41 @@ from adapters.outbound.repositories import KlineORMRepository, FactorORMReposito
 logger = structlog.get_logger(__name__)
 
 
+def load_trading_calendar_from_db(exchange: str):
+    """从 quant.trading_calendar 加载指定交易所的交易日集合。
+
+    作为 calendar_loader 注入 TimeAlignmentStage(domain 层不直接访问 DB)。
+    """
+    from datetime import date  # noqa: F401
+    from typing import Set  # noqa: F401
+    from infrastructure.persistence.database.base_repository import BaseRepository
+
+    repo = BaseRepository()
+    if not repo.db:
+        logger.warning("Database connection not available. Using empty calendar.")
+        return set()
+
+    cursor = repo.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT trade_date
+            FROM quant.trading_calendar
+            WHERE exchange = %s AND is_trading_day = TRUE
+            """,
+            (exchange,),
+        )
+        results = cursor.fetchall()
+    finally:
+        cursor.close()
+
+    if results and isinstance(results[0], dict):
+        return {row['trade_date'] for row in results}
+    if results:
+        return {row[0] for row in results}
+    return set()
+
+
 class DataPipelineService:
     """Orchestration service for the 8-stage data processing pipeline.
 
@@ -203,7 +238,8 @@ class DataPipelineService:
         # Stage 3: Time Alignment
         stages.append(TimeAlignmentStage(
             calendar=self.config.get('calendar', 'SSE'),
-            timezone=self.config.get('timezone', 'Asia/Shanghai')
+            timezone=self.config.get('timezone', 'Asia/Shanghai'),
+            calendar_loader=load_trading_calendar_from_db
         ))
 
         # Stage 4: Anomaly Detection

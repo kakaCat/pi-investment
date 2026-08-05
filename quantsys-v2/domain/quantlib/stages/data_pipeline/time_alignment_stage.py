@@ -2,11 +2,10 @@
 
 import logging
 import pandas as pd
-from typing import Dict, Set
+from typing import Callable, Dict, Optional, Set
 from datetime import date
 
 from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
-from infrastructure.persistence.database.base_repository import BaseRepository
 
 logger = logging.getLogger(__name__)
 
@@ -14,16 +13,25 @@ logger = logging.getLogger(__name__)
 class TimeAlignmentStage:
     """Align timestamps to trading calendar and timezone."""
 
-    def __init__(self, calendar: str = 'SSE', timezone: str = 'Asia/Shanghai'):
+    def __init__(
+        self,
+        calendar: str = 'SSE',
+        timezone: str = 'Asia/Shanghai',
+        calendar_loader: Optional[Callable[[str], Set[date]]] = None,
+    ):
         """
         Initialize TimeAlignmentStage.
 
         Args:
             calendar: Exchange calendar to use (SSE, SZSE)
             timezone: Target timezone for alignment
+            calendar_loader: 交易日历加载函数(由 Application 层注入),
+                签名: (exchange: str) -> Set[date]。domain 层不直接访问
+                数据库(六边形架构依赖方向);未注入时使用空日历。
         """
         self.calendar = calendar
         self.timezone = timezone
+        self.calendar_loader = calendar_loader
         self.trading_calendar = self._load_trading_calendar()
 
     def execute(self, context: PipelineContext) -> PipelineResult:
@@ -94,38 +102,21 @@ class TimeAlignmentStage:
 
     def _load_trading_calendar(self) -> Set[date]:
         """
-        Load trading calendar from database.
+        Load trading calendar via the injected calendar_loader.
 
         Returns:
             Set of trading dates for the specified exchange
         """
+        if self.calendar_loader is None:
+            logger.warning(
+                "No calendar_loader injected. Using empty trading calendar."
+            )
+            return set()
+
         try:
-            repo = BaseRepository()
-            if not repo.db:
-                logger.warning("Database connection not available. Using empty calendar.")
-                return set()
-
-            cursor = repo.cursor()
-
-            query = """
-                SELECT trade_date
-                FROM quant.trading_calendar
-                WHERE exchange = %s AND is_trading_day = TRUE
-            """
-            cursor.execute(query, (self.calendar,))
-
-            results = cursor.fetchall()
-            if results and isinstance(results[0], dict):
-                dates = {row['trade_date'] for row in results}
-            elif results:
-                dates = {row[0] for row in results}
-            else:
-                dates = set()
-            cursor.close()
-
+            dates = self.calendar_loader(self.calendar) or set()
             logger.info(f"Loaded {len(dates)} trading days for {self.calendar}")
             return dates
-
         except Exception as e:
             logger.warning(f"Failed to load trading calendar: {e}. Using empty set.")
             return set()
