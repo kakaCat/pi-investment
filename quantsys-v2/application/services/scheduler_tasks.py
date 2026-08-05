@@ -1218,6 +1218,30 @@ def handle_chan_knowledge_distill(params: Dict[str, Any] = None) -> Dict[str, An
         }
 
 
+def handle_evolution_fitness_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
+    """双侧捕获适应度每日计算（行为进化 Phase 1，收盘后全账户滚动窗口）"""
+    from application.services.evolution.evolution_fitness_service import EvolutionFitnessService
+
+    logger.info("Starting evolution_fitness_daily task")
+    try:
+        params = params or {}
+        result = EvolutionFitnessService().compute_all_accounts(
+            window_days=params.get('window_days', 20))
+        return {
+            "action": "evolution_fitness_daily",
+            "status": "success",
+            **result,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"evolution_fitness_daily failed: {e}")
+        return {
+            "action": "evolution_fitness_daily",
+            "status": "failed",
+            "error": str(e)
+        }
+
+
 _TASK_HANDLERS: Dict[str, Callable] = {
     "data_quality_check": handle_data_quality_check,
     "data_update": handle_data_update,
@@ -1251,6 +1275,8 @@ _TASK_HANDLERS: Dict[str, Callable] = {
     # 缠论学习闭环
     "chan_scan": handle_chan_scan,
     "chan_knowledge_distill": handle_chan_knowledge_distill,
+    # 行为进化 Phase 1
+    "evolution_fitness_daily": handle_evolution_fitness_daily,
 }
 
 
