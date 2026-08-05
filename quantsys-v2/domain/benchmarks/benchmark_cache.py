@@ -7,6 +7,16 @@
 - 缓存命中 vs 未命中
 - 不同数据大小
 - 真实场景模拟
+
+架构豁免说明（2026-08-05）：
+本文件是可独立执行的基准测试脚本（__main__ 入口），不是 domain 业务逻辑，
+历史上误置在 domain/benchmarks/ 下（同目录 benchmark_ml.py 等同样引用外层）。
+脚本本身就是 composition root，其职责正是装配并压测 infrastructure 的
+CacheService，因此对 infrastructure.config / infrastructure.cache 的 import
+予以豁免。真正的修复方向是把整个 domain/benchmarks/ 脚本目录迁出 domain
+（如顶层 benchmarks/），需同步调整 application/services/benchmark_service.py
+的 benchmarks_dir 解析（当前指向 application/benchmarks，已是断链状态），
+属于独立工作线，本次不做。
 """
 import sys
 import time
