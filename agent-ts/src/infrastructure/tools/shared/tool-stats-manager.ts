@@ -264,6 +264,8 @@ export class ToolStatsManager {
         console.log('[ToolStatsManager] 自动保存统计数据');
       }
     }, 5 * 60 * 1000); // 5分钟
+    // 后台定时器不应阻止进程退出（测试/脚本场景的 open handle 根因）
+    this.autoSaveInterval.unref?.();
   }
 
   /**
