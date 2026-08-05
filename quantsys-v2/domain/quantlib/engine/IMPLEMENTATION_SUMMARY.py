@@ -220,7 +220,7 @@ quant/engine/
 ```python
 from domain.quantlib.engine import StrategyRunner
 
-runner = StrategyRunner()
+runner = StrategyRunner(strategy_repo=strategy_repo)  # repo 由外层注入
 signals = runner.run(klines=klines, symbol="000001.SZ")
 ```
 
@@ -296,7 +296,7 @@ print(f"Reason: {signal['reason']}")
 ```python
 from domain.quantlib.engine import StrategyRunner
 
-runner = StrategyRunner()
+runner = StrategyRunner(strategy_repo=strategy_repo)  # repo 由外层注入
 
 # 运行所有活跃策略
 signals = runner.run(klines=klines, symbol="000001.SZ")

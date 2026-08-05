@@ -383,7 +383,7 @@ class TestRunnerClose:
 
         mock_repo.close.assert_called_once()
 
-    def test_close_with_no_repo(self):
-        """没有 repo 时 close 不报错"""
-        runner = StrategyRunner(strategy_repo=None)
-        runner.close()  # should not raise
+    def test_constructor_requires_repo(self):
+        """strategy_repo 未注入时构造期 fail-fast(与兄弟 domain 类一致)"""
+        with pytest.raises(ValueError, match="strategy_repo"):
+            StrategyRunner(strategy_repo=None)

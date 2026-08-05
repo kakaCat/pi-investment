@@ -25,7 +25,8 @@ Strategy Engine
     value = adapter.calculate("ma5", klines)
 
 使用方式:
-    runner = StrategyRunner()
+    # strategy_repo 由外层(Application/Adapters)注入,例如 StrategyORMRepository
+    runner = StrategyRunner(strategy_repo=strategy_repo)
     signals = runner.run(symbol="000001.SZ", klines=klines)
 """
 

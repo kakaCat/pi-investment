@@ -23,9 +23,10 @@ def load_trading_calendar_from_db(exchange: str):
     """从 quant.trading_calendar 加载指定交易所的交易日集合。
 
     作为 calendar_loader 注入 TimeAlignmentStage(domain 层不直接访问 DB)。
+
+    Returns:
+        Set[date]: 交易日集合
     """
-    from datetime import date  # noqa: F401
-    from typing import Set  # noqa: F401
     from infrastructure.persistence.database.base_repository import BaseRepository
 
     repo = BaseRepository()

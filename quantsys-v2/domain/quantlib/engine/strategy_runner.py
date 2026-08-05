@@ -69,11 +69,17 @@ class StrategyRunner:
             strategy_repo: 策略Repository接口实例（由 Application 层注入）
             max_workers: 并行执行策略的最大线程数，默认4
 
-        Note:
-            domain 层不再自行创建 adapters 具体仓储（六边形架构依赖方向）。
-            strategy_repo 允许为 None 仅限测试场景（如仅验证 close() 行为），
-            调用 run()/get_top_signals() 等需要仓储的方法前必须注入。
+        Raises:
+            ValueError: strategy_repo 未注入。domain 层不再自行创建 adapters
+                具体仓储（六边形架构依赖方向），与其他 domain 类一致构造期 fail-fast。
         """
+        if strategy_repo is None:
+            raise ValueError(
+                "StrategyRunner requires strategy_repo injection "
+                "(e.g. StrategyORMRepository from adapters.outbound.repositories, "
+                "wired by the Application layer)"
+            )
+
         self.repo = strategy_repo
         self.max_workers = max_workers
 
@@ -334,5 +340,4 @@ class StrategyRunner:
 
     def close(self):
         """关闭数据库连接"""
-        if self.repo:
-            self.repo.close()
+        self.repo.close()
