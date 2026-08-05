@@ -490,6 +490,14 @@ def register_routes():
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import chan_async: {e}")
 
+    # 行为进化（evolution 域，2026-08-05 Phase 1）
+    try:
+        from adapters.inbound.fastapi_app.routes.evolution_async import router as evolution_router
+        app.include_router(evolution_router)
+        logger.info("✅ Registered: evolution (行为进化 Phase 1)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import evolution_async: {e}")
+
     # 流水线（pipeline 域，P8 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.pipeline_async import router as pipeline_router
