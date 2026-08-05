@@ -65,6 +65,36 @@ class ZhongShu:
 
 
 @dataclass
+class BiZhongShu:
+    """笔中枢（连续 3+ 笔的价格重叠区）
+
+    ZG/ZD 由前 3 笔锁定；延续笔不改变 ZG/ZD。
+    """
+    zg: float                       # 中枢上沿 = min(前3笔高点)
+    zd: float                       # 中枢下沿 = max(前3笔低点)
+    gg: float                       # 成员笔极值高
+    dd: float                       # 成员笔极值低
+    start_bi_idx: int               # 首笔在笔列表中的下标
+    end_bi_idx: int                 # 末笔下标
+    bis: List[Bi] = field(default_factory=list)
+    type: str = '笔中枢'
+
+    @property
+    def bi_count(self) -> int:
+        return len(self.bis)
+
+    @property
+    def start_index(self) -> int:
+        """首笔起点 K 线索引"""
+        return self.bis[0].start_fenxing.index
+
+    @property
+    def end_index(self) -> int:
+        """末笔终点 K 线索引"""
+        return self.bis[-1].end_fenxing.index
+
+
+@dataclass
 class Trend:
     """走势类型（Phase 2 实现）"""
     type: Literal['上涨', '下跌', '盘整'] = '盘整'
