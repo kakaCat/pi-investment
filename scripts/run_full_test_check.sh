@@ -7,6 +7,28 @@ set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FAILED=0
 
+# --- 防互锁(2026-08-05 事故:多会话并发全量 pytest 打同一 quant_test 互锁挂死) ---
+# 1) mkdir 原子锁(macOS 无 flock):防本脚本并发
+LOCKDIR=/tmp/pi-full-test-check.lock
+if ! mkdir "$LOCKDIR" 2>/dev/null; then
+  echo "===== 另一个全量检查正在进行($LOCKDIR 存在),本次跳过 ====="
+  exit 0
+fi
+trap 'rmdir "$LOCKDIR" 2>/dev/null' EXIT
+
+# 2) 有其他 ad-hoc pytest 全量进程在跑(别的 Claude 会话)→ pytest 段跳过,不与它互锁
+count_other_pytest() {
+  pgrep -f "pytest tests/" | while read -r p; do
+    ps -o stat= -p "$p" 2>/dev/null | grep -qE "U|E" || echo "$p"   # 排除 UE 僵尸
+  done | wc -l | tr -d ' '
+}
+
+# 3) 跑前清 quant_test 僵尸事务(被杀测试留下的 idle in transaction 持锁连接)
+clean_test_db_zombies() {
+  command -v psql >/dev/null 2>&1 || return 0
+  psql -d quant_test -qc "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='quant_test' AND pid<>pg_backend_pid() AND state LIKE 'idle in transaction%' AND now()-state_change > interval '10 minutes'" >/dev/null 2>&1 || true
+}
+
 echo "===== $(date '+%F %T') 全量测试检查 ====="
 
 # --- agent-ts (jest) ---
@@ -25,6 +47,11 @@ fi
 # venv 只存在于主工作区；worktree/其他环境跳过 python 段而非误报
 PYBIN="$ROOT/quantsys-v2/venv/bin/python"
 if [ -x "$PYBIN" ]; then
+  OTHER=$(count_other_pytest)
+  if [ "$OTHER" -gt 0 ]; then
+    echo "--- quantsys-v2 pytest + schema:跳过(检测到 $OTHER 个其他 pytest 全量进程在跑,防互锁;稍后重跑)---"
+  else
+  clean_test_db_zombies
   echo "--- quantsys-v2 pytest ---"
   cd "$ROOT/quantsys-v2"
   PYTEST_LOG=$(mktemp /tmp/pi-pytest-XXXXXX.log)
@@ -45,8 +72,9 @@ if [ -x "$PYBIN" ]; then
   else
     echo "✅ 无漂移"
   fi
+  fi
 else
-  echo "--- quantsys-v2 pytest + schema：跳过（venv 不存在：$PYBIN）---"
+  echo "--- quantsys-v2 pytest + schema：跳过（venv 不存在：${PYBIN}）---"
 fi
 
 if [ "$FAILED" -eq 0 ]; then
