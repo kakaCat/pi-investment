@@ -131,7 +131,7 @@ class StrategyDataProvider:
         df = df.sort_values('trade_datetime')
 
         # 按周期分组聚合
-        df['period_group'] = df['trade_datetime'].dt.floor(f'{minutes}T')
+        df['period_group'] = df['trade_datetime'].dt.floor(f'{minutes}min')
 
         aggregated = df.groupby('period_group').agg({
             'open': 'first',

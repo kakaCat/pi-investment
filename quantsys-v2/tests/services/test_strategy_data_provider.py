@@ -3,6 +3,7 @@
 """
 
 import pytest
+import polars as pl
 from datetime import date
 from application.services.strategy_data_provider import StrategyDataProvider
 
@@ -30,14 +31,14 @@ class TestStrategyDataProvider:
 
     def test_aggregate_minute_klines_5min(self):
         """测试5分钟K线聚合"""
-        # 模拟1分钟K线数据
-        klines = [
+        # 模拟1分钟K线数据（生产实现收 polars DataFrame，与 get_minute_klines 返回类型一致）
+        klines = pl.DataFrame([
             {'trade_date': '2025-01-01 09:30:00', 'open': 10.0, 'high': 10.2, 'low': 9.9, 'close': 10.1, 'volume': 1000},
             {'trade_date': '2025-01-01 09:31:00', 'open': 10.1, 'high': 10.3, 'low': 10.0, 'close': 10.2, 'volume': 1200},
             {'trade_date': '2025-01-01 09:32:00', 'open': 10.2, 'high': 10.4, 'low': 10.1, 'close': 10.3, 'volume': 1100},
             {'trade_date': '2025-01-01 09:33:00', 'open': 10.3, 'high': 10.5, 'low': 10.2, 'close': 10.4, 'volume': 1300},
             {'trade_date': '2025-01-01 09:34:00', 'open': 10.4, 'high': 10.6, 'low': 10.3, 'close': 10.5, 'volume': 1400},
-        ]
+        ])
 
         result = self.provider.aggregate_minute_klines(klines, '5min')
 
@@ -51,7 +52,7 @@ class TestStrategyDataProvider:
 
     def test_aggregate_minute_klines_empty(self):
         """测试空K线聚合"""
-        klines = []
+        klines = pl.DataFrame()
 
         result = self.provider.aggregate_minute_klines(klines, '5min')
 
@@ -59,7 +60,7 @@ class TestStrategyDataProvider:
 
     def test_aggregate_minute_klines_unsupported_period(self):
         """测试不支持的周期"""
-        klines = [{'trade_date': '2025-01-01 09:30:00', 'open': 10.0, 'high': 10.2, 'low': 9.9, 'close': 10.1, 'volume': 1000}]
+        klines = pl.DataFrame([{'trade_date': '2025-01-01 09:30:00', 'open': 10.0, 'high': 10.2, 'low': 9.9, 'close': 10.1, 'volume': 1000}])
 
         with pytest.raises(ValueError, match="不支持的周期"):
             self.provider.aggregate_minute_klines(klines, '2min')
