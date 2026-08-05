@@ -193,3 +193,41 @@ class TestEnableFilter:
         with patch.object(BuyPointDetector, '_is_bottom_div', return_value=True):
             pts = BuyPointDetector().detect(bis, [], _klines(), enable_types=['2买'])
         assert pts == []
+
+
+class TestDedup:
+    def test_duplicate_third_sell_deduped(self):
+        """多个中枢解析出同一对 离开/回拉笔 → 同一 (type, index) 买卖点只报一次
+        （生产事故：000858 同一 3卖 @76.76 重复 3 次）"""
+        bis = [
+            _bi('up', 0, 5, low=9.0, high=11.0),      # 0-2: 中枢1
+            _bi('down', 5, 10, low=9.5, high=10.5),
+            _bi('up', 10, 15, low=9.2, high=10.8),
+            _bi('down', 15, 20, low=9.3, high=10.6),  # 1-3: 中枢2（与中枢1重叠区不同但都合法）
+            _bi('up', 20, 25, low=9.4, high=10.4),
+            _bi('down', 25, 30, low=9.0, high=10.2),
+            _bi('down', 30, 35, low=7.0, high=9.5),   # 6: 跌破（两个中枢共用这条离开笔）
+            _bi('up', 35, 40, low=7.5, high=8.5),     # 7: 回拉
+        ]
+        zs1 = _zs(zg=10.8, zd=9.2, start_bi_idx=0, end_bi_idx=2, bis=bis)
+        zs2 = _zs(zg=10.6, zd=9.3, start_bi_idx=1, end_bi_idx=3, bis=bis)
+        zs3 = _zs(zg=10.4, zd=9.4, start_bi_idx=2, end_bi_idx=4, bis=bis)
+        with patch.object(BuyPointDetector, '_is_bottom_div', return_value=False), \
+             patch.object(BuyPointDetector, '_is_top_div', return_value=False):
+            pts = BuyPointDetector().detect(bis, [zs1, zs2, zs3], _klines())
+        sells = [p for p in pts if p.type == '3卖']
+        assert len(sells) == 1  # 同一回拉笔只报一次，不因中枢数量翻倍
+
+    def test_distinct_indexes_both_reported(self):
+        """不同 index 的同类买卖点不去重"""
+        bis = [
+            _bi('down', 0, 5, low=8.0, high=12.0),
+            _bi('up', 5, 10, low=9.0, high=11.0),
+            _bi('down', 10, 15, low=7.5, high=10.5),
+            _bi('up', 15, 20, low=8.5, high=10.0),
+            _bi('down', 20, 25, low=7.0, high=9.5),
+        ]
+        with patch.object(BuyPointDetector, '_is_bottom_div', return_value=True):
+            pts = BuyPointDetector().detect(bis, [], _klines())
+        buys = [p for p in pts if p.type == '1买']
+        assert len(buys) == 2  # (bi0→bi2) 与 (bi2→bi4) 两对背驰，各报一次

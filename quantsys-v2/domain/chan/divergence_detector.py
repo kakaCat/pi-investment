@@ -1,4 +1,8 @@
-"""背驰检测器 - MACD 面积背驰"""
+"""背驰检测器 - MACD 面积背驰
+
+⚠️ DEPRECATED（2026-08-05）：旧线段流水线组件。
+流水线已切换笔组背驰（bi_divergence_detector），本文件仅为历史参考保留，勿用于新代码。
+"""
 from typing import List, Literal
 from .types import Segment, KLine
 from .macd_calculator import MACDCalculator

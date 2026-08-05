@@ -190,10 +190,10 @@ class ChanService:
         }
 
     def _format_buypoint(self, buypoint: BuyPoint) -> Dict[str, Any]:
-        """格式化买卖点数据"""
+        """格式化买卖点数据（价格 2 位小数——复权数据原始值带长尾）"""
         return {
             "type": buypoint.type,
-            "price": float(buypoint.price),
+            "price": round(float(buypoint.price), 2),
             "index": buypoint.index,
             "date": buypoint.date.strftime('%Y-%m-%d') if buypoint.date else None,
             "confidence": float(buypoint.confidence),

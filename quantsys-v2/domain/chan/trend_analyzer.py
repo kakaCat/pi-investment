@@ -1,4 +1,8 @@
-"""走势类型分析器 - 判断上涨/下跌/盘整"""
+"""走势类型分析器 - 判断上涨/下跌/盘整
+
+⚠️ DEPRECATED（2026-08-05）：旧线段流水线组件。
+流水线已切换笔中枢趋势（bi_trend_analyzer），本文件仅为历史参考保留，勿用于新代码。
+"""
 from typing import List, Literal
 from .types import Segment, ZhongShu
 

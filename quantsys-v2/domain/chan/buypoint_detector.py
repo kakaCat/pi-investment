@@ -36,9 +36,23 @@ class BuyPointDetector:
         points += self._detect_second_sell(bis, points)
         points += self._detect_third_buy(bis, zhongshus)
         points += self._detect_third_sell(bis, zhongshus)
+        points = self._dedup(points)
         if enable_types:
             points = [p for p in points if p.type in enable_types]
         return points
+
+    @staticmethod
+    def _dedup(points: List[BuyPoint]) -> List[BuyPoint]:
+        """同一 (type, index) 只报一次——多个中枢可解析出同一对 离开/回拉笔，
+        否则同一买卖点会按中枢数量翻倍（生产事故：000858 同一 3卖 重复 3 次）"""
+        seen = set()
+        out = []
+        for p in points:
+            key = (p.type, p.index)
+            if key not in seen:
+                seen.add(key)
+                out.append(p)
+        return out
 
     # ---------- 1买/1卖 ----------
 

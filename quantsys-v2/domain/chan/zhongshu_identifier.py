@@ -1,4 +1,8 @@
-"""中枢识别器 - 识别线段重叠形成的中枢"""
+"""中枢识别器 - 识别线段重叠形成的中枢
+
+⚠️ DEPRECATED（2026-08-05）：旧线段流水线组件，已证实线段算法退化致中枢全灭。
+流水线已切换笔中枢（bi_zhongshu_identifier），本文件仅为历史参考保留，勿用于新代码。
+"""
 from typing import List, Optional, Tuple
 from .types import Segment, ZhongShu
 

@@ -179,3 +179,28 @@ class TestChanServiceKnowledge:
         assert z['high'] == 10.5 and z['low'] == 9.5
         assert z['type'] == '笔中枢'
         assert z['bi_count'] == 3
+
+    @patch('application.services.chan_service.AgentKnowledgeORMRepository')
+    @patch('application.services.chan_service.KlineORMRepository')
+    def test_buypoint_price_rounded(self, mock_repo_cls, mock_know_cls):
+        """买卖点价格保留 2 位小数（复权数据裸输出 68.1385396 这类长尾）"""
+        from unittest.mock import MagicMock
+        from datetime import datetime as _dt
+
+        mock_repo_cls.return_value.get_daily_klines.return_value = _make_klines()
+        mock_know_cls.return_value.get_by_domain.return_value = []
+
+        bp = MagicMock()
+        bp.type, bp.price, bp.index = '1买', 68.1385396, 100
+        bp.date, bp.confidence, bp.position_ratio, bp.reason = _dt(2026, 7, 9), 0.9, 1.0, '底背驰'
+        result_mock = MagicMock()
+        result_mock.trend_type, result_mock.bis, result_mock.segments = '下跌', [], []
+        result_mock.zhongshus, result_mock.klines = [], []
+        result_mock.buypoints = [bp]
+
+        service = ChanService()
+        service.analyzer = MagicMock()
+        service.analyzer.analyze.return_value = result_mock
+
+        out = service.analyze('600519.SH')
+        assert out['buypoints'][0]['price'] == 68.14
