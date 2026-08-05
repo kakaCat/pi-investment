@@ -31,4 +31,11 @@ describe("createAgentDecisionTasks", () => {
     const msg = (review!.payload as any).message as string;
     expect(msg).toContain("覆盖率");
   });
+
+  it("日复盘包含进化适应度排行自评步骤", () => {
+    const review = byName("daily_ai_review");
+    const msg = (review!.payload as any).message as string;
+    expect(msg).toContain("evolution_leaderboard");
+    expect(msg).toContain("上涨捕获");
+  });
 });
