@@ -138,7 +138,7 @@ export class ToolResultPersister {
         const stats = await fs.stat(filePath);
         const age = now - stats.mtimeMs;
 
-        if (age >= maxAgeToUse) {  // >= 否则 cleanup(0) 在同毫秒创建的文件上 age=0 不删
+        if (maxAgeToUse <= 0 || age >= maxAgeToUse) {  // age 可能为负（mtime 精度 > Date.now()），cleanup(0) 语义=全清
           await fs.unlink(filePath);
         }
       }

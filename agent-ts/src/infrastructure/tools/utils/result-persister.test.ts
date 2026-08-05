@@ -4,25 +4,34 @@
  * 验证核心功能是否正常工作
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import {
-  ToolResultPersister,
-  saveToolResult,
-  cleanupOldResults,
-  listToolResults,
-} from './result-persister.js';
-import { handleToolResponse, wrapToolExecution } from './tool-response-handler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const TEST_DIR = path.join(__dirname, '../../../../../.cache/tool-results-test');
 
+// 隔离存储目录：result-persister 的 baseDir 来自 getSessionDir()，
+// 不 mock 时落到共享的 .cache/tool-results，并行套件互相删文件导致抖动。
+// 让 getSessionDir 指向本测试专属目录
+jest.unstable_mockModule('../../logging/observable-logger.js', () => ({
+  getSessionDir: () => path.join(TEST_DIR, 'session'),
+}));
+
+const {
+  ToolResultPersister,
+  saveToolResult,
+  cleanupOldResults,
+  listToolResults,
+} = await import('./result-persister.js');
+type ToolResultPersisterT = InstanceType<typeof ToolResultPersister>;
+const { handleToolResponse, wrapToolExecution } = await import('./tool-response-handler.js');
+
 describe('ToolResultPersister', () => {
-  let persister: ToolResultPersister;
+  let persister: ToolResultPersisterT;
 
   beforeAll(async () => {
     persister = new ToolResultPersister(1); // 1 hour TTL
@@ -109,7 +118,7 @@ describe('ToolResultPersister', () => {
 });
 
 describe('handleToolResponse', () => {
-  let persister: ToolResultPersister;
+  let persister: ToolResultPersisterT;
 
   beforeAll(async () => {
     persister = new ToolResultPersister(); // Use default 24 hours TTL
