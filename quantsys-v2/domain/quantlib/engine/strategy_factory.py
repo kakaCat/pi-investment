@@ -110,21 +110,24 @@ class StrategyFactory:
         return 'other'
 
     @classmethod
-    def sync_to_database(cls, repo=None) -> int:
+    def sync_to_database(cls, repo) -> int:
         """
         Sync registered strategies to database
 
         Args:
-            repo: Strategy repository interface (injected by caller)
+            repo: Strategy repository interface (injected by caller, e.g.
+                  StrategyORMRepository wired by the Adapters/Application layer)
 
-        Note:
-            For backward compatibility, repo is optional but should be injected
+        Raises:
+            ValueError: repo 未注入。domain 层不再自行创建 adapters 具体仓储
+                (六边形架构依赖方向)。
         """
-        # 临时兼容：如果未注入则自动创建（违反 DDD）
-        # TODO: 移除后备逻辑，要求调用方必须注入
         if repo is None:
-            from adapters.outbound.repositories import StrategyORMRepository
-            repo = StrategyORMRepository()
+            raise ValueError(
+                "StrategyFactory.sync_to_database requires a strategy repository "
+                "injection (e.g. StrategyORMRepository from "
+                "adapters.outbound.repositories, wired by the caller)"
+            )
 
         count = 0
         for strategy_type, metadata in cls._metadata.items():
