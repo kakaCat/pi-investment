@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from domain.quantlib.engine.strategy_runner import StrategyRunner
+from adapters.outbound.repositories import StrategyORMRepository
 from domain.quantlib.engine.strategy_combiner import StrategyCombiner
 
 
@@ -62,7 +63,7 @@ def example_1_basic_signal_generation():
     print(f"\n数据准备完成: {symbol}, {len(klines)}天K线")
 
     # 2. 创建策略运行器
-    runner = StrategyRunner()
+    runner = StrategyRunner(strategy_repo=StrategyORMRepository())
 
     # 3. 运行所有策略，生成信号
     print("\n运行策略，生成信号...")
@@ -101,7 +102,7 @@ def example_2_top_signals():
     klines = generate_sample_klines(symbol, days=100)
 
     # 创建运行器
-    runner = StrategyRunner()
+    runner = StrategyRunner(strategy_repo=StrategyORMRepository())
 
     # 获取Top 5买入信号
     print("\nTop 5 买入信号:")
@@ -148,7 +149,7 @@ def example_3_signal_combination():
     klines = generate_sample_klines(symbol, days=100)
 
     # 生成信号
-    runner = StrategyRunner()
+    runner = StrategyRunner(strategy_repo=StrategyORMRepository())
     signals = runner.run(klines=klines, symbol=symbol)
 
     # 创建信号组合器
@@ -185,7 +186,7 @@ def example_4_multi_stock_signals():
     # 准备多只股票数据
     symbols = ["000001.SZ", "000002.SZ", "600000.SH", "600036.SH"]
 
-    runner = StrategyRunner()
+    runner = StrategyRunner(strategy_repo=StrategyORMRepository())
     all_signals = []
 
     print("\n生成多股票信号...")
@@ -223,7 +224,7 @@ def example_5_signal_filtering():
     klines = generate_sample_klines(symbol, days=100)
 
     # 生成信号
-    runner = StrategyRunner()
+    runner = StrategyRunner(strategy_repo=StrategyORMRepository())
     signals = runner.run(klines=klines, symbol=symbol)
 
     # 过滤1: 高置信度信号（>0.7）

@@ -808,7 +808,8 @@ class TestStrategyRunner:
     @pytest.fixture
     def runner(self):
         from domain.quantlib.engine.strategy_runner import StrategyRunner
-        r = StrategyRunner()
+        from adapters.outbound.repositories import StrategyORMRepository
+        r = StrategyRunner(strategy_repo=StrategyORMRepository())
         yield r
         r.close()
 

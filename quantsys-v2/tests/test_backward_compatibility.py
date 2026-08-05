@@ -5,6 +5,7 @@
 """
 import pytest
 from domain.quantlib.engine.strategy_runner import StrategyRunner
+from adapters.outbound.repositories import StrategyORMRepository
 
 
 class TestBackwardCompatibility:
@@ -20,7 +21,7 @@ class TestBackwardCompatibility:
 
     def test_all_legacy_strategies_still_work(self, klines):
         """确保所有旧策略仍然可以运行"""
-        runner = StrategyRunner()
+        runner = StrategyRunner(strategy_repo=StrategyORMRepository())
 
         # 运行所有策略
         signals = runner.run(klines, symbol='000001.SH')

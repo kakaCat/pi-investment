@@ -66,18 +66,14 @@ class StrategyRunner:
         初始化策略运行器
 
         Args:
-            strategy_repo: 策略Repository接口实例（必须传入，遵循依赖注入原则）
+            strategy_repo: 策略Repository接口实例（由 Application 层注入）
             max_workers: 并行执行策略的最大线程数，默认4
 
         Note:
-            为保持向后兼容，strategy_repo 参数可选，但建议由 Application 层注入
+            domain 层不再自行创建 adapters 具体仓储（六边形架构依赖方向）。
+            strategy_repo 允许为 None 仅限测试场景（如仅验证 close() 行为），
+            调用 run()/get_top_signals() 等需要仓储的方法前必须注入。
         """
-        if strategy_repo is None:
-            # 临时兼容：自动创建实例，但会产生 DDD 违规
-            # TODO: 移除这个后备逻辑，要求调用方必须注入
-            from adapters.outbound.repositories import StrategyORMRepository
-            strategy_repo = StrategyORMRepository()
-
         self.repo = strategy_repo
         self.max_workers = max_workers
 
