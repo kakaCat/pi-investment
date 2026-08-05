@@ -1218,6 +1218,30 @@ def handle_chan_knowledge_distill(params: Dict[str, Any] = None) -> Dict[str, An
         }
 
 
+def handle_daily_equity_snapshot(params: Dict[str, Any] = None) -> Dict[str, Any]:
+    """全账户每日净值快照（收盘后按当日收盘价重估持仓，行为进化 Phase 1 地基）"""
+    from application.services.evolution.daily_snapshot_service import DailySnapshotService
+
+    logger.info("Starting daily_equity_snapshot task")
+    try:
+        params = params or {}
+        target = date.fromisoformat(params['date']) if params.get('date') else None
+        result = DailySnapshotService().snapshot_all_accounts(target_date=target)
+        return {
+            "action": "daily_equity_snapshot",
+            "status": "success",
+            **result,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"daily_equity_snapshot failed: {e}")
+        return {
+            "action": "daily_equity_snapshot",
+            "status": "failed",
+            "error": str(e)
+        }
+
+
 def handle_evolution_fitness_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """双侧捕获适应度每日计算（行为进化 Phase 1，收盘后全账户滚动窗口）"""
     from application.services.evolution.evolution_fitness_service import EvolutionFitnessService
@@ -1276,6 +1300,7 @@ _TASK_HANDLERS: Dict[str, Callable] = {
     "chan_scan": handle_chan_scan,
     "chan_knowledge_distill": handle_chan_knowledge_distill,
     # 行为进化 Phase 1
+    "daily_equity_snapshot": handle_daily_equity_snapshot,
     "evolution_fitness_daily": handle_evolution_fitness_daily,
 }
 
