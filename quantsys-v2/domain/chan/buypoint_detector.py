@@ -1,87 +1,151 @@
-"""买卖点检测器 - 识别三类买卖点"""
-from typing import List, Dict
-from .types import Segment, ZhongShu, BuyPoint, KLine
-from datetime import datetime
+"""买卖点检测器（笔中枢版）——1/2/3 买 + 1/2/3 卖对称
+
+定义（spec: 2026-08-05-chan-bi-zhongshu-redesign.md）：
+- 1买：最后中枢后离开下跌笔底背驰；无中枢退化为最近两下跌笔比较
+- 2买：1买后反弹笔成立，回抽下跌笔低点 > 1买低点
+- 3买：上笔离开中枢（高 > ZG）后，回抽下跌笔低点 > ZG
+- 1卖/2卖/3卖完全对称
+"""
+from typing import List, Optional
+from .types import Bi, BiZhongShu, BuyPoint, KLine
+from .bi_divergence_detector import BiDivergenceDetector
 
 
 class BuyPointDetector:
-    """
-    买卖点检测器
+    def __init__(self):
+        self._divergence = BiDivergenceDetector()
 
-    三类买卖点规则：
-    - 1买：下跌背驰后（最安全，满仓）
-    - 2买：回调不破中枢（次安全，半仓）
-    - 3买：突破前高（激进，轻仓）
-    """
+    # 供测试 patch 的薄封装
+    def _is_bottom_div(self, enter: Bi, leave: Bi, klines: List[KLine]) -> bool:
+        return self._divergence.is_bottom_divergence(enter, leave, klines)
 
-    def detect_buypoints(
+    def _is_top_div(self, enter: Bi, leave: Bi, klines: List[KLine]) -> bool:
+        return self._divergence.is_top_divergence(enter, leave, klines)
+
+    def detect(
         self,
-        segments: List[Segment],
-        zhongshus: List[ZhongShu],
-        divergences: Dict[int, bool],
-        klines: List[KLine]
+        bis: List[Bi],
+        zhongshus: List[BiZhongShu],
+        klines: List[KLine],
+        enable_types: Optional[List[str]] = None,
     ) -> List[BuyPoint]:
-        """
-        检测买卖点
+        points: List[BuyPoint] = []
+        points += self._detect_first_buy(bis, zhongshus, klines)
+        points += self._detect_first_sell(bis, zhongshus, klines)
+        points += self._detect_second_buy(bis, points)
+        points += self._detect_second_sell(bis, points)
+        points += self._detect_third_buy(bis, zhongshus)
+        points += self._detect_third_sell(bis, zhongshus)
+        if enable_types:
+            points = [p for p in points if p.type in enable_types]
+        return points
 
-        Args:
-            segments: 线段列表
-            zhongshus: 中枢列表
-            divergences: 背驰字典 {segment_index: is_divergence}
-            klines: K线数据
+    # ---------- 1买/1卖 ----------
 
-        Returns:
-            买卖点列表
-        """
-        buypoints = []
+    def _enter_leave_pairs(self, bis, zhongshus, direction):
+        """(进入笔, 离开笔) 候选对：围绕每个中枢；无中枢时退化为所有相邻同向笔对
+        （每个历史背驰都应产生信号，不只最近一对——否则 1买后的回抽笔会顶掉 1买本身）"""
+        same = [b for b in bis if b.direction == direction]
+        pairs = []
+        if zhongshus:
+            for zs in zhongshus:
+                enter_candidates = [b for b in bis[:zs.start_bi_idx] if b.direction == direction]
+                leave_candidates = [b for b in bis[zs.end_bi_idx + 1:] if b.direction == direction]
+                if enter_candidates and leave_candidates:
+                    pairs.append((enter_candidates[-1], leave_candidates[0]))
+        if not pairs and len(same) >= 2:
+            pairs = [(same[i], same[i + 1]) for i in range(len(same) - 1)]
+        return pairs
 
-        # 检测1买（下跌背驰）
-        for i, seg in enumerate(segments):
-            if seg.direction == 'down' and divergences.get(i, False):
-                buypoints.append(BuyPoint(
-                    type='1买',
-                    index=seg.end_index,
-                    price=seg.low,
-                    date=klines[seg.end_index].date if seg.end_index < len(klines) else datetime.now(),
-                    confidence=0.9,
-                    reason='下跌背驰',
-                    position_ratio=1.0
+    def _detect_first_buy(self, bis, zhongshus, klines) -> List[BuyPoint]:
+        out = []
+        for enter, leave in self._enter_leave_pairs(bis, zhongshus, 'down'):
+            if self._is_bottom_div(enter, leave, klines):
+                out.append(BuyPoint(
+                    type='1买', index=leave.end_fenxing.index, price=leave.low,
+                    date=leave.end_fenxing.date, confidence=0.9,
+                    reason='下跌笔组底背驰', position_ratio=1.0,
                 ))
+        return out
 
-        # 检测2买（回调不破中枢）
-        for zh in zhongshus:
-            # 找中枢后的第一个下跌线段
-            zh_end_idx = segments.index(zh.segments[-1])
-            if zh_end_idx + 1 < len(segments):
-                next_seg = segments[zh_end_idx + 1]
-                if next_seg.direction == 'down' and next_seg.low >= zh.low:
-                    buypoints.append(BuyPoint(
-                        type='2买',
-                        index=next_seg.end_index,
-                        price=next_seg.low,
-                        date=klines[next_seg.end_index].date if next_seg.end_index < len(klines) else datetime.now(),
-                        confidence=0.7,
-                        reason='回调不破中枢',
-                        position_ratio=0.6
-                    ))
+    def _detect_first_sell(self, bis, zhongshus, klines) -> List[BuyPoint]:
+        out = []
+        for enter, leave in self._enter_leave_pairs(bis, zhongshus, 'up'):
+            if self._is_top_div(enter, leave, klines):
+                out.append(BuyPoint(
+                    type='1卖', index=leave.end_fenxing.index, price=leave.high,
+                    date=leave.end_fenxing.date, confidence=0.9,
+                    reason='上涨笔组顶背驰', position_ratio=1.0,
+                ))
+        return out
 
-        # 检测3买（突破前高）
-        for i in range(1, len(segments)):
-            seg = segments[i]
-            if seg.direction == 'up':
-                # 找前面的最高点
-                prev_ups = [s.high for s in segments[:i] if s.direction == 'up']
-                if prev_ups:  # 有前面的上升线段
-                    prev_high = max(prev_ups)
-                    if seg.high > prev_high:
-                        buypoints.append(BuyPoint(
-                            type='3买',
-                            index=seg.end_index,
-                            price=seg.high,
-                            date=klines[seg.end_index].date if seg.end_index < len(klines) else datetime.now(),
-                            confidence=0.5,
-                            reason='突破前高',
-                            position_ratio=0.3
-                        ))
+    # ---------- 2买/2卖 ----------
 
-        return buypoints
+    def _bi_after(self, bis, kline_index: int, direction: str) -> Optional[Bi]:
+        """起点 K 线索引在 kline_index 之后的第一条 direction 笔"""
+        for b in bis:
+            if b.direction == direction and b.start_fenxing.index >= kline_index:
+                return b
+        return None
+
+    def _detect_second_buy(self, bis, points) -> List[BuyPoint]:
+        out = []
+        for p in [p for p in points if p.type == '1买']:
+            rebound = self._bi_after(bis, p.index, 'up')       # 反弹笔
+            if not rebound:
+                continue
+            pullback = self._bi_after(bis, rebound.end_fenxing.index, 'down')
+            if pullback and pullback.low > p.price:            # 不破 1买低点
+                out.append(BuyPoint(
+                    type='2买', index=pullback.end_fenxing.index, price=pullback.low,
+                    date=pullback.end_fenxing.date, confidence=0.7,
+                    reason='回抽不破1买低点', position_ratio=0.6,
+                ))
+        return out
+
+    def _detect_second_sell(self, bis, points) -> List[BuyPoint]:
+        out = []
+        for p in [p for p in points if p.type == '1卖']:
+            retreat = self._bi_after(bis, p.index, 'down')
+            if not retreat:
+                continue
+            rally = self._bi_after(bis, retreat.end_fenxing.index, 'up')
+            if rally and rally.high < p.price:                 # 不破 1卖高点
+                out.append(BuyPoint(
+                    type='2卖', index=rally.end_fenxing.index, price=rally.high,
+                    date=rally.end_fenxing.date, confidence=0.7,
+                    reason='回拉不破1卖高点', position_ratio=0.6,
+                ))
+        return out
+
+    # ---------- 3买/3卖 ----------
+
+    def _detect_third_buy(self, bis, zhongshus) -> List[BuyPoint]:
+        out = []
+        for zs in zhongshus:
+            leave = self._bi_after(bis, bis[zs.end_bi_idx].end_fenxing.index, 'up')
+            if not leave or leave.high <= zs.zg:               # 未离开中枢
+                continue
+            pullback = self._bi_after(bis, leave.end_fenxing.index, 'down')
+            if pullback and pullback.low > zs.zg:              # 回抽不入中枢
+                out.append(BuyPoint(
+                    type='3买', index=pullback.end_fenxing.index, price=pullback.low,
+                    date=pullback.end_fenxing.date, confidence=0.5,
+                    reason='离开中枢回抽不入', position_ratio=0.3,
+                ))
+        return out
+
+    def _detect_third_sell(self, bis, zhongshus) -> List[BuyPoint]:
+        out = []
+        for zs in zhongshus:
+            leave = self._bi_after(bis, bis[zs.end_bi_idx].end_fenxing.index, 'down')
+            if not leave or leave.low >= zs.zd:
+                continue
+            rally = self._bi_after(bis, leave.end_fenxing.index, 'up')
+            if rally and rally.high < zs.zd:                   # 回拉不入中枢
+                out.append(BuyPoint(
+                    type='3卖', index=rally.end_fenxing.index, price=rally.high,
+                    date=rally.end_fenxing.date, confidence=0.5,
+                    reason='跌破中枢回拉不入', position_ratio=0.3,
+                ))
+        return out
