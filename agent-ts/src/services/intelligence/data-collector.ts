@@ -12,6 +12,13 @@ import { join } from 'path';
 // 数据源迁移到 quantsys-v2 HTTP API（模拟交易账户）。
 const V2_API_BASE = process.env.QUANTSYS_V2_API_URL ?? 'http://127.0.0.1:5001';
 
+/**
+ * 2026-08-05 修复：多账户域上线后 /api/simulation/trades 强制要求 account_name。
+ * 进化/经验分析统一锁定 agent 唯一账本 agent_virtual（盈利闭环约定的真实账本），
+ * 不再使用已被废弃重建的 default 账户（0 持仓 0 交易）。
+ */
+export const AGENT_ACCOUNT = 'agent_virtual';
+
 const DEFAULT_BASE_DIR = join(process.cwd(), '.pi-invest');
 
 // ============ 类型定义 ============
@@ -81,7 +88,7 @@ export interface ReviewData {
  * 加载持仓数据（通过 CLI → PostgreSQL）
  */
 export async function loadPortfolio(baseDir?: string): Promise<Portfolio> {
-  const resp = await fetch(`${V2_API_BASE}/api/simulation/accounts/default`);
+  const resp = await fetch(`${V2_API_BASE}/api/simulation/accounts/${AGENT_ACCOUNT}`);
   const json = (await resp.json()) as any;
   if (!json.success) {
     throw new Error(json.error || '获取模拟账户持仓失败');
@@ -150,7 +157,7 @@ export function parsePortfolio(
  * 加载交易记录（quantsys-v2 模拟交易账户）
  */
 export async function loadTrades(baseDir?: string): Promise<TradeHistory> {
-  const resp = await fetch(`${V2_API_BASE}/api/simulation/trades?limit=10000`);
+  const resp = await fetch(`${V2_API_BASE}/api/simulation/trades?account_name=${AGENT_ACCOUNT}&limit=10000`);
   const json = (await resp.json()) as any;
   if (!json.success) {
     throw new Error(json.error || '获取模拟交易记录失败');

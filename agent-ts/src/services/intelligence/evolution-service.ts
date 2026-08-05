@@ -31,6 +31,7 @@ import {
 import { parseSessionLog } from './session-log-parser.js';
 import { analyzeToolEfficiency } from './tool-efficiency-analyzer.js';
 import { analyzeHoldingDimensions } from './holding-dimension-analyzer.js';
+import { AGENT_ACCOUNT } from './data-collector.js';
 import type { Holding } from './data-collector.js';
 import type {
   EvolutionReport,
@@ -42,7 +43,7 @@ import type { HoldingDimensionAnalysis } from '../../types/holding-analysis.js';
 
 // ─── 类型 ────────────────────────────────────────────────────────────────────
 
-interface Trade {
+export interface Trade {
   date: string;
   action: 'buy' | 'sell';
   symbol: string;
@@ -99,8 +100,8 @@ const DEFAULT_CONFIG: Required<EvolutionConfig> = {
 
 // ─── 数据读取 (quantsys-v2 HTTP API) ───────────────────────────────────────
 
-async function loadPortfolio(): Promise<Holding[]> {
-  const resp = await fetch(`${V2_API_BASE}/api/simulation/accounts/default`);
+export async function loadEvolutionPortfolio(): Promise<Holding[]> {
+  const resp = await fetch(`${V2_API_BASE}/api/simulation/accounts/${AGENT_ACCOUNT}`);
   const json = (await resp.json()) as any;
   if (!json.success) {
     throw new Error(json.error || '获取模拟账户持仓失败');
@@ -128,8 +129,8 @@ async function loadPortfolio(): Promise<Holding[]> {
   });
 }
 
-async function loadTrades(): Promise<Trade[]> {
-  const resp = await fetch(`${V2_API_BASE}/api/simulation/trades?limit=10000`);
+export async function loadEvolutionTrades(): Promise<Trade[]> {
+  const resp = await fetch(`${V2_API_BASE}/api/simulation/trades?account_name=${AGENT_ACCOUNT}&limit=10000`);
   const json = (await resp.json()) as any;
   if (!json.success) {
     throw new Error(json.error || '获取模拟交易记录失败');
@@ -229,8 +230,8 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
   console.log(`  - 进化历史（学习）: 最近 ${finalConfig.evolutionWindowLearning} 次`);
 
   // ── 1. 读取真实数据 ────────────────────────────────────────────────────
-  const holdings = await loadPortfolio();
-  const allTrades = await loadTrades();
+  const holdings = await loadEvolutionPortfolio();
+  const allTrades = await loadEvolutionTrades();
   const trades = filterTradesByWindow(allTrades, finalConfig.tradeWindowDays);
   const piDir = PI_DIR;
 
@@ -277,7 +278,7 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
   let currentPrices: Record<string, number> = {};
 
   try {
-    const resp = await fetch(`${V2_API_BASE}/api/simulation/accounts/default`);
+    const resp = await fetch(`${V2_API_BASE}/api/simulation/accounts/${AGENT_ACCOUNT}`);
     const json = (await resp.json()) as any;
     const positions: any[] = json.data?.positions ?? [];
     const totalPnl = positions.reduce((sum, p) => sum + (p.profit ?? 0), 0);
