@@ -93,3 +93,36 @@ class TestSessionRecovery:
 
         assert result is not None
         assert len(reset_calls) == 1
+
+
+def test_socket_watchdog_interrupts_blackhole():
+    """看门狗：socket 黑洞（对端不应答）时 baostock 调用必须在超时后抛错而非永久阻塞
+
+    2026-08-05 根因：baostock 库 socket 无超时，IP 被封黑洞时 recv 永久阻塞，
+    评分线程池 worker 全灭（/api/signals/scan 反复调用后挂死）。
+    """
+    import socket
+    import time
+    import baostock.common.context as bs_context
+    from adapters.outbound.datasources.providers.kline.baostock import _with_socket_timeout
+
+    # 本地回环模拟黑洞：连接成功但对端永不 send
+    srv = socket.socket()
+    srv.bind(('127.0.0.1', 0))
+    srv.listen(1)
+    sock = socket.socket()
+    sock.connect(('127.0.0.1', srv.getsockname()[1]))
+    bs_context.default_socket = sock
+
+    t0 = time.time()
+    try:
+        _with_socket_timeout(lambda: sock.recv(10), timeout=1)
+        raise AssertionError('黑洞调用未被看门狗打断')
+    except OSError:
+        pass  # 预期：看门狗关闭 socket 使 recv 抛错
+    finally:
+        srv.close()
+        if hasattr(bs_context, 'default_socket'):
+            delattr(bs_context, 'default_socket')
+
+    assert time.time() - t0 < 5, '看门狗未及时打断阻塞调用'

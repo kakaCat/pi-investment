@@ -28,6 +28,8 @@ class DataProviderManager:
     """
 
     def __init__(self, ds=None):
+        # 单 provider 调用超时（秒）
+        self.provider_timeout_seconds = 60
         # Provider priorities (optimized based on current network conditions)
         # Tencent is fast and reliable, prioritize it first
         # Sina and Eastmoney are currently timing out, moved to end as fallback
@@ -105,7 +107,22 @@ class DataProviderManager:
         for provider in providers:
             try:
                 method = getattr(provider, method_name)
-                result = method(*args, **kwargs)
+                # 单 provider 调用超时护栏（2026-08-05 评分挂死事故）：
+                # provider 内部网络调用可能无超时（如 akshare 封装 requests），
+                # 黑洞时永久阻塞会把调用方线程池拖死。超时即判失败降级下一个。
+                # 挂死线程不等待回收（shutdown(wait=False)），由 OS 善后。
+                import concurrent.futures
+                guard = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                try:
+                    fut = guard.submit(method, *args, **kwargs)
+                    result = fut.result(timeout=self.provider_timeout_seconds)
+                except concurrent.futures.TimeoutError:
+                    logger.warning(f"Provider {provider.name}.{method_name} 超时（>{self.provider_timeout_seconds}s），降级下一个")
+                    provider_errors[provider.name] = f'调用超时（>{self.provider_timeout_seconds}s）'
+                    self._record_failure(provider.name)
+                    continue
+                finally:
+                    guard.shutdown(wait=False)
 
                 if result and self._is_valid(result):
                     self._record_success(provider.name)

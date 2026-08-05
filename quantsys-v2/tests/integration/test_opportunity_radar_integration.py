@@ -36,7 +36,7 @@ class TestOpportunityRadarIntegration:
     @pytest.fixture
     def test_stocks(self):
         """测试用股票代码"""
-        return ['000001.SH', '000001.SZ', '600036.SH']
+        return ['600000.SH', '000001.SZ', '600036.SH']  # 归一后不撞键（000001.SH/SZ 归一均为 000001）
 
     @pytest.fixture
     def setup_test_data(self, db_connection, test_stocks):
@@ -44,14 +44,15 @@ class TestOpportunityRadarIntegration:
         cursor = db_connection.cursor()
 
         # 清理旧数据
-        cursor.execute("DELETE FROM quant.daily_klines WHERE symbol = ANY(%s)", (test_stocks,))
-        cursor.execute("DELETE FROM quant.stock_fundamentals WHERE symbol = ANY(%s)", (test_stocks,))
-        cursor.execute("DELETE FROM quant.index_constituents WHERE constituent_symbol = ANY(%s)", (test_stocks,))
+        bare = [s.split('.')[0] for s in test_stocks]  # 数据库统一无后缀
+        cursor.execute("DELETE FROM quant.daily_klines WHERE symbol = ANY(%s)", (bare,))
+        cursor.execute("DELETE FROM quant.stock_fundamentals WHERE symbol = ANY(%s)", (bare,))
+        cursor.execute("DELETE FROM quant.index_constituents WHERE constituent_symbol = ANY(%s)", (bare,))
         db_connection.commit()
 
         # 插入120天K线数据
         end_date = datetime.now()
-        for symbol in test_stocks:
+        for symbol in bare:
             for i in range(120):
                 trade_date = end_date - timedelta(days=i)
                 # 生成模拟价格数据（带趋势）
@@ -75,7 +76,7 @@ class TestOpportunityRadarIntegration:
                 ))
 
         # 插入基本面数据
-        for symbol in test_stocks:
+        for symbol in bare:
             cursor.execute("""
                 INSERT INTO quant.stock_fundamentals
                 (symbol, pe_ratio, roe, gross_margin, debt_ratio, update_time)
@@ -92,7 +93,7 @@ class TestOpportunityRadarIntegration:
             ))
 
         # 插入指数成分股数据（模拟热门股票池）
-        for symbol in test_stocks:
+        for symbol in bare:
             cursor.execute("""
                 INSERT INTO quant.index_constituents
                 (index_code, constituent_symbol, weight, update_time)
@@ -105,9 +106,10 @@ class TestOpportunityRadarIntegration:
         yield
 
         # 清理测试数据
-        cursor.execute("DELETE FROM quant.daily_klines WHERE symbol = ANY(%s)", (test_stocks,))
-        cursor.execute("DELETE FROM quant.stock_fundamentals WHERE symbol = ANY(%s)", (test_stocks,))
-        cursor.execute("DELETE FROM quant.index_constituents WHERE constituent_symbol = ANY(%s)", (test_stocks,))
+        bare = [s.split('.')[0] for s in test_stocks]  # 数据库统一无后缀
+        cursor.execute("DELETE FROM quant.daily_klines WHERE symbol = ANY(%s)", (bare,))
+        cursor.execute("DELETE FROM quant.stock_fundamentals WHERE symbol = ANY(%s)", (bare,))
+        cursor.execute("DELETE FROM quant.index_constituents WHERE constituent_symbol = ANY(%s)", (bare,))
         db_connection.commit()
         cursor.close()
 
@@ -214,10 +216,10 @@ class TestOpportunityRadarIntegration:
         cursor = db_connection.cursor()
 
         try:
-            # 插入最小化测试数据（只插入30天，满足最低要求）
+            # 插入测试数据（130 天，满足 DataQualityGate.MIN_KLINES=120）
             end_date = datetime.now()
-            for symbol in test_symbols:
-                for i in range(30):
+            for symbol in [s_.split('.')[0] for s_ in test_symbols]:  # 数据库统一无后缀
+                for i in range(130):
                     trade_date = end_date - timedelta(days=i)
                     cursor.execute("""
                         INSERT INTO quant.daily_klines
@@ -259,7 +261,7 @@ class TestOpportunityRadarIntegration:
 
         finally:
             # 清理测试数据
-            cursor.execute("DELETE FROM quant.daily_klines WHERE symbol = ANY(%s)", (test_symbols,))
+            cursor.execute("DELETE FROM quant.daily_klines WHERE symbol = ANY(%s)", ([s_.split('.')[0] for s_ in test_symbols],))
             db_connection.commit()
             cursor.close()
 
@@ -376,18 +378,18 @@ class TestOpportunityRadarIntegration:
         assert data['success'] is True
 
     def test_invalid_stock_codes(self, client):
-        """测试无效股票代码"""
+        """测试无效股票代码（容错契约：无效代码被跳过而不是整单 500）"""
         response = client.post('/api/signals/scan', json={
             'stocks': ['INVALID.XX', '999999.SH'],
             'minScore': 0,
             'maxRiskLevel': 'high'
         })
 
-        # 无效股票代码会触发验证错误，返回500
-        assert response.status_code == 500
+        # 现行契约：扫描服务对无数据/无效代码按 skip 处理，返回 200 且机会为空
+        assert response.status_code == 200
         data = response.get_json()
-        assert data['success'] is False
-        assert 'error' in data
+        assert data['success'] is True
+        assert data['opportunities'] == []
 
     def test_error_handling(self, client):
         """测试错误处理"""

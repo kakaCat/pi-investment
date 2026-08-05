@@ -29,7 +29,10 @@ def _run_job(symbols, manager_results, **params):
 
 
 def _ok_result():
-    k = KlineData(symbol='300001', date='2026-07-28', open=1, high=1,
+    # 日期必须 >= 任务基准日（最近已收盘交易日），否则被计为 stale 而非 success
+    # （2026-07-30 stale 检测特性）；硬编码历史日期会随时间漂移失败
+    from datetime import date as _date
+    k = KlineData(symbol='300001', date=_date.today().isoformat(), open=1, high=1,
                   low=1, close=1, volume=100, amount=100.0)
     return {'success': True, 'data': [k], 'source': 'baostock'}
 

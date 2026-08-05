@@ -7,6 +7,7 @@ K线网络源首选。
 数据契约：volume 单位为股（无需归一）、amount 成交额（元）、turn 换手率（%）。
 """
 import logging
+import threading
 from typing import List, Optional
 from datetime import datetime
 
@@ -14,13 +15,41 @@ from adapters.outbound.datasources.providers.kline.base import KlineProvider, Kl
 
 logger = logging.getLogger(__name__)
 
+# baostock 库的 socket 没有超时（util/socketutil.py 裸 connect/recv），
+# 对端黑洞（IP 被封但不 RST）时调用永久阻塞——2026-08-05 评分线程池挂死根因。
+# 统一给每个 baostock 调用配看门狗：超时关闭底层 socket，阻塞调用立即抛错，
+# provider 返回 None，DataProviderManager 正常降级到下一数据源。
+_BAOSTOCK_CALL_TIMEOUT = 15  # 秒
+
+
+def _close_baostock_socket():
+    """关闭 baostock 当前会话 socket（看门狗触发，使阻塞中的 connect/recv 抛错）"""
+    try:
+        import baostock.common.context as bs_context
+        sock = getattr(bs_context, 'default_socket', None)
+        if sock is not None:
+            sock.close()
+    except Exception:
+        pass
+
+
+def _with_socket_timeout(fn, timeout: float = _BAOSTOCK_CALL_TIMEOUT):
+    """在看门狗保护下执行 baostock 阻塞调用"""
+    watchdog = threading.Timer(timeout, _close_baostock_socket)
+    watchdog.daemon = True
+    watchdog.start()
+    try:
+        return fn()
+    finally:
+        watchdog.cancel()
+
 # 日K 查询字段（baostock 文档）
 _DAILY_FIELDS = 'date,code,open,high,low,close,volume,amount,turn'
 
 # 会话级错误特征（长连接断开后的报错文案/异常），命中则重登重试一次。
 # 永久错误（代码不支持、无数据）不在此列，绝不重试（2026-08-02 回填事故：
 # 会话中断后几千只股票全部「网络接收错误」，provider 缓存会话从不重登）
-_SESSION_ERROR_MARKERS = ('网络接收错误', '接收数据异常', 'Broken pipe', 'Connection aborted', 'RemoteDisconnected')
+_SESSION_ERROR_MARKERS = ('网络接收错误', '接收数据异常', 'Broken pipe', 'Connection aborted', 'RemoteDisconnected', 'Bad file descriptor')
 
 
 class BaostockKlineProvider(KlineProvider):
@@ -54,7 +83,7 @@ class BaostockKlineProvider(KlineProvider):
             return self._bs
         try:
             import baostock as bs
-            lg = bs.login()
+            lg = _with_socket_timeout(bs.login)
             if lg.error_code != '0':
                 self.last_error = f"baostock 登录失败: {lg.error_msg}"
                 logger.error(self.last_error)
@@ -112,11 +141,11 @@ class BaostockKlineProvider(KlineProvider):
             if bs is None:
                 return None
             try:
-                rs = bs.query_history_k_data_plus(
+                rs = _with_socket_timeout(lambda: bs.query_history_k_data_plus(
                     code, _DAILY_FIELDS,
                     start_date=start_date, end_date=end_date,
                     frequency='d', adjustflag='2',  # 前复权，与 tencent qfq 对齐
-                )
+                ))
             except Exception as e:
                 if attempt == 0 and self._is_session_error(str(e)):
                     logger.warning(f"baostock 会话失效（{e}），重登后重试 {symbol}")
