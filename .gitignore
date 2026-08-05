@@ -12,6 +12,10 @@ dist
 .playwright-mcp/
 .superpowers/
 /data/
+quantsys-v2/data/pipeline_runs.json
+
+# Claude 会话计划产物
+.claude/plans/
 
 # Syncthing 同步工具产物
 .stfolder/
