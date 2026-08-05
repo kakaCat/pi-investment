@@ -51,32 +51,10 @@ class TestTradeDates:
 
 
 class TestWindowCloses:
-    def test_range_closes_first_last(self, seeded):
-        """容忍配对：取 [d0, dn] 区间内最早/最晚收盘价"""
-        closes = seeded.get_range_closes(['TST001', 'TST002'], D0, D1)
-        assert closes['TST001'] == {'first_date': D0, 'first_close': 10.0,
-                                    'last_date': D1, 'last_close': 11.0}
-        assert closes['TST002'] == {'first_date': D0, 'first_close': 20.0,
-                                    'last_date': D1, 'last_close': 18.0}
+    def test_window_closes(self, seeded):
+        closes = seeded.get_window_closes(['TST001', 'TST002'], D0, D1)
+        assert closes['TST001'] == {'close_d0': 10.0, 'close_dn': 11.0}
+        assert closes['TST002'] == {'close_d0': 20.0, 'close_dn': 18.0}
 
-    def test_range_closes_missing_d0_uses_first_available(self, seeded):
-        """缺 d0 端点时回退到区间内最早可用收盘（回填稀疏场景）"""
-        repo = seeded
-        s = repo.session
-        s.add_all([
-            DailyKline(symbol='TST003', trade_date=D1, open=7, high=7, low=7, close=7.0, volume=1, amount=1),
-            DailyKline(symbol='TST003', trade_date=D2, open=8, high=8, low=8, close=8.0, volume=1, amount=1),
-        ])
-        s.commit()
-        try:
-            closes = repo.get_range_closes(['TST003'], D0, D2)
-            assert closes['TST003']['first_date'] == D1
-            assert closes['TST003']['first_close'] == 7.0
-            assert closes['TST003']['last_date'] == D2
-            assert closes['TST003']['last_close'] == 8.0
-        finally:
-            s.query(DailyKline).filter(DailyKline.symbol == 'TST003').delete()
-            s.commit()
-
-    def test_range_closes_empty_symbols(self, seeded):
-        assert seeded.get_range_closes([], D0, D1) == {}
+    def test_window_closes_empty_symbols(self, seeded):
+        assert seeded.get_window_closes([], D0, D1) == {}

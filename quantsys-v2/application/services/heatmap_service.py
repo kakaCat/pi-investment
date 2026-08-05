@@ -51,7 +51,7 @@ class HeatmapService:
             if not industries:
                 return {'success': True, 'data': self._empty_data(d0.isoformat(), window, scope_degraded)}
             universe_meta = self.repo.get_stocks_meta_by_industries(industries)
-            closes = self.repo.get_range_closes(sorted(universe_meta), d0, dn)
+            closes = self.repo.get_window_closes(sorted(universe_meta), d0, dn)
 
             signals_by_symbol = self._group_signals(signals)
             events_by_symbol = self._group_pool_events(pool_events, pool_names)
@@ -125,9 +125,8 @@ class HeatmapService:
         industries_map: dict[str, list[dict]] = {}
         for symbol, meta in universe_meta.items():
             c = closes.get(symbol, {})
-            c0, cn = c.get('first_close'), c.get('last_close')
-            # 区间内不足 2 个交易日（含完全无数据/停牌）→ 剔除
-            if not c0 or cn is None or c.get('first_date') == c.get('last_date'):
+            c0, cn = c.get('close_d0'), c.get('close_dn')
+            if not c0 or cn is None:
                 excluded += 1
                 continue
             stock = {
@@ -136,9 +135,6 @@ class HeatmapService:
                 'change_pct': round((cn - c0) / c0 * 100, 2),
                 'market_cap': meta['market_cap'] or 0,
                 'in_scope': symbol in in_scope,
-                # 实际用于计算的区间（容忍配对下可能窄于 d0→dn）
-                'start_date': c['first_date'].isoformat(),
-                'end_date': c['last_date'].isoformat(),
             }
             if symbol in signals_by_symbol:
                 stock['signals'] = signals_by_symbol[symbol]

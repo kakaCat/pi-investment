@@ -47,32 +47,22 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
         )
         return sorted(r[0] for r in rows)
 
-    def get_range_closes(self, symbols: list[str], d0: date, dn: date) -> dict[str, dict]:
-        """[d0, dn] 区间内每只股票的最早/最晚收盘价（容忍端点缺数据）：
-        {symbol: {'first_date','first_close','last_date','last_close'}}。
-        区间内不足 2 个交易日的由 service 层剔除。设计背景：回填稀疏期（如 2026-07 初
-        仅千只有数据）严格端点配对会导致全量剔除，见 spec §4.3 修订。"""
+    def get_window_closes(self, symbols: list[str], d0: date, dn: date) -> dict[str, dict]:
+        """每只股票在 d0 / dn 两日的收盘价：{symbol: {'close_d0': x, 'close_dn': y}}（缺日期的 key 不出现）"""
         if not symbols:
             return {}
         rows = (
             self.session.query(DailyKline.symbol, DailyKline.trade_date, DailyKline.close)
-            .filter(
-                DailyKline.symbol.in_(symbols),
-                DailyKline.trade_date >= d0,
-                DailyKline.trade_date <= dn,
-            )
-            .order_by(DailyKline.symbol, DailyKline.trade_date.asc())
+            .filter(DailyKline.symbol.in_(symbols), DailyKline.trade_date.in_([d0, dn]))
             .all()
         )
         result: dict[str, dict] = {}
         for symbol, trade_date, close in rows:
-            entry = result.get(symbol)
-            if entry is None:
-                result[symbol] = {'first_date': trade_date, 'first_close': close,
-                                  'last_date': trade_date, 'last_close': close}
+            entry = result.setdefault(symbol, {})
+            if trade_date == d0:
+                entry['close_d0'] = close
             else:
-                entry['last_date'] = trade_date
-                entry['last_close'] = close
+                entry['close_dn'] = close
         return result
 
     def get_stocks_meta(self, symbols: list[str]) -> dict[str, dict]:

@@ -88,9 +88,8 @@ GET /api/market/heatmap?date=2026-07-24&window=5
 ### 4.3 核心计算（HeatmapService）
 
 - **个股涨跌**：`close(D)` → `close(D 之后第 N 个交易日)`，数据源 `daily_klines` 表（单位契约：volume=股、amount=元，本功能只用 close）
-- **容忍配对（2026-08-02 修订）**：端点缺数据时回退为「区间内最早/最晚可用收盘价」，每股返回 `start_date`/`end_date` 标明实际计算区间；区间内不足 2 个交易日才剔除。背景：回填稀疏期（如 2026-07 初仅约千只有数据）严格端点配对会导致 20 日窗全量剔除
 - **partial**：若 D+N 超出已有最新 K 线，用最后可得交易日，置 `partial: true`，`actual_end_date` 如实返回
-- **停牌/缺数据**：区间内不足 2 个交易日的股票剔除出图，计入 `excluded_count`
+- **停牌/缺数据**：缺 D 或 D+N 收盘价的股票剔除出图，计入 `excluded_count`
 - **in_scope**（agent 相关，满足任一）：
   1. D 日前 30 天内有信号记录
   2. D 时点在任一动态池内（从池变更日志回放）

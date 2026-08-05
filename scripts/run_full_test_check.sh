@@ -28,7 +28,7 @@ if [ -x "$PYBIN" ]; then
   echo "--- quantsys-v2 pytest ---"
   cd "$ROOT/quantsys-v2"
   PYTEST_LOG=$(mktemp /tmp/pi-pytest-XXXXXX.log)
-  "$PYBIN" -m pytest tests/ --no-header -q > "$PYTEST_LOG" 2>&1
+  "$PYBIN" -m pytest tests/ --no-header -q --timeout=600 --timeout-method=thread -p no:cacheprovider > "$PYTEST_LOG" 2>&1
   PYTEST_RC=$?
   tail -5 "$PYTEST_LOG" | grep -E "passed|failed|error" | tail -2
   if [ "$PYTEST_RC" -ne 0 ]; then
