@@ -92,9 +92,9 @@ describe('opportunity_scan 功能特性描述', () => {
 
   it('说明动态权重优势', () => {
     const description = opportunityScanTool.description;
-    expect(description).toContain('自适应市场环境');
-    expect(description).toContain('自动降低失效因子权重');
-    expect(description).toContain('选股准确率提升');
+    expect(description).toContain('评分模式');
+    expect(description).toContain('波段交易模式');
+    expect(description).toContain('自动检测');
   });
 
   it('包含适用场景说明', () => {
