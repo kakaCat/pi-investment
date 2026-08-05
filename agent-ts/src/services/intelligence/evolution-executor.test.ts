@@ -63,10 +63,14 @@ const TEST_EVOLUTION_DIR = path.join(TEST_PI_DIR, 'evolution');
 
 describe('Evolution Executor', () => {
   beforeEach(async () => {
+    // 2026-08-05 契约变更：autoExecute 默认关闭（EVOLUTION_AUTO_EXECUTE 环境变量控制）。
+    // 本套件大部分用例测的是"执行路径"，故显式开启；默认关闭的行为由下方专门用例覆盖。
+    process.env.EVOLUTION_AUTO_EXECUTE = '1';
     await fs.mkdir(TEST_EVOLUTION_DIR, { recursive: true });
   });
 
   afterEach(async () => {
+    delete process.env.EVOLUTION_AUTO_EXECUTE;
     await fs.rm(TEST_PI_DIR, { recursive: true, force: true });
   });
 
@@ -251,6 +255,68 @@ describe('Evolution Executor', () => {
       expect(result.applied[0].status).toBe('skipped');
       expect(result.manualTasks).toHaveLength(1);
       expect(result.manualTasks[0].type).toBe('add_tool');
+    });
+
+    // ── EVOLUTION_AUTO_EXECUTE 环境变量契约（2026-08-05 新增，默认关）──
+    it('should default to manual tasks when EVOLUTION_AUTO_EXECUTE is unset', async () => {
+      delete process.env.EVOLUTION_AUTO_EXECUTE; // 覆盖套件级 beforeEach 的开启
+
+      const suggestions: OptimizationSuggestion[] = [
+        {
+          id: 'sug_006b',
+          type: 'update_experience',
+          priority: 'high',
+          description: '添加新经验模式',
+          reason: '默认关闭验证',
+          expectedImpact: '无',
+          data: {
+            pattern: {
+              pattern: '测试模式',
+              conditions: ['条件A'],
+              action: 'buy',
+              count: 10,
+              winRate: 0.7,
+              avgReturn: 0.05,
+            },
+          },
+        },
+      ];
+
+      const result = await executeOptimizationSuggestions(suggestions, TEST_PI_DIR);
+
+      expect(result.applied[0].status).toBe('skipped');
+      expect(result.manualTasks).toHaveLength(1);
+      expect(result.manualTasks[0].type).toBe('update_experience');
+    });
+
+    it('should not auto-execute for unrecognized EVOLUTION_AUTO_EXECUTE values', async () => {
+      process.env.EVOLUTION_AUTO_EXECUTE = 'yes'; // 仅 '1'/'true' 视为开启
+
+      const suggestions: OptimizationSuggestion[] = [
+        {
+          id: 'sug_006c',
+          type: 'update_experience',
+          priority: 'high',
+          description: '添加新经验模式',
+          reason: '非法开关值验证',
+          expectedImpact: '无',
+          data: {
+            pattern: {
+              pattern: '测试模式',
+              conditions: ['条件A'],
+              action: 'buy',
+              count: 10,
+              winRate: 0.7,
+              avgReturn: 0.05,
+            },
+          },
+        },
+      ];
+
+      const result = await executeOptimizationSuggestions(suggestions, TEST_PI_DIR);
+
+      expect(result.applied[0].status).toBe('skipped');
+      expect(result.manualTasks).toHaveLength(1);
     });
 
     it('should generate manual tasks for types requiring approval', async () => {

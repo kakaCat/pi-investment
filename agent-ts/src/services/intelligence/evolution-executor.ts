@@ -71,7 +71,10 @@ export interface ActuatorConfig {
 }
 
 const DEFAULT_CONFIG: ActuatorConfig = {
-  autoExecute: true,
+  // 2026-08-05 契约变更：autoExecute 默认关闭（原硬编码 true，第三方审计认定风险过高）。
+  // 生效优先级：调用方显式 config.autoExecute > EVOLUTION_AUTO_EXECUTE 环境变量 > 此默认值。
+  // 关闭时建议不丢失——统一走 generateManualTask 转人工任务（见 executeOptimizationSuggestions）。
+  autoExecute: false,
   requireApproval: [],
   maxRollbackHistory: 10,
   parameterRanges: {
@@ -80,6 +83,15 @@ const DEFAULT_CONFIG: ActuatorConfig = {
     risk_preference: { min: 0.1, max: 1.0 },
   },
 };
+
+/**
+ * 自动执行总开关：仅 EVOLUTION_AUTO_EXECUTE=1/true（大小写不敏感）才开，默认关。
+ * 调用时读取（非模块加载时），便于运行时与测试调整。
+ */
+export function isAutoExecuteEnabledByEnv(): boolean {
+  const v = (process.env.EVOLUTION_AUTO_EXECUTE ?? '').trim().toLowerCase();
+  return v === '1' || v === 'true';
+}
 
 let executionLogs: ExecutionLog[] = [];
 
@@ -91,7 +103,12 @@ export async function executeOptimizationSuggestions(
   piDir: string,
   config: Partial<ActuatorConfig> = {}
 ): Promise<ExecutionResult> {
-  const actuatorConfig = { ...DEFAULT_CONFIG, ...config };
+  // 显式 config.autoExecute 优先；未显式指定时由 EVOLUTION_AUTO_EXECUTE 环境变量决定（默认关）
+  const actuatorConfig = {
+    ...DEFAULT_CONFIG,
+    ...config,
+    autoExecute: config.autoExecute ?? isAutoExecuteEnabledByEnv(),
+  };
   const result: ExecutionResult = {
     applied: [],
     manualTasks: [],
@@ -141,6 +158,14 @@ export async function executeOptimizationSuggestions(
           message: `未知建议类型: ${suggestion.type}`,
         });
     }
+  }
+
+  // 安全降级可见性：autoExecute 关闭时建议不丢失，统一转人工任务，打一条汇总日志
+  if (!actuatorConfig.autoExecute && result.manualTasks.length > 0) {
+    console.log(
+      `[进化执行器] autoExecute 已关闭（EVOLUTION_AUTO_EXECUTE 未开启）：` +
+      `本次 ${result.manualTasks.length} 条建议转人工任务，未自动执行`,
+    );
   }
 
   await saveExecutionLogs(evolutionDir);

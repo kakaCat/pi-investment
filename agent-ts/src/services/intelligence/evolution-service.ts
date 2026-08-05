@@ -14,7 +14,7 @@ import { calculateGap, attributeGap } from './comparator.js';
 const V2_API_BASE = process.env.QUANTSYS_V2_API_URL ?? 'http://127.0.0.1:5001';
 import { determineOptimizerStrategy, generateOptimizationSuggestions } from './compensator.js';
 import { generateEvolutionReport, formatReportAsMarkdown } from './evolution-reporter.js';
-import { executeOptimizationSuggestions, saveExecutionResult } from './evolution-executor.js';
+import { executeOptimizationSuggestions, saveExecutionResult, isAutoExecuteEnabledByEnv } from './evolution-executor.js';
 import { analyzeSessionsAndCalculateEfficiency } from './session-analyzer.js';
 import {
   loadRecentEvolutions,
@@ -586,10 +586,14 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
 
   await fs.writeFile(reportPath, markdown, 'utf-8');
 
-  // ── 9. 执行优化建议（完全自动化）────────────────────────────────────────
+  // ── 9. 执行优化建议 ────────────────────────────────────────────────────
+  // 2026-08-05 契约变更：autoExecute 不再硬编码 true（第三方审计认定全自动改代码/提示词风险过高）。
+  // 仅 EVOLUTION_AUTO_EXECUTE=1/true 时自动执行；默认关闭——建议不丢失，
+  // 由 executor 统一转人工任务（manualTasks），属安全降级。
+  const autoExecute = isAutoExecuteEnabledByEnv();
   const executionResult = await executeOptimizationSuggestions(allSuggestions, piDir, {
-    autoExecute: true,
-    requireApproval: [], // 空数组 = 所有类型都自动执行
+    autoExecute,
+    requireApproval: [], // 空数组 = autoExecute 开启时所有类型都可自动执行
     maxRollbackHistory: 10,
     parameterRanges: {
       stop_loss_threshold: { min: 0.03, max: 0.15 },
@@ -597,6 +601,7 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
       risk_preference: { min: 0.1, max: 1.0 },
     },
   });
+  // 注：关闭时的"N 条建议转人工任务"汇总日志由 executor 统一打（覆盖所有调用方），此处不重复
   const executionResultPath = await saveExecutionResult(executionResult, evolutionDir);
 
   // ── 新增：保存本次进化历史 ────────────────────────────────────────────
