@@ -93,9 +93,11 @@ describe('claude-code-tool', () => {
       expect(result.content).toHaveLength(1);
       // Verify spawn was called (CLI check passed)
       expect(mockSpawn).toHaveBeenCalled();
+      // CLI 契约：claude -p --output-format json --bare <task>（claude-code --json 旧契约已废；
+      // CLI_PATH 默认 'claude'，模块加载时捕获）
       expect(mockSpawn).toHaveBeenCalledWith(
-        'claude-code',
-        expect.arrayContaining(['--json']),
+        'claude',
+        expect.arrayContaining(['-p', '--output-format', 'json']),
         expect.any(Object)
       );
     });
@@ -341,7 +343,8 @@ describe('claude-code-tool', () => {
       process.env.CLAUDE_CODE_CLI_PATH = originalPath;
     });
 
-    it('should write stdin input', async () => {
+    it('should pass task as CLI argument (stdin 已废弃)', async () => {
+      // 现行契约：task 作为 argv 最后参数传递，stdio stdin=ignore，不再写 stdin
       const executePromise = (claudeCodeTool.execute as any)('test-16', {
         task: 'test task',
         context: 'input data',
@@ -352,8 +355,8 @@ describe('claude-code-tool', () => {
       }, 10);
 
       await executePromise;
-      expect(mockProcess.stdin.write).toHaveBeenCalled();
-      expect(mockProcess.stdin.end).toHaveBeenCalled();
+      const spawnArgs = mockSpawn.mock.calls[0][1] as string[];
+      expect(spawnArgs[spawnArgs.length - 1]).toContain('test task');
     });
   });
 });

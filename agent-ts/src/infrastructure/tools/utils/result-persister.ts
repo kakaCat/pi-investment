@@ -124,7 +124,7 @@ export class ToolResultPersister {
    * 清理过期的结果文件
    */
   async cleanup(maxAge?: number): Promise<void> {
-    const maxAgeToUse = maxAge || this.maxAgeMs;
+    const maxAgeToUse = maxAge ?? this.maxAgeMs;  // 0 是合法值（立即全清），不能用 || 回退
     const now = Date.now();
     const baseDir = this.getBaseDir();
 
@@ -138,7 +138,7 @@ export class ToolResultPersister {
         const stats = await fs.stat(filePath);
         const age = now - stats.mtimeMs;
 
-        if (age > maxAgeToUse) {
+        if (age >= maxAgeToUse) {  // >= 否则 cleanup(0) 在同毫秒创建的文件上 age=0 不删
           await fs.unlink(filePath);
         }
       }
