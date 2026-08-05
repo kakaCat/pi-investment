@@ -1,4 +1,9 @@
-"""线段识别器 - 识别线段"""
+"""线段识别器 - 识别线段
+
+⚠️ DEPRECATED（2026-08-05）：该"3笔交替"简化规则已证退化——笔天然交替，
+整年笔序列连成 1-2 个"线段"，致中枢全灭/买卖点失真。
+流水线已切换笔中枢（bi_zhongshu_identifier），本文件仅为历史参考保留，勿用于新代码。
+"""
 from typing import List
 from .types import Bi, Segment
 

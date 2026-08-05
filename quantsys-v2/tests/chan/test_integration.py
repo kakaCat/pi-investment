@@ -96,7 +96,7 @@ class TestPhase2Integration:
         return df
 
     def test_phase2_pipeline(self, sample_klines):
-        """测试 Phase 2 完整流水线（到买卖点检测）"""
+        """测试 Phase 2 完整流水线（笔中枢 + 买卖点检测，2026-08-05 重构版）"""
         # Phase 1
         processor = KLineProcessor()
         processed_klines = processor.process(sample_klines)
@@ -105,28 +105,12 @@ class TestPhase2Integration:
         fenxings = bi_identifier.identify_fenxings(processed_klines)
         bis = bi_identifier.identify_bis(fenxings, processed_klines)
 
-        segment_identifier = SegmentIdentifier()
-        segments = segment_identifier.identify_segments(bis)
-
-        # Phase 2
-        from domain.chan.zhongshu_identifier import ZhongShuIdentifier
-        from domain.chan.divergence_detector import DivergenceDetector
+        # Phase 2（笔中枢版）
+        from domain.chan.bi_zhongshu_identifier import BiZhongShuIdentifier
         from domain.chan.buypoint_detector import BuyPointDetector
 
-        zhongshu_identifier = ZhongShuIdentifier()
-        zhongshus = zhongshu_identifier.identify_zhongshus(segments)
-
-        divergence_detector = DivergenceDetector()
-        divergences = {}
-        for i in range(1, len(segments)):
-            if i > 0 and segments[i].direction == segments[i-1].direction:
-                divergences[i] = divergence_detector.detect_divergence(
-                    segments[i-1], segments[i], processed_klines,
-                    'bearish' if segments[i].direction == 'down' else 'bullish'
-                )
-
-        buypoint_detector = BuyPointDetector()
-        buypoints = buypoint_detector.detect_buypoints(segments, zhongshus, divergences, processed_klines)
+        zhongshus = BiZhongShuIdentifier().identify(bis)
+        buypoints = BuyPointDetector().detect(bis, zhongshus, processed_klines)
 
         # 验证
         assert len(zhongshus) >= 0

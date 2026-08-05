@@ -147,3 +147,35 @@ class TestChanServiceKnowledge:
         call_args = service.analyzer.analyze.call_args
         enable = call_args[0][2] if len(call_args[0]) > 2 else call_args[1].get('enable_buypoints')
         assert enable is not None and '1买' in enable
+
+    @patch('application.services.chan_service.AgentKnowledgeORMRepository')
+    @patch('application.services.chan_service.KlineORMRepository')
+    def test_format_bi_zhongshu(self, mock_repo_cls, mock_know_cls):
+        """BiZhongShu 格式化：high=ZG, low=ZD, type='笔中枢', bi_count；segments 契约置空"""
+        from unittest.mock import MagicMock
+        from domain.chan.types import BiZhongShu, Bi, FenXing
+        from datetime import datetime as _dt
+
+        mock_repo_cls.return_value.get_daily_klines.return_value = _make_klines()
+        mock_know_cls.return_value.get_by_domain.return_value = []
+
+        fx = lambda i, p, t: FenXing(type=t, index=i, price=p, date=_dt(2026, 1, 1), klines=[])
+        bi = Bi(direction='up', start_fenxing=fx(0, 9.0, 'bottom'),
+                end_fenxing=fx(5, 10.0, 'top'), high=10.0, low=9.0, length=6, price_change=0.1)
+        zs = BiZhongShu(zg=10.5, zd=9.5, gg=11.0, dd=9.0,
+                        start_bi_idx=0, end_bi_idx=2, bis=[bi, bi, bi])
+
+        result_mock = MagicMock()
+        result_mock.trend_type, result_mock.bis, result_mock.segments = '盘整', [], []
+        result_mock.zhongshus, result_mock.buypoints, result_mock.klines = [zs], [], []
+
+        service = ChanService()
+        service.analyzer = MagicMock()
+        service.analyzer.analyze.return_value = result_mock
+
+        out = service.analyze('600519.SH')
+        assert out['segments'] == []
+        z = out['zhongshus'][0]
+        assert z['high'] == 10.5 and z['low'] == 9.5
+        assert z['type'] == '笔中枢'
+        assert z['bi_count'] == 3

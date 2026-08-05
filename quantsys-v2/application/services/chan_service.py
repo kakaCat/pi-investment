@@ -178,15 +178,15 @@ class ChanService:
             "bi_count": len(segment.bis)
         }
 
-    def _format_zhongshu(self, zhongshu: ZhongShu) -> Dict[str, Any]:
-        """格式化中枢数据"""
+    def _format_zhongshu(self, zhongshu) -> Dict[str, Any]:
+        """格式化笔中枢（BiZhongShu）"""
         return {
-            "high": float(zhongshu.high),
-            "low": float(zhongshu.low),
+            "high": float(zhongshu.zg),
+            "low": float(zhongshu.zd),
             "start_index": zhongshu.start_index,
             "end_index": zhongshu.end_index,
             "type": zhongshu.type,
-            "segment_count": len(zhongshu.segments)
+            "bi_count": zhongshu.bi_count
         }
 
     def _format_buypoint(self, buypoint: BuyPoint) -> Dict[str, Any]:
