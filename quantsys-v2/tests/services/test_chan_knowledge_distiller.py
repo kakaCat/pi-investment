@@ -99,3 +99,25 @@ class TestDistiller:
         assert result['strategies_distilled'] == 1
         assert upserts[0]['validation_count'] == 2
         assert upserts[0]['success_count'] == 1
+
+    @patch('application.services.chan_knowledge_distiller.AgentKnowledgeORMRepository')
+    @patch('application.services.chan_knowledge_distiller.KlineORMRepository')
+    @patch('application.services.chan_knowledge_distiller.SignalORMRepository')
+    def test_sell_signal_wins_when_price_falls(self, mock_sig, mock_kline, mock_know):
+        """sell 信号：跌=胜（与 verify_judgments 对称）"""
+        base = date(2026, 6, 1)
+        mock_sig.return_value.get_signals_by_date_range.return_value = [
+            {'symbol': '600519', 'signal_date': base, 'strategy_id': 'chan_1卖', 'action': 'sell'},
+            {'symbol': '000858', 'signal_date': base, 'strategy_id': 'chan_1卖', 'action': 'sell'},
+        ]
+        # 600519 跌（胜）、000858 涨（负）
+        mock_kline.return_value.get_daily_klines.side_effect = [
+            _klines(100.0, 90.0), _klines(100.0, 110.0),
+        ]
+        upserts = []
+        mock_know.return_value.upsert_knowledge.side_effect = lambda **kw: upserts.append(kw)
+
+        result = ChanKnowledgeDistiller(window_days=20, lookback_days=90).distill()
+        assert result['strategies_distilled'] == 1
+        assert upserts[0]['validation_count'] == 2
+        assert upserts[0]['success_count'] == 1

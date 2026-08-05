@@ -17,8 +17,11 @@ from adapters.outbound.repositories.signal_repository import SignalORMRepository
 
 logger = structlog.getLogger(__name__)
 
-# 只落买点（卖点 detector 未实现，见 spec YAGNI）
-_BUY_TYPES = {'1买', '2买', '3买'}
+# 全部 6 类买卖点（笔中枢重构后卖点已对称实现）
+_SIGNAL_TYPE_ACTION = {
+    '1买': 'buy', '2买': 'buy', '3买': 'buy',
+    '1卖': 'sell', '2卖': 'sell', '3卖': 'sell',
+}
 
 
 class ChanScanService:
@@ -69,13 +72,14 @@ class ChanScanService:
                 latest_date = klines[-1]['date']
 
                 for bp in result.get('buypoints') or []:
-                    if bp['type'] not in _BUY_TYPES or bp['date'] != latest_date:
+                    action = _SIGNAL_TYPE_ACTION.get(bp['type'])
+                    if not action or bp['date'] != latest_date:
                         continue
                     signal_id = self._signal_repo.create_signal({
                         'signal_date': bp['date'],
                         'symbol': symbol,
                         'name': name,
-                        'action': 'buy',
+                        'action': action,
                         'strategy_id': f"chan_{bp['type']}",
                         'price': bp['price'],
                         'confidence': round(bp['confidence'] * 100, 1),

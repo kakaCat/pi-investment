@@ -77,7 +77,7 @@ class ChanKnowledgeDistiller:
         all_signals = self._signal_repo.get_signals_by_date_range(start, end)
         chan_signals = [s for s in all_signals
                         if str(_sig_get(s, 'strategy_id') or '').startswith('chan_')
-                        and _sig_get(s, 'action') == 'buy']
+                        and _sig_get(s, 'action') in ('buy', 'sell')]
 
         stats: Dict[str, Dict[str, Any]] = {}
         excluded = 0
@@ -89,9 +89,11 @@ class ChanKnowledgeDistiller:
             if ret is None:
                 excluded += 1
                 continue
+            action = _sig_get(s, 'action')
+            win = (ret > 0) if action == 'buy' else (ret < 0)  # sell & 跌 = 胜
             st = stats.setdefault(_sig_get(s, 'strategy_id'), {'wins': 0, 'returns': []})
             st['returns'].append(ret)
-            if ret > 0:  # buy & 涨 = 胜（与 verify_judgments 一致；0 不计胜）
+            if win:
                 st['wins'] += 1
 
         for strategy_id, st in stats.items():

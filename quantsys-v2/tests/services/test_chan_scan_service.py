@@ -99,3 +99,20 @@ class TestPoolSymbols:
         symbols = ChanScanService()._pool_symbols()
         codes = [s['symbol'] for s in symbols]
         assert codes == ['002475', '600519', '300059']
+
+    @patch('application.services.chan_scan_service.SignalORMRepository')
+    @patch('application.services.chan_scan_service.StockPoolORMRepository')
+    @patch('application.services.chan_scan_service.ChanService')
+    def test_sell_buypoint_written_as_sell(self, mock_chan, mock_pool, mock_sig):
+        """卖点落库：action='sell'，strategy_id='chan_1卖'"""
+        pools = _pools()[:1]
+        pools[0]['members'] = [{'symbol': '600519.SH', 'name': '贵州茅台'}]
+        mock_pool.return_value.get_all.return_value = pools
+        mock_chan.return_value.analyze.return_value = _analyze_result(bp_type='1卖')
+        mock_sig.return_value.create_signal.return_value = 102
+
+        result = ChanScanService().scan()
+        assert result['signals_written'] == 1
+        call = mock_sig.return_value.create_signal.call_args[0][0]
+        assert call['action'] == 'sell'
+        assert call['strategy_id'] == 'chan_1卖'
