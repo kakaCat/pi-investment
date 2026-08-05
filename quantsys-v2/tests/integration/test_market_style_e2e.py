@@ -9,6 +9,7 @@ from datetime import date, datetime, timedelta
 from adapters.inbound.api.server import app
 from application.services.market_style_detector import MarketStyleDetector
 from application.services.strategy_weight_adjuster import StrategyWeightAdjuster
+from adapters.outbound.repositories import MarketStyleORMRepository
 
 
 class TestMarketStyleE2E:
@@ -78,23 +79,30 @@ class TestMarketStyleE2E:
 
     def test_market_style_detection_e2e(self, test_db_connection, test_kline_data):
         """测试市场风格检测完整流程"""
-        # 1. 执行检测
+        # 1. 执行检测（当前契约：detect_market_style，风格为 value/growth/cycle）
         detector = MarketStyleDetector()
-        result = detector.detect(date.today())
+        result = detector.detect_market_style()
 
-        assert result['style'] in ['momentum', 'oscillation', 'low_volatility', 'value', 'unknown']
+        assert result['style'] in ['value', 'growth', 'cycle']
         assert 0 <= result['confidence'] <= 1
-        assert 'metrics' in result
+        assert 'indicators' in result
         assert 'scores' in result
 
-        # 2. 保存到数据库
-        detector.save_to_db(result)
+        # 2. 保存到数据库（当前契约：由 MarketStyleORMRepository 持久化）
+        repo = MarketStyleORMRepository()
+        saved_ok = repo.save_market_style(
+            trade_date=date.today(),
+            style=result['style'],
+            confidence=result['confidence'],
+            metrics=result.get('indicators')
+        )
+        assert saved_ok is True
 
         # 3. 从数据库读取
-        saved = detector.market_style_repo.get_latest()
+        saved = repo.get_market_style(date.today())
         assert saved is not None
         assert saved['style'] == result['style']
-        assert saved['confidence'] == result['confidence']
+        assert float(saved['confidence']) == result['confidence']
 
         # 4. 查询策略权重
         adjuster = StrategyWeightAdjuster()
@@ -110,7 +118,7 @@ class TestMarketStyleE2E:
 
     def test_api_integration(self, client, test_db_connection, test_kline_data):
         """测试 API 集成"""
-        # 1. 获取市场风格
+        # 获取市场风格（当前契约：indicators 字段，风格为 value/growth/cycle）
         response = client.get('/api/market/style')
         assert response.status_code == 200
 
@@ -120,43 +128,37 @@ class TestMarketStyleE2E:
         style_data = data['data']
         assert 'style' in style_data
         assert 'confidence' in style_data
-        assert 'metrics' in style_data
-        # Note: 'scores' may not be present if detection fails
-        # assert 'scores' in style_data
+        assert 'indicators' in style_data
 
         market_style = style_data['style']
-        assert market_style in ['momentum', 'oscillation', 'low_volatility', 'value', 'unknown']
+        assert market_style in ['value', 'growth', 'cycle']
 
-        # 2. 查询策略权重（提供 strategy_type 避免数据库查询）
-        response = client.get(f'/api/strategies/test_strategy/weight?market_style={market_style}&strategy_type=trend_following')
-        assert response.status_code == 200
-
-        data = response.get_json()
-        assert data['success'] is True
-
-        weight_data = data['data']
-        # API returns camelCase keys
-        assert 'weight' in weight_data
-        assert 'strategyName' in weight_data
-        assert 'marketStyle' in weight_data
-        assert 'strategyType' in weight_data
+        # 注：GET /api/strategies/<name>/weight 端点已从代码库移除
+        # （Flask/FastAPI 路由均无），权重调整能力经 StrategyWeightAdjuster
+        # 服务覆盖（见 test_market_style_detection_e2e 第 4 步）
 
     def test_performance_requirements(self, test_db_connection, test_kline_data):
         """测试性能要求"""
         detector = MarketStyleDetector()
+        repo = MarketStyleORMRepository()
 
         # 检测时间应 < 5 秒
         start = time.time()
-        result = detector.detect(date.today())
+        result = detector.detect_market_style()
         elapsed = time.time() - start
 
         assert elapsed < 5.0, f"检测时间 {elapsed:.2f}s 超过 5 秒限制"
 
         # API 响应时间应 < 200ms（缓存命中）
-        detector.save_to_db(result)
+        repo.save_market_style(
+            trade_date=date.today(),
+            style=result['style'],
+            confidence=result['confidence'],
+            metrics=result.get('indicators')
+        )
 
         start = time.time()
-        cached = detector.market_style_repo.get_latest()
+        cached = repo.get_market_style(date.today())
         elapsed = time.time() - start
 
         assert elapsed < 0.2, f"API 响应时间 {elapsed:.3f}s 超过 200ms 限制"
