@@ -11,7 +11,7 @@ from adapters.outbound.repositories.models.strategy_execution import (
 
 @pytest.fixture
 def mock_signal_repo():
-    with patch('services.strategy_execution_service.SignalRepository') as mock:
+    with patch('application.services.strategy_execution_service.SignalORMRepository') as mock:
         mock_instance = MagicMock()
         mock_instance.create_signal.return_value = 123  # Mock signal ID
         mock.return_value = mock_instance
@@ -25,7 +25,7 @@ def service(mock_signal_repo):
 
 @pytest.fixture
 def mock_strategy_engine():
-    with patch('services.strategy_execution_service.StrategyEngine') as mock:
+    with patch('application.services.strategy_execution_service.StrategyEngine') as mock:
         yield mock
 
 

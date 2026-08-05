@@ -12,6 +12,10 @@ from domain.quantlib.engine.strategy_factory import StrategyFactory
 from adapters.outbound.repositories import SignalORMRepository
 from adapters.outbound.repositories import KlineORMRepository
 from adapters.outbound.repositories import StockORMRepository
+from adapters.outbound.repositories.models.strategy_execution import (
+    StrategyExecuteRequest,
+    StrategyBatchExecuteRequest,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -370,7 +374,7 @@ class StrategyExecutionService:
         orders = []
 
         # Batch execute strategies
-        batch_request = dict(
+        batch_request = StrategyBatchExecuteRequest(
             symbols=request.symbols,
             strategy_name=request.strategy_name,
             persist=True  # Pipeline mode forces persistence
@@ -419,7 +423,7 @@ class StrategyExecutionService:
     def _execute_single_for_batch(self, symbol: str, strategy_name: str,
                                    date: str, persist: bool) -> Dict:
         """Execute single stock for batch mode (internal method)"""
-        request = dict(
+        request = StrategyExecuteRequest(
             symbol=symbol,
             strategy_name=strategy_name,
             date=date,
