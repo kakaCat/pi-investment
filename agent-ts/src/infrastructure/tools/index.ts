@@ -174,6 +174,7 @@ import { screeningTool } from "./screening/screening-tool.js";
 import { sectorAnalysisTool } from "./analysis/sector-analysis-tool.js";
 import { benchmarkCompareTool } from "./analysis/benchmark-compare-tool.js";
 import { chanAnalyzeTool } from "./analysis/chan-analyze-tool.js";
+import { evolutionLeaderboardTool } from "./performance/evolution-leaderboard-tool.js";
 import { watchAlertTool } from "./monitor/watch-alert-tool.js";
 import { watchManageTool } from "./monitor/watch-manage-tool.js";
 import { tradeVerifyTool } from "./trade/trade-verify-tool.js";
@@ -299,6 +300,7 @@ export const allCustomTools = [
   sectorAnalysisTool,             // sector_analysis - 行业聚合分析
   benchmarkCompareTool,           // benchmark_compare - 基准比较
   chanAnalyzeTool,                // chan_analyze - 缠论分析（走势/买卖点+历史胜率）
+  evolutionLeaderboardTool,       // evolution_leaderboard - 双侧捕获适应度排行（行为进化 P1）
 
   // ===== 监控与预警工具（从 quant_cli 拆分）=====
   watchAlertTool,                 // watch_price_alert - 价格预警
