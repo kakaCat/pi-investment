@@ -1,9 +1,81 @@
 /**
  * QuantV2 Client Tests - Factor Analysis & Dividend Data
+ *
+ * 2026-08-05：mock 全局 fetch（原直连 127.0.0.1:5001，全量跑白等 60s+）。
+ * 断言目标 = 客户端的请求构造与响应解析，罐头响应按 v2 信封 {success, data}。
  */
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { analyzeFactors, getDividends } from './quant-v2-client.js';
 import type { FactorAnalyzeParams } from './types.js';
+
+const realFetch = globalThis.fetch;
+
+function mockV2Fetch() {
+  globalThis.fetch = jest.fn(async (input: any, init?: any) => {
+    const url = String(input);
+    let body: any;
+    if (url.includes('/api/portfolio/factor-analyze')) {
+      // 按请求体的因子列表回显（测客户端解析，不测后端计算）
+      let requested: string[] = ['rsi'];
+      try {
+        const payload = JSON.parse(init?.body ?? '{}');
+        if (Array.isArray(payload.factors) && payload.factors.length > 0) {
+          requested = payload.factors;
+        }
+      } catch { /* 保持默认 */ }
+      body = {
+        success: true,
+        data: {
+          success: true,
+          factors: requested.map((name: string) => ({
+            name,
+            coverage: 0.95,
+            data_points: 500,
+            ic_daily: 0.03,
+            ic_weekly: 0.05,
+            ic_monthly: 0.08,
+            stability: 0.7,
+            decay_curve: [0.03, 0.05],
+          })),
+          method: 'fallback',
+        },
+      };
+    } else if (url.includes('/api/stock/') && url.includes('/dividends')) {
+      body = {
+        success: true,
+        symbol: '600519.SH',
+        dividends: [{ year: 2025, dps: 30.0, yield: 1.7 }],
+      };
+    } else if (url.includes('/api/dividends/screen')) {
+      body = {
+        success: true,
+        stocks: [{ symbol: '600519.SH', yield: 3.5 }],
+      };
+    } else if (url.includes('/api/dividends/calendar')) {
+      body = {
+        success: true,
+        events: [{ symbol: '600519.SH', date: '2026-06-15' }],
+        event_type: '除权除息日',
+      };
+    } else {
+      body = { success: true, data: {} };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => body,
+      text: async () => JSON.stringify(body),
+    } as Response;
+  }) as any;
+}
+
+beforeEach(() => {
+  mockV2Fetch();
+});
+
+afterEach(() => {
+  globalThis.fetch = realFetch;
+});
 
 describe('QuantV2Client - Factor Analysis', () => {
   describe('analyzeFactors', () => {

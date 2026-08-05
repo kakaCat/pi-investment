@@ -1,12 +1,43 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { runWeeklyEvolution } from './evolution-service.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+// 服务直连 127.0.0.1:5001（loadPortfolio/loadTrades 走全局 fetch），
+// 单元测试 mock 全局 fetch 为空账户/空交易，消除对生产后端的依赖
+const realFetch = globalThis.fetch;
+
+function mockV2Fetch() {
+  globalThis.fetch = jest.fn(async (input: any) => {
+    const url = String(input);
+    const body = url.includes('/api/simulation/accounts/')
+      ? { success: true, data: { positions: [] } }
+      : {
+          success: true,
+          data: [{
+            trade_date: '2026-07-28',
+            action: 'buy',
+            symbol: '600519',
+            name: '贵州茅台',
+            quantity: 100,
+            price: 1800,
+            amount: 180000,
+            notes: '测试交易',
+          }],
+        };
+    return { json: async () => body } as Response;
+  }) as any;
+}
+
 describe('EvolutionService - runWeeklyEvolution', () => {
   const evolutionDir = path.join(process.cwd(), '.pi-invest', 'evolution');
 
+  beforeEach(() => {
+    mockV2Fetch();
+  });
+
   afterEach(async () => {
+    globalThis.fetch = realFetch;
     // Clean up test files
     try {
       const files = await fs.readdir(evolutionDir);
@@ -40,7 +71,7 @@ describe('EvolutionService - runWeeklyEvolution', () => {
 
     // Verify filename format: evolution-YYYY-MM-DD.md
     const filename = path.basename(result.reportPath);
-    expect(filename).toMatch(/^evolution-\d{4}-\d{2}-\d{2}\.md$/);
+    expect(filename).toMatch(/^evolution-\d{4}-\d{2}-\d{2}(-\d{6})?\.md$/);  // 现行契约带可选 HHmmss 后缀（防同日覆盖）
 
     // Verify file exists
     const exists = await fs.access(result.reportPath).then(() => true).catch(() => false);
@@ -85,7 +116,7 @@ describe('EvolutionService - runWeeklyEvolution', () => {
 
     const content = await fs.readFile(result.reportPath, 'utf-8');
     expect(content).toContain('# 进化报告');
-    expect(content).toContain('## 📊 本月表现');
-    expect(content).toContain('## 🔍 减法器归因分析');
+    expect(content).toContain('## 📈 进化历史趋势');  // 报告结构改版后的固定章节
+    expect(content).toContain('## 🔍 数据完整性评估');
   });
 });
