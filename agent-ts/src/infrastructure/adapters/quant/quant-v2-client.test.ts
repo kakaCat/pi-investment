@@ -5,7 +5,7 @@
  * 断言目标 = 客户端的请求构造与响应解析，罐头响应按 v2 信封 {success, data}。
  */
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { analyzeFactors, getDividends } from './quant-v2-client.js';
+import { analyzeFactors, getDividends, runQuantV2 } from './quant-v2-client.js';
 import type { FactorAnalyzeParams } from './types.js';
 
 const realFetch = globalThis.fetch;
@@ -218,5 +218,106 @@ describe('QuantV2Client - Factor Analysis', () => {
         getDividends({ mode: 'calendar' })
       ).rejects.toThrow('calendar 模式必须提供 start_date 和 end_date 参数');
     });
+  });
+});
+
+/**
+ * 瞬时故障有界重试（2026-08-05 新增）
+ *
+ * 契约：默认最多 2 次重试（共 3 次尝试），指数退避；
+ * 仅瞬时故障重试（网络错误 / HTTP 502/503/504 / 超时），
+ * 4xx 与业务错误不重试；QUANT_CLIENT_RETRY=0 可关闭。
+ * 测试将退避基数压到 1ms（QUANT_CLIENT_RETRY_DELAY_MS）避免真实等待。
+ */
+describe('QuantV2Client - transient retry', () => {
+  const RETRY_ENV = 'QUANT_CLIENT_RETRY';
+  const DELAY_ENV = 'QUANT_CLIENT_RETRY_DELAY_MS';
+  let savedRetry: string | undefined;
+  let savedDelay: string | undefined;
+
+  function httpResponse(status: number, body: any = {}): Response {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      statusText: `HTTP_${status}`,
+      json: async () => body,
+      text: async () => JSON.stringify(body),
+    } as Response;
+  }
+
+  beforeEach(() => {
+    savedRetry = process.env[RETRY_ENV];
+    savedDelay = process.env[DELAY_ENV];
+    delete process.env[RETRY_ENV];
+    process.env[DELAY_ENV] = '1';
+  });
+
+  afterEach(() => {
+    if (savedRetry === undefined) delete process.env[RETRY_ENV];
+    else process.env[RETRY_ENV] = savedRetry;
+    if (savedDelay === undefined) delete process.env[DELAY_ENV];
+    else process.env[DELAY_ENV] = savedDelay;
+  });
+
+  it('瞬时 503 后成功 → 自动重试并返回结果', async () => {
+    let calls = 0;
+    globalThis.fetch = jest.fn(async () => {
+      calls++;
+      if (calls === 1) return httpResponse(503, { error: 'bad gateway' });
+      return httpResponse(200, { success: true, data: { stocks: [] } });
+    }) as any;
+
+    const result = await runQuantV2('stock.list');
+
+    expect(result.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it('持续 503 → 重试 2 次耗尽后报错（共 3 次尝试）', async () => {
+    let calls = 0;
+    globalThis.fetch = jest.fn(async () => {
+      calls++;
+      return httpResponse(503, { error: 'unavailable' });
+    }) as any;
+
+    await expect(runQuantV2('stock.list')).rejects.toThrow('HTTP 503');
+    expect(calls).toBe(3);
+  });
+
+  it('网络错误后成功 → 自动重试并返回结果', async () => {
+    let calls = 0;
+    globalThis.fetch = jest.fn(async () => {
+      calls++;
+      if (calls === 1) throw new TypeError('fetch failed');
+      return httpResponse(200, { success: true, data: { stocks: [] } });
+    }) as any;
+
+    const result = await runQuantV2('stock.list');
+
+    expect(result.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it('4xx → 不重试，立即报错', async () => {
+    let calls = 0;
+    globalThis.fetch = jest.fn(async () => {
+      calls++;
+      return httpResponse(400, { error: 'bad request' });
+    }) as any;
+
+    await expect(runQuantV2('stock.list')).rejects.toThrow('HTTP 400');
+    expect(calls).toBe(1);
+  });
+
+  it('QUANT_CLIENT_RETRY=0 → 503 不重试直接报错', async () => {
+    process.env[RETRY_ENV] = '0';
+    let calls = 0;
+    globalThis.fetch = jest.fn(async () => {
+      calls++;
+      return httpResponse(503, { error: 'unavailable' });
+    }) as any;
+
+    await expect(runQuantV2('stock.list')).rejects.toThrow('HTTP 503');
+    expect(calls).toBe(1);
   });
 });

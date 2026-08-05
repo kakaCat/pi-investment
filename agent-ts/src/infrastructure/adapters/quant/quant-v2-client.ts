@@ -52,6 +52,100 @@ const V2_TIMEOUT_MS = parseInt(
   10
 );
 
+// ─── 瞬时故障重试策略 ────────────────────────────────────
+//
+// 后端数据源常被 IP 封禁/抖动，瞬时故障值得有界重试：
+//   - fetch 抛网络错误（连接重置、DNS、fetch failed 等）
+//   - HTTP 502 / 503 / 504（网关/服务抖动）
+//   - 本层超时（AbortSignal.timeout 触发）
+// 不重试：4xx、其他 HTTP 错误、业务错误（{success:false}）、
+// 调用方自带 signal 的外部取消。
+//
+// 环境变量（调用时读取，便于测试与运行时调整）：
+//   QUANT_CLIENT_RETRY=0|false     → 完全关闭重试
+//   QUANT_CLIENT_RETRY_MAX=N       → 最大重试次数（默认 2，即共 3 次尝试）
+//   QUANT_CLIENT_RETRY_DELAY_MS    → 退避基数（默认 500ms，逐次 ×3：500→1500）
+
+const RETRYABLE_HTTP_STATUS = new Set([502, 503, 504]);
+
+interface RetryConfig {
+  enabled: boolean;
+  maxRetries: number;
+  baseDelayMs: number;
+}
+
+function getRetryConfig(): RetryConfig {
+  const rawSwitch = (process.env.QUANT_CLIENT_RETRY ?? "").trim().toLowerCase();
+  const enabled = rawSwitch !== "0" && rawSwitch !== "false";
+
+  const rawMax = parseInt(process.env.QUANT_CLIENT_RETRY_MAX ?? "", 10);
+  const maxRetries = Number.isFinite(rawMax) ? Math.max(0, rawMax) : 2;
+
+  const rawDelay = parseInt(process.env.QUANT_CLIENT_RETRY_DELAY_MS ?? "", 10);
+  const baseDelayMs = Number.isFinite(rawDelay) ? Math.max(0, rawDelay) : 500;
+
+  return { enabled, maxRetries, baseDelayMs };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * 带有界重试的 fetch 包装：仅对瞬时故障重试，指数退避，重试记日志。
+ *
+ * signal 语义：
+ * - 调用方传入 signal → 所有尝试共享该 signal，外部取消立即终止（不重试）
+ * - 未传入 → 每次尝试独立创建 AbortSignal.timeout（上次超时触发的 signal 不可复用）
+ */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  opts: { callerSignal?: AbortSignal; timeoutMs: number; label?: string },
+): Promise<Response> {
+  const { enabled, maxRetries, baseDelayMs } = getRetryConfig();
+  let attempt = 0;
+
+  for (;;) {
+    const signal = opts.callerSignal ?? AbortSignal.timeout(opts.timeoutMs);
+
+    let response: Response | undefined;
+    let networkError: unknown;
+    try {
+      response = await fetch(url, { ...init, signal });
+    } catch (error) {
+      networkError = error;
+    }
+
+    let retryable = false;
+    let reason = "";
+    if (networkError !== undefined) {
+      if (opts.callerSignal?.aborted) {
+        // 外部主动取消 —— 不是瞬时故障，直接抛出
+        throw networkError;
+      }
+      // 网络错误或本层超时
+      retryable = true;
+      reason = networkError instanceof Error ? networkError.message : String(networkError);
+    } else if (response && RETRYABLE_HTTP_STATUS.has(response.status)) {
+      retryable = true;
+      reason = `HTTP ${response.status}`;
+    }
+
+    if (!retryable || !enabled || attempt >= maxRetries) {
+      if (networkError !== undefined) throw networkError;
+      return response!;
+    }
+
+    attempt++;
+    const delayMs = baseDelayMs * Math.pow(3, attempt - 1);
+    console.warn(
+      `[quant-v2-client] ${opts.label ?? url} 瞬时故障(${reason})，${delayMs}ms 后重试 (${attempt}/${maxRetries})`,
+    );
+    await sleep(delayMs);
+  }
+}
+
 // ─── 命令 → 端点映射表 ──────────────────────────────────
 
 /**
@@ -454,12 +548,11 @@ export async function runQuantV2<T = unknown>(
   const { url, body } = buildRequest(route, params);
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       method: route.method,
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
-      signal: opts?.signal ?? AbortSignal.timeout(V2_TIMEOUT_MS),
-    });
+    }, { callerSignal: opts?.signal, timeoutMs: V2_TIMEOUT_MS, label: command });
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -589,12 +682,11 @@ async function fetchV2<T>(
   } = {},
 ): Promise<T> {
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       method: options.method ?? 'GET',
       headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
       body: options.body ? JSON.stringify(options.body) : undefined,
-      signal: options.signal ?? AbortSignal.timeout(V2_TIMEOUT_MS),
-    });
+    }, { callerSignal: options.signal, timeoutMs: V2_TIMEOUT_MS });
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
