@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { WakeAdapter, buildPromptFromEvent } from "./wake-adapter.js";
+import { WakeAdapter, buildPromptFromEvent, formatEventLabel } from "./wake-adapter.js";
 import { resetSessionEventState } from "../session-events.js";
 import type { GatewayHandlers } from "../types.js";
 
@@ -78,5 +78,12 @@ describe("WakeAdapter", () => {
     expect(buildPromptFromEvent("market_alert", undefined, undefined, { sh_change: -0.04 })).toContain("市场异动");
     expect(buildPromptFromEvent("daily_report", 1, "日报任务", {})).toContain("日报任务");
     expect(buildPromptFromEvent("unknown_event", undefined, undefined, {})).toContain("unknown_event");
+  });
+
+  it("formatEventLabel 不产出 undefined（watch 事件无 task 字段时回退 rule_id）", () => {
+    expect(formatEventLabel(undefined, undefined)).not.toContain("undefined");
+    expect(formatEventLabel(undefined, undefined, { rule_id: 22 })).toBe("rule:22");
+    expect(formatEventLabel("日报", undefined)).toBe("日报");
+    expect(formatEventLabel(undefined, 7)).toBe("7");
   });
 });

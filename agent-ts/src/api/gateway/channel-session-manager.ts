@@ -18,6 +18,8 @@ export interface ChannelAgentSession {
       messages?: Array<{
         role: string;
         content?: Array<{ type: string; text?: string }> | string;
+        stopReason?: string;
+        errorMessage?: string;
       }>;
     };
   };
@@ -216,6 +218,14 @@ export class ChannelSessionManager {
         }
 
         await state.session.prompt(item.text);
+
+        // SDK 对 LLM 错误（如 401）不抛出，只记录 stopReason=error 的空 assistant 消息。
+        // 必须在此检出并抛错，否则上游会收到"成功+空回复"，事件被无声丢失（2026-08-05 事故）。
+        const messages = state.session.agent?.state?.messages ?? [];
+        const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+        if (lastAssistant?.stopReason === "error") {
+          throw new Error(lastAssistant.errorMessage || "LLM call failed (stopReason=error)");
+        }
 
         const reply = this.extractReply(state.session, state.sessionId);
         this.logConversation(state, `\n[Agent ${this.now().toISOString()}] ${reply}\n`);

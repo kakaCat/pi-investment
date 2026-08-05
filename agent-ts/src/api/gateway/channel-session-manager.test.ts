@@ -69,6 +69,41 @@ describe("ChannelSessionManager (gateway 版)", () => {
     await first;
   });
 
+  it("LLM 调用失败（stopReason=error）时 reject，而不是静默返回空串", async () => {
+    // 复现 2026-08-05 事故：Kimi 401 → SDK 记录 stopReason=error 的空 assistant 消息但不抛出，
+    // gateway 把空串当成功回复，v2 误判"送达成功"不重试，watch 事件全部无声丢失
+    const session: ChannelAgentSession = {
+      async prompt() {},
+      async abort() {},
+      dispose() {},
+      agent: {
+        state: {
+          messages: [
+            {
+              role: "assistant",
+              content: [],
+              stopReason: "error",
+              errorMessage: "401 The API Key appears to be invalid or may have expired.",
+            },
+          ],
+        },
+      },
+    } as any;
+
+    const mgr = new ChannelSessionManager({
+      channelName: "Wake",
+      sessionsRootDir: dir,
+      createSession: async () => session,
+    });
+
+    await expect(
+      mgr.processMessage("agent:main:wake:default", "m1", "【盯盘触发】...")
+    ).rejects.toThrow("401 The API Key appears to be invalid");
+
+    const events = readEvents(join(dir, "agent:main:wake:default"));
+    expect(events.map((e) => e.type)).toContain("error");
+  });
+
   it("shutdown 释放所有 session", async () => {
     let disposed = 0;
     const session = { ...fakeSession(), dispose() { disposed++; } };

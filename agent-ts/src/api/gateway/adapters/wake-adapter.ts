@@ -51,7 +51,7 @@ export class WakeAdapter implements ChannelAdapter {
         data,
       };
 
-      console.log(`📬 [Wake] 收到事件: ${event} (task: ${task_name || task_id})`);
+      console.log(`📬 [Wake] 收到事件: ${event} (task: ${formatEventLabel(task_name, task_id, data)})`);
       try {
         const reply = await handlers.dispatch(inbound);
         res.json({ success: true, event, session_id: inbound.peerId, reply: reply.substring(0, 500) });
@@ -83,6 +83,18 @@ export class WakeAdapter implements ChannelAdapter {
     this.server?.close();
     this.server = null;
   }
+}
+
+/** 日志用的事件来源标签：优先调度任务名/ID，watch 类事件回退到规则 ID */
+export function formatEventLabel(
+  task_name?: string,
+  task_id?: number,
+  data?: Record<string, any>,
+): string {
+  if (task_name) return task_name;
+  if (task_id !== undefined) return String(task_id);
+  if (data?.rule_id !== undefined) return `rule:${data.rule_id}`;
+  return "-";
 }
 
 /** 根据事件类型构造 Agent 提示词（规范化逻辑，adapter 内部职责） */
