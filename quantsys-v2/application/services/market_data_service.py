@@ -741,7 +741,8 @@ class MarketDataService:
                         'data': None
                     }
 
-                # 日期过滤
+                # 日期过滤（akshare 返回的 date 列是 datetime.date，先归一为字符串再与 str 参数比较）
+                df['date'] = df['date'].astype(str)
                 if start_date:
                     df = df[df['date'] >= start_date]
                 if end_date:
