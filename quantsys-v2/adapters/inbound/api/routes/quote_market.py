@@ -388,23 +388,6 @@ def get_stock_valuation(symbol):
         status = "expensive"
         detail = "公允价值" if graham_fair_value else ""
 
-    klines = ds.kline.get_daily_klines(symbol, 
-        (datetime.now() - timedelta(days=365*3)).strftime('%Y-%m-%d'),
-        datetime.now().strftime('%Y-%m-%d'))
-    
-    pe_percentile = None
-    pe_median = None
-    pe_high = None
-    pe_low = None
-    # get_daily_klines 返回 polars DataFrame：bool(df) 抛 TypeError、
-    # 迭代/k.get 也不兼容——先转 dict 列表
-    if hasattr(klines, 'to_dicts'):
-        klines = klines.to_dicts()
-    if klines and pe > 0:
-        closes = [float(k.get('close', 0)) for k in klines if float(k.get('close', 0)) > 0]
-        if closes:
-            pe_high = round(max(closes) * pe / float(klines[-1]['close']), 2) if klines[-1].get('close') else None
-
     result = {
         "symbol": symbol,
         "name": name,
@@ -415,12 +398,6 @@ def get_stock_valuation(symbol):
         "valuation_status": status,
         "status_text": {"cheap": "低估", "fair": "合理", "expensive": "高估"}.get(status, "未知"),
     }
-    
-    if pe_percentile is not None:
-        result["pe_percentile"] = pe_percentile
-        result["pe_median"] = pe_median
-        result["pe_high"] = pe_high
-        result["pe_low"] = pe_low
 
     return api_response(result)
 
