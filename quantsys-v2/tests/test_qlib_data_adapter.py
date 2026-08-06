@@ -4,17 +4,12 @@ Qlib 数据适配器测试
 测试 QuantsysV2DataProvider 是否能正确从数据库读取数据
 """
 
-import sys
-from pathlib import Path
-
-# 添加项目根目录到 Python 路径
-project_root = Path(__file__).parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-
 import pytest
 import pandas as pd
-import qlib
+
+# qlib 未安装于当前 venv(可选重依赖),缺失时整模块跳过而非 collection error
+qlib = pytest.importorskip("qlib", reason="qlib 未安装,跳过 qlib 数据适配器测试")
+
 from application.services.qlib.qlib_data_adapter import QuantsysV2DataProvider
 from qlib.data import register_provider
 

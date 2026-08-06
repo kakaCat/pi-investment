@@ -12,7 +12,7 @@ Covers:
 import pytest
 from datetime import datetime, timedelta, timezone
 
-from infrastructure.scheduler import (
+from infrastructure.scheduler.scheduler import (
     CronSchedule,
     SchedulerService,
     _cron_dow,
@@ -682,11 +682,15 @@ class TestCommandHandlers:
         assert result["symbols_checked"] == 2
 
     def test_signal_generate_handler_returns_structure(self):
+        # 2026-08-04 重写后的契约:universe_size/signals_found/signals_saved
+        # (旧 stocks_checked/stocks_with_factors 桩契约已废弃)
         result = self.scheduler._handle_signal_generate({})
         assert isinstance(result, dict)
         assert result["action"] == "signal_generate"
-        assert "stocks_checked" in result
-        assert "stocks_with_factors" in result
+        assert "status" in result
+        assert "universe_size" in result
+        assert "signals_found" in result
+        assert "signals_saved" in result
         assert "date" in result
 
     def test_risk_check_handler_returns_structure(self):
@@ -696,13 +700,13 @@ class TestCommandHandlers:
         assert "holdings_count" in result
 
     def test_report_daily_handler_returns_structure(self):
+        # 当前简化契约:total_stocks/top_signal_count/timestamp
         result = self.scheduler._handle_report_daily({})
         assert isinstance(result, dict)
         assert result["action"] == "report_daily"
         assert "total_stocks" in result
         assert "top_signal_count" in result
-        assert "pending_executions" in result
-        assert "factor_coverages" in result
+        assert "timestamp" in result
 
     def test_backtest_run_handler_returns_structure(self):
         result = self.scheduler._handle_backtest_run(
