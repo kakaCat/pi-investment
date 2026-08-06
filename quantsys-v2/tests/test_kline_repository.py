@@ -185,13 +185,17 @@ class TestKlineRepository:
 
     # ==================== 统计方法测试 ====================
 
-    def test_get_available_date_range_removed(self):
-        """get_available_date_range 已移除——能力由 get_date_range 覆盖
-        （stock_code_validator/data_service_orm 生产调用 get_date_range）"""
+    def test_get_date_range(self):
+        """get_date_range 返回 (最早, 最晚) 元组
+        （stock_code_validator/data_service_orm 生产调用此方法）"""
         date_range = self.repo.get_date_range("000001.SZ")
         if date_range:
             assert len(date_range) == 2
             assert date_range[0] <= date_range[1]
+
+    def test_get_date_range_no_data(self):
+        """无数据的股票返回 None"""
+        assert self.repo.get_date_range("999999.SZ") is None
 
     def test_get_trading_days(self):
         """测试获取交易日列表"""
@@ -205,6 +209,22 @@ class TestKlineRepository:
             # 验证按升序排列
             if len(trading_days) > 1:
                 assert trading_days[0] <= trading_days[1]
+
+    def test_get_trading_days_with_symbol(self):
+        """测试 symbol 过滤路径（data_gap_detector 生产调用形式）"""
+        # 无数据的股票应返回空列表（不抛异常、不返回全市场交易日）
+        days = self.repo.get_trading_days(
+            "2024-01-01", "2024-01-31", symbol="999999.SZ"
+        )
+        assert days == []
+
+        all_days = self.repo.get_trading_days("2024-01-01", "2024-01-31")
+        if all_days:
+            # 有数据股票的交易日必为全市场交易日的子集
+            days_with_data = self.repo.get_trading_days(
+                "2024-01-01", "2024-01-31", symbol="000001.SZ"
+            )
+            assert set(days_with_data) <= set(all_days)
 
     def test_get_kline_stats(self):
         """测试获取K线统计信息"""

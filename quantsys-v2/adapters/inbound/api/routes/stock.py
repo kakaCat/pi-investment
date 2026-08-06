@@ -95,6 +95,11 @@ def enrich_stock_data(stock) -> Dict:
         logger.debug(f"Fetching klines for {symbol} from {start_date} to {end_date}")
         klines = ds.kline.get_daily_klines(symbol, start_date, end_date)
 
+        # get_daily_klines 返回 polars DataFrame：klines[-1] 取出来的是
+        # 1 行 DataFrame，.get('close') 会抛 AttributeError——先转 dict 列表
+        if hasattr(klines, 'to_dicts'):
+            klines = klines.to_dicts()
+
         # 安全检查 klines（支持 list, DataFrame 等多种类型）
         klines_len = 0
         if klines is not None:
