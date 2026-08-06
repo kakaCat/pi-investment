@@ -97,14 +97,14 @@ class TestDataPipelineService:
             with pytest.raises(ValueError, match="pipeline"):
                 DataPipelineService()
 
-    @patch('services.data_pipeline_service.DataFetchStage')
-    @patch('services.data_pipeline_service.DeduplicationStage')
-    @patch('services.data_pipeline_service.TimeAlignmentStage')
-    @patch('services.data_pipeline_service.AnomalyDetectionStage')
-    @patch('services.data_pipeline_service.ConflictResolutionStage')
-    @patch('services.data_pipeline_service.ImputationStage')
-    @patch('services.data_pipeline_service.StorageStage')
-    @patch('services.data_pipeline_service.FactorComputeStage')
+    @patch('application.services.data_pipeline_service.DataFetchStage')
+    @patch('application.services.data_pipeline_service.DeduplicationStage')
+    @patch('application.services.data_pipeline_service.TimeAlignmentStage')
+    @patch('application.services.data_pipeline_service.AnomalyDetectionStage')
+    @patch('application.services.data_pipeline_service.ConflictResolutionStage')
+    @patch('application.services.data_pipeline_service.ImputationStage')
+    @patch('application.services.data_pipeline_service.StorageStage')
+    @patch('application.services.data_pipeline_service.FactorComputeStage')
     def test_run_daily_update_builds_pipeline_with_all_stages(
         self,
         mock_factor_stage,
@@ -162,7 +162,7 @@ class TestDataPipelineService:
         assert result.success is True
         assert result.data == {'test': 'data'}
 
-    @patch('services.data_pipeline_service.DataFetchStage')
+    @patch('application.services.data_pipeline_service.DataFetchStage')
     def test_run_daily_update_passes_correct_params_to_fetch_stage(
         self,
         mock_fetch_stage,
@@ -188,8 +188,8 @@ class TestDataPipelineService:
         assert call_args[1]['symbols'] == symbols
         assert call_args[1]['date_range'] == (date, date)
 
-    @patch('services.data_pipeline_service.DataFetchStage')
-    @patch('services.data_pipeline_service.DeduplicationStage')
+    @patch('application.services.data_pipeline_service.DataFetchStage')
+    @patch('application.services.data_pipeline_service.DeduplicationStage')
     def test_run_daily_update_stops_on_stage_failure(
         self,
         mock_dedup_stage,
@@ -228,14 +228,14 @@ class TestDataPipelineService:
         mock_fetch.execute.assert_called_once()
         mock_dedup.execute.assert_called_once()
 
-    @patch('services.data_pipeline_service.DataFetchStage')
-    @patch('services.data_pipeline_service.DeduplicationStage')
-    @patch('services.data_pipeline_service.TimeAlignmentStage')
-    @patch('services.data_pipeline_service.AnomalyDetectionStage')
-    @patch('services.data_pipeline_service.ConflictResolutionStage')
-    @patch('services.data_pipeline_service.ImputationStage')
-    @patch('services.data_pipeline_service.StorageStage')
-    @patch('services.data_pipeline_service.FactorComputeStage')
+    @patch('application.services.data_pipeline_service.DataFetchStage')
+    @patch('application.services.data_pipeline_service.DeduplicationStage')
+    @patch('application.services.data_pipeline_service.TimeAlignmentStage')
+    @patch('application.services.data_pipeline_service.AnomalyDetectionStage')
+    @patch('application.services.data_pipeline_service.ConflictResolutionStage')
+    @patch('application.services.data_pipeline_service.ImputationStage')
+    @patch('application.services.data_pipeline_service.StorageStage')
+    @patch('application.services.data_pipeline_service.FactorComputeStage')
     def test_run_full_rebuild_processes_date_range(
         self,
         mock_factor_stage,
@@ -308,7 +308,7 @@ class TestDataPipelineService:
                 end_date=''
             )
 
-    @patch('services.data_pipeline_service.DataFetchStage')
+    @patch('application.services.data_pipeline_service.DataFetchStage')
     def test_pipeline_context_includes_config(
         self,
         mock_fetch_stage,
