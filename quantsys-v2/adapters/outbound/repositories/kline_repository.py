@@ -212,6 +212,60 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             logger.error(f"Error in save_klines: {e}")
             return 0
 
+    def save_daily_klines(self, klines: List[Dict]) -> int:
+        """批量保存日K线数据（UPSERT，dict 列表契约）
+
+        旧 BaseRepository 时代契约，ORM 重构（8f06ae1）时丢失，
+        2026-08-06 恢复——storage_stage._write_daily_klines 与
+        data_backfiller 仍在调用，缺失即 AttributeError。
+
+        与 save_klines 的差异（保持旧契约语义）:
+        - 按 (symbol, trade_date) 入参内去重（旧实现行为）
+        - 失败抛异常而非静默返回 0（调用方 data_backfiller 依赖异常重试）
+
+        Args:
+            klines: K线数据列表，每个元素包含 symbol, trade_date,
+                open, high, low, close, volume，可选 amount, turnover_rate
+
+        Returns:
+            成功写入（去重后）的记录数
+
+        Raises:
+            Exception: 数据库写入失败
+        """
+        if not klines:
+            return 0
+
+        # 标准化 + 按 (symbol, trade_date) 去重（对齐旧 execute_batch 实现）
+        seen_keys = set()
+        kline_objs = []
+        for kline in klines:
+            symbol = self._normalize_symbol(str(kline['symbol']))
+            trade_date = kline['trade_date']
+            unique_key = (symbol, str(trade_date))
+            if unique_key in seen_keys:
+                continue
+            seen_keys.add(unique_key)
+            kline_objs.append(DailyKline(
+                symbol=symbol,
+                trade_date=trade_date,
+                open=kline.get('open'),
+                high=kline.get('high'),
+                low=kline.get('low'),
+                close=kline.get('close'),
+                volume=kline.get('volume'),
+                amount=kline.get('amount', 0),
+                turnover_rate=kline.get('turnover_rate', 0),
+            ))
+
+        if not kline_objs:
+            return 0
+
+        if not self.batch_insert_daily_klines(kline_objs):
+            raise Exception("保存日K线数据失败: batch upsert 返回 False（详见上方日志）")
+
+        return len(kline_objs)
+
     def batch_get_kline(self, symbols: List[str], start_date: str, end_date: str) -> Dict[str, pl.DataFrame]:
         """批量获取K线数据（IKlineRepository接口实现）
 

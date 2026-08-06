@@ -17,11 +17,22 @@ import pytest
 import pandas as pd
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, date, timedelta
+from sqlalchemy import text
 
 from application.services.data_pipeline_service import DataPipelineService
 from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
 from adapters.outbound.repositories import KlineORMRepository
 from adapters.outbound.repositories import FactorORMRepository
+
+
+def _klines_as_dicts(kline_repo, symbol, start_date, end_date):
+    """get_daily_klines 现返回 polars DataFrame（ORM 重构契约），转 dict 列表便于断言。"""
+    df = kline_repo.get_daily_klines(
+        symbol=symbol,
+        start_date=start_date,
+        end_date=end_date
+    )
+    return df.to_dicts()
 
 
 class TestDataPipelineIntegration:
@@ -54,17 +65,24 @@ class TestDataPipelineIntegration:
 
     @pytest.fixture
     def cleanup_test_data(self, kline_repo):
-        """Cleanup test data after each test."""
+        """Cleanup test data after each test.
+
+        ORM 仓储无 .db 裸连接属性，改用 session 执行原生 SQL。
+        写入侧会把 symbol 归一化为无后缀格式（'000001.SH' -> '000001'），
+        故清理按归一化 symbol + 测试日期范围限定，避免误删其他数据。
+        """
         yield
         # Clean up test data
         try:
-            cursor = kline_repo.db.cursor()
-            cursor.execute("DELETE FROM quant.daily_klines WHERE symbol IN ('000001.SH', '000001.SZ')")
-            cursor.execute("DELETE FROM quant.raw_klines WHERE symbol IN ('000001.SH', '000001.SZ')")
-            cursor.execute("DELETE FROM quant.factors WHERE symbol IN ('000001.SH', '000001.SZ')")
-            kline_repo.db.commit()
-            cursor.close()
+            for table in ('daily_klines', 'raw_klines', 'factors'):
+                kline_repo.session.execute(text(
+                    f"DELETE FROM quant.{table} "
+                    "WHERE symbol IN ('000001') "
+                    "AND trade_date BETWEEN '2024-01-01' AND '2024-01-31'"
+                ))
+            kline_repo.session.commit()
         except Exception as e:
+            kline_repo.session.rollback()
             print(f"Cleanup warning: {e}")
 
     def test_full_pipeline_execution(
@@ -86,11 +104,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Verify data was written to database
-        klines = kline_repo.get_daily_klines(
-            symbol='000001.SH',
-            start_date='2024-01-02',
-            end_date='2024-01-03'
-        )
+        klines = _klines_as_dicts(kline_repo, '000001.SH', '2024-01-02', '2024-01-03')
 
         assert len(klines) > 0, "No data written to daily_klines"
 
@@ -131,18 +145,16 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Query database and check for duplicates
-        cursor = kline_repo.db.cursor()
-        cursor.execute("""
+        # 写入侧 symbol 归一化为无后缀格式（'000001.SH' -> '000001'）
+        duplicates = kline_repo.session.execute(text("""
             SELECT symbol, trade_date, COUNT(*) as cnt
             FROM quant.daily_klines
-            WHERE symbol = '000001.SH'
+            WHERE symbol = '000001'
               AND trade_date >= '2024-01-02'
               AND trade_date <= '2024-01-03'
             GROUP BY symbol, trade_date
             HAVING COUNT(*) > 1
-        """)
-        duplicates = cursor.fetchall()
-        cursor.close()
+        """)).fetchall()
 
         # The repository's save_daily_klines should handle deduplication via UPSERT
         assert len(duplicates) == 0, f"Found duplicate records: {duplicates}"
@@ -177,11 +189,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Query historical data and calculate returns
-        klines = kline_repo.get_daily_klines(
-            symbol='000001.SH',
-            start_date='2024-01-02',
-            end_date='2024-01-08'
-        )
+        klines = _klines_as_dicts(kline_repo, '000001.SH', '2024-01-02', '2024-01-08')
 
         assert len(klines) > 1, "Need at least 2 records to check continuity"
 
@@ -226,11 +234,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Verify data was stored
-        klines = kline_repo.get_daily_klines(
-            symbol='000001.SH',
-            start_date='2024-01-02',
-            end_date='2024-01-04'
-        )
+        klines = _klines_as_dicts(kline_repo, '000001.SH', '2024-01-02', '2024-01-04')
 
         assert len(klines) > 0
 
@@ -270,11 +274,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Verify data integrity
-        klines = kline_repo.get_daily_klines(
-            symbol='000001.SH',
-            start_date='2024-01-02',
-            end_date='2024-01-04'
-        )
+        klines = _klines_as_dicts(kline_repo, '000001.SH', '2024-01-02', '2024-01-04')
 
         assert len(klines) > 0
 
@@ -315,11 +315,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Verify data is available for factor computation
-        klines = kline_repo.get_daily_klines(
-            symbol='000001.SH',
-            start_date='2024-01-01',
-            end_date='2024-01-20'
-        )
+        klines = _klines_as_dicts(kline_repo, '000001.SH', '2024-01-01', '2024-01-20')
 
         assert len(klines) >= 10, "Need sufficient data for factor computation"
 
@@ -358,11 +354,7 @@ class TestDataPipelineIntegration:
         kline_repo.save_daily_klines(records)
 
         # Verify all dates are stored
-        klines = kline_repo.get_daily_klines(
-            symbol='000001.SH',
-            start_date='2024-01-02',
-            end_date='2024-01-08'
-        )
+        klines = _klines_as_dicts(kline_repo, '000001.SH', '2024-01-02', '2024-01-08')
 
         assert len(klines) >= 3, f"Expected at least 3 records, got {len(klines)}"
 
