@@ -58,6 +58,21 @@ class BaseORMRepository(Generic[T]):
             self._session = get_session()
         return self._session
 
+    def _safe_rollback(self):
+        """安全回滚当前线程共享事务。
+
+        scoped_session 在线程内共享：任何一次 PG 报错都会让事务进入
+        aborted 状态，不回滚则同线程后续所有查询撞
+        "current transaction is aborted"（线程毒化）。
+        因此所有 except 分支（含只读降级分支）都必须调用本方法。
+
+        rollback 本身用 try/except 包住，避免二次异常遮蔽原始错误。
+        """
+        try:
+            self.session.rollback()
+        except Exception as rb_err:
+            logger.warning(f"rollback failed for {self.model.__name__ if self.model else '?'}: {rb_err}")
+
     def _get_cursor(self):
         """向后兼容旧 BaseRepository 的裸 cursor 接口。
 
@@ -92,6 +107,7 @@ class BaseORMRepository(Generic[T]):
             return self.session.query(self.model).get(id_value)
         except SQLAlchemyError as e:
             logger.error(f"Error getting {self.model.__name__} by id={id_value}: {e}")
+            self._safe_rollback()
             return None
 
     def list_all(self, limit: Optional[int] = None, offset: Optional[int] = None) -> List[T]:
@@ -113,6 +129,7 @@ class BaseORMRepository(Generic[T]):
             return query.all()
         except SQLAlchemyError as e:
             logger.error(f"Error listing {self.model.__name__}: {e}")
+            self._safe_rollback()
             return []
 
     def count(self) -> int:
@@ -121,6 +138,7 @@ class BaseORMRepository(Generic[T]):
             return self.session.query(self.model).count()
         except SQLAlchemyError as e:
             logger.error(f"Error counting {self.model.__name__}: {e}")
+            self._safe_rollback()
             return 0
 
     def create(self, obj: T, commit: bool = True) -> Optional[T]:
