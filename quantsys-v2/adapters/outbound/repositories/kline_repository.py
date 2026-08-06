@@ -172,6 +172,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return False
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error saving kline data for {symbol}: {e}")
             return False
 
@@ -209,6 +210,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return len(klines) if result else 0
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in save_klines: {e}")
             return 0
 
@@ -287,6 +289,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                     result[symbol] = pl.DataFrame()
             return result
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error batch getting klines: {e}")
             return {symbol: pl.DataFrame() for symbol in symbols}
 
@@ -359,6 +362,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return _rows_to_df(rows, _DAILY_KLINE_SCHEMA)
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting daily klines for {symbol}: {e}")
             return pl.DataFrame()
 
@@ -383,6 +387,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return None
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting latest daily kline for {symbol}: {e}")
             return None
 
@@ -421,6 +426,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return df
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting latest {limit} klines for {symbol}: {e}")
             return pl.DataFrame()
 
@@ -479,6 +485,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return result
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting batch latest daily klines: {e}")
             return {symbol: None for symbol in symbols}
 
@@ -529,6 +536,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return result
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting batch daily klines: {e}")
             return {symbol: [] for symbol in symbols}
 
@@ -547,6 +555,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                 DailyKline.symbol == normalized_symbol
             ).count()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error counting daily klines for {symbol}: {e}")
             return 0
 
@@ -587,6 +596,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return None
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting date range for {symbol}: {e}")
             return None
 
@@ -633,6 +643,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return dict(result._mapping)
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting kline stats for {symbol}: {e}")
             return {}
 
@@ -670,6 +681,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             rows = query.distinct().order_by(DailyKline.trade_date.asc()).all()
             return [str(row[0]) for row in rows]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting trading days: {e}")
             return []
 
@@ -716,6 +728,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return _rows_to_df(rows, _MINUTE_KLINE_SCHEMA)
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting minute klines for {symbol}: {e}")
             return pl.DataFrame()
 
@@ -740,6 +753,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return None
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting latest minute kline for {symbol}: {e}")
             return None
 
@@ -870,6 +884,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return result
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error batch getting recent klines: {e}")
             return {symbol: [] for symbol in symbols}
 
@@ -923,6 +938,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                 'ratio': round(up / down, 2) if down > 0 else 999,
             }
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in get_market_breadth: {e}")
             return None
 
@@ -948,6 +964,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return [{'trade_date': r[0].isoformat() if r[0] else None,
                      'total_volume': float(r[1] or 0)} for r in rows]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in get_market_turnover_by_day: {e}")
             return []
 
@@ -978,6 +995,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                      'avg_return': float(r[1]) if r[1] is not None else None}
                     for r in rows]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in get_market_daily_returns: {e}")
             return []
 
@@ -1017,6 +1035,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                 'new_low_count': int(row[2] or 0),
             }
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in get_new_high_low_counts: {e}")
             return None
 
@@ -1039,5 +1058,6 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             """), {'days': days, 'min_days': min_days, 'limit': limit}).fetchall()
             return [r[0] for r in rows]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in get_active_symbols: {e}")
             return []
