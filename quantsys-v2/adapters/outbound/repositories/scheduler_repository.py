@@ -18,7 +18,16 @@ class SchedulerRepository:
     
     def __init__(self):
         self.session = get_session()
-    
+
+    def _safe_rollback(self):
+        """安全回滚当前线程共享事务（scoped_session 线程内共享，
+        PG 报错后不回滚会毒化同线程后续所有查询）。
+        try/except 包住防二次异常遮蔽原始错误。"""
+        try:
+            self.session.rollback()
+        except Exception as rb_err:
+            logger.warning(f"rollback failed: {rb_err}")
+
     def create_task_config(
         self,
         task_name: str,
@@ -89,6 +98,7 @@ class SchedulerRepository:
                 task_name=task_name
             ).first()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Failed to get task config: {e}")
             return None
     
@@ -103,6 +113,7 @@ class SchedulerRepository:
                 query = query.filter_by(is_enabled=True)
             return query.order_by(SchedulerTaskConfig.task_name).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Failed to list task configs: {e}")
             return []
     
@@ -169,5 +180,6 @@ class SchedulerRepository:
                 query = query.filter_by(task_id=job_id)
             return query.order_by(SchedulerRun.started_at.desc()).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Failed to get execution history: {e}")
             return []

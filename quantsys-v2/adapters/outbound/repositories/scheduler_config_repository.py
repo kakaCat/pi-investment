@@ -52,6 +52,7 @@ class SchedulerConfigORMRepository(BaseORMRepository[SchedulerTaskConfig]):
 
             return query.order_by(SchedulerTaskConfig.task_name).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting enabled tasks: {e}")
             return []
 
@@ -69,6 +70,7 @@ class SchedulerConfigORMRepository(BaseORMRepository[SchedulerTaskConfig]):
                 SchedulerTaskConfig.task_name == task_name
             ).first()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting task by name {task_name}: {e}")
             return None
 
@@ -97,6 +99,7 @@ class SchedulerConfigORMRepository(BaseORMRepository[SchedulerTaskConfig]):
             )
             return self.create(task)
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error creating task config: {e}")
             return None
 
@@ -188,5 +191,6 @@ class SchedulerConfigORMRepository(BaseORMRepository[SchedulerTaskConfig]):
                 SchedulerTaskConfig.command == command
             ).order_by(SchedulerTaskConfig.task_name).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting tasks by command {command}: {e}")
             return []
