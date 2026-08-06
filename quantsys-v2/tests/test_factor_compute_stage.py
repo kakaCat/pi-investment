@@ -15,7 +15,7 @@ class TestFactorComputeStage:
     @pytest.fixture
     def mock_factor_stage(self):
         """Mock FactorStage for testing."""
-        with patch('quant.stages.data.factor_compute_stage.FactorStage') as mock:
+        with patch('domain.quantlib.stages.data_pipeline.factor_compute_stage.FactorStage') as mock:
             mock_instance = Mock()
             mock.return_value = mock_instance
             yield mock_instance
