@@ -74,6 +74,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             return created.id if created else 0
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error saving backtest result: {e}")
             return 0
 
@@ -119,6 +120,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             ).limit(limit).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting backtests for strategy {strategy_name}: {e}")
             return []
 
@@ -144,6 +146,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             ).limit(limit).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting backtests for {symbol}: {e}")
             return []
 
@@ -162,6 +165,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             ).limit(limit).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting recent backtests: {e}")
             return []
 
@@ -194,6 +198,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             ).limit(limit).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting all backtests: {e}")
             return []
 
@@ -236,6 +241,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             return query.limit(limit).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting best backtests: {e}")
             return []
 
@@ -260,6 +266,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             ).order_by(BacktestResult.created_at.desc()).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting backtests by date range: {e}")
             return []
 
@@ -293,6 +300,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             return None
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error creating backtest: {e}")
             return None
 
@@ -379,6 +387,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             return query.count()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error counting backtests: {e}")
             return 0
 
@@ -418,6 +427,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             return {}
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting strategy stats: {e}")
             return {}
 
@@ -432,6 +442,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             return [r[0] for r in result]
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting strategies: {e}")
             return []
 
@@ -469,6 +480,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             return {}
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting backtest stats: {e}")
             return {}
 
@@ -506,5 +518,6 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             return results
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error comparing strategies: {e}")
             return []

@@ -51,6 +51,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 
@@ -67,6 +68,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
             rows = q.order_by(self.model.trade_date.desc()).all()
             return [{c.name: getattr(r, c.name) for c in self.model.__table__.columns} for r in rows]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in get_fund_flow: {e}")
             return []
 
@@ -80,6 +82,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
                     .all())
             return [{c.name: getattr(r, c.name) for c in self.model.__table__.columns} for r in rows]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in get_latest_fund_flow: {e}")
             return []
 
@@ -107,6 +110,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
                                 for c in self.model.__table__.columns})
             return result
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in batch_get_latest_flows: {e}")
             return {s: [] for s in symbols}
 
@@ -179,6 +183,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
                 'total_big_flow': float(r.total_big_flow or 0),
             } for r in rows]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in get_market_aggregate_flow: {e}")
             return []
 
@@ -207,6 +212,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
                 'main_net_inflow': float(r.main_net_inflow or 0),
             } for r in rows]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in get_industry_aggregate_flow: {e}")
             return []
 
@@ -216,6 +222,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
             latest = self.session.query(func.max(self.model.trade_date)).scalar()
             return latest.strftime('%Y-%m-%d') if latest else None
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in get_latest_trade_date: {e}")
             return None
 

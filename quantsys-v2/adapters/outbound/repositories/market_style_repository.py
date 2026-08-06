@@ -47,6 +47,7 @@ class MarketStyleORMRepository(BaseORMRepository[MarketStyleState], IMarketStyle
             row = query.order_by(self.model.trade_date.desc()).first()
             return self._to_dict(row) if row else None
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error getting market style: {e}")
             return None
 
@@ -81,6 +82,7 @@ class MarketStyleORMRepository(BaseORMRepository[MarketStyleState], IMarketStyle
                     .limit(limit).all())
             return [self._to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error listing market style history: {e}")
             return []
 
@@ -88,6 +90,7 @@ class MarketStyleORMRepository(BaseORMRepository[MarketStyleState], IMarketStyle
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

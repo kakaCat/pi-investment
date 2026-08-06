@@ -104,6 +104,7 @@ class DataQualityORMRepository(BaseORMRepository[DataQualityRecord], IDataQualit
             created = self.create(record)
             return created.id if created else -1
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error saving quality record: {e}")
             return -1
 
@@ -137,6 +138,7 @@ class DataQualityORMRepository(BaseORMRepository[DataQualityRecord], IDataQualit
                     .offset(offset).limit(limit).all())
             return [self._to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error querying quality records: {e}")
             return []
 
@@ -177,6 +179,7 @@ class DataQualityORMRepository(BaseORMRepository[DataQualityRecord], IDataQualit
                 'total_warnings': r.total_warnings or 0,
             } for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error querying daily stats: {e}")
             return []
 
@@ -210,6 +213,7 @@ class DataQualityORMRepository(BaseORMRepository[DataQualityRecord], IDataQualit
                 'worst_records': [self._to_dict(r) for r in worst_rows],
             }
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error building quality summary: {e}")
             return {'period_days': days, 'total_checks': 0, 'error': str(e)}
 
@@ -217,6 +221,7 @@ class DataQualityORMRepository(BaseORMRepository[DataQualityRecord], IDataQualit
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

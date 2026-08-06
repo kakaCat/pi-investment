@@ -88,6 +88,7 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
         try:
             return self.session.query(Stock).filter_by(symbol=symbol).first()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting stock by symbol {symbol}: {e}")
             return None
 
@@ -140,6 +141,7 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
 
             return query.all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing stocks: {e}")
             return []
 
@@ -161,6 +163,7 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
                 query = query.filter_by(market=market)
             return query.all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing active stocks: {e}")
             return []
 
@@ -186,6 +189,7 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
             )
             return [self.get_stock_info(s.symbol) for s in stocks if s]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting all stocks: {e}")
             return []
 
@@ -206,6 +210,7 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
             ).limit(limit)
             return query.all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error searching stocks by keyword {keyword}: {e}")
             return []
 
@@ -233,6 +238,7 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
         try:
             return self.session.query(Stock).filter_by(market=market).count()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error counting stocks in market {market}: {e}")
             return 0
 
@@ -248,6 +254,7 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
             ).all()
             return [r[0] for r in result]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting industries: {e}")
             return []
 
@@ -263,6 +270,7 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
             ).all()
             return [r[0] for r in result]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting sectors: {e}")
             return []
 
@@ -363,6 +371,7 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
             return result
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error batch fetching fundamentals for {len(symbols)} symbols: {e}")
             # 返回所有symbol都为None的字典，保证调用方能处理
             return {symbol: None for symbol in symbols}
@@ -393,6 +402,7 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
             return result
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error batch fetching names for {len(symbols)} symbols: {e}")
             return {}
 
@@ -424,5 +434,6 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
             return symbols
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error fetching index constituents for {index_codes}: {e}")
             return []

@@ -27,6 +27,7 @@ class AsyncFactorORMRepository(BaseORMRepository[AsyncFactor], IAsyncFactorRepos
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

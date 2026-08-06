@@ -110,6 +110,7 @@ class FinancialORMRepository(BaseORMRepository[IncomeStatement], IFinancialRepos
                     .all())
             return [_row_to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error querying income statements for {symbol}: {e}")
             return []
 
@@ -125,6 +126,7 @@ class FinancialORMRepository(BaseORMRepository[IncomeStatement], IFinancialRepos
                     .all())
             return [_row_to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error querying balance sheets for {symbol}: {e}")
             return []
 
@@ -156,6 +158,7 @@ class FinancialORMRepository(BaseORMRepository[IncomeStatement], IFinancialRepos
                     lst.append(_row_to_dict(r))
             return result
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error batch querying quarterly margins: {e}")
             return {s: [] for s in symbols}
 
@@ -207,6 +210,7 @@ class FinancialORMRepository(BaseORMRepository[IncomeStatement], IFinancialRepos
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

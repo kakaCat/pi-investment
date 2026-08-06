@@ -61,6 +61,7 @@ class MlModelORMRepository(BaseORMRepository[MlModel], IMlModelRepository):
                 row = query.filter(self.model.version == version).first()
             return self._to_dict(row) if row else None
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error in get_by_type_version({model_type}, {version}): {e}")
             return None
 
@@ -88,6 +89,7 @@ class MlModelORMRepository(BaseORMRepository[MlModel], IMlModelRepository):
                     try:
                         train_date = datetime.fromisoformat(train_date.replace('Z', '+00:00'))
                     except ValueError:
+                        self._safe_rollback()
                         train_date = datetime.now(timezone.utc)
                 row.train_date = train_date
 
@@ -111,6 +113,7 @@ class MlModelORMRepository(BaseORMRepository[MlModel], IMlModelRepository):
             importance = json.loads(row.feature_importance)
             return importance if isinstance(importance, dict) and importance else None
         except (SQLAlchemyError, json.JSONDecodeError) as e:
+            self._safe_rollback()
             logger.error(f"Error in get_feature_importance: {e}")
             return None
 
@@ -134,6 +137,7 @@ class MlModelORMRepository(BaseORMRepository[MlModel], IMlModelRepository):
                     self.session.rollback()
                     self.session.close()
                 except Exception:
+                    self._safe_rollback()
                     pass
                 self._session = None  # 强制下次访问时重建 session
                 if attempt < max_retries:
@@ -149,6 +153,7 @@ class MlModelORMRepository(BaseORMRepository[MlModel], IMlModelRepository):
                 return None
             return self._to_dict(row)
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in get_model: {e}")
             return None
 
@@ -164,6 +169,7 @@ class MlModelORMRepository(BaseORMRepository[MlModel], IMlModelRepository):
             rows = query.order_by(self.model.train_date.desc()).limit(limit).all()
             return [self._to_dict(r) for r in rows]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error in list_models: {e}")
             return []
 
@@ -171,6 +177,7 @@ class MlModelORMRepository(BaseORMRepository[MlModel], IMlModelRepository):
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

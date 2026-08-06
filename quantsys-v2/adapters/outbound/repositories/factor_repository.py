@@ -84,6 +84,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             return pl.DataFrame(rows)
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting factor data for {symbol}: {e}")
             return pl.DataFrame()
 
@@ -104,6 +105,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             return result
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error batch getting factors: {e}")
             return {symbol: pl.DataFrame() for symbol in symbols}
 
@@ -157,6 +159,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
                 factor_name=factor_name
             ).first()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting factor: {e}")
             return None
 
@@ -194,6 +197,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             ).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting factors for {symbol}: {e}")
             return []
 
@@ -225,6 +229,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             return query.order_by(FactorValue.symbol).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting factor values for {factor_name}: {e}")
             return []
 
@@ -269,6 +274,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             return factors
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting latest factors for {symbol}: {e}")
             return []
 
@@ -299,6 +305,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             ).order_by(FactorValue.factor_date.asc()).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting factor time series: {e}")
             return []
 
@@ -427,6 +434,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             return [r[0] for r in result]
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting factor names: {e}")
             return []
 
@@ -455,6 +463,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             return query.count()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error counting factors: {e}")
             return 0
 
@@ -497,6 +506,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             return {}
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting factor stats: {e}")
             return {}
 
@@ -534,5 +544,6 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             return True
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error saving factors for {symbol} on {factor_date}: {e}")
             return False
