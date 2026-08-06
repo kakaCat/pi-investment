@@ -205,53 +205,6 @@ class MarketDataService:
                 'data': None
             }
 
-    def get_hot_stocks(self, market: str = "A股", mode: str = "all") -> Dict[str, Any]:
-        """
-        获取热搜股票排行（多数据源）
-
-        支持两种模式：
-        - first: 返回第一个成功的数据源（快速 failover）
-        - all: 返回所有可用数据源（完整数据）
-
-        Args:
-            market: 市场类型，可选 "A股", "港股", "美股"
-            mode: 返回模式，可选 "first", "all"（默认）
-
-        Returns:
-            包含热搜股票数据的字典
-        """
-        try:
-            from adapters.outbound.datasources.hot_stock_source import get_hot_stock_source
-
-            self.logger.info(f"获取热搜股票（多数据源，模式={mode}）: market={market}")
-
-            # 使用多数据源
-            hot_stock_source = get_hot_stock_source()
-            result = hot_stock_source.get_hot_stocks_with_fallback(market, mode=mode)
-
-            if result['success']:
-                if mode == "all":
-                    self.logger.info(f"热搜股票获取成功，数据源数量: {result.get('source_count', 0)}")
-                else:
-                    self.logger.info(f"热搜股票获取成功，数据源: {result.get('source', 'unknown')}")
-            else:
-                self.logger.warning(f"所有数据源均失败: {result.get('error')}")
-
-            return result
-
-        except Exception as e:
-            self.logger.error(f"获取热搜股票失败: {e}", exc_info=True)
-            return {
-                'success': False,
-                'error': f'数据获取失败: {str(e)}',
-                'data': None
-            }
-            return {
-                'success': False,
-                'error': f'数据获取失败: {str(e)}',
-                'data': None
-            }
-
     def get_north_flow(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, Any]:
         """
         获取北向资金流向（沪港通/深港通）- 缓存优先

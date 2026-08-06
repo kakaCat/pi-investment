@@ -138,26 +138,6 @@ def get_market_margin_v2():
     return api_response(result.get('data', {}))
 
 
-@market_bp.route('/api/market/hot-stocks', methods=['GET'])
-@handle_api_error
-def get_hot_stocks_v2():
-    """热搜股票 - v2 多数据源实现
-
-    查询参数:
-    - market: 市场类型（A股/港股/美股），默认 A股
-    - mode: 返回模式（first/all），默认 all
-      - first: 返回第一个成功的数据源
-      - all: 返回所有成功的数据源
-    """
-    from application.services.market_data_service import market_data_service
-    market = request.args.get('market', 'A股')
-    mode = request.args.get('mode', 'all')
-    result = market_data_service.get_hot_stocks(market=market, mode=mode)
-    if not result.get('success', False):
-        return jsonify(result), 503
-    return api_response(result.get('data', {}))
-
-
 @market_bp.route('/api/market/sector-flow', methods=['GET'])
 @handle_api_error
 def get_sector_flow_v2():

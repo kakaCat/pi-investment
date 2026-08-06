@@ -2,7 +2,7 @@
 
 覆盖端点：
 - market.py: /api/market/sectors, /api/market/macro, /api/market/news, /api/market/margin,
-  /api/market/hot-stocks, /api/market/sector-flow, /api/market/concepts,
+  /api/market/sector-flow, /api/market/concepts,
   /api/market/concept/{concept}/stocks, /api/market/north-flow, /api/market/index-history,
   /api/hk/overview, /api/hk/south-flow, /api/hk/hot-rank,
   /api/hk/{symbol}/technical, /api/hk/{symbol}/financials, /api/hk/{symbol}/analysis
@@ -79,23 +79,6 @@ def get_news(limit: int = Query(20)):
 def get_market_margin_v2():
     """全市场融资融券 - v2 原生实现"""
     result = market_data_service.get_market_margin()
-    if not result.get('success', False):
-        return error_response(result, 503)
-    return api_response(result.get('data', {}))
-
-
-@router.get('/api/market/hot-stocks')
-@handle_api_error
-def get_hot_stocks_v2(market: str = Query('A股'), mode: str = Query('all')):
-    """热搜股票 - v2 多数据源实现
-
-    查询参数:
-    - market: 市场类型（A股/港股/美股），默认 A股
-    - mode: 返回模式（first/all），默认 all
-      - first: 返回第一个成功的数据源
-      - all: 返回所有成功的数据源
-    """
-    result = market_data_service.get_hot_stocks(market=market, mode=mode)
     if not result.get('success', False):
         return error_response(result, 503)
     return api_response(result.get('data', {}))

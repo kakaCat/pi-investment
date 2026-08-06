@@ -138,7 +138,6 @@ GET /api/stock/<symbol>/valuation
 ```http
 GET /api/market/overview
 GET /api/market/sectors
-GET /api/market/hot-stocks
 GET /api/market/concepts
 ```
 

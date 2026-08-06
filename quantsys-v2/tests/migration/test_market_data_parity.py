@@ -26,11 +26,6 @@ def test_margin(flask_client, fastapi_client):
     assert_structural_parity(flask_client, fastapi_client, "GET", "/api/market/margin")
 
 
-def test_hot_stocks(flask_client, fastapi_client):
-    assert_structural_parity(flask_client, fastapi_client, "GET", "/api/market/hot-stocks",
-                             params={"market": "A股", "mode": "first"})
-
-
 def test_sector_flow(flask_client, fastapi_client):
     assert_structural_parity(flask_client, fastapi_client, "GET", "/api/market/sector-flow")
 

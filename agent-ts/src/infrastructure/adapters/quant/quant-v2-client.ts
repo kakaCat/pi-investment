@@ -195,7 +195,6 @@ const V2_ROUTES: Record<
   "market.style":         { path: "/api/market/style",                   method: "GET" },  // ✅ 市场风格检测
   "market.news":          { path: "/api/market/news",                    method: "GET" },
   "market.margin":        { path: "/api/market/margin",                  method: "GET" },
-  "market.hot_stocks":    { path: "/api/market/hot-stocks",              method: "GET" },
   "market.sector_flow":   { path: "/api/market/sector-flow",             method: "GET" },
   "market.concepts":      { path: "/api/market/concepts",                method: "GET" },
   "market.concept_stocks":{ path: "/api/market/concept/{concept}/stocks",method: "GET" },
