@@ -111,11 +111,13 @@ def register_ml_routes(app, ds):
         def _process_one_symbol(sym: str):
             try:
                 factors_data = ds.factor.get_factors_range(sym, start_date, end_date)
-                if not factors_data:
+                # get_factors_range 返回 polars DataFrame：bool(df) 抛 TypeError，
+                # 直接迭代产出 Series 而非 dict，必须用 is_empty + iter_rows(named=True)
+                if factors_data is None or factors_data.is_empty():
                     return []
                 # Pivot: {factor_date: {factor_name: value}}
                 by_date: dict[str, dict[str, float]] = {}
-                for fv in factors_data:
+                for fv in factors_data.iter_rows(named=True):
                     d = str(fv.get("factor_date") or fv.get("date", ""))
                     if not d:
                         continue

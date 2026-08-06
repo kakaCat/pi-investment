@@ -84,10 +84,12 @@ def ml_train(payload: Optional[Dict[str, Any]] = Body(None)):
     def _process_one_symbol(sym: str):
         try:
             factors_data = ds.factor.get_factors_range(sym, start_date, end_date)
-            if not factors_data:
+            # get_factors_range 返回 polars DataFrame：bool(df) 抛 TypeError，
+            # 直接迭代产出 Series 而非 dict，必须用 is_empty + iter_rows(named=True)
+            if factors_data is None or factors_data.is_empty():
                 return []
             by_date: dict = {}
-            for fv in factors_data:
+            for fv in factors_data.iter_rows(named=True):
                 d = str(fv.get("factor_date") or fv.get("date", ""))
                 if not d:
                     continue

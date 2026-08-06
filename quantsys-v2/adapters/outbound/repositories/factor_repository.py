@@ -140,6 +140,9 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
         if not symbols:
             return {}
 
+        from adapters.outbound.repositories.risk_repository import _validate_date
+        _validate_date(date)  # 纵深防御：非法日期直接 ValueError（对齐归档行为）
+
         try:
             rows = self.session.query(
                 FactorValue.symbol,
