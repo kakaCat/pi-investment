@@ -41,6 +41,23 @@ class TestKlineRepository:
         assert result >= 0
         assert result == self.repo.count_daily_klines("600519.SH")
 
+    # ==================== session 毒化回归测试 ====================
+    # except 分支不回滚时，PG 报错使 scoped_session 共享事务进入 aborted，
+    # 同线程后续所有查询撞 "current transaction is aborted"（线程毒化）。
+
+    def test_failed_query_does_not_poison_thread_session(self):
+        """回归：坏查询的 except 分支必须 rollback，好查询不受影响"""
+        from sqlalchemy import text
+
+        # 第一次：触发 PG 语法错误（非法日期格式），异常被 except 吞掉返回空 df
+        df_bad = self.repo.get_daily_klines("000001.SZ", "not-a-date", "2024-01-31")
+        assert isinstance(df_bad, pl.DataFrame)
+        assert df_bad.height == 0
+
+        # 第二次：同一线程的共享 session 必须仍可用。
+        # 修复前这里必撞 InternalError: current transaction is aborted
+        assert self.repo.session.execute(text("SELECT 1")).scalar() == 1
+
     # ==================== 参数容错测试 ====================
     # 当前 ORM API 不做参数校验（旧 _validate_symbol/_validate_date 已随
     # 8f06ae1 移除，无生产调用方依赖 ValueError），无效输入一律返回空 DataFrame。
