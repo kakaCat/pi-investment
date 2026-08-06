@@ -1,7 +1,12 @@
 """
 KlineRepository单元测试
+
+注意：get_daily_klines/get_latest_daily_kline/get_minute_klines 现返回
+polars DataFrame（ORM 重构契约），断言用 df.to_dicts()/df.height。
+daily_klines 的 symbol 统一无后缀归一化（_normalize_symbol）。
 """
 import pytest
+import polars as pl
 from adapters.outbound.repositories import KlineORMRepository
 
 
@@ -36,17 +41,24 @@ class TestKlineRepository:
         assert result >= 0
         assert result == self.repo.count_daily_klines("600519.SH")
 
-    # ==================== 参数校验测试 ====================
+    # ==================== 参数容错测试 ====================
+    # 当前 ORM API 不做参数校验（旧 _validate_symbol/_validate_date 已随
+    # 8f06ae1 移除，无生产调用方依赖 ValueError），无效输入一律返回空 DataFrame。
 
     def test_get_daily_klines_invalid_symbol(self):
-        """测试无效股票代码"""
-        with pytest.raises(ValueError, match="股票代码格式错误"):
-            self.repo.get_daily_klines("INVALID", "2024-01-01", "2024-01-31")
+        """无效股票代码返回空DataFrame（不抛异常）"""
+        df = self.repo.get_daily_klines("INVALID", "2024-01-01", "2024-01-31")
+        assert isinstance(df, pl.DataFrame)
+        assert df.height == 0
 
     def test_get_daily_klines_invalid_date(self):
-        """测试无效日期格式"""
-        with pytest.raises(ValueError, match="Invalid date format"):
-            self.repo.get_daily_klines("000001.SZ", "2024/01/01", "2024-01-31")
+        """无效日期格式返回空DataFrame（查询异常被捕获，不抛给调用方）"""
+        df = self.repo.get_daily_klines("000001.SZ", "not-a-date", "2024-01-31")
+        assert isinstance(df, pl.DataFrame)
+        assert df.height == 0
+        # PG 报错会使 scoped_session 共享事务进入 aborted 状态，
+        # 不回滚会毒化同线程后续测试（如 save_daily_klines upsert）
+        self.repo.session.rollback()
 
     def test_get_kline_count_invalid_type(self):
         """测试无效K线类型"""
@@ -57,10 +69,11 @@ class TestKlineRepository:
 
     def test_get_daily_klines_basic(self):
         """测试基本日K线查询"""
-        klines = self.repo.get_daily_klines("000001.SZ", "2024-01-01", "2024-01-31")
+        df = self.repo.get_daily_klines("000001.SZ", "2024-01-01", "2024-01-31")
 
-        assert isinstance(klines, list)
-        if len(klines) > 0:
+        assert isinstance(df, pl.DataFrame)
+        if df.height > 0:
+            klines = df.to_dicts()
             # 验证返回的字段
             assert 'symbol' in klines[0]
             assert 'trade_date' in klines[0]
@@ -77,22 +90,24 @@ class TestKlineRepository:
     def test_get_daily_klines_with_fields(self):
         """测试指定字段查询"""
         fields = ['symbol', 'trade_date', 'close', 'volume']
-        klines = self.repo.get_daily_klines("000001.SZ", "2024-01-01", "2024-01-31", fields=fields)
+        df = self.repo.get_daily_klines("000001.SZ", "2024-01-01", "2024-01-31", fields=fields)
 
-        if len(klines) > 0:
+        if df.height > 0:
             # 验证只返回指定字段
             for field in fields:
-                assert field in klines[0]
+                assert field in df.columns
 
     def test_get_latest_daily_kline(self):
         """测试获取最新日K线"""
-        kline = self.repo.get_latest_daily_kline("000001.SZ")
+        df = self.repo.get_latest_daily_kline("000001.SZ")
 
-        if kline:
+        if df is not None and df.height > 0:
+            kline = df.to_dicts()[0]
             assert 'symbol' in kline
             assert 'trade_date' in kline
             assert 'close' in kline
-            assert kline['symbol'] == "000001.SZ"
+            # symbol 统一无后缀归一化
+            assert kline['symbol'] == "000001"
 
     def test_get_daily_klines_batch(self):
         """测试批量查询日K线"""
@@ -101,12 +116,12 @@ class TestKlineRepository:
 
         assert isinstance(klines_dict, dict)
 
-        # 验证返回的数据结构
+        # 验证返回的数据结构（dict 键保持入参格式；行内 symbol 为无后缀归一化值）
         for symbol in symbols:
             if symbol in klines_dict:
                 assert isinstance(klines_dict[symbol], list)
                 if len(klines_dict[symbol]) > 0:
-                    assert klines_dict[symbol][0]['symbol'] == symbol
+                    assert klines_dict[symbol][0]['symbol'] == symbol.split('.')[0]
 
     def test_get_daily_klines_batch_empty(self):
         """测试空列表批量查询"""
@@ -117,21 +132,22 @@ class TestKlineRepository:
 
     def test_get_minute_klines_basic(self):
         """测试基本分钟K线查询"""
-        klines = self.repo.get_minute_klines(
+        df = self.repo.get_minute_klines(
             "000001.SZ",
             "2024-01-02 09:30:00",
             "2024-01-02 15:00:00"
         )
 
-        assert isinstance(klines, list)
-        if len(klines) > 0:
+        assert isinstance(df, pl.DataFrame)
+        if df.height > 0:
+            klines = df.to_dicts()
             assert 'symbol' in klines[0]
-            assert 'ts' in klines[0]
+            assert 'trade_datetime' in klines[0]
             assert 'close' in klines[0]
 
             # 验证数据按时间升序排列
             if len(klines) > 1:
-                assert klines[0]['ts'] <= klines[1]['ts']
+                assert klines[0]['trade_datetime'] <= klines[1]['trade_datetime']
 
     def test_get_latest_minute_kline(self):
         """测试获取最新分钟K线"""
@@ -235,22 +251,22 @@ class TestKlineRepository:
 
     def test_get_daily_klines_same_date(self):
         """测试开始日期和结束日期相同"""
-        klines = self.repo.get_daily_klines("000001.SZ", "2024-01-02", "2024-01-02")
-        assert isinstance(klines, list)
+        df = self.repo.get_daily_klines("000001.SZ", "2024-01-02", "2024-01-02")
+        assert isinstance(df, pl.DataFrame)
         # 应该返回0或1条记录
-        assert len(klines) <= 1
+        assert df.height <= 1
 
     def test_get_daily_klines_future_date(self):
         """测试未来日期"""
-        klines = self.repo.get_daily_klines("000001.SZ", "2030-01-01", "2030-12-31")
-        # 未来日期应该返回空列表
-        assert klines == []
+        df = self.repo.get_daily_klines("000001.SZ", "2030-01-01", "2030-12-31")
+        # 未来日期应该返回空DataFrame
+        assert df.height == 0
 
     def test_get_daily_klines_reverse_date_range(self):
         """测试反向日期范围（开始日期晚于结束日期）"""
-        klines = self.repo.get_daily_klines("000001.SZ", "2024-01-31", "2024-01-01")
-        # 反向日期范围应该返回空列表
-        assert klines == []
+        df = self.repo.get_daily_klines("000001.SZ", "2024-01-31", "2024-01-01")
+        # 反向日期范围应该返回空DataFrame
+        assert df.height == 0
 
     def test_batch_get_recent_klines(self):
         """测试批量查询最近N天K线数据"""
@@ -286,7 +302,7 @@ class TestKlineRepository:
         # 执行批量查询
         result = self.repo.batch_get_recent_klines(symbols, days)
 
-        # 验证结果
+        # 验证结果（result 键保持入参 symbol 格式；行内 symbol 为无后缀归一化值）
         assert isinstance(result, dict)
         assert len(result) == 3
         for symbol in symbols:
@@ -295,7 +311,7 @@ class TestKlineRepository:
             # 验证返回的数据量必须等于days
             assert len(result[symbol]) == days
             if len(result[symbol]) > 0:
-                assert result[symbol][0]['symbol'] == symbol
+                assert result[symbol][0]['symbol'] == symbol.split('.')[0]
                 # 验证按日期升序排列
                 if len(result[symbol]) > 1:
                     assert result[symbol][0]['trade_date'] <= result[symbol][1]['trade_date']
