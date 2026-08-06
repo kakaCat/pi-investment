@@ -55,6 +55,7 @@ class PoolChangeLogRepository(BaseORMRepository[PoolChangeLog]):
                 raise RuntimeError("创建池子变更日志失败")
             return self._to_dict(created)
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error logging pool change: {e}")
             raise
 
@@ -67,6 +68,7 @@ class PoolChangeLogRepository(BaseORMRepository[PoolChangeLog]):
                     .limit(limit).all())
             return [self._to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error getting pool history for {pool_id}: {e}")
             return []
 
@@ -78,6 +80,7 @@ class PoolChangeLogRepository(BaseORMRepository[PoolChangeLog]):
                     .limit(limit).all())
             return [self._to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error getting recent pool changes: {e}")
             return []
 
@@ -85,6 +88,7 @@ class PoolChangeLogRepository(BaseORMRepository[PoolChangeLog]):
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

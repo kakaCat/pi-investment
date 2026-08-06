@@ -69,6 +69,7 @@ class AutomationTaskRepository(BaseORMRepository[AutomationTask]):
                 query = query.filter(self.model.is_enabled == True)
             return query.order_by(self.model.priority.desc()).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing tasks: {e}")
             return []
 
@@ -79,6 +80,7 @@ class AutomationTaskRepository(BaseORMRepository[AutomationTask]):
                 self.model.task_name == task_name
             ).first()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting task by name: {e}")
             return None
 
@@ -136,6 +138,7 @@ class AutomationTaskRepository(BaseORMRepository[AutomationTask]):
                 self.model.task_type == 'scheduled'
             ).order_by(self.model.priority.desc()).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting scheduled tasks: {e}")
             return []
 
@@ -184,6 +187,7 @@ class AutomationRunRepository(BaseORMRepository[AutomationRun]):
                 self.model.task_id == task_id
             ).order_by(self.model.started_at.desc()).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting task history: {e}")
             return []
 

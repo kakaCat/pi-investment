@@ -77,6 +77,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
                 raise RuntimeError("创建决策记录失败")
             return self._to_dict(created)
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error creating decision: {e}")
             raise
 
@@ -87,6 +88,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
                    .filter_by(decision_id=decision_id).first())
             return self._to_dict(row) if row else None
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error getting decision {decision_id}: {e}")
             return None
 
@@ -157,6 +159,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
                     .limit(limit).all())
             return [self._to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error getting decisions for {entity_type}/{entity_id}: {e}")
             return []
 
@@ -168,6 +171,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
                     .limit(limit).all())
             return [self._to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error getting recent decisions: {e}")
             return []
 
@@ -182,6 +186,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
                     .all())
             return [self._to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error listing pending evaluations: {e}")
             return []
 
@@ -193,6 +198,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             created = self.create_decision(decision)
             return int(created['id']) if created.get('id') else 0
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"保存决策失败: {e}")
             return 0
 
@@ -204,6 +210,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             logger.info("保存对手行为快照", snapshot_keys=list(snapshot.keys()))
             return 1
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"保存快照失败: {e}")
             return 0
 
@@ -213,6 +220,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             logger.info("保存博弈指标", metrics_keys=list(metrics.keys()))
             return 1
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"保存指标失败: {e}")
             return 0
 
@@ -222,6 +230,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             logger.info("创建操纵事件", event_keys=list(event.keys()))
             return 1
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"创建事件失败: {e}")
             return 0
 
@@ -230,6 +239,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
         try:
             return []
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"获取活跃事件失败: {e}")
             return []
 
@@ -239,6 +249,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             logger.info("解决事件", event_id=event_id)
             return True
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"解决事件失败: {e}")
             return False
 
@@ -246,6 +257,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

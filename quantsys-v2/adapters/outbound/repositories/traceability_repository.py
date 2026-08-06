@@ -53,6 +53,7 @@ class TraceabilityORMRepository(BaseORMRepository[OperationAudit], ITraceability
             created = self.create(row)
             return created.id if created else -1
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error logging operation: {e}")
             return -1
 
@@ -60,6 +61,7 @@ class TraceabilityORMRepository(BaseORMRepository[OperationAudit], ITraceability
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

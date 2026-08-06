@@ -69,6 +69,7 @@ class ConditionRuleORMRepository(BaseORMRepository[ConditionRule]):
 
             return query.order_by(ConditionRule.priority.desc()).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting active rules: {e}")
             return []
 
@@ -86,6 +87,7 @@ class ConditionRuleORMRepository(BaseORMRepository[ConditionRule]):
                 ConditionRule.rule_name == rule_name
             ).first()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting rule by name {rule_name}: {e}")
             return None
 
@@ -116,6 +118,7 @@ class ConditionRuleORMRepository(BaseORMRepository[ConditionRule]):
             )
             return self.create(rule)
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error creating rule: {e}")
             return None
 
@@ -218,6 +221,7 @@ class ConditionResultORMRepository(BaseORMRepository[ConditionResult]):
             )
             return self.create(result)
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error recording result: {e}")
             return None
 
@@ -240,6 +244,7 @@ class ConditionResultORMRepository(BaseORMRepository[ConditionResult]):
                 ConditionResult.rule_id == rule_id
             ).order_by(ConditionResult.check_time.desc()).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting results for rule {rule_id}: {e}")
             return []
 
@@ -272,5 +277,6 @@ class ConditionResultORMRepository(BaseORMRepository[ConditionResult]):
 
             return query.order_by(ConditionResult.check_time.desc()).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting triggered results: {e}")
             return []
