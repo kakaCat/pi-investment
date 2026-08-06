@@ -182,7 +182,6 @@ QUANTSYS_V2_API_URL=http://127.0.0.1:5001
 QUANTSYS_V2_TIMEOUT=30000
 
 # Database (PostgreSQL - 仅 quantsys-v2 使用；TypeScript Agent 不直连 PG)
-QUANT_DB_PROVIDER=postgres
 PGDATABASE=quant_investment
 
 # Optional

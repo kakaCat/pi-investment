@@ -26,12 +26,6 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.API_PORT || 3001;
 
-function getDatabaseProvider(): 'postgres' | 'sqlite' {
-  return process.env.QUANT_DB_PROVIDER?.trim().toLowerCase() === 'sqlite'
-    ? 'sqlite'
-    : 'postgres';
-}
-
 async function getPostgresHealthInfo(): Promise<{
   connected: boolean;
   info: Record<string, unknown> | null;
@@ -111,47 +105,11 @@ app.use('/api', featuresRouter);
 // 健康检查 (放在 /api 下以便前端统一访问)
 app.get('/api/health', async (req, res) => {
   try {
-    let dbConnected = false;
-    let dbInfo = null;
-
-    if (getDatabaseProvider() === 'postgres') {
-      const health = await getPostgresHealthInfo();
-      dbConnected = health.connected;
-      dbInfo = health.info;
-      if (!health.connected && health.error) {
-        dbInfo = { ...dbInfo, error: health.error };
-      }
-    } else {
-      // 检查 SQLite 文件连接（仅显式 QUANT_DB_PROVIDER=sqlite 时使用）
-      const projectRoot = path.resolve(__dirname, '../../../');
-      const dbPath = path.join(projectRoot, '.pi-invest/stock-db/stocks.db');
-      dbConnected = fs.existsSync(dbPath);
-
-      if (dbConnected) {
-        try {
-          const stats = fs.statSync(dbPath);
-          const sizeBytes = stats.size;
-          const sizeMb = sizeBytes / (1024 * 1024);
-
-          let sizeDisplay: string;
-          if (sizeMb < 1) {
-            sizeDisplay = `${(sizeBytes / 1024).toFixed(1)} KB`;
-          } else if (sizeMb < 1024) {
-            sizeDisplay = `${sizeMb.toFixed(1)} MB`;
-          } else {
-            sizeDisplay = `${(sizeMb / 1024).toFixed(1)} GB`;
-          }
-
-          dbInfo = {
-            provider: 'sqlite',
-            path: dbPath,
-            size_mb: Math.round(sizeMb * 100) / 100,
-            size_display: sizeDisplay
-          };
-        } catch (error) {
-          console.error('Failed to get database file info:', error);
-        }
-      }
+    const health = await getPostgresHealthInfo();
+    const dbConnected = health.connected;
+    let dbInfo = health.info;
+    if (!health.connected && health.error) {
+      dbInfo = { ...dbInfo, error: health.error };
     }
 
     // 检查模型文件是否存在
