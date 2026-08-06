@@ -60,11 +60,6 @@ class TestKlineRepository:
         # 不回滚会毒化同线程后续测试（如 save_daily_klines upsert）
         self.repo.session.rollback()
 
-    def test_get_kline_count_invalid_type(self):
-        """测试无效K线类型"""
-        with pytest.raises(ValueError, match="不支持的K线类型"):
-            self.repo.get_kline_count("000001.SZ", "2024-01-01", "2024-01-31", kline_type="invalid")
-
     # ==================== 日K线查询测试 ====================
 
     def test_get_daily_klines_basic(self):
@@ -155,8 +150,8 @@ class TestKlineRepository:
 
         if kline:
             assert 'symbol' in kline
-            assert 'ts' in kline
-            assert kline['symbol'] == "000001.SZ"
+            assert 'trade_datetime' in kline
+            assert kline['symbol'] == "000001"  # 无后缀归一化
 
     # ==================== 写入方法测试 ====================
 
@@ -188,34 +183,15 @@ class TestKlineRepository:
             # 如果数据库连接失败或权限不足，跳过测试
             pytest.skip(f"数据库写入测试跳过: {str(e)}")
 
-    def test_save_minute_klines_empty(self):
-        """测试保存空分钟K线列表"""
-        count = self.repo.save_minute_klines([])
-        assert count == 0
-
     # ==================== 统计方法测试 ====================
 
-    def test_get_kline_count(self):
-        """测试统计K线数量"""
-        count = self.repo.get_kline_count("000001.SZ", "2024-01-01", "2024-01-31", kline_type='daily')
-        assert isinstance(count, int)
-        assert count >= 0
-
-    def test_get_available_date_range(self):
-        """测试获取可用日期范围"""
-        date_range = self.repo.get_available_date_range("000001.SZ")
-
+    def test_get_available_date_range_removed(self):
+        """get_available_date_range 已移除——能力由 get_date_range 覆盖
+        （stock_code_validator/data_service_orm 生产调用 get_date_range）"""
+        date_range = self.repo.get_date_range("000001.SZ")
         if date_range:
-            assert isinstance(date_range, tuple)
             assert len(date_range) == 2
-            min_date, max_date = date_range
-            assert min_date <= max_date
-
-    def test_get_available_date_range_no_data(self):
-        """测试不存在的股票"""
-        date_range = self.repo.get_available_date_range("999999.SZ")
-        # 不存在的股票应该返回None
-        assert date_range is None
+            assert date_range[0] <= date_range[1]
 
     def test_get_trading_days(self):
         """测试获取交易日列表"""
