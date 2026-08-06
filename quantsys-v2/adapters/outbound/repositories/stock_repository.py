@@ -46,19 +46,9 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
 
     model = Stock
 
-    def get_stock_info(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """获取股票基础信息（IStockRepository接口实现）
-
-        Args:
-            symbol: 股票代码
-
-        Returns:
-            股票信息字典，不存在返回None
-        """
-        stock = self.get_by_symbol(symbol)
-        if not stock:
-            return None
-
+    @staticmethod
+    def _stock_to_info_dict(stock: Stock) -> Dict[str, Any]:
+        """Stock 对象 -> 股票信息字典（get_stock_info/get_by_symbols_batch 共用）"""
         return {
             'symbol': stock.symbol,
             'name': stock.name,
@@ -75,6 +65,50 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
             'revenue_growth': stock.revenue_growth,
             'net_profit_growth': stock.net_profit_growth,
         }
+
+    def get_stock_info(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """获取股票基础信息（IStockRepository接口实现）
+
+        Args:
+            symbol: 股票代码
+
+        Returns:
+            股票信息字典，不存在返回None
+        """
+        stock = self.get_by_symbol(symbol)
+        if not stock:
+            return None
+
+        return self._stock_to_info_dict(stock)
+
+    def get_by_symbols_batch(self, symbols: List[str]) -> Dict[str, Dict[str, Any]]:
+        """批量查询多只股票（单次查询契约）
+
+        旧 BaseRepository 时代契约（Phase 3 性能优化引入），ORM 重构
+        （8f06ae1）时丢失，2026-08-06 恢复——adapters/inbound/api/routes/
+        analysis.py compare_stocks 通过 ds.stock.get_by_symbols_batch(...)
+        调用，缺失即 AttributeError（/api/stocks/compare 500）。
+
+        语义对齐归档实现（quantsys-v2.git.archive 8f06ae1^）：单次 IN 查询、
+        symbol 精确匹配（不做后缀归一化，带后缀代码查不到即不出现）、
+        未找到的股票不包含在结果中。字典值契约与 get_stock_info 一致。
+
+        Args:
+            symbols: 股票代码列表
+
+        Returns:
+            字典 {symbol: stock_info}
+        """
+        if not symbols:
+            return {}
+
+        try:
+            stocks = self.session.query(Stock).filter(Stock.symbol.in_(symbols)).all()
+            return {s.symbol: self._stock_to_info_dict(s) for s in stocks}
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error batch getting {len(symbols)} stocks: {e}")
+            return {}
 
     def get_by_symbol(self, symbol: str) -> Optional[Stock]:
         """根据代码查询单只股票

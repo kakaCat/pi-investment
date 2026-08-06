@@ -88,6 +88,78 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             logger.error(f"Error getting factor data for {symbol}: {e}")
             return pl.DataFrame()
 
+    def get_factors_range(
+        self, symbol: str, start_date: str, end_date: str
+    ) -> pl.DataFrame:
+        """查询股票在日期范围内的全部因子值（polars DataFrame 契约）
+
+        旧 BaseRepository 时代契约，ORM 重构（8f06ae1）时丢失，
+        2026-08-06 恢复——adapters/inbound/api/ml_routes.py 与
+        adapters/inbound/fastapi_app/routes/ml_async.py 均通过
+        ds.factor.get_factors_range(...) 调用，缺失即 AttributeError。
+
+        实现委托 get_factor_data（归档语义：symbol 精确匹配、日期闭区间、
+        按 factor_date 升序、空结果返回空 DataFrame）；返回列
+        symbol/factor_date/factor_name/factor_value 为归档契约
+        （factor_date, factor_name, factor_value）的超集。
+
+        Args:
+            symbol: 股票代码
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+
+        Returns:
+            polars DataFrame，无数据时返回空 DataFrame
+        """
+        return self.get_factor_data(
+            symbol, factor_names=None, start_date=start_date, end_date=end_date
+        )
+
+    def get_factors_batch(
+        self,
+        symbols: List[str],
+        date: str
+    ) -> Dict[str, Dict[str, float]]:
+        """批量查询多只股票在指定日期的因子值（单查询契约）
+
+        旧 BaseRepository 时代契约，ORM 重构（8f06ae1）时丢失，
+        2026-08-06 恢复——adapters/inbound/api/routes/analysis.py
+        compare_stocks 通过 ds.factor.get_factors_batch(...) 调用，
+        缺失即 AttributeError（/api/stocks/compare 500）。
+
+        语义对齐归档实现（quantsys-v2.git.archive 8f06ae1^）：
+        单次 IN 查询、symbol 精确匹配、未找到的股票不出现在结果中。
+
+        Args:
+            symbols: 股票代码列表
+            date: 因子日期 (YYYY-MM-DD)
+
+        Returns:
+            字典 {symbol: {factor_name: factor_value}}
+        """
+        if not symbols:
+            return {}
+
+        try:
+            rows = self.session.query(
+                FactorValue.symbol,
+                FactorValue.factor_name,
+                FactorValue.factor_value,
+            ).filter(
+                FactorValue.symbol.in_(symbols),
+                FactorValue.factor_date == date,
+            ).all()
+
+            factors_by_symbol: Dict[str, Dict[str, float]] = {}
+            for symbol, factor_name, factor_value in rows:
+                factors_by_symbol.setdefault(symbol, {})[factor_name] = factor_value
+            return factors_by_symbol
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error batch getting factors for {len(symbols)} symbols on {date}: {e}")
+            return {}
+
     def batch_get_factors(
         self,
         symbols: List[str],

@@ -230,6 +230,73 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             logger.error(f"Error getting all holdings: {e}")
             return []
 
+    def get_holdings_as_of(self, as_of_date: str) -> List[Dict]:
+        """按交易历史重建指定日期的持仓（窗口函数契约）
+
+        旧 BaseRepository 时代契约，ORM 重构（8f06ae1）时丢失，
+        2026-08-06 恢复——domain/quantlib/core/portfolio_calculator.py
+        （calculate_market_value/get_position_count）在调用，
+        缺失即 AttributeError。
+
+        语义对齐归档实现（quantsys-v2.git.archive 8f06ae1^）：
+        聚合 as_of_date 之前全部 trades（buy 加 / sell 减）得到净持仓，
+        只返回净数量 > 0 的股票；name 取该 symbol 最新一笔交易的名称。
+        实现从 psycopg2 原生 SQL 改为 ORM（GROUP BY + DISTINCT ON 子查询）。
+
+        Args:
+            as_of_date: 截止日期 (YYYY-MM-DD)
+
+        Returns:
+            [{symbol, name, quantity}]，quantity 为净持仓（> 0）
+        """
+        _validate_date(as_of_date)
+
+        try:
+            net_quantity = func.sum(
+                case((Trade.action == 'buy', Trade.quantity), else_=-Trade.quantity)
+            )
+
+            position_summary = self.session.query(
+                Trade.symbol.label('symbol'),
+                net_quantity.label('quantity'),
+            ).filter(
+                Trade.trade_date <= as_of_date
+            ).group_by(
+                Trade.symbol
+            ).having(
+                net_quantity > 0
+            ).subquery()
+
+            # 每个 symbol 最新一笔交易的名称（DISTINCT ON，等价归档窗口函数实现）
+            latest_names = self.session.query(
+                Trade.symbol.label('symbol'),
+                Trade.name.label('name'),
+            ).filter(
+                Trade.trade_date <= as_of_date
+            ).order_by(
+                Trade.symbol, Trade.trade_date.desc()
+            ).distinct(
+                Trade.symbol
+            ).subquery()
+
+            rows = self.session.query(
+                position_summary.c.symbol,
+                latest_names.c.name,
+                position_summary.c.quantity,
+            ).outerjoin(
+                latest_names, latest_names.c.symbol == position_summary.c.symbol
+            ).all()
+
+            return [
+                {'symbol': row.symbol, 'name': row.name, 'quantity': row.quantity}
+                for row in rows
+            ]
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error reconstructing holdings as of {as_of_date}: {e}")
+            return []
+
     def get_holdings_by_date_range(
         self,
         start_date: str,
