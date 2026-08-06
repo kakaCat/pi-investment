@@ -396,6 +396,10 @@ def get_stock_valuation(symbol):
     pe_median = None
     pe_high = None
     pe_low = None
+    # get_daily_klines 返回 polars DataFrame：bool(df) 抛 TypeError、
+    # 迭代/k.get 也不兼容——先转 dict 列表
+    if hasattr(klines, 'to_dicts'):
+        klines = klines.to_dicts()
     if klines and pe > 0:
         closes = [float(k.get('close', 0)) for k in klines if float(k.get('close', 0)) > 0]
         if closes:

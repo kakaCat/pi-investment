@@ -356,6 +356,11 @@ def get_exit_plan(symbol: str,
             end_date.strftime('%Y-%m-%d')
         )
 
+        # get_daily_klines 返回 polars DataFrame：bool(df) 抛 TypeError、
+        # klines[-1] 取出 1 行 DataFrame 再 .get 抛 AttributeError——先转 dict 列表
+        if hasattr(klines, 'to_dicts'):
+            klines = klines.to_dicts()
+
         if not klines or len(klines) == 0:
             return error_response(
                 {'success': False, 'error': f'无法获取 {symbol} 的价格数据'}, 404)

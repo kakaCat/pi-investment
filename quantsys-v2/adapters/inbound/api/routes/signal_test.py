@@ -121,6 +121,11 @@ def run_strategy_and_record():
             'error': f'{symbol} 获取K线失败: {e}'
         }), 500
 
+    # get_daily_klines 返回 polars DataFrame：bool(df) 抛 TypeError、
+    # klines[-1] 取出 1 行 DataFrame 再 .get 抛 AttributeError——先转 dict 列表
+    if hasattr(klines, 'to_dicts'):
+        klines = klines.to_dicts()
+
     if not klines or len(klines) < 30:
         return jsonify({
             'success': False,
