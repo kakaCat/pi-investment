@@ -58,6 +58,7 @@ class PositionORMRepository(BaseORMRepository[Position], IPositionRepository):
                     .all())
             return [self._to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error getting positions for {portfolio_name}: {e}")
             return []
 
@@ -65,6 +66,7 @@ class PositionORMRepository(BaseORMRepository[Position], IPositionRepository):
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

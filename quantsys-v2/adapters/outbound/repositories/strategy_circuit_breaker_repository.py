@@ -54,6 +54,7 @@ class StrategyCircuitBreakerORMRepository(BaseORMRepository[StrategyCircuitBreak
             row = self.session.query(self.model).get(strategy_name)
             return self._to_dict(row) if row else None
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error getting circuit breaker state for {strategy_name}: {e}")
             return None
 
@@ -93,6 +94,7 @@ class StrategyCircuitBreakerORMRepository(BaseORMRepository[StrategyCircuitBreak
             rows = self.session.query(self.model).all()
             return [self._to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error listing circuit breaker states: {e}")
             return []
 
@@ -100,6 +102,7 @@ class StrategyCircuitBreakerORMRepository(BaseORMRepository[StrategyCircuitBreak
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

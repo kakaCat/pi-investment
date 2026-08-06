@@ -86,6 +86,7 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             return [self._signal_to_dict(s) for s in signals]
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting signals: {e}")
             return []
 
@@ -204,6 +205,7 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             return query.order_by(Signal.created_at.desc()).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting signals by date {signal_date}: {e}")
             return []
 
@@ -248,6 +250,7 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             return query.all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting signals by date range: {e}")
             return []
 
@@ -282,6 +285,7 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             return query.order_by(Signal.signal_date.desc()).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting signals for {symbol}: {e}")
             return []
 
@@ -318,6 +322,7 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             ).limit(limit).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting signals for strategy {strategy_id}: {e}")
             return []
 
@@ -344,6 +349,7 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             return query.order_by(Signal.created_at.desc()).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting pending signals: {e}")
             return []
 
@@ -372,6 +378,7 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             return query.order_by(Signal.signal_date.desc()).first()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting latest signal for {symbol}: {e}")
             return None
 
@@ -484,6 +491,7 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             return query.count()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error counting signals: {e}")
             return 0
 
@@ -517,6 +525,7 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             return {status: count for status, count in result}
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error counting by status: {e}")
             return {}
 
@@ -563,6 +572,7 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             }
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting signal stats: {e}")
             return {}
 
@@ -607,5 +617,6 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             return [self._signal_to_dict(s) for s in signals]
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting latest signals: {e}", exc_info=True)
             return []

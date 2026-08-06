@@ -106,6 +106,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
                 account_name=account_name
             ).first()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting account {account_name}: {e}")
             return None
 
@@ -126,6 +127,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
                 .first()
             )
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error locking account {account_name}: {e}")
             return None
 
@@ -544,6 +546,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             return query.order_by(SimulationPosition.symbol).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting positions for {account_name}: {e}")
             return []
 
@@ -559,6 +562,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
                 symbol=symbol
             ).first()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting position {symbol}: {e}")
             return None
 
@@ -847,6 +851,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             ).order_by(SimulationTrade.trade_time.desc()).limit(limit).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting trades: {e}")
             return []
 
@@ -870,6 +875,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             return query.order_by(SimulationTrade.trade_date.desc()).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting trades for account {account_name}: {e}")
             return []
 
@@ -895,6 +901,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             return query.order_by(SimulationTrade.trade_date.desc()).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting trades for {symbol}: {e}")
             return []
 
@@ -919,6 +926,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             return query.count()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error counting trades: {e}")
             return 0
 
@@ -934,6 +942,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             return float(result or 0)
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting total commission: {e}")
             return 0.0
 
@@ -957,6 +966,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             }
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting position summary: {e}")
             return {}
 
@@ -995,5 +1005,6 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             }
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting trade stats: {e}")
             return {}

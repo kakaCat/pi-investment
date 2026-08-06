@@ -45,6 +45,7 @@ class StrategyWeightORMRepository(BaseORMRepository[StrategyWeightConfig], IStra
                     .all())
             return [self._to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error getting weights: {e}")
             return []
 
@@ -60,6 +61,7 @@ class StrategyWeightORMRepository(BaseORMRepository[StrategyWeightConfig], IStra
                    .first())
             return float(row.static_weight) if row else None
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error getting static weight for {strategy_type}/{market_style}: {e}")
             return None
 
@@ -67,6 +69,7 @@ class StrategyWeightORMRepository(BaseORMRepository[StrategyWeightConfig], IStra
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

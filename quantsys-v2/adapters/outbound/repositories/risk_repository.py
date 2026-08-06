@@ -524,6 +524,7 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
             } for b in balances]
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting account balance history: {e}", exc_info=True)
             return []
 
@@ -555,6 +556,7 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
             }
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting latest balance: {e}", exc_info=True)
             return None
 
@@ -581,6 +583,7 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
             result = cursor.fetchone()
             return dict(result) if result else None
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting latest risk metrics for {symbol}: {e}", exc_info=True)
             return None
         finally:

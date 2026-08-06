@@ -58,6 +58,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
                 SignalExecution.signal_id == signal_id
             ).order_by(SignalExecution.created_at.desc()).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting executions for signal {signal_id}: {e}")
             return []
 
@@ -88,6 +89,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
             return query.order_by(SignalExecution.created_at.desc()).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting executions by date: {e}")
             return []
 
@@ -102,6 +104,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
                 SignalExecution.status == 'pending'
             ).order_by(SignalExecution.created_at).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting pending executions: {e}")
             return []
 
@@ -119,6 +122,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
                 SignalExecution.created_at.desc()
             ).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting all executions: {e}")
             return []
 
@@ -157,6 +161,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
             )
             return self.create(execution, commit=True)
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error creating execution: {e}")
             return None
 
@@ -284,6 +289,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
             return float(result or 0)
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error calculating total pnl: {e}")
             return 0.0
 
@@ -319,6 +325,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
             return winning / len(executions)
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error calculating win rate: {e}")
             return 0.0
 
@@ -362,6 +369,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
             }
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting execution stats: {e}")
             return {}
 
@@ -406,5 +414,6 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
             ]
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting daily execution stats: {e}")
             return []

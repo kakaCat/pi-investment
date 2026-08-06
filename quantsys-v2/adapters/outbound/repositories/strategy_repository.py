@@ -50,6 +50,7 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
         try:
             return self.session.query(Strategy).filter_by(strategy_type=name).first()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error: {e}")
             return None
 
@@ -72,6 +73,7 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
                 'parameters': strategy.default_params,
             }
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting strategy {strategy_id}: {e}")
             return None
 
@@ -96,6 +98,7 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
                 'parameters': s.default_params,
             } for s in strategies]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing strategies: {e}")
             return []
 
@@ -191,6 +194,7 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
                 'updated_at': s.updated_at.isoformat() if s.updated_at else None,
             } for s in strategies]
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting user strategies: {e}")
             return []
 
@@ -238,6 +242,7 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
                 'strategy_profile': strategy.strategy_profile,
             }
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting strategy by id {strategy_id}: {e}")
             return None
 

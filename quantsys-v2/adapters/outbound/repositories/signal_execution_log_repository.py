@@ -82,6 +82,7 @@ class SignalExecutionLogORMRepository(BaseORMRepository[SignalExecutionLog], ISi
                 return -1
             return created.id
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error creating execution log: {e}")
             return -1
 
@@ -115,6 +116,7 @@ class SignalExecutionLogORMRepository(BaseORMRepository[SignalExecutionLog], ISi
             log = self.session.query(self.model).get(log_id)
             return self._to_dict(log) if log else None
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error getting execution log {log_id}: {e}")
             return None
 
@@ -132,6 +134,7 @@ class SignalExecutionLogORMRepository(BaseORMRepository[SignalExecutionLog], ISi
                                   self.model.id.desc()).all()
             return [self._to_dict(r) for r in rows]
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error querying execution logs: {e}")
             return []
 
@@ -139,6 +142,7 @@ class SignalExecutionLogORMRepository(BaseORMRepository[SignalExecutionLog], ISi
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

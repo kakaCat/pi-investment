@@ -80,6 +80,7 @@ class RiskConfigORMRepository(BaseORMRepository[RiskConfig], IRiskConfigReposito
                    .first())
             return self._to_dict(row) if row else None
         except SQLAlchemyError as e:
+            self._safe_rollback()
             logger.error(f"Error getting risk config '{config_name}': {e}")
             return None
 
@@ -109,6 +110,7 @@ class RiskConfigORMRepository(BaseORMRepository[RiskConfig], IRiskConfigReposito
         try:
             return self.session.query(self.model).limit(limit).all()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
 

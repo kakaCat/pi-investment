@@ -118,6 +118,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             return [self._holding_to_dict(h) for h in holdings]
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting portfolio history: {e}")
             return []
 
@@ -152,6 +153,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             return created.id if created else 0
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error saving portfolio snapshot: {e}")
             return 0
 
@@ -168,6 +170,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
                 symbol=symbol
             ).first()
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting holding for {symbol}: {e}")
             return None
 
@@ -223,6 +226,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             return [h.to_dict() for h in holdings]
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting all holdings: {e}")
             return []
 
@@ -247,6 +251,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             ).order_by(PortfolioHolding.added_date.desc()).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting holdings by date range: {e}")
             return []
 
@@ -363,6 +368,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             return query.count()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error counting holdings: {e}")
             return 0
 
@@ -387,6 +393,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             return float(result or 0)
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting total invested: {e}")
             return 0.0
 
@@ -438,6 +445,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             }
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting holdings summary: {e}")
             return {}
 
@@ -515,6 +523,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             ).limit(limit).all()
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting top holdings: {e}")
             return []
 
@@ -531,6 +540,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             return [r[0] for r in result]
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting sectors: {e}")
             return []
 
@@ -615,6 +625,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             return [trade.to_dict() for trade in trades]
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting trades: {e}")
             return []
 
@@ -632,6 +643,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             return trade.to_dict() if trade else None
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting trade by id {trade_id}: {e}")
             return None
 
@@ -669,6 +681,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             return [trade.to_dict() for trade in trades]
 
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error getting trades by order_id {order_id}: {e}")
             return []
 
