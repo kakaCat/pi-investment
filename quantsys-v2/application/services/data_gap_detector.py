@@ -68,7 +68,7 @@ class DataGapDetector:
 
         # 2. 获取实际数据的交易日
         try:
-            actual_days_list = self.kline_repo.get_trading_days(symbol, start_date, end_date)
+            actual_days_list = self.kline_repo.get_trading_days(start_date, end_date, symbol)
             actual_days = set(actual_days_list)
         except Exception as e:
             logger.error(f"获取股票 {symbol} 的实际数据失败: {e}")

@@ -590,6 +590,89 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             logger.error(f"Error getting date range for {symbol}: {e}")
             return None
 
+    def get_kline_stats(
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str
+    ) -> Dict:
+        """获取K线统计信息
+
+        旧 BaseRepository 时代契约（归档 8f06ae1^），ORM 重构（8f06ae1）时丢失，
+        2026-08-06 恢复——FastAPI routes/stock_async.py:54 与 Flask routes/stock.py:119
+        经 ds.kline.get_kline_stats 调用（ds.kline = KlineORMRepository），
+        缺失即 AttributeError（个股详情接口 klineDays 恒为 0）。
+
+        Args:
+            symbol: 股票代码（可带或不带交易所后缀）
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+
+        Returns:
+            统计信息字典: count, max_high, min_low, avg_close,
+            total_volume, total_amount；无数据返回 {}
+        """
+        try:
+            normalized_symbol = self._normalize_symbol(symbol)
+
+            result = self.session.query(
+                func.count().label('count'),
+                func.max(DailyKline.high).label('max_high'),
+                func.min(DailyKline.low).label('min_low'),
+                func.avg(DailyKline.close).label('avg_close'),
+                func.sum(DailyKline.volume).label('total_volume'),
+                func.sum(DailyKline.amount).label('total_amount'),
+            ).filter(
+                DailyKline.symbol == normalized_symbol,
+                DailyKline.trade_date >= start_date,
+                DailyKline.trade_date <= end_date,
+            ).first()
+
+            if not result or not result[0]:
+                return {}
+            return dict(result._mapping)
+
+        except Exception as e:
+            logger.error(f"Error getting kline stats for {symbol}: {e}")
+            return {}
+
+    def get_trading_days(
+        self,
+        start_date: str,
+        end_date: str,
+        symbol: Optional[str] = None
+    ) -> List[str]:
+        """获取指定日期范围内 daily_klines 有数据的交易日
+
+        旧 BaseRepository 时代契约（归档 8f06ae1^），ORM 重构（8f06ae1）时丢失，
+        2026-08-06 恢复——data_gap_detector 需要"实际有数据的交易日"比对交易日历算缺失。
+        丢失期间 data_gap_detector.py 以 (symbol, start, end) 位置参数调用不存在的方法，
+        AttributeError 被其 except 吞掉，缺口检测静默退化为"全部交易日缺失"。
+        恢复时顺带修正调用方参数顺序，并新增可选 symbol 过滤（归档语义为全市场去重日期）。
+
+        Args:
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+            symbol: 可选；传入时只统计该股票有数据的交易日
+
+        Returns:
+            交易日列表（YYYY-MM-DD 字符串，升序）
+        """
+        try:
+            query = self.session.query(DailyKline.trade_date).filter(
+                DailyKline.trade_date >= start_date,
+                DailyKline.trade_date <= end_date,
+            )
+            if symbol:
+                query = query.filter(
+                    DailyKline.symbol == self._normalize_symbol(symbol)
+                )
+            rows = query.distinct().order_by(DailyKline.trade_date.asc()).all()
+            return [str(row[0]) for row in rows]
+        except Exception as e:
+            logger.error(f"Error getting trading days: {e}")
+            return []
+
     # ==================== 分钟K线查询 ====================
 
     def get_minute_klines(
