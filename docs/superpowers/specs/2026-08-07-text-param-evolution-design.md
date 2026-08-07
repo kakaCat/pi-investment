@@ -51,6 +51,7 @@
 - 决策时的 reasoning 与实际驱动因素一致 → 实力，固化为经验；不一致 → 运气，不固化
 - 单次盈利只是线索：同类经验重复 N 次才从 `testing` 升 `active`
 - active 经验回喂决策上下文，同时成为阀门变更的**保护清单**（进化不得洗掉已验证优势）
+- **证据链门禁（No Execution, No Memory，借自 GenericAgent）**：固化条目必须引用执行证据（哪次工具调用、哪条决策记录、哪条打分），没有证据链的一律不入库——对治 2026-08 自我进化审计发现的"蒸馏写入未验证经验"
 
 ---
 
@@ -181,7 +182,7 @@ quant.agent_run_log(log_id PK, ts, agent_role, session_id, level, event_type, pa
 | 工具-代码 | 问题台账 → 开发任务 → PR | 版本发布 |
 | agent 架构 | 问题台账 → 年层提案 → **人类批准** → 开发实现 | 版本发布 |
 
-前置工程：提示词从 `system-prompt-builder.ts` 硬编码外置为 `.pi-invest/bootstrap/prompts/*.md`，验收标准=外置前后 system prompt 逐字节一致（快照测试）。
+前置工程：提示词从 `system-prompt-builder.ts` 硬编码外置为 `.pi-invest/bootstrap/prompts/*.md`，验收标准=外置前后 system prompt 逐字节一致（快照测试）。**外置时顺手做索引/细节分层**（借自 GenericAgent L0–L4：索引文件 ≤30 行硬约束，只留"场景关键词→文件"指针，细节按需 file_read）——MEMORY.md 60+ 条全量进上下文本身就是待进化的文本参数，结构质量决定裁判未来改动它的粒度，避免外置完再重构一次。
 
 ## 6. 子项目切分
 
@@ -198,6 +199,17 @@ quant.agent_run_log(log_id PK, ts, agent_role, session_id, level, event_type, pa
 | P6 | 元层（月/年） | 月层机制评审 + 年层架构提案（人类闸门） | P1-P3 稳定运行后 | 进化机制自身可进化 |
 
 实施顺序：P0 → P1 → P2 →（P3、P4 可并行）→ P5 → P6。
+
+### 6.1 架构改进 Backlog（GenericAgent 调研衍生，2026-08-07）
+
+以下来自 `docs/generic-agent-lessons-report.md`，属于"agent 架构杠杆"，走问题台账→开发任务通道，不进文本参数状态机。实现配方见本地克隆 `/Volumes/ORICO/doc/github/GenericAgent`：
+
+1. **引擎侧纠偏注入**（对标 turn%13/31/175）：按轮次周期注入 checkpoint/换策略/写盘/上报提示，防长跑死循环——agent loop 一处改动
+2. **no_tool 拦截器**：空响应重试 / 大代码块追问"执行还是展示" / 无验证痕迹拦截完成声明——对治"光说不练"和 LLM 静默失败
+3. **大结果写盘+引用返回**：返回最大的 5 个工具先改，防上下文被数据灌爆
+4. **多模型自动 fallback**（对标 MixinSession）：一家 401/超时自动切下家且保留历史——防 LLM 401 静默丢失复发
+5. **Goal Mode（时间预算自驱循环）**：P6 元层候选机制，与四层节奏互补——周蒸馏管沉淀，Goal Mode 管饱和投入
+6. **子 agent 文件协议兜底**（_intervene/_keyinfo）：wake channel 之外的可调试干预通道
 
 ## 7. 关键风险与对策
 
