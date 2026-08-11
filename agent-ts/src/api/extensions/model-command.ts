@@ -32,6 +32,7 @@ import {
   logSwitch,
   type RuntimeProviderName,
 } from "../../config/model-switcher.js";
+import { loopGuardianExtension } from "./loop-guardian.js";
 
 const PROVIDERS: RuntimeProviderName[] = ["deepseek", "kimi"];
 const MODEL_HINTS = ["flash", "pro", "deepseek-v4-flash", "deepseek-v4-pro"];
@@ -128,7 +129,7 @@ export async function createAppResourceLoader(cwd: string): Promise<DefaultResou
   const loader = new DefaultResourceLoader({
     cwd,
     agentDir: getAgentDir(),
-    extensionFactories: [modelCommandExtension],
+    extensionFactories: [modelCommandExtension, loopGuardianExtension],
   });
   await loader.reload();
   return loader;
