@@ -1266,6 +1266,19 @@ def handle_evolution_fitness_daily(params: Dict[str, Any] = None) -> Dict[str, A
         }
 
 
+def handle_decision_score_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
+    """决策打分每日任务（文本参数进化 P0a）：满20交易日的买卖决策打分回写"""
+    try:
+        from application.services.evolution.decision_score_service import DecisionScoreService
+        result = DecisionScoreService().score_mature_decisions()
+        return {"action": "decision_score_daily", "status": "success",
+                **result, "timestamp": datetime.now().isoformat()}
+    except Exception as e:
+        logger.error(f"决策打分任务失败: {e}")
+        return {"action": "decision_score_daily", "status": "failed",
+                "error": str(e), "timestamp": datetime.now().isoformat()}
+
+
 _TASK_HANDLERS: Dict[str, Callable] = {
     "data_quality_check": handle_data_quality_check,
     "data_update": handle_data_update,
@@ -1302,6 +1315,7 @@ _TASK_HANDLERS: Dict[str, Callable] = {
     # 行为进化 Phase 1
     "daily_equity_snapshot": handle_daily_equity_snapshot,
     "evolution_fitness_daily": handle_evolution_fitness_daily,
+    "decision_score_daily": handle_decision_score_daily,
 }
 
 
