@@ -68,6 +68,23 @@ export function evaluateTurnEnd(s: GuardianState): Intervention[] {
       reason: "R2:file-checkpoint",
     });
   }
+  // ---------- R4：硬上限（每任务一次） ----------
+  if (s.turnCount >= HARD_TURN_LIMIT && !s.hardLimitFired) {
+    s.hardLimitFired = true;
+    out.push(
+      {
+        kind: "notify",
+        title: "⚠️ LoopGuardian 硬上限",
+        content: `任务已达 ${s.turnCount} 轮上限，已要求 agent 总结进展并收尾。`,
+        reason: "R4:hard-limit",
+      },
+      {
+        kind: "steer",
+        text: `[系统] 已达 ${s.turnCount} 轮上限。停止继续尝试，总结已验证的进展和残余风险后收尾。`,
+        reason: "R4:hard-limit",
+      }
+    );
+  }
   return out;
 }
 

@@ -5,6 +5,7 @@ import {
   NUDGE_INTERVAL,
   FILE_CHECKPOINT_INTERVAL,
   REPEAT_CALL_THRESHOLD,
+  HARD_TURN_LIMIT,
   type Intervention,
 } from "./loop-guardian-core.js";
 
@@ -69,5 +70,24 @@ describe("R3 重复调用检测", () => {
     }
     const out = evaluateToolCall(s, "data_fetch_quote", { symbol: "600519" });
     expect(out).toEqual([]);
+  });
+});
+
+describe("R4 硬上限", () => {
+  test(`turn=${HARD_TURN_LIMIT} 触发 notify + steer 两个动作`, () => {
+    const s = createGuardianState();
+    s.turnCount = HARD_TURN_LIMIT;
+    const out = evaluateTurnEnd(s);
+    expect(out.some(i => i.kind === "notify")).toBe(true);
+    expect(out.some(i => i.kind === "steer" && i.text.includes("收尾"))).toBe(true);
+  });
+
+  test("硬上限每任务只触发一次", () => {
+    const s = createGuardianState();
+    s.turnCount = HARD_TURN_LIMIT;
+    evaluateTurnEnd(s);
+    s.turnCount = HARD_TURN_LIMIT + NUDGE_INTERVAL; // 更高档位仍不再发 R4
+    const out = evaluateTurnEnd(s);
+    expect(out.some(i => i.kind === "notify")).toBe(false);
   });
 });
