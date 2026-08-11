@@ -6,23 +6,19 @@
  * （如 deepseek-v4-flash ↔ deepseek-v4-pro：日常用 flash 省钱，
  * 复杂分析用 pro 提质量）。
  *
- * 生效范围（重要）：只设置进程级运行时状态，对之后新建的会话
- * （定时任务唤醒、subagent、下一个人工会话）立即生效；
- * 当前正在运行的会话保持原模型直到结束——工具拿不到 session 句柄，
- * 无法调 setModel。人工要立即切当前会话请用 /provider 命令。
+ * 生效范围：切换统一走 services/llm 的 switch()——立即持久化到
+ * llm-state.json（重启保持）；之后新建的会话立即使用新模型；
+ * 其他运行中的会话（wake/飞书/定时任务）下一轮对话自动惰性切换；
+ * 当前会话保持原模型直到结束（工具拿不到 session 句柄）。
+ * 人工要立即切当前会话请用 /provider 命令。
  *
  * 防抖动：滚动 1 小时窗口内最多切换 3 次。
  */
 
 import type { ToolDefinition } from "../index.js";
-import { getActiveProvider, getActiveModelId, createModel, resolveModelTarget } from "../../../config/config.js";
-import {
-  setRuntimeProvider,
-  setRuntimeModelOverride,
-  isProviderConfigured,
-  logSwitch,
-  type RuntimeProviderName,
-} from "../../../config/model-switcher.js";
+import { getLLM } from "../../../services/llm/index.js";
+import { resolveSwitchTarget } from "../../../services/llm/switch-service.js";
+import { isProviderConfigured } from "../../../services/llm/catalog.js";
 
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_SWITCHES_PER_WINDOW = 3;
@@ -33,7 +29,7 @@ export function resetSwitchHistoryForTests(): void {
   switchTimestamps.length = 0;
 }
 
-const PROVIDERS: RuntimeProviderName[] = ["deepseek", "kimi"];
+const PROVIDERS = ["deepseek", "kimi"];
 const MODEL_TARGETS = ["flash", "pro", "deepseek-v4-flash", "deepseek-v4-pro", "kimi-k3"];
 
 export const modelSwitchTool: ToolDefinition = {
@@ -41,8 +37,8 @@ export const modelSwitchTool: ToolDefinition = {
   description:
     "切换 LLM provider 或模型档位。当当前模型持续报错（429 限流、超时、5xx）时切备用 provider；" +
     "也可在 deepseek 内切档位：flash（便宜，日常任务）↔ pro（更强，复杂分析）。" +
-    "注意：仅对之后新建的会话生效（定时任务、subagent），当前会话继续用原模型直到结束；" +
-    "如需本会话立即切换，请提示用户使用 /provider 命令。1 小时内最多切换 3 次。",
+    "切换立即持久化（重启保持）；新会话立即生效，其他运行中会话下一轮对话自动切换；" +
+    "当前会话继续用原模型直到结束；如需本会话立即切换，请提示用户使用 /provider 命令。1 小时内最多切换 3 次。",
   parameters: {
     type: "object",
     properties: {
@@ -62,7 +58,8 @@ export const modelSwitchTool: ToolDefinition = {
       details: { error: msg },
     });
 
-    const current = getActiveProvider();
+    const llm = getLLM();
+    const current = llm.current();
 
     // 防抖动（provider 与模型切换共用同一窗口）
     const checkFlap = (): string | null => {
@@ -78,67 +75,37 @@ export const modelSwitchTool: ToolDefinition = {
       return null;
     };
 
-    // 模型粒度目标（flash/pro/deepseek-v4-pro 等）
-    const modelTarget = resolveModelTarget(provider);
-    if (modelTarget) {
-      const currentModel = getActiveModelId();
-      if (modelTarget.provider === current && modelTarget.modelId === currentModel) {
-        return {
-          content: [{ type: "text" as const, text: `ℹ️ 已是 ${modelTarget.modelId}，无需切换。` }],
-          details: { provider: current, modelId: currentModel, changed: false },
-        };
-      }
-      if (!isProviderConfigured(modelTarget.provider)) {
-        return fail(`❌ ${modelTarget.provider} 的 API key 未配置，无法切换。请在 .env 配置后重试。`);
-      }
-      const flapErr = checkFlap();
-      if (flapErr) return fail(flapErr);
-      setRuntimeModelOverride(modelTarget.provider, modelTarget.modelId);
-      const model = createModel();
-      logSwitch(`${current}:${currentModel}`, `${modelTarget.provider}:${modelTarget.modelId}`, "agent");
-      const text = [
-        `✅ 已切换模型：${currentModel} → ${modelTarget.modelId}。`,
-        `生效范围：新会话（定时任务唤醒、subagent）将使用 ${modelTarget.modelId}；`,
-        `当前会话继续使用 ${currentModel} 直到结束。如需本会话立即切换，请提示用户使用 /provider ${provider}。`,
-      ].join("\n");
-      return {
-        content: [{ type: "text" as const, text }],
-        details: { from: currentModel, to: modelTarget.modelId, modelId: model.id, changed: true },
-      };
-    }
-
-    // provider 粒度目标
-    if (!PROVIDERS.includes(provider as RuntimeProviderName)) {
+    // 只读预检：解析目标 → 相同目标/未配置直接返回（不计入防抖动）
+    const target = resolveSwitchTarget(provider);
+    if (!target) {
       return fail(`❌ 未知目标 "${provider}"，可选：${[...PROVIDERS, ...MODEL_TARGETS].join(", ")}`);
     }
-    const target = provider as RuntimeProviderName;
-
-    if (target === current) {
+    const from = `${current.provider}:${current.modelId}`;
+    const to = `${target.provider}:${target.modelId}`;
+    if (from === to) {
       return {
-        content: [{ type: "text" as const, text: `ℹ️ 已是 ${target}（${getActiveModelId()}），无需切换。` }],
-        details: { provider: current, changed: false },
+        content: [{ type: "text" as const, text: `ℹ️ 已是 ${to}，无需切换。` }],
+        details: { from, to, changed: false },
       };
     }
-
-    if (!isProviderConfigured(target)) {
-      return fail(`❌ ${target} 的 API key 未配置，无法切换。请在 .env 配置后重试。`);
+    if (!isProviderConfigured(target.provider)) {
+      return fail(`❌ ${target.provider} 的 API key 未配置，无法切换。请在 .env 配置后重试。`);
     }
 
     const flapErr = checkFlap();
     if (flapErr) return fail(flapErr);
 
-    setRuntimeProvider(target);
-    const model = createModel(); // 同步 OPENAI_API_KEY 到新 provider 的 key
-    logSwitch(current, target, "agent");
+    const result = llm.switch(provider, "agent");
+    if (!result.ok) return fail(`❌ ${result.error}`);
 
     const text = [
-      `✅ 已从 ${current} 切换到 ${target}（${model.id}）。`,
-      `生效范围：新会话（定时任务唤醒、subagent）将使用 ${target}；`,
-      `当前会话继续使用 ${current} 直到结束。如需本会话立即切换，请提示用户使用 /provider 命令。`,
+      `✅ 已切换：${result.from} → ${result.to}（已持久化，重启保持）。`,
+      `生效范围：新会话立即使用；运行中的其他会话（wake/飞书/定时任务）下一轮对话自动切换。`,
+      `当前会话继续使用 ${from} 直到结束。如需本会话立即切换，请提示用户使用 /provider ${provider}。`,
     ].join("\n");
     return {
       content: [{ type: "text" as const, text }],
-      details: { from: current, to: target, modelId: model.id, changed: true },
+      details: { from: result.from, to: result.to, changed: true },
     };
   },
 };

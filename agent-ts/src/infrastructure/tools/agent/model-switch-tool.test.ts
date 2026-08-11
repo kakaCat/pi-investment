@@ -1,22 +1,24 @@
 /**
- * model_switch 工具测试
+ * model_switch 工具测试（新契约：切换走 services/llm switch()，持久化到 llm-state.json）
  */
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { mkdtempSync, rmSync, readFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { modelSwitchTool, resetSwitchHistoryForTests } from './model-switch-tool.js';
-import {
-  resetRuntimeProviderForTests,
-  getRuntimeOverride,
-  getRuntimeModelOverride,
-} from '../../../config/model-switcher.js';
+import { getLLM, initLLM, resetLLMForTests } from '../../../services/llm/index.js';
 
-const ENV_KEYS = ['LLM_API_KEY', 'DEEPSEEK_API_KEY', 'KIMI_API_KEY', 'MOONSHOT_API_KEY'];
+const ENV_KEYS = ['LLM_API_KEY', 'DEEPSEEK_API_KEY', 'KIMI_API_KEY', 'MOONSHOT_API_KEY', 'LLM_PROVIDER', 'MODEL_ID', 'DEEPSEEK_MODEL_ID', 'KIMI_MODEL_ID'];
 let savedEnv: Record<string, string | undefined>;
+let dir: string;
 
 beforeEach(() => {
   savedEnv = {};
   for (const k of ENV_KEYS) { savedEnv[k] = process.env[k]; delete process.env[k]; }
-  resetRuntimeProviderForTests();
   resetSwitchHistoryForTests();
+  resetLLMForTests();
+  dir = mkdtempSync(join(tmpdir(), 'llm-sw-tool-'));
+  initLLM(dir);
 });
 
 afterEach(() => {
@@ -24,7 +26,8 @@ afterEach(() => {
     if (savedEnv[k] === undefined) delete process.env[k];
     else process.env[k] = savedEnv[k];
   }
-  resetRuntimeProviderForTests();
+  resetLLMForTests();
+  rmSync(dir, { recursive: true, force: true });
 });
 
 async function run(provider: string): Promise<string> {
@@ -33,27 +36,30 @@ async function run(provider: string): Promise<string> {
 }
 
 describe('model_switch 工具', () => {
-  it('正常切换：设置 override 并返回决策上下文', async () => {
+  it('正常切换：持久化选择并返回决策上下文', async () => {
     process.env.DEEPSEEK_API_KEY = 'sk-a';
     process.env.KIMI_API_KEY = 'sk-b';
     const text = await run('kimi');
-    expect(getRuntimeOverride()).toBe('kimi');
+    expect(getLLM().current().provider).toBe('kimi');
     expect(text).toContain('kimi');
-    expect(text).toContain('新会话');
+    expect(text).toContain('持久化');
+    const onDisk = JSON.parse(readFileSync(join(dir, 'llm-state.json'), 'utf8'));
+    expect(onDisk.provider).toBe('kimi');
+    expect(onDisk.updatedBy).toBe('agent');
   });
 
   it('幂等：目标 = 当前 provider 时不重复切换', async () => {
     process.env.DEEPSEEK_API_KEY = 'sk-a';
     const text = await run('deepseek'); // 当前默认就是 deepseek
     expect(text).toContain('已是');
-    expect(getRuntimeOverride()).toBeNull(); // 未设置 override
+    expect(getLLM().current().version).toBe(0); // 未发生切换
   });
 
   it('缺 key 拒绝切换', async () => {
     process.env.DEEPSEEK_API_KEY = 'sk-a';
     const text = await run('kimi'); // kimi 无 key
     expect(text).toContain('未配置');
-    expect(getRuntimeOverride()).toBeNull();
+    expect(getLLM().current().provider).toBe('deepseek');
   });
 
   it('防抖动：滚动窗口内最多 3 次，第 4 次拒绝', async () => {
@@ -69,14 +75,14 @@ describe('model_switch 工具', () => {
   it('模型粒度切换：pro 别名切到 deepseek-v4-pro', async () => {
     process.env.DEEPSEEK_API_KEY = 'sk-a';
     const text = await run('pro');
-    expect(getRuntimeModelOverride()).toEqual({ provider: 'deepseek', modelId: 'deepseek-v4-pro' });
+    expect(getLLM().current().modelId).toBe('deepseek-v4-pro');
     expect(text).toContain('deepseek-v4-pro');
   });
 
   it('模型粒度切换：完整模型 ID 同样支持', async () => {
     process.env.DEEPSEEK_API_KEY = 'sk-a';
     const text = await run('deepseek-v4-pro');
-    expect(getRuntimeModelOverride()).toEqual({ provider: 'deepseek', modelId: 'deepseek-v4-pro' });
+    expect(getLLM().current().modelId).toBe('deepseek-v4-pro');
     expect(text).toContain('deepseek-v4-pro');
   });
 
@@ -84,12 +90,12 @@ describe('model_switch 工具', () => {
     process.env.DEEPSEEK_API_KEY = 'sk-a';
     const text = await run('flash'); // 当前默认就是 deepseek-v4-flash
     expect(text).toContain('已是');
-    expect(getRuntimeModelOverride()).toBeNull();
+    expect(getLLM().current().version).toBe(0);
   });
 
   it('模型目标 provider key 未配置时拒绝', async () => {
     const text = await run('kimi-k3'); // kimi 无 key
     expect(text).toContain('未配置');
-    expect(getRuntimeModelOverride()).toBeNull();
+    expect(getLLM().current().provider).toBe('deepseek');
   });
 });

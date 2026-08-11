@@ -4,9 +4,12 @@
  * 通过 SDK extensionFactories 注入。命名 /provider 而非 /model，
  * 因为 SDK 内置 /model 已存在（模型选择器，不认识我们的自定义模型）。
  *
+ * 切换统一走 services/llm 的 switch()：立即持久化到 llm-state.json
+ * （重启保持）；当前会话立即 setModel，其他活跃会话下一轮惰性生效。
+ *
  * 用法：
- *   /provider              显示当前 provider/模型 与各 provider key 配置状态
- *   /provider kimi         切换到 Kimi（当前会话立即生效 + 未来新会话）
+ *   /provider              显示当前 provider/模型/来源 与各 provider key 配置状态
+ *   /provider kimi         切换到 Kimi
  *   /provider deepseek     切换到 DeepSeek（用环境变量/默认模型）
  *   /provider flash        切到 deepseek-v4-flash（便宜，日常）
  *   /provider pro          切到 deepseek-v4-pro（更强，复杂分析）
@@ -18,101 +21,51 @@ import {
   getAgentDir,
   type ExtensionFactory,
 } from "@mariozechner/pi-coding-agent";
-import {
-  createModel,
-  getActiveProvider,
-  getActiveModelId,
-  resolveModelTarget,
-} from "../../config/config.js";
-import {
-  setRuntimeProvider,
-  setRuntimeModelOverride,
-  isProviderConfigured,
-  listProviders,
-  logSwitch,
-  type RuntimeProviderName,
-} from "../../config/model-switcher.js";
+import { getLLM } from "../../services/llm/index.js";
 import { loopGuardianExtension } from "./loop-guardian.js";
-
-const PROVIDERS: RuntimeProviderName[] = ["deepseek", "kimi"];
-const MODEL_HINTS = ["flash", "pro", "deepseek-v4-flash", "deepseek-v4-pro"];
 
 export const modelCommandExtension: ExtensionFactory = (pi) => {
   pi.registerCommand("provider", {
-    description: "查看或切换 LLM provider/模型（deepseek/kimi、flash/pro）",
+    description: "查看或切换 LLM provider/模型（deepseek/kimi、flash/pro），切换持久化",
     handler: async (args, ctx) => {
       const target = args.trim().toLowerCase();
+      const llm = getLLM();
 
       // 无参数：显示状态
       if (!target) {
-        const current = getActiveProvider();
-        const lines = listProviders()
-          .map((p) => ` ${p.name === current ? "→" : " "} ${p.name}: ${p.configured ? "key 已配置" : "❌ key 未配置"}`)
+        const st = llm.status();
+        const lines = st.providers
+          .map(
+            (p) =>
+              ` ${p.active ? "→" : " "} ${p.name}: ${p.configured ? "key 已配置" : "❌ key 未配置"}${p.active ? ` (${p.modelId})` : ""}`,
+          )
           .join("\n");
         ctx.ui.notify(
-          `当前: ${current} (${getActiveModelId()})\n${lines}\n切换: /provider ${[...PROVIDERS, ...MODEL_HINTS].join(" | ")}`,
-          "info"
+          `当前: ${st.current.provider} (${st.current.modelId}) [来源: ${st.source}]\n${lines}\n切换: /provider deepseek | kimi | flash | pro`,
+          "info",
         );
         return;
       }
 
-      // 模型粒度目标（flash/pro/deepseek-v4-pro 等）
-      const modelTarget = resolveModelTarget(target);
-      if (modelTarget) {
-        const currentModel = getActiveModelId();
-        if (modelTarget.provider === getActiveProvider() && modelTarget.modelId === currentModel) {
-          ctx.ui.notify(`ℹ️ 已是 ${modelTarget.modelId}，无需切换`, "info");
-          return;
-        }
-        if (!isProviderConfigured(modelTarget.provider)) {
-          ctx.ui.notify(`❌ ${modelTarget.provider} 的 API key 未配置（检查 .env）`, "error");
-          return;
-        }
-        setRuntimeModelOverride(modelTarget.provider, modelTarget.modelId);
-        const model = createModel();
-        const ok = await pi.setModel(model);
-        if (ok) {
-          logSwitch(currentModel, modelTarget.modelId, "human");
-          ctx.ui.notify(`✅ 已切换模型 ${currentModel} → ${model.id}，下一轮对话生效`, "info");
-        } else {
-          ctx.ui.notify(
-            `⚠️ 运行时状态已切换（新会话将用 ${modelTarget.modelId}），但当前会话 setModel 未生效`,
-            "warning"
-          );
-        }
+      const result = llm.switch(target, "human");
+      if (!result.ok) {
+        ctx.ui.notify(`❌ ${result.error}`, "error");
         return;
       }
-
-      // provider 粒度目标
-      if (!PROVIDERS.includes(target as RuntimeProviderName)) {
-        ctx.ui.notify(
-          `❌ 未知目标 "${target}"，可选：${[...PROVIDERS, ...MODEL_HINTS].join(", ")}`,
-          "error"
-        );
+      if (!result.changed) {
+        ctx.ui.notify(`ℹ️ 已是 ${result.to}，无需切换`, "info");
         return;
       }
-
-      const current = getActiveProvider();
-      if (target === current) {
-        ctx.ui.notify(`ℹ️ 已是 ${target}（${getActiveModelId()}），无需切换`, "info");
-        return;
-      }
-
-      if (!isProviderConfigured(target as RuntimeProviderName)) {
-        ctx.ui.notify(`❌ ${target} 的 API key 未配置（检查 .env 的 ${target.toUpperCase()}_API_KEY）`, "error");
-        return;
-      }
-
-      setRuntimeProvider(target as RuntimeProviderName);
-      const model = createModel();
-      const ok = await pi.setModel(model);
+      const ok = await pi.setModel(llm.getSessionModel() as any);
       if (ok) {
-        logSwitch(current, target, "human");
-        ctx.ui.notify(`✅ 已切换 ${current} → ${target} (${model.id})，下一轮对话生效`, "info");
+        ctx.ui.notify(
+          `✅ 已切换 ${result.from} → ${result.to}，下一轮对话生效（已持久化，重启保持）`,
+          "info",
+        );
       } else {
         ctx.ui.notify(
-          `⚠️ 运行时状态已切换（新会话将用 ${target}），但当前会话 setModel 未生效`,
-          "warning"
+          `⚠️ 已持久化切换（新会话将用 ${result.to}），但当前会话 setModel 未生效`,
+          "warning",
         );
       }
     },
