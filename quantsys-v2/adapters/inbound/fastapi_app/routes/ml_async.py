@@ -350,6 +350,22 @@ def ml_model_info(model_type: str = Query("xgboost"), version: str = Query("late
     return {"success": True, "data": {"model_info": _sanitize_for_json(info)}}
 
 
+@router.get('/api/ml/models')
+@_ml_error_handler
+def ml_models_list(
+    model_type: Optional[str] = Query(None),
+    status: Optional[str] = Query("ready"),
+    limit: int = Query(20),
+):
+    """列出所有模型（Flask ml_routes.py GET /api/ml/models parity）"""
+    models = _get_model_repo().list_models(model_type, status, limit)
+    return {
+        "success": True,
+        "models": _sanitize_for_json(models),
+        "total": len(models),
+    }
+
+
 @router.get('/api/ml/model/evaluate')
 @_ml_error_handler
 def ml_model_evaluate(model_type: str = Query("xgboost"), version: str = Query("latest")):

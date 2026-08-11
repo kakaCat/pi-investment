@@ -523,6 +523,14 @@ def register_routes():
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import ml_async: {e}")
 
+    # 财务报表 V2（financials_v2 域，parity 对齐 Flask financials_v2.py）
+    try:
+        from adapters.inbound.fastapi_app.routes.financials_async import router as financials_router
+        app.include_router(financials_router)
+        logger.info("✅ Registered: financials_v2 (parity 迁移)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import financials_async: {e}")
+
     # 策略管理（P2 迁移，parity 对齐 Flask strategies.py）
     try:
         from adapters.inbound.fastapi_app.routes.strategies_async import router as strategies_router

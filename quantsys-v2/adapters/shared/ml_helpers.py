@@ -196,8 +196,17 @@ def _resolve_latest_version(model_type: str) -> str | None:
     try:
         db_model = _get_model_repo().get_by_type_version(model_type, "latest")
         if db_model and db_model.get("version"):
-            db_version = db_model["version"]
-            db_train_date = db_model.get("train_date", "")
+            candidate_version = db_model["version"]
+            # DB 元数据可能指向已丢失的模型文件（如训练后被清理），
+            # 文件不存在时不应采信 DB 记录，否则预测会以"模型未找到"失败
+            if (MODEL_DIR / f"{model_type}_{candidate_version}.pkl").exists():
+                db_version = candidate_version
+                db_train_date = db_model.get("train_date", "")
+            else:
+                logger.warning(
+                    "DB latest model %s_%s has no file on disk, ignoring DB record",
+                    model_type, candidate_version,
+                )
     except Exception:
         pass
 

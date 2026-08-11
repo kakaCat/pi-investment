@@ -1,16 +1,21 @@
 /**
  * Market Style Detect Tool - 市场风格检测工具
  *
- * 自动识别当前市场风格：
- * - 牛市（Bull Market）
- * - 熊市（Bear Market）
- * - 震荡市（Sideways Market）
+ * 自动识别当前市场风格轮动状态：
+ * - 价值（value）：银行/地产/高股息领涨
+ * - 成长（growth）：科技/新能源/高ROE领涨
+ * - 周期（cycle）：煤炭/钢铁/大宗商品领涨
+ *
+ * 后端契约（quantsys-v2 /api/market/style，api_response 统一 camelCase）：
+ *   { style, confidence, scores: {value,growth,cycle},
+ *     indicators: { bankingPerformance, techPerformance, cyclePerformance,
+ *                   marketVolumeChange, marketVolatility },
+ *     recommendedFactors: string[], detectionDate }
  *
  * 应用场景：
  * - 策略自适应：根据市场风格切换策略
- * - 风险控制：熊市降低仓位
- * - 择时交易：牛市加仓，熊市减仓
- * - 风格轮动：价值vs成长风格切换
+ * - 风格轮动：价值vs成长vs周期切换
+ * - 因子配置：按推荐因子调整选股权重
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
@@ -20,19 +25,24 @@ interface MarketStyleParams {
   lookback_days?: number;
 }
 
+interface MarketStyleIndicators {
+  bankingPerformance?: number;   // 银行板块涨幅 %
+  techPerformance?: number;      // 科技板块涨幅 %
+  cyclePerformance?: number;     // 周期板块涨幅 %
+  marketVolumeChange?: number;   // 成交量变化 %
+  marketVolatility?: number;     // 市场波动率（小数）
+  [key: string]: any;
+}
+
 interface MarketStyleResult {
-  current_style?: string;
-  confidence?: number;
-  trend_slope?: number;
-  volatility?: number;
-  momentum_score?: number;
-  support_level?: number;
-  resistance_level?: number;
-  recommendation?: string;
-  style_history?: Array<{
-    date: string;
-    style: string;
-  }>;
+  style?: string;                          // value / growth / cycle
+  confidence?: number;                     // 0-1
+  scores?: Record<string, number>;         // 各风格评分
+  indicators?: MarketStyleIndicators;
+  recommendedFactors?: string[];           // camelCase（FastAPI api_response）
+  recommended_factors?: string[];          // snake_case 兜底
+  detectionDate?: string;
+  detection_date?: string;
   [key: string]: any;
 }
 
@@ -40,13 +50,12 @@ export const marketStyleDetectTool: ToolDefinition = {
   name: "market_style_detect",
   label: "市场风格检测",
   description:
-    "自动检测当前市场风格（牛市/熊市/震荡市），提供趋势分析和投资建议。" +
-    "基于多维度指标综合判断：趋势斜率、波动率、动量、成交量等。" +
-    "适用场景：策略自适应、风险控制、择时交易、风格轮动。",
+    "自动检测当前市场风格（价值/成长/周期轮动），给出各风格评分、板块指标与推荐因子。" +
+    "适用场景：策略自适应、风格轮动、因子权重调整。",
 
   parameters: Type.Object({
     lookback_days: Type.Optional(Type.Integer({
-      description: "回溯天数，用于计算趋势。默认：60天",
+      description: "回溯天数，用于计算风格评分。默认：60天",
       minimum: 20,
       maximum: 252
     }))
@@ -101,7 +110,7 @@ function formatMarketStyleResult(
   data: MarketStyleResult,
   lookbackDays: number
 ): string {
-  if (!data) {
+  if (!data || !data.style) {
     return "❌ 未获取到市场风格数据";
   }
 
@@ -110,96 +119,73 @@ function formatMarketStyleResult(
   // 分析周期
   output += `### 分析周期\n\n`;
   output += `- **回溯天数**：${lookbackDays}天\n`;
-  output += `- **分析日期**：${new Date().toISOString().split('T')[0]}\n\n`;
+  output += `- **分析日期**：${data.detectionDate || data.detection_date || new Date().toISOString().split('T')[0]}\n\n`;
 
   // 当前市场风格
-  if ((data as any).current_style) {
-    output += `### 🎯 当前市场风格\n\n`;
+  output += `### 🎯 当前市场风格\n\n`;
 
-    const styleInfo = getStyleInfo(data.current_style || "");
-    const confidence = data.confidence ? (data.confidence * 100).toFixed(1) : '未知';
+  const styleInfo = getStyleInfo(data.style);
+  const confidence = data.confidence !== undefined ? (data.confidence * 100).toFixed(1) : '未知';
 
-    output += `**市场风格**：${styleInfo.emoji} **${styleInfo.name}**\n`;
-    output += `**置信度**：${confidence}%\n`;
-    output += `**特征**：${styleInfo.description}\n\n`;
+  output += `**市场风格**：${styleInfo.emoji} **${styleInfo.name}**\n`;
+  output += `**置信度**：${confidence}%\n`;
+  output += `**特征**：${styleInfo.description}\n\n`;
+
+  // 各风格评分
+  if (data.scores && Object.keys(data.scores).length > 0) {
+    output += `### ⚖️ 风格评分\n\n`;
+    output += "| 风格 | 评分 |\n";
+    output += "|------|------|\n";
+    for (const [style, score] of Object.entries(data.scores)) {
+      const info = getStyleInfo(style);
+      output += `| ${info.emoji} ${info.name} | ${(score * 100).toFixed(1)}% |\n`;
+    }
+    output += "\n";
   }
 
   // 市场指标
-  output += `### 📈 市场指标\n\n`;
-  output += "| 指标 | 数值 | 解读 |\n";
-  output += "|------|------|------|\n";
+  const ind = data.indicators;
+  if (ind && Object.keys(ind).length > 0) {
+    output += `### 📈 市场指标\n\n`;
+    output += "| 指标 | 数值 | 解读 |\n";
+    output += "|------|------|------|\n";
 
-  if (data.trend_slope !== undefined) {
-    const slope = (data.trend_slope * 100).toFixed(2);
-    const trendDesc = getTrendDescription(data.trend_slope);
-    output += `| 趋势斜率 | ${slope}% | ${trendDesc} |\n`;
-  }
+    const rows: Array<[number | undefined, string, (v: number) => string, (v: number) => string]> = [
+      [ind.bankingPerformance ?? ind.banking_performance, "银行板块涨幅", v => `${v.toFixed(1)}%`, v => v > 3 ? "🏦 价值风格走强" : v < 0 ? "📉 价值板块走弱" : "➡️ 平稳"],
+      [ind.techPerformance ?? ind.tech_performance, "科技板块涨幅", v => `${v.toFixed(1)}%`, v => v > 3 ? "🚀 成长风格走强" : v < 0 ? "📉 成长板块走弱" : "➡️ 平稳"],
+      [ind.cyclePerformance ?? ind.cycle_performance, "周期板块涨幅", v => `${v.toFixed(1)}%`, v => v > 3 ? "⚙️ 周期风格走强" : v < 0 ? "📉 周期板块走弱" : "➡️ 平稳"],
+      [ind.marketVolumeChange ?? ind.market_volume_change, "成交量变化", v => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`, v => v > 10 ? "🔥 明显放量" : v < -10 ? "🧊 明显缩量" : "➡️ 量能平稳"],
+      [ind.marketVolatility ?? ind.market_volatility, "市场波动率", v => `${(v * 100).toFixed(2)}%`, getVolatilityDescription],
+    ];
 
-  if (data.volatility !== undefined) {
-    const vol = (data.volatility * 100).toFixed(2);
-    const volDesc = getVolatilityDescription(data.volatility);
-    output += `| 波动率 | ${vol}% | ${volDesc} |\n`;
-  }
-
-  if (data.momentum_score !== undefined) {
-    const momentum = data.momentum_score.toFixed(2);
-    const momentumDesc = getMomentumDescription(data.momentum_score);
-    output += `| 动量评分 | ${momentum} | ${momentumDesc} |\n`;
-  }
-
-  output += "\n";
-
-  // 支撑阻力位
-  if (data.support_level !== undefined || data.resistance_level !== undefined) {
-    output += `### 📍 关键位置\n\n`;
-
-    if (data.support_level !== undefined) {
-      output += `- **支撑位**：${data.support_level.toFixed(2)} 点\n`;
+    for (const [value, label, fmt, desc] of rows) {
+      if (value !== undefined && value !== null) {
+        output += `| ${label} | ${fmt(value)} | ${desc(value)} |\n`;
+      }
     }
-
-    if (data.resistance_level !== undefined) {
-      output += `- **阻力位**：${data.resistance_level.toFixed(2)} 点\n`;
-    }
-
     output += "\n";
   }
 
-  // 投资建议
-  if (data.recommendation || data.current_style) {
-    output += `### 💡 投资建议\n\n`;
-
-    if ((data as any).recommendation) {
-      output += `${data.recommendation}\n\n`;
-    } else if ((data as any).current_style) {
-      const advice = getStyleAdvice(data.current_style || "");
-      output += advice.map(a => `- ${a}`).join('\n');
-      output += "\n\n";
-    }
-  }
-
-  // 策略建议
-  if ((data as any).current_style) {
-    output += `### 🎲 策略建议\n\n`;
-    const strategies: any[] = getRecommendedStrategies(data.current_style || "");
-    output += `**适合策略**：\n`;
-    output += strategies.map(s => `- ${s}`).join('\n');
+  // 推荐因子
+  const factors = data.recommendedFactors || data.recommended_factors;
+  if (factors && factors.length > 0) {
+    output += `### 🧬 推荐因子\n\n`;
+    output += factors.map(f => `- \`${f}\``).join('\n');
     output += "\n\n";
   }
 
-  // 风格历史
-  if (data.style_history && data.style_history.length > 0) {
-    output += `### 📅 风格历史（最近10次变化）\n\n`;
-    output += "| 日期 | 市场风格 |\n";
-    output += "|------|----------|\n";
+  // 投资建议
+  output += `### 💡 投资建议\n\n`;
+  const advice = getStyleAdvice(data.style);
+  output += advice.map(a => `- ${a}`).join('\n');
+  output += "\n\n";
 
-    const recentHistory = data.style_history.slice(-10);
-    for (const record of recentHistory) {
-      const styleInfo = getStyleInfo(record.style);
-      output += `| ${record.date} | ${styleInfo.emoji} ${styleInfo.name} |\n`;
-    }
-
-    output += "\n";
-  }
+  // 策略建议
+  output += `### 🎲 策略建议\n\n`;
+  const strategies: string[] = getRecommendedStrategies(data.style);
+  output += `**适合策略**：\n`;
+  output += strategies.map(s => `- ${s}`).join('\n');
+  output += "\n\n";
 
   // 风险提示
   output += `⚠️ **风险提示**：市场风格检测基于历史数据和统计模型，不能预测未来。投资需谨慎。\n`;
@@ -212,35 +198,20 @@ function formatMarketStyleResult(
  */
 function getStyleInfo(style: string): { name: string; emoji: string; description: string } {
   const styleMap: Record<string, { name: string; emoji: string; description: string }> = {
-    "bull": {
-      name: "牛市",
-      emoji: "🐂",
-      description: "持续上涨，市场乐观，适合做多"
+    "value": {
+      name: "价值风格",
+      emoji: "🏦",
+      description: "银行/地产/高股息等低估值板块领涨，防御属性强"
     },
-    "bear": {
-      name: "熊市",
-      emoji: "🐻",
-      description: "持续下跌，市场悲观，注意风险"
+    "growth": {
+      name: "成长风格",
+      emoji: "🚀",
+      description: "科技/新能源/高ROE成长股领涨，进攻属性强"
     },
-    "sideways": {
-      name: "震荡市",
-      emoji: "↔️",
-      description: "横盘整理，市场观望，适合区间操作"
-    },
-    "bull_correction": {
-      name: "牛市回调",
-      emoji: "📉",
-      description: "上涨趋势中的短期调整，可逢低吸纳"
-    },
-    "bear_rally": {
-      name: "熊市反弹",
-      emoji: "📈",
-      description: "下跌趋势中的短期反弹，谨慎参与"
-    },
-    "volatile": {
-      name: "高波动市",
-      emoji: "⚡",
-      description: "波动剧烈，风险较高，控制仓位"
+    "cycle": {
+      name: "周期风格",
+      emoji: "⚙️",
+      description: "煤炭/钢铁/有色等周期板块领涨，跟踪大宗商品景气"
     }
   };
 
@@ -249,17 +220,6 @@ function getStyleInfo(style: string): { name: string; emoji: string; description
     emoji: "❓",
     description: "未知市场风格"
   };
-}
-
-/**
- * 获取趋势描述
- */
-function getTrendDescription(slope: number): string {
-  if (slope > 0.05) return "🔥 强势上涨";
-  if (slope > 0.02) return "📈 温和上涨";
-  if (slope > -0.02) return "➡️ 横盘整理";
-  if (slope > -0.05) return "📉 温和下跌";
-  return "❄️ 快速下跌";
 }
 
 /**
@@ -273,53 +233,27 @@ function getVolatilityDescription(volatility: number): string {
 }
 
 /**
- * 获取动量描述
- */
-function getMomentumDescription(momentum: number): string {
-  if (momentum > 0.7) return "🚀 动量强劲";
-  if (momentum > 0.3) return "📈 动量积极";
-  if (momentum > -0.3) return "➡️ 动量中性";
-  if (momentum > -0.7) return "📉 动量疲软";
-  return "❄️ 动量极弱";
-}
-
-/**
  * 获取风格投资建议
  */
 function getStyleAdvice(style: string): string[] {
   const adviceMap: Record<string, string[]> = {
-    "bull": [
-      "✅ **积极做多**：逢低买入，持股待涨",
-      "✅ **追涨策略**：动量策略有效，可适度追涨",
-      "✅ **加大仓位**：在风控允许范围内提高仓位",
-      "⚠️ **注意过热**：关注估值泡沫，避免盲目追高"
+    "value": [
+      "✅ **配置低估值蓝筹**：银行、保险、高股息品种",
+      "✅ **重视安全边际**：优先低 PE/PB、稳定分红标的",
+      "💡 **关注防御板块**：消费、公用事业相对抗跌",
+      "⚠️ **回避高估值成长**：估值溢价压缩风险大"
     ],
-    "bear": [
-      "⚠️ **降低仓位**：减少持股，保留现金",
-      "⚠️ **防守为主**：优先配置防御性板块（消费、医药）",
-      "⚠️ **严格止损**：设置止损线，控制损失",
-      "💡 **等待机会**：观察市场筑底信号，准备抄底"
+    "growth": [
+      "✅ **配置成长赛道**：科技、新能源、高ROE个股",
+      "✅ **动量策略有效**：趋势延续性强，可持盈",
+      "💡 **关注业绩兑现**：营收/利润增速是核心驱动",
+      "⚠️ **警惕风格切换**：成长拥挤度高时注意回撤"
     ],
-    "sideways": [
-      "💡 **区间操作**：低买高卖，赚取波段收益",
-      "💡 **短线为主**：缩短持仓周期，快进快出",
-      "💡 **均衡配置**：分散投资，降低单一品种风险",
-      "⚠️ **避免追涨杀跌**：横盘市容易震荡出局"
-    ],
-    "bull_correction": [
-      "✅ **逢低加仓**：回调是加仓良机",
-      "💡 **保持耐心**：短期调整不改上涨趋势",
-      "✅ **持股为主**：避免频繁交易"
-    ],
-    "bear_rally": [
-      "⚠️ **谨慎参与**：反弹不是反转",
-      "💡 **快进快出**：赚取短期收益后及时离场",
-      "⚠️ **不宜重仓**：反弹高度有限"
-    ],
-    "volatile": [
-      "⚠️ **控制仓位**：降低单次交易规模",
-      "⚠️ **扩大止损**：给予更大波动空间",
-      "💡 **波段操作**：利用波动赚取差价"
+    "cycle": [
+      "✅ **跟踪商品景气**：煤炭、钢铁、有色跟随大宗价格",
+      "💡 **波段操作为主**：周期股波动大，不宜长持",
+      "⚠️ **严格择时**：周期顶部杀伤力大，设好止损",
+      "💡 **关注宏观信号**：PPI、库存周期决定持续性"
     ]
   };
 
@@ -334,32 +268,20 @@ function getStyleAdvice(style: string): string[] {
  */
 function getRecommendedStrategies(style: string): string[] {
   const strategyMap: Record<string, string[]> = {
-    "bull": [
+    "value": [
+      "**高股息策略**：筛选股息率高、分红稳定的标的",
+      "**低估值修复**：PE/PB 历史低分位 + 基本面稳健",
+      "**防御配置策略**：消费、医药、公用事业"
+    ],
+    "growth": [
       "**动量策略**：追涨强势股",
-      "**成长股策略**：配置高成长板块（科技、新能源）",
+      "**成长股策略**：配置高营收/利润增速板块",
       "**突破策略**：突破前高买入"
     ],
-    "bear": [
-      "**防御策略**：配置消费、医药等防御性板块",
-      "**价值股策略**：寻找低估值、高股息股票",
-      "**空仓策略**：保留现金，等待机会"
-    ],
-    "sideways": [
-      "**网格交易**：设置网格，低买高卖",
-      "**均值回归策略**：超卖买入，超买卖出",
-      "**短线套利**：捕捉日内波动"
-    ],
-    "bull_correction": [
-      "**逢低买入策略**：回调到支撑位加仓",
-      "**分批建仓**：避免一次性满仓"
-    ],
-    "bear_rally": [
-      "**反弹策略**：快进快出，不恋战",
-      "**日内交易**：赚取日内波动"
-    ],
-    "volatile": [
-      "**波段交易**：利用大幅波动",
-      "**对冲策略**：降低风险暴露"
+    "cycle": [
+      "**波段交易策略**：利用周期股大波动",
+      "**商品联动策略**：跟踪期货价格做对应股票",
+      "**均值回归策略**：周期底部超卖买入"
     ]
   };
 
