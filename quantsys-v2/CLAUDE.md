@@ -203,6 +203,14 @@ Every agent operation is persisted for learning and accountability:
 - Failure analysis (why did this trade lose money?)
 - Knowledge accumulation (build expertise over time)
 
+### 筹码分布（成本分布）（2026-08-11 新增）
+
+- `quant.chip_distribution_state` — 筹码分布滚动状态（每股票一行价位桶数组，增量计算的"内存"）
+- `quant.chip_metrics` — 筹码每日摘要指标：profit_ratio（获利盘比例）/ avg_cost / 90%/70% 成本区间 / peak_price（密集峰）/ concentration（集中度）
+- 每日任务：`chip_distribution_update`（cron 30 18 * * 0-4，接 kline_update 后），job `infrastructure/jobs/chip_distribution_update_job.py`
+- 查询 API：`GET /api/analysis/chip-distribution/{symbol}`；agent 工具：`chip_analysis`
+- 计算核心：`domain/chip_distribution/`（三角分布 + 换手率衰减模型，spec: docs/superpowers/specs/2026-08-11-chip-distribution-design.md）
+
 ### Game Theory Intelligence System (Roadmap)
 
 **P0 - Required APIs for Competitive Intelligence**:

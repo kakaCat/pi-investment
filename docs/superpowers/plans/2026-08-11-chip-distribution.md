@@ -30,12 +30,12 @@
 ### Task 1: 建表迁移
 
 **Files:**
-- Create: `quantsys-v2/scripts/migrations/009_create_chip_distribution_tables.sql`
+- Create: `quantsys-v2/scripts/migrations/010_create_chip_distribution_tables.sql`
 
 - [ ] **Step 1: 写迁移 SQL**
 
 ```sql
--- 009_create_chip_distribution_tables.sql
+-- 010_create_chip_distribution_tables.sql
 -- 筹码分布（成本分布）服务
 -- 设计：docs/superpowers/specs/2026-08-11-chip-distribution-design.md
 
@@ -72,7 +72,7 @@ CREATE INDEX IF NOT EXISTS idx_chip_metrics_profit ON quant.chip_metrics (trade_
 - [ ] **Step 2: 应用迁移并验证**
 
 ```bash
-psql -d quant_investment -f quantsys-v2/scripts/migrations/009_create_chip_distribution_tables.sql
+psql -d quant_investment -f quantsys-v2/scripts/migrations/010_create_chip_distribution_tables.sql
 psql -d quant_investment -c "\d quant.chip_metrics"
 ```
 Expected: 两表创建成功，`\d` 输出显示上述列。
@@ -80,7 +80,7 @@ Expected: 两表创建成功，`\d` 输出显示上述列。
 - [ ] **Step 3: Commit**
 
 ```bash
-git add quantsys-v2/scripts/migrations/009_create_chip_distribution_tables.sql
+git add quantsys-v2/scripts/migrations/010_create_chip_distribution_tables.sql
 git commit -m "feat(chip): 009 建表——chip_distribution_state + chip_metrics"
 ```
 
@@ -1063,7 +1063,7 @@ git commit -m "feat(chip): service——增量更新/换手率回退链/分布�
 
 **Files:**
 - Create: `quantsys-v2/infrastructure/jobs/chip_distribution_update_job.py`
-- Create: `quantsys-v2/scripts/migrations/010_seed_chip_distribution_job.sql`
+- Create: `quantsys-v2/scripts/migrations/011_seed_chip_distribution_job.sql`
 
 - [ ] **Step 1: 写 job**
 
@@ -1073,7 +1073,7 @@ git commit -m "feat(chip): service——增量更新/换手率回退链/分布�
 """
 筹码分布增量更新 Job — 全市场每日增量
 
-调度配置（quant.scheduler_task_configs，见 010_seed_chip_distribution_job.sql）：
+调度配置（quant.scheduler_task_configs，见 011_seed_chip_distribution_job.sql）：
     task_name: chip_distribution_update
     command:   infrastructure.jobs.chip_distribution_update_job.execute
     cron:      30 18 * * 0-4（kline_update 17:40 之后）
@@ -1151,10 +1151,10 @@ Expected: profit_ratio ∈ [0,1]，avg_cost 与历史价格量级一致；再执
 
 - [ ] **Step 3: 写任务注册迁移并应用**
 
-创建 `quantsys-v2/scripts/migrations/010_seed_chip_distribution_job.sql`：
+创建 `quantsys-v2/scripts/migrations/011_seed_chip_distribution_job.sql`：
 
 ```sql
--- 010_seed_chip_distribution_job.sql
+-- 011_seed_chip_distribution_job.sql
 -- 注册筹码分布每日增量任务（scheduler_daemon 从该表加载）
 -- 排在 kline_update（40 17 * * 0-4）之后
 INSERT INTO quant.scheduler_task_configs
@@ -1168,7 +1168,7 @@ ON CONFLICT (task_name) DO NOTHING;
 ```
 
 ```bash
-psql -d quant_investment -f quantsys-v2/scripts/migrations/010_seed_chip_distribution_job.sql
+psql -d quant_investment -f quantsys-v2/scripts/migrations/011_seed_chip_distribution_job.sql
 psql -d quant_investment -c "SELECT task_name, cron_expression, is_enabled FROM quant.scheduler_task_configs WHERE task_name='chip_distribution_update'"
 ```
 Expected: 一行，is_enabled = t。
@@ -1176,7 +1176,7 @@ Expected: 一行，is_enabled = t。
 - [ ] **Step 4: Commit**
 
 ```bash
-git add quantsys-v2/infrastructure/jobs/chip_distribution_update_job.py quantsys-v2/scripts/migrations/010_seed_chip_distribution_job.sql
+git add quantsys-v2/infrastructure/jobs/chip_distribution_update_job.py quantsys-v2/scripts/migrations/011_seed_chip_distribution_job.sql
 git commit -m "feat(chip): 每日增量 job + 调度注册（18:30 接 kline_update 后）"
 ```
 
