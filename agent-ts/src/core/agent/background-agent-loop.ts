@@ -19,7 +19,8 @@ import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
 import { initSkillRouter, rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
 import { join } from "path";
 import { SessionIdMapper } from "../session/session-id-mapper.js";
-import { createModel, paths } from "../../config/config.js";
+import { paths } from "../../config/config.js";
+import { getLLM } from "../../services/llm/index.js";
 import { createAppResourceLoader } from "../../api/extensions/model-command.js";
 import { getAgentState, getLastMessage, extractTextContent } from "./session-adapter.js";
 import { ErrorHandlers, handleAgentError, ErrorSeverity } from "./error-handler.js";
@@ -50,7 +51,7 @@ export async function getSession(): Promise<AgentSession> {
     // @ts-ignore - Type mismatch from SDK update
     const result = await createAgentSession({
       cwd: paths.root,
-      model: createModel(),
+      model: getLLM().getSessionModel() as any,
       resourceLoader: await createAppResourceLoader(paths.root),
       systemPrompt: (defaultPrompt: any) => defaultPrompt,
       customTools: [

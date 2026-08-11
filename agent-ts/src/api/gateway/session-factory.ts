@@ -5,7 +5,8 @@
 import { estimateTokens, SessionManager, type Skill } from "../../sdk-facade.js";
 import { createTrackedSession } from "../../infrastructure/session/session-factory.js";
 import type { ToolDefinition } from "../../infrastructure/tools/index.js";
-import { createModel, paths } from "../../config/config.js";
+import { paths } from "../../config/config.js";
+import { getLLM } from "../../services/llm/index.js";
 import { createAppResourceLoader } from "../extensions/model-command.js";
 import {
   autoRecall,
@@ -79,7 +80,7 @@ export function createGatewaySessionFactory(
         createOptions: {
           cwd: paths.root,
           sessionManager: SessionManager.continueRecent(paths.root, sessionDir),
-          model: createModel(),
+          model: getLLM().getSessionModel() as any,
           resourceLoader: await createAppResourceLoader(paths.root),
           systemPrompt: () => buildAgentSystemPrompt({
             memoryContext: "",

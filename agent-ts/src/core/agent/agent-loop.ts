@@ -26,7 +26,8 @@ import { loadPlugins } from "../../infrastructure/plugins/index.js";
 import { getMemoryStore } from "../../services/intelligence/memory-store.js";
 import { microCompact, compactConversationHistory } from "../../services/compaction/compaction-service.js";
 import { join } from "path";
-import { createModel, paths } from "../../config/config.js";
+import { paths } from "../../config/config.js";
+import { getLLM } from "../../services/llm/index.js";
 import { createAppResourceLoader } from "../../api/extensions/model-command.js";
 import { getSessionDir, getSessionKey, logSystemPrompt, logBootstrapFiles } from "../../infrastructure/logging/observable-logger.js";
 import { initSkillsBlock, autoRecall, readDailyMemory, buildAgentSystemPrompt } from "./system-prompt.js";
@@ -195,7 +196,7 @@ async function createSessionInternal(
   // @ts-ignore - Type mismatch from SDK update
   const result = await createAgentSession({
     cwd: paths.root,
-    model: createModel(),
+    model: getLLM().getSessionModel() as any,
     sessionManager,
     resourceLoader: await createAppResourceLoader(paths.root),
     systemPrompt: () => buildSystemPromptForContext(sessionContext),
