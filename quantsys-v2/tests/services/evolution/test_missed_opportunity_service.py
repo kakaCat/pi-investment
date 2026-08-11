@@ -50,6 +50,8 @@ def test_pending_buy_signal_captured():
     assert args['decision_type'] == 'missed_opportunity'
     assert args['parameters']['symbol'] == '300255'
     assert args['parameters']['price'] == 24.43
+    assert args['related_entity_type'] == 'stock'
+    assert args['related_entity_id'] == '300255'
     assert args['created_at'].date() == SIGNAL_DATE
 
 

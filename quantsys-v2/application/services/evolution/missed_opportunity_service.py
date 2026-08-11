@@ -130,6 +130,8 @@ class MissedOpportunityService:
             'parameters': {'symbol': symbol, 'price': float(price),
                            'signal_id': signal_id},
             'reasoning': f"信号未行动捕获（{strategy_id} @ {signal_date.isoformat()}）",
+            'related_entity_type': 'stock',
+            'related_entity_id': symbol,
             'created_at': datetime.combine(signal_date, datetime.min.time()),
         })
         return 'captured'
