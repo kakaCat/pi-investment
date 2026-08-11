@@ -40,6 +40,8 @@ class AgentDecision(Base):
     related_entity_type = Column(String(50))
     related_entity_id = Column(String(50))
     session_key = Column(String(200))  # 关联的 agent 会话（gateway 审计联动）
+    score = Column(Float)               # 决策打分 [-1,1]（P0a，2026-08-07）
+    score_band = Column(String(20))     # big_win/small_win/neutral/small_loss/big_loss
 
 
 # 兼容旧代码中对模型名的引用
