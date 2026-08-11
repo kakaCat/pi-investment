@@ -36,3 +36,18 @@ def get_leaderboard(
     for i, row in enumerate(rows, 1):
         row['rank'] = i
     return api_response({'windowEnd': end.isoformat(), 'windowDays': window, 'ranking': rows})
+
+
+@router.get('/api/evolution/decision-scores')
+@handle_api_error
+def get_decision_scores(
+    limit: int = Query(50, ge=1, le=200),
+    band: Optional[str] = Query(None, description='big_win/small_win/neutral/small_loss/big_loss'),
+):
+    """最近已打分决策（P0a）——裁判 agent 与仪表盘的打分读取入口"""
+    from adapters.outbound.repositories.agent_intelligence_repository import (
+        AgentIntelligenceORMRepository,
+    )
+    repo = AgentIntelligenceORMRepository()
+    rows = repo.list_scored_decisions(limit=limit, band=band)
+    return api_response({'total': len(rows), 'items': rows})
