@@ -44,3 +44,12 @@ class TestApplicationHandlerFallback:
     def test_unknown_command_still_raises(self, svc):
         with pytest.raises(ValueError, match="Unknown scheduler command"):
             svc._execute_command('definitely_not_a_command', {})
+
+
+class TestChipDistributionDispatch:
+    def test_chip_update_dispatches_to_job_execute(self, svc):
+        with patch('infrastructure.jobs.chip_distribution_update_job.execute') as mock_exec:
+            mock_exec.return_value = {'pending': 0, 'updated': 0, 'failed': 0, 'days_applied': 0}
+            result = svc._execute_command('chip_distribution_update', {})
+        mock_exec.assert_called_once_with()
+        assert result['failed'] == 0
