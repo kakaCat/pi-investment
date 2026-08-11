@@ -29,6 +29,11 @@ import type { Task } from "../core/task/task-manager.js";
 // 加载环境变量
 config();
 
+// 初始化 LLM 供给模块（state 文件 > env > 默认；幂等，多入口安全）
+import { initLLM } from "../services/llm/index.js";
+import { paths as llmPaths } from "../config/config.js";
+initLLM(llmPaths.piDir);
+
 // ── 重启上下文处理 ─────────────────────────────────────────────────────────
 // 检测是否有 .restart/context.json（由 restart_agent 工具写入）
 // 如果有，说明这是重启后的新进程，打印提示信息并恢复对话历史

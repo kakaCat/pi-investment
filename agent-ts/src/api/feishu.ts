@@ -7,6 +7,11 @@ import "dotenv/config";
 import { pathToFileURL } from "url";
 import { startGateway, type GatewayHandle } from "./gateway/start-gateway.js";
 import { FeishuAdapter } from "./gateway/adapters/feishu-adapter.js";
+import { initLLM } from "../services/llm/index.js";
+import { paths } from "../config/config.js";
+
+// 初始化 LLM 供给模块（幂等；经 api/index.ts 启动时已初始化则直接复用）
+initLLM(paths.piDir);
 
 export interface FeishuBotHandle {
   shutdown: () => Promise<void>;
