@@ -24,7 +24,6 @@ export { BaseNamespace } from './namespaces/base-namespace.js';
 // Storage
 export type { IStorage } from './storage/storage-interface.js';
 export { MemoryStorage } from './storage/memory-storage.js';
-export { SQLiteStorage } from './storage/sqlite-storage.js';
 export { FileStorage } from './storage/file-storage.js';
 export { StorageFactory } from './storage/storage-factory.js';
 

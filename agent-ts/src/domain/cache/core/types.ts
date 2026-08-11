@@ -6,7 +6,7 @@
 export type CacheNamespace = 'intraday' | 'daily' | 'quarterly' | 'static';
 
 // 存储类型
-export type StorageType = 'memory' | 'sqlite' | 'file';
+export type StorageType = 'memory' | 'file';
 
 // 缓存条目
 export interface CacheEntry<T = unknown> {

@@ -8,12 +8,10 @@ import { join } from 'path';
 describe('CacheManager', () => {
   let manager: CacheManager;
   let testDir: string;
-  let testDbPath: string;
 
   beforeEach(() => {
     testDir = mkdtempSync(join(tmpdir(), 'cache-test-'));
-    testDbPath = join(testDir, 'cache.db');
-    StorageFactory.setTestPaths(testDbPath, testDir);
+    StorageFactory.setTestPaths(testDir);
 
     CacheManager.resetInstance();
     manager = CacheManager.getInstance();

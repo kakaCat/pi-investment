@@ -12,15 +12,13 @@ describe('CacheManager Integration', () => {
   let eventBus: EventBus;
   let monitor: CacheMonitor;
   let testDir: string;
-  let testDbPath: string;
 
   beforeEach(() => {
     // Create temporary directory for test
     testDir = mkdtempSync(join(tmpdir(), 'cache-test-'));
-    testDbPath = join(testDir, 'cache.db');
 
     // Configure factory to use test paths
-    StorageFactory.setTestPaths(testDbPath, testDir);
+    StorageFactory.setTestPaths(testDir);
 
     // Reset and get fresh instances
     CacheManager.resetInstance();

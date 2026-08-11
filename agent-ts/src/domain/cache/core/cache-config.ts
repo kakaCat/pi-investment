@@ -14,13 +14,13 @@ export const NAMESPACE_CONFIGS: Record<CacheNamespace, CacheConfig> = {
   daily: {
     namespace: 'daily',
     ttl: 24 * 60 * 60 * 1000,  // 24小时
-    storageType: 'sqlite',
+    storageType: 'file',
     autoCleanup: true
   },
   quarterly: {
     namespace: 'quarterly',
     ttl: 7 * 24 * 60 * 60 * 1000,  // 7天
-    storageType: 'sqlite',
+    storageType: 'file',
     autoCleanup: true
   },
   static: {

@@ -8,8 +8,8 @@ describe('Cache Types', () => {
   });
 
   it('should accept valid StorageType values', () => {
-    const types: StorageType[] = ['memory', 'sqlite', 'file'];
-    expect(types).toHaveLength(3);
+    const types: StorageType[] = ['memory', 'file'];
+    expect(types).toHaveLength(2);
   });
 
   it('should create valid CacheEntry', () => {

@@ -10,12 +10,10 @@ describe('CacheAdmin', () => {
   let admin: CacheAdmin;
   let cacheManager: CacheManager;
   let testDir: string;
-  let testDbPath: string;
 
   beforeEach(() => {
     testDir = mkdtempSync(join(tmpdir(), 'cache-test-'));
-    testDbPath = join(testDir, 'cache.db');
-    StorageFactory.setTestPaths(testDbPath, testDir);
+    StorageFactory.setTestPaths(testDir);
 
     CacheManager.resetInstance();
     cacheManager = CacheManager.getInstance();
