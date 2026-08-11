@@ -17,15 +17,19 @@ logger = structlog.get_logger(__name__)
 
 
 def normalize_symbol(symbol: str) -> str:
-    """600519 → 600519.SH；000001 → 000001.SZ；8/4 开头 → .BJ"""
+    """归一化为库内 bare 格式：600519.SH/sh600519 → 600519。
+
+    生产 daily_klines/stocks 全部使用无后缀代码（2026-08-11 验证：
+    5685/5852 个 symbol 均为 bare 格式）。
+    """
     s = symbol.strip().upper()
     if "." in s:
-        return s
-    if s.startswith("6"):
-        return f"{s}.SH"
-    if s.startswith(("4", "8")):
-        return f"{s}.BJ"
-    return f"{s}.SZ"
+        s = s.split(".")[0]
+    for prefix in ("SH", "SZ", "BJ"):
+        if s.startswith(prefix):
+            s = s[len(prefix):]
+            break
+    return s
 
 
 class ChipDistributionService:
