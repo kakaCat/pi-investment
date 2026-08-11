@@ -189,10 +189,12 @@ FEISHU_APP_ID=...           # Feishu/Lark bot
 TAVILY_API_KEY=...          # Web search
 ```
 
-**运行时热切换 provider/模型**（不重启进程）：
-- 人工：TUI 中 `/provider` 查看状态，`/provider kimi` / `/provider deepseek` 切 provider，`/provider flash` / `/provider pro` 在 deepseek 内切模型档位（当前会话立即生效）
-- Agent：`model_switch` 工具（参数同 `/provider`，仅新会话生效，1 小时内限 3 次）
-- 仅内存生效，重启后回到 `LLM_PROVIDER` + `MODEL_ID`/`DEEPSEEK_MODEL_ID`；切换审计日志在 `.pi-invest/model-switch.log`
+**LLM 供给模块**（`src/services/llm/`）：
+- agent 世界只依赖 `port.ts`（LLMPort）+ `types.ts`；SDK 适配（OPENAI_API_KEY 同步、kimi compat）封装在 `adapters/pi-ai.ts`
+- 切换：`/provider`（人工）与 `model_switch`（agent，1 小时内限 3 次）统一走 `switch()`——立即持久化到 `.pi-invest/llm-state.json`（重启保持）；触发者会话立即生效，其他活跃会话（wake/飞书/定时任务）下一轮对话惰性生效
+- 优先级链：`llm-state.json` > `LLM_PROVIDER`/`{PROVIDER}_MODEL_ID` env > catalog 默认（deepseek-v4-flash）
+- 一次性 LLM 调用（plan agents 等）走 `llm.complete()`（自有类型 + LLMError 归一化 + 5次/3s 重试）
+- 切换审计：`.pi-invest/model-switch.log`；`/provider` 无参可查看当前选择来源（state/env/default）
 
 **Python Environment:**
 - Required: Python 3.13（3.14 与 numba 不兼容）
