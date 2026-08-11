@@ -70,3 +70,46 @@ export function evaluateTurnEnd(s: GuardianState): Intervention[] {
   }
   return out;
 }
+
+/** key 排序的稳定序列化（同语义不同 key 顺序视为同一调用） */
+export function stableStringify(v: unknown): string {
+  if (v === null || typeof v !== "object") return JSON.stringify(v);
+  if (Array.isArray(v)) return `[${v.map(stableStringify).join(",")}]`;
+  const o = v as Record<string, unknown>;
+  return `{${Object.keys(o).sort().map(k => `${JSON.stringify(k)}:${stableStringify(o[k])}`).join(",")}}`;
+}
+
+/** 简单字符串哈希（仅用于 firedNudgeTurns 去重键，非加密用途） */
+function hashCode(str: string): number {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (h * 31 + str.charCodeAt(i)) | 0;
+  }
+  return h;
+}
+
+// ---------- R3：重复调用检测 ----------
+export function evaluateToolCall(
+  s: GuardianState,
+  toolName: string,
+  args: unknown
+): Intervention[] {
+  s.toolCallCount++;
+  const hash = `${toolName}(${stableStringify(args)})`;
+  s.recentCallHashes.push(hash);
+  if (s.recentCallHashes.length > REPEAT_CALL_THRESHOLD) {
+    s.recentCallHashes.shift();
+  }
+  const repeated =
+    s.recentCallHashes.length === REPEAT_CALL_THRESHOLD &&
+    s.recentCallHashes.every(h => h === hash);
+  if (repeated && !s.firedNudgeTurns.has(hashCode(hash))) {
+    s.firedNudgeTurns.add(hashCode(hash));
+    return [{
+      kind: "steer",
+      text: `[系统] 检测到连续 ${REPEAT_CALL_THRESHOLD} 次相同调用 ${toolName}（参数相同）。先分析上次结果为什么不符合预期，再决定下一步。`,
+      reason: "R3:repeat-call",
+    }];
+  }
+  return [];
+}
