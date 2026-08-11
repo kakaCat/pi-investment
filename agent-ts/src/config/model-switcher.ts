@@ -1,6 +1,10 @@
 /**
  * 模型 Provider 运行时切换状态
  *
+ * @deprecated 生产切换已迁移到 services/llm/switch-service.ts（持久化到
+ * llm-state.json）。本模块仅保留为 config.ts 薄代理的遗留运行时
+ * override 层与单测兼容。
+ *
  * LLM_PROVIDER 环境变量决定启动时的 provider；本模块提供进程内
  * 热切换能力（仅内存，重启后回到环境变量）。
  *
