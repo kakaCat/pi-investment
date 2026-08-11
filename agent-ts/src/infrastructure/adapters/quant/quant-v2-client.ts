@@ -181,6 +181,7 @@ const V2_ROUTES: Record<
   "analysis.pe_percentile":{ path: "/api/stock/{symbol}/pe-percentile",method: "GET" },
   "analysis.candlestick":  { path: "/api/stock/{symbol}/candlestick",  method: "GET" },
   "analysis.quality":      { path: "/api/stock/{symbol}/quality",     method: "GET" },
+  "analysis.chipDistribution": { path: "/api/analysis/chip-distribution/{symbol}", method: "GET" }, // ✅ 筹码分布：成本分布曲线+获利盘/密集峰指标
   "indicator.technical":   { path: "/api/stock/{symbol}/technical",    method: "GET" },
   "indicator.candlestick": { path: "/api/stock/{symbol}/candlestick",  method: "GET" },
 
