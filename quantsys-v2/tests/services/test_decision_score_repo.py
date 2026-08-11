@@ -37,3 +37,23 @@ def test_update_score_roundtrip():
         session = repo.session
         session.query(repo.model).filter_by(decision_id=decision_id).delete()
         session.commit()
+
+
+def test_create_decision_with_created_at_override():
+    """P0b：补登历史/信号决策需要把 created_at 设为事件日（成熟度从事件日起算）"""
+    from datetime import datetime as _dt
+    repo = AgentIntelligenceORMRepository()
+    created = repo.create_decision({
+        'decision_id': 'TEST-CREATED-AT-001',
+        'decision_type': 'missed_opportunity',
+        'parameters': {'symbol': '600519', 'price': 10.0},
+        'reasoning': 'created_at 覆盖测试',
+        'created_at': _dt(2026, 6, 15, 10, 30),
+    })
+    try:
+        assert created['created_at'] is not None
+        assert str(created['created_at'])[:10] == '2026-06-15'
+    finally:
+        session = repo.session
+        session.query(repo.model).filter_by(decision_id='TEST-CREATED-AT-001').delete()
+        session.commit()

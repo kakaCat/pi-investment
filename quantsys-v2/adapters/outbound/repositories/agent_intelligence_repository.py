@@ -74,6 +74,8 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
                 session_key=decision_data.get('session_key'),
                 evaluation_status='pending',
             )
+            if decision_data.get('created_at'):
+                row.created_at = decision_data['created_at']
             created = self.create(row)
             if created is None:
                 raise RuntimeError("创建决策记录失败")
