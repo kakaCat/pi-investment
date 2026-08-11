@@ -130,3 +130,45 @@ export function evaluateToolCall(
   }
   return [];
 }
+
+// ---------- R5/R6：agent_end 最终回复检查 ----------
+const CODE_BLOCK_AT_END = /```[a-zA-Z0-9_]*\n[\s\S]{50,}?```\s*$/;
+const MIN_RESIDUAL_LEN = 30;
+
+export function evaluateAgentEnd(
+  s: GuardianState,
+  finalText: string
+): Intervention[] {
+  if (s.followUpSent) return []; // 防追问循环：每任务最多一次
+
+  // R6：空回复或截断
+  if (!finalText.trim()) {
+    s.followUpSent = true;
+    return [{
+      kind: "followUp",
+      text: "[系统] 上轮回复为空或被截断。请分小步重新生成并完成操作。",
+      reason: "R6:empty-response",
+    }];
+  }
+
+  // R5：0 工具 + 单个大代码块结尾 + 块外残余 < 30 字符
+  if (s.toolCallCount === 0) {
+    const m = finalText.match(CODE_BLOCK_AT_END);
+    if (m) {
+      const residual = finalText
+        .slice(0, finalText.length - m[0].length)
+        .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
+        .replace(/<summary>[\s\S]*?<\/summary>/gi, "")
+        .replace(/\s+/g, "");
+      if (residual.length < MIN_RESIDUAL_LEN) {
+        s.followUpSent = true;
+        return [{
+          kind: "followUp",
+          text: "[系统] 你的回复以大段代码结尾但未调用任何工具。若要执行/写入/分析，请显式调用工具；若仅供展示，请用一句话说明后结束。",
+          reason: "R5:code-block-no-tool",
+        }];
+      }
+    }
+  }
+  return [];
+}
