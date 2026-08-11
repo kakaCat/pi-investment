@@ -8,8 +8,7 @@
  *
  * 实现：直接调用 LLM，无工具循环
  */
-import { completeSimple } from "@mariozechner/pi-ai";
-import { createModel } from "../../config/config.js";
+import { getLLM } from "../llm/index.js";
 
 const CLARIFY_SYSTEM_PROMPT = `You are an intent-analysis agent. Your ONLY job is to identify what CANNOT be reasonably inferred and must be confirmed with the user before work begins.
 
@@ -57,11 +56,12 @@ export async function createClarifyAgent(request: string, context?: string): Pro
     userPrompt += `\n\n上下文：\n${context}`;
   }
 
-  const result = await completeSimple(createModel(), {
-    systemPrompt: CLARIFY_SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt, timestamp: Date.now() }],
+  const result = await getLLM().complete({
+    messages: [
+      { role: "system", content: CLARIFY_SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
   });
 
-  const textContent = result.content.find(c => c.type === "text");
-  return textContent && "text" in textContent ? (textContent as any).text : "Clarify Agent 未能生成有效分析";
+return result.text || "Clarify Agent 未能生成有效分析";
 }

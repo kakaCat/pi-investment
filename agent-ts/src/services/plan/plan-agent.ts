@@ -8,8 +8,7 @@
  *
  * 实现：直接调用 LLM，无工具循环
  */
-import { completeSimple } from "@mariozechner/pi-ai";
-import { createModel } from "../../config/config.js";
+import { getLLM } from "../llm/index.js";
 
 const PLAN_SYSTEM_PROMPT = `You are a planning-only agent for an AI investment advisor. Your ONLY job is to think deeply and output a plan as text. You do NOT execute anything.
 
@@ -136,11 +135,12 @@ export async function createPlanAgent(
     userPrompt += `\n\n上下文信息：\n${context}`;
   }
 
-  const result = await completeSimple(createModel(), {
-    systemPrompt,
-    messages: [{ role: "user", content: userPrompt, timestamp: Date.now() }],
+  const result = await getLLM().complete({
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
   });
 
-  const textContent = result.content.find(c => c.type === "text");
-  return textContent && "text" in textContent ? (textContent as any).text : "Plan Agent 未能生成有效计划";
+return result.text || "Plan Agent 未能生成有效计划";
 }
