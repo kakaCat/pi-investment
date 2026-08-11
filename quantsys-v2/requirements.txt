@@ -6,7 +6,10 @@ pyarrow>=14.0.0
 python-dateutil>=2.8.0
 
 # Database
-psycopg2-binary>=2.9.0
+# 禁止用 psycopg2-binary：其 wheel 自带第二套 OpenSSL，与 homebrew openssl@3
+# 同进程共存会导致 double-free 崩溃（macOS 26 xzone malloc 直接 abort，2026-08-11 事故）。
+# 源码编译需 pg_config 在 PATH：export PATH="/opt/homebrew/opt/postgresql@14/bin:$PATH"
+psycopg2>=2.9.0
 sqlalchemy>=2.0.0
 
 # Testing
