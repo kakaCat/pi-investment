@@ -26,6 +26,8 @@ def compute_trade_score(action: str, trade_price: float, ref_price: float,
 
     返回 {'score', 'band', 'excess_return'}，excess_return 为方向调整后的超额。
     """
+    if action not in ('buy', 'sell'):
+        raise ValueError(f'unknown action: {action}')
     stock_return = ref_price / trade_price - 1.0
     excess = stock_return - bench_return
     if action == 'sell':

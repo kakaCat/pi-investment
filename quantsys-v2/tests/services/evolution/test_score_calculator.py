@@ -1,4 +1,6 @@
 """打分纯函数测试（P0a）——口径见计划头部。"""
+import pytest
+
 from application.services.evolution.score_calculator import compute_trade_score, score_band
 
 
@@ -34,6 +36,11 @@ def test_hold_is_buy_direction():
     r = compute_trade_score('buy', trade_price=10.0, ref_price=10.3, bench_return=0.0)
     assert r['score'] == 0.3
     assert r['band'] == 'small_win'
+
+
+def test_invalid_action_raises():
+    with pytest.raises(ValueError, match='unknown action'):
+        compute_trade_score('hold', trade_price=10.0, ref_price=11.0, bench_return=0.0)
 
 
 def test_score_band_boundaries():
