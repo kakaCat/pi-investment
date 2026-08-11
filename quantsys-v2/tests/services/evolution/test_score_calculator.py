@@ -49,3 +49,18 @@ def test_score_band_boundaries():
     assert score_band(0.05) == 'neutral'
     assert score_band(-0.1) == 'small_loss'
     assert score_band(-0.5) == 'big_loss'
+
+
+def test_miss_rally_is_negative():
+    # 踏空：信号后大涨，未行动 → 满分负分
+    r = compute_trade_score('miss', trade_price=10.0, ref_price=11.0, bench_return=0.0)
+    assert r['score'] == -1.0
+    assert r['band'] == 'big_loss'
+
+
+def test_miss_drop_is_positive():
+    # 正确观望：信号后大跌，未行动 → 正分
+    r = compute_trade_score('miss', trade_price=10.0, ref_price=9.0, bench_return=-0.02)
+    # 股票 -10%，基准 -2%，观望决策超额 +8% → 0.8
+    assert r['score'] == 0.8
+    assert r['band'] == 'big_win'
