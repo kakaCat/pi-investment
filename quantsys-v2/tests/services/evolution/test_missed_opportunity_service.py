@@ -123,3 +123,33 @@ def test_missing_price_falls_back_to_signal_day_close():
     result = svc.capture(today=TODAY)
     assert result['captured'] == 1
     assert repo.create_decision.call_args[0][0]['parameters']['price'] == 24.43
+
+
+def test_orm_shape_signal_captured():
+    """生产 get_signals_by_date_range 返回 ORM 对象——兼容层 getattr 分支覆盖。"""
+    from types import SimpleNamespace
+    orm_signal = SimpleNamespace(
+        id=101, signal_date=SIGNAL_DATE, symbol='300255', action='buy',
+        status='pending', strategy_id='cci_reversal', price=24.43, confidence=0.8,
+    )
+    svc, repo = _service([orm_signal], _kline_df(SIGNAL_DATE, 8))
+    result = svc.capture(today=TODAY)
+    assert result['captured'] == 1
+    args = repo.create_decision.call_args[0][0]
+    assert args['decision_id'] == 'MISS-101'
+    assert args['parameters']['price'] == 24.43
+
+
+def test_kline_error_counted_not_abort():
+    kline_repo = MagicMock()
+    kline_repo.get_daily_klines.side_effect = RuntimeError('kline db error')
+    signal_repo = MagicMock()
+    signal_repo.get_signals_by_date_range.return_value = [_signal()]
+    decision_repo = MagicMock()
+    decision_repo.get_decision.return_value = None
+    svc = MissedOpportunityService(
+        signal_repo=signal_repo, decision_repo=decision_repo, kline_repo=kline_repo)
+    result = svc.capture(today=TODAY)
+    assert result['errors'] == 1
+    assert result['captured'] == 0
+    decision_repo.create_decision.assert_not_called()
