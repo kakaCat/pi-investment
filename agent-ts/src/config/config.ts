@@ -27,195 +27,68 @@ export function getBootstrapData(): Record<string, string> {
 export const bootstrapData = _bootstrapLoader.loadAll("full");
 
 /**
- * LLM Provider 配置
+ * LLM Provider 配置 —— 薄代理，转发到 services/llm 模块。
+ * @deprecated 新代码直接用 services/llm 的 getLLM()；此处仅为向后兼容保留。
  *
- * 通过 LLM_PROVIDER 环境变量切换模型提供方（默认 deepseek）。
- * 所有 provider 均走 OpenAI 兼容接口（api: 'openai-completions'），
- * 区别仅在于 baseUrl / apiKey / modelId / 上下文参数。
+ * 生效链（生产）：model-switcher 运行时 override（遗留/单测）
+ *   > llm-state.json（state） > LLM_PROVIDER env > catalog 默认。
  */
-export type LLMProviderName = 'deepseek' | 'kimi';
+import { getLLM } from "../services/llm/index.js";
+import {
+  buildModelConfig,
+  envModelId,
+  resolveModelTarget as catalogResolveModelTarget,
+} from "../services/llm/catalog.js";
+import { toSDKModel } from "../services/llm/adapters/pi-ai.js";
+import type { LLMProviderName } from "../services/llm/types.js";
 
-interface ProviderPreset {
-  /** 展示名称 */
-  name: string;
-  baseUrl: string;
-  /** 默认模型 ID（可被 MODEL_ID 覆盖） */
-  modelId: string;
-  /** API key 环境变量，按优先级依次尝试 */
-  apiKeyEnv: string[];
-  contextWindow: number;
-  maxTokens: number;
-  /** 是否按 reasoning 模型解析（思考内容单独返回） */
-  reasoning: boolean;
-  /** pi-ai SDK 兼容模式覆盖（见 providers/openai-completions.js getCompat） */
-  compat?: {
-    supportsDeveloperRole?: boolean;
-    supportsStore?: boolean;
-    maxTokensField?: 'max_tokens' | 'max_completion_tokens';
-  };
-}
-
-const PROVIDER_PRESETS: Record<LLMProviderName, ProviderPreset> = {
-  deepseek: {
-    name: 'DeepSeek Chat',
-    baseUrl: 'https://api.deepseek.com/v1',
-    // 官方模型列表现仅 deepseek-v4-flash / deepseek-v4-pro（deepseek-chat 为遗留别名）。
-    // 切换 pro：DEEPSEEK_MODEL_ID=deepseek-v4-pro
-    modelId: 'deepseek-v4-flash',
-    apiKeyEnv: ['DEEPSEEK_API_KEY', 'OPENAI_API_KEY'],
-    // v4 全系实际上下文 1M / 最大输出 384K（官方文档确认）。这里按 128K 工作窗口
-    // 配置：agent 每轮全量重发上下文，窗口越大单轮成本越高；需要长上下文时
-    // 用 LLM_CONTEXT_WINDOW 覆盖（上限 1048576）。
-    contextWindow: 128000,
-    maxTokens: 8000,
-    reasoning: true, // DeepSeek支持reasoning，设为true避免解析错误
-  },
-  kimi: {
-    name: 'Kimi (Moonshot)',
-    baseUrl: 'https://api.moonshot.cn/v1',
-    modelId: 'kimi-k3', // 可用 MODEL_ID 覆盖为具体版本（如 kimi-k3-xxxx-preview）
-    apiKeyEnv: ['KIMI_API_KEY', 'MOONSHOT_API_KEY', 'OPENAI_API_KEY'],
-    contextWindow: 256000,
-    maxTokens: 8000,
-    reasoning: true, // K3 为思考模型；若改用非思考模型可设 LLM_REASONING=false
-    // api.kimi.com / 本地代理 不匹配 SDK 的 isMoonshot 检测（只认 api.moonshot.*），
-    // 会被当作标准 OpenAI：reasoning=true 时 system prompt 以 role:"developer" 发送，
-    // Kimi 端点不认识该 role，报 400 Invalid request: tokenization failed。
-    // 这里显式按 Moonshot 兼容模式声明。⚠️ 勿删——已两次因丢失此配置出事故。
-    compat: {
-      supportsDeveloperRole: false,
-      supportsStore: false,
-      maxTokensField: 'max_tokens',
-    },
-  },
-};
-
-/**
- * LLM_PROVIDER 别名映射（小写）。常见误写兜底：
- * 把模型 ID（k3、kimi-k3、deepseek-chat 等）误填进 LLM_PROVIDER 时
- * 映射回正确 provider，避免静默回退 deepseek 导致"配置与实跑模型不一致"。
- */
-const PROVIDER_ALIASES: Record<string, LLMProviderName> = {
-  kimi: 'kimi',
-  moonshot: 'kimi',
-  k3: 'kimi',
-  'kimi-k3': 'kimi',
-  deepseek: 'deepseek',
-  'deepseek-chat': 'deepseek',
-  'deepseek-v4-flash': 'deepseek',
-  'deepseek-v4-pro': 'deepseek',
-  'deepseek-reasoner': 'deepseek',
-};
+export type { LLMProviderName };
 
 /**
  * 当前激活的 LLM provider
- * 优先级：运行时 override（/provider 命令或 model_switch 工具设置）
- *        > LLM_PROVIDER 环境变量（含别名） > 默认 deepseek
+ * 优先级：遗留运行时 override（model-switcher，单测/旧路径） > llm 模块当前选择
  */
 export function getActiveProvider(): LLMProviderName {
-  const override = getRuntimeOverride();
-  if (override) return override;
-  const p = (process.env.LLM_PROVIDER || 'deepseek').toLowerCase();
-  const alias = PROVIDER_ALIASES[p];
-  if (alias) {
-    if (alias !== p) console.warn(`[config] LLM_PROVIDER="${p}" 按别名解析为 ${alias}`);
-    return alias;
-  }
-  console.warn(`[config] 未知 LLM_PROVIDER="${p}"，回退到 deepseek（有效值：deepseek/kimi）`);
-  return 'deepseek';
+  return getRuntimeOverride() ?? getLLM().current().provider;
 }
 
-/**
- * 当前激活 provider 的 API key
- * 优先级：LLM_API_KEY > provider 专用 key 环境变量 > OPENAI_API_KEY
- */
+/** 当前激活 provider 的 API key（LLM_API_KEY > provider 专用 key > OPENAI_API_KEY） */
 export function getActiveApiKey(): string {
-  const preset = PROVIDER_PRESETS[getActiveProvider()];
-  return process.env.LLM_API_KEY
-    || preset.apiKeyEnv.map((k) => process.env[k]).find(Boolean)
-    || "";
+  return getLLM().getModelConfig().apiKey;
 }
 
 /**
  * 当前激活的模型 ID
- * 优先级：运行时模型 override（/provider flash|pro 或 model_switch 工具设置，
- *        仅在 provider 匹配时生效，防跨 provider 泄漏）
- *        > {PROVIDER}_MODEL_ID（如 KIMI_MODEL_ID）> MODEL_ID > provider 默认值
+ * 遗留运行时模型 override（provider 匹配时）> 当前选择（provider 匹配时）> env 链
  */
 export function getActiveModelId(): string {
   const provider = getActiveProvider();
   const runtimeModel = getRuntimeModelOverride();
   if (runtimeModel && runtimeModel.provider === provider) return runtimeModel.modelId;
-  return process.env[`${provider.toUpperCase()}_MODEL_ID`]
-    || process.env.MODEL_ID
-    || PROVIDER_PRESETS[provider].modelId;
+  const sel = getLLM().current();
+  if (sel.provider === provider) return sel.modelId;
+  return envModelId(provider);
 }
 
-/**
- * 可热切换的模型目标（/provider 命令与 model_switch 工具共用）。
- * 短别名 + 完整模型 ID 都解析到 {provider, modelId}；
- * provider 名本身和未知字符串返回 null（走 provider 切换路径）。
- */
-const MODEL_TARGETS: Record<string, { provider: LLMProviderName; modelId: string }> = {
-  flash: { provider: 'deepseek', modelId: 'deepseek-v4-flash' },
-  pro: { provider: 'deepseek', modelId: 'deepseek-v4-pro' },
-  'deepseek-v4-flash': { provider: 'deepseek', modelId: 'deepseek-v4-flash' },
-  'deepseek-v4-pro': { provider: 'deepseek', modelId: 'deepseek-v4-pro' },
-  'kimi-k3': { provider: 'kimi', modelId: 'kimi-k3' },
-  k3: { provider: 'kimi', modelId: 'kimi-k3' },
-};
-
+/** 可热切换的模型目标解析（flash/pro/完整模型 ID）；未知串返回 null */
 export function resolveModelTarget(input: string): { provider: LLMProviderName; modelId: string } | null {
-  return MODEL_TARGETS[input.trim().toLowerCase()] ?? null;
+  return catalogResolveModelTarget(input);
 }
 
 /**
- * 模型配置 — 根据 LLM_PROVIDER 创建对应 provider 的模型
- *
- * 通用覆盖环境变量：
- * - LLM_API_KEY       覆盖任意 provider 的 key
- * - LLM_BASE_URL      覆盖任意 provider 的 baseUrl
- * - LLM_REASONING     "false" 关闭 reasoning 解析
- * - LLM_CONTEXT_WINDOW / LLM_MAX_TOKENS  覆盖上下文/输出上限
+ * 模型配置 — 根据当前选择创建 SDK 模型
+ * 遗留运行时 override 存在时按旧语义构造（单测/旧路径兼容）。
  */
 export function createModel(): Model<'openai-completions'> {
-  const provider = getActiveProvider();
-  const preset = PROVIDER_PRESETS[provider];
-
-  const apiKey = getActiveApiKey();
-
-  // 关键：pi-ai SDK 不读取 model.apiKey，openai provider 的 key 只从
-  // OPENAI_API_KEY 环境变量解析。这里把当前 provider 的 key 同步过去，
-  // 否则切换 provider 后会带着旧 key 请求新端点（401 Invalid Authentication）。
-  if (apiKey) {
-    process.env.OPENAI_API_KEY = apiKey;
+  const override = getRuntimeOverride();
+  if (override) {
+    const runtimeModel = getRuntimeModelOverride();
+    const modelId = runtimeModel && runtimeModel.provider === override
+      ? runtimeModel.modelId
+      : envModelId(override);
+    return toSDKModel(buildModelConfig(override, modelId));
   }
-
-  // 保留各 provider 自己的 BASE_URL 环境变量（如 DEEPSEEK_BASE_URL / KIMI_BASE_URL）
-  const baseUrl = process.env.LLM_BASE_URL
-    || process.env[`${provider.toUpperCase()}_BASE_URL`]
-    || preset.baseUrl;
-  const reasoning = process.env.LLM_REASONING
-    ? process.env.LLM_REASONING !== 'false'
-    : preset.reasoning;
-
-  return {
-    id: getActiveModelId(),
-    name: preset.name,
-    api: 'openai-completions',
-    provider: 'openai',              // SDK 要求 openai provider 才能正确路由 key
-    apiKey,
-    baseUrl,                         // ← 始终显式设置，不依赖 SDK 默认值
-    reasoning,
-    input: ['text'],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    ...(preset.compat ? { compat: preset.compat } : {}),
-    contextWindow: Number(process.env.LLM_CONTEXT_WINDOW) || preset.contextWindow,
-    maxTokens: Number(process.env.LLM_MAX_TOKENS) || preset.maxTokens,
-    // HTTP超时配置 - 防止API调用卡死
-    timeout: 120000,                 // 120秒超时
-    maxRetries: 2                    // 失败后重试2次
-  } as any;
+  return getLLM().getSessionModel() as Model<'openai-completions'>;
 }
 
 /**
