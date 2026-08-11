@@ -1106,3 +1106,22 @@ def analyze_swing_points(payload: Optional[Dict[str, Any]] = Body(None)):
     result = svc.analyze(params)
 
     return api_response(sanitize_for_json(result))
+
+
+# ============ /api/analysis/chip-distribution（筹码分布） ============
+
+@router.get('/api/analysis/chip-distribution/{symbol}')
+@handle_api_error
+def get_chip_distribution(symbol: str):
+    """筹码分布（成本分布）：完整分布曲线 + 摘要指标
+
+    数据来源 quant.chip_distribution_state（每日 18:30 增量更新，
+    job: chip_distribution_update）。未计算的股票返回 404。
+    """
+    from adapters.outbound.repositories.chip_repository import ChipRepository
+    from domain.chip_distribution.service import ChipDistributionService
+    svc = ChipDistributionService(ChipRepository())
+    result = svc.get_distribution(symbol)
+    if "error" in result:
+        return error_response(result, 404)
+    return api_response(sanitize_for_json(result))
