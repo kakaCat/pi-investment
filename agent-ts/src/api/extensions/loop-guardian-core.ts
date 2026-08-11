@@ -141,6 +141,17 @@ export function evaluateAgentEnd(
 ): Intervention[] {
   if (s.followUpSent) return []; // 防追问循环：每任务最多一次
 
+  // R7：provider 多次错误且全程 0 工具 → 静默失败告警（不注入对话，agent 大概率已坏）
+  if (s.providerErrors >= PROVIDER_ERROR_THRESHOLD && s.toolCallCount === 0) {
+    s.followUpSent = true; // 同时抑制 R5/R6，避免对一个坏掉的会话追问
+    return [{
+      kind: "notify",
+      title: "🚨 LoopGuardian 疑似静默失败",
+      content: `本周期 LLM provider 返回错误 ${s.providerErrors} 次且 0 次工具调用，任务可能未实际执行。建议检查 API key / model-switch.log。`,
+      reason: "R7:silent-failure",
+    }];
+  }
+
   // R6：空回复或截断
   if (!finalText.trim()) {
     s.followUpSent = true;
@@ -171,4 +182,12 @@ export function evaluateAgentEnd(
     }
   }
   return [];
+}
+
+// ---------- R7：provider 错误计数 ----------
+export function evaluateProviderResponse(
+  s: GuardianState,
+  status: number
+): void {
+  if (status >= 400) s.providerErrors++;
 }

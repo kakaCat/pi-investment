@@ -3,10 +3,12 @@ import {
   evaluateTurnEnd,
   evaluateToolCall,
   evaluateAgentEnd,
+  evaluateProviderResponse,
   NUDGE_INTERVAL,
   FILE_CHECKPOINT_INTERVAL,
   REPEAT_CALL_THRESHOLD,
   HARD_TURN_LIMIT,
+  PROVIDER_ERROR_THRESHOLD,
   type Intervention,
 } from "./loop-guardian-core.js";
 
@@ -130,5 +132,33 @@ describe("R5/R6 agent_end 检查", () => {
     const out = evaluateAgentEnd(s, "   ");
     expect(out).toHaveLength(1);
     expect(out[0].kind).toBe("followUp");
+  });
+});
+
+describe("R7 provider 静默失败", () => {
+  test(`provider 错误 ≥${PROVIDER_ERROR_THRESHOLD} 且 0 工具 → notify`, () => {
+    const s = createGuardianState();
+    for (let i = 0; i < PROVIDER_ERROR_THRESHOLD; i++) {
+      evaluateProviderResponse(s, 401);
+    }
+    const out = evaluateAgentEnd(s, "看起来一切正常的回复");
+    expect(out.some(i => i.kind === "notify" && i.title.includes("静默失败"))).toBe(true);
+  });
+
+  test("provider 错误但调过工具 → 不告警", () => {
+    const s = createGuardianState();
+    s.toolCallCount = 1;
+    for (let i = 0; i < PROVIDER_ERROR_THRESHOLD; i++) {
+      evaluateProviderResponse(s, 500);
+    }
+    expect(evaluateAgentEnd(s, "正常回复")).toEqual([]);
+  });
+
+  test("status 200 不计错误", () => {
+    const s = createGuardianState();
+    for (let i = 0; i < PROVIDER_ERROR_THRESHOLD + 2; i++) {
+      evaluateProviderResponse(s, 200);
+    }
+    expect(s.providerErrors).toBe(0);
   });
 });
