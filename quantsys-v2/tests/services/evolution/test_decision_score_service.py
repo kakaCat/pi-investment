@@ -126,3 +126,17 @@ def test_write_failure_counted_as_error():
     result = svc.score_mature_decisions()
     assert result['errors'] == 1
     assert result['scored'] == 0
+
+
+def test_missed_opportunity_scored():
+    # P0b：missed_opportunity 决策成熟后按 miss 方向打分（信号后涨=负分）
+    df = _kline_df([10.0] + [11.0] * 19 + [11.0])  # 信号后第20根收盘 11.0（+10%）
+    svc, repo = _service(
+        [_decision(decision_id='MISS-101', decision_type='missed_opportunity')],
+        df, _bench([100.0] * 30))
+    result = svc.score_mature_decisions()
+    assert result['scored'] == 1
+    args = repo.update_score.call_args
+    assert args[0][0] == 'MISS-101'
+    assert args[0][1] == -1.0          # 踏空：+10% 超额 × miss 方向 -1 → -1.0
+    assert args[0][2] == 'big_loss'

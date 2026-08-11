@@ -1279,6 +1279,19 @@ def handle_decision_score_daily(params: Dict[str, Any] = None) -> Dict[str, Any]
                 "error": str(e), "timestamp": datetime.now().isoformat()}
 
 
+def handle_missed_opportunity_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
+    """踏空捕获每日任务（文本参数进化 P0b）：未行动买入信号补登为 missed_opportunity 决策"""
+    try:
+        from application.services.evolution.missed_opportunity_service import MissedOpportunityService
+        result = MissedOpportunityService().capture()
+        return {"action": "missed_opportunity_daily", "status": "success",
+                **result, "timestamp": datetime.now().isoformat()}
+    except Exception as e:
+        logger.error(f"踏空捕获任务失败: {e}")
+        return {"action": "missed_opportunity_daily", "status": "failed",
+                "error": str(e), "timestamp": datetime.now().isoformat()}
+
+
 _TASK_HANDLERS: Dict[str, Callable] = {
     "data_quality_check": handle_data_quality_check,
     "data_update": handle_data_update,
@@ -1316,6 +1329,7 @@ _TASK_HANDLERS: Dict[str, Callable] = {
     "daily_equity_snapshot": handle_daily_equity_snapshot,
     "evolution_fitness_daily": handle_evolution_fitness_daily,
     "decision_score_daily": handle_decision_score_daily,
+    "missed_opportunity_daily": handle_missed_opportunity_daily,
 }
 
 

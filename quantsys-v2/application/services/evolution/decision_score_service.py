@@ -18,7 +18,8 @@ from application.services.evolution.score_calculator import compute_trade_score
 logger = logging.getLogger(__name__)
 
 BENCHMARK_SYMBOL = 'sh000300'
-SCORABLE_TYPES = {'trade_buy': 'buy', 'trade_sell': 'sell'}
+SCORABLE_TYPES = {'trade_buy': 'buy', 'trade_sell': 'sell',
+                  'missed_opportunity': 'miss'}
 
 
 def _as_date(value) -> Optional[date]:
