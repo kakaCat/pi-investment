@@ -7,6 +7,7 @@ import { createTrackedSession } from "../../infrastructure/session/session-facto
 import type { ToolDefinition } from "../../infrastructure/tools/index.js";
 import { paths } from "../../config/config.js";
 import { getLLM } from "../../services/llm/index.js";
+import { createLazyModelSync } from "./llm-lazy-sync.js";
 import { createAppResourceLoader } from "../extensions/model-command.js";
 import {
   autoRecall,
@@ -73,6 +74,10 @@ export function createGatewaySessionFactory(
   tools: ToolDefinition[],
   skills: Skill[],
 ): GatewaySessionFactory {
+  const lazyModelSync = createLazyModelSync({
+    getVersion: () => getLLM().current().version,
+    getSessionModel: () => getLLM().getSessionModel(),
+  });
   return {
     createSession: async (_sessionKey, sessionDir) => {
       const trackedSession = await createTrackedSession({
@@ -98,6 +103,7 @@ export function createGatewaySessionFactory(
     beforePrompt: async (session, sessionKey, text, sessionDir) => {
       if (sessionDir) setSessionDataDir(sessionDir);
       setSessionContext(sessionKey, sessionDir);
+      lazyModelSync(session, sessionKey);
 
       const memoryContext = autoRecall(text);
       const dailyMemory = readDailyMemory(paths.piDir);
