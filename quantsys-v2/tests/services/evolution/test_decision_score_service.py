@@ -97,3 +97,32 @@ def test_sell_direction_and_bench_missing_degradation():
     # 卖后跌 10%，躲过下跌 → score 1.0
     assert args[0][1] == 1.0
     assert args[0][3]['benchmark_missing'] is True
+
+
+def test_single_error_does_not_abort_batch():
+    good_df = _kline_df([10.0] + [10.5] * 19 + [11.0])
+    kline_repo = MagicMock()
+    kline_repo.get_daily_klines.side_effect = [RuntimeError('kline db error'), good_df]
+    decision_repo = MagicMock()
+    decision_repo.list_pending_evaluations.return_value = [
+        _decision(decision_id='DEC-BAD'),
+        _decision(decision_id='DEC-GOOD'),
+    ]
+    svc = DecisionScoreService(
+        decision_repo=decision_repo, kline_repo=kline_repo,
+        bench_klines_provider=lambda symbol, start_date, end_date: _bench([100.0] * 30),
+    )
+    result = svc.score_mature_decisions()
+    assert result['errors'] == 1
+    assert result['scored'] == 1
+    assert decision_repo.update_score.call_count == 1
+    assert decision_repo.update_score.call_args[0][0] == 'DEC-GOOD'
+
+
+def test_write_failure_counted_as_error():
+    df = _kline_df([10.0] + [10.5] * 19 + [11.0])
+    svc, repo = _service([_decision()], df, _bench([100.0] * 30))
+    repo.update_score.return_value = None
+    result = svc.score_mature_decisions()
+    assert result['errors'] == 1
+    assert result['scored'] == 0

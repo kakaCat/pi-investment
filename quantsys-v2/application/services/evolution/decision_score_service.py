@@ -116,8 +116,10 @@ class DecisionScoreService:
             'benchmark_missing': bench_missing,
             **scored,
         }
-        self.decision_repo.update_score(
+        written = self.decision_repo.update_score(
             decision['decision_id'], scored['score'], scored['band'], detail)
+        if written is None:
+            raise RuntimeError(f"打分回写失败: {decision['decision_id']}")
         return 'scored'
 
     def _bench_return(self, start: date, end: date):
