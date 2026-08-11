@@ -5,9 +5,9 @@
 纯计算无判断——分数是裁判 agent 的待解读原料（总设计 §1.2/§3.1）。
 依赖注入模式同 EvolutionFitnessService：repo 与 provider 可替换，便于 mock 测试。
 
-窗口口径（测试即规格）：future = 交易日之后（严格大于）的 K 线，按日期升序；
-需 len(future) > mature_window 才成熟，参考根为 future[mature_window]
-（0 基索引，即满窗后一根收盘价）。
+窗口口径：future = 交易日之后（严格大于）的 K 线，按日期升序；
+需 len(future) >= mature_window 才成熟，参考根为 future[mature_window - 1]
+（0 基索引，即满 20 个交易日后按第 20 根收盘价定价）。
 """
 import logging
 from datetime import date, datetime
@@ -96,9 +96,9 @@ class DecisionScoreService:
         future = [r for r in df.iter_rows(named=True)
                   if _as_date(r['trade_date']) is not None
                   and _as_date(r['trade_date']) > trade_date]
-        if len(future) <= self.mature_window:
+        if len(future) < self.mature_window:
             return 'unmature'
-        ref = future[self.mature_window]
+        ref = future[self.mature_window - 1]
         ref_price = float(ref['close'])
         ref_date = _as_date(ref['trade_date'])
 

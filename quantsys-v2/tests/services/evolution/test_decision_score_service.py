@@ -45,15 +45,15 @@ def _service(pending, kline_df, bench):
 
 
 def test_mature_buy_scored():
-    # 交易日后 21 根 K 线（首根=交易日），第 20 根收盘 11.0；基准平稳
-    df = _kline_df([10.0] + [10.5] * 20 + [11.0])
+    # 交易日后 20 根 K 线，第 20 根（索引 19）收盘 11.0；基准平稳
+    df = _kline_df([10.0] + [10.5] * 19 + [11.0])
     svc, repo = _service([_decision()], df, _bench([100.0] * 30))
     result = svc.score_mature_decisions()
     assert result['scanned'] == 1
     assert result['scored'] == 1
     args = repo.update_score.call_args
     assert args[0][0] == 'DEC-T1'
-    # 第 20 根（索引 20）收盘 11.0：股票 +10%，基准 0% → score 1.0
+    # 第 20 根（索引 19）收盘 11.0：股票 +10%，基准 0% → score 1.0
     assert args[0][1] == 1.0
     assert args[0][2] == 'big_win'
     detail = args[0][3]
