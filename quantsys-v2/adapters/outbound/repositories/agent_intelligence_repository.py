@@ -150,6 +150,48 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             self.session.rollback()
             return None
 
+    def update_score(self, decision_id: str, score: float, band: str,
+                     detail: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """写回决策打分（文本参数进化 P0a）。
+
+        score/score_band 落列，明细进 evaluation_result，状态置 evaluated；
+        success = 分数为正（供 decision_service 报表统计）。
+        """
+        try:
+            row = (self.session.query(self.model)
+                   .filter_by(decision_id=decision_id).first())
+            if row is None:
+                logger.warning(f"Decision not found for scoring: {decision_id}")
+                return None
+            row.score = score
+            row.score_band = band
+            row.evaluation_status = 'evaluated'
+            row.evaluation_result = detail
+            row.evaluation_date = datetime.now()
+            row.success = score > 0
+            self.session.commit()
+            return self._to_dict(row)
+        except SQLAlchemyError as e:
+            logger.error(f"Error updating score for {decision_id}: {e}")
+            self.session.rollback()
+            return None
+
+    def list_scored_decisions(self, limit: int = 50,
+                              band: Optional[str] = None) -> List[Dict[str, Any]]:
+        """查询已打分决策（score 非空），按评估时间倒序"""
+        try:
+            q = (self.session.query(self.model)
+                 .filter(self.model.score.isnot(None)))
+            if band:
+                q = q.filter(self.model.score_band == band)
+            rows = (q.order_by(self.model.evaluation_date.desc())
+                    .limit(limit).all())
+            return [self._to_dict(r) for r in rows]
+        except SQLAlchemyError as e:
+            self._safe_rollback()
+            logger.error(f"Error listing scored decisions: {e}")
+            return []
+
     def get_decisions_by_entity(self, entity_type: str, entity_id: str,
                                 limit: int = 50) -> List[Dict[str, Any]]:
         """查询指定实体的决策历史（按时间倒序）"""
@@ -285,6 +327,8 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             'related_entity_type': r.related_entity_type,
             'related_entity_id': r.related_entity_id,
             'session_key': r.session_key,
+            'score': r.score,
+            'score_band': r.score_band,
         }
 
 
