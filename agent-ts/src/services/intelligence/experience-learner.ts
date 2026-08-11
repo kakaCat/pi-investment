@@ -49,7 +49,7 @@ export async function generateExperienceSummary(
 export async function loadExperienceSummary(
   piDir: string
 ): Promise<ExperienceSummary | null> {
-  const experiencePath = path.join(piDir, 'evolution/experience-summary!.json');
+  const experiencePath = path.join(piDir, 'evolution/experience-summary.json');
 
   if (!existsSync(experiencePath)) {
     return null;
@@ -71,9 +71,10 @@ export async function saveExperienceSummary(
   summary: ExperienceSummary,
   piDir: string
 ): Promise<void> {
-  const experiencePath = path.join(piDir, 'evolution/experience-summary!.json');
+  const experiencePath = path.join(piDir, 'evolution/experience-summary.json');
 
   try {
+    await fs.mkdir(path.dirname(experiencePath), { recursive: true });
     await fs.writeFile(experiencePath, JSON.stringify(summary, null, 2), 'utf-8');
   } catch (e) {
     console.error('[经验学习] 保存失败:', e);

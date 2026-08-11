@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "@jest/globals";
-import { join } from "path";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import {
   assertToolAllowedForActiveSkill,
   getExplicitSkillFromPrompt,
@@ -7,12 +8,14 @@ import {
   withForcedSkillScope,
 } from "../../infrastructure/tools/skill-guard.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 describe("skill-guard", () => {
   beforeEach(() => {
     initSkillGuard([
       { name: "deep-analysis", filePath: join(process.cwd(), "skills", "deep-analysis.md") },
       { name: "portfolio", filePath: join(process.cwd(), "skills", "portfolio.md") },
-      { name: "test-no-tools", filePath: join(process.cwd(), "skills", "test-no-tools.md") },
+      { name: "test-no-tools", filePath: join(__dirname, "__fixtures__", "test-no-tools.md") },
     ] as any);
   });
 

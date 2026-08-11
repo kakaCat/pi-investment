@@ -67,6 +67,13 @@ const ROUTE_RULES: RouteRule[] = [
     negative: [/记录交易/, /录入交易/, /手续费/, /卖出/, /清仓/],
   },
   {
+    skillName: "evolution",
+    priority: 55,
+    minScore: 1,
+    positive: [/进化/, /自我优化/, /自我改进/, /自我提升/],
+    negative: [/持仓/, /选股/, /k线/, /止损/],
+  },
+  {
     skillName: "deep-analysis",
     priority: 60,  // 提高优先级
     minScore: 1,
