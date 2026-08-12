@@ -8,7 +8,7 @@ import { InteractiveMode, createAgentSessionRuntime, getAgentDir } from "../sdk-
 import { getSession as getSessionNormal, createRuntimeForSession } from "../core/agent/agent-loop.js";
 import { getSession as getSessionBackground } from "../core/agent/background-agent-loop.js";
 import * as logger from "../infrastructure/logging/observable-logger.js";
-import { wrapSessionWithLogger } from "../infrastructure/session/session-factory.js";
+import { wrapSessionWithLogger, type PromptOptionsWithRouting } from "../infrastructure/session/session-factory.js";
 import { PerformanceMonitor } from "../infrastructure/monitoring/performance-monitor.js";
 import { startSchedulerRuntime } from "../services/scheduler/scheduler-runtime.js";
 import { FxRateServiceAdapter } from "../services/fx-rate-service-adapter.js";
@@ -367,7 +367,9 @@ async function main() {
     // 启动数据库调度器。CRON.json 已废弃，数据库是唯一任务来源。
     const schedulerRuntime = await startSchedulerRuntime({
       promptAgent: async (message) => {
-        await session.prompt(message);
+        // 调度任务消息自带完整工作流，跳过技能路由（避免被强制注入 portfolio-entry 等 skill）
+        const options: PromptOptionsWithRouting = { skipSkillRouting: true };
+        await session.prompt(message, options);
       },
       writeOutput: (message) => process.stdout.write(message),
     }).catch((error) => {

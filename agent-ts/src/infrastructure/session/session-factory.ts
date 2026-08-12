@@ -13,12 +13,20 @@
  */
 import { createAgentSession } from "../../sdk-facade.js";
 import type { AgentSession } from "../../sdk-facade.js";
+import type { PromptOptions } from "@mariozechner/pi-coding-agent";
 import * as logger from "../logging/observable-logger.js";
 import { rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
 import { getActiveModelId } from "../../config/config.js";
 import { getExplicitSkillFromPrompt, withForcedSkillScope } from "../tools/skill-guard.js";
 
 export type AgentType = 'main' | 'subagent' | 'plan';
+
+/**
+ * 扩展 SDK PromptOptions：skipSkillRouting=true 时跳过技能路由与 skill-guard 作用域。
+ * 用于调度任务/系统事件等机器消息——它们自带完整工作流 prompt，
+ * 强制注入 skill 会让 agent 把 skill 正文误当成第二个用户请求。
+ */
+export type PromptOptionsWithRouting = PromptOptions & { skipSkillRouting?: boolean };
 
 export function normalizeUsage(usage: any): any {
   if (!usage) {
@@ -212,11 +220,18 @@ export function wrapSessionWithLogger(session: AgentSession, perfMonitor?: any):
   attachLogger(session, 'main', perfMonitor);
 
   const originalPrompt = session.prompt.bind(session);
-  session.prompt = async function(userMessage: string, options?: any) {
+  session.prompt = async function(userMessage: string, options?: PromptOptionsWithRouting) {
     logger.logUserInput(userMessage);
     logger.logAgentStart(userMessage);
     perfMonitor?.startLLMCall?.();
     try {
+      // skipSkillRouting：调度任务/系统事件等机器消息跳过技能路由——
+      // 它们自带完整工作流 prompt，强制注入 skill 会让 agent 把 skill 正文
+      // 误当成第二个用户请求（2026-08-12 审计：早盘/盘中/复盘三个任务在
+      // gateway 路径下全部被误路由到 portfolio-entry）。
+      if (options?.skipSkillRouting) {
+        return await originalPrompt(userMessage, options);
+      }
       const routed = rewritePromptWithSkill(userMessage);
       if (routed.forcedSkill) {
         console.log(`🎯 强制技能路由: ${routed.forcedSkill}`);

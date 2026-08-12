@@ -107,3 +107,58 @@ describe("attachLogger auto_retry 事件", () => {
     expect(retryEvent.finalError).toBe("terminated");
   });
 });
+
+describe("wrapSessionWithLogger 技能路由", () => {
+  /** 假 session：带 subscribe（attachLogger 用）+ prompt 捕获实际收到的消息 */
+  function createPromptCapturingSession() {
+    const received: Array<{ message: string; options: any }> = [];
+    return {
+      session: {
+        subscribe: () => () => {},
+        prompt: async (message: string, options?: any) => {
+          received.push({ message, options });
+        },
+      },
+      received,
+    };
+  }
+
+  test("交互消息照常强制路由", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-routing-"));
+    process.chdir(tempDir);
+
+    const logger = await import("../logging/observable-logger.js");
+    logger.initSession("20260812000001_routing1");
+
+    const { initSkillRouter } = await import("../../services/intelligence/skill-router.js");
+    initSkillRouter([{ name: "portfolio-entry" }] as any);
+
+    const { wrapSessionWithLogger } = await import("./session-factory.js");
+    const { session, received } = createPromptCapturingSession();
+    wrapSessionWithLogger(session as any);
+
+    await session.prompt("帮我记录交易，我卖了茅台100股");
+
+    expect(received[0].message).toBe("/skill:portfolio-entry 帮我记录交易，我卖了茅台100股");
+  });
+
+  test("skipSkillRouting 的调度消息原样透传、不强制路由", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-routing-"));
+    process.chdir(tempDir);
+
+    const logger = await import("../logging/observable-logger.js");
+    logger.initSession("20260812000002_routing2");
+
+    const { initSkillRouter } = await import("../../services/intelligence/skill-router.js");
+    initSkillRouter([{ name: "portfolio-entry" }] as any);
+
+    const { wrapSessionWithLogger } = await import("./session-factory.js");
+    const { session, received } = createPromptCapturingSession();
+    wrapSessionWithLogger(session as any);
+
+    const taskMessage = "📚 每日复盘：记录交易总结，分析卖出买入决策";
+    await session.prompt(taskMessage, { skipSkillRouting: true });
+
+    expect(received[0].message).toBe(taskMessage);
+  });
+});
