@@ -100,6 +100,13 @@
 
 ## W1.4 agent 侧 MemoryProvider Port + 召回注入
 
+**⚠️ 2026-08-12 首单（c1f8544）被打回，重做者必读打回原因**：
+1. 交付物 5 个 tsc 编译错误（删 initMemoryTools 导出但 tools/index.ts 仍 re-export；agent-loop.ts 引用已删的 getMemoryStore）。**交付前必须跑 `npx tsc -p tsconfig.build.json --noEmit` 零错误**。
+2. 测试文件相对路径错误（`../provider-manager.js` 应为 `./`），0 测试运行。**交付前必须跑 `npm test -- --testPathPattern "services/memory"` 且测试数 >0**。
+3. syncTurn 空操作导致 memory_write 静默丢数据——**port 的每个方法必须有真实实现，禁止 stub 冒充**。
+4. memory_write 的 category 参数不得丢弃：category→kind 映射要真正生效。
+5. **设计修订（主抓拍板）**：v2 证据链门禁粒度调整为——kind=rule/experience 必须有 evidence；kind=episode/stock_note 免证据（agent 日常笔记无天然证据）。重做时先在 v2 侧放开此粒度（改 W1.2 的 validate_evidence_gate），再接 port。
+
 ```
 你在 pi-investment 仓库执行框架演进工作项 W1.4。依赖 W1.2（W1.3 不阻塞）。
 
