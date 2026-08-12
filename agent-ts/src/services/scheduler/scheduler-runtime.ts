@@ -1,9 +1,9 @@
-import { InMemorySchedulerStore } from "./scheduler-service.js";
+import { FileBasedSchedulerStore } from "./persistent-store.js";
 import { createSchedulerExecutor, type SchedulerExecutorOptions } from "./scheduler-executor.js";
 import { SchedulerService, type SchedulerServiceOptions } from "./scheduler-service.js";
 
 let runtime: {
-  store: InMemorySchedulerStore;
+  store: FileBasedSchedulerStore;
   service: SchedulerService;
 } | null = null;
 
@@ -14,15 +14,17 @@ export async function getSchedulerRuntime(
     return runtime;
   }
 
-  const store = options.store instanceof InMemorySchedulerStore
+  const store = options.store instanceof FileBasedSchedulerStore
     ? options.store
-    : new InMemorySchedulerStore();
+    : new FileBasedSchedulerStore();
 
   const service = new SchedulerService({
     store,
     executor: options.executor ?? createSchedulerExecutor(options),
     now: options.now,
     idGenerator: options.idGenerator,
+    misfireGracePeriodMs: options.misfireGracePeriodMs,
+    taskTimeoutMs: options.taskTimeoutMs,
   });
   await service.reloadTasks();
 

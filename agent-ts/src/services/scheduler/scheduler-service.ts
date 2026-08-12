@@ -80,6 +80,21 @@ export interface SchedulerServiceOptions {
   executor: SchedulerExecutor;
   now?: () => Date;
   idGenerator?: () => string;
+  /**
+   * Misfire grace period in milliseconds (default: 5 minutes)
+   * Tasks scheduled more than this duration in the past will be skipped
+   * and rescheduled to the next period instead of executing immediately.
+   *
+   * This follows the misfire handling pattern from OpenClaw's isolated-agent,
+   * where expired tasks are not "caught up" but rather rescheduled to avoid
+   * executing stale work after system downtime.
+   */
+  misfireGracePeriodMs?: number;
+  /**
+   * Maximum execution timeout per task in milliseconds (default: 60 minutes)
+   * Tasks exceeding this duration will be marked as failed.
+   */
+  taskTimeoutMs?: number;
 }
 
 interface LoadedTask {
@@ -94,13 +109,18 @@ export class SchedulerService {
   private readonly idGenerator: () => string;
   private readonly loadedTasks = new Map<string, LoadedTask>();
   private readonly runningTaskIds = new Set<string>();
+  private readonly taskTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
   private ticker: ReturnType<typeof setInterval> | null = null;
+  private readonly misfireGracePeriodMs: number;
+  private readonly taskTimeoutMs: number;
 
   constructor(options: SchedulerServiceOptions) {
     this.store = options.store;
     this.executor = options.executor;
     this.now = options.now ?? (() => new Date());
     this.idGenerator = options.idGenerator ?? (() => `run-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`);
+    this.misfireGracePeriodMs = options.misfireGracePeriodMs ?? 5 * 60 * 1000; // 5 minutes
+    this.taskTimeoutMs = options.taskTimeoutMs ?? 60 * 60 * 1000; // 60 minutes
   }
 
   async reloadTasks(): Promise<void> {
@@ -132,6 +152,11 @@ export class SchedulerService {
     }
     clearInterval(this.ticker);
     this.ticker = null;
+    // Clear all timeout watchdogs
+    for (const timeout of this.taskTimeouts.values()) {
+      clearTimeout(timeout);
+    }
+    this.taskTimeouts.clear();
   }
 
   async tick(): Promise<void> {
@@ -147,6 +172,22 @@ export class SchedulerService {
       }
 
       const scheduledFor = new Date(loaded.nextRunAt);
+      const delayMs = now.getTime() - loaded.nextRunAt;
+
+      // Misfire detection: if task is more than grace period late, skip it
+      // This prevents executing stale work after system downtime or long pauses
+      // Following OpenClaw's isolated-agent pattern: expired tasks reschedule, don't catch up
+      if (delayMs > this.misfireGracePeriodMs) {
+        await this.recordMissedOrSkipped(
+          loaded.task,
+          scheduledFor,
+          "skipped",
+          `misfire: task expired by ${Math.round(delayMs / 1000)}s (grace period: ${Math.round(this.misfireGracePeriodMs / 1000)}s)`
+        );
+        loaded.nextRunAt = computeNextRunAt(loaded.task, now.getTime());
+        continue;
+      }
+
       await this.executeTask(loaded.task, "scheduled", scheduledFor);
       if (loaded.task.deleteAfterRun || loaded.task.scheduleKind === "delay") {
         await this.store.softDeleteTask(loaded.task.id, iso(now));
@@ -247,8 +288,40 @@ export class SchedulerService {
       updatedAt: iso(startedAt),
     });
 
+    // Watchdog: set timeout to mark task as failed if it exceeds taskTimeoutMs
+    let timedOut = false;
+    const timeoutHandle = setTimeout(async () => {
+      timedOut = true;
+      const timeoutAt = this.now();
+      console.error(`[SchedulerService] Task ${task.name} (${task.id}) exceeded timeout of ${this.taskTimeoutMs}ms`);
+      try {
+        await this.store.updateRun(run.id, {
+          status: "failed",
+          finishedAt: iso(timeoutAt),
+          durationMs: Math.max(0, timeoutAt.getTime() - startedAt.getTime()),
+          error: `Task execution exceeded timeout of ${Math.round(this.taskTimeoutMs / 1000)}s`,
+          updatedAt: iso(timeoutAt),
+        });
+      } catch (error) {
+        console.error(`[SchedulerService] Failed to update run after timeout:`, error);
+      }
+      this.runningTaskIds.delete(task.id);
+    }, this.taskTimeoutMs);
+
+    this.taskTimeouts.set(task.id, timeoutHandle);
+
     try {
       await this.executor({ task, run, triggerType });
+
+      // Clear the timeout if task completes before timeout
+      clearTimeout(timeoutHandle);
+      this.taskTimeouts.delete(task.id);
+
+      // Don't update if already timed out
+      if (timedOut) {
+        return run;
+      }
+
       const finishedAt = this.now();
       return this.store.updateRun(run.id, {
         status: "success",
@@ -257,6 +330,13 @@ export class SchedulerService {
         updatedAt: iso(finishedAt),
       });
     } catch (error) {
+      clearTimeout(timeoutHandle);
+      this.taskTimeouts.delete(task.id);
+
+      if (timedOut) {
+        return run;
+      }
+
       const finishedAt = this.now();
       return this.store.updateRun(run.id, {
         status: "failed",
