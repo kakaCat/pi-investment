@@ -527,6 +527,14 @@ def register_routes():
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import memory_async: {e}")
 
+    # 记忆蒸馏（memory distill 域，W1.5a T1）
+    try:
+        from adapters.inbound.fastapi_app.routes.memory_distill_async import router as memory_distill_router
+        app.include_router(memory_distill_router)
+        logger.info("✅ Registered: memory_distill (W1.5a 记忆蒸馏)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import memory_distill_async: {e}")
+
     # 知识库（knowledge 域，W1.1 修断链后补 FastAPI 路由——此前仅 Flask 有，5001 上 404）
     try:
         from adapters.inbound.fastapi_app.routes.knowledge_async import router as knowledge_router
