@@ -127,16 +127,28 @@ export function createGatewaySessionFactory(
         0,
       );
       if (totalTokens > 40000) {
-        compactConversationHistory(messages as any, (m: unknown) => estimateTokens(m as any), {
-          keepTurns: 3,
-          tokenThreshold: 40000,
-        });
-
-        console.log("🧠 触发自动记忆保存");
+        // 2026-08-12 修补：先落盘记忆再压缩（OpenClaw 模式）——压缩后内容已丢失，
+        // 之前 flush 在 compact 之后执行，抢救不到任何内容
+        console.log("🧠 触发压缩前记忆落盘");
         await session.prompt(
           "Pre-compaction memory flush: Use memory_write to save important facts, " +
           "decisions, and context worth remembering across sessions. Be selective.",
         );
+
+        // T3 接线：传入 memoryProvider 触发压缩前 syncTurn 钩子（可选，未初始化不影响压缩）
+        let memoryProvider;
+        try {
+          const { getMemoryProvider } = await import("../../services/memory/index.js");
+          memoryProvider = getMemoryProvider();
+        } catch {
+          memoryProvider = undefined;
+        }
+
+        compactConversationHistory(messages as any, (m: unknown) => estimateTokens(m as any), {
+          keepTurns: 3,
+          tokenThreshold: 40000,
+          memoryProvider,
+        });
       }
 
       // 工具重试死循环检测：最近 5+ 个连续 toolResult 全是错误时注入终止指令
