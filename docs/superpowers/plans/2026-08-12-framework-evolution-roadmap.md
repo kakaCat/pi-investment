@@ -83,7 +83,7 @@ P2 各项彼此独立，可与 P1 后期并行；但同一文件域的改动不�
 - **写入侧**：写 memory 时同步算 embedding（ollama `/api/embeddings`）；ollama 不可用时降级为纯 BM25 并在响应里标注 `degraded: true`（参考腾讯 store 的 `isDegraded()` 设计）。
 - **验收**：对 ≥20 条种子记忆（含 W1.1 的 v13 案例），"崩盘日买入"查询能把 v13 episode 排进 top3；ollama 停掉时搜索不报错走降级。
 - **依赖**：W1.2
-- **状态**：未开始
+- **状态**：进行中（by W1.3 执行会话 2026-08-12）
 
 ### W1.4 agent 侧 MemoryProvider Port + 召回注入（2天）
 

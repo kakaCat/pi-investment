@@ -78,3 +78,7 @@ flask-limiter>=3.5.0
 
 # Dependency Injection (Added 2026-06-26)
 dependency-injector>=4.41.0
+
+# Hybrid Memory Search (Added 2026-08-12, W1.3)
+jieba>=0.42.1
+rank_bm25>=0.2.2

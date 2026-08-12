@@ -1,10 +1,13 @@
 """Memory Service - 统一记忆服务编排层"""
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List, Optional
 
 import structlog
 
+from domain.memory.embedding import OllamaEmbeddingService
+from domain.memory.hybrid_search import hybrid_rank
 from domain.memory.models import MemoryEntry, MemoryKind, MemoryStatus
 
 logger = structlog.get_logger(__name__)
@@ -13,8 +16,22 @@ logger = structlog.get_logger(__name__)
 class MemoryService:
     """记忆服务：统一记忆存储、检索、验证、导出"""
 
-    def __init__(self, repo):
+    def __init__(self, repo, embedding_service=None):
         self.repo = repo
+        # 默认 ollama 本地 bge-m3；测试可注入 fake/None-valued service
+        self.embedding_service = (
+            embedding_service if embedding_service is not None else OllamaEmbeddingService()
+        )
+
+    # ---------- embedding（写入侧同步计算，失败静默降级） ----------
+
+    def _compute_embedding_json(self, title: str, content: str) -> Optional[str]:
+        """计算 title+content 的 embedding，返回 JSON 字符串；失败返回 None"""
+        vec = self.embedding_service.embed(f"{title}\n{content}")
+        if vec is None:
+            logger.warning("embedding unavailable, writing without vector (degraded)")
+            return None
+        return json.dumps(vec)
 
     # ---------- 写入 ----------
 
@@ -35,6 +52,10 @@ class MemoryService:
                     f"No Execution, No Memory: evidence required for status={entry.status}"
                 )
 
+        # 同步计算 embedding（ollama 不可用时为 None，写入不阻塞）
+        if entry.embedding is None:
+            entry.embedding = self._compute_embedding_json(entry.title, entry.content)
+
         result = self.repo.create(entry)
         logger.info(f"memory created: id={result['id']} kind={entry.kind} title={entry.title}")
         return result
@@ -52,6 +73,12 @@ class MemoryService:
                 raise ValueError(
                     f"Cannot promote to active without evidence: id={entry_id}"
                 )
+
+        # title/content 变更时重算 embedding
+        if "title" in updates or "content" in updates:
+            title = updates.get("title", existing.get("title", ""))
+            content = updates.get("content", existing.get("content", ""))
+            updates["embedding"] = self._compute_embedding_json(title, content)
 
         result = self.repo.update(entry_id, updates)
         logger.info(f"memory updated: id={entry_id}")
@@ -83,6 +110,31 @@ class MemoryService:
             f"memory search: q={q} scope={scope} kind={kind} status={status} found={len(results)}"
         )
         return results
+
+    def hybrid_search(
+        self,
+        q: str,
+        scope: Optional[str] = None,
+        kind: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 20,
+    ) -> Dict[str, Any]:
+        """混合检索（W1.3）：BM25(jieba) + 向量余弦 + RRF 融合
+
+        ollama 不可达时自动降级纯 BM25，返回 degraded:true，不抛错。
+
+        Returns:
+            {"items": [...带 score/source(bm25|vector|both)],
+             "total": N, "degraded": bool, "strategy": "hybrid|bm25|vector|none"}
+        """
+        candidates = self.repo.list_filtered(scope=scope, kind=kind, status=status)
+        query_embedding = self.embedding_service.embed(q)
+        result = hybrid_rank(q, candidates, query_embedding, limit)
+        logger.info(
+            f"memory hybrid search: q={q} strategy={result['strategy']} "
+            f"degraded={result['degraded']} found={result['total']}"
+        )
+        return result
 
     def get_by_id(self, entry_id: int) -> Optional[Dict[str, Any]]:
         """根据 ID 获取记忆"""

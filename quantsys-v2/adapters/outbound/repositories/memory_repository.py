@@ -37,7 +37,7 @@ class MemoryEntryModel(Base):
     last_recalled_at = Column(DateTime(timezone=True))
     source = Column(Text)
     supersedes = Column(BigInteger, ForeignKey("quant.memory_entries.id"))
-    embedding = Column(Text)  # W1.2: 临时用 TEXT，W1.3 升级为 vector(1024)
+    embedding = Column(Text)  # 设计定稿（2026-08-12）：TEXT 存 JSON 数组，余弦在应用层算，弃用 pgvector
     created_at = Column(DateTime(timezone=True), default=datetime.now)
     updated_at = Column(DateTime(timezone=True), default=datetime.now, onupdate=datetime.now)
 
@@ -143,6 +143,30 @@ class MemoryRepository(BaseORMRepository[MemoryEntryModel]):
         except Exception as e:
             self._safe_rollback()
             logger.error(f"memory search failed: {e}")
+            return []
+
+    def list_filtered(
+        self,
+        scope: Optional[str] = None,
+        kind: Optional[str] = None,
+        status: Optional[str] = None,
+        max_rows: int = 5000,
+    ) -> List[Dict[str, Any]]:
+        """列出过滤后的全部候选（W1.3 混合检索语料，应用层建索引）"""
+        try:
+            query = self.session.query(self.model)
+            if scope:
+                query = query.filter(self.model.scope == scope)
+            if kind:
+                query = query.filter(self.model.kind == kind)
+            if status:
+                query = query.filter(self.model.status == status)
+            query = query.order_by(self.model.id).limit(max_rows)
+            rows = query.all()
+            return [self._to_dict(r) for r in rows]
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"memory list_filtered failed: {e}")
             return []
 
     def get_all(self) -> List[Dict[str, Any]]:

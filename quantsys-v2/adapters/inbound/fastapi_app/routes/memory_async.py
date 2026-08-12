@@ -54,25 +54,37 @@ def create_memory(payload: Dict[str, Any] = Body(...)):
 
 @router.get("/api/memory/search")
 def search_memory(
-    q: Optional[str] = Query(None, description="关键词（搜索 title + content）"),
+    q: Optional[str] = Query(None, description="查询文本（BM25+向量混合检索）"),
     scope: Optional[str] = Query(None, description="范围过滤"),
     kind: Optional[str] = Query(None, description="类型过滤"),
     status: Optional[str] = Query(None, description="状态过滤"),
     limit: int = Query(20, ge=1, le=100, description="返回数量上限"),
 ):
-    """检索记忆（本期关键词 ILIKE，W1.3 升级向量检索）
+    """检索记忆（W1.3 混合检索：BM25(jieba) + 向量 + RRF）
 
     Query Parameters:
-    - q: 查询关键词（搜索 title + content）
+    - q: 查询文本（带 q 时走混合检索；不带 q 时为过滤列举）
     - scope: 范围过滤（global | stock:X | strategy:Y | sector:Z）
     - kind: 类型过滤（rule | episode | experience | stock_note）
     - status: 状态过滤（testing | active | deprecated | archived）
     - limit: 返回数量上限（1-100，默认 20）
+
+    Response（带 q）:
+    {
+        "items": [...带 score 与 source(bm25|vector|both)],
+        "total": N,
+        "degraded": false,  // true = ollama 不可达，已降级纯 BM25
+        "strategy": "hybrid|bm25|vector|none"
+    }
     """
     try:
         service = _get_service()
-        results = service.search(q=q, scope=scope, kind=kind, status=status, limit=limit)
-        return {"items": results, "total": len(results)}
+        if q:
+            return service.hybrid_search(
+                q=q, scope=scope, kind=kind, status=status, limit=limit
+            )
+        results = service.search(q=None, scope=scope, kind=kind, status=status, limit=limit)
+        return {"items": results, "total": len(results), "degraded": False, "strategy": "filter"}
     except Exception as e:
         logger.error(f"search_memory failed: {e}")
         raise HTTPException(status_code=500, detail=f"检索记忆失败: {str(e)}")
