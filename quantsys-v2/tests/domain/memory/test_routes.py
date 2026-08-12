@@ -62,3 +62,35 @@ def test_evidence_gate_rejects_active_without_evidence(client, sample_payload):
 def test_health(client):
     resp = client.get("/api/memory/health")
     assert resp.status_code == 200
+
+
+def test_search_multi_status_filter(client, sample_payload):
+    """status 支持逗号分隔（active,testing）——W1.4 queryExperience 依赖此契约"""
+    ids = []
+    for st in ("active", "testing", "deprecated"):
+        p = dict(sample_payload)
+        p["title"] = f"test_multi_status_{st}"
+        p["status"] = st
+        if st == "deprecated":
+            p["evidence"] = None  # deprecated 不受门禁约束
+        resp = client.post("/api/memory", json=p)
+        assert resp.status_code == 200, resp.text
+        ids.append(resp.json()["id"])
+
+    try:
+        resp = client.get("/api/memory/search", params={"status": "active,testing"})
+        assert resp.status_code == 200
+        items = resp.json()
+        items = items if isinstance(items, list) else items.get("items", [])
+        got = {i["title"] for i in items}
+        assert "test_multi_status_active" in got
+        assert "test_multi_status_testing" in got
+        assert "test_multi_status_deprecated" not in got
+    finally:
+        from infrastructure.persistence.orm import get_session
+        from sqlalchemy import text
+        session = get_session()
+        session.execute(
+            text("DELETE FROM quant.memory_entries WHERE title LIKE 'test_multi_status_%'")
+        )
+        session.commit()

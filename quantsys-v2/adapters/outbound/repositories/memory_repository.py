@@ -124,7 +124,12 @@ class MemoryRepository(BaseORMRepository[MemoryEntryModel]):
             if kind:
                 query = query.filter(self.model.kind == kind)
             if status:
-                query = query.filter(self.model.status == status)
+                # 支持逗号分隔多状态（如 "active,testing"——W1.4 queryExperience 依赖）
+                statuses = [s.strip() for s in status.split(",") if s.strip()]
+                if len(statuses) == 1:
+                    query = query.filter(self.model.status == statuses[0])
+                else:
+                    query = query.filter(self.model.status.in_(statuses))
 
             # 关键词搜索（title + content）
             if q:
@@ -160,7 +165,11 @@ class MemoryRepository(BaseORMRepository[MemoryEntryModel]):
             if kind:
                 query = query.filter(self.model.kind == kind)
             if status:
-                query = query.filter(self.model.status == status)
+                statuses = [s.strip() for s in status.split(",") if s.strip()]
+                if len(statuses) == 1:
+                    query = query.filter(self.model.status == statuses[0])
+                else:
+                    query = query.filter(self.model.status.in_(statuses))
             query = query.order_by(self.model.id).limit(max_rows)
             rows = query.all()
             return [self._to_dict(r) for r in rows]
