@@ -71,14 +71,15 @@ P2 各项彼此独立，可与 P1 后期并行；但同一文件域的改动不�
   - embedding 列本期允许 NULL（W1.3 填充），但表结构一次到位（pgvector 扩展一并装上）。
 - **改动面**：v2 新 domain `domain/memory/`（模型+服务），repository，FastAPI 路由，PG 迁移脚本（参考 `scripts/migrations/` 现有惯例）。
 - **验收**：CRUD+search+validate 的 pytest 覆盖；export 往返无损；旧 `agent_knowledge` 8 条数据迁移进新表（kind=experience, source=distiller, provenance 标记 chan_weekly）。
-- **坑**：pgvector 安装 `CREATE EXTENSION vector`——生产库和 quant_test 都要装；迁移脚本必须幂等。
+- **坑**：pgvector 安装 `CREATE EXTENSION vector`——生产库和 quant_test 都要装；迁移脚本必须幂等。**注意 scripts/ 被 gitignore，迁移脚本要 `git add -f`**。
 - **依赖**：W1.1
-- **状态**：未开始
+- **状态**：✅ 2026-08-12（commit 4fa7259+审查修复 31f9227；生产库已迁移建表+013 数据迁移 8 条+v13 案例 6 条种子；**设计变更：embedding 用 TEXT 存 JSON 数组，弃用 pgvector**——brew pgvector 0.8.6 仅编 PG17/18 与 PG14 不兼容，且条目量级（数百）应用层算余弦足够，W1.3 相应调整；**待办：5001 重启后 API 生效**）
 
 ### W1.3 混合检索引擎 vendor（1-2天）
 
 - **目标**：检索从关键词升级为 BM25(jieba) + 向量 + RRF。
-- **做法**：参考 `/Volumes/ORICO/doc/github/TencentDB-Agent-Memory` main 分支 `src/core/tools/memory-search.ts` 与 `src/core/record/l1-dedup.ts`，**裁剪思想而非整包引入**——我们的后端是 Python，用 `jieba`（py）做 BM25，向量用 ollama 本地 `bge-m3`（`ollama pull bge-m3`，模型存 /Volumes/ORICO/ollama-models），RRF 融合 k=60。
+- **做法**：参考 `/Volumes/ORICO/doc/github/TencentDB-Agent-Memory` main 分支 `src/core/tools/memory-search.ts` 与 `src/core/record/l1-dedup.ts`，**裁剪思想而非整包引入**——我们的后端是 Python，用 `jieba`（py）做 BM25，向量用 ollama 本地 `bge-m3`（`ollama pull bge-m3`，模型存 /Volumes/ORICO/ollama-models），RRF 融合 k=60。**embedding 存 memory_entries.embedding（TEXT 列放 JSON 数组），余弦相似度在应用层算**（条目量级数百，无需 pgvector；2026-08-12 设计变更，原 pgvector 方案弃用）。
+- **写入侧**：写 memory 时同步算 embedding（ollama `/api/embeddings`）；ollama 不可用时降级为纯 BM25 并在响应里标注 `degraded: true`（参考腾讯 store 的 `isDegraded()` 设计）。
 - **写入侧**：写 memory 时同步算 embedding（ollama `/api/embeddings`）；ollama 不可用时降级为纯 BM25 并在响应里标注 `degraded: true`（参考腾讯 store 的 `isDegraded()` 设计）。
 - **验收**：对 ≥20 条种子记忆（含 W1.1 的 v13 案例），"崩盘日买入"查询能把 v13 episode 排进 top3；ollama 停掉时搜索不报错走降级。
 - **依赖**：W1.2
