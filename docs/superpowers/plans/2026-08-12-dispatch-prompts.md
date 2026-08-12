@@ -1,14 +1,30 @@
 # 派单 Prompt 集（框架演进 W1.1-W2.5）
 
 > 配套：[2026-08-12-framework-evolution-roadmap.md](2026-08-12-framework-evolution-roadmap.md)（下称"总纲"）
-> 用法：整段复制对应工作项的 prompt 发给执行模型。每个 prompt 自包含，无需对话上下文。
+> 用法：复制对应工作项的 prompt **+ §0 通用验收纪律**，一并发给执行模型。每个 prompt 自包含，无需对话上下文。
 > 通用要求已内置在每段中；执行模型的报告由 Claude 主会话按总纲 §6 审查。
 
 ---
 
-## 通用前缀（所有派单共用，已并入各段，单独派发时勿漏）
+## §0 通用验收纪律（2026-08-12 两单审查后新增，所有派单必须遵守）
 
-无。（每段已自包含）
+```
+【验收证据制——最高优先级，违反=打回】
+1. 每条验收标准必须附"实际运行的命令 + 真实输出"。禁止声明式结论（"已验证""已注册""可以查到"一律视为未做）。
+2. API 类交付必须附路由层 TestClient/curl 冒烟输出——只测 service/repository 层不算数。（W1.2 教训：26 测试全绿但路由层导入失败，8 端点全 404）
+3. 检索/数据类交付必须真跑工具（memory_search/query_experience 实际调用），贴命中结果。（W1.1 教训：文件写了但 JSONL 非法，加载即崩）
+4. 涉及股票名/数字/日期的事实性内容，必须回查数据源（agent_decisions/simulation_trades 表），贴查询输出。（W1.1 教训：300561 汇金科技被写成会畅通讯）
+
+【环境坑清单——不知道就会踩】
+5. quantsys-v2/scripts/ 被 gitignore，迁移脚本必须 git add -f。
+6. agent-ts/.pi-invest/ 是运行态数据：代码改动在 worktree，但 .pi-invest 数据写入必须在主工作区（worktree 副本会随清理丢失，运行中的 agent 读不到）。
+7. FastAPI main.py 注册路由用 try/except ImportError——导入错误只打一条 warning 日志不炸。交付前必须确认路由真实注册（import 模块 + 数 routes）。
+8. v2 的 BaseORMRepository.__init__ 无参（scoped_session 自动获取线程 session），不要传 session；get_session 在 infrastructure.persistence.orm，不在 infrastructure.persistence.database。
+9. FastAPI 路由声明顺序敏感：/export、/health 等固定路径必须声明在 /{entry_id} 之前。
+10. 写入 JSONL：content 必须 json.dumps 转义，一行一条，禁止原始换行。
+11. 写经验/记忆类数据先读契约：Experience 接口在 agent-ts/src/types/evolution.ts（pattern/outcomes/recommendation 结构），不得自创字段。
+12. 报告诚信：做了什么写什么；没跑的写"未验证"。报告里的每条声明都会被复核。
+```
 
 ---
 
@@ -66,17 +82,18 @@
 ```
 你在 pi-investment 仓库执行框架演进工作项 W1.3。依赖 W1.2。
 
-【必读】总纲 §2 + W1.3 卡。参照代码（本地，MIT）：/Volumes/ORICO/doc/github/TencentDB-Agent-Memory（main 分支）src/core/tools/memory-search.ts、src/core/record/l1-dedup.ts——读思想，不整包引入。
+【必读】总纲 §2 + W1.3 卡 + 派单集 §0 通用验收纪律。参照代码（本地，MIT）：/Volumes/ORICO/doc/github/TencentDB-Agent-Memory（main 分支）src/core/tools/memory-search.ts、src/core/record/l1-dedup.ts——读思想，不整包引入。
 
 【任务】把 W1.2 的 search 升级为混合检索：
 1. BM25：Python 侧用 jieba 分词 + rank_bm25（或自实现），对 title+content 建索引。
-2. 向量：ollama 本地 bge-m3（ollama pull bge-m3；模型目录 /Volumes/ORICO/ollama-models）。写入/更新 memory_entries 时同步算 embedding（POST http://127.0.0.1:11434/api/embeddings）。
+2. 向量：ollama 本地 bge-m3（ollama pull bge-m3；模型目录 /Volumes/ORICO/ollama-models）。写入/更新 memory_entries 时同步算 embedding（POST http://127.0.0.1:11434/api/embeddings），存 embedding 列（TEXT 放 JSON 数组，设计已定稿变更：不用 pgvector，应用层算余弦）。
 3. RRF 融合（k=60），search API 返回带 score 与命中来源（bm25|vector|both）。
 4. 降级：ollama 不可达时自动降级纯 BM25，响应标 degraded:true，不报错。
+5. 存量回填：对 memory_entries 现有全部条目回填 embedding（一次性脚本或迁移）。
 
-【验收】构造 ≥20 条种子记忆（含 W1.1 v13 案例），"崩盘日买入"查询 v13 episode 进 top3；停 ollama 后搜索返回 degraded 结果不 5xx；pytest 覆盖。
+【验收——合同式】bash scripts/verification/verify_w13.sh 全绿（该脚本已存在仓库，不得修改脚本让它通过），另附 pytest 输出。
 
-【报告格式】改动文件清单 / 检索质量演示（查询→top5 截图或文本）/ pytest 输出。
+【报告格式】改动文件清单 / verify_w13.sh 完整输出 / 检索质量演示（查询→top5）/ pytest 输出。
 ```
 
 ---
