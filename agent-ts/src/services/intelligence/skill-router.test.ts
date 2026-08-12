@@ -11,8 +11,8 @@ describe("skill-router", () => {
       { name: "stock-screener" },
       { name: "risk-manager" },
       { name: "candlestick-analysis" },
-      { name: "add-holding" },
-      { name: "add-trade" },
+      { name: "portfolio-entry" },
+      { name: "quant-strategy" },
     ] as any);
   });
 
@@ -48,12 +48,16 @@ describe("skill-router", () => {
     expect(detectForcedSkill("看看这根K线是不是锤子线")).toBe("candlestick-analysis");
   });
 
-  test("routes explicit trade logging to add-trade", () => {
-    expect(detectForcedSkill("帮我记录交易，我卖了茅台100股")).toBe("add-trade");
+  test("routes explicit trade logging to portfolio-entry", () => {
+    expect(detectForcedSkill("帮我记录交易，我卖了茅台100股")).toBe("portfolio-entry");
   });
 
-  test("routes holding updates to add-holding", () => {
-    expect(detectForcedSkill("帮我录入持仓，茅台100股均价1450")).toBe("add-holding");
+  test("routes holding updates to portfolio-entry", () => {
+    expect(detectForcedSkill("帮我录入持仓，茅台100股均价1450")).toBe("portfolio-entry");
+  });
+
+  test("routes quant strategy requests to quant-strategy", () => {
+    expect(detectForcedSkill("帮我跑一下量化策略回测")).toBe("quant-strategy");
   });
 
   test("does not rewrite generic concept questions", () => {

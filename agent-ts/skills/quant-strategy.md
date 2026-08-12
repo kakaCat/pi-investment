@@ -1,141 +1,83 @@
 ---
 name: quant-strategy
-description: 设计或执行A股量化框架（市场过滤+行业轮动+质量评分+趋势确认）
+description: 用真实策略体系做量化——执行/回测已注册策略、批量验证、股票池验证与战场评估（不是手工选股流程）
 ---
 
 # 量化策略技能 (Quant Strategy)
 
 ## 允许的工具
-
-- data_fetch_market_sentiment()
-- data_fetch_north_flow()
-- data_fetch_macro()
-- sector_analysis()
-- screening()（action: 'quality' / 'sector'）
-- data_fetch_financial()（估值/PE分位：dataType: 'valuation' / 'pe_percentile'）
-- analysis_swing_points()
-- data_fetch_quote()
-- portfolio_status()
-- portfolio_trade()
+- strategy_list()
+- strategy_detail()
+- strategy_execute()
+- strategy_status()
+- strategy_optimize()
+- strategy_batch_validate()
+- strategy_discovery()
+- pool_manage()
+- pool_validate()
+- pool_battlefield()
 
 ## 触发条件
 
-用户想让系统:
+用户想跑量化策略、回测、验证策略有效性、管理股票池时使用此技能。
 
-- 设计量化方案
-- 跑一套量化筛选
-- 给出量化选股和仓位建议
-- 做行业轮动或趋势打分
-
-关键词:
-
-- 量化
-- 策略
-- 因子
-- 轮动
-- 打分
-- 组合优化
+关键词：量化、策略、回测、因子、轮动、股票池、策略验证、战场评估
 
 ## 核心原则
 
-这不是高频策略，也不是纯黑盒多因子。默认采用:
+系统的量化能力由 **StrategyService + yaml 配置驱动**（v2 后端统一架构），策略执行走真实闭环：
+信号 → 订单 → 成交 → 盈亏（全链路落库到 v2）。
 
-- 市场过滤
-- 行业轮动
-- 个股质量过滤
-- 技术趋势确认
-- 波动率风控
+**不要手工拼凑"筛选+评分"流程冒充量化**——那是 deep-analysis / stock-screener 的活。
+本技能只负责调度和解读真实的策略工具。
 
-## 执行流程
+## 工作流程
 
-### 1. 市场状态判断
+### 1. 明确意图 → 选工具
 
-先并行获取:
+| 用户意图 | 工具 |
+|---------|------|
+| 有哪些策略可用 | `strategy_list()` |
+| 看某个策略详情/表现 | `strategy_detail()` / `strategy_status()` |
+| 跑策略信号/回测 | `strategy_execute({action: "single"/"batch"/"pipeline", strategy, symbol(s)})` |
+| 验证策略是否还有效 | `strategy_batch_validate({startDate, endDate, threshold: 60, dryRun: true})` |
+| 优化策略参数 | `strategy_optimize()` |
+| 发现新策略 | `strategy_discovery()` |
+| 验证股票池 | `pool_validate({pool_id, strategy_ids?})` |
+| 评估哪个池子值得打 | `pool_battlefield()` |
 
-- `data_fetch_market_sentiment()`
-- `data_fetch_north_flow()`
-- `data_fetch_macro()`
+### 2. 执行
 
-给出市场结论:
+- 先 `strategy_list()` 拿到真实 strategy_id，**不要臆造策略名**
+- 注意策略健康度：系统中相当比例的存量策略已被体检判定为无效/死码并停用，优先使用 `strategy_status` 显示活跃且近期验证通过的策略
+- 批量验证先用 `dryRun: true` 预演，确认结果合理再正式跑
 
-- 进攻
-- 中性
-- 防守
+### 3. 解读输出（必须包含）
 
-如果市场明显弱势，直接降低建议仓位，不强行选股。
-
-### 2. 行业层筛选
-
-调用 `sector_analysis()` 找出资金净流入和相对强势行业。
-
-只保留 Top 3 到 Top 5 板块。
-
-### 3. 板块内选股
-
-对每个候选板块调用:
-
-`screening({action: "quality", sector, min_score: 60, limit: 10})`
-
-然后对 Top 候选补充调用:
-
-- `screening({action: "quality", sector, min_score: 60})`（质量分复核）
-- `data_fetch_financial({symbol, dataType: "indicators"})`
-- `data_fetch_financial({symbol, dataType: "pe_percentile"})` 或 `data_fetch_financial({symbol, dataType: "valuation"})`
-- `analysis_swing_points({symbol})`
-
-### 4. 评分逻辑
-
-默认综合分:
-
-`Q = 0.35 * quality + 0.25 * trend + 0.20 * sector + 0.10 * valuation + 0.10 * risk`
-
-硬过滤:
-
-- 质量分 < 60 不入池
-- 明显空头趋势不入池
-- 估值极贵且高拥挤不入池
-
-### 5. 仓位建议
-
-默认规则:
-
-- 总仓位随市场状态调整
-- 单股上限 12%
-- 单行业上限 25%
-- 留 15% 以上现金
-
-### 6. 输出要求
-
-输出必须包含:
-
-- 市场状态
-- 候选行业
-- 候选股票列表
-- 每只股票的核心评分依据
-- 建议仓位
-- 止损和调仓条件
+- **胜率 + 期望收益 + 样本数** 三件套——样本数不足的结论必须标注"样本不足，仅供参考"
+- 与市场基准对比（而不是只说绝对收益）
+- 明确的下一步建议：继续用 / 调参 / 停用
 
 ## 输出模板
 
 ```markdown
-## 量化结果
+## 策略执行结果
 
-### 市场状态
-- 结论: 进攻/中性/防守
-- 建议总仓位: XX%
+### 策略：{名称} (ID: {id})
+- 状态：{活跃/停用}，最近验证：{日期} {通过/失败}
+- 回测区间：{start} ~ {end}
+- 胜率：XX% | 期望收益：XX% | 样本：N 笔
+- 基准（沪深300）：XX%
 
-### 候选行业
-| 行业 | 资金流 | 结论 |
-|------|--------|------|
-| XX | +XX亿 | 保留 |
+### 结论
+{继续使用/建议调参/建议停用} — {理由}
 
-### 候选股票
-| 股票 | 代码 | 综合分Q | 质量分 | 趋势分 | 估值 | 建议仓位 |
-|------|------|---------|--------|--------|------|----------|
-| XX | 600XXX | 82 | 78 | 85 | 合理 | 10% |
-
-### 风控规则
-- 止损: 8% 或 2ATR
-- 市场转弱时先降高波动仓位
-- 跌破 MA20 且放量时减仓
+### 下一步
+- ...
 ```
+
+## 注意事项
+
+- 策略执行和验证的计算都在 quantsys-v2 后端完成，agent 侧只负责调度与解读
+- 大结果（批量回测）会自动落盘，上下文中只有摘要+文件路径，需要细节时读文件
+- 用户要的是"帮我选股/分析股票"而不是跑策略时，不要用本技能——那是 deep-analysis / stock-screener 的场景

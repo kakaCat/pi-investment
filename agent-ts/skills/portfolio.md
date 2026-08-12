@@ -21,7 +21,7 @@ description: 快速查看当前持仓和实时盈亏（只看不分析，深度�
 1. **获取持仓含盈亏** - 调用 `portfolio_status({ action: 'get', account: '<账户名>' })`（不确定账户名时先 `portfolio_status({ action: 'list' })`）
    - 该调用会实时拉取每只股票当前价格，并计算浮动盈亏
 
-2. **如果持仓为空** - 提示用户使用 `/add-holding` 录入持仓
+2. **如果持仓为空** - 提示用户录入持仓（portfolio-entry 技能）
 
 3. **展示持仓表格** - 格式化输出每只持仓：
 
@@ -47,8 +47,7 @@ description: 快速查看当前持仓和实时盈亏（只看不分析，深度�
 
 5. **简短建议** - 根据整体情况给一句话总结（可选）
 
-## 相关命令
+## 相关技能
 
-- `/add-holding` — 录入新持仓或加仓
-- `/add-trade` — 记录买卖交易
-- `/portfolio-review` — 深度复盘分析（含操作建议）
+- `portfolio-entry` — 录入持仓或记录买卖交易
+- `portfolio-review` — 深度复盘分析（含操作建议）
