@@ -25,6 +25,8 @@ export interface PortfolioHolding {
   pnl_pct: number;
   /** 首次建仓至今天数；后端未提供时为 undefined，绝不显示假 0 */
   days_held?: number;
+  /** T+1 可卖数量；后端未提供时为 undefined，绝不回退 shares 造假（同 days_held 契约） */
+  shares_available?: number;
   /** 当前价的行情时间戳（ISO）；行情源失败时可能缺失 */
   price_updated_at?: string;
 }
@@ -97,9 +99,16 @@ export function computePortfolioView(portfolio: any): PortfolioView {
       ? Number(h.days_held)
       : undefined;
 
+    // shares_available 是 T+1 风控关键字段：后端缺失时保持 undefined，
+    // 绝不用 shares_total 回退造假（agent 会把"全部可卖"当事实）
+    const sharesAvailable = h.shares_available != null && Number.isFinite(Number(h.shares_available))
+      ? Number(h.shares_available)
+      : undefined;
+
     return {
       symbol: h.symbol,
       shares: Number(h.shares_total ?? h.shares) || 0,
+      shares_available: sharesAvailable,
       cost_price: Number(h.avg_cost ?? h.avg_price ?? h.cost_price ?? h.cost) || 0,
       current_price: Number(h.current_price) || 0,
       market_value: marketValue,

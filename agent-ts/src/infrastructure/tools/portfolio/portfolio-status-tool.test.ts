@@ -168,3 +168,36 @@ describe("computePortfolioView 数据契约（A线）", () => {
     expect(view.summary).toContain("1.25%");
   });
 });
+
+describe("computePortfolioView T+1 可卖数量", () => {
+  test("透出 shares_available（持仓总数与可卖数成对出现）", () => {
+    const view = computePortfolioView({
+      cash: "40000",
+      total_value: "51000",
+      positions: [
+        {
+          symbol: "600519",
+          shares_total: 1000,
+          shares_available: 600,
+          avg_cost: "10",
+          current_price: "11",
+          market_value: "11000",
+          profit_total: "1000",
+          profit_total_rate: 0.1,
+        },
+      ],
+    });
+    expect(view.holdings[0].shares).toBe(1000);
+    expect(view.holdings[0].shares_available).toBe(600);
+  });
+
+  test("shares_available 缺失时保持 undefined，绝不回退总持仓造假", () => {
+    const view = computePortfolioView({
+      cash: "40000",
+      positions: [
+        { symbol: "600519", shares: 40, market_value: "60000", profit: "0" },
+      ],
+    });
+    expect(view.holdings[0].shares_available).toBeUndefined();
+  });
+});
