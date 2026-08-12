@@ -148,7 +148,11 @@ def _make_bare_trader(portfolio, stop_loss=-0.12):
         return_value={s: p['current'] for s, p in portfolio.items()})
     trader._execute_stop_loss = MagicMock()
     trader._save_account_to_db = MagicMock()
-    trader.should_rebalance = MagicMock(return_value=False)
+    # 2026-08-12 run_daily_check 重构：拆分为 _is_trading_day + _is_rebalance_due
+    # 两个接缝（should_rebalance 为两者合取）。止损测试只关心止损链路，
+    # 固定"是交易日但未到调仓周期"，避免走进 rebalance。
+    trader._is_trading_day = MagicMock(return_value=True)
+    trader._is_rebalance_due = MagicMock(return_value=False)
     return trader
 
 

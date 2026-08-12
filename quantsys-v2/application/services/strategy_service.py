@@ -230,6 +230,17 @@ class StrategyService:
         """
         config = self.get_config(strategy_name)
 
+        # 策略休眠开关（2026-08-12 新增）：enabled=false 的策略拒绝执行，
+        # 不创建交易器、不触碰账户。v14 因 -52.86% 历史战绩被显式休眠。
+        if not config['strategy'].get('enabled', True):
+            logger.warning(f"{strategy_name.upper()} 策略已禁用（enabled=false），跳过每日检查")
+            return {
+                'strategy': strategy_name,
+                'status': 'disabled',
+                'account_name': config['strategy'].get('account_name'),
+                'timestamp': datetime.now().isoformat(),
+            }
+
         logger.info(f"{'='*70}")
         logger.info(f"{strategy_name.upper()} 模拟交易每日检查")
         logger.info(f"{'='*70}")
@@ -240,15 +251,16 @@ class StrategyService:
         # 记录初始状态
         initial_value = trader._calculate_total_value_from_portfolio()
 
-        # 执行每日检查
-        trader.run_daily_check()
+        # 执行每日检查（返回结构化结果，区分 executed / skipped）
+        check = trader.run_daily_check()
 
         # 记录最终状态
         final_value = trader._calculate_total_value_from_portfolio()
 
         result = {
             'strategy': strategy_name,
-            'status': 'success',
+            'status': 'success' if (check or {}).get('executed', True) else 'skipped',
+            'check': check,
             'account_name': trader.account_name,
             'timestamp': datetime.now().isoformat(),
             'initial_value': round(initial_value, 2),

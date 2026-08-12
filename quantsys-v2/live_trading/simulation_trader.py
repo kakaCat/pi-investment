@@ -59,6 +59,36 @@ import xgboost as xgb
 import psycopg2
 
 
+def judge_trading_day(day, *, kline_exists_on_date, latest_kline_date, today):
+    """判定某天是否为交易日（纯函数，可单测）。
+
+    语义（2026-08-12 重写，修复"盘中永远判定非交易日"bug）：
+    - 周末 → False
+    - 未来日期 → False
+    - 当天日K已落库 → True（历史日期的主要判据，精确覆盖法定节假日）
+    - 当天日K未落库且判定对象就是"今天"：盘中场景（日K 17:40 才更新），
+      只要市场近期活跃（7 个自然日内有K线）→ True
+    - 其他（过去的工作日无K线 = 节假日；长期停市/数据断供）→ False
+
+    Args:
+        day: 待判定日期（datetime.date）
+        kline_exists_on_date: 该日期 daily_klines 是否有记录
+        latest_kline_date: daily_klines 最大 trade_date（date 或 None）
+        today: 今天（datetime.date）
+    """
+    if day.weekday() >= 5:
+        return False
+    if day > today:
+        return False
+    if kline_exists_on_date:
+        return True
+    if day == today:
+        if latest_kline_date is None:
+            return False
+        return (today - latest_kline_date).days <= 7
+    return False
+
+
 class SimulationTrader:
     """V13策略模拟交易器（使用数据库持久化）"""
 
@@ -691,14 +721,21 @@ class SimulationTrader:
 
         Returns:
             bool: 是否是交易日
+
+        2026-08-12 修复：旧实现用"当天日K是否已落库"作唯一判据，但日K 17:40
+        才更新，盘中/早盘的调度检查（06:30/14:30/15:30）永远判定"今天不是
+        交易日"→ v13/v14 调仓永远跳过且被记为 success。判定逻辑抽为纯函数
+        judge_trading_day，这里只负责取数。
         """
-        date = datetime.strptime(date_str, '%Y-%m-%d')
+        day = datetime.strptime(date_str, '%Y-%m-%d').date()
+        today = datetime.now().date()
 
-        # 1. 周末不是交易日
-        if date.weekday() >= 5:  # 5=周六, 6=周日
-            return False
+        # 非周末的过去/当天日期才需要查库；周末和未来日纯函数即可判定
+        if day.weekday() >= 5 or day > today:
+            return judge_trading_day(
+                day, kline_exists_on_date=False, latest_kline_date=None, today=today,
+            )
 
-        # 2. 检查数据库是否有该日期的K线数据（表示是交易日）
         try:
             cursor = self.repo.session.connection().connection.cursor()
             cursor.execute("""
@@ -706,13 +743,20 @@ class SimulationTrader:
                 WHERE trade_date = %s
                 LIMIT 1
             """, (date_str,))
-            count = cursor.fetchone()[0]
+            kline_exists = cursor.fetchone()[0] > 0
+            cursor.execute("SELECT MAX(trade_date) FROM quant.daily_klines")
+            latest_kline_date = cursor.fetchone()[0]
             cursor.close()
-            return count > 0
+            return judge_trading_day(
+                day,
+                kline_exists_on_date=kline_exists,
+                latest_kline_date=latest_kline_date,
+                today=today,
+            )
         except Exception as e:
             logging.warning(f"检查交易日失败: {e}，默认周一至周五为交易日")
             # 如果数据库查询失败，默认周一到周五是交易日
-            return date.weekday() < 5
+            return day.weekday() < 5
 
     def _count_trading_days(self, start_date: str, end_date: str) -> int:
         """
@@ -737,17 +781,12 @@ class SimulationTrader:
 
         return count
 
-    def should_rebalance(self, current_date):
-        """判断是否需要调仓"""
-        # 1. 检查是否是交易日
-        if not self._is_trading_day(current_date):
-            logging.info(f"{current_date} 不是交易日，跳过检查")
-            return False
-
+    def _is_rebalance_due(self, current_date):
+        """判断是否到达调仓周期（不含交易日校验）"""
         if self.last_rebalance_date is None:
             return True
 
-        # 2. 计算距离上次调仓的交易日天数
+        # 计算距离上次调仓的交易日天数
         trading_days = self._count_trading_days(self.last_rebalance_date, current_date)
 
         # 不包括起始日，所以减1
@@ -755,8 +794,24 @@ class SimulationTrader:
 
         return trading_days >= self.config['strategy']['rebalance_days']
 
+    def should_rebalance(self, current_date):
+        """判断是否需要调仓（交易日校验 + 调仓周期）"""
+        # 1. 检查是否是交易日
+        if not self._is_trading_day(current_date):
+            logging.info(f"{current_date} 不是交易日，跳过检查")
+            return False
+
+        return self._is_rebalance_due(current_date)
+
     def run_daily_check(self):
-        """每日检查（手动调用）"""
+        """每日检查（手动调用）
+
+        Returns:
+            dict: 执行结果（2026-08-12 起返回结构化结果，让调度层能区分
+                  "执行了"和"跳过了"——此前跳过被记为 success 导致空转数周无人察觉）
+                  - executed: False + reason（model_not_loaded / not_trading_day）
+                  - executed: True + action（stop_loss / rebalance / hold）
+        """
         today = datetime.now().strftime('%Y-%m-%d')
         logging.info(f"\n{'='*60}")
         logging.info(f"日期: {today}")
@@ -765,7 +820,14 @@ class SimulationTrader:
         # 检查模型
         if self.model is None:
             logging.error("模型未加载，请先训练或加载模型")
-            return
+            return {'executed': False, 'reason': 'model_not_loaded'}
+
+        # 交易日校验前置（此前埋在 should_rebalance 里，无法与"未到调仓周期"区分）
+        if not self._is_trading_day(today):
+            logging.info(f"{today} 不是交易日，跳过检查")
+            return {'executed': False, 'reason': 'not_trading_day'}
+
+        action = 'hold'
 
         # 1. 检查单股止损
         if self.portfolio:
@@ -778,21 +840,19 @@ class SimulationTrader:
                 logging.warning(f"触发单股止损: {stop_loss_symbols}")
                 self._execute_stop_loss(stop_loss_symbols, prices, today)
                 self._save_account_to_db()
+                action = 'stop_loss'
 
         # 2. 检查是否需要调仓
-        if not self.should_rebalance(today):
-            if self.last_rebalance_date:
-                last_date = datetime.strptime(self.last_rebalance_date, '%Y-%m-%d')
-                days_passed = (datetime.now() - last_date).days
-                days_to_next = self.config['strategy']['rebalance_days'] - days_passed
-                logging.info(f"距离下次调仓还有 {days_to_next} 天")
-            else:
-                logging.info("首次运行，将执行调仓")
-                self.rebalance(today)
-            return
+        if not self._is_rebalance_due(today):
+            last_date = datetime.strptime(self.last_rebalance_date, '%Y-%m-%d')
+            days_passed = (datetime.now() - last_date).days
+            days_to_next = self.config['strategy']['rebalance_days'] - days_passed
+            logging.info(f"距离下次调仓还有 {days_to_next} 天")
+            return {'executed': True, 'action': action, 'days_to_next': days_to_next}
 
         logging.info("触发调仓条件，开始执行...")
         self.rebalance(today)
+        return {'executed': True, 'action': 'rebalance'}
 
     def rebalance(self, current_date):
         """执行调仓"""
