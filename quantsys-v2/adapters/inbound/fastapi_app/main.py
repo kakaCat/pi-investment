@@ -97,6 +97,18 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"❌ SchedulerService startup failed: {e}")
 
+    # 启动 WatchEngine 实时盯盘线程（2026-08-12 起唯一宿主，原 scheduler_daemon
+    # 已下线该职责；pytest 下不启动，避免测试进程拉起盯盘循环）。
+    # 引擎句柄挂到 app.state，lifespan 关闭时优雅停止。
+    try:
+        from adapters.inbound.fastapi_app.watch_bootstrap import start_watch_engine
+        handles = start_watch_engine(skip='pytest' in _sys.modules)
+        if handles is not None:
+            app.state.watch_engine = handles[0]
+            logger.info("✅ WatchEngine watch thread started")
+    except Exception as e:
+        logger.error(f"❌ WatchEngine startup failed: {e}")
+
     logger.info("📖 API Documentation: http://localhost:5001/docs")
     logger.info("📚 ReDoc: http://localhost:5001/redoc")
 
@@ -104,6 +116,14 @@ async def lifespan(app: FastAPI):
 
     # 关闭时
     logger.info("👋 FastAPI application shutting down...")
+
+    engine = getattr(app.state, 'watch_engine', None)
+    if engine is not None:
+        try:
+            engine.stop()
+            logger.info("✅ WatchEngine stopped")
+        except Exception as e:
+            logger.warning(f"⚠️ WatchEngine stop failed: {e}")
 
     try:
         from infrastructure.persistence.database.engine import close_engine

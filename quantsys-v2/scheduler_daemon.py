@@ -160,9 +160,9 @@ class SchedulerDaemon:
             # 注册日常编排器（状态机驱动每日投资循环）
             self._register_orchestrator()
 
-            # 注册 WatchEngine 实时盯盘引擎（后台线程）
-            self._register_watch_engine()
-            
+            # 注意：WatchEngine 实时盯盘自 2026-08-12 起由 FastAPI main.py lifespan
+            # 唯一启动（watch_bootstrap.py），daemon 不再承担——双引擎会重复触发+重复唤醒。
+
             # 启动调度器
             logger.info("Starting scheduler...")
             self.scheduler_service.start()
@@ -245,15 +245,6 @@ class SchedulerDaemon:
         except Exception as e:
             logger.error(f"Failed to register IntradayMonitor: {e}")
 
-    def _register_watch_engine(self):
-        """注册 WatchEngine 实时盯盘引擎（后台线程）"""
-        self._watch_engine = None
-        try:
-            from application.services.watch_engine.factory import start_watch_engine_in_thread
-            self._watch_engine, self._watch_thread = start_watch_engine_in_thread()
-        except Exception as e:
-            logger.error(f"Failed to register WatchEngine: {e}")
-
     def _keep_running(self):
         """保持进程运行"""
         logger.info("Scheduler daemon is running. Press Ctrl+C to stop.")
@@ -276,9 +267,6 @@ class SchedulerDaemon:
         logger.info("Stopping scheduler daemon...")
         
         self.running = False
-
-        if getattr(self, '_watch_engine', None):
-            self._watch_engine.stop()
 
         if self.scheduler_service:
             self.scheduler_service.shutdown(wait=True)

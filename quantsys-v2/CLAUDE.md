@@ -144,10 +144,12 @@ python check_migration.py        # 检查迁移完成度
 python auto_migrate.py --help     # 自动生成路由模板
 ```
 
-### WatchEngine 实时盯盘（2026-07-22 新增）
+### WatchEngine 实时盯盘（2026-07-22 新增；2026-08-12 迁移宿主）
 
-WatchEngine 常驻线程**仅由 `scheduler_daemon.py` 启动**（`_register_watch_engine`）。
-Flask server.py 和 FastAPI main.py 都不会启动它——若未来迁移部署方式，盯盘会静默消失。
+WatchEngine 常驻线程**由 FastAPI `adapters/inbound/fastapi_app/main.py` 的 lifespan 唯一启动**
+（经 `watch_bootstrap.start_watch_engine`，pytest 下自动跳过，句柄存 `app.state.watch_engine` 优雅停止）。
+scheduler_daemon 自 2026-08-12 起不再启动它——双引擎会重复触发+重复唤醒 agent。
+背景：08-02 部署切 FastAPI 后 daemon 未拉起，盯盘曾静默消失一周（triggers 停在 08-05）。
 规则管理 API：`/api/watch/rules` CRUD（Flask + FastAPI parity）。
 
 ### Flask (已废弃，仅用于回滚)
