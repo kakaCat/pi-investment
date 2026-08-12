@@ -55,7 +55,28 @@ export interface PiToolDefinition<TParams = any> {
 // ═══════════════════════════════════════════════════════════════════════════
 
 import type { ToolDefinition as SdkToolDefinition } from "@mariozechner/pi-coding-agent";
-import { executeBeforeToolCallHooks } from "./services/hooks/index.js";
+
+// Hook 系统（T6）懒加载：模块不存在（T6 未合并）或初始化失败时降级为直接执行。
+// 静态 import 会让 main 在 T6 落地前无法编译——2026-08-12 T3b 曾因此弄断 main。
+type BeforeHookFn = (ctx: {
+  toolName: string;
+  args: unknown;
+  turnCount: number;
+  toolCallCount: number;
+}) => Promise<{ action: "allow" | "block" | "modify"; reason?: string; modifiedArgs?: unknown }>;
+
+let hookFn: BeforeHookFn | null | undefined; // undefined=未探测，null=不可用
+const HOOKS_MODULE_SPEC = "./services/hooks/index.js"; // 变量化：T6 未落地时 tsc 不静态解析
+async function getBeforeToolCallHook(): Promise<BeforeHookFn | null> {
+  if (hookFn !== undefined) return hookFn;
+  try {
+    const mod = await import(HOOKS_MODULE_SPEC);
+    hookFn = mod.executeBeforeToolCallHooks as BeforeHookFn;
+  } catch {
+    hookFn = null;
+  }
+  return hookFn;
+}
 
 // 用于追踪 turn/toolCall 计数（全局状态，每个 agent_start 重置由 LoopGuardian 管理）
 let globalTurnCount = 0;
@@ -91,27 +112,35 @@ export function normalizeToolDefinition(tool: PiToolDefinition): SdkToolDefiniti
       onUpdate?: (update: unknown) => void,
       ctx?: unknown
     ): Promise<AgentToolResult<unknown>> => {
-      // Hook 系统拦截点
+      // Hook 系统拦截点（懒加载，T6 未落地时直通）
       globalToolCallCount++;
-      const hookResult = await executeBeforeToolCallHooks({
-        toolName: tool.name,
-        args: params,
-        turnCount: globalTurnCount,
-        toolCallCount: globalToolCallCount,
-      });
+      const hook = await getBeforeToolCallHook();
+      let finalParams = params;
+      if (hook) {
+        try {
+          const hookResult = await hook({
+            toolName: tool.name,
+            args: params,
+            turnCount: globalTurnCount,
+            toolCallCount: globalToolCallCount,
+          });
 
-      if (hookResult.action === "block") {
-        // 返回结果给 LLM（不标记为错误，让 LLM 能看到原因）
-        return {
-          content: [{ type: "text", text: `🚫 Tool call blocked by hook: ${hookResult.reason}` }],
-          details: { blocked: true, reason: hookResult.reason },
-        };
+          if (hookResult.action === "block") {
+            // 返回结果给 LLM（不标记为错误，让 LLM 能看到原因）
+            return {
+              content: [{ type: "text", text: `🚫 Tool call blocked by hook: ${hookResult.reason}` }],
+              details: { blocked: true, reason: hookResult.reason },
+            };
+          }
+
+          if (hookResult.action === "modify" && hookResult.modifiedArgs !== undefined) {
+            finalParams = hookResult.modifiedArgs;
+          }
+        } catch (hookErr) {
+          // hook 系统内部错误不阻断工具执行
+          console.warn(`⚠️ before_tool_call hook error (allowing tool): ${hookErr}`);
+        }
       }
-
-      // modify 或 allow：执行工具（modify 时使用修改后的参数）
-      const finalParams = hookResult.action === "modify" && hookResult.modifiedArgs !== undefined
-        ? hookResult.modifiedArgs
-        : params;
 
       return tool.execute(toolCallId, finalParams, signal, onUpdate, ctx);
     },
