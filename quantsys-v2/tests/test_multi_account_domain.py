@@ -203,6 +203,41 @@ class TestAccountTradingService:
         assert exc.value.status_code == 422
         assert 'T+1' in str(exc.value) or '可卖' in str(exc.value)
 
+    def test_sell_t1_blocked_carries_details(self, repo, trading):
+        repo.create_account('test_acc_a', initial_capital=100000)
+        trading.execute_trade('test_acc_a', 'buy', '600519', shares=100,
+                              reason='测试买入：技术面突破+放量', price=10.0)
+        from application.services.account_trading_service import TradingError
+        with pytest.raises(TradingError) as exc:
+            trading.execute_trade('test_acc_a', 'sell', '600519', shares=100,
+                                  reason='测试卖出：当日卖出应被T+1拦截', price=11.0)
+        assert exc.value.status_code == 422
+        assert exc.value.details == {'sellable_shares': 0, 'symbol': '600519'}
+
+    def test_sell_t1_partial_available_details(self, repo, trading):
+        """部分可卖：昨日买入 100（已结转可卖）+ 今日买入 100（不可卖），卖 200 被卡"""
+        repo.create_account('test_acc_a', initial_capital=100000)
+        trading.execute_trade('test_acc_a', 'buy', '600519', shares=100,
+                              reason='测试买入：第一笔建仓', price=10.0)
+        repo.settle_t1('test_acc_a', today=date(2099, 1, 1))  # 模拟次日结转
+        trading.execute_trade('test_acc_a', 'buy', '600519', shares=100,
+                              reason='测试买入：次日加仓部分不可卖', price=10.0)
+        from application.services.account_trading_service import TradingError
+        with pytest.raises(TradingError) as exc:
+            trading.execute_trade('test_acc_a', 'sell', '600519', shares=200,
+                                  reason='测试卖出：超出可卖数量应被拦截', price=11.0)
+        assert exc.value.details == {'sellable_shares': 100, 'symbol': '600519'}
+
+    def test_non_t1_error_has_no_details(self, repo, trading):
+        """向后兼容：非 T+1 的 TradingError details 为 None"""
+        repo.create_account('test_acc_a', initial_capital=1000)
+        from application.services.account_trading_service import TradingError
+        with pytest.raises(TradingError) as exc:
+            trading.execute_trade('test_acc_a', 'buy', '600519', shares=1000,
+                                  reason='测试买入：资金不足应被拒绝', price=10.0)
+        assert exc.value.status_code == 422
+        assert exc.value.details is None
+
     def test_sell_next_day_with_realized_pnl(self, repo, trading):
         repo.create_account('test_acc_a', initial_capital=100000)
         trading.execute_trade('test_acc_a', 'buy', '600519', shares=100,

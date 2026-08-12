@@ -12,9 +12,10 @@ logger = structlog.get_logger(__name__)
 
 
 class TradingError(Exception):
-    def __init__(self, message: str, status_code: int = 422):
+    def __init__(self, message: str, status_code: int = 422, details: dict = None):
         super().__init__(message)
         self.status_code = status_code
+        self.details = details
 
 
 class AccountTradingService:
@@ -205,7 +206,8 @@ class AccountTradingService:
                 raise TradingError(f'无 {symbol} 持仓，无法卖出', 422)
             if shares > pos.shares_available:
                 raise TradingError(
-                    f'T+1 可卖数量不足: 可卖 {pos.shares_available} 股，委托 {shares} 股', 422)
+                    f'T+1 可卖数量不足: 可卖 {pos.shares_available} 股，委托 {shares} 股', 422,
+                    details={'sellable_shares': pos.shares_available, 'symbol': symbol})
             cost_basis = shares * float(pos.avg_cost)
             realized_pnl = round(trade_amount - cost_basis - commission - stamp_duty - transfer_fee, 2)
             realized_pnl_rate = round(realized_pnl / cost_basis, 4) if cost_basis else 0.0
@@ -234,7 +236,8 @@ class AccountTradingService:
                     raise TradingError(f'无 {symbol} 持仓，无法卖出', 422)
                 if shares > pos.shares_available:
                     raise TradingError(
-                        f'T+1 可卖数量不足: 可卖 {pos.shares_available} 股，委托 {shares} 股', 422)
+                        f'T+1 可卖数量不足: 可卖 {pos.shares_available} 股，委托 {shares} 股', 422,
+                        details={'sellable_shares': pos.shares_available, 'symbol': symbol})
 
             order = self.repo.create_order(
                 account_name=account_name, action=action, symbol=symbol,
