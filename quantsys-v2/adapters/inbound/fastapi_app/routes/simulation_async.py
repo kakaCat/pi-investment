@@ -87,8 +87,10 @@ async def manual_trade(account_name: str, payload: Dict[str, Any] = Body(...)):
         )
         return {'success': True, 'data': result}
     except TradingError as e:
-        return JSONResponse(status_code=e.status_code,
-                            content={'success': False, 'error': str(e)})
+        body = {'success': False, 'error': str(e)}
+        if getattr(e, 'details', None) is not None:
+            body['details'] = e.details
+        return JSONResponse(status_code=e.status_code, content=body)
     except Exception as e:
         return JSONResponse(status_code=500, content={'success': False, 'error': str(e)})
 
