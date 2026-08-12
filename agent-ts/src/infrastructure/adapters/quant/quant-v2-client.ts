@@ -449,6 +449,10 @@ const V2_ROUTES: Record<
   "agent.decision_log":       { path: "/api/agent/decision/log",       method: "POST" },
   "agent.risk_update":        { path: "/api/agent/risk/update",        method: "POST" },
   "agent.strategy_weight":    { path: "/api/agent/strategy/weight",    method: "POST" },
+
+  // ── memory distillation (W1.5 - 记忆蒸馏) ──
+  "memory_distill_inputs":     { path: "/api/memory/distill/inputs",     method: "GET" },
+  "memory_distill_candidates": { path: "/api/memory/distill/candidates", method: "POST" },
 };
 
 /** v2 不支持但可用的命令名列表（用于调试） */

@@ -4,6 +4,7 @@
  * 这些任务使用 agent_turn 类型，让 Agent AI 自主执行决策
  */
 import type { SchedulerTask } from '../scheduler-service.js';
+import { WEEKLY_MEMORY_DISTILL_PROMPT } from './memory-distill-task.js';
 
 export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdAt' | 'updatedAt'>[] {
   return [
@@ -386,6 +387,22 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 
 注意：你只产出建议清单，不要直接修改工具注册表——下线决策由人工确认。
         `
+      },
+      compensationEnabled: false,
+      compensationCheckAfter: undefined,
+      compensationMaxAttempts: 0,
+      deleteAfterRun: false
+    },
+
+    // 6. 每周记忆蒸馏 - 从本周经验提炼可复用规则
+    {
+      name: 'weekly_memory_distill',
+      enabled: true,
+      scheduleKind: 'cron',
+      scheduleExpr: '0 21 * * 0',  // 每周日 21:00（进化任务后）
+      payload: {
+        kind: 'agent_turn',
+        message: WEEKLY_MEMORY_DISTILL_PROMPT
       },
       compensationEnabled: false,
       compensationCheckAfter: undefined,
