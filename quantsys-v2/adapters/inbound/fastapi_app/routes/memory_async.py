@@ -9,7 +9,6 @@ import structlog
 
 from adapters.outbound.repositories.memory_repository import MemoryRepository
 from domain.memory import MemoryEntry, MemoryService
-from infrastructure.persistence.database import get_session
 
 logger = structlog.get_logger(__name__)
 
@@ -17,10 +16,8 @@ router = APIRouter(tags=["Memory - 统一记忆"])
 
 
 def _get_service() -> MemoryService:
-    """获取 MemoryService 实例"""
-    session = get_session()
-    repo = MemoryRepository(session)
-    return MemoryService(repo)
+    """获取 MemoryService 实例（BaseORMRepository 自动取线程级 scoped session）"""
+    return MemoryService(MemoryRepository())
 
 
 @router.post("/api/memory")
@@ -79,6 +76,24 @@ def search_memory(
     except Exception as e:
         logger.error(f"search_memory failed: {e}")
         raise HTTPException(status_code=500, detail=f"检索记忆失败: {str(e)}")
+
+
+@router.get("/api/memory/export")
+def export_memory():
+    """全量导出记忆（JSON 格式，迁移保险用）"""
+    try:
+        service = _get_service()
+        results = service.export_all()
+        return {"items": results, "total": len(results)}
+    except Exception as e:
+        logger.error(f"export_memory failed: {e}")
+        raise HTTPException(status_code=500, detail=f"导出记忆失败: {str(e)}")
+
+
+@router.get("/api/memory/health")
+def health_check():
+    """健康检查"""
+    return {"status": "ok", "service": "memory"}
 
 
 @router.get("/api/memory/{entry_id}")
@@ -156,18 +171,6 @@ def supersede_memory(
         raise HTTPException(status_code=500, detail=f"标记替代失败: {str(e)}")
 
 
-@router.get("/api/memory/export")
-def export_memory():
-    """全量导出记忆（JSON 格式，迁移保险用）"""
-    try:
-        service = _get_service()
-        results = service.export_all()
-        return {"items": results, "total": len(results)}
-    except Exception as e:
-        logger.error(f"export_memory failed: {e}")
-        raise HTTPException(status_code=500, detail=f"导出记忆失败: {str(e)}")
-
-
 @router.post("/api/memory/import")
 def import_memory(payload: Dict[str, Any] = Body(...)):
     """批量导入记忆条目（往返无损用）
@@ -200,9 +203,3 @@ def import_memory(payload: Dict[str, Any] = Body(...)):
     except Exception as e:
         logger.error(f"import_memory failed: {e}")
         raise HTTPException(status_code=500, detail=f"导入记忆失败: {str(e)}")
-
-
-@router.get("/api/memory/health")
-def health_check():
-    """健康检查"""
-    return {"status": "ok", "service": "memory"}
