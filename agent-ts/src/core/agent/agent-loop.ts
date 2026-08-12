@@ -12,40 +12,26 @@ import {
   createAgentSession,
   loadSkills,
   type Skill,
-  estimateTokens,
   type AgentSessionServices,
   type CreateSessionResult,
 } from "../../sdk-facade.js";
-import type { Message } from "../../types/index.js";
 import { createServicesSafely, openSessionManagerSafely } from "./session-services.js";
-import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initMemoryTools, initBackgroundManager, getBackgroundManager, initRestartAgentTool } from "../../infrastructure/tools/index.js";
+import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initMemoryTools, initBackgroundManager, initRestartAgentTool } from "../../infrastructure/tools/index.js";
 import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
 import type { ToolDefinition } from "../../infrastructure/tools/index.js";
 import { setPlanToolContext } from "../../infrastructure/tools/agent/plan-tool.js";
 import { loadPlugins } from "../../infrastructure/plugins/index.js";
 import { getMemoryStore } from "../../services/intelligence/memory-store.js";
-import { microCompact, compactConversationHistory } from "../../services/compaction/compaction-service.js";
 import { join } from "path";
 import { paths } from "../../config/config.js";
 import { getLLM } from "../../services/llm/index.js";
 import { createAppResourceLoader } from "../../api/extensions/model-command.js";
 import { getSessionDir, getSessionKey, logSystemPrompt, logBootstrapFiles } from "../../infrastructure/logging/observable-logger.js";
-import { initSkillsBlock, autoRecall, readDailyMemory, buildAgentSystemPrompt } from "./system-prompt.js";
+import { initSkillsBlock, buildAgentSystemPrompt } from "./system-prompt.js";
 import { getBootstrapData } from "../../config/config.js";
-import { initSkillRouter, rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
+import { initSkillRouter } from "../../services/intelligence/skill-router.js";
 import { setSessionDataDir } from "../../infrastructure/tools/shared/session-utils.js";
-import {
-  addMessage,
-  createUserMessage,
-  createAssistantMessage,
-  setSystemPrompt,
-  getMessages,
-  getMessageCount,
-  getLastMessage,
-  extractTextContent,
-  getAgentState,
-  normalizeAssistantUsages,
-} from "./session-adapter.js";
+import { normalizeAssistantUsages } from "./session-adapter.js";
 import { ErrorHandlers, ErrorSeverity, handleAgentError } from "./error-handler.js";
 
 /**
@@ -306,137 +292,3 @@ export async function getSession(context?: SessionContext): Promise<AgentSession
   return session!;
 }
 
-/**
- * Agent 循环主函数
- */
-export async function agentLoop(messages: Message[]): Promise<void> {
-  try {
-    const agentSession = await getSession();
-
-    // ============================================================
-    // 并行工具调用机制：注入后台任务完成通知
-    // ============================================================
-    // 工作原理：
-    // 1. Agent 上一轮调用了 background_run(taskId, toolName, params)
-    // 2. 工具在 Worker 线程中异步执行，不阻塞 Agent
-    // 3. 本轮开始时，drainNotifications() 获取所有已完成的任务
-    // 4. 将结果注入到 Agent 的消息历史中（作为 <background-results>）
-    // 5. Agent 看到结果后继续分析，或启动下一批并行任务
-    //
-    // 这样实现了真正的并行：
-    // - 上一轮：启动 3 个 background_run → 立即返回
-    // - 本轮：收到 3 个任务的结果 → 继续工作
-    // ============================================================
-    const bgManager = getBackgroundManager();
-    const notifications = bgManager.drainNotifications();
-
-    if (notifications.length > 0) {
-      const notifText = notifications
-        .map(n => `[Task #${n.taskId}] ${n.status} (${Math.round(n.duration/1000)}s):\n${JSON.stringify(n.result).slice(0, 500)}`)
-        .join("\n\n");
-
-      addMessage(agentSession, createUserMessage(`<background-results>\n${notifText}\n</background-results>`));
-      addMessage(agentSession, createAssistantMessage("Noted background results."));
-
-      console.log(`📬 注入 ${notifications.length} 个后台任务结果`);
-    }
-
-    const lastUserMessage = messages[messages.length - 1];
-    if (lastUserMessage.role !== "user") return;
-
-    const userContent = typeof lastUserMessage.content === "string"
-      ? lastUserMessage.content
-      : Array.isArray(lastUserMessage.content)
-        ? lastUserMessage.content.find(c => typeof c === "object" && "text" in c)?.text || ""
-        : "";
-
-    if (!userContent.trim()) {
-      console.warn("⚠️  用户消息为空，跳过处理");
-      return;
-    }
-
-    const memoryContext = autoRecall(userContent);
-    if (memoryContext) console.log("  🧠 [自动召回] 找到相关记忆");
-
-    const dailyMemory = readDailyMemory(paths.piDir);
-
-    // 每轮重建系统提示词（记忆可能在上一轮被更新）
-    const newSystemPrompt = buildAgentSystemPrompt({
-      memoryContext,
-      dailyMemory,
-      tools: getEffectiveTools(),
-      workspaceDir: paths.root,
-    });
-    setSystemPrompt(agentSession, newSystemPrompt);
-    logSystemPrompt(newSystemPrompt, getMessageCount(agentSession));
-
-    const agentState = getAgentState(agentSession);
-    if (agentState) {
-      microCompact(agentState.messages as any);
-    }
-
-    // 自动记忆保存：接近上下文窗口时异步触发（不阻塞用户流程）
-    const totalTokens = getMessages(agentSession).reduce(
-      (sum, msg) => sum + estimateTokens(msg as any), 0
-    );
-    if (totalTokens > 50000 && agentState) {
-      compactConversationHistory(agentState.messages as any, (m: unknown) => estimateTokens(m as any), {
-        keepTurns: 3,
-        tokenThreshold: 50000,
-      });
-
-      console.log("🧠 触发异步记忆保存（不阻塞用户流程）");
-
-      // 异步执行，不等待完成
-      Promise.resolve().then(async () => {
-        try {
-          await agentSession.prompt(
-            "Background memory sync: Use memory_write to save important facts, " +
-            "decisions, and context worth remembering across sessions. Be selective and concise."
-          );
-          console.log("✅ 记忆保存完成");
-        } catch (error) {
-          handleAgentError(error, {
-            context: "异步记忆保存",
-            severity: ErrorSeverity.RECOVERABLE,
-            logStack: true
-          });
-        }
-      });
-    }
-
-    const routed = rewritePromptWithSkill(userContent);
-    if (routed.forcedSkill) {
-      console.log(`🎯 强制技能路由: ${routed.forcedSkill}`);
-    }
-
-    await agentSession.prompt(routed.prompt);
-
-    const lastMsg = getLastMessage(agentSession);
-    if (lastMsg?.role === "assistant") {
-      const textContent = extractTextContent(lastMsg);
-      if (textContent) {
-        messages.push({ role: "assistant", content: textContent });
-      }
-    }
-
-    // 如果有后台任务运行，等待完成后继续循环
-    const runningCount = bgManager.getRunningCount();
-    if (runningCount > 0) {
-      console.log(`⏳ 等待 ${runningCount} 个后台任务完成...`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      // 递归调用，继续处理
-      return agentLoop(messages);
-    }
-  } catch (error) {
-    handleAgentError(error, {
-      context: "Agent 循环执行",
-      severity: ErrorSeverity.FATAL,
-      logStack: true,
-      metadata: {
-        messagesCount: messages.length,
-        lastMessageRole: messages[messages.length - 1]?.role
-      }
-    });
-  }
-}

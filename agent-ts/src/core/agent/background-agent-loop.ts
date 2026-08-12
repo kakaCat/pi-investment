@@ -1,9 +1,11 @@
 /**
- * Background Agent Loop - agent-loop 的分身
+ * Background Agent Session - agent-loop 的分身
  *
  * 与 agent-loop 的区别：
  * - 注册了 spawn_background + check_background 工具
- * - 每次 prompt 前先 drain notification queue，把后台结果注入对话
+ *
+ * 注：本文件原有的 agentLoop 消息循环无调用方，2026-08-12 作为死代码删除
+ * （其中的技能路由调用曾误导审计；生产消息循环在 gateway channel-session-manager）。
  */
 import {
   AgentSession,
@@ -11,19 +13,16 @@ import {
   loadSkills,
   type Skill
 } from "../../sdk-facade.js";
-import type { Message } from "../../types/index.js";
 import { compactTool } from "../../infrastructure/tools/agent/compact-tool.js";
 import { taskCreateTool, taskUpdateTool, taskListTool, taskExecuteAsyncTool, taskCheckBackgroundTool, initTaskTools } from "../../infrastructure/tools/agent/task-tools.js";
-import { microCompact } from "../../services/compaction/compaction-service.js";
 import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
-import { initSkillRouter, rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
+import { initSkillRouter } from "../../services/intelligence/skill-router.js";
 import { join } from "path";
 import { SessionIdMapper } from "../session/session-id-mapper.js";
 import { paths } from "../../config/config.js";
 import { getLLM } from "../../services/llm/index.js";
 import { createAppResourceLoader } from "../../api/extensions/model-command.js";
-import { getAgentState, getLastMessage, extractTextContent } from "./session-adapter.js";
-import { ErrorHandlers, handleAgentError, ErrorSeverity } from "./error-handler.js";
+import { ErrorHandlers } from "./error-handler.js";
 
 let session: AgentSession | null = null;
 
@@ -73,55 +72,4 @@ export async function getSession(): Promise<AgentSession> {
     initTaskTools(tasksDir);
   }
   return session!;
-}
-
-export async function agentLoop(messages: Message[]): Promise<void> {
-  try {
-    const agentSession = await getSession();
-
-    const lastUserMessage = messages[messages.length - 1];
-    if (lastUserMessage.role !== "user") return;
-
-    const userContent = typeof lastUserMessage.content === "string"
-      ? lastUserMessage.content
-      : Array.isArray(lastUserMessage.content)
-        ? lastUserMessage.content.find(c => typeof c === "object" && "text" in c)?.text || ""
-        : "";
-
-    if (!userContent.trim()) {
-      console.warn("⚠️  用户消息为空，跳过处理");
-      return;
-    }
-
-    const agentState = getAgentState(agentSession);
-    if (agentState) {
-      microCompact(agentState.messages as any);
-    }
-
-    const routed = rewritePromptWithSkill(userContent);
-    if (routed.forcedSkill) {
-      console.log(`🎯 强制技能路由: ${routed.forcedSkill}`);
-    }
-
-    await agentSession.prompt(routed.prompt);
-
-    const lastMsg = getLastMessage(agentSession);
-
-    if (lastMsg?.role === "assistant") {
-      const textContent = extractTextContent(lastMsg);
-      if (textContent) {
-        messages.push({ role: "assistant", content: textContent });
-      }
-    }
-  } catch (error) {
-    handleAgentError(error, {
-      context: "Background Agent 循环执行",
-      severity: ErrorSeverity.FATAL,
-      logStack: true,
-      metadata: {
-        messagesCount: messages.length,
-        lastMessageRole: messages[messages.length - 1]?.role
-      }
-    });
-  }
 }

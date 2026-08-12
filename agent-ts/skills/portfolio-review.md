@@ -5,6 +5,8 @@ description: 逐只复盘持仓健康度（盈亏分析+基本面验证+调仓�
 
 # 持仓复盘技能 (Portfolio Review)
 
+> ⚠️ **适用范围**：本技能的健康指标（单股 15% 健康线、-15% 重估线等）适用于**用户持仓复盘**。agent_virtual 虚拟仓有自己的交易规则（见调度任务 prompt：止损 -5%、止盈 +10%、单股 ≤30%），复盘虚拟仓时以该口径评价。
+
 ## 允许的工具
 - portfolio_status()
 - portfolio_trade()
