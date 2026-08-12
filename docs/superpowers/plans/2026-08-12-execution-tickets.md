@@ -92,7 +92,12 @@
 
 ## T3（W2.2）Compaction 四件套 ✅ 2026-08-12（e834c4a 库交付 + 35c1745 主抓接线：split 守卫内嵌生效、压缩前钩子已接线、flush 顺序修正为压缩前）
 
-### T3b 接线遗留（审计发现：库好但两处未接生产）
+### T3b 接线遗留 ✅ 2026-08-12（f6a0c57 + 主抓修复 61e89bf）
+**审计记录**：f6a0c57 未经审查直接进 main（第二次门禁绕过），且静态 import 了 T6 未合并的 services/hooks 模块——**干净检出下 main 编译断裂**（其工作区有 T6 散落文件所以本地是绿的，典型的污染环境假绿）。主抓修复：hook 改懒加载+降级直通+hook 内部错误不阻断工具。溢出重试/TTL 接线本身质量合格（14 套件 76 测试过）。
+**新审计规则**：审查必须在干净 worktree 跑 tsc——主工作区可能有其他工单的散落文件造成假绿。
+**T6 审计点追加**：services/hooks/index.ts 必须导出 executeBeforeToolCallHooks（sdk-facade 懒加载按此名解析，名字不符=hook 静默失效）。
+
+原工单内容存档：
 1. **溢出重试接线**：`isOverflowError`（overflow-patterns.ts）目前无生产调用。接线点：LLM 调用错误处理路径（`agent-ts/src/services/llm/` 或 SDK 调用处）——捕获错误时先 `isOverflowError(err)` 匹配，命中则触发一次 compactConversationHistory 后重试，仍失败再上抛。jest：模拟溢出错误验证触发压缩重试。
 2. **TTL 接线**：`applyToolResultTTL`（tool-result-ttl.ts）目前无生产调用。接线点：`tool-response-handler.ts` 落盘流程——新结果落盘后对历史结果执行 TTL 降级（20 轮/0.5×窗口预算）。jest：构造超限会话验证占位符替换+文件可回读。
 【验收】两处接线后 `npm test` 无新回归 + 各贴一个生产路径触发证据（日志行）。
