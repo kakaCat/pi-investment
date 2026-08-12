@@ -13,13 +13,17 @@ import type { ExtensionFactory } from "@mariozechner/pi-coding-agent";
 import {
   createGuardianState,
   evaluateTurnEnd,
-  evaluateToolCall,
   evaluateProviderResponse,
   evaluateAgentEnd,
   type GuardianState,
   type Intervention,
 } from "./loop-guardian-core.js";
 import { notificationService } from "../../services/notification/notification-service.js";
+import {
+  registerLoopGuardianHooks,
+  unregisterLoopGuardianHooks,
+} from "./loop-guardian-hooks.js";
+import { initHookLog } from "../../services/hooks/index.js";
 
 /** 从 SDK AgentMessage 提取纯文本（content 为 string 或 {type:"text"} 数组） */
 function extractText(message: any): string {
@@ -55,10 +59,16 @@ async function execute(pi: any, interventions: Intervention[]): Promise<void> {
 export const loopGuardianExtension: ExtensionFactory = (pi) => {
   if (process.env.LOOP_GUARDIAN === "off") return;
 
+  // 初始化 hook 日志
+  initHookLog();
+
   let state: GuardianState = createGuardianState();
 
   pi.on("agent_start", () => {
     state = createGuardianState();
+    // 注册 hooks（每次新任务重新注册，确保状态绑定正确）
+    unregisterLoopGuardianHooks();
+    registerLoopGuardianHooks(state);
   });
 
   pi.on("turn_end", (event) => {
@@ -71,9 +81,8 @@ export const loopGuardianExtension: ExtensionFactory = (pi) => {
     void execute(pi, evaluateTurnEnd(state));
   });
 
-  pi.on("tool_execution_start", (event) => {
-    void execute(pi, evaluateToolCall(state, event.toolName, event.args));
-  });
+  // tool_execution_start 不再直接调用 evaluateToolCall
+  // R3 重复调用检测已迁移到 hook 系统（在 tool 执行前被 hook executor 拦截）
 
   pi.on("after_provider_response", (event) => {
     evaluateProviderResponse(state, event.status);
@@ -84,5 +93,7 @@ export const loopGuardianExtension: ExtensionFactory = (pi) => {
       .reverse()
       .find((m: any) => m?.role === "assistant");
     void execute(pi, evaluateAgentEnd(state, extractText(lastAssistant)));
+    // 任务结束后注销 hooks
+    unregisterLoopGuardianHooks();
   });
 };
