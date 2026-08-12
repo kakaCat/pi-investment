@@ -16,12 +16,12 @@ import {
   type CreateSessionResult,
 } from "../../sdk-facade.js";
 import { createServicesSafely, openSessionManagerSafely } from "./session-services.js";
-import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initMemoryTools, initBackgroundManager, initRestartAgentTool } from "../../infrastructure/tools/index.js";
+import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, initRestartAgentTool } from "../../infrastructure/tools/index.js";
 import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
 import type { ToolDefinition } from "../../infrastructure/tools/index.js";
 import { setPlanToolContext } from "../../infrastructure/tools/agent/plan-tool.js";
 import { loadPlugins } from "../../infrastructure/plugins/index.js";
-import { getMemoryStore } from "../../services/intelligence/memory-store.js";
+import { initMemoryProvider, getMemoryProvider } from "../../services/memory/index.js";
 import { join } from "path";
 import { paths } from "../../config/config.js";
 import { getLLM } from "../../services/llm/index.js";
@@ -92,12 +92,24 @@ function loadProjectSkills(): Skill[] {
 /**
  * 根据上下文类型构建 system prompt
  */
-function buildSystemPromptForContext(ctx: SessionContext | null): string {
+async function buildSystemPromptForContext(ctx: SessionContext | null, userMessage?: string): Promise<string> {
+  // W1.4: 召回注入——会话开始时根据用户消息 prefetch top-3
+  let recalledMemory = "";
+  if (userMessage && userMessage.trim()) {
+    try {
+      const provider = getMemoryProvider();
+      recalledMemory = await provider.prefetch(userMessage, ctx?.sessionId, 3, 2000);
+    } catch (error) {
+      console.warn(`[Memory] Prefetch failed: ${error}`);
+    }
+  }
+
   // 所有上下文类型都使用投资决策 prompt
   // 代码生成已委托给 Codex，不再使用投资 Agent
   return buildAgentSystemPrompt({
     memoryContext: "",
     dailyMemory: "",
+    recalledMemory,
     tools: getEffectiveTools(),
     workspaceDir: paths.root,
   });
@@ -118,7 +130,18 @@ function getToolsForContext(ctx: SessionContext | null): ToolDefinition[] {
 async function initBaseOnce(): Promise<void> {
   if (baseInitialized) return;
 
-  initMemoryTools(paths.piDir);
+  // W1.4: 初始化 Memory Provider（替代旧的 initMemoryTools）
+  const sessionKind = sessionContext?.type === 'cron_review' ? 'cron' :
+                      sessionContext?.type === 'background_task' ? 'wake' :
+                      'user';
+  await initMemoryProvider({
+    sessionId: sessionContext?.sessionId || 'default',
+    sessionKind,
+    channel: 'terminal',
+    workspace: paths.root,
+    piDir: paths.piDir,
+  });
+
   initBackgroundManager();  // 初始化后台任务管理器
 
   cachedSkills = loadProjectSkills();

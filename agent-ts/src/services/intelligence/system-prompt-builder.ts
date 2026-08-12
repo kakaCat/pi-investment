@@ -22,6 +22,7 @@ export interface BuildSystemPromptOptions {
   skillsBlock?: string;
   memoryContext?: string;
   dailyMemory?: string;
+  recalledMemory?: string; // W1.4: 召回注入的记忆
   date: string;
   cwd: string;
   model: string;
@@ -52,6 +53,7 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
     skillsBlock = "",
     memoryContext = "",
     dailyMemory = "",
+    recalledMemory = "",
     date,
     cwd,
     model,
@@ -147,6 +149,8 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
     if (userMd) parts.push(`### User Profile\n\n${userMd}`);
     if (dailyMemory) parts.push(`### Recent Memory (today)\n\n${dailyMemory}`);
     if (memoryContext) parts.push(`### Recalled Memories (auto-searched)\n\n${memoryContext}`);
+    // W1.4: 召回注入的记忆（prefetch top-3）
+    if (recalledMemory) parts.push(`### Recalled Memory\n\n${recalledMemory}`);
     if (parts.length) {
       sections.push("## Memory\n\n" + parts.join("\n\n"));
     }
@@ -154,7 +158,8 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
       "## Memory Instructions\n\n" +
       "- Use memory_write to save important user facts, preferences, and context.\n" +
       "- Reference remembered facts naturally in conversation.\n" +
-      "- Use memory_search to recall specific past information."
+      "- Use memory_search to recall specific past information.\n" +
+      "- Recalled memories above were auto-retrieved based on your current context."
     );
   }
 

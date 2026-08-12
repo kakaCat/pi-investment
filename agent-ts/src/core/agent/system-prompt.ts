@@ -111,12 +111,14 @@ export function readDailyMemory(piDir: string): string {
 export function buildAgentSystemPrompt(params: {
   memoryContext?: string;
   dailyMemory?: string;
+  recalledMemory?: string; // W1.4: 召回注入的记忆
   tools?: Array<{ name: string; description: string; label?: string; promptGuidelines?: string[] }>;
   workspaceDir: string;
 }): string {
   const {
     memoryContext = "",
     dailyMemory = "",
+    recalledMemory = "",
     tools = [],
     workspaceDir,
   } = params;
@@ -130,6 +132,7 @@ export function buildAgentSystemPrompt(params: {
     skillsBlock,
     memoryContext,
     dailyMemory,
+    recalledMemory,
     date: chinaDate(now),
     cwd: workspaceDir,
     model: getActiveModelId(),

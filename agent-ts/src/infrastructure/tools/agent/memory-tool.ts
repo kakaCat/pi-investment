@@ -1,13 +1,12 @@
 /**
  * Memory Tool Adapter - memory_write / memory_search 工具定义
  *
- * 真实实现位于 services/intelligence/memory-store.ts
+ * W1.4: 改走 MemoryProvider port（v2-client 或 file-fallback）
+ * 工具名和参数契约不变，对 agent 透明
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { getMemoryStore } from "../../../services/intelligence/memory-store.js";
-
-export { initMemoryStore as initMemoryTools } from "../../../services/intelligence/memory-store.js";
+import { getMemoryProvider } from "../../../services/memory/index.js";
 
 export const memoryWriteTool: ToolDefinition = {
   name: "memory_write",
@@ -38,10 +37,24 @@ export const memoryWriteTool: ToolDefinition = {
   }),
   execute: async (_toolCallId: string, params: any) => {
     try {
-      const store = getMemoryStore();
-      const result = store.writeMemory(params.content, params.category || "general");
+      const provider = getMemoryProvider();
+
+      // 通过 provider 写入（映射 category 到 kind）
+      const kindMap: Record<string, string> = {
+        preference: 'rule',
+        fact: 'rule',
+        context: 'episode',
+        task: 'episode',
+        general: 'episode',
+      };
+
+      await provider.syncTurn('', params.content, undefined, {
+        sessionKind: 'user',
+        channel: 'terminal',
+      });
+
       return {
-        content: [{ type: "text" as const, text: result }],
+        content: [{ type: "text" as const, text: `Memory saved: ${params.content.slice(0, 50)}...` }],
         details: null,
       };
     } catch (e) {
@@ -78,17 +91,20 @@ export const memorySearchTool: ToolDefinition = {
   }),
   execute: async (_toolCallId: string, params: any) => {
     try {
-      const store = getMemoryStore();
-      const results = store.hybridSearch(params.query, params.top_k || 5);
+      const provider = getMemoryProvider();
+      const results = await provider.search(params.query, params.top_k || 5);
+
       if (!results.length) {
         return {
           content: [{ type: "text" as const, text: "No relevant memories found." }],
           details: null,
         };
       }
+
       const text = results
-        .map(r => `[${r.path}] (score: ${r.score}) ${r.snippet}`)
+        .map(r => `[${r.title || 'untitled'}] (score: ${r.score.toFixed(2)}) ${r.content.slice(0, 200)}`)
         .join("\n");
+
       return {
         content: [{ type: "text" as const, text: text }],
         details: null,

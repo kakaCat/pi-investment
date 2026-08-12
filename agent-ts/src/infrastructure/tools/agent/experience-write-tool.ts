@@ -1,13 +1,12 @@
 /**
  * Experience Write Tool — 写入历史经验到经验库
  *
- * 每次完成交易决策并验证结果后，Agent 调用此工具写入经验。
- * 经验的写入会自动去重（同 ID 更新），带版本管理和自动备份。
+ * W1.4: 改走 MemoryProvider port（v2-client 或 file-fallback）
+ * 工具名和参数契约不变，对 agent 透明
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
-import { addExperience } from "../../../services/intelligence/experience-manager.js";
-import type { Experience } from "../../../types/evolution.js";
+import { getMemoryProvider } from "../../../services/memory/index.js";
 
 export const experienceWriteTool: ToolDefinition = {
   name: "experience_write",
@@ -77,6 +76,8 @@ export const experienceWriteTool: ToolDefinition = {
 
   execute: async (_toolCallId: string, params: any) => {
     try {
+      const provider = getMemoryProvider();
+
       // Build examples list
       const examples = (params.examples || []) as Array<{
         date: string;
@@ -86,49 +87,30 @@ export const experienceWriteTool: ToolDefinition = {
       }>;
 
       // If symbol is provided but no examples, auto-create one minimal example
-      if (params.symbol! && examples.length === 0) {
+      if (params.symbol && examples.length === 0) {
         examples.push({
           date: new Date().toISOString().split("T")[0],
-          symbol: params.symbol!,
+          symbol: params.symbol,
           session_id: "manual",
           result: params.avg_return,
         });
       }
 
-      // Generate ID from scenario + action (deterministic for dedup)
-      const scenarioSlug = params.scenario
-        .replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, "_")
-        .slice(0, 40);
-      const id = `exp_${params.action}_${scenarioSlug}_${Date.now().toString(36)}`;
-
-      const experience: Experience = {
-        id,
+      const result = await provider.writeExperience({
         scenario: params.scenario,
-        pattern: {
-          conditions: params.conditions,
-          action: params.action as "buy" | "sell" | "hold",
-        },
-        outcomes: {
-          total_cases: params.total_cases || 1,
-          win_rate: params.win_rate,
-          avg_return: params.avg_return,
-          max_gain: params.max_gain,
-          max_loss: params.max_loss,
-        },
+        conditions: params.conditions,
+        action: params.action as "buy" | "sell" | "hold",
+        total_cases: params.total_cases || 1,
+        win_rate: params.win_rate,
+        avg_return: params.avg_return,
+        max_gain: params.max_gain,
+        max_loss: params.max_loss,
         recommendation: params.recommendation as "aggressive" | "moderate" | "cautious" | "avoid",
         reason: params.reason,
-        examples,
         confidence: params.confidence,
-        last_updated: new Date().toISOString().split("T")[0],
-        // 新陈代谢机制：新经验初始化为满权重、未验证、无失败记录
-        weight: 1.0,
-        last_verified_at: null,
-        consecutive_failures: 0,
-        half_life_days: 30,
-        deprecated: false,
-      };
-
-      addExperience(experience);
+        examples,
+        symbol: params.symbol,
+      });
 
       return {
         content: [
@@ -136,10 +118,10 @@ export const experienceWriteTool: ToolDefinition = {
             type: "text" as const,
             text: JSON.stringify(
               {
-                success: true,
-                message: `Experience recorded: "${params.scenario.slice(0, 40)}..." (id: ${id})`,
+                success: result.success,
+                message: result.message,
                 data: {
-                  id,
+                  id: result.id,
                   action: params.action,
                   recommendation: params.recommendation,
                   confidence: params.confidence,

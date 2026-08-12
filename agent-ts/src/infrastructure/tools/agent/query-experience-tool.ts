@@ -1,11 +1,13 @@
 /**
  * Query Experience Tool Definition
  *
- * Agent 工具：查询历史经验库
+ * W1.4: 改走 MemoryProvider port（v2-client 或 file-fallback）
+ * 工具名和参数契约不变，对 agent 透明
  */
 
 import { Type } from '@sinclair/typebox';
 import type { ToolDefinition } from "../index.js";
+import { getMemoryProvider } from "../../../services/memory/index.js";
 
 export const queryExperienceTool: ToolDefinition = {
   name: 'query_experience',
@@ -47,9 +49,8 @@ export const queryExperienceTool: ToolDefinition = {
 
   execute: async (_toolCallId: string, params: any) => {
     try {
-      // Lazy import to avoid issues when experience file doesn't exist
-      const { queryAndFormatExperience } = await import('../../../services/intelligence/experience-query.js');
-      const result = queryAndFormatExperience(params);
+      const provider = getMemoryProvider();
+      const result = await provider.queryExperience(params);
       return { content: [{ type: "text" as const, text: result }], details: null };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
