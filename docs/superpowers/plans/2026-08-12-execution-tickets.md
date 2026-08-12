@@ -48,7 +48,7 @@
 
 ---
 
-## T1（W1.5a）v2 侧蒸馏服务
+## T1（W1.5a）v2 侧蒸馏服务 ✅ 2026-08-12（a7fb822，审计通过+生产实证 saved/skipped 正确）
 
 **目标**：quantsys-v2 新增周日蒸馏服务，从 memory_entries + agent_decisions 产出 rule 候选（status=testing）。
 
@@ -80,7 +80,7 @@
 2. 新增任务 `weekly_memory_distill`，cron `0 21 * * 0`（周日 21:00，避开 20:00 的 weekly_evolution）。任务 prompt 内容：
    - 第 1 步：调用 backend API GET /api/memory/distill/inputs?days=7（用 runQuantV2 或 fetch）
    - 第 2 步：基于输入蒸馏规则候选，每条必须附 evidence_ids（引用输入条目 id）
-   - 第 3 步：POST /api/memory/distill/candidates 提交
+   - 第 3 步：POST /api/memory/distill/candidates 提交（请求体字段名为 candidates：{"candidates": [{title, content, evidence_ids}]}——T1 已上线实证，用错字段名会 400）
    - 第 4 步：汇报本轮产出 N 条候选、跳过 M 条无证据
    【验证】`npm run check:tool-refs` 通过。
 3. 新建 `agent-ts/src/services/memory/distill-task.test.ts`：mock fetch，验证任务函数正确调用两个端点、候选为空时不 POST。
