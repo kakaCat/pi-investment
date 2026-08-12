@@ -527,6 +527,14 @@ def register_routes():
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import memory_async: {e}")
 
+    # 知识库（knowledge 域，W1.1 修断链后补 FastAPI 路由——此前仅 Flask 有，5001 上 404）
+    try:
+        from adapters.inbound.fastapi_app.routes.knowledge_async import router as knowledge_router
+        app.include_router(knowledge_router)
+        logger.info("✅ Registered: knowledge (W1.1 FastAPI 补全)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import knowledge_async: {e}")
+
     # 行为进化（evolution 域，2026-08-05 Phase 1）
     try:
         from adapters.inbound.fastapi_app.routes.evolution_async import router as evolution_router
