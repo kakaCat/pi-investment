@@ -90,7 +90,12 @@
 
 ---
 
-## T3（W2.2）Compaction 四件套
+## T3（W2.2）Compaction 四件套 ✅ 2026-08-12（e834c4a 库交付 + 35c1745 主抓接线：split 守卫内嵌生效、压缩前钩子已接线、flush 顺序修正为压缩前）
+
+### T3b 接线遗留（审计发现：库好但两处未接生产）
+1. **溢出重试接线**：`isOverflowError`（overflow-patterns.ts）目前无生产调用。接线点：LLM 调用错误处理路径（`agent-ts/src/services/llm/` 或 SDK 调用处）——捕获错误时先 `isOverflowError(err)` 匹配，命中则触发一次 compactConversationHistory 后重试，仍失败再上抛。jest：模拟溢出错误验证触发压缩重试。
+2. **TTL 接线**：`applyToolResultTTL`（tool-result-ttl.ts）目前无生产调用。接线点：`tool-response-handler.ts` 落盘流程——新结果落盘后对历史结果执行 TTL 降级（20 轮/0.5×窗口预算）。jest：构造超限会话验证占位符替换+文件可回读。
+【验收】两处接线后 `npm test` 无新回归 + 各贴一个生产路径触发证据（日志行）。
 
 **依赖**：C 组独占窗口。参照 `/Volumes/ORICO/doc/github/openclaw/docs/concepts/compaction.md`。
 
