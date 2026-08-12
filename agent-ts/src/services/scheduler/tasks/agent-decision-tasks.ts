@@ -38,7 +38,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
    - 哪些需要止盈？（盈利≥10%）
    - 哪些需要止损？（亏损≥5%）
    - 哪些继续持有？
-   - 注意T+1：今日买入的明天才能卖
+   - 注意T+1：仅今日买入的部分明天才能卖；之前持有的随时可卖，以 portfolio_status 的 shares_available 为准
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 第二步：执行卖出操作（如需要）
@@ -94,7 +94,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 - 最多持有3只股票
 - 总仓位 ≤ 80%
 - 必须说明交易理由（≥10字）
-- 记住T+1：今天买入明天才能卖
+- 记住T+1：仅今天买入的部分明天才能卖；之前持有的随时可卖（以 shares_available 为准）
 - 记住交易时段：A股只有 9:30-11:30 / 13:00-15:00 能成交。
   本任务在 9:00 执行（开盘前），决定买/卖时用 portfolio_trade 加 execute_at: 'market_open'
   直接下条件单——开盘 9:31 起后端自动撮合，分析完工作即结束，
@@ -161,7 +161,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 **注意**：
 - 这是快速检查，不需要详细分析
 - 发现重大异常才需要深入处理
-- 记住T+1：今日买入的无法当日卖出
+- 记住T+1：仅今日买入的部分无法当日卖出；之前持有的可卖（以 shares_available 为准）
 
 请开始快速检查。
         `

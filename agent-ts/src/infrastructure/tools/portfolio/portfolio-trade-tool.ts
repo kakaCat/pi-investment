@@ -85,7 +85,7 @@ export async function executePortfolioTrade(input: PortfolioTradeInput) {
         reason: input.reason
       },
       note: input.action === 'buy'
-        ? 'T+1规则：今日买入，明日才能卖出'
+        ? 'T+1规则：本次买入的份额明日才可卖；其余已持有份额不受影响'
         : '卖出已成交，已实现盈亏见 realized_pnl'
     };
 
@@ -118,7 +118,7 @@ export const portfolioTradeTool: ToolDefinition = {
     "不确定账户时先用 portfolio_status({ action: 'list' })。" +
     "\n\n功能：" +
     "\n  • 买入股票（需要有可用资金）" +
-    "\n  • 卖出股票（需要有持仓且T+1可卖）" +
+    "\n  • 卖出股票（可卖数量以 portfolio_status 的 shares_available 为准）" +
     "\n  • 记录交易理由（必填）" +
     "\n\n风控规则：" +
     "\n  • 单只股票最大30%仓位" +
@@ -129,7 +129,7 @@ export const portfolioTradeTool: ToolDefinition = {
     "\n  • 持仓达到止盈/止损条件时卖出" +
     "\n  • 必须说明理由：为什么买/卖？" +
     "\n\n注意：" +
-    "\n  • T+1规则：今日买入明日才能卖" +
+    "\n  • T+1规则：仅当日买入部分次日才可卖，之前持有的随时可卖（以 shares_available 为准）" +
     "\n  • 交易理由至少10字" +
     "\n  • 盘前（9:30前）决策用 execute_at: 'market_open' 挂单，开盘自动撮合，不要等开盘再下单" +
     "\n  • 这是虚拟仓，用于验证Agent智能",
