@@ -77,7 +77,16 @@ interface EvolutionResult {
 // ─── 配置 ────────────────────────────────────────────────────────────────────
 
 const DEFAULT_TARGET_RETURN = 10; // 默认年化目标 10%
-const PI_DIR = path.join(process.cwd(), '.pi-invest');
+
+/**
+ * 运行时数据目录。惰性求值 + PI_INVEST_DIR 环境变量覆盖：
+ * 测试可设置 PI_INVEST_DIR 指向临时目录，避免读写生产 .pi-invest
+ * （2026-08-12 事故：evolution-service.test.ts 直接操作用 cwd 下的生产目录，
+ *  afterEach 删除了全部历史进化报告 evolution-*.md）。
+ */
+function getPiDir(): string {
+  return process.env.PI_INVEST_DIR ?? path.join(process.cwd(), '.pi-invest');
+}
 
 /**
  * 进化配置
@@ -233,7 +242,7 @@ export async function runWeeklyEvolution(config: EvolutionConfig = {}): Promise<
   const holdings = await loadEvolutionPortfolio();
   const allTrades = await loadEvolutionTrades();
   const trades = filterTradesByWindow(allTrades, finalConfig.tradeWindowDays);
-  const piDir = PI_DIR;
+  const piDir = getPiDir();
 
   // ── 数据检查 ────────────────────────────────────────────────────────────
   console.log(`[进化] 数据检查:`);

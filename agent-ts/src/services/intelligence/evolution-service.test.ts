@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, jest } from '@jest/globals';
 import { runWeeklyEvolution } from './evolution-service.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
 
 // 服务直连 127.0.0.1:5001（loadPortfolio/loadTrades 走全局 fetch），
 // 单元测试 mock 全局 fetch 为空账户/空交易，消除对生产后端的依赖
@@ -30,7 +32,25 @@ function mockV2Fetch() {
 }
 
 describe('EvolutionService - runWeeklyEvolution', () => {
-  const evolutionDir = path.join(process.cwd(), '.pi-invest', 'evolution');
+  // 隔离性契约（2026-08-12 事故修复）：本套件曾直接使用 cwd 下的生产 .pi-invest，
+  // afterEach 删除了全部历史进化报告 evolution-*.md。现在通过 PI_INVEST_DIR
+  // 指向临时目录，所有读写都在测试目录内，断言报告路径也必须落在其中。
+  const testPiDir = mkdtempSync(path.join(tmpdir(), 'pi-evolution-test-'));
+  const evolutionDir = path.join(testPiDir, 'evolution');
+  const savedPiDirEnv = process.env.PI_INVEST_DIR;
+
+  beforeAll(() => {
+    process.env.PI_INVEST_DIR = testPiDir;
+  });
+
+  afterAll(async () => {
+    if (savedPiDirEnv === undefined) {
+      delete process.env.PI_INVEST_DIR;
+    } else {
+      process.env.PI_INVEST_DIR = savedPiDirEnv;
+    }
+    rmSync(testPiDir, { recursive: true, force: true });
+  });
 
   beforeEach(() => {
     mockV2Fetch();
@@ -38,7 +58,7 @@ describe('EvolutionService - runWeeklyEvolution', () => {
 
   afterEach(async () => {
     globalThis.fetch = realFetch;
-    // Clean up test files
+    // Clean up test files（仅清理测试目录内的报告）
     try {
       const files = await fs.readdir(evolutionDir);
       for (const file of files) {
@@ -56,7 +76,9 @@ describe('EvolutionService - runWeeklyEvolution', () => {
 
     expect(result).toHaveProperty('reportPath');
     expect(result).toHaveProperty('report');
-    expect(result.reportPath).toContain('.pi-invest/evolution/evolution-');
+    // 隔离性断言：报告必须落在测试目录内，而不是生产 .pi-invest
+    expect(result.reportPath.startsWith(testPiDir)).toBe(true);
+    expect(result.reportPath).toContain('evolution-');
   });
 
   it('应该创建进化目录', async () => {
