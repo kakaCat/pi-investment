@@ -80,10 +80,9 @@ P2 各项彼此独立，可与 P1 后期并行；但同一文件域的改动不�
 - **目标**：检索从关键词升级为 BM25(jieba) + 向量 + RRF。
 - **做法**：参考 `/Volumes/ORICO/doc/github/TencentDB-Agent-Memory` main 分支 `src/core/tools/memory-search.ts` 与 `src/core/record/l1-dedup.ts`，**裁剪思想而非整包引入**——我们的后端是 Python，用 `jieba`（py）做 BM25，向量用 ollama 本地 `bge-m3`（`ollama pull bge-m3`，模型存 /Volumes/ORICO/ollama-models），RRF 融合 k=60。**embedding 存 memory_entries.embedding（TEXT 列放 JSON 数组），余弦相似度在应用层算**（条目量级数百，无需 pgvector；2026-08-12 设计变更，原 pgvector 方案弃用）。
 - **写入侧**：写 memory 时同步算 embedding（ollama `/api/embeddings`）；ollama 不可用时降级为纯 BM25 并在响应里标注 `degraded: true`（参考腾讯 store 的 `isDegraded()` 设计）。
-- **写入侧**：写 memory 时同步算 embedding（ollama `/api/embeddings`）；ollama 不可用时降级为纯 BM25 并在响应里标注 `degraded: true`（参考腾讯 store 的 `isDegraded()` 设计）。
 - **验收**：对 ≥20 条种子记忆（含 W1.1 的 v13 案例），"崩盘日买入"查询能把 v13 episode 排进 top3；ollama 停掉时搜索不报错走降级。
 - **依赖**：W1.2
-- **状态**：进行中（by W1.3 执行会话 2026-08-12）
+- **状态**：✅ 2026-08-12（c151e67 直接进 main 后由主抓补审通过+a1039b3 接缝修复：status 多值过滤；实测生产数据 top3 全中、降级正常、21/21 embedding 回填；流程备注：此单绕过审查门禁，下不为例）
 
 ### W1.4 agent 侧 MemoryProvider Port + 召回注入（2天）
 
