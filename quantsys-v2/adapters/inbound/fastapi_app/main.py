@@ -519,6 +519,14 @@ def register_routes():
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import chan_async: {e}")
 
+    # 统一记忆存储（memory 域，W1.2 框架演进 P1）
+    try:
+        from adapters.inbound.fastapi_app.routes.memory_async import router as memory_router
+        app.include_router(memory_router)
+        logger.info("✅ Registered: memory (W1.2 统一记忆)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import memory_async: {e}")
+
     # 行为进化（evolution 域，2026-08-05 Phase 1）
     try:
         from adapters.inbound.fastapi_app.routes.evolution_async import router as evolution_router
