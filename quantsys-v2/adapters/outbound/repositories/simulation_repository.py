@@ -31,7 +31,20 @@ from domain.ports import ISimulationRepository
 
 logger = structlog.get_logger(__name__)
 
-__all__ = ['SimulationORMRepository']
+__all__ = ['SimulationORMRepository', 'normalize_action']
+
+
+def normalize_action(action: str) -> str:
+    """交易方向归一化为大写 'BUY'/'SELL'（2026-08-12）。
+
+    背景：simulation_trades.action 曾有两套写入约定（大写 vs 小写），
+    读取侧 SQL 只匹配大写 → 小写卖出被无视 → 幽灵持仓注水估值。
+    所有写入必须经过此函数；读取侧同步用 UPPER(action) 兼容历史脏数据。
+    """
+    normalized = (action or '').strip().upper()
+    if normalized not in ('BUY', 'SELL'):
+        raise ValueError(f"非法交易方向: {action!r}（期望 buy/sell）")
+    return normalized
 
 
 class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationRepository):
@@ -788,7 +801,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             trade = SimulationTrade(
                 account_name=account_name,
                 symbol=symbol,
-                action=action,
+                action=normalize_action(action),
                 shares=shares,
                 price=price,
                 filled_price=filled_price,

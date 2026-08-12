@@ -232,19 +232,22 @@ class SimulationTrader:
         try:
             cursor = conn.cursor()
 
+            # 2026-08-12：action 用 UPPER() 匹配——历史上 AccountTradingService
+            # 写入过小写 'buy'/'sell'（8/5 三笔卖出因此被无视 → 幽灵持仓注水估值）。
+            # 写入侧已由 repo.normalize_action 统一大写，此处兼容存量脏数据。
             query = '''
                 SELECT
                     symbol,
-                    SUM(CASE WHEN action = 'BUY' THEN shares
-                             WHEN action = 'SELL' THEN -shares
+                    SUM(CASE WHEN UPPER(action) = 'BUY' THEN shares
+                             WHEN UPPER(action) = 'SELL' THEN -shares
                              ELSE 0 END) as total_shares,
-                    SUM(CASE WHEN action = 'BUY' THEN shares * filled_price END) /
-                    NULLIF(SUM(CASE WHEN action = 'BUY' THEN shares END), 0) as avg_price
+                    SUM(CASE WHEN UPPER(action) = 'BUY' THEN shares * filled_price END) /
+                    NULLIF(SUM(CASE WHEN UPPER(action) = 'BUY' THEN shares END), 0) as avg_price
                 FROM quant.simulation_trades
                 WHERE account_name = %s
                 GROUP BY symbol
-                HAVING SUM(CASE WHEN action = 'BUY' THEN shares
-                                WHEN action = 'SELL' THEN -shares
+                HAVING SUM(CASE WHEN UPPER(action) = 'BUY' THEN shares
+                                WHEN UPPER(action) = 'SELL' THEN -shares
                                 ELSE 0 END) > 0
             '''
 
