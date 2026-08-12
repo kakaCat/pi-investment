@@ -15,23 +15,22 @@ import type {
   ExperienceWriteParams,
 } from './port.js';
 import { MemoryStore } from '../intelligence/memory-store.js';
-import {
-  queryExperience as legacyQueryExperience,
-  queryAndFormatExperience as legacyFormatExperience,
-} from '../intelligence/experience-query.js';
-import { addExperience } from '../intelligence/experience-manager.js';
 import type { Experience } from '../../types/evolution.js';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
 
 export class FileFallbackProvider implements MemoryProvider {
   readonly name = 'file-fallback';
 
   private store: MemoryStore;
+  private piDir: string;
   private sessionId: string = '';
   private sessionKind: string = 'user';
   private channel: string = 'terminal';
   private initialized = false;
 
   constructor(piDir: string) {
+    this.piDir = piDir;
     this.store = new MemoryStore(piDir);
   }
 
@@ -135,11 +134,24 @@ export class FileFallbackProvider implements MemoryProvider {
       recalledIds?: number[];
     }
   ): Promise<void> {
-    // 防 recall 循环：排除本轮被召回的内容
-    // 文件存储模式下，简单过滤空内容
-    if (!assistantContent || !assistantContent.trim()) return;
+    // 设计决策（见 port.ts）：不做轮次级自动写入，所有写入走 write()/writeExperience()。
+    // 文件存储无条目 ID，recalledIds 跟踪不适用。
+  }
 
-    // 暂不实现自动写入（需要更精细的判断逻辑）
+  async write(params: MemoryWriteParams): Promise<{ path?: string }> {
+    if (params.source === 'recall') {
+      throw new Error('Refused: cannot persist recalled content as new memory (recall loop guard)');
+    }
+    // category 从 kind 反映射（保持 memory-store 的分类习惯）
+    const kindToCategory: Record<string, string> = {
+      rule: 'fact',
+      episode: 'general',
+      experience: 'fact',
+      stock_note: 'fact',
+    };
+    const category = kindToCategory[params.kind || 'episode'] || 'general';
+    this.store.writeMemory(params.content, category);
+    return { path: `memory/daily (${category})` };
   }
 
   async validate(entryId: number, success: boolean): Promise<void> {
@@ -191,7 +203,12 @@ export class FileFallbackProvider implements MemoryProvider {
         deprecated: false,
       };
 
-      addExperience(experience);
+      // 自包含读写 experience-base.json（与 queryExperience 同一文件，避免双存储分裂；
+      // 不依赖 experience-manager/query 的 process.cwd() 隐式路径）
+      const base = this._readExperienceBase();
+      base.experiences.push(experience);
+      base.last_updated = new Date().toISOString().split('T')[0];
+      this._writeExperienceBase(base);
 
       return {
         success: true,
@@ -213,16 +230,59 @@ export class FileFallbackProvider implements MemoryProvider {
     include_deprecated?: boolean;
   }): Promise<string> {
     try {
-      return legacyFormatExperience({
-        scenario: params.scenario || '',
-        symbol: params.symbol,
-        conditions: params.conditions,
-        limit: params.limit,
-        include_deprecated: params.include_deprecated,
-      });
+      const base = this._readExperienceBase();
+      let pool = base.experiences;
+      if (!params.include_deprecated) {
+        pool = pool.filter(e => e.deprecated !== true);
+      }
+      if (params.scenario) {
+        const q = params.scenario.toLowerCase();
+        pool = pool.filter(e =>
+          e.scenario.toLowerCase().includes(q) || q.includes(e.scenario.toLowerCase()) ||
+          e.pattern.conditions.some(c => c.toLowerCase().includes(q) || q.includes(c.toLowerCase()))
+        );
+      }
+      if (params.conditions?.length) {
+        pool = pool.filter(e =>
+          params.conditions!.some(qc =>
+            e.pattern.conditions.some(pc =>
+              pc.toLowerCase().includes(qc.toLowerCase()) || qc.toLowerCase().includes(pc.toLowerCase())
+            )
+          )
+        );
+      }
+      pool = pool.slice(0, params.limit || 5);
+
+      if (pool.length === 0) return '未找到相关历史经验。';
+
+      const lines: string[] = [`找到 ${pool.length} 条相关经验:\n`];
+      for (const e of pool) {
+        lines.push(`━━━ ${e.scenario} ━━━`);
+        lines.push(`建议: ${e.recommendation} | 胜率: ${(e.outcomes.win_rate * 100).toFixed(0)}% | 平均收益: ${e.outcomes.avg_return}%`);
+        lines.push(`原因: ${e.reason}`);
+      }
+      return lines.join('\n');
     } catch (error) {
       return `查询经验库失败: ${error}`;
     }
+  }
+
+  private _experienceBasePath(): string {
+    return join(this.piDir, 'experience', 'experience-base.json');
+  }
+
+  private _readExperienceBase(): { version: string; last_updated: string; experiences: Experience[] } {
+    const path = this._experienceBasePath();
+    if (!existsSync(path)) {
+      return { version: '1.0', last_updated: '', experiences: [] };
+    }
+    return JSON.parse(readFileSync(path, 'utf-8'));
+  }
+
+  private _writeExperienceBase(base: { version: string; last_updated: string; experiences: Experience[] }): void {
+    const path = this._experienceBasePath();
+    mkdirSync(join(this.piDir, 'experience'), { recursive: true });
+    writeFileSync(path, JSON.stringify(base, null, 2), 'utf-8');
   }
 
   async shutdown(): Promise<void> {

@@ -39,22 +39,20 @@ export const memoryWriteTool: ToolDefinition = {
     try {
       const provider = getMemoryProvider();
 
-      // 通过 provider 写入（映射 category 到 kind）
-      const kindMap: Record<string, string> = {
-        preference: 'rule',
-        fact: 'rule',
-        context: 'episode',
-        task: 'episode',
-        general: 'episode',
-      };
-
-      await provider.syncTurn('', params.content, undefined, {
-        sessionKind: 'user',
-        channel: 'terminal',
+      // category → kind 映射：agent 日常笔记全部落 episode（流水类免证据）。
+      // 固化类 rule/experience 只能由蒸馏/人工写入（v2 证据链门禁），agent 笔记不应直达。
+      const result = await provider.write({
+        kind: 'episode',
+        scope: 'global',
+        title: params.content.slice(0, 50),
+        content: params.content,
+        payload: params.category ? { category: params.category } : undefined,
+        source: 'agent',
       });
 
+      const where = result.id ? `v2 #${result.id}` : (result.path || 'local');
       return {
-        content: [{ type: "text" as const, text: `Memory saved: ${params.content.slice(0, 50)}...` }],
+        content: [{ type: "text" as const, text: `Memory saved (${where}): ${params.content.slice(0, 50)}...` }],
         details: null,
       };
     } catch (e) {
@@ -65,6 +63,15 @@ export const memoryWriteTool: ToolDefinition = {
     }
   },
 };
+
+/**
+ * 兼容导出：历史上的 initMemoryTools(piDir)。
+ * W1.4 起实际初始化 MemoryProvider（v2 优先，文件降级）。
+ */
+export async function initMemoryTools(piDir: string): Promise<void> {
+  const { initMemoryProvider } = await import("../../../services/memory/index.js");
+  await initMemoryProvider({ sessionId: 'bootstrap', piDir });
+}
 
 export const memorySearchTool: ToolDefinition = {
   name: "memory_search",

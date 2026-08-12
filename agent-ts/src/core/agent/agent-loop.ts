@@ -91,25 +91,16 @@ function loadProjectSkills(): Skill[] {
 
 /**
  * 根据上下文类型构建 system prompt
+ *
+ * 注意（2026-08-12 修补）：系统提示词保持同步构建、每 session 只构建一次（prompt cache 窄腰原则）。
+ * 记忆召回注入不在此处——在 session-factory 的 prompt 包装层按消息注入。
  */
-async function buildSystemPromptForContext(ctx: SessionContext | null, userMessage?: string): Promise<string> {
-  // W1.4: 召回注入——会话开始时根据用户消息 prefetch top-3
-  let recalledMemory = "";
-  if (userMessage && userMessage.trim()) {
-    try {
-      const provider = getMemoryProvider();
-      recalledMemory = await provider.prefetch(userMessage, ctx?.sessionId, 3, 2000);
-    } catch (error) {
-      console.warn(`[Memory] Prefetch failed: ${error}`);
-    }
-  }
-
+function buildSystemPromptForContext(ctx: SessionContext | null): string {
   // 所有上下文类型都使用投资决策 prompt
   // 代码生成已委托给 Codex，不再使用投资 Agent
   return buildAgentSystemPrompt({
     memoryContext: "",
     dailyMemory: "",
-    recalledMemory,
     tools: getEffectiveTools(),
     workspaceDir: paths.root,
   });
@@ -295,8 +286,8 @@ export async function getSession(context?: SessionContext): Promise<AgentSession
       logSystemPrompt(buildSystemPromptForContext(sessionContext), 0);
 
       try {
-        const stats = getMemoryStore().getStats();
-        console.log(`🧠 记忆: 长期 ${stats.evergreenChars} 字符, ${stats.dailyFiles} 个每日文件 (${stats.dailyEntries} 条)`);
+        const provider = getMemoryProvider();
+        console.log(`🧠 记忆: ${provider.systemPromptBlock() || provider.name}`);
       } catch (error) {
         ErrorHandlers.silent(error, "获取记忆统计信息失败", undefined);
       }

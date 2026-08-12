@@ -126,9 +126,12 @@ export interface MemoryProvider {
   ): Promise<MemorySearchResponse>;
 
   /**
-   * Sync Turn - 异步写入完成的轮次（对应 memory_write 工具）
+   * Sync Turn - 轮次钩子（回合后调用）
    *
-   * 防 recall 循环：写入时排除本轮被召回注入的内容（source=recall）
+   * 设计决策（2026-08-12 修补）：本系统**不做**轮次级自动写入——
+   * 自动抽取写入会绕过证据链与质量门禁（Hermes 的 sync_turn 配后台 review，我们没有）。
+   * 所有持久化写入走 write() / writeExperience()（由 memory_write / experience_write 工具触发）。
+   * 本方法仅用于：记录本轮 recalledIds，供后续防 recall 循环过滤使用。
    *
    * @param userContent 用户消息
    * @param assistantContent 助手回复
@@ -145,6 +148,14 @@ export interface MemoryProvider {
       recalledIds?: number[]; // 本轮被召回注入的记忆 ID，写入时排除
     }
   ): Promise<void>;
+
+  /**
+   * Write - 写入记忆条目（memory_write 工具的真实写入路径）
+   *
+   * 防 recall 循环：实现方必须拒绝/标记从召回内容直接复制的写入
+   * （source !== 'recall' 且内容不与本轮召回条目重复）。
+   */
+  write(params: MemoryWriteParams): Promise<{ id?: number; path?: string }>;
 
   /**
    * Validate - 更新记忆的召回时间戳和验证计数

@@ -2,10 +2,10 @@
  * Memory Provider Port 测试
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { V2MemoryProvider } from '../v2-client.js';
-import { FileFallbackProvider } from '../file-fallback.js';
-import { initMemoryProvider, getMemoryProvider, resetMemoryProvider } from '../provider-manager.js';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { V2MemoryProvider } from './v2-client.js';
+import { FileFallbackProvider } from './file-fallback.js';
+import { initMemoryProvider, getMemoryProvider, resetMemoryProvider } from './provider-manager.js';
 import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -181,7 +181,7 @@ describe('MemoryProvider', () => {
       });
 
       expect(mockWrite).toHaveBeenCalled();
-      const call = mockWrite.mock.calls[0][0];
+      const call = mockWrite.mock.calls[0][0] as any;
       expect(call.provenance).toEqual({
         session_kind: 'cron',
         channel: 'scheduler',

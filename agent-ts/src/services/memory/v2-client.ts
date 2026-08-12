@@ -24,6 +24,7 @@ export class V2MemoryProvider implements MemoryProvider {
   private channel: string = 'terminal';
   private workspace: string = '';
   private initialized = false;
+  private lastRecalledIds: Set<number> = new Set();
 
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl || process.env.QUANTSYS_V2_API_URL || 'http://127.0.0.1:5001';
@@ -123,16 +124,34 @@ export class V2MemoryProvider implements MemoryProvider {
       recalledIds?: number[];
     }
   ): Promise<void> {
-    // W1.4 要求：防 recall 循环——排除本轮被召回注入的内容
-    // 当前实现：简单过滤空内容，后续可根据 recalledIds 做更精细过滤
-    if (!assistantContent || !assistantContent.trim()) return;
+    // 设计决策（见 port.ts）：本系统不做轮次级自动写入，所有写入走 write()/writeExperience()。
+    // 这里只记录本轮召回 ID，供防 recall 循环使用。
+    if (metadata?.recalledIds?.length) {
+      this.lastRecalledIds = new Set(metadata.recalledIds);
+    }
+  }
 
-    // 提取可持久化的助手输出（排除工具调用日志等）
-    const persistContent = this._extractPersistableContent(assistantContent);
-    if (!persistContent) return;
+  async write(params: MemoryWriteParams): Promise<{ id?: number }> {
+    // 防 recall 循环：source=recall 的写入直接拒绝
+    if (params.source === 'recall') {
+      throw new Error('Refused: cannot persist recalled content as new memory (recall loop guard)');
+    }
 
-    // 暂不实现自动写入（需要更精细的判断逻辑）
-    // 实际写入由工具层（memory_write/experience_write）触发
+    const payload: MemoryWriteParams = {
+      ...params,
+      kind: params.kind || 'episode',
+      scope: params.scope || 'global',
+      status: params.status || 'active', // episode/stock_note 免证据（W1.2 门禁粒度修订）
+      provenance: params.provenance || {
+        session_kind: this.sessionKind,
+        channel: this.channel,
+        session_id: this.sessionId,
+      },
+      source: params.source || 'agent',
+    };
+
+    // episode/stock_note 免证据；rule/experience 由 v2 端门禁拦截
+    return this._write(payload);
   }
 
   async validate(entryId: number, success: boolean): Promise<void> {
@@ -272,7 +291,7 @@ export class V2MemoryProvider implements MemoryProvider {
       throw new Error(`HTTP ${response.status}: ${text}`);
     }
 
-    return response.json();
+    return (await response.json()) as MemorySearchResponse;
   }
 
   private async _write(params: MemoryWriteParams): Promise<{ id: number }> {
@@ -288,7 +307,7 @@ export class V2MemoryProvider implements MemoryProvider {
       throw new Error(`HTTP ${response.status}: ${text}`);
     }
 
-    return response.json();
+    return (await response.json()) as { id: number };
   }
 
   private async _batchUpdateRecallTimestamp(ids: number[]): Promise<void> {
@@ -345,14 +364,5 @@ export class V2MemoryProvider implements MemoryProvider {
       };
     }
     return {};
-  }
-
-  private _extractPersistableContent(assistantContent: string): string {
-    // 简单过滤：排除纯工具调用日志
-    const lines = assistantContent.split('\n').filter(line => {
-      const trimmed = line.trim();
-      return trimmed && !trimmed.startsWith('[Tool') && !trimmed.startsWith('执行工具');
-    });
-    return lines.join('\n').trim();
   }
 }

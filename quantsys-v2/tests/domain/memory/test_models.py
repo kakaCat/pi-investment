@@ -112,3 +112,40 @@ class TestMemoryEntry:
         )
 
         assert entry.validate_evidence_gate() is True
+
+
+class TestEvidenceGateGranularity:
+    """2026-08-12 粒度修订：门禁只约束固化类（rule/experience），流水类（episode/stock_note）免证据"""
+
+    def test_episode_without_evidence_passes(self):
+        entry = MemoryEntry(
+            kind=MemoryKind.EPISODE,
+            title="agent 日常笔记",
+            content="memory_write 流水，无天然证据",
+            evidence=None,
+            status=MemoryStatus.ACTIVE,
+            provenance={"session_kind": "cron"},
+        )
+        assert entry.validate_evidence_gate() is True
+
+    def test_stock_note_without_evidence_passes(self):
+        entry = MemoryEntry(
+            kind=MemoryKind.STOCK_NOTE,
+            title="个股笔记",
+            content="300765 观察记录",
+            evidence={},
+            status=MemoryStatus.TESTING,
+            provenance={"session_kind": "user"},
+        )
+        assert entry.validate_evidence_gate() is True
+
+    def test_rule_without_evidence_fails(self):
+        entry = MemoryEntry(
+            kind=MemoryKind.RULE,
+            title="固化规则无证据",
+            content="内容",
+            evidence=None,
+            status=MemoryStatus.ACTIVE,
+            provenance={"session_kind": "distiller"},
+        )
+        assert entry.validate_evidence_gate() is False

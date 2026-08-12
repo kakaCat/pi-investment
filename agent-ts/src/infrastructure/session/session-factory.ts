@@ -224,15 +224,30 @@ export function wrapSessionWithLogger(session: AgentSession, perfMonitor?: any):
     logger.logUserInput(userMessage);
     logger.logAgentStart(userMessage);
     perfMonitor?.startLLMCall?.();
+
+    // W1.4: 记忆召回注入——按用户消息 prefetch top-3，以附注形式注入（不进系统提示词，保住 prompt cache 前缀）
+    // 失败静默降级为空，绝不阻塞对话。
+    let messageToSend = userMessage;
+    try {
+      const { getMemoryProvider } = await import('../../services/memory/index.js');
+      const provider = getMemoryProvider();
+      const recalled = await provider.prefetch(userMessage.slice(0, 500), undefined, 3, 2000);
+      if (recalled && recalled.trim()) {
+        messageToSend = `${userMessage}\n\n<recalled_memory source="auto-prefetch">\n${recalled}\n</recalled_memory>`;
+      }
+    } catch {
+      // provider 未初始化或检索失败——静默跳过
+    }
+
     try {
       // skipSkillRouting：调度任务/系统事件等机器消息跳过技能路由——
       // 它们自带完整工作流 prompt，强制注入 skill 会让 agent 把 skill 正文
       // 误当成第二个用户请求（2026-08-12 审计：早盘/盘中/复盘三个任务在
       // gateway 路径下全部被误路由到 portfolio-entry）。
       if (options?.skipSkillRouting) {
-        return await originalPrompt(userMessage, options);
+        return await originalPrompt(messageToSend, options);
       }
-      const routed = rewritePromptWithSkill(userMessage);
+      const routed = rewritePromptWithSkill(messageToSend);
       if (routed.forcedSkill) {
         console.log(`🎯 强制技能路由: ${routed.forcedSkill}`);
       }

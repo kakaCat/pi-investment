@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { initMemoryProvider, resetMemoryProvider } from '../provider-manager.js';
+import { initMemoryProvider, resetMemoryProvider } from './provider-manager.js';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';

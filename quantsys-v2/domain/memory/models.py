@@ -111,11 +111,14 @@ class MemoryEntry:
         )
 
     def validate_evidence_gate(self) -> bool:
-        """证据链门禁：evidence 非空才能 status >= testing
+        """证据链门禁（2026-08-12 粒度修订）
 
-        "No Execution, No Memory" 原则
+        "No Execution, No Memory" 只约束固化类记忆：
+        - kind=rule/experience：status>=testing 必须有非空 evidence（蒸馏/经验固化必须引用执行证据）
+        - kind=episode/stock_note：流水类笔记免证据（agent 日常 memory_write 无天然证据）
         """
-        if self.status in [MemoryStatus.TESTING, MemoryStatus.ACTIVE]:
+        GATED_KINDS = (MemoryKind.RULE, MemoryKind.EXPERIENCE)
+        if self.kind in GATED_KINDS and self.status in [MemoryStatus.TESTING, MemoryStatus.ACTIVE]:
             if not self.evidence or not any(self.evidence.values()):
                 return False
         return True
