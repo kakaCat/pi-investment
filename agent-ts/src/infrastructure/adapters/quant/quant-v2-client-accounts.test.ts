@@ -6,6 +6,7 @@ import {
   executeAccountTrade,
   getAccountTrades,
 } from "./quant-v2-client.js";
+import { QuantV2Error } from "./types.js";
 
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
 global.fetch = mockFetch as any;
@@ -55,6 +56,32 @@ describe("QuantV2Client 账户方法", () => {
     const [url, opts] = mockFetch.mock.calls[0];
     expect(String(url)).toContain("/api/simulation/accounts/v13_simulation/trade");
     expect(opts?.method).toBe("POST");
+  });
+
+  test("executeAccountTrade 422 时解析出 apiError 与 details", async () => {
+    mockFetch.mockResolvedValue(jsonResponse({
+      success: false,
+      error: "T+1 可卖数量不足: 可卖 600 股，委托 1000 股",
+      details: { sellable_shares: 600, symbol: "600519" },
+    }, 422));
+    const err: any = await executeAccountTrade("agent_virtual", {
+      action: "sell", symbol: "600519", shares: 1000, reason: "测试卖出理由：不少于十个字",
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(QuantV2Error);
+    expect(err.apiError).toContain("可卖 600");
+    expect(err.details).toEqual({ sellable_shares: 600, symbol: "600519" });
+    expect(err.message).toContain("HTTP 422");  // message 格式不变，向后兼容
+  });
+
+  test("executeAccountTrade 非 JSON 错误体保持原文行为", async () => {
+    mockFetch.mockResolvedValue(new Response("Bad Gateway", { status: 502 }));
+    const err: any = await executeAccountTrade("agent_virtual", {
+      action: "sell", symbol: "600519", shares: 100, reason: "测试卖出理由：不少于十个字",
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(QuantV2Error);
+    expect(err.message).toContain("HTTP 502");
+    expect(err.apiError).toBeUndefined();
+    expect(err.details).toBeUndefined();
   });
 
   test("getAccountTrades 携带 account_name", async () => {

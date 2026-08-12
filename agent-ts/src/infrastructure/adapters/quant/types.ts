@@ -343,7 +343,11 @@ export class QuantV2Error extends Error {
   constructor(
     message: string,
     public statusCode?: number,
-    public endpoint?: string
+    public endpoint?: string,
+    /** 后端 JSON 错误体中的 error 字段（非 JSON 响应时为 undefined） */
+    public apiError?: string,
+    /** 后端 JSON 错误体中的 details 字段（如 T+1 拦截的 sellable_shares） */
+    public details?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'QuantV2Error';

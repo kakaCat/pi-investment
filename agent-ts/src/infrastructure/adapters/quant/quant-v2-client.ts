@@ -695,10 +695,25 @@ async function fetchV2<T>(
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
+      // 后端错误体为 { success: false, error, details? } 时解析出结构化字段，
+      // 供调用方（如 portfolio_trade 的 T+1 反馈翻译）使用；message 保持原格式不动。
+      let apiError: string | undefined;
+      let details: Record<string, unknown> | undefined;
+      try {
+        const body = JSON.parse(text);
+        if (body && typeof body === 'object') {
+          if (typeof body.error === 'string') apiError = body.error;
+          if (body.details && typeof body.details === 'object') {
+            details = body.details as Record<string, unknown>;
+          }
+        }
+      } catch { /* 非 JSON 响应，保持纯文本行为 */ }
       throw new QuantV2Error(
         `HTTP ${response.status}: ${text || response.statusText}`,
         response.status,
         url,
+        apiError,
+        details,
       );
     }
 
