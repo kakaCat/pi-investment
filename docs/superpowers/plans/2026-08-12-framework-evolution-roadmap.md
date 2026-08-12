@@ -59,7 +59,7 @@ P2 各项彼此独立，可与 P1 后期并行；但同一文件域的改动不�
   - 任务 prompt 改动通过 `npm run check:tool-refs`。
   - 用"止盈""崩盘"作关键词 memory_search 能命中 v13 案例。
 - **坑**：v2 测试自动切 quant_test 库；knowledge 路由在 Flask+FastAPI 双侧都有（`adapters/inbound/api/routes/knowledge_management.py`），**只改 service 层**，两端自然生效。
-- **状态**：未开始
+- **状态**：✅ 2026-08-12（commit 7d33437；审查修复：案例数据误写 worktree 已迁回主工作区、JSONL 非法已重写、经验条目已对齐 Experience 契约、纠正 3 处股票名/归因幻觉；**待办：5001 重启后知识 API 才生效**）
 
 ### W1.2 MemoryEntry 统一模型 + /api/memory API（核心，2-3天）
 
