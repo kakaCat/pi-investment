@@ -2,8 +2,11 @@
  * 自有 LLM 客户端：complete() 直走 OpenAI 兼容 HTTP。
  * 错误归一化为 LLMError，调用方不感知 provider/SDK 特有错误。
  * 重试策略沿用 .pi/settings.json：最多 5 次重试，间隔 3s（仅 retryable 错误）。
+ *
+ * T3b 接线：捕获溢出错误时触发压缩重试（isOverflowError）。
  */
 import { LLMError, type ChatRequest, type ChatResponse, type LLMModelConfig } from './types.js';
+import { isOverflowError, formatOverflowError } from '../compaction/overflow-patterns.js';
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 3000;
@@ -11,6 +14,8 @@ const RETRY_DELAY_MS = 3000;
 export interface ClientDeps {
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
+  /** T3b: 溢出时触发压缩的回调（返回 true 表示已压缩，可重试） */
+  onOverflow?: () => Promise<boolean>;
 }
 
 export async function complete(
@@ -20,11 +25,33 @@ export async function complete(
 ): Promise<ChatResponse> {
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   let lastErr: LLMError | null = null;
+  let overflowRetryUsed = false;
+
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       return await completeOnce(config, req, deps.fetchImpl ?? fetch);
     } catch (e) {
       const err = e instanceof LLMError ? e : new LLMError(String(e), 'unknown', false);
+
+      // T3b 接线：检测溢出错误，触发压缩重试（仅一次）
+      if (!overflowRetryUsed && isOverflowError(err)) {
+        console.log(formatOverflowError(err, attempt + 1));
+        if (deps.onOverflow) {
+          try {
+            const compacted = await deps.onOverflow();
+            if (compacted) {
+              overflowRetryUsed = true;
+              console.log('🗜️  上下文已压缩，重试 LLM 调用');
+              continue; // 不计入 attempt，立即重试
+            }
+          } catch (compactErr) {
+            console.warn(`⚠️ 压缩回调失败: ${compactErr instanceof Error ? compactErr.message : String(compactErr)}`);
+          }
+        } else {
+          console.warn('⚠️ 检测到溢出错误但未提供压缩回调 (onOverflow)');
+        }
+      }
+
       if (!err.retryable || attempt === MAX_RETRIES) throw err;
       lastErr = err;
       await sleep(RETRY_DELAY_MS);

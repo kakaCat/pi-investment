@@ -55,10 +55,28 @@ export interface PiToolDefinition<TParams = any> {
 // ═══════════════════════════════════════════════════════════════════════════
 
 import type { ToolDefinition as SdkToolDefinition } from "@mariozechner/pi-coding-agent";
+import { executeBeforeToolCallHooks } from "./services/hooks/index.js";
+
+// 用于追踪 turn/toolCall 计数（全局状态，每个 agent_start 重置由 LoopGuardian 管理）
+let globalTurnCount = 0;
+let globalToolCallCount = 0;
+
+// 导出给 LoopGuardian 使用的计数器重置函数
+export function resetToolExecutionCounters(): void {
+  globalTurnCount = 0;
+  globalToolCallCount = 0;
+}
+
+// 导出给 session-factory 在 turn_end 时递增 turnCount
+export function incrementTurnCount(): void {
+  globalTurnCount++;
+}
 
 /**
  * 将内部的 PiToolDefinition 转为 SDK 要求的 ToolDefinition
  * SDK 签名变更时只需修改此函数
+ *
+ * 集成 Hook 系统：在工具执行前调用 before_tool_call hooks
  */
 export function normalizeToolDefinition(tool: PiToolDefinition): SdkToolDefinition {
   return {
@@ -73,7 +91,29 @@ export function normalizeToolDefinition(tool: PiToolDefinition): SdkToolDefiniti
       onUpdate?: (update: unknown) => void,
       ctx?: unknown
     ): Promise<AgentToolResult<unknown>> => {
-      return tool.execute(toolCallId, params, signal, onUpdate, ctx);
+      // Hook 系统拦截点
+      globalToolCallCount++;
+      const hookResult = await executeBeforeToolCallHooks({
+        toolName: tool.name,
+        args: params,
+        turnCount: globalTurnCount,
+        toolCallCount: globalToolCallCount,
+      });
+
+      if (hookResult.action === "block") {
+        // 返回结果给 LLM（不标记为错误，让 LLM 能看到原因）
+        return {
+          content: [{ type: "text", text: `🚫 Tool call blocked by hook: ${hookResult.reason}` }],
+          details: { blocked: true, reason: hookResult.reason },
+        };
+      }
+
+      // modify 或 allow：执行工具（modify 时使用修改后的参数）
+      const finalParams = hookResult.action === "modify" && hookResult.modifiedArgs !== undefined
+        ? hookResult.modifiedArgs
+        : params;
+
+      return tool.execute(toolCallId, finalParams, signal, onUpdate, ctx);
     },
     ...(tool.promptSnippet ? { promptSnippet: tool.promptSnippet } : {}),
     ...(tool.promptGuidelines ? { promptGuidelines: tool.promptGuidelines } : {}),

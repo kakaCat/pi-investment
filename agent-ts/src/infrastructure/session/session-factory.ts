@@ -10,14 +10,19 @@
  * - message_start / message_end (role: user | assistant | toolResult)
  * - tool_execution_start / tool_execution_end
  * - auto_retry_start / auto_retry_end (SDK 内置 LLM 错误重试)
+ *
+ * T3b 接线: prompt 包装层捕获溢出错误，触发压缩后重试一次。
  */
-import { createAgentSession } from "../../sdk-facade.js";
+import { createAgentSession, resetToolExecutionCounters, incrementTurnCount, estimateTokens } from "../../sdk-facade.js";
 import type { AgentSession } from "../../sdk-facade.js";
 import type { PromptOptions } from "@mariozechner/pi-coding-agent";
 import * as logger from "../logging/observable-logger.js";
 import { rewritePromptWithSkill } from "../../services/intelligence/skill-router.js";
 import { getActiveModelId } from "../../config/config.js";
 import { getExplicitSkillFromPrompt, withForcedSkillScope } from "../tools/skill-guard.js";
+import { isOverflowError, formatOverflowError } from "../../services/compaction/overflow-patterns.js";
+import { compactConversationHistory } from "../../services/compaction/compaction-service.js";
+import { getMessages } from "../../core/agent/session-adapter.js";
 
 export type AgentType = 'main' | 'subagent' | 'plan';
 
@@ -85,6 +90,11 @@ export function attachLogger(session: AgentSession, agentType: AgentType, perfMo
 
   session.subscribe((event: any) => {
     switch (event.type) {
+      case 'agent_start':
+        // 重置全局计数器
+        resetToolExecutionCounters();
+        break;
+
       case 'turn_start':
         turnStartTime = Date.now();
         if (agentType === 'main') {
@@ -93,6 +103,8 @@ export function attachLogger(session: AgentSession, agentType: AgentType, perfMo
         break;
 
       case 'turn_end':
+        // 递增全局 turn 计数
+        incrementTurnCount();
         if (agentType === 'main') {
           logger.logTurnEnd();
         }
@@ -164,6 +176,8 @@ export function attachLogger(session: AgentSession, agentType: AgentType, perfMo
       }
 
       case 'agent_start':
+        // 重置全局计数器
+        resetToolExecutionCounters();
         if (agentType !== 'main') {
           // subagent/plan 用 logSubagentStart 记录
         }
@@ -215,6 +229,7 @@ export function attachLogger(session: AgentSession, agentType: AgentType, perfMo
 /**
  * 包装已有 session，注入 logger + 性能监控（主 agent 用）
  * 同时保留 prompt 包装以记录 user.input / agent.start
+ * T3b: 溢出错误捕获 + 压缩重试
  */
 export function wrapSessionWithLogger(session: AgentSession, perfMonitor?: any): AgentSession {
   attachLogger(session, 'main', perfMonitor);
@@ -239,21 +254,54 @@ export function wrapSessionWithLogger(session: AgentSession, perfMonitor?: any):
       // provider 未初始化或检索失败——静默跳过
     }
 
-    try {
+    // T3b 接线：溢出错误触发压缩重试（仅一次）
+    let overflowRetryUsed = false;
+
+    const executePrompt = async (msg: string, opts?: PromptOptionsWithRouting) => {
       // skipSkillRouting：调度任务/系统事件等机器消息跳过技能路由——
       // 它们自带完整工作流 prompt，强制注入 skill 会让 agent 把 skill 正文
       // 误当成第二个用户请求（2026-08-12 审计：早盘/盘中/复盘三个任务在
       // gateway 路径下全部被误路由到 portfolio-entry）。
-      if (options?.skipSkillRouting) {
-        return await originalPrompt(messageToSend, options);
+      if (opts?.skipSkillRouting) {
+        return await originalPrompt(msg, opts);
       }
-      const routed = rewritePromptWithSkill(messageToSend);
+      const routed = rewritePromptWithSkill(msg);
       if (routed.forcedSkill) {
         console.log(`🎯 强制技能路由: ${routed.forcedSkill}`);
       }
       const activeSkill = routed.forcedSkill ?? getExplicitSkillFromPrompt(routed.prompt);
-      return await withForcedSkillScope(activeSkill, () => originalPrompt(routed.prompt, options));
+      return await withForcedSkillScope(activeSkill, () => originalPrompt(routed.prompt, opts));
+    };
+
+    try {
+      return await executePrompt(messageToSend, options);
     } catch (error) {
+      // T3b: 检测溢出错误，触发压缩后重试一次
+      if (!overflowRetryUsed && isOverflowError(error)) {
+        console.log(formatOverflowError(error, 1));
+        overflowRetryUsed = true;
+
+        try {
+          const messages = getMessages(session as any);
+          const result = compactConversationHistory(
+            messages as any,
+            (m: unknown) => estimateTokens(m as any),
+            {
+              keepTurns: 3,
+              tokenThreshold: 0, // 立即压缩，不检查阈值
+            }
+          );
+
+          if (result.compacted) {
+            console.log('🗜️  上下文已压缩，重试 prompt');
+            return await executePrompt(messageToSend, options);
+          } else {
+            console.warn('⚠️ 压缩未生效（可能已是最小状态），无法重试');
+          }
+        } catch (compactErr) {
+          console.warn(`⚠️ 压缩失败: ${compactErr instanceof Error ? compactErr.message : String(compactErr)}`);
+        }
+      }
       throw error;
     }
   };
@@ -263,6 +311,7 @@ export function wrapSessionWithLogger(session: AgentSession, perfMonitor?: any):
 
 /**
  * 创建带 logger 追踪的 AgentSession（subagent / plan 用）
+ * T3b: 溢出错误捕获 + 压缩重试
  */
 export async function createTrackedSession(opts: CreateTrackedSessionOptions): Promise<AgentSession> {
   const { agentType, createOptions } = opts;
@@ -273,11 +322,45 @@ export async function createTrackedSession(opts: CreateTrackedSessionOptions): P
   const originalPrompt = session.prompt.bind(session);
   session.prompt = async function(userMessage: string, options?: any) {
     logger.logSubagentStart(agentType as 'subagent' | 'plan', userMessage);
-    try {
-      const routed = rewritePromptWithSkill(userMessage);
+
+    // T3b 接线：溢出错误触发压缩重试（仅一次）
+    let overflowRetryUsed = false;
+
+    const executePrompt = async (msg: string, opts?: any) => {
+      const routed = rewritePromptWithSkill(msg);
       const activeSkill = routed.forcedSkill ?? getExplicitSkillFromPrompt(routed.prompt);
-      return await withForcedSkillScope(activeSkill, () => originalPrompt(routed.prompt, options));
+      return await withForcedSkillScope(activeSkill, () => originalPrompt(routed.prompt, opts));
+    };
+
+    try {
+      return await executePrompt(userMessage, options);
     } catch (error) {
+      // T3b: 检测溢出错误，触发压缩后重试一次
+      if (!overflowRetryUsed && isOverflowError(error)) {
+        console.log(formatOverflowError(error, 1));
+        overflowRetryUsed = true;
+
+        try {
+          const messages = getMessages(session as any);
+          const result = compactConversationHistory(
+            messages as any,
+            (m: unknown) => estimateTokens(m as any),
+            {
+              keepTurns: 3,
+              tokenThreshold: 0, // 立即压缩，不检查阈值
+            }
+          );
+
+          if (result.compacted) {
+            console.log('🗜️  上下文已压缩，重试 prompt');
+            return await executePrompt(userMessage, options);
+          } else {
+            console.warn('⚠️ 压缩未生效（可能已是最小状态），无法重试');
+          }
+        } catch (compactErr) {
+          console.warn(`⚠️ 压缩失败: ${compactErr instanceof Error ? compactErr.message : String(compactErr)}`);
+        }
+      }
       throw error;
     }
   };

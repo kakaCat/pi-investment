@@ -1,6 +1,7 @@
 /**
  * 共享 Gateway 会话工厂
  * 从 feishu.ts / wake-channel.ts 抽取的公共会话创建与提示词准备逻辑
+ * T3b 接线: beforePrompt 应用 tool result TTL 策略
  */
 import { estimateTokens, SessionManager, type Skill } from "../../sdk-facade.js";
 import { createTrackedSession } from "../../infrastructure/session/session-factory.js";
@@ -24,6 +25,7 @@ import {
   createUserMessage,
 } from "../../core/agent/session-adapter.js";
 import { microCompact, compactConversationHistory } from "../../services/compaction/compaction-service.js";
+import { applyToolResultTTL } from "../../services/compaction/tool-result-ttl.js";
 import * as logger from "../../infrastructure/logging/observable-logger.js";
 import { setSessionContext } from "./session-events.js";
 import type { ChannelAgentSession } from "./channel-session-manager.js";
@@ -121,6 +123,17 @@ export function createGatewaySessionFactory(
 
       const messages = getMessages(session);
       microCompact(messages as any);
+
+      // T3b 接线：应用 Tool Result TTL 策略（20 轮 / 0.5×窗口预算）
+      try {
+        await applyToolResultTTL(messages as any, {
+          maxTurns: 20,
+          maxBudgetRatio: 0.5,
+          contextWindowSize: 128000, // DeepSeek v4 默认
+        });
+      } catch (ttlErr) {
+        console.warn(`⚠️ Tool result TTL 应用失败: ${ttlErr instanceof Error ? ttlErr.message : String(ttlErr)}`);
+      }
 
       const totalTokens = messages.reduce(
         (sum: number, message: unknown) => sum + estimateTokens(message as any),
