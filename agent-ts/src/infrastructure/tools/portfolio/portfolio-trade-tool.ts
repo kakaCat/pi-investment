@@ -7,6 +7,7 @@ import { Type } from "@sinclair/typebox";
 import type { ToolDefinition } from "../index.js";
 import { wrapToolExecution } from "../shared/error-handler.js";
 import { executeAccountTrade } from "../../adapters/quant/quant-v2-client.js";
+import { QuantV2Error } from "../../adapters/quant/types.js";
 
 interface PortfolioTradeInput {
   action: 'buy' | 'sell';
@@ -89,6 +90,17 @@ export async function executePortfolioTrade(input: PortfolioTradeInput) {
     };
 
   } catch (error) {
+    // T+1 拦截：后端 422 details 带 sellable_shares，翻译成 agent 可自我修正的结构化反馈
+    if (error instanceof QuantV2Error && typeof error.details?.sellable_shares === 'number') {
+      const sellable = error.details.sellable_shares as number;
+      return {
+        success: false,
+        error: `超出 T+1 可卖数量: ${error.apiError ?? error.message}`,
+        sellable_shares: sellable,
+        hint: `该持仓今日可卖 ${sellable} 股（超出部分为今日买入，明日才可卖）。` +
+          `请用不超过 ${sellable} 股的数量重试；各持仓可卖数量以 portfolio_status 的 shares_available 为准。`,
+      };
+    }
     return {
       success: false,
       error: `交易执行失败: ${error instanceof Error ? error.message : String(error)}`,
