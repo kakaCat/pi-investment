@@ -138,7 +138,7 @@
 
 ---
 
-## T5（W2.3）Cron 硬化
+## T5（W2.3）Cron 硬化 ✅ 2026-08-12（8d26b14+审查修正 36eba9a：jobs.json 路径回归 paths.piDir；31/31 测试真实通过；misfire/重排不补跑/watchdog 逻辑审查合格）
 
 **步骤**：
 1. `agent-ts/src/services/scheduler/` 下新建 `persistent-store.ts`：任务定义写 `.pi-invest/scheduler/jobs.json`（原子写：tmp+rename），接口与 InMemorySchedulerStore 一致。**选择文件而非 PG 的理由写进文件头注释**（agent 不直连 PG；经 v2 API 存任务定义会增加启动依赖环）。
