@@ -9,8 +9,27 @@ describe("createAgentDecisionTasks", () => {
     expect(weekly).toBeDefined();
     expect(weekly!.scheduleKind).toBe("cron");
     expect(weekly!.scheduleExpr).toBe("0 20 * * 0");
-    expect((weekly!.payload as any).kind).toBe("weekly_evolution");
     expect(weekly!.enabled).toBe(true);
+  });
+
+  it("每周进化任务迁移为 evolution Agent 的 agent_turn（A2-T2）", () => {
+    const weekly = byName("weekly_evolution");
+    const payload = weekly!.payload as any;
+    expect(payload.kind).toBe("agent_turn");
+    expect(payload.agentKind).toBe("evolution");
+    const msg = payload.message as string;
+    expect(typeof msg).toBe("string");
+    expect(msg.length).toBeGreaterThan(50);
+  });
+
+  it("每周进化任务提示词：仅提案、不自动执行、写入 evolution 域", () => {
+    const weekly = byName("weekly_evolution");
+    const msg = (weekly!.payload as any).message as string;
+    expect(msg).toContain("evolution_run");
+    expect(msg).toContain("evolution_leaderboard");
+    expect(msg).toContain("不自动执行");
+    expect(msg).toContain("evolution 域");
+    expect(msg).toContain("零改动");
   });
 
   it("早盘任务固定唯一账本 agent_virtual", () => {

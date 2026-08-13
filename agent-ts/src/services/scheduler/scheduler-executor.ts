@@ -1,12 +1,12 @@
 import path from "node:path";
 import { FxRateServiceAdapter } from "../fx-rate-service-adapter.js";
-import { runWeeklyEvolution } from "../intelligence/evolution-service.js";
+import type { AgentKind } from "../../domain/agent-roles/types.js";
 import type { SchedulerExecutor } from "./scheduler-service.js";
 
 export interface SchedulerExecutorOptions {
   projectRoot?: string;
   piDir?: string;
-  promptAgent?: (message: string) => Promise<void>;
+  promptAgent?: (message: string, agentKind?: AgentKind) => Promise<void>;
   writeOutput?: (message: string) => void;
   fxRateService?: FxRateServiceAdapter;
 }
@@ -27,7 +27,7 @@ export function createSchedulerExecutor(options: SchedulerExecutorOptions = {}):
       if (!options.promptAgent) {
         throw new Error("No prompt agent configured for scheduler agent_turn task");
       }
-      await options.promptAgent(message);
+      await options.promptAgent(message, task.payload.agentKind as AgentKind | undefined);
       return { ok: true };
     }
     if (kind === "daily_review") {
@@ -35,11 +35,6 @@ export function createSchedulerExecutor(options: SchedulerExecutorOptions = {}):
     }
     if (kind === "stop_loss_alert") {
       return Promise.reject(new Error("stop_loss_alert feature is deprecated. Services have been removed."));
-    }
-    if (kind === "weekly_evolution") {
-      const result = await runWeeklyEvolution();
-      writeOutput(`[进化分析] 完成: ${result.reportPath}\n`);
-      return result;
     }
     if (kind === "system_event" && task.payload.message === "update_fx_rates") {
       await fxRateService.updateCache();

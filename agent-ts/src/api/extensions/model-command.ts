@@ -79,11 +79,14 @@ export const modelCommandExtension: ExtensionFactory = (pi) => {
  * 仅追加 extensionFactories。SDK 只在自己创建 loader 时才调 reload()，
  * 所以这里必须自行 await reload()。
  */
-export async function createAppResourceLoader(cwd: string): Promise<DefaultResourceLoader> {
+export async function createAppResourceLoader(cwd: string, systemPrompt?: string): Promise<DefaultResourceLoader> {
   const loader = new DefaultResourceLoader({
     cwd,
     agentDir: getAgentDir(),
     extensionFactories: [modelCommandExtension, loopGuardianExtension, recallExtension],
+    // A2-T2：SDK 只从 resourceLoader.getSystemPrompt() 读系统提示词（createAgentSession 的
+    // systemPrompt 选项被忽略）。evolution/memory 等非 fin 会话在此注入各自的身份提示词。
+    ...(systemPrompt ? { systemPrompt } : {}),
   });
   await loader.reload();
   return loader;

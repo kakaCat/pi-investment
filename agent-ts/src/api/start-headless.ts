@@ -23,8 +23,8 @@ import {
 } from "../services/runtime-lock.js";
 import { initAgentDecisionTasks } from "../services/scheduler/init-agent-tasks.js";
 import { startSchedulerRuntime } from "../services/scheduler/scheduler-runtime.js";
-import { createSession } from "../session-facade.js";
-import { createAppResourceLoader } from "./extensions/model-command.js";
+import { createSchedulerSession } from "../services/scheduler/scheduler-session.js";
+import type { AgentKind } from "../domain/agent-roles/types.js";
 import { startGateway } from "./gateway/start-gateway.js";
 import { WakeAdapter } from "./gateway/adapters/wake-adapter.js";
 import { startFeishuBot } from "./feishu.js";
@@ -67,16 +67,13 @@ async function main() {
   // "No prompt agent configured"（run 记录只在内存，无任何日志，静默丢失）。
   // 必须先带 promptAgent 建运行时，再注册任务。
   const schedulerRuntime = await startSchedulerRuntime({
-    promptAgent: async (message: string) => {
+    promptAgent: async (message: string, agentKind?: AgentKind) => {
       console.log(`\n⏰ 定时任务触发: ${message.substring(0, 80)}...`);
       // 每个任务独立会话（与 index.ts 同款模式）；
-      // createSession 出来的会话不经 TUI 的 wrapSessionWithLogger，
-      // 调度消息本身自带完整工作流。
+      // createSchedulerSession 出来的会话不经 TUI 的 wrapSessionWithLogger，
+      // 调度消息本身自带完整工作流。A2-T2：按任务 agentKind 装配（fin 走裸会话零变化）。
       // P2-T3 接线：resourceLoader 让 recallExtension 加载；source=rpc → scheduled-task flow。
-      const { session } = await createSession({
-        cwd: process.cwd(),
-        resourceLoader: await createAppResourceLoader(process.cwd()),
-      });
+      const { session } = await createSchedulerSession(agentKind ?? "fin");
       await session.prompt(message, { source: "rpc" });
       console.log("✅ 定时任务执行完成");
     },

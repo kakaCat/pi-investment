@@ -6,8 +6,8 @@ import "./infrastructure/tui/pi-tui-compat.js";
 import "./api/index.js";
 import { initAgentDecisionTasks } from "./services/scheduler/init-agent-tasks.js";
 import { startSchedulerRuntime } from "./services/scheduler/scheduler-runtime.js";
-import { createSession } from "./session-facade.js";
-import { createAppResourceLoader } from "./api/extensions/model-command.js";
+import { createSchedulerSession } from "./services/scheduler/scheduler-session.js";
+import type { AgentKind } from "./domain/agent-roles/types.js";
 import {
   runStartupHealthCheck,
   formatHealthForConsole,
@@ -50,17 +50,14 @@ async function main() {
       // 2. 启动调度器（关键！）
       console.log("\n🚀 正在启动调度器...");
       await startSchedulerRuntime({
-      promptAgent: async (message: string) => {
+      promptAgent: async (message: string, agentKind?: AgentKind) => {
         console.log("\n⏰ 定时任务触发，唤醒 Agent...");
         console.log(`📋 任务消息: ${message.substring(0, 100)}...`);
 
         try {
-          // 创建新的 Agent 会话
+          // 创建新的 Agent 会话（A2-T2：按任务 agentKind 装配，fin 走裸会话零变化）
           // P2-T3 接线：resourceLoader 让 recallExtension 加载；source=rpc → scheduled-task flow。
-          const { session } = await createSession({
-            cwd: process.cwd(),
-            resourceLoader: await createAppResourceLoader(process.cwd()),
-          });
+          const { session } = await createSchedulerSession(agentKind ?? "fin");
 
           // 执行 Agent prompt（自主决策）
           await session.prompt(message, { source: "rpc" });

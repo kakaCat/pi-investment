@@ -337,13 +337,60 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
     },
 
     // 4. 每周进化 - 绩效归因 + 经验评审 + 策略调整建议
+    // A2-T2：从「直接调用 runWeeklyEvolution」迁移为 evolution Agent 的 agent_turn——
+    // 由 evolution Agent 用 evolution_run / evolution_leaderboard 产出提案，
+    // 只提案不落地（不自动执行任何变更），提案写入 evolution 域供人工/Claude 评审。
     {
       name: 'weekly_evolution',
       enabled: true,
       scheduleKind: 'cron',
       scheduleExpr: '0 20 * * 0',  // 每周日 20:00
       payload: {
-        kind: 'weekly_evolution',
+        kind: 'agent_turn',
+        agentKind: 'evolution',
+        message: `
+🔄 每周进化分析 - 策略绩效归因与优化提案
+
+**目标：分析本周进化指标，产出优化提案（仅提案，不落地）。**
+
+你是 evolution 域的 Agent。你的职责是评估策略/行为适应度、生成优化建议，
+**不直接修改代码或交易系统**——所有产出都是提案，供人工/Claude 评审后落地。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+第一步：运行进化分析
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 使用 evolution_run 运行本周进化分析：
+   - 读取本周的适应度数据、绩效归因、经验沉淀
+   - 生成优化建议与提案文件（落盘到 .pi-invest/evolution/）
+
+2. 使用 evolution_leaderboard 查看全账户适应度排行：
+   - 各策略/行为在哪一侧失分？下跌捕获 vs 上涨捕获？
+   - 哪些策略值得保留、哪些需要优化、哪些该下线？
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+第二步：产出提案（写入 evolution 域）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+基于分析结果，把优化提案写进 evolution 域（evolution_run 落盘到
+.pi-invest/evolution/）。提案应包含：
+- 建议变更的策略/行为及理由
+- 预期收益与风险
+- 优先级排序
+
+⚠️ **硬约束：不自动执行任何变更。** 提案产出后由人工/Claude 评审，
+确认后再落地。你只负责「发现 + 提案」，不负责「执行」。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+完成标准
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- evolution_run 已运行，本周进化分析完成
+- 提案已写入 evolution 域（.pi-invest/evolution/）
+- 代码库零改动（未执行任何代码/交易变更）
+
+现在开始本周进化分析。
+        `
       },
       compensationEnabled: false,
       compensationCheckAfter: undefined,
