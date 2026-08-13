@@ -18,9 +18,15 @@ describe('Tool Groups', () => {
     const names = SHARED_BASE_TOOLS.map((t: any) => t.name);
     expect(names).toContain('plan_task');
     expect(names).toContain('task_create');
-    expect(names).toContain('restart_agent');
     expect(names).toContain('scheduler_manage');
     expect(names).toContain('model_switch');
+  });
+
+  test('进程控制工具不共享：restart_agent 只在 FIN_TOOLS（2026-08-13 批次6实证：memory agent 自主调用 restart_agent 试图修复环境）', () => {
+    const shared = SHARED_BASE_TOOLS.map((t: any) => t.name);
+    const fin = FIN_TOOLS.map((t: any) => t.name);
+    expect(shared).not.toContain('restart_agent');
+    expect(fin).toContain('restart_agent');
   });
 
   test('MEMORY_TOOLS 包含记忆工具', () => {

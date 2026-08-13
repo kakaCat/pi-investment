@@ -46,6 +46,12 @@ describe('Agent Tool Assembly (selectToolsForKind)', () => {
     expect(result).toContain('task_create');
   });
 
+  test('memory/evolution 不含进程控制工具 restart_agent；fin 保留（批次6实证：memory agent 曾自主调用 restart_agent）', () => {
+    expect(names(selectToolsForKind('memory', allCustomTools))).not.toContain('restart_agent');
+    expect(names(selectToolsForKind('evolution', allCustomTools))).not.toContain('restart_agent');
+    expect(names(selectToolsForKind('fin', allCustomTools))).toContain('restart_agent');
+  });
+
   test('memory = SHARED_BASE + MEMORY_TOOLS（精确集合相等）', () => {
     const expected = [...SHARED_BASE_TOOLS, ...MEMORY_TOOLS];
     const result = selectToolsForKind('memory', allCustomTools);

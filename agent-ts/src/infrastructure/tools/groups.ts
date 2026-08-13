@@ -40,10 +40,12 @@ import {
   taskListTool,
   taskCheckBackgroundTool,
 } from './agent/task-tools.js';
-import { restartAgentTool } from './agent/restart-agent-tool.js';
 import { schedulerManageTool } from './scheduler/scheduler-manage-tool.js';
 import { modelSwitchTool } from './agent/model-switch-tool.js';
 
+// 注意：restart_agent 不在 SHARED——进程控制权只归 fin（FIN_TOOLS）。
+// 批次6实证（2026-08-13）：memory agent 在工具连续失败后自主调用 restart_agent
+// 试图重启整个 agent 进程，受限域 agent 不应持有此权柄。
 export const SHARED_BASE_TOOLS = [
   planTool,
   taskCreateTool,
@@ -51,12 +53,12 @@ export const SHARED_BASE_TOOLS = [
   taskExecuteAsyncTool,
   taskListTool,
   taskCheckBackgroundTool,
-  restartAgentTool,
   schedulerManageTool,
   modelSwitchTool,
 ] as const;
 
 // ===== FIN_TOOLS =====
+import { restartAgentTool } from './agent/restart-agent-tool.js';
 import { clarifyTool } from './agent/clarify-tool.js';
 import { reflectTool } from './agent/reflect-tool.js';
 import { dataFetchQuoteTool } from './data/fetch-stock-tool.js';
@@ -162,6 +164,7 @@ import { createReadTool } from '../../sdk-facade.js';
 const readTool = createReadTool(process.cwd());
 
 export const FIN_TOOLS = [
+  restartAgentTool,  // 进程控制权只归 fin（原 SHARED，批次6安全收口）
   clarifyTool,
   reflectTool,
   dataFetchQuoteTool,
