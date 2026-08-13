@@ -547,11 +547,15 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 
 3. 记录需审查清单：
    使用 memory_write 将需要人工审查的条目记录到记忆：
-   - scope: 'recall-audit'
-   - 包含 audit_id、memory_id、为什么需要人工审查
+   memory_write({
+     content: '[需人工审查] audit_id=<审计记录ID> memory_id=<记忆ID>：<为什么需要人工审查>',
+     category: 'recall-audit-review'
+   })
+   （memory_write 仅接受 content/category 两个参数；不要传 action/scope/metadata，
+     这些参数不存在会被静默忽略）
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-第四步：写日报到记忆（scope: evolution 或 memory）
+第四步：写日报到记忆
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 使用 memory_write 记录今日审计结果：
@@ -568,17 +572,12 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
      * 需要优化某些记忆的元数据？
      * 需要增加/删除某类记忆？
 
-2. 写入参数：
+2. 写入参数（memory_write 仅接受 content/category，其余参数不存在）：
    memory_write({
-     action: 'write',
-     scope: 'memory',  // 或 'evolution'（如果是进化类建议）
-     content: '<日报内容>',
-     metadata: {
-       type: 'daily-recall-audit',
-       date: '<审计日期>',
-       stats: { /* 关键统计数据 */ }
-     }
+     content: '每日召回审计日报 <审计日期>：总数<X>，注入率<Y>%，标注 relevant<A>条/irrelevant<B>条。关键发现：…。建议：…',
+     category: 'daily-recall-audit'
    })
+   （日期、统计数据直接写进 content 文本；category 固定用 'daily-recall-audit' 便于后续检索）
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 完成标准
@@ -587,7 +586,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
 - recall_audit stats 已拉取，关键指标已分析
 - 已标注部分召回记录（agent feedback，未覆盖 human feedback）
 - 边界情况已标记需要人工审查（如有）
-- 日报已写入记忆（scope: memory 或 evolution）
+- 日报已写入记忆（category: daily-recall-audit）
 
 现在开始今日召回审计。
         `
