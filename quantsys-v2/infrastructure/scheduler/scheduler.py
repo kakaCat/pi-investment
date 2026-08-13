@@ -1294,7 +1294,7 @@ class SchedulerService:
                         'signal_date': signal_date,
                         'symbol': sig['symbol'],
                         'name': names.get(sig['symbol'], ''),
-                        'action': sig['signal'],
+                        'action': sig['signal'].upper(),  # signals 表大写契约（08-13 统一）
                         'strategy_id': str(sid),
                         'price': sig.get('current_price'),
                         'reason': '; '.join(sig.get('reasons', [])),

@@ -82,16 +82,16 @@ def get_signals_statistics(request: Request):
         if isinstance(row, dict):
             if row['total'] > 0 and row.get('approved_count', 0) > 0:
                 accuracy = (row['approved_count'] / row['total']) * 100
-                if row['action'] == 'buy':
+                if row['action'] == 'BUY':  # signals 大写契约（08-13）
                     buy_accuracy = accuracy
-                elif row['action'] == 'sell':
+                elif row['action'] == 'SELL':
                     sell_accuracy = accuracy
         else:
             if row[1] > 0 and row[2] > 0:
                 accuracy = (row[2] / row[1]) * 100
-                if row[0] == 'buy':
+                if row[0] == 'BUY':
                     buy_accuracy = accuracy
-                elif row[0] == 'sell':
+                elif row[0] == 'SELL':
                     sell_accuracy = accuracy
     cursor.close()
 

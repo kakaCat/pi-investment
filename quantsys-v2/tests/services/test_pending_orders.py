@@ -90,7 +90,7 @@ class TestPlacePendingOrder:
         repo.create_pending_order.assert_called_once()
         kwargs = repo.create_pending_order.call_args.kwargs
         assert kwargs['account_name'] == 'acc'
-        assert kwargs['action'] == 'buy'
+        assert kwargs['action'] == 'BUY'  # action 大写契约（08-13，落库前已规范化）
         assert kwargs['symbol'] == '600519'
         assert kwargs['shares'] == 100
         assert kwargs['execute_at'] == 'market_open'

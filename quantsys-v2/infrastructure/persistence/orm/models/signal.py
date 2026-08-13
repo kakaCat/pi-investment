@@ -10,10 +10,11 @@ from sqlalchemy import (
     Index, ForeignKey, Text, CheckConstraint
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from datetime import datetime
 
 from ..base import Base
+from .action_norm import normalize_signal_action
 
 __all__ = ['Signal', 'SignalExecution']
 
@@ -37,9 +38,15 @@ class Signal(Base):
         Index('idx_signals_indicators_gin', 'indicators', postgresql_using='gin'),
         # 唯一约束
         Index('unique_symbol_date_strategy', 'symbol', 'signal_date', 'strategy_id', unique=True),
+        # action 大写契约（2026-08-13 统一，见 models/action_norm.py）
+        CheckConstraint("action IN ('BUY','SELL','HOLD')", name='signals_action_check'),
         # Schema
         {'schema': 'quant'}
     )
+
+    @validates('action')
+    def _normalize_action(self, key, value):
+        return normalize_signal_action(value)
 
     # 主键
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment='信号ID')
@@ -56,7 +63,7 @@ class Signal(Base):
     strategy_id = Column(Text, nullable=False, comment='策略ID')
 
     # 信号详情
-    action = Column(Text, nullable=False, comment='操作类型(buy/sell)')
+    action = Column(Text, nullable=False, comment='操作类型(BUY/SELL/HOLD，大写契约)')
     action_type = Column(Integer, nullable=False, comment='操作类型代码')
     price = Column(Float, comment='信号价格')
     confidence = Column(Float, comment='置信度(0-1)')

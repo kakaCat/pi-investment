@@ -215,7 +215,9 @@ class SignalExecutionScheduler:
                                 'symbol': signal['symbol'],
                                 'name': self._get_stock_name(signal['symbol']),
                                 'action': signal['signal_type'],
-                                'action_type': 1 if signal['signal_type'] == 'buy' else 2,
+                                # signal_type 内存契约大小写混存（strategy_executor 大写/
+                                # strategy_code_service 小写），推导必须大小写容忍
+                                'action_type': 1 if str(signal['signal_type']).lower() == 'buy' else 2,
                                 'strategy_id': str(strategy_id),
                                 'price': signal['price'],
                                 'reason': f"Strategy: {strategy_name}",
@@ -346,7 +348,7 @@ class SignalExecutionScheduler:
                 close_price = float(latest_kline['close'])
 
                 # 计算限价单价格
-                if signal['action'] == 'buy':
+                if signal['action'] == 'BUY':  # signals 大写契约（08-13 统一）
                     limit_price = round(close_price * 1.01, 2)
                 else:
                     limit_price = round(close_price * 0.99, 2)

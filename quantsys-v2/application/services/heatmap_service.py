@@ -177,9 +177,9 @@ class HeatmapService:
             sym for sym, m in universe_meta.items()
             if m['industry'] == industry and sym in in_scope
         }
-        pos = sum(1 for s in signals if s['symbol'] in industry_symbols and s['action'] == 'buy')
+        pos = sum(1 for s in signals if s['symbol'] in industry_symbols and s['action'] == 'BUY')  # signals 大写契约（08-13）
         pos += sum(1 for e in pool_events if e['symbol'] in industry_symbols and e['action'] == 'add')
-        neg = sum(1 for s in signals if s['symbol'] in industry_symbols and s['action'] == 'sell')
+        neg = sum(1 for s in signals if s['symbol'] in industry_symbols and s['action'] == 'SELL')
         neg += sum(1 for e in pool_events if e['symbol'] in industry_symbols and e['action'] == 'remove')
         if pos > neg:
             return 'bullish'
