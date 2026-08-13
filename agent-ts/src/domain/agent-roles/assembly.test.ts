@@ -80,13 +80,18 @@ describe('Prompt Variant (VARIANT_IDENTITY 注入点)', () => {
     mode: 'full' as const,
   };
 
-  test('fin/evolution/memory 三种变体当前输出逐字节一致（A1/A2 落地前空映射）', () => {
+  test('变体隔离：memory 输出 = fin + VARIANT_IDENTITY 块；fin/evolution（空变体）逐字节一致', () => {
     const fin = buildSystemPrompt({ ...base, promptVariant: 'fin' });
     const evolution = buildSystemPrompt({ ...base, promptVariant: 'evolution' });
     const memory = buildSystemPrompt({ ...base, promptVariant: 'memory' });
 
-    expect(fin).toEqual(evolution);
-    expect(fin).toEqual(memory);
+    // A1-T1 已落地：memory 变体携带身份块，fin 不含（隔离语义锁定）
+    expect(fin).toEqual(evolution); // evolution 变体 A2-T1 前仍为空映射
+    expect(memory).not.toEqual(fin);
+    expect(memory).toContain('Memory Agent');
+    expect(fin).not.toContain('Memory Agent');
+    // memory 与 fin 的差异只允许来自 VARIANT_IDENTITY 追加块（前缀一致）
+    expect(memory.startsWith(fin.split('\n')[0])).toBe(true);
   });
 
   test('缺省 promptVariant 等价于显式 fin', () => {
