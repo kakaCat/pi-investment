@@ -73,9 +73,9 @@
 | P1-T3 审计适配器 | 执行模型 | ✅ 5ccfb93 | P1-T2 |
 | P1-T4 v2 审计 API+PG 表 | 执行模型 | ✅ | 无 |
 | P1-T5 前端审计页 | 执行模型 | ✅（代码级；真机验收待批次3部署） | P1-T4（最终验收） |
-| P2-T1 SDK 扩展接线 | **k3** | ⬜ | P1-T1~T3 合并 |
-| P2-T2 删 wrapper 注入 | **k3** | ⬜ | P2-T1 |
-| P2-T3 全通道验收 | **k3** | ⬜ | P2-T2 |
+| P2-T1 SDK 扩展接线 | **k3** | ✅ 5c569b9 | P1-T1~T3 合并 |
+| P2-T2 删 wrapper 注入 | **k3** | ✅ 29c4a91 | P2-T1 |
+| P2-T3 全通道验收 | **k3** | ✅ ebba88e（三 flow 生产记录实证） | P2-T2 |
 
 ---
 
@@ -475,7 +475,7 @@ export function postRecallAuditFeedback(auditId: number, body: {memory_id: numbe
 
 ## P2：SDK 扩展接线（全部 Claude 亲做）
 
-### P2-T1：sdk-recall-extension【k3｜轨道F｜⬜｜依赖 P1-T1~T3 合并】
+### P2-T1：sdk-recall-extension【k3｜轨道F｜✅ 5c569b9】
 
 **Files:**
 - Create: `agent-ts/src/api/extensions/recall-extension.ts`
@@ -490,12 +490,12 @@ export function postRecallAuditFeedback(auditId: number, body: {memory_id: numbe
 - [ ] 测试：fake pi 对象注册 handler，模拟 input→before_agent_start 序列：① 普通对话产出 message；② `/skill:x` 文本 → query 不含 skill 前缀；③ 检索空 → 返回 void。
 - [ ] 真机验证：重启 agent，TUI 发一条普通消息 → PG 审计表有 `interactive-chat` 记录；`/provider pro` → 无新审计记录（结构免疫实证）；会话日志里召回以独立消息存在而非拼接。
 
-### P2-T2：删除 wrapper 注入代码【k3｜轨道F｜⬜】
+### P2-T2：删除 wrapper 注入代码【k3｜轨道F｜✅ 29c4a91】
 
 **Files:** Modify `agent-ts/src/infrastructure/session/session-factory.ts`（删 W1.4 注入块；路由基于原文的判定保留）+ 同步更新 `session-factory.test.ts`（注入相关 3 个测试迁移到 recall-extension.test.ts 形态）。
 - [ ] 验收：`npm test -- session-factory` + `npm test` 全量（对照基线）。
 
-### P2-T3：全通道验收【k3｜轨道F｜⬜】
+### P2-T3：全通道验收【k3｜轨道F｜✅ ebba88e】
 - [ ] 调度任务真触发一次（或 scheduler_manage 手动 trigger）→ 审计表 `scheduled-task` 记录；
 - [ ] wake 事件真触发一次 → `wake-event` 记录；
 - [ ] 三通道记录截图/查询结果归档到 PR 描述。

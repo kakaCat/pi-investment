@@ -62,7 +62,7 @@
 | A1-T1 recall_audit 工具+记忆 Agent | 执行模型 | ✅ d871ac5（+修复 0a95bed） | 召回 P1-T4 + A0-T3 |
 | A1-T2 每日召回审计任务 | 执行模型 | ⬜ | A1-T1（prompt 文案 k3 审） |
 | A2-T1 进化提示词+skill 读写工具 | 执行模型 | ✅ bed1b79（+修复 6023338） | A0-T3（提示词文案 k3 审） |
-| A2-T2 weekly_evolution 迁移 | **k3** | ⬜ | A2-T1 |
+| A2-T2 weekly_evolution 迁移 | **k3** | ✅ ee4c26e（干跑审计记录实证） | A2-T1 |
 | A3-T1 渠道 Channel 层微调 | 执行模型+k3修复 | ✅ a542e4a（r2：k3 亲修兼容+接线） | A0-T3 |
 
 ---
@@ -254,7 +254,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 **提示词必须包含的纪律条款（Claude 审文案）：** ① 代码改动必须 worktree；② 测试先行；③ autoExecute 默认关，只提方案不自动执行；④ skill 可直改但改后必跑 check:tool-refs；⑤ 禁止改交易规则参数（双轨契约：agent_virtual vs advisory 不互相统一）。
 - [ ] 验收：提示词含五条款（Claude 逐条核）；skill-file 工具测试过（含 worktree 创建失败时的报错路径）。
 
-### A2-T2：weekly_evolution 迁移 + 提案-评审接线【k3｜轨道E｜⬜｜依赖 A2-T1】
+### A2-T2：weekly_evolution 迁移 + 提案-评审接线【k3｜轨道E｜✅ ee4c26e】
 - [ ] `weekly_evolution`（周日 20:00）改 agentKind='evolution'；产出写 evolution 域记忆；**不自动执行任何变更**——产出为提案，人工/Claude 评审后落地。
 - [ ] 验收：周日任务干跑一次，evolution 域有提案记录，代码库零改动。
 
