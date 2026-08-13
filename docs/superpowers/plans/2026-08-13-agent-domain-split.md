@@ -63,7 +63,7 @@
 | A1-T2 每日召回审计任务 | 执行模型 | ⬜ | A1-T1（prompt 文案 k3 审） |
 | A2-T1 进化提示词+skill 读写工具 | 执行模型 | ✅ bed1b79（+修复 6023338） | A0-T3（提示词文案 k3 审） |
 | A2-T2 weekly_evolution 迁移 | **k3** | ⬜ | A2-T1 |
-| A3-T1 渠道 Channel 层微调 | 执行模型 | ❌ 打回（删既有渠道+渠道未接线，见验收报告） | A0-T3 |
+| A3-T1 渠道 Channel 层微调 | 执行模型+k3修复 | ✅ a542e4a（r2：k3 亲修兼容+接线） | A0-T3 |
 
 ---
 
@@ -262,7 +262,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 
 ## A3：金融 Agent 渠道微调【轨道F，依赖 A0-T3】
 
-### A3-T1：Channel 层按渠道差异化【执行模型｜轨道F｜❌ 打回返工（r2）】
+### A3-T1：Channel 层按渠道差异化【执行模型｜轨道F｜✅ a542e4a（r2 k3 亲修）】
 
 **Files:** Modify `agent-ts/src/services/intelligence/system-prompt-builder.ts`（仅 Channel 层组装处）+ 测试
 - [ ] 契约：Channel 层只改语气/格式（飞书：简短、无表格；TUI：完整；web：markdown 完整），**禁止放业务规则**。
