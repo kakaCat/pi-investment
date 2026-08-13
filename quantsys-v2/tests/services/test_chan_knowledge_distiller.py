@@ -11,9 +11,9 @@ def _signals():
     """3 个 chan_1买 信号：2 胜 1 负（20 日窗）"""
     base = date(2026, 6, 1)
     return [
-        {'symbol': '600519.SH', 'signal_date': base, 'strategy_id': 'chan_1买', 'action': 'BUY'},
-        {'symbol': '000858.SZ', 'signal_date': base, 'strategy_id': 'chan_1买', 'action': 'BUY'},
-        {'symbol': '601318.SH', 'signal_date': base, 'strategy_id': 'chan_1买', 'action': 'BUY'},
+        {'symbol': '600519.SH', 'signal_date': base, 'strategy_id': 'chan_1买', 'action': 'buy'},
+        {'symbol': '000858.SZ', 'signal_date': base, 'strategy_id': 'chan_1买', 'action': 'buy'},
+        {'symbol': '601318.SH', 'signal_date': base, 'strategy_id': 'chan_1买', 'action': 'buy'},
     ]
 
 
@@ -85,8 +85,8 @@ class TestDistiller:
         from types import SimpleNamespace
         base = date(2026, 6, 1)
         orm_signals = [
-            SimpleNamespace(symbol='600519', signal_date=base, strategy_id='chan_1买', action='BUY'),
-            SimpleNamespace(symbol='000858', signal_date=base, strategy_id='chan_1买', action='BUY'),
+            SimpleNamespace(symbol='600519', signal_date=base, strategy_id='chan_1买', action='buy'),
+            SimpleNamespace(symbol='000858', signal_date=base, strategy_id='chan_1买', action='buy'),
         ]
         mock_sig.return_value.get_signals_by_date_range.return_value = orm_signals
         mock_kline.return_value.get_daily_klines.side_effect = [
@@ -107,8 +107,8 @@ class TestDistiller:
         """sell 信号：跌=胜（与 verify_judgments 对称）"""
         base = date(2026, 6, 1)
         mock_sig.return_value.get_signals_by_date_range.return_value = [
-            {'symbol': '600519', 'signal_date': base, 'strategy_id': 'chan_1卖', 'action': 'SELL'},
-            {'symbol': '000858', 'signal_date': base, 'strategy_id': 'chan_1卖', 'action': 'SELL'},
+            {'symbol': '600519', 'signal_date': base, 'strategy_id': 'chan_1卖', 'action': 'sell'},
+            {'symbol': '000858', 'signal_date': base, 'strategy_id': 'chan_1卖', 'action': 'sell'},
         ]
         # 600519 跌（胜）、000858 涨（负）
         mock_kline.return_value.get_daily_klines.side_effect = [

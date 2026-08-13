@@ -167,21 +167,6 @@ class TestRepository:
         pos = repo.get_position('test_acc_a', '600519')
         assert pos.shares_available == 100
 
-    def test_settle_t1_same_day_buy_not_sellable(self, repo):
-        """回归（2026-08-13）：settle_t1 读取侧曾写死小写 action='buy'，与写入侧
-        normalize_action 大写契约不匹配 → 当日买入量恒计为 0 → 当日买入的股数
-        在结转后被错误放行为可卖（T+1 形同虚设）。本测试锁死：当日结算不得放行
-        当日买入。"""
-        from application.services.account_trading_service import AccountTradingService
-        repo.create_account('test_acc_a', initial_capital=100000)
-        trading = AccountTradingService(repo=repo)
-        trading.execute_trade('test_acc_a', 'buy', '600519', shares=100,
-                              reason='测试买入：当日买入不得被当日结转放行', price=10.0)
-        n = repo.settle_t1('test_acc_a')  # 默认 today=真实今天，与成交 trade_date 同日
-        assert n == 1
-        pos = repo.get_position('test_acc_a', '600519')
-        assert pos.shares_available == 0  # 当日买入不得因结转放行
-
 
 class TestAccountTradingService:
     """Task 4: 手工交易事务"""

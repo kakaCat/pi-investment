@@ -1,10 +1,5 @@
 # QuantSys调度器服务部署指南
 
-> ⚠️ **已废弃（2026-08-13）**：本文描述的 scheduler_daemon/systemd/launchd 部署方式已退役。
-> daemon 无守护进程托管，08-05 死讯静默 8 天致 T+1 结转中断、盯盘消失两起事故。
-> 现行架构：调度唯一宿主 = FastAPI 5001 lifespan（见 quantsys-v2/CLAUDE.md「调度架构」），
-> 部署 = `launchctl kickstart -k gui/501/com.pi-investment.v2-api`。本文仅留档。
-
 ## 概述
 
 QuantSys调度器是一个企业级的任务调度系统，负责V13策略的自动化交易、数据更新、风险检查等定时任务。

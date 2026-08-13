@@ -158,10 +158,10 @@ class DailySnapshotService:
             for t in trades:
                 if t.trade_date != day:
                     continue
-                if t.action == 'BUY':  # action 大写契约（08-13 统一）
+                if t.action == 'buy':
                     cash -= float(t.total_cost or t.amount or 0)
                     holdings[t.symbol] = holdings.get(t.symbol, 0) + t.shares
-                elif t.action == 'SELL':
+                elif t.action == 'sell':
                     cash += float(t.total_revenue or t.amount or 0)
                     holdings[t.symbol] = holdings.get(t.symbol, 0) - t.shares
             position_value = sum(

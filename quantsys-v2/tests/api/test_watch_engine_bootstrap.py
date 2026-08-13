@@ -45,11 +45,9 @@ def test_start_watch_engine_skip(monkeypatch):
 
 
 def test_scheduler_daemon_no_longer_hosts_watch_engine():
-    """契约守护：scheduler_daemon 已删除（2026-08-13），盯盘唯一宿主=FastAPI。
+    """契约守护：scheduler_daemon 不再启动 WatchEngine（唯一宿主=FastAPI）。
 
-    防止未来重新引入 daemon 类进程导致双引擎并行（重复触发+重复唤醒）
-    或 daemon 死亡后功能静默丢失（08-05 盯盘/T+1 两起事故同根因）。
+    防止未来部署再次双引擎并行（重复触发+重复唤醒）或静默丢失盯盘。
     """
-    repo_root = Path(__file__).resolve().parents[2]
-    assert not (repo_root / 'scheduler_daemon.py').exists()
-    assert not (repo_root / 'application/services/unified_scheduler.py').exists()
+    src = Path(__file__).resolve().parents[2] / 'scheduler_daemon.py'
+    assert '_register_watch_engine' not in src.read_text(encoding='utf-8')

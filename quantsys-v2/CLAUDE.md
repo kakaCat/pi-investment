@@ -148,24 +148,9 @@ python auto_migrate.py --help     # 自动生成路由模板
 
 WatchEngine 常驻线程**由 FastAPI `adapters/inbound/fastapi_app/main.py` 的 lifespan 唯一启动**
 （经 `watch_bootstrap.start_watch_engine`，pytest 下自动跳过，句柄存 `app.state.watch_engine` 优雅停止）。
+scheduler_daemon 自 2026-08-12 起不再启动它——双引擎会重复触发+重复唤醒 agent。
 背景：08-02 部署切 FastAPI 后 daemon 未拉起，盯盘曾静默消失一周（triggers 停在 08-05）。
 规则管理 API：`/api/watch/rules` CRUD（Flask + FastAPI parity）。
-
-### 调度架构（2026-08-13 起：FastAPI lifespan 唯一宿主，scheduler_daemon 已删除）
-
-所有周期性任务由 FastAPI 5001 进程 lifespan 内的三条后台线程承载：
-- **SchedulerService**（`infrastructure/scheduler/scheduler.py` run_loop）：执行 `quant.scheduler_tasks`
-  表的 cron 任务（30s 轮询，UTC cron，完整 scheduler_runs 记录 + 6h zombie reaper +
-  per-task `misfire_grace_time_seconds` 宽限——NULL=唤醒必补跑，显式值=超宽限跳过记 skipped）
-- **orchestrator_bootstrap**：DailyOrchestrator tick（T+1 结转/信号推送/挂单撮合）+ IntradayMonitor（止损止盈）
-- **watch_bootstrap**：WatchEngine 实时盯盘
-
-`scheduler_daemon.py`/`supervisor.py`/`manage_scheduler.py`/`unified_scheduler.py` 已于
-2026-08-13 删除（daemon 无 launchd 守护，08-05 死讯静默 8 天致 T+1 中断、盯盘消失两起事故）。
-旧 `quant.scheduler_task_configs` 表已全禁用（任务迁入 scheduler_tasks），表保留供回滚。
-部署/重启：`launchctl kickstart -k gui/501/com.pi-investment.v2-api`（日志在 `~/v2-api.log`，
-**不是** logs/fastapi_5001.log）。Flask 路由 `scheduler_enterprise.py` 随回滚栈保留，
-其中 daemon 相关注释已标注，随 Flask 删除批次清理。
 
 ### Flask (已废弃，仅用于回滚)
 ```bash

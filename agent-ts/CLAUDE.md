@@ -145,7 +145,7 @@ Vite dev server (3001) 代理 `/api` → quantsys-v2 (5001)。页面：Dashboard
 
 ## 调度器架构
 
-- TypeScript Agent 使用 `InMemorySchedulerStore`（内存调度器，`src/services/scheduler/`）——**重启后任务需重新注册**；数据补充任务由 quantsys-v2 调度器（FastAPI 5001 lifespan 内的 SchedulerService，2026-08-13 起；scheduler_daemon 已删除）负责。
+- TypeScript Agent 使用 `InMemorySchedulerStore`（内存调度器，`src/services/scheduler/`）——**重启后任务需重新注册**；数据补充任务由 quantsys-v2 调度器（scheduler_daemon）负责。
 - Agent AI 决策任务类型为 `agent_turn`（唤醒 Agent 自主决策），启动时由 `src/services/scheduler/init-agent-tasks.ts` 注册：
 
 | 任务 | 调度 | 用途 |

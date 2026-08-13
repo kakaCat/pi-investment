@@ -82,16 +82,16 @@ def get_signals_statistics(request: Request):
         if isinstance(row, dict):
             if row['total'] > 0 and row.get('approved_count', 0) > 0:
                 accuracy = (row['approved_count'] / row['total']) * 100
-                if row['action'] == 'BUY':  # signals 大写契约（08-13）
+                if row['action'] == 'buy':
                     buy_accuracy = accuracy
-                elif row['action'] == 'SELL':
+                elif row['action'] == 'sell':
                     sell_accuracy = accuracy
         else:
             if row[1] > 0 and row[2] > 0:
                 accuracy = (row[2] / row[1]) * 100
-                if row[0] == 'BUY':
+                if row[0] == 'buy':
                     buy_accuracy = accuracy
-                elif row[0] == 'SELL':
+                elif row[0] == 'sell':
                     sell_accuracy = accuracy
     cursor.close()
 
@@ -396,23 +396,11 @@ def get_signals(request: Request):
             signals = ds.signal.get_signals_by_date_range(
                 start_date=today.strftime('%Y-%m-%d'), end_date=today.strftime('%Y-%m-%d'))
         elif date_filter:
-            # repo 签名为 action（非 signal_type），且库内大写契约——入参需 upper
-            # （2026-08-13 修契约漂移）
-            signals = ds.signal.get_signals_by_date(
-                date_filter, action=signal_type.upper() if signal_type else None)
+            signals = ds.signal.get_signals_by_date(date_filter, signal_type=signal_type)
         elif days:
-            # get_latest_signals 只认 limit；days 语义=近 N 天 → date_range（同日修）
-            from datetime import timedelta
-            end = datetime.now().date()
-            start = end - timedelta(days=days)
-            signals = ds.signal.get_signals_by_date_range(
-                start_date=start.strftime('%Y-%m-%d'), end_date=end.strftime('%Y-%m-%d'))
+            signals = ds.signal.get_latest_signals(days=days)
         else:
             signals = ds.signal.get_latest_signals(limit=limit)
-
-        # repo 的 by_date/date_range 返回 ORM Signal 对象（get_latest_signals 返回
-        # dict）——统一转 dict 再消费，否则 .get 直接 500（2026-08-13 生产事故）
-        signals = [s if isinstance(s, dict) else s.to_dict() for s in signals]
 
         if min_confidence > 0:
             signals = [s for s in signals if (s.get('confidence') or 0) >= min_confidence]
