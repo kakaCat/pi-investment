@@ -58,7 +58,7 @@
 |---|---|---|---|
 | A0-T1 工具注册表分组 | 执行模型 | ✅ | 无 |
 | A0-T2 RoleProfile 声明 | 执行模型 | ✅ | 无 |
-| A0-T3 会话工厂装配（总闸门） | **k3** | ⬜ | A0-T1 + A0-T2 |
+| A0-T3 会话工厂装配（总闸门） | **k3** | ✅ a84b949 | A0-T1 + A0-T2 |
 | A1-T1 recall_audit 工具+记忆 Agent | 执行模型 | ⬜ | 召回 P1-T4 + A0-T3 |
 | A1-T2 每日召回审计任务 | 执行模型 | ⬜ | A1-T1（prompt 文案 k3 审） |
 | A2-T1 进化提示词+skill 读写工具 | 执行模型 | ⬜ | A0-T3（提示词文案 k3 审） |
@@ -200,7 +200,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 
 ---
 
-### A0-T3：会话工厂 agentKind 装配【k3｜总闸门｜⬜｜依赖 A0-T1+A0-T2】
+### A0-T3：会话工厂 agentKind 装配【k3｜总闸门｜✅ a84b949】
 
 **Files:**
 - Modify: `agent-ts/src/infrastructure/session/session-factory.ts`（或 createSession 所在文件，实施时定位）

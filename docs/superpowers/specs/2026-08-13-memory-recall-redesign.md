@@ -115,12 +115,34 @@ content XML 契约：
 v2 侧（`quantsys-v2/domain/memory/hybrid_search.py`）：
 1. `vector_rank` 增加余弦下限参数 `cosine_floor`：低于 floor 的条目不进入向量排名。
 2. `hybrid_rank` 空结果语义：BM25 零命中且向量无一过线 → `strategy="none"`，返回空 items。
-3. floor 来源：环境变量 `MEMORY_RECALL_COSINE_FLOOR`，默认 0.30；**最终值由 P0 的分布测量步骤确定**（见 §9 P0-T2）。
+3. floor 来源：环境变量 `MEMORY_RECALL_COSINE_FLOOR`，默认 0.30；**最终值 0.58**（2026-08-13 生产语料分布测量确定，见下方测量记录 §6.1）。
 
 agent-ts 侧（`domain/recall/quality-gate.ts`）：
 - 输入：检索响应 items（含 score/source/bm25_score/vector_score）。
 - 规则：策略允许 + 有 hits + gate 判定 passed → 注入；否则 suppressed 并给出原因（`policy-disabled` / `empty-result` / `below-floor`）。
 - RRF 分是名次分，**不作为**阈值依据；阈值只在分量信号上（BM25>0 已有、cosine≥floor 新增）。
+
+### 6.1 floor 终值测量记录（2026-08-13 P0-T2）
+
+**测量对象**：43 条 active 记忆 × 50 条真实 query（从 SDK 会话日志 `~/.pi/agent/sessions/--Users-yunpeng-pi-investment-agent-ts--/*.jsonl` 提取近期用户消息，剥离 scheduled 提示词/skill 前缀/recalled_memory 注入），共 2150 个 cosine 对。
+
+**全量 cosine 分布**（bge-m3，同域金融语料）：
+
+| 分位 | 值 | | 阈值 | 通过对占比 |
+|---|---|---|---|---|
+| min | 0.208 | | ≥0.50 | 9.1% |
+| p50 | 0.408 | | ≥0.55 | 2.4% |
+| p90 | 0.497 | | ≥0.58 | 0.8% |
+| p95 | 0.522 | | ≥0.60 | 0.4% |
+| max | 0.650 | | | |
+
+**关键事实**：spec §1 所述「relevance 0.02~0.03 的噪音」是 **RRF 名次分**（1/(60+rank)≈0.016~0.03），与 cosine 完全不同尺度。bge-m3 在同域金融语料下 cosine 基线高达 0.2~0.65，**默认 0.30 实为 no-op**（仅 8/2150 对 < 0.30，位于全分布 p1 以下）。
+
+**人工标注 24 对（9 相关 / 15 不相关）**：相关对聚簇 0.584~0.650（中位 ~0.60，如「歌尔股份→盯盘规则 0.608」「今世缘→T+1 0.584」「机器人产业→机器人分析 0.650」）；噪音对聚簇 0.406~0.576（中位 ~0.46，如「三花智控→chan_3买 0.576」「招商银行→杭州银行交易 0.551」「移动→盯盘规则 0.552」）。
+
+**precision@floor**：0.50→0.64；0.55→0.73；0.56→0.89；0.58→1.0。灰区 0.55~0.58 内仅一条边界噪音（chan 通用买点 0.576）与一条边界相关（今世缘 0.584）交错——相关/噪音 crossover 恰在 0.576~0.584 之间。
+
+**结论：floor = 0.58**（满足 precision≥0.8，且落在 crossover 缝隙处，代价是牺牲 0.52~0.58 的弱语义命中如「行业机会→market style 0.516」，由 BM25 回补词法命中）。0.55 为 precision 不达标的低边界，仅作参考。P3 观察期凭真实标注集离线重放再调。
 
 ## 7. 决策记录
 

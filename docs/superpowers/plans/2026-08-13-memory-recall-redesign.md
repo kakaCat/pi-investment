@@ -66,10 +66,10 @@
 | 任务 | 执行者 | 状态 | 依赖 |
 |---|---|---|---|
 | P0-T1 质量门（cosine_floor） | 执行模型 | ✅（r2 重发后通过 fb220b1） | 无 |
-| P0-T2 floor 分布测量定值 | **k3** | ⬜ | 无 |
+| P0-T2 floor 分布测量定值 | **k3** | ✅（floor=0.58，见 spec §6.1） | 无 |
 | P0-T3 env 接线+重启验证 | 执行模型 | ⬜ | P0-T1 合并 + P0-T2 出值 |
 | P1-T1 领域层四文件 | 执行模型 | ✅ | 无 |
-| P1-T2 RecallService+端口 | **k3** | ⬜ | P1-T1 |
+| P1-T2 RecallService+端口 | **k3** | ✅ d74f212 | P1-T1 |
 | P1-T3 审计适配器 | 执行模型 | ⬜ | P1-T2 |
 | P1-T4 v2 审计 API+PG 表 | 执行模型 | ✅ | 无 |
 | P1-T5 前端审计页 | 执行模型 | ✅（代码级；真机验收待批次3部署） | P1-T4（最终验收） |
@@ -189,7 +189,7 @@ git commit -m "feat(memory): vector_rank/hybrid_rank 增加 cosine_floor 质量�
 
 ---
 
-### P0-T2：生产语料分数分布测量，定 floor 终值【k3｜轨道B｜⬜】
+### P0-T2：生产语料分数分布测量，定 floor 终值【k3｜轨道B｜✅ floor=0.58】
 
 **Files:** 无代码改动（只读分析 + 结论回写 spec §6）
 
@@ -202,7 +202,7 @@ git commit -m "feat(memory): vector_rank/hybrid_rank 增加 cosine_floor 质量�
 
 ### P0-T3：env 接线与生产重启验证【执行模型｜轨道A｜⬜｜依赖 P0-T1+P0-T2】
 
-- [ ] **Step 1:** `quantsys-v2/.env` 加 `MEMORY_RECALL_COSINE_FLOOR=<P0-T2 终值>`（.env 不入库，只改本地；同时更新 `.env.example` 加注释行）。
+- [ ] **Step 1:** `quantsys-v2/.env` 加 `MEMORY_RECALL_COSINE_FLOOR=0.58`（P0-T2 终值，见 spec §6.1；.env 不入库，只改本地；同时更新 `.env.example` 加注释行）。
 - [ ] **Step 2:** 重启 5001：`launchctl kickstart -k gui/501/com.pi-investment.v2-api`（日志 `~/v2-api.log`）。
 - [ ] **Step 3:** 实测：`curl -s "http://127.0.0.1:5001/api/memory/search?q=中国铝业股息" | python3 -m json.tool | head -30`，确认返回含 `strategy` 字段且低相关条目被过滤；再 `curl` 一个无关词确认 `strategy:"none"` 或空 items。
 验收：两次 curl 输出贴报告。
@@ -344,7 +344,7 @@ export function formatRecallMessage(flow: RecallFlow, hits: RecallHit[], charBud
 
 ---
 
-### P1-T2：RecallService 编排 + 端口接口【k3｜轨道C｜⬜｜依赖 P1-T1】
+### P1-T2：RecallService 编排 + 端口接口【k3｜轨道C｜✅ d74f212】
 
 **Files:**
 - Create: `agent-ts/src/services/recall/ports.ts`
