@@ -208,4 +208,62 @@ describe("wrapSessionWithLogger 记忆召回注入", () => {
     expect(received[0].message).toContain('<recalled_memory source="auto-prefetch">');
     expect(received[0].message).toContain("** 某条记忆 **");
   });
+
+  test("路由判定基于原始消息：召回记忆里的交易关键词不误触发/误抑制路由", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-recall-"));
+    process.chdir(tempDir);
+
+    const logger = await import("../logging/observable-logger.js");
+    logger.initSession("20260813000003_recall3");
+
+    const { initSkillRouter } = await import("../../services/intelligence/skill-router.js");
+    initSkillRouter([{ name: "deep-analysis" }, { name: "portfolio-entry" }] as any);
+
+    const { wrapSessionWithLogger } = await import("./session-factory.js");
+    const { session, received } = createPromptCapturingSession();
+    wrapSessionWithLogger(session as any);
+
+    // 记忆里的 止损 会误抑制 deep-analysis（negative），加仓/买入 会误触发 portfolio-entry
+    mockPrefetch.mockResolvedValue("** 歌尔002241 (21.5止损/22.4加仓), 中国海油600938 下破31.2买入 **");
+    await session.prompt("帮我分析一下贵州茅台600519的走势");
+
+    expect(received[0].message).toBe("/skill:deep-analysis 帮我分析一下贵州茅台600519的走势");
+  });
+
+  test("强制路由的 skill 调用不追加召回记忆（与显式 /skill 调用一致）", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-recall-"));
+    process.chdir(tempDir);
+
+    const logger = await import("../logging/observable-logger.js");
+    logger.initSession("20260813000004_recall4");
+
+    const { initSkillRouter } = await import("../../services/intelligence/skill-router.js");
+    initSkillRouter([{ name: "portfolio-entry" }] as any);
+
+    const { wrapSessionWithLogger } = await import("./session-factory.js");
+    const { session, received } = createPromptCapturingSession();
+    wrapSessionWithLogger(session as any);
+
+    mockPrefetch.mockResolvedValue("** 某条记忆 **");
+    await session.prompt("帮我记录交易，我卖了茅台100股");
+
+    expect(received[0].message).toBe("/skill:portfolio-entry 帮我记录交易，我卖了茅台100股");
+  });
+
+  test("显式 /skill 调用原样透传，不注入召回记忆", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-recall-"));
+    process.chdir(tempDir);
+
+    const logger = await import("../logging/observable-logger.js");
+    logger.initSession("20260813000005_recall5");
+
+    const { wrapSessionWithLogger } = await import("./session-factory.js");
+    const { session, received } = createPromptCapturingSession();
+    wrapSessionWithLogger(session as any);
+
+    mockPrefetch.mockResolvedValue("** 某条记忆 **");
+    await session.prompt("/skill:portfolio-entry 我卖了茅台100股");
+
+    expect(received[0].message).toBe("/skill:portfolio-entry 我卖了茅台100股");
+  });
 });

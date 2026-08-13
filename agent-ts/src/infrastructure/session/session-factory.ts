@@ -240,18 +240,30 @@ export function wrapSessionWithLogger(session: AgentSession, perfMonitor?: any):
     logger.logAgentStart(userMessage);
     perfMonitor?.startLLMCall?.();
 
+    // 技能路由判定基于原始消息、先于记忆注入：召回记忆里全是交易关键词
+    // （止损/买入/加仓/股票代码），参与打分会误触发/误抑制路由
+    // （2026-08-13："帮我分析一下茅台600519走势"被记忆关键词路由到 portfolio-entry）。
+    const isSlashCommand = userMessage.trimStart().startsWith('/');
+    const routed = options?.skipSkillRouting || isSlashCommand
+      ? { prompt: userMessage, forcedSkill: null as string | null }
+      : rewritePromptWithSkill(userMessage);
+    if (routed.forcedSkill) {
+      console.log(`🎯 强制技能路由: ${routed.forcedSkill}`);
+    }
+
     // W1.4: 记忆召回注入——按用户消息 prefetch top-3，以附注形式注入（不进系统提示词，保住 prompt cache 前缀）
     // 失败静默降级为空，绝不阻塞对话。
-    // slash 命令（/provider、/skill 等）跳过注入：召回文本会污染命令参数
-    // （2026-08-13：/provider pro 被追加召回记忆，报"未知目标"，无法切换模型）。
-    let messageToSend = userMessage;
-    if (!userMessage.trimStart().startsWith('/')) {
+    // 仅普通对话消息注入：slash 命令（/provider、显式 /skill:x）与强制路由的
+    // skill 调用的参数必须保持原样（2026-08-13：/provider pro 被注入污染报
+    // "未知目标"；skill 调用统一不注入，显式与强制路由行为一致）。
+    let promptToSend = routed.prompt;
+    if (!isSlashCommand && !routed.forcedSkill) {
       try {
         const { getMemoryProvider } = await import('../../services/memory/index.js');
         const provider = getMemoryProvider();
         const recalled = await provider.prefetch(userMessage.slice(0, 500), undefined, 3, 2000);
         if (recalled && recalled.trim()) {
-          messageToSend = `${userMessage}\n\n<recalled_memory source="auto-prefetch">\n${recalled}\n</recalled_memory>`;
+          promptToSend = `${routed.prompt}\n\n<recalled_memory source="auto-prefetch">\n${recalled}\n</recalled_memory>`;
         }
       } catch {
         // provider 未初始化或检索失败——静默跳过
@@ -261,24 +273,13 @@ export function wrapSessionWithLogger(session: AgentSession, perfMonitor?: any):
     // T3b 接线：溢出错误触发压缩重试（仅一次）
     let overflowRetryUsed = false;
 
-    const executePrompt = async (msg: string, opts?: PromptOptionsWithRouting) => {
-      // skipSkillRouting：调度任务/系统事件等机器消息跳过技能路由——
-      // 它们自带完整工作流 prompt，强制注入 skill 会让 agent 把 skill 正文
-      // 误当成第二个用户请求（2026-08-12 审计：早盘/盘中/复盘三个任务在
-      // gateway 路径下全部被误路由到 portfolio-entry）。
-      if (opts?.skipSkillRouting) {
-        return await originalPrompt(msg, opts);
-      }
-      const routed = rewritePromptWithSkill(msg);
-      if (routed.forcedSkill) {
-        console.log(`🎯 强制技能路由: ${routed.forcedSkill}`);
-      }
-      const activeSkill = routed.forcedSkill ?? getExplicitSkillFromPrompt(routed.prompt);
-      return await withForcedSkillScope(activeSkill, () => originalPrompt(routed.prompt, opts));
+    const executePrompt = async (prompt: string, opts?: PromptOptionsWithRouting) => {
+      const activeSkill = routed.forcedSkill ?? getExplicitSkillFromPrompt(prompt);
+      return await withForcedSkillScope(activeSkill, () => originalPrompt(prompt, opts));
     };
 
     try {
-      return await executePrompt(messageToSend, options);
+      return await executePrompt(promptToSend, options);
     } catch (error) {
       // T3b: 检测溢出错误，触发压缩后重试一次
       if (!overflowRetryUsed && isOverflowError(error)) {
@@ -298,7 +299,7 @@ export function wrapSessionWithLogger(session: AgentSession, perfMonitor?: any):
 
           if (result.compacted) {
             console.log('🗜️  上下文已压缩，重试 prompt');
-            return await executePrompt(messageToSend, options);
+            return await executePrompt(promptToSend, options);
           } else {
             console.warn('⚠️ 压缩未生效（可能已是最小状态），无法重试');
           }
