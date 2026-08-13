@@ -22,11 +22,13 @@ export const MEMORY_TOOLS = [
 import { evolutionRunTool } from './agent/evolution-tool.js';
 import { evolutionLeaderboardTool } from './performance/evolution-leaderboard-tool.js';
 import { claudeCodeTool } from './agent/claude-code-tool.js';
+import { skillFileTool } from './evolution/skill-file-tool.js';
 
 export const EVOLUTION_TOOLS = [
   evolutionRunTool,
   evolutionLeaderboardTool,
   claudeCodeTool,
+  skillFileTool,
 ] as const;
 
 // ===== SHARED_BASE_TOOLS =====

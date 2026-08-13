@@ -164,6 +164,7 @@ import { backendControlTool } from "./agent/backend-control-tool.js";
 import { claudeCodeTool } from './agent/claude-code-tool.js';
 import { toolStatsQueryTool } from './agent/tool-stats-tool.js';
 import { modelSwitchTool } from './agent/model-switch-tool.js';
+import { skillFileTool } from './evolution/skill-file-tool.js';
 
 // ===== CLI 领域工具已全部移除（2026-07-19 P0 清理）=====
 // market_cli/stock_cli/sentiment_cli/analysis_cli/watchlist_cli 从未注册进
@@ -373,6 +374,9 @@ export const allCustomTools = [
   memoryWriteTool,
   memorySearchTool,
   recallAuditTool,
+
+  // ===== 中频 — 进化 =====
+  skillFileTool,
 
   // ===== 低频/专用 =====
   taskCheckBackgroundTool,  // 检查后台任务
