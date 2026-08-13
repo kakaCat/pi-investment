@@ -1,0 +1,24 @@
+# Agent OS Configuration
+
+server:
+  host: 127.0.0.1
+  port: 8080
+
+database:
+  host: 127.0.0.1
+  port: 5432
+  user: postgres
+  password: ""
+  dbname: agent_os
+  sslmode: disable
+
+log:
+  level: info
+  format: json
+  output_path: stdout
+
+redis:
+  host: 127.0.0.1
+  port: 6379
+  password: ""
+  db: 0
