@@ -8,18 +8,18 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 // 工具面 = 生产 gateway 同款（core + 三件套）
-import { getCoreTools, isToolSearchMode } from "../../infrastructure/tools/catalog.js";
-import { toolSearchMetaTools } from "../../infrastructure/tools/meta/tool-search-tools.js";
-import { allCustomTools, initMemoryTools } from "../../infrastructure/tools/index.js";
-import { setPlanToolContext } from "../../infrastructure/tools/agent/plan-tool.js";
-import { loadSkills, type Skill } from "../../sdk-facade.js";
-import { initSkillsBlock } from "../../core/agent/system-prompt.js";
-import { initSkillRouter } from "../../services/intelligence/skill-router.js";
-import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
-import { createGatewaySessionFactory } from "../../api/gateway/session-factory.js";
-import { initLLM } from "../../services/llm/index.js";
-import { paths } from "../../config/config.js";
-import type { ToolDefinition } from "../../infrastructure/tools/index.js";
+import { getCoreTools, isToolSearchMode } from "../infrastructure/tools/catalog.js";
+import { toolSearchMetaTools } from "../infrastructure/tools/meta/tool-search-tools.js";
+import { allCustomTools, initMemoryTools } from "../infrastructure/tools/index.js";
+import { setPlanToolContext } from "../infrastructure/tools/agent/plan-tool.js";
+import { loadSkills, type Skill } from "../sdk-facade.js";
+import { initSkillsBlock } from "../core/agent/system-prompt.js";
+import { initSkillRouter } from "../services/intelligence/skill-router.js";
+import { initSkillGuard } from "../infrastructure/tools/skill-guard.js";
+import { createGatewaySessionFactory } from "../api/gateway/session-factory.js";
+import { initLLM } from "../services/llm/index.js";
+import { paths } from "../config/config.js";
+import type { ToolDefinition } from "../infrastructure/tools/index.js";
 
 const TASKS = [
   { key: "t8-pool", name: "股票池查询（非常驻 pool_manage）", prompt: "列出当前所有股票池，告诉我有哪些动态池。用工具查，不要凭记忆回答。" },
