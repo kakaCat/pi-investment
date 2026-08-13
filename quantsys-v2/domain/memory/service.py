@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -11,6 +12,14 @@ from domain.memory.hybrid_search import hybrid_rank
 from domain.memory.models import MemoryEntry, MemoryKind, MemoryStatus
 
 logger = structlog.get_logger(__name__)
+
+
+def _load_cosine_floor() -> float:
+    """读取向量相似度下限，解析失败回退 0.30"""
+    try:
+        return float(os.environ.get("MEMORY_RECALL_COSINE_FLOOR", "0.30"))
+    except ValueError:
+        return 0.30
 
 
 class MemoryService:
@@ -129,7 +138,9 @@ class MemoryService:
         """
         candidates = self.repo.list_filtered(scope=scope, kind=kind, status=status)
         query_embedding = self.embedding_service.embed(q)
-        result = hybrid_rank(q, candidates, query_embedding, limit)
+        result = hybrid_rank(
+            q, candidates, query_embedding, limit, cosine_floor=_load_cosine_floor()
+        )
         logger.info(
             f"memory hybrid search: q={q} strategy={result['strategy']} "
             f"degraded={result['degraded']} found={result['total']}"

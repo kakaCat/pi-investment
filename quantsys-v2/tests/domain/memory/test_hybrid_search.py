@@ -114,6 +114,33 @@ class TestHybridRank:
         assert result["strategy"] == "none"
 
 
+class TestCosineFloor:
+    def test_below_floor_filtered(self):
+        # 查询向量 [1,0]；item1 同向 sim=1.0，item2 正交 sim=0.0
+        items = [_item(1, "t1", "c1", [1.0, 0.0]), _item(2, "t2", "c2", [0.0, 1.0])]
+        ranked = hs.vector_rank([1.0, 0.0], items, cosine_floor=0.30)
+        assert [r["id"] for r in ranked] == [1]
+
+    def test_floor_zero_backward_compatible(self):
+        items = [_item(1, "t1", "c1", [1.0, 0.0]), _item(2, "t2", "c2", [0.0, 1.0])]
+        ranked = hs.vector_rank([1.0, 0.0], items, cosine_floor=0.0)
+        assert len(ranked) == 2
+
+    def test_default_floor_keeps_old_behavior(self):
+        # 不传 cosine_floor = 0.0，与现状一致
+        items = [_item(1, "t1", "c1", [1.0, 0.0]), _item(2, "t2", "c2", [0.0, 1.0])]
+        assert len(hs.vector_rank([1.0, 0.0], items)) == 2
+
+    def test_hybrid_rank_threads_floor(self):
+        # 向量无一过线且 BM25 零命中 → none
+        items = [_item(1, "t1", "c1", [0.0, 1.0])]
+        result = hs.hybrid_rank(
+            "完全无关的词xyz", items, [1.0, 0.0], 5, cosine_floor=0.30
+        )
+        assert result["strategy"] == "none"
+        assert result["items"] == []
+
+
 # ---------- embedding 客户端降级 ----------
 
 

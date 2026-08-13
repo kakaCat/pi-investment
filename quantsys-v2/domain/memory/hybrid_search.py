@@ -101,17 +101,18 @@ def bm25_rank(query: str, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def vector_rank(
-    query_embedding: List[float], items: List[Dict[str, Any]]
+    query_embedding: List[float], items: List[Dict[str, Any]], cosine_floor: float = 0.0
 ) -> List[Dict[str, Any]]:
-    """向量余弦排序（应用层计算），无 embedding 的条目跳过"""
+    """向量余弦排序（应用层计算），无 embedding 或 sim < cosine_floor 的条目跳过"""
     ranked = []
     for it in items:
         vec = parse_embedding(it.get("embedding"))
         if vec is None:
             continue
         sim = cosine_similarity(query_embedding, vec)
-        if sim > 0:
-            ranked.append({**it, "vector_score": sim})
+        if sim < cosine_floor:
+            continue
+        ranked.append({**it, "vector_score": sim})
     ranked.sort(key=lambda x: x["vector_score"], reverse=True)
     return ranked
 
@@ -152,6 +153,7 @@ def hybrid_rank(
     items: List[Dict[str, Any]],
     query_embedding: Optional[List[float]],
     limit: int,
+    cosine_floor: float = 0.0,
 ) -> Dict[str, Any]:
     """混合检索主入口
 
@@ -160,6 +162,7 @@ def hybrid_rank(
         items: 候选语料（已过 scope/kind/status 过滤）
         query_embedding: 查询向量；None 表示 embedding 不可用（降级纯 BM25）
         limit: 返回数量上限
+        cosine_floor: 向量相似度下限，sim < floor 的条目剔除（0.0 = 不过滤）
 
     Returns:
         {"items": [...带 score/source], "total": N, "degraded": bool, "strategy": str}
@@ -169,7 +172,9 @@ def hybrid_rank(
 
     bm25_list = bm25_rank(query, items)[:candidate_k]
     vector_list = (
-        vector_rank(query_embedding, items)[:candidate_k] if query_embedding else []
+        vector_rank(query_embedding, items, cosine_floor)[:candidate_k]
+        if query_embedding
+        else []
     )
 
     if bm25_list and vector_list:
