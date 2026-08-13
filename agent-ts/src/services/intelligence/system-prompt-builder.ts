@@ -26,7 +26,7 @@ export interface BuildSystemPromptOptions {
   date: string;
   cwd: string;
   model: string;
-  channel?: "terminal" | "api";
+  channel?: "feishu" | "tui" | "web";
   mode?: "full" | "minimal" | "none";
   customToolsBlock?: string;
   customTools?: Array<{
@@ -41,8 +41,9 @@ export interface BuildSystemPromptOptions {
 }
 
 const CHANNEL_HINTS: Record<string, string> = {
-  terminal: "You are responding via a terminal REPL. Markdown is supported.",
-  api: "You are responding via API. Be concise and structured.",
+  feishu: "You are responding via Feishu (飞书) chat bot. Keep responses concise and direct. Avoid markdown tables — use plain text lists or brief paragraphs. Focus on actionable insights.",
+  tui: "You are responding via a terminal TUI (Text User Interface). Full markdown is supported. Provide complete analysis with tables, lists, and formatted sections as needed.",
+  web: "You are responding via web dashboard. Full markdown is supported. Use rich formatting including tables, code blocks, headers, and lists to structure information clearly.",
 };
 
 /** 读取启动健康自检结果（未执行自检时返回 null） */
@@ -61,7 +62,7 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
     date,
     cwd,
     model,
-    channel = "terminal",
+    channel = "tui",
     mode = "full",
     customToolsBlock = "",
     customTools = [],

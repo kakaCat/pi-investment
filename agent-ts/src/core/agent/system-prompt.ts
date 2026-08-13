@@ -142,7 +142,7 @@ export function buildAgentSystemPrompt(params: {
     date: chinaDate(now),
     cwd: workspaceDir,
     model: getActiveModelId(),
-    channel: "terminal",
+    channel: "tui",
     mode: "full",
     customToolsBlock,
     customTools: tools,
