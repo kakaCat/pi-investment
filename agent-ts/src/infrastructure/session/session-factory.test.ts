@@ -6,12 +6,6 @@ import { tmpdir } from "os";
 const originalCwd = process.cwd();
 let tempDir: string | null = null;
 
-/** W1.4 记忆召回 mock：默认返回空（不注入），各测试按需 mockResolvedValue */
-const mockPrefetch = jest.fn<(...args: any[]) => Promise<string>>();
-jest.unstable_mockModule("../../services/memory/index.js", () => ({
-  getMemoryProvider: () => ({ prefetch: mockPrefetch }),
-}));
-
 afterEach(() => {
   process.chdir(originalCwd);
   jest.resetModules();
@@ -167,54 +161,29 @@ describe("wrapSessionWithLogger 技能路由", () => {
 
     expect(received[0].message).toBe(taskMessage);
   });
-});
 
-describe("wrapSessionWithLogger 记忆召回注入", () => {
-  beforeEach(() => {
-    mockPrefetch.mockReset();
-  });
-
-  test("slash 命令原样透传，不注入召回记忆（/provider 参数不被污染）", async () => {
-    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-recall-"));
+  test("slash 命令原样透传、不强制路由", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-routing-"));
     process.chdir(tempDir);
 
     const logger = await import("../logging/observable-logger.js");
-    logger.initSession("20260813000001_recall1");
+    logger.initSession("20260812000003_routing3");
 
     const { wrapSessionWithLogger } = await import("./session-factory.js");
     const { session, received } = createPromptCapturingSession();
     wrapSessionWithLogger(session as any);
 
-    mockPrefetch.mockResolvedValue("** active watch rules: #30 歌尔002241 **");
-    await session.prompt("/provider pro");
+    await session.prompt("/skill:portfolio-entry 我卖了茅台100股");
 
-    expect(received[0].message).toBe("/provider pro");
+    expect(received[0].message).toBe("/skill:portfolio-entry 我卖了茅台100股");
   });
 
-  test("普通对话消息照常注入召回记忆", async () => {
-    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-recall-"));
+  test("路由判定基于原始消息：分析类消息路由到 deep-analysis", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-routing-"));
     process.chdir(tempDir);
 
     const logger = await import("../logging/observable-logger.js");
-    logger.initSession("20260813000002_recall2");
-
-    const { wrapSessionWithLogger } = await import("./session-factory.js");
-    const { session, received } = createPromptCapturingSession();
-    wrapSessionWithLogger(session as any);
-
-    mockPrefetch.mockResolvedValue("** 某条记忆 **");
-    await session.prompt("今天大盘怎么样");
-
-    expect(received[0].message).toContain('<recalled_memory source="auto-prefetch">');
-    expect(received[0].message).toContain("** 某条记忆 **");
-  });
-
-  test("路由判定基于原始消息：召回记忆里的交易关键词不误触发/误抑制路由", async () => {
-    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-recall-"));
-    process.chdir(tempDir);
-
-    const logger = await import("../logging/observable-logger.js");
-    logger.initSession("20260813000003_recall3");
+    logger.initSession("20260812000004_routing4");
 
     const { initSkillRouter } = await import("../../services/intelligence/skill-router.js");
     initSkillRouter([{ name: "deep-analysis" }, { name: "portfolio-entry" }] as any);
@@ -223,47 +192,8 @@ describe("wrapSessionWithLogger 记忆召回注入", () => {
     const { session, received } = createPromptCapturingSession();
     wrapSessionWithLogger(session as any);
 
-    // 记忆里的 止损 会误抑制 deep-analysis（negative），加仓/买入 会误触发 portfolio-entry
-    mockPrefetch.mockResolvedValue("** 歌尔002241 (21.5止损/22.4加仓), 中国海油600938 下破31.2买入 **");
     await session.prompt("帮我分析一下贵州茅台600519的走势");
 
     expect(received[0].message).toBe("/skill:deep-analysis 帮我分析一下贵州茅台600519的走势");
-  });
-
-  test("强制路由的 skill 调用不追加召回记忆（与显式 /skill 调用一致）", async () => {
-    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-recall-"));
-    process.chdir(tempDir);
-
-    const logger = await import("../logging/observable-logger.js");
-    logger.initSession("20260813000004_recall4");
-
-    const { initSkillRouter } = await import("../../services/intelligence/skill-router.js");
-    initSkillRouter([{ name: "portfolio-entry" }] as any);
-
-    const { wrapSessionWithLogger } = await import("./session-factory.js");
-    const { session, received } = createPromptCapturingSession();
-    wrapSessionWithLogger(session as any);
-
-    mockPrefetch.mockResolvedValue("** 某条记忆 **");
-    await session.prompt("帮我记录交易，我卖了茅台100股");
-
-    expect(received[0].message).toBe("/skill:portfolio-entry 帮我记录交易，我卖了茅台100股");
-  });
-
-  test("显式 /skill 调用原样透传，不注入召回记忆", async () => {
-    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-recall-"));
-    process.chdir(tempDir);
-
-    const logger = await import("../logging/observable-logger.js");
-    logger.initSession("20260813000005_recall5");
-
-    const { wrapSessionWithLogger } = await import("./session-factory.js");
-    const { session, received } = createPromptCapturingSession();
-    wrapSessionWithLogger(session as any);
-
-    mockPrefetch.mockResolvedValue("** 某条记忆 **");
-    await session.prompt("/skill:portfolio-entry 我卖了茅台100股");
-
-    expect(received[0].message).toBe("/skill:portfolio-entry 我卖了茅台100股");
   });
 });
