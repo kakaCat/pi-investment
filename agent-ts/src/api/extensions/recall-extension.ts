@@ -10,7 +10,7 @@
  * 全程 try/catch，异常只 console.warn，绝不阻塞对话。
  */
 
-import type { ExtensionFactory } from "@mariozechner/pi-coding-agent";
+import type { ExtensionFactory, InputSource } from "@mariozechner/pi-coding-agent";
 import type { MemorySearchResult } from "../../services/memory/port.js";
 import { getMemoryProvider } from "../../services/memory/provider-manager.js";
 import { RecallService } from "../../services/recall/recall-service.js";
@@ -22,13 +22,22 @@ import type { RecallFlow, RecallHit } from "../../domain/recall/types.js";
 const SKILL_PREFIX_RE = /^\/skill:[a-z0-9-]+/i;
 
 /**
- * flow 判定表（P2-T1 阶段，实测结论 2026-08-13）：
- * - 当前所有通道 input.source 均为 "interactive"，尚无调用点显式传 source。
- * - 因此本阶段只能靠 /skill: 前缀区分 skill-invocation 与 interactive-chat。
- * - scheduled-task / wake-event 的区分依赖 P2-T3 显式 source 接线
- *   （rpc/extension 来源 → scheduled-task/wake-event），此处先按 interactive-chat 处理。
+ * flow 判定表（P2-T3 接线，实测结论 2026-08-13）：
+ * 判定依据 = SDK `input` 事件 source（PromptOptions.source）优先级最高，其次 /skill: 前缀。
+ *
+ * | source       | flow             | 来源通道                          |
+ * |--------------|------------------|-----------------------------------|
+ * | rpc          | scheduled-task   | 调度器 promptAgent（index/headless）|
+ * | extension    | wake-event       | wake 通道（3002 HTTP 推送）        |
+ * | interactive  | skill-invocation | 人工消息且 /skill: 前缀            |
+ * | interactive  | interactive-chat | 其余人工消息（TUI/feishu/web）      |
+ *
+ * 备注：scheduled/wake 消息是自带完整工作流的机器消息，不会带 /skill: 前缀，
+ * 所以 source 判定优先于 /skill: 前缀判定。
  */
-export function detectFlow(rawText: string): RecallFlow {
+export function detectFlow(rawText: string, source: InputSource = "interactive"): RecallFlow {
+  if (source === "rpc") return "scheduled-task";
+  if (source === "extension") return "wake-event";
   return SKILL_PREFIX_RE.test(rawText.trimStart()) ? "skill-invocation" : "interactive-chat";
 }
 
@@ -78,16 +87,18 @@ export function createRecallExtension(
 ): ExtensionFactory {
   return (pi) => {
     let stashedText = "";
+    let stashedSource: InputSource = "interactive";
     const service = new RecallService(searchPort, auditPort);
 
     pi.on("input", (event) => {
-      // 暂存原文（skill 展开前）。before_agent_start.prompt 是展开后文本，不能用来判 flow。
+      // 暂存原文 + source（skill 展开前）。before_agent_start.prompt 是展开后文本，不能用来判 flow。
       stashedText = event.text ?? "";
+      stashedSource = event.source ?? "interactive";
     });
 
     pi.on("before_agent_start", async () => {
       try {
-        const flow = detectFlow(stashedText);
+        const flow = detectFlow(stashedText, stashedSource);
         const rawText = flow === "skill-invocation" ? stripSkillPrefix(stashedText) : stashedText;
         const message = await service.recall({ flow, rawText });
         if (message) {

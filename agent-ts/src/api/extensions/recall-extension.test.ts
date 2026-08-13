@@ -82,6 +82,30 @@ describe('recallExtension 接线', () => {
 
     expect(result).toBeUndefined();
   });
+
+  it('④ source=rpc → flow=scheduled-task 写入 message.details', async () => {
+    const search = jest.fn<SearchFn>().mockResolvedValue([hit(1, 0.9)]);
+    const audit = jest.fn<AuditFn>().mockResolvedValue(undefined);
+    const pi = install(search, audit);
+
+    pi.emit('input', { text: '📚 每日复盘', source: 'rpc' });
+    const result = await pi.emit('before_agent_start', { prompt: '📚 每日复盘' });
+
+    expect(result.message).toBeDefined();
+    expect(result.message.details.flow).toBe('scheduled-task');
+  });
+
+  it('⑤ source=extension → flow=wake-event 写入 message.details', async () => {
+    const search = jest.fn<SearchFn>().mockResolvedValue([hit(1, 0.9)]);
+    const audit = jest.fn<AuditFn>().mockResolvedValue(undefined);
+    const pi = install(search, audit);
+
+    pi.emit('input', { text: '【盯盘触发】', source: 'extension' });
+    const result = await pi.emit('before_agent_start', { prompt: '【盯盘触发】' });
+
+    expect(result.message).toBeDefined();
+    expect(result.message.details.flow).toBe('wake-event');
+  });
 });
 
 describe('detectFlow', () => {
@@ -89,8 +113,20 @@ describe('detectFlow', () => {
     expect(detectFlow('/skill:foo bar')).toBe('skill-invocation');
   });
 
-  it('普通文本 → interactive-chat（scheduled/wake 区分延后 P2-T3）', () => {
+  it('普通文本 → interactive-chat', () => {
     expect(detectFlow('中国铝业股息')).toBe('interactive-chat');
+  });
+
+  it('source=rpc → scheduled-task（调度任务）', () => {
+    expect(detectFlow('📚 每日复盘', 'rpc')).toBe('scheduled-task');
+  });
+
+  it('source=extension → wake-event（wake 通道）', () => {
+    expect(detectFlow('【盯盘触发】', 'extension')).toBe('wake-event');
+  });
+
+  it('source=rpc 优先于 /skill: 前缀判定', () => {
+    expect(detectFlow('/skill:foo bar', 'rpc')).toBe('scheduled-task');
   });
 });
 

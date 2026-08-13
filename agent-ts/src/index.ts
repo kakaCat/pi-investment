@@ -7,6 +7,7 @@ import "./api/index.js";
 import { initAgentDecisionTasks } from "./services/scheduler/init-agent-tasks.js";
 import { startSchedulerRuntime } from "./services/scheduler/scheduler-runtime.js";
 import { createSession } from "./session-facade.js";
+import { createAppResourceLoader } from "./api/extensions/model-command.js";
 import {
   runStartupHealthCheck,
   formatHealthForConsole,
@@ -55,12 +56,14 @@ async function main() {
 
         try {
           // 创建新的 Agent 会话
+          // P2-T3 接线：resourceLoader 让 recallExtension 加载；source=rpc → scheduled-task flow。
           const { session } = await createSession({
-            cwd: process.cwd()
+            cwd: process.cwd(),
+            resourceLoader: await createAppResourceLoader(process.cwd()),
           });
 
           // 执行 Agent prompt（自主决策）
-          await session.prompt(message);
+          await session.prompt(message, { source: "rpc" });
 
           console.log("✅ Agent 任务执行完成");
         } catch (error) {

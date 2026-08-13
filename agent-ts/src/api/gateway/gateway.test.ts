@@ -62,4 +62,27 @@ describe("AgentGateway", () => {
     expect(typeof handlers.isProcessing).toBe("function");
     expect(typeof handlers.abort).toBe("function");
   });
+
+  it("P2-T3 source 接线：wake → extension；feishu/cli → interactive", async () => {
+    const prompts: Array<{ text: string; options?: { source?: string } }> = [];
+    const gw = new AgentGateway({
+      sessionsRootDir: dir,
+      createSession: async () => ({
+        prompt: async (text: string, options?: { source?: string }) => {
+          prompts.push({ text, options });
+        },
+        abort: async () => {},
+        dispose() {},
+        agent: { state: { messages: [{ role: "assistant", content: "r" }] } },
+      }) as any,
+    });
+
+    await gw.dispatch({ channel: "wake", peerId: "p1", messageId: "m1", text: "wake msg" });
+    await gw.dispatch({ channel: "feishu", peerId: "p2", messageId: "m2", text: "hi" });
+    await gw.dispatch({ channel: "cli", peerId: "p3", messageId: "m3", text: "yo" });
+
+    expect(prompts[0].options?.source).toBe("extension");
+    expect(prompts[1].options?.source).toBe("interactive");
+    expect(prompts[2].options?.source).toBe("interactive");
+  });
 });

@@ -5,6 +5,7 @@
 import { ChannelSessionManager, type ChannelAgentSession } from "./channel-session-manager.js";
 import { buildSessionKey } from "./session-key.js";
 import type { GatewayHandlers, InboundEvent } from "./types.js";
+import type { InputSource } from "@mariozechner/pi-coding-agent";
 
 export interface AgentGatewayOptions {
   sessionsRootDir: string;
@@ -36,7 +37,10 @@ export class AgentGateway {
 
   async dispatch(event: InboundEvent): Promise<string> {
     const sessionKey = buildSessionKey(event.channel, event.peerId);
-    return this.manager.processMessage(sessionKey, event.messageId, event.text);
+    // P2-T3 接线：wake 通道是机器事件（v2 推送）→ source=extension → wake-event flow；
+    // feishu/cli 是人工消息 → 缺省 interactive（interactive-chat / skill-invocation）。
+    const source: InputSource = event.channel === "wake" ? "extension" : "interactive";
+    return this.manager.processMessage(sessionKey, event.messageId, event.text, source);
   }
 
   async abort(sessionKey: string): Promise<boolean> {

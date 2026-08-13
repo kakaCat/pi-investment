@@ -6,11 +6,12 @@
  */
 import { appendFileSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
+import type { InputSource } from "@mariozechner/pi-coding-agent";
 import { emitSessionEvent } from "./session-events.js";
 import { parseSessionKey } from "./session-key.js";
 
 export interface ChannelAgentSession {
-  prompt(text: string): Promise<void>;
+  prompt(text: string, options?: { source?: InputSource }): Promise<void>;
   abort(): Promise<void>;
   dispose(): void;
   agent?: {
@@ -37,6 +38,7 @@ export interface ChannelSessionManagerOptions {
 interface QueueItem {
   messageId: string;
   text: string;
+  source?: InputSource;
   resolve: (reply: string) => void;
   reject: (error: Error) => void;
 }
@@ -107,7 +109,7 @@ export class ChannelSessionManager {
     return this.sessions.get(sessionId)?.processing ?? false;
   }
 
-  async processMessage(sessionId: string, messageId: string, text: string): Promise<string> {
+  async processMessage(sessionId: string, messageId: string, text: string, source?: InputSource): Promise<string> {
     const state = await this.getOrCreateSession(sessionId);
 
     return new Promise((resolve, reject) => {
@@ -116,7 +118,7 @@ export class ChannelSessionManager {
         reject(new Error("Task cancelled"));
         return;
       }
-      state.queue.push({ messageId, text, resolve, reject });
+      state.queue.push({ messageId, text, source, resolve, reject });
       if (!state.processing) {
         void this.drainQueue(state);
       }
@@ -217,7 +219,8 @@ export class ChannelSessionManager {
           await this.beforePrompt(state.session, state.sessionId, item.text, state.sessionDir);
         }
 
-        await state.session.prompt(item.text);
+        // P2-T3 接线：透传 source（wake → extension → wake-event flow；feishu/cli 缺省 interactive）
+        await state.session.prompt(item.text, item.source ? { source: item.source } : undefined);
 
         // SDK 对 LLM 错误（如 401）不抛出，只记录 stopReason=error 的空 assistant 消息。
         // 必须在此检出并抛错，否则上游会收到"成功+空回复"，事件被无声丢失（2026-08-05 事故）。

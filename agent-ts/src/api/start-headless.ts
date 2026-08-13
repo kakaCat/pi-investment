@@ -24,6 +24,7 @@ import {
 import { initAgentDecisionTasks } from "../services/scheduler/init-agent-tasks.js";
 import { startSchedulerRuntime } from "../services/scheduler/scheduler-runtime.js";
 import { createSession } from "../session-facade.js";
+import { createAppResourceLoader } from "./extensions/model-command.js";
 import { startGateway } from "./gateway/start-gateway.js";
 import { WakeAdapter } from "./gateway/adapters/wake-adapter.js";
 import { startFeishuBot } from "./feishu.js";
@@ -71,8 +72,12 @@ async function main() {
       // 每个任务独立会话（与 index.ts 同款模式）；
       // createSession 出来的会话不经 TUI 的 wrapSessionWithLogger，
       // 调度消息本身自带完整工作流。
-      const { session } = await createSession({ cwd: process.cwd() });
-      await session.prompt(message);
+      // P2-T3 接线：resourceLoader 让 recallExtension 加载；source=rpc → scheduled-task flow。
+      const { session } = await createSession({
+        cwd: process.cwd(),
+        resourceLoader: await createAppResourceLoader(process.cwd()),
+      });
+      await session.prompt(message, { source: "rpc" });
       console.log("✅ 定时任务执行完成");
     },
     writeOutput: (message) => process.stdout.write(message),
