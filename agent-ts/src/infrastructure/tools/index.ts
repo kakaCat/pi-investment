@@ -155,6 +155,7 @@ import { planTool } from "./agent/plan-tool.js";
 import { clarifyTool } from "./agent/clarify-tool.js";
 import { reflectTool } from "./agent/reflect-tool.js";
 import { memoryWriteTool, memorySearchTool } from "./agent/memory-tool.js";
+import { recallAuditTool } from "./agent/recall-audit-tool.js";
 import { evolutionRunTool } from "./agent/evolution-tool.js";
 import { queryExperienceTool } from "./agent/query-experience-tool.js";
 import { experienceWriteTool } from "./agent/experience-write-tool.js";
@@ -371,6 +372,7 @@ export const allCustomTools = [
   // ===== 中频 — 记忆 =====
   memoryWriteTool,
   memorySearchTool,
+  recallAuditTool,
 
   // ===== 低频/专用 =====
   taskCheckBackgroundTool,  // 检查后台任务
