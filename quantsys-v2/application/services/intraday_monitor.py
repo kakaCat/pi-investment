@@ -262,35 +262,6 @@ def get_intraday_monitor() -> IntradayMonitor:
         _monitor = IntradayMonitor()
     return _monitor
 
-
-def register_intraday_monitor_to_scheduler():
-    """将盘中监控注册到 APScheduler
-
-    交易时段每30分钟执行一次。
-    """
-    from application.services.unified_scheduler import get_unified_scheduler
-
-    scheduler = get_unified_scheduler()
-    monitor = get_intraday_monitor()
-
-    # 上午 09:30-11:30 每30分钟
-    scheduler.add_cron_job(
-        func=monitor.check,
-        job_id='intraday_monitor_am',
-        name='盘中监控(上午)',
-        minute='0,30',
-        hour='9-11',
-        day_of_week='mon-fri',
-    )
-
-    # 下午 13:00-15:00 每30分钟
-    scheduler.add_cron_job(
-        func=monitor.check,
-        job_id='intraday_monitor_pm',
-        name='盘中监控(下午)',
-        minute='0,30',
-        hour='13-14',
-        day_of_week='mon-fri',
-    )
-
-    logger.info("IntradayMonitor registered (every 30min during trading hours)")
+# 盘中监控的调度宿主 = FastAPI lifespan（orchestrator_bootstrap.py，2026-08-13 起）。
+# 原 register_intraday_monitor_to_scheduler（APScheduler/unified_scheduler 路线）
+# 已随 scheduler_daemon 一并删除。

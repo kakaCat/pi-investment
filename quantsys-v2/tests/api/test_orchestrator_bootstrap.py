@@ -127,13 +127,12 @@ def test_tick_exception_does_not_kill_thread(monkeypatch):
 
 
 def test_scheduler_daemon_no_longer_hosts_orchestrator():
-    """契约守护：scheduler_daemon 不再注册 orchestrator/intraday（唯一宿主=FastAPI）。
+    """契约守护：scheduler_daemon 已删除（2026-08-13），orchestrator/intraday
+    唯一宿主=FastAPI。
 
-    防止未来部署再次双宿主并行（重复执行 phase/重复唤醒 agent）或静默丢失
-    T+1 结转与盘中止损。
+    防止未来重新引入 daemon 类进程导致双宿主并行（重复执行 phase/重复唤醒
+    agent）或 daemon 死亡后 T+1 结转与盘中止损静默丢失（08-13 今世缘事故）。
     """
-    src = Path(__file__).resolve().parents[2] / 'scheduler_daemon.py'
-    content = src.read_text(encoding='utf-8')
-    assert '_register_orchestrator' not in content
-    assert 'daily_orchestrator_tick' not in content
-    assert 'intraday_monitor_check' not in content
+    repo_root = Path(__file__).resolve().parents[2]
+    assert not (repo_root / 'scheduler_daemon.py').exists()
+    assert not (repo_root / 'application/services/unified_scheduler.py').exists()
