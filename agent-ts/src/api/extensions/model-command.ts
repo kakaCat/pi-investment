@@ -23,6 +23,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { getLLM } from "../../services/llm/index.js";
 import { loopGuardianExtension } from "./loop-guardian.js";
+import { recallExtension } from "./recall-extension.js";
 
 export const modelCommandExtension: ExtensionFactory = (pi) => {
   pi.registerCommand("provider", {
@@ -82,7 +83,7 @@ export async function createAppResourceLoader(cwd: string): Promise<DefaultResou
   const loader = new DefaultResourceLoader({
     cwd,
     agentDir: getAgentDir(),
-    extensionFactories: [modelCommandExtension, loopGuardianExtension],
+    extensionFactories: [modelCommandExtension, loopGuardianExtension, recallExtension],
   });
   await loader.reload();
   return loader;
