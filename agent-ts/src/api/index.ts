@@ -315,21 +315,40 @@ async function main() {
   try {
     console.log("🚀 启动 PI Investment - AI 股票投资顾问...\n");
 
+    // 自动化锁（2026-08-13）：headless 进程持有调度器/gateway/feishu 三件套时，
+    // TUI 降级为纯交互模式——不重复起三件套（防任务双跑 + 3002 端口抢占 + 飞书双连）
+    const { readLiveAutomationLock, acquireAutomationLock, releaseAutomationLock } =
+      await import("../services/runtime-lock.js");
+    const heldLock = readLiveAutomationLock(piDir);
+    const automationDegraded = heldLock !== null && heldLock.pid !== process.pid;
+    if (automationDegraded) {
+      console.log(
+        `ℹ️ 检测到 headless 自动化进程（pid=${heldLock!.pid}），本 TUI 以纯交互模式运行\n` +
+          `   （调度器/wake/feishu 由 headless 托管）\n`,
+      );
+    } else {
+      acquireAutomationLock(piDir, "tui");
+    }
+
     // 启动飞书 Bot（后台 WebSocket 监听）
-    feishuBot = await startFeishuBot();
-    if (feishuBot) {
-      console.log("");
+    if (!automationDegraded) {
+      feishuBot = await startFeishuBot();
+      if (feishuBot) {
+        console.log("");
+      }
     }
 
     // Wake channel（gateway WakeAdapter）：与 TUI/feishu 同进程提供 /wake 接收
     // 失败仅降级警告，不影响 TUI 与 feishu
-    try {
-      const { startGateway } = await import("./gateway/start-gateway.js");
-      const { WakeAdapter } = await import("./gateway/adapters/wake-adapter.js");
-      gatewayHandle = await startGateway([new WakeAdapter()]);
-      console.log("🔔 Wake channel 已集成启动（127.0.0.1:3002）");
-    } catch (err) {
-      console.warn("⚠️ Wake channel 启动失败（降级，不影响 TUI/feishu）:", err instanceof Error ? err.message : err);
+    if (!automationDegraded) {
+      try {
+        const { startGateway } = await import("./gateway/start-gateway.js");
+        const { WakeAdapter } = await import("./gateway/adapters/wake-adapter.js");
+        gatewayHandle = await startGateway([new WakeAdapter()]);
+        console.log("🔔 Wake channel 已集成启动（127.0.0.1:3002）");
+      } catch (err) {
+        console.warn("⚠️ Wake channel 启动失败（降级，不影响 TUI/feishu）:", err instanceof Error ? err.message : err);
+      }
     }
 
     // 先初始化 logger（在创建 session 之前）
@@ -365,7 +384,8 @@ async function main() {
     restoreConversationIntoSession(session, taskCounts);
 
     // 启动数据库调度器。CRON.json 已废弃，数据库是唯一任务来源。
-    const schedulerRuntime = await startSchedulerRuntime({
+    // headless 持锁时跳过（自动化三件套归 headless）
+    const schedulerRuntime = automationDegraded ? null : await startSchedulerRuntime({
       promptAgent: async (message) => {
         // 调度任务消息自带完整工作流，跳过技能路由（避免被强制注入 portfolio-entry 等 skill）
         const options: PromptOptionsWithRouting = { skipSkillRouting: true };
@@ -394,6 +414,7 @@ async function main() {
       schedulerRuntime?.service.stop();
       if (feishuBot) feishuBot.shutdown();
       if (gatewayHandle) await gatewayHandle.shutdown();
+      releaseAutomationLock(piDir);
       console.log(perfMonitor.getReport());
       logger.logSessionEnd();
 

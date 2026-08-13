@@ -36,13 +36,19 @@ async function main() {
     // 0.5 工具引用 sanity check：skill/任务模板引用了不存在的工具名时 warn（不阻断）
     await runToolReferenceCheckOnStartup(process.cwd());
 
-    // 1. 初始化 Agent AI 决策任务
-    await initAgentDecisionTasks();
-    console.log("✅ Agent AI 决策任务初始化完成");
+    // 1. 初始化 Agent AI 决策任务 + 启动调度器
+    // 自动化锁守卫（2026-08-13）：headless 进程持有时 TUI 不起调度器（防任务双跑）
+    const { readLiveAutomationLock } = await import("./services/runtime-lock.js");
+    const { paths: lockPaths } = await import("./config/config.js");
+    if (readLiveAutomationLock(lockPaths.piDir)) {
+      console.log("ℹ️ 调度器由 headless 进程托管，本进程跳过");
+    } else {
+      await initAgentDecisionTasks();
+      console.log("✅ Agent AI 决策任务初始化完成");
 
-    // 2. 启动调度器（关键！）
-    console.log("\n🚀 正在启动调度器...");
-    await startSchedulerRuntime({
+      // 2. 启动调度器（关键！）
+      console.log("\n🚀 正在启动调度器...");
+      await startSchedulerRuntime({
       promptAgent: async (message: string) => {
         console.log("\n⏰ 定时任务触发，唤醒 Agent...");
         console.log(`📋 任务消息: ${message.substring(0, 100)}...`);
@@ -72,6 +78,7 @@ async function main() {
     console.log("  - morning_ai_analysis:   工作日 09:00");
     console.log("  - realtime_quick_check:  工作日 09:00-14:55 (每30分钟)");
     console.log("  - daily_ai_review:       每天 18:00\n");
+    }
 
   } catch (error) {
     console.error("❌ 初始化失败:", error);
