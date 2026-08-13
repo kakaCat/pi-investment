@@ -134,7 +134,7 @@ func setDefaults(v *viper.Viper) {
 	// Database defaults
 	v.SetDefault("database.host", "127.0.0.1")
 	v.SetDefault("database.port", 5432)
-	v.SetDefault("database.user", "postgres")
+	v.SetDefault("database.user", "yunpeng")
 	v.SetDefault("database.password", "")
 	v.SetDefault("database.dbname", "agent_os")
 	v.SetDefault("database.sslmode", "disable")
