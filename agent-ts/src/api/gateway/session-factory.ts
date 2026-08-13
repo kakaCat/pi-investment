@@ -28,6 +28,26 @@ import {
 } from "../../core/agent/session-adapter.js";
 import { microCompact, compactConversationHistory } from "../../services/compaction/compaction-service.js";
 import { applyToolResultTTL } from "../../services/compaction/tool-result-ttl.js";
+import { parseSessionKey } from "./session-key.js";
+
+/**
+ * A3-T1 渠道接线：从 sessionKey（agent:<agentId>:<channel>:<peerId>）提取渠道，
+ * 映射到提示词 Channel 层。feishu/web 有专属 hint；其余（wake/terminal 等）走 terminal 默认。
+ * 解析失败（非标准 key）不抛——Channel 层只是语气提示，绝不阻断会话创建。
+ */
+export function channelHintFromSessionKey(
+  sessionKey: string,
+): "terminal" | "api" | "feishu" | "tui" | "web" {
+  try {
+    const { channel } = parseSessionKey(sessionKey);
+    if (channel === "feishu" || channel === "web" || channel === "tui" || channel === "api") {
+      return channel;
+    }
+    return "terminal";
+  } catch {
+    return "terminal";
+  }
+}
 import * as logger from "../../infrastructure/logging/observable-logger.js";
 import { setSessionContext } from "./session-events.js";
 import type { ChannelAgentSession } from "./channel-session-manager.js";
@@ -102,6 +122,7 @@ export function createGatewaySessionFactory(
             workspaceDir: paths.root,
             toolSearchMode: isToolSearchMode(),
             agentKind,
+            channel: channelHintFromSessionKey(_sessionKey),
           }),
           customTools: sessionTools,
           skills,

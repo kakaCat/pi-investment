@@ -91,10 +91,18 @@ describe('System Prompt Builder - Channel Differentiation', () => {
     }
   });
 
-  test('缺省 channel 等价于 tui', () => {
-    const explicit = buildSystemPrompt({ ...baseOptions, channel: 'tui' });
+  test('缺省 channel 等价于 terminal（现状默认不变）', () => {
+    const explicit = buildSystemPrompt({ ...baseOptions, channel: 'terminal' });
     const implicit = buildSystemPrompt({ ...baseOptions });
     expect(implicit).toEqual(explicit);
+  });
+
+  test('既有渠道 terminal/api 保留原文案（防再次误删）', () => {
+    const terminal = buildSystemPrompt({ ...baseOptions, channel: 'terminal' });
+    const api = buildSystemPrompt({ ...baseOptions, channel: 'api' });
+    expect(terminal).toContain('terminal REPL');
+    expect(api).toContain('via API');
+    expect(terminal).not.toEqual(api);
   });
 
   test('Channel 段差异快照：三渠道内容各不相同', () => {

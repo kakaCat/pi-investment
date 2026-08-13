@@ -118,6 +118,7 @@ export function buildAgentSystemPrompt(params: {
   workspaceDir: string;
   toolSearchMode?: boolean; // T8: 常驻 core 集 + 目录检索说明
   agentKind?: AgentKind; // 三 Agent 拆分 A0-T3：默认 'fin'（现状全集，零变化）
+  channel?: "terminal" | "api" | "feishu" | "tui" | "web"; // A3-T1：渠道差异化，默认 terminal（现状）
 }): string {
   const {
     memoryContext = "",
@@ -127,6 +128,7 @@ export function buildAgentSystemPrompt(params: {
     workspaceDir,
     toolSearchMode = false,
     agentKind = "fin",
+    channel = "terminal",
   } = params;
 
   const now = new Date();
@@ -142,7 +144,7 @@ export function buildAgentSystemPrompt(params: {
     date: chinaDate(now),
     cwd: workspaceDir,
     model: getActiveModelId(),
-    channel: "tui",
+    channel,
     mode: "full",
     customToolsBlock,
     customTools: tools,
