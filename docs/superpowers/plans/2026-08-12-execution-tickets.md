@@ -114,7 +114,9 @@
 
 ---
 
-## T4（W1.6）web 记忆面板（4 个可串行子票，一个模型顺序做完）
+## T4（W1.6）web 记忆面板 ✅ 2026-08-13（0e883b4 主抓直接实现：四子票合一页；UI E2E 实证 promote/证据链/混合检索 top3 全中；deprecate 端点合并+重启后补验）
+
+（4 个可串行子票，一个模型顺序做完）
 
 **T4.1 页面骨架与列表**
 1. `web-frontend/src/api/` 下新建 `memory.ts`：封装 `/api/memory/search`、`/api/memory/{id}/validate`、`/api/memory/{id}/supersede`。**注意 apiClient 拦截器解包 {success,data}——用解包后的形状**。

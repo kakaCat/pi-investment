@@ -110,7 +110,7 @@ P2 各项彼此独立，可与 P1 后期并行；但同一文件域的改动不�
 - **目标**：web-frontend 新增"记忆"页：四种 kind 浏览、scope 检索、证据链下钻、testing→active 人工确认按钮、调度观测（cron runs 简表）。
 - **验收**：页面能对 W1.5 产出的 testing 条目执行确认/废弃；证据链点击跳到对应 decision 详情。
 - **依赖**：W1.2（API 面稳定即可开工，可与 W1.3-1.5 并行）
-- **状态**：未开始
+- **状态**：✅ 2026-08-13（0e883b4 主抓直接实现；T4.1-T4.4 一页集成：kind tab/过滤/混合检索/详情抽屉+证据链决策下钻/testing 确认废弃门禁/scheduler_runs 观测；UI E2E 实证 promote 链路+混合检索 top3 命中 v13 案例；**设计补充**：新增 POST /api/memory/{id}/deprecate（supersede 需 new_id，无替代品的废弃走此端点）；顺带修复 5 个预存在 tsc 错误+esbuild devDep——T4.1 验收要求 build 通过而基线红）
 
 ---
 
