@@ -1,10 +1,16 @@
-import { afterEach, describe, expect, jest, test } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { mkdtempSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
 const originalCwd = process.cwd();
 let tempDir: string | null = null;
+
+/** W1.4 记忆召回 mock：默认返回空（不注入），各测试按需 mockResolvedValue */
+const mockPrefetch = jest.fn<(...args: any[]) => Promise<string>>();
+jest.unstable_mockModule("../../services/memory/index.js", () => ({
+  getMemoryProvider: () => ({ prefetch: mockPrefetch }),
+}));
 
 afterEach(() => {
   process.chdir(originalCwd);
@@ -108,21 +114,21 @@ describe("attachLogger auto_retry 事件", () => {
   });
 });
 
-describe("wrapSessionWithLogger 技能路由", () => {
-  /** 假 session：带 subscribe（attachLogger 用）+ prompt 捕获实际收到的消息 */
-  function createPromptCapturingSession() {
-    const received: Array<{ message: string; options: any }> = [];
-    return {
-      session: {
-        subscribe: () => () => {},
-        prompt: async (message: string, options?: any) => {
-          received.push({ message, options });
-        },
+/** 假 session：带 subscribe（attachLogger 用）+ prompt 捕获实际收到的消息 */
+function createPromptCapturingSession() {
+  const received: Array<{ message: string; options: any }> = [];
+  return {
+    session: {
+      subscribe: () => () => {},
+      prompt: async (message: string, options?: any) => {
+        received.push({ message, options });
       },
-      received,
-    };
-  }
+    },
+    received,
+  };
+}
 
+describe("wrapSessionWithLogger 技能路由", () => {
   test("交互消息照常强制路由", async () => {
     tempDir = mkdtempSync(join(tmpdir(), "pi-invest-routing-"));
     process.chdir(tempDir);
@@ -160,5 +166,46 @@ describe("wrapSessionWithLogger 技能路由", () => {
     await session.prompt(taskMessage, { skipSkillRouting: true });
 
     expect(received[0].message).toBe(taskMessage);
+  });
+});
+
+describe("wrapSessionWithLogger 记忆召回注入", () => {
+  beforeEach(() => {
+    mockPrefetch.mockReset();
+  });
+
+  test("slash 命令原样透传，不注入召回记忆（/provider 参数不被污染）", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-recall-"));
+    process.chdir(tempDir);
+
+    const logger = await import("../logging/observable-logger.js");
+    logger.initSession("20260813000001_recall1");
+
+    const { wrapSessionWithLogger } = await import("./session-factory.js");
+    const { session, received } = createPromptCapturingSession();
+    wrapSessionWithLogger(session as any);
+
+    mockPrefetch.mockResolvedValue("** active watch rules: #30 歌尔002241 **");
+    await session.prompt("/provider pro");
+
+    expect(received[0].message).toBe("/provider pro");
+  });
+
+  test("普通对话消息照常注入召回记忆", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "pi-invest-recall-"));
+    process.chdir(tempDir);
+
+    const logger = await import("../logging/observable-logger.js");
+    logger.initSession("20260813000002_recall2");
+
+    const { wrapSessionWithLogger } = await import("./session-factory.js");
+    const { session, received } = createPromptCapturingSession();
+    wrapSessionWithLogger(session as any);
+
+    mockPrefetch.mockResolvedValue("** 某条记忆 **");
+    await session.prompt("今天大盘怎么样");
+
+    expect(received[0].message).toContain('<recalled_memory source="auto-prefetch">');
+    expect(received[0].message).toContain("** 某条记忆 **");
   });
 });

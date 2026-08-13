@@ -242,16 +242,20 @@ export function wrapSessionWithLogger(session: AgentSession, perfMonitor?: any):
 
     // W1.4: 记忆召回注入——按用户消息 prefetch top-3，以附注形式注入（不进系统提示词，保住 prompt cache 前缀）
     // 失败静默降级为空，绝不阻塞对话。
+    // slash 命令（/provider、/skill 等）跳过注入：召回文本会污染命令参数
+    // （2026-08-13：/provider pro 被追加召回记忆，报"未知目标"，无法切换模型）。
     let messageToSend = userMessage;
-    try {
-      const { getMemoryProvider } = await import('../../services/memory/index.js');
-      const provider = getMemoryProvider();
-      const recalled = await provider.prefetch(userMessage.slice(0, 500), undefined, 3, 2000);
-      if (recalled && recalled.trim()) {
-        messageToSend = `${userMessage}\n\n<recalled_memory source="auto-prefetch">\n${recalled}\n</recalled_memory>`;
+    if (!userMessage.trimStart().startsWith('/')) {
+      try {
+        const { getMemoryProvider } = await import('../../services/memory/index.js');
+        const provider = getMemoryProvider();
+        const recalled = await provider.prefetch(userMessage.slice(0, 500), undefined, 3, 2000);
+        if (recalled && recalled.trim()) {
+          messageToSend = `${userMessage}\n\n<recalled_memory source="auto-prefetch">\n${recalled}\n</recalled_memory>`;
+        }
+      } catch {
+        // provider 未初始化或检索失败——静默跳过
       }
-    } catch {
-      // provider 未初始化或检索失败——静默跳过
     }
 
     // T3b 接线：溢出错误触发压缩重试（仅一次）
