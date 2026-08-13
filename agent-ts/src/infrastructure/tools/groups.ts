@@ -10,10 +10,12 @@
 
 // ===== MEMORY_TOOLS =====
 import { memoryWriteTool, memorySearchTool } from './agent/memory-tool.js';
+import { recallAuditTool } from './agent/recall-audit-tool.js';
 
 export const MEMORY_TOOLS = [
   memoryWriteTool,
   memorySearchTool,
+  recallAuditTool,
 ] as const;
 
 // ===== EVOLUTION_TOOLS =====
