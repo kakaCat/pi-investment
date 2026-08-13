@@ -188,7 +188,6 @@ import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   getAutomationConfig,
-  saveAutomationConfig as saveAutomationConfigAPI,
   saveNotificationConfigAPI
 } from '@/services/game-intelligence'
 
@@ -247,7 +246,7 @@ const executeNow = (task: any) => {
   // TODO: 调用API立即执行任务
 }
 
-const saveTaskConfig = (task: any) => {
+const saveTaskConfig = (_task: any) => {
   ElMessage.success('任务配置已保存')
   // TODO: 调用API保存配置
 }

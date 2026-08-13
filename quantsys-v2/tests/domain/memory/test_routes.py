@@ -64,6 +64,35 @@ def test_health(client):
     assert resp.status_code == 200
 
 
+def test_deprecate_and_validate_promote(client, sample_payload):
+    """T4.3 确认门禁契约：validate promote → active；deprecate → deprecated"""
+    resp = client.post("/api/memory", json=sample_payload)
+    assert resp.status_code == 200, resp.text
+    entry_id = resp.json()["id"]
+
+    try:
+        # promote: testing → active
+        resp = client.post(f"/api/memory/{entry_id}/validate",
+                           json={"success": True, "promote": True})
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["status"] == "active"
+
+        # deprecate: active → deprecated
+        resp = client.post(f"/api/memory/{entry_id}/deprecate")
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["status"] == "deprecated"
+
+        # deprecate 不存在的条目 → 400
+        resp = client.post("/api/memory/999999999/deprecate")
+        assert resp.status_code == 400
+    finally:
+        from infrastructure.persistence.orm import get_session
+        from sqlalchemy import text
+        session = get_session()
+        session.execute(text("DELETE FROM quant.memory_entries WHERE id = :id"), {"id": entry_id})
+        session.commit()
+
+
 def test_search_multi_status_filter(client, sample_payload):
     """status 支持逗号分隔（active,testing）——W1.4 queryExperience 依赖此契约"""
     ids = []

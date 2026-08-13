@@ -1,6 +1,9 @@
 import { apiClient } from './client'
 
 export interface FilterTemplate {
+  /** PoolList 扫描建池传入的条件数组（后端按此筛选） */
+  conditions?: any[]
+  logic?: string
   min_score?: number
   max_risk_level?: string
   technical?: string[]

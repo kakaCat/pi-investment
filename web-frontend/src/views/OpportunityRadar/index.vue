@@ -518,35 +518,6 @@ const buildFilterArrays = () => {
   return { technicalArray, fundamentalArray }
 }
 
-// 获取机会列表
-const fetchOpportunities = async () => {
-  try {
-    const { technicalArray, fundamentalArray } = buildFilterArrays()
-
-    const apiFilters: OpportunityFilters = {
-      minScore: filters.scoreRange[0],
-      maxRiskLevel: filters.riskLevel || undefined,
-      industries: filters.industries.length > 0 ? filters.industries : undefined,
-      technical: technicalArray,
-      fundamental: fundamentalArray
-    }
-
-    const response = await analysisApi.getOpportunities({
-      page: currentPage.value,
-      pageSize: pageSize.value,
-      sortBy: sortBy.value,
-      sortOrder: 'desc',
-      ...apiFilters
-    })
-
-    setData(response.items, response.total)
-    updateStats(response.items)
-  } catch (error) {
-    console.error('Failed to fetch opportunities:', error)
-    ElMessage.error('获取机会列表失败')
-  }
-}
-
 const loadStrategies = async () => {
   strategyLoading.value = true
   try {

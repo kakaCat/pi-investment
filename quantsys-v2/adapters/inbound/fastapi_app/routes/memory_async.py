@@ -183,6 +183,24 @@ def supersede_memory(
         raise HTTPException(status_code=500, detail=f"标记替代失败: {str(e)}")
 
 
+@router.post("/api/memory/{entry_id}/deprecate")
+def deprecate_memory(entry_id: int):
+    """废弃记忆条目（status → deprecated）
+
+    T4.3 确认门禁的"废弃"路径：supersede 需要 new_id（替代场景），
+    无替代品的单纯废弃走本端点。deprecated 条目不参与召回。
+    """
+    try:
+        service = _get_service()
+        result = service.update(entry_id, {"status": "deprecated"})
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"deprecate_memory failed: {e}")
+        raise HTTPException(status_code=500, detail=f"废弃记忆失败: {str(e)}")
+
+
 @router.post("/api/memory/import")
 def import_memory(payload: Dict[str, Any] = Body(...)):
     """批量导入记忆条目（往返无损用）

@@ -209,6 +209,12 @@ const routes: RouteRecordRaw[] = [
           }
         ]
       },
+      {
+        path: '/memory',
+        name: 'Memory',
+        component: () => import(/* webpackChunkName: "memory" */ '@/views/Memory/index.vue'),
+        meta: { title: '记忆面板' }
+      },
       // Agent Session 可视化
       {
         path: '/agent-session',

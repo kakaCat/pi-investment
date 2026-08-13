@@ -215,7 +215,7 @@ const viewDetails = (alert: any) => {
   detailsVisible.value = true
 }
 
-const ignoreAlert = (alert: any) => {
+const ignoreAlert = (_alert: any) => {
   ElMessage.success('已忽略预警')
   // TODO: 调用API标记为已读
 }
