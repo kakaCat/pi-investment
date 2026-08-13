@@ -1,14 +1,17 @@
 <template>
   <div class="memory-page">
-    <!-- 降级提示 -->
-    <div
-      v-if="degraded"
-      class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-700"
-    >
-      <span class="font-medium">检索降级：</span>ollama 向量服务不可达，当前为纯 BM25 关键词检索。
-    </div>
+    <!-- Tab 切换 -->
+    <el-tabs v-model="activeTab" class="mb-4">
+      <el-tab-pane label="记忆条目" name="entries">
+        <!-- 降级提示 -->
+        <div
+          v-if="degraded"
+          class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-700"
+        >
+          <span class="font-medium">检索降级：</span>ollama 向量服务不可达，当前为纯 BM25 关键词检索。
+        </div>
 
-    <!-- 顶部过滤栏 -->
+        <!-- 顶部过滤栏 -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-4">
       <div class="flex items-center justify-between mb-4">
         <h2 class="font-semibold text-slate-800">统一记忆</h2>
@@ -148,6 +151,12 @@
         </el-table-column>
       </el-table>
     </div>
+    </el-tab-pane>
+
+    <el-tab-pane label="召回审计" name="audit">
+      <RecallAudit />
+    </el-tab-pane>
+  </el-tabs>
 
     <!-- T4.2 详情抽屉 -->
     <el-drawer v-model="drawerVisible" size="560px" :title="detail?.title || '记忆详情'">
@@ -236,6 +245,10 @@ import {
   type MemoryEntry,
   type SchedulerRun,
 } from '@/services/api/memory'
+import RecallAudit from './RecallAudit.vue'
+
+// ---------- Tab 切换 ----------
+const activeTab = ref('entries')
 
 // ---------- 列表与过滤（T4.1） ----------
 const items = ref<MemoryEntry[]>([])

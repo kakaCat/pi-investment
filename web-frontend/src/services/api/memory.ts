@@ -107,3 +107,74 @@ export function fetchDecision(decisionId: number | string) {
     silent: true,
   })
 }
+
+// ==================== Recall Audit API (P1-T5) ====================
+
+export interface RecallAuditHit {
+  memory_id: number
+  score: number
+  source: 'bm25' | 'vector' | 'both'
+  bm25_score?: number
+  vector_score?: number
+  title?: string
+  content?: string
+  feedback?: 'relevant' | 'irrelevant'
+  feedback_by?: 'human' | 'agent'
+  feedback_at?: string
+}
+
+export interface RecallAuditItem {
+  id: number
+  ts: string
+  session_id?: string
+  flow: string
+  query_text?: string
+  strategy?: string
+  degraded?: boolean
+  gate_result: 'passed' | 'suppressed'
+  suppress_reason?: string
+  hits: RecallAuditHit[]
+  created_at?: string
+}
+
+export interface RecallAuditStats {
+  total: number
+  injected: number
+  suppressed: number
+  injection_rate: number
+  by_flow: Record<string, { total: number; injected: number; suppressed: number }>
+  suppress_reasons: Record<string, number>
+  score_histogram: Array<{ bucket: string; count: number }>
+}
+
+export const recallAuditApi = {
+  /** 召回审计列表（分页+筛选） */
+  getAudit(params: {
+    flow?: string
+    gate_result?: string
+    date_from?: string
+    date_to?: string
+    suppressed_only?: boolean
+    page?: number
+    page_size?: number
+  }) {
+    return apiClient.get<{ items: RecallAuditItem[]; total: number }>(
+      '/api/memory/recall-audit',
+      { params }
+    )
+  },
+
+  /** 召回审计统计聚合 */
+  getStats(params: { date_from?: string; date_to?: string }) {
+    return apiClient.get<RecallAuditStats>('/api/memory/recall-audit/stats', { params })
+  },
+
+  /** 标注召回命中质量（人工/agent 反馈） */
+  postFeedback(auditId: number, body: {
+    memory_id: number
+    feedback: 'relevant' | 'irrelevant'
+    feedback_by: 'human'
+  }) {
+    return apiClient.post(`/api/memory/recall-audit/${auditId}/feedback`, body)
+  },
+}
