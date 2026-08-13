@@ -17,6 +17,9 @@ import {
 } from "../../sdk-facade.js";
 import { createServicesSafely, openSessionManagerSafely } from "./session-services.js";
 import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, initRestartAgentTool } from "../../infrastructure/tools/index.js";
+import { selectToolsForKind } from "../../domain/agent-roles/assembly.js";
+import { getProfile } from "../../domain/agent-roles/profiles.js";
+import type { AgentKind } from "../../domain/agent-roles/types.js";
 import { getCoreTools, isToolSearchMode } from "../../infrastructure/tools/catalog.js";
 import { toolSearchMetaTools } from "../../infrastructure/tools/meta/tool-search-tools.js";
 import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
@@ -26,7 +29,7 @@ import { loadPlugins } from "../../infrastructure/plugins/index.js";
 import { initMemoryProvider, getMemoryProvider } from "../../services/memory/index.js";
 import { join } from "path";
 import { paths } from "../../config/config.js";
-import { getLLM } from "../../services/llm/index.js";
+import { getSessionModelFor } from "../../services/llm/index.js";
 import { createAppResourceLoader } from "../../api/extensions/model-command.js";
 import { getSessionDir, getSessionKey, logSystemPrompt, logBootstrapFiles } from "../../infrastructure/logging/observable-logger.js";
 import { initSkillsBlock, buildAgentSystemPrompt } from "./system-prompt.js";
@@ -45,6 +48,8 @@ export interface SessionContext {
   type: 'interactive' | 'cron_evolution' | 'cron_review' | 'background_task';
   sessionId: string;
   metadata?: Record<string, any>;
+  /** 三 Agent 拆分 A0-T3：会话归属的 agent 角色，默认 'fin'（现状全集）。 */
+  agentKind?: AgentKind;
 }
 
 // 全局会话实例，复用同一个 session
@@ -66,7 +71,12 @@ let cachedTools: ToolDefinition[] = [];
  * 其余 ~95 个工具经目录检索按需获取（schema 不进 prompt，冷启动信封 40K→~15K）。
  * PI_TOOL_SEARCH=off 回退全量注入。
  */
-function getEffectiveTools(): ToolDefinition[] {
+function getEffectiveTools(agentKind: AgentKind = 'fin'): ToolDefinition[] {
+  // fin 等价性铁律：默认 fin 走现状逻辑（工具搜索模式 core+meta / 全量），零变化。
+  if (agentKind !== 'fin') {
+    const base = selectToolsForKind(agentKind, allCustomTools);
+    return [...base, ...pluginTools as any[]] as ToolDefinition[];
+  }
   const base = isToolSearchMode()
     ? [...getCoreTools(), ...toolSearchMetaTools]
     : [...allCustomTools];
@@ -111,9 +121,10 @@ function buildSystemPromptForContext(ctx: SessionContext | null): string {
   return buildAgentSystemPrompt({
     memoryContext: "",
     dailyMemory: "",
-    tools: getEffectiveTools(),
+    tools: getEffectiveTools(ctx?.agentKind),
     workspaceDir: paths.root,
     toolSearchMode: isToolSearchMode(),
+    agentKind: ctx?.agentKind,
   });
 }
 
@@ -121,8 +132,8 @@ function buildSystemPromptForContext(ctx: SessionContext | null): string {
  * 根据上下文类型获取工具列表
  */
 function getToolsForContext(ctx: SessionContext | null): ToolDefinition[] {
-  // 所有上下文类型都使用完整工具集
-  return getEffectiveTools();
+  // fin（默认）用完整工具集；evolution/memory 按 profile 过滤。
+  return getEffectiveTools(ctx?.agentKind);
 }
 
 /**
@@ -207,7 +218,7 @@ async function createSessionInternal(
   // @ts-ignore - Type mismatch from SDK update
   const result = await createAgentSession({
     cwd: paths.root,
-    model: getLLM().getSessionModel() as any,
+    model: getSessionModelFor(getProfile(sessionContext?.agentKind ?? 'fin').modelPreference) as any,
     sessionManager,
     resourceLoader: await createAppResourceLoader(paths.root),
     systemPrompt: () => buildSystemPromptForContext(sessionContext),

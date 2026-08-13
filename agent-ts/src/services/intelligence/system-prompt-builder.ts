@@ -36,6 +36,8 @@ export interface BuildSystemPromptOptions {
   }>;
   /** T8: Tool Search 三段式——工具列表为常驻 core 集，追加目录检索说明 */
   toolSearchMode?: boolean;
+  /** 提示词变体标识（三 Agent 拆分 A0-T3）：'fin' | 'evolution' | 'memory' */
+  promptVariant?: string;
 }
 
 const CHANNEL_HINTS: Record<string, string> = {
@@ -64,13 +66,15 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
     customToolsBlock = "",
     customTools = [],
     toolSearchMode = false,
+    promptVariant = "fin",
   } = opts;
 
   const sections: string[] = [];
 
   // 第 1 层: 身份
   const identity = bootstrap["IDENTITY.md"]?.trim();
-  sections.push(identity || DEFAULT_IDENTITY);
+  const variantIdentity = VARIANT_IDENTITY[promptVariant] ?? "";
+  sections.push([identity || DEFAULT_IDENTITY, variantIdentity].filter(Boolean).join("\n\n"));
 
   // 第 2 层: 灵魂（仅 full 模式）
   if (mode === "full") {
@@ -245,3 +249,17 @@ function buildToolGuidelines(tools: Array<{
 const DEFAULT_IDENTITY = `你是「PI 投资顾问」，拥有华尔街顶级分析师的专业素养，深谙 A 股市场规律。
 
 你是一个专业的 AI 投资顾问，帮助用户进行投资分析和决策支持。你通过调用各种数据工具获取实时市场数据，提供基于数据的分析和建议。`;
+
+/**
+ * 提示词变体注入点（三 Agent 拆分 A0-T3 机制）。
+ *
+ * - 'fin'：无变体内容（fin 等价性铁律——输出与现状逐字节一致）。
+ * - 'evolution' / 'memory'：由 A1-T1（记忆 Agent 判定标准）/ A2-T1（进化 Agent
+ *   改动纪律五条款）注入各自身份与约束文本。
+ *
+ * 当前映射为空，保证三种 kind 输出一致；A1/A2 落地时在此补条目。
+ */
+const VARIANT_IDENTITY: Partial<Record<string, string>> = {
+  // 'evolution': '...',  // A2-T1 注入
+  // 'memory': '...',     // A1-T1 注入
+};

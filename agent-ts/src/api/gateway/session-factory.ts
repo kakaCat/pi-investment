@@ -7,7 +7,10 @@ import { estimateTokens, SessionManager, type Skill } from "../../sdk-facade.js"
 import { createTrackedSession } from "../../infrastructure/session/session-factory.js";
 import type { ToolDefinition } from "../../infrastructure/tools/index.js";
 import { paths } from "../../config/config.js";
-import { getLLM } from "../../services/llm/index.js";
+import { getLLM, getSessionModelFor } from "../../services/llm/index.js";
+import { selectToolsForKind } from "../../domain/agent-roles/assembly.js";
+import { getProfile } from "../../domain/agent-roles/profiles.js";
+import type { AgentKind } from "../../domain/agent-roles/types.js";
 import { createLazyModelSync } from "./llm-lazy-sync.js";
 import { createAppResourceLoader } from "../extensions/model-command.js";
 import {
@@ -74,11 +77,14 @@ export function extractChannelReply(session: ChannelAgentSession): string {
 export function createGatewaySessionFactory(
   tools: ToolDefinition[],
   skills: Skill[],
+  agentKind: AgentKind = 'fin',
 ): GatewaySessionFactory {
   const lazyModelSync = createLazyModelSync({
     getVersion: () => getLLM().current().version,
     getSessionModel: () => getLLM().getSessionModel(),
   });
+  // fin 等价性铁律：fin 不过滤工具（现状全集，零变化）；其余按 profile 过滤。
+  const sessionTools = agentKind === 'fin' ? tools : selectToolsForKind(agentKind, tools);
   return {
     createSession: async (_sessionKey, sessionDir) => {
       const trackedSession = await createTrackedSession({
@@ -86,17 +92,18 @@ export function createGatewaySessionFactory(
         createOptions: {
           cwd: paths.root,
           sessionManager: SessionManager.continueRecent(paths.root, sessionDir),
-          model: getLLM().getSessionModel() as any,
+          model: getSessionModelFor(getProfile(agentKind).modelPreference) as any,
           resourceLoader: await createAppResourceLoader(paths.root),
           systemPrompt: () => buildAgentSystemPrompt({
             memoryContext: "",
             // 会话创建时快照当日记忆（beforePrompt 不再每轮重建系统提示词——W2.5 缓存修复）
             dailyMemory: readDailyMemory(paths.piDir),
-            tools,
+            tools: sessionTools,
             workspaceDir: paths.root,
             toolSearchMode: isToolSearchMode(),
+            agentKind,
           }),
-          customTools: tools,
+          customTools: sessionTools,
           skills,
         },
       });

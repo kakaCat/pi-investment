@@ -5,7 +5,7 @@
  */
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { buildModelConfig, envModelId, isProviderConfigured, PROVIDER_NAMES } from './catalog.js';
+import { buildModelConfig, envModelId, isProviderConfigured, PROVIDER_NAMES, resolveModelTarget } from './catalog.js';
 import { complete as clientComplete } from './client.js';
 import { toSDKModel } from './adapters/pi-ai.js';
 import type { LLMPort } from './port.js';
@@ -41,6 +41,26 @@ export function getLLM(): LLMPort {
 export function resetLLMForTests(): void {
   port = null;
   resetSelectionForTests();
+}
+
+/**
+ * 会话级模型档位解析（三 Agent 拆分 A0-T3）。
+ *
+ * 不经 llm-state.json（全局选择）——按「档位」临时合成一份会话模型配置：
+ * - 'inherit' → 当前全局选择（fin，model_switch 现状保留）
+ * - 'pro'     → deepseek-v4-pro（evolution，改代码要强度）
+ * - 'flash'   → deepseek-v4-flash（memory，初标是体力活）
+ *
+ * 档位 → 具体模型 ID 走 catalog.resolveModelTarget（与 model_switch 别名同源）。
+ */
+export function getSessionModelFor(
+  preference: 'flash' | 'pro' | 'inherit' = 'inherit',
+): unknown {
+  const llm = getLLM();
+  if (preference === 'inherit') return llm.getSessionModel();
+  const target = resolveModelTarget(preference);
+  if (!target) return llm.getSessionModel();
+  return toSDKModel(buildModelConfig(target.provider, target.modelId));
 }
 
 function createPort(piDir: string): LLMPort {

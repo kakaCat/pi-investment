@@ -16,6 +16,8 @@ import { getBootstrapData, getActiveModelId } from "../../config/config.js";
 import type { PluginSkill } from "../../infrastructure/plugins/index.js";
 import { chinaDate } from "../../utils/china-time.js";
 import { ErrorHandlers } from "./error-handler.js";
+import type { AgentKind } from "../../domain/agent-roles/types.js";
+import { getProfile } from "../../domain/agent-roles/profiles.js";
 
 
 // skills block 缓存（会话初始化时设置，之后每轮复用）
@@ -115,6 +117,7 @@ export function buildAgentSystemPrompt(params: {
   tools?: Array<{ name: string; description: string; label?: string; promptGuidelines?: string[] }>;
   workspaceDir: string;
   toolSearchMode?: boolean; // T8: 常驻 core 集 + 目录检索说明
+  agentKind?: AgentKind; // 三 Agent 拆分 A0-T3：默认 'fin'（现状全集，零变化）
 }): string {
   const {
     memoryContext = "",
@@ -123,6 +126,7 @@ export function buildAgentSystemPrompt(params: {
     tools = [],
     workspaceDir,
     toolSearchMode = false,
+    agentKind = "fin",
   } = params;
 
   const now = new Date();
@@ -143,6 +147,7 @@ export function buildAgentSystemPrompt(params: {
     customToolsBlock,
     customTools: tools,
     toolSearchMode,
+    promptVariant: getProfile(agentKind).promptVariant,
   });
 }
 
