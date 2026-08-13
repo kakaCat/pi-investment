@@ -39,6 +39,30 @@
 
 ---
 
+## 标记约定
+
+**执行者标记**（每个任务标题内）：
+- `【k3】` = Claude 亲做（架构判断/跨层契约类，不委派）
+- `【执行模型】` = 可委派其他模型执行（k3 按验收规程终审后合并）
+
+**状态标记**（任务标题末尾，执行过程中更新）：
+- `⬜` 未开始 ｜ `🔄` 进行中 ｜ `👀` 待 k3 验收 ｜ `✅` 验收通过已合并 ｜ `❌` 打回（附原因）
+
+## 任务总览
+
+| 任务 | 执行者 | 状态 | 依赖 |
+|---|---|---|---|
+| A0-T1 工具注册表分组 | 执行模型 | ⬜ | 无 |
+| A0-T2 RoleProfile 声明 | 执行模型 | ⬜ | 无 |
+| A0-T3 会话工厂装配（总闸门） | **k3** | ⬜ | A0-T1 + A0-T2 |
+| A1-T1 recall_audit 工具+记忆 Agent | 执行模型 | ⬜ | 召回 P1-T4 + A0-T3 |
+| A1-T2 每日召回审计任务 | 执行模型 | ⬜ | A1-T1（prompt 文案 k3 审） |
+| A2-T1 进化提示词+skill 读写工具 | 执行模型 | ⬜ | A0-T3（提示词文案 k3 审） |
+| A2-T2 weekly_evolution 迁移 | **k3** | ⬜ | A2-T1 |
+| A3-T1 渠道 Channel 层微调 | 执行模型 | ⬜ | A0-T3 |
+
+---
+
 ## 并行执行图
 
 ```
@@ -57,7 +81,7 @@ A ∥ B 可并行（文件不相交）。A0-T3 是总闸门。
 
 ## A0：地基
 
-### A0-T1：工具注册表分组【轨道A】
+### A0-T1：工具注册表分组【执行模型｜轨道A｜⬜】
 
 **Files:**
 - Create: `agent-ts/src/infrastructure/tools/groups.ts`
@@ -108,7 +132,7 @@ test('四组无交集且并集等于 allCustomTools', () => {
 
 ---
 
-### A0-T2：RoleProfile 声明【轨道B，与 A0-T1 并行】
+### A0-T2：RoleProfile 声明【执行模型｜轨道B｜⬜】
 
 **Files:**
 - Create: `agent-ts/src/domain/agent-roles/types.ts`
@@ -172,7 +196,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 
 ---
 
-### A0-T3：会话工厂 agentKind 装配【总闸门，Claude 亲做，依赖 A0-T1+T2】
+### A0-T3：会话工厂 agentKind 装配【k3｜总闸门｜⬜｜依赖 A0-T1+A0-T2】
 
 **Files:**
 - Modify: `agent-ts/src/infrastructure/session/session-factory.ts`（或 createSession 所在文件，实施时定位）
@@ -189,7 +213,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 
 ## A1：记忆 Agent【轨道C，依赖召回计划 P1-T4 + A0-T3】
 
-### A1-T1：`recall_audit` 工具 + 记忆 Agent 会话接入
+### A1-T1：`recall_audit` 工具 + 记忆 Agent 会话接入【执行模型｜轨道C｜⬜｜依赖召回P1-T4+A0-T3】
 
 **Files:**
 - Create: `agent-ts/src/infrastructure/tools/memory/recall-audit-tool.ts`
@@ -205,7 +229,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 - mock 模式参照现有 quant 工具测试（unstable_mockModule runQuantV2 或 fetch mock，以该工具实际 HTTP 层为准——实施时读 `quant-v2-client.ts` 决定走 runQuantV2 还是 fetch，报告说明选择）。
 - [ ] 验收：三 action 测试全过 + `npm test -- groups` 等价性仍过（新工具已归组）。
 
-### A1-T2：每日召回审计任务注册
+### A1-T2：每日召回审计任务注册【执行模型｜轨道C｜⬜｜依赖 A1-T1，prompt 文案 k3 审】
 
 **Files:** Modify `agent-ts/src/services/scheduler/init-agent-tasks.ts`
 - [ ] 新增任务 `daily_recall_audit`（cron `0 19 * * *`，agentKind='memory'，prompt 含完整工作流：拉 stats→逐条初标→低置信标 needs_review→写日报到记忆 evolution/memory scope）。prompt 文案 Claude 审。
@@ -215,7 +239,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 
 ## A2：进化 Agent
 
-### A2-T1：进化提示词 + skill 读写工具【轨道D，依赖 A0-T3】
+### A2-T1：进化提示词 + skill 读写工具【执行模型｜轨道D｜⬜｜依赖 A0-T3，提示词文案 k3 审】
 
 **Files:**
 - Create: `agent-ts/src/prompts/evolution-agent.md`
@@ -226,7 +250,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 **提示词必须包含的纪律条款（Claude 审文案）：** ① 代码改动必须 worktree；② 测试先行；③ autoExecute 默认关，只提方案不自动执行；④ skill 可直改但改后必跑 check:tool-refs；⑤ 禁止改交易规则参数（双轨契约：agent_virtual vs advisory 不互相统一）。
 - [ ] 验收：提示词含五条款（Claude 逐条核）；skill-file 工具测试过（含 worktree 创建失败时的报错路径）。
 
-### A2-T2：weekly_evolution 迁移 + 提案-评审接线【Claude 亲做，依赖 A2-T1】
+### A2-T2：weekly_evolution 迁移 + 提案-评审接线【k3｜轨道E｜⬜｜依赖 A2-T1】
 - [ ] `weekly_evolution`（周日 20:00）改 agentKind='evolution'；产出写 evolution 域记忆；**不自动执行任何变更**——产出为提案，人工/Claude 评审后落地。
 - [ ] 验收：周日任务干跑一次，evolution 域有提案记录，代码库零改动。
 
@@ -234,7 +258,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 
 ## A3：金融 Agent 渠道微调【轨道F，依赖 A0-T3】
 
-### A3-T1：Channel 层按渠道差异化
+### A3-T1：Channel 层按渠道差异化【执行模型｜轨道F｜⬜｜依赖 A0-T3】
 
 **Files:** Modify `agent-ts/src/services/intelligence/system-prompt-builder.ts`（仅 Channel 层组装处）+ 测试
 - [ ] 契约：Channel 层只改语气/格式（飞书：简短、无表格；TUI：完整；web：markdown 完整），**禁止放业务规则**。

@@ -48,6 +48,33 @@
 
 ---
 
+## 标记约定
+
+**执行者标记**（每个任务标题内）：
+- `【k3】` = Claude 亲做（架构判断/跨层契约/事实测量类，不委派）
+- `【执行模型】` = 可委派其他模型执行（k3 按验收规程终审后合并）
+
+**状态标记**（任务标题末尾，执行过程中更新）：
+- `⬜` 未开始 ｜ `🔄` 进行中 ｜ `👀` 待 k3 验收 ｜ `✅` 验收通过已合并 ｜ `❌` 打回（附原因）
+
+## 任务总览
+
+| 任务 | 执行者 | 状态 | 依赖 |
+|---|---|---|---|
+| P0-T1 质量门（cosine_floor） | 执行模型 | ⬜ | 无 |
+| P0-T2 floor 分布测量定值 | **k3** | ⬜ | 无 |
+| P0-T3 env 接线+重启验证 | 执行模型 | ⬜ | P0-T1 合并 + P0-T2 出值 |
+| P1-T1 领域层四文件 | 执行模型 | ⬜ | 无 |
+| P1-T2 RecallService+端口 | **k3** | ⬜ | P1-T1 |
+| P1-T3 审计适配器 | 执行模型 | ⬜ | P1-T2 |
+| P1-T4 v2 审计 API+PG 表 | 执行模型 | ⬜ | 无 |
+| P1-T5 前端审计页 | 执行模型 | ⬜ | P1-T4（最终验收） |
+| P2-T1 SDK 扩展接线 | **k3** | ⬜ | P1-T1~T3 合并 |
+| P2-T2 删 wrapper 注入 | **k3** | ⬜ | P2-T1 |
+| P2-T3 全通道验收 | **k3** | ⬜ | P2-T2 |
+
+---
+
 ## 并行执行图
 
 ```
@@ -66,7 +93,7 @@ A ∥ B ∥ C ∥ D ∥ E 全部可并行开工（文件不相交，见各任务
 
 ## P0：v2 质量门
 
-### P0-T1：hybrid_search 加 cosine_floor + 空结果语义【轨道A】
+### P0-T1：hybrid_search 加 cosine_floor + 空结果语义【执行模型｜轨道A｜⬜】
 
 **Files:**
 - Modify: `quantsys-v2/domain/memory/hybrid_search.py`
@@ -158,7 +185,7 @@ git commit -m "feat(memory): vector_rank/hybrid_rank 增加 cosine_floor 质量�
 
 ---
 
-### P0-T2：生产语料分数分布测量，定 floor 终值【轨道B，Claude 亲做】
+### P0-T2：生产语料分数分布测量，定 floor 终值【k3｜轨道B｜⬜】
 
 **Files:** 无代码改动（只读分析 + 结论回写 spec §6）
 
@@ -169,7 +196,7 @@ git commit -m "feat(memory): vector_rank/hybrid_rank 增加 cosine_floor 质量�
 
 ---
 
-### P0-T3：env 接线与生产重启验证【轨道A，依赖 P0-T1 合并、P0-T2 出值】
+### P0-T3：env 接线与生产重启验证【执行模型｜轨道A｜⬜｜依赖 P0-T1+P0-T2】
 
 - [ ] **Step 1:** `quantsys-v2/.env` 加 `MEMORY_RECALL_COSINE_FLOOR=<P0-T2 终值>`（.env 不入库，只改本地；同时更新 `.env.example` 加注释行）。
 - [ ] **Step 2:** 重启 5001：`launchctl kickstart -k gui/501/com.pi-investment.v2-api`（日志 `~/v2-api.log`）。
@@ -180,7 +207,7 @@ git commit -m "feat(memory): vector_rank/hybrid_rank 增加 cosine_floor 质量�
 
 ## P1：agent-ts 领域层 + 应用层 + 审计
 
-### P1-T1：领域层四文件（纯函数，零 IO）【轨道C】
+### P1-T1：领域层四文件（纯函数，零 IO）【执行模型｜轨道C｜⬜】
 
 **Files:**
 - Create: `agent-ts/src/domain/recall/types.ts`
@@ -313,7 +340,7 @@ export function formatRecallMessage(flow: RecallFlow, hits: RecallHit[], charBud
 
 ---
 
-### P1-T2：RecallService 编排 + 端口接口【轨道C，Claude 亲做，依赖 P1-T1】
+### P1-T2：RecallService 编排 + 端口接口【k3｜轨道C｜⬜｜依赖 P1-T1】
 
 **Files:**
 - Create: `agent-ts/src/services/recall/ports.ts`
@@ -346,7 +373,7 @@ export interface RecallAuditPort {
 
 ---
 
-### P1-T3：审计适配器两个【轨道C，依赖 P1-T2 端口】
+### P1-T3：审计适配器两个【执行模型｜轨道C｜⬜｜依赖 P1-T2】
 
 **Files:**
 - Create: `agent-ts/src/infrastructure/recall/audit-v2-client.ts`
@@ -361,7 +388,7 @@ export interface RecallAuditPort {
 
 ---
 
-### P1-T4：v2 审计 API + PG 表【轨道D，与 A/C 并行】
+### P1-T4：v2 审计 API + PG 表【执行模型｜轨道D｜⬜】
 
 **Files:**
 - Create: `quantsys-v2/infrastructure/persistence/migrations/create_memory_recall_audit_table.sql`
@@ -417,7 +444,7 @@ POST /api/memory/recall-audit/{audit_id}/feedback
 
 ---
 
-### P1-T5：前端「召回审计」tab【轨道E，契约已冻结可立即开工】
+### P1-T5：前端「召回审计」tab【执行模型｜轨道E｜⬜｜验收依赖 P1-T4 部署】
 
 **Files:**
 - Modify: `web-frontend/src/services/api/memory.ts`（追加 audit API 函数）
@@ -444,7 +471,7 @@ export function postRecallAuditFeedback(auditId: number, body: {memory_id: numbe
 
 ## P2：SDK 扩展接线（全部 Claude 亲做）
 
-### P2-T1：sdk-recall-extension【依赖 P1-T1~T3 合并】
+### P2-T1：sdk-recall-extension【k3｜轨道F｜⬜｜依赖 P1-T1~T3 合并】
 
 **Files:**
 - Create: `agent-ts/src/api/extensions/recall-extension.ts`
@@ -459,12 +486,12 @@ export function postRecallAuditFeedback(auditId: number, body: {memory_id: numbe
 - [ ] 测试：fake pi 对象注册 handler，模拟 input→before_agent_start 序列：① 普通对话产出 message；② `/skill:x` 文本 → query 不含 skill 前缀；③ 检索空 → 返回 void。
 - [ ] 真机验证：重启 agent，TUI 发一条普通消息 → PG 审计表有 `interactive-chat` 记录；`/provider pro` → 无新审计记录（结构免疫实证）；会话日志里召回以独立消息存在而非拼接。
 
-### P2-T2：删除 wrapper 注入代码
+### P2-T2：删除 wrapper 注入代码【k3｜轨道F｜⬜】
 
 **Files:** Modify `agent-ts/src/infrastructure/session/session-factory.ts`（删 W1.4 注入块；路由基于原文的判定保留）+ 同步更新 `session-factory.test.ts`（注入相关 3 个测试迁移到 recall-extension.test.ts 形态）。
 - [ ] 验收：`npm test -- session-factory` + `npm test` 全量（对照基线）。
 
-### P2-T3：全通道验收
+### P2-T3：全通道验收【k3｜轨道F｜⬜】
 - [ ] 调度任务真触发一次（或 scheduler_manage 手动 trigger）→ 审计表 `scheduled-task` 记录；
 - [ ] wake 事件真触发一次 → `wake-event` 记录；
 - [ ] 三通道记录截图/查询结果归档到 PR 描述。
