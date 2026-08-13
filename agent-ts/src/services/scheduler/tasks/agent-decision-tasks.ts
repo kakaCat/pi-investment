@@ -455,6 +455,147 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
       compensationCheckAfter: undefined,
       compensationMaxAttempts: 0,
       deleteAfterRun: false
+    },
+
+    // 7. 每日召回审计 - 记忆 Agent 质量监控
+    // A1-T2：记忆 Agent 每日审计召回日志，标注相关性，识别系统性问题
+    {
+      name: 'daily_recall_audit',
+      enabled: true,
+      scheduleKind: 'cron',
+      scheduleExpr: '0 19 * * *',  // 每天 19:00
+      payload: {
+        kind: 'agent_turn',
+        agentKind: 'memory',
+        message: `
+📊 每日召回审计 - 记忆质量监控与优化
+
+**目标：审计过去 24 小时的记忆召回质量，标注相关性，识别系统性问题。**
+
+你是 memory 域的 Agent。你的职责是监控记忆召回系统的健康度，
+标注召回内容的相关性，发现并报告质量问题。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+第一步：拉取过去 24 小时召回审计统计
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+使用 recall_audit 工具拉取统计数据：
+
+1. 获取昨日统计：
+   recall_audit({
+     action: 'stats',
+     date_from: '<昨日日期 YYYY-MM-DD>',
+     date_to: '<今日日期 YYYY-MM-DD>'
+   })
+
+2. 关注关键指标：
+   - 总召回次数 (total_recalls)
+   - 注入率 (injection_rate) - 低于 60% 需要警惕
+   - 抑制率 (suppression_rate) - 高于 40% 需要调查
+   - 分流统计 (suppression_reasons) - 哪些原因导致抑制？
+   - 评分分布 (score_distribution) - 低分注入是否过多？
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+第二步：逐条初步标注（仅标注 agent feedback）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+使用 recall_audit 查询近期召回记录：
+
+1. 查询昨日召回事件（重点关注注入的记录）：
+   recall_audit({
+     action: 'list',
+     date_from: '<昨日日期>',
+     date_to: '<今日日期>',
+     gate_result: 'injected',
+     page_size: 50
+   })
+
+2. 逐条评估相关性：
+   - 记忆内容是否与用户查询/上下文相关？
+   - 如果明显离题 → 标注 irrelevant
+   - 如果有助于理解或决策 → 标注 relevant
+   - 如果不确定 → 跳过，稍后标记需要人工审查
+
+3. 标注反馈（仅限 agent feedback，绝不覆盖 human feedback）：
+   recall_audit({
+     action: 'feedback',
+     audit_id: <审计记录ID>,
+     memory_id: <记忆ID>,
+     feedback: 'relevant' 或 'irrelevant'
+   })
+
+⚠️ **重要约束**：
+- 只标注没有 human feedback 的记录（human feedback 优先级最高）
+- 保守标注：只在明确离题时标 irrelevant，有疑问就不标
+- 每日标注量适度（建议 20-50 条），不要一次性处理太多
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+第三步：低置信条目标记需要人工审查
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+识别需要人工审查的情况：
+
+1. 边界情况：
+   - 注入分数在临界区间（0.6-0.7）的记录
+   - 内容相关但时效性存疑的记录
+   - 技术类记忆用于非技术场景（或反之）
+
+2. 系统性问题：
+   - 某个 memory 被频繁召回但相关性不高
+   - 某类查询总是召回不相关内容
+   - 高分记录被错误抑制
+
+3. 记录需审查清单：
+   使用 memory_write 将需要人工审查的条目记录到记忆：
+   - scope: 'recall-audit'
+   - 包含 audit_id、memory_id、为什么需要人工审查
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+第四步：写日报到记忆（scope: evolution 或 memory）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+使用 memory_write 记录今日审计结果：
+
+1. 日报内容应包括：
+   - 昨日召回统计摘要（总数、注入率、抑制率）
+   - 标注反馈数量（relevant 几条、irrelevant 几条）
+   - 发现的关键问题（如果有）：
+     * 注入率过低（<60%）或抑制率过高（>40%）
+     * 低分注入过多（score < 0.6 但仍注入）
+     * 某类查询的召回质量系统性偏低
+   - 优化建议（如果有）：
+     * 需要调整召回阈值？
+     * 需要优化某些记忆的元数据？
+     * 需要增加/删除某类记忆？
+
+2. 写入参数：
+   memory_write({
+     action: 'write',
+     scope: 'memory',  // 或 'evolution'（如果是进化类建议）
+     content: '<日报内容>',
+     metadata: {
+       type: 'daily-recall-audit',
+       date: '<审计日期>',
+       stats: { /* 关键统计数据 */ }
+     }
+   })
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+完成标准
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- recall_audit stats 已拉取，关键指标已分析
+- 已标注部分召回记录（agent feedback，未覆盖 human feedback）
+- 边界情况已标记需要人工审查（如有）
+- 日报已写入记忆（scope: memory 或 evolution）
+
+现在开始今日召回审计。
+        `
+      },
+      compensationEnabled: false,
+      compensationCheckAfter: undefined,
+      compensationMaxAttempts: 0,
+      deleteAfterRun: false
     }
   ];
 }
