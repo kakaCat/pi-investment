@@ -386,10 +386,13 @@ async function main() {
     // 启动数据库调度器。CRON.json 已废弃，数据库是唯一任务来源。
     // headless 持锁时跳过（自动化三件套归 headless）
     const schedulerRuntime = automationDegraded ? null : await startSchedulerRuntime({
-      promptAgent: async (message) => {
-        // 调度任务消息自带完整工作流，跳过技能路由（避免被强制注入 portfolio-entry 等 skill）
-        const options: PromptOptionsWithRouting = { skipSkillRouting: true };
-        await session.prompt(message, options);
+      promptAgent: async (message, agentKind) => {
+        // A2-T2 修复：每个任务按 agentKind 创建独立会话（与 headless 同款）；
+        // fin 走裸会话零变化，evolution/memory 走专属 agent（工具过滤 + 身份提示词 + 模型偏好）。
+        // P2-T3 接线：source=rpc → scheduled-task flow（调度消息跳过召回注入）。
+        const { createSchedulerSession } = await import("../services/scheduler/scheduler-session.js");
+        const { session: taskSession } = await createSchedulerSession(agentKind ?? "fin");
+        await taskSession.prompt(message, { source: "rpc" });
       },
       writeOutput: (message) => process.stdout.write(message),
     }).catch((error) => {

@@ -113,17 +113,20 @@ export function createGatewaySessionFactory(
           cwd: paths.root,
           sessionManager: SessionManager.continueRecent(paths.root, sessionDir),
           model: getSessionModelFor(getProfile(agentKind).modelPreference) as any,
-          resourceLoader: await createAppResourceLoader(paths.root),
-          systemPrompt: () => buildAgentSystemPrompt({
-            memoryContext: "",
-            // 会话创建时快照当日记忆（beforePrompt 不再每轮重建系统提示词——W2.5 缓存修复）
-            dailyMemory: readDailyMemory(paths.piDir),
-            tools: sessionTools,
-            workspaceDir: paths.root,
-            toolSearchMode: isToolSearchMode(),
-            agentKind,
-            channel: channelHintFromSessionKey(_sessionKey),
-          }),
+          // SDK createAgentSession 静默忽略 systemPrompt 选项——系统提示词只能经 resourceLoader.getSystemPrompt() 注入。
+          // 会话创建时快照当日记忆（beforePrompt 不再每轮重建系统提示词——W2.5 缓存修复）
+          resourceLoader: await createAppResourceLoader(
+            paths.root,
+            buildAgentSystemPrompt({
+              memoryContext: "",
+              dailyMemory: readDailyMemory(paths.piDir),
+              tools: sessionTools,
+              workspaceDir: paths.root,
+              toolSearchMode: isToolSearchMode(),
+              agentKind,
+              channel: channelHintFromSessionKey(_sessionKey),
+            })
+          ),
           customTools: sessionTools,
           skills,
         },
