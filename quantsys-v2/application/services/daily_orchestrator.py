@@ -589,27 +589,6 @@ def get_daily_orchestrator() -> DailyOrchestrator:
         _orchestrator = DailyOrchestrator(name='main')
     return _orchestrator
 
-
-def register_orchestrator_to_scheduler():
-    """将编排器注册到 APScheduler
-
-    在系统启动时调用：
-        from application.services.daily_orchestrator import register_orchestrator_to_scheduler
-        register_orchestrator_to_scheduler()
-    """
-    from application.services.unified_scheduler import get_unified_scheduler
-
-    scheduler = get_unified_scheduler()
-    orchestrator = get_daily_orchestrator()
-
-    # 每分钟 tick 一次（工作日 08:00-18:00）
-    scheduler.add_cron_job(
-        func=orchestrator.tick,
-        job_id='daily_orchestrator_tick',
-        name='日常编排器 Tick',
-        minute='*',
-        hour='8-17',
-        day_of_week='mon-fri',
-    )
-
-    logger.info("DailyOrchestrator registered to scheduler (tick every minute, Mon-Fri 08:00-17:59)")
+# 编排器 tick 的调度宿主 = FastAPI lifespan（orchestrator_bootstrap.py，2026-08-13 起）。
+# 原 register_orchestrator_to_scheduler（APScheduler/unified_scheduler 路线）
+# 已随 scheduler_daemon 一并删除。

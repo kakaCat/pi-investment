@@ -223,7 +223,7 @@ class PerformanceTracker:
                 stats = strategy_stats[strategy_name]
                 stats['total_trades'] += 1
 
-                if trade.action == 'buy':
+                if trade.action == 'BUY':  # action 大写契约（08-13 统一）
                     stats['buy_count'] += 1
                 else:
                     stats['sell_count'] += 1

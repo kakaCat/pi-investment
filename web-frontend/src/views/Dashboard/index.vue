@@ -252,7 +252,7 @@ const fetchPendingTasks = async () => {
 
     // 转换信号数据为待处理任务格式
     pendingTasks.value = signals.map((signal: any) => ({
-      type: signal.action === 'buy' ? '买入申请' : signal.action === 'sell' ? '卖出申请' : '信号',
+      type: signal.action?.toUpperCase() === 'BUY' ? '买入申请' : signal.action?.toUpperCase() === 'SELL' ? '卖出申请' : '信号',
       symbol: signal.symbol,
       description: signal.reason || '无描述',
       confidence: Math.round((signal.confidence || 0) * 100),

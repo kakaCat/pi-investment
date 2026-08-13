@@ -10,10 +10,11 @@ from sqlalchemy import (
     Column, String, Integer, Date, DateTime, Numeric, Text,
     Index, CheckConstraint
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from datetime import datetime
 
 from ..base import Base
+from .action_norm import normalize_action
 
 __all__ = [
     'SimulationAccount', 'SimulationPosition', 'SimulationTrade',
@@ -226,9 +227,15 @@ class SimulationTrade(Base):
         Index('idx_simulation_trades_account', 'account_name'),
         Index('idx_simulation_trades_symbol', 'symbol'),
         Index('idx_simulation_trades_date', 'trade_date'),
+        # action 大写契约（2026-08-13 统一，见 models/action_norm.py）
+        CheckConstraint("action IN ('BUY','SELL')", name='simulation_trades_action_check'),
         # Schema
         {'schema': 'quant'}
     )
+
+    @validates('action')
+    def _normalize_action(self, key, value):
+        return normalize_action(value)
 
     # 主键
     id = Column(Integer, primary_key=True, autoincrement=True, comment='交易ID')
@@ -243,7 +250,7 @@ class SimulationTrade(Base):
 
     # 交易信息
     symbol = Column(String(20), nullable=False, comment='股票代码')
-    action = Column(String(10), nullable=False, comment='操作类型(buy/sell)')
+    action = Column(String(10), nullable=False, comment='操作类型(BUY/SELL，大写契约)')
     shares = Column(Integer, nullable=False, comment='交易数量')
 
     # 价格信息
@@ -331,12 +338,17 @@ class SimulationOrder(Base):
     __table_args__ = (
         Index('idx_simulation_order_account', 'account_name'),
         Index('idx_simulation_order_symbol', 'symbol'),
+        CheckConstraint("action IN ('BUY','SELL')", name='simulation_order_action_check'),
         {'schema': 'quant'}
     )
 
+    @validates('action')
+    def _normalize_action(self, key, value):
+        return normalize_action(value)
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     account_name = Column(String(50), nullable=False, comment='账户名称')
-    action = Column(String(10), nullable=False, comment='buy/sell')
+    action = Column(String(10), nullable=False, comment='BUY/SELL（大写契约）')
     order_type = Column(String(20), nullable=False, default='market', comment='market/limit')
     symbol = Column(String(20), nullable=False, comment='股票代码')
     shares = Column(Integer, nullable=False, comment='委托数量')
@@ -465,13 +477,18 @@ class SimulationPendingOrder(Base):
     __table_args__ = (
         Index('idx_simulation_pending_orders_account', 'account_name'),
         Index('idx_simulation_pending_orders_status', 'status'),
+        CheckConstraint("action IN ('BUY','SELL')", name='simulation_pending_orders_action_check'),
         {'schema': 'quant'}
     )
+
+    @validates('action')
+    def _normalize_action(self, key, value):
+        return normalize_action(value)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     account_name = Column(String(50), nullable=False, comment='账户名称')
     symbol = Column(String(20), nullable=False, comment='股票代码')
-    action = Column(String(10), nullable=False, comment='buy/sell')
+    action = Column(String(10), nullable=False, comment='BUY/SELL（大写契约）')
     shares = Column(Integer, comment='委托数量（可空，与 amount 二选一）')
     amount = Column(Numeric(15, 2), comment='委托金额（可空，与 shares 二选一）')
     price_limit = Column(Numeric(10, 2), comment='限价')

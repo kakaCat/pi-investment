@@ -81,12 +81,12 @@ restart_agent() {
   pkill -9 -f "tsx src/index.ts" 2>/dev/null
   rm -f "$AGENT_DIR/.pi-invest/automation.lock"
 
-  yellow "启动 headless agent（nohup，日志 $AGENT_LOG）..."
+  yellow "启动 headless agent（nohup，日志 ${AGENT_LOG}）..."
   mkdir -p "$AGENT_DIR/logs"
   cd "$AGENT_DIR"
   nohup npm run headless > "$AGENT_LOG" 2>&1 &
   local pid=$!
-  yellow "headless pid=$pid，等待 3002..."
+  yellow "headless pid=${pid}，等待 3002..."
   if wait_port 3002 60; then
     local health
     health=$(curl -s --max-time 5 http://127.0.0.1:3002/wake/health || true)

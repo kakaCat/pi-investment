@@ -227,8 +227,8 @@ class PaperTradingEngine:
             self._daily_buy_count = 0
 
         # 分离买卖信号
-        buy_signals = [s for s in signals if s.action == 'buy']
-        sell_signals = [s for s in signals if s.action == 'sell']
+        buy_signals = [s for s in signals if s.action == 'BUY']  # signals 大写契约（08-13 统一）
+        sell_signals = [s for s in signals if s.action == 'SELL']
 
         # 先执行卖出（释放资金）
         for signal in sell_signals:
@@ -623,7 +623,7 @@ class PaperTradingEngine:
             start_date=today_str,
             end_date=today_str,
         )
-        today_sells = [t for t in today_trades if t.action == 'sell']
+        today_sells = [t for t in today_trades if t.action == 'SELL']  # action 大写契约（08-13 统一）
         today_pnl = sum(float(t.realized_pnl or 0) for t in today_sells)
 
         return {

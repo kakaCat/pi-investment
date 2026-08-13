@@ -852,6 +852,64 @@ class SchedulerService:
             next_run = next_run.replace(tzinfo=timezone.utc)
         return next_run <= now
 
+    def _is_misfired(self, task: Dict[str, Any], now: datetime) -> bool:
+        """per-task misfire 宽限判定（2026-08-13，对齐原 daemon/APScheduler 语义）。
+
+        ``misfire_grace_time_seconds`` 为 NULL = 无限宽限 = 保持「唤醒必补跑一次」
+        现语义（28 个存量任务零行为变化）；显式配置的任务（如交易类 300s）睡过头
+        超过宽限则跳过本次——防止合盖休眠后用陈旧行情污染模拟账户。
+        """
+        grace = task.get("misfire_grace_time_seconds")
+        if grace is None:
+            return False
+        next_run = task.get("next_run_at")
+        if next_run is None:
+            return False  # 从未运行过，首次执行不算 misfire
+        if isinstance(next_run, str):
+            next_run = datetime.fromisoformat(next_run)
+        if next_run.tzinfo is None:
+            next_run = next_run.replace(tzinfo=timezone.utc)
+        return (now - next_run).total_seconds() > grace
+
+    def _record_misfire_skip(self, task: Dict[str, Any], now: datetime) -> None:
+        """记录一次 misfire 跳过：scheduler_runs status='skipped'（≠success 契约）
+        并按 cron 重排 next_run_at 到未来（不补跑）。"""
+        task_id = task["id"]
+        next_run = next_run_time(task["cron_expression"])
+        reason = (
+            f"misfire: 计划 {task.get('next_run_at')} 超过宽限 "
+            f"{task.get('misfire_grace_time_seconds')}s，跳过本次"
+        )
+        conn = self._get_conn()
+        cursor = None
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO quant.scheduler_runs "
+                "(task_id, status, started_at, completed_at, duration_ms, error) "
+                "VALUES (%s, 'skipped', %s, %s, 0, %s)",
+                (task_id, now, now, reason),
+            )
+            cursor.execute(
+                "UPDATE quant.scheduler_tasks "
+                "SET last_status = 'skipped', last_error = %s, "
+                "    next_run_at = %s, updated_at = now() "
+                "WHERE id = %s",
+                (reason, next_run, task_id),
+            )
+            conn.commit()
+            logger.warning(
+                "Task %r (id=%s) misfire skipped — %s; next run %s",
+                task.get("name"), task_id, reason, next_run,
+            )
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            if cursor:
+                cursor.close()
+            conn.close()
+
     # ==================================================================
     # Execution engine
     # ==================================================================
@@ -865,14 +923,27 @@ class SchedulerService:
             ``{task_id, task_name, run_id, status, result/error}``.
         """
         tasks = self.list_tasks(enabled_only=True)
+        now = datetime.now(timezone.utc)
         results: List[Dict[str, Any]] = []
 
         for task in tasks:
-            if not self._is_due(task):
+            if not self._is_due(task, now):
                 continue
 
             task_id = task["id"]
             task_name = task.get("name", str(task_id))
+
+            # misfire 宽限：超宽限的任务跳过本次并重排（不补跑）
+            if self._is_misfired(task, now):
+                self._record_misfire_skip(task, now)
+                results.append({
+                    "task_id": task_id,
+                    "task_name": task_name,
+                    "run_id": None,
+                    "status": "skipped",
+                    "error": "misfire: 超过宽限，跳过本次",
+                })
+                continue
 
             result_entry = {
                 "task_id": task_id,
@@ -1081,6 +1152,13 @@ class SchedulerService:
             "strategy_discover_weekly": self._handle_strategy_discover_weekly,  # 每周策略发现
             "kline_update": self._handle_kline_update,  # K线日更（2026-08-02 接管：07-28 起每日 Unknown command）
             "chip_distribution_update": self._handle_chip_distribution_update,  # 筹码分布日更（2026-08-11，接 kline_update 后）
+            # 2026-08-13 scheduler_daemon 退役迁移：原 scheduler_task_configs 表的
+            # 5 个失传任务在本路线重建（薄封装委托原 job 模块）
+            "v13_risk_check": self._handle_v13_risk_check,
+            "v13_verification": self._handle_v13_verification,
+            "v13_weekly_report": self._handle_v13_weekly_report,
+            "v14_daily_check": self._handle_v14_daily_check,
+            "financial_statement_update": self._handle_financial_statement_update,
         }
 
         handler = handlers.get(command)
@@ -1101,6 +1179,34 @@ class SchedulerService:
     def _handle_chip_distribution_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """筹码分布日更：委托 infrastructure.jobs.chip_distribution_update_job.execute（增量，幂等）"""
         from infrastructure.jobs.chip_distribution_update_job import execute
+        return execute(**(params or {}))
+
+    # -- 2026-08-13 自 scheduler_daemon 迁入的任务（薄封装委托原 job） --
+
+    def _handle_v13_risk_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """v13 盘后风险检查：委托 infrastructure.jobs.risk_check_job.execute"""
+        from infrastructure.jobs.risk_check_job import execute
+        return execute(**(params or {}))
+
+    def _handle_v13_verification(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """v13 交易验证：委托 infrastructure.jobs.verification_job.execute"""
+        from infrastructure.jobs.verification_job import execute
+        return execute(**(params or {}))
+
+    def _handle_v13_weekly_report(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """v13 周报：委托 infrastructure.jobs.weekly_report_job.execute"""
+        from infrastructure.jobs.weekly_report_job import execute
+        return execute(**(params or {}))
+
+    def _handle_v14_daily_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """v14 模拟交易每日检查：委托 strategy_trading_job.v14_daily_check"""
+        from infrastructure.jobs.strategy_trading_job import v14_daily_check
+        return v14_daily_check(**(params or {}))
+
+    def _handle_financial_statement_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """季度财报三大报表落库：委托 financial_statement_update_job.execute
+        （≠ financial_data_update——后者是财务指标，勿合并）"""
+        from infrastructure.jobs.financial_statement_update_job import execute
         return execute(**(params or {}))
 
     # -- individual handlers -------------------------------------------
@@ -1294,7 +1400,7 @@ class SchedulerService:
                         'signal_date': signal_date,
                         'symbol': sig['symbol'],
                         'name': names.get(sig['symbol'], ''),
-                        'action': sig['signal'],
+                        'action': sig['signal'].upper(),  # signals 表大写契约（08-13 统一）
                         'strategy_id': str(sid),
                         'price': sig.get('current_price'),
                         'reason': '; '.join(sig.get('reasons', [])),

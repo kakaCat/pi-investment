@@ -12,9 +12,8 @@ scheduler_enterprise_bp = Blueprint('scheduler_enterprise', __name__, url_prefix
 def _shared_jobstore_job_count() -> int:
     """共享 apscheduler_jobs 表中的任务数。
 
-    scheduler_daemon 的 UnifiedSchedulerService 与本调度器共用该表
-    （APScheduler 无跨进程锁）。非空说明 daemon 已持有任务——此时在
-    web 进程启动第二个调度器会双重执行所有任务（2026-07-23 code review）。
+    ⚠️ 2026-08-13：scheduler_daemon 已删除，本路由随 Flask 栈整体退役，
+    留待 Flask 删除批次清理（server.py 回滚路径仍 import 本模块）。
     """
     from sqlalchemy import create_engine, text
     from infrastructure.persistence.database.base_repository import _resolve_db_dsn

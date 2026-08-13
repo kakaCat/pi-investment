@@ -215,7 +215,9 @@ class SignalExecutionScheduler:
                                 'symbol': signal['symbol'],
                                 'name': self._get_stock_name(signal['symbol']),
                                 'action': signal['signal_type'],
-                                'action_type': 1 if signal['signal_type'] == 'buy' else 2,
+                                # signal_type 内存契约大小写混存（strategy_executor 大写/
+                                # strategy_code_service 小写），推导必须大小写容忍
+                                'action_type': 1 if str(signal['signal_type']).lower() == 'buy' else 2,
                                 'strategy_id': str(strategy_id),
                                 'price': signal['price'],
                                 'reason': f"Strategy: {strategy_name}",
@@ -277,6 +279,13 @@ class SignalExecutionScheduler:
 
         # 查询今日状态为 pending 的信号
         all_signals = self.signal_repo.get_signals_by_date(execution_date)
+        # get_signals_by_date 返回 ORM Signal 对象（ORM 重构后），下游全链路
+        # （风控/下单/orchestrator 推送）按 dict 消费——统一在此转 dict。
+        # 曾按 dict 假设直接 s.get('status') → AttributeError 致 MARKET_OPEN
+        # phase 崩溃、signals_ready 推送静默丢失（2026-08-13 修复）
+        all_signals = [
+            s if isinstance(s, dict) else s.to_dict() for s in all_signals
+        ]
         pending_signals = [s for s in all_signals if s.get('status') == 'pending']
 
         logger.info(f"收集到 {len(pending_signals)} 个待处理信号")
@@ -346,7 +355,7 @@ class SignalExecutionScheduler:
                 close_price = float(latest_kline['close'])
 
                 # 计算限价单价格
-                if signal['action'] == 'buy':
+                if signal['action'] == 'BUY':  # signals 大写契约（08-13 统一）
                     limit_price = round(close_price * 1.01, 2)
                 else:
                     limit_price = round(close_price * 0.99, 2)

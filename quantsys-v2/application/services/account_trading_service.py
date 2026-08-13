@@ -83,7 +83,7 @@ class AccountTradingService:
         today = date.today().isoformat()
         trades = self.repo.get_trades_by_account(
             account_name, start_date=today, end_date=today)
-        buys = [t for t in trades if t.action == 'buy']
+        buys = [t for t in trades if t.action == 'BUY']  # action 大写契约（08-13 统一）
         if len(buys) >= self.MAX_DAILY_BUY_COUNT:
             raise TradingError(
                 f'单日买入笔数超限: 今日已买 {len(buys)} 笔，'
@@ -112,8 +112,11 @@ class AccountTradingService:
         # ---- 校验 ----
         if not reason or len(reason.strip()) < 10:
             raise TradingError('必须提供详细的交易理由（至少10字）', 400)
-        action = (action or '').lower()
-        if action not in ('buy', 'sell'):
+        # action 统一大写契约（2026-08-13）：入口规范化，非法值包成 400
+        from infrastructure.persistence.orm.models.action_norm import normalize_action
+        try:
+            action = normalize_action(action)
+        except ValueError:
             raise TradingError("action 必须是 'buy' 或 'sell'", 400)
         if execute_at is not None and execute_at != 'market_open':
             raise TradingError("execute_at 仅支持 'market_open'", 400)
@@ -155,9 +158,9 @@ class AccountTradingService:
 
         px = price if price is not None else self._get_price(symbol)
         if price_limit is not None:
-            if action == 'buy' and px > price_limit:
+            if action == 'BUY' and px > price_limit:
                 raise TradingError(f'现价 {px} 高于限价 {price_limit}，委托拒绝', 422)
-            if action == 'sell' and px < price_limit:
+            if action == 'SELL' and px < price_limit:
                 raise TradingError(f'现价 {px} 低于限价 {price_limit}，委托拒绝', 422)
 
         if shares is None:
@@ -171,7 +174,7 @@ class AccountTradingService:
 
         trade_amount = round(px * shares, 2)
         commission = max(round(trade_amount * self.COMMISSION_RATE, 2), self.COMMISSION_MIN)
-        stamp_duty = round(trade_amount * self.STAMP_DUTY_RATE, 2) if action == 'sell' else 0.0
+        stamp_duty = round(trade_amount * self.STAMP_DUTY_RATE, 2) if action == 'SELL' else 0.0
         transfer_fee = round(trade_amount * self.TRANSFER_FEE_RATE, 2)
 
         positions = self.repo.get_all_positions(account_name)
@@ -186,7 +189,7 @@ class AccountTradingService:
 
         realized_pnl = None
         realized_pnl_rate = None
-        if action == 'buy':
+        if action == 'BUY':
             self._check_daily_buy_limits(account_name, trade_amount, total_value)
             total_cost = trade_amount + commission + transfer_fee
             if total_cost > float(account.cash_available):
@@ -220,7 +223,7 @@ class AccountTradingService:
             if not locked_account:
                 raise TradingError(f'账户不存在: {account_name}', 404)
             account = locked_account
-            if action == 'buy':
+            if action == 'BUY':
                 total_cost_locked = trade_amount + commission + transfer_fee
                 if total_cost_locked > float(account.cash_available):
                     raise TradingError(
@@ -231,7 +234,7 @@ class AccountTradingService:
             self.repo.session.expire_all()
             positions = self.repo.get_all_positions(account_name)
             pos = next((p for p in positions if p.symbol == symbol), None)
-            if action == 'sell':
+            if action == 'SELL':
                 if pos is None or pos.shares_total <= 0:
                     raise TradingError(f'无 {symbol} 持仓，无法卖出', 422)
                 if shares > pos.shares_available:
@@ -251,12 +254,12 @@ class AccountTradingService:
                 account_name=account_name, symbol=symbol, action=action,
                 shares=shares, price=px, filled_price=px, amount=trade_amount,
                 commission=commission, stamp_duty=stamp_duty, transfer_fee=transfer_fee,
-                total_cost=trade_amount + commission + transfer_fee if action == 'buy' else None,
-                total_revenue=trade_amount - commission - stamp_duty - transfer_fee if action == 'sell' else None,
+                total_cost=trade_amount + commission + transfer_fee if action == 'BUY' else None,
+                total_revenue=trade_amount - commission - stamp_duty - transfer_fee if action == 'SELL' else None,
                 order_id=order.id, realized_pnl=realized_pnl,
                 realized_pnl_rate=realized_pnl_rate, reason=reason, commit=False)
 
-            if action == 'buy':
+            if action == 'BUY':
                 old_total = pos.shares_total if pos else 0
                 old_cost = float(pos.avg_cost) * old_total if pos else 0.0
                 new_total = old_total + shares
@@ -281,7 +284,7 @@ class AccountTradingService:
                     trade_amount - commission - stamp_duty - transfer_fee)
 
             account.position_value = position_value + (
-                trade_amount if action == 'buy' else -trade_amount)
+                trade_amount if action == 'BUY' else -trade_amount)
             account.total_value = (
                 float(account.cash_available) + float(account.cash_frozen)
                 + float(account.position_value))
@@ -321,7 +324,7 @@ class AccountTradingService:
             'order_status': 'filled',
             'trade_id': trade_id,
             'symbol': symbol,
-            'action': action,
+            'action': action.lower(),  # 对外 API 保持小写（库内大写契约不影响消费方）
             'shares': shares,
             'price': px,
             'amount': trade_amount,
@@ -348,7 +351,7 @@ class AccountTradingService:
         try:
             from application.services.decision_service import DecisionService
             DecisionService().record_decision({
-                'decision_type': f'trade_{action}',
+                'decision_type': f'trade_{action.lower()}',  # decision_type 小写契约（evolution 打分消费）
                 'reasoning': reason or '',
                 'context': {'account': account_name, 'auto_recorded': True},
                 'parameters': {

@@ -110,7 +110,7 @@ class HeatmapRepository(BaseORMRepository[DailyKline]):
             .filter(
                 Signal.signal_date >= start,
                 Signal.signal_date <= end,
-                Signal.action.in_(['buy', 'sell']),
+                Signal.action.in_(['BUY', 'SELL']),  # signals 大写契约（08-13 统一）
             )
             .order_by(Signal.signal_date.asc())
             .all()

@@ -43,7 +43,7 @@ class TestChanScan:
         assert result['signals_written'] == 1
         call = mock_sig.return_value.create_signal.call_args[0][0]
         assert call['symbol'] == '600519'  # 归一为无后缀（signals.symbol FK 契约）
-        assert call['action'] == 'buy'
+        assert call['action'] == 'BUY'  # signals 大写契约（08-13）
         assert call['strategy_id'] == 'chan_1买'
         assert call['confidence'] == 90.0          # 0.9 → 0-100 映射
         assert call['status'] == 'pending'
@@ -114,5 +114,5 @@ class TestPoolSymbols:
         result = ChanScanService().scan()
         assert result['signals_written'] == 1
         call = mock_sig.return_value.create_signal.call_args[0][0]
-        assert call['action'] == 'sell'
+        assert call['action'] == 'SELL'
         assert call['strategy_id'] == 'chan_1卖'

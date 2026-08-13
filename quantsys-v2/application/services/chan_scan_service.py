@@ -18,9 +18,10 @@ from adapters.outbound.repositories.signal_repository import SignalORMRepository
 logger = structlog.getLogger(__name__)
 
 # 全部 6 类买卖点（笔中枢重构后卖点已对称实现）
+# 值为 signals 表大写契约（2026-08-13 统一）
 _SIGNAL_TYPE_ACTION = {
-    '1买': 'buy', '2买': 'buy', '3买': 'buy',
-    '1卖': 'sell', '2卖': 'sell', '3卖': 'sell',
+    '1买': 'BUY', '2买': 'BUY', '3买': 'BUY',
+    '1卖': 'SELL', '2卖': 'SELL', '3卖': 'SELL',
 }
 
 
