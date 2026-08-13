@@ -6,6 +6,8 @@ import { existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { loadSkills, type Skill } from "../../sdk-facade.js";
 import { allCustomTools, initMemoryTools } from "../../infrastructure/tools/index.js";
+import { getCoreTools, isToolSearchMode } from "../../infrastructure/tools/catalog.js";
+import { toolSearchMetaTools } from "../../infrastructure/tools/meta/tool-search-tools.js";
 import type { ToolDefinition } from "../../infrastructure/tools/index.js";
 import { setPlanToolContext } from "../../infrastructure/tools/agent/plan-tool.js";
 import { loadPlugins } from "../../infrastructure/plugins/index.js";
@@ -54,12 +56,15 @@ export async function startGateway(adapters: ChannelAdapter[]): Promise<GatewayH
   const pluginRegistry = await loadPlugins(paths.pluginDirs);
   initSkillsBlock(skills, pluginRegistry.skills);
 
-  const tools: ToolDefinition[] = [
-    ...allCustomTools,
-    ...pluginRegistry.tools as any[],
-  ] as ToolDefinition[];
-  console.log(`[Gateway] 已加载 ${tools.length} 个工具`);
-  setPlanToolContext(tools);
+  const tools: ToolDefinition[] = isToolSearchMode()
+    ? [...getCoreTools(), ...toolSearchMetaTools, ...pluginRegistry.tools as any[]] as ToolDefinition[]
+    : [
+        ...allCustomTools,
+        ...pluginRegistry.tools as any[],
+      ] as ToolDefinition[];
+  console.log(`[Gateway] 已加载 ${tools.length} 个工具（tool_search=${isToolSearchMode() ? "on" : "off"}）`);
+  // plan 子代理始终拿全量注册表（不经 Tool Search）
+  setPlanToolContext([...allCustomTools, ...pluginRegistry.tools as any[]] as ToolDefinition[]);
 
   const factory = createGatewaySessionFactory(tools, skills);
   const gateway = new AgentGateway({

@@ -16,10 +16,9 @@ import {
   readDailyMemory,
 } from "../../core/agent/system-prompt.js";
 import { setSessionDataDir } from "../../infrastructure/tools/shared/session-utils.js";
+import { isToolSearchMode } from "../../infrastructure/tools/catalog.js";
 import {
-  setSystemPrompt,
   getMessages,
-  getMessageCount,
   hasState,
   addMessage,
   createUserMessage,
@@ -91,9 +90,11 @@ export function createGatewaySessionFactory(
           resourceLoader: await createAppResourceLoader(paths.root),
           systemPrompt: () => buildAgentSystemPrompt({
             memoryContext: "",
-            dailyMemory: "",
+            // 会话创建时快照当日记忆（beforePrompt 不再每轮重建系统提示词——W2.5 缓存修复）
+            dailyMemory: readDailyMemory(paths.piDir),
             tools,
             workspaceDir: paths.root,
+            toolSearchMode: isToolSearchMode(),
           }),
           customTools: tools,
           skills,
@@ -107,19 +108,20 @@ export function createGatewaySessionFactory(
       setSessionContext(sessionKey, sessionDir);
       lazyModelSync(session, sessionKey);
 
-      const memoryContext = autoRecall(text);
-      const dailyMemory = readDailyMemory(paths.piDir);
-      const systemPrompt = buildAgentSystemPrompt({
-        memoryContext,
-        dailyMemory,
-        tools,
-        workspaceDir: paths.root,
-      });
-
-      if (!hasState(session)) return;
-
-      setSystemPrompt(session, systemPrompt);
-      logger.logSystemPrompt(systemPrompt, getMessageCount(session));
+      // W2.5 修复（2026-08-13 审计实证）：此前每轮 rebuild + setSystemPrompt，
+      // 且把 autoRecall(text)/dailyMemory 嵌进系统提示词——召回内容每条消息都不同，
+      // 系统提示词每轮变化 → 64-token 块前缀从第 0 位断裂 → 整轮 cacheRead=0
+      // （wake 会话 08-12 02:00 运行 30 轮全程零命中，51K→91K 全价支付）。
+      // 系统提示词只在 createSession 构建一次（窄腰原则）；
+      // 召回内容改为消息级注入：append 到消息流尾部（append-only 保前缀）。
+      if (hasState(session)) {
+        const recalled = autoRecall(text);
+        if (recalled) {
+          addMessage(session, createUserMessage(
+            `<recalled_memory source="auto-recall">\n${recalled}\n</recalled_memory>`,
+          ));
+        }
+      }
 
       const messages = getMessages(session);
       microCompact(messages as any);

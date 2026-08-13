@@ -34,6 +34,8 @@ export interface BuildSystemPromptOptions {
     label?: string;
     promptGuidelines?: string[];
   }>;
+  /** T8: Tool Search 三段式——工具列表为常驻 core 集，追加目录检索说明 */
+  toolSearchMode?: boolean;
 }
 
 const CHANNEL_HINTS: Record<string, string> = {
@@ -61,6 +63,7 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
     mode = "full",
     customToolsBlock = "",
     customTools = [],
+    toolSearchMode = false,
   } = opts;
 
   const sections: string[] = [];
@@ -91,12 +94,30 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
 
   // 3.2 工具列表
   if (customToolsBlock) {
-    const toolListHeader = `### 工具列表（按使用频率排序，优先考虑靠前的工具）
+    const toolListHeader = toolSearchMode
+      ? `### 常驻核心工具（直接调用）
+
+以下是常驻核心工具，schema 已加载，**直接调用，不要用 tool_call 包装**：
+
+`
+      : `### 工具列表（按使用频率排序，优先考虑靠前的工具）
 
 以下是所有可用工具，按使用频率从高到低排列。选择工具时，优先考虑列表前面的工具。
 
 `;
     toolsSections.push(toolListHeader + customToolsBlock);
+  }
+
+  // 3.2b T8: Tool Search 目录说明
+  if (toolSearchMode) {
+    toolsSections.push(`### 更多工具（Tool Search 目录检索）
+
+除以上常驻工具外，还有约百个专业工具（回测/因子/策略/股票池/风控/模型/报告等）按需获取，三段式：
+1. \`tool_search(query)\` — 用关键词检索工具目录（如 "回测"、"pool"、"因子"）
+2. \`tool_describe(name)\` — 查看该工具的完整参数 schema 与使用细则
+3. \`tool_call(name, args)\` — 按 schema 填参调用
+
+需要非常驻工具时必须先 search → describe → call，不要凭空猜测工具名与参数。`);
   }
 
   // 3.3 工具使用细则

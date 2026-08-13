@@ -162,7 +162,7 @@
 
 ---
 
-## T7（W2.5）Prompt Cache 窄腰审计（纯调查，随时可做）
+## T7（W2.5）Prompt Cache 窄腰审计（纯调查，随时可做）✅ 2026-08-13（cee4cb8 主抓执行：173 轮实证数据；发现 gateway beforePrompt 每轮重建 prompt 的缓存杀手，随 T8 同批修复）
 
 1. 读 `agent-ts/src/services/intelligence/system-prompt-builder.ts`，列出 8 层哪些是静态/动态。
 2. 在 agent 运行日志或 API 响应中找 prompt cache 命中证据（DeepSeek usage 的 prompt_cache_hit_tokens 字段）；采样 10 轮对话估算命中率。
@@ -171,7 +171,7 @@
 
 ---
 
-## T8（W2.1）Tool Search 三段式（独占，最后做）
+## T8（W2.1）Tool Search 三段式（独占，最后做）✅ 2026-08-13（主抓直接实现：实测闸 3/3 过——pool 查询走 search→describe→call、缠论 core+search 混用、持仓 core 直调；token 面 -74%/-65%；jest 26 新测试+全量回归一致；附带修复 gateway 每轮重建 prompt 缓存杀手）
 
 **前置**：C 组窗口；先跑 W2.5 报告结论确认提示词收益点。
 

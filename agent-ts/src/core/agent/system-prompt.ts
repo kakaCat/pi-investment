@@ -114,6 +114,7 @@ export function buildAgentSystemPrompt(params: {
   recalledMemory?: string; // W1.4: 召回注入的记忆
   tools?: Array<{ name: string; description: string; label?: string; promptGuidelines?: string[] }>;
   workspaceDir: string;
+  toolSearchMode?: boolean; // T8: 常驻 core 集 + 目录检索说明
 }): string {
   const {
     memoryContext = "",
@@ -121,6 +122,7 @@ export function buildAgentSystemPrompt(params: {
     recalledMemory = "",
     tools = [],
     workspaceDir,
+    toolSearchMode = false,
   } = params;
 
   const now = new Date();
@@ -140,6 +142,7 @@ export function buildAgentSystemPrompt(params: {
     mode: "full",
     customToolsBlock,
     customTools: tools,
+    toolSearchMode,
   });
 }
 

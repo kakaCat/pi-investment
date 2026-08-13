@@ -17,6 +17,8 @@ import {
 } from "../../sdk-facade.js";
 import { createServicesSafely, openSessionManagerSafely } from "./session-services.js";
 import { allCustomTools, initCompactTool, initBrowserTool, initTaskTools, initBackgroundManager, initRestartAgentTool } from "../../infrastructure/tools/index.js";
+import { getCoreTools, isToolSearchMode } from "../../infrastructure/tools/catalog.js";
+import { toolSearchMetaTools } from "../../infrastructure/tools/meta/tool-search-tools.js";
 import { initSkillGuard } from "../../infrastructure/tools/skill-guard.js";
 import type { ToolDefinition } from "../../infrastructure/tools/index.js";
 import { setPlanToolContext } from "../../infrastructure/tools/agent/plan-tool.js";
@@ -58,9 +60,17 @@ let baseInitialized = false;
 let cachedSkills: Skill[] = [];
 let cachedTools: ToolDefinition[] = [];
 
-/** 返回内置工具 + 插件工具的合并列表 */
+/** 返回内置工具 + 插件工具的合并列表
+ *
+ * T8（W2.1 Tool Search 三段式）：默认只常驻 core 集 + tool_search/describe/call 三件套，
+ * 其余 ~95 个工具经目录检索按需获取（schema 不进 prompt，冷启动信封 40K→~15K）。
+ * PI_TOOL_SEARCH=off 回退全量注入。
+ */
 function getEffectiveTools(): ToolDefinition[] {
-  return [...allCustomTools, ...pluginTools as any[]] as ToolDefinition[];
+  const base = isToolSearchMode()
+    ? [...getCoreTools(), ...toolSearchMetaTools]
+    : [...allCustomTools];
+  return [...base, ...pluginTools as any[]] as ToolDefinition[];
 }
 
 /**
@@ -103,6 +113,7 @@ function buildSystemPromptForContext(ctx: SessionContext | null): string {
     dailyMemory: "",
     tools: getEffectiveTools(),
     workspaceDir: paths.root,
+    toolSearchMode: isToolSearchMode(),
   });
 }
 
@@ -157,8 +168,8 @@ async function initBaseOnce(): Promise<void> {
 
   cachedTools = getToolsForContext(sessionContext);
 
-  // 初始化 plan tool 的工具上下文
-  setPlanToolContext(cachedTools);
+  // 初始化 plan tool 的工具上下文（始终给全量注册表——plan 子代理不经 Tool Search，可直接用任意工具）
+  setPlanToolContext([...allCustomTools, ...pluginTools as any[]] as ToolDefinition[]);
 
   baseInitialized = true;
 }

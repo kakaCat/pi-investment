@@ -36,8 +36,8 @@
 
 | 期 | 主题 | 工作项 | 状态 |
 |---|---|---|---|
-| P1 | 记忆服务化（本期重点） | W1.1 ~ W1.6 | 未开始 |
-| P2 | 运行时治理 | W2.1 ~ W2.5 | 未开始 |
+| P1 | 记忆服务化（本期重点） | W1.1 ~ W1.6 | ✅ 全部完成（2026-08-13） |
+| P2 | 运行时治理 | W2.1 ~ W2.5 | ✅ 全部完成（2026-08-13） |
 | P3 | v2 = Agent OS（服务协议化） | 仅方向，不排期 | — |
 | P4 | 多 Agent 协作 | 仅方向，不排期 | — |
 
@@ -103,7 +103,7 @@ P2 各项彼此独立，可与 P1 后期并行；但同一文件域的改动不�
 - **做法**：复刻缠论周蒸馏模式（`application/services/chan_knowledge_distiller.py` 是成熟参照）；agent 侧新 cron 任务 `weekly_memory_distill`；蒸馏 prompt 必须要求引用证据（decision_id/trade_id），无证据条目直接丢弃；**recall 来源内容排除在蒸馏输入外**。
 - **验收**：跑一次回填蒸馏（输入近两周数据），产出候选条目全部带 evidence；人工确认 API `POST /api/memory/{id}/validate {promote: true}` 能把 testing 升 active。
 - **依赖**：W1.2、W1.4
-- **状态**：未开始
+- **状态**：✅ 2026-08-12（T1 a7fb822 v2 蒸馏服务+双端点、T2 f62f5f7 agent cron `weekly_memory_distill` 周日 21:00；审计通过，T2 E2E 生产污染 2 条已清除）
 
 ### W1.6 web 记忆面板 + 确认门禁（1-2天）
 
@@ -121,6 +121,7 @@ P2 各项彼此独立，可与 P1 后期并行；但同一文件域的改动不�
 - **改动面**：`agent-ts/src/infrastructure/tools/index.ts` 注册表拆分（core 常驻 ~20 个 vs 目录化）；系统提示词 Tools 层重写。
 - **验收**：核心场景（盘前/盘中/复盘/盯盘唤醒）全链路回归；prompt token 数对比（改动前后采样）；DeepSeek one-tool-at-a-time 怪癖下三段式不增加往返失败率。
 - **坑**：这是高风险改动，影响所有会话；先在 worktree 用 3 个典型任务实测再合。
+- **状态**：✅ 2026-08-13（主抓直接实现：catalog.ts + core 25 常驻 + 三元工具；schema 面 -74%、描述面 -65%，每请求省 ~20K token；**3 任务实测全过**：pool 查询 tool_search→describe→call×4 教科书链路、缠论分析 core 直连+search 混用、持仓 core 直调 21s；jest 26 新测试全过+全量回归与基线一致；kill-switch `PI_TOOL_SEARCH=off`；plan 子代理始终拿全量注册表；harness 留存 src/scripts/t8-live-test.ts）
 
 ### W2.2 Compaction 四件套（1-2天）
 - 配对安全 split 点（toolCall/toolResult 不拆对）、压缩前静默记忆落盘（调 W1.4 的 sync_turn）、溢出错误模式库重试、工具结果 TTL 占位符（`[Old tool result content cleared]` + 按需回读落盘文件）。参照 openclaw `src/agents/embedded-agent-runner/tool-result-truncation.ts`、`docs/concepts/compaction.md`。
@@ -135,6 +136,7 @@ P2 各项彼此独立，可与 P1 后期并行；但同一文件域的改动不�
 
 ### W2.5 Prompt Cache 窄腰审计（0.5天，纯调查）
 - 核查 8 层提示词构建是否每轮重建（Hermes 原则：每 session 只构建一次，压缩是唯一重建时机）。产出调查报告 + 修复建议，不直接改。
+- **状态**：✅ 2026-08-13（docs/superpowers/specs/2026-08-13-prompt-cache-audit.md：173 轮实证——交互轮中位命中 98.8%，损失集中在召回注入旧行为+40K 冷启动信封；**审计超额发现 gateway beforePrompt 每轮重建系统提示词的缓存杀手**（W1.4 只修了 CLI 路径），已随 W2.1 同批修复：系统提示词仅 createSession 构建一次，召回改 addMessage 消息级注入保前缀）
 
 ---
 

@@ -44,15 +44,22 @@
 
 ## 3. 损失点（按严重度）
 
-### A. 召回注入曾嵌进系统提示词，每轮全量失效【已修，待重启生效】
+### A. 召回注入曾嵌进系统提示词，每轮全量失效【双路径均已修，待重启生效】
 
 08-12 02:00 那次自主运行**每一轮** cacheRead=0（51K→91K 全价支付约 30 轮）。
 根因经 git 考古确认：旧代码 `buildSystemPromptForContext(ctx, userMessage)` 把
 `prefetch(userMessage)` 的召回结果嵌进系统提示词——用户消息每轮不同 → 系统提示词每轮变 →
 64-token 块前缀从第 0 位即断裂 → 整轮零命中。
 
-W1.4 修补（1bea2b4）已把召回注入移到 session-factory 的 prompt 包装层（追加到最新用户消息尾部，
-前缀不受污染）。**但 agent 进程未重启，线上仍是旧行为——每轮全价。**
+修复分两路径（CLI 路径 W1.4 已修；**gateway 路径是本次审计新发现的残留**）：
+- CLI 路径（W1.4，1bea2b4）：召回注入移到 session-factory prompt 包装层（追加到最新用户消息尾部）。
+- **gateway 路径（wake/feishu——线上零命中的真正事发地，本次审计发现）**：
+  `gateway/session-factory.ts` 的 `beforePrompt` 每轮 `autoRecall(text)` + `readDailyMemory`
+  重建系统提示词并 `setSystemPrompt`——W1.4 只修了 CLI 包装层，gateway 这条每轮重建链仍在。
+  已修复（与 T8 同批提交）：系统提示词只在 createSession 构建一次（dailyMemory 创建时快照），
+  召回内容改为 `addMessage` 追加到消息流尾部（append-only 保前缀）。
+
+**但 agent 进程未重启，线上仍是旧行为——每轮全价。**
 预估损失：一次 90 分钟的 cron 运行 ≈ 2M 未缓存 input，按 DeepSeek 缓存价差约等于多付 ~5 倍该段费用。
 
 ### B. 每日 cron/首会话冷启动信封 ~40-50K token【T8 削减对象】
@@ -71,8 +78,10 @@ input 40K 级 + 部分 cacheRead 的轮（69.5%、34-36% 命中）对应压缩�
 ## 4. 重构建议（按 ROI）
 
 1. **立即：重启 agent 进程**——让 W1.4 的召回移位生效，消灭损失点 A（当前线上每轮全价）。
-2. **T8 执行（本周期）**：core 常驻 ~20 + `tool_search/tool_describe/tool_call` 三件套，
-   Tools 层与 schema 面同步瘦身。验收闸：3 任务实测 + token 前后对比 + 全量测试。
+2. **T8 执行（已随本报告同批落地）**：core 常驻 25 + `tool_search/tool_describe/tool_call` 三件套，
+   schema 面 53,871 → 14,057 字符（-74%），描述面 30,995 → 10,960（-65%），
+   估算每请求省 ~20K token。3 任务实测通过（pool 查询/缠论分析/持仓查询），
+   缓存命中正常（cacheRead 36K-236K）。kill-switch：`PI_TOOL_SEARCH=off`。
 3. **监控**：在 attachLogger 里对 `cacheRead=0 且 input>20K` 的轮次打 warn 日志，
    让"整前缀失效"未来可见（目前只有事后扒 jsonl 才能发现 A 类事故）。
 4. **不做**：为压缩重建做缓存优化（频次低）；把 date 从 Runtime 层移除（日粒度已足够稳定）。
