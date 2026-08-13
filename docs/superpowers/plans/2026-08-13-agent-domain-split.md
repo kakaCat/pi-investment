@@ -59,11 +59,11 @@
 | A0-T1 工具注册表分组 | 执行模型 | ✅ | 无 |
 | A0-T2 RoleProfile 声明 | 执行模型 | ✅ | 无 |
 | A0-T3 会话工厂装配（总闸门） | **k3** | ✅ a84b949 | A0-T1 + A0-T2 |
-| A1-T1 recall_audit 工具+记忆 Agent | 执行模型 | ⬜ | 召回 P1-T4 + A0-T3 |
+| A1-T1 recall_audit 工具+记忆 Agent | 执行模型 | ✅ d871ac5（+修复 0a95bed） | 召回 P1-T4 + A0-T3 |
 | A1-T2 每日召回审计任务 | 执行模型 | ⬜ | A1-T1（prompt 文案 k3 审） |
-| A2-T1 进化提示词+skill 读写工具 | 执行模型 | ⬜ | A0-T3（提示词文案 k3 审） |
+| A2-T1 进化提示词+skill 读写工具 | 执行模型 | ❌ 批次3未执行，待重发 | A0-T3（提示词文案 k3 审） |
 | A2-T2 weekly_evolution 迁移 | **k3** | ⬜ | A2-T1 |
-| A3-T1 渠道 Channel 层微调 | 执行模型 | ⬜ | A0-T3 |
+| A3-T1 渠道 Channel 层微调 | 执行模型 | ❌ 批次3未执行，待重发 | A0-T3 |
 
 ---
 
@@ -217,7 +217,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 
 ## A1：记忆 Agent【轨道C，依赖召回计划 P1-T4 + A0-T3】
 
-### A1-T1：`recall_audit` 工具 + 记忆 Agent 会话接入【执行模型｜轨道C｜⬜｜依赖召回P1-T4+A0-T3】
+### A1-T1：`recall_audit` 工具 + 记忆 Agent 会话接入【执行模型｜轨道C｜✅ d871ac5（+修复 0a95bed）】
 
 **Files:**
 - Create: `agent-ts/src/infrastructure/tools/memory/recall-audit-tool.ts`
@@ -243,7 +243,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 
 ## A2：进化 Agent
 
-### A2-T1：进化提示词 + skill 读写工具【执行模型｜轨道D｜⬜｜依赖 A0-T3，提示词文案 k3 审】
+### A2-T1：进化提示词 + skill 读写工具【执行模型｜轨道D｜❌ 批次3未执行，待重发】
 
 **Files:**
 - Create: `agent-ts/src/prompts/evolution-agent.md`
@@ -262,7 +262,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 
 ## A3：金融 Agent 渠道微调【轨道F，依赖 A0-T3】
 
-### A3-T1：Channel 层按渠道差异化【执行模型｜轨道F｜⬜｜依赖 A0-T3】
+### A3-T1：Channel 层按渠道差异化【执行模型｜轨道F｜❌ 批次3未执行，待重发】
 
 **Files:** Modify `agent-ts/src/services/intelligence/system-prompt-builder.ts`（仅 Channel 层组装处）+ 测试
 - [ ] 契约：Channel 层只改语气/格式（飞书：简短、无表格；TUI：完整；web：markdown 完整），**禁止放业务规则**。

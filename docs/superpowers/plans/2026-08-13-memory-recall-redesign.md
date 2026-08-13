@@ -67,10 +67,10 @@
 |---|---|---|---|
 | P0-T1 质量门（cosine_floor） | 执行模型 | ✅（r2 重发后通过 fb220b1） | 无 |
 | P0-T2 floor 分布测量定值 | **k3** | ✅（floor=0.58，见 spec §6.1） | 无 |
-| P0-T3 env 接线+重启验证 | 执行模型 | ⬜ | P0-T1 合并 + P0-T2 出值 |
+| P0-T3 env 接线+重启验证 | 执行模型 | ❌ 批次3未执行，待重发 | P0-T1 合并 + P0-T2 出值 |
 | P1-T1 领域层四文件 | 执行模型 | ✅ | 无 |
 | P1-T2 RecallService+端口 | **k3** | ✅ d74f212 | P1-T1 |
-| P1-T3 审计适配器 | 执行模型 | ⬜ | P1-T2 |
+| P1-T3 审计适配器 | 执行模型 | ✅ 5ccfb93 | P1-T2 |
 | P1-T4 v2 审计 API+PG 表 | 执行模型 | ✅ | 无 |
 | P1-T5 前端审计页 | 执行模型 | ✅（代码级；真机验收待批次3部署） | P1-T4（最终验收） |
 | P2-T1 SDK 扩展接线 | **k3** | ⬜ | P1-T1~T3 合并 |
@@ -200,7 +200,7 @@ git commit -m "feat(memory): vector_rank/hybrid_rank 增加 cosine_floor 质量�
 
 ---
 
-### P0-T3：env 接线与生产重启验证【执行模型｜轨道A｜⬜｜依赖 P0-T1+P0-T2】
+### P0-T3：env 接线与生产重启验证【执行模型｜轨道A｜❌ 批次3未执行，待重发】
 
 - [ ] **Step 1:** `quantsys-v2/.env` 加 `MEMORY_RECALL_COSINE_FLOOR=0.58`（P0-T2 终值，见 spec §6.1；.env 不入库，只改本地；同时更新 `.env.example` 加注释行）。
 - [ ] **Step 2:** 重启 5001：`launchctl kickstart -k gui/501/com.pi-investment.v2-api`（日志 `~/v2-api.log`）。
@@ -377,7 +377,7 @@ export interface RecallAuditPort {
 
 ---
 
-### P1-T3：审计适配器两个【执行模型｜轨道C｜⬜｜依赖 P1-T2】
+### P1-T3：审计适配器两个【执行模型｜轨道C｜✅ 5ccfb93】
 
 **Files:**
 - Create: `agent-ts/src/infrastructure/recall/audit-v2-client.ts`
