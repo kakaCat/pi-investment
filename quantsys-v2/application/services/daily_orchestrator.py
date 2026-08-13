@@ -591,11 +591,10 @@ def get_daily_orchestrator() -> DailyOrchestrator:
 
 
 def register_orchestrator_to_scheduler():
-    """将编排器注册到 APScheduler
-
-    在系统启动时调用：
-        from application.services.daily_orchestrator import register_orchestrator_to_scheduler
-        register_orchestrator_to_scheduler()
+    """⚠️ 已废弃（2026-08-13）：orchestrator tick 唯一宿主 = FastAPI lifespan
+    （adapters/inbound/fastapi_app/orchestrator_bootstrap.py）。
+    本函数会把绑定方法塞进 APScheduler SQLAlchemyJobStore（pickle 崩溃隐患），
+    且会与 FastAPI 宿主形成双引擎。保留仅为兼容旧调用方，不要新增调用。
     """
     from application.services.unified_scheduler import get_unified_scheduler
 

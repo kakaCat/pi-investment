@@ -109,6 +109,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ WatchEngine startup failed: {e}")
 
+    # 启动 DailyOrchestrator/IntradayMonitor tick 线程（2026-08-13 起唯一宿主，
+    # 原 scheduler_daemon 已下线该职责——daemon 08-05 停跑致 T+1 结转静默中断 8 天；
+    # pytest 下不启动，避免测试进程拉起调度循环）。
+    try:
+        from adapters.inbound.fastapi_app.orchestrator_bootstrap import start_orchestrator
+        orch_handles = start_orchestrator(skip='pytest' in _sys.modules)
+        if orch_handles is not None:
+            app.state.orchestrator = orch_handles
+            logger.info("✅ DailyOrchestrator tick thread started")
+    except Exception as e:
+        logger.error(f"❌ Orchestrator startup failed: {e}")
+
     logger.info("📖 API Documentation: http://localhost:5001/docs")
     logger.info("📚 ReDoc: http://localhost:5001/redoc")
 
@@ -124,6 +136,15 @@ async def lifespan(app: FastAPI):
             logger.info("✅ WatchEngine stopped")
         except Exception as e:
             logger.warning(f"⚠️ WatchEngine stop failed: {e}")
+
+    orch_handles = getattr(app.state, 'orchestrator', None)
+    if orch_handles is not None:
+        try:
+            from adapters.inbound.fastapi_app.orchestrator_bootstrap import stop_orchestrator
+            stop_orchestrator(orch_handles)
+            logger.info("✅ Orchestrator tick thread stopped")
+        except Exception as e:
+            logger.warning(f"⚠️ Orchestrator stop failed: {e}")
 
     try:
         from infrastructure.persistence.database.engine import close_engine

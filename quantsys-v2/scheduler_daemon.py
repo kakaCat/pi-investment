@@ -156,12 +156,11 @@ class SchedulerDaemon:
             
             # 加载任务配置
             self.load_tasks()
-            
-            # 注册日常编排器（状态机驱动每日投资循环）
-            self._register_orchestrator()
 
-            # 注意：WatchEngine 实时盯盘自 2026-08-12 起由 FastAPI main.py lifespan
-            # 唯一启动（watch_bootstrap.py），daemon 不再承担——双引擎会重复触发+重复唤醒。
+            # 注意：DailyOrchestrator tick 与 IntradayMonitor 自 2026-08-13 起由
+            # FastAPI main.py lifespan 唯一启动（orchestrator_bootstrap.py），daemon
+            # 不再承担——daemon 无 launchd 守护，08-05 停跑后 T+1 结转静默中断 8 天。
+            # WatchEngine 同理已于 2026-08-12 迁出。双宿主会重复执行 phase/重复唤醒。
 
             # 启动调度器
             logger.info("Starting scheduler...")
@@ -185,66 +184,6 @@ class SchedulerDaemon:
             traceback.print_exc()
             sys.exit(1)
     
-    def _register_orchestrator(self):
-        """注册日常编排器和盘中监控到调度器"""
-        # 注意：必须注册模块级包装函数而非绑定方法——SQLAlchemyJobStore
-        # 需要 pickle 任务函数，绑定方法会连带序列化 ORM Session 导致崩溃
-        from infrastructure.jobs import monitor_jobs
-
-        try:
-            from application.services.daily_orchestrator import get_daily_orchestrator
-            
-            orchestrator = get_daily_orchestrator()
-            
-            # 每分钟 tick（工作日 08:00-17:59）
-            self.scheduler_service.add_cron_job(
-                func=monitor_jobs.daily_orchestrator_tick,
-                job_id='daily_orchestrator_tick',
-                name='日常编排器 Tick',
-                minute='*',
-                hour='8-17',
-                day_of_week='mon-fri',
-            )
-            
-            # 进程启动时尝试断点续跑
-            orchestrator.resume_from_breakpoint()
-            
-            logger.info("✓ DailyOrchestrator registered")
-            
-        except Exception as e:
-            logger.error(f"Failed to register DailyOrchestrator: {e}")
-
-        # 注册盘中监控
-        try:
-            from application.services.intraday_monitor import get_intraday_monitor
-            
-            monitor = get_intraday_monitor()
-            
-            # 上午 09:30-11:30 每30分钟
-            self.scheduler_service.add_cron_job(
-                func=monitor_jobs.intraday_monitor_check,
-                job_id='intraday_monitor_am',
-                name='盘中监控(上午)',
-                minute='0,30',
-                hour='9-11',
-                day_of_week='mon-fri',
-            )
-            
-            # 下午 13:00-15:00 每30分钟
-            self.scheduler_service.add_cron_job(
-                func=monitor_jobs.intraday_monitor_check,
-                job_id='intraday_monitor_pm',
-                name='盘中监控(下午)',
-                minute='0,30',
-                hour='13-14',
-                day_of_week='mon-fri',
-            )
-            
-            logger.info("✓ IntradayMonitor registered")
-            
-        except Exception as e:
-            logger.error(f"Failed to register IntradayMonitor: {e}")
-
     def _keep_running(self):
         """保持进程运行"""
         logger.info("Scheduler daemon is running. Press Ctrl+C to stop.")

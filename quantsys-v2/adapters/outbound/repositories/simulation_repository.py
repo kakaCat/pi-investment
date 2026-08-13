@@ -686,10 +686,13 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             更新行数
         """
         day = today or datetime.now().date()
+        # 读取侧用 UPPER(action) 兼容历史脏数据（契约见 normalize_action，
+        # 2026-08-12 幽灵持仓事故；此处曾写死小写 'buy' 导致当日买入量恒为 0）
         bought_today = dict(
             self.session.query(
                 SimulationTrade.symbol, func.sum(SimulationTrade.shares)
-            ).filter_by(account_name=account_name, action='buy')
+            ).filter_by(account_name=account_name)
+             .filter(func.upper(SimulationTrade.action) == 'BUY')
              .filter(SimulationTrade.trade_date == day)
              .group_by(SimulationTrade.symbol).all()
         )
