@@ -12,6 +12,15 @@ export async function getSchedulerRuntime(
   options: Partial<SchedulerServiceOptions> & SchedulerExecutorOptions = {},
 ) {
   if (runtime) {
+    // 单例已建时带参调用是静默丢配置（2026-08-13 headless 事故：
+    // initAgentDecisionTasks 先建无 promptAgent 的单例，后到的 promptAgent 被吞，
+    // agent_turn 任务到点静默失败）。显式 warn 让配置竞争可见。
+    if (options.promptAgent || options.executor) {
+      console.warn(
+        "⚠️ [SchedulerRuntime] 运行时已初始化，本次传入的 promptAgent/executor 被忽略" +
+          "（调用顺序竞争——先建者生效）",
+      );
+    }
     return runtime;
   }
 

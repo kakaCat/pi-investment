@@ -59,8 +59,12 @@ async function main() {
   // 2. 工具引用 sanity check（warn 不阻断）
   await runToolReferenceCheckOnStartup(process.cwd());
 
-  // 3. 注册 agent_turn 定时任务 + 启动调度器
-  await initAgentDecisionTasks();
+  // 3. 启动调度器 + 注册 agent_turn 定时任务
+  // 顺序关键（2026-08-13 事故）：getSchedulerRuntime 是单例，先到者的 executor 生效。
+  // initAgentDecisionTasks 内部用无参 getSchedulerRuntime()——若它先跑，
+  // 单例 executor 没有 promptAgent，agent_turn 任务到点全抛
+  // "No prompt agent configured"（run 记录只在内存，无任何日志，静默丢失）。
+  // 必须先带 promptAgent 建运行时，再注册任务。
   const schedulerRuntime = await startSchedulerRuntime({
     promptAgent: async (message: string) => {
       console.log(`\n⏰ 定时任务触发: ${message.substring(0, 80)}...`);
@@ -73,6 +77,7 @@ async function main() {
     },
     writeOutput: (message) => process.stdout.write(message),
   });
+  await initAgentDecisionTasks();
 
   const jobs = await schedulerRuntime.service.listTaskSummaries();
   console.log(`⏰ 调度任务（${jobs.length} 个）:`);
