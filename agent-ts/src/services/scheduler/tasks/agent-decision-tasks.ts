@@ -488,12 +488,12 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
      date_to: '<今日日期 YYYY-MM-DD>'
    })
 
-2. 关注关键指标：
-   - 总召回次数 (total_recalls)
+2. 关注关键指标（stats 响应的真实字段名）：
+   - 总召回次数 (total)、注入数 (injected)、抑制数 (suppressed)
    - 注入率 (injection_rate) - 低于 60% 需要警惕
-   - 抑制率 (suppression_rate) - 高于 40% 需要调查
-   - 分流统计 (suppression_reasons) - 哪些原因导致抑制？
-   - 评分分布 (score_distribution) - 低分注入是否过多？
+   - 分流统计 (by_flow) - 各渠道（scheduled-task/wake-event/interactive-chat/skill-invocation）的注入/抑制分布
+   - 抑制原因 (suppress_reasons) - 哪些原因导致抑制？
+   - 评分直方图 (score_histogram) - 低分注入是否过多？
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 第二步：逐条初步标注（仅标注 agent feedback）
@@ -506,7 +506,7 @@ export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdA
      action: 'list',
      date_from: '<昨日日期>',
      date_to: '<今日日期>',
-     gate_result: 'injected',
+     gate_result: 'passed',  // passed=已注入放行, suppressed=已抑制
      page_size: 50
    })
 

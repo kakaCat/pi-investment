@@ -40,7 +40,7 @@ export const recallAuditTool: ToolDefinition = {
     gate_result: Type.Optional(
       Type.String({
         description:
-          "Filter by gate result ('injected' or 'suppressed'). Only for 'list' action.",
+          "Filter by gate result ('passed' = 已注入放行, 'suppressed' = 已抑制). Only for 'list' action.",
       })
     ),
     suppressed_only: Type.Optional(
@@ -126,7 +126,11 @@ export const recallAuditTool: ToolDefinition = {
 async function handleList(params: any) {
   const queryParams = new URLSearchParams();
   if (params.flow) queryParams.set("flow", params.flow);
-  if (params.gate_result) queryParams.set("gate_result", params.gate_result);
+  if (params.gate_result) {
+    // DB 规范值为 passed/suppressed；'injected' 作为别名防御性映射到 passed
+    const gate = params.gate_result === "injected" ? "passed" : params.gate_result;
+    queryParams.set("gate_result", gate);
+  }
   if (params.suppressed_only) queryParams.set("suppressed_only", "true");
   if (params.page) queryParams.set("page", String(params.page));
   if (params.page_size) queryParams.set("page_size", String(params.page_size));

@@ -1,5 +1,5 @@
 """Memory Recall Audit Repository - quant.memory_recall_audit 数据访问层（P1-T4）"""
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -31,6 +31,19 @@ class MemoryRecallAuditModel(Base):
 
 class MemoryRecallAuditRepository(BaseORMRepository[MemoryRecallAuditModel]):
     model = MemoryRecallAuditModel
+
+    # gate_result 规范值：'passed'（注入放行）/ 'suppressed'（抑制），
+    # 由 agent-ts P1-T2 quality-gate 域写入。'injected' 为历史/外部兼容值，统计时等价 passed。
+    _INJECTED_VALUES = ("passed", "injected")
+
+    @staticmethod
+    def _date_to_exclusive(date_to: str) -> datetime:
+        """date_to 上界（不含）。date-only（YYYY-MM-DD）按当日整天处理 → 次日 0 点；
+        完整时间戳原样使用。修复：date-only 曾被解析为当日 0 点导致同日查询全零。"""
+        dt = datetime.fromisoformat(date_to.replace("Z", "+00:00"))
+        if len(date_to.strip()) == 10:
+            return dt + timedelta(days=1)
+        return dt
 
     def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """创建审计记录"""
@@ -83,8 +96,7 @@ class MemoryRecallAuditRepository(BaseORMRepository[MemoryRecallAuditModel]):
                 dt_from = datetime.fromisoformat(date_from.replace("Z", "+00:00"))
                 query = query.filter(self.model.ts >= dt_from)
             if date_to:
-                dt_to = datetime.fromisoformat(date_to.replace("Z", "+00:00"))
-                query = query.filter(self.model.ts <= dt_to)
+                query = query.filter(self.model.ts < self._date_to_exclusive(date_to))
 
             # 总数
             total = query.count()
@@ -114,12 +126,11 @@ class MemoryRecallAuditRepository(BaseORMRepository[MemoryRecallAuditModel]):
                 dt_from = datetime.fromisoformat(date_from.replace("Z", "+00:00"))
                 query = query.filter(self.model.ts >= dt_from)
             if date_to:
-                dt_to = datetime.fromisoformat(date_to.replace("Z", "+00:00"))
-                query = query.filter(self.model.ts <= dt_to)
+                query = query.filter(self.model.ts < self._date_to_exclusive(date_to))
 
             rows = query.all()
             total = len(rows)
-            injected = sum(1 for r in rows if r.gate_result == "injected")
+            injected = sum(1 for r in rows if r.gate_result in self._INJECTED_VALUES)
             suppressed = sum(1 for r in rows if r.gate_result == "suppressed")
 
             # 分流统计
@@ -128,7 +139,7 @@ class MemoryRecallAuditRepository(BaseORMRepository[MemoryRecallAuditModel]):
                 if r.flow not in by_flow:
                     by_flow[r.flow] = {"total": 0, "injected": 0, "suppressed": 0}
                 by_flow[r.flow]["total"] += 1
-                if r.gate_result == "injected":
+                if r.gate_result in self._INJECTED_VALUES:
                     by_flow[r.flow]["injected"] += 1
                 elif r.gate_result == "suppressed":
                     by_flow[r.flow]["suppressed"] += 1

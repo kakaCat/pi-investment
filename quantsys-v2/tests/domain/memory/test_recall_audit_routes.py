@@ -38,7 +38,7 @@ def _payload(**overrides):
         "query_text": "茅台 买点",
         "strategy": "hybrid",
         "degraded": False,
-        "gate_result": "injected",
+        "gate_result": "passed",
         "suppress_reason": None,
         "hits": [{"memory_id": 101, "score": 0.85, "title": "t1"}],
     }
@@ -83,10 +83,10 @@ def test_post_validation_422(client):
 
 def test_get_list_pagination_and_filters(client, created_ids):
     specs = [
-        dict(flow="chat", gate_result="injected", ts="2026-08-13T10:00:00+00:00"),
+        dict(flow="chat", gate_result="passed", ts="2026-08-13T10:00:00+00:00"),
         dict(flow="chat", gate_result="suppressed", suppress_reason="low_score",
              ts="2026-08-13T11:00:00+00:00"),
-        dict(flow="watch", gate_result="injected", ts="2026-08-13T12:00:00+00:00"),
+        dict(flow="watch", gate_result="passed", ts="2026-08-13T12:00:00+00:00"),
     ]
     for s in specs:
         resp = client.post("/api/memory/recall-audit", json=_payload(**s))
@@ -133,10 +133,10 @@ def test_get_list_pagination_and_filters(client, created_ids):
 
 def test_stats_aggregation(client, created_ids):
     specs = [
-        # flow=chat: 2 injected + 1 suppressed
-        dict(flow="chat", gate_result="injected",
+        # flow=chat: 2 passed(=injected) + 1 suppressed
+        dict(flow="chat", gate_result="passed",
              hits=[{"memory_id": 1, "score": 0.05}, {"memory_id": 2, "score": 0.15}]),
-        dict(flow="chat", gate_result="injected", hits=[{"memory_id": 3, "score": 0.95}]),
+        dict(flow="chat", gate_result="passed", hits=[{"memory_id": 3, "score": 0.95}]),
         dict(flow="chat", gate_result="suppressed", suppress_reason="low_score", hits=[]),
         # flow=watch: 1 suppressed
         dict(flow="watch", gate_result="suppressed", suppress_reason="low_score", hits=[]),
@@ -172,6 +172,39 @@ def test_stats_aggregation(client, created_ids):
                       params={"date_from": "2027-01-01", "date_to": "2027-01-02"})
     stats = resp.json()
     assert stats["total"] == 0 and stats["injected"] == 0 and stats["suppressed"] == 0
+
+
+def test_stats_same_day_date_to_inclusive(client, created_ids):
+    """date_from == date_to 同一天必须覆盖当日全天（生产 bug：date_to 被解析为当日 0 点导致全零）"""
+    resp = client.post("/api/memory/recall-audit", json=_payload(
+        gate_result="passed", ts="2026-08-13T13:00:00+00:00"))
+    assert resp.status_code == 201
+    created_ids.append(resp.json()["id"])
+
+    resp = client.get("/api/memory/recall-audit/stats",
+                      params={"date_from": "2026-08-13", "date_to": "2026-08-13"})
+    stats = resp.json()
+    assert stats["total"] == 1
+    assert stats["injected"] == 1
+
+    # list 同日边界同理
+    resp = client.get("/api/memory/recall-audit",
+                      params={"date_from": "2026-08-13", "date_to": "2026-08-13"})
+    assert resp.json()["total"] == 1
+
+
+def test_stats_legacy_injected_value_counted(client, created_ids):
+    """历史/外部写入的 gate_result='injected' 也计入注入数（与 passed 等价）"""
+    resp = client.post("/api/memory/recall-audit", json=_payload(
+        gate_result="injected", ts="2026-08-13T14:00:00+00:00"))
+    assert resp.status_code == 201
+    created_ids.append(resp.json()["id"])
+
+    resp = client.get("/api/memory/recall-audit/stats",
+                      params={"date_from": "2026-08-13", "date_to": "2026-08-13"})
+    stats = resp.json()
+    assert stats["total"] == 1
+    assert stats["injected"] == 1
 
 
 # ---------- feedback 标注 ----------
