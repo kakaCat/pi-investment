@@ -279,6 +279,13 @@ class SignalExecutionScheduler:
 
         # 查询今日状态为 pending 的信号
         all_signals = self.signal_repo.get_signals_by_date(execution_date)
+        # get_signals_by_date 返回 ORM Signal 对象（ORM 重构后），下游全链路
+        # （风控/下单/orchestrator 推送）按 dict 消费——统一在此转 dict。
+        # 曾按 dict 假设直接 s.get('status') → AttributeError 致 MARKET_OPEN
+        # phase 崩溃、signals_ready 推送静默丢失（2026-08-13 修复）
+        all_signals = [
+            s if isinstance(s, dict) else s.to_dict() for s in all_signals
+        ]
         pending_signals = [s for s in all_signals if s.get('status') == 'pending']
 
         logger.info(f"收集到 {len(pending_signals)} 个待处理信号")
