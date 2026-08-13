@@ -378,3 +378,6 @@ export const allCustomTools = [
   browserTool,
   readTool,
 ];
+
+// ===== 工具分组导出 =====
+export { SHARED_BASE_TOOLS, FIN_TOOLS, EVOLUTION_TOOLS, MEMORY_TOOLS } from './groups.js';
