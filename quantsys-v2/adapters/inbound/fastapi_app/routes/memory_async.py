@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from adapters.outbound.repositories.memory_repository import MemoryRepository
+from adapters.outbound.repositories.memory_recall_audit_repository import MemoryRecallAuditRepository
 from domain.memory import MemoryEntry, MemoryService
 
 logger = structlog.get_logger(__name__)
@@ -106,6 +107,162 @@ def export_memory():
 def health_check():
     """健康检查"""
     return {"status": "ok", "service": "memory"}
+
+
+# ========== 召回审计 API（P1-T4）==========
+# 注意：这些路由必须在 /api/memory/{entry_id} 之前，否则会被通配路由拦截
+
+@router.post("/api/memory/recall-audit", status_code=201)
+def create_recall_audit(payload: Dict[str, Any] = Body(...)):
+    """记录一次召回的门禁结果与命中明细
+
+    Request Body:
+    {
+        "ts": "2026-08-13T10:00:00+00:00",
+        "session_id": "s-123",
+        "flow": "chat|watch|skill",
+        "query_text": "查询文本",
+        "strategy": "hybrid|bm25|vector",
+        "degraded": false,
+        "gate_result": "injected|suppressed",
+        "suppress_reason": "low_score|...",
+        "hits": [{"memory_id": 101, "score": 0.85, "title": "..."}, ...]
+    }
+    """
+    try:
+        # 校验必需字段
+        flow = payload.get("flow", "").strip()
+        gate_result = payload.get("gate_result", "").strip()
+        if not flow:
+            raise HTTPException(status_code=422, detail="Missing required field: flow")
+        if not gate_result:
+            raise HTTPException(status_code=422, detail="Missing required field: gate_result")
+
+        repo = MemoryRecallAuditRepository()
+        result = repo.create(payload)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"create_recall_audit failed: {e}")
+        raise HTTPException(status_code=500, detail=f"创建召回审计失败: {str(e)}")
+
+
+@router.get("/api/memory/recall-audit")
+def list_recall_audit(
+    flow: Optional[str] = Query(None),
+    gate_result: Optional[str] = Query(None),
+    suppressed_only: Optional[str] = Query(None),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+):
+    """分页列举召回审计记录（ts DESC）
+
+    Query Parameters:
+    - flow: 筛选流（chat|watch|skill）
+    - gate_result: 筛选结果（injected|suppressed）
+    - suppressed_only: "true" = 只返回被抑制的
+    - date_from/date_to: ISO 8601 日期范围
+    - page/page_size: 分页
+    """
+    try:
+        suppressed_only_bool = suppressed_only and suppressed_only.lower() == "true"
+        repo = MemoryRecallAuditRepository()
+        items, total = repo.list_filtered(
+            flow=flow,
+            gate_result=gate_result,
+            suppressed_only=suppressed_only_bool,
+            date_from=date_from,
+            date_to=date_to,
+            page=page,
+            page_size=page_size,
+        )
+        return {"items": items, "total": total}
+    except Exception as e:
+        logger.error(f"list_recall_audit failed: {e}")
+        raise HTTPException(status_code=500, detail=f"列举召回审计失败: {str(e)}")
+
+
+@router.get("/api/memory/recall-audit/stats")
+def recall_audit_stats(
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+):
+    """聚合统计：注入率、分流、抑制原因、分数直方图
+
+    Response:
+    {
+        "total": N,
+        "injected": N,
+        "suppressed": N,
+        "injection_rate": 0.xx,
+        "by_flow": {flow: {"total": N, "injected": N, "suppressed": N}},
+        "suppress_reasons": {reason: N},
+        "score_histogram": [{"bucket": "0.0-0.1", "count": N}, ...]
+    }
+    """
+    try:
+        repo = MemoryRecallAuditRepository()
+        stats = repo.get_stats(date_from=date_from, date_to=date_to)
+        return stats
+    except Exception as e:
+        logger.error(f"recall_audit_stats failed: {e}")
+        raise HTTPException(status_code=500, detail=f"召回审计统计失败: {str(e)}")
+
+
+@router.post("/api/memory/recall-audit/{audit_id}/feedback")
+def recall_audit_feedback(
+    audit_id: int,
+    payload: Dict[str, Any] = Body(...),
+):
+    """为 hits 数组中某条记忆标注 feedback
+
+    Request Body:
+    {
+        "memory_id": 101,
+        "feedback": "relevant|irrelevant",
+        "feedback_by": "human|agent"
+    }
+
+    规则：
+    - human 覆盖 agent → 允许
+    - agent 覆盖 human → 409
+    - audit_id 不存在 / memory_id 不在 hits 中 → 404
+    - feedback 非法值 → 422
+    """
+    try:
+        memory_id = payload.get("memory_id")
+        feedback = payload.get("feedback")
+        feedback_by = payload.get("feedback_by")
+
+        if not memory_id:
+            raise HTTPException(status_code=422, detail="Missing required field: memory_id")
+        if feedback not in ("relevant", "irrelevant"):
+            raise HTTPException(status_code=422, detail="feedback must be 'relevant' or 'irrelevant'")
+        if feedback_by not in ("human", "agent"):
+            raise HTTPException(status_code=422, detail="feedback_by must be 'human' or 'agent'")
+
+        repo = MemoryRecallAuditRepository()
+        result = repo.update_feedback(
+            audit_id=audit_id,
+            memory_id=memory_id,
+            feedback=feedback,
+            feedback_by=feedback_by,
+        )
+        return result
+    except HTTPException:
+        raise
+    except ValueError as e:
+        # audit 不存在 / memory_id 不在 hits
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        # agent 覆盖 human
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        logger.error(f"recall_audit_feedback failed: {e}")
+        raise HTTPException(status_code=500, detail=f"召回审计标注失败: {str(e)}")
 
 
 @router.get("/api/memory/{entry_id}")
