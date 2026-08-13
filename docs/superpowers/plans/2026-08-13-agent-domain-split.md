@@ -60,7 +60,7 @@
 | A0-T2 RoleProfile 声明 | 执行模型 | ✅ | 无 |
 | A0-T3 会话工厂装配（总闸门） | **k3** | ✅ a84b949 | A0-T1 + A0-T2 |
 | A1-T1 recall_audit 工具+记忆 Agent | 执行模型 | ✅ d871ac5（+修复 0a95bed） | 召回 P1-T4 + A0-T3 |
-| A1-T2 每日召回审计任务 | 执行模型 | ⬜ | A1-T1（prompt 文案 k3 审） |
+| A1-T2 每日召回审计任务 | 执行模型+k3终审 | ✅ 55884b9(+db19f83 prompt 契约修正) | A1-T1（prompt 文案 k3 审） |
 | A2-T1 进化提示词+skill 读写工具 | 执行模型 | ✅ bed1b79（+修复 6023338） | A0-T3（提示词文案 k3 审） |
 | A2-T2 weekly_evolution 迁移 | **k3** | ✅ ee4c26e（干跑审计记录实证） | A2-T1 |
 | A3-T1 渠道 Channel 层微调 | 执行模型+k3修复 | ✅ a542e4a（r2：k3 亲修兼容+接线） | A0-T3 |
@@ -233,7 +233,7 @@ export function getProfile(kind: AgentKind): RoleProfile {
 - mock 模式参照现有 quant 工具测试（unstable_mockModule runQuantV2 或 fetch mock，以该工具实际 HTTP 层为准——实施时读 `quant-v2-client.ts` 决定走 runQuantV2 还是 fetch，报告说明选择）。
 - [ ] 验收：三 action 测试全过 + `npm test -- groups` 等价性仍过（新工具已归组）。
 
-### A1-T2：每日召回审计任务注册【执行模型｜轨道C｜⬜｜依赖 A1-T1，prompt 文案 k3 审】
+### A1-T2：每日召回审计任务注册【执行模型｜轨道C｜✅ 55884b9 + db19f83（k3 终审修正 memory_write 幻觉参数）】
 
 **Files:** Modify `agent-ts/src/services/scheduler/init-agent-tasks.ts`
 - [ ] 新增任务 `daily_recall_audit`（cron `0 19 * * *`，agentKind='memory'，prompt 含完整工作流：拉 stats→逐条初标→低置信标 needs_review→写日报到记忆 evolution/memory scope）。prompt 文案 Claude 审。
