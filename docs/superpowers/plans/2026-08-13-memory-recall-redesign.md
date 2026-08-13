@@ -65,14 +65,14 @@
 
 | 任务 | 执行者 | 状态 | 依赖 |
 |---|---|---|---|
-| P0-T1 质量门（cosine_floor） | 执行模型 | ⬜ | 无 |
+| P0-T1 质量门（cosine_floor） | 执行模型 | ❌ 批次1未执行，待重发 | 无 |
 | P0-T2 floor 分布测量定值 | **k3** | ⬜ | 无 |
 | P0-T3 env 接线+重启验证 | 执行模型 | ⬜ | P0-T1 合并 + P0-T2 出值 |
-| P1-T1 领域层四文件 | 执行模型 | ⬜ | 无 |
+| P1-T1 领域层四文件 | 执行模型 | ✅ | 无 |
 | P1-T2 RecallService+端口 | **k3** | ⬜ | P1-T1 |
 | P1-T3 审计适配器 | 执行模型 | ⬜ | P1-T2 |
-| P1-T4 v2 审计 API+PG 表 | 执行模型 | ⬜ | 无 |
-| P1-T5 前端审计页 | 执行模型 | ⬜ | P1-T4（最终验收） |
+| P1-T4 v2 审计 API+PG 表 | 执行模型 | ✅ | 无 |
+| P1-T5 前端审计页 | 执行模型 | ✅（代码级；真机验收待批次3部署） | P1-T4（最终验收） |
 | P2-T1 SDK 扩展接线 | **k3** | ⬜ | P1-T1~T3 合并 |
 | P2-T2 删 wrapper 注入 | **k3** | ⬜ | P2-T1 |
 | P2-T3 全通道验收 | **k3** | ⬜ | P2-T2 |
@@ -97,7 +97,7 @@ A ∥ B ∥ C ∥ D ∥ E 全部可并行开工（文件不相交，见各任务
 
 ## P0：v2 质量门
 
-### P0-T1：hybrid_search 加 cosine_floor + 空结果语义【执行模型｜轨道A｜⬜】
+### P0-T1：hybrid_search 加 cosine_floor + 空结果语义【执行模型｜轨道A｜❌ 批次1未执行，待重发】
 
 **Files:**
 - Modify: `quantsys-v2/domain/memory/hybrid_search.py`
@@ -211,7 +211,7 @@ git commit -m "feat(memory): vector_rank/hybrid_rank 增加 cosine_floor 质量�
 
 ## P1：agent-ts 领域层 + 应用层 + 审计
 
-### P1-T1：领域层四文件（纯函数，零 IO）【执行模型｜轨道C｜⬜】
+### P1-T1：领域层四文件（纯函数，零 IO）【执行模型｜轨道C｜✅ 9d706d6】
 
 **Files:**
 - Create: `agent-ts/src/domain/recall/types.ts`
@@ -392,7 +392,7 @@ export interface RecallAuditPort {
 
 ---
 
-### P1-T4：v2 审计 API + PG 表【执行模型｜轨道D｜⬜】
+### P1-T4：v2 审计 API + PG 表【执行模型｜轨道D｜✅ 23f55d6】
 
 **Files:**
 - Create: `quantsys-v2/infrastructure/persistence/migrations/create_memory_recall_audit_table.sql`
@@ -448,7 +448,7 @@ POST /api/memory/recall-audit/{audit_id}/feedback
 
 ---
 
-### P1-T5：前端「召回审计」tab【执行模型｜轨道E｜⬜｜验收依赖 P1-T4 部署】
+### P1-T5：前端「召回审计」tab【执行模型｜轨道E｜✅ fae330d（主工作区打捞）｜真机验收待批次3】
 
 **Files:**
 - Modify: `web-frontend/src/services/api/memory.ts`（追加 audit API 函数）

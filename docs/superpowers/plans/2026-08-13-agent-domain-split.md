@@ -56,8 +56,8 @@
 
 | 任务 | 执行者 | 状态 | 依赖 |
 |---|---|---|---|
-| A0-T1 工具注册表分组 | 执行模型 | ⬜ | 无 |
-| A0-T2 RoleProfile 声明 | 执行模型 | ⬜ | 无 |
+| A0-T1 工具注册表分组 | 执行模型 | ✅ | 无 |
+| A0-T2 RoleProfile 声明 | 执行模型 | ✅ | 无 |
 | A0-T3 会话工厂装配（总闸门） | **k3** | ⬜ | A0-T1 + A0-T2 |
 | A1-T1 recall_audit 工具+记忆 Agent | 执行模型 | ⬜ | 召回 P1-T4 + A0-T3 |
 | A1-T2 每日召回审计任务 | 执行模型 | ⬜ | A1-T1（prompt 文案 k3 审） |
@@ -85,7 +85,7 @@ A ∥ B 可并行（文件不相交）。A0-T3 是总闸门。
 
 ## A0：地基
 
-### A0-T1：工具注册表分组【执行模型｜轨道A｜⬜】
+### A0-T1：工具注册表分组【执行模型｜轨道A｜✅ cb16423】
 
 **Files:**
 - Create: `agent-ts/src/infrastructure/tools/groups.ts`
@@ -136,7 +136,7 @@ test('四组无交集且并集等于 allCustomTools', () => {
 
 ---
 
-### A0-T2：RoleProfile 声明【执行模型｜轨道B｜⬜】
+### A0-T2：RoleProfile 声明【执行模型｜轨道B｜✅ fa4a057】
 
 **Files:**
 - Create: `agent-ts/src/domain/agent-roles/types.ts`
