@@ -776,56 +776,16 @@ def handle_market_style_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
 
 def handle_v13_daily_check(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """V13模拟交易每日检查任务"""
-    params = params or {}
+    """V13模拟交易每日检查任务
 
+    2026-08-13 修桩：原实现是返回编造 checks_performed 的假桩，
+    替换为委托真 job（infrastructure.jobs.strategy_trading_job.v13_daily_check）。
+    本函数是 _TASK_HANDLERS 回落路径，假桩会在 handlers 解析顺序变化时静默跑假任务。
+    """
     logger.info("Starting v13_daily_check task")
-
     try:
-        # V13是特定的模拟交易系统
-        # 这里提供基本框架，具体实现需要V13系统的详细需求
-
-        from datetime import date
-
-        check_date = params.get('date', date.today())
-
-        # 检查V13系统状态
-        v13_status = {
-            "date": str(check_date),
-            "system_status": "running",
-            "checks_performed": []
-        }
-
-        # 1. 检查持仓状态
-        v13_status["checks_performed"].append({
-            "check": "position_status",
-            "status": "ok",
-            "message": "V13 position check completed"
-        })
-
-        # 2. 检查信号执行
-        v13_status["checks_performed"].append({
-            "check": "signal_execution",
-            "status": "ok",
-            "message": "V13 signal execution check completed"
-        })
-
-        # 3. 检查风险指标
-        v13_status["checks_performed"].append({
-            "check": "risk_metrics",
-            "status": "ok",
-            "message": "V13 risk metrics within limits"
-        })
-
-        return {
-            "action": "v13_daily_check",
-            "status": "success",
-            "check_date": str(check_date),
-            "checks_completed": len(v13_status["checks_performed"]),
-            "v13_status": v13_status,
-            "timestamp": datetime.now().isoformat()
-        }
-
+        from infrastructure.jobs.strategy_trading_job import v13_daily_check
+        return v13_daily_check(**(params or {}))
     except Exception as e:
         logger.error(f"V13 daily check failed: {e}")
         return {

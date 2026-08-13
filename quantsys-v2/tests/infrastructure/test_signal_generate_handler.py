@@ -71,7 +71,7 @@ class TestSignalGenerateHandler:
         first_call = sig_repo.create_signal.call_args_list[0][0][0]
         assert first_call['symbol'] == '600000'
         assert first_call['name'] == '浦发银行'
-        assert first_call['action'] == 'buy'
+        assert first_call['action'] == 'BUY'  # signals 大写契约（08-13，落库点 .upper()）
         assert first_call['price'] == 10.0
         assert first_call['reason'] == 'RSI超卖反弹'
         assert first_call['indicators'] == {'rsi': 28.0}
