@@ -65,7 +65,7 @@
 
 | 任务 | 执行者 | 状态 | 依赖 |
 |---|---|---|---|
-| P0-T1 质量门（cosine_floor） | 执行模型 | ❌ 批次1未执行，待重发 | 无 |
+| P0-T1 质量门（cosine_floor） | 执行模型 | ✅（r2 重发后通过 fb220b1） | 无 |
 | P0-T2 floor 分布测量定值 | **k3** | ⬜ | 无 |
 | P0-T3 env 接线+重启验证 | 执行模型 | ⬜ | P0-T1 合并 + P0-T2 出值 |
 | P1-T1 领域层四文件 | 执行模型 | ✅ | 无 |
@@ -97,7 +97,7 @@ A ∥ B ∥ C ∥ D ∥ E 全部可并行开工（文件不相交，见各任务
 
 ## P0：v2 质量门
 
-### P0-T1：hybrid_search 加 cosine_floor + 空结果语义【执行模型｜轨道A｜❌ 批次1未执行，待重发】
+### P0-T1：hybrid_search 加 cosine_floor + 空结果语义【执行模型｜轨道A｜✅ fb220b1（r2）】
 
 **Files:**
 - Modify: `quantsys-v2/domain/memory/hybrid_search.py`
