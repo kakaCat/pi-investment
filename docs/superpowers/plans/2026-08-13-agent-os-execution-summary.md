@@ -393,3 +393,105 @@ go test ./...
 - ✅ 向后兼容验证
 
 **推送状态**: ✅ 已推送到 origin/main
+
+---
+
+### ✅ Batch 3: Driver + Decision（已完成）
+
+**开始日期**: 2026-08-14  
+**完成日期**: 2026-08-14  
+**实际工期**: 1 天（原计划 2 天）  
+**并行任务数**: 3 个同时进行 ⚡
+
+#### WP-5: Market Driver ✅
+- **分支**: feat/wp-5-market-driver
+- **提交**: 4286520
+- **负责**: Agent-Market
+- **测试**: 13/13 通过
+- **代码量**: ~926 行
+
+**交付物**:
+1. ✅ Python CLI (`market-driver`) - 602 行
+   - `main.py` (219 行) - CLI 入口
+   - `adapters/akshare_adapter.py` (243 行) - AKShare 适配器
+   - `cache/redis_cache.py` (140 行) - Redis 缓存（优雅降级）
+2. ✅ Go 集成 `internal/cmd/data.go` (324 行)
+   - `agent-os data quote` - 实时行情查询
+   - `agent-os data kline` - K线数据查询
+   - `agent-os data market-status` - 市场状态
+
+**核心特性**:
+- ✅ Redis 缓存（行情 60s TTL，K线 1天 TTL）
+- ✅ 无 Redis 时优雅降级
+- ✅ 标准化 JSON 输出
+- ✅ AKShare 数据源集成
+
+#### WP-6: Feishu Driver ✅
+- **分支**: feat/wp-6-feishu-driver
+- **提交**: 935ce9c
+- **负责**: Agent-Feishu
+- **测试**: 20/20 通过
+- **代码量**: ~1,188 行
+
+**交付物**:
+1. ✅ Python CLI (`feishu-driver`) - 380 行
+   - `main.py` (99 行) - CLI 入口
+   - `api/feishu_api.py` (167 行) - 飞书 API 客户端
+   - `manager/notification_manager.py` (110 行) - 通知管理器
+2. ✅ Go 集成 `internal/cmd/notify.go` (213 行)
+   - `agent-os notify send` - 发送通知
+   - `agent-os notify test` - 测试通知
+
+**核心特性**:
+- ✅ 重试机制（3次，指数退避）
+- ✅ Markdown 富文本支持
+- ✅ 6 种颜色主题
+- ✅ 用户/频道路由
+- ✅ 性能 ~100ms（低于 200ms 目标）
+
+#### WP-7: Decision System ✅
+- **分支**: feat/wp-7-decision-system
+- **提交**: 973470b
+- **负责**: Agent-Decision
+- **测试**: 10/10 单元测试通过
+- **代码量**: ~800 行
+
+**交付物**:
+1. ✅ `internal/domain/decision.go` (108 行) - Domain 模型
+2. ✅ `internal/repository/decision_repository.go` (319 行) - Repository 层
+3. ✅ `internal/service/decision_service.go` (174 行) - Service 层
+4. ✅ `internal/cmd/decision.go` (391 行) - CLI 命令（6个子命令）
+5. ✅ `migrations/007_create_decisions.sql` (67 行) - 数据库迁移
+6. ✅ `internal/service/decision_service_test.go` (414 行) - 单元测试
+
+**CLI 命令**:
+- ✅ `agent-os decision record` - 记录决策
+- ✅ `agent-os decision list` - 查询决策列表
+- ✅ `agent-os decision get` - 查询单个决策
+- ✅ `agent-os decision update` - 更新执行结果
+- ✅ `agent-os decision delete` - 删除决策
+- ✅ `agent-os decision stats` - 查询统计信息
+
+**核心特性**:
+- ✅ 完整 CRUD 操作
+- ✅ PostgreSQL 数据持久化
+- ✅ JSON 上下文和结果存储
+- ✅ 高级过滤和统计分析
+- ✅ 数组字段支持（targets）
+
+**集成测试**: ✅ 通过
+- ✅ 决策记录和查询正常
+- ✅ 三个模块合并无冲突
+- ✅ 编译和运行正常
+- ✅ 端到端场景验证
+
+**总代码量**: ~2,914 行  
+**总测试**: 43/43 通过  
+**合并提交**: 8505ed4  
+**推送状态**: ✅ 已推送到 origin/main
+
+**文档**:
+- WP-5-COMPLETION.md
+- WP-6-COMPLETION.md
+- WP-7-COMPLETION.md
+- BATCH-3-INTEGRATION-REPORT.md
