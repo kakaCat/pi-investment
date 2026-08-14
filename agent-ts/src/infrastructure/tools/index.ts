@@ -82,6 +82,7 @@ import { decisionRecordTool } from "./decision/decision-record-tool.js";  // 新
 // 调度器管理
 import { schedulerManageTool } from "./scheduler/scheduler-manage-tool.js";  // 新增：调度器管理工具
 import { feishuNotifyTool } from "./notification/feishu-notify-tool.js";  // 新增：飞书通知工具
+import { notificationSendTool, notificationListChannelsTool } from "./notification/notification-tools.js";  // 新增：通知系统工具
 
 // L2 因子工厂
 import { factorCalculateTool } from "./factor/calculate-tool.js";
@@ -343,6 +344,8 @@ export const allCustomTools = [
   decisionRecordTool,             // decision_record - 决策记录（审计轨迹落库）
   schedulerManageTool,            // scheduler_manage - 调度器管理（新增）
   feishuNotifyTool,               // feishu_notify - 飞书通知工具（新增）
+  notificationSendTool,           // notification_send - 通知系统发送（新增）
+  notificationListChannelsTool,   // notification_list_channels - 查询通知渠道（新增）
   strategyComparisonTool,         // strategy_performance_comparison - 策略性能对比（新增）
   backtestStatsTool,              // backtest_stats - 回测统计（新增）
   backtestHistoryTool,            // backtest_history - 回测历史查询（新增）
