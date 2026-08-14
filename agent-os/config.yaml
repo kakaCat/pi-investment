@@ -9,7 +9,7 @@ database:
   port: 5432
   user: yunpeng
   password: ""
-  dbname: agent_os
+  dbname: quant_investment
   sslmode: disable
 
 log:

@@ -6,6 +6,9 @@
 -- UP Migration
 -- ============================================================================
 
+-- Enable UUID extension if not already enabled
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- Drop existing decisions table if it exists (from schema.sql)
 DROP TABLE IF EXISTS decisions CASCADE;
 
