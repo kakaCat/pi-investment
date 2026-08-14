@@ -1,213 +1,204 @@
 package cmd
 
 import (
-	"encoding/json"
+	"context"
+	"database/sql"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/pi-investment/agent-os/internal/config"
+	"github.com/pi-investment/agent-os/internal/domain"
+	"github.com/pi-investment/agent-os/internal/repository"
+	"github.com/pi-investment/agent-os/internal/service"
 )
 
 var notifyCmd = &cobra.Command{
 	Use:   "notify",
-	Short: "Send notifications via Feishu",
-	Long:  `Send notifications to users or channels using Feishu webhook API.`,
+	Short: "Notification management",
+	Long:  "Send and manage notifications through configured channels",
 }
 
 var notifySendCmd = &cobra.Command{
 	Use:   "send",
 	Short: "Send a notification",
-	Long:  `Send a notification to a user or channel via Feishu.`,
-	RunE:  runNotifySend,
+	Long:  "Send a notification to a specified channel",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		channel, _ := cmd.Flags().GetString("channel")
+		title, _ := cmd.Flags().GetString("title")
+		content, _ := cmd.Flags().GetString("content")
+		color, _ := cmd.Flags().GetString("color")
+
+		// Get notification service
+		svc, err := getNotificationService()
+		if err != nil {
+			return err
+		}
+
+		// Send notification
+		result, err := svc.Send(context.Background(), &domain.SendRequest{
+			Channel: channel,
+			Title:   title,
+			Content: content,
+			Color:   color,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to send notification: %w", err)
+		}
+
+		if result.Success {
+			fmt.Printf("✅ Notification sent successfully\n")
+			fmt.Printf("   Log ID: %s\n", result.LogID)
+			if result.MessageID != "" {
+				fmt.Printf("   Message ID: %s\n", result.MessageID)
+			}
+		} else {
+			fmt.Printf("❌ Failed to send notification\n")
+			fmt.Printf("   Error: %s\n", result.Error)
+			os.Exit(1)
+		}
+
+		return nil
+	},
 }
 
-var notifyTestCmd = &cobra.Command{
-	Use:   "test",
-	Short: "Send a test notification",
-	RunE:  runNotifyTest,
+var notifyListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List available channels",
+	Long:  "List all available notification channels",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Get notification service
+		svc, err := getNotificationService()
+		if err != nil {
+			return err
+		}
+
+		// List channels
+		channels, err := svc.ListChannels(context.Background())
+		if err != nil {
+			return fmt.Errorf("failed to list channels: %w", err)
+		}
+
+		if len(channels) == 0 {
+			fmt.Println("No channels configured")
+			return nil
+		}
+
+		fmt.Println("CODE       NAME       PROVIDER   STATUS")
+		fmt.Println("──────────────────────────────────────────")
+		for _, ch := range channels {
+			status := "✅"
+			if !ch.Enabled {
+				status = "❌"
+			}
+			fmt.Printf("%-10s %-10s %-10s %s\n", ch.Code, ch.Name, ch.ProviderName, status)
+		}
+		fmt.Printf("\nTotal: %d channels\n", len(channels))
+
+		return nil
+	},
 }
 
-// Flags
-var (
-	notifyUser    string
-	notifyChannel string
-	notifyTitle   string
-	notifyMessage string
-	notifyColor   string
-	notifyWebhook string
-)
+var notifyLogsCmd = &cobra.Command{
+	Use:   "logs",
+	Short: "View recent notification logs",
+	Long:  "View recent notification sending logs",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		limit, _ := cmd.Flags().GetInt("limit")
+
+		// Get notification service
+		svc, err := getNotificationService()
+		if err != nil {
+			return err
+		}
+
+		// Get logs
+		logs, err := svc.GetRecentLogs(context.Background(), limit)
+		if err != nil {
+			return fmt.Errorf("failed to get logs: %w", err)
+		}
+
+		if len(logs) == 0 {
+			fmt.Println("No logs found")
+			return nil
+		}
+
+		fmt.Println("TIME                 TITLE                STATUS   CHANNEL")
+		fmt.Println("────────────────────────────────────────────────────────────")
+		for _, log := range logs {
+			statusIcon := "⏳"
+			switch log.Status {
+			case "sent":
+				statusIcon = "✅"
+			case "failed":
+				statusIcon = "❌"
+			}
+			fmt.Printf("%s  %-20s %-8s\n",
+				log.CreatedAt.Format("2006-01-02 15:04:05"),
+				truncate(log.Title, 20),
+				fmt.Sprintf("%s %s", statusIcon, log.Status),
+			)
+			if log.Error != "" {
+				fmt.Printf("   Error: %s\n", truncate(log.Error, 60))
+			}
+		}
+
+		return nil
+	},
+}
+
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
+}
+
+func getNotificationService() (*service.NotificationService, error) {
+	// Get config
+	cfg := config.Get()
+
+	// Build connection string
+	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		cfg.Database.Host,
+		cfg.Database.Port,
+		cfg.Database.User,
+		cfg.Database.Password,
+		cfg.Database.DBName,
+		cfg.Database.SSLMode,
+	)
+
+	// Connect to database
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	// Create repository and service
+	repo := repository.NewNotificationRepository(db)
+	svc := service.NewNotificationService(repo)
+
+	return svc, nil
+}
 
 func init() {
-	rootCmd.AddCommand(notifyCmd)
-
-	// Subcommands
-	notifyCmd.AddCommand(notifySendCmd)
-	notifyCmd.AddCommand(notifyTestCmd)
-
-	// Send flags
-	notifySendCmd.Flags().StringVar(&notifyUser, "user", "", "User to send notification to")
-	notifySendCmd.Flags().StringVar(&notifyChannel, "channel", "", "Channel to send notification to")
-	notifySendCmd.Flags().StringVar(&notifyTitle, "title", "", "Notification title (required)")
-	notifySendCmd.Flags().StringVar(&notifyMessage, "message", "", "Notification message (required)")
-	notifySendCmd.Flags().StringVar(&notifyColor, "color", "blue", "Card header color (blue/green/red/orange/purple/grey)")
-	notifySendCmd.Flags().StringVar(&notifyWebhook, "webhook", "", "Override webhook URL")
+	// notify send flags
+	notifySendCmd.Flags().String("channel", "", "Channel code (required)")
+	notifySendCmd.Flags().String("title", "", "Notification title (required)")
+	notifySendCmd.Flags().String("content", "", "Notification content (required)")
+	notifySendCmd.Flags().String("color", "blue", "Card color (blue/green/red/orange/grey/purple)")
+	notifySendCmd.MarkFlagRequired("channel")
 	notifySendCmd.MarkFlagRequired("title")
-	notifySendCmd.MarkFlagRequired("message")
+	notifySendCmd.MarkFlagRequired("content")
 
-	// Test flags
-	notifyTestCmd.Flags().StringVar(&notifyTitle, "title", "Test Notification", "Test notification title")
-	notifyTestCmd.Flags().StringVar(&notifyWebhook, "webhook", "", "Webhook URL to test")
-}
+	// notify logs flags
+	notifyLogsCmd.Flags().Int("limit", 10, "Number of logs to show")
 
-func getFeishuDriverPath() (string, error) {
-	// Get agent-os root directory
-	executable, err := os.Executable()
-	if err != nil {
-		return "", fmt.Errorf("failed to get executable path: %w", err)
-	}
+	// Add subcommands
+	notifyCmd.AddCommand(notifySendCmd)
+	notifyCmd.AddCommand(notifyListCmd)
+	notifyCmd.AddCommand(notifyLogsCmd)
 
-	// Navigate to agent-os root (assuming binary is in cmd/agent-os/)
-	agentOSRoot := filepath.Dir(filepath.Dir(executable))
-
-	// Path to feishu-driver
-	driverPath := filepath.Join(agentOSRoot, "drivers", "feishu-driver", "main.py")
-
-	// Check if driver exists
-	if _, err := os.Stat(driverPath); os.IsNotExist(err) {
-		// Try current working directory
-		cwd, _ := os.Getwd()
-		driverPath = filepath.Join(cwd, "drivers", "feishu-driver", "main.py")
-		if _, err := os.Stat(driverPath); os.IsNotExist(err) {
-			return "", fmt.Errorf("feishu-driver not found at %s", driverPath)
-		}
-	}
-
-	return driverPath, nil
-}
-
-func runFeishuDriver(args []string) (string, error) {
-	driverPath, err := getFeishuDriverPath()
-	if err != nil {
-		return "", err
-	}
-
-	// Find python3 executable
-	pythonCmd, err := exec.LookPath("python3")
-	if err != nil {
-		pythonCmd, err = exec.LookPath("python")
-		if err != nil {
-			return "", fmt.Errorf("python3 not found in PATH")
-		}
-	}
-
-	// Build command
-	cmdArgs := append([]string{driverPath}, args...)
-	cmd := exec.Command(pythonCmd, cmdArgs...)
-
-	// Set environment
-	cmd.Env = os.Environ()
-
-	// Capture output
-	output, err := cmd.CombinedOutput()
-	outputStr := strings.TrimSpace(string(output))
-
-	if err != nil {
-		// Check exit code
-		if exitError, ok := err.(*exec.ExitError); ok {
-			exitCode := exitError.ExitCode()
-			switch exitCode {
-			case 1:
-				return "", fmt.Errorf("invalid arguments: %s", outputStr)
-			case 2:
-				return "", fmt.Errorf("notification failed: %s", outputStr)
-			case 3:
-				return "", fmt.Errorf("system error: %s", outputStr)
-			default:
-				return "", fmt.Errorf("driver error (exit code %d): %s", exitCode, outputStr)
-			}
-		}
-		return "", fmt.Errorf("failed to run driver: %w\n%s", err, outputStr)
-	}
-
-	return outputStr, nil
-}
-
-func runNotifySend(cmd *cobra.Command, args []string) error {
-	// Validate flags
-	if notifyUser == "" && notifyChannel == "" {
-		return fmt.Errorf("either --user or --channel must be specified")
-	}
-
-	if notifyUser != "" && notifyChannel != "" {
-		return fmt.Errorf("cannot specify both --user and --channel")
-	}
-
-	// Build driver arguments
-	driverArgs := []string{"send", "--title", notifyTitle, "--message", notifyMessage, "--color", notifyColor}
-
-	if notifyUser != "" {
-		driverArgs = append(driverArgs, "--user", notifyUser)
-	} else {
-		driverArgs = append(driverArgs, "--channel", notifyChannel)
-	}
-
-	if notifyWebhook != "" {
-		driverArgs = append(driverArgs, "--webhook", notifyWebhook)
-	}
-
-	// Run driver
-	output, err := runFeishuDriver(driverArgs)
-	if err != nil {
-		return err
-	}
-
-	// Success
-	fmt.Println("✓ Notification sent")
-	if output != "" {
-		fmt.Println(output)
-	}
-
-	return nil
-}
-
-func runNotifyTest(cmd *cobra.Command, args []string) error {
-	// Build driver arguments
-	driverArgs := []string{"test", "--title", notifyTitle}
-
-	if notifyWebhook != "" {
-		driverArgs = append(driverArgs, "--webhook", notifyWebhook)
-	}
-
-	// Run driver
-	output, err := runFeishuDriver(driverArgs)
-	if err != nil {
-		return err
-	}
-
-	// Parse output for JSON response
-	if strings.Contains(output, "Response:") {
-		lines := strings.Split(output, "\n")
-		for _, line := range lines {
-			if strings.Contains(line, "Response:") {
-				// Extract JSON
-				jsonStart := strings.Index(line, "{")
-				if jsonStart != -1 {
-					jsonStr := line[jsonStart:]
-					var response map[string]interface{}
-					if err := json.Unmarshal([]byte(jsonStr), &response); err == nil {
-						prettyJSON, _ := json.MarshalIndent(response, "", "  ")
-						fmt.Println(string(prettyJSON))
-						return nil
-					}
-				}
-			}
-		}
-	}
-
-	// Fallback: print raw output
-	fmt.Println(output)
-	return nil
+	// Add to root
+	rootCmd.AddCommand(notifyCmd)
 }
