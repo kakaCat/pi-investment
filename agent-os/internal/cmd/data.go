@@ -9,6 +9,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/pi-investment/agent-os/internal/middleware"
 	"github.com/spf13/cobra"
 )
 
@@ -19,24 +20,27 @@ var dataCmd = &cobra.Command{
 }
 
 var dataQuoteCmd = &cobra.Command{
-	Use:   "quote",
-	Short: "Get real-time quote",
-	Long:  `Get real-time quote for a stock symbol.`,
-	RunE:  runDataQuote,
+	Use:     "quote",
+	Short:   "Get real-time quote",
+	Long:    `Get real-time quote for a stock symbol.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runDataQuote,
 }
 
 var dataKlineCmd = &cobra.Command{
-	Use:   "kline",
-	Short: "Get K-line data",
-	Long:  `Get historical K-line (OHLCV) data for a stock symbol.`,
-	RunE:  runDataKline,
+	Use:     "kline",
+	Short:   "Get K-line data",
+	Long:    `Get historical K-line (OHLCV) data for a stock symbol.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runDataKline,
 }
 
 var dataMarketStatusCmd = &cobra.Command{
-	Use:   "market-status",
-	Short: "Get market status",
-	Long:  `Check if the market is currently open or closed.`,
-	RunE:  runDataMarketStatus,
+	Use:     "market-status",
+	Short:   "Get market status",
+	Long:    `Check if the market is currently open or closed.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runDataMarketStatus,
 }
 
 // Flags

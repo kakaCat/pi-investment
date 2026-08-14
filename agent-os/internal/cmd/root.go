@@ -3,8 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/pi-investment/agent-os/internal/config"
+	"github.com/pi-investment/agent-os/internal/middleware"
 	"github.com/pi-investment/agent-os/pkg/logger"
 	"github.com/spf13/cobra"
 )
@@ -27,6 +29,15 @@ It provides scheduling, resource management, memory, and decision support.`,
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 			os.Exit(1)
+		}
+
+		// Initialize auth manager (skip for version/help commands)
+		if cmd.Use != "version" && cmd.Use != "help" {
+			permissionsPath := filepath.Join("config", "permissions.yaml")
+			if err := middleware.InitAuth(permissionsPath); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to initialize auth: %v\n", err)
+				// Continue without auth (for backward compatibility)
+			}
 		}
 	},
 }

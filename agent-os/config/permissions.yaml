@@ -1,0 +1,57 @@
+# Agent OS Permissions Configuration
+# Defines roles and their permissions
+
+roles:
+  admin:
+    permissions:
+      - "*"
+
+  trading:
+    permissions:
+      - "scheduler:*"
+      - "trading:*"
+      - "decision:*"
+      - "data:*"
+      - "memory:read"
+      - "memory:search"
+      - "resource:quota"
+
+  memory:
+    permissions:
+      - "memory:*"
+      - "resource:*"
+
+  notification:
+    permissions:
+      - "notify:*"
+      - "scheduler:list"
+      - "scheduler:get"
+
+  readonly:
+    permissions:
+      - "scheduler:list"
+      - "scheduler:get"
+      - "memory:search"
+      - "memory:get"
+      - "decision:list"
+      - "decision:get"
+      - "decision:stats"
+      - "data:quote"
+      - "data:kline"
+      - "data:market-status"
+
+agents:
+  fin-agent:
+    role: trading
+
+  memory-agent:
+    role: memory
+
+  feishu-bot:
+    role: notification
+
+  web-frontend:
+    role: readonly
+
+  system-admin:
+    role: admin

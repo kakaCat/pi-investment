@@ -14,6 +14,7 @@ import (
 
 	"github.com/pi-investment/agent-os/internal/config"
 	"github.com/pi-investment/agent-os/internal/domain"
+	"github.com/pi-investment/agent-os/internal/middleware"
 	"github.com/pi-investment/agent-os/internal/repository"
 	"github.com/pi-investment/agent-os/internal/service"
 )
@@ -25,37 +26,42 @@ var memoryCmd = &cobra.Command{
 }
 
 var memoryWriteCmd = &cobra.Command{
-	Use:   "write",
-	Short: "Write a new memory",
-	Long:  `Create a new memory entry with content, category, importance, and tags.`,
-	RunE:  runMemoryWrite,
+	Use:     "write",
+	Short:   "Write a new memory",
+	Long:    `Create a new memory entry with content, category, importance, and tags.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runMemoryWrite,
 }
 
 var memoryReadCmd = &cobra.Command{
-	Use:   "read <id>",
-	Short: "Read a memory by ID",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runMemoryRead,
+	Use:     "read <id>",
+	Short:   "Read a memory by ID",
+	Args:    cobra.ExactArgs(1),
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runMemoryRead,
 }
 
 var memorySearchCmd = &cobra.Command{
-	Use:   "search",
-	Short: "Search memories",
-	Long:  `Search memories using text query with optional filters.`,
-	RunE:  runMemorySearch,
+	Use:     "search",
+	Short:   "Search memories",
+	Long:    `Search memories using text query with optional filters.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runMemorySearch,
 }
 
 var memoryListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List memories",
-	RunE:  runMemoryList,
+	Use:     "list",
+	Short:   "List memories",
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runMemoryList,
 }
 
 var memoryDeleteCmd = &cobra.Command{
-	Use:   "delete <id>",
-	Short: "Delete a memory by ID",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runMemoryDelete,
+	Use:     "delete <id>",
+	Short:   "Delete a memory by ID",
+	Args:    cobra.ExactArgs(1),
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runMemoryDelete,
 }
 
 var memoryTagCmd = &cobra.Command{
@@ -64,17 +70,19 @@ var memoryTagCmd = &cobra.Command{
 }
 
 var memoryTagAddCmd = &cobra.Command{
-	Use:   "add <memory-id> <tag1> [tag2...]",
-	Short: "Add tags to a memory",
-	Args:  cobra.MinimumNArgs(2),
-	RunE:  runMemoryTagAdd,
+	Use:     "add <memory-id> <tag1> [tag2...]",
+	Short:   "Add tags to a memory",
+	Args:    cobra.MinimumNArgs(2),
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runMemoryTagAdd,
 }
 
 var memoryTagRemoveCmd = &cobra.Command{
-	Use:   "remove <memory-id> <tag1> [tag2...]",
-	Short: "Remove tags from a memory",
-	Args:  cobra.MinimumNArgs(2),
-	RunE:  runMemoryTagRemove,
+	Use:     "remove <memory-id> <tag1> [tag2...]",
+	Short:   "Remove tags from a memory",
+	Args:    cobra.MinimumNArgs(2),
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runMemoryTagRemove,
 }
 
 // Flags

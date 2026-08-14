@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/pi-investment/agent-os/internal/config"
 	"github.com/pi-investment/agent-os/internal/domain"
+	"github.com/pi-investment/agent-os/internal/middleware"
 	"github.com/pi-investment/agent-os/internal/repository"
 	"github.com/pi-investment/agent-os/internal/service"
 )
@@ -44,9 +45,10 @@ var notifyCmd = &cobra.Command{
 }
 
 var notifySendCmd = &cobra.Command{
-	Use:   "send",
-	Short: "Send a notification",
-	Long:  "Send a notification to a specified channel (trading, alerts, reports)",
+	Use:     "send",
+	Short:   "Send a notification",
+	Long:    "Send a notification to a specified channel (trading, alerts, reports)",
+	PreRunE: middleware.AuthMiddleware,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Build request
 		req := map[string]interface{}{
@@ -89,9 +91,10 @@ var notifySendCmd = &cobra.Command{
 }
 
 var notifyListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List available channels",
-	Long:  "List all available notification channels",
+	Use:     "list",
+	Short:   "List available channels",
+	Long:    "List all available notification channels",
+	PreRunE: middleware.AuthMiddleware,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Try HTTP API first
 		apiURL := getAPIURL()
@@ -110,9 +113,10 @@ var notifyListCmd = &cobra.Command{
 }
 
 var notifyLogsCmd = &cobra.Command{
-	Use:   "logs",
-	Short: "View notification logs",
-	Long:  "View recent notification logs",
+	Use:     "logs",
+	Short:   "View notification logs",
+	Long:    "View recent notification logs",
+	PreRunE: middleware.AuthMiddleware,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Try HTTP API first
 		apiURL := getAPIURL()

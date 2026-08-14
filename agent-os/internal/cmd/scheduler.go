@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pi-investment/agent-os/internal/kernel/scheduler"
+	"github.com/pi-investment/agent-os/internal/middleware"
 	"github.com/pi-investment/agent-os/internal/storage/postgres"
 	"github.com/pi-investment/agent-os/pkg/types"
 	"github.com/spf13/cobra"
@@ -25,6 +26,7 @@ var schedulerRegisterCmd = &cobra.Command{
 	Use:   "register",
 	Short: "Register a new task",
 	Long:  "Register a new task with optional schedule and dependencies",
+	PreRunE: middleware.AuthMiddleware,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
@@ -71,6 +73,7 @@ var schedulerListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all tasks",
 	Long:  "List all registered tasks with their status",
+	PreRunE: middleware.AuthMiddleware,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
@@ -123,6 +126,7 @@ var schedulerTriggerCmd = &cobra.Command{
 	Use:   "trigger",
 	Short: "Manually trigger a task",
 	Long:  "Manually trigger a task execution",
+	PreRunE: middleware.AuthMiddleware,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
@@ -177,6 +181,7 @@ var schedulerExecutionsCmd = &cobra.Command{
 	Use:   "executions",
 	Short: "List task executions",
 	Long:  "List execution history for a task",
+	PreRunE: middleware.AuthMiddleware,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
@@ -234,6 +239,7 @@ var schedulerDeleteCmd = &cobra.Command{
 	Use:   "delete",
 	Short: "Delete a task",
 	Long:  "Delete a task and all its execution history",
+	PreRunE: middleware.AuthMiddleware,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 

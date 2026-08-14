@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/pi-investment/agent-os/internal/config"
+	"github.com/pi-investment/agent-os/internal/middleware"
 	"github.com/pi-investment/agent-os/internal/resource"
 	"github.com/spf13/cobra"
 	_ "github.com/lib/pq"
@@ -26,31 +27,35 @@ var quotaCmd = &cobra.Command{
 }
 
 var quotaListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all quotas",
-	Long:  `List all resource quotas across all namespaces.`,
-	RunE:  runQuotaList,
+	Use:     "list",
+	Short:   "List all quotas",
+	Long:    `List all resource quotas across all namespaces.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runQuotaList,
 }
 
 var quotaGetCmd = &cobra.Command{
-	Use:   "get",
-	Short: "Get quotas for a namespace",
-	Long:  `Get all resource quotas for a specific namespace.`,
-	RunE:  runQuotaGet,
+	Use:     "get",
+	Short:   "Get quotas for a namespace",
+	Long:    `Get all resource quotas for a specific namespace.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runQuotaGet,
 }
 
 var quotaSetCmd = &cobra.Command{
-	Use:   "set",
-	Short: "Set quota limit",
-	Long:  `Set the limit value for a specific resource quota.`,
-	RunE:  runQuotaSet,
+	Use:     "set",
+	Short:   "Set quota limit",
+	Long:    `Set the limit value for a specific resource quota.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runQuotaSet,
 }
 
 var quotaResetCmd = &cobra.Command{
-	Use:   "reset",
-	Short: "Reset quota usage",
-	Long:  `Reset the usage counter for a specific resource quota to zero.`,
-	RunE:  runQuotaReset,
+	Use:     "reset",
+	Short:   "Reset quota usage",
+	Long:    `Reset the usage counter for a specific resource quota to zero.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runQuotaReset,
 }
 
 var namespaceCmd = &cobra.Command{
@@ -60,10 +65,11 @@ var namespaceCmd = &cobra.Command{
 }
 
 var namespaceListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all namespaces",
-	Long:  `List all registered agent namespaces.`,
-	RunE:  runNamespaceList,
+	Use:     "list",
+	Short:   "List all namespaces",
+	Long:    `List all registered agent namespaces.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runNamespaceList,
 }
 
 var usageCmd = &cobra.Command{
@@ -73,17 +79,19 @@ var usageCmd = &cobra.Command{
 }
 
 var usageHistoryCmd = &cobra.Command{
-	Use:   "history",
-	Short: "View usage history",
-	Long:  `View resource usage history for a namespace.`,
-	RunE:  runUsageHistory,
+	Use:     "history",
+	Short:   "View usage history",
+	Long:    `View resource usage history for a namespace.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runUsageHistory,
 }
 
 var usageOverviewCmd = &cobra.Command{
-	Use:   "overview",
-	Short: "View usage overview",
-	Long:  `View quota usage overview for all namespaces.`,
-	RunE:  runUsageOverview,
+	Use:     "overview",
+	Short:   "View usage overview",
+	Long:    `View quota usage overview for all namespaces.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runUsageOverview,
 }
 
 var (

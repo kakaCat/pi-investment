@@ -14,6 +14,7 @@ import (
 
 	"github.com/pi-investment/agent-os/internal/config"
 	"github.com/pi-investment/agent-os/internal/domain"
+	"github.com/pi-investment/agent-os/internal/middleware"
 	"github.com/pi-investment/agent-os/internal/repository"
 	"github.com/pi-investment/agent-os/internal/service"
 )
@@ -25,45 +26,51 @@ var decisionCmd = &cobra.Command{
 }
 
 var decisionRecordCmd = &cobra.Command{
-	Use:   "record",
-	Short: "Record a new decision",
-	Long:  `Create a new decision entry with agent, action, targets, reason, and confidence.`,
-	RunE:  runDecisionRecord,
+	Use:     "record",
+	Short:   "Record a new decision",
+	Long:    `Create a new decision entry with agent, action, targets, reason, and confidence.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runDecisionRecord,
 }
 
 var decisionGetCmd = &cobra.Command{
-	Use:   "get <id>",
-	Short: "Get a decision by ID",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runDecisionGet,
+	Use:     "get <id>",
+	Short:   "Get a decision by ID",
+	Args:    cobra.ExactArgs(1),
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runDecisionGet,
 }
 
 var decisionListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List decisions",
-	Long:  `List decisions with optional filters.`,
-	RunE:  runDecisionList,
+	Use:     "list",
+	Short:   "List decisions",
+	Long:    `List decisions with optional filters.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runDecisionList,
 }
 
 var decisionUpdateCmd = &cobra.Command{
-	Use:   "update <id>",
-	Short: "Update a decision outcome",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runDecisionUpdate,
+	Use:     "update <id>",
+	Short:   "Update a decision outcome",
+	Args:    cobra.ExactArgs(1),
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runDecisionUpdate,
 }
 
 var decisionDeleteCmd = &cobra.Command{
-	Use:   "delete <id>",
-	Short: "Delete a decision by ID",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runDecisionDelete,
+	Use:     "delete <id>",
+	Short:   "Delete a decision by ID",
+	Args:    cobra.ExactArgs(1),
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runDecisionDelete,
 }
 
 var decisionStatsCmd = &cobra.Command{
-	Use:   "stats",
-	Short: "Get decision statistics",
-	Long:  `Get statistics about decisions for an agent.`,
-	RunE:  runDecisionStats,
+	Use:     "stats",
+	Short:   "Get decision statistics",
+	Long:    `Get statistics about decisions for an agent.`,
+	PreRunE: middleware.AuthMiddleware,
+	RunE:    runDecisionStats,
 }
 
 // Flags
