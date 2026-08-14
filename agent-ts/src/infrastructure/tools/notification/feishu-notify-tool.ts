@@ -1,5 +1,7 @@
 /**
  * 飞书通知工具
+ *
+ * @deprecated Use 'notification_send' instead. This tool will be removed in the future.
  */
 import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
@@ -7,8 +9,12 @@ import { getFeishuService } from "../../../services/feishu-notification.service.
 
 export const feishuNotifyTool: ToolDefinition = {
   name: "feishu_notify",
-  label: "飞书通知",
-  description: `发送飞书通知给用户。支持文本、卡片、报告、告警等消息类型。`,
+  label: "飞书通知 (Deprecated)",
+  description: `⚠️ **DEPRECATED**: Please use 'notification_send' instead.
+
+发送飞书通知给用户。支持文本、卡片、报告、告警等消息类型。
+
+**推荐使用**: 'notification_send' 工具提供统一的通知接口。`,
 
   parameters: Type.Object({
     messageType: Type.Union([

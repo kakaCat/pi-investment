@@ -59,6 +59,7 @@ export const CORE_TOOL_NAMES: ReadonlySet<string> = new Set([
   // 告警通知
   "market_alert",
   "feishu_notify",
+  "notification_send",
   // 文件与上下文自运维
   "read",
   "compact",
