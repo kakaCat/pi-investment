@@ -10,7 +10,7 @@ import { getSession as getSessionBackground } from "../core/agent/background-age
 import * as logger from "../infrastructure/logging/observable-logger.js";
 import { wrapSessionWithLogger, type PromptOptionsWithRouting } from "../infrastructure/session/session-factory.js";
 import { PerformanceMonitor } from "../infrastructure/monitoring/performance-monitor.js";
-import { startSchedulerRuntime } from "../services/scheduler/scheduler-runtime.js";
+// Note: Local scheduler removed in WP-10, tasks now managed by Agent OS
 import { FxRateServiceAdapter } from "../services/fx-rate-service-adapter.js";
 import { runWeeklyEvolution } from "../services/intelligence/evolution-service.js";
 import { saveSessionMemoryAsync } from "../services/intelligence/session-memory-saver.js";
@@ -383,38 +383,12 @@ async function main() {
     const taskCounts = restoreTasksFromContext();
     restoreConversationIntoSession(session, taskCounts);
 
-    // 启动数据库调度器。CRON.json 已废弃，数据库是唯一任务来源。
-    // headless 持锁时跳过（自动化三件套归 headless）
-    const schedulerRuntime = automationDegraded ? null : await startSchedulerRuntime({
-      promptAgent: async (message, agentKind) => {
-        // A2-T2 修复：每个任务按 agentKind 创建独立会话（与 headless 同款）；
-        // fin 走裸会话零变化，evolution/memory 走专属 agent（工具过滤 + 身份提示词 + 模型偏好）。
-        // P2-T3 接线：source=rpc → scheduled-task flow（调度消息跳过召回注入）。
-        const { createSchedulerSession } = await import("../services/scheduler/scheduler-session.js");
-        const { session: taskSession } = await createSchedulerSession(agentKind ?? "fin");
-        await taskSession.prompt(message, { source: "rpc" });
-      },
-      writeOutput: (message) => process.stdout.write(message),
-    }).catch((error) => {
-      console.error(`❌ 数据库调度器启动失败: ${error instanceof Error ? error.message : String(error)}`);
-      return null;
-    });
-
-    // 列出已加载的数据库调度任务
-    const jobs = schedulerRuntime ? await schedulerRuntime.service.listTaskSummaries() : [];
-    if (jobs.length > 0) {
-      console.log(`⏰ 数据库调度任务（${jobs.length} 个）:`);
-      for (const j of jobs) {
-        const status = j.enabled ? "✅" : "❌";
-        const next = j.nextRunAt ? ` 下次：${new Date(j.nextRunAt).toLocaleString("zh-CN")}` : "";
-        console.log(`  ${status} ${j.name}（${j.scheduleKind}: ${j.id}）${next}`);
-      }
-      console.log();
-    }
+    // Note: Database scheduler removed in WP-10
+    // All scheduled tasks now managed by Agent OS Scheduler
+    // headless mode registers tasks to Agent OS on startup
 
     // 监听进程退出
     process.on('SIGINT', async () => {
-      schedulerRuntime?.service.stop();
       if (feishuBot) feishuBot.shutdown();
       if (gatewayHandle) await gatewayHandle.shutdown();
       releaseAutomationLock(piDir);
@@ -463,7 +437,6 @@ async function main() {
       console.error(`记忆保存失败: ${err instanceof Error ? err.message : String(err)}`);
     });
 
-    schedulerRuntime?.service.stop();
     logger.logSessionEnd();
   } catch (error) {
     console.error("❌ 启动失败:", error instanceof Error ? error.message : String(error));

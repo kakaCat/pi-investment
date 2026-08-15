@@ -3,10 +3,22 @@
  *
  * 这些任务使用 agent_turn 类型，让 Agent AI 自主执行决策
  */
-import type { SchedulerTask } from '../scheduler-service.js';
 import { WEEKLY_MEMORY_DISTILL_PROMPT } from './memory-distill-task.js';
 
-export function createAgentDecisionTasks(): Omit<SchedulerTask, 'id' | 'createdAt' | 'updatedAt'>[] {
+// Task definition type (simplified after removing local scheduler)
+export interface AgentTaskDefinition {
+  name: string;
+  enabled: boolean;
+  scheduleKind: 'cron';
+  scheduleExpr: string;
+  payload: {
+    kind: 'agent_turn';
+    message: string;
+    agentKind?: 'fin' | 'evolution' | 'memory';
+  };
+}
+
+export function createAgentDecisionTasks(): AgentTaskDefinition[] {
   return [
     // 1. 早盘分析 - Agent AI 决策 + 虚拟仓交易
     {
