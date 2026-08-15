@@ -7,7 +7,7 @@
 
 import { createSchedulerSession } from '../../services/scheduler/scheduler-session.js';
 import type { AgentKind } from '../../domain/agent-roles/types.js';
-import type { TaskExecutor } from '../gateway/webhook-server.js';
+import type { TaskExecutor } from '../../infrastructure/gateway/webhook-server.js';
 
 /**
  * Create Agent OS Task Executor
@@ -36,11 +36,6 @@ export function createAgentOSTaskExecutor(): TaskExecutor {
         // 执行 Agent prompt（自主决策）
         const result = await session.prompt(params.prompt, {
           source: "rpc",
-          metadata: {
-            task: params.taskName,
-            executionId: params.executionId,
-            triggeredBy: 'agent-os',
-          }
         });
 
         console.log(`[TaskExecutor] Task completed: ${params.taskName}`);
@@ -80,7 +75,7 @@ function determineAgentKind(taskName: string): AgentKind {
   }
 
   if (taskName.includes('research') || taskName.includes('analysis')) {
-    return 'research'; // 研究分析任务
+    return 'fin'; // 研究分析任务 (使用 fin agent)
   }
 
   // 默认使用 fin agent

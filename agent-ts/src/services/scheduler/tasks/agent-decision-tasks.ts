@@ -154,11 +154,7 @@ export function createAgentDecisionTasks(): AgentTaskDefinition[] {
 
 现在开始你的交易！展现你的智能！
         `
-      },
-      compensationEnabled: true,
-      compensationCheckAfter: '09:30',
-      compensationMaxAttempts: 2,
-      deleteAfterRun: false
+      }
     },
 
     // 2. 实时监控（简化版 - 快速检查）
@@ -187,11 +183,7 @@ export function createAgentDecisionTasks(): AgentTaskDefinition[] {
 
 请开始快速检查。
         `
-      },
-      compensationEnabled: true,
-      compensationCheckAfter: undefined,
-      compensationMaxAttempts: 0,
-      deleteAfterRun: false
+      }
     },
 
     // 3. 每日复盘 - Agent AI 学习 + 绩效评估
@@ -341,11 +333,7 @@ export function createAgentDecisionTasks(): AgentTaskDefinition[] {
 
 现在开始复盘。
         `
-      },
-      compensationEnabled: true,
-      compensationCheckAfter: '19:00',
-      compensationMaxAttempts: 1,
-      deleteAfterRun: false
+      }
     },
 
     // 4. 每周进化 - 绩效归因 + 经验评审 + 策略调整建议
@@ -403,11 +391,7 @@ export function createAgentDecisionTasks(): AgentTaskDefinition[] {
 
 现在开始本周进化分析。
         `
-      },
-      compensationEnabled: false,
-      compensationCheckAfter: undefined,
-      compensationMaxAttempts: 0,
-      deleteAfterRun: false
+      }
     },
 
     // 5. 每周工具 ROI 审查 - 找出低回报工具，下线或合并
@@ -446,11 +430,7 @@ export function createAgentDecisionTasks(): AgentTaskDefinition[] {
 
 注意：你只产出建议清单，不要直接修改工具注册表——下线决策由人工确认。
         `
-      },
-      compensationEnabled: false,
-      compensationCheckAfter: undefined,
-      compensationMaxAttempts: 0,
-      deleteAfterRun: false
+      }
     },
 
     // 6. 每周记忆蒸馏 - 从本周经验提炼可复用规则
@@ -462,11 +442,7 @@ export function createAgentDecisionTasks(): AgentTaskDefinition[] {
       payload: {
         kind: 'agent_turn',
         message: WEEKLY_MEMORY_DISTILL_PROMPT
-      },
-      compensationEnabled: false,
-      compensationCheckAfter: undefined,
-      compensationMaxAttempts: 0,
-      deleteAfterRun: false
+      }
     },
 
     // 7. 每日召回审计 - 记忆 Agent 质量监控
@@ -602,11 +578,7 @@ export function createAgentDecisionTasks(): AgentTaskDefinition[] {
 
 现在开始今日召回审计。
         `
-      },
-      compensationEnabled: false,
-      compensationCheckAfter: undefined,
-      compensationMaxAttempts: 0,
-      deleteAfterRun: false
+      }
     }
   ];
 }

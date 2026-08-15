@@ -65,16 +65,8 @@ async function main() {
       }
     }
 
-    // 0. 初始化通知渠道（Agent OS 优先）
-    try {
-      const agentOSChannel = NotificationFactory.createAgentOSChannel('feishu');
-      if (agentOSChannel) {
-        notificationService.registerChannel(agentOSChannel);
-        console.log('✅ Agent OS 通知渠道已注册');
-      }
-    } catch (error) {
-      console.warn('⚠️  Agent OS 通知渠道初始化失败，将使用备用渠道:', error);
-    }
+    // Note: Agent OS 通知渠道集成待实现
+    // TODO: 实现 NotificationFactory.createAgentOSChannel
 
     // 0. 启动健康自检（后端宕机时自动重启一次，结果注入系统提示词）
     const healthReport = await runStartupHealthCheck({

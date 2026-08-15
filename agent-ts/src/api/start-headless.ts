@@ -101,7 +101,7 @@ async function main() {
   const shutdown = async (signal: string) => {
     console.log(`\n🛑 收到 ${signal}，正在优雅退出...`);
     try {
-      schedulerRuntime.service.stop();
+      // Note: Scheduler now runs in Agent OS, no local runtime to stop
       await gatewayHandle.shutdown();
       if (feishuBot) await feishuBot.shutdown();
     } finally {
