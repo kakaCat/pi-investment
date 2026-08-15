@@ -14,8 +14,10 @@ import (
 	"github.com/pi-investment/agent-os/internal/api"
 	"github.com/pi-investment/agent-os/internal/config"
 	"github.com/pi-investment/agent-os/internal/events"
+	"github.com/pi-investment/agent-os/internal/handlers"
 	"github.com/pi-investment/agent-os/internal/repository"
 	"github.com/pi-investment/agent-os/internal/service"
+	"github.com/pi-investment/agent-os/internal/services"
 )
 
 var serveCmd = &cobra.Command{
@@ -90,12 +92,16 @@ var serveCmd = &cobra.Command{
 		// Set global event bus for publishers
 		events.InitGlobalEventBus(eventBus)
 
-		// Create service
+		// Create notification service
 		repo := repository.NewNotificationRepository(db)
 		svc := service.NewNotificationService(repo)
 
+		// Create skill service
+		skillService := services.NewSkillService(pool)
+		skillHandler := handlers.NewSkillHandler(skillService)
+
 		// Create HTTP server
-		server := api.NewHTTPServer(svc)
+		server := api.NewHTTPServer(svc, skillHandler)
 
 		// Start HTTP server in goroutine
 		addr := fmt.Sprintf("%s:%d", host, port)
@@ -106,6 +112,11 @@ var serveCmd = &cobra.Command{
 			fmt.Printf("   GET    /api/v1/notifications/channels\n")
 			fmt.Printf("   GET    /api/v1/notifications/logs\n")
 			fmt.Printf("   GET    /api/v1/notifications/providers\n")
+			fmt.Printf("   GET    /api/v1/skills\n")
+			fmt.Printf("   GET    /api/v1/skills/{id}\n")
+			fmt.Printf("   POST   /api/v1/skills\n")
+			fmt.Printf("   PUT    /api/v1/skills/{id}\n")
+			fmt.Printf("   DELETE /api/v1/skills/{id}\n")
 			fmt.Printf("   GET    /health\n")
 			fmt.Printf("\n")
 
