@@ -9,18 +9,21 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pi-investment/agent-os/internal/domain"
+	"github.com/pi-investment/agent-os/internal/handlers"
 	"github.com/pi-investment/agent-os/internal/provider"
 	"github.com/pi-investment/agent-os/internal/service"
 )
 
 type HTTPServer struct {
-	service *service.NotificationService
-	server  *http.Server
+	service      *service.NotificationService
+	skillHandler *handlers.SkillHandler
+	server       *http.Server
 }
 
-func NewHTTPServer(service *service.NotificationService) *HTTPServer {
+func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.SkillHandler) *HTTPServer {
 	return &HTTPServer{
-		service: service,
+		service:      service,
+		skillHandler: skillHandler,
 	}
 }
 
@@ -33,10 +36,17 @@ func (s *HTTPServer) Start(addr string) error {
 
 	// API v1
 	api := router.PathPrefix("/api/v1").Subrouter()
+
+	// Notification endpoints
 	api.HandleFunc("/notifications/send", s.handleSend).Methods("POST")
 	api.HandleFunc("/notifications/channels", s.handleListChannels).Methods("GET")
 	api.HandleFunc("/notifications/logs", s.handleGetLogs).Methods("GET")
 	api.HandleFunc("/notifications/providers", s.handleListProviders).Methods("GET")
+
+	// Skill endpoints
+	if s.skillHandler != nil {
+		s.skillHandler.RegisterRoutes(api)
+	}
 
 	s.server = &http.Server{
 		Addr:         addr,
