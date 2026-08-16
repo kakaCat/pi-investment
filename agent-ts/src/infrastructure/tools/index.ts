@@ -167,6 +167,11 @@ import { toolStatsQueryTool } from './agent/tool-stats-tool.js';
 import { modelSwitchTool } from './agent/model-switch-tool.js';
 import { skillFileTool } from './evolution/skill-file-tool.js';
 
+// ===== Skill Hub 工具（Agent OS 集成）=====
+import { skillListTool } from './skill/skill-list-tool.js';
+import { skillGetTool } from './skill/skill-get-tool.js';
+import { skillUpdateTool } from './skill/skill-update-tool.js';
+
 // ===== CLI 领域工具已全部移除（2026-07-19 P0 清理）=====
 // market_cli/stock_cli/sentiment_cli/analysis_cli/watchlist_cli 从未注册进
 // allCustomTools（死代码），统计数据中的调用为历史化石。数据访问请走
@@ -380,6 +385,11 @@ export const allCustomTools = [
 
   // ===== 中频 — 进化 =====
   skillFileTool,
+
+  // ===== Skill Hub 工具（Agent OS 集成）=====
+  skillListTool,              // skill_list - 列出所有可用 skills
+  skillGetTool,               // skill_get - 获取 skill 完整内容
+  skillUpdateTool,            // skill_update - 更新 skill（进化系统用）
 
   // ===== 低频/专用 =====
   taskCheckBackgroundTool,  // 检查后台任务

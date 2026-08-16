@@ -15,6 +15,9 @@ import { NotificationFactory } from "./infrastructure/notification/notification-
 import { initAsyncLogQueue, getAsyncLogQueue } from "./infrastructure/agent-os/async-log-queue.js";
 import { initializeAgentOS } from "./infrastructure/agent-os/client.js";
 import { registerTasksToAgentOS } from "./core/bootstrap/agent-os-task-registration.js";
+import { loadSkillRegistry, setAgentOSClient } from "./core/bootstrap/skill-registry.js";
+import { setAgentOSClientForExecutor } from "./core/skills/skill-executor.js";
+import { getAgentOSClient } from "./infrastructure/agent-os/client.js";
 
 // 注意：调度器已完全迁移到 Agent OS
 // Agent 只保留 AI 决策任务，通过 Agent OS Scheduler 统一调度
@@ -28,6 +31,13 @@ async function main() {
     console.log('🔌 正在连接 Agent OS...');
     await initializeAgentOS();
     console.log('✅ Agent OS Client 已初始化');
+
+    // 0.1 加载 Skill Registry（从 Agent OS）
+    const client = getAgentOSClient();
+    setAgentOSClient(client);
+    setAgentOSClientForExecutor(client);
+    await loadSkillRegistry();
+    console.log('✅ Skill Registry 已加载');
 
     // 0. 初始化 Agent OS 异步日志队列
     if (process.env.AGENT_OS_ENABLED === 'true') {
