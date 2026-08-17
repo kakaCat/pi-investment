@@ -102,12 +102,3 @@ export type {
   Namespace,
   ResourceUsage,
 } from './resource/types.js';
-
-// Skills types
-export type {
-  SkillMetadata,
-  SkillDetail,
-  CreateSkillRequest,
-  UpdateSkillRequest,
-  SkillVersion,
-} from './skills.js';

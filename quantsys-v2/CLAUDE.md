@@ -726,3 +726,185 @@ Based on game-theoretic intelligence requirements:
 - ⏳ Dynamic risk budgeting
 - ⏳ Adaptive strategy selection
 - ⏳ Market regime detection
+
+---
+
+## Scheduler Migration to Agent OS (WP-15)
+
+**Migration Date**: 2026-08-16  
+**Status**: ✅ COMPLETE
+
+All scheduled jobs have been migrated from local `SchedulerService` to **Agent OS Scheduler** via webhook integration.
+
+### Architecture
+
+```
+Agent OS Scheduler (port 8080)
+    ↓ HTTP POST webhook
+quantsys-v2 Webhook Receiver (/internal/scheduler/webhook)
+    ↓ dispatch by job_type
+Job Handler (application/services/scheduler_handlers.py)
+    ↓ execute business logic
+PostgreSQL (scheduler_runs table for audit trail)
+    ↓ report results
+Agent OS Scheduler (result tracking)
+```
+
+### Key Components
+
+1. **Agent OS Client** (`application/services/agent_os_client.py`)
+   - HTTP client for Agent OS Scheduler API
+   - Methods: register_job, list_jobs, trigger_job, report_job_result
+   - Async/await based using httpx
+
+2. **Webhook Receiver** (`api/internal/scheduler_webhook.py`)
+   - Endpoint: `POST /internal/scheduler/webhook`
+   - Receives job execution triggers from Agent OS
+   - Dispatches to registered handlers via `@register_job_handler` decorator
+   - Executes in FastAPI background tasks (non-blocking)
+
+3. **Job Handlers** (`application/services/scheduler_handlers.py`)
+   - 30+ handlers for all scheduled tasks
+   - Delegates to existing service methods
+   - Returns structured result dictionaries
+
+4. **Job Registration** (`scripts/register_jobs_to_agent_os.py`)
+   - Defines all 30+ job schedules and metadata
+   - Idempotent registration (skips existing jobs)
+   - Auto-runs on FastAPI startup
+
+### Registered Jobs
+
+All jobs are registered with owner `quantsys-v2`:
+
+**Daily Jobs** (工作日):
+- `kline_update` - 17:40 - Update K-line data
+- `chip_distribution_update` - 10:30 - Calculate chip distribution
+- `signal_generate_buy` - 09:00 - Scan buy signals
+- `signal_generate_sell` - 15:30 - Scan sell signals
+- `signal_execution_daily` - 07:30 - Execute signals
+- `factor_compute_daily` - 08:00 - Compute factors
+- `data_quality_check_daily` - 16:00 - Check data quality
+- `strategy_validate_daily` - 13:00 - Validate strategies
+- `v13_daily_check` - 14:30 - V13 trading check
+- `v13_risk_check` - 16:00 - V13 risk check
+- `v13_verification` - 16:30 - V13 verification
+- `market_style_update` - 15:30 - Detect market style
+- `data_pipeline_daily` - 08:30 - Daily data pipeline
+- `chan_scan_daily` - 10:10 - Chan theory scan
+- `daily_equity_snapshot` - 18:00 - Equity snapshot
+
+**Weekly Jobs**:
+- `financial_statement_update` - 周六 20:00 - Financial statements
+- `financial_data_update` - 周六 18:30 - Financial data
+- `v13_weekly_report` - 周六 10:00 - V13 report
+- `risk_check_weekly` - 周一 01:00 - Risk assessment
+- `data_pipeline_weekly` - 周六 18:00 - Full rebuild
+- `report_weekly` - 周五 10:00 - Weekly report
+- `chan_knowledge_distill_weekly` - 周日 12:00 - Chan distillation
+- `strategy_discover_weekly` - 周日 14:00 - Strategy discovery
+
+**Other Jobs**:
+- `pool_refresh_daily` - 每日 02:00 - Refresh pools
+- `v14_daily_check` - 14:30 - V14 trading (disabled)
+
+### Feature Flag
+
+Control scheduler mode via environment variable:
+
+```bash
+# Use Agent OS Scheduler (default)
+USE_AGENT_OS_SCHEDULER=true
+
+# Fall back to local SchedulerService
+USE_AGENT_OS_SCHEDULER=false
+```
+
+The system automatically falls back to local scheduler if Agent OS is unreachable.
+
+### Monitoring
+
+Monitor jobs using the CLI script:
+
+```bash
+# Show all registered jobs
+python scripts/monitor_scheduler.py
+
+# Show scheduler statistics
+python scripts/monitor_scheduler.py --stats
+
+# Show recent executions
+python scripts/monitor_scheduler.py --executions 20
+```
+
+Or query Agent OS directly:
+
+```bash
+# List all jobs
+curl http://127.0.0.1:8080/api/v1/scheduler/tasks | jq
+
+# Get job details
+curl http://127.0.0.1:8080/api/v1/scheduler/tasks/{job_id} | jq
+
+# List recent executions
+curl http://127.0.0.1:8080/api/v1/scheduler/executions?limit=10 | jq
+
+# Manually trigger a job
+curl -X POST http://127.0.0.1:8080/api/v1/scheduler/tasks/{job_id}/trigger
+```
+
+### Manual Job Registration
+
+If needed, manually register jobs:
+
+```bash
+cd quantsys-v2
+python scripts/register_jobs_to_agent_os.py
+```
+
+Registration is idempotent and skips jobs that already exist.
+
+### Rollback Plan
+
+If Agent OS Scheduler fails:
+
+1. **Set environment variable**: `USE_AGENT_OS_SCHEDULER=false` in `.env`
+2. **Restart service**: `sudo launchctl kickstart -k system/com.pi-investment.v2-api`
+3. **Verify**: Check logs show "Local SchedulerService background thread started (fallback mode)"
+4. **Confirm**: Jobs run correctly with legacy scheduler
+
+### Database Schema
+
+Job execution history is written to local PostgreSQL for audit trail:
+
+- **Table**: `quant.scheduler_runs`
+- **Columns**: id, task_id, status, started_at, completed_at, duration_ms, result, error
+- **Purpose**: Maintain detailed execution logs even when using Agent OS
+
+For Agent OS jobs, a placeholder task is created in `quant.scheduler_tasks` to maintain schema compatibility.
+
+### Legacy Code
+
+**Deprecated** (will be removed 2026-09-01):
+- `infrastructure/scheduler/scheduler.py` - Legacy SchedulerService
+- Direct database operations in SchedulerService
+
+**Preserved**:
+- Job handler business logic (reused by webhook handlers)
+- Database tables (used for audit trail)
+- Command dispatch logic (reused by handlers)
+
+### Benefits
+
+✅ **Centralized scheduling** - All 3 systems (agent-ts, quantsys-v2, agent-os) use one scheduler  
+✅ **Better visibility** - Unified dashboard for all scheduled tasks  
+✅ **Improved reliability** - Agent OS handles cron parsing, misfires, retries  
+✅ **Zero downtime** - Fallback to local scheduler if Agent OS fails  
+✅ **Preserved audit trail** - All executions still logged to PostgreSQL  
+✅ **Simplified deployment** - No need to manage separate scheduler processes
+
+### Related Work
+
+- **WP-12**: Agent OS Scheduler HTTP API (dependency, completed 2026-08-16)
+- **WP-13**: agent-ts integration with Agent OS Scheduler (parallel work)
+- **WP-14**: Skill Hub integration with Agent OS Scheduler (parallel work)

@@ -77,25 +77,45 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Strategy sync failed: {e}")
 
-    # 启动 SchedulerService 后台线程（quant.scheduler_tasks 的 ~20 个任务的执行器）。
-    # 原宿主是 Flask server.py（2026-08-02 Flask 退役后随迁）；pytest 下不启动，
-    # 避免测试进程拉起调度循环。
+    # WP-15: Agent OS Scheduler Integration (2026-08-16)
+    # 注册 quantsys-v2 调度任务到 Agent OS Scheduler（webhook 模式）
+    # 注册失败时回退到本地 SchedulerService
     import sys as _sys
     if 'pytest' not in _sys.modules:
-        try:
-            import threading
-            from infrastructure.scheduler.scheduler import SchedulerService
+        use_agent_os_scheduler = os.getenv("USE_AGENT_OS_SCHEDULER", "true").lower() == "true"
 
-            def _run_scheduler():
-                try:
-                    SchedulerService().run_loop()
-                except Exception as e:
-                    logger.error(f"Scheduler thread crashed: {e}", exc_info=True)
+        if use_agent_os_scheduler:
+            try:
+                logger.info("🔄 Registering jobs to Agent OS Scheduler...")
+                from tools.register_jobs_to_agent_os import register_all_jobs
+                import asyncio
+                success = asyncio.run(register_all_jobs())
+                if success:
+                    logger.info("✅ Agent OS Scheduler integration enabled")
+                else:
+                    logger.warning("⚠️ Job registration failed, falling back to local scheduler")
+                    use_agent_os_scheduler = False
+            except Exception as e:
+                logger.error(f"❌ Agent OS Scheduler registration failed: {e}")
+                logger.warning("⚠️ Falling back to local scheduler")
+                use_agent_os_scheduler = False
 
-            threading.Thread(target=_run_scheduler, name="scheduler-thread", daemon=True).start()
-            logger.info("✅ SchedulerService background thread started")
-        except Exception as e:
-            logger.error(f"❌ SchedulerService startup failed: {e}")
+        # 本地 SchedulerService 作为备用（仅当 Agent OS 不可用时启动）
+        if not use_agent_os_scheduler:
+            try:
+                import threading
+                from infrastructure.scheduler.scheduler import SchedulerService
+
+                def _run_scheduler():
+                    try:
+                        SchedulerService().run_loop()
+                    except Exception as e:
+                        logger.error(f"Scheduler thread crashed: {e}", exc_info=True)
+
+                threading.Thread(target=_run_scheduler, name="scheduler-thread", daemon=True).start()
+                logger.info("✅ Local SchedulerService background thread started (fallback mode)")
+            except Exception as e:
+                logger.error(f"❌ SchedulerService startup failed: {e}")
 
     # 启动 WatchEngine 实时盯盘线程（2026-08-12 起唯一宿主，原 scheduler_daemon
     # 已下线该职责；pytest 下不启动，避免测试进程拉起盯盘循环）。
@@ -128,6 +148,14 @@ async def lifespan(app: FastAPI):
 
     # 关闭时
     logger.info("👋 FastAPI application shutting down...")
+
+    # WP-15: Close Agent OS client
+    try:
+        from application.services.agent_os_client import close_agent_os_client
+        await close_agent_os_client()
+        logger.info("✅ Agent OS client closed")
+    except Exception as e:
+        logger.warning(f"⚠️ Agent OS client cleanup failed: {e}")
 
     engine = getattr(app.state, 'watch_engine', None)
     if engine is not None:
@@ -738,6 +766,14 @@ def register_routes():
         logger.info("✅ Registered: scheduler")
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import scheduler_async: {e}")
+
+    # Agent OS Scheduler Webhook (内部端点，WP-15)
+    try:
+        from api.internal.scheduler_webhook import router as scheduler_webhook_router
+        app.include_router(scheduler_webhook_router, prefix="/internal/scheduler", tags=["internal"])
+        logger.info("✅ Registered: scheduler_webhook (Agent OS integration)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import scheduler_webhook: {e}")
 
     # Agent 决策执行 API
     try:

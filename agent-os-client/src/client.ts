@@ -4,7 +4,6 @@ import { MemoryClient } from './memory/client.js';
 import { DecisionClient } from './decision/client.js';
 import { NotificationClient } from './notification/client.js';
 import { ResourceClient } from './resource/client.js';
-import { SkillsClient } from './skills.js';
 
 /**
  * Agent OS Client - Main SDK entry point
@@ -42,9 +41,6 @@ export class AgentOSClient {
   /** Resource operations (quota, usage, namespaces) */
   public resource: ResourceClient;
 
-  /** Skills operations (list, get, update) */
-  public skills: SkillsClient;
-
   /**
    * Create a new Agent OS Client
    *
@@ -59,7 +55,6 @@ export class AgentOSClient {
     this.decision = new DecisionClient(this.http);
     this.notification = new NotificationClient(this.http);
     this.resource = new ResourceClient(this.http);
-    this.skills = new SkillsClient(this.http);
   }
 
   /**
@@ -98,4 +93,3 @@ export * from './memory/types.js';
 export * from './decision/types.js';
 export * from './notification/types.js';
 export * from './resource/types.js';
-export * from './skills.js';
