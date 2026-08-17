@@ -33,11 +33,17 @@ async function main() {
     console.log('✅ Agent OS Client 已初始化');
 
     // 0.1 加载 Skill Registry（从 Agent OS）
-    const client = getAgentOSClient();
-    setAgentOSClient(client);
-    setAgentOSClientForExecutor(client);
-    await loadSkillRegistry();
-    console.log('✅ Skill Registry 已加载');
+    // 加载失败不阻塞启动，会降级到本地文件
+    try {
+      const client = getAgentOSClient();
+      setAgentOSClient(client);
+      setAgentOSClientForExecutor(client);
+      await loadSkillRegistry();
+      console.log('✅ Skill Registry 已加载');
+    } catch (error: any) {
+      console.error('⚠️  Skill Registry 加载失败，已降级到本地文件:', error.message);
+      // Agent 仍然可以启动，使用本地 skills 降级方案
+    }
 
     // 0. 初始化 Agent OS 异步日志队列
     if (process.env.AGENT_OS_ENABLED === 'true') {

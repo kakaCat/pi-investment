@@ -3,6 +3,7 @@ import { Type } from '@sinclair/typebox';
 import { getAgentOSClient } from '../../../infrastructure/agent-os/client.js';
 import { findSkillByName } from '../../../core/bootstrap/skill-registry.js';
 import { loadSkillRegistry } from '../../../core/bootstrap/skill-registry.js';
+import { clearSkillCache } from '../../../core/skills/skill-executor.js';
 
 export const skillUpdateTool: ToolDefinition = {
   name: 'skill_update',
@@ -49,14 +50,51 @@ export const skillUpdateTool: ToolDefinition = {
         };
       }
 
-      // 2. 更新 skill（创建新版本）
+      // 2. 访问控制检查
+      const currentOwner = metadata.owner;
+      const requestingAgent = process.env.AGENT_ID || 'fin-agent';
+      const author = params.author || 'evolution-system';
+
+      // 访问控制规则：
+      // 1. 如果 author 是 evolution-system，必须检查 requesting agent 是否有权限
+      // 2. 如果 requesting agent 不是 owner，拒绝（即使声称是 evolution-system）
+      // 3. 只有 skill owner 本身可以更新 skill
+
+      if (currentOwner !== requestingAgent) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `❌ Access denied: Skill "${params.name}" is owned by "${currentOwner}", but you are "${requestingAgent}". Only the skill owner can update this skill.`
+          }],
+          details: {
+            error: 'Access denied',
+            skill_owner: currentOwner,
+            requesting_agent: requestingAgent,
+            message: 'Only skill owner can update',
+          },
+        };
+      }
+
+      // 3. 内容验证
+      if (!params.new_content || params.new_content.trim().length < 100) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `❌ Validation failed: Skill content must be at least 100 characters (current: ${params.new_content?.length || 0})`
+          }],
+          details: { error: 'Validation failed', reason: 'Content too short' },
+        };
+      }
+
+      // 4. 更新 skill（创建新版本）
       const newVersion = await client.skills.update(metadata.id, {
         content: params.new_content,
-        author: params.author || 'evolution-system',
+        author: author,
         commit_message: params.reason,
       });
 
-      // 3. 重新加载 skill registry（以反映更新）
+      // 5. 清除缓存并重新加载 skill registry
+      clearSkillCache();
       await loadSkillRegistry();
 
       const result = {
@@ -66,9 +104,11 @@ export const skillUpdateTool: ToolDefinition = {
         new_version: newVersion.version,
         content_hash: newVersion.content_hash,
         commit_message: params.reason,
+        owner: currentOwner,
+        updated_by: requestingAgent,
       };
 
-      const message = `✅ Skill updated: ${params.name} → ${newVersion.version}\nReason: ${params.reason}`;
+      const message = `✅ Skill updated: ${params.name} → ${newVersion.version}\nReason: ${params.reason}\nOwner: ${currentOwner}`;
 
       return {
         content: [{ type: "text" as const, text: message }],

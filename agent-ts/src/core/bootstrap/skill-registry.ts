@@ -33,12 +33,15 @@ export async function loadSkillRegistry(): Promise<void> {
   }
 
   try {
+    // Use AGENT_ID from environment (supports multi-agent deployments)
+    const owner = process.env.AGENT_ID || 'fin-agent';
+
     skillRegistry = await agentOSClient.skills.list({
-      owner: 'fin-agent',
+      owner,
       status: 'active',
     });
 
-    logger.info(`[SkillRegistry] ✅ Loaded ${skillRegistry.length} skills`);
+    logger.info(`[SkillRegistry] ✅ Loaded ${skillRegistry.length} skills for owner: ${owner}`);
 
     // Log all skills for debugging
     skillRegistry.forEach(skill => {

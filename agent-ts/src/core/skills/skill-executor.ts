@@ -8,6 +8,58 @@ import { findSkillByName, findSkillById } from '../bootstrap/skill-registry.js';
 let agentOSClient: AgentOSClient | null = null;
 
 /**
+ * Simple LRU cache for skill content
+ */
+interface CacheEntry {
+  content: string;
+  timestamp: number;
+}
+
+const skillContentCache = new Map<string, CacheEntry>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const MAX_CACHE_SIZE = 50;
+
+/**
+ * Get cached skill content if still valid
+ */
+function getCachedContent(skillId: string): string | null {
+  const entry = skillContentCache.get(skillId);
+  if (!entry) return null;
+
+  const age = Date.now() - entry.timestamp;
+  if (age > CACHE_TTL) {
+    skillContentCache.delete(skillId);
+    return null;
+  }
+
+  return entry.content;
+}
+
+/**
+ * Cache skill content with LRU eviction
+ */
+function cacheContent(skillId: string, content: string): void {
+  // LRU eviction: remove oldest if cache is full
+  if (skillContentCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = skillContentCache.keys().next().value;
+    if (firstKey) skillContentCache.delete(firstKey);
+  }
+
+  skillContentCache.set(skillId, {
+    content,
+    timestamp: Date.now(),
+  });
+}
+
+/**
+ * Clear the skill content cache (useful after updates)
+ */
+export function clearSkillCache(): void {
+  skillContentCache.clear();
+  logger.info('[SkillExecutor] Cache cleared');
+}
+
+/**
  * Set the Agent OS client (called from bootstrap)
  */
 export function setAgentOSClientForExecutor(client: AgentOSClient): void {
@@ -25,12 +77,22 @@ export async function executeSkillById(skillId: string, context?: any): Promise<
   }
 
   try {
+    // Check cache first
+    const cached = getCachedContent(skillId);
+    if (cached) {
+      logger.info(`[SkillExecutor] Cache hit for skill: ${skillId}`);
+      return cached;
+    }
+
     // 1. Get skill detail from Agent OS
     const skill = await agentOSClient.skills.get(skillId);
 
     logger.info(`[SkillExecutor] Loaded skill: ${skill.name} (version: ${skill.version})`);
 
-    // 2. Return the content (caller will use it as system prompt or instructions)
+    // 2. Cache the content
+    cacheContent(skillId, skill.content);
+
+    // 3. Return the content (caller will use it as system prompt or instructions)
     return skill.content;
   } catch (error: any) {
     logger.error(`[SkillExecutor] ❌ Failed to load skill: ${skillId}`, error.message);
