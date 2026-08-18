@@ -103,12 +103,14 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { getTaskStats, getSystemHealth, getRecentExecutions } from '@/api/overview'
 import { formatTime } from '@/utils/format'
+import logger from '@/utils/logger'
+import type { Task, TaskRun, HealthItem, OverviewStats } from '@/types/api'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent])
 
-const stats = ref({ total: 0, running: 0, successToday: 0, failedToday: 0 })
-const healthItems = ref<Array<{ name: string; status: string }>>([])
-const recentRuns = ref<Array<any>>([])
+const stats = ref<OverviewStats>({ total: 0, running: 0, successToday: 0, failedToday: 0 })
+const healthItems = ref<HealthItem[]>([])
+const recentRuns = ref<TaskRun[]>([])
 
 const chartOption = ref({
   tooltip: {
@@ -134,14 +136,14 @@ const chartOption = ref({
     {
       name: '成功',
       type: 'line',
-      data: Array.from({ length: 24 }, () => Math.floor(Math.random() * 10)),
+      data: Array.from({ length: 24 }, () => 0),
       smooth: true,
       itemStyle: { color: '#67c23a' },
     },
     {
       name: '失败',
       type: 'line',
-      data: Array.from({ length: 24 }, () => Math.floor(Math.random() * 3)),
+      data: Array.from({ length: 24 }, () => 0),
       smooth: true,
       itemStyle: { color: '#f56c6c' },
     },
@@ -150,28 +152,65 @@ const chartOption = ref({
 
 onMounted(async () => {
   try {
-    // 获取真实数据
-    const statsResult = await getTaskStats()
-    stats.value = {
-      total: statsResult.total || 0,
-      running: statsResult.running || 0,
-      successToday: statsResult.success_today || 0,
-      failedToday: statsResult.failed_today || 0,
+    // 获取任务列表作为统计
+    const tasksResult = await getTaskStats()
+    const tasks: Task[] = tasksResult.tasks || []
+    
+    // 收集所有任务的执行历史
+    const allExecutions: TaskRun[] = []
+    for (const task of tasks) {
+      try {
+        const result = await getRecentExecutions(task.id, 100)
+        if (result.runs) {
+          allExecutions.push(...result.runs)
+        }
+      } catch (e) {
+        logger.warn(`获取任务 ${task.id} 的执行历史失败:`, e)
+      }
     }
 
+    // 计算今日统计
+    const today = new Date().toISOString().split('T')[0]
+    const todayRuns = allExecutions.filter((e: TaskRun) => e.started_at?.startsWith(today))
+    
+    stats.value = {
+      total: tasks.length,
+      running: tasks.filter((t: Task) => t.enabled).length,
+      successToday: todayRuns.filter((e: TaskRun) => e.status === 'success').length,
+      failedToday: todayRuns.filter((e: TaskRun) => e.status === 'failed').length,
+    }
+
+    // 按小时聚合图表数据
+    const hourlyData = Array.from({ length: 24 }, (_, hour) => {
+      const hourStr = String(hour).padStart(2, '0')
+      const hourRuns = allExecutions.filter((e: TaskRun) => {
+        const h = e.started_at?.split('T')[1]?.split(':')[0]
+        return h === hourStr
+      })
+      return {
+        success: hourRuns.filter((e: TaskRun) => e.status === 'success').length,
+        failed: hourRuns.filter((e: TaskRun) => e.status === 'failed').length,
+      }
+    })
+    chartOption.value.series[0].data = hourlyData.map(d => d.success)
+    chartOption.value.series[1].data = hourlyData.map(d => d.failed)
+
+    // 检查系统健康
     const healthResult = await getSystemHealth()
     healthItems.value = [
-      { name: 'API 服务', status: healthResult.status === 'ok' ? 'healthy' : 'unhealthy' },
-      { name: 'Agent OS', status: healthResult.agent_os || 'healthy' },
-      { name: '调度器', status: healthResult.scheduler || 'healthy' },
-      { name: '数据库', status: healthResult.database || 'healthy' },
+      { name: 'Agent OS API', status: healthResult.status === 'ok' ? 'healthy' : 'unhealthy' },
+      { name: 'Agent OS WS', status: 'healthy' },
+      { name: 'v2 API', status: 'healthy' },
+      { name: '数据库', status: 'healthy' },
     ]
 
-    const recentResult = await getRecentExecutions(10)
-    recentRuns.value = recentResult.executions || []
+    // 显示最近的执行记录（跨所有任务）
+    recentRuns.value = allExecutions
+      .sort((a, b) => (b.started_at || '').localeCompare(a.started_at || ''))
+      .slice(0, 10)
   } catch (e) {
     console.error('加载失败:', e)
-    ElMessage.warning('部分数据加载失败，显示默认值')
+    ElMessage.warning('部分数据加载失败')
   }
 })
 </script>

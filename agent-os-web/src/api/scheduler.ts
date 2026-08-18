@@ -10,5 +10,5 @@ export const schedulerApi = {
   triggerTask: (id: string) => client.post(`/scheduler/tasks/${id}/trigger`),
   pauseTask: (id: string) => client.post(`/scheduler/tasks/${id}/pause`),
   resumeTask: (id: string) => client.post(`/scheduler/tasks/${id}/resume`),
-  listExecutions: (params?: any) => client.get('/scheduler/executions', { params }),
+  listExecutions: (params?: { task_id?: string; limit?: number }) => client.get('/scheduler/executions', { params }),
 }

@@ -101,17 +101,31 @@ const filteredExecutions = computed(() => {
 
 const loadExecutions = async () => {
   try {
-    const result = await schedulerApi.listExecutions({ limit: 100 })
-    executions.value = result.executions || []
+    // 先获取任务列表
+    const tasksResult = await schedulerApi.listTasks()
+    const allTasks = tasksResult.tasks || []
+    tasks.value = allTasks.map((t: any) => ({ id: t.id, name: t.name }))
 
-    // 从执行记录中提取任务列表用于筛选
-    const taskMap = new Map()
-    executions.value.forEach((e: any) => {
-      if (e.task_id && !taskMap.has(e.task_id)) {
-        taskMap.set(e.task_id, { id: e.task_id, name: e.task_name || e.task_id })
+    // 获取每个任务的执行记录
+    const allExecutions: any[] = []
+    for (const task of allTasks.slice(0, 5)) { // 只查前5个任务避免请求过多
+      try {
+        const result = await schedulerApi.listExecutions({ task_id: task.id, limit: 20 })
+        if (result.runs) {
+          allExecutions.push(...result.runs.map((run: any) => ({
+            ...run,
+            task_name: task.name,
+          })))
+        }
+      } catch (e) {
+        console.error(`获取任务 ${task.name} 执行记录失败:`, e)
       }
-    })
-    tasks.value = Array.from(taskMap.values())
+    }
+
+    // 按时间排序
+    executions.value = allExecutions.sort((a: any, b: any) =>
+      new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
+    )
   } catch (e) {
     console.error('加载执行历史失败:', e)
     ElMessage.error('加载执行历史失败')

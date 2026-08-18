@@ -10,11 +10,12 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3003,  // Agent OS Web 端口
+    port: 3003,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
+        // rewrite: (path) => path.replace(/^\/api/, '/api'), // 保持 /api 路径
       },
     },
   },
