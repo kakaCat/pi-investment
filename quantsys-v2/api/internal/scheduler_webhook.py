@@ -24,6 +24,7 @@ Usage:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -31,6 +32,7 @@ from typing import Any, Callable, Dict
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +162,19 @@ async def scheduler_webhook(
 # ==================== Background Execution ====================
 
 
+def _run_handler_blocking(handler: Callable, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """Run an async job handler in a worker thread with its own event loop.
+
+    Job handlers do blocking synchronous work (HTTP requests, psycopg2,
+    data providers) inside `async def` bodies. Awaiting them directly on
+    the FastAPI event loop stalls the entire service for the job's whole
+    duration — including the webhook response back to Agent OS (2026-08-18
+    incident: 10-minute data quality job made Agent OS time out and
+    misrecord a successful job as failed).
+    """
+    return asyncio.run(handler(metadata))
+
+
 async def execute_job(handler: Callable, payload: WebhookPayload):
     """Execute job handler and report results to Agent OS.
 
@@ -183,8 +198,9 @@ async def execute_job(handler: Callable, payload: WebhookPayload):
     )
 
     try:
-        # Call the job handler with metadata
-        result = await handler(payload.metadata)
+        # Call the job handler with metadata — off the event loop, since
+        # handlers do blocking sync work (see _run_handler_blocking)
+        result = await run_in_threadpool(_run_handler_blocking, handler, payload.metadata)
         status = "success"
         error_msg = None
         logger.info(
