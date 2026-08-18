@@ -1107,6 +1107,17 @@ class SchedulerService:
                         )
                 except Exception as exc:
                     logger.error("Error in scheduler loop iteration: %s", exc)
+                finally:
+                    # run_due_tasks 即使无到期任务也会 SELECT scheduler_tasks，
+                    # 线程级 scoped session 不释放则连接在两次轮询间呈
+                    # idle in transaction（挡 autovacuum/持旧快照）。
+                    # 任务级 finally（_run_task）已有关闭，这里是轮询级兜底
+                    # （2026-08-18 后台线程连接治理）。
+                    try:
+                        from infrastructure.persistence.orm import close_session
+                        close_session()
+                    except Exception:
+                        pass
                 time.sleep(self._loop_interval)
         finally:
             if _signals_registered:

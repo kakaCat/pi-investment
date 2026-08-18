@@ -113,8 +113,24 @@ class DataProviderManager:
                 # 挂死线程不等待回收（shutdown(wait=False)），由 OS 善后。
                 import concurrent.futures
                 guard = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+                def _guarded_call():
+                    try:
+                        return method(*args, **kwargs)
+                    finally:
+                        # 护栏线程里若建了 ORM scoped session（DatabaseKlineProvider
+                        # 等查库 provider），线程 shutdown(wait=False) 后 session
+                        # 无人回收，连接呈 idle in transaction 靠 GC 轮盘释放
+                        # （WatchEngine 盯盘每轮每符号一次 get_klines，2026-08-18
+                        # 实测稳态 7 条泄漏）。在同一护栏线程 finally 释放。
+                        try:
+                            from infrastructure.persistence.orm import close_session
+                            close_session()
+                        except Exception:
+                            pass
+
                 try:
-                    fut = guard.submit(method, *args, **kwargs)
+                    fut = guard.submit(_guarded_call)
                     result = fut.result(timeout=self.provider_timeout_seconds)
                 except concurrent.futures.TimeoutError:
                     logger.warning(f"Provider {provider.name}.{method_name} 超时（>{self.provider_timeout_seconds}s），降级下一个")

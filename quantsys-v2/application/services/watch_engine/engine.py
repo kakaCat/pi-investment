@@ -78,6 +78,15 @@ class WatchEngine:
                     self.tick()
                 except Exception as e:
                     logger.error('WatchEngine tick 异常', error=str(e))
+                finally:
+                    # tick 内 rule_repo 查询留下的 scoped session 每轮释放——
+                    # 否则盯盘线程连接长期 idle in transaction（挡 autovacuum/
+                    # 持旧快照，2026-08-18 后台线程连接治理）
+                    try:
+                        from infrastructure.persistence.orm import close_session
+                        close_session()
+                    except Exception:
+                        pass
                 interval = self.fast_interval if self.fast_mode else self.base_interval
             else:
                 interval = 60  # 非交易时段低频心跳

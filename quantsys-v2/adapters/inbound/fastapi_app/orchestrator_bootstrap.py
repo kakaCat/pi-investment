@@ -37,6 +37,7 @@ def _in_intraday_window(now: datetime) -> bool:
 
 def _monitor_loop(stop_event: threading.Event) -> None:
     from infrastructure.jobs import monitor_jobs
+    from infrastructure.persistence.orm import close_session
 
     while not stop_event.is_set():
         now = datetime.now()
@@ -48,6 +49,14 @@ def _monitor_loop(stop_event: threading.Event) -> None:
         except Exception as e:
             # 单次 tick 失败不能杀死线程——否则编排器再次静默死亡
             logger.error(f"orchestrator/monitor tick error: {e}", exc_info=True)
+        finally:
+            # tick 在本线程留下的 scoped session 必须每轮释放——否则连接在
+            # 60s 间隔里呈 idle in transaction（挡 autovacuum/持旧快照，
+            # 2026-08-18 后台线程连接治理）
+            try:
+                close_session()
+            except Exception:
+                pass
         stop_event.wait(_TICK_INTERVAL_SEC)
 
 

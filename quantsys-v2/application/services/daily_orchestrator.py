@@ -80,8 +80,25 @@ class DailyOrchestrator:
 
     def __init__(self, name: str = 'main'):
         self.name = name
-        self.session = get_session()
+        self._session_override = None
         self._today_state: Optional[DailyOrchestratorState] = None
+
+    @property
+    def session(self):
+        """每次经 scoped_session 现取（不在实例上跨 tick 缓存）：
+
+        tick 线程每轮结束会 close_session() 释放连接（orchestrator_bootstrap
+        ._monitor_loop，2026-08-18 后台线程连接治理），构造期缓存的 session
+        被移出注册表后会脱离该清理路径，重新查询时占住新连接永不归还。
+        测试可经 setter 注入 mock（override 优先）。
+        """
+        if self._session_override is not None:
+            return self._session_override
+        return get_session()
+
+    @session.setter
+    def session(self, value):
+        self._session_override = value
 
     # ==================== 主入口 ====================
 
