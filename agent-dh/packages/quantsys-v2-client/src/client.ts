@@ -505,8 +505,7 @@ export class QuantsysV2Client {
    * Manage watch rules (create/enable/disable/delete)
    * Real endpoints:
    *   POST   /api/watch/rules           (create)
-   *   POST   /api/watch/rules/{id}/enable  (enable)
-   *   POST   /api/watch/rules/{id}/disable (disable)
+   *   PATCH  /api/watch/rules/{id}      (enable/disable - update enabled field)
    *   DELETE /api/watch/rules/{id}      (delete)
    */
   async manageWatchRule(params: WatchRuleManageRequest): Promise<any> {
@@ -516,11 +515,11 @@ export class QuantsysV2Client {
       return this.unwrap(response.data, 'manageWatchRule');
     }
     if (action === 'enable') {
-      const response = await this.client.post(`/api/watch/rules/${rule_id}/enable`);
+      const response = await this.client.patch(`/api/watch/rules/${rule_id}`, { enabled: true });
       return this.unwrap(response.data, 'manageWatchRule');
     }
     if (action === 'disable') {
-      const response = await this.client.post(`/api/watch/rules/${rule_id}/disable`);
+      const response = await this.client.patch(`/api/watch/rules/${rule_id}`, { enabled: false });
       return this.unwrap(response.data, 'manageWatchRule');
     }
     if (action === 'delete') {
