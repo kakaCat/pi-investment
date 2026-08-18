@@ -14,7 +14,7 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^",
-    "@pi-investment/quantsys-v2-client": "workspace:*"
+    "@pi-investment/agent-os-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

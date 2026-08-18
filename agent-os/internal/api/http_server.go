@@ -19,13 +19,28 @@ type HTTPServer struct {
 	skillHandler     *handlers.SkillHandler
 	schedulerHandler *SchedulerHandler
 	server           *http.Server
+	decisionHandler  *DecisionHandler
+	memoryHandler    *MemoryHandler
+	eventHandler     *EventHandler
+	systemHandler    *SystemHandler
+	notificationHandler *NotificationHandler
+	profileHandler      *ProfileHandler
+	registryHandler     *RegistryHandler
+	evolutionHandler    *EvolutionHandler
 }
-
-func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.SkillHandler, schedulerHandler *SchedulerHandler) *HTTPServer {
+func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.SkillHandler, schedulerHandler *SchedulerHandler, decisionHandler *DecisionHandler, memoryHandler *MemoryHandler, eventHandler *EventHandler, systemHandler *SystemHandler, notificationHandler *NotificationHandler, profileHandler *ProfileHandler, registryHandler *RegistryHandler, evolutionHandler *EvolutionHandler) *HTTPServer {
 	return &HTTPServer{
 		service:          service,
 		skillHandler:     skillHandler,
 		schedulerHandler: schedulerHandler,
+		decisionHandler:  decisionHandler,
+		profileHandler:      profileHandler,
+		notificationHandler: notificationHandler,
+		systemHandler:    systemHandler,
+		eventHandler:     eventHandler,
+		memoryHandler:    memoryHandler,
+		registryHandler:  registryHandler,
+		evolutionHandler: evolutionHandler,
 	}
 }
 
@@ -39,11 +54,6 @@ func (s *HTTPServer) Start(addr string) error {
 	// API v1
 	api := router.PathPrefix("/api/v1").Subrouter()
 
-	// Notification endpoints
-	api.HandleFunc("/notifications/send", s.handleSend).Methods("POST")
-	api.HandleFunc("/notifications/channels", s.handleListChannels).Methods("GET")
-	api.HandleFunc("/notifications/logs", s.handleGetLogs).Methods("GET")
-	api.HandleFunc("/notifications/providers", s.handleListProviders).Methods("GET")
 
 	// Skill endpoints
 	if s.skillHandler != nil {
@@ -53,6 +63,71 @@ func (s *HTTPServer) Start(addr string) error {
 	// Scheduler endpoints
 	if s.schedulerHandler != nil {
 		s.schedulerHandler.RegisterRoutes(api)
+	}
+
+	// Decision endpoints
+	if s.decisionHandler != nil {
+		api.HandleFunc("/decisions/statistics", s.decisionHandler.GetStatistics).Methods("GET")
+		api.HandleFunc("/decisions", s.decisionHandler.List).Methods("GET")
+		api.HandleFunc("/decisions/{id}", s.decisionHandler.Get).Methods("GET")
+	}
+
+	// Memory endpoints
+	if s.memoryHandler != nil {
+		api.HandleFunc("/memory", s.memoryHandler.List).Methods("GET")
+		api.HandleFunc("/memory", s.memoryHandler.Create).Methods("POST")
+		api.HandleFunc("/memory/search", s.memoryHandler.Search).Methods("GET")
+		api.HandleFunc("/memory/tags", s.memoryHandler.GetTags).Methods("GET")
+		api.HandleFunc("/memory/tags", s.memoryHandler.CreateTag).Methods("POST")
+		api.HandleFunc("/memory/tags/{name}", s.memoryHandler.DeleteTag).Methods("DELETE")
+	}
+
+	// Event endpoints
+	if s.eventHandler != nil {
+		api.HandleFunc("/events/history", s.eventHandler.GetHistory).Methods("GET")
+		api.HandleFunc("/events/alerts", s.eventHandler.GetAlertRules).Methods("GET")
+		api.HandleFunc("/events/alerts", s.eventHandler.CreateAlertRule).Methods("POST")
+		api.HandleFunc("/events/alerts/{id}", s.eventHandler.DeleteAlertRule).Methods("DELETE")
+	}
+
+	// System endpoints
+	if s.systemHandler != nil {
+		api.HandleFunc("/system/status", s.systemHandler.GetStatus).Methods("GET")
+		api.HandleFunc("/system/quotas", s.systemHandler.GetQuotas).Methods("GET")
+		api.HandleFunc("/system/logs", s.systemHandler.GetLogs).Methods("GET")
+		api.HandleFunc("/system/namespaces", s.systemHandler.GetNamespaces).Methods("GET")
+	}
+
+	// Notification endpoints
+	if s.notificationHandler != nil {
+		api.HandleFunc("/notifications/channels", s.notificationHandler.GetChannels).Methods("GET")
+		api.HandleFunc("/notifications/providers", s.notificationHandler.GetProviders).Methods("GET")
+		api.HandleFunc("/notifications/logs", s.notificationHandler.GetLogs).Methods("GET")
+		api.HandleFunc("/notifications/send", s.notificationHandler.SendNotification).Methods("POST")
+	}
+
+	// Profile endpoints
+	if s.profileHandler != nil {
+		api.HandleFunc("/profile", s.profileHandler.GetProfile).Methods("GET")
+		api.HandleFunc("/profile", s.profileHandler.UpdateProfile).Methods("PUT")
+		api.HandleFunc("/profile/api-keys", s.profileHandler.GetAPIKeys).Methods("GET")
+		api.HandleFunc("/profile/activity", s.profileHandler.GetActivityLogs).Methods("GET")
+	}
+
+	// Registry endpoints
+	if s.registryHandler != nil {
+		api.HandleFunc("/registry/agents/register", s.registryHandler.Register).Methods("POST")
+		api.HandleFunc("/registry/agents/heartbeat", s.registryHandler.Heartbeat).Methods("POST")
+		api.HandleFunc("/registry/agents/update-status", s.registryHandler.UpdateStatus).Methods("POST")
+		api.HandleFunc("/registry/agents/unregister", s.registryHandler.Unregister).Methods("POST")
+		api.HandleFunc("/registry/agents/available", s.registryHandler.ListAvailable).Methods("GET")
+		api.HandleFunc("/registry/agents/{id}", s.registryHandler.Get).Methods("GET")
+	}
+
+	// Evolution endpoints
+	if s.evolutionHandler != nil {
+		api.HandleFunc("/evolution/run", s.evolutionHandler.Run).Methods("POST")
+		api.HandleFunc("/evolution/leaderboard", s.evolutionHandler.Leaderboard).Methods("GET")
 	}
 
 	s.server = &http.Server{

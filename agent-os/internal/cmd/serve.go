@@ -136,8 +136,36 @@ var serveCmd = &cobra.Command{
 		// Create Scheduler Handler
 		schedulerHandler := api.NewSchedulerHandler(schedulerSvc)
 
+		// Create Decision Repository and Handler
+
+		// Create Memory Repository and Handler
+
+		// Create Event Repository and Handler
+
+		// Create System Repository and Handler
+
+		// Create Notification Repository and Handler
+
+		// Create Profile Repository and Handler
+		profileRepo := repository.NewProfileWebRepository(db)
+		profileHandler := api.NewProfileHandler(profileRepo)
+		notificationRepo := repository.NewNotificationWebRepository(db)
+		notificationHandler := api.NewNotificationHandler(notificationRepo)
+		systemRepo := repository.NewSystemWebRepository(db)
+		systemHandler := api.NewSystemHandler(systemRepo)
+		eventRepo := repository.NewEventWebRepository(db)
+		eventHandler := api.NewEventHandler(eventRepo)
+		memoryRepo := repository.NewMemoryWebRepository(db)
+		memoryHandler := api.NewMemoryHandler(memoryRepo)
+		decisionRepo := repository.NewDecisionWebRepository(db)
+		decisionHandler := api.NewDecisionHandler(decisionRepo)
+		registryRepo := repository.NewRegistryWebRepository(db)
+		registryHandler := api.NewRegistryHandler(registryRepo)
+		evolutionRepo := repository.NewEvolutionWebRepository(db)
+		evolutionHandler := api.NewEvolutionHandler(evolutionRepo)
+
 		// Create HTTP server
-		server := api.NewHTTPServer(svc, skillHandler, schedulerHandler)
+		server := api.NewHTTPServer(svc, skillHandler, schedulerHandler, decisionHandler, memoryHandler, eventHandler, systemHandler, notificationHandler, profileHandler, registryHandler, evolutionHandler)
 
 		// Start HTTP server in goroutine
 		addr := fmt.Sprintf("%s:%d", host, port)
@@ -145,6 +173,10 @@ var serveCmd = &cobra.Command{
 			fmt.Printf("🚀 Agent OS API Server starting on http://%s\n", addr)
 			fmt.Printf("📚 API endpoints:\n")
 			fmt.Printf("   POST   /api/v1/notifications/send\n")
+			fmt.Printf("   GET    /api/v1/profile\n")
+			fmt.Printf("   PUT    /api/v1/profile\n")
+			fmt.Printf("   GET    /api/v1/profile/api-keys\n")
+			fmt.Printf("   GET    /api/v1/profile/activity\n")
 			fmt.Printf("   GET    /api/v1/notifications/channels\n")
 			fmt.Printf("   GET    /api/v1/notifications/logs\n")
 			fmt.Printf("   GET    /api/v1/notifications/providers\n")
