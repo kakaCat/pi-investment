@@ -154,3 +154,40 @@ def get_pool_status() -> dict:
         "overflow": pool.overflow(),
         "total": pool.size() + pool.overflow(),
     }
+
+
+# ==================== db_cursor: per-operation 游标（替代 legacy BaseRepository） ====================
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def db_cursor(commit: bool = False):
+    """单次操作级数据库游标（RealDictCursor），with 块结束立即归还连接池。
+
+    替代 legacy BaseRepository 的实例级持连接模式。
+    - commit=False（默认，读操作）：退出时显式 rollback（psycopg2 默认事务模式，
+      SELECT 也开事务，不 rollback 归还会留 idle-in-transaction 残影）
+    - commit=True（写操作）：正常退出 commit；异常 rollback 并重抛
+
+    行类型为 psycopg2 RealDictRow（dict 子类），与旧 BaseRepository 完全一致。
+    """
+    from psycopg2.extras import RealDictCursor
+
+    conn = get_engine().connect()
+    try:
+        raw = conn.connection  # 底层 psycopg2 connection（与旧 BaseRepository 同路径）
+        cursor = raw.cursor(cursor_factory=RealDictCursor)
+        try:
+            yield cursor
+            if commit:
+                raw.commit()
+            else:
+                raw.rollback()
+        except Exception:
+            raw.rollback()
+            raise
+        finally:
+            cursor.close()
+    finally:
+        conn.close()
