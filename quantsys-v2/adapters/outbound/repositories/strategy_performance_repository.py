@@ -17,8 +17,9 @@ from infrastructure.persistence.database.base_repository import BaseRepository
 class StrategyPerformanceRepository(BaseRepository):
     """策略表现 Repository（quant.strategy_performance 表）"""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, db_connection=None):
+        # 兼容 BaseRepository 形参，调用父类初始化以设置连接管理属性
+        super().__init__(db_connection)
 
     # ==================== 创建方法 ====================
 
@@ -63,25 +64,27 @@ class StrategyPerformanceRepository(BaseRepository):
         """
 
         cursor = self._get_cursor()
-        cursor.execute(query, (
-            strategy_name,
-            symbol,
-            signal_date,
-            entry_price,
-            exit_price,
-            pnl_pct,
-            holding_days,
-            json.dumps(scenario_tags) if scenario_tags else None,
-            json.dumps(params_snapshot) if params_snapshot else None,
-            source
-        ))
-        result = cursor.fetchone()
-        self.db.commit()
-        cursor.close()
+        try:
+            cursor.execute(query, (
+                strategy_name,
+                symbol,
+                signal_date,
+                entry_price,
+                exit_price,
+                pnl_pct,
+                holding_days,
+                json.dumps(scenario_tags) if scenario_tags else None,
+                json.dumps(params_snapshot) if params_snapshot else None,
+                source
+            ))
+            result = cursor.fetchone()
+            self.db.commit()
 
-        record = dict(result)
-        # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
-        return record
+            record = dict(result)
+            # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
+            return record
+        finally:
+            cursor.close()
 
     # ==================== 更新方法 ====================
 
@@ -104,40 +107,41 @@ class StrategyPerformanceRepository(BaseRepository):
         """
         # 先获取入场价格
         cursor = self._get_cursor()
-        cursor.execute(
-            "SELECT entry_price FROM quant.strategy_performance WHERE id = %s",
-            (record_id,)
-        )
-        result = cursor.fetchone()
-        if not result:
-            cursor.close()
+        try:
+            cursor.execute(
+                "SELECT entry_price FROM quant.strategy_performance WHERE id = %s",
+                (record_id,)
+            )
+            result = cursor.fetchone()
+            if not result:
+                return None
+
+            entry_price = float(result['entry_price'])
+            pnl_pct = ((exit_price - entry_price) / entry_price) * 100
+
+            # 更新记录
+            query = """
+                UPDATE quant.strategy_performance
+                SET exit_price = %s,
+                    pnl_pct = %s,
+                    holding_days = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                RETURNING *
+            """
+
+            cursor.execute(query, (exit_price, pnl_pct, holding_days, record_id))
+            result = cursor.fetchone()
+            self.db.commit()
+
+            if result:
+                record = dict(result)
+                # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
+                return record
+
             return None
-
-        entry_price = float(result['entry_price'])
-        pnl_pct = ((exit_price - entry_price) / entry_price) * 100
-
-        # 更新记录
-        query = """
-            UPDATE quant.strategy_performance
-            SET exit_price = %s,
-                pnl_pct = %s,
-                holding_days = %s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-            RETURNING *
-        """
-
-        cursor.execute(query, (exit_price, pnl_pct, holding_days, record_id))
-        result = cursor.fetchone()
-        self.db.commit()
-        cursor.close()
-
-        if result:
-            record = dict(result)
-            # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
-            return record
-
-        return None
+        finally:
+            cursor.close()
 
     # ==================== 查询方法 ====================
 
@@ -179,17 +183,19 @@ class StrategyPerformanceRepository(BaseRepository):
             params = (strategy_name, symbol)
 
         cursor = self._get_cursor()
-        cursor.execute(query, params)
-        results = cursor.fetchall()
-        cursor.close()
+        try:
+            cursor.execute(query, params)
+            results = cursor.fetchall()
 
-        records = []
-        for row in results:
-            record = dict(row)
-            # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
-            records.append(record)
+            records = []
+            for row in results:
+                record = dict(row)
+                # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
+                records.append(record)
 
-        return records
+            return records
+        finally:
+            cursor.close()
 
     def get_recent(
         self,
@@ -231,17 +237,19 @@ class StrategyPerformanceRepository(BaseRepository):
         params.append(limit)
 
         cursor = self._get_cursor()
-        cursor.execute(query, tuple(params))
-        results = cursor.fetchall()
-        cursor.close()
+        try:
+            cursor.execute(query, tuple(params))
+            results = cursor.fetchall()
 
-        records = []
-        for row in results:
-            record = dict(row)
-            # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
-            records.append(record)
+            records = []
+            for row in results:
+                record = dict(row)
+                # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
+                records.append(record)
 
-        return records
+            return records
+        finally:
+            cursor.close()
 
     def get_by_scenario_tag(self, tag: str) -> List[Dict]:
         """
@@ -261,17 +269,19 @@ class StrategyPerformanceRepository(BaseRepository):
         """
 
         cursor = self._get_cursor()
-        cursor.execute(query, (f'%{tag}%',))
-        results = cursor.fetchall()
-        cursor.close()
+        try:
+            cursor.execute(query, (f'%{tag}%',))
+            results = cursor.fetchall()
 
-        records = []
-        for row in results:
-            record = dict(row)
-            # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
-            records.append(record)
+            records = []
+            for row in results:
+                record = dict(row)
+                # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
+                records.append(record)
 
-        return records
+            return records
+        finally:
+            cursor.close()
 
     # ==================== 统计方法 ====================
 
@@ -320,22 +330,24 @@ class StrategyPerformanceRepository(BaseRepository):
         """
 
         cursor = self._get_cursor()
-        cursor.execute(query, tuple(params))
-        result = cursor.fetchone()
-        cursor.close()
+        try:
+            cursor.execute(query, tuple(params))
+            result = cursor.fetchone()
 
-        if not result or result['total_trades'] == 0:
-            return None
+            if not result or result['total_trades'] == 0:
+                return None
 
-        stats = dict(result)
-        # 转换 Decimal 为 float
-        for key in ['avg_pnl_pct', 'avg_holding_days', 'max_pnl_pct', 'min_pnl_pct']:
-            if stats.get(key) is not None:
-                stats[key] = float(stats[key])
+            stats = dict(result)
+            # 转换 Decimal 为 float
+            for key in ['avg_pnl_pct', 'avg_holding_days', 'max_pnl_pct', 'min_pnl_pct']:
+                if stats.get(key) is not None:
+                    stats[key] = float(stats[key])
 
-        stats['win_rate'] = (stats['win_trades'] / stats['total_trades']) * 100 if stats['total_trades'] > 0 else 0
+            stats['win_rate'] = (stats['win_trades'] / stats['total_trades']) * 100 if stats['total_trades'] > 0 else 0
 
-        return stats
+            return stats
+        finally:
+            cursor.close()
 
 
 # 兼容别名：调用方（order_service / strategy_weight_adjuster /
