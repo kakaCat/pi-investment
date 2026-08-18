@@ -70,6 +70,7 @@ func (h *SchedulerHandler) handleRegisterTask(w http.ResponseWriter, r *http.Req
 		Description: req.Description,
 		Cron:        req.Cron,
 		Schedule:    req.Cron, // For backward compatibility
+		Command:     req.Command,
 		WebhookURL:  req.WebhookURL,
 		Payload:     req.Payload,
 		Timeout:     req.Timeout,

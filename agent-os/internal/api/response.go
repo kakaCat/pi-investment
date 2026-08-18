@@ -74,3 +74,9 @@ func handleError(w http.ResponseWriter, err error) {
 	logger.Error("Unexpected error", "error", err)
 	respondError(w, http.StatusInternalServerError, "An internal error occurred")
 }
+
+// parseJSON 解析 JSON 请求体
+func parseJSON(r *http.Request, v interface{}) error {
+	decoder := json.NewDecoder(r.Body)
+	return decoder.Decode(v)
+}
