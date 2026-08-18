@@ -212,15 +212,35 @@ def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
         stock_info = ds.stock.get_by_symbol(symbol)
         kline = ds.kline.get_latest_daily_kline(symbol)
         latest_signals = ds.signal.get_signals_by_symbol(symbol, '2024-01-01', date or '2026-12-31')
+
+        # 兼容 ORM 对象和字典（get_by_symbol 可能返回 ORM 对象）
+        if stock_info is None:
+            stock_name, market = '', ''
+        elif hasattr(stock_info, 'name'):
+            stock_name = stock_info.name or ''
+            market = getattr(stock_info, 'market', '') or ''
+        else:
+            stock_name = stock_info.get('name', '')
+            market = stock_info.get('market', '')
+
+        # 兼容 kline 返回类型（polars DataFrame / dict / None）
+        current_price = None
+        if kline is not None:
+            if hasattr(kline, 'get'):
+                current_price = kline.get('close')
+            elif hasattr(kline, '__getitem__'):
+                current_price = kline['close']
+
         return sanitize_for_json({
             'symbol': symbol,
-            'stock_name': stock_info['name'] if stock_info else '',
-            'market': stock_info['market'] if stock_info else '',
-            'current_price': kline['close'] if kline else None,
+            'stock_name': stock_name,
+            'market': market,
+            'current_price': current_price,
             'factors': factors,
             'signals_count': len(latest_signals),
         })
     except Exception as e:
+        logger.error(f"获取股票因子失败: {e}", exc_info=True)
         return error_response({'error': str(e)}, 500)
 
 
@@ -748,7 +768,12 @@ def risk_trade_verify(payload: Optional[Dict[str, Any]] = Body(None)):
 @router.post('/api/risk/metrics')
 @handle_api_error
 def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
-    """计算风险指标 - 使用 empyrical 标准算法"""
+    """计算风险指标 - 使用 empyrical 标准算法
+
+    支持两种调用模式：
+    1. 直接传 returns 数组：{ "returns": [...], "benchmark_returns": [...] }
+    2. 传 account_name：{ "account_name": "default" } — 自动从持仓计算收益率
+    """
     from application.services.risk_metrics_service import RiskMetricsService
     import pandas as pd
 
@@ -756,10 +781,58 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
 
     # 参数验证
     returns = data.get('returns')
+    account_name = data.get('account_name') or data.get('accountName')
+
+    # 模式 2：通过 account_name 自动获取收益率
+    if not returns and account_name:
+        try:
+            # 从 portfolio 获取持仓历史收益数据
+            holdings = ds.portfolio.get_all_holdings()
+            if not holdings:
+                return error_response({
+                    'success': False,
+                    'error': f'账户 {account_name} 无持仓数据，无法计算风险指标'
+                }, 400)
+
+            # 计算每只持仓的日收益率（简化：用最新K线计算）
+            daily_returns = []
+            for h in holdings:
+                symbol = h['symbol']
+                try:
+                    end_date = datetime.now().strftime('%Y-%m-%d')
+                    start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+                    klines = ds.kline.get_daily_klines(symbol, start_date, end_date)
+                    if klines is not None and hasattr(klines, 'to_dicts'):
+                        klines = klines.to_dicts()
+                    if klines and len(klines) >= 2:
+                        # 计算日收益率序列
+                        for i in range(1, len(klines)):
+                            prev_close = float(klines[i - 1].get('close', 0))
+                            curr_close = float(klines[i].get('close', 0))
+                            if prev_close > 0:
+                                daily_returns.append((curr_close - prev_close) / prev_close)
+                except Exception:
+                    continue
+
+            if len(daily_returns) < 5:
+                return error_response({
+                    'success': False,
+                    'error': f'账户 {account_name} 的历史数据不足，无法计算风险指标（需要至少5个数据点）'
+                }, 400)
+
+            returns = daily_returns
+
+        except Exception as e:
+            logger.error(f"通过 account_name 获取收益率失败: {e}", exc_info=True)
+            return error_response({
+                'success': False,
+                'error': f'获取账户收益率失败: {str(e)}'
+            }, 500)
+
     if not returns:
         return error_response({
             'success': False,
-            'error': 'returns 参数不能为空'
+            'error': 'returns 参数不能为空（或提供 account_name 自动计算）'
         }, 400)
 
     benchmark_returns = data.get('benchmark_returns') or data.get('benchmarkReturns')
