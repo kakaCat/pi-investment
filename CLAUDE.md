@@ -267,6 +267,36 @@ pi-investment/
 └── CLAUDE.md            # This file
 ```
 
+## 文档放置规范（Document Placement Rules）
+
+**根目录只保留两个 MD 文件**：`README.md` 和 `CLAUDE.md`。其余所有文档必须按类型放入 `docs/` 对应子目录，禁止直接写到仓库根目录或散落在各子项目根目录。
+
+创建任何 `.md` 前先走决策树：
+
+```
+这是技术决策（选型/架构变更）？
+├─ 是 → docs/adr/NNN-title.md
+└─ 否 ↓
+这是新特性设计提案（实施前）？
+├─ 是 → docs/rfcs/NNN-title.md
+└─ 否 ↓
+这是架构说明（长期有效）？
+├─ 是 → docs/architecture/topic.md
+└─ 否 ↓
+这是使用指南（部署/迁移/排障）？
+├─ 是 → docs/guides/topic.md
+└─ 否 ↓
+这是工作记录（WP/Phase/Batch 完成报告、总结）？
+└─ 是 → docs/work-logs/YYYY-MM/title.md
+```
+
+要点：
+
+- **工作包/阶段完成报告**（`*-REPORT.md`、`*-SUMMARY.md`、`*-COMPLETE.md`、`PHASE-*`、`WP-*`、`BATCH-*` 等）一律写 `docs/work-logs/YYYY-MM/`，按完成月份归档，不写入根目录。
+- **子项目专属文档**放各自 `docs/` 目录（如 `agent-os/docs/`、`agent-dh/docs/`），不要放子项目根目录。
+- 命名规范：kebab-case；ADR/RFC 用 `NNN-title.md` 数字编号；work-logs 用 `<project>-<type>.md`。
+- 完整规范与模板见 [docs/DOCUMENT-MANAGEMENT-PLAN.md](docs/DOCUMENT-MANAGEMENT-PLAN.md) 和 [docs/README.md](docs/README.md)。
+
 ## Getting Started
 
 ### Start All Services
@@ -337,9 +367,11 @@ TAVILY_API_KEY=...
 - [Stock Pool Game Theory](docs/stock-pool-game-theory.md) - Battlefield selection and opponent exploitation
 - [Agent Autonomy Guide](docs/agent-autonomy.md) - Autonomous operation and decision-making
 - [Game Theory Framework](docs/game-theory-framework.md) - Theoretical foundation and competitive intelligence
+- [文档中心](docs/README.md) - 文档索引与放置规范（[管理规范](docs/DOCUMENT-MANAGEMENT-PLAN.md)）
 
 ## Version History
 
+- 2026-08-18: Added 文档放置规范 - document placement rules (root keeps only README.md + CLAUDE.md)
 - 2026-06-29: Documentation consolidation - created game theory framework docs
 - 2026-06-25: Added system philosophy, game theory framework, autonomous agent design
 - 2026-06-03: Initial three-layer architecture documentation

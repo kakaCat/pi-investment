@@ -145,22 +145,40 @@ docs/archive/
 # Temporary reports and work documents
 *_REPORT.md
 *_REPORT.txt
+*-REPORT.md
+*-REPORT.txt
 *_SUMMARY.md
 *_SUMMARY.txt
+*-SUMMARY.md
+*-SUMMARY.txt
 *_COMPLETE.md
 *_COMPLETE.txt
+*-COMPLETE.md
+*-COMPLETE.txt
 *_STATUS.md
 *_STATUS.txt
+*-STATUS.md
+*-STATUS.txt
 *_GUIDE.md
 *_GUIDE.txt
+*-GUIDE.md
+*-GUIDE.txt
 *_ANALYSIS.md
 *_ANALYSIS.txt
+*-ANALYSIS.md
+*-ANALYSIS.txt
 *_CHECK.md
 *_CHECK.txt
+*-CHECK.md
+*-CHECK.txt
 *_PLAN.md
 *_PLAN.txt
+*-PLAN.md
+*-PLAN.txt
 *_FIX.txt
+*-FIX.txt
 *_FINAL.txt
+*-FINAL.txt
 *WORK_SUMMARY*.md
 *WORK_SUMMARY*.txt
 DAILY_*.md
@@ -179,3 +197,9 @@ venv/
 
 # Work directory for Claude Code temporary files (added 2026-07-17)
 .work/
+
+# 根目录只保留 README.md 与 CLAUDE.md（文档放置规范，见 CLAUDE.md 2026-08-18）
+# 其余文档一律放 docs/ 对应子目录
+/*.md
+!README.md
+!CLAUDE.md
