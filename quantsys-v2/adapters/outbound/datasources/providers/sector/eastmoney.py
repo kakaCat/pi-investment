@@ -41,6 +41,46 @@ class EastmoneySectorProvider(MarketProvider):
     def name(self) -> str:
         return "eastmoney"
 
+    # ── 板块列表（行业板块 + 概念板块）────────────────────────────
+
+    def get_sector_list(self) -> Optional[MarketData]:
+        """获取行业板块和概念板块列表。
+
+        Returns:
+            MarketData(data_type='sector_list')，data 含 industries[] 和 concepts[]。
+            网络全部失败时抛异常（交给 manager 故障转移）。
+        """
+        industries = []
+        concepts = []
+
+        for fs in _BOARD_FS:
+            rows = self._clist_all(fs=fs, fields="f12,f14,f3,f4,f20")
+            for row in rows:
+                item = {
+                    'code': str(row.get('f12', '')),
+                    'name': str(row.get('f14', '')),
+                    'change_pct': self._safe_float(row.get('f3')),
+                    'change_amount': self._safe_float(row.get('f4')),
+                    'market_cap': self._safe_float(row.get('f20')),
+                }
+                if 't:2' in fs:
+                    industries.append(item)
+                else:
+                    concepts.append(item)
+
+        return MarketData(
+            data_type='sector_list',
+            data={
+                'industries': industries,
+                'concepts': concepts,
+                'total': len(industries) + len(concepts),
+                'industry_count': len(industries),
+                'concept_count': len(concepts),
+            },
+            source=self.name,
+            timestamp=datetime.now().isoformat(),
+        )
+
     # ── 板块成分（本 provider 的核心能力） ─────────────────────
 
     def get_sector_stocks(self, sector: str) -> Optional[MarketData]:

@@ -96,18 +96,19 @@ def run_strategy_and_record(payload: Optional[Dict[str, Any]] = Body(None)):
         pass
     stock_name = stock_info.get('name', '')
 
-    # 4. 获取资金流数据
+    # 4. 获取资金流数据（使用 v2 原生 SentimentService，替代已删除的 quant_cli）
     fund_flow_data = None
     try:
-        _V2_ROOT = Path(__file__).resolve().parent.parent.parent
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
-        ff_result = get_stock_fund_flow(symbol, days=10)
-        if ff_result and isinstance(ff_result, dict):
+        from application.services.sentiment_service import SentimentService
+        from adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
+        fund_flow_source = FundFlowDataSource()
+        sentiment_service = SentimentService(fund_flow_source)
+        ff_result = sentiment_service.get_stock_fund_flow(symbol, days=10)
+        if ff_result and isinstance(ff_result, dict) and 'data' in ff_result:
+            # SentimentService 返回格式与旧 quant_cli 不同，适配之
             fund_flow_data = ff_result.get('data', [])
-            if not fund_flow_data and isinstance(ff_result, list):
-                fund_flow_data = ff_result
     except Exception:
-        pass
+        pass  # 资金流不可用時静默降级
 
     # 5. 运行策略
     from domain.quantlib.engine.strategy_factory import StrategyFactory

@@ -359,6 +359,15 @@ class DataProviderManager:
         """
         return self._try_providers(self.sector_providers, 'get_sector_stocks', sector)
 
+    def get_sector_list(self) -> dict:
+        """Get sector/industry list (行业板块 + 概念板块列表)
+
+        Returns:
+            Result dict with success, data (MarketData.data: industries/concepts/total),
+            source fields.
+        """
+        return self._try_providers(self.sector_providers, 'get_sector_list')
+
     def get_klines(self, symbol: str, period: str, start_date: str, end_date: str) -> dict:
         """Get kline data with automatic failover
 

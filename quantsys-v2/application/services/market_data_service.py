@@ -394,55 +394,65 @@ class MarketDataService:
 
     def get_sectors(self) -> Dict[str, Any]:
         """
-        获取 A 股行业板块列表
+        获取 A 股行业板块列表 — 使用 DataProviderManager 多数据源 failover
 
         Returns:
             包含行业板块列表的字典
         """
+        self.logger.info("获取 A 股行业板块列表（多数据源）")
+
         try:
-            import akshare as ak
+            # 使用统一数据源层（支持多 provider failover）
+            result = self.provider_manager.get_sector_list()
 
-            self.logger.info("获取 A 股行业板块列表")
-
-            # 使用东方财富行业板块数据
-            try:
-                df = ak.stock_board_industry_name_em()
-
-                if df is None or df.empty:
-                    return {
-                        'success': False,
-                        'error': '暂无行业板块数据',
-                        'data': None
-                    }
-
-                self.logger.info(f"行业板块数据: {len(df)} 行")
-
-                # 转换为字典列表
-                sectors = df.to_dict('records')
-
-                return {
-                    'success': True,
-                    'data': {
-                        'sectors': sectors,
-                        'total': len(sectors),
-                        'update_time': datetime.now().isoformat()
-                    }
-                }
-
-            except Exception as e:
-                self.logger.warning(f"行业板块数据获取失败: {e}")
+            if not result.get('success'):
+                error_msg = result.get('error', 'Unknown error')
+                attempted = result.get('attempted_sources', [])
+                self.logger.warning(f"行业板块数据获取失败: {error_msg} (尝试: {attempted})")
                 return {
                     'success': False,
-                    'error': f'暂时无法获取行业板块数据: {str(e)}',
+                    'error': f'暂时无法获取行业板块数据: {error_msg}',
                     'data': None
                 }
 
-        except ImportError:
+            data = result.get('data')
+            if not data:
+                return {
+                    'success': False,
+                    'error': '行业板块数据为空',
+                    'data': None
+                }
+
+            # 统一输出格式（兼容旧接口）
+            industries = data.get('industries', [])
+            concepts = data.get('concepts', [])
+
+            # 转换为与旧 akshare 输出兼容的格式
+            sectors = []
+            for item in industries + concepts:
+                sectors.append({
+                    '板块名称': item.get('name', ''),
+                    '板块代码': item.get('code', ''),
+                    '涨跌幅': item.get('change_pct', 0),
+                    '涨跌额': item.get('change_amount', 0),
+                    '总市值': item.get('market_cap', 0),
+                    '类型': '行业' if item in industries else '概念',
+                })
+
+            self.logger.info(f"行业板块数据: {len(industries)} 行业 + {len(concepts)} 概念")
+
             return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
+                'success': True,
+                'data': {
+                    'sectors': sectors,
+                    'industries': industries,
+                    'concepts': concepts,
+                    'total': len(sectors),
+                    'source': result.get('source', 'unknown'),
+                    'update_time': datetime.now().isoformat()
+                }
             }
+
         except Exception as e:
             self.logger.error(f"获取行业板块列表失败: {e}", exc_info=True)
             return {

@@ -729,40 +729,6 @@ def risk_stress_test():
         410)
 
 
-# ============ /api/risk/price-alert（analysis.py） ============
-
-@router.post('/api/risk/price-alert')
-@handle_api_error
-def risk_price_alert(payload: Optional[Dict[str, Any]] = Body(None)):
-    """价格预警 - 替代旧 quant_cli watch.price_alert"""
-    try:
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
-        from quantsys.cli.risk_watch_analytics import price_alert
-        data = payload or {}
-        quant_root = _V2_ROOT.parent / 'quant'
-        result = price_alert(quant_root, data)
-        return api_response(result)
-    except ImportError as e:
-        return error_response({'success': False, 'error': f'Module not available: {e}'}, 503)
-
-
-# ============ /api/risk/trade-verify（analysis.py） ============
-
-@router.post('/api/risk/trade-verify')
-@handle_api_error
-def risk_trade_verify(payload: Optional[Dict[str, Any]] = Body(None)):
-    """交易实盘回测对比 - 替代旧 quant_cli trade.verify"""
-    try:
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
-        from quantsys.cli.trade_portfolio_analytics import verify_trades
-        data = payload or {}
-        quant_root = _V2_ROOT.parent / 'quant'
-        result = verify_trades(quant_root, data)
-        return api_response(result)
-    except ImportError as e:
-        return error_response({'success': False, 'error': f'Module not available: {e}'}, 503)
-
-
 # ============ /api/risk/metrics（analysis.py） ============
 
 @router.post('/api/risk/metrics')
@@ -860,57 +826,6 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
         }, 500)
 
 
-# ============ /api/portfolio/benchmark（analysis.py） ============
-
-@router.post('/api/portfolio/benchmark')
-@handle_api_error
-def portfolio_benchmark(payload: Optional[Dict[str, Any]] = Body(None)):
-    """Benchmark comparison - 替代旧 quant_cli benchmark.compare"""
-    try:
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
-        from quantsys.cli.portfolio_analytics import compare_benchmark
-        data = payload or {}
-        quant_root = _V2_ROOT.parent / 'quant'
-        result = compare_benchmark(quant_root, data)
-        return api_response(result)
-    except ImportError as e:
-        return error_response({'success': False, 'error': f'Module not available: {e}'}, 503)
-
-
-# ============ /api/portfolio/optimize（analysis.py） ============
-
-@router.post('/api/portfolio/optimize')
-@handle_api_error
-def portfolio_optimize(payload: Optional[Dict[str, Any]] = Body(None)):
-    """Portfolio optimization - 替代旧 quant_cli portfolio.optimize"""
-    try:
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
-        from quantsys.cli.portfolio_analytics import optimize_portfolio
-        data = payload or {}
-        quant_root = _V2_ROOT.parent / 'quant'
-        result = optimize_portfolio(quant_root, data)
-        return api_response(result)
-    except ImportError as e:
-        return error_response({'success': False, 'error': f'Module not available: {e}'}, 503)
-
-
-# ============ /api/portfolio/correlation（analysis.py） ============
-
-@router.post('/api/portfolio/correlation')
-@handle_api_error
-def portfolio_correlation(payload: Optional[Dict[str, Any]] = Body(None)):
-    """Portfolio correlation matrix - 替代旧 quant_cli portfolio.correlation"""
-    try:
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
-        from quantsys.cli.trade_portfolio_analytics import correlate_portfolio
-        data = payload or {}
-        quant_root = _V2_ROOT.parent / 'quant'
-        result = correlate_portfolio(quant_root, data)
-        return api_response(result)
-    except ImportError as e:
-        return error_response({'success': False, 'error': f'Module not available: {e}'}, 503)
-
-
 # ============ /api/portfolio/factor-analyze（analysis.py） ============
 
 @router.post('/api/portfolio/factor-analyze')
@@ -953,23 +868,6 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
         return error_response(result, 400)
 
     return api_response(result)
-
-
-# ============ /api/portfolio/factor-decay（analysis.py） ============
-
-@router.post('/api/portfolio/factor-decay')
-@handle_api_error
-def factor_decay(payload: Optional[Dict[str, Any]] = Body(None)):
-    """因子衰减分析 - 替代旧 quant_cli factor.decay"""
-    try:
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
-        from quantsys.cli.factor_decay import analyze_factor_decay
-        data = payload or {}
-        quant_root = _V2_ROOT.parent / 'quant'
-        result = analyze_factor_decay(quant_root, data)
-        return api_response(result)
-    except ImportError as e:
-        return error_response({'success': False, 'error': f'Module not available: {e}'}, 503)
 
 
 # ============ /api/portfolio/sector-aggregate（analysis.py） ============
@@ -1082,40 +980,6 @@ def sector_aggregate(payload: Optional[Dict[str, Any]] = Body(None)):
             'success': False,
             'error': f'服务器内部错误: {str(e)}'
         }, 500)
-
-
-# ============ /api/portfolio/performance-analyze（analysis.py） ============
-
-@router.post('/api/portfolio/performance-analyze')
-@handle_api_error
-def performance_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
-    """策略表现分析 - 替代旧 quant_cli performance.analyze"""
-    try:
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
-        from quantsys.cli.strategy_analytics import analyze_performance
-        data = payload or {}
-        quant_root = _V2_ROOT.parent / 'quant'
-        result = analyze_performance(quant_root, data)
-        return api_response(result)
-    except ImportError as e:
-        return error_response({'success': False, 'error': f'Module not available: {e}'}, 503)
-
-
-# ============ /api/portfolio/signal-arbitrate（analysis.py） ============
-
-@router.post('/api/portfolio/signal-arbitrate')
-@handle_api_error
-def signal_arbitrate(payload: Optional[Dict[str, Any]] = Body(None)):
-    """信号仲裁 - 替代旧 quant_cli signal.arbitrate"""
-    try:
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
-        from quantsys.cli.strategy_analytics import arbitrate_signals
-        data = payload or {}
-        quant_root = _V2_ROOT.parent / 'quant'
-        result = arbitrate_signals(quant_root, data)
-        return api_response(result)
-    except ImportError as e:
-        return error_response({'success': False, 'error': f'Module not available: {e}'}, 503)
 
 
 # ============ /api/analysis/factor-report（analysis.py） ============
