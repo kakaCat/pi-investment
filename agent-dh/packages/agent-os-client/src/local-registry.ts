@@ -1,6 +1,5 @@
 import type {
   AgentInfo,
-  AgentStatus,
   AgentHeartbeat,
   StatusUpdate,
   Agent,
@@ -15,21 +14,17 @@ export class LocalRegistry {
   private heartbeats = new Map<string, Date>();
 
   async register(info: AgentInfo): Promise<Agent> {
+    const now = new Date().toISOString();
     const agent: Agent = {
       id: info.agent_id,
       agent_id: info.agent_id,
-      session_id: info.session_id || null,
+      session_id: info.session_id,
       agent_type: info.type,
       status: 'idle',
       capabilities: info.capabilities || [],
-      host: null,
-      port: null,
-      pid: null,
-      version: null,
       metadata: info.metadata || {},
-      last_heartbeat_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      registered_at: now,
+      last_heartbeat_at: now,
     };
     this.agents.set(info.agent_id, agent);
     this.heartbeats.set(info.agent_id, new Date());
@@ -54,7 +49,6 @@ export class LocalRegistry {
       throw new Error(`Agent not found: ${update.agent_id}`);
     }
     agent.status = update.status;
-    agent.updated_at = new Date().toISOString();
     console.log(`[LocalRegistry] Status updated: ${update.agent_id} -> ${update.status}`);
   }
 
@@ -62,7 +56,6 @@ export class LocalRegistry {
     const agent = this.agents.get(params.agent_id);
     if (agent) {
       agent.status = 'offline';
-      agent.updated_at = new Date().toISOString();
     }
     console.log(`[LocalRegistry] Agent unregistered: ${params.agent_id}`);
   }

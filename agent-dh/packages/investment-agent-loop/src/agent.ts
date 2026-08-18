@@ -24,8 +24,8 @@ export class InvestmentAgent {
   private isStopping = false;
 
   constructor(
-    private ctx: Context,
-    private session: any, // DSH Session type
+    _ctx: Context,
+    session: any, // DSH Session type
     private options: AgentOptions,
     private registryClient: RegistryClient
   ) {
@@ -79,7 +79,7 @@ export class InvestmentAgent {
   /**
    * Execute a task
    */
-  async executeTask(taskId: string, taskData: any): Promise<any> {
+  async executeTask(taskId: string, _taskData: any): Promise<any> {
     console.log(`[InvestmentAgent] Executing task: ${taskId}`);
     
     try {

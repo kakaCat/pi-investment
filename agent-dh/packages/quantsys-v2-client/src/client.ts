@@ -84,7 +84,7 @@ export class QuantsysV2Client {
       },
       onRetry: (retryCount, error, requestConfig) => {
         console.log(
-          `[QuantsysV2Client] Retrying request (${retryCount}/3): ${requestConfig.method?.toUpperCase()} ${requestConfig.url}`
+          `[QuantsysV2Client] Retrying request (${retryCount}/3): ${requestConfig.method?.toUpperCase()} ${requestConfig.url} - ${error.message}`
         );
       },
     });
@@ -96,7 +96,7 @@ export class QuantsysV2Client {
   private unwrap<T>(response: any, endpoint: string): T {
     // Check for success: false
     if (response.success === false) {
-      throw new Error(response.error || 'API request failed');
+      throw new Error(response.error || `API request failed: ${endpoint}`);
     }
 
     // Pattern 1: {success, data}
@@ -745,5 +745,69 @@ export class QuantsysV2Client {
   async dataManager(params: DataManagerRequest): Promise<DataManagerResponse> {
     const response = await this.client.post('/api/data/update', params);
     return this.unwrap<DataManagerResponse>(response.data, 'dataManager');
+  }
+
+  // ==================== Model Training APIs ====================
+
+  /**
+   * Train ML model
+   * Real endpoint: POST /api/ml/train
+   */
+  async trainModel(params: {
+    model_type: string;
+    name?: string;
+    symbols?: string[];
+    features?: string[];
+    target?: string;
+  }): Promise<any> {
+    const response = await this.client.post('/api/ml/train', params);
+    return this.unwrap(response.data, 'trainModel');
+  }
+
+  /**
+   * Evaluate ML model
+   * Real endpoint: GET /api/ml/model/evaluate
+   */
+  async evaluateModel(params: {
+    model_id: string;
+    test_period?: string;
+  }): Promise<any> {
+    const response = await this.client.get('/api/ml/model/evaluate', { params });
+    return this.unwrap(response.data, 'evaluateModel');
+  }
+
+  // ==================== Game Intelligence APIs ====================
+
+  /**
+   * Opponent behavior analysis
+   * Real endpoint: GET /api/game/market/opponent-behavior
+   */
+  async getOpponentBehavior(params?: {
+    symbol?: string;
+    focus?: string;
+  }): Promise<any> {
+    const response = await this.client.get('/api/game/market/opponent-behavior', { params });
+    return this.unwrap(response.data, 'getOpponentBehavior');
+  }
+
+  /**
+   * Pool battlefield assessment
+   * Real endpoint: GET /api/game/pools/{pool_id}/battlefield-assessment
+   */
+  async getPoolBattlefield(params: { pool_id: number }): Promise<any> {
+    const response = await this.client.get(`/api/game/pools/${params.pool_id}/battlefield-assessment`);
+    return this.unwrap(response.data, 'getPoolBattlefield');
+  }
+
+  /**
+   * Manipulation detection
+   * Real endpoint: GET /api/game/market/manipulation-detect
+   */
+  async detectManipulation(params: {
+    symbol: string;
+    days?: number;
+  }): Promise<any> {
+    const response = await this.client.get('/api/game/market/manipulation-detect', { params });
+    return this.unwrap(response.data, 'detectManipulation');
   }
 }

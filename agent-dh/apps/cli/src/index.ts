@@ -21,7 +21,7 @@ async function main() {
   const osClient = useLocalMode
     ? new AgentOSClient()  // Local in-memory registry
     : new AgentOSClient({
-        baseURL: process.env.AGENT_OS_BASE_URL,
+        baseURL: process.env.AGENT_OS_BASE_URL as string,
       });
 
   console.log('[CLI] Mode:', useLocalMode ? 'LOCAL (in-memory)' : 'REMOTE (' + process.env.AGENT_OS_BASE_URL + ')');

@@ -3,6 +3,7 @@ import axiosRetry from 'axios-retry';
 import type {
   AgentInfo,
   AgentHeartbeat,
+  AgentStatus,
   StatusUpdate,
   UnregisterRequest,
   Agent,
@@ -36,7 +37,7 @@ export class RegistryClient {
       },
       onRetry: (retryCount, error, requestConfig) => {
         console.log(
-          `[RegistryClient] Retrying request (${retryCount}/3): ${requestConfig.method?.toUpperCase()} ${requestConfig.url}`
+          `[RegistryClient] Retrying request (${retryCount}/3): ${requestConfig.method?.toUpperCase()} ${requestConfig.url} - ${error.message}`
         );
       },
     });
