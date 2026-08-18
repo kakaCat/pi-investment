@@ -43,7 +43,7 @@ export default class IntelligencePlugin extends Service {
     // 盯盘规则列表
     ctx.tools.register(defineTool({
       name: 'watch_list',
-      description: '获取所有盯盘规则列表。用于：查看已设置的市场监控规则、触发条件和启用状态。盯盘规则会在条件触发时自动通知',
+      description: '获取全部盯盘规则：监控标的、触发条件、启用状态、历史触发次数。盯盘规则在条件触发时会自动推送通知，无需人工盯盘。适用于：查看已有监控覆盖面、管理规则前确认 rule_id。创建/启停/删除规则用 watch_manage。',
       parameters: {},
       output: {
         schema: {
@@ -77,29 +77,29 @@ export default class IntelligencePlugin extends Service {
     // 盯盘规则管理
     ctx.tools.register(defineTool({
       name: 'watch_manage',
-      description: '管理盯盘规则：创建、启用、禁用、删除。用于：设置价格预警、涨跌幅预警、成交量异常监控等。触发后系统会自动通知',
+      description: '管理盯盘规则（写操作）：创建、启用、禁用、删除。规则触发后系统自动通知，适合价格预警、涨跌幅预警、成交量异常监控等场景。创建前建议先用 watch_list 确认无重复规则。',
       parameters: {
         action: {
           type: 'string',
-          description: '操作类型：create（创建新规则）、enable（启用规则）、disable（禁用规则）、delete（删除规则）',
+          description: '操作类型。create：创建新规则（需同时传 name、symbol、condition）；enable / disable / delete：对已有规则操作（需传 rule_id）',
           enum: ['create', 'enable', 'disable', 'delete'],
           required: true,
         },
         rule_id: {
           type: 'integer',
-          description: '规则ID（enable/disable/delete 时需要）',
+          description: '规则ID，enable/disable/delete 时必填，通过 watch_list 获取',
         },
         name: {
           type: 'string',
-          description: '规则名称（create 时需要），如：茅台价格突破2000',
+          description: '规则名称，create 时必填，如 "茅台价格突破2000"',
         },
         symbol: {
           type: 'string',
-          description: '股票代码（create 时需要），如：600519',
+          description: '监控的股票代码，create 时必填，如 600519',
         },
         condition: {
           type: 'string',
-          description: '触发条件（create 时需要），支持：price>100（价格突破）、change_pct>5（涨幅超5%）、volume>1000000（成交量超100万股）',
+          description: '触发条件表达式，create 时必填。支持：price>100（价格突破）、change_pct>5（涨幅超5%）、volume>1000000（成交量超100万股）',
         },
       },
       output: {
@@ -127,17 +127,17 @@ export default class IntelligencePlugin extends Service {
     // 市场告警
     ctx.tools.register(defineTool({
       name: 'market_alert',
-      description: '获取市场告警信息。用于：查看异常波动、重大事件、风险信号等系统生成的告警。建议定期调用以掌握市场异常动态',
+      description: '获取系统生成的市场告警：异常波动、重大事件、风险信号，按触发时间倒序返回。适用于：盘前/盘中定期查看市场异常动态。告警是系统主动发现的风险线索，high 级别应优先处理并评估是否影响持仓。',
       parameters: {
         level: {
           type: 'string',
-          description: '告警级别过滤：all（全部，默认）、high（高风险）、medium（中等）、low（低风险）',
+          description: '告警级别过滤。all（默认）：全部；high：高风险，建议优先处理；medium：中等；low：低风险',
           enum: ['all', 'high', 'medium', 'low'],
           default: 'all',
         },
         limit: {
           type: 'integer',
-          description: '返回数量上限，默认20',
+          description: '返回数量上限，默认 20',
           default: 20,
         },
       },

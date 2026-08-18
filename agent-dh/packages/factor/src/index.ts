@@ -41,16 +41,16 @@ export default class FactorPlugin extends Service {
     // 因子计算
     ctx.tools.register(defineTool({
       name: 'factor_calculate',
-      description: '计算股票的技术因子和财务因子。用于：获取个股的多维度因子值，支持量化选股和策略构建',
+      description: '计算个股的技术因子和财务因子当前值。适用于：量化选股前获取因子数据、验证个股当前因子状态、为 model_train 挑选特征。评估因子本身的预测能力（是否有效）用 factor_analyze。',
       parameters: {
         symbol: {
           type: 'string',
-          description: '股票代码，如：600519',
+          description: 'A股6位数字股票代码，如 600519',
           required: true,
         },
         factors: {
           type: 'array',
-          description: '指定因子列表，不传则计算全部。可选：rsi（相对强弱指标）、macd（异同移动平均线）、pe（市盈率）、pb（市净率）、roe（净资产收益率）、turnover（换手率）、volatility（波动率）',
+          description: '指定因子列表，如 ["rsi", "macd", "roe"]。可选：rsi（相对强弱）、macd、pe（市盈率）、pb（市净率）、roe（净资产收益率）、turnover（换手率）、volatility（波动率）。不传则计算全部因子（更全但更慢）',
           items: { type: 'string' },
         },
       },
@@ -81,20 +81,20 @@ export default class FactorPlugin extends Service {
     // 因子分析
     ctx.tools.register(defineTool({
       name: 'factor_analyze',
-      description: '分析因子有效性：IC（信息系数）、IR（信息比率）、覆盖率、单调性等。用于：评估因子预测能力、选择最优因子',
+      description: '分析因子的历史有效性：IC（信息系数）、IR（信息比率）、覆盖率、单调性、换手率，并给出有效性结论。适用于：构建策略前筛选有效因子、定期检查因子是否失效。解读参考：IR>0.5 通常认为因子有效；覆盖率低的因子结论可信度差。',
       parameters: {
         factor_name: {
           type: 'string',
-          description: '因子名称，如：roe、pe、rsi、macd',
+          description: '因子名称，如 roe、pe、rsi、macd',
           required: true,
         },
         start_date: {
           type: 'string',
-          description: '开始日期，格式：YYYY-MM-DD，如：2023-01-01',
+          description: '开始日期，格式 YYYY-MM-DD，如 2023-01-01。样本建议覆盖至少 1 年并跨越不同市场环境，结论才可靠',
         },
         end_date: {
           type: 'string',
-          description: '结束日期，格式：YYYY-MM-DD，如：2024-12-31',
+          description: '结束日期，格式 YYYY-MM-DD，如 2024-12-31',
         },
       },
       output: {

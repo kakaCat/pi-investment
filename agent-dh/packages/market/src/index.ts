@@ -41,7 +41,7 @@ export default class MarketPlugin extends Service {
     // 市场风格检测
     ctx.tools.register(defineTool({
       name: 'market_style_detect',
-      description: '检测当前市场风格（价值/成长/大盘/小盘/周期/防御）。用于：判断市场偏好，指导配置方向。例如风格偏价值时应增配低估值蓝筹，偏成长时应关注科技成长',
+      description: '检测当前市场主导风格（价值/成长/大盘/小盘/周期/防御）及置信度，返回领涨领跌板块和配置建议。适用于：定期（如每周）判断市场偏好、指导配置方向——风格偏价值时增配低估值蓝筹，偏成长时关注科技成长。行业层面的细节分析用 sector_analysis。',
       parameters: {},
       output: {
         schema: {
@@ -70,15 +70,15 @@ export default class MarketPlugin extends Service {
     // 行业分析
     ctx.tools.register(defineTool({
       name: 'sector_analysis',
-      description: '分析行业板块表现、资金流向和轮动趋势。用于：发现强势板块、判断行业轮动节奏、选择配置方向',
+      description: '分析行业板块表现、资金流向与轮动信号。适用于：发现强势板块、判断行业轮动节奏、选择配置方向。与 market_style_detect 的分工：后者看市场整体风格，本工具看行业细节。确认轮动方向后可用 rotation_proposal 生成调仓提案。',
       parameters: {
         sector: {
           type: 'string',
-          description: '行业名称或代码，如：白酒、半导体、银行。不传则返回全部行业排名',
+          description: '行业名称或代码，如 白酒、半导体、银行。传入则返回该行业详情；不传则返回全部行业排名',
         },
         days: {
           type: 'integer',
-          description: '分析周期（天），默认5天',
+          description: '分析周期（交易日），默认 5。短线轮动看 5-10 天，中线趋势看 20-60 天',
           default: 5,
         },
       },
@@ -110,11 +110,11 @@ export default class MarketPlugin extends Service {
     // 筹码分析
     ctx.tools.register(defineTool({
       name: 'chip_analysis',
-      description: '分析股票筹码分布和成本结构。用于：判断支撑压力位、识别主力成本区、评估突破有效性',
+      description: '分析个股筹码分布与成本结构：平均成本、获利盘比例、筹码集中度、支撑/压力位。适用于：判断支撑压力位、识别主力成本区、评估突破有效性。解读参考：获利盘比例过高（如>90%）说明浮盈兑现压力大，过低说明套牢盘沉重、反弹阻力大。',
       parameters: {
         symbol: {
           type: 'string',
-          description: '股票代码，如：600519',
+          description: 'A股6位数字股票代码，如 600519',
           required: true,
         },
       },
