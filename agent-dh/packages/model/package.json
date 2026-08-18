@@ -1,7 +1,7 @@
 {
-  "name": "@pi-investment/trading",
+  "name": "@pi-investment/model",
   "version": "0.2.0",
-  "description": "trading plugin for Agent-DH",
+  "description": "model plugin for Agent-DH",
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
