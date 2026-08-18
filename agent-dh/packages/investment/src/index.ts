@@ -200,21 +200,13 @@ export default class InvestmentPlugin extends Service {
     // 4. 宏观经济数据
     ctx.tools.register(defineTool({
       name: 'data_fetch_macro',
-      description: '获取宏观经济指标的时间序列及趋势判断。适用于：判断经济周期位置、评估市场大环境、指导大类资产配置方向。宏观指标按月/季发布，适合中长期决策，不适合短线择时。注意：后端接口尚未就绪，当前返回占位结果，暂勿用于实际决策。',
+      description: '获取宏观经济指标（GDP/CPI/PMI）的时间序列及趋势判断。适用于：判断经济周期位置、评估市场大环境、指导大类资产配置方向。宏观指标按月/季发布，适合中长期决策，不适合短线择时。',
       parameters: {
         indicator: {
           type: 'string',
-          description: '指标名称。pmi：制造业景气度（50为荣枯线）；cpi：通胀水平；ppi：工业品价格（领先于CPI）；gdp：经济增速；m2：货币供应量增速（反映流动性）；interest_rate：基准利率',
-          enum: ['pmi', 'cpi', 'ppi', 'gdp', 'm2', 'interest_rate'],
+          description: '指标名称。pmi：制造业景气度（50为荣枯线）；cpi：通胀水平；gdp：经济增速',
+          enum: ['pmi', 'cpi', 'gdp'],
           required: true,
-        },
-        start_date: {
-          type: 'string',
-          description: '开始日期，格式 YYYY-MM-DD，如 2024-01-01。不传则由后端返回默认区间',
-        },
-        end_date: {
-          type: 'string',
-          description: '结束日期，格式 YYYY-MM-DD，如 2024-12-31',
         },
       },
       output: {
@@ -222,9 +214,10 @@ export default class InvestmentPlugin extends Service {
           type: 'object',
           properties: {
             indicator: { type: 'string', description: '指标名称' },
-            data: { type: 'array', description: '时间序列数据' },
-            latest_value: { type: 'number', description: '最新值' },
+            data: { type: 'array', description: '时间序列数据（原始行，键名为中文）' },
+            latest: { type: 'object', description: '最新一期数据' },
             trend: { type: 'string', description: '趋势：up/down/stable' },
+            update_time: { type: 'string', description: '后端数据更新时间' },
           },
           additionalProperties: true,
         },
@@ -233,20 +226,40 @@ export default class InvestmentPlugin extends Service {
           text: JSON.stringify(value, null, 2),
         }],
       },
-      timeoutMs: 10000,
+      timeoutMs: 60000,
       execute: async (args: any) => {
-        return { indicator: args.indicator, note: 'data_fetch_macro API endpoint needed in quantsys-v2' } as any;
+        const macro = await qv2.getMacroData();
+        const indicator = String(args.indicator).toLowerCase();
+        const series = (macro as any)[indicator] as Array<Record<string, any>> | undefined;
+        if (!Array.isArray(series) || series.length === 0) {
+          return { indicator, data: [], trend: 'unknown', note: `后端未提供 ${indicator} 数据`, update_time: macro.updateTime } as any;
+        }
+        // 数值列（排除期次标签列，如 "季度"/"月份"）
+        const numericOf = (row: Record<string, any>): number[] =>
+          Object.values(row).filter((v): v is number => typeof v === 'number');
+        const latest = series[0];
+        const latestVals = numericOf(latest);
+        const prevVals = series.length > 1 ? numericOf(series[1]) : [];
+        // 用首个可对比的数值列判断趋势
+        let trend = 'stable';
+        for (let i = 0; i < Math.min(latestVals.length, prevVals.length); i++) {
+          if (latestVals[i] !== prevVals[i]) {
+            trend = latestVals[i] > prevVals[i] ? 'up' : 'down';
+            break;
+          }
+        }
+        return { indicator, data: series, latest, trend, update_time: macro.updateTime } as any;
       },
     } as any));
 
     // 5. 北向资金流向
     ctx.tools.register(defineTool({
       name: 'data_fetch_north_flow',
-      description: '获取北向资金（沪股通+深股通）流向：每日净流入、累计净流入、买入/卖出最多的个股。适用于：判断外资对A股的态度，持续净流入通常视为利好信号。注意：后端接口尚未就绪，当前返回占位结果，暂勿用于实际决策。',
+      description: '获取北向资金（沪股通+深股通）流向：每日净流入、累计净流入、沪/深分项。适用于：判断外资对A股的态度，持续净流入通常视为利好信号。注意：上游数据源较慢，调用可能需要约1分钟。',
       parameters: {
         days: {
           type: 'integer',
-          description: '查询最近 N 个交易日的数据，默认 5。看趋势建议取 20 以上',
+          description: '返回最近 N 个交易日的数据，默认 5。看趋势建议取 20 以上',
           default: 5,
         },
       },
@@ -256,9 +269,10 @@ export default class InvestmentPlugin extends Service {
           properties: {
             dates: { type: 'array', description: '日期列表' },
             net_inflows: { type: 'array', description: '每日净流入（亿元）' },
-            cumulative: { type: 'number', description: '累计净流入（亿元）' },
-            top_buy: { type: 'array', description: '买入最多的股票' },
-            top_sell: { type: 'array', description: '卖出最多的股票' },
+            sh_net_inflows: { type: 'array', description: '沪股通每日净流入（亿元）' },
+            sz_net_inflows: { type: 'array', description: '深股通每日净流入（亿元）' },
+            cumulative: { type: 'number', description: '区间累计净流入（亿元）' },
+            daily: { type: 'array', description: '每日明细' },
           },
           additionalProperties: true,
         },
@@ -267,27 +281,39 @@ export default class InvestmentPlugin extends Service {
           text: JSON.stringify(value, null, 2),
         }],
       },
-      timeoutMs: 10000,
+      timeoutMs: 120000,
       execute: async (args: any) => {
-        return { days: args.days || 5, note: 'data_fetch_north_flow API endpoint needed in quantsys-v2' } as any;
+        const days = args.days || 5;
+        const flows = await qv2.getNorthFlow();
+        const toYi = (v: number) => Math.round((v / 1e8) * 100) / 100;
+        const recent = flows.slice(-days);
+        return {
+          dates: recent.map((f) => f.tradeDate),
+          net_inflows: recent.map((f) => toYi(f.netFlow)),
+          sh_net_inflows: recent.map((f) => toYi(f.shNetFlow)),
+          sz_net_inflows: recent.map((f) => toYi(f.szNetFlow)),
+          cumulative: toYi(recent.reduce((sum, f) => sum + f.netFlow, 0)),
+          daily: recent,
+        } as any;
       },
     } as any));
 
     // 6. 市场情绪
     ctx.tools.register(defineTool({
       name: 'data_fetch_market_sentiment',
-      description: '获取市场整体情绪指标：涨跌家数比、涨停/跌停家数、总成交额、恐慌贪婪指数（0-100）。适用于：判断市场恐慌/贪婪程度、评估短期系统性风险。注意：后端接口尚未就绪，当前返回占位结果，暂勿用于实际决策。',
+      description: '获取市场整体情绪指标：情绪评分、恐慌贪婪指数（0-100）、涨跌家数比、量能状态、波动率、新高新低比。适用于：判断市场恐慌/贪婪程度、评估短期系统性风险。',
       parameters: {},
       output: {
         schema: {
           type: 'object',
           properties: {
-            advance_decline_ratio: { type: 'number', description: '涨跌家数比' },
-            limit_up_count: { type: 'integer', description: '涨停家数' },
-            limit_down_count: { type: 'integer', description: '跌停家数' },
-            total_turnover: { type: 'number', description: '总成交额（亿元）' },
+            sentiment_score: { type: 'number', description: '情绪评分（0-100）' },
+            sentiment_level: { type: 'string', description: '情绪等级，如 neutral_negative' },
             fear_greed_index: { type: 'number', description: '恐慌贪婪指数（0-100，越高越贪婪）' },
-            sentiment: { type: 'string', description: '情绪判断：extreme_fear/fear/neutral/greed/extreme_greed' },
+            advance_decline_ratio: { type: 'number', description: '涨跌家数比' },
+            market_phase: { type: 'string', description: '市场阶段，如 correction' },
+            recommendation: { type: 'string', description: '后端给出的操作建议' },
+            indicators: { type: 'object', description: '分项指标明细' },
           },
           additionalProperties: true,
         },
@@ -296,9 +322,20 @@ export default class InvestmentPlugin extends Service {
           text: JSON.stringify(value, null, 2),
         }],
       },
-      timeoutMs: 10000,
+      timeoutMs: 30000,
       execute: async () => {
-        return { note: 'data_fetch_market_sentiment API endpoint needed in quantsys-v2' } as any;
+        const s = await qv2.getMarketSentiment();
+        return {
+          sentiment_score: s.sentimentScore,
+          sentiment_level: s.sentimentLevel,
+          fear_greed_index: s.fearGreedIndex,
+          advance_decline_ratio: s.indicators?.advanceDecline?.ratio,
+          market_phase: s.marketPhase,
+          recommendation: s.recommendation,
+          degraded: s.degraded,
+          indicators: s.indicators,
+          timestamp: s.timestamp,
+        } as any;
       },
     } as any));
 

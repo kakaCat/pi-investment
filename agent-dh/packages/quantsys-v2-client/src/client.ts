@@ -52,6 +52,9 @@ import type {
   DataQualityReportResponse,
   DataManagerRequest,
   DataManagerResponse,
+  MacroData,
+  NorthFlowDay,
+  MarketSentiment,
 } from './types.js';
 
 /**
@@ -308,18 +311,6 @@ export class QuantsysV2Client {
     return this.unwrap(response.data, 'listSignals');
   }
 
-  /**
-   * Generate signals
-   */
-  async generateSignals(params: {
-    strategy_id: number;
-    symbols?: string[];
-    date?: string;
-  }): Promise<Signal[]> {
-    const response = await this.client.post('/api/signals/generate', params);
-    return this.unwrap(response.data, 'generateSignals');
-  }
-
   // ==================== Market Data APIs ====================
 
   /**
@@ -345,6 +336,40 @@ export class QuantsysV2Client {
   }> {
     const response = await this.client.get('/api/analysis/market-style');
     return this.unwrap(response.data, 'getMarketStyle');
+  }
+
+  /**
+   * Get macroeconomic data (GDP/CPI/PMI)
+   * Real endpoint: GET /api/market/macro
+   * Response: {success, data: {gdp: [...], cpi: [...], pmi: [...], updateTime}}
+   */
+  async getMacroData(): Promise<MacroData> {
+    const response = await this.client.get('/api/market/macro');
+    return this.unwrap<MacroData>(response.data, 'getMacroData');
+  }
+
+  /**
+   * Get north-bound capital flow
+   * Real endpoint: GET /api/market/north-flow?start_date=&end_date=
+   * Response: {success, data: [{tradeDate, netFlow, shNetFlow, szNetFlow}]}
+   * Note: upstream data source is slow (~50s cold); uses an extended timeout.
+   */
+  async getNorthFlow(startDate?: string, endDate?: string): Promise<NorthFlowDay[]> {
+    const response = await this.client.get('/api/market/north-flow', {
+      params: { start_date: startDate, end_date: endDate },
+      timeout: 90000,
+    });
+    return this.unwrap<NorthFlowDay[]>(response.data, 'getNorthFlow');
+  }
+
+  /**
+   * Get market sentiment
+   * Real endpoint: GET /api/market/sentiment
+   * Response: {success, data: {sentimentScore, sentimentLevel, fearGreedIndex, indicators, marketPhase, recommendation, ...}}
+   */
+  async getMarketSentiment(): Promise<MarketSentiment> {
+    const response = await this.client.get('/api/market/sentiment');
+    return this.unwrap<MarketSentiment>(response.data, 'getMarketSentiment');
   }
 
   // ==================== Analysis APIs ====================

@@ -284,6 +284,83 @@ export interface EvolutionDecisionScores {
 }
 
 /**
+ * Macroeconomic data (GDP/CPI/PMI)
+ * Real endpoint: GET /api/market/macro
+ * Note: row keys are Chinese (e.g. "季度", "国内生产总值-同比增长")
+ */
+export interface MacroData {
+  gdp: Array<Record<string, string | number>>;
+  cpi: Array<Record<string, string | number>>;
+  pmi: Array<Record<string, string | number>>;
+  updateTime: string;
+}
+
+/**
+ * North-bound capital flow (single trading day)
+ * Real endpoint: GET /api/market/north-flow
+ */
+export interface NorthFlowDay {
+  tradeDate: string;
+  /** 净流入（元） */
+  netFlow: number;
+  /** 沪股通净流入（元） */
+  shNetFlow: number;
+  /** 深股通净流入（元） */
+  szNetFlow: number;
+}
+
+/**
+ * Market sentiment
+ * Real endpoint: GET /api/market/sentiment
+ */
+export interface MarketSentiment {
+  sentimentScore: number;
+  sentimentLevel: string;
+  fearGreedIndex: number;
+  indicators: {
+    advanceDecline?: {
+      dataDate: string;
+      upCount: number;
+      downCount: number;
+      flatCount: number;
+      ratio: number;
+      upPercentage: number;
+      strength: string;
+    };
+    volume?: {
+      dataDate: string;
+      recentAvgVolume: number;
+      baseAvgVolume: number;
+      volumeRatio: number;
+      status: string;
+    };
+    indexPerformance?: {
+      dataDate: string;
+      positiveCount: number;
+      totalCount: number;
+      avgReturn5DPct: number;
+      marketTrend: string;
+    };
+    volatility?: {
+      volatility: number;
+      level: string;
+    };
+    newHighLow?: {
+      dataDate: string;
+      newHighCount: number;
+      newLowCount: number;
+      ratio: number;
+      signal: string;
+    };
+  };
+  degradedDimensions: string[];
+  degraded: boolean;
+  marketPhase: string;
+  recommendation: string;
+  timestamp: string;
+}
+
+/**
  * Client configuration
  */
 export interface QuantsysV2ClientConfig {
