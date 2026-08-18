@@ -8,7 +8,7 @@ from typing import Optional, Dict, List
 from datetime import datetime
 import structlog
 
-from infrastructure.persistence.database.base_repository import BaseRepository
+from infrastructure.persistence.database.validators import validate_symbol, validate_positive_number
 from application.services.data_service import DataService
 
 logger = structlog.get_logger(__name__)
@@ -16,9 +16,6 @@ logger = structlog.get_logger(__name__)
 # 费率常量
 COMMISSION_RATE = 0.0003   # 佣金费率 0.03%
 STAMP_DUTY_RATE = 0.001    # 印花税率 0.1%（仅卖出收取，A股）
-
-# 复用 BaseRepository 的校验方法
-_validator = BaseRepository.__new__(BaseRepository)
 
 
 def create_trade_from_order(
@@ -43,8 +40,8 @@ def create_trade_from_order(
     Returns:
         新创建的交易记录ID
     """
-    _validator._validate_positive_number(fill_price, "fill_price")
-    _validator._validate_positive_number(fill_quantity, "fill_quantity")
+    validate_positive_number(fill_price, "fill_price")
+    validate_positive_number(fill_quantity, "fill_quantity")
 
     amount = fill_price * fill_quantity
 
@@ -199,7 +196,7 @@ def get_position(
 
         如果没有持仓，remaining_quantity 为 0
     """
-    _validator._validate_symbol(symbol)
+    validate_symbol(symbol)
 
     # 获取所有该股票的交易记录
     trades = ds.portfolio.get_trades_by_symbol(symbol)

@@ -689,7 +689,7 @@ def backtest_signal():
 @handle_api_error
 def get_agent_logs():
     """获取Agent操作日志列表"""
-    from infrastructure.persistence.database.base_repository import BaseRepository
+    from infrastructure.persistence.database.engine import db_cursor
 
     params = get_query_params_snake_case()
     start_date = params.get('start_date')
@@ -700,10 +700,7 @@ def get_agent_logs():
     page = max(1, int(params.get('page', 1)))
     page_size = min(int(params.get('page_size', 20)), 100)
 
-    repo = BaseRepository()
-    cursor = repo._get_cursor()
-
-    try:
+    with db_cursor() as cursor:
         conditions = []
         query_params = []
 
@@ -762,6 +759,3 @@ def get_agent_logs():
             'page_size': page_size,
             'total_pages': total_pages,
         })
-    finally:
-        cursor.close()
-        repo.db.close()

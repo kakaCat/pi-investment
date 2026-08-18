@@ -2,21 +2,19 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
-from infrastructure.persistence.database.base_repository import BaseRepository
+from infrastructure.persistence.database.engine import db_cursor
 from application.services.session_service import SessionService
 from tests.services.test_session_service import DDL
 
 
 @pytest.fixture
 def service():
-    repo = BaseRepository()
-    cursor = repo._get_cursor()
-    cursor.execute(DDL)
-    cursor.execute("ALTER TABLE quant.agent_sessions ADD COLUMN IF NOT EXISTS ai_diagnosis JSONB")
-    cursor.execute("ALTER TABLE quant.agent_sessions ADD COLUMN IF NOT EXISTS ai_diagnosis_at TIMESTAMPTZ")
-    cursor.execute("DELETE FROM quant.agent_session_events")
-    cursor.execute("DELETE FROM quant.agent_sessions")
-    repo.db.commit()
+    with db_cursor(commit=True) as cursor:
+        cursor.execute(DDL)
+        cursor.execute("ALTER TABLE quant.agent_sessions ADD COLUMN IF NOT EXISTS ai_diagnosis JSONB")
+        cursor.execute("ALTER TABLE quant.agent_sessions ADD COLUMN IF NOT EXISTS ai_diagnosis_at TIMESTAMPTZ")
+        cursor.execute("DELETE FROM quant.agent_session_events")
+        cursor.execute("DELETE FROM quant.agent_sessions")
     s = SessionService()
     s.ingest_events([{
         "session_key": "agent:main:wake:e2e", "seq": 1, "event_type": "session_start",
