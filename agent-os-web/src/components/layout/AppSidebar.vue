@@ -17,7 +17,7 @@
         <span>调度中心</span>
       </el-menu-item>
       <el-menu-item index="/skills">
-        <el-icon><Brain /></el-icon>
+        <el-icon><Coin /></el-icon>
         <span>技能中心</span>
       </el-menu-item>
       <el-menu-item index="/events">
@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { DataLine, Timer, Brain, Bell, Setting } from '@element-plus/icons-vue'
+import { DataLine, Timer, Coin, Bell, Setting } from '@element-plus/icons-vue'
 </script>
 
 <style scoped>
