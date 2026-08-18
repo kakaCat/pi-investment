@@ -12,8 +12,6 @@ import json
 import logging
 from typing import Dict, List, Optional
 
-from infrastructure.persistence.database.base_repository import BaseRepository
-
 logger = logging.getLogger(__name__)
 
 
@@ -43,13 +41,27 @@ class StockPool(Base):
     last_signal_scan = Column(JSON)
 
 
-class StockPoolRepository(BaseRepository):
+class StockPoolRepository:
     """Data access for stock_pools table."""
+
+    def __init__(self, db_connection=None):
+        """db_connection 参数仅为向后兼容保留（忽略）。连接按操作现取现还。"""
+        pass
+
+    def close(self):
+        """兼容旧调用方的 no-op（连接不再由实例持有）。"""
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return False
 
     def create(self, data: Dict) -> Dict:
         """Create a new stock pool. Returns the created pool dict."""
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor(commit=True) as cursor:
             cursor.execute("""
                 INSERT INTO quant.stock_pools
                     (name, pool_type, description, symbols,
@@ -67,18 +79,12 @@ class StockPoolRepository(BaseRepository):
                 'refresh_interval': data.get('refresh_interval'),
             })
             result = dict(cursor.fetchone())
-            self.db.commit()
             return self.get_by_id(result['id'])
-        except Exception:
-            self.db.rollback()
-            raise
-        finally:
-            cursor.close()
 
     def get_by_id(self, pool_id: int) -> Optional[Dict]:
         """Get a pool by ID. Returns None if not found."""
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor() as cursor:
             cursor.execute(
                 "SELECT * FROM quant.stock_pools WHERE id = %(id)s",
                 {'id': pool_id}
@@ -87,8 +93,6 @@ class StockPoolRepository(BaseRepository):
             if not row:
                 return None
             return self._parse_row(row)
-        finally:
-            cursor.close()
 
     def get_pool(self, pool_id: int) -> Optional[Dict]:
         """get_by_id 的别名（ORM 时期引入的调用名，16 处生产调用）"""
@@ -96,23 +100,19 @@ class StockPoolRepository(BaseRepository):
 
     def get_all(self) -> List[Dict]:
         """Get all stock pools."""
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor() as cursor:
             cursor.execute("SELECT * FROM quant.stock_pools ORDER BY created_at DESC")
             return [self._parse_row(row) for row in cursor.fetchall()]
-        finally:
-            cursor.close()
 
     def get_dynamic_pools(self) -> List[Dict]:
         """Get all dynamic pools (for scheduler recovery)."""
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor() as cursor:
             cursor.execute(
                 "SELECT * FROM quant.stock_pools WHERE pool_type = 'dynamic' ORDER BY id"
             )
             return [self._parse_row(row) for row in cursor.fetchall()]
-        finally:
-            cursor.close()
 
     def update(self, pool_id: int, data: Dict) -> Optional[Dict]:
         """Update pool fields. Returns updated pool or None if not found."""
@@ -131,8 +131,8 @@ class StockPoolRepository(BaseRepository):
             set_clauses.append(f"{key} = %({key})s")
         set_clauses.append("updated_at = NOW()")
 
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor(commit=True) as cursor:
             cursor.execute(f"""
                 UPDATE quant.stock_pools
                 SET {', '.join(set_clauses)}
@@ -140,20 +140,14 @@ class StockPoolRepository(BaseRepository):
                 RETURNING id
             """, params)
             result = cursor.fetchone()
-            self.db.commit()
             if not result:
                 return None
             return self.get_by_id(pool_id)
-        except Exception:
-            self.db.rollback()
-            raise
-        finally:
-            cursor.close()
 
     def update_symbols(self, pool_id: int, symbols: List[str]) -> Optional[Dict]:
         """Update pool symbols and set last_refreshed_at. Used by dynamic pool refresh."""
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor(commit=True) as cursor:
             cursor.execute("""
                 UPDATE quant.stock_pools
                 SET symbols = %(symbols)s,
@@ -163,20 +157,14 @@ class StockPoolRepository(BaseRepository):
                 RETURNING id
             """, {'id': pool_id, 'symbols': symbols})
             result = cursor.fetchone()
-            self.db.commit()
             if not result:
                 return None
             return self.get_by_id(pool_id)
-        except Exception:
-            self.db.rollback()
-            raise
-        finally:
-            cursor.close()
 
     def update_validation(self, pool_id: int, validation: Dict) -> Optional[Dict]:
         """Update last_validation JSON snapshot."""
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor(commit=True) as cursor:
             cursor.execute("""
                 UPDATE quant.stock_pools
                 SET last_validation = %(validation)s,
@@ -185,37 +173,25 @@ class StockPoolRepository(BaseRepository):
                 RETURNING id
             """, {'id': pool_id, 'validation': json.dumps(validation)})
             result = cursor.fetchone()
-            self.db.commit()
             if not result:
                 return None
             return self.get_by_id(pool_id)
-        except Exception:
-            self.db.rollback()
-            raise
-        finally:
-            cursor.close()
 
     def delete(self, pool_id: int) -> bool:
         """Delete a pool. Returns True if deleted, False if not found."""
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor(commit=True) as cursor:
             cursor.execute(
                 "DELETE FROM quant.stock_pools WHERE id = %(id)s RETURNING id",
                 {'id': pool_id}
             )
             result = cursor.fetchone()
-            self.db.commit()
             return result is not None
-        except Exception:
-            self.db.rollback()
-            raise
-        finally:
-            cursor.close()
 
     def update_scan_enabled(self, pool_id: int, enabled: bool) -> bool:
         """开关池的信号扫描（pools_async / pool_scan_switch 路由调用）"""
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor(commit=True) as cursor:
             cursor.execute("""
                 UPDATE quant.stock_pools
                 SET scan_enabled = %(enabled)s,
@@ -224,13 +200,7 @@ class StockPoolRepository(BaseRepository):
                 RETURNING id
             """, {'id': pool_id, 'enabled': enabled})
             result = cursor.fetchone()
-            self.db.commit()
             return result is not None
-        except Exception:
-            self.db.rollback()
-            raise
-        finally:
-            cursor.close()
 
     def update_signal_scan(self, pool_id: int, scan_result: Dict) -> Optional[Dict]:
         """
@@ -243,8 +213,8 @@ class StockPoolRepository(BaseRepository):
         Returns:
             更新后的股票池，或None如果不存在
         """
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor(commit=True) as cursor:
             cursor.execute("""
                 UPDATE quant.stock_pools
                 SET last_signal_scan = %(scan_result)s,
@@ -253,15 +223,9 @@ class StockPoolRepository(BaseRepository):
                 RETURNING id
             """, {'id': pool_id, 'scan_result': json.dumps(scan_result)})
             result = cursor.fetchone()
-            self.db.commit()
             if not result:
                 return None
             return self.get_by_id(pool_id)
-        except Exception:
-            self.db.rollback()
-            raise
-        finally:
-            cursor.close()
 
     def _parse_row(self, row) -> Dict:
         """Convert a database row to a dict, parsing JSONB fields."""
