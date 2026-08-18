@@ -71,7 +71,7 @@ export default class StrategyPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -125,7 +125,7 @@ export default class StrategyPlugin extends Service {
             additionalProperties: true,
           },
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: `扫描到 ${(value as any[]).length} 个机会:\n${JSON.stringify(value, null, 2)}`,
         }],
@@ -164,7 +164,7 @@ export default class StrategyPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -201,7 +201,7 @@ export default class StrategyPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -238,7 +238,7 @@ export default class StrategyPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -279,7 +279,7 @@ export default class StrategyPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],

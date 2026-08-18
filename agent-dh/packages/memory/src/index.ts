@@ -69,7 +69,7 @@ export default class MemoryPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -120,7 +120,7 @@ export default class MemoryPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -174,7 +174,7 @@ export default class MemoryPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],

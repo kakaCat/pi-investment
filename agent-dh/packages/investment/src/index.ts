@@ -82,7 +82,7 @@ export default class InvestmentPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -138,7 +138,7 @@ export default class InvestmentPlugin extends Service {
             additionalProperties: true,
           },
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: `获取到 ${(value as any[]).length} 条K线数据:\n${JSON.stringify(value, null, 2)}`,
         }],
@@ -186,7 +186,7 @@ export default class InvestmentPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -228,7 +228,7 @@ export default class InvestmentPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -262,7 +262,7 @@ export default class InvestmentPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -291,7 +291,7 @@ export default class InvestmentPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -323,7 +323,7 @@ export default class InvestmentPlugin extends Service {
             additionalProperties: true,
           },
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: `共找到 ${(value as any[]).length} 个股票池:\n${JSON.stringify(value, null, 2)}`,
         }],
@@ -376,7 +376,7 @@ export default class InvestmentPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => {
+        render: (_args: any, value: any) => {
           const v = value as any;
           return [{
             type: 'text',
