@@ -18,6 +18,40 @@ import type {
   EvolutionLeaderboard,
   EvolutionDecisionScores,
   StrategyListResponse,
+  // P0 missing method types
+  TradeRequest,
+  TradeResponse,
+  AlgoExecuteRequest,
+  AlgoExecuteResponse,
+  TradeHistoryResponse,
+  TradeVerifyResponse,
+  Alert,
+  WatchRuleManageRequest,
+  SectorAnalysisResponse,
+  RiskMetrics,
+  RiskControlRequest,
+  BarraDecompositionResponse,
+  SignalGenerateRequest,
+  OpportunityScanRequest,
+  Opportunity,
+  ScreenRequest,
+  ScreenResponse,
+  RotationProposalRequest,
+  RotationProposal,
+  RotationSimulateRequest,
+  RotationSimulateResponse,
+  RotationExecuteRequest,
+  RotationExecuteResponse,
+  FactorCalculateRequest,
+  FactorData,
+  FactorAnalyzeRequest,
+  FactorAnalysisResponse,
+  ModelPredictRequest,
+  ModelPrediction,
+  DataQualityReportRequest,
+  DataQualityReportResponse,
+  DataManagerRequest,
+  DataManagerResponse,
 } from './types.js';
 
 /**
@@ -417,5 +451,275 @@ export class QuantsysV2Client {
   async getEvolutionDecisionScores(): Promise<EvolutionDecisionScores> {
     const response = await this.client.get('/api/evolution/decision-scores');
     return this.unwrap<EvolutionDecisionScores>(response.data, 'getEvolutionDecisionScores');
+  }
+
+  // ==================== Trading APIs (P0) ====================
+
+  /**
+   * Execute a trade (virtual account)
+   * Real endpoint: POST /api/orders/create
+   */
+  async executeTrade(params: TradeRequest): Promise<TradeResponse> {
+    const response = await this.client.post('/api/orders/create', params);
+    return this.unwrap<TradeResponse>(response.data, 'executeTrade');
+  }
+
+  /**
+   * Get trade history
+   * Real endpoint: GET /api/trades/list
+   */
+  async getTradeHistory(params?: {
+    account_name?: string;
+    order_id?: string;
+    symbol?: string;
+    direction?: string;
+  }): Promise<TradeHistoryResponse> {
+    const response = await this.client.get('/api/trades/list', { params });
+    return this.unwrap<TradeHistoryResponse>(response.data, 'getTradeHistory');
+  }
+
+  /**
+   * Execute algorithmic order (TWAP/VWAP)
+   * Real endpoint: POST /api/orders/algo-execute
+   */
+  async executeAlgo(params: AlgoExecuteRequest): Promise<AlgoExecuteResponse> {
+    const response = await this.client.post('/api/orders/algo-execute', params);
+    return this.unwrap<AlgoExecuteResponse>(response.data, 'executeAlgo');
+  }
+
+  /**
+   * Verify trades (reconciliation)
+   * Real endpoint: POST /api/risk/trade-verify
+   */
+  async verifyTrades(params?: {
+    account_name?: string;
+    date?: string;
+  }): Promise<TradeVerifyResponse> {
+    const response = await this.client.post('/api/risk/trade-verify', params ?? {});
+    return this.unwrap<TradeVerifyResponse>(response.data, 'verifyTrades');
+  }
+
+  // ==================== Intelligence APIs (P0) ====================
+
+  /**
+   * Manage watch rules (create/enable/disable/delete)
+   * Real endpoints:
+   *   POST   /api/watch/rules           (create)
+   *   POST   /api/watch/rules/{id}/enable  (enable)
+   *   POST   /api/watch/rules/{id}/disable (disable)
+   *   DELETE /api/watch/rules/{id}      (delete)
+   */
+  async manageWatchRule(params: WatchRuleManageRequest): Promise<any> {
+    const { action, rule_id, ...rest } = params;
+    if (action === 'create') {
+      const response = await this.client.post('/api/watch/rules', rest);
+      return this.unwrap(response.data, 'manageWatchRule');
+    }
+    if (action === 'enable') {
+      const response = await this.client.post(`/api/watch/rules/${rule_id}/enable`);
+      return this.unwrap(response.data, 'manageWatchRule');
+    }
+    if (action === 'disable') {
+      const response = await this.client.post(`/api/watch/rules/${rule_id}/disable`);
+      return this.unwrap(response.data, 'manageWatchRule');
+    }
+    if (action === 'delete') {
+      const response = await this.client.delete(`/api/watch/rules/${rule_id}`);
+      return this.unwrap(response.data, 'manageWatchRule');
+    }
+    throw new Error(`Unknown watch rule action: ${action}`);
+  }
+
+  /**
+   * Get market alerts
+   * Real endpoint: GET /api/alerts/check
+   */
+  async getAlerts(params?: { level?: string; limit?: number }): Promise<Alert[]> {
+    const response = await this.client.get('/api/alerts/check', { params });
+    return this.unwrap<Alert[]>(response.data, 'getAlerts');
+  }
+
+  // ==================== Market APIs (P0) ====================
+
+  /**
+   * Get sector analysis
+   * Real endpoint: GET /api/market/sectors
+   */
+  async getSectorAnalysis(params?: {
+    sector?: string;
+    days?: number;
+    date?: string;
+    window?: number;
+    limit?: number;
+  }): Promise<SectorAnalysisResponse> {
+    const response = await this.client.get('/api/market/sectors', { params });
+    return this.unwrap<SectorAnalysisResponse>(response.data, 'getSectorAnalysis');
+  }
+
+  // ==================== Risk APIs (P0) ====================
+
+  /**
+   * Risk control: position_size / stop_loss / portfolio_risk
+   * Dispatches to different endpoints based on command.
+   */
+  async riskControl(params: RiskControlRequest): Promise<any> {
+    const { command, symbol, account_name } = params;
+    if (command === 'position_size') {
+      const response = await this.client.post(`/api/stock/${symbol}/risk/position-size`, { account_name });
+      return this.unwrap(response.data, 'riskControl');
+    }
+    if (command === 'stop_loss') {
+      const response = await this.client.post(`/api/stock/${symbol}/risk/stop-loss`, { account_name });
+      return this.unwrap(response.data, 'riskControl');
+    }
+    if (command === 'portfolio_risk') {
+      const response = await this.client.post('/api/risk/check', { account_name });
+      return this.unwrap(response.data, 'riskControl');
+    }
+    throw new Error(`Unknown risk control command: ${command}`);
+  }
+
+  /**
+   * Calculate risk metrics
+   * Real endpoint: POST /api/risk/metrics
+   */
+  async getRiskMetrics(params?: {
+    account_name?: string;
+    days?: number;
+    returns?: number[];
+    benchmark_returns?: number[];
+    risk_free_rate?: number;
+  }): Promise<RiskMetrics> {
+    const response = await this.client.post('/api/risk/metrics', params ?? {});
+    return this.unwrap<RiskMetrics>(response.data, 'getRiskMetrics');
+  }
+
+  /**
+   * Barra risk decomposition
+   * Real endpoint: POST /api/factor-models/barra/calculate
+   */
+  async getBarraDecomposition(params?: {
+    account_name?: string;
+    returns?: number[];
+    positions?: any[];
+  }): Promise<BarraDecompositionResponse> {
+    const response = await this.client.post('/api/factor-models/barra/calculate', params ?? {});
+    return this.unwrap<BarraDecompositionResponse>(response.data, 'getBarraDecomposition');
+  }
+
+  // ==================== Strategy APIs (P0) ====================
+
+  /**
+   * Generate trading signals
+   * Real endpoint: POST /api/signals/scan
+   */
+  async generateSignals(params: SignalGenerateRequest): Promise<Signal[]> {
+    const response = await this.client.post('/api/signals/scan', params);
+    return this.unwrap<Signal[]>(response.data, 'generateSignals');
+  }
+
+  /**
+   * Scan market opportunities
+   * Real endpoint: POST /api/signals/scan
+   */
+  async scanOpportunities(params?: OpportunityScanRequest): Promise<Opportunity[]> {
+    const response = await this.client.post('/api/signals/scan', params ?? {});
+    return this.unwrap<Opportunity[]>(response.data, 'scanOpportunities');
+  }
+
+  /**
+   * Screen stocks by filters
+   * Real endpoint: GET /api/stocks/screen
+   */
+  async screenStocks(params?: ScreenRequest): Promise<ScreenResponse> {
+    const response = await this.client.get('/api/stocks/screen', { params });
+    return this.unwrap<ScreenResponse>(response.data, 'screenStocks');
+  }
+
+  /**
+   * Generate rotation proposal
+   * Real endpoint: GET /api/agent/rotation/proposal
+   */
+  async generateRotationProposal(params?: RotationProposalRequest): Promise<RotationProposal> {
+    const response = await this.client.get('/api/agent/rotation/proposal', { params });
+    return this.unwrap<RotationProposal>(response.data, 'generateRotationProposal');
+  }
+
+  /**
+   * Simulate rotation proposal
+   * Real endpoint: POST /api/agent/rotation/simulate
+   */
+  async simulateRotation(params: RotationSimulateRequest): Promise<RotationSimulateResponse> {
+    const response = await this.client.post('/api/agent/rotation/simulate', params);
+    return this.unwrap<RotationSimulateResponse>(response.data, 'simulateRotation');
+  }
+
+  /**
+   * Execute rotation proposal
+   * Real endpoint: POST /api/agent/rotation/execute
+   */
+  async executeRotation(params: RotationExecuteRequest): Promise<RotationExecuteResponse> {
+    const response = await this.client.post('/api/agent/rotation/execute', params);
+    return this.unwrap<RotationExecuteResponse>(response.data, 'executeRotation');
+  }
+
+  // ==================== Factor APIs (P0) ====================
+
+  /**
+   * Calculate stock factors
+   * Real endpoint: GET /api/stock/{symbol}/factors
+   */
+  async calculateFactors(params: FactorCalculateRequest): Promise<FactorData> {
+    const response = await this.client.get(`/api/stock/${params.symbol}/factors`, {
+      params: { factors: params.factors },
+    });
+    return this.unwrap<FactorData>(response.data, 'calculateFactors');
+  }
+
+  /**
+   * Analyze factor effectiveness
+   * Real endpoint: POST /api/portfolio/factor-analyze
+   */
+  async analyzeFactor(params: FactorAnalyzeRequest): Promise<FactorAnalysisResponse> {
+    const response = await this.client.post('/api/portfolio/factor-analyze', {
+      factors: [params.factor_name],
+      start_date: params.start_date,
+      end_date: params.end_date,
+    });
+    return this.unwrap<FactorAnalysisResponse>(response.data, 'analyzeFactor');
+  }
+
+  // ==================== Model APIs (P0) ====================
+
+  /**
+   * Predict with ML model
+   * Real endpoint: POST /api/ml/predict
+   */
+  async predictWithModel(params: ModelPredictRequest): Promise<ModelPrediction> {
+    const response = await this.client.post('/api/ml/predict', {
+      symbols: [params.symbol],
+      model_type: params.model_id,
+    });
+    return this.unwrap<ModelPrediction>(response.data, 'predictWithModel');
+  }
+
+  // ==================== Data Manager APIs (P0) ====================
+
+  /**
+   * Get data quality report
+   * Real endpoint: GET /api/data/quality-report
+   */
+  async getDataQualityReport(params?: DataQualityReportRequest): Promise<DataQualityReportResponse> {
+    const response = await this.client.get('/api/data/quality-report', { params });
+    return this.unwrap<DataQualityReportResponse>(response.data, 'getDataQualityReport');
+  }
+
+  /**
+   * Data manager operations (status/refresh/cleanup/backup)
+   * Real endpoint: POST /api/data/update
+   */
+  async dataManager(params: DataManagerRequest): Promise<DataManagerResponse> {
+    const response = await this.client.post('/api/data/update', params);
+    return this.unwrap<DataManagerResponse>(response.data, 'dataManager');
   }
 }

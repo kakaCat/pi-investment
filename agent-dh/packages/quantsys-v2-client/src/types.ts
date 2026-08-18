@@ -291,3 +291,356 @@ export interface QuantsysV2ClientConfig {
   timeout?: number;
   headers?: Record<string, string>;
 }
+
+// ==================== Missing Method Types (P0) ====================
+
+/**
+ * Trade execution request
+ */
+export interface TradeRequest {
+  action: 'buy' | 'sell';
+  symbol: string;
+  quantity: number;
+  price?: number;
+  account_name?: string;
+}
+
+/**
+ * Trade execution response
+ */
+export interface TradeResponse {
+  order_id: string;
+  action: string;
+  symbol: string;
+  quantity: number;
+  price: number;
+  amount: number;
+  status: string;
+  timestamp: string;
+}
+
+/**
+ * Algorithmic order execution request
+ */
+export interface AlgoExecuteRequest {
+  action: 'buy' | 'sell';
+  symbol: string;
+  quantity: number;
+  algo: 'TWAP' | 'VWAP';
+  duration?: number;
+  account_name?: string;
+}
+
+/**
+ * Algorithmic order execution response
+ */
+export interface AlgoExecuteResponse {
+  algo_order_id: string;
+  algo: string;
+  symbol: string;
+  total_quantity: number;
+  filled_quantity: number;
+  avg_price: number;
+  slices: any[];
+  status: string;
+}
+
+/**
+ * Trade history / monitor response
+ */
+export interface TradeHistoryResponse {
+  orders: any[];
+  pending_count: number;
+  filled_count: number;
+}
+
+/**
+ * Trade verification response
+ */
+export interface TradeVerifyResponse {
+  date: string;
+  total_orders: number;
+  matched: number;
+  mismatched: number;
+  anomalies: any[];
+}
+
+/**
+ * Market alert
+ */
+export interface Alert {
+  id: string;
+  level: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  symbol?: string;
+  triggered_at: string;
+}
+
+/**
+ * Watch rule management request
+ */
+export interface WatchRuleManageRequest {
+  action: 'create' | 'enable' | 'disable' | 'delete';
+  rule_id?: number;
+  name?: string;
+  symbol?: string;
+  condition?: string;
+}
+
+/**
+ * Sector analysis data
+ */
+export interface SectorInfo {
+  name: string;
+  change_pct: number;
+  volume_ratio: number;
+  leading_stocks?: string[];
+}
+
+/**
+ * Sector analysis response
+ */
+export interface SectorAnalysisResponse {
+  sectors: SectorInfo[];
+  top_performers: SectorInfo[];
+  worst_performers: SectorInfo[];
+  rotation_signal?: string;
+}
+
+/**
+ * Risk metrics
+ */
+export interface RiskMetrics {
+  volatility: number;
+  max_drawdown: number;
+  sharpe_ratio: number;
+  beta: number;
+  alpha: number;
+  var_95: number;
+  sortino_ratio: number;
+}
+
+/**
+ * Risk control request
+ */
+export interface RiskControlRequest {
+  command: 'position_size' | 'stop_loss' | 'portfolio_risk';
+  symbol?: string;
+  account_name?: string;
+}
+
+/**
+ * Barra risk decomposition response
+ */
+export interface BarraDecompositionResponse {
+  total_risk: number;
+  factor_risks: any[];
+  idiosyncratic_risk: number;
+  industry_concentration: number;
+  style_exposure: Record<string, any>;
+}
+
+/**
+ * Signal generation request
+ */
+export interface SignalGenerateRequest {
+  strategy_id: number;
+  symbols?: string[];
+  date?: string;
+}
+
+/**
+ * Opportunity scan request
+ */
+export interface OpportunityScanRequest {
+  conditions?: string[];
+  limit?: number;
+}
+
+/**
+ * Opportunity scan result
+ */
+export interface Opportunity {
+  symbol: string;
+  name: string;
+  score: number;
+  reasons: string[];
+  price: number;
+  change_pct: number;
+}
+
+/**
+ * Stock screening request
+ */
+export interface ScreenRequest {
+  filters?: Record<string, any>;
+  limit?: number;
+}
+
+/**
+ * Stock screening response
+ */
+export interface ScreenResponse {
+  total: number;
+  stocks: any[];
+}
+
+/**
+ * Rotation proposal request
+ */
+export interface RotationProposalRequest {
+  portfolio_id?: string;
+}
+
+/**
+ * Rotation proposal response
+ */
+export interface RotationProposal {
+  proposal_id: string;
+  current_allocation: any[];
+  proposed_allocation: any[];
+  sell_list: any[];
+  buy_list: any[];
+  reasoning: string;
+}
+
+/**
+ * Rotation simulate request
+ */
+export interface RotationSimulateRequest {
+  proposal_id: string;
+}
+
+/**
+ * Rotation simulate response
+ */
+export interface RotationSimulateResponse {
+  proposal_id: string;
+  current_return: number;
+  proposed_return: number;
+  improvement: number;
+  risk_change: number;
+  simulation_details: Record<string, any>;
+}
+
+/**
+ * Rotation execute request
+ */
+export interface RotationExecuteRequest {
+  proposal_id: string;
+  dry_run?: boolean;
+}
+
+/**
+ * Rotation execute response
+ */
+export interface RotationExecuteResponse {
+  proposal_id: string;
+  dry_run: boolean;
+  executed: boolean;
+  orders: any[];
+  summary: string;
+}
+
+/**
+ * Factor calculation request
+ */
+export interface FactorCalculateRequest {
+  symbol: string;
+  factors?: string[];
+}
+
+/**
+ * Factor calculation response
+ */
+export interface FactorData {
+  symbol: string;
+  date: string;
+  factors: Record<string, number>;
+}
+
+/**
+ * Factor analysis request
+ */
+export interface FactorAnalyzeRequest {
+  factor_name: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+/**
+ * Factor analysis response
+ */
+export interface FactorAnalysisResponse {
+  factor_name: string;
+  ic_mean: number;
+  ic_std: number;
+  ir: number;
+  coverage: number;
+  monotonicity: number;
+  turnover: number;
+  conclusion: string;
+}
+
+/**
+ * Model prediction request
+ */
+export interface ModelPredictRequest {
+  symbol: string;
+  model_id?: string;
+  horizon?: number;
+}
+
+/**
+ * Model prediction response
+ */
+export interface ModelPrediction {
+  symbol: string;
+  model_id: string;
+  up_probability: number;
+  down_probability: number;
+  expected_return: number;
+  confidence: number;
+  top_features: string[];
+}
+
+/**
+ * Data quality report request
+ */
+export interface DataQualityReportRequest {
+  data_type?: 'quote' | 'kline' | 'financial' | 'all';
+  days?: number;
+}
+
+/**
+ * Data quality report response
+ */
+export interface DataQualityReportResponse {
+  data_type: string;
+  check_date: string;
+  overall_score: number;
+  missing_data: any[];
+  delayed_data: any[];
+  anomalies: any[];
+  summary: string;
+}
+
+/**
+ * Data manager request
+ */
+export interface DataManagerRequest {
+  command: 'status' | 'refresh' | 'cleanup' | 'backup';
+  data_type?: string;
+  symbol?: string;
+}
+
+/**
+ * Data manager response
+ */
+export interface DataManagerResponse {
+  command: string;
+  status: string;
+  details: Record<string, any>;
+  message: string;
+}
