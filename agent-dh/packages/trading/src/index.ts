@@ -71,7 +71,7 @@ export default class TradingPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -113,7 +113,7 @@ export default class TradingPlugin extends Service {
             additionalProperties: true,
           },
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: `持仓 ${(value as any[]).length} 只股票:\n${JSON.stringify(value, null, 2)}`,
         }],
@@ -171,7 +171,7 @@ export default class TradingPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -213,7 +213,7 @@ export default class TradingPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -280,7 +280,7 @@ export default class TradingPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -325,7 +325,7 @@ export default class TradingPlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
