@@ -28,7 +28,7 @@ export function createHttpClient(config: RegistryClientConfig): AxiosInstance {
     },
     onRetry: (retryCount, error, requestConfig) => {
       console.log(
-        `[AgentOSClient] Retrying request (${retryCount}/3): ${requestConfig.method?.toUpperCase()} ${requestConfig.url}`
+        `[AgentOSClient] Retrying request (${retryCount}/3): ${requestConfig.method?.toUpperCase()} ${requestConfig.url} - ${error.message}`
       );
     },
   });

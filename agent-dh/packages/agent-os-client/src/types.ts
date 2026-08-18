@@ -99,6 +99,7 @@ export interface MemoryRecord {
  * Memory search request (client-facing; `top_k` is mapped to server `limit`)
  */
 export interface MemorySearchParams {
+  namespace?: string;
   query: string;
   top_k?: number;
   category?: string;
