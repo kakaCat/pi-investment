@@ -1,0 +1,30 @@
+{
+  "name": "@pi-investment/quantsys-v2-client",
+  "version": "0.1.0",
+  "description": "QuantsysV2 API client library",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts --dts",
+    "dev": "tsdown src/index.ts --dts --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "axios-retry": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "tsdown": "^0.22.14",
+    "vitest": "^1.2.0"
+  }
+}
