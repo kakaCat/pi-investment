@@ -94,6 +94,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { Document, Loading, CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -149,34 +150,28 @@ const chartOption = ref({
 
 onMounted(async () => {
   try {
-    // Mock 数据（因为 Agent OS 后端可能还没完全就绪）
+    // 获取真实数据
+    const statsResult = await getTaskStats()
     stats.value = {
-      total: 15,
-      running: 2,
-      successToday: 48,
-      failedToday: 3,
+      total: statsResult.total || 0,
+      running: statsResult.running || 0,
+      successToday: statsResult.success_today || 0,
+      failedToday: statsResult.failed_today || 0,
     }
-    
+
+    const healthResult = await getSystemHealth()
     healthItems.value = [
-      { name: 'API 服务', status: 'healthy' },
-      { name: '数据库', status: 'healthy' },
-      { name: '调度器', status: 'healthy' },
-      { name: 'WebSocket', status: 'healthy' },
+      { name: 'API 服务', status: healthResult.status === 'ok' ? 'healthy' : 'unhealthy' },
+      { name: 'Agent OS', status: healthResult.agent_os || 'healthy' },
+      { name: '调度器', status: healthResult.scheduler || 'healthy' },
+      { name: '数据库', status: healthResult.database || 'healthy' },
     ]
-    
-    recentRuns.value = Array.from({ length: 10 }, (_, i) => ({
-      id: `run-${i}`,
-      task_name: `task_${i}`,
-      status: Math.random() > 0.2 ? 'success' : 'failed',
-      started_at: new Date(Date.now() - i * 3600000).toISOString(),
-      duration: `${Math.floor(Math.random() * 60)}s`,
-    }))
-    
-    // 尝试获取真实数据（如果后端可用）
-    // const realStats = await getTaskStats()
-    // stats.value = realStats
+
+    const recentResult = await getRecentExecutions(10)
+    recentRuns.value = recentResult.executions || []
   } catch (e) {
     console.error('加载失败:', e)
+    ElMessage.warning('部分数据加载失败，显示默认值')
   }
 })
 </script>

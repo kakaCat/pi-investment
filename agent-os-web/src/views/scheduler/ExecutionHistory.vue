@@ -101,33 +101,27 @@ const filteredExecutions = computed(() => {
 
 const loadExecutions = async () => {
   try {
-    // Mock 数据
-    executions.value = Array.from({ length: 50 }, (_, i) => ({
-      id: `exec-${i}`,
-      task_id: `task-${i % 5}`,
-      task_name: `task_${i % 5}`,
-      status: i % 5 === 0 ? 'failed' : 'success',
-      started_at: new Date(Date.now() - i * 3600000).toISOString(),
-      finished_at: new Date(Date.now() - i * 3600000 + 30000).toISOString(),
-      duration: `${Math.floor(Math.random() * 60)}s`,
-      trigger_type: i % 2 === 0 ? 'cron' : 'manual',
-      output: i % 5 === 0 ? null : 'Task completed successfully',
-      error: i % 5 === 0 ? 'Connection timeout' : null,
-    }))
+    const result = await schedulerApi.listExecutions({ limit: 100 })
+    executions.value = result.executions || []
 
-    tasks.value = Array.from({ length: 5 }, (_, i) => ({
-      id: `task-${i}`,
-      name: `task_${i}`,
-    }))
+    // 从执行记录中提取任务列表用于筛选
+    const taskMap = new Map()
+    executions.value.forEach((e: any) => {
+      if (e.task_id && !taskMap.has(e.task_id)) {
+        taskMap.set(e.task_id, { id: e.task_id, name: e.task_name || e.task_id })
+      }
+    })
+    tasks.value = Array.from(taskMap.values())
   } catch (e) {
     console.error('加载执行历史失败:', e)
+    ElMessage.error('加载执行历史失败')
   }
 }
 
 const retryExecution = async (taskId: string) => {
   try {
-    // await schedulerApi.triggerTask(taskId)
-    ElMessage.success('任务已重新触发（Mock）')
+    await schedulerApi.triggerTask(taskId)
+    ElMessage.success('任务已重新触发')
   } catch (e) {
     ElMessage.error('触发失败')
   }

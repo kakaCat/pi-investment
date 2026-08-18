@@ -66,9 +66,9 @@
         <el-descriptions-item label="版本">{{ systemInfo.version }}</el-descriptions-item>
         <el-descriptions-item label="启动时间">{{ formatTime(systemInfo.startTime) }}</el-descriptions-item>
         <el-descriptions-item label="操作系统">{{ systemInfo.os }}</el-descriptions-item>
-        <el-descriptions-item label="Go 版本">{{ systemInfo.goVersion }}</el-descriptions-item>
-        <el-descriptions-item label="Goroutines">{{ systemInfo.goroutines }}</el-descriptions-item>
-        <el-descriptions-item label="进程 PID">{{ systemInfo.pid }}</el-descriptions-item>
+        <el-descriptions-item label="Node 版本">{{ systemInfo.nodeVersion }}</el-descriptions-item>
+        <el-descriptions-item label="浏览器">{{ systemInfo.browser }}</el-descriptions-item>
+        <el-descriptions-item label="用户代理">{{ systemInfo.userAgent }}</el-descriptions-item>
       </el-descriptions>
     </el-card>
   </div>
@@ -80,10 +80,10 @@ import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import { formatTime } from '@/utils/format'
 
 const services = ref([
-  { name: 'API 服务', status: 'healthy', uptime: '5d 12h' },
-  { name: '数据库', status: 'healthy', uptime: '5d 12h' },
-  { name: '调度器', status: 'healthy', uptime: '5d 12h' },
-  { name: 'WebSocket', status: 'healthy', uptime: '5d 12h' },
+  { name: 'Agent OS API', status: 'healthy', uptime: '-' },
+  { name: 'Agent OS WS', status: 'healthy', uptime: '-' },
+  { name: 'v2 API', status: 'healthy', uptime: '-' },
+  { name: '数据库', status: 'healthy', uptime: '-' },
 ])
 
 const resources = ref({
@@ -102,11 +102,11 @@ const dbPool = ref({
 
 const systemInfo = ref({
   version: '1.0.0',
-  startTime: new Date(Date.now() - 5 * 86400000).toISOString(),
-  os: 'darwin/arm64',
-  goVersion: '1.21.0',
-  goroutines: 42,
-  pid: 12345,
+  startTime: new Date().toISOString(),
+  os: 'web',
+  nodeVersion: 'unknown',
+  browser: 'unknown',
+  userAgent: '',
 })
 
 const getProgressColor = (percentage: number) => {
@@ -116,6 +116,10 @@ const getProgressColor = (percentage: number) => {
 }
 
 onMounted(async () => {
+  // 获取浏览器信息
+  systemInfo.value.browser = navigator.userAgent.split(' ').pop() || 'unknown'
+  systemInfo.value.userAgent = navigator.userAgent.substring(0, 100)
+
   // 尝试获取真实数据
   try {
     // const health = await getSystemHealth()

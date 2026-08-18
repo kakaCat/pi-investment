@@ -93,15 +93,18 @@ const clearEvents = () => {
 }
 
 onMounted(() => {
-  // 尝试连接 WebSocket
+  connectWebSocket()
+})
+
+const connectWebSocket = () => {
   try {
     ws = new WebSocket('ws://127.0.0.1:8081/ws/events')
-    
+
     ws.onopen = () => {
       connected.value = true
       console.log('[Monitor] WebSocket 连接成功')
     }
-    
+
     ws.onmessage = (e) => {
       if (!paused.value) {
         try {
@@ -115,25 +118,30 @@ onMounted(() => {
         }
       }
     }
-    
+
     ws.onclose = () => {
       connected.value = false
-      console.log('[Monitor] WebSocket 连接关闭')
+      console.log('[Monitor] WebSocket 连接关闭，3秒后重连...')
+      setTimeout(connectWebSocket, 3000)
     }
-    
+
     ws.onerror = (err) => {
       console.error('[Monitor] WebSocket 错误:', err)
       connected.value = false
     }
   } catch (err) {
     console.error('[Monitor] WebSocket 连接失败:', err)
-    // 使用 mock 数据
-    mockEvents()
+    connected.value = false
+    // 3秒后重试
+    setTimeout(connectWebSocket, 3000)
   }
-})
+}
 
 onUnmounted(() => {
-  ws?.close()
+  if (ws) {
+    ws.onclose = null // 移除重连逻辑
+    ws.close()
+  }
 })
 
 // Mock 数据用于演示

@@ -173,33 +173,37 @@ const filteredTasks = computed(() => {
 
 const loadTasks = async () => {
   try {
-    // Mock 数据
-    tasks.value = Array.from({ length: 15 }, (_, i) => ({
-      id: `task-${i}`,
-      name: `task_${i}`,
-      owner: 'agent-ts',
-      cron: i % 3 === 0 ? '0 2 * * *' : '40 17 * * 1-5',
-      webhook_url: 'http://localhost:3002/api/webhook/trigger',
-      payload: {},
-      timeout: 3600,
-      retry_count: 0,
-      enabled: i % 4 !== 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }))
-
-    // 尝试获取真实数据
-    // const result = await schedulerApi.listTasks()
-    // tasks.value = result.tasks
+    const result = await schedulerApi.listTasks()
+    tasks.value = result.tasks || []
   } catch (e) {
     console.error('加载任务失败:', e)
+    ElMessage.error('加载任务失败')
   }
 }
 
 const createTask = async () => {
   try {
-    // await schedulerApi.createTask(newTask.value)
-    ElMessage.success('任务创建成功（Mock）')
+    // 解析 payload 字符串为 JSON 对象
+    let payload = {}
+    if (newTask.value.payload) {
+      try {
+        payload = JSON.parse(newTask.value.payload)
+      } catch {
+        ElMessage.error('Payload JSON 格式错误')
+        return
+      }
+    }
+
+    await schedulerApi.createTask({
+      name: newTask.value.name,
+      cron: newTask.value.cron,
+      webhook_url: newTask.value.webhook_url,
+      payload,
+      timeout: newTask.value.timeout,
+      retry_count: newTask.value.retry_count,
+      enabled: newTask.value.enabled,
+    })
+    ElMessage.success('任务创建成功')
     showCreateDialog.value = false
     await loadTasks()
   } catch (e) {
@@ -209,8 +213,8 @@ const createTask = async () => {
 
 const triggerTask = async (id: string) => {
   try {
-    // await schedulerApi.triggerTask(id)
-    ElMessage.success('任务已触发（Mock）')
+    await schedulerApi.triggerTask(id)
+    ElMessage.success('任务已触发')
   } catch (e) {
     ElMessage.error('触发失败')
   }
@@ -218,8 +222,8 @@ const triggerTask = async (id: string) => {
 
 const pauseTask = async (id: string) => {
   try {
-    // await schedulerApi.pauseTask(id)
-    ElMessage.success('任务已暂停（Mock）')
+    await schedulerApi.pauseTask(id)
+    ElMessage.success('任务已暂停')
     await loadTasks()
   } catch (e) {
     ElMessage.error('暂停失败')
@@ -228,8 +232,8 @@ const pauseTask = async (id: string) => {
 
 const resumeTask = async (id: string) => {
   try {
-    // await schedulerApi.resumeTask(id)
-    ElMessage.success('任务已恢复（Mock）')
+    await schedulerApi.resumeTask(id)
+    ElMessage.success('任务已恢复')
     await loadTasks()
   } catch (e) {
     ElMessage.error('恢复失败')
@@ -241,8 +245,8 @@ const deleteTask = async (id: string) => {
     await ElMessageBox.confirm('确认删除该任务？', '警告', {
       type: 'warning',
     })
-    // await schedulerApi.deleteTask(id)
-    ElMessage.success('任务已删除（Mock）')
+    await schedulerApi.deleteTask(id)
+    ElMessage.success('任务已删除')
     await loadTasks()
   } catch (e) {
     if (e !== 'cancel') {

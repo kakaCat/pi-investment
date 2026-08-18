@@ -30,6 +30,16 @@ const router = createRouter({
           component: () => import('@/views/skills/SkillList.vue'),
         },
         {
+          path: 'decisions',
+          name: 'DecisionList',
+          component: () => import('@/views/decisions/DecisionList.vue'),
+        },
+        {
+          path: 'memory',
+          name: 'MemoryList',
+          component: () => import('@/views/memory/MemoryList.vue'),
+        },
+        {
           path: 'events',
           name: 'EventStream',
           component: () => import('@/views/events/EventStream.vue'),
@@ -40,6 +50,11 @@ const router = createRouter({
           component: () => import('@/views/system/SystemStatus.vue'),
         },
       ],
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'NotFound',
+      component: () => import('@/views/NotFound.vue'),
     },
   ],
 })

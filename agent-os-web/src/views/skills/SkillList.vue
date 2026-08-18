@@ -135,26 +135,18 @@ const filteredSkills = computed(() => {
 
 const loadSkills = async () => {
   try {
-    // Mock 数据
-    skills.value = Array.from({ length: 20 }, (_, i) => ({
-      id: `skill-${i}`,
-      name: `skill_${i}`,
-      description: `技能描述 ${i}`,
-      category: ['data-analysis', 'market-monitor', 'decision-support'][i % 3],
-      owner: 'agent-ts',
-      status: i % 5 === 0 ? 'inactive' : 'active',
-      current_version: '1.0.0',
-      created_at: new Date(Date.now() - i * 86400000).toISOString(),
-    }))
+    const result = await skillApi.list()
+    skills.value = result.skills || []
   } catch (e) {
     console.error('加载技能失败:', e)
+    ElMessage.error('加载技能失败')
   }
 }
 
 const createSkill = async () => {
   try {
-    // await skillApi.create(newSkill.value)
-    ElMessage.success('技能创建成功（Mock）')
+    await skillApi.create(newSkill.value)
+    ElMessage.success('技能创建成功')
     showCreateDialog.value = false
     await loadSkills()
   } catch (e) {
@@ -162,8 +154,13 @@ const createSkill = async () => {
   }
 }
 
-const viewSkill = (id: string) => {
-  ElMessage.info(`查看技能 ${id}（功能开发中）`)
+const viewSkill = async (id: string) => {
+  try {
+    const skill = await skillApi.get(id)
+    ElMessage.info(`技能: ${skill.name} (v${skill.current_version})`)
+  } catch (e) {
+    ElMessage.error('获取技能详情失败')
+  }
 }
 
 const deleteSkill = async (id: string) => {
@@ -171,8 +168,8 @@ const deleteSkill = async (id: string) => {
     await ElMessageBox.confirm('确认删除该技能？', '警告', {
       type: 'warning',
     })
-    // await skillApi.delete(id)
-    ElMessage.success('技能已删除（Mock）')
+    await skillApi.delete(id)
+    ElMessage.success('技能已删除')
     await loadSkills()
   } catch (e) {
     if (e !== 'cancel') {

@@ -19,10 +19,23 @@ export function timeAgo(iso: string): string {
 export function cronToChinese(cron: string): string {
   if (!cron) return '-'
   const parts = cron.split(' ')
-  if (parts.length === 6) parts.shift() // 去掉秒字段
+  // 支持 6 字段 cron（含秒）和 5 字段 cron
+  if (parts.length === 6) {
+    // 6 字段: 秒 分 时 日 月 周
+    const [sec, min, hour, day, month, week] = parts
+    if (min === '0' && hour === '2' && day === '*' && month === '*' && week === '*') return '每天 02:00'
+    if (min === '40' && hour === '17') return '工作日 17:40'
+    if (min === '0' && hour === '9') return '工作日 09:00'
+    if (min === '30' && hour === '15') return '工作日 15:30'
+    if (min === '0' && hour === '8') return '工作日 08:00'
+    return `每天 ${hour}:${min}`
+  }
+  // 5 字段: 分 时 日 月 周
   const [min, hour, day, month, week] = parts
   if (min === '0' && hour === '2' && day === '*' && month === '*' && week === '*') return '每天 02:00'
   if (min === '40' && hour === '17') return '工作日 17:40'
   if (min === '0' && hour === '9') return '工作日 09:00'
+  if (min === '30' && hour === '15') return '工作日 15:30'
+  if (min === '0' && hour === '8') return '工作日 08:00'
   return cron
 }
