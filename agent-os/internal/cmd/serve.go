@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"github.com/pi-investment/agent-os/internal/api"
 	"github.com/pi-investment/agent-os/internal/config"
 	"github.com/pi-investment/agent-os/internal/events"
@@ -31,6 +32,13 @@ var serveCmd = &cobra.Command{
 
 		// Get config
 		cfg := config.Get()
+
+		// Initialize logger
+		logger, err := zap.NewProduction()
+		if err != nil {
+			return fmt.Errorf("failed to initialize logger: %w", err)
+		}
+		defer logger.Sync()
 
 		// Build connection string for sql.DB (notification service)
 		connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
@@ -100,8 +108,23 @@ var serveCmd = &cobra.Command{
 		skillService := services.NewSkillService(pool)
 		skillHandler := handlers.NewSkillHandler(skillService)
 
+		// Create registry service
+		agentRepo := repository.NewAgentRepository(db)
+		registryService := service.NewRegistryService(agentRepo)
+		registryHandler := handlers.NewRegistryHandler(registryService, logger)
+
+		// Start health checker for registry
+		healthChecker := service.NewHealthChecker(
+			registryService,
+			logger,
+			30*time.Second,  // Check every 30 seconds
+			2*time.Minute,   // Mark offline after 2 minutes without heartbeat
+		)
+		go healthChecker.Start(ctx)
+		defer healthChecker.Stop()
+
 		// Create HTTP server
-		server := api.NewHTTPServer(svc, skillHandler)
+		server := api.NewHTTPServer(svc, skillHandler, registryHandler)
 
 		// Start HTTP server in goroutine
 		addr := fmt.Sprintf("%s:%d", host, port)
@@ -117,6 +140,13 @@ var serveCmd = &cobra.Command{
 			fmt.Printf("   POST   /api/v1/skills\n")
 			fmt.Printf("   PUT    /api/v1/skills/{id}\n")
 			fmt.Printf("   DELETE /api/v1/skills/{id}\n")
+			fmt.Printf("   POST   /api/v1/registry/agents/register\n")
+			fmt.Printf("   POST   /api/v1/registry/agents/unregister\n")
+			fmt.Printf("   POST   /api/v1/registry/agents/heartbeat\n")
+			fmt.Printf("   POST   /api/v1/registry/agents/update-status\n")
+			fmt.Printf("   GET    /api/v1/registry/agents/{agent_id}\n")
+			fmt.Printf("   GET    /api/v1/registry/agents\n")
+			fmt.Printf("   GET    /api/v1/registry/agents/available\n")
 			fmt.Printf("   GET    /health\n")
 			fmt.Printf("\n")
 

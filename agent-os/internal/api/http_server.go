@@ -15,15 +15,17 @@ import (
 )
 
 type HTTPServer struct {
-	service      *service.NotificationService
-	skillHandler *handlers.SkillHandler
-	server       *http.Server
+	service         *service.NotificationService
+	skillHandler    *handlers.SkillHandler
+	registryHandler *handlers.RegistryHandler
+	server          *http.Server
 }
 
-func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.SkillHandler) *HTTPServer {
+func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.SkillHandler, registryHandler *handlers.RegistryHandler) *HTTPServer {
 	return &HTTPServer{
-		service:      service,
-		skillHandler: skillHandler,
+		service:         service,
+		skillHandler:    skillHandler,
+		registryHandler: registryHandler,
 	}
 }
 
@@ -46,6 +48,11 @@ func (s *HTTPServer) Start(addr string) error {
 	// Skill endpoints
 	if s.skillHandler != nil {
 		s.skillHandler.RegisterRoutes(api)
+	}
+
+	// Registry endpoints
+	if s.registryHandler != nil {
+		s.registryHandler.RegisterRoutes(api)
 	}
 
 	s.server = &http.Server{
