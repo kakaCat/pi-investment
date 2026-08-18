@@ -19,6 +19,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: recursive
+        fetch-depth: 0  # ruff 增量门禁需要 merge-base
 
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
@@ -72,6 +73,53 @@ jobs:
           echo "   建议使用结构化日志"
           # 不阻止 CI，仅警告
         fi
+
+    - name: Ruff gate - no NEW print() / blind except
+      run: |
+        cd quantsys-v2
+        pip install ruff
+        echo "🔍 Phase 1 门禁：变更文件不得新增 print()/裸 except（T201/BLE001）..."
+
+        # 存量违规 3200+ 处（见 phase1 报告），整文件硬门禁会误伤历史债务。
+        # 采用计数对比棘轮：变更文件的违规数不得多于 origin/main 同文件。
+        git fetch origin main --quiet || true
+        CHANGED=$(git diff --name-only origin/main...HEAD -- 'quantsys-v2/*.py' 2>/dev/null | sed 's|^quantsys-v2/||' || true)
+        if [ -z "$CHANGED" ]; then
+          echo "✅ 无 quantsys-v2 Python 变更，跳过"
+          exit 0
+        fi
+
+        git worktree add /tmp/ruff-base origin/main --detach --quiet 2>/dev/null || true
+        # 老基线可能没有 ruff 配置，用当前配置保证口径一致
+        cp .ruff.toml /tmp/ruff-base/quantsys-v2/.ruff.toml 2>/dev/null || true
+
+        FAIL=0
+        for f in $CHANGED; do
+          [ -f "$f" ] || continue
+          NEW=$(ruff check --config .ruff.toml --select T201,BLE001 --quiet "$f" 2>/dev/null | grep -cE "T201|BLE001" || true)
+          OLD=0
+          if [ -f "/tmp/ruff-base/quantsys-v2/$f" ]; then
+            OLD=$(cd /tmp/ruff-base/quantsys-v2 && ruff check --config .ruff.toml --select T201,BLE001 --quiet "$f" 2>/dev/null | grep -cE "T201|BLE001" || true)
+          fi
+          if [ "$NEW" -gt "$OLD" ]; then
+            echo "❌ $f: 违规 $OLD → $NEW（新增 $((NEW-OLD)) 处）"
+            FAIL=1
+          fi
+        done
+        if [ "$FAIL" -eq 0 ]; then
+          echo "✅ ruff 增量门禁通过（无新增违规）"
+        else
+          echo "💡 修复：print() 改 structlog；裸 except 改具体异常（domain/exceptions.py）"
+          exit 1
+        fi
+
+    - name: Ruff full check (informational)
+      continue-on-error: true
+      run: |
+        cd quantsys-v2
+        pip install ruff
+        echo "ℹ️  全量 ruff 检查（仅报告，不阻断；存量违规随 Phase 2-4 逐步清零）"
+        ruff check --config .ruff.toml --statistics . || true
 
     - name: Install pre-commit hook
       run: |
