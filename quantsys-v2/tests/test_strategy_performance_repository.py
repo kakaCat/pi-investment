@@ -11,21 +11,19 @@ from adapters.outbound.repositories import StrategyPerformanceRepository
 @pytest.fixture
 def repo():
     """创建测试 repository"""
+    from infrastructure.persistence.database.engine import db_cursor
+    
     repo = StrategyPerformanceRepository()
 
     # 清理测试数据
-    cursor = repo.db.cursor()
-    cursor.execute("DELETE FROM quant.strategy_performance")
-    repo.db.commit()
-    cursor.close()
+    with db_cursor(commit=True) as cursor:
+        cursor.execute("DELETE FROM quant.strategy_performance")
 
     yield repo
 
     # 测试后清理
-    cursor = repo.db.cursor()
-    cursor.execute("DELETE FROM quant.strategy_performance")
-    repo.db.commit()
-    cursor.close()
+    with db_cursor(commit=True) as cursor:
+        cursor.execute("DELETE FROM quant.strategy_performance")
 
 
 def test_create_performance_record(repo):
