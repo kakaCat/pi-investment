@@ -53,9 +53,16 @@ class BaseORMRepository(Generic[T]):
 
     @property
     def session(self) -> Session:
-        """获取Session（懒加载）"""
-        if self._session is None:
-            self._session = get_session()
+        """获取当前线程的 Session（经 scoped_session 每次现取）
+
+        不在实例上跨请求缓存：单例服务（如 StockPoolService 模块级 svc）的
+        缓存 session 会在首个请求结束后被 close_session 从 scoped 注册表
+        移除并关闭，此后该 session 对象永久脱离每请求的清理路径，跨线程
+        复用并长期占住连接（pg 呈 "idle in transaction"），是 2026-08-18
+        连接池耗尽事故的第二层原因。scoped_session 本身按线程缓存，同线程
+        内多次访问返回同一 session，行为与旧缓存实现一致。
+        """
+        self._session = get_session()
         return self._session
 
     def _safe_rollback(self):

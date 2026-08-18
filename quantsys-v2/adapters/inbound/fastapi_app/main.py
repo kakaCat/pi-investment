@@ -252,6 +252,79 @@ async def log_requests(request: Request, call_next):
     return response
 
 
+# ORM Session 释放（2026-08-18 补——Flask→FastAPI 迁移时遗失 teardown 导致
+# 连接池耗尽事故：scoped_session 是线程级的，同步路由跑在 anyio 线程池的
+# worker 线程上，每个跑过 ORM 查询的线程在首个查询后开启事务并永久持有连接
+# （pg 中呈 "idle in transaction"），pool_size+overflow（10+20）耗尽后新请求
+# 阻塞 30s 超时 500。Flask 侧由 register_session_teardown(teardown_appcontext)
+# 兜底；FastAPI 侧需双管齐下：
+#   1. 中间件 close_session() —— 清理事件循环线程的 session（async 路由用）
+#   2. install_sync_session_cleanup() —— 包装每个同步路由的 dependant.call，
+#      使其在 worker 线程内 finally close_session()（中间件跑在事件循环线程，
+#      清不到 worker 线程的 thread-local session，这是本事故的关键点）
+@app.middleware("http")
+async def release_orm_session(request: Request, call_next):
+    """每个请求结束时释放事件循环线程的 ORM Session（覆盖 async 路由）"""
+    try:
+        return await call_next(request)
+    finally:
+        from infrastructure.persistence.orm.config import close_session
+        close_session()
+
+
+def install_sync_session_cleanup() -> None:
+    """给所有同步路由的 dependant.call 包一层 finally close_session()
+
+    同步端点经 run_in_threadpool(dependant.call) 执行，包装后的 call 与
+    ORM session 同在 worker 线程，finally 能真正归还连接。async 端点由上面
+    的中间件覆盖，这里跳过。
+
+    注意：本项目 FastAPI 为定制版，include_router 以 _IncludedRouter 懒包装
+    挂载，真实 APIRoute 需经 original_router 递归取得（同 tools_async
+    ._iter_route_rules 的遍历方式）；且请求时实际执行的是 _EffectiveRouteContext
+    上由 route.endpoint 重建的 dependant，所以必须包装 route.endpoint
+    （在首个请求构建 effective context 之前完成，本函数在 register_routes
+    之后、服务接收请求之前调用，时序安全）。
+    """
+    import asyncio
+    import functools
+    from fastapi.routing import APIRoute
+    from infrastructure.persistence.orm.config import close_session
+
+    wrapped = 0
+
+    def _walk(routes):
+        nonlocal wrapped
+        for route in routes:
+            original = getattr(route, "original_router", None)
+            if original is not None:
+                _walk(getattr(original, "routes", []))
+                continue
+            if not isinstance(route, APIRoute):
+                continue
+            call = route.endpoint
+            if call is None or asyncio.iscoroutinefunction(call):
+                continue
+            if getattr(call, "_orm_cleanup_wrapped", False):
+                continue
+
+            @functools.wraps(call)
+            def call_with_cleanup(*args, _call=call, **kwargs):
+                try:
+                    return _call(*args, **kwargs)
+                finally:
+                    close_session()
+
+            call_with_cleanup._orm_cleanup_wrapped = True
+            route.endpoint = call_with_cleanup
+            if route.dependant is not None:
+                route.dependant.call = call_with_cleanup
+            wrapped += 1
+
+    _walk(app.routes)
+    logger.info(f"✅ ORM session cleanup wrapped on {wrapped} sync routes")
+
+
 # ==================== 全局异常处理 ====================
 
 @app.exception_handler(Exception)
@@ -830,6 +903,9 @@ def register_routes():
 
 # 注册所有路由
 register_routes()
+
+# 同步路由 ORM session 清理包装（必须在 register_routes 之后）
+install_sync_session_cleanup()
 
 
 # ==================== 启动入口 ====================
