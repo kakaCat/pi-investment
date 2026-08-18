@@ -243,6 +243,27 @@ func (e *Executor) GetAvailableSlots() int {
 	return e.config.MaxConcurrentTasks - e.GetRunningCount()
 }
 
+// buildWebhookPayload constructs the webhook request body following the
+// WP-15 receiver contract (e.g. quantsys-v2 /internal/scheduler/webhook):
+// job_id, job_name, trigger_time and metadata are all required top-level
+// fields; the task payload and run context travel inside metadata.
+func buildWebhookPayload(task *types.Task, run *types.TaskRun) map[string]interface{} {
+	metadata := make(map[string]interface{}, len(task.Payload)+3)
+	for k, v := range task.Payload {
+		metadata[k] = v
+	}
+	metadata["run_id"] = run.ID.String()
+	metadata["owner"] = task.Owner
+	metadata["triggered_by"] = string(run.TriggeredBy)
+
+	return map[string]interface{}{
+		"job_id":       task.ID.String(),
+		"job_name":     task.Name,
+		"trigger_time": time.Now().UTC().Format(time.RFC3339),
+		"metadata":     metadata,
+	}
+}
+
 // executeWebhook executes a task by calling its webhook URL
 func (e *Executor) executeWebhook(ctx context.Context, task *types.Task, run *types.TaskRun) (string, error) {
 	// Determine timeout
@@ -255,21 +276,8 @@ func (e *Executor) executeWebhook(ctx context.Context, task *types.Task, run *ty
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// Construct webhook payload
-	payload := map[string]interface{}{
-		"task_id":   task.ID.String(),
-		"task_name": task.Name,
-		"run_id":    run.ID.String(),
-		"owner":     task.Owner,
-		"triggered_by": run.TriggeredBy,
-	}
-
-	// Merge task payload if present
-	if task.Payload != nil {
-		for k, v := range task.Payload {
-			payload[k] = v
-		}
-	}
+	// Construct webhook payload (WP-15 receiver contract)
+	payload := buildWebhookPayload(task, run)
 
 	// Marshal payload to JSON
 	payloadBytes, err := json.Marshal(payload)
