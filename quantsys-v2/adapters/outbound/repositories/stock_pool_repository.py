@@ -79,7 +79,8 @@ class StockPoolRepository:
                 'refresh_interval': data.get('refresh_interval'),
             })
             result = dict(cursor.fetchone())
-            return self.get_by_id(result['id'])
+        # 提交后再读：get_by_id 走池里另一条连接，块内调用读不到未提交的 INSERT
+        return self.get_by_id(result['id'])
 
     def get_by_id(self, pool_id: int) -> Optional[Dict]:
         """Get a pool by ID. Returns None if not found."""
@@ -140,9 +141,10 @@ class StockPoolRepository:
                 RETURNING id
             """, params)
             result = cursor.fetchone()
-            if not result:
-                return None
-            return self.get_by_id(pool_id)
+        # 提交后再读：get_by_id 走池里另一条连接，块内调用会读到提交前的旧数据
+        if not result:
+            return None
+        return self.get_by_id(pool_id)
 
     def update_symbols(self, pool_id: int, symbols: List[str]) -> Optional[Dict]:
         """Update pool symbols and set last_refreshed_at. Used by dynamic pool refresh."""
@@ -157,9 +159,10 @@ class StockPoolRepository:
                 RETURNING id
             """, {'id': pool_id, 'symbols': symbols})
             result = cursor.fetchone()
-            if not result:
-                return None
-            return self.get_by_id(pool_id)
+        # 提交后再读：get_by_id 走池里另一条连接，块内调用会读到提交前的旧数据
+        if not result:
+            return None
+        return self.get_by_id(pool_id)
 
     def update_validation(self, pool_id: int, validation: Dict) -> Optional[Dict]:
         """Update last_validation JSON snapshot."""
@@ -173,9 +176,10 @@ class StockPoolRepository:
                 RETURNING id
             """, {'id': pool_id, 'validation': json.dumps(validation)})
             result = cursor.fetchone()
-            if not result:
-                return None
-            return self.get_by_id(pool_id)
+        # 提交后再读：get_by_id 走池里另一条连接，块内调用会读到提交前的旧数据
+        if not result:
+            return None
+        return self.get_by_id(pool_id)
 
     def delete(self, pool_id: int) -> bool:
         """Delete a pool. Returns True if deleted, False if not found."""
@@ -223,9 +227,10 @@ class StockPoolRepository:
                 RETURNING id
             """, {'id': pool_id, 'scan_result': json.dumps(scan_result)})
             result = cursor.fetchone()
-            if not result:
-                return None
-            return self.get_by_id(pool_id)
+        # 提交后再读：get_by_id 走池里另一条连接，块内调用会读到提交前的旧数据
+        if not result:
+            return None
+        return self.get_by_id(pool_id)
 
     def _parse_row(self, row) -> Dict:
         """Convert a database row to a dict, parsing JSONB fields."""
