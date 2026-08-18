@@ -5,6 +5,7 @@
 支持 mock DB 和真实 DB（连接失败时优雅跳过）。
 """
 import pytest
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch, PropertyMock
 from datetime import datetime, timedelta
 
@@ -44,6 +45,13 @@ def _make_mock_ds():
     ds.stock = MagicMock()
     ds.kline = MagicMock()
     ds.portfolio = MagicMock()
+    # create_order 买入路径校验资金（order_service.create_order 调用 ds.risk.get_latest_balance）
+    # 默认给足资金；需要验证资金不足场景的用例自行覆盖 return_value
+    ds.risk = MagicMock()
+    ds.risk.get_latest_balance.return_value = {'cash': 10_000_000.0}
+    # signal_id 链路：create_order 会调 ds.signal.get_signal 验证信号存在
+    ds.signal = MagicMock()
+    ds.signal.get_signal.return_value = MagicMock(strategy_id=1)
     return ds
 
 
@@ -114,20 +122,15 @@ class TestOrderCreation:
         with pytest.raises(ValueError, match="必须提供价格"):
             order_service.create_order(ds, "000001.SZ", "sell", "stop", 100)
 
-    def test_market_order_no_price_ok(self):
-        """市价单可以不提供价格"""
+    def test_market_buy_order_no_price_rejected(self):
+        """市价买单不提供价格应拒绝（无法做资金验证——order_service 有意行为，monorepo 并入前已存在）"""
         ds = _make_mock_ds()
         ds.stock.get_by_symbol.return_value = {'symbol': '000001.SZ', 'name': '测试'}
-        ds.portfolio.create_order.return_value = 42
 
-        order_id = order_service.create_order(
-            ds, "000001.SZ", "buy", "market", 100
-        )
-
-        assert order_id == 42
-        # 验证传入的 order_data 中 price 为 None
-        call_args = ds.portfolio.create_order.call_args[0][0]
-        assert call_args['price'] is None
+        with pytest.raises(ValueError, match="市价单暂不支持资金验证"):
+            order_service.create_order(
+                ds, "000001.SZ", "buy", "market", 100
+            )
 
     def test_stock_not_found(self):
         """不存在的股票应抛出 RuntimeError"""
@@ -148,7 +151,8 @@ class TestOrderCreation:
     def test_create_order_success(self):
         """成功创建订单"""
         ds = _make_mock_ds()
-        ds.stock.get_by_symbol.return_value = {'symbol': '000001.SZ', 'name': '平安银行'}
+        # get_by_symbol 返回 Stock ORM 对象（非 dict），order_service 用 getattr(stock, 'name')
+        ds.stock.get_by_symbol.return_value = SimpleNamespace(symbol='000001.SZ', name='平安银行')
         ds.portfolio.create_order.return_value = 100
 
         order_id = order_service.create_order(
@@ -222,7 +226,7 @@ class TestOrderFill:
         ds.portfolio.update_order_status.return_value = True
         ds.portfolio.create_order.return_value = 1  # not actually used in fill_order but...
 
-        with patch('services.trade_service.create_trade_from_order', return_value=200):
+        with patch('application.services.trade_service.create_trade_from_order', return_value=200):
             result = order_service.fill_order(ds, 1, 10.50, fill_quantity=300)
 
         assert result['is_full_fill'] is False
@@ -247,7 +251,7 @@ class TestOrderFill:
         ]
         ds.portfolio.update_order_status.return_value = True
 
-        with patch('services.trade_service.create_trade_from_order', return_value=201):
+        with patch('application.services.trade_service.create_trade_from_order', return_value=201):
             result = order_service.fill_order(ds, 1, 11.00, fill_quantity=300)
 
         assert result['is_full_fill'] is True
@@ -270,7 +274,7 @@ class TestOrderFill:
         ]
         ds.portfolio.update_order_status.return_value = True
 
-        with patch('services.trade_service.create_trade_from_order', return_value=202):
+        with patch('application.services.trade_service.create_trade_from_order', return_value=202):
             result = order_service.fill_order(ds, 1, 9.50)
 
         assert result['filled_quantity'] == 600

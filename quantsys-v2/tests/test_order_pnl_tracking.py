@@ -46,11 +46,11 @@ def cleanup(ds, signal_log, perf_repo):
     for symbol, name in test_stocks:
         cursor.execute(
             """
-            INSERT INTO quant.stocks (symbol, name, market, is_active)
-            VALUES (%s, %s, %s, true)
+            INSERT INTO quant.stocks (symbol, name, market)
+            VALUES (%s, %s, 'A')
             ON CONFLICT (symbol) DO NOTHING
             """,
-            (symbol, name, 'SH' if symbol.endswith('.SH') else 'SZ')
+            (symbol, name)
         )
 
     # quant_test 缺 account_balance 表（schema 落后生产），按 ORM 模型补齐
@@ -119,7 +119,7 @@ def _mirror_signal_to_signals_table(signal_log, signal_id: int, symbol: str, nam
         VALUES (%s, CURRENT_DATE, %s, %s, %s, %s, %s, 'pending')
         ON CONFLICT (id) DO NOTHING
         """,
-        (signal_id, symbol, name, strategy_id, action, 1 if action == 'buy' else 2)
+        (signal_id, symbol, name, strategy_id, action.upper(), 1 if action.lower() == 'buy' else 2)
     )
     conn.commit()
     cursor.close()
