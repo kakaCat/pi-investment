@@ -20,6 +20,11 @@ const router = createRouter({
           component: () => import('@/views/scheduler/TaskList.vue'),
         },
         {
+          path: 'scheduler/executions',
+          name: 'ExecutionHistory',
+          component: () => import('@/views/scheduler/ExecutionHistory.vue'),
+        },
+        {
           path: 'skills',
           name: 'SkillList',
           component: () => import('@/views/skills/SkillList.vue'),
