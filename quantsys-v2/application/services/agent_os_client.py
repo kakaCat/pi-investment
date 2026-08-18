@@ -363,7 +363,11 @@ def get_agent_os_client(base_url: str = "http://127.0.0.1:8080") -> AgentOSClien
         AgentOSClient instance
     """
     global _agent_os_client
-    if _agent_os_client is None:
+    # Self-healing: if the singleton's underlying httpx client was closed
+    # directly (client.close() instead of close_agent_os_client(), which
+    # register_jobs_to_agent_os.py did at startup), discard it and create
+    # a fresh one instead of returning a dead client.
+    if _agent_os_client is None or _agent_os_client.client.is_closed:
         _agent_os_client = AgentOSClient(base_url=base_url)
     return _agent_os_client
 

@@ -180,3 +180,73 @@ def test_execute_job_skips_report_when_run_id_missing(
     asyncio.run(wh.execute_job(handler, payload))
 
     assert fake_agent_os_client.reports == []
+
+
+# ==================== Agent OS client singleton self-healing ====================
+#
+# register_jobs_to_agent_os.py closes the shared client directly
+# (client.close() instead of close_agent_os_client()), leaving the global
+# singleton pointing at a CLOSED httpx client. Every later
+# get_agent_os_client() returned it → "Cannot send a request, as the
+# client has been closed" on every job result report (2026-08-18 13:00).
+
+
+def test_get_agent_os_client_recreates_a_closed_singleton():
+    from application.services import agent_os_client as client_mod
+
+    c1 = client_mod.get_agent_os_client()
+    asyncio.run(c1.client.aclose())  # simulate the register-script bug
+    assert c1.client.is_closed
+
+    c2 = client_mod.get_agent_os_client()
+    try:
+        assert c2 is not c1
+        assert not c2.client.is_closed
+    finally:
+        asyncio.run(c2.client.aclose())
+        client_mod._agent_os_client = None
+
+
+# ==================== Local run record write ====================
+
+
+def test_write_run_to_database_persists_run():
+    """Regression: run_id (uuid) must NOT be inserted into the bigint id
+    column — psycopg2 InvalidTextRepresentation killed the local audit
+    write for every Agent OS job."""
+    from datetime import datetime, timezone
+
+    from psycopg2.extras import RealDictCursor
+
+    from infrastructure.persistence.database.engine import get_engine
+
+    engine = get_engine()
+    conn = engine.raw_connection()
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        asyncio.run(
+            wh._write_run_to_database(
+                run_id="11111111-2222-3333-4444-555555555555",
+                job_id="00000000-0000-0000-0000-000000000000",
+                job_name="pytest_webhook_probe",
+                status="success",
+                started_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(timezone.utc),
+                result={"probe": True},
+                error_msg=None,
+            )
+        )
+        cursor.execute(
+            "SELECT status FROM quant.scheduler_runs "
+            "WHERE result->>'probe' = 'true' ORDER BY id DESC LIMIT 1"
+        )
+        row = cursor.fetchone()
+        assert row is not None, "run record was not persisted"
+        assert row["status"] == "success"
+
+        # cleanup
+        cursor.execute("DELETE FROM quant.scheduler_runs WHERE result->>'probe' = 'true'")
+        cursor.execute("DELETE FROM quant.scheduler_tasks WHERE name = 'pytest_webhook_probe'")
+        conn.commit()
+    finally:
+        conn.close()

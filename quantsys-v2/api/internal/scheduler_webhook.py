@@ -346,18 +346,19 @@ async def _write_run_to_database(
             )
             task_id = cursor.fetchone()["id"]
 
-        # Insert run record
+        # Insert run record — id is a bigint identity column, let the
+        # sequence assign it (the uuid run_id must NOT go into it;
+        # 2026-08-18: InvalidTextRepresentation killed every local write)
         duration_ms = int((completed_at - started_at).total_seconds() * 1000)
         result_json = json.dumps(result) if result else None
 
         cursor.execute(
             """
             INSERT INTO quant.scheduler_runs
-                (id, task_id, status, started_at, completed_at, duration_ms, result, error)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                (task_id, status, started_at, completed_at, duration_ms, result, error)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
             (
-                run_id,
                 task_id,
                 status,
                 started_at,
