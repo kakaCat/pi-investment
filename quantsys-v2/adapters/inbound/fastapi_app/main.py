@@ -504,14 +504,6 @@ def register_routes():
         logger.warning(f"⚠️ Failed to import executions_async: {e}")
         optional_failed.append("executions")
 
-    # 执行记录（P5 迁移，parity 对齐 Flask executions.py）
-    try:
-        from adapters.inbound.fastapi_app.routes.executions_async import router as executions_router
-        app.include_router(executions_router)
-        logger.info("✅ Registered: executions (P5 迁移)")
-    except ImportError as e:
-        logger.warning(f"⚠️ Failed to import executions_async: {e}")
-
     # 市场数据
     try:
         from adapters.inbound.fastapi_app.routes.market_async import router as market_router
@@ -527,6 +519,7 @@ def register_routes():
         app.include_router(analysis_router)
         logger.info("✅ Registered: analysis (P6 迁移)")
     except ImportError as e:
+        optional_failed.append("analysis")
         logger.warning(f"⚠️ Failed to import analysis_async: {e}")
 
     # 市场/港股数据（market_data 域迁移，parity 对齐 Flask market.py/quote_market.py）
@@ -535,6 +528,7 @@ def register_routes():
         app.include_router(market_data_router)
         logger.info("✅ Registered: market_data (market/hk 迁移)")
     except ImportError as e:
+        optional_failed.append("market_data")
         logger.warning(f"⚠️ Failed to import market_data_async: {e}")
 
     # 行情K线（quote_market 域迁移：/api/stock/{symbol}/history，agent data_fetch_kline 依赖）
@@ -543,6 +537,7 @@ def register_routes():
         app.include_router(quote_market_router)
         logger.info("✅ Registered: quote_market (stock/history 迁移)")
     except ImportError as e:
+        optional_failed.append("quote_market")
         logger.warning(f"⚠️ Failed to import quote_market_async: {e}")
 
     # 图表数据
@@ -551,6 +546,7 @@ def register_routes():
         app.include_router(charts_router, prefix="/api")
         logger.info("✅ Registered: charts")
     except ImportError as e:
+        optional_failed.append("charts")
         logger.warning(f"⚠️ Failed to import charts_async: {e}")
 
     # 图表（Flask charts.py parity 迁移：accuracy/equity/comparison/importance）
@@ -559,6 +555,7 @@ def register_routes():
         app.include_router(charts_flask_parity_router)
         logger.info("✅ Registered: charts (Flask parity 迁移)")
     except ImportError as e:
+        optional_failed.append("charts_flask_parity")
         logger.warning(f"⚠️ Failed to import charts_async flask_parity_router: {e}")
 
     # 组合优化（Flask portfolio.py parity 迁移：markowitz/black-litterman/risk-parity）
@@ -567,6 +564,7 @@ def register_routes():
         app.include_router(portfolio_opt_router)
         logger.info("✅ Registered: portfolio optimize (Flask parity 迁移)")
     except ImportError as e:
+        optional_failed.append("portfolio_opt")
         logger.warning(f"⚠️ Failed to import portfolio_opt_async: {e}")
 
     # 因子模型（Flask factor_models.py parity 迁移：fama-french-3/5, carhart, barra）
@@ -575,6 +573,7 @@ def register_routes():
         app.include_router(factor_models_router)
         logger.info("✅ Registered: factor_models (Flask parity 迁移)")
     except ImportError as e:
+        optional_failed.append("factor_models")
         logger.warning(f"⚠️ Failed to import factor_models_async: {e}")
 
     # 配置管理
@@ -584,14 +583,7 @@ def register_routes():
         logger.info("✅ Registered: config")
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import config_async: {e}")
-
-    # 认证授权
-    try:
-        from adapters.inbound.fastapi_app.routes.auth_async import router as auth_router
-        app.include_router(auth_router, prefix="/api")
-        logger.info("✅ Registered: auth")
-    except ImportError as e:
-        logger.warning(f"⚠️ Failed to import auth_async: {e}")
+        optional_failed.append("config")
 
     # V14量化交易 (新增)
     try:
@@ -599,6 +591,7 @@ def register_routes():
         app.include_router(v14_router)
         logger.info("✅ Registered: v14_trading")
     except ImportError as e:
+        optional_failed.append("v14_trading")
         logger.warning(f"⚠️ Failed to import v14_trading: {e}")
 
     # 池子扫描
@@ -607,6 +600,7 @@ def register_routes():
         app.include_router(pool_scan_router, prefix="/api")
         logger.info("✅ Registered: pool_scan")
     except ImportError as e:
+        optional_failed.append("pool_scan")
         logger.warning(f"⚠️ Failed to import pool_scan_async: {e}")
 
     # 风控（risk 域，P6 迁移：check + stop-loss 规则）
@@ -615,6 +609,7 @@ def register_routes():
         app.include_router(risk_router)
         logger.info("✅ Registered: risk (P6 迁移)")
     except ImportError as e:
+        optional_failed.append("risk")
         logger.warning(f"⚠️ Failed to import risk_async: {e}")
 
     # ===== P1 业务路由 =====
@@ -627,6 +622,7 @@ def register_routes():
         app.include_router(pools_router)
         logger.info("✅ Registered: pools (P3 迁移)")
     except ImportError as e:
+        optional_failed.append("pools")
         logger.warning(f"⚠️ Failed to import pools_async: {e}")
 
     # 信号管理（P3 迁移，parity 对齐 Flask signals.py）
@@ -635,6 +631,7 @@ def register_routes():
         app.include_router(signals_router)
         logger.info("✅ Registered: signals (P3 迁移)")
     except ImportError as e:
+        optional_failed.append("signals")
         logger.warning(f"⚠️ Failed to import signals_async: {e}")
 
     # 股票数据（stocks 域，P1 迁移）
@@ -643,6 +640,7 @@ def register_routes():
         app.include_router(stock_router)
         logger.info("✅ Registered: stock (P1 迁移)")
     except ImportError as e:
+        optional_failed.append("stock")
         logger.warning(f"⚠️ Failed to import stock_async: {e}")
 
     # 自选股（watchlist 域，P1 迁移）
@@ -651,6 +649,7 @@ def register_routes():
         app.include_router(watchlist_router)
         logger.info("✅ Registered: watchlist (P1 迁移)")
     except ImportError as e:
+        optional_failed.append("watchlist")
         logger.warning(f"⚠️ Failed to import watchlist_async: {e}")
 
     # 实时盯盘（watch 域，WatchEngine parity 迁移）
@@ -659,6 +658,7 @@ def register_routes():
         app.include_router(watch_router)
         logger.info("✅ Registered: watch (WatchEngine parity 迁移)")
     except ImportError as e:
+        optional_failed.append("watch")
         logger.warning(f"⚠️ Failed to import watch_async: {e}")
 
     # 订单/交易/投资组合（orders 域，P5 迁移）
@@ -667,6 +667,7 @@ def register_routes():
         app.include_router(orders_router)
         logger.info("✅ Registered: orders (P5 迁移)")
     except ImportError as e:
+        optional_failed.append("orders")
         logger.warning(f"⚠️ Failed to import orders_async: {e}")
 
     # 每日报告（report 域，P7 迁移）
@@ -675,6 +676,7 @@ def register_routes():
         app.include_router(report_router)
         logger.info("✅ Registered: report (P7 迁移)")
     except ImportError as e:
+        optional_failed.append("report")
         logger.warning(f"⚠️ Failed to import report_async: {e}")
 
     # 分红数据（dividends 域，agent 迁移）
@@ -683,6 +685,7 @@ def register_routes():
         app.include_router(dividends_router)
         logger.info("✅ Registered: dividends (agent 迁移)")
     except ImportError as e:
+        optional_failed.append("dividends")
         logger.warning(f"⚠️ Failed to import dividends_async: {e}")
 
     # 数据质量（data_quality 域，agent 迁移）
@@ -691,6 +694,7 @@ def register_routes():
         app.include_router(data_quality_router)
         logger.info("✅ Registered: data_quality (agent 迁移)")
     except ImportError as e:
+        optional_failed.append("data_quality")
         logger.warning(f"⚠️ Failed to import data_quality_async: {e}")
 
     # 情绪/资金（sentiment 域，agent 迁移）
@@ -699,6 +703,7 @@ def register_routes():
         app.include_router(sentiment_router)
         logger.info("✅ Registered: sentiment (agent 迁移)")
     except ImportError as e:
+        optional_failed.append("sentiment")
         logger.warning(f"⚠️ Failed to import sentiment_async: {e}")
 
     # 信号测试（signal_test 域，agent 迁移）
@@ -707,6 +712,7 @@ def register_routes():
         app.include_router(signal_test_router)
         logger.info("✅ Registered: signal_test (agent 迁移)")
     except ImportError as e:
+        optional_failed.append("signal_test")
         logger.warning(f"⚠️ Failed to import signal_test_async: {e}")
 
     # 市场预警（alerts 域，agent 新建）
@@ -715,6 +721,7 @@ def register_routes():
         app.include_router(alerts_router)
         logger.info("✅ Registered: alerts (agent 新建)")
     except ImportError as e:
+        optional_failed.append("alerts")
         logger.warning(f"⚠️ Failed to import alerts_async: {e}")
 
     # Agent 会话事件（sessions 域，parity 迁移——syncer 事件摄入 + web 查询/诊断）
@@ -723,6 +730,7 @@ def register_routes():
         app.include_router(agent_sessions_router)
         logger.info("✅ Registered: agent_sessions (parity 迁移)")
     except ImportError as e:
+        optional_failed.append("agent_sessions")
         logger.warning(f"⚠️ Failed to import agent_sessions_async: {e}")
 
     # 策略发现（discovery 域，agent 迁移）
@@ -731,6 +739,7 @@ def register_routes():
         app.include_router(discovery_router)
         logger.info("✅ Registered: discovery (agent 迁移)")
     except ImportError as e:
+        optional_failed.append("discovery")
         logger.warning(f"⚠️ Failed to import discovery_async: {e}")
 
     # 市场风格（market_style 域，agent 迁移）
@@ -739,6 +748,7 @@ def register_routes():
         app.include_router(market_style_router)
         logger.info("✅ Registered: market_style (agent 迁移)")
     except ImportError as e:
+        optional_failed.append("market_style")
         logger.warning(f"⚠️ Failed to import market_style_async: {e}")
 
     # 时间序列分析（timeseries 域，agent 迁移）
@@ -747,6 +757,7 @@ def register_routes():
         app.include_router(timeseries_router)
         logger.info("✅ Registered: timeseries (agent 迁移)")
     except ImportError as e:
+        optional_failed.append("timeseries")
         logger.warning(f"⚠️ Failed to import timeseries_async: {e}")
 
     # 诊断（diagnosis 域，P8 迁移）
@@ -755,6 +766,7 @@ def register_routes():
         app.include_router(diagnosis_router)
         logger.info("✅ Registered: diagnosis (P8 迁移)")
     except ImportError as e:
+        optional_failed.append("diagnosis")
         logger.warning(f"⚠️ Failed to import diagnosis_async: {e}")
 
     # 缠论分析（chan 域，P8 迁移）
@@ -763,6 +775,7 @@ def register_routes():
         app.include_router(chan_router)
         logger.info("✅ Registered: chan (P8 迁移)")
     except ImportError as e:
+        optional_failed.append("chan")
         logger.warning(f"⚠️ Failed to import chan_async: {e}")
 
     # 统一记忆存储（memory 域，W1.2 框架演进 P1）
@@ -771,6 +784,7 @@ def register_routes():
         app.include_router(memory_router)
         logger.info("✅ Registered: memory (W1.2 统一记忆)")
     except ImportError as e:
+        optional_failed.append("memory")
         logger.warning(f"⚠️ Failed to import memory_async: {e}")
 
     # 记忆蒸馏（memory distill 域，W1.5a T1）
@@ -779,6 +793,7 @@ def register_routes():
         app.include_router(memory_distill_router)
         logger.info("✅ Registered: memory_distill (W1.5a 记忆蒸馏)")
     except ImportError as e:
+        optional_failed.append("memory_distill")
         logger.warning(f"⚠️ Failed to import memory_distill_async: {e}")
 
     # 知识库（knowledge 域，W1.1 修断链后补 FastAPI 路由——此前仅 Flask 有，5001 上 404）
@@ -787,6 +802,7 @@ def register_routes():
         app.include_router(knowledge_router)
         logger.info("✅ Registered: knowledge (W1.1 FastAPI 补全)")
     except ImportError as e:
+        optional_failed.append("knowledge")
         logger.warning(f"⚠️ Failed to import knowledge_async: {e}")
 
     # 行为进化（evolution 域，2026-08-05 Phase 1）
@@ -795,6 +811,7 @@ def register_routes():
         app.include_router(evolution_router)
         logger.info("✅ Registered: evolution (行为进化 Phase 1)")
     except ImportError as e:
+        optional_failed.append("evolution")
         logger.warning(f"⚠️ Failed to import evolution_async: {e}")
 
     # 流水线（pipeline 域，P8 迁移）
@@ -803,6 +820,7 @@ def register_routes():
         app.include_router(pipeline_router)
         logger.info("✅ Registered: pipeline (P8 迁移)")
     except ImportError as e:
+        optional_failed.append("pipeline")
         logger.warning(f"⚠️ Failed to import pipeline_async: {e}")
 
     # 机器学习（ml 域，P8 迁移）
@@ -811,6 +829,7 @@ def register_routes():
         app.include_router(ml_router)
         logger.info("✅ Registered: ml (P8 迁移)")
     except ImportError as e:
+        optional_failed.append("ml")
         logger.warning(f"⚠️ Failed to import ml_async: {e}")
 
     # 财务报表 V2（financials_v2 域，parity 对齐 Flask financials_v2.py）
@@ -819,6 +838,7 @@ def register_routes():
         app.include_router(financials_router)
         logger.info("✅ Registered: financials_v2 (parity 迁移)")
     except ImportError as e:
+        optional_failed.append("financials")
         logger.warning(f"⚠️ Failed to import financials_async: {e}")
 
     # 策略管理（P2 迁移，parity 对齐 Flask strategies.py）
@@ -827,6 +847,7 @@ def register_routes():
         app.include_router(strategies_router)
         logger.info("✅ Registered: strategies (P2 迁移)")
     except ImportError as e:
+        optional_failed.append("strategies")
         logger.warning(f"⚠️ Failed to import strategies_async: {e}")
 
     # 策略执行（P2 迁移，run/status）
@@ -835,6 +856,7 @@ def register_routes():
         app.include_router(strategy_exec_router)
         logger.info("✅ Registered: strategy run/status (P2 迁移)")
     except ImportError as e:
+        optional_failed.append("strategy")
         logger.warning(f"⚠️ Failed to import strategy_async: {e}")
 
     # 统一策略交易 API（重构版，支持 V13/V14/V15...）
@@ -843,6 +865,7 @@ def register_routes():
         app.include_router(strategy_trading_router, prefix="/api")
         logger.info("✅ Registered: strategy_trading (统一策略API: /api/strategy/*)")
     except ImportError as e:
+        optional_failed.append("strategy_trading")
         logger.warning(f"⚠️ Failed to import strategy_trading_async: {e}")
 
     # 多账户域 API（账户发现/开户/手工交易/绩效）
@@ -851,6 +874,7 @@ def register_routes():
         app.include_router(simulation_async_router)
         logger.info("✅ Registered: simulation accounts (多账户API: /api/simulation/accounts/*)")
     except ImportError as e:
+        optional_failed.append("simulation")
         logger.warning(f"⚠️ Failed to import simulation_async: {e}")
 
     # 决策追踪（/api/decisions/*，走 DecisionService → PG，Flask parity）
@@ -859,6 +883,7 @@ def register_routes():
         app.include_router(decisions_router)
         logger.info("✅ Registered: decisions (/api/decisions/*, PG 持久化)")
     except ImportError as e:
+        optional_failed.append("decisions")
         logger.warning(f"⚠️ Failed to import decisions_async: {e}")
 
     # 决策跟踪（旧内存桩，/api/decision-tracking/*，保留兼容）
@@ -867,6 +892,7 @@ def register_routes():
         app.include_router(decision_tracking_router, prefix="/api")
         logger.info("✅ Registered: decision_tracking")
     except ImportError as e:
+        optional_failed.append("decision_tracking")
         logger.warning(f"⚠️ Failed to import decision_tracking_async: {e}")
 
     # 实时信号（包含新迁移的 3 个端点）
@@ -875,6 +901,7 @@ def register_routes():
         app.include_router(realtime_signals_router, prefix="/api")
         logger.info("✅ Registered: realtime_signals (包含 t1/generate, filter/executable, morning-scan)")
     except ImportError as e:
+        optional_failed.append("realtime_signals")
         logger.warning(f"⚠️ Failed to import realtime_signals_async: {e}")
 
     # 策略执行（新迁移的 3 个端点）
@@ -883,6 +910,7 @@ def register_routes():
         app.include_router(strategy_execution_router, prefix="/api")
         logger.info("✅ Registered: strategy_execution (execute, batch-execute, pipeline-execute)")
     except ImportError as e:
+        optional_failed.append("strategy_execution")
         logger.warning(f"⚠️ Failed to import strategy_execution_async: {e}")
 
     # 回测
@@ -891,6 +919,7 @@ def register_routes():
         app.include_router(backtest_router, prefix="/api")
         logger.info("✅ Registered: backtest")
     except ImportError as e:
+        optional_failed.append("backtest")
         logger.warning(f"⚠️ Failed to import backtest_async: {e}")
 
     # 回测（Flask backtest.py 迁移：results/run/strategy/combo + performance/*）
@@ -899,6 +928,7 @@ def register_routes():
         app.include_router(backtest_flask_parity_router)
         logger.info("✅ Registered: backtest (Flask parity 迁移)")
     except ImportError as e:
+        optional_failed.append("backtest_flask_parity")
         logger.warning(f"⚠️ Failed to import backtest_async flask_parity_router: {e}")
 
     # 回测历史
@@ -907,6 +937,7 @@ def register_routes():
         app.include_router(backtest_history_router)
         logger.info("✅ Registered: backtest_history")
     except ImportError as e:
+        optional_failed.append("backtest_history")
         logger.warning(f"⚠️ Failed to import backtest_history_async: {e}")
 
     # 指标管理
@@ -915,6 +946,7 @@ def register_routes():
         app.include_router(indicators_router)
         logger.info("✅ Registered: indicators")
     except ImportError as e:
+        optional_failed.append("indicators")
         logger.warning(f"⚠️ Failed to import indicators_async: {e}")
 
     # ===== P2 批量路由 =====
@@ -929,6 +961,7 @@ def register_routes():
         app.include_router(p1_batch_async.data_quality_router, prefix="/api")
         logger.info("✅ Registered: p1_batch (sentiment, discovery, game_alert, chan, data_quality)")
     except ImportError as e:
+        optional_failed.append("p1_batch")
         logger.warning(f"⚠️ Failed to import p1_batch_async: {e}")
 
     # P2 批量路由 - Batch 1
@@ -942,6 +975,7 @@ def register_routes():
         app.include_router(p2_batch1_async.agent_intelligence_router, prefix="/api")
         logger.info("✅ Registered: p2_batch1 (diagnosis, dividends, financial, fund_flow, automation, agent_intelligence)")
     except ImportError as e:
+        optional_failed.append("p2_batch1")
         logger.warning(f"⚠️ Failed to import p2_batch1_async: {e}")
 
     # P2 批量路由 - Batch 2
@@ -954,6 +988,7 @@ def register_routes():
         app.include_router(p2_batch2_async.utils_router, prefix="/api")
         logger.info("✅ Registered: p2_batch2 (ml_model, position, industry, concept, utils)")
     except ImportError as e:
+        optional_failed.append("p2_batch2")
         logger.warning(f"⚠️ Failed to import p2_batch2_async: {e}")
 
     # 定时任务管理
@@ -962,6 +997,7 @@ def register_routes():
         app.include_router(scheduler_router)
         logger.info("✅ Registered: scheduler")
     except ImportError as e:
+        optional_failed.append("scheduler")
         logger.warning(f"⚠️ Failed to import scheduler_async: {e}")
 
     # （scheduler_webhook 已在 CRITICAL 路由部分注册，此处跳过）
@@ -972,6 +1008,7 @@ def register_routes():
         app.include_router(agent_decision_router)
         logger.info("✅ Registered: agent_decision (Agent决策执行: /api/agent/*)")
     except ImportError as e:
+        optional_failed.append("agent_decision")
         logger.warning(f"⚠️ Failed to import agent_decision_async: {e}")
 
     # 任务管理（P4 迁移，jobs）
@@ -980,6 +1017,7 @@ def register_routes():
         app.include_router(jobs_router)
         logger.info("✅ Registered: jobs (P4 迁移)")
     except ImportError as e:
+        optional_failed.append("jobs")
         logger.warning(f"⚠️ Failed to import jobs_async: {e}")
 
     # ===== 游戏智能模块 =====
@@ -988,6 +1026,7 @@ def register_routes():
         app.include_router(game_intelligence_router)
         logger.info("✅ Registered: game.intelligence")
     except ImportError as e:
+        optional_failed.append("game.intelligence")
         logger.warning(f"⚠️ Failed to import game.intelligence: {e}")
 
     # 流水线杂项（cli/calibrate、cli/signal-generate、stocks/data-status，agent 迁移）
@@ -996,6 +1035,7 @@ def register_routes():
         app.include_router(pipeline_misc_router)
         logger.info("✅ Registered: pipeline_misc (agent 迁移)")
     except ImportError as e:
+        optional_failed.append("pipeline_misc")
         logger.warning(f"⚠️ Failed to import pipeline_misc_async: {e}")
 
     # 工具自省（tools/list、tools/describe，agent 迁移）
@@ -1004,6 +1044,7 @@ def register_routes():
         app.include_router(tools_router)
         logger.info("✅ Registered: tools (agent 迁移)")
     except ImportError as e:
+        optional_failed.append("tools")
         logger.warning(f"⚠️ Failed to import tools_async: {e}")
 
     # 训练报告（training/reports、training/history，agent 迁移）
