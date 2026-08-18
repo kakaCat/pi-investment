@@ -244,6 +244,18 @@ def test_write_run_to_database_persists_run():
         assert row is not None, "run record was not persisted"
         assert row["status"] == "success"
 
+        # The auto-created placeholder task must be DISABLED — the legacy
+        # SchedulerService polls `WHERE is_enabled = true`, and an enabled
+        # placeholder (cron 'managed_by_agent_os') gets executed as junk
+        # 'running' rows by the local scheduler (2026-08-18, task 276).
+        cursor.execute(
+            "SELECT is_enabled FROM quant.scheduler_tasks "
+            "WHERE name = 'pytest_webhook_probe'"
+        )
+        task_row = cursor.fetchone()
+        assert task_row is not None
+        assert task_row["is_enabled"] is False
+
         # cleanup
         cursor.execute("DELETE FROM quant.scheduler_runs WHERE result->>'probe' = 'true'")
         cursor.execute("DELETE FROM quant.scheduler_tasks WHERE name = 'pytest_webhook_probe'")

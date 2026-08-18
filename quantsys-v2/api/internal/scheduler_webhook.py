@@ -327,12 +327,15 @@ async def _write_run_to_database(
             task_id = row["id"]
         else:
             # Create a placeholder task for Agent OS jobs
-            # This maintains compatibility with existing schema
+            # This maintains compatibility with existing schema.
+            # MUST be is_enabled=false: the legacy SchedulerService polls
+            # `WHERE is_enabled = true` and would execute the placeholder
+            # (cron 'managed_by_agent_os') as junk runs (2026-08-18).
             cursor.execute(
                 """
                 INSERT INTO quant.scheduler_tasks
-                    (name, description, cron_expression, command, params)
-                VALUES (%s, %s, %s, %s, %s)
+                    (name, description, cron_expression, command, params, is_enabled)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (name) DO UPDATE SET updated_at = now()
                 RETURNING id
                 """,
@@ -342,6 +345,7 @@ async def _write_run_to_database(
                     "managed_by_agent_os",  # Placeholder cron
                     "agent_os_webhook",  # Placeholder command
                     json.dumps({"job_id": job_id, "managed_by": "agent_os"}),
+                    False,
                 ),
             )
             task_id = cursor.fetchone()["id"]
