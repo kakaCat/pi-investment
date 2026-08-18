@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from api.internal.scheduler_webhook import register_job_handler
+from api.internal.scheduler_webhook import register_job_handler, JOB_HANDLERS
 
 logger = logging.getLogger(__name__)
 
