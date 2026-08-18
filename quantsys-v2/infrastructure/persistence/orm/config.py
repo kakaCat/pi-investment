@@ -65,7 +65,7 @@ def init_orm(
 
     # 解析DSN
     if dsn is None:
-        from infrastructure.persistence.database.base_repository import _resolve_db_dsn
+        from infrastructure.persistence.database.engine import _resolve_db_dsn
         dsn = _resolve_db_dsn()
 
     if not dsn:

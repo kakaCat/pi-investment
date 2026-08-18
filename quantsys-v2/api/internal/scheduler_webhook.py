@@ -24,6 +24,8 @@ Usage:
 """
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -31,6 +33,7 @@ from typing import Any, Callable, Dict
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +163,19 @@ async def scheduler_webhook(
 # ==================== Background Execution ====================
 
 
+def _run_handler_blocking(handler: Callable, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """Run an async job handler in a worker thread with its own event loop.
+
+    Job handlers do blocking synchronous work (HTTP requests, psycopg2,
+    data providers) inside `async def` bodies. Awaiting them directly on
+    the FastAPI event loop stalls the entire service for the job's whole
+    duration — including the webhook response back to Agent OS (2026-08-18
+    incident: 10-minute data quality job made Agent OS time out and
+    misrecord a successful job as failed).
+    """
+    return asyncio.run(handler(metadata))
+
+
 async def execute_job(handler: Callable, payload: WebhookPayload):
     """Execute job handler and report results to Agent OS.
 
@@ -183,8 +199,9 @@ async def execute_job(handler: Callable, payload: WebhookPayload):
     )
 
     try:
-        # Call the job handler with metadata
-        result = await handler(payload.metadata)
+        # Call the job handler with metadata — off the event loop, since
+        # handlers do blocking sync work (see _run_handler_blocking)
+        result = await run_in_threadpool(_run_handler_blocking, handler, payload.metadata)
         status = "success"
         error_msg = None
         logger.info(
@@ -229,24 +246,33 @@ async def execute_job(handler: Callable, payload: WebhookPayload):
             f"Failed to write run record to local database: {e}", exc_info=True
         )
 
-    # Report back to Agent OS
+    # Report back to Agent OS — use the scheduler's own run_id (carried in
+    # metadata by the executor) so the scheduler's run record reflects the
+    # REAL job outcome, not just "webhook accepted". Older executors don't
+    # send run_id; skip reporting instead of hitting a wrong URL.
+    agent_run_id = payload.metadata.get("run_id")
+    if not agent_run_id:
+        logger.warning(
+            f"No run_id in metadata for job '{payload.job_name}' — "
+            "skipping result report to Agent OS"
+        )
+        return
+
     try:
         from application.services.agent_os_client import get_agent_os_client
 
         agent_os_client = get_agent_os_client()
         await agent_os_client.report_job_result(
-            payload.job_id,
-            run_id,
+            agent_run_id,
             {
                 "status": status,
-                "started_at": start_time.isoformat(),
-                "completed_at": end_time.isoformat(),
-                "error_message": error_msg,
+                "output": json.dumps(result) if result else "",
+                "error": error_msg or "",
             },
         )
         logger.debug(
-            f"Reported result to Agent OS: job_id={payload.job_id}, "
-            f"run_id={run_id}, status={status}"
+            f"Reported result to Agent OS: run_id={agent_run_id}, "
+            f"status={status}"
         )
     except Exception as e:
         logger.error(f"Failed to report job result to Agent OS: {e}", exc_info=True)
@@ -301,12 +327,15 @@ async def _write_run_to_database(
             task_id = row["id"]
         else:
             # Create a placeholder task for Agent OS jobs
-            # This maintains compatibility with existing schema
+            # This maintains compatibility with existing schema.
+            # MUST be is_enabled=false: the legacy SchedulerService polls
+            # `WHERE is_enabled = true` and would execute the placeholder
+            # (cron 'managed_by_agent_os') as junk runs (2026-08-18).
             cursor.execute(
                 """
                 INSERT INTO quant.scheduler_tasks
-                    (name, description, cron_expression, command, params)
-                VALUES (%s, %s, %s, %s, %s)
+                    (name, description, cron_expression, command, params, is_enabled)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (name) DO UPDATE SET updated_at = now()
                 RETURNING id
                 """,
@@ -316,22 +345,24 @@ async def _write_run_to_database(
                     "managed_by_agent_os",  # Placeholder cron
                     "agent_os_webhook",  # Placeholder command
                     json.dumps({"job_id": job_id, "managed_by": "agent_os"}),
+                    False,
                 ),
             )
             task_id = cursor.fetchone()["id"]
 
-        # Insert run record
+        # Insert run record — id is a bigint identity column, let the
+        # sequence assign it (the uuid run_id must NOT go into it;
+        # 2026-08-18: InvalidTextRepresentation killed every local write)
         duration_ms = int((completed_at - started_at).total_seconds() * 1000)
         result_json = json.dumps(result) if result else None
 
         cursor.execute(
             """
             INSERT INTO quant.scheduler_runs
-                (id, task_id, status, started_at, completed_at, duration_ms, result, error)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                (task_id, status, started_at, completed_at, duration_ms, result, error)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
             (
-                run_id,
                 task_id,
                 status,
                 started_at,

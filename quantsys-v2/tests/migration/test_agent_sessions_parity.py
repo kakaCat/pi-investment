@@ -28,13 +28,11 @@ def sessions_tables():
 
 
 def _clean_tables():
-    from infrastructure.persistence.database.base_repository import BaseRepository
-    repo = BaseRepository()
-    cursor = repo._get_cursor()
-    cursor.execute(DDL)
-    cursor.execute("DELETE FROM quant.agent_session_events")
-    cursor.execute("DELETE FROM quant.agent_sessions")
-    repo.db.commit()
+    from infrastructure.persistence.database.engine import db_cursor
+    with db_cursor(commit=True) as cursor:
+        cursor.execute(DDL)
+        cursor.execute("DELETE FROM quant.agent_session_events")
+        cursor.execute("DELETE FROM quant.agent_sessions")
 
 
 @pytest.fixture

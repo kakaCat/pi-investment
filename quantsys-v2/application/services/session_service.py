@@ -7,7 +7,6 @@ import json
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
-from infrastructure.persistence.database.base_repository import BaseRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -31,141 +30,138 @@ class SessionService:
         Returns:
             {accepted, duplicates, skipped}
         """
-        repo = BaseRepository()
-        cursor = repo._get_cursor()
-        accepted = duplicates = skipped = 0
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor(commit=True) as cursor:
+            accepted = duplicates = skipped = 0
 
-        for ev in events:
-            try:
-                key = ev["session_key"]
-                seq = int(ev["seq"])
-                etype = ev["event_type"]
-            except (KeyError, TypeError, ValueError):
-                skipped += 1
-                continue
+            for ev in events:
+                try:
+                    key = ev["session_key"]
+                    seq = int(ev["seq"])
+                    etype = ev["event_type"]
+                except (KeyError, TypeError, ValueError):
+                    skipped += 1
+                    continue
 
-            payload = ev.get("payload") or {}
-            created_at = ev.get("created_at")
+                payload = ev.get("payload") or {}
+                created_at = ev.get("created_at")
 
-            # 先确保 session 行存在（事件表有外键）
-            channel = payload.get("channel", "unknown")
-            peer_id = str(payload.get("peerId", ""))
-            agent_id = payload.get("agentId", "main")
-            cursor.execute(
-                """
-                INSERT INTO quant.agent_sessions (session_key, channel, peer_id, agent_id, last_active_at)
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (session_key) DO UPDATE SET
-                  last_active_at = GREATEST(quant.agent_sessions.last_active_at, EXCLUDED.last_active_at)
-                """,
-                (key, channel, peer_id, agent_id, created_at),
-            )
-
-            cursor.execute(
-                """
-                INSERT INTO quant.agent_session_events (session_key, seq, event_type, payload, created_at)
-                VALUES (%s, %s, %s, %s::jsonb, %s)
-                ON CONFLICT (session_key, seq) DO NOTHING
-                RETURNING id
-                """,
-                (key, seq, etype, json.dumps(payload), created_at),
-            )
-            row = cursor.fetchone()
-            if row is None:
-                duplicates += 1
-                continue
-
-            accepted += 1
-            counter = _COUNTER_MAP.get(etype)
-            if counter:
+                # 先确保 session 行存在（事件表有外键）
+                channel = payload.get("channel", "unknown")
+                peer_id = str(payload.get("peerId", ""))
+                agent_id = payload.get("agentId", "main")
                 cursor.execute(
-                    f"UPDATE quant.agent_sessions SET {counter} = {counter} + 1 WHERE session_key = %s",
-                    (key,),
+                    """
+                    INSERT INTO quant.agent_sessions (session_key, channel, peer_id, agent_id, last_active_at)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (session_key) DO UPDATE SET
+                      last_active_at = GREATEST(quant.agent_sessions.last_active_at, EXCLUDED.last_active_at)
+                    """,
+                    (key, channel, peer_id, agent_id, created_at),
                 )
 
-        repo.db.commit()
+                cursor.execute(
+                    """
+                    INSERT INTO quant.agent_session_events (session_key, seq, event_type, payload, created_at)
+                    VALUES (%s, %s, %s, %s::jsonb, %s)
+                    ON CONFLICT (session_key, seq) DO NOTHING
+                    RETURNING id
+                    """,
+                    (key, seq, etype, json.dumps(payload), created_at),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    duplicates += 1
+                    continue
+
+                accepted += 1
+                counter = _COUNTER_MAP.get(etype)
+                if counter:
+                    cursor.execute(
+                        f"UPDATE quant.agent_sessions SET {counter} = {counter} + 1 WHERE session_key = %s",
+                        (key,),
+                    )
+
         return {"accepted": accepted, "duplicates": duplicates, "skipped": skipped}
 
     def list_sessions(self, channel: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
-        repo = BaseRepository()
-        cursor = repo._get_cursor()
-        if channel:
-            cursor.execute(
-                "SELECT * FROM quant.agent_sessions WHERE channel = %s ORDER BY last_active_at DESC LIMIT %s",
-                (channel, limit),
-            )
-        else:
-            cursor.execute(
-                "SELECT * FROM quant.agent_sessions ORDER BY last_active_at DESC LIMIT %s",
-                (limit,),
-            )
-        return [dict(r) for r in cursor.fetchall()]
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor() as cursor:
+            if channel:
+                cursor.execute(
+                    "SELECT * FROM quant.agent_sessions WHERE channel = %s ORDER BY last_active_at DESC LIMIT %s",
+                    (channel, limit),
+                )
+            else:
+                cursor.execute(
+                    "SELECT * FROM quant.agent_sessions ORDER BY last_active_at DESC LIMIT %s",
+                    (limit,),
+                )
+            return [dict(r) for r in cursor.fetchall()]
 
     def get_session(self, session_key: str) -> Optional[Dict[str, Any]]:
-        repo = BaseRepository()
-        cursor = repo._get_cursor()
-        cursor.execute("SELECT * FROM quant.agent_sessions WHERE session_key = %s", (session_key,))
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor() as cursor:
+            cursor.execute("SELECT * FROM quant.agent_sessions WHERE session_key = %s", (session_key,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
 
     def get_events(self, session_key: str, event_type: Optional[str] = None,
                    limit: int = 200, offset: int = 0) -> List[Dict[str, Any]]:
-        repo = BaseRepository()
-        cursor = repo._get_cursor()
-        if event_type:
-            cursor.execute(
-                """SELECT seq, event_type, payload, created_at FROM quant.agent_session_events
-                   WHERE session_key = %s AND event_type = %s ORDER BY seq LIMIT %s OFFSET %s""",
-                (session_key, event_type, limit, offset),
-            )
-        else:
-            cursor.execute(
-                """SELECT seq, event_type, payload, created_at FROM quant.agent_session_events
-                   WHERE session_key = %s ORDER BY seq LIMIT %s OFFSET %s""",
-                (session_key, limit, offset),
-            )
-        return [dict(r) for r in cursor.fetchall()]
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor() as cursor:
+            if event_type:
+                cursor.execute(
+                    """SELECT seq, event_type, payload, created_at FROM quant.agent_session_events
+                       WHERE session_key = %s AND event_type = %s ORDER BY seq LIMIT %s OFFSET %s""",
+                    (session_key, event_type, limit, offset),
+                )
+            else:
+                cursor.execute(
+                    """SELECT seq, event_type, payload, created_at FROM quant.agent_session_events
+                       WHERE session_key = %s ORDER BY seq LIMIT %s OFFSET %s""",
+                    (session_key, limit, offset),
+                )
+            return [dict(r) for r in cursor.fetchall()]
 
     def get_diagnosis(self, session_key: str) -> Dict[str, Any]:
         """诊断：工具成功率、耗时、错误聚类、关联决策 + 洞察解读"""
-        repo = BaseRepository()
-        cursor = repo._get_cursor()
-
-        cursor.execute(
-            """SELECT
-                 COUNT(*) FILTER (WHERE (payload->>'success')::boolean) AS ok,
-                 COUNT(*) AS total,
-                 COALESCE(AVG((payload->>'durationMs')::numeric), 0) AS avg_ms,
-                 COALESCE(MAX((payload->>'durationMs')::numeric), 0) AS max_ms
-               FROM quant.agent_session_events
-               WHERE session_key = %s AND event_type = 'tool_call'""",
-            (session_key,),
-        )
-        tool = dict(cursor.fetchone())
-        total = int(tool.get("total") or 0)
-        ok = int(tool.get("ok") or 0)
-        success_rate = (ok / total) if total else None
-
-        cursor.execute(
-            """SELECT payload->>'message' AS message, COUNT(*) AS cnt
-               FROM quant.agent_session_events
-               WHERE session_key = %s AND event_type = 'error'
-               GROUP BY message ORDER BY cnt DESC LIMIT 5""",
-            (session_key,),
-        )
-        errors = [dict(r) for r in cursor.fetchall()]
-
-        decisions: List[Dict[str, Any]] = []
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor() as cursor:
             cursor.execute(
-                """SELECT decision_id, decision_type, reasoning, evaluation_status, success
-                   FROM quant.agent_decisions WHERE session_key = %s ORDER BY created_at DESC LIMIT 20""",
+                """SELECT
+                     COUNT(*) FILTER (WHERE (payload->>'success')::boolean) AS ok,
+                     COUNT(*) AS total,
+                     COALESCE(AVG((payload->>'durationMs')::numeric), 0) AS avg_ms,
+                     COALESCE(MAX((payload->>'durationMs')::numeric), 0) AS max_ms
+                   FROM quant.agent_session_events
+                   WHERE session_key = %s AND event_type = 'tool_call'""",
                 (session_key,),
             )
-            decisions = [dict(r) for r in cursor.fetchall()]
-        except Exception as e:
-            logger.warning(f"查询关联决策失败（不影响诊断）: {e}")
-            repo.db.rollback()
+            tool = dict(cursor.fetchone())
+            total = int(tool.get("total") or 0)
+            ok = int(tool.get("ok") or 0)
+            success_rate = (ok / total) if total else None
+
+            cursor.execute(
+                """SELECT payload->>'message' AS message, COUNT(*) AS cnt
+                   FROM quant.agent_session_events
+                   WHERE session_key = %s AND event_type = 'error'
+                   GROUP BY message ORDER BY cnt DESC LIMIT 5""",
+                (session_key,),
+            )
+            errors = [dict(r) for r in cursor.fetchall()]
+
+            decisions: List[Dict[str, Any]] = []
+            try:
+                cursor.execute(
+                    """SELECT decision_id, decision_type, reasoning, evaluation_status, success
+                       FROM quant.agent_decisions WHERE session_key = %s ORDER BY created_at DESC LIMIT 20""",
+                    (session_key,),
+                )
+                decisions = [dict(r) for r in cursor.fetchall()]
+            except Exception as e:
+                logger.warning(f"查询关联决策失败（不影响诊断）: {e}")
 
         insight = self._build_insight(success_rate, total, tool, errors)
 
@@ -187,22 +183,22 @@ class SessionService:
         Returns:
             {analysis, generated_at, cached}
         """
-        repo = BaseRepository()
-        cursor = repo._get_cursor()
-
+        from infrastructure.persistence.database.engine import db_cursor
+        
         # 缓存命中
         if not refresh:
-            cursor.execute(
-                "SELECT ai_diagnosis, ai_diagnosis_at FROM quant.agent_sessions WHERE session_key = %s",
-                (session_key,),
-            )
-            row = cursor.fetchone()
-            if row and row['ai_diagnosis']:
-                return {
-                    'analysis': row['ai_diagnosis'].get('analysis', ''),
-                    'generated_at': row['ai_diagnosis_at'].isoformat() if row['ai_diagnosis_at'] else None,
-                    'cached': True,
-                }
+            with db_cursor() as cursor:
+                cursor.execute(
+                    "SELECT ai_diagnosis, ai_diagnosis_at FROM quant.agent_sessions WHERE session_key = %s",
+                    (session_key,),
+                )
+                row = cursor.fetchone()
+                if row and row['ai_diagnosis']:
+                    return {
+                        'analysis': row['ai_diagnosis'].get('analysis', ''),
+                        'generated_at': row['ai_diagnosis_at'].isoformat() if row['ai_diagnosis_at'] else None,
+                        'cached': True,
+                    }
 
         events = self.get_events(session_key, limit=500)
         prompt = self._build_diagnosis_prompt(session_key, events)
@@ -211,13 +207,13 @@ class SessionService:
         analysis = chat_completion(prompt)
 
         now = datetime.now(timezone.utc)
-        cursor.execute(
-            """UPDATE quant.agent_sessions
-               SET ai_diagnosis = %s::jsonb, ai_diagnosis_at = %s
-               WHERE session_key = %s""",
-            (json.dumps({'analysis': analysis}), now, session_key),
-        )
-        repo.db.commit()
+        with db_cursor(commit=True) as cursor:
+            cursor.execute(
+                """UPDATE quant.agent_sessions
+                   SET ai_diagnosis = %s::jsonb, ai_diagnosis_at = %s
+                   WHERE session_key = %s""",
+                (json.dumps({'analysis': analysis}), now, session_key),
+            )
 
         return {'analysis': analysis, 'generated_at': now.isoformat(), 'cached': False}
 

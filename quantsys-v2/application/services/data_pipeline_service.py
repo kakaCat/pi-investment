@@ -27,32 +27,28 @@ def load_trading_calendar_from_db(exchange: str):
     Returns:
         Set[date]: 交易日集合
     """
-    from infrastructure.persistence.database.base_repository import BaseRepository
+    from infrastructure.persistence.database.engine import db_cursor
 
-    repo = BaseRepository()
-    if not repo.db:
+    try:
+        with db_cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT trade_date
+                FROM quant.trading_calendar
+                WHERE exchange = %s AND is_trading_day = TRUE
+                """,
+                (exchange,),
+            )
+            results = cursor.fetchall()
+            
+            if results and isinstance(results[0], dict):
+                return {row['trade_date'] for row in results}
+            if results:
+                return {row[0] for row in results}
+            return set()
+    except Exception:
         logger.warning("Database connection not available. Using empty calendar.")
         return set()
-
-    cursor = repo.cursor()
-    try:
-        cursor.execute(
-            """
-            SELECT trade_date
-            FROM quant.trading_calendar
-            WHERE exchange = %s AND is_trading_day = TRUE
-            """,
-            (exchange,),
-        )
-        results = cursor.fetchall()
-    finally:
-        cursor.close()
-
-    if results and isinstance(results[0], dict):
-        return {row['trade_date'] for row in results}
-    if results:
-        return {row[0] for row in results}
-    return set()
 
 
 class DataPipelineService:

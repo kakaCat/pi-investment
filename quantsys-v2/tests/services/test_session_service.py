@@ -1,7 +1,7 @@
 """SessionService 测试：事件摄入幂等、计数器、诊断聚合"""
 import pytest
 from datetime import datetime, timezone
-from infrastructure.persistence.database.base_repository import BaseRepository
+from infrastructure.persistence.database.engine import db_cursor
 from application.services.session_service import SessionService
 
 DDL = """
@@ -23,12 +23,10 @@ CREATE TABLE IF NOT EXISTS quant.agent_session_events (
 
 @pytest.fixture
 def service():
-    repo = BaseRepository()
-    cursor = repo._get_cursor()
-    cursor.execute(DDL)
-    cursor.execute("DELETE FROM quant.agent_session_events")
-    cursor.execute("DELETE FROM quant.agent_sessions")
-    repo.db.commit()
+    with db_cursor(commit=True) as cursor:
+        cursor.execute(DDL)
+        cursor.execute("DELETE FROM quant.agent_session_events")
+        cursor.execute("DELETE FROM quant.agent_sessions")
     yield SessionService()
 
 

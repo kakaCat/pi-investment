@@ -14,7 +14,7 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from application.services.agent_os_client import get_agent_os_client
+from application.services.agent_os_client import close_agent_os_client, get_agent_os_client
 
 logging.basicConfig(
     level=logging.INFO,
@@ -475,7 +475,11 @@ async def register_all_jobs():
         return success_count > 0 or skip_count > 0
 
     finally:
-        await client.close()
+        # Use the module-level cleanup so the global singleton is reset —
+        # a bare client.close() would leave get_agent_os_client()
+        # returning a dead client to later callers (e.g. job result
+        # reporting from scheduler_webhook).
+        await close_agent_os_client()
 
 
 # ==================== CLI Entry Point ====================

@@ -15,15 +15,17 @@ import (
 )
 
 type HTTPServer struct {
-	service      *service.NotificationService
-	skillHandler *handlers.SkillHandler
-	server       *http.Server
+	service          *service.NotificationService
+	skillHandler     *handlers.SkillHandler
+	schedulerHandler *SchedulerHandler
+	server           *http.Server
 }
 
-func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.SkillHandler) *HTTPServer {
+func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.SkillHandler, schedulerHandler *SchedulerHandler) *HTTPServer {
 	return &HTTPServer{
-		service:      service,
-		skillHandler: skillHandler,
+		service:          service,
+		skillHandler:     skillHandler,
+		schedulerHandler: schedulerHandler,
 	}
 }
 
@@ -46,6 +48,11 @@ func (s *HTTPServer) Start(addr string) error {
 	// Skill endpoints
 	if s.skillHandler != nil {
 		s.skillHandler.RegisterRoutes(api)
+	}
+
+	// Scheduler endpoints
+	if s.schedulerHandler != nil {
+		s.schedulerHandler.RegisterRoutes(api)
 	}
 
 	s.server = &http.Server{
@@ -143,14 +150,4 @@ func (s *HTTPServer) handleListProviders(w http.ResponseWriter, r *http.Request)
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"providers": providers,
 	})
-}
-
-func respondJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
-}
-
-func respondError(w http.ResponseWriter, status int, message string) {
-	respondJSON(w, status, map[string]string{"error": message})
 }

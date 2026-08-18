@@ -1,18 +1,16 @@
 """agent sessions API 路由测试"""
 import pytest
 from adapters.inbound.api.server import create_app
-from infrastructure.persistence.database.base_repository import BaseRepository
+from infrastructure.persistence.database.engine import db_cursor
 from tests.services.test_session_service import DDL
 
 
 @pytest.fixture
 def client():
-    repo = BaseRepository()
-    cursor = repo._get_cursor()
-    cursor.execute(DDL)
-    cursor.execute("DELETE FROM quant.agent_session_events")
-    cursor.execute("DELETE FROM quant.agent_sessions")
-    repo.db.commit()
+    with db_cursor(commit=True) as cursor:
+        cursor.execute(DDL)
+        cursor.execute("DELETE FROM quant.agent_session_events")
+        cursor.execute("DELETE FROM quant.agent_sessions")
 
     app = create_app()
     app.config["TESTING"] = True

@@ -5,12 +5,77 @@ SQLAlchemy Engine 全局单例 - 统一数据库连接管理
 异步路径见 async_engine.py。
 """
 import os
+import sys
+import re
 import logging
 from typing import Optional
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.pool import QueuePool
 
 logger = logging.getLogger(__name__)
+
+# Test database suffix for pytest safety checks
+TEST_DB_SUFFIX = "_test"
+
+__all__ = ["get_engine", "init_engine", "dispose_engine", "get_pool_status", "db_cursor", "_resolve_db_dsn", "TEST_DB_SUFFIX"]
+
+
+def _resolve_db_dsn():
+    """
+    Resolve database DSN from environment variables.
+
+    Priority:
+    1. QUANT_DATABASE_URL / DATABASE_URL / POSTGRES_DSN (full connection string)
+    2. PG* environment variables (PGDATABASE, PGHOST, PGPORT, PGUSER, PGPASSWORD)
+
+    Safety: When running under pytest, validates that database name ends with '_test'
+    to prevent accidental connection to production database. This applies to both
+    full DSN strings and PG* environment variables.
+
+    Returns:
+        str: PostgreSQL connection DSN, or None if no configuration found
+
+    Raises:
+        RuntimeError: If pytest environment detected but database is not a test database
+    """
+    dsn = (
+        os.environ.get("QUANT_DATABASE_URL")
+        or os.environ.get("DATABASE_URL")
+        or os.environ.get("POSTGRES_DSN")
+    )
+    if not dsn:
+        pgdatabase = os.environ.get("PGDATABASE")
+        if pgdatabase:
+            pghost = os.environ.get("PGHOST", "127.0.0.1")
+            pgport = os.environ.get("PGPORT", "5432")
+            pguser = os.environ.get("PGUSER", "")
+            pgpassword = os.environ.get("PGPASSWORD", "")
+            auth = f"{pguser}:{pgpassword}@" if pguser else ""
+            dsn = f"postgresql://{auth}{pghost}:{pgport}/{pgdatabase}"
+
+    # 安全检查：pytest 环境必须使用测试库
+    # 这是第二层防护，防止绕过 conftest.py 的情况
+    if dsn and "pytest" in sys.modules:
+        # Extract database name from the ACTUAL DSN being used (not env var)
+        # This prevents bypass via DATABASE_URL=prod + PGDATABASE=fake_test
+        # Parse from DSN first: postgresql://user:pass@host:port/dbname
+        # Handles both with and without query parameters
+        match = re.search(r'://[^/]+/([^/?]+)(?:\?|$)', dsn)
+        db_name = match.group(1) if match else ""
+
+        # If DSN parsing failed and we built DSN from PGDATABASE, use PGDATABASE
+        if not db_name and "PGDATABASE" in os.environ:
+            db_name = os.environ["PGDATABASE"]
+
+        if db_name and not db_name.endswith(TEST_DB_SUFFIX):
+            raise RuntimeError(
+                f"Security check failed: Detected pytest environment but "
+                f"database name '{db_name}' is not a test database. "
+                f"Test database name must end with '{TEST_DB_SUFFIX}'. "
+                f"This prevents accidental connection to production database during tests."
+            )
+
+    return dsn
 
 _engine: Optional[Engine] = None
 _engine_initialized = False
@@ -64,7 +129,6 @@ def init_engine(
         return _engine
 
     if dsn is None:
-        from infrastructure.persistence.database.base_repository import _resolve_db_dsn
         dsn = _resolve_db_dsn()
 
     if not dsn:
@@ -154,3 +218,40 @@ def get_pool_status() -> dict:
         "overflow": pool.overflow(),
         "total": pool.size() + pool.overflow(),
     }
+
+
+# ==================== db_cursor: per-operation 游标（替代 legacy BaseRepository） ====================
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def db_cursor(commit: bool = False):
+    """单次操作级数据库游标（RealDictCursor），with 块结束立即归还连接池。
+
+    替代 legacy BaseRepository 的实例级持连接模式。
+    - commit=False（默认，读操作）：退出时显式 rollback（psycopg2 默认事务模式，
+      SELECT 也开事务，不 rollback 归还会留 idle-in-transaction 残影）
+    - commit=True（写操作）：正常退出 commit；异常 rollback 并重抛
+
+    行类型为 psycopg2 RealDictRow（dict 子类），与旧 BaseRepository 完全一致。
+    """
+    from psycopg2.extras import RealDictCursor
+
+    conn = get_engine().connect()
+    try:
+        raw = conn.connection  # 底层 psycopg2 connection（与旧 BaseRepository 同路径）
+        cursor = raw.cursor(cursor_factory=RealDictCursor)
+        try:
+            yield cursor
+            if commit:
+                raw.commit()
+            else:
+                raw.rollback()
+        except Exception:
+            raw.rollback()
+            raise
+        finally:
+            cursor.close()
+    finally:
+        conn.close()

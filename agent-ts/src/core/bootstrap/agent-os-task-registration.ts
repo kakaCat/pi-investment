@@ -12,7 +12,23 @@ import { logger } from '../../infrastructure/logging/index.js';
  * Agent OS: SEC MIN HOUR DOM MON DOW
  */
 function convertCronTo6Field(cron5: string): string {
-  return `0 ${cron5}`;
+  const trimmed = cron5.trim();
+  const fields = trimmed.split(/\s+/);
+
+  if (fields.length === 5) {
+    // Standard 5-field cron, prepend "0" for seconds
+    return `0 ${trimmed}`;
+  } else if (fields.length === 6) {
+    // Already 6-field, return as-is
+    logger.info('[TaskRegistration] Cron expression already has 6 fields', { cron: trimmed });
+    return trimmed;
+  } else {
+    // Invalid format
+    throw new Error(
+      `Invalid cron expression: expected 5 or 6 fields, got ${fields.length}. ` +
+      `Expression: "${trimmed}"`
+    );
+  }
 }
 
 interface TaskRegistrationOptions {

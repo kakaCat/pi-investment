@@ -26,6 +26,7 @@ from adapters.outbound.repositories import (
 
 from infrastructure.persistence.orm import close_session
 from application.services.financial_data_service import FinancialDataService
+from domain.exceptions import DatabaseError, ExternalServiceError
 
 logger = structlog.get_logger(__name__)
 
@@ -84,9 +85,11 @@ class DataService:
                 'latest_factors': latest_factors,
                 'signals': signals,
             }
+        except DatabaseError:
+            raise
         except Exception as e:
-            logger.error(f"Error getting stock full data: {e}")
-            return {}
+            logger.exception(f"Unexpected error getting stock full data for {symbol}: {e}")
+            raise DatabaseError(f"Failed to get stock full data for {symbol}") from e
 
     def get_backtest_workflow_data(self, symbol: str, start_date: str, end_date: str, period: Optional[str] = None) -> Dict:
         """获取回测工作流数据（K线 + 股票信息）
@@ -109,13 +112,15 @@ class DataService:
             klines = klines_df.to_dicts() if isinstance(klines_df, pl.DataFrame) and not klines_df.is_empty() else []
 
             # 获取财务数据（用于PE/PB回测）
+            # 注意：financial_service.get_financial_data 抛的是普通 provider 异常，
+            # 这里必须保持宽捕获做降级容忍（财务数据缺失不应拖垮整个回测工作流）
             financials = []
             try:
                 financials_data = self.financial_service.get_financial_data(symbol, start_date, end_date)
                 if financials_data and 'data' in financials_data:
                     financials = financials_data['data']
             except Exception as e:
-                logger.warning(f"Failed to get financial data for {symbol}: {e}")
+                logger.warning(f"Failed to get financial data for {symbol}, degrade to empty: {e}")
 
             return {
                 'symbol': symbol,
@@ -124,9 +129,13 @@ class DataService:
                 'financials': financials,
                 'period': period or 'daily',
             }
+        except DatabaseError:
+            raise
+        except ExternalServiceError:
+            raise
         except Exception as e:
-            logger.error(f"Error getting backtest workflow data for {symbol}: {e}")
-            return {'symbol': symbol, 'klines': [], 'stock_info': None, 'financials': []}
+            logger.exception(f"Unexpected error getting backtest workflow data for {symbol}: {e}")
+            raise DatabaseError(f"Failed to get backtest workflow data for {symbol}") from e
 
     def check_data_integrity(self, symbol: Optional[str] = None, check_type: str = 'all') -> Dict:
         """检查数据完整性
@@ -197,13 +206,11 @@ class DataService:
 
             return result
 
+        except DatabaseError:
+            raise
         except Exception as e:
-            logger.error(f"Error checking data integrity: {e}")
-            return {
-                'status': 'error',
-                'error': str(e),
-                'checked_at': datetime.now().isoformat()
-            }
+            logger.exception(f"Unexpected error checking data integrity: {e}")
+            raise DatabaseError(f"Failed to check data integrity") from e
 
     def get_financial_statements(self, symbol: str, statement_type: str = 'all', periods: int = 4) -> Dict:
         """获取财务报表数据
@@ -247,12 +254,13 @@ class DataService:
 
             return result
 
+        except ExternalServiceError:
+            raise
+        except DatabaseError:
+            raise
         except Exception as e:
-            logger.error(f"Error getting financial statements for {symbol}: {e}")
-            return {
-                'error': f'获取财务数据失败: {str(e)}',
-                'symbol': symbol
-            }
+            logger.exception(f"Unexpected error getting financial statements for {symbol}: {e}")
+            raise ExternalServiceError(f"Failed to get financial statements for {symbol}") from e
 
 
 # 向后兼容

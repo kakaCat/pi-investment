@@ -88,8 +88,7 @@ async def lifespan(app: FastAPI):
             try:
                 logger.info("🔄 Registering jobs to Agent OS Scheduler...")
                 from tools.register_jobs_to_agent_os import register_all_jobs
-                import asyncio
-                success = asyncio.run(register_all_jobs())
+                success = await register_all_jobs()
                 if success:
                     logger.info("✅ Agent OS Scheduler integration enabled")
                 else:
@@ -327,16 +326,94 @@ def install_sync_session_cleanup() -> None:
 
 # ==================== 全局异常处理 ====================
 
+# 导入业务异常类型
+from domain.exceptions import (
+    DomainError, NotFoundError, ValidationError, ConflictError,
+    ExternalServiceError, DatabaseError, AuthenticationError, AuthorizationError
+)
+
+@app.exception_handler(NotFoundError)
+async def not_found_handler(request: Request, exc: NotFoundError):
+    """资源不存在异常处理器"""
+    logger.warning(f"Not found: {exc}", path=request.url.path)
+    return JSONResponse(
+        status_code=404,
+        content={"success": False, "error": str(exc)}
+    )
+
+@app.exception_handler(ValidationError)
+async def validation_handler(request: Request, exc: ValidationError):
+    """参数校验失败异常处理器"""
+    logger.warning(f"Validation failed: {exc}", path=request.url.path)
+    return JSONResponse(
+        status_code=422,
+        content={"success": False, "error": str(exc)}
+    )
+
+@app.exception_handler(ConflictError)
+async def conflict_handler(request: Request, exc: ConflictError):
+    """资源冲突异常处理器"""
+    logger.warning(f"Conflict: {exc}", path=request.url.path)
+    return JSONResponse(
+        status_code=409,
+        content={"success": False, "error": str(exc)}
+    )
+
+@app.exception_handler(ExternalServiceError)
+async def external_service_handler(request: Request, exc: ExternalServiceError):
+    """外部服务错误异常处理器"""
+    logger.error(f"External service error: {exc}", path=request.url.path)
+    return JSONResponse(
+        status_code=502,
+        content={"success": False, "error": "External service unavailable"}
+    )
+
+@app.exception_handler(DatabaseError)
+async def database_error_handler(request: Request, exc: DatabaseError):
+    """数据库错误异常处理器"""
+    logger.error(f"Database error: {exc}", path=request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"success": False, "error": "Database operation failed"}
+    )
+
+@app.exception_handler(AuthenticationError)
+async def authentication_handler(request: Request, exc: AuthenticationError):
+    """认证失败异常处理器"""
+    logger.warning(f"Authentication failed: {exc}", path=request.url.path)
+    return JSONResponse(
+        status_code=401,
+        content={"success": False, "error": str(exc)}
+    )
+
+@app.exception_handler(AuthorizationError)
+async def authorization_handler(request: Request, exc: AuthorizationError):
+    """权限不足异常处理器"""
+    logger.warning(f"Authorization failed: {exc}", path=request.url.path)
+    return JSONResponse(
+        status_code=403,
+        content={"success": False, "error": str(exc)}
+    )
+
+@app.exception_handler(DomainError)
+async def domain_error_handler(request: Request, exc: DomainError):
+    """领域层异常处理器（兜底其他 DomainError 子类）"""
+    logger.warning(f"Domain error: {exc}", path=request.url.path)
+    return JSONResponse(
+        status_code=400,
+        content={"success": False, "error": str(exc)}
+    )
+
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """全局异常处理器"""
-    logger.exception(f"Unhandled exception: {exc}")
+async def unexpected_exception_handler(request: Request, exc: Exception):
+    """全局异常处理器 - 只捕获真正未预期的异常"""
+    logger.exception(f"Unexpected error: {exc}", path=request.url.path)
+    # 生产环境不暴露内部错误细节
     return JSONResponse(
         status_code=500,
         content={
             "success": False,
-            "error": "Internal server error",
-            "detail": str(exc)
+            "error": "Internal server error"
         }
     )
 

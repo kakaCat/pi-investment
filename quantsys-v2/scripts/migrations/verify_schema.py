@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from infrastructure.persistence.database.base_repository import _resolve_db_dsn
+from infrastructure.persistence.database.engine import _resolve_db_dsn
 
 
 def verify_schema():

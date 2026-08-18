@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"os/user"
 	"sync"
 
 	"github.com/spf13/viper"
@@ -87,6 +89,11 @@ func Load(cfgFile string) error {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
+	// Validate config
+	if err := c.Validate(); err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
+
 	once.Do(func() {
 		cfg = &c
 	})
@@ -98,31 +105,86 @@ func Load(cfgFile string) error {
 func Get() *Config {
 	if cfg == nil {
 		// Return default config if not loaded
-		return &Config{
-			Server: ServerConfig{
-				Host: "127.0.0.1",
-				Port: 8080,
-			},
-			Database: DatabaseConfig{
-				Host:    "127.0.0.1",
-				Port:    5432,
-				User:    "postgres",
-				DBName:  "agent_os",
-				SSLMode: "disable",
-			},
-			Log: LogConfig{
-				Level:      "info",
-				Format:     "json",
-				OutputPath: "stdout",
-			},
-			Redis: RedisConfig{
-				Host: "127.0.0.1",
-				Port: 6379,
-				DB:   0,
-			},
-		}
+		return getDefaultConfig()
 	}
 	return cfg
+}
+
+// getDefaultConfig returns a default configuration
+func getDefaultConfig() *Config {
+	// Get username from environment, fallback to current user
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		if u, err := user.Current(); err == nil {
+			dbUser = u.Username
+		} else {
+			dbUser = "postgres" // final fallback
+		}
+	}
+
+	return &Config{
+		Server: ServerConfig{
+			Host: "127.0.0.1",
+			Port: 8080,
+		},
+		Database: DatabaseConfig{
+			Host:    "127.0.0.1",
+			Port:    5432,
+			User:    dbUser,
+			DBName:  "agent_os",
+			SSLMode: "disable",
+		},
+		Log: LogConfig{
+			Level:      "info",
+			Format:     "json",
+			OutputPath: "stdout",
+		},
+		Redis: RedisConfig{
+			Host: "127.0.0.1",
+			Port: 6379,
+			DB:   0,
+		},
+	}
+}
+
+// Validate validates the configuration
+func (c *Config) Validate() error {
+	// Validate server config
+	if c.Server.Port < 1 || c.Server.Port > 65535 {
+		return fmt.Errorf("invalid server port: %d (must be between 1 and 65535)", c.Server.Port)
+	}
+
+	// Validate database config
+	if c.Database.Host == "" {
+		return fmt.Errorf("database host is required")
+	}
+	if c.Database.Port < 1 || c.Database.Port > 65535 {
+		return fmt.Errorf("invalid database port: %d (must be between 1 and 65535)", c.Database.Port)
+	}
+	if c.Database.User == "" {
+		return fmt.Errorf("database user is required")
+	}
+	if c.Database.DBName == "" {
+		return fmt.Errorf("database name is required")
+	}
+
+	// Validate log config
+	validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
+	if !validLevels[c.Log.Level] {
+		return fmt.Errorf("invalid log level: %s (must be one of: debug, info, warn, error)", c.Log.Level)
+	}
+
+	validFormats := map[string]bool{"json": true, "text": true}
+	if !validFormats[c.Log.Format] {
+		return fmt.Errorf("invalid log format: %s (must be one of: json, text)", c.Log.Format)
+	}
+
+	// Validate Redis config
+	if c.Redis.Port < 1 || c.Redis.Port > 65535 {
+		return fmt.Errorf("invalid redis port: %d (must be between 1 and 65535)", c.Redis.Port)
+	}
+
+	return nil
 }
 
 // setDefaults sets default configuration values
@@ -136,7 +198,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("database.port", 5432)
 	v.SetDefault("database.user", "yunpeng")
 	v.SetDefault("database.password", "")
-	v.SetDefault("database.dbname", "agent_os")
+	v.SetDefault("database.dbname", "quant_investment")
 	v.SetDefault("database.sslmode", "disable")
 
 	// Log defaults

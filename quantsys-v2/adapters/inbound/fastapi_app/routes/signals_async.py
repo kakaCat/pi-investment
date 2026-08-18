@@ -458,7 +458,7 @@ def get_signals(request: Request):
 @router.get('/api/agent/logs')
 @handle_api_error
 def get_agent_logs(request: Request):
-    from infrastructure.persistence.database.base_repository import BaseRepository
+    from infrastructure.persistence.database.engine import db_cursor
     params = get_query_params_snake_case(request)
     start_date = params.get('start_date')
     end_date = params.get('end_date')
@@ -468,9 +468,7 @@ def get_agent_logs(request: Request):
     page = max(1, int(params.get('page', 1)))
     page_size = min(int(params.get('page_size', 20)), 100)
 
-    repo = BaseRepository()
-    cursor = repo._get_cursor()
-    try:
+    with db_cursor() as cursor:
         conditions = []
         query_params = []
         if start_date:
@@ -515,5 +513,3 @@ def get_agent_logs(request: Request):
         total_pages = math.ceil(total / page_size) if page_size > 0 else 0
         return api_response({'items': items, 'total': total, 'page': page,
                              'page_size': page_size, 'total_pages': total_pages})
-    finally:
-        cursor.close()

@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/pi-investment/agent-os/internal/dto"
 	"github.com/pi-investment/agent-os/internal/kernel/scheduler"
+	"github.com/pi-investment/agent-os/internal/validator"
 	"github.com/pi-investment/agent-os/pkg/types"
 )
 
@@ -25,9 +28,11 @@ func NewSchedulerHandler(sched *scheduler.Scheduler) *SchedulerHandler {
 
 // RegisterRoutes registers scheduler routes
 func (h *SchedulerHandler) RegisterRoutes(router *mux.Router) {
-	// Tasks
+	// Tasks - 注意：具体路径要在通配路径之前注册
 	router.HandleFunc("/scheduler/tasks", h.handleRegisterTask).Methods("POST")
 	router.HandleFunc("/scheduler/tasks", h.handleListTasks).Methods("GET")
+	// Stats 必须在 /{id} 之前注册，否则 "stats" 会被当成 id
+	router.HandleFunc("/scheduler/tasks/stats", h.handleGetTasksWithStats).Methods("GET")
 	router.HandleFunc("/scheduler/tasks/{id}", h.handleGetTask).Methods("GET")
 	router.HandleFunc("/scheduler/tasks/{id}", h.handleUpdateTask).Methods("PUT")
 	router.HandleFunc("/scheduler/tasks/{id}", h.handleDeleteTask).Methods("DELETE")
@@ -39,38 +44,21 @@ func (h *SchedulerHandler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/scheduler/executions", h.handleListExecutions).Methods("GET")
 	router.HandleFunc("/scheduler/executions/{id}", h.handleGetExecution).Methods("GET")
 	router.HandleFunc("/scheduler/executions/{id}", h.handleUpdateExecution).Methods("PUT")
-
-	// Stats
-	router.HandleFunc("/scheduler/tasks/stats", h.handleGetTasksWithStats).Methods("GET")
 }
 
 // handleRegisterTask registers a new task
 // POST /api/v1/scheduler/tasks
 func (h *SchedulerHandler) handleRegisterTask(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Name        string                 `json:"name"`
-		Owner       string                 `json:"owner"`
-		Description string                 `json:"description,omitempty"`
-		Cron        string                 `json:"cron,omitempty"`
-		WebhookURL  string                 `json:"webhook_url,omitempty"`
-		Payload     map[string]interface{} `json:"payload,omitempty"`
-		Timeout     int                    `json:"timeout"`
-		RetryCount  int                    `json:"retry_count"`
-		Enabled     bool                   `json:"enabled"`
-	}
+	var req dto.CreateTaskRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
-	// Validate required fields
-	if req.Name == "" {
-		respondError(w, http.StatusBadRequest, "name is required")
-		return
-	}
-	if req.Owner == "" {
-		respondError(w, http.StatusBadRequest, "owner is required")
+	// Validate request
+	if err := validator.Validate(&req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -349,10 +337,13 @@ func (h *SchedulerHandler) handleGetExecution(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Need to add GetTaskRunByID method to scheduler
-	// For now, return error
-	respondError(w, http.StatusNotImplemented, "GetTaskRunByID not implemented yet")
-	_ = executionID
+	run, err := h.scheduler.GetTaskRun(r.Context(), executionID)
+	if err != nil {
+		respondError(w, http.StatusNotFound, "execution not found: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, run)
 }
 
 // handleUpdateExecution updates an execution status
@@ -366,10 +357,9 @@ func (h *SchedulerHandler) handleUpdateExecution(w http.ResponseWriter, r *http.
 	}
 
 	var req struct {
-		Status string                 `json:"status,omitempty"`
-		Output string                 `json:"output,omitempty"`
-		Error  string                 `json:"error,omitempty"`
-		Result map[string]interface{} `json:"result,omitempty"`
+		Status string `json:"status"`
+		Output string `json:"output,omitempty"`
+		Error  string `json:"error,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -377,11 +367,26 @@ func (h *SchedulerHandler) handleUpdateExecution(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Need to add UpdateTaskRun method to scheduler
-	// For now, return error
-	respondError(w, http.StatusNotImplemented, "UpdateTaskRun not implemented yet")
-	_ = executionID
-	_ = req
+	if req.Status == "" {
+		respondError(w, http.StatusBadRequest, "status is required")
+		return
+	}
+
+	run, err := h.scheduler.UpdateTaskRunResult(r.Context(), executionID, req.Status, req.Output, req.Error)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			respondError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if strings.Contains(err.Error(), "invalid status") {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to update execution: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, run)
 }
 
 // handleGetTasksWithStats gets tasks with execution statistics

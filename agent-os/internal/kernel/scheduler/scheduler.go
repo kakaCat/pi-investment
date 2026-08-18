@@ -299,7 +299,16 @@ func (s *Scheduler) GetTasksWithStats(ctx context.Context) ([]*types.TaskWithSta
 
 // scheduleTask schedules a task with cron
 func (s *Scheduler) scheduleTask(task *types.Task) error {
-	entryID, err := s.cron.AddFunc(task.Schedule, func() {
+	// Normalize cron expression: convert 5-field to 6-field format (add seconds)
+	cronExpr := task.Schedule
+	if cronExpr == "" {
+		cronExpr = task.Cron
+	}
+
+	// Check if it's a 5-field cron (standard format) and convert to 6-field
+	cronExpr = normalizeCronExpression(cronExpr)
+
+	entryID, err := s.cron.AddFunc(cronExpr, func() {
 		ctx := context.Background()
 		_, err := s.executeTask(ctx, task, types.TriggerSourceScheduler)
 		if err != nil {
@@ -319,9 +328,37 @@ func (s *Scheduler) scheduleTask(task *types.Task) error {
 	logger.Info("Task scheduled",
 		"task_id", task.ID,
 		"task_name", task.Name,
-		"schedule", task.Schedule)
+		"schedule", task.Schedule,
+		"normalized_cron", cronExpr)
 
 	return nil
+}
+
+// normalizeCronExpression converts 5-field cron to 6-field (with seconds)
+func normalizeCronExpression(expr string) string {
+	if expr == "" {
+		return expr
+	}
+
+	// Count fields by splitting on whitespace
+	fields := 0
+	inSpace := true
+	for _, ch := range expr {
+		if ch == ' ' || ch == '\t' {
+			inSpace = true
+		} else if inSpace {
+			fields++
+			inSpace = false
+		}
+	}
+
+	// If 5 fields (standard cron), prepend "0" for seconds
+	if fields == 5 {
+		return "0 " + expr
+	}
+
+	// Already 6 fields or other format
+	return expr
 }
 
 // executeTask executes a task, checking dependencies first

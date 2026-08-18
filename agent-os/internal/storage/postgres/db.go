@@ -21,15 +21,29 @@ func InitPool(ctx context.Context) error {
 	var initErr error
 	once.Do(func() {
 		cfg := config.Get()
-		connStr := fmt.Sprintf(
-			"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-			cfg.Database.Host,
-			cfg.Database.Port,
-			cfg.Database.User,
-			cfg.Database.Password,
-			cfg.Database.DBName,
-			cfg.Database.SSLMode,
-		)
+
+		// Build connection string in URL format to avoid dbname issues
+		var connStr string
+		if cfg.Database.Password != "" {
+			connStr = fmt.Sprintf(
+				"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+				cfg.Database.User,
+				cfg.Database.Password,
+				cfg.Database.Host,
+				cfg.Database.Port,
+				cfg.Database.DBName,
+				cfg.Database.SSLMode,
+			)
+		} else {
+			connStr = fmt.Sprintf(
+				"postgres://%s@%s:%d/%s?sslmode=%s",
+				cfg.Database.User,
+				cfg.Database.Host,
+				cfg.Database.Port,
+				cfg.Database.DBName,
+				cfg.Database.SSLMode,
+			)
+		}
 
 		poolConfig, err := pgxpool.ParseConfig(connStr)
 		if err != nil {
@@ -70,9 +84,18 @@ func InitPool(ctx context.Context) error {
 // GetPool returns the database connection pool
 func GetPool() *pgxpool.Pool {
 	if pool == nil {
-		panic("database pool not initialized. Call InitPool first")
+		logger.Error("Database pool not initialized. Call InitPool first")
+		panic("database pool not initialized")
 	}
 	return pool
+}
+
+// GetPoolSafe returns the database connection pool with error handling
+func GetPoolSafe() (*pgxpool.Pool, error) {
+	if pool == nil {
+		return nil, fmt.Errorf("database pool not initialized")
+	}
+	return pool, nil
 }
 
 // Close closes the database connection pool

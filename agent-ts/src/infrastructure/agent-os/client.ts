@@ -21,7 +21,7 @@ let clientInstance: AgentOSClient | null = null;
 export function getAgentOSClient(): AgentOSClient {
   if (!clientInstance) {
     const config: AgentOSConfig = {
-      baseURL: process.env.AGENT_OS_API_URL || 'http://localhost:8080',
+      baseURL: process.env.AGENT_OS_BASE_URL || 'http://localhost:8080',
       agentId: process.env.AGENT_ID || 'fin-agent',
       apiKey: process.env.AGENT_OS_API_KEY,
       timeout: parseInt(process.env.AGENT_OS_TIMEOUT || '30000', 10),

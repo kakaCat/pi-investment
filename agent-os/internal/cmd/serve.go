@@ -15,9 +15,11 @@ import (
 	"github.com/pi-investment/agent-os/internal/config"
 	"github.com/pi-investment/agent-os/internal/events"
 	"github.com/pi-investment/agent-os/internal/handlers"
+	"github.com/pi-investment/agent-os/internal/kernel/scheduler"
 	"github.com/pi-investment/agent-os/internal/repository"
 	"github.com/pi-investment/agent-os/internal/service"
 	"github.com/pi-investment/agent-os/internal/services"
+	"github.com/pi-investment/agent-os/internal/storage/postgres"
 )
 
 var serveCmd = &cobra.Command{
@@ -32,15 +34,28 @@ var serveCmd = &cobra.Command{
 		// Get config
 		cfg := config.Get()
 
-		// Build connection string for sql.DB (notification service)
-		connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		// Build connection string for sql.DB (notification service) - use URL format
+		connStr := fmt.Sprintf("postgres://%s@%s:%d/%s?sslmode=%s",
+			cfg.Database.User,
 			cfg.Database.Host,
 			cfg.Database.Port,
-			cfg.Database.User,
-			cfg.Database.Password,
 			cfg.Database.DBName,
 			cfg.Database.SSLMode,
 		)
+		// Add password if not empty
+		if cfg.Database.Password != "" {
+			connStr = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+				cfg.Database.User,
+				cfg.Database.Password,
+				cfg.Database.Host,
+				cfg.Database.Port,
+				cfg.Database.DBName,
+				cfg.Database.SSLMode,
+			)
+		}
+
+		// Debug: print connection string (mask password)
+		fmt.Printf("DEBUG: Connection string: %s\n", connStr)
 
 		// Connect to database
 		db, err := sql.Open("postgres", connStr)
@@ -64,6 +79,9 @@ var serveCmd = &cobra.Command{
 			cfg.Database.SSLMode,
 		)
 
+		// Debug: print pgx connection string (mask password)
+		fmt.Printf("DEBUG: PGX Connection string: %s\n", pgxConnStr)
+
 		// Create pgx connection pool for event bus
 		ctx := context.Background()
 		poolConfig, err := pgxpool.ParseConfig(pgxConnStr)
@@ -81,6 +99,12 @@ var serveCmd = &cobra.Command{
 		if err := pool.Ping(ctx); err != nil {
 			return fmt.Errorf("failed to ping database (pgx): %w", err)
 		}
+
+		// Initialize global postgres pool for scheduler
+		if err := postgres.InitPool(ctx); err != nil {
+			return fmt.Errorf("failed to initialize postgres pool: %w", err)
+		}
+		defer postgres.Close()
 
 		// Initialize Event Bus
 		eventBus := events.NewEventBus(pool)
@@ -100,8 +124,20 @@ var serveCmd = &cobra.Command{
 		skillService := services.NewSkillService(pool)
 		skillHandler := handlers.NewSkillHandler(skillService)
 
+		// Create Scheduler instance
+		schedulerSvc := scheduler.New(nil)
+
+		// Start Scheduler
+		if err := schedulerSvc.Start(ctx); err != nil {
+			return fmt.Errorf("failed to start scheduler: %w", err)
+		}
+		defer schedulerSvc.Stop()
+
+		// Create Scheduler Handler
+		schedulerHandler := api.NewSchedulerHandler(schedulerSvc)
+
 		// Create HTTP server
-		server := api.NewHTTPServer(svc, skillHandler)
+		server := api.NewHTTPServer(svc, skillHandler, schedulerHandler)
 
 		// Start HTTP server in goroutine
 		addr := fmt.Sprintf("%s:%d", host, port)
@@ -117,6 +153,13 @@ var serveCmd = &cobra.Command{
 			fmt.Printf("   POST   /api/v1/skills\n")
 			fmt.Printf("   PUT    /api/v1/skills/{id}\n")
 			fmt.Printf("   DELETE /api/v1/skills/{id}\n")
+			fmt.Printf("   POST   /api/v1/scheduler/tasks\n")
+			fmt.Printf("   GET    /api/v1/scheduler/tasks\n")
+			fmt.Printf("   GET    /api/v1/scheduler/tasks/{id}\n")
+			fmt.Printf("   PUT    /api/v1/scheduler/tasks/{id}\n")
+			fmt.Printf("   DELETE /api/v1/scheduler/tasks/{id}\n")
+			fmt.Printf("   POST   /api/v1/scheduler/tasks/{id}/trigger\n")
+			fmt.Printf("   GET    /api/v1/scheduler/executions\n")
 			fmt.Printf("   GET    /health\n")
 			fmt.Printf("\n")
 
