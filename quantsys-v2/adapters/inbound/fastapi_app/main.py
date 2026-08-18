@@ -446,17 +446,63 @@ async def health_check():
 # ==================== 注册路由模块 ====================
 
 def register_routes():
-    """注册所有路由"""
+    """注册所有路由 —— 核心路由失败时中断启动"""
 
-    # ===== P0 核心路由 =====
-
-    # 健康检查
+    # ===== P0 核心路由（CRITICAL - 失败时中断启动） =====
+    
+    logger.info("=" * 60)
+    logger.info("Registering CRITICAL routes...")
+    logger.info("=" * 60)
+    
+    critical_routes = []
+    
+    # 健康检查（监控依赖）
     try:
         from adapters.inbound.fastapi_app.routes.health_async import router as health_router
         app.include_router(health_router)
-        logger.info("✅ Registered: health")
+        logger.info("✅ Registered (CRITICAL): health")
+        critical_routes.append("health")
+    except (ImportError, AttributeError) as e:
+        logger.error(f"❌ CRITICAL route failed: health - {e}")
+        raise RuntimeError(f"Critical route 'health' failed to register: {e}") from e
+    
+    # 认证授权（安全基础）
+    try:
+        from adapters.inbound.fastapi_app.routes.auth_async import router as auth_router
+        app.include_router(auth_router, prefix="/api")
+        logger.info("✅ Registered (CRITICAL): auth")
+        critical_routes.append("auth")
+    except (ImportError, AttributeError) as e:
+        logger.error(f"❌ CRITICAL route failed: auth - {e}")
+        raise RuntimeError(f"Critical route 'auth' failed to register: {e}") from e
+    
+    # Agent OS Scheduler Webhook（关键集成）
+    try:
+        from api.internal.scheduler_webhook import router as scheduler_webhook_router
+        app.include_router(scheduler_webhook_router, prefix="/internal/scheduler", tags=["internal"])
+        logger.info("✅ Registered (CRITICAL): scheduler_webhook")
+        critical_routes.append("scheduler_webhook")
+    except (ImportError, AttributeError) as e:
+        logger.error(f"❌ CRITICAL route failed: scheduler_webhook - {e}")
+        raise RuntimeError(f"Critical route 'scheduler_webhook' failed to register: {e}") from e
+    
+    logger.info("=" * 60)
+    logger.info(f"✅ All {len(critical_routes)} CRITICAL routes registered successfully")
+    logger.info("=" * 60)
+    
+    # ===== P1 可选路由（失败时告警但继续） =====
+    
+    logger.info("Registering optional routes...")
+    optional_failed = []
+
+    # 执行记录（P5 迁移，parity 对齐 Flask executions.py）
+    try:
+        from adapters.inbound.fastapi_app.routes.executions_async import router as executions_router
+        app.include_router(executions_router)
+        logger.info("✅ Registered: executions (P5 迁移)")
     except ImportError as e:
-        logger.warning(f"⚠️ Failed to import health_async: {e}")
+        logger.warning(f"⚠️ Failed to import executions_async: {e}")
+        optional_failed.append("executions")
 
     # 执行记录（P5 迁移，parity 对齐 Flask executions.py）
     try:
@@ -473,6 +519,7 @@ def register_routes():
         logger.info("✅ Registered: market")
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import market_async: {e}")
+        optional_failed.append("market")
 
     # 分析工具（analysis 域，P6 迁移：backtest/compute-factors/technical）
     try:
@@ -917,13 +964,7 @@ def register_routes():
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import scheduler_async: {e}")
 
-    # Agent OS Scheduler Webhook (内部端点，WP-15)
-    try:
-        from api.internal.scheduler_webhook import router as scheduler_webhook_router
-        app.include_router(scheduler_webhook_router, prefix="/internal/scheduler", tags=["internal"])
-        logger.info("✅ Registered: scheduler_webhook (Agent OS integration)")
-    except ImportError as e:
-        logger.warning(f"⚠️ Failed to import scheduler_webhook: {e}")
+    # （scheduler_webhook 已在 CRITICAL 路由部分注册，此处跳过）
 
     # Agent 决策执行 API
     try:
@@ -972,9 +1013,24 @@ def register_routes():
         logger.info("✅ Registered: training (agent 迁移)")
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import training_async: {e}")
+        optional_failed.append("training")
 
+    # ===== 路由注册总结 =====
     logger.info("=" * 60)
-    logger.info("✅ All routes registered successfully")
+    logger.info("Route Registration Summary")
+    logger.info("=" * 60)
+    logger.info(f"✅ CRITICAL routes: {len(critical_routes)}/{len(critical_routes)} (all must succeed)")
+    logger.info(f"   Routes: {', '.join(critical_routes)}")
+    
+    if optional_failed:
+        logger.warning(f"⚠️  Optional routes: some failed ({len(optional_failed)} failures)")
+        logger.warning(f"   Failed: {', '.join(optional_failed)}")
+        logger.warning(f"   Note: Application will continue with reduced functionality")
+    else:
+        logger.info(f"✅ Optional routes: all registered successfully")
+    
+    logger.info("=" * 60)
+    logger.info("✅ Route registration completed")
     logger.info("=" * 60)
 
 
