@@ -32,14 +32,20 @@ const (
 type Task struct {
 	ID          uuid.UUID              `json:"id"`
 	Name        string                 `json:"name"`
+	Owner       string                 `json:"owner"`                        // Agent owner ID
 	Description string                 `json:"description,omitempty"`
-	Schedule    string                 `json:"schedule,omitempty"` // Cron expression
-	Command     string                 `json:"command"`
+	Schedule    string                 `json:"schedule,omitempty"`           // Cron expression (deprecated, use Cron)
+	Cron        string                 `json:"cron,omitempty"`               // Cron expression
+	Command     string                 `json:"command,omitempty"`            // Shell command (optional if webhook_url is set)
+	WebhookURL  string                 `json:"webhook_url,omitempty"`        // HTTP webhook URL
+	Payload     map[string]interface{} `json:"payload,omitempty"`            // Task payload sent to webhook
+	Timeout     int                    `json:"timeout,omitempty"`            // Timeout in seconds
+	RetryCount  int                    `json:"retry_count,omitempty"`        // Max retry count on failure
 	Enabled     bool                   `json:"enabled"`
 	CreatedAt   time.Time              `json:"created_at"`
 	UpdatedAt   time.Time              `json:"updated_at"`
-	CreatedBy   string                 `json:"created_by,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	CreatedBy   string                 `json:"created_by,omitempty"`         // Deprecated, use Owner
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`           // Additional metadata
 
 	// Runtime fields (not stored in DB)
 	Dependencies []uuid.UUID `json:"dependencies,omitempty"`

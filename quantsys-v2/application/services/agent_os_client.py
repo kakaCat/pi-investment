@@ -149,8 +149,10 @@ class AgentOSClient:
         response.raise_for_status()
 
         result = response.json()
-        logger.debug(f"Listed {len(result)} jobs")
-        return result
+        # Agent OS returns {"count": N, "tasks": [...]}
+        tasks = result.get('tasks', []) if isinstance(result, dict) else result
+        logger.debug(f"Listed {len(tasks)} jobs")
+        return tasks
 
     async def update_job(
         self,

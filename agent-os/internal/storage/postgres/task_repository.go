@@ -37,17 +37,32 @@ func (r *TaskRepository) Create(ctx context.Context, task *types.Task) error {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
+	payloadJSON, err := json.Marshal(task.Payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
 	query := `
-		INSERT INTO tasks (name, description, schedule, command, enabled, created_by, metadata)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO tasks (
+			name, owner, description, schedule, cron, command,
+			webhook_url, payload, timeout, retry_count, enabled,
+			created_by, metadata
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id, created_at, updated_at
 	`
 
 	err = r.pool.QueryRow(ctx, query,
 		task.Name,
+		task.Owner,
 		task.Description,
 		task.Schedule,
+		task.Cron,
 		task.Command,
+		task.WebhookURL,
+		payloadJSON,
+		task.Timeout,
+		task.RetryCount,
 		task.Enabled,
 		task.CreatedBy,
 		metadataJSON,
@@ -63,7 +78,8 @@ func (r *TaskRepository) Create(ctx context.Context, task *types.Task) error {
 // GetByID retrieves a task by ID
 func (r *TaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.Task, error) {
 	query := `
-		SELECT id, name, description, schedule, command, enabled,
+		SELECT id, name, owner, description, schedule, cron, command,
+		       webhook_url, payload, timeout, retry_count, enabled,
 		       created_at, updated_at, created_by, metadata
 		FROM tasks
 		WHERE id = $1
@@ -71,13 +87,20 @@ func (r *TaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.Task
 
 	var task types.Task
 	var metadataJSON []byte
+	var payloadJSON []byte
 
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&task.ID,
 		&task.Name,
+		&task.Owner,
 		&task.Description,
 		&task.Schedule,
+		&task.Cron,
 		&task.Command,
+		&task.WebhookURL,
+		&payloadJSON,
+		&task.Timeout,
+		&task.RetryCount,
 		&task.Enabled,
 		&task.CreatedAt,
 		&task.UpdatedAt,
@@ -85,15 +108,19 @@ func (r *TaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.Task
 		&metadataJSON,
 	)
 
-	if err == pgx.ErrNoRows {
-		return nil, fmt.Errorf("task not found: %s", id)
-	}
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("task not found")
+		}
 		return nil, fmt.Errorf("failed to get task: %w", err)
 	}
 
 	if err := json.Unmarshal(metadataJSON, &task.Metadata); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+	}
+
+	if err := json.Unmarshal(payloadJSON, &task.Payload); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
 
 	return &task, nil
@@ -102,7 +129,8 @@ func (r *TaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.Task
 // GetByName retrieves a task by name
 func (r *TaskRepository) GetByName(ctx context.Context, name string) (*types.Task, error) {
 	query := `
-		SELECT id, name, description, schedule, command, enabled,
+		SELECT id, name, owner, description, schedule, cron, command,
+		       webhook_url, payload, timeout, retry_count, enabled,
 		       created_at, updated_at, created_by, metadata
 		FROM tasks
 		WHERE name = $1
@@ -110,13 +138,20 @@ func (r *TaskRepository) GetByName(ctx context.Context, name string) (*types.Tas
 
 	var task types.Task
 	var metadataJSON []byte
+	var payloadJSON []byte
 
 	err := r.pool.QueryRow(ctx, query, name).Scan(
 		&task.ID,
 		&task.Name,
+		&task.Owner,
 		&task.Description,
 		&task.Schedule,
+		&task.Cron,
 		&task.Command,
+		&task.WebhookURL,
+		&payloadJSON,
+		&task.Timeout,
+		&task.RetryCount,
 		&task.Enabled,
 		&task.CreatedAt,
 		&task.UpdatedAt,
@@ -135,13 +170,18 @@ func (r *TaskRepository) GetByName(ctx context.Context, name string) (*types.Tas
 		return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 	}
 
+	if err := json.Unmarshal(payloadJSON, &task.Payload); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal payload: %w", err)
+	}
+
 	return &task, nil
 }
 
 // List retrieves all tasks with optional filters
 func (r *TaskRepository) List(ctx context.Context, enabledOnly bool) ([]*types.Task, error) {
 	query := `
-		SELECT id, name, description, schedule, command, enabled,
+		SELECT id, name, owner, description, schedule, cron, command,
+		       webhook_url, payload, timeout, retry_count, enabled,
 		       created_at, updated_at, created_by, metadata
 		FROM tasks
 	`
@@ -160,13 +200,20 @@ func (r *TaskRepository) List(ctx context.Context, enabledOnly bool) ([]*types.T
 	for rows.Next() {
 		var task types.Task
 		var metadataJSON []byte
+		var payloadJSON []byte
 
 		err := rows.Scan(
 			&task.ID,
 			&task.Name,
+			&task.Owner,
 			&task.Description,
 			&task.Schedule,
+			&task.Cron,
 			&task.Command,
+			&task.WebhookURL,
+			&payloadJSON,
+			&task.Timeout,
+			&task.RetryCount,
 			&task.Enabled,
 			&task.CreatedAt,
 			&task.UpdatedAt,
@@ -181,11 +228,15 @@ func (r *TaskRepository) List(ctx context.Context, enabledOnly bool) ([]*types.T
 			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 		}
 
+		if err := json.Unmarshal(payloadJSON, &task.Payload); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal payload: %w", err)
+		}
+
 		tasks = append(tasks, &task)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating tasks: %w", err)
+		return nil, fmt.Errorf("failed to iterate tasks: %w", err)
 	}
 
 	return tasks, nil
@@ -198,17 +249,29 @@ func (r *TaskRepository) Update(ctx context.Context, task *types.Task) error {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
+	payloadJSON, err := json.Marshal(task.Payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
 	query := `
 		UPDATE tasks
-		SET description = $1, schedule = $2, command = $3, enabled = $4, metadata = $5
-		WHERE id = $6
+		SET description = $1, schedule = $2, cron = $3, command = $4,
+		    webhook_url = $5, payload = $6, timeout = $7, retry_count = $8,
+		    enabled = $9, metadata = $10
+		WHERE id = $11
 		RETURNING updated_at
 	`
 
 	err = r.pool.QueryRow(ctx, query,
 		task.Description,
 		task.Schedule,
+		task.Cron,
 		task.Command,
+		task.WebhookURL,
+		payloadJSON,
+		task.Timeout,
+		task.RetryCount,
 		task.Enabled,
 		metadataJSON,
 		task.ID,
@@ -243,10 +306,14 @@ func (r *TaskRepository) Delete(ctx context.Context, id uuid.UUID) error {
 // GetScheduledTasks retrieves all enabled tasks with schedules
 func (r *TaskRepository) GetScheduledTasks(ctx context.Context) ([]*types.Task, error) {
 	query := `
-		SELECT id, name, description, schedule, command, enabled,
+		SELECT id, name, owner, description, schedule, cron, command,
+		       webhook_url, payload, timeout, retry_count, enabled,
 		       created_at, updated_at, created_by, metadata
 		FROM tasks
-		WHERE enabled = true AND schedule IS NOT NULL AND schedule != ''
+		WHERE enabled = true AND (
+			(schedule IS NOT NULL AND schedule != '') OR
+			(cron IS NOT NULL AND cron != '')
+		)
 		ORDER BY name
 	`
 
@@ -260,13 +327,20 @@ func (r *TaskRepository) GetScheduledTasks(ctx context.Context) ([]*types.Task, 
 	for rows.Next() {
 		var task types.Task
 		var metadataJSON []byte
+		var payloadJSON []byte
 
 		err := rows.Scan(
 			&task.ID,
 			&task.Name,
+			&task.Owner,
 			&task.Description,
 			&task.Schedule,
+			&task.Cron,
 			&task.Command,
+			&task.WebhookURL,
+			&payloadJSON,
+			&task.Timeout,
+			&task.RetryCount,
 			&task.Enabled,
 			&task.CreatedAt,
 			&task.UpdatedAt,
@@ -279,6 +353,10 @@ func (r *TaskRepository) GetScheduledTasks(ctx context.Context) ([]*types.Task, 
 
 		if err := json.Unmarshal(metadataJSON, &task.Metadata); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+		}
+
+		if err := json.Unmarshal(payloadJSON, &task.Payload); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal payload: %w", err)
 		}
 
 		tasks = append(tasks, &task)

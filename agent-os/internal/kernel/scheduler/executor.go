@@ -1,8 +1,12 @@
 package scheduler
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os/exec"
 	"strings"
 	"time"
@@ -75,8 +79,17 @@ func (e *Executor) Execute(ctx context.Context, task *types.Task, triggeredBy ty
 				"error", err)
 		}
 
-		// Execute the task
-		output, err := e.executeCommand(ctx, task.Command, e.config.DefaultTimeout)
+		// Execute the task (webhook or command)
+		var output string
+		var err error
+
+		if task.WebhookURL != "" {
+			output, err = e.executeWebhook(ctx, task, run)
+		} else if task.Command != "" {
+			output, err = e.executeCommand(ctx, task.Command, e.config.DefaultTimeout)
+		} else {
+			err = fmt.Errorf("task has neither webhook_url nor command")
+		}
 
 		if err == nil {
 			// Success
@@ -228,4 +241,89 @@ func (e *Executor) GetRunningCount() int {
 // GetAvailableSlots returns the number of available execution slots
 func (e *Executor) GetAvailableSlots() int {
 	return e.config.MaxConcurrentTasks - e.GetRunningCount()
+}
+
+// executeWebhook executes a task by calling its webhook URL
+func (e *Executor) executeWebhook(ctx context.Context, task *types.Task, run *types.TaskRun) (string, error) {
+	// Determine timeout
+	timeout := e.config.DefaultTimeout
+	if task.Timeout > 0 {
+		timeout = time.Duration(task.Timeout) * time.Second
+	}
+
+	// Create context with timeout
+	execCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	// Construct webhook payload
+	payload := map[string]interface{}{
+		"task_id":   task.ID.String(),
+		"task_name": task.Name,
+		"run_id":    run.ID.String(),
+		"owner":     task.Owner,
+		"triggered_by": run.TriggeredBy,
+	}
+
+	// Merge task payload if present
+	if task.Payload != nil {
+		for k, v := range task.Payload {
+			payload[k] = v
+		}
+	}
+
+	// Marshal payload to JSON
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal webhook payload: %w", err)
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequestWithContext(execCtx, "POST", task.WebhookURL, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return "", fmt.Errorf("failed to create webhook request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Agent-OS-Scheduler/1.0")
+
+	// Send request
+	logger.Info("Sending webhook request",
+		"task_id", task.ID,
+		"task_name", task.Name,
+		"webhook_url", task.WebhookURL,
+		"run_id", run.ID)
+
+	client := &http.Client{
+		Timeout: timeout,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		if execCtx.Err() == context.DeadlineExceeded {
+			return "", fmt.Errorf("webhook timeout after %v", timeout)
+		}
+		return "", fmt.Errorf("webhook request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read webhook response: %w", err)
+	}
+
+	output := string(respBody)
+
+	// Check response status
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return output, fmt.Errorf("webhook returned non-2xx status: %d (body: %s)", resp.StatusCode, output)
+	}
+
+	logger.Info("Webhook executed successfully",
+		"task_id", task.ID,
+		"task_name", task.Name,
+		"webhook_url", task.WebhookURL,
+		"status_code", resp.StatusCode,
+		"run_id", run.ID)
+
+	return output, nil
 }

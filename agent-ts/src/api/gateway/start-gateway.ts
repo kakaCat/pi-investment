@@ -1,9 +1,13 @@
 /**
  * Gateway 共享启动引导：tools + skills + plugins + factory + gateway + syncer
  * Phase 1: 每个进程挂自己的 adapter；Phase 2: 单进程挂多个 adapter
+ *
+ * WP-13: 支持多个 adapter 共享同一个 Express app 和端口
  */
 import { existsSync, mkdirSync } from "fs";
 import { join } from "path";
+import express, { type Express } from "express";
+import cors from "cors";
 import { loadSkills, type Skill } from "../../sdk-facade.js";
 import { allCustomTools, initMemoryTools } from "../../infrastructure/tools/index.js";
 import { getCoreTools, isToolSearchMode } from "../../infrastructure/tools/catalog.js";
@@ -20,6 +24,7 @@ import { createGatewaySessionFactory, extractChannelReply } from "./session-fact
 import { SessionSyncer } from "./session-syncer.js";
 import { initSessionEvents, getAgentSessionsRootDir } from "./session-events.js";
 import type { ChannelAdapter } from "./types.js";
+import type { Server } from "http";
 
 function loadProjectSkills(): Skill[] {
   try {
@@ -39,10 +44,21 @@ function loadProjectSkills(): Skill[] {
 
 export interface GatewayHandle {
   gateway: AgentGateway;
+  server?: Server;  // HTTP 服务器（如果共享端口）
   shutdown: () => Promise<void>;
 }
 
-export async function startGateway(adapters: ChannelAdapter[]): Promise<GatewayHandle> {
+/**
+ * 启动 Gateway，支持多个 adapter 共享端口
+ *
+ * @param adapters - Channel adapters (Wake, Agent OS, etc.)
+ * @param options - 启动选项
+ * @param options.sharedPort - 共享端口号（如果需要多个 adapter 共享）
+ */
+export async function startGateway(
+  adapters: ChannelAdapter[],
+  options?: { sharedPort?: number }
+): Promise<GatewayHandle> {
   initSessionEvents(join(paths.piDir, "agent-sessions"));
   const sessionsRootDir = getAgentSessionsRootDir();
   mkdirSync(sessionsRootDir, { recursive: true });
@@ -81,15 +97,52 @@ export async function startGateway(adapters: ChannelAdapter[]): Promise<GatewayH
   syncer.start();
 
   const handlers = gateway.handlers();
-  for (const adapter of adapters) {
-    adapter.start(handlers);
+
+  // 如果指定了共享端口，创建共享的 Express app
+  let sharedApp: Express | undefined;
+  let server: Server | undefined;
+
+  if (options?.sharedPort) {
+    sharedApp = express();
+    sharedApp.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+    sharedApp.use(express.json());
+
+    console.log(`[Gateway] 创建共享 HTTP 服务器 (端口 ${options.sharedPort})`);
   }
+
+  // 启动所有 adapters
+  for (const adapter of adapters) {
+    // 如果 adapter 支持共享 app (有 startShared 方法)
+    if ('startShared' in adapter && typeof adapter.startShared === 'function') {
+      if (sharedApp) {
+        (adapter as any).startShared(handlers, sharedApp);
+      } else {
+        adapter.start(handlers);
+      }
+    } else {
+      adapter.start(handlers);
+    }
+  }
+
+  // 如果有共享 app，启动服务器
+  if (sharedApp && options?.sharedPort) {
+    server = sharedApp.listen(options.sharedPort, () => {
+      console.log(`🌐 Gateway HTTP 服务器启动: http://127.0.0.1:${options.sharedPort}`);
+    });
+  }
+
   console.log(`[Gateway] 已启动 ${adapters.length} 个通道: ${adapters.map((a) => a.name).join(", ")}`);
   console.log(`📁 会话目录: ${sessionsRootDir}`);
 
   return {
     gateway,
+    server,
     shutdown: async () => {
+      if (server) {
+        await new Promise<void>((resolve) => {
+          server!.close(() => resolve());
+        });
+      }
       for (const adapter of adapters) adapter.shutdown();
       gateway.shutdown();
       await syncer.stop();

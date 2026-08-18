@@ -24,17 +24,48 @@ export class WakeAdapter implements ChannelAdapter {
   }
 
   start(handlers: GatewayHandlers): void {
+    // 独立模式：创建新的 Express app 和服务器
     const app: Express = express();
     app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
     app.use(express.json());
 
-    // token 鉴权中间件（/wake/health 公开）
-    app.use((req, res, next) => {
+    this.registerRoutes(app, handlers);
+
+    this.server = app.listen(this.port, () => {
+      console.log(`🔔 Wake Channel 启动: http://127.0.0.1:${this.port}`);
+      if (!this.token) {
+        console.warn(`⚠️ [Wake] WAKE_TOKEN 未配置，/wake 无鉴权（仅建议开发环境）`);
+      }
+    });
+  }
+
+  /**
+   * 使用共享的 Express app 启动
+   * @param handlers - Gateway handlers
+   * @param app - 共享的 Express app
+   */
+  startShared(handlers: GatewayHandlers, app: Express): void {
+    this.registerRoutes(app, handlers);
+    console.log('[Wake] 路由已注册到共享 app');
+  }
+
+  /**
+   * 注册路由到 Express app
+   */
+  private registerRoutes(app: Express, handlers: GatewayHandlers): void {
+  /**
+   * 注册路由到 Express app
+   */
+  private registerRoutes(app: Express, handlers: GatewayHandlers): void {
+    // token 鉴权中间件（仅对 /wake 路径生效，/wake/health 公开）
+    const authMiddleware = (req: any, res: any, next: any) => {
+      if (!req.path.startsWith('/wake')) return next();
       if (req.path === "/wake/health") return next();
       if (!this.token) return next();
       if (req.headers["x-wake-token"] === this.token) return next();
       res.status(401).json({ success: false, error: "Unauthorized: invalid or missing X-Wake-Token" });
-    });
+    };
+    app.use(authMiddleware);
 
     app.post("/wake", async (req, res) => {
       const { event, task_id, task_name, data, session_id } = req.body;
@@ -70,19 +101,15 @@ export class WakeAdapter implements ChannelAdapter {
     app.get("/wake/health", (_req, res) => {
       res.json({ status: "ok", channel: "wake", timestamp: new Date().toISOString() });
     });
-
-    this.server = app.listen(this.port, () => {
-      console.log(`🔔 Wake Channel 启动: http://127.0.0.1:${this.port}`);
-      if (!this.token) {
-        console.warn(`⚠️ [Wake] WAKE_TOKEN 未配置，/wake 无鉴权（仅建议开发环境）`);
-      }
-    });
   }
 
   shutdown(): void {
-    this.server?.close();
-    this.server = null;
+    if (this.server) {
+      this.server.close();
+      this.server = null;
+    }
   }
+}
 }
 
 /** 日志用的事件来源标签：优先调度任务名/ID，watch 类事件回退到规则 ID */

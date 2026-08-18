@@ -1,11 +1,11 @@
 /**
  * Agent OS Webhook Trigger Tests
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
 describe('Agent OS Webhook Trigger', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('POST /api/webhook/agent-os/trigger', () => {

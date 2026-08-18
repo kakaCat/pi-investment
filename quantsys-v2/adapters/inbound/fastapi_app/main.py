@@ -88,8 +88,7 @@ async def lifespan(app: FastAPI):
             try:
                 logger.info("🔄 Registering jobs to Agent OS Scheduler...")
                 from tools.register_jobs_to_agent_os import register_all_jobs
-                import asyncio
-                success = asyncio.run(register_all_jobs())
+                success = await register_all_jobs()
                 if success:
                     logger.info("✅ Agent OS Scheduler integration enabled")
                 else:

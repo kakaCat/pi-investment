@@ -25,6 +25,7 @@ import { registerTasksToAgentOS } from "../core/bootstrap/agent-os-task-registra
 import { initializeAgentOS } from "../infrastructure/agent-os/client.js";
 import { startGateway } from "./gateway/start-gateway.js";
 import { WakeAdapter } from "./gateway/adapters/wake-adapter.js";
+import { AgentOSAdapter } from "./gateway/adapters/agent-os-adapter.js";
 import { startFeishuBot } from "./feishu.js";
 import {
   runStartupHealthCheck,
@@ -86,9 +87,14 @@ async function main() {
     throw error;
   }
 
-  // 6. Wake gateway（3002）
-  const gatewayHandle = await startGateway([new WakeAdapter()]);
-  console.log("🔔 Wake channel 已启动（127.0.0.1:3002）");
+  // 6. Gateway (Wake + Agent OS webhook, 端口 3002)
+  const gatewayHandle = await startGateway(
+    [new WakeAdapter(), new AgentOSAdapter()],
+    { sharedPort: 3002 }
+  );
+  console.log("🌐 Gateway 已启动（127.0.0.1:3002）");
+  console.log("  - Wake channel: POST /wake");
+  console.log("  - Agent OS webhook: POST /api/webhook/agent-os/trigger");
 
   // 7. 飞书 bot（未配置时返回 null，自动跳过）
   const feishuBot = await startFeishuBot();
