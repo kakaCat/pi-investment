@@ -20,7 +20,7 @@ class TestMarketStyleE2E:
         """为 E2E 测试提供独立的数据库连接"""
         import psycopg2
         from psycopg2.extras import RealDictCursor
-        from infrastructure.persistence.database.base_repository import _resolve_db_dsn
+        from infrastructure.persistence.database.engine import _resolve_db_dsn
 
         dsn = _resolve_db_dsn()
         conn = psycopg2.connect(dsn, cursor_factory=RealDictCursor)

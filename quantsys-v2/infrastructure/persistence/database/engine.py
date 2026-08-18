@@ -5,12 +5,77 @@ SQLAlchemy Engine 全局单例 - 统一数据库连接管理
 异步路径见 async_engine.py。
 """
 import os
+import sys
+import re
 import logging
 from typing import Optional
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.pool import QueuePool
 
 logger = logging.getLogger(__name__)
+
+# Test database suffix for pytest safety checks
+TEST_DB_SUFFIX = "_test"
+
+__all__ = ["get_engine", "init_engine", "dispose_engine", "get_pool_status", "db_cursor", "_resolve_db_dsn", "TEST_DB_SUFFIX"]
+
+
+def _resolve_db_dsn():
+    """
+    Resolve database DSN from environment variables.
+
+    Priority:
+    1. QUANT_DATABASE_URL / DATABASE_URL / POSTGRES_DSN (full connection string)
+    2. PG* environment variables (PGDATABASE, PGHOST, PGPORT, PGUSER, PGPASSWORD)
+
+    Safety: When running under pytest, validates that database name ends with '_test'
+    to prevent accidental connection to production database. This applies to both
+    full DSN strings and PG* environment variables.
+
+    Returns:
+        str: PostgreSQL connection DSN, or None if no configuration found
+
+    Raises:
+        RuntimeError: If pytest environment detected but database is not a test database
+    """
+    dsn = (
+        os.environ.get("QUANT_DATABASE_URL")
+        or os.environ.get("DATABASE_URL")
+        or os.environ.get("POSTGRES_DSN")
+    )
+    if not dsn:
+        pgdatabase = os.environ.get("PGDATABASE")
+        if pgdatabase:
+            pghost = os.environ.get("PGHOST", "127.0.0.1")
+            pgport = os.environ.get("PGPORT", "5432")
+            pguser = os.environ.get("PGUSER", "")
+            pgpassword = os.environ.get("PGPASSWORD", "")
+            auth = f"{pguser}:{pgpassword}@" if pguser else ""
+            dsn = f"postgresql://{auth}{pghost}:{pgport}/{pgdatabase}"
+
+    # 安全检查：pytest 环境必须使用测试库
+    # 这是第二层防护，防止绕过 conftest.py 的情况
+    if dsn and "pytest" in sys.modules:
+        # Extract database name from the ACTUAL DSN being used (not env var)
+        # This prevents bypass via DATABASE_URL=prod + PGDATABASE=fake_test
+        # Parse from DSN first: postgresql://user:pass@host:port/dbname
+        # Handles both with and without query parameters
+        match = re.search(r'://[^/]+/([^/?]+)(?:\?|$)', dsn)
+        db_name = match.group(1) if match else ""
+
+        # If DSN parsing failed and we built DSN from PGDATABASE, use PGDATABASE
+        if not db_name and "PGDATABASE" in os.environ:
+            db_name = os.environ["PGDATABASE"]
+
+        if db_name and not db_name.endswith(TEST_DB_SUFFIX):
+            raise RuntimeError(
+                f"Security check failed: Detected pytest environment but "
+                f"database name '{db_name}' is not a test database. "
+                f"Test database name must end with '{TEST_DB_SUFFIX}'. "
+                f"This prevents accidental connection to production database during tests."
+            )
+
+    return dsn
 
 _engine: Optional[Engine] = None
 _engine_initialized = False
@@ -64,7 +129,6 @@ def init_engine(
         return _engine
 
     if dsn is None:
-        from infrastructure.persistence.database.base_repository import _resolve_db_dsn
         dsn = _resolve_db_dsn()
 
     if not dsn:

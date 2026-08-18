@@ -746,7 +746,7 @@ class TestSchedulerConnection:
         scheduler.close()
 
     def test_close_after_use(self):
-        from infrastructure.persistence.database.base_repository import _resolve_db_dsn
+        from infrastructure.persistence.database.engine import _resolve_db_dsn
 
         if _resolve_db_dsn() is None:
             pytest.skip("No database URL configured")

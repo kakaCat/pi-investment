@@ -27,7 +27,7 @@ import requests
 import psycopg2
 from psycopg2.extras import execute_values
 
-from infrastructure.persistence.database.base_repository import _resolve_db_dsn
+from infrastructure.persistence.database.engine import _resolve_db_dsn
 
 # ── 环境净化 ──────────────────────────────────────────
 for _k in ('HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy',

@@ -52,7 +52,7 @@ import structlog
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-from infrastructure.persistence.database.base_repository import _resolve_db_dsn
+from infrastructure.persistence.database.engine import _resolve_db_dsn
 
 logger = structlog.get_logger(__name__)
 

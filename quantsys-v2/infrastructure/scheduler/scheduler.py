@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Set
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-from infrastructure.persistence.database.base_repository import _resolve_db_dsn
+from infrastructure.persistence.database.engine import _resolve_db_dsn
 
 # 信号生成链路的依赖（模块级导入便于测试 patch；均有惰性单例语义无副作用）
 from adapters.outbound.repositories.heatmap_repository import HeatmapRepository

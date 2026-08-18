@@ -12,7 +12,7 @@ import requests
 import urllib3
 import psycopg2
 
-from infrastructure.persistence.database.base_repository import _resolve_db_dsn
+from infrastructure.persistence.database.engine import _resolve_db_dsn
 
 urllib3.disable_warnings()
 

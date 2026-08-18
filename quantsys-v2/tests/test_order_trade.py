@@ -873,7 +873,7 @@ class TestOrderTradeIntegration:
 
             # 创建一个已过期的订单（直接在DB层操作）
             import psycopg2
-            from infrastructure.persistence.database.base_repository import _resolve_db_dsn
+            from infrastructure.persistence.database.engine import _resolve_db_dsn
             dsn = _resolve_db_dsn()
             if not dsn:
                 pytest.skip("数据库连接不可用")

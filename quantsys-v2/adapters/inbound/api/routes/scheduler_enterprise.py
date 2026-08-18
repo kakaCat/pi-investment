@@ -16,7 +16,7 @@ def _shared_jobstore_job_count() -> int:
     留待 Flask 删除批次清理（server.py 回滚路径仍 import 本模块）。
     """
     from sqlalchemy import create_engine, text
-    from infrastructure.persistence.database.base_repository import _resolve_db_dsn
+    from infrastructure.persistence.database.engine import _resolve_db_dsn
 
     engine = create_engine(_resolve_db_dsn())
     try:
