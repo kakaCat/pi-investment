@@ -41,17 +41,17 @@ export default class RiskPlugin extends Service {
     // 风险控制
     ctx.tools.register(defineTool({
       name: 'risk_controller',
-      description: '风险控制工具：计算建议仓位、止损位、评估组合风险。用于：买入前计算合理仓位、设置止损、检查组合风险是否超标',
+      description: '风险控制计算：建议仓位、止损价、组合风险评估。适用于：买入前用 position_size 计算合理仓位、开仓后用 stop_loss 设置止损、定期用 portfolio_risk 检查组合风险是否超标。只读计算，不改变持仓；执行交易用 portfolio_trade。',
       parameters: {
         command: {
           type: 'string',
-          description: '操作类型：position_size（计算建议仓位）、stop_loss（计算止损价格）、portfolio_risk（评估组合整体风险）',
+          description: '操作类型。position_size：根据账户资金与标的风险计算建议买入仓位（需传 symbol）；stop_loss：计算止损价格（需传 symbol）；portfolio_risk：评估组合整体风险是否超标',
           enum: ['position_size', 'stop_loss', 'portfolio_risk'],
           required: true,
         },
         symbol: {
           type: 'string',
-          description: '股票代码（position_size/stop_loss 时需要），如：600519',
+          description: '股票代码，position_size / stop_loss 时必填，如 600519',
         },
         account_name: {
           type: 'string',
@@ -88,7 +88,7 @@ export default class RiskPlugin extends Service {
     // 风险指标
     ctx.tools.register(defineTool({
       name: 'risk_metrics',
-      description: '计算投资组合风险指标。用于：评估组合波动率、最大回撤、夏普比率、Beta等风险指标',
+      description: '计算投资组合的风险收益指标：年化波动率、最大回撤、夏普/索提诺比率、Beta、Alpha、VaR(95%)。适用于：定期（如每周）评估组合风险收益特征、判断是否需要降仓。需要因子层面的风险来源分解时用 risk_barra_decomposition。',
       parameters: {
         account_name: {
           type: 'string',
@@ -97,7 +97,7 @@ export default class RiskPlugin extends Service {
         },
         days: {
           type: 'integer',
-          description: '计算周期（天），默认60天',
+          description: '计算窗口（天），默认 60。窗口越短对近期变化越敏感，越长越稳定',
           default: 60,
         },
       },
@@ -132,7 +132,7 @@ export default class RiskPlugin extends Service {
     // Barra风险分解
     ctx.tools.register(defineTool({
       name: 'risk_barra_decomposition',
-      description: '使用Barra模型分解组合风险来源。用于：识别风险来自哪些因子（市值、行业、风格等），指导风险调整',
+      description: '用 Barra 模型将组合风险分解到因子层面（市值、行业、风格），给出各因子风险贡献与特质风险。适用于：组合回撤异常时定位风险来源、检查行业/风格暴露是否过度集中。整体风险指标用 risk_metrics。',
       parameters: {
         account_name: {
           type: 'string',

@@ -41,29 +41,29 @@ export default class SchedulerPlugin extends Service {
     // 调度器管理
     ctx.tools.register(defineTool({
       name: 'scheduler_manage',
-      description: '管理定时任务：列出、创建、启用、禁用、删除、手动触发。用于：查看自动任务状态、创建新的定时分析任务',
+      description: '管理定时任务：列出、创建、启用、禁用、删除、手动触发。定时任务是 Agent 自主运行的基础（如每日 02:00 刷新股票池、09:00 盘前扫描信号）。注意：当前仅 list/create/trigger 完整可用，enable/disable/delete 的后端接口尚未完全实现。',
       parameters: {
         action: {
           type: 'string',
-          description: '操作类型：list（列出所有任务）、create（创建任务）、enable（启用任务）、disable（禁用任务）、delete（删除任务）、trigger（手动触发任务）',
+          description: '操作类型。list：列出所有任务（只读）；create：创建任务（需同时传 name、cron、command）；trigger：立即手动触发一次（需传 task_id）；enable/disable/delete：启停/删除（需传 task_id，后端尚未完全实现）',
           enum: ['list', 'create', 'enable', 'disable', 'delete', 'trigger'],
           required: true,
         },
         task_id: {
           type: 'string',
-          description: '任务ID（非 list 操作时需要）',
+          description: '任务ID，trigger/enable/disable/delete 时必填，通过 action=list 获取',
         },
         name: {
           type: 'string',
-          description: '任务名称（create 时需要），如：每日早盘扫描',
+          description: '任务名称，create 时必填，如 "每日早盘扫描"',
         },
         cron: {
           type: 'string',
-          description: 'cron 表达式（create 时需要），如：0 9 * * 1-5（工作日9点）、0 2 * * *（每天2点）',
+          description: 'cron 表达式，create 时必填。如 "0 9 * * 1-5"（工作日9点）、"0 2 * * *"（每天凌晨2点）',
         },
         command: {
           type: 'string',
-          description: '执行命令（create 时需要），如：pool_refresh、signal_scan、report_generate',
+          description: '执行命令，create 时必填，如 pool_refresh、signal_scan、report_generate',
         },
       },
       output: {

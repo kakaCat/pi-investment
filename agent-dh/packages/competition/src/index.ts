@@ -43,15 +43,15 @@ export default class CompetitionPlugin extends Service {
     // 1. 对手行为分析
     ctx.tools.register(defineTool({
       name: 'opponent_behavior',
-      description: '分析市场参与者行为（散户、机构、游资），识别博弈机会和对手错误。用于：判断当前谁在主导市场、对手是否犯错（散户恐慌/机构调仓/游资撤退）、是否存在博弈机会',
+      description: '分析市场参与者（散户/机构/游资）的行为与情绪，识别对手错误和博弈机会。适用于：判断当前谁在主导市场、散户是否恐慌（错杀机会）、机构是否出货（撤退信号）、游资是否撤退（炒作结束）。返回机会信号与风险警告列表，是博弈决策的核心输入。',
       parameters: {
         symbol: {
           type: 'string',
-          description: '股票代码，如：600519。不传则分析全市场总体情况',
+          description: '股票代码，如 600519。传入则分析该股的参与者结构；不传则分析全市场总体格局',
         },
         focus: {
           type: 'string',
-          description: '分析重点：retail（散户情绪，判断恐慌/贪婪）、institution（机构动向，判断建仓/出货）、hot_money（游资行为，判断拉高/撤退）、all（全部，默认）',
+          description: '分析重点。retail：散户情绪（panic 恐慌=潜在买点，fomo 狂热=潜在卖点）；institution：机构动向（建仓/出货）；hot_money：游资活跃度（拉高/撤退）；all（默认）：三方综合分析',
           enum: ['retail', 'institution', 'hot_money', 'all'],
           default: 'all',
         },
@@ -87,11 +87,11 @@ export default class CompetitionPlugin extends Service {
     // 2. 池子战场评估
     ctx.tools.register(defineTool({
       name: 'pool_battlefield',
-      description: '评估股票池在市场博弈中的竞争优势，识别高胜率战场。用于：判断哪个股票池当前最具博弈优势、是否应该调整关注的池子',
+      description: '评估指定股票池的博弈竞争优势：综合评分、对手分析、风险评估、操作建议及其在所有池中的排名。适用于：定期评估各池子优劣、决定把资金和注意力投向哪个战场。先用 pool_list 获取池子ID；池内个股的参与者细节用 opponent_behavior。',
       parameters: {
         pool_id: {
           type: 'integer',
-          description: '股票池ID',
+          description: '股票池ID，通过 pool_list 获取',
           required: true,
         },
       },
@@ -123,16 +123,16 @@ export default class CompetitionPlugin extends Service {
     // 3. 操纵检测
     ctx.tools.register(defineTool({
       name: 'manipulation_detect',
-      description: '检测市场操纵行为（pump-and-dump拉高出货、对倒交易、诱多诱空等），识别陷阱和机会。用于：避免踩入操纵陷阱、识别操纵后的抄底机会',
+      description: '检测个股操纵嫌疑（拉高出货、对倒交易、诱多诱空等），给出嫌疑评分、检测到的模式、证据列表和操作建议。适用于：买入陌生标的前排雷、识别操纵崩盘后的抄底机会。评分高（如>70）时应回避，或等待崩盘后的机会窗口。',
       parameters: {
         symbol: {
           type: 'string',
-          description: '股票代码，如：600519',
+          description: 'A股6位数字股票代码，如 600519',
           required: true,
         },
         days: {
           type: 'integer',
-          description: '分析最近多少天的数据，默认30天',
+          description: '分析最近 N 天的数据，默认 30。操纵周期较长时可加大到 60-90',
           default: 30,
         },
       },

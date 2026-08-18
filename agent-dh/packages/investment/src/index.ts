@@ -48,16 +48,16 @@ export default class InvestmentPlugin extends Service {
     // 1. 实时行情
     ctx.tools.register(defineTool({
       name: 'data_fetch_quote',
-      description: '获取股票实时行情。用于：分析个股当前价格、涨跌幅、成交量等即时数据。示例：查询贵州茅台(600519)最新行情',
+      description: '获取股票实时行情快照：最新价、开高低、昨收、涨跌额/涨跌幅、成交量、成交额。适用于：盘中查看个股即时表现、下单前确认当前价格。非交易时段返回最近一个交易日的收盘数据。需要历史走势用 data_fetch_kline；需要估值与基本面用 data_fetch_financial。',
       parameters: {
         symbol: {
           type: 'string',
-          description: '股票代码，A股格式为6位数字，如：600519（贵州茅台）、000001（平安银行）、300750（宁德时代）',
+          description: 'A股6位数字股票代码，不带交易所前缀。如 600519（贵州茅台）、000001（平安银行）、300750（宁德时代）',
           required: true,
         },
         source: {
           type: 'string',
-          description: '数据源选择：auto（自动，优先实时）、realtime（强制实时）、db（数据库缓存，更快但可能非最新）',
+          description: '数据源。auto（默认）：优先实时行情，不可用时回退数据库缓存；realtime：强制实时，获取失败即报错，下单前建议用；db：只读数据库缓存，速度快但可能不是最新，批量查询或复盘时建议用',
           enum: ['auto', 'realtime', 'db'],
           default: 'auto',
         },
@@ -97,26 +97,26 @@ export default class InvestmentPlugin extends Service {
     // 2. K线数据
     ctx.tools.register(defineTool({
       name: 'data_fetch_kline',
-      description: '获取股票历史K线数据。用于：技术分析、趋势研判、计算技术指标（MA、RSI、MACD等）。支持日线、周线、月线',
+      description: '获取股票历史K线数据：每日开高低收、成交量、成交额，按日期升序返回。适用于：技术分析、趋势研判、计算 MA/RSI/MACD 等技术指标、回测取数。时间段越长返回数据越多，应按需限定日期范围；只要最新价格时用 data_fetch_quote 更轻量。',
       parameters: {
         symbol: {
           type: 'string',
-          description: '股票代码，如：600519',
+          description: 'A股6位数字股票代码，如 600519',
           required: true,
         },
         start_date: {
           type: 'string',
-          description: '开始日期，格式：YYYY-MM-DD，如：2024-01-01',
+          description: '开始日期，格式 YYYY-MM-DD，如 2024-01-01。与 end_date 配合限定区间',
           required: true,
         },
         end_date: {
           type: 'string',
-          description: '结束日期，格式：YYYY-MM-DD，如：2024-12-31',
+          description: '结束日期，格式 YYYY-MM-DD，如 2024-12-31',
           required: true,
         },
         period: {
           type: 'string',
-          description: 'K线周期：daily（日线，默认）、weekly（周线）、monthly（月线）',
+          description: 'K线周期。daily（默认）：日线，适合短中线分析；weekly：周线，适合中线趋势；monthly：月线，适合长期趋势判断',
           enum: ['daily', 'weekly', 'monthly'],
           default: 'daily',
         },
@@ -158,11 +158,11 @@ export default class InvestmentPlugin extends Service {
     // 3. 财务数据
     ctx.tools.register(defineTool({
       name: 'data_fetch_financial',
-      description: '获取股票最新财务数据。用于：基本面分析、价值投资筛选、评估公司盈利能力。返回利润表、资产负债表、现金流量表核心指标',
+      description: '获取股票最新一期财务数据：营收、净利润、总资产、ROE、EPS、PE-TTM、PB、资产负债率、毛利率等核心指标。适用于：基本面分析、价值投资筛选、评估公司盈利能力与财务健康度。数据随财报季更新（季报/年报），非实时；判断短期价格走势应结合 data_fetch_quote 与 data_fetch_kline。',
       parameters: {
         symbol: {
           type: 'string',
-          description: '股票代码，如：600519',
+          description: 'A股6位数字股票代码，如 600519',
           required: true,
         },
       },
@@ -200,21 +200,21 @@ export default class InvestmentPlugin extends Service {
     // 4. 宏观经济数据
     ctx.tools.register(defineTool({
       name: 'data_fetch_macro',
-      description: '获取宏观经济指标。用于：判断经济周期、评估市场环境、指导资产配置方向。指标包括PMI（制造业景气度）、CPI（通胀）、PPI（工业品价格）、GDP增速、M2（货币供应量）、利率',
+      description: '获取宏观经济指标的时间序列及趋势判断。适用于：判断经济周期位置、评估市场大环境、指导大类资产配置方向。宏观指标按月/季发布，适合中长期决策，不适合短线择时。注意：后端接口尚未就绪，当前返回占位结果，暂勿用于实际决策。',
       parameters: {
         indicator: {
           type: 'string',
-          description: '指标名称：pmi（制造业采购经理指数）、cpi（居民消费价格指数）、ppi（工业生产者出厂价格指数）、gdp（国内生产总值增速）、m2（广义货币供应量增速）、interest_rate（基准利率）',
+          description: '指标名称。pmi：制造业景气度（50为荣枯线）；cpi：通胀水平；ppi：工业品价格（领先于CPI）；gdp：经济增速；m2：货币供应量增速（反映流动性）；interest_rate：基准利率',
           enum: ['pmi', 'cpi', 'ppi', 'gdp', 'm2', 'interest_rate'],
           required: true,
         },
         start_date: {
           type: 'string',
-          description: '开始日期，格式：YYYY-MM-DD，如：2024-01-01',
+          description: '开始日期，格式 YYYY-MM-DD，如 2024-01-01。不传则由后端返回默认区间',
         },
         end_date: {
           type: 'string',
-          description: '结束日期，格式：YYYY-MM-DD，如：2024-12-31',
+          description: '结束日期，格式 YYYY-MM-DD，如 2024-12-31',
         },
       },
       output: {
@@ -242,11 +242,11 @@ export default class InvestmentPlugin extends Service {
     // 5. 北向资金流向
     ctx.tools.register(defineTool({
       name: 'data_fetch_north_flow',
-      description: '获取北向资金（沪股通+深股通）流向数据。用于：判断外资对A股的态度，外资持续流入通常被视为利好信号',
+      description: '获取北向资金（沪股通+深股通）流向：每日净流入、累计净流入、买入/卖出最多的个股。适用于：判断外资对A股的态度，持续净流入通常视为利好信号。注意：后端接口尚未就绪，当前返回占位结果，暂勿用于实际决策。',
       parameters: {
         days: {
           type: 'integer',
-          description: '查询最近多少天的数据，默认5天',
+          description: '查询最近 N 个交易日的数据，默认 5。看趋势建议取 20 以上',
           default: 5,
         },
       },
@@ -276,7 +276,7 @@ export default class InvestmentPlugin extends Service {
     // 6. 市场情绪
     ctx.tools.register(defineTool({
       name: 'data_fetch_market_sentiment',
-      description: '获取市场整体情绪指标。用于：判断市场恐慌/贪婪程度、评估短期风险。包括涨跌家数比、涨停跌停数、成交额变化、恐慌指数等',
+      description: '获取市场整体情绪指标：涨跌家数比、涨停/跌停家数、总成交额、恐慌贪婪指数（0-100）。适用于：判断市场恐慌/贪婪程度、评估短期系统性风险。注意：后端接口尚未就绪，当前返回占位结果，暂勿用于实际决策。',
       parameters: {},
       output: {
         schema: {
@@ -305,7 +305,7 @@ export default class InvestmentPlugin extends Service {
     // 7. 股票池列表
     ctx.tools.register(defineTool({
       name: 'pool_list',
-      description: '获取所有股票池列表。用于：查看已有的筛选池、了解各池子的成员数量和更新状态。股票池是预定义的筛选条件集合（如高ROE池、低估值池等）',
+      description: '获取全部股票池列表：名称、筛选逻辑描述、成员数量、更新时间。股票池是预定义筛选条件的集合（如高ROE池、低估值池），是博弈中的"战场"。适用于：盘前查看可用池子、选择分析对象。评估某个池子的博弈竞争力用 pool_battlefield；查池内个股行情用 data_fetch_quote。',
       parameters: {},
       output: {
         schema: {
@@ -337,16 +337,16 @@ export default class InvestmentPlugin extends Service {
     // 8. 策略列表
     ctx.tools.register(defineTool({
       name: 'strategy_list',
-      description: '获取交易策略列表。用于：查看可用的交易策略、了解策略类型和状态。策略是具体的交易规则（如均线突破、MACD金叉等）',
+      description: '获取交易策略列表：名称、类型、状态、参数配置。策略是具体的交易规则（如均线突破、MACD金叉）。适用于：查看可用策略、执行策略前确认 strategy_id。执行策略或生成信号用 strategy_execute；比较策略表现用 evolution_leaderboard。',
       parameters: {
         source: {
           type: 'string',
-          description: '策略来源：builtin（系统内置策略）、user（用户自定义策略）',
+          description: '按来源过滤。builtin：系统内置策略；user：用户自定义策略。不传则返回全部',
           enum: ['builtin', 'user'],
         },
         code_type: {
           type: 'string',
-          description: '策略类型过滤：indicator（技术指标）、trend_following（趋势跟踪）、mean_reversion（均值回归）、breakout（突破）',
+          description: '按策略类型过滤：indicator（技术指标类）、trend_following（趋势跟踪）、mean_reversion（均值回归）、breakout（突破）。不传则不过滤',
         },
       },
       output: {

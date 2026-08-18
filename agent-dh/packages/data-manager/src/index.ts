@@ -41,17 +41,17 @@ export default class DataManagerPlugin extends Service {
     // 数据质量报告
     ctx.tools.register(defineTool({
       name: 'data_quality_report',
-      description: '生成数据质量报告，检查缺失数据、延迟、异常值。用于：定期审查数据质量、发现数据问题',
+      description: '生成数据质量报告：整体评分、缺失数据、延迟数据、异常值列表及质量摘要。适用于：定期（如每日盘前）检查数据健康度——所有分析和交易决策都依赖数据质量，评分偏低时应先用 data_manager 修复数据再做决策。',
       parameters: {
         data_type: {
           type: 'string',
-          description: '数据类型：quote（行情）、kline（K线）、financial（财务）、all（全部，默认）',
+          description: '检查范围。all（默认）：全部；quote：行情；kline：K线；financial：财务',
           enum: ['quote', 'kline', 'financial', 'all'],
           default: 'all',
         },
         days: {
           type: 'integer',
-          description: '检查最近多少天的数据，默认7天',
+          description: '检查最近 N 天的数据，默认 7',
           default: 7,
         },
       },
@@ -86,21 +86,21 @@ export default class DataManagerPlugin extends Service {
     // 数据管理
     ctx.tools.register(defineTool({
       name: 'data_manager',
-      description: '数据管理工具：查看数据源状态、触发数据补录、清理缓存。用于：手动触发数据更新、解决数据缺失问题',
+      description: '数据管理操作：查看数据源状态、触发数据补录刷新、清理缓存、备份数据。适用于：data_quality_report 发现缺失后手动补录、数据异常时排查数据源。注意：refresh/cleanup/backup 是写操作，会改变数据或缓存状态；status 为只读。',
       parameters: {
         command: {
           type: 'string',
-          description: '命令：status（查看状态）、refresh（触发刷新）、cleanup（清理缓存）、backup（备份数据）',
+          description: '命令。status：查看各数据源连接与同步状态（只读）；refresh：触发数据补录/刷新（可配合 data_type、symbol 缩小范围）；cleanup：清理过期缓存；backup：备份数据',
           enum: ['status', 'refresh', 'cleanup', 'backup'],
           required: true,
         },
         data_type: {
           type: 'string',
-          description: '数据类型：quote（行情）、kline（K线）、financial（财务）、dividend（分红）、macro（宏观）',
+          description: '限定数据类型：quote（行情）、kline（K线）、financial（财务）、dividend（分红）、macro（宏观）。不传则作用于全部类型',
         },
         symbol: {
           type: 'string',
-          description: '股票代码（refresh 时可选，指定补录某只股票）',
+          description: '股票代码，仅 refresh 时有效：指定只补录某一只股票，如 600519',
         },
       },
       output: {
