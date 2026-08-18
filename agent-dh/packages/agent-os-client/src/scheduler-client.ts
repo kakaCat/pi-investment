@@ -5,18 +5,24 @@ import type {
   SchedulerTask,
   SchedulerTasksResponse,
   RegistryClientConfig,
+  TaskActionResult,
   TriggerTaskParams,
   TriggerTaskResponse,
+  UpdateTaskParams,
 } from './types.js';
 
 /**
  * SchedulerClient — Agent OS scheduler APIs.
  *
  * Server contract (verified live):
- *   GET  /api/v1/scheduler/tasks
- *   POST /api/v1/scheduler/tasks                 (CreateTaskRequest)
- *   POST /api/v1/scheduler/tasks/{id}/trigger
- *   GET  /api/v1/scheduler/tasks/{id}
+ *   GET    /api/v1/scheduler/tasks
+ *   POST   /api/v1/scheduler/tasks                 (CreateTaskRequest)
+ *   GET    /api/v1/scheduler/tasks/{id}
+ *   PUT    /api/v1/scheduler/tasks/{id}            (UpdateTaskRequest)
+ *   DELETE /api/v1/scheduler/tasks/{id}
+ *   POST   /api/v1/scheduler/tasks/{id}/trigger
+ *   POST   /api/v1/scheduler/tasks/{id}/pause        (= disable)
+ *   POST   /api/v1/scheduler/tasks/{id}/resume       (= enable)
  */
 export class SchedulerClient {
   private client: AxiosInstance;
@@ -79,6 +85,59 @@ export class SchedulerClient {
    */
   async getTask(taskId: string): Promise<SchedulerTask> {
     const response = await this.client.get<SchedulerTask>(
+      `/api/v1/scheduler/tasks/${encodeURIComponent(taskId)}`
+    );
+    return response.data;
+  }
+
+  /**
+   * Update a task (partial update, all fields optional).
+   */
+  async updateTask(taskId: string, params: UpdateTaskParams): Promise<SchedulerTask> {
+    if (!taskId || taskId.trim() === '') {
+      throw new Error('task_id is required');
+    }
+    const response = await this.client.put<SchedulerTask>(
+      `/api/v1/scheduler/tasks/${encodeURIComponent(taskId)}`,
+      params
+    );
+    return response.data;
+  }
+
+  /**
+   * Enable a task (resume).
+   */
+  async resumeTask(taskId: string): Promise<TaskActionResult> {
+    if (!taskId || taskId.trim() === '') {
+      throw new Error('task_id is required');
+    }
+    const response = await this.client.post<TaskActionResult>(
+      `/api/v1/scheduler/tasks/${encodeURIComponent(taskId)}/resume`
+    );
+    return response.data;
+  }
+
+  /**
+   * Disable a task (pause).
+   */
+  async pauseTask(taskId: string): Promise<TaskActionResult> {
+    if (!taskId || taskId.trim() === '') {
+      throw new Error('task_id is required');
+    }
+    const response = await this.client.post<TaskActionResult>(
+      `/api/v1/scheduler/tasks/${encodeURIComponent(taskId)}/pause`
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete a task.
+   */
+  async deleteTask(taskId: string): Promise<TaskActionResult> {
+    if (!taskId || taskId.trim() === '') {
+      throw new Error('task_id is required');
+    }
+    const response = await this.client.delete<TaskActionResult>(
       `/api/v1/scheduler/tasks/${encodeURIComponent(taskId)}`
     );
     return response.data;

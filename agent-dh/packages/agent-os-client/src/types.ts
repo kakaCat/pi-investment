@@ -188,6 +188,27 @@ export interface TriggerTaskResponse {
   [key: string]: any;
 }
 
+/**
+ * Request body for PUT /api/v1/scheduler/tasks/{id} (all fields optional)
+ */
+export interface UpdateTaskParams {
+  name?: string;
+  description?: string;
+  cron?: string;
+  webhook_url?: string;
+  payload?: Record<string, any>;
+  timeout?: number;
+  retry_count?: number;
+  enabled?: boolean;
+}
+
+/**
+ * Response for pause/resume/delete task actions
+ */
+export interface TaskActionResult {
+  message: string;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Notification
 // ─────────────────────────────────────────────────────────────

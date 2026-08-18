@@ -1,6 +1,7 @@
 import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
+import { AgentOSClient } from '@pi-investment/agent-os-client';
 
 export interface Config {
   agentOS?: {
@@ -9,17 +10,11 @@ export interface Config {
   };
 }
 
-interface TaskLike {
-  id: string;
-  name: string;
-  [key: string]: any;
-}
-
 /**
  * Scheduler Plugin for Agent-DH
  *
- * Task scheduling via Agent OS Scheduler API (/api/v1/scheduler).
- * Self-contained: uses the global fetch API, no client dependency.
+ * Task scheduling via Agent OS Scheduler API (/api/v1/scheduler),
+ * through the shared AgentOSClient.scheduler (SchedulerClient).
  */
 export default class SchedulerPlugin extends Service {
   static inject = ['tools'];
@@ -30,32 +25,20 @@ export default class SchedulerPlugin extends Service {
     }).default({} as any),
   }).default({} as any)
 
-  private baseURL: string;
+  private aos: AgentOSClient;
   private owner: string;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'scheduler');
-    this.baseURL = config.agentOS?.baseURL || 'http://localhost:8080';
+    this.aos = new AgentOSClient({
+      baseURL: config.agentOS?.baseURL || 'http://localhost:8080',
+    });
     this.owner = config.agentOS?.agentId || 'agent-dh';
     this.registerTools();
   }
 
-  private async request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: any): Promise<T> {
-    const response = await fetch(`${this.baseURL}${path}`, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new Error(`Agent OS scheduler ${method} ${path} -> HTTP ${response.status}: ${text.slice(0, 200)}`);
-    }
-    return response.json() as Promise<T>;
-  }
-
   private registerTools() {
     const { ctx } = this;
-    const api = (p: string) => `/api/v1/scheduler${p}`;
 
     // 调度器管理
     ctx.tools.register(defineTool({
@@ -104,45 +87,42 @@ export default class SchedulerPlugin extends Service {
       },
       timeoutMs: 20000,
       execute: async (args: any) => {
+        const aos = this.aos;
         switch (args.action) {
           case 'list': {
-            const result = await this.request<{ tasks: TaskLike[]; count: number }>('GET', api('/tasks'));
+            const result = await aos.scheduler.listTasks();
             return { success: true, action: 'list', tasks: result.tasks, count: result.count } as any;
           }
           case 'create': {
             if (!args.name || !args.cron || !args.command) {
               return { success: false, action: 'create', message: 'create 需要同时提供 name、cron、command' } as any;
             }
-            const task = await this.request<TaskLike>('POST', api('/tasks'), {
+            const task = await aos.scheduler.registerTask({
               name: args.name,
               owner: this.owner,
-              // 服务端要求 6 段 cron（秒 分 时 日 月 周），5 段自动补秒
-              cron: args.cron.trim().split(/\s+/).length === 5 ? `0 ${args.cron.trim()}` : args.cron.trim(),
+              cron: args.cron,
               command: args.command,
-              // 服务端 DTO 要求 timeout >= 1，缺省补 60 秒
-              timeout: 60,
-              enabled: true,
             });
             return { success: true, action: 'create', task_id: task.id, task, message: `任务「${task.name}」已创建` } as any;
           }
           case 'trigger': {
             if (!args.task_id) return { success: false, action: 'trigger', message: '缺少 task_id' } as any;
-            const run = await this.request<any>('POST', api(`/tasks/${encodeURIComponent(args.task_id)}/trigger`));
+            const run = await aos.scheduler.triggerTask({ task_id: args.task_id });
             return { success: true, action: 'trigger', task_id: args.task_id, run, message: '任务已触发' } as any;
           }
           case 'enable': {
             if (!args.task_id) return { success: false, action: 'enable', message: '缺少 task_id' } as any;
-            const result = await this.request<{ message: string }>('POST', api(`/tasks/${encodeURIComponent(args.task_id)}/resume`));
+            const result = await aos.scheduler.resumeTask(args.task_id);
             return { success: true, action: 'enable', task_id: args.task_id, message: result.message } as any;
           }
           case 'disable': {
             if (!args.task_id) return { success: false, action: 'disable', message: '缺少 task_id' } as any;
-            const result = await this.request<{ message: string }>('POST', api(`/tasks/${encodeURIComponent(args.task_id)}/pause`));
+            const result = await aos.scheduler.pauseTask(args.task_id);
             return { success: true, action: 'disable', task_id: args.task_id, message: result.message } as any;
           }
           case 'delete': {
             if (!args.task_id) return { success: false, action: 'delete', message: '缺少 task_id' } as any;
-            const result = await this.request<{ message: string }>('DELETE', api(`/tasks/${encodeURIComponent(args.task_id)}`));
+            const result = await aos.scheduler.deleteTask(args.task_id);
             return { success: true, action: 'delete', task_id: args.task_id, message: result.message } as any;
           }
           default:
