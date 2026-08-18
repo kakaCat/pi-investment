@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -336,10 +337,13 @@ func (h *SchedulerHandler) handleGetExecution(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Need to add GetTaskRunByID method to scheduler
-	// For now, return error
-	respondError(w, http.StatusNotImplemented, "GetTaskRunByID not implemented yet")
-	_ = executionID
+	run, err := h.scheduler.GetTaskRun(r.Context(), executionID)
+	if err != nil {
+		respondError(w, http.StatusNotFound, "execution not found: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, run)
 }
 
 // handleUpdateExecution updates an execution status
@@ -353,10 +357,9 @@ func (h *SchedulerHandler) handleUpdateExecution(w http.ResponseWriter, r *http.
 	}
 
 	var req struct {
-		Status string                 `json:"status,omitempty"`
-		Output string                 `json:"output,omitempty"`
-		Error  string                 `json:"error,omitempty"`
-		Result map[string]interface{} `json:"result,omitempty"`
+		Status string `json:"status"`
+		Output string `json:"output,omitempty"`
+		Error  string `json:"error,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -364,11 +367,26 @@ func (h *SchedulerHandler) handleUpdateExecution(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Need to add UpdateTaskRun method to scheduler
-	// For now, return error
-	respondError(w, http.StatusNotImplemented, "UpdateTaskRun not implemented yet")
-	_ = executionID
-	_ = req
+	if req.Status == "" {
+		respondError(w, http.StatusBadRequest, "status is required")
+		return
+	}
+
+	run, err := h.scheduler.UpdateTaskRunResult(r.Context(), executionID, req.Status, req.Output, req.Error)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			respondError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if strings.Contains(err.Error(), "invalid status") {
+			respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to update execution: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, run)
 }
 
 // handleGetTasksWithStats gets tasks with execution statistics

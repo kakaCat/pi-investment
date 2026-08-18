@@ -25,6 +25,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -245,24 +246,33 @@ async def execute_job(handler: Callable, payload: WebhookPayload):
             f"Failed to write run record to local database: {e}", exc_info=True
         )
 
-    # Report back to Agent OS
+    # Report back to Agent OS — use the scheduler's own run_id (carried in
+    # metadata by the executor) so the scheduler's run record reflects the
+    # REAL job outcome, not just "webhook accepted". Older executors don't
+    # send run_id; skip reporting instead of hitting a wrong URL.
+    agent_run_id = payload.metadata.get("run_id")
+    if not agent_run_id:
+        logger.warning(
+            f"No run_id in metadata for job '{payload.job_name}' — "
+            "skipping result report to Agent OS"
+        )
+        return
+
     try:
         from application.services.agent_os_client import get_agent_os_client
 
         agent_os_client = get_agent_os_client()
         await agent_os_client.report_job_result(
-            payload.job_id,
-            run_id,
+            agent_run_id,
             {
                 "status": status,
-                "started_at": start_time.isoformat(),
-                "completed_at": end_time.isoformat(),
-                "error_message": error_msg,
+                "output": json.dumps(result) if result else "",
+                "error": error_msg or "",
             },
         )
         logger.debug(
-            f"Reported result to Agent OS: job_id={payload.job_id}, "
-            f"run_id={run_id}, status={status}"
+            f"Reported result to Agent OS: run_id={agent_run_id}, "
+            f"status={status}"
         )
     except Exception as e:
         logger.error(f"Failed to report job result to Agent OS: {e}", exc_info=True)
