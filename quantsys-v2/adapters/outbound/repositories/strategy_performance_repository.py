@@ -7,19 +7,30 @@ create/get_statistics 等全部丢失，导致 StrategyWeightAdjuster 动态权�
 ExperienceAccumulator 经验积累、StrategyRotationEngine 轮换评估静默退化。
 现按归档仓库 6281332 的旧实现恢复，指向真实表 quant.strategy_performance（单数）。
 对外保留 StrategyPerformanceORMRepository 别名（调用方均用此名）。
+
+2026-08-18 WP-3 迁移：移除 BaseRepository 继承，改用 db_cursor() 现取现还连接。
 """
 from typing import List, Dict, Optional
 import json
 from datetime import date
-from infrastructure.persistence.database.base_repository import BaseRepository
 
 
-class StrategyPerformanceRepository(BaseRepository):
+class StrategyPerformanceRepository:
     """策略表现 Repository（quant.strategy_performance 表）"""
 
     def __init__(self, db_connection=None):
-        # 兼容 BaseRepository 形参，调用父类初始化以设置连接管理属性
-        super().__init__(db_connection)
+        """db_connection 参数仅为向后兼容保留（忽略）。连接按操作现取现还。"""
+        pass
+
+    def close(self):
+        """兼容旧调用方的 no-op（连接不再由实例持有）。"""
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return False
 
     # ==================== 创建方法 ====================
 
@@ -63,8 +74,8 @@ class StrategyPerformanceRepository(BaseRepository):
             RETURNING *
         """
 
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor(commit=True) as cursor:
             cursor.execute(query, (
                 strategy_name,
                 symbol,
@@ -78,13 +89,10 @@ class StrategyPerformanceRepository(BaseRepository):
                 source
             ))
             result = cursor.fetchone()
-            self.db.commit()
 
             record = dict(result)
             # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
             return record
-        finally:
-            cursor.close()
 
     # ==================== 更新方法 ====================
 
@@ -105,9 +113,9 @@ class StrategyPerformanceRepository(BaseRepository):
         Returns:
             更新后的记录
         """
-        # 先获取入场价格
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor(commit=True) as cursor:
+            # 先获取入场价格
             cursor.execute(
                 "SELECT entry_price FROM quant.strategy_performance WHERE id = %s",
                 (record_id,)
@@ -132,7 +140,6 @@ class StrategyPerformanceRepository(BaseRepository):
 
             cursor.execute(query, (exit_price, pnl_pct, holding_days, record_id))
             result = cursor.fetchone()
-            self.db.commit()
 
             if result:
                 record = dict(result)
@@ -140,8 +147,6 @@ class StrategyPerformanceRepository(BaseRepository):
                 return record
 
             return None
-        finally:
-            cursor.close()
 
     # ==================== 查询方法 ====================
 
@@ -182,8 +187,8 @@ class StrategyPerformanceRepository(BaseRepository):
             """
             params = (strategy_name, symbol)
 
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor() as cursor:
             cursor.execute(query, params)
             results = cursor.fetchall()
 
@@ -194,8 +199,6 @@ class StrategyPerformanceRepository(BaseRepository):
                 records.append(record)
 
             return records
-        finally:
-            cursor.close()
 
     def get_recent(
         self,
@@ -236,8 +239,8 @@ class StrategyPerformanceRepository(BaseRepository):
         """
         params.append(limit)
 
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor() as cursor:
             cursor.execute(query, tuple(params))
             results = cursor.fetchall()
 
@@ -248,8 +251,6 @@ class StrategyPerformanceRepository(BaseRepository):
                 records.append(record)
 
             return records
-        finally:
-            cursor.close()
 
     def get_by_scenario_tag(self, tag: str) -> List[Dict]:
         """
@@ -268,8 +269,8 @@ class StrategyPerformanceRepository(BaseRepository):
             ORDER BY signal_date DESC
         """
 
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor() as cursor:
             cursor.execute(query, (f'%{tag}%',))
             results = cursor.fetchall()
 
@@ -280,8 +281,6 @@ class StrategyPerformanceRepository(BaseRepository):
                 records.append(record)
 
             return records
-        finally:
-            cursor.close()
 
     # ==================== 统计方法 ====================
 
@@ -329,8 +328,8 @@ class StrategyPerformanceRepository(BaseRepository):
             WHERE {where_clause}
         """
 
-        cursor = self._get_cursor()
-        try:
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor() as cursor:
             cursor.execute(query, tuple(params))
             result = cursor.fetchone()
 
@@ -346,8 +345,6 @@ class StrategyPerformanceRepository(BaseRepository):
             stats['win_rate'] = (stats['win_trades'] / stats['total_trades']) * 100 if stats['total_trades'] > 0 else 0
 
             return stats
-        finally:
-            cursor.close()
 
 
 # 兼容别名：调用方（order_service / strategy_weight_adjuster /
