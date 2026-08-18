@@ -6,21 +6,25 @@ import { AgentOSClient } from '@pi-investment/agent-os-client';
 
 /**
  * Main entry point
+ * Runs in local mode by default (no Agent OS backend required)
  */
 async function main() {
-  console.log('=== Agent-DH CLI Starting ===\n');
+  console.log('=== Agent-DH CLI Starting (Local Mode) ===\n');
 
   // Create Cordis Context
   const ctx = new Context();
 
   console.log('[CLI] Loading DSH core plugins...');
-  
-  // Create Agent OS client (real implementation)
-  const osClient = new AgentOSClient({
-    baseURL: process.env.AGENT_OS_BASE_URL || 'http://localhost:8080',
-  });
 
-  console.log('[CLI] Agent OS URL:', process.env.AGENT_OS_BASE_URL || 'http://localhost:8080');
+  // Create Agent OS client (local mode - no backend required)
+  const useLocalMode = !process.env.AGENT_OS_BASE_URL;
+  const osClient = useLocalMode
+    ? new AgentOSClient()  // Local in-memory registry
+    : new AgentOSClient({
+        baseURL: process.env.AGENT_OS_BASE_URL,
+      });
+
+  console.log('[CLI] Mode:', useLocalMode ? 'LOCAL (in-memory)' : 'REMOTE (' + process.env.AGENT_OS_BASE_URL + ')');
 
   // Create Investment Agent Loop
   const agentLoop = new InvestmentAgentLoop(ctx, {
