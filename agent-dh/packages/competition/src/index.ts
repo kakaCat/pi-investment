@@ -1,0 +1,166 @@
+import { Context, Service } from '@deepseek-ai/cordis';
+import z from '@deepseek-ai/schemastery';
+import { defineTool } from '@deepseek-ai/dsh-tools';
+import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+
+export interface Config {
+  quantsysV2?: {
+    baseURL?: string;
+    timeout?: number;
+  };
+}
+
+/**
+ * Competition Intelligence Plugin for Agent-DH
+ *
+ * Market competition analysis: opponent behavior, battlefield assessment, manipulation detection.
+ */
+export default class CompetitionPlugin extends Service {
+  static inject = ['tools'];
+  static Config = z.object({
+    quantsysV2: z.object({
+      baseURL: z.string().default('http://localhost:5001'),
+      timeout: z.number().default(30000),
+    }).default({} as any),
+  }).default({} as any)
+
+  private qv2: QuantsysV2Client;
+
+  constructor(ctx: Context, config: Config) {
+    super(ctx, 'competition');
+
+    this.qv2 = new QuantsysV2Client({
+      baseURL: config.quantsysV2?.baseURL || 'http://localhost:5001',
+      timeout: config.quantsysV2?.timeout || 30000,
+    });
+
+    this.registerTools();
+  }
+
+  private registerTools() {
+    const { ctx, qv2 } = this;
+
+    // 1. 对手行为分析
+    ctx.tools.register(defineTool({
+      name: 'opponent_behavior',
+      description: '分析市场参与者行为（散户、机构、游资），识别博弈机会和对手错误。用于：判断当前谁在主导市场、对手是否犯错（散户恐慌/机构调仓/游资撤退）、是否存在博弈机会',
+      parameters: {
+        symbol: {
+          type: 'string',
+          description: '股票代码，如：600519。不传则分析全市场总体情况',
+        },
+        focus: {
+          type: 'string',
+          description: '分析重点：retail（散户情绪，判断恐慌/贪婪）、institution（机构动向，判断建仓/出货）、hot_money（游资行为，判断拉高/撤退）、all（全部，默认）',
+          enum: ['retail', 'institution', 'hot_money', 'all'],
+          default: 'all',
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            symbol: { type: 'string', description: '股票代码或 market' },
+            retail_sentiment: { type: 'string', description: '散户情绪：panic/fear/neutral/greed/fomo' },
+            institution_flow: { type: 'string', description: '机构资金流向：heavy_inflow/inflow/neutral/outflow/heavy_outflow' },
+            hot_money_activity: { type: 'string', description: '游资活跃度：high/medium/low' },
+            opportunity_signals: { type: 'array', description: '博弈机会信号列表' },
+            risk_warnings: { type: 'array', description: '风险警告列表' },
+            analysis_summary: { type: 'string', description: '综合分析摘要' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args, value) => [{
+          type: 'text',
+          text: JSON.stringify(value, null, 2),
+        }],
+      },
+      timeoutMs: 15000,
+      execute: async (args: any) => {
+        return qv2.getOpponentBehavior({
+          symbol: args.symbol,
+          focus: args.focus || 'all',
+        }) as any;
+      },
+    } as any));
+
+    // 2. 池子战场评估
+    ctx.tools.register(defineTool({
+      name: 'pool_battlefield',
+      description: '评估股票池在市场博弈中的竞争优势，识别高胜率战场。用于：判断哪个股票池当前最具博弈优势、是否应该调整关注的池子',
+      parameters: {
+        pool_id: {
+          type: 'integer',
+          description: '股票池ID',
+          required: true,
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            pool_id: { type: 'integer', description: '股票池ID' },
+            pool_name: { type: 'string', description: '股票池名称' },
+            competitive_score: { type: 'number', description: '竞争优势评分（0-100，越高越好）' },
+            opponent_analysis: { type: 'object', description: '对手分析详情', additionalProperties: true },
+            risk_assessment: { type: 'object', description: '风险评估详情', additionalProperties: true },
+            recommendations: { type: 'array', description: '操作建议列表' },
+            ranking: { type: 'integer', description: '在所有池子中的排名' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args, value) => [{
+          type: 'text',
+          text: JSON.stringify(value, null, 2),
+        }],
+      },
+      timeoutMs: 15000,
+      execute: async (args: any) => {
+        return qv2.getPoolBattlefield({ pool_id: args.pool_id }) as any;
+      },
+    } as any));
+
+    // 3. 操纵检测
+    ctx.tools.register(defineTool({
+      name: 'manipulation_detect',
+      description: '检测市场操纵行为（pump-and-dump拉高出货、对倒交易、诱多诱空等），识别陷阱和机会。用于：避免踩入操纵陷阱、识别操纵后的抄底机会',
+      parameters: {
+        symbol: {
+          type: 'string',
+          description: '股票代码，如：600519',
+          required: true,
+        },
+        days: {
+          type: 'integer',
+          description: '分析最近多少天的数据，默认30天',
+          default: 30,
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            symbol: { type: 'string', description: '股票代码' },
+            manipulation_score: { type: 'number', description: '操纵嫌疑评分（0-100，越高嫌疑越大）' },
+            detected_patterns: { type: 'array', description: '检测到的操纵模式列表' },
+            risk_level: { type: 'string', description: '风险等级：low（低风险）/medium（中风险）/high（高风险）' },
+            recommendation: { type: 'string', description: '建议：avoid（回避）/watch（观望）/opportunity（操纵后机会）' },
+            evidence: { type: 'array', description: '证据列表' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args, value) => [{
+          type: 'text',
+          text: JSON.stringify(value, null, 2),
+        }],
+      },
+      timeoutMs: 15000,
+      execute: async (args: any) => {
+        return qv2.detectManipulation({
+          symbol: args.symbol,
+          days: args.days || 30,
+        }) as any;
+      },
+    } as any));
+  }
+}
