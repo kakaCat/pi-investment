@@ -74,3 +74,11 @@ export interface RegistryClientConfig {
   timeout?: number;
   headers?: Record<string, string>;
 }
+
+/**
+ * AgentOS client configuration
+ */
+export interface AgentOSClientConfig extends Partial<RegistryClientConfig> {
+  /** Agent ID used as task owner / identity when talking to Agent OS */
+  agentId?: string;
+}

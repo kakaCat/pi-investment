@@ -39,7 +39,8 @@ export interface Strategy {
 export interface BacktestRequest {
   strategy_id?: number;
   strategy_code?: string;
-  symbol: string;
+  symbol?: string;
+  symbols?: string[];
   start_date: string;
   end_date: string;
   initial_capital?: number;
