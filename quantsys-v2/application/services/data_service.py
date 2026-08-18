@@ -112,13 +112,15 @@ class DataService:
             klines = klines_df.to_dicts() if isinstance(klines_df, pl.DataFrame) and not klines_df.is_empty() else []
 
             # 获取财务数据（用于PE/PB回测）
+            # 注意：financial_service.get_financial_data 抛的是普通 provider 异常，
+            # 这里必须保持宽捕获做降级容忍（财务数据缺失不应拖垮整个回测工作流）
             financials = []
             try:
                 financials_data = self.financial_service.get_financial_data(symbol, start_date, end_date)
                 if financials_data and 'data' in financials_data:
                     financials = financials_data['data']
-            except ExternalServiceError as e:
-                logger.warning(f"Failed to get financial data for {symbol}: {e}")
+            except Exception as e:
+                logger.warning(f"Failed to get financial data for {symbol}, degrade to empty: {e}")
 
             return {
                 'symbol': symbol,
