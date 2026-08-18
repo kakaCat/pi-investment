@@ -63,7 +63,7 @@ export default class IntelligencePlugin extends Service {
             additionalProperties: true,
           },
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: `共找到 ${(value as any[]).length} 条盯盘规则:\n${JSON.stringify(value, null, 2)}`,
         }],
@@ -113,7 +113,7 @@ export default class IntelligencePlugin extends Service {
           },
           additionalProperties: true,
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: JSON.stringify(value, null, 2),
         }],
@@ -157,7 +157,7 @@ export default class IntelligencePlugin extends Service {
             additionalProperties: true,
           },
         },
-        render: (_args, value) => [{
+        render: (_args: any, value: any) => [{
           type: 'text',
           text: `共 ${(value as any[]).length} 条告警:\n${JSON.stringify(value, null, 2)}`,
         }],
