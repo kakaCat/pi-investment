@@ -243,7 +243,7 @@ export class QuantsysV2Client {
    * Create pool
    */
   async createPool(pool: { name: string; description?: string }): Promise<Pool> {
-    const response = await this.client.post('/api/pools/create', pool);
+    const response = await this.client.post('/api/pools', pool);
     return this.unwrap(response.data, 'createPool');
   }
 
@@ -305,7 +305,7 @@ export class QuantsysV2Client {
     start_date?: string;
     end_date?: string;
   }): Promise<Signal[]> {
-    const response = await this.client.get('/api/signals/list', {
+    const response = await this.client.get('/api/signals', {
       params,
     });
     return this.unwrap(response.data, 'listSignals');
@@ -327,14 +327,18 @@ export class QuantsysV2Client {
 
   /**
    * Get market style
+   * Real endpoint: GET /api/market/style
+   * Real response data: {style, confidence, scores, indicators, recommendedFactors, detectionDate}
    */
   async getMarketStyle(): Promise<{
     style: string;
     confidence: number;
-    description: string;
-    updated_at: string;
+    scores: Record<string, number>;
+    indicators: Record<string, number>;
+    recommendedFactors: string[];
+    detectionDate: string;
   }> {
-    const response = await this.client.get('/api/analysis/market-style');
+    const response = await this.client.get('/api/market/style');
     return this.unwrap(response.data, 'getMarketStyle');
   }
 

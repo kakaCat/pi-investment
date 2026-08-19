@@ -8,3 +8,6 @@ dist/
 coverage/
 .vscode/
 .idea/
+
+# local backup snapshots
+agent-dh.bak.*/

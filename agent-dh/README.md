@@ -252,6 +252,6 @@ MIT
 
 **Status**: ✅ 核心基础设施完成，准备投入使用
 
-**Version**: 0.1.0
+**Version**: 0.1.1
 
-**Last Updated**: 2026-08-18
+**Last Updated**: 2026-08-19

@@ -41,18 +41,18 @@ export default class MarketPlugin extends Service {
     // 市场风格检测
     ctx.tools.register(defineTool({
       name: 'market_style_detect',
-      description: '检测当前市场主导风格（价值/成长/大盘/小盘/周期/防御）及置信度，返回领涨领跌板块和配置建议。适用于：定期（如每周）判断市场偏好、指导配置方向——风格偏价值时增配低估值蓝筹，偏成长时关注科技成长。行业层面的细节分析用 sector_analysis。',
+      description: '检测当前市场主导风格（价值/成长/周期）及置信度，返回各风格得分、观测指标和推荐因子。适用于：定期（如每周）判断市场偏好、指导配置方向——风格偏价值时增配低估值蓝筹，偏成长时关注科技成长。行业层面的细节分析用 sector_analysis。',
       parameters: {},
       output: {
         schema: {
           type: 'object',
           properties: {
-            primary_style: { type: 'string', description: '主风格：value（价值）/growth（成长）/large_cap（大盘）/small_cap（小盘）/cyclical（周期）/defensive（防御）' },
-            secondary_style: { type: 'string', description: '次要风格' },
+            style: { type: 'string', description: '主导风格：value（价值）/growth（成长）/cycle（周期）' },
             confidence: { type: 'number', description: '置信度（0-1）' },
-            description: { type: 'string', description: '风格描述和配置建议' },
-            leading_sectors: { type: 'array', description: '领涨板块' },
-            lagging_sectors: { type: 'array', description: '领跌板块' },
+            scores: { type: 'object', description: '各风格得分，如 {value, growth, cycle}' },
+            indicators: { type: 'object', description: '观测指标（银行/科技/周期板块表现、成交量变化、波动率等）' },
+            recommendedFactors: { type: 'array', description: '当前风格下的推荐因子，如 roe/momentum' },
+            detectionDate: { type: 'string', description: '检测日期（YYYY-MM-DD）' },
           },
           additionalProperties: true,
         },
