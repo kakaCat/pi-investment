@@ -11,6 +11,9 @@ import { join } from 'node:path';
 const [pidS, portS, repoRoot, stateDir, startScript, logPath] = process.argv.slice(2);
 const pid = Number(pidS);
 const port = Number(portS);
+// 测试/调优钩子：环境变量覆盖等待时长（生产缺省 5s 启动延迟、120s 健康检查）
+const PRE_KILL_DELAY_MS = Number(process.env.SELF_RESTART_PRE_KILL_DELAY_MS) || 5000;
+const HEALTH_TIMEOUT_MS = Number(process.env.SELF_RESTART_HEALTH_TIMEOUT_MS) || 120_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const log = (msg: string) => {
@@ -65,11 +68,11 @@ async function killOld(): Promise<void> {
 
 async function main(): Promise<void> {
   log(`self-restart start: pid=${pid} port=${port}`);
-  await sleep(5000); // 给 agent 留时间输出完回复、落盘会话
+  await sleep(PRE_KILL_DELAY_MS); // 给 agent 留时间输出完回复、落盘会话
   await killOld();
 
   startAgent();
-  if (await waitPort(120_000)) {
+  if (await waitPort(HEALTH_TIMEOUT_MS)) {
     log('health check ok');
     writeResult({ status: 'ok' });
     return;
@@ -86,7 +89,7 @@ async function main(): Promise<void> {
     return;
   }
   startAgent();
-  if (await waitPort(120_000)) {
+  if (await waitPort(HEALTH_TIMEOUT_MS)) {
     log('rollback boot ok');
     writeResult({ status: 'rolled_back', failed_branch: pending.checkpoint_branch, log_path: logPath });
   } else {
