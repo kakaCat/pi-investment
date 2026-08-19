@@ -31,7 +31,7 @@ except ImportError:
 
     ak = _AkShareUnavailable()
 
-from domain.quantlib.adapters.base_adapter import BaseMarketAdapter
+from .base_adapter import BaseMarketAdapter
 
 
 # ---------------------------------------------------------------------------

@@ -1,10 +1,10 @@
 """
 AkShare Broker Adapter
 
-AkShare 是一个开源的金融数据接口库，提供 A 股、港股、美股等市场数据。
-本适配器将 AkShare 封装为统一的券商接口。
+本适配器将 DataProviderManager 封装为统一的券商接口。
+（Phase 3 数据访问治理：内部委托 DataProviderManager，消除 akshare 直接依赖）
 
-注意：AkShare 仅提供数据，不支持交易功能。
+注意：仅提供数据，不支持交易功能。
 """
 
 import logging
@@ -27,28 +27,25 @@ logger = logging.getLogger(__name__)
 
 class AkshareBroker(BaseBroker):
     """
-    AkShare 数据源适配器
+    AkShare 数据源适配器（委托 DataProviderManager）
 
     特点：
-    - 免费开源，无需 API Key
-    - 支持 A 股实时行情和历史数据
+    - 内部使用 DataProviderManager 统一数据层
+    - 自动 failover（DB → akshare → tencent → baostock）
     - 不支持交易功能
     """
 
     def __init__(self):
         """初始化 AkShare 适配器"""
-        self._akshare = None
-        self._load_akshare()
+        self._manager = None
 
-    def _load_akshare(self):
-        """延迟加载 akshare 库"""
-        try:
-            import akshare as ak
-            self._akshare = ak
-            logger.info("AkShare library loaded successfully")
-        except ImportError:
-            logger.error("AkShare library not found. Install with: pip install akshare")
-            raise
+    def _get_manager(self):
+        """延迟加载 DataProviderManager"""
+        if self._manager is None:
+            from adapters.outbound.datasources import get_data_provider_manager
+            self._manager = get_data_provider_manager()
+            logger.info("DataProviderManager loaded for AkshareBroker")
+        return self._manager
 
     # ========================================================================
     # Identity & Configuration
@@ -95,7 +92,7 @@ class AkshareBroker(BaseBroker):
 
     def get_quotes(self, symbols: List[str]) -> ApiResponse[List[BrokerQuote]]:
         """
-        获取实时行情
+        获取实时行情（委托 DataProviderManager）
 
         Args:
             symbols: 股票代码列表，支持格式：
@@ -106,38 +103,30 @@ class AkshareBroker(BaseBroker):
         Returns:
             ApiResponse[List[BrokerQuote]]: 行情数据
         """
-        if not self._akshare:
-            return ApiResponse.fail("AkShare library not loaded")
-
         try:
-            # 获取实时行情数据（东方财富）
-            df = self._akshare.stock_zh_a_spot_em()
-
+            manager = self._get_manager()
             quotes = []
+            
             for symbol in symbols:
-                # 标准化股票代码（去除交易所后缀）
-                clean_symbol = symbol.split('.')[0]
-
-                # 查找对应行情
-                row = df[df['代码'] == clean_symbol]
-                if row.empty:
-                    logger.warning(f"Symbol not found: {symbol}")
+                result = manager.get_quote(symbol)
+                
+                if not result.get('success'):
+                    logger.warning(f"Failed to get quote for {symbol}: {result.get('error')}")
                     continue
-
-                row = row.iloc[0]
-
-                # 构建 BrokerQuote
+                
+                data = result['data']
+                # 构建 BrokerQuote（假设 data 是 QuoteData 对象）
                 quote = BrokerQuote(
                     symbol=symbol,
-                    last_price=float(row['最新价']),
-                    open_price=float(row['今开']),
-                    high_price=float(row['最高']),
-                    low_price=float(row['最低']),
-                    close_price=float(row['昨收']),
-                    volume=float(row['成交量']),
-                    turnover=float(row['成交额']),
-                    change=float(row['涨跌额']),
-                    change_pct=float(row['涨跌幅']),
+                    last_price=float(data.price),
+                    open_price=float(data.open) if hasattr(data, 'open') else 0.0,
+                    high_price=float(data.high) if hasattr(data, 'high') else 0.0,
+                    low_price=float(data.low) if hasattr(data, 'low') else 0.0,
+                    close_price=float(data.prev_close) if hasattr(data, 'prev_close') else 0.0,
+                    volume=float(data.volume) if hasattr(data, 'volume') else 0.0,
+                    turnover=float(data.turnover) if hasattr(data, 'turnover') else 0.0,
+                    change=float(data.change) if hasattr(data, 'change') else 0.0,
+                    change_pct=float(data.change_pct) if hasattr(data, 'change_pct') else 0.0,
                     timestamp=datetime.now(),
                 )
                 quotes.append(quote)
@@ -159,7 +148,7 @@ class AkshareBroker(BaseBroker):
         frequency: str = "daily"
     ) -> ApiResponse[List[BrokerCandle]]:
         """
-        获取历史K线数据
+        获取历史K线数据（委托 DataProviderManager）
 
         Args:
             symbol: 股票代码
@@ -170,105 +159,39 @@ class AkshareBroker(BaseBroker):
         Returns:
             ApiResponse[List[BrokerCandle]]: K线数据
         """
-        if not self._akshare:
-            return ApiResponse.fail("AkShare library not loaded")
-
         try:
-            # 标准化股票代码
-            clean_symbol = symbol.split('.')[0]
-
-            # 根据频率选择接口
+            manager = self._get_manager()
+            
+            # 标准化频率参数
             period_map = {
                 "daily": "daily",
                 "weekly": "weekly",
                 "monthly": "monthly",
             }
             period = period_map.get(frequency, "daily")
-
-            # 清除代理环境变量（akshare 需要直连）
-            import os
-            old_proxies = {}
-            for key in ('HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy'):
-                if key in os.environ:
-                    old_proxies[key] = os.environ.pop(key)
-
-            try:
-                # 首先尝试 akshare（东方财富）
-                df = None
-                try:
-                    # 使用超时保护包装 akshare 调用
-                    import signal
-                    import platform
-
-                    def timeout_handler(signum, frame):
-                        raise TimeoutError(f"AkShare request timeout after 30s for {symbol}")
-
-                    # 在非 Windows 系统上使用 signal 超时
-                    if platform.system() != 'Windows':
-                        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-                        signal.alarm(30)  # 30秒超时
-
-                    try:
-                        df = self._akshare.stock_zh_a_hist(
-                            symbol=clean_symbol,
-                            period=period,
-                            start_date=start_date.replace('-', ''),
-                            end_date=end_date.replace('-', ''),
-                            adjust="qfq"  # 前复权
-                        )
-                        print(f"[BROKER] AkShare succeeded for {symbol}", flush=True)
-                        logger.info(f"Successfully fetched data from AkShare for {symbol}")
-                    finally:
-                        if platform.system() != 'Windows':
-                            signal.alarm(0)  # 取消超时
-                            signal.signal(signal.SIGALRM, old_handler)
-
-                except TimeoutError as timeout_err:
-                    print(f"[BROKER] AkShare timeout for {symbol}, falling back to Sina", flush=True)
-                    logger.warning(f"AkShare timeout for {symbol}: {timeout_err}")
-
-                    # 回退到新浪财经 API
-                    try:
-                        logger.info(f"Falling back to Sina Finance API for {symbol}")
-                        df = self._fetch_from_sina(clean_symbol, start_date, end_date, period)
-                        print(f"[BROKER] Sina Finance succeeded for {symbol}", flush=True)
-                    except Exception as sina_error:
-                        print(f"[BROKER] Sina Finance also failed for {symbol}", flush=True)
-                        logger.error(f"Sina Finance also failed for {symbol}: {sina_error}")
-                        raise Exception(f"AkShare timeout and Sina Finance failed. Timeout: {timeout_err}, Sina: {sina_error}")
-
-                except Exception as e:
-                    print(f"[BROKER] AkShare failed for {symbol}, falling back to Sina", flush=True)
-                    logger.warning(f"AkShare failed for {symbol}: {e}")
-
-                    # 回退到新浪财经 API
-                    try:
-                        logger.info(f"Falling back to Sina Finance API for {symbol}")
-                        df = self._fetch_from_sina(clean_symbol, start_date, end_date, period)
-                        print(f"[BROKER] Sina Finance succeeded for {symbol}", flush=True)
-                    except Exception as sina_error:
-                        print(f"[BROKER] Sina Finance also failed for {symbol}", flush=True)
-                        logger.error(f"Sina Finance also failed for {symbol}: {sina_error}")
-                        raise Exception(f"Both AkShare and Sina Finance failed. AkShare: {e}, Sina: {sina_error}")
-            finally:
-                # 恢复代理环境变量
-                os.environ.update(old_proxies)
-
-            if df.empty:
+            
+            # 调用 manager（自动 failover: DB → akshare → tencent → baostock）
+            result = manager.get_klines(symbol, period, start_date, end_date)
+            
+            if not result.get('success'):
+                return ApiResponse.fail(f"Failed to get history: {result.get('error')}")
+            
+            klines_data = result['data']
+            if not klines_data:
                 return ApiResponse.fail(f"No history data for {symbol}")
-
+            
             # 转换为 BrokerCandle
             candles = []
-            for _, row in df.iterrows():
+            for kline in klines_data:
                 candle = BrokerCandle(
                     symbol=symbol,
-                    timestamp=pd.to_datetime(row['日期']),
-                    open=float(row['开盘']),
-                    high=float(row['最高']),
-                    low=float(row['最低']),
-                    close=float(row['收盘']),
-                    volume=float(row['成交量']),
-                    turnover=float(row['成交额']) if '成交额' in row else None,
+                    timestamp=kline.timestamp,
+                    open=float(kline.open),
+                    high=float(kline.high),
+                    low=float(kline.low),
+                    close=float(kline.close),
+                    volume=float(kline.volume),
+                    turnover=float(kline.turnover) if kline.turnover else None,
                 )
                 candles.append(candle)
 
@@ -277,93 +200,6 @@ class AkshareBroker(BaseBroker):
         except Exception as e:
             logger.error(f"Failed to get history: {e}", exc_info=True)
             return ApiResponse.fail(f"Failed to get history: {str(e)}")
-
-    def _fetch_from_sina(self, clean_symbol: str, start_date: str, end_date: str, period: str) -> pd.DataFrame:
-        """
-        从新浪财经 API 获取历史数据（备用数据源）
-
-        Args:
-            clean_symbol: 去除后缀的股票代码（如 600519）
-            start_date: 开始日期 YYYY-MM-DD
-            end_date: 结束日期 YYYY-MM-DD
-            period: 频率（daily/weekly/monthly）
-
-        Returns:
-            DataFrame: 与 akshare 格式兼容的数据
-        """
-        import requests
-        import json
-        from datetime import datetime
-
-        # 转换为新浪代码格式
-        # 沪市: 6开头 -> sh
-        # 深市: 0/3开头 -> sz
-        # 北交所: 4/8/9开头 -> bj
-        if clean_symbol.startswith('6'):
-            sina_symbol = f'sh{clean_symbol}'
-        elif clean_symbol.startswith(('0', '3')):
-            sina_symbol = f'sz{clean_symbol}'
-        elif clean_symbol.startswith(('4', '8', '9')):
-            sina_symbol = f'bj{clean_symbol}'
-        else:
-            # 默认使用沪市
-            sina_symbol = f'sh{clean_symbol}'
-
-        # 新浪财经历史数据 API
-        # scale: 5=5分钟, 15=15分钟, 30=30分钟, 60=60分钟, 240=日线, 1440=周线
-        scale_map = {
-            'daily': '240',
-            'weekly': '1440',
-            'monthly': '1440'  # 新浪没有月线，用周线代替
-        }
-        scale = scale_map.get(period, '240')
-
-        # 计算需要多少条数据
-        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
-        end_dt = datetime.strptime(end_date, '%Y-%m-%d')
-        days_diff = (end_dt - start_dt).days
-        datalen = max(days_diff + 10, 1024)  # 多取一些数据以确保覆盖范围
-
-        url = "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData"
-        params = {
-            'symbol': sina_symbol,
-            'scale': scale,
-            'datalen': datalen
-        }
-
-        resp = requests.get(url, params=params, timeout=15)
-        if resp.status_code != 200:
-            raise Exception(f"Sina API returned status {resp.status_code}")
-
-        data = json.loads(resp.text)
-        if not data:
-            raise Exception("Sina API returned empty data")
-
-        # 转换为 DataFrame
-        df = pd.DataFrame(data)
-
-        # 过滤日期范围
-        df['day'] = pd.to_datetime(df['day'])
-        df = df[(df['day'] >= start_date) & (df['day'] <= end_date)]
-
-        # 重命名列以匹配 akshare 格式
-        df = df.rename(columns={
-            'day': '日期',
-            'open': '开盘',
-            'high': '最高',
-            'low': '最低',
-            'close': '收盘',
-            'volume': '成交量'
-        })
-
-        # 确保数值类型
-        for col in ['开盘', '最高', '最低', '收盘', '成交量']:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-
-        # 添加缺失列
-        df['成交额'] = 0  # 新浪接口没有成交额数据
-
-        return df
 
     # ========================================================================
     # Symbol Search
@@ -375,7 +211,7 @@ class AkshareBroker(BaseBroker):
         exchange: Optional[str] = None
     ) -> ApiResponse[List[dict]]:
         """
-        搜索股票
+        搜索股票（简化版：manager 无全量股票列表，返回提示）
 
         Args:
             query: 搜索关键词（代码或名称）
@@ -384,50 +220,12 @@ class AkshareBroker(BaseBroker):
         Returns:
             ApiResponse[List[dict]]: 搜索结果
         """
-        if not self._akshare:
-            return ApiResponse.fail("AkShare library not loaded")
-
-        try:
-            # 获取股票列表
-            df = self._akshare.stock_zh_a_spot_em()
-
-            # 搜索匹配
-            query_lower = query.lower()
-            mask = (
-                df['代码'].str.contains(query_lower, case=False, na=False) |
-                df['名称'].str.contains(query_lower, case=False, na=False)
-            )
-            results_df = df[mask]
-
-            # 交易所过滤
-            if exchange:
-                if exchange.upper() == "SSE":
-                    results_df = results_df[results_df['代码'].str.startswith('6')]
-                elif exchange.upper() == "SZSE":
-                    results_df = results_df[
-                        results_df['代码'].str.startswith('0') |
-                        results_df['代码'].str.startswith('3')
-                    ]
-
-            # 限制结果数量
-            results_df = results_df.head(20)
-
-            # 转换为字典列表
-            results = []
-            for _, row in results_df.iterrows():
-                results.append({
-                    'symbol': row['代码'],
-                    'name': row['名称'],
-                    'exchange': self._infer_exchange(row['代码']),
-                    'last_price': float(row['最新价']),
-                    'change_pct': float(row['涨跌幅']),
-                })
-
-            return ApiResponse.ok(results)
-
-        except Exception as e:
-            logger.error(f"Failed to search symbols: {e}", exc_info=True)
-            return ApiResponse.fail(f"Failed to search symbols: {str(e)}")
+        # DataProviderManager 当前不提供全量股票搜索接口
+        # 此功能需要全量股票列表，可考虑从 database 或添加专门 provider
+        return ApiResponse.fail(
+            "search_symbols not implemented in DataProviderManager mode. "
+            "Use specific symbol queries via get_quotes() instead."
+        )
 
     # ========================================================================
     # Helper Methods
