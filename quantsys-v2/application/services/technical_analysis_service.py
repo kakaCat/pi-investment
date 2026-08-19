@@ -15,6 +15,51 @@ class TechnicalAnalysisService:
     def __init__(self):
         self.logger = structlog.get_logger(__name__)
 
+    def _get_klines_df(self, symbol: str, period_days: int = 60) -> Optional['pd.DataFrame']:
+        """通过 DataProviderManager 获取K线数据并转为 DataFrame
+
+        Args:
+            symbol: 股票代码（6位数字）
+            period_days: 获取多少天的数据
+
+        Returns:
+            pandas DataFrame（中文列名，与 akshare 格式兼容）或 None
+        """
+        import pandas as pd
+        from adapters.outbound.datasources.manager import get_data_provider_manager
+
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=period_days)).strftime('%Y-%m-%d')
+
+        manager = get_data_provider_manager()
+        result = manager.get_klines(symbol, 'daily', start_date, end_date)
+
+        if not result.get('success') or not result.get('data'):
+            return None
+
+        klines = result['data']
+        if not klines or len(klines) == 0:
+            return None
+
+        # 将 KlineData 列表转为 DataFrame，使用中文列名兼容现有逻辑
+        records = []
+        for k in klines:
+            records.append({
+                '日期': k.date,
+                '开盘': k.open,
+                '收盘': k.close,
+                '最高': k.high,
+                '最低': k.low,
+                '成交量': k.volume,
+                '成交额': k.amount,
+                '涨跌幅': k.change_pct,
+            })
+
+        df = pd.DataFrame(records)
+        # 按日期排序
+        df = df.sort_values('日期').reset_index(drop=True)
+        return df
+
     def analyze_price_action(self, symbol: str, period: int = 60) -> Dict[str, Any]:
         """
         价格行为分析
@@ -27,14 +72,13 @@ class TechnicalAnalysisService:
             包含价格行为分析结果的字典
         """
         try:
-            import akshare as ak
             import pandas as pd
 
             self.logger.info(f"价格行为分析: symbol={symbol}, period={period}")
 
             try:
-                # 获取历史K线数据
-                df = ak.stock_zh_a_hist(symbol=symbol, period="daily", adjust="qfq")
+                # 获取历史K线数据（通过 DataProviderManager）
+                df = self._get_klines_df(symbol, period_days=period + 10)
 
                 if df is None or df.empty:
                     return {
@@ -91,7 +135,7 @@ class TechnicalAnalysisService:
         except ImportError:
             return {
                 'success': False,
-                'error': 'akshare 或 pandas 模块不可用',
+                'error': 'pandas 模块不可用',
                 'data': None
             }
         except Exception as e:
@@ -200,13 +244,11 @@ class TechnicalAnalysisService:
             包含退出计划的字典
         """
         try:
-            import akshare as ak
 
             self.logger.info(f"获取退出计划: symbol={symbol}, entry_price={entry_price}")
 
             try:
                 # 使用 KlineRepository 从数据库获取历史数据
-                from datetime import datetime, timedelta
                 from adapters.outbound.repositories import KlineORMRepository
 
                 end_date = datetime.now().strftime('%Y-%m-%d')
@@ -262,7 +304,7 @@ class TechnicalAnalysisService:
         except ImportError:
             return {
                 'success': False,
-                'error': 'akshare 模块不可用',
+                'error': '模块不可用',
                 'data': None
             }
         except Exception as e:
@@ -285,14 +327,13 @@ class TechnicalAnalysisService:
             包含K线形态分析结果的字典
         """
         try:
-            import akshare as ak
             import pandas as pd
 
             self.logger.info(f"K线形态分析: symbol={symbol}, period={period}")
 
             try:
-                # 获取K线数据
-                df = ak.stock_zh_a_hist(symbol=symbol, period="daily", adjust="qfq")
+                # 获取K线数据（通过 DataProviderManager）
+                df = self._get_klines_df(symbol, period_days=period + 5)
 
                 if df is None or df.empty:
                     return {
@@ -302,19 +343,11 @@ class TechnicalAnalysisService:
                     }
 
                 df = df.tail(period)
-
-                # 简化版形态识别
                 latest = df.iloc[-1]
-                prev = df.iloc[-2] if len(df) > 1 else latest
-
                 patterns = []
 
-                # 检测阳线/阴线
-                if latest['收盘'] > latest['开盘']:
-                    patterns.append('阳线')
-                elif latest['收盘'] < latest['开盘']:
-                    patterns.append('阴线')
-                else:
+                # 检测十字星
+                if abs(float(latest['收盘']) - float(latest['开盘'])) < 0.01 * float(latest['收盘']):
                     patterns.append('十字星')
 
                 # 检测趋势
@@ -353,7 +386,7 @@ class TechnicalAnalysisService:
         except ImportError:
             return {
                 'success': False,
-                'error': 'akshare 或 pandas 模块不可用',
+                'error': 'pandas 模块不可用',
                 'data': None
             }
         except Exception as e:
