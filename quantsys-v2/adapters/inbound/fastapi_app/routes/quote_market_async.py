@@ -64,6 +64,9 @@ def get_stock_history(
 
     limit = min(limit, 200)
 
+    # 标记用户是否显式指定了 start_date（用于后续判断是否应用 limit 截断）
+    user_specified_start_date = start_date is not None
+
     end_date = end_date or datetime.now().strftime('%Y-%m-%d')
     if not start_date:
         lookback_days = {"daily": limit + 20, "weekly": limit * 10 + 20, "monthly": limit * 35 + 20}
@@ -114,7 +117,19 @@ def get_stock_history(
             records = _aggregate_kline_records(records, 'ME')
 
         # 限制返回数量
-        records = records[-limit:]
+        # 修复逻辑（2026-08-19）：当用户显式指定 start_date 时，应返回该日期范围的
+        # 完整数据，而非被 limit 截断。limit 的原始设计是为"最近N条"语义（未指定
+        # start_date），但用户指定了 start_date=2026-01-01 却只拿到最后60条的行为
+        # 违反直觉且导致数据缺失（GitHub issue: data_fetch_kline 一直缺数据）。
+        # 新逻辑：显式指定 start_date → 返回完整范围（最多500条保护上限）
+        #         未指定 start_date → 返回最近 limit 条（保持原语义）
+        if user_specified_start_date:
+            # 用户显式指定了 start_date，返回完整数据（设置保护上限 500）
+            effective_limit = min(len(records), 500)
+            records = records[-effective_limit:] if len(records) > effective_limit else records
+        else:
+            # 未指定 start_date，保持"最近 limit 条"语义
+            records = records[-limit:]
 
         payload = {
             "symbol": symbol,
