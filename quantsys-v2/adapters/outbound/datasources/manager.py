@@ -17,6 +17,9 @@ from adapters.outbound.datasources.providers.kline.tencent import TencentKlinePr
 from adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
 from adapters.outbound.datasources.providers.kline.akshare import AkshareKlineProvider
 from adapters.outbound.datasources.providers.sector.eastmoney import EastmoneySectorProvider
+from adapters.outbound.datasources.providers.index.akshare import AkshareIndexProvider
+from adapters.outbound.datasources.providers.hk.akshare import AkshareHKProvider
+from adapters.outbound.datasources.providers.financial.akshare import AkshareFinancialStatementProvider
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +59,17 @@ class DataProviderManager:
         self.stock_providers = [
             AkshareStockProvider(),
         ]
+        self.index_providers = [
+            AkshareIndexProvider(),
+        ]
+        self.hk_providers = [
+            AkshareHKProvider(),
+        ]
+        # financial_providers 保留空列表（get_financial 已由 market provider 提供）
+        # 这里的 AkshareFinancialStatementProvider 提供更细粒度的报表（利润表、现金流量表等）
+        self.financial_detail_providers = [
+            AkshareFinancialStatementProvider(),
+        ]
         # Kline providers: database first (fast), baostock 为网络首选（独立 TCP
         # 体系，eastmoney/tencent 双双被封后的主力源, 2026-07-28），tencent 其次，
         # akshare(eastmoney) 最后兜底
@@ -82,7 +96,10 @@ class DataProviderManager:
             self.market_providers +
             self.sector_providers +
             self.stock_providers +
-            self.kline_providers
+            self.kline_providers +
+            self.index_providers +
+            self.hk_providers +
+            self.financial_detail_providers
         )
         for provider in all_providers:
             self.provider_stats[provider.name] = {
@@ -438,6 +455,60 @@ class DataProviderManager:
             start_date,
             end_date
         )
+
+    def get_stock_info(self, symbol: str) -> dict:
+        """Get stock basic information (name, industry, listing date, etc.)
+
+        Args:
+            symbol: Stock symbol (e.g., '600000.SH')
+
+        Returns:
+            Result dict with success, data (stock info dict), source fields
+        """
+        # Market provider should provide stock info
+        # If not available, return error
+        return self._try_providers(
+            self.market_providers,
+            'get_stock_info',
+            symbol
+        )
+
+    def get_index_data(self, index_code: str = '000001') -> dict:
+        """Get index data (Shanghai, Shenzhen, ChiNext, etc.)
+
+        Args:
+            index_code: Index code (e.g., '000001' for Shanghai Composite)
+                       Common codes: 000001 (上证), 399001 (深证成指), 399006 (创业板指)
+
+        Returns:
+            Result dict with success, data (index constituents or quotes), source fields
+        """
+        return self._try_providers(
+            self.index_providers,
+            'get_index_constituents',
+            index_code
+        )
+
+    def get_north_flow(self) -> dict:
+        """Get north-bound capital flow data (沪股通、深股通)
+
+        Returns:
+            Result dict with success, data (flow data), source fields
+        """
+        # HK provider provides south flow (香港资金南下)
+        # For north flow (北向资金), market provider should have it
+        # Try market providers first, then HK providers
+        result = self._try_providers(
+            self.market_providers,
+            'get_north_flow'
+        )
+        if not result.get('success'):
+            # Fallback to HK provider's south_flow (reciprocal perspective)
+            result = self._try_providers(
+                self.hk_providers,
+                'get_south_flow'
+            )
+        return result
 
 
 # Singleton instance
