@@ -359,10 +359,14 @@ kill <PID>
 
 ### Rebuild All Plugins
 
+**Note**: Rebuilding is **optional** in tsx mode. DSH loads TypeScript source directly.
+
 ```bash
 cd agent-dh
-pnpm build
+pnpm build  # Only needed if you want pre-built .mjs files
 ```
+
+**Why some packages don't have dist/?**: See [docs/WHY-NO-DIST.md](./docs/WHY-NO-DIST.md)
 
 ### Check Plugin Status
 
