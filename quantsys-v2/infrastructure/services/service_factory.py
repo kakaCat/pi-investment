@@ -46,7 +46,7 @@ class ServiceFactory:
             from application.services.stock_pool_service import StockPoolService
             from adapters.outbound.repositories import StockPoolORMRepository
             from application.services.opportunity_scoring_service import OpportunityScoringService
-            from domain.quantlib.adapters import get_factor_adapter
+            from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
 
             ds = cls.get_data_service()
             pool_repo = StockPoolORMRepository()
@@ -67,7 +67,7 @@ class ServiceFactory:
         """获取OpportunityScoringService实例"""
         if 'scoring_service' not in cls._instances:
             from application.services.opportunity_scoring_service import OpportunityScoringService
-            from domain.quantlib.adapters import get_factor_adapter
+            from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
 
             ds = cls.get_data_service()
             factor_adapter = get_factor_adapter()
@@ -139,6 +139,46 @@ class ServiceFactory:
         return cls._instances['condition_monitor_service']
 
     @classmethod
+    @lru_cache(maxsize=1)
+    def get_technical_analysis_service(cls):
+        """获取TechnicalAnalysisService实例"""
+        if 'technical_analysis_service' not in cls._instances:
+            from application.services.technical_analysis_service import TechnicalAnalysisService
+            cls._instances['technical_analysis_service'] = TechnicalAnalysisService()
+            logger.info("TechnicalAnalysisService initialized")
+        return cls._instances['technical_analysis_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_risk_service(cls):
+        """获取RiskService实例"""
+        if 'risk_service' not in cls._instances:
+            from application.services.risk_service import RiskService
+            cls._instances['risk_service'] = RiskService()
+            logger.info("RiskService initialized")
+        return cls._instances['risk_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_data_quality_service(cls):
+        """获取DataQualityService实例"""
+        if 'data_quality_service' not in cls._instances:
+            from application.services.data_quality_service import DataQualityService
+            cls._instances['data_quality_service'] = DataQualityService()
+            logger.info("DataQualityService initialized")
+        return cls._instances['data_quality_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_strategy_rotation_service(cls):
+        """获取StrategyRotationService实例"""
+        if 'strategy_rotation_service' not in cls._instances:
+            from application.services.strategy_rotation_service import StrategyRotationService
+            cls._instances['strategy_rotation_service'] = StrategyRotationService()
+            logger.info("StrategyRotationService initialized")
+        return cls._instances['strategy_rotation_service']
+
+    @classmethod
     def reset_all(cls):
         """重置所有服务实例（用于测试）"""
         cls._instances.clear()
@@ -151,6 +191,10 @@ class ServiceFactory:
         cls.get_pool_validation_service.cache_clear()
         cls.get_scheduler_config_service.cache_clear()
         cls.get_condition_monitor_service.cache_clear()
+        cls.get_technical_analysis_service.cache_clear()
+        cls.get_risk_service.cache_clear()
+        cls.get_data_quality_service.cache_clear()
+        cls.get_strategy_rotation_service.cache_clear()
         logger.info("All services reset")
 
 

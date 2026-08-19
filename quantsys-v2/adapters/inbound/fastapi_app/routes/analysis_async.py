@@ -251,8 +251,7 @@ def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
 def get_price_action(symbol: str, period: int = Query(60)):
     """价格行为分析"""
     try:
-        from application.services.technical_analysis_service import TechnicalAnalysisService
-        tech_service = TechnicalAnalysisService()
+        from adapters.shared.services import technical_analysis_service as tech_service
         result = tech_service.analyze_price_action(symbol, period=period)
         if 'error' in result:
             return error_response({'success': False, 'error': result['error']}, 400)
@@ -288,9 +287,7 @@ def get_buy_range(symbol: str,
                 include_fundamental=include_fundamental
             )
         else:
-            from application.services.technical_analysis_service import TechnicalAnalysisService
-
-            tech_service = TechnicalAnalysisService()
+            from adapters.shared.services import technical_analysis_service as tech_service
             result = tech_service.calculate_buy_range(symbol)
 
         if not result.get('success', True):
@@ -531,8 +528,7 @@ def get_pe_percentile(symbol: str, years: int = Query(3)):
 def get_candlestick(symbol: str):
     """K线形态分析"""
     try:
-        from application.services.technical_analysis_service import TechnicalAnalysisService
-        tech_service = TechnicalAnalysisService()
+        from adapters.shared.services import technical_analysis_service as tech_service
         result = tech_service.analyze_candlestick(symbol)
         if 'error' in result:
             return error_response({'success': False, 'error': result['error']}, 400)
