@@ -82,22 +82,8 @@ except Exception as e:
     import traceback
     traceback.print_exc()
 
-# 4. Flask路由检查
-print("\n4️⃣ Flask路由检查:")
-try:
-    from adapters.inbound.api.routes.simulation import simulation_bp
-    
-    print(f"   ✅ simulation_bp已导入")
-    print(f"   Blueprint名称: {simulation_bp.name}")
-    print(f"   URL前缀: {simulation_bp.url_prefix}")
-    
-    # 列出所有路由
-    for rule in simulation_bp.url_map.iter_rules():
-        if 'trades' in rule.rule:
-            print(f"   ✅ 路由: {rule.rule} -> {rule.endpoint}")
-            
-except Exception as e:
-    print(f"   ⚠️  Flask路由检查失败: {e}")
+# 4. Flask路由检查（Flask 已废弃删除，跳过）
+print("\n4️⃣ Flask路由检查: (已废弃，Flask 已删除)")
 
 # 5. 数据库Schema检查
 print("\n5️⃣ 数据库Schema检查:")

@@ -1,11 +1,8 @@
-"""证明 parity 框架能同时驱动 Flask 与 FastAPI 两个 in-process client"""
+"""证明测试框架能驱动 FastAPI in-process client（Flask 已删除 2026-08）"""
 from tests.migration.parity import normalize
 
 
-def test_both_clients_boot(flask_client, fastapi_client):
-    # Flask 健康端点存在（可能 200 或 404，取决于注册，但 client 必须可用）
-    fr = flask_client.get("/api/health")
-    assert fr.status_code in (200, 404)
+def test_both_clients_boot(fastapi_client):
     # FastAPI 根路径与健康检查必定可用
     assert fastapi_client.get("/health").status_code == 200
     assert fastapi_client.get("/").status_code == 200

@@ -6,7 +6,7 @@ watchlist/groups 是本地 JSON 文件，Flask 与 FastAPI 共享。双跑写操
 import copy
 import pytest
 from tests.migration.parity import normalize
-from adapters.inbound.api.shared import (
+from adapters.shared.stores import (
     _read_watchlist, _write_watchlist, _read_groups, _write_groups,
 )
 
@@ -34,60 +34,44 @@ def snapshot_state():
     _write_groups(orig_gr)
 
 
-def _seq_watchlist_add_remove(client, is_flask):
+def _seq_watchlist_add_remove(client):
     """执行 添加→移除 自选股序列，返回 [(status, body), ...]"""
     out = []
-    if is_flask:
-        r1 = client.open("/api/stocks/watchlist", method="POST", json={"symbol": "600519"})
-        out.append((r1.status_code, r1.get_json()))
-        r2 = client.open("/api/stocks/watchlist/600519", method="DELETE")
-        out.append((r2.status_code, r2.get_json()))
-    else:
-        r1 = client.post("/api/stocks/watchlist", json={"symbol": "600519"})
-        out.append((r1.status_code, r1.json()))
-        r2 = client.delete("/api/stocks/watchlist/600519")
-        out.append((r2.status_code, r2.json()))
+    r1 = client.post("/api/stocks/watchlist", json={"symbol": "600519"})
+    out.append((r1.status_code, r1.json()))
+    r2 = client.delete("/api/stocks/watchlist/600519")
+    out.append((r2.status_code, r2.json()))
     return out
 
 
-def _seq_group_create_delete(client, is_flask):
+def _seq_group_create_delete(client):
     """执行 创建分组→删除分组 序列，返回 [(status, body), ...]"""
     out = []
-    if is_flask:
-        r1 = client.open("/api/stocks/watchlist/groups", method="POST", json={"name": "parity测试组"})
-        out.append((r1.status_code, r1.get_json()))
-        gid = (r1.get_json() or {}).get("group", {}).get("id")
-        r2 = client.open(f"/api/stocks/watchlist/groups/{gid}", method="DELETE")
-        out.append((r2.status_code, r2.get_json()))
-    else:
-        r1 = client.post("/api/stocks/watchlist/groups", json={"name": "parity测试组"})
-        out.append((r1.status_code, r1.json()))
-        gid = (r1.json() or {}).get("group", {}).get("id")
-        r2 = client.delete(f"/api/stocks/watchlist/groups/{gid}")
-        out.append((r2.status_code, r2.json()))
+    r1 = client.post("/api/stocks/watchlist/groups", json={"name": "parity测试组"})
+    out.append((r1.status_code, r1.json()))
+    gid = (r1.json() or {}).get("group", {}).get("id")
+    r2 = client.delete(f"/api/stocks/watchlist/groups/{gid}")
+    out.append((r2.status_code, r2.json()))
     return out
 
 
-def test_watchlist_add_remove_parity(flask_client, fastapi_client, snapshot_state):
-    f_res = _seq_watchlist_add_remove(flask_client, True)
-    fa_res = _seq_watchlist_add_remove(fastapi_client, False)
+def test_watchlist_add_remove_parity(fastapi_client, snapshot_state):
+    fa_res = _seq_watchlist_add_remove(fastapi_client)
 
-    assert len(f_res) == len(fa_res)
-    for (f_code, f_body), (fa_code, fa_body) in zip(f_res, fa_res):
-        assert fa_code == f_code
-        assert normalize(fa_body, WRITE_IGNORE) == normalize(f_body, WRITE_IGNORE)
+    assert len(fa_res) == 2
+    for code, body in fa_res:
+        assert code < 500
+        assert body is not None
 
 
-def test_group_create_delete_parity(flask_client, fastapi_client, snapshot_state):
-    f_res = _seq_group_create_delete(flask_client, True)
-    fa_res = _seq_group_create_delete(fastapi_client, False)
+def test_group_create_delete_parity(fastapi_client, snapshot_state):
+    fa_res = _seq_group_create_delete(fastapi_client)
 
-    assert len(f_res) == len(fa_res)
-    # 第一个响应（创建）的 group.id 两边各自随机生成，只比结构与 success，不比 id
-    (f_code, f_body), (fa_code, fa_body) = f_res[0], fa_res[0]
-    assert fa_code == f_code
-    assert fa_body.get("success") == f_body.get("success")
-    assert set(fa_body.get("group", {}).keys()) == set(f_body.get("group", {}).keys())
+    assert len(fa_res) == 2
+    code, body = fa_res[0]
+    assert code < 500
+    assert body.get("success") is True
+    assert "group" in body
     # 第二个响应（删除）应一致
     (f_code2, f_body2), (fa_code2, fa_body2) = f_res[1], fa_res[1]
     assert fa_code2 == f_code2

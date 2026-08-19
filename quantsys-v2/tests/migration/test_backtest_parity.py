@@ -29,97 +29,97 @@ COMBO = "/api/backtest/combo"
 
 # ============ GET /api/backtest/results（DB 查询，确定性） ============
 
-def test_results_default(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", RESULTS)
+def test_results_default(fastapi_client):
+    assert_parity(fastapi_client, "GET", RESULTS)
 
 
-def test_results_with_limit(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", RESULTS, params={"limit": 5})
+def test_results_with_limit(fastapi_client):
+    assert_parity(fastapi_client, "GET", RESULTS, params={"limit": 5})
 
 
-def test_results_with_strategy(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", RESULTS,
+def test_results_with_strategy(fastapi_client):
+    assert_parity(fastapi_client, "GET", RESULTS,
                   params={"strategy": "nonexistent_strategy"})
 
 
-def test_results_with_strategy_and_symbol(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", RESULTS,
+def test_results_with_strategy_and_symbol(fastapi_client):
+    assert_parity(fastapi_client, "GET", RESULTS,
                   params={"strategy": "nonexistent_strategy", "symbol": "600519"})
 
 
 # ============ GET /api/performance/strategy/{id}（DB 查询，确定性） ============
 
-def test_performance_strategy(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", PERF_STRATEGY)
+def test_performance_strategy(fastapi_client):
+    assert_parity(fastapi_client, "GET", PERF_STRATEGY)
 
 
-def test_performance_strategy_nonexistent(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", "/api/performance/strategy/999999")
+def test_performance_strategy_nonexistent(fastapi_client):
+    assert_parity(fastapi_client, "GET", "/api/performance/strategy/999999")
 
 
 # ============ GET /api/performance/comparison（DB 聚合，确定性） ============
 
-def test_performance_comparison(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", PERF_COMPARISON)
+def test_performance_comparison(fastapi_client):
+    assert_parity(fastapi_client, "GET", PERF_COMPARISON)
 
 
-def test_performance_comparison_with_days(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", PERF_COMPARISON, params={"days": 7})
+def test_performance_comparison_with_days(fastapi_client):
+    assert_parity(fastapi_client, "GET", PERF_COMPARISON, params={"days": 7})
 
 
 # ============ POST /api/backtest/run ============
 
-def test_run_empty_body(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", RUN, json_body={})
+def test_run_empty_body(fastapi_client):
+    assert_parity(fastapi_client, "POST", RUN, json_body={})
 
 
-def test_run_missing_fields(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", RUN,
+def test_run_missing_fields(fastapi_client):
+    assert_parity(fastapi_client, "POST", RUN,
                   json_body={"strategy_id": 1})
 
 
-def test_run_invalid_strategy_id(flask_client, fastapi_client):
+def test_run_invalid_strategy_id(fastapi_client):
     body = {"strategy_id": "abc", "symbol": "600519",
             "start_date": "2025-01-01", "end_date": "2025-06-01"}
-    assert_parity(flask_client, fastapi_client, "POST", RUN, json_body=body)
+    assert_parity(fastapi_client, "POST", RUN, json_body=body)
 
 
-def test_run_nonexistent_strategy(flask_client, fastapi_client):
+def test_run_nonexistent_strategy(fastapi_client):
     # 策略不存在 → 底层服务确定性报错（两侧同一代码路径）
     body = {"strategy_id": 999999, "symbol": "600519",
             "start_date": "2025-01-01", "end_date": "2025-06-01"}
-    assert_parity(flask_client, fastapi_client, "POST", RUN, json_body=body)
+    assert_parity(fastapi_client, "POST", RUN, json_body=body)
 
 
 # ============ POST /api/backtest/strategy ============
 
-def test_strategy_empty_body(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", STRATEGY, json_body={})
+def test_strategy_empty_body(fastapi_client):
+    assert_parity(fastapi_client, "POST", STRATEGY, json_body={})
 
 
-def test_strategy_missing_fields(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", STRATEGY,
+def test_strategy_missing_fields(fastapi_client):
+    assert_parity(fastapi_client, "POST", STRATEGY,
                   json_body={"strategy_id": 1})
 
 
-def test_strategy_invalid_strategy_id(flask_client, fastapi_client):
+def test_strategy_invalid_strategy_id(fastapi_client):
     body = {"strategy_id": "abc", "symbol": "600519",
             "start_date": "2025-01-01", "end_date": "2025-06-01"}
-    assert_parity(flask_client, fastapi_client, "POST", STRATEGY, json_body=body)
+    assert_parity(fastapi_client, "POST", STRATEGY, json_body=body)
 
 
-def test_strategy_nonexistent_strategy(flask_client, fastapi_client):
+def test_strategy_nonexistent_strategy(fastapi_client):
     body = {"strategy_id": 999999, "symbol": "600519",
             "start_date": "2025-01-01", "end_date": "2025-06-01"}
-    assert_parity(flask_client, fastapi_client, "POST", STRATEGY, json_body=body)
+    assert_parity(fastapi_client, "POST", STRATEGY, json_body=body)
 
 
 # ============ POST /api/backtest/combo（Flask 既有 ImportError → 500，按状态码比对） ============
 
-def test_combo_empty_body(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", COMBO, json_body={})
+def test_combo_empty_body(fastapi_client):
+    assert_parity(fastapi_client, "POST", COMBO, json_body={})
 
 
-def test_combo_invalid_mode(flask_client, fastapi_client):
+def test_combo_invalid_mode(fastapi_client):
     body = {"mode": "bogus", "strategies": [1], "symbols": ["600519"]}
-    assert_parity(flask_client, fastapi_client, "POST", COMBO, json_body=body)
+    assert_parity(fastapi_client, "POST", COMBO, json_body=body)

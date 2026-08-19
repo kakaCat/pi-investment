@@ -201,7 +201,7 @@ def _scan_pool_signals_by_name(
     """
     from application.services.pool_signal_scanner import PoolSignalScanner
     from adapters.outbound.repositories import KlineORMRepository, StrategyORMRepository
-    from adapters.inbound.api.shared import stock_pool_service
+    from adapters.shared.services import stock_pool_service
 
     strategy_ids = strategy_ids or DEFAULT_SCAN_STRATEGY_IDS
 
@@ -304,7 +304,7 @@ def handle_pool_refresh_daily(
     logger.info("Starting pool_refresh_daily task")
 
     if service is None:
-        from adapters.inbound.api.shared import stock_pool_service
+        from adapters.shared.services import stock_pool_service
         service = stock_pool_service
 
     today = date.today()
