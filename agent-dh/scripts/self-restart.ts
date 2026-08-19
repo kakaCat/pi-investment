@@ -5,7 +5,7 @@
  * 约束: 自包含，只准 import node 内置模块。
  */
 import { execFileSync, spawn } from 'node:child_process';
-import { appendFileSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const [pidS, portS, repoRoot, stateDir, startScript, logPath] = process.argv.slice(2);
@@ -29,8 +29,20 @@ function readPending(): { base_branch: string; checkpoint_branch: string | null;
   return JSON.parse(readFileSync(join(stateDir, 'pending-resume.json'), 'utf8'));
 }
 
-function writeResult(result: Record<string, unknown>): void {
-  writeFileSync(join(stateDir, 'restart-result.json'), JSON.stringify({ ...result, ts: new Date().toISOString() }, null, 2));
+/**
+ * 原子写 restart-result.json（tmp+rename，防写途中被强杀留下截断 JSON）。
+ * 不动 restarting.lock —— 锁只在流程终结时由 finish() 清除。
+ */
+function writeResultFile(result: Record<string, unknown>): void {
+  const finalPath = join(stateDir, 'restart-result.json');
+  const tmpPath = finalPath + '.tmp';
+  writeFileSync(tmpPath, JSON.stringify({ ...result, ts: new Date().toISOString() }, null, 2));
+  renameSync(tmpPath, finalPath);
+}
+
+/** 终态写结果并释放 restarting.lock */
+function finish(result: Record<string, unknown>): void {
+  writeResultFile(result);
   rmSync(join(stateDir, 'restarting.lock'), { force: true });
 }
 
@@ -71,10 +83,14 @@ async function main(): Promise<void> {
   await sleep(PRE_KILL_DELAY_MS); // 给 agent 留时间输出完回复、落盘会话
   await killOld();
 
+  // 预写结果：新进程的 lifecycle 插件在构造期（早于 HTTP 监听）读 restart-result.json，
+  // 若等健康检查通过后才写，插件读到的是上一周期的旧结果（rolled_back 会被误报为成功）。
+  // 结果文件只被成功启动的进程读取，预写不产生谎言窗口。
+  writeResultFile({ status: 'ok' });
   startAgent();
   if (await waitPort(HEALTH_TIMEOUT_MS)) {
     log('health check ok');
-    writeResult({ status: 'ok' });
+    finish({ status: 'ok' });
     return;
   }
 
@@ -85,21 +101,23 @@ async function main(): Promise<void> {
     git(['checkout', pending.base_branch]);
   } catch (e) {
     log(`git checkout ${pending.base_branch} failed: ${String(e)}`);
-    writeResult({ status: 'dead', failed_branch: pending.checkpoint_branch, log_path: logPath, error: 'rollback checkout failed' });
+    finish({ status: 'dead', failed_branch: pending.checkpoint_branch, log_path: logPath, error: 'rollback checkout failed' });
     return;
   }
+  // 同样预写：回滚后的第二次启动，插件构造期必须能读到 rolled_back
+  writeResultFile({ status: 'rolled_back', failed_branch: pending.checkpoint_branch, log_path: logPath });
   startAgent();
   if (await waitPort(HEALTH_TIMEOUT_MS)) {
     log('rollback boot ok');
-    writeResult({ status: 'rolled_back', failed_branch: pending.checkpoint_branch, log_path: logPath });
+    finish({ status: 'rolled_back', failed_branch: pending.checkpoint_branch, log_path: logPath });
   } else {
     log('rollback boot FAILED, giving up');
-    writeResult({ status: 'dead', failed_branch: pending.checkpoint_branch, log_path: logPath });
+    finish({ status: 'dead', failed_branch: pending.checkpoint_branch, log_path: logPath });
   }
 }
 
 main().catch((e) => {
   log(`restarter crashed: ${String(e)}`);
-  writeResult({ status: 'dead', log_path: logPath, error: String(e) });
+  finish({ status: 'dead', log_path: logPath, error: String(e) });
   process.exitCode = 1;
 });

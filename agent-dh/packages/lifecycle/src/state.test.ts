@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, existsSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
@@ -39,6 +39,36 @@ describe('StateStore', () => {
     expect(store.acquireLock()).toBe(false); // 重入被拒
     store.releaseLock();
     expect(store.acquireLock()).toBe(true);
+  });
+
+  it('锁过期接管：超过 staleMs 的残留锁可被强行获取，新锁不可', () => {
+    // 模拟机器掉电/重启器被强杀留下的 20 分钟前的死锁
+    writeFileSync(join(dir, 'restarting.lock'), String(Date.now() - 20 * 60 * 1000));
+    expect(store.acquireLock()).toBe(true); // stale → 接管成功
+    expect(store.acquireLock()).toBe(false); // 新锁未过期 → 仍互斥
+    // 损坏的锁内容（非数字时间戳）不接管，按未获取处理
+    store.releaseLock();
+    writeFileSync(join(dir, 'restarting.lock'), 'garbage');
+    expect(store.acquireLock()).toBe(false);
+  });
+
+  it('readJson 容错：损坏的 JSON 按无状态返回 null，不抛异常', () => {
+    writeFileSync(join(dir, 'pending-resume.json'), '{"reason": "被强杀截断');
+    expect(store.readPending()).toBeNull();
+    writeFileSync(join(dir, 'restart-counter.json'), 'not json at all');
+    expect(store.checkRateLimit(3, Date.now()).count).toBe(0);
+  });
+
+  it('clearPendingDone：清除 done 文件，重复调用不报错', () => {
+    store.writePending({
+      reason: 'r', resume_task: 't', checkpoint_branch: 'agent-self/x',
+      base_branch: 'main', last_known_good: 'abc', attempt: 1, ts: '2026-08-19T00:00:00Z',
+    });
+    store.markPendingDone();
+    expect(store.readPendingDone()).not.toBeNull();
+    store.clearPendingDone();
+    expect(store.readPendingDone()).toBeNull();
+    store.clearPendingDone(); // 幂等
   });
 
   it('attempt 计数：同任务累加，换任务重置，clearAttempt 清零', () => {

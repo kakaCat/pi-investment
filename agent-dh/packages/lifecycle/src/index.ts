@@ -74,10 +74,16 @@ export default class LifecyclePlugin extends Service {
     const text = renderResumeMessage(pending, result);
     const deliver = (agent: Agent | undefined): boolean => {
       if (!agent) return false;
-      agent.followup(createUserMessage({
-        content: [{ type: 'text', text }],
-        source: { kind: 'plugin', plugin: 'lifecycle' },
-      }));
+      try {
+        agent.followup(createUserMessage({
+          content: [{ type: 'text', text }],
+          source: { kind: 'plugin', plugin: 'lifecycle' },
+        }));
+      } catch (e) {
+        // 投递失败不标记 done：pending 保留，等 agent/created 兜底或下次启动重投
+        this.ctx.logger.warn(`lifecycle: resume followup failed: ${String(e)}`);
+        return false;
+      }
       this.state.markPendingDone();
       this.ctx.logger.info(`lifecycle: resume message delivered (${result?.status ?? 'ok'})`);
       return true;
@@ -116,18 +122,21 @@ export default class LifecyclePlugin extends Service {
       },
       timeoutMs: 15000,
       execute: async (args: any) => {
+        // 限流检查必须在 acquireLock 之前：拒绝路径不会 spawn 重启器，
+        // 而锁只由重启器清除，先拿锁再拒绝会永久泄漏锁文件（self_restart 变砖）
+        const now = Date.now();
+        const rate = this.state.checkRateLimit(this.cfg.maxRestartsPerHour, now);
+        if (!rate.allowed) {
+          return { success: false, message: `本小时已重启 ${rate.count} 次，达到上限 ${this.cfg.maxRestartsPerHour}，拒绝执行` } as any;
+        }
         if (!this.state.acquireLock()) {
           return { success: false, message: '已有重启进行中（restarting.lock 存在），拒绝重入' } as any;
         }
         try {
-          const now = Date.now();
-          const rate = this.state.checkRateLimit(this.cfg.maxRestartsPerHour, now);
-          if (!rate.allowed) {
-            return { success: false, message: `本小时已重启 ${rate.count} 次，达到上限 ${this.cfg.maxRestartsPerHour}，拒绝执行` } as any;
-          }
           const base = this.repo.currentBranch();
           const baseHead = this.repo.head(); // 必须先于 createWipBranch 捕获，否则拿到的是 wip 提交
-          const branch = this.repo.createWipBranch('agent-self', ['agent-dh/'], `wip(agent-self): ${args.reason}`);
+          const wip = this.repo.createWipBranch('agent-self', ['agent-dh/'], `wip(agent-self): ${args.reason}`);
+          const branch = wip?.branch ?? null;
           const attempt = this.state.nextAttempt(args.resume_task);
           this.state.writePending({
             reason: args.reason,
@@ -151,8 +160,9 @@ export default class LifecyclePlugin extends Service {
           return {
             success: true,
             checkpoint_branch: branch,
+            checkpoint_files: wip?.files ?? [],
             attempt,
-            message: `重启已安排，5 秒后执行，当前会话将被终止。检查点：${branch ?? '无代码改动'}。日志：${logPath}`,
+            message: `重启已安排，数秒后执行，当前会话将被终止。检查点：${branch ?? '无代码改动'}${wip ? `（含 ${wip.files.length} 个文件，如有不属于本次修复的改动请留意：${wip.files.join(', ')}）` : ''}。日志：${logPath}`,
           } as any;
         } catch (e) {
           this.state.releaseLock();
@@ -192,8 +202,10 @@ export default class LifecyclePlugin extends Service {
             this.repo.deleteBranch(done.checkpoint_branch);
             this.state.writeLastKnownGood(this.repo.head());
             this.state.clearAttempt();
+            this.state.clearPendingDone(); // 收尾完成即清档，保证 self_finalize 幂等
             return { success: true, action: 'merge', message: `已合并 ${done.checkpoint_branch} 到 ${done.base_branch}，last_known_good 已更新` } as any;
           }
+          this.state.clearPendingDone();
           return { success: true, action: 'rollback', message: `已切回 ${done.base_branch}，修改保留在分支 ${done.checkpoint_branch} 供复盘` } as any;
         } catch (e) {
           return { success: false, action: args.action, message: `self_finalize 失败：${String(e)}` } as any;

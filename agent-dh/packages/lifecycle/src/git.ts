@@ -20,14 +20,16 @@ export class GitRepo {
     return this.git(['status', '--porcelain', '--', ...paths]).length > 0;
   }
 
-  /** 有改动则建 wip 分支并提交，返回分支名；无改动返回 null（不切分支） */
-  createWipBranch(prefix: string, paths: string[], message: string): string | null {
+  /** 有改动则建 wip 分支并提交，返回分支名与提交文件清单；无改动返回 null（不切分支） */
+  createWipBranch(prefix: string, paths: string[], message: string): { branch: string; files: string[] } | null {
     if (!this.hasChanges(paths)) return null;
     const branch = `${prefix}/${timestamp()}`;
     this.git(['checkout', '-b', branch]);
     this.git(['add', '-A', '--', ...paths]);
     this.git(['commit', '-m', message]);
-    return branch;
+    const files = this.git(['show', '--pretty=format:', '--name-only', 'HEAD'])
+      .split('\n').map((f) => f.trim()).filter(Boolean);
+    return { branch, files };
   }
 
   checkout(branch: string): void { this.git(['checkout', branch]); }

@@ -40,7 +40,12 @@ export class StateStore {
   private readJson<T>(name: string): T | null {
     const p = this.path(name);
     if (!existsSync(p)) return null;
-    return JSON.parse(readFileSync(p, 'utf8')) as T;
+    try {
+      return JSON.parse(readFileSync(p, 'utf8')) as T;
+    } catch {
+      // 文件截断/损坏（如写途中被强杀）按无状态处理，不能让读异常击穿插件加载
+      return null;
+    }
   }
 
   readPending(): PendingResume | null { return this.readJson('pending-resume.json'); }
@@ -52,6 +57,8 @@ export class StateStore {
   }
 
   readPendingDone(): PendingResume | null { return this.readJson('pending-resume.done.json'); }
+  /** finalize 完成后清掉 done 文件，保证 self_finalize 可重复调用不报错 */
+  clearPendingDone(): void { rmSync(this.path('pending-resume.done.json'), { force: true }); }
   readRestartResult(): RestartResult | null { return this.readJson('restart-result.json'); }
 
   checkRateLimit(maxPerHour: number, now: number): { allowed: boolean; count: number } {
@@ -69,12 +76,25 @@ export class StateStore {
     }
   }
 
-  acquireLock(): boolean {
+  /**
+   * 互斥锁（wx 独占创建）。锁内容为获取时刻的时间戳：
+   * 发现锁已存在且超过 staleMs（默认 15 分钟，覆盖最长单次重启周期），
+   * 视为机器掉电/重启器被强杀留下的死锁，强行接管。
+   */
+  acquireLock(staleMs = 15 * 60 * 1000): boolean {
     try {
       writeFileSync(this.path('restarting.lock'), String(Date.now()), { flag: 'wx' });
       return true;
     } catch {
-      return false;
+      try {
+        const ts = Number(readFileSync(this.path('restarting.lock'), 'utf8'));
+        if (!Number.isFinite(ts) || Date.now() - ts <= staleMs) return false;
+        rmSync(this.path('restarting.lock'), { force: true });
+        writeFileSync(this.path('restarting.lock'), String(Date.now()), { flag: 'wx' });
+        return true;
+      } catch {
+        return false; // 接管竞争失败，按未获取处理
+      }
     }
   }
 
