@@ -19,15 +19,17 @@ lsof -ti:13080 | xargs kill && cd ~/.dsh/profiles/investment && ./start.sh
 ## 🔧 开发
 
 ```bash
-# 构建所有插件
+# 构建所有插件（可选，tsx 模式下不需要）
 cd agent-dh && pnpm build
 
-# 构建单个插件
+# 构建单个插件（可选）
 cd agent-dh/packages/investment && pnpm build
 
-# 清理并重新构建
+# 清理并重新构建（仅生产环境需要）
 cd agent-dh && rm -rf node_modules packages/*/node_modules packages/*/dist && pnpm install && pnpm build
 ```
+
+**注意**: DSH 使用 tsx 模式运行，直接加载 TypeScript 源码（`.ts` 文件），无需构建。详见 `docs/WHY-NO-DIST.md`
 
 ## 📝 配置
 
