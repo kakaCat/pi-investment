@@ -247,8 +247,9 @@ Domain Exceptions 使用情况:
 | P0-1: Application 层直接 akshare 导入 | ✅ 部分完成 | afd78ee4 | 已修复 2 个关键服务 |
 | P0-2: Domain adapters 反向依赖 | ✅ 完成 | 181981bc | 已迁移到 adapters/outbound/ |
 | P0-3: financial_providers/quote_providers 重复 | ⚠️ 部分完成 | 00a3161b | 已消除循环依赖 |
+| P1-4: ServiceBase 增强 | ✅ 完成 | faa31454 | _validate_symbol 支持带后缀代码 |
+| P1-5: 路由直接导入 application services | ⚠️ 部分完成 | 4eb8689f | ServiceFactory 扩展 + analysis_async.py 迁移 |
 | P2-12: Provider 动态优先级 | ✅ 完成 | a2ac1f8a | 健康评分自动排序 |
-| P1-4: ServiceBase 增强 | ✅ 完成 | - | _validate_symbol 支持带后缀代码 |
 
 ### P0 — 必须立即修复
 
@@ -263,10 +264,10 @@ Domain Exceptions 使用情况:
 | # | 问题 | 影响 | 建议修复 | 状态 |
 |---|------|------|---------|------|
 | 4 | 74/76 个服务类不继承 `ServiceBase` | 错误处理不统一 | 统一基类，逐步迁移 | ⚠️ ServiceBase 已增强（_validate_symbol 支持带后缀代码）；全面迁移需长期进行 |
-| 5 | FastAPI 路由 35 个文件直接导入 application services | 绕过服务工厂，难以测试 | 统一通过 shared/services 获取 | ⏳ 待处理：需扩展 ServiceFactory 覆盖 56 个服务 |
+| 5 | FastAPI 路由 35 个文件直接导入 application services | 绕过服务工厂，难以测试 | 统一通过 shared/services 获取 | ⚠️ 部分完成：ServiceFactory 新增 4 个工厂方法（technical_analysis, risk, data_quality, strategy_rotation）；analysis_async.py 3 处导入已迁移；剩余 32 个路由文件待渐进迁移 |
 | 6 | Flask + FastAPI 双框架并存 | 维护负担 | 制定 Flask 删除计划 | ✅ Flask 路由已清理（2026-08-02 起生产运行 FastAPI）；剩余基础设施代码（auth/jwt/rate_limiter）仍引用 flask 但为共享组件 |
-| 7 | Application 层 65 个文件直接依赖 Repository 实现 | 违反 DIP | 评估是否需要接口抽象 | ⏳ 待决策 |
-| 8 | Domain Ports 定义的接口完全未被 Application 层使用 | 设计未落地 | 决定保留/删除/实施 | ⏳ 待决策 |
+| 7 | Application 层 65 个文件直接依赖 Repository 实现 | 违反 DIP | 评估是否需要接口抽象 | ⏳ 待决策：当前直接依赖模式在小型团队中有便利性；Domain Ports 已定义但未被使用 |
+| 8 | Domain Ports 定义的接口完全未被 Application 层使用 | 设计未落地 | 决定保留/删除/实施 | ⏳ 待决策：6 个接口（IKline/ISignal/IPortfolio/IRisk/IFactor/IStrategy）各有 1 个实现但 0 处使用 |
 
 ### P2 — 长期优化
 
