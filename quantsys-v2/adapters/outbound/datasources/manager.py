@@ -2,6 +2,8 @@
 import logging
 from typing import List, Dict, Any, Optional
 
+from domain.exceptions import ExternalServiceError
+
 from adapters.outbound.datasources.providers.quote.sina import SinaQuoteProvider
 from adapters.outbound.datasources.providers.quote.eastmoney import EastmoneyQuoteProvider
 from adapters.outbound.datasources.providers.quote.akshare import AkshareQuoteProvider

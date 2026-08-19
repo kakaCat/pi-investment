@@ -242,11 +242,13 @@ Domain Exceptions 使用情况:
 
 ### 修复状态摘要
 
-| P0 问题 | 状态 | 提交 |
-|---------|------|------|
-| P0-1: Application 层直接 akshare 导入 | ✅ 部分完成 | afd78ee4 |
-| P0-2: Domain adapters 反向依赖 | ✅ 完成 | 181981bc |
-| P0-3: financial_providers/quote_providers 重复 | ⚠️ 部分完成 | 00a3161b |
+| 问题 | 状态 | 提交 | 说明 |
+|------|------|------|------|
+| P0-1: Application 层直接 akshare 导入 | ✅ 部分完成 | afd78ee4 | 已修复 2 个关键服务 |
+| P0-2: Domain adapters 反向依赖 | ✅ 完成 | 181981bc | 已迁移到 adapters/outbound/ |
+| P0-3: financial_providers/quote_providers 重复 | ⚠️ 部分完成 | 00a3161b | 已消除循环依赖 |
+| P2-12: Provider 动态优先级 | ✅ 完成 | a2ac1f8a | 健康评分自动排序 |
+| P1-4: ServiceBase 增强 | ✅ 完成 | - | _validate_symbol 支持带后缀代码 |
 
 ### P0 — 必须立即修复
 
@@ -258,24 +260,22 @@ Domain Exceptions 使用情况:
 
 ### P1 — 需要改进
 
-### P1 — 需要改进
-
-| # | 问题 | 影响 | 建议修复 |
-|---|------|------|---------|
-| 4 | 74/76 个服务类不继承 `ServiceBase` | 错误处理不统一 | 统一基类，逐步迁移 |
-| 5 | FastAPI 路由 35 个文件直接导入 application services | 绕过服务工厂，难以测试 | 统一通过 shared/services 获取 |
-| 6 | Flask + FastAPI 双框架并存（124 个路由文件） | 维护负担 | 制定 Flask 删除计划 |
-| 7 | Application 层 65 个文件直接依赖 Repository 实现 | 违反 DIP | 评估是否需要接口抽象 |
-| 8 | Domain Ports 定义的接口完全未被 Application 层使用 | 设计未落地 | 决定保留/删除/实施 |
+| # | 问题 | 影响 | 建议修复 | 状态 |
+|---|------|------|---------|------|
+| 4 | 74/76 个服务类不继承 `ServiceBase` | 错误处理不统一 | 统一基类，逐步迁移 | ⚠️ ServiceBase 已增强（_validate_symbol 支持带后缀代码）；全面迁移需长期进行 |
+| 5 | FastAPI 路由 35 个文件直接导入 application services | 绕过服务工厂，难以测试 | 统一通过 shared/services 获取 | ⏳ 待处理：需扩展 ServiceFactory 覆盖 56 个服务 |
+| 6 | Flask + FastAPI 双框架并存 | 维护负担 | 制定 Flask 删除计划 | ✅ Flask 路由已清理（2026-08-02 起生产运行 FastAPI）；剩余基础设施代码（auth/jwt/rate_limiter）仍引用 flask 但为共享组件 |
+| 7 | Application 层 65 个文件直接依赖 Repository 实现 | 违反 DIP | 评估是否需要接口抽象 | ⏳ 待决策 |
+| 8 | Domain Ports 定义的接口完全未被 Application 层使用 | 设计未落地 | 决定保留/删除/实施 | ⏳ 待决策 |
 
 ### P2 — 长期优化
 
-| # | 问题 | 影响 | 建议修复 |
-|---|------|------|---------|
-| 9 | 3 个 Repository 不继承 ORM 基类 | 模式不一致 | 统一为 ORM 模式 |
-| 10 | Domain exceptions 使用率不高 | 异常处理不统一 | 推广使用 |
-| 11 | 无分布式缓存 | 重启丢缓存 | 引入 Redis |
-| 12 | 无 provider 动态优先级/熔断器 | 故障恢复不智能 | 增强 DataProviderManager |
+| # | 问题 | 影响 | 建议修复 | 状态 |
+|---|------|------|---------|------|
+| 9 | 3 个 Repository 不继承 ORM 基类 | 模式不一致 | 统一为 ORM 模式 | ⏳ 待处理 |
+| 10 | Domain exceptions 使用率不高 | 异常处理不统一 | 推广使用 | ⏳ DPM 已导入 ExternalServiceError；全面推广需长期进行 |
+| 11 | 无分布式缓存 | 重启丢缓存 | 引入 Redis | ⏳ 待规划 |
+| 12 | 无 provider 动态优先级/熔断器 | 故障恢复不智能 | 增强 DataProviderManager | ✅ 已完成：健康评分自动排序（_sort_providers_by_health）|
 
 ---
 
