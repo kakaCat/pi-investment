@@ -75,11 +75,11 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
         logs.append(f"[{stage_start.isoformat()}] 阶段开始: {sd['name']}")
         try:
             if sd['key'] == 'data_update':
-                # 直接使用 AkshareBroker 从数据源获取K线数据
-                # (已迁移到 adapters.outbound.brokers，见架构审计 P0-2)
-                from adapters.outbound.brokers.akshare_broker import AkshareBroker
+                # 使用统一数据访问层 DataProviderManager 获取K线数据
+                # (Phase 3 数据访问治理：替代 AkshareBroker 直接调用)
+                from adapters.outbound.datasources import get_data_provider_manager
 
-                broker = AkshareBroker()
+                manager = get_data_provider_manager()
                 start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
                 end_date = datetime.now().strftime('%Y-%m-%d')
                 updated = 0
@@ -89,16 +89,17 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
                     try:
                         logger.info(f"[DATA_UPDATE][{run_id}] Fetching {sym} from {start_date} to {end_date}")
 
-                        # 从数据源获取数据
-                        result = broker.get_history(sym, start_date, end_date, 'daily')
+                        # 从数据源获取数据（自动 failover: DB → akshare → tencent → baostock）
+                        result = manager.get_klines(sym, 'daily', start_date, end_date)
 
-                        if result.success and result.data:
-                            logger.info(f"[DATA_UPDATE][{run_id}] Got {len(result.data)} records for {sym}")
+                        if result.get('success') and result.get('data'):
+                            klines_data = result['data']
+                            logger.info(f"[DATA_UPDATE][{run_id}] Got {len(klines_data)} records for {sym}")
 
                             # 转换为数据库格式并保存
                             klines = []
                             clean_symbol = sym.split('.')[0] if '.' in sym else sym
-                            for candle in result.data:
+                            for candle in klines_data:
                                 klines.append({
                                     'symbol': clean_symbol,
                                     'trade_date': candle.timestamp.strftime('%Y-%m-%d') if hasattr(candle.timestamp, 'strftime') else str(candle.timestamp)[:10],
@@ -119,7 +120,7 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
                                 else:
                                     failed_syms.append(f"{sym}(save failed)")
                         else:
-                            error_msg = result.error if hasattr(result, 'error') else 'no data'
+                            error_msg = result.get('error', 'no data')
                             logger.warning(f"[DATA_UPDATE][{run_id}] No data for {sym}: {error_msg}")
                             failed_syms.append(f"{sym}({error_msg})")
 
