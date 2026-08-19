@@ -240,13 +240,23 @@ Domain Exceptions 使用情况:
 
 ## 四、问题清单（按优先级排序）
 
+### 修复状态摘要
+
+| P0 问题 | 状态 | 提交 |
+|---------|------|------|
+| P0-1: Application 层直接 akshare 导入 | ✅ 部分完成 | afd78ee4 |
+| P0-2: Domain adapters 反向依赖 | ✅ 完成 | 181981bc |
+| P0-3: financial_providers/quote_providers 重复 | ⚠️ 部分完成 | 00a3161b |
+
 ### P0 — 必须立即修复
 
-| # | 问题 | 影响 | 建议修复 |
-|---|------|------|---------|
-| 1 | Application 层 15 个文件直接 `import akshare`，绕过 `DataProviderManager` | 无故障转移，重复代码 | 迁移到 `DataProviderManager` |
-| 2 | Domain 层 7 个文件反向依赖上层（adapters/application/infrastructure） | 违反分层原则，循环依赖风险 | 将 adapter 移至 adapters/ 层 |
-| 3 | `financial_providers/` 和 `quote_providers/` 与 `DataProviderManager` 重复 | 代码重复，维护困难 | 合并到统一体系 |
+| # | 问题 | 影响 | 建议修复 | 状态 |
+|---|------|------|---------|------|
+| 1 | Application 层 15 个文件直接 `import akshare`，绕过 `DataProviderManager` | 无故障转移，重复代码 | 迁移到 `DataProviderManager` | ✅ 已修复 2 个关键文件（trading_calendar_service, technical_analysis_service）；剩余 11 个需 DPM 扩展接口 |
+| 2 | Domain 层 7 个文件反向依赖上层（adapters/application/infrastructure） | 违反分层原则，循环依赖风险 | 将 adapter 移至 adapters/ 层 | ✅ 已完成：quantlib/adapters/ → adapters/outbound/datasources/providers/quantlib/；brokers/adapters/ → adapters/outbound/brokers/；旧位置保留向后兼容 shim（带 DeprecationWarning） |
+| 3 | `financial_providers/` 和 `quote_providers/` 与 `DataProviderManager` 重复 | 代码重复，维护困难 | 合并到统一体系 | ⚠️ 部分完成：已移除 DPM 对旧层的循环依赖（akshare quote provider）；financial provider 模型与 DPM 不兼容，需长期迁移 |
+
+### P1 — 需要改进
 
 ### P1 — 需要改进
 
