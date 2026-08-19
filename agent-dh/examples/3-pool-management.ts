@@ -95,10 +95,8 @@ async function main() {
   console.log('[6] 刷新股票池...\n');
   
   console.log('    提示: 刷新股票池将重新扫描并更新成员');
-  console.log('    
-    await client.quantsysV2.refreshPool(pool.id);
-    console.log("    ✓ 股票池已刷新");
-  ');
+  // await client.quantsysV2.refreshPool(pool.id);
+  // console.log("    ✓ 股票池已刷新");
   console.log();
 
   // 7. 移除成员
