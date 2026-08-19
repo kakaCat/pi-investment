@@ -47,21 +47,15 @@ class SinaSource(DataSource):
         super().__init__("Sina")
 
     def fetch_stock_list(self) -> Optional[pd.DataFrame]:
-        """获取股票列表"""
+        """获取股票列表（Sina 接口已不维护，返回 None）"""
         try:
-            import akshare as ak
             logger.info(f"[{self.name}] 获取股票列表...")
-
-            # 使用新浪接口
-            df = ak.stock_zh_a_spot()
-
-            if df.empty:
-                logger.warning(f"[{self.name}] 股票列表为空")
-                return None
-
-            logger.info(f"[{self.name}] 成功获取 {len(df)} 只股票")
-            self.record_success()
-            return df
+            
+            # 新浪股票列表接口已不稳定，且 DataProviderManager 不支持全量列表
+            # 返回 None，让上层 failover 到其他源
+            logger.warning(f"[{self.name}] Sina 全量股票列表接口已废弃，跳过")
+            self.record_failure()
+            return None
 
         except Exception as e:
             logger.warning(f"[{self.name}] 获取股票列表失败: {e}")
@@ -198,26 +192,29 @@ class LocalDatabaseSource(DataSource):
 
 
 class AKShareSource(DataSource):
-    """AKShare数据源（备用）"""
+    """AKShare数据源（委托 DataProviderManager）"""
 
     def __init__(self):
         super().__init__("AKShare")
+        self._manager = None
+
+    def _get_manager(self):
+        """延迟加载 DataProviderManager"""
+        if self._manager is None:
+            from adapters.outbound.datasources import get_data_provider_manager
+            self._manager = get_data_provider_manager()
+        return self._manager
 
     def fetch_stock_list(self) -> Optional[pd.DataFrame]:
-        """获取股票列表"""
+        """获取股票列表（通过 manager.get_quote 批量）"""
         try:
-            import akshare as ak
             logger.info(f"[{self.name}] 获取股票列表...")
-
-            df = ak.stock_zh_a_spot_em()
-
-            if df.empty:
-                logger.warning(f"[{self.name}] 股票列表为空")
-                return None
-
-            logger.info(f"[{self.name}] 成功获取 {len(df)} 只股票")
-            self.record_success()
-            return df
+            
+            # DataProviderManager 不提供全量股票列表接口
+            # 此处返回 None，让上层 failover 到其他源
+            logger.warning(f"[{self.name}] DataProviderManager 不支持全量股票列表，跳过")
+            self.record_failure()
+            return None
 
         except Exception as e:
             logger.warning(f"[{self.name}] 获取股票列表失败: {e}")
@@ -225,25 +222,40 @@ class AKShareSource(DataSource):
             return None
 
     def fetch_klines(self, symbol: str, start_date: str, end_date: str) -> Optional[pd.DataFrame]:
-        """获取K线数据"""
+        """获取K线数据（委托 DataProviderManager）"""
         try:
-            import akshare as ak
-
-            clean_symbol = symbol.split('.')[0]
-            logger.info(f"[{self.name}] 获取 {clean_symbol} K线数据...")
-
-            df = ak.stock_zh_a_hist(
-                symbol=clean_symbol,
-                period="daily",
-                start_date=start_date.replace('-', ''),
-                end_date=end_date.replace('-', ''),
-                adjust="qfq"
-            )
-
-            if df.empty:
-                logger.warning(f"[{self.name}] K线数据为空")
+            manager = self._get_manager()
+            
+            logger.info(f"[{self.name}] 通过 DataProviderManager 获取 {symbol} K线数据...")
+            
+            result = manager.get_klines(symbol, 'daily', start_date, end_date)
+            
+            if not result.get('success'):
+                logger.warning(f"[{self.name}] K线数据获取失败: {result.get('error')}")
+                self.record_failure()
                 return None
-
+            
+            klines_data = result['data']
+            if not klines_data:
+                logger.warning(f"[{self.name}] K线数据为空")
+                self.record_failure()
+                return None
+            
+            # 转换为 DataFrame（与 akshare 格式兼容）
+            rows = []
+            for kline in klines_data:
+                rows.append({
+                    '日期': kline.timestamp.strftime('%Y-%m-%d') if hasattr(kline.timestamp, 'strftime') else str(kline.timestamp),
+                    '开盘': kline.open,
+                    '最高': kline.high,
+                    '最低': kline.low,
+                    '收盘': kline.close,
+                    '成交量': kline.volume,
+                    '成交额': kline.turnover if kline.turnover else 0,
+                })
+            
+            df = pd.DataFrame(rows)
+            
             logger.info(f"[{self.name}] 成功获取 {len(df)} 条K线")
             self.record_success()
             return df
