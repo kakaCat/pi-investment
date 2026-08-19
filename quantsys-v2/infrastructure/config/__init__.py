@@ -60,3 +60,31 @@ def create_redis_client():
     return _create()
 
 __all__.extend(['create_cache_service', 'create_redis_client'])
+
+# Pydantic Settings-based configuration (NEW - 2026-08-19)
+# Unified type-safe configuration management
+from infrastructure.config.settings import (
+    Config,
+    get_config,
+    reload_config,
+    DatabaseSettings,
+    RedisSettings,
+    ThreadSettings,
+    ExternalServiceSettings,
+    ProxySettings,
+    LoggingSettings,
+    AppSettings,
+)
+
+__all__.extend([
+    'Config',
+    'get_config',
+    'reload_config',
+    'DatabaseSettings',
+    'RedisSettings',
+    'ThreadSettings',
+    'ExternalServiceSettings',
+    'ProxySettings',
+    'LoggingSettings',
+    'AppSettings',
+])
