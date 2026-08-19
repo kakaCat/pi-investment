@@ -23,7 +23,7 @@ class SimpleContainer(containers.DeclarativeContainer):
     @staticmethod
     def _get_shared_service(service_name):
         """从 shared.py 获取服务（过渡方案）"""
-        from adapters.inbound.api.shared import (
+        from adapters.shared.services import (
             ds,
             strategy_service,
             stock_pool_service,

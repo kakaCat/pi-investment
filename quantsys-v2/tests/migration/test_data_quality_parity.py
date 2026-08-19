@@ -12,33 +12,33 @@ DETECT = "/api/data/detect-gaps"
 VALIDATE = "/api/data/validate"
 
 
-def test_report(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", REPORT, params={"limit": 5})
+def test_report(fastapi_client):
+    assert_parity(fastapi_client, "GET", REPORT, params={"limit": 5})
 
 
-def test_stats(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", STATS, params={"limit": 5})
+def test_stats(fastapi_client):
+    assert_parity(fastapi_client, "GET", STATS, params={"limit": 5})
 
 
-def test_summary(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", SUMMARY, params={"days": 7})
+def test_summary(fastapi_client):
+    assert_parity(fastapi_client, "GET", SUMMARY, params={"days": 7})
 
 
-def test_trend(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", TREND, params={"days": 7})
+def test_trend(fastapi_client):
+    assert_parity(fastapi_client, "GET", TREND, params={"days": 7})
 
 
-def test_submit_missing_fields(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", SUBMIT, json_body={"symbol": "600519"})
+def test_submit_missing_fields(fastapi_client):
+    assert_parity(fastapi_client, "POST", SUBMIT, json_body={"symbol": "600519"})
 
 
-def test_check(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", CHECK, params={"symbols": "600519"})
+def test_check(fastapi_client):
+    assert_parity(fastapi_client, "GET", CHECK, params={"symbols": "600519"})
 
 
-def test_detect_gaps(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", DETECT, json_body={"symbols": ["600519"]})
+def test_detect_gaps(fastapi_client):
+    assert_parity(fastapi_client, "POST", DETECT, json_body={"symbols": ["600519"]})
 
 
-def test_validate(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", VALIDATE, json_body={"symbols": ["600519"]})
+def test_validate(fastapi_client):
+    assert_parity(fastapi_client, "POST", VALIDATE, json_body={"symbols": ["600519"]})

@@ -28,8 +28,8 @@ _COV_3 = [
 
 # ============ portfolio ============
 
-def test_markowitz_optimize(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", MARKOWITZ, json_body={
+def test_markowitz_optimize(fastapi_client):
+    assert_parity(fastapi_client, "POST", MARKOWITZ, json_body={
         "expected_returns": [0.10, 0.15, 0.08],
         "covariance_matrix": _COV_3,
         "method": "max_sharpe",
@@ -37,12 +37,12 @@ def test_markowitz_optimize(flask_client, fastapi_client):
     })
 
 
-def test_markowitz_optimize_missing_params(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", MARKOWITZ, json_body={})
+def test_markowitz_optimize_missing_params(fastapi_client):
+    assert_parity(fastapi_client, "POST", MARKOWITZ, json_body={})
 
 
-def test_black_litterman_optimize(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", BLACK_LITTERMAN, json_body={
+def test_black_litterman_optimize(fastapi_client):
+    assert_parity(fastapi_client, "POST", BLACK_LITTERMAN, json_body={
         "market_weights": [0.5, 0.3, 0.2],
         "covariance_matrix": _COV_3,
         "views": [
@@ -51,87 +51,87 @@ def test_black_litterman_optimize(flask_client, fastapi_client):
     })
 
 
-def test_black_litterman_optimize_missing_params(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", BLACK_LITTERMAN, json_body={})
+def test_black_litterman_optimize_missing_params(fastapi_client):
+    assert_parity(fastapi_client, "POST", BLACK_LITTERMAN, json_body={})
 
 
-def test_risk_parity_optimize(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", RISK_PARITY_OPT, json_body={
+def test_risk_parity_optimize(fastapi_client):
+    assert_parity(fastapi_client, "POST", RISK_PARITY_OPT, json_body={
         "covariance_matrix": _COV_3,
     })
 
 
-def test_risk_parity_optimize_missing_params(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", RISK_PARITY_OPT, json_body={})
+def test_risk_parity_optimize_missing_params(fastapi_client):
+    assert_parity(fastapi_client, "POST", RISK_PARITY_OPT, json_body={})
 
 
-def test_risk_parity_decomposition(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", RISK_PARITY_DECOMP, json_body={
+def test_risk_parity_decomposition(fastapi_client):
+    assert_parity(fastapi_client, "POST", RISK_PARITY_DECOMP, json_body={
         "weights": [0.4, 0.35, 0.25],
         "covariance_matrix": _COV_3,
     })
 
 
-def test_risk_parity_decomposition_missing_params(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", RISK_PARITY_DECOMP, json_body={})
+def test_risk_parity_decomposition_missing_params(fastapi_client):
+    assert_parity(fastapi_client, "POST", RISK_PARITY_DECOMP, json_body={})
 
 
 # ============ charts ============
 
-def test_chart_accuracy(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", CHART_ACCURACY, params={"days": 30})
+def test_chart_accuracy(fastapi_client):
+    assert_parity(fastapi_client, "GET", CHART_ACCURACY, params={"days": 30})
 
 
-def test_chart_equity(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", CHART_EQUITY)
+def test_chart_equity(fastapi_client):
+    assert_parity(fastapi_client, "GET", CHART_EQUITY)
 
 
-def test_chart_comparison(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", CHART_COMPARISON)
+def test_chart_comparison(fastapi_client):
+    assert_parity(fastapi_client, "GET", CHART_COMPARISON)
 
 
-def test_chart_importance(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", CHART_IMPORTANCE, params={"top_n": 10})
+def test_chart_importance(fastapi_client):
+    assert_parity(fastapi_client, "GET", CHART_IMPORTANCE, params={"top_n": 10})
 
 
 # ============ factor-models ============
 
-def test_ff3_missing_symbol(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", FF3, json_body={})
+def test_ff3_missing_symbol(fastapi_client):
+    assert_parity(fastapi_client, "POST", FF3, json_body={})
 
 
-def test_ff3_with_symbol(flask_client, fastapi_client):
+def test_ff3_with_symbol(fastapi_client):
     # 数据是否充足取决于测试库；两侧共享同一 ds/DB，结果必然一致
-    assert_parity(flask_client, fastapi_client, "POST", FF3, json_body={
+    assert_parity(fastapi_client, "POST", FF3, json_body={
         "symbol": "600519.SH",
         "start_date": "2024-01-01",
         "end_date": "2024-12-31",
     })
 
 
-def test_ff5_missing_symbol(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", FF5, json_body={})
+def test_ff5_missing_symbol(fastapi_client):
+    assert_parity(fastapi_client, "POST", FF5, json_body={})
 
 
-def test_ff5_with_symbol(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", FF5, json_body={
+def test_ff5_with_symbol(fastapi_client):
+    assert_parity(fastapi_client, "POST", FF5, json_body={
         "symbol": "600519.SH",
         "start_date": "2024-01-01",
         "end_date": "2024-12-31",
     })
 
 
-def test_carhart_missing_symbol(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", CARHART, json_body={})
+def test_carhart_missing_symbol(fastapi_client):
+    assert_parity(fastapi_client, "POST", CARHART, json_body={})
 
 
-def test_carhart_with_symbol(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", CARHART, json_body={
+def test_carhart_with_symbol(fastapi_client):
+    assert_parity(fastapi_client, "POST", CARHART, json_body={
         "symbol": "600519.SH",
         "start_date": "2024-01-01",
         "end_date": "2024-12-31",
     })
 
 
-def test_barra_stub(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", BARRA, json_body={"symbol": "600519.SH"})
+def test_barra_stub(fastapi_client):
+    assert_parity(fastapi_client, "POST", BARRA, json_body={"symbol": "600519.SH"})

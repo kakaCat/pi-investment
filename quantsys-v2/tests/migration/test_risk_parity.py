@@ -10,25 +10,25 @@ RULE_UPDATE = "/api/risk/stop-loss/rules/nonexistent"
 RULE_DELETE = "/api/risk/stop-loss/rules/nonexistent"
 
 
-def test_risk_check(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", CHECK, json_body={})
+def test_risk_check(fastapi_client):
+    assert_parity(fastapi_client, "POST", CHECK, json_body={})
 
 
-def test_get_rules(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", RULES)
+def test_get_rules(fastapi_client):
+    assert_parity(fastapi_client, "GET", RULES)
 
 
-def test_create_rule_missing_symbol(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", RULE_CREATE, json_body={})
+def test_create_rule_missing_symbol(fastapi_client):
+    assert_parity(fastapi_client, "POST", RULE_CREATE, json_body={})
 
 
-def test_batch_create_missing_rules(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", RULE_BATCH, json_body={})
+def test_batch_create_missing_rules(fastapi_client):
+    assert_parity(fastapi_client, "POST", RULE_BATCH, json_body={})
 
 
-def test_update_rule_not_found(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "PUT", RULE_UPDATE, json_body={"name": "x"})
+def test_update_rule_not_found(fastapi_client):
+    assert_parity(fastapi_client, "PUT", RULE_UPDATE, json_body={"name": "x"})
 
 
-def test_delete_rule_not_found(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "DELETE", RULE_DELETE)
+def test_delete_rule_not_found(fastapi_client):
+    assert_parity(fastapi_client, "DELETE", RULE_DELETE)

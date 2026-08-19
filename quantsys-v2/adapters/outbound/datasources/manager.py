@@ -403,7 +403,7 @@ def get_data_provider_manager() -> DataProviderManager:
     global _manager_instance
     if _manager_instance is None:
         # Import ds here to avoid circular import
-        from adapters.inbound.api.shared import ds
+        from adapters.shared.services import ds
         _manager_instance = DataProviderManager(ds=ds)
     return _manager_instance
 

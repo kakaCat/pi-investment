@@ -69,5 +69,5 @@ def test_account_detail_not_found(fastapi_client):
 
 # ---- report/daily parity（Flask 也是 500：ds.get_risk_summary 不存在的既有 bug）----
 
-def test_report_daily(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", REPORT_DAILY)
+def test_report_daily(fastapi_client):
+    assert_parity(fastapi_client, "GET", REPORT_DAILY)

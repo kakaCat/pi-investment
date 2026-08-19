@@ -12,43 +12,43 @@ KALMAN_FILTER = "/api/timeseries/kalman/filter"
 KALMAN_LOCAL = "/api/timeseries/kalman/local-level"
 
 
-def test_stock_factors(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", FACTORS)
+def test_stock_factors(fastapi_client):
+    assert_parity(fastapi_client, "GET", FACTORS)
 
 
-def test_stock_factors_alt(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", FACTORS_ALT)
+def test_stock_factors_alt(fastapi_client):
+    assert_parity(fastapi_client, "GET", FACTORS_ALT)
 
 
-def test_arima_fit(flask_client, fastapi_client):
-    assert_structural_parity(flask_client, fastapi_client, "POST", ARIMA_FIT,
+def test_arima_fit(fastapi_client):
+    assert_structural_parity(fastapi_client, "POST", ARIMA_FIT,
                              json_body={"symbol": "600519"})
 
 
-def test_arima_fit_missing_symbol(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", ARIMA_FIT, json_body={})
+def test_arima_fit_missing_symbol(fastapi_client):
+    assert_parity(fastapi_client, "POST", ARIMA_FIT, json_body={})
 
 
-def test_arima_forecast(flask_client, fastapi_client):
-    assert_structural_parity(flask_client, fastapi_client, "POST", ARIMA_FORECAST,
+def test_arima_forecast(fastapi_client):
+    assert_structural_parity(fastapi_client, "POST", ARIMA_FORECAST,
                              json_body={"symbol": "600519", "forecast_steps": 3})
 
 
-def test_garch_fit(flask_client, fastapi_client):
-    assert_structural_parity(flask_client, fastapi_client, "POST", GARCH_FIT,
+def test_garch_fit(fastapi_client):
+    assert_structural_parity(fastapi_client, "POST", GARCH_FIT,
                              json_body={"symbol": "600519"})
 
 
-def test_garch_var(flask_client, fastapi_client):
-    assert_structural_parity(flask_client, fastapi_client, "POST", GARCH_VAR,
+def test_garch_var(fastapi_client):
+    assert_structural_parity(fastapi_client, "POST", GARCH_VAR,
                              json_body={"symbol": "600519", "confidence": 0.95})
 
 
-def test_kalman_filter(flask_client, fastapi_client):
-    assert_structural_parity(flask_client, fastapi_client, "POST", KALMAN_FILTER,
+def test_kalman_filter(fastapi_client):
+    assert_structural_parity(fastapi_client, "POST", KALMAN_FILTER,
                              json_body={"symbol": "600519"})
 
 
-def test_kalman_local_level(flask_client, fastapi_client):
-    assert_structural_parity(flask_client, fastapi_client, "POST", KALMAN_LOCAL,
+def test_kalman_local_level(fastapi_client):
+    assert_structural_parity(fastapi_client, "POST", KALMAN_LOCAL,
                              json_body={"symbol": "600519"})

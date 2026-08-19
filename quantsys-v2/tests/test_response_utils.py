@@ -5,7 +5,6 @@ import pytest
 import pandas as pd
 from flask import Flask
 from adapters.inbound.api.utils.response import normalize_indicator_fields
-from adapters.inbound.api.routes import indicators as indicators_routes
 from application.services.strategy_code_service import StrategyCodeService
 from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyResult
 
@@ -283,52 +282,6 @@ class TestStrategyNotebookUpdate:
             'description': 'updated from code',
         }
 
-
-class TestIndicatorNotebookRoute:
-    """测试指标路由透传策略记事本字段"""
-
-    def test_update_indicator_passes_notebook_to_strategy_service(self, mocker):
-        app = Flask(__name__)
-        app.register_blueprint(indicators_routes.indicators_bp)
-        app.config['TESTING'] = True
-
-        mock_service = mocker.Mock()
-        mock_service.get_strategy.return_value = {
-            'id': 7,
-            'code_type': 'indicator',
-        }
-        mock_service.update_strategy.return_value = {
-            'id': 7,
-            'metadata': {
-                'notebook': {
-                    'pros': '趋势明确',
-                    'cons': '震荡亏损',
-                    'observations': '青岛啤酒有效',
-                    'nextSteps': '加入成交量过滤',
-                }
-            }
-        }
-        mocker.patch.object(indicators_routes, 'strategy_service', mock_service)
-
-        with app.test_client() as client:
-            response = client.post('/api/indicators/update/7', json={
-                'notebook': {
-                    'pros': '趋势明确',
-                    'cons': '震荡亏损',
-                    'observations': '青岛啤酒有效',
-                    'nextSteps': '加入成交量过滤',
-                }
-            })
-
-        assert response.status_code == 200
-        kwargs = mock_service.update_strategy.call_args.kwargs
-        assert kwargs['strategy_id'] == 7
-        assert kwargs['notebook'] == {
-            'pros': '趋势明确',
-            'cons': '震荡亏损',
-            'observations': '青岛啤酒有效',
-            'next_steps': '加入成交量过滤',
-        }
 
 
 class TestStrategyRunSignalSeries:

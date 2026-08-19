@@ -14,7 +14,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from adapters.inbound.fastapi_app.shared import api_response
-from adapters.inbound.api.routes.quote_market import _kline_failure_suggestion
+from adapters.shared.quote_helpers import _kline_failure_suggestion
 
 logger = logging.getLogger(__name__)
 

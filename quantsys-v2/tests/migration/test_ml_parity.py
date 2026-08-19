@@ -12,18 +12,18 @@ TRAIN = "/api/ml/train"
 PREDICT = "/api/ml/predict"
 
 
-def test_features(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", FEATURES)
+def test_features(fastapi_client):
+    assert_parity(fastapi_client, "GET", FEATURES)
 
 
-def test_model_info(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", MODEL_INFO)
+def test_model_info(fastapi_client):
+    assert_parity(fastapi_client, "GET", MODEL_INFO)
 
 
-def test_train_invalid_model_type(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", TRAIN,
+def test_train_invalid_model_type(fastapi_client):
+    assert_parity(fastapi_client, "POST", TRAIN,
                   json_body={"model_type": "bogus", "symbols": ["600519"]})
 
 
-def test_predict_missing_symbols(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", PREDICT, json_body={"symbols": []})
+def test_predict_missing_symbols(fastapi_client):
+    assert_parity(fastapi_client, "POST", PREDICT, json_body={"symbols": []})

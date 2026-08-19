@@ -10,25 +10,25 @@ RUN_LOGS = "/api/pipeline/nonexistent-run/logs"
 TRIGGER = "/api/pipeline/trigger"
 
 
-def test_statistics(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", STATS)
+def test_statistics(fastapi_client):
+    assert_parity(fastapi_client, "GET", STATS)
 
 
-def test_tasks_list(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", TASKS)
+def test_tasks_list(fastapi_client):
+    assert_parity(fastapi_client, "GET", TASKS)
 
 
-def test_runs_list(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", RUNS, params={"page": 1, "page_size": 5})
+def test_runs_list(fastapi_client):
+    assert_parity(fastapi_client, "GET", RUNS, params={"page": 1, "page_size": 5})
 
 
-def test_run_detail_not_found(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", RUN_DETAIL)
+def test_run_detail_not_found(fastapi_client):
+    assert_parity(fastapi_client, "GET", RUN_DETAIL)
 
 
-def test_run_logs_not_found(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "GET", RUN_LOGS)
+def test_run_logs_not_found(fastapi_client):
+    assert_parity(fastapi_client, "GET", RUN_LOGS)
 
 
-def test_trigger_missing_body(flask_client, fastapi_client):
-    assert_parity(flask_client, fastapi_client, "POST", TRIGGER, json_body=None)
+def test_trigger_missing_body(fastapi_client):
+    assert_parity(fastapi_client, "POST", TRIGGER, json_body=None)

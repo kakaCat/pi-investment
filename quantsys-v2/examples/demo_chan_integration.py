@@ -56,11 +56,9 @@ print("\n📦 步骤3：测试API路由")
 print("-" * 70)
 
 try:
-    from adapters.inbound.api.routes.chan import chan_bp
-    print("✅ chan_bp 导入成功")
-    print(f"   - Blueprint名称: {chan_bp.name}")
-    print(f"   - URL前缀: {chan_bp.url_prefix}")
-    print(f"   - 注册路由数: {len(chan_bp.deferred_functions)}")
+    from adapters.inbound.fastapi_app.routes.chan_async import router as chan_router
+    print("✅ chan FastAPI 路由导入成功")
+    print(f"   - 路由数: {len(chan_router.routes)}")
 
 except Exception as e:
     print(f"❌ API路由测试失败: {e}")
