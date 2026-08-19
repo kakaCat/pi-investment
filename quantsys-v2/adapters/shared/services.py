@@ -18,8 +18,8 @@ from adapters.outbound.repositories import StockPoolORMRepository, StrategyORMRe
 pool_repo = StockPoolORMRepository()
 strategy_repository = StrategyORMRepository()
 
-# 因子适配器
-from domain.quantlib.adapters import get_factor_adapter
+# 因子适配器（已迁移到 adapters/outbound/datasources/providers/quantlib，见架构审计 P0-2）
+from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
 factor_adapter = get_factor_adapter()
 
 __all__ = [

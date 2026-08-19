@@ -76,7 +76,8 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
         try:
             if sd['key'] == 'data_update':
                 # 直接使用 AkshareBroker 从数据源获取K线数据
-                from domain.brokers.adapters.akshare_broker import AkshareBroker
+                # (已迁移到 adapters.outbound.brokers，见架构审计 P0-2)
+                from adapters.outbound.brokers.akshare_broker import AkshareBroker
 
                 broker = AkshareBroker()
                 start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
