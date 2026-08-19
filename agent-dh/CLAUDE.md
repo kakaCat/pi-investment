@@ -1,0 +1,441 @@
+# CLAUDE.md - Agent-DH (DSH Investment Profile)
+
+This file provides guidance to Claude Code when working with the Agent-DH project.
+
+## Project Overview
+
+**Agent-DH** 是 PI Investment 系统的 DSH (DeepSeek Harness) Profile，提供基于 AI 的投资分析和决策能力。
+
+**关键理解**：Agent-DH 不是独立应用，而是一个 **DSH Profile**，通过 DSH 框架加载和运行。
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│  DSH Framework (deepseek-harness)               │
+│  • Plugin system (cordis)                       │
+│  • Web UI / CLI / TUI                           │
+│  • LLM integration (DeepSeek)                   │
+└─────────────────────────────────────────────────┘
+       ↑ loads
+┌─────────────────────────────────────────────────┐
+│  Agent-DH Profile (~/.dsh/profiles/investment)  │
+│  • 14 investment plugins (48 tools)             │
+│  • System prompt for investment analysis        │
+│  • Configuration for quantsys-v2 backend        │
+└─────────────────────────────────────────────────┘
+       ↑ implements
+┌─────────────────────────────────────────────────┐
+│  Agent-DH Packages (this repository)            │
+│  • TypeScript plugin source code                │
+│  • 14 plugin packages in packages/              │
+│  • Built and linked to DSH profile              │
+└─────────────────────────────────────────────────┘
+       ↓ calls
+┌─────────────────────────────────────────────────┐
+│  QuantsysV2 Backend (Python, port 5001)         │
+│  • Stock data, K-lines, financials              │
+│  • Strategy backtesting                         │
+│  • Trading execution                            │
+└─────────────────────────────────────────────────┘
+```
+
+## Project Structure
+
+```
+agent-dh/
+├── packages/                    # 14 个投资插件包（TypeScript 源码）
+│   ├── investment/              # 投资数据工具（8个工具）
+│   │   └── src/index.ts        # 行情、K线、财务、股票池、策略等
+│   ├── trading/                 # 交易工具（6个工具）
+│   │   └── src/index.ts        # 账户、持仓、交易执行、监控等
+│   ├── intelligence/            # 智能工具（3个工具）
+│   │   └── src/index.ts        # 盯盘规则、市场告警等
+│   ├── competition/             # 竞争分析（3个工具）
+│   ├── market/                  # 市场分析（3个工具）
+│   ├── risk/                    # 风险控制（3个工具）
+│   ├── strategy/                # 策略工具（6个工具）
+│   ├── factor/                  # 因子分析（2个工具）
+│   ├── model/                   # 模型工具（3个工具）
+│   ├── memory/                  # 记忆系统（3个工具）
+│   ├── evolution/               # 进化系统（2个工具）
+│   ├── scheduler/               # 调度器（1个工具）
+│   ├── notification/            # 通知系统（2个工具）
+│   ├── data-manager/            # 数据管理（2个工具）
+│   ├── quantsys-v2-client/      # QuantsysV2 API 客户端
+│   └── agent-os-client/         # Agent OS API 客户端（遗留）
+│
+├── profiles/investment/         # DSH Profile 配置模板
+│   ├── start.sh                # 启动脚本（拷贝到 ~/.dsh/profiles/investment/）
+│   ├── cordis.yml              # 基础配置
+│   └── README.md               # Profile 说明
+│
+├── docs/                        # 项目文档
+│   ├── phase-*-completion-report.md  # 开发阶段报告
+│   └── project-summary.md      # 项目总结
+│
+├── examples/                    # 使用示例
+├── scripts/                     # 工具脚本
+└── package.json                 # Monorepo 配置
+```
+
+## How It Works
+
+### 1. Plugin Development (This Repository)
+
+Develop TypeScript plugins in `packages/`:
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build all packages (TypeScript → JavaScript)
+pnpm build
+
+# Watch mode for development
+cd packages/investment
+pnpm dev  # If the package has a dev script
+```
+
+### 2. DSH Profile Installation (~/.dsh/profiles/investment/)
+
+The DSH profile at `~/.dsh/profiles/investment/` references these packages:
+
+```json
+{
+  "dependencies": {
+    "@pi-investment/investment": "file:../../../pi-investment/agent-dh/packages/investment",
+    "@pi-investment/trading": "file:../../../pi-investment/agent-dh/packages/trading",
+    ...
+  }
+}
+```
+
+When you run `pnpm build` in agent-dh, the built JavaScript is immediately available to the DSH profile (via file: links).
+
+### 3. DSH Profile Startup
+
+The profile is started via DSH:
+
+```bash
+# Using the start script (recommended)
+cd ~/.dsh/profiles/investment
+./start.sh              # Default port 13080
+./start.sh 13081        # Custom port
+
+# Or using dsh command directly
+dsh --profile investment --port 13080
+```
+
+This launches:
+- DSH framework with web UI
+- All 14 investment plugins (48 tools)
+- Investment-focused system prompt
+- Connection to quantsys-v2 backend (port 5001)
+
+## Plugin Overview
+
+### Core Investment Plugins
+
+| Plugin | Tools | Description |
+|--------|-------|-------------|
+| `@pi-investment/investment` | 8 | 行情、K线、财务、宏观、北向资金、市场情绪、股票池、策略列表 |
+| `@pi-investment/trading` | 6 | 账户信息、持仓、交易执行、交易监控、算法交易、对账 |
+| `@pi-investment/intelligence` | 3 | 盯盘规则、盯盘管理、市场告警 |
+| `@pi-investment/competition` | 3 | 对手行为、战场评估、操纵检测 |
+| `@pi-investment/market` | 3 | 市场风格、行业分析、筹码分析 |
+| `@pi-investment/risk` | 3 | 风险控制、风险指标、Barra分解 |
+| `@pi-investment/strategy` | 6 | 策略执行、机会扫描、筛选、轮动提案、轮动模拟、轮动执行 |
+| `@pi-investment/factor` | 2 | 因子计算、因子分析 |
+| `@pi-investment/model` | 3 | 模型预测、模型训练、模型评估 |
+| `@pi-investment/memory` | 3 | 记忆搜索、记忆写入、经验记录 |
+| `@pi-investment/evolution` | 2 | 进化运行、进化排行榜 |
+| `@pi-investment/scheduler` | 1 | 调度器管理 |
+| `@pi-investment/notification` | 2 | 飞书通知、通用通知 |
+| `@pi-investment/data-manager` | 2 | 数据质量报告、数据管理 |
+
+### Infrastructure Packages
+
+| Package | Purpose |
+|---------|---------|
+| `@pi-investment/quantsys-v2-client` | HTTP client for quantsys-v2 API |
+| `@pi-investment/agent-os-client` | HTTP client for Agent OS (legacy, not actively used) |
+
+## Development Workflow
+
+### Adding a New Tool to a Plugin
+
+1. **Edit the plugin source** (e.g., `packages/investment/src/index.ts`):
+
+```typescript
+import { Tool } from '@deepseek-ai/dsh-tools';
+
+export const myNewTool: Tool = {
+  name: 'my_new_tool',
+  description: '用于：获取XXX数据。例如：查询某股票的XXX信息。',
+  schema: {
+    type: 'object',
+    properties: {
+      symbol: {
+        type: 'string',
+        description: '股票代码，例如：600000.SH'
+      }
+    },
+    required: ['symbol']
+  },
+  handler: async (args, ctx) => {
+    // Implementation
+    return { result: 'data' };
+  }
+};
+```
+
+2. **Rebuild the package**:
+
+```bash
+cd packages/investment
+pnpm build
+```
+
+3. **Restart DSH profile** (if running):
+
+```bash
+# Find and kill the running instance
+lsof -ti:13080 | xargs kill
+
+# Restart
+cd ~/.dsh/profiles/investment
+./start.sh
+```
+
+### Creating a New Plugin Package
+
+1. **Create package directory**:
+
+```bash
+mkdir -p packages/my-plugin/src
+cd packages/my-plugin
+```
+
+2. **Create package.json**:
+
+```json
+{
+  "name": "@pi-investment/my-plugin",
+  "version": "0.1.0",
+  "description": "My custom plugin",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@pi-investment/quantsys-v2-client": "workspace:*"
+  }
+}
+```
+
+3. **Create src/index.ts**:
+
+```typescript
+import { Context } from '@deepseek-ai/cordis';
+import { Tool } from '@deepseek-ai/dsh-tools';
+
+export const tools: Tool[] = [
+  // Your tools here
+];
+
+export default function (ctx: Context) {
+  ctx.plugin('my-plugin', {
+    tools,
+  });
+}
+```
+
+4. **Add to DSH profile** (`~/.dsh/profiles/investment/package.json`):
+
+```json
+{
+  "dependencies": {
+    "@pi-investment/my-plugin": "file:../../../pi-investment/agent-dh/packages/my-plugin"
+  }
+}
+```
+
+5. **Add to profile config** (`~/.dsh/profiles/investment/cordis.patch.yml`):
+
+```yaml
+- id: my-plugin
+  name: '@pi-investment/my-plugin'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+```
+
+6. **Reinstall profile dependencies**:
+
+```bash
+cd ~/.dsh/profiles/investment
+pnpm install
+```
+
+## Configuration Files
+
+### agent-dh/cordis.yml (Template)
+
+Located at `agent-dh/cordis.yml`, this is the **template** for the DSH profile configuration. It defines:
+- DSH core plugins (settings, credentials, LLM)
+- Investment plugins with their configs
+- Agent loop configuration
+- System prompt for investment analysis
+
+**Note**: This file is **not directly used**. It's copied to `~/.dsh/profiles/investment/cordis.patch.yml` during profile setup.
+
+### ~/.dsh/profiles/investment/cordis.patch.yml (Active)
+
+This is the **active configuration** used by DSH when running the investment profile. It should be kept in sync with `agent-dh/cordis.yml`.
+
+## Environment Variables
+
+### Required
+
+- `DEEPSEEK_API_KEY` - DeepSeek API key for LLM
+- `OPENAI_API_KEY` - Same as DEEPSEEK_API_KEY (for compatibility)
+
+### Optional
+
+- `QUANTSYS_V2_API_URL` - QuantsysV2 backend URL (default: `http://localhost:5001`)
+- `AGENT_OS_BASE_URL` - Agent OS URL (legacy, not actively used)
+
+## Common Tasks
+
+### Start the Investment Agent
+
+```bash
+# Ensure quantsys-v2 is running on port 5001
+cd ../quantsys-v2
+python start_all.py
+
+# Start the DSH investment profile
+cd ~/.dsh/profiles/investment
+./start.sh 13080
+```
+
+Access the web UI at `http://localhost:13080`
+
+### Stop the Investment Agent
+
+```bash
+# Find the process
+lsof -ti:13080
+
+# Kill it
+kill <PID>
+```
+
+### Rebuild All Plugins
+
+```bash
+cd agent-dh
+pnpm build
+```
+
+### Check Plugin Status
+
+```bash
+# List all packages
+ls -la packages/
+
+# Check if a package is built
+ls -la packages/investment/dist/  # Should contain .js files
+```
+
+### Update Profile Configuration
+
+1. Edit `agent-dh/cordis.yml`
+2. Copy to profile: `cp agent-dh/cordis.yml ~/.dsh/profiles/investment/cordis.patch.yml`
+3. Restart the profile
+
+## Important Notes
+
+### ❌ What NOT to Do
+
+- **DO NOT** create HTTP servers in agent-dh packages (they are DSH plugins, not standalone apps)
+- **DO NOT** use `apps/cli/` (removed - was legacy demo code)
+- **DO NOT** run `npm run dev` in agent-dh root (removed - was for legacy CLI)
+
+### ✅ What TO Do
+
+- **DO** develop plugins as DSH plugin packages
+- **DO** use `pnpm build` to compile TypeScript
+- **DO** test via the DSH profile (`~/.dsh/profiles/investment/`)
+- **DO** keep `cordis.yml` in sync with `~/.dsh/profiles/investment/cordis.patch.yml`
+
+### Port Allocation
+
+- **13080** - DSH investment profile (web UI)
+- **5001** - QuantsysV2 backend (Python)
+- **8080** - Agent OS (Go, legacy)
+
+### Dependencies
+
+Agent-DH plugins depend on:
+- **DSH framework** (`@deepseek-ai/cordis`, `@deepseek-ai/dsh-*`)
+- **QuantsysV2 backend** (must be running on port 5001)
+- **DeepSeek API** (requires API key)
+
+## Troubleshooting
+
+### Plugin Not Loading
+
+1. Check if package is built: `ls packages/<plugin>/dist/`
+2. Check if profile links are correct: `cat ~/.dsh/profiles/investment/package.json`
+3. Check DSH logs for errors
+
+### Tool Not Available
+
+1. Verify tool is exported in plugin's `src/index.ts`
+2. Verify plugin is listed in `cordis.patch.yml`
+3. Restart the DSH profile
+
+### QuantsysV2 Connection Failed
+
+1. Check if quantsys-v2 is running: `lsof -ti:5001`
+2. Check `QUANTSYS_V2_API_URL` environment variable
+3. Test API manually: `curl http://localhost:5001/api/stocks/search?q=平安`
+
+### Build Errors
+
+```bash
+# Clean and rebuild
+cd agent-dh
+rm -rf node_modules packages/*/node_modules packages/*/dist
+pnpm install
+pnpm build
+```
+
+## Related Documentation
+
+- [DSH Framework](https://github.com/deepseek-ai/dsh) - DeepSeek Harness documentation
+- [QuantsysV2](../quantsys-v2/CLAUDE.md) - Backend service documentation
+- [PI Investment Root](../CLAUDE.md) - Overall system architecture
+- [Profile README](profiles/investment/README.md) - Profile-specific documentation
+
+## Version History
+
+- 2026-08-19: Removed legacy `apps/cli/`, clarified DSH profile architecture
+- 2026-08-18: Initial DSH profile setup with 14 plugins (48 tools)
+- 2026-08-18: Migrated from standalone CLI to DSH profile
+
+---
+
+**Status**: ✅ Active DSH profile with 14 investment plugins
+
+**Version**: 0.1.1
+
+**Last Updated**: 2026-08-19
