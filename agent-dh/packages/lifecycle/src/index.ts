@@ -126,6 +126,7 @@ export default class LifecyclePlugin extends Service {
             return { success: false, message: `本小时已重启 ${rate.count} 次，达到上限 ${this.cfg.maxRestartsPerHour}，拒绝执行` } as any;
           }
           const base = this.repo.currentBranch();
+          const baseHead = this.repo.head(); // 必须先于 createWipBranch 捕获，否则拿到的是 wip 提交
           const branch = this.repo.createWipBranch('agent-self', ['agent-dh/'], `wip(agent-self): ${args.reason}`);
           const attempt = this.state.nextAttempt(args.resume_task);
           this.state.writePending({
@@ -133,7 +134,7 @@ export default class LifecyclePlugin extends Service {
             resume_task: args.resume_task,
             checkpoint_branch: branch,
             base_branch: base,
-            last_known_good: this.state.readLastKnownGood() ?? this.repo.head(),
+            last_known_good: this.state.readLastKnownGood() ?? baseHead,
             attempt,
             ts: new Date(now).toISOString(),
           });
