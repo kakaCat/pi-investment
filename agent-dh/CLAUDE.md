@@ -520,6 +520,7 @@ pnpm build
 
 ## Version History
 
+- 2026-08-19: lifecycle 代码审查修复（50cb6084）：限流检查移到拿锁前（原拒绝路径泄漏锁致永久变砖）；重启器每次拉起前预写 restart-result（原时序竞争会让 rolled_back 误报成功）；锁 >15min stale 接管；状态读容错+原子写；self_finalize 幂等
 - 2026-08-19: 修复 investment/market 插件 schema 缺 additionalProperties 导致的全量启动崩溃；新增 tests/plugin-schema.smoke.test.ts 门禁；重写工具/插件开发样例为 defineTool + Service 模式并记录 Schema 铁律
 - 2026-08-19: Added `@pi-investment/lifecycle` 自修复重启插件（RFC 002，E2E 验证通过）
 - 2026-08-19: Removed legacy `apps/cli/`, clarified DSH profile architecture
