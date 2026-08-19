@@ -9,7 +9,7 @@
  * Usage: node scripts/integration-smoke.mjs
  */
 
-import { QuantsysV2Client } from '../packages/quantsys-v2-client/dist/index.mjs';
+import { QuantsysV2Client } from '../../quantsys-v2-client/dist/index.mjs';
 
 const API_BASE_URL = 'http://127.0.0.1:5001';
 const TEST_SYMBOL = '600519'; // 贵州茅台

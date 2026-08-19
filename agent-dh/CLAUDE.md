@@ -62,7 +62,7 @@ agent-dh/
 │   ├── scheduler/               # 调度器（1个工具）
 │   ├── notification/            # 通知系统（2个工具）
 │   ├── data-manager/            # 数据管理（2个工具）
-│   ├── quantsys-v2-client/      # QuantsysV2 API 客户端
+│   ├── (quantsys-v2-client 已迁移至仓库顶层 ../../quantsys-v2-client，插件经 file: 依赖引用)
 │   └── agent-os-client/         # Agent OS API 客户端（遗留）
 │
 ├── profiles/investment/         # DSH Profile 配置模板

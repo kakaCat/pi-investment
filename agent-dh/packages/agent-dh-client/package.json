@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@pi-investment/agent-os-client": "workspace:*",
-    "@pi-investment/quantsys-v2-client": "workspace:*"
+    "@pi-investment/quantsys-v2-client": "file:../../../quantsys-v2-client"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

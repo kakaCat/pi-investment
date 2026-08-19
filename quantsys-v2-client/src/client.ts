@@ -348,7 +348,8 @@ export class QuantsysV2Client {
    * Response: {success, data: {gdp: [...], cpi: [...], pmi: [...], updateTime}}
    */
   async getMacroData(): Promise<MacroData> {
-    const response = await this.client.get('/api/market/macro');
+    // 后端 akshare 上游较慢（线程兜底 45s + 缓存），客户端超时放宽到 60s
+    const response = await this.client.get('/api/market/macro', { timeout: 60000 });
     return this.unwrap<MacroData>(response.data, 'getMacroData');
   }
 
@@ -652,7 +653,13 @@ export class QuantsysV2Client {
    */
   async scanOpportunities(params?: OpportunityScanRequest): Promise<Opportunity[]> {
     const response = await this.client.post('/api/signals/scan', params ?? {});
-    return this.unwrap<Opportunity[]>(response.data, 'scanOpportunities');
+    const data = response.data;
+    if (data?.success === false) {
+      throw new Error(data?.error || 'API request failed: scanOpportunities');
+    }
+    // 后端返回 {success, scan_mode, opportunities: [...]}，无 data 信封，需显式提取
+    const list = data?.opportunities ?? data?.data ?? [];
+    return (Array.isArray(list) ? list : []) as Opportunity[];
   }
 
   /**
@@ -813,5 +820,39 @@ export class QuantsysV2Client {
   }): Promise<any> {
     const response = await this.client.get('/api/game/market/manipulation-detect', { params });
     return this.unwrap(response.data, 'detectManipulation');
+  }
+
+  // ==================== Memory APIs ====================
+
+  /**
+   * Search memory entries
+   * Real endpoint: GET /api/memory/search?q=&kind=&scope=&limit=
+   * Response: {items: [...], total, degraded, strategy}
+   */
+  async searchMemory(params: {
+    q?: string;
+    kind?: string;
+    scope?: string;
+    limit?: number;
+  }): Promise<{ items: any[]; total: number; degraded?: boolean; strategy?: string }> {
+    const response = await this.client.get('/api/memory/search', {
+      params: {
+        q: params.q,
+        kind: params.kind,
+        scope: params.scope,
+        limit: params.limit ?? 20,
+      },
+    });
+    return response.data;
+  }
+
+  /**
+   * Create a memory entry
+   * Real endpoint: POST /api/memory
+   * Body: {kind, scope, title, content, payload?, evidence?, status?, confidence?, provenance?, source?}
+   */
+  async createMemory(entry: Record<string, any>): Promise<any> {
+    const response = await this.client.post('/api/memory', entry);
+    return response.data;
   }
 }
