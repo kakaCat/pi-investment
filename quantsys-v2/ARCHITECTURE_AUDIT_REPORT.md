@@ -240,32 +240,43 @@ Domain Exceptions 使用情况:
 
 ## 四、问题清单（按优先级排序）
 
+### 修复状态摘要
+
+| 问题 | 状态 | 提交 | 说明 |
+|------|------|------|------|
+| P0-1: Application 层直接 akshare 导入 | ✅ 部分完成 | afd78ee4 | 已修复 2 个关键服务 |
+| P0-2: Domain adapters 反向依赖 | ✅ 完成 | 181981bc | 已迁移到 adapters/outbound/ |
+| P0-3: financial_providers/quote_providers 重复 | ⚠️ 部分完成 | 00a3161b | 已消除循环依赖 |
+| P1-4: ServiceBase 增强 | ✅ 完成 | faa31454 | _validate_symbol 支持带后缀代码 |
+| P1-5: 路由直接导入 application services | ⚠️ 部分完成 | 4eb8689f | ServiceFactory 扩展 + analysis_async.py 迁移 |
+| P2-12: Provider 动态优先级 | ✅ 完成 | a2ac1f8a | 健康评分自动排序 |
+
 ### P0 — 必须立即修复
 
-| # | 问题 | 影响 | 建议修复 |
-|---|------|------|---------|
-| 1 | Application 层 15 个文件直接 `import akshare`，绕过 `DataProviderManager` | 无故障转移，重复代码 | 迁移到 `DataProviderManager` |
-| 2 | Domain 层 7 个文件反向依赖上层（adapters/application/infrastructure） | 违反分层原则，循环依赖风险 | 将 adapter 移至 adapters/ 层 |
-| 3 | `financial_providers/` 和 `quote_providers/` 与 `DataProviderManager` 重复 | 代码重复，维护困难 | 合并到统一体系 |
+| # | 问题 | 影响 | 建议修复 | 状态 |
+|---|------|------|---------|------|
+| 1 | Application 层 15 个文件直接 `import akshare`，绕过 `DataProviderManager` | 无故障转移，重复代码 | 迁移到 `DataProviderManager` | ✅ 已修复 2 个关键文件（trading_calendar_service, technical_analysis_service）；剩余 11 个需 DPM 扩展接口 |
+| 2 | Domain 层 7 个文件反向依赖上层（adapters/application/infrastructure） | 违反分层原则，循环依赖风险 | 将 adapter 移至 adapters/ 层 | ✅ 已完成：quantlib/adapters/ → adapters/outbound/datasources/providers/quantlib/；brokers/adapters/ → adapters/outbound/brokers/；旧位置保留向后兼容 shim（带 DeprecationWarning） |
+| 3 | `financial_providers/` 和 `quote_providers/` 与 `DataProviderManager` 重复 | 代码重复，维护困难 | 合并到统一体系 | ⚠️ 部分完成：已移除 DPM 对旧层的循环依赖（akshare quote provider）；financial provider 模型与 DPM 不兼容，需长期迁移 |
 
 ### P1 — 需要改进
 
-| # | 问题 | 影响 | 建议修复 |
-|---|------|------|---------|
-| 4 | 74/76 个服务类不继承 `ServiceBase` | 错误处理不统一 | 统一基类，逐步迁移 |
-| 5 | FastAPI 路由 35 个文件直接导入 application services | 绕过服务工厂，难以测试 | 统一通过 shared/services 获取 |
-| 6 | Flask + FastAPI 双框架并存（124 个路由文件） | 维护负担 | 制定 Flask 删除计划 |
-| 7 | Application 层 65 个文件直接依赖 Repository 实现 | 违反 DIP | 评估是否需要接口抽象 |
-| 8 | Domain Ports 定义的接口完全未被 Application 层使用 | 设计未落地 | 决定保留/删除/实施 |
+| # | 问题 | 影响 | 建议修复 | 状态 |
+|---|------|------|---------|------|
+| 4 | 74/76 个服务类不继承 `ServiceBase` | 错误处理不统一 | 统一基类，逐步迁移 | ⚠️ ServiceBase 已增强（_validate_symbol 支持带后缀代码）；全面迁移需长期进行 |
+| 5 | FastAPI 路由 35 个文件直接导入 application services | 绕过服务工厂，难以测试 | 统一通过 shared/services 获取 | ⚠️ 部分完成：ServiceFactory 新增 4 个工厂方法（technical_analysis, risk, data_quality, strategy_rotation）；analysis_async.py 3 处导入已迁移；剩余 32 个路由文件待渐进迁移 |
+| 6 | Flask + FastAPI 双框架并存 | 维护负担 | 制定 Flask 删除计划 | ✅ Flask 路由已清理（2026-08-02 起生产运行 FastAPI）；剩余基础设施代码（auth/jwt/rate_limiter）仍引用 flask 但为共享组件 |
+| 7 | Application 层 65 个文件直接依赖 Repository 实现 | 违反 DIP | 评估是否需要接口抽象 | ⏳ 待决策：当前直接依赖模式在小型团队中有便利性；Domain Ports 已定义但未被使用 |
+| 8 | Domain Ports 定义的接口完全未被 Application 层使用 | 设计未落地 | 决定保留/删除/实施 | ⏳ 待决策：6 个接口（IKline/ISignal/IPortfolio/IRisk/IFactor/IStrategy）各有 1 个实现但 0 处使用 |
 
 ### P2 — 长期优化
 
-| # | 问题 | 影响 | 建议修复 |
-|---|------|------|---------|
-| 9 | 3 个 Repository 不继承 ORM 基类 | 模式不一致 | 统一为 ORM 模式 |
-| 10 | Domain exceptions 使用率不高 | 异常处理不统一 | 推广使用 |
-| 11 | 无分布式缓存 | 重启丢缓存 | 引入 Redis |
-| 12 | 无 provider 动态优先级/熔断器 | 故障恢复不智能 | 增强 DataProviderManager |
+| # | 问题 | 影响 | 建议修复 | 状态 |
+|---|------|------|---------|------|
+| 9 | 3 个 Repository 不继承 ORM 基类 | 模式不一致 | 统一为 ORM 模式 | ⏳ 待处理 |
+| 10 | Domain exceptions 使用率不高 | 异常处理不统一 | 推广使用 | ⏳ DPM 已导入 ExternalServiceError；全面推广需长期进行 |
+| 11 | 无分布式缓存 | 重启丢缓存 | 引入 Redis | ⏳ 待规划 |
+| 12 | 无 provider 动态优先级/熔断器 | 故障恢复不智能 | 增强 DataProviderManager | ✅ 已完成：健康评分自动排序（_sort_providers_by_health）|
 
 ---
 

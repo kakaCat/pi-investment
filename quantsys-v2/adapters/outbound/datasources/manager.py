@@ -2,6 +2,8 @@
 import logging
 from typing import List, Dict, Any, Optional
 
+from domain.exceptions import ExternalServiceError
+
 from adapters.outbound.datasources.providers.quote.sina import SinaQuoteProvider
 from adapters.outbound.datasources.providers.quote.eastmoney import EastmoneyQuoteProvider
 from adapters.outbound.datasources.providers.quote.akshare import AkshareQuoteProvider
@@ -66,6 +68,9 @@ class DataProviderManager:
 
         # Health tracking (cache provider channel status)
         self.provider_stats: Dict[str, Dict[str, int]] = {}
+        # Dynamic priority: providers with high failure rate get temporarily deprioritized
+        self._failure_threshold = 3  # 连续失败阈值，超过则降级
+        self._recovery_window = 5    # 成功次数达到此值则恢复优先级
         self._init_stats()
 
     def _init_stats(self):
@@ -83,10 +88,11 @@ class DataProviderManager:
             self.provider_stats[provider.name] = {
                 'success': 0,
                 'failure': 0,
+                'consecutive_failures': 0,
             }
 
     def _try_providers(self, providers: List, method_name: str, *args, **kwargs) -> dict:
-        """Generic failover logic (inspired by RealtimeQuoteService)
+        """Generic failover logic with dynamic priority (inspired by RealtimeQuoteService)
 
         Args:
             providers: List of provider instances
@@ -103,8 +109,11 @@ class DataProviderManager:
                 - provider_errors: {provider_name: 具体失败原因} if failed，
                   供调用方（API 路由）返回可行动的错误提示
         """
+        # Sort providers by health score before trying
+        sorted_providers = self._sort_providers_by_health(providers)
+
         provider_errors: Dict[str, str] = {}
-        for provider in providers:
+        for provider in sorted_providers:
             try:
                 method = getattr(provider, method_name)
                 # 单 provider 调用超时护栏（2026-08-05 评分挂死事故）：
@@ -186,11 +195,52 @@ class DataProviderManager:
         """Record successful provider call (cache channel health)"""
         if provider_name in self.provider_stats:
             self.provider_stats[provider_name]['success'] += 1
+            # Reset consecutive failures on success
+            self.provider_stats[provider_name]['consecutive_failures'] = 0
 
     def _record_failure(self, provider_name: str):
         """Record failed provider call (cache channel health)"""
         if provider_name in self.provider_stats:
             self.provider_stats[provider_name]['failure'] += 1
+            self.provider_stats[provider_name]['consecutive_failures'] = (
+                self.provider_stats[provider_name].get('consecutive_failures', 0) + 1
+            )
+
+    def _sort_providers_by_health(self, providers: List) -> List:
+        """Sort providers by health score (success rate + consecutive failures)
+
+        Providers with high consecutive failures are deprioritized.
+        Providers with recent successes are prioritized.
+
+        Args:
+            providers: List of provider instances
+
+        Returns:
+            Sorted list of providers (healthiest first)
+        """
+        def health_score(provider):
+            stats = self.provider_stats.get(provider.name, {})
+            consecutive_failures = stats.get('consecutive_failures', 0)
+            success = stats.get('success', 0)
+            failure = stats.get('failure', 0)
+            total = success + failure
+
+            if total == 0:
+                # No history: neutral score
+                return 0
+
+            # Base score: success rate (0-1)
+            success_rate = success / total
+
+            # Penalty for consecutive failures
+            failure_penalty = min(consecutive_failures / self._failure_threshold, 1.0)
+
+            # Bonus for proven reliability (many successes)
+            reliability_bonus = min(success / self._recovery_window, 0.2)
+
+            return success_rate - failure_penalty + reliability_bonus
+
+        return sorted(providers, key=health_score, reverse=True)
 
     def get_provider_health(self) -> Dict[str, Dict[str, int]]:
         """Get provider health status

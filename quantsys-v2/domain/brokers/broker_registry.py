@@ -63,8 +63,8 @@ class BrokerRegistry:
         logger.info("Registering all brokers...")
 
         try:
-            # 注册 AkShare
-            from .adapters.akshare_broker import AkshareBroker
+            # 注册 AkShare (已迁移到 adapters.outbound.brokers，见架构审计 P0-2)
+            from adapters.outbound.brokers.akshare_broker import AkshareBroker
             self.register(AkshareBroker())
             logger.info("Registered: AkShare")
         except ImportError as e:
@@ -72,7 +72,7 @@ class BrokerRegistry:
 
         # Interactive Brokers
         try:
-            from .adapters.ibkr_broker import IBKRBroker
+            from adapters.outbound.brokers.ibkr_broker import IBKRBroker
             self.register(IBKRBroker())
             logger.info("Registered broker: Interactive Brokers")
         except ImportError as e:
@@ -82,7 +82,7 @@ class BrokerRegistry:
 
         # Alpaca Markets
         try:
-            from .adapters.alpaca_broker import AlpacaBroker
+            from adapters.outbound.brokers.alpaca_broker import AlpacaBroker
             self.register(AlpacaBroker())
             logger.info("Registered broker: Alpaca Markets")
         except ImportError as e:
