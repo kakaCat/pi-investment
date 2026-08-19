@@ -49,8 +49,8 @@ export default class MarketPlugin extends Service {
           properties: {
             style: { type: 'string', description: '主导风格：value（价值）/growth（成长）/cycle（周期）' },
             confidence: { type: 'number', description: '置信度（0-1）' },
-            scores: { type: 'object', description: '各风格得分，如 {value, growth, cycle}' },
-            indicators: { type: 'object', description: '观测指标（银行/科技/周期板块表现、成交量变化、波动率等）' },
+            scores: { type: 'object', additionalProperties: true, description: '各风格得分，如 {value, growth, cycle}' },
+            indicators: { type: 'object', additionalProperties: true, description: '观测指标（银行/科技/周期板块表现、成交量变化、波动率等）' },
             recommendedFactors: { type: 'array', description: '当前风格下的推荐因子，如 roe/momentum' },
             detectionDate: { type: 'string', description: '检测日期（YYYY-MM-DD）' },
           },

@@ -215,7 +215,7 @@ export default class InvestmentPlugin extends Service {
           properties: {
             indicator: { type: 'string', description: '指标名称' },
             data: { type: 'array', description: '时间序列数据（原始行，键名为中文）' },
-            latest: { type: 'object', description: '最新一期数据' },
+            latest: { type: 'object', additionalProperties: true, description: '最新一期数据' },
             trend: { type: 'string', description: '趋势：up/down/stable' },
             update_time: { type: 'string', description: '后端数据更新时间' },
           },
@@ -313,7 +313,7 @@ export default class InvestmentPlugin extends Service {
             advance_decline_ratio: { type: 'number', description: '涨跌家数比' },
             market_phase: { type: 'string', description: '市场阶段，如 correction' },
             recommendation: { type: 'string', description: '后端给出的操作建议' },
-            indicators: { type: 'object', description: '分项指标明细' },
+            indicators: { type: 'object', additionalProperties: true, description: '分项指标明细' },
           },
           additionalProperties: true,
         },

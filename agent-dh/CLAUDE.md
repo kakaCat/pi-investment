@@ -166,32 +166,41 @@ This launches:
 
 ### Adding a New Tool to a Plugin
 
-1. **Edit the plugin source** (e.g., `packages/investment/src/index.ts`):
+1. **Edit the plugin source** (e.g., `packages/investment/src/index.ts`)，在 `registerTools()` 里注册：
 
 ```typescript
-import { Tool } from '@deepseek-ai/dsh-tools';
+import { defineTool } from '@deepseek-ai/dsh-tools';
 
-export const myNewTool: Tool = {
+ctx.tools.register(defineTool({
   name: 'my_new_tool',
   description: '用于：获取XXX数据。例如：查询某股票的XXX信息。',
-  schema: {
-    type: 'object',
-    properties: {
-      symbol: {
-        type: 'string',
-        description: '股票代码，例如：600000.SH'
-      }
-    },
-    required: ['symbol']
+  parameters: {
+    symbol: { type: 'string', description: '股票代码，例如：600000.SH', required: true },
   },
-  handler: async (args, ctx) => {
-    // Implementation
-    return { result: 'data' };
-  }
-};
+  output: {
+    schema: {
+      type: 'object',
+      properties: {
+        result: { type: 'string', description: '结果' },
+      },
+      additionalProperties: true,
+    },
+    render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+  },
+  timeoutMs: 10000,
+  execute: async (args: any) => {
+    return { result: 'data' } as any;
+  },
+} as any));
 ```
 
-2. **Rebuild the package**:
+**⚠️ Schema 铁律（dsh-tools rc7 起，违反则 DSH 启动即崩，UNSUPPORTED_SCHEMA）：**
+
+1. **每个 `type: 'object'` 节点必须显式写 `additionalProperties: true` 或 `false`**——包括 `parameters`/`output.schema` 的任意嵌套层级（properties 里的、items 里的，无一例外）。自由键值 map 写 `true`。
+2. 对象节点只允许 `type`/`properties`/`additionalProperties` + 注解键（`description`/`title`/`default`/`examples`），其他键（如 `required: []` 数组）不被 DSL 支持；必填在参数属性上用 `required: true` 标记。
+3. 写完必须跑冒烟测试验证：`cd agent-dh && npx vitest run tests/plugin-schema.smoke.test.ts`（构造即编译全部工具 schema，新插件要加进测试里的 PLUGINS 列表）。
+
+2. **Rebuild the package**（tsx 模式下可选）:
 
 ```bash
 cd packages/investment
@@ -241,22 +250,43 @@ cd packages/my-plugin
 }
 ```
 
-3. **Create src/index.ts**:
+3. **Create src/index.ts**（Service 类模式，参照 `packages/scheduler/src/index.ts`）：
 
 ```typescript
-import { Context } from '@deepseek-ai/cordis';
-import { Tool } from '@deepseek-ai/dsh-tools';
+import { Context, Service } from '@deepseek-ai/cordis';
+import z from '@deepseek-ai/schemastery';
+import { defineTool } from '@deepseek-ai/dsh-tools';
 
-export const tools: Tool[] = [
-  // Your tools here
-];
+export default class MyPlugin extends Service {
+  static inject = ['tools'];
+  static Config = z.object({
+    quantsysV2: z.object({
+      baseURL: z.string().default('http://localhost:5001'),
+    }).default({} as any),
+  }).default({} as any)
 
-export default function (ctx: Context) {
-  ctx.plugin('my-plugin', {
-    tools,
-  });
+  constructor(ctx: Context, config: any) {
+    super(ctx, 'my-plugin');
+    this.registerTools();
+  }
+
+  private registerTools() {
+    this.ctx.tools.register(defineTool({
+      name: 'my_tool',
+      description: '...',
+      parameters: {},
+      output: {
+        schema: { type: 'object', additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 10000,
+      execute: async () => ({ ok: true } as any),
+    } as any));
+  }
 }
 ```
+
+注意遵守上面的 **Schema 铁律**（每个 object 节点显式 `additionalProperties`）。
 
 4. **Add to DSH profile** (`~/.dsh/profiles/investment/package.json`):
 
@@ -271,18 +301,21 @@ export default function (ctx: Context) {
 5. **Add to profile config** (`~/.dsh/profiles/investment/cordis.patch.yml`):
 
 ```yaml
-- id: my-plugin
-  name: '@pi-investment/my-plugin'
-  config:
-    quantsysV2:
-      baseURL: http://localhost:5001
+- insert:
+    - id: my-plugin
+      name: '@pi-investment/my-plugin'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
 ```
 
-6. **Reinstall profile dependencies**:
+6. **链接进 profile**（注意：profile 目录不在 agent-dh workspace 内，`pnpm install` 会因 `workspace:^` 协议报错，必须手动建符号链接）：
 
 ```bash
-cd ~/.dsh/profiles/investment
-pnpm install
+ln -sfn /Users/yunpeng/pi-investment/agent-dh/packages/my-plugin \
+  ~/.dsh/profiles/investment/node_modules/@pi-investment/my-plugin
+# 新插件的依赖链接由 agent-dh 根目录的 pnpm install 生成：
+cd agent-dh && pnpm install
 ```
 
 ## Configuration Files
@@ -487,6 +520,7 @@ pnpm build
 
 ## Version History
 
+- 2026-08-19: 修复 investment/market 插件 schema 缺 additionalProperties 导致的全量启动崩溃；新增 tests/plugin-schema.smoke.test.ts 门禁；重写工具/插件开发样例为 defineTool + Service 模式并记录 Schema 铁律
 - 2026-08-19: Added `@pi-investment/lifecycle` 自修复重启插件（RFC 002，E2E 验证通过）
 - 2026-08-19: Removed legacy `apps/cli/`, clarified DSH profile architecture
 - 2026-08-18: Initial DSH profile setup with 14 plugins (48 tools)
