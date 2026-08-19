@@ -28,14 +28,14 @@ cd ~/.dsh/profiles/investment
 cd /Users/yunpeng/pi-investment/agent-dh
 pnpm run build
 
-# 2. 使用构建后的 DSH 启动（无需 tsx）
-cd /Volumes/ORICO/doc/github/deepseek-harness
-node apps/cli/lib/bin.js --profile investment --port 13080
+# 2. 使用 profile 本地的 npm 版 DSH 启动（已与 deepseek-harness 源码仓解耦）
+cd ~/.dsh/profiles/investment
+node --import tsx/esm node_modules/@deepseek-ai/dsh/lib/bin.js --profile investment --port 13080
 ```
 
 ## 为什么需要 tsx 模式
 
-PI Investment 插件使用 TypeScript 编写（`.ts` 文件），DSH 生产环境（`lib/bin.js`）无法直接加载 TypeScript。
+PI Investment 插件使用 TypeScript 编写（`main: ./src/index.ts`），且内部互引使用 `.js` 说明符——Node 原生类型擦除不改写说明符，因此无论源码仓还是 npm 运行时都必须挂 tsx 加载器。
 
 **tsx 模式** (`node --import tsx/esm`) 让 Node.js 能够直接运行 TypeScript，支持：
 - 开发时热加载插件修改

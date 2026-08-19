@@ -1,58 +1,44 @@
 #!/bin/bash
 # DSH Investment Agent 启动脚本
-# 使用 tsx 模式启动，支持 TypeScript 插件热加载
+# 2026-08-19 起从 npm 发布的 @deepseek-ai/dsh 启动（运行时与 deepseek-harness 源码仓解耦，
+# 不再依赖 /Volumes/ORICO 母体；Node ≥22.18 原生类型擦除可直接加载 TS 插件入口）
 #
 # 用法:
-#   ./start.sh [端口] [额外参数]
-#   ./start.sh              # 使用默认端口 13080
-#   ./start.sh 13081        # 使用指定端口
-#   ./start.sh 13081 --dump-config  # 打印配置并退出
-
+#   ./start.sh [端口] [web 子命令额外参数]
+#   ./start.sh                    # 默认端口 13080
+#   ./start.sh 13081              # 指定端口
+#   ./start.sh 13081 --dump-config  # 打印组合后的 profile 配置并退出
 set -e
 
-# 加载环境变量
+# 加载环境变量（可选；dsh 自身 credentials 体系也可提供 key）
 PROFILE_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -f "$PROFILE_DIR/.env" ]; then
   export $(cat "$PROFILE_DIR/.env" | grep -v '^#' | xargs)
 fi
 
-# 必需的 API Key
 if [ -z "$DEEPSEEK_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
-  echo "错误: 请设置 DEEPSEEK_API_KEY 或 OPENAI_API_KEY 环境变量"
-  echo ""
-  echo "示例:"
-  echo "  export DEEPSEEK_API_KEY=sk-..."
-  echo "  export OPENAI_API_KEY=sk-..."
-  echo ""
-  echo "或将环境变量写入 $PROFILE_DIR/.env 文件"
-  exit 1
+  echo "警告: 未设置 DEEPSEEK_API_KEY / OPENAI_API_KEY（若已在 dsh 设置中配置可忽略）"
 fi
 
-# DSH 仓库路径
-DSH_ROOT="/Volumes/ORICO/doc/github/deepseek-harness"
-
-# 默认端口
+# 与 agent-dh/package.json 的 @deepseek-ai/dsh-* 依赖对齐
+DSH_VERSION="0.1.0-rc.7"
 PORT="${1:-13080}"
-
-# 检查 DSH 根目录
-if [ ! -d "$DSH_ROOT" ]; then
-  echo "错误: DSH 根目录不存在: $DSH_ROOT"
-  exit 1
-fi
 
 echo "========================================"
 echo "  PI Investment Agent-DH 启动"
 echo "========================================"
 echo "Profile: investment"
 echo "Port: $PORT"
-echo "DSH Root: $DSH_ROOT"
+echo "Runtime: @deepseek-ai/dsh@$DSH_VERSION (npx)"
 echo ""
 
-cd "$DSH_ROOT"
+# 插件入口为 TS 源码（main: ./src/index.ts）且内部用 .js 说明符互引，
+# 原生类型擦除不会改写说明符，必须挂 tsx 加载器（与旧 ORICO 启动方式同理）
+DSH_BIN="$PROFILE_DIR/node_modules/@deepseek-ai/dsh/lib/bin.js"
+cd "$PROFILE_DIR"
 
-# 使用 tsx 模式启动（支持 TypeScript 插件热加载）
-# 生产环境应使用: node apps/cli/lib/bin.js（需先构建插件）
-exec node --import tsx/esm apps/cli/src/bin.ts \
-  --profile investment \
-  --port "$PORT" \
-  "${@:2}"
+if [[ " $* " == *" --dump-config "* ]]; then
+  exec node --import tsx/esm "$DSH_BIN" --profile investment --dump-config
+fi
+
+exec node --import tsx/esm "$DSH_BIN" --profile investment --port "$PORT" "${@:2}"
