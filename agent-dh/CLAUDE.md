@@ -153,6 +153,7 @@ This launches:
 | `@pi-investment/scheduler` | 1 | 调度器管理 |
 | `@pi-investment/notification` | 2 | 飞书通知、通用通知 |
 | `@pi-investment/data-manager` | 2 | 数据质量报告、数据管理 |
+| `@pi-investment/lifecycle` | 3 | 自修复重启：self_restart/self_finalize/self_status，git wip 分支安全网，启动失败自动回滚，启动后自动续跑 |
 
 ### Infrastructure Packages
 
@@ -452,6 +453,21 @@ Agent-DH plugins depend on:
 2. Check `QUANTSYS_V2_API_URL` environment variable
 3. Test API manually: `curl http://localhost:5001/api/stocks/search?q=平安`
 
+## 自修复重启（lifecycle 插件）
+
+agent 可通过 `self_restart(reason, resume_task)` 重启自身，实现"改代码 → 重启生效 → 自动续跑验证 → 合并"的自修复闭环：
+
+- **检查点**：重启前未提交的 `agent-dh/` 改动自动提交到 `agent-self/*` wip 分支；基线分支保持干净
+- **重启器**：`scripts/self-restart.ts`（detached 独立进程，自包含、只依赖 node 内置模块）负责 kill → `start.sh` 拉起 → :13080 健康检查
+- **自动回滚**：启动失败（120s 端口不通）自动 `git checkout <base>` 回滚重拉，失败的 wip 分支保留供复盘；回滚后也失败则标记 dead 等人工
+- **自动续跑**：新进程启动后 lifecycle 插件读 `pending-resume.json`，通过 `ctx.agents` + `agent.followup()` 向 investor 注入续跑消息（与 DSH schedule 包同款投递模式）
+- **收尾**：验证通过调 `self_finalize(merge)` 合回基线并更新 last-known-good；失败可调 `self_finalize(rollback)`
+- **护栏**：每小时最多 3 次重启、`restarting.lock` 防重入、同一任务连挂 2 次提示停止自动重试
+- **状态文件**：`~/.dsh/profiles/investment/state/`（pending-resume.json、restart-result.json、last-known-good、restart-counter.json）
+- **配置项**：repoRoot / agentDhRoot / profileDir / port / agentId / maxRestartsPerHour（见 cordis.patch.yml 的 lifecycle 段）
+
+设计文档：[docs/rfcs/002-agent-dh-self-restart.md](../../docs/rfcs/002-agent-dh-self-restart.md)
+
 ### Build Errors
 
 ```bash
@@ -471,6 +487,7 @@ pnpm build
 
 ## Version History
 
+- 2026-08-19: Added `@pi-investment/lifecycle` 自修复重启插件（RFC 002，E2E 验证通过）
 - 2026-08-19: Removed legacy `apps/cli/`, clarified DSH profile architecture
 - 2026-08-18: Initial DSH profile setup with 14 plugins (48 tools)
 - 2026-08-18: Migrated from standalone CLI to DSH profile
