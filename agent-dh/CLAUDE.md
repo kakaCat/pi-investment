@@ -286,19 +286,38 @@ pnpm install
 
 ## Configuration Files
 
-### agent-dh/cordis.yml (Template)
+### agent-dh/cordis.yml (Template - Standalone Format)
 
-Located at `agent-dh/cordis.yml`, this is the **template** for the DSH profile configuration. It defines:
+Located at `agent-dh/cordis.yml`, this is a **reference template** showing all plugins and configurations in standalone format. It defines:
 - DSH core plugins (settings, credentials, LLM)
 - Investment plugins with their configs
 - Agent loop configuration
 - System prompt for investment analysis
 
-**Note**: This file is **not directly used**. It's copied to `~/.dsh/profiles/investment/cordis.patch.yml` during profile setup.
+**Note**: This file uses **standalone cordis format** (flat list of plugins) and is **not directly used** by DSH.
 
-### ~/.dsh/profiles/investment/cordis.patch.yml (Active)
+### ~/.dsh/profiles/investment/cordis.patch.yml (Active - Patch Format)
 
-This is the **active configuration** used by DSH when running the investment profile. It should be kept in sync with `agent-dh/cordis.yml`.
+This is the **active configuration** used by DSH when running the investment profile. It uses **patch format** (with `insert:` directives) to overlay plugins on top of DSH base bundles.
+
+**Key differences from cordis.yml**:
+- Uses `- insert:` blocks to add plugins
+- Does NOT include DSH core plugins (settings, credentials, LLM) - those come from `@deepseek-ai/dsh-base` bundle
+- Only includes investment-specific plugins and overrides
+
+**Example patch format**:
+```yaml
+- insert:
+    - id: investment
+      name: '@pi-investment/investment'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+```
+
+**To update the active configuration**:
+1. Edit `~/.dsh/profiles/investment/cordis.patch.yml` directly (recommended), OR
+2. Regenerate from `cordis.yml` template (requires conversion to patch format)
 
 ## Environment Variables
 
@@ -357,9 +376,29 @@ ls -la packages/investment/dist/  # Should contain .js files
 
 ### Update Profile Configuration
 
-1. Edit `agent-dh/cordis.yml`
-2. Copy to profile: `cp agent-dh/cordis.yml ~/.dsh/profiles/investment/cordis.patch.yml`
-3. Restart the profile
+**Recommended**: Edit the active configuration directly:
+
+```bash
+# Edit the active patch file
+vim ~/.dsh/profiles/investment/cordis.patch.yml
+
+# Restart the profile to apply changes
+lsof -ti:13080 | xargs kill
+cd ~/.dsh/profiles/investment && ./start.sh
+```
+
+**Alternative**: Update the template and regenerate (advanced):
+
+```bash
+# 1. Edit the template
+vim agent-dh/cordis.yml
+
+# 2. Convert to patch format and apply (requires manual conversion)
+# Note: cordis.yml uses standalone format, cordis.patch.yml uses patch format
+# You need to wrap plugin entries in "- insert:" blocks
+
+# 3. Restart the profile
+```
 
 ## Important Notes
 
