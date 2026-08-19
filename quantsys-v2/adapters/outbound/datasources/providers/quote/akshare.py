@@ -8,7 +8,8 @@ from datetime import datetime
 from typing import Optional
 from unittest.mock import patch
 
-from application.services.quote_providers.base import QuoteProvider, QuoteData
+from adapters.outbound.datasources.base import QuoteProvider
+from adapters.outbound.datasources.models import QuoteData
 
 
 class AkshareQuoteProvider(QuoteProvider):
