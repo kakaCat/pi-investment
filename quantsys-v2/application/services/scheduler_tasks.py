@@ -1270,78 +1270,6 @@ def handle_missed_opportunity_daily(params: Dict[str, Any] = None) -> Dict[str, 
                 "error": str(e), "timestamp": datetime.now().isoformat()}
 
 
-_TASK_HANDLERS: Dict[str, Callable] = {
-    "data_quality_check": handle_data_quality_check,
-    "data_update": handle_data_update,
-    "data_pipeline_daily": handle_data_pipeline_daily,
-    "data_pipeline_weekly": handle_data_pipeline_weekly,
-    "signal_generate": handle_signal_generate,
-    "pool_refresh_daily": handle_pool_refresh_daily,
-    "signal_execution_daily": handle_signal_execution_daily,
-    "risk_check": handle_risk_check,
-    "report_daily": handle_report_daily,
-    "backtest_run": handle_backtest_run,
-    "strategy_backtest": handle_backtest_run,  # 别名
-    "factor_compute": handle_factor_compute,
-    "model_train": handle_model_train,
-    "benchmark_run": handle_benchmark_run,
-    "market_style_update": handle_market_style_update,
-    "v13_daily_check": handle_v13_daily_check,
-    # 新增 - 从旧调度器迁移
-    "financial_data_update": handle_financial_data_update,
-    "market_scan_preopen": handle_market_scan_preopen,
-    "signal_monitor_realtime": handle_signal_monitor_realtime,
-    "strategy_validate_daily": handle_strategy_validate_daily,
-    "strategy_discover_weekly": handle_strategy_discover_weekly,
-    # Agent相关
-    "agent_reminder": handle_agent_reminder,
-    # 自主轮转系统
-    "orchestrator_tick": handle_orchestrator_tick,
-    "intraday_monitor": handle_intraday_monitor,
-    "performance_report": handle_performance_report,
-    "strategy_rotation": handle_strategy_rotation,
-    # 缠论学习闭环
-    "chan_scan": handle_chan_scan,
-    "chan_knowledge_distill": handle_chan_knowledge_distill,
-    # 行为进化 Phase 1
-    "daily_equity_snapshot": handle_daily_equity_snapshot,
-    "evolution_fitness_daily": handle_evolution_fitness_daily,
-    "decision_score_daily": handle_decision_score_daily,
-    "missed_opportunity_daily": handle_missed_opportunity_daily,
-    "model_train_auto": handle_model_train_auto,
-}
-
-
-def get_task_handler(command: str) -> Callable:
-    """获取任务处理器
-
-    Args:
-        command: 任务命令名称
-
-    Returns:
-        任务处理函数
-
-    Raises:
-        ValueError: 如果命令不存在
-    """
-    handler = _TASK_HANDLERS.get(command)
-    if handler is None:
-        available = ', '.join(_TASK_HANDLERS.keys())
-        raise ValueError(
-            f"Unknown task command: {command!r}. "
-            f"Available commands: {available}"
-        )
-    return handler
-
-
-def list_available_commands() -> list:
-    """列出所有可用的任务命令"""
-    return list(_TASK_HANDLERS.keys())
-
-# ============================================================
-# 模型训练自动化任务
-# ============================================================
-
 def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     自动化模型训练任务
@@ -1518,6 +1446,78 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         
         return result_dict
 
+
+_TASK_HANDLERS: Dict[str, Callable] = {
+    "data_quality_check": handle_data_quality_check,
+    "data_update": handle_data_update,
+    "data_pipeline_daily": handle_data_pipeline_daily,
+    "data_pipeline_weekly": handle_data_pipeline_weekly,
+    "signal_generate": handle_signal_generate,
+    "pool_refresh_daily": handle_pool_refresh_daily,
+    "signal_execution_daily": handle_signal_execution_daily,
+    "risk_check": handle_risk_check,
+    "report_daily": handle_report_daily,
+    "backtest_run": handle_backtest_run,
+    "strategy_backtest": handle_backtest_run,  # 别名
+    "factor_compute": handle_factor_compute,
+    "model_train": handle_model_train,
+    "benchmark_run": handle_benchmark_run,
+    "market_style_update": handle_market_style_update,
+    "v13_daily_check": handle_v13_daily_check,
+    # 新增 - 从旧调度器迁移
+    "financial_data_update": handle_financial_data_update,
+    "market_scan_preopen": handle_market_scan_preopen,
+    "signal_monitor_realtime": handle_signal_monitor_realtime,
+    "strategy_validate_daily": handle_strategy_validate_daily,
+    "strategy_discover_weekly": handle_strategy_discover_weekly,
+    # Agent相关
+    "agent_reminder": handle_agent_reminder,
+    # 自主轮转系统
+    "orchestrator_tick": handle_orchestrator_tick,
+    "intraday_monitor": handle_intraday_monitor,
+    "performance_report": handle_performance_report,
+    "strategy_rotation": handle_strategy_rotation,
+    # 缠论学习闭环
+    "chan_scan": handle_chan_scan,
+    "chan_knowledge_distill": handle_chan_knowledge_distill,
+    # 行为进化 Phase 1
+    "daily_equity_snapshot": handle_daily_equity_snapshot,
+    "evolution_fitness_daily": handle_evolution_fitness_daily,
+    "decision_score_daily": handle_decision_score_daily,
+    "missed_opportunity_daily": handle_missed_opportunity_daily,
+    "model_train_auto": handle_model_train_auto,
+}
+
+
+def get_task_handler(command: str) -> Callable:
+    """获取任务处理器
+
+    Args:
+        command: 任务命令名称
+
+    Returns:
+        任务处理函数
+
+    Raises:
+        ValueError: 如果命令不存在
+    """
+    handler = _TASK_HANDLERS.get(command)
+    if handler is None:
+        available = ', '.join(_TASK_HANDLERS.keys())
+        raise ValueError(
+            f"Unknown task command: {command!r}. "
+            f"Available commands: {available}"
+        )
+    return handler
+
+
+def list_available_commands() -> list:
+    """列出所有可用的任务命令"""
+    return list(_TASK_HANDLERS.keys())
+
+# ============================================================
+# 模型训练自动化任务
+# ============================================================
 
 def _check_train_needed(model_type: str) -> tuple:
     """检查是否需要训练"""
