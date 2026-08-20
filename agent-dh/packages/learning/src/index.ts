@@ -233,13 +233,24 @@ export default class LearningPlugin extends Service {
       ? [...entry.tags, `genome:${entry.genome_context.genome_version}`]
       : entry.tags;
 
-    // 调用 memory_write 工具持久化
-    // 注意：这里简化了，实际应该通过 ctx.tools.execute
-    await this.qv2.writeMemory({
+    // 2026-08-20 验收修复：client 没有 writeMemory 方法（原调用必抛 TypeError 且被静默吞掉），
+    // 正确方法是 createMemory（POST /api/memory），字段结构对齐 memory 插件的写法
+    await this.qv2.createMemory({
+      kind: 'experience',
+      scope: 'global',
+      title: `auto-track ${entry.action.tool} ${entry.outcome.success ? 'ok' : 'fail'} (${entry.genome_context?.genome_version ?? 'no-genome'})`,
       content,
-      importance: Math.abs(entry.reward),
-      namespace: 'experience',
-      tags,
+      payload: {
+        namespace: 'experience',
+        tags,
+        genome_context: entry.genome_context,
+        entry_id: entry.id,
+        ts: entry.timestamp,
+      },
+      status: 'testing',
+      confidence: Math.min(1, Math.max(0.3, Math.abs(entry.reward))),
+      source: 'learning_auto_track',
+      provenance: { channel: 'dsh', session_kind: 'agent' },
     });
   }
 
