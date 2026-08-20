@@ -46,23 +46,54 @@ export default class GenomePlugin extends Service {
 
   constructor(ctx: Context, config: any) {
     super(ctx, 'genome');
-    
+
     // 展开 ~ 路径
     this.genomeDir = config.genomeDir.replace(/^~/, process.env.HOME || '');
-    
-    this.ctx.on('ready', async () => {
-      await this.initialize();
+
+    // 直接在构造函数中初始化（cordis 加载器场景下 ctx.on('ready') 不会触发，
+    // 导致段/工具永远不注册——2026-08-20 验收发现的阻断性 bug）
+    try {
+      this.initialize();
       this.registerSections();
       this.registerVariables();
       this.registerTools();
-    });
+      console.log(`[genome] loaded: ${this.genomeData.genome_version}, 4 sections + 6 tools registered`);
+    } catch (e: any) {
+      // RFC 006 风险对策：初始化失败也不能让宪法缺席——回退注册内置模板段
+      console.error('[genome] init failed, falling back to builtin templates:', e?.message);
+      this.registerFallbackSections();
+      this.registerVariablesFallback();
+      this.registerTools();
+    }
   }
 
-  private async initialize() {
+  /** 回退路径：用内置模板注册宪法段，保证宪法永不缺席 */
+  private registerFallbackSections() {
+    const templates = this.getBuiltinTemplates();
+    const orders: Record<string, number> = { constitution: 10, principles: 20, rules: 30, lessons: 40 };
+    for (const [name, content] of Object.entries(templates)) {
+      const header = `[genome:fallback | ${name} v1]\n\n`;
+      const dispose = this.ctx.systemPrompt.section({
+        name: `genome:${name}`,
+        order: orders[name] ?? 50,
+        text: header + content,
+      });
+      this.disposers.set(name, dispose);
+    }
+    this.genomeData = this.genomeData ?? { genome_version: 'unknown', sections: {} };
+  }
+
+  private registerVariablesFallback() {
+    try {
+      this.ctx.systemPrompt.variable('genome_version', () => this.genomeData?.genome_version || 'unknown');
+    } catch { /* 变量已注册则忽略 */ }
+  }
+
+  private initialize() {
     // 检查基因组目录是否存在
     if (!fs.existsSync(this.genomeDir)) {
       this.ctx.logger('genome').info('Genome directory not found, initializing from templates...');
-      await this.initializeFromTemplates();
+      this.initializeFromTemplates();
     }
 
     // 读取 genome.json
@@ -75,7 +106,7 @@ export default class GenomePlugin extends Service {
     this.ctx.logger('genome').info(`Genome loaded: version ${this.genomeData.genome_version}`);
   }
 
-  private async initializeFromTemplates() {
+  private initializeFromTemplates() {
     // 创建目录结构
     fs.mkdirSync(this.genomeDir, { recursive: true });
     const sectionsDir = path.join(this.genomeDir, 'sections');

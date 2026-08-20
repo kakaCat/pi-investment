@@ -20,6 +20,8 @@ function stubCtx() {
     reflect: { provide: () => {} },
     logger: { info() {}, warn() {}, error() {}, debug() {} },
     genome: { genomeData: { genome_version: 'g1', sections: {} } },  // P1: evolver 需要
+    // genome 插件在构造函数中注册提示词段（P0-1 起）
+    systemPrompt: { section: () => () => true, variable: () => () => true, assemble: async () => ({ sections: [], tools: [], variables: {} }) },
   } as any;
 }
 
