@@ -382,23 +382,11 @@ export default class EvolverPlugin extends Service {
         const adjudication = await this.judgeCandidates(false);
 
         // Step 1: experience_distill
-        const distillTool = this.ctx.tools.list().find(t => t.name === 'experience_distill');
-        if (!distillTool) {
-          throw new Error('experience_distill tool not found');
-        }
-
-        // @ts-ignore
-        const distillResult = await distillTool.execute({ days });
+        const distillResult = await this.callTool('experience_distill', { days });
 
         // Step 2: prompt_evolver
-        const evolverTool = this.ctx.tools.list().find(t => t.name === 'prompt_evolver');
-        if (!evolverTool) {
-          throw new Error('prompt_evolver tool not found');
-        }
-
         const suggestions = distillResult.suggestions || [];
-        // @ts-ignore
-        const evolverResult = await evolverTool.execute({
+        const evolverResult = await this.callTool('prompt_evolver', {
           suggestions,
           dry_run: !auto_apply,
         });
@@ -406,20 +394,16 @@ export default class EvolverPlugin extends Service {
         // Step 3: 生成摘要
         const summary = this.generateDistillSummary(distillResult, evolverResult, auto_apply);
 
-        // Step 4: 写入 memory（记录蒸馏历史）
-        const memoryTool = this.ctx.tools.list().find(t => t.name === 'memory_write');
-        if (memoryTool) {
-          try {
-            // @ts-ignore
-            await memoryTool.execute({
-              content: `每日蒸馏 ${new Date().toISOString()}: ${summary}`,
-              namespace: 'decision',
-              importance: 0.8,
-              tags: ['daily_distill', 'genome_evolution'],
-            });
-          } catch (e) {
-            // 非关键操作，失败不影响主流程
-          }
+        // Step 4: 写入 memory（记录蒸馏历史，非关键操作失败不影响主流程）
+        try {
+          await this.callTool('memory_write', {
+            content: `每日蒸馏 ${new Date().toISOString()}: ${summary}`,
+            namespace: 'decision',
+            importance: 0.8,
+            tags: ['daily_distill', 'genome_evolution'],
+          });
+        } catch (e) {
+          // 非关键操作，失败不影响主流程
         }
 
         return {
