@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -10,6 +9,7 @@ import structlog
 from domain.memory.embedding import OllamaEmbeddingService
 from domain.memory.hybrid_search import hybrid_rank
 from domain.memory.models import MemoryEntry, MemoryKind, MemoryStatus
+from infrastructure.config import get_config
 
 logger = structlog.get_logger(__name__)
 
@@ -17,8 +17,9 @@ logger = structlog.get_logger(__name__)
 def _load_cosine_floor() -> float:
     """读取向量相似度下限，解析失败回退 0.30"""
     try:
-        return float(os.environ.get("MEMORY_RECALL_COSINE_FLOOR", "0.30"))
-    except ValueError:
+        config = get_config()
+        return config.app.memory_recall_cosine_floor
+    except (ValueError, AttributeError):
         return 0.30
 
 

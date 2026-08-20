@@ -6,11 +6,12 @@
 """
 from __future__ import annotations
 
-import os
 from typing import List, Optional
 
 import requests
 import structlog
+
+from infrastructure.config import get_config
 
 logger = structlog.get_logger(__name__)
 
@@ -28,14 +29,15 @@ class OllamaEmbeddingService:
         connect_timeout: float = 3.0,
         read_timeout: float = 30.0,
     ):
+        config = get_config()
         self.base_url = (
             base_url
-            or os.environ.get("OLLAMA_BASE_URL")
+            or config.app.ollama_base_url
             or DEFAULT_BASE_URL
         ).rstrip("/")
         self.model = (
             model
-            or os.environ.get("MEMORY_EMBEDDING_MODEL")
+            or config.app.memory_embedding_model
             or DEFAULT_MODEL
         )
         self.connect_timeout = connect_timeout

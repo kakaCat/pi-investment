@@ -133,6 +133,14 @@ class AppSettings(BaseSettings):
     # 监控配置
     sentry_dsn: Optional[str] = Field(default=None, description="Sentry DSN for error tracking")
     environment: str = Field(default="development", description="Deployment environment (development/production)")
+    
+    # Quantlib 配置
+    quant_market_adapter: str = Field(default="akshare", description="Market data adapter (akshare/tushare)")
+    
+    # Memory 配置
+    memory_recall_cosine_floor: float = Field(default=0.30, description="Memory recall cosine similarity threshold")
+    ollama_base_url: Optional[str] = Field(default=None, description="Ollama API base URL for embeddings")
+    memory_embedding_model: Optional[str] = Field(default=None, description="Embedding model name")
 
 
 class Config(BaseSettings):

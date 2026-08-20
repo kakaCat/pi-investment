@@ -4,21 +4,21 @@ Usage::
 
     from domain.quantlib.adapters.factory import get_adapter
 
-    adapter = get_adapter()           # uses QUANT_MARKET_ADAPTER env var, default "akshare"
+    adapter = get_adapter()           # uses config.app.quant_market_adapter, default "akshare"
     adapter = get_adapter("akshare")  # explicit
 
 The factory decouples callers from concrete adapter classes so that:
-  * Switching data sources is a one-line config change (env var).
+  * Switching data sources is a one-line config change.
   * New adapters (tushare, wind, etc.) can be registered here without
     touching business logic.
 """
 
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from domain.quantlib.adapters.base_adapter import BaseMarketAdapter
+from infrastructure.config import get_config
 
 # Registry of known adapter names → import path
 _REGISTRY: dict[str, str] = {
@@ -31,14 +31,18 @@ def get_adapter(name: Optional[str] = None) -> BaseMarketAdapter:
 
     Resolution order:
       1. Explicit *name* argument
-      2. ``QUANT_MARKET_ADAPTER`` environment variable
+      2. Config setting (config.app.quant_market_adapter)
       3. Built-in default ``"akshare"``
 
     Raises:
         ValueError: if the named adapter is not registered.
         ImportError: if the adapter class cannot be imported.
     """
-    resolved = name or os.environ.get("QUANT_MARKET_ADAPTER", "akshare")
+    if name is None:
+        config = get_config()
+        resolved = config.app.quant_market_adapter
+    else:
+        resolved = name
 
     if resolved not in _REGISTRY:
         valid = ", ".join(sorted(_REGISTRY))
