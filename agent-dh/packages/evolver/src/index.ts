@@ -158,6 +158,95 @@ export default class EvolverPlugin extends Service {
         } as any;
       },
     } as any));
+
+    // P1-3: daily_distill - 每日蒸馏编排（experience_distill → prompt_evolver）
+    this.ctx.tools.register(defineTool({
+      name: 'daily_distill',
+      description: 'P1-3 每日蒸馏编排：自动执行 experience_distill → prompt_evolver → 通知。用于：盘后自动化、手动触发完整蒸馏流程。推荐每日 16:00 执行。',
+      parameters: {
+        days: {
+          type: 'number',
+          description: '分析最近 N 天经验（默认 7）',
+          default: 7,
+        },
+        auto_apply: {
+          type: 'boolean',
+          description: 'true：自动应用改进（调用 genome_update）；false（默认）：只生成预览',
+          default: false,
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            distill_result: {
+              type: 'object',
+              additionalProperties: true,
+            },
+            evolver_result: {
+              type: 'object',
+              additionalProperties: true,
+            },
+            summary: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+        render: (_args: any, value: any) => [
+          { type: 'text', text: value.summary },
+        ],
+      },
+      timeoutMs: 120000,
+      execute: async (args: any) => {
+        const { days, auto_apply } = args;
+
+        // Step 1: experience_distill
+        const distillTool = this.ctx.tools.list().find(t => t.name === 'experience_distill');
+        if (!distillTool) {
+          throw new Error('experience_distill tool not found');
+        }
+
+        // @ts-ignore
+        const distillResult = await distillTool.execute({ days });
+
+        // Step 2: prompt_evolver
+        const evolverTool = this.ctx.tools.list().find(t => t.name === 'prompt_evolver');
+        if (!evolverTool) {
+          throw new Error('prompt_evolver tool not found');
+        }
+
+        const suggestions = distillResult.suggestions || [];
+        // @ts-ignore
+        const evolverResult = await evolverTool.execute({
+          suggestions,
+          dry_run: !auto_apply,
+        });
+
+        // Step 3: 生成摘要
+        const summary = this.generateDistillSummary(distillResult, evolverResult, auto_apply);
+
+        // Step 4: 写入 memory（记录蒸馏历史）
+        const memoryTool = this.ctx.tools.list().find(t => t.name === 'memory_write');
+        if (memoryTool) {
+          try {
+            // @ts-ignore
+            await memoryTool.execute({
+              content: `每日蒸馏 ${new Date().toISOString()}: ${summary}`,
+              namespace: 'decision',
+              importance: 0.8,
+              tags: ['daily_distill', 'genome_evolution'],
+            });
+          } catch (e) {
+            // 非关键操作，失败不影响主流程
+          }
+        }
+
+        return {
+          distill_result: distillResult,
+          evolver_result: evolverResult,
+          summary,
+        } as any;
+      },
+    } as any));
   }
 
   /**
@@ -216,5 +305,43 @@ export default class EvolverPlugin extends Service {
       reason,
       force: false,
     });
+  }
+
+  /**
+   * 生成每日蒸馏摘要
+   */
+  private generateDistillSummary(
+    distillResult: any,
+    evolverResult: any,
+    autoApply: boolean
+  ): string {
+    const stats = distillResult.stats || {};
+    const proposals = evolverResult.proposals || [];
+    
+    let summary = `📊 每日蒸馏报告\n\n`;
+    summary += `基因组版本: ${distillResult.genome_version}\n`;
+    summary += `分析周期: ${distillResult.period?.from?.slice(0, 10)} ~ ${distillResult.period?.to?.slice(0, 10)}\n\n`;
+    summary += `统计:\n`;
+    summary += `- 总经验数: ${stats.total_experiences}\n`;
+    summary += `- 平均奖励: ${stats.avg_reward}\n`;
+    summary += `- 成功率: ${(stats.success_rate * 100).toFixed(1)}%\n\n`;
+    
+    if (proposals.length > 0) {
+      summary += `生成 ${proposals.length} 条改进提案:\n`;
+      proposals.forEach((p: any, i: number) => {
+        summary += `${i + 1}. ${p.section} (${p.action}): ${p.reason}\n`;
+      });
+      summary += `\n`;
+    }
+    
+    if (autoApply) {
+      const results = evolverResult.results || [];
+      const successCount = results.filter((r: any) => r.success).length;
+      summary += `✅ 已应用: ${successCount}/${results.length} 条改进\n`;
+    } else {
+      summary += `⚠️  预览模式: 未实际应用改进（传 auto_apply=true 自动应用）\n`;
+    }
+    
+    return summary;
   }
 }
