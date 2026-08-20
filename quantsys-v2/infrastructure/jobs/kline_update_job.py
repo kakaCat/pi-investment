@@ -10,10 +10,6 @@ scope:
 - gem: 仅创业板（旧行为，保留兼容）
 """
 import os
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
 import sys
 import time
 import random

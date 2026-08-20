@@ -11,10 +11,6 @@
     python -m infrastructure.jobs.chip_distribution_update_job --symbol 600519.SH
 """
 import os
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
 import logging
 import sys
 from pathlib import Path
