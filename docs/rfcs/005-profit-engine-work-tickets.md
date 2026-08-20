@@ -14,10 +14,11 @@
 
 | ID | 工单 | 依赖 | 验收命令 | 验收标准 |
 |---|---|---|---|---|
-| M0-1 | API 过滤死因子：`/api/stock/{symbol}/factors` 剔除冻结大写因子或标注 `stale_days`/`deprecated` | 无 | `curl localhost:5001/api/stock/600737/factors` | 返回因子全部 ≤3 交易日，或陈旧因子带明确标记 |
-| M0-2 | FactorStage 全市场历史回填（250 日，逐日保存） | M0-1 | `psql -c "SELECT factor_name, MIN(factor_date), MAX(factor_date) FROM quant.factor_values WHERE factor_name='ma5' GROUP BY factor_name"` | 小写因子历史 ≥120 交易日、覆盖 ≥5000 股 |
-| M0-3 | 大写死数据归档至 `quant.factor_values_legacy` | M0-1 | `psql -c "SELECT COUNT(*) FROM quant.factor_values WHERE factor_name='RSI12'"` | 主表无冻结大写因子 |
+| M0-1 | ~~API 过滤死因子~~ | 无 | — | ✅ 已完成（大写因子已删除，主表 0 行） |
+| M0-2 | ~~FactorStage 全市场历史回填（250 日）~~ | M0-1 | — | ✅ 已完成（主力因子 230 交易日×5514 股） |
+| M0-3 | ~~大写死数据归档~~ | M0-1 | — | ✅ 已完成（factor_values_legacy_20260820 含 1599 万行） |
 | M0-4 | 因子新鲜度门禁入 `data_quality_report` | 无 | 调 `data_quality_report` | 因子陈旧 >5 交易日出现在异常列表 |
+| M0-5 | 资金流因子覆盖外股票标记 stale/不返回（审核新增 2026-08-20）：large_net/super_large_net/main_net_* 等对覆盖外股票（如 600519）当前返回陈旧零值（2026-07-02）无标记，同 S3 类误导 | M0-2 | `curl localhost:5001/api/stock/600519/factors \| jq '.factor_dates.large_net'` | 覆盖外股票：资金流因子不返回 or 返回时 factor_date ≤3 交易日 or 带 `stale: true` |
 
 ## M1 市场感知 〔挣钱线〕
 
@@ -88,8 +89,9 @@
 
 | 波次 | 工单 | 说明 |
 |---|---|---|
-| 🌊 立即 | M0-1~4（基建线）、M1-1、M4-1、M6-1、M3-1 | 不依赖回填，今天就能开工 |
-| 🌊 M0-2 完成后 | M1-2、M2-1、M3-2、M7-2 | 需要因子/历史数据 |
+| ✅ 已完成 | M0-1/M0-2/M0-3 | Phase 1 基建线完成（2026-08-20） |
+| 🌊 立即 | M0-4/M0-5（基建线）、M1-1、M4-1、M6-1、M3-1 | 不依赖回填，今天就能开工 |
+| 🌊 M0 全部完成后 | M1-2、M2-1、M3-2、M7-2 | 需要因子/历史数据 |
 | 🌊 历史 ≥120 日后 | M8-2、M6-4 | ML 相关 |
 
 ## 变更日志
@@ -97,3 +99,4 @@
 | 日期 | 内容 |
 |---|---|
 | 2026-08-20 | 创建。8 模块 26 个工单，三波启动顺序 |
+| 2026-08-20 | 审核更新：M0-1/2/3 标记已完成；新增 M0-5 工单（资金流因子覆盖外股票 stale 标记）；调整启动波次（M0-4/5 进入立即波次） |

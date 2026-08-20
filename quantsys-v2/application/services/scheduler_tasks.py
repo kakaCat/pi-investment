@@ -1380,12 +1380,20 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
             should_train, reason = _check_train_needed(model_type)
             if not should_train:
                 logger.info(f"跳过训练: {reason}")
-                return {
+                result_dict = {
                     "action": "model_train_auto",
                     "status": "skipped",
                     "reason": reason,
                     "timestamp": datetime.now().isoformat()
                 }
+                
+                try:
+                    from application.services.ml_train_notification import notify_train_result
+                    notify_train_result(result_dict)
+                except Exception as e:
+                    logger.warning(f"发送通知失败: {e}")
+                
+                return result_dict
         
         # 2. 获取股票列表
         repo = StockORMRepository()
@@ -1469,7 +1477,7 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
             if switched:
                 logger.info(f"已自动切换到新模型: {version}")
         
-        return {
+        result_dict = {
             "action": "model_train_auto",
             "status": "success",
             "model_type": model_type,
@@ -1484,14 +1492,31 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
             "timestamp": datetime.now().isoformat()
         }
         
+        # 发送通知
+        try:
+            from application.services.ml_train_notification import notify_train_result
+            notify_train_result(result_dict)
+        except Exception as e:
+            logger.warning(f"发送通知失败: {e}")
+        
+        return result_dict
+        
     except Exception as e:
         logger.error(f"模型训练失败: {e}", exc_info=True)
-        return {
+        result_dict = {
             "action": "model_train_auto",
             "status": "failed",
             "error": str(e),
             "timestamp": datetime.now().isoformat()
         }
+        
+        try:
+            from application.services.ml_train_notification import notify_train_result
+            notify_train_result(result_dict)
+        except Exception as e_notify:
+            logger.warning(f"发送通知失败: {e_notify}")
+        
+        return result_dict
 
 
 def _check_train_needed(model_type: str) -> tuple:
