@@ -53,24 +53,41 @@ export default class LearningPlugin extends Service {
    * 设置拦截器：自动追踪工具调用
    */
   private setupInterceptors(): void {
-    // 拦截所有工具调用，自动记录经验
-    this.ctx.on('tool/before-execute', (event: any) => {
-      event.startTime = Date.now();
+    // 自动追踪工具调用。
+    // ⚠️ 2026-08-20 验收修复：原实现监听 'tool/before-execute'/'tool/after-execute'，
+    // 这两个事件在整个 DSH 中不存在，自动追踪从不触发（与 genome ready 事件同类 bug）。
+    // dsh-tools 的真实扩展点是 waterfall：tools/pre-execute / tools/execute / tools/post-execute。
+    //
+    // waterfall 监听器两条铁律（违反会破坏工具调用本身）：
+    // ① 必须把 prev 原样返回（返回 undefined 会让后续链路拿到 undefined 而崩溃）
+    // ② 绝不能抛异常（监听器抛错会把工具结果变成 isError）
+    const startTimes = new Map<string, number>();
+
+    this.ctx.on('tools/pre-execute' as any, (exec: any, prev: any) => {
+      try {
+        if (exec?.callId) startTimes.set(exec.callId, Date.now());
+      } catch { /* 观察者不能影响工具调用 */ }
+      return prev;
     });
 
-    this.ctx.on('tool/after-execute', async (event: any) => {
-      const duration = Date.now() - (event.startTime || 0);
-      // 自动记录关键工具的执行结果
-      if (this.isTrackedTool(event.toolName)) {
-        await this.autoTrack({
-          tool: event.toolName,
-          args: event.args,
-          result: event.result,
-          duration,
-          success: !event.error,
-          error: event.error?.message,
-        });
-      }
+    this.ctx.on('tools/post-execute' as any, (exec: any, result: any, prev: any) => {
+      try {
+        const toolName: string | undefined = exec?.name;
+        if (toolName && this.isTrackedTool(toolName)) {
+          const startedAt = exec?.callId ? startTimes.get(exec.callId) : undefined;
+          if (exec?.callId) startTimes.delete(exec.callId);
+          const isError = result?.isError === true;
+          this.autoTrack({
+            tool: toolName,
+            args: exec?.arguments,
+            result: result?.isError ? undefined : result,
+            duration: startedAt ? Date.now() - startedAt : 0,
+            success: !isError,
+            error: isError ? (result?.error?.message ?? 'tool error') : undefined,
+          }).catch(() => {});
+        }
+      } catch { /* 观察者不能影响工具调用 */ }
+      return prev;
     });
   }
 
@@ -202,12 +219,19 @@ export default class LearningPlugin extends Service {
    * 持久化经验到 memory
    */
   private async persistExperience(entry: ExperienceEntry): Promise<void> {
+    // 2026-08-20 验收修复：genome_context（P0-3 打标）必须进入持久化内容，
+    // 否则归因时检索不到打标数据；genome 代数同时进 tags 便于检索
     const content = JSON.stringify({
       action: entry.action,
       outcome: entry.outcome,
       reward: entry.reward,
       context: entry.context,
+      genome_context: entry.genome_context,
     });
+
+    const tags = entry.genome_context?.genome_version
+      ? [...entry.tags, `genome:${entry.genome_context.genome_version}`]
+      : entry.tags;
 
     // 调用 memory_write 工具持久化
     // 注意：这里简化了，实际应该通过 ctx.tools.execute
@@ -215,7 +239,7 @@ export default class LearningPlugin extends Service {
       content,
       importance: Math.abs(entry.reward),
       namespace: 'experience',
-      tags: entry.tags,
+      tags,
     });
   }
 
