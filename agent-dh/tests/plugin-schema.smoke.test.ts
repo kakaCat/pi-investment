@@ -15,10 +15,11 @@ afterAll(() => rmSync(stateDir, { recursive: true, force: true }));
 
 function stubCtx() {
   return {
-    tools: { register: () => () => true },
+    tools: { register: () => () => true, list: () => [] },
     on: () => () => true,
     reflect: { provide: () => {} },
     logger: { info() {}, warn() {}, error() {}, debug() {} },
+    genome: { genomeData: { genome_version: 'g1', sections: {} } },  // P1: evolver 需要
   } as any;
 }
 

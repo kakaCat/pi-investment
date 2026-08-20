@@ -3,12 +3,10 @@
  * P1-2: 接收 experience_distill 建议，生成段更新提案，调用 genome_update 应用
  */
 import { Context, Service } from '@deepseek-ai/cordis';
-import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 
 export default class EvolverPlugin extends Service {
   static inject = ['tools', 'genome'];  // 依赖 genome 插件
-  static Config = z.object({}).default({} as any);
 
   constructor(ctx: Context, config: any) {
     super(ctx, 'evolver');

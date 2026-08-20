@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/schemastery": "workspace:^",
     "@deepseek-ai/dsh-tools": "workspace:^"
   }
 }
