@@ -283,11 +283,14 @@ export default class EvolverPlugin extends Service {
                 suggestion.reason || '经验蒸馏建议',
                 'candidate'
               );
+              // baseline = 变更前一代（新代数 -1），与 genome history 条目的 baseline_version 一致
+              const gm = String(updateResult.genome_version).match(/^g(\d+)$/);
+              const baselineVersion = gm ? `g${parseInt(gm[1], 10) - 1}` : updateResult.genome_version;
               const candidate = this.registerCandidate(
                 section,
                 updateResult.section_version,
                 updateResult.genome_version,
-                updateResult.genome_version,  // baseline 由 genome history 条目承载；此处先记当代
+                baselineVersion,
                 args.observe_days
               );
               results.push({
@@ -343,6 +346,11 @@ export default class EvolverPlugin extends Service {
             evolver_result: {
               type: 'object',
               additionalProperties: true,
+            },
+            adjudication: {
+              type: 'array',
+              description: 'RFC 008 验证门裁决结果（转正/回滚/延期/观察中）',
+              items: { type: 'object', additionalProperties: true },
             },
             summary: { type: 'string' },
           },
@@ -403,8 +411,79 @@ export default class EvolverPlugin extends Service {
         return {
           distill_result: distillResult,
           evolver_result: evolverResult,
+          adjudication,
           summary,
         } as any;
+      },
+    } as any));
+
+    // P2-1: candidate_status - 查询观察期候选（RFC 008 §3.2）
+    this.ctx.tools.register(defineTool({
+      name: 'candidate_status',
+      description: '列出基因组观察期候选（candidate）：版本、剩余观察天数、对比基准、当前状态。用于：盘后例程检查验证门进度、人工审查进化队列。',
+      parameters: {},
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            watching: { type: 'array', items: { type: 'object', additionalProperties: true } },
+            settled: { type: 'array', items: { type: 'object', additionalProperties: true } },
+            total: { type: 'number' },
+          },
+          additionalProperties: false,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 10000,
+      execute: async () => {
+        const list = this.readCandidates();
+        const now = Date.now();
+        const watching = list.filter(c => c.status === 'watching').map(c => ({
+          ...c,
+          days_left: Math.max(0, Math.ceil((Date.parse(c.observe_until) - now) / 86400000)),
+          expired: now >= Date.parse(c.observe_until),
+        }));
+        const settled = list.filter(c => c.status !== 'watching');
+        return { watching, settled, total: list.length } as any;
+      },
+    } as any));
+
+    // P2-2: validation_gate - 验证门裁决（RFC 008 核心工具）
+    this.ctx.tools.register(defineTool({
+      name: 'validation_gate',
+      description: '验证门裁决：对观察期到期的基因组 candidate 对比基准期打标经验（平均奖励/样本数），达标转正（genome_promote）、显著恶化回滚（genome_rollback）、证据不足延期。force=true 跳过时间与样本门槛（验收/人工裁决用）。回测门（三区间回测）待策略参数纳入基因组后启用。',
+      parameters: {
+        action: {
+          type: 'string',
+          description: 'judge：裁决到期候选',
+          enum: ['judge'],
+          required: true,
+        },
+        force: {
+          type: 'boolean',
+          description: 'true：跳过观察期时间与最小样本数门槛（验收/人工裁决用）',
+          default: false,
+        },
+        min_samples: {
+          type: 'number',
+          description: '裁决所需 candidate 期最小样本数，默认 3',
+          default: 3,
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            verdicts: { type: 'array', items: { type: 'object', additionalProperties: true } },
+          },
+          additionalProperties: false,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 60000,
+      execute: async (args: any) => {
+        const verdicts = await this.judgeCandidates(args.force || false, args.min_samples || 3);
+        return { verdicts } as any;
       },
     } as any));
   }
