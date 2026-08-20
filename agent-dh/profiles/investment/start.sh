@@ -10,6 +10,15 @@
 #   ./start.sh 13081 --dump-config  # 打印组合后的 profile 配置并退出
 set -e
 
+# 独立 DSH_HOME：与主实例（~/.dsh，:3080）隔离，避免两个 dsh web 进程共享
+# 单写者存储（session_projcache 为每进程全量内存 + 整文件覆盖写，
+# 共享会导致投影缓存行互相抹除，表现为侧边栏"找不到 session 信息"）。
+# 注意：在 dsh 会话内调用本脚本会继承父进程的 DSH_HOME=~/.dsh，必须显式覆盖；
+# 仅当用户故意设为其它非默认值时才予以尊重。
+if [ -z "$DSH_HOME" ] || [ "$DSH_HOME" = "$HOME/.dsh" ]; then
+  export DSH_HOME="$HOME/.dsh-agent-dh"
+fi
+
 # 加载环境变量（可选；dsh 自身 credentials 体系也可提供 key）
 PROFILE_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -f "$PROFILE_DIR/.env" ]; then
