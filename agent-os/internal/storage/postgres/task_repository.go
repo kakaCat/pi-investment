@@ -45,10 +45,10 @@ func (r *TaskRepository) Create(ctx context.Context, task *types.Task) error {
 	query := `
 		INSERT INTO tasks (
 			name, owner, description, schedule, cron, command,
-			webhook_url, payload, timeout, retry_count, enabled,
+			webhook_url, service_name, payload, timeout, retry_count, enabled,
 			created_by, metadata
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING id, created_at, updated_at
 	`
 
@@ -60,6 +60,7 @@ func (r *TaskRepository) Create(ctx context.Context, task *types.Task) error {
 		task.Cron,
 		task.Command,
 		task.WebhookURL,
+		task.ServiceName,
 		payloadJSON,
 		task.Timeout,
 		task.RetryCount,
@@ -79,7 +80,7 @@ func (r *TaskRepository) Create(ctx context.Context, task *types.Task) error {
 func (r *TaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.Task, error) {
 	query := `
 		SELECT id, name, owner, description, schedule, cron, command,
-		       webhook_url, payload, timeout, retry_count, enabled,
+		       webhook_url, service_name, payload, timeout, retry_count, enabled,
 		       created_at, updated_at, created_by, metadata
 		FROM tasks
 		WHERE id = $1
@@ -98,6 +99,7 @@ func (r *TaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.Task
 		&task.Cron,
 		&task.Command,
 		&task.WebhookURL,
+		&task.ServiceName,
 		&payloadJSON,
 		&task.Timeout,
 		&task.RetryCount,
@@ -130,7 +132,7 @@ func (r *TaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.Task
 func (r *TaskRepository) GetByName(ctx context.Context, name string) (*types.Task, error) {
 	query := `
 		SELECT id, name, owner, description, schedule, cron, command,
-		       webhook_url, payload, timeout, retry_count, enabled,
+		       webhook_url, service_name, payload, timeout, retry_count, enabled,
 		       created_at, updated_at, created_by, metadata
 		FROM tasks
 		WHERE name = $1
@@ -149,6 +151,7 @@ func (r *TaskRepository) GetByName(ctx context.Context, name string) (*types.Tas
 		&task.Cron,
 		&task.Command,
 		&task.WebhookURL,
+		&task.ServiceName,
 		&payloadJSON,
 		&task.Timeout,
 		&task.RetryCount,
@@ -181,7 +184,7 @@ func (r *TaskRepository) GetByName(ctx context.Context, name string) (*types.Tas
 func (r *TaskRepository) List(ctx context.Context, enabledOnly bool) ([]*types.Task, error) {
 	query := `
 		SELECT id, name, owner, description, schedule, cron, command,
-		       webhook_url, payload, timeout, retry_count, enabled,
+		       webhook_url, service_name, payload, timeout, retry_count, enabled,
 		       created_at, updated_at, created_by, metadata
 		FROM tasks
 	`
@@ -211,6 +214,7 @@ func (r *TaskRepository) List(ctx context.Context, enabledOnly bool) ([]*types.T
 			&task.Cron,
 			&task.Command,
 			&task.WebhookURL,
+			&task.ServiceName,
 			&payloadJSON,
 			&task.Timeout,
 			&task.RetryCount,
@@ -257,9 +261,9 @@ func (r *TaskRepository) Update(ctx context.Context, task *types.Task) error {
 	query := `
 		UPDATE tasks
 		SET description = $1, schedule = $2, cron = $3, command = $4,
-		    webhook_url = $5, payload = $6, timeout = $7, retry_count = $8,
-		    enabled = $9, metadata = $10
-		WHERE id = $11
+		    webhook_url = $5, service_name = $6, payload = $7, timeout = $8,
+		    retry_count = $9, enabled = $10, metadata = $11
+		WHERE id = $12
 		RETURNING updated_at
 	`
 
@@ -269,6 +273,7 @@ func (r *TaskRepository) Update(ctx context.Context, task *types.Task) error {
 		task.Cron,
 		task.Command,
 		task.WebhookURL,
+		task.ServiceName,
 		payloadJSON,
 		task.Timeout,
 		task.RetryCount,
@@ -307,7 +312,7 @@ func (r *TaskRepository) Delete(ctx context.Context, id uuid.UUID) error {
 func (r *TaskRepository) GetScheduledTasks(ctx context.Context) ([]*types.Task, error) {
 	query := `
 		SELECT id, name, owner, description, schedule, cron, command,
-		       webhook_url, payload, timeout, retry_count, enabled,
+		       webhook_url, service_name, payload, timeout, retry_count, enabled,
 		       created_at, updated_at, created_by, metadata
 		FROM tasks
 		WHERE enabled = true AND (
@@ -338,6 +343,7 @@ func (r *TaskRepository) GetScheduledTasks(ctx context.Context) ([]*types.Task, 
 			&task.Cron,
 			&task.Command,
 			&task.WebhookURL,
+			&task.ServiceName,
 			&payloadJSON,
 			&task.Timeout,
 			&task.RetryCount,
@@ -373,7 +379,7 @@ func (r *TaskRepository) GetScheduledTasks(ctx context.Context) ([]*types.Task, 
 func (r *TaskRepository) GetTasksWithStats(ctx context.Context) ([]*types.TaskWithStats, error) {
 	query := `
 		SELECT
-			t.id, t.name, t.description, t.schedule, t.command, t.enabled,
+			t.id, t.name, t.description, t.schedule, t.command, t.service_name, t.enabled,
 			t.created_at, t.updated_at, t.created_by, t.metadata,
 			COUNT(tr.id) as total_runs,
 			MAX(tr.started_at) as last_run_at,
@@ -410,6 +416,7 @@ func (r *TaskRepository) GetTasksWithStats(ctx context.Context) ([]*types.TaskWi
 			&task.Description,
 			&task.Schedule,
 			&task.Command,
+			&task.ServiceName,
 			&task.Enabled,
 			&task.CreatedAt,
 			&task.UpdatedAt,

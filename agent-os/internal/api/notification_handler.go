@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gorilla/mux"
 	"github.com/pi-investment/agent-os/internal/domain"
 	"github.com/pi-investment/agent-os/internal/repository"
 )
@@ -99,5 +100,53 @@ func (h *NotificationHandler) SendNotification(w http.ResponseWriter, r *http.Re
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"message": "notification sent successfully",
+	})
+}
+
+// CreateChannel 创建通知渠道
+func (h *NotificationHandler) CreateChannel(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req domain.NotificationChannelCreateRequest
+	if err := parseJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+
+	if req.Code == "" || req.Name == "" {
+		respondError(w, http.StatusBadRequest, "code and name are required")
+		return
+	}
+
+	if err := h.repo.CreateChannel(ctx, req); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to create channel: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "channel created successfully",
+	})
+}
+
+// DeleteChannel 删除通知渠道
+func (h *NotificationHandler) DeleteChannel(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	if id == "" {
+		respondError(w, http.StatusBadRequest, "channel id is required")
+		return
+	}
+
+	if err := h.repo.DeleteChannel(ctx, id); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to delete channel: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "channel deleted successfully",
 	})
 }

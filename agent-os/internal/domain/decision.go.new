@@ -1,0 +1,79 @@
+package domain
+
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"time"
+)
+
+// Decision 决策
+type Decision struct {
+	ID          string          `json:"id" db:"id"`
+	Action      string          `json:"action" db:"action"`
+	Target      string          `json:"target" db:"target"`
+	Confidence  float64         `json:"confidence" db:"confidence"`
+	Status      string          `json:"status" db:"status"`
+	Reason      *string         `json:"reason,omitempty" db:"reason"`
+	PnL         *float64        `json:"pnl,omitempty" db:"pnl"`
+	Timeline    TimelineEvents  `json:"timeline,omitempty" db:"timeline"`
+	Data        json.RawMessage `json:"data,omitempty" db:"data"`
+	CreatedAt   time.Time       `json:"created_at" db:"created_at"`
+	ExecutedAt  *time.Time      `json:"executed_at,omitempty" db:"executed_at"`
+	UpdatedAt   time.Time       `json:"updated_at" db:"updated_at"`
+}
+
+// TimelineEvent 时间线事件
+type TimelineEvent struct {
+	Timestamp   string `json:"timestamp"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+}
+
+// TimelineEvents 时间线事件数组（用于 JSONB）
+type TimelineEvents []TimelineEvent
+
+// Value 实现 driver.Valuer 接口
+func (t TimelineEvents) Value() (driver.Value, error) {
+	if t == nil {
+		return nil, nil
+	}
+	return json.Marshal(t)
+}
+
+// Scan 实现 sql.Scanner 接口
+func (t *TimelineEvents) Scan(value interface{}) error {
+	if value == nil {
+		*t = nil
+		return nil
+	}
+	
+	bytes, ok := value.([]byte)
+	if !ok {
+		return nil
+	}
+	
+	return json.Unmarshal(bytes, t)
+}
+
+// DecisionStatistics 决策统计
+type DecisionStatistics struct {
+	Total              int                    `json:"total"`
+	Executed           int                    `json:"executed"`
+	Pending            int                    `json:"pending"`
+	AvgConfidence      float64                `json:"avgConfidence"`
+	TypeDistribution   []DistributionItem     `json:"typeDistribution"`
+	StatusDistribution []DistributionItem     `json:"statusDistribution"`
+}
+
+// DistributionItem 分布项
+type DistributionItem struct {
+	Name  string `json:"name"`
+	Value int    `json:"value"`
+}
+
+// DecisionListRequest 决策列表请求
+type DecisionListRequest struct {
+	Action string `json:"action"`
+	Status string `json:"status"`
+	Limit  int    `json:"limit"`
+}

@@ -16,6 +16,7 @@ type EventWebRepository interface {
 	GetAlertRules(ctx context.Context) ([]*domain.AlertRule, error)
 	CreateAlertRule(ctx context.Context, req domain.AlertRuleCreateRequest) error
 	DeleteAlertRule(ctx context.Context, id string) error
+	UpdateAlertRuleEnabled(ctx context.Context, id string, enabled bool) error
 }
 
 type eventWebRepository struct {
@@ -150,6 +151,22 @@ func (r *eventWebRepository) DeleteAlertRule(ctx context.Context, id string) err
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete alert rule: %w", err)
+	}
+	
+	return nil
+}
+
+// UpdateAlertRuleEnabled 更新告警规则启用状态
+func (r *eventWebRepository) UpdateAlertRuleEnabled(ctx context.Context, id string, enabled bool) error {
+	query := `UPDATE alert_rules SET enabled = $1, updated_at = NOW() WHERE id = $2`
+	
+	result, err := r.db.ExecContext(ctx, query, enabled, id)
+	if err != nil {
+		return fmt.Errorf("failed to update alert rule: %w", err)
+	}
+	affected, _ := result.RowsAffected()
+	if affected == 0 {
+		return fmt.Errorf("alert rule not found: %s", id)
 	}
 	
 	return nil

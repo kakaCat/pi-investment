@@ -88,6 +88,7 @@ func (s *HTTPServer) Start(addr string) error {
 		api.HandleFunc("/events/alerts", s.eventHandler.GetAlertRules).Methods("GET")
 		api.HandleFunc("/events/alerts", s.eventHandler.CreateAlertRule).Methods("POST")
 		api.HandleFunc("/events/alerts/{id}", s.eventHandler.DeleteAlertRule).Methods("DELETE")
+		api.HandleFunc("/events/alerts/{id}", s.eventHandler.UpdateAlertRuleEnabled).Methods("PUT")
 	}
 
 	// System endpoints
@@ -96,11 +97,15 @@ func (s *HTTPServer) Start(addr string) error {
 		api.HandleFunc("/system/quotas", s.systemHandler.GetQuotas).Methods("GET")
 		api.HandleFunc("/system/logs", s.systemHandler.GetLogs).Methods("GET")
 		api.HandleFunc("/system/namespaces", s.systemHandler.GetNamespaces).Methods("GET")
+		api.HandleFunc("/system/namespaces", s.systemHandler.CreateNamespace).Methods("POST")
+		api.HandleFunc("/system/namespaces/{name}", s.systemHandler.DeleteNamespace).Methods("DELETE")
 	}
 
 	// Notification endpoints
 	if s.notificationHandler != nil {
 		api.HandleFunc("/notifications/channels", s.notificationHandler.GetChannels).Methods("GET")
+		api.HandleFunc("/notifications/channels", s.notificationHandler.CreateChannel).Methods("POST")
+		api.HandleFunc("/notifications/channels/{id}", s.notificationHandler.DeleteChannel).Methods("DELETE")
 		api.HandleFunc("/notifications/providers", s.notificationHandler.GetProviders).Methods("GET")
 		api.HandleFunc("/notifications/logs", s.notificationHandler.GetLogs).Methods("GET")
 		api.HandleFunc("/notifications/send", s.notificationHandler.SendNotification).Methods("POST")

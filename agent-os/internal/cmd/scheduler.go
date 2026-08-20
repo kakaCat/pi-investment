@@ -41,6 +41,7 @@ var schedulerRegisterCmd = &cobra.Command{
 		description, _ := cmd.Flags().GetString("description")
 		schedule, _ := cmd.Flags().GetString("schedule")
 		command, _ := cmd.Flags().GetString("command")
+		serviceName, _ := cmd.Flags().GetString("service")
 		enabled, _ := cmd.Flags().GetBool("enabled")
 		owner, _ := cmd.Flags().GetString("owner")
 
@@ -50,6 +51,7 @@ var schedulerRegisterCmd = &cobra.Command{
 			Description: description,
 			Schedule:    schedule,
 			Command:     command,
+			ServiceName: serviceName,
 			Enabled:     enabled,
 			CreatedBy:   owner,
 			Metadata:    make(map[string]interface{}),
@@ -302,6 +304,7 @@ func init() {
 	schedulerRegisterCmd.Flags().String("description", "", "Task description")
 	schedulerRegisterCmd.Flags().String("schedule", "", "Cron schedule expression")
 	schedulerRegisterCmd.Flags().String("command", "", "Command to execute (required)")
+	schedulerRegisterCmd.Flags().String("service", "", "Bound service name (ensured running before execution, e.g. quantsys-v2)")
 	schedulerRegisterCmd.Flags().Bool("enabled", true, "Enable task")
 	schedulerRegisterCmd.Flags().String("owner", "system", "Task owner (agent ID)")
 	schedulerRegisterCmd.MarkFlagRequired("name")

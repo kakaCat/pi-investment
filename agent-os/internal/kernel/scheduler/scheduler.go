@@ -19,6 +19,7 @@ type Scheduler struct {
 	taskRunRepo    *postgres.TaskRunRepository
 	depRepo        *postgres.TaskDependencyRepository
 	executor       *Executor
+	serviceManager *ServiceManager
 	cron           *cron.Cron
 	dag            *DAG
 	config         *types.SchedulerConfig
@@ -41,11 +42,12 @@ func New(config *types.SchedulerConfig) *Scheduler {
 	}
 
 	return &Scheduler{
-		taskRepo:    postgres.NewTaskRepository(),
-		taskRunRepo: postgres.NewTaskRunRepository(),
-		depRepo:     postgres.NewTaskDependencyRepository(),
-		executor:    NewExecutor(config),
-		cron:        cron.New(cron.WithSeconds()),
+		taskRepo:       postgres.NewTaskRepository(),
+		taskRunRepo:    postgres.NewTaskRunRepository(),
+		depRepo:        postgres.NewTaskDependencyRepository(),
+		executor:       NewExecutor(config),
+		serviceManager: NewServiceManager(config.Services),
+		cron:           cron.New(cron.WithSeconds()),
 		dag:         NewDAG(),
 		config:      config,
 		cronEntries: make(map[uuid.UUID]cron.EntryID),
@@ -361,8 +363,28 @@ func normalizeCronExpression(expr string) string {
 	return expr
 }
 
-// executeTask executes a task, checking dependencies first
+// executeTask executes a task, ensuring its bound service is running and
+// checking dependencies first
 func (s *Scheduler) executeTask(ctx context.Context, task *types.Task, triggeredBy types.TriggerSource) (*types.TaskRun, error) {
+	// Ensure the bound service (e.g. quantsys-v2) is running; start it if down
+	if task.ServiceName != "" {
+		started, err := s.serviceManager.EnsureRunning(ctx, task.ServiceName)
+		if err != nil {
+			logger.Error("Required service unavailable for task",
+				"task_id", task.ID,
+				"task_name", task.Name,
+				"service", task.ServiceName,
+				"error", err)
+			return nil, fmt.Errorf("required service %q unavailable: %w", task.ServiceName, err)
+		}
+		if started {
+			logger.Info("Started bound service before task execution",
+				"task_id", task.ID,
+				"task_name", task.Name,
+				"service", task.ServiceName)
+		}
+	}
+
 	// Check dependencies
 	deps := s.dag.GetDependencies(task.ID)
 	if len(deps) > 0 {
@@ -434,6 +456,12 @@ func (s *Scheduler) loadTasksAndDependencies() error {
 		"dependency_count", len(deps))
 
 	return nil
+}
+
+// ServiceManager returns the scheduler's service manager (service registry
+// used for task service bindings)
+func (s *Scheduler) ServiceManager() *ServiceManager {
+	return s.serviceManager
 }
 
 // IsRunning returns true if the scheduler is running

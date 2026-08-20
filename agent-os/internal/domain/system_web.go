@@ -52,3 +52,9 @@ type SystemLogsRequest struct {
 	Source string `json:"source"`
 	Limit  int    `json:"limit"`
 }
+
+// NamespaceCreateRequest 创建命名空间请求
+type NamespaceCreateRequest struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+}

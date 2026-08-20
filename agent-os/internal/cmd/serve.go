@@ -20,6 +20,7 @@ import (
 	"github.com/pi-investment/agent-os/internal/service"
 	"github.com/pi-investment/agent-os/internal/services"
 	"github.com/pi-investment/agent-os/internal/storage/postgres"
+	"github.com/pi-investment/agent-os/pkg/types"
 )
 
 var serveCmd = &cobra.Command{
@@ -124,8 +125,15 @@ var serveCmd = &cobra.Command{
 		skillService := services.NewSkillService(pool)
 		skillHandler := handlers.NewSkillHandler(skillService)
 
-		// Create Scheduler instance
-		schedulerSvc := scheduler.New(nil)
+		// Create Scheduler instance (service bindings from config.services
+		// override the built-in defaults such as quantsys-v2)
+		schedulerSvc := scheduler.New(&types.SchedulerConfig{
+			MaxConcurrentTasks: 5,
+			DefaultTimeout:     30 * time.Minute,
+			MaxRetries:         2,
+			RetryDelay:         5 * time.Second,
+			Services:           cfg.Services,
+		})
 
 		// Start Scheduler
 		if err := schedulerSvc.Start(ctx); err != nil {

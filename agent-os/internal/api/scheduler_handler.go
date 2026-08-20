@@ -72,6 +72,7 @@ func (h *SchedulerHandler) handleRegisterTask(w http.ResponseWriter, r *http.Req
 		Schedule:    req.Cron, // For backward compatibility
 		Command:     req.Command,
 		WebhookURL:  req.WebhookURL,
+		ServiceName: req.ServiceName,
 		Payload:     req.Payload,
 		Timeout:     req.Timeout,
 		RetryCount:  req.RetryCount,
@@ -152,6 +153,7 @@ func (h *SchedulerHandler) handleUpdateTask(w http.ResponseWriter, r *http.Reque
 		Description *string                 `json:"description,omitempty"`
 		Cron        *string                 `json:"cron,omitempty"`
 		WebhookURL  *string                 `json:"webhook_url,omitempty"`
+		ServiceName *string                 `json:"service_name,omitempty"`
 		Payload     *map[string]interface{} `json:"payload,omitempty"`
 		Timeout     *int                    `json:"timeout,omitempty"`
 		RetryCount  *int                    `json:"retry_count,omitempty"`
@@ -176,6 +178,9 @@ func (h *SchedulerHandler) handleUpdateTask(w http.ResponseWriter, r *http.Reque
 	}
 	if req.WebhookURL != nil {
 		existingTask.WebhookURL = *req.WebhookURL
+	}
+	if req.ServiceName != nil {
+		existingTask.ServiceName = *req.ServiceName
 	}
 	if req.Payload != nil {
 		existingTask.Payload = *req.Payload

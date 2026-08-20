@@ -15,6 +15,8 @@ type NotificationWebRepository interface {
 	GetProviders(ctx context.Context) ([]*domain.NotificationProviderWeb, error)
 	GetLogs(ctx context.Context, req domain.NotificationLogsRequest) ([]*domain.NotificationLogWeb, error)
 	SendNotification(ctx context.Context, req domain.SendNotificationRequest) error
+	CreateChannel(ctx context.Context, req domain.NotificationChannelCreateRequest) error
+	DeleteChannel(ctx context.Context, id string) error
 }
 
 type notificationWebRepository struct {
@@ -162,5 +164,48 @@ func (r *notificationWebRepository) SendNotification(ctx context.Context, req do
 		return fmt.Errorf("failed to create notification log: %w", err)
 	}
 	
+	return nil
+}
+
+// CreateChannel 创建通知渠道
+func (r *notificationWebRepository) CreateChannel(ctx context.Context, req domain.NotificationChannelCreateRequest) error {
+	// 查找 provider（默认取第一个启用的）
+	var providerID uuid.UUID
+	err := r.db.QueryRowContext(ctx,
+		"SELECT id FROM notification_providers WHERE enabled = true ORDER BY created_at LIMIT 1",
+	).Scan(&providerID)
+	if err != nil {
+		return fmt.Errorf("no enabled provider found: %w", err)
+	}
+
+	// config 为空时使用空对象，避免违反 NOT NULL 约束
+	config := req.Config
+	if len(config) == 0 {
+		config = []byte("{}")
+	}
+
+	_, err = r.db.ExecContext(ctx,
+		`INSERT INTO notification_channels (provider_id, code, name, description, enabled, config)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		providerID, req.Code, req.Name, req.Description, req.Enabled, config,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create channel: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteChannel 删除通知渠道
+func (r *notificationWebRepository) DeleteChannel(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx,
+		"DELETE FROM notification_channels WHERE id = $1", id)
+	if err != nil {
+		return fmt.Errorf("failed to delete channel: %w", err)
+	}
+	affected, _ := result.RowsAffected()
+	if affected == 0 {
+		return fmt.Errorf("channel not found: %s", id)
+	}
 	return nil
 }

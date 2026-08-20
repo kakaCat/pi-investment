@@ -111,3 +111,33 @@ func (h *EventHandler) DeleteAlertRule(w http.ResponseWriter, r *http.Request) {
 		"message": "alert rule deleted successfully",
 	})
 }
+
+// UpdateAlertRuleEnabled 更新告警规则启用状态
+func (h *EventHandler) UpdateAlertRuleEnabled(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	if id == "" {
+		respondError(w, http.StatusBadRequest, "alert rule id is required")
+		return
+	}
+
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := parseJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+
+	if err := h.repo.UpdateAlertRuleEnabled(ctx, id, req.Enabled); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to update alert rule: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "alert rule updated successfully",
+	})
+}

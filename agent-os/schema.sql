@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     description TEXT,
     schedule VARCHAR(100), -- cron expression
     command TEXT NOT NULL, -- CLI command to execute
+    service_name VARCHAR(255) NOT NULL DEFAULT '', -- bound local service (e.g. quantsys-v2); must be running before execution
     enabled BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

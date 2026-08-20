@@ -15,6 +15,8 @@ type SystemWebRepository interface {
 	GetQuotas(ctx context.Context) ([]*domain.ResourceQuota, error)
 	GetLogs(ctx context.Context, req domain.SystemLogsRequest) ([]*domain.SystemLog, error)
 	GetNamespaces(ctx context.Context) ([]*domain.Namespace, error)
+	CreateNamespace(ctx context.Context, req domain.NamespaceCreateRequest) error
+	DeleteNamespace(ctx context.Context, name string) error
 }
 
 type systemWebRepository struct {
@@ -164,4 +166,31 @@ func (r *systemWebRepository) GetNamespaces(ctx context.Context) ([]*domain.Name
 	}
 	
 	return namespaces, nil
+}
+
+// CreateNamespace 创建命名空间
+func (r *systemWebRepository) CreateNamespace(ctx context.Context, req domain.NamespaceCreateRequest) error {
+	query := `INSERT INTO namespaces (name, description, status)
+	          VALUES ($1, $2, $3)`
+	
+	_, err := r.db.ExecContext(ctx, query, req.Name, req.Description, "active")
+	if err != nil {
+		return fmt.Errorf("failed to create namespace: %w", err)
+	}
+	
+	return nil
+}
+
+// DeleteNamespace 删除命名空间
+func (r *systemWebRepository) DeleteNamespace(ctx context.Context, name string) error {
+	result, err := r.db.ExecContext(ctx,
+		"DELETE FROM namespaces WHERE name = $1", name)
+	if err != nil {
+		return fmt.Errorf("failed to delete namespace: %w", err)
+	}
+	affected, _ := result.RowsAffected()
+	if affected == 0 {
+		return fmt.Errorf("namespace not found: %s", name)
+	}
+	return nil
 }

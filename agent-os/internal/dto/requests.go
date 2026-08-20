@@ -9,6 +9,7 @@ type CreateTaskRequest struct {
 	Cron        string                 `json:"cron" validate:"omitempty,cron"`
 	Command     string                 `json:"command" validate:"max=1000"`
 	WebhookURL  string                 `json:"webhook_url" validate:"omitempty,url,max=500"`
+	ServiceName string                 `json:"service_name" validate:"omitempty,max=100"`
 	Payload     map[string]interface{} `json:"payload"`
 	Timeout     int                    `json:"timeout" validate:"min=1,max=3600"`
 	RetryCount  int                    `json:"retry_count" validate:"min=0,max=10"`
@@ -22,6 +23,7 @@ type UpdateTaskRequest struct {
 	Cron        string                 `json:"cron" validate:"omitempty,cron"`
 	Command     string                 `json:"command" validate:"max=1000"`
 	WebhookURL  string                 `json:"webhook_url" validate:"omitempty,url,max=500"`
+	ServiceName string                 `json:"service_name" validate:"omitempty,max=100"`
 	Payload     map[string]interface{} `json:"payload"`
 	Timeout     int                    `json:"timeout" validate:"omitempty,min=1,max=3600"`
 	RetryCount  int                    `json:"retry_count" validate:"omitempty,min=0,max=10"`

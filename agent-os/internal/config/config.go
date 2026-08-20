@@ -6,6 +6,7 @@ import (
 	"os/user"
 	"sync"
 
+	"github.com/pi-investment/agent-os/pkg/types"
 	"github.com/spf13/viper"
 )
 
@@ -20,6 +21,10 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"database"`
 	Log      LogConfig      `mapstructure:"log"`
 	Redis    RedisConfig    `mapstructure:"redis"`
+	// Services registers local services that scheduled tasks can bind to
+	// (task.service_name). Entries override the scheduler's built-in
+	// defaults (e.g. quantsys-v2) by name.
+	Services map[string]types.ServiceDefinition `mapstructure:"services"`
 }
 
 // ServerConfig holds server configuration

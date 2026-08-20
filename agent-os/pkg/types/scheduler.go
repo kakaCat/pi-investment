@@ -38,6 +38,7 @@ type Task struct {
 	Cron        string                 `json:"cron,omitempty"`               // Cron expression
 	Command     string                 `json:"command,omitempty"`            // Shell command (optional if webhook_url is set)
 	WebhookURL  string                 `json:"webhook_url,omitempty"`        // HTTP webhook URL
+	ServiceName string                 `json:"service_name,omitempty"`       // Bound local service (e.g. quantsys-v2); ensured running before execution
 	Payload     map[string]interface{} `json:"payload,omitempty"`            // Task payload sent to webhook
 	Timeout     int                    `json:"timeout,omitempty"`            // Timeout in seconds
 	RetryCount  int                    `json:"retry_count,omitempty"`        // Max retry count on failure
@@ -85,8 +86,28 @@ type TaskWithStats struct {
 
 // SchedulerConfig represents scheduler configuration
 type SchedulerConfig struct {
-	MaxConcurrentTasks int           `json:"max_concurrent_tasks"`
-	DefaultTimeout     time.Duration `json:"default_timeout"`
-	MaxRetries         int           `json:"max_retries"`
-	RetryDelay         time.Duration `json:"retry_delay"`
+	MaxConcurrentTasks int                          `json:"max_concurrent_tasks"`
+	DefaultTimeout     time.Duration                `json:"default_timeout"`
+	MaxRetries         int                          `json:"max_retries"`
+	RetryDelay         time.Duration                `json:"retry_delay"`
+	// Services is the registry of local services a task can bind to via
+	// Task.ServiceName. Entries override the built-in defaults by name.
+	Services           map[string]ServiceDefinition `json:"services,omitempty"`
+}
+
+// ServiceDefinition describes a local service that scheduled tasks can
+// depend on. The scheduler health-checks the service before executing a
+// bound task and starts it (via StartCommand) when it is not running.
+type ServiceDefinition struct {
+	// HealthURL is an HTTP endpoint; a 2xx response means the service is up.
+	HealthURL string `json:"health_url" mapstructure:"health_url" yaml:"health_url"`
+	// StartCommand is a shell command used to start the service when the
+	// health check fails. It is launched detached (new process group) so it
+	// survives after Agent OS returns. Empty means "never auto-start".
+	StartCommand string `json:"start_command,omitempty" mapstructure:"start_command" yaml:"start_command"`
+	// WorkDir is the working directory for StartCommand.
+	WorkDir string `json:"work_dir,omitempty" mapstructure:"work_dir" yaml:"work_dir"`
+	// StartupTimeoutSeconds bounds how long to wait for the service to
+	// become healthy after starting it (default 60).
+	StartupTimeoutSeconds int `json:"startup_timeout_seconds,omitempty" mapstructure:"startup_timeout_seconds" yaml:"startup_timeout_seconds"`
 }

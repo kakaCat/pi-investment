@@ -57,3 +57,12 @@ type SendNotificationRequest struct {
 	Title   string `json:"title"`
 	Content string `json:"content"`
 }
+
+// NotificationChannelCreateRequest 创建通知渠道请求
+type NotificationChannelCreateRequest struct {
+	Code        string          `json:"code"`
+	Name        string          `json:"name"`
+	Description *string         `json:"description,omitempty"`
+	Enabled     bool            `json:"enabled"`
+	Config      json.RawMessage `json:"config"`
+}

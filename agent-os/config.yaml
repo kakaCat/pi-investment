@@ -22,3 +22,13 @@ redis:
   port: 6379
   password: ""
   db: 0
+
+# Local services that scheduled tasks can bind to via task.service_name.
+# Before executing a bound task, Agent OS health-checks the service and
+# starts it (start_command, run in work_dir) when the health check fails.
+services:
+  quantsys-v2:
+    health_url: http://127.0.0.1:5001/health
+    start_command: "nohup python adapters/inbound/fastapi_app/main.py > /tmp/quantsys-v2.log 2>&1 &"
+    work_dir: /Users/yunpeng/pi-investment/quantsys-v2
+    startup_timeout_seconds: 90

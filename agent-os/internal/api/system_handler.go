@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gorilla/mux"
 	"github.com/pi-investment/agent-os/internal/domain"
 	"github.com/pi-investment/agent-os/internal/repository"
 )
@@ -86,5 +87,53 @@ func (h *SystemHandler) GetNamespaces(w http.ResponseWriter, r *http.Request) {
 	
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"namespaces": namespaces,
+	})
+}
+
+// CreateNamespace 创建命名空间
+func (h *SystemHandler) CreateNamespace(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req domain.NamespaceCreateRequest
+	if err := parseJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+
+	if req.Name == "" {
+		respondError(w, http.StatusBadRequest, "namespace name is required")
+		return
+	}
+
+	if err := h.repo.CreateNamespace(ctx, req); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to create namespace: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "namespace created successfully",
+	})
+}
+
+// DeleteNamespace 删除命名空间
+func (h *SystemHandler) DeleteNamespace(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	if name == "" {
+		respondError(w, http.StatusBadRequest, "namespace name is required")
+		return
+	}
+
+	if err := h.repo.DeleteNamespace(ctx, name); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to delete namespace: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "namespace deleted successfully",
 	})
 }
