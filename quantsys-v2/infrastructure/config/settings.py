@@ -125,6 +125,13 @@ class AppSettings(BaseSettings):
     quantsys_api_host: str = Field(default="127.0.0.1", description="QuantSys API server host")
     quantsys_api_port: int = Field(default=5001, description="QuantSys API server port")
     quantsys_ws_port: int = Field(default=5003, description="QuantSys WebSocket server port")
+    
+    # 安全配置
+    jwt_secret_key: Optional[str] = Field(default=None, description="JWT secret key for token signing")
+    
+    # 监控配置
+    sentry_dsn: Optional[str] = Field(default=None, description="Sentry DSN for error tracking")
+    environment: str = Field(default="development", description="Deployment environment (development/production)")
 
 
 class Config(BaseSettings):

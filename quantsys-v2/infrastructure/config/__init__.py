@@ -30,13 +30,18 @@ API_RETRY_TIMES = 3
 
 # Redis 配置
 def get_redis_config():
-    """获取 Redis 配置"""
-    import os
+    """获取 Redis 配置（向后兼容旧接口）
+    
+    Returns:
+        dict: Redis 连接配置
+    """
+    from infrastructure.config.settings import get_config
+    config = get_config()
     return {
-        'host': os.getenv('REDIS_HOST', 'localhost'),
-        'port': int(os.getenv('REDIS_PORT', 6379)),
-        'db': int(os.getenv('REDIS_DB', 0)),
-        'password': os.getenv('REDIS_PASSWORD'),
+        'host': config.redis.host,
+        'port': config.redis.port,
+        'db': config.redis.db,
+        'password': config.redis.password,
     }
 
 __all__ = [

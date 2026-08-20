@@ -39,10 +39,12 @@ def init_rate_limiter(app: Flask) -> Limiter:
     """
     global _limiter
 
-    # 从环境变量读取 Redis 配置
-    redis_host = os.environ.get("REDIS_HOST", "127.0.0.1")
-    redis_port = int(os.environ.get("REDIS_PORT", "6379"))
-    redis_password = os.environ.get("REDIS_PASSWORD", "")
+    # 从配置读取 Redis 配置
+    from infrastructure.config import get_config
+    config = get_config()
+    redis_host = config.redis.host
+    redis_port = config.redis.port
+    redis_password = config.redis.password
 
     # 构建 Redis URI
     if redis_password:

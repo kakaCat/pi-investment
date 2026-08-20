@@ -3,13 +3,13 @@ JWT 认证管理器
 
 提供 JWT Token 生成、验证、刷新功能
 """
-import os
 import jwt
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from functools import wraps
 from flask import request, jsonify
+from infrastructure.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +38,13 @@ class JWTManager:
         """初始化 JWT 管理器
 
         Args:
-            secret_key: JWT 签名密钥（从环境变量 JWT_SECRET_KEY 读取）
+            secret_key: JWT 签名密钥（从配置读取）
             algorithm: 加密算法，默认 HS256
             access_token_expires: Access Token 过期时间（秒），默认 1 小时
             refresh_token_expires: Refresh Token 过期时间（秒），默认 7 天
         """
-        self.secret_key = secret_key or os.environ.get("JWT_SECRET_KEY")
+        config = get_config()
+        self.secret_key = secret_key or config.app.jwt_secret_key
 
         if not self.secret_key:
             logger.warning(
