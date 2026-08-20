@@ -193,9 +193,12 @@ export default class LifecyclePlugin extends Service {
             join(this.cfg.profileDir, 'start.sh'), logPath,
           ], { detached: true, stdio: 'ignore', cwd: this.cfg.agentDhRoot });
           child.unref();
+          // 注意：checkpoint_branch 无代码改动时为 null，但输出 schema 要求 string——
+          // 直接返回 null 会让调用方收到 "must be a string" 错误，而重启器已经 spawn，
+          // 造成"看似失败实则已重启"的循环中断（2026-08-20 两次实发）。归一化为空字符串。
           return {
             success: true,
-            checkpoint_branch: branch,
+            checkpoint_branch: branch ?? '',
             checkpoint_files: wip?.files ?? [],
             attempt,
             origin_agent_id: originAgentId,
