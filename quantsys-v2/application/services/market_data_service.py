@@ -115,18 +115,31 @@ class MarketDataService:
         try:
             import akshare as ak
             import os
+            from contextlib import contextmanager
+
+            @contextmanager
+            def _disable_proxies():
+                """临时禁用代理的上下文管理器（akshare 对代理支持不好）"""
+                proxy_keys = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']
+                original_proxies = {k: os.environ.get(k) for k in proxy_keys}
+                
+                try:
+                    # 临时删除所有代理环境变量
+                    for key in proxy_keys:
+                        if key in os.environ:
+                            del os.environ[key]
+                    yield
+                finally:
+                    # 恢复原始代理设置
+                    for key, value in original_proxies.items():
+                        if value is not None:
+                            os.environ[key] = value
+                        elif key in os.environ:
+                            del os.environ[key]
 
             self.logger.info(f"获取行业资金流向排行（第三方 API）: period={period}, limit={limit}")
 
-            # 禁用代理（避免网络问题）
-            old_http_proxy = os.environ.get('HTTP_PROXY')
-            old_https_proxy = os.environ.get('HTTPS_PROXY')
-            if old_http_proxy:
-                del os.environ['HTTP_PROXY']
-            if old_https_proxy:
-                del os.environ['HTTPS_PROXY']
-
-            try:
+            with _disable_proxies():
                 # 映射周期参数
                 indicator_map = {
                     "即时": "今日",
@@ -183,13 +196,6 @@ class MarketDataService:
                         'source': 'eastmoney_api'
                     }
                 }
-
-            finally:
-                # 恢复代理设置
-                if old_http_proxy:
-                    os.environ['HTTP_PROXY'] = old_http_proxy
-                if old_https_proxy:
-                    os.environ['HTTPS_PROXY'] = old_https_proxy
 
         except ImportError:
             return {

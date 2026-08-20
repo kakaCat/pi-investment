@@ -1625,14 +1625,14 @@ class StrategyCodeService:
         """
         import os
 
+        def _disable_proxies_permanently():
+            """永久禁用代理（akshare 国内接口不需要代理）"""
+            for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
+                os.environ.pop(key, None)
+
         try:
             import akshare as ak
-
-            # 禁用代理（akshare 国内接口不需要代理）
-            os.environ.pop('HTTP_PROXY', None)
-            os.environ.pop('HTTPS_PROXY', None)
-            os.environ.pop('http_proxy', None)
-            os.environ.pop('https_proxy', None)
+            _disable_proxies_permanently()
 
             # 转换为新浪格式（去掉市场后缀）
             clean_symbol = symbol.strip()
@@ -1687,14 +1687,14 @@ class StrategyCodeService:
         """
         import os
 
+        def _disable_proxies_permanently():
+            """永久禁用代理（akshare 国内接口不需要代理）"""
+            for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
+                os.environ.pop(key, None)
+
         try:
             import akshare as ak
-
-            # 禁用代理
-            os.environ.pop('HTTP_PROXY', None)
-            os.environ.pop('HTTPS_PROXY', None)
-            os.environ.pop('http_proxy', None)
-            os.environ.pop('https_proxy', None)
+            _disable_proxies_permanently()
 
             # 转换为东方财富格式
             clean_symbol = symbol.strip()
