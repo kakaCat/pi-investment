@@ -584,6 +584,9 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
     try:
         from infrastructure.services.service_factory import get_data_service
         from domain.quantlib.stages.factor_stage import FactorStage
+        from adapters.shared.fund_flow_helpers import (
+            _inject_fund_flow_to_klines, _extract_fund_flow_factors,
+        )
 
         ds = get_data_service()
 
@@ -599,7 +602,8 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
         if requested == ['all']:
             requested = None  # None = FactorStage 默认全量技术因子
 
-        lookback_days = params.get('lookback_days', 250)
+        # R1修复：增加lookback到300天（原250），为momentum_6m(140天)和momentum_52w_high(250天)留出缓冲
+        lookback_days = params.get('lookback_days', 300)
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
 
@@ -613,6 +617,9 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
                     continue
 
                 klines = klines_df.to_dicts()
+                # R0修复：注入资金流数据（与 /api/compute/factors 同款逻辑）
+                klines = _inject_fund_flow_to_klines(klines, sym)
+                
                 stage = FactorStage(name='factors', factor_names=requested)
                 stage_input = {'symbol': sym, 'klines': klines}
                 if requested:
@@ -620,6 +627,17 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
                 result = stage.process(stage_input)
                 factors = result.get('factors', {})
+                
+                # R1修复：记录被过滤的因子（None值），帮助排查momentum_6m等缺失问题
+                all_requested = requested or stage.DEFAULT_TECHNICAL_FACTORS
+                computed_names = set(factors.keys())
+                missing = set(all_requested) - computed_names
+                if missing and len(klines) < 250:
+                    logger.warning(f"{sym}: {len(missing)} factors dropped (insufficient data {len(klines)}<250): {sorted(missing)}")
+                
+                # R0修复：提取资金流因子并合并
+                fund_factors = _extract_fund_flow_factors(klines)
+                factors.update(fund_factors)
 
                 last_row = klines[-1]
                 latest_date = last_row.get('trade_date') or last_row.get('date') or ''
