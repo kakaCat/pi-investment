@@ -188,6 +188,15 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"⚠️ Orchestrator stop failed: {e}")
 
+    # 关闭线程池（优雅关闭，等待任务完成）
+    try:
+        from infrastructure.threading.thread_pool import shutdown_all_pools
+        logger.info("Shutting down thread pools...")
+        shutdown_all_pools(wait=True, timeout=30)
+        logger.info("✅ All thread pools shut down")
+    except Exception as e:
+        logger.warning(f"⚠️ Thread pool shutdown failed: {e}")
+
     try:
         from infrastructure.persistence.database.engine import close_engine
         close_engine()
