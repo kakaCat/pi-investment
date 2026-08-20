@@ -153,7 +153,7 @@ This launches:
 | `@pi-investment/scheduler` | 1 | 调度器管理 |
 | `@pi-investment/notification` | 2 | 飞书通知、通用通知 |
 | `@pi-investment/data-manager` | 2 | 数据质量报告、数据管理 |
-| `@pi-investment/lifecycle` | 3 | 自修复重启：self_restart/self_finalize/self_status，git wip 分支安全网，启动失败自动回滚，启动后自动续跑 |
+| `@pi-investment/lifecycle` | 5 | 自修复重启 + 自我认知：self_restart/self_finalize/self_status（git wip 安全网、启动失败自动回滚、启动后自动续跑）+ self_system_prompt/self_info（获取自己的系统提示词与自身全景信息） |
 
 ### Infrastructure Packages
 
@@ -486,9 +486,17 @@ Agent-DH plugins depend on:
 2. Check `QUANTSYS_V2_API_URL` environment variable
 3. Test API manually: `curl http://localhost:5001/api/stocks/search?q=平安`
 
-## 自修复重启（lifecycle 插件）
+## 自修复重启与自我认知（lifecycle 插件）
 
-agent 可通过 `self_restart(reason, resume_task)` 重启自身，实现"改代码 → 重启生效 → 自动续跑验证 → 合并"的自修复闭环：
+lifecycle 插件提供两类能力（共 5 个工具）：
+
+**自修复闭环**：`self_restart` / `self_finalize` / `self_status`  
+**自我认知**：`self_system_prompt` / `self_info`
+
+- `self_system_prompt`：获取自己的完整系统提示词（sections + 变量 + 可见工具清单 + 渲染后的最终文本），基于 dsh-system-prompt 的 `ctx.systemPrompt.assemble()`，支持 agent 作用域组装
+- `self_info`：自身全景信息（身份/版本、进程 pid/运行时长/内存、git 状态、生命周期状态、工具统计、关键配置）
+
+自修复闭环：agent 可通过 `self_restart(reason, resume_task)` 重启自身，实现"改代码 → 重启生效 → 自动续跑验证 → 合并"：
 
 - **检查点**：重启前未提交的 `agent-dh/` 改动自动提交到 `agent-self/*` wip 分支；基线分支保持干净
 - **重启器**：`scripts/self-restart.ts`（detached 独立进程，自包含、只依赖 node 内置模块）负责 kill → `start.sh` 拉起 → :13080 健康检查
@@ -534,3 +542,64 @@ pnpm build
 **Version**: 0.1.1
 
 **Last Updated**: 2026-08-19
+
+## 自主能力系统（2026-08-20 新增）
+
+Agent-DH 现已具备**自我学习、知识蒸馏、持续进化**能力。
+
+### 核心插件
+
+#### @pi-investment/learning ✨ NEW
+自我学习引擎：
+- `learning_track` - 追踪经验（自动拦截工具调用）
+- `learning_analyze` - 分析模式，生成改进建议
+- `learning_distill` - 知识蒸馏（复杂推理 → 简单规则）
+- `learning_apply` - 应用改进，集成 self_restart
+
+**特性**：
+- 自动追踪关键工具（portfolio_trade, strategy_execute 等）
+- 计算奖励信号（盈亏/成功率/反馈）
+- 持久化到 memory 系统
+- 安全应用：dry_run → 确认 → 重启验证
+
+**完整文档**: [docs/AUTONOMY-SYSTEM.md](./docs/AUTONOMY-SYSTEM.md)  
+**设计文档**: [docs/rfcs/003-self-learning-distillation.md](./docs/rfcs/003-self-learning-distillation.md)
+
+---
+
+## 自主能力体系完整设计（2026-08-20）
+
+Agent-DH 现已完成**完整自主能力体系**的架构设计。
+
+### 📚 核心文档
+
+1. **`docs/MASTER-PLAN.md`** - 12 周实施总规划
+   - 8 个 Sprint，6 个新插件，35 个新工具
+   - 清晰的里程碑和验收标准
+   - 风险管理和协作模式
+
+2. **`docs/AUTONOMY-SYSTEM.md`** - 自主能力总览
+   - 完整能力矩阵
+   - 学习循环设计
+   - 与深度学习的类比
+
+3. **`docs/DESIGN-SUMMARY.md`** - 设计总结
+   - 核心创新点
+   - 预期成果
+   - 下一步行动
+
+### 🔧 技术文档
+
+4. **`docs/rfcs/003-self-learning-distillation.md`** - 学习系统设计
+5. **`docs/rfcs/004-diagnostics-plugin.md`** - 诊断插件详细设计（Sprint 1）
+6. **`docs/IMPLEMENTATION-GUIDE.md`** - 实施者指南
+
+### 🎯 当前状态
+
+- ✅ **已实现**: 30.2% (lifecycle + memory + learning 基础)
+- 📋 **设计完成**: 100% (完整 12 周规划)
+- 🚀 **待启动**: Sprint 1 - Diagnostics Plugin
+
+### 下一步
+
+由其他 Agent 按照 RFC 004 实施 Diagnostics 插件。

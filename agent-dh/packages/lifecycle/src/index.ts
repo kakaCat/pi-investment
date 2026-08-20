@@ -3,8 +3,11 @@ import { join } from 'node:path';
 import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
+import { readFileSync } from 'node:fs';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import type { Agent } from '@deepseek-ai/dsh-agent';
+import { assembleContextFor } from '@deepseek-ai/dsh-agent';
+import { renderPrompt } from '@deepseek-ai/dsh-system-prompt';
 import { GitRepo } from './git.js';
 import { PendingResume, RestartResult, StateStore } from './state.js';
 
@@ -41,7 +44,7 @@ ${stopHint}`;
 }
 
 export default class LifecyclePlugin extends Service {
-  static inject = ['tools', 'agents'];
+  static inject = ['tools', 'agents', 'systemPrompt'];
   static Config = z.object({
     repoRoot: z.string(),
     agentDhRoot: z.string(),
@@ -269,6 +272,163 @@ export default class LifecyclePlugin extends Service {
           max_restarts_per_hour: this.cfg.maxRestartsPerHour,
           last_known_good: this.state.readLastKnownGood(),
         } as any;
+      },
+    } as any));
+
+    // ===== 自我认知工具（self-awareness）=====
+
+    ctx.tools.register(defineTool({
+      name: 'self_system_prompt',
+      description: '获取自己的完整系统提示词：所有 section（含名称、order、内容）、注入变量、可见工具清单。适用于：①自我认知——确认自己的身份、行为准则、约束条件；②审计——检查 prompt 是否符合预期；③调试——理解模型行为偏差的来源。返回的 rendered_prompt 是变量插值后的最终文本，即模型实际看到的提示词。',
+      parameters: {
+        include_rendered: {
+          type: 'boolean',
+          description: '是否包含渲染后的完整提示词文本（可能较长），默认 true',
+          default: true,
+        },
+        include_variables: {
+          type: 'boolean',
+          description: '是否包含注入变量的值，默认 true',
+          default: true,
+        },
+        section_name: {
+          type: 'string',
+          description: '只看某个 section（按名称精确匹配），不传则返回全部',
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            sections: { type: 'array', description: '提示词分节列表' },
+            tool_names: { type: 'array', description: '可见工具名称列表' },
+            tool_count: { type: 'integer', description: '可见工具总数' },
+            variables: { type: 'object', description: '注入变量值', additionalProperties: true },
+            rendered_prompt: { type: 'string', description: '渲染后的完整提示词' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 10000,
+      execute: async (args: any, exec?: any) => {
+        // 优先按发起 agent 的作用域组装（包含 agent 级 shadow section）；
+        // 无法识别 agent 时退化为全局组装。
+        let assembleContext: any = undefined;
+        const agent: Agent | undefined = exec?.agent;
+        if (agent) {
+          try {
+            assembleContext = assembleContextFor(agent);
+          } catch { /* scope 组装失败则走全局 */ }
+        }
+        const assembly: any = await (this.ctx as any).systemPrompt.assemble(assembleContext);
+        const sections = (assembly.sections ?? []).map((s: any) => ({
+          name: s.name,
+          order: s.order,
+          complete: s.complete ?? false,
+          text: s.text,
+        }));
+        const filtered = args.section_name
+          ? sections.filter((s: any) => s.name === args.section_name)
+          : sections;
+        const result: any = {
+          scope: agent ? String(agent.id) : 'global',
+          sections: filtered,
+          section_count: filtered.length,
+          tool_names: (assembly.tools ?? []).map((t: any) => t.name).sort(),
+          tool_count: (assembly.tools ?? []).length,
+        };
+        if (args.section_name && filtered.length === 0) {
+          result.message = `未找到名为 "${args.section_name}" 的 section，可用名称：${sections.map((s: any) => s.name).join(', ')}`;
+        }
+        if (args.include_variables !== false) {
+          result.variables = assembly.variables ?? {};
+        }
+        if (args.include_rendered !== false) {
+          result.rendered_prompt = renderPrompt(assembly);
+          result.rendered_chars = result.rendered_prompt.length;
+        }
+        return result as any;
+      },
+    } as any));
+
+    ctx.tools.register(defineTool({
+      name: 'self_info',
+      description: '获取自身完整信息快照：身份（profile/版本）、进程状态（pid/运行时长/内存）、git 状态、生命周期状态（重启计数/pending 任务）、工具清单统计、关键配置。适用于：①自我认知的起点——回答"我是谁、我在什么状态"；②诊断问题前确认运行环境；③自我学习时的上下文快照。比 self_status 更全面：self_status 聚焦生命周期/git，self_info 包含进程、工具、配置全景。',
+      parameters: {
+        include_tool_names: {
+          type: 'boolean',
+          description: '是否列出全部工具名称（可能较长），默认 false 只返回数量',
+          default: false,
+        },
+      },
+      output: {
+        schema: { type: 'object', additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 10000,
+      execute: async (args: any) => {
+        const now = Date.now();
+        const mem = process.memoryUsage();
+
+        // 读取自身 package.json 获取版本
+        let pkgInfo: any = { name: '@pi-investment/lifecycle', version: 'unknown' };
+        try {
+          pkgInfo = JSON.parse(readFileSync(join(this.cfg.agentDhRoot, 'packages/lifecycle/package.json'), 'utf-8'));
+        } catch { /* 读取失败用默认值 */ }
+
+        // 通过 prompt 组装拿到当前可见工具清单
+        let toolNames: string[] = [];
+        try {
+          const assembly: any = await (this.ctx as any).systemPrompt.assemble();
+          toolNames = (assembly.tools ?? []).map((t: any) => t.name).sort();
+        } catch { /* 组装失败则工具清单留空 */ }
+
+        const result: any = {
+          identity: {
+            name: 'Agent-DH',
+            profile: 'investment',
+            lifecycle_plugin_version: pkgInfo.version,
+            agent_id: this.cfg.agentId,
+          },
+          process: {
+            pid: process.pid,
+            node_version: process.version,
+            uptime_seconds: Math.round(process.uptime()),
+            uptime_human: `${Math.floor(process.uptime() / 3600)}h ${Math.floor((process.uptime() % 3600) / 60)}m`,
+            memory_mb: {
+              rss: Math.round(mem.rss / 1024 / 1024),
+              heap_used: Math.round(mem.heapUsed / 1024 / 1024),
+              heap_total: Math.round(mem.heapTotal / 1024 / 1024),
+            },
+            cwd: process.cwd(),
+          },
+          git: {
+            branch: this.repo.currentBranch(),
+            head: this.repo.head(),
+            has_uncommitted_changes: this.repo.hasChanges(['agent-dh/']),
+            last_known_good: this.state.readLastKnownGood(),
+          },
+          lifecycle: {
+            pending: this.state.readPending(),
+            pending_done: this.state.readPendingDone(),
+            last_restart_result: this.state.readRestartResult(),
+            restarts_this_hour: this.state.checkRateLimit(this.cfg.maxRestartsPerHour, now).count,
+            max_restarts_per_hour: this.cfg.maxRestartsPerHour,
+          },
+          tools: {
+            visible_count: toolNames.length,
+            ...(args.include_tool_names ? { names: toolNames } : {}),
+          },
+          config: {
+            port: this.cfg.port,
+            repo_root: this.cfg.repoRoot,
+            agent_dh_root: this.cfg.agentDhRoot,
+            profile_dir: this.cfg.profileDir,
+          },
+          timestamp: new Date(now).toISOString(),
+        };
+        return result as any;
       },
     } as any));
   }
