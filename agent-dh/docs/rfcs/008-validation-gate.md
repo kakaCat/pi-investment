@@ -2,7 +2,7 @@
 
 | 字段 | 值 |
 |---|---|
-| 状态 | 🟡 设计待评审 |
+| 状态 | ✅ 已实施并 E2E 验收通过（2026-08-20 晚） |
 | 创建 | 2026-08-20 |
 | 上游 | [RFC 005 §4.6](005-self-evolving-agent.md)（验证门原则）、[RFC 007](007-genome-manager.md)（genome_update 唯一写入口）、P0-3（打标）、P1（盘后调度已上线） |
 | 定位 | 自动进化的**安全闸**：任何基因组新版本（提示词/规则/参数）必须过门才能正式启用 |
@@ -135,3 +135,38 @@ prompt_evolver（dry_run=false 前必须先过门！）
 另：本 RFC 回测门应直接引用 docs/rfcs/006 的 V1 回测有效性规范（最小窗口/最小样本/成本模型），保证全系统只有一把尺子。
 
 **下一步**：评审通过后按 §6 实施（预计 3-4 天）。实施后 daily_distill 的 auto_apply 才能安全打开，自动进化闭环正式完整。
+
+---
+
+## 8. 实施记录与验收结论（2026-08-20 补记）
+
+### E2E 验收证据（全链路实证）
+
+- `prompt_evolver dry_run=false` → lessons 以 **stage=candidate** 应用（g8 / lessons v2），登记 `candidates.json`（observe_until +5 天）
+- `candidate_status` 正确显示 watching（days_left=5）
+- `validation_gate(judge, force=true)` 裁决 → **promoted**（candidate vs 基准奖励对比）
+- `genome_promote` 转正留谱系（history type=promote），随后清理更新 g9
+- git 留痕完整：`genome(g8): update lessons v1→v2` → `genome(g8): promote lessons v2 candidate→active` → `genome(g9): 清理`
+
+### 与设计的实施偏差（有意为之）
+
+| 设计 | 实施 | 理由 |
+|---|---|---|
+| genome_update stage 默认 candidate | 默认 **active**，自动进化路径（prompt_evolver）显式传 candidate | 人工故意变更（修 bug、补规则）不应被迫走观察期；风险路径是自动化路径，显式标注更安全 |
+| 回测门（三区间回测） | **未启用**，挂起 | 基因组尚无策略参数段，rules 不是可执行策略；待策略参数纳入基因组后启用 |
+| candidate 期仓位收紧 50% | **未实现** | 需 risk_controller 改造，列入后续 |
+| 跨工具调用 | 修复为正规入口 `ctx.tools.execute({name, arguments, signal})`（走完整 pre/post-execute 流水线） | 原实现的 `ctx.tools.list()` 在 ToolRuntime 上不存在，生产必崩（冒烟 stub 掩盖了它） |
+| 裁决数据取样 | 按 `payload.genome_context.genome_version` **精确过滤** | BM25 文本检索 `genome:gN` 会串版本（g7/g8 互命中），不过滤则裁决对比失真 |
+
+### 裁决器参数（当前值）
+
+- 观察期默认 5 天（`observeDays` 可配，patch.yml）
+- 最小样本数 3（不足延期 2 天）
+- 恶化阈值：candidate 平均奖励低于基准 > 0.1 → 回滚
+- `force=true` 跳过时间与样本门槛（验收/人工裁决用）
+
+### 当前局限（诚实记录）
+
+1. 奖励信号粗糙：portfolio_trade 的 reward 是固定 0.5 占位，未接真实盈亏；裁决的可信度随 reward 计算真实化而提升
+2. 时间切片对比受行情差异影响，未做 regime 对齐
+3. 规则级（rules 段单条 R-ID）验证门未做——当前粒度是"段版本"级
