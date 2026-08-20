@@ -533,6 +533,209 @@ export default class LearningPlugin extends Service {
         } as any;
       },
     } as any));
+
+    // P1-1: experience_distill - 经验蒸馏，生成改进建议
+    this.ctx.tools.register(defineTool({
+      name: 'experience_distill',
+      description: 'P1-1 经验蒸馏：按 genome_version 分组统计规则表现，识别高低奖励模式，生成改进建议（新增规则/修改原则）。用于：盘后复盘、每日蒸馏、手动分析决策质量。',
+      parameters: {
+        days: {
+          type: 'number',
+          description: '分析最近 N 天经验（默认 7）',
+          default: 7,
+        },
+        genome_version: {
+          type: 'string',
+          description: '指定基因组版本（不传=最新版本）',
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            genome_version: { type: 'string' },
+            period: {
+              type: 'object',
+              properties: {
+                from: { type: 'string' },
+                to: { type: 'string' },
+              },
+              additionalProperties: false,
+            },
+            stats: {
+              type: 'object',
+              properties: {
+                total_experiences: { type: 'number' },
+                avg_reward: { type: 'number' },
+                success_rate: { type: 'number' },
+              },
+              additionalProperties: false,
+            },
+            high_reward_patterns: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  pattern: { type: 'string' },
+                  avg_reward: { type: 'number' },
+                  count: { type: 'number' },
+                },
+                additionalProperties: false,
+              },
+            },
+            low_reward_patterns: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  pattern: { type: 'string' },
+                  avg_reward: { type: 'number' },
+                  count: { type: 'number' },
+                },
+                additionalProperties: false,
+              },
+            },
+            suggestions: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  type: { type: 'string' },
+                  section: { type: 'string' },
+                  content: { type: 'string' },
+                  reason: { type: 'string' },
+                },
+                additionalProperties: false,
+              },
+            },
+          },
+          additionalProperties: false,
+        },
+        render: (_args: any, value: any) => [
+          { type: 'text', text: JSON.stringify(value, null, 2) },
+        ],
+      },
+      timeoutMs: 30000,
+      execute: async (args: any) => {
+        const { days, genome_version } = args;
+        
+        // 1. 确定目标版本
+        let targetVersion = genome_version;
+        if (!targetVersion) {
+          // @ts-ignore
+          const genome = this.ctx.genome;
+          if (genome?.genomeData) {
+            targetVersion = genome.genomeData.genome_version;
+          } else {
+            targetVersion = 'g1';  // fallback
+          }
+        }
+
+        // 2. 时间范围
+        const endDate = new Date();
+        const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
+
+        // 3. 从 memory 召回经验（简化：从内存缓冲区读取）
+        const experiences = this.experienceBuffer.filter((e: ExperienceEntry) => {
+          const ts = new Date(e.timestamp);
+          return ts >= startDate && ts <= endDate &&
+                 e.genome_context?.genome_version === targetVersion;
+        });
+
+        if (experiences.length === 0) {
+          return {
+            genome_version: targetVersion,
+            period: { from: startDate.toISOString(), to: endDate.toISOString() },
+            stats: { total_experiences: 0, avg_reward: 0, success_rate: 0 },
+            high_reward_patterns: [],
+            low_reward_patterns: [],
+            suggestions: [{
+              type: 'info',
+              section: '',
+              content: '',
+              reason: '无数据：过去 ' + days + ' 天没有经验记录',
+            }],
+          } as any;
+        }
+
+        // 4. 统计
+        const totalReward = experiences.reduce((sum, e) => sum + e.reward, 0);
+        const successCount = experiences.filter(e => e.outcome.success).length;
+
+        // 5. 模式识别（简化：按工具分组）
+        const toolGroups = new Map<string, ExperienceEntry[]>();
+        experiences.forEach(e => {
+          const tool = e.action.tool || 'unknown';
+          if (!toolGroups.has(tool)) toolGroups.set(tool, []);
+          toolGroups.get(tool)!.push(e);
+        });
+
+        const highRewardPatterns = [];
+        const lowRewardPatterns = [];
+
+        for (const [tool, entries] of toolGroups) {
+          const avgReward = entries.reduce((sum, e) => sum + e.reward, 0) / entries.length;
+          const pattern = {
+            pattern: `${tool} 调用`,
+            avg_reward: Math.round(avgReward * 100) / 100,
+            count: entries.length,
+          };
+
+          if (avgReward > 0.5) {
+            highRewardPatterns.push(pattern);
+          } else if (avgReward < 0) {
+            lowRewardPatterns.push(pattern);
+          }
+        }
+
+        // 6. 生成建议（模板化，简化版）
+        const suggestions = [];
+        if (lowRewardPatterns.length > 0) {
+          const worst = lowRewardPatterns[0];
+          suggestions.push({
+            type: 'add_rule',
+            section: 'rules',
+            content: `R-XXX: 针对 ${worst.pattern} 低奖励（${worst.avg_reward}），考虑增加前置校验规则`,
+            reason: `过去 ${days} 天该操作平均奖励 ${worst.avg_reward}，需要改进`,
+          });
+        }
+
+        if (highRewardPatterns.length > 0) {
+          const best = highRewardPatterns[0];
+          suggestions.push({
+            type: 'modify_principle',
+            section: 'principles',
+            content: `强化 ${best.pattern} 相关原则（当前平均奖励 ${best.avg_reward}）`,
+            reason: `高奖励模式，应纳入核心原则`,
+          });
+        }
+
+        if (suggestions.length === 0) {
+          suggestions.push({
+            type: 'info',
+            section: '',
+            content: '',
+            reason: '数据量不足或表现平稳，暂无改进建议',
+          });
+        }
+
+        return {
+          genome_version: targetVersion,
+          period: {
+            from: startDate.toISOString(),
+            to: endDate.toISOString(),
+          },
+          stats: {
+            total_experiences: experiences.length,
+            avg_reward: Math.round((totalReward / experiences.length) * 100) / 100,
+            success_rate: Math.round((successCount / experiences.length) * 100) / 100,
+          },
+          high_reward_patterns: highRewardPatterns,
+          low_reward_patterns: lowRewardPatterns,
+          suggestions,
+        } as any;
+      },
+    } as any));
   }
 
   // ===== 辅助方法 =====
