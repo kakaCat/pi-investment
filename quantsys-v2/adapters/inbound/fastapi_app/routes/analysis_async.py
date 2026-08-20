@@ -226,10 +226,21 @@ def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
         # 兼容 kline 返回类型（polars DataFrame / dict / None）
         current_price = None
         if kline is not None:
-            if hasattr(kline, 'get'):
-                current_price = kline.get('close')
+            close_val = None
+            if hasattr(kline, 'get') and not hasattr(kline, 'columns'):
+                close_val = kline.get('close')
             elif hasattr(kline, '__getitem__'):
-                current_price = kline['close']
+                try:
+                    close_val = kline['close']
+                except Exception:
+                    close_val = None
+            # polars/pandas Series → 取最后一个标量，避免响应序列化失败
+            if close_val is not None and hasattr(close_val, 'to_list'):
+                close_list = close_val.to_list()
+                close_val = close_list[-1] if close_list else None
+            elif close_val is not None and hasattr(close_val, 'iloc'):
+                close_val = close_val.iloc[-1] if len(close_val) else None
+            current_price = close_val
 
         return sanitize_for_json({
             'symbol': symbol,

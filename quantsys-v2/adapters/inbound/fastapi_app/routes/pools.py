@@ -58,7 +58,7 @@ async def create_pool(request: CreatePoolRequest):
     """
     try:
         # TODO: 接入实际 Service
-        # from adapters.inbound.api.shared import stock_pool_service
+        # from adapters.shared.services import stock_pool_service
         # pool = stock_pool_service.create_pool(...)
 
         return {

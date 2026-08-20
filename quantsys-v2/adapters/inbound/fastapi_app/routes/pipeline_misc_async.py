@@ -10,7 +10,6 @@
 pipeline.py 的实现（同一实现，保证行为一致）。
 """
 import json
-import threading
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -65,12 +64,12 @@ def cli_calibrate(payload: Optional[Dict[str, Any]] = Body(None)):
     runs = _load_pipeline_runs()
     runs.append(run_record)
     _save_pipeline_runs(runs)
-    threading.Thread(target=_execute_calibration, args=(run_id,), kwargs={
-        'forward_days': params.get('forward_days', 5),
-        'return_threshold': params.get('return_threshold', 0.02),
-        'max_symbols': params.get('max_symbols', 500),
-        'lookback_days': params.get('lookback_days', 180),
-    }, daemon=True).start()
+    from infrastructure.concurrency.thread_manager import submit_background
+    submit_background("api-bg", _execute_calibration, run_id,
+        forward_days=params.get('forward_days', 5),
+        return_threshold=params.get('return_threshold', 0.02),
+        max_symbols=params.get('max_symbols', 500),
+        lookback_days=params.get('lookback_days', 180))
     return error_response(
         api_response({'success': True, 'run_id': run_id, 'status': 'running',
                       'message': f'置信度校准已触发，run_id={run_id}'}), 202)
@@ -267,12 +266,9 @@ def cli_signal_generate(request: Request, payload: Optional[Dict[str, Any]] = Bo
         runs.append(run_record)
         _save_pipeline_runs(runs)
 
-        # 启动后台线程
-        threading.Thread(
-            target=_execute_signal_generate_v2,
-            args=(run_id, strategy_id_int, symbols),
-            daemon=True
-        ).start()
+        # 启动后台任务（统一线程池，Phase 4）
+        from infrastructure.concurrency.thread_manager import submit_background
+        submit_background("api-bg", _execute_signal_generate_v2, run_id, strategy_id_int, symbols)
 
         return error_response({
             'success': True,

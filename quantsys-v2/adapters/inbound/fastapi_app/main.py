@@ -116,6 +116,31 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"❌ SchedulerService startup failed: {e}")
 
+
+    # WP-Registry: Agent OS Registry Integration (2024-08-19)
+    # 注册 quantsys-v2 到 Agent OS 注册中心，维持心跳
+    if 'pytest' not in _sys.modules:
+        use_agent_os_registry = os.getenv("USE_AGENT_OS_REGISTRY", "true").lower() == "true"
+        
+        if use_agent_os_registry:
+            try:
+                logger.info("🔄 Registering to Agent OS Registry...")
+                from application.services.registry_client import get_registry_client
+                
+                registry_client = get_registry_client()
+                success = await registry_client.register()
+                
+                if success:
+                    # 启动心跳循环
+                    await registry_client.start_heartbeat_loop(interval=30)
+                    app.state.registry_client = registry_client
+                    logger.info("✅ Agent OS Registry integration enabled (heartbeat: 30s)")
+                else:
+                    logger.warning("⚠️ Registry registration failed, continuing without registry")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to register with Agent OS Registry: {e}")
+                logger.info("Continuing without registry integration...")
+
     # 启动 WatchEngine 实时盯盘线程（2026-08-12 起唯一宿主，原 scheduler_daemon
     # 已下线该职责；pytest 下不启动，避免测试进程拉起盯盘循环）。
     # 引擎句柄挂到 app.state，lifespan 关闭时优雅停止。
@@ -147,6 +172,15 @@ async def lifespan(app: FastAPI):
 
     # 关闭时
     logger.info("👋 FastAPI application shutting down...")
+
+    # WP-Registry: Close Registry client
+    registry_client = getattr(app.state, 'registry_client', None)
+    if registry_client is not None:
+        try:
+            await registry_client.close()
+            logger.info("✅ Agent OS Registry client closed")
+        except Exception as e:
+            logger.warning(f"⚠️ Registry client cleanup failed: {e}")
 
     # WP-15: Close Agent OS client
     try:

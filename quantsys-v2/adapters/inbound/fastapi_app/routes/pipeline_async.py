@@ -4,7 +4,6 @@
 _get_pipeline_run）与 acquire_task 等。字面量路由必须先于 /{run_id} 注册。
 后台执行函数 _execute_pipeline_stages 直接从 Flask pipeline.py 复用。
 """
-import threading
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -122,7 +121,8 @@ def _create_pipeline_run_impl(data: Dict[str, Any]):
     runs = _load_pipeline_runs()
     runs.insert(0, run)
     _save_pipeline_runs(runs)
-    threading.Thread(target=_execute_pipeline_stages, args=(run_id, symbols, stages, 'pipeline'), daemon=True).start()
+    from infrastructure.concurrency.thread_manager import submit_background
+    submit_background("api-bg", _execute_pipeline_stages, run_id, symbols, stages, 'pipeline')
     return error_response({'success': True, 'data': run}, 202)
 
 

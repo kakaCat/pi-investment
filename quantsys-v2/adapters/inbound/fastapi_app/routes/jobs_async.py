@@ -3,7 +3,6 @@
 jobs 存储在 health.py 的模块级内存字典中（_jobs/_jobs_lock），Flask 与 FastAPI
 共享同一内存状态（与 Flask 行为一致）。
 """
-import threading
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -88,7 +87,8 @@ def run_job_by_type(job_type: str, payload: Optional[Dict[str, Any]] = Body(None
                     _jobs[job_id]['error'] = str(e)
                     _jobs[job_id]['completedAt'] = datetime.now().isoformat()
 
-    threading.Thread(target=_run_job, daemon=True).start()
+    from infrastructure.concurrency.thread_manager import submit_background
+    submit_background("api-bg", _run_job)
     _audit_job('run', job)
     return error_response({'success': True, 'data': sanitize_for_json(job)}, 202)
 
@@ -137,7 +137,8 @@ def retry_job(job_id: str):
                     _jobs[new_job_id]['error'] = str(e)
                     _jobs[new_job_id]['completedAt'] = datetime.now().isoformat()
 
-    threading.Thread(target=_retry, daemon=True).start()
+    from infrastructure.concurrency.thread_manager import submit_background
+    submit_background("api-bg", _retry)
     return {'success': True, 'job_id': new_job_id, 'message': f'Job retried: {new_job_id}'}
 
 

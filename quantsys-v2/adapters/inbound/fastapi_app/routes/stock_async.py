@@ -1,5 +1,4 @@
 """股票数据 API - FastAPI 版（从 Flask stock.py 迁移，响应契约保持一致）"""
-import threading
 import uuid
 import re
 from datetime import datetime, timedelta
@@ -321,12 +320,11 @@ def data_update_klines(payload: Optional[Dict[str, Any]] = Body(None)):
         _save_pipeline_runs(runs)
 
         from adapters.shared.pipeline_exec import _execute_pipeline_stages_with_error_handling
-        threading.Thread(
-            target=_execute_pipeline_stages_with_error_handling,
-            args=(run_id, symbols if symbols else ['000001.SZ'], ['data_update'], 'data_update'),
-            kwargs={'days': days},
-            daemon=True,
-        ).start()
+        from infrastructure.concurrency.thread_manager import submit_background
+        submit_background(
+            "api-bg", _execute_pipeline_stages_with_error_handling,
+            run_id, symbols if symbols else ['000001.SZ'], ['data_update'], 'data_update',
+            days=days)
         return api_response({'success': True, 'run_id': run_id, 'symbols': symbols if symbols else 'ALL',
                              'days': days, 'message': f'K线更新已触发，run_id={run_id}'})
     except Exception as e:
@@ -369,12 +367,11 @@ def data_update(payload: Optional[Dict[str, Any]] = Body(None)):
         _save_pipeline_runs(runs)
 
         from adapters.shared.pipeline_exec import _execute_pipeline_stages_with_error_handling
-        threading.Thread(
-            target=_execute_pipeline_stages_with_error_handling,
-            args=(run_id, symbols if symbols else ['000001.SZ'], ['data_update'], 'data_update'),
-            kwargs={'days': days},
-            daemon=True,
-        ).start()
+        from infrastructure.concurrency.thread_manager import submit_background
+        submit_background(
+            "api-bg", _execute_pipeline_stages_with_error_handling,
+            run_id, symbols if symbols else ['000001.SZ'], ['data_update'], 'data_update',
+            days=days)
         return api_response({'success': True, 'run_id': run_id, 'symbols': symbols if symbols else 'ALL',
                              'days': days, 'message': f'数据更新已触发，run_id={run_id}'})
     except Exception as e:
