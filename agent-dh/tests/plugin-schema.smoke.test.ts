@@ -46,6 +46,8 @@ const PLUGINS: Array<[string, () => Promise<any>, () => any]> = [
   ['genome', () => import('../packages/genome/src/index.js'), () => ({
     genomeDir: join(stateDir, 'genome-test'),
   })],
+  ['evolver', () => import('../packages/evolver/src/index.js'), () => ({})],
+  ['learning', () => import('../packages/learning/src/index.js'), () => QV2],
 ];
 
 describe('插件 schema 冒烟（构造即编译所有工具 schema）', () => {
