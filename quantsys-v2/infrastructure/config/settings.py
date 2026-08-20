@@ -74,6 +74,7 @@ class ExternalServiceSettings(BaseSettings):
     feishu_webhook_url: Optional[str] = Field(default=None, description="Feishu notification webhook")
     feishu_bot_token: Optional[str] = Field(default=None, description="Feishu bot authentication token")
     tushare_token: Optional[str] = Field(default=None, description="Tushare API token")
+    deepseek_api_key: Optional[str] = Field(default=None, description="DeepSeek LLM API key")
     quantsys_api_url: str = Field(default="http://127.0.0.1:5001", description="QuantSys API base URL")
     
     # Agent 通知服务配置

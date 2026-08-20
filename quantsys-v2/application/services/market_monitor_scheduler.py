@@ -5,13 +5,14 @@
 参考 pool_scan_scheduler.py 的模式实现
 """
 import structlog
-import os
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
+from infrastructure.config import get_config
 
-LOG_FILE = os.getenv('MARKET_MONITOR_LOG', '/tmp/market_monitor.log')
+config = get_config()
+LOG_FILE = config.app.market_monitor_log or '/tmp/market_monitor.log'
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',

@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Dict, Any
 import pandas as pd
 from .base import FinancialProvider, FinancialData
+from infrastructure.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +21,13 @@ class TushareFinancialProvider(FinancialProvider):
         """初始化
 
         Args:
-            token: Tushare Pro token（如果为 None，从环境变量 TUSHARE_TOKEN 读取）
+            token: Tushare Pro token（如果为 None，从配置读取）
             timeout: 超时时间（秒）
         """
         super().__init__(name="tushare", timeout=timeout)
 
-        import os
-        self.token = token or os.getenv('TUSHARE_TOKEN')
+        config = get_config()
+        self.token = token or config.external.tushare_token
         if not self.token:
             raise ValueError("Tushare token is required. Set TUSHARE_TOKEN environment variable or pass token parameter.")
 
