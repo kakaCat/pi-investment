@@ -995,6 +995,15 @@ def register_routes():
         logger.warning(f"⚠️ Failed to import training_async: {e}")
         optional_failed.append("training")
 
+    # 线程监控（monitoring/threads）
+    try:
+        from adapters.inbound.fastapi_app.routes.thread_monitoring_async import router as thread_monitoring_router
+        app.include_router(thread_monitoring_router)
+        logger.info("✅ Registered: thread_monitoring")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import thread_monitoring_async: {e}")
+        optional_failed.append("thread_monitoring")
+
     # ===== 路由注册总结 =====
     logger.info("=" * 60)
     logger.info("Route Registration Summary")
