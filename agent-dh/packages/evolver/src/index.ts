@@ -99,6 +99,24 @@ export default class EvolverPlugin extends Service {
   }
 
   /**
+   * 跨工具调用（2026-08-20 验收修复）：ToolRuntime 没有 list() 方法，
+   * 程序内调用的正确入口是 ctx.tools.execute({name, arguments, signal})，
+   * 会走完整流水线（pre-execute 门禁 + post-execute 瀑布），
+   * 返回值取 result.value（工具原始返回）。
+   */
+  private async callTool(name: string, args: Record<string, any>): Promise<any> {
+    const result = await (this.ctx.tools as any).execute({
+      name,
+      arguments: args,
+      signal: new AbortController().signal,
+    });
+    if (result?.isError) {
+      throw new Error(result?.error?.message || `${name} 调用失败`);
+    }
+    return result?.value ?? result;
+  }
+
+  /**
    * RFC 008 §2.2 裁决逻辑：观察期到期的 candidate 对比基准期打标经验
    * - 证据不足（candidate 样本 < minSamples）→ 延期 2 天
    * - 平均奖励显著低于基准（差值 > 0.1）→ genome_rollback + 标记 rejected
@@ -133,9 +151,7 @@ export default class EvolverPlugin extends Service {
       if (drop > 0.1) {
         // 显著恶化 → 回滚到 candidate 之前的段版本
         try {
-          const rb = this.ctx.tools.list().find(t => t.name === 'genome_rollback');
-          // @ts-ignore
-          await rb.execute({ section: c.section, to_section_version: c.section_version - 1, reason: `验证门裁决：candidate 平均奖励 ${cand.avg.toFixed(3)} 显著低于基准 ${base.avg.toFixed(3)}（样本 ${cand.count}/${base.count}）` });
+          await this.callTool('genome_rollback', { section: c.section, to_section_version: c.section_version - 1, reason: `验证门裁决：candidate 平均奖励 ${cand.avg.toFixed(3)} 显著低于基准 ${base.avg.toFixed(3)}（样本 ${cand.count}/${base.count}）` });
           c.status = 'rejected';
           verdicts.push({ id: c.id, section: c.section, verdict: 'rejected', cand_avg: cand.avg, base_avg: base.avg, rolled_back_to: c.section_version - 1 });
         } catch (e: any) {
@@ -143,9 +159,7 @@ export default class EvolverPlugin extends Service {
         }
       } else {
         try {
-          const pm = this.ctx.tools.list().find(t => t.name === 'genome_promote');
-          // @ts-ignore
-          await pm.execute({ section: c.section, reason: `观察期达标：candidate 平均奖励 ${cand.avg.toFixed(3)} vs 基准 ${base.avg.toFixed(3)}（样本 ${cand.count}/${base.count}）` });
+          await this.callTool('genome_promote', { section: c.section, reason: `观察期达标：candidate 平均奖励 ${cand.avg.toFixed(3)} vs 基准 ${base.avg.toFixed(3)}（样本 ${cand.count}/${base.count}）` });
           c.status = 'promoted';
           verdicts.push({ id: c.id, section: c.section, verdict: 'promoted', cand_avg: cand.avg, base_avg: base.avg });
         } catch (e: any) {

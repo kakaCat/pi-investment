@@ -50,7 +50,7 @@ export default class ModelPlugin extends Service {
         },
         model_id: {
           type: 'string',
-          description: '模型ID。不传则使用系统默认模型',
+          description: '模型ID，格式 {model_type}_{version}（如 lightgbm_20260820_195134），或裸类型名（lightgbm/xgboost，取该类型最新版）。不传则自动选择最新通过 AUC≥0.55 上线门禁的模型',
         },
         horizon: {
           type: 'integer',
@@ -156,7 +156,7 @@ export default class ModelPlugin extends Service {
       parameters: {
         model_id: {
           type: 'string',
-          description: '模型ID，由 model_train 返回',
+          description: '模型ID，格式 {model_type}_{version}（如 lightgbm_20260820_195134），由 model_train 返回；裸类型名取该类型最新版。未知 ID 会明确报错而非回退默认模型',
           required: true,
         },
         test_period: {
