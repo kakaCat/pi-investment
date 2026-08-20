@@ -40,16 +40,32 @@ class AkshareFinancialProvider(FinancialProvider):
         Raises:
             Exception: 获取失败
         """
+        from contextlib import contextmanager
+        
+        @contextmanager
+        def _disable_proxies():
+            """临时禁用代理的上下文管理器（akshare 对代理支持不好）"""
+            proxy_keys = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']
+            original_proxies = {k: os.environ.get(k) for k in proxy_keys}
+            
+            try:
+                # 临时删除所有代理环境变量
+                for key in proxy_keys:
+                    if key in os.environ:
+                        del os.environ[key]
+                yield
+            finally:
+                # 恢复原始代理设置
+                for key, value in original_proxies.items():
+                    if value is not None:
+                        os.environ[key] = value
+                    elif key in os.environ:
+                        del os.environ[key]
+
         try:
             import akshare as ak
 
-            # 关键：禁用代理（参考实时行情的成功经验）
-            old_http_proxy = os.environ.pop('HTTP_PROXY', None)
-            old_https_proxy = os.environ.pop('HTTPS_PROXY', None)
-            old_http_proxy_lower = os.environ.pop('http_proxy', None)
-            old_https_proxy_lower = os.environ.pop('https_proxy', None)
-
-            try:
+            with _disable_proxies():
                 # 规范化代码
                 standard_symbol, short_code = self._normalize_symbol(symbol)
 
@@ -102,17 +118,6 @@ class AkshareFinancialProvider(FinancialProvider):
                     raise Exception(f"所有报表获取均失败")
 
                 return result
-
-            finally:
-                # 恢复代理设置
-                if old_http_proxy:
-                    os.environ['HTTP_PROXY'] = old_http_proxy
-                if old_https_proxy:
-                    os.environ['HTTPS_PROXY'] = old_https_proxy
-                if old_http_proxy_lower:
-                    os.environ['http_proxy'] = old_http_proxy_lower
-                if old_https_proxy_lower:
-                    os.environ['https_proxy'] = old_https_proxy_lower
 
         except Exception as e:
             logger.error(f"[{self.name}] 获取财务数据失败 {symbol}: {e}")

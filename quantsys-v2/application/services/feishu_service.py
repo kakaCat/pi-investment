@@ -2,12 +2,12 @@
 飞书通知服务
 支持文本、卡片、交互式消息推送
 """
-import os
 import json
 import requests
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+from infrastructure.config import get_config
 
 logger = structlog.get_logger(__name__)
 
@@ -30,8 +30,9 @@ class FeishuNotificationService:
             webhook_url: 飞书机器人 Webhook URL
             bot_token: 飞书机器人 Token（用于高级功能）
         """
-        self.webhook_url = webhook_url or os.getenv('FEISHU_WEBHOOK_URL')
-        self.bot_token = bot_token or os.getenv('FEISHU_BOT_TOKEN')
+        config = get_config()
+        self.webhook_url = webhook_url or config.external.feishu_webhook_url
+        self.bot_token = bot_token or config.external.feishu_bot_token
 
         if not self.webhook_url:
             logger.warning("Feishu webhook URL not configured")

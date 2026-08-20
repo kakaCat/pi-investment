@@ -5,12 +5,12 @@ HTTP Client for CLI to API communication
 """
 
 import json
-import os
 import time
 from typing import Any, Dict, Optional
 from urllib.parse import urljoin
 
 import requests
+from infrastructure.config import get_config
 
 
 class HTTPClient:
@@ -18,18 +18,22 @@ class HTTPClient:
 
     def __init__(
         self,
-        base_url: str = os.environ.get("QUANTSYS_API_URL", "http://127.0.0.1:5001"),
+        base_url: str = None,
         timeout: int = 30,
         max_retries: int = 3,
         retry_delay: float = 1.0
     ):
         """
         Args:
-            base_url: API基础URL
+            base_url: API基础URL，默认从配置读取
             timeout: 请求超时时间（秒）
             max_retries: 最大重试次数
             retry_delay: 重试延迟（秒）
         """
+        if base_url is None:
+            config = get_config()
+            base_url = config.app.quantsys_api_url
+        
         self.base_url = base_url.rstrip('/')
         self.timeout = timeout
         self.max_retries = max_retries

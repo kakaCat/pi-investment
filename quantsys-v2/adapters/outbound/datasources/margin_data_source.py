@@ -141,78 +141,79 @@ class AkShareMarginSource:
         """
         import os
         import time
+        from contextlib import contextmanager
 
-        # 保存并禁用代理
-        original_proxies = {
-            'HTTP_PROXY': os.environ.get('HTTP_PROXY'),
-            'HTTPS_PROXY': os.environ.get('HTTPS_PROXY'),
-            'http_proxy': os.environ.get('http_proxy'),
-            'https_proxy': os.environ.get('https_proxy'),
-        }
+        @contextmanager
+        def _disable_proxies():
+            """临时禁用代理的上下文管理器（akshare 对代理支持不好）"""
+            proxy_keys = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']
+            original_proxies = {k: os.environ.get(k) for k in proxy_keys}
+            
+            try:
+                # 临时删除所有代理环境变量
+                for key in proxy_keys:
+                    if key in os.environ:
+                        del os.environ[key]
+                yield
+            finally:
+                # 恢复原始代理设置
+                for key, value in original_proxies.items():
+                    if value is not None:
+                        os.environ[key] = value
+                    elif key in os.environ:
+                        del os.environ[key]
 
         try:
-            import akshare as ak
+            with _disable_proxies():
+                import akshare as ak
 
-            # 临时禁用代理
-            for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
-                if key in os.environ:
-                    del os.environ[key]
+                stock_code = symbol.replace('.SH', '').replace('.SZ', '')
+                logger.info(f"获取 {stock_code} 融资融券数据")
 
-            stock_code = symbol.replace('.SH', '').replace('.SZ', '')
-            logger.info(f"获取 {stock_code} 融资融券数据")
+                # 重试机制
+                max_retries = 3
+                retry_delay = 1
 
-            # 重试机制
-            max_retries = 3
-            retry_delay = 1
+                for attempt in range(max_retries):
+                    try:
+                        # 使用 akshare 的融资融券接口
+                        df = ak.stock_margin_detail_sse(symbol=stock_code)
 
-            for attempt in range(max_retries):
-                try:
-                    # 使用 akshare 的融资融券接口
-                    df = ak.stock_margin_detail_sse(symbol=stock_code)
+                        if df is None or df.empty:
+                            logger.warning(f"{stock_code} 返回空数据")
+                            return []
 
-                    if df is None or df.empty:
-                        logger.warning(f"{stock_code} 返回空数据")
-                        return []
+                        # 只取最近 N 天
+                        df = df.head(days)
 
-                    # 只取最近 N 天
-                    df = df.head(days)
+                        # 转换为标准格式
+                        result = []
+                        for _, row in df.iterrows():
+                            result.append({
+                                'date': str(row.get('日期', '')),
+                                'financing_balance': float(row.get('融资余额', 0)) / 10000,  # 元转万元
+                                'financing_buy': float(row.get('融资买入额', 0)) / 10000,
+                                'financing_repay': float(row.get('融资偿还额', 0)) / 10000,
+                                'margin_balance': float(row.get('融券余额', 0)) / 10000,
+                                'margin_sell': float(row.get('融券卖出量', 0)),
+                                'margin_repay': float(row.get('融券偿还量', 0)),
+                                'total_balance': float(row.get('融资融券余额', 0)) / 10000,
+                            })
 
-                    # 转换为标准格式
-                    result = []
-                    for _, row in df.iterrows():
-                        result.append({
-                            'date': str(row.get('日期', '')),
-                            'financing_balance': float(row.get('融资余额', 0)) / 10000,  # 元转万元
-                            'financing_buy': float(row.get('融资买入额', 0)) / 10000,
-                            'financing_repay': float(row.get('融资偿还额', 0)) / 10000,
-                            'margin_balance': float(row.get('融券余额', 0)) / 10000,
-                            'margin_sell': float(row.get('融券卖出量', 0)),
-                            'margin_repay': float(row.get('融券偿还量', 0)),
-                            'total_balance': float(row.get('融资融券余额', 0)) / 10000,
-                        })
+                        logger.info(f"成功获取 {stock_code} 融资融券数据，共 {len(result)} 条")
+                        return result
 
-                    logger.info(f"成功获取 {stock_code} 融资融券数据，共 {len(result)} 条")
-                    return result
-
-                except Exception as e:
-                    if attempt < max_retries - 1:
-                        logger.warning(f"获取失败（尝试 {attempt + 1}/{max_retries}），{retry_delay}秒后重试: {e}")
-                        time.sleep(retry_delay)
-                        retry_delay *= 2
-                    else:
-                        raise
+                    except Exception as e:
+                        if attempt < max_retries - 1:
+                            logger.warning(f"获取失败（尝试 {attempt + 1}/{max_retries}），{retry_delay}秒后重试: {e}")
+                            time.sleep(retry_delay)
+                            retry_delay *= 2
+                        else:
+                            raise
 
         except Exception as e:
             logger.error(f"AkShare 融资融券数据源获取失败: {e}")
             raise
-
-        finally:
-            # 恢复代理设置
-            for key, value in original_proxies.items():
-                if value is not None:
-                    os.environ[key] = value
-                elif key in os.environ:
-                    del os.environ[key]
 
 
 class SimulatedMarginSource:

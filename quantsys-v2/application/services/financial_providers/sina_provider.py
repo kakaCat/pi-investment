@@ -41,11 +41,12 @@ class SinaFinancialProvider(FinancialProvider):
             import akshare as ak
             import os
 
-            # 禁用代理
-            os.environ.pop('HTTP_PROXY', None)
-            os.environ.pop('HTTPS_PROXY', None)
-            os.environ.pop('http_proxy', None)
-            os.environ.pop('https_proxy', None)
+            def _disable_proxies_permanently():
+                """永久禁用代理（akshare 国内接口不需要代理）"""
+                for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
+                    os.environ.pop(key, None)
+
+            _disable_proxies_permanently()
 
             # 规范化代码
             standard_symbol, short_code = self._normalize_symbol(symbol)

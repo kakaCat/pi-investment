@@ -13,10 +13,6 @@
     python -m infrastructure.jobs.fund_flow_update_job [--date 2026-07-28]
 """
 import os
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
 import sys
 import logging
 from datetime import datetime

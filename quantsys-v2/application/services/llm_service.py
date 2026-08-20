@@ -1,9 +1,9 @@
 """
 LLM 服务薄封装（DeepSeek，OpenAI 兼容接口）
 """
-import os
 import requests
 import structlog
+from infrastructure.config import get_config
 
 logger = structlog.get_logger(__name__)
 
@@ -16,7 +16,8 @@ def chat_completion(prompt: str, model: str = 'deepseek-chat', timeout: int = 60
     Raises:
         RuntimeError: 未配置 key / 超时 / API 错误
     """
-    api_key = os.getenv('DEEPSEEK_API_KEY')
+    config = get_config()
+    api_key = config.external.deepseek_api_key
     if not api_key:
         raise RuntimeError('未配置 DEEPSEEK_API_KEY，无法使用 AI 诊断')
 

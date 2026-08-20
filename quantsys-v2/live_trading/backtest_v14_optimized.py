@@ -4,10 +4,6 @@ V14参数优化回测脚本
 测试参数优化效果（不重训练模型）
 """
 import os
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
 import sys
 
 import logging

@@ -5,7 +5,6 @@ QuantSys V2 CLI - Command Pattern Implementation
 """
 
 import sys
-import os
 from pathlib import Path
 
 # 添加项目根目录到 Python 路径
@@ -21,10 +20,13 @@ from typing import Optional
 from adapters.inbound.cli.http_client import HTTPClient
 from adapters.inbound.cli.command_registry import auto_discover_commands
 from adapters.inbound.cli.formatters import get_formatter
+from infrastructure.config import get_config
 
 
 def create_parser() -> argparse.ArgumentParser:
     """创建CLI参数解析器"""
+    config = get_config()
+    
     parser = argparse.ArgumentParser(
         prog='qsv2',
         description='QuantSys V2 统一命令行工具 (Command Pattern)',
@@ -47,8 +49,8 @@ def create_parser() -> argparse.ArgumentParser:
     # 全局选项
     parser.add_argument(
         '--api-url',
-        default=os.getenv('QUANTSYS_API_URL', 'http://127.0.0.1:5001'),
-        help='API服务地址 (默认: http://127.0.0.1:5001)'
+        default=config.app.quantsys_api_url,
+        help=f'API服务地址 (默认: {config.app.quantsys_api_url})'
     )
     parser.add_argument(
         '--timeout',

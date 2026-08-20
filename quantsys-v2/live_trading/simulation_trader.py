@@ -12,10 +12,6 @@ V13策略模拟交易系统 - 主执行脚本（完整版）
 
 import os
 # 必须在所有导入之前设置，避免 OpenMP/MKL 与 XGBoost 冲突导致段错误
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
 import sys
 import yaml
 import pandas as pd

@@ -5,10 +5,6 @@ V14 P0优化版本回测验证
 """
 
 import os
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
 import sys
 
 import logging

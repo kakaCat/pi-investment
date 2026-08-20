@@ -308,7 +308,10 @@ def _execute_ml_train(
     try:
         _ensure_legacy_quant_path()
         from ml_retrain import MLRetrainer
-        db_path = os.environ.get("QUANT_DB_PATH", str(_V2_ROOT.parent / 'quant' / '.pi-invest' / 'stock-db' / 'stocks.db'))
+        from infrastructure.config import get_config
+        
+        config = get_config()
+        db_path = config.app.quant_db_path or str(_V2_ROOT.parent / 'quant' / '.pi-invest' / 'stock-db' / 'stocks.db')
         model_dir = str(_V2_ROOT.parent / 'quant' / 'quantsys' / 'ml' / 'models')
         trainer = MLRetrainer(db_path=db_path, model_dir=model_dir)
         logs.append(f"[{datetime.now().isoformat()}] 加载训练数据...")

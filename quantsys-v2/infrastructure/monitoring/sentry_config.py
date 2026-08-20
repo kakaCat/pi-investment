@@ -3,9 +3,9 @@ Sentry 错误监控配置
 
 自动捕获未处理异常、性能追踪、错误告警
 """
-import os
 import logging
 from typing import Optional
+from infrastructure.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def init_sentry(
     """初始化 Sentry 错误追踪
 
     Args:
-        dsn: Sentry DSN，默认从环境变量 SENTRY_DSN 读取
+        dsn: Sentry DSN，默认从配置读取
         environment: 环境名称（development/staging/production）
         traces_sample_rate: 性能追踪采样率（0.0-1.0），默认 10%
         profiles_sample_rate: 性能分析采样率（0.0-1.0），默认 10%
@@ -47,8 +47,9 @@ def init_sentry(
         logger.info("Sentry already initialized")
         return True
 
-    # 从环境变量读取 DSN
-    dsn = dsn or os.environ.get("SENTRY_DSN")
+    # 从配置读取
+    config = get_config()
+    dsn = dsn or config.app.sentry_dsn
 
     if not dsn:
         logger.warning(
@@ -64,7 +65,7 @@ def init_sentry(
 
         # 环境检测
         if environment is None:
-            environment = os.environ.get("ENVIRONMENT", "development")
+            environment = config.app.environment
 
         # 日志集成：WARNING 及以上自动发送到 Sentry
         logging_integration = LoggingIntegration(

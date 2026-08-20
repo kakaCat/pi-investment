@@ -248,98 +248,94 @@ class EastMoneyFundFlowSource:
         """
         import os
         import time
+        from contextlib import contextmanager
 
-        # 禁用代理避免连接问题
-        original_proxies = {
-            'HTTP_PROXY': os.environ.get('HTTP_PROXY'),
-            'HTTPS_PROXY': os.environ.get('HTTPS_PROXY'),
-            'http_proxy': os.environ.get('http_proxy'),
-            'https_proxy': os.environ.get('https_proxy'),
-        }
+        @contextmanager
+        def _disable_proxies():
+            """临时禁用代理的上下文管理器（akshare 对代理支持不好）"""
+            proxy_keys = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']
+            original_proxies = {k: os.environ.get(k) for k in proxy_keys}
+            
+            try:
+                # 临时删除所有代理环境变量
+                for key in proxy_keys:
+                    if key in os.environ:
+                        del os.environ[key]
+                yield
+            finally:
+                # 恢复原始代理设置
+                for key, value in original_proxies.items():
+                    if value is not None:
+                        os.environ[key] = value
+                    elif key in os.environ:
+                        del os.environ[key]
 
         try:
-            # 临时禁用代理
-            for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
-                if key in os.environ:
-                    del os.environ[key]
+            with _disable_proxies():
+                import akshare as ak
 
-            import akshare as ak
+                # 东方财富接口需要纯数字代码
+                stock_code = symbol.replace('.SH', '').replace('.SZ', '')
 
-            # 临时禁用代理（akshare对代理支持不好）
-            for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
-                if key in os.environ:
-                    del os.environ[key]
+                # 根据股票代码前缀确定市场（akshare 默认 sh，必须显式传参）
+                if stock_code.startswith('60') or stock_code.startswith('68'):
+                    market = 'sh'
+                elif stock_code.startswith('8'):
+                    market = 'bj'
+                else:  # 00, 30 → 深交所
+                    market = 'sz'
 
-            # 东方财富接口需要纯数字代码
-            stock_code = symbol.replace('.SH', '').replace('.SZ', '')
+                logger.info(f"获取 {stock_code} 资金流向数据（market={market}，禁用代理）")
 
-            # 根据股票代码前缀确定市场（akshare 默认 sh，必须显式传参）
-            if stock_code.startswith('60') or stock_code.startswith('68'):
-                market = 'sh'
-            elif stock_code.startswith('8'):
-                market = 'bj'
-            else:  # 00, 30 → 深交所
-                market = 'sz'
+                # 重试机制：最多尝试3次
+                max_retries = 3
+                retry_delay = 1  # 秒
 
-            logger.info(f"获取 {stock_code} 资金流向数据（market={market}，禁用代理）")
+                for attempt in range(max_retries):
+                    try:
+                        df = ak.stock_individual_fund_flow(stock=stock_code, market=market)
 
-            # 重试机制：最多尝试3次
-            max_retries = 3
-            retry_delay = 1  # 秒
+                        if df is None or df.empty:
+                            logger.warning(f"{stock_code} 返回空数据")
+                            return []
 
-            for attempt in range(max_retries):
-                try:
-                    df = ak.stock_individual_fund_flow(stock=stock_code, market=market)
+                        # 只取最近 N 天
+                        df = df.head(days)
 
-                    if df is None or df.empty:
-                        logger.warning(f"{stock_code} 返回空数据")
-                        return []
+                        # 转换为标准格式
+                        result = []
+                        for _, row in df.iterrows():
+                            result.append({
+                                'date': str(row.get('日期', '')),
+                                'close_price': float(row.get('收盘价', 0)),
+                                'change_pct': float(row.get('涨跌幅', 0)),
+                                'main_net_inflow': float(row.get('主力净流入-净额', 0)) / 10000,  # 元转万元
+                                'main_net_inflow_rate': float(row.get('主力净流入-净占比', 0)),
+                                'large_net_inflow': float(row.get('超大单净流入-净额', 0)) / 10000,
+                                'large_net_inflow_rate': float(row.get('超大单净流入-净占比', 0)),
+                                'big_net_inflow': float(row.get('大单净流入-净额', 0)) / 10000,
+                                'big_net_inflow_rate': float(row.get('大单净流入-净占比', 0)),
+                                'medium_net_inflow': float(row.get('中单净流入-净额', 0)) / 10000,
+                                'medium_net_inflow_rate': float(row.get('中单净流入-净占比', 0)),
+                                'small_net_inflow': float(row.get('小单净流入-净额', 0)) / 10000,
+                                'small_net_inflow_rate': float(row.get('小单净流入-净占比', 0)),
+                            })
 
-                    # 只取最近 N 天
-                    df = df.head(days)
+                        logger.info(f"成功获取 {stock_code} 资金流向数据，共 {len(result)} 条")
+                        return result
 
-                    # 转换为标准格式
-                    result = []
-                    for _, row in df.iterrows():
-                        result.append({
-                            'date': str(row.get('日期', '')),
-                            'close_price': float(row.get('收盘价', 0)),
-                            'change_pct': float(row.get('涨跌幅', 0)),
-                            'main_net_inflow': float(row.get('主力净流入-净额', 0)) / 10000,  # 元转万元
-                            'main_net_inflow_rate': float(row.get('主力净流入-净占比', 0)),
-                            'large_net_inflow': float(row.get('超大单净流入-净额', 0)) / 10000,
-                            'large_net_inflow_rate': float(row.get('超大单净流入-净占比', 0)),
-                            'big_net_inflow': float(row.get('大单净流入-净额', 0)) / 10000,
-                            'big_net_inflow_rate': float(row.get('大单净流入-净占比', 0)),
-                            'medium_net_inflow': float(row.get('中单净流入-净额', 0)) / 10000,
-                            'medium_net_inflow_rate': float(row.get('中单净流入-净占比', 0)),
-                            'small_net_inflow': float(row.get('小单净流入-净额', 0)) / 10000,
-                            'small_net_inflow_rate': float(row.get('小单净流入-净占比', 0)),
-                        })
-
-                    logger.info(f"成功获取 {stock_code} 资金流向数据，共 {len(result)} 条")
-                    return result
-
-                except Exception as e:
-                    if attempt < max_retries - 1:
-                        logger.warning(f"获取失败（尝试 {attempt + 1}/{max_retries}），{retry_delay}秒后重试: {e}")
-                        time.sleep(retry_delay)
-                        retry_delay *= 2  # 指数退避
-                    else:
-                        # 最后一次尝试失败，抛出异常
-                        raise
+                    except Exception as e:
+                        if attempt < max_retries - 1:
+                            logger.warning(f"获取失败（尝试 {attempt + 1}/{max_retries}），{retry_delay}秒后重试: {e}")
+                            time.sleep(retry_delay)
+                            retry_delay *= 2  # 指数退避
+                        else:
+                            # 最后一次尝试失败，抛出异常
+                            raise
 
         except Exception as e:
             logger.error(f"东方财富数据源获取失败（已重试{max_retries}次）: {e}")
             raise
-
-        finally:
-            # 恢复原始代理设置
-            for key, value in original_proxies.items():
-                if value is not None:
-                    os.environ[key] = value
-                elif key in os.environ:
-                    del os.environ[key]
 
     # 全市场 A 股范围（沪深京）
     _MARKET_FS = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048"

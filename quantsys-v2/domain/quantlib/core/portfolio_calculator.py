@@ -7,12 +7,12 @@ DDD Architecture:
 - Depends on IPortfolioRepository, IKlineRepository, IRiskRepository interfaces
 - Application layer injects concrete implementations
 """
-import os
 from datetime import date, timedelta
 from typing import Dict, Optional
 import logging
 
 from domain.ports import IPortfolioRepository, IKlineRepository, IRiskRepository
+from infrastructure.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +34,15 @@ class PortfolioCalculator:
             portfolio_repo: Portfolio repository interface (injected by Application layer)
             kline_repo: Kline repository interface (injected by Application layer)
             risk_repo: Risk repository interface (injected by Application layer)
-            initial_cash: Initial capital, defaults to INITIAL_CASH env var or 1000000.0
+            initial_cash: Initial capital, defaults to config or 1000000.0
 
         Raises:
             ValueError: 任一 repository 未注入。domain 层不再自行创建 adapters
                 具体仓储(六边形架构依赖方向),请由 Application/CLI 层注入。
         """
         if initial_cash is None:
-            initial_cash = float(os.getenv('INITIAL_CASH', 1000000.0))
+            config = get_config()
+            initial_cash = config.app.initial_cash
 
         self.initial_cash = initial_cash
 

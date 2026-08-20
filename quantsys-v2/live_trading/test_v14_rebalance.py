@@ -2,10 +2,6 @@
 快速测试V14调仓 - 使用硬编码的优质创业板股票池
 """
 import os
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
 import sys
 import logging
 from pathlib import Path

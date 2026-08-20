@@ -11,10 +11,6 @@ V14模型训练 - 超越V13（独立版本，无需yaml）
 """
 
 import os
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
 import sys
 
 import logging

@@ -11,10 +11,6 @@ V14模型训练 - 超越V13
 """
 
 import os
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
 import sys
 
 from live_trading.simulation_trader import SimulationTrader

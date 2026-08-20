@@ -2,10 +2,6 @@
 V14完整调仓执行 - 包含止损检查、调仓决策和实际交易
 """
 import os
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
 import sys
 import logging
 from pathlib import Path

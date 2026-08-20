@@ -12,10 +12,6 @@
 也可手动执行：python -m infrastructure.jobs.index_constituents_update_job
 """
 import os
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
 import sys
 import logging
 from datetime import datetime

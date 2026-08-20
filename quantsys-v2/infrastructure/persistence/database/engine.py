@@ -4,7 +4,6 @@ SQLAlchemy Engine 全局单例 - 统一数据库连接管理
 所有同步数据库访问(BaseRepository、scheduler、脚本)统一通过此 Engine。
 异步路径见 async_engine.py。
 """
-import os
 import sys
 import re
 import logging
@@ -22,11 +21,10 @@ __all__ = ["get_engine", "init_engine", "dispose_engine", "get_pool_status", "db
 
 def _resolve_db_dsn():
     """
-    Resolve database DSN from environment variables.
+    Resolve database DSN from Pydantic Settings configuration.
 
-    Priority:
-    1. QUANT_DATABASE_URL / DATABASE_URL / POSTGRES_DSN (full connection string)
-    2. PG* environment variables (PGDATABASE, PGHOST, PGPORT, PGUSER, PGPASSWORD)
+    Uses infrastructure.config.get_config() for type-safe configuration access.
+    Falls back to environment variables only for legacy DATABASE_URL / POSTGRES_DSN.
 
     Safety: When running under pytest, validates that database name ends with '_test'
     to prevent accidental connection to production database. This applies to both
@@ -38,20 +36,20 @@ def _resolve_db_dsn():
     Raises:
         RuntimeError: If pytest environment detected but database is not a test database
     """
+    from infrastructure.config import get_config
+    import os
+    
+    # Priority 1: Legacy full DSN env vars (for backward compat)
     dsn = (
         os.environ.get("QUANT_DATABASE_URL")
         or os.environ.get("DATABASE_URL")
         or os.environ.get("POSTGRES_DSN")
     )
+    
+    # Priority 2: Pydantic Settings (recommended)
     if not dsn:
-        pgdatabase = os.environ.get("PGDATABASE")
-        if pgdatabase:
-            pghost = os.environ.get("PGHOST", "127.0.0.1")
-            pgport = os.environ.get("PGPORT", "5432")
-            pguser = os.environ.get("PGUSER", "")
-            pgpassword = os.environ.get("PGPASSWORD", "")
-            auth = f"{pguser}:{pgpassword}@" if pguser else ""
-            dsn = f"postgresql://{auth}{pghost}:{pgport}/{pgdatabase}"
+        config = get_config()
+        dsn = config.database.url
 
     # 安全检查：pytest 环境必须使用测试库
     # 这是第二层防护，防止绕过 conftest.py 的情况
@@ -63,9 +61,13 @@ def _resolve_db_dsn():
         match = re.search(r'://[^/]+/([^/?]+)(?:\?|$)', dsn)
         db_name = match.group(1) if match else ""
 
-        # If DSN parsing failed and we built DSN from PGDATABASE, use PGDATABASE
-        if not db_name and "PGDATABASE" in os.environ:
-            db_name = os.environ["PGDATABASE"]
+        # If DSN parsing failed, try config
+        if not db_name:
+            try:
+                config = get_config()
+                db_name = config.database.database
+            except:
+                pass
 
         if db_name and not db_name.endswith(TEST_DB_SUFFIX):
             raise RuntimeError(
