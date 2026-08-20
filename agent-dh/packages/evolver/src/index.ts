@@ -531,14 +531,7 @@ export default class EvolverPlugin extends Service {
     reason: string,
     stage: 'active' | 'candidate' = 'active'
   ): Promise<any> {
-    // 通过 ctx.tools 调用 genome_update
-    const tool = this.ctx.tools.list().find(t => t.name === 'genome_update');
-    if (!tool) {
-      throw new Error('genome_update tool not found');
-    }
-
-    // @ts-ignore - tool.execute exists
-    return await tool.execute({
+    return await this.callTool('genome_update', {
       section,
       content,
       reason,
