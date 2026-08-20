@@ -43,6 +43,9 @@ const PLUGINS: Array<[string, () => Promise<any>, () => any]> = [
   ['lifecycle', () => import('../packages/lifecycle/src/index.js'), () => ({
     repoRoot: '/tmp', agentDhRoot: '/tmp', profileDir: stateDir,
   })],
+  ['genome', () => import('../packages/genome/src/index.js'), () => ({
+    genomeDir: join(stateDir, 'genome-test'),
+  })],
 ];
 
 describe('插件 schema 冒烟（构造即编译所有工具 schema）', () => {
