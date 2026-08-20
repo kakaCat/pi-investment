@@ -10,8 +10,6 @@ import sys
 from pathlib import Path
 
 # Add project root to path
-project_root = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root))
 
 def test_imports():
     """测试所有模块导入"""

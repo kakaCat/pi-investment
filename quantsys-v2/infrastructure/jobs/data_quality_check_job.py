@@ -13,8 +13,6 @@ from pathlib import Path
 from typing import Dict, Any
 
 # 添加项目路径
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
 
 from application.services.data_quality_service import DataQualityService
 

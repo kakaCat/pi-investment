@@ -16,7 +16,6 @@ import logging
 
 # 添加项目路径
 project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
 from utils.feishu_notifier import create_notifier_from_config

@@ -1163,6 +1163,7 @@ class SchedulerService:
             "strategy_discover_weekly": self._handle_strategy_discover_weekly,  # 每周策略发现
             "kline_update": self._handle_kline_update,  # K线日更（2026-08-02 接管：07-28 起每日 Unknown command）
             "chip_distribution_update": self._handle_chip_distribution_update,  # 筹码分布日更（2026-08-11，接 kline_update 后）
+            "index_constituents_update": self._handle_index_constituents_update,  # 指数成分股日更（2026-08-19 重建：原任务随 scheduler_task_configs 禁用而失传）
             # 2026-08-13 scheduler_daemon 退役迁移：原 scheduler_task_configs 表的
             # 5 个失传任务在本路线重建（薄封装委托原 job 模块）
             "v13_risk_check": self._handle_v13_risk_check,
@@ -1185,6 +1186,11 @@ class SchedulerService:
     def _handle_kline_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """K 线日更：委托 infrastructure.jobs.kline_update_job.execute（多数据源 fallback + 限速防封）"""
         from infrastructure.jobs.kline_update_job import execute
+        return execute(**(params or {}))
+
+    def _handle_index_constituents_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """指数成分股日更：委托 infrastructure.jobs.index_constituents_update_job.execute"""
+        from infrastructure.jobs.index_constituents_update_job import execute
         return execute(**(params or {}))
 
     def _handle_chip_distribution_update(self, params: Dict[str, Any]) -> Dict[str, Any]:

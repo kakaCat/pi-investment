@@ -12,8 +12,6 @@ from pathlib import Path
 from datetime import datetime
 
 # Add project root to path
-project_root = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root))
 
 from application.services.agent_os_client import get_agent_os_client
 

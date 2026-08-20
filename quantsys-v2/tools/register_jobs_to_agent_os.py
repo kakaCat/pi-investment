@@ -11,8 +11,6 @@ import sys
 from pathlib import Path
 
 # Add project root to path
-project_root = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root))
 
 from application.services.agent_os_client import close_agent_os_client, get_agent_os_client
 
@@ -33,6 +31,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "40 17 * * 1-5",  # 工作日 17:40
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 600,
         "retry_count": 1,
@@ -42,12 +41,29 @@ JOBS = [
         }
     },
 
+    # Index constituents (daily, after market close) — feeds stock_pool_service.get_hot_stocks
+    {
+        "name": "index_constituents_update",
+        "owner": "quantsys-v2",
+        "cron": "40 15 * * 1-5",  # 工作日 15:40（原 scheduler_task_configs 失传任务重建）
+        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
+        "enabled": True,
+        "timeout": 300,
+        "retry_count": 1,
+        "metadata": {
+            "job_type": "index_constituents_update",
+            "description": "Update index constituents (HS300/STAR50/ChiNext) for hot stock pool"
+        }
+    },
+
     # Chip distribution (daily, after K-line update)
     {
         "name": "chip_distribution_update",
         "owner": "quantsys-v2",
         "cron": "30 10 * * 1-5",  # 工作日 10:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 900,
         "retry_count": 1,
@@ -63,6 +79,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 2 * * *",  # 每日 02:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 300,
         "retry_count": 1,
@@ -78,6 +95,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 9 * * 1-5",  # 工作日 09:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 300,
         "retry_count": 1,
@@ -95,6 +113,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "30 15 * * 1-5",  # 工作日 15:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 300,
         "retry_count": 1,
@@ -111,6 +130,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "30 7 * * 1-5",  # 工作日 07:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 600,
         "retry_count": 1,
@@ -126,6 +146,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 8 * * 1-5",  # 工作日 08:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 900,
         "retry_count": 1,
@@ -142,6 +163,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 16 * * *",  # 每日 16:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 600,
         "retry_count": 1,
@@ -159,6 +181,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 13 * * 1-5",  # 工作日 13:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 300,
         "retry_count": 1,
@@ -174,6 +197,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "30 14 * * 1-5",  # 工作日 14:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 600,
         "retry_count": 1,
@@ -191,6 +215,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 16 * * 1-5",  # 工作日 16:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 300,
         "retry_count": 1,
@@ -206,6 +231,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "30 16 * * 1-5",  # 工作日 16:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 300,
         "retry_count": 1,
@@ -221,6 +247,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "30 14 * * 1-5",  # 工作日 14:30 (disabled by default)
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": False,  # V14 currently disabled
         "timeout": 600,
         "retry_count": 1,
@@ -236,6 +263,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 20 * * 6",  # 每周六 20:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 1800,
         "retry_count": 1,
@@ -251,6 +279,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "30 18 * * 6",  # 每周六 18:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 1800,
         "retry_count": 1,
@@ -267,6 +296,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 10 * * 6",  # 每周六 10:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 600,
         "retry_count": 1,
@@ -282,6 +312,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 1 * * 1",  # 每周一 01:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 600,
         "retry_count": 1,
@@ -297,6 +328,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 18 * * 6",  # 每周六 18:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 3600,
         "retry_count": 1,
@@ -312,6 +344,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 10 * * 5",  # 每周五 10:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 600,
         "retry_count": 1,
@@ -327,6 +360,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "30 15 * * 1-5",  # 工作日 15:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 300,
         "retry_count": 1,
@@ -342,6 +376,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "30 8 * * 1-5",  # 工作日 08:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 900,
         "retry_count": 1,
@@ -357,6 +392,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "10 10 * * 1-5",  # 工作日 10:10
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 600,
         "retry_count": 1,
@@ -372,6 +408,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 12 * * 0",  # 每周日 12:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 1800,
         "retry_count": 1,
@@ -387,6 +424,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 18 * * 1-5",  # 工作日 18:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 300,
         "retry_count": 1,
@@ -402,6 +440,7 @@ JOBS = [
         "owner": "quantsys-v2",
         "cron": "0 14 * * 0",  # 每周日 14:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
         "timeout": 3600,
         "retry_count": 1,
@@ -437,7 +476,15 @@ async def register_all_jobs():
         for job in JOBS:
             try:
                 if job["name"] in existing_names:
-                    logger.info(f"Job '{job['name']}' already exists, skipping")
+                    # Backfill service binding on existing jobs that lack it,
+                    # so Agent OS auto-starts the bound service on trigger.
+                    existing_job = next(j for j in existing_jobs if j["name"] == job["name"])
+                    desired_service = job.get("service_name", "")
+                    if desired_service and not existing_job.get("service_name"):
+                        await client.update_job(existing_job["id"], {"service_name": desired_service})
+                        logger.info(f"Job '{job['name']}' bound to service '{desired_service}'")
+                    else:
+                        logger.info(f"Job '{job['name']}' already exists, skipping")
                     skip_count += 1
                     continue
 
@@ -447,6 +494,7 @@ async def register_all_jobs():
                     "owner": job["owner"],
                     "cron": job["cron"],
                     "webhook_url": job["webhook_url"],
+                    "service_name": job.get("service_name", ""),
                     "enabled": job["enabled"],
                     "timeout": job.get("timeout", 3600),
                     "retry_count": job.get("retry_count", 0),
