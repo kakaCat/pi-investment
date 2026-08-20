@@ -6,17 +6,10 @@
 """
 import structlog
 import os
-import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 
-LOG_FILE = os.getenv('MARKET_MONITOR_LOG', '/tmp/market_monitor.log')
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
-    handlers=[logging.FileHandler(LOG_FILE), logging.StreamHandler()]
-)
 logger = structlog.get_logger(__name__)
 
 

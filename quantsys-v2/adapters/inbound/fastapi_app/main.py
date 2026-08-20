@@ -11,7 +11,6 @@ QuantSys V2 FastAPI 主应用
 """
 import sys
 import os
-import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 

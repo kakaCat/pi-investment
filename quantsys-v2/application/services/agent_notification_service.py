@@ -3,18 +3,11 @@ Agent 通知服务
 V2 任务完成后调用此服务通知 Agent
 """
 import os
-import logging
 import structlog
 import requests
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-LOG_FILE = os.getenv('AGENT_NOTIFY_LOG', '/tmp/agent_notify.log')
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
-    handlers=[logging.FileHandler(LOG_FILE), logging.StreamHandler()]
-)
 logger = structlog.get_logger(__name__)
 
 

@@ -4,7 +4,6 @@
 /scan/schedule）必须先于 /{pool_id} 注册，否则会被参数路径吞掉。
 复用 Flask 的 stock_pool_service / pool_validation_service，保证 parity。
 """
-import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Query, Body
