@@ -348,7 +348,23 @@ export default class LifecyclePlugin extends Service {
           result.rendered_prompt = renderPrompt(assembly);
           result.rendered_chars = result.rendered_prompt.length;
         }
-        return result as any;
+        
+        // A-1 修复：清洗非 lossless JSON 值（undefined/function/循环引用）
+        // 确保 tool 输出通过 lossless JSON 验证
+        const sanitize = (obj: any): any => {
+          if (obj === undefined || obj === null) return null;
+          if (typeof obj === 'function') return null;
+          if (typeof obj !== 'object') return obj;
+          if (Array.isArray(obj)) return obj.map(sanitize).filter(v => v !== null);
+          const clean: Record<string, any> = {};
+          for (const [k, v] of Object.entries(obj)) {
+            const sanitized = sanitize(v);
+            if (sanitized !== null) clean[k] = sanitized;
+          }
+          return clean;
+        };
+        
+        return sanitize(result) as any;
       },
     } as any));
 

@@ -137,6 +137,16 @@ export default class GenomePlugin extends Service {
         content = fs.readFileSync(filePath, 'utf-8');
       }
 
+      // A-4 修复：花括号安检 - 检查未知变量引用
+      try {
+        this.validateBraces(content, name);
+      } catch (error: any) {
+        this.ctx.logger('genome').error(`Section ${name} failed brace validation:`, error.message);
+        this.ctx.logger('genome').warn(`Falling back to builtin template for ${name}`);
+        const templates = this.getBuiltinTemplates();
+        content = templates[name] || '';
+      }
+
       // 添加元信息头部
       const header = `[genome:${this.genomeData.genome_version} | ${name} v${meta.version}]\n\n`;
       const fullText = header + content;
@@ -153,10 +163,30 @@ export default class GenomePlugin extends Service {
     }
   }
 
+  private validateBraces(content: string, sectionName: string): void {
+    // A-4: 检测 {{...}} 模式，确保只引用已知变量
+    const pattern = /\{\{([^}]+)\}\}/g;
+    const matches = [...content.matchAll(pattern)];
+    
+    if (matches.length > 0) {
+      const knownVars = ['genome_version'];  // 已注册变量清单
+      const unknownRefs = matches
+        .map(m => m[1].trim())
+        .filter(v => !knownVars.includes(v));
+      
+      if (unknownRefs.length > 0) {
+        throw new Error(
+          `段 ${sectionName} 含未注册变量 {{${unknownRefs[0]}}}，renderPrompt 会抛异常。` +
+          `移除花括号或注册变量。已知变量: ${knownVars.join(', ')}`
+        );
+      }
+    }
+  }
+
   private registerVariables() {
-    // 注册 {{genome_version}} 变量
+    // A-3 修复：注册 {{genome_version}} 变量，禁止返回 undefined
     this.ctx.systemPrompt.variable('genome_version', () => {
-      return this.genomeData?.genome_version || 'unknown';
+      return this.genomeData?.genome_version || 'unknown';  // 回退默认值
     });
   }
 
