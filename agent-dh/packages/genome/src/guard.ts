@@ -60,6 +60,16 @@ export function validateSize(content: string, sectionName: string, maxChars: num
 }
 
 /**
+ * 规则 ID 提取（统一定义口径，2026-08-20 修复误判）：
+ * 只有 markdown 标题行中的 R-\d{3} 算规则"定义"（如 `## R-001 买入前确认`）；
+ * 正文中的提及（如"参考 R-001"）是合法引用，不算重复定义。
+ */
+export function extractRuleDefinitions(content: string): string[] {
+  const defPattern = /^#{1,6}\s*(R-\d{3})\b/gm;
+  return [...content.matchAll(defPattern)].map(m => m[1]);
+}
+
+/**
  * 规则 ID 格式校验：R-\d{3}
  * 计算规则 ID 增删清单（用于 changelog）
  */
@@ -71,15 +81,13 @@ export function validateAndExtractRuleIds(
     return { ids: [], added: [], removed: [] };
   }
 
-  const pattern = /\b(R-\d{3})\b/g;
-  const ids = [...new Set([...content.matchAll(pattern)].map(m => m[1]))];
-  
-  // ID 重复检查
-  const allMatches = [...content.matchAll(pattern)].map(m => m[1]);
-  const duplicates = ids.filter(id => allMatches.filter(m => m === id).length > 1);
+  // 只按定义行（标题）判重；正文引用不受限
+  const definitions = extractRuleDefinitions(content);
+  const ids = [...new Set(definitions)];
+  const duplicates = ids.filter(id => definitions.filter(d => d === id).length > 1);
   if (duplicates.length > 0) {
     throw new Error(
-      `规则段含重复 ID：${duplicates.join(', ')}。每个规则 ID 必须唯一。`
+      `规则段含重复定义：${duplicates.join(', ')}。每个规则 ID 只能有一个定义（标题行）；正文可引用但不可重复定义。`
     );
   }
 

@@ -150,6 +150,10 @@ export default class TradingPlugin extends Service {
           type: 'number',
           description: '委托价格（元）。不传则按市价成交；限价委托可控制成交成本，但存在不成交风险',
         },
+        reason: {
+          type: 'string',
+          description: '决策依据（强烈建议填写）：引用的规则 ID（如 R-001）+ 一句话理由。learning 插件会从中提取规则 ID 做归因统计，填写后才能回答"哪条规则在赚钱"',
+        },
         account_name: {
           type: 'string',
           description: '账户名称，默认 agent_virtual',

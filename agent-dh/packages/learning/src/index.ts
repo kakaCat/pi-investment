@@ -115,18 +115,18 @@ export default class LearningPlugin extends Service {
       agent_version: process.env.AGENT_VERSION || 'dev',
       action: {
         tool: execution.tool,
-        args: execution.args,
+        args: this.truncateForMemory(execution.args),
       },
       context: await this.captureContext(),
       outcome: {
         success: execution.success,
-        result: execution.result,
+        result: this.truncateForMemory(execution.result),
         error: execution.error,
         duration_ms: execution.duration,
       },
       reward: this.calculateReward(execution),
       tags: this.extractTags(execution),
-      genome_context: this.captureGenomeContext(),  // P0-3: 决策打标
+      genome_context: this.captureGenomeContext(execution),  // P0-3: 决策打标
     };
 
     // 存入内存缓冲区
@@ -156,17 +156,17 @@ export default class LearningPlugin extends Service {
   /**
    * P0-3: 捕获基因组上下文（genome_version + rules_used）
    */
-  private captureGenomeContext(): { genome_version: string; rules_used: string[] } | undefined {
+  private captureGenomeContext(execution?: any): { genome_version: string; rules_used: string[] } | undefined {
     try {
       // @ts-ignore - genome 插件通过 inject 动态注入
       const genome = this.ctx.genome;
       if (!genome || !genome.genomeData) {
         return undefined;
       }
-      
+
       return {
         genome_version: genome.genomeData.genome_version,
-        rules_used: this.extractRulesFromContext(),
+        rules_used: this.extractRulesFromContext(execution),
       };
     } catch (error) {
       this.ctx.logger('learning').warn('Failed to capture genome context:', error);
@@ -175,16 +175,40 @@ export default class LearningPlugin extends Service {
   }
 
   /**
-   * P0-3: 从决策上下文提取规则 ID
-   * 简化实现：返回空数组（P1 再实现完整规则提取）
-   * 未来：从 LLM 推理 trace 或 memory 搜索结果中提取 R-\d{3}
+   * 截断过大的值：防止几十 KB 的工具结果整体塞入记忆库（2026-08-20 遗留①）
+   * 超过 maxChars 时替换为带预览的占位对象
    */
-  private extractRulesFromContext(): string[] {
-    // TODO P1: 实现规则 ID 提取
-    // 1. 从 LLM response 中提取引用的规则（如 "根据 R-001..."）
-    // 2. 从 memory_search 结果中提取命中的规则段
-    // 3. 从 self_system_prompt 当前 rules 段中匹配实际使用的规则
-    return [];
+  private truncateForMemory(value: any, maxChars = 2000): any {
+    if (value === undefined || value === null) return value;
+    try {
+      const text = typeof value === 'string' ? value : JSON.stringify(value);
+      if (text.length <= maxChars) return value;
+      return {
+        _truncated: true,
+        _original_chars: text.length,
+        preview: text.slice(0, maxChars) + '…[truncated]',
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * P0-3: 从决策上下文提取规则 ID（2026-08-20 遗留②实现）
+   * 来源：工具参数 + 结果文本中引用的 R-\d{3}（如 portfolio_trade 的 reason 参数、
+   * 决策说明中的"根据 R-001"）。配合 trading 插件的 reason 参数形成闭环：
+   * 下单时注明依据的规则 ID → 归因时可按规则分组结算。
+   */
+  private extractRulesFromContext(execution?: any): string[] {
+    if (!execution) return [];
+    try {
+      const text = JSON.stringify([execution.args ?? null, typeof execution.result === 'string'
+        ? execution.result.slice(0, 20000)
+        : null]);
+      return [...new Set([...text.matchAll(/\b(R-\d{3})\b/g)].map(m => m[1]))].sort();
+    } catch {
+      return [];
+    }
   }
 
   /**

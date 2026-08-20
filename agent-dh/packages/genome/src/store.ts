@@ -259,10 +259,10 @@ export function computeRuleIdChanges(
   oldContent: string,
   newContent: string
 ): { added: string[], removed: string[] } {
-  const pattern = /\b(R-\d{3})\b/g;
-  
-  const oldIds = new Set([...oldContent.matchAll(pattern)].map(m => m[1]));
-  const newIds = new Set([...newContent.matchAll(pattern)].map(m => m[1]));
+  // 2026-08-20 修复：只按定义行（标题）计算增删，正文引用不产生伪增删
+  const defPattern = /^#{1,6}\s*(R-\d{3})\b/gm;
+  const oldIds = new Set([...oldContent.matchAll(defPattern)].map(m => m[1]));
+  const newIds = new Set([...newContent.matchAll(defPattern)].map(m => m[1]));
   
   const added = [...newIds].filter(id => !oldIds.has(id));
   const removed = [...oldIds].filter(id => !newIds.has(id));
