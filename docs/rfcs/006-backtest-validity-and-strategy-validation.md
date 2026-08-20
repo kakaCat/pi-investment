@@ -1,0 +1,99 @@
+# RFC 006: 回测可信度与策略验证体系（P2 落地设计）
+
+| 字段 | 值 |
+|---|---|
+| 状态 | 🟡 设计待评审 |
+| 创建 | 2026-08-20（agent-dh，基于 RFC 003 当日验收结论） |
+| 上游 | [RFC 003 盈利路线图](003-profitability-roadmap.md) P2；[RFC 005 工单包](005-profit-engine-work-tickets.md) M3-2 |
+| 编号说明 | 004/005 已被盈利引擎设计/工单包占用，本文档顺延为 006 |
+
+---
+
+## 1. 为什么需要这个 RFC
+
+RFC 003 验收结论（2026-08-20）：**P1 数据地基已通过，P3 模型已重建（AUC 0.5565 过门禁），唯独 P2 策略验证未通过——而且问题不在策略，在测量仪器本身**：
+
+| 证据 | 含义 |
+|---|---|
+| 30 次回测中大量 0 trades（5 策略 × 3 环境 × 2 股） | 4 个月窗口对低频策略无意义 |
+| "最佳策略 365 熊市 +0.31% 夏普 2"——**仅 1 笔交易** | 夏普在小样本下是噪音，当前输出会误导排名 |
+| 152 个策略多为 `unvalidated` | 没有筛选漏斗，全量回测成本不可承受 |
+| `evolution_run` 阻塞（工具指向已停用的 Agent OS） | 参数进化能力缺失，P2.2/P2.3 无法执行 |
+
+**核心论断**：在测量仪器不可信时，"0 策略达标"既不能证明策略不行，也不能证明策略行。先把尺子做准，再量策略。
+
+## 2. 设计
+
+### V1 回测有效性规范（测量仪器的尺子）
+
+| 规则 | 内容 | 理由 |
+|---|---|---|
+| 最小窗口 | 单环境回测窗口 ≥12 个月（牛市段可放宽到 9 个月） | 8/20 回测 4 个月窗口大量 0 成交 |
+| 最小样本 | 成交 <20 笔的回测标记 `insufficient_sample`，夏普/胜率不参与排名 | 1 笔交易的夏普 2 是纯噪音 |
+| 三环境强制 | 牛/熊/震荡各至少 1 段，达标要求 = 至少 2 个环境有效样本且综合达标 | 防止单一环境过拟合 |
+| 成本模型 | 回测含手续费+滑点（万三+0.1%），与 M5-1 滑点建模对齐 | 无成本回测虚高收益 |
+
+**落地**：在 `/api/indicators/backtest` 响应中增加 `trade_count` 与 `insufficient_sample: bool` 字段（若已有 trade_count 则只加标记）。验收：`curl` 一次 <20 笔的回测，响应含 `insufficient_sample: true`。
+
+### V2 策略筛选漏斗（152 → 5 的成本控制）
+
+```
+152 策略
+  → F1 规则粗筛（剔除：无信号逻辑/参数缺失/已停用）        → ~40
+  → F2 快速单环境回测（近 1 年，3 只代表性股票）            → 取前 15
+  → F3 三环境全量回测（牛/熊/震荡 × 5 股，V1 规范）         → 取前 5
+  → F4 evolution 参数进化（V3 修复后）                      → 最终 3-5 个投产
+```
+
+每级漏斗结果落库（策略 ID、层级、指标、淘汰原因），可复盘"哪级漏斗误杀了好策略"。
+
+### V3 evolution 工具修复（解除 P2.2 阻塞）
+
+现状：`evolution_run`/`evolution_leaderboard` 走 Agent OS（已停用）；quantsys-v2 只有 leaderboard 读接口。
+
+**方案（推荐）**：agent-dh 的 evolution 插件改为直连 quantsys-v2——`evolution_run` 在插件内实现参数扰动循环：读策略参数 → 扰动生成变体 → 调 `/api/indicators/backtest` 评估 → 写 leaderboard（需基建线补一个 leaderboard **写接口** `POST /api/evolution/records`）。
+
+接口契约（跨线约定）：
+```json
+POST /api/evolution/records
+{ "strategy_id": 365, "params": {...}, "env": "bear", "trade_count": 23,
+  "sharpe": 1.2, "max_drawdown": -0.08, "win_rate": 0.55, "insufficient_sample": false }
+```
+
+### V4 信号质量追踪（P2 与 P4 的桥梁，RFC005 M3-3 落地）
+
+每个买入信号落库并在 5/10/20 交易日后回填实际表现。这是唯一能把"回测指标"与"实盘信号质量"互相校准的机制。落库表：`quant.signal_tracking`（signal_id, symbol, signal_date, signal_price, ret_5d, ret_10d, ret_20d, filled_at）。
+
+## 3. 验收标准（全部可执行）
+
+| # | 验收 | 命令 | 标准 |
+|---|---|---|---|
+| A1 | insufficient_sample 标记 | 对小样本策略跑一次回测 | 成交 <20 笔时响应含 `insufficient_sample: true` |
+| A2 | 漏斗 F1-F3 执行 | 查漏斗落库记录 | 152→≤40→≤15→5 各层有记录有淘汰理由 |
+| A3 | evolution 修复 | `evolution_run(strategy_id=365, mode=propose)` | 不再报 Agent OS 错误，产出参数变体 |
+| A4 | leaderboard 写接口 | POST 一条记录后 `evolution_leaderboard` 可查 | 写入可读回 |
+| A5 | 信号追踪 | 一个真实信号 20 日后查 `signal_tracking` | ret_5d/10d/20d 已回填 |
+| A6 | P2 总验收 | 漏斗出口策略的三环境报告 | ≥3 策略：有效样本下夏普>1、回撤<15% |
+
+## 4. 分工与波次
+
+| 波次 | 工单 | 负责方 |
+|---|---|---|
+| 🌊 立即 | V1 insufficient_sample 标记；V3 中 leaderboard 写接口 | 基建线 |
+| 🌊 立即 | V2 漏斗 F1/F2；V3 中 evolution 插件改造 | 挣钱线（agent-dh） |
+| 🌊 V1 完成后 | V2 漏斗 F3 三环境全量回测 | 挣钱线 |
+| 🌊 并行 | V4 信号追踪表 + 回填任务 | 联合 |
+
+**不在本 RFC 范围**（已在 RFC 005 工单内，不重复）：opponent_behavior 真实数据源（M7-1）、资金流覆盖扩至全市场（M0 残留）、regime 落库（M1-1）、决策前强制检索（M6-1）。
+
+## 5. 风险
+
+1. **F2 快速筛选可能误杀低频好策略**——缓解：F2 淘汰线放宽（允许 insufficient_sample 但方向为正的策略进 F3）
+2. **AUC 0.5565 的模型余量很薄**——P3 后续应扩至 500+ 股复训；模型只作加权参考，不主导决策（RFC 003 原则不变）
+3. **evolution 本地扰动可能过拟合回测区间**——缓解：进化只用训练段，验收用留出段
+
+## 6. 变更日志
+
+| 日期 | 内容 |
+|---|---|
+| 2026-08-20 | 创建。基于 RFC 003 当日验收：P1✅/P3✅（dac1451a），P2 未过的根因定位在测量仪器 |
