@@ -128,7 +128,7 @@ export default class LifecyclePlugin extends Service {
 
     ctx.tools.register(defineTool({
       name: 'self_restart',
-      description: '重启 agent 自身（自修复）。用途：①修改插件代码后重启生效并自动续跑验证；②状态异常时冷启动恢复；③定期维护。重启前自动把未提交改动存入 wip 分支检查点；若新代码导致启动失败会自动回滚，不会变砖。重启后自动收到续跑消息。每小时最多 10 次。',
+      description: '重启 agent 自身。用途：①修改插件代码后重启生效；②添加/修改插件配置（cordis.patch.yml）后重启加载；③状态异常时冷启动恢复；④定期维护。重启前自动把未提交改动存入 wip 分支检查点；若新代码导致启动失败会自动回滚，不会变砖。重启后自动收到续跑消息。每小时最多 10 次。',
       parameters: {
         reason: { type: 'string', description: '重启原因，如「修复 strategy 插件筛选 bug」', required: true },
         resume_task: { type: 'string', description: '重启后要自动执行的验证任务描述；纯维护重启传空字符串', required: true },
