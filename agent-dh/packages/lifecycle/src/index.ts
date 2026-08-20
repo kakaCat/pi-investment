@@ -155,8 +155,16 @@ export default class LifecyclePlugin extends Service {
           return { success: false, message: '已有重启进行中（restarting.lock 存在），拒绝重入' } as any;
         }
         try {
-          // 记录发起会话（agent.id === session id），重启后续跑消息优先回投这里
-          const originAgentId = exec?.agent?.id != null ? String(exec.agent.id) : null;
+          // 记录发起会话（agent.id === session id），重启后续跑消息优先回投这里。
+          // 双通道捕获：exec.agent 由 agent loop 显式传递；currentInitiator() 是
+          // 同进程因果归因（async 上下文边界），任一命中即可。
+          let originAgentId: string | null = exec?.agent?.id != null ? String(exec.agent.id) : null;
+          if (!originAgentId) {
+            try {
+              const init = (this.ctx.agents as any).currentInitiator?.();
+              if (init?.id != null) originAgentId = String(init.id);
+            } catch { /* 无 initiator 边界（如定时任务触发），保持 null 走兜底投递 */ }
+          }
           const base = this.repo.currentBranch();
           const baseHead = this.repo.head(); // 必须先于 createWipBranch 捕获，否则拿到的是 wip 提交
           const wip = this.repo.createWipBranch('agent-self', ['agent-dh/'], `wip(agent-self): ${args.reason}`);
@@ -187,7 +195,8 @@ export default class LifecyclePlugin extends Service {
             checkpoint_branch: branch,
             checkpoint_files: wip?.files ?? [],
             attempt,
-            message: `重启已安排，数秒后执行，当前会话将被终止。检查点：${branch ?? '无代码改动'}${wip ? `（含 ${wip.files.length} 个文件，如有不属于本次修复的改动请留意：${wip.files.join(', ')}）` : ''}。日志：${logPath}`,
+            origin_agent_id: originAgentId,
+            message: `重启已安排，数秒后执行，当前会话将被终止。检查点：${branch ?? '无代码改动'}${wip ? `（含 ${wip.files.length} 个文件，如有不属于本次修复的改动请留意：${wip.files.join(', ')}）` : ''}。续跑消息将回投会话：${originAgentId ?? '(未识别发起会话，兜底投 investor 根 Agent)'}。日志：${logPath}`,
           } as any;
         } catch (e) {
           this.state.releaseLock();
