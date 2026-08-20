@@ -17,6 +17,9 @@ from adapters.outbound.datasources.providers.kline.tencent import TencentKlinePr
 from adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
 from adapters.outbound.datasources.providers.kline.akshare import AkshareKlineProvider
 from adapters.outbound.datasources.providers.sector.eastmoney import EastmoneySectorProvider
+from adapters.outbound.datasources.providers.index.akshare import AkshareIndexProvider
+from adapters.outbound.datasources.providers.financial.akshare import AkshareFinancialStatementProvider
+from adapters.outbound.datasources.providers.hk.akshare import AkshareHKProvider
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +47,12 @@ class DataProviderManager:
             # NeteaseQuoteProvider(),    # Disabled: connection failures
         ]
         self.financial_providers = []
+        self.financial_statement_providers = [
+            AkshareFinancialStatementProvider(),
+        ]
+        self.hk_providers = [
+            AkshareHKProvider(),
+        ]
         self.dividend_providers = [
             AkshareDividendProvider(),
         ]
@@ -55,6 +64,9 @@ class DataProviderManager:
         ]
         self.stock_providers = [
             AkshareStockProvider(),
+        ]
+        self.index_providers = [
+            AkshareIndexProvider(),
         ]
         # Kline providers: database first (fast), baostock 为网络首选（独立 TCP
         # 体系，eastmoney/tencent 双双被封后的主力源, 2026-07-28），tencent 其次，
@@ -417,6 +429,110 @@ class DataProviderManager:
             source fields.
         """
         return self._try_providers(self.sector_providers, 'get_sector_list')
+
+    def get_lhb_detail(self, symbol: str, start_date: str, end_date: str) -> dict:
+        """获取指定股票在日期区间内的龙虎榜明细"""
+        return self._try_providers(
+            self.market_providers,
+            'get_lhb_detail',
+            symbol,
+            start_date,
+            end_date
+        )
+
+    def get_zt_pool(self, date: str) -> dict:
+        """获取涨停池"""
+        return self._try_providers(
+            self.market_providers,
+            'get_zt_pool',
+            date
+        )
+
+    def get_hk_market_overview(self) -> dict:
+        """港股市场概览（恒指现货 + 港股通持股）"""
+        return self._try_providers(self.hk_providers, 'get_hk_market_overview')
+
+    def get_south_flow(self) -> dict:
+        """南向资金流向"""
+        return self._try_providers(self.hk_providers, 'get_south_flow')
+
+    def get_hk_hot_rank(self) -> dict:
+        """港股人气排行"""
+        return self._try_providers(self.hk_providers, 'get_hk_hot_rank')
+
+    def get_hk_daily(self, symbol: str) -> dict:
+        """港股日K（前复权）"""
+        return self._try_providers(self.hk_providers, 'get_hk_daily', symbol)
+
+    def get_hk_financials(self, symbol: str) -> dict:
+        """港股财务指标"""
+        return self._try_providers(self.hk_providers, 'get_hk_financials', symbol)
+
+    def get_sina_financial_statements(self, clean_symbol: str) -> dict:
+        """新浪三大报表全量原始记录（策略沙箱财务注入用，不截断）"""
+        return self._try_providers(self.financial_statement_providers, 'get_sina_statements', clean_symbol)
+
+    def get_financial_analysis_indicator(self, clean_symbol: str) -> dict:
+        """东财财务分析指标全量原始记录（策略沙箱用，不截断）"""
+        return self._try_providers(self.financial_statement_providers, 'get_financial_analysis_indicator', clean_symbol)
+
+    def get_cash_flow_sheet(self, symbol: str) -> dict:
+        """现金流量表（symbol 为东财格式如 SH600519）"""
+        return self._try_providers(self.financial_statement_providers, 'get_cash_flow_sheet', symbol)
+
+    def get_profit_sheet(self, symbol: str) -> dict:
+        """利润表（symbol 为东财格式如 SH600519）"""
+        return self._try_providers(self.financial_statement_providers, 'get_profit_sheet', symbol)
+
+    def get_insider_trades(self, symbol: str) -> dict:
+        """股东增减持数据（内幕交易替代指标）"""
+        return self._try_providers(self.market_providers, 'get_insider_trades', symbol)
+
+    def get_market_margin(self) -> dict:
+        """全市场融资融券余额（sh 历史 + sz 当日）"""
+        return self._try_providers(self.market_providers, 'get_market_margin')
+
+    def get_sector_fund_flow(self, indicator: str = '今日') -> dict:
+        """行业资金流向排行（indicator: 今日/5日/10日）"""
+        return self._try_providers(self.market_providers, 'get_sector_fund_flow', indicator)
+
+    def get_macro_data(self) -> dict:
+        """宏观经济数据（GDP/CPI/PMI 最新值）"""
+        return self._try_providers(self.market_providers, 'get_macro_data')
+
+    def get_market_news(self) -> dict:
+        """全市场财经新闻（区别于 get_news 的个股新闻）"""
+        return self._try_providers(self.market_providers, 'get_market_news')
+
+    def get_index_daily(self, symbol: str) -> dict:
+        """指数历史日K（symbol 如 sh000300）"""
+        return self._try_providers(self.market_providers, 'get_index_daily', symbol)
+
+    def get_market_spot(self) -> dict:
+        """获取全市场快照（含 PE/PB/市值等字段）
+
+        Returns:
+            Result dict with success, data (MarketData, .data={'records': [...], 'total': n}), source
+        """
+        return self._try_providers(
+            self.market_providers,
+            'get_market_spot'
+        )
+
+    def get_index_constituents(self, index_code: str) -> dict:
+        """获取指数成分股代码列表（csindex 优先 + sina 兜底）
+
+        Args:
+            index_code: 指数裸代码（如 '000300' 沪深300、'000688' 科创50、'399006' 创业板指）
+
+        Returns:
+            Result dict with success, data (StockData, .data=[{'symbol': '600519'}, ...]), source
+        """
+        return self._try_providers(
+            self.index_providers,
+            'get_index_constituents',
+            index_code
+        )
 
     def get_klines(self, symbol: str, period: str, start_date: str, end_date: str) -> dict:
         """Get kline data with automatic failover

@@ -29,6 +29,21 @@ def sanitize_for_json(obj):
         return obj.item()
     if isinstance(obj, pd.Timestamp):
         return obj.isoformat()
+    if isinstance(obj, pd.DataFrame):
+        return sanitize_for_json(obj.to_dict('records'))
+    if isinstance(obj, pd.Series):
+        return sanitize_for_json(obj.tolist())
+    if isinstance(obj, np.ndarray):
+        return sanitize_for_json(obj.tolist())
+    # polars 支持（PySeries/PyDataFrame 默认不可 JSON 序列化）
+    try:
+        import polars as pl
+        if isinstance(obj, pl.DataFrame):
+            return sanitize_for_json(obj.to_dicts())
+        if isinstance(obj, pl.Series):
+            return sanitize_for_json(obj.to_list())
+    except ImportError:
+        pass
     if isinstance(obj, dict):
         return {
             sanitize_for_json(k) if not isinstance(k, str) else k: sanitize_for_json(v)

@@ -4,7 +4,9 @@ Flask 与 FastAPI 两个 API 层共享同一实现。注意：_execute_calibrati
 run_calibration 在原 Flask 代码中即未定义（latent bug），原样保留（parity）。
 """
 import logging
+import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from adapters.shared import ds
@@ -12,6 +14,24 @@ from adapters.shared.stores import _update_pipeline_run, _load_pipeline_runs, _s
 from adapters.shared.tasks import release_task
 
 logger = logging.getLogger(__name__)
+
+_V2_ROOT = Path(__file__).resolve().parents[2]  # quantsys-v2 根目录
+
+
+def _ensure_legacy_quant_path(include_scripts: bool = True):
+    """把遗留 quant 项目（quantsys-v2 的兄弟目录）加入 sys.path。
+
+    旧 quant 项目的 generate_signals / ML 训练 / 校准脚本尚未迁移到 v2，
+    这里集中维护路径桥接（替代原先各函数内散落的 sys.path.insert，并修复
+    历史上 _V2_ROOT 未定义导致的 latent NameError）。
+    """
+    quant_root = str(_V2_ROOT.parent / 'quant')
+    if quant_root not in sys.path:
+        sys.path.insert(0, quant_root)
+    if include_scripts:
+        quant_scripts = str(_V2_ROOT.parent / 'quant' / 'scripts')
+        if quant_scripts not in sys.path:
+            sys.path.insert(0, quant_scripts)
 
 
 def _execute_pipeline_stages_with_error_handling(run_id: str, symbols: List[str], stages: List[str], task_type: Optional[str] = None, days: int = 730):
@@ -247,8 +267,7 @@ def _execute_signal_generate(run_id: str, symbols: List[str], date: Optional[str
     logs: List[str] = [f"[{start_time.isoformat()}] 信号生成开始: {run_id}"]
     signal_count = 0
     try:
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant' / 'scripts'))
+        _ensure_legacy_quant_path()
         from generate_signals import SignalGenerator
         db = Database(connect=True)
         generator = SignalGenerator(db)
@@ -287,8 +306,7 @@ def _execute_ml_train(
     logs: List[str] = [f"[{start_time.isoformat()}] ML训练开始: {run_id}"]
     logs.append(f"[{start_time.isoformat()}] 参数: days={days}, future_days={future_days}, model={model}, tune={tune}")
     try:
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant' / 'scripts'))
+        _ensure_legacy_quant_path()
         from ml_retrain import MLRetrainer
         db_path = os.environ.get("QUANT_DB_PATH", str(_V2_ROOT.parent / 'quant' / '.pi-invest' / 'stock-db' / 'stocks.db'))
         model_dir = str(_V2_ROOT.parent / 'quant' / 'quantsys' / 'ml' / 'models')
@@ -335,7 +353,7 @@ def _execute_calibration(
     logs: List[str] = [f"[{start_time.isoformat()}] 置信度校准开始: {run_id}"]
     logs.append(f"[{start_time.isoformat()}] 参数: forward_days={forward_days}, max_symbols={max_symbols}, lookback_days={lookback_days}")
     try:
-        sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
+        _ensure_legacy_quant_path(include_scripts=False)
         output_path = str(_V2_ROOT.parent / 'quant' / '.pi-invest' / 'quant' / 'confidence_config.json')
         config = run_calibration(
             forward_days=forward_days, return_threshold=return_threshold,
