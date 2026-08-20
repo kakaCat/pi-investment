@@ -142,5 +142,150 @@ export default class MarketPlugin extends Service {
         return qv2.getChipDistribution(args.symbol) as any;
       },
     } as any));
+
+    // ===== M1 市场感知：每日落库三件套（RFC 004/005，2026-08-20）=====
+    // 落库介质：memory（kind=episode, scope=market:*），不依赖后端改表；
+    // 幂等：同日已有记录则跳过（盘后例程重复触发不会产生重复记录）
+
+    // M1-1 + M1-3: regime 与情绪每日落库
+    ctx.tools.register(defineTool({
+      name: 'regime_daily',
+      description: '计算并落库当日市场 regime（趋势/震荡/恐慌/狂热）与情绪时间序列。判定依据：恐慌贪婪指数 + 涨跌家数比 + 量能比（指数K线趋势维度待 M0 数据地基补齐后接入）。每日盘后例程调用一次，幂等（同日重复调用跳过）。供：M4 仓位映射、验证门裁决的 regime 对齐、复盘统计 regime 判定准确率。',
+      parameters: {},
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            date: { type: 'string' },
+            regime: { type: 'string', description: 'panic / euphoria / risk_on / risk_off / sideways' },
+            evidence: { type: 'object', additionalProperties: true },
+            skipped: { type: 'boolean', description: 'true=今日已落库，未重复写入' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 30000,
+      execute: async () => {
+        const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
+
+        // 幂等检查：今日已落库则跳过
+        const existing = await qv2.searchMemory({ q: `regime ${today}`, scope: 'market:regime', limit: 3 });
+        const dup = (existing?.items || []).find((it: any) => it.payload?.date === today);
+        if (dup) {
+          return { date: today, regime: dup.payload?.regime, evidence: dup.payload?.evidence, skipped: true } as any;
+        }
+
+        const s: any = await qv2.getMarketSentiment();
+        const fg = Number(s?.fearGreedIndex ?? 50);
+        const adRatio = Number(s?.indicators?.advanceDecline?.ratio ?? 1);
+        const volRatio = Number(s?.indicators?.volume?.volumeRatio ?? 1);
+
+        // regime 分类（情绪维度；趋势维度待 M0 指数K线）
+        let regime = 'sideways';
+        let reason = '情绪中性区间震荡';
+        if (fg <= 20) { regime = 'panic'; reason = `恐慌贪婪指数 ${fg} ≤ 20，恐慌市`; }
+        else if (fg >= 80) { regime = 'euphoria'; reason = `恐慌贪婪指数 ${fg} ≥ 80，狂热市`; }
+        else if (adRatio >= 1.5 && volRatio >= 1.2) { regime = 'risk_on'; reason = `涨跌比 ${adRatio}≥1.5 且量能比 ${volRatio}≥1.2，偏多`; }
+        else if (adRatio <= 0.67 && volRatio <= 0.9) { regime = 'risk_off'; reason = `涨跌比 ${adRatio}≤0.67 且量能比 ${volRatio}≤0.9，偏空缩量`; }
+
+        const evidence = {
+          fearGreedIndex: fg,
+          advanceDeclineRatio: adRatio,
+          volumeRatio: volRatio,
+          sentimentScore: s?.sentimentScore,
+          sentimentLevel: s?.sentimentLevel,
+          reason,
+          data_gap: '指数K线趋势维度缺失（M0 待补），当前仅情绪+量能维度',
+        };
+
+        await qv2.createMemory({
+          kind: 'episode',
+          scope: 'market:regime',
+          title: `regime ${today}: ${regime}`,
+          content: `${today} 市场 regime = ${regime}（${reason}）。恐慌贪婪=${fg}，涨跌比=${adRatio}，量能比=${volRatio}。`,
+          payload: { date: today, regime, evidence },
+          status: 'testing',
+          confidence: 0.7,
+          source: 'regime_daily',
+          provenance: { channel: 'dsh', session_kind: 'agent' },
+        });
+
+        // M1-3 情绪时间序列同步落库（同一数据源，一条记录）
+        const dupSent = (await qv2.searchMemory({ q: `sentiment ${today}`, scope: 'market:sentiment', limit: 3 }))
+          ?.items?.find((it: any) => it.payload?.date === today);
+        if (!dupSent) {
+          await qv2.createMemory({
+            kind: 'episode',
+            scope: 'market:sentiment',
+            title: `sentiment ${today}: fg=${fg}`,
+            content: `${today} 情绪序列：恐慌贪婪=${fg}，涨跌家数比=${adRatio}，量能比=${volRatio}，情绪分=${s?.sentimentScore}（${s?.sentimentLevel}）。`,
+            payload: { date: today, fearGreedIndex: fg, advanceDeclineRatio: adRatio, volumeRatio: volRatio, raw: s?.indicators ?? null },
+            status: 'testing',
+            confidence: 0.7,
+            source: 'regime_daily',
+            provenance: { channel: 'dsh', session_kind: 'agent' },
+          });
+        }
+
+        return { date: today, regime, evidence, skipped: false } as any;
+      },
+    } as any));
+
+    // M1-2: 每日主线识别（Top3 强势主线 + 依据）
+    ctx.tools.register(defineTool({
+      name: 'mainline_scan',
+      description: '识别当日市场主线 Top3（强势板块聚类：涨幅+资金流向），落库时间序列（scope=market:mainline）。催化剂关联（政策/事件）由盘后例程的 LLM 结合 web_search 补充。幂等：同日重复调用跳过。供：主线→标的映射（M2-1）、每日复盘主线一致率统计。',
+      parameters: {
+        days: { type: 'integer', description: '板块表现统计窗口（交易日），默认 5', default: 5 },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            date: { type: 'string' },
+            mainlines: { type: 'array', items: { type: 'object', additionalProperties: true } },
+            skipped: { type: 'boolean' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 30000,
+      execute: async (args: any) => {
+        const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
+
+        const existing = await qv2.searchMemory({ q: `mainline ${today}`, scope: 'market:mainline', limit: 3 });
+        const dup = (existing?.items || []).find((it: any) => it.payload?.date === today);
+        if (dup) {
+          return { date: today, mainlines: dup.payload?.mainlines, skipped: true } as any;
+        }
+
+        const res: any = await qv2.getSectorAnalysis({ days: args.days ?? 5, limit: 10 });
+        // 响应结构宽容解析：取板块数组（名称+涨跌幅+资金流）
+        const sectors: any[] = res?.sectors || res?.items || res?.ranking || [];
+        const top3 = sectors.slice(0, 3).map((sec: any, i: number) => ({
+          rank: i + 1,
+          sector: sec.name ?? sec.sector ?? sec.industry,
+          change_pct: sec.change_pct ?? sec.changePct ?? sec.pct ?? null,
+          fund_flow: sec.fund_flow ?? sec.fundFlow ?? sec.net_inflow ?? null,
+          basis: `近${args.days ?? 5}日板块强度排名前${i + 1}${sec.fund_flow != null || sec.net_inflow != null ? '，资金净流入' : ''}`,
+        }));
+
+        await qv2.createMemory({
+          kind: 'episode',
+          scope: 'market:mainline',
+          title: `mainline ${today}: ${top3.map(t => t.sector).join('/')}`,
+          content: `${today} 主线 Top3：${top3.map(t => `${t.rank}.${t.sector}(${t.change_pct ?? '?'}%)`).join('，')}。催化剂关联待盘后例程补充。`,
+          payload: { date: today, mainlines: top3, catalyst: null, note: '催化剂由盘后例程 LLM 结合 web_search 补充' },
+          status: 'testing',
+          confidence: 0.6,
+          source: 'mainline_scan',
+          provenance: { channel: 'dsh', session_kind: 'agent' },
+        });
+
+        return { date: today, mainlines: top3, skipped: false } as any;
+      },
+    } as any));
   }
 }
