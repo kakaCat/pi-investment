@@ -90,6 +90,10 @@ export default class EvolverPlugin extends Service {
       const rewards: number[] = [];
       for (const it of items) {
         try {
+          // 2026-08-20 验收修复：BM25 文本检索 genome:gN 会串版本（g7/g8 互相命中），
+          // 必须按 payload.genome_context.genome_version 精确过滤，裁决才公平
+          const tagged = it.payload?.genome_context?.genome_version;
+          if (tagged !== genomeVersion) continue;
           const content = typeof it.content === 'string' ? JSON.parse(it.content) : it.content;
           if (typeof content?.reward === 'number') rewards.push(content.reward);
         } catch { /* 单条解析失败跳过 */ }
