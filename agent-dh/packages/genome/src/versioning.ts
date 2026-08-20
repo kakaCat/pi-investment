@@ -142,6 +142,8 @@ export function queryHistory(
 
 /**
  * 获取段的上一个版本号
+ * B-3 修复：history 条目不足时，若当前版本 >1 则回退为 当前版本-1
+ *（g1 初始版本无 history 条目，首次更新后 history 只有 1 条，此前会误判"无可回滚版本"）
  */
 export function getPreviousSectionVersion(
   genomeData: GenomeMetadata,
@@ -151,12 +153,14 @@ export function getPreviousSectionVersion(
   const sectionHistory = history
     .filter(e => e.section === sectionName)
     .sort((a, b) => b.section_version - a.section_version);
-  
-  if (sectionHistory.length < 2) {
-    return null;  // 只有初始版本或没有历史
+
+  if (sectionHistory.length >= 2) {
+    return sectionHistory[1].section_version;
   }
-  
-  return sectionHistory[1].section_version;
+
+  // 兜底：当前版本 >1 说明存在更早版本（即使 history 没记录，如 g1 init）
+  const current = genomeData.sections[sectionName]?.version ?? 1;
+  return current > 1 ? current - 1 : null;
 }
 
 /**

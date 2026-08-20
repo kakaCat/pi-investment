@@ -1,6 +1,8 @@
 import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
+// renderPrompt 是包级独立导出（不是 service 方法）——金丝雀必须用它真实试渲染
+import { renderPrompt } from '@deepseek-ai/dsh-system-prompt';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
@@ -136,10 +138,38 @@ export default class GenomePlugin extends Service {
 
     // Git 初始化
     try {
+      // 锁文件/临时文件不入库
+      fs.writeFileSync(path.join(this.genomeDir, '.gitignore'), 'genome.lock\n*.tmp\n', 'utf-8');
       execSync('git init', { cwd: this.genomeDir, stdio: 'ignore' });
       execSync('git add .', { cwd: this.genomeDir, stdio: 'ignore' });
       execSync('git commit -m "Initial genome snapshot (g1)"', { cwd: this.genomeDir, stdio: 'ignore' });
       this.ctx.logger('genome').info('Genome git repository initialized');
+
+      // B-3 修复：为每个段写入 init history 条目（含首个 commit hash），
+      // 否则首次更新后无法回滚到 v1（getHistoricalSection 找不到 v1 对应的 commit）
+      try {
+        const initHash = execSync('git rev-parse --short HEAD', { cwd: this.genomeDir, encoding: 'utf-8' }).trim();
+        const ts = new Date().toISOString();
+        (genomeJson as any).history = Object.keys(genomeJson.sections).map((name) => ({
+          version: 'g1',
+          section: name,
+          section_version: 1,
+          parent: 'g0',
+          reason: '初始基因组快照',
+          ts,
+          git_commit: initHash,
+          author: 'agent' as const,
+          type: 'init' as const,
+        }));
+        fs.writeFileSync(
+          path.join(this.genomeDir, 'genome.json'),
+          JSON.stringify(genomeJson, null, 2)
+        );
+        execSync('git add genome.json', { cwd: this.genomeDir, stdio: 'ignore' });
+        execSync('git commit -m "genome(g1): init history entries"', { cwd: this.genomeDir, stdio: 'ignore' });
+      } catch (histErr) {
+        this.ctx.logger('genome').warn('Failed to write init history entries:', histErr);
+      }
     } catch (error) {
       this.ctx.logger('genome').warn('Failed to initialize git repository:', error);
     }
@@ -438,7 +468,7 @@ export default class GenomePlugin extends Service {
           // 规则段特殊处理
           const oldContent = readSection(this.genomeDir, section);
           const ruleValidation = validateAndExtractRuleIds(content, section);
-          const ruleIdChanges = section === 'rules' 
+          const ruleIdChanges = section === 'rules'
             ? computeRuleIdChanges(oldContent, content)
             : { added: [], removed: [] };
 
@@ -449,23 +479,13 @@ export default class GenomePlugin extends Service {
           };
 
           try {
-            // Step 4: 写入文件
+            // Step 4: 写入段文件
             writeSection(this.genomeDir, section, content);
-            
-            // Step 5: git commit
+
+            // Step 5: 推进版本并写 genome.json（B-2 修复：先写元数据再提交，
+            // 保证 commit 内 genome.json 与段内容同代）
             const oldVersion = genomeData.sections[section].version;
             const newVersion = oldVersion + 1;
-            const gitHash = gitCommit(
-              this.genomeDir,
-              genomeData.genome_version,
-              section,
-              oldVersion,
-              newVersion,
-              reason,
-              'update'
-            );
-
-            // Step 6: 更新 genome.json + history
             const historyEntry = {
               version: '',  // 占位，advanceVersion 会填充
               section,
@@ -473,7 +493,6 @@ export default class GenomePlugin extends Service {
               parent: genomeData.genome_version,
               reason,
               ts: new Date().toISOString(),
-              git_commit: gitHash,
               author: 'agent' as const,
               type: 'update' as const,
               force: force || undefined,
@@ -481,21 +500,38 @@ export default class GenomePlugin extends Service {
             const newGenomeData = advanceVersion(genomeData, section, historyEntry);
             writeGenomeJson(this.genomeDir, newGenomeData);
 
-            // 追加 CHANGELOG
+            // 追加 CHANGELOG（在 commit 之前，使其纳入版本控制）
             appendChangelog(
               this.genomeDir,
               newGenomeData.history![newGenomeData.history!.length - 1],
               section === 'rules' ? ruleIdChanges : undefined
             );
 
+            // Step 6: git commit（标签用新代数；git add -A 纳入 CHANGELOG.md）
+            const gitHash = gitCommit(
+              this.genomeDir,
+              newGenomeData.genome_version,
+              section,
+              oldVersion,
+              newVersion,
+              reason,
+              'update'
+            );
+
+            // 把 commit hash 补进 history（该字段的改动随下次提交入库；
+            // getHistoricalSection 有文件历史兜底，不依赖此字段）
+            const entries = newGenomeData.history!;
+            entries[entries.length - 1].git_commit = gitHash;
+            writeGenomeJson(this.genomeDir, newGenomeData);
+
             // Step 7: 热替换（dispose 旧段 + 注册新段）
             if (this.disposers.has(section)) {
               this.disposers.get(section)!();
             }
-            
+
             const header = `[genome:${newGenomeData.genome_version} | ${section} v${newVersion}]\n\n`;
             const fullText = header + content;
-            
+
             const dispose = this.ctx.systemPrompt.section({
               name: `genome:${section}`,
               order: newGenomeData.sections[section].order,
@@ -503,22 +539,21 @@ export default class GenomePlugin extends Service {
             });
             this.disposers.set(section, dispose);
 
-            // Step 8: 渲染金丝雀（试渲染确保不崩）
+            // Step 8: 渲染金丝雀（B-1 修复：await assemble + 包级 renderPrompt 真实试渲染）
             try {
-              const assembly = this.ctx.systemPrompt.assemble();
-              // @ts-ignore - renderPrompt 存在但类型未导出
-              this.ctx.systemPrompt.renderPrompt?.(assembly);
+              const assembly = await this.ctx.systemPrompt.assemble();
+              renderPrompt(assembly);
             } catch (renderError: any) {
               // 金丝雀失败 → 自动还原
               this.ctx.logger('genome').error('Render canary failed, rolling back:', renderError);
-              
+
               // 还原文件
               writeSection(this.genomeDir, section, snapshot.sectionContent);
               writeGenomeJson(this.genomeDir, snapshot.genomeJson);
-              
+
               // git revert
               execSync('git revert --no-edit HEAD', { cwd: this.genomeDir, stdio: 'pipe' });
-              
+
               // 还原段注册
               if (this.disposers.has(section)) {
                 this.disposers.get(section)!();
@@ -531,7 +566,7 @@ export default class GenomePlugin extends Service {
                 text: oldFullText,
               });
               this.disposers.set(section, oldDispose);
-              
+
               throw new Error(`渲染金丝雀失败，已自动还原到 v${oldVersion}。错误: ${renderError.message}`);
             }
 
@@ -539,15 +574,17 @@ export default class GenomePlugin extends Service {
             this.genomeData = newGenomeData;
 
             lock.release();
-            
-            return {
+
+            // B-4 修复：undefined 字段会导致工具输出 "not lossless JSON"，按需拼装
+            const result: any = {
               success: true,
               genome_version: newGenomeData.genome_version,
               section_version: newVersion,
               git_commit: gitHash,
-              rule_id_changes: section === 'rules' ? ruleIdChanges : undefined,
-              warning,
-            } as any;
+            };
+            if (section === 'rules') result.rule_id_changes = ruleIdChanges;
+            if (warning) result.warning = warning;
+            return result;
 
           } catch (error: any) {
             // 写入/git 阶段失败 → 还原快照
@@ -627,70 +664,101 @@ export default class GenomePlugin extends Service {
           validateBraces(targetContent, section);
           validateSize(targetContent, section);
 
-          // 写入（回滚内容）
-          writeSection(this.genomeDir, section, targetContent);
+          // 备份（金丝雀失败自动还原，与 update 对称）
+          const oldContent = readSection(this.genomeDir, section);
+          const snapshot = {
+            genomeJson: { ...genomeData },
+            sectionContent: oldContent,
+          };
 
-          // git commit（回滚也是一次提交）
-          const oldVersion = genomeData.sections[section].version;
-          const newVersion = oldVersion + 1;
-          const gitHash = gitCommit(
-            this.genomeDir,
-            genomeData.genome_version,
-            section,
-            oldVersion,
-            newVersion,
-            `回滚到 v${targetVersion}: ${reason}`,
-            'rollback'
-          );
-
-          // 更新 genome.json（回滚=新版本）
-          const newGenomeData = advanceVersionForRollback(
-            genomeData,
-            section,
-            targetVersion,
-            reason,
-            gitHash
-          );
-          writeGenomeJson(this.genomeDir, newGenomeData);
-
-          // 追加 CHANGELOG
-          appendChangelog(
-            this.genomeDir,
-            newGenomeData.history![newGenomeData.history!.length - 1]
-          );
-
-          // 热替换
-          if (this.disposers.has(section)) {
-            this.disposers.get(section)!();
-          }
-          const header = `[genome:${newGenomeData.genome_version} | ${section} v${newVersion}]\n\n`;
-          const fullText = header + targetContent;
-          const dispose = this.ctx.systemPrompt.section({
-            name: `genome:${section}`,
-            order: newGenomeData.sections[section].order,
-            text: fullText,
-          });
-          this.disposers.set(section, dispose);
-
-          // 渲染金丝雀
           try {
-            const assembly = this.ctx.systemPrompt.assemble();
-            // @ts-ignore
-            this.ctx.systemPrompt.renderPrompt?.(assembly);
-          } catch (renderError: any) {
-            throw new Error(`回滚后渲染失败: ${renderError.message}。需人工修复。`);
+            // 写入（回滚内容）
+            writeSection(this.genomeDir, section, targetContent);
+
+            // 更新 genome.json（回滚=新版本；B-2 修复：先写元数据再提交）
+            const oldVersion = genomeData.sections[section].version;
+            const newVersion = oldVersion + 1;
+            const newGenomeData = advanceVersionForRollback(
+              genomeData,
+              section,
+              targetVersion,
+              reason
+            );
+            writeGenomeJson(this.genomeDir, newGenomeData);
+
+            // 追加 CHANGELOG（纳入版本控制）
+            appendChangelog(
+              this.genomeDir,
+              newGenomeData.history![newGenomeData.history!.length - 1]
+            );
+
+            // git commit（回滚也是一次提交；标签用新代数，message 含回滚目标版本）
+            const gitHash = gitCommit(
+              this.genomeDir,
+              newGenomeData.genome_version,
+              section,
+              oldVersion,
+              newVersion,
+              `回滚到 v${targetVersion}: ${reason}`,
+              'rollback',
+              targetVersion
+            );
+
+            // 补 commit hash 进 history
+            const rbEntries = newGenomeData.history!;
+            rbEntries[rbEntries.length - 1].git_commit = gitHash;
+            writeGenomeJson(this.genomeDir, newGenomeData);
+
+            // 热替换
+            if (this.disposers.has(section)) {
+              this.disposers.get(section)!();
+            }
+            const header = `[genome:${newGenomeData.genome_version} | ${section} v${newVersion}]\n\n`;
+            const fullText = header + targetContent;
+            const dispose = this.ctx.systemPrompt.section({
+              name: `genome:${section}`,
+              order: newGenomeData.sections[section].order,
+              text: fullText,
+            });
+            this.disposers.set(section, dispose);
+
+            // 渲染金丝雀（真实试渲染；失败自动还原，与 update 对称）
+            try {
+              const assembly = await this.ctx.systemPrompt.assemble();
+              renderPrompt(assembly);
+            } catch (renderError: any) {
+              this.ctx.logger('genome').error('Rollback render canary failed, restoring:', renderError);
+              writeSection(this.genomeDir, section, snapshot.sectionContent);
+              writeGenomeJson(this.genomeDir, snapshot.genomeJson);
+              execSync('git revert --no-edit HEAD', { cwd: this.genomeDir, stdio: 'pipe' });
+              if (this.disposers.has(section)) {
+                this.disposers.get(section)!();
+              }
+              const oldHeader = `[genome:${snapshot.genomeJson.genome_version} | ${section} v${oldVersion}]\n\n`;
+              const oldDispose = this.ctx.systemPrompt.section({
+                name: `genome:${section}`,
+                order: snapshot.genomeJson.sections[section].order,
+                text: oldHeader + snapshot.sectionContent,
+              });
+              this.disposers.set(section, oldDispose);
+              throw new Error(`回滚后渲染金丝雀失败，已自动还原到 v${oldVersion}。错误: ${renderError.message}`);
+            }
+
+            this.genomeData = newGenomeData;
+            lock.release();
+
+            return {
+              success: true,
+              genome_version: newGenomeData.genome_version,
+              section_version: newVersion,
+              rolled_back_to: targetVersion,
+              git_commit: gitHash,
+            } as any;
+          } catch (error: any) {
+            writeSection(this.genomeDir, section, snapshot.sectionContent);
+            writeGenomeJson(this.genomeDir, snapshot.genomeJson);
+            throw error;
           }
-
-          this.genomeData = newGenomeData;
-          lock.release();
-
-          return {
-            success: true,
-            genome_version: newGenomeData.genome_version,
-            section_version: newVersion,
-            rolled_back_to: targetVersion,
-            git_commit: gitHash,
-          } as any;
         } finally {
           lock.release();
         }

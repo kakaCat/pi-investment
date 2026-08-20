@@ -105,6 +105,7 @@ export function isGitRepo(genomeDir: string): boolean {
 /**
  * git commit（结构化提交信息）
  * 返回 commit hash
+ * B-2 修复：git add -A 纳入 CHANGELOG.md；rollback 的 message 标注目标版本
  */
 export function gitCommit(
   genomeDir: string,
@@ -113,26 +114,27 @@ export function gitCommit(
   oldVersion: number,
   newVersion: number,
   reason: string,
-  type: 'update' | 'rollback'
+  type: 'update' | 'rollback',
+  rollbackTarget?: number
 ): string {
   if (!isGitRepo(genomeDir)) {
     throw new Error(`${genomeDir} is not a git repository. Run 'git init' first.`);
   }
 
   try {
-    // git add
-    execSync('git add genome.json sections/', { cwd: genomeDir, stdio: 'pipe' });
-    
+    // git add 全部（sections/ + genome.json + CHANGELOG.md + .gitignore；genome.lock/*.tmp 已被 .gitignore 排除）
+    execSync('git add -A', { cwd: genomeDir, stdio: 'pipe' });
+
     // 结构化 commit message
     const action = type === 'rollback' ? 'rollback' : 'update';
-    const versionChange = type === 'rollback' 
-      ? `rollback to v${newVersion}` 
+    const versionChange = type === 'rollback'
+      ? `rollback to v${rollbackTarget ?? newVersion}`
       : `v${oldVersion}→v${newVersion}`;
     const message = `genome(${genomeVersion}): ${action} ${sectionName} ${versionChange} — ${reason}`;
-    
-    execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, { 
-      cwd: genomeDir, 
-      stdio: 'pipe' 
+
+    execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, {
+      cwd: genomeDir,
+      stdio: 'pipe'
     });
     
     // 获取 commit hash
@@ -197,7 +199,11 @@ export function appendChangelog(
 
 /**
  * 从 git 历史获取指定版本的段内容
- * 用于 genome_rollback
+ * 用于 genome_rollback / genome_diff
+ *
+ * B-3 修复：优先按 history 条目的 git_commit 定位；若无条目（如 g1 初始版本
+ * 没有 history 记录），回退到文件级 git 历史推导——段文件的第 N 次提交即 vN
+ *（每次 init/update/rollback 恰好提交一次段文件）。
  */
 export function getHistoricalSection(
   genomeDir: string,
@@ -209,24 +215,37 @@ export function getHistoricalSection(
     return null;
   }
 
+  const filePath = `sections/${sectionName}.md`;
+
   try {
-    // 遍历 history 找到目标段版本对应的 commit
+    // 优先：遍历 history 找到目标段版本对应的 commit
     const history = genomeData.history || [];
     const targetEntry = history.find(
       e => e.section === sectionName && e.section_version === targetVersion
     );
-    
-    if (!targetEntry || !targetEntry.git_commit) {
-      return null;
+
+    if (targetEntry?.git_commit) {
+      try {
+        return execSync(
+          `git show ${targetEntry.git_commit}:${filePath}`,
+          { cwd: genomeDir, encoding: 'utf-8' }
+        );
+      } catch { /* commit 或文件不存在则走兜底 */ }
     }
 
-    const filePath = `sections/${sectionName}.md`;
-    const content = execSync(
-      `git show ${targetEntry.git_commit}:${filePath}`,
+    // 兜底：段文件的第 N 次提交 = vN（按时间正序）
+    const hashes = execSync(
+      `git log --format=%h --reverse -- "${filePath}"`,
+      { cwd: genomeDir, encoding: 'utf-8' }
+    ).trim().split('\n').filter(Boolean);
+
+    const hash = hashes[targetVersion - 1];
+    if (!hash) return null;
+
+    return execSync(
+      `git show ${hash}:${filePath}`,
       { cwd: genomeDir, encoding: 'utf-8' }
     );
-    
-    return content;
   } catch (error: any) {
     // commit 不存在或文件在该 commit 不存在
     return null;
