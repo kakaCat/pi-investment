@@ -1329,23 +1329,24 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         symbols = [s['symbol'] for s in stocks]
         logger.info(f"训练样本: {len(symbols)} 只股票")
         
-        # 3. 加载K线数据
+        # 3. 加载K线和因子数据
         ds = get_data_service()
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
         
+        # 加载K线（用于计算target）
         klines_dict = {}
         for i, symbol in enumerate(symbols):
             try:
                 rows = ds.kline.get_daily_klines(symbol, start_date, end_date)
                 if rows is not None and not rows.is_empty():
-                    klines_dict[symbol] = rows.to_dicts()
+                    klines_dict[symbol] = [dict(r) for r in rows.to_dicts()]
                 if (i+1) % 100 == 0:
-                    logger.info(f"已加载 {i+1}/{len(symbols)}")
+                    logger.info(f"已加载K线 {i+1}/{len(symbols)}")
             except Exception as e:
-                logger.warning(f"加载 {symbol} 失败: {e}")
+                logger.warning(f"加载K线 {symbol} 失败: {e}")
         
-        logger.info(f"成功加载 {len(klines_dict)}/{len(symbols)} 只股票")
+        logger.info(f"成功加载K线 {len(klines_dict)}/{len(symbols)} 只股票")
         
         if len(klines_dict) < 50:
             return {
@@ -1355,29 +1356,97 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
                 "timestamp": datetime.now().isoformat()
             }
         
-        # 4. 特征工程
+        # 4. 加载因子数据并构建训练集（参考ml_async.py）
+        logger.info("加载因子数据...")
+        import pandas as pd
+        all_rows = []
+        
+        for i, symbol in enumerate(klines_dict.keys()):
+            try:
+                factors_data = ds.factor.get_factors_range(symbol, start_date, end_date)
+                if factors_data is None or factors_data.is_empty():
+                    continue
+                
+                # 构建因子字典（按日期）
+                by_date = {}
+                for fv in factors_data.iter_rows(named=True):
+                    d = str(fv.get("factor_date") or fv.get("date", ""))
+                    if not d:
+                        continue
+                    by_date.setdefault(d, {})[fv["factor_name"]] = float(fv.get("factor_value", 0) or 0)
+                
+                # 构建收盘价字典
+                close_map = {}
+                for k in klines_dict[symbol]:
+                    d = str(k.get("date", k.get("trade_date", "")))
+                    close_map[d] = float(k.get("close", 0))
+                
+                # 生成训练样本（当日因子 → 次日涨跌标签）
+                sorted_dates = sorted(by_date.keys())
+                for j in range(len(sorted_dates) - 1):
+                    cur_date = sorted_dates[j]
+                    next_date = sorted_dates[j + 1]
+                    cur_close = close_map.get(cur_date, 0)
+                    next_close = close_map.get(next_date, 0)
+                    if cur_close <= 0:
+                        continue
+                    
+                    row = dict(by_date[cur_date])
+                    row["__target"] = 1 if next_close > cur_close else 0
+                    row["__symbol"] = symbol
+                    row["__date"] = cur_date
+                    all_rows.append(row)
+                
+                if (i+1) % 100 == 0:
+                    logger.info(f"已处理因子 {i+1}/{len(klines_dict)}")
+                    
+            except Exception as e:
+                logger.warning(f"处理因子 {symbol} 失败: {e}")
+        
+        logger.info(f"生成训练样本: {len(all_rows)} 条")
+        
+        if len(all_rows) < 100:
+            return {
+                "action": "model_train_auto",
+                "status": "failed",
+                "error": f"有效样本不足：仅{len(all_rows)}条（需>=100）",
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        # 5. 特征工程
         logger.info("特征工程...")
-        engineer = FeatureEngineer()
-        features_df = engineer.extract_features(klines_dict)
-        metadata, X = engineer.prepare_features(features_df, handle_missing="fill", fit_scaler=True)
+        X = pd.DataFrame(all_rows)
+        y = X.pop("__target")
+        X = X.drop(columns=["__symbol", "__date"], errors="ignore")
+        X = X.fillna(X.median(numeric_only=True)).fillna(0)
+        
+        from sklearn.preprocessing import StandardScaler
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+        X = pd.DataFrame(X_scaled, columns=X.columns)
         logger.info(f"特征准备完成: {X.shape[0]} 样本 × {X.shape[1]} 特征")
         
-        # 5. 训练模型
+        # 6. 训练模型
         logger.info(f"训练 {model_type} 模型...")
-        predictor = MLPredictor(model_type=model_type)
+        from application.services.ml_pipeline.trainer import MLTrainer
+        from sklearn.model_selection import train_test_split
         
-        y = metadata["target"].values
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
         
-        predictor.train(X_train, y_train)
+        trainer = MLTrainer(model_type=model_type)
+        results = trainer.train(X, y, test_size=test_size, params={})
         
-        train_acc = predictor.score(X_train, y_train)
-        test_acc = predictor.score(X_test, y_test)
+        
+        train_acc = results.get("train_accuracy", 0)
+        test_acc = results.get("test_accuracy", 0)
         logger.info(f"训练完成: train_acc={train_acc:.4f}, test_acc={test_acc:.4f}")
         
-        # 6. 保存模型
+        # 7. 保存模型
         version = datetime.now().strftime("%Y%m%d_%H%M%S")
-        model_path = predictor.save_model(version=version)
+        try:
+            trainer.save_model(version=version)
+        except Exception as e:
+            logger.warning(f"模型文件保存失败: {e}")
         logger.info(f"模型已保存: {version}")
         
         # 7. 保存训练记录到DB
@@ -1412,8 +1481,8 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
             "version": version,
             "train_accuracy": round(train_acc, 4),
             "test_accuracy": round(test_acc, 4),
-            "train_samples": len(X_train),
-            "test_samples": len(X_test),
+            "train_samples": len(all_rows),
+            "test_samples": int(len(all_rows) * test_size),
             "feature_count": X.shape[1],
             "symbols_trained": len(klines_dict),
             "auto_switched": switched,
