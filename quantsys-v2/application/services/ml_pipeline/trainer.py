@@ -25,7 +25,12 @@ from sklearn.metrics import (
     confusion_matrix
 )
 from sklearn.model_selection import train_test_split
-import xgboost as xgb
+
+# 注意：xgboost 不在模块级导入（2026-08-20 segfault 修复）。
+# xgboost/lightgbm 均依赖 Homebrew libomp，若与进程内其他 OpenMP 拷贝
+# （torch/lib/libomp.dylib、sklearn/.dylibs/libomp.dylib）混载，
+# OpenMP worker 线程会段错误（crash 堆栈: __kmp_suspend_initialize_thread）。
+# 两个后端都改为在各自 _train_* 方法内延迟导入，训练进程只加载所需后端。
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +132,11 @@ class MLTrainer:
         params: dict[str, Any] | None
     ) -> dict[str, Any]:
         """Train XGBoost model."""
+        try:
+            import xgboost as xgb
+        except ImportError:
+            raise ImportError("xgboost not installed. Install with: pip install xgboost")
+
         # Default parameters
         default_params = {
             "objective": "binary:logistic",

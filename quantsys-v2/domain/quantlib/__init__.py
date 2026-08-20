@@ -65,40 +65,58 @@ from .risk import (
     StressTestCalculator
 )
 
-# ML module
-from .ml import (
-    FeatureEngineeringCalculator,
-    FactorMiningCalculator,
-    ReturnPredictionCalculator,
-    RiskPredictionCalculator,
-    AnomalyDetectionCalculator,
-)
+# ── 重模块惰性导入（2026-08-20 segfault 修复，PEP 562）──────────────────
+# ml/rl/finrl/qlib 会拉起 torch / mlflow(→polars) / transformers 等重依赖，
+# 它们各自携带 OpenMP 运行时；与 lightgbm/xgboost 的 Homebrew libomp 混载后
+# OpenMP worker 线程在 fit 时段错误（__kmp_suspend_initialize_thread）。
+# 此前 `from domain.quantlib.adapters import get_factor_adapter` 这种纯因子计算
+# 调用也会被动加载整套 ML/RL 栈。改为 __getattr__ 按需加载后：
+#   - 对外契约不变（from domain.quantlib import X 照常工作）
+#   - 只做因子/风险计算的进程不再引入 torch/polars/mlflow
+import importlib as _importlib
 
-# RL base module
-from .rl import (
-    BaseRLAgent,
-    BaseRLEnvironment,
-)
+_LAZY_IMPORTS = {
+    # ML module
+    'FeatureEngineeringCalculator': '.ml',
+    'FactorMiningCalculator': '.ml',
+    'ReturnPredictionCalculator': '.ml',
+    'RiskPredictionCalculator': '.ml',
+    'AnomalyDetectionCalculator': '.ml',
+    # RL base module
+    'BaseRLAgent': '.rl',
+    'BaseRLEnvironment': '.rl',
+    # FinRL module (optional)
+    'FinRLAgent': '.finrl',
+    'StockTradingEnv': '.finrl',
+    # Qlib RL module (optional)
+    'QlibRLAgent': '.qlib',
+    'QlibTradingEnv': '.qlib',
+}
 
-# FinRL module (optional)
-try:
-    from .finrl import (
-        FinRLAgent,
-        StockTradingEnv,
-        FINRL_AVAILABLE,
-    )
-except ImportError:
-    FINRL_AVAILABLE = False
 
-# Qlib RL module (optional)
-try:
-    from .qlib import (
-        QlibRLAgent,
-        QlibTradingEnv,
-        QLIB_RL_AVAILABLE,
-    )
-except ImportError:
-    QLIB_RL_AVAILABLE = False
+def __getattr__(name):
+    if name in _LAZY_IMPORTS:
+        mod = _importlib.import_module(_LAZY_IMPORTS[name], __name__)
+        val = getattr(mod, name)
+        globals()[name] = val
+        return val
+    if name == 'FINRL_AVAILABLE':
+        try:
+            _importlib.import_module('.finrl', __name__)
+            val = True
+        except ImportError:
+            val = False
+        globals()[name] = val
+        return val
+    if name == 'QLIB_RL_AVAILABLE':
+        try:
+            _importlib.import_module('.qlib', __name__)
+            val = True
+        except ImportError:
+            val = False
+        globals()[name] = val
+        return val
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
     'BaseCalculator',

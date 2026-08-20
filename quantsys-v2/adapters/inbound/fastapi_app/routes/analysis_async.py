@@ -203,6 +203,73 @@ def get_technical_indicators(symbol: str, indicators: Optional[str] = Query(None
 
 # ============ /api/stock/{symbol}/factors（analysis.py） ============
 
+def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: int = 5):
+    """M0-5（RFC003 审核遗留）：标注陈旧因子，防止陈旧零值被当成真实值误导决策。
+
+    规则：以该股最近 120 天K线交易日为基准，因子最新日期落后 >5 个交易日
+    即标记 stale=True 并附 stale_days（交易日差距）。
+    返回 (dict 列表, 汇总 dict)；任何一步失败都返回原始数据的 dict 化版本。
+    """
+    import bisect
+
+    # 统一转 dict（ORM → to_dict）
+    dicts = []
+    for f in factors or []:
+        if hasattr(f, 'to_dict'):
+            dicts.append(f.to_dict())
+        elif isinstance(f, dict):
+            dicts.append(dict(f))
+        else:
+            dicts.append({'factor_name': str(f)})
+    if not dicts:
+        return dicts, {}
+
+    summary: Dict[str, Any] = {}
+    try:
+        end = datetime.now().strftime('%Y-%m-%d')
+        start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
+        klines = ds.kline.get_daily_klines(symbol, start, end)
+        rows = []
+        if klines is not None and hasattr(klines, 'is_empty'):  # polars DataFrame
+            rows = [] if klines.is_empty() else klines.to_dicts()
+        elif isinstance(klines, list):
+            rows = klines
+        trade_dates = sorted({
+            str(r.get('date') or r.get('trade_date') or '')[:10]
+            for r in rows
+        } - {''})
+        if not trade_dates:
+            return dicts, {}
+
+        ref_date = trade_dates[-1]
+        stale_names = []
+        for f in dicts:
+            fd = str(f.get('factor_date') or '')[:10]
+            if not fd:
+                f['stale'] = True
+                f['stale_reason'] = 'no_factor_date'
+                stale_names.append(f.get('factor_name'))
+                continue
+            # 交易日差距：因子日期之后还有多少个交易日
+            pos = bisect.bisect_right(trade_dates, fd)
+            age = len(trade_dates) - pos
+            if fd < trade_dates[0]:
+                # 因子日期早于窗口首日：必然远超阈值
+                age = max(age, max_stale_trading_days + 1)
+            f['stale_days'] = age
+            f['stale'] = age > max_stale_trading_days
+            if f['stale']:
+                stale_names.append(f.get('factor_name'))
+        summary = {
+            'factor_ref_date': ref_date,
+            'stale_threshold_trading_days': max_stale_trading_days,
+            'stale_factors': sorted(n for n in stale_names if n),
+        }
+    except Exception as e:
+        logger.warning(f"陈旧因子标注失败({symbol}): {e}")
+    return dicts, summary
+
+
 @router.get('/api/stock/{symbol}/factors')
 @router.get('/api/stocks/{symbol}/factors')
 def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
@@ -212,6 +279,11 @@ def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
         stock_info = ds.stock.get_by_symbol(symbol)
         kline = ds.kline.get_latest_daily_kline(symbol)
         latest_signals = ds.signal.get_signals_by_symbol(symbol, '2024-01-01', date or '2026-12-31')
+
+        # M0-5：仅"最新因子"路径做陈旧标注；指定日期查询是历史快照，无需标注
+        stale_summary: Dict[str, Any] = {}
+        if not date and isinstance(factors, list) and factors:
+            factors, stale_summary = _annotate_stale_factors(symbol, factors)
 
         # 兼容 ORM 对象和字典（get_by_symbol 可能返回 ORM 对象）
         if stock_info is None:
@@ -249,6 +321,7 @@ def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
             'current_price': current_price,
             'factors': factors,
             'signals_count': len(latest_signals),
+            **stale_summary,
         })
     except Exception as e:
         logger.error(f"获取股票因子失败: {e}", exc_info=True)

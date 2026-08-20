@@ -19,6 +19,58 @@ def _err(e: Exception, code: int = 500):
     return JSONResponse(status_code=code, content={'success': False, 'error': str(e)})
 
 
+def _factor_freshness_check(max_stale_trading_days: int = 5) -> Dict[str, Any]:
+    """1.4 因子新鲜度门禁（RFC003-P1，2026-08-20）。
+
+    以 quant.daily_klines 最近 120 天的交易日为基准，逐因子检查最新日期：
+    落后 >5 个交易日的因子列入异常（陈旧因子是误导性数据源，如冻结的大写因子、
+    覆盖外股票的资金流零值）。失败时返回带 error 字段的空结果，不影响主报告。
+    """
+    try:
+        from sqlalchemy import text
+        from infrastructure.persistence.orm import get_session
+
+        session = get_session()
+        trade_dates = [str(r[0]) for r in session.execute(text("""
+            SELECT DISTINCT trade_date FROM quant.daily_klines
+            WHERE trade_date > CURRENT_DATE - INTERVAL '120 days'
+            ORDER BY trade_date
+        """)).fetchall()]
+        if not trade_dates:
+            return {'error': 'no trade dates', 'factors': [], 'stale_factors': []}
+        ref_date = trade_dates[-1]
+
+        rows = session.execute(text("""
+            SELECT factor_name, MAX(factor_date) AS latest, COUNT(DISTINCT symbol) AS coverage
+            FROM quant.factor_values GROUP BY factor_name
+        """)).fetchall()
+
+        factors = []
+        stale = []
+        for name, latest, coverage in rows:
+            latest = str(latest)
+            # 交易日差距：因子最新日期之后还有多少个交易日
+            import bisect
+            age = len(trade_dates) - bisect.bisect_right(trade_dates, latest)
+            if latest < trade_dates[0]:
+                age = max(age, max_stale_trading_days + 1)
+            is_stale = age > max_stale_trading_days
+            factors.append({'factor_name': name, 'latest_date': latest,
+                            'coverage': int(coverage), 'stale_days': age, 'stale': is_stale})
+            if is_stale:
+                stale.append(name)
+        return {
+            'ref_date': ref_date,
+            'threshold_trading_days': max_stale_trading_days,
+            'factor_count': len(factors),
+            'stale_factors': sorted(stale),
+            'factors': sorted(factors, key=lambda x: (not x['stale'], x['factor_name'])),
+        }
+    except Exception as e:
+        logger.warning(f"因子新鲜度检查失败: {e}")
+        return {'error': str(e), 'factors': [], 'stale_factors': []}
+
+
 @router.get('/api/data/quality-report')
 def get_quality_report(symbol: Optional[str] = Query(None), start_date: Optional[str] = Query(None),
                        end_date: Optional[str] = Query(None), min_score: Optional[float] = Query(None),
@@ -32,6 +84,7 @@ def get_quality_report(symbol: Optional[str] = Query(None), start_date: Optional
             min_score=min_score, max_score=max_score, grade=grade, limit=limit, offset=offset)
         return {'success': True, 'data': {
             'records': records, 'total': len(records), 'limit': limit, 'offset': offset,
+            'factor_freshness': _factor_freshness_check(),
             'filters': {'symbol': symbol, 'start_date': start_date, 'end_date': end_date,
                         'min_score': min_score, 'max_score': max_score, 'grade': grade}}}
     except Exception as e:

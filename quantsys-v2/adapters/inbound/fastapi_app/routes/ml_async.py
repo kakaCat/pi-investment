@@ -228,40 +228,8 @@ def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
             return JSONResponse(status_code=200, content={"success": False, "error": f"没有可用的 {model_type} 模型，请先训练"})
         version = resolved
 
-    end_date = datetime.now().strftime("%Y-%m-%d")
-    start_date = (datetime.now() - pd.DateOffset(days=180)).strftime("%Y-%m-%d")
-
-    klines_dict: dict = {}
-    for symbol in symbols:
-        try:
-            rows = ds.kline.get_daily_klines(symbol, start_date, end_date)
-            import polars as pl
-            if isinstance(rows, pl.DataFrame):
-                if rows.is_empty():
-                    continue
-                rows = rows.to_dicts()
-            if rows:
-                klines_dict[symbol] = [_normalize_kline(r) for r in rows]
-        except Exception as e:
-            logger.warning("Skip %s (error: %s)", symbol, str(e))
-
-    if not klines_dict:
-        return JSONResponse(status_code=400, content={"success": False, "error": "没有可用的K线数据"})
-
     from application.services.ml_pipeline.feature_engineering import FeatureEngineer
     from application.services.ml_pipeline.predictor import MLPredictor
-    engineer = FeatureEngineer()
-    try:
-        features_df = engineer.extract_features(klines_dict)
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"success": False, "error": f"特征提取失败: {str(e)}"})
-    if features_df.empty:
-        return JSONResponse(status_code=400, content={"success": False, "error": "无法提取特征"})
-
-    try:
-        metadata, X = engineer.prepare_features(features_df, handle_missing="fill", fit_scaler=True)
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"success": False, "error": f"特征准备失败: {str(e)}"})
 
     predictor = MLPredictor(model_type=model_type)
     try:
@@ -271,11 +239,92 @@ def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": f"模型加载失败: {str(e)}"})
 
-    missing = set(predictor.feature_names) - set(X.columns)
-    if missing:
-        for col in missing:
-            X[col] = 0.0
-    X_ordered = X[predictor.feature_names]
+    model_features = list(predictor.feature_names or [])
+    scaler_path = predictor.model_dir / f"{model_type}_{version}_scaler.pkl"
+
+    if model_features and scaler_path.exists():
+        # ── DB 因子路径（RFC003-P3，2026-08-20）──────────────────────────
+        # 预测特征必须与训练同源：新管线模型用 DB 因子（小写，如 rsi14/reversal_5d）
+        # 训练，旧的「K线→FactorRegistry 128因子」路径特征名完全不同，
+        # 缺失补零会导致恒等输出（S1 根因之一，概率恒定 0.4659）。
+        # 标准化使用训练时保存的 scaler，保证特征空间一致。
+        import pickle as _pickle
+        with open(scaler_path, "rb") as f:
+            scaler = _pickle.load(f)
+
+        rows = []
+        for symbol in symbols:
+            try:
+                fobjs = ds.factor.get_latest_factors(symbol)
+                fdict: dict = {}
+                fdate = ""
+                for fo in fobjs or []:
+                    if isinstance(fo, dict):
+                        name, val, d = fo.get("factor_name"), fo.get("factor_value"), fo.get("factor_date")
+                    else:
+                        name = getattr(fo, "factor_name", None)
+                        val = getattr(fo, "factor_value", None)
+                        d = getattr(fo, "factor_date", None)
+                    if not name:
+                        continue
+                    try:
+                        fdict[name] = float(val or 0)
+                    except (TypeError, ValueError):
+                        fdict[name] = 0.0
+                    d = str(d or "")
+                    if d > fdate:
+                        fdate = d
+                rows.append({"symbol": symbol, "date": fdate,
+                             **{n: fdict.get(n, 0.0) for n in model_features}})
+            except Exception as e:
+                logger.warning("Skip %s factors: %s", symbol, str(e))
+
+        if not rows:
+            return JSONResponse(status_code=400, content={"success": False, "error": "没有可用的因子数据"})
+
+        metadata = pd.DataFrame([{"symbol": r["symbol"], "date": r["date"]} for r in rows])
+        X_raw = pd.DataFrame(rows)[model_features]
+        X_ordered = pd.DataFrame(scaler.transform(X_raw), columns=model_features)
+    else:
+        # ──  legacy 路径（老模型无 scaler 存档，保持原 K线→FactorRegistry 行为）──
+        end_date = datetime.now().strftime("%Y-%m-%d")
+        start_date = (datetime.now() - pd.DateOffset(days=180)).strftime("%Y-%m-%d")
+
+        klines_dict: dict = {}
+        for symbol in symbols:
+            try:
+                rows = ds.kline.get_daily_klines(symbol, start_date, end_date)
+                import polars as pl
+                if isinstance(rows, pl.DataFrame):
+                    if rows.is_empty():
+                        continue
+                    rows = rows.to_dicts()
+                if rows:
+                    klines_dict[symbol] = [_normalize_kline(r) for r in rows]
+            except Exception as e:
+                logger.warning("Skip %s (error: %s)", symbol, str(e))
+
+        if not klines_dict:
+            return JSONResponse(status_code=400, content={"success": False, "error": "没有可用的K线数据"})
+
+        engineer = FeatureEngineer()
+        try:
+            features_df = engineer.extract_features(klines_dict)
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"success": False, "error": f"特征提取失败: {str(e)}"})
+        if features_df.empty:
+            return JSONResponse(status_code=400, content={"success": False, "error": "无法提取特征"})
+
+        try:
+            metadata, X = engineer.prepare_features(features_df, handle_missing="fill", fit_scaler=True)
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"success": False, "error": f"特征准备失败: {str(e)}"})
+
+        missing = set(predictor.feature_names) - set(X.columns)
+        if missing:
+            for col in missing:
+                X[col] = 0.0
+        X_ordered = X[predictor.feature_names]
 
     try:
         preds = predictor.predict(X_ordered, return_proba=True)
