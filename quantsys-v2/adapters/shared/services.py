@@ -15,7 +15,7 @@ pool_validation_service = ServiceFactory.get_pool_validation_service()
 technical_analysis_service = ServiceFactory.get_technical_analysis_service()
 risk_service = ServiceFactory.get_risk_service()
 data_quality_service = ServiceFactory.get_data_quality_service()
-strategy_rotation_service = ServiceFactory.get_strategy_rotation_service()
+# strategy_rotation_service = ServiceFactory.get_strategy_rotation_service()  # 临时注释：模块不存在
 
 # Repository 实例
 from adapters.outbound.repositories import StockPoolORMRepository, StrategyORMRepository
@@ -31,5 +31,5 @@ __all__ = [
     'pool_validation_service', 'factor_adapter', 'scoring_service',
     'stock_scoring_service', 'sector_rotation_service', 'strategy_repository',
     'ServiceFactory', 'technical_analysis_service', 'risk_service',
-    'data_quality_service', 'strategy_rotation_service',
+    'data_quality_service',  # 'strategy_rotation_service' 已注释
 ]
