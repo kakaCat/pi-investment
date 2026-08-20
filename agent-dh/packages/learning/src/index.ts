@@ -23,7 +23,7 @@ export interface Config {
  * 实现 RFC 003: Self-Learning and Distillation System
  */
 export default class LearningPlugin extends Service {
-  static inject = ['tools', 'memory'];
+  static inject = ['tools', 'memory', 'genome'];  // P0-3: 添加 genome 依赖
   static Config = z.object({
     quantsysV2: z.object({
       baseURL: z.string().default('http://localhost:5001'),
@@ -109,6 +109,7 @@ export default class LearningPlugin extends Service {
       },
       reward: this.calculateReward(execution),
       tags: this.extractTags(execution),
+      genome_context: this.captureGenomeContext(),  // P0-3: 决策打标
     };
 
     // 存入内存缓冲区
@@ -133,6 +134,40 @@ export default class LearningPlugin extends Service {
     } catch {
       return {};
     }
+  }
+
+  /**
+   * P0-3: 捕获基因组上下文（genome_version + rules_used）
+   */
+  private captureGenomeContext(): { genome_version: string; rules_used: string[] } | undefined {
+    try {
+      // @ts-ignore - genome 插件通过 inject 动态注入
+      const genome = this.ctx.genome;
+      if (!genome || !genome.genomeData) {
+        return undefined;
+      }
+      
+      return {
+        genome_version: genome.genomeData.genome_version,
+        rules_used: this.extractRulesFromContext(),
+      };
+    } catch (error) {
+      this.ctx.logger('learning').warn('Failed to capture genome context:', error);
+      return undefined;
+    }
+  }
+
+  /**
+   * P0-3: 从决策上下文提取规则 ID
+   * 简化实现：返回空数组（P1 再实现完整规则提取）
+   * 未来：从 LLM 推理 trace 或 memory 搜索结果中提取 R-\d{3}
+   */
+  private extractRulesFromContext(): string[] {
+    // TODO P1: 实现规则 ID 提取
+    // 1. 从 LLM response 中提取引用的规则（如 "根据 R-001..."）
+    // 2. 从 memory_search 结果中提取命中的规则段
+    // 3. 从 self_system_prompt 当前 rules 段中匹配实际使用的规则
+    return [];
   }
 
   /**
@@ -754,4 +789,8 @@ interface ExperienceEntry {
   reward: number;
   reasoning_trace?: string[];
   tags: string[];
+  genome_context?: {          // P0-3: 决策打标，归因地基
+    genome_version: string;   // 如 g2
+    rules_used: string[];     // 如 ["R-001", "R-007"]
+  };
 }
