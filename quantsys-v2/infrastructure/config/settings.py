@@ -38,7 +38,7 @@ class DatabaseSettings(BaseSettings):
     database: str = Field(default="quant_investment", description="Database name")
     user: str = Field(default="postgres", description="Database user")
     password: str = Field(default="", description="Database password")
-    schema: str = Field(default="quant", alias="QUANT_PG_SCHEMA", description="Schema name")
+    db_schema: str = Field(default="quant", alias="PGSCHEMA", description="Schema name")
     
     @property
     def url(self) -> str:
