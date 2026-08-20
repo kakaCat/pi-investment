@@ -24,7 +24,6 @@ class MarketDataService:
         self.logger = structlog.get_logger(__name__)
         # 延迟导入避免循环依赖
         self._data_source_manager = None
-        # TODO: Phase 3 future work - migrate methods to use provider_manager
         self.provider_manager = get_data_provider_manager()
         # 初始化缓存
         from infrastructure.utils.simple_cache import SimpleCache
@@ -46,53 +45,29 @@ class MarketDataService:
             包含融资融券数据的字典
         """
         try:
-            import akshare as ak
+            # Phase 3 数据访问治理：委托统一数据访问层
+            from adapters.outbound.datasources.manager import get_data_provider_manager
 
             self.logger.info("获取融资融券数据")
 
-            # 获取上交所数据（无需参数，返回历史数据）
-            try:
-                df_sh = ak.stock_margin_sse()
-                self.logger.info(f"上交所数据: {len(df_sh)} 行")
-            except Exception as e:
-                self.logger.warning(f"上交所数据获取失败: {e}")
-                df_sh = pd.DataFrame()
-
-            # 获取深交所数据（需要指定日期）
-            try:
-                today = datetime.now().strftime("%Y%m%d")
-                df_sz = ak.stock_margin_szse(date=today)
-                self.logger.info(f"深交所数据: {len(df_sz)} 行")
-            except Exception as e:
-                self.logger.warning(f"深交所数据获取失败: {e}")
-                df_sz = pd.DataFrame()
-
-            # 如果都失败，返回友好错误
-            if df_sh.empty and df_sz.empty:
+            result = get_data_provider_manager().get_market_margin()
+            if not result.get('success') or not result.get('data'):
                 return {
                     'success': False,
                     'error': '暂时无法获取融资融券数据，请稍后重试',
                     'data': None
                 }
 
-            # 合并数据（上交所返回最近30条，深交所返回当日汇总）
-            result = {
+            margin = result['data'].data
+            return {
                 'success': True,
                 'data': {
-                    'sh': df_sh.tail(30).to_dict('records') if not df_sh.empty else [],
-                    'sz': df_sz.to_dict('records') if not df_sz.empty else [],
+                    'sh': margin.get('sh', []),
+                    'sz': margin.get('sz', []),
                     'update_time': datetime.now().isoformat()
                 }
             }
 
-            return result
-
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
         except Exception as e:
             self.logger.error(f"获取融资融券数据失败: {e}", exc_info=True)
             return {
@@ -113,90 +88,69 @@ class MarketDataService:
             包含行业资金流向数据的字典
         """
         try:
-            import akshare as ak
-            import os
+            # Phase 3 数据访问治理：委托统一数据访问层（provider 内处理代理禁用）
+            from adapters.outbound.datasources.manager import get_data_provider_manager
 
-            self.logger.info(f"获取行业资金流向排行（第三方 API）: period={period}, limit={limit}")
+            self.logger.info(f"获取行业资金流向排行: period={period}, limit={limit}")
 
-            # 禁用代理（避免网络问题）
-            old_http_proxy = os.environ.get('HTTP_PROXY')
-            old_https_proxy = os.environ.get('HTTPS_PROXY')
-            if old_http_proxy:
-                del os.environ['HTTP_PROXY']
-            if old_https_proxy:
-                del os.environ['HTTPS_PROXY']
-
-            try:
-                # 映射周期参数
-                indicator_map = {
-                    "即时": "今日",
-                    "今日": "今日",
-                    "5日": "5日",
-                    "10日": "10日"
-                }
-                indicator = indicator_map.get(period, "今日")
-
-                # 调用 akshare 接口
-                df = ak.stock_sector_fund_flow_rank(indicator=indicator)
-
-                if df is None or df.empty:
-                    return {
-                        'success': False,
-                        'error': '暂无行业资金流向数据',
-                        'data': None
-                    }
-
-                # 转换数据格式
-                industries = []
-                for idx, row in df.head(limit).iterrows():
-                    # 安全获取涨跌幅，处理异常值
-                    raw_change_pct = row.get('涨跌幅', 0)
-                    try:
-                        change_pct = float(raw_change_pct)
-                        # 验证数据合理性：A股单日涨跌幅限制约 ±20%，异常值设为 0
-                        if abs(change_pct) > 30:
-                            self.logger.warning(f"板块 {row.get('名称', 'Unknown')} 涨跌幅异常: {change_pct}%, 已重置为 0")
-                            change_pct = 0.0
-                    except (ValueError, TypeError) as e:
-                        self.logger.warning(f"板块 {row.get('名称', 'Unknown')} 涨跌幅解析失败: {raw_change_pct}, error: {e}")
-                        change_pct = 0.0
-
-                    industries.append({
-                        'name': str(row.get('名称', '')),
-                        'code': str(row.get('代码', '')),
-                        'rank': idx + 1,
-                        'changePct': change_pct,
-                        'momentum': change_pct,
-                        'flow': float(row.get('主力净流入-净额', 0)) / 100000000,  # 转换为亿元
-                        'flowPct': float(row.get('主力净流入-净占比', 0)),
-                        'relativeStrength': change_pct,
-                        'compositeScore': 0.0,
-                    })
-
-                return {
-                    'success': True,
-                    'data': {
-                        'period': period,
-                        'industries': industries,
-                        'total': len(industries),
-                        'update_time': datetime.now().isoformat(),
-                        'source': 'eastmoney_api'
-                    }
-                }
-
-            finally:
-                # 恢复代理设置
-                if old_http_proxy:
-                    os.environ['HTTP_PROXY'] = old_http_proxy
-                if old_https_proxy:
-                    os.environ['HTTPS_PROXY'] = old_https_proxy
-
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
+            # 映射周期参数
+            indicator_map = {
+                "即时": "今日",
+                "今日": "今日",
+                "5日": "5日",
+                "10日": "10日"
             }
+            indicator = indicator_map.get(period, "今日")
+
+            result = get_data_provider_manager().get_sector_fund_flow(indicator)
+            if not result.get('success') or not result.get('data'):
+                return {
+                    'success': False,
+                    'error': '暂无行业资金流向数据',
+                    'data': None
+                }
+
+            records = result['data'].data.get('records', [])[:limit]
+
+            # 转换数据格式
+            industries = []
+            for idx, row in enumerate(records):
+                # 安全获取涨跌幅，处理异常值
+                raw_change_pct = row.get('涨跌幅', 0)
+                try:
+                    change_pct = float(raw_change_pct)
+                    # 验证数据合理性：A股单日涨跌幅限制约 ±20%，异常值设为 0
+                    if abs(change_pct) > 30:
+                        self.logger.warning(f"板块 {row.get('名称', 'Unknown')} 涨跌幅异常: {change_pct}%, 已重置为 0")
+                        change_pct = 0.0
+                except (ValueError, TypeError) as e:
+                    self.logger.warning(f"板块 {row.get('名称', 'Unknown')} 涨跌幅解析失败: {raw_change_pct}, error: {e}")
+                    change_pct = 0.0
+
+                industries.append({
+                    'name': str(row.get('名称', '')),
+                    'code': str(row.get('代码', '')),
+                    'rank': idx + 1,
+                    'changePct': change_pct,
+                    'momentum': change_pct,
+                    'flow': float(row.get('主力净流入-净额', 0)) / 100000000,  # 转换为亿元
+                    'flowPct': float(row.get('主力净流入-净占比', 0)),
+                    'relativeStrength': change_pct,
+                    'compositeScore': 0.0,
+                })
+
+            return {
+                'success': True,
+                'data': {
+                    'period': period,
+                    'industries': industries,
+                    'total': len(industries),
+                    'update_time': datetime.now().isoformat(),
+                    'source': 'eastmoney_api'
+                }
+            }
+
+
         except Exception as e:
             self.logger.error(f"获取行业资金流向失败: {e}", exc_info=True)
             return {
@@ -416,6 +370,9 @@ class MarketDataService:
                 }
 
             data = result.get('data')
+            # provider 返回 MarketData dataclass（.data 才是真正的 dict 负载），需解包
+            if data is not None and not isinstance(data, dict) and hasattr(data, 'data'):
+                data = data.data
             if not data:
                 return {
                     'success': False,
@@ -553,37 +510,80 @@ class MarketDataService:
 
     def get_macro_data(self) -> Dict[str, Any]:
         """
-        获取宏观经济数据
+        获取宏观经济数据（缓存优先 + 线程超时保护，akshare 上游可能长时间阻塞）
 
         Returns:
             包含宏观经济数据的字典
         """
+        cache_key = "macro_data"
+        # 1. 优先返回缓存（1小时有效期，宏观数据低频更新）
+        cached = self.cache.get(cache_key, max_age_seconds=3600)
+        if cached:
+            self.logger.info("宏观数据使用缓存")
+            return cached
+
+        # 2. 线程内抓取，45 秒超时兜底
+        result_holder: list = [None]
+        error_holder: list = [None]
+
+        def _fetch():
+            try:
+                result_holder[0] = self._fetch_macro_data()
+            except Exception as exc:  # noqa: BLE001
+                error_holder[0] = exc
+
+        thread = threading.Thread(target=_fetch, daemon=True)
+        thread.start()
+        thread.join(timeout=45)
+
+        if thread.is_alive():
+            self.logger.warning("宏观数据源超时(45s)，尝试使用旧缓存")
+            stale = self.cache.get_stale(cache_key)
+            if stale:
+                stale['stale'] = True
+                return stale
+            return {
+                'success': False,
+                'error': '宏观数据源响应超时，请稍后重试',
+                'data': None,
+                'retry_suggested': True,
+            }
+
+        if error_holder[0]:
+            stale = self.cache.get_stale(cache_key)
+            if stale:
+                stale['stale'] = True
+                return stale
+            return {
+                'success': False,
+                'error': f'数据获取失败: {error_holder[0]}',
+                'data': None,
+            }
+
+        if result_holder[0] and result_holder[0].get('success'):
+            self.cache.set(cache_key, result_holder[0])
+        return result_holder[0]
+
+    def _fetch_macro_data(self) -> Dict[str, Any]:
+        """实际抓取宏观经济数据（经统一数据访问层 DataProviderManager）"""
         try:
-            import akshare as ak
+            # Phase 3 数据访问治理：委托统一数据访问层
+            from adapters.outbound.datasources.manager import get_data_provider_manager
 
             self.logger.info("获取宏观经济数据")
 
-            # 获取主要宏观指标
             try:
-                # GDP 数据
-                gdp_df = ak.macro_china_gdp()
-                # CPI 数据
-                cpi_df = ak.macro_china_cpi_yearly()
-                # PMI 数据
-                pmi_df = ak.macro_china_pmi_yearly()
+                result = get_data_provider_manager().get_macro_data()
+                if not result.get('success') or not result.get('data'):
+                    raise Exception(result.get('error', '无数据'))
 
-                # GDP数据是倒序的（最新在前），使用head获取最新数据
-                # CPI和PMI数据是正序的（最新在后），使用tail获取最新数据
-                result = {
-                    'gdp': gdp_df.head(5).to_dict('records') if not gdp_df.empty else [],
-                    'cpi': cpi_df.tail(5).to_dict('records') if not cpi_df.empty else [],
-                    'pmi': pmi_df.tail(5).to_dict('records') if not pmi_df.empty else [],
-                }
-
+                macro = result['data'].data
                 return {
                     'success': True,
                     'data': {
-                        **result,
+                        'gdp': macro.get('gdp', []),
+                        'cpi': macro.get('cpi', []),
+                        'pmi': macro.get('pmi', []),
                         'update_time': datetime.now().isoformat()
                     }
                 }
@@ -596,12 +596,6 @@ class MarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
         except Exception as e:
             self.logger.error(f"获取宏观经济数据失败: {e}", exc_info=True)
             return {
@@ -621,24 +615,24 @@ class MarketDataService:
             包含市场新闻的字典
         """
         try:
-            import akshare as ak
+            # Phase 3 数据访问治理：委托统一数据访问层
+            from adapters.outbound.datasources.manager import get_data_provider_manager
 
             self.logger.info(f"获取市场新闻: limit={limit}")
 
             try:
-                # 东方财富财经新闻
-                df = ak.stock_news_em()
-
-                if df is None or df.empty:
+                result = get_data_provider_manager().get_market_news()
+                if not result.get('success') or not result.get('data'):
                     return {
                         'success': False,
                         'error': '暂无市场新闻数据',
                         'data': None
                     }
 
-                self.logger.info(f"市场新闻数据: {len(df)} 条")
+                records = result['data'].data.get('records', [])
+                self.logger.info(f"市场新闻数据: {len(records)} 条")
 
-                news_list = df.head(limit).to_dict('records')
+                news_list = records[:limit]
 
                 return {
                     'success': True,
@@ -657,12 +651,6 @@ class MarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
         except Exception as e:
             self.logger.error(f"获取市场新闻失败: {e}", exc_info=True)
             return {
@@ -689,31 +677,33 @@ class MarketDataService:
             包含指数K线数据的字典
         """
         try:
-            import akshare as ak
+            # Phase 3 数据访问治理：委托统一数据访问层
+            from adapters.outbound.datasources.manager import get_data_provider_manager
 
             self.logger.info(f"获取指数历史: symbol={symbol}, start={start_date}, end={end_date}")
 
             try:
-                # 获取指数历史数据
-                df = ak.stock_zh_index_daily(symbol=symbol)
+                # Phase 3 数据访问治理：委托统一数据访问层（date 列已在 provider 归一为字符串）
+                result = get_data_provider_manager().get_index_daily(symbol)
 
-                if df is None or df.empty:
+                if not result.get('success') or not result.get('data'):
                     return {
                         'success': False,
                         'error': f'暂无指数 {symbol} 的历史数据',
                         'data': None
                     }
 
-                # 日期过滤（akshare 返回的 date 列是 datetime.date，先归一为字符串再与 str 参数比较）
-                df['date'] = df['date'].astype(str)
+                records = result['data'].data.get('records', [])
+
+                # 日期过滤
                 if start_date:
-                    df = df[df['date'] >= start_date]
+                    records = [r for r in records if r.get('date', '') >= start_date]
                 if end_date:
-                    df = df[df['date'] <= end_date]
+                    records = [r for r in records if r.get('date', '') <= end_date]
 
-                self.logger.info(f"指数历史数据: {len(df)} 条")
+                self.logger.info(f"指数历史数据: {len(records)} 条")
 
-                klines = df.to_dict('records')
+                klines = records
 
                 return {
                     'success': True,

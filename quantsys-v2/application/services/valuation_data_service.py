@@ -218,21 +218,26 @@ class ValuationDataService:
             return {'success': False, 'error': str(e)}
 
     def _get_from_akshare(self, symbol: str) -> Dict[str, Any]:
-        """从 akshare 获取估值数据"""
+        """从 akshare 获取估值数据
+
+        Phase 3 数据访问治理：akshare 调用集中在数据源层
+        （AkshareMarketProvider.get_market_spot），此处经 manager 获取。
+        """
         try:
-            import akshare as ak
+            from adapters.outbound.datasources.manager import get_data_provider_manager
 
-            df = ak.stock_zh_a_spot_em()
+            result = get_data_provider_manager().get_market_spot()
 
-            if df is None or df.empty:
-                raise Exception("akshare 返回空数据")
+            if not result.get('success') or not result.get('data'):
+                raise Exception(f"数据源层返回失败: {result.get('error')}")
 
-            stock_data = df[df['代码'] == symbol]
+            records = result['data'].data.get('records', [])
+            matched = [r for r in records if r.get('代码') == symbol]
 
-            if stock_data.empty:
+            if not matched:
                 raise Exception(f"未找到股票 {symbol}")
 
-            row = stock_data.iloc[0]
+            row = matched[0]
 
             valuation = {}
 

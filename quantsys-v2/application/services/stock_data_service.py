@@ -150,24 +150,24 @@ class StockDataService:
             包含内幕交易数据的字典
         """
         try:
-            import akshare as ak
+            # Phase 3 数据访问治理：委托统一数据访问层
+            from adapters.outbound.datasources.manager import get_data_provider_manager
 
             self.logger.info(f"获取内幕交易: symbol={symbol}")
 
             try:
                 # 获取股东增减持数据（作为内幕交易的替代）
-                df = ak.stock_dzjy_hygtj(symbol=symbol)
+                result = get_data_provider_manager().get_insider_trades(symbol)
 
-                if df is None or df.empty:
+                if not result.get('success') or not result.get('data'):
                     return {
                         'success': False,
                         'error': f'暂无股票 {symbol} 的内幕交易数据',
                         'data': None
                     }
 
-                self.logger.info(f"内幕交易数据: {len(df)} 条")
-
-                trades = df.to_dict('records')
+                trades = result['data'].data.get('records', [])
+                self.logger.info(f"内幕交易数据: {len(trades)} 条")
 
                 return {
                     'success': True,
@@ -187,12 +187,6 @@ class StockDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
         except Exception as e:
             self.logger.error(f"获取内幕交易数据失败: {e}", exc_info=True)
             return {

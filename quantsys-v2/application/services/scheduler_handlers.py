@@ -35,6 +35,22 @@ async def handle_kline_update(metadata: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+@register_job_handler("index_constituents_update")
+async def handle_index_constituents_update(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """Update index constituents (HS300/STAR50/ChiNext) into quant.index_constituents.
+
+    Original: infrastructure/jobs/index_constituents_update_job.py
+    Schedule: 工作日 15:40（原 scheduler_task_configs 迁移遗失，2026-08-19 重建）
+    背景：该表是 stock_pool_service.get_hot_stocks 的数据源，失注册会导致
+    机会雷达扫描池静默过期。
+    """
+    logger.info("Starting index_constituents_update job")
+    from infrastructure.jobs.index_constituents_update_job import execute
+
+    result = execute(**(metadata or {}))
+    return result
+
+
 @register_job_handler("chip_distribution_update")
 async def handle_chip_distribution_update(metadata: Dict[str, Any]) -> Dict[str, Any]:
     """Calculate chip distribution for all stocks.

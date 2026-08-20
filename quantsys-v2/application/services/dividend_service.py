@@ -28,7 +28,6 @@ class DividendService(ServiceBase):
         """
         super().__init__()
         self.data_source = data_source or EastMoneyDividendSource()
-        # TODO: Phase 3 future work - migrate methods to use provider_manager
         self.provider_manager = get_data_provider_manager()
 
     def get_stock_dividends(self, symbol: str, years: int = 10) -> Dict:
@@ -268,30 +267,22 @@ class DividendService(ServiceBase):
             List[str]: 股票代码列表
         """
         try:
-            import akshare as ak
+            # Phase 3 数据访问治理：替代直接 import akshare，走统一数据访问层
+            # （csindex 优先 + sina 兜底，含单 provider 超时护栏）
+            from adapters.outbound.datasources.manager import get_data_provider_manager
 
             pool = []
+            manager = get_data_provider_manager()
 
-            # 沪深300
-            try:
-                df_hs300 = ak.index_stock_cons(symbol="000300")
-                pool.extend(df_hs300["品种代码"].tolist())
-            except Exception as e:
-                logger.warning(f"Failed to fetch HS300: {e}")
-
-            # 创业板50
-            try:
-                df_cyb50 = ak.index_stock_cons(symbol="399673")
-                pool.extend(df_cyb50["品种代码"].tolist())
-            except Exception as e:
-                logger.warning(f"Failed to fetch CYB50: {e}")
-
-            # 科创50
-            try:
-                df_kc50 = ak.index_stock_cons(symbol="000688")
-                pool.extend(df_kc50["品种代码"].tolist())
-            except Exception as e:
-                logger.warning(f"Failed to fetch KC50: {e}")
+            for index_code, label in [("000300", "HS300"), ("399673", "CYB50"), ("000688", "KC50")]:
+                try:
+                    result = manager.get_index_constituents(index_code)
+                    if result.get('success') and result.get('data'):
+                        pool.extend(r['symbol'] for r in result['data'].data)
+                    else:
+                        logger.warning(f"Failed to fetch {label}: {result.get('error')}")
+                except Exception as e:
+                    logger.warning(f"Failed to fetch {label}: {e}")
 
             # 去重
             pool = list(set(pool))

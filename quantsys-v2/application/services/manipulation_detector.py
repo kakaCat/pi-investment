@@ -6,7 +6,6 @@
 import structlog
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-import akshare as ak
 from adapters.outbound.repositories import AgentIntelligenceORMRepository
 from adapters.outbound.repositories import FundFlowORMRepository
 
@@ -146,15 +145,20 @@ class ManipulationDetector:
             涨停股列表
         """
         try:
-            # 使用akshare获取今日涨停池
-            df = ak.stock_zt_pool_em(date=datetime.now().strftime('%Y%m%d'))
+            # 通过统一数据访问层获取今日涨停池（Phase 3 数据访问治理）
+            from adapters.outbound.datasources.manager import get_data_provider_manager
 
-            if df.empty:
+            result = get_data_provider_manager().get_zt_pool(datetime.now().strftime('%Y%m%d'))
+            if not result.get('success') or not result.get('data'):
+                return []
+
+            records = result['data'].data.get('records', [])
+            if not records:
                 return []
 
             # 转换为字典列表
             stocks = []
-            for _, row in df.iterrows():
+            for row in records:
                 stocks.append({
                     'symbol': row.get('代码', ''),
                     'name': row.get('名称', ''),
@@ -222,17 +226,23 @@ class ManipulationDetector:
             是否检测到游资
         """
         try:
-            # 获取最近5天的龙虎榜数据
+            # 通过统一数据访问层获取最近5天的龙虎榜数据（Phase 3 数据访问治理；
+            # 顺带修复：原 ak.stock_lhb_detail_em(symbol=...) 传了不存在的参数，必 TypeError）
+            from adapters.outbound.datasources.manager import get_data_provider_manager
+
             end_date = datetime.now()
             start_date = end_date - timedelta(days=5)
 
-            df = ak.stock_lhb_detail_em(
+            result = get_data_provider_manager().get_lhb_detail(
                 symbol=symbol,
                 start_date=start_date.strftime('%Y%m%d'),
                 end_date=end_date.strftime('%Y%m%d')
             )
+            if not result.get('success') or not result.get('data'):
+                return False
 
-            if df.empty:
+            records = result['data'].data.get('records', [])
+            if not records:
                 return False
 
             # 检查是否有知名游资席位
@@ -244,7 +254,7 @@ class ManipulationDetector:
                 '中信证券杭州'
             ]
 
-            for _, row in df.iterrows():
+            for row in records:
                 buyer = str(row.get('买方营业部', ''))
                 for keyword in hot_money_keywords:
                     if keyword in buyer:

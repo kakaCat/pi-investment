@@ -79,6 +79,8 @@ class AgentOSClient:
                 - name (str): Unique job name
                 - cron (str): Cron expression (5-field or 6-field)
                 - webhook_url (str): URL to call when job triggers
+                - service_name (str, optional): Bound local service that Agent OS
+                  ensures is running before triggering (e.g. "quantsys-v2")
                 - enabled (bool): Whether job is enabled
                 - metadata (dict): Custom metadata/payload for webhook
                 - timeout (int, optional): Timeout in seconds (default: 3600)
