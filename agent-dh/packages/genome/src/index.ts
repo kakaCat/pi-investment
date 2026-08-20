@@ -5,6 +5,35 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 
+// P0-2 imports
+import {
+  GenomeLock,
+  guardConstitution,
+  validateBraces,
+  validateSize,
+  validateAndExtractRuleIds,
+  validateVersion,
+  checkTradingHours,
+} from './guard';
+import {
+  readGenomeJson,
+  writeGenomeJson,
+  readSection,
+  writeSection,
+  gitCommit,
+  appendChangelog,
+  getHistoricalSection,
+  computeRuleIdChanges,
+  type GenomeMetadata,
+} from './store';
+import {
+  advanceVersion,
+  advanceVersionForRollback,
+  queryHistory,
+  getPreviousSectionVersion,
+  diffSections,
+} from './versioning';
+
 export default class GenomePlugin extends Service {
   static inject = ['tools', 'systemPrompt'];  // 添加 systemPrompt 依赖
   static Config = z.object({
@@ -298,6 +327,457 @@ export default class GenomePlugin extends Service {
           class: meta.class,
           version: meta.version,
           content,
+        } as any;
+      },
+    } as any));
+
+    // ===== P0-2 写工具 =====
+
+    // genome_update - 更新可进化段
+    this.ctx.tools.register(defineTool({
+      name: 'genome_update',
+      description: '更新可进化段（principles/rules/lessons），宪法层锁定拒改。执行流：锁→校验→写入→git commit→热替换→渲染金丝雀→放锁。用于：P2 prompt_evolver 应用进化结果、手动修复段内容。',
+      parameters: {
+        section: {
+          type: 'string',
+          description: '段名：principles / rules / lessons（constitution 锁定拒改）',
+          required: true,
+        },
+        content: {
+          type: 'string',
+          description: '新段全文（markdown）',
+          required: true,
+        },
+        reason: {
+          type: 'string',
+          description: '变更理由（必填，归因链起点），如"蒸馏规则 R-007"',
+          required: true,
+        },
+        expected_section_version: {
+          type: 'number',
+          description: '乐观锁：基于读到的版本改，防并发覆盖',
+        },
+        force: {
+          type: 'boolean',
+          description: '交易时段默认拒改，force=true 紧急通道（留痕问责）',
+          default: false,
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            genome_version: { type: 'string' },
+            section_version: { type: 'number' },
+            git_commit: { type: 'string' },
+            rule_id_changes: {
+              type: 'object',
+              properties: {
+                added: { type: 'array', items: { type: 'string' } },
+                removed: { type: 'array', items: { type: 'string' } },
+              },
+              additionalProperties: false,
+            },
+            warning: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+        render: (_args: any, value: any) => [
+          { type: 'text', text: JSON.stringify(value, null, 2) },
+        ],
+      },
+      timeoutMs: 30000,
+      execute: async (args: any) => {
+        const { section, content, reason, expected_section_version, force } = args;
+        const lock = new GenomeLock(this.genomeDir);
+
+        try {
+          // Step 1: 拿锁
+          lock.acquire();
+
+          // Step 2: 校验
+          const genomeData = readGenomeJson(this.genomeDir);
+          guardConstitution(section, genomeData);  // 宪法拒绝
+          validateVersion(expected_section_version, genomeData.sections[section].version, section);
+          validateBraces(content, section);
+          validateSize(content, section);
+          const { warning } = checkTradingHours(force || false);
+
+          // 规则段特殊处理
+          const oldContent = readSection(this.genomeDir, section);
+          const ruleValidation = validateAndExtractRuleIds(content, section);
+          const ruleIdChanges = section === 'rules' 
+            ? computeRuleIdChanges(oldContent, content)
+            : { added: [], removed: [] };
+
+          // Step 3: 备份（内存快照，失败时还原）
+          const snapshot = {
+            genomeJson: { ...genomeData },
+            sectionContent: oldContent,
+          };
+
+          try {
+            // Step 4: 写入文件
+            writeSection(this.genomeDir, section, content);
+            
+            // Step 5: git commit
+            const oldVersion = genomeData.sections[section].version;
+            const newVersion = oldVersion + 1;
+            const gitHash = gitCommit(
+              this.genomeDir,
+              genomeData.genome_version,
+              section,
+              oldVersion,
+              newVersion,
+              reason,
+              'update'
+            );
+
+            // Step 6: 更新 genome.json + history
+            const historyEntry = {
+              version: '',  // 占位，advanceVersion 会填充
+              section,
+              section_version: newVersion,
+              parent: genomeData.genome_version,
+              reason,
+              ts: new Date().toISOString(),
+              git_commit: gitHash,
+              author: 'agent' as const,
+              type: 'update' as const,
+              force: force || undefined,
+            };
+            const newGenomeData = advanceVersion(genomeData, section, historyEntry);
+            writeGenomeJson(this.genomeDir, newGenomeData);
+
+            // 追加 CHANGELOG
+            appendChangelog(
+              this.genomeDir,
+              newGenomeData.history![newGenomeData.history!.length - 1],
+              section === 'rules' ? ruleIdChanges : undefined
+            );
+
+            // Step 7: 热替换（dispose 旧段 + 注册新段）
+            if (this.disposers.has(section)) {
+              this.disposers.get(section)!();
+            }
+            
+            const header = `[genome:${newGenomeData.genome_version} | ${section} v${newVersion}]\n\n`;
+            const fullText = header + content;
+            
+            const dispose = this.ctx.systemPrompt.section({
+              name: `genome:${section}`,
+              order: newGenomeData.sections[section].order,
+              text: fullText,
+            });
+            this.disposers.set(section, dispose);
+
+            // Step 8: 渲染金丝雀（试渲染确保不崩）
+            try {
+              const assembly = this.ctx.systemPrompt.assemble();
+              // @ts-ignore - renderPrompt 存在但类型未导出
+              this.ctx.systemPrompt.renderPrompt?.(assembly);
+            } catch (renderError: any) {
+              // 金丝雀失败 → 自动还原
+              this.ctx.logger('genome').error('Render canary failed, rolling back:', renderError);
+              
+              // 还原文件
+              writeSection(this.genomeDir, section, snapshot.sectionContent);
+              writeGenomeJson(this.genomeDir, snapshot.genomeJson);
+              
+              // git revert
+              execSync('git revert --no-edit HEAD', { cwd: this.genomeDir, stdio: 'pipe' });
+              
+              // 还原段注册
+              if (this.disposers.has(section)) {
+                this.disposers.get(section)!();
+              }
+              const oldHeader = `[genome:${snapshot.genomeJson.genome_version} | ${section} v${oldVersion}]\n\n`;
+              const oldFullText = oldHeader + snapshot.sectionContent;
+              const oldDispose = this.ctx.systemPrompt.section({
+                name: `genome:${section}`,
+                order: snapshot.genomeJson.sections[section].order,
+                text: oldFullText,
+              });
+              this.disposers.set(section, oldDispose);
+              
+              throw new Error(`渲染金丝雀失败，已自动还原到 v${oldVersion}。错误: ${renderError.message}`);
+            }
+
+            // 更新内存中的 genomeData
+            this.genomeData = newGenomeData;
+
+            lock.release();
+            
+            return {
+              success: true,
+              genome_version: newGenomeData.genome_version,
+              section_version: newVersion,
+              git_commit: gitHash,
+              rule_id_changes: section === 'rules' ? ruleIdChanges : undefined,
+              warning,
+            } as any;
+
+          } catch (error: any) {
+            // 写入/git 阶段失败 → 还原快照
+            writeSection(this.genomeDir, section, snapshot.sectionContent);
+            writeGenomeJson(this.genomeDir, snapshot.genomeJson);
+            throw error;
+          }
+        } finally {
+          lock.release();
+        }
+      },
+    } as any));
+
+    // genome_rollback - 回滚到指定版本
+    this.ctx.tools.register(defineTool({
+      name: 'genome_rollback',
+      description: '回滚段到历史版本。回滚=新版本（内容同目标版本，代数+1），历史只增不改。用于：验证门失败回退、进化恶化复原。',
+      parameters: {
+        section: {
+          type: 'string',
+          description: '段名：principles / rules / lessons',
+          required: true,
+        },
+        to_section_version: {
+          type: 'number',
+          description: '目标段版本（不传=回滚到上一版本）',
+        },
+        reason: {
+          type: 'string',
+          description: '回滚理由，如"模拟盘 A/B 恶化"',
+          required: true,
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            genome_version: { type: 'string' },
+            section_version: { type: 'number' },
+            rolled_back_to: { type: 'number' },
+            git_commit: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+        render: (_args: any, value: any) => [
+          { type: 'text', text: JSON.stringify(value, null, 2) },
+        ],
+      },
+      timeoutMs: 30000,
+      execute: async (args: any) => {
+        const { section, to_section_version, reason } = args;
+        const lock = new GenomeLock(this.genomeDir);
+
+        try {
+          lock.acquire();
+
+          const genomeData = readGenomeJson(this.genomeDir);
+          guardConstitution(section, genomeData);
+
+          // 确定目标版本
+          const targetVersion = to_section_version !== undefined
+            ? to_section_version
+            : getPreviousSectionVersion(genomeData, section);
+          
+          if (targetVersion === null) {
+            throw new Error(`段 ${section} 没有可回滚的历史版本`);
+          }
+
+          // 从 git 历史获取目标版本内容
+          const targetContent = getHistoricalSection(this.genomeDir, section, targetVersion, genomeData);
+          if (!targetContent) {
+            throw new Error(`无法从 git 历史获取 ${section} v${targetVersion} 内容`);
+          }
+
+          // 校验目标内容
+          validateBraces(targetContent, section);
+          validateSize(targetContent, section);
+
+          // 写入（回滚内容）
+          writeSection(this.genomeDir, section, targetContent);
+
+          // git commit（回滚也是一次提交）
+          const oldVersion = genomeData.sections[section].version;
+          const newVersion = oldVersion + 1;
+          const gitHash = gitCommit(
+            this.genomeDir,
+            genomeData.genome_version,
+            section,
+            oldVersion,
+            newVersion,
+            `回滚到 v${targetVersion}: ${reason}`,
+            'rollback'
+          );
+
+          // 更新 genome.json（回滚=新版本）
+          const newGenomeData = advanceVersionForRollback(
+            genomeData,
+            section,
+            targetVersion,
+            reason,
+            gitHash
+          );
+          writeGenomeJson(this.genomeDir, newGenomeData);
+
+          // 追加 CHANGELOG
+          appendChangelog(
+            this.genomeDir,
+            newGenomeData.history![newGenomeData.history!.length - 1]
+          );
+
+          // 热替换
+          if (this.disposers.has(section)) {
+            this.disposers.get(section)!();
+          }
+          const header = `[genome:${newGenomeData.genome_version} | ${section} v${newVersion}]\n\n`;
+          const fullText = header + targetContent;
+          const dispose = this.ctx.systemPrompt.section({
+            name: `genome:${section}`,
+            order: newGenomeData.sections[section].order,
+            text: fullText,
+          });
+          this.disposers.set(section, dispose);
+
+          // 渲染金丝雀
+          try {
+            const assembly = this.ctx.systemPrompt.assemble();
+            // @ts-ignore
+            this.ctx.systemPrompt.renderPrompt?.(assembly);
+          } catch (renderError: any) {
+            throw new Error(`回滚后渲染失败: ${renderError.message}。需人工修复。`);
+          }
+
+          this.genomeData = newGenomeData;
+          lock.release();
+
+          return {
+            success: true,
+            genome_version: newGenomeData.genome_version,
+            section_version: newVersion,
+            rolled_back_to: targetVersion,
+            git_commit: gitHash,
+          } as any;
+        } finally {
+          lock.release();
+        }
+      },
+    } as any));
+
+    // genome_history - 版本谱系查询
+    this.ctx.tools.register(defineTool({
+      name: 'genome_history',
+      description: '查询基因组版本历史：各版本的段、理由、commit、时间。用于：复盘"这轮进化改了什么"、追溯决策依据。',
+      parameters: {
+        section: {
+          type: 'string',
+          description: '段名（不传=全部段的历史）',
+        },
+        limit: {
+          type: 'number',
+          description: '返回最近 N 条（默认 10）',
+          default: 10,
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            history: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: true,
+              },
+            },
+          },
+          additionalProperties: false,
+        },
+        render: (_args: any, value: any) => [
+          { type: 'text', text: JSON.stringify(value, null, 2) },
+        ],
+      },
+      timeoutMs: 10000,
+      execute: async (args: any) => {
+        const { section, limit } = args;
+        const genomeData = readGenomeJson(this.genomeDir);
+        const history = queryHistory(genomeData, section, limit || 10);
+        
+        return {
+          history,
+        } as any;
+      },
+    } as any));
+
+    // genome_diff - 版本对比
+    this.ctx.tools.register(defineTool({
+      name: 'genome_diff',
+      description: '对比段的两个版本，返回 diff。用于：审查进化效果、确认回滚影响。',
+      parameters: {
+        section: {
+          type: 'string',
+          description: '段名',
+          required: true,
+        },
+        from_version: {
+          type: 'number',
+          description: '起始段版本',
+          required: true,
+        },
+        to_version: {
+          type: 'number',
+          description: '目标段版本',
+          required: true,
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            section: { type: 'string' },
+            from_version: { type: 'number' },
+            to_version: { type: 'number' },
+            additions: { type: 'number' },
+            deletions: { type: 'number' },
+            diff: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+        render: (_args: any, value: any) => [
+          { type: 'text', text: `# Diff: ${value.section} v${value.from_version} → v${value.to_version}\n\n+${value.additions} -${value.deletions}\n\n\`\`\`diff\n${value.diff}\n\`\`\`` },
+        ],
+      },
+      timeoutMs: 10000,
+      execute: async (args: any) => {
+        const { section, from_version, to_version } = args;
+        const genomeData = readGenomeJson(this.genomeDir);
+
+        if (!genomeData.sections[section]) {
+          throw new Error(`Section not found: ${section}`);
+        }
+
+        // 从 git 历史获取两个版本的内容
+        const fromContent = getHistoricalSection(this.genomeDir, section, from_version, genomeData);
+        const toContent = getHistoricalSection(this.genomeDir, section, to_version, genomeData);
+
+        if (!fromContent) {
+          throw new Error(`无法获取 ${section} v${from_version} 内容`);
+        }
+        if (!toContent) {
+          throw new Error(`无法获取 ${section} v${to_version} 内容`);
+        }
+
+        const { additions, deletions, diff } = diffSections(fromContent, toContent);
+
+        return {
+          section,
+          from_version,
+          to_version,
+          additions,
+          deletions,
+          diff,
         } as any;
       },
     } as any));
