@@ -178,6 +178,268 @@ class ServiceFactory:
             logger.info("StrategyRotationService initialized")
         return cls._instances['strategy_rotation_service']
 
+    # ── 以下为 P1-5 新增：路由层直接导入的服务统一纳入工厂 ──
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_order_service(cls):
+        """获取OrderService实例（模块级单例 order_service）"""
+        if 'order_service' not in cls._instances:
+            from application.services import order_service
+            cls._instances['order_service'] = order_service
+            logger.info("OrderService initialized")
+        return cls._instances['order_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_account_trading_service(cls):
+        """获取AccountTradingService实例"""
+        if 'account_trading_service' not in cls._instances:
+            from application.services.account_trading_service import account_trading_service
+            cls._instances['account_trading_service'] = account_trading_service
+            logger.info("AccountTradingService initialized")
+        return cls._instances['account_trading_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_market_data_service(cls):
+        """获取MarketDataService实例（模块级单例 market_data_service）"""
+        if 'market_data_service' not in cls._instances:
+            from application.services.market_data_service import market_data_service
+            cls._instances['market_data_service'] = market_data_service
+            logger.info("MarketDataService initialized")
+        return cls._instances['market_data_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_hk_market_data_service(cls):
+        """获取HKMarketDataService实例（模块级单例 hk_market_data_service）"""
+        if 'hk_market_data_service' not in cls._instances:
+            from application.services.hk_market_data_service import hk_market_data_service
+            cls._instances['hk_market_data_service'] = hk_market_data_service
+            logger.info("HKMarketDataService initialized")
+        return cls._instances['hk_market_data_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_stock_data_service(cls):
+        """获取StockDataService实例（模块级单例 stock_data_service）"""
+        if 'stock_data_service' not in cls._instances:
+            from application.services.stock_data_service import stock_data_service
+            cls._instances['stock_data_service'] = stock_data_service
+            logger.info("StockDataService initialized")
+        return cls._instances['stock_data_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_lhb_service(cls):
+        """获取LhbService实例"""
+        if 'lhb_service' not in cls._instances:
+            from application.services.lhb_service import LhbService
+            cls._instances['lhb_service'] = LhbService()
+            logger.info("LhbService initialized")
+        return cls._instances['lhb_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_dividend_service(cls):
+        """获取DividendService实例"""
+        if 'dividend_service' not in cls._instances:
+            from application.services.dividend_service import DividendService
+            cls._instances['dividend_service'] = DividendService()
+            logger.info("DividendService initialized")
+        return cls._instances['dividend_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_diagnosis_service(cls):
+        """获取DiagnosisService实例"""
+        if 'diagnosis_service' not in cls._instances:
+            from application.services.diagnosis_service import DiagnosisService
+            cls._instances['diagnosis_service'] = DiagnosisService()
+            logger.info("DiagnosisService initialized")
+        return cls._instances['diagnosis_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_chan_service(cls):
+        """获取ChanService实例"""
+        if 'chan_service' not in cls._instances:
+            from application.services.chan_service import ChanService
+            cls._instances['chan_service'] = ChanService()
+            logger.info("ChanService initialized")
+        return cls._instances['chan_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_backtest_engine(cls):
+        """获取BacktestAsyncEngine实例"""
+        if 'backtest_engine' not in cls._instances:
+            from application.services.backtest_async_engine import BacktestAsyncEngine
+            cls._instances['backtest_engine'] = BacktestAsyncEngine()
+            logger.info("BacktestAsyncEngine initialized")
+        return cls._instances['backtest_engine']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_performance_analysis_service(cls):
+        """获取PerformanceAnalysisAsyncService实例"""
+        if 'performance_analysis_service' not in cls._instances:
+            from application.services.core_async_services import PerformanceAnalysisAsyncService
+            cls._instances['performance_analysis_service'] = PerformanceAnalysisAsyncService()
+            logger.info("PerformanceAnalysisAsyncService initialized")
+        return cls._instances['performance_analysis_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_data_async_service(cls):
+        """获取DataAsyncService实例"""
+        if 'data_async_service' not in cls._instances:
+            from application.services.core_async_services import DataAsyncService
+            cls._instances['data_async_service'] = DataAsyncService()
+            logger.info("DataAsyncService initialized")
+        return cls._instances['data_async_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_market_data_async_service(cls):
+        """获取MarketDataAsyncService实例"""
+        if 'market_data_async_service' not in cls._instances:
+            from application.services.core_async_services import MarketDataAsyncService
+            cls._instances['market_data_async_service'] = MarketDataAsyncService()
+            logger.info("MarketDataAsyncService initialized")
+        return cls._instances['market_data_async_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_decision_service(cls):
+        """获取DecisionService实例"""
+        if 'decision_service' not in cls._instances:
+            from application.services.decision_service import DecisionService
+            cls._instances['decision_service'] = DecisionService()
+            logger.info("DecisionService initialized")
+        return cls._instances['decision_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_knowledge_service(cls):
+        """获取KnowledgeService实例"""
+        if 'knowledge_service' not in cls._instances:
+            from application.services.knowledge_service import KnowledgeService
+            cls._instances['knowledge_service'] = KnowledgeService()
+            logger.info("KnowledgeService initialized")
+        return cls._instances['knowledge_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_session_service(cls):
+        """获取SessionService实例"""
+        if 'session_service' not in cls._instances:
+            from application.services.session_service import SessionService
+            cls._instances['session_service'] = SessionService()
+            logger.info("SessionService initialized")
+        return cls._instances['session_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_realtime_signal_service(cls):
+        """获取RealtimeSignalService实例"""
+        if 'realtime_signal_service' not in cls._instances:
+            from application.services.realtime_signal_service import RealtimeSignalService
+            cls._instances['realtime_signal_service'] = RealtimeSignalService()
+            logger.info("RealtimeSignalService initialized")
+        return cls._instances['realtime_signal_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_simulation_service(cls):
+        """获取SimulationService实例"""
+        if 'simulation_service' not in cls._instances:
+            from application.services.simulation_service import SimulationService
+            cls._instances['simulation_service'] = SimulationService()
+            logger.info("SimulationService initialized")
+        return cls._instances['simulation_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_stock_pool_async_service(cls):
+        """获取StockPoolAsyncService实例"""
+        if 'stock_pool_async_service' not in cls._instances:
+            from application.services.stock_pool_async_service import StockPoolAsyncService
+            cls._instances['stock_pool_async_service'] = StockPoolAsyncService()
+            logger.info("StockPoolAsyncService initialized")
+        return cls._instances['stock_pool_async_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_signal_test_log(cls):
+        """获取SignalTestLog实例"""
+        if 'signal_test_log' not in cls._instances:
+            from application.services.signal_test_log import SignalTestLog
+            cls._instances['signal_test_log'] = SignalTestLog()
+            logger.info("SignalTestLog initialized")
+        return cls._instances['signal_test_log']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_strategy_service(cls):
+        """获取StrategyService实例"""
+        if 'strategy_service' not in cls._instances:
+            from application.services.strategy_service import StrategyService
+            cls._instances['strategy_service'] = StrategyService()
+            logger.info("StrategyService initialized")
+        return cls._instances['strategy_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_strategy_execution_service(cls):
+        """获取StrategyExecutionService实例"""
+        if 'strategy_execution_service' not in cls._instances:
+            from application.services.strategy_execution_service import StrategyExecutionService
+            cls._instances['strategy_execution_service'] = StrategyExecutionService()
+            logger.info("StrategyExecutionService initialized")
+        return cls._instances['strategy_execution_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_strategy_validation_service(cls):
+        """获取StrategyValidationService实例"""
+        if 'strategy_validation_service' not in cls._instances:
+            from application.services.strategy_validation_service import StrategyValidationService
+            cls._instances['strategy_validation_service'] = StrategyValidationService()
+            logger.info("StrategyValidationService initialized")
+        return cls._instances['strategy_validation_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_strategy_optimizer(cls):
+        """获取StrategyOptimizer实例"""
+        if 'strategy_optimizer' not in cls._instances:
+            from application.services.strategy_optimizer import StrategyOptimizer
+            cls._instances['strategy_optimizer'] = StrategyOptimizer()
+            logger.info("StrategyOptimizer initialized")
+        return cls._instances['strategy_optimizer']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_game_alert_service(cls):
+        """获取GameAlertService实例"""
+        if 'game_alert_service' not in cls._instances:
+            from application.services.game_alert_service import GameAlertService
+            cls._instances['game_alert_service'] = GameAlertService()
+            logger.info("GameAlertService initialized")
+        return cls._instances['game_alert_service']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_enhanced_financial_service(cls):
+        """获取EnhancedFinancialDataService实例"""
+        if 'enhanced_financial_service' not in cls._instances:
+            from application.services.enhanced_financial_data_service import get_enhanced_financial_service
+            cls._instances['enhanced_financial_service'] = get_enhanced_financial_service()
+            logger.info("EnhancedFinancialDataService initialized")
+        return cls._instances['enhanced_financial_service']
+
     @classmethod
     def reset_all(cls):
         """重置所有服务实例（用于测试）"""
@@ -195,6 +457,33 @@ class ServiceFactory:
         cls.get_risk_service.cache_clear()
         cls.get_data_quality_service.cache_clear()
         cls.get_strategy_rotation_service.cache_clear()
+        # P1-5 新增
+        cls.get_order_service.cache_clear()
+        cls.get_account_trading_service.cache_clear()
+        cls.get_market_data_service.cache_clear()
+        cls.get_hk_market_data_service.cache_clear()
+        cls.get_stock_data_service.cache_clear()
+        cls.get_lhb_service.cache_clear()
+        cls.get_dividend_service.cache_clear()
+        cls.get_diagnosis_service.cache_clear()
+        cls.get_chan_service.cache_clear()
+        cls.get_backtest_engine.cache_clear()
+        cls.get_performance_analysis_service.cache_clear()
+        cls.get_data_async_service.cache_clear()
+        cls.get_market_data_async_service.cache_clear()
+        cls.get_decision_service.cache_clear()
+        cls.get_knowledge_service.cache_clear()
+        cls.get_session_service.cache_clear()
+        cls.get_realtime_signal_service.cache_clear()
+        cls.get_simulation_service.cache_clear()
+        cls.get_stock_pool_async_service.cache_clear()
+        cls.get_signal_test_log.cache_clear()
+        cls.get_strategy_service.cache_clear()
+        cls.get_strategy_execution_service.cache_clear()
+        cls.get_strategy_validation_service.cache_clear()
+        cls.get_strategy_optimizer.cache_clear()
+        cls.get_game_alert_service.cache_clear()
+        cls.get_enhanced_financial_service.cache_clear()
         logger.info("All services reset")
 
 

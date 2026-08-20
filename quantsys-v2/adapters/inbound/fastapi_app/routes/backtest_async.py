@@ -19,8 +19,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import structlog
 
-from application.services.backtest_async_engine import BacktestAsyncEngine
-from application.services.core_async_services import PerformanceAnalysisAsyncService
+from adapters.shared.services import backtest_engine, performance_analysis_service
 
 from adapters.inbound.fastapi_app.shared import (
     ds,
@@ -60,7 +59,7 @@ async def get_backtest_history(
     支持按策略名称和股票代码过滤
     """
     try:
-        engine = BacktestAsyncEngine()
+        engine = backtest_engine
 
         results = await engine.get_recent_backtests(
             strategy_name=strategy_name,
@@ -93,7 +92,7 @@ async def get_backtest_stats(
     包含总数、平均收益、最佳策略等
     """
     try:
-        service = PerformanceAnalysisAsyncService()
+        service = performance_analysis_service
 
         if strategy_name:
             stats = await service.analyze_strategy_performance(strategy_name)
@@ -126,7 +125,7 @@ async def compare_strategies(
     对比多个策略的性能
     """
     try:
-        service = PerformanceAnalysisAsyncService()
+        service = performance_analysis_service
 
         comparison = []
         for name in strategy_names:
@@ -247,11 +246,10 @@ def run_backtest_alias(payload: Optional[Dict[str, Any]] = Body(None)):
         if 'commission' in data or 'slippage' in data:
             logger.warning(f"commission/slippage 参数暂不支持，将使用默认值")
 
-        # 2. 调用 StrategyCodeService.backtest_strategy()
-        from application.services.strategy_code_service import StrategyCodeService
-        service = StrategyCodeService()
+        # 2. 调用 strategy_service.backtest_strategy()
+        from adapters.shared.services import strategy_service
 
-        result = service.backtest_strategy(
+        result = strategy_service.backtest_strategy(
             strategy_id=strategy_id,
             symbol=symbol,
             start_date=start_date,
@@ -418,11 +416,10 @@ def backtest_strategy_v2(payload: Optional[Dict[str, Any]] = Body(None)):
         end_date = data['end_date']
         initial_cash = float(data.get('initial_cash', 1000000))
 
-        # 调用 StrategyCodeService
-        from application.services.strategy_code_service import StrategyCodeService
-        service = StrategyCodeService()
+        # 调用 strategy_service
+        from adapters.shared.services import strategy_service
 
-        result = service.backtest_strategy(
+        result = strategy_service.backtest_strategy(
             strategy_id=strategy_id,
             symbol=symbol,
             start_date=start_date,

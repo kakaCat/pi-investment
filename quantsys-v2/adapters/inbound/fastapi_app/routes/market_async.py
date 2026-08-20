@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import structlog
 
-from application.services.core_async_services import MarketDataAsyncService, DataAsyncService
+from adapters.shared.services import market_data_async_service, data_async_service
 
 logger = structlog.get_logger(__name__)
 
@@ -33,7 +33,7 @@ async def get_stocks(
     获取活跃股票列表
     """
     try:
-        service = MarketDataAsyncService()
+        service = market_data_async_service
         stocks = await service.get_active_stocks(market)
 
         return {
@@ -57,7 +57,7 @@ async def search_stocks(
     按名称或代码搜索股票
     """
     try:
-        service = MarketDataAsyncService()
+        service = market_data_async_service
         stocks = await service.search_stocks(keyword)
 
         return {
@@ -78,7 +78,7 @@ async def get_market_overview():
     获取市场概览数据
     """
     try:
-        service = MarketDataAsyncService()
+        service = market_data_async_service
         overview = await service.get_market_overview()
 
         return {
@@ -96,7 +96,7 @@ async def get_stock_detail(symbol: str):
     获取股票详细信息
     """
     try:
-        service = DataAsyncService()
+        service = data_async_service
         stock = await service.get_stock_info(symbol)
 
         if not stock:
@@ -120,7 +120,7 @@ async def get_stock_price(symbol: str):
     获取股票最新价格
     """
     try:
-        service = DataAsyncService()
+        service = data_async_service
         price = await service.get_latest_price(symbol)
 
         return {
@@ -141,7 +141,7 @@ async def get_batch_prices(symbols: List[str]):
     批量获取多个股票的价格
     """
     try:
-        service = DataAsyncService()
+        service = data_async_service
         prices = await service.batch_get_prices(symbols)
 
         return {
@@ -163,7 +163,7 @@ async def get_quote(
     返回包含最新价格、涨跌幅等信息
     """
     try:
-        service = DataAsyncService()
+        service = data_async_service
 
         # 获取股票基本信息
         stock = await service.get_stock_info(symbol)

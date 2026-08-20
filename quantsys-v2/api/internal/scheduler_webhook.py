@@ -25,6 +25,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import uuid
@@ -163,31 +164,22 @@ async def scheduler_webhook(
 # ==================== Background Execution ====================
 
 
-def _run_handler_blocking(handler: Callable, metadata: Dict[str, Any]) -> Dict[str, Any]:
-    """Run an async job handler in a worker thread with its own event loop.
-
-    Job handlers do blocking synchronous work (HTTP requests, psycopg2,
-    data providers) inside `async def` bodies. Awaiting them directly on
-    the FastAPI event loop stalls the entire service for the job's whole
-    duration — including the webhook response back to Agent OS (2026-08-18
-    incident: 10-minute data quality job made Agent OS time out and
-    misrecord a successful job as failed).
-    """
-    return asyncio.run(handler(metadata))
-
-
 async def execute_job(handler: Callable, payload: WebhookPayload):
     """Execute job handler and report results to Agent OS.
 
     This runs in a FastAPI background task to avoid blocking the
     webhook response. It:
     1. Generates a run_id
-    2. Calls the job handler
+    2. Calls the job handler (sync or async)
     3. Writes run record to local database
     4. Reports result back to Agent OS
 
+    Handlers are classified as:
+    - Async handlers: awaited directly on the event loop
+    - Sync handlers: executed in threadpool to avoid blocking
+
     Args:
-        handler: The async job handler function
+        handler: The job handler function (sync or async)
         payload: Webhook payload from Agent OS
     """
     run_id = str(uuid.uuid4())
@@ -199,9 +191,16 @@ async def execute_job(handler: Callable, payload: WebhookPayload):
     )
 
     try:
-        # Call the job handler with metadata — off the event loop, since
-        # handlers do blocking sync work (see _run_handler_blocking)
-        result = await run_in_threadpool(_run_handler_blocking, handler, payload.metadata)
+        # Detect if handler is async or sync
+        if inspect.iscoroutinefunction(handler):
+            # Async handler: await directly on the event loop
+            logger.debug(f"Executing async handler for {payload.job_name}")
+            result = await handler(payload.metadata)
+        else:
+            # Sync handler: run in threadpool to avoid blocking event loop
+            logger.debug(f"Executing sync handler for {payload.job_name} in threadpool")
+            result = await run_in_threadpool(handler, payload.metadata)
+
         status = "success"
         error_msg = None
         logger.info(

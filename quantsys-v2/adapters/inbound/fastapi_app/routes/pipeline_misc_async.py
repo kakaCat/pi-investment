@@ -130,12 +130,11 @@ def cli_signal_generate(request: Request, payload: Optional[Dict[str, Any]] = Bo
     SYNC_THRESHOLD = 50
     if len(symbols) < SYNC_THRESHOLD:
         # 同步模式：检测 Accept header 决定返回格式
-        from application.services.strategy_code_service import StrategyCodeService
-        service = StrategyCodeService()
+        from adapters.shared.services import strategy_service
 
         # 获取策略名
         try:
-            strategy_row = service.strategy_repo.get_by_id(strategy_id_int)
+            strategy_row = strategy_service.strategy_repo.get_by_id(strategy_id_int)
             strategy_name = strategy_row.get('strategy_name') if strategy_row else f'Strategy#{strategy_id_int}'
         except Exception:
             strategy_name = f'Strategy#{strategy_id_int}'

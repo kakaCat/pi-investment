@@ -13,7 +13,7 @@ from adapters.inbound.fastapi_app.shared import (
     sanitize_for_json, _read_watchlist,
     acquire_task, get_running_tasks_snapshot, _load_pipeline_runs, _save_pipeline_runs,
 )
-from application.services.stock_data_service import stock_data_service
+from adapters.shared.services import stock_data_service
 
 logger = structlog.get_logger(__name__)
 

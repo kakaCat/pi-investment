@@ -9,15 +9,15 @@ from fastapi import APIRouter
 import structlog
 
 from adapters.inbound.fastapi_app.shared import error_response
-from application.services.game_alert_service import GameAlertService
+from adapters.shared.services import game_alert_service
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["Alerts - 市场预警"])
 
 
-def _service() -> GameAlertService:
-    return GameAlertService()
+def _service():
+    return game_alert_service
 
 
 @router.get('/api/alerts/check')

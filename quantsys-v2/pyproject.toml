@@ -1,0 +1,152 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quantsys-v2"
+version = "2.0.0"
+description = "QuantSys V2 - Quantitative Trading System"
+requires-python = ">=3.9"
+authors = [
+    {name = "QuantSys Team"}
+]
+readme = "README.md"
+license = {text = "Proprietary"}
+
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "sqlalchemy>=1.4.0,<2.0.0",
+    "psycopg2-binary>=2.9.0",
+    "pandas>=1.5.0",
+    "numpy>=1.23.0",
+    "akshare>=1.10.0",
+    "python-dotenv>=1.0.0",
+    "structlog>=23.1.0",
+    "httpx>=0.24.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.7.0",
+    "ruff>=0.0.280",
+    "mypy>=1.4.0",
+]
+
+[tool.setuptools]
+packages = ["application", "adapters", "domain", "infrastructure"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.yml", "*.json"]
+
+# Pytest configuration
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "integration: Integration tests (may require external services)",
+    "unit: Unit tests (fast, no external dependencies)",
+    "slow: Slow tests (may take several seconds)",
+]
+
+# Black configuration
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | archived_scripts
+)/
+'''
+
+# Ruff configuration (fast Python linter)
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "T20", # flake8-print (detect print statements)
+]
+ignore = [
+    "E501", # line too long (handled by black)
+    "B008", # do not perform function calls in argument defaults
+    "C901", # too complex (we have some complex functions)
+]
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "archived_scripts",
+    "build",
+    "dist",
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+"scripts/*.py" = ["T20"]  # Allow print() in scripts
+"tools/*.py" = ["T20"]    # Allow print() in tools
+"tests/*.py" = ["T20"]    # Allow print() in tests for debugging
+"docs/**/*.py" = ["T20"]  # Allow print() in documentation examples
+"**/examples.py" = ["T20"] # Allow print() in example files
+"debug_*.py" = ["T20"]    # Allow print() in debug scripts
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false  # Gradually enable
+ignore_missing_imports = true  # Many packages lack type hints
+exclude = [
+    "archived_scripts/",
+    "tests/",
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["application", "adapters", "domain", "infrastructure"]
+omit = [
+    "*/tests/*",
+    "*/archived_scripts/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+precision = 2
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

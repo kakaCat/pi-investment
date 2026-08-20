@@ -12,14 +12,14 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from adapters.inbound.fastapi_app.shared import ds, error_response, handle_api_error
-from application.services.signal_test_log import SignalTestLog
+from adapters.shared.services import signal_test_log
 from adapters.outbound.repositories import StrategyPerformanceORMRepository
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["Signal Test - 信号测试"])
 
-_test_log = SignalTestLog()
+_test_log = signal_test_log
 _perf_repo = StrategyPerformanceORMRepository()
 
 

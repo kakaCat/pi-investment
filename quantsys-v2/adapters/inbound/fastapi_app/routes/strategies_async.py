@@ -14,16 +14,15 @@ from adapters.inbound.fastapi_app.shared import (
     ds, api_response, error_response, handle_api_error,
     convert_keys_to_snake, strategy_service,
 )
-from application.services.strategy_validation_service import StrategyValidationService
-from application.services.strategy_optimizer import StrategyOptimizer
+from adapters.shared.services import strategy_validation_service, strategy_optimizer
 from application.services.search_space import SearchSpace
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["Strategies - 策略管理"])
 
-# 与 Flask 一致：模块级初始化 validation service
-validation_service = StrategyValidationService()
+# 与 Flask 一致：模块级初始化 validation service（通过 ServiceFactory 统一获取）
+validation_service = strategy_validation_service
 
 
 def enrich_strategy_response(strategy: Dict) -> Dict:
@@ -203,7 +202,7 @@ def optimize_strategy(payload: Optional[Dict[str, Any]] = Body(None)):
         if not param_grid:
             return error_response({'success': False, 'error': "Generated parameter grid is empty"}, 400)
 
-        optimizer = StrategyOptimizer(strategy_service)
+        optimizer = strategy_optimizer
         results = optimizer.optimize(
             strategy_id=strategy_id, symbol=symbol, start_date=start_date, end_date=end_date,
             param_grid=param_grid, initial_cash=initial_cash, sort_by=sort_by, period=period)

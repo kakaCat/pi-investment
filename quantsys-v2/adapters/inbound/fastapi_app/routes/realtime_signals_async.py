@@ -11,7 +11,7 @@ import structlog
 
 from adapters.outbound.repositories.signal_async_repository import SignalAsyncRepository
 from infrastructure.persistence.orm.async_config import get_async_session_context
-from application.services.realtime_signal_service import RealtimeSignalService
+from adapters.shared.services import realtime_signal_service
 
 logger = structlog.get_logger(__name__)
 
@@ -140,7 +140,7 @@ async def generate_t1_signals(request: T1SignalRequest):
                 "error": "缺少必填参数: strategy_id, symbols"
             }
 
-        service = RealtimeSignalService()
+        service = realtime_signal_service
         signals = service.generate_t1_signals(
             request.strategy_id,
             request.symbols,
@@ -215,7 +215,7 @@ async def filter_executable(request: FilterExecutableRequest):
         }
     """
     try:
-        service = RealtimeSignalService()
+        service = realtime_signal_service
 
         executable = service.filter_executable_signals(
             request.signals,
@@ -303,7 +303,7 @@ async def morning_scan(request: MorningScanRequest):
                 "error": "缺少必填参数: strategy_ids, stock_pool"
             }
 
-        service = RealtimeSignalService()
+        service = realtime_signal_service
 
         # 通知回调（可选）
         notification_callback = None
