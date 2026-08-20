@@ -13,9 +13,9 @@
 
       <el-table :data="channels" v-loading="loading" stripe>
         <el-table-column prop="name" label="渠道名称" width="150" />
-        <el-table-column prop="type" label="渠道类型" width="120">
+        <el-table-column prop="code" label="标识" width="120">
           <template #default="{ row }">
-            <el-tag>{{ getChannelTypeName(row.type) }}</el-tag>
+            <el-tag>{{ row.code }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="enabled" label="状态" width="100">
@@ -30,16 +30,13 @@
             <el-text truncated>{{ formatConfig(row.config) }}</el-text>
           </template>
         </el-table-column>
-        <el-table-column prop="last_sent_at" label="最近发送" width="180">
+        <el-table-column prop="created_at" label="创建时间" width="180">
           <template #default="{ row }">
-            {{ row.last_sent_at ? formatTime(row.last_sent_at) : '从未发送' }}
+            {{ formatTime(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="editChannel(row)">
-              编辑
-            </el-button>
             <el-popconfirm
               title="确定删除这个渠道吗？"
               @confirm="deleteChannel(row.id)"
@@ -51,33 +48,28 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <el-empty v-if="!loading && channels.length === 0" description="暂无通知渠道" />
     </el-card>
 
-    <!-- 添加/编辑对话框 -->
-    <el-dialog
-      v-model="showAddDialog"
-      :title="editingChannel ? '编辑渠道' : '添加渠道'"
-      width="500px"
-    >
+    <!-- 添加渠道对话框 -->
+    <el-dialog v-model="showAddDialog" title="添加渠道" width="500px">
       <el-form :model="form" label-width="100px">
-        <el-form-item label="渠道名称">
-          <el-input v-model="form.name" placeholder="例如：Feishu Bot" />
+        <el-form-item label="渠道标识">
+          <el-input v-model="form.code" placeholder="例如：alerts" />
         </el-form-item>
-        <el-form-item label="渠道类型">
-          <el-select v-model="form.type" placeholder="选择类型">
-            <el-option label="飞书" value="feishu" />
-            <el-option label="钉钉" value="dingtalk" />
-            <el-option label="企业微信" value="wechat" />
-            <el-option label="邮件" value="email" />
-            <el-option label="Webhook" value="webhook" />
-          </el-select>
+        <el-form-item label="渠道名称">
+          <el-input v-model="form.name" placeholder="例如：告警群" />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="form.description" placeholder="渠道用途描述" />
         </el-form-item>
         <el-form-item label="配置">
           <el-input
             v-model="form.config"
             type="textarea"
             :rows="6"
-            placeholder="JSON 格式配置"
+            placeholder='JSON 格式配置，例如：{"webhook": "https://..."}'
           />
         </el-form-item>
         <el-form-item label="启用">
@@ -86,7 +78,7 @@
       </el-form>
       <template #footer>
         <el-button @click="showAddDialog = false">取消</el-button>
-        <el-button type="primary" @click="saveChannel">保存</el-button>
+        <el-button type="primary" :loading="saving" @click="saveChannel">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -101,34 +93,24 @@ import { formatTime } from '@/utils/format'
 
 interface Channel {
   id: string
+  code: string
   name: string
-  type: string
   enabled: boolean
   config: any
-  last_sent_at?: string
+  created_at: string
 }
 
 const loading = ref(false)
+const saving = ref(false)
 const channels = ref<Channel[]>([])
 const showAddDialog = ref(false)
-const editingChannel = ref<Channel | null>(null)
 const form = ref({
+  code: '',
   name: '',
-  type: '',
+  description: '',
   config: '{}',
   enabled: true,
 })
-
-const getChannelTypeName = (type: string) => {
-  const names: Record<string, string> = {
-    feishu: '飞书',
-    dingtalk: '钉钉',
-    wechat: '企业微信',
-    email: '邮件',
-    webhook: 'Webhook',
-  }
-  return names[type] || type
-}
 
 const formatConfig = (config: any) => {
   if (!config) return '-'
@@ -149,37 +131,48 @@ const loadChannels = async () => {
   }
 }
 
-const editChannel = (channel: Channel) => {
-  editingChannel.value = channel
-  form.value = {
-    name: channel.name,
-    type: channel.type,
-    config: typeof channel.config === 'string' ? channel.config : JSON.stringify(channel.config, null, 2),
-    enabled: channel.enabled,
-  }
-  showAddDialog.value = true
-}
-
 const saveChannel = async () => {
+  if (!form.value.code || !form.value.name) {
+    ElMessage.warning('请填写渠道标识和名称')
+    return
+  }
+
+  let configObj: any
   try {
-    // 验证 JSON
-    JSON.parse(form.value.config)
-    
-    // TODO: 调用后端 API 保存
-    ElMessage.success(editingChannel.value ? '更新成功' : '添加成功')
-    showAddDialog.value = false
-    await loadChannels()
+    configObj = JSON.parse(form.value.config)
   } catch (e) {
     ElMessage.error('配置格式错误，请输入有效的 JSON')
+    return
+  }
+
+  saving.value = true
+  try {
+    await notificationApi.createChannel({
+      code: form.value.code,
+      name: form.value.name,
+      description: form.value.description || undefined,
+      enabled: form.value.enabled,
+      config: configObj,
+    })
+    ElMessage.success('添加成功')
+    showAddDialog.value = false
+    form.value = { code: '', name: '', description: '', config: '{}', enabled: true }
+    await loadChannels()
+  } catch (e) {
+    console.error('保存失败:', e)
+    ElMessage.error('保存失败')
+  } finally {
+    saving.value = false
   }
 }
 
 const deleteChannel = async (id: string) => {
   try {
-    // TODO: 调用后端 API 删除
+    await notificationApi.deleteChannel(id)
     ElMessage.success('删除成功')
     await loadChannels()
   } catch (e) {
+    console.error('删除失败:', e)
     ElMessage.error('删除失败')
   }
 }

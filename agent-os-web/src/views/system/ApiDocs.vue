@@ -82,7 +82,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 
 const searchQuery = ref('')
@@ -176,9 +176,23 @@ const getMethodType = (method: string) => {
   return types[method] || 'info'
 }
 
-const testApi = (api: any) => {
-  ElMessage.info(`测试接口: ${api.method} ${api.path}`)
-  // TODO: 实现测试功能
+const testApi = async (api: any) => {
+  if (api.method !== 'GET') {
+    ElMessage.info(`「${api.method} ${api.path}」暂仅支持 GET 接口在线测试`)
+    return
+  }
+  try {
+    const response = await fetch(api.path)
+    const data = await response.json()
+    ElMessageBox.alert(
+      `<pre style="text-align:left;max-height:300px;overflow:auto">${JSON.stringify(data, null, 2)}</pre>`,
+      `测试结果: ${api.method} ${api.path}`,
+      { dangerouslyUseHTMLString: true, customClass: 'api-test-result' }
+    )
+  } catch (e) {
+    console.error('测试接口失败:', e)
+    ElMessage.error(`测试失败: ${e instanceof Error ? e.message : String(e)}`)
+  }
 }
 </script>
 

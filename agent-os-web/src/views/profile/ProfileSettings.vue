@@ -9,23 +9,19 @@
           </template>
           <el-form :model="profile" label-width="100px">
             <el-form-item label="用户名">
-              <el-input v-model="profile.username" />
+              <el-input v-model="profile.username" disabled />
+            </el-form-item>
+            <el-form-item label="显示名称">
+              <el-input v-model="profile.display_name" placeholder="输入显示名称" />
             </el-form-item>
             <el-form-item label="邮箱">
               <el-input v-model="profile.email" />
             </el-form-item>
-            <el-form-item label="角色">
-              <el-tag>{{ profile.role }}</el-tag>
-            </el-form-item>
-            <el-form-item label="时区">
-              <el-select v-model="profile.timezone" placeholder="选择时区">
-                <el-option label="Asia/Shanghai (UTC+8)" value="Asia/Shanghai" />
-                <el-option label="America/New_York (UTC-5)" value="America/New_York" />
-                <el-option label="Europe/London (UTC+0)" value="Europe/London" />
-              </el-select>
+            <el-form-item label="简介">
+              <el-input v-model="profile.bio" type="textarea" :rows="3" placeholder="个人简介" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="saveProfile">保存</el-button>
+              <el-button type="primary" :loading="saving" @click="saveProfile">保存</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -70,7 +66,7 @@
               </span>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="saveSettings">保存</el-button>
+              <el-button type="primary" :loading="saving" @click="saveSettings">保存</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -82,10 +78,6 @@
       <template #header>
         <div class="header">
           <span>API 密钥</span>
-          <el-button type="primary" size="small" @click="generateApiKey">
-            <el-icon><Refresh /></el-icon>
-            重新生成
-          </el-button>
         </div>
       </template>
 
@@ -98,35 +90,33 @@
         API 密钥用于调用 Agent OS API，请妥善保管，不要泄露给他人
       </el-alert>
 
-      <div class="api-key-section">
-        <el-input
-          v-model="apiKey"
-          readonly
-          :type="showApiKey ? 'text' : 'password'"
-          style="width: 400px"
-        >
-          <template #append>
-            <el-button @click="showApiKey = !showApiKey">
-              <el-icon><View v-if="!showApiKey" /><Hide v-else /></el-icon>
-            </el-button>
-            <el-button @click="copyApiKey">
-              <el-icon><CopyDocument /></el-icon>
-            </el-button>
+      <el-table :data="apiKeys" v-loading="keysLoading" stripe>
+        <el-table-column prop="name" label="名称" width="180" />
+        <el-table-column prop="key_prefix" label="前缀" width="100">
+          <template #default="{ row }">
+            <el-tag size="small">{{ row.key_prefix }}***</el-tag>
           </template>
-        </el-input>
-        <el-button
-          type="danger"
-          plain
-          style="margin-left: 10px"
-          @click="revokeApiKey"
-        >
-          撤销密钥
-        </el-button>
-      </div>
+        </el-table-column>
+        <el-table-column prop="permissions" label="权限" width="180">
+          <template #default="{ row }">
+            <el-tag v-for="p in row.permissions" :key="p" size="small" type="info" effect="plain" style="margin-right: 4px">
+              {{ p }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="expires_at" label="过期时间" width="200">
+          <template #default="{ row }">
+            {{ row.expires_at ? formatTime(row.expires_at) : '永久' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="created_at" label="创建时间" width="200">
+          <template #default="{ row }">
+            {{ formatTime(row.created_at) }}
+          </template>
+        </el-table-column>
+      </el-table>
 
-      <div style="margin-top: 20px">
-        <el-text type="info">创建时间: {{ apiKeyCreatedAt }}</el-text>
-      </div>
+      <el-empty v-if="!keysLoading && apiKeys.length === 0" description="暂无 API 密钥" />
     </el-card>
 
     <!-- 账户操作 -->
@@ -137,6 +127,7 @@
       <el-space direction="vertical" size="large">
         <div>
           <el-button @click="showChangePasswordDialog = true">修改密码</el-button>
+          <el-text type="info" style="margin-left: 10px">后端暂未提供修改密码接口</el-text>
         </div>
         <div>
           <el-button type="danger" plain @click="logout">退出登录</el-button>
@@ -167,17 +158,18 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, View, Hide, CopyDocument } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { profileApi } from '@/api/profile'
 import { useAppStore } from '@/stores/app'
+import { formatTime } from '@/utils/format'
 
 const appStore = useAppStore()
 
 const profile = ref({
-  username: 'admin',
-  email: 'admin@example.com',
-  role: 'Administrator',
-  timezone: 'Asia/Shanghai',
+  username: '',
+  display_name: '',
+  email: '',
+  bio: '',
 })
 
 const settings = ref({
@@ -188,9 +180,9 @@ const settings = ref({
   refreshInterval: appStore.refreshInterval,
 })
 
-const apiKey = ref('ak_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
-const apiKeyCreatedAt = ref('2024-01-01 10:00:00')
-const showApiKey = ref(false)
+const saving = ref(false)
+const apiKeys = ref<any[]>([])
+const keysLoading = ref(false)
 const showChangePasswordDialog = ref(false)
 const passwordForm = ref({
   oldPassword: '',
@@ -198,19 +190,81 @@ const passwordForm = ref({
   confirmPassword: '',
 })
 
-const saveProfile = () => {
-  ElMessage.success('基本信息已保存')
+const loadProfile = async () => {
+  try {
+    const data = await profileApi.getProfile()
+    profile.value = {
+      username: data.username || 'admin',
+      display_name: data.display_name || '',
+      email: data.email || '',
+      bio: data.bio || '',
+    }
+    // 同步偏好设置
+    if (data.preferences) {
+      settings.value.theme = data.preferences.theme || appStore.theme
+      settings.value.language = data.preferences.language || appStore.language
+    }
+  } catch (e) {
+    console.error('加载个人资料失败:', e)
+    ElMessage.error('加载个人资料失败')
+  }
 }
 
-const saveSettings = () => {
-  // 更新到 store
-  appStore.theme = settings.value.theme
-  appStore.language = settings.value.language
-  appStore.pageSize = settings.value.pageSize
-  appStore.autoRefresh = settings.value.autoRefresh
-  appStore.refreshInterval = settings.value.refreshInterval
-  
-  ElMessage.success('界面设置已保存')
+const loadAPIKeys = async () => {
+  keysLoading.value = true
+  try {
+    const data = await profileApi.getAPIKeys()
+    apiKeys.value = data.keys || []
+  } catch (e) {
+    console.error('加载 API 密钥失败:', e)
+    ElMessage.error('加载 API 密钥失败')
+  } finally {
+    keysLoading.value = false
+  }
+}
+
+const saveProfile = async () => {
+  saving.value = true
+  try {
+    await profileApi.updateProfile({
+      email: profile.value.email || undefined,
+      display_name: profile.value.display_name || undefined,
+      bio: profile.value.bio || undefined,
+    })
+    ElMessage.success('基本信息已保存')
+  } catch (e) {
+    console.error('保存基本信息失败:', e)
+    ElMessage.error('保存基本信息失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+const saveSettings = async () => {
+  saving.value = true
+  try {
+    // 更新到 store
+    appStore.theme = settings.value.theme
+    appStore.language = settings.value.language
+    appStore.pageSize = settings.value.pageSize
+    appStore.autoRefresh = settings.value.autoRefresh
+    appStore.refreshInterval = settings.value.refreshInterval
+
+    // 持久化到后端 preferences
+    await profileApi.updateProfile({
+      preferences: {
+        theme: settings.value.theme,
+        language: settings.value.language,
+        notifications: true,
+      },
+    })
+    ElMessage.success('界面设置已保存')
+  } catch (e) {
+    console.error('保存界面设置失败:', e)
+    ElMessage.error('保存界面设置失败')
+  } finally {
+    saving.value = false
+  }
 }
 
 const changeTheme = (theme: string) => {
@@ -229,52 +283,6 @@ const changeTheme = (theme: string) => {
   }
 }
 
-const generateApiKey = async () => {
-  try {
-    await ElMessageBox.confirm(
-      '重新生成 API 密钥将使旧密钥失效，确定继续吗？',
-      '确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-    
-    // TODO: 调用后端 API
-    apiKey.value = 'ak_' + Math.random().toString(36).substring(2, 34)
-    apiKeyCreatedAt.value = new Date().toLocaleString('zh-CN')
-    ElMessage.success('API 密钥已重新生成')
-  } catch {
-    // 用户取消
-  }
-}
-
-const copyApiKey = () => {
-  navigator.clipboard.writeText(apiKey.value)
-  ElMessage.success('已复制到剪贴板')
-}
-
-const revokeApiKey = async () => {
-  try {
-    await ElMessageBox.confirm(
-      '撤销 API 密钥后，使用该密钥的所有请求将失效，确定继续吗？',
-      '确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-    
-    // TODO: 调用后端 API
-    apiKey.value = ''
-    ElMessage.success('API 密钥已撤销')
-  } catch {
-    // 用户取消
-  }
-}
-
 const changePassword = () => {
   if (!passwordForm.value.oldPassword) {
     ElMessage.warning('请输入当前密码')
@@ -288,24 +296,20 @@ const changePassword = () => {
     ElMessage.warning('两次输入的密码不一致')
     return
   }
-  
-  // TODO: 调用后端 API
-  ElMessage.success('密码修改成功')
+
+  ElMessage.info('后端暂未提供修改密码接口')
   showChangePasswordDialog.value = false
-  passwordForm.value = {
-    oldPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  }
 }
 
 const logout = () => {
   ElMessage.success('已退出登录')
-  // TODO: 清除登录状态并跳转到登录页
+  // TODO: 清除登录状态并跳转到登录页（暂无登录系统）
 }
 
 onMounted(() => {
   changeTheme(settings.value.theme)
+  loadProfile()
+  loadAPIKeys()
 })
 </script>
 
@@ -317,11 +321,6 @@ onMounted(() => {
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-}
-
-.api-key-section {
-  display: flex;
   align-items: center;
 }
 </style>

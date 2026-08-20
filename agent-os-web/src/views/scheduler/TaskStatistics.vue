@@ -220,8 +220,8 @@ const loadStatistics = async () => {
 
     for (const task of tasks) {
       try {
-        const result = await schedulerApi.listExecutions(task.id, { limit: 100 })
-        const executions = result.runs || []
+        const result = await schedulerApi.listExecutions({ task_id: task.id, limit: 100 })
+        const executions = result.executions || []
         allExecutions.push(...executions)
 
         // 统计每个任务的数据

@@ -111,12 +111,11 @@ const loadExecutions = async () => {
     for (const task of allTasks.slice(0, 5)) { // 只查前5个任务避免请求过多
       try {
         const result = await schedulerApi.listExecutions({ task_id: task.id, limit: 20 })
-        if (result.runs) {
-          allExecutions.push(...result.runs.map((run: any) => ({
-            ...run,
-            task_name: task.name,
-          })))
-        }
+        const runs = result.executions || []
+        allExecutions.push(...runs.map((run: any) => ({
+          ...run,
+          task_name: task.name,
+        })))
       } catch (e) {
         console.error(`获取任务 ${task.name} 执行记录失败:`, e)
       }

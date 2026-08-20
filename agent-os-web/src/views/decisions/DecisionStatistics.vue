@@ -92,9 +92,10 @@ const statusPieOption = ref({
 const loadStatistics = async () => {
   try {
     const result = await decisionApi.getStatistics()
-    stats.value = result.stats || stats.value
-    typePieOption.value.series[0].data = result.typeDistribution || []
-    statusPieOption.value.series[0].data = result.statusDistribution || []
+    const statsData = result.stats || {}
+    stats.value = statsData
+    typePieOption.value.series[0].data = statsData.typeDistribution || []
+    statusPieOption.value.series[0].data = statsData.statusDistribution || []
   } catch (e) {
     console.error('加载统计失败:', e)
     ElMessage.error('加载统计失败')

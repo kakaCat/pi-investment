@@ -5,19 +5,8 @@
         <div class="header">
           <span>操作记录</span>
           <div class="filters">
-            <el-date-picker
-              v-model="dateRange"
-              type="daterange"
-              range-separator="至"
-              start-placeholder="开始日期"
-              end-placeholder="结束日期"
-              style="width: 300px"
-            />
-            <el-select v-model="filters.action" placeholder="操作类型" clearable style="width: 150px; margin-left: 10px">
-              <el-option label="创建" value="create" />
-              <el-option label="更新" value="update" />
-              <el-option label="删除" value="delete" />
-              <el-option label="执行" value="execute" />
+            <el-select v-model="filters.action" placeholder="操作类型" clearable style="width: 150px">
+              <el-option v-for="opt in actionOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
             </el-select>
             <el-button type="primary" @click="loadLogs" style="margin-left: 10px">
               查询
@@ -27,20 +16,22 @@
       </template>
 
       <el-table :data="logs" v-loading="loading" stripe>
-        <el-table-column prop="action" label="操作" width="100">
+        <el-table-column prop="action" label="操作" width="140">
           <template #default="{ row }">
             <el-tag :type="getActionType(row.action)">
               {{ getActionName(row.action) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="resource_type" label="资源类型" width="120" />
-        <el-table-column prop="resource_name" label="资源名称" min-width="200" />
-        <el-table-column prop="description" label="描述" min-width="250" />
-        <el-table-column prop="ip_address" label="IP 地址" width="150" />
-        <el-table-column prop="created_at" label="时间" width="180">
+        <el-table-column prop="resource" label="资源" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="ip_address" label="IP 地址" width="140">
           <template #default="{ row }">
-            {{ formatTime(row.created_at) }}
+            {{ row.ip_address || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="timestamp" label="时间" width="180">
+          <template #default="{ row }">
+            {{ formatTime(row.timestamp) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="100">
@@ -51,6 +42,8 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <el-empty v-if="!loading && logs.length === 0" description="暂无操作记录" />
 
       <div class="pagination">
         <el-pagination
@@ -73,12 +66,10 @@
             {{ getActionName(selectedLog.action) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="资源类型">{{ selectedLog.resource_type }}</el-descriptions-item>
-        <el-descriptions-item label="资源名称">{{ selectedLog.resource_name }}</el-descriptions-item>
-        <el-descriptions-item label="描述">{{ selectedLog.description }}</el-descriptions-item>
-        <el-descriptions-item label="IP 地址">{{ selectedLog.ip_address }}</el-descriptions-item>
-        <el-descriptions-item label="User Agent">{{ selectedLog.user_agent }}</el-descriptions-item>
-        <el-descriptions-item label="时间">{{ formatTime(selectedLog.created_at) }}</el-descriptions-item>
+        <el-descriptions-item label="资源">{{ selectedLog.resource || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="IP 地址">{{ selectedLog.ip_address || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="User Agent">{{ selectedLog.user_agent || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="时间">{{ formatTime(selectedLog.timestamp) }}</el-descriptions-item>
         <el-descriptions-item label="详细信息" v-if="selectedLog.details">
           <pre style="white-space: pre-wrap; word-wrap: break-word;">{{
             JSON.stringify(selectedLog.details, null, 2)
@@ -92,23 +83,21 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { profileApi } from '@/api/profile'
 import { formatTime } from '@/utils/format'
 
 interface Log {
   id: string
   action: string
-  resource_type: string
-  resource_name: string
-  description: string
-  ip_address: string
+  resource?: string
+  ip_address?: string
   user_agent?: string
-  created_at: string
+  timestamp: string
   details?: any
 }
 
 const loading = ref(false)
 const logs = ref<Log[]>([])
-const dateRange = ref<[Date, Date] | null>(null)
 const filters = ref({
   action: '',
 })
@@ -118,22 +107,35 @@ const total = ref(0)
 const showDetailDialog = ref(false)
 const selectedLog = ref<Log | null>(null)
 
+const actionOptions = [
+  { value: 'login', label: '登录' },
+  { value: 'create', label: '创建' },
+  { value: 'update', label: '更新' },
+  { value: 'delete', label: '删除' },
+  { value: 'view', label: '查看' },
+  { value: 'execute', label: '执行' },
+]
+
 const getActionType = (action: string) => {
   const types: Record<string, any> = {
+    login: 'primary',
     create: 'success',
     update: 'warning',
     delete: 'danger',
     execute: 'primary',
+    view: 'info',
   }
   return types[action] || 'info'
 }
 
 const getActionName = (action: string) => {
   const names: Record<string, string> = {
+    login: '登录',
     create: '创建',
     update: '更新',
     delete: '删除',
     execute: '执行',
+    view: '查看',
   }
   return names[action] || action
 }
@@ -141,42 +143,10 @@ const getActionName = (action: string) => {
 const loadLogs = async () => {
   loading.value = true
   try {
-    // TODO: 调用后端 API
-    // 模拟数据
-    logs.value = [
-      {
-        id: '1',
-        action: 'create',
-        resource_type: 'task',
-        resource_name: '每日数据同步',
-        description: '创建新任务',
-        ip_address: '127.0.0.1',
-        user_agent: 'Mozilla/5.0',
-        created_at: new Date().toISOString(),
-        details: { cron: '0 0 * * *' },
-      },
-      {
-        id: '2',
-        action: 'execute',
-        resource_type: 'task',
-        resource_name: '每日数据同步',
-        description: '手动触发任务执行',
-        ip_address: '127.0.0.1',
-        user_agent: 'Mozilla/5.0',
-        created_at: new Date(Date.now() - 3600000).toISOString(),
-      },
-      {
-        id: '3',
-        action: 'update',
-        resource_type: 'skill',
-        resource_name: 'data_processor',
-        description: '更新技能配置',
-        ip_address: '127.0.0.1',
-        user_agent: 'Mozilla/5.0',
-        created_at: new Date(Date.now() - 7200000).toISOString(),
-      },
-    ]
-    total.value = 3
+    const params: any = { limit: pageSize.value }
+    const result = await profileApi.getActivityLogs(params)
+    logs.value = result.logs || []
+    total.value = result.total || 0
   } catch (e) {
     console.error('加载日志失败:', e)
     ElMessage.error('加载日志失败')

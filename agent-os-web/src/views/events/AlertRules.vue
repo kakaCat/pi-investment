@@ -211,12 +211,14 @@ const deleteRule = async (id: string) => {
 }
 
 const toggleRule = async (rule: any) => {
+  // v-model 已更新 rule.enabled 为目标值，直接发送当前值
   try {
-    // TODO: 调用后端 API 更新状态
+    await eventApi.updateAlertRule(rule.id, { enabled: rule.enabled })
     ElMessage.success(rule.enabled ? '已启用' : '已禁用')
   } catch (e) {
+    console.error('操作失败:', e)
+    rule.enabled = !rule.enabled // 失败回滚
     ElMessage.error('操作失败')
-    rule.enabled = !rule.enabled
   }
 }
 

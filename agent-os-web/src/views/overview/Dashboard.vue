@@ -161,9 +161,8 @@ onMounted(async () => {
     for (const task of tasks) {
       try {
         const result = await getRecentExecutions(task.id, 100)
-        if (result.runs) {
-          allExecutions.push(...result.runs)
-        }
+        const runs = result.executions || []
+        allExecutions.push(...runs)
       } catch (e) {
         logger.warn(`获取任务 ${task.id} 的执行历史失败:`, e)
       }

@@ -109,7 +109,14 @@ const connectWebSocket = () => {
       if (!paused.value) {
         try {
           const event = JSON.parse(e.data)
-          events.value.unshift(event)
+          // 忽略连接建立等系统消息
+          if (event.type === 'connected') return
+          events.value.unshift({
+            type: event.type || 'system',
+            agent_id: event.agent_id || '-',
+            data: event.data || {},
+            timestamp: event.timestamp || new Date().toISOString(),
+          })
           if (events.value.length > 100) {
             events.value.pop()
           }
@@ -143,22 +150,6 @@ onUnmounted(() => {
     ws.close()
   }
 })
-
-// Mock 数据用于演示
-const mockEvents = () => {
-  setInterval(() => {
-    if (!paused.value && events.value.length < 100) {
-      const types = ['task.started', 'task.completed', 'task.failed', 'decision.recorded']
-      const type = types[Math.floor(Math.random() * types.length)]
-      events.value.unshift({
-        type,
-        agent_id: `agent-${Math.floor(Math.random() * 5)}`,
-        data: { message: `Mock event ${Date.now()}` },
-        timestamp: new Date().toISOString(),
-      })
-    }
-  }, 3000)
-}
 </script>
 
 <style scoped>

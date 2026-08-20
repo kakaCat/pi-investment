@@ -4,91 +4,167 @@
       <template #header>
         <div class="header">
           <span>记忆中心</span>
-          <el-tag type="info">Mock 数据</el-tag>
+          <div class="header-actions">
+            <el-tag v-if="loading" type="info" effect="plain">加载中...</el-tag>
+            <el-tag v-else type="success" effect="plain">共 {{ total }} 条</el-tag>
+          </div>
         </div>
       </template>
 
-      <el-alert
-        type="info"
-        :closable="false"
-        show-icon
-        title="记忆中心功能开发中"
-        description="Agent OS 记忆模块 HTTP API 尚未提供，当前展示为模拟数据。"
-        style="margin-bottom: 16px"
-      />
-
-      <!-- 搜索 -->
+      <!-- 搜索和筛选 -->
       <div class="filters">
         <el-input
           v-model="searchText"
           placeholder="搜索记忆内容"
           clearable
           style="width: 300px"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
         >
           <template #prefix>
             <el-icon><Search /></el-icon>
           </template>
         </el-input>
-        <el-select v-model="categoryFilter" placeholder="分类" clearable style="width: 150px">
+        <el-select v-model="categoryFilter" placeholder="分类" clearable style="width: 150px" @change="loadMemories">
           <el-option label="全部" value="" />
+          <el-option label="知识" value="knowledge" />
           <el-option label="经验" value="experience" />
-          <el-option label="规则" value="rule" />
-          <el-option label="教训" value="lesson" />
+          <el-option label="决策" value="decision" />
+          <el-option label="数据" value="data" />
         </el-select>
+        <el-button type="primary" @click="handleSearch" style="margin-left: 10px">
+          查询
+        </el-button>
+        <el-button @click="clearFilters">重置</el-button>
       </div>
 
       <!-- 记忆卡片列表 -->
-      <div class="memory-cards" style="margin-top: 16px">
+      <div v-loading="loading" class="memory-cards" style="margin-top: 16px; min-height: 200px">
         <el-card
-          v-for="memory in filteredMemories"
+          v-for="memory in memories"
           :key="memory.id"
           shadow="hover"
           class="memory-card"
         >
           <template #header>
             <div class="memory-header">
-              <span>{{ memory.title }}</span>
-              <el-tag size="small">{{ memory.category }}</el-tag>
+              <span class="memory-title">{{ memory.title }}</span>
+              <el-tag size="small" :type="getCategoryType(memory.category)">
+                {{ getCategoryLabel(memory.category) }}
+              </el-tag>
             </div>
           </template>
-          <p>{{ memory.content }}</p>
+          <p class="memory-content">{{ memory.content }}</p>
           <div class="memory-footer">
-            <span class="confidence">置信度: {{ memory.confidence }}</span>
+            <div class="tags">
+              <el-tag v-for="tag in memory.tags" :key="tag" size="small" type="info" effect="plain" style="margin-right: 4px">
+                {{ tag }}
+              </el-tag>
+            </div>
             <span class="time">{{ formatTime(memory.created_at) }}</span>
           </div>
         </el-card>
+
+        <el-empty v-if="!loading && memories.length === 0" description="暂无记忆" />
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :total="total"
+          :page-sizes="[6, 12, 24, 50]"
+          layout="total, sizes, prev, pager, next"
+          @size-change="loadMemories"
+          @current-change="loadMemories"
+        />
       </div>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
+import { memoryApi } from '@/api/memory'
 import { formatTime } from '@/utils/format'
 
+const loading = ref(false)
 const memories = ref<any[]>([])
+const total = ref(0)
 const searchText = ref('')
 const categoryFilter = ref('')
+const currentPage = ref(1)
+const pageSize = ref(12)
 
-const filteredMemories = computed(() => {
-  let result = memories.value
-  if (searchText.value) {
-    result = result.filter((m) => m.title.includes(searchText.value) || m.content.includes(searchText.value))
+const getCategoryType = (category: string) => {
+  const map: Record<string, string> = {
+    knowledge: 'primary',
+    experience: 'success',
+    decision: 'warning',
+    data: 'info',
   }
-  if (categoryFilter.value) {
-    result = result.filter((m) => m.category === categoryFilter.value)
+  return map[category] || 'info'
+}
+
+const getCategoryLabel = (category: string) => {
+  const map: Record<string, string> = {
+    knowledge: '知识',
+    experience: '经验',
+    decision: '决策',
+    data: '数据',
   }
-  return result
-})
+  return map[category] || category
+}
+
+const loadMemories = async () => {
+  loading.value = true
+  try {
+    const params: any = { limit: pageSize.value }
+    if (categoryFilter.value) params.category = categoryFilter.value
+
+    const result = await memoryApi.list(params)
+    memories.value = result.memories || []
+    total.value = result.total || 0
+  } catch (e) {
+    console.error('加载记忆失败:', e)
+    ElMessage.error('加载记忆失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleSearch = async () => {
+  currentPage.value = 1
+  loading.value = true
+  try {
+    if (searchText.value) {
+      // 有关键词走搜索接口
+      const result = await memoryApi.search(searchText.value)
+      memories.value = result.memories || []
+      total.value = result.total || 0
+    } else {
+      await loadMemories()
+    }
+  } catch (e) {
+    console.error('搜索记忆失败:', e)
+    ElMessage.error('搜索记忆失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const clearFilters = () => {
+  searchText.value = ''
+  categoryFilter.value = ''
+  currentPage.value = 1
+  loadMemories()
+}
 
 onMounted(() => {
-  // Mock 数据
-  memories.value = [
-    { id: '1', title: 'ROE > 15% 选股有效', content: '过去3个月，ROE > 15% 的股票池平均跑赢大盘 8%', category: 'experience', confidence: 0.85, created_at: '2026-08-15T10:00:00Z' },
-    { id: '2', title: '机构出货信号', content: '连续3天大宗交易折价 > 5% 是机构出货信号', category: 'rule', confidence: 0.72, created_at: '2026-08-14T15:00:00Z' },
-    { id: '3', title: '追涨杀跌教训', content: '2026-07 追高 AI 概念股导致回撤 12%，应避免情绪交易', category: 'lesson', confidence: 0.90, created_at: '2026-08-10T09:00:00Z' },
-  ]
+  loadMemories()
 })
 </script>
 
@@ -103,7 +179,7 @@ onMounted(() => {
 }
 .filters {
   display: flex;
-  gap: 12px;
+  align-items: center;
 }
 .memory-cards {
   display: grid;
@@ -118,11 +194,36 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
 }
+.memory-title {
+  font-weight: 600;
+  flex: 1;
+  margin-right: 8px;
+}
+.memory-content {
+  min-height: 60px;
+  line-height: 1.6;
+  color: #606266;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .memory-footer {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-top: 12px;
   font-size: 12px;
   color: #909399;
+}
+.tags {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

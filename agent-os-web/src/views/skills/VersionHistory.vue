@@ -110,19 +110,33 @@ const viewContent = (version: any) => {
 }
 
 const viewDiff = (version: any) => {
-  // TODO: 实现真实的 diff 功能
-  diffContent.value = `+ 新增内容\n- 删除内容\n  保持不变`
+  // 与上一个版本做简单行级对比
+  const currentIndex = versions.value.findIndex((v) => v.version === version.version)
+  const prevVersion = currentIndex > 0 ? versions.value[currentIndex - 1] : null
+
+  const currentLines = String(version.content || '').split('\n')
+  const prevLines = String(prevVersion?.content || '').split('\n')
+
+  let diff = ''
+  if (!prevVersion) {
+    diff = currentLines.map((line: string) => `+ ${line}`).join('\n')
+  } else {
+    const prevSet = new Set(prevLines)
+    const currentSet = new Set(currentLines)
+    prevLines.forEach((line: string) => {
+      if (!currentSet.has(line)) diff += `- ${line}\n`
+    })
+    currentLines.forEach((line: string) => {
+      if (!prevSet.has(line)) diff += `+ ${line}\n`
+    })
+  }
+  diffContent.value = diff || '（无差异）'
   showDiffDialog.value = true
 }
 
 const rollback = async (version: any) => {
-  try {
-    // TODO: 调用后端 API 回滚
-    ElMessage.success(`已回滚到版本 v${version.version}`)
-    await loadVersions()
-  } catch (e) {
-    ElMessage.error('回滚失败')
-  }
+  ElMessage.info(`后端暂未提供版本回滚接口（目标 v${version.version}）`)
+  await loadVersions()
 }
 
 const goBack = () => {

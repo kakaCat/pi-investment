@@ -119,23 +119,36 @@ const saveNamespace = async () => {
     return
   }
 
-  try {
-    // TODO: 调用后端 API
-    ElMessage.success(editingNamespace.value ? '更新成功' : '添加成功')
+  if (editingNamespace.value) {
+    ElMessage.info('后端暂不支持编辑命名空间，请删除后重新创建')
     showAddDialog.value = false
     editingNamespace.value = null
+    return
+  }
+
+  try {
+    await systemApi.createNamespace({
+      name: form.value.name,
+      description: form.value.description || undefined,
+    })
+    ElMessage.success('添加成功')
+    showAddDialog.value = false
+    editingNamespace.value = null
+    form.value = { name: '', description: '', active: true }
     await loadNamespaces()
   } catch (e) {
+    console.error('保存失败:', e)
     ElMessage.error('保存失败')
   }
 }
 
 const deleteNamespace = async (name: string) => {
   try {
-    // TODO: 调用后端 API
+    await systemApi.deleteNamespace(name)
     ElMessage.success('删除成功')
     await loadNamespaces()
   } catch (e) {
+    console.error('删除失败:', e)
     ElMessage.error('删除失败')
   }
 }

@@ -4,18 +4,12 @@
       <template #header>
         <div class="header">
           <span>决策中心</span>
-          <el-tag type="info">Mock 数据</el-tag>
+          <div class="header-actions">
+            <el-tag v-if="loading" type="info" effect="plain">加载中...</el-tag>
+            <el-tag v-else type="success" effect="plain">共 {{ total }} 条</el-tag>
+          </div>
         </div>
       </template>
-
-      <el-alert
-        type="info"
-        :closable="false"
-        show-icon
-        title="决策中心功能开发中"
-        description="Agent OS 决策模块 HTTP API 尚未提供，当前展示为模拟数据。"
-        style="margin-bottom: 16px"
-      />
 
       <!-- 筛选器 -->
       <div class="filters">
@@ -24,6 +18,7 @@
           <el-option label="买入" value="buy" />
           <el-option label="卖出" value="sell" />
           <el-option label="持有" value="hold" />
+          <el-option label="观察" value="watch" />
         </el-select>
         <el-select v-model="statusFilter" placeholder="状态" clearable style="width: 150px">
           <el-option label="全部" value="" />
@@ -31,10 +26,14 @@
           <el-option label="待执行" value="pending" />
           <el-option label="已取消" value="cancelled" />
         </el-select>
+        <el-button type="primary" @click="loadDecisions" style="margin-left: 10px">
+          查询
+        </el-button>
+        <el-button @click="clearFilters">重置</el-button>
       </div>
 
       <!-- 决策表格 -->
-      <el-table :data="filteredDecisions" stripe style="margin-top: 16px">
+      <el-table v-loading="loading" :data="filteredDecisions" stripe style="margin-top: 16px">
         <el-table-column type="expand">
           <template #default="{ row }">
             <div style="padding: 20px">
@@ -42,56 +41,82 @@
               <p><strong>理由：</strong>{{ row.reason }}</p>
               <p><strong>置信度：</strong>{{ row.confidence }}</p>
               <p><strong>标的：</strong>{{ row.targets.join(', ') }}</p>
+              <p v-if="row.target"><strong>目标：</strong>{{ row.target }}</p>
+              <p v-if="row.context"><strong>上下文：</strong><pre style="white-space: pre-wrap">{{ JSON.stringify(row.context, null, 2) }}</pre></p>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="action" label="动作" width="100">
+        <el-table-column prop="id" label="ID" width="80" show-overflow-tooltip />
+        <el-table-column prop="action" label="动作" width="90">
           <template #default="{ row }">
             <el-tag :type="getActionType(row.action)">
-              {{ row.action }}
+              {{ getActionLabel(row.action) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="targets" label="标的" width="150">
+        <el-table-column prop="targets" label="标的" width="140">
           <template #default="{ row }">
-            {{ row.targets.join(', ') }}
+            {{ row.targets?.join(', ') }}
           </template>
         </el-table-column>
-        <el-table-column prop="confidence" label="置信度" width="100">
+        <el-table-column prop="confidence" label="置信度" width="130">
           <template #default="{ row }">
-            <el-progress :percentage="Math.round(row.confidence * 100)" :color="getConfidenceColor(row.confidence)" />
+            <el-progress :percentage="Math.round((row.confidence || 0) * 100)" :color="getConfidenceColor(row.confidence)" />
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'executed' ? 'success' : row.status === 'pending' ? 'warning' : 'info'">
-              {{ row.status }}
+            <el-tag :type="getStatusType(row.status)">
+              {{ getStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="pnl" label="盈亏" width="100">
           <template #default="{ row }">
-            <span :style="{ color: row.pnl.startsWith('+') ? '#67c23a' : '#f56c6c' }">{{ row.pnl }}</span>
+            <span v-if="row.pnl !== null && row.pnl !== undefined" :style="{ color: row.pnl >= 0 ? '#67c23a' : '#f56c6c' }">
+              {{ row.pnl > 0 ? '+' : '' }}{{ row.pnl }}%
+            </span>
+            <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="时间" width="180">
+        <el-table-column prop="created_at" label="时间" width="170">
           <template #default="{ row }">
             {{ formatTime(row.created_at) }}
           </template>
         </el-table-column>
       </el-table>
+
+      <el-empty v-if="!loading && filteredDecisions.length === 0" description="暂无决策数据" />
+
+      <!-- 分页 -->
+      <div class="pagination">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :total="total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next"
+          @size-change="loadDecisions"
+          @current-change="loadDecisions"
+        />
+      </div>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { decisionApi } from '@/api/decisions'
 import { formatTime } from '@/utils/format'
 
+const loading = ref(false)
 const decisions = ref<any[]>([])
+const total = ref(0)
 const actionFilter = ref('')
 const statusFilter = ref('')
+const currentPage = ref(1)
+const pageSize = ref(10)
 
 const filteredDecisions = computed(() => {
   let result = decisions.value
@@ -105,8 +130,23 @@ const filteredDecisions = computed(() => {
 })
 
 const getActionType = (action: string) => {
-  const map: Record<string, string> = { buy: 'success', sell: 'danger', hold: 'info' }
+  const map: Record<string, string> = { buy: 'success', sell: 'danger', hold: 'info', watch: 'warning' }
   return map[action] || 'info'
+}
+
+const getActionLabel = (action: string) => {
+  const map: Record<string, string> = { buy: '买入', sell: '卖出', hold: '持有', watch: '观察' }
+  return map[action] || action
+}
+
+const getStatusType = (status: string) => {
+  const map: Record<string, string> = { executed: 'success', pending: 'warning', cancelled: 'info' }
+  return map[status] || 'info'
+}
+
+const getStatusLabel = (status: string) => {
+  const map: Record<string, string> = { executed: '已执行', pending: '待执行', cancelled: '已取消' }
+  return map[status] || status
 }
 
 const getConfidenceColor = (confidence: number) => {
@@ -115,13 +155,33 @@ const getConfidenceColor = (confidence: number) => {
   return '#f56c6c'
 }
 
+const loadDecisions = async () => {
+  loading.value = true
+  try {
+    const params: any = { limit: pageSize.value }
+    if (actionFilter.value) params.action = actionFilter.value
+    if (statusFilter.value) params.status = statusFilter.value
+
+    const result = await decisionApi.list(params)
+    decisions.value = result.decisions || []
+    total.value = result.total || 0
+  } catch (e) {
+    console.error('加载决策失败:', e)
+    ElMessage.error('加载决策失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const clearFilters = () => {
+  actionFilter.value = ''
+  statusFilter.value = ''
+  currentPage.value = 1
+  loadDecisions()
+}
+
 onMounted(() => {
-  // Mock 数据
-  decisions.value = [
-    { id: '1', action: 'buy', targets: ['600519.SH'], confidence: 0.85, reason: 'ROE 25%，PE 历史30%分位', status: 'executed', pnl: '+5.2%', created_at: '2026-08-18T10:30:00Z' },
-    { id: '2', action: 'sell', targets: ['000858.SZ'], confidence: 0.72, reason: '机构出货信号', status: 'executed', pnl: '-1.3%', created_at: '2026-08-18T11:00:00Z' },
-    { id: '3', action: 'hold', targets: ['601888.SH'], confidence: 0.65, reason: '趋势不明，观望', status: 'pending', pnl: '0%', created_at: '2026-08-18T11:30:00Z' },
-  ]
+  loadDecisions()
 })
 </script>
 
@@ -136,6 +196,11 @@ onMounted(() => {
 }
 .filters {
   display: flex;
-  gap: 12px;
+  align-items: center;
+}
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

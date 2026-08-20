@@ -132,15 +132,20 @@ const renderGraph = () => {
   
   graphContainer.value.appendChild(svgEl)
 
-  // 简单的力导向布局
-  const nodes = tasks.value.map((task, i) => ({
-    id: task.id,
-    name: task.name,
-    x: Math.random() * (width - 100) + 50,
-    y: Math.random() * (height - 100) + 50,
-    enabled: task.enabled,
-    task: task,
-  }))
+  // 网格布局（避免随机位置重叠）
+  const nodes = tasks.value.map((task, i) => {
+    const cols = Math.max(3, Math.floor(width / 180))
+    const col = i % cols
+    const row = Math.floor(i / cols)
+    return {
+      id: task.id,
+      name: task.name,
+      x: 90 + col * (width / cols),
+      y: 70 + row * 120,
+      enabled: task.enabled,
+      task: task,
+    }
+  })
 
   // 绘制节点
   nodes.forEach(node => {
@@ -173,7 +178,9 @@ const renderGraph = () => {
     })
   })
 
-  // TODO: 绘制依赖关系的连线
+  // 依赖连线：后端任务模型暂未提供依赖关系字段（dependencies/depends_on），
+  // 待后端补充任务依赖数据后在此绘制连线。
+  // 示例：tasks.value.forEach(task => task.dependencies?.forEach(dep => drawEdge(...)))
 }
 
 const resetZoom = () => {
