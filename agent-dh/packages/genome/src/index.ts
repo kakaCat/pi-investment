@@ -6,7 +6,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 
 export default class GenomePlugin extends Service {
-  static inject = ['tools', 'systemPrompt'];
+  static inject = ['tools'];
   static Config = z.object({
     genomeDir: z.string().default('~/.dsh-agent-dh/genome'),
   }).default({} as any);
@@ -22,10 +22,14 @@ export default class GenomePlugin extends Service {
     this.genomeDir = config.genomeDir.replace(/^~/, process.env.HOME || '');
     
     this.ctx.on('ready', async () => {
-      await this.initialize();
-      this.registerSections();
-      this.registerVariables();
-      this.registerTools();
+      try {
+        await this.initialize();
+        this.registerSections();
+        this.registerVariables();
+        this.registerTools();
+      } catch (error) {
+        this.ctx.logger('genome').error('Failed to initialize genome plugin:', error);
+      }
     });
   }
 
@@ -122,6 +126,11 @@ export default class GenomePlugin extends Service {
   }
 
   private registerSections() {
+    if (!(this.ctx as any).systemPrompt) {
+      this.ctx.logger('genome').warn('systemPrompt service not available, skipping section registration');
+      return;
+    }
+
     const sectionsDir = path.join(this.genomeDir, 'sections');
     const sections = this.genomeData.sections;
 
@@ -142,7 +151,7 @@ export default class GenomePlugin extends Service {
       const fullText = header + content;
 
       // 注册段
-      const dispose = this.ctx.systemPrompt.section({
+      const dispose = (this.ctx as any).systemPrompt.section({
         name: `genome:${name}`,
         order: meta.order,
         text: fullText,
@@ -154,8 +163,12 @@ export default class GenomePlugin extends Service {
   }
 
   private registerVariables() {
+    if (!(this.ctx as any).systemPrompt) {
+      return;
+    }
+
     // 注册 {{genome_version}} 变量
-    this.ctx.systemPrompt.variable('genome_version', () => {
+    (this.ctx as any).systemPrompt.variable('genome_version', () => {
       return this.genomeData?.genome_version || 'unknown';
     });
   }
