@@ -727,15 +727,89 @@ export class QuantsysV2Client {
   // ==================== Model APIs (P0) ====================
 
   /**
+   * 解析 agent 侧 model_id（如 "lightgbm_20260820_195134"）为后端所需的
+   * model_type + version。裸类型名（如 "lightgbm"、"lgbm"）视为 latest。
+   * 无法识别时抛错——禁止静默回退默认模型（RFC003-P3 验收发现）。
+   */
+  private parseModelId(modelId: string): { model_type: string; version?: string } {
+    const alias: Record<string, string> = {
+      lgbm: 'lightgbm',
+      lightgbm: 'lightgbm',
+      xgboost: 'xgboost',
+      randomforest: 'randomforest',
+      random_forest: 'randomforest',
+      neural_net: 'neural_net',
+    };
+    const id = modelId.trim();
+    // 注意：按前缀长度降序匹配，避免 "random_forest" 被 "random" 之类短前缀误吞
+    for (const [prefix, canonical] of Object.entries(alias).sort((a, b) => b[0].length - a[0].length)) {
+      if (id === prefix) return { model_type: canonical };
+      if (id.startsWith(prefix + '_')) {
+        const version = id.slice(prefix.length + 1);
+        if (version) return { model_type: canonical, version };
+      }
+    }
+    throw new Error(
+      `无法解析 model_id "${modelId}"，正确格式如 lightgbm_20260820_195134（{model_type}_{version}）或裸类型名 lightgbm/xgboost`
+    );
+  }
+
+  /**
+   * 列出已注册模型
+   * Real endpoint: GET /api/ml/models
+   */
+  async listModels(params?: { model_type?: string; status?: string; limit?: number }): Promise<any> {
+    const response = await this.client.get('/api/ml/models', { params });
+    return this.unwrap(response.data, 'listModels');
+  }
+
+  /**
+   * 选择默认模型：最新一个通过上线门禁（roc_auc >= 0.55, status=ready）的模型。
+   * 无达标模型时返回 null，由后端默认路径兜底（RFC003-P3 门禁规则）。
+   */
+  private async resolveGatedDefaultModel(): Promise<{ model_type: string; version: string } | null> {
+    try {
+      const res = await this.listModels({ status: 'ready', limit: 50 });
+      const models: any[] = res?.models || [];
+      const gated = models
+        .filter((m) => typeof m.roc_auc === 'number' && m.roc_auc >= 0.55 && m.train_date)
+        .sort((a, b) => String(b.train_date).localeCompare(String(a.train_date)));
+      if (!gated.length) return null;
+      return { model_type: gated[0].model_type, version: gated[0].version };
+    } catch {
+      return null; // 列表不可用时回退后端默认（不阻断预测）
+    }
+  }
+
+  /**
    * Predict with ML model
    * Real endpoint: POST /api/ml/predict
    */
   async predictWithModel(params: ModelPredictRequest): Promise<ModelPrediction> {
+    let modelType: string | undefined;
+    let version: string | undefined;
+    if (params.model_id) {
+      const parsed = this.parseModelId(params.model_id);
+      modelType = parsed.model_type;
+      version = parsed.version;
+    } else {
+      // 默认路径走门禁模型，避免落到 AUC<0.55 的退役模型（S1 恒等输出源）
+      const gated = await this.resolveGatedDefaultModel();
+      if (gated) {
+        modelType = gated.model_type;
+        version = gated.version;
+      }
+    }
     const response = await this.client.post('/api/ml/predict', {
       symbols: [params.symbol],
-      model_type: params.model_id,
+      ...(modelType ? { model_type: modelType } : {}),
+      ...(version ? { version } : {}),
     });
-    return this.unwrap<ModelPrediction>(response.data, 'predictWithModel');
+    const result = this.unwrap<ModelPrediction>(response.data, 'predictWithModel');
+    if (modelType) {
+      (result as any).model_used = `${modelType}${version ? '_' + version : '@latest'}`;
+    }
+    return result;
   }
 
   // ==================== Data Manager APIs (P0) ====================
@@ -777,13 +851,18 @@ export class QuantsysV2Client {
 
   /**
    * Evaluate ML model
-   * Real endpoint: GET /api/ml/model/evaluate
+   * Real endpoint: GET /api/ml/model/evaluate（后端参数为 model_type + version）
+   * 注意：后端不支持按 test_period 重估，返回的是训练时落库的指标；
+   * 未知 model_id 会明确报错（success=false），不再静默回退默认模型。
    */
   async evaluateModel(params: {
     model_id: string;
     test_period?: string;
   }): Promise<any> {
-    const response = await this.client.get('/api/ml/model/evaluate', { params });
+    const parsed = this.parseModelId(params.model_id);
+    const response = await this.client.get('/api/ml/model/evaluate', {
+      params: { model_type: parsed.model_type, version: parsed.version || 'latest' },
+    });
     return this.unwrap(response.data, 'evaluateModel');
   }
 
