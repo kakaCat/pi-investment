@@ -26,10 +26,13 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 # 统一使用结构化日志配置
+from infrastructure.config import get_config
 from infrastructure.logging import configure_structured_logging
+
+config = get_config()
 configure_structured_logging(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    json_format=os.getenv("LOG_FORMAT") == "json",
+    level=config.logging.level,
+    json_format=config.logging.format == "json",
     enable_trace_id=True
 )
 
@@ -316,10 +319,10 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     import uvicorn
-    import os
 
-    host = os.environ.get('QUANTSYS_API_HOST', '127.0.0.1')
-    port = int(os.environ.get('QUANTSYS_WS_PORT', '5003'))
+    config = get_config()
+    host = config.app.quantsys_api_host
+    port = config.app.quantsys_ws_port
 
     logger.info(f"Starting WebSocket server on {host}:{port}")
 

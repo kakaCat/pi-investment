@@ -32,10 +32,13 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 # 统一使用结构化日志配置
+from infrastructure.config import get_config
 from infrastructure.logging import configure_structured_logging
+
+config = get_config()
 configure_structured_logging(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    json_format=os.getenv("LOG_FORMAT") == "json",
+    level=config.logging.level,
+    json_format=config.logging.format == "json",
     enable_trace_id=True
 )
 
@@ -82,7 +85,8 @@ async def lifespan(app: FastAPI):
     # 注册失败时回退到本地 SchedulerService
     import sys as _sys
     if 'pytest' not in _sys.modules:
-        use_agent_os_scheduler = os.getenv("USE_AGENT_OS_SCHEDULER", "true").lower() == "true"
+        config = get_config()
+        use_agent_os_scheduler = config.app.use_agent_os_scheduler
 
         if use_agent_os_scheduler:
             try:
@@ -1088,9 +1092,9 @@ if __name__ == "__main__":
     import uvicorn
 
     # 获取配置
-    import os
-    host = os.environ.get('QUANTSYS_API_HOST', '127.0.0.1')
-    port = int(os.environ.get('QUANTSYS_API_PORT', '5001'))
+    config = get_config()
+    host = config.app.quantsys_api_host
+    port = config.app.quantsys_api_port
 
     logger.info(f"Starting FastAPI server on {host}:{port}")
 

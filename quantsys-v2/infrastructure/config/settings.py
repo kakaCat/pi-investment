@@ -120,6 +120,11 @@ class AppSettings(BaseSettings):
     use_agent_os_scheduler: bool = Field(default=True, description="Use Agent OS Scheduler vs local SchedulerService")
     initial_cash: float = Field(default=1000000.0, description="Initial cash for backtesting")
     market_monitor_log: Optional[str] = Field(default=None, description="Market monitor log file path")
+    
+    # API 服务器配置
+    quantsys_api_host: str = Field(default="127.0.0.1", description="QuantSys API server host")
+    quantsys_api_port: int = Field(default=5001, description="QuantSys API server port")
+    quantsys_ws_port: int = Field(default=5003, description="QuantSys WebSocket server port")
 
 
 class Config(BaseSettings):
