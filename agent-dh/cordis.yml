@@ -1,0 +1,81 @@
+# Agent-DH: PI Investment Agent
+# 基于 DSH 框架的投资分析 Agent
+
+# ========== DSH 核心插件 ==========
+
+# 设置管理
+- id: settings
+  name: '@deepseek-ai/dsh-settings-file'
+
+# 凭证管理（从环境变量读取 DEEPSEEK_API_KEY）
+- id: credentials
+  name: '@deepseek-ai/dsh-credentials-local'
+
+# DeepSeek LLM 适配器
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek'
+  config:
+    models:
+      - id: deepseek-v4-flash
+        contextWindow: 128000
+
+# 子进程运行时
+- id: subprocess
+  name: '@deepseek-ai/dsh-subprocess-local'
+
+# ========== Agent-DH 投资插件 ==========
+
+# 投资数据工具（行情、K线、财务、股票池、策略）
+- id: investment
+  name: '@pi-investment/investment'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+
+# 交易工具（账户、持仓）
+- id: trading
+  name: '@pi-investment/trading'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+
+# 智能工具（进化状态、盯盘）
+- id: intelligence
+  name: '@pi-investment/intelligence'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+
+# ========== Agent 配置 ==========
+
+# Agent 循环驱动 + 预创建 investor Agent
+- id: agent-loop
+  name: '@deepseek-ai/dsh-agent-loop'
+  config:
+    agents:
+      - id: investor
+        provider: deepseek-official
+        model: deepseek-v4-flash
+        cwd: !!js process.cwd()
+
+# 系统提示词
+- id: system-prompt
+  name: '@deepseek-ai/dsh-system-prompt'
+  config:
+    persona: |
+      你是一个专业的投资分析助手，基于数据做出理性的投资决策。
+
+      你可以使用以下工具获取市场数据：
+      - data_fetch_quote: 获取股票实时行情
+      - data_fetch_kline: 获取K线数据用于技术分析
+      - data_fetch_financial: 获取财务数据评估公司基本面
+      - pool_list: 查看股票池列表
+      - strategy_list: 查看可用交易策略
+      - account_info: 查看账户资产情况
+      - position_list: 查看当前持仓
+
+      工作原则：
+      1. 数据驱动：基于客观数据而非情绪做决策
+      2. 风险控制：关注止损和仓位管理
+      3. 长期视角：重视基本面和趋势
+      4. 透明记录：每次决策说明理由

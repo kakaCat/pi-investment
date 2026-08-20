@@ -1,9 +1,14 @@
 import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
-import { AgentOSClient } from '@pi-investment/agent-os-client';
+import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 
 export interface Config {
+  quantsysV2?: {
+    baseURL?: string;
+    timeout?: number;
+  };
+  /** 已废弃：历史 agent-os 配置，仅为兼容旧配置文件保留，不再使用 */
   agentOS?: {
     baseURL?: string;
     agentId?: string;
@@ -13,30 +18,37 @@ export interface Config {
 /**
  * Memory Plugin for Agent-DH
  *
- * Long-term memory storage and retrieval via Agent OS.
+ * Long-term memory storage and retrieval via QuantsysV2 统一记忆服务
+ * （/api/memory，W1.2 记忆域；BM25+向量混合检索，ollama 不可达时自动降级）。
+ *
+ * 2026-08-19: 从已废弃的 agent-os 客户端迁移到 quantsys-v2。
  */
 export default class MemoryPlugin extends Service {
   static inject = ['tools'];
   static Config = z.object({
+    quantsysV2: z.object({
+      baseURL: z.string().default('http://localhost:5001'),
+      timeout: z.number().default(30000),
+    }).default({} as any),
     agentOS: z.object({
       baseURL: z.string().default('http://localhost:8080'),
       agentId: z.string().default('agent-dh'),
     }).default({} as any),
   }).default({} as any)
 
-  private aos: AgentOSClient;
+  private qv2: QuantsysV2Client;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'memory');
-    this.aos = new AgentOSClient({
-      baseURL: config.agentOS?.baseURL || 'http://localhost:8080',
-      agentId: config.agentOS?.agentId || 'agent-dh',
+    this.qv2 = new QuantsysV2Client({
+      baseURL: config.quantsysV2?.baseURL || 'http://localhost:5001',
+      timeout: config.quantsysV2?.timeout || 30000,
     });
     this.registerTools();
   }
 
   private registerTools() {
-    const { ctx, aos } = this;
+    const { ctx, qv2 } = this;
 
     // 记忆搜索
     ctx.tools.register(defineTool({
@@ -74,13 +86,27 @@ export default class MemoryPlugin extends Service {
           text: JSON.stringify(value, null, 2),
         }],
       },
-      timeoutMs: 10000,
+      timeoutMs: 15000,
       execute: async (args: any) => {
-        return aos.memory.search({
-          namespace: args.namespace || 'default',
+        const namespace = args.namespace || 'default';
+        const res = await qv2.searchMemory({
+          q: args.query,
+          limit: args.top_k || 5,
+          // experience 命名空间对应后端 kind=experience；其余命名空间不做 kind 过滤
+          kind: namespace === 'experience' ? 'experience' : undefined,
+        });
+        // embedding 向量为千维数组，剔除以避免污染上下文
+        const items = (res.items || []).map((it: any) => {
+          const { embedding, ...rest } = it ?? {};
+          return rest;
+        });
+        return {
           query: args.query,
-          top_k: args.top_k || 5,
-        }) as any;
+          results: items,
+          total: res.total ?? items.length,
+          degraded: res.degraded,
+          strategy: res.strategy,
+        } as any;
       },
     } as any));
 
@@ -125,14 +151,27 @@ export default class MemoryPlugin extends Service {
           text: JSON.stringify(value, null, 2),
         }],
       },
-      timeoutMs: 10000,
+      timeoutMs: 15000,
       execute: async (args: any) => {
-        return aos.memory.write({
-          namespace: args.namespace || 'default',
-          content: args.content,
-          importance: args.importance || 0.5,
-          tags: args.tags,
-        }) as any;
+        const namespace = args.namespace || 'default';
+        const content = String(args.content);
+        const res = await qv2.createMemory({
+          kind: namespace === 'experience' ? 'experience' : 'episode',
+          scope: 'global',
+          title: content.slice(0, 50),
+          content,
+          payload: { namespace, tags: args.tags || [] },
+          // 无证据链时后端门禁要求 status=testing
+          status: 'testing',
+          confidence: typeof args.importance === 'number' ? args.importance : 0.5,
+          source: 'agent',
+          provenance: { channel: 'dsh', session_kind: 'agent' },
+        });
+        return {
+          success: true,
+          memory_id: String(res?.id ?? ''),
+          message: '已写入 quantsys-v2 统一记忆库（status=testing，混合检索可召回）',
+        } as any;
       },
     } as any));
 
@@ -179,21 +218,37 @@ export default class MemoryPlugin extends Service {
           text: JSON.stringify(value, null, 2),
         }],
       },
-      timeoutMs: 10000,
+      timeoutMs: 15000,
       execute: async (args: any) => {
-        return aos.memory.write({
-          namespace: 'experience',
-          content: JSON.stringify({
+        const timestamp = new Date().toISOString();
+        const content = [
+          `${args.symbol} 交易经验（${timestamp}）`,
+          `场景：${args.scenario}`,
+          args.outcome ? `结果：${args.outcome}` : null,
+          typeof args.pnl_pct === 'number' ? `盈亏：${args.pnl_pct}%` : null,
+          args.lesson ? `教训：${args.lesson}` : null,
+        ].filter(Boolean).join('\n');
+        const res = await qv2.createMemory({
+          kind: 'experience',
+          scope: `stock:${args.symbol}`,
+          title: `${args.symbol} ${args.outcome || ''} ${args.scenario}`.slice(0, 80),
+          content,
+          payload: {
             symbol: args.symbol,
-            scenario: args.scenario,
             outcome: args.outcome,
             lesson: args.lesson,
             pnl_pct: args.pnl_pct,
-            timestamp: new Date().toISOString(),
-          }),
-          importance: args.outcome === 'loss' ? 0.8 : 0.6,
-          tags: [args.symbol, args.outcome, 'experience'],
-        }) as any;
+            timestamp,
+          },
+          status: 'testing',
+          confidence: args.outcome === 'loss' ? 0.8 : 0.6,
+          source: 'agent',
+          provenance: { channel: 'dsh', session_kind: 'agent' },
+        });
+        return {
+          success: true,
+          experience_id: String(res?.id ?? ''),
+        } as any;
       },
     } as any));
   }
