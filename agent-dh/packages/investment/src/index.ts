@@ -367,7 +367,10 @@ export default class InvestmentPlugin extends Service {
       },
       timeoutMs: 10000,
       execute: async () => {
-        return qv2.listPools() as any;
+        const pools: any[] = (await qv2.listPools()) as any[];
+        // 后端部分池的 description 为 SQL NULL（JSON null），不满足输出契约的
+        // string 声明。边界处归一化为空串，契约保持严格。
+        return (pools ?? []).map((p: any) => ({ ...p, description: p?.description ?? '' })) as any;
       },
     } as any));
 
@@ -426,7 +429,17 @@ export default class InvestmentPlugin extends Service {
         const params: { source?: 'builtin' | 'user'; code_type?: string } = {};
         if (args.source) params.source = args.source;
         if (args.code_type) params.code_type = args.code_type;
-        return qv2.listStrategies(params) as any;
+        const raw: any = await qv2.listStrategies(params);
+        // 后端部分策略的 description / params 为 SQL NULL，不满足输出契约的
+        // string / array 声明。边界处归一化，契约保持严格。
+        if (Array.isArray(raw?.items)) {
+          raw.items = raw.items.map((s: any) => ({
+            ...s,
+            description: s?.description ?? '',
+            params: s?.params ?? [],
+          }));
+        }
+        return raw as any;
       },
     } as any));
   }

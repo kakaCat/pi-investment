@@ -71,10 +71,28 @@ export default class FactorPlugin extends Service {
       },
       timeoutMs: 15000,
       execute: async (args: any) => {
-        return qv2.calculateFactors({
+        const raw: any = await qv2.calculateFactors({
           symbol: args.symbol,
           factors: args.factors,
-        }) as any;
+        });
+        // 后端实际返回 factors 为数组 [{factor_name, factor_value, factor_date, symbol}]，
+        // 与输出契约的「因子值字典」不符。在边界处归一化：同名因子取最新日期的值，
+        // 并附带 factor_dates 便于识别陈旧数据（如技术指标滞后数月）。
+        if (Array.isArray(raw?.factors)) {
+          const dict: Record<string, unknown> = {};
+          const dates: Record<string, string> = {};
+          for (const f of raw.factors) {
+            const name = f?.factor_name;
+            if (!name) continue;
+            const date = String(f?.factor_date ?? '');
+            if (!(name in dates) || date > dates[name]) {
+              dates[name] = date;
+              dict[name] = f?.factor_value;
+            }
+          }
+          return { ...raw, factors: dict, factor_dates: dates } as any;
+        }
+        return raw as any;
       },
     } as any));
 
