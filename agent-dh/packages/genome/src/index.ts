@@ -6,7 +6,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 
 export default class GenomePlugin extends Service {
-  static inject = ['tools', 'system-prompt'];
+  static inject = ['tools', 'systemPrompt'];  // 添加 systemPrompt 依赖
   static Config = z.object({
     genomeDir: z.string().default('~/.dsh-agent-dh/genome'),
   }).default({} as any);
