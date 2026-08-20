@@ -11,6 +11,27 @@ export interface Config {
 }
 
 /**
+ * 宪法第 1 条工具层硬校验（P0-1b，2026-08-20）：A股交易时段
+ * 9:30-11:30 / 13:00-15:00（工作日）之外禁止下单。
+ * 提示词层约束是软约束，这里是硬拒单——双保险。
+ * 已知限制：未接交易日历，法定节假日仅按周一至周五判断。
+ */
+function assertTradingHours(): void {
+  const now = new Date();
+  const day = now.getDay();
+  const hh = now.getHours();
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  if (day === 0 || day === 6) {
+    throw new Error(`非交易日（周末）禁止下单。宪法：仅 A股交易日 9:30-11:30、13:00-15:00 可执行买卖委托。`);
+  }
+  const hhmm = now.getHours() * 100 + now.getMinutes();
+  const inSession = (hhmm >= 930 && hhmm <= 1130) || (hhmm >= 1300 && hhmm <= 1500);
+  if (!inSession) {
+    throw new Error(`当前 ${hh}:${mm} 非交易时段，禁止下单（交易宪法第 1 条）。盘前/盘后/夜间禁止买卖委托；分析与复盘不受限。`);
+  }
+}
+
+/**
  * Trading Plugin for Agent-DH
  *
  * Portfolio management, trade execution, and monitoring tools.
@@ -182,6 +203,7 @@ export default class TradingPlugin extends Service {
       },
       timeoutMs: 10000,
       execute: async (args: any) => {
+        assertTradingHours();  // 宪法第 1 条硬校验：非交易时段拒单
         return qv2.executeTrade({
           action: args.action,
           symbol: args.symbol,
@@ -291,6 +313,7 @@ export default class TradingPlugin extends Service {
       },
       timeoutMs: 10000,
       execute: async (args: any) => {
+        assertTradingHours();  // 宪法第 1 条硬校验：非交易时段拒单
         return qv2.executeAlgo({
           action: args.action,
           symbol: args.symbol,

@@ -124,7 +124,7 @@ export default class LearningPlugin extends Service {
         error: execution.error,
         duration_ms: execution.duration,
       },
-      reward: this.calculateReward(execution),
+      reward: await this.calculateReward(execution),
       tags: this.extractTags(execution),
       genome_context: this.captureGenomeContext(execution),  // P0-3: 决策打标
     };
@@ -212,20 +212,59 @@ export default class LearningPlugin extends Service {
   }
 
   /**
-   * 计算奖励信号
+   * 计算奖励信号（2026-08-20 起异步：交易类需查后端成本）
    */
-  private calculateReward(execution: any): number {
+  private async calculateReward(execution: any): Promise<number> {
     if (!execution.success) return -0.3;
 
     // 根据工具类型计算不同的奖励
     switch (execution.tool) {
       case 'portfolio_trade':
-        // 实际应该根据盈亏计算
-        return 0.5;
+        // reward 真实化：卖出按买入成本计算真实 P&L；买入保持中性（真实奖惩在卖出时结算）
+        return await this.tradeReward(execution);
       case 'strategy_execute':
         return execution.result?.signals?.length > 0 ? 0.3 : 0.1;
       default:
         return 0.1;
+    }
+  }
+
+  /** 最近一次交易的 P&L%（供 extractTags 附带记录） */
+  private lastTradePnlPct: number | undefined;
+
+  /**
+   * 交易奖励真实化（验证门裁决可信度的地基）
+   * SELL：取该标的近期买入的加权平均成本，pnl_pct = (卖价-成本)/成本，
+   *       reward = clamp(pnl_pct / 10, -1, 1)（±10% 映射到 ±1）
+   * BUY / 数据缺失 / 计算失败：0.1 中性，不阻塞追踪
+   */
+  private async tradeReward(execution: any): Promise<number> {
+    try {
+      const trade = execution.result?.value ?? execution.result;
+      const action = String(trade?.action ?? execution.args?.action ?? '').toUpperCase();
+      const symbol = trade?.symbol ?? execution.args?.symbol;
+      const price = Number(trade?.price);
+
+      this.lastTradePnlPct = undefined;
+      if (action === 'BUY') return 0.1;
+      if (action !== 'SELL' || !symbol || !(price > 0)) return 0.1;
+
+      const history = await this.qv2.getTradeHistory({ symbol, direction: 'buy' });
+      const orders: any[] = (history?.orders || []).filter(
+        (o: any) => Number(o?.price) > 0 && Number(o?.quantity) > 0
+      );
+      if (orders.length === 0) return 0.1;  // 无成本记录，中性
+
+      // 加权平均成本（最近 10 笔买入）
+      const recent = orders.slice(-10);
+      const totalQty = recent.reduce((s, o) => s + Number(o.quantity), 0);
+      const avgCost = recent.reduce((s, o) => s + Number(o.price) * Number(o.quantity), 0) / totalQty;
+
+      const pnlPct = ((price - avgCost) / avgCost) * 100;
+      this.lastTradePnlPct = +pnlPct.toFixed(2);
+      return Math.max(-1, Math.min(1, +(pnlPct / 10).toFixed(3)));
+    } catch {
+      return 0.1;
     }
   }
 
@@ -236,6 +275,10 @@ export default class LearningPlugin extends Service {
     const tags: string[] = [execution.tool];
     if (execution.args?.symbol) tags.push(execution.args.symbol);
     if (execution.args?.strategy_id) tags.push(`strategy_${execution.args.strategy_id}`);
+    // reward 真实化：卖出成交附带真实 P&L% 标签（归因可读性）
+    if (execution.tool === 'portfolio_trade' && this.lastTradePnlPct !== undefined) {
+      tags.push(`pnl_pct:${this.lastTradePnlPct}`);
+    }
     return tags;
   }
 

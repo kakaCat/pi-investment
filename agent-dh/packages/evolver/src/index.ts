@@ -24,23 +24,76 @@ interface CandidateRecord {
 }
 
 export default class EvolverPlugin extends Service {
-  static inject = ['tools', 'genome'];  // 依赖 genome 插件
+  static inject = ['tools', 'genome', 'llm'];  // 依赖 genome 插件 + LLM（段落改写）
 
   static Config = z.object({
     quantsysV2: z.object({
       baseURL: z.string().default('http://localhost:5001'),
     }).default({} as any),
     observeDays: z.number().default(5),  // 模拟盘观察期（交易日）
+    llmProvider: z.string().default('deepseek-official'),  // LLM 改写路由
+    llmModel: z.string().default('deepseek-v4-flash'),
   }).default({} as any);
 
   private qv2: QuantsysV2Client;
   private observeDays: number;
+  private llmProvider: string;
+  private llmModel: string;
 
   constructor(ctx: Context, config: any) {
     super(ctx, 'evolver');
     this.qv2 = new QuantsysV2Client({ baseURL: config?.quantsysV2?.baseURL || 'http://localhost:5001' });
     this.observeDays = config?.observeDays || 5;
+    this.llmProvider = config?.llmProvider || 'deepseek-official';
+    this.llmModel = config?.llmModel || 'deepseek-v4-flash';
     this.registerTools();
+  }
+
+  /**
+   * LLM 段落改写（2026-08-20 任务#3：替代 naive 追加）
+   * 让模型理解段落后整体重写，融入改进建议；失败时回退追加（保证可用性）。
+   * 护栏：输出 ≤8000 字符（genome_update 还会再校验）、rules 段规则 ID 只允许增不允许静默删。
+   */
+  private async llmRewriteSection(section: string, currentContent: string, suggestion: any): Promise<{ content: string; method: 'llm' | 'append_fallback' }> {
+    try {
+      const prompt = [
+        `你是投资 Agent 的提示词进化器。下面是 Agent 系统提示词中「${section}」段的当前全文，以及一条来自经验蒸馏的改进建议。`,
+        `请整体改写该段：把建议自然地融入（新增/强化/淘汰相应内容），保持 markdown 结构清晰、语言精炼。`,
+        `硬性约束：①只输出改写后的段落全文，不要任何解释、前言或代码块包裹；②总长度不超过 6000 字符；③禁止出现 {{ 或 }} 字符；④rules 段的规则 ID（R-xxx 标题）只允许新增，不允许删除或修改已有 ID；⑤不得与交易宪法冲突（9:30-15:00 交易时段、T+1、仓位上限、止损纪律）。`,
+        ``,
+        `【当前段落全文】`,
+        currentContent,
+        ``,
+        `【改进建议】`,
+        `理由：${suggestion.reason || '经验蒸馏'}`,
+        `内容：${suggestion.content || ''}`,
+      ].join('\n');
+
+      let text = '';
+      for await (const chunk of (this.ctx as any).llm.stream({
+        provider: this.llmProvider,
+        model: this.llmModel,
+        maxTokens: 4000,
+        messages: [{
+          role: 'user',
+          content: [{ type: 'text', text: prompt }],
+          source: { kind: 'plugin', plugin: 'evolver' },
+        }],
+        signal: new AbortController().signal,
+      })) {
+        if (chunk?.type === 'text-delta') text += (chunk.text ?? chunk.delta ?? '');
+      }
+
+      // 去掉可能的代码块包裹
+      const cleaned = text.replace(/^```(?:markdown|md)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      if (cleaned.length < 50 || cleaned.length > 7800) {
+        throw new Error(`LLM 输出长度异常（${cleaned.length} 字符），回退追加模式`);
+      }
+      return { content: cleaned + '\n', method: 'llm' };
+    } catch (e: any) {
+      this.ctx.logger('evolver').warn(`LLM rewrite failed, fallback to append: ${e?.message}`);
+      return { content: currentContent.trim() + '\n' + (suggestion.content || ''), method: 'append_fallback' };
+    }
   }
 
   // ============ RFC 008: candidates 持久化（genomeDir/candidates.json） ============
@@ -218,6 +271,7 @@ export default class EvolverPlugin extends Service {
                 properties: {
                   section: { type: 'string' },
                   action: { type: 'string' },
+                  method: { type: 'string', description: 'llm=LLM 改写 / append=规则追加 / append_fallback=LLM 失败回退' },
                   content: { type: 'string' },
                   reason: { type: 'string' },
                   preview_diff: { type: 'string' },
@@ -267,15 +321,18 @@ export default class EvolverPlugin extends Service {
           const currentContent = await this.readSection(section);
           let newContent = currentContent;
           let action = 'modify';
+          let method: string = 'append';
 
           // 根据 type 生成新内容
           if (suggestion.type === 'add_rule') {
-            // 追加规则到 rules 段
+            // 新增规则保持追加（规则是增量式的；LLM 改写有静默丢规则 ID 的风险）
             newContent = currentContent.trim() + '\n' + suggestion.content;
             action = 'add';
           } else if (suggestion.type === 'modify_principle') {
-            // 修改 principles（简化：追加到末尾）
-            newContent = currentContent.trim() + '\n' + suggestion.content;
+            // 原则/教训类段落：LLM 理解后整体改写（2026-08-20 任务#3），失败回退追加
+            const rewrite = await this.llmRewriteSection(section, currentContent, suggestion);
+            newContent = rewrite.content;
+            method = rewrite.method;
             action = 'modify';
           }
 
@@ -285,6 +342,7 @@ export default class EvolverPlugin extends Service {
           const proposal = {
             section,
             action,
+            method,  // llm（LLM 改写）/ append（规则追加）/ append_fallback（LLM 失败回退）
             content: newContent,
             reason: suggestion.reason || '经验蒸馏建议',
             preview_diff,
