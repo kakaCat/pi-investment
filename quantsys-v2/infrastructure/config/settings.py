@@ -126,6 +126,10 @@ class AppSettings(BaseSettings):
     quantsys_api_host: str = Field(default="127.0.0.1", description="QuantSys API server host")
     quantsys_api_port: int = Field(default=5001, description="QuantSys API server port")
     quantsys_ws_port: int = Field(default=5003, description="QuantSys WebSocket server port")
+    quantsys_api_url: str = Field(default="http://127.0.0.1:5001", description="QuantSys API base URL (for CLI clients)")
+    
+    # 数据库配置
+    quant_db_path: Optional[str] = Field(default=None, description="Legacy SQLite database path")
     
     # 安全配置
     jwt_secret_key: Optional[str] = Field(default=None, description="JWT secret key for token signing")
