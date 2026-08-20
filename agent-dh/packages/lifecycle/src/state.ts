@@ -9,6 +9,12 @@ export interface PendingResume {
   last_known_good: string;
   attempt: number;
   ts: string;
+  /**
+   * 发起 self_restart 的 agent/session id（exec.agent.id，agent.id === session id）。
+   * 续跑消息优先回投该会话，让用户在发起处看到结果；
+   * 为 null（旧版本写入的 pending 文件）时回退到按 agentId 前缀投递的历史行为。
+   */
+  origin_agent_id?: string | null;
 }
 
 export interface RestartResult {

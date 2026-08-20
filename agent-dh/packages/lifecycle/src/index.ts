@@ -66,7 +66,7 @@ export default class LifecyclePlugin extends Service {
     this.setupResume();
   }
 
-  /** 启动时检测 pending-resume.json，向 investor agent 注入续跑消息 */
+  /** 启动时检测 pending-resume.json，向发起重启的会话（或 investor agent）注入续跑消息 */
   private setupResume(): void {
     const pending = this.state.readPending();
     if (!pending) return;
@@ -85,17 +85,39 @@ export default class LifecyclePlugin extends Service {
         return false;
       }
       this.state.markPendingDone();
-      this.ctx.logger.info(`lifecycle: resume message delivered (${result?.status ?? 'ok'})`);
+      this.ctx.logger.info(`lifecycle: resume message delivered to ${String(agent.id)} (${result?.status ?? 'ok'})`);
       return true;
     };
-    // 立即尝试（本插件晚于 agent 创建加载时，roots 里已有目标）
-    const roots: Agent[] = this.ctx.agents.roots();
-    if (deliver(roots.find((a) => String(a.id).startsWith(this.cfg.agentId)) ?? roots[0])) return;
-    // 否则等 agent 创建事件（插件先于 agent-loop 完成配置化启动时）
+    // 兜底目标：investor 根 agent（旧行为），用于自主续跑或 origin 久未出现时的接管
+    const pickDefault = (): Agent | undefined => {
+      const roots: Agent[] = this.ctx.agents.roots();
+      return roots.find((a) => String(a.id).startsWith(this.cfg.agentId)) ?? roots[0];
+    };
+    const originId = pending.origin_agent_id ?? null;
+    if (originId) {
+      // ① 优先回投发起会话：origin 已存活则立即投递
+      if (deliver(this.ctx.agents.get(originId as any))) return;
+      // ② origin 未存活（Web 会话等用户回来才恢复）：等 agent/created 精确匹配 origin，
+      //    30 分钟窗口内不投兜底，避免消息再次错投后台会话；超时后才接管
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const dispose = this.ctx.on('agent/created', ({ agent }) => {
+        if (String(agent.id) === originId && deliver(agent)) {
+          clearTimeout(timer);
+          dispose();
+        }
+      });
+      timer = setTimeout(() => {
+        dispose();
+        deliver(pickDefault()); // 用户迟迟未回，兜底接管，pending 不空转
+      }, 30 * 60_000);
+      return;
+    }
+    // ③ 无 origin（旧 pending 文件）：立即投兜底，否则等 agent/created
+    if (deliver(pickDefault())) return;
     const dispose = this.ctx.on('agent/created', ({ agent }) => {
       if (String(agent.id).startsWith(this.cfg.agentId) && deliver(agent)) dispose();
     });
-    setTimeout(() => dispose(), 60_000);
+    setTimeout(() => dispose(), 30 * 60_000);
   }
 
   private registerTools(): void {
@@ -121,7 +143,7 @@ export default class LifecyclePlugin extends Service {
         render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
       },
       timeoutMs: 15000,
-      execute: async (args: any) => {
+      execute: async (args: any, exec?: any) => {
         // 限流检查必须在 acquireLock 之前：拒绝路径不会 spawn 重启器，
         // 而锁只由重启器清除，先拿锁再拒绝会永久泄漏锁文件（self_restart 变砖）
         const now = Date.now();
@@ -133,6 +155,8 @@ export default class LifecyclePlugin extends Service {
           return { success: false, message: '已有重启进行中（restarting.lock 存在），拒绝重入' } as any;
         }
         try {
+          // 记录发起会话（agent.id === session id），重启后续跑消息优先回投这里
+          const originAgentId = exec?.agent?.id != null ? String(exec.agent.id) : null;
           const base = this.repo.currentBranch();
           const baseHead = this.repo.head(); // 必须先于 createWipBranch 捕获，否则拿到的是 wip 提交
           const wip = this.repo.createWipBranch('agent-self', ['agent-dh/'], `wip(agent-self): ${args.reason}`);
@@ -146,6 +170,7 @@ export default class LifecyclePlugin extends Service {
             last_known_good: this.state.readLastKnownGood() ?? baseHead,
             attempt,
             ts: new Date(now).toISOString(),
+            origin_agent_id: originAgentId,
           });
           this.state.bumpCounter(now);
           const logPath = join(this.cfg.profileDir, 'state', `restart-${Date.now()}.log`);
