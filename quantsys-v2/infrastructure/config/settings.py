@@ -72,8 +72,16 @@ class ExternalServiceSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix='')
     
     feishu_webhook_url: Optional[str] = Field(default=None, description="Feishu notification webhook")
+    feishu_bot_token: Optional[str] = Field(default=None, description="Feishu bot authentication token")
     tushare_token: Optional[str] = Field(default=None, description="Tushare API token")
     quantsys_api_url: str = Field(default="http://127.0.0.1:5001", description="QuantSys API base URL")
+    
+    # Agent 通知服务配置
+    agent_api_url: str = Field(default="http://127.0.0.1:3002", description="Agent API base URL")
+    agent_api_token: Optional[str] = Field(default=None, description="Agent API authentication token")
+    agent_timeout: int = Field(default=30, description="Agent API request timeout (seconds)")
+    agent_notify_enabled: bool = Field(default=True, description="Enable agent notifications")
+    agent_notify_log: str = Field(default="/tmp/agent_notify.log", description="Agent notification log file")
 
 
 class ProxySettings(BaseSettings):

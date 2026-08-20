@@ -2,14 +2,16 @@
 Agent 通知服务
 V2 任务完成后调用此服务通知 Agent
 """
-import os
 import logging
 import structlog
 import requests
 from typing import Dict, Any, Optional
 from datetime import datetime
+from infrastructure.config import get_config
 
-LOG_FILE = os.getenv('AGENT_NOTIFY_LOG', '/tmp/agent_notify.log')
+config = get_config()
+
+LOG_FILE = config.external.agent_notify_log
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
@@ -25,11 +27,12 @@ class AgentNotificationService:
     """
 
     def __init__(self, agent_url: Optional[str] = None, timeout: Optional[int] = None):
-        self.agent_url = agent_url or os.getenv('AGENT_API_URL', 'http://127.0.0.1:3002')
-        # timeout 显式传入优先（如盯盘路径需要更短超时），否则读环境变量
-        self.timeout = timeout if timeout is not None else int(os.getenv('AGENT_TIMEOUT', '30'))
-        self.enabled = os.getenv('AGENT_NOTIFY_ENABLED', 'true').lower() == 'true'
-        self.token = os.getenv('AGENT_API_TOKEN')
+        config = get_config()
+        self.agent_url = agent_url or config.external.agent_api_url
+        # timeout 显式传入优先（如盯盘路径需要更短超时），否则读配置
+        self.timeout = timeout if timeout is not None else config.external.agent_timeout
+        self.enabled = config.external.agent_notify_enabled
+        self.token = config.external.agent_api_token
 
     def notify_agent(self, event: str, data: Dict[str, Any]) -> bool:
         """通知 Agent 处理事件
