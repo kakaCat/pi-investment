@@ -21,7 +21,6 @@ import multiprocessing
 from multiprocessing import shared_memory
 import ctypes
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 def generate_market_data(n_stocks: int, n_days: int) -> Dict[str, pd.DataFrame]:

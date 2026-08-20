@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Dict, Tuple
 import json
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from domain.quantlib.gpu_acceleration.gpu_ml import GPUMLTrainer
 

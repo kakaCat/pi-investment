@@ -15,7 +15,6 @@ from pathlib import Path
 
 # 项目根入 sys.path（与 conftest 同套路）
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from dotenv import load_dotenv
 

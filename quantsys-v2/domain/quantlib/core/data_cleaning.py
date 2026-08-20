@@ -4,7 +4,6 @@
 """
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from docs.interfaces.quality_interface import IDataCleaner
 import pandas as pd

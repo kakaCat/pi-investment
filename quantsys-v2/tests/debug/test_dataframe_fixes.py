@@ -11,7 +11,6 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 # 添加项目路径
-sys.path.insert(0, '.')
 
 from infrastructure.utils.dataframe_utils import (
     is_dataframe_empty,

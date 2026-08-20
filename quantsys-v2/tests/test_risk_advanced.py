@@ -21,7 +21,6 @@ import sys
 import os
 
 # Add project root to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from domain.quantlib.risk.aggregation import RiskAggregationCalculator
 from domain.quantlib.risk.counterparty_risk import CounterpartyRiskCalculator

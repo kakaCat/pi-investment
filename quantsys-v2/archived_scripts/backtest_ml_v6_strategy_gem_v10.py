@@ -36,7 +36,6 @@ import os
 from pathlib import Path
 
 _V2_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_V2_ROOT))
 
 # 加载环境变量
 env_file = _V2_ROOT / '.env'

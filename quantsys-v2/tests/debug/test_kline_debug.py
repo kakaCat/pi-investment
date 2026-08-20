@@ -3,7 +3,6 @@
 测试 KlineRepository 查询
 """
 import sys
-sys.path.insert(0, '.')
 
 from adapters.outbound.repositories import KlineORMRepository
 from datetime import datetime, timedelta

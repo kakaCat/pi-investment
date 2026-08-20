@@ -8,7 +8,6 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 # 添加项目根目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def get_db_connection():
     """获取数据库连接"""

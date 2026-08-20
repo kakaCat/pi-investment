@@ -14,7 +14,6 @@ import time
 import pandas as pd
 
 # 添加项目根目录到路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from adapters.outbound.repositories import KlineORMRepository
 

@@ -11,7 +11,6 @@
 
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from application.services.strategy_code_service import StrategyCodeService
 import json

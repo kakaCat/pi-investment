@@ -23,7 +23,6 @@ db_config = {
 }
 
 # 添加项目路径以便导入验证器
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from domain.quantlib.engine.code_validator import CodeValidator
 from domain.quantlib.engine.param_parser import ParamParser
 

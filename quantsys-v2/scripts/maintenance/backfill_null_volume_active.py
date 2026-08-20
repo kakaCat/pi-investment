@@ -25,7 +25,6 @@ os.environ['QUANT_PG_SCHEMA'] = 'quant'
 # 添加旧版 quant 包路径（quantsys-v2 的同级目录）
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LEGACY_QUANT_ROOT = PROJECT_ROOT.parent / 'quant'
-sys.path.insert(0, str(LEGACY_QUANT_ROOT))
 
 from quantsys.data.db import Database
 from quantsys.data.fetchers.klines import KlineFetcher

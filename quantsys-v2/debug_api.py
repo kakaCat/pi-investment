@@ -2,7 +2,6 @@
 """直接测试 API 路由代码"""
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path.cwd()))
 
 # 加载环境变量
 from dotenv import load_dotenv

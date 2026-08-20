@@ -10,8 +10,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 _V2_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_V2_ROOT))
-sys.path.insert(0, str(_V2_ROOT.parent / 'quant'))
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)

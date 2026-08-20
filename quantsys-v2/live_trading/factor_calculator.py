@@ -13,7 +13,6 @@ import pandas as pd
 from datetime import datetime, timedelta
 import logging
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from application.services.data_service import DataService
 from live_trading.v13_factors import calculate_v13_factors, get_factor_names
 

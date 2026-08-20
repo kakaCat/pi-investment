@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """测试缠论集成"""
 import sys
-sys.path.insert(0, '.')
 
 from application.services.chan_service import ChanService
 

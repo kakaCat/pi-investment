@@ -6,8 +6,6 @@ runs 15min frequency backtest on all available stocks.
 import sys, os, logging
 logging.basicConfig(level=logging.WARNING)
 
-sys.path.insert(0, '/Users/mac/Documents/ai/pi-investment/quantsys-v2')
-sys.path.insert(0, '/Users/mac/Documents/ai/pi-investment/quant')
 
 import pandas as pd, numpy as np
 from datetime import datetime

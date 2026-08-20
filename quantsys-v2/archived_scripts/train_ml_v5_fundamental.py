@@ -34,7 +34,6 @@ from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_squared_error, r2_score
 
 _V2_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_V2_ROOT))
 
 # 加载环境变量
 env_file = _V2_ROOT / '.env'

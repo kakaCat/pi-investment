@@ -4,7 +4,6 @@
 """
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 print("=" * 70)
 print("系统指标诊断工具")

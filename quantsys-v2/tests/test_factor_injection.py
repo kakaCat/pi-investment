@@ -1,7 +1,6 @@
 """测试策略能否使用所有因子"""
 
 import sys
-sys.path.insert(0, '.')
 
 from application.services.strategy_code_service import StrategyCodeService
 

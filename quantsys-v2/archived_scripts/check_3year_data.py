@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 
 # 添加项目根目录到 Python 路径
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
 
 # 加载环境变量
 from dotenv import load_dotenv

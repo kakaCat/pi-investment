@@ -7,6 +7,9 @@ Qlib 数据适配器测试
 import pytest
 import pandas as pd
 
+# qlib 是可选重依赖（requirements 有但 venv 常缺），缺失时整个模块跳过
+pytest.importorskip("qlib.data", reason="qlib.data not available in this environment")
+
 # qlib 未安装于当前 venv(可选重依赖),缺失时整模块跳过而非 collection error
 qlib = pytest.importorskip("qlib", reason="qlib 未安装,跳过 qlib 数据适配器测试")
 

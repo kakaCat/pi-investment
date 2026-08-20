@@ -15,7 +15,6 @@ import os
 from datetime import datetime
 
 # Ensure the quantsys-v2 directory is on the path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 # ========================================================================

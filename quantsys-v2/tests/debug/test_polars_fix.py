@@ -2,7 +2,6 @@
 测试 Polars DataFrame 修复
 """
 import sys
-sys.path.insert(0, '/Users/mac/Documents/ai/pi-investment/quantsys-v2')
 
 from adapters.outbound.repositories import KlineORMRepository
 from application.services.pool_signal_scanner import PoolSignalScanner

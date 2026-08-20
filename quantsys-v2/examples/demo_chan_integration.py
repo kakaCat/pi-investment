@@ -9,7 +9,6 @@ import os
 from pathlib import Path
 
 # 设置路径
-sys.path.insert(0, str(Path(__file__).parent))
 os.chdir(Path(__file__).parent)
 
 print("=" * 70)

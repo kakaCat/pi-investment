@@ -11,7 +11,6 @@ import sys
 from pathlib import Path
 
 # 添加项目路径
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from application.services.market_regime_detector import MarketRegimeDetector
 from application.services.strategy_performance_stats import StrategyPerformanceStats

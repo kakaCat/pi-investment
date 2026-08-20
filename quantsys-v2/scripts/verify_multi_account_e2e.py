@@ -41,7 +41,6 @@ r = requests.post(f'{BASE}/api/simulation/accounts/e2e_verify_acc/trade', json={
 check('T+1拦截', r.status_code == 422, f"HTTP {r.status_code}")
 
 # 5. 资金流水不变式
-sys.path.insert(0, '.')
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
 inv = SimulationORMRepository().verify_cash_flow_invariant('e2e_verify_acc')
 check('流水不变式', inv['invariant_ok'],

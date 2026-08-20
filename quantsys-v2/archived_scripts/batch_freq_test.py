@@ -5,8 +5,6 @@ Uses the real backtest engine to compute Sharpe ratio for apples-to-apples compa
 import sys, os, logging, json
 logging.basicConfig(level=logging.WARNING, format='%(message)s')
 
-sys.path.insert(0, '/Users/mac/Documents/ai/pi-investment/quantsys-v2')
-sys.path.insert(0, '/Users/mac/Documents/ai/pi-investment/quant')
 
 import pandas as pd, numpy as np
 from datetime import datetime

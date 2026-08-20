@@ -12,7 +12,6 @@ import os
 from datetime import date
 
 # 添加项目路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 # 加载环境变量
 from dotenv import load_dotenv

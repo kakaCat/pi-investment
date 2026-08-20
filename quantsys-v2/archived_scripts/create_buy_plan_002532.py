@@ -9,7 +9,6 @@ import json
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from infrastructure.persistence.database.engine import init_engine
 from infrastructure.persistence.database.base_repository import BaseRepository

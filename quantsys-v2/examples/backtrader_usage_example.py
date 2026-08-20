@@ -12,7 +12,6 @@ import numpy as np
 from datetime import datetime, timedelta
 
 # Add project to path
-sys.path.insert(0, '/Users/mac/Documents/ai/pi-investment/quantsys-v2')
 
 from domain.quantlib.engine.backtrader import BacktraderEngine
 from domain.quantlib.engine.smart_backtest_engine import SmartBacktestEngine

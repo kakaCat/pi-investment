@@ -10,7 +10,6 @@ import sys
 import os
 
 # 添加项目根目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from infrastructure.persistence.database.async_base_repository import init_async_pool, close_async_pool
 from adapters.outbound.repositories import AsyncKlineRepository

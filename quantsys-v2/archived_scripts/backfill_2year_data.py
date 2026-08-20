@@ -13,7 +13,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 
 # 添加项目根目录到路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from adapters.outbound.repositories import KlineORMRepository
 from adapters.outbound.datasources.manager import get_data_source_manager

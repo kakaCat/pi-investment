@@ -66,7 +66,6 @@ def test_feature_engineering_directly():
     print("=" * 60)
 
     try:
-        sys.path.insert(0, str(Path(__file__).parent))
 
         from application.services.ml_pipeline.feature_engineering import FeatureEngineer
         from domain.quantlib.adapters import get_factor_adapter

@@ -11,7 +11,6 @@ os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
 import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from live_trading.simulation_trader import SimulationTrader
 from live_trading.risk_control import backtest_with_risk_control

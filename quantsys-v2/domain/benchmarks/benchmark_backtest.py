@@ -19,7 +19,6 @@ import json
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import multiprocessing
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 def generate_market_data(n_stocks: int, n_days: int) -> Dict[str, pd.DataFrame]:

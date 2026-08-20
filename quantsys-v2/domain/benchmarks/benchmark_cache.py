@@ -24,7 +24,6 @@ from pathlib import Path
 import numpy as np
 import json
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from infrastructure.config import create_cache_service
 from infrastructure.cache import CacheService

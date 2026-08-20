@@ -7,7 +7,6 @@ import pandas as pd
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from domain.quantlib.ml.transformer_predictor import TransformerPredictor
 

@@ -10,8 +10,6 @@ from adapters.inbound.fastapi_app.routes.indicators_async import calculate_backt
 
 # Add quantsys-v2 to path
 v2_root = Path(__file__).resolve().parents[2]
-if str(v2_root) not in sys.path:
-    sys.path.insert(0, str(v2_root))
 
 
 class TestCalculateBacktestSummary:

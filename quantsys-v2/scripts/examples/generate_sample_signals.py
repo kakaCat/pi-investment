@@ -11,7 +11,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # 导入策略
 from domain.quantlib.engine.ma_cross import MACrossStrategy

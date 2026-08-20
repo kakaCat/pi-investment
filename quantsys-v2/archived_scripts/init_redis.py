@@ -10,7 +10,6 @@ import logging
 from pathlib import Path
 
 # 添加项目根目录到路径
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from infrastructure.config import create_cache_service, create_redis_client
 from infrastructure.config import get_redis_config, CACHE_TTL, CACHE_NAMESPACE

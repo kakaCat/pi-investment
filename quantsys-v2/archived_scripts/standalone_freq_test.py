@@ -5,8 +5,6 @@
 import sys, os, logging
 logging.basicConfig(level=logging.INFO)
 
-sys.path.insert(0, '/Users/mac/Documents/ai/pi-investment/quantsys-v2')
-sys.path.insert(0, '/Users/mac/Documents/ai/pi-investment/quant')
 
 # Clear module cache
 for key in list(sys.modules.keys()):

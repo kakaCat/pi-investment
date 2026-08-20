@@ -9,7 +9,6 @@ import os
 
 # 确保在正确的目录
 os.chdir('/Users/mac/Documents/ai/pi-investment/quantsys-v2')
-sys.path.insert(0, '/Users/mac/Documents/ai/pi-investment/quantsys-v2')
 
 from infrastructure.database import get_session
 from sqlalchemy import text

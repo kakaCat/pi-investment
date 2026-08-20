@@ -30,7 +30,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 添加项目路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from application.services.data_service import DataService
 from live_trading.factor_calculator import V13FactorCalculator

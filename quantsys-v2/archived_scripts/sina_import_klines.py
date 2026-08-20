@@ -6,7 +6,6 @@ import json, sys, os, ssl, time, argparse
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 load_dotenv()
 
