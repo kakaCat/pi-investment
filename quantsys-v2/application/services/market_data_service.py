@@ -11,11 +11,9 @@ from adapters.outbound.datasources import get_data_provider_manager
 
 logger = structlog.get_logger(__name__)
 
-
 class DataSourceTimeoutError(Exception):
     """数据源超时异常"""
     pass
-
 
 class MarketDataService:
     """市场数据服务"""
@@ -46,13 +44,12 @@ class MarketDataService:
             包含融资融券数据的字典
         """
         try:
-            import akshare as ak
 
             self.logger.info("获取融资融券数据")
 
             # 获取上交所数据（无需参数，返回历史数据）
             try:
-                df_sh = ak.stock_margin_sse()
+                df_sh = self.provider_manager.call_akshare('stock_margin_sse')
                 self.logger.info(f"上交所数据: {len(df_sh)} 行")
             except Exception as e:
                 self.logger.warning(f"上交所数据获取失败: {e}")
@@ -61,7 +58,7 @@ class MarketDataService:
             # 获取深交所数据（需要指定日期）
             try:
                 today = datetime.now().strftime("%Y%m%d")
-                df_sz = ak.stock_margin_szse(date=today)
+                df_sz = self.provider_manager.call_akshare('stock_margin_szse', date=today)
                 self.logger.info(f"深交所数据: {len(df_sz)} 行")
             except Exception as e:
                 self.logger.warning(f"深交所数据获取失败: {e}")
@@ -87,12 +84,7 @@ class MarketDataService:
 
             return result
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取融资融券数据失败: {e}", exc_info=True)
             return {
@@ -113,7 +105,7 @@ class MarketDataService:
             包含行业资金流向数据的字典
         """
         try:
-            import akshare as ak
+
             import os
 
             self.logger.info(f"获取行业资金流向排行（第三方 API）: period={period}, limit={limit}")
@@ -137,7 +129,7 @@ class MarketDataService:
                 indicator = indicator_map.get(period, "今日")
 
                 # 调用 akshare 接口
-                df = ak.stock_sector_fund_flow_rank(indicator=indicator)
+                df = self.provider_manager.call_akshare('stock_sector_fund_flow_rank', indicator=indicator)
 
                 if df is None or df.empty:
                     return {
@@ -191,12 +183,7 @@ class MarketDataService:
                 if old_https_proxy:
                     os.environ['HTTPS_PROXY'] = old_https_proxy
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取行业资金流向失败: {e}", exc_info=True)
             return {
@@ -559,18 +546,17 @@ class MarketDataService:
             包含宏观经济数据的字典
         """
         try:
-            import akshare as ak
 
             self.logger.info("获取宏观经济数据")
 
             # 获取主要宏观指标
             try:
                 # GDP 数据
-                gdp_df = ak.macro_china_gdp()
+                gdp_df = self.provider_manager.call_akshare('macro_china_gdp')
                 # CPI 数据
-                cpi_df = ak.macro_china_cpi_yearly()
+                cpi_df = self.provider_manager.call_akshare('macro_china_cpi_yearly')
                 # PMI 数据
-                pmi_df = ak.macro_china_pmi_yearly()
+                pmi_df = self.provider_manager.call_akshare('macro_china_pmi_yearly')
 
                 # GDP数据是倒序的（最新在前），使用head获取最新数据
                 # CPI和PMI数据是正序的（最新在后），使用tail获取最新数据
@@ -596,12 +582,7 @@ class MarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取宏观经济数据失败: {e}", exc_info=True)
             return {
@@ -621,13 +602,12 @@ class MarketDataService:
             包含市场新闻的字典
         """
         try:
-            import akshare as ak
 
             self.logger.info(f"获取市场新闻: limit={limit}")
 
             try:
                 # 东方财富财经新闻
-                df = ak.stock_news_em()
+                df = self.provider_manager.call_akshare('stock_news_em')
 
                 if df is None or df.empty:
                     return {
@@ -657,12 +637,7 @@ class MarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取市场新闻失败: {e}", exc_info=True)
             return {
@@ -689,13 +664,12 @@ class MarketDataService:
             包含指数K线数据的字典
         """
         try:
-            import akshare as ak
 
             self.logger.info(f"获取指数历史: symbol={symbol}, start={start_date}, end={end_date}")
 
             try:
                 # 获取指数历史数据
-                df = ak.stock_zh_index_daily(symbol=symbol)
+                df = self.provider_manager.call_akshare('stock_zh_index_daily', symbol=symbol)
 
                 if df is None or df.empty:
                     return {
@@ -735,12 +709,7 @@ class MarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取指数历史数据失败: {e}", exc_info=True)
             return {
@@ -748,7 +717,6 @@ class MarketDataService:
                 'error': f'数据获取失败: {str(e)}',
                 'data': None
             }
-
 
 # 全局实例
 market_data_service = MarketDataService()

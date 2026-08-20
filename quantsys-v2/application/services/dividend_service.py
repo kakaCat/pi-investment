@@ -268,27 +268,25 @@ class DividendService(ServiceBase):
             List[str]: 股票代码列表
         """
         try:
-            import akshare as ak
-
             pool = []
 
             # 沪深300
             try:
-                df_hs300 = ak.index_stock_cons(symbol="000300")
+                df_hs300 = self.provider_manager.call_akshare('index_stock_cons', symbol="000300")
                 pool.extend(df_hs300["品种代码"].tolist())
             except Exception as e:
                 logger.warning(f"Failed to fetch HS300: {e}")
 
             # 创业板50
             try:
-                df_cyb50 = ak.index_stock_cons(symbol="399673")
+                df_cyb50 = self.provider_manager.call_akshare('index_stock_cons', symbol="399673")
                 pool.extend(df_cyb50["品种代码"].tolist())
             except Exception as e:
                 logger.warning(f"Failed to fetch CYB50: {e}")
 
             # 科创50
             try:
-                df_kc50 = ak.index_stock_cons(symbol="000688")
+                df_kc50 = self.provider_manager.call_akshare('index_stock_cons', symbol="000688")
                 pool.extend(df_kc50["品种代码"].tolist())
             except Exception as e:
                 logger.warning(f"Failed to fetch KC50: {e}")

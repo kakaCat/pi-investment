@@ -6,7 +6,6 @@
 import structlog
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-import akshare as ak
 from adapters.outbound.repositories import AgentIntelligenceORMRepository
 from adapters.outbound.repositories import FundFlowORMRepository
 

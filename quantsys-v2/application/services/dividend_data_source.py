@@ -48,13 +48,16 @@ class AkshareDividendSource(DividendDataSource):
         Raises:
             Exception: akshare API 调用失败（py_mini_racer 问题）
         """
-        import akshare as ak
+        from infrastructure.data_provider import get_data_provider_manager
 
         # 移除后缀（akshare 只需要6位代码）
         code = symbol.split('.')[0]
 
         logger.info(f"Fetching dividends from akshare for {code}")
-        df = ak.stock_dividend_cninfo(symbol=code)
+
+        # 使用 DataProviderManager 调用 akshare
+        manager = get_data_provider_manager()
+        df = manager.call_akshare('stock_dividend_cninfo', symbol=code)
 
         logger.info(f"Fetched {len(df)} dividend records for {code}")
         return df

@@ -30,8 +30,28 @@ ALLOWED_FILES = {
     'adapters/outbound/datasources/providers/quantlib/akshare_adapter.py',
     'domain/quantlib/adapters/akshare_adapter.py',
 
+    # Service-level providers (legitimate adapters)
+    'application/services/quote_providers/*_provider.py',
+    'application/services/financial_providers/*_provider.py',
+
+    # Broker adapters (legitimate use)
+    'adapters/outbound/brokers/*_broker.py',
+    'domain/brokers/adapters/*_broker.py',
+
+    # Data source adapters (legitimate use - they ARE the adapters)
+    'adapters/outbound/datasources/fund_flow_source.py',
+    'adapters/outbound/datasources/lhb_source.py',
+    'adapters/outbound/datasources/margin_data_source.py',
+    'live_trading/multi_source_data_fetcher.py',  # Multi-source data fetcher for trading system
+
     # Legacy archived scripts (not in production)
     'archived_scripts/*',
+
+    # Initialization scripts (one-time setup)
+    'scripts/init_stocks.py',
+
+    # This detection tool itself (contains example code)
+    'tools/detect_direct_imports.py',
 
     # Tests (may need direct import for mocking)
     'tests/*',

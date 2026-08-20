@@ -116,6 +116,10 @@ class StrategyCodeService:
         self.param_parser = ParamParser()
         self.attribution_calculator = RiskAttributionCalculator()
 
+        # 数据提供者管理器
+        from adapters.outbound.datasources import get_data_provider_manager
+        self.provider_manager = get_data_provider_manager()
+
         # 初始化资金流服务
         fund_flow_source = FundFlowDataSource()
         self.sentiment_service = SentimentService(fund_flow_source)
@@ -1626,8 +1630,6 @@ class StrategyCodeService:
         import os
 
         try:
-            import akshare as ak
-
             # 禁用代理（akshare 国内接口不需要代理）
             os.environ.pop('HTTP_PROXY', None)
             os.environ.pop('HTTPS_PROXY', None)
@@ -1642,21 +1644,21 @@ class StrategyCodeService:
             result = {}
 
             # 获取利润表
-            income_df = ak.stock_financial_report_sina(stock=clean_symbol, symbol='利润表')
+            income_df = self.provider_manager.call_akshare('stock_financial_report_sina', stock=clean_symbol, symbol='利润表')
             if income_df is not None and not income_df.empty:
                 result['income'] = income_df.to_dict(orient='records')
             else:
                 result['income'] = []
 
             # 获取资产负债表
-            balance_df = ak.stock_financial_report_sina(stock=clean_symbol, symbol='资产负债表')
+            balance_df = self.provider_manager.call_akshare('stock_financial_report_sina', stock=clean_symbol, symbol='资产负债表')
             if balance_df is not None and not balance_df.empty:
                 result['balance'] = balance_df.to_dict(orient='records')
             else:
                 result['balance'] = []
 
             # 获取现金流量表
-            cashflow_df = ak.stock_financial_report_sina(stock=clean_symbol, symbol='现金流量表')
+            cashflow_df = self.provider_manager.call_akshare('stock_financial_report_sina', stock=clean_symbol, symbol='现金流量表')
             if cashflow_df is not None and not cashflow_df.empty:
                 result['cashflow'] = cashflow_df.to_dict(orient='records')
             else:
@@ -1688,8 +1690,6 @@ class StrategyCodeService:
         import os
 
         try:
-            import akshare as ak
-
             # 禁用代理
             os.environ.pop('HTTP_PROXY', None)
             os.environ.pop('HTTPS_PROXY', None)
@@ -1702,7 +1702,7 @@ class StrategyCodeService:
                 clean_symbol = clean_symbol.split('.')[0]
 
             # 获取财务分析指标
-            df = ak.stock_financial_analysis_indicator(symbol=clean_symbol)
+            df = self.provider_manager.call_akshare('stock_financial_analysis_indicator', symbol=clean_symbol)
 
             if df is not None and not df.empty:
                 result = df.to_dict(orient='records')

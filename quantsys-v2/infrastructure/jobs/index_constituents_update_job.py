@@ -36,11 +36,12 @@ INDICES = {
 
 def _fetch_constituents(code: str) -> list:
     """获取单个指数的成分股代码列表（裸 6 位代码）"""
-    import akshare as ak
+    from adapters.outbound.datasources import get_data_provider_manager
+    provider_manager = get_data_provider_manager()
 
     # 中证系指数优先走官网
     try:
-        df = ak.index_stock_cons_csindex(symbol=code)
+        df = provider_manager.call_akshare('index_stock_cons_csindex', symbol=code)
         if df is not None and not df.empty:
             return [str(c).zfill(6) for c in df['成分券代码'].tolist()]
     except Exception as e:
@@ -48,7 +49,7 @@ def _fetch_constituents(code: str) -> list:
 
     # fallback：新浪
     try:
-        df = ak.index_stock_cons_sina(symbol=code)
+        df = provider_manager.call_akshare('index_stock_cons_sina', symbol=code)
         if df is not None and not df.empty:
             return [str(c).zfill(6) for c in df['code'].tolist()]
     except Exception as e:

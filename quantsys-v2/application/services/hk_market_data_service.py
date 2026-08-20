@@ -8,12 +8,13 @@ from typing import Dict, Any
 
 logger = structlog.get_logger(__name__)
 
-
 class HKMarketDataService:
     """港股市场数据服务"""
 
     def __init__(self):
         self.logger = structlog.get_logger(__name__)
+        from adapters.outbound.datasources import get_data_provider_manager
+        self.provider_manager = get_data_provider_manager()
 
     def get_market_overview(self) -> Dict[str, Any]:
         """
@@ -23,16 +24,15 @@ class HKMarketDataService:
             包含港股市场概览数据的字典
         """
         try:
-            import akshare as ak
 
             self.logger.info("获取港股市场概览")
 
             try:
                 # 恒生指数
-                hsi_df = ak.stock_hk_index_spot_em()
+                hsi_df = self.provider_manager.call_akshare('stock_hk_index_spot_em')
 
                 # 港股通成交额
-                hk_hold_df = ak.stock_hk_hold()
+                hk_hold_df = self.provider_manager.call_akshare('stock_hk_hold')
 
                 return {
                     'success': True,
@@ -51,12 +51,7 @@ class HKMarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取港股市场概览失败: {e}", exc_info=True)
             return {
@@ -73,13 +68,12 @@ class HKMarketDataService:
             包含南向资金流向数据的字典
         """
         try:
-            import akshare as ak
 
             self.logger.info("获取南向资金流向")
 
             try:
                 # 南向资金流向
-                df = ak.stock_hk_fund_flow_em()
+                df = self.provider_manager.call_akshare('stock_hk_fund_flow_em')
 
                 if df is None or df.empty:
                     return {
@@ -107,12 +101,7 @@ class HKMarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取南向资金数据失败: {e}", exc_info=True)
             return {
@@ -129,13 +118,12 @@ class HKMarketDataService:
             包含港股人气排行数据的字典
         """
         try:
-            import akshare as ak
 
             self.logger.info("获取港股人气排行")
 
             try:
                 # 港股热门排行
-                df = ak.stock_hot_rank_em(symbol="港股")
+                df = self.provider_manager.call_akshare('stock_hot_rank_em', symbol="港股")
 
                 if df is None or df.empty:
                     return {
@@ -163,12 +151,7 @@ class HKMarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取港股人气数据失败: {e}", exc_info=True)
             return {
@@ -188,13 +171,12 @@ class HKMarketDataService:
             包含技术指标数据的字典
         """
         try:
-            import akshare as ak
 
             self.logger.info(f"获取港股技术指标: symbol={symbol}")
 
             try:
                 # 港股K线数据
-                df = ak.stock_hk_daily(symbol=symbol, adjust="qfq")
+                df = self.provider_manager.call_akshare('stock_hk_daily', symbol=symbol, adjust="qfq")
 
                 if df is None or df.empty:
                     return {
@@ -224,12 +206,7 @@ class HKMarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取港股技术指标失败: {e}", exc_info=True)
             return {
@@ -249,13 +226,12 @@ class HKMarketDataService:
             包含财务数据的字典
         """
         try:
-            import akshare as ak
 
             self.logger.info(f"获取港股财务数据: symbol={symbol}")
 
             try:
                 # 港股财务指标
-                df = ak.stock_financial_hk_analysis_indicator_em(symbol=symbol)
+                df = self.provider_manager.call_akshare('stock_financial_hk_analysis_indicator_em', symbol=symbol)
 
                 if df is None or df.empty:
                     return {
@@ -284,12 +260,7 @@ class HKMarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': 'akshare 模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取港股财务数据失败: {e}", exc_info=True)
             return {
@@ -330,7 +301,6 @@ class HKMarketDataService:
                 'update_time': datetime.now().isoformat()
             }
         }
-
 
 # 全局实例
 hk_market_data_service = HKMarketDataService()

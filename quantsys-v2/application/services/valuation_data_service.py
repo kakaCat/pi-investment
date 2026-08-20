@@ -19,6 +19,8 @@ class ValuationDataService:
     def __init__(self):
         self.logger = structlog.get_logger(__name__)
         self.timeout = 5  # 请求超时时间（秒）
+        from adapters.outbound.datasources import get_data_provider_manager
+        self.provider_manager = get_data_provider_manager()
 
     def get_valuation(self, symbol: str) -> Dict[str, Any]:
         """
@@ -220,9 +222,7 @@ class ValuationDataService:
     def _get_from_akshare(self, symbol: str) -> Dict[str, Any]:
         """从 akshare 获取估值数据"""
         try:
-            import akshare as ak
-
-            df = ak.stock_zh_a_spot_em()
+            df = self.provider_manager.call_akshare('stock_zh_a_spot_em')
 
             if df is None or df.empty:
                 raise Exception("akshare 返回空数据")
