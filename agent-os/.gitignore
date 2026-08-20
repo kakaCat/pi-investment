@@ -1,5 +1,6 @@
 # Binaries
 agent-os
+*.claude
 *.exe
 *.dll
 *.so

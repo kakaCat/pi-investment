@@ -178,3 +178,41 @@ P0-1 工具（只读 2 个，写接口留给 P0-2/P2）：
 ---
 
 **预计工作量**：1-2 天（插件骨架 + 模板迁移 + 接入验证）。
+
+---
+
+## 8. 审计修订（2026-08-20 审计后补充，6 项）
+
+### A-1 🔴 前置任务：修复 self_system_prompt 输出 bug
+
+**发现**：本会话实测 `self_system_prompt`（lifecycle 插件）返回 `value is not lossless JSON` 错误（include_rendered=false + include_variables=false 时仍失败）。本 RFC 验收标准 #2/#3/#4 全部依赖此工具。
+**处理**：实施步骤新增 Step 0——定位非 lossless 字段（疑似 assemble 结果中含 `undefined` 值或非常量字段），做序列化清洗（undefined → null/剔除）并补单元测试。**不修复不得进入验收。**
+
+### A-2 🔴 配置路径不能用 `~`
+
+**发现**：Node `fs` 不展开 `~`，Config 默认值 `'~/.dsh/profiles/investment/genome'` 会踩空目录。
+**处理**：插件内部统一用 `os.homedir()` 展开；cordis.patch.yml 中 genomeDir 一律写绝对路径。
+
+### A-3 🔴 `{{genome_version}}` 变量永不允许返回 undefined
+
+**发现**（dsh-system-prompt README 明确）：renderPrompt 对"已注册但无值的引用"**抛异常**——变量 provider 一旦返回 undefined，**每次模型请求都会失败**，等于全站瘫痪。
+**处理**：provider 在 genome.json 缺失/损坏时必须回退 `'unknown'`，禁止返回 undefined；启动校验覆盖此路径。
+
+### A-4 🟠 段内容必须过"花括号安检"
+
+**发现**：renderPrompt 对任何完整 `{{…}}` 组按变量插值，未知引用直接抛异常。若规则/教训文本中出现 `{{`、`}}`（如代码示例），渲染即崩。
+**处理**：插件加载段文件时校验，发现 `{{`/`}}` 模式 → 拒绝注册该段、回退到上一个已知良好版本并告警；写入路径（P0-2 起）做同样校验。
+
+### A-5 🔴 重启验证有"回滚盲区"：profile 侧文件不在 git 安全网内
+
+**发现**：self_restart 的 wip 检查点和自动回滚只覆盖 `agent-dh/` git 仓库。本次接入要改 **profile 侧**的 `cordis.patch.yml` 和 `package.json`——若 genome 插件导致启动失败，自动回滚只退 agent-dh 代码，patch.yml 仍引用 genome → 再次启动失败 → 标记 dead 等人工。
+**处理**：
+1. 重启前备份 `cordis.patch.yml` / `package.json` 到 `state/config-backup-<ts>/`；
+2. 重启走 self_restart（带 resume_task 自动续跑验证）；
+3. 若启动失败，先恢复 patch.yml 备份再拉起，而不是依赖 git 回滚；
+4. 长期：lifecycle 插件应把 profile 配置文件纳入检查点（记为 lifecycle 改进项，另行排期）。
+
+### A-6 🟡 验收措辞修正
+
+- 验收 #1 的"48+2 个工具"改为："现有工具一个不丢 + `genome_list`/`genome_read` 可用"（工具总数随插件演进，不写死）
+- 验收补充：`genome_read constitution` 返回文本与模板逐字一致
