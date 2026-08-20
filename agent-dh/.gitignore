@@ -11,3 +11,4 @@ coverage/
 
 # local backup snapshots
 agent-dh.bak.*/
+CLAUDE.md
