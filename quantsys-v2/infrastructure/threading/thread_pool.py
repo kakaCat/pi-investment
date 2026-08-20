@@ -144,26 +144,87 @@ class ManagedThreadPool:
 # 全局线程池实例
 # ============================================================================
 
-# 默认线程池：通用任务
-default_pool = ManagedThreadPool(
-    max_workers=10,
-    thread_name_prefix="quantsys-default",
-    pool_name="default"
-)
+# 延迟初始化，避免循环导入
+_default_pool = None
+_io_pool = None
+_compute_pool = None
 
-# I/O 密集型任务池：数据库、网络请求等
-io_pool = ManagedThreadPool(
-    max_workers=20,
-    thread_name_prefix="quantsys-io",
-    pool_name="io"
-)
 
-# 计算密集型任务池：回测、因子计算等
-compute_pool = ManagedThreadPool(
-    max_workers=4,  # CPU 密集型任务，线程数不宜过多
-    thread_name_prefix="quantsys-compute",
-    pool_name="compute"
-)
+def _get_settings():
+    """延迟加载配置，避免循环导入"""
+    from infrastructure.config.settings import get_settings
+    return get_settings()
+
+
+def _ensure_pools_initialized():
+    """确保线程池已初始化"""
+    global _default_pool, _io_pool, _compute_pool
+
+    if _default_pool is None:
+        settings = _get_settings()
+
+        # 默认线程池：通用任务
+        _default_pool = ManagedThreadPool(
+            max_workers=settings.thread_pool.default_workers,
+            thread_name_prefix="quantsys-default",
+            pool_name="default"
+        )
+
+        # I/O 密集型任务池：数据库、网络请求等
+        _io_pool = ManagedThreadPool(
+            max_workers=settings.thread_pool.io_workers,
+            thread_name_prefix="quantsys-io",
+            pool_name="io"
+        )
+
+        # 计算密集型任务池：回测、因子计算等
+        _compute_pool = ManagedThreadPool(
+            max_workers=settings.thread_pool.compute_workers,
+            thread_name_prefix="quantsys-compute",
+            pool_name="compute"
+        )
+
+
+# 访问器函数
+def get_default_pool():
+    """获取默认线程池"""
+    _ensure_pools_initialized()
+    return _default_pool
+
+
+def get_io_pool():
+    """获取 I/O 线程池"""
+    _ensure_pools_initialized()
+    return _io_pool
+
+
+def get_compute_pool():
+    """获取计算线程池"""
+    _ensure_pools_initialized()
+    return _compute_pool
+
+
+# 兼容性：提供模块级别的访问方式（延迟初始化）
+class _PoolProxy:
+    """线程池代理，支持延迟初始化"""
+    def __init__(self, getter):
+        self._getter = getter
+        self._cached = None
+
+    def __getattr__(self, name):
+        if self._cached is None:
+            self._cached = self._getter()
+        return getattr(self._cached, name)
+
+    def submit(self, *args, **kwargs):
+        if self._cached is None:
+            self._cached = self._getter()
+        return self._cached.submit(*args, **kwargs)
+
+
+default_pool = _PoolProxy(get_default_pool)
+io_pool = _PoolProxy(get_io_pool)
+compute_pool = _PoolProxy(get_compute_pool)
 
 
 # ============================================================================
@@ -181,10 +242,13 @@ def get_pool_status(pool_name: Optional[str] = None) -> Dict[str, Any]:
     Returns:
         线程池状态字典
     """
+    # 确保线程池已初始化
+    _ensure_pools_initialized()
+
     pools = {
-        "default": default_pool,
-        "io": io_pool,
-        "compute": compute_pool,
+        "default": _default_pool,
+        "io": _io_pool,
+        "compute": _compute_pool,
     }
 
     if pool_name:

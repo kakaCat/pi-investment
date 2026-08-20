@@ -32,14 +32,23 @@ if str(project_root) not in sys.path:
 
 # 统一使用结构化日志配置
 from infrastructure.logging import configure_structured_logging
+
+# 加载统一配置
+from infrastructure.config.settings import get_settings
+settings = get_settings()
+
 configure_structured_logging(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    json_format=os.getenv("LOG_FORMAT") == "json",
+    level=settings.logging.log_level,
+    json_format=(settings.logging.log_format == "json"),
     enable_trace_id=True
 )
 
 import structlog
 logger = structlog.get_logger(__name__)
+
+# 加载统一配置
+from infrastructure.config.settings import get_settings
+settings = get_settings()
 
 
 # ==================== 生命周期管理 ====================
@@ -53,10 +62,17 @@ async def lifespan(app: FastAPI):
     # 初始化数据库引擎
     try:
         from infrastructure.persistence.database.engine import init_engine
-        init_engine(pool_size=20, max_overflow=20)
-        logger.info("✅ SQLAlchemy Engine initialized (pool_size=20, max_overflow=20)")
+        init_engine(
+            pool_size=settings.database.pool_size,
+            max_overflow=settings.database.max_overflow
+        )
+        logger.info(
+            "database_engine_initialized",
+            pool_size=settings.database.pool_size,
+            max_overflow=settings.database.max_overflow
+        )
     except Exception as e:
-        logger.error(f"❌ Engine initialization failed: {e}")
+        logger.error("database_engine_init_failed", error=str(e))
 
     # 初始化 ORM（可选，用于支持旧代码）
     try:
@@ -81,7 +97,7 @@ async def lifespan(app: FastAPI):
     # 注册失败时回退到本地 SchedulerService
     import sys as _sys
     if 'pytest' not in _sys.modules:
-        use_agent_os_scheduler = os.getenv("USE_AGENT_OS_SCHEDULER", "true").lower() == "true"
+        use_agent_os_scheduler = settings.scheduler.agent_os_enabled
 
         if use_agent_os_scheduler:
             try:
