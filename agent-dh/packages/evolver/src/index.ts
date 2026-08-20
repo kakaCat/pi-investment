@@ -296,7 +296,11 @@ export default class EvolverPlugin extends Service {
       },
       timeoutMs: 60000,
       execute: async (args: any) => {
-        const { suggestions, dry_run } = args;
+        const { suggestions } = args;
+        // 2026-08-20 验收修复：dsh-tools 不注入 schema 默认值，undefined ≠ true
+        // （验收时未传 dry_run 导致默认预览失效、直接应用了 candidate）。
+        // 安全默认值必须在 execute 内显式兜底：未传 = 预览（true），显式 false 才应用。
+        const dry_run = args.dry_run !== false;
         const proposals = [];
         const results = [];
 
@@ -438,7 +442,10 @@ export default class EvolverPlugin extends Service {
       },
       timeoutMs: 120000,
       execute: async (args: any) => {
-        const { days, auto_apply } = args;
+        // 安全默认值显式兜底（dsh-tools 不注入 schema 默认值）：
+        // days 默认 7；auto_apply 默认 false（未传=预览，显式 true 才应用为 candidate）
+        const days = args.days ?? 7;
+        const auto_apply = args.auto_apply === true;
 
         // Step 0（RFC 008）：先裁决到期的观察期候选（转正/回滚/延期）
         const adjudication = await this.judgeCandidates(false);
