@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from werkzeug.http import http_date
 import structlog
 
-from application.services.session_service import SessionService
+from adapters.shared.services import session_service
 
 logger = structlog.get_logger(__name__)
 
@@ -36,8 +36,8 @@ def _flask_serialize(obj):
     return obj
 
 
-def _service() -> SessionService:
-    return SessionService()
+def _service():
+    return session_service
 
 
 @router.post('/api/sessions/events')

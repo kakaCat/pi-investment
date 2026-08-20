@@ -10,7 +10,7 @@ import structlog
 from adapters.inbound.fastapi_app.shared import (
     error_response, handle_api_error, sanitize_for_json, convert_keys_to_snake,
 )
-from application.services.diagnosis_service import DiagnosisService
+from adapters.shared.services import diagnosis_service
 
 logger = structlog.get_logger(__name__)
 
@@ -27,8 +27,7 @@ def run_diagnosis(payload: Optional[Dict[str, Any]] = Body(None)):
     for field in required:
         if field not in data:
             return error_response({'error': f'缺少必需参数: {field}'}, 400)
-    service = DiagnosisService()
-    result = service.run_diagnosis(data)
+    result = diagnosis_service.run_diagnosis(data)
     return sanitize_for_json(result)
 
 

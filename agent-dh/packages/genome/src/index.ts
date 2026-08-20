@@ -31,6 +31,7 @@ import {
 import {
   advanceVersion,
   advanceVersionForRollback,
+  promoteCandidate,
   queryHistory,
   getPreviousSectionVersion,
   diffSections,
@@ -418,6 +419,12 @@ export default class GenomePlugin extends Service {
           type: 'number',
           description: '乐观锁：基于读到的版本改，防并发覆盖',
         },
+        stage: {
+          type: 'string',
+          description: '版本阶段：active（默认，正式版，人工/故意变更用）；candidate（观察版，evolver 自动进化用，需经 validation_gate 裁决转正）',
+          enum: ['active', 'candidate'],
+          default: 'active',
+        },
         force: {
           type: 'boolean',
           description: '交易时段默认拒改，force=true 紧急通道（留痕问责）',
@@ -450,7 +457,7 @@ export default class GenomePlugin extends Service {
       },
       timeoutMs: 30000,
       execute: async (args: any) => {
-        const { section, content, reason, expected_section_version, force } = args;
+        const { section, content, reason, expected_section_version, force, stage } = args;
         const lock = new GenomeLock(this.genomeDir);
 
         try {
@@ -496,6 +503,9 @@ export default class GenomePlugin extends Service {
               author: 'agent' as const,
               type: 'update' as const,
               force: force || undefined,
+              // RFC 008 验证门：stage=candidate 标记观察版，记录对比基准代数
+              stage: (stage === 'candidate' ? 'candidate' : 'active') as 'candidate' | 'active',
+              baseline_version: genomeData.genome_version,
             };
             const newGenomeData = advanceVersion(genomeData, section, historyEntry);
             writeGenomeJson(this.genomeDir, newGenomeData);
@@ -759,6 +769,92 @@ export default class GenomePlugin extends Service {
             writeGenomeJson(this.genomeDir, snapshot.genomeJson);
             throw error;
           }
+        } finally {
+          lock.release();
+        }
+      },
+    } as any));
+
+    // genome_promote - 候选转正（RFC 008 验证门）
+    this.ctx.tools.register(defineTool({
+      name: 'genome_promote',
+      description: '把段的观察版（candidate）转为正式版（active）。不改变段内容（内容已在观察期实际运行），只改 history 标记并留谱系。用于：验证门裁决通过后转正。拒绝路径用 genome_rollback。',
+      parameters: {
+        section: {
+          type: 'string',
+          description: '段名：principles / rules / lessons',
+          required: true,
+        },
+        reason: {
+          type: 'string',
+          description: '转正理由（必填），如"观察期胜率不劣于基准"',
+          required: true,
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            genome_version: { type: 'string' },
+            section: { type: 'string' },
+            section_version: { type: 'number' },
+            git_commit: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+        render: (_args: any, value: any) => [
+          { type: 'text', text: JSON.stringify(value, null, 2) },
+        ],
+      },
+      timeoutMs: 30000,
+      execute: async (args: any) => {
+        const { section, reason } = args;
+        const lock = new GenomeLock(this.genomeDir);
+
+        try {
+          lock.acquire();
+
+          const genomeData = readGenomeJson(this.genomeDir);
+          guardConstitution(section, genomeData);
+
+          // 转正（改 history 标记，不动段内容与版本号）
+          const newGenomeData = promoteCandidate(genomeData, section, reason);
+          writeGenomeJson(this.genomeDir, newGenomeData);
+
+          // 追加 CHANGELOG
+          appendChangelog(
+            this.genomeDir,
+            newGenomeData.history![newGenomeData.history!.length - 1]
+          );
+
+          // git commit（promote 只改元数据；标签用当前代数）
+          const sectionVersion = newGenomeData.sections[section].version;
+          const gitHash = gitCommit(
+            this.genomeDir,
+            newGenomeData.genome_version,
+            section,
+            sectionVersion,
+            sectionVersion,
+            reason,
+            'promote'
+          );
+
+          // 补 commit hash
+          const pEntries = newGenomeData.history!;
+          pEntries[pEntries.length - 1].git_commit = gitHash;
+          writeGenomeJson(this.genomeDir, newGenomeData);
+
+          this.genomeData = newGenomeData;
+          lock.release();
+
+          return {
+            success: true,
+            genome_version: newGenomeData.genome_version,
+            section,
+            section_version: sectionVersion,
+            git_commit: gitHash,
+          } as any;
         } finally {
           lock.release();
         }

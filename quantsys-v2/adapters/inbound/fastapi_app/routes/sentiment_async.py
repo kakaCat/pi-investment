@@ -20,13 +20,14 @@ import structlog
 from adapters.inbound.fastapi_app.shared import (
     api_response, error_response, handle_api_error,
 )
-from application.services.lhb_service import LhbService
+from adapters.shared.services import lhb_service
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["Sentiment - 情绪/资金"])
 
-lhb_service = LhbService()
+# 与 Flask 一致：模块级服务单例（通过 ServiceFactory 统一获取）
+# lhb_service = LhbService()  # 已迁移到 adapters.shared.services
 
 
 @router.get('/api/stock/{symbol}/fund-flow')

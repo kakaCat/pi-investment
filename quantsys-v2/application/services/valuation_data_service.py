@@ -19,6 +19,8 @@ class ValuationDataService:
     def __init__(self):
         self.logger = structlog.get_logger(__name__)
         self.timeout = 5  # 请求超时时间（秒）
+        from adapters.outbound.datasources import get_data_provider_manager
+        self.provider_manager = get_data_provider_manager()
 
     def get_valuation(self, symbol: str) -> Dict[str, Any]:
         """
@@ -218,26 +220,19 @@ class ValuationDataService:
             return {'success': False, 'error': str(e)}
 
     def _get_from_akshare(self, symbol: str) -> Dict[str, Any]:
-        """从 akshare 获取估值数据
-
-        Phase 3 数据访问治理：akshare 调用集中在数据源层
-        （AkshareMarketProvider.get_market_spot），此处经 manager 获取。
-        """
+        """从 akshare 获取估值数据"""
         try:
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+            df = self.provider_manager.call_akshare('stock_zh_a_spot_em')
 
-            result = get_data_provider_manager().get_market_spot()
+            if df is None or df.empty:
+                raise Exception("akshare 返回空数据")
 
-            if not result.get('success') or not result.get('data'):
-                raise Exception(f"数据源层返回失败: {result.get('error')}")
+            stock_data = df[df['代码'] == symbol]
 
-            records = result['data'].data.get('records', [])
-            matched = [r for r in records if r.get('代码') == symbol]
-
-            if not matched:
+            if stock_data.empty:
                 raise Exception(f"未找到股票 {symbol}")
 
-            row = matched[0]
+            row = stock_data.iloc[0]
 
             valuation = {}
 

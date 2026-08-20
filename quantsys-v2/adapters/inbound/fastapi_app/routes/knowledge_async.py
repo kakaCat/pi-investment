@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Body, HTTPException, Query
 import structlog
 
-from application.services.knowledge_service import KnowledgeService
+from adapters.shared.services import knowledge_service
 
 logger = structlog.get_logger(__name__)
 
@@ -20,7 +20,7 @@ router = APIRouter(tags=["Knowledge - 知识库"])
 def get_active_knowledge(domain: Optional[str] = Query(None, description="知识领域过滤（可选）")):
     """获取活跃知识列表"""
     try:
-        service = KnowledgeService()
+        service = knowledge_service
         return service.get_active_knowledge(domain)
     except Exception as e:
         logger.error(f"get_active_knowledge failed: {e}")
@@ -31,7 +31,7 @@ def get_active_knowledge(domain: Optional[str] = Query(None, description="知识
 def apply_knowledge(context: Dict[str, Any] = Body(...)):
     """应用知识到当前决策上下文"""
     try:
-        service = KnowledgeService()
+        service = knowledge_service
         return service.apply_knowledge(context)
     except Exception as e:
         logger.error(f"apply_knowledge failed: {e}")
@@ -42,7 +42,7 @@ def apply_knowledge(context: Dict[str, Any] = Body(...)):
 def get_knowledge_summary():
     """知识库统计摘要"""
     try:
-        service = KnowledgeService()
+        service = knowledge_service
         return service.get_knowledge_summary()
     except Exception as e:
         logger.error(f"get_knowledge_summary failed: {e}")
@@ -56,7 +56,7 @@ def validate_knowledge(knowledge_id: str, payload: Dict[str, Any] = Body(...)):
     Request Body: {"success": true/false}
     """
     try:
-        service = KnowledgeService()
+        service = knowledge_service
         success = bool(payload.get("success", False))
         return service.validate_knowledge(knowledge_id, success)
     except Exception as e:

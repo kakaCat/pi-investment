@@ -9,14 +9,14 @@ from fastapi import APIRouter, Query, Body
 from fastapi.responses import JSONResponse
 import structlog
 
-from application.services.dividend_service import DividendService
+from adapters.shared.services import dividend_service as service
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["Dividends - 分红"])
 
-# 与 Flask 一致：模块级服务单例
-service = DividendService()
+# 与 Flask 一致：模块级服务单例（通过 ServiceFactory 统一获取）
+# service = DividendService()  # 已迁移到 adapters.shared.services
 
 
 @router.get('/api/stock/{symbol}/dividends')

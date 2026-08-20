@@ -14,7 +14,7 @@ from adapters.outbound.repositories.models.strategy_execution import (
     StrategyBatchExecuteRequest,
     StrategyPipelineExecuteRequest
 )
-from application.services.strategy_execution_service import StrategyExecutionService
+from adapters.shared.services import strategy_execution_service
 
 logger = structlog.get_logger(__name__)
 
@@ -74,7 +74,7 @@ async def execute_single(request: StrategyExecuteRequest):
         }
     """
     try:
-        service = StrategyExecutionService()
+        service = strategy_execution_service
         result = service.execute_single(request)
 
         return {
@@ -130,7 +130,7 @@ async def execute_batch(request: StrategyBatchExecuteRequest):
         {"symbol":"600519","progress":3,"total":3,"status":"success","result":{...}}
     """
     try:
-        service = StrategyExecutionService()
+        service = strategy_execution_service
 
         # 使用异步生成器进行流式响应
         async def generate():
@@ -221,7 +221,7 @@ async def execute_pipeline(request: StrategyPipelineExecuteRequest):
         }
     """
     try:
-        service = StrategyExecutionService()
+        service = strategy_execution_service
         result = service.execute_pipeline(request)
 
         return {

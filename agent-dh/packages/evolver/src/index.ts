@@ -1,16 +1,161 @@
 /**
  * Evolver Plugin - Prompt Evolution Engine
  * P1-2: 接收 experience_distill 建议，生成段更新提案，调用 genome_update 应用
+ * P2 (RFC 008): 验证门——提案应用为 candidate 观察版，观察期后裁决转正/回滚
  */
 import { Context, Service } from '@deepseek-ai/cordis';
+import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
+import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+import * as fs from 'fs';
+import * as path from 'path';
+
+/** 观察期候选记录（RFC 008 §3.3） */
+interface CandidateRecord {
+  id: string;
+  section: string;
+  section_version: number;
+  genome_version: string;
+  baseline_version: string;
+  created_at: string;
+  observe_until: string;
+  status: 'watching' | 'promoted' | 'rejected';
+  note?: string;
+}
 
 export default class EvolverPlugin extends Service {
   static inject = ['tools', 'genome'];  // 依赖 genome 插件
 
+  static Config = z.object({
+    quantsysV2: z.object({
+      baseURL: z.string().default('http://localhost:5001'),
+    }).default({} as any),
+    observeDays: z.number().default(5),  // 模拟盘观察期（交易日）
+  }).default({} as any);
+
+  private qv2: QuantsysV2Client;
+  private observeDays: number;
+
   constructor(ctx: Context, config: any) {
     super(ctx, 'evolver');
+    this.qv2 = new QuantsysV2Client({ baseURL: config?.quantsysV2?.baseURL || 'http://localhost:5001' });
+    this.observeDays = config?.observeDays || 5;
     this.registerTools();
+  }
+
+  // ============ RFC 008: candidates 持久化（genomeDir/candidates.json） ============
+
+  private get candidatesPath(): string {
+    // @ts-ignore - genome 插件运行时字段
+    return path.join(this.ctx.genome.genomeDir, 'candidates.json');
+  }
+
+  private readCandidates(): CandidateRecord[] {
+    try {
+      if (!fs.existsSync(this.candidatesPath)) return [];
+      return JSON.parse(fs.readFileSync(this.candidatesPath, 'utf-8'));
+    } catch { return []; }
+  }
+
+  private writeCandidates(list: CandidateRecord[]): void {
+    const tmp = this.candidatesPath + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(list, null, 2));
+    fs.renameSync(tmp, this.candidatesPath);
+  }
+
+  private registerCandidate(section: string, sectionVersion: number, genomeVersion: string, baselineVersion: string, observeDays?: number): CandidateRecord {
+    const days = observeDays || this.observeDays;
+    const now = new Date();
+    const rec: CandidateRecord = {
+      id: `cand_${Date.now()}`,
+      section,
+      section_version: sectionVersion,
+      genome_version: genomeVersion,
+      baseline_version: baselineVersion,
+      created_at: now.toISOString(),
+      observe_until: new Date(now.getTime() + days * 86400000).toISOString(),
+      status: 'watching',
+    };
+    const list = this.readCandidates();
+    list.push(rec);
+    this.writeCandidates(list);
+    return rec;
+  }
+
+  /** 从记忆库取某基因组代数的打标经验奖励（P0-3 打标的消费端） */
+  private async searchRewards(genomeVersion: string): Promise<{ count: number; avg: number }> {
+    try {
+      const res = await this.qv2.searchMemory({ q: `genome:${genomeVersion}`, kind: 'experience', limit: 50 });
+      const items = res?.items || [];
+      const rewards: number[] = [];
+      for (const it of items) {
+        try {
+          const content = typeof it.content === 'string' ? JSON.parse(it.content) : it.content;
+          if (typeof content?.reward === 'number') rewards.push(content.reward);
+        } catch { /* 单条解析失败跳过 */ }
+      }
+      return { count: rewards.length, avg: rewards.length ? rewards.reduce((a, b) => a + b, 0) / rewards.length : 0 };
+    } catch { return { count: 0, avg: 0 }; }
+  }
+
+  /**
+   * RFC 008 §2.2 裁决逻辑：观察期到期的 candidate 对比基准期打标经验
+   * - 证据不足（candidate 样本 < minSamples）→ 延期 2 天
+   * - 平均奖励显著低于基准（差值 > 0.1）→ genome_rollback + 标记 rejected
+   * - 否则 → genome_promote 转正 + 标记 promoted
+   * force=true 跳过时间与样本数门槛（验收/人工裁决用）
+   */
+  private async judgeCandidates(force: boolean, minSamples = 3): Promise<any[]> {
+    const list = this.readCandidates();
+    const now = Date.now();
+    const verdicts: any[] = [];
+
+    for (const c of list.filter(x => x.status === 'watching')) {
+      const expired = now >= Date.parse(c.observe_until);
+      if (!expired && !force) {
+        verdicts.push({ id: c.id, section: c.section, genome_version: c.genome_version, verdict: 'watching', observe_until: c.observe_until });
+        continue;
+      }
+
+      const [cand, base] = await Promise.all([
+        this.searchRewards(c.genome_version),
+        this.searchRewards(c.baseline_version),
+      ]);
+
+      if (!force && cand.count < minSamples) {
+        c.observe_until = new Date(now + 2 * 86400000).toISOString();
+        c.note = `证据不足延期（candidate 样本 ${cand.count} < ${minSamples}）`;
+        verdicts.push({ id: c.id, section: c.section, verdict: 'extended', cand_samples: cand.count, note: c.note });
+        continue;
+      }
+
+      const drop = base.avg - cand.avg;
+      if (drop > 0.1) {
+        // 显著恶化 → 回滚到 candidate 之前的段版本
+        try {
+          const rb = this.ctx.tools.list().find(t => t.name === 'genome_rollback');
+          // @ts-ignore
+          await rb.execute({ section: c.section, to_section_version: c.section_version - 1, reason: `验证门裁决：candidate 平均奖励 ${cand.avg.toFixed(3)} 显著低于基准 ${base.avg.toFixed(3)}（样本 ${cand.count}/${base.count}）` });
+          c.status = 'rejected';
+          verdicts.push({ id: c.id, section: c.section, verdict: 'rejected', cand_avg: cand.avg, base_avg: base.avg, rolled_back_to: c.section_version - 1 });
+        } catch (e: any) {
+          verdicts.push({ id: c.id, section: c.section, verdict: 'reject_failed', error: e.message });
+        }
+      } else {
+        try {
+          const pm = this.ctx.tools.list().find(t => t.name === 'genome_promote');
+          // @ts-ignore
+          await pm.execute({ section: c.section, reason: `观察期达标：candidate 平均奖励 ${cand.avg.toFixed(3)} vs 基准 ${base.avg.toFixed(3)}（样本 ${cand.count}/${base.count}）` });
+          c.status = 'promoted';
+          verdicts.push({ id: c.id, section: c.section, verdict: 'promoted', cand_avg: cand.avg, base_avg: base.avg });
+        } catch (e: any) {
+          verdicts.push({ id: c.id, section: c.section, verdict: 'promote_failed', error: e.message });
+        }
+      }
+    }
+
+    this.writeCandidates(list);
+    return verdicts;
   }
 
   private registerTools(): void {
@@ -36,8 +181,12 @@ export default class EvolverPlugin extends Service {
         },
         dry_run: {
           type: 'boolean',
-          description: 'true（默认）：只生成预览，不执行；false：实际调用 genome_update',
+          description: 'true（默认）：只生成预览，不执行；false：以 candidate 观察版应用（须经 validation_gate 裁决转正）',
           default: true,
+        },
+        observe_days: {
+          type: 'number',
+          description: 'candidate 观察期（天），默认 5',
         },
       },
       output: {
@@ -125,19 +274,29 @@ export default class EvolverPlugin extends Service {
 
           proposals.push(proposal);
 
-          // 如果非 dry_run，执行 genome_update
+          // 如果非 dry_run，执行 genome_update（RFC 008：以 candidate 观察版应用 + 登记观察）
           if (!dry_run) {
             try {
-              // 调用 genome_update 工具（通过 ctx.tools）
               const updateResult = await this.callGenomeUpdate(
                 section,
                 newContent,
-                suggestion.reason || '经验蒸馏建议'
+                suggestion.reason || '经验蒸馏建议',
+                'candidate'
+              );
+              const candidate = this.registerCandidate(
+                section,
+                updateResult.section_version,
+                updateResult.genome_version,
+                updateResult.genome_version,  // baseline 由 genome history 条目承载；此处先记当代
+                args.observe_days
               );
               results.push({
                 section,
                 success: true,
                 result: updateResult,
+                candidate_id: candidate.id,
+                observe_until: candidate.observe_until,
+                stage: 'candidate',
               });
             } catch (error: any) {
               results.push({
@@ -196,6 +355,9 @@ export default class EvolverPlugin extends Service {
       timeoutMs: 120000,
       execute: async (args: any) => {
         const { days, auto_apply } = args;
+
+        // Step 0（RFC 008）：先裁决到期的观察期候选（转正/回滚/延期）
+        const adjudication = await this.judgeCandidates(false);
 
         // Step 1: experience_distill
         const distillTool = this.ctx.tools.list().find(t => t.name === 'experience_distill');
@@ -284,11 +446,13 @@ export default class EvolverPlugin extends Service {
 
   /**
    * 调用 genome_update 工具
+   * stage='candidate' 时新版本标记为观察版（RFC 008），需 validation_gate 裁决转正
    */
   private async callGenomeUpdate(
     section: string,
     content: string,
-    reason: string
+    reason: string,
+    stage: 'active' | 'candidate' = 'active'
   ): Promise<any> {
     // 通过 ctx.tools 调用 genome_update
     const tool = this.ctx.tools.list().find(t => t.name === 'genome_update');
@@ -301,6 +465,7 @@ export default class EvolverPlugin extends Service {
       section,
       content,
       reason,
+      stage,
       force: false,
     });
   }

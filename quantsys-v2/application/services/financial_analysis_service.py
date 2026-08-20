@@ -15,6 +15,8 @@ class FinancialAnalysisService:
 
     def __init__(self):
         self.logger = structlog.get_logger(__name__)
+        from adapters.outbound.datasources import get_data_provider_manager
+        self.provider_manager = get_data_provider_manager()
 
     def get_financial_indicators(self, symbol: str) -> Dict[str, Any]:
         """
@@ -291,23 +293,20 @@ class FinancialAnalysisService:
             包含现金流数据的字典
         """
         try:
-            # Phase 3 数据访问治理：委托统一数据访问层
-            from adapters.outbound.datasources.manager import get_data_provider_manager
-
             self.logger.info(f"现金流分析: symbol={symbol}")
 
             try:
                 # 获取现金流量表
-                result = get_data_provider_manager().get_cash_flow_sheet(symbol)
+                df = self.provider_manager.call_akshare('stock_cash_flow_sheet_by_report_em', symbol=symbol)
 
-                if not result.get('success') or not result.get('data'):
+                if df is None or df.empty:
                     return {
                         'success': False,
                         'error': f'无法获取股票 {symbol} 的现金流数据',
                         'data': None
                     }
 
-                cash_flow = result['data'].data
+                cash_flow = df.to_dict('records')
 
                 return {
                     'success': True,
@@ -327,10 +326,10 @@ class FinancialAnalysisService:
                     'data': None
                 }
 
-        except ImportError:
+        except Exception as e:
             return {
                 'success': False,
-                'error': 'akshare 模块不可用',
+                'error': f'现金流分析异常: {str(e)}',
                 'data': None
             }
         except Exception as e:
@@ -352,23 +351,20 @@ class FinancialAnalysisService:
             包含利润表数据的字典
         """
         try:
-            # Phase 3 数据访问治理：委托统一数据访问层
-            from adapters.outbound.datasources.manager import get_data_provider_manager
-
             self.logger.info(f"利润表分析: symbol={symbol}")
 
             try:
                 # 获取利润表
-                result = get_data_provider_manager().get_profit_sheet(symbol)
+                df = self.provider_manager.call_akshare('stock_profit_sheet_by_report_em', symbol=symbol)
 
-                if not result.get('success') or not result.get('data'):
+                if df is None or df.empty:
                     return {
                         'success': False,
                         'error': f'无法获取股票 {symbol} 的利润表数据',
                         'data': None
                     }
 
-                income = result['data'].data
+                income = df.to_dict('records')
 
                 return {
                     'success': True,
@@ -388,10 +384,10 @@ class FinancialAnalysisService:
                     'data': None
                 }
 
-        except ImportError:
+        except Exception as e:
             return {
                 'success': False,
-                'error': 'akshare 模块不可用',
+                'error': f'利润表分析异常: {str(e)}',
                 'data': None
             }
         except Exception as e:
@@ -422,23 +418,18 @@ class FinancialAnalysisService:
         try:
             import pandas as pd
 
-            # Phase 3 数据访问治理：委托统一数据访问层
-            from adapters.outbound.datasources.manager import get_data_provider_manager
-
             self.logger.info(f"质量筛选: min_roe={min_roe}, max_pe={max_pe}, limit={limit}")
 
             try:
                 # 获取A股实时行情
-                result = get_data_provider_manager().get_market_spot()
+                df = self.provider_manager.call_akshare('stock_zh_a_spot_em')
 
-                if not result.get('success') or not result.get('data'):
+                if df is None or df.empty:
                     return {
                         'success': False,
                         'error': '无法获取A股行情数据',
                         'data': None
                     }
-
-                df = pd.DataFrame(result['data'].data.get('records', []))
 
                 # 简化版筛选（基于市盈率等基本指标）
                 if '市盈率-动态' in df.columns:

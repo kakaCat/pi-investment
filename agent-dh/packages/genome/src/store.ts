@@ -29,8 +29,12 @@ export interface HistoryEntry {
   ts: string;
   git_commit?: string;
   author: 'agent' | 'human';
-  type: 'update' | 'rollback' | 'init';
+  type: 'update' | 'rollback' | 'init' | 'promote';
   force?: boolean;
+  /** RFC 008 验证门：candidate=观察版（模拟盘 A/B 中），active=正式版（默认） */
+  stage?: 'candidate' | 'active';
+  /** 该版本对比的基准基因组代数 */
+  baseline_version?: string;
 }
 
 /**
@@ -114,7 +118,7 @@ export function gitCommit(
   oldVersion: number,
   newVersion: number,
   reason: string,
-  type: 'update' | 'rollback',
+  type: 'update' | 'rollback' | 'promote',
   rollbackTarget?: number
 ): string {
   if (!isGitRepo(genomeDir)) {
@@ -126,10 +130,12 @@ export function gitCommit(
     execSync('git add -A', { cwd: genomeDir, stdio: 'pipe' });
 
     // 结构化 commit message
-    const action = type === 'rollback' ? 'rollback' : 'update';
+    const action = type === 'rollback' ? 'rollback' : type === 'promote' ? 'promote' : 'update';
     const versionChange = type === 'rollback'
       ? `rollback to v${rollbackTarget ?? newVersion}`
-      : `v${oldVersion}→v${newVersion}`;
+      : type === 'promote'
+        ? `v${newVersion} candidate→active`
+        : `v${oldVersion}→v${newVersion}`;
     const message = `genome(${genomeVersion}): ${action} ${sectionName} ${versionChange} — ${reason}`;
 
     execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, {

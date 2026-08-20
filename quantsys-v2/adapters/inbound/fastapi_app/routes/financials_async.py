@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 import structlog
 
-from application.services.enhanced_financial_data_service import get_enhanced_financial_service
+from adapters.shared.services import enhanced_financial_service
 
 logger = structlog.get_logger(__name__)
 
@@ -37,7 +37,7 @@ def get_financial_data_v2(
         )
 
     try:
-        service = get_enhanced_financial_service()
+        service = enhanced_financial_service
         data = service.get_financial_data(symbol, statement_type, periods, source)
 
         # 直接展开 to_dict() 内容，添加 cached 字段（与 Flask 版一致）

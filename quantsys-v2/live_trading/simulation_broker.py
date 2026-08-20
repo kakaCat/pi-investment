@@ -207,11 +207,11 @@ class SimulationBroker:
         """导出交易记录"""
         df = self.get_trade_history()
         if df.empty:
-            logging.warning("没有交易记录可导出")
+            logger.warning("没有交易记录可导出")
             return
 
         df.to_csv(filepath, index=False, encoding='utf-8-sig')
-        logging.info(f"交易记录已导出: {filepath}")
+        logger.info(f"交易记录已导出: {filepath}")
 
 
 class MockDataProvider:
@@ -248,7 +248,7 @@ class MockDataProvider:
             )
 
             if df.empty:
-                logging.warning(f"{symbol}: 无法获取价格数据")
+                logger.warning(f"{symbol}: 无法获取价格数据")
                 return None
 
             # 返回最新收盘价
@@ -256,7 +256,7 @@ class MockDataProvider:
             return float(latest_price)
 
         except Exception as e:
-            logging.error(f"{symbol}: 获取价格失败 - {e}")
+            logger.error(f"{symbol}: 获取价格失败 - {e}")
             return None
 
     def get_realtime_prices(self, symbols):

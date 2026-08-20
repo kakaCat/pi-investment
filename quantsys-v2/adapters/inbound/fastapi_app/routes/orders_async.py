@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Query, Body
 import structlog
 
-from application.services import order_service
+from adapters.shared.services import order_service
 from adapters.inbound.fastapi_app.shared import (
     ds, api_response, error_response, handle_api_error, convert_keys_to_snake,
 )

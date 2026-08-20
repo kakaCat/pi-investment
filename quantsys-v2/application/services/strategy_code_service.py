@@ -116,6 +116,10 @@ class StrategyCodeService:
         self.param_parser = ParamParser()
         self.attribution_calculator = RiskAttributionCalculator()
 
+        # 数据提供者管理器
+        from adapters.outbound.datasources import get_data_provider_manager
+        self.provider_manager = get_data_provider_manager()
+
         # 初始化资金流服务
         fund_flow_source = FundFlowDataSource()
         self.sentiment_service = SentimentService(fund_flow_source)
@@ -1623,20 +1627,42 @@ class StrategyCodeService:
             }
             失败返回 None
         """
+        import os
+
         try:
-            # Phase 3 数据访问治理：委托统一数据访问层（全量原始记录，不截断）
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+            # 禁用代理（akshare 国内接口不需要代理）
+            os.environ.pop('HTTP_PROXY', None)
+            os.environ.pop('HTTPS_PROXY', None)
+            os.environ.pop('http_proxy', None)
+            os.environ.pop('https_proxy', None)
 
             # 转换为新浪格式（去掉市场后缀）
             clean_symbol = symbol.strip()
             if '.' in clean_symbol:
                 clean_symbol = clean_symbol.split('.')[0]
 
-            fetch_result = get_data_provider_manager().get_sina_financial_statements(clean_symbol)
-            if not fetch_result.get('success') or not fetch_result.get('data'):
-                raise Exception(fetch_result.get('error', '无数据'))
+            result = {}
 
-            result = fetch_result['data'].data
+            # 获取利润表
+            income_df = self.provider_manager.call_akshare('stock_financial_report_sina', stock=clean_symbol, symbol='利润表')
+            if income_df is not None and not income_df.empty:
+                result['income'] = income_df.to_dict(orient='records')
+            else:
+                result['income'] = []
+
+            # 获取资产负债表
+            balance_df = self.provider_manager.call_akshare('stock_financial_report_sina', stock=clean_symbol, symbol='资产负债表')
+            if balance_df is not None and not balance_df.empty:
+                result['balance'] = balance_df.to_dict(orient='records')
+            else:
+                result['balance'] = []
+
+            # 获取现金流量表
+            cashflow_df = self.provider_manager.call_akshare('stock_financial_report_sina', stock=clean_symbol, symbol='现金流量表')
+            if cashflow_df is not None and not cashflow_df.empty:
+                result['cashflow'] = cashflow_df.to_dict(orient='records')
+            else:
+                result['cashflow'] = []
 
             logger.debug(f"新浪财经获取成功: {symbol}, 利润表={len(result['income'])}条, 资产负债表={len(result['balance'])}条, 现金流量表={len(result['cashflow'])}条")
 
@@ -1661,9 +1687,14 @@ class StrategyCodeService:
         Returns:
             财务指标记录列表，失败返回 None
         """
+        import os
+
         try:
-            # Phase 3 数据访问治理：委托统一数据访问层（全量原始记录，不截断）
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+            # 禁用代理
+            os.environ.pop('HTTP_PROXY', None)
+            os.environ.pop('HTTPS_PROXY', None)
+            os.environ.pop('http_proxy', None)
+            os.environ.pop('https_proxy', None)
 
             # 转换为东方财富格式
             clean_symbol = symbol.strip()
@@ -1671,10 +1702,10 @@ class StrategyCodeService:
                 clean_symbol = clean_symbol.split('.')[0]
 
             # 获取财务分析指标
-            fetch_result = get_data_provider_manager().get_financial_analysis_indicator(clean_symbol)
+            df = self.provider_manager.call_akshare('stock_financial_analysis_indicator', symbol=clean_symbol)
 
-            if fetch_result.get('success') and fetch_result.get('data'):
-                result = fetch_result['data'].data.get('records', [])
+            if df is not None and not df.empty:
+                result = df.to_dict(orient='records')
                 logger.debug(f"东方财富获取成功: {symbol}, {len(result)}条记录")
                 return result
             else:

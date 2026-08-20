@@ -11,7 +11,6 @@ QuantSys V2 FastAPI 主应用
 """
 import sys
 import os
-import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -32,18 +31,24 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 # 统一使用结构化日志配置
-from infrastructure.config import get_config
 from infrastructure.logging import configure_structured_logging
 
-config = get_config()
+# 加载统一配置
+from infrastructure.config.settings import get_settings
+settings = get_settings()
+
 configure_structured_logging(
-    level=config.logging.level,
-    json_format=config.logging.format == "json",
+    level=settings.logging.log_level,
+    json_format=(settings.logging.log_format == "json"),
     enable_trace_id=True
 )
 
 import structlog
 logger = structlog.get_logger(__name__)
+
+# 加载统一配置
+from infrastructure.config.settings import get_settings
+settings = get_settings()
 
 
 # ==================== 生命周期管理 ====================
@@ -57,10 +62,17 @@ async def lifespan(app: FastAPI):
     # 初始化数据库引擎
     try:
         from infrastructure.persistence.database.engine import init_engine
-        init_engine(pool_size=20, max_overflow=20)
-        logger.info("✅ SQLAlchemy Engine initialized (pool_size=20, max_overflow=20)")
+        init_engine(
+            pool_size=settings.database.pool_size,
+            max_overflow=settings.database.max_overflow
+        )
+        logger.info(
+            "database_engine_initialized",
+            pool_size=settings.database.pool_size,
+            max_overflow=settings.database.max_overflow
+        )
     except Exception as e:
-        logger.error(f"❌ Engine initialization failed: {e}")
+        logger.error("database_engine_init_failed", error=str(e))
 
     # 初始化 ORM（可选，用于支持旧代码）
     try:
@@ -85,8 +97,7 @@ async def lifespan(app: FastAPI):
     # 注册失败时回退到本地 SchedulerService
     import sys as _sys
     if 'pytest' not in _sys.modules:
-        config = get_config()
-        use_agent_os_scheduler = config.app.use_agent_os_scheduler
+        use_agent_os_scheduler = settings.scheduler.agent_os_enabled
 
         if use_agent_os_scheduler:
             try:
@@ -120,31 +131,6 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"❌ SchedulerService startup failed: {e}")
 
-
-    # WP-Registry: Agent OS Registry Integration (2024-08-19)
-    # 注册 quantsys-v2 到 Agent OS 注册中心，维持心跳
-    if 'pytest' not in _sys.modules:
-        use_agent_os_registry = os.getenv("USE_AGENT_OS_REGISTRY", "true").lower() == "true"
-        
-        if use_agent_os_registry:
-            try:
-                logger.info("🔄 Registering to Agent OS Registry...")
-                from application.services.registry_client import get_registry_client
-                
-                registry_client = get_registry_client()
-                success = await registry_client.register()
-                
-                if success:
-                    # 启动心跳循环
-                    await registry_client.start_heartbeat_loop(interval=30)
-                    app.state.registry_client = registry_client
-                    logger.info("✅ Agent OS Registry integration enabled (heartbeat: 30s)")
-                else:
-                    logger.warning("⚠️ Registry registration failed, continuing without registry")
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to register with Agent OS Registry: {e}")
-                logger.info("Continuing without registry integration...")
-
     # 启动 WatchEngine 实时盯盘线程（2026-08-12 起唯一宿主，原 scheduler_daemon
     # 已下线该职责；pytest 下不启动，避免测试进程拉起盯盘循环）。
     # 引擎句柄挂到 app.state，lifespan 关闭时优雅停止。
@@ -177,15 +163,6 @@ async def lifespan(app: FastAPI):
     # 关闭时
     logger.info("👋 FastAPI application shutting down...")
 
-    # WP-Registry: Close Registry client
-    registry_client = getattr(app.state, 'registry_client', None)
-    if registry_client is not None:
-        try:
-            await registry_client.close()
-            logger.info("✅ Agent OS Registry client closed")
-        except Exception as e:
-            logger.warning(f"⚠️ Registry client cleanup failed: {e}")
-
     # WP-15: Close Agent OS client
     try:
         from application.services.agent_os_client import close_agent_os_client
@@ -210,6 +187,15 @@ async def lifespan(app: FastAPI):
             logger.info("✅ Orchestrator tick thread stopped")
         except Exception as e:
             logger.warning(f"⚠️ Orchestrator stop failed: {e}")
+
+    # 关闭线程池（优雅关闭，等待任务完成）
+    try:
+        from infrastructure.threading.thread_pool import shutdown_all_pools
+        logger.info("Shutting down thread pools...")
+        shutdown_all_pools(wait=True, timeout=30)
+        logger.info("✅ All thread pools shut down")
+    except Exception as e:
+        logger.warning(f"⚠️ Thread pool shutdown failed: {e}")
 
     try:
         from infrastructure.persistence.database.engine import close_engine
@@ -365,95 +351,10 @@ def install_sync_session_cleanup() -> None:
 # ==================== 全局异常处理 ====================
 
 # 导入业务异常类型
-from domain.exceptions import (
-    DomainError, NotFoundError, ValidationError, ConflictError,
-    ExternalServiceError, DatabaseError, AuthenticationError, AuthorizationError
-)
-
-@app.exception_handler(NotFoundError)
-async def not_found_handler(request: Request, exc: NotFoundError):
-    """资源不存在异常处理器"""
-    logger.warning(f"Not found: {exc}", path=request.url.path)
-    return JSONResponse(
-        status_code=404,
-        content={"success": False, "error": str(exc)}
-    )
-
-@app.exception_handler(ValidationError)
-async def validation_handler(request: Request, exc: ValidationError):
-    """参数校验失败异常处理器"""
-    logger.warning(f"Validation failed: {exc}", path=request.url.path)
-    return JSONResponse(
-        status_code=422,
-        content={"success": False, "error": str(exc)}
-    )
-
-@app.exception_handler(ConflictError)
-async def conflict_handler(request: Request, exc: ConflictError):
-    """资源冲突异常处理器"""
-    logger.warning(f"Conflict: {exc}", path=request.url.path)
-    return JSONResponse(
-        status_code=409,
-        content={"success": False, "error": str(exc)}
-    )
-
-@app.exception_handler(ExternalServiceError)
-async def external_service_handler(request: Request, exc: ExternalServiceError):
-    """外部服务错误异常处理器"""
-    logger.error(f"External service error: {exc}", path=request.url.path)
-    return JSONResponse(
-        status_code=502,
-        content={"success": False, "error": "External service unavailable"}
-    )
-
-@app.exception_handler(DatabaseError)
-async def database_error_handler(request: Request, exc: DatabaseError):
-    """数据库错误异常处理器"""
-    logger.error(f"Database error: {exc}", path=request.url.path)
-    return JSONResponse(
-        status_code=500,
-        content={"success": False, "error": "Database operation failed"}
-    )
-
-@app.exception_handler(AuthenticationError)
-async def authentication_handler(request: Request, exc: AuthenticationError):
-    """认证失败异常处理器"""
-    logger.warning(f"Authentication failed: {exc}", path=request.url.path)
-    return JSONResponse(
-        status_code=401,
-        content={"success": False, "error": str(exc)}
-    )
-
-@app.exception_handler(AuthorizationError)
-async def authorization_handler(request: Request, exc: AuthorizationError):
-    """权限不足异常处理器"""
-    logger.warning(f"Authorization failed: {exc}", path=request.url.path)
-    return JSONResponse(
-        status_code=403,
-        content={"success": False, "error": str(exc)}
-    )
-
-@app.exception_handler(DomainError)
-async def domain_error_handler(request: Request, exc: DomainError):
-    """领域层异常处理器（兜底其他 DomainError 子类）"""
-    logger.warning(f"Domain error: {exc}", path=request.url.path)
-    return JSONResponse(
-        status_code=400,
-        content={"success": False, "error": str(exc)}
-    )
-
-@app.exception_handler(Exception)
-async def unexpected_exception_handler(request: Request, exc: Exception):
-    """全局异常处理器 - 只捕获真正未预期的异常"""
-    logger.exception(f"Unexpected error: {exc}", path=request.url.path)
-    # 生产环境不暴露内部错误细节
-    return JSONResponse(
-        status_code=500,
-        content={
-            "success": False,
-            "error": "Internal server error"
-        }
-    )
+# P0-2 Fix: Replace individual exception handlers with unified exception handling
+# Uses structured QuantSysException hierarchy with proper error codes and logging
+from adapters.inbound.fastapi_app.exception_handlers import register_exception_handlers
+register_exception_handlers(app)
 
 
 # ==================== 基础路由 ====================
@@ -1094,6 +995,15 @@ def register_routes():
         logger.warning(f"⚠️ Failed to import training_async: {e}")
         optional_failed.append("training")
 
+    # 线程监控（monitoring/threads）
+    try:
+        from adapters.inbound.fastapi_app.routes.thread_monitoring_async import router as thread_monitoring_router
+        app.include_router(thread_monitoring_router)
+        logger.info("✅ Registered: thread_monitoring")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import thread_monitoring_async: {e}")
+        optional_failed.append("thread_monitoring")
+
     # ===== 路由注册总结 =====
     logger.info("=" * 60)
     logger.info("Route Registration Summary")
@@ -1126,9 +1036,9 @@ if __name__ == "__main__":
     import uvicorn
 
     # 获取配置
-    config = get_config()
-    host = config.app.quantsys_api_host
-    port = config.app.quantsys_api_port
+    import os
+    host = os.environ.get('QUANTSYS_API_HOST', '127.0.0.1')
+    port = int(os.environ.get('QUANTSYS_API_PORT', '5001'))
 
     logger.info(f"Starting FastAPI server on {host}:{port}")
 

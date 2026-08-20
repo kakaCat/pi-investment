@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 import structlog
 
-from application.services.strategy_service import StrategyService
+from adapters.shared.services import strategy_service_v2
 
 logger = structlog.get_logger(__name__)
 
@@ -77,7 +77,7 @@ async def list_strategies():
         }
     """
     try:
-        service = StrategyService()
+        service = strategy_service_v2
         strategies = service.list_strategies()
 
         return {
@@ -122,7 +122,7 @@ async def get_account_info(strategy_name: str):
         GET /api/strategy/v14/account-info
     """
     try:
-        service = StrategyService()
+        service = strategy_service_v2
         account = service.get_account_info(strategy_name)
 
         return {
@@ -169,7 +169,7 @@ async def get_positions(strategy_name: str):
         GET /api/strategy/v14/positions
     """
     try:
-        service = StrategyService()
+        service = strategy_service_v2
         positions = service.get_positions(strategy_name)
 
         return {
@@ -221,7 +221,7 @@ async def manual_rebalance(
         }
     """
     try:
-        service = StrategyService()
+        service = strategy_service_v2
 
         # 获取可选参数
         params = request.dict(exclude_none=True) if request else {}
@@ -281,7 +281,7 @@ async def daily_check(
         }
     """
     try:
-        service = StrategyService()
+        service = strategy_service_v2
 
         # 获取可选参数
         params = request.dict(exclude_none=True) if request else {}

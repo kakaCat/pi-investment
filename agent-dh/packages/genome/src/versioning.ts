@@ -164,6 +164,48 @@ export function getPreviousSectionVersion(
 }
 
 /**
+ * RFC 008 验证门：把段的最新 candidate 转为正式版（promote）
+ * 不改变段内容与版本号（内容已在观察中实际运行），只改 history 标记：
+ * ①该 candidate 条目 stage → active ②追加一条 type='promote' 谱系记录
+ */
+export function promoteCandidate(
+  genomeData: GenomeMetadata,
+  sectionName: string,
+  reason: string,
+  gitCommit?: string
+): GenomeMetadata {
+  const history = [...(genomeData.history || [])];
+
+  // 找该段最新的 candidate 条目（从后往前）
+  const reversedIdx = [...history].reverse().findIndex(
+    e => e.section === sectionName && e.stage === 'candidate'
+  );
+  if (reversedIdx === -1) {
+    throw new Error(`段 ${sectionName} 没有观察中的 candidate，无法转正`);
+  }
+  const idx = history.length - 1 - reversedIdx;
+  history[idx] = { ...history[idx], stage: 'active' as const };
+
+  history.push({
+    version: genomeData.genome_version,
+    section: sectionName,
+    section_version: genomeData.sections[sectionName].version,
+    parent: genomeData.genome_version,
+    reason: `验证门通过转正：${reason}`,
+    ts: new Date().toISOString(),
+    git_commit: gitCommit,
+    author: 'agent',
+    type: 'promote',
+  });
+
+  return {
+    ...genomeData,
+    updated_at: new Date().toISOString(),
+    history: trimHistory(history, 50),
+  };
+}
+
+/**
  * diff 两个版本的段内容
  */
 export function diffSections(oldContent: string, newContent: string): {

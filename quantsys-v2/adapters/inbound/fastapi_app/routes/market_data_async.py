@@ -19,8 +19,7 @@ import structlog
 from adapters.inbound.fastapi_app.shared import (
     ds, api_response, error_response, handle_api_error,
 )
-from application.services.market_data_service import market_data_service
-from application.services.hk_market_data_service import hk_market_data_service
+from adapters.shared.services import market_data_service, hk_market_data_service
 
 logger = structlog.get_logger(__name__)
 

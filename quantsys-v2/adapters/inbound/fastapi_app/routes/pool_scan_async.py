@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import structlog
 
-from application.services.stock_pool_async_service import StockPoolAsyncService
+from adapters.shared.services import stock_pool_async_service
 
 logger = structlog.get_logger(__name__)
 
@@ -34,7 +34,7 @@ async def get_scan_universe(request: ScanRequest):
     获取扫描范围（自选股 + 热门股）
     """
     try:
-        service = StockPoolAsyncService()
+        service = stock_pool_async_service
         universe = await service.get_scan_universe(request.watchlist)
 
         return {
@@ -55,7 +55,7 @@ async def get_hot_stocks():
     获取热门股票池
     """
     try:
-        service = StockPoolAsyncService()
+        service = stock_pool_async_service
         hot_stocks = await service.get_hot_stocks()
 
         return {

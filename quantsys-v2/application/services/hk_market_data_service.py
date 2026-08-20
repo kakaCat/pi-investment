@@ -8,12 +8,13 @@ from typing import Dict, Any
 
 logger = structlog.get_logger(__name__)
 
-
 class HKMarketDataService:
     """港股市场数据服务"""
 
     def __init__(self):
         self.logger = structlog.get_logger(__name__)
+        from adapters.outbound.datasources import get_data_provider_manager
+        self.provider_manager = get_data_provider_manager()
 
     def get_market_overview(self) -> Dict[str, Any]:
         """
@@ -23,22 +24,21 @@ class HKMarketDataService:
             包含港股市场概览数据的字典
         """
         try:
-            # Phase 3 数据访问治理：委托统一数据访问层
-            from adapters.outbound.datasources.manager import get_data_provider_manager
 
             self.logger.info("获取港股市场概览")
 
             try:
-                result = get_data_provider_manager().get_hk_market_overview()
-                if not result.get('success') or not result.get('data'):
-                    raise Exception(result.get('error', '无数据'))
+                # 恒生指数
+                hsi_df = self.provider_manager.call_akshare('stock_hk_index_spot_em')
 
-                overview = result['data'].data[0] if result['data'].data else {}
+                # 港股通成交额
+                hk_hold_df = self.provider_manager.call_akshare('stock_hk_hold')
+
                 return {
                     'success': True,
                     'data': {
-                        'indices': overview.get('indices', []),
-                        'hk_connect': overview.get('hk_connect', []),
+                        'indices': hsi_df.to_dict('records') if not hsi_df.empty else [],
+                        'hk_connect': hk_hold_df.tail(10).to_dict('records') if not hk_hold_df.empty else [],
                         'update_time': datetime.now().isoformat()
                     }
                 }
@@ -51,12 +51,7 @@ class HKMarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': '依赖模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取港股市场概览失败: {e}", exc_info=True)
             return {
@@ -73,29 +68,27 @@ class HKMarketDataService:
             包含南向资金流向数据的字典
         """
         try:
-            # Phase 3 数据访问治理：委托统一数据访问层
-            from adapters.outbound.datasources.manager import get_data_provider_manager
 
             self.logger.info("获取南向资金流向")
 
             try:
-                result = get_data_provider_manager().get_south_flow()
+                # 南向资金流向
+                df = self.provider_manager.call_akshare('stock_hk_fund_flow_em')
 
-                if not result.get('success') or not result.get('data'):
+                if df is None or df.empty:
                     return {
                         'success': False,
                         'error': '暂无南向资金数据',
                         'data': None
                     }
 
-                records = result['data'].data
-                self.logger.info(f"南向资金数据: {len(records)} 条")
+                self.logger.info(f"南向资金数据: {len(df)} 条")
 
                 return {
                     'success': True,
                     'data': {
-                        'flow_data': records[-30:],
-                        'total': len(records),
+                        'flow_data': df.tail(30).to_dict('records'),
+                        'total': len(df),
                         'update_time': datetime.now().isoformat()
                     }
                 }
@@ -108,12 +101,7 @@ class HKMarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': '依赖模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取南向资金数据失败: {e}", exc_info=True)
             return {
@@ -130,29 +118,27 @@ class HKMarketDataService:
             包含港股人气排行数据的字典
         """
         try:
-            # Phase 3 数据访问治理：委托统一数据访问层
-            from adapters.outbound.datasources.manager import get_data_provider_manager
 
             self.logger.info("获取港股人气排行")
 
             try:
-                result = get_data_provider_manager().get_hk_hot_rank()
+                # 港股热门排行
+                df = self.provider_manager.call_akshare('stock_hot_rank_em', symbol="港股")
 
-                if not result.get('success') or not result.get('data'):
+                if df is None or df.empty:
                     return {
                         'success': False,
                         'error': '暂无港股人气数据',
                         'data': None
                     }
 
-                records = result['data'].data
-                self.logger.info(f"港股人气数据: {len(records)} 条")
+                self.logger.info(f"港股人气数据: {len(df)} 条")
 
                 return {
                     'success': True,
                     'data': {
-                        'hot_stocks': records[:50],
-                        'total': len(records),
+                        'hot_stocks': df.head(50).to_dict('records'),
+                        'total': len(df),
                         'update_time': datetime.now().isoformat()
                     }
                 }
@@ -165,12 +151,7 @@ class HKMarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': '依赖模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取港股人气数据失败: {e}", exc_info=True)
             return {
@@ -190,16 +171,14 @@ class HKMarketDataService:
             包含技术指标数据的字典
         """
         try:
-            # Phase 3 数据访问治理：委托统一数据访问层
-            from adapters.outbound.datasources.manager import get_data_provider_manager
 
             self.logger.info(f"获取港股技术指标: symbol={symbol}")
 
             try:
                 # 港股K线数据
-                result = get_data_provider_manager().get_hk_daily(symbol)
+                df = self.provider_manager.call_akshare('stock_hk_daily', symbol=symbol, adjust="qfq")
 
-                if not result.get('success') or not result.get('data'):
+                if df is None or df.empty:
                     return {
                         'success': False,
                         'error': f'暂无港股 {symbol} 的技术指标数据',
@@ -207,7 +186,7 @@ class HKMarketDataService:
                     }
 
                 # 取最近数据
-                recent_data = result['data'].data[-60:]
+                recent_data = df.tail(60).to_dict('records')
 
                 return {
                     'success': True,
@@ -227,12 +206,7 @@ class HKMarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': '依赖模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取港股技术指标失败: {e}", exc_info=True)
             return {
@@ -252,23 +226,21 @@ class HKMarketDataService:
             包含财务数据的字典
         """
         try:
-            # Phase 3 数据访问治理：委托统一数据访问层
-            from adapters.outbound.datasources.manager import get_data_provider_manager
 
             self.logger.info(f"获取港股财务数据: symbol={symbol}")
 
             try:
                 # 港股财务指标
-                result = get_data_provider_manager().get_hk_financials(symbol)
+                df = self.provider_manager.call_akshare('stock_financial_hk_analysis_indicator_em', symbol=symbol)
 
-                if not result.get('success') or not result.get('data'):
+                if df is None or df.empty:
                     return {
                         'success': False,
                         'error': f'暂无港股 {symbol} 的财务数据',
                         'data': None
                     }
 
-                financials = result['data'].data
+                financials = df.to_dict('records')
 
                 return {
                     'success': True,
@@ -288,12 +260,7 @@ class HKMarketDataService:
                     'data': None
                 }
 
-        except ImportError:
-            return {
-                'success': False,
-                'error': '依赖模块不可用',
-                'data': None
-            }
+        
         except Exception as e:
             self.logger.error(f"获取港股财务数据失败: {e}", exc_info=True)
             return {
@@ -334,7 +301,6 @@ class HKMarketDataService:
                 'update_time': datetime.now().isoformat()
             }
         }
-
 
 # 全局实例
 hk_market_data_service = HKMarketDataService()

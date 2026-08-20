@@ -18,12 +18,13 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import json
-import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
 # 加载环境变量（必须在导入其他模块之前）
 load_dotenv()
+
+logger = structlog.get_logger(__name__)
 
 # 添加项目路径
 
@@ -47,7 +48,7 @@ try:
     from utils.feishu_notifier import create_notifier_from_config
 except ImportError:
     def create_notifier_from_config(config):
-        logging.warning("feishu_notifier not available, notifications disabled")
+        logger.warning("feishu_notifier not available, notifications disabled")
         return None
 
 import xgboost as xgb
@@ -147,10 +148,10 @@ class SimulationTrader:
         # 从数据库加载账户状态
         self._load_account_from_db()
 
-        logging.info(f"V13模拟交易系统初始化完成（数据库模式）")
-        logging.info(f"当前资金: ¥{self.cash:,.2f}")
+        logger.info(f"V13模拟交易系统初始化完成（数据库模式）")
+        logger.info(f"当前资金: ¥{self.cash:,.2f}")
         if self.feishu_notifier:
-            logging.info("飞书通知已启用")
+            logger.info("飞书通知已启用")
 
     def _load_config(self, config_path):
         """加载配置"""
@@ -173,12 +174,6 @@ class SimulationTrader:
             json_format=False,
             enable_trace_id=True
         )
-
-        # 添加文件处理器（保留文件日志功能）
-        import logging
-        file_handler = logging.FileHandler(log_file, encoding='utf-8')
-        file_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
-        logging.getLogger().addHandler(file_handler)
 
     def _load_account_from_db(self):
         """从数据库加载账户状态"""
@@ -206,17 +201,17 @@ class SimulationTrader:
             real_count = len(self.portfolio)
 
             if db_count != real_count:
-                logging.warning(f"⚠️ 持仓不一致: 数据库{db_count}只 vs 交易记录{real_count}只")
-                logging.warning(f"   将在调仓后自动修复")
+                logger.warning(f"⚠️ 持仓不一致: 数据库{db_count}只 vs 交易记录{real_count}只")
+                logger.warning(f"   将在调仓后自动修复")
 
-            logging.info(f"从数据库加载账户: {len(self.portfolio)}只持仓（从交易记录重建）")
+            logger.info(f"从数据库加载账户: {len(self.portfolio)}只持仓（从交易记录重建）")
         else:
             # 初始化账户
             self.cash = self.config['initial_capital']
             self.peak_value = self.cash
             self.last_rebalance_date = None
             self.portfolio = {}
-            logging.info(f"初始化新账户: ¥{self.cash:,.2f}")
+            logger.info(f"初始化新账户: ¥{self.cash:,.2f}")
 
     def _rebuild_portfolio_from_trades(self):
         """从交易记录重建持仓（单一数据源）"""
@@ -266,14 +261,14 @@ class SimulationTrader:
                     'avg_price': avg_price
                 }
 
-            logging.info(f"从交易记录重建持仓: {len(portfolio)}只股票")
+            logger.info(f"从交易记录重建持仓: {len(portfolio)}只股票")
             return portfolio
         finally:
             conn.close()  # 确保连接归还到池
 
     def _validate_data_consistency(self):
         """调仓前数据一致性检查"""
-        logging.info("\n数据一致性检查...")
+        logger.info("\n数据一致性检查...")
 
         # 1. 从交易记录计算真实持仓
         real_portfolio = self._rebuild_portfolio_from_trades()
@@ -291,12 +286,12 @@ class SimulationTrader:
         extra = db_symbols - real_symbols
 
         if missing or extra:
-            logging.warning(f"⚠️ 数据不一致！")
+            logger.warning(f"⚠️ 数据不一致！")
             if missing:
-                logging.warning(f"   缺失持仓: {missing}")
+                logger.warning(f"   缺失持仓: {missing}")
             if extra:
-                logging.warning(f"   多余持仓: {extra}")
-            logging.warning(f"   自动修复中...")
+                logger.warning(f"   多余持仓: {extra}")
+            logger.warning(f"   自动修复中...")
 
             # 自动修复：清空并重建
             self.repo.clear_all_positions(self.account_name)
@@ -307,9 +302,9 @@ class SimulationTrader:
                     shares_total=pos['shares'],
                     avg_cost=pos['avg_price']
                 )
-            logging.info(f"✅ 已自动修复持仓表")
+            logger.info(f"✅ 已自动修复持仓表")
         else:
-            logging.info(f"✅ 数据一致性检查通过（{len(real_symbols)}只持仓）")
+            logger.info(f"✅ 数据一致性检查通过（{len(real_symbols)}只持仓）")
 
         # 4. 更新内存持仓
         self.portfolio = real_portfolio
@@ -325,17 +320,17 @@ class SimulationTrader:
 
         # ✅ 严重告警：检查现金是否为负（透支）
         if self.cash < 0:
-            logging.error(f"🚨 严重警告：账户现金为负 ¥{self.cash:,.2f}！")
-            logging.error(f"   初始资金: ¥{self.config['initial_capital']:,.2f}")
-            logging.error(f"   总资产: ¥{total_value:,.2f}")
-            logging.error(f"   透支金额: ¥{abs(self.cash):,.2f}")
-            logging.error(f"   请立即检查交易记录，可能存在超买问题！")
+            logger.error(f"🚨 严重警告：账户现金为负 ¥{self.cash:,.2f}！")
+            logger.error(f"   初始资金: ¥{self.config['initial_capital']:,.2f}")
+            logger.error(f"   总资产: ¥{total_value:,.2f}")
+            logger.error(f"   透支金额: ¥{abs(self.cash):,.2f}")
+            logger.error(f"   请立即检查交易记录，可能存在超买问题！")
 
         # ✅ 警告：检查总资产是否低于初始资金的50%
         if total_value < self.config['initial_capital'] * 0.5:
-            logging.warning(f"⚠️  警告：总资产已跌破初始资金的50%")
-            logging.warning(f"   当前总资产: ¥{total_value:,.2f}")
-            logging.warning(f"   累计亏损: {cumulative_return:.2%}")
+            logger.warning(f"⚠️  警告：总资产已跌破初始资金的50%")
+            logger.warning(f"   当前总资产: ¥{total_value:,.2f}")
+            logger.warning(f"   累计亏损: {cumulative_return:.2%}")
 
         position_value = total_value - self.cash
         self.repo.update_account(
@@ -382,7 +377,7 @@ class SimulationTrader:
             cumulative_return=cumulative_return,
             drawdown=drawdown,
         )
-        logging.info(f"保存每日快照: {self.account_name}, 总资产=¥{total_value:,.2f}")
+        logger.info(f"保存每日快照: {self.account_name}, 总资产=¥{total_value:,.2f}")
 
     def _calculate_total_value_from_portfolio(self):
         """从持仓计算总资产"""
@@ -476,7 +471,7 @@ class SimulationTrader:
         """
         import pandas as pd
 
-        logging.info(f"查询 {len(symbols)} 只股票，时间范围 {start_date} -> {end_date}")
+        logger.info(f"查询 {len(symbols)} 只股票，时间范围 {start_date} -> {end_date}")
 
         # 支持两种输入格式
         if isinstance(symbols[0], dict):
@@ -513,7 +508,7 @@ class SimulationTrader:
             cursor.close()
 
             if not rows:
-                logging.warning("未查询到任何K线数据")
+                logger.warning("未查询到任何K线数据")
                 return pd.DataFrame()
 
             # 转换为DataFrame
@@ -524,7 +519,7 @@ class SimulationTrader:
 
             df['date'] = pd.to_datetime(df['date'])
 
-            logging.info(f"获取到 {len(df)} 条K线数据，{df['symbol'].nunique()} 只股票")
+            logger.info(f"获取到 {len(df)} 条K线数据，{df['symbol'].nunique()} 只股票")
             return df
         finally:
             conn.close()  # 确保连接归还到池
@@ -540,55 +535,55 @@ class SimulationTrader:
             ic_threshold: IC筛选阈值（默认0.005，保留更多因子）
             xgb_params: XGBoost自定义参数（dict），用于超参数优化
         """
-        logging.info(f"开始训练模型: {train_start} -> {train_end}")
-        logging.info(f"股票池大小: {stock_limit}只, IC阈值: {ic_threshold}")
+        logger.info(f"开始训练模型: {train_start} -> {train_end}")
+        logger.info(f"股票池大小: {stock_limit}只, IC阈值: {ic_threshold}")
 
         # 1. 获取股票池（扩大到200只）
         stocks = self._get_stock_pool(limit=stock_limit)
-        logging.info(f"获取股票池: {len(stocks)}只")
+        logger.info(f"获取股票池: {len(stocks)}只")
 
         # 2. 获取训练数据（使用日期范围查询，不用get_latest）
-        logging.info("获取训练数据...")
+        logger.info("获取训练数据...")
         train_data = self._get_historical_data(stocks, train_start, train_end)
 
         if train_data.empty:
             raise ValueError("训练数据为空")
 
         # 3. 计算因子
-        logging.info("计算因子...")
+        logger.info("计算因子...")
         train_data = self.factor_calc.calculate_factors(train_data)
 
         # 4. 准备标签（未来5日收益）
-        logging.info("准备标签...")
+        logger.info("准备标签...")
         train_data = train_data.sort_values(['symbol', 'date'])
         train_data['label'] = train_data.groupby('symbol')['close'].transform(
             lambda x: x.pct_change(5).shift(-5)
         )
 
         # 5. 筛选有效因子
-        logging.info("筛选有效因子...")
+        logger.info("筛选有效因子...")
         all_factors = get_factor_names()
         self.valid_factors = self._select_factors(train_data, all_factors, ic_threshold=ic_threshold)
 
         # 6. 训练模型
-        logging.info("训练XGBoost模型...")
+        logger.info("训练XGBoost模型...")
         train_clean = train_data.dropna(subset=['label'] + self.valid_factors)
 
         X_train = train_clean[self.valid_factors]
         y_train = train_clean['label']
 
-        logging.info(f"训练数据: {len(train_clean)}条, {len(self.valid_factors)}个因子")
-        logging.info(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+        logger.info(f"训练数据: {len(train_clean)}条, {len(self.valid_factors)}个因子")
+        logger.info(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
 
         # 检查是否有无效值
         if X_train.isnull().any().any():
-            logging.warning("X_train 包含 NaN 值")
+            logger.warning("X_train 包含 NaN 值")
         if y_train.isnull().any():
-            logging.warning("y_train 包含 NaN 值")
+            logger.warning("y_train 包含 NaN 值")
 
         # 使用自定义参数或默认参数
         if xgb_params:
-            logging.info(f"使用自定义XGBoost参数: {xgb_params}")
+            logger.info(f"使用自定义XGBoost参数: {xgb_params}")
             default_params = {
                 'objective': 'reg:squarederror',
                 'random_state': 42,
@@ -608,9 +603,9 @@ class SimulationTrader:
                 n_jobs=1  # 使用单线程避免段错误
             )
 
-        logging.info("开始拟合模型...")
+        logger.info("开始拟合模型...")
         self.model.fit(X_train, y_train, verbose=False)
-        logging.info(f"模型训练完成: {len(train_clean)}条训练数据, {len(self.valid_factors)}个有效因子")
+        logger.info(f"模型训练完成: {len(train_clean)}条训练数据, {len(self.valid_factors)}个有效因子")
 
         # 7. 保存模型
         model_dir = Path('live_trading/models')
@@ -636,8 +631,8 @@ class SimulationTrader:
         with open(info_file, 'w') as f:
             json.dump(train_info, f, indent=2)
 
-        logging.info(f"模型已保存: {model_file}")
-        logging.info(f"训练信息: {stock_limit}只股票, {len(train_clean)}条样本, {len(self.valid_factors)}个因子")
+        logger.info(f"模型已保存: {model_file}")
+        logger.info(f"训练信息: {stock_limit}只股票, {len(train_clean)}条样本, {len(self.valid_factors)}个因子")
 
     def _select_factors(self, data, factors, ic_threshold=0.01):
         """
@@ -677,18 +672,18 @@ class SimulationTrader:
                 if not np.isnan(ic) and np.isfinite(ic):
                     ic_results[factor] = ic
             except Exception as e:
-                logging.debug(f"因子 {factor} 计算IC失败: {e}")
+                logger.debug(f"因子 {factor} 计算IC失败: {e}")
                 continue
 
         # 筛选有效因子（降低阈值到0.01）
         valid_factors = [f for f, ic in ic_results.items() if abs(ic) > ic_threshold]
 
-        logging.info(f"因子筛选: {len(valid_factors)}/{len(factors)}个有效 (IC阈值: {ic_threshold})")
+        logger.info(f"因子筛选: {len(valid_factors)}/{len(factors)}个有效 (IC阈值: {ic_threshold})")
 
         # 显示Top 10
         sorted_ics = sorted(ic_results.items(), key=lambda x: abs(x[1]), reverse=True)[:10]
         for factor, ic in sorted_ics:
-            logging.info(f"  {factor}: IC={ic:.4f}")
+            logger.info(f"  {factor}: IC={ic:.4f}")
 
         return valid_factors
 
@@ -708,7 +703,7 @@ class SimulationTrader:
         with open(factors_file, 'r') as f:
             self.valid_factors = json.load(f)
 
-        logging.info(f"模型加载完成: {len(self.valid_factors)}个因子 ({model_file.name})")
+        logger.info(f"模型加载完成: {len(self.valid_factors)}个因子 ({model_file.name})")
 
     def _is_trading_day(self, date_str: str) -> bool:
         """
@@ -752,7 +747,7 @@ class SimulationTrader:
                 today=today,
             )
         except Exception as e:
-            logging.warning(f"检查交易日失败: {e}，默认周一至周五为交易日")
+            logger.warning(f"检查交易日失败: {e}，默认周一至周五为交易日")
             # 如果数据库查询失败，默认周一到周五是交易日
             return day.weekday() < 5
 
@@ -796,7 +791,7 @@ class SimulationTrader:
         """判断是否需要调仓（交易日校验 + 调仓周期）"""
         # 1. 检查是否是交易日
         if not self._is_trading_day(current_date):
-            logging.info(f"{current_date} 不是交易日，跳过检查")
+            logger.info(f"{current_date} 不是交易日，跳过检查")
             return False
 
         return self._is_rebalance_due(current_date)
@@ -811,18 +806,18 @@ class SimulationTrader:
                   - executed: True + action（stop_loss / rebalance / hold）
         """
         today = datetime.now().strftime('%Y-%m-%d')
-        logging.info(f"\n{'='*60}")
-        logging.info(f"日期: {today}")
-        logging.info(f"{'='*60}")
+        logger.info(f"\n{'='*60}")
+        logger.info(f"日期: {today}")
+        logger.info(f"{'='*60}")
 
         # 检查模型
         if self.model is None:
-            logging.error("模型未加载，请先训练或加载模型")
+            logger.error("模型未加载，请先训练或加载模型")
             return {'executed': False, 'reason': 'model_not_loaded'}
 
         # 交易日校验前置（此前埋在 should_rebalance 里，无法与"未到调仓周期"区分）
         if not self._is_trading_day(today):
-            logging.info(f"{today} 不是交易日，跳过检查")
+            logger.info(f"{today} 不是交易日，跳过检查")
             return {'executed': False, 'reason': 'not_trading_day'}
 
         action = 'hold'
@@ -835,7 +830,7 @@ class SimulationTrader:
             )
 
             if stop_loss_symbols:
-                logging.warning(f"触发单股止损: {stop_loss_symbols}")
+                logger.warning(f"触发单股止损: {stop_loss_symbols}")
                 self._execute_stop_loss(stop_loss_symbols, prices, today)
                 self._save_account_to_db()
                 action = 'stop_loss'
@@ -845,18 +840,18 @@ class SimulationTrader:
             last_date = datetime.strptime(self.last_rebalance_date, '%Y-%m-%d')
             days_passed = (datetime.now() - last_date).days
             days_to_next = self.config['strategy']['rebalance_days'] - days_passed
-            logging.info(f"距离下次调仓还有 {days_to_next} 天")
+            logger.info(f"距离下次调仓还有 {days_to_next} 天")
             return {'executed': True, 'action': action, 'days_to_next': days_to_next}
 
-        logging.info("触发调仓条件，开始执行...")
+        logger.info("触发调仓条件，开始执行...")
         self.rebalance(today)
         return {'executed': True, 'action': 'rebalance'}
 
     def rebalance(self, current_date):
         """执行调仓"""
-        logging.info("\n" + "="*60)
-        logging.info(f"开始调仓流程 (账户: {self.account_name})")
-        logging.info("="*60)
+        logger.info("\n" + "="*60)
+        logger.info(f"开始调仓流程 (账户: {self.account_name})")
+        logger.info("="*60)
 
         try:
             # ✅ 调仓前数据一致性检查
@@ -864,14 +859,14 @@ class SimulationTrader:
 
             # 1. 获取股票池
             stocks = self._get_stock_pool(limit=200)
-            logging.info(f"股票池: {len(stocks)}只")
+            logger.info(f"股票池: {len(stocks)}只")
 
             # 2. 获取最新因子
-            logging.info("计算最新因子...")
+            logger.info("计算最新因子...")
             latest_factors = self.factor_calc.get_latest_factors(stocks)
 
             if latest_factors.empty:
-                logging.error("因子计算失败，取消调仓")
+                logger.error("因子计算失败，取消调仓")
                 return {
                     'success': False,
                     'error': '因子计算失败',
@@ -879,11 +874,11 @@ class SimulationTrader:
                 }
 
             # 3. 模型预测
-            logging.info("模型预测...")
+            logger.info("模型预测...")
             available_factors = [f for f in self.valid_factors if f in latest_factors.columns]
 
             if len(available_factors) < len(self.valid_factors) * 0.8:
-                logging.warning(f"可用因子不足: {len(available_factors)}/{len(self.valid_factors)}")
+                logger.warning(f"可用因子不足: {len(available_factors)}/{len(self.valid_factors)}")
 
             X_pred = latest_factors[available_factors].fillna(0)
             predictions = self.model.predict(X_pred)
@@ -894,11 +889,11 @@ class SimulationTrader:
                 latest_factors[['symbol', 'predicted_return']],
                 current_holdings=list(self.portfolio.keys())
             )
-            logging.info(f"\n风控选股结果 (Top {len(top_stocks)}):")
+            logger.info(f"\n风控选股结果 (Top {len(top_stocks)}):")
             for symbol in top_stocks:
                 pred = latest_factors[latest_factors['symbol'] == symbol]['predicted_return'].iloc[0]
                 weight = weights[symbol]
-                logging.info(f"  {symbol}: 预测收益={pred:.4f}, 权重={weight:.2%}")
+                logger.info(f"  {symbol}: 预测收益={pred:.4f}, 权重={weight:.2%}")
 
             # 5. 计算当前状态
             total_value = self._calculate_total_value(current_date)
@@ -910,17 +905,17 @@ class SimulationTrader:
 
             drawdown = (total_value / self.peak_value - 1)
 
-            logging.info(f"\n当前状态:")
-            logging.info(f"  总资产: ¥{total_value:,.2f}")
-            logging.info(f"  累计收益: {current_return:.2%}")
-            logging.info(f"  峰值回撤: {drawdown:.2%}")
+            logger.info(f"\n当前状态:")
+            logger.info(f"  总资产: ¥{total_value:,.2f}")
+            logger.info(f"  累计收益: {current_return:.2%}")
+            logger.info(f"  峰值回撤: {drawdown:.2%}")
 
             # 6. 使用风险控制器计算目标仓位
             position_scale = self.risk_controller.calculate_position_scale(
                 current_value=total_value,
                 peak_value=self.peak_value
             )
-            logging.info(f"  目标仓位: {position_scale:.0%}")
+            logger.info(f"  目标仓位: {position_scale:.0%}")
 
             # 7. 执行交易（使用风控权重）
             self._execute_trades_with_risk_control(top_stocks, weights, position_scale, current_date)
@@ -942,7 +937,7 @@ class SimulationTrader:
                     total_value
                 )
 
-            logging.info("\n调仓完成\n")
+            logger.info("\n调仓完成\n")
 
             # 返回调仓结果
             return {
@@ -958,7 +953,7 @@ class SimulationTrader:
             }
 
         except Exception as e:
-            logging.error(f"调仓失败: {e}", exc_info=True)
+            logger.error(f"调仓失败: {e}", exc_info=True)
             return {
                 'success': False,
                 'error': str(e),
@@ -997,20 +992,20 @@ class SimulationTrader:
         """执行交易（使用风险控制权重）"""
         target_symbols_set = set(target_symbols)
 
-        logging.info(f"\n{'='*60}")
-        logging.info(f"开始执行交易 (账户: {self.account_name})")
-        logging.info(f"{'='*60}")
-        logging.info(f"目标持仓: {len(target_symbols)}只 - {target_symbols}")
-        logging.info(f"当前持仓: {len(self.portfolio)}只 - {list(self.portfolio.keys())}")
-        logging.info(f"当前现金: ¥{self.cash:,.2f}")
-        logging.info(f"目标仓位比例: {position_scale:.0%}")
+        logger.info(f"\n{'='*60}")
+        logger.info(f"开始执行交易 (账户: {self.account_name})")
+        logger.info(f"{'='*60}")
+        logger.info(f"目标持仓: {len(target_symbols)}只 - {target_symbols}")
+        logger.info(f"当前持仓: {len(self.portfolio)}只 - {list(self.portfolio.keys())}")
+        logger.info(f"当前现金: ¥{self.cash:,.2f}")
+        logger.info(f"目标仓位比例: {position_scale:.0%}")
 
         # 获取当前价格
         prices = self._get_current_prices(
             list(target_symbols_set | set(self.portfolio.keys())),
             date
         )
-        logging.info(f"获取到{len(prices)}只股票价格")
+        logger.info(f"获取到{len(prices)}只股票价格")
 
         # 卖出不在目标中的股票
         for symbol in list(self.portfolio.keys()):
@@ -1019,7 +1014,7 @@ class SimulationTrader:
 
                 # ✅ 防止重复卖出：检查持仓数量
                 if shares <= 0:
-                    logging.warning(f"跳过 {symbol}: 持仓数量={shares}，无需卖出")
+                    logger.warning(f"跳过 {symbol}: 持仓数量={shares}，无需卖出")
                     del self.portfolio[symbol]
                     continue
 
@@ -1048,7 +1043,7 @@ class SimulationTrader:
                 del self.portfolio[symbol]
                 self.repo.delete_position(self.account_name, symbol)
 
-                logging.info(f"卖出 {symbol}: {shares}股 @ ¥{price:.2f}")
+                logger.info(f"卖出 {symbol}: {shares}股 @ ¥{price:.2f}")
 
         # 计算总资产
         total_value = self.cash + sum(
@@ -1058,12 +1053,12 @@ class SimulationTrader:
 
         # ✅ 关键检查：买入前验证现金是否充足
         if self.cash <= 0:
-            logging.error(f"❌ 现金不足（¥{self.cash:,.2f}），取消所有买入操作")
-            logging.error(f"   可能原因：卖出收入不足以支付新的买入")
+            logger.error(f"❌ 现金不足（¥{self.cash:,.2f}），取消所有买入操作")
+            logger.error(f"   可能原因：卖出收入不足以支付新的买入")
             return
 
         available_cash = self.cash
-        logging.info(f"\n可用现金: ¥{available_cash:,.2f}")
+        logger.info(f"\n可用现金: ¥{available_cash:,.2f}")
 
         # 买入目标股票（使用风控权重）
         for symbol in target_symbols:
@@ -1072,7 +1067,7 @@ class SimulationTrader:
             price = prices.get(symbol, 0)
 
             if price <= 0:
-                logging.warning(f"跳过 {symbol}: 价格无效")
+                logger.warning(f"跳过 {symbol}: 价格无效")
                 continue
 
             target_shares = int(target_value / price / 100) * 100  # 100股整数倍
@@ -1090,7 +1085,7 @@ class SimulationTrader:
 
                 # ✅ 严格检查：本次买入是否超出可用现金
                 if cost > available_cash:
-                    logging.warning(f"跳过 {symbol}: 需要¥{cost:,.2f}，剩余现金¥{available_cash:,.2f}")
+                    logger.warning(f"跳过 {symbol}: 需要¥{cost:,.2f}，剩余现金¥{available_cash:,.2f}")
                     continue
 
                 if cost <= self.cash:
@@ -1123,9 +1118,9 @@ class SimulationTrader:
                     else:
                         self.portfolio[symbol] = {'shares': delta_shares, 'avg_price': trade['filled_price']}
 
-                    logging.info(f"买入 {symbol}: {delta_shares}股 @ ¥{price:.2f} (权重{weight:.2%}，花费¥{trade['total_cost']:,.2f}，剩余¥{available_cash:,.2f})")
+                    logger.info(f"买入 {symbol}: {delta_shares}股 @ ¥{price:.2f} (权重{weight:.2%}，花费¥{trade['total_cost']:,.2f}，剩余¥{available_cash:,.2f})")
                 else:
-                    logging.warning(f"资金不足，无法买入 {symbol}")
+                    logger.warning(f"资金不足，无法买入 {symbol}")
 
 
             elif delta_shares < 0:
@@ -1155,7 +1150,7 @@ class SimulationTrader:
                     del self.portfolio[symbol]
                     self.repo.delete_position(self.account_name, symbol)
 
-                logging.info(f"减仓 {symbol}: {sell_shares}股 @ ¥{price:.2f}")
+                logger.info(f"减仓 {symbol}: {sell_shares}股 @ ¥{price:.2f}")
 
     def _get_current_prices(self, symbols, date):
         """
@@ -1177,9 +1172,9 @@ class SimulationTrader:
                 quote = quote_service.get_realtime_quote(symbol)
                 if quote and quote.price > 0:
                     prices[symbol] = quote.price
-                    logging.info(f"{symbol} 实时价格: {quote.price:.2f} (来源: {quote.source})")
+                    logger.info(f"{symbol} 实时价格: {quote.price:.2f} (来源: {quote.source})")
             except Exception as e:
-                logging.debug(f"{symbol} 实时行情获取失败: {e}")
+                logger.debug(f"{symbol} 实时行情获取失败: {e}")
 
         # 数据源2: 数据库K线（补齐缺失的）
         missing = [s for s in symbols if s not in prices]
@@ -1191,16 +1186,16 @@ class SimulationTrader:
                         price = float(latest['close'][0])
                         if price > 0:
                             prices[symbol] = price
-                            logging.info(f"{symbol} 数据库价格: {price:.2f}")
+                            logger.info(f"{symbol} 数据库价格: {price:.2f}")
                 except Exception as e:
-                    logging.debug(f"{symbol} 数据库K线获取失败: {e}")
+                    logger.debug(f"{symbol} 数据库K线获取失败: {e}")
 
         # 数据源3: 持仓成本价（最终兜底）
         for symbol in symbols:
             if symbol not in prices or prices[symbol] <= 0:
                 if symbol in self.portfolio:
                     prices[symbol] = self.portfolio[symbol]['avg_price']
-                    logging.warning(f"{symbol} 无法获取市场价格，使用成本价 {prices[symbol]:.2f}")
+                    logger.warning(f"{symbol} 无法获取市场价格，使用成本价 {prices[symbol]:.2f}")
                 else:
                     prices[symbol] = 0
 
@@ -1238,7 +1233,7 @@ class SimulationTrader:
             del self.portfolio[symbol]
             self.repo.delete_position(self.account_name, symbol)
 
-            logging.warning(f"止损卖出 {symbol}: {shares}股 @ ¥{price:.2f}")
+            logger.warning(f"止损卖出 {symbol}: {shares}股 @ ¥{price:.2f}")
 
     def _calculate_position_scale(self, current_return, drawdown):
         """计算仓位比例（旧方法，保留兼容性）"""
@@ -1399,9 +1394,9 @@ class SimulationTrader:
                     current_price=price
                 )
 
-        logging.info(f"\n交易完成:")
-        logging.info(f"  现金余额: ¥{self.cash:,.2f}")
-        logging.info(f"  持仓数量: {len(self.portfolio)}只")
+        logger.info(f"\n交易完成:")
+        logger.info(f"  现金余额: ¥{self.cash:,.2f}")
+        logger.info(f"  持仓数量: {len(self.portfolio)}只")
 
     def generate_daily_report(self, date):
         """生成每日报告（保存到数据库）"""
@@ -1460,7 +1455,7 @@ class SimulationTrader:
         with open(report_file, 'w', encoding='utf-8') as f:
             json.dump(report, f, ensure_ascii=False, indent=2)
 
-        logging.info(f"每日报告已保存到数据库和文件")
+        logger.info(f"每日报告已保存到数据库和文件")
 
 
 def main():
@@ -1596,7 +1591,7 @@ if __name__ == '__main__':
             }
 
             self.feishu_notifier.send_rebalance_notification(notification_data)
-            logging.info("飞书调仓通知已发送")
+            logger.info("飞书调仓通知已发送")
 
         except Exception as e:
-            logging.error(f"发送飞书通知失败: {e}")
+            logger.error(f"发送飞书通知失败: {e}")

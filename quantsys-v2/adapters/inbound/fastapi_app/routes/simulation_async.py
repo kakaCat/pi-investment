@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Body, Query
 from fastapi.responses import JSONResponse
 
-from application.services.simulation_service import SimulationService
+from adapters.shared.services import simulation_service
 from application.services.account_trading_service import (
     AccountTradingService, TradingError,
 )
@@ -23,10 +23,10 @@ _service = None
 
 
 def get_service():
-    """SimulationService 模块级单例（与 Flask simulation.py 一致）"""
+    """SimulationService 模块级单例（通过 ServiceFactory 统一获取）"""
     global _service
     if _service is None:
-        _service = SimulationService()
+        _service = simulation_service
     return _service
 
 

@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from adapters.outbound.repositories import DataQualityORMRepository
+from adapters.shared.services import data_quality_service
 
 logger = structlog.get_logger(__name__)
 
@@ -161,10 +162,8 @@ def submit_quality_record(payload: Optional[Dict[str, Any]] = Body(None)):
 def check_data_quality_v2(symbols: Optional[str] = Query(None), start_date: Optional[str] = Query(None),
                           end_date: Optional[str] = Query(None), include_report: str = Query('false')):
     try:
-        from application.services.data_quality_service import DataQualityService
         symbol_list = symbols.split(',') if symbols else None
-        service = DataQualityService()
-        result = service.check_data_quality(
+        result = data_quality_service.check_data_quality(
             symbols=symbol_list, start_date=start_date, end_date=end_date,
             include_report=include_report.lower() == 'true')
         return JSONResponse(status_code=200 if result.get('success') else 500, content=result)
@@ -175,10 +174,8 @@ def check_data_quality_v2(symbols: Optional[str] = Query(None), start_date: Opti
 @router.post('/api/data/detect-gaps')
 def detect_gaps(payload: Optional[Dict[str, Any]] = Body(None)):
     try:
-        from application.services.data_quality_service import DataQualityService
         data = payload or {}
-        service = DataQualityService()
-        result = service.detect_missing_data(
+        result = data_quality_service.detect_missing_data(
             symbols=data.get('symbols'), start_date=data.get('start_date'), end_date=data.get('end_date'))
         return JSONResponse(status_code=200 if result.get('success') else 500, content=result)
     except Exception as e:
@@ -188,10 +185,8 @@ def detect_gaps(payload: Optional[Dict[str, Any]] = Body(None)):
 @router.post('/api/data/backfill')
 def backfill_data(payload: Optional[Dict[str, Any]] = Body(None)):
     try:
-        from application.services.data_quality_service import DataQualityService
         data = payload or {}
-        service = DataQualityService()
-        result = service.backfill_missing_data(
+        result = data_quality_service.backfill_missing_data(
             symbols=data.get('symbols'), start_date=data.get('start_date'), end_date=data.get('end_date'),
             mode=data.get('mode', 'auto'), max_workers=data.get('max_workers', 8))
         return JSONResponse(status_code=200 if result.get('success') else 500, content=result)
@@ -202,10 +197,8 @@ def backfill_data(payload: Optional[Dict[str, Any]] = Body(None)):
 @router.post('/api/data/validate')
 def validate_data_v2(payload: Optional[Dict[str, Any]] = Body(None)):
     try:
-        from application.services.data_quality_service import DataQualityService
         data = payload or {}
-        service = DataQualityService()
-        result = service.validate_data(
+        result = data_quality_service.validate_data(
             symbols=data.get('symbols'), start_date=data.get('start_date'), end_date=data.get('end_date'))
         return JSONResponse(status_code=200 if result.get('success') else 500, content=result)
     except Exception as e:

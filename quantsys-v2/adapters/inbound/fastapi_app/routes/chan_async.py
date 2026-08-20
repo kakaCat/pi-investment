@@ -8,7 +8,7 @@ from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
 import structlog
 
-from application.services.chan_service import ChanService
+from adapters.shared.services import chan_service
 
 logger = structlog.get_logger(__name__)
 
@@ -27,8 +27,7 @@ def analyze(payload: Optional[Dict[str, Any]] = Body(None)):
         end_date = data.get('endDate')
         buypoint_types = data.get('buypointTypes')
 
-        service = ChanService()
-        result = service.analyze(
+        result = chan_service.analyze(
             symbol=symbol, start_date=start_date, end_date=end_date,
             buypoint_types=buypoint_types)
         return result
