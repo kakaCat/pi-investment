@@ -209,6 +209,33 @@ export default class LifecyclePlugin extends Service {
       tags: ['system:windows', 'window', window],
     });
     await this.osWrite('skill_upsert', profile);
+
+    // 上线补投离线信箱（办公室交流层）：该窗口离线期间的消息逐条投递
+    this.deliverOfflineInbox(agent, window).catch(() => {});
+  }
+
+  /** 上线补投：读 office:inbox:<window> 中未投递的消息，followup 给对方 */
+  private async deliverOfflineInbox(agent: any, window: string): Promise<void> {
+    try {
+      const res: any = await this.aos.memory.search({ query: 'inbox', tag: `office:inbox:${window}`, top_k: 50 });
+      const items: any[] = res?.memories || res?.items || [];
+      for (const it of items) {
+        let p: any = null;
+        try { p = typeof it.content === 'string' ? JSON.parse(it.content) : it.content; } catch { continue; }
+        if (!p || p.delivered) continue;
+        agent.followup(createUserMessage({
+          content: [{ type: 'text', text: `【离线消息】你在离线期间收到来自窗口 ${p.from} 的消息（${p.ts}）：\n\n${p.message}\n\n回信方式：window_message(window='${p.from}', message='...')` }],
+          source: { kind: 'plugin', plugin: 'lifecycle' },
+        }));
+        // 标记已投递（append-only：写一条 delivered 标记记录）
+        await this.osWrite('memory_write', {
+          title: `inbox ${window} delivered`,
+          content: JSON.stringify({ ...p, delivered: true, delivered_at: new Date().toISOString() }),
+          namespace: 'data',
+          tags: ['office:delivered', `office:inbox:${window}`],
+        });
+      }
+    } catch { /* 补投失败不影响上线 */ }
   }
 
   /**
@@ -913,6 +940,149 @@ export default class LifecyclePlugin extends Service {
         }
 
         return { hired: true, window, session_id: sessionId } as any;
+      },
+    } as any));
+
+    // ===== 办公室交流层（2026-08-21，用户批准）：点对点消息 + 公告板 =====
+    // 职责切分：数据（信箱/公告板）在 OS 记忆库，动作（寻址/投递）在 DH 插件
+
+    // window_message - 点对点消息（在线直投，离线进信箱，上线补投）
+    ctx.tools.register(defineTool({
+      name: 'window_message',
+      description: '给指定窗口发消息：对方在线则直接投递到其会话，离线则写入 OS 信箱（上线时自动补投）。消息带回信地址（你的窗口编码），对方用 window_message 回复。适用于：窗口间讨论问题、协作确认、经验请教。',
+      parameters: {
+        window: { type: 'string', description: '目标窗口编码，如 w-2c68a436', required: true },
+        message: { type: 'string', description: '消息内容', required: true },
+      },
+      output: {
+        schema: { type: 'object', properties: { delivered: { type: 'boolean' }, queued_offline: { type: 'boolean' }, window: { type: 'string' } }, additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 15000,
+      execute: async (args: any, exec?: any) => {
+        const fromSession = String(exec?.agent?.id ?? '');
+        const fromWindow = this.windowCode(fromSession || 'unknown');
+
+        // 寻址：从记忆库最新档案取目标 session_id
+        const memRes: any = await this.aos.memory.search({ query: args.window, tag: 'system:windows', top_k: 20 });
+        const items: any[] = memRes?.memories || memRes?.items || [];
+        let targetSession: string | null = null;
+        for (const it of items) {
+          try {
+            const p = typeof it.content === 'string' ? JSON.parse(it.content) : it.content;
+            if (p?.window === args.window && p?.session_id) targetSession = p.session_id;
+          } catch { /* 跳过 */ }
+        }
+        if (!targetSession) throw new Error(`窗口 ${args.window} 不在花名册（从未上线）`);
+
+        const msgRecord = {
+          from: fromWindow,
+          from_session: fromSession,
+          to: args.window,
+          message: args.message,
+          ts: new Date().toISOString(),
+          delivered: false,
+        };
+
+        // 在线直投
+        const agent: any = (this.ctx as any).agents.get(targetSession);
+        if (agent?.followup) {
+          agent.followup(createUserMessage({
+            content: [{ type: 'text', text: `【窗口消息】来自 ${fromWindow}：\n\n${args.message}\n\n回信方式：window_message(window='${fromWindow}', message='...')` }],
+            source: { kind: 'plugin', plugin: 'lifecycle' },
+          }));
+          msgRecord.delivered = true;
+        }
+
+        // 无论如何写信箱（别丢信息 + 可审计）
+        await this.osWrite('memory_write', {
+          title: `msg ${fromWindow}→${args.window}${msgRecord.delivered ? '' : '（离线）'}`,
+          content: JSON.stringify(msgRecord),
+          namespace: 'data',
+          tags: ['office:msg', `office:inbox:${args.window}`, `office:outbox:${fromWindow}`],
+        });
+
+        return { delivered: msgRecord.delivered, queued_offline: !msgRecord.delivered, window: args.window } as any;
+      },
+    } as any));
+
+    // board_post - 公告板发帖
+    ctx.tools.register(defineTool({
+      name: 'board_post',
+      description: '在办公室公告板发帖：发现、疑问、复盘结论、协作倡议，全员可读。交流产生的"传闻"要变成"基因"仍需过验证门——公告板是讨论区不是真理区。',
+      parameters: {
+        title: { type: 'string', description: '标题（一句话）', required: true },
+        content: { type: 'string', description: '内容', required: true },
+        kind: { type: 'string', description: '类型：finding 发现 / question 疑问 / review 复盘 / proposal 倡议', enum: ['finding', 'question', 'review', 'proposal'], default: 'finding' },
+      },
+      output: {
+        schema: { type: 'object', properties: { posted: { type: 'boolean' } }, additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 15000,
+      execute: async (args: any, exec?: any) => {
+        const fromWindow = this.windowCode(String(exec?.agent?.id ?? 'unknown'));
+        await this.osWrite('memory_write', {
+          title: `[${args.kind ?? 'finding'}] ${args.title}`,
+          content: JSON.stringify({
+            kind: args.kind ?? 'finding',
+            title: args.title,
+            content: args.content,
+            from: fromWindow,
+            ts: new Date().toISOString(),
+          }),
+          namespace: 'data',
+          tags: ['office:board', `kind:${args.kind ?? 'finding'}`],
+        });
+        return { posted: true } as any;
+      },
+    } as any));
+
+    // board_read - 读公告板
+    ctx.tools.register(defineTool({
+      name: 'board_read',
+      description: '读办公室公告板：最新帖子在前。适用于：空闲/例会时了解其他窗口的发现与疑问、找协作机会。',
+      parameters: {
+        limit: { type: 'number', description: '返回条数，默认 10', default: 10 },
+        kind: { type: 'string', description: '按类型过滤：finding/question/review/proposal' },
+      },
+      output: {
+        schema: { type: 'object', properties: { posts: { type: 'array', items: { type: 'object', additionalProperties: true } }, total: { type: 'number' } }, additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 15000,
+      execute: async (args: any) => {
+        const tag = args.kind ? `kind:${args.kind}` : 'office:board';
+        const res: any = await this.aos.memory.search({ query: args.kind ?? 'board', tag, top_k: args.limit ?? 10 });
+        const items: any[] = res?.memories || res?.items || [];
+        const posts = items.map((it: any) => {
+          try { return { ...(typeof it.content === 'string' ? JSON.parse(it.content) : it.content), id: it.id }; }
+          catch { return { title: it.title, id: it.id }; }
+        });
+        return { posts, total: posts.length } as any;
+      },
+    } as any));
+
+    // inbox_check - 查自己的信箱
+    ctx.tools.register(defineTool({
+      name: 'inbox_check',
+      description: '查本窗口的信箱（含离线期间收到的消息）。适用于：上线/空闲时收信；例会时统一处理来信。',
+      parameters: {},
+      output: {
+        schema: { type: 'object', properties: { messages: { type: 'array', items: { type: 'object', additionalProperties: true } }, total: { type: 'number' } }, additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 15000,
+      execute: async (_args: any, exec?: any) => {
+        const window = this.windowCode(String(exec?.agent?.id ?? ''));
+        if (window === '') throw new Error('无法识别当前窗口');
+        const res: any = await this.aos.memory.search({ query: 'msg', tag: `office:inbox:${window}`, top_k: 50 });
+        const items: any[] = res?.memories || res?.items || [];
+        const messages = items.map((it: any) => {
+          try { return typeof it.content === 'string' ? JSON.parse(it.content) : it.content; }
+          catch { return null; }
+        }).filter(Boolean);
+        return { messages, total: messages.length } as any;
       },
     } as any));
   }
