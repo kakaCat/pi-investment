@@ -43,11 +43,9 @@ export default class NotificationPlugin extends Service {
   }
 
   /**
-   * 直发飞书（2026-08-21 能力进化）：Agent OS 的 /notifications/send 路由
-   * 只写 pending 日志从不投递（legacy 断链，8-18 起 7 条积压）；
-   * 且 Agent OS 进程本身会挂（今天实测挂掉），关键通知不能依赖它。
-   * webhook 解析顺序：①插件配置 feishuWebhooks（首选，无中间层依赖）
-   * ②Agent OS 渠道 API（可选回退）。以飞书返回 code=0 为真实送达依据。
+   * 直发飞书（降级兜底路径，方案 C）：主路径 Agent OS 失败/不可达时使用。
+   * webhook 解析顺序：①插件配置 feishuWebhooks（无中间层依赖，Agent OS 全挂也能发）
+   * ②Agent OS 渠道 API（配置单一事实源）。以飞书返回 code=0 为真实送达依据。
    */
   private async sendFeishuDirect(channelCode: string, title: string, content: string, urgency: string): Promise<any> {
     // 1. 解析 webhook：配置优先，Agent OS API 回退
@@ -140,12 +138,27 @@ export default class NotificationPlugin extends Service {
       },
       timeoutMs: 10000,
       execute: async (args: any) => {
-        // 2026-08-21 渠道路由：显式 channel 优先，否则按 urgency 分流
-        // （修复"永远落到第一个 enabled channel"导致的日报/告警混发）
+        // 渠道路由：显式 channel 优先，否则按 urgency 分流
         const urgency = args.urgency || 'normal';
         const channel = args.channel || (urgency === 'high' ? 'alerts' : 'reports');
-        // 2026-08-21：Agent OS 路由只记录不投递（legacy 断链实证），改为插件直发飞书 webhook
-        return await this.sendFeishuDirect(channel, args.title, args.content, urgency) as any;
+        // 2026-08-21 方案 C（用户裁决）：主路径走 Agent OS API（真实发送 + 系统记录/审计日志，
+        // 路由 bug 已由 1d6cab3e 修复）；Agent OS 失败时降级为直发飞书 webhook 兜底，
+        // 兜底结果标记 degraded=true（事后可审计"走了旁路"）。
+        try {
+          const result: any = await aos.notification.send({
+            channel,
+            title: args.title,
+            content: args.content,
+            urgency,
+          });
+          if (result?.success === false) {
+            throw new Error(result?.error || 'Agent OS 返回 success=false');
+          }
+          return { ...result, channel, delivery: 'agent_os' } as any;
+        } catch (e: any) {
+          const fallback = await this.sendFeishuDirect(channel, args.title, args.content, urgency);
+          return { ...fallback, degraded: true, fallback_reason: String(e?.message ?? e) } as any;
+        }
       },
     } as any));
 
@@ -194,11 +207,24 @@ export default class NotificationPlugin extends Service {
       },
       timeoutMs: 10000,
       execute: async (args: any) => {
-        // feishu 渠道直发（Agent OS 路由不投递）；其他渠道仍走 Agent OS（可能不投递，返回中带警示）
+        // feishu 渠道：同 feishu_notify 的方案 C（Agent OS 主路径 + 直发兜底）；
+        // webhook/email 渠道仍走 Agent OS
         if (args.channel === 'feishu') {
           const urgency = args.urgency || 'normal';
           const channelCode = urgency === 'high' ? 'alerts' : 'reports';
-          return await this.sendFeishuDirect(channelCode, args.title, args.content, urgency) as any;
+          try {
+            const result: any = await aos.notification.send({
+              channel: channelCode,
+              title: args.title,
+              content: args.content,
+              urgency,
+            });
+            if (result?.success === false) throw new Error(result?.error || 'success=false');
+            return { ...result, channel: channelCode, delivery: 'agent_os' } as any;
+          } catch (e: any) {
+            const fallback = await this.sendFeishuDirect(channelCode, args.title, args.content, urgency);
+            return { ...fallback, degraded: true, fallback_reason: String(e?.message ?? e) } as any;
+          }
         }
         const result: any = await aos.notification.send({
           channel: args.channel,
@@ -206,10 +232,7 @@ export default class NotificationPlugin extends Service {
           content: args.content,
           urgency: args.urgency || 'normal',
         });
-        return {
-          ...result,
-          warning: '注意：Agent OS 通知路由当前只记录不投递（legacy 断链），webhook/email 渠道请先验证投递状态',
-        } as any;
+        return result as any;
       },
     } as any));
 
