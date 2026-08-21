@@ -40,7 +40,7 @@ class DecisionScoreService:
                  bench_klines_provider: Optional[Callable] = None,
                  mature_window: int = 20):
         if decision_repo is None:
-            from adapters.outbound.repositories.agent_intelligence_repository import (
+            from domain.ports.repository_ports_extended import (
                 IAgentIntelligenceRepository,
             )
             decision_repo = IAgentIntelligenceRepository()

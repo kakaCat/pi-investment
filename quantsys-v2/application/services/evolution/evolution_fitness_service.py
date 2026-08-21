@@ -29,7 +29,7 @@ class EvolutionFitnessService:
             from domain.ports import ISimulationRepository
             sim_repo = ISimulationRepository()
         if fitness_repo is None:
-            from adapters.outbound.repositories.evolution_fitness_repository import (
+            from domain.ports.repository_ports_extended import (
                 EvolutionFitnessORMRepository,
             )
             fitness_repo = EvolutionFitnessORMRepository()

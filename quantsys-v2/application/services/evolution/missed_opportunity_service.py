@@ -34,7 +34,7 @@ class MissedOpportunityService:
         if signal_repo is None:
                         signal_repo = ISignalRepository()
         if decision_repo is None:
-            from adapters.outbound.repositories.agent_intelligence_repository import (
+            from domain.ports.repository_ports_extended import (
                 IAgentIntelligenceRepository,
             )
             decision_repo = IAgentIntelligenceRepository()

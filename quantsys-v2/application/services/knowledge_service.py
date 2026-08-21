@@ -7,7 +7,7 @@ import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from adapters.outbound.repositories.agent_knowledge_repository import (
+from domain.ports.repository_ports_extended import (
     IAgentKnowledgeRepository
 )
 
