@@ -181,13 +181,36 @@ export default class MarketPlugin extends Service {
         const adRatio = Number(s?.indicators?.advanceDecline?.ratio ?? 1);
         const volRatio = Number(s?.indicators?.volume?.volumeRatio ?? 1);
 
+        // 2026-08-21 数据质量防线（review 专项）：
+        // ①后端 degraded 标记直通；②指标内部矛盾检测——fg 极端但新高新低中性/
+        //   指数 5 日收益为负 → 标记冲突、降置信；③涨跌家数样本过小（<1000 只，
+        //   全市场 5000+）说明是非全市场样本，广度指标可信度降权
+        const degraded = s?.degraded === true;
+        const adSampleSize = Number(s?.indicators?.advanceDecline?.upCount ?? 0) + Number(s?.indicators?.advanceDecline?.downCount ?? 0);
+        const avgRet5d = Number(s?.indicators?.indexPerformance?.avgReturn5DPct ?? 0);
+        const nhSignal = s?.indicators?.newHighLow?.signal ?? 'neutral';
+        const conflicts: string[] = [];
+        if (fg >= 80 && (nhSignal === 'neutral' || avgRet5d < 0)) {
+          conflicts.push(`fg=${fg} 极端贪婪但新高新低=${nhSignal}、指数5日收益=${avgRet5d}%——指标矛盾`);
+        }
+        if (fg <= 20 && nhSignal === 'neutral' && avgRet5d > 0) {
+          conflicts.push(`fg=${fg} 极端恐慌但新高新低中性、指数5日收益为正——指标矛盾`);
+        }
+        if (adSampleSize > 0 && adSampleSize < 1000) {
+          conflicts.push(`涨跌家数样本仅 ${adSampleSize} 只（全市场 5000+），广度指标非全市场口径`);
+        }
+
         // regime 分类（情绪维度；趋势维度待 M0 指数K线）
+        // 数据降级或有矛盾时，极端判定降级为方向性判定并显著降置信
         let regime = 'sideways';
         let reason = '情绪中性区间震荡';
         if (fg <= 20) { regime = 'panic'; reason = `恐慌贪婪指数 ${fg} ≤ 20，恐慌市`; }
         else if (fg >= 80) { regime = 'euphoria'; reason = `恐慌贪婪指数 ${fg} ≥ 80，狂热市`; }
         else if (adRatio >= 1.5 && volRatio >= 1.2) { regime = 'risk_on'; reason = `涨跌比 ${adRatio}≥1.5 且量能比 ${volRatio}≥1.2，偏多`; }
         else if (adRatio <= 0.67 && volRatio <= 0.9) { regime = 'risk_off'; reason = `涨跌比 ${adRatio}≤0.67 且量能比 ${volRatio}≤0.9，偏空缩量`; }
+        if ((regime === 'panic' || regime === 'euphoria') && (degraded || conflicts.length > 0)) {
+          reason += `（⚠️ 数据降级/指标矛盾，极端判定可信度低）`;
+        }
 
         const evidence = {
           fearGreedIndex: fg,
@@ -196,6 +219,8 @@ export default class MarketPlugin extends Service {
           sentimentScore: s?.sentimentScore,
           sentimentLevel: s?.sentimentLevel,
           reason,
+          data_quality: degraded ? 'degraded' : 'ok',
+          conflicts: conflicts.length > 0 ? conflicts : null,
           data_gap: '指数K线趋势维度缺失（M0 待补），当前仅情绪+量能维度',
         };
 
@@ -206,7 +231,7 @@ export default class MarketPlugin extends Service {
           content: `${today} 市场 regime = ${regime}（${reason}）。恐慌贪婪=${fg}，涨跌比=${adRatio}，量能比=${volRatio}。`,
           payload: { date: today, regime, evidence },
           status: 'testing',
-          confidence: 0.7,
+          confidence: degraded || conflicts.length > 0 ? 0.35 : 0.7,
           source: 'regime_daily',
           provenance: { channel: 'dsh', session_kind: 'agent' },
         });

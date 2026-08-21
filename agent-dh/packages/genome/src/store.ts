@@ -129,10 +129,10 @@ export function gitCommit(
     // git add 全部（sections/ + genome.json + CHANGELOG.md + .gitignore；genome.lock/*.tmp 已被 .gitignore 排除）
     execSync('git add -A', { cwd: genomeDir, stdio: 'pipe' });
 
-    // 结构化 commit message
+    // 结构化 commit message（2026-08-21 精简：rollback 不再重复 "rollback to"，reason 里也不应再带"回滚到"）
     const action = type === 'rollback' ? 'rollback' : type === 'promote' ? 'promote' : 'update';
     const versionChange = type === 'rollback'
-      ? `rollback to v${rollbackTarget ?? newVersion}`
+      ? `→ v${rollbackTarget ?? newVersion}`
       : type === 'promote'
         ? `v${newVersion} candidate→active`
         : `v${oldVersion}→v${newVersion}`;

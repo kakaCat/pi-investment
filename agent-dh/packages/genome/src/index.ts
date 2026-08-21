@@ -704,14 +704,14 @@ export default class GenomePlugin extends Service {
               newGenomeData.history![newGenomeData.history!.length - 1]
             );
 
-            // git commit（回滚也是一次提交；标签用新代数，message 含回滚目标版本）
+            // git commit（回滚也是一次提交；标签用新代数，message 模板已含回滚目标版本，reason 不再重复）
             const gitHash = gitCommit(
               this.genomeDir,
               newGenomeData.genome_version,
               section,
               oldVersion,
               newVersion,
-              `回滚到 v${targetVersion}: ${reason}`,
+              reason,
               'rollback',
               targetVersion
             );

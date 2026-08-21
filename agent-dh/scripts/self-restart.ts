@@ -5,8 +5,8 @@
  * 约束: 自包含，只准 import node 内置模块。
  */
 import { execFileSync, spawn } from 'node:child_process';
-import { appendFileSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 const [pidS, portS, repoRoot, stateDir, startScript, logPath] = process.argv.slice(2);
 const pid = Number(pidS);
@@ -14,6 +14,34 @@ const port = Number(portS);
 // 测试/调优钩子：环境变量覆盖等待时长（生产缺省 5s 启动延迟、120s 健康检查）
 const PRE_KILL_DELAY_MS = Number(process.env.SELF_RESTART_PRE_KILL_DELAY_MS) || 5000;
 const HEALTH_TIMEOUT_MS = Number(process.env.SELF_RESTART_HEALTH_TIMEOUT_MS) || 120_000;
+
+// A-5（2026-08-21）：profile 侧配置文件（cordis.patch.yml/package.json）不在 git 安全网内，
+// 若新插件配置导致启动失败，git 回滚救不回来（patch.yml 仍引用坏插件 → boot loop）。
+// 每次重启前备份，回滚路径先恢复配置再重拉。
+const profileDir = dirname(startScript);
+const configBackupDir = join(stateDir, 'config-backup-auto');
+const PROFILE_CONFIGS = ['cordis.patch.yml', 'package.json'];
+
+function backupProfileConfigs(): void {
+  try {
+    mkdirSync(configBackupDir, { recursive: true });
+    for (const f of PROFILE_CONFIGS) {
+      const src = join(profileDir, f);
+      if (existsSync(src)) copyFileSync(src, join(configBackupDir, f));
+    }
+    log('profile configs backed up');
+  } catch (e) { log(`config backup failed (non-fatal): ${String(e)}`); }
+}
+
+function restoreProfileConfigs(): void {
+  try {
+    for (const f of PROFILE_CONFIGS) {
+      const bak = join(configBackupDir, f);
+      if (existsSync(bak)) copyFileSync(bak, join(profileDir, f));
+    }
+    log('profile configs restored from backup');
+  } catch (e) { log(`config restore failed (non-fatal): ${String(e)}`); }
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const log = (msg: string) => {
@@ -83,6 +111,8 @@ async function main(): Promise<void> {
   await sleep(PRE_KILL_DELAY_MS); // 给 agent 留时间输出完回复、落盘会话
   await killOld();
 
+  backupProfileConfigs();  // A-5：拉起前先备份 profile 配置
+
   // 预写结果：新进程的 lifecycle 插件在构造期（早于 HTTP 监听）读 restart-result.json，
   // 若等健康检查通过后才写，插件读到的是上一周期的旧结果（rolled_back 会被误报为成功）。
   // 结果文件只被成功启动的进程读取，预写不产生谎言窗口。
@@ -106,6 +136,7 @@ async function main(): Promise<void> {
   }
   // 同样预写：回滚后的第二次启动，插件构造期必须能读到 rolled_back
   writeResultFile({ status: 'rolled_back', failed_branch: pending.checkpoint_branch, log_path: logPath });
+  restoreProfileConfigs();  // A-5：git 回滚不管 profile 配置，必须先恢复再重拉
   startAgent();
   if (await waitPort(HEALTH_TIMEOUT_MS)) {
     log('rollback boot ok');
