@@ -171,7 +171,7 @@ export default class MarketPlugin extends Service {
 
         // 幂等检查：今日已落库则跳过
         const existing = await qv2.searchMemory({ q: `regime ${today}`, scope: 'market:regime', limit: 3 });
-        const dup = (existing?.items || []).find((it: any) => it.payload?.date === today);
+        const dup = (existing?.items || []).find((it: any) => it.payload?.date === today && it.status !== 'deprecated');  // 已弃用记录不算重复
         if (dup) {
           return { date: today, regime: dup.payload?.regime, evidence: dup.payload?.evidence, skipped: true } as any;
         }
@@ -213,7 +213,7 @@ export default class MarketPlugin extends Service {
 
         // M1-3 情绪时间序列同步落库（同一数据源，一条记录）
         const dupSent = (await qv2.searchMemory({ q: `sentiment ${today}`, scope: 'market:sentiment', limit: 3 }))
-          ?.items?.find((it: any) => it.payload?.date === today);
+          ?.items?.find((it: any) => it.payload?.date === today && it.status !== 'deprecated');  // 已弃用记录不算重复
         if (!dupSent) {
           await qv2.createMemory({
             kind: 'episode',
@@ -256,7 +256,7 @@ export default class MarketPlugin extends Service {
         const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
 
         const existing = await qv2.searchMemory({ q: `mainline ${today}`, scope: 'market:mainline', limit: 3 });
-        const dup = (existing?.items || []).find((it: any) => it.payload?.date === today);
+        const dup = (existing?.items || []).find((it: any) => it.payload?.date === today && it.status !== 'deprecated');  // 已弃用记录不算重复
         if (dup) {
           return { date: today, mainlines: dup.payload?.mainlines, skipped: true } as any;
         }
