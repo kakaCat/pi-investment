@@ -2,10 +2,12 @@
 财务分析服务 - v2 原生实现
 提供财务指标、估值分析、现金流分析、利润表分析、质量筛选
 """
+from domain.ports import IFinancialRepository, IKlineRepository
 import structlog
 import pandas as pd
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+from domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 
@@ -15,7 +17,8 @@ class FinancialAnalysisService:
 
     def __init__(self):
         self.logger = structlog.get_logger(__name__)
-        from adapters.outbound.datasources import get_data_provider_manager
+            # 延迟导入避免顶层依赖
+            from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
 
     def get_financial_indicators(self, symbol: str) -> Dict[str, Any]:
@@ -68,9 +71,8 @@ class FinancialAnalysisService:
 
             # 2. Fallback 到数据库（直接查询）
             try:
-                from adapters.outbound.repositories import FinancialRepository
-
-                financial_repo = FinancialORMRepository()
+                
+                financial_repo = IFinancialRepository()
                 income_data = financial_repo.get_income_statements(symbol, period_type='Y', limit=5)
                 balance_data = financial_repo.get_balance_sheets(symbol, period_type='Y', limit=5)
 
@@ -181,11 +183,9 @@ class FinancialAnalysisService:
 
             # 方案2: 从财务报表和股价计算 PE/PB（降级方案）
             try:
-                from adapters.outbound.repositories import FinancialRepository
-                from adapters.outbound.repositories import KlineORMRepository
-
-                financial_repo = FinancialORMRepository()
-                kline_repo = KlineORMRepository()
+                                
+                financial_repo = IFinancialRepository()
+                kline_repo = IKlineRepository()
 
                 # 获取最新股价
                 latest_kline = kline_repo.get_latest_daily_kline(symbol)

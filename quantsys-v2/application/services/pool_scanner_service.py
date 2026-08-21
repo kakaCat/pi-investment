@@ -7,6 +7,7 @@
 3. 生成扫描报告
 4. 通知发现的买入机会
 """
+from domain.ports import IKlineRepository, IStockPoolRepository, IStrategyRepository
 import structlog
 from typing import List, Dict, Optional
 from datetime import datetime, time
@@ -43,10 +44,9 @@ class PoolScannerService:
         Returns:
             扫描结果字典
         """
-        from adapters.outbound.repositories import StockPoolORMRepository
-        from application.services.strategy_code_service import StrategyCodeService
+                from application.services.strategy_code_service import StrategyCodeService
 
-        pool_repo = StockPoolORMRepository()
+        pool_repo = IStockPoolRepository()
         strategy_service = StrategyCodeService()
 
         # 1. 获取股票池
@@ -77,12 +77,10 @@ class PoolScannerService:
                 try:
                     # 使用 PoolSignalScanner 实时检测信号
                     from application.services.pool_signal_scanner import PoolSignalScanner
-                    from adapters.outbound.repositories import KlineORMRepository
-                    from adapters.outbound.repositories import StrategyORMRepository
-
+                                        
                     # 使用 BaseRepository 的方式创建实例（不需要显式传session）
-                    kline_repo = KlineORMRepository()
-                    strategy_repo = StrategyORMRepository()
+                    kline_repo = IKlineRepository()
+                    strategy_repo = IStrategyRepository()
                     scanner = PoolSignalScanner(kline_repo, strategy_repo)
 
                     # 扫描单只股票
@@ -139,12 +137,11 @@ class PoolScannerService:
             信号详情，如果无信号返回None
         """
         try:
-            from adapters.outbound.repositories import KlineORMRepository
-            from domain.strategies.strategy_factory import StrategyFactory
+                        from domain.strategies.strategy_factory import StrategyFactory
             from datetime import datetime, timedelta
 
             # 1. 获取K线数据
-            kline_repo = KlineORMRepository()
+            kline_repo = IKlineRepository()
             end_date = datetime.now().date()
             start_date = end_date - timedelta(days=30)
 
@@ -182,12 +179,11 @@ class PoolScannerService:
             信号详情，如果无信号返回None
         """
         try:
-            from adapters.outbound.repositories import KlineORMRepository
-            import pandas as pd
+                        import pandas as pd
             import numpy as np
             from datetime import datetime, timedelta
 
-            kline_repo = KlineORMRepository()
+            kline_repo = IKlineRepository()
 
             # 1. 获取最近30天的K线数据
             end_date = datetime.now().date()
@@ -356,9 +352,8 @@ class PoolScannerService:
         Returns:
             汇总扫描结果
         """
-        from adapters.outbound.repositories import StockPoolORMRepository
-
-        pool_repo = StockPoolORMRepository()
+        
+        pool_repo = IStockPoolRepository()
         pools = pool_repo.get_all_pools()
 
         all_signals = []

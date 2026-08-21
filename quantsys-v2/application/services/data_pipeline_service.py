@@ -1,5 +1,6 @@
 """DataPipelineService - Orchestrates the 8-stage data processing pipeline."""
 
+from domain.ports import IFactorRepository, IKlineRepository
 import structlog
 from typing import List, Optional
 import yaml
@@ -14,7 +15,6 @@ from domain.quantlib.stages.data_pipeline.imputation_stage import ImputationStag
 from domain.quantlib.stages.data_pipeline.storage_stage import StorageStage
 from domain.quantlib.stages.data_pipeline.factor_compute_stage import FactorComputeStage
 from domain.quantlib.data_validator import DataValidator
-from adapters.outbound.repositories import KlineORMRepository, FactorORMRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -251,13 +251,13 @@ class DataPipelineService:
         stages.append(ImputationStage())
 
         # Stage 7: Storage (Application 层注入具体仓储,domain 只依赖接口)
-        kline_repo = KlineORMRepository()
+        kline_repo = IKlineRepository()
         stages.append(StorageStage(kline_repo=kline_repo))
 
         # Stage 8: Factor Compute
         stages.append(FactorComputeStage(
             kline_repo=kline_repo,
-            factor_repo=FactorORMRepository()
+            factor_repo=IFactorRepository()
         ))
 
         logger.info(f"Built pipeline with {len(stages)} stages")

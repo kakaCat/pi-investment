@@ -5,6 +5,7 @@
 Author: System Migration
 Date: 2026-06-27
 """
+from domain.ports import IKlineRepository, IStockRepository, IStrategyRepository
 import structlog
 from typing import Dict, Any, Callable
 from datetime import datetime, date, timedelta
@@ -55,8 +56,7 @@ def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
     # 获取股票列表
     try:
-        from adapters.outbound.repositories.stock_repository import StockORMRepository
-        repo = StockORMRepository()
+                repo = IStockRepository()
         stocks = repo.get_all(limit=500)
         symbols = [s['symbol'] for s in stocks]
     except Exception as e:
@@ -200,8 +200,7 @@ def _scan_pool_signals_by_name(
     Returns: 买入/卖出信号列表，每个信号附带 pool/strategy_id/signal_type。
     """
     from application.services.pool_signal_scanner import PoolSignalScanner
-    from adapters.outbound.repositories import KlineORMRepository, StrategyORMRepository
-    from adapters.shared.services import stock_pool_service
+        from adapters.shared.services import stock_pool_service
 
     strategy_ids = strategy_ids or DEFAULT_SCAN_STRATEGY_IDS
 
@@ -214,7 +213,7 @@ def _scan_pool_signals_by_name(
     if not symbols:
         return []
 
-    scanner = PoolSignalScanner(KlineORMRepository(), StrategyORMRepository())
+    scanner = PoolSignalScanner(IKlineRepository(), IStrategyRepository())
     signals = []
     for strategy_id in strategy_ids:
         result = scanner.scan_pool_signals(
@@ -525,8 +524,7 @@ def handle_backtest_run(params: Dict[str, Any] = None) -> Dict[str, Any]:
         strategy_ids = params.get('strategy_ids')
         if not strategy_ids:
             # 获取所有启用的策略
-            from adapters.outbound.repositories import StrategyORMRepository
-            repo = StrategyORMRepository()
+                        repo = IStrategyRepository()
             strategies = repo.list_enabled_strategies(limit=10)
             strategy_ids = [s.id for s in strategies]
 
@@ -593,8 +591,7 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
         # 获取股票列表（如果没有指定）
         symbols = params.get('symbols')
         if not symbols:
-            from adapters.outbound.repositories.stock_repository import StockORMRepository
-            repo = StockORMRepository()
+                        repo = IStockRepository()
             stocks = repo.get_all(limit=params.get('max_symbols', 500))
             symbols = [s['symbol'] for s in stocks]
 
@@ -678,8 +675,7 @@ def handle_model_train(params: Dict[str, Any] = None) -> Dict[str, Any]:
         # 获取训练数据
         symbols = params.get('symbols')
         if not symbols:
-            from adapters.outbound.repositories.stock_repository import StockORMRepository
-            repo = StockORMRepository()
+                        repo = IStockRepository()
             stocks = repo.get_all(limit=100)
             symbols = [s['symbol'] for s in stocks]
 
@@ -831,8 +827,7 @@ def handle_financial_data_update(params: Dict[str, Any] = None) -> Dict[str, Any
         # 获取股票列表
         symbols = params.get('symbols')
         if not symbols:
-            from adapters.outbound.repositories.stock_repository import StockORMRepository
-            repo = StockORMRepository()
+                        repo = IStockRepository()
             stocks = repo.list_by_market(market='A', limit=500)
             symbols = [s.symbol for s in stocks]
 
@@ -1009,8 +1004,7 @@ def handle_strategy_discover_weekly(params: Dict[str, Any] = None) -> Dict[str, 
         # 获取股票池
         symbols = params.get('symbols')
         if not symbols:
-            from adapters.outbound.repositories.stock_repository import StockORMRepository
-            repo = StockORMRepository()
+                        repo = IStockRepository()
             stocks = repo.get_all(limit=50)  # 限制数量避免太慢
             symbols = [s['symbol'] for s in stocks]
 

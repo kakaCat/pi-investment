@@ -16,7 +16,7 @@ import structlog
 from datetime import date
 
 from application.services.data_service import DataService
-from adapters.outbound.repositories import RiskConfigORMRepository
+from domain.ports import IRiskConfigRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -26,7 +26,7 @@ class RiskCheckService:
 
     def __init__(self, ds: DataService, config_name: str = 'default'):
         self.ds = ds
-        self.config_repo = RiskConfigORMRepository()
+        self.config_repo = IRiskConfigRepository()
         self.config = self.config_repo.get_config(config_name)
 
         if not self.config:

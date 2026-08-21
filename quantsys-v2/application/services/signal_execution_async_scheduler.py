@@ -8,12 +8,11 @@
 4. 为通过的信号创建订单
 5. 更新信号状态并记录日志
 """
+from domain.ports import ISignalRepository, IStrategyRepository
 from typing import Dict, Any, List
 from datetime import datetime, date
 import structlog
 
-from adapters.outbound.repositories.signal_async_repository import SignalAsyncRepository
-from adapters.outbound.repositories.strategy_async_repository import StrategyAsyncRepository
 from infrastructure.persistence.orm.async_config import get_async_session_context
 
 logger = structlog.get_logger(__name__)
@@ -75,7 +74,7 @@ class SignalExecutionAsyncScheduler:
         """收集今日待处理信号"""
         try:
             async with get_async_session_context() as session:
-                signal_repo = SignalAsyncRepository(session)
+                signal_repo = ISignalRepository(session)
                 signals = await signal_repo.get_pending_signals(limit=1000)
                 logger.info(f"收集到 {len(signals)} 个待处理信号")
                 return signals
@@ -107,7 +106,7 @@ class SignalExecutionAsyncScheduler:
         """更新信号状态"""
         try:
             async with get_async_session_context() as session:
-                signal_repo = SignalAsyncRepository(session)
+                signal_repo = ISignalRepository(session)
 
                 # 更新通过的信号
                 for signal in approved_signals:

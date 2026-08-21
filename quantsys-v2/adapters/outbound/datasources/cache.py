@@ -9,14 +9,18 @@ import hashlib
 import logging
 from typing import Any, Optional, Dict
 
+from domain.ports.datasource_ports import ICacheService
+
 logger = logging.getLogger(__name__)
 
 # Type alias for cached responses
 DataSourceResponse = Any
 
 
-class DataSourceCache:
+class DataSourceCache(ICacheService):
     """TTL-based cache for data source responses.
+
+    实现 ICacheService 接口
 
     Caches successful responses to reduce API calls and improve performance.
 

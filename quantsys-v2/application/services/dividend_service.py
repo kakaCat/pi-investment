@@ -8,10 +8,10 @@ import pandas as pd
 import structlog
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from domain.ports.datasource_ports import IDataProviderManager
 
 from application.services.base_service import ServiceBase
 from application.services.dividend_data_source import EastMoneyDividendSource, DividendDataSource
-from adapters.outbound.datasources import get_data_provider_manager
 
 logger = structlog.get_logger(__name__)
 
@@ -29,6 +29,8 @@ class DividendService(ServiceBase):
         super().__init__()
         self.data_source = data_source or EastMoneyDividendSource()
         # TODO: Phase 3 future work - migrate methods to use provider_manager
+            # 延迟导入避免顶层依赖
+            from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
 
     def get_stock_dividends(self, symbol: str, years: int = 10) -> Dict:

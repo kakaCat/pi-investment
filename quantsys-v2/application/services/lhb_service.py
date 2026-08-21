@@ -7,9 +7,9 @@ from typing import List, Dict, Optional
 import pandas as pd
 import structlog
 from datetime import datetime, timedelta
+from domain.ports.datasource_ports import ILhbDataSource
 
 from application.services.base_service import ServiceBase
-from adapters.outbound.datasources.lhb_source import LhbDataSource
 
 logger = structlog.get_logger(__name__)
 

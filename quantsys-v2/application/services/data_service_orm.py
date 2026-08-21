@@ -6,25 +6,24 @@
 
 迁移状态：✅ 已完成ORM迁移
 """
+from domain.ports import IRiskRepository, ISignalExecutionRepository
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 import structlog
 import polars as pl
 
 # 使用ORM Repository
-from adapters.outbound.repositories import (
-    StockORMRepository,
-    KlineORMRepository,
-    SignalORMRepository,
-    SimulationORMRepository,
-    PortfolioORMRepository,
-    FactorORMRepository,
-    BacktestORMRepository
+from domain.ports.repository_ports_extended import (
+    IStockRepository,
+    IKlineRepository,
+    ISignalRepository,
+    ISimulationRepository,
+    IPortfolioRepository,
+    IFactorRepository,
+    IBacktestRepository
 )
 
 # 保留原有Repository用于未迁移的功能
-from adapters.outbound.repositories import RiskORMRepository
-from adapters.outbound.repositories import SignalExecutionORMRepository
 
 from infrastructure.config import CACHE_TTL, CACHE_NAMESPACE
 from infrastructure.persistence.orm import close_session
@@ -57,17 +56,17 @@ class DataServiceORM:
             cache_manager: 可选的缓存管理器（支持look-aside模式）
         """
         # ORM Repository
-        self.stock = StockORMRepository()
-        self.kline = KlineORMRepository()
-        self.signal = SignalORMRepository()
-        self.simulation = SimulationORMRepository()
-        self.portfolio = PortfolioORMRepository()
-        self.factor = FactorORMRepository()
-        self.backtest = BacktestORMRepository()
+        self.stock = IStockRepository()
+        self.kline = IKlineRepository()
+        self.signal = ISignalRepository()
+        self.simulation = ISimulationRepository()
+        self.portfolio = IPortfolioRepository()
+        self.factor = IFactorRepository()
+        self.backtest = IBacktestRepository()
 
         # 原生Repository（待迁移）
-        self.risk = RiskORMRepository()
-        self.execution = SignalExecutionORMRepository()
+        self.risk = IRiskRepository()
+        self.execution = ISignalExecutionRepository()
 
         self._cache = cache_manager
 

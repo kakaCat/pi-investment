@@ -5,6 +5,7 @@
 import structlog
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
+from domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 
@@ -15,31 +16,48 @@ class TechnicalAnalysisService:
     def __init__(self):
         self.logger = structlog.get_logger(__name__)
 
-    def _fetch_kline_df(self, symbol: str, min_days: int):
-        """通过统一数据访问层获取日K DataFrame（保持 akshare 中文列名契约）。
+    def _get_klines_df(self, symbol: str, period_days: int = 60) -> Optional['pd.DataFrame']:
+        """通过 DataProviderManager 获取K线数据并转为 DataFrame
 
-        替代原先直接 ak.stock_zh_a_hist 调用（Phase 3 数据访问治理）。
-        返回 None 表示获取失败。
+        Args:
+            symbol: 股票代码（6位数字）
+            period_days: 获取多少天的数据
+
+        Returns:
+            pandas DataFrame（中文列名，与 akshare 格式兼容）或 None
         """
         import pandas as pd
-        from adapters.outbound.datasources.manager import get_data_provider_manager
 
         end_date = datetime.now().strftime('%Y-%m-%d')
-        start_date = (datetime.now() - timedelta(days=max(min_days * 3, 120))).strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=period_days)).strftime('%Y-%m-%d')
 
-        result = get_data_provider_manager().get_klines(symbol, 'daily', start_date, end_date)
+        manager: IDataProviderManager = get_data_provider_manager()
+        result = manager.get_klines(symbol, 'daily', start_date, end_date)
+
         if not result.get('success') or not result.get('data'):
             return None
 
-        df = pd.DataFrame([{
-            '日期': k.date,
-            '开盘': k.open,
-            '收盘': k.close,
-            '最高': k.high,
-            '最低': k.low,
-            '涨跌幅': k.change_pct,
-            '成交量': k.volume // 100,  # 统一层单位为股，恢复 akshare 的"手"契约
-        } for k in result['data']])
+        klines = result['data']
+        if not klines or len(klines) == 0:
+            return None
+
+        # 将 KlineData 列表转为 DataFrame，使用中文列名兼容现有逻辑
+        records = []
+        for k in klines:
+            records.append({
+                '日期': k.date,
+                '开盘': k.open,
+                '收盘': k.close,
+                '最高': k.high,
+                '最低': k.low,
+                '成交量': k.volume,
+                '成交额': k.amount,
+                '涨跌幅': k.change_pct,
+            })
+
+        df = pd.DataFrame(records)
+        # 按日期排序
+        df = df.sort_values('日期').reset_index(drop=True)
         return df
 
     def analyze_price_action(self, symbol: str, period: int = 60) -> Dict[str, Any]:
@@ -59,8 +77,8 @@ class TechnicalAnalysisService:
             self.logger.info(f"价格行为分析: symbol={symbol}, period={period}")
 
             try:
-                # 获取历史K线数据（统一数据访问层：database → akshare 自动降级）
-                df = self._fetch_kline_df(symbol, period)
+                # 获取历史K线数据（通过 DataProviderManager）
+                df = self._get_klines_df(symbol, period_days=period + 10)
 
                 if df is None or df.empty:
                     return {
@@ -140,7 +158,7 @@ class TechnicalAnalysisService:
         """
         try:
             import pandas as pd
-            from adapters.outbound.repositories import KlineORMRepository
+            from domain.ports import IKlineRepository
 
             self.logger.info(f"计算买入区间: symbol={symbol}")
 
@@ -148,7 +166,7 @@ class TechnicalAnalysisService:
             end_date = datetime.now().strftime('%Y-%m-%d')
             start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
 
-            kline_repo = KlineORMRepository()
+            kline_repo = IKlineRepository()
             # 确保 symbol 有后缀
             if '.' not in symbol:
                 symbol_with_suffix = symbol + ('.SH' if symbol.startswith('6') else '.SZ')
@@ -226,12 +244,12 @@ class TechnicalAnalysisService:
             包含退出计划的字典
         """
         try:
+
             self.logger.info(f"获取退出计划: symbol={symbol}, entry_price={entry_price}")
 
             try:
                 # 使用 KlineRepository 从数据库获取历史数据
-                from datetime import datetime, timedelta
-                from adapters.outbound.repositories import KlineORMRepository
+                from domain.ports import IKlineRepository
 
                 end_date = datetime.now().strftime('%Y-%m-%d')
                 start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
@@ -242,7 +260,7 @@ class TechnicalAnalysisService:
                 else:
                     symbol_with_suffix = symbol
 
-                kline_repo = KlineORMRepository()
+                kline_repo = IKlineRepository()
                 klines = kline_repo.get_daily_klines(symbol_with_suffix, start_date, end_date)
 
                 if not klines or len(klines) == 0:
@@ -286,7 +304,7 @@ class TechnicalAnalysisService:
         except ImportError:
             return {
                 'success': False,
-                'error': '依赖模块不可用',
+                'error': '模块不可用',
                 'data': None
             }
         except Exception as e:
@@ -314,8 +332,8 @@ class TechnicalAnalysisService:
             self.logger.info(f"K线形态分析: symbol={symbol}, period={period}")
 
             try:
-                # 获取K线数据（统一数据访问层：database → akshare 自动降级）
-                df = self._fetch_kline_df(symbol, period)
+                # 获取K线数据（通过 DataProviderManager）
+                df = self._get_klines_df(symbol, period_days=period + 5)
 
                 if df is None or df.empty:
                     return {
@@ -325,19 +343,11 @@ class TechnicalAnalysisService:
                     }
 
                 df = df.tail(period)
-
-                # 简化版形态识别
                 latest = df.iloc[-1]
-                prev = df.iloc[-2] if len(df) > 1 else latest
-
                 patterns = []
 
-                # 检测阳线/阴线
-                if latest['收盘'] > latest['开盘']:
-                    patterns.append('阳线')
-                elif latest['收盘'] < latest['开盘']:
-                    patterns.append('阴线')
-                else:
+                # 检测十字星
+                if abs(float(latest['收盘']) - float(latest['开盘'])) < 0.01 * float(latest['收盘']):
                     patterns.append('十字星')
 
                 # 检测趋势

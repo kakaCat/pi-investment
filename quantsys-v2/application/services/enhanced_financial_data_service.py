@@ -11,8 +11,7 @@ import structlog
 from typing import Optional, Dict, Any
 from application.services.financial_data_service import FinancialDataService
 from application.services.financial_providers import FinancialData
-from adapters.outbound.datasources.cache import DataSourceCache
-from adapters.outbound.datasources.circuit_breaker import CircuitBreaker
+from domain.ports.datasource_ports import ICacheService, ICircuitBreaker
 
 logger = structlog.get_logger(__name__)
 

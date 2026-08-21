@@ -3,12 +3,11 @@
 
 简化的回测引擎，支持策略回测
 """
+from domain.ports import IAsyncKlineRepository, IBacktestRepository
 from typing import Dict, Any, List, Optional
 from datetime import datetime, date
 import structlog
 
-from adapters.outbound.repositories.backtest_async_repository import BacktestAsyncRepository
-from adapters.outbound.repositories.stock_async_repository import DailyKlineAsyncRepository
 from infrastructure.persistence.orm.async_config import get_async_session_context
 
 logger = structlog.get_logger(__name__)
@@ -78,7 +77,7 @@ class BacktestAsyncEngine:
         """获取K线数据"""
         try:
             async with get_async_session_context() as session:
-                kline_repo = DailyKlineAsyncRepository(session)
+                kline_repo = IAsyncKlineRepository(session)
                 klines = await kline_repo.get_klines(
                     symbol,
                     start_date,
@@ -124,7 +123,7 @@ class BacktestAsyncEngine:
         """保存回测结果"""
         try:
             async with get_async_session_context() as session:
-                backtest_repo = BacktestAsyncRepository(session)
+                backtest_repo = IBacktestRepository(session)
                 backtest_id = await backtest_repo.create_backtest(result)
                 return backtest_id
 
@@ -140,7 +139,7 @@ class BacktestAsyncEngine:
         """获取最近的回测结果"""
         try:
             async with get_async_session_context() as session:
-                backtest_repo = BacktestAsyncRepository(session)
+                backtest_repo = IBacktestRepository(session)
                 backtests = await backtest_repo.list_backtests(
                     strategy_name=strategy_name,
                     limit=limit
@@ -159,7 +158,7 @@ class BacktestAsyncEngine:
         """获取表现最好的策略"""
         try:
             async with get_async_session_context() as session:
-                backtest_repo = BacktestAsyncRepository(session)
+                backtest_repo = IBacktestRepository(session)
                 backtests = await backtest_repo.get_best_backtests(
                     min_sharpe_ratio=min_sharpe,
                     limit=limit

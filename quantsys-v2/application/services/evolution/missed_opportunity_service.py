@@ -5,6 +5,7 @@
 信号后涨=负分（踏空），跌=正分（正确观望）。
 防奖励投机：agent 无法靠"少交易"逃避评分（总设计 §7）。
 """
+from domain.ports import IKlineRepository, ISignalRepository
 import logging
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -18,7 +19,7 @@ CAPTURABLE_STATUS = ('pending', 'rejected')
 
 
 def _sig_get(signal, key):
-    """Signal 可能是 ORM 对象（SignalORMRepository.get_signals_by_date_range
+    """Signal 可能是 ORM 对象（ISignalRepository.get_signals_by_date_range
     返回 List[Signal]）也可能是 dict（同 ChanKnowledgeDistiller 的兼容处理）。"""
     if isinstance(signal, dict):
         return signal.get(key)
@@ -31,16 +32,14 @@ class MissedOpportunityService:
     def __init__(self, signal_repo=None, decision_repo=None, kline_repo=None,
                  grace_trading_days: int = 5, daily_cap: int = 5):
         if signal_repo is None:
-            from adapters.outbound.repositories.signal_repository import SignalORMRepository
-            signal_repo = SignalORMRepository()
+                        signal_repo = ISignalRepository()
         if decision_repo is None:
-            from adapters.outbound.repositories.agent_intelligence_repository import (
-                AgentIntelligenceORMRepository,
+            from domain.ports.repository_ports_extended import (
+                IAgentIntelligenceRepository,
             )
-            decision_repo = AgentIntelligenceORMRepository()
+            decision_repo = IAgentIntelligenceRepository()
         if kline_repo is None:
-            from adapters.outbound.repositories.kline_repository import KlineORMRepository
-            kline_repo = KlineORMRepository()
+                        kline_repo = IKlineRepository()
         self.signal_repo = signal_repo
         self.decision_repo = decision_repo
         self.kline_repo = kline_repo

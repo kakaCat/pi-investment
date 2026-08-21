@@ -9,6 +9,8 @@ import logging
 from typing import Dict, Optional
 from enum import Enum
 
+from domain.ports.datasource_ports import ICircuitBreaker
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,8 +21,10 @@ class CircuitState(Enum):
     HALF_OPEN = "half_open"  # Testing if recovered
 
 
-class CircuitBreaker:
+class CircuitBreaker(ICircuitBreaker):
     """Circuit breaker implementation for data sources.
+
+    实现 ICircuitBreaker 接口
 
     Tracks failures and opens the circuit when threshold is reached.
     After a timeout, allows a test request (half-open state).

@@ -6,7 +6,7 @@
 import structlog
 from typing import Dict, Any, List
 from datetime import datetime
-from adapters.outbound.repositories import StockPoolRepository
+from domain.ports import IStockPoolRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -16,7 +16,7 @@ class AttributionAnalyzer:
 
     def __init__(self):
         """初始化服务"""
-        self.pool_repo = StockPoolORMRepository()
+        self.pool_repo = IStockPoolRepository()
 
     def analyze_pool_attribution(self, pool_id: int) -> Dict[str, Any]:
         """

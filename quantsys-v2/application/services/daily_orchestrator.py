@@ -293,8 +293,8 @@ class DailyOrchestrator:
         本阶段只负责"信号准备 + 事件推送"。
         """
         # 开盘前 T+1 结转：前日买入的持仓转为可卖（9:25 结转，9:30 开盘即可卖）
-        from adapters.outbound.repositories import SimulationORMRepository
-        settled = SimulationORMRepository().settle_t1(TRADING_ACCOUNT)
+        from domain.ports import ISimulationRepository
+        settled = ISimulationRepository().settle_t1(TRADING_ACCOUNT)
         logger.info("market_open: t1_settled", positions=settled)
 
         signals = self._collect_pending_signals()
@@ -343,9 +343,9 @@ class DailyOrchestrator:
 
     def _phase_market_close(self, state: DailyOrchestratorState) -> Dict[str, Any]:
         """收盘阶段：T+1 结转 + 最终市值更新"""
-        from adapters.outbound.repositories import SimulationORMRepository
+        from domain.ports import ISimulationRepository
 
-        repo = SimulationORMRepository()
+        repo = ISimulationRepository()
 
         # T+1 结转：今日买入的股票明日才可卖出
         settled = repo.settle_t1(TRADING_ACCOUNT)
@@ -418,8 +418,8 @@ class DailyOrchestrator:
         today_trades = []
         today_pnl = context.get('performance', {}).get('today_pnl', 0)
         try:
-            from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
-            sim_repo = SimulationORMRepository()
+            from domain.ports import ISimulationRepository
+            sim_repo = ISimulationRepository()
             trades = sim_repo.get_trades_by_account(
                 TRADING_ACCOUNT,
                 start_date=str(state.trade_date),

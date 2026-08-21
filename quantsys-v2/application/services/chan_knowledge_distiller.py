@@ -6,14 +6,12 @@
 
 confidence 爬坡：<10 样本 → 0.3；10-30 → 0.5；>30 → 0.7。
 """
+from domain.ports import IAgentKnowledgeRepository, IKlineRepository, ISignalRepository
 from datetime import date, datetime, timedelta
 from typing import Dict, Any, List, Optional
 import structlog
 from pandas import Timestamp as pd_timestamp, to_datetime as pd_to_datetime
 
-from adapters.outbound.repositories.signal_repository import SignalORMRepository
-from adapters.outbound.repositories import KlineORMRepository
-from adapters.outbound.repositories.agent_knowledge_repository import AgentKnowledgeORMRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -39,9 +37,9 @@ class ChanKnowledgeDistiller:
 
     def __init__(self, window_days: int = 20, lookback_days: int = 90):
         # 依赖模块顶部 import（同 ChanScanService，保证可 patch）
-        self._signal_repo = SignalORMRepository()
-        self._kline_repo = KlineORMRepository()
-        self._knowledge_repo = AgentKnowledgeORMRepository()
+        self._signal_repo = ISignalRepository()
+        self._kline_repo = IKlineRepository()
+        self._knowledge_repo = IAgentKnowledgeRepository()
         self._window = window_days
         self._lookback = lookback_days
 

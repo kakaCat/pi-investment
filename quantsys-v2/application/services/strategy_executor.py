@@ -4,13 +4,11 @@
 负责执行策略代码生成交易信号
 """
 
+from domain.ports import IKlineRepository, ISignalRepository, IStrategyRepository
 import structlog
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 
-from adapters.outbound.repositories import StrategyORMRepository
-from adapters.outbound.repositories import KlineORMRepository
-from adapters.outbound.repositories import SignalORMRepository
 from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyExecutor
 from domain.quantlib.engine.script_strategy_executor import ScriptStrategyExecutor
 
@@ -21,9 +19,9 @@ class StrategyExecutor:
     """策略执行服务"""
 
     def __init__(self):
-        self.strategy_repo = StrategyORMRepository()
-        self.kline_repo = KlineORMRepository()
-        self.signal_repo = SignalORMRepository()
+        self.strategy_repo = IStrategyRepository()
+        self.kline_repo = IKlineRepository()
+        self.signal_repo = ISignalRepository()
         self.indicator_executor = IndicatorStrategyExecutor()
         self.script_executor = ScriptStrategyExecutor()
 
