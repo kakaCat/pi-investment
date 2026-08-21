@@ -2,6 +2,7 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+import { readFileSync } from 'node:fs';
 
 export interface Config {
   quantsysV2?: {
@@ -34,10 +35,12 @@ export default class LearningPlugin extends Service {
       rewardDecayFactor: z.number().default(0.95),
       distillConfidenceThreshold: z.number().default(0.7),
     }).default({} as any),
+    agentsFile: z.string().default('~/.dsh/profiles/investment/agents.json'),  // 身份注册表
   }).default({} as any)
 
   private qv2: QuantsysV2Client;
   private experienceBuffer: ExperienceEntry[] = [];
+  private agentIdentity: { id: string; name: string; instance: string };
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'learning');
@@ -45,8 +48,30 @@ export default class LearningPlugin extends Service {
       baseURL: config.quantsysV2?.baseURL || 'http://localhost:5001',
       timeout: config.quantsysV2?.timeout || 30000,
     });
+    this.agentIdentity = this.loadAgentIdentity((config as any).agentsFile);
     this.registerTools();
     this.setupInterceptors();
+  }
+
+  /**
+   * 读身份注册表（agents.json），取 primary 主身份——
+   * 本进程所有工具调用都服务于投资主身份（2026-08-21 身份系统）
+   */
+  private loadAgentIdentity(file?: string): { id: string; name: string; instance: string } {
+    const fallback = { id: 'investor', name: 'PI 投资顾问·投资脑', instance: 'investment' };
+    try {
+      const p = (file || '').replace(/^~/, process.env.HOME || '');
+      const registry = JSON.parse(readFileSync(p, 'utf-8'));
+      const primary = (registry.agents || []).find((a: any) => a.primary) || (registry.agents || [])[0];
+      if (!primary) return fallback;
+      return {
+        id: primary.id,
+        name: primary.name,
+        instance: registry.instance?.name ?? registry.instance?.id ?? 'unknown',
+      };
+    } catch {
+      return fallback;
+    }
   }
 
   /**
@@ -146,6 +171,7 @@ export default class LearningPlugin extends Service {
       // 简化版：实际应该调用多个工具获取完整上下文
       return {
         timestamp: new Date().toISOString(),
+        agent: this.agentIdentity,  // 2026-08-21：经验记录署名（哪个 agent 干的）
         // 可扩展：market_phase, portfolio_state, etc.
       };
     } catch {

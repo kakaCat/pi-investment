@@ -2,6 +2,7 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { AgentOSClient } from '@pi-investment/agent-os-client';
+import { readFileSync } from 'node:fs';
 
 export interface Config {
   agentOS?: {
@@ -30,16 +31,38 @@ export default class NotificationPlugin extends Service {
   private aos: AgentOSClient;
   private aosBaseURL: string;
   private feishuWebhooks: Record<string, string>;
+  private agentSign: string;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'notification');
     this.aosBaseURL = config.agentOS?.baseURL || 'http://localhost:8080';
     this.feishuWebhooks = (config as any).feishuWebhooks || {};
+    this.agentSign = this.loadAgentSign((config as any).agentsFile);
     this.aos = new AgentOSClient({
       baseURL: this.aosBaseURL,
       agentId: config.agentOS?.agentId || 'agent-dh',
     });
     this.registerTools();
+  }
+
+  /**
+   * 通知署名（2026-08-21 身份系统）：所有外发通知带上 agent 名字+ID，
+   * 用户能一眼看出是哪个分身发的。读 agents.json 的 primary 身份。
+   */
+  private loadAgentSign(file?: string): string {
+    const fallback = 'PI 投资顾问·投资脑 (investor)';
+    try {
+      const p = (file || '~/.dsh/profiles/investment/agents.json').replace(/^~/, process.env.HOME || '');
+      const registry = JSON.parse(readFileSync(p, 'utf-8'));
+      const primary = (registry.agents || []).find((a: any) => a.primary) || (registry.agents || [])[0];
+      return primary ? `${primary.name} (${primary.id})` : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  private sign(content: string): string {
+    return `${content}\n\n—— ${this.agentSign}`;
   }
 
   /**
@@ -141,6 +164,7 @@ export default class NotificationPlugin extends Service {
         // 渠道路由：显式 channel 优先，否则按 urgency 分流
         const urgency = args.urgency || 'normal';
         const channel = args.channel || (urgency === 'high' ? 'alerts' : 'reports');
+        const content = this.sign(args.content);  // 身份署名（哪个 agent 发的）
         // 2026-08-21 方案 C（用户裁决）：主路径走 Agent OS API（真实发送 + 系统记录/审计日志，
         // 路由 bug 已由 1d6cab3e 修复）；Agent OS 失败时降级为直发飞书 webhook 兜底，
         // 兜底结果标记 degraded=true（事后可审计"走了旁路"）。
@@ -148,7 +172,7 @@ export default class NotificationPlugin extends Service {
           const result: any = await aos.notification.send({
             channel,
             title: args.title,
-            content: args.content,
+            content,
             urgency,
           });
           if (result?.success === false) {
@@ -156,7 +180,7 @@ export default class NotificationPlugin extends Service {
           }
           return { ...result, channel, delivery: 'agent_os' } as any;
         } catch (e: any) {
-          const fallback = await this.sendFeishuDirect(channel, args.title, args.content, urgency);
+          const fallback = await this.sendFeishuDirect(channel, args.title, content, urgency);
           return { ...fallback, degraded: true, fallback_reason: String(e?.message ?? e) } as any;
         }
       },
@@ -212,24 +236,25 @@ export default class NotificationPlugin extends Service {
         if (args.channel === 'feishu') {
           const urgency = args.urgency || 'normal';
           const channelCode = urgency === 'high' ? 'alerts' : 'reports';
+          const content = this.sign(args.content);  // 身份署名
           try {
             const result: any = await aos.notification.send({
               channel: channelCode,
               title: args.title,
-              content: args.content,
+              content,
               urgency,
             });
             if (result?.success === false) throw new Error(result?.error || 'success=false');
             return { ...result, channel: channelCode, delivery: 'agent_os' } as any;
           } catch (e: any) {
-            const fallback = await this.sendFeishuDirect(channelCode, args.title, args.content, urgency);
+            const fallback = await this.sendFeishuDirect(channelCode, args.title, content, urgency);
             return { ...fallback, degraded: true, fallback_reason: String(e?.message ?? e) } as any;
           }
         }
         const result: any = await aos.notification.send({
           channel: args.channel,
           title: args.title,
-          content: args.content,
+          content: this.sign(args.content),  // 身份署名
           urgency: args.urgency || 'normal',
         });
         return result as any;

@@ -57,6 +57,7 @@ export default class LifecyclePlugin extends Service {
   private repo: GitRepo;
   private state: StateStore;
   private cfg: Required<Config>;
+  private identity: { id: string; name: string; role: string; instance: string; port: number };
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'lifecycle');
@@ -65,8 +66,55 @@ export default class LifecyclePlugin extends Service {
     } as Required<Config>;
     this.repo = new GitRepo(this.cfg.repoRoot);
     this.state = new StateStore(join(this.cfg.profileDir, 'state'));
+    this.identity = this.loadIdentity();
+    this.registerIdentitySection();
     this.registerTools();
     this.setupResume();
+  }
+
+  /**
+   * Agent 身份注册表（2026-08-21）：每个 agent 有唯一 id 和名字，提高自我认知。
+   * 读 profileDir/agents.json；当前 agent 按 cfg.agentId 匹配，alias_of 归并到主身份。
+   */
+  private loadIdentity(): { id: string; name: string; role: string; instance: string; port: number } {
+    const fallback = { id: this.cfg.agentId, name: this.cfg.agentId, role: '未注册角色', instance: 'unknown', port: this.cfg.port };
+    try {
+      const registry = JSON.parse(readFileSync(join(this.cfg.profileDir, 'agents.json'), 'utf-8'));
+      const agents: any[] = registry.agents || [];
+      let me = agents.find(a => a.id === this.cfg.agentId) || agents.find(a => a.primary) || agents[0];
+      if (!me) return fallback;
+      if (me.alias_of) {
+        const primary = agents.find(a => a.id === me.alias_of);
+        if (primary) me = { ...primary, id: me.id, name: `${primary.name}（${me.name}）`, role: `${primary.role}；本分身：${me.role}` };
+      }
+      return {
+        id: me.id,
+        name: me.name,
+        role: me.role,
+        instance: registry.instance?.name ?? registry.instance?.id ?? 'unknown',
+        port: registry.instance?.port ?? this.cfg.port,
+      };
+    } catch {
+      return fallback;
+    }
+  }
+
+  /** 把身份注入系统提示词（order 5，在宪法段 order 10 之前；身份不可进化、不随基因组变化） */
+  private registerIdentitySection(): void {
+    const i = this.identity;
+    (this.ctx as any).systemPrompt?.section({
+      name: 'agent:identity',
+      order: 5,
+      text: [
+        `[agent:${i.id}]`,
+        ``,
+        `# 你是谁`,
+        ``,
+        `你是「${i.name}」（唯一 ID: ${i.id}），${i.role}。`,
+        `所属实例：${i.instance}（端口 ${i.port}）。`,
+        `你的所有分析、交易决策、经验记录都以此身份署名；与其他实例/分身协作时，用 ID 区分彼此。`,
+      ].join('\n'),
+    });
   }
 
   /** 启动时检测 pending-resume.json，向发起重启的会话（或 investor agent）注入续跑消息 */
@@ -405,7 +453,12 @@ export default class LifecyclePlugin extends Service {
 
         const result: any = {
           identity: {
-            name: 'Agent-DH',
+            // 2026-08-21：身份来自 agents.json 注册表（唯一 id + 名字）
+            id: this.identity.id,
+            name: this.identity.name,
+            role: this.identity.role,
+            instance: this.identity.instance,
+            port: this.identity.port,
             profile: 'investment',
             lifecycle_plugin_version: pkgInfo.version,
             agent_id: this.cfg.agentId,
