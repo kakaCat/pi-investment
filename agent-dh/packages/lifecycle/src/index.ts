@@ -1025,6 +1025,7 @@ export default class LifecyclePlugin extends Service {
         await this.osWrite('memory_write', {
           title: `[${args.kind ?? 'finding'}] ${args.title}`,
           content: JSON.stringify({
+            marker: 'office-board-post',  // 检索锚点（OS 搜索按 title/content 文本匹配，tag 只做过滤——E2E 实测）
             kind: args.kind ?? 'finding',
             title: args.title,
             content: args.content,
@@ -1053,7 +1054,8 @@ export default class LifecyclePlugin extends Service {
       timeoutMs: 15000,
       execute: async (args: any) => {
         const tag = args.kind ? `kind:${args.kind}` : 'office:board';
-        const res: any = await this.aos.memory.search({ query: args.kind ?? 'board', tag, top_k: args.limit ?? 10 });
+        // OS 搜索按 title/content 文本匹配（tag 只是过滤）：用内容里的锚点词作 query
+        const res: any = await this.aos.memory.search({ query: args.kind ?? 'office-board-post', tag, top_k: args.limit ?? 10 });
         const items: any[] = res?.memories || res?.items || [];
         const posts = items.map((it: any) => {
           try { return { ...(typeof it.content === 'string' ? JSON.parse(it.content) : it.content), id: it.id }; }
