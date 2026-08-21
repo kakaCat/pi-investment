@@ -158,12 +158,15 @@ export default class LifecyclePlugin extends Service {
     const skills: any[] = listData?.skills ?? listData ?? [];
     const existing = skills.find((s: any) => s.name === `window:${p.window}`);
 
+    // OS Skills API 要求 content 必填（2026-08-21 E2E 实测："name, owner, and content are required"）
+    const desc = `窗口 ${p.window}（${p.role}）${p.task ? `当前任务：${p.task}` : '空闲'}`;
     const body = {
       name: `window:${p.window}`,
-      description: `窗口 ${p.window}（${p.role}）${p.task ? `当前任务：${p.task}` : '空闲'}`,
+      description: desc,
       category: 'window',
       owner: p.agent_id,
       status: 'active',
+      content: desc,
       metadata: {
         window: p.window,
         session_id: p.session_id,
