@@ -59,6 +59,16 @@ export class NotificationClient {
   }
 
   /**
+   * List recent delivery logs (status per message: pending/sent/failed).
+   */
+  async listLogs(limit: number = 20): Promise<{ logs: NotificationLog[] }> {
+    const response = await this.client.get('/api/v1/notifications/logs', {
+      params: { limit },
+    });
+    return response.data;
+  }
+
+  /**
    * Resolve the tool-level channel hint to a configured channel code.
    */
   private async resolveChannel(hint?: string): Promise<string> {
@@ -86,5 +96,15 @@ interface NotificationChannel {
   name?: string;
   provider_id?: string;
   enabled?: boolean;
+  [key: string]: any;
+}
+
+/** Minimal shape of a delivery log entry. */
+interface NotificationLog {
+  id: string;
+  channel_id?: string;
+  status?: string;
+  title?: string;
+  created_at?: string;
   [key: string]: any;
 }

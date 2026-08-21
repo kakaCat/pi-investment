@@ -146,5 +146,69 @@ export default class NotificationPlugin extends Service {
         }) as any;
       },
     } as any));
+
+    // 通知渠道自检（2026-08-21）：渠道清单 + 投递状态可见性
+    ctx.tools.register(defineTool({
+      name: 'notification_channels',
+      description: '查看通知渠道清单与投递状态：已配置的渠道（code/名称/启用/webhook 脱敏）、最近投递日志（状态 pending/sent/failed + 所属渠道）、状态统计。适用于：发重要通知前确认渠道配置、排查"消息没收到"（如日报未达时先看这里）、feishu_notify 选 channel 参数。',
+      parameters: {
+        log_limit: {
+          type: 'number',
+          description: '返回最近投递日志条数，默认 10',
+          default: 10,
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            channels: { type: 'array', items: { type: 'object', additionalProperties: true } },
+            recent_logs: { type: 'array', items: { type: 'object', additionalProperties: true } },
+            status_summary: { type: 'object', additionalProperties: true },
+          },
+          additionalProperties: false,
+        },
+        render: (_args: any, value: any) => [{
+          type: 'text',
+          text: JSON.stringify(value, null, 2),
+        }],
+      },
+      timeoutMs: 15000,
+      execute: async (args: any) => {
+        const [channelsRes, logsRes] = await Promise.all([
+          aos.notification.listChannels(),
+          aos.notification.listLogs(args.log_limit ?? 10),
+        ]);
+        const channels = channelsRes.channels || [];
+        const codeById = new Map(channels.map((c: any) => [c.id, c.code]));
+
+        const maskHook = (hook?: string) =>
+          hook ? hook.slice(0, 45) + '...' + hook.slice(-6) : null;
+
+        const logs = (logsRes.logs || []).map((l: any) => ({
+          title: l.title ?? null,
+          status: l.status ?? null,
+          channel: codeById.get(l.channel_id) ?? l.channel_id ?? null,
+          created_at: l.created_at ?? null,
+        }));
+
+        const statusSummary: Record<string, number> = {};
+        for (const l of logs) {
+          const st = l.status ?? 'unknown';
+          statusSummary[st] = (statusSummary[st] ?? 0) + 1;
+        }
+
+        return {
+          channels: channels.map((c: any) => ({
+            code: c.code,
+            name: c.name ?? null,
+            enabled: c.enabled !== false,
+            webhook: maskHook(c.config?.webhook),
+          })),
+          recent_logs: logs,
+          status_summary: statusSummary,
+        } as any;
+      },
+    } as any));
   }
 }
