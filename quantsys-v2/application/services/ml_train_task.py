@@ -46,10 +46,9 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
     
     try:
         from infrastructure.services.service_factory import get_data_service
-        from adapters.outbound.repositories.stock_repository import StockORMRepository
+        from domain.ports.repository_ports_extended import IStockRepository
         from application.services.ml_pipeline.feature_engineering import FeatureEngineer
         from application.services.ml_pipeline.predictor import MLPredictor
-        from adapters.shared.ml_helpers import _get_model_repo
         from sklearn.model_selection import train_test_split
         
         # 1. 检查是否需要训练（非强制模式）
@@ -63,8 +62,9 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
                     "reason": reason,
                     "timestamp": datetime.now().isoformat()
                 }
-        
+
         # 2. 获取股票列表
+        from adapters.outbound.repositories.stock_repository import StockORMRepository
         repo = StockORMRepository()
         stocks = repo.get_all(limit=symbols_limit)
         symbols = [s['symbol'] for s in stocks]
@@ -122,6 +122,7 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         logger.info(f"模型已保存: {version}")
         
         # 7. 保存训练记录到DB
+        from adapters.shared.ml_helpers import _get_model_repo
         model_repo = _get_model_repo()
         model_repo.create({
             "model_type": model_type,
@@ -174,7 +175,7 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
 def _check_train_needed(model_type: str) -> tuple[bool, str]:
     """
     检查是否需要训练
-    
+
     Returns:
         (should_train, reason)
     """
