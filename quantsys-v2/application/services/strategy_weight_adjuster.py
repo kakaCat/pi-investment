@@ -3,11 +3,10 @@
 
 根据市场风格和策略历史表现动态调整策略权重
 """
+from domain.ports import IStrategyPerformanceRepository, IStrategyWeightRepository
 from typing import Dict, Optional
 import structlog
 
-from adapters.outbound.repositories import StrategyWeightORMRepository
-from adapters.outbound.repositories import StrategyPerformanceORMRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -23,8 +22,8 @@ class StrategyWeightAdjuster:
     STATIC_WEIGHT_RATIO = 0.3   # 静态权重占比 30%
 
     def __init__(self):
-        self.weight_repo = StrategyWeightORMRepository()
-        self.performance_repo = StrategyPerformanceORMRepository()
+        self.weight_repo = IStrategyWeightRepository()
+        self.performance_repo = IStrategyPerformanceRepository()
 
     def get_weight(
         self,

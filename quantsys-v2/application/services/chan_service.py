@@ -1,12 +1,11 @@
 """缠论分析服务"""
+from domain.ports import IAgentKnowledgeRepository, IKlineRepository
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import pandas as pd
 
 from domain.chan.chan_analyzer import ChanAnalyzer
 from domain.chan.types import Bi, Segment, ZhongShu, BuyPoint
-from adapters.outbound.repositories import KlineORMRepository
-from adapters.outbound.repositories.agent_knowledge_repository import AgentKnowledgeORMRepository
 
 
 class ChanService:
@@ -14,7 +13,7 @@ class ChanService:
 
     def __init__(self):
         self.analyzer = ChanAnalyzer()
-        self.kline_repo = KlineORMRepository()
+        self.kline_repo = IKlineRepository()
 
     def analyze(
         self,
@@ -82,7 +81,7 @@ class ChanService:
         """加载 chan_theory 蒸馏知识 → {strategy: {win_rate, samples, suggested_confidence}}
         任何异常返回空 map（知识是增强项，不阻塞分析）"""
         try:
-            repo = AgentKnowledgeORMRepository()
+            repo = IAgentKnowledgeRepository()
             rows = repo.get_by_domain('chan_theory', 'signal_effectiveness')
             out = {}
             for r in rows:

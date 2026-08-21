@@ -4,10 +4,10 @@
 
 按照 quantsys-v2 项目规范实现
 """
+from domain.ports import IAgentIntelligenceRepository, IFundFlowRepository
 import structlog
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from adapters.outbound.repositories import AgentIntelligenceORMRepository, FundFlowORMRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -17,8 +17,8 @@ class OpponentBehaviorService:
 
     def __init__(self):
         """初始化服务"""
-        self.opponent_repo = AgentIntelligenceORMRepository()
-        self.fund_flow_repo = FundFlowORMRepository()
+        self.opponent_repo = IAgentIntelligenceRepository()
+        self.fund_flow_repo = IFundFlowRepository()
 
     def analyze_current_behavior(self) -> Dict[str, Any]:
         """

@@ -7,8 +7,8 @@ import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from adapters.outbound.repositories.agent_knowledge_repository import (
-    AgentKnowledgeORMRepository
+from domain.ports.repository_ports_extended import (
+    IAgentKnowledgeRepository
 )
 
 logger = structlog.get_logger(__name__)
@@ -19,7 +19,7 @@ class KnowledgeService:
 
     def __init__(self):
         """初始化服务"""
-        self.repository = AgentKnowledgeORMRepository()
+        self.repository = IAgentKnowledgeRepository()
         logger.info("✅ KnowledgeService initialized with repository")
 
     @property

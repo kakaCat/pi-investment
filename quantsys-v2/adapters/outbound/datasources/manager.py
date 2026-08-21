@@ -3,6 +3,8 @@ import logging
 from typing import List, Dict, Any, Optional
 
 from domain.exceptions import ExternalServiceError
+from domain.ports.datasource_ports import IDataProviderManager
+from domain.models.market_data import QuoteData, FinancialData, DividendData, MarketData, StockData
 
 from adapters.outbound.datasources.providers.quote.sina import SinaQuoteProvider
 from adapters.outbound.datasources.providers.quote.eastmoney import EastmoneyQuoteProvider
@@ -24,8 +26,10 @@ from adapters.outbound.datasources.providers.hk.akshare import AkshareHKProvider
 logger = logging.getLogger(__name__)
 
 
-class DataProviderManager:
+class DataProviderManager(IDataProviderManager):
     """Unified data provider manager
+
+    实现 IDataProviderManager 接口
 
     Inspired by RealtimeQuoteService pattern, extended to all domains.
     Coordinates multiple providers per domain with automatic failover,

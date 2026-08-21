@@ -8,6 +8,7 @@ import time
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 
@@ -30,10 +31,11 @@ class DataBackfiller:
             kline_repo: K线数据仓库实例
             data_source_manager: 数据源管理器实例
         """
-        from adapters.outbound.repositories import KlineORMRepository
-        from adapters.outbound.datasources.manager import get_data_source_manager
+        from domain.ports import IKlineRepository
 
-        self.kline_repo = kline_repo or KlineORMRepository()
+        self.kline_repo = kline_repo or IKlineRepository()
+            # 延迟导入避免顶层依赖
+            from adapters.outbound.datasources.manager import get_data_provider_manager
         self.data_source_manager = data_source_manager or get_data_source_manager()
 
     def backfill_symbol(

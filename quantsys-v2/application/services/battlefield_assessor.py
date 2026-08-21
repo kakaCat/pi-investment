@@ -3,12 +3,10 @@
 
 评估股票池在市场博弈中的竞争优势
 """
+from domain.ports import IAgentIntelligenceRepository, IFundFlowRepository, IStockPoolRepository
 import structlog
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from adapters.outbound.repositories import AgentIntelligenceORMRepository
-from adapters.outbound.repositories import StockPoolORMRepository
-from adapters.outbound.repositories import FundFlowORMRepository
 from application.services.opponent_behavior_service import OpponentBehaviorService
 
 logger = structlog.get_logger(__name__)
@@ -19,9 +17,9 @@ class BattlefieldAssessor:
 
     def __init__(self):
         """初始化服务"""
-        self.pool_repo = StockPoolORMRepository()
-        self.fund_flow_repo = FundFlowORMRepository()
-        self.metrics_repo = AgentIntelligenceORMRepository()
+        self.pool_repo = IStockPoolRepository()
+        self.fund_flow_repo = IFundFlowRepository()
+        self.metrics_repo = IAgentIntelligenceRepository()
         self.opponent_service = OpponentBehaviorService()
 
     def assess_pool(self, pool_id: int) -> Dict[str, Any]:

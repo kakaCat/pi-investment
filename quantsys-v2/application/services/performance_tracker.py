@@ -19,7 +19,7 @@ import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime, date, timedelta
 
-from adapters.outbound.repositories import SimulationORMRepository
+from domain.ports import ISimulationRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -29,7 +29,7 @@ class PerformanceTracker:
 
     def __init__(self, account_name: str = 'rotation_main'):
         self.account_name = account_name
-        self.repo = SimulationORMRepository()
+        self.repo = ISimulationRepository()
 
     def get_full_report(self) -> Dict[str, Any]:
         """生成完整绩效报告"""

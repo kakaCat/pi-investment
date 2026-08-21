@@ -6,9 +6,9 @@
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from adapters.outbound.repositories import (
-    AgentIntelligenceORMRepository,
-    PoolChangeLogRepository
+from domain.ports.repository_ports_extended import (
+    IAgentIntelligenceRepository,
+    IPoolChangeLogRepository
 )
 
 logger = structlog.get_logger(__name__)
@@ -19,8 +19,8 @@ class DecisionService:
 
     def __init__(self):
         """初始化服务"""
-        self.decision_repo = AgentIntelligenceORMRepository()
-        self.change_log_repo = PoolChangeLogRepository()
+        self.decision_repo = IAgentIntelligenceRepository()
+        self.change_log_repo = IPoolChangeLogRepository()
 
     def record_decision(self, decision_data: Dict[str, Any]) -> Dict[str, Any]:
         """

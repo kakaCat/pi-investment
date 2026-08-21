@@ -56,7 +56,7 @@ def create_order(
 
     # 如果提供了 signal_id，验证信号是否存在
     if signal_id is not None:
-        # 信号查询属于 signal 域（SignalORMRepository.get_signal 返回 Signal 对象）。
+        # 信号查询属于 signal 域（ISignalRepository.get_signal 返回 Signal 对象）。
         # 历史上这里误调 ds.portfolio.get_signal_by_id（从不存在的方法），
         # 信号链路订单在此必炸 AttributeError——2026-08-04 修复。
         signal = ds.signal.get_signal(signal_id)
@@ -486,11 +486,11 @@ def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symb
         symbol: 股票代码
     """
     from application.services.signal_test_log import SignalTestLog
-    from adapters.outbound.repositories import StrategyPerformanceORMRepository
+    from domain.ports import IStrategyPerformanceRepository
     from psycopg2.extras import RealDictCursor
 
     signal_log = SignalTestLog()
-    perf_repo = StrategyPerformanceORMRepository()
+    perf_repo = IStrategyPerformanceRepository()
 
     # 获取信号记录
     conn = signal_log._get_conn()

@@ -6,7 +6,7 @@ import structlog
 from datetime import date, datetime, time as dt_time
 from typing import Dict, Optional
 
-from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+from domain.ports import ISimulationRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -33,9 +33,9 @@ class AccountTradingService:
         (dt_time(13, 0), dt_time(15, 0)),
     )
 
-    def __init__(self, repo: Optional[SimulationORMRepository] = None, calendar=None,
+    def __init__(self, repo: Optional[ISimulationRepository] = None, calendar=None,
                  now_fn=None):
-        self.repo = repo or SimulationORMRepository()
+        self.repo = repo or ISimulationRepository()
         if calendar is None:
             from application.services.trading_calendar_service import TradingCalendarService
             calendar = TradingCalendarService()

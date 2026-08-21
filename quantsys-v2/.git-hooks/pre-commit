@@ -1,0 +1,72 @@
+#!/bin/bash
+# Pre-commit hook for architecture violation checks
+#
+# Installation:
+#   cp .git-hooks/pre-commit .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+# Or configure git to use this hooks directory:
+#   git config core.hooksPath .git-hooks
+
+set -e
+
+echo "🔍 Running architecture checks..."
+
+# Change to quantsys-v2 directory
+cd "$(git rev-parse --show-toplevel)/quantsys-v2" 2>/dev/null || cd "$(git rev-parse --show-toplevel)"
+
+# Check if the analyzer tool exists
+if [ ! -f "tools/analyze_layer_violations.py" ]; then
+    echo "⚠️  Architecture analyzer not found, skipping check"
+    exit 0
+fi
+
+# Get Python from venv or system
+PYTHON="python3"
+if [ -f "venv/bin/python" ]; then
+    PYTHON="venv/bin/python"
+elif [ -f "../venv/bin/python" ]; then
+    PYTHON="../venv/bin/python"
+fi
+
+# Run the analyzer
+echo "📊 Analyzing layer violations..."
+VIOLATIONS=$($PYTHON tools/analyze_layer_violations.py 2>/dev/null | grep "违规导入总数" | awk '{print $3}' || echo "0")
+
+# Get baseline (current acceptable number)
+BASELINE=7  # Current baseline from main branch
+
+echo "   Violations found: $VIOLATIONS"
+echo "   Baseline: $BASELINE"
+
+# Check if violations increased
+if [ "$VIOLATIONS" -gt "$BASELINE" ]; then
+    echo ""
+    echo "❌ Architecture violations increased!"
+    echo "   Current: $VIOLATIONS"
+    echo "   Baseline: $BASELINE"
+    echo ""
+    echo "📖 Please follow the coding standards:"
+    echo "   - Read: CODING_STANDARDS.md"
+    echo "   - Quick ref: docs/ARCHITECTURE_QUICK_REFERENCE.md"
+    echo ""
+    echo "💡 To see violation details:"
+    echo "   cd quantsys-v2"
+    echo "   python tools/analyze_layer_violations.py"
+    echo ""
+    echo "🔧 To skip this check (not recommended):"
+    echo "   git commit --no-verify"
+    echo ""
+    exit 1
+fi
+
+if [ "$VIOLATIONS" -lt "$BASELINE" ]; then
+    echo "✅ Great! Violations decreased from $BASELINE to $VIOLATIONS"
+    echo "   Please update BASELINE in .git-hooks/pre-commit"
+elif [ "$VIOLATIONS" -eq "0" ]; then
+    echo "✨ Perfect! No architecture violations found"
+else
+    echo "✅ Architecture check passed (within baseline)"
+fi
+
+exit 0

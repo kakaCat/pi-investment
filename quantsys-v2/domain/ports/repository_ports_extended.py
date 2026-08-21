@@ -178,3 +178,132 @@ class IAsyncFactorRepository(ABC):
     @abstractmethod
     async def get_factor_data_async(self, symbol: str, factor_names: Optional[List[str]] = None) -> pl.DataFrame:
         pass
+
+class ISchedulerConfigRepository(ABC):
+    """调度器配置仓储接口"""
+    @abstractmethod
+    def get_config(self, config_key: str) -> Optional[Dict[str, Any]]:
+        pass
+
+class ISchedulerRepository(ABC):
+    """调度器仓储接口"""
+    @abstractmethod
+    def get_scheduled_tasks(self) -> List[Dict[str, Any]]:
+        pass
+
+class IAgentKnowledgeRepository(ABC):
+    """Agent 知识库仓储接口"""
+    @abstractmethod
+    def save_knowledge(self, knowledge: Dict[str, Any]) -> int:
+        pass
+
+class IAgentDecisionRepository(ABC):
+    """Agent 决策仓储接口"""
+    @abstractmethod
+    def save_decision(self, decision: Dict[str, Any]) -> int:
+        pass
+
+class IHeatmapRepository(ABC):
+    """热力图仓储接口"""
+    @abstractmethod
+    def get_heatmap_data(self, date: str) -> Optional[Dict[str, Any]]:
+        pass
+
+class IOrderRepository(ABC):
+    """订单仓储接口"""
+    @abstractmethod
+    def get_orders(self, portfolio_name: str, trade_date: Optional[str] = None) -> List[Dict[str, Any]]:
+        pass
+
+class IDecisionRepository(ABC):
+    """决策仓储接口"""
+    @abstractmethod
+    def save_decision(self, decision: Dict[str, Any]) -> int:
+        pass
+
+class IPoolRepository(ABC):
+    """股票池仓储接口（通用）"""
+    @abstractmethod
+    def get_pool_members(self, pool_name: str) -> List[str]:
+        pass
+
+class IConditionRuleRepository(ABC):
+    """条件规则仓储接口"""
+    @abstractmethod
+    def get_active_rules(self) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def update_rule_status(self, rule_id: int, status: str) -> None:
+        pass
+
+class IConditionResultRepository(ABC):
+    """条件结果仓储接口"""
+    @abstractmethod
+    def save_result(self, result: Dict[str, Any]) -> int:
+        pass
+
+    @abstractmethod
+    def get_recent_results(self, rule_id: int, limit: int = 10) -> List[Dict[str, Any]]:
+        pass
+
+class IPoolChangeLogRepository(ABC):
+    """股票池变更日志仓储接口"""
+    @abstractmethod
+    def log_change(self, pool_name: str, change_type: str, symbols: List[str], reason: str) -> int:
+        pass
+
+    @abstractmethod
+    def get_changes(self, pool_name: Optional[str] = None, start_date: Optional[str] = None) -> List[Dict[str, Any]]:
+        pass
+
+
+class IWatchRuleRepository(ABC):
+    """盯盘规则仓储接口"""
+    @abstractmethod
+    def create_rule(self, symbol: str, conditions: Dict[str, Any], context: Optional[str] = None,
+                    cost_price: Optional[float] = None, active_window: Optional[Dict] = None,
+                    expires_at: Optional[datetime] = None, created_by: str = 'agent') -> Any:
+        """创建盯盘规则"""
+        pass
+
+    @abstractmethod
+    def list_enabled(self) -> List[Any]:
+        """获取所有启用且未过期的规则"""
+        pass
+
+    @abstractmethod
+    def list_rules(self, symbol: Optional[str] = None, enabled: Optional[bool] = None) -> List[Any]:
+        """列出规则（可按股票和启用状态过滤）"""
+        pass
+
+    @abstractmethod
+    def get_by_id(self, rule_id: int) -> Optional[Any]:
+        """根据ID获取规则"""
+        pass
+
+    @abstractmethod
+    def update_fields(self, rule_id: int, **fields) -> Optional[Any]:
+        """更新规则字段"""
+        pass
+
+
+class IEvolutionFitnessRepository(ABC):
+    """进化适应度仓储接口"""
+    @abstractmethod
+    def upsert_fitness(self, account_name: str, window_end: date, up_capture: Optional[float],
+                      down_capture: Optional[float], fitness: Optional[float],
+                      up_days: int, down_days: int, status: str, window_days: int = 20) -> None:
+        """插入或更新适应度记录"""
+        pass
+
+    @abstractmethod
+    def get_leaderboard(self, window_end: date, window_days: int = 20,
+                       include_non_ok: bool = False) -> List[Dict[str, Any]]:
+        """获取适应度排行榜"""
+        pass
+
+    @abstractmethod
+    def get_latest_window_end(self, window_days: int = 20) -> Optional[date]:
+        """获取最新窗口结束日期"""
+        pass

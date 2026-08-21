@@ -6,6 +6,7 @@ import structlog
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 import pandas as pd
+from domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 
@@ -39,11 +40,10 @@ class EnhancedBuyRangeService:
             periods = ['daily']  # 默认仅日线
 
         try:
-            from adapters.outbound.datasources.manager import get_data_source_manager
 
             self.logger.info(f"增强版买入区间分析: symbol={symbol}, periods={periods}")
 
-            manager = get_data_source_manager()
+            manager: IDataProviderManager = get_data_source_manager()
             result = {
                 'symbol': symbol,
                 'update_time': datetime.now().isoformat(),

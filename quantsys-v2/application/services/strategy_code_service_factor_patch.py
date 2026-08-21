@@ -335,8 +335,8 @@ Step 2: 在 __init__ 方法中添加（第40行左右）:
 
     def __init__(self):
         # 原有代码...
-        self.strategy_repo = StrategyORMRepository()
-        self.kline_repo = KlineORMRepository()
+        self.strategy_repo = IStrategyRepository()
+        self.kline_repo = IKlineRepository()
         # ... 等等
 
         # 🆕 添加这几行：

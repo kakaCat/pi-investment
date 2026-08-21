@@ -40,13 +40,13 @@ class DecisionScoreService:
                  bench_klines_provider: Optional[Callable] = None,
                  mature_window: int = 20):
         if decision_repo is None:
-            from adapters.outbound.repositories.agent_intelligence_repository import (
-                AgentIntelligenceORMRepository,
+            from domain.ports.repository_ports_extended import (
+                IAgentIntelligenceRepository,
             )
-            decision_repo = AgentIntelligenceORMRepository()
+            decision_repo = IAgentIntelligenceRepository()
         if kline_repo is None:
-            from adapters.outbound.repositories.kline_repository import KlineORMRepository
-            kline_repo = KlineORMRepository()
+            from domain.ports import IKlineRepository
+            kline_repo = IKlineRepository()
         if bench_klines_provider is None:
             from application.services.benchmark_comparison import fetch_benchmark_klines
             bench_klines_provider = fetch_benchmark_klines

@@ -5,7 +5,7 @@ import structlog
 from typing import Optional, Dict, List
 from datetime import datetime, timedelta
 
-from adapters.outbound.repositories import KlineORMRepository
+from domain.ports import IKlineRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -23,7 +23,7 @@ class StockCodeValidator:
     """
 
     def __init__(self):
-        self.kline_repo = KlineORMRepository()
+        self.kline_repo = IKlineRepository()
         self._cache: Dict[str, Dict] = {}
         self._cache_ttl = 3600  # 缓存1小时
 

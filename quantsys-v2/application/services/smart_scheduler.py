@@ -14,7 +14,7 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MISSED
 
-from adapters.outbound.repositories import SchedulerConfigORMRepository
+from domain.ports import ISchedulerConfigRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -42,7 +42,7 @@ class SmartSchedulerService:
             }
         )
         self.task_registry: Dict[str, Dict[str, Any]] = {}
-        self.config_repo = SchedulerConfigORMRepository()
+        self.config_repo = ISchedulerConfigRepository()
         self._setup_listeners()
         logger.info("SmartSchedulerService initialized with ORM")
 

@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 from dataclasses import dataclass
 
-from adapters.outbound.repositories import StrategyORMRepository
+from domain.ports import IStrategyRepository
 from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyExecutor
 from domain.quantlib.engine.script_strategy_executor import ScriptStrategyExecutor
 
@@ -31,7 +31,7 @@ class StrategyBacktestService:
     """策略回测服务"""
 
     def __init__(self):
-        self.strategy_repo = StrategyORMRepository()
+        self.strategy_repo = IStrategyRepository()
         self.indicator_executor = IndicatorStrategyExecutor()
         self.script_executor = ScriptStrategyExecutor()
 

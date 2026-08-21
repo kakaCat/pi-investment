@@ -1,4 +1,5 @@
 """Strategy execution service - unified strategy execution interface"""
+from domain.ports import IKlineRepository, ISignalRepository, IStockRepository, IStrategyRepository
 import structlog
 import time
 import uuid
@@ -9,9 +10,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 已迁移到ORM，不再需要此导入
 from domain.quantlib.engine.strategy_factory import StrategyFactory
-from adapters.outbound.repositories import SignalORMRepository
-from adapters.outbound.repositories import KlineORMRepository
-from adapters.outbound.repositories import StockORMRepository
 from adapters.outbound.repositories.models.strategy_execution import (
     StrategyExecuteRequest,
     StrategyBatchExecuteRequest,
@@ -25,8 +23,8 @@ class StrategyEngine:
 
     def __init__(self, strategy_name: str):
         self.strategy_name = strategy_name
-        self.kline_repo = KlineORMRepository()
-        self.stock_repo = StockORMRepository()
+        self.kline_repo = IKlineRepository()
+        self.stock_repo = IStockRepository()
 
         # Track whether this is a DB strategy or Python strategy
         self.is_db_strategy = False
@@ -44,8 +42,7 @@ class StrategyEngine:
             self.is_db_strategy = False
         else:
             # Not found in Python strategies, try database
-            from adapters.outbound.repositories import StrategyORMRepository
-            strategy_repo = StrategyORMRepository()
+                        strategy_repo = IStrategyRepository()
             db_strategy = strategy_repo.get_by_name(strategy_name)
 
             # Also try numeric ID lookup (for strategy_execute with numeric IDs)
@@ -253,7 +250,7 @@ class StrategyExecutionService:
     """Strategy execution service - handles single, batch, and pipeline execution"""
 
     def __init__(self):
-        self.signal_repo = SignalORMRepository()
+        self.signal_repo = ISignalRepository()
 
     def execute_single(self, request: Dict) -> Dict:
         """Execute single stock strategy"""

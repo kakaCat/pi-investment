@@ -3,11 +3,10 @@
 
 在原有风险评估基础上，增加博弈维度的风险评估
 """
+from domain.ports import IFundFlowRepository, IStockPoolRepository
 import structlog
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from adapters.outbound.repositories import StockPoolRepository
-from adapters.outbound.repositories import FundFlowRepository
 from application.services.opponent_behavior_service import OpponentBehaviorService
 from application.services.manipulation_detector import ManipulationDetector
 
@@ -19,8 +18,8 @@ class EnhancedRiskAssessor:
 
     def __init__(self):
         """初始化服务"""
-        self.pool_repo = StockPoolORMRepository()
-        self.fund_flow_repo = FundFlowORMRepository()
+        self.pool_repo = IStockPoolRepository()
+        self.fund_flow_repo = IFundFlowRepository()
         self.opponent_service = OpponentBehaviorService()
         self.manipulation_detector = ManipulationDetector()
 

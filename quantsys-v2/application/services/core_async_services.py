@@ -3,17 +3,11 @@
 
 包含10+个核心Service的异步版本
 """
+from domain.ports import IAsyncFactorRepository, IAsyncKlineRepository, IBacktestRepository, IPortfolioRepository, IRiskRepository, ISignalRepository, IStockRepository, IStrategyRepository
 from typing import Tuple, Dict, List, Optional, Any
 from datetime import datetime, date
 import structlog
 
-from adapters.outbound.repositories.signal_async_repository import SignalAsyncRepository
-from adapters.outbound.repositories.strategy_async_repository import StrategyAsyncRepository
-from adapters.outbound.repositories.stock_async_repository import StockAsyncRepository, DailyKlineAsyncRepository
-from adapters.outbound.repositories.portfolio_async_repository import PortfolioAsyncRepository
-from adapters.outbound.repositories.risk_async_repository import RiskAsyncRepository
-from adapters.outbound.repositories.factor_async_repository import FactorAsyncRepository
-from adapters.outbound.repositories.backtest_async_repository import BacktestAsyncRepository
 from infrastructure.persistence.orm.async_config import get_async_session_context
 
 logger = structlog.get_logger(__name__)
@@ -66,7 +60,7 @@ class RiskCheckAsyncService:
         """获取风险指标"""
         try:
             async with get_async_session_context() as session:
-                risk_repo = RiskAsyncRepository(session)
+                risk_repo = IRiskRepository(session)
                 metrics = await risk_repo.get_latest_metrics(symbol)
                 return metrics
         except Exception as e:
@@ -82,7 +76,7 @@ class StrategyCodeAsyncService:
         """列出所有策略"""
         try:
             async with get_async_session_context() as session:
-                strategy_repo = StrategyAsyncRepository(session)
+                strategy_repo = IStrategyRepository(session)
                 strategies = await strategy_repo.list_strategies(strategy_type=strategy_type)
                 return strategies
         except Exception as e:
@@ -93,7 +87,7 @@ class StrategyCodeAsyncService:
         """获取策略详情"""
         try:
             async with get_async_session_context() as session:
-                strategy_repo = StrategyAsyncRepository(session)
+                strategy_repo = IStrategyRepository(session)
                 strategy = await strategy_repo.get_strategy(strategy_id)
                 return strategy
         except Exception as e:
@@ -104,7 +98,7 @@ class StrategyCodeAsyncService:
         """创建策略"""
         try:
             async with get_async_session_context() as session:
-                strategy_repo = StrategyAsyncRepository(session)
+                strategy_repo = IStrategyRepository(session)
                 strategy_id = await strategy_repo.create_strategy(strategy_data)
                 return strategy_id
         except Exception as e:
@@ -141,7 +135,7 @@ class DataAsyncService:
         """获取股票信息"""
         try:
             async with get_async_session_context() as session:
-                stock_repo = StockAsyncRepository(session)
+                stock_repo = IStockRepository(session)
                 stock = await stock_repo.get_stock(symbol)
                 return stock
         except Exception as e:
@@ -158,7 +152,7 @@ class DataAsyncService:
         """获取K线数据"""
         try:
             async with get_async_session_context() as session:
-                kline_repo = DailyKlineAsyncRepository(session)
+                kline_repo = IAsyncKlineRepository(session)
                 klines = await kline_repo.get_klines(symbol, start_date, end_date, limit)
                 return klines
         except Exception as e:
@@ -169,7 +163,7 @@ class DataAsyncService:
         """获取最新价格"""
         try:
             async with get_async_session_context() as session:
-                kline_repo = DailyKlineAsyncRepository(session)
+                kline_repo = IAsyncKlineRepository(session)
                 latest = await kline_repo.get_latest_kline(symbol)
                 return latest.get('close') if latest else None
         except Exception as e:
@@ -194,7 +188,7 @@ class PortfolioAsyncService:
         """获取所有持仓"""
         try:
             async with get_async_session_context() as session:
-                portfolio_repo = PortfolioAsyncRepository(session)
+                portfolio_repo = IPortfolioRepository(session)
                 holdings = await portfolio_repo.get_all_holdings()
                 return holdings
         except Exception as e:
@@ -205,7 +199,7 @@ class PortfolioAsyncService:
         """获取单个持仓"""
         try:
             async with get_async_session_context() as session:
-                portfolio_repo = PortfolioAsyncRepository(session)
+                portfolio_repo = IPortfolioRepository(session)
                 holding = await portfolio_repo.get_holding(symbol)
                 return holding
         except Exception as e:
@@ -242,7 +236,7 @@ class MarketDataAsyncService:
         """获取活跃股票列表"""
         try:
             async with get_async_session_context() as session:
-                stock_repo = StockAsyncRepository(session)
+                stock_repo = IStockRepository(session)
                 stocks = await stock_repo.get_active_stocks(market)
                 return stocks
         except Exception as e:
@@ -253,7 +247,7 @@ class MarketDataAsyncService:
         """搜索股票"""
         try:
             async with get_async_session_context() as session:
-                stock_repo = StockAsyncRepository(session)
+                stock_repo = IStockRepository(session)
                 stocks = await stock_repo.search_by_name(keyword)
                 return stocks
         except Exception as e:
@@ -281,7 +275,7 @@ class FactorAnalysisAsyncService:
         """获取因子值"""
         try:
             async with get_async_session_context() as session:
-                factor_repo = FactorAsyncRepository(session)
+                factor_repo = IAsyncFactorRepository(session)
                 factors = await factor_repo.get_latest_factors(symbol, factor_names)
                 return factors
         except Exception as e:
@@ -313,7 +307,7 @@ class PerformanceAnalysisAsyncService:
         """分析策略绩效"""
         try:
             async with get_async_session_context() as session:
-                backtest_repo = BacktestAsyncRepository(session)
+                backtest_repo = IBacktestRepository(session)
                 backtests = await backtest_repo.list_backtests(
                     strategy_name=strategy_name,
                     limit=100

@@ -27,8 +27,8 @@ class DataValidator:
         Args:
             kline_repo: K线数据仓库实例
         """
-        from adapters.outbound.repositories import KlineORMRepository
-        self.kline_repo = kline_repo or KlineORMRepository()
+        from domain.ports import IKlineRepository
+        self.kline_repo = kline_repo or IKlineRepository()
 
     def validate_klines(self, klines: List[Dict]) -> Dict:
         """验证K线数据列表

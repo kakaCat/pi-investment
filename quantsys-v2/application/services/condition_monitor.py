@@ -10,9 +10,9 @@ from typing import Dict, Callable, Any, Optional, List
 from datetime import datetime, timedelta
 import json
 
-from adapters.outbound.repositories import (
-    ConditionRuleORMRepository,
-    ConditionResultORMRepository
+from domain.ports.repository_ports_extended import (
+    IConditionRuleRepository,
+    IConditionResultRepository
 )
 
 logger = structlog.get_logger(__name__)
@@ -31,8 +31,8 @@ class ConditionMonitorService:
     """
 
     def __init__(self):
-        self.rule_repo = ConditionRuleORMRepository()
-        self.result_repo = ConditionResultORMRepository()
+        self.rule_repo = IConditionRuleRepository()
+        self.result_repo = IConditionResultRepository()
         self.condition_checkers: Dict[str, Callable] = {}
         self.is_running = False
         self._register_builtin_checkers()

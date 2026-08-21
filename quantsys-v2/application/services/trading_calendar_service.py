@@ -7,6 +7,7 @@ import structlog
 from typing import List, Optional
 from datetime import datetime, timedelta, date
 import json
+from domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 
@@ -27,9 +28,9 @@ class TradingCalendarService:
             kline_repo: K线数据仓库实例
             redis_client: Redis客户端实例（可选）
         """
-        from adapters.outbound.repositories import KlineORMRepository
+        from domain.ports import IKlineRepository
 
-        self.kline_repo = kline_repo or KlineORMRepository()
+        self.kline_repo = kline_repo or IKlineRepository()
         self.redis = redis_client
         self._cache = {}  # 内存缓存作为 Redis 的 fallback
 
@@ -73,25 +74,33 @@ class TradingCalendarService:
         logger.info(f"使用工作日规则生成交易日历: {start_date} ~ {end_date}")
         weekdays = self._generate_weekdays(start_date, end_date)
 
-        # 尝试从统一数据访问层获取精确的交易日历（用于排除节假日）
-        # （Phase 3 数据访问治理：替代直接 import akshare）
+        # 尝试从 DataProviderManager 获取精确的交易日历（用于排除节假日）
         try:
-            from adapters.outbound.datasources.manager import get_data_provider_manager
-            logger.debug(f"尝试从数据源层获取精确交易日历")
-            result = get_data_provider_manager().get_trading_calendar(start_date, end_date)
+            manager: IDataProviderManager = get_data_provider_manager()
+            result = manager.get_trading_calendar(start_date, end_date)
 
             if result.get('success') and result.get('data'):
-                records = getattr(result['data'], 'data', None) or []
-                calendar_days = [str(r['trade_date']) for r in records]
+                stock_data = result['data']
+                # StockData.data 是 list[dict]，每个 dict 有 trade_date 键
+                calendar_records = stock_data.data if hasattr(stock_data, 'data') else stock_data
+                if isinstance(calendar_records, list) and len(calendar_records) > 0:
+                    # 提取 trade_date 字段
+                    if isinstance(calendar_records[0], dict) and 'trade_date' in calendar_records[0]:
+                        trading_days = [r['trade_date'] for r in calendar_records
+                                        if start_date <= r['trade_date'] <= end_date]
+                    else:
+                        # fallback: 直接取字符串值
+                        trading_days = [str(r) for r in calendar_records
+                                        if start_date <= str(r) <= end_date]
 
-                if len(calendar_days) > 0:
-                    logger.info(f"从数据源层获取到 {len(calendar_days)} 个交易日（source={result.get('source')}）")
-                    self._cache_trading_days(cache_key, calendar_days)
-                    return calendar_days
+                    if trading_days and len(trading_days) > 0:
+                        logger.info(f"从 DataProviderManager 获取到 {len(trading_days)} 个交易日 (source: {result.get('source', 'unknown')})")
+                        self._cache_trading_days(cache_key, trading_days)
+                        return trading_days
         except Exception as e:
-            logger.warning(f"从数据源层获取交易日历失败，使用工作日: {e}")
-        
-        # 如果数据源层失败，使用工作日作为结果
+            logger.warning(f"从 DataProviderManager 获取交易日历失败，使用工作日: {e}")
+
+        # 如果 AkShare 失败，使用工作日作为结果
         logger.info(f"使用工作日规则: {len(weekdays)} 天")
         self._cache_trading_days(cache_key, weekdays)
         return weekdays

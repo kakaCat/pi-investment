@@ -11,6 +11,7 @@
 近似声明（回填）：忽略日内择时，交易按当日收盘生效；费用取 total_cost/total_revenue
 （含佣金印花税），缺省退化为 amount；个股当日缺K线用最近可得收盘价。
 """
+from domain.ports import IKlineRepository, ISimulationRepository
 from datetime import date, timedelta
 from typing import Any, Callable, Dict, List, Mapping, Optional
 
@@ -29,16 +30,14 @@ class DailySnapshotService:
         price_provider: Optional[PriceProvider] = None,
     ):
         if sim_repo is None:
-            from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
-            sim_repo = SimulationORMRepository()
+                        sim_repo = ISimulationRepository()
         self.sim_repo = sim_repo
         self._price_provider = price_provider or self._default_price_provider
 
     @staticmethod
     def _default_price_provider(symbols: List[str], start: date, end: date) -> PriceMap:
         """默认价格源：本地 kline 库（不走网络）。返回 {symbol: {date_str: close}}"""
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository
-        repo = KlineORMRepository()
+                repo = IKlineRepository()
         result: Dict[str, Dict[str, float]] = {}
         batch = repo.batch_get_kline(symbols, start.isoformat(), end.isoformat())
         for symbol, df in batch.items():

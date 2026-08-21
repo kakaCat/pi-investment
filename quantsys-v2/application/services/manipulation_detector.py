@@ -3,11 +3,10 @@
 
 检测市场操纵行为（拉高出货等），识别风险和机会
 """
+from domain.ports import IAgentIntelligenceRepository, IFundFlowRepository
 import structlog
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from adapters.outbound.repositories import AgentIntelligenceORMRepository
-from adapters.outbound.repositories import FundFlowORMRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -17,8 +16,8 @@ class ManipulationDetector:
 
     def __init__(self):
         """初始化服务"""
-        self.manipulation_repo = AgentIntelligenceORMRepository()
-        self.fund_flow_repo = FundFlowORMRepository()
+        self.manipulation_repo = IAgentIntelligenceRepository()
+        self.fund_flow_repo = IFundFlowRepository()
 
     def detect_market_manipulation(self) -> Dict[str, Any]:
         """
@@ -146,9 +145,11 @@ class ManipulationDetector:
         """
         try:
             # 通过统一数据访问层获取今日涨停池（Phase 3 数据访问治理）
+            from domain.ports.datasource_ports import IDataProviderManager
             from adapters.outbound.datasources.manager import get_data_provider_manager
 
-            result = get_data_provider_manager().get_zt_pool(datetime.now().strftime('%Y%m%d'))
+            provider: IDataProviderManager = get_data_provider_manager()
+            result = provider.get_zt_pool(datetime.now().strftime('%Y%m%d'))
             if not result.get('success') or not result.get('data'):
                 return []
 
@@ -228,12 +229,14 @@ class ManipulationDetector:
         try:
             # 通过统一数据访问层获取最近5天的龙虎榜数据（Phase 3 数据访问治理；
             # 顺带修复：原 ak.stock_lhb_detail_em(symbol=...) 传了不存在的参数，必 TypeError）
+            from domain.ports.datasource_ports import IDataProviderManager
             from adapters.outbound.datasources.manager import get_data_provider_manager
 
             end_date = datetime.now()
             start_date = end_date - timedelta(days=5)
 
-            result = get_data_provider_manager().get_lhb_detail(
+            provider: IDataProviderManager = get_data_provider_manager()
+            result = provider.get_lhb_detail(
                 symbol=symbol,
                 start_date=start_date.strftime('%Y%m%d'),
                 end_date=end_date.strftime('%Y%m%d')

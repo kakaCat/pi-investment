@@ -2,6 +2,7 @@
 """
 诊断服务 - 策略诊断主入口
 """
+from domain.ports import IBacktestRepository, IKlineRepository
 from typing import Dict, Optional
 from datetime import datetime
 import structlog
@@ -10,8 +11,6 @@ import re
 
 from application.services.strategy_analyzer import StrategyAnalyzer
 from application.services.report_generator import ReportGenerator
-from adapters.outbound.repositories import BacktestORMRepository
-from adapters.outbound.repositories import KlineORMRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -25,8 +24,8 @@ class DiagnosisService:
     """策略诊断服务"""
 
     def __init__(self):
-        self.backtest_repo = BacktestORMRepository()
-        self.kline_repo = KlineORMRepository()
+        self.backtest_repo = IBacktestRepository()
+        self.kline_repo = IKlineRepository()
         self.strategy_analyzer = StrategyAnalyzer()
         self.report_generator = ReportGenerator()
 

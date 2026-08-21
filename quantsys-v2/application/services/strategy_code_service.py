@@ -8,20 +8,20 @@
 - 管理策略状态
 """
 
+from domain.ports import IKlineRepository, IStrategyRepository
 from __future__ import annotations
 from typing import Dict, List, Optional, Any
 import json
 import structlog
 import numpy as np
 import pandas as pd
+from domain.ports.datasource_ports import IDataProviderManager, IFundFlowDataSource
 
 try:
     import talib
 except ImportError:
     talib = None
 
-from adapters.outbound.repositories import StrategyORMRepository
-from adapters.outbound.repositories import KlineORMRepository
 from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyExecutor
 from domain.quantlib.engine.script_strategy_executor import ScriptStrategyExecutor
 from domain.quantlib.engine.code_validator import CodeValidator
@@ -54,7 +54,6 @@ try:
 except ImportError as e:
     OTHER_FACTORS_AVAILABLE = False
     logger.warning(f"其他因子导入失败: {e}")
-from adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
 from application.services.sentiment_service import SentimentService
 
 logger = structlog.get_logger(__name__)
@@ -108,8 +107,8 @@ class StrategyCodeService:
     """策略代码服务"""
 
     def __init__(self):
-        self.strategy_repo = StrategyORMRepository()
-        self.kline_repo = KlineORMRepository()
+        self.strategy_repo = IStrategyRepository()
+        self.kline_repo = IKlineRepository()
         self.indicator_executor = IndicatorStrategyExecutor()
         self.script_executor = ScriptStrategyExecutor()
         self.code_validator = CodeValidator()
@@ -117,7 +116,8 @@ class StrategyCodeService:
         self.attribution_calculator = RiskAttributionCalculator()
 
         # 数据提供者管理器
-        from adapters.outbound.datasources import get_data_provider_manager
+            # 延迟导入避免顶层依赖
+            from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
 
         # 初始化资金流服务

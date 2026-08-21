@@ -5,7 +5,7 @@
 import structlog
 from datetime import datetime
 from typing import Dict, Any, List
-from adapters.outbound.datasources import get_data_provider_manager
+from domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 
@@ -15,6 +15,8 @@ class StockDataService:
 
     def __init__(self):
         self.logger = structlog.get_logger(__name__)
+            # 延迟导入避免顶层依赖
+            from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
 
     def get_announcements(self, symbol: str) -> Dict[str, Any]:
