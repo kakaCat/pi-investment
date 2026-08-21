@@ -108,7 +108,11 @@ func (s *HTTPServer) Start(addr string) error {
 		api.HandleFunc("/notifications/channels/{id}", s.notificationHandler.DeleteChannel).Methods("DELETE")
 		api.HandleFunc("/notifications/providers", s.notificationHandler.GetProviders).Methods("GET")
 		api.HandleFunc("/notifications/logs", s.notificationHandler.GetLogs).Methods("GET")
-		api.HandleFunc("/notifications/send", s.notificationHandler.SendNotification).Methods("POST")
+		// 2026-08-21 修复：/notifications/send 原来接的是只写 pending 日志、从不真正发送的
+		// notificationHandler.SendNotification（web 仓储 SendNotification 仅 INSERT pending）。
+		// 改接 handleSend → NotificationService.Send（provider 实发 + 日志回写 sent/failed），
+		// 修复自 08-18 起所有 API 发送的消息永远卡在 pending 的问题。
+		api.HandleFunc("/notifications/send", s.handleSend).Methods("POST")
 	}
 
 	// Profile endpoints
