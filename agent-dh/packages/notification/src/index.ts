@@ -22,14 +22,19 @@ export default class NotificationPlugin extends Service {
       baseURL: z.string().default('http://localhost:8080'),
       agentId: z.string().default('agent-dh'),
     }).default({} as any),
+    // 飞书 webhook 直配（渠道 code → webhook URL）。
+    // 2026-08-21：Agent OS 进程会挂/通知路由只记录不投递，关键通知链路不能依赖它。
+    feishuWebhooks: z.any().default({}),
   }).default({} as any)
 
   private aos: AgentOSClient;
   private aosBaseURL: string;
+  private feishuWebhooks: Record<string, string>;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'notification');
     this.aosBaseURL = config.agentOS?.baseURL || 'http://localhost:8080';
+    this.feishuWebhooks = (config as any).feishuWebhooks || {};
     this.aos = new AgentOSClient({
       baseURL: this.aosBaseURL,
       agentId: config.agentOS?.agentId || 'agent-dh',
@@ -39,18 +44,29 @@ export default class NotificationPlugin extends Service {
 
   /**
    * 直发飞书（2026-08-21 能力进化）：Agent OS 的 /notifications/send 路由
-   * 只写 pending 日志从不投递（legacy 断链，8-18 起 7 条积压），
-   * 通知能力被中间层卡脖子——改为从 Agent OS 读渠道 webhook 配置（单一事实源，不复制凭据），
-   * 插件直接 POST open.feishu.cn。以飞书返回 code=0 为真实送达依据。
+   * 只写 pending 日志从不投递（legacy 断链，8-18 起 7 条积压）；
+   * 且 Agent OS 进程本身会挂（今天实测挂掉），关键通知不能依赖它。
+   * webhook 解析顺序：①插件配置 feishuWebhooks（首选，无中间层依赖）
+   * ②Agent OS 渠道 API（可选回退）。以飞书返回 code=0 为真实送达依据。
    */
   private async sendFeishuDirect(channelCode: string, title: string, content: string, urgency: string): Promise<any> {
-    // 1. 从 Agent OS 读渠道 webhook
-    const res = await fetch(`${this.aosBaseURL}/api/v1/notifications/channels`);
-    if (!res.ok) throw new Error(`读取通知渠道失败：HTTP ${res.status}`);
-    const data: any = await res.json();
-    const channel = (data?.channels || []).find((c: any) => c.code === channelCode && c.enabled);
-    const webhook = channel?.config?.webhook;
-    if (!webhook) throw new Error(`渠道 ${channelCode} 不存在或未配置 webhook`);
+    // 1. 解析 webhook：配置优先，Agent OS API 回退
+    let webhook = this.feishuWebhooks[channelCode] || this.feishuWebhooks['*'];
+    let webhookSource = webhook ? 'config' : '';
+    if (!webhook) {
+      try {
+        const res = await fetch(`${this.aosBaseURL}/api/v1/notifications/channels`);
+        if (res.ok) {
+          const data: any = await res.json();
+          const channel = (data?.channels || []).find((c: any) => c.code === channelCode && c.enabled);
+          webhook = channel?.config?.webhook;
+          webhookSource = webhook ? 'agent_os_api' : '';
+        }
+      } catch { /* Agent OS 不可达，落到错误处理 */ }
+    }
+    if (!webhook) {
+      throw new Error(`渠道 ${channelCode} 无可用 webhook（配置与 Agent OS API 均无）。请在 cordis.patch.yml 的 notification.feishuWebhooks 配置`);
+    }
 
     // 2. 直发飞书自定义机器人（interactive 卡片支持 markdown）
     const template = urgency === 'high' ? 'red' : urgency === 'low' ? 'grey' : 'blue';
@@ -73,6 +89,7 @@ export default class NotificationPlugin extends Service {
       success: true,
       channel: channelCode,
       delivery: 'feishu_direct',
+      webhook_source: webhookSource,
       feishu_code: result.code ?? 0,
       message: '已直发飞书（code=0 确认送达）',
     };
