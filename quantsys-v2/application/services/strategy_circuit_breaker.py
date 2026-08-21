@@ -13,7 +13,7 @@ from datetime import datetime
 import json
 import structlog
 
-from adapters.outbound.repositories import StrategyCircuitBreakerORMRepository
+from domain.ports import IStrategyCircuitBreakerRepository
 from application.services.circuit_breaker_alert_service import circuit_breaker_alert_service
 
 logger = structlog.get_logger(__name__)
@@ -46,7 +46,7 @@ class StrategyCircuitBreaker:
             config: 自定义配置（可选）
         """
         self.config = {**self.DEFAULT_CONFIG, **(config or {})}
-        self.repo = StrategyCircuitBreakerORMRepository()
+        self.repo = IStrategyCircuitBreakerRepository()
 
     def get_state(self, strategy_name: str) -> Dict:
         """

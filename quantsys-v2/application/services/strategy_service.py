@@ -26,7 +26,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 from live_trading.simulation_trader import SimulationTrader
-from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+from domain.ports import ISimulationRepository
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class StrategyService:
 
     def __init__(self):
         self.config_dir = Path(__file__).parent.parent.parent / 'live_trading' / 'configs' / 'strategies'
-        self.repo = SimulationORMRepository()
+        self.repo = ISimulationRepository()
         self._configs_cache = {}
 
     def list_strategies(self) -> List[str]:
@@ -55,9 +55,9 @@ class StrategyService:
 
         # 校验策略账户存在于注册表（simulation_account），缺失则告警并剔除
         from adapters.outbound.repositories.simulation_repository import (
-            SimulationORMRepository,
+            ISimulationRepository,
         )
-        repo = SimulationORMRepository()
+        repo = ISimulationRepository()
         valid = []
         for name in strategies:
             account_name = self.get_config(name)['strategy'].get('account_name')

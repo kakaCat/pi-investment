@@ -3,11 +3,10 @@
 
 检测市场操纵行为（拉高出货等），识别风险和机会
 """
+from domain.ports import IAgentIntelligenceRepository, IFundFlowRepository
 import structlog
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from adapters.outbound.repositories import AgentIntelligenceORMRepository
-from adapters.outbound.repositories import FundFlowORMRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -17,8 +16,8 @@ class ManipulationDetector:
 
     def __init__(self):
         """初始化服务"""
-        self.manipulation_repo = AgentIntelligenceORMRepository()
-        self.fund_flow_repo = FundFlowORMRepository()
+        self.manipulation_repo = IAgentIntelligenceRepository()
+        self.fund_flow_repo = IFundFlowRepository()
 
     def detect_market_manipulation(self) -> Dict[str, Any]:
         """

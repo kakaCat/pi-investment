@@ -27,9 +27,9 @@ class TradingCalendarService:
             kline_repo: K线数据仓库实例
             redis_client: Redis客户端实例（可选）
         """
-        from adapters.outbound.repositories import KlineORMRepository
+        from domain.ports import IKlineRepository
 
-        self.kline_repo = kline_repo or KlineORMRepository()
+        self.kline_repo = kline_repo or IKlineRepository()
         self.redis = redis_client
         self._cache = {}  # 内存缓存作为 Redis 的 fallback
 

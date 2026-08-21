@@ -3,11 +3,10 @@
 
 自动评估历史决策的结果，提取经验教训
 """
+from domain.ports import IAgentDecisionRepository, IStockPoolRepository
 import structlog
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from adapters.outbound.repositories import AgentDecisionRepository
-from adapters.outbound.repositories import StockPoolRepository
 from application.services.knowledge_service import KnowledgeService
 
 logger = structlog.get_logger(__name__)
@@ -18,8 +17,8 @@ class DecisionEvaluator:
 
     def __init__(self):
         """初始化服务"""
-        self.decision_repo = AgentIntelligenceORMRepository()
-        self.pool_repo = StockPoolORMRepository()
+        self.decision_repo = IAgentIntelligenceRepository()
+        self.pool_repo = IStockPoolRepository()
         self.knowledge_service = KnowledgeService()
 
     def batch_evaluate_pending(self, days: int = 7) -> Dict[str, Any]:

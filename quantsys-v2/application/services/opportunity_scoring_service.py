@@ -6,12 +6,11 @@
 2. 综合评分并确定风险等级
 3. 支持并行处理多只股票
 """
+from domain.ports import IFinancialRepository, IFundFlowRepository, IKlineRepository, IStockRepository
 from typing import List, Dict, Optional
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
-from adapters.outbound.repositories import KlineORMRepository
-from adapters.outbound.repositories import StockORMRepository
 from domain.quantlib.adapters import get_factor_adapter
 from application.services.scoring.technical_scorer import TechnicalScorer
 from application.services.scoring.fundamental_scorer import FundamentalScorer
@@ -38,8 +37,8 @@ class OpportunityScoringService:
 
     def __init__(
         self,
-        kline_repo: KlineORMRepository,
-        stock_repo: StockORMRepository,
+        kline_repo: IKlineRepository,
+        stock_repo: IStockRepository,
         factor_adapter,
         financial_repo=None,
         fund_flow_repo=None,
@@ -59,11 +58,9 @@ class OpportunityScoringService:
         self.profile_classifier = StockProfileClassifier()
         self.cache = cache or get_cache_service()
         if financial_repo is None:
-            from adapters.outbound.repositories.financial_repository import FinancialORMRepository
-            financial_repo = FinancialORMRepository()
+                        financial_repo = IFinancialRepository()
         if fund_flow_repo is None:
-            from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
-            fund_flow_repo = FundFlowORMRepository()
+                        fund_flow_repo = IFundFlowRepository()
         self.financial_repo = financial_repo
         self.fund_flow_repo = fund_flow_repo
         self.regime_provider = regime_provider or RegimeSignalProvider(

@@ -8,7 +8,7 @@ import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from adapters.outbound.repositories import SchedulerConfigORMRepository
+from domain.ports import ISchedulerConfigRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -26,7 +26,7 @@ class SchedulerConfigService:
     """
 
     def __init__(self):
-        self.repo = SchedulerConfigORMRepository()
+        self.repo = ISchedulerConfigRepository()
         logger.info("SchedulerConfigService initialized with ORM")
 
     def list_configs(

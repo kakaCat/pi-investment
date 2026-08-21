@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, date
 
 from domain.strategies import get_registry, Signal
-from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+from domain.ports import ISimulationRepository
 
 
 class SimulationService:
@@ -16,7 +16,7 @@ class SimulationService:
     
     def __init__(self):
         self.registry = get_registry()
-        self.repo = SimulationORMRepository()
+        self.repo = ISimulationRepository()
         self.logger = logging.getLogger(__name__)
     
     def list_strategies(self) -> List[Dict]:

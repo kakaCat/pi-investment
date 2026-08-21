@@ -30,10 +30,10 @@ class DataBackfiller:
             kline_repo: K线数据仓库实例
             data_source_manager: 数据源管理器实例
         """
-        from adapters.outbound.repositories import KlineORMRepository
+        from domain.ports import IKlineRepository
         from adapters.outbound.datasources.manager import get_data_source_manager
 
-        self.kline_repo = kline_repo or KlineORMRepository()
+        self.kline_repo = kline_repo or IKlineRepository()
         self.data_source_manager = data_source_manager or get_data_source_manager()
 
     def backfill_symbol(

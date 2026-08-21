@@ -11,7 +11,7 @@ from pathlib import Path
 import structlog
 
 from application.services.signal_test_log import SignalTestLog
-from adapters.outbound.repositories import StrategyPerformanceORMRepository
+from domain.ports import IStrategyPerformanceRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -21,7 +21,7 @@ class ExperienceAccumulator:
 
     def __init__(self):
         self.signal_log = SignalTestLog()
-        self.perf_repo = StrategyPerformanceORMRepository()
+        self.perf_repo = IStrategyPerformanceRepository()
 
     def accumulate_from_performance(
         self,

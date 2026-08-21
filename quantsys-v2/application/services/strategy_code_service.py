@@ -8,6 +8,7 @@
 - 管理策略状态
 """
 
+from domain.ports import IKlineRepository, IStrategyRepository
 from __future__ import annotations
 from typing import Dict, List, Optional, Any
 import json
@@ -20,8 +21,6 @@ try:
 except ImportError:
     talib = None
 
-from adapters.outbound.repositories import StrategyORMRepository
-from adapters.outbound.repositories import KlineORMRepository
 from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyExecutor
 from domain.quantlib.engine.script_strategy_executor import ScriptStrategyExecutor
 from domain.quantlib.engine.code_validator import CodeValidator
@@ -108,8 +107,8 @@ class StrategyCodeService:
     """策略代码服务"""
 
     def __init__(self):
-        self.strategy_repo = StrategyORMRepository()
-        self.kline_repo = KlineORMRepository()
+        self.strategy_repo = IStrategyRepository()
+        self.kline_repo = IKlineRepository()
         self.indicator_executor = IndicatorStrategyExecutor()
         self.script_executor = ScriptStrategyExecutor()
         self.code_validator = CodeValidator()

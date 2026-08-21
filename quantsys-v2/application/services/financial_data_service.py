@@ -4,6 +4,7 @@
 提供多数据源 fallback 机制，依次尝试各个数据源直到成功，最终 fallback 到数据库。
 类似 RealtimeQuoteService 的架构。
 """
+from domain.ports import IFinancialRepository, IKlineRepository
 import structlog
 from typing import Optional, Dict, Any, List
 from datetime import datetime
@@ -209,11 +210,9 @@ class FinancialDataService:
         logger.info(f"Fetching valuation for {symbol}")
 
         try:
-            from adapters.outbound.repositories import FinancialRepository
-            from adapters.outbound.repositories import KlineORMRepository
-
-            financial_repo = FinancialORMRepository()
-            kline_repo = KlineORMRepository()
+                        
+            financial_repo = IFinancialRepository()
+            kline_repo = IKlineRepository()
 
             # 获取最新股价
             latest_kline = kline_repo.get_latest_kline(symbol)
@@ -330,9 +329,8 @@ class FinancialDataService:
             财务指标字典 或 None
         """
         try:
-            from adapters.outbound.repositories import FinancialRepository
-
-            financial_repo = FinancialORMRepository()
+            
+            financial_repo = IFinancialRepository()
 
             # 获取最近的利润表和资产负债表
             income_data = financial_repo.get_income_statements(symbol, period_type='Y', limit=5)

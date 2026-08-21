@@ -11,7 +11,7 @@ import structlog
 from typing import Dict, List, Optional
 from datetime import datetime
 
-from adapters.outbound.repositories import KlineORMRepository
+from domain.ports import IKlineRepository
 from application.services.stock_code_validator import StockCodeValidator
 
 logger = structlog.get_logger(__name__)
@@ -27,7 +27,7 @@ class SwingPointService:
     """ZigZag 波段分析服务"""
 
     def __init__(self):
-        self.kline_repo = KlineORMRepository()
+        self.kline_repo = IKlineRepository()
         self.validator = StockCodeValidator()
 
     def analyze(self, params: Dict) -> Dict:

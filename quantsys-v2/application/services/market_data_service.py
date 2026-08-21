@@ -279,7 +279,7 @@ class MarketDataService:
         """
         try:
             from adapters.outbound.datasources.north_flow_ccass import NorthHoldingsCCASSSource
-            from adapters.outbound.repositories import KlineORMRepository
+            from domain.ports import IKlineRepository
 
             source = NorthHoldingsCCASSSource()
 
@@ -303,7 +303,7 @@ class MarketDataService:
                 )
 
             # 3. 收盘价（用对比日的最新 K 线）
-            kline_repo = KlineORMRepository()
+            kline_repo = IKlineRepository()
             symbols = list({r['symbol'] for r in snapshots[latest_date]}
                            | {r['symbol'] for r in snapshots[prev_date]})
             klines = kline_repo.get_latest_daily_klines_batch(symbols)

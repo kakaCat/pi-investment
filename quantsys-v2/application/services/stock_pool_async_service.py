@@ -9,9 +9,8 @@
 5. 动态池刷新（基于 filter_template 重新筛选）
 6. 筛选建池（scan → create pool 一步完成）
 """
+from domain.ports import IStockPoolRepository, IStockRepository
 from typing import Dict, List, Optional
-from adapters.outbound.repositories.stock_async_repository import StockAsyncRepository
-from adapters.outbound.repositories.stock_pool_async_repository import StockPoolAsyncRepository
 from infrastructure.persistence.orm.async_config import get_async_session_context
 import time
 import structlog
@@ -58,7 +57,7 @@ class StockPoolAsyncService:
 
         try:
             async with get_async_session_context() as session:
-                stock_repo = StockAsyncRepository(session)
+                stock_repo = IStockRepository(session)
 
                 # 查询活跃A股作为热门股票池
                 stocks = await stock_repo.get_active_stocks(market='A')
@@ -125,7 +124,7 @@ class StockPoolAsyncService:
         """
         try:
             async with get_async_session_context() as session:
-                pool_repo = StockPoolAsyncRepository(session)
+                pool_repo = IStockPoolRepository(session)
                 pools = await pool_repo.list_pools(pool_type=pool_type, limit=limit)
                 return pools
 
@@ -145,7 +144,7 @@ class StockPoolAsyncService:
         """
         try:
             async with get_async_session_context() as session:
-                pool_repo = StockPoolAsyncRepository(session)
+                pool_repo = IStockPoolRepository(session)
                 pool = await pool_repo.get_pool(pool_id)
                 return pool
 
@@ -165,7 +164,7 @@ class StockPoolAsyncService:
         """
         try:
             async with get_async_session_context() as session:
-                pool_repo = StockPoolAsyncRepository(session)
+                pool_repo = IStockPoolRepository(session)
                 pool = await pool_repo.create_pool(pool_data)
                 return pool
 
@@ -186,7 +185,7 @@ class StockPoolAsyncService:
         """
         try:
             async with get_async_session_context() as session:
-                pool_repo = StockPoolAsyncRepository(session)
+                pool_repo = IStockPoolRepository(session)
                 success = await pool_repo.update_pool(pool_id, updates)
                 return success
 
@@ -206,7 +205,7 @@ class StockPoolAsyncService:
         """
         try:
             async with get_async_session_context() as session:
-                pool_repo = StockPoolAsyncRepository(session)
+                pool_repo = IStockPoolRepository(session)
                 success = await pool_repo.delete_pool(pool_id)
                 return success
 
@@ -223,7 +222,7 @@ class StockPoolAsyncService:
         """
         try:
             async with get_async_session_context() as session:
-                pool_repo = StockPoolAsyncRepository(session)
+                pool_repo = IStockPoolRepository(session)
                 pools = await pool_repo.get_enabled_pools()
                 return pools
 

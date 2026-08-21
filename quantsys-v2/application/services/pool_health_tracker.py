@@ -6,7 +6,7 @@
 import structlog
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from adapters.outbound.repositories import StockPoolORMRepository
+from domain.ports import IStockPoolRepository
 from application.services.enhanced_risk_assessor import EnhancedRiskAssessor
 
 logger = structlog.get_logger(__name__)
@@ -17,7 +17,7 @@ class PoolHealthTracker:
 
     def __init__(self):
         """初始化服务"""
-        self.pool_repo = StockPoolORMRepository()
+        self.pool_repo = IStockPoolRepository()
         self.risk_assessor = EnhancedRiskAssessor()
 
     def track_pool_health(self, pool_id: int) -> Dict[str, Any]:

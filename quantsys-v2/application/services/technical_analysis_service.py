@@ -158,7 +158,7 @@ class TechnicalAnalysisService:
         """
         try:
             import pandas as pd
-            from adapters.outbound.repositories import KlineORMRepository
+            from domain.ports import IKlineRepository
 
             self.logger.info(f"计算买入区间: symbol={symbol}")
 
@@ -166,7 +166,7 @@ class TechnicalAnalysisService:
             end_date = datetime.now().strftime('%Y-%m-%d')
             start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
 
-            kline_repo = KlineORMRepository()
+            kline_repo = IKlineRepository()
             # 确保 symbol 有后缀
             if '.' not in symbol:
                 symbol_with_suffix = symbol + ('.SH' if symbol.startswith('6') else '.SZ')
@@ -249,7 +249,7 @@ class TechnicalAnalysisService:
 
             try:
                 # 使用 KlineRepository 从数据库获取历史数据
-                from adapters.outbound.repositories import KlineORMRepository
+                from domain.ports import IKlineRepository
 
                 end_date = datetime.now().strftime('%Y-%m-%d')
                 start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
@@ -260,7 +260,7 @@ class TechnicalAnalysisService:
                 else:
                     symbol_with_suffix = symbol
 
-                kline_repo = KlineORMRepository()
+                kline_repo = IKlineRepository()
                 klines = kline_repo.get_daily_klines(symbol_with_suffix, start_date, end_date)
 
                 if not klines or len(klines) == 0:

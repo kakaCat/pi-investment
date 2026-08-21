@@ -3,13 +3,13 @@
 
 负责策略批量验证、综合评分计算、无效策略标记
 """
+from domain.ports import IStockRepository, IStrategyRepository
 from typing import Dict, List, Optional
 import structlog
 import requests
 import time
 from datetime import datetime
 
-from adapters.outbound.repositories import StrategyORMRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -18,10 +18,9 @@ class StrategyValidationService:
     """策略验证服务"""
 
     def __init__(self):
-        self.strategy_repo = StrategyORMRepository()
-        from adapters.outbound.repositories import StockORMRepository
-        from application.services.stock_pool_service import StockPoolService
-        self.stock_pool_service = StockPoolService(StockORMRepository())
+        self.strategy_repo = IStrategyRepository()
+                from application.services.stock_pool_service import StockPoolService
+        self.stock_pool_service = StockPoolService(IStockRepository())
 
     def normalize(
         self,

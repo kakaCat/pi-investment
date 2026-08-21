@@ -11,6 +11,7 @@
 每日 15:30 由定时任务调用
 """
 
+from domain.ports import ISignalExecutionLogRepository, ISignalRepository, IStrategyRepository
 from __future__ import annotations
 
 from typing import Dict, Any, List
@@ -21,9 +22,6 @@ from application.services.data_service import DataService
 from application.services.strategy_code_service import StrategyCodeService
 from application.services.risk_check_service import RiskCheckService
 from application.services.order_service import create_order
-from adapters.outbound.repositories import SignalORMRepository
-from adapters.outbound.repositories import SignalExecutionLogORMRepository
-from adapters.outbound.repositories import StrategyORMRepository
 from live_trading.paper_trading_engine import PaperTradingEngine, Signal as TradeSignal
 
 logger = structlog.get_logger(__name__)
@@ -36,9 +34,9 @@ class SignalExecutionScheduler:
         self.ds = DataService()
         self.strategy_service = StrategyCodeService()
         self.risk_service = RiskCheckService(self.ds)
-        self.signal_repo = SignalORMRepository()
-        self.log_repo = SignalExecutionLogORMRepository()
-        self.strategy_repo = StrategyORMRepository()
+        self.signal_repo = ISignalRepository()
+        self.log_repo = ISignalExecutionLogRepository()
+        self.strategy_repo = IStrategyRepository()
         # 懒加载：只有真正下单的路径（_batch_create_orders）才创建引擎。
         # 2026-07-24 盈利闭环改造：orchestrator 只收集信号不下单，
         # 不应因构造 scheduler 就绑定 rotation_main 账户。

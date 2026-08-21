@@ -9,8 +9,8 @@
 5. 动态池刷新（基于 filter_template 重新筛选）
 6. 筛选建池（scan → create pool 一步完成）
 """
+from domain.ports import IKlineRepository, IStockRepository
 from typing import Dict, List, Optional
-from adapters.outbound.repositories import StockORMRepository
 import time
 import structlog
 
@@ -27,13 +27,13 @@ class StockPoolService:
         '000688.SH'   # 科创50
     ]
 
-    def __init__(self, stock_repo: StockORMRepository, pool_repo=None, scoring_service=None):
+    def __init__(self, stock_repo: IStockRepository, pool_repo=None, scoring_service=None):
         """
         初始化股票池服务
 
         Args:
             stock_repo: 股票仓储实例
-            pool_repo: StockPoolRepository 实例（可选，用于自定义池 CRUD）
+            pool_repo: IStockPoolRepository 实例（可选，用于自定义池 CRUD）
             scoring_service: OpportunityScoringService 实例（可选，用于 scan_create）
         """
         self.stock_repo = stock_repo
@@ -74,8 +74,7 @@ class StockPoolService:
             if not constituents:
                 # index_constituents 表为空（采集任务未跑过）时，不能让扫描池
                 # 静默变空——降级为「近期活跃股票」并显式标记来源
-                from adapters.outbound.repositories import KlineORMRepository
-                fallback = KlineORMRepository().get_active_symbols(days=15, min_days=3, limit=500)
+                                fallback = IKlineRepository().get_active_symbols(days=15, min_days=3, limit=500)
                 logger.warning(
                     f"index_constituents 为空，热门池降级为活跃股票 fallback: {len(fallback)} 只")
                 self._hot_pool_source = 'fallback_active_stocks'
@@ -134,7 +133,7 @@ class StockPoolService:
                     description: str = None) -> dict:
         """创建股票池（静态或动态）。"""
         if not self._pool_repo:
-            raise RuntimeError("StockPoolRepository not configured")
+            raise RuntimeError("IStockPoolRepository not configured")
         if pool_type == 'static' and not symbols:
             raise ValueError("Static pool requires symbols list")
         if pool_type == 'dynamic' and not filter_template:
@@ -152,7 +151,7 @@ class StockPoolService:
     def get_pool(self, pool_id: int) -> dict:
         """获取池子详情。不存在时抛 ValueError。"""
         if not self._pool_repo:
-            raise RuntimeError("StockPoolRepository not configured")
+            raise RuntimeError("IStockPoolRepository not configured")
         pool = self._pool_repo.get_pool(pool_id)
         if not pool:
             raise ValueError(f"Pool {pool_id} not found")
@@ -190,7 +189,7 @@ class StockPoolService:
     def list_pools(self) -> list:
         """列出所有池子（摘要信息，不含完整 symbols）。"""
         if not self._pool_repo:
-            raise RuntimeError("StockPoolRepository not configured")
+            raise RuntimeError("IStockPoolRepository not configured")
         pools = self._pool_repo.get_all()
         result = []
         for p in pools:
@@ -211,7 +210,7 @@ class StockPoolService:
     def update_pool(self, pool_id: int, **kwargs) -> dict:
         """更新池子字段。返回更新后的池子。"""
         if not self._pool_repo:
-            raise RuntimeError("StockPoolRepository not configured")
+            raise RuntimeError("IStockPoolRepository not configured")
         updated = self._pool_repo.update(pool_id, kwargs)
         if not updated:
             raise ValueError(f"Pool {pool_id} not found")
@@ -220,7 +219,7 @@ class StockPoolService:
     def delete_pool(self, pool_id: int) -> bool:
         """删除池子。不存在时抛 ValueError。"""
         if not self._pool_repo:
-            raise RuntimeError("StockPoolRepository not configured")
+            raise RuntimeError("IStockPoolRepository not configured")
         if not self._pool_repo.delete(pool_id):
             raise ValueError(f"Pool {pool_id} not found")
         return True
@@ -238,7 +237,7 @@ class StockPoolService:
             更新后的池子
         """
         if not self._pool_repo:
-            raise RuntimeError("StockPoolRepository not configured")
+            raise RuntimeError("IStockPoolRepository not configured")
 
         pool = self._pool_repo.get_pool(pool_id)
         if not pool:
@@ -325,7 +324,7 @@ class StockPoolService:
             {pool, added, skipped, warning?}
         """
         if not self._pool_repo:
-            raise RuntimeError("StockPoolRepository not configured")
+            raise RuntimeError("IStockPoolRepository not configured")
         pool = self._pool_repo.get_pool(pool_id)
         if not pool:
             raise ValueError(f"Pool {pool_id} not found")
@@ -372,7 +371,7 @@ class StockPoolService:
             {pool, removed, skipped, warning?}
         """
         if not self._pool_repo:
-            raise RuntimeError("StockPoolRepository not configured")
+            raise RuntimeError("IStockPoolRepository not configured")
         pool = self._pool_repo.get_pool(pool_id)
         if not pool:
             raise ValueError(f"Pool {pool_id} not found")
@@ -405,7 +404,7 @@ class StockPoolService:
     def sync_stock_names(self, pool_id: int) -> dict:
         """同步股票池成员名称并持久化到 members 字段。"""
         if not self._pool_repo:
-            raise RuntimeError("StockPoolRepository not configured")
+            raise RuntimeError("IStockPoolRepository not configured")
 
         pool = self._pool_repo.get_pool(pool_id)
         if not pool:
@@ -455,7 +454,7 @@ class StockPoolService:
     def refresh_pool(self, pool_id: int) -> dict:
         """刷新动态池：用 filter_template 重新筛选，更新 symbols。"""
         if not self._pool_repo:
-            raise RuntimeError("StockPoolRepository not configured")
+            raise RuntimeError("IStockPoolRepository not configured")
         if not self._scoring_service:
             raise RuntimeError("OpportunityScoringService not configured")
 

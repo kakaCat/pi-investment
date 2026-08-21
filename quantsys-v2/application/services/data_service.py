@@ -11,17 +11,17 @@ import structlog
 import polars as pl
 
 # 使用ORM Repository
-from adapters.outbound.repositories import (
-    StockORMRepository,
-    KlineORMRepository,
-    SignalORMRepository,
-    SimulationORMRepository,
-    PortfolioORMRepository,
-    FactorORMRepository,
-    BacktestORMRepository,
-    RiskORMRepository,
-    StrategyORMRepository,
-    SignalExecutionORMRepository,
+from domain.ports.repository_ports_extended import (
+    IStockRepository,
+    IKlineRepository,
+    ISignalRepository,
+    ISimulationRepository,
+    IPortfolioRepository,
+    IFactorRepository,
+    IBacktestRepository,
+    IRiskRepository,
+    IStrategyRepository,
+    ISignalExecutionRepository,
 )
 
 from infrastructure.persistence.orm import close_session
@@ -40,16 +40,16 @@ class DataService:
     def __init__(self, cache_manager=None):
         """初始化DataService"""
         # ORM Repository
-        self.stock = StockORMRepository()
-        self.kline = KlineORMRepository()
-        self.signal = SignalORMRepository()
-        self.simulation = SimulationORMRepository()
-        self.portfolio = PortfolioORMRepository()
-        self.factor = FactorORMRepository()
-        self.backtest = BacktestORMRepository()
-        self.risk = RiskORMRepository()
-        self.strategy = StrategyORMRepository()
-        self.execution = SignalExecutionORMRepository()
+        self.stock = IStockRepository()
+        self.kline = IKlineRepository()
+        self.signal = ISignalRepository()
+        self.simulation = ISimulationRepository()
+        self.portfolio = IPortfolioRepository()
+        self.factor = IFactorRepository()
+        self.backtest = IBacktestRepository()
+        self.risk = IRiskRepository()
+        self.strategy = IStrategyRepository()
+        self.execution = ISignalExecutionRepository()
 
         self._cache = cache_manager
         self.financial_service = FinancialDataService()

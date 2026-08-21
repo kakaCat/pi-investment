@@ -26,8 +26,8 @@ class EvolutionFitnessService:
         trade_counter: Optional[Callable[[str, date, date], int]] = None,
     ):
         if sim_repo is None:
-            from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
-            sim_repo = SimulationORMRepository()
+            from domain.ports import ISimulationRepository
+            sim_repo = ISimulationRepository()
         if fitness_repo is None:
             from adapters.outbound.repositories.evolution_fitness_repository import (
                 EvolutionFitnessORMRepository,

@@ -8,12 +8,11 @@
 
 confidence 按 0-100 存储（缠论 0-1 × 100），与 agent 决策链"强度≥70"习惯对齐。
 """
+from domain.ports import ISignalRepository, IStockPoolRepository
 from typing import Dict, Any, List
 import structlog
 
 from application.services.chan_service import ChanService
-from adapters.outbound.repositories.stock_pool_repository import StockPoolORMRepository
-from adapters.outbound.repositories.signal_repository import SignalORMRepository
 
 logger = structlog.getLogger(__name__)
 
@@ -32,8 +31,8 @@ class ChanScanService:
         # 注意：依赖在模块顶部 import（非 __init__ 内 lazy import），
         # 否则测试 patch 'application.services.chan_scan_service.X' 会 AttributeError
         self._chan = ChanService()
-        self._pool_repo = StockPoolORMRepository()
-        self._signal_repo = SignalORMRepository()
+        self._pool_repo = IStockPoolRepository()
+        self._signal_repo = ISignalRepository()
 
     @staticmethod
     def _normalize_symbol(symbol: str) -> str:

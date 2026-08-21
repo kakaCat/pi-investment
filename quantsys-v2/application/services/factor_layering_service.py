@@ -5,6 +5,7 @@
 提供因子分层回测的统一服务接口，封装 FactorLayeringBacktest 和 ICAnalyzer。
 """
 
+from domain.ports import IKlineRepository, IStockRepository
 import pandas as pd
 import numpy as np
 from typing import List, Dict, Any, Optional
@@ -14,8 +15,6 @@ from datetime import datetime, timedelta
 from domain.quantlib.factor_analysis.layering_backtest import FactorLayeringBacktest
 from domain.quantlib.factor_analysis.ic_analyzer import ICAnalyzer
 from domain.quantlib.stages.factor_stage import FactorStage
-from adapters.outbound.repositories import KlineORMRepository
-from adapters.outbound.repositories import StockORMRepository
 from application.services.stock_pool_service import StockPoolService
 
 logger = structlog.get_logger(__name__)
@@ -25,8 +24,8 @@ class FactorLayeringService:
     """因子分层回测服务"""
 
     def __init__(self):
-        self.kline_repo = KlineORMRepository()
-        self.stock_repo = StockORMRepository()
+        self.kline_repo = IKlineRepository()
+        self.stock_repo = IStockRepository()
         self.stock_pool_service = StockPoolService(stock_repo=self.stock_repo)
 
     def run_layering_backtest(

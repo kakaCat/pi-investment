@@ -23,13 +23,13 @@ class DataQualityService:
 
     def __init__(self):
         """初始化数据质量服务"""
-        from adapters.outbound.repositories import KlineORMRepository
+        from domain.ports import IKlineRepository
         from application.services.trading_calendar_service import TradingCalendarService
         from application.services.data_gap_detector import DataGapDetector
         from application.services.data_backfiller import DataBackfiller
         from application.services.data_validator import DataValidator
 
-        self.kline_repo = KlineORMRepository()
+        self.kline_repo = IKlineRepository()
         self.calendar = TradingCalendarService(self.kline_repo)
         self.gap_detector = DataGapDetector(self.kline_repo, self.calendar)
         self.backfiller = DataBackfiller(self.kline_repo)
