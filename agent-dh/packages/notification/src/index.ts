@@ -25,14 +25,57 @@ export default class NotificationPlugin extends Service {
   }).default({} as any)
 
   private aos: AgentOSClient;
+  private aosBaseURL: string;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'notification');
+    this.aosBaseURL = config.agentOS?.baseURL || 'http://localhost:8080';
     this.aos = new AgentOSClient({
-      baseURL: config.agentOS?.baseURL || 'http://localhost:8080',
+      baseURL: this.aosBaseURL,
       agentId: config.agentOS?.agentId || 'agent-dh',
     });
     this.registerTools();
+  }
+
+  /**
+   * 直发飞书（2026-08-21 能力进化）：Agent OS 的 /notifications/send 路由
+   * 只写 pending 日志从不投递（legacy 断链，8-18 起 7 条积压），
+   * 通知能力被中间层卡脖子——改为从 Agent OS 读渠道 webhook 配置（单一事实源，不复制凭据），
+   * 插件直接 POST open.feishu.cn。以飞书返回 code=0 为真实送达依据。
+   */
+  private async sendFeishuDirect(channelCode: string, title: string, content: string, urgency: string): Promise<any> {
+    // 1. 从 Agent OS 读渠道 webhook
+    const res = await fetch(`${this.aosBaseURL}/api/v1/notifications/channels`);
+    if (!res.ok) throw new Error(`读取通知渠道失败：HTTP ${res.status}`);
+    const data: any = await res.json();
+    const channel = (data?.channels || []).find((c: any) => c.code === channelCode && c.enabled);
+    const webhook = channel?.config?.webhook;
+    if (!webhook) throw new Error(`渠道 ${channelCode} 不存在或未配置 webhook`);
+
+    // 2. 直发飞书自定义机器人（interactive 卡片支持 markdown）
+    const template = urgency === 'high' ? 'red' : urgency === 'low' ? 'grey' : 'blue';
+    const resp = await fetch(webhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        msg_type: 'interactive',
+        card: {
+          header: { title: { tag: 'plain_text', content: title }, template },
+          elements: [{ tag: 'div', text: { tag: 'lark_md', content } }],
+        },
+      }),
+    });
+    const result: any = await resp.json().catch(() => ({}));
+    if (!resp.ok || (result.code !== undefined && result.code !== 0)) {
+      throw new Error(`飞书投递失败：HTTP ${resp.status} ${JSON.stringify(result).slice(0, 200)}`);
+    }
+    return {
+      success: true,
+      channel: channelCode,
+      delivery: 'feishu_direct',
+      feishu_code: result.code ?? 0,
+      message: '已直发飞书（code=0 确认送达）',
+    };
   }
 
   private registerTools() {
@@ -84,12 +127,8 @@ export default class NotificationPlugin extends Service {
         // （修复"永远落到第一个 enabled channel"导致的日报/告警混发）
         const urgency = args.urgency || 'normal';
         const channel = args.channel || (urgency === 'high' ? 'alerts' : 'reports');
-        return aos.notification.send({
-          title: args.title,
-          content: args.content,
-          urgency,
-          channel,
-        }) as any;
+        // 2026-08-21：Agent OS 路由只记录不投递（legacy 断链实证），改为插件直发飞书 webhook
+        return await this.sendFeishuDirect(channel, args.title, args.content, urgency) as any;
       },
     } as any));
 
@@ -138,12 +177,22 @@ export default class NotificationPlugin extends Service {
       },
       timeoutMs: 10000,
       execute: async (args: any) => {
-        return aos.notification.send({
+        // feishu 渠道直发（Agent OS 路由不投递）；其他渠道仍走 Agent OS（可能不投递，返回中带警示）
+        if (args.channel === 'feishu') {
+          const urgency = args.urgency || 'normal';
+          const channelCode = urgency === 'high' ? 'alerts' : 'reports';
+          return await this.sendFeishuDirect(channelCode, args.title, args.content, urgency) as any;
+        }
+        const result: any = await aos.notification.send({
           channel: args.channel,
           title: args.title,
           content: args.content,
           urgency: args.urgency || 'normal',
-        }) as any;
+        });
+        return {
+          ...result,
+          warning: '注意：Agent OS 通知路由当前只记录不投递（legacy 断链），webhook/email 渠道请先验证投递状态',
+        } as any;
       },
     } as any));
 
