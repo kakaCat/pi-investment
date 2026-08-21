@@ -1,0 +1,948 @@
+================================================================================
+服务层职责审计报告
+================================================================================
+
+## 1. 统计数据
+
+总服务数: 62
+总方法数: 393
+平均每服务方法数: 6.3
+
+## 2. 职责重叠分析
+
+发现 149 处潜在职责重叠:
+
+  关键词: send
+  涉及服务: CircuitBreakerAlertService, AgentNotificationService, FeishuNotificationService
+  涉及方法: send_text, send_card, send_daily_report...
+
+  关键词: daily
+  涉及服务: StrategyService, DataPipelineService, FeishuNotificationService, AccountTradingService, LhbService, RiskCheckService
+  涉及方法: send_daily_report, daily_check, get_daily_lhb...
+
+  关键词: report
+  涉及服务: DecisionService, FactorAnalysisService, BenchmarkService, FeishuNotificationService
+  涉及方法: send_daily_report, send_weekly_report, send_premarket_report...
+
+  关键词: alert
+  涉及服务: RiskAnalysisService, GameAlertService, CircuitBreakerAlertService, FeishuNotificationService
+  涉及方法: send_alert, _generate_alert_id, get_alert_statistics...
+
+  关键词: strategy
+  涉及服务: StrategyBacktestService, SimulationService, PoolValidationService, FeishuNotificationService, ComboStrategyBacktestService
+  涉及方法: _format_strategy_performance, _backtest_single_strategy, _load_strategy...
+
+  关键词: format
+  涉及服务: ChanService, FeishuNotificationService
+  涉及方法: _format_strategy_performance, _format_outlook, _format_opportunities...
+
+  关键词: performance
+  涉及服务: StrategyAnalysisService, MarketSentimentService, FeishuNotificationService
+  涉及方法: _format_strategy_performance, analyze_performance, _get_index_performance...
+
+  关键词: cache
+  涉及服务: EnhancedFinancialDataService, TradingCalendarService
+  涉及方法: _make_cache_key, was_cache_hit, clear_cache...
+
+  关键词: data
+  涉及服务: FactorLayeringService, HeatmapService, DataService, DecisionService, DataQualityService, FinancialDataService, StockScoringService, EnhancedFinancialDataService, DiagnosisService, ChanService, FactorAnalysisService
+  涉及方法: _get_data_with_circuit_breaker, get_financial_data, _get_backtest_data...
+
+  关键词: circuit
+  涉及服务: EnhancedFinancialDataService
+  涉及方法: _get_data_with_circuit_breaker, reset_circuit_breakers...
+
+## 3. 服务粒度分析
+
+ℹ️  可能过度拆分 (方法 <3, <100行): 11 个
+  - LhbService: 2 个方法, 56 行
+  - RiskAnalysisService: 2 个方法, 29 行
+  - FactorAnalysisService: 2 个方法, 27 行
+  - StrategyAnalysisService: 2 个方法, 27 行
+  - RiskCheckAsyncService: 0 个方法, 52 行
+
+✅ 粒度合适: 51 个
+
+## 4. 方法复杂度分析
+
+发现 95 个复杂方法 (>50 行):
+
+  - StrategyBacktestService.run_backtest_from_signals: 268 行
+  - AccountTradingService.execute_trade: 239 行
+  - SwingPointService._zigzag: 154 行
+  - FactorAnalysisService._create_html_report: 152 行
+  - DataQualityService.check_data_quality: 147 行
+  - SwingPointService.analyze: 145 行
+  - PoolValidationService.validate_pool: 137 行
+  - FactorLayeringService.run_layering_backtest: 127 行
+  - StrategyDiscoveryService._discover_single: 122 行
+  - StockScreeningService.screen_stocks: 115 行
+
+## 5. 服务依赖分析
+
+✅ 未发现服务间循环依赖
+
+## 6. Repository 依赖统计
+
+最常用的 Repository:
+  - kline_repo: 被 9 个服务使用
+  - repo: 被 5 个服务使用
+  - decision_repo: 被 3 个服务使用
+  - _strategy_repo: 被 2 个服务使用
+  - strategy_repo: 被 2 个服务使用
+  - _pool_repo: 被 2 个服务使用
+  - backtest_repo: 被 1 个服务使用
+  - report_generator: 被 1 个服务使用
+  - result_repo: 被 1 个服务使用
+  - rule_repo: 被 1 个服务使用
+
+## 7. 所有服务列表
+
+### SmartSchedulerService
+  文件: application/services/smart_scheduler.py
+  方法数: 17
+  代码行数: 376
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - _setup_listeners() [14 行]
+    - _on_job_executed(event) [4 行]
+    - _on_job_error(event) [4 行]
+    - _on_job_missed(event) [4 行]
+    - _update_run_status(job_id, status, execution_time_ms, error_message) [38 行]
+    - wrapped_task() [2 行]
+    - register_task(task_id, task_name, task_func, schedule, params, priority) [57 行]
+    - _execute_task(task_id, task_name, task_func, params) [98 行]
+    - execute() [3 行]
+    - trigger_task(task_name, params) [50 行]
+
+### BenchmarkService
+  文件: application/services/benchmark_service.py
+  方法数: 14
+  代码行数: 370
+  服务依赖: 0
+  Repository 依赖: 2
+  方法列表:
+    - list_benchmarks() [12 行]
+    - run_benchmarks(benchmark_ids, timeout_seconds) [29 行]
+    - get_latest_results() [14 行]
+    - read_report() [4 行]
+    - _select_benchmarks(benchmark_ids) [11 行]
+    - _run_one(benchmark, timeout_seconds) [43 行]
+    - _run_builtin_benchmark(benchmark) [33 行]
+    - _run_database_benchmark() [27 行]
+    - _benchmark_sync_queries(n_queries) [9 行]
+    - _query_timing_summary(times, n_queries) [8 行]
+
+### MarketSentimentService
+  文件: application/services/market_sentiment_service.py
+  方法数: 14
+  代码行数: 421
+  服务依赖: 1
+  Repository 依赖: 0
+  方法列表:
+    - analyze_market_sentiment() [99 行]
+    - _get_advance_decline_ratio() [26 行]
+    - _get_volume_indicator() [35 行]
+    - _get_index_performance() [29 行]
+    - _calculate_market_volatility() [22 行]
+    - _get_new_high_low_ratio() [24 行]
+    - _calculate_sentiment_score(indicators) [74 行]
+    - _get_sentiment_level(score) [16 行]
+    - _determine_market_phase(sentiment, volatility) [14 行]
+    - _generate_recommendation(sentiment_level, market_phase) [13 行]
+
+### ComboStrategyBacktestService
+  文件: application/services/combo_strategy_backtest_service.py
+  方法数: 13
+  代码行数: 415
+  服务依赖: 0
+  Repository 依赖: 2
+  方法列表:
+    - backtest_combo(mode, strategies, symbols, start_date, end_date, initial_capital) [55 行]
+    - _validate_params(mode, strategies, symbols) [23 行]
+    - _validate_portfolio_params(strategies) [16 行]
+    - _validate_ensemble_params(strategies, kwargs) [14 行]
+    - _validate_pipeline_params(strategies, kwargs) [19 行]
+    - _portfolio_backtest(strategies, symbols, start_date, end_date, initial_capital) [71 行]
+    - _backtest_single_strategy(strategy_id, symbols, start_date, end_date, initial_capital) [20 行]
+    - _combine_equity_curves(results, strategies) [29 行]
+    - _get_equity_at_date(equity_curve, target_date) [6 行]
+    - _calculate_metrics(equity_curve) [40 行]
+
+### FactorAnalysisService
+  文件: application/services/factor_analysis_service.py
+  方法数: 13
+  代码行数: 838
+  服务依赖: 0
+  Repository 依赖: 1
+  方法列表:
+    - prepare_factor_data(factor_df, prices_df, periods, quantiles, max_loss) [64 行]
+    - calculate_ic_analysis(factor_data) [94 行]
+    - calculate_returns_analysis(factor_data, quantiles, periods) [65 行]
+    - calculate_turnover_analysis(factor_data, quantiles) [51 行]
+    - calculate_coverage(factor_data) [69 行]
+    - calculate_monotonicity(factor_data, quantiles) [113 行]
+    - calculate_factor_correlation(factors) [34 行]
+    - _validate_factor_data(df) [16 行]
+    - _create_factor_series(factor_df) [13 行]
+    - _create_prices_dataframe(prices_df) [17 行]
+
+### RiskMetricsService
+  文件: application/services/risk_metrics_service.py
+  方法数: 13
+  代码行数: 375
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - calculate_all_metrics(returns, benchmark_returns, risk_free) [52 行]
+    - calculate_sharpe_ratio(returns, risk_free) [25 行]
+    - calculate_sortino_ratio(returns, risk_free) [26 行]
+    - calculate_calmar_ratio(returns) [22 行]
+    - calculate_max_drawdown(returns) [22 行]
+    - calculate_alpha_beta(returns, benchmark_returns, risk_free) [30 行]
+    - calculate_var(returns, cutoff) [24 行]
+    - calculate_cvar(returns, cutoff) [25 行]
+    - calculate_annual_return(returns) [20 行]
+    - calculate_annual_volatility(returns) [20 行]
+
+### StrategyBacktestService
+  文件: application/services/strategy_backtest_service.py
+  方法数: 13
+  代码行数: 680
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - backtest_indicator_strategy(strategy, klines, initial_cash, params_override, period) [110 行]
+    - backtest_script_strategy(strategy, klines, initial_cash, params_override) [36 行]
+    - _normalize_signals(signals_df) [41 行]
+    - run_backtest_from_signals(signals_df, initial_cash, period) [268 行]
+    - calculate_metrics_from_trades(trades, equity_curve, initial_cash) [82 行]
+    - calculate_max_drawdown(equities) [16 行]
+    - calculate_win_rate(trades) [7 行]
+    - calculate_profit_loss_ratio(trades) [15 行]
+    - calculate_avg_holding_days(trades) [16 行]
+    - calculate_consecutive_wins_losses(trades) [21 行]
+
+### RiskCheckService
+  文件: application/services/risk_check_service.py
+  方法数: 12
+  代码行数: 450
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - check_signal(signal) [87 行]
+    - _fail_result(reason) [9 行]
+    - _get_default_config() [12 行]
+    - _check_funds(signal, current_price, account) [36 行]
+    - _check_holding(signal) [26 行]
+    - _check_single_order_limit(signal, current_price, account) [27 行]
+    - _check_position_concentration(symbol, current_price, account, signal) [40 行]
+    - _check_sector_concentration(symbol, current_price, account, signal) [50 行]
+    - _check_daily_trade_limit(symbol) [32 行]
+    - _check_stop_loss(signal, current_price, action) [70 行]
+
+### FeishuNotificationService
+  文件: application/services/feishu_service.py
+  方法数: 11
+  代码行数: 430
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - send_text(text, mention_all, mention_users) [38 行]
+    - send_card(title, content, urgency, actions, extra_elements) [89 行]
+    - send_daily_report(report_data) [51 行]
+    - send_weekly_report(report_data) [42 行]
+    - send_alert(alert_type, symbol, message, data, actions, mention) [61 行]
+    - send_premarket_report(report_data) [34 行]
+    - _format_strategy_performance(strategies) [12 行]
+    - _format_outlook(outlook) [14 行]
+    - _format_opportunities(opportunities) [12 行]
+    - _format_watchlist(watchlist) [6 行]
+
+### SimulationService
+  文件: application/services/simulation_service.py
+  方法数: 11
+  代码行数: 383
+  服务依赖: 0
+  Repository 依赖: 1
+  方法列表:
+    - list_strategies() [8 行]
+    - get_strategy_info(strategy_id) [18 行]
+    - run_strategy(strategy_id, account_name, force_rebalance) [75 行]
+    - get_account_status(account_name) [65 行]
+    - _fetch_benchmark_klines(symbol, start_date, end_date) [4 行]
+    - _benchmark_block(account_name, symbol) [35 行]
+    - _fetch_current_prices(symbols) [33 行]
+    - get_trades(account_name, start_date, end_date, limit) [28 行]
+    - _execute_trades(signals, account_name, date) [16 行]
+    - _trade_to_dict(trade) [55 行]
+
+### OpponentBehaviorService
+  文件: application/services/opponent_behavior_service.py
+  方法数: 11
+  代码行数: 498
+  服务依赖: 0
+  Repository 依赖: 2
+  方法列表:
+    - analyze_current_behavior() [79 行]
+    - _analyze_retail_behavior() [69 行]
+    - _analyze_institution_behavior() [66 行]
+    - _analyze_hot_money_behavior() [35 行]
+    - _determine_market_phase(retail, institution) [46 行]
+    - _assess_risk_appetite(retail, institution) [22 行]
+    - _generate_opportunity_map(retail, institution, hot_money) [60 行]
+    - _calculate_retail_flow(start_date, end_date) [30 行]
+    - _calculate_institution_flow(start_date, end_date) [33 行]
+    - _identify_target_sectors(is_buying) [27 行]
+
+### DiagnosisService
+  文件: application/services/diagnosis_service.py
+  方法数: 10
+  代码行数: 300
+  服务依赖: 0
+  Repository 依赖: 3
+  方法列表:
+    - run_diagnosis(params) [75 行]
+    - _validate_params(params) [38 行]
+    - _get_backtest_data(params) [26 行]
+    - _get_benchmark_data(benchmark_symbol, start_date, end_date) [31 行]
+    - _calculate_returns(klines) [43 行]
+    - _calculate_sharpe_ratio(returns, risk_free_rate) [22 行]
+    - _calculate_max_drawdown(klines) [24 行]
+    - _get_index_name(symbol) [9 行]
+    - _get_default_benchmark() [9 行]
+    - _generate_id() [5 行]
+
+### QualityScoringService
+  文件: application/services/quality_scoring_service.py
+  方法数: 10
+  代码行数: 461
+  服务依赖: 1
+  Repository 依赖: 0
+  方法列表:
+    - calculate_quality_score(symbol, framework) [109 行]
+    - _score_profitability(factors) [76 行]
+    - _score_financial_health(factors) [56 行]
+    - _score_efficiency(factors) [46 行]
+    - _score_cashflow(factors) [32 行]
+    - _analyze_trends(symbol) [10 行]
+    - _generate_warnings(factors, profitability, financial_health, trends) [34 行]
+    - _generate_strengths(factors, profitability, financial_health, trends) [34 行]
+    - _get_framework_weights(framework) [29 行]
+    - _score_to_grade(score) [14 行]
+
+### StockScoringService
+  文件: application/services/stock_scoring_service.py
+  方法数: 9
+  代码行数: 503
+  服务依赖: 1
+  Repository 依赖: 0
+  方法列表:
+    - calculate_comprehensive_score(symbol) [77 行]
+    - _calculate_technical_score(factors) [74 行]
+    - _calculate_fundamental_score(factors) [65 行]
+    - _calculate_momentum_score(factors) [59 行]
+    - _calculate_quality_score(factors) [50 行]
+    - _generate_signals(factors, total_score) [57 行]
+    - _score_to_grade(score) [14 行]
+    - _check_missing_data(factors) [39 行]
+    - _calculate_completeness(missing_data) [48 行]
+
+### SchedulerConfigService
+  文件: application/services/scheduler_config_service.py
+  方法数: 9
+  代码行数: 241
+  服务依赖: 0
+  Repository 依赖: 1
+  方法列表:
+    - list_configs(enabled_only, command) [26 行]
+    - get_config(task_name) [15 行]
+    - create_config(config) [36 行]
+    - update_config(task_name, updates) [35 行]
+    - delete_config(task_name) [27 行]
+    - enable_config(task_name) [28 行]
+    - disable_config(task_name) [28 行]
+    - get_enabled_tasks() [7 行]
+    - get_tasks_by_command(command) [15 行]
+
+### HeatmapService
+  文件: application/services/heatmap_service.py
+  方法数: 9
+  代码行数: 191
+  服务依赖: 0
+  Repository 依赖: 2
+  方法列表:
+    - repo() [6 行]
+    - get_heatmap(date, window) [49 行]
+    - _resolve_anchor(date_arg, window) [7 行]
+    - _replay_pool_members(d0) [14 行]
+    - _group_signals(signals) [9 行]
+    - _group_pool_events(events, pool_names) [9 行]
+    - _build_data() [51 行]
+    - _derive_stance(industry, universe_meta, in_scope, signals, pool_events) [15 行]
+    - _empty_data(date_str, window, scope_degraded) [11 行]
+
+### DecisionService
+  文件: application/services/decision_service.py
+  方法数: 9
+  代码行数: 322
+  服务依赖: 0
+  Repository 依赖: 2
+  方法列表:
+    - record_decision(decision_data) [32 行]
+    - record_pool_change(pool_change_data) [29 行]
+    - update_decision_result(decision_id, result_data) [33 行]
+    - get_decision(decision_id) [15 行]
+    - get_decision_history(entity_type, entity_id, decision_type, limit) [43 行]
+    - get_pool_change_history(pool_id, limit) [29 行]
+    - get_pending_evaluations(days) [21 行]
+    - _validate_decision_data(data) [32 行]
+    - generate_decision_report(entity_type, entity_id) [72 行]
+
+### PortfolioOptimizationService
+  文件: application/services/portfolio_optimization_service.py
+  方法数: 9
+  代码行数: 563
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - mean_variance_optimization(expected_returns, cov_matrix, risk_aversion, constraints) [78 行]
+    - minimum_variance(cov_matrix, constraints) [66 行]
+    - maximum_sharpe(expected_returns, cov_matrix, risk_free_rate, constraints) [90 行]
+    - risk_parity(cov_matrix, constraints) [67 行]
+    - _build_constraints(w, n, constraints) [53 行]
+    - _fallback_equal_weight(n) [16 行]
+    - mean_cvar_optimization(returns_scenarios, confidence_level, constraints) [92 行]
+    - _apply_sector_constraints(w, n, sector_mapping, sector_limits) [37 行]
+    - _apply_turnover_constraint(w, current_weights, max_turnover) [29 行]
+
+### ConfigurableScoringService
+  文件: application/services/configurable_scoring_service.py
+  方法数: 9
+  代码行数: 303
+  服务依赖: 1
+  Repository 依赖: 0
+  方法列表:
+    - calculate_comprehensive_score(symbol) [54 行]
+    - _calculate_technical_score_v2(factors) [68 行]
+    - _calculate_fundamental_score_v2(factors) [50 行]
+    - apply_threshold_rules(value, config) [7 行]
+    - _calculate_momentum_score_v2(factors) [39 行]
+    - apply_threshold_rules(value, config) [7 行]
+    - _calculate_quality_score_v2(factors) [33 行]
+    - _generate_signals_v2(factors, total_score) [33 行]
+    - _score_to_grade_v2(score) [6 行]
+
+### EnhancedFinancialDataService
+  文件: application/services/enhanced_financial_data_service.py
+  方法数: 8
+  代码行数: 277
+  服务依赖: 1
+  Repository 依赖: 0
+  方法列表:
+    - _make_cache_key(symbol, statement_type, periods) [18 行]
+    - _get_data_with_circuit_breaker(symbol, statement_type, periods) [65 行]
+    - get_financial_data(symbol, statement_type, periods, source) [74 行]
+    - was_cache_hit() [3 行]
+    - get_stats() [29 行]
+    - clear_cache() [4 行]
+    - reset_stats() [16 行]
+    - reset_circuit_breakers() [5 行]
+
+### StrategyService
+  文件: application/services/strategy_service.py
+  方法数: 8
+  代码行数: 320
+  服务依赖: 0
+  Repository 依赖: 1
+  方法列表:
+    - list_strategies() [29 行]
+    - get_config(strategy_name) [33 行]
+    - get_account_info(strategy_name) [59 行]
+    - get_positions(strategy_name) [18 行]
+    - manual_rebalance(strategy_name) [32 行]
+    - daily_check(strategy_name) [65 行]
+    - _create_trader(config) [40 行]
+    - _position_to_dict(position) [29 行]
+
+### ChanService
+  文件: application/services/chan_service.py
+  方法数: 8
+  代码行数: 205
+  服务依赖: 0
+  Repository 依赖: 1
+  方法列表:
+    - analyze(symbol, start_date, end_date, buypoint_types) [61 行]
+    - _load_knowledge_map() [31 行]
+    - _fetch_kline_data(symbol, start_date, end_date) [41 行]
+    - _format_bi(bi) [14 行]
+    - _format_segment(segment) [10 行]
+    - _format_zhongshu(zhongshu) [10 行]
+    - _format_buypoint(buypoint) [11 行]
+    - _format_klines(klines) [13 行]
+
+### AccountTradingService
+  文件: application/services/account_trading_service.py
+  方法数: 8
+  代码行数: 407
+  服务依赖: 0
+  Repository 依赖: 1
+  方法列表:
+    - _get_price(symbol) [6 行]
+    - _check_trading_window(now) [14 行]
+    - _is_in_trading_window(now) [7 行]
+    - _check_daily_buy_limits(account_name, trade_amount, total_value) [21 行]
+    - execute_trade(account_name, action, symbol, shares, amount, price_limit, reason, max_positions, price, allow_off_hours, execute_at) [239 行]
+    - _auto_record_decision(account_name, action, symbol, shares, price, amount, reason, realized_pnl) [29 行]
+    - execute_pending_orders(now) [45 行]
+    - cancel_pending_order(account_name, order_id) [12 行]
+
+### SessionService
+  文件: application/services/session_service.py
+  方法数: 8
+  代码行数: 243
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - ingest_events(events) [62 行]
+    - list_sessions(channel, limit) [14 行]
+    - get_session(session_key) [6 行]
+    - get_events(session_key, event_type, limit, offset) [17 行]
+    - get_diagnosis(session_key) [52 行]
+    - ai_diagnosis(session_key, refresh) [39 行]
+    - _build_diagnosis_prompt(session_key, events) [30 行]
+    - _build_insight(success_rate, total, tool, errors) [11 行]
+
+### SwingPointService
+  文件: application/services/swing_point_service.py
+  方法数: 8
+  代码行数: 394
+  服务依赖: 0
+  Repository 依赖: 1
+  方法列表:
+    - analyze(params) [145 行]
+    - _date(k) [2 行]
+    - _high(k) [2 行]
+    - _low(k) [2 行]
+    - _zigzag(klines, threshold) [154 行]
+    - _pair_trades(swing_points) [44 行]
+    - _compute_summary(trades) [26 行]
+    - _empty_summary() [12 行]
+
+### CircuitBreakerAlertService
+  文件: application/services/circuit_breaker_alert_service.py
+  方法数: 8
+  代码行数: 135
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - _setup_default_handlers() [4 行]
+    - send_alert(strategy_name, old_status, new_status, reason, state) [32 行]
+    - _log_alert(alert) [23 行]
+    - _get_alert_severity(status) [8 行]
+    - add_handler(handler) [8 行]
+    - send_suspended_alert(strategy_name, state) [15 行]
+    - send_warning_alert(strategy_name, state) [15 行]
+    - send_recovery_alert(strategy_name, state) [15 行]
+
+### RiskService
+  文件: application/services/risk_service.py
+  方法数: 7
+  代码行数: 152
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - check_trade_risk(symbol, action, price, shares) [41 行]
+    - calculate_position_size(symbol, account_value, risk_percent) [28 行]
+    - calculate_stop_loss(symbol, entry_price, method) [28 行]
+    - get_stop_loss_rules() [13 行]
+    - create_stop_loss_rule(rule) [10 行]
+    - update_stop_loss_rule(rule_id, rule) [10 行]
+    - delete_stop_loss_rule(rule_id) [10 行]
+
+### GameAlertService
+  文件: application/services/game_alert_service.py
+  方法数: 7
+  代码行数: 274
+  服务依赖: 1
+  Repository 依赖: 0
+  方法列表:
+    - check_alerts() [41 行]
+    - _check_opponent_alerts() [72 行]
+    - _check_manipulation_alerts() [64 行]
+    - _check_position_alerts() [8 行]
+    - _generate_alert_id() [4 行]
+    - get_alert_statistics() [39 行]
+    - subscribe_alerts(user_id, preferences) [23 行]
+
+### FinancialDataService
+  文件: application/services/financial_data_service.py
+  方法数: 7
+  代码行数: 358
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - get_financial_data(symbol, statement_type, periods) [49 行]
+    - get_financial_indicators(symbol) [68 行]
+    - get_valuation(symbol) [78 行]
+    - _extract_indicators(financial_data) [23 行]
+    - _is_valid_financial_data(data) [20 行]
+    - _get_from_database(symbol) [34 行]
+    - get_stats() [16 行]
+
+### TradingCalendarService
+  文件: application/services/trading_calendar_service.py
+  方法数: 7
+  代码行数: 224
+  服务依赖: 0
+  Repository 依赖: 1
+  方法列表:
+    - get_trading_days(start_date, end_date, exchange) [70 行]
+    - _cache_trading_days(cache_key, days) [19 行]
+    - _generate_weekdays(start_date, end_date) [22 行]
+    - is_trading_day(check_date, exchange) [17 行]
+    - get_next_trading_day(from_date, exchange) [25 行]
+    - get_prev_trading_day(from_date, exchange) [25 行]
+    - get_trading_days_count(start_date, end_date, exchange) [18 行]
+
+### EnhancedBuyRangeService
+  文件: application/services/enhanced_buy_range_service.py
+  方法数: 6
+  代码行数: 426
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - calculate_enhanced_buy_range(symbol, periods, include_volume, include_fundamental) [69 行]
+    - _analyze_period(manager, symbol, period) [95 行]
+    - _analyze_volume(manager, symbol) [73 行]
+    - _analyze_fundamental(manager, symbol) [76 行]
+    - _generate_recommendation(result) [69 行]
+    - _calculate_composite_score(result) [33 行]
+
+### SectorRotationService
+  文件: application/services/sector_rotation_service.py
+  方法数: 6
+  代码行数: 261
+  服务依赖: 0
+  Repository 依赖: 2
+  方法列表:
+    - get_sector_ranking(market, limit, min_score) [77 行]
+    - filter_top_sectors(top_n, min_score, exclude_sectors, market) [31 行]
+    - _get_all_industries() [7 行]
+    - _calculate_momentum(industries) [48 行]
+    - _calculate_flow(industries) [32 行]
+    - _calculate_relative_strength(industries) [50 行]
+
+### DataService
+  文件: application/services/data_service.py
+  方法数: 5
+  代码行数: 230
+  服务依赖: 1
+  Repository 依赖: 0
+  方法列表:
+    - cleanup() [3 行]
+    - get_stock_full_data(symbol, start_date, end_date) [27 行]
+    - get_backtest_workflow_data(symbol, start_date, end_date, period) [45 行]
+    - check_data_integrity(symbol, check_type) [74 行]
+    - get_financial_statements(symbol, statement_type, periods) [49 行]
+
+### KnowledgeService
+  文件: application/services/knowledge_service.py
+  方法数: 5
+  代码行数: 150
+  服务依赖: 0
+  Repository 依赖: 1
+  方法列表:
+    - session() [3 行]
+    - get_active_knowledge(domain) [19 行]
+    - apply_knowledge(context) [21 行]
+    - get_knowledge_summary() [45 行]
+    - validate_knowledge(knowledge_id, success) [49 行]
+
+### DataPipelineService
+  文件: application/services/data_pipeline_service.py
+  方法数: 5
+  代码行数: 269
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - _load_config() [24 行]
+    - run_daily_update(symbols, date) [42 行]
+    - run_full_rebuild(symbols, start_date, end_date) [50 行]
+    - _build_pipeline(symbols, date_range) [56 行]
+    - _execute_pipeline(stages) [57 行]
+
+### FactorLayeringService
+  文件: application/services/factor_layering_service.py
+  方法数: 5
+  代码行数: 382
+  服务依赖: 1
+  Repository 依赖: 1
+  方法列表:
+    - run_layering_backtest(factor_name, symbols, start_date, end_date, n_quantiles, holding_period) [127 行]
+    - run_batch_layering_backtest(factor_names, symbols, start_date, end_date, n_quantiles) [67 行]
+    - _prepare_factor_data(factor_name, symbols, start_date, end_date) [77 行]
+    - _prepare_return_data(symbols, start_date, end_date) [66 行]
+    - _prepare_chart_data(layer_returns, long_short_returns, ic_series) [33 行]
+
+### DataQualityService
+  文件: application/services/data_quality_service.py
+  方法数: 5
+  代码行数: 461
+  服务依赖: 0
+  Repository 依赖: 1
+  方法列表:
+    - check_data_quality(symbols, start_date, end_date, include_report) [147 行]
+    - detect_missing_data(symbols, start_date, end_date) [47 行]
+    - backfill_missing_data(symbols, start_date, end_date, mode, max_workers) [106 行]
+    - validate_data(symbols, start_date, end_date) [67 行]
+    - _get_hot_stocks(limit) [65 行]
+
+### PoolValidationService
+  文件: application/services/pool_validation_service.py
+  方法数: 5
+  代码行数: 252
+  服务依赖: 0
+  Repository 依赖: 4
+  方法列表:
+    - validate_pool(pool_id, strategy_ids, start_date, end_date, progress_emitter) [137 行]
+    - _call_batch_backtest(jobs, progress_emitter) [42 行]
+    - _aggregate_by_strategy(results, strategy_map) [37 行]
+    - normalize(value, low, high, reverse) [4 行]
+    - _calculate_score(metrics) [26 行]
+
+### TechnicalAnalysisService
+  文件: application/services/technical_analysis_service.py
+  方法数: 5
+  代码行数: 386
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - _get_klines_df(symbol, period_days) [43 行]
+    - analyze_price_action(symbol, period) [85 行]
+    - calculate_buy_range(symbol) [85 行]
+    - get_exit_plan(symbol, entry_price) [82 行]
+    - analyze_candlestick(symbol, period) [81 行]
+
+### StrategyDiscoveryService
+  文件: application/services/strategy_discovery_service.py
+  方法数: 4
+  代码行数: 245
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - run(symbols, start_date, end_date, metric, max_combinations, archery_filter) [96 行]
+    - _discover_single(service, arch, symbol, start_date, end_date, metric, max_combinations) [122 行]
+    - list_archetypes() [12 行]
+    - _count_combinations(param_grid) [5 行]
+
+### StockScreeningService
+  文件: application/services/stock_screening_service.py
+  方法数: 4
+  代码行数: 279
+  服务依赖: 2
+  Repository 依赖: 0
+  方法列表:
+    - screen_stocks(criteria) [115 行]
+    - _match_basic_criteria(stock, criteria) [49 行]
+    - _generate_reason(stock, score, criteria) [23 行]
+    - get_preset_screens() [75 行]
+
+### ConditionMonitorService
+  文件: application/services/condition_monitor.py
+  方法数: 4
+  代码行数: 289
+  服务依赖: 0
+  Repository 依赖: 2
+  方法列表:
+    - _register_builtin_checkers() [9 行]
+    - _compare(actual, op, threshold) [16 行]
+    - get_rule_history(rule_name, limit) [20 行]
+    - get_triggered_history(start_time, end_time, limit) [22 行]
+
+### PortfolioAnalysisService
+  文件: application/services/analysis_services.py
+  方法数: 4
+  代码行数: 50
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - verify_trades(trades) [10 行]
+    - compare_benchmark(portfolio, benchmark) [11 行]
+    - optimize_portfolio(symbols) [10 行]
+    - correlate_portfolio(symbols) [10 行]
+
+### RealtimeSignalService
+  文件: application/services/realtime_signal_service.py
+  方法数: 4
+  代码行数: 177
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - filter_executable_signals(signals, max_gap_pct, check_realtime) [62 行]
+    - _suggest_execution_mode(signal) [30 行]
+    - generate_t1_signals(strategy_id, symbols, execution_date) [47 行]
+    - schedule_morning_scan(strategy_ids, stock_pool, notification_callback) [29 行]
+
+### SentimentService
+  文件: application/services/sentiment_service.py
+  方法数: 3
+  代码行数: 215
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - get_stock_fund_flow(symbol, days) [31 行]
+    - _analyze_fund_flow(flow_data) [113 行]
+    - _generate_signals(flow_data, analysis) [57 行]
+
+### ChanScanService
+  文件: application/services/chan_scan_service.py
+  方法数: 3
+  代码行数: 80
+  服务依赖: 0
+  Repository 依赖: 2
+  方法列表:
+    - _normalize_symbol(symbol) [5 行]
+    - _pool_symbols() [14 行]
+    - scan() [48 行]
+
+### AgentNotificationService
+  文件: application/services/agent_notification_service.py
+  方法数: 3
+  代码行数: 96
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - notify_agent(event, data) [11 行]
+    - notify_agent_detailed(event, data) [53 行]
+    - send_reminder(agent_id, message, remind_at) [17 行]
+
+### EvolutionFitnessService
+  文件: services/evolution/evolution_fitness_service.py
+  方法数: 3
+  代码行数: 76
+  服务依赖: 0
+  Repository 依赖: 2
+  方法列表:
+    - _default_bench_provider(start, end) [4 行]
+    - _default_trade_counter(account_name, start, end) [9 行]
+    - compute_all_accounts(window_end, window_days) [37 行]
+
+### DecisionScoreService
+  文件: services/evolution/decision_score_service.py
+  方法数: 3
+  代码行数: 98
+  服务依赖: 0
+  Repository 依赖: 2
+  方法列表:
+    - score_mature_decisions(pending_days) [24 行]
+    - _score_one(decision, action) [42 行]
+    - _bench_return(start, end) [10 行]
+
+### MissedOpportunityService
+  文件: services/evolution/missed_opportunity_service.py
+  方法数: 3
+  代码行数: 120
+  服务依赖: 0
+  Repository 依赖: 3
+  方法列表:
+    - capture(lookback_days, today) [42 行]
+    - _capture_one(signal, today) [45 行]
+    - _acted(symbol, signal_date, later_rows) [11 行]
+
+### LhbService
+  文件: application/services/lhb_service.py
+  方法数: 2
+  代码行数: 56
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - get_stock_lhb(symbol, days) [22 行]
+    - get_daily_lhb(date) [20 行]
+
+### RiskAnalysisService
+  文件: application/services/analysis_services.py
+  方法数: 2
+  代码行数: 29
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - stress_test(symbol, scenarios) [11 行]
+    - price_alert(symbol, price) [11 行]
+
+### FactorAnalysisService
+  文件: application/services/analysis_services.py
+  方法数: 2
+  代码行数: 27
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - analyze_factor_decay(factor) [10 行]
+    - aggregate_sectors(sectors) [10 行]
+
+### StrategyAnalysisService
+  文件: application/services/analysis_services.py
+  方法数: 2
+  代码行数: 27
+  服务依赖: 0
+  Repository 依赖: 0
+  方法列表:
+    - analyze_performance(strategy_id) [10 行]
+    - arbitrate_signals(signals) [10 行]
+
+### RiskCheckAsyncService
+  文件: application/services/core_async_services.py
+  方法数: 0
+  代码行数: 52
+  服务依赖: 0
+  Repository 依赖: 0
+
+### StrategyCodeAsyncService
+  文件: application/services/core_async_services.py
+  方法数: 0
+  代码行数: 56
+  服务依赖: 0
+  Repository 依赖: 0
+
+### DataAsyncService
+  文件: application/services/core_async_services.py
+  方法数: 0
+  代码行数: 50
+  服务依赖: 0
+  Repository 依赖: 0
+
+### PortfolioAsyncService
+  文件: application/services/core_async_services.py
+  方法数: 0
+  代码行数: 45
+  服务依赖: 0
+  Repository 依赖: 0
+
+### MarketDataAsyncService
+  文件: application/services/core_async_services.py
+  方法数: 0
+  代码行数: 32
+  服务依赖: 0
+  Repository 依赖: 0
+
+### FactorAnalysisAsyncService
+  文件: application/services/core_async_services.py
+  方法数: 0
+  代码行数: 30
+  服务依赖: 0
+  Repository 依赖: 0
+
+### PerformanceAnalysisAsyncService
+  文件: application/services/core_async_services.py
+  方法数: 0
+  代码行数: 34
+  服务依赖: 0
+  Repository 依赖: 0
+
+### StockPoolAsyncService
+  文件: application/services/stock_pool_async_service.py
+  方法数: 0
+  代码行数: 211
+  服务依赖: 0
+  Repository 依赖: 0
