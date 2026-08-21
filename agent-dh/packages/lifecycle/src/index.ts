@@ -757,24 +757,49 @@ export default class LifecyclePlugin extends Service {
       },
       timeoutMs: 15000,
       execute: async () => {
+        // 2026-08-21 E2E 修正：OS Skills 的 PUT 是"发新版本"，不更新档案顶层字段
+        // （实测 availability 停在 busy）。因此动态状态（忙闲/任务/备注/技能）
+        // 以记忆库事件流水（每窗口最新一条）为准；Skills API 作长期技能库存档。
+        const memRes: any = await this.aos.memory.search({ query: 'window', tag: 'system:windows', top_k: 100 });
+        const items: any[] = memRes?.memories || memRes?.items || [];
+        const byWindow = new Map<string, any>();
+        for (const it of items) {
+          let p: any = null;
+          try { p = typeof it.content === 'string' ? JSON.parse(it.content) : it.content; } catch { continue; }
+          if (!p?.window) continue;
+          const prev = byWindow.get(p.window);
+          const ts = String(p.updated_at ?? it.created_at ?? '');
+          if (!prev || ts > String(prev.updated_at ?? '')) {
+            byWindow.set(p.window, { ...p, updated_at: ts });
+          }
+        }
+
+        // Skills 库存档（标注入职时间/是否已被移除）
         const base = (this.cfg as any).agentOS?.baseURL || 'http://localhost:8080';
-        const res = await fetch(`${base}/api/v1/skills`);
-        if (!res.ok) throw new Error(`skills list failed: ${res.status}`);
-        const data: any = await res.json();
-        const skills: any[] = data?.skills ?? data ?? [];
-        const roster = skills
-          .filter((s: any) => s.category === 'window' && s.status !== 'inactive')  // OS 的 DELETE 是软删（status=inactive）
-          .map((s: any) => ({
-            window: s.metadata?.window ?? s.name,
-            agent_id: s.owner ?? null,
-            skills: s.metadata?.skills ?? [],
-            availability: s.metadata?.availability ?? 'unknown',
-            task: s.metadata?.task ?? null,
-            note: s.metadata?.note ?? null,
-            updated_at: s.metadata?.updated_at ?? s.updated_at ?? null,  // 删除过的记录可能没有任何时间戳
-            session_id: s.metadata?.session_id ?? null,  // undefined 会触发 not lossless JSON
-          }))
-          .sort((a: any, b: any) => String(b.updated_at).localeCompare(String(a.updated_at)));
+        let skillMap = new Map<string, any>();
+        try {
+          const res = await fetch(`${base}/api/v1/skills`);
+          const data: any = await res.json();
+          const skills: any[] = data?.skills ?? data ?? [];
+          for (const s of skills) {
+            if (s.category === 'window' && s.status !== 'inactive') {
+              skillMap.set(s.metadata?.window ?? s.name, { skill_id: s.id, hired_at: s.created_at ?? null });
+            }
+          }
+        } catch { /* Skills API 不可用不阻塞花名册 */ }
+
+        const roster = [...byWindow.values()].map((p: any) => ({
+          window: p.window,
+          agent_id: p.agent_id ?? null,
+          role: p.role ?? null,
+          skills: p.skills ?? [],
+          availability: p.status ?? 'unknown',
+          task: p.task ?? null,
+          note: p.note ?? null,
+          updated_at: p.updated_at ?? null,
+          session_id: p.session_id ?? null,
+          skill_record: skillMap.get(p.window) ?? null,
+        })).sort((a: any, b: any) => String(b.updated_at).localeCompare(String(a.updated_at)));
         return { roster, total: roster.length } as any;
       },
     } as any));
