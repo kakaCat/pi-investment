@@ -164,5 +164,93 @@ export default class RiskPlugin extends Service {
         }) as any;
       },
     } as any));
+
+    // M4 仓位映射表（RFC 004，2026-08-21）：regime → 权益仓位上限，含回撤熔断检查
+    ctx.tools.register(defineTool({
+      name: 'regime_position_limit',
+      description: 'M4 仓位映射：读取最新落库的 regime（market:regime），返回权益仓位上限（恐慌≤100%/偏多≤80%/震荡≤60%/偏空≤40%/狂热≤30%）、当前实际仓位、余量与合规判定（可加仓/须减仓及额度）；同时检查组合回撤熔断（60日最大回撤超8%触发，要求减仓一半）。数据降级（degraded/指标矛盾）时上限自动收紧到震荡档（保守原则）。买入前必须调用（R-001 配套）。',
+      parameters: {
+        account_name: { type: 'string', description: '账户名称，默认 agent_virtual', default: 'agent_virtual' },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            regime: { type: 'string' },
+            regime_date: { type: 'string' },
+            data_quality: { type: 'string' },
+            max_position_pct: { type: 'number', description: 'regime 映射的权益仓位上限（%）' },
+            current_position_pct: { type: 'number' },
+            headroom_pct: { type: 'number', description: '剩余可加仓空间（%），负数=超限' },
+            verdict: { type: 'string', description: 'compliant / reduce_required / circuit_breaker' },
+            circuit_breaker: { type: 'object', additionalProperties: true },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 20000,
+      execute: async (args: any) => {
+        // 1. 读最新 regime 记录（忽略已弃用）
+        const res = await qv2.searchMemory({ q: 'regime', scope: 'market:regime', limit: 10 });
+        const latest = (res?.items || [])
+          .filter((it: any) => it.status !== 'deprecated' && it.payload?.date)
+          .sort((a: any, b: any) => String(b.payload.date).localeCompare(String(a.payload.date)))[0];
+
+        const regime = latest?.payload?.regime ?? 'sideways';
+        const dataQuality = latest?.payload?.evidence?.data_quality ?? 'unknown';
+        const conflicts = latest?.payload?.evidence?.conflicts ?? null;
+
+        // 2. 映射表（RFC 004 M4-1）；数据降级时收紧到震荡档（保守原则）
+        const CAPS: Record<string, number> = { panic: 100, risk_on: 80, sideways: 60, risk_off: 40, euphoria: 30 };
+        let cap = CAPS[regime] ?? 60;
+        let capNote = '';
+        if (dataQuality === 'degraded' || (Array.isArray(conflicts) && conflicts.length > 0)) {
+          cap = Math.min(cap, 60);
+          capNote = '数据降级/指标矛盾，上限收紧至震荡档（保守）';
+        }
+
+        // 3. 当前仓位
+        const summary: any = await qv2.getPortfolioSummary(args.account_name || 'agent_virtual');
+        const totalValue = Number(summary?.totalValue ?? 0);
+        const marketValue = Number(summary?.totalMarketValue ?? 0);
+        const currentPct = totalValue > 0 ? +(marketValue / totalValue * 100).toFixed(1) : 0;
+        const headroom = +(cap - currentPct).toFixed(1);
+
+        // 4. 回撤熔断（60 日最大回撤超 8% → 减仓一半）
+        let circuit: any = { triggered: false };
+        let verdict = headroom >= 0 ? 'compliant' : 'reduce_required';
+        try {
+          const metrics: any = await qv2.getRiskMetrics({ account_name: args.account_name || 'agent_virtual', days: 60 });
+          const mdd = Number(metrics?.max_drawdown ?? 0);
+          if (mdd <= -8) {
+            circuit = {
+              triggered: true,
+              max_drawdown: mdd,
+              action: '组合回撤熔断触发：强制减仓一半（权益仓位降至当前 50%），禁止新开仓直到回撤修复',
+            };
+            verdict = 'circuit_breaker';
+          } else {
+            circuit = { triggered: false, max_drawdown: mdd, threshold: -8 };
+          }
+        } catch {
+          circuit = { triggered: false, note: '回撤指标不可用，熔断未评估' };
+        }
+
+        return {
+          regime,
+          regime_date: latest?.payload?.date ?? null,
+          data_quality: dataQuality,
+          max_position_pct: cap,
+          current_position_pct: currentPct,
+          headroom_pct: headroom,
+          verdict,
+          cap_note: capNote || null,
+          reduce_to_pct: verdict === 'reduce_required' ? cap : null,
+          circuit_breaker: circuit,
+          mapping_table: CAPS,
+        } as any;
+      },
+    } as any));
   }
 }
