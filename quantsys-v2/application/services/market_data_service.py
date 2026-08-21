@@ -7,7 +7,7 @@ import threading
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import pandas as pd
-from adapters.outbound.datasources import get_data_provider_manager
+from domain.ports.datasource_ports import IDataProviderManager, INorthFlowDataSource
 
 logger = structlog.get_logger(__name__)
 
@@ -23,6 +23,8 @@ class MarketDataService:
         # 延迟导入避免循环依赖
         self._data_source_manager = None
         # TODO: Phase 3 future work - migrate methods to use provider_manager
+            # 延迟导入避免顶层依赖
+            from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
         # 初始化缓存
         from infrastructure.utils.simple_cache import SimpleCache
@@ -32,7 +34,6 @@ class MarketDataService:
     def data_source_manager(self):
         """延迟初始化 DataSourceManager"""
         if self._data_source_manager is None:
-            from adapters.outbound.datasources.manager import get_data_source_manager
             self._data_source_manager = get_data_source_manager()
         return self._data_source_manager
 
@@ -278,7 +279,6 @@ class MarketDataService:
                        top_inflows, top_outflows, coverage}}
         """
         try:
-            from adapters.outbound.datasources.north_flow_ccass import NorthHoldingsCCASSSource
             from domain.ports import IKlineRepository
 
             source = NorthHoldingsCCASSSource()

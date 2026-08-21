@@ -2,6 +2,7 @@
 import threading
 from datetime import datetime, timedelta
 from typing import Optional
+from domain.ports.datasource_ports import IDataProviderManager
 
 import structlog
 
@@ -19,12 +20,11 @@ logger = structlog.get_logger(__name__)
 def make_avg_volume_provider():
     """近 20 日日均成交量 provider。失败返回 None（volume_surge 降级不判定）"""
     def provider(symbol: str) -> Optional[float]:
-        from adapters.outbound.datasources.manager import get_data_provider_manager
         end = datetime.now().strftime('%Y-%m-%d')
         start = (datetime.now() - timedelta(days=40)).strftime('%Y-%m-%d')
         # 归一化为裸代码：akshare 只接受 6 位代码，DB miss 时 fallback 会失败
         bare_symbol = symbol.split('.')[0]
-        result = get_data_provider_manager().get_klines(bare_symbol, 'daily', start, end)
+        result: IDataProviderManager = get_data_provider_manager().get_klines(bare_symbol, 'daily', start, end)
         if not result.get('success'):
             logger.warning('均量获取失败，volume_surge 降级', symbol=symbol)
             return None

@@ -5,6 +5,7 @@
 import structlog
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
+from domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 
@@ -26,12 +27,11 @@ class TechnicalAnalysisService:
             pandas DataFrame（中文列名，与 akshare 格式兼容）或 None
         """
         import pandas as pd
-        from adapters.outbound.datasources.manager import get_data_provider_manager
 
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=period_days)).strftime('%Y-%m-%d')
 
-        manager = get_data_provider_manager()
+        manager: IDataProviderManager = get_data_provider_manager()
         result = manager.get_klines(symbol, 'daily', start_date, end_date)
 
         if not result.get('success') or not result.get('data'):

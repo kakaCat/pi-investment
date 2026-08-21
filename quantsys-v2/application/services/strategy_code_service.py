@@ -15,6 +15,7 @@ import json
 import structlog
 import numpy as np
 import pandas as pd
+from domain.ports.datasource_ports import IDataProviderManager, IFundFlowDataSource
 
 try:
     import talib
@@ -53,7 +54,6 @@ try:
 except ImportError as e:
     OTHER_FACTORS_AVAILABLE = False
     logger.warning(f"其他因子导入失败: {e}")
-from adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
 from application.services.sentiment_service import SentimentService
 
 logger = structlog.get_logger(__name__)
@@ -116,7 +116,8 @@ class StrategyCodeService:
         self.attribution_calculator = RiskAttributionCalculator()
 
         # 数据提供者管理器
-        from adapters.outbound.datasources import get_data_provider_manager
+            # 延迟导入避免顶层依赖
+            from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
 
         # 初始化资金流服务

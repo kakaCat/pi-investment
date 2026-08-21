@@ -7,6 +7,7 @@ import structlog
 import pandas as pd
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+from domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 
@@ -16,7 +17,8 @@ class FinancialAnalysisService:
 
     def __init__(self):
         self.logger = structlog.get_logger(__name__)
-        from adapters.outbound.datasources import get_data_provider_manager
+            # 延迟导入避免顶层依赖
+            from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
 
     def get_financial_indicators(self, symbol: str) -> Dict[str, Any]:

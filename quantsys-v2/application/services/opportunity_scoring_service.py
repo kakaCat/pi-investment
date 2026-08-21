@@ -18,6 +18,7 @@ from application.services.scoring.capital_scorer import CapitalScorer
 from application.services.scoring.cycle_position_scorer import CyclePositionScorer
 from application.services.scoring.stock_profile_classifier import StockProfileClassifier
 from application.services.scoring.weight_calculator import (
+from domain.ports.datasource_ports import IDataProviderManager
     base_weights, apply_regime, feature_pct_for)
 from application.services.scoring.regime_signal_provider import RegimeSignalProvider
 from application.services.scoring.data_quality_gate import DataQualityGate
@@ -68,8 +69,7 @@ class OpportunityScoringService:
         if quality_gate is None:
             data_provider = None
             try:
-                from adapters.outbound.datasources.manager import get_data_provider_manager
-                data_provider = get_data_provider_manager()
+                data_provider: IDataProviderManager = get_data_provider_manager()
             except Exception as e:
                 logger.warning(f"DataProviderManager 不可用，K线补抓禁用: {e}")
             quality_gate = DataQualityGate(data_provider=data_provider)

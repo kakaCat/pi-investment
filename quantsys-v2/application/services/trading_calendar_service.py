@@ -7,6 +7,7 @@ import structlog
 from typing import List, Optional
 from datetime import datetime, timedelta, date
 import json
+from domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 
@@ -75,8 +76,7 @@ class TradingCalendarService:
 
         # 尝试从 DataProviderManager 获取精确的交易日历（用于排除节假日）
         try:
-            from adapters.outbound.datasources.manager import get_data_provider_manager
-            manager = get_data_provider_manager()
+            manager: IDataProviderManager = get_data_provider_manager()
             result = manager.get_trading_calendar(start_date, end_date)
 
             if result.get('success') and result.get('data'):
