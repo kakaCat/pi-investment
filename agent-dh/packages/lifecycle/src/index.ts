@@ -99,20 +99,39 @@ export default class LifecyclePlugin extends Service {
     }
   }
 
-  /** 把身份注入系统提示词（order 5，在宪法段 order 10 之前；身份不可进化、不随基因组变化） */
+  /**
+   * 把身份注入系统提示词（order 5，在宪法段 order 10 之前；身份不可进化、不随基因组变化）
+   * 2026-08-21 用户修正：身份是双层的——角色身份（每个窗口相同）+ 窗口唯一编码（每个窗口不同）。
+   * 窗口编码通过 {{window_id}} 变量按组装作用域解析（provider 收到 AssembleContext.agent），
+   * 永不允许返回 undefined（否则 renderPrompt 抛异常，全站请求失败——A-3 教训）。
+   */
   private registerIdentitySection(): void {
     const i = this.identity;
+
+    // 窗口唯一编码：session-<uuid> → w-<前8位>；定时任务/续跑的 investor agent → "investor"；无作用域 → "global"
+    (this.ctx as any).systemPrompt?.variable('window_id', (context: any) => {
+      try {
+        const raw = context?.agent?.id ?? context?.scope ?? 'global';
+        const s = String(raw);
+        if (s.startsWith('session-')) return `w-${s.slice(8, 16)}`;
+        return s || 'global';
+      } catch {
+        return 'unknown';
+      }
+    });
+
     (this.ctx as any).systemPrompt?.section({
       name: 'agent:identity',
       order: 5,
       text: [
-        `[agent:${i.id}]`,
+        `[agent:${i.id} | window:{{window_id}}]`,
         ``,
         `# 你是谁`,
         ``,
-        `你是「${i.name}」（唯一 ID: ${i.id}），${i.role}。`,
+        `你是「${i.name}」（角色 ID: ${i.id}），${i.role}。`,
         `所属实例：${i.instance}（端口 ${i.port}）。`,
-        `你的所有分析、交易决策、经验记录都以此身份署名；与其他实例/分身协作时，用 ID 区分彼此。`,
+        `**本窗口唯一编码：{{window_id}}**——每个窗口（会话）都是独立个体，同角色不同窗口编码不同。`,
+        `你的所有分析、交易决策、经验记录都带角色 ID + 窗口编码双署名；与其他窗口/分身协作或复盘归因时，用窗口编码精确区分"是谁说的"。`,
       ].join('\n'),
     });
   }

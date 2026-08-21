@@ -109,6 +109,7 @@ export default class LearningPlugin extends Service {
             duration: startedAt ? Date.now() - startedAt : 0,
             success: !isError,
             error: isError ? (result?.error?.message ?? 'tool error') : undefined,
+            window_id: exec?.agent?.id,  // 窗口唯一编码（2026-08-21 双层身份：角色+窗口）
           }).catch(() => {});
         }
       } catch { /* 观察者不能影响工具调用 */ }
@@ -142,7 +143,7 @@ export default class LearningPlugin extends Service {
         tool: execution.tool,
         args: this.truncateForMemory(execution.args),
       },
-      context: await this.captureContext(),
+      context: await this.captureContext(execution),
       outcome: {
         success: execution.success,
         result: this.truncateForMemory(execution.result),
@@ -166,12 +167,15 @@ export default class LearningPlugin extends Service {
   /**
    * 捕获当前上下文（市场状态、持仓等）
    */
-  private async captureContext(): Promise<any> {
+  private async captureContext(execution?: any): Promise<any> {
     try {
       // 简化版：实际应该调用多个工具获取完整上下文
       return {
         timestamp: new Date().toISOString(),
-        agent: this.agentIdentity,  // 2026-08-21：经验记录署名（哪个 agent 干的）
+        agent: {
+          ...this.agentIdentity,  // 角色身份（每窗口相同）
+          window: execution?.window_id ?? null,  // 窗口唯一编码（每窗口不同）
+        },
         // 可扩展：market_phase, portfolio_state, etc.
       };
     } catch {
