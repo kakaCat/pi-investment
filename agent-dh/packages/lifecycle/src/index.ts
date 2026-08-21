@@ -763,15 +763,15 @@ export default class LifecyclePlugin extends Service {
         const data: any = await res.json();
         const skills: any[] = data?.skills ?? data ?? [];
         const roster = skills
-          .filter((s: any) => s.category === 'window')
+          .filter((s: any) => s.category === 'window' && s.status !== 'inactive')  // OS 的 DELETE 是软删（status=inactive）
           .map((s: any) => ({
             window: s.metadata?.window ?? s.name,
-            agent_id: s.owner,
+            agent_id: s.owner ?? null,
             skills: s.metadata?.skills ?? [],
             availability: s.metadata?.availability ?? 'unknown',
             task: s.metadata?.task ?? null,
             note: s.metadata?.note ?? null,
-            updated_at: s.metadata?.updated_at ?? s.updated_at,
+            updated_at: s.metadata?.updated_at ?? s.updated_at ?? null,  // 删除过的记录可能没有任何时间戳
             session_id: s.metadata?.session_id ?? null,  // undefined 会触发 not lossless JSON
           }))
           .sort((a: any, b: any) => String(b.updated_at).localeCompare(String(a.updated_at)));
