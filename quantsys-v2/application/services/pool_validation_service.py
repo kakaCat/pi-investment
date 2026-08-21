@@ -14,11 +14,23 @@ BACKTEST_TIMEOUT = 300  # 5 minutes
 
 
 class PoolValidationService:
-    """Orchestrates multi-strategy validation against a stock pool."""
+    """Orchestrates multi-strategy validation against a stock pool.
 
-    def __init__(self, pool_repo, strategy_repo):
-        self._pool_repo = pool_repo
-        self._strategy_repo = strategy_repo
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(self, pool_repo=None, strategy_repo=None):
+        """初始化服务
+
+        Args:
+            pool_repo: 股票池仓库（可选）
+            strategy_repo: 策略仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        from domain.ports import IStockPoolRepository, IStrategyRepository
+        self._pool_repo = pool_repo or IStockPoolRepository()
+        self._strategy_repo = strategy_repo or IStrategyRepository()
 
     def validate_pool(self, pool_id: int, strategy_ids: List[int] = None,
                       start_date: str = None, end_date: str = None,

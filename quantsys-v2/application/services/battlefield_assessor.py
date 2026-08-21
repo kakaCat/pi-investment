@@ -5,7 +5,7 @@
 """
 from domain.ports import IAgentIntelligenceRepository, IFundFlowRepository, IStockPoolRepository
 import structlog
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from application.services.opponent_behavior_service import OpponentBehaviorService
 
@@ -13,14 +13,32 @@ logger = structlog.get_logger(__name__)
 
 
 class BattlefieldAssessor:
-    """战场评估器 - 评估池子的博弈竞争力"""
+    """战场评估器 - 评估池子的博弈竞争力
 
-    def __init__(self):
-        """初始化服务"""
-        self.pool_repo = IStockPoolRepository()
-        self.fund_flow_repo = IFundFlowRepository()
-        self.metrics_repo = IAgentIntelligenceRepository()
-        self.opponent_service = OpponentBehaviorService()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        pool_repo: Optional[IStockPoolRepository] = None,
+        fund_flow_repo: Optional[IFundFlowRepository] = None,
+        metrics_repo: Optional[IAgentIntelligenceRepository] = None,
+        opponent_service: Optional[OpponentBehaviorService] = None,
+    ):
+        """初始化服务
+
+        Args:
+            pool_repo: 股票池仓库（可选）
+            fund_flow_repo: 资金流仓库（可选）
+            metrics_repo: 智能指标仓库（可选）
+            opponent_service: 对手行为服务（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.pool_repo = pool_repo or IStockPoolRepository()
+        self.fund_flow_repo = fund_flow_repo or IFundFlowRepository()
+        self.metrics_repo = metrics_repo or IAgentIntelligenceRepository()
+        self.opponent_service = opponent_service or OpponentBehaviorService()
 
     def assess_pool(self, pool_id: int) -> Dict[str, Any]:
         """

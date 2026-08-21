@@ -11,7 +11,7 @@
 7. 止损价格合理性验证
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import structlog
 from datetime import date
 
@@ -22,11 +22,28 @@ logger = structlog.get_logger(__name__)
 
 
 class RiskCheckService:
-    """风控检查服务"""
+    """风控检查服务
 
-    def __init__(self, ds: DataService, config_name: str = 'default'):
-        self.ds = ds
-        self.config_repo = IRiskConfigRepository()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        ds: Optional[DataService] = None,
+        config_name: str = 'default',
+        config_repo: Optional[IRiskConfigRepository] = None,
+    ):
+        """初始化服务
+
+        Args:
+            ds: 数据服务（可选）
+            config_name: 配置名称
+            config_repo: 风控配置仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.ds = ds or DataService()
+        self.config_repo = config_repo or IRiskConfigRepository()
         self.config = self.config_repo.get_config(config_name)
 
         if not self.config:

@@ -41,6 +41,7 @@ class SignalExecutionScheduler:
         signal_repo: Optional[ISignalRepository] = None,
         log_repo: Optional[ISignalExecutionLogRepository] = None,
         strategy_repo: Optional[IStrategyRepository] = None,
+        paper_engine: Optional[PaperTradingEngine] = None,
     ):
         """初始化信号执行调度器
 
@@ -51,6 +52,7 @@ class SignalExecutionScheduler:
             signal_repo: 信号仓库（可选）
             log_repo: 执行日志仓库（可选）
             strategy_repo: 策略仓库（可选）
+            paper_engine: 纸面交易引擎（可选）
 
         P2-1: 推荐通过 ServiceFactory 获取实例而非直接构造
         """
@@ -71,7 +73,8 @@ class SignalExecutionScheduler:
         # 懒加载：只有真正下单的路径（_batch_create_orders）才创建引擎。
         # 2026-07-24 盈利闭环改造：orchestrator 只收集信号不下单，
         # 不应因构造 scheduler 就绑定 rotation_main 账户。
-        self._paper_engine = None
+        # P2-1: 支持注入已配置的 paper_engine
+        self._paper_engine = paper_engine
 
     @property
     def paper_engine(self):

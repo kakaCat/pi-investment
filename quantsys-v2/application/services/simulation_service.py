@@ -12,11 +12,21 @@ from domain.ports import ISimulationRepository
 
 
 class SimulationService:
-    """模拟交易服务"""
-    
-    def __init__(self):
+    """模拟交易服务
+
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(self, repo: Optional[ISimulationRepository] = None):
+        """初始化服务
+
+        Args:
+            repo: 模拟仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
         self.registry = get_registry()
-        self.repo = ISimulationRepository()
+        self.repo = repo or ISimulationRepository()
         self.logger = logging.getLogger(__name__)
     
     def list_strategies(self) -> List[Dict]:

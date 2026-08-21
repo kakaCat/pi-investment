@@ -28,12 +28,29 @@ class PositionTier:
 
 
 class StrategyBacktestService:
-    """策略回测服务"""
+    """策略回测服务
 
-    def __init__(self):
-        self.strategy_repo = IStrategyRepository()
-        self.indicator_executor = IndicatorStrategyExecutor()
-        self.script_executor = ScriptStrategyExecutor()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        strategy_repo: Optional[IStrategyRepository] = None,
+        indicator_executor: Optional[IndicatorStrategyExecutor] = None,
+        script_executor: Optional[ScriptStrategyExecutor] = None,
+    ):
+        """初始化服务
+
+        Args:
+            strategy_repo: 策略仓库（可选）
+            indicator_executor: 指标策略执行器（可选）
+            script_executor: 脚本策略执行器（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.strategy_repo = strategy_repo or IStrategyRepository()
+        self.indicator_executor = indicator_executor or IndicatorStrategyExecutor()
+        self.script_executor = script_executor or ScriptStrategyExecutor()
 
     def backtest_indicator_strategy(
         self,

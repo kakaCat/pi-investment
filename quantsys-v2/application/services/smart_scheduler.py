@@ -30,9 +30,17 @@ class SmartSchedulerService:
     5. 动态任务注册/注销
 
     迁移状态：✅ 已完成ORM迁移
+    P2-1: 支持依赖注入，保持向后兼容
     """
 
-    def __init__(self):
+    def __init__(self, config_repo: Optional[ISchedulerConfigRepository] = None):
+        """初始化服务
+
+        Args:
+            config_repo: 调度器配置仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
         self.scheduler = BackgroundScheduler(
             timezone='Asia/Shanghai',
             job_defaults={
@@ -42,7 +50,7 @@ class SmartSchedulerService:
             }
         )
         self.task_registry: Dict[str, Dict[str, Any]] = {}
-        self.config_repo = ISchedulerConfigRepository()
+        self.config_repo = config_repo or ISchedulerConfigRepository()
         self._setup_listeners()
         logger.info("SmartSchedulerService initialized with ORM")
 
