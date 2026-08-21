@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
-import { readFileSync } from 'node:fs';
+import { readFileSync, appendFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import type { Agent } from '@deepseek-ai/dsh-agent';
 import { assembleContextFor } from '@deepseek-ai/dsh-agent';
@@ -89,35 +89,123 @@ export default class LifecyclePlugin extends Service {
   }
 
   /**
-   * 窗口注册表：监听 agent/created（新窗口=新会话 agent），自动登记到
-   * Agent OS 记忆库（tag=system:windows）。用户在 GUI 随机开窗口，但每个窗口都可被点名调动。
-   * OS 是核心（用户裁决 2026-08-21）：注册表落 OS，不落 v2。
+   * 窗口注册表：监听 agent/created（新窗口=新会话 agent），自动登记。
+   * 双轨：OS Skills API（结构化档案，category=window）+ OS 记忆库（事件流水）。
+   * 所有 OS 写走 osWrite（outbox 防丢）。
    */
   private setupWindowRegistry(): void {
     this.ctx.on('agent/created' as any, (agent: any) => {
       this.registerWindow(agent).catch(() => { /* 注册失败不影响 agent 创建 */ });
     });
+    // 启动时重放 outbox（OS 宕机期间的积压登记）
+    this.replayOutbox().catch(() => {});
+  }
+
+  // ===== 办公室持久化：outbox 防丢（2026-08-21 用户要求"别丢信息"）=====
+
+  private get outboxPath(): string {
+    return join(this.cfg.profileDir, 'state', 'os-outbox.jsonl');
+  }
+
+  /** 声明式 OS 操作执行器（outbox 可重放的前提：操作可序列化） */
+  private async osExec(op: string, payload: any): Promise<any> {
+    if (op === 'memory_write') return this.aos.memory.write(payload);
+    if (op === 'skill_upsert') return this.skillUpsert(payload);
+    throw new Error(`unknown os op: ${op}`);
+  }
+
+  /**
+   * OS 写操作统一入口：成功则顺带重放积压；失败则追加 outbox（jsonl），
+   * 下次成功写或下次启动时重放——OS 宕机期间的信息不丢。
+   */
+  private async osWrite(op: string, payload: any): Promise<{ queued: boolean }> {
+    try {
+      await this.osExec(op, payload);
+      await this.replayOutbox();
+      return { queued: false };
+    } catch (e: any) {
+      appendFileSync(this.outboxPath, JSON.stringify({ ts: new Date().toISOString(), op, payload }) + '\n');
+      this.ctx.logger.warn(`lifecycle: OS write failed (${op}), queued to outbox: ${e?.message}`);
+      return { queued: true };
+    }
+  }
+
+  private async replayOutbox(): Promise<void> {
+    if (!existsSync(this.outboxPath)) return;
+    const lines = readFileSync(this.outboxPath, 'utf-8').split('\n').filter(Boolean);
+    if (lines.length === 0) return;
+    const remaining: string[] = [];
+    for (const line of lines) {
+      try {
+        const e = JSON.parse(line);
+        await this.osExec(e.op, e.payload);
+      } catch {
+        remaining.push(line);  // 仍失败则保留，下轮再试
+      }
+    }
+    writeFileSync(this.outboxPath, remaining.length ? remaining.join('\n') + '\n' : '');
+  }
+
+  /** OS Skills API upsert（窗口结构化档案：name=window:<code>，metadata 带技能/忙闲/任务） */
+  private async skillUpsert(p: {
+    window: string; session_id: string; agent_id: string; role: string;
+    skills?: string[]; status?: string; task?: string | null; note?: string | null;
+  }): Promise<void> {
+    const base = (this.cfg as any).agentOS?.baseURL || 'http://localhost:8080';
+    const listRes = await fetch(`${base}/api/v1/skills`);
+    if (!listRes.ok) throw new Error(`skills list failed: ${listRes.status}`);
+    const listData: any = await listRes.json();
+    const skills: any[] = listData?.skills ?? listData ?? [];
+    const existing = skills.find((s: any) => s.name === `window:${p.window}`);
+
+    const body = {
+      name: `window:${p.window}`,
+      description: `窗口 ${p.window}（${p.role}）${p.task ? `当前任务：${p.task}` : '空闲'}`,
+      category: 'window',
+      owner: p.agent_id,
+      status: 'active',
+      metadata: {
+        window: p.window,
+        session_id: p.session_id,
+        agent_id: p.agent_id,
+        skills: p.skills ?? [],
+        availability: p.status ?? 'idle',
+        task: p.task ?? null,
+        note: p.note ?? null,
+        updated_at: new Date().toISOString(),
+      },
+    };
+    const res = await fetch(existing ? `${base}/api/v1/skills/${existing.id}` : `${base}/api/v1/skills`, {
+      method: existing ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`skill upsert failed: ${res.status}`);
   }
 
   private async registerWindow(agent: any): Promise<void> {
     const sessionId = String(agent?.id ?? '');
     if (!sessionId) return;
     const window = this.windowCode(sessionId);
-    await this.aos.memory.write({
+    const profile = {
+      window,
+      session_id: sessionId,
+      agent_id: this.identity.id,
+      role: this.identity.name,
+      skills: [] as string[],
+      task: null,
+      status: 'idle',
+      started_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    // 双轨：记忆库事件流水 + Skills API 结构化档案（都走 outbox 防丢）
+    await this.osWrite('memory_write', {
       title: `window ${window} 上线`,
-      content: JSON.stringify({
-        window,
-        session_id: sessionId,
-        agent_id: this.identity.id,
-        role: this.identity.name,
-        task: null,
-        status: 'active',
-        started_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }),
+      content: JSON.stringify(profile),
       namespace: 'data',
       tags: ['system:windows', 'window', window],
     });
+    await this.osWrite('skill_upsert', profile);
   }
 
   /**
@@ -609,17 +697,18 @@ export default class LifecyclePlugin extends Service {
       },
     } as any));
 
-    // window_update - 更新本窗口的当前任务/状态
+    // window_update - 更新本窗口的当前任务/状态（含技能自报）
     ctx.tools.register(defineTool({
       name: 'window_update',
-      description: '更新当前窗口在注册表中的状态：正在做什么任务、进展备注。窗口自动识别（从调用上下文取 session id）。适用于：开始新任务时自报家门，让其他窗口/用户能查到"这个窗口在干什么"。',
+      description: '更新当前窗口在注册表中的状态：正在做什么任务、技能标签、忙闲、进展备注。窗口自动识别（从调用上下文取 session id）。适用于：开始新任务时自报家门，让办公室（OS）能按技能和忙闲派单。',
       parameters: {
         task: { type: 'string', description: '当前任务描述，如 "M4 仓位映射表实施"' },
-        status: { type: 'string', description: '状态：active / blocked / done', enum: ['active', 'blocked', 'done'] },
+        status: { type: 'string', description: '状态：idle 空闲 / active 在干 / blocked 卡死 / done 完成', enum: ['idle', 'active', 'blocked', 'done'] },
+        skills: { type: 'array', description: '技能标签（自报），如 ["市场感知","回测","插件开发"]。办公室派单依据之一', items: { type: 'string' } },
         note: { type: 'string', description: '进展备注' },
       },
       output: {
-        schema: { type: 'object', properties: { window: { type: 'string' }, updated: { type: 'boolean' } }, additionalProperties: true },
+        schema: { type: 'object', properties: { window: { type: 'string' }, updated: { type: 'boolean' }, queued: { type: 'boolean' } }, additionalProperties: true },
         render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
       },
       timeoutMs: 15000,
@@ -628,37 +717,160 @@ export default class LifecyclePlugin extends Service {
         if (!sessionId) throw new Error('无法识别当前窗口（exec.agent 缺失）');
         const window = this.windowCode(sessionId);
 
-        // 找本窗口最新记录，保留 started_at
-        const res: any = await this.aos.memory.search({ query: window, tag: 'system:windows', top_k: 20 });
-        const items: any[] = res?.memories || res?.items || [];
-        let startedAt: string | null = null;
-        for (const it of items) {
-          try {
-            const p = typeof it.content === 'string' ? JSON.parse(it.content) : it.content;
-            if (p?.session_id === sessionId) {
-              if (!startedAt || String(p.updated_at) > String(startedAt)) startedAt = p.started_at ?? startedAt;
-            }
-          } catch { /* 跳过 */ }
-        }
+        const profile = {
+          window,
+          session_id: sessionId,
+          agent_id: this.identity.id,
+          role: this.identity.name,
+          skills: args.skills ?? [],
+          task: args.task ?? null,
+          note: args.note ?? null,
+          status: args.status ?? 'active',
+          started_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
 
-        await this.aos.memory.write({
-          title: `window ${window} ${args.status ?? 'active'}${args.task ? `：${args.task}` : ''}`,
-          content: JSON.stringify({
-            window,
-            session_id: sessionId,
-            agent_id: this.identity.id,
-            role: this.identity.name,
-            task: args.task ?? null,
-            note: args.note ?? null,
-            status: args.status ?? 'active',
-            started_at: startedAt ?? new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }),
+        // 双轨写（outbox 防丢：OS 挂了进积压，恢复后自动重放）
+        const w1 = await this.osWrite('memory_write', {
+          title: `window ${window} ${profile.status}${profile.task ? `：${profile.task}` : ''}`,
+          content: JSON.stringify(profile),
           namespace: 'data',
           tags: ['system:windows', 'window', window],
         });
+        const w2 = await this.osWrite('skill_upsert', profile);
 
-        return { window, updated: true } as any;
+        return { window, updated: true, queued: w1.queued || w2.queued } as any;
+      },
+    } as any));
+
+    // office_roster - 办公室花名册（Skills API 结构化档案）
+    ctx.tools.register(defineTool({
+      name: 'office_roster',
+      description: '办公室花名册：所有窗口的结构化档案（编码、角色、技能、忙闲、当前任务、最近更新时间）。派单决策的数据源——先看谁在、谁会、谁有空。',
+      parameters: {},
+      output: {
+        schema: { type: 'object', properties: { roster: { type: 'array', items: { type: 'object', additionalProperties: true } }, total: { type: 'number' } }, additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 15000,
+      execute: async () => {
+        const base = (this.cfg as any).agentOS?.baseURL || 'http://localhost:8080';
+        const res = await fetch(`${base}/api/v1/skills`);
+        if (!res.ok) throw new Error(`skills list failed: ${res.status}`);
+        const data: any = await res.json();
+        const skills: any[] = data?.skills ?? data ?? [];
+        const roster = skills
+          .filter((s: any) => s.category === 'window')
+          .map((s: any) => ({
+            window: s.metadata?.window ?? s.name,
+            agent_id: s.owner,
+            skills: s.metadata?.skills ?? [],
+            availability: s.metadata?.availability ?? 'unknown',
+            task: s.metadata?.task ?? null,
+            note: s.metadata?.note ?? null,
+            updated_at: s.metadata?.updated_at ?? s.updated_at,
+            session_id: s.metadata?.session_id,
+          }))
+          .sort((a: any, b: any) => String(b.updated_at).localeCompare(String(a.updated_at)));
+        return { roster, total: roster.length } as any;
+      },
+    } as any));
+
+    // assign_task - 办公室派单：向指定窗口投递任务
+    ctx.tools.register(defineTool({
+      name: 'assign_task',
+      description: '向指定窗口派发任务（followup 投递到该窗口的会话）。派单前建议先 office_roster 看谁有空谁会。目标窗口不在线会报错——可考虑 hire_window 招人。',
+      parameters: {
+        window: { type: 'string', description: '目标窗口编码，如 w-2c68a436', required: true },
+        task: { type: 'string', description: '任务内容（完整描述，对方窗口按此执行）', required: true },
+        note: { type: 'string', description: '备注（期限、约束、协作要求）' },
+      },
+      output: {
+        schema: { type: 'object', properties: { assigned: { type: 'boolean' }, window: { type: 'string' } }, additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 15000,
+      execute: async (args: any, exec?: any) => {
+        // 从花名册找目标窗口的 session_id
+        const base = (this.cfg as any).agentOS?.baseURL || 'http://localhost:8080';
+        const res = await fetch(`${base}/api/v1/skills`);
+        const data: any = await res.json();
+        const skills: any[] = data?.skills ?? data ?? [];
+        const target = skills.find((s: any) => s.name === `window:${args.window}` || s.metadata?.window === args.window);
+        if (!target) throw new Error(`窗口 ${args.window} 不在花名册（从未上线或已消亡）`);
+
+        const sessionId = target.metadata?.session_id;
+        const agent: any = (this.ctx as any).agents.get(sessionId);
+        if (!agent) throw new Error(`窗口 ${args.window} 不在线（agent 未注册），任务未投递。可用 hire_window 招新人承接。`);
+
+        const fromWindow = this.windowCode(String(exec?.agent?.id ?? 'unknown'));
+        agent.followup(createUserMessage({
+          content: [{ type: 'text', text: `【办公室派单】来自窗口 ${fromWindow}（${this.identity.name}）：\n\n任务：${args.task}\n${args.note ? `备注：${args.note}\n` : ''}\n完成后请 window_update 更新你的状态，并把结果写入 memory（namespace=decision）供溯源。` }],
+          source: { kind: 'plugin', plugin: 'lifecycle' },
+        }));
+
+        // 更新目标窗口档案为 busy
+        await this.osWrite('skill_upsert', {
+          ...target.metadata,
+          window: args.window,
+          session_id: sessionId,
+          agent_id: target.owner ?? 'investor',
+          role: this.identity.name,
+          status: 'busy',
+          task: args.task,
+        });
+
+        return { assigned: true, window: args.window } as any;
+      },
+    } as any));
+
+    // hire_window - 招人：创建新窗口（agent+session）并派初始任务
+    ctx.tools.register(defineTool({
+      name: 'hire_window',
+      description: '招一个新窗口（创建新 agent 会话）、登记到办公室、派发初始任务。适用于：花名册没有合适人选时扩招。新窗口继承角色身份，获得独立窗口编码。',
+      parameters: {
+        task: { type: 'string', description: '初始任务（新窗口开工即执行）', required: true },
+        skills: { type: 'array', description: '期望技能标签（写入档案）', items: { type: 'string' } },
+        provider: { type: 'string', description: 'LLM 路由，默认 deepseek-official', default: 'deepseek-official' },
+        model: { type: 'string', description: '模型，默认 deepseek-v4-flash', default: 'deepseek-v4-flash' },
+      },
+      output: {
+        schema: { type: 'object', properties: { hired: { type: 'boolean' }, window: { type: 'string' }, session_id: { type: 'string' } }, additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 30000,
+      execute: async (args: any) => {
+        const sessionId = `session-${crypto.randomUUID()}`;
+        const handle: any = await (this.ctx as any).agents.create({
+          sessionId,
+          agentOptions: {
+            provider: args.provider || 'deepseek-official',
+            model: args.model || 'deepseek-v4-flash',
+          },
+        });
+        const window = this.windowCode(sessionId);
+
+        // 登记档案（agent/created 也会触发 registerWindow，这里补全技能/任务信息）
+        await this.osWrite('skill_upsert', {
+          window,
+          session_id: sessionId,
+          agent_id: this.identity.id,
+          role: this.identity.name,
+          skills: args.skills ?? [],
+          status: 'busy',
+          task: args.task,
+        });
+
+        // 派初始任务
+        const agent: any = handle?.agent ?? (this.ctx as any).agents.get(sessionId);
+        if (agent?.followup) {
+          agent.followup(createUserMessage({
+            content: [{ type: 'text', text: `【入职任务】你被办公室招为新窗口 ${window}（角色：${this.identity.name}）。\n\n任务：${args.task}\n\n要求：遵守交易宪法（提示词中的 constitution 段）；开工前先 window_update 自报状态；完成后把结论写入 memory（namespace=decision）并 window_update 标记 done。` }],
+            source: { kind: 'plugin', plugin: 'lifecycle' },
+          }));
+        }
+
+        return { hired: true, window, session_id: sessionId } as any;
       },
     } as any));
   }
