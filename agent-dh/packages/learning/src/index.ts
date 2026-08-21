@@ -234,9 +234,10 @@ export default class LearningPlugin extends Service {
 
   /**
    * 交易奖励真实化（验证门裁决可信度的地基）
-   * SELL：取该标的近期买入的加权平均成本，pnl_pct = (卖价-成本)/成本，
-   *       reward = clamp(pnl_pct / 10, -1, 1)（±10% 映射到 ±1）
-   * BUY / 数据缺失 / 计算失败：0.1 中性，不阻塞追踪
+   * 2026-08-21 修正（review 专项发现）：后端真实响应是 items 不是 orders，
+   * 且卖出记录自带 pnl/pnlPercent（后端含费用精确计算）——优先直接使用，
+   * 无 pnlPercent 时回退到买入加权成本估算；再不行回退中性 0.1。
+   * reward = clamp(pnlPercent / 10, -1, 1)（±10% 映射到 ±1）
    */
   private async tradeReward(execution: any): Promise<number> {
     try {
@@ -249,14 +250,26 @@ export default class LearningPlugin extends Service {
       if (action === 'BUY') return 0.1;
       if (action !== 'SELL' || !symbol || !(price > 0)) return 0.1;
 
-      const history = await this.qv2.getTradeHistory({ symbol, direction: 'buy' });
-      const orders: any[] = (history?.orders || []).filter(
+      // 路径 1（首选）：后端卖出记录自带 pnlPercent（含费用精确计算）
+      const sellHistory = await this.qv2.getTradeHistory({ symbol, direction: 'sell' });
+      const sellOrders: any[] = sellHistory?.orders ?? sellHistory?.items ?? [];
+      const matched = sellOrders
+        .filter((o: any) => typeof o?.pnlPercent === 'number')
+        .sort((a: any, b: any) => String(b?.createdAt ?? '').localeCompare(String(a?.createdAt ?? '')))[0];
+      if (matched) {
+        const pnlPct = Number(matched.pnlPercent);
+        this.lastTradePnlPct = pnlPct;
+        return Math.max(-1, Math.min(1, +(pnlPct / 10).toFixed(3)));
+      }
+
+      // 路径 2（回退）：买入加权平均成本估算
+      const buyHistory = await this.qv2.getTradeHistory({ symbol, direction: 'buy' });
+      const buyOrders: any[] = (buyHistory?.orders ?? buyHistory?.items ?? []).filter(
         (o: any) => Number(o?.price) > 0 && Number(o?.quantity) > 0
       );
-      if (orders.length === 0) return 0.1;  // 无成本记录，中性
+      if (buyOrders.length === 0) return 0.1;
 
-      // 加权平均成本（最近 10 笔买入）
-      const recent = orders.slice(-10);
+      const recent = buyOrders.slice(-10);
       const totalQty = recent.reduce((s, o) => s + Number(o.quantity), 0);
       const avgCost = recent.reduce((s, o) => s + Number(o.price) * Number(o.quantity), 0) / totalQty;
 

@@ -561,8 +561,10 @@ export default class GenomePlugin extends Service {
               writeSection(this.genomeDir, section, snapshot.sectionContent);
               writeGenomeJson(this.genomeDir, snapshot.genomeJson);
 
-              // git revert
-              execSync('git revert --no-edit HEAD', { cwd: this.genomeDir, stdio: 'pipe' });
+              // 2026-08-21 review 专项修复：不能用 git revert——工作区已被快照还原
+              // （dirty tree 会导致 revert 被拒）。改为把还原作为一次新提交（历史只增不改）。
+              execSync('git add -A', { cwd: this.genomeDir, stdio: 'pipe' });
+              execSync(`git commit -m "genome(${snapshot.genomeJson.genome_version}): canary-restore ${section} v${oldVersion} — 渲染金丝雀失败自动还原"`, { cwd: this.genomeDir, stdio: 'pipe' });
 
               // 还原段注册
               if (this.disposers.has(section)) {
@@ -740,7 +742,9 @@ export default class GenomePlugin extends Service {
               this.ctx.logger('genome').error('Rollback render canary failed, restoring:', renderError);
               writeSection(this.genomeDir, section, snapshot.sectionContent);
               writeGenomeJson(this.genomeDir, snapshot.genomeJson);
-              execSync('git revert --no-edit HEAD', { cwd: this.genomeDir, stdio: 'pipe' });
+              // 同 update 路径修复：还原作为新提交而非 git revert（dirty tree 会拒 revert）
+              execSync('git add -A', { cwd: this.genomeDir, stdio: 'pipe' });
+              execSync(`git commit -m "genome(${snapshot.genomeJson.genome_version}): canary-restore ${section} v${oldVersion} — 回滚金丝雀失败自动还原"`, { cwd: this.genomeDir, stdio: 'pipe' });
               if (this.disposers.has(section)) {
                 this.disposers.get(section)!();
               }

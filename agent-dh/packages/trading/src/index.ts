@@ -14,10 +14,10 @@ export interface Config {
  * 宪法第 1 条工具层硬校验（P0-1b，2026-08-20）：A股交易时段
  * 9:30-11:30 / 13:00-15:00（工作日）之外禁止下单。
  * 提示词层约束是软约束，这里是硬拒单——双保险。
- * 已知限制：未接交易日历，法定节假日仅按周一至周五判断。
+ * 已知限制：未接交易日历，法定节假日仅按周一至周五判断；时区按进程本地时间。
+ * @param now 可注入时间（测试用），默认当前时间
  */
-function assertTradingHours(): void {
-  const now = new Date();
+export function assertTradingHours(now: Date = new Date()): void {
   const day = now.getDay();
   const hh = now.getHours();
   const mm = String(now.getMinutes()).padStart(2, '0');
