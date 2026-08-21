@@ -203,11 +203,15 @@ export default class RiskPlugin extends Service {
 
         // 2. 映射表（RFC 004 M4-1）；数据降级时收紧到震荡档（保守原则）
         const CAPS: Record<string, number> = { panic: 100, risk_on: 80, sideways: 60, risk_off: 40, euphoria: 30 };
-        let cap = CAPS[regime] ?? 60;
+        const rawCap = CAPS[regime] ?? 60;
+        let cap = rawCap;
         let capNote = '';
         if (dataQuality === 'degraded' || (Array.isArray(conflicts) && conflicts.length > 0)) {
           cap = Math.min(cap, 60);
-          capNote = '数据降级/指标矛盾，上限收紧至震荡档（保守）';
+          // 只有实际收紧了才提示（如 euphoria 本身 30% 已低于震荡档，不算收紧）
+          if (cap < rawCap) {
+            capNote = `数据降级/指标矛盾，上限由 ${rawCap}% 收紧至 ${cap}%（保守）`;
+          }
         }
 
         // 3. 当前仓位
@@ -218,11 +222,14 @@ export default class RiskPlugin extends Service {
         const headroom = +(cap - currentPct).toFixed(1);
 
         // 4. 回撤熔断（60 日最大回撤超 8% → 减仓一半）
+        // 2026-08-21 E2E 修正：后端真实字段是 maxDrawdown（camelCase）且为小数比率
+        // （-0.0716 = -7.16%），不是 max_drawdown 百分数——E2E 前读的是错的
         let circuit: any = { triggered: false };
         let verdict = headroom >= 0 ? 'compliant' : 'reduce_required';
         try {
           const metrics: any = await qv2.getRiskMetrics({ account_name: args.account_name || 'agent_virtual', days: 60 });
-          const mdd = Number(metrics?.max_drawdown ?? 0);
+          const raw = Number(metrics?.maxDrawdown ?? metrics?.max_drawdown ?? 0);
+          const mdd = Math.abs(raw) <= 1 ? +(raw * 100).toFixed(2) : raw;  // 小数比率→百分比
           if (mdd <= -8) {
             circuit = {
               triggered: true,
