@@ -772,7 +772,7 @@ export default class LifecyclePlugin extends Service {
             task: s.metadata?.task ?? null,
             note: s.metadata?.note ?? null,
             updated_at: s.metadata?.updated_at ?? s.updated_at,
-            session_id: s.metadata?.session_id,
+            session_id: s.metadata?.session_id ?? null,  // undefined 会触发 not lossless JSON
           }))
           .sort((a: any, b: any) => String(b.updated_at).localeCompare(String(a.updated_at)));
         return { roster, total: roster.length } as any;
