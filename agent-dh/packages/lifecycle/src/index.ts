@@ -720,16 +720,30 @@ export default class LifecyclePlugin extends Service {
         if (!sessionId) throw new Error('无法识别当前窗口（exec.agent 缺失）');
         const window = this.windowCode(sessionId);
 
+        // 继承上次的 skills/task（未传时保留，防止状态更新把档案字段抹空——2026-08-21 E2E 实证：
+        // 新员工标记 done 时 skills 从 ['测试'] 被抹成 []）
+        let prev: any = null;
+        try {
+          const memRes: any = await this.aos.memory.search({ query: window, tag: 'system:windows', top_k: 20 });
+          const items: any[] = memRes?.memories || memRes?.items || [];
+          for (const it of items) {
+            try {
+              const p = typeof it.content === 'string' ? JSON.parse(it.content) : it.content;
+              if (p?.session_id === sessionId && (!prev || String(p.updated_at) > String(prev.updated_at))) prev = p;
+            } catch { /* 跳过 */ }
+          }
+        } catch { /* 查不到则全部用本次输入 */ }
+
         const profile = {
           window,
           session_id: sessionId,
           agent_id: this.identity.id,
           role: this.identity.name,
-          skills: args.skills ?? [],
-          task: args.task ?? null,
+          skills: args.skills ?? prev?.skills ?? [],
+          task: args.task ?? prev?.task ?? null,
           note: args.note ?? null,
           status: args.status ?? 'active',
-          started_at: new Date().toISOString(),
+          started_at: prev?.started_at ?? new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
 
