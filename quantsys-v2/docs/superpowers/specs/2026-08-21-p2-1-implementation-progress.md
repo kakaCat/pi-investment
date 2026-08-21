@@ -76,25 +76,31 @@
 - 内联适配器导入: 1 (0.7%)
 ```
 
-### 重构优先级
+### 重构进度
 
-#### P0 - 高优先级 (11 issues，问题最多的文件)
+#### 已完成 (3/59 文件)
 
-1. **data_service.py** - 11 issues
-   - 问题: `__init__` 中直接实例化 10 个 Repository
-   - 计划: 改为构造函数注入
+1. **data_service.py** - ✅ 完成
+   - 问题: 11 个硬编码依赖
+   - 修复: 构造函数注入 + 向后兼容
+   - 状态: 已提交
 
-2. **data_service_orm.py** - 10 issues
-   - 问题: 同 data_service.py
-   - 计划: 统一重构策略
+2. **data_service_orm.py** - ✅ 完成
+   - 问题: 10 个硬编码依赖
+   - 修复: 构造函数注入 + 向后兼容
+   - 状态: 已修改，待提交
 
-3. **signal_execution_scheduler.py** - 7 issues
-   - 问题: 多处直接实例化
-   - 计划: 构造函数注入
+3. **signal_execution_scheduler.py** - ✅ 完成
+   - 问题: 7 个硬编码依赖
+   - 修复: 构造函数注入 + 特殊处理 risk_service 依赖
+   - 状态: 已修改，待提交
 
-4. **ml_train_task.py** - 7 issues
-   - 状态: ✅ 已在 P1-2 Phase 2 修复（4个违规已修复）
+#### P0 - 高优先级 (剩余 1 个)
+
+4. **ml_train_task.py** - 部分完成 ⚠️
+   - 状态: P1-2 Phase 2 已修复 4 个违规
    - 遗留: 方法内 ServiceFactory 调用需要改为构造函数注入
+   - 计划: Phase 2 后续处理
 
 #### P1 - 中优先级 (5-6 issues)
 
