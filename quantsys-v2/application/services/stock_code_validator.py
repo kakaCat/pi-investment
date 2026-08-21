@@ -20,10 +20,19 @@ class StockCodeValidator:
     2. 检查该股票是否有历史数据
     3. 提供模糊匹配建议
     4. 缓存验证结果
+
+    P2-1: 支持依赖注入，保持向后兼容
     """
 
-    def __init__(self):
-        self.kline_repo = IKlineRepository()
+    def __init__(self, kline_repo: Optional[IKlineRepository] = None):
+        """初始化服务
+
+        Args:
+            kline_repo: K线仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.kline_repo = kline_repo or IKlineRepository()
         self._cache: Dict[str, Dict] = {}
         self._cache_ttl = 3600  # 缓存1小时
 

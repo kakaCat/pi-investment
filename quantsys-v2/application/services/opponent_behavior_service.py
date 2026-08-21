@@ -6,19 +6,33 @@
 """
 from domain.ports import IAgentIntelligenceRepository, IFundFlowRepository
 import structlog
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 logger = structlog.get_logger(__name__)
 
 
 class OpponentBehaviorService:
-    """对手行为分析服务"""
+    """对手行为分析服务
 
-    def __init__(self):
-        """初始化服务"""
-        self.opponent_repo = IAgentIntelligenceRepository()
-        self.fund_flow_repo = IFundFlowRepository()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        opponent_repo: Optional[IAgentIntelligenceRepository] = None,
+        fund_flow_repo: Optional[IFundFlowRepository] = None,
+    ):
+        """初始化服务
+
+        Args:
+            opponent_repo: 智能仓库（可选）
+            fund_flow_repo: 资金流仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.opponent_repo = opponent_repo or IAgentIntelligenceRepository()
+        self.fund_flow_repo = fund_flow_repo or IFundFlowRepository()
 
     def analyze_current_behavior(self) -> Dict[str, Any]:
         """

@@ -49,29 +49,46 @@ class DataServiceORM:
             service.cleanup()  # 清理Session
     """
 
-    def __init__(self, cache_manager=None):
+    def __init__(
+        self,
+        cache_manager=None,
+        stock_repo: Optional[IStockRepository] = None,
+        kline_repo: Optional[IKlineRepository] = None,
+        signal_repo: Optional[ISignalRepository] = None,
+        simulation_repo: Optional[ISimulationRepository] = None,
+        portfolio_repo: Optional[IPortfolioRepository] = None,
+        factor_repo: Optional[IFactorRepository] = None,
+        backtest_repo: Optional[IBacktestRepository] = None,
+        risk_repo: Optional[IRiskRepository] = None,
+        execution_repo: Optional[ISignalExecutionRepository] = None,
+        financial_service: Optional[FinancialDataService] = None,
+    ):
         """初始化DataService
 
         Args:
             cache_manager: 可选的缓存管理器（支持look-aside模式）
+            *_repo: Repository 实例（可选，用于依赖注入）
+            financial_service: 财务数据服务（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例而非直接构造
         """
-        # ORM Repository
-        self.stock = IStockRepository()
-        self.kline = IKlineRepository()
-        self.signal = ISignalRepository()
-        self.simulation = ISimulationRepository()
-        self.portfolio = IPortfolioRepository()
-        self.factor = IFactorRepository()
-        self.backtest = IBacktestRepository()
+        # P2-1: 依赖注入 - 优先使用传入的实例，否则回退到直接实例化
+        self.stock = stock_repo or IStockRepository()
+        self.kline = kline_repo or IKlineRepository()
+        self.signal = signal_repo or ISignalRepository()
+        self.simulation = simulation_repo or ISimulationRepository()
+        self.portfolio = portfolio_repo or IPortfolioRepository()
+        self.factor = factor_repo or IFactorRepository()
+        self.backtest = backtest_repo or IBacktestRepository()
 
         # 原生Repository（待迁移）
-        self.risk = IRiskRepository()
-        self.execution = ISignalExecutionRepository()
+        self.risk = risk_repo or IRiskRepository()
+        self.execution = execution_repo or ISignalExecutionRepository()
 
         self._cache = cache_manager
 
         # 初始化财务数据多源服务
-        self.financial_service = FinancialDataService()
+        self.financial_service = financial_service or FinancialDataService()
 
         if self._cache:
             logger.info(f"DataServiceORM初始化，缓存后端: {self._cache.get_stats().get('backend', 'unknown')}")

@@ -24,11 +24,26 @@ MIN_CHANGE_UPPER = 30.0        # 最小波动上限 30%
 
 
 class SwingPointService:
-    """ZigZag 波段分析服务"""
+    """ZigZag 波段分析服务
 
-    def __init__(self):
-        self.kline_repo = IKlineRepository()
-        self.validator = StockCodeValidator()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        kline_repo: Optional[IKlineRepository] = None,
+        validator: Optional[StockCodeValidator] = None,
+    ):
+        """初始化服务
+
+        Args:
+            kline_repo: K线仓库（可选）
+            validator: 股票代码验证器（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.kline_repo = kline_repo or IKlineRepository()
+        self.validator = validator or StockCodeValidator()
 
     def analyze(self, params: Dict) -> Dict:
         """

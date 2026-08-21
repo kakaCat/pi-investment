@@ -25,11 +25,26 @@ logger = structlog.get_logger(__name__)
 
 
 class PerformanceTracker:
-    """全局绩效追踪器"""
+    """全局绩效追踪器
 
-    def __init__(self, account_name: str = 'rotation_main'):
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        account_name: str = 'rotation_main',
+        repo: Optional[ISimulationRepository] = None,
+    ):
+        """初始化服务
+
+        Args:
+            account_name: 账户名称
+            repo: 模拟仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
         self.account_name = account_name
-        self.repo = ISimulationRepository()
+        self.repo = repo or ISimulationRepository()
 
     def get_full_report(self) -> Dict[str, Any]:
         """生成完整绩效报告"""

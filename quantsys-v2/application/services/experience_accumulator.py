@@ -17,11 +17,26 @@ logger = structlog.get_logger(__name__)
 
 
 class ExperienceAccumulator:
-    """经验积累器"""
+    """经验积累器
 
-    def __init__(self):
-        self.signal_log = SignalTestLog()
-        self.perf_repo = IStrategyPerformanceRepository()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        signal_log: Optional[SignalTestLog] = None,
+        perf_repo: Optional[IStrategyPerformanceRepository] = None,
+    ):
+        """初始化服务
+
+        Args:
+            signal_log: 信号测试日志（可选）
+            perf_repo: 策略表现仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.signal_log = signal_log or SignalTestLog()
+        self.perf_repo = perf_repo or IStrategyPerformanceRepository()
 
     def accumulate_from_performance(
         self,

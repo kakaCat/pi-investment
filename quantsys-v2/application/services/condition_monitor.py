@@ -28,11 +28,24 @@ class ConditionMonitorService:
     4. 防止重复触发（冷却时间）
 
     迁移状态：✅ 已完成ORM迁移
+    P2-1: 支持依赖注入，保持向后兼容
     """
 
-    def __init__(self):
-        self.rule_repo = IConditionRuleRepository()
-        self.result_repo = IConditionResultRepository()
+    def __init__(
+        self,
+        rule_repo: Optional[IConditionRuleRepository] = None,
+        result_repo: Optional[IConditionResultRepository] = None,
+    ):
+        """初始化服务
+
+        Args:
+            rule_repo: 条件规则仓库（可选）
+            result_repo: 条件结果仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.rule_repo = rule_repo or IConditionRuleRepository()
+        self.result_repo = result_repo or IConditionResultRepository()
         self.condition_checkers: Dict[str, Callable] = {}
         self.is_running = False
         self._register_builtin_checkers()

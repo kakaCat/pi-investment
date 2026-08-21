@@ -14,7 +14,7 @@
 from domain.ports import ISignalExecutionLogRepository, ISignalRepository, IStrategyRepository
 from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, date
 import structlog
 
@@ -28,19 +28,53 @@ logger = structlog.get_logger(__name__)
 
 
 class SignalExecutionScheduler:
-    """信号执行调度器"""
+    """信号执行调度器
 
-    def __init__(self):
-        self.ds = DataService()
-        self.strategy_service = StrategyCodeService()
-        self.risk_service = RiskCheckService(self.ds)
-        self.signal_repo = ISignalRepository()
-        self.log_repo = ISignalExecutionLogRepository()
-        self.strategy_repo = IStrategyRepository()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        data_service: Optional[DataService] = None,
+        strategy_service: Optional[StrategyCodeService] = None,
+        risk_service: Optional[RiskCheckService] = None,
+        signal_repo: Optional[ISignalRepository] = None,
+        log_repo: Optional[ISignalExecutionLogRepository] = None,
+        strategy_repo: Optional[IStrategyRepository] = None,
+        paper_engine: Optional[PaperTradingEngine] = None,
+    ):
+        """初始化信号执行调度器
+
+        Args:
+            data_service: 数据服务（可选，用于依赖注入）
+            strategy_service: 策略服务（可选）
+            risk_service: 风控服务（可选）
+            signal_repo: 信号仓库（可选）
+            log_repo: 执行日志仓库（可选）
+            strategy_repo: 策略仓库（可选）
+            paper_engine: 纸面交易引擎（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例而非直接构造
+        """
+        # P2-1: 依赖注入 - 优先使用传入的实例，否则回退到直接实例化
+        self.ds = data_service or DataService()
+        self.strategy_service = strategy_service or StrategyCodeService()
+
+        # risk_service 依赖 data_service，需要特殊处理
+        if risk_service:
+            self.risk_service = risk_service
+        else:
+            self.risk_service = RiskCheckService(self.ds)
+
+        self.signal_repo = signal_repo or ISignalRepository()
+        self.log_repo = log_repo or ISignalExecutionLogRepository()
+        self.strategy_repo = strategy_repo or IStrategyRepository()
+
         # 懒加载：只有真正下单的路径（_batch_create_orders）才创建引擎。
         # 2026-07-24 盈利闭环改造：orchestrator 只收集信号不下单，
         # 不应因构造 scheduler 就绑定 rotation_main 账户。
-        self._paper_engine = None
+        # P2-1: 支持注入已配置的 paper_engine
+        self._paper_engine = paper_engine
 
     @property
     def paper_engine(self):

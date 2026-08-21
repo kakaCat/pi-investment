@@ -41,39 +41,63 @@ class OpportunityScoringService:
         kline_repo: IKlineRepository,
         stock_repo: IStockRepository,
         factor_adapter,
-        financial_repo=None,
-        fund_flow_repo=None,
-        regime_provider=None,
-        quality_gate=None,
+        financial_repo: Optional[IFinancialRepository] = None,
+        fund_flow_repo: Optional[IFundFlowRepository] = None,
+        regime_provider: Optional['RegimeSignalProvider'] = None,
+        quality_gate: Optional['DataQualityGate'] = None,
         cache=None,
     ):
+        """初始化机会评分服务
+
+        Args:
+            kline_repo: K线数据仓库
+            stock_repo: 股票数据仓库
+            factor_adapter: 因子适配器
+            financial_repo: 财务数据仓库（可选）
+            fund_flow_repo: 资金流数据仓库（可选）
+            regime_provider: 市场状态提供者（可选）
+            quality_gate: 数据质量门控（可选）
+            cache: 缓存服务（可选）
+
+        P2-1: 支持完整的依赖注入，向后兼容
+        """
         self.kline_repo = kline_repo
         self.stock_repo = stock_repo
         self.factor_adapter = factor_adapter
+
         # 初始化评分器
         self.technical_scorer = TechnicalScorer(factor_adapter)
         self.fundamental_scorer = FundamentalScorer()
+
         # 动态评分组件
         self.capital_scorer = CapitalScorer()
         self.cycle_scorer = CyclePositionScorer()
         self.profile_classifier = StockProfileClassifier()
+
+        # 缓存服务
         self.cache = cache or get_cache_service()
-        if financial_repo is None:
-                        financial_repo = IFinancialRepository()
-        if fund_flow_repo is None:
-                        fund_flow_repo = IFundFlowRepository()
-        self.financial_repo = financial_repo
-        self.fund_flow_repo = fund_flow_repo
-        self.regime_provider = regime_provider or RegimeSignalProvider(
-            kline_repo, cache=self.cache)
-        if quality_gate is None:
+
+        # P2-1: 优先使用注入的依赖，否则回退到直接实例化
+        self.financial_repo = financial_repo or IFinancialRepository()
+        self.fund_flow_repo = fund_flow_repo or IFundFlowRepository()
+
+        # regime_provider 依赖 kline_repo 和 cache
+        if regime_provider:
+            self.regime_provider = regime_provider
+        else:
+            self.regime_provider = RegimeSignalProvider(kline_repo, cache=self.cache)
+
+        # quality_gate 需要 data_provider，特殊处理
+        if quality_gate:
+            self.quality_gate = quality_gate
+        else:
             data_provider = None
             try:
-                data_provider: IDataProviderManager = get_data_provider_manager()
+                from infrastructure.services.service_factory import ServiceFactory
+                data_provider = ServiceFactory.get_data_provider_manager()
             except Exception as e:
                 logger.warning(f"DataProviderManager 不可用，K线补抓禁用: {e}")
-            quality_gate = DataQualityGate(data_provider=data_provider)
-        self.quality_gate = quality_gate
+            self.quality_gate = DataQualityGate(data_provider=data_provider)
 
     def score_stocks(
         self,

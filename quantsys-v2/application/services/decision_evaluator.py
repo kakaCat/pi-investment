@@ -3,9 +3,9 @@
 
 自动评估历史决策的结果，提取经验教训
 """
-from domain.ports import IAgentDecisionRepository, IStockPoolRepository
+from domain.ports import IAgentIntelligenceRepository, IStockPoolRepository
 import structlog
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from application.services.knowledge_service import KnowledgeService
 
@@ -13,13 +13,29 @@ logger = structlog.get_logger(__name__)
 
 
 class DecisionEvaluator:
-    """决策评估器 - 评估决策结果并提取知识"""
+    """决策评估器 - 评估决策结果并提取知识
 
-    def __init__(self):
-        """初始化服务"""
-        self.decision_repo = IAgentIntelligenceRepository()
-        self.pool_repo = IStockPoolRepository()
-        self.knowledge_service = KnowledgeService()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        decision_repo: Optional[IAgentIntelligenceRepository] = None,
+        pool_repo: Optional[IStockPoolRepository] = None,
+        knowledge_service: Optional[KnowledgeService] = None,
+    ):
+        """初始化服务
+
+        Args:
+            decision_repo: 决策仓库（可选）
+            pool_repo: 股票池仓库（可选）
+            knowledge_service: 知识服务（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.decision_repo = decision_repo or IAgentIntelligenceRepository()
+        self.pool_repo = pool_repo or IStockPoolRepository()
+        self.knowledge_service = knowledge_service or KnowledgeService()
 
     def batch_evaluate_pending(self, days: int = 7) -> Dict[str, Any]:
         """

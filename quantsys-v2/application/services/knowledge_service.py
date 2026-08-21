@@ -15,11 +15,20 @@ logger = structlog.get_logger(__name__)
 
 
 class KnowledgeService:
-    """知识管理服务 - 完整版（接通repository）"""
+    """知识管理服务 - 完整版（接通repository）
 
-    def __init__(self):
-        """初始化服务"""
-        self.repository = IAgentKnowledgeRepository()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(self, repository: Optional[IAgentKnowledgeRepository] = None):
+        """初始化服务
+
+        Args:
+            repository: 知识仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.repository = repository or IAgentKnowledgeRepository()
         logger.info("✅ KnowledgeService initialized with repository")
 
     @property

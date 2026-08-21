@@ -4,7 +4,7 @@
 定期追踪池子的健康状况，识别潜在问题
 """
 import structlog
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from domain.ports import IStockPoolRepository
 from application.services.enhanced_risk_assessor import EnhancedRiskAssessor
@@ -13,12 +13,26 @@ logger = structlog.get_logger(__name__)
 
 
 class PoolHealthTracker:
-    """池子健康度追踪器"""
+    """池子健康度追踪器
 
-    def __init__(self):
-        """初始化服务"""
-        self.pool_repo = IStockPoolRepository()
-        self.risk_assessor = EnhancedRiskAssessor()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        pool_repo: Optional[IStockPoolRepository] = None,
+        risk_assessor: Optional[EnhancedRiskAssessor] = None,
+    ):
+        """初始化服务
+
+        Args:
+            pool_repo: 股票池仓库（可选）
+            risk_assessor: 风险评估器（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.pool_repo = pool_repo or IStockPoolRepository()
+        self.risk_assessor = risk_assessor or EnhancedRiskAssessor()
 
     def track_pool_health(self, pool_id: int) -> Dict[str, Any]:
         """

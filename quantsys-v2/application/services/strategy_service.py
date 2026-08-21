@@ -32,11 +32,21 @@ logger = logging.getLogger(__name__)
 
 
 class StrategyService:
-    """策略服务（统一管理所有策略版本）"""
+    """策略服务（统一管理所有策略版本）
 
-    def __init__(self):
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(self, repo: Optional[ISimulationRepository] = None):
+        """初始化服务
+
+        Args:
+            repo: 模拟仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
         self.config_dir = Path(__file__).parent.parent.parent / 'live_trading' / 'configs' / 'strategies'
-        self.repo = ISimulationRepository()
+        self.repo = repo or ISimulationRepository()
         self._configs_cache = {}
 
     def list_strategies(self) -> List[str]:

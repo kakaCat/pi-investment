@@ -35,24 +35,50 @@ class DataService:
     """统一数据访问服务（完全ORM版本）
 
     使用SQLAlchemy ORM，自动Session管理
+
+    P2-1: 支持依赖注入，但保持向后兼容
+    - 如果传入 Repository 参数则使用（推荐）
+    - 如果不传则自动实例化（向后兼容）
     """
 
-    def __init__(self, cache_manager=None):
-        """初始化DataService"""
-        # ORM Repository
-        self.stock = IStockRepository()
-        self.kline = IKlineRepository()
-        self.signal = ISignalRepository()
-        self.simulation = ISimulationRepository()
-        self.portfolio = IPortfolioRepository()
-        self.factor = IFactorRepository()
-        self.backtest = IBacktestRepository()
-        self.risk = IRiskRepository()
-        self.strategy = IStrategyRepository()
-        self.execution = ISignalExecutionRepository()
+    def __init__(
+        self,
+        cache_manager=None,
+        stock_repo: Optional[IStockRepository] = None,
+        kline_repo: Optional[IKlineRepository] = None,
+        signal_repo: Optional[ISignalRepository] = None,
+        simulation_repo: Optional[ISimulationRepository] = None,
+        portfolio_repo: Optional[IPortfolioRepository] = None,
+        factor_repo: Optional[IFactorRepository] = None,
+        backtest_repo: Optional[IBacktestRepository] = None,
+        risk_repo: Optional[IRiskRepository] = None,
+        strategy_repo: Optional[IStrategyRepository] = None,
+        execution_repo: Optional[ISignalExecutionRepository] = None,
+        financial_service: Optional[FinancialDataService] = None,
+    ):
+        """初始化DataService
+
+        Args:
+            cache_manager: 缓存管理器（可选）
+            *_repo: Repository 实例（可选，用于依赖注入）
+            financial_service: 财务数据服务（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例而非直接构造
+        """
+        # P2-1: 依赖注入 - 优先使用传入的实例，否则回退到直接实例化
+        self.stock = stock_repo or IStockRepository()
+        self.kline = kline_repo or IKlineRepository()
+        self.signal = signal_repo or ISignalRepository()
+        self.simulation = simulation_repo or ISimulationRepository()
+        self.portfolio = portfolio_repo or IPortfolioRepository()
+        self.factor = factor_repo or IFactorRepository()
+        self.backtest = backtest_repo or IBacktestRepository()
+        self.risk = risk_repo or IRiskRepository()
+        self.strategy = strategy_repo or IStrategyRepository()
+        self.execution = execution_repo or ISignalExecutionRepository()
 
         self._cache = cache_manager
-        self.financial_service = FinancialDataService()
+        self.financial_service = financial_service or FinancialDataService()
 
         logger.info("DataService初始化完成（ORM模式）")
 

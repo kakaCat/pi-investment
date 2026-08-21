@@ -12,11 +12,20 @@ logger = structlog.get_logger(__name__)
 
 
 class AttributionAnalyzer:
-    """归因分析器"""
+    """归因分析器
 
-    def __init__(self):
-        """初始化服务"""
-        self.pool_repo = IStockPoolRepository()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(self, pool_repo: Optional[IStockPoolRepository] = None):
+        """初始化服务
+
+        Args:
+            pool_repo: 股票池仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.pool_repo = pool_repo or IStockPoolRepository()
 
     def analyze_pool_attribution(self, pool_id: int) -> Dict[str, Any]:
         """
