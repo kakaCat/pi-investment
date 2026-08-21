@@ -1,0 +1,114 @@
+name: Architecture Check
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'quantsys-v2/**/*.py'
+      - '.github/workflows/architecture-check.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'quantsys-v2/**/*.py'
+
+jobs:
+  architecture-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        cd quantsys-v2
+        python -m pip install --upgrade pip
+        # Only install minimal dependencies needed for AST parsing
+        pip install structlog
+
+    - name: Run architecture violation check
+      id: check
+      run: |
+        cd quantsys-v2
+        echo "Running layer violation analysis..."
+        python tools/analyze_layer_violations.py > /tmp/violations.txt
+        cat /tmp/violations.txt
+
+        # Extract violation count
+        VIOLATIONS=$(grep "违规导入总数" /tmp/violations.txt | awk '{print $3}')
+        echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
+
+        # Set baseline (current acceptable number from main branch)
+        BASELINE=7
+        echo "baseline=$BASELINE" >> $GITHUB_OUTPUT
+
+        if [ "$VIOLATIONS" -gt "$BASELINE" ]; then
+          echo "❌ Architecture violations increased: $VIOLATIONS (baseline: $BASELINE)"
+          exit 1
+        else
+          echo "✅ Architecture check passed: $VIOLATIONS violations (baseline: $BASELINE)"
+          exit 0
+        fi
+
+    - name: Comment PR (on failure)
+      if: failure() && github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const violations = '${{ steps.check.outputs.violations }}';
+          const baseline = '${{ steps.check.outputs.baseline }}';
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## ❌ Architecture Check Failed
+
+**Layer Violations Increased**
+- Current: ${violations}
+- Baseline: ${baseline}
+
+Please follow the coding standards to fix these violations:
+- 📖 [Coding Standards](../CODING_STANDARDS.md)
+- ⚡ [Quick Reference](quantsys-v2/docs/ARCHITECTURE_QUICK_REFERENCE.md)
+
+**To see violation details locally:**
+\`\`\`bash
+cd quantsys-v2
+python tools/analyze_layer_violations.py
+\`\`\`
+
+**Common fixes:**
+1. Import domain interfaces instead of adapter implementations
+2. Use local imports in \`__init__\` methods for concrete classes
+3. Add interface type annotations
+
+See [CODING_STANDARDS.md](../CODING_STANDARDS.md#常见违规修复) for detailed examples.`
+          });
+
+    - name: Comment PR (on success with improvements)
+      if: success() && github.event_name == 'pull_request' && steps.check.outputs.violations < steps.check.outputs.baseline
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const violations = '${{ steps.check.outputs.violations }}';
+          const baseline = '${{ steps.check.outputs.baseline }}';
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## ✅ Architecture Improved!
+
+**Layer Violations Decreased**
+- Previous: ${baseline}
+- Current: ${violations}
+- Improvement: ${baseline - violations} violations fixed
+
+Great work on improving the architecture! 🎉`
+          });

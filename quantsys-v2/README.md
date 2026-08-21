@@ -513,9 +513,20 @@ Get strategy weight adjustment for current market style.
 
 ## Documentation
 
+### Architecture & Coding Standards
+
+- **[📖 Coding Standards](../CODING_STANDARDS.md)** - Complete hexagonal architecture guide
+- **[⚡ Quick Reference](docs/ARCHITECTURE_QUICK_REFERENCE.md)** - Fast lookup for daily development
+- [Architecture Audit Progress](docs/architecture-audit-progress.md) - Refactoring journey
+
+### Module Documentation
+
 - [RL Module Documentation](quantlib/rl/README.md) - Base RL abstractions
 - [FinRL Documentation](quantlib/finrl/README.md) - FinRL integration guide
 - [Qlib Documentation](quantlib/qlib/README.md) - Qlib integration guide
+
+### Operations & Reports
+
 - [Data Recovery Report](docs/data-recovery-report.md) - Data backfill and scheduler setup
 - [Scheduler Analysis](docs/scheduler-analysis.md) - Scheduler root cause analysis
 - [Migration Reports](docs/superpowers/reports/) - Implementation reports
