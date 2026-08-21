@@ -328,6 +328,12 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
         version: 3.18.1
+      '@pi-investment/agent-os-client':
+        specifier: file:../agent-os-client
+        version: file:packages/agent-os-client
+      '@pi-investment/quantsys-v2-client':
+        specifier: file:../../../quantsys-v2-client
+        version: file:../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -3783,6 +3789,17 @@ packages:
   file:../quantsys-v2-client:
     resolution: {directory: ../quantsys-v2-client, type: directory}
     name: '@pi-investment/quantsys-v2-client'
+    dependencies:
+      axios: 1.19.0
+      axios-retry: 4.5.0(axios@1.19.0)
+    transitivePeerDependencies:
+      - debug
+      - supports-color
+    dev: false
+
+  file:packages/agent-os-client:
+    resolution: {directory: packages/agent-os-client, type: directory}
+    name: '@pi-investment/agent-os-client'
     dependencies:
       axios: 1.19.0
       axios-retry: 4.5.0(axios@1.19.0)

@@ -8,6 +8,7 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import type { Agent } from '@deepseek-ai/dsh-agent';
 import { assembleContextFor } from '@deepseek-ai/dsh-agent';
 import { renderPrompt } from '@deepseek-ai/dsh-system-prompt';
+import { AgentOSClient } from '@pi-investment/agent-os-client';
 import { GitRepo } from './git.js';
 import { PendingResume, RestartResult, StateStore } from './state.js';
 
@@ -52,12 +53,16 @@ export default class LifecyclePlugin extends Service {
     port: z.number().default(13080),
     agentId: z.string().default('investor'),
     maxRestartsPerHour: z.number().default(10),
+    agentOS: z.object({
+      baseURL: z.string().default('http://localhost:8080'),  // 窗口注册表落 Agent OS（核心层）
+    }).default({} as any),
   })
 
   private repo: GitRepo;
   private state: StateStore;
-  private cfg: Required<Config>;
+  private cfg: Required<Config> & { agentOS?: { baseURL: string } };
   private identity: { id: string; name: string; role: string; instance: string; port: number };
+  private aos: any;  // AgentOSClient（窗口注册表落 OS 记忆库）
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'lifecycle');
@@ -68,8 +73,51 @@ export default class LifecyclePlugin extends Service {
     this.state = new StateStore(join(this.cfg.profileDir, 'state'));
     this.identity = this.loadIdentity();
     this.registerIdentitySection();
+    // 窗口注册表（2026-08-21 用户需求：窗口随机打开，但要能按编码调动；落 Agent OS）
+    this.aos = new AgentOSClient({
+      baseURL: (config as any).agentOS?.baseURL || 'http://localhost:8080',
+      agentId: this.cfg.agentId,
+    });
+    this.setupWindowRegistry();
     this.registerTools();
     this.setupResume();
+  }
+
+  /** 窗口编码：session-<uuid> → w-<前8位>；其他 agent id 原样返回 */
+  private windowCode(agentId: string): string {
+    return agentId.startsWith('session-') ? `w-${agentId.slice(8, 16)}` : agentId;
+  }
+
+  /**
+   * 窗口注册表：监听 agent/created（新窗口=新会话 agent），自动登记到
+   * Agent OS 记忆库（tag=system:windows）。用户在 GUI 随机开窗口，但每个窗口都可被点名调动。
+   * OS 是核心（用户裁决 2026-08-21）：注册表落 OS，不落 v2。
+   */
+  private setupWindowRegistry(): void {
+    this.ctx.on('agent/created' as any, (agent: any) => {
+      this.registerWindow(agent).catch(() => { /* 注册失败不影响 agent 创建 */ });
+    });
+  }
+
+  private async registerWindow(agent: any): Promise<void> {
+    const sessionId = String(agent?.id ?? '');
+    if (!sessionId) return;
+    const window = this.windowCode(sessionId);
+    await this.aos.memory.write({
+      title: `window ${window} 上线`,
+      content: JSON.stringify({
+        window,
+        session_id: sessionId,
+        agent_id: this.identity.id,
+        role: this.identity.name,
+        task: null,
+        status: 'active',
+        started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }),
+      namespace: 'data',
+      tags: ['system:windows', 'window', window],
+    });
   }
 
   /**
@@ -520,6 +568,97 @@ export default class LifecyclePlugin extends Service {
           timestamp: new Date(now).toISOString(),
         };
         return result as any;
+      },
+    } as any));
+
+    // ===== 窗口注册表工具（2026-08-21，窗口随机开但要能点名调动） =====
+
+    // window_list - 列出所有注册窗口
+    ctx.tools.register(defineTool({
+      name: 'window_list',
+      description: '列出窗口注册表：所有已登记窗口（唯一编码、角色、当前任务、状态、最近活跃），每个窗口取最新一条记录。适用于：用户随机打开多个窗口后，查"哪个窗口在干什么"、按编码点名调动某个窗口。',
+      parameters: {},
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            windows: { type: 'array', items: { type: 'object', additionalProperties: true } },
+            total: { type: 'number' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 15000,
+      execute: async () => {
+        const res: any = await this.aos.memory.search({ query: 'window', tag: 'system:windows', top_k: 100 });
+        const items: any[] = res?.memories || res?.items || [];
+        // 每个窗口取最新一条（append-only，updated_at 最大者）
+        const byWindow = new Map<string, any>();
+        for (const it of items) {
+          let payload: any = null;
+          try { payload = typeof it.content === 'string' ? JSON.parse(it.content) : it.content; } catch { continue; }
+          if (!payload?.window) continue;
+          const prev = byWindow.get(payload.window);
+          if (!prev || String(payload.updated_at ?? it.created_at) > String(prev.updated_at)) {
+            byWindow.set(payload.window, { ...payload, memory_id: it.id });
+          }
+        }
+        const windows = [...byWindow.values()].sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
+        return { windows, total: windows.length } as any;
+      },
+    } as any));
+
+    // window_update - 更新本窗口的当前任务/状态
+    ctx.tools.register(defineTool({
+      name: 'window_update',
+      description: '更新当前窗口在注册表中的状态：正在做什么任务、进展备注。窗口自动识别（从调用上下文取 session id）。适用于：开始新任务时自报家门，让其他窗口/用户能查到"这个窗口在干什么"。',
+      parameters: {
+        task: { type: 'string', description: '当前任务描述，如 "M4 仓位映射表实施"' },
+        status: { type: 'string', description: '状态：active / blocked / done', enum: ['active', 'blocked', 'done'] },
+        note: { type: 'string', description: '进展备注' },
+      },
+      output: {
+        schema: { type: 'object', properties: { window: { type: 'string' }, updated: { type: 'boolean' } }, additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 15000,
+      execute: async (args: any, exec?: any) => {
+        const sessionId = String(exec?.agent?.id ?? '');
+        if (!sessionId) throw new Error('无法识别当前窗口（exec.agent 缺失）');
+        const window = this.windowCode(sessionId);
+
+        // 找本窗口最新记录，保留 started_at
+        const res: any = await this.aos.memory.search({ query: window, tag: 'system:windows', top_k: 20 });
+        const items: any[] = res?.memories || res?.items || [];
+        let startedAt: string | null = null;
+        for (const it of items) {
+          try {
+            const p = typeof it.content === 'string' ? JSON.parse(it.content) : it.content;
+            if (p?.session_id === sessionId) {
+              if (!startedAt || String(p.updated_at) > String(startedAt)) startedAt = p.started_at ?? startedAt;
+            }
+          } catch { /* 跳过 */ }
+        }
+
+        await this.aos.memory.write({
+          title: `window ${window} ${args.status ?? 'active'}${args.task ? `：${args.task}` : ''}`,
+          content: JSON.stringify({
+            window,
+            session_id: sessionId,
+            agent_id: this.identity.id,
+            role: this.identity.name,
+            task: args.task ?? null,
+            note: args.note ?? null,
+            status: args.status ?? 'active',
+            started_at: startedAt ?? new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }),
+          namespace: 'data',
+          tags: ['system:windows', 'window', window],
+        });
+
+        return { window, updated: true } as any;
       },
     } as any));
   }
