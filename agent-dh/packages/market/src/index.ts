@@ -263,13 +263,17 @@ export default class MarketPlugin extends Service {
 
         const res: any = await qv2.getSectorAnalysis({ days: args.days ?? 5, limit: 10 });
         // 响应结构宽容解析：取板块数组（名称+涨跌幅+资金流）
+        // 2026-08-21 实测：后端返回中文字段（板块名称/涨跌幅/总市值/类型），
+        // 无资金流字段；undefined 字段会触发工具输出 not lossless JSON，一律 ?? null
         const sectors: any[] = res?.sectors || res?.items || res?.ranking || [];
         const top3 = sectors.slice(0, 3).map((sec: any, i: number) => ({
           rank: i + 1,
-          sector: sec.name ?? sec.sector ?? sec.industry,
-          change_pct: sec.change_pct ?? sec.changePct ?? sec.pct ?? null,
-          fund_flow: sec.fund_flow ?? sec.fundFlow ?? sec.net_inflow ?? null,
-          basis: `近${args.days ?? 5}日板块强度排名前${i + 1}${sec.fund_flow != null || sec.net_inflow != null ? '，资金净流入' : ''}`,
+          sector: sec['板块名称'] ?? sec.name ?? sec.sector ?? sec.industry ?? `未知板块${i + 1}`,
+          code: sec['板块代码'] ?? sec.code ?? null,
+          change_pct: sec['涨跌幅'] ?? sec.change_pct ?? sec.changePct ?? sec.pct ?? null,
+          market_cap: sec['总市值'] ?? null,
+          type: sec['类型'] ?? null,
+          basis: `近${args.days ?? 5}日板块强度排名前${i + 1}（按板块涨跌幅）`,
         }));
 
         await qv2.createMemory({
