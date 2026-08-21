@@ -440,6 +440,66 @@ class ServiceFactory:
             logger.info("EnhancedFinancialDataService initialized")
         return cls._instances['enhanced_financial_service']
 
+    # ── P1-2 Phase 2: 数据源接口抽象 (2026-08-21) ──
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_ml_model_repository(cls):
+        """获取ML模型仓库实例
+
+        Returns:
+            IMLModelRepository: ML模型仓库接口实现
+        """
+        if 'ml_model_repository' not in cls._instances:
+            from adapters.outbound.ml.ml_model_repository import MLModelFileRepository
+            cls._instances['ml_model_repository'] = MLModelFileRepository()
+            logger.info("MLModelFileRepository initialized")
+        return cls._instances['ml_model_repository']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_ml_model_metadata_repository(cls):
+        """获取ML模型元数据仓库实例
+
+        Returns:
+            IMLModelMetadataRepository: ML模型元数据仓库接口实现
+        """
+        if 'ml_model_metadata_repository' not in cls._instances:
+            from adapters.outbound.ml.ml_model_repository import MLModelMetadataDBRepository
+            cls._instances['ml_model_metadata_repository'] = MLModelMetadataDBRepository()
+            logger.info("MLModelMetadataDBRepository initialized")
+        return cls._instances['ml_model_metadata_repository']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_data_provider_manager(cls):
+        """获取数据提供者管理器实例
+
+        Returns:
+            IDataProviderManager: 数据提供者管理器接口实现
+        """
+        if 'data_provider_manager' not in cls._instances:
+            from adapters.outbound.datasources.data_provider_adapter import DataProviderAdapter
+            # 传入 DataService 以支持 DatabaseKlineProvider
+            ds = cls.get_data_service()
+            cls._instances['data_provider_manager'] = DataProviderAdapter(ds)
+            logger.info("DataProviderAdapter initialized")
+        return cls._instances['data_provider_manager']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_data_quality_monitor(cls):
+        """获取数据质量监控器实例
+
+        Returns:
+            IDataQualityMonitor: 数据质量监控接口实现
+        """
+        if 'data_quality_monitor' not in cls._instances:
+            from adapters.outbound.datasources.data_provider_adapter import SimpleDataQualityMonitor
+            cls._instances['data_quality_monitor'] = SimpleDataQualityMonitor()
+            logger.info("SimpleDataQualityMonitor initialized")
+        return cls._instances['data_quality_monitor']
+
     @classmethod
     def reset_all(cls):
         """重置所有服务实例（用于测试）"""
@@ -484,6 +544,11 @@ class ServiceFactory:
         cls.get_strategy_optimizer.cache_clear()
         cls.get_game_alert_service.cache_clear()
         cls.get_enhanced_financial_service.cache_clear()
+        # P1-2 Phase 2
+        cls.get_ml_model_repository.cache_clear()
+        cls.get_ml_model_metadata_repository.cache_clear()
+        cls.get_data_provider_manager.cache_clear()
+        cls.get_data_quality_monitor.cache_clear()
         logger.info("All services reset")
 
 

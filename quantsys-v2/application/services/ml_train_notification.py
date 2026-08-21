@@ -217,23 +217,28 @@ def check_model_performance_alert(webhook_url: str = None) -> bool:
             return False
     
     try:
-        from adapters.shared.ml_helpers import _get_model_repo, _resolve_latest_version
-        
+        from infrastructure.services.service_factory import ServiceFactory
+
         model_type = "lightgbm"
-        latest_version = _resolve_latest_version(model_type)
-        
+
+        # 通过接口访问
+        ml_model_repo = ServiceFactory.get_ml_model_repository()
+        ml_metadata_repo = ServiceFactory.get_ml_model_metadata_repository()
+
+        latest_version = ml_model_repo.resolve_latest_version(model_type)
+
         if not latest_version:
             return False
-        
-        repo = _get_model_repo()
-        model = repo.get_by_type_version(model_type, latest_version)
-        
+
+        model = ml_metadata_repo.get_training_record(model_type, latest_version)
+
         if not model:
             return False
-        
-        test_acc = model.get('test_accuracy', 0)
+
+        metrics = model.get('metrics', {})
+        test_acc = metrics.get('test_accuracy', 0)
         train_date = model.get('train_date')
-        
+
         # 阈值：测试准确率 < 0.50
         if test_acc < 0.50:
             title = "🚨 模型性能告警"
@@ -246,7 +251,7 @@ def check_model_performance_alert(webhook_url: str = None) -> bool:
 """
             send_feishu_notification(webhook_url, title, content)
             return True
-        
+
         return False
         
     except Exception as e:

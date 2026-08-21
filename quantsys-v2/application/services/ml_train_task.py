@@ -45,12 +45,12 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
     logger.info(f"模型训练任务启动: {model_type}, symbols={symbols_limit}, force={force_train}")
     
     try:
-        from infrastructure.services.service_factory import get_data_service
+        from infrastructure.services.service_factory import ServiceFactory
         from domain.ports.repository_ports_extended import IStockRepository
         from application.services.ml_pipeline.feature_engineering import FeatureEngineer
         from application.services.ml_pipeline.predictor import MLPredictor
         from sklearn.model_selection import train_test_split
-        
+
         # 1. 检查是否需要训练（非强制模式）
         if not force_train:
             should_train, reason = _check_train_needed(model_type)
@@ -63,15 +63,15 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
                     "timestamp": datetime.now().isoformat()
                 }
 
-        # 2. 获取股票列表
-        from adapters.outbound.repositories.stock_repository import StockORMRepository
-        repo = StockORMRepository()
+        # 2. 获取股票列表（通过接口）
+        from domain.ports.repository_ports_extended import IStockRepository
+        repo: IStockRepository = ServiceFactory.get_stock_repository()
         stocks = repo.get_all(limit=symbols_limit)
         symbols = [s['symbol'] for s in stocks]
         logger.info(f"训练样本: {len(symbols)} 只股票")
-        
+
         # 3. 加载K线数据
-        ds = get_data_service()
+        ds = ServiceFactory.get_data_service()
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
         
@@ -120,25 +120,26 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         version = datetime.now().strftime("%Y%m%d_%H%M%S")
         model_path = predictor.save_model(version=version)
         logger.info(f"模型已保存: {version}")
-        
-        # 7. 保存训练记录到DB
-        from adapters.shared.ml_helpers import _get_model_repo
-        model_repo = _get_model_repo()
-        model_repo.create({
-            "model_type": model_type,
-            "version": version,
-            "model_path": str(model_path),
-            "train_accuracy": train_acc,
-            "test_accuracy": test_acc,
-            "train_samples": len(X_train),
-            "feature_count": X.shape[1],
-            "training_params": {
+
+        # 7. 保存训练记录到DB（通过接口）
+        model_metadata_repo = ServiceFactory.get_ml_model_metadata_repository()
+        model_metadata_repo.save_training_record(
+            model_type=model_type,
+            version=version,
+            metrics={
+                "train_accuracy": train_acc,
+                "test_accuracy": test_acc,
+            },
+            training_params={
                 "symbols_count": len(klines_dict),
                 "lookback_days": lookback_days,
                 "test_size": test_size,
             },
-            "status": "ready",
-        })
+            dataset_info={
+                "train_samples": len(X_train),
+                "feature_count": X.shape[1],
+            }
+        )
         
         # 8. 性能对比与切换（如果新模型更好）
         auto_switch = params.get('auto_switch', True)
@@ -179,56 +180,62 @@ def _check_train_needed(model_type: str) -> tuple[bool, str]:
     Returns:
         (should_train, reason)
     """
-    from adapters.shared.ml_helpers import _get_model_repo, _resolve_latest_version
-    
-    # 检查最新模型
-    latest_version = _resolve_latest_version(model_type)
+    from infrastructure.services.service_factory import ServiceFactory
+
+    # 检查最新模型（通过接口）
+    ml_model_repo = ServiceFactory.get_ml_model_repository()
+    latest_version = ml_model_repo.resolve_latest_version(model_type)
     if not latest_version:
         return (True, "无可用模型，需要训练")
-    
+
     # 检查模型年龄
-    repo = _get_model_repo()
-    model = repo.get_by_type_version(model_type, latest_version)
+    ml_metadata_repo = ServiceFactory.get_ml_model_metadata_repository()
+    model = ml_metadata_repo.get_training_record(model_type, latest_version)
     if not model:
         return (True, "模型元数据缺失")
-    
+
     train_date_str = model.get('train_date')
     if train_date_str:
         train_date = pd.to_datetime(train_date_str)
         days_old = (datetime.now() - train_date).days
-        
+
         # 策略：超过7天且数据有更新，则重训练
         if days_old > 7:
             return (True, f"模型已{days_old}天未更新")
-    
+
     # 检查模型性能
-    test_acc = model.get('test_accuracy')
+    metrics = model.get('metrics', {})
+    test_acc = metrics.get('test_accuracy')
     if test_acc and test_acc < 0.55:
         return (True, f"模型性能低 (test_acc={test_acc:.4f} < 0.55)")
-    
+
     return (False, f"模型{latest_version}仍有效 (age={days_old}d, acc={test_acc:.4f})")
 
 
 def _try_switch_model(model_type: str, new_version: str, new_test_acc: float) -> bool:
     """
     尝试切换到新模型（如果性能更好）
-    
+
     Returns:
         是否切换成功
     """
-    from adapters.shared.ml_helpers import _get_model_repo, _resolve_latest_version
-    
-    current_version = _resolve_latest_version(model_type)
+    from infrastructure.services.service_factory import ServiceFactory
+
+    # 通过接口访问
+    ml_model_repo = ServiceFactory.get_ml_model_repository()
+    ml_metadata_repo = ServiceFactory.get_ml_model_metadata_repository()
+
+    current_version = ml_model_repo.resolve_latest_version(model_type)
     if not current_version or current_version == new_version:
         return True  # 无旧模型或就是新模型
-    
-    repo = _get_model_repo()
-    current_model = repo.get_by_type_version(model_type, current_version)
+
+    current_model = ml_metadata_repo.get_training_record(model_type, current_version)
     if not current_model:
         return True
-    
-    current_test_acc = current_model.get('test_accuracy', 0.0)
-    
+
+    metrics = current_model.get('metrics', {})
+    current_test_acc = metrics.get('test_accuracy', 0.0)
+
     # 策略：新模型准确率提升>=1%，或旧模型<0.52且新模型>0.52
     if new_test_acc > current_test_acc + 0.01 or (current_test_acc < 0.52 and new_test_acc > 0.52):
         # 更新latest标记（在DB中标记新模型为latest）

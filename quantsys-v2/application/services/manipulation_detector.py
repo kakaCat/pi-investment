@@ -144,12 +144,11 @@ class ManipulationDetector:
             涨停股列表
         """
         try:
-            # 通过统一数据访问层获取今日涨停池（Phase 3 数据访问治理）
-            from domain.ports.datasource_ports import IDataProviderManager
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+            # 通过统一数据访问层获取今日涨停池（Phase 2 数据提供者接口）
+            from infrastructure.services.service_factory import ServiceFactory
 
-            provider: IDataProviderManager = get_data_provider_manager()
-            result = provider.get_zt_pool(datetime.now().strftime('%Y%m%d'))
+            provider_manager = ServiceFactory.get_data_provider_manager()
+            result = provider_manager.get_zt_pool(datetime.now().strftime('%Y%m%d'))
             if not result.get('success') or not result.get('data'):
                 return []
 
@@ -227,16 +226,14 @@ class ManipulationDetector:
             是否检测到游资
         """
         try:
-            # 通过统一数据访问层获取最近5天的龙虎榜数据（Phase 3 数据访问治理；
-            # 顺带修复：原 ak.stock_lhb_detail_em(symbol=...) 传了不存在的参数，必 TypeError）
-            from domain.ports.datasource_ports import IDataProviderManager
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+            # 通过统一数据访问层获取最近5天的龙虎榜数据（Phase 2 数据提供者接口）
+            from infrastructure.services.service_factory import ServiceFactory
 
             end_date = datetime.now()
             start_date = end_date - timedelta(days=5)
 
-            provider: IDataProviderManager = get_data_provider_manager()
-            result = provider.get_lhb_detail(
+            provider_manager = ServiceFactory.get_data_provider_manager()
+            result = provider_manager.get_lhb_detail(
                 symbol=symbol,
                 start_date=start_date.strftime('%Y%m%d'),
                 end_date=end_date.strftime('%Y%m%d')
