@@ -603,3 +603,25 @@ Agent-DH 现已完成**完整自主能力体系**的架构设计。
 ### 下一步
 
 由其他 Agent 按照 RFC 004 实施 Diagnostics 插件。
+
+---
+
+## 多实例生命周期铁律（2026-08-21 起）
+
+同机运行多个 dsh 实例（主实例 :3080 / investment :13080 / 其他 profile）时，停止实例必须**精确到实例**，历史上模糊停止曾误杀其他 agent：
+
+1. **禁止 `pkill -f 'dsh web'` / `killall node`** 等模糊匹配——会命中所有 dsh 实例
+2. **lsof 查端口必须带 `-sTCP:LISTEN`**——不带会把连着该端口页面的浏览器进程（Chrome Helper）也杀掉
+3. **每个实例**：`start.sh` 写 `state/server.pid` + `state/server.port`；停止走 `stop.sh`（pidfile + 监听校验 + 端口兜底，防 PID 复用误杀）
+4. self_restart 按 PID 精确停止，天然安全；手动停实例一律用该实例的 stop.sh
+
+## Agent 身份系统（2026-08-21 起）
+
+每个 agent 必须有**唯一 ID 和名字**，提高自我认知与协作可区分性：
+
+- **注册表**：`~/.dsh/profiles/investment/agents.json`（instance + agents[]：id/name/role/primary/alias_of）
+- **提示词**：lifecycle 插件注册 `agent:identity` 段（order 5，宪法段之前），身份不进基因组、不参与进化
+- **self_info**：identity 块来自注册表
+- **经验署名**：learning 自动追踪的 context.agent 带 id/name/instance
+- **通知署名**：feishu_notify/notification_send 外发消息自动带 `—— {name} ({id})` 署名
+- 新分身加入时：在 agents.json 注册后再接入
