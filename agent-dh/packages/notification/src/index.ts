@@ -41,7 +41,7 @@ export default class NotificationPlugin extends Service {
     // 飞书通知
     ctx.tools.register(defineTool({
       name: 'feishu_notify',
-      description: '发送飞书通知（写操作，用户会真实收到消息）。适用于：交易信号、风险提示、每日报告等重要事项。仅在有实际价值的信息时发送，避免频繁打扰；一般性记录写入 memory_write 即可。需要其他渠道（webhook/邮件）时用 notification_send。',
+      description: '发送飞书通知（写操作，用户会真实收到消息）。适用于：交易信号、风险提示、每日报告等重要事项。渠道路由：默认按 urgency 自动分流（high→alerts 告警群，normal/low→reports 报告群），也可用 channel 参数显式指定。仅在有实际价值的信息时发送，避免频繁打扰；一般性记录写入 memory_write 即可。需要其他渠道（webhook/邮件）时用 notification_send。',
       parameters: {
         title: {
           type: 'string',
@@ -58,6 +58,10 @@ export default class NotificationPlugin extends Service {
           description: '紧急程度。low：普通备忘；normal（默认）：一般通知；high：紧急，会触发强提醒，仅用于需要立即关注的事项',
           enum: ['low', 'normal', 'high'],
           default: 'normal',
+        },
+        channel: {
+          type: 'string',
+          description: '显式指定 Agent OS 渠道 code（如 alerts=告警群 / reports=报告群）。不传则按 urgency 自动分流：high→alerts，normal/low→reports',
         },
       },
       output: {
@@ -76,10 +80,15 @@ export default class NotificationPlugin extends Service {
       },
       timeoutMs: 10000,
       execute: async (args: any) => {
+        // 2026-08-21 渠道路由：显式 channel 优先，否则按 urgency 分流
+        // （修复"永远落到第一个 enabled channel"导致的日报/告警混发）
+        const urgency = args.urgency || 'normal';
+        const channel = args.channel || (urgency === 'high' ? 'alerts' : 'reports');
         return aos.notification.send({
           title: args.title,
           content: args.content,
-          urgency: args.urgency || 'normal',
+          urgency,
+          channel,
         }) as any;
       },
     } as any));
