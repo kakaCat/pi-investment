@@ -2,12 +2,47 @@
 服务工厂 - 替代shared.py的全局单例模式
 
 提供服务实例的统一获取接口，支持延迟初始化和单例模式
+
+P2-1: 渐进式迁移到 EnhancedServiceFactory
+- 优先从 EnhancedServiceFactory 获取服务
+- 如果未注册则回退到旧的实现
+- 保持向后兼容
 """
 import logging
-from typing import Optional
+from typing import Optional, Type, TypeVar
 from functools import lru_cache
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar('T')
+
+# 延迟导入以避免循环依赖
+_enhanced_factory_initialized = False
+
+
+def _ensure_enhanced_factory():
+    """确保 EnhancedServiceFactory 已初始化"""
+    global _enhanced_factory_initialized
+    if not _enhanced_factory_initialized:
+        try:
+            from .service_registry import register_all_services
+            register_all_services()
+            _enhanced_factory_initialized = True
+            logger.info("EnhancedServiceFactory initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize EnhancedServiceFactory: {e}")
+
+
+def _try_get_from_enhanced(service_type: Type[T]) -> Optional[T]:
+    """尝试从 EnhancedServiceFactory 获取服务"""
+    try:
+        _ensure_enhanced_factory()
+        from .enhanced_service_factory import EnhancedServiceFactory
+        if EnhancedServiceFactory.is_registered(service_type):
+            return EnhancedServiceFactory.resolve(service_type)
+    except Exception as e:
+        logger.debug(f"Failed to get {service_type.__name__} from EnhancedServiceFactory: {e}")
+    return None
 
 
 class ServiceFactory:
@@ -42,8 +77,14 @@ class ServiceFactory:
     @lru_cache(maxsize=1)
     def get_stock_pool_service(cls):
         """获取StockPoolService实例"""
+        # P2-1: 优先从 EnhancedServiceFactory 获取
+        from application.services.stock_pool_service import StockPoolService
+        enhanced = _try_get_from_enhanced(StockPoolService)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
         if 'stock_pool_service' not in cls._instances:
-            from application.services.stock_pool_service import StockPoolService
             from adapters.outbound.repositories import StockPoolORMRepository
             from application.services.opportunity_scoring_service import OpportunityScoringService
             from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
@@ -58,15 +99,21 @@ class ServiceFactory:
                 pool_repo=pool_repo,
                 scoring_service=scoring_service
             )
-            logger.info("StockPoolService initialized")
+            logger.info("StockPoolService initialized (legacy)")
         return cls._instances['stock_pool_service']
 
     @classmethod
     @lru_cache(maxsize=1)
     def get_scoring_service(cls):
         """获取OpportunityScoringService实例"""
+        # P2-1: 优先从 EnhancedServiceFactory 获取
+        from application.services.opportunity_scoring_service import OpportunityScoringService
+        enhanced = _try_get_from_enhanced(OpportunityScoringService)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
         if 'scoring_service' not in cls._instances:
-            from application.services.opportunity_scoring_service import OpportunityScoringService
             from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
 
             ds = cls.get_data_service()
@@ -74,39 +121,57 @@ class ServiceFactory:
             cls._instances['scoring_service'] = OpportunityScoringService(
                 ds.kline, ds.stock, factor_adapter
             )
-            logger.info("OpportunityScoringService initialized")
+            logger.info("OpportunityScoringService initialized (legacy)")
         return cls._instances['scoring_service']
 
     @classmethod
     @lru_cache(maxsize=1)
     def get_stock_scoring_service(cls):
         """获取StockScoringService实例"""
+        # P2-1: 优先从 EnhancedServiceFactory 获取
+        from application.services.stock_scoring_service import StockScoringService
+        enhanced = _try_get_from_enhanced(StockScoringService)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
         if 'stock_scoring_service' not in cls._instances:
-            from application.services.stock_scoring_service import StockScoringService
             ds = cls.get_data_service()
             cls._instances['stock_scoring_service'] = StockScoringService(ds)
-            logger.info("StockScoringService initialized")
+            logger.info("StockScoringService initialized (legacy)")
         return cls._instances['stock_scoring_service']
 
     @classmethod
     @lru_cache(maxsize=1)
     def get_sector_rotation_service(cls):
         """获取SectorRotationService实例"""
+        # P2-1: 优先从 EnhancedServiceFactory 获取
+        from application.services.sector_rotation_service import SectorRotationService
+        enhanced = _try_get_from_enhanced(SectorRotationService)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
         if 'sector_rotation_service' not in cls._instances:
-            from application.services.sector_rotation_service import SectorRotationService
             ds = cls.get_data_service()
             cls._instances['sector_rotation_service'] = SectorRotationService(
                 ds.stock, ds.kline
             )
-            logger.info("SectorRotationService initialized")
+            logger.info("SectorRotationService initialized (legacy)")
         return cls._instances['sector_rotation_service']
 
     @classmethod
     @lru_cache(maxsize=1)
     def get_pool_validation_service(cls):
         """获取PoolValidationService实例"""
+        # P2-1: 优先从 EnhancedServiceFactory 获取
+        from application.services.pool_validation_service import PoolValidationService
+        enhanced = _try_get_from_enhanced(PoolValidationService)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
         if 'pool_validation_service' not in cls._instances:
-            from application.services.pool_validation_service import PoolValidationService
             from adapters.outbound.repositories import StockPoolORMRepository, StrategyORMRepository
 
             pool_repo = StockPoolORMRepository()
@@ -115,7 +180,7 @@ class ServiceFactory:
                 pool_repo=pool_repo,
                 strategy_repo=strategy_repo
             )
-            logger.info("PoolValidationService initialized")
+            logger.info("PoolValidationService initialized (legacy)")
         return cls._instances['pool_validation_service']
 
     @classmethod
@@ -450,10 +515,17 @@ class ServiceFactory:
         Returns:
             IMLModelRepository: ML模型仓库接口实现
         """
+        # P2-1: 优先从 EnhancedServiceFactory 获取
+        from domain.ports.ml_model_port import IMLModelRepository
+        enhanced = _try_get_from_enhanced(IMLModelRepository)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
         if 'ml_model_repository' not in cls._instances:
             from adapters.outbound.ml.ml_model_repository import MLModelFileRepository
             cls._instances['ml_model_repository'] = MLModelFileRepository()
-            logger.info("MLModelFileRepository initialized")
+            logger.info("MLModelFileRepository initialized (legacy)")
         return cls._instances['ml_model_repository']
 
     @classmethod
@@ -464,10 +536,17 @@ class ServiceFactory:
         Returns:
             IMLModelMetadataRepository: ML模型元数据仓库接口实现
         """
+        # P2-1: 优先从 EnhancedServiceFactory 获取
+        from domain.ports.ml_model_port import IMLModelMetadataRepository
+        enhanced = _try_get_from_enhanced(IMLModelMetadataRepository)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
         if 'ml_model_metadata_repository' not in cls._instances:
             from adapters.outbound.ml.ml_model_repository import MLModelMetadataDBRepository
             cls._instances['ml_model_metadata_repository'] = MLModelMetadataDBRepository()
-            logger.info("MLModelMetadataDBRepository initialized")
+            logger.info("MLModelMetadataDBRepository initialized (legacy)")
         return cls._instances['ml_model_metadata_repository']
 
     @classmethod
@@ -478,12 +557,19 @@ class ServiceFactory:
         Returns:
             IDataProviderManager: 数据提供者管理器接口实现
         """
+        # P2-1: 优先从 EnhancedServiceFactory 获取
+        from domain.ports.data_provider_port import IDataProviderManager
+        enhanced = _try_get_from_enhanced(IDataProviderManager)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
         if 'data_provider_manager' not in cls._instances:
             from adapters.outbound.datasources.data_provider_adapter import DataProviderAdapter
             # 传入 DataService 以支持 DatabaseKlineProvider
             ds = cls.get_data_service()
             cls._instances['data_provider_manager'] = DataProviderAdapter(ds)
-            logger.info("DataProviderAdapter initialized")
+            logger.info("DataProviderAdapter initialized (legacy)")
         return cls._instances['data_provider_manager']
 
     @classmethod
@@ -494,11 +580,120 @@ class ServiceFactory:
         Returns:
             IDataQualityMonitor: 数据质量监控接口实现
         """
+        # P2-1: 优先从 EnhancedServiceFactory 获取
+        from domain.ports.data_provider_port import IDataQualityMonitor
+        enhanced = _try_get_from_enhanced(IDataQualityMonitor)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
         if 'data_quality_monitor' not in cls._instances:
             from adapters.outbound.datasources.data_provider_adapter import SimpleDataQualityMonitor
             cls._instances['data_quality_monitor'] = SimpleDataQualityMonitor()
-            logger.info("SimpleDataQualityMonitor initialized")
+            logger.info("SimpleDataQualityMonitor initialized (legacy)")
         return cls._instances['data_quality_monitor']
+
+    # ── P2-1: Repository 工厂方法 (2026-08-21) ──
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_stock_repository(cls):
+        """获取Stock Repository实例
+
+        Returns:
+            IStockRepository: Stock仓库接口实现
+        """
+        from domain.ports.stock_repository_port import IStockRepository
+        enhanced = _try_get_from_enhanced(IStockRepository)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
+        if 'stock_repository' not in cls._instances:
+            from adapters.outbound.repositories.stock_repository import StockORMRepository
+            cls._instances['stock_repository'] = StockORMRepository()
+            logger.info("StockORMRepository initialized (legacy)")
+        return cls._instances['stock_repository']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_stock_pool_repository(cls):
+        """获取StockPool Repository实例
+
+        Returns:
+            IStockPoolRepository: StockPool仓库接口实现
+        """
+        from domain.ports.stock_pool_repository_port import IStockPoolRepository
+        enhanced = _try_get_from_enhanced(IStockPoolRepository)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
+        if 'stock_pool_repository' not in cls._instances:
+            from adapters.outbound.repositories.stock_pool_repository import StockPoolORMRepository
+            cls._instances['stock_pool_repository'] = StockPoolORMRepository()
+            logger.info("StockPoolORMRepository initialized (legacy)")
+        return cls._instances['stock_pool_repository']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_strategy_repository(cls):
+        """获取Strategy Repository实例
+
+        Returns:
+            IStrategyRepository: Strategy仓库接口实现
+        """
+        from domain.ports.strategy_repository_port import IStrategyRepository
+        enhanced = _try_get_from_enhanced(IStrategyRepository)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
+        if 'strategy_repository' not in cls._instances:
+            from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
+            cls._instances['strategy_repository'] = StrategyORMRepository()
+            logger.info("StrategyORMRepository initialized (legacy)")
+        return cls._instances['strategy_repository']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_kline_repository(cls):
+        """获取Kline Repository实例
+
+        Returns:
+            IKlineRepository: Kline仓库接口实现
+        """
+        from domain.ports.kline_repository_port import IKlineRepository
+        enhanced = _try_get_from_enhanced(IKlineRepository)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
+        if 'kline_repository' not in cls._instances:
+            from adapters.outbound.repositories.kline_repository import KlineORMRepository
+            cls._instances['kline_repository'] = KlineORMRepository()
+            logger.info("KlineORMRepository initialized (legacy)")
+        return cls._instances['kline_repository']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_signal_repository(cls):
+        """获取Signal Repository实例
+
+        Returns:
+            ISignalRepository: Signal仓库接口实现
+        """
+        from domain.ports.signal_repository_port import ISignalRepository
+        enhanced = _try_get_from_enhanced(ISignalRepository)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
+        if 'signal_repository' not in cls._instances:
+            from adapters.outbound.repositories.signal_repository import SignalORMRepository
+            cls._instances['signal_repository'] = SignalORMRepository()
+            logger.info("SignalORMRepository initialized (legacy)")
+        return cls._instances['signal_repository']
 
     @classmethod
     def reset_all(cls):
@@ -549,6 +744,24 @@ class ServiceFactory:
         cls.get_ml_model_metadata_repository.cache_clear()
         cls.get_data_provider_manager.cache_clear()
         cls.get_data_quality_monitor.cache_clear()
+        # P2-1 Repository
+        cls.get_stock_repository.cache_clear()
+        cls.get_stock_pool_repository.cache_clear()
+        cls.get_strategy_repository.cache_clear()
+        cls.get_kline_repository.cache_clear()
+        cls.get_signal_repository.cache_clear()
+
+        # P2-1: 重置 EnhancedServiceFactory
+        try:
+            from .enhanced_service_factory import EnhancedServiceFactory
+            EnhancedServiceFactory.reset()
+        except Exception as e:
+            logger.warning(f"Failed to reset EnhancedServiceFactory: {e}")
+
+        # 重置初始化标志
+        global _enhanced_factory_initialized
+        _enhanced_factory_initialized = False
+
         logger.info("All services reset")
 
 
