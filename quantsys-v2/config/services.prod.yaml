@@ -1,0 +1,31 @@
+# 生产环境配置覆盖
+# 继承 config/services.yaml，并覆盖特定配置
+
+services:
+  data_service:
+    config:
+      cache_enabled: true
+      debug: false
+      log_level: INFO
+      cache_ttl: 300  # 5分钟缓存
+
+  watch_engine:
+    config:
+      check_interval: 30  # 生产环境30秒检查
+      enabled: true
+      alert_threshold: 0.8  # 触发告警的阈值
+
+  paper_trading_engine:
+    config:
+      commission_rate: 0.0003  # 万三手续费
+      slippage: 0.001  # 0.1% 滑点
+
+  signal_execution_scheduler:
+    config:
+      max_concurrent_signals: 5  # 最多同时执行5个信号
+      timeout: 300  # 执行超时时间（秒）
+
+  chan_scan_service:
+    config:
+      scan_interval: 3600  # 每小时扫描一次
+      min_signal_strength: 0.7  # 最小信号强度

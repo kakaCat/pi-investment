@@ -2,26 +2,99 @@
 服务注册表 - 集中管理所有服务的依赖注入配置
 
 P2-1 Phase 1: 将现有 ServiceFactory 的服务逐步迁移到 EnhancedServiceFactory
+P2-3: 支持配置驱动注册，同时保留向后兼容性
+
+注册优先级：
+1. 配置文件注册（推荐）- 从 config/services.yaml 加载
+2. 硬编码注册（向后兼容）- 直接调用 register_all_services()
 """
 import logging
+import os
+from typing import Optional
 from .enhanced_service_factory import EnhancedServiceFactory, ServiceLifecycle
 
 logger = logging.getLogger(__name__)
 
+# 全局标志：是否使用配置驱动
+_CONFIG_DRIVEN_ENABLED = os.environ.get('QUANTSYS_CONFIG_DRIVEN', 'true').lower() in ('true', '1', 'yes')
 
-def register_all_services():
+
+def register_all_services(use_config: Optional[bool] = None, environment: Optional[str] = None):
     """注册所有服务到 EnhancedServiceFactory
+
+    P2-3 更新：支持配置驱动和硬编码两种方式
+
+    Args:
+        use_config: 是否使用配置驱动注册
+                   None（默认）- 使用环境变量 QUANTSYS_CONFIG_DRIVEN 决定
+                   True - 强制使用配置文件
+                   False - 强制使用硬编码注册
+        environment: 环境名称（dev/test/prod），仅在 use_config=True 时有效
 
     迁移策略：
     1. 优先迁移 Repository 层（已有 Port 接口）
     2. 然后迁移 Application Services（从问题最多的开始）
     3. 保持与旧 ServiceFactory 的兼容性
+
+    注册方式：
+    - 配置驱动（推荐）：从 config/services.yaml 加载服务配置
+    - 硬编码（向后兼容）：使用下面的硬编码注册逻辑
+    """
+    # 确定使用哪种注册方式
+    if use_config is None:
+        use_config = _CONFIG_DRIVEN_ENABLED
+
+    if use_config:
+        # P2-3: 配置驱动注册
+        try:
+            from infrastructure.config.loader import load_config
+            from infrastructure.config.validator import ConfigValidator
+
+            logger.info(f"Loading services from configuration (environment: {environment or 'auto-detect'})")
+
+            # 加载配置
+            config = load_config(environment=environment)
+
+            # 验证配置（非严格模式 - 允许某些类因缺少依赖而无法加载）
+            validator = ConfigValidator(strict=False)
+            errors = validator.validate(config)
+
+            if errors:
+                logger.warning(f"Configuration validation found {len(errors)} issues (non-blocking):")
+                for error in errors[:5]:  # 只显示前 5 个
+                    logger.warning(f"  - {error.service_name}: {error.error_type}")
+                if len(errors) > 5:
+                    logger.warning(f"  ... and {len(errors) - 5} more")
+
+            # 从配置注册服务
+            EnhancedServiceFactory.register_from_config(config)
+
+            registered_count = len(EnhancedServiceFactory.get_registered_services())
+            logger.info(f"✅ Registered {registered_count} services from configuration")
+
+            return  # 配置驱动注册完成，跳过硬编码注册
+
+        except Exception as e:
+            logger.error(f"Failed to load services from configuration: {e}")
+            logger.warning("Falling back to hardcoded registration")
+            # 发生错误时降级到硬编码注册
+
+    # 硬编码注册（向后兼容）
+    logger.info("Using hardcoded service registration")
+    _register_services_hardcoded()
+
+
+def _register_services_hardcoded():
+    """硬编码服务注册（向后兼容）
+
+    P2-3: 这是原有的硬编码注册逻辑，保留用于向后兼容。
+    新项目建议使用配置驱动方式（config/services.yaml）。
     """
 
     # ========== Repository 层 (Domain Ports) ==========
 
     # Stock Repository
-    from domain.ports.stock_repository_port import IStockRepository
+    from domain.ports import IStockRepository
     from adapters.outbound.repositories.stock_repository import StockORMRepository
     EnhancedServiceFactory.register(
         IStockRepository,
@@ -30,7 +103,7 @@ def register_all_services():
     )
 
     # Stock Pool Repository
-    from domain.ports.stock_pool_repository_port import IStockPoolRepository
+    from domain.ports.repository_ports_extended import IStockPoolRepository
     from adapters.outbound.repositories.stock_pool_repository import StockPoolORMRepository
     EnhancedServiceFactory.register(
         IStockPoolRepository,
@@ -39,7 +112,7 @@ def register_all_services():
     )
 
     # Strategy Repository
-    from domain.ports.strategy_repository_port import IStrategyRepository
+    from domain.ports import IStrategyRepository
     from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
     EnhancedServiceFactory.register(
         IStrategyRepository,
@@ -48,7 +121,7 @@ def register_all_services():
     )
 
     # Kline Repository
-    from domain.ports.kline_repository_port import IKlineRepository
+    from domain.ports import IKlineRepository
     from adapters.outbound.repositories.kline_repository import KlineORMRepository
     EnhancedServiceFactory.register(
         IKlineRepository,
@@ -57,7 +130,7 @@ def register_all_services():
     )
 
     # Signal Repository
-    from domain.ports.signal_repository_port import ISignalRepository
+    from domain.ports import ISignalRepository
     from adapters.outbound.repositories.signal_repository import SignalORMRepository
     EnhancedServiceFactory.register(
         ISignalRepository,

@@ -1,0 +1,228 @@
+version: '1.0'
+description: 'QuantSys-v2 服务配置 - 基础配置'
+
+# Repository 层
+repositories:
+  # 股票相关
+  stock:
+    interface: domain.ports.IStockRepository
+    implementation: adapters.outbound.repositories.StockORMRepository
+    lifecycle: singleton
+    description: '股票基础数据仓库'
+
+  kline:
+    interface: domain.ports.IKlineRepository
+    implementation: adapters.outbound.repositories.KlineORMRepository
+    lifecycle: singleton
+    description: 'K线数据仓库'
+
+  # 交易信号相关
+  signal:
+    interface: domain.ports.ISignalRepository
+    implementation: adapters.outbound.repositories.SignalORMRepository
+    lifecycle: singleton
+    description: '交易信号仓库'
+
+  signal_execution:
+    interface: domain.ports.ISignalExecutionRepository
+    implementation: adapters.outbound.repositories.SignalExecutionORMRepository
+    lifecycle: singleton
+    description: '信号执行记录仓库'
+
+  signal_execution_log:
+    interface: domain.ports.ISignalExecutionLogRepository
+    implementation: adapters.outbound.repositories.SignalExecutionLogORMRepository
+    lifecycle: singleton
+    description: '信号执行日志仓库'
+
+  # 股票池相关
+  stock_pool:
+    interface: domain.ports.IStockPoolRepository
+    implementation: adapters.outbound.repositories.StockPoolORMRepository
+    lifecycle: singleton
+    description: '股票池仓库'
+
+  pool_member:
+    interface: domain.ports.IPoolMemberRepository
+    implementation: adapters.outbound.repositories.PoolMemberORMRepository
+    lifecycle: singleton
+    description: '股票池成员仓库'
+
+  # 策略和回测相关
+  strategy:
+    interface: domain.ports.IStrategyRepository
+    implementation: adapters.outbound.repositories.StrategyORMRepository
+    lifecycle: singleton
+    description: '策略仓库'
+
+  backtest:
+    interface: domain.ports.IBacktestRepository
+    implementation: adapters.outbound.repositories.BacktestORMRepository
+    lifecycle: singleton
+    description: '回测仓库'
+
+  # 模拟交易相关
+  simulation:
+    interface: domain.ports.ISimulationRepository
+    implementation: adapters.outbound.repositories.SimulationORMRepository
+    lifecycle: singleton
+    description: '模拟交易仓库'
+
+  portfolio:
+    interface: domain.ports.IPortfolioRepository
+    implementation: adapters.outbound.repositories.PortfolioORMRepository
+    lifecycle: singleton
+    description: '投资组合仓库'
+
+  # 因子和风险相关
+  factor:
+    interface: domain.ports.IFactorRepository
+    implementation: adapters.outbound.repositories.FactorORMRepository
+    lifecycle: singleton
+    description: '因子数据仓库'
+
+  risk:
+    interface: domain.ports.IRiskRepository
+    implementation: adapters.outbound.repositories.RiskORMRepository
+    lifecycle: singleton
+    description: '风险数据仓库'
+
+# Application 服务层
+services:
+  # 缠论相关
+  chan_service:
+    class: application.services.chan_service.ChanService
+    lifecycle: singleton
+    dependencies:
+      kline_repo: repositories.kline
+    description: '缠论分析服务'
+
+  chan_scan_service:
+    class: application.services.chan_scan_service.ChanScanService
+    lifecycle: singleton
+    dependencies:
+      chan_service: chan_service
+      pool_repo: repositories.stock_pool
+      signal_repo: repositories.signal
+    description: '缠论扫描服务'
+
+  # 股票代码验证
+  stock_code_validator:
+    class: application.services.stock_code_validator.StockCodeValidator
+    lifecycle: singleton
+    dependencies:
+      kline_repo: repositories.kline
+    description: '股票代码验证服务'
+
+  # 筹码分布
+  chip_distribution_service:
+    class: application.services.chip_distribution_service.ChipDistributionService
+    lifecycle: singleton
+    dependencies:
+      kline_repo: repositories.kline
+    description: '筹码分布分析服务'
+
+  # 盯盘引擎
+  watch_engine:
+    class: application.services.watch_engine.WatchEngine
+    lifecycle: singleton
+    factory: infrastructure.factories.create_watch_engine
+    description: '实时盯盘引擎'
+
+  # 数据服务（核心）
+  data_service:
+    class: application.services.data_service.DataService
+    lifecycle: singleton
+    factory: infrastructure.factories.create_data_service
+    description: '核心数据服务（聚合多个仓库）'
+
+  # 策略服务
+  strategy_code_service:
+    class: application.services.strategy_code_service.StrategyCodeService
+    lifecycle: singleton
+    dependencies:
+      data_service: data_service
+      strategy_repo: repositories.strategy
+    description: '策略代码执行服务'
+
+  # 风险检查
+  risk_check_service:
+    class: application.services.risk_check_service.RiskCheckService
+    lifecycle: singleton
+    dependencies:
+      data_service: data_service
+    description: '风险检查服务'
+
+  # 财务数据
+  financial_data_service:
+    class: application.services.financial_data_service.FinancialDataService
+    lifecycle: singleton
+    description: '财务数据服务'
+
+  # 信号执行调度器
+  signal_execution_scheduler:
+    class: application.services.signal_execution_scheduler.SignalExecutionScheduler
+    lifecycle: singleton
+    factory: infrastructure.factories.create_signal_execution_scheduler
+    description: '信号执行调度器'
+
+  # 模拟交易引擎
+  paper_trading_engine:
+    class: application.services.paper_trading_engine.PaperTradingEngine
+    lifecycle: singleton
+    dependencies:
+      simulation_repo: repositories.simulation
+      portfolio_repo: repositories.portfolio
+    description: '模拟交易引擎'
+
+  # 动态评分
+  dynamic_scoring_service:
+    class: application.services.dynamic_scoring_service.DynamicScoringService
+    lifecycle: singleton
+    dependencies:
+      kline_repo: repositories.kline
+    description: '动态评分服务'
+
+  # 摆动点分析
+  swing_point_service:
+    class: application.services.swing_point_service.SwingPointService
+    lifecycle: singleton
+    dependencies:
+      kline_repo: repositories.kline
+      validator: stock_code_validator
+    description: '摆动点分析服务'
+
+# 默认环境配置
+environments:
+  dev:
+    services:
+      data_service:
+        config:
+          cache_enabled: true
+          debug: true
+      watch_engine:
+        config:
+          check_interval: 60  # 开发环境检查间隔（秒）
+
+  test:
+    # 测试环境使用 Mock 仓库
+    repositories:
+      stock:
+        implementation: tests.mocks.MockStockRepository
+      kline:
+        implementation: tests.mocks.MockKlineRepository
+    services:
+      data_service:
+        config:
+          cache_enabled: false
+          debug: true
+
+  prod:
+    services:
+      data_service:
+        config:
+          cache_enabled: true
+          debug: false
+      watch_engine:
+        config:
+          check_interval: 30  # 生产环境检查间隔（秒）

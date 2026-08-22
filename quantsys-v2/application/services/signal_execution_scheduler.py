@@ -11,11 +11,11 @@
 每日 15:30 由定时任务调用
 """
 
-from domain.ports import ISignalExecutionLogRepository, ISignalRepository, IStrategyRepository
 from __future__ import annotations
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime, date
+from domain.ports import ISignalExecutionLogRepository, ISignalRepository, IStrategyRepository
 import structlog
 
 from application.services.data_service import DataService
