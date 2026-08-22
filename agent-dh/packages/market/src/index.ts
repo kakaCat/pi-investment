@@ -365,13 +365,37 @@ export default class MarketPlugin extends Service {
         for (const ml of mainlines) {
           let stocks: any[] = [];
           let sectorCode: string | null = null;
+          let resolvedName = ml;
           try {
             const res: any = await qv2.getSectorStocks(ml);
             sectorCode = res?.sectorCode ?? null;
             stocks = res?.stocks || [];
           } catch (e: any) {
-            mappings.push({ mainline: ml, candidates: [], error: `成分股获取失败: ${e?.message}` });
-            continue;
+            // 2026-08-22 容错：精确名 404 时做板块列表子串模糊匹配
+            // （如"黄金"可命中"贵金属"类板块；概念级如"粮食安全"需调用方先翻译为板块名）
+            try {
+              const list: any = await qv2.getSectorAnalysis({ days: 5, limit: 100 });
+              const boards: any[] = list?.sectors || [];
+              const hit = boards.find((b: any) => {
+                const n = String(b['板块名称'] ?? '');
+                return n && (n.includes(ml) || ml.includes(n));
+              });
+              if (hit) {
+                resolvedName = String(hit['板块名称']);
+                const res2: any = await qv2.getSectorStocks(resolvedName);
+                sectorCode = res2?.sectorCode ?? null;
+                stocks = res2?.stocks || [];
+              } else {
+                mappings.push({
+                  mainline: ml, candidates: [],
+                  error: `板块不存在且模糊匹配无果。若为概念主线（如"粮食安全"），请先将其翻译为行业板块名（如"种植业"）再调用`,
+                });
+                continue;
+              }
+            } catch (e2: any) {
+              mappings.push({ mainline: ml, candidates: [], error: `成分股获取失败: ${e?.message}` });
+              continue;
+            }
           }
 
           const sorted = [...stocks].sort((a, b) => Number(b.marketCapBillion ?? 0) - Number(a.marketCapBillion ?? 0));
@@ -395,7 +419,7 @@ export default class MarketPlugin extends Service {
             };
           });
 
-          mappings.push({ mainline: ml, sector_code: sectorCode, candidates });
+          mappings.push({ mainline: ml, resolved_sector: resolvedName !== ml ? resolvedName : null, sector_code: sectorCode, candidates });
         }
 
         // 3. 落库（scope=market:watchlist，供盘前/复盘检索；同日同主线幂等跳过由调用方控制——此处总是记录最新一次映射）
