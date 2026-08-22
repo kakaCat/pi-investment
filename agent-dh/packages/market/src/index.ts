@@ -165,7 +165,7 @@ export default class MarketPlugin extends Service {
         },
         render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
       },
-      timeoutMs: 30000,
+      timeoutMs: 60000,  // 情绪接口偶发慢调用，放宽（mainline_scan 同款问题）
       execute: async () => {
         const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
 
@@ -276,7 +276,7 @@ export default class MarketPlugin extends Service {
         },
         render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
       },
-      timeoutMs: 30000,
+      timeoutMs: 90000,  // 板块接口冷启动 15s+（2026-08-22 实测两次 30s 超时），放宽到 90s
       execute: async (args: any) => {
         const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
 
