@@ -713,6 +713,11 @@ export default class LearningPlugin extends Service {
                 total_experiences: { type: 'number' },
                 avg_reward: { type: 'number' },
                 success_rate: { type: 'number' },
+                by_genome_version: {
+                  type: 'object',
+                  description: '按基因组代数分组的统计（归因：哪代基因组在赚钱）',
+                  additionalProperties: true,
+                },
               },
               additionalProperties: false,
             },
@@ -763,8 +768,8 @@ export default class LearningPlugin extends Service {
       timeoutMs: 30000,
       execute: async (args: any) => {
         const { days, genome_version } = args;
-        
-        // 1. 确定目标版本
+
+        // 1. 确定目标版本（不传 = 当前版本，用于输出展示）
         let targetVersion = genome_version;
         if (!targetVersion) {
           // @ts-ignore
@@ -780,12 +785,35 @@ export default class LearningPlugin extends Service {
         const endDate = new Date();
         const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
 
-        // 3. 从 memory 召回经验（简化：从内存缓冲区读取）
-        const experiences = this.experienceBuffer.filter((e: ExperienceEntry) => {
-          const ts = new Date(e.timestamp);
-          return ts >= startDate && ts <= endDate &&
-                 e.genome_context?.genome_version === targetVersion;
+        // 3. 从 memory 库召回持久化经验（2026-08-22 修复：原实现只读进程内缓冲区，
+        // 重启即空；现在读库，缓冲区仅作后端不可用时的回退）
+        let experiences = await this.loadPersistedExperiences({
+          sinceTs: startDate.getTime(),
+          genomeVersion: genome_version,  // 显式指定版本才过滤；否则全量（分组统计）
         });
+        if (experiences.length === 0) {
+          experiences = this.experienceBuffer.filter((e: ExperienceEntry) => {
+            const ts = new Date(e.timestamp);
+            return ts >= startDate && ts <= endDate &&
+                   (!genome_version || e.genome_context?.genome_version === genome_version);
+          });
+        }
+
+        // 3b. 按基因组代数分组统计（归因：哪代基因组在赚钱）
+        const byVersion: Record<string, { count: number; avg_reward: number; success_rate: number }> = {};
+        const vGroups = new Map<string, ExperienceEntry[]>();
+        for (const e of experiences) {
+          const v = e.genome_context?.genome_version ?? 'unknown';
+          if (!vGroups.has(v)) vGroups.set(v, []);
+          vGroups.get(v)!.push(e);
+        }
+        for (const [v, list] of vGroups) {
+          byVersion[v] = {
+            count: list.length,
+            avg_reward: Math.round(list.reduce((s, e) => s + e.reward, 0) / list.length * 1000) / 1000,
+            success_rate: Math.round(list.filter(e => e.outcome.success).length / list.length * 1000) / 1000,
+          };
+        }
 
         if (experiences.length === 0) {
           return {
@@ -874,6 +902,7 @@ export default class LearningPlugin extends Service {
             total_experiences: experiences.length,
             avg_reward: Math.round((totalReward / experiences.length) * 100) / 100,
             success_rate: Math.round((successCount / experiences.length) * 100) / 100,
+            by_genome_version: byVersion,
           },
           high_reward_patterns: highRewardPatterns,
           low_reward_patterns: lowRewardPatterns,
@@ -893,10 +922,47 @@ export default class LearningPlugin extends Service {
     return tags;
   }
 
+  /**
+   * 从 memory 库加载持久化经验（2026-08-22 修复：重启后缓冲区为空，
+   * 盘后例程的蒸馏/分析永远"无数据"；必须读库而非只读进程内 buffer）
+   */
+  private async loadPersistedExperiences(options: { sinceTs?: number; genomeVersion?: string }): Promise<ExperienceEntry[]> {
+    try {
+      const res = await this.qv2.searchMemory({ kind: 'experience', limit: 100 });
+      const items = res?.items || [];
+      const since = options.sinceTs ?? 0;
+      return items
+        .map((it: any): ExperienceEntry | null => {
+          let content: any = {};
+          try { content = typeof it.content === 'string' ? JSON.parse(it.content) : (it.content ?? {}); } catch { return null; }
+          const gc = content?.genome_context ?? it.payload?.genome_context;
+          return {
+            id: it.payload?.entry_id ?? String(it.id ?? ''),
+            timestamp: it.payload?.ts ?? it.created_at ?? new Date().toISOString(),
+            agent_version: 'persisted',
+            action: content.action ?? { tool: 'unknown' },
+            context: content.context ?? {},
+            outcome: content.outcome ?? { success: true },
+            reward: typeof content?.reward === 'number' ? content.reward : 0,
+            tags: it.payload?.tags ?? [],
+            genome_context: gc,
+          } as ExperienceEntry;
+        })
+        .filter((e): e is ExperienceEntry => e !== null)
+        .filter(e => new Date(e.timestamp).getTime() >= since)
+        .filter(e => !options.genomeVersion || e.genome_context?.genome_version === options.genomeVersion);
+    } catch {
+      return [];
+    }
+  }
+
   private async loadExperiences(options: any): Promise<ExperienceEntry[]> {
-    // 从 memory 加载经验
-    // 实际实现需要调用 memory_search
-    return this.experienceBuffer.slice(-100); // 临时返回缓冲区数据
+    // 优先读库；库不可用/为空时回退进程内缓冲区
+    const sinceTs = options?.timeRangeDays
+      ? Date.now() - options.timeRangeDays * 86400000
+      : 0;
+    const persisted = await this.loadPersistedExperiences({ sinceTs });
+    return persisted.length > 0 ? persisted : this.experienceBuffer.slice(-100);
   }
 
   private async loadExperiencesBySource(source: string): Promise<ExperienceEntry[]> {
