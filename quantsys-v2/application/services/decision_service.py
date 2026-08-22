@@ -15,12 +15,26 @@ logger = structlog.get_logger(__name__)
 
 
 class DecisionService:
-    """决策管理服务"""
+    """决策管理服务
 
-    def __init__(self):
-        """初始化服务"""
-        self.decision_repo = IAgentIntelligenceRepository()
-        self.change_log_repo = IPoolChangeLogRepository()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        decision_repo: Optional[IAgentIntelligenceRepository] = None,
+        change_log_repo: Optional[IPoolChangeLogRepository] = None,
+    ):
+        """初始化服务
+
+        Args:
+            decision_repo: 决策仓库（可选）
+            change_log_repo: 变更日志仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.decision_repo = decision_repo or IAgentIntelligenceRepository()
+        self.change_log_repo = change_log_repo or IPoolChangeLogRepository()
 
     def record_decision(self, decision_data: Dict[str, Any]) -> Dict[str, Any]:
         """

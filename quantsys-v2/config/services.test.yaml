@@ -1,0 +1,29 @@
+# 测试环境配置覆盖
+# 继承 config/services.yaml，并覆盖特定配置
+
+repositories:
+  # 使用 Mock 仓库进行测试
+  stock:
+    implementation: tests.mocks.MockStockRepository
+
+  kline:
+    implementation: tests.mocks.MockKlineRepository
+
+  signal:
+    implementation: tests.mocks.MockSignalRepository
+
+services:
+  data_service:
+    config:
+      cache_enabled: false
+      debug: true
+      log_level: DEBUG
+
+  watch_engine:
+    config:
+      check_interval: 10  # 测试环境快速检查
+      enabled: false  # 测试时禁用实时盯盘
+
+  paper_trading_engine:
+    config:
+      commission_rate: 0.0  # 测试时不收手续费

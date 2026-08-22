@@ -16,14 +16,35 @@ logger = structlog.get_logger(__name__)
 
 
 class StrategyExecutor:
-    """策略执行服务"""
+    """策略执行服务
 
-    def __init__(self):
-        self.strategy_repo = IStrategyRepository()
-        self.kline_repo = IKlineRepository()
-        self.signal_repo = ISignalRepository()
-        self.indicator_executor = IndicatorStrategyExecutor()
-        self.script_executor = ScriptStrategyExecutor()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        strategy_repo: Optional[IStrategyRepository] = None,
+        kline_repo: Optional[IKlineRepository] = None,
+        signal_repo: Optional[ISignalRepository] = None,
+        indicator_executor: Optional[IndicatorStrategyExecutor] = None,
+        script_executor: Optional[ScriptStrategyExecutor] = None,
+    ):
+        """初始化策略执行器
+
+        Args:
+            strategy_repo: 策略仓库（可选）
+            kline_repo: K线仓库（可选）
+            signal_repo: 信号仓库（可选）
+            indicator_executor: 指标策略执行器（可选）
+            script_executor: 脚本策略执行器（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.strategy_repo = strategy_repo or IStrategyRepository()
+        self.kline_repo = kline_repo or IKlineRepository()
+        self.signal_repo = signal_repo or ISignalRepository()
+        self.indicator_executor = indicator_executor or IndicatorStrategyExecutor()
+        self.script_executor = script_executor or ScriptStrategyExecutor()
 
     def generate_signal(
         self,

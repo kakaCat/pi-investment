@@ -12,7 +12,10 @@ logger = structlog.get_logger(__name__)
 
 
 class StrategyWeightAdjuster:
-    """策略权重调整器"""
+    """策略权重调整器
+
+    P2-1: 支持依赖注入，保持向后兼容
+    """
 
     # 模式切换阈值
     DYNAMIC_MODE_THRESHOLD = 30  # 样本 >= 30 切换到动态模式
@@ -21,9 +24,21 @@ class StrategyWeightAdjuster:
     DYNAMIC_WEIGHT_RATIO = 0.7  # 动态权重占比 70%
     STATIC_WEIGHT_RATIO = 0.3   # 静态权重占比 30%
 
-    def __init__(self):
-        self.weight_repo = IStrategyWeightRepository()
-        self.performance_repo = IStrategyPerformanceRepository()
+    def __init__(
+        self,
+        weight_repo: Optional[IStrategyWeightRepository] = None,
+        performance_repo: Optional[IStrategyPerformanceRepository] = None,
+    ):
+        """初始化服务
+
+        Args:
+            weight_repo: 策略权重仓库（可选）
+            performance_repo: 策略表现仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.weight_repo = weight_repo or IStrategyWeightRepository()
+        self.performance_repo = performance_repo or IStrategyPerformanceRepository()
 
     def get_weight(
         self,

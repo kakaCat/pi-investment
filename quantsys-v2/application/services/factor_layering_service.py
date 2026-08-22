@@ -21,12 +21,29 @@ logger = structlog.get_logger(__name__)
 
 
 class FactorLayeringService:
-    """因子分层回测服务"""
+    """因子分层回测服务
 
-    def __init__(self):
-        self.kline_repo = IKlineRepository()
-        self.stock_repo = IStockRepository()
-        self.stock_pool_service = StockPoolService(stock_repo=self.stock_repo)
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        kline_repo: Optional[IKlineRepository] = None,
+        stock_repo: Optional[IStockRepository] = None,
+        stock_pool_service: Optional[StockPoolService] = None,
+    ):
+        """初始化服务
+
+        Args:
+            kline_repo: K线仓库（可选）
+            stock_repo: 股票仓库（可选）
+            stock_pool_service: 股票池服务（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.kline_repo = kline_repo or IKlineRepository()
+        self.stock_repo = stock_repo or IStockRepository()
+        self.stock_pool_service = stock_pool_service or StockPoolService(stock_repo=self.stock_repo)
 
     def run_layering_backtest(
         self,

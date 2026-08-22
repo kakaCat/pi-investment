@@ -5,7 +5,7 @@
 """
 from domain.ports import IFundFlowRepository, IStockPoolRepository
 import structlog
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from application.services.opponent_behavior_service import OpponentBehaviorService
 from application.services.manipulation_detector import ManipulationDetector
@@ -14,14 +14,32 @@ logger = structlog.get_logger(__name__)
 
 
 class EnhancedRiskAssessor:
-    """增强型风险评估器 - 包含博弈维度"""
+    """增强型风险评估器 - 包含博弈维度
 
-    def __init__(self):
-        """初始化服务"""
-        self.pool_repo = IStockPoolRepository()
-        self.fund_flow_repo = IFundFlowRepository()
-        self.opponent_service = OpponentBehaviorService()
-        self.manipulation_detector = ManipulationDetector()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        pool_repo: Optional[IStockPoolRepository] = None,
+        fund_flow_repo: Optional[IFundFlowRepository] = None,
+        opponent_service: Optional[OpponentBehaviorService] = None,
+        manipulation_detector: Optional[ManipulationDetector] = None,
+    ):
+        """初始化服务
+
+        Args:
+            pool_repo: 股票池仓库（可选）
+            fund_flow_repo: 资金流仓库（可选）
+            opponent_service: 对手行为服务（可选）
+            manipulation_detector: 操纵检测器（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.pool_repo = pool_repo or IStockPoolRepository()
+        self.fund_flow_repo = fund_flow_repo or IFundFlowRepository()
+        self.opponent_service = opponent_service or OpponentBehaviorService()
+        self.manipulation_detector = manipulation_detector or ManipulationDetector()
 
     def assess_pool_risk(self, pool_id: int) -> Dict[str, Any]:
         """

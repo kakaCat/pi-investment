@@ -8,9 +8,9 @@
 - 管理策略状态
 """
 
-from domain.ports import IKlineRepository, IStrategyRepository
 from __future__ import annotations
 from typing import Dict, List, Optional, Any
+from domain.ports import IKlineRepository, IStrategyRepository
 import json
 import structlog
 import numpy as np
@@ -116,8 +116,8 @@ class StrategyCodeService:
         self.attribution_calculator = RiskAttributionCalculator()
 
         # 数据提供者管理器
-            # 延迟导入避免顶层依赖
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+        # 延迟导入避免顶层依赖
+        from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
 
         # 初始化资金流服务

@@ -21,13 +21,32 @@ VOLATILITY_APPROXIMATION_FACTOR = 3.0
 
 
 class DiagnosisService:
-    """策略诊断服务"""
+    """策略诊断服务
 
-    def __init__(self):
-        self.backtest_repo = IBacktestRepository()
-        self.kline_repo = IKlineRepository()
-        self.strategy_analyzer = StrategyAnalyzer()
-        self.report_generator = ReportGenerator()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        backtest_repo: Optional[IBacktestRepository] = None,
+        kline_repo: Optional[IKlineRepository] = None,
+        strategy_analyzer: Optional['StrategyAnalyzer'] = None,
+        report_generator: Optional['ReportGenerator'] = None,
+    ):
+        """初始化诊断服务
+
+        Args:
+            backtest_repo: 回测仓库（可选）
+            kline_repo: K线仓库（可选）
+            strategy_analyzer: 策略分析器（可选）
+            report_generator: 报告生成器（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.backtest_repo = backtest_repo or IBacktestRepository()
+        self.kline_repo = kline_repo or IKlineRepository()
+        self.strategy_analyzer = strategy_analyzer or StrategyAnalyzer()
+        self.report_generator = report_generator or ReportGenerator()
 
     def run_diagnosis(self, params: Dict) -> Dict:
         """

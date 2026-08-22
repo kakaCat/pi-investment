@@ -33,13 +33,34 @@ def _sig_get(signal, key):
 
 
 class ChanKnowledgeDistiller:
-    """缠论信号胜率 → agent_knowledge"""
+    """缠论信号胜率 → agent_knowledge
 
-    def __init__(self, window_days: int = 20, lookback_days: int = 90):
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        window_days: int = 20,
+        lookback_days: int = 90,
+        signal_repo: Optional[ISignalRepository] = None,
+        kline_repo: Optional[IKlineRepository] = None,
+        knowledge_repo: Optional[IAgentKnowledgeRepository] = None,
+    ):
+        """初始化服务
+
+        Args:
+            window_days: 验证窗口天数
+            lookback_days: 回溯天数
+            signal_repo: 信号仓库（可选）
+            kline_repo: K线仓库（可选）
+            knowledge_repo: 知识仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
         # 依赖模块顶部 import（同 ChanScanService，保证可 patch）
-        self._signal_repo = ISignalRepository()
-        self._kline_repo = IKlineRepository()
-        self._knowledge_repo = IAgentKnowledgeRepository()
+        self._signal_repo = signal_repo or ISignalRepository()
+        self._kline_repo = kline_repo or IKlineRepository()
+        self._knowledge_repo = knowledge_repo or IAgentKnowledgeRepository()
         self._window = window_days
         self._lookback = lookback_days
 

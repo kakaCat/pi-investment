@@ -14,13 +14,29 @@ logger = structlog.get_logger(__name__)
 
 
 class GameAlertService:
-    """博弈预警服务 - 实时监控和预警"""
+    """博弈预警服务 - 实时监控和预警
 
-    def __init__(self):
-        """初始化服务"""
-        self.fund_flow_repo = IFundFlowRepository()
-        self.opponent_service = OpponentBehaviorService()
-        self.manipulation_detector = ManipulationDetector()
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        fund_flow_repo: Optional[IFundFlowRepository] = None,
+        opponent_service: Optional[OpponentBehaviorService] = None,
+        manipulation_detector: Optional[ManipulationDetector] = None,
+    ):
+        """初始化服务
+
+        Args:
+            fund_flow_repo: 资金流仓库（可选）
+            opponent_service: 对手行为服务（可选）
+            manipulation_detector: 操纵检测器（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.fund_flow_repo = fund_flow_repo or IFundFlowRepository()
+        self.opponent_service = opponent_service or OpponentBehaviorService()
+        self.manipulation_detector = manipulation_detector or ManipulationDetector()
 
         # 预警阈值配置
         self.thresholds = {

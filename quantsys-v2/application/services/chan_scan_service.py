@@ -9,7 +9,7 @@
 confidence 按 0-100 存储（缠论 0-1 × 100），与 agent 决策链"强度≥70"习惯对齐。
 """
 from domain.ports import ISignalRepository, IStockPoolRepository
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import structlog
 
 from application.services.chan_service import ChanService
@@ -25,14 +25,31 @@ _SIGNAL_TYPE_ACTION = {
 
 
 class ChanScanService:
-    """池内股票缠论买卖点扫描"""
+    """池内股票缠论买卖点扫描
 
-    def __init__(self):
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(
+        self,
+        chan_service: Optional[ChanService] = None,
+        pool_repo: Optional[IStockPoolRepository] = None,
+        signal_repo: Optional[ISignalRepository] = None,
+    ):
+        """初始化服务
+
+        Args:
+            chan_service: 缠论服务（可选）
+            pool_repo: 股票池仓库（可选）
+            signal_repo: 信号仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
         # 注意：依赖在模块顶部 import（非 __init__ 内 lazy import），
         # 否则测试 patch 'application.services.chan_scan_service.X' 会 AttributeError
-        self._chan = ChanService()
-        self._pool_repo = IStockPoolRepository()
-        self._signal_repo = ISignalRepository()
+        self._chan = chan_service or ChanService()
+        self._pool_repo = pool_repo or IStockPoolRepository()
+        self._signal_repo = signal_repo or ISignalRepository()
 
     @staticmethod
     def _normalize_symbol(symbol: str) -> str:

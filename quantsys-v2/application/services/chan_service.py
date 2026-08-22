@@ -9,11 +9,21 @@ from domain.chan.types import Bi, Segment, ZhongShu, BuyPoint
 
 
 class ChanService:
-    """缠论分析服务"""
+    """缠论分析服务
 
-    def __init__(self):
+    P2-1: 支持依赖注入，保持向后兼容
+    """
+
+    def __init__(self, kline_repo: Optional[IKlineRepository] = None):
+        """初始化服务
+
+        Args:
+            kline_repo: K线仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
         self.analyzer = ChanAnalyzer()
-        self.kline_repo = IKlineRepository()
+        self.kline_repo = kline_repo or IKlineRepository()
 
     def analyze(
         self,

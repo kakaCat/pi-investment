@@ -27,7 +27,10 @@ class CircuitBreakerState(str, Enum):
 
 
 class StrategyCircuitBreaker:
-    """策略熔断器"""
+    """策略熔断器
+
+    P2-1: 支持依赖注入，保持向后兼容
+    """
 
     # 默认配置
     DEFAULT_CONFIG = {
@@ -38,15 +41,22 @@ class StrategyCircuitBreaker:
         'recovery_wins': 3,                 # 恢复需要连续 3 次盈利
     }
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(
+        self,
+        config: Optional[Dict] = None,
+        repo: Optional[IStrategyCircuitBreakerRepository] = None,
+    ):
         """
         初始化熔断器
 
         Args:
             config: 自定义配置（可选）
+            repo: 熔断器仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.config = {**self.DEFAULT_CONFIG, **(config or {})}
-        self.repo = IStrategyCircuitBreakerRepository()
+        self.repo = repo or IStrategyCircuitBreakerRepository()
 
     def get_state(self, strategy_name: str) -> Dict:
         """

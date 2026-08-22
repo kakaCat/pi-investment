@@ -23,10 +23,18 @@ class SchedulerConfigService:
     4. 任务执行历史查询
 
     迁移状态：✅ 已完成ORM迁移
+    P2-1: 支持依赖注入，保持向后兼容
     """
 
-    def __init__(self):
-        self.repo = ISchedulerConfigRepository()
+    def __init__(self, repo: Optional[ISchedulerConfigRepository] = None):
+        """初始化服务
+
+        Args:
+            repo: 调度器配置仓库（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
+        self.repo = repo or ISchedulerConfigRepository()
         logger.info("SchedulerConfigService initialized with ORM")
 
     def list_configs(

@@ -5,7 +5,6 @@
 """
 import structlog
 from typing import List, Dict, Optional
-from datetime import datetime, timedelta
 
 logger = structlog.get_logger(__name__)
 
@@ -19,21 +18,40 @@ class DataQualityService:
     - 补充缺失数据
     - 验证数据质量
     - 生成质量报告
+
+    P2-1: 支持依赖注入，保持向后兼容
     """
 
-    def __init__(self):
-        """初始化数据质量服务"""
+    def __init__(
+        self,
+        kline_repo=None,
+        calendar=None,
+        gap_detector=None,
+        backfiller=None,
+        validator=None,
+    ):
+        """初始化数据质量服务
+
+        Args:
+            kline_repo: K线仓库（可选）
+            calendar: 交易日历服务（可选）
+            gap_detector: 数据缺口检测器（可选）
+            backfiller: 数据回填器（可选）
+            validator: 数据验证器（可选）
+
+        P2-1: 推荐通过 ServiceFactory 获取实例
+        """
         from domain.ports import IKlineRepository
         from application.services.trading_calendar_service import TradingCalendarService
         from application.services.data_gap_detector import DataGapDetector
         from application.services.data_backfiller import DataBackfiller
         from application.services.data_validator import DataValidator
 
-        self.kline_repo = IKlineRepository()
-        self.calendar = TradingCalendarService(self.kline_repo)
-        self.gap_detector = DataGapDetector(self.kline_repo, self.calendar)
-        self.backfiller = DataBackfiller(self.kline_repo)
-        self.validator = DataValidator(self.kline_repo)
+        self.kline_repo = kline_repo or IKlineRepository()
+        self.calendar = calendar or TradingCalendarService(self.kline_repo)
+        self.gap_detector = gap_detector or DataGapDetector(self.kline_repo, self.calendar)
+        self.backfiller = backfiller or DataBackfiller(self.kline_repo)
+        self.validator = validator or DataValidator(self.kline_repo)
 
     def check_data_quality(
         self,
