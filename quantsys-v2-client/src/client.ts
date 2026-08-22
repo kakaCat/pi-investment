@@ -585,6 +585,21 @@ export class QuantsysV2Client {
     return this.unwrap<SectorAnalysisResponse>(response.data, 'getSectorAnalysis');
   }
 
+  /**
+   * Get sector constituent stocks（板块成分股，M2-1 主线→标的映射数据源）
+   * Real endpoint: GET /api/market/sector/{sector:path}（sector 传中文板块名，如"白银"）
+   * Response data: {sector, sectorCode, stocks: [{symbol, name, pe, marketCapBillion}], count}
+   */
+  async getSectorStocks(sector: string): Promise<{
+    sector: string;
+    sectorCode?: string;
+    stocks: Array<{ symbol: string; name: string; pe?: number; marketCapBillion?: number }>;
+    count: number;
+  }> {
+    const response = await this.client.get(`/api/market/sector/${encodeURIComponent(sector)}`);
+    return this.unwrap(response.data, 'getSectorStocks');
+  }
+
   // ==================== Risk APIs (P0) ====================
 
   /**
