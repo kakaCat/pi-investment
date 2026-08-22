@@ -316,5 +316,103 @@ export default class MarketPlugin extends Service {
         return { date: today, mainlines: top3, skipped: false } as any;
       },
     } as any));
+
+    // M2-1: 主线→标的映射器（RFC 004/005，2026-08-22）
+    ctx.tools.register(defineTool({
+      name: 'mainline_stocks',
+      description: '主线→标的映射：输入主线名称（如"白银"，或不传则读当日落库主线 Top3 全量映射），输出每条主线的候选标的（成分股按市值排序取龙头）+ 入选理由 + 风险标注（ST/亏损/高估值/操纵未检测提示）。供：盘后主线跟进、盘前候选池构建。买入前仍需过 manipulation_detect 与 R-001 确认流程。',
+      parameters: {
+        mainline: {
+          type: 'string',
+          description: '主线名称（如"白银"）。不传则读取最新落库的市场主线 Top3 全部映射',
+        },
+        top_n: { type: 'integer', description: '每条主线取前 N 只候选，默认 3', default: 3 },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            date: { type: 'string' },
+            mappings: {
+              type: 'array',
+              items: { type: 'object', additionalProperties: true },
+            },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 60000,
+      execute: async (args: any) => {
+        const topN = args.top_n ?? 3;
+        const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
+
+        // 1. 确定主线列表
+        let mainlines: string[] = [];
+        if (args.mainline) {
+          mainlines = [args.mainline];
+        } else {
+          const res = await qv2.searchMemory({ q: 'mainline', scope: 'market:mainline', limit: 5 });
+          const latest = (res?.items || [])
+            .filter((it: any) => it.status !== 'deprecated' && it.payload?.date)
+            .sort((a: any, b: any) => String(b.payload.date).localeCompare(String(a.payload.date)))[0];
+          mainlines = (latest?.payload?.mainlines || []).map((m: any) => m.sector).filter(Boolean);
+          if (mainlines.length === 0) throw new Error('未找到落库的市场主线（先运行 mainline_scan）');
+        }
+
+        // 2. 逐主线取成分股并排序（市值龙头优先），附入选理由与风险标注
+        const mappings = [];
+        for (const ml of mainlines) {
+          let stocks: any[] = [];
+          let sectorCode: string | null = null;
+          try {
+            const res: any = await qv2.getSectorStocks(ml);
+            sectorCode = res?.sectorCode ?? null;
+            stocks = res?.stocks || [];
+          } catch (e: any) {
+            mappings.push({ mainline: ml, candidates: [], error: `成分股获取失败: ${e?.message}` });
+            continue;
+          }
+
+          const sorted = [...stocks].sort((a, b) => Number(b.marketCapBillion ?? 0) - Number(a.marketCapBillion ?? 0));
+          const candidates = sorted.slice(0, topN).map((s: any, i: number) => {
+            const risks: string[] = [];
+            const name = String(s.name ?? '');
+            if (/ST/i.test(name)) risks.push('ST/退市风险标的');
+            const pe = Number(s.pe);
+            if (!(pe > 0)) risks.push('PE 缺失或亏损（盈利不确定）');
+            else if (pe > 100) risks.push(`高估值（PE ${pe}）`);
+            risks.push('操纵嫌疑未检测（买入前需过 manipulation_detect）');
+
+            return {
+              rank_in_sector: i + 1,
+              symbol: s.symbol ?? null,
+              name: s.name ?? null,
+              pe: s.pe ?? null,
+              market_cap_billion: s.marketCapBillion ?? null,
+              reason: `${ml}板块成分股，市值第${i + 1}（${s.marketCapBillion ?? '?'} 亿），主线龙头候选`,
+              risks,
+            };
+          });
+
+          mappings.push({ mainline: ml, sector_code: sectorCode, candidates });
+        }
+
+        // 3. 落库（scope=market:watchlist，供盘前/复盘检索；同日同主线幂等跳过由调用方控制——此处总是记录最新一次映射）
+        await qv2.createMemory({
+          kind: 'episode',
+          scope: 'market:watchlist',
+          title: `mainline_stocks ${today}: ${mainlines.join('/')}`,
+          content: `${today} 主线映射：${mappings.map(m => `${m.mainline}→[${(m.candidates || []).map((c: any) => c.name).join(',')}]`).join('；')}`,
+          payload: { date: today, mappings },
+          status: 'testing',
+          confidence: 0.6,
+          source: 'mainline_stocks',
+          provenance: { channel: 'dsh', session_kind: 'agent' },
+        });
+
+        return { date: today, mappings } as any;
+      },
+    } as any));
   }
 }
