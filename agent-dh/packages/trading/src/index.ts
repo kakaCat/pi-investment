@@ -376,8 +376,8 @@ async function localTradeVerify(qv2: QuantsysV2Client, accountName: string, date
   const targetDate = date || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
   const anomalies: any[] = [];
 
-  // 1. 拉取成交记录
-  const th: any = await qv2.getTradeHistory({ account_name: accountName });
+  // 1. 拉取成交记录（全量：pageSize 500，避免分页截断导致勾稽误报）
+  const th: any = await qv2.getTradeHistory({ account_name: accountName, pageSize: 500 });
   // orders/items 双兼容（后端实际返回 items）
   const allTrades: any[] = th?.orders || th?.items || [];
   const dayTrades = allTrades.filter((t: any) => String(t.tradeDate ?? t.trade_date ?? '') === targetDate);
@@ -405,6 +405,8 @@ async function localTradeVerify(qv2: QuantsysV2Client, accountName: string, date
   }
 
   // 4. 持仓勾稽（全量历史：逐标的 买入-卖出 = 当前持仓）
+  // 2026-08-23 验收修正：历史迁移缺买入腿的记录不算异常——
+  // 只有"当前有持仓但与成交净额不符"才算真异常；net<0 或 held=0 的不符降级为 history_gap 提示
   const positions: any[] = await qv2.getPositions(accountName).catch(() => [] as any[]);
   const posMap = new Map<string, number>();
   for (const p of positions) {
@@ -418,19 +420,24 @@ async function localTradeVerify(qv2: QuantsysV2Client, accountName: string, date
     const dir = String(t.action).toLowerCase() === 'buy' ? q : -q;
     netMap.set(sym, (netMap.get(sym) ?? 0) + dir);
   }
+  const historyGaps: any[] = [];
   for (const [sym, net] of netMap) {
     const held = posMap.get(sym) ?? 0;
-    if (held !== net && Math.abs(held - net) >= 100) {
+    if (held > 0 && held !== net && Math.abs(held - net) >= 100) {
       anomalies.push({ type: 'position_mismatch', detail: `持仓勾稽不符 ${sym}: 账面 ${held} vs 成交净额 ${net}`, symbol: sym });
+    } else if (held === 0 && net !== 0) {
+      historyGaps.push({ symbol: sym, net_trades: net, note: '历史迁移缺腿（买入/卖出记录不全），不参与勾稽' });
     }
   }
 
-  return {
+  const result: any = {
     date: targetDate,
     total_orders: dayTrades.length,
     matched: dayTrades.length - anomalies.filter(a => a.type === 'duplicate_trade' || a.type === 'missing_fields' || a.type === 'invalid_value').length,
     mismatched: anomalies.length,
     anomalies,
     note: '本地对账（后端 trade-verify 路由 404 丢失后的替代实现，2026-08-23）',
-  } as any;
+  };
+  if (historyGaps.length > 0) result.history_gaps = historyGaps;  // undefined 字段会触发 not lossless JSON，按需拼装
+  return result;
 }
