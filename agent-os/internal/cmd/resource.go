@@ -375,7 +375,7 @@ func runUsageOverview(cmd *cobra.Command, args []string) error {
 
 	// Print summary
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Resource Usage Overview\n")
+	fmt.Fprintln(w, "Resource Usage Overview")
 	fmt.Fprintln(w, "NAMESPACE\tRESOURCE\tUSED\tLIMIT\tUSAGE%\tUNIT\tSTATUS")
 	fmt.Fprintln(w, "---------\t--------\t----\t-----\t------\t----\t------")
 

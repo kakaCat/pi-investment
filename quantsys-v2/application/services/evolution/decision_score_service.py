@@ -43,10 +43,12 @@ class DecisionScoreService:
             from domain.ports.repository_ports_extended import (
                 IAgentIntelligenceRepository,
             )
-            decision_repo = IAgentIntelligenceRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            decision_repo = EnhancedServiceFactory.resolve(IAgentIntelligenceRepository)
         if kline_repo is None:
             from domain.ports import IKlineRepository
-            kline_repo = IKlineRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
         if bench_klines_provider is None:
             from application.services.benchmark_comparison import fetch_benchmark_klines
             bench_klines_provider = fetch_benchmark_klines

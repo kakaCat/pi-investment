@@ -78,10 +78,17 @@ class DailyOrchestrator:
     并执行对应的任务。状态持久化到 DB，支持断点续跑。
     """
 
-    def __init__(self, name: str = 'main'):
+    def __init__(self, name: str = 'main', simulation_repo=None):
+        """初始化日常编排器
+
+        Args:
+            name: 编排器名称
+            simulation_repo: 模拟交易仓库（依赖注入）
+        """
         self.name = name
         self._session_override = None
         self._today_state: Optional[DailyOrchestratorState] = None
+        self._simulation_repo = simulation_repo
 
     @property
     def session(self):
@@ -293,8 +300,14 @@ class DailyOrchestrator:
         本阶段只负责"信号准备 + 事件推送"。
         """
         # 开盘前 T+1 结转：前日买入的持仓转为可卖（9:25 结转，9:30 开盘即可卖）
-        from domain.ports import ISimulationRepository
-        settled = ISimulationRepository().settle_t1(TRADING_ACCOUNT)
+        if self._simulation_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from domain.ports import ISimulationRepository
+            simulation_repo = EnhancedServiceFactory.resolve(ISimulationRepository)
+        else:
+            simulation_repo = self._simulation_repo
+
+        settled = simulation_repo.settle_t1(TRADING_ACCOUNT)
         logger.info("market_open: t1_settled", positions=settled)
 
         signals = self._collect_pending_signals()
@@ -343,9 +356,12 @@ class DailyOrchestrator:
 
     def _phase_market_close(self, state: DailyOrchestratorState) -> Dict[str, Any]:
         """收盘阶段：T+1 结转 + 最终市值更新"""
-        from domain.ports import ISimulationRepository
-
-        repo = ISimulationRepository()
+        if self._simulation_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from domain.ports import ISimulationRepository
+            repo = EnhancedServiceFactory.resolve(ISimulationRepository)
+        else:
+            repo = self._simulation_repo
 
         # T+1 结转：今日买入的股票明日才可卖出
         settled = repo.settle_t1(TRADING_ACCOUNT)
@@ -418,8 +434,12 @@ class DailyOrchestrator:
         today_trades = []
         today_pnl = context.get('performance', {}).get('today_pnl', 0)
         try:
-            from domain.ports import ISimulationRepository
-            sim_repo = ISimulationRepository()
+            if self._simulation_repo is None:
+                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                from domain.ports import ISimulationRepository
+                sim_repo = EnhancedServiceFactory.resolve(ISimulationRepository)
+            else:
+                sim_repo = self._simulation_repo
             trades = sim_repo.get_trades_by_account(
                 TRADING_ACCOUNT,
                 start_date=str(state.trade_date),

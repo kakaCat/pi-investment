@@ -64,18 +64,19 @@ class DataService:
             financial_service: 财务数据服务（可选）
 
         P2-1: 推荐通过 ServiceFactory 获取实例而非直接构造
+        P2-3: 不再自动实例化接口，必须通过依赖注入提供 Repository
         """
-        # P2-1: 依赖注入 - 优先使用传入的实例，否则回退到直接实例化
-        self.stock = stock_repo or IStockRepository()
-        self.kline = kline_repo or IKlineRepository()
-        self.signal = signal_repo or ISignalRepository()
-        self.simulation = simulation_repo or ISimulationRepository()
-        self.portfolio = portfolio_repo or IPortfolioRepository()
-        self.factor = factor_repo or IFactorRepository()
-        self.backtest = backtest_repo or IBacktestRepository()
-        self.risk = risk_repo or IRiskRepository()
-        self.strategy = strategy_repo or IStrategyRepository()
-        self.execution = execution_repo or ISignalExecutionRepository()
+        # P2-3: 不再尝试实例化接口，Repository 必须通过依赖注入提供
+        self.stock = stock_repo
+        self.kline = kline_repo
+        self.signal = signal_repo
+        self.simulation = simulation_repo
+        self.portfolio = portfolio_repo
+        self.factor = factor_repo
+        self.backtest = backtest_repo
+        self.risk = risk_repo
+        self.strategy = strategy_repo
+        self.execution = execution_repo
 
         self._cache = cache_manager
         self.financial_service = financial_service or FinancialDataService()

@@ -56,7 +56,9 @@ def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
     # 获取股票列表
     try:
-                repo = IStockRepository()
+        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+        from domain.ports import IStockRepository
+        repo = EnhancedServiceFactory.resolve(IStockRepository)
         stocks = repo.get_all(limit=500)
         symbols = [s['symbol'] for s in stocks]
     except Exception as e:
@@ -524,7 +526,9 @@ def handle_backtest_run(params: Dict[str, Any] = None) -> Dict[str, Any]:
         strategy_ids = params.get('strategy_ids')
         if not strategy_ids:
             # 获取所有启用的策略
-                        repo = IStrategyRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from domain.ports import IStrategyRepository
+            repo = EnhancedServiceFactory.resolve(IStrategyRepository)
             strategies = repo.list_enabled_strategies(limit=10)
             strategy_ids = [s.id for s in strategies]
 
@@ -591,7 +595,9 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
         # 获取股票列表（如果没有指定）
         symbols = params.get('symbols')
         if not symbols:
-                        repo = IStockRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from domain.ports import IStockRepository
+            repo = EnhancedServiceFactory.resolve(IStockRepository)
             stocks = repo.get_all(limit=params.get('max_symbols', 500))
             symbols = [s['symbol'] for s in stocks]
 
@@ -675,7 +681,9 @@ def handle_model_train(params: Dict[str, Any] = None) -> Dict[str, Any]:
         # 获取训练数据
         symbols = params.get('symbols')
         if not symbols:
-                        repo = IStockRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from domain.ports import IStockRepository
+            repo = EnhancedServiceFactory.resolve(IStockRepository)
             stocks = repo.get_all(limit=100)
             symbols = [s['symbol'] for s in stocks]
 
@@ -827,7 +835,9 @@ def handle_financial_data_update(params: Dict[str, Any] = None) -> Dict[str, Any
         # 获取股票列表
         symbols = params.get('symbols')
         if not symbols:
-                        repo = IStockRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from domain.ports import IStockRepository
+            repo = EnhancedServiceFactory.resolve(IStockRepository)
             stocks = repo.list_by_market(market='A', limit=500)
             symbols = [s.symbol for s in stocks]
 
@@ -1004,7 +1014,9 @@ def handle_strategy_discover_weekly(params: Dict[str, Any] = None) -> Dict[str, 
         # 获取股票池
         symbols = params.get('symbols')
         if not symbols:
-                        repo = IStockRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from domain.ports import IStockRepository
+            repo = EnhancedServiceFactory.resolve(IStockRepository)
             stocks = repo.get_all(limit=50)  # 限制数量避免太慢
             symbols = [s['symbol'] for s in stocks]
 

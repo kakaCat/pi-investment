@@ -63,11 +63,15 @@ class StrategyRotationEngine:
     Agent 确认后调用 execute_rotation() 执行。
     """
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: Optional[Dict] = None, strategy_repo=None):
         self.config = {**ROTATION_CONFIG, **(config or {})}
         self.style_detector = MarketStyleDetector()
         self.weight_adjuster = StrategyWeightAdjuster()
-        self.strategy_repo = IStrategyRepository()
+        if strategy_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            self.strategy_repo = EnhancedServiceFactory.resolve(IStrategyRepository)
+        else:
+            self.strategy_repo = strategy_repo
 
         # 上次轮动记录（内存缓存，重启从 DB 恢复）
         self._last_rotation_date: Optional[date] = None
@@ -266,7 +270,8 @@ class StrategyRotationEngine:
     def _get_recent_performance(self, strategy_name: str, days: int) -> Optional[Dict]:
         """获取策略最近 N 天的表现"""
         try:
-                        perf_repo = IStrategyPerformanceRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            perf_repo = EnhancedServiceFactory.resolve(IStrategyPerformanceRepository)
             stats = perf_repo.get_statistics(strategy_name)
 
             if stats is None:
@@ -657,7 +662,8 @@ class StrategyRotationEngine:
         actual_return = 0.0
         max_drawdown = 0.0
         try:
-                        sim_repo = ISimulationRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            sim_repo = EnhancedServiceFactory.resolve(ISimulationRepository)
             snapshots_raw = sim_repo.get_equity_snapshots(
                 account_name='rotation_main',
                 limit=90,
@@ -778,7 +784,8 @@ class StrategyRotationEngine:
     def _get_current_positions(self) -> List[Dict]:
         """获取当前持仓"""
         try:
-                        sim_repo = ISimulationRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            sim_repo = EnhancedServiceFactory.resolve(ISimulationRepository)
             positions = sim_repo.get_all_positions(account_name='rotation_main')
             return positions or []
         except Exception:
@@ -787,7 +794,8 @@ class StrategyRotationEngine:
     def _get_portfolio_snapshot(self) -> Dict[str, Any]:
         """获取当前组合快照"""
         try:
-                        sim_repo = ISimulationRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            sim_repo = EnhancedServiceFactory.resolve(ISimulationRepository)
             account = sim_repo.get_account('rotation_main')
             if account:
                 return {
@@ -859,7 +867,8 @@ class StrategyRotationEngine:
     def _get_negative_feedback(self) -> Optional[Dict]:
         """查找近期 verdict=negative 且未处理的轮动验证"""
         try:
-                        repo = IAgentIntelligenceRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            repo = EnhancedServiceFactory.resolve(IAgentIntelligenceRepository)
             recent = repo.get_recent_decisions(limit=10)
             for d in recent:
                 eval_result = d.get('evaluation_result') or {}
@@ -881,7 +890,8 @@ class StrategyRotationEngine:
     def _persist_verification(self, rot_date, verdict: str, actual_return: float, max_drawdown: float):
         """将验证结果写入 agent_decisions 的 evaluation 字段"""
         try:
-                        repo = IAgentIntelligenceRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            repo = EnhancedServiceFactory.resolve(IAgentIntelligenceRepository)
             decisions = repo.get_recent_decisions(limit=20)
             for d in decisions:
                 if (d.get('decision_type') == 'rotation'
@@ -909,7 +919,8 @@ class StrategyRotationEngine:
     def _get_reject_constraints(self) -> List[Dict]:
         """获取近期被 Agent 拒绝的方案，避免重复推荐"""
         try:
-                        repo = IAgentIntelligenceRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            repo = EnhancedServiceFactory.resolve(IAgentIntelligenceRepository)
             recent = repo.get_recent_decisions(limit=20)
             rejects = []
             for d in recent:
@@ -929,7 +940,8 @@ class StrategyRotationEngine:
     def _adaptive_confidence_threshold(self) -> float:
         """根据历史决策成功率动态调整风格切换置信度阈值"""
         try:
-                        repo = IAgentIntelligenceRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            repo = EnhancedServiceFactory.resolve(IAgentIntelligenceRepository)
             recent = repo.get_recent_decisions(limit=30)
             rotations = [
                 d for d in recent

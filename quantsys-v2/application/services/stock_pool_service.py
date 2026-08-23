@@ -74,7 +74,9 @@ class StockPoolService:
             if not constituents:
                 # index_constituents 表为空（采集任务未跑过）时，不能让扫描池
                 # 静默变空——降级为「近期活跃股票」并显式标记来源
-                                fallback = IKlineRepository().get_active_symbols(days=15, min_days=3, limit=500)
+                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                from domain.ports import IKlineRepository
+                fallback = EnhancedServiceFactory.resolve(IKlineRepository).get_active_symbols(days=15, min_days=3, limit=500)
                 logger.warning(
                     f"index_constituents 为空，热门池降级为活跃股票 fallback: {len(fallback)} 只")
                 self._hot_pool_source = 'fallback_active_stocks'

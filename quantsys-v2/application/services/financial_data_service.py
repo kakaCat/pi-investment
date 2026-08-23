@@ -25,12 +25,14 @@ class FinancialDataService:
         provider_stats: 各数据源统计信息
     """
 
-    def __init__(self, providers: Optional[List] = None):
+    def __init__(self, providers: Optional[List] = None, financial_repo=None, kline_repo=None):
         """初始化服务
 
         Args:
             providers: 可选的数据源列表。如果为 None，使用默认顺序：
                       eastmoney_direct → sina_web → akshare → sina
+            financial_repo: 财务数据仓储（用于数据库 fallback）
+            kline_repo: K线数据仓储（用于估值计算）
         """
         if providers is None:
             # 默认数据源优先级：API优先 → 网页爬虫兜底 → akshare备选
@@ -57,6 +59,10 @@ class FinancialDataService:
                     logger.warning(f"Failed to initialize {pc.__name__}: {e}")
         else:
             self.providers = providers
+
+        # 注入的仓储
+        self._financial_repo = financial_repo
+        self._kline_repo = kline_repo
 
         # 统计信息
         self.total_requests = 0
@@ -210,9 +216,15 @@ class FinancialDataService:
         logger.info(f"Fetching valuation for {symbol}")
 
         try:
-                        
-            financial_repo = IFinancialRepository()
-            kline_repo = IKlineRepository()
+            # 获取仓储实例
+            if self._financial_repo is None or self._kline_repo is None:
+                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                from domain.ports import IFinancialRepository, IKlineRepository
+                financial_repo = self._financial_repo or EnhancedServiceFactory.resolve(IFinancialRepository)
+                kline_repo = self._kline_repo or EnhancedServiceFactory.resolve(IKlineRepository)
+            else:
+                financial_repo = self._financial_repo
+                kline_repo = self._kline_repo
 
             # 获取最新股价
             latest_kline = kline_repo.get_latest_kline(symbol)
@@ -329,8 +341,13 @@ class FinancialDataService:
             财务指标字典 或 None
         """
         try:
-            
-            financial_repo = IFinancialRepository()
+            # 获取仓储实例
+            if self._financial_repo is None:
+                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                from domain.ports import IFinancialRepository
+                financial_repo = EnhancedServiceFactory.resolve(IFinancialRepository)
+            else:
+                financial_repo = self._financial_repo
 
             # 获取最近的利润表和资产负债表
             income_data = financial_repo.get_income_statements(symbol, period_type='Y', limit=5)

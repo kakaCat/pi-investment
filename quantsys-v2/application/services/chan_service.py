@@ -23,7 +23,11 @@ class ChanService:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.analyzer = ChanAnalyzer()
-        self.kline_repo = kline_repo or IKlineRepository()
+        if kline_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            self.kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+        else:
+            self.kline_repo = kline_repo
 
     def analyze(
         self,
@@ -91,7 +95,8 @@ class ChanService:
         """加载 chan_theory 蒸馏知识 → {strategy: {win_rate, samples, suggested_confidence}}
         任何异常返回空 map（知识是增强项，不阻塞分析）"""
         try:
-            repo = IAgentKnowledgeRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            repo = EnhancedServiceFactory.resolve(IAgentKnowledgeRepository)
             rows = repo.get_by_domain('chan_theory', 'signal_effectiveness')
             out = {}
             for r in rows:

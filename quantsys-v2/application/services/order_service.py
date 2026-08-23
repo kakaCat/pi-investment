@@ -475,7 +475,7 @@ def _update_position_on_sell(ds: DataService, order: Dict, fill_price: float, fi
         logger.info(f"持仓已减仓: {symbol} 卖出 {fill_quantity}股，剩余 {new_qty}股")
 
 
-def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symbol: str):
+def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symbol: str, perf_repo=None):
     """
     更新信号追踪记录（signal_test_log 和 strategy_performance）
 
@@ -484,13 +484,16 @@ def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symb
         action: 订单方向 ('buy' / 'sell')
         fill_price: 成交价格
         symbol: 股票代码
+        perf_repo: 策略性能仓储（可选，用于依赖注入）
     """
     from application.services.signal_test_log import SignalTestLog
     from domain.ports import IStrategyPerformanceRepository
     from psycopg2.extras import RealDictCursor
 
     signal_log = SignalTestLog()
-    perf_repo = IStrategyPerformanceRepository()
+    if perf_repo is None:
+        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+        perf_repo = EnhancedServiceFactory.resolve(IStrategyPerformanceRepository)
 
     # 获取信号记录
     conn = signal_log._get_conn()

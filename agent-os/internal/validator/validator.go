@@ -9,7 +9,8 @@ import (
 
 var (
 	validate *validator.Validate
-	cronRegex = regexp.MustCompile(`^(\S+\s+){5}\S+$`) // 6-field cron
+	// cronRegex validates exactly 6 fields separated by single spaces
+	cronRegex = regexp.MustCompile(`^(\S+) (\S+) (\S+) (\S+) (\S+) (\S+)$`)
 )
 
 func init() {

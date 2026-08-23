@@ -56,21 +56,67 @@ class ServiceFactory:
     @classmethod
     @lru_cache(maxsize=1)
     def get_data_service(cls):
-        """获取DataService实例"""
+        """获取DataService实例
+
+        P2-3: 优先使用 EnhancedServiceFactory（配置驱动 + 依赖注入）
+        如果未注册则回退到直接构造（传入 None 参数避免实例化接口）
+        """
         if 'data_service' not in cls._instances:
-            from application.services.data_service import DataService
-            cls._instances['data_service'] = DataService()
-            logger.info("DataService initialized")
+            # 尝试从 EnhancedServiceFactory 获取
+            try:
+                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                from application.services.data_service import DataService
+
+                # 尝试解析已注册的实例
+                if EnhancedServiceFactory.is_registered(DataService):
+                    cls._instances['data_service'] = EnhancedServiceFactory.resolve(DataService)
+                    logger.info("DataService resolved from EnhancedServiceFactory")
+                else:
+                    # 回退：构造时传入 None（不实例化接口）
+                    cls._instances['data_service'] = DataService(
+                        stock_repo=None,
+                        kline_repo=None,
+                        signal_repo=None,
+                        simulation_repo=None,
+                        portfolio_repo=None,
+                        factor_repo=None,
+                        backtest_repo=None,
+                        risk_repo=None,
+                        strategy_repo=None,
+                        execution_repo=None,
+                    )
+                    logger.warning("DataService initialized without dependency injection (fallback mode)")
+            except Exception as e:
+                logger.error(f"Failed to initialize DataService: {e}")
+                raise
         return cls._instances['data_service']
 
     @classmethod
     @lru_cache(maxsize=1)
     def get_strategy_code_service(cls):
-        """获取StrategyCodeService实例"""
+        """获取StrategyCodeService实例
+
+        P2-3: 优先使用 EnhancedServiceFactory（配置驱动 + 依赖注入）
+        """
         if 'strategy_code_service' not in cls._instances:
-            from application.services.strategy_code_service import StrategyCodeService
-            cls._instances['strategy_code_service'] = StrategyCodeService()
-            logger.info("StrategyCodeService initialized")
+            try:
+                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                from application.services.strategy_code_service import StrategyCodeService
+
+                # 尝试解析已注册的实例
+                if EnhancedServiceFactory.is_registered(StrategyCodeService):
+                    cls._instances['strategy_code_service'] = EnhancedServiceFactory.resolve(StrategyCodeService)
+                    logger.info("StrategyCodeService resolved from EnhancedServiceFactory")
+                else:
+                    # 回退：传入 None 避免实例化接口
+                    cls._instances['strategy_code_service'] = StrategyCodeService(
+                        strategy_repo=None,
+                        kline_repo=None
+                    )
+                    logger.warning("StrategyCodeService initialized without dependency injection (fallback mode)")
+            except Exception as e:
+                logger.error(f"Failed to initialize StrategyCodeService: {e}")
+                raise
         return cls._instances['strategy_code_service']
 
     @classmethod

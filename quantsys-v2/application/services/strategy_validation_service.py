@@ -17,10 +17,21 @@ logger = structlog.get_logger(__name__)
 class StrategyValidationService:
     """策略验证服务"""
 
-    def __init__(self):
-        self.strategy_repo = IStrategyRepository()
-                from application.services.stock_pool_service import StockPoolService
-        self.stock_pool_service = StockPoolService(IStockRepository())
+    def __init__(self, strategy_repo=None, stock_repo=None):
+        self._strategy_repo = strategy_repo
+        from application.services.stock_pool_service import StockPoolService
+        if stock_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            stock_repo = EnhancedServiceFactory.resolve(IStockRepository)
+        self.stock_pool_service = StockPoolService(stock_repo)
+
+    @property
+    def strategy_repo(self):
+        """延迟加载 strategy_repo"""
+        if self._strategy_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            self._strategy_repo = EnhancedServiceFactory.resolve(IStrategyRepository)
+        return self._strategy_repo
 
     def normalize(
         self,

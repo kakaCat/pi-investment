@@ -21,10 +21,11 @@ logger = structlog.get_logger(__name__)
 class StrategyEngine:
     """Wrapper for strategy execution using real kline data and strategy logic"""
 
-    def __init__(self, strategy_name: str):
+    def __init__(self, strategy_name: str, kline_repo=None, stock_repo=None, strategy_repo=None):
         self.strategy_name = strategy_name
-        self.kline_repo = IKlineRepository()
-        self.stock_repo = IStockRepository()
+        self._kline_repo = kline_repo
+        self._stock_repo = stock_repo
+        self._strategy_repo = strategy_repo
 
         # Track whether this is a DB strategy or Python strategy
         self.is_db_strategy = False
@@ -42,7 +43,11 @@ class StrategyEngine:
             self.is_db_strategy = False
         else:
             # Not found in Python strategies, try database
-                        strategy_repo = IStrategyRepository()
+            if self._strategy_repo is None:
+                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                strategy_repo = EnhancedServiceFactory.resolve(IStrategyRepository)
+            else:
+                strategy_repo = self._strategy_repo
             db_strategy = strategy_repo.get_by_name(strategy_name)
 
             # Also try numeric ID lookup (for strategy_execute with numeric IDs)
@@ -59,6 +64,22 @@ class StrategyEngine:
                 raise ValueError(
                     f"策略不存在: {strategy_name}，可用Python策略: {available}"
                 )
+
+    @property
+    def kline_repo(self):
+        """延迟加载 kline_repo"""
+        if self._kline_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            self._kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+        return self._kline_repo
+
+    @property
+    def stock_repo(self):
+        """延迟加载 stock_repo"""
+        if self._stock_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            self._stock_repo = EnhancedServiceFactory.resolve(IStockRepository)
+        return self._stock_repo
 
     def execute(self, symbol: str, date: str = None) -> Dict:
         """
@@ -249,8 +270,16 @@ class StrategyEngine:
 class StrategyExecutionService:
     """Strategy execution service - handles single, batch, and pipeline execution"""
 
-    def __init__(self):
-        self.signal_repo = ISignalRepository()
+    def __init__(self, signal_repo=None):
+        self._signal_repo = signal_repo
+
+    @property
+    def signal_repo(self):
+        """延迟加载 signal_repo"""
+        if self._signal_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            self._signal_repo = EnhancedServiceFactory.resolve(ISignalRepository)
+        return self._signal_repo
 
     def execute_single(self, request: Dict) -> Dict:
         """Execute single stock strategy"""

@@ -19,7 +19,10 @@ logger = structlog.get_logger(__name__)
 class PoolScannerService:
     """股票池扫描服务"""
 
-    def __init__(self):
+    def __init__(self, pool_repo=None, kline_repo=None, strategy_repo=None):
+        self._pool_repo = pool_repo
+        self._kline_repo = kline_repo
+        self._strategy_repo = strategy_repo
         self.scanner_config = {
             'enabled': True,
             'scan_time': '16:05',  # 每天16:05执行（盘后5分钟）
@@ -46,7 +49,11 @@ class PoolScannerService:
         """
                 from application.services.strategy_code_service import StrategyCodeService
 
-        pool_repo = IStockPoolRepository()
+        if self._pool_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            pool_repo = EnhancedServiceFactory.resolve(IStockPoolRepository)
+        else:
+            pool_repo = self._pool_repo
         strategy_service = StrategyCodeService()
 
         # 1. 获取股票池
@@ -77,10 +84,15 @@ class PoolScannerService:
                 try:
                     # 使用 PoolSignalScanner 实时检测信号
                     from application.services.pool_signal_scanner import PoolSignalScanner
-                                        
-                    # 使用 BaseRepository 的方式创建实例（不需要显式传session）
-                    kline_repo = IKlineRepository()
-                    strategy_repo = IStrategyRepository()
+
+                    # 获取 Repository 实例
+                    if self._kline_repo is None or self._strategy_repo is None:
+                        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                        kline_repo = self._kline_repo or EnhancedServiceFactory.resolve(IKlineRepository)
+                        strategy_repo = self._strategy_repo or EnhancedServiceFactory.resolve(IStrategyRepository)
+                    else:
+                        kline_repo = self._kline_repo
+                        strategy_repo = self._strategy_repo
                     scanner = PoolSignalScanner(kline_repo, strategy_repo)
 
                     # 扫描单只股票
@@ -141,7 +153,11 @@ class PoolScannerService:
             from datetime import datetime, timedelta
 
             # 1. 获取K线数据
-            kline_repo = IKlineRepository()
+            if self._kline_repo is None:
+                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+            else:
+                kline_repo = self._kline_repo
             end_date = datetime.now().date()
             start_date = end_date - timedelta(days=30)
 
@@ -183,7 +199,11 @@ class PoolScannerService:
             import numpy as np
             from datetime import datetime, timedelta
 
-            kline_repo = IKlineRepository()
+            if self._kline_repo is None:
+                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+            else:
+                kline_repo = self._kline_repo
 
             # 1. 获取最近30天的K线数据
             end_date = datetime.now().date()

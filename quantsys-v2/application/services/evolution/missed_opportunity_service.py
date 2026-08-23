@@ -32,14 +32,17 @@ class MissedOpportunityService:
     def __init__(self, signal_repo=None, decision_repo=None, kline_repo=None,
                  grace_trading_days: int = 5, daily_cap: int = 5):
         if signal_repo is None:
-                        signal_repo = ISignalRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            signal_repo = EnhancedServiceFactory.resolve(ISignalRepository)
         if decision_repo is None:
             from domain.ports.repository_ports_extended import (
                 IAgentIntelligenceRepository,
             )
-            decision_repo = IAgentIntelligenceRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            decision_repo = EnhancedServiceFactory.resolve(IAgentIntelligenceRepository)
         if kline_repo is None:
-                        kline_repo = IKlineRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
         self.signal_repo = signal_repo
         self.decision_repo = decision_repo
         self.kline_repo = kline_repo

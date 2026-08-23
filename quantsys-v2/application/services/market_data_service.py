@@ -18,10 +18,11 @@ class DataSourceTimeoutError(Exception):
 class MarketDataService:
     """市场数据服务"""
 
-    def __init__(self):
+    def __init__(self, kline_repo=None):
         self.logger = structlog.get_logger(__name__)
         # 延迟导入避免循环依赖
         self._data_source_manager = None
+        self._kline_repo = kline_repo
         # TODO: Phase 3 future work - migrate methods to use provider_manager
             # 延迟导入避免顶层依赖
             from adapters.outbound.datasources.manager import get_data_provider_manager
@@ -303,7 +304,12 @@ class MarketDataService:
                 )
 
             # 3. 收盘价（用对比日的最新 K 线）
-            kline_repo = IKlineRepository()
+            if self._kline_repo is None:
+                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                from domain.ports import IKlineRepository
+                kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+            else:
+                kline_repo = self._kline_repo
             symbols = list({r['symbol'] for r in snapshots[latest_date]}
                            | {r['symbol'] for r in snapshots[prev_date]})
             klines = kline_repo.get_latest_daily_klines_batch(symbols)

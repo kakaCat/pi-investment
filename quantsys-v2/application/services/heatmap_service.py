@@ -18,7 +18,8 @@ class HeatmapService:
         """延迟初始化避免循环 import（与 MarketDataService 同模式）"""
         if self._repo is None:
             from domain.ports import IHeatmapRepository
-            self._repo = IHeatmapRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            self._repo = EnhancedServiceFactory.resolve(IHeatmapRepository)
         return self._repo
 
     def get_heatmap(self, date: Optional[str] = None, window: int = 5) -> dict:

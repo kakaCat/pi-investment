@@ -73,11 +73,13 @@ class DataPipelineService:
         >>> print(f"Success: {result.success}")
     """
 
-    def __init__(self, config_path: str = 'config/data_pipeline.yaml'):
+    def __init__(self, config_path: str = 'config/data_pipeline.yaml', kline_repo=None, factor_repo=None):
         """Initialize DataPipelineService.
 
         Args:
             config_path: Path to pipeline configuration YAML file
+            kline_repo: K线数据仓储（可选）
+            factor_repo: 因子数据仓储（可选）
 
         Raises:
             FileNotFoundError: If config file doesn't exist
@@ -85,6 +87,8 @@ class DataPipelineService:
         """
         self.config_path = config_path
         self.config = self._load_config()
+        self._kline_repo = kline_repo
+        self._factor_repo = factor_repo
         logger.info(f"DataPipelineService initialized with config from {config_path}")
 
     def _load_config(self) -> dict:
@@ -251,13 +255,22 @@ class DataPipelineService:
         stages.append(ImputationStage())
 
         # Stage 7: Storage (Application 层注入具体仓储,domain 只依赖接口)
-        kline_repo = IKlineRepository()
+        if self._kline_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
+        else:
+            kline_repo = self._kline_repo
         stages.append(StorageStage(kline_repo=kline_repo))
 
         # Stage 8: Factor Compute
+        if self._factor_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            factor_repo = EnhancedServiceFactory.resolve(IFactorRepository)
+        else:
+            factor_repo = self._factor_repo
         stages.append(FactorComputeStage(
             kline_repo=kline_repo,
-            factor_repo=IFactorRepository()
+            factor_repo=factor_repo
         ))
 
         logger.info(f"Built pipeline with {len(stages)} stages")

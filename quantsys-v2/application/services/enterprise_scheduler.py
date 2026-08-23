@@ -228,8 +228,9 @@ class EnterpriseScheduler:
     def _job_executed_listener(self, event):
         """任务执行监听器 - 记录执行日志"""
         from domain.ports import ISchedulerRepository
-        
-        repo = ISchedulerRepository()
+        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+
+        repo = EnhancedServiceFactory.resolve(ISchedulerRepository)
         try:
             if event.exception:
                 # 任务执行失败

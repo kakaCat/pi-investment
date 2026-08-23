@@ -42,12 +42,6 @@ repositories:
     lifecycle: singleton
     description: '股票池仓库'
 
-  pool_member:
-    interface: domain.ports.IPoolMemberRepository
-    implementation: adapters.outbound.repositories.PoolMemberORMRepository
-    lifecycle: singleton
-    description: '股票池成员仓库'
-
   # 策略和回测相关
   strategy:
     interface: domain.ports.IStrategyRepository
@@ -115,13 +109,6 @@ services:
     description: '股票代码验证服务'
 
   # 筹码分布
-  chip_distribution_service:
-    class: application.services.chip_distribution_service.ChipDistributionService
-    lifecycle: singleton
-    dependencies:
-      kline_repo: repositories.kline
-    description: '筹码分布分析服务'
-
   # 盯盘引擎
   watch_engine:
     class: application.services.watch_engine.WatchEngine
@@ -166,22 +153,6 @@ services:
     factory: infrastructure.factories.create_signal_execution_scheduler
     description: '信号执行调度器'
 
-  # 模拟交易引擎
-  paper_trading_engine:
-    class: application.services.paper_trading_engine.PaperTradingEngine
-    lifecycle: singleton
-    dependencies:
-      simulation_repo: repositories.simulation
-      portfolio_repo: repositories.portfolio
-    description: '模拟交易引擎'
-
-  # 动态评分
-  dynamic_scoring_service:
-    class: application.services.dynamic_scoring_service.DynamicScoringService
-    lifecycle: singleton
-    dependencies:
-      kline_repo: repositories.kline
-    description: '动态评分服务'
 
   # 摆动点分析
   swing_point_service:

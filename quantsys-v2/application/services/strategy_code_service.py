@@ -104,11 +104,20 @@ def _get_length(data) -> int:
 
 
 class StrategyCodeService:
-    """策略代码服务"""
+    """策略代码服务
 
-    def __init__(self):
-        self.strategy_repo = IStrategyRepository()
-        self.kline_repo = IKlineRepository()
+    P2-3: 支持依赖注入
+    """
+
+    def __init__(self, strategy_repo=None, kline_repo=None):
+        """初始化策略代码服务
+
+        Args:
+            strategy_repo: 策略仓库（可选，用于依赖注入）
+            kline_repo: K线仓库（可选，用于依赖注入）
+        """
+        self.strategy_repo = strategy_repo
+        self.kline_repo = kline_repo
         self.indicator_executor = IndicatorStrategyExecutor()
         self.script_executor = ScriptStrategyExecutor()
         self.code_validator = CodeValidator()

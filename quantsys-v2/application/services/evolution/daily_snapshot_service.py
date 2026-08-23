@@ -30,14 +30,16 @@ class DailySnapshotService:
         price_provider: Optional[PriceProvider] = None,
     ):
         if sim_repo is None:
-                        sim_repo = ISimulationRepository()
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            sim_repo = EnhancedServiceFactory.resolve(ISimulationRepository)
         self.sim_repo = sim_repo
         self._price_provider = price_provider or self._default_price_provider
 
     @staticmethod
     def _default_price_provider(symbols: List[str], start: date, end: date) -> PriceMap:
         """默认价格源：本地 kline 库（不走网络）。返回 {symbol: {date_str: close}}"""
-                repo = IKlineRepository()
+        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+        repo = EnhancedServiceFactory.resolve(IKlineRepository)
         result: Dict[str, Dict[str, float]] = {}
         batch = repo.batch_get_kline(symbols, start.isoformat(), end.isoformat())
         for symbol, df in batch.items():

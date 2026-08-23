@@ -15,8 +15,10 @@ logger = structlog.get_logger(__name__)
 class FinancialAnalysisService:
     """财务分析服务"""
 
-    def __init__(self):
+    def __init__(self, financial_repo=None, kline_repo=None):
         self.logger = structlog.get_logger(__name__)
+        self._financial_repo = financial_repo
+        self._kline_repo = kline_repo
             # 延迟导入避免顶层依赖
             from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
@@ -71,8 +73,11 @@ class FinancialAnalysisService:
 
             # 2. Fallback 到数据库（直接查询）
             try:
-                
-                financial_repo = IFinancialRepository()
+                if self._financial_repo is None:
+                    from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                    financial_repo = EnhancedServiceFactory.resolve(IFinancialRepository)
+                else:
+                    financial_repo = self._financial_repo
                 income_data = financial_repo.get_income_statements(symbol, period_type='Y', limit=5)
                 balance_data = financial_repo.get_balance_sheets(symbol, period_type='Y', limit=5)
 
@@ -183,9 +188,13 @@ class FinancialAnalysisService:
 
             # 方案2: 从财务报表和股价计算 PE/PB（降级方案）
             try:
-                                
-                financial_repo = IFinancialRepository()
-                kline_repo = IKlineRepository()
+                if self._financial_repo is None or self._kline_repo is None:
+                    from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+                    financial_repo = self._financial_repo or EnhancedServiceFactory.resolve(IFinancialRepository)
+                    kline_repo = self._kline_repo or EnhancedServiceFactory.resolve(IKlineRepository)
+                else:
+                    financial_repo = self._financial_repo
+                    kline_repo = self._kline_repo
 
                 # 获取最新股价
                 latest_kline = kline_repo.get_latest_daily_kline(symbol)
