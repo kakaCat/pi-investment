@@ -581,7 +581,7 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
     try:
         from infrastructure.services.service_factory import get_data_service
-        from domain.quantlib.stages.factor_stage import FactorStage
+        from domain.backtest.stages.factor_stage import FactorStage
         from adapters.shared.fund_flow_helpers import (
             _inject_fund_flow_to_klines, _extract_fund_flow_factors,
         )

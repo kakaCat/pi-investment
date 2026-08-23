@@ -76,7 +76,7 @@ def get_strategies_list(source: str = Query('user'), category: Optional[str] = Q
                         status: Optional[str] = Query(None), codeType: Optional[str] = Query(None)):
     """获取策略列表（source=user 用户策略 / source=builtin 内置策略）"""
     if source == 'builtin':
-        from domain.quantlib.engine.strategy_factory import StrategyFactory
+        from domain.backtest.engine.strategy_factory import StrategyFactory
         if not StrategyFactory._registry:
             StrategyFactory.auto_discover()
         strategies = []

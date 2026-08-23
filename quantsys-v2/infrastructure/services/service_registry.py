@@ -449,8 +449,8 @@ def _register_services_hardcoded():
 
     # StrategyBacktestService - 依赖 IStrategyRepository
     from application.services.strategy_backtest_service import StrategyBacktestService
-    from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyExecutor
-    from domain.quantlib.engine.script_strategy_executor import ScriptStrategyExecutor
+    from domain.backtest.engine.indicator_strategy_executor import IndicatorStrategyExecutor
+    from domain.backtest.engine.script_strategy_executor import ScriptStrategyExecutor
     def create_strategy_backtest_service():
         strategy_repo = EnhancedServiceFactory.resolve(IStrategyRepository)
         return StrategyBacktestService(

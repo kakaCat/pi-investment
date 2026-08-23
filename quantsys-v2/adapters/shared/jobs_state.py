@@ -54,7 +54,7 @@ def _execute_job_by_type(job_type: str, params: Dict[str, Any]) -> Dict[str, Any
         from datetime import timedelta
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-        from domain.quantlib.stages.factor_stage import FactorStage
+        from domain.backtest.stages.factor_stage import FactorStage
         factor_stage = FactorStage(name="factors")
         computed = 0
         for sym in symbols:

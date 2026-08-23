@@ -8,8 +8,8 @@ import re
 import structlog
 import pandas as pd
 from typing import Dict, Optional, List
-from domain.quantlib.engine.code_validator import CodeValidator
-from domain.quantlib.engine.param_parser import ParamParser
+from domain.backtest.engine.code_validator import CodeValidator
+from domain.backtest.engine.param_parser import ParamParser
 
 logger = structlog.get_logger(__name__)
 

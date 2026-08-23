@@ -139,7 +139,7 @@ def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
     try:
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-        from domain.quantlib.stages.factor_stage import FactorStage
+        from domain.backtest.stages.factor_stage import FactorStage
 
         results = []
         for sym in all_symbols:
@@ -189,7 +189,7 @@ def get_technical_indicators(symbol: str, indicators: Optional[str] = Query(None
             return error_response({
                 'error': f'Insufficient data for {symbol} (need 20+ days, got {len(klines_df)})'}, 400)
         klines = klines_df.to_dicts()
-        from domain.quantlib.stages.factor_stage import FactorStage
+        from domain.backtest.stages.factor_stage import FactorStage
         stage = FactorStage(name="technical")
         result = stage.process({'symbol': symbol, 'klines': klines})
         factors = result.get('factors', {})
