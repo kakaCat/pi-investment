@@ -1,87 +1,152 @@
-# Agent-DH Investment Profile
+# DSH Investment Profile
 
-PI Investment 的 DSH (DeepSeek Harness) 投资分析 Agent 配置。
+这是 Agent-DH 的 DSH Profile 配置模板，使用**本地打包依赖**方式安装。
 
-## 快速启动
+## 架构说明
 
-### 开发模式（tsx 热加载）
+```
+agent-dh/
+  ├── packages/          # 14 个插件源码（TypeScript）
+  ├── scripts/
+  │   └── pack-for-profile.sh   # 打包脚本
+  └── profiles/investment/      # Profile 配置模板
+      └── package.json          # 依赖配置（file:local-packages/*.tgz）
+
+~/.dsh/profiles/investment/   # 实际安装位置
+  ├── local-packages/         # 打包的 .tgz 文件
+  │   ├── pi-investment-investment-0.2.0.tgz
+  │   ├── pi-investment-trading-0.2.0.tgz
+  │   └── ...
+  ├── node_modules/           # pnpm 安装的依赖
+  ├── package.json            # 从模板复制
+  └── start.sh                # 启动脚本
+```
+
+## 安装方式
+
+### 方式 1: 使用打包脚本（推荐）
 
 ```bash
-# 设置 API Key
-export DEEPSEEK_API_KEY=sk-...
+# 1. 构建并打包所有插件
+cd /path/to/pi-investment/agent-dh
+./scripts/pack-for-profile.sh ~/.dsh/profiles/investment/local-packages
 
-# 启动（默认端口 13080）
+# 2. 复制 profile 配置到 DSH 目录
+cp -r profiles/investment/* ~/.dsh/profiles/investment/
+
+# 3. 安装依赖
 cd ~/.dsh/profiles/investment
+pnpm install
+
+# 4. 启动
 ./start.sh
-
-# 指定端口
-./start.sh 13081
-
-# 仅打印配置
-./start.sh 13080 --dump-config
 ```
 
-### 生产模式（需构建）
+### 方式 2: 在 profile 中一键更新
 
 ```bash
-# 1. 构建所有 PI 插件为 JavaScript
-cd /Users/yunpeng/pi-investment/agent-dh
-pnpm run build
-
-# 2. 使用 profile 本地的 npm 版 DSH 启动（已与 deepseek-harness 源码仓解耦）
 cd ~/.dsh/profiles/investment
-node --import tsx/esm node_modules/@deepseek-ai/dsh/lib/bin.js --profile investment --port 13080
+pnpm run repack    # 自动打包 + 安装
 ```
 
-## 为什么需要 tsx 模式
+## 更新流程
 
-PI Investment 插件使用 TypeScript 编写（`main: ./src/index.ts`），且内部互引使用 `.js` 说明符——Node 原生类型擦除不改写说明符，因此无论源码仓还是 npm 运行时都必须挂 tsx 加载器。
+当修改了插件代码后，需要重新打包：
 
-**tsx 模式** (`node --import tsx/esm`) 让 Node.js 能够直接运行 TypeScript，支持：
-- 开发时热加载插件修改
-- 无需构建步骤即可测试
-- 保持源码与运行一致
+```bash
+# 方法 1: 从 agent-dh 目录
+cd /path/to/pi-investment/agent-dh
+./scripts/pack-for-profile.sh ~/.dsh/profiles/investment/local-packages
+cd ~/.dsh/profiles/investment
+pnpm install
 
-## 插件清单（14个，48个工具）
+# 方法 2: 在 profile 目录一键更新
+cd ~/.dsh/profiles/investment
+pnpm run repack
+```
 
-| 插件 | 工具数 | 功能 |
-|------|--------|------|
-| `@pi-investment/investment` | 8 | 行情、K线、财务、宏观、北向资金、市场情绪、股票池、策略列表 |
-| `@pi-investment/trading` | 6 | 账户信息、持仓、交易执行、交易监控、算法交易、对账 |
-| `@pi-investment/intelligence` | 3 | 盯盘规则、盯盘管理、市场告警 |
-| `@pi-investment/competition` | 3 | 对手行为、战场评估、操纵检测 |
-| `@pi-investment/market` | 3 | 市场风格、行业分析、筹码分析 |
-| `@pi-investment/risk` | 3 | 风险控制、风险指标、Barra分解 |
-| `@pi-investment/strategy` | 6 | 策略执行、机会扫描、筛选、轮动提案、轮动模拟、轮动执行 |
-| `@pi-investment/factor` | 2 | 因子计算、因子分析 |
-| `@pi-investment/model` | 3 | 模型预测、模型训练、模型评估 |
-| `@pi-investment/memory` | 3 | 记忆搜索、记忆写入、经验记录 |
-| `@pi-investment/evolution` | 2 | 进化运行、进化排行榜 |
-| `@pi-investment/scheduler` | 1 | 调度器管理 |
-| `@pi-investment/notification` | 2 | 飞书通知、通用通知 |
-| `@pi-investment/data-manager` | 2 | 数据质量报告、数据管理 |
+## 优点
 
-## 工具描述优化原则
+✅ **完全自包含**: `local-packages/` 包含所有依赖，不依赖外部路径  
+✅ **可移植性强**: 可以打包整个 `~/.dsh/profiles/investment` 目录到其他机器  
+✅ **版本明确**: `.tgz` 文件名包含版本号，便于追踪  
+✅ **无 symlink 问题**: 使用真实文件复制，不依赖符号链接  
+✅ **跨平台**: Windows/Linux/macOS 都能正常工作  
 
-所有工具描述遵循以下规范：
+## 目录结构
 
-1. **使用场景说明** - 描述开头说明"用于：..."
-2. **参数示例** - 参数描述包含具体示例值
-3. **枚举值解释** - 每个枚举值都有中文说明
-4. **输出字段完整** - 输出 schema 包含所有字段及单位
-5. **单位标注** - 价格（元）、数量（股）、金额（元）、比例（%）
-
-## 环境变量
-
-| 变量 | 说明 | 必需 |
-|------|------|------|
-| `DEEPSEEK_API_KEY` | DeepSeek API Key | 是（或 OPENAI_API_KEY） |
-| `OPENAI_API_KEY` | OpenAI API Key（与 DeepSeek 相同） | 是（或 DEEPSEEK_API_KEY） |
-| `QUANTSYS_V2_API_URL` | quantsys-v2 后端地址 | 否（默认 http://localhost:5001） |
+```
+~/.dsh/profiles/investment/
+├── local-packages/              # 打包的依赖（.tgz 文件）
+│   ├── pi-investment-investment-0.2.0.tgz
+│   ├── pi-investment-trading-0.2.0.tgz
+│   └── ... (20 个包)
+├── node_modules/                # pnpm 安装后的依赖
+├── state/                       # 运行时状态（git ignore）
+├── agents.json                  # Agent 身份注册表
+├── cordis.yml                   # DSH 基础配置
+├── cordis.patch.yml            # 插件加载配置
+├── package.json                 # 依赖声明
+├── pnpm-lock.yaml              # 锁文件
+├── start.sh                     # 启动脚本
+└── stop.sh                      # 停止脚本
+```
 
 ## 配置文件
 
-- `cordis.yml` - 基础配置（空根）
-- `cordis.patch.yml` - 插件配置和系统提示词
-- `package.json` - 依赖声明
-- `start.sh` - 启动脚本
+### package.json
+
+使用 `file:local-packages/*.tgz` 引用本地打包文件：
+
+```json
+{
+  "dependencies": {
+    "@pi-investment/investment": "file:local-packages/pi-investment-investment-0.2.0.tgz"
+  }
+}
+```
+
+### 版本更新
+
+当插件版本更新时，需要同步更新 `package.json` 中的 `.tgz` 文件名。
+
+## 常见问题
+
+### Q: 如何查看当前安装的插件版本？
+
+```bash
+cd ~/.dsh/profiles/investment
+pnpm list --depth=0 | grep @pi-investment
+```
+
+### Q: 如何清理旧版本的 .tgz 文件？
+
+```bash
+rm -rf ~/.dsh/profiles/investment/local-packages/*.tgz
+```
+
+然后重新运行打包脚本。
+
+### Q: 可以部分更新某个插件吗？
+
+可以，只打包单个插件：
+
+```bash
+cd /path/to/pi-investment/agent-dh/packages/investment
+pnpm pack --pack-destination ~/.dsh/profiles/investment/local-packages
+cd ~/.dsh/profiles/investment
+pnpm install
+```
+
+### Q: 如何在生产环境部署？
+
+1. 在开发机打包：`./scripts/pack-for-profile.sh dist/local-packages`
+2. 打包整个 profile 目录：`tar -czf investment-profile.tar.gz ~/.dsh/profiles/investment`
+3. 在生产机解压：`tar -xzf investment-profile.tar.gz -C ~/`
+4. 启动：`cd ~/.dsh/profiles/investment && ./start.sh`
+
+## 参考
+
+- [Agent-DH README](../../README.md)
+- [Agent-DH CLAUDE.md](../../CLAUDE.md)
+- [DSH 文档](https://github.com/deepseek-ai/dsh)
