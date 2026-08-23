@@ -193,7 +193,11 @@ async function detectManipulationLocal(qv2: QuantsysV2Client, symbol: string, da
 
   const pct = (a: number, b: number) => (b - a) / a * 100;
   const close0 = last20[0].close, closeN = last20[last20.length - 1].close;
-  const avgVol20 = last20.reduce((s: number, k: any) => s + (k.volume || 0), 0) / last20.length;
+  // 2026-08-22 验收修正：量比基线取"前 20 日"（形态出现前的平静期），
+  // 原实现用 last20（含爆量日）会自我稀释基线导致漏报
+  const prior20 = klines.slice(-40, -20);
+  const baselineBars = prior20.length >= 10 ? prior20 : last20;
+  const avgVol20 = baselineBars.reduce((s: number, k: any) => s + (k.volume || 0), 0) / baselineBars.length;
 
   // 1. 短期暴涨
   const chg20 = pct(close0, closeN);
