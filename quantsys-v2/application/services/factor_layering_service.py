@@ -12,9 +12,9 @@ from typing import List, Dict, Any, Optional
 import structlog
 from datetime import datetime, timedelta
 
-from domain.quantlib.factor_analysis.layering_backtest import FactorLayeringBacktest
-from domain.quantlib.factor_analysis.ic_analyzer import ICAnalyzer
-from domain.quantlib.stages.factor_stage import FactorStage
+from domain.factors.analysis.layering_backtest import FactorLayeringBacktest
+from domain.factors.analysis.ic_analyzer import ICAnalyzer
+from domain.backtest.stages.factor_stage import FactorStage
 from application.services.stock_pool_service import StockPoolService
 
 logger = structlog.get_logger(__name__)
@@ -269,7 +269,7 @@ class FactorLayeringService:
             start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
 
         # 获取因子适配器
-        from domain.quantlib.adapters import get_factor_adapter
+        from infrastructure.quantlib.adapters import get_factor_adapter
         adapter = get_factor_adapter()
 
         factor_values = {}

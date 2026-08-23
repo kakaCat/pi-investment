@@ -9,8 +9,8 @@ import structlog
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 
-from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyExecutor
-from domain.quantlib.engine.script_strategy_executor import ScriptStrategyExecutor
+from domain.backtest.engine.indicator_strategy_executor import IndicatorStrategyExecutor
+from domain.backtest.engine.script_strategy_executor import ScriptStrategyExecutor
 
 logger = structlog.get_logger(__name__)
 

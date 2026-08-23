@@ -22,26 +22,26 @@ try:
 except ImportError:
     talib = None
 
-from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyExecutor
-from domain.quantlib.engine.script_strategy_executor import ScriptStrategyExecutor
-from domain.quantlib.engine.code_validator import CodeValidator
-from domain.quantlib.engine.param_parser import ParamParser
-from domain.quantlib.core.config import CHART_KLINE_LIMIT, CHART_KLINE_MAX_LIMIT
-from domain.quantlib.risk.attribution import RiskAttributionCalculator
+from domain.backtest.engine.indicator_strategy_executor import IndicatorStrategyExecutor
+from domain.backtest.engine.script_strategy_executor import ScriptStrategyExecutor
+from domain.backtest.engine.code_validator import CodeValidator
+from domain.backtest.engine.param_parser import ParamParser
+from infrastructure.quantlib.core.config import CHART_KLINE_LIMIT, CHART_KLINE_MAX_LIMIT
+from domain.risk.attribution import RiskAttributionCalculator
 
 # 🆕 导入因子计算器（11个类，132个因子）
-from domain.quantlib.factors.momentum import MomentumFactors
-from domain.quantlib.factors.trend import TrendFactors
-from domain.quantlib.factors.volatility import VolatilityFactors
-from domain.quantlib.factors.volume import VolumeFactors
-from domain.quantlib.factors.moving_average import MovingAverageFactors
-from domain.quantlib.factors.reversal import ReversalFactors
+from domain.factors.library.momentum import MomentumFactors
+from domain.factors.library.trend import TrendFactors
+from domain.factors.library.volatility import VolatilityFactors
+from domain.factors.library.volume import VolumeFactors
+from domain.factors.library.moving_average import MovingAverageFactors
+from domain.factors.library.reversal import ReversalFactors
 
 # 导入需要 TA-Lib 的因子（可选）
 try:
-    from domain.quantlib.factors.advanced import AdvancedFactors
-    from domain.quantlib.factors.cycle import CycleFactors
-    from domain.quantlib.factors.pattern_recognition import PatternRecognitionFactors
+    from domain.factors.library.advanced import AdvancedFactors
+    from domain.factors.library.cycle import CycleFactors
+    from domain.factors.library.pattern_recognition import PatternRecognitionFactors
     TALIB_AVAILABLE = True
 except ImportError:
     TALIB_AVAILABLE = False
@@ -49,7 +49,7 @@ except ImportError:
 
 # 导入其他因子
 try:
-    from domain.quantlib.factors.other import OtherFactors
+    from domain.factors.library.other import OtherFactors
     OTHER_FACTORS_AVAILABLE = True
 except ImportError as e:
     OTHER_FACTORS_AVAILABLE = False

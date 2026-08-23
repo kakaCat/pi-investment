@@ -84,7 +84,7 @@ async def lifespan(app: FastAPI):
 
     # 同步内置策略到数据库
     try:
-        from domain.quantlib.engine.strategy_factory import StrategyFactory
+        from domain.backtest.engine.strategy_factory import StrategyFactory
         from adapters.outbound.repositories import StrategyORMRepository
         StrategyFactory.auto_discover()
         count = StrategyFactory.sync_to_database(StrategyORMRepository())

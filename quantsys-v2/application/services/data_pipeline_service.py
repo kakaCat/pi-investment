@@ -5,15 +5,15 @@ import structlog
 from typing import List, Optional
 import yaml
 
-from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
-from domain.quantlib.stages.data_pipeline.data_fetch_stage import DataFetchStage
-from domain.quantlib.stages.data_pipeline.deduplication_stage import DeduplicationStage
-from domain.quantlib.stages.data_pipeline.time_alignment_stage import TimeAlignmentStage
-from domain.quantlib.stages.data_pipeline.anomaly_detection_stage import AnomalyDetectionStage
-from domain.quantlib.stages.data_pipeline.conflict_resolution_stage import ConflictResolutionStage
-from domain.quantlib.stages.data_pipeline.imputation_stage import ImputationStage
-from domain.quantlib.stages.data_pipeline.storage_stage import StorageStage
-from domain.quantlib.stages.data_pipeline.factor_compute_stage import FactorComputeStage
+from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
+from domain.backtest.stages.data_pipeline.data_fetch_stage import DataFetchStage
+from domain.backtest.stages.data_pipeline.deduplication_stage import DeduplicationStage
+from domain.backtest.stages.data_pipeline.time_alignment_stage import TimeAlignmentStage
+from domain.backtest.stages.data_pipeline.anomaly_detection_stage import AnomalyDetectionStage
+from domain.backtest.stages.data_pipeline.conflict_resolution_stage import ConflictResolutionStage
+from domain.backtest.stages.data_pipeline.imputation_stage import ImputationStage
+from domain.backtest.stages.data_pipeline.storage_stage import StorageStage
+from domain.backtest.stages.data_pipeline.factor_compute_stage import FactorComputeStage
 from domain.quantlib.data_validator import DataValidator
 
 logger = structlog.get_logger(__name__)

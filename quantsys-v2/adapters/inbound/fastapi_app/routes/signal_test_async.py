@@ -111,7 +111,7 @@ def run_strategy_and_record(payload: Optional[Dict[str, Any]] = Body(None)):
         pass  # 资金流不可用時静默降级
 
     # 5. 运行策略
-    from domain.quantlib.engine.strategy_factory import StrategyFactory
+    from domain.backtest.engine.strategy_factory import StrategyFactory
     if not StrategyFactory._registry:
         StrategyFactory.auto_discover()
     try:

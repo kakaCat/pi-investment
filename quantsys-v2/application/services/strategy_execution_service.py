@@ -9,7 +9,7 @@ from typing import Dict, List, Generator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 已迁移到ORM，不再需要此导入
-from domain.quantlib.engine.strategy_factory import StrategyFactory
+from domain.backtest.engine.strategy_factory import StrategyFactory
 from adapters.outbound.repositories.models.strategy_execution import (
     StrategyExecuteRequest,
     StrategyBatchExecuteRequest,
@@ -177,7 +177,7 @@ class StrategyEngine:
         Returns:
             Result dict with action, confidence, etc. (compatible with Python strategy format)
         """
-        from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyExecutor
+        from domain.backtest.engine.indicator_strategy_executor import IndicatorStrategyExecutor
 
         executor = IndicatorStrategyExecutor()
         code = self.db_strategy_config['code_content']

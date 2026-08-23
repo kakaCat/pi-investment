@@ -12,8 +12,8 @@ from datetime import datetime
 from dataclasses import dataclass
 
 from domain.ports import IStrategyRepository
-from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyExecutor
-from domain.quantlib.engine.script_strategy_executor import ScriptStrategyExecutor
+from domain.backtest.engine.indicator_strategy_executor import IndicatorStrategyExecutor
+from domain.backtest.engine.script_strategy_executor import ScriptStrategyExecutor
 
 logger = structlog.get_logger(__name__)
 

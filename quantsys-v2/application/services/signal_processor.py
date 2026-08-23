@@ -302,7 +302,7 @@ class SignalProcessor:
             return self._round_to_lot(shares)
 
         elif method == 'kelly':
-            from domain.quantlib.engine.position_sizing import KellyPositionSizer
+            from domain.backtest.engine.position_sizing import KellyPositionSizer
             sizer = KellyPositionSizer(
                 win_rate=params['win_rate'],
                 profit_loss_ratio=params['profit_loss_ratio'],

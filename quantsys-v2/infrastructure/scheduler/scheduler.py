@@ -1563,7 +1563,7 @@ class SchedulerService:
             market: (optional) market filter, e.g. ``"A"``.
             symbols: (optional) list of symbols.
         """
-        from domain.quantlib.stages.factor_stage import FactorStage
+        from domain.backtest.stages.factor_stage import FactorStage
 
         market = params.get("market")
         symbols = params.get("symbols", [])

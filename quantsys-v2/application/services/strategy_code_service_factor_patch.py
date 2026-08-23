@@ -20,12 +20,12 @@ import numpy as np
 import structlog
 
 # 导入所有因子计算器
-from domain.quantlib.factors.momentum import MomentumFactors
-from domain.quantlib.factors.trend import TrendFactors
-from domain.quantlib.factors.volatility import VolatilityFactors
-from domain.quantlib.factors.volume import VolumeFactors
-from domain.quantlib.factors.moving_average import MovingAverageFactors
-from domain.quantlib.factors.reversal import ReversalFactors
+from domain.factors.library.momentum import MomentumFactors
+from domain.factors.library.trend import TrendFactors
+from domain.factors.library.volatility import VolatilityFactors
+from domain.factors.library.volume import VolumeFactors
+from domain.factors.library.moving_average import MovingAverageFactors
+from domain.factors.library.reversal import ReversalFactors
 
 logger = structlog.get_logger(__name__)
 
@@ -340,12 +340,12 @@ Step 2: 在 __init__ 方法中添加（第40行左右）:
         # ... 等等
 
         # 🆕 添加这几行：
-        from domain.quantlib.factors.momentum import MomentumFactors
-        from domain.quantlib.factors.trend import TrendFactors
-        from domain.quantlib.factors.volatility import VolatilityFactors
-        from domain.quantlib.factors.volume import VolumeFactors
-        from domain.quantlib.factors.moving_average import MovingAverageFactors
-        from domain.quantlib.factors.reversal import ReversalFactors
+        from domain.factors.library.momentum import MomentumFactors
+        from domain.factors.library.trend import TrendFactors
+        from domain.factors.library.volatility import VolatilityFactors
+        from domain.factors.library.volume import VolumeFactors
+        from domain.factors.library.moving_average import MovingAverageFactors
+        from domain.factors.library.reversal import ReversalFactors
 
         self.momentum_factors = MomentumFactors()
         self.trend_factors = TrendFactors()

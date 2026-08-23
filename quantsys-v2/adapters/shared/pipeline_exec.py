@@ -157,7 +157,7 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
                 else:
                     logs.append(f"[{datetime.now().isoformat()}] {sd['name']}完成: {updated}/{len(symbols)} 只股票")
             elif sd['key'] == 'factors':
-                from domain.quantlib.stages.factor_stage import FactorStage
+                from domain.backtest.stages.factor_stage import FactorStage
                 factor_count = 0
                 for sym in symbols:
                     end_date = datetime.now().strftime('%Y-%m-%d')
@@ -225,7 +225,7 @@ def _execute_factor_compute(run_id: str, symbols: List[str], force: bool = False
     logs: List[str] = [f"[{start_time.isoformat()}] 因子计算开始: {run_id}"]
     factor_count = processed = 0
     try:
-        from domain.quantlib.stages.factor_stage import FactorStage
+        from domain.backtest.stages.factor_stage import FactorStage
         stage = FactorStage(name="factors")
         for sym in symbols:
             try:
