@@ -378,7 +378,8 @@ async function localTradeVerify(qv2: QuantsysV2Client, accountName: string, date
 
   // 1. 拉取成交记录
   const th: any = await qv2.getTradeHistory({ account_name: accountName });
-  const allTrades: any[] = th?.orders || [];
+  // orders/items 双兼容（后端实际返回 items）
+  const allTrades: any[] = th?.orders || th?.items || [];
   const dayTrades = allTrades.filter((t: any) => String(t.tradeDate ?? t.trade_date ?? '') === targetDate);
 
   // 2. 重复成交检测（同标的+同方向+同价+同量+同分钟）

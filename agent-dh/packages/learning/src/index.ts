@@ -943,7 +943,8 @@ export default class LearningPlugin extends Service {
         let trades: any[] = [];
         try {
           const th: any = await this.qv2.getTradeHistory({ account_name: 'agent_virtual' });
-          trades = (th?.orders || []).filter((t: any) => String(t.tradeDate ?? t.trade_date ?? '') >= sinceStr);
+          // orders/items 双兼容（后端实际返回 items）
+          trades = (th?.orders || th?.items || []).filter((t: any) => String(t.tradeDate ?? t.trade_date ?? '') >= sinceStr);
         } catch { /* 成交查询失败不阻塞 */ }
         const sells = trades.filter((t: any) => String(t.action).toLowerCase() === 'sell' && t.pnl != null);
         const wins = sells.filter((t: any) => Number(t.pnl) > 0);
