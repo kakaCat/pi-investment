@@ -13,7 +13,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # Import risk calculators
-from domain.quantlib.risk import (
+from domain.risk import (
     VaRCalculator,
     CVaRCalculator,
     DrawdownCalculator,
@@ -21,7 +21,7 @@ from domain.quantlib.risk import (
     RiskAttributionCalculator,
     StressTestCalculator
 )
-from domain.quantlib.risk.stress_test import Scenario
+from domain.risk.stress_test import Scenario
 
 
 def example_var_calculation():

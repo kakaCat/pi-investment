@@ -8,7 +8,7 @@ from typing import Dict, List
 from datetime import datetime
 import logging
 
-from domain.quantlib.risk.var import VaRCalculator
+from domain.risk.var import VaRCalculator
 
 logger = logging.getLogger(__name__)
 

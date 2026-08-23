@@ -272,7 +272,7 @@ class VaRCalculator(BaseCalculator):
         var_95 = self.calculate(returns, confidence_level=0.95, method='historical')['value']
         var_99 = self.calculate(returns, confidence_level=0.99, method='historical')['value']
 
-        from domain.quantlib.risk.cvar import CVaRCalculator
+        from domain.risk.cvar import CVaRCalculator
         cvar_calc = CVaRCalculator()
         cvar_95 = cvar_calc.calculate(returns, confidence_level=0.95, method='historical')['value']
         cvar_99 = cvar_calc.calculate(returns, confidence_level=0.99, method='historical')['value']
@@ -305,6 +305,6 @@ def quick_var(returns, confidence_level: float = 0.95, method: str = 'historical
 
 def quick_cvar(returns, confidence_level: float = 0.95, method: str = 'historical') -> float:
     """Quick CVaR calculation convenience function."""
-    from domain.quantlib.risk.cvar import CVaRCalculator
+    from domain.risk.cvar import CVaRCalculator
     calc = CVaRCalculator()
     return calc.calculate(returns, confidence_level=confidence_level, method=method)['value']

@@ -8,17 +8,21 @@ Modules:
     - base_calculator: Abstract base class for all calculators
     - data_validator: Data quality validation and reporting
     - rate_calculations: Interest rate and yield calculations
-    - risk: Risk management and analysis (VaR, CVaR, drawdown, market risk, attribution, stress testing)
     - ml: Machine learning integration (feature engineering, factor mining, return prediction, risk prediction, anomaly detection)
     - rl: Reinforcement learning base infrastructure (BaseRLAgent, BaseRLEnvironment)
     - finrl: FinRL framework integration (FinRLAgent, StockTradingEnv, 5 algorithms)
     - qlib: Qlib RL framework integration (QlibRLAgent, QlibTradingEnv, 5 algorithms)
     - exceptions: Custom exceptions for QuantLib
 
+Note: Risk management has been moved to domain.risk
+      Backtest engine has been moved to domain.backtest
+      Factors have been moved to domain.factors
+
 Usage:
     from domain.quantlib import BaseCalculator, DataValidator
     from domain.quantlib.exceptions import CalculationError
-    from domain.quantlib.risk import VaRCalculator, CVaRCalculator
+    from domain.risk import RiskAttributionCalculator, calculate_var
+    from domain.backtest.engine import BacktestEngine
     from domain.quantlib.ml import FeatureEngineeringCalculator, FactorMiningCalculator
     from domain.quantlib.rl import BaseRLAgent, BaseRLEnvironment
     from domain.quantlib.finrl import FinRLAgent, StockTradingEnv
@@ -55,15 +59,9 @@ from .data_validator import (
     validate_probability
 )
 
-# Risk management module
-from .risk import (
-    VaRCalculator,
-    CVaRCalculator,
-    DrawdownCalculator,
-    MarketRiskCalculator,
-    RiskAttributionCalculator,
-    StressTestCalculator
-)
+# Note: Risk management has been moved to domain.risk
+# Import from domain.risk instead:
+# from domain.risk import RiskAttributionCalculator, calculate_var, etc.
 
 # ── 重模块惰性导入（2026-08-20 segfault 修复，PEP 562）──────────────────
 # ml/rl/finrl/qlib 会拉起 torch / mlflow(→polars) / transformers 等重依赖，

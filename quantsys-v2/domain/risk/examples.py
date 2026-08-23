@@ -19,11 +19,11 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # Import advanced risk calculators
-from domain.quantlib.risk.stress_testing import AdvancedStressTestCalculator, StressScenario
-from domain.quantlib.risk.scenario_analysis import ScenarioAnalysisCalculator, MarketScenario
-from domain.quantlib.risk.extreme_value import ExtremeValueCalculator
-from domain.quantlib.risk.copula import CopulaCalculator
-from domain.quantlib.risk.liquidity_risk import LiquidityRiskCalculator
+from domain.risk.stress_testing import AdvancedStressTestCalculator, StressScenario
+from domain.risk.scenario_analysis import ScenarioAnalysisCalculator, MarketScenario
+from domain.risk.extreme_value import ExtremeValueCalculator
+from domain.risk.copula import CopulaCalculator
+from domain.risk.liquidity_risk import LiquidityRiskCalculator
 
 
 def generate_sample_data(n_days=500, n_assets=3, seed=42):

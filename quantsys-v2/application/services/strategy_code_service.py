@@ -27,7 +27,7 @@ from domain.backtest.engine.script_strategy_executor import ScriptStrategyExecut
 from domain.backtest.engine.code_validator import CodeValidator
 from domain.backtest.engine.param_parser import ParamParser
 from infrastructure.quantlib.core.config import CHART_KLINE_LIMIT, CHART_KLINE_MAX_LIMIT
-from domain.quantlib.risk.attribution import RiskAttributionCalculator
+from domain.risk.attribution import RiskAttributionCalculator
 
 # 🆕 导入因子计算器（11个类，132个因子）
 from domain.quantlib.factors.momentum import MomentumFactors
