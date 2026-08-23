@@ -12,7 +12,8 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test && vitest run tests/",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "pack-profile": "tsx scripts/pack-for-profile.ts"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "^4.0.1",

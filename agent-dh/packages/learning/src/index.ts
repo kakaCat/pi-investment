@@ -1071,6 +1071,71 @@ export default class LearningPlugin extends Service {
         } as any;
       },
     } as any));
+
+    // 规则积分榜（规则级验证门的数据地基，2026-08-23）
+    ctx.tools.register(defineTool({
+      name: 'rule_scoreboard',
+      description: '按规则 ID（R-xxx）统计各规则在打标经验中的表现：引用次数、平均奖励、成功率、最近使用。给出裁决建议：持续负奖励且样本≥3 → 建议淘汰（deprecate）；持续高奖励 → 建议强化。供：规则级归因、验证门规则粒度裁决、周报规则健康度。',
+      parameters: {
+        min_samples: { type: 'number', description: '给出裁决建议的最小样本数，默认 3', default: 3 },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            rules: { type: 'array', items: { type: 'object', additionalProperties: true } },
+            total_experiences_scanned: { type: 'number' },
+          },
+          additionalProperties: false,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 60000,
+      execute: async (args: any) => {
+        const minSamples = args.min_samples ?? 3;
+        const experiences = await this.loadPersistedExperiences({});
+
+        // 从每条经验的全文（action/outcome/context/genome_context）提取 R-ID
+        const ruleMap = new Map<string, { count: number; rewards: number[]; successes: number; last_seen: string }>();
+        for (const e of experiences) {
+          const ids = new Set<string>(e.genome_context?.rules_used ?? []);
+          try {
+            const text = JSON.stringify([e.action, e.outcome, e.context]).slice(0, 30000);
+            for (const m of text.matchAll(/\b(R-\d{3})\b/g)) ids.add(m[1]);
+          } catch { /* skip */ }
+
+          for (const id of ids) {
+            if (!ruleMap.has(id)) ruleMap.set(id, { count: 0, rewards: [], successes: 0, last_seen: '' });
+            const r = ruleMap.get(id)!;
+            r.count++;
+            r.rewards.push(e.reward);
+            if (e.outcome.success) r.successes++;
+            if (e.timestamp > r.last_seen) r.last_seen = e.timestamp;
+          }
+        }
+
+        const rules = [...ruleMap.entries()].map(([rule_id, r]) => {
+          const avg = r.rewards.reduce((a, b) => a + b, 0) / r.rewards.length;
+          const successRate = r.successes / r.count;
+          let verdict = 'insufficient_data';
+          if (r.count >= minSamples) {
+            if (avg < 0) verdict = 'suggest_deprecate';
+            else if (avg > 0.3 && successRate > 0.6) verdict = 'suggest_strengthen';
+            else verdict = 'neutral';
+          }
+          return {
+            rule_id,
+            count: r.count,
+            avg_reward: +avg.toFixed(3),
+            success_rate: +successRate.toFixed(3),
+            last_seen: r.last_seen.slice(0, 10),
+            verdict,
+          };
+        }).sort((a, b) => a.avg_reward - b.avg_reward);  // 最差的排前面
+
+        return { rules, total_experiences_scanned: experiences.length } as any;
+      },
+    } as any));
   }
 
   // ===== 辅助方法 =====

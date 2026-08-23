@@ -357,13 +357,79 @@ export default class TradingPlugin extends Service {
           text: JSON.stringify(value, null, 2),
         }],
       },
-      timeoutMs: 10000,
+      timeoutMs: 15000,
       execute: async (args: any) => {
-        return qv2.verifyTrades({
-          account_name: args.account_name || 'agent_virtual',
-          date: args.date,
-        }) as any;
+        // 2026-08-23 重写：后端 /api/risk/trade-verify 路由在重构中丢失（404），
+        // 改为本地对账（拉成交记录自查异常），不再依赖后端路由
+        return localTradeVerify(qv2, args.account_name || 'agent_virtual', args.date);
       },
     } as any));
   }
+}
+
+/**
+ * 本地交易对账（2026-08-23，替代丢失的后端 /api/risk/trade-verify）
+ * 检查项：重复成交（同标的+同价+同量+同秒）、关键字段缺失、
+ * 持仓勾稽（持仓数 = 累计买-累计卖，逐标的）
+ */
+async function localTradeVerify(qv2: QuantsysV2Client, accountName: string, date?: string): Promise<any> {
+  const targetDate = date || new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
+  const anomalies: any[] = [];
+
+  // 1. 拉取成交记录
+  const th: any = await qv2.getTradeHistory({ account_name: accountName });
+  const allTrades: any[] = th?.orders || [];
+  const dayTrades = allTrades.filter((t: any) => String(t.tradeDate ?? t.trade_date ?? '') === targetDate);
+
+  // 2. 重复成交检测（同标的+同方向+同价+同量+同分钟）
+  const seen = new Map<string, number>();
+  for (const t of dayTrades) {
+    const key = [t.symbol, t.action, t.price, t.quantity, String(t.createdAt ?? '').slice(0, 16)].join('|');
+    const cnt = (seen.get(key) ?? 0) + 1;
+    seen.set(key, cnt);
+    if (cnt > 1) {
+      anomalies.push({ type: 'duplicate_trade', detail: `疑似重复成交: ${t.symbol} ${t.action} ${t.quantity}股@${t.price}（第${cnt}次）`, trade_id: t.id ?? null });
+    }
+  }
+
+  // 3. 关键字段缺失
+  for (const t of dayTrades) {
+    const missing = ['symbol', 'action', 'price', 'quantity'].filter(f => t[f] === undefined || t[f] === null);
+    if (missing.length > 0) {
+      anomalies.push({ type: 'missing_fields', detail: `成交记录缺字段 ${missing.join('/')}: id=${t.id ?? '?'}` , trade_id: t.id ?? null });
+    }
+    if (!(Number(t.price) > 0) || !(Number(t.quantity) > 0)) {
+      anomalies.push({ type: 'invalid_value', detail: `成交价格/数量非法: ${t.symbol} @${t.price} x${t.quantity}`, trade_id: t.id ?? null });
+    }
+  }
+
+  // 4. 持仓勾稽（全量历史：逐标的 买入-卖出 = 当前持仓）
+  const positions: any[] = await qv2.getPositions(accountName).catch(() => [] as any[]);
+  const posMap = new Map<string, number>();
+  for (const p of positions) {
+    const sym = String(p.symbol ?? '').replace(/\.\w+$/, '');
+    posMap.set(sym, Number(p.quantity ?? p.shares ?? 0));
+  }
+  const netMap = new Map<string, number>();
+  for (const t of allTrades) {
+    const sym = String(t.symbol ?? '').replace(/\.\w+$/, '');
+    const q = Number(t.quantity ?? 0);
+    const dir = String(t.action).toLowerCase() === 'buy' ? q : -q;
+    netMap.set(sym, (netMap.get(sym) ?? 0) + dir);
+  }
+  for (const [sym, net] of netMap) {
+    const held = posMap.get(sym) ?? 0;
+    if (held !== net && Math.abs(held - net) >= 100) {
+      anomalies.push({ type: 'position_mismatch', detail: `持仓勾稽不符 ${sym}: 账面 ${held} vs 成交净额 ${net}`, symbol: sym });
+    }
+  }
+
+  return {
+    date: targetDate,
+    total_orders: dayTrades.length,
+    matched: dayTrades.length - anomalies.filter(a => a.type === 'duplicate_trade' || a.type === 'missing_fields' || a.type === 'invalid_value').length,
+    mismatched: anomalies.length,
+    anomalies,
+    note: '本地对账（后端 trade-verify 路由 404 丢失后的替代实现，2026-08-23）',
+  } as any;
 }
