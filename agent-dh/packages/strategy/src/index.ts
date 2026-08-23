@@ -378,7 +378,7 @@ export default class StrategyPlugin extends Service {
             if (JSON.stringify(forward) !== JSON.stringify(p.forward || {})) {
               const newPayload = { ...p, forward, last_updated: today };
               // supersede 原记录（历史只增不改，新版本带最新 forward）
-              await qv2.createMemory({
+              const created = await qv2.createMemory({
                 kind: 'episode',
                 scope: 'signal:tracking',
                 title: it.title,
@@ -389,9 +389,14 @@ export default class StrategyPlugin extends Service {
                 source: 'signal_track',
                 provenance: { channel: 'dsh', session_kind: 'agent' },
               });
-              try {
-                await (qv2 as any).client.post(`/api/memory/${it.id}/supersede`, { reason: 'signal_track 回填前瞻收益' });
-              } catch { /* supersede 失败不阻塞 */ }
+              // 2026-08-23 验收修复：supersede 路由要求 new_id（旧记录标 deprecated），
+              // 原实现只传 reason 导致 400 静默失败、新旧双活重复计数
+              const newId = created?.id;
+              if (newId) {
+                try {
+                  await (qv2 as any).client.post(`/api/memory/${it.id}/supersede`, { new_id: newId });
+                } catch { /* supersede 失败不阻塞 */ }
+              }
               updated.push({ id: it.id, symbol: p.symbol, forward });
             }
           }
