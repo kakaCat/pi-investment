@@ -503,6 +503,8 @@ export class QuantsysV2Client {
     order_id?: string;
     symbol?: string;
     direction?: string;
+    page?: number;
+    pageSize?: number;
   }): Promise<TradeHistoryResponse> {
     const response = await this.client.get('/api/trades/list', { params });
     return this.unwrap<TradeHistoryResponse>(response.data, 'getTradeHistory');
