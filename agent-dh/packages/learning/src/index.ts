@@ -910,6 +910,167 @@ export default class LearningPlugin extends Service {
         } as any;
       },
     } as any));
+
+    // M6: 周报自动生成（RFC 004 学习飞轮，2026-08-23）
+    ctx.tools.register(defineTool({
+      name: 'weekly_report',
+      description: '生成投资周报：本周成交与盈亏、胜率、regime 序列、主线回顾、基因组进化事件、信号追踪胜率、观察期候选裁决、风险指标。落库 scope=report:weekly 并飞书推送。供：每周复盘（验收要求连续 4 周无中断）、向用户透明汇报进化与表现。',
+      parameters: {
+        days: { type: 'number', description: '统计窗口（天），默认 7', default: 7 },
+        push_feishu: { type: 'boolean', description: '是否飞书推送（默认 true）', default: true },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            period: { type: 'object', additionalProperties: true },
+            report_markdown: { type: 'string' },
+            metrics: { type: 'object', additionalProperties: true },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: value.report_markdown }],
+      },
+      timeoutMs: 120000,
+      execute: async (args: any) => {
+        const days = args.days ?? 7;
+        const pushFeishu = args.push_feishu !== false;
+        const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
+        const since = new Date(Date.now() - days * 86400000);
+        const sinceStr = since.toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
+
+        // 1. 本周成交
+        let trades: any[] = [];
+        try {
+          const th: any = await this.qv2.getTradeHistory({ account_name: 'agent_virtual' });
+          trades = (th?.orders || []).filter((t: any) => String(t.tradeDate ?? t.trade_date ?? '') >= sinceStr);
+        } catch { /* 成交查询失败不阻塞 */ }
+        const sells = trades.filter((t: any) => String(t.action).toLowerCase() === 'sell' && t.pnl != null);
+        const wins = sells.filter((t: any) => Number(t.pnl) > 0);
+        const totalPnl = sells.reduce((s, t) => s + Number(t.pnl ?? 0), 0);
+
+        // 2. 组合与风险
+        let summary: any = {}, metrics: any = {};
+        try { summary = await this.qv2.getPortfolioSummary('agent_virtual'); } catch { /* skip */ }
+        try { metrics = await this.qv2.getRiskMetrics({ account_name: 'agent_virtual', days: 60 }); } catch { /* skip */ }
+
+        // 3. regime 与主线序列（本周落库记录）
+        const regimeRes = await this.qv2.searchMemory({ q: 'regime', scope: 'market:regime', limit: 20 }).catch(() => null);
+        const regimes = (regimeRes?.items || [])
+          .filter((it: any) => it.status !== 'deprecated' && it.payload?.date >= sinceStr)
+          .map((it: any) => `${it.payload.date}:${it.payload.regime}`);
+
+        const mainlineRes = await this.qv2.searchMemory({ q: 'mainline', scope: 'market:mainline', limit: 20 }).catch(() => null);
+        const mainlines = (mainlineRes?.items || [])
+          .filter((it: any) => it.status !== 'deprecated' && it.payload?.date >= sinceStr && it.payload?.mainlines)
+          .map((it: any) => `${it.payload.date}: ${it.payload.mainlines.map((m: any) => m.sector).join('/')}`);
+
+        // 4. 基因组进化事件（genome.json history 本周条目）
+        let genomeEvents: any[] = [];
+        let genomeVersion = 'unknown';
+        try {
+          // @ts-ignore - genome 插件运行时字段
+          const genomeDir = this.ctx.genome?.genomeDir;
+          genomeVersion = this.ctx.genome?.genomeData?.genome_version ?? 'unknown';
+          if (genomeDir) {
+            const fs = await import('fs');
+            const path = await import('path');
+            const gj = JSON.parse(fs.readFileSync(path.join(genomeDir, 'genome.json'), 'utf-8'));
+            genomeEvents = (gj.history || []).filter((h: any) => String(h.ts ?? '') >= since.toISOString());
+          }
+        } catch { /* skip */ }
+
+        // 5. 信号追踪统计
+        let signalStats: any = null;
+        try {
+          const sigRes = await this.qv2.searchMemory({ q: 'signal', scope: 'signal:tracking', limit: 100 });
+          const sigs = (sigRes?.items || []).filter((it: any) => it.status !== 'deprecated' && it.payload?.signal_date);
+          const evaluated = sigs.filter((it: any) => it.payload?.forward?.d5 !== undefined);
+          const wins5 = evaluated.filter((it: any) => it.payload.forward.d5 > 0);
+          signalStats = {
+            total: sigs.length,
+            evaluated_5d: evaluated.length,
+            win_rate_5d: evaluated.length > 0 ? +(wins5.length / evaluated.length).toFixed(3) : null,
+          };
+        } catch { /* skip */ }
+
+        // 6. 观察期候选
+        let candidates: any[] = [];
+        try {
+          // @ts-ignore
+          const genomeDir = this.ctx.genome?.genomeDir;
+          if (genomeDir) {
+            const fs = await import('fs');
+            const path = await import('path');
+            const cp = path.join(genomeDir, 'candidates.json');
+            if (fs.existsSync(cp)) candidates = JSON.parse(fs.readFileSync(cp, 'utf-8'));
+          }
+        } catch { /* skip */ }
+
+        // 7. 组装报告
+        const lines: string[] = [];
+        lines.push(`# 投资周报 ${sinceStr} ~ ${today}`);
+        lines.push('');
+        lines.push(`## 组合`);
+        lines.push(`- 总资产: ¥${Number(summary?.totalValue ?? 0).toLocaleString()} ｜ 权益仓位: ${summary?.totalValue > 0 ? (Number(summary?.totalMarketValue ?? 0) / Number(summary?.totalValue) * 100).toFixed(1) : '?'}%`);
+        lines.push(`- 60日最大回撤: ${((Number(metrics?.maxDrawdown ?? 0)) * 100).toFixed(2)}% ｜ 夏普: ${Number(metrics?.sharpeRatio ?? 0).toFixed(2)}`);
+        lines.push('');
+        lines.push(`## 本周交易（${trades.length} 笔）`);
+        lines.push(`- 卖出平仓 ${sells.length} 笔，盈利 ${wins.length} 笔，胜率 ${sells.length > 0 ? (wins.length / sells.length * 100).toFixed(1) : '—'}%，已实现盈亏 ¥${totalPnl.toFixed(2)}`);
+        lines.push('');
+        lines.push(`## 市场回顾`);
+        lines.push(`- regime 序列: ${regimes.join(' → ') || '无记录'}`);
+        lines.push(`- 主线: ${mainlines.join(' ｜ ') || '无记录'}`);
+        lines.push('');
+        lines.push(`## 基因组进化（当前 ${genomeVersion}）`);
+        if (genomeEvents.length > 0) {
+          for (const e of genomeEvents) lines.push(`- ${String(e.ts).slice(0, 10)} [${e.type}] ${e.section} v${e.section_version}: ${e.reason}`);
+        } else {
+          lines.push('- 本周无进化事件');
+        }
+        lines.push('');
+        lines.push(`## 信号追踪`);
+        lines.push(`- 累计信号 ${signalStats?.total ?? 0}，已评估(5日) ${signalStats?.evaluated_5d ?? 0}，5日胜率 ${signalStats?.win_rate_5d ?? '—'}`);
+        lines.push(`- 观察期候选: ${candidates.filter(c => c.status === 'watching').length} 个观察中，${candidates.filter(c => c.status === 'promoted').length} 个已转正，${candidates.filter(c => c.status === 'rejected').length} 个已回滚`);
+        lines.push('');
+        lines.push(`*—— 自动生成 by weekly_report（PI 投资顾问·投资脑 w-a8a89c6a）*`);
+
+        const reportMarkdown = lines.join('\n');
+
+        // 8. 落库 + 飞书
+        await this.qv2.createMemory({
+          kind: 'episode',
+          scope: 'report:weekly',
+          title: `投资周报 ${sinceStr}~${today}`,
+          content: reportMarkdown,
+          payload: { period: { from: sinceStr, to: today }, genome_version: genomeVersion },
+          status: 'testing',
+          confidence: 0.7,
+          source: 'weekly_report',
+          provenance: { channel: 'dsh', session_kind: 'agent' },
+        });
+
+        if (pushFeishu) {
+          try {
+            await (this.ctx.tools as any).execute({
+              name: 'feishu_notify',
+              arguments: { title: `【投资周报】${sinceStr} ~ ${today}`, content: reportMarkdown, urgency: 'low' },
+              signal: new AbortController().signal,
+            });
+          } catch { /* 推送失败不阻塞 */ }
+        }
+
+        return {
+          period: { from: sinceStr, to: today },
+          report_markdown: reportMarkdown,
+          metrics: {
+            trades: trades.length, sells: sells.length, wins: wins.length, total_pnl: +totalPnl.toFixed(2),
+            genome_version: genomeVersion, genome_events: genomeEvents.length,
+            signal_stats: signalStats,
+          },
+        } as any;
+      },
+    } as any));
   }
 
   // ===== 辅助方法 =====
