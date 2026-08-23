@@ -8,7 +8,7 @@ from typing import Optional, Dict, List
 from datetime import datetime, timedelta
 import structlog
 
-from domain.quantlib.core.validators import validate_symbol, validate_positive
+from infrastructure.quantlib.core.validators import validate_symbol, validate_positive
 from application.services.data_service import DataService
 
 logger = structlog.get_logger(__name__)
@@ -813,7 +813,7 @@ def create_bracket_order(
     Raises:
         ValueError: If parameters are invalid
     """
-    from domain.quantlib.core.validators import validate_symbol, validate_positive
+    from infrastructure.quantlib.core.validators import validate_symbol, validate_positive
 
     validate_symbol(symbol)
     validate_positive(quantity, "quantity")

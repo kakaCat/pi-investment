@@ -16,8 +16,8 @@ except ImportError:
 from typing import Dict, Any, List
 
 from domain.quantlib.factors.base import TechnicalFactorCalculator
-from domain.quantlib.core.base_calculator import validate_inputs, timing_decorator
-from domain.quantlib.core.exceptions import InsufficientDataError
+from infrastructure.quantlib.core.base_calculator import validate_inputs, timing_decorator
+from infrastructure.quantlib.core.exceptions import InsufficientDataError
 
 
 class VolatilityFactors(TechnicalFactorCalculator):

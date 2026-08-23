@@ -12,8 +12,8 @@ from functools import lru_cache
 import hashlib
 import json
 
-from domain.quantlib.core.pipeline import PipelineStage
-from domain.quantlib.adapters import get_factor_adapter
+from infrastructure.quantlib.core.pipeline import PipelineStage
+from infrastructure.quantlib.adapters import get_factor_adapter
 import logging
 
 logger = logging.getLogger(__name__)

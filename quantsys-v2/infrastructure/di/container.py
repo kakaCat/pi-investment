@@ -24,7 +24,7 @@ from application.services.sector_rotation_service import SectorRotationService
 from application.services.pool_validation_service import PoolValidationService
 from application.services.stock_scoring_service import StockScoringService
 from adapters.outbound.repositories import StockPoolORMRepository, StrategyORMRepository
-from domain.quantlib.adapters import get_factor_adapter
+from infrastructure.quantlib.adapters import get_factor_adapter
 
 
 class Container(containers.DeclarativeContainer):

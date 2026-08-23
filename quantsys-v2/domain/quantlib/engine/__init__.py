@@ -20,7 +20,7 @@ Strategy Engine
 - PairsCorrelationStrategy: 配对交易策略（统计套利）
 
 因子系统:
-    from domain.quantlib.adapters import get_factor_adapter
+    from infrastructure.quantlib.adapters import get_factor_adapter
     adapter = get_factor_adapter()
     value = adapter.calculate("ma5", klines)
 

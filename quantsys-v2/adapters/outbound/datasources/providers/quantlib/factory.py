@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import Optional
 
 from .base_adapter import BaseMarketAdapter
-from infrastructure.config import get_config
+# from infrastructure.config import get_config  # TODO: 配置系统重构
 
 # Registry of known adapter names → import path
 _REGISTRY: dict[str, str] = {
@@ -39,8 +39,8 @@ def get_adapter(name: Optional[str] = None) -> BaseMarketAdapter:
         ImportError: if the adapter class cannot be imported.
     """
     if name is None:
-        config = get_config()
-        resolved = config.app.quant_market_adapter
+        # TODO: 配置系统重构后从配置读取
+        resolved = "akshare"  # 默认使用 akshare
     else:
         resolved = name
 

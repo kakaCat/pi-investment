@@ -1,7 +1,7 @@
 """Mixin providing factor calculation via FactorCalculatorAdapter."""
 from __future__ import annotations
 
-from domain.quantlib.adapters import get_factor_adapter
+from infrastructure.quantlib.adapters import get_factor_adapter
 
 
 class FactorMixin:

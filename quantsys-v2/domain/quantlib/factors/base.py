@@ -11,8 +11,8 @@ from __future__ import annotations
 from typing import Optional, Union
 import numpy as np
 
-from domain.quantlib.core.base_calculator import BaseCalculator
-from domain.quantlib.core.exceptions import DataValidationError, InsufficientDataError
+from infrastructure.quantlib.core.base_calculator import BaseCalculator
+from infrastructure.quantlib.core.exceptions import DataValidationError, InsufficientDataError
 
 
 class TechnicalFactorCalculator(BaseCalculator):

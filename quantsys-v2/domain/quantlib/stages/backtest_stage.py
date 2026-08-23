@@ -11,7 +11,7 @@ from dataclasses import dataclass, field, asdict
 import numpy as np
 import pandas as pd
 
-from domain.quantlib.core.pipeline import PipelineStage
+from infrastructure.quantlib.core.pipeline import PipelineStage
 
 logger = logging.getLogger(__name__)
 

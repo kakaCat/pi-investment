@@ -9,7 +9,7 @@ import re
 import requests
 from datetime import datetime
 from typing import Any
-from domain.quantlib.adapters.base_adapter import BaseMarketAdapter
+from infrastructure.quantlib.adapters.base_adapter import BaseMarketAdapter
 
 
 class SinaAdapter(BaseMarketAdapter):

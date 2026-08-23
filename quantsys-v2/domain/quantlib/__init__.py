@@ -69,7 +69,7 @@ from .risk import (
 # ml/rl/finrl/qlib 会拉起 torch / mlflow(→polars) / transformers 等重依赖，
 # 它们各自携带 OpenMP 运行时；与 lightgbm/xgboost 的 Homebrew libomp 混载后
 # OpenMP worker 线程在 fit 时段错误（__kmp_suspend_initialize_thread）。
-# 此前 `from domain.quantlib.adapters import get_factor_adapter` 这种纯因子计算
+# 此前 `from infrastructure.quantlib.adapters import get_factor_adapter` 这种纯因子计算
 # 调用也会被动加载整套 ML/RL 栈。改为 __getattr__ 按需加载后：
 #   - 对外契约不变（from domain.quantlib import X 照常工作）
 #   - 只做因子/风险计算的进程不再引入 torch/polars/mlflow

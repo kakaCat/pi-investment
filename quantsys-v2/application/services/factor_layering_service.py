@@ -269,7 +269,7 @@ class FactorLayeringService:
             start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
 
         # 获取因子适配器
-        from domain.quantlib.adapters import get_factor_adapter
+        from infrastructure.quantlib.adapters import get_factor_adapter
         adapter = get_factor_adapter()
 
         factor_values = {}

@@ -26,7 +26,7 @@ from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategy
 from domain.quantlib.engine.script_strategy_executor import ScriptStrategyExecutor
 from domain.quantlib.engine.code_validator import CodeValidator
 from domain.quantlib.engine.param_parser import ParamParser
-from domain.quantlib.core.config import CHART_KLINE_LIMIT, CHART_KLINE_MAX_LIMIT
+from infrastructure.quantlib.core.config import CHART_KLINE_LIMIT, CHART_KLINE_MAX_LIMIT
 from domain.quantlib.risk.attribution import RiskAttributionCalculator
 
 # 🆕 导入因子计算器（11个类，132个因子）

@@ -12,7 +12,7 @@ from typing import Dict, Optional
 import logging
 
 from domain.ports import IPortfolioRepository, IKlineRepository, IRiskRepository
-from infrastructure.config import get_config
+# from infrastructure.config import get_config  # TODO: 重构配置系统
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +41,8 @@ class PortfolioCalculator:
                 具体仓储(六边形架构依赖方向),请由 Application/CLI 层注入。
         """
         if initial_cash is None:
-            config = get_config()
-            initial_cash = config.app.initial_cash
+            # TODO: 重构配置系统后从配置读取
+            initial_cash = 1000000.0  # 默认 100 万初始资金
 
         self.initial_cash = initial_cash
 

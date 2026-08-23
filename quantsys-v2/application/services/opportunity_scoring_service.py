@@ -11,7 +11,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
-from domain.quantlib.adapters import get_factor_adapter
+from infrastructure.quantlib.adapters import get_factor_adapter
 from application.services.scoring.technical_scorer import TechnicalScorer
 from application.services.scoring.fundamental_scorer import FundamentalScorer
 from application.services.scoring.capital_scorer import CapitalScorer
