@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 
-from domain.quantlib.factor_models import (
+from domain.factors.models import (
     FamaFrench3FactorCalculator,
     FamaFrench5FactorCalculator,
     FamaFrenchFactorBuilder,

@@ -10,25 +10,25 @@ import pandas as pd
 from typing import Dict, List
 
 # 导入因子计算器（6个核心类）
-from domain.quantlib.factors.momentum import MomentumFactors
-from domain.quantlib.factors.trend import TrendFactors
-from domain.quantlib.factors.volatility import VolatilityFactors
-from domain.quantlib.factors.volume import VolumeFactors
-from domain.quantlib.factors.moving_average import MovingAverageFactors
-from domain.quantlib.factors.reversal import ReversalFactors
+from domain.factors.library.momentum import MomentumFactors
+from domain.factors.library.trend import TrendFactors
+from domain.factors.library.volatility import VolatilityFactors
+from domain.factors.library.volume import VolumeFactors
+from domain.factors.library.moving_average import MovingAverageFactors
+from domain.factors.library.reversal import ReversalFactors
 
 # 导入需要 TA-Lib 的因子（可选）
 try:
-    from domain.quantlib.factors.advanced import AdvancedFactors
-    from domain.quantlib.factors.cycle import CycleFactors
-    from domain.quantlib.factors.pattern_recognition import PatternRecognitionFactors
+    from domain.factors.library.advanced import AdvancedFactors
+    from domain.factors.library.cycle import CycleFactors
+    from domain.factors.library.pattern_recognition import PatternRecognitionFactors
     TALIB_AVAILABLE = True
 except ImportError:
     TALIB_AVAILABLE = False
 
 # 导入其他因子
 try:
-    from domain.quantlib.factors.other import OtherFactors
+    from domain.factors.library.other import OtherFactors
     OTHER_FACTORS_AVAILABLE = True
 except ImportError:
     OTHER_FACTORS_AVAILABLE = False

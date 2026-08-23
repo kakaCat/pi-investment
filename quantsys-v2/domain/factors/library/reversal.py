@@ -12,7 +12,7 @@ References:
 import numpy as np
 from typing import Dict, Any, List
 
-from domain.quantlib.factors.base import TechnicalFactorCalculator
+from domain.factors.library.base import TechnicalFactorCalculator
 from infrastructure.quantlib.core.base_calculator import validate_inputs, timing_decorator
 
 

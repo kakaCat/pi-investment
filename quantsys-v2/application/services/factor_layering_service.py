@@ -12,8 +12,8 @@ from typing import List, Dict, Any, Optional
 import structlog
 from datetime import datetime, timedelta
 
-from domain.quantlib.factor_analysis.layering_backtest import FactorLayeringBacktest
-from domain.quantlib.factor_analysis.ic_analyzer import ICAnalyzer
+from domain.factors.analysis.layering_backtest import FactorLayeringBacktest
+from domain.factors.analysis.ic_analyzer import ICAnalyzer
 from domain.backtest.stages.factor_stage import FactorStage
 from application.services.stock_pool_service import StockPoolService
 

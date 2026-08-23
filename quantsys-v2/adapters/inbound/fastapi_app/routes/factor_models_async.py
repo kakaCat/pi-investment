@@ -16,7 +16,7 @@ from fastapi import APIRouter, Body
 import structlog
 
 from adapters.inbound.fastapi_app.shared import ds, api_response, handle_api_error
-from domain.quantlib.factor_models import (
+from domain.factors.models import (
     FamaFrench3FactorCalculator,
     FamaFrench5FactorCalculator,
     CarhartFourFactorCalculator,
