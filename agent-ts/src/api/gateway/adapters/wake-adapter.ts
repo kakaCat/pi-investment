@@ -53,10 +53,6 @@ export class WakeAdapter implements ChannelAdapter {
    * 注册路由到 Express app
    */
   private registerRoutes(app: Express, handlers: GatewayHandlers): void {
-  /**
-   * 注册路由到 Express app
-   */
-  private registerRoutes(app: Express, handlers: GatewayHandlers): void {
     // token 鉴权中间件（仅对 /wake 路径生效，/wake/health 公开）
     const authMiddleware = (req: any, res: any, next: any) => {
       if (!req.path.startsWith('/wake')) return next();
@@ -109,7 +105,6 @@ export class WakeAdapter implements ChannelAdapter {
       this.server = null;
     }
   }
-}
 }
 
 /** 日志用的事件来源标签：优先调度任务名/ID，watch 类事件回退到规则 ID */
