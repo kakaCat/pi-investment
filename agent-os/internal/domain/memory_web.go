@@ -8,14 +8,15 @@ import (
 
 // MemoryWeb Web API 记忆视图
 type MemoryWeb struct {
-	ID        uuid.UUID `json:"id" db:"id"`
-	Title     string    `json:"title" db:"title"`
-	Content   string    `json:"content" db:"content"`
-	Category  string    `json:"category" db:"category"`
-	Tags      []string  `json:"tags" db:"tags"`
-	AgentID   *string   `json:"agent_id,omitempty" db:"agent_id"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID        uuid.UUID              `json:"id" db:"id"`
+	Title     string                 `json:"title" db:"title"`
+	Content   string                 `json:"content" db:"content"`
+	Category  string                 `json:"category" db:"category"`
+	Tags      []string               `json:"tags" db:"tags"`
+	AgentID   *string                `json:"agent_id,omitempty" db:"agent_id"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty" db:"metadata"` // RFC 009: 添加 metadata 字段
+	CreatedAt time.Time              `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time              `json:"updated_at" db:"updated_at"`
 }
 
 // Tag 标签

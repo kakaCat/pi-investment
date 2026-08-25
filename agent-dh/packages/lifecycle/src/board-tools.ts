@@ -49,29 +49,23 @@ export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
       note: {
         type: 'string',
         description: '操作说明。complete/drop 必填，记录关闭原因；blocked 建议填写卡因',
-        required: false,
       },
       title: {
         type: 'string',
         description: 'edit 时的新标题（可选）',
-        required: false,
       },
       content: {
         type: 'string',
         description: 'edit 时的新内容（可选）',
-        required: false,
       },
       expected_revision: {
         type: 'number',
         description: '乐观锁：期望的 revision 版本号，防止并发冲突',
-        required: false,
       },
       notify: {
         type: 'array',
         description: '完成后通知的窗口列表（如 ["w-xxx"]）',
-        items: { type: 'string', additionalProperties: true },
-        required: false,
-        additionalProperties: true,
+        items: { type: 'string' },
       },
     },
     output: {
@@ -83,7 +77,7 @@ export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
           revision: { type: 'number', description: '新 revision' },
           message: { type: 'string', description: '结果消息' },
         },
-        additionalProperties: true,
+        additionalProperties: false,
       },
       render: (_args: any, value: any) => [
         { type: 'text', text: JSON.stringify(value, null, 2) },
@@ -245,22 +239,18 @@ export function registerBoardRead(ctx: Context, memoryClient: MemoryClient) {
       kind: {
         type: 'string',
         description: '帖子类型过滤（finding/question/review/proposal），不传则全部',
-        required: false,
       },
       status: {
         type: 'string',
         description: 'active=活跃（open/claimed/blocked），done=已完成，dropped=已删除，all=全部',
-        required: false,
       },
       assignee: {
         type: 'string',
         description: '按认领人过滤（窗口编码如 w-xxx）',
-        required: false,
       },
       limit: {
         type: 'number',
         description: '返回数量限制，默认 20',
-        required: false,
       },
     },
     output: {
@@ -270,11 +260,10 @@ export function registerBoardRead(ctx: Context, memoryClient: MemoryClient) {
           posts: {
             type: 'array',
             items: { type: 'object', additionalProperties: true },
-            additionalProperties: true,
           },
           total: { type: 'number', description: '总数' },
         },
-        additionalProperties: true,
+        additionalProperties: false,
       },
       render: (_args: any, value: any) => [
         { type: 'text', text: JSON.stringify(value, null, 2) },
@@ -372,7 +361,6 @@ export function registerBoardPost(ctx: Context, memoryClient: MemoryClient) {
       needs_action: {
         type: 'boolean',
         description: 'true=进悬赏池（open），false=纯记录（done）',
-        required: false,
       },
     },
     output: {
@@ -383,7 +371,7 @@ export function registerBoardPost(ctx: Context, memoryClient: MemoryClient) {
           post_id: { type: 'string', description: '帖子 ID' },
           status: { type: 'string', description: '初始状态' },
         },
-        additionalProperties: true,
+        additionalProperties: false,
       },
       render: (_args: any, value: any) => [
         { type: 'text', text: JSON.stringify(value, null, 2) },

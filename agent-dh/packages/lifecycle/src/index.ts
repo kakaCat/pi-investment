@@ -1107,64 +1107,7 @@ export default class LifecyclePlugin extends Service {
       },
     } as any));
 
-    // board_post - 公告板发帖
-    ctx.tools.register(defineTool({
-      name: 'board_post',
-      description: '在办公室公告板发帖：发现、疑问、复盘结论、协作倡议，全员可读。交流产生的"传闻"要变成"基因"仍需过验证门——公告板是讨论区不是真理区。',
-      parameters: {
-        title: { type: 'string', description: '标题（一句话）', required: true },
-        content: { type: 'string', description: '内容', required: true },
-        kind: { type: 'string', description: '类型：finding 发现 / question 疑问 / review 复盘 / proposal 倡议', enum: ['finding', 'question', 'review', 'proposal'], default: 'finding' },
-      },
-      output: {
-        schema: { type: 'object', properties: { posted: { type: 'boolean' } }, additionalProperties: true },
-        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
-      },
-      timeoutMs: 15000,
-      execute: async (args: any, exec?: any) => {
-        const fromWindow = this.windowCode(String(exec?.agent?.id ?? 'unknown'));
-        await this.osWrite('memory_write', {
-          title: `[${args.kind ?? 'finding'}] ${args.title}`,
-          content: JSON.stringify({
-            marker: 'office-board-post',  // 检索锚点（OS 搜索按 title/content 文本匹配，tag 只做过滤——E2E 实测）
-            kind: args.kind ?? 'finding',
-            title: args.title,
-            content: args.content,
-            from: fromWindow,
-            ts: new Date().toISOString(),
-          }),
-          namespace: 'data',
-          tags: ['office:board', `kind:${args.kind ?? 'finding'}`],
-        });
-        return { posted: true } as any;
-      },
-    } as any));
-
-    // board_read - 读公告板
-    ctx.tools.register(defineTool({
-      name: 'board_read',
-      description: '读办公室公告板：最新帖子在前。适用于：空闲/例会时了解其他窗口的发现与疑问、找协作机会。',
-      parameters: {
-        limit: { type: 'number', description: '返回条数，默认 10', default: 10 },
-        kind: { type: 'string', description: '按类型过滤：finding/question/review/proposal' },
-      },
-      output: {
-        schema: { type: 'object', properties: { posts: { type: 'array', items: { type: 'object', additionalProperties: true } }, total: { type: 'number' } }, additionalProperties: true },
-        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
-      },
-      timeoutMs: 15000,
-      execute: async (args: any) => {
-        const tag = args.kind ? `kind:${args.kind}` : 'office:board';
-        // OS 搜索按 title/content 文本匹配（tag 只是过滤）：用内容里的锚点词作 query
-        const res: any = await this.aos.memory.search({ query: args.kind ?? 'office-board-post', tag, top_k: args.limit ?? 10 });
-        const items: any[] = res?.memories || res?.items || [];
-        const posts = items.map((it: any) => {
-          try { return { ...(typeof it.content === 'string' ? JSON.parse(it.content) : it.content), id: it.id }; }
-          catch { return { title: it.title, id: it.id }; }
-        });
-        return { posts, total: posts.length } as any;
-      },
-    } as any));
+    // RFC 009: 公告板工具已迁移到 board-tools.ts
 
     // inbox_check - 查自己的信箱
     ctx.tools.register(defineTool({
