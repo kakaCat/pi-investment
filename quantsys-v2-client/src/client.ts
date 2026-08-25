@@ -198,10 +198,17 @@ export class QuantsysV2Client {
    * Backtest strategy
    */
   async backtestStrategy(request: BacktestRequest): Promise<BacktestResult> {
-    const response = await this.client.post(
-      '/api/indicators/backtest',
-      request
-    );
+    // 2026-08-25 审计修复：/api/indicators/backtest 是指标回测端点（要 indicator_id，400），
+    // 策略回测正确端点是 /api/backtest/run（strategy_id + 单 symbol）
+    const body: Record<string, any> = {
+      strategy_id: request.strategy_id,
+      symbol: request.symbol || request.symbols?.[0],
+      start_date: request.start_date,
+      end_date: request.end_date,
+      initial_capital: request.initial_capital ?? 100000,
+    };
+    if (request.parameters) body.parameters = request.parameters;
+    const response = await this.client.post('/api/backtest/run', body);
     return this.unwrap(response.data, 'backtestStrategy');
   }
 
