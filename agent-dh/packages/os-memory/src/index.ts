@@ -29,6 +29,8 @@ export interface OsMemoryEntry {
 export interface OsMemorySearchResult {
   items: any[];
   total: number;
+  degraded: boolean;
+  strategy: string;
 }
 
 const KIND_TO_CATEGORY: Record<string, string> = {
@@ -130,6 +132,6 @@ export class OsMemoryStore {
       if (items.length >= limit) break;
     }
 
-    return { items, total: items.length };
+    return { items, total: items.length, degraded: false, strategy: 'os-text' };
   }
 }
