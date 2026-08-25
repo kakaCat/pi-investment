@@ -40,9 +40,20 @@ class DataBackfiller:
         self.data_source_manager = data_source_manager or get_data_provider_manager()
 
     def _is_index_symbol(self, symbol: str) -> bool:
-        """判断是否为指数代码"""
-        # 指数代码特征：000001(上证)/000300(沪深300)/399001(深证成指)/399300(沪深300)
-        return symbol.startswith('000') or symbol.startswith('399')
+        """判断是否为指数代码（使用白名单，避免与股票代码混淆）"""
+        # 常见指数白名单（000001既是上证指数也是平安银行，需显式区分）
+        index_whitelist = {
+            '000001',  # 上证指数
+            '000300',  # 沪深300
+            '399001',  # 深证成指
+            '399300',  # 沪深300(深)
+            '399006',  # 创业板指
+            '399005',  # 中小板指
+            '000016',  # 上证50
+            '000905',  # 中证500
+            '000852',  # 中证1000
+        }
+        return symbol in index_whitelist
 
     def backfill_symbol(
         self,
