@@ -109,19 +109,65 @@ MarketPerceptionService(ds=None)   # ds=None 时用 _KlineOnlyDS
 
 三张表：`quant.market_regime`(trade_date PK, regime, index_trend_score, sentiment_score, volume_ratio, ad_ratio, reason)、`quant.market_sentiment_daily`(trade_date PK, up/down/flat_count, ad_ratio, new_high/low_count, volume_ratio, total_turnover, volatility, fear_greed_index, coverage, partial)、`quant.market_theme`(id PK, trade_date+rank UNIQUE, theme, sector, limit_up_count, stocks jsonb, fund_flow, catalyst, confidence)。完整 SQL 见 RFC 007 §3/§4/§5 的表结构定义，字段一致。
 
-## 6. 剩余工单与验收命令（按序执行）
+## 6. 工单台账与验收命令（2026-08-25 状态更新）
 
-| 序 | 工单 | 验收命令 | 标准 |
-|---|---|---|---|
-| 0 | settings.py 坏合并修复（§1） | §1 的验收脚本 + 后端重启成功 | 干净环境 import 通过；:5001 健康 |
-| 1 | M1 代码重写（§2/§3/§4）+ 路由注册 | `curl -X POST localhost:5001/api/market/perception/snapshot` | 三步 stored=true |
-| 2 | M1-1 验收 | `curl "localhost:5001/api/market/regime?days=5"` | 每日 1 条含 reason |
-| 3 | M1-1c 回填 | `curl -X POST .../backfill-regime -d '{"days":120}'` 后查 COUNT | regime ≥120 条 |
-| 4 | M1-3 验收 | `curl ".../sentiment-history?days=5"` | 字段完整，coverage≥4000 或 partial=true |
-| 5 | M1-2a 验收 | `curl -X POST .../detect-themes -d '{"date":"2026-08-18"}'` | 落库 Top3 含农业相关板块 |
-| 6 | M1-2b 催化剂接线：盘后例程（schedule 任务）agent 读聚类结果 → PUT 回写 theme/catalyst | 当日 theme 记录有 catalyst | 命名连续（传入近7日已有 theme 对齐） |
-| 7 | 调度挂载：`POST /api/scheduler/tasks` 创建每日 15:30 `market_daily_snapshot` 任务（调 snapshot 端点），16:30 补跑 | `scheduler_manage list` 可见 | 次日自动落库 |
-| 8 | 合并 main + 更新 RFC 003/005 看板勾选 | — | — |
+| 序 | 工单 | 验收命令 | 标准 | 状态 |
+|---|---|---|---|---|
+| 0 | settings.py 坏合并修复（§1） | §1 的验收脚本 + 后端重启成功 | 干净环境 import 通过；:5001 健康 | ✅ 完成（`2e3c6406`） |
+| 1 | M1 代码重写（§2/§3/§4）+ 路由注册 | `curl -X POST localhost:5001/api/market/perception/snapshot` | 三步 stored=true | ✅ 完成（`90ed2b5c`+`45cf08e9`，16 单测 `4c73294e`） |
+| 2 | M1-1 验收 | `curl "localhost:5001/api/market/regime?days=5"` | 每日 1 条含 reason | ✅ 完成（08-21/24/25 均为 trend_down） |
+| 3 | M1-1c 回填 | `curl -X POST .../backfill-regime -d '{"days":120}'` 后查 COUNT | regime ≥120 条 | ✅ 完成（回填保护 `2ef93bd7`：ON CONFLICT DO NOTHING，不覆盖真实快照） |
+| 4 | M1-3 验收 | `curl ".../sentiment-history?days=5"` | 字段完整，coverage≥4000 或 partial=true | 🟡 部分（仅 08-24/25 两天，coverage 450/2298 仍 partial——随每日调度自动积累） |
+| 5 | M1-2a 验收 | `curl -X POST .../detect-themes -d '{"date":"2026-08-18"}'` | 落库 Top3 含农业相关板块 | ✅ 完成（8 条主线落库） |
+| 6 | M1-2b 催化剂接线：agent 读聚类结果 → PUT 回写 theme/catalyst | 当日 theme 记录有 catalyst | 命名连续（传入近7日已有 theme 对齐） | 🟡 进行中（1/8 已回写，非阻断） |
+| 7 | 调度挂载：**Agent OS scheduler**（见 §6.1） | 见 §6.1 验收 | 次日自动落库 | ✅ 完成（2026-08-25，任务 id `7f617ce3-0306-416f-b226-1b7092e9e69f`） |
+| 8 | 合并 main + 更新 RFC 003/005 看板勾选 | — | — | 🟡 待办 |
+
+### 6.1 调度挂载实现（2026-08-25，走 Agent OS——正确架构）
+
+**架构决策**：调度任务**必须走 Agent OS scheduler**（postgres 持久权威注册表），**不是** quantsys-v2 本地 `scheduler_tasks` 表（那是后端内部数据任务，不驱动 agent）。投递链：
+
+```
+Agent OS scheduler（cron 触发）
+  → 执行 command = scripts/os-remind-bridge.sh <task_name>
+  → bridge 按任务名查 payload（prompt/window），写入 OS memory（tags: office:reminder:<window>）
+  → lifecycle 插件 60s 轮询（memory.search tag=office:reminder:<window>）
+  → agent.followup() 注入 investor 会话
+  → agent 收到 prompt → 调用工具 → 执行 quantsys-v2 snapshot API
+```
+
+**任务定义**（与 `reminder_create` 工具等价的 API 调用，`POST /api/v1/scheduler/tasks`）：
+
+```json
+{
+  "name": "market_perception_daily_snapshot",
+  "owner": "investor",
+  "cron": "0 30 15 * * 1-5",
+  "command": "/Users/yunpeng/pi-investment/agent-dh/scripts/os-remind-bridge.sh market_perception_daily_snapshot",
+  "payload": {
+    "prompt": "【M1 每日快照】执行 market_perception_snapshot：调用 quantsys-v2 POST http://localhost:5001/api/market/perception/snapshot ...",
+    "window": "w-51c8d482"
+  },
+  "enabled": true,
+  "timeout": 60
+}
+```
+
+**要点**：cron 必须是 **6 字段**（秒 分 时 日 月 周），5 字段会报 validation failed；bridge 脚本依赖 `AGENT_OS_URL`（默认 `http://localhost:8080`）——**Agent OS 后端必须保持运行**（`agent-os/bin/agent-os serve`，本次挂载时发现其未运行，已手动拉起）。
+
+**验收**：
+```bash
+# 1. 任务可见
+curl -s localhost:8080/api/v1/scheduler/tasks | python3 -m json.tool | grep -A2 perception
+# 2. 链路测试：手动触发 → bridge 入信箱
+curl -s -X POST localhost:8080/api/v1/scheduler/tasks/7f617ce3-0306-416f-b226-1b7092e9e69f/trigger
+# 3. 信箱落痕
+curl -s "localhost:8080/api/v1/memory?limit=5" | grep reminder
+```
+
+✅ 2026-08-25 已验证 1-3 全部通过（trigger status=success，bridge 输出"已入信箱"，memory 有 reminder 记录）。
+
+**⚠️ 运维依赖**：本任务触发后由 investor agent（w-51c8d482）收到 prompt 执行快照。若 DSH :13080 未运行或 lifecycle 轮询异常，提醒会滞留信箱——建议定期 `reminder_list` 检查任务健康，故障时查 `office:reminder:<window>` 信箱积压。
 
 ## 7. 操作警戒（血泪教训，必须遵守）
 
@@ -136,3 +182,4 @@ MarketPerceptionService(ds=None)   # ds=None 时用 _KlineOnlyDS
 | 日期 | 内容 |
 |---|---|
 | 2026-08-21 | 创建。agent-dh 转入审计+文档角色；此前在 worktree 的实现代码因 worktree 被删丢失，关键模式与坑位完整保留于本文 |
+| 2026-08-25 | 调度挂载完成（工单 7 ✅）：改为 Agent OS scheduler + bridge 投递链正确架构（§6.1），删除此前误插入 quantsys-v2 本地 `scheduler_tasks` 的错误记录；工单 0-5 完成状态已回填台账 |
