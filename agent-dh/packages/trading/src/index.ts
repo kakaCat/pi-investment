@@ -210,6 +210,8 @@ export default class TradingPlugin extends Service {
           quantity: args.quantity,
           price: args.price,
           account_name: args.account_name || 'agent_virtual',
+          // 2026-08-25 后端契约变更：order_type 必填（市价/限价，按是否给价推断）
+          order_type: args.price ? 'limit' : 'market',
         }) as any;
       },
     } as any));
