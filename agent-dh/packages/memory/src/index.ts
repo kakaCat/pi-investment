@@ -19,10 +19,12 @@ export interface Config {
 /**
  * Memory Plugin for Agent-DH
  *
- * Long-term memory storage and retrieval via QuantsysV2 统一记忆服务
- * （/api/memory，W1.2 记忆域；BM25+向量混合检索，ollama 不可达时自动降级）。
+ * Long-term memory storage and retrieval via Agent OS 记忆库
+ * （2026-08-25 起：quantsys-v2 记忆库写入停用，统一迁移 Agent OS /api/v1/memory，
+ *  postgres 持久；经 @pi-investment/os-memory 适配器，title+content 文本检索）。
  *
  * 2026-08-19: 从已废弃的 agent-os 客户端迁移到 quantsys-v2。
+ * 2026-08-25: quantsys-v2 记忆库写入挂起（ollama embedding 超时），迁回 Agent OS。
  */
 export default class MemoryPlugin extends Service {
   static inject = ['tools'];

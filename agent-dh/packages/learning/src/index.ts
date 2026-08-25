@@ -346,8 +346,8 @@ export default class LearningPlugin extends Service {
       ? [...entry.tags, `genome:${entry.genome_context.genome_version}`]
       : entry.tags;
 
-    // 2026-08-20 验收修复：client 没有 writeMemory 方法（原调用必抛 TypeError 且被静默吞掉），
-    // 正确方法是 createMemory（POST /api/memory），字段结构对齐 memory 插件的写法
+    // 2026-08-20 验收修复：client 没有 writeMemory 方法（原调用必抛 TypeError 且被静默吞掉）
+    // 2026-08-25 记忆迁移：quantsys-v2 记忆写入停用，统一走 osMemory（Agent OS）
     await this.osMemory.createMemory({
       kind: 'experience',
       scope: 'global',

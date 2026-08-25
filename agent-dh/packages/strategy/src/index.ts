@@ -373,7 +373,16 @@ export default class StrategyPlugin extends Service {
         if (args.action === 'update') {
           // 找所有追踪中的信号，回填到期的前瞻收益
           const res = await this.osMemory.searchMemory({ q: 'signal', scope: 'signal:tracking', limit: 100 });
-          const items = (res?.items || []).filter((it: any) => it.status !== 'deprecated' && it.payload?.signal_date);
+          // 2026-08-25 记忆迁移审计修复：OS 记忆无 supersede/deprecate 概念，
+          // update 每次回填会写新记录 → 必须按 (symbol+signal_date+source) 去重取最新，防新旧双活重复计数
+          const deduped = new Map<string, any>();
+          for (const it of (res?.items || [])) {
+            if (it.status === 'deprecated' || !it.payload?.signal_date) continue;
+            const key = `${it.payload.symbol}|${it.payload.signal_date}|${it.payload.source ?? ''}`;
+            const prev = deduped.get(key);
+            if (!prev || String(it.created_at ?? '') > String(prev.created_at ?? '')) deduped.set(key, it);
+          }
+          const items = [...deduped.values()];
           const updated: any[] = [];
 
           for (const it of items) {
@@ -396,26 +405,20 @@ export default class StrategyPlugin extends Service {
 
             if (JSON.stringify(forward) !== JSON.stringify(p.forward || {})) {
               const newPayload = { ...p, forward, last_updated: today };
-              // supersede 原记录（历史只增不改，新版本带最新 forward）
-              const created = await this.osMemory.createMemory({
+              // 2026-08-25 审计修复：OS 记忆无 supersede——不再调 quantsys-v2 的 supersede 路由（已停用）。
+              // 防双活靠扫描端去重（见上方 dedupe：同信号键只取最新记录），
+              // 新记录 payload.supersedes 记录被取代 id 供审计追溯。
+              await this.osMemory.createMemory({
                 kind: 'episode',
                 scope: 'signal:tracking',
                 title: it.title,
                 content: `信号：${p.symbol} ${p.grade}级 @${p.price}，来源 ${p.source}。前瞻收益：5日 ${forward.d5 ?? '未满'}% / 10日 ${forward.d10 ?? '未满'}% / 20日 ${forward.d20 ?? '未满'}%。`,
-                payload: newPayload,
+                payload: { ...newPayload, supersedes: it.id },
                 status: 'testing',
                 confidence: 0.6,
                 source: 'signal_track',
                 provenance: { channel: 'dsh', session_kind: 'agent' },
               });
-              // 2026-08-23 验收修复：supersede 路由要求 new_id（旧记录标 deprecated），
-              // 原实现只传 reason 导致 400 静默失败、新旧双活重复计数
-              const newId = created?.id;
-              if (newId) {
-                try {
-                  await (qv2 as any).client.post(`/api/memory/${it.id}/supersede`, { new_id: newId });
-                } catch { /* supersede 失败不阻塞 */ }
-              }
               updated.push({ id: it.id, symbol: p.symbol, forward });
             }
           }
@@ -424,7 +427,15 @@ export default class StrategyPlugin extends Service {
 
         // report：各来源/级别的信号胜率
         const res = await this.osMemory.searchMemory({ q: 'signal', scope: 'signal:tracking', limit: 100 });
-        const items = (res?.items || []).filter((it: any) => it.status !== 'deprecated' && it.payload?.signal_date);
+        // 同 update 的去重逻辑：同信号键只取最新记录，防新旧双活
+        const dedupedR = new Map<string, any>();
+        for (const it of (res?.items || [])) {
+          if (it.status === 'deprecated' || !it.payload?.signal_date) continue;
+          const key = `${it.payload.symbol}|${it.payload.signal_date}|${it.payload.source ?? ''}`;
+          const prev = dedupedR.get(key);
+          if (!prev || String(it.created_at ?? '') > String(prev.created_at ?? '')) dedupedR.set(key, it);
+        }
+        const items = [...dedupedR.values()];
         const groups: Record<string, { total: number; evaluated: number; wins5: number; avg5: number | null; avg10: number | null; avg20: number | null }> = {};
         for (const it of items) {
           const p = it.payload;
