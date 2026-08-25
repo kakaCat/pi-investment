@@ -1175,7 +1175,8 @@ export default class LifecyclePlugin extends Service {
       },
       timeoutMs: 15000,
       execute: async () => {
-        const tasks: any[] = await this.aos.scheduler.listTasks();
+        const raw: any = await this.aos.scheduler.listTasks();
+        const tasks: any[] = Array.isArray(raw) ? raw : (raw?.tasks ?? []);
         const mine = tasks.filter((t: any) => String(t.command ?? '').includes('os-remind-bridge'));
         return {
           tasks: mine.map((t: any) => ({
@@ -1204,7 +1205,8 @@ export default class LifecyclePlugin extends Service {
         if (!id) throw new Error('需要任务 ID 或名称');
         if (!/^[0-9a-f-]{36}$/i.test(id)) {
           // 按名称查 ID
-          const tasks: any[] = await this.aos.scheduler.listTasks();
+          const raw: any = await this.aos.scheduler.listTasks();
+          const tasks: any[] = Array.isArray(raw) ? raw : (raw?.tasks ?? []);
           const hit = tasks.find((t: any) => t.name === id && String(t.command ?? '').includes('os-remind-bridge'));
           if (!hit) return { deleted: false, message: `未找到提醒任务: ${id}` } as any;
           id = String(hit.id);

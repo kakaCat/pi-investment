@@ -7,13 +7,15 @@ set -euo pipefail
 
 TASK_NAME="${1:?usage: os-remind-bridge.sh <task_name>}"
 OS="${AGENT_OS_URL:-http://localhost:8080}"
+export TASK_NAME OS
 
-# 按名称查任务，取 payload.prompt / payload.window
+# 按名称查任务，取 payload.prompt / payload.window（任务名经环境变量传 python，避免插值转义问题）
 TASK_JSON=$(curl -sf "$OS/api/v1/scheduler/tasks" | python3 -c "
-import json, sys
+import json, sys, os
+name = os.environ['TASK_NAME']
 d = json.load(sys.stdin)
 tasks = d.get('tasks') or []
-hit = [t for t in tasks if t.get('name') == ${TASK_NAME@Q}]
+hit = [t for t in tasks if t.get('name') == name]
 if not hit:
     sys.exit(2)
 t = hit[0]
@@ -37,7 +39,7 @@ echo "$TASK_JSON" | python3 -c "
 import json, sys, datetime
 t = json.load(sys.stdin)
 body = {
-    'title': f\"reminder {t['name']}\",
+    'title': 'reminder ' + t['name'],
     'content': json.dumps({
         'prompt': t['prompt'],
         'window': t['window'],
@@ -47,7 +49,7 @@ body = {
         'delivered': False,
     }, ensure_ascii=False),
     'category': 'data',
-    'tags': ['office:reminder', f\"office:reminder:{t['window']}\"],
+    'tags': ['office:reminder', 'office:reminder:' + t['window']],
 }
 print(json.dumps(body, ensure_ascii=False))
 " | curl -sf -X POST "$OS/api/v1/memory" -H 'Content-Type: application/json' -d @- >/dev/null

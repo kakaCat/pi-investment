@@ -23,6 +23,20 @@
 
 后果：错帖/重复帖/已完成工单帖永远挂在板上；工单帖"挂了没人领"与"有人在做"无法区分（M1 复核帖实例）。
 
+## 1A. 真实内容实测（2026-08-25 全部 10 帖分析）
+
+设计定稿前对存量 10 帖逐一归类，5 个真实用法模式直接修正了设计：
+
+| 模式 | 实例 | 占比 | 设计应对 |
+|---|---|---|---|
+| **① 同一事项多帖刷屏** | W1-W3 一个事项 4 帖（完成通报→审查→可合并→已合并，w-73c6edc4） | 4/10 | 协作规范：**一帖一事，进展用 `edit` 原地更新**，不另发新帖；通报帖本来就 done，不占悬赏池 |
+| **② 根因发现帖实为工单** | w-a8a89c6a 三连根因定位（memory 500 / sectors 500 / 卖出持仓源），kind=finding 但全是"建议修法+等人领" | 3/10 | **kind 与是否工单无关** → 发帖加显式 `needs_action` 参数，废除初稿"按 kind 自动判 open"的规则 |
+| **③ 状态不同步** | memory 500 根因帖还挂着，W1-W3 帖已声明"memory 500 已修复核销"——发现者不知已被修 | 实测 | `complete` 闭环 + 完成回访（④） |
+| **④ 完成回访需求** | 补工单帖原文："完成后通知投资脑（w-0012ce03），我将重跑回测矩阵做验收" | 实测 | `complete` 加可选 `notify: [w-xxx]`，自动发 window_message |
+| **⑤ 测试帖/垃圾帖** | "交流层上线测试v2"（w-2c68a436） | 1/10 | `drop` 用例坐实 |
+
+另注：M1 复核帖是"一帖多工单"（4 个问题挤一帖），claim 只能整帖认领、粒度太粗。规范建议**一事一帖**；存量多工单帖由认领人 `edit` 拆分或在 resolution 逐项说明，不为它加机制。
+
 ## 2. 设计原则（goal 模式移植）
 
 goal 系统的精髓：**状态机极简、动作即迁移、无独立开始/恢复按钮**。照搬：
@@ -33,7 +47,8 @@ goal 系统的精髓：**状态机极简、动作即迁移、无独立开始/恢
 4. **无痕不管理**：所有迁移写 `moderation_log[]`（谁/何时/为什么）；closed 类动作 note 必填
 5. **作者优先，管理员兜底**
 6. **读侧默认干净**：board_read 默认只见进行中的帖
-7. **零迁移**：状态存 `metadata.board_status`，存量帖缺省 = `open`（question/proposal）或 `done`（finding/review，纯分享无后续）
+7. **零迁移**：状态存 `metadata.board_status`；存量帖缺省 = `done`（全部 10 帖实测均已无待办或属通报，保守视为 done，由作者按需 `claim` 复活自己的帖）
+8. **工单身份显式声明**（实测修正）：是否进悬赏池由发帖人 `needs_action` 决定，不从 kind 猜——finding 也可以是工单（根因定位三连帖），review 也可以纯通报
 
 ## 3. 状态机（6 状态 6 动作）
 
@@ -65,7 +80,7 @@ goal 系统的精髓：**状态机极简、动作即迁移、无独立开始/恢
 | `claim` | open→claimed；**blocked→claimed（=resume，不独立设动作）** | 可选 | 任何窗口（自助领单） | goal 特有概念（多窗口抢单 vs 单 owner） |
 | `pause` | claimed/blocked→open（放单回池） | **必填**（放单原因） | 认领人/管理员 | `pause` |
 | `blocked` | claimed→blocked | **必填**（卡因） | 认领人/管理员 | `blocked` |
-| `complete` | open/claimed/blocked→done | **必填**（结论） | 作者/认领人/管理员 | `complete` |
+| `complete` | open/claimed/blocked→done | **必填**（结论） | 作者/认领人/管理员 | `complete`。可选 `notify: [w-xxx]`——完成回访（实测模式④：验收人在等结果），自动发 window_message |
 | `drop` | 任意→dropped | **必填**（废弃理由） | 作者/管理员 | goal 无（goal 永不删，公告板需要） |
 
 **砍掉的动作及理由**（对照初稿）：
@@ -138,7 +153,9 @@ async patchMemory(id: string, patch: { content?: string; metadataPatch?: Record<
 - 参数 `assignee=w-xxx`：按认领人过滤
 - 参数 `status=open`：**找活干**（空闲窗口例会领单入口）
 
-**`board_post` 微调**：question/proposal 发帖自动 `status=open`；finding/review 直接 `status=done`（纯分享不进悬赏池）——避免信息帖污染工单队列。
+**`board_post` 微调**（实测修正）：新增参数 `needs_action: bool`（默认 false）——发帖人显式声明"这需要人领工"。true → `status=open` 进悬赏池；false → `status=done` 直接归档为可读记录（通报/分享/测试帖）。kind 保持纯分类标签，不再参与状态判定。
+
+**`board_update` 的 `complete` 动作**：可选参数 `notify: string[]`（窗口编码列表），完成时自动 window_message 通知——承接"完成后通知 w-xxx 验收"的真实协作链。
 
 ## 8. 场景覆盖
 
@@ -156,6 +173,9 @@ async patchMemory(id: string, patch: { content?: string; metadataPatch?: Record<
 | S10 | 无人认领暴露 | open + stale → 例会可见 |
 | S11 | 领了做不完 | `pause(note)` 放单回池 |
 | S12 | 依赖阻塞 | `blocked(note)` → 解除后本人 `claim` 恢复 |
+| S13 | 进展更新（实测①） | `edit` 原地更新同一帖，不发新帖——W1-W3 四帖刷屏的根治 |
+| S14 | 完成后回访验收人（实测④） | `complete(note, notify=[w-0012ce03])` 自动通知 |
+| S15 | 发现的问题已被别人修复（实测③） | 发现者或修复者 `complete(note="已由 commit xxx 核销")` 闭环 |
 
 ## 9. 验收标准
 
@@ -177,6 +197,8 @@ async patchMemory(id: string, patch: { content?: string; metadataPatch?: Record<
 | A14 | 按人查活 | `board_read(assignee=w-xxx)` 只返回其认领帖 |
 | A15 | 非法迁移拒绝 | done 帖再 claim，明确报错 |
 | A16 | 回归 | board_post/board_read 原行为不变 |
+| A17 | 完成回访 | complete(notify=[w-x]) 后 w-x 的 inbox_check 收到通知 |
+| A18 | needs_action 分流 | needs_action=true 帖进 open；false 帖直接 done 不占悬赏池 |
 
 ## 10. 实施工单拆分
 
@@ -202,3 +224,4 @@ async patchMemory(id: string, patch: { content?: string; metadataPatch?: Record<
 | 2026-08-25 | 创建。触发：删帖需求发现无管理能力；侦察确认缺口在 Agent OS HTTP 层 |
 | 2026-08-25 | v2：应反馈补工单流转维度（初稿只有可见性） |
 | 2026-08-25 | v3：**goal 模式重写**——双维合并单 status；9 动作砍到 6（start/unclaim/unblock/restore/resolve 分别折叠进 claim/pause/complete/drop）；in_progress 状态删除（用 stale 替代表达）；写工具收敛为唯一 board_update，对标 update_goal |
+| 2026-08-25 | v4：**真实内容实测修正**——分析全部 10 存量帖得 5 模式：①W1-W3 四帖刷屏→确立"一帖一事+edit 原地更新"规范；②finding 也可是工单→needs_action 显式参数取代 kind 自动判定；③状态不同步（memory 500 已修但帖挂着）→complete 闭环；④"完成后通知 w-xxx"→complete 加 notify 回访；⑤测试帖→drop 用例坐实。验收补 A17/A18 |
