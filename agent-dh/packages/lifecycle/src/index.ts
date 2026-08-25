@@ -86,7 +86,10 @@ export default class LifecyclePlugin extends Service {
 
   // ===== OS 提醒体系（2026-08-25 用户决策：提醒走 OS，不走 dsh session-local）=====
   // 权威注册表 = Agent OS scheduler（postgres 持久，重启/fork 不死）
-  // 触发链路：OS cron 任务 → os-remind-bridge.sh → OS 记忆库信箱 → 本轮询 → followup 投递
+  // 触发链路：OS cron 任务 → os-remind-bridge.sh → OS 记忆库信箱 → 本轮询 → 投递
+  // 用户补充设计（同日）：①提示词持久化（payload+信箱+执行记录三处全文保存）
+  //   ②执行留痕进记忆（每次触发写执行记录，executor/方式/时间可溯）
+  //   ③目标窗口不在线 → 创建新窗口代为执行（不等待上线，任务必须被执行）
   private reminderPollTimer: ReturnType<typeof setInterval> | null = null;
 
   private setupOsReminderPoller(): void {
@@ -99,22 +102,62 @@ export default class LifecyclePlugin extends Service {
           let p: any = null;
           try { p = typeof it.content === 'string' ? JSON.parse(it.content) : it.content; } catch { continue; }
           if (!p || p.delivered) continue;
-          // 投递到当前 investor 会话（roots 兜底与 setupResume 同款）
+
+          // ① 找在线目标窗口
           const roots: any[] = this.ctx.agents.roots();
-          const agent = roots.find((a) => String(a.id).startsWith(this.cfg.agentId)) ?? roots[0];
-          if (!agent?.followup) continue;  // 不在线，留在信箱等上线补投
-          try {
-            agent.followup(createUserMessage({
-              content: [{ type: 'text', text: `【OS 提醒】${p.task ?? ''}\n\n${p.prompt}\n\n（来源：Agent OS 定时任务 ${p.task_id ?? ''}，触发于 ${p.fired_at ?? ''}）` }],
-              source: { kind: 'plugin', plugin: 'lifecycle' },
-            }));
-            await this.osWrite('memory_write', {
-              title: `reminder ${p.task ?? ''} delivered`,
-              content: JSON.stringify({ ...p, delivered: true, delivered_at: new Date().toISOString() }),
-              namespace: 'data',
-              tags: ['office:delivered', `office:reminder:${myWindow}`],
-            });
-          } catch { /* 投递失败留下次 */ }
+          const online = roots.find((a) => String(a.id).startsWith(this.cfg.agentId)) ?? roots[0];
+          let executor: any = null;
+
+          if (online?.followup) {
+            try {
+              online.followup(createUserMessage({
+                content: [{ type: 'text', text: `【OS 提醒】${p.task ?? ''}\n\n${p.prompt}\n\n（来源：Agent OS 定时任务 ${p.task_id ?? ''}，触发于 ${p.fired_at ?? ''}）` }],
+                source: { kind: 'plugin', plugin: 'lifecycle' },
+              }));
+              executor = { mode: 'direct', session_id: String(online.id) };
+            } catch { /* 投递失败走创建窗口 */ }
+          }
+
+          // ② 没有在线窗口 → 创建新窗口代为执行（用户决策：任务必须被执行，不等待上线）
+          if (!executor) {
+            try {
+              const sessionId = `session-${crypto.randomUUID()}`;
+              await (this.ctx as any).agents.create({
+                sessionId,
+                agentOptions: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+              });
+              const newWindow = this.windowCode(sessionId);
+              const newAgent: any = (this.ctx as any).agents.get(sessionId);
+              newAgent?.followup?.(createUserMessage({
+                content: [{ type: 'text', text: `【OS 提醒·代执行】目标窗口 ${p.window} 不在线，由你（新窗口 ${newWindow}）代为执行定时任务「${p.task ?? ''}」：\n\n${p.prompt}\n\n要求：遵守交易宪法（提示词 constitution 段）；完成后把结论写入 memory（namespace=decision）并 window_update 标记 done。` }],
+                source: { kind: 'plugin', plugin: 'lifecycle' },
+              }));
+              // 登记新窗口进花名册
+              await this.osWrite('skill_upsert', {
+                window: newWindow,
+                session_id: sessionId,
+                agent_id: this.identity.id,
+                role: this.identity.name,
+                skills: ['提醒代执行'],
+                status: 'busy',
+                task: `代执行提醒 ${p.task ?? ''}`,
+              });
+              executor = { mode: 'spawned', session_id: sessionId, window: newWindow };
+            } catch { continue; /* 创建失败留下轮重试，信箱记录仍在 */ }
+          }
+
+          // ③ 执行留痕（含完整提示词，可溯）
+          await this.osWrite('memory_write', {
+            title: `reminder ${p.task ?? ''} delivered`,
+            content: JSON.stringify({
+              ...p,  // 含完整 prompt（提示词持久化）
+              delivered: true,
+              delivered_at: new Date().toISOString(),
+              executor,
+            }),
+            namespace: 'data',
+            tags: ['office:delivered', 'office:reminder:exec', `office:reminder:${myWindow}`],
+          });
         }
       } catch { /* OS 宕机等异常静默，下轮重试 */ }
     };
