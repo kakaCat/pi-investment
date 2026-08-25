@@ -1,5 +1,9 @@
 """Memory API - FastAPI 版（统一记忆存储服务）
 设计：docs/superpowers/plans/2026-08-12-framework-evolution-roadmap.md W1.2
+
+⚠️ 2026-08-25 起：写入功能已停用，迁移到 Agent OS 记忆库（agent-dh 所有记忆插件调用走 @pi-investment/os-memory 适配器）。
+   保留本模块仅供：① 历史数据回填（export 恢复后灌 OS）；② 过渡期只读查询（agent-dh 已不调用）。
+   背景：ollama embedding 服务挂起导致写入超时 30s+，用户决策统一使用 Agent OS（/api/v1/memory，postgres 持久无 embedding 依赖）。
 """
 from typing import Any, Dict, List, Optional
 

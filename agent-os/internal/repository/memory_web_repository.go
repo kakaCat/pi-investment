@@ -222,17 +222,11 @@ func (r *memoryWebRepository) Update(ctx context.Context, id string, req domain.
 	var args []interface{}
 	argIndex := 1
 	
-	if req.Content != nil {
-		setClauses = append(setClauses, fmt.Sprintf("content = $%d", argIndex))
-		args = append(args, *req.Content)
-		argIndex++
-	}
+	// 如果有 expected_revision，先读取当前 metadata 并自动递增 revision
+	var needUpdateMetadata bool
+	var currentMetadata map[string]interface{}
 	
-	if req.MetadataPatch != nil {
-		setClauses = append(setClauses, fmt.Sprintf("metadata = $%d", argIndex))
-		
-		// 先读取当前 metadata
-		var currentMetadata map[string]interface{}
+	if req.ExpectedRevision != nil || req.MetadataPatch != nil {
 		queryRead := `SELECT metadata FROM memories WHERE id = $1`
 		var metadataJSON []byte
 		err := r.db.QueryRowContext(ctx, queryRead, id).Scan(&metadataJSON)
@@ -251,15 +245,37 @@ func (r *memoryWebRepository) Update(ctx context.Context, id string, req domain.
 			currentMetadata = make(map[string]interface{})
 		}
 		
-		for k, v := range req.MetadataPatch {
-			currentMetadata[k] = v
+		// 如果有 expected_revision，说明需要乐观锁，自动递增 revision
+		if req.ExpectedRevision != nil {
+			currentRevision := 1
+			if rev, ok := currentMetadata["revision"].(float64); ok {
+				currentRevision = int(rev)
+			}
+			currentMetadata["revision"] = currentRevision + 1
+			needUpdateMetadata = true
 		}
 		
+		// 应用 metadata patch
+		if req.MetadataPatch != nil {
+			for k, v := range req.MetadataPatch {
+				currentMetadata[k] = v
+			}
+			needUpdateMetadata = true
+		}
+	}
+	
+	if req.Content != nil {
+		setClauses = append(setClauses, fmt.Sprintf("content = $%d", argIndex))
+		args = append(args, *req.Content)
+		argIndex++
+	}
+	
+	if needUpdateMetadata {
+		setClauses = append(setClauses, fmt.Sprintf("metadata = $%d", argIndex))
 		mergedJSON, err := json.Marshal(currentMetadata)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal merged metadata: %w", err)
 		}
-		
 		args = append(args, mergedJSON)
 		argIndex++
 	}
@@ -282,14 +298,14 @@ func (r *memoryWebRepository) Update(ctx context.Context, id string, req domain.
 		argIndex++
 	}
 	
-	query := fmt.Sprintf("UPDATE memories SET %s WHERE %s RETURNING id, title, content, category, tags, agent_id, created_at, updated_at",
+	query := fmt.Sprintf("UPDATE memories SET %s WHERE %s RETURNING id, content, category, created_at, updated_at, metadata",
 		strings.Join(setClauses, ", "), whereClause)
 	
 	var memory domain.MemoryWeb
-	var tags pq.StringArray
+	var metadataJSON []byte
 	err := r.db.QueryRowContext(ctx, query, args...).Scan(
-		&memory.ID, &memory.Title, &memory.Content, &memory.Category,
-		&tags, &memory.AgentID, &memory.CreatedAt, &memory.UpdatedAt,
+		&memory.ID, &memory.Content, &memory.Category,
+		&memory.CreatedAt, &memory.UpdatedAt, &metadataJSON,
 	)
 	
 	if err != nil {
@@ -307,7 +323,15 @@ func (r *memoryWebRepository) Update(ctx context.Context, id string, req domain.
 		return nil, fmt.Errorf("failed to update memory: %w", err)
 	}
 	
-	memory.Tags = tags
+	// 填充 Title（从 metadata 或使用默认值）
+	var metadata map[string]interface{}
+	if len(metadataJSON) > 0 {
+		_ = json.Unmarshal(metadataJSON, &metadata)
+		if title, ok := metadata["title"].(string); ok {
+			memory.Title = title
+		}
+	}
+	
 	return &memory, nil
 }
 
