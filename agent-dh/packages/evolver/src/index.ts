@@ -7,6 +7,7 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+import { OsMemoryStore } from '@pi-investment/os-memory';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -53,6 +54,7 @@ export default class EvolverPlugin extends Service {
   }).default({} as any);
 
   private qv2: QuantsysV2Client;
+  private osMemory: OsMemoryStore;
   private observeDays: number;
   private llmProvider: string;
   private llmModel: string;
@@ -60,6 +62,7 @@ export default class EvolverPlugin extends Service {
   constructor(ctx: Context, config: any) {
     super(ctx, 'evolver');
     this.qv2 = new QuantsysV2Client({ baseURL: config?.quantsysV2?.baseURL || 'http://localhost:5001' });
+    this.osMemory = new OsMemoryStore({ baseURL: (config as any).agentOS?.baseURL || 'http://localhost:8080', agentId: (config as any).agentOS?.agentId || 'agent-dh' });
     this.observeDays = config?.observeDays || 5;
     this.llmProvider = config?.llmProvider || 'deepseek-official';
     this.llmModel = config?.llmModel || 'deepseek-v4-flash';
@@ -167,7 +170,7 @@ export default class EvolverPlugin extends Service {
   /** 从记忆库取某基因组代数的打标经验奖励（P0-3 打标的消费端） */
   private async searchRewards(genomeVersion: string): Promise<{ count: number; avg: number }> {
     try {
-      const res = await this.qv2.searchMemory({ q: `genome:${genomeVersion}`, kind: 'experience', limit: 50 });
+      const res = await this.osMemory.searchMemory({ q: `genome:${genomeVersion}`, kind: 'experience', limit: 50 });
       const items = res?.items || [];
       const rewards: number[] = [];
       for (const it of items) {

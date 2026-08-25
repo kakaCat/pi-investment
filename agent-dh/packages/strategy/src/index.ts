@@ -2,6 +2,7 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+import { OsMemoryStore } from '@pi-investment/os-memory';
 
 export interface Config {
   quantsysV2?: {
@@ -25,6 +26,7 @@ export default class StrategyPlugin extends Service {
   }).default({} as any)
 
   private qv2: QuantsysV2Client;
+  private osMemory: OsMemoryStore;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'strategy');
@@ -32,6 +34,7 @@ export default class StrategyPlugin extends Service {
       baseURL: config.quantsysV2?.baseURL || 'http://localhost:5001',
       timeout: config.quantsysV2?.timeout || 30000,
     });
+    this.osMemory = new OsMemoryStore({ baseURL: (config as any).agentOS?.baseURL || 'http://localhost:8080', agentId: (config as any).agentOS?.agentId || 'agent-dh' });
     this.registerTools();
   }
 
@@ -353,7 +356,7 @@ export default class StrategyPlugin extends Service {
             signal_date: sigDate,
             forward: {},  // {d5: pct, d10: pct, d20: pct} 由 update 回填
           };
-          await qv2.createMemory({
+          await this.osMemory.createMemory({
             kind: 'episode',
             scope: 'signal:tracking',
             title: `signal ${sigDate} ${args.symbol} ${String(args.grade).toUpperCase()}级 @${args.price} (${args.source})`,
@@ -369,7 +372,7 @@ export default class StrategyPlugin extends Service {
 
         if (args.action === 'update') {
           // 找所有追踪中的信号，回填到期的前瞻收益
-          const res = await qv2.searchMemory({ q: 'signal', scope: 'signal:tracking', limit: 100 });
+          const res = await this.osMemory.searchMemory({ q: 'signal', scope: 'signal:tracking', limit: 100 });
           const items = (res?.items || []).filter((it: any) => it.status !== 'deprecated' && it.payload?.signal_date);
           const updated: any[] = [];
 
@@ -394,7 +397,7 @@ export default class StrategyPlugin extends Service {
             if (JSON.stringify(forward) !== JSON.stringify(p.forward || {})) {
               const newPayload = { ...p, forward, last_updated: today };
               // supersede 原记录（历史只增不改，新版本带最新 forward）
-              const created = await qv2.createMemory({
+              const created = await this.osMemory.createMemory({
                 kind: 'episode',
                 scope: 'signal:tracking',
                 title: it.title,
@@ -420,7 +423,7 @@ export default class StrategyPlugin extends Service {
         }
 
         // report：各来源/级别的信号胜率
-        const res = await qv2.searchMemory({ q: 'signal', scope: 'signal:tracking', limit: 100 });
+        const res = await this.osMemory.searchMemory({ q: 'signal', scope: 'signal:tracking', limit: 100 });
         const items = (res?.items || []).filter((it: any) => it.status !== 'deprecated' && it.payload?.signal_date);
         const groups: Record<string, { total: number; evaluated: number; wins5: number; avg5: number | null; avg10: number | null; avg20: number | null }> = {};
         for (const it of items) {

@@ -2,6 +2,7 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+import { OsMemoryStore } from '@pi-investment/os-memory';
 import { readFileSync } from 'node:fs';
 
 export interface Config {
@@ -39,6 +40,7 @@ export default class LearningPlugin extends Service {
   }).default({} as any)
 
   private qv2: QuantsysV2Client;
+  private osMemory: OsMemoryStore;
   private experienceBuffer: ExperienceEntry[] = [];
   private agentIdentity: { id: string; name: string; instance: string };
 
@@ -48,6 +50,7 @@ export default class LearningPlugin extends Service {
       baseURL: config.quantsysV2?.baseURL || 'http://localhost:5001',
       timeout: config.quantsysV2?.timeout || 30000,
     });
+    this.osMemory = new OsMemoryStore({ baseURL: (config as any).agentOS?.baseURL || 'http://localhost:8080', agentId: (config as any).agentOS?.agentId || 'agent-dh' });
     this.agentIdentity = this.loadAgentIdentity((config as any).agentsFile);
     this.registerTools();
     this.setupInterceptors();
@@ -345,7 +348,7 @@ export default class LearningPlugin extends Service {
 
     // 2026-08-20 验收修复：client 没有 writeMemory 方法（原调用必抛 TypeError 且被静默吞掉），
     // 正确方法是 createMemory（POST /api/memory），字段结构对齐 memory 插件的写法
-    await this.qv2.createMemory({
+    await this.osMemory.createMemory({
       kind: 'experience',
       scope: 'global',
       title: `auto-track ${entry.action.tool} ${entry.outcome.success ? 'ok' : 'fail'} (${entry.genome_context?.genome_version ?? 'no-genome'})`,
@@ -956,12 +959,12 @@ export default class LearningPlugin extends Service {
         try { metrics = await this.qv2.getRiskMetrics({ account_name: 'agent_virtual', days: 60 }); } catch { /* skip */ }
 
         // 3. regime 与主线序列（本周落库记录）
-        const regimeRes = await this.qv2.searchMemory({ q: 'regime', scope: 'market:regime', limit: 20 }).catch(() => null);
+        const regimeRes = await this.osMemory.searchMemory({ q: 'regime', scope: 'market:regime', limit: 20 }).catch(() => null);
         const regimes = (regimeRes?.items || [])
           .filter((it: any) => it.status !== 'deprecated' && it.payload?.date >= sinceStr)
           .map((it: any) => `${it.payload.date}:${it.payload.regime}`);
 
-        const mainlineRes = await this.qv2.searchMemory({ q: 'mainline', scope: 'market:mainline', limit: 20 }).catch(() => null);
+        const mainlineRes = await this.osMemory.searchMemory({ q: 'mainline', scope: 'market:mainline', limit: 20 }).catch(() => null);
         const mainlines = (mainlineRes?.items || [])
           .filter((it: any) => it.status !== 'deprecated' && it.payload?.date >= sinceStr && it.payload?.mainlines)
           .map((it: any) => `${it.payload.date}: ${it.payload.mainlines.map((m: any) => m.sector).join('/')}`);
@@ -984,7 +987,7 @@ export default class LearningPlugin extends Service {
         // 5. 信号追踪统计
         let signalStats: any = null;
         try {
-          const sigRes = await this.qv2.searchMemory({ q: 'signal', scope: 'signal:tracking', limit: 100 });
+          const sigRes = await this.osMemory.searchMemory({ q: 'signal', scope: 'signal:tracking', limit: 100 });
           const sigs = (sigRes?.items || []).filter((it: any) => it.status !== 'deprecated' && it.payload?.signal_date);
           const evaluated = sigs.filter((it: any) => it.payload?.forward?.d5 !== undefined);
           const wins5 = evaluated.filter((it: any) => it.payload.forward.d5 > 0);
@@ -1039,7 +1042,7 @@ export default class LearningPlugin extends Service {
         const reportMarkdown = lines.join('\n');
 
         // 8. 落库 + 飞书
-        await this.qv2.createMemory({
+        await this.osMemory.createMemory({
           kind: 'episode',
           scope: 'report:weekly',
           title: `投资周报 ${sinceStr}~${today}`,
@@ -1155,7 +1158,7 @@ export default class LearningPlugin extends Service {
    */
   private async loadPersistedExperiences(options: { sinceTs?: number; genomeVersion?: string }): Promise<ExperienceEntry[]> {
     try {
-      const res = await this.qv2.searchMemory({ kind: 'experience', limit: 100 });
+      const res = await this.osMemory.searchMemory({ kind: 'experience', limit: 100 });
       const items = res?.items || [];
       const since = options.sinceTs ?? 0;
       return items

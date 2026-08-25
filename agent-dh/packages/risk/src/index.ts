@@ -2,6 +2,7 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+import { OsMemoryStore } from '@pi-investment/os-memory';
 
 export interface Config {
   quantsysV2?: {
@@ -25,6 +26,7 @@ export default class RiskPlugin extends Service {
   }).default({} as any)
 
   private qv2: QuantsysV2Client;
+  private osMemory: OsMemoryStore;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'risk');
@@ -32,6 +34,7 @@ export default class RiskPlugin extends Service {
       baseURL: config.quantsysV2?.baseURL || 'http://localhost:5001',
       timeout: config.quantsysV2?.timeout || 30000,
     });
+    this.osMemory = new OsMemoryStore({ baseURL: (config as any).agentOS?.baseURL || 'http://localhost:8080', agentId: (config as any).agentOS?.agentId || 'agent-dh' });
     this.registerTools();
   }
 
@@ -192,7 +195,7 @@ export default class RiskPlugin extends Service {
       timeoutMs: 20000,
       execute: async (args: any) => {
         // 1. 读最新 regime 记录（忽略已弃用）
-        const res = await qv2.searchMemory({ q: 'regime', scope: 'market:regime', limit: 10 });
+        const res = await this.osMemory.searchMemory({ q: 'regime', scope: 'market:regime', limit: 10 });
         const latest = (res?.items || [])
           .filter((it: any) => it.status !== 'deprecated' && it.payload?.date)
           .sort((a: any, b: any) => String(b.payload.date).localeCompare(String(a.payload.date)))[0];

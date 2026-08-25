@@ -2,6 +2,7 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+import { OsMemoryStore } from '@pi-investment/os-memory';
 
 export interface Config {
   quantsysV2?: {
@@ -25,6 +26,7 @@ export default class MarketPlugin extends Service {
   }).default({} as any)
 
   private qv2: QuantsysV2Client;
+  private osMemory: OsMemoryStore;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'market');
@@ -32,6 +34,7 @@ export default class MarketPlugin extends Service {
       baseURL: config.quantsysV2?.baseURL || 'http://localhost:5001',
       timeout: config.quantsysV2?.timeout || 30000,
     });
+    this.osMemory = new OsMemoryStore({ baseURL: (config as any).agentOS?.baseURL || 'http://localhost:8080', agentId: (config as any).agentOS?.agentId || 'agent-dh' });
     this.registerTools();
   }
 
@@ -170,7 +173,7 @@ export default class MarketPlugin extends Service {
         const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
 
         // 幂等检查：今日已落库则跳过
-        const existing = await qv2.searchMemory({ q: `regime ${today}`, scope: 'market:regime', limit: 3 });
+        const existing = await this.osMemory.searchMemory({ q: `regime ${today}`, scope: 'market:regime', limit: 3 });
         const dup = (existing?.items || []).find((it: any) => it.payload?.date === today && it.status !== 'deprecated');  // 已弃用记录不算重复
         if (dup) {
           return { date: today, regime: dup.payload?.regime, evidence: dup.payload?.evidence, skipped: true } as any;
@@ -226,7 +229,7 @@ export default class MarketPlugin extends Service {
           data_gap: '指数K线趋势维度缺失（M0 待补），当前仅情绪+量能维度',
         };
 
-        await qv2.createMemory({
+        await this.osMemory.createMemory({
           kind: 'episode',
           scope: 'market:regime',
           title: `regime ${today}: ${regime}`,
@@ -239,10 +242,10 @@ export default class MarketPlugin extends Service {
         });
 
         // M1-3 情绪时间序列同步落库（同一数据源，一条记录）
-        const dupSent = (await qv2.searchMemory({ q: `sentiment ${today}`, scope: 'market:sentiment', limit: 3 }))
+        const dupSent = (await this.osMemory.searchMemory({ q: `sentiment ${today}`, scope: 'market:sentiment', limit: 3 }))
           ?.items?.find((it: any) => it.payload?.date === today && it.status !== 'deprecated');  // 已弃用记录不算重复
         if (!dupSent) {
-          await qv2.createMemory({
+          await this.osMemory.createMemory({
             kind: 'episode',
             scope: 'market:sentiment',
             title: `sentiment ${today}: fg=${fg}`,
@@ -282,7 +285,7 @@ export default class MarketPlugin extends Service {
       execute: async (args: any) => {
         const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
 
-        const existing = await qv2.searchMemory({ q: `mainline ${today}`, scope: 'market:mainline', limit: 3 });
+        const existing = await this.osMemory.searchMemory({ q: `mainline ${today}`, scope: 'market:mainline', limit: 3 });
         const dup = (existing?.items || []).find((it: any) => it.payload?.date === today && it.status !== 'deprecated');  // 已弃用记录不算重复
         if (dup) {
           return { date: today, mainlines: dup.payload?.mainlines, skipped: true } as any;
@@ -303,7 +306,7 @@ export default class MarketPlugin extends Service {
           basis: `近${args.days ?? 5}日板块强度排名前${i + 1}（按板块涨跌幅）`,
         }));
 
-        await qv2.createMemory({
+        await this.osMemory.createMemory({
           kind: 'episode',
           scope: 'market:mainline',
           title: `mainline ${today}: ${top3.map(t => t.sector).join('/')}`,
@@ -354,7 +357,7 @@ export default class MarketPlugin extends Service {
         if (args.mainline) {
           mainlines = [args.mainline];
         } else {
-          const res = await qv2.searchMemory({ q: 'mainline', scope: 'market:mainline', limit: 5 });
+          const res = await this.osMemory.searchMemory({ q: 'mainline', scope: 'market:mainline', limit: 5 });
           const latest = (res?.items || [])
             .filter((it: any) => it.status !== 'deprecated' && it.payload?.date)
             .sort((a: any, b: any) => String(b.payload.date).localeCompare(String(a.payload.date)))[0];
@@ -425,7 +428,7 @@ export default class MarketPlugin extends Service {
         }
 
         // 3. 落库（scope=market:watchlist，供盘前/复盘检索；同日同主线幂等跳过由调用方控制——此处总是记录最新一次映射）
-        await qv2.createMemory({
+        await this.osMemory.createMemory({
           kind: 'episode',
           scope: 'market:watchlist',
           title: `mainline_stocks ${today}: ${mainlines.join('/')}`,

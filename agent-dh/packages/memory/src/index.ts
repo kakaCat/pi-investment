@@ -2,6 +2,7 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+import { OsMemoryStore } from '@pi-investment/os-memory';
 
 export interface Config {
   quantsysV2?: {
@@ -37,6 +38,7 @@ export default class MemoryPlugin extends Service {
   }).default({} as any)
 
   private qv2: QuantsysV2Client;
+  private osMemory: OsMemoryStore;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'memory');
@@ -44,6 +46,8 @@ export default class MemoryPlugin extends Service {
       baseURL: config.quantsysV2?.baseURL || 'http://localhost:5001',
       timeout: config.quantsysV2?.timeout || 30000,
     });
+    // 2026-08-25：quantsys-v2 记忆库写入停用，记忆读写迁 Agent OS
+    this.osMemory = new OsMemoryStore({ baseURL: (config as any).agentOS?.baseURL || 'http://localhost:8080', agentId: (config as any).agentOS?.agentId || 'agent-dh' });
     this.registerTools();
   }
 
@@ -89,7 +93,7 @@ export default class MemoryPlugin extends Service {
       timeoutMs: 15000,
       execute: async (args: any) => {
         const namespace = args.namespace || 'default';
-        const res = await qv2.searchMemory({
+        const res = await this.osMemory.searchMemory({
           q: args.query,
           limit: args.top_k || 5,
           // experience 命名空间对应后端 kind=experience；其余命名空间不做 kind 过滤
@@ -155,7 +159,7 @@ export default class MemoryPlugin extends Service {
       execute: async (args: any) => {
         const namespace = args.namespace || 'default';
         const content = String(args.content);
-        const res = await qv2.createMemory({
+        const res = await this.osMemory.createMemory({
           kind: namespace === 'experience' ? 'experience' : 'episode',
           scope: 'global',
           title: content.slice(0, 50),
@@ -228,7 +232,7 @@ export default class MemoryPlugin extends Service {
           typeof args.pnl_pct === 'number' ? `盈亏：${args.pnl_pct}%` : null,
           args.lesson ? `教训：${args.lesson}` : null,
         ].filter(Boolean).join('\n');
-        const res = await qv2.createMemory({
+        const res = await this.osMemory.createMemory({
           kind: 'experience',
           scope: `stock:${args.symbol}`,
           title: `${args.symbol} ${args.outcome || ''} ${args.scenario}`.slice(0, 80),

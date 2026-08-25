@@ -11,6 +11,6 @@
     }
   },
   "dependencies": {
-    "@pi-investment/agent-os-client": "file:../../agent-os-client"
+    "@pi-investment/agent-os-client": "file:../../../agent-os-client"
   }
 }
