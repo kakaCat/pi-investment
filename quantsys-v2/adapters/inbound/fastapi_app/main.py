@@ -470,6 +470,15 @@ def register_routes():
         optional_failed.append("market_data")
         logger.warning(f"⚠️ Failed to import market_data_async: {e}")
 
+    # M1 市场感知（RFC 007: regime落库/主线识别/情绪时间序列）
+    try:
+        from adapters.inbound.fastapi_app.routes.market_perception_async import router as market_perception_router
+        app.include_router(market_perception_router)
+        logger.info("✅ Registered: market_perception (M1 RFC 007)")
+    except ImportError as e:
+        optional_failed.append("market_perception")
+        logger.warning(f"⚠️ Failed to import market_perception_async: {e}")
+
     # 行情K线（quote_market 域迁移：/api/stock/{symbol}/history，agent data_fetch_kline 依赖）
     try:
         from adapters.inbound.fastapi_app.routes.quote_market_async import router as quote_market_router
