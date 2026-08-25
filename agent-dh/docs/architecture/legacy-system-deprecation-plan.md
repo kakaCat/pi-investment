@@ -211,6 +211,11 @@ COMMENT ON TABLE quant.orders_legacy_archived_20260825 IS
 - ✅ 3.1 数据库表归档（quant.orders → orders_legacy_archived_20260825）
 - ✅ 3.2 删除 12 个废弃 API 端点（306 行代码）
 - ✅ 3.4 前端迁移（6 处全部迁移，下单功能已修复）
+- ✅ 3.5 客户端清理（agent-ts + web-frontend）
+  - agent-ts: trade_monitor 工具迁移到 simulation API
+  - web-frontend: 删除 7 个未使用的旧 API 方法
+  - 所有测试通过（agent-ts: 4/4, web-frontend: 10/10）
+  - Commit: 23cef8bd
 
 ### 待后续
 - ⏸️ 3.3 清理 ds.portfolio（需先迁移 signals/executions）
