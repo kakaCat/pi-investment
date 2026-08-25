@@ -204,7 +204,19 @@ export default class TradingPlugin extends Service {
       timeoutMs: 10000,
       execute: async (args: any) => {
         assertTradingHours();  // 宪法第 1 条硬校验：非交易时段拒单
-        return qv2.executeTrade({
+
+        // M5 滑点追踪（2026-08-25）：下单前抓决策时价
+        let decisionPrice: number | undefined;
+        let decisionTime: string | undefined;
+        try {
+          const q: any = await qv2.getQuote(args.symbol);
+          if (Number(q?.price) > 0) {
+            decisionPrice = Number(q.price);
+            decisionTime = q?.timestamp ?? new Date().toISOString();
+          }
+        } catch { /* 行情获取失败不阻塞下单 */ }
+
+        const result: any = await qv2.executeTrade({
           action: args.action,
           symbol: args.symbol,
           quantity: args.quantity,
@@ -214,7 +226,33 @@ export default class TradingPlugin extends Service {
           order_type: args.price ? 'limit' : 'market',
           // R-005：交易理由透传（simulation 端点要求 ≥10 字）
           reason: args.reason,
-        }) as any;
+        });
+
+        // 滑点计算与落库（失败不影响交易结果）
+        const fillPrice = Number(result?.price);
+        if (decisionPrice && fillPrice > 0) {
+          // 方向归一：滑点为正 = 比决策时价更差（买贵/卖便宜）
+          const dirSign = String(args.action).toUpperCase() === 'SELL' ? -1 : 1;
+          const slipPct = +(((fillPrice - decisionPrice) / decisionPrice * 100) * dirSign).toFixed(3);
+          try {
+            await qv2.createMemory({
+              kind: 'episode',
+              scope: 'trade:slippage',
+              title: `slippage ${args.symbol} ${args.action} ${slipPct}%`,
+              content: `滑点记录：${args.symbol} ${args.action} ${args.quantity}股，决策时价 ${decisionPrice}（${decisionTime}）→ 成交 ${fillPrice}，滑点 ${slipPct}%。理由：${args.reason ?? '未填'}`,
+              payload: {
+                symbol: args.symbol, action: args.action, quantity: args.quantity,
+                decision_price: decisionPrice, fill_price: fillPrice, slippage_pct: slipPct,
+                decision_time: decisionTime, order_id: result?.order_id ?? null,
+                ts: new Date().toISOString(),
+              },
+              status: 'testing', confidence: 0.8, source: 'trade_slippage',
+              provenance: { channel: 'dsh', session_kind: 'agent' },
+            });
+          } catch { /* 落库失败不影响交易 */ }
+          return { ...result, slippage: { decision_price: decisionPrice, fill_price: fillPrice, slippage_pct: slipPct, decision_time: decisionTime } };
+        }
+        return result;
       },
     } as any));
 
@@ -366,6 +404,53 @@ export default class TradingPlugin extends Service {
         // 2026-08-23 重写：后端 /api/risk/trade-verify 路由在重构中丢失（404），
         // 改为本地对账（拉成交记录自查异常），不再依赖后端路由
         return localTradeVerify(qv2, args.account_name || 'agent_virtual', args.date);
+      },
+    } as any));
+
+    // 7. 滑点报告（M5，2026-08-25）
+    ctx.tools.register(defineTool({
+      name: 'slippage_report',
+      description: '滑点追踪报告：汇总 trade:slippage 落库记录——成交笔数、平均滑点、最大滑点、按标的分布。滑点=成交价 vs 决策时价（方向归一：正值=买贵/卖便宜）。供：评估模拟盘与真实成交的差距（P6 接真金前必看）、执行质量复盘。',
+      parameters: {
+        symbol: { type: 'string', description: '可选：只看某只标的' },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            total_fills: { type: 'number' },
+            avg_slippage_pct: { type: 'number' },
+            max_slippage_pct: { type: 'number' },
+            by_symbol: { type: 'array', items: { type: 'object', additionalProperties: true } },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 15000,
+      execute: async (args: any) => {
+        const res = await qv2.searchMemory({ q: args.symbol ? `slippage ${args.symbol}` : 'slippage', scope: 'trade:slippage', limit: 100 });
+        const items = (res?.items || []).filter((it: any) => it.status !== 'deprecated' && typeof it.payload?.slippage_pct === 'number');
+        const records = items.map((it: any) => it.payload);
+        const slips = records.map((r: any) => r.slippage_pct);
+        const avg = slips.length ? +(slips.reduce((a: number, b: number) => a + b, 0) / slips.length).toFixed(3) : 0;
+        const maxSlip = slips.length ? Math.max(...slips.map(Math.abs)) : 0;
+
+        const bySymbol: Record<string, { count: number; avg: number }> = {};
+        for (const r of records) {
+          const k = r.symbol ?? 'unknown';
+          if (!bySymbol[k]) bySymbol[k] = { count: 0, avg: 0 };
+          bySymbol[k].avg = +(((bySymbol[k].avg * bySymbol[k].count) + r.slippage_pct) / (bySymbol[k].count + 1)).toFixed(3);
+          bySymbol[k].count++;
+        }
+
+        return {
+          total_fills: slips.length,
+          avg_slippage_pct: avg,
+          max_slippage_pct: maxSlip,
+          by_symbol: Object.entries(bySymbol).map(([symbol, v]) => ({ symbol, ...v })),
+          note: slips.length === 0 ? '暂无滑点记录（首笔真实成交后自动开始积累）' : '滑点为方向归一值：正=比决策时价差',
+        } as any;
       },
     } as any));
   }
