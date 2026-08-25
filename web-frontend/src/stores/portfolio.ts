@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Position, PortfolioSummaryResponse } from '@/types'
-import { tradingApi } from '@/services/api'
+import { simulationApi } from '@/services/api'
 
 export const usePortfolioStore = defineStore('portfolio', () => {
   // State
@@ -55,8 +55,18 @@ export const usePortfolioStore = defineStore('portfolio', () => {
   const fetchSummary = async (accountName: string) => {
     if (!accountName) return
     try {
-      const data = await tradingApi.getPortfolioSummary(accountName)
-      summary.value = data as unknown as PortfolioSummaryResponse
+      const data = await simulationApi.getAccount(accountName)
+      // 适配新 API 数据结构到旧的 PortfolioSummaryResponse
+      summary.value = {
+        totalValue: data.total_assets || 0,
+        totalCost: data.positions_cost || 0,
+        totalPnl: data.total_profit || 0,
+        totalPnlPct: data.total_profit_rate || 0,
+        positions: data.position_count || 0,
+        cash: data.cash_available || 0,
+        liquidAssets: data.cash_available || 0,
+        dailyChange: data.today_profit || 0
+      } as PortfolioSummaryResponse
     } catch (e: any) {
       console.error('获取持仓汇总失败:', e)
     }
@@ -67,27 +77,27 @@ export const usePortfolioStore = defineStore('portfolio', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await tradingApi.getPositions(accountName)
-      const rawList: any[] = (data as any).positions ?? []
+      const accountData = await simulationApi.getAccount(accountName)
+      const rawList = accountData.positions || []
 
-      const totalMV = rawList.reduce((sum, p) => sum + (p.current_value || 0), 0)
+      const totalMV = rawList.reduce((sum: number, p: any) => sum + (p.market_value || 0), 0)
 
       positions.value = rawList.map((p: any) => ({
         id: p.symbol,
         symbol: p.symbol,
         symbolName: p.name || p.symbol,
         name: p.name || p.symbol,
-        quantity: p.quantity,
+        quantity: p.shares_total,
         sharesAvailable: p.shares_available,
         avgCost: p.avg_cost,
         currentPrice: p.current_price,
-        marketValue: p.current_value,
-        totalCost: p.total_cost || p.avg_cost * p.quantity,
-        unrealizedPnL: p.profit_loss,
-        unrealizedPnLPercent: p.profit_loss_pct,
-        profit: p.profit_loss,
-        profitPercent: p.profit_loss_pct,
-        weight: totalMV > 0 ? (p.current_value / totalMV) * 100 : 0,
+        marketValue: p.market_value,
+        totalCost: p.cost || p.avg_cost * p.shares_total,
+        unrealizedPnL: p.profit_total,
+        unrealizedPnLPercent: p.profit_total_rate * 100,
+        profit: p.profit_total,
+        profitPercent: p.profit_total_rate * 100,
+        weight: totalMV > 0 ? (p.market_value / totalMV) * 100 : 0,
         buyDate: '',
         addedDate: '',
         market: '',

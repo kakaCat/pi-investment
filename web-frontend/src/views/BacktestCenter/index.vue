@@ -485,7 +485,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import * as echarts from 'echarts'
-import { analysisApi, stockApi, tradingApi, strategyApi, indicatorApi } from '@/services/api'
+import { analysisApi, stockApi, simulationApi, strategyApi, indicatorApi } from '@/services/api'
+
+// 默认账户
+const DEFAULT_ACCOUNT = 'agent_virtual'
 import { formatPrice, formatPercent, formatDate } from '@/utils/format'
 import KLineChart from '@/components/charts/KLineChart/index.vue'
 import DiagnosisTab from './DiagnosisTab.vue'
@@ -1346,12 +1349,12 @@ const handleQuickTrade = async () => {
       { type: 'warning' }
     )
 
-    await tradingApi.createOrder({
+    await simulationApi.trade(DEFAULT_ACCOUNT, {
+      action: tradeForm.direction as 'buy' | 'sell',
       symbol: tradeForm.symbol,
-      type: tradeForm.direction as 'buy' | 'sell',
-      priceType: tradeForm.priceType,
-      price: tradeForm.priceType === 'limit' ? tradeForm.price : undefined,
-      quantity: tradeForm.quantity
+      shares: tradeForm.quantity,
+      price_limit: tradeForm.priceType === 'limit' ? tradeForm.price : undefined,
+      reason: `回测中心快速交易 - ${tradeForm.direction === 'buy' ? '买入' : '卖出'} ${tradeForm.symbol}`
     })
 
     ElMessage.success('订单已提交')

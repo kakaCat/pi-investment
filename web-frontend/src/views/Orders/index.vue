@@ -309,9 +309,12 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
-import { tradingApi, stockApi } from '@/services/api'
+import { tradingApi, stockApi, simulationApi } from '@/services/api'
 import { formatPrice, formatAmount, formatDateTime } from '@/utils/format'
 import type { Order } from '@/types/models'
+
+// 默认账户（agent 唯一交易账本）
+const DEFAULT_ACCOUNT = 'agent_virtual'
 
 // 订单列表
 const orders = ref<Order[]>([])
@@ -364,14 +367,12 @@ const orderRules: FormRules = {
 const loadOrders = async () => {
   loading.value = true
   try {
-    const data = await tradingApi.getOrders({
-      status: filters.status || undefined,
-      type: (filters.type === 'buy' || filters.type === 'sell') ? filters.type : undefined,
-      page: pagination.page,
-      pageSize: pagination.pageSize
-    })
-    orders.value = data.items
-    pagination.total = data.total
+    const data = await simulationApi.getPendingOrders(
+      DEFAULT_ACCOUNT,
+      filters.status ? 'pending' : 'all'
+    )
+    orders.value = data
+    pagination.total = data.length
   } catch (error) {
     ElMessage.error('加载订单列表失败')
   } finally {
@@ -434,14 +435,12 @@ const handleConfirmCreate = async () => {
 
     createLoading.value = true
     try {
-      await tradingApi.createOrder({
+      await simulationApi.trade(DEFAULT_ACCOUNT, {
+        action: orderForm.direction,
         symbol: orderForm.symbol,
-        type: orderForm.direction,
-        priceType: orderForm.orderType,
-        price: orderForm.orderType !== 'market' ? orderForm.price : undefined,
-        quantity: orderForm.quantity
-        // TODO: Add expireTime support to API
-        // expireTime: orderForm.expireTime?.toISOString()
+        shares: orderForm.quantity,
+        price_limit: orderForm.orderType !== 'market' ? orderForm.price : undefined,
+        reason: `前端手动下单 - ${orderForm.direction === 'buy' ? '买入' : '卖出'} ${orderForm.symbol}`
       })
 
       ElMessage.success('订单已提交')
@@ -467,7 +466,7 @@ const handleCancelOrder = async (order: Order) => {
       { type: 'warning' }
     )
 
-    await tradingApi.cancelOrder(order.id)
+    await simulationApi.cancelPendingOrder(DEFAULT_ACCOUNT, parseInt(order.id))
     ElMessage.success('订单已取消')
 
     // 刷新列表
@@ -496,7 +495,7 @@ const handleCancelOrderFromDetail = async () => {
       { type: 'warning' }
     )
 
-    await tradingApi.cancelOrder(selectedOrder.value.id)
+    await simulationApi.cancelPendingOrder(DEFAULT_ACCOUNT, parseInt(selectedOrder.value.id))
     ElMessage.success('订单已取消')
 
     detailDialogVisible.value = false

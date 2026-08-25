@@ -411,7 +411,10 @@ import {
 import { useTable } from '@/composables/useTable'
 import { analysisApi } from '@/services/api/analysis'
 import { strategyApi } from '@/services/api/strategy'
-import { tradingApi } from '@/services/api/trading'
+import { simulationApi } from '@/services/api/simulation'
+
+// 默认账户
+const DEFAULT_ACCOUNT = 'agent_virtual'
 import { toSnakeCase } from '@/utils/format'
 import type { Opportunity, OpportunityFilters, CreateOrderRequest, Strategy } from '@/types'
 
@@ -772,15 +775,13 @@ const submitQuickTrade = async () => {
   quickTradeLoading.value = true
 
   try {
-    const orderData: CreateOrderRequest = {
+    await simulationApi.trade(DEFAULT_ACCOUNT, {
+      action: quickTradeForm.direction,
       symbol: quickTradeForm.symbol,
-      type: quickTradeForm.direction,
-      quantity: quickTradeForm.quantity,
-      priceType: quickTradeForm.priceType,
-      price: quickTradeForm.priceType === 'limit' ? quickTradeForm.price : undefined
-    }
-
-    await tradingApi.createOrder(orderData)
+      shares: quickTradeForm.quantity,
+      price_limit: quickTradeForm.priceType === 'limit' ? quickTradeForm.price : undefined,
+      reason: `机会雷达快速交易 - ${quickTradeForm.direction === 'buy' ? '买入' : '卖出'} ${quickTradeForm.symbol}`
+    })
     ElMessage.success('订单已提交')
     quickTradeDialogVisible.value = false
   } catch (error) {

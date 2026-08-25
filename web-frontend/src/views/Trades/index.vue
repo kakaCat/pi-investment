@@ -212,7 +212,10 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, Download, Document, Money, TrendCharts, Trophy } from '@element-plus/icons-vue'
-import { tradingApi } from '@/services/api'
+import { simulationApi } from '@/services/api'
+
+// 默认账户
+const DEFAULT_ACCOUNT = 'agent_virtual'
 import { formatPrice, formatPercent, formatAmount, formatDateTime } from '@/utils/format'
 
 interface Trade {
@@ -271,22 +274,35 @@ const filters = reactive({
 const fetchTrades = async () => {
   loading.value = true
   try {
-    const params = {
-      page: currentPage.value,
-      pageSize: pageSize.value,
-      direction: filters.direction,
-      startDate: filters.dateRange[0],
-      endDate: filters.dateRange[1],
-      keyword: filters.keyword
+    const data = await simulationApi.getTrades(DEFAULT_ACCOUNT, 100)
+    // 前端过滤（新 API 不支持后端过滤，暂时在前端实现）
+    let filteredTrades = data
+    if (filters.direction) {
+      filteredTrades = filteredTrades.filter((t: any) => t.action === filters.direction)
     }
-    const data = await tradingApi.getTrades(params) as any
-    trades.value = data.items
-    total.value = data.total
-
-    // 更新统计数据
-    if (data.stats) {
-      Object.assign(stats, data.stats)
+    if (filters.keyword) {
+      const kw = filters.keyword.toLowerCase()
+      filteredTrades = filteredTrades.filter((t: any) => 
+        t.symbol?.toLowerCase().includes(kw) || t.name?.toLowerCase().includes(kw)
+      )
     }
+    // 日期过滤（如果 API 不支持）
+    if (filters.dateRange[0]) {
+      filteredTrades = filteredTrades.filter((t: any) => 
+        new Date(t.timestamp) >= new Date(filters.dateRange[0])
+      )
+    }
+    if (filters.dateRange[1]) {
+      filteredTrades = filteredTrades.filter((t: any) => 
+        new Date(t.timestamp) <= new Date(filters.dateRange[1])
+      )
+    }
+    
+    total.value = filteredTrades.length
+    // 前端分页
+    const start = (currentPage.value - 1) * pageSize.value
+    const end = start + pageSize.value
+    trades.value = filteredTrades.slice(start, end)
   } catch (error) {
     ElMessage.error('获取交易记录失败')
   } finally {

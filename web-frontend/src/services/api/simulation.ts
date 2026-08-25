@@ -115,6 +115,16 @@ export const simulationApi = {
       '/api/simulation/trades', { params: { account_name: accountName, limit } })
   },
 
+  getPendingOrders(accountName: string, status: 'pending' | 'all' = 'pending') {
+    return apiClient.get<any[]>(
+      `/api/simulation/accounts/${accountName}/pending-orders`, { params: { status } })
+  },
+
+  cancelPendingOrder(accountName: string, orderId: number) {
+    return apiClient.post<any>(
+      `/api/simulation/accounts/${accountName}/pending-orders/${orderId}/cancel`)
+  },
+
   getPerformance(accountName: string) {
     return apiClient.get<PerformanceData>(
       '/api/simulation/performance', { params: { account_name: accountName } })
