@@ -352,7 +352,7 @@ class MarketPerceptionService:
                     INSERT INTO quant.market_theme
                         (trade_date, rank, theme, sector, limit_up_count, stocks,
                          fund_flow, confidence)
-                    VALUES (:d, :rank, :theme, :sector, :cnt, :stocks::jsonb, :ff, :conf)
+                    VALUES (:d, :rank, :theme, :sector, :cnt, CAST(:stocks AS jsonb), :ff, :conf)
                     ON CONFLICT (trade_date, rank) DO UPDATE SET
                         theme=EXCLUDED.theme, sector=EXCLUDED.sector,
                         limit_up_count=EXCLUDED.limit_up_count, stocks=EXCLUDED.stocks,
