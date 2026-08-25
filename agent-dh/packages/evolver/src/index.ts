@@ -244,7 +244,10 @@ export default class EvolverPlugin extends Service {
               end_date: w.end_date,
               initial_capital: 100000,
             });
-            const bt = res?.backtest_result?.data || res?.backtest_result || {};
+            // 2026-08-25 审计修复：strategy_execute 返回的是平铺的回测结果
+            //（totalReturn/sharpeRatio 在顶层），不存在 backtest_result 嵌套——
+            // 原解析读到空对象导致全零误判。兼容三种形状：嵌套 data / 嵌套 / 平铺。
+            const bt = res?.backtest_result?.data ?? res?.backtest_result ?? res ?? {};
             results.push({
               label: w.label,
               symbol: w.symbol,
