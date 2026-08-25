@@ -70,13 +70,13 @@ class StrategyRunner:
             max_workers: 并行执行策略的最大线程数，默认4
 
         Raises:
-            ValueError: strategy_repo 未注入。domain 层不再自行创建 adapters
-                具体仓储（六边形架构依赖方向），与其他 domain 类一致构造期 fail-fast。
+            ValueError: strategy_repo 未注入。domain 层不再自行创建具体仓储
+                （六边形架构依赖方向），与其他 domain 类一致构造期 fail-fast。
         """
         if strategy_repo is None:
             raise ValueError(
                 "StrategyRunner requires strategy_repo injection "
-                "(e.g. StrategyORMRepository from adapters.outbound.repositories, "
+                "(must implement IStrategyRepository interface, "
                 "wired by the Application layer)"
             )
 

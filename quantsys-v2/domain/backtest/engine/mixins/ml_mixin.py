@@ -37,24 +37,21 @@ class MLMixin:
         Load ML model for predictions.
 
         Args:
-            model_type: Model type to load
-            version: Model version
-            predictor: ML predictor interface (injected by Application layer)
+            model_type: Model type (for logging only)
+            version: Model version (for logging only)
+            predictor: ML predictor interface (must be injected by Application layer)
 
-        Note:
-            predictor is optional for backward compatibility
+        Raises:
+            ValueError: If predictor is not provided
         """
-        if predictor is not None:
-            # 使用注入的 predictor
-            self._predictor = predictor
-            logger.info("Using injected ML predictor")
-        else:
-            # 临时兼容：自动创建实例（违反 DDD）
-            # TODO: 移除后备逻辑，要求调用方必须注入
-            from application.services.ml_pipeline.predictor import MLPredictor
-            self._predictor = MLPredictor(model_type=model_type)
-            self._predictor.load_model(version=version)
-            logger.info("ML model loaded: %s/%s", model_type, version)
+        if predictor is None:
+            raise ValueError(
+                "ML predictor must be injected by Application layer. "
+                "Domain layer cannot create application services directly."
+            )
+
+        self._predictor = predictor
+        logger.info("ML predictor loaded: %s/%s", model_type, version)
 
     def predict_ml(
         self,

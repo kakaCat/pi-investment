@@ -307,3 +307,44 @@ class IEvolutionFitnessRepository(ABC):
     def get_latest_window_end(self, window_days: int = 20) -> Optional[date]:
         """获取最新窗口结束日期"""
         pass
+
+
+class IMemoryRepository(ABC):
+    """记忆仓储接口（用于 domain.memory）"""
+
+    @abstractmethod
+    def create(self, entry) -> Dict[str, Any]:
+        """创建新记忆条目
+        
+        Args:
+            entry: MemoryEntry 领域对象
+            
+        Returns:
+            创建的记忆条目字典
+        """
+        pass
+
+    @abstractmethod
+    def list_filtered(self, kind: Optional[str] = None, max_rows: int = 100) -> List[Dict[str, Any]]:
+        """列出过滤后的记忆条目
+        
+        Args:
+            kind: 记忆类型过滤（可选）
+            max_rows: 最大返回行数
+            
+        Returns:
+            记忆条目列表
+        """
+        pass
+
+    @abstractmethod
+    def get_by_id(self, entry_id: int) -> Optional[Dict[str, Any]]:
+        """根据 ID 获取记忆条目
+        
+        Args:
+            entry_id: 记忆条目 ID
+            
+        Returns:
+            记忆条目字典或 None
+        """
+        pass

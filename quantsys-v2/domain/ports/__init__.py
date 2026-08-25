@@ -41,6 +41,7 @@ from .repository_ports_extended import (
     ISimulationRepository,
     IAsyncKlineRepository,
     IAsyncFactorRepository,
+    IMemoryRepository,
 )
 
 __all__ = [
@@ -73,4 +74,5 @@ __all__ = [
     'ISimulationRepository',
     'IAsyncKlineRepository',
     'IAsyncFactorRepository',
+    'IMemoryRepository',
 ]

@@ -48,49 +48,15 @@ class BrokerRegistry:
 
         Returns:
             BrokerRegistry: 全局唯一的注册表实例
+
+        Note:
+            Brokers must be registered by infrastructure layer after creation.
+            Use infrastructure.brokers.setup.setup_brokers() to register implementations.
         """
         if cls._instance is None:
             cls._instance = cls()
-            cls._instance._register_all()
+            logger.info("BrokerRegistry instance created (empty, waiting for infrastructure setup)")
         return cls._instance
-
-    def _register_all(self):
-        """
-        注册所有券商实现
-
-        新增券商时在此添加注册代码
-        """
-        logger.info("Registering all brokers...")
-
-        try:
-            # 注册 AkShare (已迁移到 adapters.outbound.brokers，见架构审计 P0-2)
-            from adapters.outbound.brokers.akshare_broker import AkshareBroker
-            self.register(AkshareBroker())
-            logger.info("Registered: AkShare")
-        except ImportError as e:
-            logger.warning(f"Failed to register AkShare: {e}")
-
-        # Interactive Brokers
-        try:
-            from adapters.outbound.brokers.ibkr_broker import IBKRBroker
-            self.register(IBKRBroker())
-            logger.info("Registered broker: Interactive Brokers")
-        except ImportError as e:
-            logger.debug(f"IBKR broker not available: {e}")
-        except Exception as e:
-            logger.warning(f"Failed to register IBKR: {e}")
-
-        # Alpaca Markets
-        try:
-            from adapters.outbound.brokers.alpaca_broker import AlpacaBroker
-            self.register(AlpacaBroker())
-            logger.info("Registered broker: Alpaca Markets")
-        except ImportError as e:
-            logger.debug(f"Alpaca broker not available: {e}")
-        except Exception as e:
-            logger.warning(f"Failed to register Alpaca: {e}")
-
-        logger.info(f"Total brokers registered: {len(self._brokers)}")
 
     def register(self, broker: BaseBroker):
         """

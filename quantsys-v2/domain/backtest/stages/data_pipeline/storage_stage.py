@@ -38,13 +38,14 @@ class StorageStage:
             kline_repo: KlineRepository interface (injected by Application layer)
 
         Raises:
-            ValueError: kline_repo 未注入。domain 层不再自行创建 adapters
-                具体仓储(六边形架构依赖方向),请由 Application/CLI 层注入。
+            ValueError: kline_repo 未注入。domain 层不再自行创建具体仓储
+                (六边形架构依赖方向),请由 Application/CLI 层注入实现了
+                IKlineRepository 接口的具体类。
         """
         if kline_repo is None:
             raise ValueError(
                 "StorageStage requires kline_repo injection "
-                "(e.g. KlineORMRepository from adapters.outbound.repositories, "
+                "(must implement IKlineRepository interface, "
                 "wired by the Application layer)"
             )
 

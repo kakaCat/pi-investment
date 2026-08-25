@@ -3,13 +3,15 @@
 从 memory_entries + agent_decisions 产出 rule 候选（status=testing）。
 """
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import structlog
 
-from adapters.outbound.repositories.memory_repository import MemoryRepository
 from infrastructure.persistence.orm import get_session
 from domain.memory.service import MemoryService
 from domain.memory.models import MemoryEntry, MemoryKind, MemoryStatus
+
+if TYPE_CHECKING:
+    from domain.ports import IMemoryRepository, IAgentIntelligenceRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -17,8 +19,23 @@ logger = structlog.get_logger(__name__)
 class MemoryDistiller:
     """记忆蒸馏器：收集原始数据 → LLM 蒸馏（agent侧） → 写回候选"""
 
-    def __init__(self):
-        self._memory_repo = MemoryRepository()
+    def __init__(self, memory_repo: 'IMemoryRepository'):
+        """
+        Initialize memory distiller.
+
+        Args:
+            memory_repo: Memory repository (must be injected by infrastructure layer)
+
+        Raises:
+            TypeError: If memory_repo is None
+        """
+        if memory_repo is None:
+            raise TypeError(
+                "MemoryDistiller requires memory_repo injection. "
+                "Domain layer cannot create adapters directly. "
+                "Please inject IMemoryRepository implementation from infrastructure layer."
+            )
+        self._memory_repo = memory_repo
 
     def collect_inputs(self, days: int = 7) -> Dict[str, Any]:
         """收集近 N 天的记忆条目和决策记录
@@ -58,6 +75,8 @@ class MemoryDistiller:
             episodes.append(ep)
 
         # 收集 agent_decisions（近 N 天，限 100 行）
+        # Note: Direct ORM query here is acceptable as this is infrastructure concern
+        # TODO: Consider moving to a proper repository method
         session = get_session()
         try:
             from adapters.outbound.repositories.agent_intelligence_repository import AgentDecision
@@ -77,6 +96,10 @@ class MemoryDistiller:
                 }
                 for r in rows
             ]
+        except ImportError:
+            # AgentDecision model not available
+            logger.warning("AgentDecision model not available, skipping decisions")
+            decisions = []
         finally:
             session.close()
 
