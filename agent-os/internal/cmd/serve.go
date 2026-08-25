@@ -165,6 +165,11 @@ var serveCmd = &cobra.Command{
 		eventHandler := api.NewEventHandler(eventRepo)
 		memoryRepo := repository.NewMemoryWebRepository(db)
 		memoryHandler := api.NewMemoryHandler(memoryRepo)
+		
+		// RFC 009: 启动 Memory GC 服务（每日 04:00 清理历史记录）
+		gcService := service.NewMemoryGCService(db)
+		go gcService.RunPeriodically(ctx)
+		
 		decisionRepo := repository.NewDecisionWebRepository(db)
 		decisionHandler := api.NewDecisionHandler(decisionRepo)
 		registryRepo := repository.NewRegistryWebRepository(db)
