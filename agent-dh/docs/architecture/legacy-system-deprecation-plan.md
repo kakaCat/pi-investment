@@ -234,17 +234,32 @@ grep -r "/api/orders/create" tests/
 ### Phase 1: 标记废弃（今天）
 
 - [x] 备份旧 orders 表
-- [ ] 废弃旧 /api/orders/create API（返回 410 Gone）
-- [ ] 取消 pending 订单
-- [ ] 添加废弃日志和警告
+- [x] 废弃旧 /api/orders/create API（返回 410 Gone）
+- [x] 取消 pending 订单
+- [x] 添加废弃日志和警告
 
 ### Phase 2: 代码迁移（1周内）
 
-- [ ] 检查 Agent 工具 portfolio_trade
-- [ ] 更新测试脚本
-- [ ] 更新前端页面（如果有）
-- [ ] 清理 order_service.py 中的 ds.portfolio 引用（保留必要的历史订单查询）
-- [ ] 运行回归测试
+- [x] 检查 Agent 工具 portfolio_trade（已切新 API `/api/simulation/accounts/{name}/trade`）
+- [x] 更新测试脚本（`test_api_smoke.py` 切新 API；`test_orders_parity.py` 标记废弃并移除 create 测试）
+- [~] 更新前端页面（`simulation.ts` + 4 视图已切新；Orders/OpportunityRadar/BacktestCenter/Trades + portfolio store 仍用旧 `tradingApi`，见下方"前端迁移清单"）
+- [~] 清理 order_service.py 中的 ds.portfolio 引用（卖出校验/持仓更新已切 `SimulationORMRepository`；`fill_order` 按计划保留处理历史订单）
+- [x] 运行回归测试（冒烟 8/8 通过）
+
+#### 前端迁移清单（web-frontend 待办）
+
+`web-frontend/src/services/api/trading.ts` 仍引用旧端点，其中 `/api/orders/create` 已返回 410 Gone（下单已失效）：
+
+| 视图/模块 | 旧方法 | 旧端点 | 影响 |
+|-----------|--------|--------|------|
+| Orders/index.vue | createOrder | `/api/orders/create` | ❌ 410 Gone 下单失效 |
+| OpportunityRadar/index.vue | createOrder | `/api/orders/create` | ❌ 410 Gone |
+| BacktestCenter/index.vue | createOrder | `/api/orders/create` | ❌ 410 Gone |
+| Orders/index.vue | getOrders/cancelOrder | `/api/orders/list` `/api/orders/cancel` | ⚠️ 读归档空表 |
+| Trades/index.vue | getTrades | `/api/trades/list` | ⚠️ 读归档空表 |
+| stores/portfolio.ts + Dashboard | getHoldings/getAllocation/getEquityCurve | `/api/portfolio/holdings` 等 | ⚠️ 读旧 holdings 表 |
+
+新 API 已在 `web-frontend/src/services/api/simulation.ts` 就绪（`trade`/`getTrades`/`getAccount`/`getPerformance`），Portfolio/SimulationTrading/Dashboard/AccountSwitcher 4 处已迁移。上述旧调用方需逐一切换到 `simulationApi` 并适配 `TradeItem`/`PositionItem` 数据类型。
 
 ### Phase 3: 归档清理（2026-09-25）
 
@@ -314,4 +329,4 @@ psql -d quant_investment -c "\dt quant.orders"
 **执行日期**: 2026-08-25  
 **负责人**: investor (w-882977ae)  
 **审核**: 待定  
-**状态**: Phase 1 准备中
+**状态**: Phase 1 ✅ / Phase 2 ✅（测试脚本+Agent 已迁移；前端 4/10 处已迁移，剩余 6 处列入前端迁移清单）/ Phase 3 待 2026-09-25

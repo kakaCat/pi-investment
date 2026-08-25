@@ -8,7 +8,7 @@ W3: API 端点冒烟测试
 - /api/market/sectors (GET)
 - /api/market/sector/{name} (GET)
 - /api/portfolio/positions (GET)
-- /api/orders/create (POST) - sell 校验路径
+- /api/simulation/accounts/{account_name}/trade (POST) - sell 校验路径（新 API）
 - /api/backtest/run (POST)
 - /api/risk/metrics (GET)
 """
@@ -62,19 +62,26 @@ def test_portfolio_positions():
     data = response.json()
     assert "success" in data or "positions" in data or "error" in data
 
-def test_order_create_sell_validation():
-    """测试卖出订单校验路径（不实际成交）"""
-    # 故意提交一个无持仓的卖出单，测试校验逻辑不崩溃
+def test_simulation_trade_sell_validation():
+    """测试卖出订单校验路径（新 API，不实际成交）"""
+    # 故意提交一个无持仓的卖出单，测试校验逻辑不崩溃。
+    # 显式传 price 绕过实时行情依赖；用不存在的 symbol 触发"无持仓"校验。
     payload = {
-        "action": "SELL",
+        "action": "sell",
         "symbol": "999999",  # 不存在的股票
-        "quantity": 100,
-        "reason": "W3 冒烟测试 - 校验路径"
+        "shares": 100,
+        "price": 10.0,
+        "reason": "W3 冒烟测试 - 卖出校验路径",
     }
-    response = requests.post(f"{BASE_URL}/api/orders/create", json=payload)
-    # 期望返回业务错误（400/422）而非服务器错误（500）
-    assert response.status_code != 500, f"orders/create 返回 500: {response.text}"
-    assert response.status_code in [200, 400, 422], f"预期业务校验错误，实际: {response.status_code}"
+    response = requests.post(
+        f"{BASE_URL}/api/simulation/accounts/agent_virtual/trade",
+        json=payload, timeout=10,
+    )
+    # 期望返回业务错误（400/404/409/422，含非交易时段 422）而非服务器错误（500）
+    assert response.status_code != 500, f"simulation/trade 返回 500: {response.text}"
+    assert response.status_code in [200, 400, 404, 409, 422], (
+        f"预期业务校验错误，实际: {response.status_code}: {response.text[:200]}"
+    )
 
 def test_backtest_run():
     """测试回测接口"""
@@ -107,7 +114,7 @@ if __name__ == "__main__":
         ("market_sectors", test_market_sectors),
         ("market_sector_detail", test_market_sector_detail),
         ("portfolio_positions", test_portfolio_positions),
-        ("order_create_sell", test_order_create_sell_validation),
+        ("order_create_sell", test_simulation_trade_sell_validation),
         ("backtest_run", test_backtest_run),
         ("risk_metrics", test_risk_metrics),
     ]
