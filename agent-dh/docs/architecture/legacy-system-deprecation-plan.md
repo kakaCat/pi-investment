@@ -177,13 +177,31 @@ COMMENT ON TABLE quant.orders_legacy_archived_20260825 IS
 2. 迁移 `trade_service.py` 的历史交易查询 → `SimulationORMRepository`
 3. 删除 `ds.portfolio` 的 create/update 方法（保留 get_order 历史查询）
 
-#### 3.4 前端迁移 ⏸️ 独立任务
+#### 3.4 前端迁移 ✅
 
-**状态**: 6 处前端调用待迁移（见 Phase 2 "前端迁移清单"），`simulation.ts` API 已就绪。
+**状态**: 6 处前端调用已全部迁移（2026-08-25 22:17）
 
-**影响**: Orders/OpportunityRadar/BacktestCenter 下单功能已损坏（410 Gone），但 Agent 自主交易走新 API 不受影响。
+**变更文件**:
+1. `web-frontend/src/views/Orders/index.vue` - tradingApi.{createOrder,getOrders,cancelOrder} → simulationApi.{trade,getPendingOrders,cancelPendingOrder}
+2. `web-frontend/src/views/OpportunityRadar/index.vue` - tradingApi.createOrder → simulationApi.trade
+3. `web-frontend/src/views/BacktestCenter/index.vue` - tradingApi.createOrder → simulationApi.trade
+4. `web-frontend/src/views/Trades/index.vue` - tradingApi.getTrades → simulationApi.getTrades（前端过滤/分页）
+5. `web-frontend/src/stores/portfolio.ts` - tradingApi.{getPortfolioSummary,getPositions} → simulationApi.getAccount
+6. `web-frontend/src/services/api/simulation.ts` - 新增 getPendingOrders/cancelPendingOrder 方法
 
-**建议**: 作为独立前端工程任务执行（需前端开发角色）。
+**数据适配**:
+- Order/Trade 类型 → TradeItem/PendingOrder
+- `quantity/type/priceType` → `shares/action/price_limit`
+- 所有调用添加 `DEFAULT_ACCOUNT='agent_virtual'`（agent 唯一交易账本）
+
+**修复功能**:
+- ✅ Orders 页面下单（410 Gone → 正常）
+- ✅ OpportunityRadar 快速下单（410 Gone → 正常）
+- ✅ BacktestCenter 快速下单（410 Gone → 正常）
+- ✅ Trades 交易记录（空列表 → 正常）
+- ✅ Portfolio Store 持仓汇总（空数据 → 正常）
+
+**Commit**: 8514a66e
 
 ---
 
@@ -192,10 +210,10 @@ COMMENT ON TABLE quant.orders_legacy_archived_20260825 IS
 ### 已完成
 - ✅ 3.1 数据库表归档（quant.orders → orders_legacy_archived_20260825）
 - ✅ 3.2 删除 12 个废弃 API 端点（306 行代码）
+- ✅ 3.4 前端迁移（6 处全部迁移，下单功能已修复）
 
 ### 待后续
 - ⏸️ 3.3 清理 ds.portfolio（需先迁移 signals/executions）
-- ⏸️ 3.4 前端迁移（独立前端任务）
 
 ### 部署步骤
 重启 FastAPI 服务器使路由删除生效：
@@ -367,11 +385,11 @@ psql -d quant_investment -c "\dt quant.orders"
 **执行日期**: 2026-08-25  
 **负责人**: investor (w-882977ae)  
 **审核**: 待定  
-**状态**: Phase 1 ✅ / Phase 2 ✅ / Phase 3 ✅（核心完成，待部署 + 后续清理）
+**状态**: Phase 1 ✅ / Phase 2 ✅ / Phase 3 ✅（完成！待部署服务器）
 
 ### Phase 3 执行情况
 - ✅ 表归档（orders → orders_legacy_archived_20260825）
 - ✅ 删除 12 个废弃 API 端点（306 行代码）
-- ⏸️ ds.portfolio 清理（阻塞于 signals/executions 迁移）
-- ⏸️ 前端 6 处迁移（独立前端任务）
+- ✅ 前端 6 处迁移（Orders/OpportunityRadar/BacktestCenter/Trades/portfolio store 已修复）
+- ⏸️ ds.portfolio 清理（阻塞于 signals/executions 迁移，后续任务）
 - 🚀 **需重启服务器**使路由删除生效（kill 55091）
