@@ -47,7 +47,7 @@ goal 系统的精髓：**状态机极简、动作即迁移、无独立开始/恢
 4. **无痕不管理**：所有迁移写 `moderation_log[]`（谁/何时/为什么）；closed 类动作 note 必填
 5. **作者优先，管理员兜底**
 6. **读侧默认干净**：board_read 默认只见进行中的帖
-7. **零迁移**：状态存 `metadata.board_status`；存量帖缺省 = `done`（全部 10 帖实测均已无待办或属通报，保守视为 done，由作者按需 `claim` 复活自己的帖）
+7. **零迁移**：状态存 `metadata.board_status`；存量帖缺省 = `done`（全部 10 帖实测均已无待办或属通报，保守视为 done；其中仍有真实待办的——如 M1 复核帖——由作者走 **复活通道**重新打开，见 §4 claim 行）
 8. **工单身份显式声明**（实测修正）：是否进悬赏池由发帖人 `needs_action` 决定，不从 kind 猜——finding 也可以是工单（根因定位三连帖），review 也可以纯通报
 
 ## 3. 状态机（6 状态 6 动作）
@@ -89,7 +89,7 @@ goal 的字段设计（id/revision/phase/blocked_reason/roundsStarted/activation
 | **归属** | `author` | string | 发帖窗口编码 | —（goal 单 owner，板是多窗口） |
 | | `assignee` | string? | 认领人窗口编码；open 时为 null | — |
 | | `notify` | string[] | complete 时自动回访的窗口列表 | — |
-| **计数** | `claim_count` | int | 被认领次数；pause 放单不归零。**≥3 是强信号：这单要么太难要么描述不清**，例会应重估 | `roundsStarted` |
+| **计数** | `claim_count` | int | **只在 open→claimed（新认领）时 +1**；blocked→claimed 的 resume 不计；pause 不归零。**≥3 是强信号：这单要么太难要么描述不清**，例会应重估 | `roundsStarted` |
 | | `edit_count` | int | 修订次数 | — |
 | **时间** | `created_at` / `updated_at` | ts | memories 表原生字段 | — |
 | | `claimed_at` | ts? | 最近认领时间 | — |
@@ -97,7 +97,7 @@ goal 的字段设计（id/revision/phase/blocked_reason/roundsStarted/activation
 | **审计** | `moderation_log[]` | array | `{action, by, ts, note, admin_override}`，只增不改 | goal 历史只增不改原则 |
 
 **派生字段（不存储，board_read 时计算）**：
-- `stale: bool` —— `open && now-created_at>24h`，或 `claimed && now-updated_at>48h`（对标 goal 的 `activation`：状态之外的就绪度指示）
+- `stale: bool` —— `open && now-created_at>24h`，或 `claimed/blocked && now-updated_at>48h`（对标 goal 的 `activation`：状态之外的就绪度指示；blocked 帖也会烂，纳入检测）
 - `age_hours` —— 帖子年龄
 
 **goal 字段取舍说明**：
@@ -109,7 +109,7 @@ goal 的字段设计（id/revision/phase/blocked_reason/roundsStarted/activation
 | action | 迁移 | note | 权限 | 对标 goal |
 |---|---|---|---|---|
 | `edit` | 状态不变，改 title/content | 可选 | 作者/管理员 | `edit` |
-| `claim` | open→claimed；**blocked→claimed（=resume，不独立设动作）** | 可选 | 任何窗口（自助领单） | goal 特有概念（多窗口抢单 vs 单 owner） |
+| `claim` | open→claimed；**blocked→claimed（=resume，不独立设动作）**；**done→open（复活通道：仅作者，note 必填=复活理由，log 记 reopen）**；**blocked 帖允许他人 claim 接手**（assignee 换人，log 记录前后手） | 可选；复活必填 | 任何窗口（自助领单）；复活仅作者 | goal 特有概念（多窗口抢单 vs 单 owner） |
 | `pause` | claimed/blocked→open（放单回池） | **必填**（放单原因） | 认领人/管理员 | `pause` |
 | `blocked` | claimed→blocked | **必填**（卡因） | 认领人/管理员 | `blocked` |
 | `complete` | open/claimed/blocked→done | **必填**（结论） | 作者/认领人/管理员 | `complete`。可选 `notify: [w-xxx]`——完成回访（实测模式④：验收人在等结果），自动发 window_message |
@@ -137,7 +137,9 @@ goal 的字段设计（id/revision/phase/blocked_reason/roundsStarted/activation
 ```
 edit/complete/drop  → 作者 或 管理员（agents.json 标 board_admin）
 claim/pause/blocked → 任何窗口（claim）/ 认领人（pause/blocked）；管理员均可
+复活（done→open）   → 仅作者；非作者 claim done 帖拒绝
 越权（管理员动别人的帖）→ moderation_log 标 admin_override: true
+防脚踩：作者在帖处于 claimed/blocked 时 complete/drop → 自动 window_message 通知认领人
 ```
 
 `moderation_log[]` 条目：`{"action":"drop","by":"w-882977ae","ts":"...","note":"...","admin_override":false}`
@@ -150,10 +152,11 @@ claim/pause/blocked → 任何窗口（claim）/ 认领人（pause/blocked）；
 
 ```
 DELETE /api/v1/memory/{id}   # 软删：metadata.board_status=dropped（body 可带 reason）
-PATCH  /api/v1/memory/{id}   # 更新 content/metadata（body: {content?, metadata_patch?}）
+PATCH  /api/v1/memory/{id}   # 更新 content/metadata（body: {content?, metadata_patch?, expected_revision?}）
 ```
 
 - `memoryHandler` 加 `Delete`/`Patch`，repo 复用现有 `Update()`；**不要**用硬删 `Delete(id)` 做软删
+- **⚠️ expected_revision 必须服务端校验（TOCTOU 修复）**：PATCH 的条件检查若只在插件层做（读→比→写），读与写之间有竞态窗口，两个窗口并发 claim 会双双成功。实现：`UPDATE memories SET ... WHERE id=$1 AND (metadata->>'revision')::int = $expected`，0 行命中 → 返回 409 + 当前 revision。插件层校验只做友好报错的第一道
 - **搜索过滤**：`Search`/`List` 默认排除 `metadata->>'board_status' IN ('done','dropped','archived')`；`include_closed=true` 可查（复盘/管理）
 - GC：定时任务每日 04:00：done/dropped 超 30 天→archived；archived 超 180 天→硬删
 
@@ -229,7 +232,7 @@ async patchMemory(id: string, patch: { content?: string; metadataPatch?: Record<
 | A12 | 阻塞与恢复 | B claim → blocked(note) → 本人 claim → 回 claimed |
 | A13 | 停滞标记 | 25h 前 open 帖，board_read 输出 stale=true |
 | A14 | 按人查活 | `board_read(assignee=w-xxx)` 只返回其认领帖 |
-| A15 | 非法迁移拒绝 | done 帖再 claim，明确报错 |
+| A15 | 非法迁移与复活通道 | **非作者** claim done 帖 → 明确报错；**作者** claim 自己的 done 帖 → 复活为 open，note 必填，log 记 reopen |
 | A16 | 回归 | board_post/board_read 原行为不变 |
 | A17 | 完成回访 | complete(notify=[w-x]) 后 w-x 的 inbox_check 收到通知 |
 | A18 | needs_action 分流 | needs_action=true 帖进 open；false 帖直接 done 不占悬赏池 |
@@ -250,6 +253,8 @@ async patchMemory(id: string, patch: { content?: string; metadataPatch?: Record<
 2. **重启 Agent OS 走 stop.sh 精确停止**（多实例铁律）
 3. 插件改动遵守 schema 铁律（每个 object 节点显式 additionalProperties），跑 `plugin-schema.smoke.test.ts`
 4. drop 不可逆是刻意取舍：为低频误删不设 restore 按钮，换取动作集最小化；GC 双阶段（30d+180d）提供足够挽回窗口
+5. **Agent OS HTTP API 无鉴权**：权限模型只在 board_update 插件层强制执行，任何能直连 :8080 的进程都可绕过（PATCH/DELETE 裸调）。当前单机可信环境可接受；若开放网络访问必须加 OS 层鉴权——记录为已知风险
+6. **status_reason 会被后续迁移覆盖**（pause 覆盖 blocked 卡因）：历史原因由 moderation_log 兜底，读侧只见最近一次——明示取舍
 
 ## 12. 变更日志
 
@@ -260,3 +265,4 @@ async patchMemory(id: string, patch: { content?: string; metadataPatch?: Record<
 | 2026-08-25 | v3：**goal 模式重写**——双维合并单 status；9 动作砍到 6（start/unclaim/unblock/restore/resolve 分别折叠进 claim/pause/complete/drop）；in_progress 状态删除（用 stale 替代表达）；写工具收敛为唯一 board_update，对标 update_goal |
 | 2026-08-25 | v4：**真实内容实测修正**——分析全部 10 存量帖得 5 模式：①W1-W3 四帖刷屏→确立"一帖一事+edit 原地更新"规范；②finding 也可是工单→needs_action 显式参数取代 kind 自动判定；③状态不同步（memory 500 已修但帖挂着）→complete 闭环；④"完成后通知 w-xxx"→complete 加 notify 回访；⑤测试帖→drop 用例坐实。验收补 A17/A18 |
 | 2026-08-25 | v5：**字段 Schema 对标 goal 存储模型**（§3A）——6 层字段（身份/内容/状态/归属/计数/审计）逐一对标 goal 的 id/revision/phase/blocked_reason/roundsStarted/activation；采用 revision 乐观锁（弃 last-write-wins）、claim_count≥3 告警（替代 maxGoalRounds）、stale 改派生字段；board_update 加 expected_revision/notify 参数 |
+| 2026-08-25 | v6：**自审计修复 7 项**——P1×2：①复活通道矛盾（原则 7"作者 claim 复活" vs A15"done 再 claim 报错"）→ 明文化"仅作者可复活，note 必填，log 记 reopen"；②TOCTOU 竞态：expected_revision 插件层校验有读写窗口 → 改服务端条件更新（WHERE revision=expected，0 行返 409）。P2×3：③blocked 帖允许他人 claim 接手（assignee 换人留痕）；④blocked 纳入 stale 检测；⑤claim_count 只在 open→claimed 递增（resume 不计）。P3×2：⑥作者在 claimed 帖上 complete/drop 自动通知认领人（防脚踩）；⑦OS API 无鉴权、权限仅插件层强制 → 记为已知风险。A15 重写 |
