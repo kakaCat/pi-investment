@@ -52,6 +52,8 @@ export function readGenomeJson(genomeDir: string): GenomeMetadata {
  * 写入 genome.json（原子写）
  */
 export function writeGenomeJson(genomeDir: string, data: GenomeMetadata): void {
+  // 2026-08-25 单测发现：目录不存在时原子写会 ENOENT，先建目录
+  fs.mkdirSync(genomeDir, { recursive: true });
   const genomePath = path.join(genomeDir, 'genome.json');
   const tmpPath = genomePath + '.tmp';
   
