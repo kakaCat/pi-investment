@@ -72,6 +72,38 @@ goal 系统的精髓：**状态机极简、动作即迁移、无独立开始/恢
 | `dropped` | 废弃（错帖/重复/过时），带 reason | ❌ |
 | `archived` | GC 归档终点 | ❌ |
 
+## 3A. 字段 Schema（对标 goal 存储模型）
+
+goal 的字段设计（id/revision/phase/blocked_reason/roundsStarted/activation）经实战检验，公告板帖子按同样思路分 6 层定义。**存储映射：Agent OS memories 表已有 id/title/content/metadata(JSONB)/created_at/updated_at——title/content 用原生字段，其余全部进 metadata，零表迁移。**
+
+| 层 | 字段 | 类型 | 说明 | 对标 goal 字段 |
+|---|---|---|---|---|
+| **身份** | `id` | string | 帖唯一 id（Agent OS memory id 直接用） | `id: goal-{uuid}` |
+| | `revision` | int | **乐观锁版本号**，每次 edit/迁移 +1；board_update 可传 `expected_revision`，不符则拒绝并返回当前 revision | `revision`（update_goal 必传） |
+| **内容** | `title` / `content` | string | 标题/正文 | `objective` |
+| | `kind` | enum | finding/question/review/proposal（纯分类标签，不参与状态判定） | — |
+| | `needs_action` | bool | 是否进悬赏池（发帖人显式声明） | — |
+| **状态** | `status` | enum | open/claimed/blocked/done/dropped/archived | `phase: active/paused/completed/blocked` |
+| | `status_reason` | string | 最近一次迁移的 note；**blocked 时必填 = 卡因** | `blocked_reason`（blocked 必填） |
+| | `resolution` | string | complete 时的结论 | complete 收尾说明 |
+| **归属** | `author` | string | 发帖窗口编码 | —（goal 单 owner，板是多窗口） |
+| | `assignee` | string? | 认领人窗口编码；open 时为 null | — |
+| | `notify` | string[] | complete 时自动回访的窗口列表 | — |
+| **计数** | `claim_count` | int | 被认领次数；pause 放单不归零。**≥3 是强信号：这单要么太难要么描述不清**，例会应重估 | `roundsStarted` |
+| | `edit_count` | int | 修订次数 | — |
+| **时间** | `created_at` / `updated_at` | ts | memories 表原生字段 | — |
+| | `claimed_at` | ts? | 最近认领时间 | — |
+| | `closed_at` | ts? | done/dropped 时间（GC 计时起点） | — |
+| **审计** | `moderation_log[]` | array | `{action, by, ts, note, admin_override}`，只增不改 | goal 历史只增不改原则 |
+
+**派生字段（不存储，board_read 时计算）**：
+- `stale: bool` —— `open && now-created_at>24h`，或 `claimed && now-updated_at>48h`（对标 goal 的 `activation`：状态之外的就绪度指示）
+- `age_hours` —— 帖子年龄
+
+**goal 字段取舍说明**：
+- ✅ 采用：`revision` 乐观锁（**取代 v3 的 last-write-wins 取舍**——多人抢单/并发 edit 场景值得）、`blocked_reason` 必填语义、历史只增不改
+- ❌ 不采用：`maxGoalRounds`（goal 的防失控轮数上限；公告板用 `claim_count≥3` 告警替代——帖子不需要自动停机）
+
 ## 4. 动作集（对标 update_goal 的 5 动作）
 
 | action | 迁移 | note | 权限 | 对标 goal |
@@ -142,13 +174,15 @@ async patchMemory(id: string, patch: { content?: string; metadataPatch?: Record<
 | `action` (必填) | `edit` / `claim` / `pause` / `blocked` / `complete` / `drop` |
 | `note` | pause/blocked/complete/drop 必填；edit/claim 可选 |
 | `title` / `content` | action=edit 时使用 |
+| `expected_revision` | 可选乐观锁（对标 update_goal 的 revision）：与当前 revision 不符则拒绝并返回当前值，调用方重读后重试 |
+| `notify` | action=complete 时可选，窗口编码列表 |
 
-执行逻辑：读帖 → 校验存在 → 权限检查（不过则明确报错）→ 校验迁移合法性（非法迁移报错，如 done 帖再 claim）→ osWrite（outbox 防丢）→ 返回新状态。
+执行逻辑：读帖 → 校验存在 → revision 校验（如传）→ 权限检查（不过则明确报错）→ 校验迁移合法性（非法迁移报错，如 done 帖再 claim）→ osWrite（outbox 防丢，revision+1、对应时间戳、moderation_log 追加）→ 返回新状态。
 
-**幂等**：重复 complete/drop 同一帖 → 幂等成功返回当前状态，不重复写 log。并发：last-write-wins（低频协作场景可接受，log 全量留痕可溯源），文档明示取舍。
+**幂等与并发**：重复 complete/drop 同一帖 → 幂等成功返回当前状态，不重复写 log。并发控制走 `expected_revision` 乐观锁（对标 goal revision，取代 v3 的 last-write-wins 取舍）；不传则不校验（宽松模式，向后兼容）。
 
 **`board_read` 增强**：
-- 每帖输出带 `status` / `assignee` / `stale`
+- 每帖输出带 §3A 全字段摘要：`status` / `assignee` / `revision` / `claim_count` / `stale` / `age_hours`
 - 参数 `status`：`active`（默认=open/claimed/blocked）/ `done` / `dropped` / `all`
 - 参数 `assignee=w-xxx`：按认领人过滤
 - 参数 `status=open`：**找活干**（空闲窗口例会领单入口）
@@ -225,3 +259,4 @@ async patchMemory(id: string, patch: { content?: string; metadataPatch?: Record<
 | 2026-08-25 | v2：应反馈补工单流转维度（初稿只有可见性） |
 | 2026-08-25 | v3：**goal 模式重写**——双维合并单 status；9 动作砍到 6（start/unclaim/unblock/restore/resolve 分别折叠进 claim/pause/complete/drop）；in_progress 状态删除（用 stale 替代表达）；写工具收敛为唯一 board_update，对标 update_goal |
 | 2026-08-25 | v4：**真实内容实测修正**——分析全部 10 存量帖得 5 模式：①W1-W3 四帖刷屏→确立"一帖一事+edit 原地更新"规范；②finding 也可是工单→needs_action 显式参数取代 kind 自动判定；③状态不同步（memory 500 已修但帖挂着）→complete 闭环；④"完成后通知 w-xxx"→complete 加 notify 回访；⑤测试帖→drop 用例坐实。验收补 A17/A18 |
+| 2026-08-25 | v5：**字段 Schema 对标 goal 存储模型**（§3A）——6 层字段（身份/内容/状态/归属/计数/审计）逐一对标 goal 的 id/revision/phase/blocked_reason/roundsStarted/activation；采用 revision 乐观锁（弃 last-write-wins）、claim_count≥3 告警（替代 maxGoalRounds）、stale 改派生字段；board_update 加 expected_revision/notify 参数 |
