@@ -19,21 +19,23 @@ logger = structlog.get_logger(__name__)
 class MemoryDistiller:
     """记忆蒸馏器：收集原始数据 → LLM 蒸馏（agent侧） → 写回候选"""
 
-    def __init__(self, memory_repo: Optional['IMemoryRepository'] = None):
+    def __init__(self, memory_repo: 'IMemoryRepository'):
         """
         Initialize memory distiller.
 
         Args:
-            memory_repo: Memory repository (injected by infrastructure layer)
+            memory_repo: Memory repository (must be injected by infrastructure layer)
+
+        Raises:
+            TypeError: If memory_repo is None
         """
         if memory_repo is None:
-            # Fallback: create concrete implementation
-            # TODO: Make injection mandatory after all callers are updated
-            from adapters.outbound.repositories.memory_repository import MemoryRepository
-            self._memory_repo = MemoryRepository()
-            logger.warning("MemoryDistiller using fallback MemoryRepository (should be injected)")
-        else:
-            self._memory_repo = memory_repo
+            raise TypeError(
+                "MemoryDistiller requires memory_repo injection. "
+                "Domain layer cannot create adapters directly. "
+                "Please inject IMemoryRepository implementation from infrastructure layer."
+            )
+        self._memory_repo = memory_repo
 
     def collect_inputs(self, days: int = 7) -> Dict[str, Any]:
         """收集近 N 天的记忆条目和决策记录
