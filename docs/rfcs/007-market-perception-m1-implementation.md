@@ -2,10 +2,10 @@
 
 | 字段 | 值 |
 |---|---|
-| 状态 | 🟡 设计待评审 |
+| 状态 | 🟡 已交接待实施 |
 | 创建 | 2026-08-20（agent-dh k3） |
 | 上游 | [RFC 004 盈利引擎设计](004-profit-engine-design.md) M1 模块；[RFC 005 工单包](005-profit-engine-work-tickets.md) M1-1/M1-2/M1-3 |
-| 负责方 | 挣钱线（agent-dh）主实施；涉及 quantsys-v2 后端小改（单仓库内完成） |
+| 负责方 | 挣钱线（agent-dh）设计+审计；**实施移交其他 agent**——领工必读 [M1 实施交接单](../work-logs/2026-08/m1-market-perception-handover.md)（含 P0 settings.py 坏合并修复规格、实现模式、验收命令） |
 
 ---
 
@@ -186,3 +186,4 @@ curl "localhost:5001/api/market/themes?date=2026-08-18"
 | 日期 | 内容 |
 |---|---|
 | 2026-08-20 | 创建。基于实测侦察：sentiment service 可复用、zt_pool 数据源已在、breadth 覆盖缺陷确认（245/74）、scheduler API 齐备 |
+| 2026-08-21 | 移交实施。三表已入生产 PG；发现 P0 阻断（settings.py 坏合并 c076bd24，后端靠 stale pyc 存活，修复规格见交接单 §1）；agent-dh 转审计+文档角色，实施移交其他 agent，交接单：[docs/work-logs/2026-08/m1-market-perception-handover.md](../work-logs/2026-08/m1-market-perception-handover.md) |
