@@ -141,28 +141,52 @@ def get_order_detail(order_id: int):
 @router.post('/api/orders/create')
 @handle_api_error
 def create_order(payload: Optional[Dict[str, Any]] = Body(None)):
-    data = payload or {}
-    params = convert_keys_to_snake(data)
-    required_fields = ['symbol', 'action', 'order_type', 'quantity']
-    for field in required_fields:
-        if field not in params:
-            return error_response({'success': False, 'error': f'缺少必需参数: {field}'}, 400)
-
-    from_signal = params.get('from_signal', False)
-    signal_id = params.get('signal_id')
-    if from_signal and signal_id is None:
-        return error_response({
+    """
+    ⚠️ DEPRECATED: 此 API 已废弃，请使用新 API
+    
+    新 API: POST /api/simulation/accounts/{account_name}/trade
+    
+    废弃原因:
+    - account_name 丢失（保存为 null）
+    - 使用旧 quant.orders 表（已归档）
+    - 持仓更新回退到旧系统
+    - T+1 规则失效
+    
+    废弃日期: 2026-08-25
+    下线日期: 2026-09-25（1个月后）
+    迁移指南: https://github.com/kakaCat/pi-investment/blob/main/agent-dh/docs/guides/order-api-guide.md
+    """
+    logger.warning(
+        "⚠️ DEPRECATED API called: /api/orders/create. "
+        "Please migrate to /api/simulation/accounts/{account_name}/trade"
+    )
+    
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=410,  # 410 Gone
+        content={
             'success': False,
-            'error': '订单标记为来自策略信号（fromSignal=true），但未提供 signalId。策略生成的订单必须关联信号ID。'
-        }, 400)
-
-    order_id = order_service.create_order(
-        ds, symbol=params['symbol'], action=params['action'], order_type=params['order_type'],
-        quantity=params['quantity'], price=params.get('price') or params.get('stop_price'),
-        reason=params.get('notes'), signal_id=signal_id, from_signal=from_signal,
-        account_name=params.get('account_name'))
-    order = ds.portfolio.get_order_by_id(order_id)
-    return api_response({'order_id': order_id, 'order': order}, message='订单创建成功')
+            'error': '此 API 已废弃',
+            'deprecated_at': '2026-08-25',
+            'sunset_date': '2026-09-25',
+            'reason': 'account_name 丢失、使用旧表、T+1 规则失效',
+            'migration_guide': 'https://github.com/kakaCat/pi-investment/blob/main/agent-dh/docs/guides/order-api-guide.md',
+            'new_api': {
+                'method': 'POST',
+                'path': '/api/simulation/accounts/{account_name}/trade',
+                'example': {
+                    'url': '/api/simulation/accounts/agent_virtual/trade',
+                    'body': {
+                        'action': 'buy',
+                        'symbol': '000001',
+                        'shares': 200,
+                        'price_limit': 12.50,
+                        'reason': '买入理由'
+                    }
+                }
+            }
+        }
+    )
 
 
 @router.post('/api/orders/cancel/{order_id}')
