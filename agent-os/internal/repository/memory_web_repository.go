@@ -3,7 +3,10 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/lib/pq"
 	"github.com/pi-investment/agent-os/internal/domain"
@@ -14,6 +17,8 @@ type MemoryWebRepository interface {
 	List(ctx context.Context, req domain.MemoryListRequest) ([]*domain.MemoryWeb, error)
 	Search(ctx context.Context, req domain.MemorySearchRequest) ([]*domain.MemoryWeb, error)
 	Create(ctx context.Context, req domain.MemoryCreateRequest) (*domain.MemoryWeb, error)
+	Update(ctx context.Context, id string, req domain.MemoryUpdateRequest) (*domain.MemoryWeb, error)
+	Delete(ctx context.Context, id string, req domain.MemoryDeleteRequest) error
 	GetTags(ctx context.Context) ([]*domain.Tag, error)
 	CreateTag(ctx context.Context, name string) error
 	DeleteTag(ctx context.Context, name string) error
@@ -35,6 +40,11 @@ func (r *memoryWebRepository) List(ctx context.Context, req domain.MemoryListReq
 	
 	args := []interface{}{}
 	argIndex := 1
+	
+	// RFC 009: 默认排除 done/dropped/archived 状态的公告板帖子
+	if !req.IncludeClosed {
+		query += ` AND (metadata->>'board_status' IS NULL OR metadata->>'board_status' NOT IN ('done', 'dropped', 'archived'))`
+	}
 	
 	if req.Category != "" {
 		query += fmt.Sprintf(" AND category = $%d", argIndex)
@@ -89,8 +99,14 @@ func (r *memoryWebRepository) Search(ctx context.Context, req domain.MemorySearc
 	// 使用 ILIKE 进行模糊搜索，支持中文
 	query := `SELECT id, title, content, category, tags, agent_id, created_at, updated_at
 	          FROM memories
-	          WHERE title ILIKE $1 OR content ILIKE $1
-	          ORDER BY created_at DESC`
+	          WHERE (title ILIKE $1 OR content ILIKE $1)`
+	
+	// RFC 009: 默认排除 done/dropped/archived 状态的公告板帖子
+	if !req.IncludeClosed {
+		query += ` AND (metadata->>'board_status' IS NULL OR metadata->>'board_status' NOT IN ('done', 'dropped', 'archived'))`
+	}
+	
+	query += " ORDER BY created_at DESC"
 	
 	if req.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", req.Limit)
@@ -194,6 +210,148 @@ func (r *memoryWebRepository) DeleteTag(ctx context.Context, name string) error 
 	_, err := r.db.ExecContext(ctx, query, name)
 	if err != nil {
 		return fmt.Errorf("failed to delete tag: %w", err)
+	}
+	
+	return nil
+}
+
+// Update 更新记忆（PATCH /api/v1/memory/{id}）
+func (r *memoryWebRepository) Update(ctx context.Context, id string, req domain.MemoryUpdateRequest) (*domain.MemoryWeb, error) {
+	// RFC 009: 支持 content 更新和 metadata patch，带 expected_revision 乐观锁
+	var setClauses []string
+	var args []interface{}
+	argIndex := 1
+	
+	if req.Content != nil {
+		setClauses = append(setClauses, fmt.Sprintf("content = $%d", argIndex))
+		args = append(args, *req.Content)
+		argIndex++
+	}
+	
+	if req.MetadataPatch != nil {
+		setClauses = append(setClauses, fmt.Sprintf("metadata = $%d", argIndex))
+		
+		// 先读取当前 metadata
+		var currentMetadata map[string]interface{}
+		queryRead := `SELECT metadata FROM memories WHERE id = $1`
+		var metadataJSON []byte
+		err := r.db.QueryRowContext(ctx, queryRead, id).Scan(&metadataJSON)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, fmt.Errorf("memory not found: %s", id)
+			}
+			return nil, fmt.Errorf("failed to read current metadata: %w", err)
+		}
+		
+		if len(metadataJSON) > 0 {
+			if err := json.Unmarshal(metadataJSON, &currentMetadata); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+			}
+		} else {
+			currentMetadata = make(map[string]interface{})
+		}
+		
+		for k, v := range req.MetadataPatch {
+			currentMetadata[k] = v
+		}
+		
+		mergedJSON, err := json.Marshal(currentMetadata)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal merged metadata: %w", err)
+		}
+		
+		args = append(args, mergedJSON)
+		argIndex++
+	}
+	
+	if len(setClauses) == 0 {
+		return nil, fmt.Errorf("no fields to update")
+	}
+	
+	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
+	args = append(args, time.Now())
+	argIndex++
+	
+	whereClause := fmt.Sprintf("id = $%d", argIndex)
+	args = append(args, id)
+	argIndex++
+	
+	if req.ExpectedRevision != nil {
+		whereClause += fmt.Sprintf(" AND (metadata->>'revision')::int = $%d", argIndex)
+		args = append(args, *req.ExpectedRevision)
+		argIndex++
+	}
+	
+	query := fmt.Sprintf("UPDATE memories SET %s WHERE %s RETURNING id, title, content, category, tags, agent_id, created_at, updated_at",
+		strings.Join(setClauses, ", "), whereClause)
+	
+	var memory domain.MemoryWeb
+	var tags pq.StringArray
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(
+		&memory.ID, &memory.Title, &memory.Content, &memory.Category,
+		&tags, &memory.AgentID, &memory.CreatedAt, &memory.UpdatedAt,
+	)
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			if req.ExpectedRevision != nil {
+				var exists bool
+				checkQuery := `SELECT EXISTS(SELECT 1 FROM memories WHERE id = $1)`
+				_ = r.db.QueryRowContext(ctx, checkQuery, id).Scan(&exists)
+				if exists {
+					return nil, fmt.Errorf("revision conflict: expected %d", *req.ExpectedRevision)
+				}
+			}
+			return nil, fmt.Errorf("memory not found: %s", id)
+		}
+		return nil, fmt.Errorf("failed to update memory: %w", err)
+	}
+	
+	memory.Tags = tags
+	return &memory, nil
+}
+
+// Delete 删除记忆（软删：设置 metadata.board_status=dropped）
+func (r *memoryWebRepository) Delete(ctx context.Context, id string, req domain.MemoryDeleteRequest) error {
+	var currentMetadata map[string]interface{}
+	queryRead := `SELECT metadata FROM memories WHERE id = $1`
+	var metadataJSON []byte
+	err := r.db.QueryRowContext(ctx, queryRead, id).Scan(&metadataJSON)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("memory not found: %s", id)
+		}
+		return fmt.Errorf("failed to read metadata: %w", err)
+	}
+	
+	if len(metadataJSON) > 0 {
+		if err := json.Unmarshal(metadataJSON, &currentMetadata); err != nil {
+			return fmt.Errorf("failed to unmarshal metadata: %w", err)
+		}
+	} else {
+		currentMetadata = make(map[string]interface{})
+	}
+	
+	currentMetadata["board_status"] = "dropped"
+	if req.Reason != "" {
+		currentMetadata["drop_reason"] = req.Reason
+	}
+	currentMetadata["closed_at"] = time.Now().Format(time.RFC3339)
+	
+	updatedJSON, err := json.Marshal(currentMetadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	
+	query := `UPDATE memories SET metadata = $1, updated_at = $2 WHERE id = $3`
+	result, err := r.db.ExecContext(ctx, query, updatedJSON, time.Now(), id)
+	if err != nil {
+		return fmt.Errorf("failed to soft delete memory: %w", err)
+	}
+	
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("memory not found: %s", id)
 	}
 	
 	return nil

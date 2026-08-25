@@ -64,6 +64,19 @@ func (m *MockMemoryWebRepository) DeleteTag(ctx context.Context, name string) er
 	return args.Error(0)
 }
 
+func (m *MockMemoryWebRepository) Update(ctx context.Context, id string, req domain.MemoryUpdateRequest) (*domain.MemoryWeb, error) {
+	args := m.Called(ctx, id, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.MemoryWeb), args.Error(1)
+}
+
+func (m *MockMemoryWebRepository) Delete(ctx context.Context, id string, req domain.MemoryDeleteRequest) error {
+	args := m.Called(ctx, id, req)
+	return args.Error(0)
+}
+
 func TestMemoryHandler_List(t *testing.T) {
 	tests := []struct {
 		name           string

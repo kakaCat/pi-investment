@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/pi-investment/agent-os/internal/domain"
@@ -24,8 +25,9 @@ func (h *MemoryHandler) List(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
 	req := domain.MemoryListRequest{
-		Category: r.URL.Query().Get("category"),
-		Tag:      r.URL.Query().Get("tag"),
+		Category:      r.URL.Query().Get("category"),
+		Tag:           r.URL.Query().Get("tag"),
+		IncludeClosed: r.URL.Query().Get("include_closed") == "true",
 	}
 	
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
@@ -58,7 +60,8 @@ func (h *MemoryHandler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	req := domain.MemorySearchRequest{
-		Query: query,
+		Query:         query,
+		IncludeClosed: r.URL.Query().Get("include_closed") == "true",
 	}
 	
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
@@ -184,5 +187,74 @@ func (h *MemoryHandler) DeleteTag(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"message": "tag deleted successfully",
+	})
+}
+
+// Update 更新记忆（PATCH /api/v1/memory/{id}）
+func (h *MemoryHandler) Update(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	if id == "" {
+		respondError(w, http.StatusBadRequest, "memory id is required")
+		return
+	}
+	
+	var req domain.MemoryUpdateRequest
+	if err := parseJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+	
+	memory, err := h.repo.Update(ctx, id, req)
+	if err != nil {
+		if strings.Contains(err.Error(), "revision conflict") {
+			respondError(w, http.StatusConflict, err.Error())
+			return
+		}
+		if strings.Contains(err.Error(), "not found") {
+			respondError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to update memory: "+err.Error())
+		return
+	}
+	
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"memory":  memory,
+	})
+}
+
+// Delete 删除记忆（软删：设置 board_status=dropped）
+func (h *MemoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	if id == "" {
+		respondError(w, http.StatusBadRequest, "memory id is required")
+		return
+	}
+	
+	var req domain.MemoryDeleteRequest
+	if err := parseJSON(r, &req); err != nil {
+		// Body 可选，解析失败不报错
+		req = domain.MemoryDeleteRequest{}
+	}
+	
+	if err := h.repo.Delete(ctx, id, req); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			respondError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to delete memory: "+err.Error())
+		return
+	}
+	
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "memory deleted successfully",
 	})
 }
