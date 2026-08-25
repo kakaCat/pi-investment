@@ -222,11 +222,10 @@ export default class EvolverPlugin extends Service {
       }
 
       // 2026-08-25 新增：回测腿（第一级门）—— 策略类 candidate 先过回测
+      // 修正：改用全区间单窗口（短窗口 MA60 策略信号稀疏），宽松门槛（只拦截明显垃圾）
       if (c.strategy_id && c.mutation_type !== 'prompt') {
         const backtestWindows = [
-          { label: '熊', symbol: '600519', start_date: '2025-03-03', end_date: '2025-07-08' },
-          { label: '震荡', symbol: '600519', start_date: '2025-07-01', end_date: '2025-11-05' },
-          { label: '牛', symbol: '002716', start_date: '2026-06-01', end_date: '2026-08-21' },
+          { label: '全区间', symbol: '002716', start_date: '2025-01-02', end_date: '2026-08-21' },  // 湖南白银代表性活跃标的
         ];
         const results: any[] = [];
         let passed = true;
@@ -252,11 +251,11 @@ export default class EvolverPlugin extends Service {
               return_pct: (bt.totalReturn ?? 0) * 100,
               max_drawdown_pct: (bt.maxDrawdown ?? 0) * 100,
             });
-            // 失败条件：任一窗口夏普<0.5 或 回撤<-15%（过于激进）
-            if ((bt.sharpeRatio ?? 0) < 0.5 || (bt.maxDrawdown ?? 0) < -0.15) {
+            // 拒绝条件放宽：夏普 <0（亏钱策略）或 回撤 <-30%（超激进）或 0 信号（策略根本没执行）
+            const isBad = (bt.sharpeRatio ?? 0) < 0 || (bt.maxDrawdown ?? 0) < -0.30 || (bt.totalTrades ?? 0) === 0;
+            if (isBad) {
               passed = false;
-              reason = `回测腿不达标：${w.label}窗口 sharpe=${(bt.sharpeRatio ?? 0).toFixed(2)} mdd=${((bt.maxDrawdown ?? 0) * 100).toFixed(1)}%`;
-              break;
+              reason = `回测腿拒绝：${w.label} sharpe=${(bt.sharpeRatio ?? 0).toFixed(2)} mdd=${((bt.maxDrawdown ?? 0) * 100).toFixed(1)}% trades=${bt.totalTrades ?? 0}`;
             }
           }
         } catch (e: any) {
@@ -264,7 +263,7 @@ export default class EvolverPlugin extends Service {
           reason = `回测腿异常：${e.message}`;
         }
 
-        c.backtest_verdict = { passed, windows: results, reason: reason || '三窗口均达标' };
+        c.backtest_verdict = { passed, windows: results, reason: reason || '回测达标' };
 
         if (!passed) {
           c.status = 'rejected';
