@@ -120,10 +120,15 @@ class BattlefieldAssessor:
                 'disadvantages': disadvantages,
                 'recommendation': recommendation,
                 'urgency': urgency,
-                'confidence': confidence
+                'confidence': confidence,
+                'data_quality': 'degraded' if self.fund_flow_repo is None else 'full'
             }
 
-            self.metrics_repo.save_metrics(result)
+            # W2: metrics_repo 可能为 None，跳过保存
+            if self.metrics_repo is not None:
+                self.metrics_repo.save_metrics(result)
+            else:
+                logger.debug("metrics_repo 不可用，跳过保存评估快照")
 
             logger.info(f"✅ 池子战场评估完成: score={battlefield_score:.1f}, phase={game_phase}")
             return result
@@ -134,7 +139,7 @@ class BattlefieldAssessor:
 
     def _analyze_stocks_battlefield(self, symbols: List[str]) -> List[Dict]:
         """
-        分析池子中每只股票的战场状态
+        分析池子中每只股票的战场状态（W2: 降级支持）
 
         Args:
             symbols: 股票代码列表
@@ -142,6 +147,11 @@ class BattlefieldAssessor:
         Returns:
             每只股票的战场评分
         """
+        # W2: fund_flow_repo 可能为 None，降级使用 K线数据
+        if self.fund_flow_repo is None:
+            logger.warning("fund_flow_repo 不可用，降级使用 K线数据分析")
+            return self._analyze_stocks_by_kline(symbols)
+        
         stock_scores = []
         end_date = datetime.now()
         start_date = end_date - timedelta(days=5)
@@ -186,6 +196,69 @@ class BattlefieldAssessor:
                 logger.warning(f"分析股票战场失败: {symbol} - {e}")
                 continue
 
+        return stock_scores
+
+    def _analyze_stocks_by_kline(self, symbols: List[str]) -> List[Dict]:
+        """W2: 降级方法 - 使用K线数据分析战场（涨跌幅+成交量）
+        
+        当 fund_flow_repo 不可用时，基于 K线涨跌幅和成交量变化分析战场
+        """
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository
+        
+        stock_scores = []
+        kline_repo = KlineORMRepository()
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        start_date = (datetime.now() - timedelta(days=10)).strftime('%Y-%m-%d')
+        
+        for symbol in symbols:
+            try:
+                df = kline_repo.get_range(symbol=symbol, start_date=start_date, end_date=end_date)
+                if len(df) < 2:
+                    continue
+                
+                # Polars DataFrame 语法
+                close_prices = df['close'].to_list()
+                volumes = df['volume'].to_list()
+                
+                # 计算近期涨跌幅
+                recent_change = ((close_prices[-1] - close_prices[0]) / close_prices[0]) * 100
+                
+                # 计算成交量变化（量能）
+                recent_vol = sum(volumes[-3:]) / min(3, len(volumes[-3:]))
+                earlier_vol = sum(volumes[:3]) / min(3, len(volumes[:3])) if len(volumes) >= 6 else recent_vol
+                vol_ratio = recent_vol / earlier_vol if earlier_vol > 0 else 1.0
+                
+                # 基于涨跌幅和量能计算战场分数
+                score = 50.0
+                
+                # 下跌 + 缩量 = 散户恐慌，分数高
+                if recent_change < -5 and vol_ratio < 0.8:
+                    score += 25
+                elif recent_change < 0:
+                    score += 10
+                
+                # 上涨 + 放量过度 = 散户追涨，分数低
+                if recent_change > 10 and vol_ratio > 1.5:
+                    score -= 20
+                elif recent_change > 5:
+                    score -= 10
+                
+                # 震荡 + 缩量 = 吸筹
+                if abs(recent_change) < 3 and vol_ratio < 0.9:
+                    score += 15
+                
+                stock_scores.append({
+                    'symbol': symbol,
+                    'score': max(0, min(100, score)),
+                    'recent_change_pct': round(recent_change, 2),
+                    'vol_ratio': round(vol_ratio, 2),
+                    'data_source': 'kline_degraded'
+                })
+                
+            except Exception as e:
+                logger.warning(f"K线分析失败: {symbol} - {e}")
+                continue
+        
         return stock_scores
 
     def _calculate_stock_battlefield_score(self, retail_flow: float, institution_flow: float) -> float:

@@ -93,7 +93,11 @@ class OpponentBehaviorService:
                 'risk_appetite': risk_appetite,
                 'opportunities': opportunity_map
             }
-            self.opponent_repo.save_snapshot(snapshot)
+            # W2: opponent_repo 可能为 None，跳过保存
+            if self.opponent_repo is not None:
+                self.opponent_repo.save_snapshot(snapshot)
+            else:
+                logger.debug("opponent_repo 不可用，跳过保存快照")
 
             # 8. 构建返回结果
             result = {

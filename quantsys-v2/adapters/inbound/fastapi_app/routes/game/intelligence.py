@@ -54,48 +54,31 @@ class ManipulationDetectionResponse(BaseModel):
     返回实时的资金流向和市场阶段判断。
     """
 )
-async def get_opponent_behavior():
+def get_opponent_behavior():
     """
     获取当前市场参与者行为分析
-
+    
+    注意：定义为同步 def，FastAPI 会自动放入线程池执行
+    
     Returns:
         OpponentBehaviorResponse: 包含散户、机构、游资的行为分析
     """
     try:
-        # TODO: 接入实际的 Service
-        # from application.services.opponent_behavior_service import OpponentBehaviorService
-        # service = OpponentBehaviorService()
-        # result = await service.analyze_current_behavior()
-
-        # 临时返回示例数据
+        from application.services.opponent_behavior_service import OpponentBehaviorService
+        from adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository
+        
+        # 初始化服务（提供 pool/kline repo 作为数据源）
+        pool_repo = StockPoolRepository()
+        kline_repo = KlineORMRepository()
+        service = OpponentBehaviorService(
+            fund_flow_repo=None,  # W2: fund_flow 数据源暂无，服务需降级处理
+        )
+        result = service.analyze_current_behavior()
+        
         return {
             "success": True,
-            "data": {
-                "retail": {
-                    "net_flow": -5000000000,
-                    "buy_volume": 100000000,
-                    "sell_volume": 150000000,
-                    "sentiment": "panic_selling"
-                },
-                "institution": {
-                    "net_flow": 3000000000,
-                    "buy_volume": 80000000,
-                    "sell_volume": 50000000,
-                    "sentiment": "accumulating"
-                },
-                "hot_money": {
-                    "net_flow": 500000000,
-                    "buy_volume": 20000000,
-                    "sell_volume": 15000000,
-                    "sentiment": "speculating"
-                },
-                "market_phase": "panic_bottom",
-                "opportunity_map": {
-                    "buy_opportunities": ["散户恐慌抛售", "机构悄悄建仓"],
-                    "sell_signals": [],
-                    "risk_warnings": ["成交量萎缩"]
-                }
-            }
+            "data": result
         }
     except Exception as e:
         logger.exception(f"Failed to analyze opponent behavior: {e}")
@@ -114,9 +97,11 @@ async def get_opponent_behavior():
     - 操作建议
     """
 )
-async def get_pool_battlefield_assessment(pool_id: int):
+def get_pool_battlefield_assessment(pool_id: int):
     """
     评估池子战场优势
+    
+    注意：定义为同步 def，FastAPI 会自动放入线程池执行
 
     Args:
         pool_id: 股票池ID
@@ -125,34 +110,28 @@ async def get_pool_battlefield_assessment(pool_id: int):
         BattlefieldAssessmentResponse: 战场评估结果
     """
     try:
-        # TODO: 接入实际的 Service
-        # from application.services.battlefield_assessor import BattlefieldAssessor
-        # service = BattlefieldAssessor()
-        # result = await service.assess_battlefield(pool_id)
-
-        # 临时返回示例数据
+        from application.services.battlefield_assessor import BattlefieldAssessor
+        from application.services.opponent_behavior_service import OpponentBehaviorService
+        from adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository
+        
+        # W2: 初始化服务并提供可用的数据源
+        pool_repo = StockPoolRepository()
+        kline_repo = KlineORMRepository()
+        opponent_service = OpponentBehaviorService()
+        
+        service = BattlefieldAssessor(
+            pool_repo=pool_repo,
+            fund_flow_repo=None,  # W2: fund_flow 暂无，降级处理
+            metrics_repo=None,     # W2: metrics 暂无，不保存快照
+            opponent_service=opponent_service
+        )
+        
+        result = service.assess_pool(pool_id)
+        
         return {
             "success": True,
-            "data": {
-                "pool_id": pool_id,
-                "battlefield_score": 78.5,
-                "opponent_strength": {
-                    "retail_pressure": "low",
-                    "institution_interest": "high",
-                    "hot_money_risk": "medium"
-                },
-                "game_phase": "early_accumulation",
-                "advantages": [
-                    "散户恐慌抛售，筹码便宜",
-                    "机构正在悄悄建仓"
-                ],
-                "disadvantages": [
-                    "成交量偏低，流动性不足"
-                ],
-                "recommendation": "accumulate",
-                "urgency": "high",
-                "confidence": 0.85
-            }
+            "data": result
         }
     except Exception as e:
         logger.exception(f"Failed to assess battlefield for pool {pool_id}: {e}")
