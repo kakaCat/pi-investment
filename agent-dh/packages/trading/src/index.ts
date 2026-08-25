@@ -212,6 +212,8 @@ export default class TradingPlugin extends Service {
           account_name: args.account_name || 'agent_virtual',
           // 2026-08-25 后端契约变更：order_type 必填（市价/限价，按是否给价推断）
           order_type: args.price ? 'limit' : 'market',
+          // R-005：交易理由透传（simulation 端点要求 ≥10 字）
+          reason: args.reason,
         }) as any;
       },
     } as any));
