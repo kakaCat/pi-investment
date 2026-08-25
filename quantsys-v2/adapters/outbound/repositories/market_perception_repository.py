@@ -77,17 +77,8 @@ class MarketRegimeRepository(BaseORMRepository[MarketRegime]):
         if not rows:
             return 0
         stmt = pg_insert(MarketRegime).values(rows)
-        stmt = stmt.on_conflict_do_update(
-            index_elements=['trade_date'],
-            set_={
-                'regime': stmt.excluded.regime,
-                'reason': stmt.excluded.reason,
-                'index_trend_score': stmt.excluded.index_trend_score,
-                'sentiment_score': stmt.excluded.sentiment_score,
-                'volume_ratio': stmt.excluded.volume_ratio,
-                'ad_ratio': stmt.excluded.ad_ratio,
-            },
-        )
+        # 回填只填空缺，不覆盖已有记录（无论真实快照还是旧回填值）
+        stmt = stmt.on_conflict_do_nothing(index_elements=['trade_date'])
         try:
             self.session.execute(stmt)
             if commit:
