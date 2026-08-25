@@ -8,7 +8,7 @@ P2-3: Config-Driven Integration
 支持从配置文件加载和注册服务
 """
 import logging
-from typing import Type, TypeVar, Callable, Dict, Any, Optional, List
+from typing import Type, TypeVar, Callable, Dict, Any, Optional, List, Union
 from enum import Enum
 import inspect
 from functools import wraps
@@ -69,6 +69,15 @@ class ServiceDescriptor:
                         logger.warning(
                             f"Skipping string annotation '{param.annotation}' in {self.implementation_type.__name__}. "
                             "Use explicit dependencies parameter or resolve forward references."
+                        )
+                        continue
+                    # 跳过 Optional/Union 类型注解（如 Optional[List]）——它们不是可注入服务
+                    # 默认值参数（providers=None 等）不应被当作服务依赖推断
+                    origin = getattr(param.annotation, '__origin__', None)
+                    if origin is Union or origin is Optional:
+                        logger.debug(
+                            f"Skipping Optional/Union annotation '{param.annotation}' in "
+                            f"{self.implementation_type.__name__} (param={param_name})"
                         )
                         continue
                     deps.append(param.annotation)
@@ -307,11 +316,13 @@ class EnhancedServiceFactory:
         if factory_func:
             # 如果已有工厂函数，直接使用
             final_factory = factory_func
-        elif dependencies is not None:
+        elif service_config.dependencies:
             # 如果有显式依赖配置，创建工厂函数
+            # 注意：这里使用 service_config.dependencies 而不是 dependencies
+            # 因为 _resolve_dependency_types 当前返回 None
             final_factory = cls._create_factory_with_dependencies(
                 implementation_type or service_type,
-                dependencies,
+                service_config.dependencies,
                 service_config.config
             )
         else:
@@ -449,6 +460,22 @@ class EnhancedServiceFactory:
         Returns:
             服务类型，如果未找到返回 None
         """
+        # 处理 repositories.xxx 格式的引用
+        if service_name.startswith('repositories.'):
+            repo_name = service_name.split('.', 1)[1]
+            # 从配置中查找对应的 interface
+            try:
+                from infrastructure.config.loader import load_config
+                config = load_config()
+                if hasattr(config, 'repositories') and repo_name in config.repositories:
+                    repo_config = config.repositories[repo_name]
+                    interface_path = repo_config.interface
+                    # 加载接口类型
+                    return cls._load_class(interface_path)
+            except Exception as e:
+                logger.warning(f"Failed to resolve repository reference '{service_name}': {e}")
+                return None
+
         # 从已注册的服务中查找
         for service_type, descriptor in cls._descriptors.items():
             # 尝试匹配服务名称

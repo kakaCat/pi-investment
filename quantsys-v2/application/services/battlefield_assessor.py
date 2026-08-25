@@ -35,9 +35,9 @@ class BattlefieldAssessor:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.pool_repo = pool_repo or IStockPoolRepository()
-        self.fund_flow_repo = fund_flow_repo or IFundFlowRepository()
-        self.metrics_repo = metrics_repo or IAgentIntelligenceRepository()
+        self.pool_repo = pool_repo
+        self.fund_flow_repo = fund_flow_repo
+        self.metrics_repo = metrics_repo
         self.opponent_service = opponent_service or OpponentBehaviorService()
 
     def assess_pool(self, pool_id: int) -> Dict[str, Any]:

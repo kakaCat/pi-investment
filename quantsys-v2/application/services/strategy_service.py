@@ -46,7 +46,7 @@ class StrategyService:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.config_dir = Path(__file__).parent.parent.parent / 'live_trading' / 'configs' / 'strategies'
-        self.repo = repo or ISimulationRepository()
+        self.repo = repo
         self._configs_cache = {}
 
     def list_strategies(self) -> List[str]:

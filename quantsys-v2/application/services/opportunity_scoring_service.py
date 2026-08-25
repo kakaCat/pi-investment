@@ -18,8 +18,8 @@ from application.services.scoring.capital_scorer import CapitalScorer
 from application.services.scoring.cycle_position_scorer import CyclePositionScorer
 from application.services.scoring.stock_profile_classifier import StockProfileClassifier
 from application.services.scoring.weight_calculator import (
-from domain.ports.datasource_ports import IDataProviderManager
     base_weights, apply_regime, feature_pct_for)
+from domain.ports.datasource_ports import IDataProviderManager
 from application.services.scoring.regime_signal_provider import RegimeSignalProvider
 from application.services.scoring.data_quality_gate import DataQualityGate
 from infrastructure.cache.cache_service import get_cache_service
@@ -77,9 +77,9 @@ class OpportunityScoringService:
         # 缓存服务
         self.cache = cache or get_cache_service()
 
-        # P2-1: 优先使用注入的依赖，否则回退到直接实例化
-        self.financial_repo = financial_repo or IFinancialRepository()
-        self.fund_flow_repo = fund_flow_repo or IFundFlowRepository()
+        # P2-1: 优先使用注入的依赖，否则设为 None（不能实例化抽象类）
+        self.financial_repo = financial_repo
+        self.fund_flow_repo = fund_flow_repo
 
         # regime_provider 依赖 kline_repo 和 cache
         if regime_provider:

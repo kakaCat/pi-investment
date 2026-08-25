@@ -26,7 +26,7 @@ class SimulationService:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.registry = get_registry()
-        self.repo = repo or ISimulationRepository()
+        self.repo = repo
         self.logger = logging.getLogger(__name__)
     
     def list_strategies(self) -> List[Dict]:

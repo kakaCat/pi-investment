@@ -34,7 +34,7 @@ class SchedulerConfigService:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.repo = repo or ISchedulerConfigRepository()
+        self.repo = repo
         logger.info("SchedulerConfigService initialized with ORM")
 
     def list_configs(

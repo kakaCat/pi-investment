@@ -56,7 +56,7 @@ class StrategyCircuitBreaker:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.config = {**self.DEFAULT_CONFIG, **(config or {})}
-        self.repo = repo or IStrategyCircuitBreakerRepository()
+        self.repo = repo
 
     def get_state(self, strategy_name: str) -> Dict:
         """

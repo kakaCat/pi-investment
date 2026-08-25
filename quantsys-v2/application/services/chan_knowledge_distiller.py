@@ -58,9 +58,9 @@ class ChanKnowledgeDistiller:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         # 依赖模块顶部 import（同 ChanScanService，保证可 patch）
-        self._signal_repo = signal_repo or ISignalRepository()
-        self._kline_repo = kline_repo or IKlineRepository()
-        self._knowledge_repo = knowledge_repo or IAgentKnowledgeRepository()
+        self._signal_repo = signal_repo
+        self._kline_repo = kline_repo
+        self._knowledge_repo = knowledge_repo
         self._window = window_days
         self._lookback = lookback_days
 

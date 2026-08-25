@@ -37,8 +37,8 @@ class StrategyWeightAdjuster:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.weight_repo = weight_repo or IStrategyWeightRepository()
-        self.performance_repo = performance_repo or IStrategyPerformanceRepository()
+        self.weight_repo = weight_repo
+        self.performance_repo = performance_repo
 
     def get_weight(
         self,

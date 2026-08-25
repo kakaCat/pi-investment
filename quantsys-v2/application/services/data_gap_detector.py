@@ -28,7 +28,7 @@ class DataGapDetector:
         from domain.ports import IKlineRepository
         from application.services.trading_calendar_service import TradingCalendarService
 
-        self.kline_repo = kline_repo or IKlineRepository()
+        self.kline_repo = kline_repo
         self.calendar = calendar_service or TradingCalendarService(self.kline_repo)
 
     def detect_gaps(

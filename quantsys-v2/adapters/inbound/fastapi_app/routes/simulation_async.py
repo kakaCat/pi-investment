@@ -72,7 +72,7 @@ async def create_account(payload: Dict[str, Any] = Body(...)):
 async def manual_trade(account_name: str, payload: Dict[str, Any] = Body(...)):
     """手工/代管交易（agent 虚拟仓核心端点）"""
     try:
-        svc = AccountTradingService()
+        svc = AccountTradingService(repo=SimulationORMRepository())
         result = svc.execute_trade(
             account_name=account_name,
             action=payload.get('action'),
@@ -100,7 +100,7 @@ async def list_pending_orders(account_name: str,
                               status: Optional[str] = Query('pending')):
     """挂单列表（默认只返回 pending，?status=all 返回全部）"""
     try:
-        svc = AccountTradingService()
+        svc = AccountTradingService(repo=SimulationORMRepository())
         orders = svc.repo.get_pending_orders(
             account_name=account_name,
             status=None if status == 'all' else status)
@@ -113,7 +113,7 @@ async def list_pending_orders(account_name: str,
 async def cancel_pending_order(account_name: str, order_id: int):
     """取消挂单（仅 pending 状态可取消）"""
     try:
-        svc = AccountTradingService()
+        svc = AccountTradingService(repo=SimulationORMRepository())
         result = svc.cancel_pending_order(account_name, order_id)
         return {'success': True, 'data': result}
     except TradingError as e:

@@ -41,6 +41,7 @@ class DatabaseSettings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         populate_by_name=True,
+        extra="ignore",  # 忽略未定义的环境变量
     )
 
 
@@ -56,6 +57,7 @@ class ThreadPoolSettings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         populate_by_name=True,
+        extra="ignore",  # 忽略未定义的环境变量
     )
 
 
@@ -74,6 +76,7 @@ class SchedulerSettings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         populate_by_name=True,
+        extra="ignore",  # 忽略未定义的环境变量
     )
 
 
@@ -95,6 +98,7 @@ class ExternalServiceSettings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         populate_by_name=True,
+        extra="ignore",  # 忽略未定义的环境变量
     )
 
 
@@ -129,6 +133,7 @@ class LoggingSettings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         populate_by_name=True,
+        extra="ignore",  # 忽略未定义的环境变量
     )
 
 
@@ -170,6 +175,7 @@ class AppSettings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         populate_by_name=True,
+        extra="ignore",  # 忽略未定义的环境变量
     )
 
 

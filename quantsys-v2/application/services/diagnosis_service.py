@@ -43,8 +43,8 @@ class DiagnosisService:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.backtest_repo = backtest_repo or IBacktestRepository()
-        self.kline_repo = kline_repo or IKlineRepository()
+        self.backtest_repo = backtest_repo
+        self.kline_repo = kline_repo
         self.strategy_analyzer = strategy_analyzer or StrategyAnalyzer()
         self.report_generator = report_generator or ReportGenerator()
 

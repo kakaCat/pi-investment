@@ -2,11 +2,20 @@
 事件处理器 - 连接事件总线和WebSocket
 """
 from infrastructure.events.event_bus import event_bus
-from adapters.inbound.api.websocket import get_connection_manager
 import logging
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+def __get_connection_manager():
+    """延迟导入 WebSocket 管理器（避免 FastAPI 环境下导入 flask_socketio 失败）"""
+    try:
+        from adapters.inbound.api.websocket import get_connection_manager
+        return _get_connection_manager()
+    except ImportError as e:
+        logger.debug(f"WebSocket manager not available (expected in FastAPI-only env): {e}")
+        return None
 
 
 async def on_quote_update(data: dict):
@@ -20,7 +29,9 @@ async def on_quote_update(data: dict):
     logger.info(f"行情更新: {symbol}, 价格: {data.get('price')}")
 
     try:
-        manager = get_connection_manager()
+        manager = __get_connection_manager()
+        if manager is None:
+            return
         # 广播给WebSocket客户端
         manager.broadcast(symbol, {
             "type": "quote",
@@ -49,7 +60,9 @@ async def on_signal_generated(data: dict):
     logger.info(f"信号生成: {symbol}, 信号: {signal}, 策略: {data.get('strategy')}")
 
     try:
-        manager = get_connection_manager()
+        manager = __get_connection_manager()
+        if manager is None:
+            return
         # 广播给WebSocket客户端
         manager.broadcast(symbol, {
             "type": "signal",
@@ -90,7 +103,9 @@ async def on_risk_alert(data: dict):
     logger.warning(f"风险告警: {symbol}, 类型: {risk_type}, 级别: {level}")
 
     try:
-        manager = get_connection_manager()
+        manager = __get_connection_manager()
+        if manager is None:
+            return
 
         # 发送给订阅该股票的客户端
         if symbol:
@@ -133,7 +148,9 @@ async def on_trade_executed(data: dict):
     logger.info(f"交易执行: {symbol}, 操作: {action}, 价格: {data.get('price')}")
 
     try:
-        manager = get_connection_manager()
+        manager = __get_connection_manager()
+        if manager is None:
+            return
         manager.broadcast(symbol, {
             "type": "trade_executed",
             "symbol": symbol,
@@ -162,7 +179,9 @@ async def on_backtest_completed(data: dict):
     logger.info(f"回测完成: ID={backtest_id}, 策略={strategy}")
 
     try:
-        manager = get_connection_manager()
+        manager = __get_connection_manager()
+        if manager is None:
+            return
         manager.broadcast_to_all({
             "type": "backtest_completed",
             "backtest_id": backtest_id,
@@ -190,7 +209,9 @@ async def on_data_updated(data: dict):
     logger.info(f"数据更新: 来源={source}, 状态={status}")
 
     try:
-        manager = get_connection_manager()
+        manager = __get_connection_manager()
+        if manager is None:
+            return
         manager.broadcast_to_all({
             "type": "data_updated",
             "source": source,

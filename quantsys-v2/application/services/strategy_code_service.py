@@ -55,6 +55,7 @@ except ImportError as e:
     OTHER_FACTORS_AVAILABLE = False
     logger.warning(f"其他因子导入失败: {e}")
 from application.services.sentiment_service import SentimentService
+from adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
 
 logger = structlog.get_logger(__name__)
 

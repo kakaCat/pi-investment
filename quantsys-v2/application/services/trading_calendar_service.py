@@ -30,7 +30,7 @@ class TradingCalendarService:
         """
         from domain.ports import IKlineRepository
 
-        self.kline_repo = kline_repo or IKlineRepository()
+        self.kline_repo = kline_repo
         self.redis = redis_client
         self._cache = {}  # 内存缓存作为 Redis 的 fallback
 

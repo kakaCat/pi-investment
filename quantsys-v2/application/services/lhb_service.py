@@ -8,6 +8,7 @@ import pandas as pd
 import structlog
 from datetime import datetime, timedelta
 from domain.ports.datasource_ports import ILhbDataSource
+from adapters.outbound.datasources.lhb_source import LhbDataSource
 
 from application.services.base_service import ServiceBase
 
@@ -17,7 +18,7 @@ logger = structlog.get_logger(__name__)
 class LhbService(ServiceBase):
     """龙虎榜数据服务"""
 
-    def __init__(self, data_source: Optional[LhbDataSource] = None):
+    def __init__(self, data_source: Optional[ILhbDataSource] = None):
         """
         初始化龙虎榜服务
 

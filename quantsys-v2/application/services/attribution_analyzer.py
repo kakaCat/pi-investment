@@ -25,7 +25,7 @@ class AttributionAnalyzer:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.pool_repo = pool_repo or IStockPoolRepository()
+        self.pool_repo = pool_repo
 
     def analyze_pool_attribution(self, pool_id: int) -> Dict[str, Any]:
         """

@@ -50,7 +50,7 @@ class SmartSchedulerService:
             }
         )
         self.task_registry: Dict[str, Dict[str, Any]] = {}
-        self.config_repo = config_repo or ISchedulerConfigRepository()
+        self.config_repo = config_repo
         self._setup_listeners()
         logger.info("SmartSchedulerService initialized with ORM")
 

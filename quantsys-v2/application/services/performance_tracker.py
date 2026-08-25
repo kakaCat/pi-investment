@@ -44,7 +44,7 @@ class PerformanceTracker:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.account_name = account_name
-        self.repo = repo or ISimulationRepository()
+        self.repo = repo
 
     def get_full_report(self) -> Dict[str, Any]:
         """生成完整绩效报告"""

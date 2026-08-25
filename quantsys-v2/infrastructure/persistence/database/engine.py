@@ -5,6 +5,7 @@ SQLAlchemy Engine 全局单例 - 统一数据库连接管理
 异步路径见 async_engine.py。
 """
 import sys
+import os
 import re
 import logging
 from typing import Optional

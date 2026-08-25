@@ -36,7 +36,7 @@ class ExperienceAccumulator:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.signal_log = signal_log or SignalTestLog()
-        self.perf_repo = perf_repo or IStrategyPerformanceRepository()
+        self.perf_repo = perf_repo
 
     def accumulate_from_performance(
         self,

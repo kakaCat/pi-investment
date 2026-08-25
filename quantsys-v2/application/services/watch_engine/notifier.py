@@ -21,6 +21,7 @@ class WatchNotifier:
     def notify(self, rule, condition: dict, quote, result) -> bool:
         """触发通知。返回是否成功唤醒 Agent（失败也落库待补发）"""
         payload = self._build_payload(rule, condition, quote, result)
+        logger.info('准备唤醒 Agent', rule_id=rule.id, symbol=rule.symbol, payload=payload)
         notified = self._notify_agent_with_retry(payload)
         self._broadcast_ws(payload)
         self._record(rule, condition, quote, result, notified)

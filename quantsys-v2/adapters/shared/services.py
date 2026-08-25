@@ -154,6 +154,12 @@ class _LazyServiceModule:
     """延迟加载的服务模块，避免循环依赖"""
 
     @property
+    def ServiceFactory(self):
+        """导出 ServiceFactory 供外部使用"""
+        from infrastructure.services.service_factory import ServiceFactory
+        return ServiceFactory
+
+    @property
     def ds(self):
         return get_data_service()
 

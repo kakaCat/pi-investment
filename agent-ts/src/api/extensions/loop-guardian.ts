@@ -64,8 +64,26 @@ export const loopGuardianExtension: ExtensionFactory = (pi) => {
 
   let state: GuardianState = createGuardianState();
 
+  // 会话级别的持久化标志（跨 agent_start 保留）
+  let sessionFollowUpSent = false;
+  let sessionProviderErrorCount = 0;
+
   pi.on("agent_start", () => {
+    // 保留上一轮的 provider 错误计数和 followUp 标志
+    const prevErrors = state.providerErrors;
+    const prevFollowUpSent = state.followUpSent;
+
     state = createGuardianState();
+
+    // 累加 provider 错误（跨轮次）
+    sessionProviderErrorCount += prevErrors;
+    state.providerErrors = sessionProviderErrorCount;
+
+    // 恢复 followUpSent 标志
+    if (sessionFollowUpSent) {
+      state.followUpSent = true;
+    }
+
     // 注册 hooks（每次新任务重新注册，确保状态绑定正确）
     unregisterLoopGuardianHooks();
     registerLoopGuardianHooks(state);
@@ -93,6 +111,12 @@ export const loopGuardianExtension: ExtensionFactory = (pi) => {
       .reverse()
       .find((m: any) => m?.role === "assistant");
     void execute(pi, evaluateAgentEnd(state, extractText(lastAssistant)));
+
+    // 同步会话级别的标志（跨轮次保留）
+    if (state.followUpSent) {
+      sessionFollowUpSent = true;
+    }
+
     // 任务结束后注销 hooks
     unregisterLoopGuardianHooks();
   });

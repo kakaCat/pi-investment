@@ -35,7 +35,7 @@ class AccountTradingService:
 
     def __init__(self, repo: Optional[ISimulationRepository] = None, calendar=None,
                  now_fn=None):
-        self.repo = repo or ISimulationRepository()
+        self.repo = repo
         if calendar is None:
             from application.services.trading_calendar_service import TradingCalendarService
             calendar = TradingCalendarService()

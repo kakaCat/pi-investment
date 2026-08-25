@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 import json
 from pathlib import Path
 from dotenv import load_dotenv
+import structlog
 
 # 加载环境变量（必须在导入其他模块之前）
 load_dotenv()

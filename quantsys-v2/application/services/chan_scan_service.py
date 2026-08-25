@@ -48,8 +48,8 @@ class ChanScanService:
         # 注意：依赖在模块顶部 import（非 __init__ 内 lazy import），
         # 否则测试 patch 'application.services.chan_scan_service.X' 会 AttributeError
         self._chan = chan_service or ChanService()
-        self._pool_repo = pool_repo or IStockPoolRepository()
-        self._signal_repo = signal_repo or ISignalRepository()
+        self._pool_repo = pool_repo
+        self._signal_repo = signal_repo
 
     @staticmethod
     def _normalize_symbol(symbol: str) -> str:

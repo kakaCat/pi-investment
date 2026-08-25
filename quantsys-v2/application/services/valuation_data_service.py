@@ -20,8 +20,8 @@ class ValuationDataService:
     def __init__(self):
         self.logger = structlog.get_logger(__name__)
         self.timeout = 5  # 请求超时时间（秒）
-            # 延迟导入避免顶层依赖
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+        # 延迟导入避免顶层依赖
+        from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
 
     def get_valuation(self, symbol: str) -> Dict[str, Any]:

@@ -32,7 +32,7 @@ class StockCodeValidator:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.kline_repo = kline_repo or IKlineRepository()
+        self.kline_repo = kline_repo
         self._cache: Dict[str, Dict] = {}
         self._cache_ttl = 3600  # 缓存1小时
 

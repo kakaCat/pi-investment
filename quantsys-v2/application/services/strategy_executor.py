@@ -40,9 +40,9 @@ class StrategyExecutor:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.strategy_repo = strategy_repo or IStrategyRepository()
-        self.kline_repo = kline_repo or IKlineRepository()
-        self.signal_repo = signal_repo or ISignalRepository()
+        self.strategy_repo = strategy_repo
+        self.kline_repo = kline_repo
+        self.signal_repo = signal_repo
         self.indicator_executor = indicator_executor or IndicatorStrategyExecutor()
         self.script_executor = script_executor or ScriptStrategyExecutor()
 

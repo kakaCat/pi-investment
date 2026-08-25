@@ -19,8 +19,8 @@ class FinancialAnalysisService:
         self.logger = structlog.get_logger(__name__)
         self._financial_repo = financial_repo
         self._kline_repo = kline_repo
-            # 延迟导入避免顶层依赖
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+        # 延迟导入避免顶层依赖
+        from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
 
     def get_financial_indicators(self, symbol: str) -> Dict[str, Any]:

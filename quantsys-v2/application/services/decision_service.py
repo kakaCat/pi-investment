@@ -33,8 +33,8 @@ class DecisionService:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.decision_repo = decision_repo or IAgentIntelligenceRepository()
-        self.change_log_repo = change_log_repo or IPoolChangeLogRepository()
+        self.decision_repo = decision_repo
+        self.change_log_repo = change_log_repo
 
     def record_decision(self, decision_data: Dict[str, Any]) -> Dict[str, Any]:
         """

@@ -33,10 +33,10 @@ class DataBackfiller:
         """
         from domain.ports import IKlineRepository
 
-        self.kline_repo = kline_repo or IKlineRepository()
-            # 延迟导入避免顶层依赖
-            from adapters.outbound.datasources.manager import get_data_provider_manager
-        self.data_source_manager = data_source_manager or get_data_source_manager()
+        self.kline_repo = kline_repo
+        # 延迟导入避免顶层依赖
+        from adapters.outbound.datasources.manager import get_data_provider_manager
+        self.data_source_manager = data_source_manager or get_data_provider_manager()
 
     def backfill_symbol(
         self,

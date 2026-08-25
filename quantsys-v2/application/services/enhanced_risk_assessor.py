@@ -36,8 +36,8 @@ class EnhancedRiskAssessor:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.pool_repo = pool_repo or IStockPoolRepository()
-        self.fund_flow_repo = fund_flow_repo or IFundFlowRepository()
+        self.pool_repo = pool_repo
+        self.fund_flow_repo = fund_flow_repo
         self.opponent_service = opponent_service or OpponentBehaviorService()
         self.manipulation_detector = manipulation_detector or ManipulationDetector()
 

@@ -33,8 +33,8 @@ class DecisionEvaluator:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.decision_repo = decision_repo or IAgentIntelligenceRepository()
-        self.pool_repo = pool_repo or IStockPoolRepository()
+        self.decision_repo = decision_repo
+        self.pool_repo = pool_repo
         self.knowledge_service = knowledge_service or KnowledgeService()
 
     def batch_evaluate_pending(self, days: int = 7) -> Dict[str, Any]:

@@ -89,6 +89,39 @@ class CircuitBreaker(ICircuitBreaker):
         # HALF_OPEN: allow requests to test recovery
         return True
 
+    def is_open(self) -> bool:
+        """Check if circuit is open (ICircuitBreaker interface method).
+
+        Returns:
+            True if circuit is open (rejecting requests), False otherwise
+        """
+        return self.state == CircuitState.OPEN
+
+    def call(self, func, *args, **kwargs):
+        """Execute a function with circuit breaker protection (ICircuitBreaker interface method).
+
+        Args:
+            func: Function to execute
+            *args: Positional arguments for func
+            **kwargs: Keyword arguments for func
+
+        Returns:
+            Result of func if successful
+
+        Raises:
+            Exception: If circuit is open or func fails
+        """
+        if not self.is_available():
+            raise Exception(f"Circuit breaker is {self.state.value}")
+
+        try:
+            result = func(*args, **kwargs)
+            self.record_success()
+            return result
+        except Exception as e:
+            self.record_failure()
+            raise
+
     def record_success(self):
         """Record a successful request."""
         if self.state == CircuitState.HALF_OPEN:

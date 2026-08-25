@@ -128,8 +128,12 @@ services:
     class: application.services.strategy_code_service.StrategyCodeService
     lifecycle: singleton
     dependencies:
-      data_service: data_service
+      # 2026-08-25 修复：移除 data_service 依赖（StrategyCodeService.__init__ 根本不接收它，
+      # 且 create_data_service 工厂链会回调 get_strategy_code_service 形成循环依赖：
+      # StrategyCodeService -> data_service -> ... -> StrategyCodeService，回测全挂）。
+      # 补上实际接收的 kline_repo。
       strategy_repo: repositories.strategy
+      kline_repo: repositories.kline
     description: '策略代码执行服务'
 
   # 风险检查

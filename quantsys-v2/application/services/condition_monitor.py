@@ -44,8 +44,8 @@ class ConditionMonitorService:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.rule_repo = rule_repo or IConditionRuleRepository()
-        self.result_repo = result_repo or IConditionResultRepository()
+        self.rule_repo = rule_repo
+        self.result_repo = result_repo
         self.condition_checkers: Dict[str, Callable] = {}
         self.is_running = False
         self._register_builtin_checkers()

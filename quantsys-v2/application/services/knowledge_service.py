@@ -28,7 +28,7 @@ class KnowledgeService:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.repository = repository or IAgentKnowledgeRepository()
+        self.repository = repository
         logger.info("✅ KnowledgeService initialized with repository")
 
     @property

@@ -124,6 +124,16 @@ class DataSourceCache(ICacheService):
         if key in self._access_times:
             del self._access_times[key]
 
+    def delete(self, key: str) -> None:
+        """Delete a cache entry (ICacheService interface method).
+
+        Alias for invalidate() to match ICacheService interface.
+
+        Args:
+            key: Cache key to delete
+        """
+        self.invalidate(key)
+
     def clear(self):
         """Clear all cached entries."""
         count = len(self._cache)

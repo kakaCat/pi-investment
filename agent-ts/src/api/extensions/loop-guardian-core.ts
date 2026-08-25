@@ -139,20 +139,20 @@ export function evaluateAgentEnd(
   s: GuardianState,
   finalText: string
 ): Intervention[] {
-  if (s.followUpSent) return []; // 防追问循环：每任务最多一次
-
-  // R7：provider 多次错误且全程 0 工具 → 静默失败告警（不注入对话，agent 大概率已坏）
-  if (s.providerErrors >= PROVIDER_ERROR_THRESHOLD && s.toolCallCount === 0) {
-    s.followUpSent = true; // 同时抑制 R5/R6，避免对一个坏掉的会话追问
+  // R7：provider 多次错误 → 立即停止，不注入任何消息（避免死循环）
+  // 返回空数组 = 不发送任何干预，会话自然结束
+  if (s.providerErrors >= PROVIDER_ERROR_THRESHOLD) {
     return [{
       kind: "notify",
-      title: "🚨 LoopGuardian 疑似静默失败",
-      content: `本周期 LLM provider 返回错误 ${s.providerErrors} 次且 0 次工具调用，任务可能未实际执行。建议检查 API key / model-switch.log。`,
-      reason: "R7:silent-failure",
+      title: "🚨 LoopGuardian 强制停止会话",
+      content: `LLM provider 连续返回错误 ${s.providerErrors} 次，已停止会话防止死循环。请检查：\n1. API key 是否有效 (.pi-invest/llm-state.json)\n2. 账户余额是否充足 (Kimi/DeepSeek)\n3. 模型切换日志 (model-switch.log)\n\n会话已终止，不会继续重试。`,
+      reason: "R7:force-stop",
     }];
   }
 
-  // R6：空回复或截断
+  if (s.followUpSent) return []; // 防追问循环：每任务最多一次
+
+  // R6：空回复或截断（仅在 provider 正常时才注入 followUp）
   if (!finalText.trim()) {
     s.followUpSent = true;
     return [{

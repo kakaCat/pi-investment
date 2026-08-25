@@ -41,8 +41,8 @@ class FactorLayeringService:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.kline_repo = kline_repo or IKlineRepository()
-        self.stock_repo = stock_repo or IStockRepository()
+        self.kline_repo = kline_repo
+        self.stock_repo = stock_repo
         self.stock_pool_service = stock_pool_service or StockPoolService(stock_repo=self.stock_repo)
 
     def run_layering_backtest(

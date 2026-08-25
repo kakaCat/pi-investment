@@ -559,6 +559,104 @@ class DataProviderManager(IDataProviderManager):
             end_date
         )
 
+    # ==================== 接口适配方法 ====================
+    # 实现 IDataProviderManager 抽象方法，适配到现有实现
+
+    def get_batch_quotes(
+        self,
+        symbols: List[str],
+        timeout: Optional[float] = None
+    ) -> Dict[str, QuoteData]:
+        """批量获取实时行情（IDataProviderManager 接口方法）"""
+        result = self.get_quotes(symbols)
+        if result.get('success'):
+            return result.get('data', {})
+        return {}
+
+    def get_kline(
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str,
+        period: str = 'daily',
+        timeout: Optional[float] = None
+    ) -> List[Dict[str, Any]]:
+        """获取K线数据（IDataProviderManager 接口方法）"""
+        result = self.get_klines(symbol, period, start_date, end_date)
+        if result.get('success'):
+            return result.get('data', [])
+        return []
+
+    def get_dividend(
+        self,
+        symbol: str,
+        timeout: Optional[float] = None
+    ) -> Optional[DividendData]:
+        """获取分红数据（IDataProviderManager 接口方法）"""
+        result = self.get_dividends(symbol)
+        if result.get('success'):
+            data = result.get('data')
+            # 转换为 DividendData 对象
+            if data:
+                return DividendData(**data) if isinstance(data, dict) else data
+        return None
+
+    def get_market_data(
+        self,
+        data_type: str,
+        timeout: Optional[float] = None,
+        **kwargs
+    ) -> Optional[MarketData]:
+        """获取市场数据（IDataProviderManager 接口方法）"""
+        # 根据 data_type 路由到对应方法
+        method_map = {
+            'spot': self.get_market_spot,
+            'news': self.get_market_news,
+            'macro': self.get_macro_data,
+        }
+        method = method_map.get(data_type)
+        if method:
+            result = method()
+            if result.get('success'):
+                data = result.get('data')
+                return MarketData(**data) if isinstance(data, dict) else data
+        return None
+
+    def get_stock_data(
+        self,
+        symbol: str,
+        data_type: str,
+        timeout: Optional[float] = None,
+        **kwargs
+    ) -> Optional[StockData]:
+        """获取股票基础数据（IDataProviderManager 接口方法）"""
+        # 根据 data_type 路由到对应方法
+        method_map = {
+            'info': lambda: self.get_stock_info(symbol),
+            'news': lambda: self.get_news(symbol),
+        }
+        method = method_map.get(data_type)
+        if method:
+            result = method()
+            if result.get('success'):
+                data = result.get('data')
+                return StockData(**data) if isinstance(data, dict) else data
+        return None
+
+    def get_provider_stats(self) -> Dict[str, Dict[str, Any]]:
+        """获取所有 provider 的健康状态（IDataProviderManager 接口方法）"""
+        stats = {}
+        for name, stat in self.provider_stats.items():
+            total = stat['success'] + stat['failure']
+            success_rate = stat['success'] / total if total > 0 else 0.0
+            stats[name] = {
+                'success': stat['success'],
+                'failure': stat['failure'],
+                'success_rate': success_rate,
+                'is_healthy': stat['consecutive_failures'] < self._failure_threshold
+            }
+        return stats
+
 
 # Singleton instance
 _manager_instance = None

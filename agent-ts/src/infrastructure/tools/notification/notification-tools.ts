@@ -5,8 +5,16 @@ import type { ToolDefinition } from "../index.js";
 import { Type } from "@sinclair/typebox";
 import { exec } from "child_process";
 import { promisify } from "util";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const execAsync = promisify(exec);
+
+// 定位 agent-os 目录（本文件位于 agent-ts/src/infrastructure/tools/notification/）
+// 上溯到项目根（pi-investment），再进入 agent-os
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const agentOsDir = path.resolve(__dirname, "../../../../../agent-os");
+const defaultAgentOsBin = path.join(agentOsDir, "agent-os");
 
 export const notificationSendTool: ToolDefinition = {
   name: "notification_send",
@@ -56,7 +64,7 @@ export const notificationSendTool: ToolDefinition = {
       const { channel, title, content, color = 'blue' } = params;
 
       // Agent OS 二进制路径
-      const agentOsBin = process.env.AGENT_OS_BIN || '../agent-os/agent-os';
+      const agentOsBin = process.env.AGENT_OS_BIN || defaultAgentOsBin;
 
       // 转义引号
       const escapedTitle = title.replace(/"/g, '\\"');
@@ -65,13 +73,13 @@ export const notificationSendTool: ToolDefinition = {
       // 构建命令
       const cmd = `${agentOsBin} notify send --channel ${channel} --title "${escapedTitle}" --content "${escapedContent}" --color ${color}`;
 
-      // 执行命令
+      // 执行命令（cwd 设为 agent-os 目录，使其能找到 config/permissions.yaml）
       const { stdout, stderr } = await execAsync(cmd, {
         env: {
           ...process.env,
           PGDATABASE: process.env.PGDATABASE || 'quant_investment'
         },
-        cwd: process.cwd()
+        cwd: agentOsDir
       });
 
       // 检查错误

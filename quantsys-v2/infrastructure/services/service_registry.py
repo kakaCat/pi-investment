@@ -111,7 +111,6 @@ def _register_services_hardcoded():
         "See docs/P2-3-production-validation-final-summary.md for migration guide."
     )
 
-<<<<<<< Updated upstream
     # Stock Pool Repository
     from domain.ports.repository_ports_extended import IStockPoolRepository
     from adapters.outbound.repositories.stock_pool_repository import StockPoolORMRepository
@@ -667,8 +666,6 @@ def get_service_from_enhanced_factory(service_type):
         return EnhancedServiceFactory.resolve(service_type)
     return None
 
-=======
->>>>>>> Stashed changes
 
 # 导出
 __all__ = [

@@ -47,7 +47,7 @@ class DataQualityService:
         from application.services.data_backfiller import DataBackfiller
         from application.services.data_validator import DataValidator
 
-        self.kline_repo = kline_repo or IKlineRepository()
+        self.kline_repo = kline_repo
         self.calendar = calendar or TradingCalendarService(self.kline_repo)
         self.gap_detector = gap_detector or DataGapDetector(self.kline_repo, self.calendar)
         self.backfiller = backfiller or DataBackfiller(self.kline_repo)

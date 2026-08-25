@@ -67,6 +67,11 @@ class ServiceFactory:
                 from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
                 from application.services.data_service import DataService
 
+                # 确保 EnhancedServiceFactory 已完成配置注册（import 链中 ds 可能先于
+                # _try_get_from_enhanced 被访问，此时未注册会误判 is_registered=False，
+                # 导致缓存 stock_repo=None 的坏实例且 @lru_cache 永久生效）
+                _ensure_enhanced_factory()
+
                 # 尝试解析已注册的实例
                 if EnhancedServiceFactory.is_registered(DataService):
                     cls._instances['data_service'] = EnhancedServiceFactory.resolve(DataService)
@@ -103,17 +108,25 @@ class ServiceFactory:
                 from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
                 from application.services.strategy_code_service import StrategyCodeService
 
+                # 确保 EnhancedServiceFactory 已完成注册（同 get_data_service 的时序修复）
+                _ensure_enhanced_factory()
+
                 # 尝试解析已注册的实例
                 if EnhancedServiceFactory.is_registered(StrategyCodeService):
                     cls._instances['strategy_code_service'] = EnhancedServiceFactory.resolve(StrategyCodeService)
                     logger.info("StrategyCodeService resolved from EnhancedServiceFactory")
                 else:
-                    # 回退：传入 None 避免实例化接口
+                    # 2026-08-25 修复（回测 'NoneType' has no attribute 'get_by_id'）：
+                    # 回退模式传入 None 导致所有依赖 strategy_repo/kline_repo 的调用全挂
+                    # （回测三端点全灭）。改为直接构造具体 ORM 实现——
+                    # 实例化的是实现类而非接口，不违反"不实例化接口"原则。
+                    from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
+                    from adapters.outbound.repositories.kline_repository import KlineORMRepository
                     cls._instances['strategy_code_service'] = StrategyCodeService(
-                        strategy_repo=None,
-                        kline_repo=None
+                        strategy_repo=StrategyORMRepository(),
+                        kline_repo=KlineORMRepository()
                     )
-                    logger.warning("StrategyCodeService initialized without dependency injection (fallback mode)")
+                    logger.warning("StrategyCodeService initialized with concrete ORM repositories (fallback mode)")
             except Exception as e:
                 logger.error(f"Failed to initialize StrategyCodeService: {e}")
                 raise
@@ -427,7 +440,10 @@ class ServiceFactory:
         """获取DecisionService实例"""
         if 'decision_service' not in cls._instances:
             from application.services.decision_service import DecisionService
-            cls._instances['decision_service'] = DecisionService()
+            from adapters.outbound.repositories.agent_intelligence_repository import \
+                AgentIntelligenceORMRepository
+            cls._instances['decision_service'] = DecisionService(
+                decision_repo=AgentIntelligenceORMRepository())
             logger.info("DecisionService initialized")
         return cls._instances['decision_service']
 
@@ -437,8 +453,10 @@ class ServiceFactory:
         """获取KnowledgeService实例"""
         if 'knowledge_service' not in cls._instances:
             from application.services.knowledge_service import KnowledgeService
-            cls._instances['knowledge_service'] = KnowledgeService()
-            logger.info("KnowledgeService initialized")
+            from adapters.outbound.repositories.agent_knowledge_repository import AgentKnowledgeORMRepository
+            repository = AgentKnowledgeORMRepository()
+            cls._instances['knowledge_service'] = KnowledgeService(repository=repository)
+            logger.info("KnowledgeService initialized with AgentKnowledgeORMRepository")
         return cls._instances['knowledge_service']
 
     @classmethod
@@ -467,8 +485,10 @@ class ServiceFactory:
         """获取SimulationService实例"""
         if 'simulation_service' not in cls._instances:
             from application.services.simulation_service import SimulationService
-            cls._instances['simulation_service'] = SimulationService()
-            logger.info("SimulationService initialized")
+            from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+            repo = SimulationORMRepository()
+            cls._instances['simulation_service'] = SimulationService(repo=repo)
+            logger.info("SimulationService initialized with SimulationORMRepository")
         return cls._instances['simulation_service']
 
     @classmethod
@@ -497,8 +517,10 @@ class ServiceFactory:
         """获取StrategyService实例"""
         if 'strategy_service' not in cls._instances:
             from application.services.strategy_service import StrategyService
-            cls._instances['strategy_service'] = StrategyService()
-            logger.info("StrategyService initialized")
+            from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+            repo = SimulationORMRepository()
+            cls._instances['strategy_service'] = StrategyService(repo=repo)
+            logger.info("StrategyService initialized with SimulationORMRepository")
         return cls._instances['strategy_service']
 
     @classmethod
@@ -527,7 +549,8 @@ class ServiceFactory:
         """获取StrategyOptimizer实例"""
         if 'strategy_optimizer' not in cls._instances:
             from application.services.strategy_optimizer import StrategyOptimizer
-            cls._instances['strategy_optimizer'] = StrategyOptimizer()
+            strategy_service = cls.get_strategy_code_service()
+            cls._instances['strategy_optimizer'] = StrategyOptimizer(strategy_service)
             logger.info("StrategyOptimizer initialized")
         return cls._instances['strategy_optimizer']
 

@@ -23,8 +23,8 @@ class RealtimeQuoteService:
 
     def __init__(self):
         """初始化服务"""
-            # 延迟导入避免顶层依赖
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+        # 延迟导入避免顶层依赖
+        from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
         logger.info("RealtimeQuoteService initialized (using DataProviderManager)")
 

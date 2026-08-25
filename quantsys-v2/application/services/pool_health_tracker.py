@@ -31,7 +31,7 @@ class PoolHealthTracker:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.pool_repo = pool_repo or IStockPoolRepository()
+        self.pool_repo = pool_repo
         self.risk_assessor = risk_assessor or EnhancedRiskAssessor()
 
     def track_pool_health(self, pool_id: int) -> Dict[str, Any]:

@@ -23,11 +23,7 @@ class ChanService:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.analyzer = ChanAnalyzer()
-        if kline_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            self.kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
-        else:
-            self.kline_repo = kline_repo
+        self.kline_repo = kline_repo  # 如果为 None，使用时会报错，调用方需要确保传入
 
     def analyze(
         self,

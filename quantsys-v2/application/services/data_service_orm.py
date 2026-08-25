@@ -73,17 +73,17 @@ class DataServiceORM:
         P2-1: 推荐通过 ServiceFactory 获取实例而非直接构造
         """
         # P2-1: 依赖注入 - 优先使用传入的实例，否则回退到直接实例化
-        self.stock = stock_repo or IStockRepository()
-        self.kline = kline_repo or IKlineRepository()
-        self.signal = signal_repo or ISignalRepository()
-        self.simulation = simulation_repo or ISimulationRepository()
-        self.portfolio = portfolio_repo or IPortfolioRepository()
-        self.factor = factor_repo or IFactorRepository()
-        self.backtest = backtest_repo or IBacktestRepository()
+        self.stock = stock_repo
+        self.kline = kline_repo
+        self.signal = signal_repo
+        self.simulation = simulation_repo
+        self.portfolio = portfolio_repo
+        self.factor = factor_repo
+        self.backtest = backtest_repo
 
         # 原生Repository（待迁移）
-        self.risk = risk_repo or IRiskRepository()
-        self.execution = execution_repo or ISignalExecutionRepository()
+        self.risk = risk_repo
+        self.execution = execution_repo
 
         self._cache = cache_manager
 

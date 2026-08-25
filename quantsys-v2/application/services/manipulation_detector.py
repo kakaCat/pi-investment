@@ -30,8 +30,8 @@ class ManipulationDetector:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.manipulation_repo = manipulation_repo or IAgentIntelligenceRepository()
-        self.fund_flow_repo = fund_flow_repo or IFundFlowRepository()
+        self.manipulation_repo = manipulation_repo
+        self.fund_flow_repo = fund_flow_repo
 
     def detect_market_manipulation(self) -> Dict[str, Any]:
         """

@@ -66,9 +66,9 @@ class SignalExecutionScheduler:
         else:
             self.risk_service = RiskCheckService(self.ds)
 
-        self.signal_repo = signal_repo or ISignalRepository()
-        self.log_repo = log_repo or ISignalExecutionLogRepository()
-        self.strategy_repo = strategy_repo or IStrategyRepository()
+        self.signal_repo = signal_repo
+        self.log_repo = log_repo
+        self.strategy_repo = strategy_repo
 
         # 懒加载：只有真正下单的路径（_batch_create_orders）才创建引擎。
         # 2026-07-24 盈利闭环改造：orchestrator 只收集信号不下单，

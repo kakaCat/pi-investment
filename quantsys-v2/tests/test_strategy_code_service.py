@@ -13,7 +13,13 @@ class TestBacktestStrategyWithParamsOverride:
     @pytest.fixture
     def service(self):
         """Create StrategyCodeService instance"""
-        return StrategyCodeService()
+        from unittest.mock import Mock
+        mock_strategy_repo = Mock()
+        mock_kline_repo = Mock()
+        return StrategyCodeService(
+            strategy_repo=mock_strategy_repo,
+            kline_repo=mock_kline_repo
+        )
 
     @pytest.fixture
     def sample_strategy(self):

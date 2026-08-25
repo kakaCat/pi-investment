@@ -42,7 +42,7 @@ class SwingPointService:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.kline_repo = kline_repo or IKlineRepository()
+        self.kline_repo = kline_repo
         self.validator = validator or StockCodeValidator()
 
     def analyze(self, params: Dict) -> Dict:

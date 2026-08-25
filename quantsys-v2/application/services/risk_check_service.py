@@ -43,7 +43,7 @@ class RiskCheckService:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.ds = ds or DataService()
-        self.config_repo = config_repo or IRiskConfigRepository()
+        self.config_repo = config_repo
         self.config = self.config_repo.get_config(config_name)
 
         if not self.config:

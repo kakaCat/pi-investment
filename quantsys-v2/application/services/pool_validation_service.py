@@ -29,8 +29,8 @@ class PoolValidationService:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         from domain.ports import IStockPoolRepository, IStrategyRepository
-        self._pool_repo = pool_repo or IStockPoolRepository()
-        self._strategy_repo = strategy_repo or IStrategyRepository()
+        self._pool_repo = pool_repo
+        self._strategy_repo = strategy_repo
 
     def validate_pool(self, pool_id: int, strategy_ids: List[int] = None,
                       start_date: str = None, end_date: str = None,

@@ -6,8 +6,9 @@ from domain.ports.datasource_ports import IDataProviderManager
 
 import structlog
 
-from domain.ports.repository_ports_extended import (
-    WatchRuleRepository, WatchTriggerRepository,
+from adapters.outbound.datasources.manager import get_data_provider_manager
+from adapters.outbound.repositories.watch_rule_repository import (
+    WatchRuleRepository, WatchTriggerRepository
 )
 from application.services.agent_notification_service import AgentNotificationService
 from application.services.realtime_quote_service_v2 import RealtimeQuoteServiceV2

@@ -15,8 +15,8 @@ class StockDataService:
 
     def __init__(self):
         self.logger = structlog.get_logger(__name__)
-            # 延迟导入避免顶层依赖
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+        # 延迟导入避免顶层依赖
+        from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
 
     def get_announcements(self, symbol: str) -> Dict[str, Any]:
