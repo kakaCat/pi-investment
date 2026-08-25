@@ -411,6 +411,54 @@ def _update_position_on_buy(ds: DataService, order: Dict, fill_price: float, fil
         fill_quantity: 成交数量
     """
     symbol = order['symbol']
+    account_name = order.get('account_name') or order.get('account_id')
+    
+    # 优先使用 SimulationORMRepository（新系统，支持 T+1）
+    if account_name:
+        try:
+            from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+            sim_repo = SimulationORMRepository()
+            existing_position = sim_repo.get_position(account_name, symbol)
+            
+            if existing_position:
+                # 加仓：计算新的移动加权平均成本
+                old_qty = existing_position.shares_total
+                old_cost = existing_position.avg_cost
+                total_qty = old_qty + fill_quantity
+                avg_cost = (old_qty * old_cost + fill_quantity * fill_price) / total_qty
+                
+                # T+1: 新买入的 fill_quantity 当日不可卖，shares_available 保持不变
+                shares_available = existing_position.shares_available
+            else:
+                # 建仓
+                total_qty = fill_quantity
+                avg_cost = fill_price
+                # T+1: 当日买入不可卖
+                shares_available = 0
+            
+            success = sim_repo.upsert_position(
+                account_name=account_name,
+                symbol=symbol,
+                shares_total=total_qty,
+                avg_cost=avg_cost,
+                shares_available=shares_available,
+                current_price=fill_price,
+                commit=True
+            )
+            
+            if success:
+                logger.info(
+                    f"持仓已更新（simulation）: {symbol} "
+                    f"{'加仓' if existing_position else '建仓'} {fill_quantity}股 @ {fill_price}, "
+                    f"total={total_qty}, available={shares_available} (T+1)"
+                )
+                return
+            else:
+                logger.warning(f"simulation 持仓更新失败，回退旧系统")
+        except Exception as e:
+            logger.warning(f"simulation 持仓更新异常，回退旧系统: {e}")
+    
+    # 回退到旧 holdings 系统（历史兼容）
     existing = ds.portfolio.get_holding(symbol)
 
     if existing:
@@ -457,7 +505,7 @@ def _update_position_on_buy(ds: DataService, order: Dict, fill_price: float, fil
         }
 
     ds.portfolio.add_or_update_holding(holding_data)
-    logger.info(f"持仓已更新: {symbol} {'加仓' if existing else '建仓'} {fill_quantity}股 @ {fill_price}")
+    logger.info(f"持仓已更新（legacy）: {symbol} {'加仓' if existing else '建仓'} {fill_quantity}股 @ {fill_price}")
 
 
 def _update_position_on_sell(ds: DataService, order: Dict, fill_price: float, fill_quantity: int):
@@ -471,10 +519,62 @@ def _update_position_on_sell(ds: DataService, order: Dict, fill_price: float, fi
         fill_quantity: 成交数量
     """
     symbol = order['symbol']
+    account_name = order.get('account_name') or order.get('account_id')
+    
+    # 优先使用 SimulationORMRepository（新系统，支持 T+1）
+    if account_name:
+        try:
+            from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+            sim_repo = SimulationORMRepository()
+            existing_position = sim_repo.get_position(account_name, symbol)
+            
+            if not existing_position:
+                logger.warning(f"卖出但无持仓（simulation）: {symbol}，跳过持仓更新")
+                return
+            
+            old_qty = existing_position.shares_total
+            old_available = existing_position.shares_available
+            new_qty = old_qty - fill_quantity
+            new_available = max(0, old_available - fill_quantity)
+            
+            if new_qty <= 0:
+                # 全部清仓
+                success = sim_repo.delete_position(account_name, symbol, commit=True)
+                if success:
+                    logger.info(
+                        f"持仓已清仓（simulation）: {symbol} 卖出 {fill_quantity}股 @ {fill_price}"
+                    )
+                    return
+                else:
+                    logger.warning(f"simulation 持仓删除失败，回退旧系统")
+            else:
+                # 减仓：保持 avg_cost 不变
+                success = sim_repo.upsert_position(
+                    account_name=account_name,
+                    symbol=symbol,
+                    shares_total=new_qty,
+                    avg_cost=existing_position.avg_cost,
+                    shares_available=new_available,
+                    current_price=fill_price,
+                    commit=True
+                )
+                
+                if success:
+                    logger.info(
+                        f"持仓已减仓（simulation）: {symbol} 卖出 {fill_quantity}股 @ {fill_price}, "
+                        f"剩余 total={new_qty}, available={new_available}"
+                    )
+                    return
+                else:
+                    logger.warning(f"simulation 持仓更新失败，回退旧系统")
+        except Exception as e:
+            logger.warning(f"simulation 持仓更新异常，回退旧系统: {e}")
+    
+    # 回退到旧 holdings 系统（历史兼容）
     existing = ds.portfolio.get_holding(symbol)
 
     if not existing:
-        logger.warning(f"卖出但无持仓: {symbol}，跳过持仓更新")
+        logger.warning(f"卖出但无持仓（legacy）: {symbol}，跳过持仓更新")
         return
 
     old_qty = int(existing['quantity'])
@@ -483,7 +583,7 @@ def _update_position_on_sell(ds: DataService, order: Dict, fill_price: float, fi
     if new_qty <= 0:
         # 全部清仓
         ds.portfolio.remove_holding(symbol)
-        logger.info(f"持仓已清仓: {symbol} 卖出 {fill_quantity}股 @ {fill_price}")
+        logger.info(f"持仓已清仓（legacy）: {symbol} 卖出 {fill_quantity}股 @ {fill_price}")
     else:
         # 减仓：保持 avg_cost 不变
         old_invested = float(existing['total_invested'])
@@ -507,7 +607,7 @@ def _update_position_on_sell(ds: DataService, order: Dict, fill_price: float, fi
             'notes': existing.get('notes'),
         }
         ds.portfolio.add_or_update_holding(holding_data)
-        logger.info(f"持仓已减仓: {symbol} 卖出 {fill_quantity}股，剩余 {new_qty}股")
+        logger.info(f"持仓已减仓（legacy）: {symbol} 卖出 {fill_quantity}股，剩余 {new_qty}股")
 
 
 def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symbol: str, perf_repo=None):
