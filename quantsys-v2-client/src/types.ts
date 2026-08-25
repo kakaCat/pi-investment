@@ -381,6 +381,8 @@ export interface TradeRequest {
   quantity: number;
   price?: number;
   account_name?: string;
+  /** 订单类型：market=市价 / limit=限价（2026-08-25 起后端必填） */
+  order_type?: 'market' | 'limit';
 }
 
 /**
