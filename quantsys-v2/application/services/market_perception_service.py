@@ -6,59 +6,58 @@
 - M1-2 每日主线识别（涨停聚类 + 封板资金热度 + catalyst 由盘后例程 LLM 回写）
 
 设计约束：
-- 落库走 SQLAlchemy session（infrastructure.persistence.orm.get_session）
+- 落库一律走 ORM Repository（MarketRegimeRepository 等），服务层禁止裸 SQL
+- daily_klines 聚合查询归 KlineORMRepository（get_market_breadth_history）
 - 涨停池/指数日线走数据源管理器（get_data_provider_manager）
 - 不造数据：数据源不可用时跳过落库并在返回中显式标记
 """
-from datetime import datetime, date as date_cls, timedelta
+import bisect
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import structlog
-from sqlalchemy import text
 
 logger = structlog.get_logger(__name__)
 
-# regime 判定阈值（RFC 007 §3，调整阈值不改表结构）
+# ------------------------------------------------------------------
+# 常量（RFC 007 §3，调整阈值不改表结构）
+# ------------------------------------------------------------------
 PANIC_SENTIMENT = 20
-PANIC_INDEX_5D = -3.0
+PANIC_INDEX_5D_PCT = -3.0
 EUPHORIA_SENTIMENT = 80
 EUPHORIA_VOLUME_RATIO = 2.0
 EUPHORIA_UP_PCT = 70.0
-TREND_5D_THRESHOLD = 1.0
-COVERAGE_MIN = 4000          # 全市场量级自查线
-THEME_MIN_LIMIT_UP = 3       # ≥3 只涨停才成团
+TREND_5D_THRESHOLD_PCT = 1.0
+COVERAGE_MIN = 4000            # 全市场量级自查线
+THEME_MIN_LIMIT_UP = 3         # ≥3 只涨停才成团
+THEME_TOP_STOCKS = 5           # 主线落库最多保留的成分股数
+INDEX_5D_LOOKBACK = 6          # 5 日涨跌需要 6 个数据点（含当日）
+MA20_PERIOD = 20
+MA60_PERIOD = 60
+INDEX_MIN_HISTORY = 60         # MA60 所需最少历史
 
 
-def _get_session():
-    from infrastructure.persistence.orm import get_session
-    return get_session()
-
-
-def _latest_trade_date(session) -> Optional[str]:
-    row = session.execute(text(
-        "SELECT MAX(trade_date) FROM quant.daily_klines"
-    )).fetchone()
-    return str(row[0]) if row and row[0] else None
-
-
-class _KlineOnlyDS:
-    """轻量 ds 替代：只挂 KlineORMRepository。
-
-    MarketSentimentService 全程只用 ds.kline.*（breadth/turnover/returns/high_low），
-    完整 DataService 会拉起 tushare→infrastructure.config 重链（2026-08-20 该链在
-    新鲜检出上因 v2 架构迁移中态而不可导入），此处刻意绕开，保证本服务独立可用。
-    """
-
-    def __init__(self):
-        from adapters.outbound.repositories import KlineORMRepository
-        self.kline = KlineORMRepository()
+def _ma(values: List[float], period: int) -> float:
+    """简单移动平均。"""
+    return sum(values[-period:]) / period
 
 
 class MarketPerceptionService:
     """M1 市场感知：每日快照（情绪 + regime + 主线）落库与查询。"""
 
     def __init__(self, ds=None):
-        self.ds = ds if ds is not None else _KlineOnlyDS()
+        if ds is None:
+            # P2-3 规范：经 ServiceFactory 获取（Repository 由工厂注入）
+            from infrastructure.services.service_factory import ServiceFactory
+            ds = ServiceFactory.get_data_service()
+        self.ds = ds
+        from adapters.outbound.repositories import (
+            MarketRegimeRepository, MarketSentimentDailyRepository,
+            MarketThemeRepository,
+        )
+        self.regime_repo = MarketRegimeRepository()
+        self.sentiment_repo = MarketSentimentDailyRepository()
+        self.theme_repo = MarketThemeRepository()
 
     # ------------------------------------------------------------------
     # 入口：每日快照
@@ -81,18 +80,22 @@ class MarketPerceptionService:
         result['steps']['themes'] = themes
 
         result['trade_date'] = resolved_date
-        result['success'] = any(
-            s.get('stored') for s in result['steps'].values()
-        )
+        all_stored = all(s.get('stored') for s in result['steps'].values())
+        any_stored = any(s.get('stored') for s in result['steps'].values())
+        result['success'] = any_stored
+        result['all_steps_success'] = all_stored
+        result['partial_success'] = any_stored and not all_stored
+        failed = [k for k, v in result['steps'].items() if not v.get('stored')]
+        result['failed_steps'] = failed or None
         return result
 
     # ------------------------------------------------------------------
     # M1-3 情绪时间序列落库
     # ------------------------------------------------------------------
     def _snapshot_sentiment(self, trade_date: Optional[str] = None) -> Dict[str, Any]:
-        """复用 MarketSentimentService 计算，落库 quant.market_sentiment_daily。
+        """复用 MarketSentimentService 计算，落库 market_sentiment_daily。
 
-        coverage < 4000 时 partial=true（K线当日同步未完成的自卫，RFC 007 §4）。
+        coverage < COVERAGE_MIN 时 partial=true（K线当日同步未完成的自卫）。
         """
         from application.services.market_sentiment_service import MarketSentimentService
 
@@ -124,34 +127,20 @@ class MarketPerceptionService:
         coverage = up + down + flat
         partial = coverage < COVERAGE_MIN
 
-        session = _get_session()
-        try:
-            session.execute(text("""
-                INSERT INTO quant.market_sentiment_daily
-                    (trade_date, up_count, down_count, flat_count, ad_ratio,
-                     new_high_count, new_low_count, volume_ratio, total_turnover,
-                     volatility, fear_greed_index, coverage, partial)
-                VALUES (:d, :up, :down, :flat, :adr, :nh, :nl, :vr, :to, :vlt, :fgi, :cov, :partial)
-                ON CONFLICT (trade_date) DO UPDATE SET
-                    up_count=EXCLUDED.up_count, down_count=EXCLUDED.down_count,
-                    flat_count=EXCLUDED.flat_count, ad_ratio=EXCLUDED.ad_ratio,
-                    new_high_count=EXCLUDED.new_high_count, new_low_count=EXCLUDED.new_low_count,
-                    volume_ratio=EXCLUDED.volume_ratio, total_turnover=EXCLUDED.total_turnover,
-                    volatility=EXCLUDED.volatility, fear_greed_index=EXCLUDED.fear_greed_index,
-                    coverage=EXCLUDED.coverage, partial=EXCLUDED.partial
-            """), {
-                'd': resolved_date, 'up': up, 'down': down, 'flat': flat,
-                'adr': ad.get('ratio'),
-                'nh': nhl.get('new_high_count'), 'nl': nhl.get('new_low_count'),
-                'vr': vol.get('volume_ratio'), 'to': vol.get('recent_avg_volume'),
-                'vlt': vlt.get('volatility'), 'fgi': raw.get('fear_greed_index'),
-                'cov': coverage, 'partial': partial,
-            })
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            logger.error(f"M1-3 情绪落库失败: {e}", exc_info=True)
-            return {'stored': False, 'error': str(e)}
+        ok = self.sentiment_repo.upsert(
+            resolved_date,
+            up_count=up, down_count=down, flat_count=flat,
+            ad_ratio=ad.get('ratio'),
+            new_high_count=nhl.get('new_high_count'),
+            new_low_count=nhl.get('new_low_count'),
+            volume_ratio=vol.get('volume_ratio'),
+            total_turnover=vol.get('recent_avg_volume'),
+            volatility=vlt.get('volatility'),
+            fear_greed_index=raw.get('fear_greed_index'),
+            coverage=coverage, partial=partial,
+        )
+        if not ok:
+            return {'stored': False, 'error': 'sentiment upsert 失败（详见日志）'}
 
         return {
             'stored': True, 'trade_date': resolved_date,
@@ -168,6 +157,31 @@ class MarketPerceptionService:
 
         数据源：provider get_index_daily('sh000300')（daily_klines 不含指数）。
         """
+        history = self._fetch_index_history()
+        if not history:
+            return None
+
+        rows = history
+        if trade_date:
+            rows = [r for r in rows if r['date'] <= trade_date]
+        if len(rows) < INDEX_MIN_HISTORY:
+            return None
+
+        closes = [r['close'] for r in rows]
+        close = closes[-1]
+        ma20 = _ma(closes, MA20_PERIOD)
+        ma60 = _ma(closes, MA60_PERIOD)
+        chg5d = ((close / closes[-INDEX_5D_LOOKBACK] - 1) * 100
+                 if len(closes) >= INDEX_5D_LOOKBACK else 0.0)
+        # 趋势得分：相对 MA20/MA60 位置，[-1,1]
+        score = ((1 if close > ma20 else -1) + (1 if ma20 > ma60 else -1)) / 2
+        return {
+            'date': rows[-1]['date'], 'close': close, 'ma20': ma20, 'ma60': ma60,
+            'chg5d_pct': round(chg5d, 2), 'trend_score': score,
+        }
+
+    def _fetch_index_history(self) -> Optional[List[Dict[str, Any]]]:
+        """拉取沪深300 全量日线（升序），失败返回 None。"""
         from adapters.outbound.datasources.manager import get_data_provider_manager
 
         try:
@@ -179,12 +193,10 @@ class MarketPerceptionService:
             return None
 
         records = result['data'].data.get('records', [])
-        if len(records) < 60:
-            return None
 
-        # 兼容中文/英文键
         def _close(r):
             return r.get('close') or r.get('收盘')
+
         def _date(r):
             return str(r.get('date') or r.get('日期'))
 
@@ -192,98 +204,95 @@ class MarketPerceptionService:
             [{'date': _date(r), 'close': float(_close(r))} for r in records if _close(r)],
             key=lambda x: x['date'],
         )
-        if trade_date:
-            rows = [r for r in rows if r['date'] <= trade_date]
-        if len(rows) < 60:
-            return None
-
-        closes = [r['close'] for r in rows]
-        close = closes[-1]
-        ma20 = sum(closes[-20:]) / 20
-        ma60 = sum(closes[-60:]) / 60
-        chg5d = (close / closes[-6] - 1) * 100 if len(closes) >= 6 else 0.0
-        # 趋势得分：相对 MA20/MA60 位置，[-1,1]
-        score = ((1 if close > ma20 else -1) + (1 if ma20 > ma60 else -1)) / 2
-        return {
-            'date': rows[-1]['date'], 'close': close, 'ma20': ma20, 'ma60': ma60,
-            'chg5d_pct': round(chg5d, 2), 'trend_score': score,
-        }
+        return rows or None
 
     @staticmethod
     def _classify_regime(sentiment: float, volume_ratio: Optional[float],
                          up_pct: Optional[float], chg5d: float,
                          close: float, ma20: float, ma60: float) -> str:
-        """RFC 007 §3 判定规则（按优先级）。"""
+        """RFC 007 §3 判定规则（按优先级：panic > euphoria > trend > range）。"""
         vr = volume_ratio or 1.0
         up = up_pct if up_pct is not None else 50.0
-        if sentiment <= PANIC_SENTIMENT and vr < 1.0 and chg5d < PANIC_INDEX_5D:
+        if (sentiment <= PANIC_SENTIMENT and vr < 1.0
+                and chg5d < PANIC_INDEX_5D_PCT):
             return 'panic'
-        if sentiment >= EUPHORIA_SENTIMENT and vr > EUPHORIA_VOLUME_RATIO and up > EUPHORIA_UP_PCT:
+        if (sentiment >= EUPHORIA_SENTIMENT and vr > EUPHORIA_VOLUME_RATIO
+                and up > EUPHORIA_UP_PCT):
             return 'euphoria'
-        if close > ma20 and ma20 > ma60 and chg5d > TREND_5D_THRESHOLD:
+        if close > ma20 and ma20 > ma60 and chg5d > TREND_5D_THRESHOLD_PCT:
             return 'trend_up'
-        if close < ma20 and ma20 < ma60 and chg5d < -TREND_5D_THRESHOLD:
+        if close < ma20 and ma20 < ma60 and chg5d < -TREND_5D_THRESHOLD_PCT:
             return 'trend_down'
         return 'range'
 
+    @staticmethod
+    def _build_reason(sentiment: float, volume_ratio: Optional[float],
+                      up_pct: Optional[float], chg5d: float, close: float,
+                      ma20: float, ma60: float, regime: str,
+                      prefix: str = '') -> str:
+        """reason 字段统一拼装（判定依据含全部指标值）。"""
+        return (
+            f"{prefix}情绪{sentiment:.0f}, "
+            f"量能{round(volume_ratio, 2) if volume_ratio else None}, "
+            f"涨家占比{round(up_pct, 1) if up_pct is not None else None}%, "
+            f"指数5日{chg5d:+.1f}%, "
+            f"close{'>' if close > ma20 else '<'}MA20, "
+            f"MA20{'>' if ma20 > ma60 else '<'}MA60 → {regime}"
+        )
+
     def _judge_and_store_regime(self, trade_date: Optional[str] = None) -> Dict[str, Any]:
         """读取当日情绪落库行 + 指数趋势，按规则判定 regime 并落库。"""
-        session = _get_session()
         if not trade_date:
-            trade_date = _latest_trade_date(session)
+            trade_date = self._latest_trade_date()
         if not trade_date:
             return {'stored': False, 'error': '无交易日数据'}
 
-        srow = session.execute(text("""
-            SELECT fear_greed_index, volume_ratio, up_count, down_count, flat_count
-            FROM quant.market_sentiment_daily WHERE trade_date = :d
-        """), {'d': trade_date}).fetchone()
+        srow = self.sentiment_repo.get_by_date(trade_date)
         if not srow:
             return {'stored': False, 'error': f'{trade_date} 情绪未落库（先跑 M1-3）'}
 
-        sentiment = float(srow[0] or 50)
-        volume_ratio = srow[1]
-        total = (srow[2] or 0) + (srow[3] or 0) + (srow[4] or 0)
-        up_pct = (srow[2] or 0) / total * 100 if total else None
-
-        trend = self._index_trend(trade_date)
+        metrics = self._regime_metrics(srow)
+        trend = self._index_trend(str(trade_date))
         if not trend:
-            return {'stored': False, 'error': '指数趋势不可用（sh000300 数据源失败或历史不足60日）'}
+            return {'stored': False,
+                    'error': '指数趋势不可用（sh000300 数据源失败或历史不足60日）'}
 
         regime = self._classify_regime(
-            sentiment, volume_ratio, up_pct,
+            metrics['sentiment'], metrics['volume_ratio'], metrics['up_pct'],
             trend['chg5d_pct'], trend['close'], trend['ma20'], trend['ma60'],
         )
-        ad_ratio = (srow[2] / srow[3]) if srow[3] else None
-        reason = (
-            f"情绪{sentiment:.0f}, 量能{volume_ratio and round(volume_ratio, 2)}, "
-            f"涨家占比{up_pct and round(up_pct, 1)}%, "
-            f"指数5日{trend['chg5d_pct']:+.1f}%, "
-            f"close{'>' if trend['close'] > trend['ma20'] else '<'}MA20, "
-            f"MA20{'>' if trend['ma20'] > trend['ma60'] else '<'}MA60 → {regime}"
+        reason = self._build_reason(
+            metrics['sentiment'], metrics['volume_ratio'], metrics['up_pct'],
+            trend['chg5d_pct'], trend['close'], trend['ma20'], trend['ma60'], regime,
         )
 
-        try:
-            session.execute(text("""
-                INSERT INTO quant.market_regime
-                    (trade_date, regime, index_trend_score, sentiment_score,
-                     volume_ratio, ad_ratio, reason)
-                VALUES (:d, :r, :ts, :ss, :vr, :ar, :reason)
-                ON CONFLICT (trade_date) DO UPDATE SET
-                    regime=EXCLUDED.regime, index_trend_score=EXCLUDED.index_trend_score,
-                    sentiment_score=EXCLUDED.sentiment_score, volume_ratio=EXCLUDED.volume_ratio,
-                    ad_ratio=EXCLUDED.ad_ratio, reason=EXCLUDED.reason
-            """), {
-                'd': trade_date, 'r': regime, 'ts': trend['trend_score'],
-                'ss': sentiment, 'vr': volume_ratio, 'ar': ad_ratio, 'reason': reason,
-            })
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            logger.error(f"M1-1 regime 落库失败: {e}", exc_info=True)
-            return {'stored': False, 'error': str(e)}
+        ok = self.regime_repo.upsert(
+            trade_date, regime, reason,
+            index_trend_score=trend['trend_score'],
+            sentiment_score=metrics['sentiment'],
+            volume_ratio=metrics['volume_ratio'],
+            ad_ratio=metrics['ad_ratio'],
+        )
+        if not ok:
+            return {'stored': False, 'error': 'regime upsert 失败（详见日志）'}
+        return {'stored': True, 'trade_date': str(trade_date),
+                'regime': regime, 'reason': reason}
 
-        return {'stored': True, 'trade_date': trade_date, 'regime': regime, 'reason': reason}
+    def _latest_trade_date(self) -> Optional[str]:
+        """最新交易日（daily_klines 最大日期）。"""
+        return self.ds.kline.get_latest_trade_date()
+
+    @staticmethod
+    def _regime_metrics(srow) -> Dict[str, Any]:
+        """从情绪落库行提取 regime 判定所需指标。"""
+        total = (srow.up_count or 0) + (srow.down_count or 0) + (srow.flat_count or 0)
+        return {
+            'sentiment': float(srow.fear_greed_index or 50),
+            'volume_ratio': srow.volume_ratio,
+            'up_pct': (srow.up_count or 0) / total * 100 if total else None,
+            'ad_ratio': ((srow.up_count or 0) / srow.down_count
+                         if srow.down_count else None),
+        }
 
     # ------------------------------------------------------------------
     # M1-2 主线识别（涨停聚类 + 封板资金热度）
@@ -292,9 +301,23 @@ class MarketPerceptionService:
                                 top_n: int = 3) -> Dict[str, Any]:
         """涨停池按所属行业聚类，≥3 只成团，按涨停数+封板资金排序取 Top3 落库。
 
-        catalyst 字段由盘后例程 agent（LLM）回写（PUT /api/market/themes/{id}）。
+        catalyst 字段由盘后例程 agent（LLM）回写（PUT /api/market/perception/themes/{id}）。
         数据源不可用时跳过落库并显式标记（不造数据）。
         """
+        records, fetch_err, date_arg = self._fetch_zt_pool(trade_date)
+        if fetch_err:
+            return {'stored': False, 'error': fetch_err, 'trade_date': date_arg}
+
+        top = self._cluster_top_themes(records, top_n)
+        if not top:
+            return {'stored': False,
+                    'error': f'{date_arg} 无 ≥{THEME_MIN_LIMIT_UP} 只涨停的板块',
+                    'trade_date': date_arg}
+
+        return self._store_themes(date_arg, top)
+
+    def _fetch_zt_pool(self, trade_date: Optional[str]):
+        """拉取涨停池记录。返回 (records, error, date_str)。"""
         from adapters.outbound.datasources.manager import get_data_provider_manager
 
         date_arg = (trade_date or datetime.now().strftime('%Y-%m-%d')).replace('-', '')
@@ -302,16 +325,17 @@ class MarketPerceptionService:
             result = get_data_provider_manager().get_zt_pool(date_arg)
         except Exception as e:
             logger.warning(f"涨停池获取失败: {e}")
-            return {'stored': False, 'error': str(e)}
+            return None, str(e), date_arg
         if not result.get('success') or not result.get('data'):
-            return {'stored': False, 'error': '涨停池数据源不可用', 'trade_date': date_arg}
-
+            return None, '涨停池数据源不可用', date_arg
         records = result['data'].data.get('records', [])
         if not records:
-            return {'stored': False, 'error': f'{date_arg} 涨停池为空（非交易日？）',
-                    'trade_date': date_arg}
+            return None, f'{date_arg} 涨停池为空（非交易日？）', date_arg
+        return records, None, date_arg
 
-        # 按行业聚类
+    @staticmethod
+    def _cluster_top_themes(records: List[dict], top_n: int) -> List[tuple]:
+        """按行业聚类并排序，返回 Top N [(sector, rows)]。"""
         clusters: Dict[str, List[dict]] = {}
         for row in records:
             sector = row.get('所属行业') or '未知'
@@ -326,158 +350,102 @@ class MarketPerceptionService:
             (sector, rows) for sector, rows in clusters.items()
             if len(rows) >= THEME_MIN_LIMIT_UP and sector != '未知'
         ]
-        # 排序：涨停数优先，封板资金次之
-        candidates.sort(key=lambda kv: (len(kv[1]), sum(r['seal_fund'] for r in kv[1])),
-                        reverse=True)
-        top = candidates[:top_n]
-        if not top:
-            return {'stored': False, 'error': f'{date_arg} 无 ≥{THEME_MIN_LIMIT_UP} 只涨停的板块',
-                    'trade_date': date_arg}
+        candidates.sort(
+            key=lambda kv: (len(kv[1]), sum(r['seal_fund'] for r in kv[1])),
+            reverse=True)
+        return candidates[:top_n]
 
-        # 格式化日期 YYYYMMDD → YYYY-MM-DD
+    def _store_themes(self, date_arg: str, top: List[tuple]) -> Dict[str, Any]:
+        """Top 主线落库。commit 成功后才构造返回值（修复：stored 与 DB 一致）。"""
         fmt_date = f"{date_arg[:4]}-{date_arg[4:6]}-{date_arg[6:8]}"
-        
-        session = _get_session()
+
+        # 幂等：当日重跑先清无 catalyst 的旧记录（保留 LLM 已回写的）
+        self.theme_repo.delete_without_catalyst(fmt_date)
+
         stored = []
-        try:
-            # 幂等：当日重跑先清旧记录（保留 LLM 已回写 catalyst 的记录）
-            session.execute(text(
-                "DELETE FROM quant.market_theme WHERE trade_date = :d AND catalyst IS NULL"
-            ), {'d': fmt_date})
-            for rank, (sector, rows) in enumerate(top, start=1):
-                seal_total = sum(r['seal_fund'] for r in rows) / 1e8  # → 亿
-                confidence = min(1.0, 0.4 + len(rows) * 0.08 + min(seal_total, 50) * 0.01)
-                import json
-                cur = session.execute(text("""
-                    INSERT INTO quant.market_theme
-                        (trade_date, rank, theme, sector, limit_up_count, stocks,
-                         fund_flow, confidence)
-                    VALUES (:d, :rank, :theme, :sector, :cnt, CAST(:stocks AS jsonb), :ff, :conf)
-                    ON CONFLICT (trade_date, rank) DO UPDATE SET
-                        theme=EXCLUDED.theme, sector=EXCLUDED.sector,
-                        limit_up_count=EXCLUDED.limit_up_count, stocks=EXCLUDED.stocks,
-                        fund_flow=EXCLUDED.fund_flow, confidence=EXCLUDED.confidence
-                    RETURNING id
-                """), {
-                    'd': fmt_date, 'rank': rank, 'theme': sector, 'sector': sector,
-                    'cnt': len(rows),
-                    'stocks': json.dumps(
-                        [{k: v for k, v in r.items() if k != 'seal_fund'} for r in rows[:5]],
-                        ensure_ascii=False),
-                    'ff': round(seal_total, 2), 'conf': round(confidence, 2),
-                })
-                stored.append({'id': cur.fetchone()[0], 'rank': rank, 'sector': sector,
-                               'limit_up_count': len(rows), 'seal_fund_yi': round(seal_total, 2)})
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            logger.error(f"M1-2 主线落库失败: {e}", exc_info=True)
-            return {'stored': False, 'error': str(e)}
+        for rank, (sector, rows) in enumerate(top, start=1):
+            seal_total = sum(r['seal_fund'] for r in rows) / 1e8  # → 亿
+            confidence = min(1.0, 0.4 + len(rows) * 0.08 + min(seal_total, 50) * 0.01)
+            stocks = [{k: v for k, v in r.items() if k != 'seal_fund'}
+                      for r in rows[:THEME_TOP_STOCKS]]
+            row_id = self.theme_repo.upsert(
+                fmt_date, rank, sector, sector,
+                limit_up_count=len(rows), stocks=stocks,
+                fund_flow=round(seal_total, 2), confidence=round(confidence, 2),
+            )
+            if row_id is None:
+                return {'stored': False,
+                        'error': f'theme upsert 失败 rank={rank}（详见日志）',
+                        'trade_date': fmt_date}
+            stored.append({'id': row_id, 'rank': rank, 'sector': sector,
+                           'limit_up_count': len(rows),
+                           'seal_fund_yi': round(seal_total, 2)})
 
         return {'stored': True, 'trade_date': fmt_date, 'themes': stored}
 
     # ------------------------------------------------------------------
-    # M1-1c 历史回填（纯 SQL：daily_klines 重算近 N 日 breadth/量能 + 指数趋势）
+    # M1-1c 历史回填
     # ------------------------------------------------------------------
     def backfill_regime(self, days: int = 120) -> Dict[str, Any]:
         """回填近 N 个交易日的 regime。
 
-        breadth/量能量来自 daily_klines（SQL 聚合）；指数趋势来自 provider 全量历史。
-        情绪分无法历史重算（新高新低等依赖截面数据），用映射近似并在 reason 标注。
+        breadth/量能来自 KlineORMRepository.get_market_breadth_history；
+        指数趋势来自 provider 全量历史；情绪分无法历史重算，用映射近似并在
+        reason 标注 [回填近似]。批量 upsert（无 N+1）。
         """
-        session = _get_session()
-
-        # 每日 breadth + 量能（SQL 聚合，close vs 前收 用 LAG）
-        rows = session.execute(text("""
-            WITH px AS (
-                SELECT symbol, trade_date, close,
-                       LAG(close) OVER (PARTITION BY symbol ORDER BY trade_date) AS prev_close,
-                       volume, amount
-                FROM quant.daily_klines
-                WHERE trade_date > CURRENT_DATE - INTERVAL '1 day' * (:days * 2)
-            ),
-            daily AS (
-                SELECT trade_date,
-                       COUNT(*) FILTER (WHERE prev_close IS NOT NULL AND close > prev_close) AS up,
-                       COUNT(*) FILTER (WHERE prev_close IS NOT NULL AND close < prev_close) AS down,
-                       COUNT(*) FILTER (WHERE prev_close IS NOT NULL AND close = prev_close) AS flat,
-                       SUM(amount) AS turnover
-                FROM px GROUP BY trade_date
-            ),
-            vol_ratio AS (
-                SELECT trade_date, up, down, flat, turnover,
-                       AVG(turnover) OVER (ORDER BY trade_date ROWS BETWEEN 4 PRECEDING AND CURRENT ROW)
-                       / NULLIF(AVG(turnover) OVER (ORDER BY trade_date ROWS BETWEEN 24 PRECEDING AND 5 PRECEDING), 0)
-                       AS vr
-                FROM daily
-            )
-            SELECT trade_date, up, down, flat, turnover, vr FROM vol_ratio
-            ORDER BY trade_date DESC LIMIT :days
-        """), {'days': days}).fetchall()
-
-        if not rows:
+        breadth = self.ds.kline.get_market_breadth_history(days)
+        if not breadth:
             return {'success': False, 'error': 'daily_klines 无历史数据'}
 
-        # 指数全量历史（一次拉取，内存算 MA）
-        from adapters.outbound.datasources.manager import get_data_provider_manager
-        iresult = get_data_provider_manager().get_index_daily('sh000300')
-        if not iresult.get('success'):
-            return {'success': False, 'error': '指数历史不可用'}
-        irecords = iresult['data'].data.get('records', [])
-        def _ic(r): return r.get('close') or r.get('收盘')
-        def _id(r): return str(r.get('date') or r.get('日期'))
-        irows = sorted(
-            [{'date': _id(r), 'close': float(_ic(r))} for r in irecords if _ic(r)],
-            key=lambda x: x['date'])
+        irows = self._fetch_index_history()
+        if not irows or len(irows) < INDEX_MIN_HISTORY:
+            return {'success': False, 'error': '指数历史不可用或不足60日'}
         icloses = [r['close'] for r in irows]
         idates = [r['date'] for r in irows]
-        import bisect
 
-        stored = 0
-        errors = 0
-        for trade_date, up, down, flat, turnover, vr in rows:
-            d = str(trade_date)
-            pos = bisect.bisect_right(idates, d) - 1
-            if pos < 59:
-                continue  # 历史不足 60 日无法算 MA60
-            closes = icloses[:pos + 1]
-            close = closes[-1]
-            ma20 = sum(closes[-20:]) / 20
-            ma60 = sum(closes[-60:]) / 60
-            chg5d = (close / closes[-6] - 1) * 100 if len(closes) >= 6 else 0.0
-            total = (up or 0) + (down or 0) + (flat or 0)
-            up_pct = (up or 0) / total * 100 if total else None
-            # 情绪分近似（历史截面数据不可得）：由涨家占比和量能比映射，reason 标注
-            sentiment_approx = max(0.0, min(100.0,
-                50 + ((up_pct or 50) - 50) * 0.8 + (((vr or 1) - 1) * 20)))
-            regime = self._classify_regime(sentiment_approx, vr, up_pct, chg5d, close, ma20, ma60)
-            score = ((1 if close > ma20 else -1) + (1 if ma20 > ma60 else -1)) / 2
-            ad_ratio = (up / down) if down else None
-            reason = (f"[回填近似] 情绪≈{sentiment_approx:.0f}(映射), 量能{vr and round(float(vr), 2)}, "
-                      f"涨家占比{up_pct and round(up_pct, 1)}%, 指数5日{chg5d:+.1f}%, "
-                      f"close{'>' if close > ma20 else '<'}MA20, "
-                      f"MA20{'>' if ma20 > ma60 else '<'}MA60 → {regime}")
-            try:
-                session.execute(text("""
-                    INSERT INTO quant.market_regime
-                        (trade_date, regime, index_trend_score, sentiment_score,
-                         volume_ratio, ad_ratio, reason)
-                    VALUES (:d, :r, :ts, :ss, :vr, :ar, :reason)
-                    ON CONFLICT (trade_date) DO UPDATE SET
-                        regime=EXCLUDED.regime, index_trend_score=EXCLUDED.index_trend_score,
-                        sentiment_score=EXCLUDED.sentiment_score,
-                        volume_ratio=EXCLUDED.volume_ratio, ad_ratio=EXCLUDED.ad_ratio,
-                        reason=EXCLUDED.reason
-                """), {'d': d, 'r': regime, 'ts': score, 'ss': round(sentiment_approx, 1),
-                       'vr': float(vr) if vr else None, 'ar': ad_ratio, 'reason': reason})
-                stored += 1
-                if stored % 20 == 0:
-                    session.commit()
-            except Exception as e:
-                session.rollback()
-                errors += 1
-                logger.warning(f"回填 {d} 失败: {e}")
-        session.commit()
+        rows_to_upsert = []
+        for b in breadth:
+            row = self._build_backfill_row(b, idates, icloses)
+            if row:
+                rows_to_upsert.append(row)
 
-        return {'success': True, 'stored': stored, 'errors': errors,
-                'requested_days': days}
+        stored = self.regime_repo.upsert_batch(rows_to_upsert)
+        return {'success': stored > 0, 'stored': stored,
+                'errors': len(rows_to_upsert) - stored, 'requested_days': days}
+
+    def _build_backfill_row(self, b: Dict[str, Any], idates: List[str],
+                            icloses: List[float]) -> Optional[Dict[str, Any]]:
+        """构造单日回填行；历史不足 MA60 时返回 None。"""
+        d = str(b['trade_date'])
+        pos = bisect.bisect_right(idates, d) - 1
+        if pos < INDEX_MIN_HISTORY - 1:
+            return None
+
+        closes = icloses[:pos + 1]
+        close = closes[-1]
+        ma20 = _ma(closes, MA20_PERIOD)
+        ma60 = _ma(closes, MA60_PERIOD)
+        chg5d = ((close / closes[-INDEX_5D_LOOKBACK] - 1) * 100
+                 if len(closes) >= INDEX_5D_LOOKBACK else 0.0)
+
+        total = b['up'] + b['down'] + b['flat']
+        up_pct = b['up'] / total * 100 if total else None
+        vr = b['volume_ratio']
+        # 情绪分近似（历史截面数据不可得）：涨家占比 + 量能比映射
+        sentiment_approx = max(0.0, min(100.0,
+            50 + ((up_pct or 50) - 50) * 0.8 + (((vr or 1) - 1) * 20)))
+
+        regime = self._classify_regime(sentiment_approx, vr, up_pct,
+                                       chg5d, close, ma20, ma60)
+        score = ((1 if close > ma20 else -1) + (1 if ma20 > ma60 else -1)) / 2
+        reason = self._build_reason(sentiment_approx, vr, up_pct, chg5d,
+                                    close, ma20, ma60, regime,
+                                    prefix='[回填近似] 情绪为映射值, ')
+
+        return {
+            'trade_date': b['trade_date'], 'regime': regime, 'reason': reason,
+            'index_trend_score': score,
+            'sentiment_score': round(sentiment_approx, 1),
+            'volume_ratio': vr,
+            'ad_ratio': (b['up'] / b['down'] if b['down'] else None),
+        }

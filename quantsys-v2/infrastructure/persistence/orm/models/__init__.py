@@ -38,6 +38,7 @@ from .scheduler_config import SchedulerTaskConfig
 from .condition_rule import ConditionRule, ConditionResult
 from .index_constituent import IndexConstituent
 from .orchestrator import DailyOrchestratorState
+from .market_perception import MarketRegime, MarketSentimentDaily, MarketTheme
 
 __all__ = [
     # 股票相关
@@ -80,4 +81,9 @@ __all__ = [
 
     # 编排器相关
     'DailyOrchestratorState',
+
+    # M1 市场感知相关（RFC 007）
+    'MarketRegime',
+    'MarketSentimentDaily',
+    'MarketTheme',
 ]

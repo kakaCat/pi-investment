@@ -38,6 +38,9 @@ from .agent_intelligence_repository import AgentIntelligenceORMRepository, Agent
 from .pool_change_log_repository import PoolChangeLogRepository
 from .signal_execution_log_repository import SignalExecutionLogORMRepository
 from .async_factor_repository import AsyncFactorORMRepository
+from .market_perception_repository import (
+    MarketRegimeRepository, MarketSentimentDailyRepository, MarketThemeRepository,
+)
 
 # 批次4（调度器和监控）✅
 from .scheduler_config_repository import SchedulerConfigORMRepository
@@ -79,6 +82,9 @@ __all__ = [
     'PoolChangeLogRepository',
     'SignalExecutionLogORMRepository',
     'AsyncFactorORMRepository',
+    'MarketRegimeRepository',
+    'MarketSentimentDailyRepository',
+    'MarketThemeRepository',
 
     # 批次4（调度器和监控）
     'SchedulerConfigORMRepository',

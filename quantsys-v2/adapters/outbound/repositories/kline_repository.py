@@ -1061,3 +1061,69 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             self._safe_rollback()
             logger.error(f"Error in get_active_symbols: {e}")
             return []
+
+    def get_market_breadth_history(self, days: int = 120) -> List[Dict]:
+        """全市场历史 breadth + 量能比序列（M1 regime 回填用，RFC 007）
+
+        逐日聚合：涨跌平家数（close vs 前收）+ 总量 + 量能比（近5日均量/近20日均量）。
+        注：用 volume（股数）而非 amount——腾讯 K 线源近期数据 amount 为 0。
+
+        Returns:
+            [{trade_date, up, down, flat, total_volume, volume_ratio}]，最新在前；
+            无数据返回 []
+        """
+        from sqlalchemy import text
+        try:
+            rows = self.session.execute(text("""
+                WITH px AS (
+                    SELECT symbol, trade_date, close,
+                           LAG(close) OVER (PARTITION BY symbol
+                                            ORDER BY trade_date) AS prev_close,
+                           volume
+                    FROM quant.daily_klines
+                    WHERE trade_date > CURRENT_DATE - (:days * 2 || ' days')::interval
+                ),
+                daily AS (
+                    SELECT trade_date,
+                           COUNT(*) FILTER (WHERE prev_close IS NOT NULL
+                                            AND close > prev_close) AS up,
+                           COUNT(*) FILTER (WHERE prev_close IS NOT NULL
+                                            AND close < prev_close) AS down,
+                           COUNT(*) FILTER (WHERE prev_close IS NOT NULL
+                                            AND close = prev_close) AS flat,
+                           SUM(volume) AS total_volume
+                    FROM px GROUP BY trade_date
+                )
+                SELECT trade_date, up, down, flat, total_volume,
+                       AVG(total_volume) OVER (ORDER BY trade_date
+                           ROWS BETWEEN 4 PRECEDING AND CURRENT ROW)
+                       / NULLIF(AVG(total_volume) OVER (ORDER BY trade_date
+                           ROWS BETWEEN 24 PRECEDING AND 5 PRECEDING), 0) AS vr
+                FROM daily
+                ORDER BY trade_date DESC LIMIT :days
+            """), {'days': days}).fetchall()
+            return [{
+                'trade_date': r[0],
+                'up': int(r[1] or 0), 'down': int(r[2] or 0), 'flat': int(r[3] or 0),
+                'total_volume': float(r[4] or 0),
+                'volume_ratio': float(r[5]) if r[5] is not None else None,
+            } for r in rows]
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error in get_market_breadth_history: {e}")
+            return []
+
+    def get_latest_trade_date(self) -> Optional[str]:
+        """最新交易日（daily_klines 最大 trade_date）。
+
+        用途：M1 市场感知快照的默认交易日判定。
+        Returns: 'YYYY-MM-DD' 或 None
+        """
+        from sqlalchemy import func
+        try:
+            d = self.session.query(func.max(DailyKline.trade_date)).scalar()
+            return d.isoformat() if d else None
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error in get_latest_trade_date: {e}")
+            return None
