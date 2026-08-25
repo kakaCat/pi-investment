@@ -77,28 +77,16 @@ class BacktestReportGenerator:
 
         Args:
             risk_service: Risk metrics service interface (injected by Application layer)
+                         If None, uses fallback manual calculations
             risk_free_rate: Annual risk-free rate for Sharpe calculation (default 3%)
-
-        Note:
-            risk_service is optional for backward compatibility
         """
         self.risk_free_rate = risk_free_rate
-        logger.info(f"BacktestReportGenerator initialized: rf_rate={risk_free_rate:.2%}")
+        self.risk_service = risk_service
 
-        # 使用注入的服务或后备逻辑（临时兼容）
-        if risk_service is None:
-            # 临时兼容：自动创建实例（违反 DDD）
-            # TODO: 移除后备逻辑，要求调用方必须注入
-            try:
-                from application.services.risk_metrics_service import RiskMetricsService
-                self.risk_service = RiskMetricsService(risk_free=risk_free_rate)
-                logger.info("Using RiskMetricsService for professional risk calculations")
-            except ImportError as e:
-                logger.warning(f"RiskMetricsService not available: {e}, using fallback calculations")
-                self.risk_service = None
+        if risk_service is not None:
+            logger.info(f"BacktestReportGenerator initialized with injected risk_service, rf_rate={risk_free_rate:.2%}")
         else:
-            self.risk_service = risk_service
-            logger.info("Using injected risk_service")
+            logger.info(f"BacktestReportGenerator initialized with fallback calculations, rf_rate={risk_free_rate:.2%}")
 
     def generate_report(
         self,
