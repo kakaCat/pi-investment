@@ -205,6 +205,8 @@ export default class MarketPlugin extends Service {
         let regime = 'sideways';
         let reason = '情绪中性区间震荡';
         if (fg <= 20) { regime = 'panic'; reason = `恐慌贪婪指数 ${fg} ≤ 20，恐慌市`; }
+        // 2026-08-25 蒸馏修正：放量弱市也是恐慌（fg25+涨跌105/329+放量2.36 曾被误判 sideways）
+        else if (fg <= 35 && adRatio <= 0.5 && volRatio >= 1.5) { regime = 'panic'; reason = `放量弱市恐慌：fg ${fg} 恐惧 + 涨跌比 ${adRatio}≤0.5 + 量能比 ${volRatio}≥1.5（放量下跌）`; }
         else if (fg >= 80) { regime = 'euphoria'; reason = `恐慌贪婪指数 ${fg} ≥ 80，狂热市`; }
         else if (adRatio >= 1.5 && volRatio >= 1.2) { regime = 'risk_on'; reason = `涨跌比 ${adRatio}≥1.5 且量能比 ${volRatio}≥1.2，偏多`; }
         else if (adRatio <= 0.67 && volRatio <= 0.9) { regime = 'risk_off'; reason = `涨跌比 ${adRatio}≤0.67 且量能比 ${volRatio}≤0.9，偏空缩量`; }
