@@ -81,6 +81,48 @@ export default class LifecyclePlugin extends Service {
     this.setupWindowRegistry();
     this.registerTools();
     this.setupResume();
+    this.setupOsReminderPoller();  // OS 提醒体系：60s 轮询信箱并投递（2026-08-25，dsh-schedule 会话级提醒 fork 即死的替代）
+  }
+
+  // ===== OS 提醒体系（2026-08-25 用户决策：提醒走 OS，不走 dsh session-local）=====
+  // 权威注册表 = Agent OS scheduler（postgres 持久，重启/fork 不死）
+  // 触发链路：OS cron 任务 → os-remind-bridge.sh → OS 记忆库信箱 → 本轮询 → followup 投递
+  private reminderPollTimer: ReturnType<typeof setInterval> | null = null;
+
+  private setupOsReminderPoller(): void {
+    const poll = async () => {
+      try {
+        const myWindow = this.windowCode(this.identity.id);
+        const res: any = await this.aos.memory.search({ query: 'reminder', tag: `office:reminder:${myWindow}`, top_k: 50 });
+        const items: any[] = res?.memories || res?.items || [];
+        for (const it of items) {
+          let p: any = null;
+          try { p = typeof it.content === 'string' ? JSON.parse(it.content) : it.content; } catch { continue; }
+          if (!p || p.delivered) continue;
+          // 投递到当前 investor 会话（roots 兜底与 setupResume 同款）
+          const roots: any[] = this.ctx.agents.roots();
+          const agent = roots.find((a) => String(a.id).startsWith(this.cfg.agentId)) ?? roots[0];
+          if (!agent?.followup) continue;  // 不在线，留在信箱等上线补投
+          try {
+            agent.followup(createUserMessage({
+              content: [{ type: 'text', text: `【OS 提醒】${p.task ?? ''}\n\n${p.prompt}\n\n（来源：Agent OS 定时任务 ${p.task_id ?? ''}，触发于 ${p.fired_at ?? ''}）` }],
+              source: { kind: 'plugin', plugin: 'lifecycle' },
+            }));
+            await this.osWrite('memory_write', {
+              title: `reminder ${p.task ?? ''} delivered`,
+              content: JSON.stringify({ ...p, delivered: true, delivered_at: new Date().toISOString() }),
+              namespace: 'data',
+              tags: ['office:delivered', `office:reminder:${myWindow}`],
+            });
+          } catch { /* 投递失败留下次 */ }
+        }
+      } catch { /* OS 宕机等异常静默，下轮重试 */ }
+    };
+    this.reminderPollTimer = setInterval(poll, 60_000);
+    poll().catch(() => {});  // 启动即查一轮
+    this.ctx.on('dispose' as any, () => {
+      if (this.reminderPollTimer) { clearInterval(this.reminderPollTimer); this.reminderPollTimer = null; }
+    });
   }
 
   /** 窗口编码：session-<uuid> → w-<前8位>；其他 agent id 原样返回 */
@@ -1085,6 +1127,90 @@ export default class LifecyclePlugin extends Service {
           catch { return null; }
         }).filter(Boolean);
         return { messages, total: messages.length } as any;
+      },
+    } as any));
+
+    // ===== OS 提醒体系管理工具（2026-08-25 用户决策：提醒走 OS，不走 dsh session-local）=====
+    // 权威注册表 = Agent OS scheduler（postgres 持久）；投递 = bridge → OS 信箱 → 60s 轮询 followup
+
+    // reminder_create - 创建 OS 级提醒（cron 周期任务）
+    ctx.tools.register(defineTool({
+      name: 'reminder_create',
+      description: '创建 OS 级定时提醒（Agent OS scheduler，postgres 持久——重启/会话 fork 不丢，解决 dsh 提醒 session-local 缺陷）。cron 五段式（分 时 日 月 周），如每日15:30="30 15 * * *"、工作日盘后="30 15 * * 1-5"、周五16点="0 16 * * 5"。一次性提醒用日期限定 cron（如 "35 9 26 8 *"=8月26日09:35），用后记得 reminder_delete。',
+      parameters: {
+        name: { type: 'string', description: '任务名（唯一，如 post-market-routine）', required: true },
+        cron: { type: 'string', description: 'cron 五段式表达式', required: true },
+        prompt: { type: 'string', description: '到期注入会话的提醒内容', required: true },
+        window: { type: 'string', description: '目标窗口编码，默认本窗口' },
+      },
+      output: {
+        schema: { type: 'object', properties: { id: { type: 'string' }, name: { type: 'string' }, cron: { type: 'string' } }, additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 15000,
+      execute: async (args: any, exec?: any) => {
+        const window = args.window || this.windowCode(String(exec?.agent?.id ?? '')) || this.windowCode(this.identity.id);
+        const bridgeCmd = `/Users/yunpeng/pi-investment/agent-dh/scripts/os-remind-bridge.sh "${args.name}"`;
+        const task = await this.aos.scheduler.registerTask({
+          name: args.name,
+          owner: this.identity.id,
+          description: `OS 提醒（DH lifecycle 注册，窗口 ${window}）`,
+          cron: args.cron,
+          command: bridgeCmd,
+          payload: { prompt: args.prompt, window },
+          enabled: true,
+        } as any);
+        return { id: String((task as any)?.id ?? ''), name: args.name, cron: args.cron, window } as any;
+      },
+    } as any));
+
+    // reminder_list - 列出 OS 级提醒
+    ctx.tools.register(defineTool({
+      name: 'reminder_list',
+      description: '列出 OS 级定时提醒（Agent OS scheduler 任务）及其启用状态。供：检查提醒体系健康（若为空说明体系被清空，应重建）。',
+      parameters: {},
+      output: {
+        schema: { type: 'object', properties: { tasks: { type: 'array', items: { type: 'object', additionalProperties: true } }, total: { type: 'number' } }, additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 15000,
+      execute: async () => {
+        const tasks: any[] = await this.aos.scheduler.listTasks();
+        const mine = tasks.filter((t: any) => String(t.command ?? '').includes('os-remind-bridge'));
+        return {
+          tasks: mine.map((t: any) => ({
+            id: String(t.id), name: t.name, cron: t.cron ?? t.schedule, enabled: t.enabled,
+            window: t.payload?.window ?? null,
+          })),
+          total: mine.length,
+        } as any;
+      },
+    } as any));
+
+    // reminder_delete - 删除 OS 级提醒
+    ctx.tools.register(defineTool({
+      name: 'reminder_delete',
+      description: '删除 OS 级定时提醒（按任务 ID 或名称）。一次性提醒触发后应删除避免明年同日再响。',
+      parameters: {
+        id: { type: 'string', description: '任务 ID（优先）或任务名' },
+      },
+      output: {
+        schema: { type: 'object', properties: { deleted: { type: 'boolean' } }, additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 15000,
+      execute: async (args: any) => {
+        let id = args.id;
+        if (!id) throw new Error('需要任务 ID 或名称');
+        if (!/^[0-9a-f-]{36}$/i.test(id)) {
+          // 按名称查 ID
+          const tasks: any[] = await this.aos.scheduler.listTasks();
+          const hit = tasks.find((t: any) => t.name === id && String(t.command ?? '').includes('os-remind-bridge'));
+          if (!hit) return { deleted: false, message: `未找到提醒任务: ${id}` } as any;
+          id = String(hit.id);
+        }
+        await this.aos.scheduler.deleteTask(id);
+        return { deleted: true, id } as any;
       },
     } as any));
   }
