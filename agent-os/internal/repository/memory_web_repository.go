@@ -35,7 +35,8 @@ func NewMemoryWebRepository(db *sql.DB) MemoryWebRepository {
 
 // List 获取记忆列表
 func (r *memoryWebRepository) List(ctx context.Context, req domain.MemoryListRequest) ([]*domain.MemoryWeb, error) {
-	query := `SELECT id, title, content, category, tags, agent_id, created_at, updated_at
+	// RFC 009 审计修复：添加 metadata 字段返回
+	query := `SELECT id, title, content, category, tags, created_at, updated_at, metadata
 	          FROM memories WHERE 1=1`
 	
 	args := []interface{}{}
@@ -76,14 +77,22 @@ func (r *memoryWebRepository) List(ctx context.Context, req domain.MemoryListReq
 	var memories []*domain.MemoryWeb
 	for rows.Next() {
 		var m domain.MemoryWeb
+		var metadataJSON []byte
 		err := rows.Scan(
 			&m.ID, &m.Title, &m.Content, &m.Category,
-			pq.Array(&m.Tags), &m.AgentID,
-			&m.CreatedAt, &m.UpdatedAt,
+			pq.Array(&m.Tags), &m.CreatedAt, &m.UpdatedAt, &metadataJSON,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan memory: %w", err)
 		}
+		
+		// 解析 metadata
+		if len(metadataJSON) > 0 {
+			if err := json.Unmarshal(metadataJSON, &m.Metadata); err != nil {
+				// metadata 解析失败不影响整体返回，继续
+			}
+		}
+		
 		memories = append(memories, &m)
 	}
 	
@@ -96,8 +105,9 @@ func (r *memoryWebRepository) List(ctx context.Context, req domain.MemoryListReq
 
 // Search 搜索记忆
 func (r *memoryWebRepository) Search(ctx context.Context, req domain.MemorySearchRequest) ([]*domain.MemoryWeb, error) {
+	// RFC 009 审计修复：添加 metadata 字段返回
 	// 使用 ILIKE 进行模糊搜索，支持中文
-	query := `SELECT id, title, content, category, tags, agent_id, created_at, updated_at
+	query := `SELECT id, title, content, category, tags, created_at, updated_at, metadata
 	          FROM memories
 	          WHERE (title ILIKE $1 OR content ILIKE $1)`
 	
@@ -124,14 +134,22 @@ func (r *memoryWebRepository) Search(ctx context.Context, req domain.MemorySearc
 	var memories []*domain.MemoryWeb
 	for rows.Next() {
 		var m domain.MemoryWeb
+		var metadataJSON []byte
 		err := rows.Scan(
 			&m.ID, &m.Title, &m.Content, &m.Category,
-			pq.Array(&m.Tags), &m.AgentID,
-			&m.CreatedAt, &m.UpdatedAt,
+			pq.Array(&m.Tags), &m.CreatedAt, &m.UpdatedAt, &metadataJSON,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan memory: %w", err)
 		}
+		
+		// 解析 metadata
+		if len(metadataJSON) > 0 {
+			if err := json.Unmarshal(metadataJSON, &m.Metadata); err != nil {
+				// metadata 解析失败不影响整体返回，继续
+			}
+		}
+		
 		memories = append(memories, &m)
 	}
 	
@@ -218,6 +236,15 @@ func (r *memoryWebRepository) DeleteTag(ctx context.Context, name string) error 
 // Update 更新记忆（PATCH /api/v1/memory/{id}）
 func (r *memoryWebRepository) Update(ctx context.Context, id string, req domain.MemoryUpdateRequest) (*domain.MemoryWeb, error) {
 	// RFC 009: 支持 content 更新和 metadata patch，带 expected_revision 乐观锁
+	// RFC 009 审计修复：添加事务保护，防止并发操作导致数据不一致
+	
+	// 开始事务
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback() // 失败时自动回滚
+	
 	var setClauses []string
 	var args []interface{}
 	argIndex := 1
@@ -227,9 +254,9 @@ func (r *memoryWebRepository) Update(ctx context.Context, id string, req domain.
 	var currentMetadata map[string]interface{}
 	
 	if req.ExpectedRevision != nil || req.MetadataPatch != nil {
-		queryRead := `SELECT metadata FROM memories WHERE id = $1`
+		queryRead := `SELECT metadata FROM memories WHERE id = $1 FOR UPDATE` // 添加 FOR UPDATE 锁行
 		var metadataJSON []byte
-		err := r.db.QueryRowContext(ctx, queryRead, id).Scan(&metadataJSON)
+		err := tx.QueryRowContext(ctx, queryRead, id).Scan(&metadataJSON) // 使用 tx 而不是 r.db
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return nil, fmt.Errorf("memory not found: %s", id)
@@ -303,7 +330,7 @@ func (r *memoryWebRepository) Update(ctx context.Context, id string, req domain.
 	
 	var memory domain.MemoryWeb
 	var metadataJSON []byte
-	err := r.db.QueryRowContext(ctx, query, args...).Scan(
+	err = tx.QueryRowContext(ctx, query, args...).Scan( // 使用 tx
 		&memory.ID, &memory.Content, &memory.Category,
 		&memory.CreatedAt, &memory.UpdatedAt, &metadataJSON,
 	)
@@ -313,7 +340,7 @@ func (r *memoryWebRepository) Update(ctx context.Context, id string, req domain.
 			if req.ExpectedRevision != nil {
 				var exists bool
 				checkQuery := `SELECT EXISTS(SELECT 1 FROM memories WHERE id = $1)`
-				_ = r.db.QueryRowContext(ctx, checkQuery, id).Scan(&exists)
+				_ = tx.QueryRowContext(ctx, checkQuery, id).Scan(&exists) // 使用 tx
 				if exists {
 					return nil, fmt.Errorf("revision conflict: expected %d", *req.ExpectedRevision)
 				}
@@ -332,15 +359,29 @@ func (r *memoryWebRepository) Update(ctx context.Context, id string, req domain.
 		}
 	}
 	
+	// 提交事务
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	
 	return &memory, nil
 }
 
 // Delete 删除记忆（软删：设置 metadata.board_status=dropped）
 func (r *memoryWebRepository) Delete(ctx context.Context, id string, req domain.MemoryDeleteRequest) error {
+	// RFC 009 审计修复：添加事务保护
+	
+	// 开始事务
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback() // 失败时自动回滚
+	
 	var currentMetadata map[string]interface{}
-	queryRead := `SELECT metadata FROM memories WHERE id = $1`
+	queryRead := `SELECT metadata FROM memories WHERE id = $1 FOR UPDATE` // 添加 FOR UPDATE 锁行
 	var metadataJSON []byte
-	err := r.db.QueryRowContext(ctx, queryRead, id).Scan(&metadataJSON)
+	err = tx.QueryRowContext(ctx, queryRead, id).Scan(&metadataJSON) // 使用 tx
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return fmt.Errorf("memory not found: %s", id)
@@ -368,7 +409,7 @@ func (r *memoryWebRepository) Delete(ctx context.Context, id string, req domain.
 	}
 	
 	query := `UPDATE memories SET metadata = $1, updated_at = $2 WHERE id = $3`
-	result, err := r.db.ExecContext(ctx, query, updatedJSON, time.Now(), id)
+	result, err := tx.ExecContext(ctx, query, updatedJSON, time.Now(), id) // 使用 tx
 	if err != nil {
 		return fmt.Errorf("failed to soft delete memory: %w", err)
 	}
@@ -376,6 +417,11 @@ func (r *memoryWebRepository) Delete(ctx context.Context, id string, req domain.
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
 		return fmt.Errorf("memory not found: %s", id)
+	}
+	
+	// 提交事务
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	
 	return nil
