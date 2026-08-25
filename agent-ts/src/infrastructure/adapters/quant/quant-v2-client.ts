@@ -358,9 +358,9 @@ const V2_ROUTES: Record<
   "executions.list":  { path: "/api/executions",       method: "GET" },
   "executions.stats": { path: "/api/executions/stats", method: "GET" },
 
-  // ── orders / trades ──
-  "orders.list": { path: "/api/orders/list", method: "GET" },
-  "trades.list": { path: "/api/trades/list", method: "GET" },
+  // ── simulation (orders / trades - 2026-08-25 migrated from legacy orders API) ──
+  "simulation.pending-orders": { path: "/api/simulation/accounts/{account_name}/pending-orders", method: "GET" },
+  "simulation.trades": { path: "/api/simulation/trades", method: "GET" },
 
   // ── scheduler ──
   "scheduler.tasks.list": { path: "/api/scheduler/tasks", method: "GET" },

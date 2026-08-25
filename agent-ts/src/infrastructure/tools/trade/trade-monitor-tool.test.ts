@@ -22,7 +22,7 @@ describe('trade_monitor tool', () => {
   it('should execute orders command', async () => {
     const mockResult = {
       ok: true,
-      command: 'orders.list',
+      command: 'simulation.pending-orders',
       data: { orders: [{ order_id: '123', symbol: '600519' }] },
       error: null,
     };

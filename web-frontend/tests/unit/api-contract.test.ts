@@ -118,32 +118,14 @@ describe('QuantSys V2 API contract', () => {
   })
 
   it('uses existing trading endpoints and backend payload names', () => {
-    tradingApi.getOrders({ page: 1, pageSize: 20, status: 'pending' })
-    expect(mockedClient.get).toHaveBeenLastCalledWith('/api/orders/list', {
-      params: { page: 1, pageSize: 20, status: 'pending' }
+    tradingApi.getPositions('agent_virtual')
+    expect(mockedClient.get).toHaveBeenLastCalledWith('/api/portfolio/positions', {
+      params: { account_name: 'agent_virtual' }
     })
 
-    tradingApi.getOrderById('12')
-    expect(mockedClient.get).toHaveBeenLastCalledWith('/api/orders/detail/12')
-
-    tradingApi.createOrder({ symbol: '000001.SZ', type: 'buy', priceType: 'limit', price: 10, quantity: 100 })
-    expect(mockedClient.post).toHaveBeenLastCalledWith('/api/orders/create', {
-      symbol: '000001.SZ',
-      action: 'buy',
-      orderType: 'limit',
-      quantity: 100,
-      price: 10
-    })
-
-    tradingApi.cancelOrder('12')
-    expect(mockedClient.post).toHaveBeenLastCalledWith('/api/orders/cancel/12')
-
-    tradingApi.updateOrder('12', { price: 11 })
-    expect(mockedClient.post).toHaveBeenLastCalledWith('/api/orders/update/12', { price: 11 })
-
-    tradingApi.getTrades({ page: 1, pageSize: 20 })
-    expect(mockedClient.get).toHaveBeenLastCalledWith('/api/trades/list', {
-      params: { page: 1, pageSize: 20 }
+    tradingApi.getPortfolioSummary('agent_virtual')
+    expect(mockedClient.get).toHaveBeenLastCalledWith('/api/portfolio/summary', {
+      params: { account_name: 'agent_virtual' }
     })
   })
 

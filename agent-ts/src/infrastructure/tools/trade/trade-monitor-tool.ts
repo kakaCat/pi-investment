@@ -22,16 +22,16 @@ type CommandRule = {
 
 const TRADE_COMMANDS: Record<string, CommandRule> = {
   "orders": {
-    domain: "orders",
-    action: "list",
-    description: "查询所有订单列表。v2 端点。",
-    params: {},
+    domain: "simulation",
+    action: "pending-orders",
+    description: "查询挂单列表（新 simulation API）。",
+    params: { account_name: "agent_virtual" },
     example: {},
   },
   "trades": {
-    domain: "trades",
-    action: "list",
-    description: "查询所有成交记录。v2 端点。",
+    domain: "simulation",
+    action: "trades",
+    description: "查询成交记录（新 simulation API）。",
     params: {},
     example: {},
   },
