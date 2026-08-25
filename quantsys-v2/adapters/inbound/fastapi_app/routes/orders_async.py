@@ -159,7 +159,8 @@ def create_order(payload: Optional[Dict[str, Any]] = Body(None)):
     order_id = order_service.create_order(
         ds, symbol=params['symbol'], action=params['action'], order_type=params['order_type'],
         quantity=params['quantity'], price=params.get('price') or params.get('stop_price'),
-        reason=params.get('notes'), signal_id=signal_id, from_signal=from_signal)
+        reason=params.get('notes'), signal_id=signal_id, from_signal=from_signal,
+        account_name=params.get('account_name'))
     order = ds.portfolio.get_order_by_id(order_id)
     return api_response({'order_id': order_id, 'order': order}, message='订单创建成功')
 

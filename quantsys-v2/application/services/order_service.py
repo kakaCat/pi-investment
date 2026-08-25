@@ -24,6 +24,7 @@ def create_order(
     reason: str = None,
     signal_id: int = None,
     from_signal: bool = False,
+    account_name: str = None,
 ) -> int:
     """
     创建新订单
@@ -135,11 +136,28 @@ def create_order(
 
     elif action == 'sell':
         # 卖出订单：检查持仓数量
-        holding = ds.portfolio.get_holding(symbol)
-        if holding is None:
-            raise ValueError(f"无持仓记录: {symbol}，无法卖出")
+        # 2026-08-25 修复（"无持仓记录"误报根因）：虚拟账户真实持仓在
+        # simulation_* 体系（SimulationORMRepository），旧版 ds.portfolio
+        # holdings 表迁移后为空——卖出校验永远失败，卖出全挂。
+        # 现在优先按 account_name 查 simulation 持仓（顺带正确使用
+        # shares_available 落实 T+1 可卖数），查不到再回退旧体系。
+        available_quantity = None
+        if account_name:
+            try:
+                from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+                sim_repo = SimulationORMRepository()
+                position = sim_repo.get_position(account_name, symbol)
+                if position is not None:
+                    available_quantity = int(getattr(position, 'shares_available', 0) or 0)
+            except Exception as e:
+                logger.warning(f"simulation 持仓查询失败，回退旧 holdings 体系: {e}")
 
-        available_quantity = int(holding.get('quantity', 0))
+        if available_quantity is None:
+            holding = ds.portfolio.get_holding(symbol) if ds.portfolio is not None else None
+            if holding is None:
+                raise ValueError(f"无持仓记录: {symbol}，无法卖出")
+            available_quantity = int(holding.get('quantity', 0))
+
         if available_quantity < quantity:
             raise ValueError(
                 f"持仓数量不足: {symbol} 可用 {available_quantity} 股，"

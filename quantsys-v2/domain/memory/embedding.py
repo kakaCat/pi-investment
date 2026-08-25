@@ -29,15 +29,35 @@ class OllamaEmbeddingService:
         connect_timeout: float = 3.0,
         read_timeout: float = 30.0,
     ):
-        config = get_config()
+        # 2026-08-25 修复（memory 500 根因）：config-unification 后兼容层 get_config()
+        # 无参调用返回空 dict（无 .app 属性），直接 config.app.xxx 会 AttributeError
+        # 导致 MemoryService 初始化即崩、/api/memory 全线 500。
+        # 这里做属性/字典双兼容 + 全兜底，任何配置形态下都静默降级到默认值。
+        default_base = None
+        default_model = None
+        try:
+            config = get_config()
+            app_cfg = getattr(config, 'app', None)
+            if app_cfg is None and isinstance(config, dict):
+                app_cfg = config.get('app')
+            if app_cfg is not None:
+                if isinstance(app_cfg, dict):
+                    default_base = app_cfg.get('ollama_base_url')
+                    default_model = app_cfg.get('memory_embedding_model')
+                else:
+                    default_base = getattr(app_cfg, 'ollama_base_url', None)
+                    default_model = getattr(app_cfg, 'memory_embedding_model', None)
+        except Exception:
+            pass  # 配置读取失败也走默认值，绝不让 embedding 初始化拖垮 memory 服务
+
         self.base_url = (
             base_url
-            or config.app.ollama_base_url
+            or default_base
             or DEFAULT_BASE_URL
         ).rstrip("/")
         self.model = (
             model
-            or config.app.memory_embedding_model
+            or default_model
             or DEFAULT_MODEL
         )
         self.connect_timeout = connect_timeout

@@ -24,8 +24,8 @@ class MarketDataService:
         self._data_source_manager = None
         self._kline_repo = kline_repo
         # TODO: Phase 3 future work - migrate methods to use provider_manager
-            # 延迟导入避免顶层依赖
-            from adapters.outbound.datasources.manager import get_data_provider_manager
+        # 延迟导入避免顶层依赖
+        from adapters.outbound.datasources.manager import get_data_provider_manager
         self.provider_manager = get_data_provider_manager()
         # 初始化缓存
         from infrastructure.utils.simple_cache import SimpleCache
@@ -409,6 +409,11 @@ class MarketDataService:
                 }
 
             data = result.get('data')
+            # 2026-08-25 修复（sectors 500 根因）：provider 可能返回 MarketData 对象
+            # （其 .data 属性才是 dict），直接把对象当 dict 用会
+            # AttributeError: 'MarketData' object has no attribute 'get'
+            if data is not None and not isinstance(data, dict) and hasattr(data, 'data'):
+                data = data.data
             if not data:
                 return {
                     'success': False,
