@@ -11,6 +11,7 @@ import { renderPrompt } from '@deepseek-ai/dsh-system-prompt';
 import { AgentOSClient } from '@pi-investment/agent-os-client';
 import { GitRepo } from './git.js';
 import { PendingResume, RestartResult, StateStore } from './state.js';
+import { registerBoardUpdate, registerBoardRead, registerBoardPost } from './board-tools.js';
 
 export interface Config {
   repoRoot: string;
@@ -1273,5 +1274,10 @@ export default class LifecyclePlugin extends Service {
         return { deleted: true, id } as any;
       },
     } as any));
+
+    // RFC 009: 注册公告板生命周期管理工具
+    registerBoardUpdate(this.ctx, this.aos.memory);
+    registerBoardRead(this.ctx, this.aos.memory);
+    registerBoardPost(this.ctx, this.aos.memory);
   }
 }
