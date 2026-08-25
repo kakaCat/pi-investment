@@ -425,10 +425,22 @@ async function localTradeVerify(qv2: QuantsysV2Client, accountName: string, date
     netMap.set(sym, (netMap.get(sym) ?? 0) + dir);
   }
   const historyGaps: any[] = [];
+  // 2026-08-25 修正：可见历史无买入记录的标的（迁移持仓缺买入腿），净额为负也降级为缺腿提示，
+  // 否则熔断减仓日会把"只有卖出记录"误判为勾稽异常
+  const hasBuy = new Set<string>();
+  for (const t of allTrades) {
+    if (String(t.action).toLowerCase() === 'buy') {
+      hasBuy.add(String(t.symbol ?? '').replace(/\.\w+$/, ''));
+    }
+  }
   for (const [sym, net] of netMap) {
     const held = posMap.get(sym) ?? 0;
     if (held > 0 && held !== net && Math.abs(held - net) >= 100) {
-      anomalies.push({ type: 'position_mismatch', detail: `持仓勾稽不符 ${sym}: 账面 ${held} vs 成交净额 ${net}`, symbol: sym });
+      if (!hasBuy.has(sym)) {
+        historyGaps.push({ symbol: sym, net_trades: net, note: '迁移持仓（可见历史无买入腿），不参与勾稽' });
+      } else {
+        anomalies.push({ type: 'position_mismatch', detail: `持仓勾稽不符 ${sym}: 账面 ${held} vs 成交净额 ${net}`, symbol: sym });
+      }
     } else if (held === 0 && net !== 0) {
       historyGaps.push({ symbol: sym, net_trades: net, note: '历史迁移缺腿（买入/卖出记录不全），不参与勾稽' });
     }

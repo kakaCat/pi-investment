@@ -59,6 +59,19 @@ export default class StrategyPlugin extends Service {
           enum: ['backtest', 'signal'],
           default: 'signal',
         },
+        start_date: {
+          type: 'string',
+          description: '回测开始日期（mode=backtest时必填），格式 YYYY-MM-DD，如 2025-01-02',
+        },
+        end_date: {
+          type: 'string',
+          description: '回测结束日期（mode=backtest时必填），格式 YYYY-MM-DD，如 2026-08-21',
+        },
+        initial_capital: {
+          type: 'number',
+          description: '回测初始资金（mode=backtest时可选），默认 100000',
+          default: 100000,
+        },
       },
       output: {
         schema: {
@@ -79,11 +92,14 @@ export default class StrategyPlugin extends Service {
       timeoutMs: 30000,
       execute: async (args: any) => {
         if (args.mode === 'backtest') {
+          // 2026-08-25 修复：回测模式透传日期参数（原硬编码空串导致验证门回测腿无法指定窗口）
           return qv2.backtestStrategy({
             strategy_id: args.strategy_id,
+            symbol: args.symbols?.[0] || '',  // 当前后端 API 单标的，取第一个
             symbols: args.symbols,
-            start_date: '',
-            end_date: '',
+            start_date: args.start_date || '',
+            end_date: args.end_date || '',
+            initial_capital: args.initial_capital || 100000,
           }) as any;
         }
         return qv2.generateSignals({

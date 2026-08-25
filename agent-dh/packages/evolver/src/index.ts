@@ -21,6 +21,23 @@ interface CandidateRecord {
   observe_until: string;
   status: 'watching' | 'promoted' | 'rejected';
   note?: string;
+  // 2026-08-25 扩展：支持回测腿 + P4 元学习数据地基
+  mutation_type?: 'prompt' | 'rule' | 'strategy_param';  // 变异类型（P4 归因用）
+  strategy_id?: number;       // 策略参数类 candidate 关联的策略 ID
+  params_override?: any;      // 参数变体（未来用）
+  backtest_verdict?: {        // 回测腿裁决结果（P4 元学习用）
+    passed: boolean;
+    windows: Array<{
+      label: string;
+      symbol: string;
+      start_date: string;
+      end_date: string;
+      sharpe: number;
+      return_pct: number;
+      max_drawdown_pct: number;
+    }>;
+    reason: string;
+  };
 }
 
 export default class EvolverPlugin extends Service {
@@ -116,7 +133,16 @@ export default class EvolverPlugin extends Service {
     fs.renameSync(tmp, this.candidatesPath);
   }
 
-  private registerCandidate(section: string, sectionVersion: number, genomeVersion: string, baselineVersion: string, observeDays?: number): CandidateRecord {
+  private registerCandidate(
+    section: string,
+    sectionVersion: number,
+    genomeVersion: string,
+    baselineVersion: string,
+    observeDays?: number,
+    mutationType: 'prompt' | 'rule' | 'strategy_param' = 'prompt',
+    strategyId?: number,
+    paramsOverride?: any
+  ): CandidateRecord {
     const days = observeDays || this.observeDays;
     const now = new Date();
     const rec: CandidateRecord = {
@@ -128,6 +154,9 @@ export default class EvolverPlugin extends Service {
       created_at: now.toISOString(),
       observe_until: new Date(now.getTime() + days * 86400000).toISOString(),
       status: 'watching',
+      mutation_type: mutationType,
+      strategy_id: strategyId,
+      params_override: paramsOverride,
     };
     const list = this.readCandidates();
     list.push(rec);
@@ -192,6 +221,61 @@ export default class EvolverPlugin extends Service {
         continue;
       }
 
+      // 2026-08-25 新增：回测腿（第一级门）—— 策略类 candidate 先过回测
+      if (c.strategy_id && c.mutation_type !== 'prompt') {
+        const backtestWindows = [
+          { label: '熊', symbol: '600519', start_date: '2025-03-03', end_date: '2025-07-08' },
+          { label: '震荡', symbol: '600519', start_date: '2025-07-01', end_date: '2025-11-05' },
+          { label: '牛', symbol: '002716', start_date: '2026-06-01', end_date: '2026-08-21' },
+        ];
+        const results: any[] = [];
+        let passed = true;
+        let reason = '';
+
+        try {
+          for (const w of backtestWindows) {
+            const res = await this.callTool('strategy_execute', {
+              strategy_id: c.strategy_id,
+              mode: 'backtest',
+              symbols: [w.symbol],
+              start_date: w.start_date,
+              end_date: w.end_date,
+              initial_capital: 100000,
+            });
+            const bt = res?.backtest_result?.data || res?.backtest_result || {};
+            results.push({
+              label: w.label,
+              symbol: w.symbol,
+              start_date: w.start_date,
+              end_date: w.end_date,
+              sharpe: bt.sharpeRatio ?? 0,
+              return_pct: (bt.totalReturn ?? 0) * 100,
+              max_drawdown_pct: (bt.maxDrawdown ?? 0) * 100,
+            });
+            // 失败条件：任一窗口夏普<0.5 或 回撤<-15%（过于激进）
+            if ((bt.sharpeRatio ?? 0) < 0.5 || (bt.maxDrawdown ?? 0) < -0.15) {
+              passed = false;
+              reason = `回测腿不达标：${w.label}窗口 sharpe=${(bt.sharpeRatio ?? 0).toFixed(2)} mdd=${((bt.maxDrawdown ?? 0) * 100).toFixed(1)}%`;
+              break;
+            }
+          }
+        } catch (e: any) {
+          passed = false;
+          reason = `回测腿异常：${e.message}`;
+        }
+
+        c.backtest_verdict = { passed, windows: results, reason: reason || '三窗口均达标' };
+
+        if (!passed) {
+          c.status = 'rejected';
+          c.note = `回测腿拒绝：${reason}`;
+          verdicts.push({ id: c.id, section: c.section, verdict: 'rejected_by_backtest', backtest_verdict: c.backtest_verdict });
+          this.writeCandidates(list);
+          continue;  // 跳过观察门，省 5 天
+        }
+      }
+
+      // 第二级门：模拟盘观察门（原逻辑）
       const [cand, base] = await Promise.all([
         this.searchRewards(c.genome_version),
         this.searchRewards(c.baseline_version),
@@ -518,7 +602,7 @@ export default class EvolverPlugin extends Service {
     // P2-2: validation_gate - 验证门裁决（RFC 008 核心工具）
     this.ctx.tools.register(defineTool({
       name: 'validation_gate',
-      description: '验证门裁决：对观察期到期的基因组 candidate 对比基准期打标经验（平均奖励/样本数），达标转正（genome_promote）、显著恶化回滚（genome_rollback）、证据不足延期。force=true 跳过时间与样本门槛（验收/人工裁决用）。回测门（三区间回测）待策略参数纳入基因组后启用。',
+      description: '验证门裁决（两级门）：①回测腿（策略类 candidate）：三窗口回测（牛/熊/震荡），夏普<0.5 或回撤<-15% 当场拒绝（省 5 天观察期）；②模拟盘观察门（所有类型）：对比基准期打标经验，达标转正（genome_promote）、显著恶化回滚（genome_rollback）、证据不足延期。提示词类 candidate 跳过回测腿直接进观察门。force=true 跳过时间与样本门槛（验收/人工裁决用）。',
       parameters: {
         action: {
           type: 'string',
