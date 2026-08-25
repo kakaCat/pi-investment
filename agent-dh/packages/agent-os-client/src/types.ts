@@ -104,6 +104,7 @@ export interface MemorySearchParams {
   top_k?: number;
   category?: string;
   tag?: string;
+  includeClosed?: boolean; // RFC 009: 是否包含已关闭的记忆
 }
 
 /**

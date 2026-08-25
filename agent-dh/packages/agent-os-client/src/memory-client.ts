@@ -41,6 +41,7 @@ export class MemoryClient {
           limit: params.top_k && params.top_k > 0 ? params.top_k : undefined,
           category: params.category || undefined,
           tag: params.tag || undefined,
+          include_closed: params.includeClosed || undefined,
         },
       }
     );
@@ -74,5 +75,41 @@ export class MemoryClient {
       }
     );
     return response.data;
+  }
+
+  /**
+   * Update a memory record (RFC 009 W3).
+   * Supports content updates and metadata patches with optional optimistic locking.
+   */
+  async patchMemory(
+    id: string,
+    patch: {
+      content?: string;
+      metadataPatch?: Record<string, any>;
+      expectedRevision?: number;
+    }
+  ): Promise<any> {
+    if (!id) {
+      throw new Error('id is required');
+    }
+    const response = await this.client.patch(`/api/v1/memory/${id}`, {
+      content: patch.content,
+      metadata_patch: patch.metadataPatch,
+      expected_revision: patch.expectedRevision,
+    });
+    return response.data;
+  }
+
+  /**
+   * Delete a memory record (RFC 009 W3).
+   * Soft delete: sets board_status=dropped in metadata.
+   */
+  async deleteMemory(id: string, reason?: string): Promise<void> {
+    if (!id) {
+      throw new Error('id is required');
+    }
+    await this.client.delete(`/api/v1/memory/${id}`, {
+      data: reason ? { reason } : undefined,
+    });
   }
 }
