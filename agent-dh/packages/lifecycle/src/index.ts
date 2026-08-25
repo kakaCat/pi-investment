@@ -98,10 +98,25 @@ export default class LifecyclePlugin extends Service {
         const myWindow = this.windowCode(this.identity.id);
         const res: any = await this.aos.memory.search({ query: 'reminder', tag: `office:reminder:${myWindow}`, top_k: 50 });
         const items: any[] = res?.memories || res?.items || [];
+
+        // 防重复投递（2026-08-25 验收发现）：原记录永远不会被改（append-only），
+        // 仅凭记录的 delivered=false 会每分钟重复投递。先收集已投递标记的
+        // 关联键（task|fired_at），命中即跳过。
+        const execRes: any = await this.aos.memory.search({ query: 'delivered', tag: 'office:reminder:exec', top_k: 100 });
+        const execItems: any[] = execRes?.memories || execRes?.items || [];
+        const deliveredKeys = new Set<string>();
+        for (const e of execItems) {
+          try {
+            const ep = typeof e.content === 'string' ? JSON.parse(e.content) : e.content;
+            if (ep?.task && ep?.fired_at) deliveredKeys.add(`${ep.task}|${ep.fired_at}`);
+          } catch { /* skip */ }
+        }
+
         for (const it of items) {
           let p: any = null;
           try { p = typeof it.content === 'string' ? JSON.parse(it.content) : it.content; } catch { continue; }
           if (!p || p.delivered) continue;
+          if (deliveredKeys.has(`${p.task}|${p.fired_at}`)) continue;  // 已投递过，跳过
 
           // ① 找在线目标窗口
           const roots: any[] = this.ctx.agents.roots();
