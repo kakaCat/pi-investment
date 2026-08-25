@@ -22,6 +22,7 @@ class DataBackfiller:
     - 指数退避重试
     - 批量并行处理
     - 进度追踪
+    - 指数K线支持（使用 get_index_daily）
     """
 
     def __init__(self, kline_repo=None, data_source_manager=None):
@@ -38,16 +39,21 @@ class DataBackfiller:
         from adapters.outbound.datasources.manager import get_data_provider_manager
         self.data_source_manager = data_source_manager or get_data_provider_manager()
 
+    def _is_index_symbol(self, symbol: str) -> bool:
+        """判断是否为指数代码"""
+        # 指数代码特征：000001(上证)/000300(沪深300)/399001(深证成指)/399300(沪深300)
+        return symbol.startswith('000') or symbol.startswith('399')
+
     def backfill_symbol(
         self,
         symbol: str,
         missing_segments: List[Dict],
         max_retries: int = 3
     ) -> Dict:
-        """补充单个股票的缺失数据
+        """补充单个股票/指数的缺失数据
 
         Args:
-            symbol: 股票代码
+            symbol: 股票/指数代码
             missing_segments: 缺失日期段列表，格式 [{'start': '2026-01-01', 'end': '2026-01-10', 'days': 10}]
             max_retries: 最大重试次数
 
@@ -73,7 +79,7 @@ class DataBackfiller:
                 'message': 'No missing data'
             }
 
-        logger.info(f"开始补充股票 {symbol}: {len(missing_segments)} 个缺失段")
+        logger.info(f"开始补充{'指数' if self._is_index_symbol(symbol) else '股票'} {symbol}: {len(missing_segments)} 个缺失段")
         start_time = time.time()
 
         # 去除股票代码后缀（DataSourceManager 使用不带后缀的代码）
@@ -95,13 +101,20 @@ class DataBackfiller:
             success = False
             for attempt in range(max_retries):
                 try:
-                    # 使用 DataSourceManager 获取数据（自动多源 failover）
-                    response = self.data_source_manager.get_klines(
-                        symbol=symbol_clean,
-                        period='daily',
-                        start_date=start_date.replace('-', ''),  # YYYYMMDD
-                        end_date=end_date.replace('-', '')
-                    )
+                    # 根据符号类型选择不同的API
+                    if self._is_index_symbol(symbol_clean):
+                        # 指数使用 get_index_daily（多数据源支持）
+                        response = self._fetch_index_klines(
+                            symbol_clean, start_date, end_date
+                        )
+                    else:
+                        # 股票使用 get_klines（原有逻辑）
+                        response = self.data_source_manager.get_klines(
+                            symbol=symbol_clean,
+                            period='daily',
+                            start_date=start_date.replace('-', ''),  # YYYYMMDD
+                            end_date=end_date.replace('-', '')
+                        )
 
                     if not response.get('success'):
                         logger.warning(f"获取数据失败 (尝试 {attempt+1}/{max_retries}): {response.get('error', 'Unknown')}")
@@ -115,7 +128,7 @@ class DataBackfiller:
                         break
 
                     # 转换并保存数据
-                    klines = self._convert_klines(symbol, data)
+                    klines = self._convert_klines(symbol, data, start_date, end_date)
                     if klines:
                         saved_count = self.kline_repo.save_daily_klines(klines)
                         logger.info(f"✓ {symbol}: 保存 {saved_count} 条数据 ({start_date}~{end_date})")
@@ -157,6 +170,65 @@ class DataBackfiller:
             logger.warning(f"⚠ {symbol}: 部分失败，成功 {segments_filled}/{len(missing_segments)} 段")
 
         return result
+
+    def _fetch_index_klines(self, symbol: str, start_date: str, end_date: str) -> dict:
+        """获取指数K线数据（带多数据源 failover）
+        
+        Args:
+            symbol: 裸指数代码（000300）
+            start_date: 开始日期 YYYY-MM-DD
+            end_date: 结束日期 YYYY-MM-DD
+            
+        Returns:
+            {'success': bool, 'data': [...], 'source': str}
+        """
+        # 尝试 market_providers 的 get_index_daily
+        # 指数代码需要加前缀：000300 -> sh000300, 399xxx -> szxxxxxx
+        if symbol.startswith('000') or symbol.startswith('600'):
+            prefixed_symbol = f'sh{symbol}'
+        else:
+            prefixed_symbol = f'sz{symbol}'
+        
+        result = self.data_source_manager.get_index_daily(prefixed_symbol)
+        
+        if result.get('success'):
+            # MarketData 对象的 data 属性是 {'records': [...], 'total': n}
+            market_data = result.get('data')
+            if hasattr(market_data, 'data') and isinstance(market_data.data, dict):
+                all_records = market_data.data.get('records', [])
+            else:
+                all_records = []
+            
+            # 过滤日期范围
+            filtered = self._filter_by_date_range(all_records, start_date, end_date)
+            return {
+                'success': True,
+                'data': filtered,
+                'source': result.get('source', 'market_provider')
+            }
+        
+        return result
+
+    def _filter_by_date_range(self, klines: List, start_date: str, end_date: str) -> List:
+        """过滤K线数据到指定日期范围"""
+        filtered = []
+        for kline in klines:
+            # 支持 KlineData 对象或字典
+            if hasattr(kline, 'date'):
+                date_str = kline.date
+            else:
+                date_str = kline.get('date') or kline.get('trade_date') or kline.get('日期', '')
+            
+            # 日期可能是 datetime 对象
+            if isinstance(date_str, datetime):
+                date_str = date_str.strftime('%Y-%m-%d')
+            else:
+                date_str = str(date_str).split()[0]  # 去掉可能的时间部分
+            
+            if start_date <= date_str <= end_date:
+                filtered.append(kline)
+        
+        return filtered
 
     def backfill_batch(
         self,
@@ -278,12 +350,14 @@ class DataBackfiller:
             max_retries=max_retries
         )
 
-    def _convert_klines(self, symbol: str, raw_data: List[Dict]) -> List[Dict]:
+    def _convert_klines(self, symbol: str, raw_data: List, start_date: str, end_date: str) -> List[Dict]:
         """转换原始K线数据为标准格式
 
         Args:
             symbol: 股票代码（带后缀）
-            raw_data: 原始K线数据
+            raw_data: 原始K线数据（可能是 KlineData 对象列表或字典列表）
+            start_date: 开始日期（用于过滤）
+            end_date: 结束日期（用于过滤）
 
         Returns:
             标准格式K线列表
@@ -292,26 +366,55 @@ class DataBackfiller:
 
         for item in raw_data:
             try:
-                # 统一字段名（兼容不同数据源）
-                trade_date = item.get('date') or item.get('trade_date') or item.get('日期')
+                # 支持 KlineData 对象（有属性）或字典（有键）
+                if hasattr(item, 'date'):
+                    # KlineData 对象
+                    trade_date = item.date
+                    open_val = item.open
+                    high_val = item.high
+                    low_val = item.low
+                    close_val = item.close
+                    volume_val = item.volume
+                    amount_val = getattr(item, 'amount', 0)
+                    turnover_val = getattr(item, 'turnover_rate', 0)
+                else:
+                    # 字典格式（兼容旧数据源）
+                    trade_date = item.get('date') or item.get('trade_date') or item.get('日期')
+                    open_val = item.get('open') or item.get('开盘') or 0
+                    high_val = item.get('high') or item.get('最高') or 0
+                    low_val = item.get('low') or item.get('最低') or 0
+                    close_val = item.get('close') or item.get('收盘') or 0
+                    volume_val = item.get('volume') or item.get('成交量') or 0
+                    amount_val = item.get('amount') or item.get('成交额') or 0
+                    turnover_val = item.get('turnover_rate') or item.get('换手率') or 0
+
+                # 日期格式归一化
+                if isinstance(trade_date, datetime):
+                    trade_date = trade_date.strftime('%Y-%m-%d')
+                else:
+                    trade_date = str(trade_date).split()[0]  # 去掉可能的时间部分
+
+                # 日期过滤
+                if trade_date < start_date or trade_date > end_date:
+                    continue
 
                 kline = {
                     'symbol': symbol,
                     'trade_date': trade_date,
-                    'open': float(item.get('open') or item.get('开盘') or 0),
-                    'high': float(item.get('high') or item.get('最高') or 0),
-                    'low': float(item.get('low') or item.get('最低') or 0),
-                    'close': float(item.get('close') or item.get('收盘') or 0),
-                    'volume': float(item.get('volume') or item.get('成交量') or 0),
-                    'amount': float(item.get('amount') or item.get('成交额') or 0),
-                    'turnover_rate': float(item.get('turnover_rate') or item.get('换手率') or 0),
+                    'open': float(open_val),
+                    'high': float(high_val),
+                    'low': float(low_val),
+                    'close': float(close_val),
+                    'volume': float(volume_val),
+                    'amount': float(amount_val),
+                    'turnover_rate': float(turnover_val),
                 }
 
                 # 基本验证
                 if kline['close'] > 0:
                     klines.append(kline)
 
-            except (KeyError, ValueError, TypeError) as e:
+            except (KeyError, ValueError, TypeError, AttributeError) as e:
                 logger.debug(f"跳过无效数据: {e}")
                 continue
 
