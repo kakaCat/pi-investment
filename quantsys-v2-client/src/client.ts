@@ -489,9 +489,37 @@ export class QuantsysV2Client {
    * Execute a trade (virtual account)
    * Real endpoint: POST /api/orders/create
    */
+  /**
+   * Execute a trade（虚拟账户立即成交）
+   * 2026-08-25 修复：改走 simulation 交易端点（/api/orders/create 属于订单管理系统，
+   * 只建单不成交、不动虚拟账户持仓——卖出校验也查的是废弃 holdings 表）。
+   * 正确端点：POST /api/simulation/accounts/{account}/trade（立即成交并更新持仓）。
+   */
   async executeTrade(params: TradeRequest): Promise<TradeResponse> {
-    const response = await this.client.post('/api/orders/create', params);
-    return this.unwrap<TradeResponse>(response.data, 'executeTrade');
+    const account = params.account_name || 'agent_virtual';
+    const body: Record<string, any> = {
+      action: params.action,
+      symbol: params.symbol,
+      shares: params.quantity,
+      // 后端要求交易理由 ≥10 字（R-005 同款纪律）
+      reason: params.reason && params.reason.length >= 10
+        ? params.reason
+        : (params.reason ? `${params.reason}（虚拟盘委托）` : '虚拟账户委托交易（未注明理由）'),
+    };
+    if (params.price) body.price = params.price;
+    const response = await this.client.post(`/api/simulation/accounts/${encodeURIComponent(account)}/trade`, body);
+    const data = this.unwrap<any>(response.data, 'executeTrade');
+    // 映射为 TradeResponse 契约
+    return {
+      order_id: String(data.order_id ?? data.trade_id ?? ''),
+      action: data.action ?? params.action,
+      symbol: data.symbol ?? params.symbol,
+      quantity: Number(data.shares ?? params.quantity),
+      price: Number(data.price ?? 0),
+      amount: Number(data.amount ?? 0),
+      status: data.order_status ?? 'filled',
+      timestamp: data.timestamp ?? new Date().toISOString(),
+    } as TradeResponse;
   }
 
   /**
