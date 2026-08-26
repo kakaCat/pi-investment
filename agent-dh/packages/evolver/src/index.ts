@@ -180,7 +180,13 @@ export default class EvolverPlugin extends Service {
           const tagged = it.payload?.genome_context?.genome_version;
           if (tagged !== genomeVersion) continue;
           const content = typeof it.content === 'string' ? JSON.parse(it.content) : it.content;
-          if (typeof content?.reward === 'number') rewards.push(content.reward);
+          if (typeof content?.reward === 'number') {
+            // 2026-08-25 审计修复 #2：过滤占位奖励——只统计真实交易的 reward（portfolio_trade/algo_execute）
+            // 排除 model_predict/opportunity_scan 等分析类工具的占位值（0.1/0.5），避免噪音污染基线
+            const tool = content?.action?.tool;
+            if (tool && !['portfolio_trade', 'algo_execute'].includes(tool)) continue;
+            rewards.push(content.reward);
+          }
         } catch { /* 单条解析失败跳过 */ }
       }
       return { count: rewards.length, avg: rewards.length ? rewards.reduce((a, b) => a + b, 0) / rewards.length : 0 };
@@ -290,6 +296,15 @@ export default class EvolverPlugin extends Service {
         c.observe_until = new Date(now + 2 * 86400000).toISOString();
         c.note = `证据不足延期（candidate 样本 ${cand.count} < ${minSamples}）`;
         verdicts.push({ id: c.id, section: c.section, verdict: 'extended', cand_samples: cand.count, note: c.note });
+        continue;
+      }
+
+      // 2026-08-25 审计修复 #1：硬样本门槛——candidate 期零样本时无论 force 与否都不能转正
+      // （g10 首次真实裁决暴露：cand.count=0 时 cand.avg=0，与 base 比较会误判"不劣于"转正）
+      if (cand.count === 0) {
+        c.observe_until = new Date(now + 2 * 86400000).toISOString();
+        c.note = `零样本拒绝转正（candidate 期无数据，统计无效）`;
+        verdicts.push({ id: c.id, section: c.section, verdict: 'extended', cand_samples: 0, note: c.note });
         continue;
       }
 
