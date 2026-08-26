@@ -1,8 +1,7 @@
 import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
-import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
-import { detectManipulation } from '@pi-investment/stock-analysis';
+import { QuantsysV2Client, detectManipulation } from '@pi-investment/quantsys-v2-client';
 
 export interface Config {
   quantsysV2?: {
@@ -157,7 +156,7 @@ export default class CompetitionPlugin extends Service {
       },
       timeoutMs: 30000,
       execute: async (args: any) => {
-        // M2-2 重写（2026-08-26）：使用共享库 @pi-investment/stock-analysis
+        // M2-2 重写（2026-08-26）：共享逻辑已迁入 quantsys-v2-client（仓库顶层共享库）
         // 避免跨插件工具调用限制，trading 和 competition 插件都直接调用共享函数
         return detectManipulation(qv2, args.symbol, args.days || 30);
       },

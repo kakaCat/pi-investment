@@ -1,7 +1,7 @@
 import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
-import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+import { QuantsysV2Client, detectManipulation } from '@pi-investment/quantsys-v2-client';
 import { OsMemoryStore } from '@pi-investment/os-memory';
 
 export interface Config {
@@ -362,19 +362,9 @@ export default class TradingPlugin extends Service {
             };
           }
 
-          // 2. 操纵嫌疑检测（跨工具调用 competition 插件）
+          // 2. 操纵嫌疑检测（共享库直接调用，避免跨插件工具调用限制，P1-2 2026-08-26）
           try {
-            const result = await (this.ctx.tools as any).execute({
-              name: 'manipulation_detect',
-              arguments: { symbol, days: 30 },
-              signal: new AbortController().signal,
-            });
-
-            if (result?.isError) {
-              throw new Error(result.error);
-            }
-
-            const manipResult = result.value;
+            const manipResult = await detectManipulation(this.qv2, symbol, 30);
             const suspicionScore = Number(manipResult?.manipulation_score || 0);
 
             if (suspicionScore > 70) {
@@ -690,7 +680,7 @@ export default class TradingPlugin extends Service {
             triggered: { type: 'boolean', description: '是否触发熔断' },
             unblocked: { type: 'boolean', description: '是否解除熔断' },
             actions: { type: 'array', description: '执行的动作' },
-            circuit_breaker_status: { type: 'object', description: '熔断状态' },
+            circuit_breaker_status: { type: 'object', description: '熔断状态', additionalProperties: true },
           },
           additionalProperties: true,
         },
