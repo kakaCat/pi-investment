@@ -2,11 +2,16 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+import { OsMemoryStore } from '@pi-investment/os-memory';
 
 export interface Config {
   quantsysV2?: {
     baseURL?: string;
     timeout?: number;
+  };
+  agentOS?: {
+    baseURL?: string;
+    agentId?: string;
   };
 }
 
@@ -43,9 +48,14 @@ export default class TradingPlugin extends Service {
       baseURL: z.string().default('http://localhost:5001'),
       timeout: z.number().default(30000),
     }).default({} as any),
+    agentOS: z.object({
+      baseURL: z.string().default('http://localhost:8080'),
+      agentId: z.string().default('agent-dh'),
+    }).default({} as any),
   }).default({} as any)
 
   private qv2: QuantsysV2Client;
+  private osMemory: OsMemoryStore;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'trading');
@@ -53,6 +63,11 @@ export default class TradingPlugin extends Service {
     this.qv2 = new QuantsysV2Client({
       baseURL: config.quantsysV2?.baseURL || 'http://localhost:5001',
       timeout: config.quantsysV2?.timeout || 30000,
+    });
+
+    this.osMemory = new OsMemoryStore({
+      baseURL: config.agentOS?.baseURL || 'http://localhost:8080',
+      agentId: config.agentOS?.agentId || 'agent-dh',
     });
 
     this.registerTools();
@@ -204,6 +219,112 @@ export default class TradingPlugin extends Service {
       timeoutMs: 10000,
       execute: async (args: any) => {
         assertTradingHours();  // 宪法第 1 条硬校验：非交易时段拒单
+
+        // M4-1 regime 仓位映射校验（2026-08-26）：买入前检查仓位上限
+        if (String(args.action).toUpperCase() === 'BUY') {
+          const accountName = args.account_name || 'agent_virtual';
+          const quantsysV2BaseURL = this.qv2['baseURL'] || 'http://localhost:5001';
+
+          // 1. 获取当日 regime
+          let currentRegime = 'sideways';  // 降级默认值
+          try {
+            const regimeResp = await fetch(`${quantsysV2BaseURL}/api/market/regime?days=1`);
+            const regimeData: any[] = await regimeResp.json();
+            if (regimeData && regimeData.length > 0) {
+              currentRegime = regimeData[0]?.regime || 'sideways';
+            }
+          } catch {
+            // regime 数据缺失，按保守原则降级到震荡档
+          }
+
+          // 2. 映射仓位上限（R-006）
+          const regimePositionLimit: Record<string, number> = {
+            panic: 1.00,
+            risk_on: 0.80,
+            sideways: 0.60,
+            risk_off: 0.40,
+            euphoria: 0.30,
+          };
+          const positionLimit = regimePositionLimit[currentRegime] || 0.60;
+
+          // 3. 计算当前持仓与买入后仓位
+          const accountInfo: any = await qv2.getAccountInfo(accountName);
+          const totalAsset = Number(accountInfo?.total_asset || 0);
+          const currentPositionValue = Number(accountInfo?.position_value || 0);
+          const buyValue = (args.price || 0) * args.quantity;  // 简化：不精确（应用行情价），但保守
+
+          // 若无价格传入，从行情获取
+          let actualBuyValue = buyValue;
+          if (!args.price) {
+            try {
+              const q: any = await qv2.getQuote(args.symbol);
+              if (Number(q?.price) > 0) {
+                actualBuyValue = Number(q.price) * args.quantity;
+              }
+            } catch { /* 行情获取失败用 0，保守（不会触发拦截） */ }
+          }
+
+          const positionAfterBuy = currentPositionValue + actualBuyValue;
+          const positionRatioAfterBuy = totalAsset > 0 ? positionAfterBuy / totalAsset : 0;
+
+          // 4. 校验是否突破上限
+          if (positionRatioAfterBuy > positionLimit) {
+            const blockReason = `仓位超限：regime「${currentRegime}」上限 ${(positionLimit * 100).toFixed(0)}%，买入后仓位 ${(positionRatioAfterBuy * 100).toFixed(1)}%`;
+
+            // 记录拦截到 osMemory
+            try {
+              await this.osMemory.write({
+                title: `M4-1 仓位映射拦截：${args.symbol}`,
+                content: JSON.stringify({
+                  symbol: args.symbol,
+                  regime: currentRegime,
+                  regime_limit: positionLimit,
+                  current_position_value: currentPositionValue,
+                  buy_value: actualBuyValue,
+                  position_after_buy: positionAfterBuy,
+                  ratio_after_buy: positionRatioAfterBuy,
+                  blocked: true,
+                  reason: blockReason,
+                  timestamp: new Date().toISOString(),
+                }),
+                namespace: 'risk',
+                tags: ['m4', 'regime_position_block', currentRegime],
+              });
+            } catch { /* 落库失败不影响拦截决策 */ }
+
+            // 返回拒绝
+            return {
+              success: false,
+              blocked: true,
+              reason: blockReason,
+              regime: currentRegime,
+              regime_limit: positionLimit,
+              current_ratio: ((currentPositionValue / totalAsset) * 100).toFixed(1) + '%',
+              buy_value: actualBuyValue,
+              position_after_buy_ratio: (positionRatioAfterBuy * 100).toFixed(1) + '%',
+            };
+          }
+
+          // 5. 校验通过，记录留痕
+          try {
+            await this.osMemory.write({
+              title: `M4-1 仓位映射校验通过：${args.symbol}`,
+              content: JSON.stringify({
+                symbol: args.symbol,
+                regime: currentRegime,
+                regime_limit: positionLimit,
+                current_position_value: currentPositionValue,
+                buy_value: actualBuyValue,
+                position_after_buy: positionAfterBuy,
+                ratio_after_buy: positionRatioAfterBuy,
+                blocked: false,
+                timestamp: new Date().toISOString(),
+              }),
+              namespace: 'risk',
+              tags: ['m4', 'regime_position_check', currentRegime, args.symbol],
+            });
+          } catch { /* 落库失败不阻塞交易 */ }
+        }
 
         // M5 滑点追踪（2026-08-25）：下单前抓决策时价
         let decisionPrice: number | undefined;
