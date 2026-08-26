@@ -1,0 +1,92 @@
+[
+  {
+    "success": false,
+    "strategy": "V13 XGBoost Multi-Factor",
+    "environment": "近期反弹",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "V13 XGBoost Multi-Factor",
+    "environment": "近期调整",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "V13 XGBoost Multi-Factor",
+    "environment": "近期震荡",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "V14 XGBoost Multi-Factor Optimized",
+    "environment": "近期反弹",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "V14 XGBoost Multi-Factor Optimized",
+    "environment": "近期调整",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "V14 XGBoost Multi-Factor Optimized",
+    "environment": "近期震荡",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "Strategy 272",
+    "environment": "近期反弹",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "Strategy 272",
+    "environment": "近期调整",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "Strategy 272",
+    "environment": "近期震荡",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "Strategy 273",
+    "environment": "近期反弹",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "Strategy 273",
+    "environment": "近期调整",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "Strategy 273",
+    "environment": "近期震荡",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "Strategy 274 ML",
+    "environment": "近期反弹",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "Strategy 274 ML",
+    "environment": "近期调整",
+    "error": "未知错误"
+  },
+  {
+    "success": false,
+    "strategy": "Strategy 274 ML",
+    "environment": "近期震荡",
+    "error": "未知错误"
+  }
+]

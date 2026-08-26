@@ -80,11 +80,11 @@ STRATEGIES = [
     },
 ]
 
-# 环境配置
+# 环境配置（使用近期数据，2026年1-6月）
 ENVIRONMENTS = [
-    {"name": "牛市", "start": "2023-01-01", "end": "2023-06-30", "expected_return": 5.0},
-    {"name": "熊市", "start": "2022-04-01", "end": "2022-10-31", "expected_return": -15.0},
-    {"name": "震荡", "start": "2021-07-01", "end": "2021-12-31", "expected_return": 0.0},
+    {"name": "近期反弹", "start": "2026-01-01", "end": "2026-02-28", "expected_return": 3.5},
+    {"name": "近期调整", "start": "2026-03-01", "end": "2026-04-30", "expected_return": -1.7},
+    {"name": "近期震荡", "start": "2026-05-01", "end": "2026-06-30", "expected_return": -1.6},
 ]
 
 INITIAL_CAPITAL = 100000  # 初始资金 10万
