@@ -348,6 +348,33 @@ export default class TradingPlugin extends Service {
           } catch { /* 落库失败不阻塞交易 */ }
         }
 
+        // M2-2 排雷清单（2026-08-26）：买入前过滤问题股
+        if (String(args.action).toUpperCase() === 'BUY') {
+          const symbol = args.symbol;
+
+          // 1. ST 禁区（简化匹配：symbol 包含 "ST"）
+          if (symbol.includes('ST')) {
+            return {
+              success: false,
+              blocked: true,
+              reason: 'ST 禁区：ST/*ST 股票禁止买入（交易宪法第 5 条）',
+              rule: 'M2-2-ST',
+            };
+          }
+
+          // 2. 操纵嫌疑检测（调用 competition 插件的本地实现）
+          try {
+            // 注意：manipulation_detect 是 competition 插件工具，这里需要通过 ctx.tools 调用
+            // 但在 trading 插件内部无法直接跨插件调用，需要用 qv2 或本地逻辑
+            // 暂时跳过实现，留待后续补充（需要重构工具调用架构）
+            
+            // TODO: 实现操纵嫌疑检测
+            // const manipResult = await ctx.tools.call('manipulation_detect', { symbol, days: 30 });
+            // if (manipResult.manipulation_score > 70) { return blocked; }
+            
+          } catch { /* 检测失败不阻塞交易 */ }
+        }
+
         // M5 滑点追踪（2026-08-25）：下单前抓决策时价
         let decisionPrice: number | undefined;
         let decisionTime: string | undefined;
