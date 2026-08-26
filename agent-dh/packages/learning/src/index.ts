@@ -864,28 +864,79 @@ export default class LearningPlugin extends Service {
           }
         }
 
-        // 6. 生成建议（模板化，简化版）
-        const suggestions = [];
-        if (lowRewardPatterns.length > 0) {
-          const worst = lowRewardPatterns[0];
-          suggestions.push({
-            type: 'add_rule',
-            section: 'rules',
-            content: `R-XXX: 针对 ${worst.pattern} 低奖励（${worst.avg_reward}），考虑增加前置校验规则`,
-            reason: `过去 ${days} 天该操作平均奖励 ${worst.avg_reward}，需要改进`,
-          });
+        // 6. 生成建议（2026-08-25 审计修复 #3：接入 LLM 通过 subagent 生成可操作建议，替代模板化）
+        let suggestions: any[] = [];
+        
+        // 只有低奖励模式或高奖励模式存在时才调 LLM（否则无改进空间）
+        if (lowRewardPatterns.length > 0 || highRewardPatterns.length > 0) {
+          try {
+            const distillPrompt = [
+              `你是投资 Agent 的经验蒸馏器。基于过去 ${days} 天的交易与分析经验，生成 2-3 条可操作的改进建议。`,
+              ``,
+              `**当前表现统计**：`,
+              `- 总经验数：${experiences.length} 条`,
+              `- 平均奖励：${(totalReward / experiences.length).toFixed(3)}`,
+              `- 成功率：${((successCount / experiences.length) * 100).toFixed(1)}%`,
+              `- 基因组版本：${targetVersion}`,
+              ``,
+              lowRewardPatterns.length > 0 ? `**低奖励模式（需改进）**：\n${lowRewardPatterns.map(p => `- ${p.pattern}：平均奖励 ${p.avg_reward.toFixed(3)}（${p.count} 次）`).join('\n')}` : '',
+              highRewardPatterns.length > 0 ? `**高奖励模式（可强化）**：\n${highRewardPatterns.map(p => `- ${p.pattern}：平均奖励 ${p.avg_reward.toFixed(3)}（${p.count} 次）`).join('\n')}` : '',
+              ``,
+              `请生成 JSON 数组（2-3 条建议），每条包含：`,
+              `- type: "add_rule"（新增规则）/ "modify_principle"（修改原则）/ "strengthen"（强化现有）`,
+              `- section: "rules" / "principles" / "lessons"`,
+              `- content: 具体的规则/原则文本（50-150 字，可直接写入基因组）`,
+              `- reason: 为什么这样改（数据依据）`,
+              ``,
+              `硬性要求：`,
+              `1. 建议必须具体可操作（有明确动作和条件），不要"考虑增加校验"这种模糊建议`,
+              `2. 针对低奖励模式，给出约束规则（什么情况下禁止/需校验）`,
+              `3. 针对高奖励模式，给出强化原则（什么因素驱动成功）`,
+              `4. 只输出 JSON 数组，不要其他文字`,
+            ].filter(Boolean).join('\n');
+
+            const result: any = await this.callTool('subagent', {
+              description: '生成蒸馏改进建议',
+              prompt: distillPrompt,
+              run_in_background: false,  // 同步等待
+            });
+
+            // 解析 subagent 返回（可能是 markdown 代码块包裹的 JSON）
+            let text = result?.value?.content?.[0]?.text || result?.value || '';
+            if (typeof text !== 'string') text = JSON.stringify(text);
+            
+            // 去掉 markdown 代码块
+            text = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+            
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              suggestions = parsed.filter((s: any) => s.type && s.content);
+            }
+          } catch (e: any) {
+            this.ctx.logger('learning').warn(`LLM distill suggestions failed, fallback to template: ${e.message}`);
+            // LLM 失败回退到模板化（向后兼容）
+            if (lowRewardPatterns.length > 0) {
+              const worst = lowRewardPatterns[0];
+              suggestions.push({
+                type: 'add_rule',
+                section: 'rules',
+                content: `R-XXX: 针对 ${worst.pattern} 低奖励（${worst.avg_reward}），考虑增加前置校验规则`,
+                reason: `过去 ${days} 天该操作平均奖励 ${worst.avg_reward}，需要改进`,
+              });
+            }
+            if (highRewardPatterns.length > 0) {
+              const best = highRewardPatterns[0];
+              suggestions.push({
+                type: 'modify_principle',
+                section: 'principles',
+                content: `强化 ${best.pattern} 相关原则（当前平均奖励 ${best.avg_reward}）`,
+                reason: `高奖励模式，应纳入核心原则`,
+              });
+            }
+          }
         }
 
-        if (highRewardPatterns.length > 0) {
-          const best = highRewardPatterns[0];
-          suggestions.push({
-            type: 'modify_principle',
-            section: 'principles',
-            content: `强化 ${best.pattern} 相关原则（当前平均奖励 ${best.avg_reward}）`,
-            reason: `高奖励模式，应纳入核心原则`,
-          });
-        }
-
+        // 数据不足或无模式时的兜底
         if (suggestions.length === 0) {
           suggestions.push({
             type: 'info',
