@@ -105,7 +105,7 @@ export default class IntelligencePlugin extends Service {
         },
         condition: {
           type: 'string',
-          description: '触发条件表达式，create 时必填。支持：price>100（价格突破）、change_pct>5（涨幅超5%）、volume>1000000（成交量超100万股）',
+          description: '触发条件表达式，create 时必填。支持：price>100（突破价格）、price<90（跌破价格）、change_pct>5（涨幅超5%）、change_pct<-3（跌幅超3%）',
         },
       },
       output: {

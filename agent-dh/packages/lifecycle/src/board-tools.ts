@@ -31,7 +31,7 @@ interface ModerationLogEntry {
 /**
  * 注册 board_update 工具
  */
-export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
+export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient, agentId: string) {
   ctx.tools.register(defineTool({
     name: 'board_update',
     description: '更新公告板帖子状态（RFC 009）。支持：edit编辑、claim认领、pause暂停、blocked卡住、complete完成、drop删除。closed类动作（complete/drop）需填note。',
@@ -116,7 +116,7 @@ export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
       }
 
       // 3. 权限检查（作者/认领人/管理员）
-      const currentWindow = (ctx as any).agentId || 'unknown'; // 从 context 获取当前窗口 ID
+      const currentWindow = agentId; // 当前窗口 ID 由调用方传入
       const isAuthor = author === currentWindow;
       const isAssignee = assignee === currentWindow;
       const isAdmin = false; // TODO: 管理员逻辑
@@ -271,7 +271,7 @@ export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
 /**
  * 注册增强的 board_read 工具
  */
-export function registerBoardRead(ctx: Context, memoryClient: MemoryClient) {
+export function registerBoardRead(ctx: Context, memoryClient: MemoryClient, agentId: string) {
   ctx.tools.register(defineTool({
     name: 'board_read',
     description: '读取公告板帖子（RFC 009增强）。默认返回活跃帖（open/claimed/blocked），可按状态/认领人过滤。',
@@ -386,7 +386,7 @@ export function registerBoardRead(ctx: Context, memoryClient: MemoryClient) {
 /**
  * 注册增强的 board_post 工具
  */
-export function registerBoardPost(ctx: Context, memoryClient: MemoryClient) {
+export function registerBoardPost(ctx: Context, memoryClient: MemoryClient, agentId: string) {
   ctx.tools.register(defineTool({
     name: 'board_post',
     description: '发布公告板帖子（RFC 009增强）。needs_action=true进悬赏池（open状态），false纯记录（done状态）。',
@@ -429,7 +429,7 @@ export function registerBoardPost(ctx: Context, memoryClient: MemoryClient) {
     execute: async (args: any) => {
       const { title, content, kind, needs_action = false } = args;
 
-      const currentWindow = (ctx as any).agentId || 'unknown';
+      const currentWindow = agentId;
       const initialStatus = needs_action ? 'open' : 'done';
 
       let postId: string | undefined;
