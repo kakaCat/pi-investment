@@ -642,6 +642,94 @@ export default class EvolverPlugin extends Service {
         return { verdicts } as any;
       },
     } as any));
+
+    // 5. 规则级验证门（RFC 009，方案 A 共享数据层，2026-08-26）
+    this.ctx.tools.register(defineTool({
+      name: 'rule_gate',
+      description: '规则级验证门（RFC 009）：读 rule_scoreboard 共享成绩单（analytics:rule_scoreboard），按单条 R-xxx 规则表现生成裁决提案——淘汰（avg_reward<-0.1 且样本≥3）、强化（avg_reward>0.3 且成功率>0.7 且样本≥5）、固化（成功率>0.8 且样本≥10）。淘汰/强化走 candidate 观察可逆。dry_run 默认 true 只预览；false 时自动调 genome_update 落地提案。',
+      parameters: {
+        dry_run: { type: 'boolean', description: 'true（默认）：只预览提案不执行；false：自动调 genome_update 落地提案', default: true },
+        min_samples_deprecate: { type: 'number', description: '淘汰提案最小样本数，默认 3', default: 3 },
+        min_samples_strengthen: { type: 'number', description: '强化提案最小样本数，默认 5', default: 5 },
+        min_samples_promote: { type: 'number', description: '固化提案最小样本数，默认 10', default: 10 },
+      },
+      output: {
+        schema: { type: 'object', properties: { proposals: { type: 'array' }, executed: { type: 'boolean' }, note: { type: 'string' } }, additionalProperties: true },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 30000,
+      execute: async (args: any) => {
+        // 方案 A：从共享数据层读 rule_scoreboard 成绩单
+        let scoreboard: any;
+        try {
+          const res = await this.qv2.searchMemory({ kind: 'analytics', limit: 1 });
+          const items = (res?.items || []).filter((it: any) => it.scope === 'analytics:rule_scoreboard' && it.status === 'active');
+          if (items.length === 0) {
+            return { proposals: [], executed: false, note: '未找到 rule_scoreboard 快照（需先运行 rule_scoreboard 工具生成共享数据）' };
+          }
+          scoreboard = items[0].payload;
+        } catch (e: any) {
+          return { proposals: [], executed: false, note: `读取共享数据失败: ${e.message}` };
+        }
+
+        const rules = scoreboard?.rules || [];
+        if (rules.length === 0) {
+          return { proposals: [], executed: false, note: `rule_scoreboard 快照为空（扫描 ${scoreboard?.total_experiences_scanned || 0} 条经验，未提取到 R-ID）` };
+        }
+
+        const proposals: any[] = [];
+        const thresholds = {
+          deprecate: { min_samples: args.min_samples_deprecate || 3, max_avg_reward: -0.1 },
+          strengthen: { min_samples: args.min_samples_strengthen || 5, min_avg_reward: 0.3, min_success_rate: 0.7 },
+          promote: { min_samples: args.min_samples_promote || 10, min_success_rate: 0.8 },
+        };
+
+        for (const r of rules) {
+          if (r.count >= thresholds.deprecate.min_samples && r.avg_reward < thresholds.deprecate.max_avg_reward) {
+            proposals.push({ type: 'deprecate', rule_id: r.rule_id, reason: `样本 ${r.count} 条、平均奖励 ${r.avg_reward}（< -0.1）`, action: `从 rules 段移除（走 candidate 观察可逆）` });
+          } else if (r.count >= thresholds.strengthen.min_samples && r.avg_reward > thresholds.strengthen.min_avg_reward && r.success_rate > thresholds.strengthen.min_success_rate) {
+            proposals.push({ type: 'strengthen', rule_id: r.rule_id, reason: `样本 ${r.count} 条、平均奖励 ${r.avg_reward}、成功率 ${(r.success_rate * 100).toFixed(1)}%`, action: `规则精髓提炼进 principles（走 candidate 观察）` });
+          } else if (r.count >= thresholds.promote.min_samples && r.success_rate > thresholds.promote.min_success_rate) {
+            proposals.push({ type: 'promote', rule_id: r.rule_id, reason: `样本 ${r.count} 条、成功率 ${(r.success_rate * 100).toFixed(1)}%（> 80%）`, action: `标记"已验证"（history 留痕）` });
+          }
+        }
+
+        if (proposals.length === 0) {
+          return { proposals: [], executed: false, note: `扫描 ${rules.length} 条规则，无提案（门槛：deprecate avg<-0.1 n≥3, strengthen avg>0.3 rate>0.7 n≥5, promote rate>0.8 n≥10）` };
+        }
+
+        if (args.dry_run !== false) {
+          return { proposals, executed: false, note: `预览模式：${proposals.length} 条提案待评审（传 dry_run=false 自动执行）` };
+        }
+
+        // 执行提案（dry_run=false）
+        const executed: any[] = [];
+        for (const p of proposals) {
+          try {
+            if (p.type === 'deprecate') {
+              const rulesContent = await this.readSection('rules');
+              const lines = rulesContent.split('\n');
+              const filtered = lines.filter(line => !line.match(new RegExp(`^##\\s+${p.rule_id}\\b`)));
+              const newContent = filtered.join('\n');
+              await this.callGenomeUpdate('rules', newContent, `rule_gate 淘汰提案：${p.rule_id}（${p.reason}）`, 'candidate');
+              executed.push({ ...p, result: 'candidate 已生成，待观察期裁决' });
+            } else if (p.type === 'strengthen') {
+              const principlesContent = await this.readSection('principles');
+              const essence = `**${p.rule_id} 验证有效**（${p.reason}）：该规则的成功经验已验证，持续遵守。`;
+              const newContent = `${principlesContent.trim()}\n\n${essence}\n`;
+              await this.callGenomeUpdate('principles', newContent, `rule_gate 强化提案：${p.rule_id}（${p.reason}）`, 'candidate');
+              executed.push({ ...p, result: 'principles candidate 已生成' });
+            } else if (p.type === 'promote') {
+              executed.push({ ...p, result: 'promote 路径待实现（标记"已验证"入 history）' });
+            }
+          } catch (e: any) {
+            executed.push({ ...p, result: `执行失败: ${e.message}` });
+          }
+        }
+
+        return { proposals, executed: true, results: executed, note: `已执行 ${executed.length}/${proposals.length} 条提案` } as any;
+      },
+    } as any));
   }
 
   /**

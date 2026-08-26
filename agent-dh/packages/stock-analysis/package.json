@@ -1,0 +1,16 @@
+{
+  "name": "@pi-investment/stock-analysis",
+  "version": "0.1.0",
+  "description": "Shared stock analysis utilities (manipulation detection, chip analysis, etc.)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@pi-investment/quantsys-v2-client": "workspace:*"
+  }
+}

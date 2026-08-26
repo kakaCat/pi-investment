@@ -1137,7 +1137,24 @@ export default class LearningPlugin extends Service {
           };
         }).sort((a, b) => a.avg_reward - b.avg_reward);  // 最差的排前面
 
-        return { rules, total_experiences_scanned: experiences.length } as any;
+        const result = { rules, total_experiences_scanned: experiences.length };
+
+        // 方案 A 共享数据层（2026-08-26）：将成绩单写入 memory 供 evolver rule_gate 读取
+        try {
+          await this.qv2.createMemory({
+            kind: 'analytics',
+            scope: 'analytics:rule_scoreboard',
+            title: `rule_scoreboard snapshot ${new Date().toISOString().slice(0, 10)}`,
+            content: `规则成绩单快照：${rules.length} 条规则，扫描 ${experiences.length} 条经验`,
+            payload: { rules, total_experiences_scanned: experiences.length, generated_at: new Date().toISOString() },
+            status: 'active',
+            confidence: 1.0,
+            source: 'rule_scoreboard',
+            provenance: { channel: 'dsh', session_kind: 'tool' },
+          });
+        } catch { /* 写入失败不阻塞返回 */ }
+
+        return result as any;
       },
     } as any));
   }
