@@ -140,6 +140,12 @@ async def get_trades(account_name: Optional[str] = Query(None),
     return {'success': True, 'data': [t.to_dict() for t in trades]}
 
 
+@router.get("/accounts/{account_name}/trades")
+async def get_account_trades(account_name: str, limit: int = Query(100)):
+    """RESTful 风格的交易记录查询（别名，与 GET /trades 功能相同）"""
+    return await get_trades(account_name=account_name, limit=limit)
+
+
 @router.get("/performance")
 async def get_performance(account_name: Optional[str] = Query(None)):
     """账户绩效（account_name 必填，优先读快照表）"""

@@ -832,13 +832,16 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
     # 模式 2：通过 account_name 自动获取收益率
     if not returns and account_name:
         try:
-            # 从 portfolio 获取持仓历史收益数据
-            holdings = ds.portfolio.get_all_holdings()
-            if not holdings:
+            # 从 simulation 获取指定账户的持仓数据（支持多账户）
+            positions = ds.simulation.get_all_positions(account_name, only_nonzero=True)
+            if not positions:
                 return error_response({
                     'success': False,
                     'error': f'账户 {account_name} 无持仓数据，无法计算风险指标'
                 }, 400)
+            
+            # 转换为 dict 格式（与后续代码兼容）
+            holdings = [{'symbol': p.symbol} for p in positions]
 
             # 计算每只持仓的日收益率（简化：用最新K线计算）
             daily_returns = []
