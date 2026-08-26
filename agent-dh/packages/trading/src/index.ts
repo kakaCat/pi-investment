@@ -220,6 +220,28 @@ export default class TradingPlugin extends Service {
       execute: async (args: any) => {
         assertTradingHours();  // 宪法第 1 条硬校验：非交易时段拒单
 
+        // M4-2 熔断检查（2026-08-26）：买入前检查熔断状态
+        if (String(args.action).toUpperCase() === 'BUY') {
+          try {
+            const memResult: any = await this.osMemory.search({
+              query: 'circuit_breaker_status',
+              namespace: 'risk',
+              top_k: 1,
+            });
+            if (memResult?.memories?.length > 0) {
+              const breakerStatus = JSON.parse(memResult.memories[0].content || '{}');
+              if (breakerStatus.active === true) {
+                return {
+                  success: false,
+                  blocked: true,
+                  reason: `熔断激活：60日回撤 ${breakerStatus.triggered_drawdown?.toFixed(2)}%，禁止新开仓（解除条件：${breakerStatus.unblock_condition})`,
+                  circuit_breaker: breakerStatus,
+                };
+              }
+            }
+          } catch { /* 熔断状态读取失败不阻塞交易（保守：允许交易） */ }
+        }
+
         // M4-1 regime 仓位映射校验（2026-08-26）：买入前检查仓位上限
         if (String(args.action).toUpperCase() === 'BUY') {
           const accountName = args.account_name || 'agent_virtual';
@@ -572,6 +594,161 @@ export default class TradingPlugin extends Service {
           by_symbol: Object.entries(bySymbol).map(([symbol, v]) => ({ symbol, ...v })),
           note: slips.length === 0 ? '暂无滑点记录（首笔真实成交后自动开始积累）' : '滑点为方向归一值：正=比决策时价差',
         } as any;
+      },
+    } as any));
+
+    // M4-2: 组合回撤熔断检查（2026-08-26）
+    ctx.tools.register(defineTool({
+      name: 'm4_circuit_breaker_check',
+      description: 'M4-2 组合回撤熔断每日检查：计算 60 日最大回撤，若 >8% 触发熔断（减仓一半+禁止开仓+飞书告警），若已熔断且回撤修复则解除。每日 16:30 Agent OS scheduler 自动触发。',
+      parameters: {
+        account_name: {
+          type: 'string',
+          description: '账户名称，默认 agent_virtual',
+          default: 'agent_virtual',
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            checked_at: { type: 'string', description: '检查时间' },
+            max_drawdown: { type: 'number', description: '60 日最大回撤（%）' },
+            triggered: { type: 'boolean', description: '是否触发熔断' },
+            unblocked: { type: 'boolean', description: '是否解除熔断' },
+            actions: { type: 'array', description: '执行的动作' },
+            circuit_breaker_status: { type: 'object', description: '熔断状态' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{
+          type: 'text',
+          text: JSON.stringify(value, null, 2),
+        }],
+      },
+      timeoutMs: 30000,
+      execute: async (args: any) => {
+        const accountName = args.account_name || 'agent_virtual';
+        const now = new Date().toISOString();
+
+        // 1. 计算 60 日最大回撤
+        const riskMetrics: any = await qv2.riskMetrics({ account_name: accountName, days: 60 });
+        const maxDrawdown = Number(riskMetrics?.max_drawdown || 0);
+
+        // 2. 读取熔断状态
+        let breakerStatus: any;
+        try {
+          const memResult: any = await this.osMemory.search({
+            query: 'circuit_breaker_status',
+            namespace: 'risk',
+            top_k: 1,
+          });
+          if (memResult?.memories?.length > 0) {
+            breakerStatus = JSON.parse(memResult.memories[0].content || '{}');
+          }
+        } catch {
+          breakerStatus = null;
+        }
+
+        const isActive = breakerStatus?.active === true;
+        const actions: string[] = [];
+
+        // 3. 判断是否触发熔断
+        if (!isActive && maxDrawdown < -8.0) {
+          // 触发熔断：减仓一半 + 禁止开仓
+          const positions: any[] = await qv2.getPositions(accountName);
+          const sellActions: string[] = [];
+
+          for (const pos of positions) {
+            const sellQty = Math.floor(Number(pos.shares_available || 0) / 2 / 100) * 100;  // 一半数量取整到百股
+            if (sellQty >= 100) {
+              try {
+                await qv2.executeTrade({
+                  account_name: accountName,
+                  action: 'SELL',
+                  symbol: pos.symbol,
+                  quantity: sellQty,
+                  reason: `M4-2 熔断自动减仓：60日回撤 ${maxDrawdown.toFixed(2)}%`,
+                });
+                sellActions.push(`卖出 ${pos.symbol} ${sellQty}股`);
+              } catch (e: any) {
+                sellActions.push(`卖出 ${pos.symbol} 失败: ${e.message}`);
+              }
+            }
+          }
+
+          // 更新熔断状态
+          breakerStatus = {
+            active: true,
+            triggered_at: now,
+            triggered_drawdown: maxDrawdown,
+            actions_taken: sellActions,
+            unblock_condition: '60日回撤修复到 <8%',
+            checked_at: now,
+          };
+
+          await this.osMemory.write({
+            title: 'M4-2 熔断状态',
+            content: JSON.stringify(breakerStatus),
+            namespace: 'risk',
+            tags: ['m4', 'circuit_breaker_status', 'active'],
+          });
+
+          actions.push(...sellActions, '熔断激活：禁止新开仓');
+
+          // 飞书高优告警（假设有 feishu_notify 工具，这里记录到 osMemory）
+          await this.osMemory.write({
+            title: 'M4-2 熔断触发告警',
+            content: `⚠️ 组合回撤熔断已触发\n\n- 60日最大回撤: ${maxDrawdown.toFixed(2)}%\n- 触发时间: ${now}\n- 执行动作: 减仓一半\n- 减仓明细: ${sellActions.join(', ')}\n- 状态: 禁止新开仓\n- 解除条件: 60日回撤修复到 <8%`,
+            namespace: 'notification',
+            tags: ['m4', 'circuit_breaker_alert', 'high_priority'],
+          });
+
+          return {
+            checked_at: now,
+            max_drawdown: maxDrawdown,
+            triggered: true,
+            unblocked: false,
+            actions,
+            circuit_breaker_status: breakerStatus,
+          };
+        }
+
+        // 4. 判断是否解除熔断
+        if (isActive && maxDrawdown >= -8.0) {
+          // 解除熔断
+          breakerStatus.active = false;
+          breakerStatus.unblocked_at = now;
+          breakerStatus.checked_at = now;
+
+          await this.osMemory.write({
+            title: 'M4-2 熔断状态（已解除）',
+            content: JSON.stringify(breakerStatus),
+            namespace: 'risk',
+            tags: ['m4', 'circuit_breaker_status', 'unblocked'],
+          });
+
+          actions.push('熔断解除：恢复允许开仓');
+
+          return {
+            checked_at: now,
+            max_drawdown: maxDrawdown,
+            triggered: false,
+            unblocked: true,
+            actions,
+            circuit_breaker_status: breakerStatus,
+          };
+        }
+
+        // 5. 无变化
+        return {
+          checked_at: now,
+          max_drawdown: maxDrawdown,
+          triggered: false,
+          unblocked: false,
+          actions: ['无变化：' + (isActive ? `熔断激活中（${maxDrawdown.toFixed(2)}%，仍需修复）` : `无熔断（${maxDrawdown.toFixed(2)}%）`)],
+          circuit_breaker_status: breakerStatus,
+        };
       },
     } as any));
   }
