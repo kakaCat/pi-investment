@@ -48,7 +48,7 @@ export default class RiskPlugin extends Service {
       parameters: {
         command: {
           type: 'string',
-          description: '操作类型。position_size：根据账户资金与标的风险计算建议买入仓位（需传 symbol）；stop_loss：计算止损价格（需传 symbol）；portfolio_risk：评估组合整体风险是否超标',
+          description: '操作类型。position_size：根据账户资金与标的风险计算建议买入仓位（需传 symbol）；stop_loss：计算止损价格（需传 symbol + 可选 risk_level）；portfolio_risk：评估组合整体风险是否超标',
           enum: ['position_size', 'stop_loss', 'portfolio_risk'],
           required: true,
         },
@@ -60,6 +60,11 @@ export default class RiskPlugin extends Service {
           type: 'string',
           description: '账户名称，默认 agent_virtual',
           default: 'agent_virtual',
+        },
+        risk_level: {
+          type: 'string',
+          description: '风险分级（stop_loss 时可选）：large_cap（大盘蓝筹-8%）/ growth（成长股-10%）/ small_cap_theme（小盘题材-12%），默认 large_cap',
+          enum: ['large_cap', 'growth', 'small_cap_theme'],
         },
       },
       output: {
@@ -84,6 +89,7 @@ export default class RiskPlugin extends Service {
           command: args.command,
           symbol: args.symbol,
           account_name: args.account_name || 'agent_virtual',
+          risk_level: args.risk_level,  // M4-3: 传递 risk_level 给后端
         }) as any;
       },
     } as any));
