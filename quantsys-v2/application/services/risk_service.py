@@ -63,13 +63,16 @@ class RiskService:
         account_value: float,
         risk_percent: float = 2.0
     ) -> Dict[str, Any]:
-        """计算仓位大小"""
+        """计算仓位大小
+        
+        M4-3 校准（2026-08-26）：max_position 从 30% 改为 20%，对齐交易宪法单股≤20%
+        """
         self.logger.info(f"计算仓位: symbol={symbol}")
 
         try:
             risk_amount = account_value * (risk_percent / 100)
             position_size = risk_amount / 0.02
-            max_position = account_value * 0.3
+            max_position = account_value * 0.2  # M4-3: 从 0.3 改为 0.2（宪法对齐）
 
             recommended_size = min(position_size, max_position)
 
@@ -80,6 +83,7 @@ class RiskService:
                     'account_value': account_value,
                     'risk_percent': risk_percent,
                     'recommended_size': recommended_size,
+                    'max_position': max_position,  # 返回上限便于调试
                     'update_time': datetime.now().isoformat()
                 }
             }
@@ -90,13 +94,27 @@ class RiskService:
         self,
         symbol: str,
         entry_price: float,
-        method: str = 'percentage'
+        method: str = 'percentage',
+        risk_level: str = 'large_cap'
     ) -> Dict[str, Any]:
-        """计算止损价格"""
+        """计算止损价格
+        
+        M4-3 校准（2026-08-26）：增加 risk_level 参数，对齐交易宪法止损纪律
+        - large_cap（大盘蓝筹）: -8%
+        - growth（成长股）: -10%
+        - small_cap_theme（小盘/题材）: -12%
+        """
         try:
             if method == 'percentage':
-                stop_loss = entry_price * 0.92
-                stop_loss_pct = 8.0
+                # M4-3: 按 risk_level 分级止损
+                stop_loss_map = {
+                    'large_cap': 0.92,       # -8%
+                    'growth': 0.90,          # -10%
+                    'small_cap_theme': 0.88, # -12%
+                }
+                stop_loss_multiplier = stop_loss_map.get(risk_level, 0.92)  # 默认 -8%
+                stop_loss = entry_price * stop_loss_multiplier
+                stop_loss_pct = (1 - stop_loss_multiplier) * 100
             else:
                 stop_loss = entry_price * 0.90
                 stop_loss_pct = 10.0
@@ -108,6 +126,7 @@ class RiskService:
                     'entry_price': entry_price,
                     'stop_loss': stop_loss,
                     'stop_loss_pct': stop_loss_pct,
+                    'risk_level': risk_level,  # 返回风险分级便于调试
                     'method': method,
                     'update_time': datetime.now().isoformat()
                 }

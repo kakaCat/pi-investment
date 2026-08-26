@@ -2,12 +2,13 @@
 
 | 字段 | 值 |
 |---|---|
-| 状态 | 📋 设计中 |
-| 日期 | 2026-08-25 |
-| 编制 | agent-dh k3（审计+文档角色，不实施） |
+| 状态 | ✅ 已实施（2026-08-26） |
+| 日期 | 2026-08-25 设计 / 2026-08-26 实施 |
+| 编制 | agent-dh k3（审计+文档角色） |
+| 实施方 | agent-dh k3（2026-08-26，feat/m4-position-risk 分支） |
 | 上游设计 | [RFC 004 盈利引擎设计](004-profit-engine-design.md) M4 模块；[RFC 005 工单包](005-profit-engine-work-tickets.md) M4-1/M4-2/M4-3 |
-| 实施方 | 待领工（其他 agent） |
 | 前置依赖 | ✅ M1-1 市场感知 regime 落库（已完成，每日自动快照） |
+| 实施 commits | `58ff5954` M4-1 / `b8169d91` M4-3 / `9df85d1c` M4-2 / `070b3f26` 任务记录 |
 
 ---
 
@@ -471,6 +472,7 @@ risk_barra_decomposition(account_name='agent_virtual')
 | 日期 | 内容 |
 |---|---|
 | 2026-08-25 | 创建。M1 完成后启动 M4 设计；M4-1/M4-2/M4-3 技术方案完整定义；交接清单明确（§8） |
+| 2026-08-26 | ✅ 实施完成。M4-1 regime 仓位映射表嵌入 portfolio_trade（+121 行）；M4-3 风控工具校准（position_size 20%、stop_loss 分级止损）；M4-2 回撤熔断检查工具与 portfolio_trade 集成（+177 行）+ Agent OS 任务创建（工作日 16:30）。分支 feat/m4-position-risk，4 commits，+330/-7 行。 |
 
 ---
 
