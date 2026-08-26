@@ -112,4 +112,20 @@ export class MemoryClient {
       data: reason ? { reason } : undefined,
     });
   }
+
+  /**
+   * Get a memory record by ID (RFC 009 board-tools fix).
+   * Direct retrieval without semantic search.
+   */
+  async getById(id: string, includeClosed?: boolean): Promise<any> {
+    if (!id) {
+      throw new Error('id is required');
+    }
+    const response = await this.client.get(`/api/v1/memory/${id}`, {
+      params: {
+        include_closed: includeClosed || undefined,
+      },
+    });
+    return response.data;
+  }
 }

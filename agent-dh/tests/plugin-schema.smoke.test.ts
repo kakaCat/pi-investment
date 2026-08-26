@@ -51,6 +51,8 @@ const PLUGINS: Array<[string, () => Promise<any>, () => any]> = [
   })],
   ['evolver', () => import('../packages/evolver/src/index.js'), () => ({})],
   ['learning', () => import('../packages/learning/src/index.js'), () => QV2],
+  ['quantsys-v2-manager', () => import('../packages/quantsys-v2-manager/src/index.js'), () => ({})],
+  ['agent-os-manager', () => import('../packages/agent-os-manager/src/index.js'), () => ({})],
 ];
 
 describe('插件 schema 冒烟（构造即编译所有工具 schema）', () => {
