@@ -1,0 +1,20 @@
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+    include: ['tests/**/*.test.ts', 'packages/**/tests/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      include: ['packages/*/src/**/*.ts'],
+      exclude: ['**/*.test.ts', '**/node_modules/**'],
+    },
+  },
+  resolve: {
+    alias: {
+      '@pi-investment/quantsys-v2-client': '/Users/yunpeng/pi-investment/quantsys-v2-client/src',
+    },
+  },
+});
