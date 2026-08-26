@@ -1015,6 +1015,8 @@ export class QuantsysV2Client {
    * Search memory entries
    * Real endpoint: GET /api/memory/search?q=&kind=&scope=&limit=
    * Response: {items: [...], total, degraded, strategy}
+   * 
+   * @deprecated 已废弃，统一使用 @pi-investment/os-memory 包的 OsMemoryStore
    */
   async searchMemory(params: {
     q?: string;
@@ -1037,6 +1039,8 @@ export class QuantsysV2Client {
    * Create a memory entry
    * Real endpoint: POST /api/memory
    * Body: {kind, scope, title, content, payload?, evidence?, status?, confidence?, provenance?, source?}
+   * 
+   * @deprecated 已废弃，统一使用 @pi-investment/os-memory 包的 OsMemoryStore
    */
   async createMemory(entry: Record<string, any>): Promise<any> {
     const response = await this.client.post('/api/memory', entry);
