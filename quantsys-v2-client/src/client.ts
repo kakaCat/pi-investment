@@ -91,6 +91,55 @@ export class QuantsysV2Client {
   }
 
   /**
+   * Parse condition string to conditions array for watch rules
+   * Examples:
+   *   "price>100" -> [{type: "price_threshold", params: {operator: ">", value: 100}}]
+   *   "change_pct>5" -> [{type: "change_pct_threshold", params: {operator: ">", value: 5}}]
+   *   "volume>1000000" -> [{type: "volume_threshold", params: {operator: ">", value: 1000000}}]
+   * 
+   * Supports:
+   *   - Fields: price, change_pct, volume
+   *   - Operators: >, <, >=, <=, =
+   *   - Values: positive/negative numbers, decimals
+   *   - Whitespace around operators is allowed
+   */
+  private parseCondition(condition: string): Array<{type: string; params: Record<string, any>}> {
+    // Trim and match: field + operator + value (with optional whitespace)
+    // Supports: price>100, price > 100, change_pct>=-5, volume<1000000.5
+    const match = condition.trim().match(/^([a-z_]+)\s*(>=?|<=?|=)\s*(-?[0-9]+\.?[0-9]*)$/);
+    if (!match) {
+      throw new Error(
+        `Invalid watch condition format: "${condition}". \n` +
+        `Expected: "field operator value" (e.g., "price>100", "change_pct>=5")\n` +
+        `Supported fields: price, change_pct, volume\n` +
+        `Supported operators: >, <, >=, <=, =`
+      );
+    }
+    const [, field, operator, valueStr] = match;
+    const value = parseFloat(valueStr);
+    
+    // Map field names to condition types
+    const typeMap: Record<string, string> = {
+      price: 'price_threshold',
+      change_pct: 'change_pct_threshold',
+      volume: 'volume_threshold',
+    };
+    
+    const type = typeMap[field];
+    if (!type) {
+      throw new Error(
+        `Unknown watch condition field: "${field}".\n` +
+        `Supported fields: price, change_pct, volume`
+      );
+    }
+    
+    return [{
+      type,
+      params: { operator, value }
+    }];
+  }
+
+  /**
    * Unwrap response envelope based on endpoint-specific patterns
    */
   private unwrap<T>(response: any, endpoint: string): T {
@@ -576,9 +625,13 @@ export class QuantsysV2Client {
    *   DELETE /api/watch/rules/{id}      (delete)
    */
   async manageWatchRule(params: WatchRuleManageRequest): Promise<any> {
-    const { action, rule_id, ...rest } = params;
+    const { action, rule_id, condition, ...rest } = params;
     if (action === 'create') {
-      const response = await this.client.post('/api/watch/rules', rest);
+      // Transform condition string to conditions array (backend contract)
+      // e.g. "price>100" -> [{type: "price_threshold", params: {operator: ">", value: 100}}]
+      const conditions = condition ? this.parseCondition(condition) : [];
+      const body = { ...rest, conditions };
+      const response = await this.client.post('/api/watch/rules', body);
       return this.unwrap(response.data, 'manageWatchRule');
     }
     if (action === 'enable') {
@@ -644,13 +697,16 @@ export class QuantsysV2Client {
    * Dispatches to different endpoints based on command.
    */
   async riskControl(params: RiskControlRequest): Promise<any> {
-    const { command, symbol, account_name } = params;
+    const { command, symbol, account_name, risk_level } = params;
     if (command === 'position_size') {
       const response = await this.client.post(`/api/stock/${symbol}/risk/position-size`, { account_name });
       return this.unwrap(response.data, 'riskControl');
     }
     if (command === 'stop_loss') {
-      const response = await this.client.post(`/api/stock/${symbol}/risk/stop-loss`, { account_name });
+      const response = await this.client.post(`/api/stock/${symbol}/risk/stop-loss`, {
+        account_name,
+        risk_level: risk_level || 'large_cap',
+      });
       return this.unwrap(response.data, 'riskControl');
     }
     if (command === 'portfolio_risk') {

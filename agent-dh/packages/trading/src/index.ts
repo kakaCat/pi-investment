@@ -270,7 +270,7 @@ export default class TradingPlugin extends Service {
           const positionLimit = regimePositionLimit[currentRegime] || 0.60;
 
           // 3. 计算当前持仓与买入后仓位
-          const accountInfo: any = await qv2.getAccountInfo(accountName);
+          const accountInfo: any = await qv2.getPortfolioSummary(accountName);
           const totalAsset = Number(accountInfo?.total_asset || 0);
           const currentPositionValue = Number(accountInfo?.position_value || 0);
           const buyValue = (args.price || 0) * args.quantity;  // 简化：不精确（应用行情价），但保守

@@ -510,6 +510,7 @@ export interface RiskControlRequest {
   command: 'position_size' | 'stop_loss' | 'portfolio_risk';
   symbol?: string;
   account_name?: string;
+  risk_level?: 'large_cap' | 'growth' | 'small_cap_theme';
 }
 
 /**
