@@ -348,6 +348,79 @@ export default class TradingPlugin extends Service {
           } catch { /* 落库失败不阻塞交易 */ }
         }
 
+        // M2-2 排雷清单（2026-08-26）：买入前过滤问题股
+        if (String(args.action).toUpperCase() === 'BUY') {
+          const symbol = args.symbol;
+
+          // 1. ST 禁区（简化匹配：symbol 包含 "ST"）
+          if (symbol.includes('ST')) {
+            return {
+              success: false,
+              blocked: true,
+              reason: 'ST 禁区：ST/*ST 股票禁止买入（交易宪法第 5 条）',
+              rule: 'M2-2-ST',
+            };
+          }
+
+          // 2. 操纵嫌疑检测（跨工具调用 competition 插件）
+          try {
+            const result = await (this.ctx.tools as any).execute({
+              name: 'manipulation_detect',
+              arguments: { symbol, days: 30 },
+              signal: new AbortController().signal,
+            });
+
+            if (result?.isError) {
+              throw new Error(result.error);
+            }
+
+            const manipResult = result.value;
+            const suspicionScore = Number(manipResult?.manipulation_score || 0);
+
+            if (suspicionScore > 70) {
+              // 拒绝交易 + 落库留痕
+              await this.osMemory.write({
+                title: `M2-2 操纵嫌疑拦截：${symbol}`,
+                content: JSON.stringify({
+                  symbol,
+                  suspicion_score: suspicionScore,
+                  risk_level: manipResult?.risk_level,
+                  detected_patterns: manipResult?.detected_patterns,
+                  evidence: manipResult?.evidence,
+                  blocked: true,
+                  reason: `操纵嫌疑评分 ${suspicionScore.toFixed(1)} >70，禁止买入`,
+                  timestamp: new Date().toISOString(),
+                }),
+                namespace: 'risk',
+                tags: ['m2', 'manipulation_block', symbol],
+              });
+
+              return {
+                success: false,
+                blocked: true,
+                reason: `操纵嫌疑：嫌疑评分 ${suspicionScore.toFixed(1)} >70，禁止买入（genome 标的禁区）`,
+                suspicion_score: suspicionScore,
+                detected_patterns: manipResult?.detected_patterns,
+                evidence: manipResult?.evidence,
+                rule: 'M2-2-manipulation',
+              };
+            }
+          } catch (e: any) {
+            // 检测失败不阻塞交易（保守：允许，但记录警告）
+            await this.osMemory.write({
+              title: `M2-2 操纵检测失败：${symbol}`,
+              content: JSON.stringify({
+                symbol,
+                error: e.message || 'manipulation_detect 调用失败',
+                action: '允许交易（保守原则）',
+                timestamp: new Date().toISOString(),
+              }),
+              namespace: 'risk',
+              tags: ['m2', 'manipulation_detect_error', symbol],
+            });
+          }
+        }
+
         // M5 滑点追踪（2026-08-25）：下单前抓决策时价
         let decisionPrice: number | undefined;
         let decisionTime: string | undefined;
