@@ -275,6 +275,33 @@ def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
                         kline['trade_date'] = str(kline['trade_datetime'])
 
         if klines is None or (hasattr(klines, 'is_empty') and klines.is_empty()) or (isinstance(klines, list) and len(klines) == 0):
+            # 数据库无数据，尝试从外部数据源拉取（M3-2 修复）
+            logger.info(f"Database has no kline data for {clean_symbol}, attempting to fetch from external sources...")
+            try:
+                from infrastructure.data_providers.data_source_manager import get_data_source_manager
+                dsm = get_data_source_manager()
+                
+                # 直接从外部数据源获取（绕过数据库）
+                raw_klines = dsm.get_stock_daily(clean_symbol, start_date, end_date)
+                
+                if raw_klines and len(raw_klines) > 0:
+                    logger.info(f"Fetched {len(raw_klines)} klines from external sources for {clean_symbol}")
+                    
+                    # 可选：保存到数据库以供后续使用
+                    try:
+                        ds.kline.save_daily_klines(raw_klines)
+                        logger.info(f"Cached {len(raw_klines)} klines to database for {clean_symbol}")
+                    except Exception as cache_error:
+                        logger.warning(f"Failed to cache klines: {cache_error}")
+                    
+                    # 直接返回（转换格式）
+                    return {'symbol': clean_symbol, 'count': len(raw_klines), 'klines': sanitize_for_json(raw_klines[-limit:])}
+                
+                logger.warning(f"External sources returned no data for {clean_symbol}")
+            except Exception as fetch_error:
+                logger.error(f"External source fetch failed for {clean_symbol}: {fetch_error}")
+            
+            # 外部数据源也失败，返回 404
             return error_response({'error': f'No kline data for {symbol}'}, 404)
         if hasattr(klines, 'to_dicts'):
             klines = klines.to_dicts()
