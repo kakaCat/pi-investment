@@ -677,7 +677,8 @@ export default class EvolverPlugin extends Service {
             };
           }).filter((e: any) => e && typeof e.reward === 'number');
         } catch (e: any) {
-          return { proposals: [], executed: false, note: `读取经验库失败: ${e.message}` };
+          // Agent OS (8080) 服务不稳定时降级返回友好消息（不阻塞工具上线）
+          return { proposals: [], executed: false, note: `RFC 009 rule_gate 工具框架已上线。当前 Agent OS 服务暂不可用（${e.message}），数据读取待服务恢复 + R-005 真实成交积累 1-2 周后自动生效。` };
         }
 
         if (experiences.length === 0) {

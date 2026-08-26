@@ -229,6 +229,9 @@ importers:
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.43
+      tsdown:
+        specifier: ^0.22.14
+        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
 
   packages/intelligence:
     dependencies:
@@ -241,6 +244,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
         version: 3.18.1
+      '@pi-investment/os-memory':
+        specifier: workspace:*
+        version: link:../os-memory
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -344,6 +350,9 @@ importers:
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.43
+      tsdown:
+        specifier: ^0.22.14
+        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
@@ -537,6 +546,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
         version: 3.18.1
+      '@pi-investment/os-memory':
+        specifier: workspace:*
+        version: link:../os-memory
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client

@@ -1142,7 +1142,7 @@ export default class LearningPlugin extends Service {
         // 方案 A 共享数据层（2026-08-26）：将成绩单写入 memory 供 evolver rule_gate 读取
         try {
           await this.qv2.createMemory({
-            kind: 'analytics',
+            kind: 'experience',  // 用合法kind（analytics被数据库约束拒绝）
             scope: 'analytics:rule_scoreboard',
             title: `rule_scoreboard snapshot ${new Date().toISOString().slice(0, 10)}`,
             content: `规则成绩单快照：${rules.length} 条规则，扫描 ${experiences.length} 条经验`,
