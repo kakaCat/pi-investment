@@ -1219,8 +1219,8 @@ export default class LifecyclePlugin extends Service {
     } as any));
 
     // RFC 009: 注册公告板生命周期管理工具
-    registerBoardUpdate(this.ctx, this.aos.memory);
-    registerBoardRead(this.ctx, this.aos.memory);
-    registerBoardPost(this.ctx, this.aos.memory);
+    registerBoardUpdate(this.ctx, this.aos.memory, this.cfg.agentId);
+    registerBoardRead(this.ctx, this.aos.memory, this.cfg.agentId);
+    registerBoardPost(this.ctx, this.aos.memory, this.cfg.agentId);
   }
 }

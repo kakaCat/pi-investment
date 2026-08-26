@@ -31,7 +31,7 @@ interface ModerationLogEntry {
 /**
  * 注册 board_update 工具
  */
-export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
+export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient, agentId: string) {
   ctx.tools.register(defineTool({
     name: 'board_update',
     description: '更新公告板帖子状态（RFC 009）。支持：edit编辑、claim认领、pause暂停、blocked卡住、complete完成、drop删除。closed类动作（complete/drop）需填note。',
@@ -85,21 +85,23 @@ export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
     },
     timeoutMs: 15000,
     execute: async (args: any) => {
-      const { post_id, action, note, content, expected_revision, notify } = args;
-      // title 参数暂不使用（需要完整的 PUT 更新，这里简化为只更新 content）
+      const { post_id, action, note, content, title, expected_revision, notify } = args;
 
-      // 1. 读取帖子
-      const response = await memoryClient.search({
-        query: post_id,
-        top_k: 1,
-        includeClosed: true, // 允许操作已关闭的帖子（如补充 note）
-      });
-
-      if (!response.memories || response.memories.length === 0) {
-        throw new Error(`帖子不存在: ${post_id}`);
+      // 1. 读取帖子（直接按 ID 获取，避免 search 误匹配）
+      let post: any;
+      try {
+        const response = await memoryClient.getById(post_id, true); // includeClosed=true 允许操作已关闭帖子
+        post = response.memory || response; // 兼容不同的响应格式
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          throw new Error(`帖子不存在: ${post_id}`);
+        }
+        throw error;
       }
 
-      const post = response.memories[0];
+      if (!post || !post.id) {
+        throw new Error(`帖子不存在或格式异常: ${post_id}`);
+      }
       const metadata = (post as any).metadata || {};
       const currentStatus = metadata.board_status || 'open';
       const currentRevision = metadata.revision || 1;
@@ -114,7 +116,7 @@ export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
       }
 
       // 3. 权限检查（作者/认领人/管理员）
-      const currentWindow = (ctx as any).agentId || 'unknown'; // 从 context 获取当前窗口 ID
+      const currentWindow = agentId; // 当前窗口 ID 由调用方传入
       const isAuthor = author === currentWindow;
       const isAssignee = assignee === currentWindow;
       const isAdmin = false; // TODO: 管理员逻辑
@@ -126,8 +128,27 @@ export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
         );
       }
 
-      // 4. 状态迁移合法性校验
+      // 4. 状态迁移合法性校验（含幂等处理）
       const allowedActions = STATE_MACHINE[currentStatus] || [];
+      
+      // 幂等处理：重复 complete/drop 已关闭的帖子 → 幂等成功
+      if (action === 'complete' && currentStatus === 'done') {
+        return {
+          success: true,
+          new_status: 'done',
+          revision: currentRevision,
+          message: `幂等操作：帖子已经是 done 状态`,
+        };
+      }
+      if (action === 'drop' && currentStatus === 'dropped') {
+        return {
+          success: true,
+          new_status: 'dropped',
+          revision: currentRevision,
+          message: `幂等操作：帖子已经是 dropped 状态`,
+        };
+      }
+      
       if (!allowedActions.includes(action) && action !== 'edit') {
         throw new Error(
           `非法操作：当前状态 ${currentStatus} 不允许 ${action}。允许的操作：${allowedActions.join(', ')}`
@@ -139,7 +160,12 @@ export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
         throw new Error(`${action} 操作必须填写 note（关闭原因）`);
       }
 
-      // 6. 构造 metadata patch
+      // 6. Edit 动作校验：至少提供 content 或 title 之一
+      if (action === 'edit' && (!content || content.trim() === '') && (!title || title.trim() === '')) {
+        throw new Error('edit 操作必须提供 content 或 title 至少一项');
+      }
+
+      // 7. 构造 metadata patch
       let newStatus = currentStatus;
       const metadataPatch: Record<string, any> = {
         revision: currentRevision + 1,
@@ -199,7 +225,7 @@ export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
           throw new Error(`未知操作：${action}`);
       }
 
-      // 7. 调用 patchMemory
+      // 8. 调用 patchMemory
       const patchPayload: any = {
         metadataPatch,
         expectedRevision: currentRevision,
@@ -207,15 +233,29 @@ export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
 
       if (action === 'edit') {
         if (content) patchPayload.content = content;
-        // title 更新需要用完整的 PUT，这里简化为只更新 content
+        if (title) {
+          // 后端 PATCH 不支持 title 字段，存到 metadata.display_title
+          patchPayload.metadataPatch = patchPayload.metadataPatch || {};
+          patchPayload.metadataPatch.display_title = title;
+        }
       }
 
       await memoryClient.patchMemory(post_id, patchPayload);
 
-      // 8. 通知窗口（如有）
+      // 9. 通知窗口（如有）
       if (notify && Array.isArray(notify) && notify.length > 0) {
-        // TODO: 调用 window_message 通知各窗口
-        // 需要从 ctx 获取 window_message 工具或直接调用
+        const windowMessageTool = ctx.tools.get('window_message');
+        if (windowMessageTool) {
+          const notifyMessage = `公告板帖子更新：${action} - ${post.title || post_id}`;
+          for (const windowId of notify) {
+            try {
+              await windowMessageTool.execute({ window: windowId, message: notifyMessage });
+            } catch (err: any) {
+              // 通知失败不阻断主流程，记录日志即可
+              console.warn(`通知窗口 ${windowId} 失败:`, err.message);
+            }
+          }
+        }
       }
 
       return {
@@ -231,7 +271,7 @@ export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient) {
 /**
  * 注册增强的 board_read 工具
  */
-export function registerBoardRead(ctx: Context, memoryClient: MemoryClient) {
+export function registerBoardRead(ctx: Context, memoryClient: MemoryClient, agentId: string) {
   ctx.tools.register(defineTool({
     name: 'board_read',
     description: '读取公告板帖子（RFC 009增强）。默认返回活跃帖（open/claimed/blocked），可按状态/认领人过滤。',
@@ -275,10 +315,14 @@ export function registerBoardRead(ctx: Context, memoryClient: MemoryClient) {
 
       const includeClosed = status === 'all' || status === 'done' || status === 'dropped';
 
+      // 预取更多数据以应对客户端过滤（避免过滤后结果不足）
+      // 策略：初始获取 limit * 3，过滤后再截取前 limit 个
+      const fetchLimit = Math.min(limit * 3, 200); // 最多 200，避免过大
+
       const response = await memoryClient.search({
         query: '', // 空查询返回全部
         tag: 'office:board',
-        top_k: limit,
+        top_k: fetchLimit,
         includeClosed,
       });
 
@@ -288,7 +332,7 @@ export function registerBoardRead(ctx: Context, memoryClient: MemoryClient) {
       if (status === 'active') {
         posts = posts.filter((p: any) => {
           const s = p.metadata?.board_status || 'open';
-          return ['open', 'claimed', 'blocked'].includes(s);
+          return ['open', 'claimed', 'blocked', 'paused'].includes(s);
         });
       } else if (status === 'done') {
         posts = posts.filter((p: any) => p.metadata?.board_status === 'done');
@@ -327,9 +371,13 @@ export function registerBoardRead(ctx: Context, memoryClient: MemoryClient) {
         };
       });
 
+      // 过滤后截取前 limit 个
+      const totalBeforeLimit = posts.length;
+      posts = posts.slice(0, limit);
+
       return {
         posts,
-        total: posts.length,
+        total: totalBeforeLimit, // 返回过滤后但未截断的总数
       };
     },
   } as any));
@@ -338,7 +386,7 @@ export function registerBoardRead(ctx: Context, memoryClient: MemoryClient) {
 /**
  * 注册增强的 board_post 工具
  */
-export function registerBoardPost(ctx: Context, memoryClient: MemoryClient) {
+export function registerBoardPost(ctx: Context, memoryClient: MemoryClient, agentId: string) {
   ctx.tools.register(defineTool({
     name: 'board_post',
     description: '发布公告板帖子（RFC 009增强）。needs_action=true进悬赏池（open状态），false纯记录（done状态）。',
@@ -381,21 +429,27 @@ export function registerBoardPost(ctx: Context, memoryClient: MemoryClient) {
     execute: async (args: any) => {
       const { title, content, kind, needs_action = false } = args;
 
-      const currentWindow = (ctx as any).agentId || 'unknown';
+      const currentWindow = agentId;
       const initialStatus = needs_action ? 'open' : 'done';
 
-      const response = await memoryClient.write({
-        title,
-        content,
-        namespace: 'knowledge',
-        tags: ['office:board', `kind:${kind}`],
-        // metadata 通过 metadataPatch 设置（但 write 不支持），需要后续 patch
-      });
+      let postId: string | undefined;
+      
+      try {
+        // 先创建帖子
+        const response = await memoryClient.write({
+          title,
+          content,
+          namespace: 'knowledge',
+          tags: ['office:board', `kind:${kind}`],
+        });
 
-      const postId = (response as any).memory?.id;
+        postId = (response as any).memory?.id;
 
-      // 立即 patch metadata 设置初始状态
-      if (postId) {
+        if (!postId) {
+          throw new Error('创建帖子失败：未返回 post_id');
+        }
+
+        // 立即 patch metadata 设置初始状态（必须成功，否则回滚）
         await memoryClient.patchMemory(postId, {
           metadataPatch: {
             board_status: initialStatus,
@@ -412,13 +466,23 @@ export function registerBoardPost(ctx: Context, memoryClient: MemoryClient) {
             ],
           },
         });
-      }
 
-      return {
-        success: true,
-        post_id: postId,
-        status: initialStatus,
-      };
+        return {
+          success: true,
+          post_id: postId,
+          status: initialStatus,
+        };
+      } catch (error: any) {
+        // patch 失败时尝试删除已创建的帖子（回滚）
+        if (postId) {
+          try {
+            await memoryClient.deleteMemory(postId, 'board_post 原子性回滚：metadata 设置失败');
+          } catch (deleteErr: any) {
+            console.error(`回滚删除帖子 ${postId} 失败:`, deleteErr.message);
+          }
+        }
+        throw new Error(`创建公告板帖子失败: ${error.message}`);
+      }
     },
   } as any));
 }
