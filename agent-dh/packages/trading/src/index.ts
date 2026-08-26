@@ -434,6 +434,42 @@ export default class TradingPlugin extends Service {
           reason: args.reason,
         });
 
+        // M3-3 信号追踪（2026-08-26）：BUY 成交后自动记录信号
+        if (String(args.action).toUpperCase() === 'BUY' && result && !result.error) {
+          try {
+            const inferSource = (reason: string): string => {
+              if (!reason) return 'manual';
+              if (reason.includes('strategy_execute')) return 'strategy_execute';
+              if (reason.includes('opportunity_scan')) return 'opportunity_scan';
+              if (reason.includes('mainline_stocks')) return 'mainline_stocks';
+              if (reason.includes('watch_rule')) return 'watch_rule';
+              return 'manual';
+            };
+            const inferGrade = (reason: string): 'A' | 'B' | 'C' => {
+              if (!reason) return 'C';
+              if (reason.includes('A级') || reason.includes('(A)')) return 'A';
+              if (reason.includes('B级') || reason.includes('(B)')) return 'B';
+              return 'C';
+            };
+
+            await (this.ctx.tools as any).execute({
+              name: 'signal_track',
+              arguments: {
+                action: 'record',
+                symbol: args.symbol,
+                price: result.price || args.price,
+                source: inferSource(args.reason || ''),
+                grade: inferGrade(args.reason || ''),
+                reason: args.reason || '',
+              },
+              signal: new AbortController().signal,
+            });
+          } catch (e: any) {
+            // 信号记录失败不影响交易结果
+            console.error(`signal_track record 失败: ${e.message}`);
+          }
+        }
+
         // 滑点计算与落库（失败不影响交易结果）
         const fillPrice = Number(result?.price);
         if (decisionPrice && fillPrice > 0) {

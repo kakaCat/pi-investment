@@ -2,6 +2,7 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+import { OsMemoryStore } from '@pi-investment/os-memory';
 
 export interface Config {
   quantsysV2?: {
@@ -25,6 +26,7 @@ export default class IntelligencePlugin extends Service {
   }).default({} as any)
 
   private qv2: QuantsysV2Client;
+  private osMemory: OsMemoryStore;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'intelligence');
@@ -32,6 +34,10 @@ export default class IntelligencePlugin extends Service {
     this.qv2 = new QuantsysV2Client({
       baseURL: config.quantsysV2?.baseURL || 'http://localhost:5001',
       timeout: config.quantsysV2?.timeout || 30000,
+    });
+
+    this.osMemory = new OsMemoryStore({
+      baseURL: config.quantsysV2?.baseURL || 'http://localhost:5001',
     });
 
     this.registerTools();
@@ -168,6 +174,278 @@ export default class IntelligencePlugin extends Service {
           level: args.level || 'all',
           limit: args.limit || 20,
         }) as any;
+      },
+    } as any));
+
+    // 4. 信号质量追踪（M3-3，RFC 010，2026-08-26）
+    ctx.tools.register(defineTool({
+      name: 'signal_track',
+      description: '信号质量追踪（M3-3）：record 记录买入信号（标的/价格/来源/分级），update 回填 5/10/20 日表现（盘后例程调用），report 统计胜率。用于：评估信号质量、选择优胜策略、验证门裁决。',
+      parameters: {
+        action: {
+          type: 'string',
+          description: 'record=记录信号, update=回填表现, report=统计胜率',
+          enum: ['record', 'update', 'report'],
+          required: true,
+        },
+        symbol: {
+          type: 'string',
+          description: '股票代码（record 时必填）',
+        },
+        signal_date: {
+          type: 'string',
+          description: '信号日期 YYYY-MM-DD（record 时选填，默认今天）',
+        },
+        price: {
+          type: 'number',
+          description: '买入价格（record 时必填）',
+        },
+        source: {
+          type: 'string',
+          description: '信号来源（record 时必填）：strategy_execute / opportunity_scan / mainline_stocks / watch_rule',
+        },
+        grade: {
+          type: 'string',
+          description: '信号分级（record 时必填）：A/B/C（参见 docs/architecture/signal-grading.md）',
+          enum: ['A', 'B', 'C'],
+        },
+        reason: {
+          type: 'string',
+          description: '信号理由（record 时选填）',
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            action: { type: 'string', description: '执行的动作' },
+            result: { type: 'string', description: '结果摘要' },
+            details: {
+              type: 'object',
+              description: '详细数据',
+              additionalProperties: true,
+            },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{
+          type: 'text',
+          text: JSON.stringify(value, null, 2),
+        }],
+      },
+      timeoutMs: 30000,
+      execute: async (args: any) => {
+        const osMemory = this.osMemory;
+        const qv2 = this.qv2;
+
+        if (args.action === 'record') {
+          // 记录买入信号
+          if (!args.symbol || !args.price || !args.source || !args.grade) {
+            throw new Error('record 需要参数：symbol, price, source, grade');
+          }
+
+          const signal_date = args.signal_date || new Date().toISOString().slice(0, 10);
+          const signal_id = `${args.symbol}_${signal_date}_${Date.now()}`;
+
+          const signalRecord = {
+            signal_id,
+            symbol: args.symbol,
+            signal_date,
+            entry_price: args.price,
+            source: args.source,
+            grade: args.grade,
+            reason: args.reason || '',
+            performance_5d: null,
+            performance_10d: null,
+            performance_20d: null,
+            created_at: new Date().toISOString(),
+          };
+
+          await osMemory.write({
+            title: `信号记录：${args.symbol} (${args.grade})`,
+            content: JSON.stringify(signalRecord),
+            namespace: 'signal_tracking',
+            tags: ['signal', args.source, args.grade, args.symbol, signal_date],
+          });
+
+          return {
+            action: 'record',
+            result: `已记录信号 ${signal_id}`,
+            details: signalRecord,
+          } as any;
+        }
+
+        if (args.action === 'update') {
+          // 盘后回填表现：查所有未完成的信号，计算 5/10/20 日表现
+          const searchResult: any = await osMemory.search({
+            query: 'performance_20d',
+            namespace: 'signal_tracking',
+            top_k: 100,
+          });
+
+          const signals = (searchResult?.memories || [])
+            .map((m: any) => {
+              try {
+                return JSON.parse(m.content);
+              } catch {
+                return null;
+              }
+            })
+            .filter((s: any) => s && s.performance_20d === null);
+
+          if (signals.length === 0) {
+            return {
+              action: 'update',
+              result: '无待回填信号',
+              details: { updated_count: 0 },
+            } as any;
+          }
+
+          const today = new Date().toISOString().slice(0, 10);
+          let updated = 0;
+
+          for (const sig of signals) {
+            try {
+              // 获取信号日期后的 K 线（最多取 30 天，覆盖 20 日表现）
+              const endDate = new Date(new Date(sig.signal_date).getTime() + 35 * 86400000)
+                .toISOString().slice(0, 10);
+              
+              const klines: any = await qv2.getKlines({
+                symbol: sig.symbol,
+                start_date: sig.signal_date,
+                end_date: Math.min(endDate, today),
+                period: 'daily',
+              });
+
+              if (!klines?.data || klines.data.length < 2) {
+                continue;
+              }
+
+              const entryPrice = sig.entry_price;
+              const bars = klines.data;
+
+              // 计算 5/10/20 日表现
+              const calcPerf = (days: number) => {
+                if (bars.length <= days) return null;
+                const targetBar = bars[days];
+                const closePrice = targetBar.close;
+                const returnPct = ((closePrice - entryPrice) / entryPrice) * 100;
+                return {
+                  date: targetBar.date,
+                  price: closePrice,
+                  return_pct: returnPct,
+                  win: returnPct > 0,
+                };
+              };
+
+              const perf5d = calcPerf(5);
+              const perf10d = calcPerf(10);
+              const perf20d = calcPerf(20);
+
+              // 更新信号记录（重新写入 osMemory，用相同 title 覆盖）
+              const updatedSignal = {
+                ...sig,
+                performance_5d: perf5d,
+                performance_10d: perf10d,
+                performance_20d: perf20d,
+                updated_at: new Date().toISOString(),
+              };
+
+              await osMemory.write({
+                title: `信号记录：${sig.symbol} (${sig.grade})`,
+                content: JSON.stringify(updatedSignal),
+                namespace: 'signal_tracking',
+                tags: ['signal', sig.source, sig.grade, sig.symbol, sig.signal_date],
+              });
+
+              updated++;
+            } catch (e: any) {
+              // 单个信号失败不中断整体更新
+              console.error(`回填信号 ${sig.signal_id} 失败:`, e.message);
+            }
+          }
+
+          return {
+            action: 'update',
+            result: `已回填 ${updated}/${signals.length} 个信号`,
+            details: { updated_count: updated, total: signals.length },
+          } as any;
+        }
+
+        if (args.action === 'report') {
+          // 统计胜率：按来源/分级查询所有信号，计算胜率
+          const searchResult: any = await osMemory.search({
+            query: 'performance_20d',
+            namespace: 'signal_tracking',
+            top_k: 200,
+          });
+
+          const allSignals = (searchResult?.memories || [])
+            .map((m: any) => {
+              try {
+                return JSON.parse(m.content);
+              } catch {
+                return null;
+              }
+            })
+            .filter((s: any) => s && s.performance_20d !== null);
+
+          if (allSignals.length === 0) {
+            return {
+              action: 'report',
+              result: '无已回填信号',
+              details: { total: 0 },
+            } as any;
+          }
+
+          // 按来源/分级分组统计
+          const stats: any = {};
+          for (const sig of allSignals) {
+            const key = `${sig.source}_${sig.grade}`;
+            if (!stats[key]) {
+              stats[key] = {
+                source: sig.source,
+                grade: sig.grade,
+                total: 0,
+                win_5d: 0,
+                win_10d: 0,
+                win_20d: 0,
+                avg_return_5d: 0,
+                avg_return_10d: 0,
+                avg_return_20d: 0,
+              };
+            }
+            stats[key].total++;
+            if (sig.performance_5d?.win) stats[key].win_5d++;
+            if (sig.performance_10d?.win) stats[key].win_10d++;
+            if (sig.performance_20d?.win) stats[key].win_20d++;
+            stats[key].avg_return_5d += sig.performance_5d?.return_pct || 0;
+            stats[key].avg_return_10d += sig.performance_10d?.return_pct || 0;
+            stats[key].avg_return_20d += sig.performance_20d?.return_pct || 0;
+          }
+
+          // 计算平均值和胜率
+          for (const key in stats) {
+            const s = stats[key];
+            s.win_rate_5d = s.total > 0 ? (s.win_5d / s.total) : 0;
+            s.win_rate_10d = s.total > 0 ? (s.win_10d / s.total) : 0;
+            s.win_rate_20d = s.total > 0 ? (s.win_20d / s.total) : 0;
+            s.avg_return_5d = s.total > 0 ? (s.avg_return_5d / s.total) : 0;
+            s.avg_return_10d = s.total > 0 ? (s.avg_return_10d / s.total) : 0;
+            s.avg_return_20d = s.total > 0 ? (s.avg_return_20d / s.total) : 0;
+          }
+
+          return {
+            action: 'report',
+            result: `统计 ${allSignals.length} 个信号，${Object.keys(stats).length} 个来源/分级组合`,
+            details: {
+              total_signals: allSignals.length,
+              by_source_grade: Object.values(stats),
+            },
+          } as any;
+        }
+
+        throw new Error(`未知 action: ${args.action}`);
       },
     } as any));
   }
