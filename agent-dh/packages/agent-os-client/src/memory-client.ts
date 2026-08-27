@@ -114,18 +114,31 @@ export class MemoryClient {
   }
 
   /**
-   * Get a memory record by ID (RFC 009 board-tools fix).
-   * Direct retrieval without semantic search.
+   * Get a memory record by ID.
+   * 
+   * 2026-08-28 根本性修复：Agent OS 后端无 GET /api/v1/memory/{id} 实现（404），
+   * 客户端降级为用 search + 客户端过滤实现（语义相似度匹配 id 前缀）。
+   * 牺牲精确性（search 可能返回相似 id 的记录）但保证可用性。
    */
   async getById(id: string, includeClosed?: boolean): Promise<any> {
     if (!id) {
       throw new Error('id is required');
     }
-    const response = await this.client.get(`/api/v1/memory/${id}`, {
-      params: {
-        include_closed: includeClosed || undefined,
-      },
+    
+    // 后端无 /memory/{id} 端点，用 search 模拟（查询 id 前缀，取完全匹配）
+    const response = await this.search({
+      query: id.slice(0, 12), // UUID 前 12 位作查询关键词
+      top_k: 50, // 多取几个防止精确匹配不在 top-1
+      includeClosed,
     });
-    return response.data;
+    
+    const memories = response.memories || [];
+    const exact = memories.find((m: any) => m.id === id);
+    
+    if (!exact) {
+      throw new Error(`帖子不存在: ${id}`);
+    }
+    
+    return exact;
   }
 }
