@@ -320,7 +320,7 @@ export function registerBoardRead(ctx: Context, memoryClient: MemoryClient, agen
       const fetchLimit = Math.min(limit * 3, 200); // 最多 200，避免过大
 
       const response = await memoryClient.search({
-        query: '', // 空查询返回全部
+        query: 'board', // 非空查询（backend 要求；'board' 匹配 tag office:board）
         tag: 'office:board',
         top_k: fetchLimit,
         includeClosed,
