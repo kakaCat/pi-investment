@@ -16,6 +16,7 @@ import (
 type MemoryWebRepository interface {
 	List(ctx context.Context, req domain.MemoryListRequest) ([]*domain.MemoryWeb, error)
 	Search(ctx context.Context, req domain.MemorySearchRequest) ([]*domain.MemoryWeb, error)
+	GetByID(ctx context.Context, id string, includeClosed bool) (*domain.MemoryWeb, error)
 	Create(ctx context.Context, req domain.MemoryCreateRequest) (*domain.MemoryWeb, error)
 	Update(ctx context.Context, id string, req domain.MemoryUpdateRequest) (*domain.MemoryWeb, error)
 	Delete(ctx context.Context, id string, req domain.MemoryDeleteRequest) error
@@ -158,6 +159,41 @@ func (r *memoryWebRepository) Search(ctx context.Context, req domain.MemorySearc
 	}
 	
 	return memories, nil
+}
+
+// GetByID 按 ID 精确查询单条记忆（2026-08-28 补充 RESTful 标准端点）
+func (r *memoryWebRepository) GetByID(ctx context.Context, id string, includeClosed bool) (*domain.MemoryWeb, error) {
+	query := `SELECT id, title, content, category, tags, created_at, updated_at, metadata
+	          FROM memories WHERE id = $1`
+	
+	// 默认排除已关闭状态（done/dropped/archived）
+	if !includeClosed {
+		query += ` AND (metadata->>'board_status' IS NULL OR metadata->>'board_status' NOT IN ('done', 'dropped', 'archived'))`
+	}
+	
+	var m domain.MemoryWeb
+	var metadataJSON []byte
+	
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&m.ID, &m.Title, &m.Content, &m.Category,
+		pq.Array(&m.Tags), &m.CreatedAt, &m.UpdatedAt, &metadataJSON,
+	)
+	
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("memory not found: %s", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get memory by id: %w", err)
+	}
+	
+	// 解析 metadata
+	if len(metadataJSON) > 0 {
+		if err := json.Unmarshal(metadataJSON, &m.Metadata); err != nil {
+			// metadata 解析失败不影响返回
+		}
+	}
+	
+	return &m, nil
 }
 
 // Create 写入一条记忆

@@ -77,6 +77,7 @@ func (s *HTTPServer) Start(addr string) error {
 		api.HandleFunc("/memory", s.memoryHandler.List).Methods("GET")
 		api.HandleFunc("/memory", s.memoryHandler.Create).Methods("POST")
 		api.HandleFunc("/memory/search", s.memoryHandler.Search).Methods("GET")
+		api.HandleFunc("/memory/{id}", s.memoryHandler.GetByID).Methods("GET")
 		api.HandleFunc("/memory/{id}", s.memoryHandler.Update).Methods("PATCH")
 		api.HandleFunc("/memory/{id}", s.memoryHandler.Delete).Methods("DELETE")
 		api.HandleFunc("/memory/tags", s.memoryHandler.GetTags).Methods("GET")

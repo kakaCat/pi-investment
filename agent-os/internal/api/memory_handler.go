@@ -83,6 +83,33 @@ func (h *MemoryHandler) Search(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetByID 按 ID 获取单条记忆（GET /api/v1/memory/{id}）
+// 2026-08-28 补充：board_update 工具依赖的 RESTful 标准端点
+func (h *MemoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	if id == "" {
+		respondError(w, http.StatusBadRequest, "memory id is required")
+		return
+	}
+	
+	includeClosed := r.URL.Query().Get("include_closed") == "true"
+	
+	memory, err := h.repo.GetByID(ctx, id, includeClosed)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			respondError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to get memory: "+err.Error())
+		return
+	}
+	
+	respondJSON(w, http.StatusOK, memory)
+}
+
 // Create 写入记忆
 func (h *MemoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
