@@ -7,10 +7,10 @@ import { readFileSync, existsSync } from 'fs';
 export default class AgentOsManager extends Service {
   static inject = ['tools'];
   static Config = z.object({
-    projectRoot: z.string().default('/Users/yunpeng/.dsh/profiles/investment'),
+    projectRoot: z.string().default('/Users/yunpeng/pi-investment/agent-os'),
     port: z.number().default(8080),
-    healthCheckUrl: z.string().default('http://localhost:8080/api/v1/health'),
-    startCommand: z.string().default('pnpm run start'),
+    healthCheckUrl: z.string().default('http://localhost:8080/health'),
+    startCommand: z.string().default('./bin/agent-os serve'),
     logDir: z.string().default('logs'),
   }).default({} as any);
 
