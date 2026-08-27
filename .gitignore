@@ -204,5 +204,5 @@ venv/
 !README.md
 !CLAUDE.md
 
-# 工作日志不纳入版本控制（归档用，见 docs/DOCUMENT-MANAGEMENT-PLAN.md）
-docs/work-logs/
+# 工作日志纳入版本控制，作为项目历史归档（见 docs/DOCUMENT-MANAGEMENT-PLAN.md）
+# docs/work-logs/  # 已改为保留
