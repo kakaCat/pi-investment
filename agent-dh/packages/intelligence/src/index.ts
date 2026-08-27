@@ -126,6 +126,21 @@ export default class IntelligencePlugin extends Service {
       },
       timeoutMs: 10000,
       execute: async (args: any) => {
+        // 入参校验（2026-08-27：此前缺字段直达后端才报 400，错误信息晦涩）
+        const { action, rule_id, name, symbol, condition } = args || {};
+        if (action === 'create') {
+          const missing = [];
+          if (!name) missing.push('name（规则名称）');
+          if (!symbol) missing.push('symbol（股票代码）');
+          if (!condition) missing.push('condition（触发条件）');
+          if (missing.length > 0) {
+            throw new Error(`watch_manage create 缺少必填参数: ${missing.join('、')}。示例: action=create, name="茅台突破2000", symbol="600519", condition="price>2000"`);
+          }
+        } else if (['enable', 'disable', 'delete'].includes(action)) {
+          if (!rule_id) {
+            throw new Error(`watch_manage ${action} 缺少必填参数: rule_id。先用 watch_list 查询规则 ID`);
+          }
+        }
         return qv2.manageWatchRule(args) as any;
       },
     } as any));
