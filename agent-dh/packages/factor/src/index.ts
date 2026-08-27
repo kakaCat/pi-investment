@@ -90,7 +90,33 @@ export default class FactorPlugin extends Service {
               dict[name] = f?.factor_value;
             }
           }
-          return { ...raw, factors: dict, factor_dates: dates } as any;
+          
+          // 2026-08-28 根本性修复：因子数据 freshness 校验，防止静默毒化选股质量
+          const now = new Date();
+          const warnings: string[] = [];
+          const errors: string[] = [];
+          for (const [name, dateStr] of Object.entries(dates)) {
+            if (!dateStr) continue;
+            const factorDate = new Date(dateStr);
+            const staleDays = Math.floor((now.getTime() - factorDate.getTime()) / 86400000);
+            if (staleDays > 7) {
+              errors.push(`${name} 数据过期 ${staleDays} 天（${dateStr}），超过 7 天阈值`);
+            } else if (staleDays > 3) {
+              warnings.push(`${name} 数据陈旧 ${staleDays} 天（${dateStr}）`);
+            }
+          }
+          
+          if (errors.length > 0) {
+            throw new Error(`因子数据过期拒绝服务：${errors.join('; ')}。请触发因子计算管道补录或联系后端排查。`);
+          }
+          
+          return { 
+            ...raw, 
+            factors: dict, 
+            factor_dates: dates,
+            freshness_warnings: warnings.length > 0 ? warnings : undefined,
+            degraded: warnings.length > 0,
+          } as any;
         }
         return raw as any;
       },
