@@ -92,6 +92,9 @@ export default class LifecyclePlugin extends Service {
   //   ②执行留痕进记忆（每次触发写执行记录，executor/方式/时间可溯）
   //   ③目标窗口不在线 → 创建新窗口代为执行（不等待上线，任务必须被执行）
   private reminderPollTimer: ReturnType<typeof setInterval> | null = null;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null; // RFC 010: 心跳定时器
+  private registeredWindows: Set<string> = new Set(); // RFC 010: 已注册窗口集合
+  private registrationPoller: ReturnType<typeof setInterval> | null = null; // RFC 010: 轮询备份定时器
 
   private setupOsReminderPoller(): void {
     const poll = async () => {
@@ -200,9 +203,64 @@ export default class LifecyclePlugin extends Service {
    * 所有 OS 写走 osWrite（outbox 防丢）。
    */
   private setupWindowRegistry(): void {
+    // RFC 010: 窗口创建时注册到 Agent OS Window Registry
     this.ctx.on('agent/created' as any, (agent: any) => {
+      this.ctx.logger.info(`[RFC 010] agent/created event fired for agent: ${agent?.id}`);
       this.registerWindow(agent).catch(() => { /* 注册失败不影响 agent 创建 */ });
     });
+    
+    // RFC 010: 等待系统就绪后注册所有已存在的 root agents
+    // （插件加载时 agent 可能尚未创建，或 agents 服务尚未就绪）
+    this.ctx.on('ready', () => {
+      this.ctx.logger.info('[RFC 010] System ready, checking for existing root agents...');
+      
+      try {
+        const agentsService = this.ctx.agents;
+        this.ctx.logger.info(`[RFC 010] agents service exists: ${!!agentsService}`);
+        this.ctx.logger.info(`[RFC 010] agents.roots exists: ${typeof agentsService?.roots}`);
+        
+        if (!agentsService?.roots) {
+          this.ctx.logger.warn('[RFC 010] agents.roots() not available, skipping initial registration');
+          return;
+        }
+        
+        const roots: any[] = agentsService.roots();
+        this.ctx.logger.info(`[RFC 010] Found ${roots.length} existing root agents`);
+        
+        if (roots.length === 0) {
+          this.ctx.logger.info('[RFC 010] No root agents at startup (normal - agents created on user interaction)');
+        } else {
+          for (const agent of roots) {
+            this.ctx.logger.info(`[RFC 010] Registering existing agent: ${agent?.id}`);
+            this.registerWindow(agent).catch((err) => {
+              this.ctx.logger.warn(`[RFC 010] Failed to register existing agent ${agent?.id}: ${err?.message}`);
+            });
+          }
+        }
+        
+        // 启动轮询备份机制（防御性编程：如果事件系统失效，轮询作为兜底）
+        this.startRegistrationPoller();
+      } catch (err: any) {
+        this.ctx.logger.error(`[RFC 010] Failed to enumerate root agents: ${err?.message}`, err);
+      }
+    });
+    
+    // RFC 010: 启动心跳发送器（30s 间隔）
+    this.startHeartbeat();
+    
+    // RFC 010: 进程退出时注销所有窗口
+    this.ctx.on('dispose', () => {
+      this.unregisterAllWindows().catch(() => {});
+      if (this.heartbeatTimer) {
+        clearInterval(this.heartbeatTimer);
+        this.heartbeatTimer = null;
+      }
+      if (this.registrationPoller) {
+        clearInterval(this.registrationPoller);
+        this.registrationPoller = null;
+      }
+    });
+    
     // 启动时重放 outbox（OS 宕机期间的积压登记）
     this.replayOutbox().catch(() => {});
   }
@@ -296,6 +354,57 @@ export default class LifecyclePlugin extends Service {
     const sessionId = String(agent?.id ?? '');
     if (!sessionId) return;
     const window = this.windowCode(sessionId);
+    
+    // 提取窗口名称：尝试从第一条用户消息提取主题
+    let windowName = this.identity.name; // 默认使用角色名
+    try {
+      const messages = agent?.messages || [];
+      const firstUserMsg = messages.find((m: any) => m?.role === 'user');
+      if (firstUserMsg?.content) {
+        // 提取文本内容
+        let text = '';
+        if (typeof firstUserMsg.content === 'string') {
+          text = firstUserMsg.content;
+        } else if (Array.isArray(firstUserMsg.content)) {
+          const textPart = firstUserMsg.content.find((c: any) => c?.type === 'text');
+          text = textPart?.text || '';
+        }
+        // 截取前50字符作为窗口名称
+        if (text.trim()) {
+          windowName = text.trim().substring(0, 50);
+          if (text.length > 50) windowName += '...';
+        }
+      }
+    } catch (err) {
+      // 提取失败，使用默认名称
+      this.ctx.logger.debug(`[RFC 010] Failed to extract window name from messages: ${err}`);
+    }
+    
+    // RFC 010: 调用 Agent OS Window Registry API 注册窗口
+    try {
+      await this.aos.post('/api/v1/registry/agents/register', {
+        agent_id: window,
+        type: this.identity.role,
+        name: windowName,
+        instance: this.identity.instance,
+        session_id: sessionId,
+        capabilities: ['trading', 'analysis', 'decision'], // TODO: 从配置或工具清单提取
+        status: 'idle',
+        host: '127.0.0.1',
+        port: this.identity.port,
+        pid: process.pid,
+        metadata: {
+          started_at: new Date().toISOString(),
+          topic: windowName !== this.identity.name ? windowName : null, // 记录原始主题
+        },
+      });
+      this.registeredWindows.add(window);
+      this.ctx.logger.info(`[RFC 010] Window registered: ${window} (role=${this.identity.role})`);
+    } catch (err: any) {
+      this.ctx.logger.warn(`[RFC 010] Failed to register window ${window}: ${err?.message}`);
+    }
+    
+    // 保留原有逻辑：写入 memory + skills API（向后兼容）
     const profile = {
       window,
       session_id: sessionId,
@@ -342,6 +451,94 @@ export default class LifecyclePlugin extends Service {
         });
       }
     } catch { /* 补投失败不影响上线 */ }
+  }
+
+  // ===== RFC 010: Window Registry 心跳与注销 =====
+
+  /** 启动心跳发送器（30s 间隔） */
+  private startHeartbeat(): void {
+    this.heartbeatTimer = setInterval(() => {
+      this.sendHeartbeats().catch((err) => {
+        this.ctx.logger.warn(`[RFC 010] Heartbeat failed: ${err?.message}`);
+      });
+    }, 30000); // 30 秒
+  }
+
+  /** 向 Agent OS 发送所有已注册窗口的心跳 */
+  private async sendHeartbeats(): Promise<void> {
+    for (const window of this.registeredWindows) {
+      try {
+        await this.aos.post('/api/v1/registry/agents/heartbeat', {
+          agent_id: window,
+          status: 'idle', // TODO: 从实际状态推导（idle/active）
+          metadata: {
+            memory_mb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+          },
+        });
+      } catch (err: any) {
+        this.ctx.logger.warn(`[RFC 010] Heartbeat failed for ${window}: ${err?.message}`);
+      }
+    }
+  }
+
+  /** 注销所有窗口（进程退出时调用） */
+  private async unregisterAllWindows(): Promise<void> {
+    for (const window of this.registeredWindows) {
+      try {
+        await this.aos.post('/api/v1/registry/agents/unregister', {
+          agent_id: window,
+        });
+        this.ctx.logger.info(`[RFC 010] Window unregistered: ${window}`);
+      } catch (err: any) {
+        this.ctx.logger.warn(`[RFC 010] Failed to unregister ${window}: ${err?.message}`);
+      }
+    }
+    this.registeredWindows.clear();
+  }
+
+  /** 
+   * RFC 010: 轮询备份机制 - 防御性编程
+   * 每60秒检查一次是否有新的 agent 需要注册
+   * 如果 agent/created 事件失效，轮询作为兜底
+   */
+  private startRegistrationPoller(): void {
+    this.registrationPoller = setInterval(() => {
+      this.pollAndRegisterNewAgents().catch((err) => {
+        this.ctx.logger.warn(`[RFC 010] Registration poller failed: ${err?.message}`);
+      });
+    }, 60000); // 60 秒检查一次
+    
+    this.ctx.logger.info('[RFC 010] Registration poller started (60s interval)');
+  }
+
+  /** 轮询并注册新 agent */
+  private async pollAndRegisterNewAgents(): Promise<void> {
+    try {
+      const agentsService = this.ctx.agents;
+      if (!agentsService?.roots) {
+        return;
+      }
+
+      const roots: any[] = agentsService.roots();
+      let newCount = 0;
+
+      for (const agent of roots) {
+        const window = this.windowCode(agent.id);
+        
+        // 如果窗口尚未注册，则注册
+        if (!this.registeredWindows.has(window)) {
+          this.ctx.logger.info(`[RFC 010] Poller found new agent: ${window}`);
+          await this.registerWindow(agent);
+          newCount++;
+        }
+      }
+
+      if (newCount > 0) {
+        this.ctx.logger.info(`[RFC 010] Poller registered ${newCount} new agent(s)`);
+      }
+    } catch (err: any) {
+      this.ctx.logger.error(`[RFC 010] Poller error: ${err?.message}`);
+    }
   }
 
   /**
@@ -467,7 +664,7 @@ export default class LifecyclePlugin extends Service {
 
     ctx.tools.register(defineTool({
       name: 'self_restart',
-      description: '重启 agent 自身。用途：①修改插件代码后重启生效；②添加/修改插件配置（cordis.patch.yml）后重启加载；③状态异常时冷启动恢复；④定期维护。重启前自动把未提交改动存入 wip 分支检查点；若新代码导致启动失败会自动回滚，不会变砖。重启后自动收到续跑消息。每小时最多 10 次。',
+      description: '重启 agent 自身。用途：①修改插件代码后重启生效；②添加/修改插件配置（cordis.patch.yml）后重启加载；③状态异常时冷启动恢复；④定期维护。重启前自动把未提交改动存入 wip 分支检查点；若新代码导致启动失败会自动回滚，不会变砖。重启后自动收到续跑消息。每小时最多 10 次。\n\n⚠️ 重要：调用后当前会话立即终止（因为 DSH 进程被杀），这是**正常行为**不是失败——重启器（独立进程）会在后台完成重启、健康检查、失败回滚等全部流程。数秒后刷新页面即可看到新进程。',
       parameters: {
         reason: { type: 'string', description: '重启原因，如「修复 strategy 插件筛选 bug」', required: true },
         resume_task: { type: 'string', description: '重启后要自动执行的验证任务描述；纯维护重启传空字符串', required: true },
@@ -893,64 +1090,6 @@ export default class LifecyclePlugin extends Service {
       },
     } as any));
 
-    // office_roster - 办公室花名册（Skills API 结构化档案）
-    ctx.tools.register(defineTool({
-      name: 'office_roster',
-      description: '办公室花名册：所有窗口的结构化档案（编码、角色、技能、忙闲、当前任务、最近更新时间）。派单决策的数据源——先看谁在、谁会、谁有空。',
-      parameters: {},
-      output: {
-        schema: { type: 'object', properties: { roster: { type: 'array', items: { type: 'object', additionalProperties: true } }, total: { type: 'number' } }, additionalProperties: true },
-        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
-      },
-      timeoutMs: 15000,
-      execute: async () => {
-        // 2026-08-21 E2E 修正：OS Skills 的 PUT 是"发新版本"，不更新档案顶层字段
-        // （实测 availability 停在 busy）。因此动态状态（忙闲/任务/备注/技能）
-        // 以记忆库事件流水（每窗口最新一条）为准；Skills API 作长期技能库存档。
-        const memRes: any = await this.aos.memory.search({ query: 'window', tag: 'system:windows', top_k: 100 });
-        const items: any[] = memRes?.memories || memRes?.items || [];
-        const byWindow = new Map<string, any>();
-        for (const it of items) {
-          let p: any = null;
-          try { p = typeof it.content === 'string' ? JSON.parse(it.content) : it.content; } catch { continue; }
-          if (!p?.window) continue;
-          const prev = byWindow.get(p.window);
-          const ts = String(p.updated_at ?? it.created_at ?? '');
-          if (!prev || ts > String(prev.updated_at ?? '')) {
-            byWindow.set(p.window, { ...p, updated_at: ts });
-          }
-        }
-
-        // Skills 库存档（标注入职时间/是否已被移除）
-        const base = (this.cfg as any).agentOS?.baseURL || 'http://localhost:8080';
-        let skillMap = new Map<string, any>();
-        try {
-          const res = await fetch(`${base}/api/v1/skills`);
-          const data: any = await res.json();
-          const skills: any[] = data?.skills ?? data ?? [];
-          for (const s of skills) {
-            if (s.category === 'window' && s.status !== 'inactive') {
-              skillMap.set(s.metadata?.window ?? s.name, { skill_id: s.id, hired_at: s.created_at ?? null });
-            }
-          }
-        } catch { /* Skills API 不可用不阻塞花名册 */ }
-
-        const roster = [...byWindow.values()].map((p: any) => ({
-          window: p.window,
-          agent_id: p.agent_id ?? null,
-          role: p.role ?? null,
-          skills: p.skills ?? [],
-          availability: p.status ?? 'unknown',
-          task: p.task ?? null,
-          note: p.note ?? null,
-          updated_at: p.updated_at ?? null,
-          session_id: p.session_id ?? null,
-          skill_record: skillMap.get(p.window) ?? null,
-        })).sort((a: any, b: any) => String(b.updated_at).localeCompare(String(a.updated_at)));
-        return { roster, total: roster.length } as any;
-      },
-    } as any));
-
     // assign_task - 办公室派单：向指定窗口投递任务
     ctx.tools.register(defineTool({
       name: 'assign_task',
@@ -1220,6 +1359,112 @@ export default class LifecyclePlugin extends Service {
         }
         await this.aos.scheduler.deleteTask(id);
         return { deleted: true, id } as any;
+      },
+    } as any));
+
+    // RFC 010: 办公室花名册（窗口注册表查询）
+    ctx.tools.register(defineTool({
+      name: 'office_roster',
+      description: '办公室花名册：所有窗口的结构化档案（编码、角色、技能、忙闲、当前任务、最近更新时间）。派单决策的数据源——先看谁在、谁会、谁有空。',
+      parameters: {},
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            windows: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  window: { type: 'string', description: '窗口编码' },
+                  role: { type: 'string', description: '角色' },
+                  name: { type: 'string', description: '名称' },
+                  instance: { type: 'string', description: '实例' },
+                  status: { type: 'string', description: '状态：idle/active/blocked/done' },
+                  skills: { type: 'array', items: { type: 'string' }, description: '技能标签' },
+                  task: { type: 'string', description: '当前任务' },
+                  note: { type: 'string', description: '进展备注' },
+                  last_heartbeat: { type: 'string', description: '最近心跳时间' },
+                  registered_at: { type: 'string', description: '注册时间' },
+                },
+                additionalProperties: true,
+              },
+            },
+            total: { type: 'number', description: '窗口总数' },
+            active: { type: 'number', description: '活跃窗口数' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => {
+          const lines: string[] = [];
+          lines.push(`## 办公室花名册（共 ${value.total} 个窗口，${value.active} 个活跃）\n`);
+          
+          if (value.windows?.length > 0) {
+            for (const w of value.windows) {
+              const statusEmoji = w.status === 'idle' ? '🟢' : w.status === 'active' ? '🔵' : w.status === 'blocked' ? '🔴' : '⚪';
+              lines.push(`### ${statusEmoji} ${w.window} - ${w.name || w.role}`);
+              lines.push(`- **角色**: ${w.role}`);
+              lines.push(`- **实例**: ${w.instance || 'N/A'}`);
+              lines.push(`- **状态**: ${w.status}`);
+              if (w.skills?.length > 0) {
+                lines.push(`- **技能**: ${w.skills.join(', ')}`);
+              }
+              if (w.task) {
+                lines.push(`- **当前任务**: ${w.task}`);
+              }
+              if (w.note) {
+                lines.push(`- **进展**: ${w.note}`);
+              }
+              lines.push(`- **最近心跳**: ${w.last_heartbeat || 'N/A'}`);
+              lines.push('');
+            }
+          } else {
+            lines.push('_无窗口_');
+          }
+          
+          return [{ type: 'text', text: lines.join('\n') }];
+        },
+      },
+      timeoutMs: 10000,
+      execute: async () => {
+        try {
+          // 查询 Agent OS Window Registry
+          const response = await this.aos.get('/api/v1/registry/agents/available');
+          const agents: any[] = response || [];
+          
+          // 过滤出活跃窗口（status = active 或 idle）
+          const activeAgents = agents.filter((a: any) => 
+            a.status === 'active' || a.status === 'idle'
+          );
+          
+          // 转换为窗口档案格式
+          const windows = activeAgents.map((a: any) => ({
+            window: a.agent_id,
+            role: a.agent_type,
+            name: a.name || null,
+            instance: a.instance || null,
+            status: a.status,
+            skills: [], // TODO: 从 metadata 提取或从 Skills API 查询
+            task: null, // TODO: 从 Skills API 查询
+            note: null,
+            last_heartbeat: a.last_heartbeat_at,
+            registered_at: a.registered_at,
+          }));
+          
+          return {
+            windows,
+            total: windows.length,  // 修复：使用过滤后的数量，而非原始数量
+            active: activeAgents.length,
+          } as any;
+        } catch (err: any) {
+          this.ctx.logger.error(`[RFC 010] office_roster failed: ${err?.message}`);
+          return {
+            windows: [],
+            total: 0,
+            active: 0,
+            error: err?.message,
+          } as any;
+        }
       },
     } as any));
 

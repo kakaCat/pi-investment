@@ -112,6 +112,100 @@ export default class StrategyPlugin extends Service {
       },
     } as any));
 
+    // 策略参数优化（回测矩阵）
+    ctx.tools.register(defineTool({
+      name: 'strategy_optimize',
+      description: '批量回测策略参数组合（网格搜索），找到最优参数配置。适用于：策略开发后调优参数、定期重新校准策略。返回按夏普比率排序的所有回测结果。',
+      parameters: {
+        strategy_id: {
+          type: 'integer',
+          description: '策略ID，通过 strategy_list 获取',
+          required: true,
+        },
+        symbol: {
+          type: 'string',
+          description: '股票代码，如 600519',
+          required: true,
+        },
+        start_date: {
+          type: 'string',
+          description: '回测开始日期，格式 YYYY-MM-DD',
+          required: true,
+        },
+        end_date: {
+          type: 'string',
+          description: '回测结束日期，格式 YYYY-MM-DD',
+          required: true,
+        },
+        param_ranges: {
+          type: 'object',
+          description: '参数网格定义，如 {"ma_short": [5, 10, 20], "ma_long": [30, 60]}。每个参数给出候选值列表，系统会自动生成所有组合',
+          additionalProperties: true,
+          required: true,
+        },
+        initial_cash: {
+          type: 'number',
+          description: '初始资金，默认 1000000',
+          default: 1000000,
+        },
+        sort_by: {
+          type: 'string',
+          description: '排序指标：sharpe_ratio（夏普比率，默认）、total_return（总收益）、max_drawdown（最大回撤）、win_rate（胜率）',
+          enum: ['sharpe_ratio', 'total_return', 'max_drawdown', 'win_rate'],
+          default: 'sharpe_ratio',
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            results: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  params: { type: 'object', description: '参数组合', additionalProperties: true },
+                  sharpeRatio: { type: 'number', description: '夏普比率' },
+                  totalReturn: { type: 'number', description: '总收益率（%）' },
+                  maxDrawdown: { type: 'number', description: '最大回撤（%）' },
+                  winRate: { type: 'number', description: '胜率（%）' },
+                  totalTrades: { type: 'integer', description: '总交易次数' },
+                },
+                additionalProperties: true,
+              },
+            },
+            totalCombinations: { type: 'integer', description: '总参数组合数' },
+            successfulCombinations: { type: 'integer', description: '成功回测数' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => {
+          if (!value.success) return [{ type: 'text', text: `❌ 优化失败` }];
+          const top3 = value.results?.slice(0, 3) || [];
+          let text = `✅ 参数优化完成: ${value.successfulCombinations}/${value.totalCombinations} 组成功\n\n`;
+          text += `Top 3 参数组合:\n`;
+          top3.forEach((r: any, i: number) => {
+            text += `\n${i + 1}. 参数: ${JSON.stringify(r.params)}\n`;
+            text += `   夏普: ${r.sharpeRatio?.toFixed(2)}, 收益: ${r.totalReturn?.toFixed(2)}%, 回撤: ${r.maxDrawdown?.toFixed(2)}%, 胜率: ${r.winRate?.toFixed(2)}%\n`;
+          });
+          return [{ type: 'text', text }];
+        },
+      },
+      timeoutMs: 300000,  // 5分钟（批量回测可能较慢）
+      execute: async (args: any) => {
+        return qv2.optimizeStrategy({
+          strategyId: args.strategy_id,
+          symbol: args.symbol,
+          startDate: args.start_date,
+          endDate: args.end_date,
+          paramRanges: args.param_ranges,
+          initialCash: args.initial_cash || 1000000,
+          sortBy: args.sort_by || 'sharpe_ratio',
+        }) as any;
+      },
+    } as any));
+
     // 机会扫描
     ctx.tools.register(defineTool({
       name: 'opportunity_scan',
