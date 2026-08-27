@@ -31,16 +31,17 @@ type NotificationChannel struct {
 
 // NotificationLog represents a notification sending log
 type NotificationLog struct {
-	ID        string                 `json:"id"`
-	ChannelID string                 `json:"channel_id"`
-	Title     string                 `json:"title"`
-	Content   string                 `json:"content"`
-	Status    string                 `json:"status"` // pending, sent, failed
-	MessageID string                 `json:"message_id,omitempty"`
-	Error     string                 `json:"error,omitempty"`
-	Metadata  map[string]interface{} `json:"metadata"`
-	SentAt    *time.Time             `json:"sent_at,omitempty"`
-	CreatedAt time.Time              `json:"created_at"`
+	ID         string                 `json:"id"`
+	ChannelID  string                 `json:"channel_id"`
+	Title      string                 `json:"title"`
+	Content    string                 `json:"content"`
+	Status     string                 `json:"status"` // pending, sent, failed, failed_permanent
+	MessageID  string                 `json:"message_id,omitempty"`
+	Error      string                 `json:"error,omitempty"`
+	Metadata   map[string]interface{} `json:"metadata"`
+	SentAt     *time.Time             `json:"sent_at,omitempty"`
+	CreatedAt  time.Time              `json:"created_at"`
+	RetryCount int                    `json:"retry_count"` // 重试次数，默认 0
 }
 
 // SendRequest represents a notification send request

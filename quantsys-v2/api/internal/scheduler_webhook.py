@@ -129,10 +129,19 @@ async def scheduler_webhook(
     """
     job_type = payload.metadata.get("job_type")
 
+    # Fallback: If metadata is missing job_type, infer from job_name
+    # (workaround for Agent OS bug where metadata is not passed in webhook)
     if not job_type:
-        logger.error(f"Webhook payload missing job_type: {payload.model_dump()}")
+        job_type = payload.job_name
+        logger.warning(
+            f"Webhook payload missing job_type in metadata, "
+            f"using job_name '{job_type}' as fallback"
+        )
+
+    if not job_type:
+        logger.error(f"Webhook payload missing both job_type and job_name: {payload.model_dump()}")
         raise HTTPException(
-            status_code=400, detail="Missing job_type in metadata"
+            status_code=400, detail="Missing job_type in metadata and job_name"
         )
 
     handler = JOB_HANDLERS.get(job_type)

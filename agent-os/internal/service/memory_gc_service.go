@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/pi-investment/agent-os/internal/logger"
 )
 
 // MemoryGCService 记忆垃圾回收服务
@@ -25,7 +26,7 @@ func NewMemoryGCService(db *sql.DB) *MemoryGCService {
 // 1. done/dropped 超 30 天 → archived
 // 2. archived 超 180 天 → 硬删
 func (s *MemoryGCService) Run(ctx context.Context) error {
-	log.Println("[MemoryGC] Starting memory GC cycle")
+	logger.L().Info("Starting memory GC cycle")
 	
 	// 阶段 1: done/dropped → archived (30 天)
 	archivedCount, err := s.archiveClosedMemories(ctx)
@@ -39,7 +40,7 @@ func (s *MemoryGCService) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to delete archived memories: %w", err)
 	}
 	
-	log.Printf("[MemoryGC] Memory GC cycle completed: archived=%d, deleted=%d\n", archivedCount, deletedCount)
+	logger.L().Info("Memory GC cycle completed", logger.Int64("archived", archivedCount), logger.Int64("deleted", deletedCount))
 	
 	return nil
 }
@@ -64,7 +65,7 @@ func (s *MemoryGCService) archiveClosedMemories(ctx context.Context) (int64, err
 	
 	count, _ := result.RowsAffected()
 	if count > 0 {
-		log.Printf("[MemoryGC] Archived %d closed memories\n", count)
+		logger.L().Info("Archived closed memories", logger.Int64("count", count))
 	}
 	
 	return count, nil
@@ -106,7 +107,7 @@ func (s *MemoryGCService) deleteArchivedMemories(ctx context.Context) (int64, er
 	}
 	
 	if totalDeleted > 0 {
-		log.Printf("[MemoryGC] Deleted %d archived memories\n", totalDeleted)
+		logger.L().Info("Deleted archived memories", logger.Int64("count", totalDeleted))
 	}
 	
 	return totalDeleted, nil
@@ -125,13 +126,13 @@ func (s *MemoryGCService) RunPeriodically(ctx context.Context) {
 	}
 	initialDelay := next.Sub(now)
 	
-	log.Printf("[MemoryGC] Memory GC scheduled, next run: %s\n", next.Format(time.RFC3339))
+	logger.L().Info("Memory GC scheduled", logger.String("next_run", next.Format(time.RFC3339)))
 	
 	// 首次延迟到 04:00
 	select {
 	case <-time.After(initialDelay):
 		if err := s.Run(ctx); err != nil {
-			log.Printf("[MemoryGC] ERROR: %v\n", err)
+			logger.L().Error("Memory GC failed", logger.Error(err))
 		}
 	case <-ctx.Done():
 		return
@@ -142,10 +143,10 @@ func (s *MemoryGCService) RunPeriodically(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			if err := s.Run(ctx); err != nil {
-				log.Printf("[MemoryGC] ERROR: %v\n", err)
+				logger.L().Error("Memory GC failed", logger.Error(err))
 			}
 		case <-ctx.Done():
-			log.Println("[MemoryGC] Memory GC stopped")
+			logger.L().Info("Memory GC stopped")
 			return
 		}
 	}

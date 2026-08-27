@@ -34,7 +34,7 @@ export default class AgentOsManager extends Service {
           additionalProperties: true,
           properties: {
             running: { type: 'boolean' },
-            pid: { type: 'number' },
+            pid: { type: 'number', description: '进程 PID，0 表示服务未运行' },
             port_listening: { type: 'boolean' },
             health_ok: { type: 'boolean' },
             recent_errors: { type: 'array', items: { type: 'string' } },
@@ -134,7 +134,7 @@ export default class AgentOsManager extends Service {
 
     return {
       running: !!pid,
-      pid,
+      pid: pid ?? 0,
       port,
       port_listening: portListening,
       health_ok: healthOk,

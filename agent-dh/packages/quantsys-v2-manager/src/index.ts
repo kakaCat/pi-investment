@@ -35,7 +35,7 @@ export default class QuantsysV2Manager extends Service {
           additionalProperties: true,
           properties: {
             running: { type: 'boolean', description: '进程是否运行' },
-            pid: { type: 'number', description: '进程 PID' },
+            pid: { type: 'number', description: '进程 PID，0 表示服务未运行' },
             port_listening: { type: 'boolean', description: '端口是否监听' },
             health_ok: { type: 'boolean', description: '健康检查是否通过' },
             recent_errors: { type: 'array', items: { type: 'string' }, description: '最近5条错误日志' },
@@ -131,7 +131,7 @@ export default class QuantsysV2Manager extends Service {
 
     return {
       running: !!pid,
-      pid,
+      pid: pid ?? 0,
       port,
       port_listening: portListening,
       health_ok: healthOk,

@@ -114,15 +114,17 @@ def get_pool_battlefield_assessment(pool_id: int):
         from application.services.opponent_behavior_service import OpponentBehaviorService
         from adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
         from adapters.outbound.repositories.kline_repository import KlineORMRepository
+        from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
         
-        # W2: 初始化服务并提供可用的数据源
+        # M2-3 修复：注入 fund_flow_repo 以提升数据质量
         pool_repo = StockPoolRepository()
         kline_repo = KlineORMRepository()
+        fund_flow_repo = FundFlowORMRepository()
         opponent_service = OpponentBehaviorService()
         
         service = BattlefieldAssessor(
             pool_repo=pool_repo,
-            fund_flow_repo=None,  # W2: fund_flow 暂无，降级处理
+            fund_flow_repo=fund_flow_repo,  # ✅ 修复：注入资金流向数据源
             metrics_repo=None,     # W2: metrics 暂无，不保存快照
             opponent_service=opponent_service
         )

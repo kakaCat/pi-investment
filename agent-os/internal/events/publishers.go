@@ -2,7 +2,7 @@ package events
 
 import (
 	"context"
-	"log"
+	"github.com/pi-investment/agent-os/internal/logger"
 
 	"github.com/google/uuid"
 )
@@ -32,7 +32,7 @@ func PublishTaskCompleted(ctx context.Context, taskID uuid.UUID, taskName string
 	}
 
 	if err := GlobalEventBus.Publish(ctx, event); err != nil {
-		log.Printf("Failed to publish task.completed event: %v", err)
+		logger.L().Error("Failed to publish event", logger.String("event", "task.completed"), logger.Error(err))
 	}
 }
 
@@ -54,7 +54,7 @@ func PublishTaskFailed(ctx context.Context, taskID uuid.UUID, taskName string, a
 	}
 
 	if err := GlobalEventBus.Publish(ctx, event); err != nil {
-		log.Printf("Failed to publish task.failed event: %v", err)
+		logger.L().Error("Failed to publish event", logger.String("event", "task.failed"), logger.Error(err))
 	}
 }
 
@@ -75,7 +75,7 @@ func PublishTaskStarted(ctx context.Context, taskID uuid.UUID, taskName string, 
 	}
 
 	if err := GlobalEventBus.Publish(ctx, event); err != nil {
-		log.Printf("Failed to publish task.started event: %v", err)
+		logger.L().Error("Failed to publish event", logger.String("event", "task.started"), logger.Error(err))
 	}
 }
 
@@ -95,7 +95,7 @@ func PublishDecisionRecorded(ctx context.Context, decisionID uuid.UUID, agentID 
 	}
 
 	if err := GlobalEventBus.Publish(ctx, event); err != nil {
-		log.Printf("Failed to publish decision.recorded event: %v", err)
+		logger.L().Error("Failed to publish event", logger.String("event", "decision.recorded"), logger.Error(err))
 	}
 }
 
@@ -115,7 +115,7 @@ func PublishDecisionUpdated(ctx context.Context, decisionID uuid.UUID, agentID s
 	}
 
 	if err := GlobalEventBus.Publish(ctx, event); err != nil {
-		log.Printf("Failed to publish decision.updated event: %v", err)
+		logger.L().Error("Failed to publish event", logger.String("event", "decision.updated"), logger.Error(err))
 	}
 }
 
@@ -135,7 +135,7 @@ func PublishMemoryCreated(ctx context.Context, memoryID uuid.UUID, agentID strin
 	}
 
 	if err := GlobalEventBus.Publish(ctx, event); err != nil {
-		log.Printf("Failed to publish memory.created event: %v", err)
+		logger.L().Error("Failed to publish event", logger.String("event", "memory.created"), logger.Error(err))
 	}
 }
 
@@ -155,7 +155,7 @@ func PublishQuotaExceeded(ctx context.Context, agentID string, resourceType stri
 	}
 
 	if err := GlobalEventBus.Publish(ctx, event); err != nil {
-		log.Printf("Failed to publish quota.exceeded event: %v", err)
+		logger.L().Error("Failed to publish event", logger.String("event", "quota.exceeded"), logger.Error(err))
 	}
 }
 
@@ -177,6 +177,6 @@ func PublishQuotaWarning(ctx context.Context, agentID string, resourceType strin
 	}
 
 	if err := GlobalEventBus.Publish(ctx, event); err != nil {
-		log.Printf("Failed to publish quota.warning event: %v", err)
+		logger.L().Error("Failed to publish event", logger.String("event", "quota.warning"), logger.Error(err))
 	}
 }

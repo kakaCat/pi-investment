@@ -3,7 +3,7 @@ package events
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"github.com/pi-investment/agent-os/internal/logger"
 	"net/http"
 	"strings"
 	"time"
@@ -38,7 +38,7 @@ func NewWebSocketServer(eventBus *EventBus, addr string) *WebSocketServer {
 func (wss *WebSocketServer) Start() error {
 	http.HandleFunc("/ws/events", wss.handleWebSocket)
 
-	log.Printf("WebSocket server listening on %s", wss.addr)
+	logger.L().Info("WebSocket server listening", logger.String("addr", wss.addr))
 	return http.ListenAndServe(wss.addr, nil)
 }
 
@@ -47,7 +47,7 @@ func (wss *WebSocketServer) handleWebSocket(w http.ResponseWriter, r *http.Reque
 	// Upgrade HTTP connection to WebSocket
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("WebSocket upgrade failed: %v", err)
+		logger.L().Error("WebSocket upgrade failed", logger.Error(err))
 		return
 	}
 	defer conn.Close()
@@ -69,7 +69,7 @@ func (wss *WebSocketServer) handleWebSocket(w http.ResponseWriter, r *http.Reque
 
 	eventChan, err := wss.eventBus.Subscribe(ctx, filters)
 	if err != nil {
-		log.Printf("Failed to subscribe: %v", err)
+		logger.L().Error("Failed to subscribe", logger.Error(err))
 		return
 	}
 
@@ -84,7 +84,7 @@ func (wss *WebSocketServer) handleWebSocket(w http.ResponseWriter, r *http.Reque
 		"filters": filters,
 	}
 	if err := conn.WriteJSON(welcomeMsg); err != nil {
-		log.Printf("Failed to send welcome message: %v", err)
+		logger.L().Warn("Failed to send welcome message", logger.Error(err))
 		return
 	}
 
@@ -117,7 +117,7 @@ func (wss *WebSocketServer) handleWebSocket(w http.ResponseWriter, r *http.Reque
 			// Send event to client
 			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := conn.WriteJSON(event); err != nil {
-				log.Printf("Failed to write event: %v", err)
+				logger.L().Warn("Failed to write event", logger.Error(err))
 				return
 			}
 
@@ -125,13 +125,13 @@ func (wss *WebSocketServer) handleWebSocket(w http.ResponseWriter, r *http.Reque
 			// Send ping to keep connection alive
 			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Printf("Failed to send ping: %v", err)
+				logger.L().Warn("Failed to send ping", logger.Error(err))
 				return
 			}
 
 		case <-done:
 			// Client disconnected
-			log.Println("Client disconnected")
+			logger.L().Info("Client disconnected")
 			return
 
 		case <-ctx.Done():

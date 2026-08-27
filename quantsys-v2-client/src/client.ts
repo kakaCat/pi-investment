@@ -73,7 +73,59 @@ export class QuantsysV2Client {
       },
     });
 
-    // Configure retry mechanism
+    // 2026-08-27: 统一错误包装拦截器——改写 error.message 为结构化中文（端点+状态码+后端原因+建议），
+    // 同时保留原 axios 错误对象（response/config/code）给 axiosRetry 判断重试条件。
+    // 关键设计：不 new Error，而是修改原错误.message 并 rethrow 原对象 → retry 仍能读 error.response.status
+    // → 5xx 正常重试；用户最终看到的 error.message 是包装后的中文提示。
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        // 防二次包装：已包装过直接透传（retry 重新 dispatch 可能再次经过本拦截器）
+        if (error?.message?.startsWith('[quantsys-v2]') || error?.message?.startsWith('[quantsys-v2 不可达]')) {
+          return Promise.reject(error);
+        }
+
+        const method = error.config?.method?.toUpperCase() ?? '?';
+        const url = error.config?.url ?? '?';
+        const endpoint = `${method} ${url}`;
+
+        // 网络层错误（后端未启动/连接拒绝/超时）
+        if (!error.response) {
+          const code = error.code ?? 'NETWORK_ERROR';
+          const hint = code === 'ECONNREFUSED'
+            ? '后端服务未启动或端口不通——可用 quantsys_v2_status 检查后端健康，必要时 quantsys_v2_restart 拉起'
+            : code === 'ECONNABORTED'
+              ? '请求超时——后端可能过载或挂死（历史上由事件循环阻塞引起），可用 quantsys_v2_status 确认'
+              : '网络异常——检查后端进程与端口';
+          error.message = `[quantsys-v2 不可达] ${endpoint} (${code})。${hint}`;
+          return Promise.reject(error);
+        }
+
+        // HTTP 错误：提取后端错误详情（FastAPI 常见格式：{success:false,error} / {detail} / {message}）
+        const status = error.response.status;
+        const body = error.response.data;
+        const backendMsg =
+          (body && typeof body === 'object'
+            ? (typeof body.error === 'string' ? body.error : null) ?? body.message ??
+              (typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail ?? body).slice(0, 200))
+            : String(body ?? '').slice(0, 200)) || '无详情';
+
+        const hintMap: Record<number, string> = {
+          400: '请求参数不合法——检查入参（字段名/格式/必填项）',
+          404: '接口不存在或资源未找到——检查 URL 路径与参数',
+          422: '参数校验失败（FastAPI schema）——检查字段类型',
+          500: '后端内部错误——用 quantsys_v2_logs 查看后端日志定位',
+          502: '上游数据源故障（网关）——稍后重试或切换数据源',
+          503: '服务暂不可用——可能在重启或过载，稍后重试',
+        };
+        const hint = hintMap[status] ?? '查看后端日志定位原因';
+
+        error.message = `[quantsys-v2] ${endpoint} → HTTP ${status}: ${backendMsg}。${hint}`;
+        return Promise.reject(error);
+      }
+    );
+
+    // Configure retry mechanism（必须注册在包装器之后：错误路径逆序执行，retry 才能先看到原始错误）
     axiosRetry(this.client, {
       retries: 3,
       retryDelay: axiosRetry.exponentialDelay,
@@ -91,52 +143,43 @@ export class QuantsysV2Client {
   }
 
   /**
-   * Parse condition string to conditions array for watch rules
+   * Parse condition string to conditions array for watch rules (backend schema)
    * Examples:
-   *   "price>100" -> [{type: "price_threshold", params: {operator: ">", value: 100}}]
-   *   "change_pct>5" -> [{type: "change_pct_threshold", params: {operator: ">", value: 5}}]
-   *   "volume>1000000" -> [{type: "volume_threshold", params: {operator: ">", value: 1000000}}]
+   *   "price>100" -> [{type: "price_break", params: {direction: "above", price: 100}}]
+   *   "price<90" -> [{type: "price_break", params: {direction: "below", price: 90}}]
+   *   "change_pct>5" -> [{type: "pct_change", params: {direction: "above", pct: 5}}]
+   *   "change_pct<-3" -> [{type: "pct_change", params: {direction: "below", pct: -3}}]
    * 
    * Supports:
-   *   - Fields: price, change_pct, volume
-   *   - Operators: >, <, >=, <=, =
-   *   - Values: positive/negative numbers, decimals
-   *   - Whitespace around operators is allowed
+   *   - price > N / price < N  → price_break (突破/跌破价格)
+   *   - change_pct > N / change_pct < N  → pct_change (涨跌幅)
+   *   - Operators: >, <, >=, <=
    */
   private parseCondition(condition: string): Array<{type: string; params: Record<string, any>}> {
-    // Trim and match: field + operator + value (with optional whitespace)
-    // Supports: price>100, price > 100, change_pct>=-5, volume<1000000.5
-    const match = condition.trim().match(/^([a-z_]+)\s*(>=?|<=?|=)\s*(-?[0-9]+\.?[0-9]*)$/);
+    const match = condition.trim().match(/^([a-z_]+)\s*(>=?|<=?)\s*(-?[0-9]+\.?[0-9]*)$/);
     if (!match) {
       throw new Error(
         `Invalid watch condition format: "${condition}". \n` +
-        `Expected: "field operator value" (e.g., "price>100", "change_pct>=5")\n` +
-        `Supported fields: price, change_pct, volume\n` +
-        `Supported operators: >, <, >=, <=, =`
+        `Expected: "field operator value" (e.g., "price>100", "change_pct>5")\n` +
+        `Supported: price>N, price<N, change_pct>N, change_pct<N`
       );
     }
     const [, field, operator, valueStr] = match;
     const value = parseFloat(valueStr);
     
-    // Map field names to condition types
-    const typeMap: Record<string, string> = {
-      price: 'price_threshold',
-      change_pct: 'change_pct_threshold',
-      volume: 'volume_threshold',
-    };
-    
-    const type = typeMap[field];
-    if (!type) {
+    // Map to backend condition schema
+    if (field === 'price') {
+      const direction = (operator === '>' || operator === '>=') ? 'above' : 'below';
+      return [{ type: 'price_break', params: { direction, price: value } }];
+    } else if (field === 'change_pct') {
+      const direction = (operator === '>' || operator === '>=') ? 'above' : 'below';
+      return [{ type: 'pct_change', params: { direction, pct: value } }];
+    } else {
       throw new Error(
         `Unknown watch condition field: "${field}".\n` +
-        `Supported fields: price, change_pct, volume`
+        `Supported fields: price, change_pct`
       );
     }
-    
-    return [{
-      type,
-      params: { operator, value }
-    }];
   }
 
   /**
@@ -262,7 +305,8 @@ export class QuantsysV2Client {
   }
 
   /**
-   * Optimize strategy parameters
+   * Optimize strategy parameters (backtest matrix)
+   * Real endpoint: POST /api/strategies/optimize
    */
   async optimizeStrategy(params: {
     strategy_id: number;
@@ -270,9 +314,32 @@ export class QuantsysV2Client {
     start_date: string;
     end_date: string;
     param_ranges: Record<string, number[]>;
-  }): Promise<Array<{ parameters: Record<string, any>; result: BacktestResult }>> {
-    const response = await this.client.post('/api/strategies/optimize', params);
-    return this.unwrap(response.data, 'optimizeStrategy');
+    initial_cash?: number;
+    sort_by?: 'sharpe_ratio' | 'total_return' | 'max_drawdown' | 'win_rate';
+  }): Promise<{
+    success: boolean;
+    results: Array<{
+      params: Record<string, any>;
+      sharpeRatio?: number;
+      totalReturn?: number;
+      maxDrawdown?: number;
+      winRate?: number;
+      totalTrades?: number;
+    }>;
+    totalCombinations: number;
+    successfulCombinations: number;
+  }> {
+    const body = {
+      strategyId: params.strategy_id,
+      symbol: params.symbol,
+      startDate: params.start_date,
+      endDate: params.end_date,
+      paramRanges: params.param_ranges,
+      initialCash: params.initial_cash,
+      sortBy: params.sort_by,
+    };
+    const response = await this.client.post('/api/strategies/optimize', body);
+    return response.data;
   }
 
   // ==================== Pool APIs ====================
@@ -1045,5 +1112,88 @@ export class QuantsysV2Client {
   async createMemory(entry: Record<string, any>): Promise<any> {
     const response = await this.client.post('/api/memory', entry);
     return response.data;
+  }
+
+  // ==================== Signal Tracking APIs (M3-1) ====================
+
+  /**
+   * Record a buy signal
+   * Real endpoint: POST /api/signals/track
+   * Body: {signal_date, symbol, grade, source, price, reason?}
+   */
+  async recordSignal(params: {
+    signal_date: string;
+    symbol: string;
+    grade: 'A' | 'B' | 'C';
+    source: string;
+    price: number;
+    reason?: string;
+  }): Promise<{ signalId: number; message: string }> {
+    const response = await this.client.post('/api/signals/track', params);
+    return this.unwrap<{ signalId: number; message: string }>(response.data, 'recordSignal');
+  }
+
+  /**
+   * Update signal performance (backfill 5/10/20-day returns)
+   * Real endpoint: PUT /api/signals/track/update
+   * Body: {signal_date?, lookback_days?}
+   */
+  async updateSignalPerformance(params?: {
+    signal_date?: string;
+    lookback_days?: number;
+  }): Promise<{ updated: number; details: Record<string, number> }> {
+    const response = await this.client.put('/api/signals/track/update', params ?? {});
+    return this.unwrap<{ updated: number; details: Record<string, number> }>(response.data, 'updateSignalPerformance');
+  }
+
+  /**
+   * Get signal statistics report
+   * Real endpoint: GET /api/signals/track/report?start_date=&end_date=&grade=&source=
+   */
+  async getSignalReport(params?: {
+    start_date?: string;
+    end_date?: string;
+    grade?: 'A' | 'B' | 'C';
+    source?: string;
+  }): Promise<{
+    total: number;
+    dateRange: { start: string; end: string };
+    byGrade: Record<string, any>;
+    bySource: Record<string, any>;
+    recentSignals: any[];
+  }> {
+    const response = await this.client.get('/api/signals/track/report', { params });
+    return this.unwrap(response.data, 'getSignalReport');
+  }
+
+  /**
+   * 生成周报并推送到飞书（M6-2）
+   */
+  async pushWeeklyReport(params?: {
+    week_start?: string;
+    week_end?: string;
+    feishu_webhook?: string;
+  }): Promise<{
+    success: boolean;
+    report: any;
+    markdown: string;
+    push_result: {
+      success: boolean;
+      message?: string;
+      error?: string;
+    } | null;
+  }> {
+    const response = await this.client.post('/api/reports/weekly/push', null, { params });
+    return this.unwrap(response.data, 'pushWeeklyReport');
+  }
+
+  /**
+   * 获取最新周报（M6-2）
+   */
+  async getLatestWeeklyReport(format: 'json' | 'markdown' = 'json'): Promise<any> {
+    const response = await this.client.get('/api/reports/weekly/latest', { 
+      params: { format } 
+    });
+    return this.unwrap(response.data, 'getLatestWeeklyReport');
   }
 }

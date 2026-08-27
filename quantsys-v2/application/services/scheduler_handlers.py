@@ -119,6 +119,44 @@ async def handle_pool_refresh(metadata: Dict[str, Any]) -> Dict[str, Any]:
 # ==================== Signal Jobs ====================
 
 
+
+@register_job_handler("market_perception_daily")
+async def handle_market_perception_daily(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    M1 Market Perception daily snapshot (RFC 007)
+    
+    Executes:
+    1. regime_daily - market regime classification
+    2. sentiment snapshot - market sentiment indicators
+    3. theme detection - hot themes and catalysts
+    """
+    logger.info("Starting market_perception_daily job")
+    
+    from application.services.market_perception_service import MarketPerceptionService
+    
+    try:
+        service = MarketPerceptionService()
+        
+        # Execute regime daily snapshot
+        regime_result = await service.regime_daily()
+        logger.info(f"Regime snapshot completed: {regime_result.get('regime')}")
+        
+        # Note: sentiment and theme updates are triggered by regime_daily internally
+        # or via separate API calls if needed
+        
+        return {
+            "success": True,
+            "regime": regime_result.get("regime"),
+            "date": regime_result.get("date"),
+            "message": "M1 market perception daily snapshot completed"
+        }
+    except Exception as e:
+        logger.error(f"market_perception_daily failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 @register_job_handler("signal_generate")
 async def handle_signal_generate(metadata: Dict[str, Any]) -> Dict[str, Any]:
     """扫描 agent 宇宙（非空池成员 ∪ 当前持仓）× 活跃策略，买卖信号落库.

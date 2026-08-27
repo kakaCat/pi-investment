@@ -84,6 +84,20 @@ export class AgentOSClient {
   async version(): Promise<{ version: string; build_time: string }> {
     return this.http.get('/version');
   }
+
+  /**
+   * Generic POST request (RFC 010: for Window Registry API)
+   */
+  async post<T = any>(path: string, data?: any): Promise<T> {
+    return this.http.post(path, data);
+  }
+
+  /**
+   * Generic GET request
+   */
+  async get<T = any>(path: string): Promise<T> {
+    return this.http.get(path);
+  }
 }
 
 // Re-export everything for convenience

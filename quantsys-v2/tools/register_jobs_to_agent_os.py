@@ -89,6 +89,22 @@ JOBS = [
         }
     },
 
+    # M1 Market Perception - daily snapshot (RFC 007)
+    {
+        "name": "market_perception_daily",
+        "owner": "quantsys-v2",
+        "cron": "0 30 15 * * 1-5",  # 工作日 15:30（盘后）
+        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",
+        "enabled": True,
+        "timeout": 300,
+        "retry_count": 1,
+        "metadata": {
+            "job_type": "market_perception_daily",
+            "description": "M1 market perception daily snapshot: regime + sentiment + themes"
+        }
+    },
+
     # Signal generation - buy (before market opens)
     {
         "name": "signal_generate_buy",
@@ -111,7 +127,7 @@ JOBS = [
     {
         "name": "signal_generate_sell",
         "owner": "quantsys-v2",
-        "cron": "30 15 * * 1-5",  # 工作日 15:30
+        "cron": "0 30 15 * * 1-5",  # 工作日 15:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -358,7 +374,7 @@ JOBS = [
     {
         "name": "market_style_update",
         "owner": "quantsys-v2",
-        "cron": "30 15 * * 1-5",  # 工作日 15:30
+        "cron": "0 30 15 * * 1-5",  # 工作日 15:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,

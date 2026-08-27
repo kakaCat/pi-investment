@@ -153,6 +153,7 @@ class BattlefieldAssessor:
             return self._analyze_stocks_by_kline(symbols)
         
         stock_scores = []
+        fund_flow_success_count = 0
         end_date = datetime.now()
         start_date = end_date - timedelta(days=5)
 
@@ -165,8 +166,10 @@ class BattlefieldAssessor:
                     end_date.strftime('%Y-%m-%d')
                 )
 
-                if not fund_flows:
+                if not fund_flows or len(fund_flows) < 2:
                     continue
+                
+                fund_flow_success_count += 1
 
                 # 计算散户和机构资金流
                 retail_flow = sum([
@@ -195,13 +198,31 @@ class BattlefieldAssessor:
             except Exception as e:
                 logger.warning(f"分析股票战场失败: {symbol} - {e}")
                 continue
+        
+        # M2-3 修复：如果资金流向覆盖率 < 50%，自动降级到 K线增强分析
+        coverage_rate = fund_flow_success_count / len(symbols) if len(symbols) > 0 else 0
+        if coverage_rate < 0.5:
+            logger.warning(
+                f"资金流向覆盖率过低 ({coverage_rate:.1%})，自动降级到 K线增强分析",
+                coverage_rate=coverage_rate,
+                success_count=fund_flow_success_count,
+                total_symbols=len(symbols)
+            )
+            return self._analyze_stocks_by_kline(symbols)
 
         return stock_scores
 
     def _analyze_stocks_by_kline(self, symbols: List[str]) -> List[Dict]:
-        """W2: 降级方法 - 使用K线数据分析战场（涨跌幅+成交量）
+        """W2: 降级方法 - 使用K线数据分析战场（增强版）
         
-        当 fund_flow_repo 不可用时，基于 K线涨跌幅和成交量变化分析战场
+        当 fund_flow_repo 不可用时，基于多维度 K线指标分析战场：
+        - 涨跌幅（价格动量）
+        - 成交量变化（量能）
+        - 换手率（活跃度）
+        - 振幅（波动性）
+        - 连续涨跌天数（趋势强度）
+        
+        M2-3 修复：增强降级算法，提升区分度
         """
         from adapters.outbound.repositories.kline_repository import KlineORMRepository
         
@@ -219,40 +240,99 @@ class BattlefieldAssessor:
                 # Polars DataFrame 语法
                 close_prices = df['close'].to_list()
                 volumes = df['volume'].to_list()
+                high_prices = df['high'].to_list()
+                low_prices = df['low'].to_list()
                 
-                # 计算近期涨跌幅
+                # 1. 涨跌幅（价格动量）
                 recent_change = ((close_prices[-1] - close_prices[0]) / close_prices[0]) * 100
                 
-                # 计算成交量变化（量能）
+                # 2. 成交量变化（量能比）
                 recent_vol = sum(volumes[-3:]) / min(3, len(volumes[-3:]))
                 earlier_vol = sum(volumes[:3]) / min(3, len(volumes[:3])) if len(volumes) >= 6 else recent_vol
                 vol_ratio = recent_vol / earlier_vol if earlier_vol > 0 else 1.0
                 
-                # 基于涨跌幅和量能计算战场分数
-                score = 50.0
+                # 3. 振幅（波动性）
+                amplitude = ((high_prices[-1] - low_prices[-1]) / close_prices[-1]) * 100 if close_prices[-1] > 0 else 0
                 
-                # 下跌 + 缩量 = 散户恐慌，分数高
+                # 4. 连续涨跌天数（趋势强度）
+                consecutive_days = 0
+                if len(close_prices) >= 2:
+                    is_rising = close_prices[-1] > close_prices[-2]
+                    for i in range(len(close_prices) - 1, 0, -1):
+                        if (is_rising and close_prices[i] > close_prices[i-1]) or \
+                           (not is_rising and close_prices[i] < close_prices[i-1]):
+                            consecutive_days += 1
+                        else:
+                            break
+                    if not is_rising:
+                        consecutive_days = -consecutive_days
+                
+                # 5. 换手率（活跃度） - 简化估算
+                avg_turnover = (recent_vol / 1000000) if len(volumes) > 0 else 0  # 简化估算
+                
+                # === 评分逻辑（增强版）===
+                score = 50.0
+                reasons = []
+                
+                # 维度1: 下跌 + 缩量 = 散户恐慌（机会）
                 if recent_change < -5 and vol_ratio < 0.8:
                     score += 25
-                elif recent_change < 0:
-                    score += 10
-                
-                # 上涨 + 放量过度 = 散户追涨，分数低
-                if recent_change > 10 and vol_ratio > 1.5:
-                    score -= 20
-                elif recent_change > 5:
-                    score -= 10
-                
-                # 震荡 + 缩量 = 吸筹
-                if abs(recent_change) < 3 and vol_ratio < 0.9:
+                    reasons.append("下跌缩量（散户恐慌）")
+                elif recent_change < -3:
                     score += 15
+                    reasons.append("温和下跌")
+                elif recent_change < 0:
+                    score += 8
+                
+                # 维度2: 上涨 + 放量过度 = 散户追涨（风险）
+                if recent_change > 10 and vol_ratio > 1.5:
+                    score -= 25
+                    reasons.append("暴涨放量（追高风险）")
+                elif recent_change > 5 and vol_ratio > 1.2:
+                    score -= 15
+                    reasons.append("上涨放量")
+                elif recent_change > 3:
+                    score -= 8
+                
+                # 维度3: 震荡 + 缩量 = 吸筹（机会）
+                if abs(recent_change) < 3 and vol_ratio < 0.9:
+                    score += 18
+                    reasons.append("震荡缩量（吸筹）")
+                
+                # 维度4: 连续下跌 = 恐慌加剧（机会加码）
+                if consecutive_days <= -3:
+                    score += 15
+                    reasons.append(f"连续下跌{-consecutive_days}天")
+                elif consecutive_days >= 5:
+                    score -= 12
+                    reasons.append(f"连续上涨{consecutive_days}天")
+                
+                # 维度5: 低振幅 = 筹码稳定（正面）
+                if amplitude < 3:
+                    score += 10
+                    reasons.append("低振幅（筹码稳定）")
+                elif amplitude > 8:
+                    score -= 8
+                    reasons.append("高振幅（筹码不稳）")
+                
+                # 维度6: 换手率异常（流动性风险）
+                if avg_turnover > 5:
+                    score -= 10
+                    reasons.append("换手率过高")
+                elif avg_turnover < 0.5:
+                    score += 5
+                    reasons.append("换手率低（筹码锁定）")
                 
                 stock_scores.append({
                     'symbol': symbol,
                     'score': max(0, min(100, score)),
                     'recent_change_pct': round(recent_change, 2),
                     'vol_ratio': round(vol_ratio, 2),
-                    'data_source': 'kline_degraded'
+                    'amplitude': round(amplitude, 2),
+                    'consecutive_days': consecutive_days,
+                    'avg_turnover': round(avg_turnover, 2),
+                    'reasons': reasons[:3],  # 最多保留3个主要原因
+                    'data_source': 'kline_enhanced'
                 })
                 
             except Exception as e:

@@ -16,10 +16,12 @@ import (
 	"github.com/pi-investment/agent-os/internal/events"
 	"github.com/pi-investment/agent-os/internal/handlers"
 	"github.com/pi-investment/agent-os/internal/kernel/scheduler"
+	"github.com/pi-investment/agent-os/internal/logger"
 	"github.com/pi-investment/agent-os/internal/repository"
 	"github.com/pi-investment/agent-os/internal/service"
 	"github.com/pi-investment/agent-os/internal/services"
 	"github.com/pi-investment/agent-os/internal/storage/postgres"
+	"github.com/pi-investment/agent-os/internal/worker"
 	"github.com/pi-investment/agent-os/pkg/types"
 )
 
@@ -34,6 +36,27 @@ var serveCmd = &cobra.Command{
 
 		// Get config
 		cfg := config.Get()
+
+		// Initialize logger (框架无关的抽象层)
+		logConfig := logger.LoggerConfig{
+			Level:       cfg.Log.Level,
+			Format:      cfg.Log.Format,
+			Output:      "stdout", // 从 config.yaml 的 output_path 映射
+			Development: cfg.Log.Level == "debug",
+		}
+		if cfg.Log.OutputPath == "stderr" {
+			logConfig.Output = "stderr"
+		}
+		if err := logger.InitGlobal(logConfig); err != nil {
+			return fmt.Errorf("failed to initialize logger: %w", err)
+		}
+		defer logger.L().Sync()
+
+		logger.L().Info("Agent OS starting",
+			logger.String("version", "0.1.0"),
+			logger.String("host", host),
+			logger.Int("port", port),
+		)
 
 		// Build connection string for sql.DB (notification service) - use URL format
 		connStr := fmt.Sprintf("postgres://%s@%s:%d/%s?sslmode=%s",
@@ -121,6 +144,13 @@ var serveCmd = &cobra.Command{
 		repo := repository.NewNotificationRepository(db)
 		svc := service.NewNotificationService(repo)
 
+		// Start notification retry worker
+		retryWorker := worker.NewNotificationRetryWorker(repo, svc)
+		if err := retryWorker.Start(); err != nil {
+			return fmt.Errorf("failed to start notification retry worker: %w", err)
+		}
+		defer retryWorker.Stop()
+
 		// Create skill service
 		skillService := services.NewSkillService(pool)
 		skillHandler := handlers.NewSkillHandler(skillService)
@@ -176,6 +206,19 @@ var serveCmd = &cobra.Command{
 		registryHandler := api.NewRegistryHandler(registryRepo)
 		evolutionRepo := repository.NewEvolutionWebRepository(db)
 		evolutionHandler := api.NewEvolutionHandler(evolutionRepo)
+
+		// RFC 010: 启动心跳监控器（60s 检查间隔，60s 超时阈值）
+		heartbeatMonitor := service.NewHeartbeatMonitor(
+			registryRepo,
+			60*time.Second,  // checkInterval
+			60*time.Second,  // timeoutThreshold
+			nil,             // use default logger
+		)
+		go func() {
+			if err := heartbeatMonitor.Start(ctx); err != nil {
+				logger.L().Error("Heartbeat monitor stopped", logger.String("error", err.Error()))
+			}
+		}()
 
 		// Create HTTP server
 		server := api.NewHTTPServer(svc, skillHandler, schedulerHandler, decisionHandler, memoryHandler, eventHandler, systemHandler, notificationHandler, profileHandler, registryHandler, evolutionHandler)

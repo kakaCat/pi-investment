@@ -582,6 +582,33 @@ def register_routes():
         optional_failed.append("signals")
         logger.warning(f"⚠️ Failed to import signals_async: {e}")
 
+    # 信号质量追踪（M3-1 信号分级）
+    try:
+        from adapters.inbound.fastapi_app.routes.signal_tracking import router as signal_tracking_router
+        app.include_router(signal_tracking_router)
+        logger.info("✅ Registered: signal_tracking (M3-1)")
+    except ImportError as e:
+        optional_failed.append("signal_tracking")
+        logger.warning(f"⚠️ Failed to import signal_tracking: {e}")
+
+    # 学习飞轮归因分析（M6-1）
+    try:
+        from adapters.inbound.fastapi_app.routes.learning_attribution import router as learning_router
+        app.include_router(learning_router)
+        logger.info("✅ Registered: learning_attribution (M6-1)")
+    except ImportError as e:
+        optional_failed.append("learning_attribution")
+        logger.warning(f"⚠️ Failed to import learning_attribution: {e}")
+
+    # 周报生成（M6-2）
+    try:
+        from adapters.inbound.fastapi_app.routes.weekly_report import router as weekly_report_router
+        app.include_router(weekly_report_router)
+        logger.info("✅ Registered: weekly_report (M6-2)")
+    except ImportError as e:
+        optional_failed.append("weekly_report")
+        logger.warning(f"⚠️ Failed to import weekly_report: {e}")
+
     # 股票数据（stocks 域，P1 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.stock_async import router as stock_router

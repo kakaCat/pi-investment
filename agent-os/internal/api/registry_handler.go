@@ -104,10 +104,23 @@ func (h *RegistryHandler) Unregister(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListAvailable 列出可用 Agent（GET /api/v1/registry/agents/available）
+// RFC 010: 支持 role 和 status 过滤
 func (h *RegistryHandler) ListAvailable(w http.ResponseWriter, r *http.Request) {
 	capability := r.URL.Query().Get("capability")
+	role := r.URL.Query().Get("role")
+	status := r.URL.Query().Get("status")
 
-	agents, err := h.repo.ListActive(r.Context(), capability)
+	var agents []*domain.AgentWeb
+	var err error
+
+	// RFC 010: 优先按 role 查询（新功能）
+	if role != "" {
+		agents, err = h.repo.ListByRole(r.Context(), role, status)
+	} else {
+		// 保持向后兼容：按 capability 查询
+		agents, err = h.repo.ListActive(r.Context(), capability)
+	}
+
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to list agents: "+err.Error())
 		return
