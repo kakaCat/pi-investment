@@ -1851,8 +1851,13 @@ class SchedulerService:
         
         try:
             from application.services.financial_data_service import FinancialDataService
+            from domain.repositories.orm.financial_orm_repository import FinancialORMRepository
+            from domain.repositories.orm.kline_orm_repository import KlineORMRepository
             
-            financial_service = FinancialDataService()
+            financial_service = FinancialDataService(
+                financial_repo=FinancialORMRepository(),
+                kline_repo=KlineORMRepository()
+            )
             market = params.get("market", "A")
             symbols = params.get("symbols", [])
             

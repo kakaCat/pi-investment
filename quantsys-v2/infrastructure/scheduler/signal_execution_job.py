@@ -39,9 +39,9 @@ def execute_daily_signals(task_context: Dict[str, Any] = None) -> Dict[str, Any]
     try:
         logger.info("开始每日信号执行任务")
 
-        from application.services.data_service import DataService
+        from infrastructure.config.service_factory import get_data_service
 
-        ds = DataService()
+        ds = get_data_service()
 
         # 1. 获取所有启用的策略（使用 ORM 查询）
         try:

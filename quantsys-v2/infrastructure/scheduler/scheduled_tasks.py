@@ -24,9 +24,9 @@ def daily_data_pipeline() -> Dict[str, Any]:
 
     try:
         # Import here to avoid circular dependencies
-        from application.services.data_service import DataService
+        from infrastructure.config.service_factory import get_data_service
 
-        ds = DataService()
+        ds = get_data_service()
 
         # Get CSI 300 components
         # Simplified implementation - you can expand this based on actual requirements
@@ -63,9 +63,9 @@ def weekly_full_rebuild() -> Dict[str, Any]:
 
     try:
         # Import here to avoid circular dependencies
-        from application.services.data_service import DataService
+        from infrastructure.config.service_factory import get_data_service
 
-        ds = DataService()
+        ds = get_data_service()
 
         # Full rebuild logic
         result = {
@@ -97,9 +97,9 @@ def get_csi300_components() -> Dict[str, Any]:
     logger.info("Getting CSI 300 components")
 
     try:
-        from application.services.data_service import DataService
+        from infrastructure.config.service_factory import get_data_service
 
-        ds = DataService()
+        ds = get_data_service()
 
         # Get CSI 300 components - implement actual logic here
         result = {
