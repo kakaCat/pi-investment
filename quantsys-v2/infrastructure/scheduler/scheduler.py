@@ -267,10 +267,48 @@ class SchedulerService:
     @property
     def ds(self):
         if self._ds is None:
-            from application.services.data_service import DataService
+            # P2-3 后裸构造 DataService() 所有 Repository 均为 None
+            # （2026-08-26 起每日 data_update 崩溃 'NoneType' get_all 的根因）。
+            # 必须走 ServiceFactory（EnhancedServiceFactory 注入全部 ORM Repository）。
+            from infrastructure.services.service_factory import get_data_service
 
-            self._ds = DataService()
+            self._ds = get_data_service()
         return self._ds
+
+    @staticmethod
+    def _build_data_service():
+        """构造一个完整注入 ORM Repository 的新 DataService 实例。
+
+        P2-3 起 DataService 不再自动实例化接口，裸构造得到全 None。
+        此处直接 new 出各 ORM Repository（均无参构造、session 按调用获取），
+        供任务线程独占使用（规避 2026-08-04 共享 session 线程安全问题）。
+        """
+        from adapters.outbound.repositories import (
+            StockORMRepository,
+            KlineORMRepository,
+            SignalORMRepository,
+            SimulationORMRepository,
+            PortfolioORMRepository,
+            FactorORMRepository,
+            BacktestORMRepository,
+            RiskORMRepository,
+            StrategyORMRepository,
+            SignalExecutionORMRepository,
+        )
+        from application.services.data_service import DataService
+
+        return DataService(
+            stock_repo=StockORMRepository(),
+            kline_repo=KlineORMRepository(),
+            signal_repo=SignalORMRepository(),
+            simulation_repo=SimulationORMRepository(),
+            portfolio_repo=PortfolioORMRepository(),
+            factor_repo=FactorORMRepository(),
+            backtest_repo=BacktestORMRepository(),
+            risk_repo=RiskORMRepository(),
+            strategy_repo=StrategyORMRepository(),
+            execution_repo=SignalExecutionORMRepository(),
+        )
 
     def _create_data_service(self):
         """任务线程专用的 DataService 工厂（ORM session 非线程安全，每任务独立实例）。
@@ -279,8 +317,7 @@ class SchedulerService:
         绝不返回给工作线程（防共享 session）。"""
         if self._ds_injected:
             return self._ds
-        from application.services.data_service import DataService
-        return DataService()
+        return self._build_data_service()
 
     # ------------------------------------------------------------------
     # Database connection (scheduler-specific tables)
