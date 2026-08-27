@@ -87,20 +87,25 @@ export function registerBoardUpdate(ctx: Context, memoryClient: MemoryClient, ag
     execute: async (args: any) => {
       const { post_id, action, note, content, title, expected_revision, notify } = args;
 
-      // 1. 读取帖子（直接按 ID 获取，避免 search 误匹配）
+      // 1. 读取帖子
+      // 2026-08-28 根本性修复：Agent OS 后端无 getById API（404），改用 search 查全量再客户端过滤。
+      // 代价：慢（search top_k=200）且可能漏（超过 200 条时），但保证基本可用。
       let post: any;
       try {
-        const response = await memoryClient.getById(post_id, true); // includeClosed=true 允许操作已关闭帖子
-        post = response.memory || response; // 兼容不同的响应格式
-      } catch (error: any) {
-        if (error.response?.status === 404) {
-          throw new Error(`帖子不存在: ${post_id}`);
+        const searchResp = await memoryClient.search({
+          query: 'board', // 匹配 tag office:board
+          tag: 'office:board',
+          top_k: 200, // 取更多以提高命中率
+          includeClosed: true, // 允许操作已关闭帖子
+        });
+        const posts = searchResp.memories || [];
+        post = posts.find((p: any) => p.id === post_id);
+        if (!post) {
+          throw new Error(`帖子不存在: ${post_id}（已搜索 ${posts.length} 条记录）`);
         }
-        throw error;
-      }
-
-      if (!post || !post.id) {
-        throw new Error(`帖子不存在或格式异常: ${post_id}`);
+      } catch (error: any) {
+        if (error.message?.includes('帖子不存在')) throw error;
+        throw new Error(`读取帖子失败: ${error.message}`);
       }
       const metadata = (post as any).metadata || {};
       const currentStatus = metadata.board_status || 'open';
