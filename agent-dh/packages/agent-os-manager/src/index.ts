@@ -149,58 +149,26 @@ export default class AgentOsManager extends Service {
     const steps: any[] = [];
 
     try {
-      // Step 1: 停止
-      steps.push({ step: 'stop', status: 'started' });
-      let oldPid: number | null = null;
+      // 2026-08-28 根本性修复：Agent OS 由 launchd 守护（KeepAlive + serve-guard.sh 幂等清场）。
+      // 重启的唯一权威入口是 launchctl kickstart -k（原子 kill+重拉，经守护脚本清场），
+      // 避免"插件杀进程 vs launchd 重拉"的双实例竞争（8-27 18:17 端口冲突的根因）。
+      const uid = execSync('id -u', { encoding: 'utf-8', timeout: 3000 }).trim();
+      const launchdLabel = (this.config as any).launchdLabel || 'com.pi-investment.agent-os';
       try {
-        const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
-        if (pidStr) {
-          oldPid = parseInt(pidStr);
-          if (force) {
-            execSync(`kill -9 ${oldPid}`, { timeout: 3000 });
-            steps.push({ step: 'stop', status: 'killed', pid: oldPid });
-          } else {
-            execSync(`kill ${oldPid}`, { timeout: 3000 });
-            for (let i = 0; i < 10; i++) {
-              execSync('sleep 1');
-              try {
-                execSync(`lsof -ti:${port} -sTCP:LISTEN`, { timeout: 2000 });
-              } catch {
-                steps.push({ step: 'stop', status: 'graceful_exit', waited_sec: i + 1 });
-                break;
-              }
-              if (i === 9) {
-                execSync(`kill -9 ${oldPid}`, { timeout: 2000 });
-                steps.push({ step: 'stop', status: 'force_killed' });
-              }
-            }
-          }
-        } else {
-          steps.push({ step: 'stop', status: 'no_process' });
-        }
+        execSync(`launchctl kickstart -k gui/${uid}/${launchdLabel}`, { timeout: 10000 });
+        steps.push({ step: 'restart', status: 'launchd_kickstart', label: launchdLabel });
       } catch (e: any) {
-        steps.push({ step: 'stop', status: 'error', error: e.message });
+        // launchd 不可用则回退到手动 spawn（兼容未装 plist 的环境）
+        steps.push({ step: 'restart', status: 'launchd_unavailable_fallback_spawn', note: e.message?.slice(0, 120) });
+        const child = spawn('bash', ['-c', `cd ${projectRoot} && ${startCommand}`], {
+          detached: true,
+          stdio: 'ignore',
+        });
+        child.unref();
+        steps.push({ step: 'start', status: 'spawned', pid: child.pid });
       }
 
-      // Step 2: 验证端口
-      execSync('sleep 2');
-      try {
-        execSync(`lsof -ti:${port} -sTCP:LISTEN`, { timeout: 2000 });
-        return { success: false, steps, error: `Port ${port} still occupied` };
-      } catch {
-        steps.push({ step: 'verify_port', status: 'free' });
-      }
-
-      // Step 3: 启动
-      steps.push({ step: 'start', status: 'launching' });
-      const child = spawn('bash', ['-c', `cd ${projectRoot} && ${startCommand}`], {
-        detached: true,
-        stdio: 'ignore',
-      });
-      child.unref();
-      steps.push({ step: 'start', status: 'spawned', pid: child.pid });
-
-      // Step 4: 健康检查
+      // 健康检查
       for (let i = 0; i < waitSec; i++) {
         execSync('sleep 1');
         try {
