@@ -96,7 +96,12 @@ export default class LifecyclePlugin extends Service {
   private setupOsReminderPoller(): void {
     const poll = async () => {
       try {
-        const myWindow = this.windowCode(this.identity.id);
+        // 2026-08-27 修复：myWindow 必须从在线 session 推导（session-xxx → w-xxx），
+        // 不能从 identity.id（'investor'）推导——后者与信箱 tag（office:reminder:w-xxx）永不匹配，
+        // 导致提醒写入信箱后永远不被投递。
+        const rootsEarly: any[] = this.ctx.agents.roots();
+        const onlineRoot = rootsEarly.find((a) => String(a.id).startsWith(this.cfg.agentId)) ?? rootsEarly[0];
+        const myWindow = onlineRoot ? this.windowCode(String(onlineRoot.id)) : this.windowCode(this.identity.id);
         const res: any = await this.aos.memory.search({ query: 'reminder', tag: `office:reminder:${myWindow}`, top_k: 50 });
         const items: any[] = res?.memories || res?.items || [];
 

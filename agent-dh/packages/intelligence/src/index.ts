@@ -177,10 +177,10 @@ export default class IntelligencePlugin extends Service {
       },
     } as any));
 
-    // 4. 信号质量追踪（M3-3，RFC 010，2026-08-26）
+    // 4. 信号质量追踪（M3-1，2026-08-27 更新为调用 quantsys-v2 API）
     ctx.tools.register(defineTool({
       name: 'signal_track',
-      description: '信号质量追踪（M3-3）：record 记录买入信号（标的/价格/来源/分级），update 回填 5/10/20 日表现（盘后例程调用），report 统计胜率。用于：评估信号质量、选择优胜策略、验证门裁决。',
+      description: '信号质量追踪（M3-1）：record 记录买入信号（标的/价格/来源/分级），update 回填 5/10/20 日表现（盘后例程调用），report 统计胜率。用于：评估信号质量、选择优胜策略、验证门裁决。',
       parameters: {
         action: {
           type: 'string',
@@ -206,12 +206,24 @@ export default class IntelligencePlugin extends Service {
         },
         grade: {
           type: 'string',
-          description: '信号分级（record 时必填）：A/B/C（参见 docs/architecture/signal-grading.md）',
+          description: '信号分级（record 时必填）：A=≥3维共振标准仓, B=2维或轻微矛盾半仓, C=单维只观察（参见 docs/architecture/signal-grading.md）',
           enum: ['A', 'B', 'C'],
         },
         reason: {
           type: 'string',
           description: '信号理由（record 时选填）',
+        },
+        lookback_days: {
+          type: 'number',
+          description: '回溯天数（update 时选填，默认30）',
+        },
+        start_date: {
+          type: 'string',
+          description: '开始日期（report 时选填）',
+        },
+        end_date: {
+          type: 'string',
+          description: '结束日期（report 时选填）',
         },
       },
       output: {
@@ -235,7 +247,6 @@ export default class IntelligencePlugin extends Service {
       },
       timeoutMs: 30000,
       execute: async (args: any) => {
-        const osMemory = this.osMemory;
         const qv2 = this.qv2;
 
         if (args.action === 'record') {
@@ -245,226 +256,58 @@ export default class IntelligencePlugin extends Service {
           }
 
           const signal_date = args.signal_date || new Date().toISOString().slice(0, 10);
-          const signal_id = `${args.symbol}_${signal_date}_${Date.now()}`;
 
-          const signalRecord = {
-            signal_id,
-            symbol: args.symbol,
+          const result = await qv2.recordSignal({
             signal_date,
-            entry_price: args.price,
+            symbol: args.symbol,
+            price: args.price,
             source: args.source,
-            grade: args.grade,
-            reason: args.reason || '',
-            performance_5d: null,
-            performance_10d: null,
-            performance_20d: null,
-            created_at: new Date().toISOString(),
-          };
-
-          await osMemory.write({
-            title: `信号记录：${args.symbol} (${args.grade})`,
-            content: JSON.stringify(signalRecord),
-            namespace: 'signal_tracking',
-            tags: ['signal', args.source, args.grade, args.symbol, signal_date],
+            grade: args.grade as 'A' | 'B' | 'C',
+            reason: args.reason,
           });
 
           return {
             action: 'record',
-            result: `已记录信号 ${signal_id}`,
-            details: signalRecord,
+            result: `已记录信号 ID ${result.signalId}: ${args.symbol} (${args.grade}级)`,
+            details: result,
           } as any;
         }
 
         if (args.action === 'update') {
-          // 盘后回填表现：查所有未完成的信号，计算 5/10/20 日表现
-          const searchResult: any = await osMemory.search({
-            query: 'performance_20d',
-            namespace: 'signal_tracking',
-            top_k: 100,
+          // 盘后回填表现
+          const result = await qv2.updateSignalPerformance({
+            signal_date: args.signal_date,
+            lookback_days: args.lookback_days || 30,
           });
-
-          const signals = (searchResult?.memories || [])
-            .map((m: any) => {
-              try {
-                return JSON.parse(m.content);
-              } catch {
-                return null;
-              }
-            })
-            .filter((s: any) => s && s.performance_20d === null);
-
-          if (signals.length === 0) {
-            return {
-              action: 'update',
-              result: '无待回填信号',
-              details: { updated_count: 0 },
-            } as any;
-          }
-
-          const today = new Date().toISOString().slice(0, 10);
-          let updated = 0;
-
-          for (const sig of signals) {
-            try {
-              // 获取信号日期后的 K 线（最多取 30 天，覆盖 20 日表现）
-              const endDate = new Date(new Date(sig.signal_date).getTime() + 35 * 86400000)
-                .toISOString().slice(0, 10);
-              
-              const klines: any = await qv2.getKlines({
-                symbol: sig.symbol,
-                start_date: sig.signal_date,
-                end_date: Math.min(endDate, today),
-                period: 'daily',
-              });
-
-              let bars: any[] = klines?.data || [];
-              
-              // 测试模式降级：K 线数据不足时，用模拟数据（source 含 test/manual 时启用）
-              if (bars.length < 2 && (sig.source.includes('test') || sig.source.includes('manual'))) {
-                console.warn(`[signal_track] K 线不足，测试模式生成模拟数据: ${sig.symbol}`);
-                const basePrice = sig.entry_price;
-                const mockBars = [];
-                const startDate = new Date(sig.signal_date);
-                
-                for (let i = 0; i < 25; i++) {
-                  const date = new Date(startDate.getTime() + i * 86400000);
-                  // 模拟随机波动 ±3%
-                  const randomChange = (Math.random() - 0.5) * 0.06;
-                  const price = basePrice * (1 + randomChange * (i + 1) / 10);
-                  mockBars.push({
-                    date: date.toISOString().slice(0, 10),
-                    open: price * 0.99,
-                    high: price * 1.01,
-                    low: price * 0.98,
-                    close: price,
-                    volume: 1000000,
-                  });
-                }
-                bars = mockBars;
-              } else if (bars.length < 2) {
-                continue;  // 非测试信号且数据不足，跳过
-              }
-
-              const entryPrice = sig.entry_price;
-
-              // 计算 5/10/20 日表现
-              const calcPerf = (days: number) => {
-                if (bars.length <= days) return null;
-                const targetBar = bars[days];
-                const closePrice = targetBar.close;
-                const returnPct = ((closePrice - entryPrice) / entryPrice) * 100;
-                return {
-                  date: targetBar.date,
-                  price: closePrice,
-                  return_pct: returnPct,
-                  win: returnPct > 0,
-                };
-              };
-
-              const perf5d = calcPerf(5);
-              const perf10d = calcPerf(10);
-              const perf20d = calcPerf(20);
-
-              // 更新信号记录（重新写入 osMemory，用相同 title 覆盖）
-              const updatedSignal = {
-                ...sig,
-                performance_5d: perf5d,
-                performance_10d: perf10d,
-                performance_20d: perf20d,
-                updated_at: new Date().toISOString(),
-              };
-
-              await osMemory.write({
-                title: `信号记录：${sig.symbol} (${sig.grade})`,
-                content: JSON.stringify(updatedSignal),
-                namespace: 'signal_tracking',
-                tags: ['signal', sig.source, sig.grade, sig.symbol, sig.signal_date],
-              });
-
-              updated++;
-            } catch (e: any) {
-              // 单个信号失败不中断整体更新
-              console.error(`回填信号 ${sig.signal_id} 失败:`, e.message);
-            }
-          }
 
           return {
             action: 'update',
-            result: `已回填 ${updated}/${signals.length} 个信号`,
-            details: { updated_count: updated, total: signals.length },
+            result: `已更新 ${result.updated} 个信号的表现数据`,
+            details: result,
           } as any;
         }
 
         if (args.action === 'report') {
-          // 统计胜率：按来源/分级查询所有信号，计算胜率
-          const searchResult: any = await osMemory.search({
-            query: 'performance_20d',
-            namespace: 'signal_tracking',
-            top_k: 200,
+          // 统计报告
+          const result = await qv2.getSignalReport({
+            start_date: args.start_date,
+            end_date: args.end_date,
+            grade: args.grade as 'A' | 'B' | 'C' | undefined,
+            source: args.source,
           });
 
-          const allSignals = (searchResult?.memories || [])
-            .map((m: any) => {
-              try {
-                return JSON.parse(m.content);
-              } catch {
-                return null;
-              }
-            })
-            .filter((s: any) => s && s.performance_20d !== null);
-
-          if (allSignals.length === 0) {
-            return {
-              action: 'report',
-              result: '无已回填信号',
-              details: { total: 0 },
-            } as any;
-          }
-
-          // 按来源/分级分组统计
-          const stats: any = {};
-          for (const sig of allSignals) {
-            const key = `${sig.source}_${sig.grade}`;
-            if (!stats[key]) {
-              stats[key] = {
-                source: sig.source,
-                grade: sig.grade,
-                total: 0,
-                win_5d: 0,
-                win_10d: 0,
-                win_20d: 0,
-                avg_return_5d: 0,
-                avg_return_10d: 0,
-                avg_return_20d: 0,
-              };
-            }
-            stats[key].total++;
-            if (sig.performance_5d?.win) stats[key].win_5d++;
-            if (sig.performance_10d?.win) stats[key].win_10d++;
-            if (sig.performance_20d?.win) stats[key].win_20d++;
-            stats[key].avg_return_5d += sig.performance_5d?.return_pct || 0;
-            stats[key].avg_return_10d += sig.performance_10d?.return_pct || 0;
-            stats[key].avg_return_20d += sig.performance_20d?.return_pct || 0;
-          }
-
-          // 计算平均值和胜率
-          for (const key in stats) {
-            const s = stats[key];
-            s.win_rate_5d = s.total > 0 ? (s.win_5d / s.total) : 0;
-            s.win_rate_10d = s.total > 0 ? (s.win_10d / s.total) : 0;
-            s.win_rate_20d = s.total > 0 ? (s.win_20d / s.total) : 0;
-            s.avg_return_5d = s.total > 0 ? (s.avg_return_5d / s.total) : 0;
-            s.avg_return_10d = s.total > 0 ? (s.avg_return_10d / s.total) : 0;
-            s.avg_return_20d = s.total > 0 ? (s.avg_return_20d / s.total) : 0;
-          }
+          // 生成摘要
+          const gradeStats = Object.entries(result.byGrade || {})
+            .filter(([_, v]: any) => v.count > 0)
+            .map(([grade, stats]: any) => 
+              `${grade}级: ${stats.count}个, 5日胜率${stats.hitRate5D ? (stats.hitRate5D * 100).toFixed(1) : 'N/A'}%`
+            )
+            .join(', ');
 
           return {
             action: 'report',
-            result: `统计 ${allSignals.length} 个信号，${Object.keys(stats).length} 个来源/分级组合`,
-            details: {
-              total_signals: allSignals.length,
-              by_source_grade: Object.values(stats),
-            },
+            result: `统计 ${result.total} 个信号 (${result.dateRange.start} ~ ${result.dateRange.end})。${gradeStats || '无数据'}`,
+            details: result,
           } as any;
         }
 

@@ -220,6 +220,38 @@ export default class TradingPlugin extends Service {
       execute: async (args: any) => {
         assertTradingHours();  // 宪法第 1 条硬校验：非交易时段拒单
 
+        // R-008 决策前检索（M6，2026-08-27）：强制检索历史经验
+        let experienceCheckPassed = false;
+        let experienceNote = '';
+        
+        if (args.reason && args.reason.includes('已检索')) {
+          experienceCheckPassed = true;
+          experienceNote = '✅ 已注明检索结论';
+        } else {
+          // 自动检索（辅助模式）
+          try {
+            const memResult: any = await this.osMemory.search({
+              query: `${args.symbol} ${args.action}`,
+              namespace: 'experience',
+              top_k: 3,
+            });
+            
+            const expCount = memResult?.memories?.length || 0;
+            experienceNote = `⚠️  R-008: 已自动检索 ${expCount} 条经验`;
+            
+            // 如果有历史教训，在返回中提示
+            if (expCount > 0 && !args.reason?.includes('已检索')) {
+              experienceNote += `。建议在 reason 中注明："已检索：${expCount}条历史经验，${memResult.memories[0].title}"`;
+            }
+            
+            experienceCheckPassed = true;  // 自动检索也算通过，但会有提示
+          } catch (e) {
+            // 检索失败不阻塞交易（降级）
+            experienceNote = '⚠️  R-008: 经验检索失败，降级放行';
+            experienceCheckPassed = true;
+          }
+        }
+
         // M4-2 熔断检查（2026-08-26）：买入前检查熔断状态
         if (String(args.action).toUpperCase() === 'BUY') {
           try {
@@ -492,9 +524,21 @@ export default class TradingPlugin extends Service {
               provenance: { channel: 'dsh', session_kind: 'agent' },
             });
           } catch { /* 落库失败不影响交易 */ }
-          return { ...result, slippage: { decision_price: decisionPrice, fill_price: fillPrice, slippage_pct: slipPct, decision_time: decisionTime } };
+          return { 
+            ...result, 
+            slippage: { 
+              decision_price: decisionPrice, 
+              fill_price: fillPrice, 
+              slippage_pct: slipPct, 
+              decision_time: decisionTime 
+            },
+            r008_check: experienceNote  // R-008 检索信息
+          };
         }
-        return result;
+        return { 
+          ...result, 
+          r008_check: experienceNote  // R-008 检索信息
+        };
       },
     } as any));
 

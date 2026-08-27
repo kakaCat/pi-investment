@@ -1208,6 +1208,90 @@ export default class LearningPlugin extends Service {
         return result as any;
       },
     } as any));
+
+    // M6 周报推送（2026-08-27）：使用新的归因分析和周报服务
+    ctx.tools.register(defineTool({
+      name: 'weekly_report_push',
+      description: '生成 M6 学习飞轮周报并推送到飞书：信号统计、规则归因分析、本周亮点、改进建议。集成 M6-1 归因分析和 M6-2 周报生成服务。用于：每周复盘、向用户汇报学习飞轮运行情况。',
+      parameters: {
+        week_start: {
+          type: 'string',
+          description: '周开始日期 YYYY-MM-DD（默认上周一）',
+        },
+        week_end: {
+          type: 'string',
+          description: '周结束日期 YYYY-MM-DD（默认上周日）',
+        },
+        feishu_webhook: {
+          type: 'string',
+          description: '飞书 webhook URL（可选，不提供则从环境变量读取）',
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', description: '是否成功' },
+            report: { type: 'object', additionalProperties: true },
+            markdown: { type: 'string', description: 'Markdown 格式周报' },
+            push_result: { type: 'object', additionalProperties: true },
+          },
+          additionalProperties: false,
+        },
+        render: (_args: any, value: any) => [{ 
+          type: 'text', 
+          text: value.markdown || JSON.stringify(value, null, 2) 
+        }],
+      },
+      timeoutMs: 60000,
+      execute: async (args: any) => {
+        try {
+          // 调用 quantsys-v2 的周报推送 API
+          const result = await this.qv2.pushWeeklyReport({
+            week_start: args.week_start,
+            week_end: args.week_end,
+            feishu_webhook: args.feishu_webhook,
+          });
+
+          // 如果推送成功，同时存储到 OS Memory
+          if (result.success && result.report) {
+            try {
+              const period = result.report.period;
+              await this.osMemory.createMemory({
+                kind: 'episode',
+                scope: 'report:weekly_m6',
+                title: `M6 投资周报 第${period.week_num}周 (${period.start}~${period.end})`,
+                content: result.markdown,
+                payload: {
+                  period,
+                  summary: result.report.summary,
+                  attribution: result.report.attribution,
+                },
+                status: 'active',
+                confidence: 1.0,
+                source: 'weekly_report_m6',
+                provenance: { channel: 'dsh', session_kind: 'tool' },
+              });
+            } catch {
+              // 存储失败不影响返回
+            }
+          }
+
+          return result as any;
+        } catch (error: any) {
+          return {
+            success: false,
+            error: error.message || String(error),
+            report: null,
+            markdown: null,
+            push_result: {
+              success: false,
+              error: error.message || String(error),
+            },
+          } as any;
+        }
+      },
+    } as any));
   }
 
   // ===== 辅助方法 =====
