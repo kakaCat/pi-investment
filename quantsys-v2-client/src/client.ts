@@ -1007,6 +1007,41 @@ export class QuantsysV2Client {
     return this.unwrap<DataManagerResponse>(response.data, 'dataManager');
   }
 
+  /**
+   * Sync daily K-line data
+   * Real endpoint: POST /api/data/sync-daily-klines
+   */
+  async syncDailyKlines(params?: { date?: string }): Promise<{
+    success: boolean;
+    sync_date: string;
+    success_count: number;
+    failed_count: number;
+    total_stocks: number;
+    total_rows: number;
+    elapsed_time: number;
+    message: string;
+    failed_symbols?: string[];
+  }> {
+    const response = await this.client.post('/api/data/sync-daily-klines', params || {});
+    return response.data;
+  }
+
+  /**
+   * Get data sync status
+   * Real endpoint: GET /api/data/sync-status
+   */
+  async getDataSyncStatus(): Promise<{
+    status: string;
+    latest_date: string | null;
+    latest_count?: number;
+    active_stocks_count?: number;
+    coverage?: string;
+    message: string;
+  }> {
+    const response = await this.client.get('/api/data/sync-status');
+    return response.data;
+  }
+
   // ==================== Model Training APIs ====================
 
   /**

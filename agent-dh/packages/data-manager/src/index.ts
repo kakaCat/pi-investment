@@ -128,5 +128,59 @@ export default class DataManagerPlugin extends Service {
         }) as any;
       },
     } as any));
+
+    // K线每日同步（调用 quantsys-v2 HTTP API）
+    ctx.tools.register(defineTool({
+      name: 'kline_daily_sync',
+      description: '执行每日K线同步：调用 quantsys-v2 业务逻辑同步指定日期所有活跃股票的K线数据。适用于：每日定时任务（盘后同步）、手动补录缺失日期数据。返回同步结果：成功数、失败数、数据量、耗时。',
+      parameters: {
+        date: {
+          type: 'string',
+          description: '同步日期 YYYY-MM-DD（默认昨日，因当日数据通常收盘后才可用）',
+        },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', description: '是否成功' },
+            sync_date: { type: 'string', description: '同步日期' },
+            success_count: { type: 'number', description: '成功股票数' },
+            failed_count: { type: 'number', description: '失败股票数' },
+            total_stocks: { type: 'number', description: '总股票数' },
+            total_rows: { type: 'number', description: '同步数据条数' },
+            elapsed_time: { type: 'number', description: '耗时（秒）' },
+            message: { type: 'string', description: '结果消息' },
+            failed_symbols: { type: 'array', description: '失败股票列表（前20只）' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{
+          type: 'text',
+          text: JSON.stringify(value, null, 2),
+        }],
+      },
+      timeoutMs: 300000, // 5分钟超时（5532只股票需要时间）
+      execute: async (args: any) => {
+        try {
+          const result = await qv2.syncDailyKlines({
+            date: args.date,
+          });
+          return result as any;
+        } catch (error: any) {
+          return {
+            success: false,
+            sync_date: args.date || new Date(Date.now() - 86400000).toISOString().split('T')[0],
+            success_count: 0,
+            failed_count: 0,
+            total_stocks: 0,
+            total_rows: 0,
+            elapsed_time: 0,
+            message: `❌ K线同步失败: ${error.message}`,
+            failed_symbols: [],
+          } as any;
+        }
+      },
+    } as any));
   }
 }
