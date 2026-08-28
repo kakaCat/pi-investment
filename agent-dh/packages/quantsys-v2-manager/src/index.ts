@@ -2,7 +2,7 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { execSync, spawn } from 'child_process';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, statSync } from 'fs';
 
 export default class QuantsysV2Manager extends Service {
   static inject = ['tools'];
@@ -12,15 +12,46 @@ export default class QuantsysV2Manager extends Service {
     healthCheckUrl: z.string().default('http://localhost:5001/api/health'),
     startupScript: z.string().default('adapters/inbound/fastapi_app/main.py'),
     activateScript: z.string().default('activate-py313.sh'),
-    logFile: z.string().default('logs/fastapi_5001.log'),
+    logFile: z.string().default('logs/launchd-stdout.log'),  // 修正：指向活跃日志
   }).default({} as any);
 
   private config: any;
+  
+  // 频率限制状态（防循环）
+  private toolCallCounts: Map<string, Array<number>> = new Map();
+  private readonly RATE_LIMIT = {
+    maxCalls: 3,        // 最多调用次数
+    windowMs: 60000,    // 时间窗口（1分钟）
+  };
 
   constructor(ctx: Context, config: any) {
     super(ctx, 'quantsys-v2-manager');
     this.config = { ...QuantsysV2Manager.Config.default(), ...config };
     this.registerTools();
+  }
+
+  // 检查频率限制
+  private checkRateLimit(toolName: string): { allowed: boolean; message?: string } {
+    const now = Date.now();
+    const calls = this.toolCallCounts.get(toolName) || [];
+    
+    // 清理过期记录
+    const recentCalls = calls.filter(t => now - t < this.RATE_LIMIT.windowMs);
+    
+    if (recentCalls.length >= this.RATE_LIMIT.maxCalls) {
+      const oldestCall = Math.min(...recentCalls);
+      const waitMs = this.RATE_LIMIT.windowMs - (now - oldestCall);
+      return {
+        allowed: false,
+        message: `⚠️ 频率限制：${toolName} 在 ${this.RATE_LIMIT.windowMs / 1000}s 内已调用 ${recentCalls.length} 次（上限 ${this.RATE_LIMIT.maxCalls}）。请等待 ${Math.ceil(waitMs / 1000)}s 或检查是否陷入循环调用。`
+      };
+    }
+    
+    // 记录本次调用
+    recentCalls.push(now);
+    this.toolCallCounts.set(toolName, recentCalls);
+    
+    return { allowed: true };
   }
 
   private registerTools() {
@@ -73,20 +104,49 @@ export default class QuantsysV2Manager extends Service {
       },
     } as any));
 
-    // 3. quantsys_v2_logs - 查看日志
+    // 3. quantsys_v2_logs - 查看日志（增加频率限制 + 陈旧检测）
     this.ctx.tools.register(defineTool({
       name: 'quantsys_v2_logs',
-      description: '查看 quantsys-v2 最近日志（默认最后50行），可按关键词过滤（如 ERROR/exception）',
+      description: '查看 quantsys-v2 最近日志（默认最后50行），可按关键词过滤（如 ERROR/exception）。返回结果包含日志行 + 元数据（文件路径、最后更新时间、是否陈旧）。',
       parameters: {
         lines: { type: 'number', description: '显示最后N行（默认50）' },
         grep: { type: 'string', description: '过滤关键词（如 ERROR），不传则显示全部' },
       },
       output: {
-        schema: { type: 'object', additionalProperties: true },
-        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+        schema: { 
+          type: 'object',
+          properties: {
+            lines: { type: 'array', items: { type: 'string' }, description: '日志行' },
+            total: { type: 'number', description: '返回行数' },
+            _metadata: {
+              type: 'object',
+              properties: {
+                log_file: { type: 'string', description: '日志文件路径' },
+                last_modified: { type: 'string', description: '文件最后修改时间（ISO 8601）' },
+                age_hours: { type: 'number', description: '文件年龄（小时）' },
+                is_stale: { type: 'boolean', description: '是否陈旧（超过24小时）' },
+                warning: { type: 'string', description: '警告信息（如配置错误）' },
+              },
+              additionalProperties: true,
+            },
+            error: { type: 'string', description: '错误信息（如文件不存在）' },
+            rate_limited: { type: 'boolean', description: '是否被频率限制' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{
+          type: 'text',
+          text: JSON.stringify(value, null, 2),
+        }],
       },
       timeoutMs: 10000,
       execute: async (args: any) => {
+        // 频率限制检查（防循环）
+        const rateCheck = this.checkRateLimit('quantsys_v2_logs');
+        if (!rateCheck.allowed) {
+          return { error: rateCheck.message, rate_limited: true } as any;
+        }
+        
         return this.getLogs(args.lines ?? 50, args.grep) as any;
       },
     } as any));
@@ -265,12 +325,32 @@ export default class QuantsysV2Manager extends Service {
     }
 
     try {
+      // 检查文件最后修改时间（陈旧检测）
+      const stats = statSync(logPath);
+      const ageMs = Date.now() - stats.mtimeMs;
+      const ageHours = ageMs / (1000 * 60 * 60);
+      const isStale = ageHours > 24; // 超过24小时算陈旧
+
       let cmd = `tail -${lines} "${logPath}"`;
       if (grep) {
         cmd += ` | grep -i "${grep}"`;
       }
       const output = execSync(cmd, { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
-      return { lines: output.split('\n'), total: output.split('\n').length };
+      const logLines = output.split('\n').filter(l => l.trim()); // 过滤空行
+      
+      return {
+        lines: logLines,
+        total: logLines.length,
+        _metadata: {
+          log_file: logPath,
+          last_modified: stats.mtime.toISOString(),
+          age_hours: Math.round(ageHours * 10) / 10,
+          is_stale: isStale,
+          warning: isStale 
+            ? `⚠️ 日志文件已 ${Math.round(ageHours)} 小时未更新，可能配置错误或服务未运行` 
+            : null,
+        }
+      };
     } catch (e: any) {
       return { error: e.message };
     }
