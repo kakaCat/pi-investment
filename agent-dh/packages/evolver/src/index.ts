@@ -536,6 +536,11 @@ export default class EvolverPlugin extends Service {
               description: 'RFC 008 验证门裁决结果（转正/回滚/延期/观察中）',
               items: { type: 'object', additionalProperties: true },
             },
+            rule_gate_result: {
+              type: 'object',
+              description: 'P3 规则级验证门结果（淘汰/强化提案）',
+              additionalProperties: true,
+            },
             summary: { type: 'string' },
           },
           additionalProperties: false,
@@ -553,6 +558,15 @@ export default class EvolverPlugin extends Service {
 
         // Step 0（RFC 008）：先裁决到期的观察期候选（转正/回滚/延期）
         const adjudication = await this.judgeCandidates(false);
+
+        // Step 0.5（P3，2026-08-28）：规则级验证门——读 rule_scoreboard 按规则表现生成淘汰/强化提案
+        let ruleGateResult: any = null;
+        try {
+          ruleGateResult = await this.callTool('rule_gate', { dry_run: true, min_samples: 3 });
+        } catch (e: any) {
+          // rule_gate 失败不阻塞主流程（经验蒸馏仍可继续）
+          console.warn('[daily_distill] rule_gate failed:', e.message);
+        }
 
         // Step 1: experience_distill
         const distillResult = await this.callTool('experience_distill', { days });
@@ -583,6 +597,7 @@ export default class EvolverPlugin extends Service {
           distill_result: distillResult,
           evolver_result: evolverResult,
           adjudication,
+          rule_gate_result: ruleGateResult,
           summary,
         } as any;
       },

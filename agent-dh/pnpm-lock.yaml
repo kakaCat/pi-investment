@@ -139,6 +139,15 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
+  packages/core-tool:
+    devDependencies:
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@20.19.43)
+
   packages/data-manager:
     dependencies:
       '@deepseek-ai/cordis':
@@ -570,6 +579,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
         version: 3.18.1
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../core-tool
       '@pi-investment/os-memory':
         specifier: workspace:*
         version: link:../os-memory
