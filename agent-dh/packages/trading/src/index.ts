@@ -509,7 +509,7 @@ export default class TradingPlugin extends Service {
           const dirSign = String(args.action).toUpperCase() === 'SELL' ? -1 : 1;
           const slipPct = +(((fillPrice - decisionPrice) / decisionPrice * 100) * dirSign).toFixed(3);
           try {
-            await qv2.createMemory({
+            await this.osMemory.createMemory({
               kind: 'episode',
               scope: 'trade:slippage',
               title: `slippage ${args.symbol} ${args.action} ${slipPct}%`,
@@ -715,7 +715,7 @@ export default class TradingPlugin extends Service {
       },
       timeoutMs: 15000,
       execute: async (args: any) => {
-        const res = await qv2.searchMemory({ q: args.symbol ? `slippage ${args.symbol}` : 'slippage', scope: 'trade:slippage', limit: 100 });
+        const res = await this.osMemory.searchMemory({ q: args.symbol ? `slippage ${args.symbol}` : 'slippage', scope: 'trade:slippage', limit: 100 });
         const items = (res?.items || []).filter((it: any) => it.status !== 'deprecated' && typeof it.payload?.slippage_pct === 'number');
         const records = items.map((it: any) => it.payload);
         const slips = records.map((r: any) => r.slippage_pct);

@@ -134,4 +134,39 @@ export class OsMemoryStore {
 
     return { items, total: items.length, degraded: false, strategy: 'os-text' };
   }
+
+  /**
+   * 兼容方法：search({query, namespace, top_k}) → memories[]
+   * 为 trading 等插件历史调用提供向后兼容（2026-08-28 修复）
+   */
+  async search(params: { query: string; namespace?: string; top_k?: number }): Promise<{ memories: any[] }> {
+    const kind = params.namespace === 'experience' ? 'experience' : undefined;
+    const result = await this.searchMemory({
+      q: params.query,
+      kind,
+      limit: params.top_k ?? 20,
+    });
+    // 返回 .memories 而非 .items，匹配调用方期望
+    return { memories: result.items };
+  }
+
+  /**
+   * 兼容方法：write({title, content, namespace, tags}) → id
+   * 为 trading 等插件历史调用提供向后兼容（2026-08-28 修复）
+   */
+  async write(params: { title: string; content: string; namespace?: string; tags?: string[] }): Promise<{ id: string }> {
+    const namespace = params.namespace || 'default';
+    const kind = namespace === 'experience' ? 'experience' : 'episode';
+    return this.createMemory({
+      kind,
+      scope: namespace, // 用 namespace 作 scope，利于过滤检索
+      title: params.title,
+      content: params.content,
+      payload: { namespace, tags: params.tags || [] },
+      status: 'testing',
+      confidence: 0.5,
+      source: 'agent',
+      provenance: { channel: 'dsh', session_kind: 'agent' },
+    });
+  }
 }
