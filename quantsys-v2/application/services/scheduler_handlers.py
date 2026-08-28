@@ -565,6 +565,162 @@ async def handle_model_train(metadata: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+# ==================== Trading Verification ====================
+
+
+@register_job_handler("trade_verify_daily")
+async def handle_trade_verify_daily(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """每日交易对账（M5-2，RFC 005）
+    
+    Schedule: 工作日 15:35（盘后）
+    
+    对账逻辑：
+        复用 agent-dh trading 插件的 localTradeVerify 检查项：
+        1. 重复成交检测（同标的+方向+价+量+分钟）
+        2. 关键字段完整性（symbol/action/price/quantity 非空且合法）
+        3. 持仓勾稽（Σ买入 - Σ卖出 = 当前持仓，逐标的）
+    
+    Architecture:
+        后端实现简化版对账（不依赖 DSH API），检查成交记录的自洽性。
+        注意：不检查"订单-成交"匹配，因为 simulation_order 表无 get 方法。
+    
+    Background:
+        2026-08-28: 初始实现，基于 SimulationRepository 的 get_trades_by_account
+        和 get_all_positions 方法。
+    """
+    logger.info("Starting trade_verify_daily job")
+    
+    from datetime import date, datetime
+    from collections import Counter
+    from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+    
+    account_name = metadata.get("account_name", "agent_virtual")
+    date_str = metadata.get("date")  # None = 当日
+    target_date = date.fromisoformat(date_str) if date_str else date.today()
+    
+    repo = SimulationORMRepository()
+    anomalies = []
+    
+    try:
+        # 1. 拉取成交记录（全量，用于持仓勾稽）
+        all_trades = repo.get_trades_by_account(account_name)
+        day_trades = [t for t in all_trades if t.trade_date == target_date]
+        
+        logger.info(f"Trade verification for {account_name} on {target_date}: {len(day_trades)} trades")
+        
+        # 2. 重复成交检测（同标的+方向+价+量+分钟）
+        seen = {}
+        for trade in day_trades:
+            # 生成唯一键：symbol + action + price + shares + trade_time (精确到分钟)
+            trade_time_str = trade.trade_time.strftime('%Y-%m-%d %H:%M') if trade.trade_time else ''
+            key = f"{trade.symbol}|{trade.action}|{trade.price}|{trade.shares}|{trade_time_str}"
+            
+            if key in seen:
+                seen[key] += 1
+                anomalies.append({
+                    "type": "duplicate_trade",
+                    "detail": f"疑似重复成交: {trade.symbol} {trade.action} {trade.shares}股@{trade.price}（第{seen[key]}次）",
+                    "trade_id": trade.id,
+                    "symbol": trade.symbol
+                })
+            else:
+                seen[key] = 1
+        
+        # 3. 关键字段完整性检测
+        for trade in day_trades:
+            missing = []
+            if not trade.symbol:
+                missing.append('symbol')
+            if not trade.action:
+                missing.append('action')
+            if not trade.price or float(trade.price) <= 0:
+                missing.append('price')
+            if not trade.shares or trade.shares <= 0:
+                missing.append('shares')
+            
+            if missing:
+                anomalies.append({
+                    "type": "missing_fields",
+                    "detail": f"成交记录缺字段或非法值 {'/'.join(missing)}: trade_id={trade.id}",
+                    "trade_id": trade.id,
+                    "symbol": trade.symbol or 'unknown'
+                })
+        
+        # 4. 持仓勾稽（Σ买入 - Σ卖出 = 当前持仓，逐标的）
+        positions = repo.get_all_positions(account_name)
+        pos_map = {p.symbol: p.shares_total for p in positions}
+        
+        # 计算成交净额（买入为正，卖出为负）
+        net_map = {}
+        has_buy = set()  # 记录有买入记录的标的
+        
+        for trade in all_trades:
+            symbol = trade.symbol
+            shares = trade.shares
+            
+            if trade.action.upper() == 'BUY':
+                net_map[symbol] = net_map.get(symbol, 0) + shares
+                has_buy.add(symbol)
+            elif trade.action.upper() == 'SELL':
+                net_map[symbol] = net_map.get(symbol, 0) - shares
+        
+        # 持仓勾稽检查
+        for symbol, net_shares in net_map.items():
+            held = pos_map.get(symbol, 0)
+            
+            # 只有当前有持仓且与成交净额不符，且差异 >= 100 股时才算异常
+            if held > 0 and held != net_shares and abs(held - net_shares) >= 100:
+                # 如果该标的没有买入记录，说明是迁移持仓（历史数据缺失），不算异常
+                if symbol not in has_buy:
+                    logger.info(f"Skipping position mismatch for {symbol}: migration position (no buy history)")
+                else:
+                    anomalies.append({
+                        "type": "position_mismatch",
+                        "detail": f"持仓勾稽不符 {symbol}: 账面 {held} vs 成交净额 {net_shares}",
+                        "symbol": symbol,
+                        "held": held,
+                        "net_trades": net_shares
+                    })
+        
+        # 生成结果
+        matched = len(day_trades) - len([a for a in anomalies if a.get("trade_id") in [t.id for t in day_trades]])
+        
+        result = {
+            "success": True,
+            "date": target_date.isoformat(),
+            "total_orders": len(day_trades),
+            "matched": matched,
+            "mismatched": len(anomalies),
+            "anomalies": anomalies
+        }
+        
+        # 记录结果
+        if anomalies:
+            logger.warning(
+                f"Trade verification found {len(anomalies)} anomalies",
+                extra={
+                    "date": target_date.isoformat(),
+                    "anomalies": anomalies[:5]  # 只记录前5个
+                }
+            )
+        else:
+            logger.info(f"Trade verification passed: {len(day_trades)} trades clean")
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Trade verification failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e),
+            "date": target_date.isoformat(),
+            "total_orders": 0,
+            "matched": 0,
+            "mismatched": 0,
+            "anomalies": []
+        }
+
+
 # ==================== Summary ====================
 
 logger.info(f"Registered {len(JOB_HANDLERS)} job handlers")
