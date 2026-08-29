@@ -310,14 +310,18 @@ export interface ParameterDefinition {
   type: 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array';
   /** 参数描述 */
   description: string;
-  /** 是否必填 */
-  required: boolean;
+  /** 是否必填（只能是 true 或不填，dsh 不支持 false） */
+  required?: true;
   /** 默认值 */
   default?: any;
   /** 枚举值 */
   enum?: any[];
   /** 示例 */
   example?: any;
+  /** 数组元素类型（仅当 type 为 'array' 时使用） */
+  items?: {
+    type: 'string' | 'number' | 'integer' | 'boolean' | 'object';
+  };
 }
 
 /**

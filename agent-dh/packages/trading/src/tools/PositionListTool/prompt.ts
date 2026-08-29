@@ -54,7 +54,6 @@ export const positionListPrompt: ToolPrompt<PositionListParams, PositionListResu
     account_name: {
       type: 'string',
       description: '账户名称，默认 agent_virtual。除非配置了多账户，否则无需传入',
-      required: false,
       default: 'agent_virtual',
       example: 'agent_virtual',
     },
@@ -76,6 +75,7 @@ export const positionListPrompt: ToolPrompt<PositionListParams, PositionListResu
           pnl: { type: 'number', description: '盈亏（元）' },
           pnl_pct: { type: 'number', description: '盈亏比例（%）' },
         },
+        additionalProperties: false,
       },
     },
     render: (args: PositionListParams, data: PositionListResult) => {

@@ -72,7 +72,6 @@ export const slippageReportPrompt: ToolPrompt<SlippageReportParams, SlippageRepo
     symbol: {
       type: 'string',
       description: '可选：只看某只标的',
-      required: false,
     },
   },
 

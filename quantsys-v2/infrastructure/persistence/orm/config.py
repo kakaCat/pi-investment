@@ -128,7 +128,16 @@ def get_session() -> Session:
         logger.warning("ORM not initialized, auto-initializing...")
         init_orm()
 
-    return _SessionFactory()
+    session = _SessionFactory()
+
+    # 如果启用了 Session Guard，记录创建
+    try:
+        from infrastructure.persistence.orm.session_guard import track_session_creation
+        track_session_creation(session)
+    except ImportError:
+        pass
+
+    return session
 
 
 def close_session():
@@ -145,6 +154,14 @@ def close_session():
     - 清理Session状态
     """
     if _SessionFactory:
+        # 如果启用了 Session Guard，记录关闭
+        try:
+            session = _SessionFactory()
+            from infrastructure.persistence.orm.session_guard import track_session_close
+            track_session_close(session)
+        except ImportError:
+            pass
+
         _SessionFactory.remove()
 
 

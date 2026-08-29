@@ -124,7 +124,7 @@ export abstract class BaseTool<TParams = any, TResult = any> {
       parameters: this.convertParameters(this.prompt.parameters),
       output: this.prompt.output,
       timeoutMs: this.metadata.timeoutMs || 10000,
-      execute: async (args: TParams) => {
+      execute: async (args: TParams, _exec?: any) => {
         const response = await this.call(args);
 
         if (!response.success) {
@@ -133,7 +133,7 @@ export abstract class BaseTool<TParams = any, TResult = any> {
 
         return response.data;
       },
-    };
+    } as any;
   }
 
   /**
@@ -142,13 +142,25 @@ export abstract class BaseTool<TParams = any, TResult = any> {
   private convertParameters(params: Record<string, any>): any {
     const result: any = {};
     for (const [key, def] of Object.entries(params)) {
-      result[key] = {
+      const converted: any = {
         type: def.type,
         description: def.description,
-        required: def.required,
-        default: def.default,
-        enum: def.enum,
       };
+
+      // 只在 required 为 true 时才包含（dsh 不支持 required: false 或 undefined）
+      if (def.required === true) {
+        converted.required = true;
+      }
+
+      // 只包含有值的可选字段
+      if (def.default !== undefined) {
+        converted.default = def.default;
+      }
+      if (def.enum !== undefined) {
+        converted.enum = def.enum;
+      }
+
+      result[key] = converted;
     }
     return result;
   }

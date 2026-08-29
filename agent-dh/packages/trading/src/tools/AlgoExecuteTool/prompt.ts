@@ -108,20 +108,17 @@ export const algoExecutePrompt: ToolPrompt<AlgoExecuteParams, AlgoExecuteResult>
     algo: {
       type: 'string',
       description: '算法类型：TWAP=时间均匀分布（默认），VWAP=成交量加权',
-      required: false,
       enum: ['TWAP', 'VWAP'],
       default: 'TWAP',
     },
     duration: {
       type: 'integer',
       description: '执行时长（分钟），默认 30 分钟。时长越长，冲击越小，但执行风险越大',
-      required: false,
       default: 30,
     },
     account_name: {
       type: 'string',
       description: '账户名称，默认 agent_virtual',
-      required: false,
       default: 'agent_virtual',
     },
   },

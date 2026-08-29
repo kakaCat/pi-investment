@@ -693,6 +693,10 @@ export class QuantsysV2Client {
    */
   async manageWatchRule(params: WatchRuleManageRequest): Promise<any> {
     const { action, rule_id, condition, ...rest } = params;
+    if (action === 'list') {
+      // List all rules (calls listWatchRules internally)
+      return await this.listWatchRules();
+    }
     if (action === 'create') {
       // Transform condition string to conditions array (backend contract)
       // e.g. "price>100" -> [{type: "price_threshold", params: {operator: ">", value: 100}}]

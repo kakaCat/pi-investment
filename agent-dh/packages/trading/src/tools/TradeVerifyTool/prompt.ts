@@ -77,13 +77,11 @@ export const tradeVerifyPrompt: ToolPrompt<TradeVerifyParams, TradeVerifyResult>
     account_name: {
       type: 'string',
       description: '账户名称，默认 agent_virtual',
-      required: false,
       default: 'agent_virtual',
     },
     date: {
       type: 'string',
       description: '对账日期，格式 YYYY-MM-DD。不传则对账当日',
-      required: false,
     },
   },
 

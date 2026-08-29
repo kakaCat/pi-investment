@@ -77,13 +77,11 @@ export const tradeMonitorPrompt: ToolPrompt<TradeMonitorParams, TradeMonitorResu
     account_name: {
       type: 'string',
       description: '账户名称，默认 agent_virtual',
-      required: false,
       default: 'agent_virtual',
     },
     order_id: {
       type: 'string',
       description: '订单ID。传入则只查该订单；不传则返回近期全部订单',
-      required: false,
     },
   },
 

@@ -23,9 +23,9 @@ class DatabaseSettings(BaseSettings):
     pgpassword: str = Field(default="", alias="PGPASSWORD")
     pgdatabase: str = Field(default="quant_investment", alias="PGDATABASE")
 
-    # 连接池
+    # 连接池 (2026-08-28 扩容: pool_size 20->20 保持, max_overflow 20->30)
     pool_size: int = Field(default=20, alias="DB_POOL_SIZE")
-    max_overflow: int = Field(default=20, alias="DB_MAX_OVERFLOW")
+    max_overflow: int = Field(default=30, alias="DB_MAX_OVERFLOW")
     pool_recycle: int = Field(default=3600, alias="DB_POOL_RECYCLE")
     pool_pre_ping: bool = Field(default=True, alias="DB_POOL_PRE_PING")
 

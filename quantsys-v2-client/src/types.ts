@@ -537,6 +537,12 @@ export interface SignalGenerateRequest {
  * Opportunity scan request
  */
 export interface OpportunityScanRequest {
+  // New fields for Strategy Package tools
+  scan_type?: 'technical' | 'fundamental' | 'hybrid';
+  pool_id?: number;
+  symbols?: string[];
+  min_score?: number;
+  // Legacy fields (keep for backward compatibility)
   conditions?: string[];
   limit?: number;
 }
@@ -557,6 +563,10 @@ export interface Opportunity {
  * Stock screening request
  */
 export interface ScreenRequest {
+  // New fields for Strategy Package tools
+  criteria?: Record<string, any>;
+  sort_by?: string;
+  // Legacy fields (keep for backward compatibility)
   filters?: Record<string, any>;
   limit?: number;
 }
@@ -573,6 +583,11 @@ export interface ScreenResponse {
  * Rotation proposal request
  */
 export interface RotationProposalRequest {
+  // New fields for Strategy Package tools
+  account_name?: string;
+  mode?: 'conservative' | 'balanced' | 'aggressive';
+  max_positions?: number;
+  // Legacy fields (keep for backward compatibility)
   portfolio_id?: string;
 }
 
@@ -592,7 +607,16 @@ export interface RotationProposal {
  * Rotation simulate request
  */
 export interface RotationSimulateRequest {
-  proposal_id: string;
+  // New fields for Strategy Package tools
+  proposals?: Array<{
+    action: 'buy' | 'sell';
+    symbol: string;
+    weight?: number;
+  }>;
+  account_name?: string;
+  check_constraints?: boolean;
+  // Legacy fields (keep for backward compatibility)
+  proposal_id?: string;
 }
 
 /**
@@ -611,7 +635,15 @@ export interface RotationSimulateResponse {
  * Rotation execute request
  */
 export interface RotationExecuteRequest {
-  proposal_id: string;
+  // New fields for Strategy Package tools
+  proposals?: Array<{
+    action: 'buy' | 'sell';
+    symbol: string;
+    weight?: number;
+  }>;
+  account_name?: string;
+  // Legacy fields (keep for backward compatibility)
+  proposal_id?: string;
   dry_run?: boolean;
 }
 

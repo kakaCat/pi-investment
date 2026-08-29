@@ -63,7 +63,6 @@ export const circuitBreakerPrompt: ToolPrompt<CircuitBreakerCheckParams, Circuit
     account_name: {
       type: 'string',
       description: '账户名称，默认 agent_virtual',
-      required: false,
       default: 'agent_virtual',
       example: 'agent_virtual',
     },
@@ -78,7 +77,13 @@ export const circuitBreakerPrompt: ToolPrompt<CircuitBreakerCheckParams, Circuit
         triggered: { type: 'boolean', description: '本次是否触发熔断' },
         unblocked: { type: 'boolean', description: '本次是否解除熔断' },
         actions: { type: 'array', items: { type: 'string' }, description: '执行的动作列表' },
-        circuit_breaker_status: { type: 'object', description: '当前熔断状态', nullable: true },
+        circuit_breaker_status: {
+          oneOf: [
+            { type: 'object', additionalProperties: true, description: '熔断状态对象' },
+            { type: 'null', description: '无熔断状态' }
+          ],
+          description: '当前熔断状态'
+        },
         error: { type: 'string', description: 'API 错误（降级模式）' },
       },
       additionalProperties: true,

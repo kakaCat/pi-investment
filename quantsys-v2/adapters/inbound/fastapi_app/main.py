@@ -20,6 +20,9 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 import time
 
+# Session 清理中间件
+from adapters.inbound.fastapi_app.middleware.session_cleanup import SessionCleanupMiddleware
+
 # 加载环境变量
 from dotenv import load_dotenv
 env_path = Path(__file__).resolve().parent.parent.parent.parent / '.env'
@@ -79,6 +82,15 @@ async def lifespan(app: FastAPI):
         from infrastructure.persistence.orm import init_orm
         init_orm()
         logger.info("✅ ORM initialized successfully")
+
+        # 启用 Session 泄漏检测（开发/测试环境）
+        if settings.environment != 'production':
+            try:
+                from infrastructure.persistence.orm.session_guard import enable_session_guard
+                enable_session_guard(timeout=300)  # 5 分钟超时
+                logger.info("✅ Session guard enabled (timeout=300s)")
+            except Exception as e:
+                logger.warning(f"⚠️ Session guard failed: {e}")
     except Exception as e:
         logger.warning(f"⚠️ ORM initialization skipped: {e}")
 
@@ -236,6 +248,9 @@ app = FastAPI(
 
 
 # ==================== 中间件配置 ====================
+
+# Session 清理中间件（必须最先注册，确保最后执行）
+app.add_middleware(SessionCleanupMiddleware)
 
 # CORS 中间件
 app.add_middleware(

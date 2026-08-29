@@ -93,19 +93,16 @@ export const portfolioTradePrompt: ToolPrompt<PortfolioTradeParams, PortfolioTra
     price: {
       type: 'number',
       description: '委托价格（元）。不传则按市价成交',
-      required: false,
       example: 1850.0,
     },
     reason: {
       type: 'string',
       description: '决策依据（强烈建议填写）：引用规则ID + 理由',
-      required: false,
       example: 'R-001 买入前确认：资金充足、仓位合规',
     },
     account_name: {
       type: 'string',
       description: '账户名称，默认 agent_virtual',
-      required: false,
       default: 'agent_virtual',
       example: 'agent_virtual',
     },

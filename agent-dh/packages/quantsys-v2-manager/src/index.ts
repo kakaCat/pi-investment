@@ -1,9 +1,23 @@
 import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
-import { defineTool } from '@deepseek-ai/dsh-tools';
-import { execSync, spawn } from 'child_process';
-import { readFileSync, existsSync, statSync } from 'fs';
+import { createQuantsysV2StatusTool } from './tools/QuantsysV2StatusTool';
+import { createQuantsysV2RestartTool } from './tools/QuantsysV2RestartTool';
+import { createQuantsysV2LogsTool } from './tools/QuantsysV2LogsTool';
 
+export interface Config {
+  projectRoot?: string;
+  port?: number;
+  healthCheckUrl?: string;
+  startupScript?: string;
+  activateScript?: string;
+  logFile?: string;
+}
+
+/**
+ * QuantsysV2Manager Plugin for Agent-DH
+ *
+ * Manage quantsys-v2 backend service: status check, restart, logs.
+ */
 export default class QuantsysV2Manager extends Service {
   static inject = ['tools'];
   static Config = z.object({
@@ -12,347 +26,64 @@ export default class QuantsysV2Manager extends Service {
     healthCheckUrl: z.string().default('http://localhost:5001/api/health'),
     startupScript: z.string().default('adapters/inbound/fastapi_app/main.py'),
     activateScript: z.string().default('activate-py313.sh'),
-    logFile: z.string().default('logs/launchd-stdout.log'),  // 修正：指向活跃日志
+    logFile: z.string().default('logs/launchd-stdout.log'),
   }).default({} as any);
 
   private config: any;
-  
-  // 频率限制状态（防循环）
-  private toolCallCounts: Map<string, Array<number>> = new Map();
-  private readonly RATE_LIMIT = {
-    maxCalls: 3,        // 最多调用次数
-    windowMs: 60000,    // 时间窗口（1分钟）
-  };
 
   constructor(ctx: Context, config: any) {
     super(ctx, 'quantsys-v2-manager');
-    this.config = { ...QuantsysV2Manager.Config.default(), ...config };
+    this.config = { ...QuantsysV2Manager.Config.default({} as any), ...config };
     this.registerTools();
   }
 
-  // 检查频率限制
-  private checkRateLimit(toolName: string): { allowed: boolean; message?: string } {
-    const now = Date.now();
-    const calls = this.toolCallCounts.get(toolName) || [];
-    
-    // 清理过期记录
-    const recentCalls = calls.filter(t => now - t < this.RATE_LIMIT.windowMs);
-    
-    if (recentCalls.length >= this.RATE_LIMIT.maxCalls) {
-      const oldestCall = Math.min(...recentCalls);
-      const waitMs = this.RATE_LIMIT.windowMs - (now - oldestCall);
-      return {
-        allowed: false,
-        message: `⚠️ 频率限制：${toolName} 在 ${this.RATE_LIMIT.windowMs / 1000}s 内已调用 ${recentCalls.length} 次（上限 ${this.RATE_LIMIT.maxCalls}）。请等待 ${Math.ceil(waitMs / 1000)}s 或检查是否陷入循环调用。`
-      };
-    }
-    
-    // 记录本次调用
-    recentCalls.push(now);
-    this.toolCallCounts.set(toolName, recentCalls);
-    
-    return { allowed: true };
-  }
-
   private registerTools() {
-    // 1. quantsys_v2_status - 检查服务状态
-    this.ctx.tools.register(defineTool({
-      name: 'quantsys_v2_status',
-      description: '检查 quantsys-v2 后端服务状态：进程/端口/健康检查/最近日志错误。用于：重启前后验证、故障诊断',
-      parameters: {},
-      output: {
-        schema: { 
-          type: 'object', 
-          additionalProperties: true,
-          properties: {
-            running: { type: 'boolean', description: '进程是否运行' },
-            pid: { type: 'number', description: '进程 PID，0 表示服务未运行' },
-            port_listening: { type: 'boolean', description: '端口是否监听' },
-            health_ok: { type: 'boolean', description: '健康检查是否通过' },
-            recent_errors: { type: 'array', items: { type: 'string' }, description: '最近5条错误日志' },
-          }
-        },
-        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
-      },
-      timeoutMs: 15000,
-      execute: async () => {
-        return this.checkStatus() as any;
-      },
-    } as any));
-
-    // 2. quantsys_v2_restart - 智能重启
-    this.ctx.tools.register(defineTool({
-      name: 'quantsys_v2_restart',
-      description: '重启 quantsys-v2 后端服务（智能流程：停止→验证→启动→健康检查→失败诊断）。用于：服务挂死/升级/配置变更后恢复',
-      parameters: {
-        force: { 
-          type: 'boolean', 
-          description: '是否强制杀死（SIGKILL）。false=优雅停止（SIGTERM）然后等待，true=立即SIGKILL',
-        },
-        wait_startup_sec: {
-          type: 'number',
-          description: '启动后等待多少秒进行健康检查（默认30）',
-        },
-      },
-      output: {
-        schema: { type: 'object', additionalProperties: true },
-        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
-      },
-      timeoutMs: 120000,
-      execute: async (args: any) => {
-        return this.restart(args.force ?? false, args.wait_startup_sec ?? 30) as any;
-      },
-    } as any));
-
-    // 3. quantsys_v2_logs - 查看日志（增加频率限制 + 陈旧检测）
-    this.ctx.tools.register(defineTool({
-      name: 'quantsys_v2_logs',
-      description: '查看 quantsys-v2 最近日志（默认最后50行），可按关键词过滤（如 ERROR/exception）。返回结果包含日志行 + 元数据（文件路径、最后更新时间、是否陈旧）。',
-      parameters: {
-        lines: { type: 'number', description: '显示最后N行（默认50）' },
-        grep: { type: 'string', description: '过滤关键词（如 ERROR），不传则显示全部' },
-      },
-      output: {
-        schema: { 
-          type: 'object',
-          properties: {
-            lines: { type: 'array', items: { type: 'string' }, description: '日志行' },
-            total: { type: 'number', description: '返回行数' },
-            _metadata: {
-              type: 'object',
-              properties: {
-                log_file: { type: 'string', description: '日志文件路径' },
-                last_modified: { type: 'string', description: '文件最后修改时间（ISO 8601）' },
-                age_hours: { type: 'number', description: '文件年龄（小时）' },
-                is_stale: { type: 'boolean', description: '是否陈旧（超过24小时）' },
-                warning: { oneOf: [{ type: 'string' }, { type: 'null' }], description: '警告信息（如配置错误），正常时为 null' },
-              },
-              additionalProperties: true,
-            },
-            error: { oneOf: [{ type: 'string' }, { type: 'null' }], description: '错误信息（如文件不存在）' },
-            rate_limited: { oneOf: [{ type: 'boolean' }, { type: 'null' }], description: '是否被频率限制' },
-          },
-          additionalProperties: true,
-        },
-        render: (_args: any, value: any) => [{
-          type: 'text',
-          text: JSON.stringify(value, null, 2),
-        }],
-      },
-      timeoutMs: 10000,
-      execute: async (args: any) => {
-        // 频率限制检查（防循环）
-        const rateCheck = this.checkRateLimit('quantsys_v2_logs');
-        if (!rateCheck.allowed) {
-          return { error: rateCheck.message, rate_limited: true } as any;
-        }
-        
-        return this.getLogs(args.lines ?? 50, args.grep) as any;
-      },
-    } as any));
-  }
-
-  private checkStatus() {
-    const { port, healthCheckUrl, projectRoot, logFile } = this.config;
-    
-    // 检查进程
-    let pid: number | null = null;
-    let portListening = false;
-    try {
-      const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
-      if (pidStr) {
-        pid = parseInt(pidStr);
-        portListening = true;
-      }
-    } catch {}
-
-    // 健康检查
-    let healthOk = false;
-    let healthError = null;
-    if (portListening) {
-      try {
-        execSync(`curl -sf --max-time 5 "${healthCheckUrl}" > /dev/null`, { timeout: 6000 });
-        healthOk = true;
-      } catch (e: any) {
-        healthError = e.message;
-      }
-    }
-
-    // 读取最近错误
-    const recentErrors: string[] = [];
-    const logPath = `${projectRoot}/${logFile}`;
-    if (existsSync(logPath)) {
-      try {
-        const logs = readFileSync(logPath, 'utf-8').split('\n').slice(-100);
-        const errors = logs.filter(l => l.includes('ERROR') || l.includes('Exception') || l.includes('error'));
-        recentErrors.push(...errors.slice(-5));
-      } catch {}
-    }
-
-    return {
-      running: !!pid,
-      pid: pid ?? 0,
-      port,
-      port_listening: portListening,
-      health_ok: healthOk,
-      health_error: healthError,
-      recent_errors: recentErrors,
-      timestamp: new Date().toISOString(),
+    const { ctx } = this;
+    const config = {
+      projectRoot: this.config.projectRoot,
+      port: this.config.port,
+      healthCheckUrl: this.config.healthCheckUrl,
+      startupScript: this.config.startupScript,
+      activateScript: this.config.activateScript,
+      logFile: this.config.logFile,
     };
-  }
 
-  private restart(force: boolean, waitSec: number) {
-    const { port, projectRoot, startupScript, activateScript, healthCheckUrl } = this.config;
-    const steps: any[] = [];
+    // 注册 quantsys-v2 状态检查工具
+    ctx.tools.register(createQuantsysV2StatusTool(config));
 
-    try {
-      // Step 1: 停止旧进程
-      steps.push({ step: 'stop', status: 'started' });
-      let oldPid: number | null = null;
-      try {
-        const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
-        if (pidStr) {
-          oldPid = parseInt(pidStr);
-          if (force) {
-            execSync(`kill -9 ${oldPid}`, { timeout: 3000 });
-            steps.push({ step: 'stop', status: 'killed', pid: oldPid, signal: 'SIGKILL' });
-          } else {
-            execSync(`kill ${oldPid}`, { timeout: 3000 });
-            // 等待优雅退出
-            for (let i = 0; i < 10; i++) {
-              execSync('sleep 1');
-              try {
-                execSync(`lsof -ti:${port} -sTCP:LISTEN`, { timeout: 2000 });
-              } catch {
-                steps.push({ step: 'stop', status: 'graceful_exit', pid: oldPid, waited_sec: i + 1 });
-                break;
-              }
-              if (i === 9) {
-                execSync(`kill -9 ${oldPid}`, { timeout: 2000 });
-                steps.push({ step: 'stop', status: 'force_killed_after_timeout', pid: oldPid });
-              }
-            }
-          }
-        } else {
-          steps.push({ step: 'stop', status: 'no_process' });
-        }
-      } catch (e: any) {
-        steps.push({ step: 'stop', status: 'error', error: e.message });
-      }
+    // 注册 quantsys-v2 重启工具
+    ctx.tools.register(createQuantsysV2RestartTool(config));
 
-      // Step 2: 验证端口释放
-      execSync('sleep 2');
-      try {
-        execSync(`lsof -ti:${port} -sTCP:LISTEN`, { timeout: 2000 });
-        return { success: false, steps, error: `Port ${port} still occupied after stop` };
-      } catch {
-        steps.push({ step: 'verify_port', status: 'free' });
-      }
-
-      // Step 3: 启动新进程（后台）
-      steps.push({ step: 'start', status: 'launching' });
-      const startCmd = `cd ${projectRoot} && source ${activateScript} && python ${startupScript}`;
-      const child = spawn('bash', ['-c', startCmd], {
-        detached: true,
-        stdio: 'ignore',
-      });
-      child.unref();
-      steps.push({ step: 'start', status: 'spawned', pid: child.pid });
-
-      // Step 4: 等待启动
-      steps.push({ step: 'wait', status: 'started', wait_sec: waitSec });
-      for (let i = 0; i < waitSec; i++) {
-        execSync('sleep 1');
-        try {
-          execSync(`curl -sf --max-time 2 "${healthCheckUrl}" > /dev/null`, { timeout: 3000 });
-          steps.push({ step: 'health_check', status: 'ready', after_sec: i + 1 });
-          const newStatus = this.checkStatus();
-          return { success: true, steps, final_status: newStatus };
-        } catch {}
-      }
-
-      // Step 5: 启动超时，诊断
-      steps.push({ step: 'health_check', status: 'timeout' });
-      const diagnosis = this.diagnose();
-      return { success: false, steps, diagnosis };
-
-    } catch (e: any) {
-      steps.push({ step: 'fatal_error', error: e.message });
-      return { success: false, steps, error: e.message };
-    }
-  }
-
-  private diagnose() {
-    const { port, projectRoot, logFile } = this.config;
-    const issues: string[] = [];
-
-    // 检查端口
-    try {
-      const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 3000 }).trim();
-      if (!pidStr) {
-        issues.push(`Port ${port} not listening - process failed to bind`);
-      }
-    } catch {
-      issues.push(`Port ${port} not listening`);
-    }
-
-    // 检查 PostgreSQL
-    try {
-      execSync('pg_isready', { timeout: 3000 });
-    } catch {
-      issues.push('PostgreSQL not ready');
-    }
-
-    // 读最近错误
-    const logPath = `${projectRoot}/${logFile}`;
-    if (existsSync(logPath)) {
-      const logs = readFileSync(logPath, 'utf-8').split('\n').slice(-50);
-      const errors = logs.filter(l => l.includes('ERROR') || l.includes('Exception'));
-      if (errors.length > 0) {
-        issues.push(`Recent errors in log: ${errors.slice(-3).join(' | ')}`);
-      }
-    }
-
-    return { issues, recommendation: issues.length > 0 ? 'Check logs with quantsys_v2_logs, verify PG/port' : 'Unknown issue' };
-  }
-
-  private getLogs(lines: number, grep?: string) {
-    const { projectRoot, logFile } = this.config;
-    const logPath = `${projectRoot}/${logFile}`;
-    
-    if (!existsSync(logPath)) {
-      return { error: `Log file not found: ${logPath}` };
-    }
-
-    try {
-      // 检查文件最后修改时间（陈旧检测）
-      const stats = statSync(logPath);
-      const ageMs = Date.now() - stats.mtimeMs;
-      const ageHours = ageMs / (1000 * 60 * 60);
-      const isStale = ageHours > 24; // 超过24小时算陈旧
-
-      let cmd = `tail -${lines} "${logPath}"`;
-      if (grep) {
-        cmd += ` | grep -i "${grep}"`;
-      }
-      const output = execSync(cmd, { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
-      const logLines = output.split('\n').filter(l => l.trim()); // 过滤空行
-      
-      return {
-        lines: logLines,
-        total: logLines.length,
-        _metadata: {
-          log_file: logPath,
-          last_modified: stats.mtime.toISOString(),
-          age_hours: Math.round(ageHours * 10) / 10,
-          is_stale: isStale,
-          warning: isStale 
-            ? `⚠️ 日志文件已 ${Math.round(ageHours)} 小时未更新，可能配置错误或服务未运行` 
-            : null,
-        }
-      };
-    } catch (e: any) {
-      return { error: e.message };
-    }
+    // 注册 quantsys-v2 日志查询工具
+    ctx.tools.register(createQuantsysV2LogsTool({
+      projectRoot: config.projectRoot,
+      logFile: config.logFile,
+    }));
   }
 }
+
+// Re-export tools for testing
+export {
+  QuantsysV2StatusTool,
+  createQuantsysV2StatusTool,
+} from './tools/QuantsysV2StatusTool';
+export {
+  QuantsysV2RestartTool,
+  createQuantsysV2RestartTool,
+} from './tools/QuantsysV2RestartTool';
+export {
+  QuantsysV2LogsTool,
+  createQuantsysV2LogsTool,
+} from './tools/QuantsysV2LogsTool';
+export type {
+  QuantsysV2StatusParams,
+  QuantsysV2StatusResult,
+} from './tools/QuantsysV2StatusTool';
+export type {
+  QuantsysV2RestartParams,
+  QuantsysV2RestartResult,
+} from './tools/QuantsysV2RestartTool';
+export type {
+  QuantsysV2LogsParams,
+  QuantsysV2LogsResult,
+} from './tools/QuantsysV2LogsTool';
