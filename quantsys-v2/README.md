@@ -515,8 +515,8 @@ Get strategy weight adjustment for current market style.
 
 ### Architecture & Coding Standards
 
-- **[📖 Coding Standards](../CODING_STANDARDS.md)** - Complete hexagonal architecture guide
-- **[⚡ Architecture Quick Reference](docs/ARCHITECTURE_QUICK_REFERENCE.md)** - Fast lookup for daily development
+- **[📖 Coding Standards](../docs/coding-standards.md)** - Complete hexagonal architecture guide
+- **[⚡ Architecture Quick Reference](../docs/ARCHITECTURE_QUICK_REFERENCE.md)** - Fast lookup for daily development
 - **[🔧 Framework Constraints](docs/FRAMEWORK_CONSTRAINTS.md)** - ORM, Session, Repository patterns
 - **[⚡ Framework Quick Reference](docs/FRAMEWORK_CONSTRAINTS_QUICK_REF.md)** - Common bugs and fixes
 - [Developer Onboarding](docs/DEVELOPER_ONBOARDING.md) - 5-minute quickstart for new developers
