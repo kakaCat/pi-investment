@@ -106,11 +106,11 @@ export const riskControllerPrompt: ToolPrompt<RiskControllerParams, RiskControll
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         command: { type: 'string', description: '执行的操作' },
         symbol: { type: 'string', description: '股票代码' },
-        result: { type: 'object', description: '计算结果', additionalProperties: true },
+        result: { type: 'object', additionalProperties: true, description: '计算结果', additionalProperties: true },
         warning: { type: 'string', description: '风险提示' },
       },
       additionalProperties: true,

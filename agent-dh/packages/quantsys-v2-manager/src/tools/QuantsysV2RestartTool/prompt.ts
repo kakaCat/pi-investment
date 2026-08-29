@@ -69,7 +69,7 @@ export const quantsysV2RestartPrompt: ToolPrompt<QuantsysV2RestartParams, Quants
   },
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         success: { type: 'boolean', description: '是否重启成功' },
         steps: {
@@ -77,9 +77,9 @@ export const quantsysV2RestartPrompt: ToolPrompt<QuantsysV2RestartParams, Quants
           description: '重启步骤',
           items: { type: 'object', additionalProperties: true },
         },
-        final_status: { type: 'object', description: '最终状态', additionalProperties: true },
+        final_status: { type: 'object', additionalProperties: true, description: '最终状态', additionalProperties: true },
         diagnosis: {
-          type: 'object',
+          type: 'object', additionalProperties: true,
           description: '失败诊断',
           properties: {
             issues: { type: 'array', items: { type: 'string' } },

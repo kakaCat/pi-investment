@@ -82,7 +82,7 @@ export const riskMetricsPrompt: ToolPrompt<RiskMetricsParams, RiskMetricsResult>
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         volatility: { type: 'number', description: '年化波动率（%）' },
         max_drawdown: { type: 'number', description: '最大回撤（%）' },

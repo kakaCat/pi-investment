@@ -72,7 +72,7 @@ export const factorAnalyzePrompt: ToolPrompt<FactorAnalyzeParams, FactorAnalyzeR
   },
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         factor_name: { type: 'string', description: '因子名称' },
         ic_mean: { type: 'number', description: 'IC 均值（预测能力）' },

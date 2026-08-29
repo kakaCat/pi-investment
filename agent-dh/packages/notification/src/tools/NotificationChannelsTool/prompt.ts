@@ -51,4 +51,46 @@ export const notificationChannelsPrompt = {
       expectedResult: '返回渠道清单和最近 20 条投递日志',
     },
   ],
+  output: {
+    schema: {
+      type: 'object',
+      properties: {
+        channels: {
+          type: 'array',
+          description: '已配置渠道清单',
+          items: {
+            type: 'object',
+            properties: {
+              code: { type: 'string', description: '渠道代码' },
+              name: { type: 'string', description: '渠道名称（可选）' },
+              enabled: { type: 'boolean', description: '是否启用' },
+              webhook: { type: 'string', description: 'webhook 地址（脱敏，可选）' },
+            },
+            additionalProperties: true,
+          },
+        },
+        recent_logs: {
+          type: 'array',
+          description: '最近投递日志',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: '消息标题（可选）' },
+              status: { type: 'string', description: '状态 pending/sent/failed（可选）' },
+              channel: { type: 'string', description: '投递渠道（可选）' },
+              created_at: { type: 'string', description: '创建时间（可选）' },
+            },
+            additionalProperties: true,
+          },
+        },
+        status_summary: {
+          type: 'object',
+          description: '按状态统计的投递数量',
+          additionalProperties: true,
+        },
+      },
+      additionalProperties: true,
+    },
+    render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+  },
 };

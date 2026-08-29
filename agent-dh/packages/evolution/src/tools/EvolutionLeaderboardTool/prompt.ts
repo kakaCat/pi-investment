@@ -31,6 +31,13 @@ export interface EvolutionLeaderboardResult {
 export const evolutionLeaderboardPrompt: ToolPrompt<EvolutionLeaderboardParams, EvolutionLeaderboardResult> = {
   description: '查询策略进化排行榜：各策略的适应度评分与排名。适用于：比较策略优劣、决定启用/停用哪些策略、跟踪 evolution_run 的进化效果。',
 
+  parameters: {
+    limit: {
+      type: 'number',
+      description: '返回排名数量（可选，默认 10）',
+    },
+  },
+
   useCases: [
     '比较策略优劣，选择最佳策略',
     '决定启用/停用哪些策略',
@@ -63,4 +70,29 @@ export const evolutionLeaderboardPrompt: ToolPrompt<EvolutionLeaderboardParams, 
       explanation: '不传 limit 参数时默认返回前 10 名',
     },
   ],
+
+  output: {
+    schema: {
+      type: 'object',
+      properties: {
+        rankings: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              strategy_id: { type: 'number', description: '策略 ID' },
+              strategy_name: { type: 'string', description: '策略名称' },
+              fitness: { type: 'number', description: '适应度评分' },
+              rank: { type: 'number', description: '排名' },
+            },
+            additionalProperties: true,
+          },
+        },
+        total_strategies: { type: 'number', description: '策略总数' },
+        avg_fitness: { type: 'number', description: '平均适应度' },
+      },
+      additionalProperties: true,
+    },
+    render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+  },
 };

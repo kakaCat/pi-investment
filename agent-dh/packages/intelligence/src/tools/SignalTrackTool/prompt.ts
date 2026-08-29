@@ -18,66 +18,67 @@ export const signalTrackPrompt: ToolPrompt<SignalTrackParams> = {
   description: '信号质量追踪（M3-1）：record 记录买入信号（标的/价格/来源/分级），update 回填 5/10/20 日表现（盘后例程调用），report 统计胜率。用于：评估信号质量、选择优胜策略、验证门裁决。',
 
   parameters: {
-    type: 'object',
-    properties: {
-      action: {
-        type: 'string',
-        enum: ['record', 'update', 'report'],
-        description: 'record=记录信号, update=回填表现, report=统计胜率',
-      },
-      symbol: {
-        type: 'string',
-        description: '股票代码（record 时必填）',
-      },
-      signal_date: {
-        type: 'string',
-        description: '信号日期 YYYY-MM-DD（record 时选填，默认今天）',
-      },
-      price: {
-        type: 'number',
-        description: '买入价格（record 时必填）',
-      },
-      source: {
-        type: 'string',
-        description: '信号来源（record 时必填）：strategy_execute / opportunity_scan / mainline_stocks / watch_rule',
-      },
-      grade: {
-        type: 'string',
-        enum: ['A', 'B', 'C'],
-        description: '信号分级（record 时必填）：A=≥3维共振标准仓, B=2维或轻微矛盾半仓, C=单维只观察（参见 docs/architecture/signal-grading.md）',
-      },
-      reason: {
-        type: 'string',
-        description: '信号理由（record 时选填）',
-      },
-      lookback_days: {
-        type: 'number',
-        description: '回溯天数（update 时选填，默认30）',
-      },
-      start_date: {
-        type: 'string',
-        description: '开始日期（report 时选填）',
-      },
-      end_date: {
-        type: 'string',
-        description: '结束日期（report 时选填）',
-      },
+    action: {
+      type: 'string',
+      enum: ['record', 'update', 'report'],
+      description: 'record=记录信号, update=回填表现, report=统计胜率',
+      required: true,
     },
-    required: ['action'],
+    symbol: {
+      type: 'string',
+      description: '股票代码（record 时必填）',
+    },
+    signal_date: {
+      type: 'string',
+      description: '信号日期 YYYY-MM-DD（record 时选填，默认今天）',
+    },
+    price: {
+      type: 'number',
+      description: '买入价格（record 时必填）',
+    },
+    source: {
+      type: 'string',
+      description: '信号来源（record 时必填）：strategy_execute / opportunity_scan / mainline_stocks / watch_rule',
+    },
+    grade: {
+      type: 'string',
+      enum: ['A', 'B', 'C'],
+      description: '信号分级（record 时必填）：A=≥3维共振标准仓, B=2维或轻微矛盾半仓, C=单维只观察（参见 docs/architecture/signal-grading.md）',
+    },
+    reason: {
+      type: 'string',
+      description: '信号理由（record 时选填）',
+    },
+    lookback_days: {
+      type: 'number',
+      description: '回溯天数（update 时选填，默认30）',
+    },
+    start_date: {
+      type: 'string',
+      description: '开始日期（report 时选填）',
+    },
+    end_date: {
+      type: 'string',
+      description: '结束日期（report 时选填）',
+    },
   },
 
-  returns: {
-    type: 'object',
-    properties: {
-      action: { type: 'string', description: '执行的动作' },
-      result: { type: 'string', description: '结果摘要' },
-      details: {
-        type: 'object',
-        description: '详细数据',
-        additionalProperties: true,
+  output: {
+    schema: {
+      type: 'object', additionalProperties: true,
+      properties: {
+        action: { type: 'string', description: '执行的动作' },
+        result: { type: 'string', description: '结果摘要' },
+        details: {
+          type: 'object', additionalProperties: true,
+          description: '详细数据',
+          additionalProperties: true,
+        },
       },
+      description: '信号追踪结果',
+      additionalProperties: true,
     },
-    description: '信号追踪结果',
+    render: (_args: SignalTrackParams, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
   },
 
   examples: [

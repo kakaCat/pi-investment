@@ -1,5 +1,5 @@
 import { BaseTool, type ToolMetadata, type ValidationResult, type ToolContext, type ToolResponse, ErrorType } from '@pi-investment/core-tool';
-import type { QuantsysV2Client } from '../../../../types';
+import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { dataManagerPrompt, type DataManagerParams, type DataManagerResult } from './prompt';
 
 export class DataManagerTool extends BaseTool<DataManagerParams, DataManagerResult> {

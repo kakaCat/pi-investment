@@ -77,7 +77,7 @@ export const memoryWritePrompt: ToolPrompt<MemoryWriteParams, MemoryWriteResult>
   },
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         success: { type: 'boolean', description: '是否成功' },
         memory_id: { type: 'string', description: '记忆ID' },

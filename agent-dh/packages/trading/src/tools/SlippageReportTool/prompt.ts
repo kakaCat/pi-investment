@@ -77,7 +77,7 @@ export const slippageReportPrompt: ToolPrompt<SlippageReportParams, SlippageRepo
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         total_fills: { type: 'number', description: '总成交笔数' },
         avg_slippage_pct: { type: 'number', description: '平均滑点（%）' },

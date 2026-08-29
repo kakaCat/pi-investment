@@ -61,12 +61,12 @@ export const factorCalculatePrompt: ToolPrompt<FactorCalculateParams, FactorCalc
   },
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         symbol: { type: 'string', description: '股票代码' },
         date: { type: 'string', description: '计算日期' },
-        factors: { type: 'object', description: '因子值', additionalProperties: true },
-        factor_dates: { type: 'object', description: '各因子数据日期', additionalProperties: true },
+        factors: { type: 'object', additionalProperties: true, description: '因子值', additionalProperties: true },
+        factor_dates: { type: 'object', additionalProperties: true, description: '各因子数据日期', additionalProperties: true },
         freshness_warnings: { type: 'array', items: { type: 'string' }, description: '数据陈旧警告' },
         degraded: { type: 'boolean', description: '是否降级模式' },
       },

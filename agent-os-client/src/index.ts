@@ -79,6 +79,10 @@ export type {
   MemoryStats,
 } from './memory/types.js';
 
+// Memory adapter (for backward compatibility with os-memory package)
+export { OsMemoryStore } from './memory/adapter.js';
+export type { OsMemoryEntry, OsMemorySearchResult } from './memory/adapter.js';
+
 // Decision types
 export type {
   Decision,

@@ -500,6 +500,23 @@ export class QuantsysV2Client {
     return this.unwrap<MarketSentiment>(response.data, 'getMarketSentiment');
   }
 
+  /**
+   * Get platform status (for quantsys_v2_status tool)
+   */
+  async getPlatformStatus(): Promise<{
+    status: string;
+    holdings_count: number;
+    balance: any;
+    recent_signals: number;
+    db_connected: boolean;
+    model_loaded: boolean;
+    recent_report: boolean;
+    timestamp: string;
+  }> {
+    const response = await this.client.get('/api/health/platform/status');
+    return response.data.data;
+  }
+
   // ==================== Analysis APIs ====================
 
   /**
@@ -1113,44 +1130,6 @@ export class QuantsysV2Client {
   }): Promise<any> {
     const response = await this.client.get('/api/game/market/manipulation-detect', { params });
     return this.unwrap(response.data, 'detectManipulation');
-  }
-
-  // ==================== Memory APIs ====================
-
-  /**
-   * Search memory entries
-   * Real endpoint: GET /api/memory/search?q=&kind=&scope=&limit=
-   * Response: {items: [...], total, degraded, strategy}
-   * 
-   * @deprecated 已废弃，统一使用 @pi-investment/os-memory 包的 OsMemoryStore
-   */
-  async searchMemory(params: {
-    q?: string;
-    kind?: string;
-    scope?: string;
-    limit?: number;
-  }): Promise<{ items: any[]; total: number; degraded?: boolean; strategy?: string }> {
-    const response = await this.client.get('/api/memory/search', {
-      params: {
-        q: params.q,
-        kind: params.kind,
-        scope: params.scope,
-        limit: params.limit ?? 20,
-      },
-    });
-    return response.data;
-  }
-
-  /**
-   * Create a memory entry
-   * Real endpoint: POST /api/memory
-   * Body: {kind, scope, title, content, payload?, evidence?, status?, confidence?, provenance?, source?}
-   * 
-   * @deprecated 已废弃，统一使用 @pi-investment/os-memory 包的 OsMemoryStore
-   */
-  async createMemory(entry: Record<string, any>): Promise<any> {
-    const response = await this.client.post('/api/memory', entry);
-    return response.data;
   }
 
   // ==================== Signal Tracking APIs (M3-1) ====================

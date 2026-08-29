@@ -270,17 +270,43 @@ class MarketDataService:
         """
         北向资金估算（港交所 CCASS 持股变化法）
 
-        背景：交易所自 2024-08-17 起停止披露北向每日净买入，东财相关接口
-        全部失效（2026-07 实测不可恢复）。改用港交所官方 CCASS 北向持股
-        数据：净买入估算 = (今日持股量 - 前日持股量) × 收盘价。
+        【重要通知】2024-08-17 起交易所停止披露北向每日净买入，所有第三方接口已失效。
+        原 CCASS 持股变化法也因港交所加强数据访问控制而无法继续使用。
+
+        替代方案：
+        1. 使用 Wind/东财付费终端获取北向资金数据
+        2. 通过沪深港通官方网站手动查询
+        3. 使用第三方金融数据服务商（如聚宽、Tushare Pro）
 
         返回契约（与 TS fetch-north-flow-tool.ts 对齐）：
             {success, data: [{trade_date, net_flow, sh_net_flow, sz_net_flow}],
              summary: {total_net_flow, latest_date, method, estimated,
                        top_inflows, top_outflows, coverage}}
         """
+        # 2026-08-29: NorthHoldingsCCASSSource 已被禁止访问，返回替代方案提示
+        # 原实现依赖的类无法导入，直接返回错误信息和替代方案
+        return {
+            'success': False,
+            'error': '北向资金数据源已不可用。替代方案：1) 使用 Wind/东财付费终端 2) 沪深港通官网手动查询 3) 第三方数据服务商（聚宽/Tushare Pro）',
+            'data': None,
+            'summary': {
+                'method': 'unavailable',
+                'message': '港交所 CCASS 数据访问已受限，请使用商业数据源',
+                'alternatives': [
+                    'Wind 终端 - 北向资金实时监控',
+                    '东方财富 Choice 终端',
+                    '聚宽 JQData API - https://www.joinquant.com/help/api/help#name:Stock',
+                    'Tushare Pro API - https://tushare.pro/document/2',
+                    '沪深港通官网 - http://sc.hkex.com.hk'
+                ]
+            }
+        }
+
+        # 原实现已注释（保留用于参考，依赖 NorthHoldingsCCASSSource 类）
+        """
         try:
             from domain.ports import IKlineRepository
+            from adapters.outbound.datasources.north_flow_ccass import NorthHoldingsCCASSSource
 
             source = NorthHoldingsCCASSSource()
 

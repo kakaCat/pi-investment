@@ -22,7 +22,7 @@ export const dataFetchMarketSentimentPrompt: ToolPrompt<DataFetchMarketSentiment
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         sentiment_score: { type: 'number' },
         sentiment_level: { type: 'string' },
@@ -30,7 +30,7 @@ export const dataFetchMarketSentimentPrompt: ToolPrompt<DataFetchMarketSentiment
         advance_decline_ratio: { type: 'number' },
         market_phase: { type: 'string' },
         recommendation: { type: 'string' },
-        indicators: { type: 'object' },
+        indicators: { type: 'object', additionalProperties: true},
       },
     },
     render: (args, data) => [{ type: 'text', text: JSON.stringify(data, null, 2) }],

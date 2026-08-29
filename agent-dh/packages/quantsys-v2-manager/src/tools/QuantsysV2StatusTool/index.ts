@@ -3,22 +3,14 @@
  */
 
 import { defineTool } from '@deepseek-ai/dsh-tools';
+import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { QuantsysV2StatusTool } from './QuantsysV2StatusTool';
-
-export interface QuantsysV2Config {
-  projectRoot: string;
-  port: number;
-  healthCheckUrl: string;
-  startupScript: string;
-  activateScript: string;
-  logFile: string;
-}
 
 /**
  * 创建 quantsys-v2 状态检查工具实例
  */
-export function createQuantsysV2StatusTool(config: QuantsysV2Config) {
-  const tool = new QuantsysV2StatusTool(config);
+export function createQuantsysV2StatusTool(qv2: QuantsysV2Client) {
+  const tool = new QuantsysV2StatusTool(qv2);
   return defineTool(tool.toDSHToolDefinition());
 }
 

@@ -63,7 +63,7 @@ export const accountInfoPrompt: ToolPrompt<AccountInfoParams, AccountInfoResult>
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         accountName: { type: 'string', description: '账户名称' },
         totalValue: { type: 'number', description: '总资产（元）' },

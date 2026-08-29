@@ -46,7 +46,7 @@ export const strategyListPrompt: ToolPrompt<StrategyListParams, StrategyListResu
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         total: { type: 'number' },
         page: { type: 'number' },
@@ -54,7 +54,7 @@ export const strategyListPrompt: ToolPrompt<StrategyListParams, StrategyListResu
         items: {
           type: 'array',
           items: {
-            type: 'object',
+            type: 'object', additionalProperties: true,
             properties: {
               id: { type: 'string' },
               name: { type: 'string' },

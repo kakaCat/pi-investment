@@ -69,9 +69,9 @@ export const rotationExecutePrompt: ToolPrompt<RotationExecuteParams, RotationEx
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
-        execution: { type: 'object', description: '执行结果' },
+        execution: { type: 'object', additionalProperties: true, description: '执行结果' },
         post_execution_positions: { type: 'array', description: '执行后持仓' },
       },
     },

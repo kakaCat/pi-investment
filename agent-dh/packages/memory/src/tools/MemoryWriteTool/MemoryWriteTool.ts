@@ -1,6 +1,6 @@
 import { BaseTool, ToolResponse, ValidationResult, ErrorType } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext } from '@pi-investment/core-tool';
-import { OsMemoryStore } from '@pi-investment/os-memory';
+import type { MemoryClient } from '@pi-investment/agent-os-client';
 import { memoryWritePrompt, type MemoryWriteParams, type MemoryWriteResult } from './prompt';
 
 export class MemoryWriteTool extends BaseTool<MemoryWriteParams, MemoryWriteResult> {
@@ -13,7 +13,7 @@ export class MemoryWriteTool extends BaseTool<MemoryWriteParams, MemoryWriteResu
 
   protected readonly prompt = memoryWritePrompt;
 
-  constructor(private osMemory: OsMemoryStore) {
+  constructor(private memoryClient: MemoryClient) {
     super();
   }
 
@@ -58,23 +58,18 @@ export class MemoryWriteTool extends BaseTool<MemoryWriteParams, MemoryWriteResu
   protected async execute(params: MemoryWriteParams, context: ToolContext): Promise<MemoryWriteResult> {
     const { content, importance = 0.5, namespace = 'default', tags = [] } = params;
 
-    const res = await this.osMemory.createMemory({
-      kind: namespace === 'experience' ? 'experience' : 'episode',
-      scope: 'global',
+    const res = await this.memoryClient.write({
       title: content.slice(0, 50),
       content,
-      payload: { namespace, tags },
-      // 无证据链时后端门禁要求 status=testing
-      status: 'testing',
-      confidence: importance,
-      source: 'agent',
-      provenance: { channel: 'dsh', session_kind: 'agent' },
+      namespace: namespace === 'experience' ? 'experience' : 'knowledge',
+      tags,
+      importance,
     });
 
     return {
       success: true,
       memory_id: String(res?.id ?? ''),
-      message: '已写入 quantsys-v2 统一记忆库（status=testing，混合检索可召回）',
+      message: '已写入 Agent OS 记忆库',
     };
   }
 

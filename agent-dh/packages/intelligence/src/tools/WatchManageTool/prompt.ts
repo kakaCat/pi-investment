@@ -13,42 +13,43 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
   description: '管理盯盘规则（写操作）：创建、启用、禁用、删除。规则触发后系统自动通知，适合价格预警、涨跌幅预警、成交量异常监控等场景。创建前建议先用 watch_list 确认无重复规则。',
 
   parameters: {
-    type: 'object',
-    properties: {
-      action: {
-        type: 'string',
-        enum: ['create', 'enable', 'disable', 'delete'],
-        description: '操作类型。create：创建新规则（需同时传 name、symbol、condition）；enable / disable / delete：对已有规则操作（需传 rule_id）',
-      },
-      rule_id: {
-        type: 'integer',
-        description: '规则ID，enable/disable/delete 时必填，通过 watch_list 获取',
-      },
-      name: {
-        type: 'string',
-        description: '规则名称，create 时必填，如 "茅台价格突破2000"',
-      },
-      symbol: {
-        type: 'string',
-        description: '监控的股票代码，create 时必填，如 600519',
-      },
-      condition: {
-        type: 'string',
-        description: '触发条件表达式，create 时必填。支持：price>100（突破价格）、price<90（跌破价格）、change_pct>5（涨幅超5%）、change_pct<-3（跌幅超3%）',
-      },
+    action: {
+      type: 'string',
+      enum: ['create', 'enable', 'disable', 'delete'],
+      description: '操作类型。create：创建新规则（需同时传 name、symbol、condition）；enable / disable / delete：对已有规则操作（需传 rule_id）',
+      required: true,
     },
-    required: ['action'],
+    rule_id: {
+      type: 'integer',
+      description: '规则ID，enable/disable/delete 时必填，通过 watch_list 获取',
+    },
+    name: {
+      type: 'string',
+      description: '规则名称，create 时必填，如 "茅台价格突破2000"',
+    },
+    symbol: {
+      type: 'string',
+      description: '监控的股票代码，create 时必填，如 600519',
+    },
+    condition: {
+      type: 'string',
+      description: '触发条件表达式，create 时必填。支持：price>100（突破价格）、price<90（跌破价格）、change_pct>5（涨幅超5%）、change_pct<-3（跌幅超3%）',
+    },
   },
 
-  returns: {
-    type: 'object',
-    properties: {
-      success: { type: 'boolean', description: '是否成功' },
-      rule_id: { type: 'integer', description: '规则ID' },
-      action: { type: 'string', description: '执行的操作' },
-      message: { type: 'string', description: '结果消息' },
+  output: {
+    schema: {
+      type: 'object', additionalProperties: true,
+      properties: {
+        success: { type: 'boolean', description: '是否成功' },
+        rule_id: { type: 'integer', description: '规则ID' },
+        action: { type: 'string', description: '执行的操作' },
+        message: { type: 'string', description: '结果消息' },
+      },
+      description: '操作结果',
+      additionalProperties: true,
     },
-    description: '操作结果',
+    render: (_args: WatchManageParams, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
   },
 
   examples: [

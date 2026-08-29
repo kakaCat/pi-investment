@@ -39,7 +39,7 @@ export const marketStyleDetectPrompt: ToolPrompt<MarketStyleDetectParams, Market
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         style: { type: 'string', description: '主导风格：value（价值）/growth（成长）/cycle（周期）' },
         confidence: { type: 'number', description: '置信度（0-1）' },

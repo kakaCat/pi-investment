@@ -87,7 +87,7 @@ export const tradeMonitorPrompt: ToolPrompt<TradeMonitorParams, TradeMonitorResu
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         orders: { type: 'array', description: '订单列表' },
         pending_count: { type: 'integer', description: '未成交订单数' },

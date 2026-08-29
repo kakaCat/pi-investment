@@ -81,4 +81,23 @@ export const feishuNotifyPrompt = {
       expectedResult: '成功发送通知到指定的 reports 渠道',
     },
   ],
+
+  output: {
+    schema: {
+      type: 'object', additionalProperties: true,
+      properties: {
+        success: { type: 'boolean', description: '是否发送成功' },
+        channel: { type: 'string', description: '实际发送的渠道' },
+        delivery: { type: 'string', description: '投递方式（agent_os / feishu_direct）' },
+        message_id: { type: 'string', description: '消息ID' },
+        degraded: { type: 'boolean', description: '是否降级投递' },
+        fallback_reason: { type: 'string', description: '降级原因' },
+        webhook_source: { type: 'string', description: 'webhook 来源' },
+        feishu_code: { type: 'number', description: '飞书返回码' },
+        message: { type: 'string', description: '结果消息' },
+      },
+      additionalProperties: true,
+    },
+    render: (_args: FeishuNotifyParams, value: FeishuNotifyResult) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+  },
 };

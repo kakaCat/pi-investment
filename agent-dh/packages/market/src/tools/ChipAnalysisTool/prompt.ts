@@ -52,7 +52,7 @@ export const chipAnalysisPrompt: ToolPrompt<ChipAnalysisParams, ChipAnalysisResu
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         symbol: { type: 'string', description: '股票代码' },
         avg_cost: { type: 'number', description: '平均成本（元）' },

@@ -53,7 +53,7 @@ export const sectorAnalysisPrompt: ToolPrompt<SectorAnalysisParams, SectorAnalys
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         sectors: { type: 'array', description: '行业列表，按涨幅排序' },
         top_performers: { type: 'array', description: '表现最好的行业' },

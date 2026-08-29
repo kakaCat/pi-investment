@@ -1,6 +1,6 @@
 import { BaseTool, ToolResponse, ValidationResult, ErrorType } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext } from '@pi-investment/core-tool';
-import { OsMemoryStore } from '@pi-investment/os-memory';
+import type { MemoryClient } from '@pi-investment/agent-os-client';
 import { memorySearchPrompt, type MemorySearchParams, type MemorySearchResult } from './prompt';
 
 export class MemorySearchTool extends BaseTool<MemorySearchParams, MemorySearchResult> {
@@ -13,7 +13,7 @@ export class MemorySearchTool extends BaseTool<MemorySearchParams, MemorySearchR
 
   protected readonly prompt = memorySearchPrompt;
 
-  constructor(private osMemory: OsMemoryStore) {
+  constructor(private memoryClient: MemoryClient) {
     super();
   }
 
@@ -58,11 +58,11 @@ export class MemorySearchTool extends BaseTool<MemorySearchParams, MemorySearchR
   protected async execute(params: MemorySearchParams, context: ToolContext): Promise<MemorySearchResult> {
     const { query, top_k = 5, namespace = 'default' } = params;
 
-    const res = await this.osMemory.searchMemory({
-      q: query,
-      limit: top_k,
-      // experience 命名空间对应后端 kind=experience；其余命名空间不做 kind 过滤
-      kind: namespace === 'experience' ? 'experience' : undefined,
+    const res = await this.memoryClient.search({
+      query,
+      top_k,
+      // experience 命名空间对应后端 category=experience；其余命名空间不做 category 过滤
+      category: namespace === 'experience' ? 'experience' : undefined,
     });
 
     // embedding 向量为千维数组，剔除以避免污染上下文

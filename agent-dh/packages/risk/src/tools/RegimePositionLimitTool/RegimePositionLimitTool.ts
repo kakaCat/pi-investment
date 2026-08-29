@@ -5,8 +5,12 @@
 import { BaseTool } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
-import type { OsMemoryStore } from '@pi-investment/os-memory';
 import { regimePositionLimitPrompt, RegimePositionLimitParams, RegimePositionLimitResult } from './prompt';
+
+interface OsMemoryStore {
+  searchMemory(params: { q?: string; kind?: string; scope?: string; limit?: number }): Promise<{ items: any[] }>;
+  createMemory(entry: { kind: string; scope: string; title: string; content: string; payload?: any; status?: string; confidence?: number; source?: string; provenance?: any }): Promise<{ id: string }>;
+}
 
 /**
  * 市场状态仓位限制工具类
@@ -21,7 +25,7 @@ export class RegimePositionLimitTool extends BaseTool<RegimePositionLimitParams,
 
   protected readonly prompt = regimePositionLimitPrompt;
 
-  constructor(private qv2: QuantsysV2Client, private osMemory: OsMemoryStore) {
+  constructor(private qv2: QuantsysV2Client, private memoryClient: OsMemoryStore) {
     super();
   }
 
@@ -40,7 +44,7 @@ export class RegimePositionLimitTool extends BaseTool<RegimePositionLimitParams,
     const accountName = args.account_name || 'agent_virtual';
 
     // 1. 读最新 regime 记录（忽略已弃用）
-    const res = await this.osMemory.searchMemory({ q: 'regime', scope: 'market:regime', limit: 10 });
+    const res = await this.memoryClient.searchMemory({ q: 'regime', scope: 'market:regime', limit: 10 });
     const latest = (res?.items || [])
       .filter((it: any) => it.status !== 'deprecated' && it.payload?.date)
       .sort((a: any, b: any) => String(b.payload.date).localeCompare(String(a.payload.date)))[0];

@@ -44,7 +44,7 @@ export const regimeDailyPrompt: ToolPrompt<RegimeDailyParams, RegimeDailyResult>
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         date: { type: 'string', description: '日期（YYYY-MM-DD）' },
         regime: { type: 'string', description: 'panic / euphoria / risk_on / risk_off / sideways' },

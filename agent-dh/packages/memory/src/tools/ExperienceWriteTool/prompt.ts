@@ -83,7 +83,7 @@ export const experienceWritePrompt: ToolPrompt<ExperienceWriteParams, Experience
   },
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         success: { type: 'boolean', description: '是否成功' },
         experience_id: { type: 'string', description: '经验ID' },

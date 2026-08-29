@@ -131,6 +131,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
         version: 3.18.1
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -212,9 +215,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
         version: 3.18.1
-      '@pi-investment/os-memory':
+      '@pi-investment/agent-os-client':
         specifier: workspace:*
-        version: link:../os-memory
+        version: link:../agent-os-client
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -271,6 +274,12 @@ importers:
 
   packages/intelligence:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: ^4.0.1
+        version: 4.0.1
+      '@deepseek-ai/schemastery':
+        specifier: ^3.18.1
+        version: 3.18.1
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
@@ -343,9 +352,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
         version: 3.18.1
-      '@pi-investment/os-memory':
+      '@pi-investment/agent-os-client':
         specifier: workspace:*
-        version: link:../os-memory
+        version: link:../agent-os-client
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -401,12 +410,12 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
         version: 3.18.1
+      '@pi-investment/agent-os-client':
+        specifier: workspace:*
+        version: link:../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
-      '@pi-investment/os-memory':
-        specifier: workspace:*
-        version: link:../os-memory
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -435,31 +444,6 @@ importers:
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
-      '@pi-investment/os-memory':
-        specifier: workspace:*
-        version: link:../os-memory
-      '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/model:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: ^4.0.1
-        version: 4.0.1
-      '@deepseek-ai/dsh-tools':
-        specifier: ^0.1.0-rc.7
-        version: 0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.0-rc.7)(@deepseek-ai/dsh-code-runtime@0.1.0-rc.7)(@deepseek-ai/dsh-invariants@0.1.0-rc.7)(@deepseek-ai/dsh-llm@0.1.0-rc.7)(@deepseek-ai/dsh-scope@0.1.0-rc.7)(@deepseek-ai/dsh-session@0.1.0-rc.7)(@deepseek-ai/dsh-system-prompt@0.1.0-rc.7)(@deepseek-ai/dsh-user-approval@0.1.0-rc.7)
-      '@deepseek-ai/schemastery':
-        specifier: ^3.18.1
-        version: 3.18.1
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -485,6 +469,9 @@ importers:
       '@pi-investment/agent-os-client':
         specifier: workspace:*
         version: link:../agent-os-client
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../core-tool
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -492,12 +479,6 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
-
-  packages/os-memory:
-    dependencies:
-      '@pi-investment/agent-os-client':
-        specifier: file:../../../agent-os-client
-        version: file:../agent-os-client
 
   packages/quantsys-v2-manager:
     dependencies:
@@ -525,12 +506,12 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
         version: 3.18.1
+      '@pi-investment/agent-os-client':
+        specifier: workspace:*
+        version: link:../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
-      '@pi-investment/os-memory':
-        specifier: workspace:*
-        version: link:../os-memory
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -556,6 +537,9 @@ importers:
       '@pi-investment/agent-os-client':
         specifier: workspace:*
         version: link:../agent-os-client
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../core-tool
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -578,9 +562,6 @@ importers:
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
-      '@pi-investment/os-memory':
-        specifier: workspace:*
-        version: link:../os-memory
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -603,12 +584,12 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
         version: 3.18.1
+      '@pi-investment/agent-os-client':
+        specifier: workspace:*
+        version: link:../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
-      '@pi-investment/os-memory':
-        specifier: workspace:*
-        version: link:../os-memory
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -616,31 +597,6 @@ importers:
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.43
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/window-manager:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: ^4.0.1
-        version: 4.0.1
-      '@deepseek-ai/dsh-tools':
-        specifier: ^0.1.0-rc.7
-        version: 0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.0-rc.7)(@deepseek-ai/dsh-code-runtime@0.1.0-rc.7)(@deepseek-ai/dsh-invariants@0.1.0-rc.7)(@deepseek-ai/dsh-llm@0.1.0-rc.7)(@deepseek-ai/dsh-scope@0.1.0-rc.7)(@deepseek-ai/dsh-session@0.1.0-rc.7)(@deepseek-ai/dsh-system-prompt@0.1.0-rc.7)(@deepseek-ai/dsh-user-approval@0.1.0-rc.7)
-      '@deepseek-ai/schemastery':
-        specifier: ^3.18.1
-        version: 3.18.1
-      '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../agent-os-client
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      tsdown:
-        specifier: ^0.22.14
-        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
@@ -3938,17 +3894,6 @@ packages:
       '@yuku-parser/binding-win32-arm64': 0.8.7
       '@yuku-parser/binding-win32-x64': 0.8.7
     dev: true
-
-  file:../agent-os-client:
-    resolution: {directory: ../agent-os-client, type: directory}
-    name: '@pi-investment/agent-os-client'
-    engines: {node: '>=18.0.0'}
-    dependencies:
-      axios: 1.19.0
-    transitivePeerDependencies:
-      - debug
-      - supports-color
-    dev: false
 
   file:../quantsys-v2-client:
     resolution: {directory: ../quantsys-v2-client, type: directory}

@@ -5,8 +5,12 @@
 import { BaseTool } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
-import type { OsMemoryStore } from '@pi-investment/os-memory';
 import { mainlineScanPrompt, MainlineScanParams, MainlineScanResult } from './prompt';
+
+interface OsMemoryStore {
+  searchMemory(params: { q?: string; kind?: string; scope?: string; limit?: number }): Promise<{ items: any[] }>;
+  createMemory(entry: { kind: string; scope: string; title: string; content: string; payload?: any; status?: string; confidence?: number; source?: string; provenance?: any }): Promise<{ id: string }>;
+}
 
 /**
  * 市场主线扫描工具类
@@ -23,7 +27,7 @@ export class MainlineScanTool extends BaseTool<MainlineScanParams, MainlineScanR
 
   constructor(
     private qv2: QuantsysV2Client,
-    private osMemory: OsMemoryStore,
+    private memoryClient: OsMemoryStore,
   ) {
     super();
   }
@@ -43,7 +47,7 @@ export class MainlineScanTool extends BaseTool<MainlineScanParams, MainlineScanR
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
 
     // 幂等检查：今日已落库则跳过
-    const existing = await this.osMemory.searchMemory({ q: `mainline ${today}`, scope: 'market:mainline', limit: 3 });
+    const existing = await this.memoryClient.searchMemory({ q: `mainline ${today}`, scope: 'market:mainline', limit: 3 });
     const dup = (existing?.items || []).find((it: any) => it.payload?.date === today && it.status !== 'deprecated');
     if (dup) {
       return { date: today, mainlines: dup.payload?.mainlines, skipped: true };
@@ -64,7 +68,7 @@ export class MainlineScanTool extends BaseTool<MainlineScanParams, MainlineScanR
     }));
 
     // 落库
-    await this.osMemory.createMemory({
+    await this.memoryClient.createMemory({
       kind: 'episode',
       scope: 'market:mainline',
       title: `mainline ${today}: ${top3.map(t => t.sector).join('/')}`,

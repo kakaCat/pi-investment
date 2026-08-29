@@ -60,7 +60,7 @@ export const dataFetchFinancialPrompt: ToolPrompt<DataFetchFinancialParams, Data
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         symbol: { type: 'string', description: '股票代码' },
         name: { type: 'string', description: '公司名称' },

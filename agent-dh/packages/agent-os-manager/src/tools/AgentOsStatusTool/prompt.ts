@@ -44,7 +44,7 @@ export const agentOsStatusPrompt: ToolPrompt<AgentOsStatusParams, AgentOsStatusR
   parameters: {},
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         running: { type: 'boolean', description: '进程是否运行' },
         pid: { type: 'number', description: '进程 PID，0 表示未运行' },

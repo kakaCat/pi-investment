@@ -110,7 +110,7 @@ export const portfolioTradePrompt: ToolPrompt<PortfolioTradeParams, PortfolioTra
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         order_id: { type: 'string', description: '订单ID' },
         action: { type: 'string', description: '操作方向' },

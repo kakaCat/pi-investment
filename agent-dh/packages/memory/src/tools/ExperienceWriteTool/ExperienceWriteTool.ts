@@ -1,6 +1,6 @@
 import { BaseTool, ToolResponse, ValidationResult, ErrorType } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext } from '@pi-investment/core-tool';
-import { OsMemoryStore } from '@pi-investment/os-memory';
+import type { MemoryClient } from '@pi-investment/agent-os-client';
 import { experienceWritePrompt, type ExperienceWriteParams, type ExperienceWriteResult } from './prompt';
 
 export class ExperienceWriteTool extends BaseTool<ExperienceWriteParams, ExperienceWriteResult> {
@@ -13,7 +13,7 @@ export class ExperienceWriteTool extends BaseTool<ExperienceWriteParams, Experie
 
   protected readonly prompt = experienceWritePrompt;
 
-  constructor(private osMemory: OsMemoryStore) {
+  constructor(private memoryClient: MemoryClient) {
     super();
   }
 
@@ -67,22 +67,12 @@ export class ExperienceWriteTool extends BaseTool<ExperienceWriteParams, Experie
       lesson ? `教训：${lesson}` : null,
     ].filter(Boolean).join('\n');
 
-    const res = await this.osMemory.createMemory({
-      kind: 'experience',
-      scope: `stock:${symbol}`,
+    const res = await this.memoryClient.write({
       title: `${symbol} ${outcome || ''} ${scenario}`.slice(0, 80),
       content,
-      payload: {
-        symbol,
-        outcome,
-        lesson,
-        pnl_pct,
-        timestamp,
-      },
-      status: 'testing',
-      confidence: outcome === 'loss' ? 0.8 : 0.6,
-      source: 'agent',
-      provenance: { channel: 'dsh', session_kind: 'agent' },
+      namespace: 'experience',
+      tags: [symbol, outcome || 'neutral'].filter(Boolean),
+      importance: outcome === 'loss' ? 0.8 : 0.6,
     });
 
     return {

@@ -40,8 +40,38 @@ export class DataFetchFinancialTool extends BaseTool<DataFetchFinancialParams, D
     args: DataFetchFinancialParams,
     context: ToolContext
   ): Promise<DataFetchFinancialResult> {
-    const result = await this.qv2.getFinancialData(args.symbol);
-    return result as DataFetchFinancialResult;
+    const rawData = await this.qv2.getFinancialData(args.symbol);
+
+    // 后端返回的是嵌套结构，需要转换为扁平格式
+    // 取最新一期数据（income_statement[0], balance_sheet[0]）
+    const latest_income = rawData.income_statement?.[0];
+    const latest_balance = rawData.balance_sheet?.[0];
+
+    if (!latest_income) {
+      throw new Error('未获取到财务数据');
+    }
+
+    // 计算资产负债率
+    const debt_ratio = latest_balance?.total_liabilities && latest_balance?.total_assets
+      ? (latest_balance.total_liabilities / latest_balance.total_assets) * 100
+      : 0;
+
+    // 转换为工具期望的扁平格式
+    return {
+      symbol: args.symbol,
+      name: rawData.name || args.symbol,
+      report_date: latest_income.report_date,
+      revenue: (latest_income.revenue || 0) / 100000000, // 转换为亿元
+      net_profit: (latest_income.parent_net_profit || 0) / 100000000, // 转换为亿元
+      total_assets: (latest_balance?.total_assets || 0) / 100000000, // 转换为亿元
+      total_liabilities: (latest_balance?.total_liabilities || 0) / 100000000, // 转换为亿元
+      roe: latest_income.weighted_roe || 0,
+      eps: latest_income.basic_eps || 0,
+      pe_ttm: 0, // 后端未返回，需要额外计算或从其他接口获取
+      pb: 0, // 后端未返回，需要额外计算或从其他接口获取
+      debt_ratio: debt_ratio,
+      gross_margin: latest_income.gross_margin || 0,
+    } as DataFetchFinancialResult;
   }
 
   protected wrap(data: DataFetchFinancialResult): ToolResponse<DataFetchFinancialResult> {

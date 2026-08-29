@@ -178,6 +178,7 @@ export interface Position {
  * Portfolio summary
  */
 export interface PortfolioSummary {
+  accountName: string;
   totalValue: number;
   totalCost: number;
   totalMarketValue: number;

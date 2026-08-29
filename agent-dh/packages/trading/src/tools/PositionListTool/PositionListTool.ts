@@ -94,17 +94,17 @@ export class PositionListTool extends BaseTool<PositionListParams, PositionListR
       };
     }
 
-    // 检查每个持仓项的必需字段
+    // 检查每个持仓项的必需字段（后端返回 camelCase）
     const requiredFields = [
       'symbol',
       'name',
       'quantity',
-      'shares_available',
-      'cost_price',
-      'current_price',
-      'market_value',
-      'pnl',
-      'pnl_pct',
+      'sharesAvailable',
+      'avgCost',
+      'currentPrice',
+      'currentValue',
+      'profitLoss',
+      'profitLossPct',
     ];
 
     for (let i = 0; i < result.length; i++) {

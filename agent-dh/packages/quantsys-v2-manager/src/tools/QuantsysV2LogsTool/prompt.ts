@@ -66,12 +66,12 @@ export const quantsysV2LogsPrompt: ToolPrompt<QuantsysV2LogsParams, QuantsysV2Lo
   },
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         lines: { type: 'array', items: { type: 'string' }, description: '日志行' },
         total: { type: 'integer', description: '日志行数' },
         _metadata: {
-          type: 'object',
+          type: 'object', additionalProperties: true,
           description: '元数据',
           properties: {
             log_file: { type: 'string' },

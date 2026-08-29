@@ -125,7 +125,7 @@ export const algoExecutePrompt: ToolPrompt<AlgoExecuteParams, AlgoExecuteResult>
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         algo_order_id: { type: 'string', description: '算法订单ID' },
         algo: { type: 'string', description: '算法类型' },

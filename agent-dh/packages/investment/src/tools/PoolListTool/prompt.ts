@@ -25,7 +25,7 @@ export const poolListPrompt: ToolPrompt<PoolListParams, PoolListResult> = {
     schema: {
       type: 'array',
       items: {
-        type: 'object',
+        type: 'object', additionalProperties: true,
         properties: {
           id: { type: 'number' },
           name: { type: 'string' },

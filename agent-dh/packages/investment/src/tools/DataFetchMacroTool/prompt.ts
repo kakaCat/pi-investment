@@ -30,11 +30,11 @@ export const dataFetchMacroPrompt: ToolPrompt<DataFetchMacroParams, DataFetchMac
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         indicator: { type: 'string' },
         data: { type: 'array' },
-        latest: { type: 'object' },
+        latest: { type: 'object', additionalProperties: true},
         trend: { type: 'string' },
         update_time: { type: 'string' },
       },

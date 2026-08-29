@@ -67,7 +67,7 @@ export const agentOsLogsPrompt: ToolPrompt<AgentOsLogsParams, AgentOsLogsResult>
   },
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         lines: { type: 'array', items: { type: 'string' }, description: '日志行' },
         total: { type: 'integer', description: '日志行数' },

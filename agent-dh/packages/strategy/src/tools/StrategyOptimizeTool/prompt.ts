@@ -39,7 +39,7 @@ export const strategyOptimizePrompt: ToolPrompt<StrategyOptimizeParams, Strategy
       example: 1,
     },
     param_ranges: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       required: true,
       description: '参数搜索范围，key为参数名，value为[min, max]',
       example: { hold_days: [3, 10], stop_loss: [-0.05, -0.02] },
@@ -74,9 +74,9 @@ export const strategyOptimizePrompt: ToolPrompt<StrategyOptimizeParams, Strategy
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
-        best_params: { type: 'object', description: '最优参数组合' },
+        best_params: { type: 'object', additionalProperties: true, description: '最优参数组合' },
         best_score: { type: 'number', description: '最优得分' },
         all_results: { type: 'array', description: '所有测试结果' },
       },

@@ -1,26 +1,18 @@
-import { BaseTool, type ToolMetadata, type ValidationResult, type ToolContext, type ToolResponse } from '@pi-investment/core-tool';
-import { execSync } from 'child_process';
-import { readFileSync, existsSync } from 'fs';
+import { BaseTool, type ToolMetadata, type ValidationResult, type ToolContext, type ToolResponse, ErrorType } from '@pi-investment/core-tool';
+import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { quantsysV2StatusPrompt, type QuantsysV2StatusParams, type QuantsysV2StatusResult } from './prompt';
-
-export interface QuantsysV2Config {
-  projectRoot: string;
-  port: number;
-  healthCheckUrl: string;
-  logFile: string;
-}
 
 export class QuantsysV2StatusTool extends BaseTool<QuantsysV2StatusParams, QuantsysV2StatusResult> {
   protected readonly metadata: ToolMetadata = {
     name: 'quantsys_v2_status',
     category: 'quantsys-v2-manager',
-    version: '1.0.0',
+    version: '2.0.0',
     timeoutMs: 15000,
   };
 
   protected readonly prompt = quantsysV2StatusPrompt;
 
-  constructor(private config: QuantsysV2Config) {
+  constructor(private qv2: QuantsysV2Client) {
     super();
   }
 
@@ -31,54 +23,37 @@ export class QuantsysV2StatusTool extends BaseTool<QuantsysV2StatusParams, Quant
 
   protected async execute(
     params: QuantsysV2StatusParams,
-    context: ToolContext
+    _context: ToolContext
   ): Promise<QuantsysV2StatusResult> {
-    const { port, healthCheckUrl, projectRoot, logFile } = this.config;
-
-    // 检查进程
-    let pid: number | null = null;
-    let portListening = false;
     try {
-      const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
-      if (pidStr) {
-        pid = parseInt(pidStr);
-        portListening = true;
-      }
-    } catch {}
+      // 调用 quantsys-v2 的平台状态 API
+      const response = await this.qv2.getPlatformStatus();
 
-    // 健康检查
-    let healthOk = false;
-    let healthError: string | null = null;
-    if (portListening) {
-      try {
-        execSync(`curl -sf --max-time 5 "${healthCheckUrl}" > /dev/null`, { timeout: 6000 });
-        healthOk = true;
-      } catch (e: any) {
-        healthError = e.message;
-      }
+      return {
+        running: response.status === 'running',
+        status: response.status,
+        db_connected: response.db_connected,
+        holdings_count: response.holdings_count,
+        recent_signals: response.recent_signals,
+        model_loaded: response.model_loaded,
+        recent_report: response.recent_report,
+        balance: response.balance,
+        timestamp: response.timestamp,
+      };
+    } catch (error: any) {
+      // 如果 API 调用失败，说明服务不可用
+      return {
+        running: false,
+        status: 'stopped',
+        db_connected: false,
+        holdings_count: 0,
+        recent_signals: 0,
+        model_loaded: false,
+        recent_report: false,
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      };
     }
-
-    // 读取最近错误
-    const recentErrors: string[] = [];
-    const logPath = `${projectRoot}/${logFile}`;
-    if (existsSync(logPath)) {
-      try {
-        const logs = readFileSync(logPath, 'utf-8').split('\n').slice(-100);
-        const errors = logs.filter(l => l.includes('ERROR') || l.includes('Exception') || l.includes('error'));
-        recentErrors.push(...errors.slice(-5));
-      } catch {}
-    }
-
-    return {
-      running: !!pid,
-      pid: pid ?? 0,
-      port,
-      port_listening: portListening,
-      health_ok: healthOk,
-      health_error: healthError,
-      recent_errors: recentErrors,
-      timestamp: new Date().toISOString(),
-    };
   }
 
   protected wrap(data: QuantsysV2StatusResult, _context: ToolContext): ToolResponse<QuantsysV2StatusResult> {

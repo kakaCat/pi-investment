@@ -87,7 +87,7 @@ export const tradeVerifyPrompt: ToolPrompt<TradeVerifyParams, TradeVerifyResult>
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         date: { type: 'string', description: '对账日期' },
         total_orders: { type: 'integer', description: '总订单数' },

@@ -77,7 +77,7 @@ export const mainlineStocksPrompt: ToolPrompt<MainlineStocksParams, MainlineStoc
   },
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         sector: { type: 'string', description: '板块名称' },
         stocks: {

@@ -69,10 +69,10 @@ export const rotationSimulatePrompt: ToolPrompt<RotationSimulateParams, Rotation
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
-        simulation: { type: 'object', description: '模拟结果' },
-        constraints_check: { type: 'object', description: '约束检查' },
+        simulation: { type: 'object', additionalProperties: true, description: '模拟结果' },
+        constraints_check: { type: 'object', additionalProperties: true, description: '约束检查' },
       },
     },
     render: (_args, data) => [

@@ -30,7 +30,7 @@ export const dataFetchNorthFlowPrompt: ToolPrompt<DataFetchNorthFlowParams, Data
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         dates: { type: 'array' },
         net_inflows: { type: 'array' },
@@ -39,7 +39,8 @@ export const dataFetchNorthFlowPrompt: ToolPrompt<DataFetchNorthFlowParams, Data
         cumulative: { type: 'number' },
         daily: { type: 'array' },
       },
-    },
+    
+      additionalProperties: true,},
     render: (args, data) => [{ type: 'text', text: JSON.stringify(data, null, 2) }],
   },
 };

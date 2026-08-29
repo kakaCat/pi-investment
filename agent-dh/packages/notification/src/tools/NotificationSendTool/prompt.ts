@@ -85,4 +85,22 @@ export const notificationSendPrompt = {
       expectedResult: '成功发送邮件通知',
     },
   ],
+  output: {
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', description: '是否发送成功' },
+        channel: { type: 'string', description: '实际使用的渠道' },
+        delivery: { type: 'string', description: '投递方式描述' },
+        message_id: { type: 'string', description: '消息 ID（可选）' },
+        degraded: { type: 'boolean', description: '是否降级投递（可选）' },
+        fallback_reason: { type: 'string', description: '降级原因（可选）' },
+        webhook_source: { type: 'string', description: 'webhook 来源（可选）' },
+        feishu_code: { type: 'number', description: '飞书返回码（可选）' },
+        message: { type: 'string', description: '返回消息（可选）' },
+      },
+      additionalProperties: true,
+    },
+    render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+  },
 };

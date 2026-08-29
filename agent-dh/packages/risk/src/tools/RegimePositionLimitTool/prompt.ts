@@ -77,7 +77,7 @@ export const regimePositionLimitPrompt: ToolPrompt<RegimePositionLimitParams, Re
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         regime: { type: 'string', description: '市场状态' },
         regime_date: { type: 'string', description: 'regime 日期' },
@@ -86,7 +86,7 @@ export const regimePositionLimitPrompt: ToolPrompt<RegimePositionLimitParams, Re
         current_position_pct: { type: 'number', description: '当前实际仓位（%）' },
         headroom_pct: { type: 'number', description: '剩余可加仓空间（%），负数=超限' },
         verdict: { type: 'string', description: 'compliant / reduce_required / circuit_breaker' },
-        circuit_breaker: { type: 'object', description: '熔断信息', additionalProperties: true },
+        circuit_breaker: { type: 'object', additionalProperties: true, description: '熔断信息', additionalProperties: true },
       },
       additionalProperties: true,
     },

@@ -5,8 +5,12 @@
 import { BaseTool } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
-import type { OsMemoryStore } from '@pi-investment/os-memory';
 import { regimeDailyPrompt, RegimeDailyParams, RegimeDailyResult } from './prompt';
+
+interface OsMemoryStore {
+  searchMemory(params: { q?: string; kind?: string; scope?: string; limit?: number }): Promise<{ items: any[] }>;
+  createMemory(entry: { kind: string; scope: string; title: string; content: string; payload?: any; status?: string; confidence?: number; source?: string; provenance?: any }): Promise<{ id: string }>;
+}
 
 /**
  * Regime 每日落库工具类
@@ -23,7 +27,7 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
 
   constructor(
     private qv2: QuantsysV2Client,
-    private osMemory: OsMemoryStore,
+    private memoryClient: OsMemoryStore,
   ) {
     super();
   }
@@ -43,7 +47,7 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
 
     // 幂等检查：今日已落库则跳过
-    const existing = await this.osMemory.searchMemory({ q: `regime ${today}`, scope: 'market:regime', limit: 3 });
+    const existing = await this.memoryClient.searchMemory({ q: `regime ${today}`, scope: 'market:regime', limit: 3 });
     const dup = (existing?.items || []).find((it: any) => it.payload?.date === today && it.status !== 'deprecated');
     if (dup) {
       return { date: today, regime: dup.payload?.regime, evidence: dup.payload?.evidence, skipped: true };
@@ -109,7 +113,7 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
     };
 
     // 落库 regime
-    await this.osMemory.createMemory({
+      await this.memoryClient.createMemory({
       kind: 'episode',
       scope: 'market:regime',
       title: `regime ${today}: ${regime}`,
@@ -122,11 +126,11 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
     });
 
     // 情绪时间序列同步落库
-    const dupSent = (await this.osMemory.searchMemory({ q: `sentiment ${today}`, scope: 'market:sentiment', limit: 3 }))
+    const dupSent = (await this.memoryClient.searchMemory({ q: `sentiment ${today}`, scope: 'market:sentiment', limit: 3 }))
       ?.items?.find((it: any) => it.payload?.date === today && it.status !== 'deprecated');
 
     if (!dupSent) {
-      await this.osMemory.createMemory({
+      await this.memoryClient.createMemory({
         kind: 'episode',
         scope: 'market:sentiment',
         title: `sentiment ${today}: fg=${fg}`,

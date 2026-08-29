@@ -70,7 +70,7 @@ export const circuitBreakerPrompt: ToolPrompt<CircuitBreakerCheckParams, Circuit
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         checked_at: { type: 'string', description: '检查时间' },
         max_drawdown: { type: 'number', description: '60日最大回撤（%）' },

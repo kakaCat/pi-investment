@@ -8,28 +8,28 @@ export const watchListPrompt: ToolPrompt<WatchListParams> = {
   name: 'watch_list',
   description: '获取全部盯盘规则：监控标的、触发条件、启用状态、历史触发次数。盯盘规则在条件触发时会自动推送通知，无需人工盯盘。适用于：查看已有监控覆盖面、管理规则前确认 rule_id。创建/启停/删除规则用 watch_manage。',
 
-  parameters: {
-    type: 'object',
-    properties: {},
-    required: [],
-  },
+  parameters: {},
 
-  returns: {
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        id: { type: 'integer', description: '规则ID' },
-        name: { type: 'string', description: '规则名称' },
-        symbol: { type: 'string', description: '监控的股票代码' },
-        condition: { type: 'string', description: '触发条件，如 price>100、change_pct>5' },
-        enabled: { type: 'boolean', description: '是否启用' },
-        created_at: { type: 'string', description: '创建时间' },
-        updated_at: { type: 'string', description: '更新时间' },
-        triggered_count: { type: 'integer', description: '历史触发次数' },
+  output: {
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object', additionalProperties: true,
+        properties: {
+          id: { type: 'integer', description: '规则ID' },
+          name: { type: 'string', description: '规则名称' },
+          symbol: { type: 'string', description: '监控的股票代码' },
+          condition: { type: 'string', description: '触发条件，如 price>100、change_pct>5' },
+          enabled: { type: 'boolean', description: '是否启用' },
+          created_at: { type: 'string', description: '创建时间' },
+          updated_at: { type: 'string', description: '更新时间' },
+          triggered_count: { type: 'integer', description: '历史触发次数' },
+        },
+        additionalProperties: true,
       },
+      description: '盯盘规则列表',
     },
-    description: '盯盘规则列表',
+    render: (_args: WatchListParams, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
   },
 
   examples: [

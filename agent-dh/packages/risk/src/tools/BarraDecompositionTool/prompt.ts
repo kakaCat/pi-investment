@@ -70,13 +70,13 @@ export const barraDecompositionPrompt: ToolPrompt<BarraDecompositionParams, Barr
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         total_risk: { type: 'number', description: '总风险（%）' },
         factor_risks: { type: 'array', description: '各因子风险贡献' },
         idiosyncratic_risk: { type: 'number', description: '特质风险（%）' },
         industry_concentration: { type: 'number', description: '行业集中度' },
-        style_exposure: { type: 'object', description: '风格暴露', additionalProperties: true },
+        style_exposure: { type: 'object', additionalProperties: true, description: '风格暴露', additionalProperties: true },
       },
       additionalProperties: true,
     },

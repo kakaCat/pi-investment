@@ -174,6 +174,7 @@ def get_portfolio_summary(account_name: Optional[str] = Query(None)):
         pnl_pct = (unrealized_pnl / total_cost * 100) if total_cost > 0 else 0.0
 
         summary = {
+            'accountName': account_name,
             'totalValue': total_assets, 'totalCost': total_cost, 'totalMarketValue': market_value,
             'totalPnl': unrealized_pnl, 'totalPnlPct': round(pnl_pct, 2), 'dailyChange': 0.0,
             'positions': len(positions), 'cash': available_cash, 'liquidAssets': available_cash,

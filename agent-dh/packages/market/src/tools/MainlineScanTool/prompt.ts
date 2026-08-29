@@ -56,7 +56,7 @@ export const mainlineScanPrompt: ToolPrompt<MainlineScanParams, MainlineScanResu
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         date: { type: 'string', description: '日期（YYYY-MM-DD）' },
         mainlines: {

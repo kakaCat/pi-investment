@@ -65,10 +65,10 @@ export const opportunityScanPrompt: ToolPrompt<OpportunityScanParams, Opportunit
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         opportunities: { type: 'array', description: '机会列表' },
-        scan_summary: { type: 'object', description: '扫描摘要' },
+        scan_summary: { type: 'object', additionalProperties: true, description: '扫描摘要' },
       },
     },
     render: (_args, data) => [

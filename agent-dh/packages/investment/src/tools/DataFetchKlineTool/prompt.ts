@@ -91,7 +91,7 @@ export const dataFetchKlinePrompt: ToolPrompt<DataFetchKlineParams, DataFetchKli
     schema: {
       type: 'array',
       items: {
-        type: 'object',
+        type: 'object', additionalProperties: true,
         properties: {
           date: { type: 'string', description: '日期' },
           open: { type: 'number', description: '开盘价' },

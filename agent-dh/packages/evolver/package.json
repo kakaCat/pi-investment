@@ -13,8 +13,8 @@
   "dependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-tools": "^0.1.0-rc.7",
+    "@pi-investment/agent-os-client": "workspace:*",
     "@pi-investment/quantsys-v2-client": "file:../../../quantsys-v2-client",
-    "@deepseek-ai/schemastery": "^3.18.1",
-    "@pi-investment/os-memory": "workspace:*"
+    "@deepseek-ai/schemastery": "^3.18.1"
   }
 }

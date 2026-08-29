@@ -31,7 +31,7 @@ export const screeningPrompt: ToolPrompt<ScreeningParams, ScreeningResult> = {
   ],
   parameters: {
     criteria: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       required: true,
       description: '筛选条件，如 {pe: [0, 20], roe: [15, null], market_cap: [50, null]}',
       example: { pe: [0, 20], roe: [15, null] },
@@ -56,11 +56,11 @@ export const screeningPrompt: ToolPrompt<ScreeningParams, ScreeningResult> = {
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         stocks: { type: 'array', description: '筛选结果' },
         total_matched: { type: 'number', description: '符合条件总数' },
-        criteria_used: { type: 'object', description: '使用的筛选条件' },
+        criteria_used: { type: 'object', additionalProperties: true, description: '使用的筛选条件' },
       },
     },
     render: (_args, data) => [

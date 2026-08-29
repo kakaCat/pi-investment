@@ -10,35 +10,35 @@ export const marketAlertPrompt: ToolPrompt<MarketAlertParams> = {
   description: '获取系统生成的市场告警：异常波动、重大事件、风险信号，按触发时间倒序返回。适用于：盘前/盘中定期查看市场异常动态。告警是系统主动发现的风险线索，high 级别应优先处理并评估是否影响持仓。',
 
   parameters: {
-    type: 'object',
-    properties: {
-      level: {
-        type: 'string',
-        enum: ['all', 'high', 'medium', 'low'],
-        description: '告警级别过滤。all（默认）：全部；high：高风险，建议优先处理；medium：中等；low：低风险',
-      },
-      limit: {
-        type: 'integer',
-        description: '返回数量上限，默认 20',
-      },
+    level: {
+      type: 'string',
+      enum: ['all', 'high', 'medium', 'low'],
+      description: '告警级别过滤。all（默认）：全部；high：高风险，建议优先处理；medium：中等；low：低风险',
     },
-    required: [],
+    limit: {
+      type: 'integer',
+      description: '返回数量上限，默认 20',
+    },
   },
 
-  returns: {
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: '告警ID' },
-        level: { type: 'string', description: '级别：high/medium/low' },
-        title: { type: 'string', description: '告警标题' },
-        description: { type: 'string', description: '详细描述' },
-        symbol: { type: 'string', description: '相关股票代码' },
-        triggered_at: { type: 'string', description: '触发时间' },
+  output: {
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object', additionalProperties: true,
+        properties: {
+          id: { type: 'string', description: '告警ID' },
+          level: { type: 'string', description: '级别：high/medium/low' },
+          title: { type: 'string', description: '告警标题' },
+          description: { type: 'string', description: '详细描述' },
+          symbol: { type: 'string', description: '相关股票代码' },
+          triggered_at: { type: 'string', description: '触发时间' },
+        },
+        additionalProperties: true,
       },
+      description: '告警列表',
     },
-    description: '告警列表',
+    render: (_args: MarketAlertParams, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
   },
 
   examples: [

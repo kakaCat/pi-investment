@@ -6,7 +6,7 @@ import { DataFetchQuoteTool } from './DataFetchQuoteTool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 
 // 导出类型
-export { DataFetchQuoteParams, DataFetchQuoteResult } from './prompt';
+export type { DataFetchQuoteParams, DataFetchQuoteResult } from './prompt';
 
 /**
  * 创建 DSH 工具

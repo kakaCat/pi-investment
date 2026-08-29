@@ -1,5 +1,6 @@
 import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
+import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { createQuantsysV2StatusTool } from './tools/QuantsysV2StatusTool';
 import { createQuantsysV2RestartTool } from './tools/QuantsysV2RestartTool';
 import { createQuantsysV2LogsTool } from './tools/QuantsysV2LogsTool';
@@ -19,7 +20,7 @@ export interface Config {
  * Manage quantsys-v2 backend service: status check, restart, logs.
  */
 export default class QuantsysV2Manager extends Service {
-  static inject = ['tools'];
+  static inject = ['tools', 'qv2'];
   static Config = z.object({
     projectRoot: z.string().default('/Users/yunpeng/pi-investment/quantsys-v2'),
     port: z.number().default(5001),
@@ -39,6 +40,8 @@ export default class QuantsysV2Manager extends Service {
 
   private registerTools() {
     const { ctx } = this;
+    const qv2Client = ctx.qv2 as QuantsysV2Client;
+
     const config = {
       projectRoot: this.config.projectRoot,
       port: this.config.port,
@@ -48,13 +51,13 @@ export default class QuantsysV2Manager extends Service {
       logFile: this.config.logFile,
     };
 
-    // 注册 quantsys-v2 状态检查工具
-    ctx.tools.register(createQuantsysV2StatusTool(config));
+    // 注册 quantsys-v2 状态检查工具（使用 API）
+    ctx.tools.register(createQuantsysV2StatusTool(qv2Client));
 
-    // 注册 quantsys-v2 重启工具
+    // 注册 quantsys-v2 重启工具（本地命令）
     ctx.tools.register(createQuantsysV2RestartTool(config));
 
-    // 注册 quantsys-v2 日志查询工具
+    // 注册 quantsys-v2 日志查询工具（本地文件读取）
     ctx.tools.register(createQuantsysV2LogsTool({
       projectRoot: config.projectRoot,
       logFile: config.logFile,

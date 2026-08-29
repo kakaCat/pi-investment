@@ -81,14 +81,14 @@ export const memorySearchPrompt: ToolPrompt<MemorySearchParams, MemorySearchResu
   },
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         query: { type: 'string', description: '搜索关键词' },
         results: {
           type: 'array',
           description: '记忆条目列表',
           items: {
-            type: 'object',
+            type: 'object', additionalProperties: true,
             properties: {
               id: { type: 'string' },
               title: { type: 'string' },

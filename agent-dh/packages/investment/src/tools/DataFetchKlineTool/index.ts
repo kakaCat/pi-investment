@@ -6,7 +6,7 @@ import { DataFetchKlineTool } from './DataFetchKlineTool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 
 // 导出类型
-export { DataFetchKlineParams, DataFetchKlineResult, KlineData } from './prompt';
+export type { DataFetchKlineParams, DataFetchKlineResult, KlineData } from './prompt';
 
 /**
  * 创建 DSH 工具

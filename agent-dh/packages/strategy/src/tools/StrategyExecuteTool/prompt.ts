@@ -88,12 +88,12 @@ export const strategyExecutePrompt: ToolPrompt<StrategyExecuteParams, StrategyEx
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         strategy_id: { type: 'number' },
         mode: { type: 'string' },
         signals: { type: 'array' },
-        backtest_result: { type: 'object' },
+        backtest_result: { type: 'object', additionalProperties: true},
       },
     },
     render: (_args, data) => [{ type: 'text', text: JSON.stringify(data, null, 2) }],

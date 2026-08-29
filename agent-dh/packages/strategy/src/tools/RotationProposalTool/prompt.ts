@@ -60,10 +60,10 @@ export const rotationProposalPrompt: ToolPrompt<RotationProposalParams, Rotation
 
   output: {
     schema: {
-      type: 'object',
+      type: 'object', additionalProperties: true,
       properties: {
         proposals: { type: 'array', description: '调仓建议列表' },
-        summary: { type: 'object', description: '建议摘要' },
+        summary: { type: 'object', additionalProperties: true, description: '建议摘要' },
       },
     },
     render: (_args, data) => [
