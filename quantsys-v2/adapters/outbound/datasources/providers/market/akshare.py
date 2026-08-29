@@ -251,13 +251,11 @@ class AkshareMarketProvider(MarketProvider):
             MarketData(data={'records': [...]}) or None if failed
         """
         try:
-            import os
-            from unittest.mock import patch
+            from infrastructure.config.proxy import proxy_disabled
             import akshare as ak
 
             # 禁用代理（与 kline provider 一致：避免代理导致连接失败）
-            env_patch = {'HTTP_PROXY': '', 'HTTPS_PROXY': '', 'http_proxy': '', 'https_proxy': ''}
-            with patch.dict(os.environ, env_patch, clear=False):
+            with proxy_disabled():
                 df = ak.stock_sector_fund_flow_rank(indicator=indicator)
 
             if df is None or df.empty:

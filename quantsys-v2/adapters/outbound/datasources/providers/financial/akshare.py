@@ -4,15 +4,11 @@ Phase 3 数据访问治理：集中 application/services 中散落的
 stock_cash_flow_sheet_by_report_em / stock_profit_sheet_by_report_em 调用。
 """
 import logging
-import os
 from typing import Optional
 from datetime import datetime
-from unittest.mock import patch
-
-# akshare 国内接口不需要代理（与 kline provider 一致：调用期间临时禁用）
-_PROXY_ENV_PATCH = {'HTTP_PROXY': '', 'HTTPS_PROXY': '', 'http_proxy': '', 'https_proxy': ''}
 
 from adapters.outbound.datasources.models import StockData, MarketData
+from infrastructure.config.proxy import proxy_disabled
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +75,7 @@ class AkshareFinancialStatementProvider:
             import akshare as ak
 
             result = {}
-            with patch.dict(os.environ, _PROXY_ENV_PATCH, clear=False):
+            with proxy_disabled():
                 for key, sheet in [('income', '利润表'), ('balance', '资产负债表'), ('cashflow', '现金流量表')]:
                     df = ak.stock_financial_report_sina(stock=clean_symbol, symbol=sheet)
                     result[key] = df.where(df.notna(), None).to_dict(orient='records') if df is not None and not df.empty else []
@@ -107,7 +103,7 @@ class AkshareFinancialStatementProvider:
         try:
             import akshare as ak
 
-            with patch.dict(os.environ, _PROXY_ENV_PATCH, clear=False):
+            with proxy_disabled():
                 df = ak.stock_financial_analysis_indicator(symbol=clean_symbol)
             if df is None or df.empty:
                 return None

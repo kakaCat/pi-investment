@@ -2,11 +2,12 @@
 Agent 通知服务
 V2 任务完成后调用此服务通知 Agent
 """
-import os
 import structlog
 import requests
 from typing import Dict, Any, Optional
 from datetime import datetime
+
+from infrastructure.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
 
@@ -18,11 +19,12 @@ class AgentNotificationService:
     """
 
     def __init__(self, agent_url: Optional[str] = None, timeout: Optional[int] = None):
-        self.agent_url = agent_url or os.getenv('AGENT_API_URL', 'http://127.0.0.1:3002')
+        s = get_settings()
+        self.agent_url = agent_url or s.external.agent_api_url
         # timeout 显式传入优先（如盯盘路径需要更短超时），否则读环境变量
-        self.timeout = timeout if timeout is not None else int(os.getenv('AGENT_TIMEOUT', '30'))
-        self.enabled = os.getenv('AGENT_NOTIFY_ENABLED', 'true').lower() == 'true'
-        self.token = os.getenv('AGENT_API_TOKEN')
+        self.timeout = timeout if timeout is not None else s.external.agent_timeout
+        self.enabled = s.external.agent_notify_enabled
+        self.token = s.external.agent_api_token
 
     def notify_agent(self, event: str, data: Dict[str, Any]) -> bool:
         """通知 Agent 处理事件

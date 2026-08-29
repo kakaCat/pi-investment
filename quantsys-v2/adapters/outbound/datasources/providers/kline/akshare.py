@@ -1,11 +1,10 @@
 """AkShare kline provider - fallback source"""
-import os
 import logging
 from typing import List, Optional
 from datetime import datetime
-from unittest.mock import patch
 
 from adapters.outbound.datasources.providers.kline.base import KlineProvider, KlineData
+from infrastructure.config.proxy import proxy_disabled
 
 logger = logging.getLogger(__name__)
 
@@ -42,15 +41,8 @@ class AkshareKlineProvider(KlineProvider):
         self.last_error = None
 
         # Disable proxy for AkShare
-        env_patch = {
-            'HTTP_PROXY': '',
-            'HTTPS_PROXY': '',
-            'http_proxy': '',
-            'https_proxy': ''
-        }
-
         try:
-            with patch.dict(os.environ, env_patch, clear=False):
+            with proxy_disabled():
                 import akshare as ak
 
                 # Normalize date format (AkShare expects YYYYMMDD)
