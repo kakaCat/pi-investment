@@ -129,7 +129,8 @@ class PoolHealthTracker:
             risk_score = risk_result.get('overall_risk_score', 50)
             # 转换：风险越低，控制越好
             return 100 - risk_score
-        except:
+        except Exception:
+            logger.debug("unexpected exception in module", exc_info=True)
             return 50
 
     def _assess_performance(self, pool: Dict) -> float:

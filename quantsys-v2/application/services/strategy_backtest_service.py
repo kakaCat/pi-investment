@@ -647,7 +647,8 @@ class StrategyBacktestService:
                 exit = datetime.strptime(trade['exit_date'].split(' ')[0], '%Y-%m-%d')
                 days = (exit - entry).days
                 holding_days.append(days)
-            except:
+            except Exception:
+                logger.debug("unexpected exception in module", exc_info=True)
                 continue
 
         return np.mean(holding_days) if holding_days else 0.0

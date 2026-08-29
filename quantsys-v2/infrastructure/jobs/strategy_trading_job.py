@@ -14,6 +14,8 @@
     v13_daily_check()
     v14_daily_check()
 """
+import structlog
+logger = structlog.get_logger(__name__)
 import os
 import sys
 import logging
@@ -190,20 +192,20 @@ if __name__ == '__main__':
     import sys
 
     if len(sys.argv) < 2:
-        print("用法:")
-        print("  python strategy_trading_job.py v13")
-        print("  python strategy_trading_job.py v14")
-        print("  python strategy_trading_job.py v15")
+        logger.info('用法:')
+        logger.info('  python strategy_trading_job.py v13')
+        logger.info('  python strategy_trading_job.py v14')
+        logger.info('  python strategy_trading_job.py v15')
         sys.exit(1)
 
     strategy = sys.argv[1]
-    print(f"\n开始测试 {strategy} 每日检查...\n")
+    logger.info(f'\n开始测试 {strategy} 每日检查...\n')
 
     result = strategy_daily_check(strategy)
 
     if result['status'] == 'success':
-        print(f"\n✅ 测试成功")
+        logger.info(f'\n✅ 测试成功')
         sys.exit(0)
     else:
-        print(f"\n❌ 测试失败: {result.get('error')}")
+        logger.info(f"\n❌ 测试失败: {result.get('error')}")
         sys.exit(1)

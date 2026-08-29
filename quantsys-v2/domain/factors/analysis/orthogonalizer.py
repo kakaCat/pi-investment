@@ -6,6 +6,8 @@
 2. PCA主成分分析：提取正交的主成分
 3. 对称正交化：使用QR分解保持对称性
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -356,14 +358,14 @@ def example_usage():
 
     # 3. 计算相关性矩阵
     corr_matrix = orthogonalizer.calculate_correlation_matrix(factor_data)
-    print("Correlation Matrix:")
-    print(corr_matrix)
+    logger.info('Correlation Matrix:')
+    logger.info(corr_matrix)
 
     # 4. 找出高度相关的因子对
     high_corr_pairs = orthogonalizer.find_highly_correlated_pairs(threshold=0.7)
-    print(f"\nHighly correlated pairs: {len(high_corr_pairs)}")
+    logger.info(f'\nHighly correlated pairs: {len(high_corr_pairs)}')
     for pair in high_corr_pairs:
-        print(f"  {pair['factor1']} <-> {pair['factor2']}: {pair['correlation']:.3f}")
+        logger.info(f"  {pair['factor1']} <-> {pair['factor2']}: {pair['correlation']:.3f}")
 
     # 5. Schmidt正交化
     base_factors = ['factor_1', 'factor_2', 'factor_3']
@@ -371,23 +373,23 @@ def example_usage():
         factor_data,
         base_factors
     )
-    print("\nSchmidt Orthogonalization:")
-    print(orthogonal_schmidt.corr())
+    logger.info('\nSchmidt Orthogonalization:')
+    logger.info(orthogonal_schmidt.corr())
 
     # 6. PCA正交化
     orthogonal_pca, variance_ratio = orthogonalizer.pca_orthogonalization(
         factor_data,
         variance_threshold=0.95
     )
-    print("\nPCA Orthogonalization:")
-    print(f"Components: {orthogonal_pca.shape[1]}")
-    print(f"Variance explained: {variance_ratio.sum():.2%}")
+    logger.info('\nPCA Orthogonalization:')
+    logger.info(f'Components: {orthogonal_pca.shape[1]}')
+    logger.info(f'Variance explained: {variance_ratio.sum():.2%}')
 
     # 7. 对比正交化前后
     stats = orthogonalizer.compare_before_after(factor_data, orthogonal_schmidt)
-    print("\nBefore vs After:")
-    print(f"Original mean abs corr: {stats['original']['mean_abs_corr']:.3f}")
-    print(f"Orthogonal mean abs corr: {stats['orthogonal']['mean_abs_corr']:.3f}")
+    logger.info('\nBefore vs After:')
+    logger.info(f"Original mean abs corr: {stats['original']['mean_abs_corr']:.3f}")
+    logger.info(f"Orthogonal mean abs corr: {stats['orthogonal']['mean_abs_corr']:.3f}")
 
 
 if __name__ == "__main__":

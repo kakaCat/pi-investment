@@ -4,6 +4,8 @@
 
 被调度器调用: infrastructure.scheduler.signal_execution_job
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 import logging
 from datetime import date, datetime
@@ -105,4 +107,4 @@ def execute_daily_signals(task_context: Dict[str, Any] = None) -> Dict[str, Any]
 # 向后兼容：支持调度器直接调用模块
 if __name__ == '__main__':
     result = execute_daily_signals({})
-    print(result)
+    logger.info(result)

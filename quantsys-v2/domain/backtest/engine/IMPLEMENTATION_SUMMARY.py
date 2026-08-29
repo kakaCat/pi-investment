@@ -434,6 +434,8 @@ weights = [0.3, 0.3, 0.2, 0.2]
 
 策略库现已包含10个策略，可满足不同市场环境和交易风格的需求。
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 if __name__ == '__main__':
-    print(__doc__)
+    logger.info(__doc__)

@@ -473,7 +473,7 @@ if __name__ == "__main__":
         minutes=10,
         message="检查数据处理结果"
     )
-    print(result)
+    logger.info(result)
 
     # 2. 创建每日提醒
     result = tool.create_daily_reminder(
@@ -482,14 +482,14 @@ if __name__ == "__main__":
         message="查看今日市场开盘情况",
         task_name="daily_market_check"
     )
-    print(result)
+    logger.info(result)
 
     # 3. 查看所有Agent任务
     result = tool.list_agent_tasks()
-    print(f"Agent任务: {result['total']} 个")
+    logger.info(f"Agent任务: {result['total']} 个")
     for task in result.get("tasks", []):
-        print(f"  - {task['task_name']}: {task['description']}")
+        logger.info(f"  - {task['task_name']}: {task['description']}")
 
     # 4. 取消任务
     result = tool.cancel_task("daily_market_check")
-    print(result)
+    logger.info(result)

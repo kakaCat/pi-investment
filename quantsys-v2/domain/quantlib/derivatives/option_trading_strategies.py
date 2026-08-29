@@ -6,6 +6,8 @@
 2. DeltaNeutralStrategy - Delta中性策略
 3. VolatilityArbitrageStrategy - 波动率套利策略
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -304,7 +306,7 @@ class VolatilityArbitrageStrategy(OptionStrategy):
 # 使用示例
 def example_usage():
     """使用示例"""
-    print("=== Delta Neutral Strategy ===")
+    logger.info('=== Delta Neutral Strategy ===')
     delta_neutral = DeltaNeutralStrategy(delta_threshold=0.1)
 
     market_data = {
@@ -318,11 +320,11 @@ def example_usage():
 
     signal = delta_neutral.generate_signal(market_data)
     if signal:
-        print(f"Action: {signal['action']}")
-        print(f"Stock adjustment: {signal['stock_adjustment']:.2f}")
-        print(f"Portfolio Delta: {signal['portfolio_greeks']['delta']:.4f}")
+        logger.info(f"Action: {signal['action']}")
+        logger.info(f"Stock adjustment: {signal['stock_adjustment']:.2f}")
+        logger.info(f"Portfolio Delta: {signal['portfolio_greeks']['delta']:.4f}")
 
-    print("\n=== Volatility Arbitrage Strategy ===")
+    logger.info('\n=== Volatility Arbitrage Strategy ===')
     vol_arb = VolatilityArbitrageStrategy(iv_hv_threshold=0.05)
 
     np.random.seed(42)
@@ -340,11 +342,11 @@ def example_usage():
 
     signal_vol = vol_arb.generate_signal(market_data_vol)
     if signal_vol:
-        print(f"Action: {signal_vol['action']}")
-        print(f"Quantity: {signal_vol['quantity']}")
-        print(f"IV: {signal_vol['implied_volatility']:.2%}")
-        print(f"HV: {signal_vol['historical_volatility']:.2%}")
-        print(f"Hedge ratio: {signal_vol['hedge_ratio']:.2f}")
+        logger.info(f"Action: {signal_vol['action']}")
+        logger.info(f"Quantity: {signal_vol['quantity']}")
+        logger.info(f"IV: {signal_vol['implied_volatility']:.2%}")
+        logger.info(f"HV: {signal_vol['historical_volatility']:.2%}")
+        logger.info(f"Hedge ratio: {signal_vol['hedge_ratio']:.2f}")
 
 
 if __name__ == "__main__":

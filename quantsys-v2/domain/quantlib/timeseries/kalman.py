@@ -16,6 +16,8 @@ Features:
 Author: Migrated from FinceptTerminal
 Date: 2026-05-24
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -555,7 +557,8 @@ class KalmanFilterCalculator(BaseCalculator):
                     if sign > 0:
                         ll_t = -0.5 * (logdet + innov.T @ np.linalg.inv(S) @ innov)
                         log_likelihood += float(ll_t)
-                except:
+                except Exception:
+                    logger.debug("unexpected exception in module", exc_info=True)
                     continue
 
         return log_likelihood
@@ -614,7 +617,8 @@ class KalmanFilterCalculator(BaseCalculator):
                     F=F, H=H, Q=Q, R=R
                 )
                 return -result['value']['log_likelihood']
-            except:
+            except Exception:
+                logger.debug("unexpected exception in module", exc_info=True)
                 return 1e10
 
         try:

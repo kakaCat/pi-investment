@@ -10,6 +10,8 @@ and generating detailed quality reports.
 Author: Migrated from FinceptTerminal
 Date: 2026-05-24
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 
 
@@ -77,21 +79,21 @@ class DataQualityReport:
 
     def print_summary(self):
         """Print a summary of the data quality report."""
-        print(f"\n=== Data Quality Report: {self.data_name} ===")
-        print(f"Quality Score: {self.quality_score:.1f}/100")
-        print(f"Issues Found: {len(self.issues)}")
-        print(f"Warnings: {len(self.warnings)}")
+        logger.info(f'\n=== Data Quality Report: {self.data_name} ===')
+        logger.info(f'Quality Score: {self.quality_score:.1f}/100')
+        logger.info(f'Issues Found: {len(self.issues)}')
+        logger.info(f'Warnings: {len(self.warnings)}')
 
         if self.issues:
-            print("\nCritical Issues:")
+            logger.info('\nCritical Issues:')
             for issue in self.issues:
                 if issue['severity'] in ['high', 'critical']:
-                    print(f"  - {issue['description']}")
+                    logger.info(f"  - {issue['description']}")
 
         if self.recommendations:
-            print("\nRecommendations:")
+            logger.info('\nRecommendations:')
             for rec in self.recommendations[:3]:  # Show top 3
-                print(f"  - {rec}")
+                logger.info(f'  - {rec}')
 
 
 class DataValidator:
@@ -490,7 +492,8 @@ class DataValidator:
                     if jb_pvalue < 0.01:
                         report.add_warning('non_normal_returns',
                                            f"{name}Returns significantly deviate from normal distribution")
-                except:
+                except Exception:
+                    logger.debug("unexpected exception in module", exc_info=True)
                     pass
 
         if isinstance(data, pd.DataFrame):

@@ -45,8 +45,8 @@ def configure_structured_logging(
         from structlog.stdlib import add_log_level, add_logger_name
         from structlog.dev import ConsoleRenderer
     except ImportError:
-        print("⚠️ structlog not installed. Run: pip install structlog")
-        print("⚠️ Falling back to standard logging")
+        logger.info('⚠️ structlog not installed. Run: pip install structlog')
+        logger.info('⚠️ Falling back to standard logging')
         return _configure_standard_logging(level)
 
     # 配置标准库 logging（structlog 的底层）

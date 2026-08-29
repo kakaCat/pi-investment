@@ -4,6 +4,8 @@ SQLAlchemy Engine 全局单例 - 统一数据库连接管理
 所有同步数据库访问(BaseRepository、scheduler、脚本)统一通过此 Engine。
 异步路径见 async_engine.py。
 """
+import structlog
+logger = structlog.get_logger(__name__)
 import sys
 import os
 import re
@@ -67,7 +69,8 @@ def _resolve_db_dsn():
             try:
                 config = get_config()
                 db_name = config.database.database
-            except:
+            except Exception:
+                logger.debug("unexpected exception in module", exc_info=True)
                 pass
 
         if db_name and not db_name.endswith(TEST_DB_SUFFIX):

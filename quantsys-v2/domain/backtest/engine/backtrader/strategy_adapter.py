@@ -8,6 +8,8 @@ Two adapter types:
 1. IndicatorStrategyAdapter - for df['buy']/df['sell'] strategies
 2. SignalStrategyAdapter - for StrategyBase.generate_signal() strategies
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 import backtrader as bt
 import pandas as pd
@@ -62,7 +64,7 @@ class IndicatorStrategyAdapter(bt.Strategy):
         """Logging function."""
         if self.params.printlog:
             dt = dt or self.datas[0].datetime.date(0)
-            print(f'{dt.isoformat()} {txt}')
+            logger.info(f'{dt.isoformat()} {txt}')
     
     def notify_order(self, order):
         """Called when order status changes."""
@@ -203,7 +205,7 @@ class SignalStrategyAdapter(bt.Strategy):
         """Logging function."""
         if self.params.printlog:
             dt = dt or self.datas[0].datetime.date(0)
-            print(f'{dt.isoformat()} {txt}')
+            logger.info(f'{dt.isoformat()} {txt}')
     
     def notify_order(self, order):
         """Called when order status changes."""

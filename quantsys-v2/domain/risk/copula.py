@@ -17,6 +17,8 @@ Supported copulas:
 Author: QuantSys V2 Advanced Risk Module
 Date: 2026-05-24
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -349,7 +351,8 @@ class CopulaCalculator(BaseCalculator):
                         df=nu
                     )
                 return -log_lik
-            except:
+            except Exception:
+                logger.debug("unexpected exception in module", exc_info=True)
                 return 1e10
 
         # Optimize degrees of freedom

@@ -3,6 +3,8 @@
 
 通过解析新浪财经网页获取财务数据，不需要 token。
 """
+import structlog
+logger = structlog.get_logger(__name__)
 import logging
 from datetime import datetime
 from typing import Dict, Any
@@ -225,5 +227,6 @@ class SinaWebFinancialProvider(FinancialProvider):
 
         try:
             return float(text)
-        except:
+        except Exception:
+            logger.debug("unexpected exception in module", exc_info=True)
             return text

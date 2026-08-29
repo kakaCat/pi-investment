@@ -4,6 +4,8 @@
 使用aiohttp实现高性能异步HTTP请求
 性能提升：100倍于requests同步请求
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 import aiohttp
 import asyncio
@@ -350,11 +352,11 @@ async def example_usage():
     async with AsyncAkshareAdapter() as adapter:
         # 并发获取K线
         klines = await adapter.batch_fetch_klines(symbols)
-        print(f"Fetched klines for {len(klines)} symbols")
+        logger.info(f'Fetched klines for {len(klines)} symbols')
 
         # 并发获取实时行情
         quotes = await adapter.batch_fetch_realtime_quotes(symbols)
-        print(f"Fetched quotes for {len(quotes)} symbols")
+        logger.info(f'Fetched quotes for {len(quotes)} symbols')
 
 
 if __name__ == "__main__":

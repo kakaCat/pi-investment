@@ -1095,10 +1095,9 @@ install_sync_session_cleanup()
 if __name__ == "__main__":
     import uvicorn
 
-    # 获取配置
-    import os
-    host = os.environ.get('QUANTSYS_API_HOST', '127.0.0.1')
-    port = int(os.environ.get('QUANTSYS_API_PORT', '5001'))
+    # 获取配置（统一从 settings 读取，env: QUANTSYS_API_HOST / QUANTSYS_API_PORT）
+    host = settings.api_host
+    port = settings.api_port
 
     logger.info(f"Starting FastAPI server on {host}:{port}")
 

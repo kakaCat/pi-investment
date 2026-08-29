@@ -3,6 +3,8 @@
 
 用于存储策略的熔断状态
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS quant.strategy_circuit_breaker (
@@ -55,12 +57,12 @@ if __name__ == '__main__':
 
     try:
         cursor = conn.cursor()
-        print("创建策略熔断器表...")
+        logger.info('创建策略熔断器表...')
         upgrade(cursor)
         conn.commit()
-        print("✓ 表创建成功")
+        logger.info('✓ 表创建成功')
     except Exception as e:
-        print(f"✗ 创建失败: {e}")
+        logger.info(f'✗ 创建失败: {e}')
         conn.rollback()
     finally:
         cursor.close()

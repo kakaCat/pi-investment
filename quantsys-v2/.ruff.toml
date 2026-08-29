@@ -38,6 +38,13 @@ ignore = [
 "tests/*" = ["T201", "BLE001"]
 "archived_scripts/*" = ["T201", "BLE001"]
 "live_trading/*" = ["T201", "BLE001"]
+"domain/benchmarks/*" = ["T201", "BLE001"]
+"examples.py" = ["T201", "BLE001"]
+# 仓库根目录的可运行/验证脚本（非 prod 模块，保留 print 输出）
+"conftest.py" = ["T201", "BLE001"]
+"load_env.py" = ["T201", "BLE001"]
+"verify_p2_3_integration.py" = ["T201", "BLE001"]
+"detailed_api_comparison.py" = ["T201", "BLE001"]
 "fix_*.py" = ["T201", "BLE001"]
 "test_*.py" = ["T201", "BLE001"]
 

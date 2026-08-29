@@ -295,4 +295,4 @@ if __name__ == '__main__':
         "symbols_limit": 20,  # 小规模测试
         "force_train": True,
     })
-    print(result)
+    logger.info(result)

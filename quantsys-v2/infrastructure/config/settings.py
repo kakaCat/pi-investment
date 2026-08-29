@@ -143,6 +143,10 @@ class AppSettings(BaseSettings):
     # 环境
     environment: str = Field(default="development", alias="ENVIRONMENT")
 
+    # API 服务绑定地址（uvicorn 启动用）
+    api_host: str = Field(default="127.0.0.1", alias="QUANTSYS_API_HOST")
+    api_port: int = Field(default=5001, alias="QUANTSYS_API_PORT")
+
     # 子配置
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     thread_pool: ThreadPoolSettings = Field(default_factory=ThreadPoolSettings)

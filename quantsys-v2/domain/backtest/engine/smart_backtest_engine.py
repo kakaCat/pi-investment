@@ -7,6 +7,8 @@
 - 500-2000股票：共享内存并行
 - >2000股票：共享内存并行（增加workers）
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 import sys
 import time
@@ -395,7 +397,7 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
     # 生成测试数据
-    print("生成测试数据...")
+    logger.info('生成测试数据...')
     np.random.seed(42)
     market_data = {}
 
@@ -420,7 +422,7 @@ def main():
 
         market_data[symbol] = df
 
-    print(f"数据规模: {n_stocks} 股票 × {n_days} 天")
+    logger.info(f'数据规模: {n_stocks} 股票 × {n_days} 天')
 
     # 创建智能回测引擎
     engine = SmartBacktestEngine(n_workers=8)
@@ -429,7 +431,7 @@ def main():
     strategy_params = {'fast': 5, 'slow': 20}
 
     # 自动选择最优方法
-    print("\n[自动模式]")
+    logger.info('\n[自动模式]')
     results = engine.backtest(
         market_data,
         simple_ma_strategy,
@@ -437,29 +439,27 @@ def main():
         method='auto'
     )
 
-    print(f"回测完成: {len(results)} 只股票")
-    print(f"平均收益: {np.mean([r['total_return'] for r in results]):.2%}")
-    print(f"平均夏普: {np.mean([r['sharpe_ratio'] for r in results]):.2f}")
+    logger.info(f'回测完成: {len(results)} 只股票')
+    logger.info(f"平均收益: {np.mean([r['total_return'] for r in results]):.2%}")
+    logger.info(f"平均夏普: {np.mean([r['sharpe_ratio'] for r in results]):.2f}")
 
     # 基准测试
-    print("\n[基准测试]")
+    logger.info('\n[基准测试]')
     benchmark_results = engine.benchmark(
         market_data,
         simple_ma_strategy,
         strategy_params
     )
 
-    print("\n性能对比:")
-    print(f"{'方法':<20} {'耗时':>10} {'吞吐量':>15} {'加速比':>10}")
-    print("-" * 60)
+    logger.info('\n性能对比:')
+    logger.info(f"{'方法':<20} {'耗时':>10} {'吞吐量':>15} {'加速比':>10}")
+    logger.info('-' * 60)
 
     for method, result in benchmark_results.items():
         if 'time' in result:
-            print(f"{method:<20} {result['time']:>9.3f}s "
-                  f"{result['throughput']:>10.1f} stocks/s "
-                  f"{result.get('speedup', 1.0):>9.2f}x")
+            logger.info(f"{method:<20} {result['time']:>9.3f}s {result['throughput']:>10.1f} stocks/s {result.get('speedup', 1.0):>9.2f}x")
         else:
-            print(f"{method:<20} ERROR: {result.get('error', 'Unknown')}")
+            logger.info(f"{method:<20} ERROR: {result.get('error', 'Unknown')}")
 
 
 if __name__ == '__main__':

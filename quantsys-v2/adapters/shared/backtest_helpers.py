@@ -3,6 +3,8 @@
 save_simple_backtest / run_pe_mean_reversion_backtest / run_pb_mean_reversion_backtest。
 纯回测数学计算（只依赖 datetime/math），Flask 与 FastAPI 两个 API 层共享。
 """
+import structlog
+logger = structlog.get_logger(__name__)
 from datetime import datetime
 import math
 
@@ -137,7 +139,8 @@ def save_simple_backtest(params, klines, initial_capital):
             start_dt = datetime.strptime(str(drawdown_start), '%Y%m%d')
             end_dt = datetime.strptime(str(drawdown_end), '%Y%m%d')
             recovery_days = (end_dt - start_dt).days
-        except:
+        except Exception:
+            logger.debug("unexpected exception in module", exc_info=True)
             recovery_days = 0
 
     if len(daily_returns) > 1:
@@ -188,7 +191,8 @@ def save_simple_backtest(params, klines, initial_capital):
             if month not in monthly_returns[year]:
                 monthly_returns[year][month] = []
             monthly_returns[year][month].append(monthly_return)
-        except:
+        except Exception:
+            logger.debug("unexpected exception in module", exc_info=True)
             continue
 
     monthly_returns_list = []
@@ -456,7 +460,8 @@ def run_pe_mean_reversion_backtest(params, klines, initial_capital):
             start_dt = datetime.strptime(str(drawdown_start), '%Y%m%d')
             end_dt = datetime.strptime(str(drawdown_end), '%Y%m%d')
             recovery_days = (end_dt - start_dt).days
-        except:
+        except Exception:
+            logger.debug("unexpected exception in module", exc_info=True)
             recovery_days = 0
 
     if len(daily_returns) > 1:
@@ -504,7 +509,8 @@ def run_pe_mean_reversion_backtest(params, klines, initial_capital):
             if month not in monthly_returns[year]:
                 monthly_returns[year][month] = []
             monthly_returns[year][month].append(monthly_return)
-        except:
+        except Exception:
+            logger.debug("unexpected exception in module", exc_info=True)
             continue
 
     monthly_returns_list = []
@@ -749,7 +755,8 @@ def run_pb_mean_reversion_backtest(params, klines, initial_capital):
             start_dt = datetime.strptime(str(drawdown_start), '%Y%m%d')
             end_dt = datetime.strptime(str(drawdown_end), '%Y%m%d')
             recovery_days = (end_dt - start_dt).days
-        except:
+        except Exception:
+            logger.debug("unexpected exception in module", exc_info=True)
             recovery_days = 0
 
     if len(daily_returns) > 1:
@@ -797,7 +804,8 @@ def run_pb_mean_reversion_backtest(params, klines, initial_capital):
             if month not in monthly_returns[year]:
                 monthly_returns[year][month] = []
             monthly_returns[year][month].append(monthly_return)
-        except:
+        except Exception:
+            logger.debug("unexpected exception in module", exc_info=True)
             continue
 
     monthly_returns_list = []

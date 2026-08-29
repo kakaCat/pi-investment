@@ -9,6 +9,8 @@ scope:
   07-22 后全市场日更覆盖率从 1351 只逐日衰减到 1 只）
 - gem: 仅创业板（旧行为，保留兼容）
 """
+import structlog
+logger = structlog.get_logger(__name__)
 import os
 import sys
 import time
@@ -319,4 +321,4 @@ def execute(**params):
 if __name__ == '__main__':
     # 测试执行
     result = update_gem_klines(days=5)
-    print(f"\n执行结果: {result}")
+    logger.info(f'\n执行结果: {result}')

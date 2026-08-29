@@ -10,6 +10,8 @@
     python -m infrastructure.jobs.chip_distribution_update_job [--limit 100]
     python -m infrastructure.jobs.chip_distribution_update_job --symbol 600519.SH
 """
+import structlog
+logger = structlog.get_logger(__name__)
 import os
 import logging
 import sys
@@ -53,4 +55,4 @@ if __name__ == '__main__':
     parser.add_argument('--symbol', type=str, default=None)
     args = parser.parse_args()
     params = {k: v for k, v in vars(args).items() if v is not None}
-    print(json.dumps(execute(**params), ensure_ascii=False, default=str))
+    logger.info(json.dumps(execute(**params), ensure_ascii=False, default=str))

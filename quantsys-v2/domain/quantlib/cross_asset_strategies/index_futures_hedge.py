@@ -9,6 +9,8 @@
 2. 动态对冲 - 根据Beta动态调整
 3. 最小方差对冲 - 最小化组合波动率
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -429,7 +431,7 @@ class MinimumVarianceHedgeStrategy(IndexFuturesHedgeStrategy):
 # 使用示例
 def example_static_hedge():
     """静态对冲示例"""
-    print("=== Static Hedge Strategy ===\n")
+    logger.info('=== Static Hedge Strategy ===\n')
 
     strategy = IndexFuturesHedgeStrategy(
         portfolio_value=10_000_000,  # 1000万组合
@@ -455,16 +457,16 @@ def example_static_hedge():
     )
 
     if signal:
-        print("Rebalance Signal:")
-        print(f"  Current position: {signal['current_position']} contracts")
-        print(f"  Target position: {signal['target_position']} contracts")
-        print(f"  Adjustment: {signal['adjustment']} contracts")
-        print(f"  Beta: {signal['beta']:.4f}")
+        logger.info('Rebalance Signal:')
+        logger.info(f"  Current position: {signal['current_position']} contracts")
+        logger.info(f"  Target position: {signal['target_position']} contracts")
+        logger.info(f"  Adjustment: {signal['adjustment']} contracts")
+        logger.info(f"  Beta: {signal['beta']:.4f}")
 
 
 def example_dynamic_hedge():
     """动态对冲示例"""
-    print("\n=== Dynamic Hedge Strategy ===\n")
+    logger.info('\n=== Dynamic Hedge Strategy ===\n')
 
     strategy = DynamicHedgeStrategy(
         portfolio_value=10_000_000,
@@ -481,12 +483,12 @@ def example_dynamic_hedge():
     # 调整对冲比率
     strategy.adjust_hedge_ratio(market_vol, portfolio_vol, correlation)
 
-    print(f"Adjusted hedge ratio: {strategy.hedge_ratio:.2f}")
+    logger.info(f'Adjusted hedge ratio: {strategy.hedge_ratio:.2f}')
 
 
 def example_minimum_variance_hedge():
     """最小方差对冲示例"""
-    print("\n=== Minimum Variance Hedge Strategy ===\n")
+    logger.info('\n=== Minimum Variance Hedge Strategy ===\n')
 
     strategy = MinimumVarianceHedgeStrategy(
         portfolio_value=10_000_000,
@@ -503,7 +505,7 @@ def example_minimum_variance_hedge():
     # 更新对冲比率
     strategy.update_hedge_ratio(portfolio_returns, futures_returns)
 
-    print(f"Optimal hedge ratio: {strategy.hedge_ratio:.4f}")
+    logger.info(f'Optimal hedge ratio: {strategy.hedge_ratio:.4f}')
 
     # 计算对冲效果
     portfolio_returns_series = pd.Series(portfolio_returns)
@@ -516,9 +518,9 @@ def example_minimum_variance_hedge():
         futures_returns_series
     )
 
-    print("\nHedge Effectiveness:")
+    logger.info('\nHedge Effectiveness:')
     for key, value in effectiveness.items():
-        print(f"  {key}: {value:.4f}")
+        logger.info(f'  {key}: {value:.4f}')
 
 
 if __name__ == "__main__":

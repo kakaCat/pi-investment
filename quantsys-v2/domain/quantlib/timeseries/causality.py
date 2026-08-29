@@ -15,6 +15,8 @@ Features:
 Author: Migrated from FinceptTerminal
 Date: 2026-05-24
 """
+import structlog
+logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -363,7 +365,8 @@ class GrangerCausalityCalculator(BaseCalculator):
                         'bic': round(fitted.bic, 4),
                         'hqic': round(fitted.hqic, 4)
                     }
-                except:
+                except Exception:
+                    logger.debug("unexpected exception in module", exc_info=True)
                     continue
 
             return self._create_result_dict(
