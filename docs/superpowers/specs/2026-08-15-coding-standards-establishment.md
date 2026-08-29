@@ -36,9 +36,9 @@
 
 ## 交付物清单
 
-### 1. CODING_STANDARDS.md（核心规范）
+### 1. coding-standards.md（核心规范）
 
-**位置**: `/CODING_STANDARDS.md`  
+**位置**: `/docs/coding-standards.md`  
 **字数**: 6000+  
 **内容结构**:
 
@@ -193,7 +193,7 @@ $ git commit -m "add feature"
    Baseline: 7
 
 📖 Please follow the coding standards:
-   - Read: CODING_STANDARDS.md
+   - Read: docs/coding-standards.md
    ...
 ```
 
@@ -223,7 +223,7 @@ $ git commit -m "add feature"
 - Baseline: 7
 
 Please follow the coding standards to fix these violations:
-- 📖 [Coding Standards](../CODING_STANDARDS.md)
+- 📖 [Coding Standards](../../../coding-standards.md)
 - ⚡ [Quick Reference](quantsys-v2/docs/ARCHITECTURE_QUICK_REFERENCE.md)
 
 **Common fixes:**
@@ -238,7 +238,7 @@ Please follow the coding standards to fix these violations:
 
 ```
 pi-investment/
-├── CODING_STANDARDS.md              # 核心规范（根目录）
+├── docs/coding-standards.md          # 核心规范
 ├── docs/
 │   ├── ARCHITECTURE_QUICK_REFERENCE.md  # 快速参考
 │   └── adr/
@@ -255,7 +255,7 @@ pi-investment/
 ```
 
 **设计考虑**:
-1. `CODING_STANDARDS.md` 在根目录 - 全项目共享
+1. `docs/coding-standards.md` 在 docs/ 下 - 全项目共享
 2. `ARCHITECTURE_QUICK_REFERENCE.md` 在 docs/ - 文档集中
 3. `DEVELOPER_ONBOARDING.md` 在 quantsys-v2/docs/ - 子项目专属
 4. ADR 在 docs/adr/ - 遵循 ADR 标准实践
@@ -308,7 +308,7 @@ python tools/analyze_layer_violations.py | less
 
 - **新人**: 先看 DEVELOPER_ONBOARDING.md（5 分钟）
 - **日常开发**: 查 ARCHITECTURE_QUICK_REFERENCE.md（速查）
-- **深入理解**: 读 CODING_STANDARDS.md（完整规范）
+   - **深入理解**: 读 docs/coding-standards.md（完整规范）
 - **历史背景**: 看 ADR-001（为什么这样设计）
 
 ---
@@ -410,7 +410,7 @@ python tools/analyze_layer_violations.py | less
 
 | 文件 | 用途 | 字数 |
 |------|------|------|
-| CODING_STANDARDS.md | 完整规范 | 6000+ |
+| docs/coding-standards.md | 完整规范 | 6000+ |
 | ARCHITECTURE_QUICK_REFERENCE.md | 快速参考 | 1000+ |
 | DEVELOPER_ONBOARDING.md | 新人入门 | 2000+ |
 | ADR-001 | 架构决策 | 2000+ |

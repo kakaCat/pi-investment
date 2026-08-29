@@ -167,7 +167,7 @@ from domain.models.market_data import QuoteData
 
 ## 📚 详细文档
 
-完整规范请参考: [CODING_STANDARDS.md](../CODING_STANDARDS.md)
+完整规范请参考: [coding-standards.md](./coding-standards.md)
 
 ---
 

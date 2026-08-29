@@ -132,7 +132,7 @@
 
 ### 1. 文档
 
-- **[CODING_STANDARDS.md](../CODING_STANDARDS.md)** - 完整编码规范（18 节，6000+ 字）
+- **[coding-standards.md](../coding-standards.md)** - 完整编码规范（18 节，6000+ 字）
 - **[ARCHITECTURE_QUICK_REFERENCE.md](docs/ARCHITECTURE_QUICK_REFERENCE.md)** - 快速参考卡片
 - **[DEVELOPER_ONBOARDING.md](docs/DEVELOPER_ONBOARDING.md)** - 新人入门指南
 

@@ -23,7 +23,7 @@
 
 | 文档 | 位置 | 字数 | 用途 |
 |------|------|------|------|
-| **CODING_STANDARDS.md** | `/` | 6000+ | 六边形架构完整规范 |
+| **docs/coding-standards.md** | `/docs/` | 6000+ | 六边形架构完整规范 |
 | **ARCHITECTURE_QUICK_REFERENCE.md** | `docs/` | 1000+ | 架构规范快速参考 |
 | **DEVELOPER_ONBOARDING.md** | `quantsys-v2/docs/` | 2000+ | 新人 5 分钟入门 |
 | **ADR-001** | `docs/adr/` | 2000+ | 架构决策记录 |
@@ -85,7 +85,7 @@ git config core.hooksPath .git-hooks
     ↓
 深入理解
     ↓
-  CODING_STANDARDS.md (架构完整规范)
+   docs/coding-standards.md (架构完整规范)
   FRAMEWORK_CONSTRAINTS.md (框架完整规范)
     ↓
 历史背景
@@ -404,7 +404,7 @@ python tools/analyze_layer_violations.py
 
 ### 核心文档
 
-- [CODING_STANDARDS.md](../CODING_STANDARDS.md)
+- [coding-standards.md](../../../coding-standards.md)
 - [FRAMEWORK_CONSTRAINTS.md](quantsys-v2/docs/FRAMEWORK_CONSTRAINTS.md)
 - [DEVELOPER_ONBOARDING.md](quantsys-v2/docs/DEVELOPER_ONBOARDING.md)
 

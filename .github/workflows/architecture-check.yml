@@ -74,7 +74,7 @@ jobs:
 - Baseline: ${baseline}
 
 Please follow the coding standards to fix these violations:
-- 📖 [Coding Standards](../CODING_STANDARDS.md)
+- 📖 [Coding Standards](../../docs/coding-standards.md)
 - ⚡ [Quick Reference](quantsys-v2/docs/ARCHITECTURE_QUICK_REFERENCE.md)
 
 **To see violation details locally:**
@@ -88,7 +88,7 @@ python tools/analyze_layer_violations.py
 2. Use local imports in \`__init__\` methods for concrete classes
 3. Add interface type annotations
 
-See [CODING_STANDARDS.md](../CODING_STANDARDS.md#常见违规修复) for detailed examples.`
+See [CODING_STANDARDS.md](../../docs/coding-standards.md#常见违规修复) for detailed examples.`
           });
 
     - name: Comment PR (on success with improvements)
