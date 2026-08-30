@@ -63,20 +63,26 @@ export class CompetitionAnalysisTool extends BaseTool<
     args: CompetitionAnalysisParams,
     _context: ToolContext
   ): Promise<CompetitionAnalysisResult> {
-    // TODO: 实现 getCompetitionAnalysis 方法
-    // 暂时返回模拟数据
-    return {
-      symbol: args.symbol,
-      company_name: '待实现',
-      industry: {
-        level1: '待实现',
-        level2: '待实现',
-      },
-      competitors: [],
-      competitive_advantages: [],
-      competitive_disadvantages: [],
-      summary: '竞争分析功能待后端实现',
-    };
+    try {
+      const response = await this.qv2.getCompetitionAnalysis(
+        args.symbol,
+        args.include_financial ?? true
+      );
+
+      return {
+        symbol: response.symbol,
+        company_name: response.company_name,
+        industry: response.industry,
+        market_size: response.market_size,
+        competitors: response.competitors,
+        financial_comparison: response.financial_comparison,
+        competitive_advantages: response.competitive_advantages,
+        competitive_disadvantages: response.competitive_disadvantages,
+        summary: response.summary,
+      };
+    } catch (error) {
+      throw new Error(`竞争分析失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**

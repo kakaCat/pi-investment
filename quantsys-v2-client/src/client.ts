@@ -55,6 +55,7 @@ import type {
   MacroData,
   NorthFlowDay,
   MarketSentiment,
+  CompetitionAnalysis,
 } from './types.js';
 
 /**
@@ -538,6 +539,19 @@ export class QuantsysV2Client {
   }> {
     const response = await this.client.get(`/api/analysis/chip-distribution/${symbol}`);
     return this.unwrap(response.data, 'getChipDistribution');
+  }
+
+  /**
+   * Get competition analysis
+   */
+  async getCompetitionAnalysis(
+    symbol: string,
+    includeFinancial: boolean = true
+  ): Promise<CompetitionAnalysis> {
+    const response = await this.client.get(`/api/analysis/competition/${symbol}`, {
+      params: { include_financial: includeFinancial },
+    });
+    return this.unwrap<CompetitionAnalysis>(response.data, 'getCompetitionAnalysis');
   }
 
   // ==================== Financial Data APIs ====================

@@ -1196,3 +1196,33 @@ def get_chip_distribution(symbol: str):
     if "error" in result:
         return error_response(result, 404)
     return api_response(sanitize_for_json(result))
+
+
+# ============ /api/analysis/competition（竞争分析） ============
+
+@router.get('/api/analysis/competition/{symbol}')
+@handle_api_error
+def get_competition_analysis(
+    symbol: str,
+    include_financial: bool = Query(True, description="是否包含财务对比")
+):
+    """竞争分析：同行业对手、市场地位、财务对比、优劣势评估
+
+    数据来源 quant.stocks（每日更新），返回行业前 10 名公司的对比分析。
+
+    博弈智能视角：
+    - 识别竞争对手的强弱点
+    - 评估市场份额和护城河
+    - 对比盈利能力和增长速度
+    """
+    from adapters.outbound.repositories.competition_repository import CompetitionRepository
+    from domain.competition.service import CompetitionAnalysisService
+
+    repo = CompetitionRepository()
+    service = CompetitionAnalysisService(repo)
+    result = service.analyze(symbol, include_financial=include_financial)
+
+    if "error" in result:
+        return error_response(result, 404)
+
+    return api_response(sanitize_for_json(result))
