@@ -95,14 +95,18 @@ async def lifespan(app: FastAPI):
         logger.warning(f"⚠️ ORM initialization skipped: {e}")
 
     # 同步内置策略到数据库
-    try:
-        from domain.backtest.engine.strategy_factory import StrategyFactory
-        from adapters.outbound.repositories import StrategyORMRepository
-        StrategyFactory.auto_discover()
-        count = StrategyFactory.sync_to_database(StrategyORMRepository())
-        logger.info(f"✅ Synced {count} built-in strategies to database")
-    except Exception as e:
-        logger.warning(f"⚠️ Strategy sync failed: {e}")
+    # 2026-08-30: 临时禁用，疑似触发K线获取导致启动阻塞
+    if os.getenv('ENABLE_STRATEGY_SYNC', '').lower() == 'true':
+        try:
+            from domain.backtest.engine.strategy_factory import StrategyFactory
+            from adapters.outbound.repositories import StrategyORMRepository
+            StrategyFactory.auto_discover()
+            count = StrategyFactory.sync_to_database(StrategyORMRepository())
+            logger.info(f"✅ Synced {count} built-in strategies to database")
+        except Exception as e:
+            logger.warning(f"⚠️ Strategy sync failed: {e}")
+    else:
+        logger.warning("⚠️ Strategy sync disabled (set ENABLE_STRATEGY_SYNC=true to enable)")
 
     # WP-15: Agent OS Scheduler Integration (2026-08-16)
     # 注册 quantsys-v2 调度任务到 Agent OS Scheduler（webhook 模式）

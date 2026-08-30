@@ -42,20 +42,41 @@ export const rotationProposalPrompt: ToolPrompt<RotationProposalParams, Rotation
     },
     mode: {
       type: 'string',
-      description: '轮动模式：conservative/balanced/aggressive',
+      description: '轮动模式',
+      enum: ['conservative', 'balanced', 'aggressive'],
+      default: 'balanced',
       example: 'balanced',
     },
     max_positions: {
       type: 'number',
-      description: '最大持仓数量',
+      description: '最大持仓数量（1-30），默认 10',
+      default: 10,
+      minimum: 1,
+      maximum: 30,
       example: 10,
     },
   },
-  examples: [],
+  examples: [
+    {
+      title: '生成保守轮动方案',
+      params: { account_name: 'agent_virtual', mode: 'conservative', max_positions: 8 },
+      expectedResult: '建议卖出 2 只弱势股，买入 1 只优质股',
+    },
+    {
+      title: '生成激进轮动方案',
+      params: { account_name: 'agent_virtual', mode: 'aggressive', max_positions: 15 },
+      expectedResult: '建议大幅调仓，卖出 5 只、买入 8 只',
+    },
+  ],
 
-  notes: [],
+  notes: [
+    '💡 conservative: 小幅调整，换手率 <20%',
+    '💡 balanced: 适度调整，换手率 20-40%（默认）',
+    '💡 aggressive: 大幅调整，换手率 >40%',
+    '⚠️ 方案仅供参考，实际执行前建议用 rotation_simulate 预览',
+  ],
 
-  relatedTools: [],
+  relatedTools: ['rotation_simulate', 'rotation_execute', 'portfolio_trade'],
 
 
   output: {

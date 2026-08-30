@@ -38,7 +38,9 @@ export const signalTrackPrompt: ToolPrompt<SignalTrackParams> = {
     },
     source: {
       type: 'string',
-      description: '信号来源（record 时必填）：strategy_execute / opportunity_scan / mainline_stocks / watch_rule',
+      description: '信号来源（record 时必填）',
+      enum: ['strategy_execute', 'opportunity_scan', 'mainline_stocks', 'watch_rule', 'manual'],
+      example: 'strategy_execute',
     },
     grade: {
       type: 'string',
