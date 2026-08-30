@@ -225,6 +225,7 @@ class TestCircuitBreaker:
         provider.name = "RecoveredProvider"
         provider.get_quote = MagicMock(return_value=QuoteData(
             symbol="000001",
+            name="平安银行",
             price=10.5,
             source="RecoveredProvider",
             timestamp="2024-01-01 10:00:00"
@@ -250,6 +251,7 @@ class TestCircuitBreaker:
         provider.name = "TestProvider"
         provider.get_quote = MagicMock(return_value=QuoteData(
             symbol="000001",
+            name="平安银行",
             price=10.5,
             source="TestProvider",
             timestamp="2024-01-01 10:00:00"
@@ -291,6 +293,7 @@ class TestHealthScoreAdjustment:
         provider2.name = "ReliableProvider"
         provider2.get_quote = MagicMock(return_value=QuoteData(
             symbol="000001",
+            name="平安银行",
             price=10.5,
             source="ReliableProvider",
             timestamp="2024-01-01 10:00:00"
@@ -318,6 +321,7 @@ class TestHealthScoreAdjustment:
         # 初始返回成功
         provider.get_quote = MagicMock(return_value=QuoteData(
             symbol="000001",
+            name="平安银行",
             price=10.5,
             source="RecoveringProvider",
             timestamp="2024-01-01 10:00:00"
