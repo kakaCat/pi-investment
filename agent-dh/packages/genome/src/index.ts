@@ -305,49 +305,40 @@ export default class GenomePlugin extends Service {
   private registerTools(): void {
     const { ctx } = this;
 
-    // 1. genome_list 工具（重构为 BaseTool）
     ctx.tools.register(new GenomeListTool(
       this.genomeDir,
       this.genomeData
-    ) as any);
+    ).toDSHToolDefinition() as any);
 
-    // 2. genome_read 工具（重构为 BaseTool）
     ctx.tools.register(new GenomeReadTool(
       this.genomeDir,
       this.genomeData
-    ) as any);
+    ).toDSHToolDefinition() as any);
 
-    // 3. genome_update 工具（重构为 BaseTool）
     ctx.tools.register(new GenomeUpdateTool(
       this.genomeDir,
       this.genomeData,
       this.lockGuard,
       this.versionManager
-    ) as any);
+    ).toDSHToolDefinition() as any);
 
-    // 4. genome_rollback 工具（重构为 BaseTool）
     ctx.tools.register(new GenomeRollbackTool(
       this.genomeDir,
       this.genomeData,
       this.lockGuard,
       this.versionManager
-    ) as any);
+    ).toDSHToolDefinition() as any);
 
-    // 5. genome_promote 工具（重构为 BaseTool）
     ctx.tools.register(new GenomePromoteTool(
       this.genomeDir,
       this.genomeData,
       this.lockGuard,
       this.versionManager
-    ) as any);
+    ).toDSHToolDefinition() as any);
 
-    // 6. genome_history 工具（重构为 BaseTool）
     ctx.tools.register(new GenomeHistoryTool(
       this.genomeDir,
       this.genomeData
-    ) as any);
-
-    // 注意：genome_diff 工具在 BaseTool 重构中未实现，保留原 defineTool 版本
-    // TODO: 需要创建 GenomeDiffTool 类
+    ).toDSHToolDefinition() as any);
   }
 }
