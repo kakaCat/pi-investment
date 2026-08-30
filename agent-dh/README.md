@@ -196,8 +196,11 @@ cd ~/.dsh/profiles/investment && ./start.sh
 
 - **[CLAUDE.md](./CLAUDE.md)** - 完整的开发指南（推荐阅读）
 - [Profile README](./profiles/investment/README.md) - DSH Profile 说明
-- [项目总结](./docs/project-summary.md) - 项目概览
-- [开发阶段报告](./docs/) - Phase 1-4 完成报告
+- [RFC 设计提案](./docs/rfcs/) - 003-008 设计史
+- [架构决策](./docs/architecture/) - 数据库/旧体系废弃等
+- [操作指南](./docs/guides/) - 订单 API / 周报推送
+- [协议规范](./docs/protocols/) - 交易执行协议
+- [进度与总结](./docs/work-logs/2026-08/) - M0-M8 进度 / 审计总结
 
 ## 🧪 测试
 

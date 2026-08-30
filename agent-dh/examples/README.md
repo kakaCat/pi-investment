@@ -306,7 +306,6 @@ pnpm build
 
 - [快速开始指南](../QUICKSTART.md)
 - [API 文档](../docs/api-reference.md)（待创建）
-- [项目总结](../docs/project-summary.md)
 
 ---
 

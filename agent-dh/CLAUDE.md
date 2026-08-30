@@ -71,8 +71,14 @@ agent-dh/
 │   └── README.md               # Profile 说明
 │
 ├── docs/                        # 项目文档
-│   ├── phase-*-completion-report.md  # 开发阶段报告
-│   └── project-summary.md      # 项目总结
+│   ├── AUTONOMY-SYSTEM.md       # 自主能力总览
+│   ├── WHY-NO-DIST.md           # 为何部分插件无 dist
+│   ├── self-restart-behavior.md # 自修复重启行为
+│   ├── rfcs/                    # RFC 设计提案 003-008
+│   ├── architecture/            # 架构决策
+│   ├── guides/                  # 操作指南
+│   ├── protocols/               # 协议规范
+│   └── work-logs/2026-08/       # 进度与总结（仅汇总）
 │
 ├── examples/                    # 使用示例
 ├── scripts/                     # 工具脚本
@@ -573,26 +579,14 @@ Agent-DH 现已完成**完整自主能力体系**的架构设计。
 
 ### 📚 核心文档
 
-1. **`docs/MASTER-PLAN.md`** - 12 周实施总规划
-   - 8 个 Sprint，6 个新插件，35 个新工具
-   - 清晰的里程碑和验收标准
-   - 风险管理和协作模式
+1. **`docs/AUTONOMY-SYSTEM.md`** - 自主能力总览（能力矩阵、学习循环）
+2. **`docs/rfcs/003-self-learning-distillation.md`** - 学习系统设计
+3. **`docs/rfcs/005-self-evolving-agent.md`** - 自进化 Agent 设计
+4. **`docs/rfcs/006-prompt-genome-sections.md`** - 提示词基因组切分
+5. **`docs/rfcs/007-genome-manager.md`** - genome_manager 工具化
+6. **`docs/rfcs/008-validation-gate.md`** - 验证门设计
 
-2. **`docs/AUTONOMY-SYSTEM.md`** - 自主能力总览
-   - 完整能力矩阵
-   - 学习循环设计
-   - 与深度学习的类比
-
-3. **`docs/DESIGN-SUMMARY.md`** - 设计总结
-   - 核心创新点
-   - 预期成果
-   - 下一步行动
-
-### 🔧 技术文档
-
-4. **`docs/rfcs/003-self-learning-distillation.md`** - 学习系统设计
-5. **`docs/rfcs/004-diagnostics-plugin.md`** - 诊断插件详细设计（Sprint 1）
-6. **`docs/IMPLEMENTATION-GUIDE.md`** - 实施者指南
+> 注：未实现的 RFC（004 诊断插件、009 公告板生命周期、010 窗口-OS 生命周期）设计文档已从 `docs/` 移除；已实现的 RFC 见 `docs/rfcs/`（003/005/006/007/008）。
 
 ### 🎯 当前状态
 

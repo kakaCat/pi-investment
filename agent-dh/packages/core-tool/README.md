@@ -194,8 +194,48 @@ packages/trading/src/tools/PortfolioTradeTool/
 3. **业务错误** → 解释业务约束 + 提供解决路径 + 推荐其他工具
 4. **工具路由** → A 工具不行时，自动推荐 B 工具
 
+## 错误处理与工具路由最佳实践
+
+> 以下为工具实现时的实战规范，配合上文的三段式框架与核心类型使用。当前实现以 `BaseTool` 抽象类为准：子类重写 `validate()` / `execute()` / `wrap()` 三段方法（真实示例见 `packages/investment/src/tools/` 下的各工具目录）。
+
+### 错误分类矩阵
+
+| 错误类型 | 触发时机 | 返回内容 | Agent 行动 |
+|---------|---------|---------|-----------|
+| 入参错误 (INPUT_ERROR) | 参数格式/类型不对 | 期望格式 + 示例 + 修正建议 | 修正参数重试 |
+| 入参为空 (INPUT_EMPTY) | 必填参数缺失 | 参数说明 + 示例 + 用途说明 | 补充参数重试 |
+| 出参错误 (OUTPUT_ERROR) | 后端数据结构异常 | 期望结构 + 实际数据 + 可能原因 | 报告问题或换工具 |
+| 出参无数据 (OUTPUT_EMPTY) | 查询无结果 | 无数据原因 + 检查建议 + 替代方案 | 调整条件或换工具 |
+| 业务拒绝 (BUSINESS_REJECTION) | 违反业务规则 | 规则说明 + 当前状态 + 解决路径 | 调整策略或换工具 |
+| 工具不适用 (TOOL_NOT_APPLICABLE) | 场景不匹配 | 不适用原因 + 推荐工具 | 切换到推荐工具 |
+| 执行异常 (EXECUTION_ERROR) / 超时 (TIMEOUT) | 后端/网络故障 | 错误原因 + 重试建议 | 重试或上报 |
+
+### 工具路由规则表（示例）
+
+| 当前工具 | 失败原因 | 推荐工具 | 推荐理由 | 示例 |
+|---------|---------|---------|---------|------|
+| portfolio_trade | 非交易时段 | watch_manage | 可设置价格提醒 | `watch_manage({ action: 'create', ... })` |
+| portfolio_trade | 资金不足 | position_list | 先查持仓释放资金 | `position_list()` |
+| data_fetch_quote | 股票不存在 | screening | 搜索正确代码 | `screening({ filters: { name: '茅台' } })` |
+| model_predict | 模型异常 | strategy_execute | 改用策略信号 | `strategy_execute({ strategy_id: 1 })` |
+| strategy_execute | 无信号 | opportunity_scan | 扩大选股范围 | `opportunity_scan({ limit: 10 })` |
+
+**路由决策流程**：工具执行失败 → 识别失败类型 →（入参错误→修正参数重试 / 出参异常→匹配路由规则推荐替代工具 / 业务拒绝→提供解决方案或换工具）。
+
+### 编写规范
+
+**错误提示（DO / DON'T）**
+- ✅ `issue: "symbol 必须是6位数字股票代码"`，附 `received` / `expected` / `example` / `commonMistakes: ["不要包含交易所前缀"]`
+- ❌ `{ error: "参数错误" }` —— 太模糊，Agent 无法理解
+
+**业务约束说明（DO / DON'T）**
+- ✅ 给出 `rule` + `issue` + `currentTime` / `nextTradingTime` + `solutions[]`（含 `approach` 与 `tool`）
+- ❌ `{ error: "不能交易" }` —— 没说原因也没给方案
+
+**工具路由推荐（DO / DON'T）**
+- ✅ `routing: { shouldRoute: true, recommendedTool: "watch_manage", reason: "...", example: "...", confidence: "high" }`
+- ❌ `{ suggestion: "试试其他工具" }` —— 没说具体工具与用法
+
 ## 相关文档
 
-- [TOOL-ERROR-HANDLING-AND-ROUTING.md](../../docs/TOOL-ERROR-HANDLING-AND-ROUTING.md)
-- [TOOL-FRAMEWORK-VALIDATION-ERROR-ENHANCED.md](../../docs/TOOL-FRAMEWORK-VALIDATION-ERROR-ENHANCED.md)
-- [TOOL-FRAMEWORK-DSH-COMPATIBLE.md](../../docs/TOOL-FRAMEWORK-DSH-COMPATIBLE.md)
+工具框架设计已完整记录于本文件（三段式接口规范 + 核心类型 + 上述最佳实践）。历史设计迭代文档已移除，避免与当前 `BaseTool` 实现脱节。
