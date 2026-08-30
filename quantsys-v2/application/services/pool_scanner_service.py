@@ -47,7 +47,7 @@ class PoolScannerService:
         Returns:
             扫描结果字典
         """
-                from application.services.strategy_code_service import StrategyCodeService
+        from application.services.strategy_code_service import StrategyCodeService
 
         if self._pool_repo is None:
             from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory

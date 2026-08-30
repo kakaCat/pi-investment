@@ -2,7 +2,7 @@
 Tests for StockCodeValidator optimization
 """
 from datetime import datetime, timedelta
-from unittest.mock import Mock
+from unittest.mock import Mock, MagicMock
 
 import pytest
 
@@ -11,8 +11,9 @@ from application.services.stock_code_validator import StockCodeValidator
 
 class TestStockCodeValidatorOptimized:
     def test_validate_uses_lightweight_queries(self):
-        validator = StockCodeValidator()
-        validator.kline_repo.count_daily_klines = Mock(return_value=1200)
+        mock_repo = MagicMock()
+        mock_repo.count_daily_klines = Mock(return_value=1200)
+        validator = StockCodeValidator(kline_repo=mock_repo)
 
         last_date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
         validator.kline_repo.get_date_range = Mock(return_value=('2020-01-02', last_date))
@@ -32,9 +33,10 @@ class TestStockCodeValidatorOptimized:
         assert result['data_summary']['days_since_update'] >= 2
 
     def test_validate_returns_invalid_when_no_records(self):
-        validator = StockCodeValidator()
-        validator.kline_repo.count_daily_klines = Mock(return_value=0)
-        validator.kline_repo.get_date_range = Mock(return_value=None)
+        mock_repo = MagicMock()
+        mock_repo.count_daily_klines = Mock(return_value=0)
+        mock_repo.get_date_range = Mock(return_value=None)
+        validator = StockCodeValidator(kline_repo=mock_repo)
 
         result = validator.validate('999999')
 
@@ -43,9 +45,10 @@ class TestStockCodeValidatorOptimized:
         assert result['has_recent_data'] is False
 
     def test_validate_returns_invalid_when_date_range_missing(self):
-        validator = StockCodeValidator()
-        validator.kline_repo.count_daily_klines = Mock(return_value=5)
-        validator.kline_repo.get_date_range = Mock(return_value=None)
+        mock_repo = MagicMock()
+        mock_repo.count_daily_klines = Mock(return_value=5)
+        mock_repo.get_date_range = Mock(return_value=None)
+        validator = StockCodeValidator(kline_repo=mock_repo)
 
         result = validator.validate('000001')
 

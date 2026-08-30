@@ -43,7 +43,7 @@ class SwingPointService:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.kline_repo = kline_repo
-        self.validator = validator or StockCodeValidator()
+        self.validator = validator or StockCodeValidator(kline_repo)
 
     def analyze(self, params: Dict) -> Dict:
         """
@@ -70,6 +70,13 @@ class SwingPointService:
         if not symbol:
             raise ValueError("缺少必填参数: symbol")
 
+        min_change = float(params.get('min_change', DEFAULT_MIN_CHANGE))
+        if min_change < MIN_CHANGE_LOWER or min_change > MIN_CHANGE_UPPER:
+            raise ValueError(
+                f"min_change 必须在 {MIN_CHANGE_LOWER}% ~ {MIN_CHANGE_UPPER}% 之间，"
+                f"当前值: {min_change}%"
+            )
+
         # 1.5 股票代码预验证（优化：减少无效查询）
         validation = self.validator.validate(symbol)
         if not validation['valid']:
@@ -81,13 +88,6 @@ class SwingPointService:
                 'period': {'start': params.get('start_date', ''), 'end': params.get('end_date', '')},
                 'validation': validation
             }
-
-        min_change = float(params.get('min_change', DEFAULT_MIN_CHANGE))
-        if min_change < MIN_CHANGE_LOWER or min_change > MIN_CHANGE_UPPER:
-            raise ValueError(
-                f"min_change 必须在 {MIN_CHANGE_LOWER}% ~ {MIN_CHANGE_UPPER}% 之间，"
-                f"当前值: {min_change}%"
-            )
 
         end_date = params.get('end_date') or datetime.now().strftime('%Y-%m-%d')
         start_date = params.get('start_date')
@@ -104,11 +104,13 @@ class SwingPointService:
             end_date=end_date,
         )
 
-        # Polars DataFrame → list of dicts
-        if klines_df is not None and len(klines_df) > 0:
+        # Polars DataFrame → list of dicts（兼容测试直接传入 list[dict] 的情况）
+        if klines_df is None:
+            klines = []
+        elif hasattr(klines_df, 'to_dicts'):
             klines = klines_df.to_dicts()
         else:
-            klines = []
+            klines = list(klines_df)
 
         # 3. 数据不足时的Fallback机制
         if not klines or len(klines) < 3:
@@ -128,7 +130,7 @@ class SwingPointService:
                 )
 
                 if klines_df is not None and len(klines_df) >= 3:
-                    klines = klines_df.to_dicts()
+                    klines = klines_df.to_dicts() if hasattr(klines_df, 'to_dicts') else list(klines_df)
                     logger.info(f"扩大日期范围后获取到 {len(klines)} 条K线数据")
                     # 继续执行分析
                 else:

@@ -410,6 +410,7 @@ class MarketDataService:
                 'error': f'北向资金估算失败: {str(e)}',
                 'data': None
             }
+        """
 
     def get_sectors(self) -> Dict[str, Any]:
         """

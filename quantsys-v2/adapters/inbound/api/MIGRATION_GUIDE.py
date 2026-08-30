@@ -411,7 +411,7 @@ from .decorators import log_request
 @log_request
 @handle_errors
 @validate_params({...})
-def important_endpoint(...):
+def important_endpoint():
     pass
 
 # 查看日志
