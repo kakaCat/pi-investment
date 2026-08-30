@@ -1,14 +1,15 @@
 import type { ToolPrompt } from '@pi-investment/core-tool';
 
 export interface GenomeListParams {
-  class?: 'core' | 'domain' | 'runtime';
+  /** 按类别过滤：constitution（宪法层，锁定）/ evolvable（可进化段） */
+  class?: 'constitution' | 'evolvable';
 }
 
 export interface GenomeSectionInfo {
   name: string;
-  class: string;
-  version: string;
-  description: string;
+  class: 'constitution' | 'evolvable';
+  version: number;
+  description?: string;
   char_count: number;
 }
 
@@ -16,26 +17,24 @@ export interface GenomeListResult {
   sections: GenomeSectionInfo[];
   total: number;
   by_class?: {
-    core: number;
-    domain: number;
-    runtime: number;
+    constitution: number;
+    evolvable: number;
   };
 }
 
 export const genomeListPrompt: ToolPrompt<GenomeListParams, GenomeListResult> = {
-  description: '列出基因组中的所有段（sections）',
+  description: '列出基因组全部段及其版本（线上模型：整数版本号，class 为 constitution/evolvable）',
   useCases: [
-    '查看基因组结构',
-    '了解各类段的数量分布',
-    '筛选特定类别的段',
-    '审计基因组内容',
+    '查看当前基因组各段版本',
+    '按类别过滤查询（constitution/evolvable）',
+    '确认某段是否锁定',
   ],
   parameters: {
     class: {
       type: 'string',
-      description: '段类别筛选：core(核心)/domain(领域)/runtime(运行时)',
-      enum: ['core', 'domain', 'runtime'],
       required: false,
+      description: '按类别过滤：constitution（宪法层，锁定）/ evolvable（可进化段）。不传则列出全部',
+      enum: ['constitution', 'evolvable'],
     },
   },
   output: {
@@ -50,11 +49,12 @@ export const genomeListPrompt: ToolPrompt<GenomeListParams, GenomeListResult> = 
             additionalProperties: false,
             properties: {
               name: { type: 'string' },
-              class: { type: 'string' },
-              version: { type: 'string' },
+              class: { type: 'string', enum: ['constitution', 'evolvable'] },
+              version: { type: 'number' },
               description: { type: 'string' },
               char_count: { type: 'number' },
             },
+            required: ['name', 'class', 'version', 'char_count'],
           },
         },
         total: { type: 'number' },
@@ -62,12 +62,12 @@ export const genomeListPrompt: ToolPrompt<GenomeListParams, GenomeListResult> = 
           type: 'object',
           additionalProperties: false,
           properties: {
-            core: { type: 'number' },
-            domain: { type: 'number' },
-            runtime: { type: 'number' },
+            constitution: { type: 'number' },
+            evolvable: { type: 'number' },
           },
         },
       },
+      required: ['sections', 'total'],
     },
   },
   examples: [
@@ -76,33 +76,40 @@ export const genomeListPrompt: ToolPrompt<GenomeListParams, GenomeListResult> = 
       output: {
         sections: [
           {
-            name: 'identity',
-            class: 'core',
-            version: '1.0.0',
-            description: 'Agent 身份定义',
+            name: 'constitution',
+            class: 'constitution',
+            version: 1,
+            description: '交易宪法（不可修改）',
             char_count: 1234,
           },
+          {
+            name: 'principles',
+            class: 'evolvable',
+            version: 6,
+            description: '决策原则（可进化）',
+            char_count: 3456,
+          },
         ],
-        total: 10,
-        by_class: { core: 3, domain: 5, runtime: 2 },
+        total: 4,
+        by_class: { constitution: 1, evolvable: 3 },
       },
       description: '列出所有段',
     },
     {
-      input: { class: 'core' },
+      input: { class: 'evolvable' },
       output: {
         sections: [
           {
-            name: 'identity',
-            class: 'core',
-            version: '1.0.0',
-            description: 'Agent 身份定义',
-            char_count: 1234,
+            name: 'principles',
+            class: 'evolvable',
+            version: 6,
+            description: '决策原则（可进化）',
+            char_count: 3456,
           },
         ],
         total: 3,
       },
-      description: '只列出核心段',
+      description: '只列出可进化段',
     },
   ],
 };

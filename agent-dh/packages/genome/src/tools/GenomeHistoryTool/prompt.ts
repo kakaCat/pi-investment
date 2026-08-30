@@ -1,46 +1,49 @@
 import type { ToolPrompt } from '@pi-investment/core-tool';
 
 export interface GenomeHistoryParams {
-  section: string;
+  /** 段名（不传=全部段的历史） */
+  section?: string;
+  /** 返回最近 N 条（默认 10） */
   limit?: number;
 }
 
-export interface GenomeVersionInfo {
+export interface GenomeHistoryEntry {
   version: string;
-  timestamp: string;
-  file_size: number;
-  preview: string;
+  section: string;
+  section_version: number;
+  parent: string;
+  reason: string;
+  ts: string;
+  author?: string;
+  type?: string;
+  git_commit?: string;
+  stage?: string;
+  force?: boolean;
+  baseline_version?: string;
 }
 
 export interface GenomeHistoryResult {
-  section: string;
-  current_version: string;
-  history: GenomeVersionInfo[];
-  total_versions: number;
+  history: GenomeHistoryEntry[];
 }
 
 export const genomeHistoryPrompt: ToolPrompt<GenomeHistoryParams, GenomeHistoryResult> = {
-  description: '查看基因组段的版本历史',
+  description: '查询基因组版本历史：各版本的段、理由、commit、时间。用于：复盘"这轮进化改了什么"、追溯决策依据。',
   useCases: [
-    '审计段的演化历史',
-    '查找特定版本的内容',
-    '分析版本变更频率',
-    '准备回滚操作',
+    '复盘基因组进化历史',
+    '按段追溯版本谱系',
+    '查看最近 N 条变更',
   ],
   parameters: {
     section: {
       type: 'string',
-      required: true,
-      description: '要查询的段名称',
+      required: false,
+      description: '段名（不传=全部段的历史）',
     },
     limit: {
       type: 'number',
       required: false,
-      description: '返回的最大版本数（1-100），默认 10',
+      description: '返回最近 N 条（默认 10）',
       default: 10,
-      minimum: 1,
-      maximum: 100,
-      example: 10,
     },
   },
   output: {
@@ -48,51 +51,51 @@ export const genomeHistoryPrompt: ToolPrompt<GenomeHistoryParams, GenomeHistoryR
       type: 'object',
       additionalProperties: false,
       properties: {
-        section: { type: 'string' },
-        current_version: { type: 'string' },
         history: {
           type: 'array',
           items: {
             type: 'object',
-            additionalProperties: false,
+            additionalProperties: true,
             properties: {
               version: { type: 'string' },
-              timestamp: { type: 'string' },
-              file_size: { type: 'number' },
-              preview: { type: 'string' },
+              section: { type: 'string' },
+              section_version: { type: 'number' },
+              parent: { type: 'string' },
+              reason: { type: 'string' },
+              ts: { type: 'string' },
+              author: { type: 'string' },
+              type: { type: 'string' },
+              git_commit: { type: 'string' },
+              stage: { type: 'string' },
+              force: { type: 'boolean' },
+              baseline_version: { type: 'string' },
             },
           },
         },
-        total_versions: { type: 'number' },
       },
+      required: ['history'],
     },
   },
   examples: [
     {
-      input: {
-        section: 'identity',
-        limit: 5,
-      },
+      input: { limit: 3 },
       output: {
-        section: 'identity',
-        current_version: '1.3.0',
         history: [
           {
-            version: '1.3.0',
-            timestamp: '2026-08-28T10:00:00Z',
-            file_size: 1234,
-            preview: '# Agent 身份\n\n我是 PI Investment Agent...',
-          },
-          {
-            version: '1.2.0',
-            timestamp: '2026-08-20T10:00:00Z',
-            file_size: 1100,
-            preview: '# Agent 身份\n\n我是量化投资助手...',
+            version: 'g16',
+            section: 'lessons',
+            section_version: 5,
+            parent: 'g15',
+            reason: '新增经验教训',
+            ts: '2026-08-30T10:00:00.000Z',
+            author: 'agent',
+            type: 'update',
+            git_commit: 'a1b2c3d',
+            stage: 'active',
           },
         ],
-        total_versions: 5,
       },
-      description: '查看最近 5 个版本',
+      description: '查询最近历史',
     },
   ],
 };

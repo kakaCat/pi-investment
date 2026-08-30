@@ -2,35 +2,42 @@ import type { ToolPrompt } from '@pi-investment/core-tool';
 
 export interface GenomeRollbackParams {
   section: string;
-  target_version: string;
+  /** 目标段版本（整数；不传=回滚到上一版本） */
+  to_section_version?: number;
+  reason: string;
 }
 
 export interface GenomeRollbackResult {
-  section: string;
-  old_version: string;
-  restored_version: string;
-  content_preview: string;
-  commit_hash?: string;
+  success: boolean;
+  genome_version: string;
+  section_version: number;
+  /** 实际回滚到的目标版本 */
+  rolled_back_to: number;
+  git_commit?: string;
 }
 
 export const genomeRollbackPrompt: ToolPrompt<GenomeRollbackParams, GenomeRollbackResult> = {
-  description: '回滚基因组段到指定版本',
+  description: '回滚段到历史版本。回滚=新版本（内容同目标版本，代数+1），历史只增不改。用于：验证门失败回退、进化恶化复原。',
   useCases: [
-    '撤销错误的更新',
-    '恢复到已知良好的版本',
-    '测试不同版本的效果',
-    '修复配置错误',
+    '验证门失败回退',
+    '进化恶化复原',
+    '回滚到指定历史版本',
   ],
   parameters: {
     section: {
       type: 'string',
       required: true,
-      description: '要回滚的段名称',
+      description: '段名：principles / rules / lessons（constitution 为宪法层禁止回滚）',
     },
-    target_version: {
+    to_section_version: {
+      type: 'number',
+      required: false,
+      description: '目标段版本（整数；不传=回滚到上一版本）',
+    },
+    reason: {
       type: 'string',
       required: true,
-      description: '目标版本号',
+      description: '回滚理由，如"模拟盘 A/B 恶化"',
     },
   },
   output: {
@@ -38,28 +45,29 @@ export const genomeRollbackPrompt: ToolPrompt<GenomeRollbackParams, GenomeRollba
       type: 'object',
       additionalProperties: false,
       properties: {
-        section: { type: 'string' },
-        old_version: { type: 'string' },
-        restored_version: { type: 'string' },
-        content_preview: { type: 'string' },
-        commit_hash: { type: 'string' },
+        success: { type: 'boolean' },
+        genome_version: { type: 'string' },
+        section_version: { type: 'number' },
+        rolled_back_to: { type: 'number' },
+        git_commit: { type: 'string' },
       },
+      required: ['success', 'genome_version', 'section_version', 'rolled_back_to'],
     },
   },
   examples: [
     {
       input: {
-        section: 'identity',
-        target_version: '1.0.0',
+        section: 'principles',
+        reason: '模拟盘 A/B 恶化',
       },
       output: {
-        section: 'identity',
-        old_version: '1.2.0',
-        restored_version: '1.0.0',
-        content_preview: '# Agent 身份\n\n我是 PI Investment Agent...',
-        commit_hash: 'x9y8z7w',
+        success: true,
+        genome_version: 'g18',
+        section_version: 8,
+        rolled_back_to: 6,
+        git_commit: 'f4e5d6c',
       },
-      description: '回滚身份段到 1.0.0',
+      description: '回滚 principles 到上一版本',
     },
   ],
 };

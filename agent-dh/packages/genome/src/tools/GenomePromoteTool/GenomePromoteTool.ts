@@ -1,16 +1,23 @@
 import { BaseTool, ToolResponse, ValidationResult, ErrorType } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext } from '@pi-investment/core-tool';
-import * as fs from 'fs';
-import * as path from 'path';
-import { execSync } from 'child_process';
 import { genomePromotePrompt, type GenomePromoteParams, type GenomePromoteResult } from './prompt';
+import type { GenomeWriteHost } from '../host';
+import {
+  readGenomeJson,
+  writeGenomeJson,
+  gitCommit,
+  appendChangelog,
+  type GenomeMetadata,
+} from '../../store';
+import { promoteCandidate } from '../../versioning';
+import { guardConstitution } from '../../guard';
 
 export class GenomePromoteTool extends BaseTool<GenomePromoteParams, GenomePromoteResult> {
   protected readonly metadata: ToolMetadata = {
     name: 'genome_promote',
     category: 'genome',
-    version: '1.0.0',
-    timeoutMs: 10000,
+    version: '2.0.0',
+    timeoutMs: 30000,
   };
 
   protected readonly prompt = genomePromotePrompt;
@@ -19,43 +26,30 @@ export class GenomePromoteTool extends BaseTool<GenomePromoteParams, GenomePromo
     private genomeDir: string,
     private genomeData: any,
     private lockGuard: any,
-    private versionManager: any
+    private host?: GenomeWriteHost
   ) {
     super();
   }
 
   protected validate(params: GenomePromoteParams): ValidationResult {
-    const { section, increment, reason } = params;
+    const { section, reason } = params;
 
-    // 检查 section 是否存在
-    if (!this.genomeData.sections[section]) {
+    if (!this.genomeData.sections || !this.genomeData.sections[section]) {
       return {
         success: false,
         errorType: ErrorType.INPUT_ERROR,
         field: 'section',
         issue: `段 ${section} 不存在`,
-        expected: `可用段: ${Object.keys(this.genomeData.sections).join(', ')}`,
+        expected: `可用段: ${this.genomeData.sections ? Object.keys(this.genomeData.sections).join(', ') : '(无)'}`,
       };
     }
 
-    // 检查 increment 类型
-    if (!['major', 'minor', 'patch'].includes(increment)) {
-      return {
-        success: false,
-        errorType: ErrorType.INPUT_ERROR,
-        field: 'increment',
-        issue: `无效的增量类型: ${increment}`,
-        expected: 'major, minor, 或 patch',
-      };
-    }
-
-    // 检查 reason 不为空
     if (!reason || reason.trim().length === 0) {
       return {
         success: false,
         errorType: ErrorType.INPUT_ERROR,
         field: 'reason',
-        issue: '必须提供版本提升原因',
+        issue: '必须提供转正理由',
       };
     }
 
@@ -63,41 +57,59 @@ export class GenomePromoteTool extends BaseTool<GenomePromoteParams, GenomePromo
   }
 
   protected async execute(params: GenomePromoteParams, context: ToolContext): Promise<GenomePromoteResult> {
-    const { section, increment, reason } = params;
+    const { section, reason } = params;
 
-    // 获取锁
-    const release = await this.lockGuard.acquire();
+    let data: GenomeMetadata = this.genomeData;
     try {
-      const oldVersion = this.genomeData.sections[section].version;
+      data = readGenomeJson(this.genomeDir);
+    } catch { /* 回退内存数据 */ }
 
-      // 计算新版本号
-      const newVersion = this.versionManager.bumpVersion(oldVersion, increment);
+    const release = await this.lockGuard.acquire();
 
-      // 更新 metadata（不修改文件内容）
-      this.genomeData.sections[section].version = newVersion;
-      this.genomeData.sections[section].updated_at = new Date().toISOString();
+    try {
+      // 宪法层禁止转正
+      guardConstitution(section, data);
 
-      const metaPath = path.join(this.genomeDir, 'genome.json');
-      fs.writeFileSync(metaPath, JSON.stringify(this.genomeData, null, 2), 'utf-8');
+      // 转正（改 history 标记，不动段内容与版本号）
+      const newGenomeData = promoteCandidate(data, section, reason);
+      writeGenomeJson(this.genomeDir, newGenomeData);
 
-      // Git 提交
-      let commitHash: string | undefined;
+      // CHANGELOG
       try {
-        execSync(`git add "${metaPath}"`, { cwd: this.genomeDir });
-        execSync(`git commit -m "genome: promote ${section} to v${newVersion} - ${reason}"`, { cwd: this.genomeDir });
-        commitHash = execSync('git rev-parse --short HEAD', { cwd: this.genomeDir })
-          .toString()
-          .trim();
-      } catch (error) {
-        commitHash = undefined;
+        appendChangelog(this.genomeDir, newGenomeData.history![newGenomeData.history!.length - 1]);
+      } catch { /* 不阻塞 */ }
+
+      // git commit（promote 只改元数据；标签用当前代数）
+      const sectionVersion = newGenomeData.sections[section].version;
+      let gitHash: string | undefined;
+      try {
+        gitHash = gitCommit(
+          this.genomeDir,
+          newGenomeData.genome_version,
+          section,
+          sectionVersion,
+          sectionVersion,
+          reason,
+          'promote'
+        );
+      } catch { /* 非 git 环境 */ }
+
+      // 补 commit hash
+      if (gitHash) {
+        const pEntries = newGenomeData.history!;
+        pEntries[pEntries.length - 1].git_commit = gitHash;
+        writeGenomeJson(this.genomeDir, newGenomeData);
       }
 
+      // 同步内存
+      Object.assign(this.genomeData, newGenomeData);
+
       return {
+        success: true,
+        genome_version: newGenomeData.genome_version,
         section,
-        old_version: oldVersion,
-        new_version: newVersion,
-        increment_type: increment,
-        commit_hash: commitHash,
+        section_version: sectionVersion,
+        git_commit: gitHash,
       };
     } finally {
       release();
@@ -105,12 +117,9 @@ export class GenomePromoteTool extends BaseTool<GenomePromoteParams, GenomePromo
   }
 
   protected wrap(data: GenomePromoteResult, context: ToolContext): ToolResponse<GenomePromoteResult> {
-    const { section, old_version, new_version, increment_type, commit_hash } = data;
-
-    let message = `${section}: v${old_version} → v${new_version} (${increment_type})`;
-    if (commit_hash) {
-      message += ` [${commit_hash}]`;
-    }
+    const { section, section_version, genome_version, git_commit } = data;
+    let message = `${section} v${section_version} 转正成功 (${genome_version})`;
+    if (git_commit) message += ` [${git_commit}]`;
 
     return {
       success: true,
@@ -118,9 +127,9 @@ export class GenomePromoteTool extends BaseTool<GenomePromoteParams, GenomePromo
       message,
       metadata: {
         section,
-        version_change: `${old_version} → ${new_version}`,
-        increment_type,
-        commit_hash,
+        section_version,
+        genome_version,
+        commit_hash: git_commit,
       },
     };
   }

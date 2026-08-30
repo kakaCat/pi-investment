@@ -4,6 +4,7 @@
  */
 import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
+import { renderPrompt } from '@deepseek-ai/dsh-system-prompt';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
@@ -22,6 +23,7 @@ import {
   GenomePromoteTool,
   GenomeHistoryTool,
 } from './tools';
+import type { GenomeWriteHost } from './tools/host';
 
 export default class GenomePlugin extends Service {
   static inject = ['tools', 'systemPrompt'];  // 添加 systemPrompt 依赖
@@ -34,7 +36,6 @@ export default class GenomePlugin extends Service {
   private genomeData: any = null;
   private lock!: GenomeLock;
   private lockGuard: any;
-  private versionManager: any;
 
   constructor(ctx: Context, config: any) {
     super(ctx, 'genome');
@@ -118,14 +119,6 @@ export default class GenomePlugin extends Service {
       acquire: async () => {
         this.lock.acquire();
         return () => this.lock.release();
-      }
-    };
-
-    // versionManager: 版本号递增逻辑
-    this.versionManager = {
-      bumpVersion: (oldVersion: number, increment: 'major' | 'minor' | 'patch' = 'minor') => {
-        // 简单递增（genome 使用整数版本号）
-        return oldVersion + 1;
       }
     };
   }
@@ -302,6 +295,28 @@ export default class GenomePlugin extends Service {
     });
   }
 
+  /** GenomeWriteHost：热替换段注册（dispose 旧段 → 注册新段） */
+  hotSwapSection(section: string, genomeVersion: string, sectionVersion: number, order: number, content: string): void {
+    if (this.disposers.has(section)) {
+      this.disposers.get(section)!();
+    }
+    const header = `[genome:${genomeVersion} | ${section} v${sectionVersion}]\n\n`;
+    const fullText = header + content;
+    const dispose = this.ctx.systemPrompt.section({
+      name: `genome:${section}`,
+      order,
+      text: fullText,
+    });
+    this.disposers.set(section, dispose);
+    this.ctx.logger('genome').info(`Hot-swapped section genome:${section} (v${sectionVersion}, ${genomeVersion})`);
+  }
+
+  /** GenomeWriteHost：渲染金丝雀（真实试渲染；失败抛错由工具自动还原） */
+  async canaryRender(): Promise<void> {
+    const assembly = await this.ctx.systemPrompt.assemble();
+    renderPrompt(assembly);
+  }
+
   private registerTools(): void {
     const { ctx } = this;
 
@@ -319,21 +334,21 @@ export default class GenomePlugin extends Service {
       this.genomeDir,
       this.genomeData,
       this.lockGuard,
-      this.versionManager
+      this as GenomeWriteHost
     ).toDSHToolDefinition() as any);
 
     ctx.tools.register(new GenomeRollbackTool(
       this.genomeDir,
       this.genomeData,
       this.lockGuard,
-      this.versionManager
+      this as GenomeWriteHost
     ).toDSHToolDefinition() as any);
 
     ctx.tools.register(new GenomePromoteTool(
       this.genomeDir,
       this.genomeData,
       this.lockGuard,
-      this.versionManager
+      this as GenomeWriteHost
     ).toDSHToolDefinition() as any);
 
     ctx.tools.register(new GenomeHistoryTool(

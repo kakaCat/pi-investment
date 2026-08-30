@@ -1,15 +1,15 @@
-import { BaseTool, ToolResponse, ValidationResult, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext } from '@pi-investment/core-tool';
-import * as fs from 'fs';
-import * as path from 'path';
-import { genomeHistoryPrompt, type GenomeHistoryParams, type GenomeHistoryResult, type GenomeVersionInfo } from './prompt';
+import { genomeHistoryPrompt, type GenomeHistoryParams, type GenomeHistoryResult, type GenomeHistoryEntry } from './prompt';
+import { readGenomeJson, type GenomeMetadata } from '../../store';
+import { queryHistory } from '../../versioning';
 
 export class GenomeHistoryTool extends BaseTool<GenomeHistoryParams, GenomeHistoryResult> {
   protected readonly metadata: ToolMetadata = {
     name: 'genome_history',
     category: 'genome',
-    version: '1.0.0',
-    timeoutMs: 5000,
+    version: '2.0.0',
+    timeoutMs: 10000,
   };
 
   protected readonly prompt = genomeHistoryPrompt;
@@ -22,26 +22,13 @@ export class GenomeHistoryTool extends BaseTool<GenomeHistoryParams, GenomeHisto
   }
 
   protected validate(params: GenomeHistoryParams): ValidationResult {
-    const { section, limit } = params;
+    const { limit } = params;
 
-    // 检查 section 是否存在
-    if (!this.genomeData.sections[section]) {
+    if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > 100)) {
       return {
         success: false,
-        errorType: ErrorType.INPUT_ERROR,
-        field: 'section',
-        issue: `段 ${section} 不存在`,
-        expected: `可用段: ${Object.keys(this.genomeData.sections).join(', ')}`,
-      };
-    }
-
-    // 检查 limit 范围
-    if (limit !== undefined && (limit < 1 || limit > 100)) {
-      return {
-        success: false,
-        errorType: ErrorType.INPUT_ERROR,
-        field: 'limit',
-        issue: `limit 必须在 1-100 之间，当前值: ${limit}`,
+        issue: `无效的 limit: ${limit}`,
+        expected: '1-100 的整数',
       };
     }
 
@@ -49,64 +36,44 @@ export class GenomeHistoryTool extends BaseTool<GenomeHistoryParams, GenomeHisto
   }
 
   protected async execute(params: GenomeHistoryParams, context: ToolContext): Promise<GenomeHistoryResult> {
-    const { section, limit = 10 } = params;
-    const currentVersion = this.genomeData.sections[section].version;
+    const { section, limit } = params;
 
-    const historyDir = path.join(this.genomeDir, 'history', section);
-    const history: GenomeVersionInfo[] = [];
+    let data: GenomeMetadata = this.genomeData;
+    try {
+      data = readGenomeJson(this.genomeDir);
+    } catch { /* 回退内存数据 */ }
 
-    // 读取历史目录
-    if (fs.existsSync(historyDir)) {
-      const files = fs.readdirSync(historyDir);
+    const history = queryHistory(data, section, limit || 10);
 
-      // 按版本号排序（从新到旧）
-      const versionFiles = files
-        .filter(f => f.endsWith('.md'))
-        .map(f => {
-          const version = f.replace('.md', '');
-          const filePath = path.join(historyDir, f);
-          const stats = fs.statSync(filePath);
-          return { version, filePath, mtime: stats.mtime };
-        })
-        .sort((a, b) => b.mtime.getTime() - a.mtime.getTime())
-        .slice(0, limit);
+    // B-4 修复：undefined 字段会导致工具输出 "not lossless JSON"，按需拼装
+    const sanitized: GenomeHistoryEntry[] = history.map((e: any) => {
+      const entry: GenomeHistoryEntry = {
+        version: e.version,
+        section: e.section,
+        section_version: e.section_version,
+        parent: e.parent,
+        reason: e.reason,
+        ts: e.ts,
+      };
+      if (e.author !== undefined) entry.author = e.author;
+      if (e.type !== undefined) entry.type = e.type;
+      if (e.git_commit !== undefined) entry.git_commit = e.git_commit;
+      if (e.stage !== undefined) entry.stage = e.stage;
+      if (e.force !== undefined) entry.force = e.force;
+      if (e.baseline_version !== undefined) entry.baseline_version = e.baseline_version;
+      return entry;
+    });
 
-      // 读取每个版本的信息
-      for (const { version, filePath, mtime } of versionFiles) {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        const stats = fs.statSync(filePath);
-        const preview = content.substring(0, 200) + (content.length > 200 ? '...' : '');
-
-        history.push({
-          version,
-          timestamp: mtime.toISOString(),
-          file_size: stats.size,
-          preview,
-        });
-      }
-    }
-
-    return {
-      section,
-      current_version: currentVersion,
-      history,
-      total_versions: history.length,
-    };
+    return { history: sanitized };
   }
 
   protected wrap(data: GenomeHistoryResult, context: ToolContext): ToolResponse<GenomeHistoryResult> {
-    const { section, current_version, total_versions } = data;
-
-    const message = `${section} (当前: v${current_version}): 找到 ${total_versions} 个历史版本`;
-
     return {
       success: true,
       data,
-      message,
+      message: `共 ${data.history.length} 条历史记录`,
       metadata: {
-        section,
-        current_version,
-        total_versions,
+        count: data.history.length,
       },
     };
   }

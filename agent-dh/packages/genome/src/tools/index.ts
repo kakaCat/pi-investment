@@ -20,4 +20,4 @@ export type { GenomeReadParams, GenomeReadResult } from './GenomeReadTool';
 export type { GenomeUpdateParams, GenomeUpdateResult } from './GenomeUpdateTool';
 export type { GenomeRollbackParams, GenomeRollbackResult } from './GenomeRollbackTool';
 export type { GenomePromoteParams, GenomePromoteResult } from './GenomePromoteTool';
-export type { GenomeHistoryParams, GenomeHistoryResult, GenomeVersionInfo } from './GenomeHistoryTool';
+export type { GenomeHistoryParams, GenomeHistoryResult, GenomeHistoryEntry } from './GenomeHistoryTool';

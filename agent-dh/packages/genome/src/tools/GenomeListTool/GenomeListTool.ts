@@ -4,11 +4,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { genomeListPrompt, type GenomeListParams, type GenomeListResult, type GenomeSectionInfo } from './prompt';
 
+const VALID_CLASSES = ['constitution', 'evolvable'] as const;
+
 export class GenomeListTool extends BaseTool<GenomeListParams, GenomeListResult> {
   protected readonly metadata: ToolMetadata = {
     name: 'genome_list',
     category: 'genome',
-    version: '1.0.0',
+    version: '2.0.0',
     timeoutMs: 5000,
   };
 
@@ -24,13 +26,13 @@ export class GenomeListTool extends BaseTool<GenomeListParams, GenomeListResult>
   protected validate(params: GenomeListParams): ValidationResult {
     const { class: className } = params;
 
-    if (className && !['core', 'domain', 'runtime'].includes(className)) {
+    if (className && !(VALID_CLASSES as readonly string[]).includes(className)) {
       return {
         success: false,
         errorType: ErrorType.INPUT_ERROR,
         field: 'class',
         issue: `无效的类别: ${className}`,
-        expected: 'core, domain, 或 runtime',
+        expected: 'constitution 或 evolvable',
       };
     }
 
@@ -40,11 +42,11 @@ export class GenomeListTool extends BaseTool<GenomeListParams, GenomeListResult>
   protected async execute(params: GenomeListParams, context: ToolContext): Promise<GenomeListResult> {
     const { class: filterClass } = params;
     const sections: GenomeSectionInfo[] = [];
-    const byClass = { core: 0, domain: 0, runtime: 0 };
+    const byClass = { constitution: 0, evolvable: 0 };
 
     for (const [name, meta] of Object.entries(this.genomeData.sections)) {
       const section = meta as any;
-      const className = section.class;
+      const className = section.class as 'constitution' | 'evolvable';
 
       // 应用过滤
       if (filterClass && className !== filterClass) {
@@ -68,16 +70,14 @@ export class GenomeListTool extends BaseTool<GenomeListParams, GenomeListResult>
       });
 
       // 统计类别
-      if (className === 'core') byClass.core++;
-      else if (className === 'domain') byClass.domain++;
-      else if (className === 'runtime') byClass.runtime++;
+      if (className === 'constitution') byClass.constitution++;
+      else if (className === 'evolvable') byClass.evolvable++;
     }
 
-    return {
-      sections,
-      total: sections.length,
-      by_class: filterClass ? undefined : byClass,
-    };
+    const result: GenomeListResult = { sections, total: sections.length };
+    // B-4 修复：undefined 字段会导致工具输出 "not lossless JSON"，按需拼装
+    if (!filterClass) result.by_class = byClass;
+    return result;
   }
 
   protected wrap(data: GenomeListResult, context: ToolContext): ToolResponse<GenomeListResult> {
@@ -85,17 +85,16 @@ export class GenomeListTool extends BaseTool<GenomeListParams, GenomeListResult>
 
     let message = `共 ${total} 个段`;
     if (by_class) {
-      message += ` (core: ${by_class.core}, domain: ${by_class.domain}, runtime: ${by_class.runtime})`;
+      message += ` (constitution: ${by_class.constitution}, evolvable: ${by_class.evolvable})`;
     }
 
+    const metadata: Record<string, unknown> = { total };
+    if (by_class) metadata.by_class = by_class;
     return {
       success: true,
       data,
       message,
-      metadata: {
-        total,
-        by_class,
-      },
+      metadata,
     };
   }
 }

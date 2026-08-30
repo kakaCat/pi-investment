@@ -1,6 +1,6 @@
 # Agent-DH 工具重构清单（按工具追踪）
 
-**最后更新**: 2026-08-30  
+**最后更新**: 2026-08-31  
 **总计**: 约 126 个工具  
 **已重构**: 71 个 (56.3%)  
 **进行中**: 0 个  
@@ -22,7 +22,8 @@
 - 🟢 **写路径** - Live SDK 写操作 roundtrip 实测通过
 - 🟡 **外部依赖** - 工具代码正常，外部数据源故障（如 baostock）
 - 🔴 **未实测** - 高危（会中断会话/服务）、重/长操作或真实发送类写操作未执行
-- 🔴 **未暴露** - SDK 未挂载/无法调用（genome_*）
+- 🔴 **未暴露** - SDK 未挂载/无法调用（仅 2026-08-30 之前状态）
+- 🔴 **绑定失败** - SDK 已挂载但输出 schema 校验拒绝（genome_* 2026-08-31 实测，见 TOOLS_GENOME_VERIFICATION_20260831.md；**当日已修复**，见该报告「修复完成验证」章节）
 
 ---
 
@@ -80,12 +81,12 @@
 | 37 | signal_track | intelligence | ✅ | 复杂 | 2026-08-28 | 信号质量追踪(M3-1) | 🟢 全链路（record+report） |
 | 38 | evolution_run | evolution | ✅ | 复杂 | 2026-08-28 | 策略进化执行 | 🟢 全链路（propose） |
 | 39 | evolution_leaderboard | evolution | ✅ | 简单 | 2026-08-28 | 策略进化排行榜 | 🟢 基线通过 |
-| 40 | genome_list | genome | ✅ | 简单 | 2026-08-28 | 列出基因段 | 🔴 未暴露 |
-| 41 | genome_read | genome | ✅ | 简单 | 2026-08-28 | 读取基因段 | 🔴 未暴露 |
-| 42 | genome_update | genome | ✅ | 中等 | 2026-08-28 | 更新基因段 | 🔴 未暴露 |
-| 43 | genome_rollback | genome | ✅ | 中等 | 2026-08-28 | 回滚基因段 | 🔴 未暴露 |
-| 44 | genome_promote | genome | ✅ | 简单 | 2026-08-28 | 提升版本号 | 🔴 未暴露 |
-| 45 | genome_history | genome | ✅ | 简单 | 2026-08-28 | 查看版本历史 | 🔴 未暴露 |
+| 40 | genome_list | genome | ✅ | 简单 | 2026-08-28 | 列出基因段 | 🟢 全链路（2026-08-31 修复+实测；class 过滤 B-4 lossless 修复） |
+| 41 | genome_read | genome | ✅ | 简单 | 2026-08-28 | 读取基因段 | 🟢 全链路（2026-08-31 实测） |
+| 42 | genome_update | genome | ✅ | 中等 | 2026-08-28 | 更新基因段 | 🟢 全链路（2026-08-31 Live 实测：整数版本通过绑定，hot-swap+金丝雀） |
+| 43 | genome_rollback | genome | ✅ | 中等 | 2026-08-28 | 回滚基因段 | 🟢 契约测试通过（history 数组+git 快照取数，整数版本） |
+| 44 | genome_promote | genome | ✅ | 简单 | 2026-08-28 | 提升版本号 | 🟢 全链路（2026-08-31 Live 实测：无 candidate 拒绝路径绑定通过） |
+| 45 | genome_history | genome | ✅ | 简单 | 2026-08-28 | 查看版本历史 | 🟢 全链路（2026-08-31 修复+实测，读 genome.json history 数组） |
 | 46 | learning_track | learning | ✅ | 中等 | 2026-08-29 | 记录交易经验 | 🔴 未实测 |
 | 47 | learning_distill | learning | ✅ | 复杂 | 2026-08-29 | 蒸馏教训 | 🟢 全链路 |
 | 48 | learning_analyze | learning | ✅ | 中等 | 2026-08-29 | 分析历史教训 | 🟢 全链路 |
@@ -240,6 +241,13 @@
 - 每个工具独立一行，可独立重构和验证
 - 添加"按工具重构"工作流程
 - 完成 Trading Package 全部 8 个工具
+
+### 2026-08-31（genome 专项验证，详见 TOOLS_GENOME_VERIFICATION_20260831.md）
+- genome_* 6 个工具 SDK 已挂载（不再是"未暴露"），Live SDK 实测：**仅 genome_read 可用**
+- 根因：重构后 prompt.ts 输出 schema 用 semver 字符串版本，线上插件用整数版本（genome.json version: 1/6/7/5）；单测 mock 用 semver 造成 26/26 "假通过"
+- genome_update / genome_promote 会**先写盘+git commit、后因绑定校验报错**（危险副作用）；genome_rollback 双层失败（semver 校验拒绝整数版本 + 无 history 快照文件）；genome_list / genome_history 绑定层拒绝数字版本
+- 验证过程已恢复线上 genome 原状（5 个文件 md5 一致、git HEAD 复原 28a54c7、残留测试 commit 已清除）；修复建议见验证报告
+- **✅ 修复完成（2026-08-31 00:45，investor w-a1484624）**：5 个工具输出 schema 全部对齐线上整数版本模型（number）+ class 枚举对齐 constitution/evolvable；update/promote/rollback 改走 store/versioning（genome.json history 数组）+ host.ts（hot-swap + 渲染金丝雀自动还原），消除"先写盘后报错"副作用；契约测试重写为"真实临时 git 仓库 + 整数版本 + 模拟绑定层 lossless/schema 校验"（20/20 通过），补 class 过滤分支（B-4 undefined→not lossless JSON）；Live 实测：genome_list/read/history 绑定通过，genome_update 真实升级 lessons v5→v6（g17，commit c4b3edf），genome_promote 无 candidate 拒绝路径绑定通过。遗留：genome_list class 过滤修复需服务重启后生效（本轮重启由用户决定，避免再次丢 session）。
 
 ### 2026-08-30（Round 5 冒烟 23/23 通过，见 TOOLS_VERIFICATION_REPORT_20260830.md 附录）
 - 恢复 core-tool 基座：index.ts 补回 `sanitizeLossless/toSnake` 导出（9 个工具依赖）；BaseTool.ts 补回 render 默认注入与错误提取（string/{issue}/{error:{issue}}）
