@@ -765,3 +765,38 @@ export interface DataManagerResponse {
   details: Record<string, any>;
   message: string;
 }
+
+/**
+ * Competition analysis response
+ */
+export interface CompetitionAnalysis {
+  symbol: string;
+  company_name: string;
+  industry: {
+    level1: string;
+    level2: string;
+  };
+  market_size: {
+    total_market_cap: number;
+    industry_rank: number;
+    market_share: number;
+  };
+  competitors: Array<{
+    symbol: string;
+    name: string;
+    market_cap: number;
+    market_share: number;
+    competitive_position: 'leader' | 'second_tier' | 'follower';
+  }>;
+  financial_comparison?: {
+    metrics: string[];
+    data: Array<{
+      symbol: string;
+      name: string;
+      [key: string]: any;
+    }>;
+  };
+  competitive_advantages: string[];
+  competitive_disadvantages: string[];
+  summary: string;
+}
