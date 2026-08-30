@@ -43,15 +43,25 @@ export const screeningPrompt: ToolPrompt<ScreeningParams, ScreeningResult> = {
     },
     limit: {
       type: 'number',
-      description: '返回数量限制',
+      description: '返回数量限制（1-200），默认 50',
+      default: 50,
+      minimum: 1,
+      maximum: 200,
       example: 50,
     },
   },
-  examples: [],
+  examples: [
+    'screening({ criteria: {pe: [0, 20], roe: [15, null]}, sort_by: "roe", limit: 30 }) // 筛选低估值高ROE股票',
+    'screening({ criteria: {dividend_yield: [3, null], market_cap: [100, null]} }) // 筛选高股息大盘股',
+  ],
 
-  notes: [],
+  notes: [
+    '💡 criteria 支持字段：pe, pb, roe, dividend_yield, market_cap, volume 等',
+    '💡 区间格式：[min, max]，null 表示不限，如 [15, null] 表示 >=15',
+    'sort_by 可用值：pe, roe, market_cap, dividend_yield 等指标字段',
+  ],
 
-  relatedTools: [],
+  relatedTools: ['opportunity_scan', 'pool_create'],
 
 
   output: {

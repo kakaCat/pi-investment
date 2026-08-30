@@ -56,11 +56,20 @@ export const opportunityScanPrompt: ToolPrompt<OpportunityScanParams, Opportunit
       example: 70,
     },
   },
-  examples: [],
+  examples: [
+    'opportunity_scan({ scan_type: "hybrid" }) // 综合扫描市场机会',
+    'opportunity_scan({ pool_id: 1, min_score: 80 }) // 扫描股票池1中高分机会',
+    'opportunity_scan({ symbols: ["000001", "600519"], scan_type: "technical" }) // 扫描指定股票的技术形态',
+  ],
 
-  notes: [],
+  notes: [
+    '💡 hybrid 模式综合技术+基本面，适合日常使用',
+    '💡 technical 模式关注形态、突破、超跌反弹',
+    '💡 fundamental 模式关注估值、业绩、财务质量',
+    'min_score 建议设置 70-80 以过滤低质量信号',
+  ],
 
-  relatedTools: [],
+  relatedTools: ['screening', 'pool_filter'],
 
 
   output: {

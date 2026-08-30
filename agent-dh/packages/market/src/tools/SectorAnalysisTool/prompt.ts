@@ -32,7 +32,11 @@ export const sectorAnalysisPrompt: ToolPrompt<SectorAnalysisParams, SectorAnalys
     '与 market_style_detect 配合：后者看整体，本工具看细节',
   ],
 
-  examples: [],
+  examples: [
+    'sector_analysis({ days: 5 }) // 查看所有行业5日排名',
+    'sector_analysis({ sector: "白酒", days: 20 }) // 分析白酒行业20日表现',
+    'sector_analysis({ sector: "半导体", days: 60 }) // 分析半导体行业60日趋势',
+  ],
   notes: [
     '短线轮动看 5-10 天',
     '中线趋势看 20-60 天',

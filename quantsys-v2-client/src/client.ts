@@ -839,9 +839,11 @@ export class QuantsysV2Client {
    * Real endpoint: POST /api/factor-models/barra/calculate
    */
   async getBarraDecomposition(params?: {
+    symbols?: string[];
+    start_date?: string;
+    end_date?: string;
+    weights?: number[];
     account_name?: string;
-    returns?: number[];
-    positions?: any[];
   }): Promise<BarraDecompositionResponse> {
     const response = await this.client.post('/api/factor-models/barra/calculate', params ?? {});
     return this.unwrap<BarraDecompositionResponse>(response.data, 'getBarraDecomposition');

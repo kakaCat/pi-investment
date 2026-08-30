@@ -60,11 +60,18 @@ export const rotationExecutePrompt: ToolPrompt<RotationExecuteParams, RotationEx
       example: false,
     },
   },
-  examples: [],
+  examples: [
+    'rotation_execute({ proposals: [{action: "buy", symbol: "000001", weight: 0.1}], dry_run: true }) // 模拟执行',
+    'rotation_execute({ proposals: [{action: "sell", symbol: "600519"}], account_name: "default" }) // 实际执行卖出',
+  ],
 
-  notes: [],
+  notes: [
+    '⚠️ dry_run=false 时会实际下单交易，请谨慎操作',
+    '💡 建议先用 rotation_simulate 预览方案，再用本工具执行',
+    '执行前会自动检查账户余额、持仓、交易时间等限制',
+  ],
 
-  relatedTools: [],
+  relatedTools: ['rotation_proposal', 'rotation_simulate'],
 
 
   output: {

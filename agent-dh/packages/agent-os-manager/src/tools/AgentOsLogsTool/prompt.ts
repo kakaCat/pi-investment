@@ -49,8 +49,10 @@ export const agentOsLogsPrompt: ToolPrompt<AgentOsLogsParams, AgentOsLogsResult>
   parameters: {
     lines: {
       type: 'integer',
-      description: '显示最后 N 行，默认 50',
+      description: '显示最后 N 行（1-1000），默认 50',
       default: 50,
+      minimum: 1,
+      maximum: 1000,
       example: 50,
     },
     grep: {

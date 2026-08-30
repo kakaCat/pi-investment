@@ -32,13 +32,15 @@ export const regimeDailyPrompt: ToolPrompt<RegimeDailyParams, RegimeDailyResult>
     '复盘统计 regime 判定准确率',
   ],
 
-  examples: [],
+  examples: [
+    'regime_daily() // 计算并落库当日市场 regime',
+  ],
   notes: [
     'Regime 类型：panic（恐慌）/ euphoria（狂热）/ risk_on（偏多）/ risk_off（偏空）/ sideways（震荡）',
     '判定依据：恐慌贪婪指数 + 涨跌家数比 + 量能比',
     '指数K线趋势维度待 M0 数据地基补齐后接入',
   ],
-  relatedTools: [],
+  relatedTools: ['market_sentiment', 'market_style_detect'],
 
   parameters: {},
 

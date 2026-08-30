@@ -61,15 +61,26 @@ export const strategyOptimizePrompt: ToolPrompt<StrategyOptimizeParams, Strategy
     },
     optimization_target: {
       type: 'string',
-      description: '优化目标：sharpe/return/win_rate',
+      description: '优化目标：sharpe（夏普比率，默认）/return（收益率）/win_rate（胜率）',
+      default: 'sharpe',
+      enum: ['sharpe', 'return', 'win_rate'],
       example: 'sharpe',
     },
   },
-  examples: [],
+  examples: [
+    'strategy_optimize({ strategy_id: 1, param_ranges: {hold_days: [3, 10]}, optimization_target: "sharpe" }) // 优化持仓周期',
+    'strategy_optimize({ strategy_id: 2, param_ranges: {stop_loss: [-0.08, -0.02], take_profit: [0.05, 0.15]} }) // 优化止损止盈',
+  ],
 
-  notes: [],
+  notes: [
+    '💡 sharpe: 风险调整后收益，适合长期策略优化',
+    '💡 return: 绝对收益率，适合追求高收益场景',
+    '💡 win_rate: 胜率优先，适合高频策略',
+    '⚠️ 参数范围过大会导致搜索时间较长，建议先粗调再精调',
+    '建议回测周期至少覆盖一个完整市场周期（牛熊转换）',
+  ],
 
-  relatedTools: [],
+  relatedTools: ['backtest', 'strategy_validate'],
 
 
   output: {

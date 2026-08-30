@@ -30,7 +30,15 @@ export const learningAnalyzePrompt: ToolPrompt<LearningAnalyzeParams, LearningAn
   parameters: {
     scope: { type: 'string', required: false, description: '分析范围：recent（最近）、all（全部）、strategy:{id}' },
     focus: { type: 'string', required: false, description: '关注点：failures、successes、patterns、all' },
-    min_samples: { type: 'number', required: false, description: '最小样本数' },
+    min_samples: {
+      type: 'number',
+      required: false,
+      description: '最小样本数（1-1000），默认 10。样本数少于此值时提示不可靠',
+      default: 10,
+      minimum: 1,
+      maximum: 1000,
+      example: 10,
+    },
   },
   output: {
     schema: {

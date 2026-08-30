@@ -34,12 +34,16 @@ export const chipAnalysisPrompt: ToolPrompt<ChipAnalysisParams, ChipAnalysisResu
     '获利盘比例分析：>90% 兑现压力大，<10% 套牢盘沉重',
   ],
 
-  examples: [],
+  examples: [
+    'chip_analysis({ symbol: "600519" }) // 分析贵州茅台筹码分布',
+    'chip_analysis({ symbol: "000001" }) // 分析平安银行筹码集中度',
+  ],
   notes: [
     '获利盘比例过高（>90%）说明浮盈兑现压力大',
     '获利盘比例过低说明套牢盘沉重、反弹阻力大',
+    '筹码集中度高表明主力控盘强，低则散户为主',
   ],
-  relatedTools: [],
+  relatedTools: ['market_sentiment', 'fund_flow'],
 
   parameters: {
     symbol: {

@@ -38,7 +38,10 @@ export const mainlineScanPrompt: ToolPrompt<MainlineScanParams, MainlineScanResu
     '每日复盘主线一致率统计',
   ],
 
-  examples: [],
+  examples: [
+    'mainline_scan() // 使用默认5日窗口识别当日主线',
+    'mainline_scan({ days: 10 }) // 使用10日窗口识别当日主线',
+  ],
   notes: [
     '每日盘后例程调用一次',
     '幂等：同日重复调用跳过',

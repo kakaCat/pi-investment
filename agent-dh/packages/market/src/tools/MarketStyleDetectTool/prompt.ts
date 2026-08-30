@@ -31,8 +31,14 @@ export const marketStyleDetectPrompt: ToolPrompt<MarketStyleDetectParams, Market
     '与 sector_analysis 配合：本工具看整体风格，sector_analysis 看行业细节',
   ],
 
-  examples: [],
-  notes: [],
+  examples: [
+    'market_style_detect() // 检测当前市场主导风格',
+  ],
+  notes: [
+    '风格类型：value（价值）/growth（成长）/cycle（周期）',
+    '置信度 >0.7 表示风格较为明确，<0.5 表示风格混杂',
+    '推荐因子根据风格动态调整，如价值风格推荐 PE、PB，成长风格推荐 ROE、营收增速',
+  ],
   relatedTools: ['sector_analysis'],
 
   parameters: {},
