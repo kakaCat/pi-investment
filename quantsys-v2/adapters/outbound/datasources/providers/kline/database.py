@@ -101,10 +101,11 @@ class DatabaseKlineProvider(KlineProvider):
             return None
 
     def _has_gaps(self, klines: list, start_date: str, end_date: str) -> bool:
-        """Check if there are gaps in the kline data
+        """Check if there are significant gaps in the kline data
 
-        Compares actual trading days in DB against expected trading days.
-        Allows up to 10% missing before triggering backfill.
+        Simple heuristic: if DB has < 50% of calendar days, consider it incomplete
+        and trigger network backfill. This is a rough check - a more sophisticated
+        approach would compare against actual trading days (excluding weekends/holidays).
         """
         if not klines:
             return True
@@ -125,4 +126,4 @@ class DatabaseKlineProvider(KlineProvider):
             return False
 
         coverage = len(db_dates) / max(total_days, 1)
-        return coverage < 0.9
+        return coverage < 0.5

@@ -50,10 +50,10 @@ class DataProviderManager(IDataProviderManager):
             EastmoneyQuoteProvider(),    # Unstable, connection issues
             AkshareQuoteProvider(),      # Very slow (75s), last resort
         ]
-        # Financial providers: Akshare only (Phase 2: add Sina/Eastmoney providers)
-        self.financial_providers = [
-            AkshareFinancialStatementProvider(),
-        ]
+        # Financial providers: TODO Phase 2 - create proper providers with get_financial method
+        # Current AkshareFinancialStatementProvider only has get_sina_statements, get_profit_sheet, etc.
+        # but not get_financial() which is what get_financial() calls
+        self.financial_providers = []
         self.financial_statement_providers = [
             AkshareFinancialStatementProvider(),
         ]
