@@ -61,7 +61,7 @@ export const strategyListPrompt: ToolPrompt<StrategyListParams, StrategyListResu
               strategyType: { type: 'string' },
               type: { type: 'string' },
               status: { type: 'string' },
-              description: { type: ['string', 'null'] },
+              description: { type: 'string' },
             },
           },
         },
