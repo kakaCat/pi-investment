@@ -162,3 +162,41 @@ quantsys-v2/adapters/outbound/datasources/providers/market/akshare.py `get_macro
 - **23/23 通过（100%）**，为当前所有冒烟清单项的最完整通过记录。
 - 恢复基座后 9 个依赖 lossless 的工具全部可加载；7 个无 render 的 prompt 全部可渲染。
 - 会话丢失教训已落实：**本次所有改动立即 git 提交**，防止再次回退。
+
+
+---
+
+# 附录：Round 6（重启工具实测 + quantsys_v2_restart launchd 兼容修复）
+
+- **验证日期**：2026-08-30（周日，非交易时段）
+- **验证窗口**：PI 投资顾问·投资脑（角色 ID: investor，窗口: **w-b41f1ff0**）
+- **背景**：用户授权实测两个此前标为 🔴 未实测（高危）的重启工具。实测发现 quantsys_v2_restart 存在真实 bug 并修复。
+- **验证方法**：新鲜进程 harness（`scripts/verify-restart-tools-r6.ts`），直接 import 工具源码，真实执行重启（非 dry-run），走 `tool.call() → toDSHToolDefinition().execute() → snapshotJsonValue → validateJsonSchemaValue → output.render()` 全链路；结束后 curl 健康端点 + lsof 确认服务恢复。
+
+## 发现并修复的 bug（1 项）
+
+| 项 | 详情 |
+|---|---|
+| **quantsys_v2_restart 误报失败** | v2-api 由 launchd 托管（com.pi-investment.v2-api，KeepAlive 自动拉起）。旧 kill+spawn 流程在 kill 后等待端口释放，但 launchd 立即拉起新进程 → 端口「永不释放」→ 工具误判 `Port 5001 still occupied after stop` 返回失败（实测 PID 63128→5783 即被 launchd 拉起）。**修复**：改为 launchctl kickstart -k 权威重启（原子 kill+重拉），launchd 不可用才回退旧 kill+spawn 流程；QuantsysV2Config 与插件 Config 新增 `launchdLabel`（默认 com.pi-investment.v2-api）。agent_os_restart 已于 2026-08-28 采用同款 kickstart 模式，无需改动 |
+
+## Round 6 结果总览
+
+| 指标 | 结果 |
+|---|---|
+| ✅ 通过 | **3/3（100%）** |
+| 重启工具 | quantsys_v2_restart（12.7s）、agent_os_restart（11.2s）均走 launchd_kickstart 路径 |
+| 服务恢复 | :5001 PID 6951→8507、:8080 PID 7594→9159，健康检查均 OK（db_connected true / agent-os /health 200） |
+| 当前会话链路 | 重启后 agent_os_status / quantsys_v2_status / memory_search 均正常（agent-os 重启不影响 agent 进程） |
+
+## 逐项结果（3/3 PASS）
+
+| 项 | 结果 | 说明 |
+|---|---|---|
+| quantsys_v2_restart | ✅ | steps: launchd_kickstart(com.pi-investment.v2-api) → health_check ready after 2s；final_status running pid 8507 / port_listening / health_ok |
+| agent_os_restart | ✅ | steps: launchd_kickstart(com.pi-investment.agent-os) → health_check ready after 1s；final_status running pid 9159 / port_listening / health_ok |
+| post_restart_health | ✅ | :5001 /api/health {"status":"ok","db_connected":true}；:8080 /health {"status":"ok"} |
+
+## 遗留
+
+- 本轮为真实重启实测：**两次重启均真实发生并恢复**；当前会话工具链（agent-os/quantsys 客户端）在重启后立即可用。
+- tracker 中 quantsys_v2_restart / agent_os_restart 已由 🔴 未实测（高危）更新为 🟢 全链路（R6）。仍剩 🔴：self_restart / self_finalize（会退出当前 agent 进程，无法自测）、strategy_optimize、learning_track、notification_send、genome_*（SDK 未暴露）。

@@ -10,13 +10,15 @@ export interface QuantsysV2Config {
   startupScript: string;
   activateScript: string;
   logFile: string;
+  /** launchd 服务标签；默认 com.pi-investment.v2-api（2026-08-30 新增） */
+  launchdLabel?: string;
 }
 
 export class QuantsysV2RestartTool extends BaseTool<QuantsysV2RestartParams, QuantsysV2RestartResult> {
   protected readonly metadata: ToolMetadata = {
     name: 'quantsys_v2_restart',
     category: 'quantsys-v2-manager',
-    version: '1.0.0',
+    version: '2.1.0',
     timeoutMs: 120000,
   };
 
@@ -60,60 +62,73 @@ export class QuantsysV2RestartTool extends BaseTool<QuantsysV2RestartParams, Qua
     const steps: any[] = [];
 
     try {
-      // Step 1: 停止旧进程
-      steps.push({ step: 'stop', status: 'started' });
-      let oldPid: number | null = null;
+      // Step 1: 重启服务。2026-08-30 修复：v2-api 由 launchd 托管（KeepAlive 自动拉起），
+      // 旧 kill+spawn 流程在 kill 后被 launchd 抢先拉起，端口"永不释放"，误报失败。
+      // 权威入口：launchctl kickstart -k（原子 kill+重拉）；launchd 不可用时回退旧流程。
+      steps.push({ step: 'restart', status: 'started' });
+      const uid = execSync('id -u', { encoding: 'utf-8', timeout: 3000 }).trim();
+      const launchdLabel = this.config.launchdLabel || 'com.pi-investment.v2-api';
+      let launchdKicked = false;
       try {
-        const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
-        if (pidStr) {
-          oldPid = parseInt(pidStr);
-          if (force) {
-            execSync(`kill -9 ${oldPid}`, { timeout: 3000 });
-            steps.push({ step: 'stop', status: 'killed', pid: oldPid, signal: 'SIGKILL' });
-          } else {
-            execSync(`kill ${oldPid}`, { timeout: 3000 });
-            // 等待优雅退出
-            for (let i = 0; i < 10; i++) {
-              execSync('sleep 1');
-              try {
-                execSync(`lsof -ti:${port} -sTCP:LISTEN`, { timeout: 2000 });
-              } catch {
-                steps.push({ step: 'stop', status: 'graceful_exit', pid: oldPid, waited_sec: i + 1 });
-                break;
-              }
-              if (i === 9) {
-                execSync(`kill -9 ${oldPid}`, { timeout: 2000 });
-                steps.push({ step: 'stop', status: 'force_killed_after_timeout', pid: oldPid });
+        execSync(`launchctl kickstart -k gui/${uid}/${launchdLabel}`, { timeout: 10000 });
+        steps.push({ step: 'restart', status: 'launchd_kickstart', label: launchdLabel });
+        launchdKicked = true;
+      } catch (e: any) {
+        steps.push({ step: 'restart', status: 'launchd_unavailable_fallback', note: e.message?.slice(0, 120) });
+      }
+
+      if (!launchdKicked) {
+        // 回退：kill（graceful/force）→ 端口释放验证 → spawn
+        let oldPid: number | null = null;
+        try {
+          const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 5000 }).trim();
+          if (pidStr) {
+            oldPid = parseInt(pidStr);
+            if (force) {
+              execSync(`kill -9 ${oldPid}`, { timeout: 3000 });
+              steps.push({ step: 'stop', status: 'killed', pid: oldPid, signal: 'SIGKILL' });
+            } else {
+              execSync(`kill ${oldPid}`, { timeout: 3000 });
+              for (let i = 0; i < 10; i++) {
+                execSync('sleep 1');
+                try {
+                  execSync(`lsof -ti:${port} -sTCP:LISTEN`, { timeout: 2000 });
+                } catch {
+                  steps.push({ step: 'stop', status: 'graceful_exit', pid: oldPid, waited_sec: i + 1 });
+                  break;
+                }
+                if (i === 9) {
+                  execSync(`kill -9 ${oldPid}`, { timeout: 2000 });
+                  steps.push({ step: 'stop', status: 'force_killed_after_timeout', pid: oldPid });
+                }
               }
             }
+          } else {
+            steps.push({ step: 'stop', status: 'no_process' });
           }
-        } else {
-          steps.push({ step: 'stop', status: 'no_process' });
+        } catch (e: any) {
+          steps.push({ step: 'stop', status: 'error', error: e.message });
         }
-      } catch (e: any) {
-        steps.push({ step: 'stop', status: 'error', error: e.message });
+
+        execSync('sleep 2');
+        try {
+          execSync(`lsof -ti:${port} -sTCP:LISTEN`, { timeout: 2000 });
+          return { success: false, steps, error: `Port ${port} still occupied after stop` };
+        } catch {
+          steps.push({ step: 'verify_port', status: 'free' });
+        }
+
+        steps.push({ step: 'start', status: 'launching' });
+        const startCmd = `cd ${projectRoot} && source ${activateScript} && python ${startupScript}`;
+        const child = spawn('bash', ['-c', startCmd], {
+          detached: true,
+          stdio: 'ignore',
+        });
+        child.unref();
+        steps.push({ step: 'start', status: 'spawned', pid: child.pid });
       }
 
-      // Step 2: 验证端口释放
-      execSync('sleep 2');
-      try {
-        execSync(`lsof -ti:${port} -sTCP:LISTEN`, { timeout: 2000 });
-        return { success: false, steps, error: `Port ${port} still occupied after stop` };
-      } catch {
-        steps.push({ step: 'verify_port', status: 'free' });
-      }
-
-      // Step 3: 启动新进程（后台）
-      steps.push({ step: 'start', status: 'launching' });
-      const startCmd = `cd ${projectRoot} && source ${activateScript} && python ${startupScript}`;
-      const child = spawn('bash', ['-c', startCmd], {
-        detached: true,
-        stdio: 'ignore',
-      });
-      child.unref();
-      steps.push({ step: 'start', status: 'spawned', pid: child.pid });
-
-      // Step 4: 等待启动
+      // Step 2: 等待启动
       steps.push({ step: 'wait', status: 'started', wait_sec: waitSec });
       for (let i = 0; i < waitSec; i++) {
         execSync('sleep 1');
@@ -125,10 +140,9 @@ export class QuantsysV2RestartTool extends BaseTool<QuantsysV2RestartParams, Qua
         } catch {}
       }
 
-      // Step 5: 启动超时，诊断
+      // Step 3: 启动超时，诊断
       steps.push({ step: 'health_check', status: 'timeout' });
       const diagnosis = this.diagnose();
-      // 2026-08-30 修复：失败必须带 error 摘要，否则 DSH 层把诊断吞成笼统「工具执行失败」
       return {
         success: false,
         steps,
@@ -143,7 +157,7 @@ export class QuantsysV2RestartTool extends BaseTool<QuantsysV2RestartParams, Qua
   }
 
   private checkStatus() {
-    const { port, healthCheckUrl, projectRoot, logFile } = this.config;
+    const { port, healthCheckUrl } = this.config;
 
     let pid: number | null = null;
     let portListening = false;
@@ -175,7 +189,6 @@ export class QuantsysV2RestartTool extends BaseTool<QuantsysV2RestartParams, Qua
     const { port, projectRoot, logFile } = this.config;
     const issues: string[] = [];
 
-    // 检查端口
     try {
       const pidStr = execSync(`lsof -ti:${port} -sTCP:LISTEN`, { encoding: 'utf-8', timeout: 3000 }).trim();
       if (!pidStr) {
@@ -185,14 +198,12 @@ export class QuantsysV2RestartTool extends BaseTool<QuantsysV2RestartParams, Qua
       issues.push(`Port ${port} not listening`);
     }
 
-    // 检查 PostgreSQL
     try {
       execSync('pg_isready', { timeout: 3000 });
     } catch {
       issues.push('PostgreSQL not ready');
     }
 
-    // 读最近错误
     const logPath = `${projectRoot}/${logFile}`;
     if (existsSync(logPath)) {
       const logs = readFileSync(logPath, 'utf-8').split('\n').slice(-50);

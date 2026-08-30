@@ -13,6 +13,8 @@ export interface Config {
   activateScript?: string;
   logFile?: string;
   baseURL?: string;
+  /** launchd 服务标签（重启用），默认 com.pi-investment.v2-api */
+  launchdLabel?: string;
 }
 
 /**
@@ -30,6 +32,7 @@ export default class QuantsysV2Manager extends Service {
     activateScript: z.string().default('activate-py313.sh'),
     logFile: z.string().default('logs/launchd-stdout.log'),
     baseURL: z.string().default('http://localhost:5001'),
+    launchdLabel: z.string().default('com.pi-investment.v2-api'),
   }).default({} as any);
 
   private config: any;
@@ -57,6 +60,7 @@ export default class QuantsysV2Manager extends Service {
       startupScript: this.config.startupScript,
       activateScript: this.config.activateScript,
       logFile: this.config.logFile,
+      launchdLabel: this.config.launchdLabel,
     };
 
     // 注册 quantsys-v2 状态检查工具（使用 API）
