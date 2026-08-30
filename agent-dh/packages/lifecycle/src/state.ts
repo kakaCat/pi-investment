@@ -15,6 +15,12 @@ export interface PendingResume {
    * 为 null（旧版本写入的 pending 文件）时回退到按 agentId 前缀投递的历史行为。
    */
   origin_agent_id?: string | null;
+  /**
+   * 重启前发起会话的最后一条用户消息内容（文本）。续跑消息注入时带上，
+   * 让 agent 恢复后能直接接续上次任务（参考 dsh-schedule 从 session.events 读取的做法）。
+   * 为 null 表示取不到（旧 pending 文件 / 会话无用户消息）。
+   */
+  last_user_message?: string | null;
 }
 
 export interface RestartResult {

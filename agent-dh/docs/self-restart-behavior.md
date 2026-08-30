@@ -130,6 +130,6 @@ cd ~/.dsh/profiles/investment
 
 ---
 
-**文档版本**: 2026-08-27  
-**修改文件**: `packages/lifecycle/src/index.ts` (line 667)  
-**状态**: ✅ 已修复，待重启生效
+**文档版本**: 2026-08-30  
+**修改文件**: `packages/lifecycle/src/index.ts`（scheduleRestart）+ `packages/lifecycle/src/restarter/restarter.ts`（新增，重启器收进包内）  
+**状态**: ✅ 已实现并验证（T1 用法 / T2 dry-run / T3 故障注入回滚 / T4 成功路径全部通过）；构建产物 `dist/restarter/restarter.mjs`；旧 `scripts/self-restart.ts` 已标记 DEPRECATED

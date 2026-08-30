@@ -16,7 +16,7 @@ export interface SelfRestartResult {
 }
 
 export const selfRestartPrompt: ToolPrompt<SelfRestartParams, SelfRestartResult> = {
-  description: '重启 Agent 生命周期。用于应用重大配置变更或从异常状态恢复。',
+  description: '重启 Agent 生命周期。用于应用重大配置变更或从异常状态恢复。重启由包内独立重启器（dist/restarter.mjs，不依赖外部脚本）执行：kill 旧进程 → start.sh 拉起 → 端口健康检查 → 失败自动回滚 base 分支重拉。重启前自动把未提交改动存入 wip 分支检查点；重启后向发起会话自动注入续跑消息（含上次消息内容）。每小时最多 10 次。⚠️ 调用后当前会话会中断（进程被杀），这是正常行为，数秒后刷新页面即可看到新进程。',
   useCases: ['应用配置变更', '从异常状态恢复', '执行维护任务'],
   examples: [
     {

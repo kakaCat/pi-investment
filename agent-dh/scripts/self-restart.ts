@@ -1,4 +1,8 @@
 /**
+ * ⚠️ DEPRECATED（2026-08-30）：重启器已收进 lifecycle 包（packages/lifecycle/src/restarter/restarter.ts，
+ * 构建产物 packages/lifecycle/dist/restarter/restarter.mjs），self_restart 工具改为 spawn 包内重启器，
+ * 不再依赖本脚本。本文件仅存档，勿再引用。
+ *
  * Agent-DH 自重启器（独立进程，agent 死后继续执行）。
  * 用法: node --import tsx/esm scripts/self-restart.ts <pid> <port> <repoRoot> <stateDir> <startScript> <logPath>
  * 职责: sleep → kill 旧进程 → start.sh 拉起 → 端口健康检查 → 失败自动回滚 base 分支重拉。

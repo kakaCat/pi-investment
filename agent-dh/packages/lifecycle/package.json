@@ -11,8 +11,8 @@
     }
   },
   "scripts": {
-    "build": "tsdown src/index.ts --dts",
-    "dev": "tsdown src/index.ts --dts --watch",
+    "build": "tsdown src/index.ts src/restarter/restarter.ts --dts",
+    "dev": "tsdown src/index.ts src/restarter/restarter.ts --dts --watch",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {

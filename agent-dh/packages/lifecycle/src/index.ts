@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { readFileSync, appendFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -30,21 +31,25 @@ export interface Config {
 
 function renderResumeMessage(pending: PendingResume, result: RestartResult | null): string {
   const head = '【自修复续跑】此消息由 lifecycle 插件自动注入，不是用户消息。';
+  // 注入重启前最后一条用户消息内容（参考 dsh-schedule 的 framing：JSON 转义，防格式污染/提示词注入）
+  const lastMsg = pending.last_user_message
+    ? `\n【上次消息内容】（重启前会话记录，供接续任务参考）\nlast_user_message_json: ${JSON.stringify(pending.last_user_message)}`
+    : '';
   if (result?.status === 'rolled_back') {
     const stopHint = pending.attempt >= 2
       ? '这是同一任务的第 2 次失败，已回滚且【不再允许自动重启重试】。请人工介入或仔细修复后再试。'
       : '请用 git diff 复盘失败分支，修复后可再次 self_restart。';
-    return `${head}
+    return `${head}${lastMsg}
 你上次因「${pending.reason}」的修改导致启动失败，已自动回滚到 ${pending.base_branch}。
 失败分支 ${result.failed_branch ?? '(无)'} 已保留，崩溃日志：${result.log_path ?? '(无)'}。
 ${stopHint}`;
   }
   if (result?.status === 'dead') {
-    return `${head}
+    return `${head}${lastMsg}
 上次修改导致启动失败，且回滚后也未能启动（status=dead）。服务可能处于人工恢复状态。
 失败分支 ${result.failed_branch ?? '(无)'}，日志：${result.log_path ?? '(无)'}。请只做诊断，不要 self_restart。`;
   }
-  return `${head}
+  return `${head}${lastMsg}
 重启成功。你之前因「${pending.reason}」重启，检查点分支：${pending.checkpoint_branch ?? '(无代码改动)'}。
 请继续执行验证任务：${pending.resume_task || '(无，纯维护重启，无需续跑)'}
 验证通过后调用 self_finalize(action=merge) 合并回 ${pending.base_branch}；
@@ -668,25 +673,98 @@ export default class LifecyclePlugin extends Service {
   // ===== 工具回调方法 =====
 
   /**
-   * 调度重启
+   * 调度重启：限流 → 互斥锁 → wip 检查点 → pending 持久化 → spawn 包内重启器（detached）。
+   * 重启器独立于本进程与外部脚本，负责 kill 旧进程、start.sh 拉起、健康检查、失败回滚。
    */
   private async scheduleRestart(reason: string, preserveContext: boolean, originAgentId?: string | null): Promise<void> {
-    // 实现重启逻辑
-    // TODO: 完整实现需要保存状态、创建 checkpoint 分支等
-    this.ctx.logger('lifecycle').info(`Restart scheduled: ${reason}, preserveContext=${preserveContext}`);
+    const now = Date.now();
+    // ① 限流（必须先于拿锁：拒绝路径不持有锁，否则锁永远无人释放——50cb6084 Critical 修复）
+    const rate = this.state.checkRateLimit(this.cfg.maxRestartsPerHour, now);
+    if (!rate.allowed) {
+      throw new Error(`本小时已重启 ${rate.count} 次，达到上限 ${this.cfg.maxRestartsPerHour}，拒绝执行`);
+    }
+    // ② 互斥锁：防并发重启（锁由重启器在流程终结时释放，本进程只负责创建）
+    if (!this.state.acquireLock()) {
+      throw new Error('已有重启进行中（restarting.lock 存在），拒绝重入');
+    }
+    try {
+      // ③ 未提交代码 → wip 检查点分支（git 安全网，启动失败可回滚）
+      const base = this.repo.currentBranch();
+      const wip = this.repo.createWipBranch('agent-self', ['agent-dh/'], `wip(agent-self): ${reason}`);
+      const branch = wip?.branch ?? null;
+      // ④ 持久化 pending（重启后 setupResume 据此回投续跑消息；含上次消息内容便于接续）
+      const attempt = this.state.nextAttempt(preserveContext ? 'continue previous task' : 'maintenance');
+      this.state.writePending({
+        reason,
+        resume_task: preserveContext ? 'continue previous task' : 'maintenance',
+        checkpoint_branch: branch,
+        base_branch: base,
+        last_known_good: this.state.readLastKnownGood() ?? this.repo.head(),
+        attempt,
+        ts: new Date(now).toISOString(),
+        origin_agent_id: originAgentId ?? null,
+        last_user_message: this.captureLastUserMessage(originAgentId),
+      });
+      this.state.bumpCounter(now);
+      // ⑤ spawn 包内重启器（detached + unref；重启器自行 kill 本进程，本进程无需 exit）
+      const logPath = join(this.cfg.profileDir, 'state', `restart-${Date.now()}.log`);
+      const restarter = this.resolveRestarterPath();
+      const tsxFlag = restarter.endsWith('.ts') ? ['--import', 'tsx/esm'] : [];
+      const child = spawn(process.execPath, [
+        ...tsxFlag, restarter,
+        String(process.pid), String(this.cfg.port),
+        this.cfg.repoRoot, join(this.cfg.profileDir, 'state'),
+        join(this.cfg.profileDir, 'start.sh'), logPath,
+      ], { detached: true, stdio: 'ignore', cwd: this.cfg.agentDhRoot });
+      child.unref();
+      this.ctx.logger.info(
+        `lifecycle: Restart scheduled: ${reason} → checkpoint=${branch ?? '(无改动)'} log=${logPath} restarter=${restarter}`,
+      );
+    } catch (e) {
+      // 只有 spawn 成功前失败才由本进程释放锁；spawn 后锁归重启器管
+      this.state.releaseLock();
+      throw e;
+    }
+  }
 
-    // 保存 pending resume 状态
-    this.state.writePending({
-      reason,
-      base_branch: this.repo.currentBranch(),
-      checkpoint_branch: null,
-      resume_task: preserveContext ? 'continue previous task' : null,
-      attempt: 0,
-      origin_agent_id: originAgentId ?? null,
-    });
+  /** 捕获发起会话的最后一条用户消息文本，重启后随续跑消息注入（参考 dsh-schedule 从 session.events 读取） */
+  private captureLastUserMessage(agentId: string | null | undefined): string | null {
+    if (!agentId) return null;
+    try {
+      const agent = this.ctx.agents.get(agentId as any);
+      const events: any[] = (agent as any)?.session?.events ?? [];
+      for (let i = events.length - 1; i >= 0; i--) {
+        const ev = events[i];
+        if (ev?.type !== 'user/message') continue;
+        const content: any[] = ev?.data?.content;
+        if (!Array.isArray(content)) return null;
+        const text = content
+          .filter((b: any) => b?.type === 'text' && typeof b.text === 'string')
+          .map((b: any) => (b.text as string).trim())
+          .filter(Boolean)
+          .join('\n')
+          .trim();
+        return text.length > 0 ? text.slice(0, 2000) : null;
+      }
+    } catch { /* 取不到就不注入 */ }
+    return null;
+  }
 
-    // 触发重启（通过退出进程，让外部脚本重启）
-    setTimeout(() => process.exit(0), 1000);
+  /** 定位包内重启器：优先 dist 构建产物（tsdown 多入口输出在 dist/restarter/restarter.mjs），其次源码（开发模式 tsx 直跑） */
+  private resolveRestarterPath(): string {
+    const distCandidates = [
+      new URL('./restarter/restarter.mjs', import.meta.url), // tsdown 多入口实际输出
+      new URL('./restarter.mjs', import.meta.url),           // 扁平化输出（兼容）
+    ];
+    for (const u of distCandidates) {
+      try {
+        const p = fileURLToPath(u);
+        if (existsSync(p)) return p;
+      } catch { /* try next */ }
+    }
+    const src = join(this.cfg.agentDhRoot, 'packages', 'lifecycle', 'src', 'restarter', 'restarter.ts');
+    if (existsSync(src)) return src;
+    throw new Error('lifecycle 重启器产物缺失：请先运行 pnpm --filter @pi-investment/lifecycle build');
   }
 
   /**
