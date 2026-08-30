@@ -91,7 +91,7 @@
 | 48 | learning_analyze | learning | ✅ | 中等 | 2026-08-29 | 分析历史教训 | 🟢 全链路 |
 | 49 | learning_apply | learning | ✅ | 简单 | 2026-08-29 | 应用教训 | 🟢 全链路 |
 | 50 | self_status | lifecycle | ✅ | 简单 | 2026-08-29 | Agent 状态检查 | 🟢 全链路 |
-| 51 | self_restart | lifecycle | ✅ | 中等 | 2026-08-29 | Agent 重启 | 🔴 未实测（高危） |
+| 51 | self_restart | lifecycle | ✅ | 中等 | 2026-08-29 | Agent 重启 | 🟡 已修复打包dead+会话回投（R7）｜全链路待supervisor |
 | 52 | self_finalize | lifecycle | ✅ | 中等 | 2026-08-29 | 会话终结 | 🔴 未实测（高危） |
 
 **P1 进度**: 19/19 (100%) 🎉

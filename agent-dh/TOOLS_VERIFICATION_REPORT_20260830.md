@@ -200,3 +200,36 @@ quantsys-v2/adapters/outbound/datasources/providers/market/akshare.py `get_macro
 
 - 本轮为真实重启实测：**两次重启均真实发生并恢复**；当前会话工具链（agent-os/quantsys 客户端）在重启后立即可用。
 - tracker 中 quantsys_v2_restart / agent_os_restart 已由 🔴 未实测（高危）更新为 🟢 全链路（R6）。仍剩 🔴：self_restart / self_finalize（会退出当前 agent 进程，无法自测）、strategy_optimize、learning_track、notification_send、genome_*（SDK 未暴露）。
+
+---
+
+## Round 7：self_restart「重启后 session 丢失」根因修复（2026-08-31）
+
+### 背景
+用户反馈：self_restart 需要重新打包插件（改 src 后必须 pnpm build，插件从 dist 加载），但真实重启后会话丢失。排查确认两条根因 + 一个前提缺口。
+
+### 根因 1：重启后整实例起不来（dist 打包 dead）——「session 全丢」的直接原因
+- 上次真实重启（2026-08-30T05:33:54Z）restart-result.json 状态 dead；启动日志：
+  Cannot find package '@pi-investment/core-tool' imported from .../packages/lifecycle/dist/index.mjs（ERR_MODULE_NOT_FOUND，rollback 也失败）。
+- 机制：lifecycle 等插件 dist 产物保留了 import from "@pi-investment/core-tool"（tsdown 默认 external），而 profile 的 node_modules 里 21/22 个 @pi-investment 包都有 link，唯独 core-tool 缺失（profile package.json dependencies 漏声明）→ 启动即 dead，agent 永不恢复 → 用户视角「session 全部丢失」。
+- 修复：profile package.json（运行时 ~/.dsh/profiles/investment/package.json + 源模板 agent-dh/profiles/investment/package.json）补充 "@pi-investment/core-tool": "link:.../packages/core-tool" 并 pnpm install 建立链接（core-tool 入口为 TS 源码，tsx 加载器可直接加载）。
+
+### 根因 2：续跑消息无法回投发起会话（即使启动成功，发起窗口也接不到恢复消息）
+- SelfRestartTool.execute(args, _context) 丢弃了 DSH 传入的 exec 上下文（caller agent / session id）；BaseTool.toDSHToolDefinition 的 execute 第二参 _exec 被忽略。
+- scheduleRestart 写 pending-resume.json 时不写 origin_agent_id（只有 reason/base_branch/resume_task/attempt）→ 重启后 setupResume 永远走兜底分支（投 investor 根 agent），发起窗口无法接收续跑消息。
+- 修复（3 处，commit dd3e7b46）：
+  1. core-tool/src/BaseTool.ts：call(args, external?) 合并外部上下文；DSH execute 把 exec 透传进 ToolContext（exec.agent.id === session id，dsh-agent 语义确认）；
+  2. lifecycle/.../SelfRestartTool.ts：execute 从 context.exec?.agent?.id 取发起会话 id 传入 scheduleRestart；
+  3. lifecycle/src/index.ts：scheduleRestart(reason, preserveContext, originAgentId?) 将 origin_agent_id 写入 pending → setupResume 分支①/② 可精确回投发起会话（30 分钟窗口内等 agent/created 匹配，超时兜底 investor root）。
+
+### 验证
+| 项 | 结果 | 说明 |
+|---|---|---|
+| pnpm build 全量 | 通过 | agent-dh 全包构建成功（lifecycle dist 含 origin_agent_id ×2、exec?.agent?.id） |
+| core-tool 链接 | 通过 | ~/.dsh/profiles/investment/node_modules/@pi-investment/core-tool → agent-dh/packages/core-tool |
+| 临时实例启动（:13099 + 隔离 DSH_HOME） | 通过 | HTTP 200、进程存活、日志无 ERR_MODULE_NOT_FOUND / failed to import；验证后已清理 |
+| dist 含新逻辑 | 通过 | lifecycle/dist/index.mjs 含 origin_agent_id 写入与 exec 透传 |
+
+### 遗留
+- 真实 self_restart E2E 仍不宜本会话自测（会杀死当前 :13080 进程）；且 :13080 当前无 launchd/supervisor 兜底（dsh-doctor 是否覆盖 13080 未确认），重启后需要 restart-with-build.sh 或人工拉起。本轮修复保证两个前提成立：① 重启后能正常启动（不再 dead）；② 启动后 setupResume 能把续跑消息回投发起会话。
+- 建议后续：为 :13080 配置 launchd KeepAlive（或确认 dsh-doctor 覆盖），再安排真实 self_restart 全链路验证。
