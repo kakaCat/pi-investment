@@ -46,7 +46,7 @@ export const rotationSimulatePrompt: ToolPrompt<RotationSimulateParams, Rotation
     proposals: {
       type: 'array',
       required: true,
-      description: '轮动方案列表',
+      description: '轮动方案列表（通常由 rotation_proposal 工具生成，也可手动构造）',
       example: [{ action: 'buy', symbol: '000001', weight: 0.1 }],
     },
     account_name: {
@@ -60,11 +60,36 @@ export const rotationSimulatePrompt: ToolPrompt<RotationSimulateParams, Rotation
       example: true,
     },
   },
-  examples: [],
+  examples: [
+    {
+      title: '模拟买入平安银行',
+      params: {
+        proposals: [{ action: 'buy', symbol: '000001', weight: 0.1 }],
+        account_name: 'default',
+        check_constraints: true,
+      },
+      expectedResult: '返回资金是否充足、预期持仓、约束检查结果',
+    },
+    {
+      title: '模拟轮动方案',
+      params: {
+        proposals: [
+          { action: 'sell', symbol: '600519' },
+          { action: 'buy', symbol: '000858', weight: 0.15 },
+        ],
+        check_constraints: true,
+      },
+      expectedResult: '检查卖出茅台、买入五粮液的可行性',
+    },
+  ],
 
-  notes: [],
+  notes: [
+    '💡 proposals 参数通常由 rotation_proposal 工具自动生成',
+    '💡 也可手动构造 proposals 数组进行假设性模拟',
+    '⚠️ 确保 rotation_proposal 依赖的后端服务正常运行',
+  ],
 
-  relatedTools: [],
+  relatedTools: ['rotation_proposal', 'rotation_execute'],
 
 
   output: {
