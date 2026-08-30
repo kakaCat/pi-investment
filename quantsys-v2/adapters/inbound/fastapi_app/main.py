@@ -1064,6 +1064,15 @@ def register_routes():
         logger.warning(f"⚠️ Failed to import data_sync_async: {e}")
         optional_failed.append("data_sync")
 
+    # 统一数据源 API（DataProviderManager 所有方法的 HTTP 入口）
+    try:
+        from adapters.inbound.fastapi_app.routes.data_provider_async import router as data_provider_router
+        app.include_router(data_provider_router)
+        logger.info("✅ Registered: data_provider (统一数据源 API)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import data_provider_async: {e}")
+        optional_failed.append("data_provider")
+
     # ===== 路由注册总结 =====
     logger.info("=" * 60)
     logger.info("Route Registration Summary")
