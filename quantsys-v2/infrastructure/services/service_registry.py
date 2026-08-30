@@ -234,7 +234,13 @@ def _register_services_hardcoded():
 
     # DataService - 核心服务，很多服务依赖它
     from application.services.data_service import DataService
-    from application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
+    from application.services.financial_data_service_adapter import FinancialDataServiceAdapter
+
+    EnhancedServiceFactory.register(
+        FinancialDataServiceAdapter,
+        factory=lambda: FinancialDataServiceAdapter(),
+        lifecycle=ServiceLifecycle.SINGLETON
+    )
 
     def create_data_service():
         """创建 DataService，使用依赖注入
@@ -262,7 +268,7 @@ def _register_services_hardcoded():
             risk_repo=EnhancedServiceFactory.resolve(IRiskRepository),
             strategy_repo=EnhancedServiceFactory.resolve(IStrategyRepository),
             execution_repo=EnhancedServiceFactory.resolve(ISignalExecutionRepository),
-            financial_service=FinancialDataService(),
+            financial_service=EnhancedServiceFactory.resolve(FinancialDataServiceAdapter),
         )
 
     EnhancedServiceFactory.register(
