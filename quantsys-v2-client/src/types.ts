@@ -433,8 +433,11 @@ export interface AlgoExecuteResponse {
  */
 export interface TradeHistoryResponse {
   orders: any[];
-  pending_count: number;
-  filled_count: number;
+  pendingCount: number;
+  filledCount: number;
+  total?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 /**
