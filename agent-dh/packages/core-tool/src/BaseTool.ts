@@ -44,12 +44,13 @@ export abstract class BaseTool<TParams = any, TResult = any> {
   /**
    * 统一调用入口（框架自动执行三个步骤）
    */
-  async call(args: TParams): Promise<ToolResponse<TResult>> {
+  async call(args: TParams, external?: Record<string, unknown>): Promise<ToolResponse<TResult>> {
     const startTime = Date.now();
     const context: ToolContext = {
       currentTool: this.metadata.name,
       timestamp: new Date(),
       ...args,
+      ...(external ?? {}),
     };
 
     try {
@@ -130,8 +131,8 @@ export abstract class BaseTool<TParams = any, TResult = any> {
           ?? ((_args: TParams, data: TResult) => [{ type: 'text', text: JSON.stringify(data, null, 2) }]),
       },
       timeoutMs: this.metadata.timeoutMs || 10000,
-      execute: async (args: TParams, _exec?: any) => {
-        const response = await this.call(args);
+      execute: async (args: TParams, exec?: any) => {
+        const response = await this.call(args, { exec });
 
         if (!response.success) {
           // 错误提取：兼容 string / {issue} / {error:{issue}} 三种形态

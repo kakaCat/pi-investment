@@ -670,7 +670,7 @@ export default class LifecyclePlugin extends Service {
   /**
    * 调度重启
    */
-  private async scheduleRestart(reason: string, preserveContext: boolean): Promise<void> {
+  private async scheduleRestart(reason: string, preserveContext: boolean, originAgentId?: string | null): Promise<void> {
     // 实现重启逻辑
     // TODO: 完整实现需要保存状态、创建 checkpoint 分支等
     this.ctx.logger('lifecycle').info(`Restart scheduled: ${reason}, preserveContext=${preserveContext}`);
@@ -682,6 +682,7 @@ export default class LifecyclePlugin extends Service {
       checkpoint_branch: null,
       resume_task: preserveContext ? 'continue previous task' : null,
       attempt: 0,
+      origin_agent_id: originAgentId ?? null,
     });
 
     // 触发重启（通过退出进程，让外部脚本重启）

@@ -16,7 +16,7 @@ export class SelfRestartTool extends BaseTool<SelfRestartParams, SelfRestartResu
 
   protected readonly prompt = selfRestartPrompt;
 
-  constructor(private scheduleRestart: (reason: string, preserveContext: boolean) => Promise<any>) {
+  constructor(private scheduleRestart: (reason: string, preserveContext: boolean, originAgentId?: string | null) => Promise<any>) {
     super();
   }
 
@@ -36,9 +36,11 @@ export class SelfRestartTool extends BaseTool<SelfRestartParams, SelfRestartResu
     return { success: true };
   }
 
-  protected async execute(args: SelfRestartParams, _context: ToolContext): Promise<SelfRestartResult> {
+  protected async execute(args: SelfRestartParams, context: ToolContext): Promise<SelfRestartResult> {
     const preserveContext = args.preserve_context ?? false;
-    await this.scheduleRestart(args.reason, preserveContext);
+    // 发起会话 id（exec.agent.id === session id），重启后用于续跑消息回投
+    const originAgentId: string | null = (context as any).exec?.agent?.id ?? null;
+    await this.scheduleRestart(args.reason, preserveContext, originAgentId);
 
     return {
       success: true,
