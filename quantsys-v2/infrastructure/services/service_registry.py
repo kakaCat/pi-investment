@@ -210,25 +210,22 @@ def _register_services_hardcoded():
     )
 
     # Data Provider Manager (P1-2 Phase 2)
-    from domain.ports.data_provider_port import IDataProviderManager, IDataQualityMonitor
-    from adapters.outbound.datasources.data_provider_adapter import DataProviderAdapter, SimpleDataQualityMonitor
+    # P0 Fix: 直接使用 DataProviderManager，删除冗余的 Adapter 层
+    from domain.ports.datasource_ports import IDataProviderManager
+    from adapters.outbound.datasources.manager import DataProviderManager
 
-    # DataProviderAdapter 需要 DataService，使用工厂函数延迟初始化
-    def create_data_provider_adapter():
+    # DataProviderManager 需要 DataService，使用工厂函数延迟初始化
+    def create_data_provider_manager():
         from infrastructure.services.service_factory import ServiceFactory
         ds = ServiceFactory.get_data_service()
-        return DataProviderAdapter(ds)
+        return DataProviderManager(ds)
 
     EnhancedServiceFactory.register(
         IDataProviderManager,
-        factory=create_data_provider_adapter,
+        factory=create_data_provider_manager,
         lifecycle=ServiceLifecycle.SINGLETON
     )
-    EnhancedServiceFactory.register(
-        IDataQualityMonitor,
-        SimpleDataQualityMonitor,
-        lifecycle=ServiceLifecycle.SINGLETON
-    )
+    # IDataQualityMonitor 未被实际使用，已移除注册
 
     # ========== Application Services ==========
 

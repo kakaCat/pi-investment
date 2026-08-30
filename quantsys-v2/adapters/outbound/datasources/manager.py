@@ -94,6 +94,9 @@ class DataProviderManager(IDataProviderManager):
         # Dynamic priority: providers with high failure rate get temporarily deprioritized
         self._failure_threshold = 3  # 连续失败阈值，超过则降级
         self._recovery_window = 5    # 成功次数达到此值则恢复优先级
+        # P1: Circuit breaker settings
+        self._circuit_breaker_threshold = 10  # 连续失败10次触发熔断
+        self._circuit_breaker_duration = 300  # 熔断持续时间（秒）- 5分钟
         self._init_stats()
 
     def _init_stats(self):
@@ -112,7 +115,32 @@ class DataProviderManager(IDataProviderManager):
                 'success': 0,
                 'failure': 0,
                 'consecutive_failures': 0,
+                'last_attempt_time': 0,  # P1: 用于熔断机制
+                'circuit_breaker_until': 0,  # P1: 熔断截止时间
             }
+
+    def _should_circuit_break(self, provider_name: str) -> bool:
+        """检查provider是否应被熔断跳过（P1新增）
+
+        熔断条件：连续失败>=10次，且在5分钟窗口内
+
+        Args:
+            provider_name: Provider名称
+
+        Returns:
+            True: 应跳过（熔断中）
+            False: 可以尝试
+        """
+        import time
+        stats = self.provider_stats.get(provider_name, {})
+
+        # 检查是否在熔断窗口内
+        circuit_breaker_until = stats.get('circuit_breaker_until', 0)
+        if circuit_breaker_until > time.time():
+            logger.warning(f"Provider {provider_name} is circuit-broken until {circuit_breaker_until}")
+            return True
+
+        return False
 
     def _try_providers(self, providers: List, method_name: str, *args, **kwargs) -> dict:
         """Generic failover logic with dynamic priority (inspired by RealtimeQuoteService)
@@ -137,6 +165,11 @@ class DataProviderManager(IDataProviderManager):
 
         provider_errors: Dict[str, str] = {}
         for provider in sorted_providers:
+            # P1: Circuit breaker check - skip if provider is circuit-broken
+            if self._should_circuit_break(provider.name):
+                provider_errors[provider.name] = f'熔断中（连续失败{self._circuit_breaker_threshold}次，跳过{self._circuit_breaker_duration}s）'
+                continue
+
             # Skip providers that don't implement this method
             if not hasattr(provider, method_name):
                 continue
@@ -175,7 +208,9 @@ class DataProviderManager(IDataProviderManager):
                 finally:
                     guard.shutdown(wait=False)
 
-                if result and self._is_valid(result):
+                # P1 Fix: 不能用 "if result" 判断，因为DataFrame的truth value is ambiguous
+                # 直接检查 result is not None 和 _is_valid
+                if result is not None and self._is_valid(result):
                     self._record_success(provider.name)
                     return {
                         'success': True,
@@ -202,7 +237,12 @@ class DataProviderManager(IDataProviderManager):
         }
 
     def _is_valid(self, data) -> bool:
-        """Validate data completeness
+        """Validate data completeness (P0 Enhanced)
+
+        检查：
+        1. 基础字段存在（source）
+        2. 数据非空（DataFrame/list有实际内容）
+        3. 关键字段非NaN（price等）
 
         Args:
             data: Data object (QuoteData, FinancialData, etc.) or list of such objects
@@ -210,27 +250,75 @@ class DataProviderManager(IDataProviderManager):
         Returns:
             True if data is valid, False otherwise
         """
-        if hasattr(data, 'source') and hasattr(data, 'timestamp'):
-            return bool(data.source and data.timestamp)
-        if isinstance(data, list) and len(data) > 0:
-            # For list results (e.g., dividend history), check first item
-            return hasattr(data[0], 'source') and bool(data[0].source)
-        return False
+        # 基础字段检查：必须有 source
+        if not (hasattr(data, 'source') and data.source):
+            return False
+
+        # DataFrame检查：必须有行且非空
+        if hasattr(data, '__class__') and 'DataFrame' in data.__class__.__name__:
+            import pandas as pd
+            if hasattr(pd, 'DataFrame') and isinstance(data, pd.DataFrame):
+                # 空DataFrame无效（会阻止降级到备用源）
+                if len(data) == 0 or data.empty:
+                    return False
+                # 检查是否所有值都是NaN（有毒数据）
+                # 只检查数值列，排除date等字符串列
+                numeric_cols = data.select_dtypes(include=[float, int]).columns
+                if len(numeric_cols) > 0 and data[numeric_cols].dropna(how='all').empty:
+                    return False
+                return True
+
+        # 列表检查：必须有元素
+        if isinstance(data, list):
+            if len(data) == 0:
+                return False
+            # 递归检查第一个元素
+            if hasattr(data[0], 'source'):
+                return bool(data[0].source)
+            return True
+
+        # QuoteData检查：price必须有效
+        if hasattr(data, 'price'):
+            import pandas as pd
+            if data.price is None or (hasattr(pd, 'isna') and pd.isna(data.price)):
+                return False
+
+        # 其他数据类型：有source且有timestamp就认为有效
+        if hasattr(data, 'timestamp'):
+            return bool(data.timestamp)
+
+        # 默认：有source就认为有效
+        return True
 
     def _record_success(self, provider_name: str):
         """Record successful provider call (cache channel health)"""
+        import time
         if provider_name in self.provider_stats:
             self.provider_stats[provider_name]['success'] += 1
             # Reset consecutive failures on success
             self.provider_stats[provider_name]['consecutive_failures'] = 0
+            # P1: Clear circuit breaker on success
+            self.provider_stats[provider_name]['circuit_breaker_until'] = 0
+            self.provider_stats[provider_name]['last_attempt_time'] = time.time()
 
     def _record_failure(self, provider_name: str):
         """Record failed provider call (cache channel health)"""
+        import time
         if provider_name in self.provider_stats:
             self.provider_stats[provider_name]['failure'] += 1
-            self.provider_stats[provider_name]['consecutive_failures'] = (
-                self.provider_stats[provider_name].get('consecutive_failures', 0) + 1
-            )
+            consecutive = self.provider_stats[provider_name].get('consecutive_failures', 0) + 1
+            self.provider_stats[provider_name]['consecutive_failures'] = consecutive
+            self.provider_stats[provider_name]['last_attempt_time'] = time.time()
+
+            # P1: Trigger circuit breaker if threshold reached
+            if consecutive >= self._circuit_breaker_threshold:
+                circuit_until = time.time() + self._circuit_breaker_duration
+                self.provider_stats[provider_name]['circuit_breaker_until'] = circuit_until
+                logger.warning(
+                    f"Circuit breaker triggered for {provider_name}: "
+                    f"{consecutive} consecutive failures, "
+                    f"blocked until {circuit_until} ({self._circuit_breaker_duration}s)"
+                )
 
     def _sort_providers_by_health(self, providers: List) -> List:
         """Sort providers by health score (success rate + consecutive failures)
