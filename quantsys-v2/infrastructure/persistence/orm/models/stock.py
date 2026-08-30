@@ -173,6 +173,7 @@ class DailyKline(Base):
     # 额外指标
     turnover_rate = Column(Float, comment='换手率(%)')
     remark = Column(Text, comment='备注')
+    source = Column(String(50), nullable=True, comment='数据来源: sina, tencent, eastmoney, akshare, baostock')
 
     # 关系映射
     stock = relationship('Stock', back_populates='daily_klines')
@@ -196,4 +197,5 @@ class DailyKline(Base):
             'amount': self.amount,
             'turnover_rate': self.turnover_rate,
             'remark': self.remark,
+            'source': self.source,
         }

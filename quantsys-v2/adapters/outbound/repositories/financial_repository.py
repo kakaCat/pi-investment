@@ -37,6 +37,7 @@ class IncomeStatement(Base):
     net_profit_parent = Column(Float)
     eps = Column(Float)
     eps_diluted = Column(Float)
+    source = Column(String(50), nullable=True, comment='数据来源: sina, eastmoney, akshare')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now)
 
@@ -59,6 +60,7 @@ class BalanceSheet(Base):
     parent_equity = Column(Float)
     debt_ratio = Column(Float)
     current_ratio = Column(Float)
+    source = Column(String(50), nullable=True, comment='数据来源: sina, eastmoney, akshare')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now)
 
@@ -181,7 +183,8 @@ class FinancialORMRepository(BaseORMRepository[IncomeStatement], IFinancialRepos
             cols = ('symbol', 'report_date', 'period_type', 'revenue',
                     'operating_revenue', 'operating_cost', 'gross_profit',
                     'gross_margin', 'operating_profit', 'total_profit',
-                    'net_profit', 'net_profit_parent', 'eps', 'eps_diluted')
+                    'net_profit', 'net_profit_parent', 'eps', 'eps_diluted',
+                    'source')
             rows = []
             for r in records:
                 row = {k: r.get(k) for k in cols if r.get(k) is not None}
@@ -193,7 +196,7 @@ class FinancialORMRepository(BaseORMRepository[IncomeStatement], IFinancialRepos
                            ('revenue', 'operating_revenue', 'operating_cost',
                             'gross_profit', 'gross_margin', 'operating_profit',
                             'total_profit', 'net_profit', 'net_profit_parent',
-                            'eps', 'eps_diluted', 'updated_at')}
+                            'eps', 'eps_diluted', 'source', 'updated_at')}
             stmt = stmt.on_conflict_do_update(
                 index_elements=['symbol', 'report_date', 'period_type'],
                 set_=update_cols,

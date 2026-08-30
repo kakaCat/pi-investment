@@ -43,14 +43,17 @@ class DataProviderManager(IDataProviderManager):
         # Tencent is fast and reliable, prioritize it first
         # Sina and Eastmoney are currently timing out, moved to end as fallback
         # Akshare is very slow (75s), use as last resort before disabled sources
+        # Quote providers: Tencent > Sina > Eastmoney > Akshare (by stability)
         self.quote_providers = [
             TencentQuoteProvider(),      # Fast and stable
-            SinaQuoteProvider(),         # Currently slow (5s timeout)
-            EastmoneyQuoteProvider(),    # Currently unstable (connection issues)
-            AkshareQuoteProvider(),      # Very slow (75s) but reliable
-            # NeteaseQuoteProvider(),    # Disabled: connection failures
+            SinaQuoteProvider(),         # Stable, slight delay
+            EastmoneyQuoteProvider(),    # Unstable, connection issues
+            AkshareQuoteProvider(),      # Very slow (75s), last resort
         ]
-        self.financial_providers = []
+        # Financial providers: Akshare only (Phase 2: add Sina/Eastmoney providers)
+        self.financial_providers = [
+            AkshareFinancialStatementProvider(),
+        ]
         self.financial_statement_providers = [
             AkshareFinancialStatementProvider(),
         ]
@@ -130,6 +133,9 @@ class DataProviderManager(IDataProviderManager):
 
         provider_errors: Dict[str, str] = {}
         for provider in sorted_providers:
+            # Skip providers that don't implement this method
+            if not hasattr(provider, method_name):
+                continue
             try:
                 method = getattr(provider, method_name)
                 # 单 provider 调用超时护栏（2026-08-05 评分挂死事故）：

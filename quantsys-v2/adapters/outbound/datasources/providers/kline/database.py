@@ -1,7 +1,8 @@
-"""Database kline provider - primary source"""
+"""Database kline provider - primary source with gap detection"""
 import logging
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
+from dateutil.parser import parse as parse_date
 
 from adapters.outbound.datasources.providers.kline.base import KlineProvider, KlineData
 
@@ -9,7 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseKlineProvider(KlineProvider):
-    """Kline provider using local database"""
+    """Kline provider using local database
+
+    When DB has data but gaps exist in the requested range, returns None
+    to allow network providers to backfill the missing dates.
+    """
 
     def __init__(self, kline_repo):
         """Initialize with kline repository
@@ -18,7 +23,6 @@ class DatabaseKlineProvider(KlineProvider):
             kline_repo: KlineRepository instance from ds.kline
         """
         self.kline_repo = kline_repo
-        # 最近一次失败的具体原因，供 DataProviderManager 聚合返回给调用方
         self.last_error: Optional[str] = None
 
     @property
@@ -32,26 +36,17 @@ class DatabaseKlineProvider(KlineProvider):
         start_date: str,
         end_date: str
     ) -> Optional[List[KlineData]]:
-        """Get kline data from database
+        """Get kline data from database with gap detection
 
-        Args:
-            symbol: Stock symbol
-            period: Period (daily, weekly, monthly)
-            start_date: Start date (YYYY-MM-DD)
-            end_date: End date (YYYY-MM-DD)
-
-        Returns:
-            List of KlineData if successful, None if failed
+        Returns None if data is incomplete to allow network backfill.
         """
         self.last_error = None
         try:
-            # Only support daily/weekly/monthly from database
             if period not in ['daily', 'weekly', 'monthly']:
                 self.last_error = f"数据库不支持周期: {period}（分钟线仅走网络源）"
                 logger.warning(f"Database provider does not support period: {period}")
                 return None
 
-            # Query database
             klines_df = self.kline_repo.get_daily_klines(symbol, start_date, end_date)
 
             if klines_df.is_empty():
@@ -62,10 +57,14 @@ class DatabaseKlineProvider(KlineProvider):
                 logger.warning(f"No kline data in database for {symbol}")
                 return None
 
-            # Convert to KlineData list
             klines = klines_df.to_dicts()
-            result = []
 
+            if self._has_gaps(klines, start_date, end_date):
+                self.last_error = f"数据库有 {symbol} 数据但存在缺口，触发网络回填"
+                logger.info(f"DB has gaps for {symbol} in {start_date}~{end_date}, falling back to network")
+                return None
+
+            result = []
             for i, k in enumerate(klines):
                 trade_date = str(k.get('trade_date', ''))[:10]
                 close = float(k.get('close', 0))
@@ -74,7 +73,6 @@ class DatabaseKlineProvider(KlineProvider):
                 low = float(k.get('low', 0))
                 volume = int(k.get('volume', 0))
 
-                # Calculate change_pct
                 if i > 0:
                     prev_close = float(klines[i-1].get('close', 0))
                     change_pct = round((close - prev_close) / prev_close * 100, 2) if prev_close else 0
@@ -101,3 +99,30 @@ class DatabaseKlineProvider(KlineProvider):
             self.last_error = f"数据库查询异常: {type(e).__name__}: {e}"
             logger.error(f"Database kline provider failed for {symbol}: {e}")
             return None
+
+    def _has_gaps(self, klines: list, start_date: str, end_date: str) -> bool:
+        """Check if there are gaps in the kline data
+
+        Compares actual trading days in DB against expected trading days.
+        Allows up to 10% missing before triggering backfill.
+        """
+        if not klines:
+            return True
+
+        db_dates = set()
+        for k in klines:
+            trade_date = str(k.get('trade_date', ''))[:10]
+            if trade_date:
+                db_dates.add(trade_date)
+
+        try:
+            start = parse_date(start_date).date()
+            end = parse_date(end_date).date()
+            total_days = (end - start).days + 1
+            if total_days <= 0:
+                return False
+        except Exception:
+            return False
+
+        coverage = len(db_dates) / max(total_days, 1)
+        return coverage < 0.9

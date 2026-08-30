@@ -45,6 +45,7 @@ _DAILY_KLINE_SCHEMA = {
     'amount': pl.Float64,
     'turnover_rate': pl.Float64,
     'remark': pl.Utf8,
+    'source': pl.Utf8,
 }
 
 _MINUTE_KLINE_SCHEMA = {
@@ -202,6 +203,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                     volume=kline_dict['volume'],
                     amount=kline_dict.get('amount', 0),
                     turnover_rate=kline_dict.get('turnover_rate', 0),
+                    source=kline_dict.get('source'),
                 )
                 kline_objs.append(kline)
 
@@ -258,6 +260,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                 volume=kline.get('volume'),
                 amount=kline.get('amount', 0),
                 turnover_rate=kline.get('turnover_rate', 0),
+                source=kline.get('source'),
             ))
 
         if not kline_objs:
@@ -788,6 +791,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                     'amount': kline.amount,
                     'turnover_rate': kline.turnover_rate,
                     'remark': getattr(kline, 'remark', None),
+                    'source': getattr(kline, 'source', None),
                 })
 
             # 使用 PostgreSQL 的 ON CONFLICT DO UPDATE
@@ -802,6 +806,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                     'volume': stmt.excluded.volume,
                     'amount': stmt.excluded.amount,
                     'turnover_rate': stmt.excluded.turnover_rate,
+                    'source': stmt.excluded.source,
                 }
             )
 
