@@ -545,7 +545,7 @@ class DataProviderManager(IDataProviderManager):
         )
 
     def get_klines(self, symbol: str, period: str, start_date: str, end_date: str) -> dict:
-        """Get kline data with automatic failover
+        """Get kline data with automatic failover + backfill to DB
 
         Args:
             symbol: Stock symbol
@@ -555,8 +555,11 @@ class DataProviderManager(IDataProviderManager):
 
         Returns:
             Result dict with success, data (list of KlineData), source fields
+
+        Backfill: When network provider fetches data (not from DB),
+        automatically stores it back to DB for future fast access.
         """
-        return self._try_providers(
+        result = self._try_providers(
             self.kline_providers,
             'get_klines',
             symbol,
@@ -564,6 +567,78 @@ class DataProviderManager(IDataProviderManager):
             start_date,
             end_date
         )
+
+        # Backfill: store network-fetched data back to DB
+        if (result.get('success') and
+            result.get('source') != 'database' and
+            result.get('data') and
+            period in ['daily', 'weekly', 'monthly']):
+            self._backfill_klines_to_db(symbol, result['data'])
+
+        return result
+
+    def _backfill_klines_to_db(self, symbol: str, klines: list) -> bool:
+        """Store kline data back to DB for future fast access
+
+        Args:
+            symbol: Stock symbol
+            klines: List of KlineData objects from network provider
+
+        Returns:
+            True if backfill succeeded, False otherwise
+        """
+        try:
+            from infrastructure.persistence.orm.config import get_session
+            from infrastructure.persistence.orm.models.stock import DailyKline
+            from datetime import datetime
+            from dateutil.parser import parse as parse_date
+
+            session = get_session()
+            saved_count = 0
+
+            for kline in klines:
+                # Convert string date to date object for DB column
+                if isinstance(kline.date, str):
+                    trade_date = parse_date(kline.date).date()
+                else:
+                    trade_date = kline.date
+
+                # Skip if already exists
+                existing = session.query(DailyKline).filter_by(
+                    symbol=symbol,
+                    trade_date=trade_date
+                ).first()
+                if existing:
+                    continue
+
+                daily = DailyKline(
+                    symbol=symbol,
+                    trade_date=trade_date,
+                    open=kline.open,
+                    high=kline.high,
+                    low=kline.low,
+                    close=kline.close,
+                    volume=kline.volume,
+                    source=kline.source,
+                    created_at=datetime.now(),
+                    updated_at=datetime.now()
+                )
+                session.add(daily)
+                saved_count += 1
+
+            if saved_count > 0:
+                session.commit()
+                logger.info(f"Backfilled {saved_count} klines for {symbol} to DB")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Backfill klines to DB failed for {symbol}: {e}")
+            try:
+                session.rollback()
+            except Exception:
+                pass
+            return False
 
     # ==================== 接口适配方法 ====================
     # 实现 IDataProviderManager 抽象方法，适配到现有实现
