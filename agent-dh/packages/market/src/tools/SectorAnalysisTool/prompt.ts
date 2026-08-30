@@ -46,8 +46,11 @@ export const sectorAnalysisPrompt: ToolPrompt<SectorAnalysisParams, SectorAnalys
     },
     days: {
       type: 'integer',
-      description: '分析周期（交易日），默认 5。短线轮动看 5-10 天，中线趋势看 20-60 天',
+      description: '分析周期（1-90 交易日），默认 5。短线轮动看 5-10 天，中线趋势看 20-60 天',
       default: 5,
+      minimum: 1,
+      maximum: 90,
+      example: 5,
     },
   },
 

@@ -36,8 +36,15 @@ export class BarraDecompositionTool extends BaseTool<BarraDecompositionParams, B
    * Phase 2: 执行任务
    */
   protected async execute(args: BarraDecompositionParams, _context: ToolContext): Promise<BarraDecompositionResult> {
+    const symbols = args.symbols?.length
+      ? args.symbols
+      : ['600519', '000858', '601318', '000001', '600036'];
+
     const result: any = await this.qv2.getBarraDecomposition({
-      account_name: args.account_name || 'agent_virtual',
+      symbols,
+      start_date: args.start_date || new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10),
+      end_date: args.end_date || new Date().toISOString().slice(0, 10),
+      weights: args.weights,
     });
 
     // 映射后端字段到标准格式

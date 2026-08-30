@@ -99,7 +99,9 @@ export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerM
     owner: {
       type: 'string',
       required: false,
-      description: '任务所有者，create 时可选',
+      description: '任务所有者，create 时可选，默认 agent-dh',
+      default: 'agent-dh',
+      example: 'agent-dh',
     },
     cron: {
       type: 'string',

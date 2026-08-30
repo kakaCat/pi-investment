@@ -49,8 +49,11 @@ export const mainlineScanPrompt: ToolPrompt<MainlineScanParams, MainlineScanResu
   parameters: {
     days: {
       type: 'integer',
-      description: '板块表现统计窗口（交易日），默认 5',
+      description: '板块表现统计窗口（1-30 交易日），默认 5',
       default: 5,
+      minimum: 1,
+      maximum: 30,
+      example: 5,
     },
   },
 

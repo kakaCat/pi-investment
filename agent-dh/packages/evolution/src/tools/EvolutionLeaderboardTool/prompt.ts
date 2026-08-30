@@ -34,7 +34,11 @@ export const evolutionLeaderboardPrompt: ToolPrompt<EvolutionLeaderboardParams, 
   parameters: {
     limit: {
       type: 'number',
-      description: '返回排名数量（可选，默认 10）',
+      description: '返回排名数量（1-50），默认 10',
+      default: 10,
+      minimum: 1,
+      maximum: 50,
+      example: 10,
     },
   },
 

@@ -33,8 +33,11 @@ export const notificationChannelsPrompt = {
   parameters: {
     log_limit: {
       type: 'number',
-      description: '返回最近投递日志条数，默认 10',
+      description: '返回最近投递日志条数（1-100），默认 10',
       default: 10,
+      minimum: 1,
+      maximum: 100,
+      example: 10,
     },
   },
   examples: [

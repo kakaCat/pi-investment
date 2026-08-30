@@ -36,8 +36,11 @@ export const genomeHistoryPrompt: ToolPrompt<GenomeHistoryParams, GenomeHistoryR
     limit: {
       type: 'number',
       required: false,
-      description: '返回的最大版本数，默认 10',
+      description: '返回的最大版本数（1-100），默认 10',
       default: 10,
+      minimum: 1,
+      maximum: 100,
+      example: 10,
     },
   },
   output: {

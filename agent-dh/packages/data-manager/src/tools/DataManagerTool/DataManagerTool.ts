@@ -65,13 +65,35 @@ export class DataManagerTool extends BaseTool<DataManagerParams, DataManagerResu
     params: DataManagerParams,
     context: ToolContext
   ): Promise<DataManagerResult> {
+    if (params.operation === 'status') {
+      try {
+        const health = await this.quantsysClient.getPlatformStatus();
+        return {
+          operation: 'status',
+          data_type: params.data_type || 'all',
+          status: 'success',
+          message: `后端状态: ${health.status}, 数据库: ${health.db_connected ? '已连接' : '未连接'}, 持仓数: ${health.holdings_count}`,
+          details: health as any,
+        };
+      } catch (error: any) {
+        return {
+          operation: 'status',
+          data_type: params.data_type || 'all',
+          status: 'error',
+          message: `状态查询失败: ${error.message || '未知错误'}`,
+        };
+      }
+    }
+
     const requestParams: any = {
-      operation: params.operation,
-      data_type: params.data_type || 'all',
+      source: params.data_type || 'all',
+      days: 30,
+      force: false,
+      async: true,
     };
 
     if (params.symbol) {
-      requestParams.symbol = params.symbol;
+      requestParams.symbols = params.symbol;
     }
 
     if (params.start_date) {
@@ -84,7 +106,13 @@ export class DataManagerTool extends BaseTool<DataManagerParams, DataManagerResu
 
     const response = await this.quantsysClient.dataManager(requestParams);
 
-    return response as DataManagerResult;
+    return {
+      operation: params.operation,
+      data_type: params.data_type || 'all',
+      status: 'success',
+      message: `${params.operation} 操作已触发`,
+      details: response as any,
+    };
   }
 
   protected wrap(data: DataManagerResult, context: ToolContext): ToolResponse<DataManagerResult> {

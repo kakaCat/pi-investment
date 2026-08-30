@@ -71,8 +71,11 @@ export const mainlineStocksPrompt: ToolPrompt<MainlineStocksParams, MainlineStoc
     },
     days: {
       type: 'number',
-      description: '查询天数（默认 5 天）',
+      description: '查询天数（1-90），默认 5 天',
       default: 5,
+      minimum: 1,
+      maximum: 90,
+      example: 5,
     },
   },
   output: {

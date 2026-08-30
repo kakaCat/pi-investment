@@ -8,8 +8,16 @@ import type { ToolPrompt } from '@pi-investment/core-tool';
  * Barra风险分解参数
  */
 export interface BarraDecompositionParams {
-  /** 账户名称 */
+  /** 账户名称（保留向后兼容，实际不使用） */
   account_name?: string;
+  /** 股票代码列表（必填，后端需要） */
+  symbols?: string[];
+  /** 开始日期 YYYY-MM-DD（默认 90 天前） */
+  start_date?: string;
+  /** 结束日期 YYYY-MM-DD（默认今天） */
+  end_date?: string;
+  /** 持仓权重（可选，默认等权） */
+  weights?: number[];
 }
 
 /**
@@ -63,8 +71,25 @@ export const barraDecompositionPrompt: ToolPrompt<BarraDecompositionParams, Barr
   parameters: {
     account_name: {
       type: 'string',
-      description: '账户名称，默认 agent_virtual',
-      default: 'agent_virtual',
+      description: '账户名称（保留向后兼容）',
+    },
+    symbols: {
+      type: 'array',
+      items: { type: 'string' },
+      description: '股票代码列表，如 ["600519","000858"]。未提供时使用默认蓝筹股',
+    },
+    start_date: {
+      type: 'string',
+      description: '开始日期 YYYY-MM-DD（默认 90 天前）',
+    },
+    end_date: {
+      type: 'string',
+      description: '结束日期 YYYY-MM-DD（默认今天）',
+    },
+    weights: {
+      type: 'array',
+      items: { type: 'number' },
+      description: '持仓权重（可选，默认等权）',
     },
   },
 
@@ -76,9 +101,8 @@ export const barraDecompositionPrompt: ToolPrompt<BarraDecompositionParams, Barr
         factor_risks: { type: 'array', description: '各因子风险贡献' },
         idiosyncratic_risk: { type: 'number', description: '特质风险（%）' },
         industry_concentration: { type: 'number', description: '行业集中度' },
-        style_exposure: { type: 'object', additionalProperties: true, description: '风格暴露', additionalProperties: true },
+        style_exposure: { type: 'object', additionalProperties: true, description: '风格暴露' },
       },
-      additionalProperties: true,
     },
     render: (_args: BarraDecompositionParams, data: BarraDecompositionResult) => [{
       type: 'text',

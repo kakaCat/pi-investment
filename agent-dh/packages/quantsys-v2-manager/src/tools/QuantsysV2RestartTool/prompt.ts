@@ -77,7 +77,7 @@ export const quantsysV2RestartPrompt: ToolPrompt<QuantsysV2RestartParams, Quants
           description: '重启步骤',
           items: { type: 'object', additionalProperties: true },
         },
-        final_status: { type: 'object', additionalProperties: true, description: '最终状态', additionalProperties: true },
+        final_status: { type: 'object', additionalProperties: true, description: '最终状态' },
         diagnosis: {
           type: 'object', additionalProperties: true,
           description: '失败诊断',
@@ -88,7 +88,6 @@ export const quantsysV2RestartPrompt: ToolPrompt<QuantsysV2RestartParams, Quants
         },
         error: { type: 'string', description: '错误信息' },
       },
-      additionalProperties: true,
     },
   },
 };

@@ -37,17 +37,29 @@ class KlineSyncResponse(BaseModel):
 def get_active_stocks() -> set[str]:
     """获取所有活跃股票代码"""
     try:
+        from infrastructure.persistence.orm import close_session
         session = get_session()
         from infrastructure.persistence.orm.models import Stock
-        
+
         stocks = session.query(Stock.symbol).filter(
             Stock.is_delisted == False
         ).all()
-        
-        return {s[0] for s in stocks}
-        
+
+        result = {s[0] for s in stocks}
+
+        # 2026-08-30 修复：显式关闭 Session，避免空闲事务阻塞
+        close_session()
+
+        return result
+
     except Exception as e:
         logger.error(f"获取活跃股票失败: {e}")
+        # 确保异常时也关闭 Session
+        try:
+            from infrastructure.persistence.orm import close_session
+            close_session()
+        except:
+            pass
         raise
 
 
