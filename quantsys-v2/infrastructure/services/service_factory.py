@@ -623,40 +623,32 @@ class ServiceFactory:
             IDataProviderManager: 数据提供者管理器接口实现
         """
         # P2-1: 优先从 EnhancedServiceFactory 获取
-        from domain.ports.data_provider_port import IDataProviderManager
+        from domain.ports.datasource_ports import IDataProviderManager
         enhanced = _try_get_from_enhanced(IDataProviderManager)
         if enhanced:
             return enhanced
 
         # 回退到旧实现
         if 'data_provider_manager' not in cls._instances:
-            from adapters.outbound.datasources.data_provider_adapter import DataProviderAdapter
+            from adapters.outbound.datasources.manager import DataProviderManager
             # 传入 DataService 以支持 DatabaseKlineProvider
             ds = cls.get_data_service()
-            cls._instances['data_provider_manager'] = DataProviderAdapter(ds)
-            logger.info("DataProviderAdapter initialized (legacy)")
+            cls._instances['data_provider_manager'] = DataProviderManager(ds)
+            logger.info("DataProviderManager initialized (legacy)")
         return cls._instances['data_provider_manager']
 
     @classmethod
     @lru_cache(maxsize=1)
     def get_data_quality_monitor(cls):
-        """获取数据质量监控器实例
+        """获取数据质量监控器实例 (已废弃)
+
+        P0 Fix: IDataQualityMonitor 未被实际使用，此方法保留仅为向后兼容
 
         Returns:
-            IDataQualityMonitor: 数据质量监控接口实现
+            None: 该功能已移除
         """
-        # P2-1: 优先从 EnhancedServiceFactory 获取
-        from domain.ports.data_provider_port import IDataQualityMonitor
-        enhanced = _try_get_from_enhanced(IDataQualityMonitor)
-        if enhanced:
-            return enhanced
-
-        # 回退到旧实现
-        if 'data_quality_monitor' not in cls._instances:
-            from adapters.outbound.datasources.data_provider_adapter import SimpleDataQualityMonitor
-            cls._instances['data_quality_monitor'] = SimpleDataQualityMonitor()
-            logger.info("SimpleDataQualityMonitor initialized (legacy)")
-        return cls._instances['data_quality_monitor']
+        logger.warning("get_data_quality_monitor() is deprecated and returns None")
+        return None
 
     # ── P2-1: Repository 工厂方法 (2026-08-21) ──
 

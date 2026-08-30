@@ -202,7 +202,12 @@ class DataProviderManager(IDataProviderManager):
         }
 
     def _is_valid(self, data) -> bool:
-        """Validate data completeness
+        """Validate data completeness (P0 Enhanced)
+
+        检查：
+        1. 基础字段存在（source）
+        2. 数据非空（DataFrame/list有实际内容）
+        3. 关键字段非NaN（price等）
 
         Args:
             data: Data object (QuoteData, FinancialData, etc.) or list of such objects
@@ -210,12 +215,43 @@ class DataProviderManager(IDataProviderManager):
         Returns:
             True if data is valid, False otherwise
         """
-        if hasattr(data, 'source') and hasattr(data, 'timestamp'):
-            return bool(data.source and data.timestamp)
-        if isinstance(data, list) and len(data) > 0:
-            # For list results (e.g., dividend history), check first item
-            return hasattr(data[0], 'source') and bool(data[0].source)
-        return False
+        # 基础字段检查：必须有 source
+        if not (hasattr(data, 'source') and data.source):
+            return False
+
+        # DataFrame检查：必须有行且非空
+        if hasattr(data, '__class__') and 'DataFrame' in data.__class__.__name__:
+            import pandas as pd
+            if hasattr(pd, 'DataFrame') and isinstance(data, pd.DataFrame):
+                # 空DataFrame无效（会阻止降级到备用源）
+                if len(data) == 0 or data.empty:
+                    return False
+                # 检查是否所有值都是NaN（有毒数据）
+                if data.dropna(how='all').empty:
+                    return False
+                return True
+
+        # 列表检查：必须有元素
+        if isinstance(data, list):
+            if len(data) == 0:
+                return False
+            # 递归检查第一个元素
+            if hasattr(data[0], 'source'):
+                return bool(data[0].source)
+            return True
+
+        # QuoteData检查：price必须有效
+        if hasattr(data, 'price'):
+            import pandas as pd
+            if data.price is None or (hasattr(pd, 'isna') and pd.isna(data.price)):
+                return False
+
+        # 其他数据类型：有source且有timestamp就认为有效
+        if hasattr(data, 'timestamp'):
+            return bool(data.timestamp)
+
+        # 默认：有source就认为有效
+        return True
 
     def _record_success(self, provider_name: str):
         """Record successful provider call (cache channel health)"""
