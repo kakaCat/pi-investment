@@ -48,9 +48,10 @@ export class LearningAnalyzeTool extends BaseTool<LearningAnalyzeParams, Learnin
 
     return {
       success: true,
-      patterns: result.patterns || [],
-      suggestions: result.suggestions || [],
-      sample_count: result.sample_count || 0,
+      patterns: Array.isArray(result?.patterns) ? result.patterns : [],
+      suggestions: (Array.isArray(result?.suggestions) ? result.suggestions : [])
+        .map((s: any) => String(s ?? '')),
+      sample_count: typeof result?.sample_count === 'number' ? result.sample_count : 0,
     };
   }
 

@@ -104,7 +104,7 @@ export class QuantsysV2LogsTool extends BaseTool<QuantsysV2LogsParams, QuantsysV
         is_stale: isStale,
         warning: isStale
           ? `⚠️ 日志文件已 ${Math.round(ageHours)} 小时未更新，可能配置错误或服务未运行`
-          : null,
+          : '',
       },
     };
   }

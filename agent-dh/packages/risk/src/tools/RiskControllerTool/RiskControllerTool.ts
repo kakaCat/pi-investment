@@ -90,7 +90,7 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
    * Phase 2: 执行任务
    */
   protected async execute(args: RiskControllerParams, _context: ToolContext): Promise<RiskControllerResult> {
-    const result: any = await this.qv2.riskControl({
+    const raw: any = await this.qv2.riskControl({
       command: args.command,
       symbol: args.symbol,
       account_name: args.account_name || 'agent_virtual',
@@ -99,12 +99,19 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
       entry_price: args.entry_price,
     });
 
+    const sanitized: Record<string, any> = {};
+    for (const [k, v] of Object.entries(raw ?? {})) {
+      if (v !== undefined && v !== null && !(typeof v === 'number' && Number.isNaN(v))) {
+        sanitized[k] = v;
+      }
+    }
+
     return {
       command: args.command,
       symbol: args.symbol,
-      result: result?.result ?? result,
-      warning: result?.warning,
-      ...result,
+      result: sanitized.result ?? sanitized,
+      warning: typeof sanitized.warning === 'string' ? sanitized.warning : undefined,
+      ...sanitized,
     };
   }
 

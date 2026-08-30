@@ -23,19 +23,21 @@ export class WatchListTool extends BaseTool<WatchListParams, any[]> {
   }
 
   protected async execute(params: WatchListParams, context: ToolContext): Promise<any[]> {
-    const rules = await this.qv2Client.listWatchRules();
+    const result = await this.qv2Client.listWatchRules();
+    const rules = Array.isArray(result) ? result : (result as any)?.rules ?? [];
     return rules;
   }
 
   protected wrap(data: any[], context: ToolContext): ToolResponse<any[]> {
+    const rules = Array.isArray(data) ? data : [];
     return {
       success: true,
-      data,
-      message: `共找到 ${data.length} 条盯盘规则`,
+      data: rules,
+      message: `共找到 ${rules.length} 条盯盘规则`,
       metadata: {
-        total: data.length,
-        enabled: data.filter((r: any) => r.enabled).length,
-        disabled: data.filter((r: any) => !r.enabled).length,
+        total: rules.length,
+        enabled: rules.filter((r: any) => r?.enabled).length,
+        disabled: rules.filter((r: any) => !r?.enabled).length,
       },
     };
   }

@@ -65,18 +65,26 @@ export class MemorySearchTool extends BaseTool<MemorySearchParams, MemorySearchR
       category: namespace === 'experience' ? 'experience' : undefined,
     });
 
-    // embedding 向量为千维数组，剔除以避免污染上下文
     const items = (res.items || []).map((it: any) => {
       const { embedding, ...rest } = it ?? {};
       return rest;
     });
 
     return {
-      query,
-      results: items,
-      total: res.total ?? items.length,
-      degraded: res.degraded,
-      strategy: res.strategy,
+      query: String(query ?? ''),
+      results: items.map((it: any) => ({
+        id: String(it?.id ?? ''),
+        title: String(it?.title ?? ''),
+        content: String(it?.content ?? ''),
+        kind: String(it?.kind ?? ''),
+        scope: String(it?.scope ?? ''),
+        confidence: typeof it?.confidence === 'number' ? it.confidence : 0,
+        created_at: String(it?.created_at ?? ''),
+        payload: it?.payload,
+      })),
+      total: typeof res?.total === 'number' ? res.total : items.length,
+      degraded: !!res?.degraded,
+      strategy: String(res?.strategy ?? ''),
     };
   }
 

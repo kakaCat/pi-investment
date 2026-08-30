@@ -48,13 +48,13 @@ export class AgentOsStatusTool extends BaseTool<AgentOsStatusParams, AgentOsStat
 
     // 健康检查
     let healthOk = false;
-    let healthError: string | null = null;
+    let healthError = '';
     if (portListening) {
       try {
         execSync(`curl -sf --max-time 5 "${healthCheckUrl}" > /dev/null`, { timeout: 6000 });
         healthOk = true;
       } catch (e: any) {
-        healthError = e.message;
+        healthError = String(e?.message ?? e ?? '');
       }
     }
 

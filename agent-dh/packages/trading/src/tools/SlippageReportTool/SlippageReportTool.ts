@@ -63,14 +63,14 @@ export class SlippageReportTool extends BaseTool<SlippageReportParams, SlippageR
    * Phase 2: 执行任务
    */
   protected async execute(args: SlippageReportParams, _context: ToolContext): Promise<SlippageReportResult> {
-    // 从 osClient.memory 检索滑点记录
-    const searchResult: any = await this.osClient.search({
-      query: args.symbol ? `slippage ${args.symbol}` : 'slippage',
-      namespace: 'episode',
-      top_k: 1000,
+    // 从 osClient 检索滑点记录
+    const searchResult: any = await this.osClient.searchMemory({
+      q: args.symbol ? `slippage ${args.symbol}` : 'slippage',
+      kind: 'episode',
+      limit: 1000,
     });
 
-    const memories = searchResult?.memories || [];
+    const memories = searchResult?.items || [];
 
     // 过滤出滑点记录
     const slippageRecords = memories

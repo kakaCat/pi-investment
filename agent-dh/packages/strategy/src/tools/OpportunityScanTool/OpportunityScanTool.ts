@@ -65,12 +65,17 @@ export class OpportunityScanTool extends BaseTool<OpportunityScanParams, Opportu
     args: OpportunityScanParams,
     _context: ToolContext
   ): Promise<OpportunityScanResult> {
-    return this.qv2.scanOpportunities({
+    const raw: any = await this.qv2.scanOpportunities({
       scan_type: args.scan_type || 'hybrid',
       pool_id: args.pool_id,
       symbols: args.symbols,
       min_score: args.min_score || 60,
-    }) as any;
+    });
+
+    return {
+      opportunities: Array.isArray(raw?.opportunities) ? raw.opportunities : [],
+      scan_summary: raw?.scan_summary ?? { total_scanned: 0, opportunities_found: 0, scan_time: new Date().toISOString() },
+    };
   }
 
   protected wrap(data: OpportunityScanResult): ToolResponse<OpportunityScanResult> {

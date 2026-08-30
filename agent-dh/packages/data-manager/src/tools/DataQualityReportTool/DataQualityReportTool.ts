@@ -61,7 +61,8 @@ export class DataQualityReportTool extends BaseTool<DataQualityReportParams, Dat
   protected wrap(data: DataQualityReportResult, context: ToolContext): ToolResponse<DataQualityReportResult> {
     const { data_type, overall_score, missing_data, delayed_data, anomalies } = data;
 
-    let message = `数据质量报告（${data_type}）: 评分 ${overall_score.toFixed(1)}`;
+    const score = typeof overall_score === 'number' ? overall_score : 0;
+    let message = `数据质量报告（${data_type}）: 评分 ${score.toFixed(1)}`;
     if (missing_data.length > 0) message += `, ${missing_data.length} 处缺失`;
     if (delayed_data.length > 0) message += `, ${delayed_data.length} 处延迟`;
     if (anomalies.length > 0) message += `, ${anomalies.length} 处异常`;
