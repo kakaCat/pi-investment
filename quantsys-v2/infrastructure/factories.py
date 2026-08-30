@@ -26,7 +26,7 @@ def create_data_service():
         IStrategyRepository,
         ISignalExecutionRepository,
     )
-    from application.services.financial_data_service import FinancialDataService
+    from application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
 
     # 解析所有依赖
     stock_repo = EnhancedServiceFactory.resolve(IStockRepository)

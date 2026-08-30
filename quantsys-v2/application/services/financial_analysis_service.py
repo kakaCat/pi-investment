@@ -38,7 +38,7 @@ class FinancialAnalysisService:
 
             # 1. 优先使用 FinancialDataService（多数据源 failover）
             try:
-                from application.services.financial_data_service import FinancialDataService
+                from application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
 
                 service = FinancialDataService()
                 financial_data = service.get_financial_data(

@@ -27,7 +27,7 @@ from domain.ports.repository_ports_extended import (
 
 from infrastructure.config import CACHE_TTL, CACHE_NAMESPACE
 from infrastructure.persistence.orm import close_session
-from application.services.financial_data_service import FinancialDataService
+from application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
 
 logger = structlog.get_logger(__name__)
 

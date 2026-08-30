@@ -234,7 +234,7 @@ def _register_services_hardcoded():
 
     # DataService - 核心服务，很多服务依赖它
     from application.services.data_service import DataService
-    from application.services.financial_data_service import FinancialDataService
+    from application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
 
     def create_data_service():
         """创建 DataService，使用依赖注入

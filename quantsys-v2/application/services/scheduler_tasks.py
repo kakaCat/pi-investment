@@ -828,7 +828,7 @@ def handle_financial_data_update(params: Dict[str, Any] = None) -> Dict[str, Any
     logger.info("Starting financial_data_update task")
 
     try:
-        from application.services.financial_data_service import FinancialDataService
+        from application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
 
         service = FinancialDataService()
 

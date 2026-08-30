@@ -25,7 +25,7 @@ from domain.ports.repository_ports_extended import (
 )
 
 from infrastructure.persistence.orm import close_session
-from application.services.financial_data_service import FinancialDataService
+from application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
 from domain.exceptions import DatabaseError, ExternalServiceError
 
 logger = structlog.get_logger(__name__)

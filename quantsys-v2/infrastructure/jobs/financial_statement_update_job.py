@@ -48,7 +48,7 @@ def execute(**params) -> Dict[str, Any]:
     Returns:
         dict: {success, universe, updated, no_data, failed, rows, elapsed_s}
     """
-    from application.services.financial_data_service import FinancialDataService
+    from application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
     from adapters.outbound.repositories.financial_repository import FinancialORMRepository
 
     started = time.time()
