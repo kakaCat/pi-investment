@@ -144,11 +144,11 @@ services:
       data_service: data_service
     description: '风险检查服务'
 
-  # 财务数据
+  # 财务数据（已迁移到适配器）
   financial_data_service:
-    class: application.services.financial_data_service.FinancialDataService
+    class: application.services.financial_data_service_adapter.FinancialDataServiceAdapter
     lifecycle: singleton
-    description: '财务数据服务'
+    description: '财务数据服务（包装 DataProviderManager）'
 
   # 财务数据适配器（新架构）
   financial_data_service_adapter:
