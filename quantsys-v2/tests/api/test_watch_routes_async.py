@@ -23,7 +23,7 @@ def created_rule(client):
         'symbol': '000001.SZ', 'conditions': VALID_CONDITIONS, 'context': 'parity 测试',
     })
     assert resp.status_code == 200, resp.json()
-    rule_id = resp.json()['rule']['id']
+    rule_id = resp.json()['data']['rule']['id']
     yield rule_id
     client.delete(f'/api/watch/rules/{rule_id}')
 
@@ -31,7 +31,7 @@ def created_rule(client):
 def test_create_and_list(client, created_rule):
     resp = client.get('/api/watch/rules?symbol=000001.SZ')
     assert resp.status_code == 200
-    ids = [r['id'] for r in resp.json()['rules']]
+    ids = [r['id'] for r in resp.json()['data']['rules']]
     assert created_rule in ids
 
 
@@ -56,7 +56,7 @@ def test_create_missing_symbol_400(client):
 def test_update_disable(client, created_rule):
     resp = client.put(f'/api/watch/rules/{created_rule}', json={'enabled': False})
     assert resp.status_code == 200
-    assert resp.json()['rule']['enabled'] is False
+    assert resp.json()['data']['rule']['enabled'] is False
 
 
 def test_update_invalid_expires_at_400(client, created_rule):
@@ -71,7 +71,7 @@ def test_update_nonexistent_404(client):
 def test_patch_supported(client, created_rule):
     resp = client.patch(f'/api/watch/rules/{created_rule}', json={'context': 'patch 更新'})
     assert resp.status_code == 200
-    assert resp.json()['rule']['context'] == 'patch 更新'
+    assert resp.json()['data']['rule']['context'] == 'patch 更新'
 
 
 def test_delete(client, created_rule):
@@ -85,7 +85,7 @@ def test_delete_nonexistent_404(client):
 def test_list_triggers(client):
     resp = client.get('/api/watch/triggers?limit=5')
     assert resp.status_code == 200
-    assert 'triggers' in resp.json()
+    assert 'triggers' in resp.json()['data']
 
 
 def test_list_triggers_invalid_limit_falls_back(client):
@@ -107,6 +107,6 @@ def test_update_invalid_conditions_400(client, created_rule):
 def test_list_filter_by_symbol(client, created_rule):
     resp = client.get('/api/watch/rules?symbol=000001.SZ')
     assert resp.status_code == 200
-    rules = resp.json()['rules']
+    rules = resp.json()['data']['rules']
     assert len(rules) > 0
     assert all(r['symbol'] == '000001.SZ' for r in rules)

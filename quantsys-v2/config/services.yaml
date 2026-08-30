@@ -150,6 +150,12 @@ services:
     lifecycle: singleton
     description: '财务数据服务'
 
+  # 财务数据适配器（新架构）
+  financial_data_service_adapter:
+    class: application.services.financial_data_service_adapter.FinancialDataServiceAdapter
+    lifecycle: singleton
+    description: '财务数据服务适配器（包装 DataProviderManager）'
+
   # 信号执行调度器
   signal_execution_scheduler:
     class: application.services.signal_execution_scheduler.SignalExecutionScheduler

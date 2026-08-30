@@ -30,7 +30,7 @@ def list_rules(symbol: Optional[str] = Query(None), enabled: Optional[str] = Que
     rule_repo = WatchRuleRepository()
     enabled_value = None if enabled is None else enabled.lower() == 'true'
     rules = rule_repo.list_rules(symbol=symbol, enabled=enabled_value)
-    return {'success': True, 'rules': [rule_to_dict(r) for r in rules]}
+    return {'success': True, 'data': {'rules': [rule_to_dict(r) for r in rules]}}
 
 
 @router.post('/api/watch/rules')
@@ -66,7 +66,7 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
         )
     except Exception as e:
         return _err(f'创建失败: {e}', 500)
-    return {'success': True, 'rule': rule_to_dict(rule)}
+    return {'success': True, 'data': {'rule': rule_to_dict(rule)}}
 
 
 def _update_rule(rule_id: int, payload: Dict[str, Any]):
@@ -88,7 +88,7 @@ def _update_rule(rule_id: int, payload: Dict[str, Any]):
     rule = rule_repo.update_fields(rule_id, **data)
     if rule is None:
         return _err('规则不存在', 404)
-    return {'success': True, 'rule': rule_to_dict(rule)}
+    return {'success': True, 'data': {'rule': rule_to_dict(rule)}}
 
 
 @router.put('/api/watch/rules/{rule_id}')
@@ -119,4 +119,4 @@ def list_triggers(symbol: Optional[str] = Query(None), limit: Optional[str] = Qu
         limit_value = 50
     limit_value = max(1, min(limit_value, 200))
     triggers = trigger_repo.list_by_symbol(symbol=symbol, limit=limit_value)
-    return {'success': True, 'triggers': [trigger_to_dict(t) for t in triggers]}
+    return {'success': True, 'data': {'triggers': [trigger_to_dict(t) for t in triggers]}}

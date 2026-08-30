@@ -502,10 +502,17 @@ export default class LearningPlugin extends Service {
    */
   private async applyRule(ruleId: string, context: any, dryRun: boolean): Promise<any> {
     // 从 OS 记忆库加载规则
-    const ruleRecords = await this.osMemory.query({
-      type: 'learning:rule',
-      filters: { rule_id: ruleId },
-      limit: 1,
+    const searchResult = await this.osMemory.searchMemory({
+      kind: 'rule',
+      scope: 'global',
+      q: ruleId,
+      limit: 5,
+    });
+
+    // 精确匹配 rule_id
+    const ruleRecords = searchResult.items.filter((item: any) => {
+      const payload = item.payload || {};
+      return payload.rule_id === ruleId || item.title?.includes(ruleId);
     });
 
     if (ruleRecords.length === 0) {
@@ -515,7 +522,7 @@ export default class LearningPlugin extends Service {
       };
     }
 
-    const rule = ruleRecords[0].payload;
+    const rule = ruleRecords[0].payload || {};
 
     // 模拟运行模式
     if (dryRun) {
