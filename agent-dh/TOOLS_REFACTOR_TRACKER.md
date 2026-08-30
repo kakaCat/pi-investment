@@ -655,6 +655,118 @@ npx tsx scripts/test-genome-tools.ts
 
 ---
 
+### Learning Package (2026-08-29)
+
+**测试命令**:
+```bash
+cd agent-dh
+npx tsx scripts/test-new-tools.ts
+```
+
+**测试结果**: ✅ 全部通过（4/4）
+
+| 工具 | 状态 | 说明 |
+|------|------|------|
+| LearningTrackTool | ✅ | 记录交易经验 |
+| LearningDistillTool | ✅ | 蒸馏教训 |
+| LearningAnalyzeTool | ✅ | 分析历史教训 |
+| LearningApplyTool | ✅ | 应用教训 |
+
+**架构特点**:
+- 插件内部注册模式（通过 `ctx.tools.register()` 直接注册）
+- 不需要导出工厂函数
+- 工具类实现 `toDSHToolDefinition()` 方法
+
+---
+
+### Lifecycle Package (2026-08-29)
+
+**测试命令**:
+```bash
+cd agent-dh
+npx tsx scripts/test-new-tools.ts
+```
+
+**测试结果**: ✅ 全部通过（3/3）
+
+| 工具 | 状态 | 说明 |
+|------|------|------|
+| SelfStatusTool | ✅ | Agent 状态检查 |
+| SelfRestartTool | ✅ | Agent 重启 |
+| SelfFinalizeTool | ✅ | 会话终结 |
+
+**架构特点**:
+- 插件内部注册模式（通过 `ctx.tools.register()` 直接注册）
+- 不需要导出工厂函数
+- 工具类实现 `toDSHToolDefinition()` 方法
+
+---
+
+### Notification Package (2026-08-29)
+
+**测试命令**:
+```bash
+cd agent-dh
+npx tsx scripts/test-new-tools.ts
+```
+
+**测试结果**: ✅ 全部通过（3/3）
+
+| 工具 | 状态 | 说明 |
+|------|------|------|
+| FeishuNotifyTool | ✅ | 飞书通知发送 |
+| NotificationSendTool | ✅ | 通用通知发送 |
+| NotificationChannelsTool | ✅ | 通知渠道管理 |
+
+**测试覆盖**:
+- ✅ 工具类正确导出
+- ✅ Prompt 对象正确导出
+- ✅ 工厂函数正确实现
+
+---
+
+### Competition Package (2026-08-29)
+
+**测试命令**:
+```bash
+cd agent-dh
+npx tsx scripts/test-new-tools.ts
+```
+
+**测试结果**: ✅ 全部通过（1/1）
+
+| 工具 | 状态 | 说明 |
+|------|------|------|
+| CompetitionAnalysisTool | ✅ | 竞争对手分析 |
+
+**测试覆盖**:
+- ✅ 工具类正确导出
+- ✅ Prompt 对象正确导出
+- ✅ 工厂函数正确实现
+
+---
+
+### Scheduler Package (2026-08-28)
+
+**测试命令**:
+```bash
+cd agent-dh
+npx tsx scripts/test-refactored-tools.ts
+```
+
+**测试结果**: ✅ 全部通过（1/1）
+
+| 工具 | 状态 | 说明 |
+|------|------|------|
+| SchedulerManageTool | ✅ | 调度任务管理（list/create/get/update/trigger/enable/disable/delete） |
+
+**架构特点**:
+- 插件内部注册模式（通过 `ctx.tools.register()` 直接注册）
+- 不需要导出工厂函数
+- 工具类实现 `toDSHToolDefinition()` 方法
+
+---
+
 ### Data-Manager Package (2026-08-28)
 
 **重构状态**: ✅ 已完成  
