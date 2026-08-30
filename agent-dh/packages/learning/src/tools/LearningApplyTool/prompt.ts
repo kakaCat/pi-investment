@@ -28,12 +28,23 @@ export const learningApplyPrompt: ToolPrompt<LearningApplyParams, LearningApplyR
       expectedResult: '返回预期影响，不实际执行',
     },
   ],
-  params: {
+  parameters: {
     rule_id: { type: 'string', required: true, description: '规则ID' },
     context: { type: 'object', required: true, description: '应用上下文' },
     dry_run: { type: 'boolean', required: false, description: '是否仅模拟运行' },
   },
   output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        success: { type: 'boolean' },
+        applied: { type: 'boolean' },
+        action_taken: { type: 'string' },
+        impact: { type: 'object', additionalProperties: true },
+        message: { type: 'string' },
+      },
+    },
     render: (args, data) => {
       let output = '## 🚀 规则应用结果\n\n';
       output += `- **规则ID**: ${args.rule_id}\n`;

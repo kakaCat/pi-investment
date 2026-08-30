@@ -50,7 +50,7 @@ export const learningTrackPrompt: ToolPrompt<LearningTrackParams, LearningTrackR
     },
   ],
 
-  params: {
+  parameters: {
     action_type: {
       type: 'string',
       required: true,
@@ -79,6 +79,15 @@ export const learningTrackPrompt: ToolPrompt<LearningTrackParams, LearningTrackR
   },
 
   output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        success: { type: 'boolean' },
+        experience_id: { type: 'string' },
+        message: { type: 'string' },
+      },
+    },
     render: (args, data) => {
       let output = '## ✅ 经验已记录\n\n';
       output += `- **经验ID**: ${data.experience_id}\n`;

@@ -355,6 +355,9 @@ importers:
       '@pi-investment/agent-os-client':
         specifier: workspace:*
         version: link:../agent-os-client
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -382,6 +385,9 @@ importers:
       '@pi-investment/agent-os-client':
         specifier: file:../agent-os-client
         version: file:packages/agent-os-client
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -494,6 +500,9 @@ importers:
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
+      '@pi-investment/quantsys-v2-client':
+        specifier: file:../../../quantsys-v2-client
+        version: file:../quantsys-v2-client
 
   packages/risk:
     dependencies:

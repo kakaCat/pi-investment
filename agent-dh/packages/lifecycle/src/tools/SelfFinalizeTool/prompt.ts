@@ -25,11 +25,20 @@ export const selfFinalizePrompt: ToolPrompt<SelfFinalizeParams, SelfFinalizeResu
       expectedResult: '返回终止确认',
     },
   ],
-  params: {
+  parameters: {
     reason: { type: 'string', required: true, description: '终止原因' },
     save_state: { type: 'boolean', required: false, description: '是否保存状态' },
   },
   output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        finalized: { type: 'boolean' },
+      },
+    },
     render: (args, data) => {
       let output = '## 🛑 终止已调度\n\n';
       output += `- **原因**: ${args.reason}\n`;

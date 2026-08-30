@@ -79,7 +79,7 @@ export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerM
     },
   ],
 
-  params: {
+  parameters: {
     action: {
       type: 'string',
       required: true,
@@ -124,6 +124,19 @@ export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerM
   },
 
   output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        success: { type: 'boolean' },
+        action: { type: 'string' },
+        tasks: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        task: { type: 'object', additionalProperties: true },
+        count: { type: 'number' },
+        task_id: { type: 'string' },
+        message: { type: 'string' },
+      },
+    },
     render: (args, data) => {
       let output = '';
 

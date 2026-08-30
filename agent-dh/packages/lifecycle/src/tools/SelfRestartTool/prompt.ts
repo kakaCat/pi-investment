@@ -25,11 +25,20 @@ export const selfRestartPrompt: ToolPrompt<SelfRestartParams, SelfRestartResult>
       expectedResult: '返回重启确认',
     },
   ],
-  params: {
+  parameters: {
     reason: { type: 'string', required: true, description: '重启原因' },
     preserve_context: { type: 'boolean', required: false, description: '是否保留上下文' },
   },
   output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        restart_scheduled: { type: 'boolean' },
+      },
+    },
     render: (args, data) => {
       let output = '## 🔄 重启已调度\n\n';
       output += `- **原因**: ${args.reason}\n`;

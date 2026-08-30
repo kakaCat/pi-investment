@@ -44,7 +44,8 @@ export default class SchedulerPlugin extends Service {
   private registerTools() {
     const { ctx, aos } = this;
 
-    // 调度器管理（重构为 BaseTool）
-    ctx.tools.register(new SchedulerManageTool(aos));
+    // 调度器管理（重构为 BaseTool，需要通过 defineTool 包装）
+    const tool = new SchedulerManageTool(aos);
+    ctx.tools.register(tool.toDSHToolDefinition());
   }
 }

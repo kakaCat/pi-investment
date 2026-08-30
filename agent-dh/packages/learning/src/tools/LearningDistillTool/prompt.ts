@@ -29,13 +29,24 @@ export const learningDistillPrompt: ToolPrompt<LearningDistillParams, LearningDi
       expectedResult: '返回提炼的规则列表',
     },
   ],
-  params: {
+  parameters: {
     source: { type: 'string', required: true, description: '经验来源标识' },
     target_format: { type: 'string', required: true, description: '目标格式：rule、prompt、code' },
     min_confidence: { type: 'number', required: false, description: '最小置信度（0-1）' },
     max_rules: { type: 'number', required: false, description: '最大规则数' },
   },
   output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        success: { type: 'boolean' },
+        rules: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        source_count: { type: 'number' },
+        distill_method: { type: 'string' },
+        validation_stats: { type: 'object', additionalProperties: true },
+      },
+    },
     render: (args, data) => {
       let output = '## 🎯 规则提炼结果\n\n';
       output += `- **源样本数**: ${data.source_count}\n`;

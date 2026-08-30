@@ -46,7 +46,8 @@ export const quantsysV2StatusPrompt: ToolPrompt<QuantsysV2StatusParams, Quantsys
   parameters: {},
   output: {
     schema: {
-      type: 'object', additionalProperties: true,
+      type: 'object',
+      additionalProperties: false,
       properties: {
         running: { type: 'boolean', description: '服务是否运行' },
         status: { type: 'string', description: '服务状态：running / degraded / stopped' },
@@ -55,11 +56,10 @@ export const quantsysV2StatusPrompt: ToolPrompt<QuantsysV2StatusParams, Quantsys
         recent_signals: { type: 'number', description: '最近信号数量' },
         model_loaded: { type: 'boolean', description: '模型是否加载' },
         recent_report: { type: 'boolean', description: '是否有最近报告' },
-        balance: { type: 'object', description: '账户余额信息' },
+        balance: { type: 'object', additionalProperties: true, description: '账户余额信息' },
         error: { type: 'string', description: '错误信息' },
         timestamp: { type: 'string', description: '检查时间戳' },
       },
-      additionalProperties: true,
     },
   },
 };

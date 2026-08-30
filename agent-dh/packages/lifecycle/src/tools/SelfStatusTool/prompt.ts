@@ -25,10 +25,20 @@ export const selfStatusPrompt: ToolPrompt<SelfStatusParams, SelfStatusResult> = 
       expectedResult: '返回详细的运行状态信息',
     },
   ],
-  params: {
+  parameters: {
     detailed: { type: 'boolean', required: false, description: '是否返回详细信息' },
   },
   output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        success: { type: 'boolean' },
+        status: { type: 'string' },
+        uptime: { type: 'number' },
+        health: { type: 'object', additionalProperties: true },
+      },
+    },
     render: (args, data) => {
       let output = '## 📊 Agent 状态\n\n';
       output += `- **状态**: ${data.status}\n`;

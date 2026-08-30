@@ -26,6 +26,44 @@ export const genomeUpdatePrompt: ToolPrompt<GenomeUpdateParams, GenomeUpdateResu
     '调整策略参数',
     '改进提示词',
   ],
+  parameters: {
+    section: {
+      type: 'string',
+      required: true,
+      description: '要更新的段名称',
+    },
+    content: {
+      type: 'string',
+      required: true,
+      description: '新的段内容（完整替换）',
+    },
+    reason: {
+      type: 'string',
+      required: true,
+      description: '更新原因（用于 git commit message）',
+    },
+  },
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        section: { type: 'string' },
+        old_version: { type: 'string' },
+        new_version: { type: 'string' },
+        diff_summary: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            added_lines: { type: 'number' },
+            removed_lines: { type: 'number' },
+            changed_lines: { type: 'number' },
+          },
+        },
+        commit_hash: { type: 'string' },
+      },
+    },
+  },
   examples: [
     {
       input: {

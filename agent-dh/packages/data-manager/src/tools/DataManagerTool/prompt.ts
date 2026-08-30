@@ -24,6 +24,45 @@ export const dataManagerPrompt: ToolPrompt<DataManagerParams, DataManagerResult>
     '清理过期缓存释放存储空间',
     '备份关键数据防止丢失',
   ],
+  parameters: {
+    operation: {
+      type: 'string',
+      description: '操作类型：status(查询状态)/refresh(刷新数据)/cleanup(清理缓存)/backup(备份数据)',
+      enum: ['status', 'refresh', 'cleanup', 'backup'],
+      required: true,
+    },
+    data_type: {
+      type: 'string',
+      description: '数据类型：quote(行情)/kline(K线)/financial(财报)/all(全部)',
+      enum: ['quote', 'kline', 'financial', 'all'],
+      default: 'all',
+    },
+    symbol: {
+      type: 'string',
+      description: '股票代码（6位数字），refresh 操作时可选',
+    },
+    start_date: {
+      type: 'string',
+      description: '开始日期（YYYY-MM-DD），refresh 操作时可选',
+    },
+    end_date: {
+      type: 'string',
+      description: '结束日期（YYYY-MM-DD），refresh 操作时可选',
+    },
+  },
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        operation: { type: 'string' },
+        data_type: { type: 'string' },
+        status: { type: 'string' },
+        message: { type: 'string' },
+        details: { type: 'object', additionalProperties: true },
+      },
+    },
+  },
   examples: [
     {
       input: {

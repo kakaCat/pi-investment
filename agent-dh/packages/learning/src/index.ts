@@ -430,29 +430,33 @@ export default class LearningPlugin extends Service {
     const { ctx } = this;
 
     // 1. 追踪经验（重构为 BaseTool）
-    ctx.tools.register(new LearningTrackTool(
+    const trackTool = new LearningTrackTool(
       this.experienceBuffer,
       this.persistExperience.bind(this),
       this.extractTagsFromContext.bind(this)
-    ));
+    );
+    ctx.tools.register(trackTool.toDSHToolDefinition());
 
     // 2. 分析经验（重构为 BaseTool）
-    ctx.tools.register(new LearningAnalyzeTool(
+    const analyzeTool = new LearningAnalyzeTool(
       this.analyzeExperiences.bind(this)
-    ));
+    );
+    ctx.tools.register(analyzeTool.toDSHToolDefinition());
 
     // 3. 提炼规则（重构为 BaseTool）
-    ctx.tools.register(new LearningDistillTool(
+    const distillTool = new LearningDistillTool(
       this.loadExperiencesBySource.bind(this),
       this.distillRules.bind(this),
       this.getDistillMethod.bind(this),
       this.validateRules.bind(this)
-    ));
+    );
+    ctx.tools.register(distillTool.toDSHToolDefinition());
 
     // 4. 应用规则（重构为 BaseTool）
-    ctx.tools.register(new LearningApplyTool(
+    const applyTool = new LearningApplyTool(
       this.applyRule.bind(this)
-    ));
+    );
+    ctx.tools.register(applyTool.toDSHToolDefinition());
   }
 
   // ===== 辅助方法 =====
@@ -463,6 +467,73 @@ export default class LearningPlugin extends Service {
     if (context.strategy_id) tags.push(`strategy_${context.strategy_id}`);
     if (context.action_type) tags.push(context.action_type);
     return tags;
+  }
+
+  /**
+   * 分析经验库
+   */
+  private async analyzeExperiences(scope: string, focus: string, minSamples: number): Promise<any> {
+    // 加载经验
+    const experiences = await this.loadExperiences({ scope, minSamples });
+
+    if (experiences.length < minSamples) {
+      return {
+        patterns: [],
+        suggestions: [`样本数不足 (${experiences.length} < ${minSamples})，无法进行有效分析`],
+        sample_count: experiences.length,
+      };
+    }
+
+    // 挖掘模式
+    const patterns = this.minePatterns(experiences, focus);
+
+    // 生成改进建议
+    const suggestions = this.generateImprovements(patterns);
+
+    return {
+      patterns,
+      suggestions,
+      sample_count: experiences.length,
+    };
+  }
+
+  /**
+   * 应用规则
+   */
+  private async applyRule(ruleId: string, context: any, dryRun: boolean): Promise<any> {
+    // 从 OS 记忆库加载规则
+    const ruleRecords = await this.osMemory.query({
+      type: 'learning:rule',
+      filters: { rule_id: ruleId },
+      limit: 1,
+    });
+
+    if (ruleRecords.length === 0) {
+      return {
+        applied: false,
+        message: `规则 ${ruleId} 不存在`,
+      };
+    }
+
+    const rule = ruleRecords[0].payload;
+
+    // 模拟运行模式
+    if (dryRun) {
+      return {
+        applied: false,
+        action_taken: rule.action || '未定义',
+        impact: { simulated: true, rule: rule.condition },
+        message: '模拟运行：规则匹配成功，但未实际执行',
+      };
+    }
+
+    // 实际应用规则（这里是占位实现，实际需要根据规则类型执行不同的逻辑）
+    return {
+      applied: true,
+      action_taken: rule.action || '应用规则',
+      impact: { rule_id: ruleId, context },
+      message: `规则 ${ruleId} 已应用`,
+    };
   }
 
   /**

@@ -21,6 +21,31 @@ export const genomeRollbackPrompt: ToolPrompt<GenomeRollbackParams, GenomeRollba
     '测试不同版本的效果',
     '修复配置错误',
   ],
+  parameters: {
+    section: {
+      type: 'string',
+      required: true,
+      description: '要回滚的段名称',
+    },
+    target_version: {
+      type: 'string',
+      required: true,
+      description: '目标版本号',
+    },
+  },
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        section: { type: 'string' },
+        old_version: { type: 'string' },
+        restored_version: { type: 'string' },
+        content_preview: { type: 'string' },
+        commit_hash: { type: 'string' },
+      },
+    },
+  },
   examples: [
     {
       input: {

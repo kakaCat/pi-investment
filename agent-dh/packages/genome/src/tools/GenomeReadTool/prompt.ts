@@ -33,6 +33,27 @@ export const genomeReadPrompt: ToolPrompt<GenomeReadParams, GenomeReadResult> = 
     '查看段的当前版本内容',
   ],
 
+  parameters: {
+    section: {
+      type: 'string',
+      required: true,
+      description: '段名称，如 constitution/principles/rules/lessons',
+    },
+  },
+
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        name: { type: 'string' },
+        class: { type: 'string' },
+        version: { type: 'number' },
+        content: { type: 'string' },
+      },
+    },
+  },
+
   examples: [
     {
       title: '读取宪法段',

@@ -29,7 +29,7 @@
 | 5 | algo_execute | trading | ✅ | 简单 | 2026-08-28 | 算法执行 |
 | 6 | trade_verify | trading | ✅ | 简单 | 2026-08-28 | 交易验证 |
 | 7 | slippage_report | trading | ✅ | 简单 | 2026-08-28 | 滑点报告 |
-| 8 | m4_circuit_breaker_check | trading | ✅ | 复杂 | 2026-08-28 | 熔断检查 |
+| 8 | m4_circuit_breaker | trading | ✅ | 复杂 | 2026-08-28 | 熔断检查 |
 | 9 | data_fetch_quote | investment | ✅ | 简单 | 2026-08-28 | 获取股票行情 |
 | 10 | data_fetch_kline | investment | ✅ | 简单 | 2026-08-28 | 获取K线数据 |
 | 11 | data_fetch_financial | investment | ✅ | 中等 | 2026-08-28 | 获取财务数据 |
@@ -53,7 +53,7 @@
 | 29 | mainline_stocks | market | ✅ | 简单 | 2026-08-28 | 主线股票 |
 | 30 | risk_controller | risk | ✅ | 复杂 | 2026-08-28 | 风险控制器 |
 | 31 | risk_metrics | risk | ✅ | 中等 | 2026-08-28 | 风险指标 |
-| 32 | risk_barra_decomposition | risk | ✅ | 复杂 | 2026-08-28 | Barra 风险分解 |
+| 32 | barra_decomposition | risk | ✅ | 复杂 | 2026-08-28 | Barra 风险分解 |
 | 33 | regime_position_limit | risk | ✅ | 中等 | 2026-08-28 | 市场状态仓位限制 |
 
 **P0 进度**: 33/33 (100%) 🎉
@@ -64,25 +64,27 @@
 
 | # | 工具名 | Package | 状态 | 复杂度 | 完成日期 | 说明 |
 |---|--------|---------|------|--------|----------|------|
-| 34-51 | lifecycle (18 tools) | lifecycle | 🚫 | N/A | 2026-08-28 | **插件架构，不适合 BaseTool 重构** - 详见 ANALYSIS_REPORT.md |
-| 52-59 | learning (8 tools) | learning | 🚫 | N/A | 2026-08-28 | **插件架构，不适合 BaseTool 重构** - 详见 ANALYSIS_REPORT.md |
-| 60 | watch_list | intelligence | ✅ | 简单 | 2026-08-28 | 盯盘规则列表 |
-| 61 | watch_manage | intelligence | ✅ | 中等 | 2026-08-28 | 盯盘规则管理 |
-| 62 | market_alert | intelligence | ✅ | 简单 | 2026-08-28 | 市场告警 |
-| 63 | signal_track | intelligence | ✅ | 复杂 | 2026-08-28 | 信号质量追踪(M3-1) |
-| 64 | evolution_run | evolution | ✅ | 复杂 | 2026-08-28 | 策略进化执行 |
-| 65 | evolution_leaderboard | evolution | ✅ | 简单 | 2026-08-28 | 策略进化排行榜 |
-| 66 | param_suggest | evolver | ⏸️ | 复杂 | - | 参数建议 |
-| 67 | param_evaluate | evolver | ⏸️ | 复杂 | - | 参数评估 |
-| 68 | param_apply | evolver | ⏸️ | 中等 | - | 应用参数 |
-| 69 | genome_list | genome | ✅ | 简单 | 2026-08-28 | 列出基因段 |
-| 70 | genome_read | genome | ✅ | 简单 | 2026-08-28 | 读取基因段 |
-| 71 | genome_update | genome | ✅ | 中等 | 2026-08-28 | 更新基因段 |
-| 72 | genome_rollback | genome | ✅ | 中等 | 2026-08-28 | 回滚基因段 |
-| 73 | genome_promote | genome | ✅ | 简单 | 2026-08-28 | 提升版本号 |
-| 74 | genome_history | genome | ✅ | 简单 | 2026-08-28 | 查看版本历史 |
+| 34 | watch_list | intelligence | ✅ | 简单 | 2026-08-28 | 盯盘规则列表 |
+| 35 | watch_manage | intelligence | ✅ | 中等 | 2026-08-28 | 盯盘规则管理 |
+| 36 | market_alert | intelligence | ✅ | 简单 | 2026-08-28 | 市场告警 |
+| 37 | signal_track | intelligence | ✅ | 复杂 | 2026-08-28 | 信号质量追踪(M3-1) |
+| 38 | evolution_run | evolution | ✅ | 复杂 | 2026-08-28 | 策略进化执行 |
+| 39 | evolution_leaderboard | evolution | ✅ | 简单 | 2026-08-28 | 策略进化排行榜 |
+| 40 | genome_list | genome | ✅ | 简单 | 2026-08-28 | 列出基因段 |
+| 41 | genome_read | genome | ✅ | 简单 | 2026-08-28 | 读取基因段 |
+| 42 | genome_update | genome | ✅ | 中等 | 2026-08-28 | 更新基因段 |
+| 43 | genome_rollback | genome | ✅ | 中等 | 2026-08-28 | 回滚基因段 |
+| 44 | genome_promote | genome | ✅ | 简单 | 2026-08-28 | 提升版本号 |
+| 45 | genome_history | genome | ✅ | 简单 | 2026-08-28 | 查看版本历史 |
+| 46 | learning_track | learning | ✅ | 中等 | 2026-08-29 | 记录交易经验 |
+| 47 | learning_distill | learning | ✅ | 复杂 | 2026-08-29 | 蒸馏教训 |
+| 48 | learning_analyze | learning | ✅ | 中等 | 2026-08-29 | 分析历史教训 |
+| 49 | learning_apply | learning | ✅ | 简单 | 2026-08-29 | 应用教训 |
+| 50 | self_status | lifecycle | ✅ | 简单 | 2026-08-29 | Agent 状态检查 |
+| 51 | self_restart | lifecycle | ✅ | 中等 | 2026-08-29 | Agent 重启 |
+| 52 | self_finalize | lifecycle | ✅ | 中等 | 2026-08-29 | 会话终结 |
 
-**P1 进度**: 12/23 (52.2%) - lifecycle/learning 已排除（插件架构）
+**P1 进度**: 19/19 (100%) 🎉
 
 ---
 
@@ -90,36 +92,31 @@
 
 | # | 工具名 | Package | 状态 | 复杂度 | 完成日期 | 说明 |
 |---|--------|---------|------|--------|----------|------|
-| 75 | memory_search | memory | ✅ | 中等 | 2026-08-28 | 搜索记忆 |
-| 76 | memory_write | memory | ✅ | 简单 | 2026-08-28 | 写入记忆 |
-| 77 | experience_write | memory | ✅ | 简单 | 2026-08-28 | 记录交易经验 |
-| 78 | factor_calculate | factor | ✅ | 复杂 | 2026-08-28 | 计算因子 |
-| 79 | factor_analyze | factor | ✅ | 复杂 | 2026-08-28 | 因子分析 |
-| 80 | data_quality_report | data-manager | ✅ | 中等 | 2026-08-28 | 数据质量报告 |
-| 81 | data_manager | data-manager | ✅ | 中等 | 2026-08-28 | 数据管理操作 |
-| 82 | kline_daily_sync | data-manager | ✅ | 复杂 | 2026-08-28 | K线每日同步 |
-| 83 | quantsys_v2_status | quantsys-v2-manager | ✅ | 简单 | 2026-08-28 | 后端状态 |
-| 84 | quantsys_v2_logs | quantsys-v2-manager | ✅ | 简单 | 2026-08-28 | 后端日志 |
-| 85 | quantsys_v2_restart | quantsys-v2-manager | ✅ | 中等 | 2026-08-28 | 重启后端 |
-| 86 | agent_os_status | agent-os-manager | ✅ | 简单 | 2026-08-28 | Agent OS 状态 |
-| 87 | agent_os_health | agent-os-manager | ✅ | 简单 | 2026-08-28 | 健康检查（合并到 status） |
-| 88 | agent_os_logs | agent-os-manager | ✅ | 简单 | 2026-08-28 | 日志查询 |
-| 89 | agent_os_restart | agent-os-manager | ✅ | 中等 | 2026-08-28 | Agent OS 重启 |
-| 89 | window_register | window-manager | ⏸️ | 中等 | - | 注册窗口 |
-| 90 | window_unregister | window-manager | ⏸️ | 简单 | - | 注销窗口 |
-| 91 | window_query | window-manager | ⏸️ | 简单 | - | 查询窗口 |
-| 92 | model_switch | model | ⏸️ | 简单 | - | 切换模型 |
-| 93 | model_status | model | ⏸️ | 简单 | - | 模型状态 |
-| 94 | model_config | model | ⏸️ | 简单 | - | 模型配置 |
-| 95 | notify_send | notification | ⏸️ | 简单 | - | 发送通知 |
-| 96 | notify_config | notification | ⏸️ | 简单 | - | 通知配置 |
-| 97 | notify_history | notification | ⏸️ | 简单 | - | 通知历史 |
-| 98 | retail_sentiment | competition | ⏸️ | 中等 | - | 散户情绪 |
-| 99 | institution_flow | competition | ⏸️ | 中等 | - | 机构资金流 |
-| 100 | hot_money_trace | competition | ⏸️ | 中等 | - | 游资追踪 |
-| 101 | scheduler_manage | scheduler | ✅ | 中等 | 2026-08-28 | 调度任务管理（list/create/get/update/trigger/enable/disable/delete） |
+| 53 | memory_search | memory | ✅ | 中等 | 2026-08-28 | 搜索记忆 |
+| 54 | memory_write | memory | ✅ | 简单 | 2026-08-28 | 写入记忆 |
+| 55 | experience_write | memory | ✅ | 简单 | 2026-08-28 | 记录交易经验 |
+| 56 | factor_calculate | factor | ✅ | 复杂 | 2026-08-28 | 计算因子 |
+| 57 | factor_analyze | factor | ✅ | 复杂 | 2026-08-28 | 因子分析 |
+| 58 | data_quality_report | data-manager | ✅ | 中等 | 2026-08-28 | 数据质量报告 |
+| 59 | data_manager | data-manager | ✅ | 中等 | 2026-08-28 | 数据管理操作 |
+| 60 | kline_daily_sync | data-manager | ✅ | 复杂 | 2026-08-28 | K线每日同步 |
+| 61 | quantsys_v2_status | quantsys-v2-manager | ✅ | 简单 | 2026-08-28 | 后端状态 |
+| 62 | quantsys_v2_logs | quantsys-v2-manager | ✅ | 简单 | 2026-08-28 | 后端日志 |
+| 63 | quantsys_v2_restart | quantsys-v2-manager | ✅ | 中等 | 2026-08-28 | 重启后端 |
+| 64 | agent_os_status | agent-os-manager | ✅ | 简单 | 2026-08-28 | Agent OS 状态 |
+| 65 | agent_os_logs | agent-os-manager | ✅ | 简单 | 2026-08-28 | 日志查询 |
+| 66 | agent_os_restart | agent-os-manager | ✅ | 中等 | 2026-08-28 | Agent OS 重启 |
+| 67 | feishu_notify | notification | ✅ | 简单 | 2026-08-29 | 飞书通知 |
+| 68 | notification_send | notification | ✅ | 简单 | 2026-08-29 | 发送通知 |
+| 69 | notification_channels | notification | ✅ | 简单 | 2026-08-29 | 通知渠道管理 |
+| 70 | competition_analysis | competition | ✅ | 中等 | 2026-08-29 | 竞争对手分析 |
+| 71 | scheduler_manage | scheduler | ✅ | 中等 | 2026-08-28 | 调度任务管理 |
 
-**P2 进度**: 15/22 (68.2%)
+**P2 进度**: 19/19 (100%) 🎉
+
+**已删除的包**（不计入统计）：
+- window-manager（3个工具）- 包已删除
+- model（3个工具）- 包已删除
 
 ---
 
@@ -129,18 +126,18 @@
 
 | 指标 | 数量 | 占比 |
 |------|------|------|
-| 已完成 | 63 | 100% |
+| 已完成 | 71 | 100% |
 | 进行中 | 0 | 0% |
 | 待重构 | 0 | 0% |
-| **总计** | **63** | **100%** |
+| **总计** | **71** | **100%** |
 
 ### 按优先级
 
 | 优先级 | 总数 | 已完成 | 进行中 | 待重构 | 完成率 |
 |--------|------|--------|--------|--------|--------|
 | P0 | 33 | 33 | 0 | 0 | 100% 🎉 |
-| P1 | 30 | 30 | 0 | 0 | 100% 🎉 |
-| P2 | 0 | 0 | 0 | 0 | N/A |
+| P1 | 19 | 19 | 0 | 0 | 100% 🎉 |
+| P2 | 19 | 19 | 0 | 0 | 100% 🎉 |
 
 ### 按复杂度
 

@@ -25,6 +25,37 @@ export const klineDailySyncPrompt: ToolPrompt<KlineDailySyncParams, KlineDailySy
     '强制重新同步有问题的K线',
     '同步特定股票池的K线数据',
   ],
+  parameters: {
+    date: {
+      type: 'string',
+      description: '日期（YYYY-MM-DD），默认为今日',
+    },
+    symbols: {
+      type: 'array',
+      description: '股票代码列表，不指定则同步全市场',
+    },
+    force: {
+      type: 'boolean',
+      description: '是否强制更新已存在的数据',
+      default: false,
+    },
+  },
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        sync_date: { type: 'string' },
+        total_symbols: { type: 'number' },
+        success_count: { type: 'number' },
+        failed_count: { type: 'number' },
+        skipped_count: { type: 'number' },
+        failed_symbols: { type: 'array', items: { type: 'string' } },
+        duration_seconds: { type: 'number' },
+        message: { type: 'string' },
+      },
+    },
+  },
   examples: [
     {
       input: {

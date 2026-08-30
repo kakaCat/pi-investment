@@ -22,6 +22,37 @@ export const genomePromotePrompt: ToolPrompt<GenomePromoteParams, GenomePromoteR
     '同步版本号与其他组件',
     '记录验证通过的版本',
   ],
+  parameters: {
+    section: {
+      type: 'string',
+      required: true,
+      description: '要提升版本的段名称',
+    },
+    increment: {
+      type: 'string',
+      required: true,
+      description: '版本递增类型：major(主版本)/minor(次版本)/patch(修订版本)',
+      enum: ['major', 'minor', 'patch'],
+    },
+    reason: {
+      type: 'string',
+      required: true,
+      description: '版本提升的原因',
+    },
+  },
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        section: { type: 'string' },
+        old_version: { type: 'string' },
+        new_version: { type: 'string' },
+        increment_type: { type: 'string' },
+        commit_hash: { type: 'string' },
+      },
+    },
+  },
   examples: [
     {
       input: {

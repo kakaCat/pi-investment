@@ -27,6 +27,43 @@ export const genomeHistoryPrompt: ToolPrompt<GenomeHistoryParams, GenomeHistoryR
     '分析版本变更频率',
     '准备回滚操作',
   ],
+  parameters: {
+    section: {
+      type: 'string',
+      required: true,
+      description: '要查询的段名称',
+    },
+    limit: {
+      type: 'number',
+      required: false,
+      description: '返回的最大版本数，默认 10',
+      default: 10,
+    },
+  },
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        section: { type: 'string' },
+        current_version: { type: 'string' },
+        history: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              version: { type: 'string' },
+              timestamp: { type: 'string' },
+              file_size: { type: 'number' },
+              preview: { type: 'string' },
+            },
+          },
+        },
+        total_versions: { type: 'number' },
+      },
+    },
+  },
   examples: [
     {
       input: {

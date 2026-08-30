@@ -665,23 +665,92 @@ export default class LifecyclePlugin extends Service {
     setTimeout(() => dispose(), 30 * 60_000);
   }
 
+  // ===== 工具回调方法 =====
+
+  /**
+   * 调度重启
+   */
+  private async scheduleRestart(reason: string, preserveContext: boolean): Promise<void> {
+    // 实现重启逻辑
+    // TODO: 完整实现需要保存状态、创建 checkpoint 分支等
+    this.ctx.logger('lifecycle').info(`Restart scheduled: ${reason}, preserveContext=${preserveContext}`);
+
+    // 保存 pending resume 状态
+    this.state.writePending({
+      reason,
+      base_branch: this.repo.currentBranch(),
+      checkpoint_branch: null,
+      resume_task: preserveContext ? 'continue previous task' : null,
+      attempt: 0,
+    });
+
+    // 触发重启（通过退出进程，让外部脚本重启）
+    setTimeout(() => process.exit(0), 1000);
+  }
+
+  /**
+   * 调度终止
+   */
+  private async scheduleFinalize(reason: string, saveState: boolean): Promise<void> {
+    // 实现终止逻辑
+    this.ctx.logger('lifecycle').info(`Finalize scheduled: ${reason}, saveState=${saveState}`);
+
+    if (saveState) {
+      // 保存状态到 Agent OS
+      await this.osWrite('lifecycle:finalize', { reason, timestamp: new Date().toISOString() });
+    }
+
+    // 清理 pending 状态
+    this.state.clearPending();
+
+    // 优雅退出
+    setTimeout(() => process.exit(0), 1000);
+  }
+
+  /**
+   * 获取状态
+   */
+  private async getStatus(detailed: boolean): Promise<any> {
+    const uptime = process.uptime();
+    const pending = this.state.readPending();
+
+    const status = {
+      status: 'running',
+      uptime,
+      health: {
+        repo_clean: this.repo.isClean(),
+        current_branch: this.repo.currentBranch(),
+        pending_restart: pending !== null,
+      },
+    };
+
+    if (detailed && pending) {
+      (status as any).pending_details = pending;
+    }
+
+    return status;
+  }
+
   private registerTools(): void {
     const { ctx } = this;
 
     // 1. 重启工具（重构为 BaseTool）
-    ctx.tools.register(new SelfRestartTool(
+    const restartTool = new SelfRestartTool(
       this.scheduleRestart.bind(this)
-    ));
+    );
+    ctx.tools.register(restartTool.toDSHToolDefinition());
 
     // 2. 终止工具（重构为 BaseTool）
-    ctx.tools.register(new SelfFinalizeTool(
+    const finalizeTool = new SelfFinalizeTool(
       this.scheduleFinalize.bind(this)
-    ));
+    );
+    ctx.tools.register(finalizeTool.toDSHToolDefinition());
 
     // 3. 状态查询工具（重构为 BaseTool）
-    ctx.tools.register(new SelfStatusTool(
+    const statusTool = new SelfStatusTool(
       this.getStatus.bind(this)
-    ));
+    );
+    ctx.tools.register(statusTool.toDSHToolDefinition());
 
     // RFC 009: 注册公告板生命周期管理工具
     registerBoardUpdate(this.ctx, this.aos.memory, this.cfg.agentId);

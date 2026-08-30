@@ -27,12 +27,22 @@ export const learningAnalyzePrompt: ToolPrompt<LearningAnalyzeParams, LearningAn
       expectedResult: '返回失败模式和改进建议',
     },
   ],
-  params: {
+  parameters: {
     scope: { type: 'string', required: false, description: '分析范围：recent（最近）、all（全部）、strategy:{id}' },
     focus: { type: 'string', required: false, description: '关注点：failures、successes、patterns、all' },
     min_samples: { type: 'number', required: false, description: '最小样本数' },
   },
   output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        success: { type: 'boolean' },
+        patterns: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        suggestions: { type: 'array', items: { type: 'string' } },
+        sample_count: { type: 'number' },
+      },
+    },
     render: (args, data) => {
       let output = '## 📊 学习分析结果\n\n';
       output += `- **样本数**: ${data.sample_count}\n`;

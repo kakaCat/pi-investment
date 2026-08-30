@@ -84,14 +84,52 @@ export const competitionAnalysisPrompt: ToolPrompt<CompetitionAnalysisParams, Co
   output: {
     schema: {
       type: 'object',
-      additionalProperties: true,
+      additionalProperties: false,
       properties: {
         symbol: { type: 'string' },
         company_name: { type: 'string' },
-        industry: { type: 'object' },
-        competitors: { type: 'array' },
-        competitive_advantages: { type: 'array' },
-        competitive_disadvantages: { type: 'array' },
+        industry: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            level1: { type: 'string' },
+            level2: { type: 'string' },
+            level3: { type: 'string' }
+          }
+        },
+        market_size: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            total_market_cap: { type: 'number' },
+            industry_rank: { type: 'number' },
+            market_share: { type: 'number' }
+          }
+        },
+        competitors: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              symbol: { type: 'string' },
+              name: { type: 'string' },
+              market_cap: { type: 'number' },
+              market_share: { type: 'number' },
+              competitive_position: { type: 'string' }
+            }
+          }
+        },
+        financial_comparison: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            metrics: { type: 'array', items: { type: 'string' } },
+            data: { type: 'array', items: { type: 'object', additionalProperties: true } }
+          }
+        },
+        competitive_advantages: { type: 'array', items: { type: 'string' } },
+        competitive_disadvantages: { type: 'array', items: { type: 'string' } },
         summary: { type: 'string' },
       },
     },

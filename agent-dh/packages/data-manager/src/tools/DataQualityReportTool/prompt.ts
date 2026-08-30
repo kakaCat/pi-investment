@@ -23,6 +23,34 @@ export const dataQualityReportPrompt: ToolPrompt<DataQualityReportParams, DataQu
     '评估数据可用性',
     '决策前验证数据准备就绪',
   ],
+  parameters: {
+    data_type: {
+      type: 'string',
+      description: '数据类型：quote(行情)/kline(K线)/financial(财报)/all(全部)',
+      enum: ['quote', 'kline', 'financial', 'all'],
+      default: 'all',
+    },
+    days: {
+      type: 'number',
+      description: '检查最近几天的数据',
+      default: 7,
+    },
+  },
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        data_type: { type: 'string' },
+        check_date: { type: 'string' },
+        overall_score: { type: 'number' },
+        missing_data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        delayed_data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        anomalies: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        summary: { type: 'string' },
+      },
+    },
+  },
   examples: [
     {
       input: {

@@ -30,6 +30,46 @@ export const genomeListPrompt: ToolPrompt<GenomeListParams, GenomeListResult> = 
     '筛选特定类别的段',
     '审计基因组内容',
   ],
+  parameters: {
+    class: {
+      type: 'string',
+      description: '段类别筛选：core(核心)/domain(领域)/runtime(运行时)',
+      enum: ['core', 'domain', 'runtime'],
+      required: false,
+    },
+  },
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        sections: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              name: { type: 'string' },
+              class: { type: 'string' },
+              version: { type: 'string' },
+              description: { type: 'string' },
+              char_count: { type: 'number' },
+            },
+          },
+        },
+        total: { type: 'number' },
+        by_class: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            core: { type: 'number' },
+            domain: { type: 'number' },
+            runtime: { type: 'number' },
+          },
+        },
+      },
+    },
+  },
   examples: [
     {
       input: {},

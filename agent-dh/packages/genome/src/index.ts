@@ -44,18 +44,31 @@ export default class GenomePlugin extends Service {
 
     // 直接在构造函数中初始化（cordis 加载器场景下 ctx.on('ready') 不会触发，
     // 导致段/工具永远不注册——2026-08-20 验收发现的阻断性 bug）
+    let useFallback = false;
+    let sectionsRegistered = false;
+
     try {
       this.initialize();
+      // 初始化成功，注册段和工具
       this.registerSections();
       this.registerVariables();
+      sectionsRegistered = true;
       this.registerTools();
       console.log(`[genome] loaded: ${this.genomeData.genome_version}, 4 sections + 6 tools registered`);
     } catch (e: any) {
       // RFC 006 风险对策：初始化失败也不能让宪法缺席——回退注册内置模板段
       console.error('[genome] init failed, falling back to builtin templates:', e?.message);
-      this.registerFallbackSections();
-      this.registerVariablesFallback();
-      this.registerTools();
+      useFallback = true;
+
+      // 只有在 section 还没注册时才注册 fallback section
+      if (!sectionsRegistered) {
+        try {
+          this.registerFallbackSections();
+          this.registerVariablesFallback();
+        } catch (fallbackError: any) {
+          console.error('[genome] fallback registration also failed:', fallbackError?.message);
+        }
+      }
     }
   }
 
