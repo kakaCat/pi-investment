@@ -1,108 +1,55 @@
+import { RegistryClient } from './registry-client.js';
+import { LocalRegistry } from './local-registry.js';
+import { MemoryClient } from './memory-client.js';
+import { SchedulerClient } from './scheduler-client.js';
+import { NotificationClient } from './notification-client.js';
+import { EvolutionClient } from './evolution-client.js';
+import type { RegistryClientConfig } from './types.js';
+
 /**
- * @pi-investment/agent-os-client
+ * Agent OS Client - main entry point
+ * Supports both remote (HTTP) and local (in-memory) modes
  *
- * TypeScript SDK for Agent OS
- *
- * @example
- * ```typescript
- * import { AgentOSClient } from '@pi-investment/agent-os-client';
- *
- * const client = new AgentOSClient({
- *   baseURL: 'http://localhost:8080',
- *   agentId: 'fin-agent',
- * });
- *
- * // Scheduler
- * const tasks = await client.scheduler.listTasks();
- * await client.scheduler.registerTask({
- *   name: 'daily-task',
- *   owner: 'fin-agent',
- *   cron: '0 9 * * *',
- * });
- *
- * // Memory
- * await client.memory.write({
- *   namespace: 'fin-agent',
- *   content: 'Important insight',
- *   importance: 0.8,
- * });
- *
- * const results = await client.memory.search({
- *   namespace: 'fin-agent',
- *   query: 'insight',
- *   top_k: 10,
- * });
- *
- * // Decision
- * await client.decision.record({
- *   namespace: 'fin-agent',
- *   action: 'buy',
- *   targets: ['600519.SH'],
- *   reasoning: 'Strong fundamentals',
- *   confidence: 0.85,
- * });
- *
- * // Notification
- * await client.notification.send({
- *   title: 'Alert',
- *   content: 'Market condition changed',
- *   urgency: 'high',
- * });
- *
- * // Resource
- * const quota = await client.resource.getQuota();
- * console.log(`Tokens remaining: ${quota.token_quota - quota.token_used}`);
- * ```
+ * Aggregates one client per Agent OS API surface:
+ *   - registry      (agent registry; remote requires server routes)
+ *   - memory        (memory search / write)
+ *   - scheduler     (scheduled tasks)
+ *   - notification  (notifications)
+ *   - evolution     (strategy evolution; server routes pending)
  */
+export class AgentOSClient {
+  public registry: RegistryClient | LocalRegistry;
+  public memory: MemoryClient;
+  public scheduler: SchedulerClient;
+  public notification: NotificationClient;
+  public evolution: EvolutionClient;
+  public agentId: string;
 
-export { AgentOSClient } from './client.js';
-export type { AgentOSConfig } from './http/client.js';
-export { AgentOSError } from './http/client.js';
+  constructor(config?: RegistryClientConfig) {
+    this.agentId = config?.agentId || 'agent-dh';
+    if (config && config.baseURL && config.baseURL !== 'local') {
+      // Remote mode: connect to Agent OS backend
+      this.registry = new RegistryClient(config);
+      this.memory = new MemoryClient(config);
+      this.scheduler = new SchedulerClient(config);
+      this.notification = new NotificationClient(config);
+      this.evolution = new EvolutionClient(config);
+    } else {
+      // Local mode: in-memory registry, no backend needed
+      this.registry = new LocalRegistry();
+      this.memory = new MemoryClient({ baseURL: 'http://localhost:8080' });
+      this.scheduler = new SchedulerClient({ baseURL: 'http://localhost:8080' });
+      this.notification = new NotificationClient({ baseURL: 'http://localhost:8080' });
+      this.evolution = new EvolutionClient({ baseURL: 'http://localhost:8080' });
+    }
+  }
+}
 
-// Scheduler types
-export type {
-  Task,
-  TaskCreateRequest,
-  Execution,
-  ExecutionUpdateRequest,
-  TaskListFilters,
-  ExecutionListFilters,
-} from './scheduler/types.js';
-
-// Memory types
-export type {
-  Memory,
-  MemoryWriteRequest,
-  MemorySearchRequest,
-  MemorySearchResult,
-  MemoryListFilters,
-  MemoryStats,
-} from './memory/types.js';
-
-// Memory adapter (for backward compatibility with os-memory package)
-export { OsMemoryStore } from './memory/adapter.js';
-export type { OsMemoryEntry, OsMemorySearchResult } from './memory/adapter.js';
-
-// Decision types
-export type {
-  Decision,
-  DecisionRecordRequest,
-  DecisionTrackingRequest,
-  DecisionListFilters,
-  DecisionStats,
-} from './decision/types.js';
-
-// Notification types
-export type {
-  NotificationChannel,
-  NotificationSendRequest,
-  Notification,
-  NotificationListFilters,
-} from './notification/types.js';
-
-// Resource types
-export type {
-  ResourceQuota,
-  Namespace,
-  ResourceUsage,
-} from './resource/types.js';
+// Re-export types
+export * from './types.js';
+export { RegistryClient } from './registry-client.js';
+export { LocalRegistry } from './local-registry.js';
+export { MemoryClient } from './memory-client.js';
+export { SchedulerClient } from './scheduler-client.js';
+export { NotificationClient } from './notification-client.js';
+export { EvolutionClient } from './evolution-client.js';

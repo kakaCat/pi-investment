@@ -18,7 +18,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@pi-investment/agent-os-client": "workspace:*",
+    "@pi-investment/agent-os-client": "file:../../../agent-os-client",
     "@pi-investment/quantsys-v2-client": "file:../../../quantsys-v2-client"
   },
   "devDependencies": {

@@ -64,8 +64,8 @@ importers:
   packages/agent-dh-client:
     dependencies:
       '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../agent-os-client
+        specifier: file:../../../agent-os-client
+        version: file:../agent-os-client
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -191,8 +191,8 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../agent-os-client
+        specifier: file:../../../agent-os-client
+        version: file:../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
@@ -216,8 +216,8 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../agent-os-client
+        specifier: file:../../../agent-os-client
+        version: file:../agent-os-client
       '@pi-investment/quantsys-v2-client':
         specifier: file:../../../quantsys-v2-client
         version: file:../quantsys-v2-client
@@ -325,8 +325,8 @@ importers:
         specifier: ^4.0.1
         version: 4.0.1
       '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../agent-os-client
+        specifier: file:../../../agent-os-client
+        version: file:../agent-os-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -353,8 +353,8 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../agent-os-client
+        specifier: file:../../../agent-os-client
+        version: file:../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
@@ -417,8 +417,8 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../agent-os-client
+        specifier: file:../../../agent-os-client
+        version: file:../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
@@ -445,8 +445,8 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../agent-os-client
+        specifier: file:../../../agent-os-client
+        version: file:../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
@@ -473,8 +473,8 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../agent-os-client
+        specifier: file:../../../agent-os-client
+        version: file:../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
@@ -516,8 +516,8 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../agent-os-client
+        specifier: file:../../../agent-os-client
+        version: file:../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
@@ -544,8 +544,8 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../agent-os-client
+        specifier: file:../../../agent-os-client
+        version: file:../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
@@ -594,8 +594,8 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../agent-os-client
+        specifier: file:../../../agent-os-client
+        version: file:../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
@@ -3903,6 +3903,17 @@ packages:
       '@yuku-parser/binding-win32-arm64': 0.8.7
       '@yuku-parser/binding-win32-x64': 0.8.7
     dev: true
+
+  file:../agent-os-client:
+    resolution: {directory: ../agent-os-client, type: directory}
+    name: '@pi-investment/agent-os-client'
+    dependencies:
+      axios: 1.19.0
+      axios-retry: 4.5.0(axios@1.19.0)
+    transitivePeerDependencies:
+      - debug
+      - supports-color
+    dev: false
 
   file:../quantsys-v2-client:
     resolution: {directory: ../quantsys-v2-client, type: directory}

@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@pi-investment/agent-os-client": "workspace:*"
+    "@pi-investment/agent-os-client": "file:../../../agent-os-client"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
