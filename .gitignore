@@ -9,6 +9,9 @@ dist
 
 # Runtime PID/state dirs（2026-08-05 仓库卫生清理）
 .backend/
+.claude
+.claude_plan
+.omo
 .playwright-mcp/
 .superpowers/
 /data/
