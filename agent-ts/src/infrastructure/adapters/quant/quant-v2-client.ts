@@ -185,7 +185,7 @@ const V2_ROUTES: Record<
   "indicator.technical":   { path: "/api/stock/{symbol}/technical",    method: "GET" },
   "indicator.candlestick": { path: "/api/stock/{symbol}/candlestick",  method: "GET" },
 
-  // ── market ──
+  // ── market (旧端点，保持兼容) ──
   "market.overview":      { path: "/api/stocks/market/overview",          method: "GET" },
   "market.sectors":       { path: "/api/market/sectors",                 method: "GET" },
   "market.sentiment":     { path: "/api/market/sentiment",               method: "GET" },  // ✅ v2 原生实现完成 (Flask路径)
@@ -202,6 +202,40 @@ const V2_ROUTES: Record<
   "market.opponent_behavior": { path: "/api/game/market/opponent-behavior", method: "GET" },  // ✅ 对手行为分析
   "market.manipulation_detect": { path: "/api/game/market/manipulation-detect", method: "GET" },  // ✅ 操纵检测
   "pool.battlefield_assessment": { path: "/api/game/pools/{pool_id}/battlefield-assessment", method: "GET" },  // ✅ 池子战场评估
+
+  // ── DataProvider 统一 API（新增） ──
+  "provider.quote":        { path: "/api/provider/quote/{symbol}",               method: "GET" },
+  "provider.quotes":       { path: "/api/provider/quotes",                       method: "GET", paramMap: { symbols: "symbols" } },
+  "provider.kline":        { path: "/api/provider/kline/{symbol}",               method: "GET", paramMap: { start_date: "start_date", end_date: "end_date" } },
+  "provider.financial":    { path: "/api/provider/financial/{symbol}",           method: "GET" },
+  "provider.sector_list":  { path: "/api/provider/sectors",                      method: "GET" },
+  "provider.sector_stocks":{ path: "/api/provider/sector/{sector}/stocks",       method: "GET" },
+  "provider.market_overview": { path: "/api/provider/market/overview",           method: "GET" },
+  "provider.market_spot":  { path: "/api/provider/market/spot",                  method: "GET" },
+  "provider.macro":        { path: "/api/provider/market/macro",                 method: "GET" },
+  "provider.news":         { path: "/api/provider/market/news",                  method: "GET" },
+  "provider.margin":       { path: "/api/provider/market/margin",                method: "GET" },
+  "provider.sector_flow":  { path: "/api/provider/market/sector-flow",           method: "GET" },
+  "provider.dividend":     { path: "/api/provider/dividend/{symbol}",            method: "GET" },
+  "provider.dividend_calendar": { path: "/api/provider/dividend-calendar",       method: "GET" },
+  "provider.screen_high_dividend": { path: "/api/provider/screen-high-dividend", method: "GET" },
+  "provider.hk_overview":  { path: "/api/provider/hk/overview",                  method: "GET" },
+  "provider.hk_south_flow":{ path: "/api/provider/hk/south-flow",                method: "GET" },
+  "provider.hk_hot_rank":  { path: "/api/provider/hk/hot-rank",                  method: "GET" },
+  "provider.hk_daily":     { path: "/api/provider/hk/{symbol}/daily",            method: "GET" },
+  "provider.hk_financials":{ path: "/api/provider/hk/{symbol}/financials",        method: "GET" },
+  "provider.lhb_stock":    { path: "/api/provider/lhb/{symbol}/{date}",          method: "GET" },
+  "provider.lhb_daily":    { path: "/api/provider/lhb/daily/{date}",             method: "GET" },
+  "provider.lhb_detail":   { path: "/api/provider/lhb/detail/{symbol}",          method: "GET" },
+  "provider.zt_pool":      { path: "/api/provider/zt-pool/{date}",               method: "GET" },
+  "provider.stock_announcements": { path: "/api/provider/stock/{symbol}/announcements", method: "GET" },
+  "provider.stock_news":   { path: "/api/provider/stock/{symbol}/news",           method: "GET" },
+  "provider.insider_trades": { path: "/api/provider/stock/{symbol}/insider-trades", method: "GET" },
+  "provider.index_daily":  { path: "/api/provider/index/{symbol}/daily",         method: "GET" },
+  "provider.index_constituents": { path: "/api/provider/index/{symbol}/constituents", method: "GET" },
+  "provider.trading_calendar": { path: "/api/provider/trading-calendar",         method: "GET" },
+  "provider.health":       { path: "/api/provider/health",                        method: "GET" },
+  "provider.stats":        { path: "/api/provider/stats",                         method: "GET" },
 
   // ── financial ──
   "financial.indicators":   { path: "/api/stock/{symbol}/indicators",    method: "GET" },
