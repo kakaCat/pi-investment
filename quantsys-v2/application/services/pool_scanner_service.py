@@ -149,7 +149,7 @@ class PoolScannerService:
             信号详情，如果无信号返回None
         """
         try:
-                        from domain.strategies.strategy_factory import StrategyFactory
+            from domain.strategies.strategy_factory import StrategyFactory
             from datetime import datetime, timedelta
 
             # 1. 获取K线数据
@@ -195,7 +195,7 @@ class PoolScannerService:
             信号详情，如果无信号返回None
         """
         try:
-                        import pandas as pd
+            import pandas as pd
             import numpy as np
             from datetime import datetime, timedelta
 
