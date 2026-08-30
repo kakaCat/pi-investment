@@ -252,11 +252,11 @@ class AkShareAdapter(BaseMarketAdapter):
         start = start_date if " " in start_date else f"{start_date} 09:30:00"
         end = end_date if " " in end_date else f"{end_date} 15:00:00"
 
-        logger.info(f'[DEBUG] AkShare: Fetching minute klines: symbol={symbol}, code={code}, period={period_ak}, start={start}, end={end}')
+        print(f"[DEBUG] AkShare: Fetching minute klines: symbol={symbol}, code={code}, period={period_ak}, start={start}, end={end}", flush=True)
 
         # Try data source 1: East Money (Primary)
         try:
-            logger.info(f'[DEBUG] AkShare: Trying East Money (stock_zh_a_hist_min_em)...')
+            print(f"[DEBUG] AkShare: Trying East Money (stock_zh_a_hist_min_em)...", flush=True)
             df = ak.stock_zh_a_hist_min_em(
                 symbol=code,
                 start_date=start,
@@ -266,16 +266,16 @@ class AkShareAdapter(BaseMarketAdapter):
             )
 
             if df is not None and not df.empty:
-                logger.info(f'[DEBUG] AkShare: East Money success - Got {len(df)} minute klines')
+                print(f"[DEBUG] AkShare: East Money success - Got {len(df)} minute klines", flush=True)
                 return self._process_minute_df(df, symbol)
 
-            logger.info(f'[DEBUG] AkShare: East Money returned empty data')
+            print(f"[DEBUG] AkShare: East Money returned empty data", flush=True)
         except Exception as e:
-            logger.info(f'[DEBUG] AkShare: East Money failed: {e}')
+            print(f"[DEBUG] AkShare: East Money failed: {e}", flush=True)
 
         # Try data source 2: Tencent (Fallback 1)
         try:
-            logger.info(f'[DEBUG] AkShare: Trying Tencent (stock_zh_a_minute)...')
+            print(f"[DEBUG] AkShare: Trying Tencent (stock_zh_a_minute)...", flush=True)
             # Tencent uses different symbol format: sz000001 or sh600000
             prefix = self.exchange_prefix(code)
             tx_symbol = f"{prefix}{code}"
@@ -287,16 +287,16 @@ class AkShareAdapter(BaseMarketAdapter):
             )
 
             if df is not None and not df.empty:
-                logger.info(f'[DEBUG] AkShare: Tencent success - Got {len(df)} minute klines')
+                print(f"[DEBUG] AkShare: Tencent success - Got {len(df)} minute klines", flush=True)
                 return self._process_minute_df(df, symbol)
 
-            logger.info(f'[DEBUG] AkShare: Tencent returned empty data')
+            print(f"[DEBUG] AkShare: Tencent returned empty data", flush=True)
         except Exception as e:
-            logger.info(f'[DEBUG] AkShare: Tencent failed: {e}')
+            print(f"[DEBUG] AkShare: Tencent failed: {e}", flush=True)
 
         # Try data source 3: Pre-market East Money (Fallback 2)
         try:
-            logger.info(f'[DEBUG] AkShare: Trying Pre-market East Money (stock_zh_a_hist_pre_min_em)...')
+            print(f"[DEBUG] AkShare: Trying Pre-market East Money (stock_zh_a_hist_pre_min_em)...", flush=True)
             df = ak.stock_zh_a_hist_pre_min_em(
                 symbol=code,
                 start_date=start,
@@ -306,15 +306,15 @@ class AkShareAdapter(BaseMarketAdapter):
             )
 
             if df is not None and not df.empty:
-                logger.info(f'[DEBUG] AkShare: Pre-market East Money success - Got {len(df)} minute klines')
+                print(f"[DEBUG] AkShare: Pre-market East Money success - Got {len(df)} minute klines", flush=True)
                 return self._process_minute_df(df, symbol)
 
-            logger.info(f'[DEBUG] AkShare: Pre-market East Money returned empty data')
+            print(f"[DEBUG] AkShare: Pre-market East Money returned empty data", flush=True)
         except Exception as e:
-            logger.info(f'[DEBUG] AkShare: Pre-market East Money failed: {e}')
+            print(f"[DEBUG] AkShare: Pre-market East Money failed: {e}", flush=True)
 
         # All data sources failed
-        logger.info(f'[DEBUG] AkShare: All data sources failed for {symbol}')
+        print(f"[DEBUG] AkShare: All data sources failed for {symbol}", flush=True)
         return []
 
     def _process_minute_df(self, df: pd.DataFrame, symbol: str) -> list[dict]:
@@ -338,7 +338,7 @@ class AkShareAdapter(BaseMarketAdapter):
 
         required = {"date", "open", "high", "low", "close", "volume"}
         if not required.issubset(df.columns):
-            logger.info(f'[DEBUG] AkShare: Missing required columns. Got: {df.columns.tolist()}')
+            print(f"[DEBUG] AkShare: Missing required columns. Got: {df.columns.tolist()}", flush=True)
             return []
 
         rows: list[dict] = []
@@ -358,7 +358,7 @@ class AkShareAdapter(BaseMarketAdapter):
                 "volume": self._safe_float(row.get("volume")),
                 "amount": self._safe_float(row.get("amount")),
             })
-        logger.info(f'[DEBUG] AkShare: Processed {len(rows)} minute klines for {symbol}')
+        print(f"[DEBUG] AkShare: Processed {len(rows)} minute klines for {symbol}", flush=True)
         return rows
 
     def _frame_to_kline_list(

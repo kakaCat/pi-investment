@@ -14,8 +14,6 @@ Methods:
 Author: QuantSys V2
 Date: 2026-05-24
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import numpy as np
 from scipy.optimize import brentq, newton
@@ -225,8 +223,7 @@ class ImpliedVolatilityCalculator(BaseCalculator):
             try:
                 model_price = self._black_scholes_price(S, K, T, r, sigma, option_type, q)
                 return model_price - option_price
-            except Exception:
-                logger.debug("unexpected exception in module", exc_info=True)
+            except:
                 return np.inf
 
         try:
@@ -354,8 +351,7 @@ class ImpliedVolatilityCalculator(BaseCalculator):
                     )
                     iv_surface[i, j] = result['value']
                     convergence_map[i, j] = result['metadata']['converged']
-                except Exception:
-                    logger.debug("unexpected exception in module", exc_info=True)
+                except:
                     iv_surface[i, j] = np.nan
                     convergence_map[i, j] = False
 

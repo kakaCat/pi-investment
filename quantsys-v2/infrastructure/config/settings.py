@@ -85,24 +85,13 @@ class ExternalServiceSettings(BaseSettings):
 
     # 飞书
     feishu_webhook_url: Optional[str] = Field(default=None, alias="FEISHU_WEBHOOK_URL")
-    feishu_weekly_report_webhook: Optional[str] = Field(default=None, alias="FEISHU_WEEKLY_REPORT_WEBHOOK")
-    feishu_webhook_model_train: Optional[str] = Field(default=None, alias="FEISHU_WEBHOOK_MODEL_TRAIN")
 
-    agent_api_url: str = Field(default="http://127.0.0.1:3002", alias="AGENT_API_URL")
-    agent_timeout: int = Field(default=30, alias="AGENT_TIMEOUT")
-    agent_notify_enabled: bool = Field(default=True, alias="AGENT_NOTIFY_ENABLED")
-    agent_api_token: Optional[str] = Field(default=None, alias="AGENT_API_TOKEN")
+    # HTTP 代理
+    http_proxy: Optional[str] = Field(default=None, alias="HTTP_PROXY")
+    https_proxy: Optional[str] = Field(default=None, alias="HTTPS_PROXY")
 
     # Quantsys API (用于 agent-ts 调用)
     quantsys_api_url: str = Field(default="http://localhost:5001", alias="QUANTSYS_API_URL")
-
-    @field_validator("agent_notify_enabled", mode="before")
-    @classmethod
-    def _parse_agent_notify_enabled(cls, v):
-        """兼容 AGENT_NOTIFY_ENABLED=true/false 字符串配置。"""
-        if isinstance(v, str):
-            return v.strip().lower() == "true"
-        return bool(v)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -148,35 +137,11 @@ class LoggingSettings(BaseSettings):
     )
 
 
-class ProxySettings(BaseSettings):
-    """代理配置（单一真相源）。
-
-    akshare 等三方库从 os.environ 读取 HTTP_PROXY/HTTPS_PROXY，无法靠 DI 注入；
-    代理的解析在此集中完成，infrastructure/config/proxy.py 在调用边界写/清环境变量。
-    """
-
-    http_proxy: Optional[str] = Field(default=None, alias="HTTP_PROXY")
-    https_proxy: Optional[str] = Field(default=None, alias="HTTPS_PROXY")
-    all_proxy: Optional[str] = Field(default=None, alias="ALL_PROXY")
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        populate_by_name=True,
-        extra="ignore",
-    )
-
-
 class AppSettings(BaseSettings):
     """应用配置（统一入口）"""
 
     # 环境
     environment: str = Field(default="development", alias="ENVIRONMENT")
-
-    # API 服务绑定地址（uvicorn 启动用）
-    api_host: str = Field(default="127.0.0.1", alias="QUANTSYS_API_HOST")
-    api_port: int = Field(default=5001, alias="QUANTSYS_API_PORT")
 
     # 子配置
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
@@ -184,7 +149,6 @@ class AppSettings(BaseSettings):
     scheduler: SchedulerSettings = Field(default_factory=SchedulerSettings)
     external: ExternalServiceSettings = Field(default_factory=ExternalServiceSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
-    proxy: ProxySettings = Field(default_factory=ProxySettings)
 
     @field_validator("environment")
     @classmethod

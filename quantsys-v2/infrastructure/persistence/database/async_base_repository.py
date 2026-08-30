@@ -4,8 +4,6 @@
 使用 SQLAlchemy AsyncEngine + asyncpg 实现异步数据库访问。
 性能目标：相比同步版本提升100倍。
 """
-import structlog
-logger = structlog.get_logger(__name__)
 from abc import ABC
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -84,8 +82,7 @@ def _resolve_db_dsn():
             try:
                 config = get_config()
                 db_name = config.database.database
-            except Exception:
-                logger.debug("unexpected exception in module", exc_info=True)
+            except:
                 pass
 
         if db_name and not db_name.endswith(TEST_DB_SUFFIX):

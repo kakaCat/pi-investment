@@ -1,7 +1,4 @@
-"""ML 路由助手（框架无关为主）— 从 adapters/inbound/api/ml_routes.py 解耦而来
-
-注意：_ml_error_handler 返回 flask.jsonify 响应（原 Flask 实现），此处原样保留。
-"""
+"""ML 路由助手（框架无关）"""
 from __future__ import annotations
 
 import json as _json
@@ -14,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from flask import jsonify
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from adapters.outbound.repositories import MlModelORMRepository
@@ -85,21 +81,23 @@ def _sanitize_for_json(obj: Any) -> Any:
 
 
 def _ml_error_handler(f):
+    from fastapi.responses import JSONResponse
+
     @wraps(f)
     def wrapper(*args, **kwargs):
         try:
             return f(*args, **kwargs)
         except ValueError as e:
-            return jsonify({"success": False, "error": str(e)}), 400
+            return JSONResponse({"success": False, "error": str(e)}, status_code=400)
         except KeyError as e:
-            return jsonify({"success": False, "error": f"缺少参数: {e}"}), 400
+            return JSONResponse({"success": False, "error": f"缺少参数: {e}"}, status_code=400)
         except FileNotFoundError as e:
-            return jsonify({"success": False, "error": str(e)}), 200
+            return JSONResponse({"success": False, "error": str(e)}, status_code=200)
         except ImportError as e:
-            return jsonify({"success": False, "error": str(e)}), 500
+            return JSONResponse({"success": False, "error": str(e)}, status_code=500)
         except Exception as e:
             logger.error(f"ML API错误: {e}", exc_info=True)
-            return jsonify({"success": False, "error": "服务器内部错误"}), 500
+            return JSONResponse({"success": False, "error": "服务器内部错误"}, status_code=500)
 
     return wrapper
 

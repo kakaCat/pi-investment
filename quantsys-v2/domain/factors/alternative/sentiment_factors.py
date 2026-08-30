@@ -4,8 +4,6 @@
 使用NLP技术分析新闻文本，提取情绪信号
 这是另类数据因子的典型示例
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -368,22 +366,22 @@ def example_usage():
     date = datetime.now()
 
     factors = news_factor.calculate(symbol, date, lookback_days=7)
-    logger.info('News Sentiment Factors:')
+    print("News Sentiment Factors:")
     for key, value in factors.items():
-        logger.info(f'  {key}: {value:.4f}')
+        print(f"  {key}: {value:.4f}")
 
     # 2. 批量计算
     symbols = ['000001', '000002', '600000', '600036']
     df = news_factor.batch_calculate(symbols, date)
-    logger.info('\nBatch Calculation:')
-    logger.info(df)
+    print("\nBatch Calculation:")
+    print(df)
 
     # 3. 社交媒体因子
     social_factor = SocialMediaFactor()
     social_factors = social_factor.calculate(symbol, date)
-    logger.info('\nSocial Media Factors:')
+    print("\nSocial Media Factors:")
     for key, value in social_factors.items():
-        logger.info(f'  {key}: {value:.4f}')
+        print(f"  {key}: {value:.4f}")
 
 
 if __name__ == "__main__":

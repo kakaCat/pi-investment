@@ -202,7 +202,7 @@ def _scan_pool_signals_by_name(
     Returns: 买入/卖出信号列表，每个信号附带 pool/strategy_id/signal_type。
     """
     from application.services.pool_signal_scanner import PoolSignalScanner
-    from adapters.shared.services import stock_pool_service
+        from adapters.shared.services import stock_pool_service
 
     strategy_ids = strategy_ids or DEFAULT_SCAN_STRATEGY_IDS
 

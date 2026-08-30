@@ -22,43 +22,43 @@ class TestSignalExecutionScheduler:
     @pytest.fixture
     def mock_strategy_service(self):
         """Mock策略服务"""
-        with patch('application.services.signal_execution_scheduler.StrategyCodeService') as mock:
+        with patch('services.signal_execution_scheduler.StrategyCodeService') as mock:
             yield mock.return_value
 
     @pytest.fixture
     def mock_risk_service(self):
         """Mock风控服务"""
-        with patch('application.services.signal_execution_scheduler.RiskCheckService') as mock:
+        with patch('services.signal_execution_scheduler.RiskCheckService') as mock:
             yield mock.return_value
 
     @pytest.fixture
     def mock_signal_repo(self):
         """Mock信号仓库"""
-        with patch('application.services.signal_execution_scheduler.ISignalRepository') as mock:
+        with patch('services.signal_execution_scheduler.SignalRepository') as mock:
             yield mock.return_value
 
     @pytest.fixture
     def mock_log_repo(self):
         """Mock日志仓库"""
-        with patch('application.services.signal_execution_scheduler.ISignalExecutionLogRepository') as mock:
+        with patch('services.signal_execution_scheduler.SignalExecutionLogRepository') as mock:
             yield mock.return_value
 
     @pytest.fixture
     def mock_strategy_repo(self):
         """Mock策略仓库"""
-        with patch('application.services.signal_execution_scheduler.IStrategyRepository') as mock:
+        with patch('services.signal_execution_scheduler.StrategyRepository') as mock:
             yield mock.return_value
 
     @pytest.fixture
     def mock_data_service(self):
         """Mock数据服务"""
-        with patch('application.services.signal_execution_scheduler.DataService') as mock:
+        with patch('services.signal_execution_scheduler.DataService') as mock:
             yield mock.return_value
 
     @pytest.fixture
     def mock_create_order(self):
         """Mock订单创建函数"""
-        with patch('application.services.signal_execution_scheduler.create_order') as mock:
+        with patch('services.signal_execution_scheduler.create_order') as mock:
             yield mock
 
     def test_execute_daily_signals_success(

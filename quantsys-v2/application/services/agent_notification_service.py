@@ -8,8 +8,6 @@ import requests
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from infrastructure.config.settings import get_settings
-
 logger = structlog.get_logger(__name__)
 
 
@@ -20,16 +18,11 @@ class AgentNotificationService:
     """
 
     def __init__(self, agent_url: Optional[str] = None, timeout: Optional[int] = None):
-        s = get_settings()
-        # 环境变量在实例化时读取（12-factor 覆盖），settings 作为缺省来源
-        self.agent_url = agent_url or os.getenv('AGENT_API_URL') or s.external.agent_api_url
+        self.agent_url = agent_url or os.getenv('AGENT_API_URL', 'http://127.0.0.1:3002')
         # timeout 显式传入优先（如盯盘路径需要更短超时），否则读环境变量
-        self.timeout = timeout if timeout is not None else int(os.getenv('AGENT_TIMEOUT', str(s.external.agent_timeout)))
-        self.enabled = os.getenv(
-            'AGENT_NOTIFY_ENABLED',
-            'true' if s.external.agent_notify_enabled else 'false',
-        ).lower() == 'true'
-        self.token = os.getenv('AGENT_API_TOKEN') or s.external.agent_api_token
+        self.timeout = timeout if timeout is not None else int(os.getenv('AGENT_TIMEOUT', '30'))
+        self.enabled = os.getenv('AGENT_NOTIFY_ENABLED', 'true').lower() == 'true'
+        self.token = os.getenv('AGENT_API_TOKEN')
 
     def notify_agent(self, event: str, data: Dict[str, Any]) -> bool:
         """通知 Agent 处理事件

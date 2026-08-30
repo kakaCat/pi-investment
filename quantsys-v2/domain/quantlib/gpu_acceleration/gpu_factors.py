@@ -8,8 +8,6 @@ GPU加速因子计算
 - cupy-cuda11x (CUDA 11.x)
 - numba
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -375,7 +373,7 @@ class GPUFactorCalculator:
 
 def benchmark_performance():
     """性能基准测试"""
-    logger.info('=== GPU vs CPU Performance Benchmark ===\n')
+    print("=== GPU vs CPU Performance Benchmark ===\n")
 
     # 生成测试数据
     np.random.seed(42)
@@ -391,7 +389,7 @@ def benchmark_performance():
     cpu_macd = cpu_calculator.calculate_macd(prices)
     cpu_time = time.time() - start
 
-    logger.info(f'CPU Time: {cpu_time * 1000:.2f}ms')
+    print(f"CPU Time: {cpu_time*1000:.2f}ms")
 
     # GPU计算
     if GPU_AVAILABLE:
@@ -403,17 +401,17 @@ def benchmark_performance():
         gpu_macd = gpu_calculator.calculate_macd(prices)
         gpu_time = time.time() - start
 
-        logger.info(f'GPU Time: {gpu_time * 1000:.2f}ms')
-        logger.info(f'Speedup: {cpu_time / gpu_time:.2f}x')
+        print(f"GPU Time: {gpu_time*1000:.2f}ms")
+        print(f"Speedup: {cpu_time/gpu_time:.2f}x")
 
         # 验证结果一致性
         sma_diff = np.nanmean(np.abs(cpu_sma - gpu_sma))
         rsi_diff = np.nanmean(np.abs(cpu_rsi - gpu_rsi))
-        logger.info(f'\nResult Difference:')
-        logger.info(f'  SMA: {sma_diff:.6f}')
-        logger.info(f'  RSI: {rsi_diff:.6f}')
+        print(f"\nResult Difference:")
+        print(f"  SMA: {sma_diff:.6f}")
+        print(f"  RSI: {rsi_diff:.6f}")
     else:
-        logger.info('GPU not available, skipping GPU benchmark')
+        print("GPU not available, skipping GPU benchmark")
 
 
 # 使用示例
@@ -436,11 +434,11 @@ def example_usage():
     factors = ['sma_20', 'ema_12', 'rsi_14', 'macd', 'bollinger', 'atr_14']
     result = calculator.batch_calculate_factors(df, factors)
 
-    logger.info('Calculated Factors:')
-    logger.info(result.tail())
+    print("Calculated Factors:")
+    print(result.tail())
 
 
 if __name__ == "__main__":
     example_usage()
-    logger.info('\n')
+    print("\n")
     benchmark_performance()

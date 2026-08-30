@@ -6,8 +6,6 @@
 买入信号: 价格触及下轨，预期反弹
 卖出信号: 价格触及上轨，预期回落
 """
-import structlog
-logger = structlog.get_logger(__name__)
 from typing import Dict, List, Any
 
 from domain.backtest.engine.strategy_base import StrategyBase
@@ -75,8 +73,7 @@ class MeanReversionStrategy(StrategyBase):
                     rsi = self._calculate_rsi(closes, 14)
                     if rsi < 30:
                         rsi_confirm = 1.2  # RSI超卖，增强信号
-                except Exception:
-                    logger.debug("unexpected exception in module", exc_info=True)
+                except:
                     pass
 
             confidence = min(0.85, 0.6 + (threshold - dist_to_lower) * 10) * rsi_confirm
@@ -98,8 +95,7 @@ class MeanReversionStrategy(StrategyBase):
                     rsi = self._calculate_rsi(closes, 14)
                     if rsi > 70:
                         rsi_confirm = 1.2  # RSI超买，增强信号
-                except Exception:
-                    logger.debug("unexpected exception in module", exc_info=True)
+                except:
                     pass
 
             confidence = min(0.85, 0.6 + (threshold - dist_to_upper) * 10) * rsi_confirm

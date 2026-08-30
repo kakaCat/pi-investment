@@ -8,7 +8,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from functools import wraps
-from flask import request, jsonify
 from infrastructure.config import get_config
 
 logger = logging.getLogger(__name__)
@@ -184,96 +183,60 @@ def get_jwt_manager() -> JWTManager:
     return _jwt_manager
 
 
-# ── Flask 装饰器 ──
+# ── FastAPI 依赖注入 ──
 
-def require_auth(f):
-    """Flask 装饰器：要求 JWT 认证
+from fastapi import Request, HTTPException, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+security = HTTPBearer()
+
+
+async def require_auth(credentials: HTTPAuthorizationCredentials = Security(security)):
+    """FastAPI 依赖：要求 JWT 认证
 
     Usage:
-        @app.route('/api/protected')
-        @require_auth
-        def protected_endpoint():
-            # request.user_id 和 request.username 可用
-            return jsonify({'message': 'Protected data'})
+        @app.get('/api/protected')
+        async def protected_endpoint(user = Depends(require_auth)):
+            return {'message': f'Hello {user["username"]}'}
     """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # 从 Authorization header 获取 token
-        auth_header = request.headers.get("Authorization")
+    token = credentials.credentials
+    jwt_manager = get_jwt_manager()
 
-        if not auth_header:
-            return jsonify({
-                "success": False,
-                "error": "Missing Authorization header"
-            }), 401
-
-        # 解析 "Bearer <token>" 格式
-        parts = auth_header.split()
-        if len(parts) != 2 or parts[0].lower() != "bearer":
-            return jsonify({
-                "success": False,
-                "error": "Invalid Authorization header format. Use: Bearer <token>"
-            }), 401
-
-        token = parts[1]
-
-        # 验证 token
-        jwt_manager = get_jwt_manager()
-        try:
-            payload = jwt_manager.verify_token(token)
-
-            # 将用户信息附加到 request 对象
-            request.user_id = payload["user_id"]
-            request.username = payload["username"]
-            request.token_payload = payload
-
-            return f(*args, **kwargs)
-
-        except jwt.ExpiredSignatureError:
-            return jsonify({
-                "success": False,
-                "error": "Token expired"
-            }), 401
-
-        except jwt.InvalidTokenError:
-            return jsonify({
-                "success": False,
-                "error": "Invalid token"
-            }), 401
-
-    return decorated_function
+    try:
+        payload = jwt_manager.verify_token(token)
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 def require_roles(*required_roles):
-    """Flask 装饰器：要求特定角色
+    """FastAPI 依赖工厂：要求特定角色
 
     Usage:
-        @app.route('/api/admin')
-        @require_auth
-        @require_roles('admin')
-        def admin_endpoint():
-            return jsonify({'message': 'Admin only'})
+        @app.get('/api/admin')
+        async def admin_endpoint(user = Depends(require_roles('admin'))):
+            return {'message': 'Admin only'}
     """
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            # 需要先通过 @require_auth
-            if not hasattr(request, 'token_payload'):
-                return jsonify({
-                    "success": False,
-                    "error": "Authentication required"
-                }), 401
+    async def role_checker(credentials: HTTPAuthorizationCredentials = Security(security)):
+        token = credentials.credentials
+        jwt_manager = get_jwt_manager()
 
-            user_roles = request.token_payload.get("roles", [])
+        try:
+            payload = jwt_manager.verify_token(token)
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except jwt.InvalidTokenError:
+            raise HTTPException(status_code=401, detail="Invalid token")
 
-            # 检查是否有任一所需角色
-            if not any(role in user_roles for role in required_roles):
-                return jsonify({
-                    "success": False,
-                    "error": f"Required roles: {', '.join(required_roles)}"
-                }), 403
+        user_roles = payload.get("roles", [])
+        if not any(role in user_roles for role in required_roles):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Required roles: {', '.join(required_roles)}"
+            )
 
-            return f(*args, **kwargs)
+        return payload
 
-        return decorated_function
-    return decorator
+    return role_checker

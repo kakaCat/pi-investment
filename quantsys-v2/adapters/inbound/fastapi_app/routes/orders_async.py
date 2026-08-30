@@ -119,6 +119,119 @@ def algo_execute(payload: Optional[Dict[str, Any]] = Body(None)):
 
 # ============ Trades ============
 
+@router.get('/api/trades/list')
+@handle_api_error
+def get_trade_history(
+    account_name: Optional[str] = Query('agent_virtual'),
+    order_id: Optional[str] = Query(None),
+    symbol: Optional[str] = Query(None),
+    direction: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100)
+):
+    """
+    查询交易历史记录
+
+    参数:
+    - account_name: 账户名称，默认 agent_virtual
+    - order_id: 订单ID（可选）
+    - symbol: 股票代码（可选）
+    - direction: 交易方向 BUY/SELL（可选）
+    - page: 页码，默认 1
+    - page_size: 每页数量，默认 20，最大 100
+
+    返回:
+    {
+        "success": true,
+        "data": {
+            "orders": [...],
+            "pending_count": 0,
+            "filled_count": 5,
+            "total": 5,
+            "page": 1,
+            "page_size": 20
+        }
+    }
+    """
+    from infrastructure.persistence.orm.models.simulation import SimulationTrade
+    from infrastructure.persistence.orm import get_session
+
+    try:
+        session = get_session()
+
+        # 构建查询
+        query = session.query(SimulationTrade).filter(
+            SimulationTrade.account_name == account_name
+        )
+
+        # 添加可选过滤条件
+        if order_id:
+            try:
+                query = query.filter(SimulationTrade.order_id == int(order_id))
+            except ValueError:
+                pass  # 忽略无效的 order_id
+
+        if symbol:
+            query = query.filter(SimulationTrade.symbol == symbol)
+
+        if direction:
+            query = query.filter(SimulationTrade.action == direction.upper())
+
+        # 排序和分页
+        query = query.order_by(
+            SimulationTrade.trade_date.desc(),
+            SimulationTrade.id.desc()
+        )
+
+        offset = (page - 1) * page_size
+        trades = query.limit(page_size).offset(offset).all()
+
+        # 格式化交易记录
+        orders = []
+        for trade in trades:
+            orders.append({
+                'order_id': trade.order_id or trade.id,
+                'symbol': trade.symbol,
+                'action': trade.action,
+                'status': 'filled',  # simulation_trades 中所有记录都是已成交
+                'price': float(trade.price or 0),
+                'filled_price': float(trade.filled_price or 0),
+                'shares': trade.shares,
+                'filled_shares': trade.shares,  # simulation_trades 中所有记录都是已成交
+                'amount': float(trade.amount or 0),
+                'commission': float(trade.commission or 0),
+                'stamp_duty': float(trade.stamp_duty or 0),
+                'total_cost': float(trade.total_cost or 0) if trade.total_cost else None,
+                'realized_pnl': float(trade.realized_pnl or 0) if trade.realized_pnl else None,
+                'realized_pnl_rate': float(trade.realized_pnl_rate or 0) if trade.realized_pnl_rate else None,
+                'trade_date': trade.trade_date.isoformat() if trade.trade_date else None,
+                'trade_time': trade.trade_time.isoformat() if trade.trade_time else None,
+                'created_at': trade.created_at.isoformat() if trade.created_at else None,
+                'reason': trade.reason,
+            })
+
+        # 统计状态（simulation_trades 中的记录都是已执行）
+        pending_count = 0
+        filled_count = len(orders)
+        total = filled_count
+
+        return api_response({
+            'orders': orders,
+            'pending_count': pending_count,
+            'filled_count': filled_count,
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+        })
+
+    except Exception as e:
+        logger.error(f"查询交易历史失败: {str(e)}", exc_info=True)
+        return error_response({'success': False, 'error': str(e)}, 500)
+    finally:
+        if 'session' in locals():
+            session.close()
+
+
 # ============ Portfolio ============
 
 @router.get('/api/portfolio/positions')

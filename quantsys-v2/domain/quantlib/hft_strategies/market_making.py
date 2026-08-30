@@ -10,8 +10,6 @@
 3. 库存控制
 4. 风险管理
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -517,7 +515,7 @@ class StatisticalArbitrageStrategy:
 # 使用示例
 def example_market_making():
     """做市策略示例"""
-    logger.info('=== Market Making Strategy ===\n')
+    print("=== Market Making Strategy ===\n")
 
     strategy = MarketMakingStrategy(
         symbol='BTC/USDT',
@@ -536,9 +534,9 @@ def example_market_making():
     # 生成订单
     orders = strategy.generate_orders()
 
-    logger.info('Generated Orders:')
+    print("Generated Orders:")
     for order in orders:
-        logger.info(f"  {order['side'].upper()} {order['quantity']}@{order['price']:.2f}")
+        print(f"  {order['side'].upper()} {order['quantity']}@{order['price']:.2f}")
 
     # 模拟成交
     if orders:
@@ -547,14 +545,14 @@ def example_market_making():
     # 统计信息
     stats = strategy.get_statistics()
     if stats:
-        logger.info('\nStatistics:')
+        print("\nStatistics:")
         for key, value in stats.items():
-            logger.info(f'  {key}: {value}')
+            print(f"  {key}: {value}")
 
 
 def example_statistical_arbitrage():
     """统计套利示例"""
-    logger.info('\n=== Statistical Arbitrage Strategy ===\n')
+    print("\n=== Statistical Arbitrage Strategy ===\n")
 
     strategy = StatisticalArbitrageStrategy(
         symbol_a='ETH/USDT',
@@ -576,12 +574,12 @@ def example_statistical_arbitrage():
             signal = strategy.generate_signal()
 
             if signal:
-                logger.info(f'Signal at step {i}:')
-                logger.info(f"  Action: {signal['action']}")
-                logger.info(f"  Direction: {signal['direction']}")
-                logger.info(f"  Z-score: {signal['z_score']:.2f}")
-                logger.info(f"  Hedge ratio: {signal.get('hedge_ratio', 0):.4f}")
-                logger.info("")
+                print(f"Signal at step {i}:")
+                print(f"  Action: {signal['action']}")
+                print(f"  Direction: {signal['direction']}")
+                print(f"  Z-score: {signal['z_score']:.2f}")
+                print(f"  Hedge ratio: {signal.get('hedge_ratio', 0):.4f}")
+                print()
 
 
 if __name__ == "__main__":

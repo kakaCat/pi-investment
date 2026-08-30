@@ -6,8 +6,6 @@ AkShare 是一个开源的金融数据接口库，提供 A 股、港股、美股
 
 注意：AkShare 仅提供数据，不支持交易功能。
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import logging
 from typing import List, Optional
@@ -218,7 +216,7 @@ class AkshareBroker(BaseBroker):
                             end_date=end_date.replace('-', ''),
                             adjust="qfq"  # 前复权
                         )
-                        logger.info(f'[BROKER] AkShare succeeded for {symbol}')
+                        print(f"[BROKER] AkShare succeeded for {symbol}", flush=True)
                         logger.info(f"Successfully fetched data from AkShare for {symbol}")
                     finally:
                         if platform.system() != 'Windows':
@@ -226,30 +224,30 @@ class AkshareBroker(BaseBroker):
                             signal.signal(signal.SIGALRM, old_handler)
 
                 except TimeoutError as timeout_err:
-                    logger.info(f'[BROKER] AkShare timeout for {symbol}, falling back to Sina')
+                    print(f"[BROKER] AkShare timeout for {symbol}, falling back to Sina", flush=True)
                     logger.warning(f"AkShare timeout for {symbol}: {timeout_err}")
 
                     # 回退到新浪财经 API
                     try:
                         logger.info(f"Falling back to Sina Finance API for {symbol}")
                         df = self._fetch_from_sina(clean_symbol, start_date, end_date, period)
-                        logger.info(f'[BROKER] Sina Finance succeeded for {symbol}')
+                        print(f"[BROKER] Sina Finance succeeded for {symbol}", flush=True)
                     except Exception as sina_error:
-                        logger.info(f'[BROKER] Sina Finance also failed for {symbol}')
+                        print(f"[BROKER] Sina Finance also failed for {symbol}", flush=True)
                         logger.error(f"Sina Finance also failed for {symbol}: {sina_error}")
                         raise Exception(f"AkShare timeout and Sina Finance failed. Timeout: {timeout_err}, Sina: {sina_error}")
 
                 except Exception as e:
-                    logger.info(f'[BROKER] AkShare failed for {symbol}, falling back to Sina')
+                    print(f"[BROKER] AkShare failed for {symbol}, falling back to Sina", flush=True)
                     logger.warning(f"AkShare failed for {symbol}: {e}")
 
                     # 回退到新浪财经 API
                     try:
                         logger.info(f"Falling back to Sina Finance API for {symbol}")
                         df = self._fetch_from_sina(clean_symbol, start_date, end_date, period)
-                        logger.info(f'[BROKER] Sina Finance succeeded for {symbol}')
+                        print(f"[BROKER] Sina Finance succeeded for {symbol}", flush=True)
                     except Exception as sina_error:
-                        logger.info(f'[BROKER] Sina Finance also failed for {symbol}')
+                        print(f"[BROKER] Sina Finance also failed for {symbol}", flush=True)
                         logger.error(f"Sina Finance also failed for {symbol}: {sina_error}")
                         raise Exception(f"Both AkShare and Sina Finance failed. AkShare: {e}, Sina: {sina_error}")
             finally:

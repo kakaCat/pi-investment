@@ -3,8 +3,6 @@
 
 本文档详细说明了7个新增高级交易策略的参数配置、使用场景和注意事项。
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 # ==================== 策略概览 ====================
 
@@ -468,17 +466,17 @@ RISK_WARNINGS = {
 
 if __name__ == '__main__':
     """打印策略参数说明"""
-    logger.info('=' * 80)
-    logger.info('高级交易策略参数说明')
-    logger.info('=' * 80)
+    print("=" * 80)
+    print("高级交易策略参数说明")
+    print("=" * 80)
 
     for strategy_type, overview in STRATEGY_OVERVIEW.items():
-        logger.info(f"\n【{overview['name']}】")
-        logger.info(f"  类型: {overview['type']}")
-        logger.info(f"  描述: {overview['description']}")
-        logger.info(f"  适用市场: {overview['适用市场']}")
-        logger.info(f"  风险等级: {overview['风险等级']}")
+        print(f"\n【{overview['name']}】")
+        print(f"  类型: {overview['type']}")
+        print(f"  描述: {overview['description']}")
+        print(f"  适用市场: {overview['适用市场']}")
+        print(f"  风险等级: {overview['风险等级']}")
 
-    logger.info('\n' + '=' * 80)
-    logger.info('详细参数请查看各策略的 PARAMS 字典')
-    logger.info('=' * 80)
+    print("\n" + "=" * 80)
+    print("详细参数请查看各策略的 PARAMS 字典")
+    print("=" * 80)

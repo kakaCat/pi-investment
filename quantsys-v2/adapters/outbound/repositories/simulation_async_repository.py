@@ -183,32 +183,47 @@ class SimulationTradeAsyncRepository(AsyncBaseORMRepository[SimulationTrade]):
         self,
         account_name: str = 'default',
         symbol: Optional[str] = None,
-        limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        order_id: Optional[int] = None,
+        action: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> List[SimulationTrade]:
         """获取交易记录
 
         Args:
             account_name: 账户名称
             symbol: 股票代码（可选）
+            order_id: 订单ID（可选）
+            action: 交易方向 BUY/SELL（可选）
             limit: 返回数量
+            offset: 偏移量（分页用）
 
         Returns:
-            交易记录列表
+            交易记录对象列表（返回 ORM 对象而非字典，便于调用方访问字段）
         """
         try:
-            stmt = select(SimulationTrade).where(
-                SimulationTrade.account_name == account_name
-            )
+            conditions = [SimulationTrade.account_name == account_name]
 
             if symbol:
-                stmt = stmt.where(SimulationTrade.symbol == symbol)
+                conditions.append(SimulationTrade.symbol == symbol)
 
-            stmt = stmt.order_by(desc(SimulationTrade.trade_date)).limit(limit)
+            if order_id:
+                conditions.append(SimulationTrade.order_id == order_id)
+
+            if action:
+                conditions.append(SimulationTrade.action == action.upper())
+
+            stmt = select(SimulationTrade).where(
+                and_(*conditions)
+            ).order_by(
+                desc(SimulationTrade.trade_date),
+                desc(SimulationTrade.id)
+            ).limit(limit).offset(offset)
 
             result = await self.session.execute(stmt)
             trades = result.scalars().all()
 
-            return [self._trade_to_dict(t) for t in trades]
+            return list(trades)
 
         except Exception as e:
             logger.error(f"Error getting trades: {e}")

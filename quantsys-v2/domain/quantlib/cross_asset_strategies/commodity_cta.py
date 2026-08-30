@@ -9,8 +9,6 @@ Commodity Trading Advisor (CTA) 策略
 2. 均值回归 - 捕捉短期反转
 3. 多品种组合 - 分散风险
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -553,7 +551,7 @@ class MultiAssetCTA:
 # 使用示例
 def example_trend_following():
     """趋势跟踪示例"""
-    logger.info('=== Trend Following CTA ===\n')
+    print("=== Trend Following CTA ===\n")
 
     strategy = TrendFollowingCTA(
         symbol='CU2406',  # 铜期货
@@ -579,20 +577,20 @@ def example_trend_following():
         if i >= 60:
             signal = strategy.generate_signal()
             if signal:
-                logger.info(f"Step {i}: {signal['action'].upper()} signal")
-                logger.info(f"  Direction: {signal['direction']}")
-                logger.info(f"  Price: {signal['price']:.2f}")
+                print(f"Step {i}: {signal['action'].upper()} signal")
+                print(f"  Direction: {signal['direction']}")
+                print(f"  Price: {signal['price']:.2f}")
                 if 'trend' in signal:
-                    logger.info(f"  Trend: {signal['trend']}")
+                    print(f"  Trend: {signal['trend']}")
                 strategy.on_fill(signal)
-                logger.info("")
+                print()
 
-    logger.info(f'Final PnL: {strategy.pnl:.2f}')
+    print(f"Final PnL: {strategy.pnl:.2f}")
 
 
 def example_mean_reversion():
     """均值回归示例"""
-    logger.info('\n=== Mean Reversion CTA ===\n')
+    print("\n=== Mean Reversion CTA ===\n")
 
     strategy = MeanReversionCTA(
         symbol='RB2406',  # 螺纹钢期货
@@ -613,14 +611,14 @@ def example_mean_reversion():
         if i >= 20:
             signal = strategy.generate_signal()
             if signal:
-                logger.info(f"Step {i}: {signal['action'].upper()} signal")
-                logger.info(f"  Direction: {signal['direction']}")
-                logger.info(f"  Price: {signal['price']:.2f}")
-                logger.info(f"  Z-score: {signal['z_score']:.2f}")
+                print(f"Step {i}: {signal['action'].upper()} signal")
+                print(f"  Direction: {signal['direction']}")
+                print(f"  Price: {signal['price']:.2f}")
+                print(f"  Z-score: {signal['z_score']:.2f}")
                 strategy.on_fill(signal)
-                logger.info("")
+                print()
 
-    logger.info(f'Final PnL: {strategy.pnl:.2f}')
+    print(f"Final PnL: {strategy.pnl:.2f}")
 
 
 if __name__ == "__main__":

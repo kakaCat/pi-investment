@@ -7,7 +7,7 @@ from application.services.pool_validation_service import PoolValidationService
 @pytest.fixture
 def mock_pool_repo():
     repo = MagicMock()
-    repo.get_pool.return_value = {
+    repo.get_by_id.return_value = {
         'id': 1,
         'name': '测试池',
         'pool_type': 'static',
@@ -36,18 +36,18 @@ def service(mock_pool_repo, mock_strategy_repo):
 
 class TestPoolValidationService:
     def test_validate_pool_not_found(self, service, mock_pool_repo):
-        mock_pool_repo.get_pool.return_value = None
+        mock_pool_repo.get_by_id.return_value = None
         with pytest.raises(ValueError, match="Pool 999 not found"):
             service.validate_pool(999)
 
     def test_validate_pool_empty_symbols(self, service, mock_pool_repo):
-        mock_pool_repo.get_pool.return_value = {
+        mock_pool_repo.get_by_id.return_value = {
             'id': 1, 'name': '空池', 'symbols': [],
         }
         with pytest.raises(ValueError, match="empty"):
             service.validate_pool(1)
 
-    @patch('application.services.pool_validation_service.requests.post')
+    @patch('services.pool_validation_service.requests.post')
     def test_validate_pool_builds_correct_jobs(self, mock_post, service):
         """Verify jobs = strategy × symbol cartesian product."""
         mock_post.return_value.status_code = 200
@@ -66,7 +66,7 @@ class TestPoolValidationService:
         symbols_in_jobs = {j['symbol'] for j in jobs}
         assert symbols_in_jobs == {'600519.SH', '000858.SZ', '000001.SZ'}
 
-    @patch('application.services.pool_validation_service.requests.post')
+    @patch('services.pool_validation_service.requests.post')
     def test_validate_pool_aggregates_by_strategy(self, mock_post, service, mock_pool_repo):
         """Test that results are aggregated per strategy and ranked."""
         mock_post.return_value.status_code = 200
@@ -74,24 +74,24 @@ class TestPoolValidationService:
             'success': True,
             'data': {
                 'results': [
-                    {'strategyId': 53, 'symbol': '600519.SH',
-                     'annualReturn': 0.15, 'sharpeRatio': 2.0,
-                     'maxDrawdown': -0.05, 'winRate': 0.7, 'profitFactor': 2.0},
-                    {'strategyId': 53, 'symbol': '000858.SZ',
-                     'annualReturn': 0.10, 'sharpeRatio': 1.5,
-                     'maxDrawdown': -0.08, 'winRate': 0.6, 'profitFactor': 1.5},
-                    {'strategyId': 53, 'symbol': '000001.SZ',
-                     'annualReturn': 0.12, 'sharpeRatio': 1.8,
-                     'maxDrawdown': -0.06, 'winRate': 0.65, 'profitFactor': 1.8},
-                    {'strategyId': 54, 'symbol': '600519.SH',
-                     'annualReturn': 0.05, 'sharpeRatio': 0.8,
-                     'maxDrawdown': -0.12, 'winRate': 0.45, 'profitFactor': 0.9},
-                    {'strategyId': 54, 'symbol': '000858.SZ',
-                     'annualReturn': 0.03, 'sharpeRatio': 0.5,
-                     'maxDrawdown': -0.15, 'winRate': 0.40, 'profitFactor': 0.7},
-                    {'strategyId': 54, 'symbol': '000001.SZ',
-                     'annualReturn': 0.04, 'sharpeRatio': 0.6,
-                     'maxDrawdown': -0.13, 'winRate': 0.42, 'profitFactor': 0.8},
+                    {'strategy_id': 53, 'symbol': '600519.SH',
+                     'annual_return': 0.15, 'sharpe_ratio': 2.0,
+                     'max_drawdown': -0.05, 'win_rate': 0.7, 'profit_factor': 2.0},
+                    {'strategy_id': 53, 'symbol': '000858.SZ',
+                     'annual_return': 0.10, 'sharpe_ratio': 1.5,
+                     'max_drawdown': -0.08, 'win_rate': 0.6, 'profit_factor': 1.5},
+                    {'strategy_id': 53, 'symbol': '000001.SZ',
+                     'annual_return': 0.12, 'sharpe_ratio': 1.8,
+                     'max_drawdown': -0.06, 'win_rate': 0.65, 'profit_factor': 1.8},
+                    {'strategy_id': 54, 'symbol': '600519.SH',
+                     'annual_return': 0.05, 'sharpe_ratio': 0.8,
+                     'max_drawdown': -0.12, 'win_rate': 0.45, 'profit_factor': 0.9},
+                    {'strategy_id': 54, 'symbol': '000858.SZ',
+                     'annual_return': 0.03, 'sharpe_ratio': 0.5,
+                     'max_drawdown': -0.15, 'win_rate': 0.40, 'profit_factor': 0.7},
+                    {'strategy_id': 54, 'symbol': '000001.SZ',
+                     'annual_return': 0.04, 'sharpe_ratio': 0.6,
+                     'max_drawdown': -0.13, 'win_rate': 0.42, 'profit_factor': 0.8},
                 ],
                 'errors': [],
             },
@@ -110,7 +110,7 @@ class TestPoolValidationService:
         # recommended_pairs should exist (top 5 from best strategy)
         assert len(result['recommended_pairs']) <= 5
 
-    @patch('application.services.pool_validation_service.requests.post')
+    @patch('services.pool_validation_service.requests.post')
     def test_validate_pool_uses_all_strategies_when_none_specified(self, mock_post, service):
         """When strategy_ids is None, all active strategies are used."""
         mock_post.return_value.status_code = 200
@@ -129,7 +129,7 @@ class TestPoolValidationService:
         # 2 strategies × 3 symbols = 6 jobs
         assert len(jobs) == 6
 
-    @patch('application.services.pool_validation_service.requests.post')
+    @patch('services.pool_validation_service.requests.post')
     def test_validate_pool_saves_validation_result(self, mock_post, service, mock_pool_repo):
         """Verify last_validation is saved to the pool."""
         mock_post.return_value.status_code = 200
@@ -137,9 +137,9 @@ class TestPoolValidationService:
             'success': True,
             'data': {
                 'results': [
-                    {'strategyId': 53, 'symbol': '600519.SH',
-                     'annualReturn': 0.15, 'sharpeRatio': 2.0,
-                     'maxDrawdown': -0.05, 'winRate': 0.7, 'profitFactor': 2.0},
+                    {'strategy_id': 53, 'symbol': '600519.SH',
+                     'annual_return': 0.15, 'sharpe_ratio': 2.0,
+                     'max_drawdown': -0.05, 'win_rate': 0.7, 'profit_factor': 2.0},
                 ],
                 'errors': [],
             },

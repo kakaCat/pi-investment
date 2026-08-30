@@ -202,18 +202,18 @@ class TestAnalyzeIntegration:
         with pytest.raises(ValueError, match="min_change"):
             svc.analyze({'symbol': '600519', 'min_change': 50})
 
-    def test_full_flow(self):
+    @patch('services.swing_point_service.KlineRepository')
+    def test_full_flow(self, MockRepo):
         """完整流程测试"""
         # 模拟 K 线：明显的波段走势
         prices = [100, 95, 90, 85, 80, 85, 90, 100, 110, 120,
                   115, 105, 95, 90, 95, 100, 110, 120, 130]
         mock_klines = _make_klines(prices)
 
-        mock_repo = MagicMock()
-        mock_repo.get_daily_klines.return_value = mock_klines
-        mock_repo.count_daily_klines.return_value = len(mock_klines)
-        mock_repo.get_date_range.return_value = ('2025-01-01', '2025-01-19')
-        svc = SwingPointService(kline_repo=mock_repo)
+        mock_instance = MockRepo.return_value
+        mock_instance.get_daily_klines.return_value = mock_klines
+
+        svc = SwingPointService()
         result = svc.analyze({
             'symbol': '600519',
             'start_date': '2025-01-01',

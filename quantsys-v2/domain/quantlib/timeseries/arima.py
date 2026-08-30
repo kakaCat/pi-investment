@@ -16,8 +16,6 @@ Features:
 Author: Migrated from FinceptTerminal
 Date: 2026-05-24
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -508,8 +506,7 @@ class ARIMACalculator(BaseCalculator):
                             best_ic = ic_value
                             best_order = (p, d, q)
 
-                    except Exception:
-                        logger.debug("unexpected exception in module", exc_info=True)
+                    except:
                         continue
 
         return self._create_result_dict(
@@ -553,8 +550,7 @@ class ARIMACalculator(BaseCalculator):
                 diagnostics['ljung_box_pvalue'] = float(lb_result['lb_pvalue'].iloc[-1])
             else:
                 diagnostics['ljung_box_pvalue'] = float(lb_result[1][-1])
-        except Exception:
-            logger.debug("unexpected exception in module", exc_info=True)
+        except:
             diagnostics['ljung_box_pvalue'] = None
 
         # Jarque-Bera test for normality
@@ -562,8 +558,7 @@ class ARIMACalculator(BaseCalculator):
             jb_stat, jb_pvalue = stats.jarque_bera(residuals)
             diagnostics['jarque_bera_pvalue'] = float(jb_pvalue)
             diagnostics['residuals_normal'] = jb_pvalue > 0.05
-        except Exception:
-            logger.debug("unexpected exception in module", exc_info=True)
+        except:
             diagnostics['jarque_bera_pvalue'] = None
             diagnostics['residuals_normal'] = None
 
@@ -672,8 +667,7 @@ class ARIMACalculator(BaseCalculator):
                     best_aic = fit_result['value']['aic']
                     best_order = order
 
-            except Exception:
-                logger.debug("unexpected exception in module", exc_info=True)
+            except:
                 results.append({
                     'order': order,
                     'aic': None,

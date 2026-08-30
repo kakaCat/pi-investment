@@ -1,30 +1,46 @@
-"""Circuit breaker for data sources.
+"""Circuit breaker for data sources using pybreaker.
 
 Prevents continuous calls to failing data sources.
-Implements the Circuit Breaker pattern.
+Implements the Circuit Breaker pattern using the pybreaker library.
 """
 
-import time
 import logging
-from typing import Dict, Optional
-from enum import Enum
+from typing import Any, Dict, Optional
+import pybreaker
 
 from domain.ports.datasource_ports import ICircuitBreaker
 
 logger = logging.getLogger(__name__)
 
 
-class CircuitState(Enum):
-    """Circuit breaker states."""
-    CLOSED = "closed"      # Normal operation
-    OPEN = "open"          # Failing, reject requests
-    HALF_OPEN = "half_open"  # Testing if recovered
+class _StateListener(pybreaker.CircuitBreakerListener):
+    """Internal listener to track state changes from pybreaker."""
+
+    def __init__(self, parent: 'CircuitBreaker'):
+        self._parent = parent
+
+    def state_change(self, cb: pybreaker.CircuitBreaker, old_state: str, new_state: str):
+        """Called when circuit breaker state changes."""
+        self._parent._state = new_state
+        logger.info(f"Circuit breaker '{self._parent.name}' state changed: {old_state} -> {new_state}")
+
+    def before_call(self, cb: pybreaker.CircuitBreaker, func, *args, **kwargs):
+        """Called before a function call."""
+        pass
+
+    def success(self, cb: pybreaker.CircuitBreaker):
+        """Called after a successful call."""
+        pass
+
+    def failure(self, cb: pybreaker.CircuitBreaker, exc):
+        """Called after a failed call."""
+        pass
 
 
 class CircuitBreaker(ICircuitBreaker):
-    """Circuit breaker implementation for data sources.
+    """Circuit breaker implementation using pybreaker.
 
-    实现 ICircuitBreaker 接口
+    实现 ICircuitBreaker 接口，内部使用 pybreaker 库
 
     Tracks failures and opens the circuit when threshold is reached.
     After a timeout, allows a test request (half-open state).
@@ -37,19 +53,21 @@ class CircuitBreaker(ICircuitBreaker):
     Example:
         breaker = CircuitBreaker(failure_threshold=3, timeout=60)
 
-        if breaker.is_available():
-            try:
-                result = call_data_source()
-                breaker.record_success()
-            except Exception:
-                breaker.record_failure()
+        # 方式1: 使用 call 方法
+        result = breaker.call(some_function, arg1, arg2)
+
+        # 方式2: 使用装饰器
+        @breaker.decorator
+        def my_function():
+            return data_provider.get_data()
     """
 
     def __init__(
         self,
         failure_threshold: int = 3,
         timeout: int = 60,
-        success_threshold: int = 1
+        success_threshold: int = 1,
+        name: Optional[str] = None
     ):
         """Initialize circuit breaker.
 
@@ -57,15 +75,24 @@ class CircuitBreaker(ICircuitBreaker):
             failure_threshold: Number of failures before opening circuit
             timeout: Seconds to wait before attempting recovery (OPEN -> HALF_OPEN)
             success_threshold: Number of successes in HALF_OPEN before closing
+            name: Optional name for the circuit breaker (for logging)
         """
         self.failure_threshold = failure_threshold
         self.timeout = timeout
         self.success_threshold = success_threshold
+        self.name = name or "default"
 
-        self.failure_count = 0
-        self.success_count = 0
-        self.last_failure_time: Optional[float] = None
-        self.state = CircuitState.CLOSED
+        listener = _StateListener(self)
+
+        self._breaker = pybreaker.CircuitBreaker(
+            fail_max=failure_threshold,
+            reset_timeout=timeout,
+            success_threshold=success_threshold,
+            name=self.name,
+            listeners=[listener]
+        )
+
+        self._state = self._breaker.current_state
 
     def is_available(self) -> bool:
         """Check if the circuit breaker allows requests.
@@ -73,21 +100,7 @@ class CircuitBreaker(ICircuitBreaker):
         Returns:
             True if requests are allowed, False otherwise
         """
-        if self.state == CircuitState.CLOSED:
-            return True
-
-        if self.state == CircuitState.OPEN:
-            # Check if timeout has elapsed
-            if self.last_failure_time and \
-               time.time() - self.last_failure_time >= self.timeout:
-                logger.info("Circuit breaker transitioning to HALF_OPEN (testing recovery)")
-                self.state = CircuitState.HALF_OPEN
-                self.success_count = 0
-                return True
-            return False
-
-        # HALF_OPEN: allow requests to test recovery
-        return True
+        return self._state != pybreaker.STATE_OPEN
 
     def is_open(self) -> bool:
         """Check if circuit is open (ICircuitBreaker interface method).
@@ -95,9 +108,9 @@ class CircuitBreaker(ICircuitBreaker):
         Returns:
             True if circuit is open (rejecting requests), False otherwise
         """
-        return self.state == CircuitState.OPEN
+        return self._state == pybreaker.STATE_OPEN
 
-    def call(self, func, *args, **kwargs):
+    def call(self, func, *args, **kwargs) -> Any:
         """Execute a function with circuit breaker protection (ICircuitBreaker interface method).
 
         Args:
@@ -109,69 +122,37 @@ class CircuitBreaker(ICircuitBreaker):
             Result of func if successful
 
         Raises:
-            Exception: If circuit is open or func fails
+            pybreaker.CircuitBreakerError: If circuit is open
+            Exception: If func fails
         """
-        if not self.is_available():
-            raise Exception(f"Circuit breaker is {self.state.value}")
+        return self._breaker.call(func, *args, **kwargs)
 
-        try:
-            result = func(*args, **kwargs)
-            self.record_success()
-            return result
-        except Exception as e:
-            self.record_failure()
-            raise
+    def decorator(self, func):
+        """Get a decorator for the given function.
 
-    def record_success(self):
-        """Record a successful request."""
-        if self.state == CircuitState.HALF_OPEN:
-            self.success_count += 1
-            if self.success_count >= self.success_threshold:
-                logger.info("Circuit breaker CLOSED (recovered)")
-                self.state = CircuitState.CLOSED
-                self.failure_count = 0
-                self.success_count = 0
+        Args:
+            func: Function to decorate
 
-        elif self.state == CircuitState.CLOSED:
-            # Reset failure count on success
-            self.failure_count = 0
-
-    def record_failure(self):
-        """Record a failed request."""
-        self.failure_count += 1
-        self.last_failure_time = time.time()
-
-        if self.state == CircuitState.HALF_OPEN:
-            # Failed during recovery test - back to OPEN
-            logger.warning("Circuit breaker reopened (recovery test failed)")
-            self.state = CircuitState.OPEN
-            self.success_count = 0
-
-        elif self.state == CircuitState.CLOSED:
-            if self.failure_count >= self.failure_threshold:
-                logger.warning(
-                    f"Circuit breaker OPENED after {self.failure_count} failures"
-                )
-                self.state = CircuitState.OPEN
+        Returns:
+            Decorated function with circuit breaker protection
+        """
+        return self._breaker(func)
 
     def reset(self):
         """Manually reset the circuit breaker to CLOSED state."""
-        logger.info("Circuit breaker manually reset")
-        self.state = CircuitState.CLOSED
-        self.failure_count = 0
-        self.success_count = 0
-        self.last_failure_time = None
+        logger.info(f"Circuit breaker '{self.name}' manually reset")
+        self._breaker.close()
 
-    def get_state(self) -> Dict[str, any]:
+    def get_state(self) -> Dict[str, Any]:
         """Get current circuit breaker state.
 
         Returns:
             Dict with state information
         """
         return {
-            'state': self.state.value,
-            'failure_count': self.failure_count,
-            'success_count': self.success_count,
-            'last_failure_time': self.last_failure_time,
+            'state': self._breaker.current_state,
+            'name': self.name,
+            'failure_threshold': self.failure_threshold,
+            'timeout': self.timeout,
             'is_available': self.is_available()
         }

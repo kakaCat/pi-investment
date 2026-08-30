@@ -3,8 +3,6 @@ Sentry 错误监控配置
 
 自动捕获未处理异常、性能追踪、错误告警
 """
-import structlog
-logger = structlog.get_logger(__name__)
 import logging
 from typing import Optional
 from infrastructure.config import get_config
@@ -140,8 +138,7 @@ def _get_release_version() -> str:
             stderr=subprocess.DEVNULL
         ).decode().strip()
         return f"quantsys-v2@{commit}"
-    except Exception:
-        logger.debug("unexpected exception in module", exc_info=True)
+    except:
         return "quantsys-v2@unknown"
 
 

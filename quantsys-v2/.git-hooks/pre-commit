@@ -47,7 +47,7 @@ if [ "$VIOLATIONS" -gt "$BASELINE" ]; then
     echo "   Baseline: $BASELINE"
     echo ""
     echo "📖 Please follow the coding standards:"
-    echo "   - Read: CODING_STANDARDS.md"
+    echo "   - Read: docs/coding-standards.md"
     echo "   - Quick ref: docs/ARCHITECTURE_QUICK_REFERENCE.md"
     echo ""
     echo "💡 To see violation details:"

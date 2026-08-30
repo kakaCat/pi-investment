@@ -6,8 +6,6 @@
 2. 补充缺失数据（可选）
 3. 生成质量报告
 """
-import structlog
-logger = structlog.get_logger(__name__)
 import sys
 import logging
 from datetime import datetime, timedelta
@@ -202,4 +200,4 @@ if __name__ == '__main__':
         auto_backfill=False,
         symbols_limit=10
     )
-    logger.info(f'\n执行结果: {result}')
+    print(f"\n执行结果: {result}")

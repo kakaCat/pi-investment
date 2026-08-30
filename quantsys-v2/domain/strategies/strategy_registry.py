@@ -3,8 +3,6 @@
 
 负责管理所有可用的交易策略
 """
-import structlog
-logger = structlog.get_logger(__name__)
 from typing import Dict, Optional, List
 from .base_strategy import BaseStrategy
 
@@ -32,7 +30,7 @@ class StrategyRegistry:
             raise ValueError(f"Strategy '{strategy_id}' already registered")
         
         self._strategies[strategy_id] = strategy
-        logger.info(f'✓ Registered strategy: {strategy_id} ({strategy.config.name} {strategy.config.version})')
+        print(f"✓ Registered strategy: {strategy_id} ({strategy.config.name} {strategy.config.version})")
     
     def get(self, strategy_id: str) -> Optional[BaseStrategy]:
         """
@@ -70,7 +68,7 @@ class StrategyRegistry:
         """
         if strategy_id in self._strategies:
             del self._strategies[strategy_id]
-            logger.info(f'✓ Unregistered strategy: {strategy_id}')
+            print(f"✓ Unregistered strategy: {strategy_id}")
     
     def clear(self):
         """清空所有注册的策略（仅用于测试）"""

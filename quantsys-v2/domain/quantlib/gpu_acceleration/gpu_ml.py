@@ -8,8 +8,6 @@ GPU加速机器学习训练
 - cuml (RAPIDS)
 - xgboost[gpu]
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -294,7 +292,7 @@ class GPUMLTrainer:
 
 def benchmark_ml_performance():
     """机器学习性能基准测试"""
-    logger.info('=== GPU vs CPU ML Performance Benchmark ===\n')
+    print("=== GPU vs CPU ML Performance Benchmark ===\n")
 
     # 生成测试数据
     np.random.seed(42)
@@ -310,59 +308,59 @@ def benchmark_ml_performance():
     y_train, y_test = y[:split], y[split:]
 
     # CPU训练
-    logger.info('CPU Training:')
+    print("CPU Training:")
     cpu_trainer = GPUMLTrainer(use_gpu=False)
 
     cpu_rf, cpu_rf_time = cpu_trainer.train_random_forest(
         X_train, y_train, n_estimators=100, max_depth=10
     )
     cpu_rf_score = cpu_rf.score(X_test, y_test)
-    logger.info(f'  Random Forest: {cpu_rf_time:.2f}s, score={cpu_rf_score:.4f}')
+    print(f"  Random Forest: {cpu_rf_time:.2f}s, score={cpu_rf_score:.4f}")
 
     cpu_lr, cpu_lr_time = cpu_trainer.train_logistic_regression(
         X_train, y_train, max_iter=1000
     )
     cpu_lr_score = cpu_lr.score(X_test, y_test)
-    logger.info(f'  Logistic Regression: {cpu_lr_time:.2f}s, score={cpu_lr_score:.4f}')
+    print(f"  Logistic Regression: {cpu_lr_time:.2f}s, score={cpu_lr_score:.4f}")
 
     # GPU训练
     if GPU_AVAILABLE:
-        logger.info('\nGPU Training:')
+        print("\nGPU Training:")
         gpu_trainer = GPUMLTrainer(use_gpu=True)
 
         gpu_rf, gpu_rf_time = gpu_trainer.train_random_forest(
             X_train, y_train, n_estimators=100, max_depth=10
         )
         gpu_rf_score = gpu_rf.score(X_test, y_test)
-        logger.info(f'  Random Forest: {gpu_rf_time:.2f}s, score={gpu_rf_score:.4f}')
-        logger.info(f'  Speedup: {cpu_rf_time / gpu_rf_time:.2f}x')
+        print(f"  Random Forest: {gpu_rf_time:.2f}s, score={gpu_rf_score:.4f}")
+        print(f"  Speedup: {cpu_rf_time/gpu_rf_time:.2f}x")
 
         gpu_lr, gpu_lr_time = gpu_trainer.train_logistic_regression(
             X_train, y_train, max_iter=1000
         )
         gpu_lr_score = gpu_lr.score(X_test, y_test)
-        logger.info(f'  Logistic Regression: {gpu_lr_time:.2f}s, score={gpu_lr_score:.4f}')
-        logger.info(f'  Speedup: {cpu_lr_time / gpu_lr_time:.2f}x')
+        print(f"  Logistic Regression: {gpu_lr_time:.2f}s, score={gpu_lr_score:.4f}")
+        print(f"  Speedup: {cpu_lr_time/gpu_lr_time:.2f}x")
     else:
-        logger.info('\nGPU not available, skipping GPU benchmark')
+        print("\nGPU not available, skipping GPU benchmark")
 
     # XGBoost对比
     if XGBOOST_AVAILABLE:
-        logger.info('\nXGBoost Training:')
+        print("\nXGBoost Training:")
 
         cpu_xgb, cpu_xgb_time = cpu_trainer.train_xgboost(
             X_train, y_train, n_estimators=100
         )
         cpu_xgb_score = cpu_xgb.score(X_test, y_test)
-        logger.info(f'  CPU: {cpu_xgb_time:.2f}s, score={cpu_xgb_score:.4f}')
+        print(f"  CPU: {cpu_xgb_time:.2f}s, score={cpu_xgb_score:.4f}")
 
         if GPU_AVAILABLE:
             gpu_xgb, gpu_xgb_time = gpu_trainer.train_xgboost(
                 X_train, y_train, n_estimators=100
             )
             gpu_xgb_score = gpu_xgb.score(X_test, y_test)
-            logger.info(f'  GPU: {gpu_xgb_time:.2f}s, score={gpu_xgb_score:.4f}')
-            logger.info(f'  Speedup: {cpu_xgb_time / gpu_xgb_time:.2f}x')
+            print(f"  GPU: {gpu_xgb_time:.2f}s, score={gpu_xgb_score:.4f}")
+            print(f"  Speedup: {cpu_xgb_time/gpu_xgb_time:.2f}x")
 
 
 # 使用示例
@@ -383,7 +381,7 @@ def example_usage():
     X_scaled, scaler = trainer.preprocess_data(X)
 
     # 交叉验证
-    logger.info('Cross Validation Results:')
+    print("Cross Validation Results:")
     cv_results = trainer.cross_validate(
         X_scaled, y,
         model_type='random_forest',
@@ -393,10 +391,10 @@ def example_usage():
     )
 
     for key, value in cv_results.items():
-        logger.info(f'  {key}: {value:.4f}')
+        print(f"  {key}: {value:.4f}")
 
 
 if __name__ == "__main__":
     example_usage()
-    logger.info('\n')
+    print("\n")
     benchmark_ml_performance()

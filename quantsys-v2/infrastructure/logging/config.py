@@ -45,8 +45,8 @@ def configure_structured_logging(
         from structlog.stdlib import add_log_level, add_logger_name
         from structlog.dev import ConsoleRenderer
     except ImportError:
-        logger.info('⚠️ structlog not installed. Run: pip install structlog')
-        logger.info('⚠️ Falling back to standard logging')
+        print("⚠️ structlog not installed. Run: pip install structlog")
+        print("⚠️ Falling back to standard logging")
         return _configure_standard_logging(level)
 
     # 配置标准库 logging（structlog 的底层）
@@ -220,16 +220,14 @@ def set_trace_id(trace_id: str) -> None:
         trace_id: 从上游服务接收的 trace ID
 
     Usage:
-        # 在 API 入口处
-        from flask import request
         from infrastructure.logging import set_trace_id
 
-        @app.before_request
-        def before_request():
-            # 从 header 读取 trace ID
+        # 在 FastAPI 中间件中
+        async def middleware(request: Request, call_next):
             trace_id = request.headers.get('X-Trace-ID')
             if trace_id:
                 set_trace_id(trace_id)
+            return await call_next(request)
     """
     _set_current_trace_id(trace_id)
 

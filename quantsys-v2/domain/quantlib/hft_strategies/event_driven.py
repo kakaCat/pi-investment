@@ -10,8 +10,6 @@
 3. 价格跳跃
 4. 成交量异常
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -533,7 +531,7 @@ class EventDrivenStrategy:
 # 使用示例
 def example_event_driven():
     """事件驱动策略示例"""
-    logger.info('=== Event-Driven Strategy ===\n')
+    print("=== Event-Driven Strategy ===\n")
 
     strategy = EventDrivenStrategy(
         symbol='BTC/USDT',
@@ -564,22 +562,22 @@ def example_event_driven():
         # 交易事件
         signal = strategy.on_trade(price, volume)
         if signal:
-            logger.info(f"Step {i}: {signal['action'].upper()} signal")
-            logger.info(f"  Reason: {signal['reason']}")
-            logger.info(f"  Side: {signal['side']}")
-            logger.info(f"  Price: {signal['price']:.2f}")
+            print(f"Step {i}: {signal['action'].upper()} signal")
+            print(f"  Reason: {signal['reason']}")
+            print(f"  Side: {signal['side']}")
+            print(f"  Price: {signal['price']:.2f}")
             strategy.on_fill(signal)
-            logger.info("")
+            print()
 
         # 检查平仓
         if strategy.position != 0:
             exit_signal = strategy.check_exit(price)
             if exit_signal:
-                logger.info(f'Step {i}: EXIT signal')
-                logger.info(f"  Reason: {exit_signal['reason']}")
-                logger.info(f"  Price: {exit_signal['price']:.2f}")
+                print(f"Step {i}: EXIT signal")
+                print(f"  Reason: {exit_signal['reason']}")
+                print(f"  Price: {exit_signal['price']:.2f}")
                 strategy.on_fill(exit_signal)
-                logger.info("")
+                print()
 
         # 模拟订单簿
         if i % 10 == 0:
@@ -592,13 +590,13 @@ def example_event_driven():
 
             imbalance_signal = strategy.on_order_book_update(bids, asks)
             if imbalance_signal:
-                logger.info(f'Step {i}: IMBALANCE signal')
-                logger.info(f"  Reason: {imbalance_signal['reason']}")
-                logger.info(f"  Side: {imbalance_signal['side']}")
+                print(f"Step {i}: IMBALANCE signal")
+                print(f"  Reason: {imbalance_signal['reason']}")
+                print(f"  Side: {imbalance_signal['side']}")
                 strategy.on_fill(imbalance_signal)
-                logger.info("")
+                print()
 
-    logger.info(f'\nFinal PnL: {strategy.pnl:.2f}')
+    print(f"\nFinal PnL: {strategy.pnl:.2f}")
 
 
 if __name__ == "__main__":

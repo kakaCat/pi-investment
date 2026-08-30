@@ -60,7 +60,11 @@ class SignalExecutionScheduler:
         self.ds = data_service or DataService()
         self.strategy_service = strategy_service or StrategyCodeService()
 
-        self._risk_service = risk_service
+        # risk_service 依赖 data_service，需要特殊处理
+        if risk_service:
+            self.risk_service = risk_service
+        else:
+            self.risk_service = RiskCheckService(self.ds)
 
         self.signal_repo = signal_repo
         self.log_repo = log_repo
@@ -80,16 +84,6 @@ class SignalExecutionScheduler:
                 initial_capital=1_000_000,
             )
         return self._paper_engine
-
-    @property
-    def risk_service(self):
-        if self._risk_service is None:
-            self._risk_service = RiskCheckService(self.ds)
-        return self._risk_service
-
-    @risk_service.setter
-    def risk_service(self, value):
-        self._risk_service = value
 
     def execute_daily_signals(self) -> Dict[str, Any]:
         """
@@ -392,8 +386,8 @@ class SignalExecutionScheduler:
 
                 close_price = float(latest_kline['close'])
 
-                # 计算限价单价格（action 大小写容忍，与 action_type 推导一致）
-                if str(signal['action']).lower() == 'buy':
+                # 计算限价单价格
+                if signal['action'] == 'BUY':  # signals 大写契约（08-13 统一）
                     limit_price = round(close_price * 1.01, 2)
                 else:
                     limit_price = round(close_price * 0.99, 2)

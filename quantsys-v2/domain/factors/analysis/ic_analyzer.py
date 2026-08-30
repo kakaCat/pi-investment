@@ -6,8 +6,6 @@ IR (Information Ratio): IC均值 / IC标准差
 
 用于评估因子的预测能力和稳定性
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -317,19 +315,19 @@ def example_usage():
         return_data,
         periods=[1, 5, 10, 20]
     )
-    logger.info('IC Series:')
-    logger.info(ic_series.head())
+    print("IC Series:")
+    print(ic_series.head())
 
     # 4. 计算IC统计指标
     ic_stats = analyzer.calculate_ic_statistics()
-    logger.info('\nIC Statistics:')
-    logger.info(ic_stats)
+    print("\nIC Statistics:")
+    print(ic_stats)
 
     # 5. 计算因子质量评分
     quality_scores = analyzer.get_factor_quality_score()
-    logger.info('\nFactor Quality Scores:')
+    print("\nFactor Quality Scores:")
     for period, scores in quality_scores.items():
-        logger.info(f"{period}: {scores['quality']} (Score: {scores['total_score']:.2f})")
+        print(f"{period}: {scores['quality']} (Score: {scores['total_score']:.2f})")
 
     # 6. 绘制IC图表
     # analyzer.plot_ic_series(save_path='ic_analysis.png')

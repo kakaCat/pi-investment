@@ -19,7 +19,10 @@ import structlog
 from adapters.inbound.fastapi_app.shared import (
     ds, api_response, error_response, handle_api_error,
 )
-from adapters.shared.services import market_data_service, hk_market_data_service
+# TEMPORARILY DISABLED: market_data_service has syntax errors
+# from adapters.shared.services import market_data_service, hk_market_data_service
+market_data_service = None
+hk_market_data_service = None
 
 logger = structlog.get_logger(__name__)
 

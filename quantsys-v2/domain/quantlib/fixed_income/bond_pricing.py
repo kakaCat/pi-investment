@@ -21,8 +21,6 @@ Features:
 Author: Migrated from FinceptTerminal
 Date: 2026-05-24
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import numpy as np
 from scipy import optimize
@@ -252,8 +250,7 @@ class BondPricingCalculator(BaseCalculator):
             # Fallback to Newton's method
             try:
                 ytm = optimize.newton(price_diff, coupon_rate, tol=1e-10, maxiter=100)
-            except Exception:
-                logger.debug("unexpected exception in module", exc_info=True)
+            except:
                 raise CalculationError("Could not converge to YTM solution", calculation_type='ytm')
 
         # Calculate related metrics
@@ -337,12 +334,10 @@ class BondPricingCalculator(BaseCalculator):
 
         try:
             ytc = optimize.brentq(price_diff, -0.99, 2.0, xtol=1e-10)
-        except Exception:
-            logger.debug("unexpected exception in module", exc_info=True)
+        except:
             try:
                 ytc = optimize.newton(price_diff, coupon_rate, tol=1e-10, maxiter=100)
-            except Exception:
-                logger.debug("unexpected exception in module", exc_info=True)
+            except:
                 raise CalculationError("Could not converge to YTC solution", calculation_type='ytc')
 
         return self._create_result_dict(
@@ -402,8 +397,7 @@ class BondPricingCalculator(BaseCalculator):
                     )
                     ytc = ytc_result['value']
                     yields.append({'type': 'YTC', 'years': years_to_call, 'yield': ytc, 'call_price': call_price})
-                except Exception:
-                    logger.debug("unexpected exception in module", exc_info=True)
+                except:
                     continue
 
         # Find minimum yield (worst case)

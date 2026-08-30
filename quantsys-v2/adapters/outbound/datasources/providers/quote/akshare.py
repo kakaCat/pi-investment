@@ -1,14 +1,15 @@
 """
 AkShare quote provider implementation
 """
+import os
 import akshare as ak
 import pandas as pd
 from datetime import datetime
 from typing import Optional
+from unittest.mock import patch
 
 from adapters.outbound.datasources.base import QuoteProvider
 from adapters.outbound.datasources.models import QuoteData
-from infrastructure.config.proxy import proxy_disabled
 
 
 class AkshareQuoteProvider(QuoteProvider):
@@ -32,11 +33,18 @@ class AkshareQuoteProvider(QuoteProvider):
         Raises:
             Exception: If akshare API call fails
         """
-        # Disable proxy before akshare makes requests (akshare 内部 requests 会读取代理环境变量)
+        # Disable proxy by patching environment variables before akshare makes requests
+        # This ensures akshare's internal requests session doesn't use proxy
         self.last_error = None
+        env_patch = {
+            'HTTP_PROXY': '',
+            'HTTPS_PROXY': '',
+            'http_proxy': '',
+            'https_proxy': ''
+        }
 
         try:
-            with proxy_disabled():
+            with patch.dict(os.environ, env_patch, clear=False):
                 # Detect A-share vs HK stock
                 # A-share: 6-digit code (e.g., 600000)
                 # HK stock: 1-5 digits (e.g., 00700) or .HK suffix (e.g., 0700.HK)

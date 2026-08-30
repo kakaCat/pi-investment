@@ -14,8 +14,6 @@ from typing import Dict, Any
 import requests
 from datetime import datetime
 
-from infrastructure.config.settings import get_settings
-
 logger = structlog.get_logger(__name__)
 
 
@@ -88,7 +86,8 @@ def notify_train_success(result: Dict[str, Any], webhook_url: str = None) -> boo
         webhook_url: 飞书webhook（可从环境变量读取）
     """
     if not webhook_url:
-        webhook_url = get_settings().external.feishu_webhook_model_train
+        import os
+        webhook_url = os.getenv("FEISHU_WEBHOOK_MODEL_TRAIN")
         if not webhook_url:
             logger.warning("未配置飞书webhook，跳过通知")
             return False
@@ -129,7 +128,8 @@ def notify_train_failure(result: Dict[str, Any], webhook_url: str = None) -> boo
         webhook_url: 飞书webhook
     """
     if not webhook_url:
-        webhook_url = get_settings().external.feishu_webhook_model_train
+        import os
+        webhook_url = os.getenv("FEISHU_WEBHOOK_MODEL_TRAIN")
         if not webhook_url:
             return False
     
@@ -159,7 +159,8 @@ def notify_train_skipped(result: Dict[str, Any], webhook_url: str = None) -> boo
         webhook_url: 飞书webhook
     """
     if not webhook_url:
-        webhook_url = get_settings().external.feishu_webhook_model_train
+        import os
+        webhook_url = os.getenv("FEISHU_WEBHOOK_MODEL_TRAIN")
         if not webhook_url:
             return False
     
@@ -210,7 +211,8 @@ def check_model_performance_alert(webhook_url: str = None) -> bool:
         是否需要告警
     """
     if not webhook_url:
-        webhook_url = get_settings().external.feishu_webhook_model_train
+        import os
+        webhook_url = os.getenv("FEISHU_WEBHOOK_MODEL_TRAIN")
         if not webhook_url:
             return False
     

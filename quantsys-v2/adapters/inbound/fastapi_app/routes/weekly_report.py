@@ -11,7 +11,6 @@ import structlog
 
 from adapters.inbound.fastapi_app.shared import api_response, error_response, handle_api_error
 from application.services.weekly_report_service import WeeklyReportService
-from infrastructure.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
 
@@ -117,10 +116,11 @@ def push_weekly_report_to_feishu(
             }
         }
     """
-    # 如果未提供 webhook，尝试从配置读取
+    # 如果未提供 webhook，尝试从环境变量读取
     if not feishu_webhook:
-        feishu_webhook = get_settings().external.feishu_weekly_report_webhook
-
+        import os
+        feishu_webhook = os.getenv('FEISHU_WEEKLY_REPORT_WEBHOOK')
+        
         if not feishu_webhook:
             return error_response(
                 "未提供飞书 webhook URL，且环境变量 FEISHU_WEEKLY_REPORT_WEBHOOK 未设置",

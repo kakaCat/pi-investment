@@ -21,7 +21,7 @@ class TestAkshareQuoteProvider(unittest.TestCase):
         """Test provider name property"""
         self.assertEqual(self.provider.name, "akshare")
 
-    @patch('application.services.quote_providers.akshare_provider.ak.stock_zh_a_spot_em')
+    @patch('services.quote_providers.akshare_provider.ak.stock_zh_a_spot_em')
     def test_get_a_stock_quote_success(self, mock_spot_em):
         """Test successful A-share quote retrieval"""
         # Mock akshare response
@@ -60,7 +60,7 @@ class TestAkshareQuoteProvider(unittest.TestCase):
         # Verify akshare was called
         mock_spot_em.assert_called_once()
 
-    @patch('application.services.quote_providers.akshare_provider.ak.stock_hk_spot_em')
+    @patch('services.quote_providers.akshare_provider.ak.stock_hk_spot_em')
     def test_get_hk_stock_quote_success(self, mock_hk_spot):
         """Test successful HK stock quote retrieval"""
         # Mock akshare response
@@ -98,7 +98,7 @@ class TestAkshareQuoteProvider(unittest.TestCase):
         # Verify akshare was called
         mock_hk_spot.assert_called_once()
 
-    @patch('application.services.quote_providers.akshare_provider.ak.stock_zh_a_spot_em')
+    @patch('services.quote_providers.akshare_provider.ak.stock_zh_a_spot_em')
     def test_stock_not_found(self, mock_spot_em):
         """Test stock not found returns None"""
         # Mock empty DataFrame
@@ -112,7 +112,7 @@ class TestAkshareQuoteProvider(unittest.TestCase):
         self.assertIsNone(result)
         mock_spot_em.assert_called_once()
 
-    @patch('application.services.quote_providers.akshare_provider.ak.stock_zh_a_spot_em')
+    @patch('services.quote_providers.akshare_provider.ak.stock_zh_a_spot_em')
     def test_akshare_api_error(self, mock_spot_em):
         """Test akshare API error handling"""
         # Mock API error
@@ -126,7 +126,7 @@ class TestAkshareQuoteProvider(unittest.TestCase):
         self.assertIn("akshare 查询失败", str(context.exception))
         mock_spot_em.assert_called_once()
 
-    @patch('application.services.quote_providers.akshare_provider.ak.stock_zh_a_spot_em')
+    @patch('services.quote_providers.akshare_provider.ak.stock_zh_a_spot_em')
     def test_a_share_symbol_normalization(self, mock_spot_em):
         """Test A-share symbol with .SH/.SZ suffix is properly cleaned"""
         # Mock akshare response
@@ -152,7 +152,7 @@ class TestAkshareQuoteProvider(unittest.TestCase):
         self.assertEqual(result.symbol, '000001')
         mock_spot_em.assert_called_once()
 
-    @patch('application.services.quote_providers.akshare_provider.ak.stock_hk_spot_em')
+    @patch('services.quote_providers.akshare_provider.ak.stock_hk_spot_em')
     def test_hk_stock_symbol_normalization(self, mock_hk_spot):
         """Test HK stock symbol with .HK suffix is properly cleaned and padded"""
         # Mock akshare response
@@ -177,7 +177,7 @@ class TestAkshareQuoteProvider(unittest.TestCase):
         self.assertEqual(result.symbol, '00700')
         mock_hk_spot.assert_called_once()
 
-    @patch('application.services.quote_providers.akshare_provider.ak.stock_zh_a_spot_em')
+    @patch('services.quote_providers.akshare_provider.ak.stock_zh_a_spot_em')
     def test_missing_dataframe_column(self, mock_spot_em):
         """Test graceful handling when DataFrame schema changes"""
         # Mock DataFrame with missing column

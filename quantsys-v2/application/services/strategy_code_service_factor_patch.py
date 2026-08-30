@@ -378,4 +378,4 @@ Step 5: 测试:
 """
 
 if __name__ == "__main__":
-    logger.info(USAGE_INSTRUCTIONS)
+    print(USAGE_INSTRUCTIONS)

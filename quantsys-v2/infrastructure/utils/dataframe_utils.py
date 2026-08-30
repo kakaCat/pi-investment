@@ -3,8 +3,6 @@ DataFrame 工具函数
 
 提供兼容 Pandas 和 Polars DataFrame 的通用函数
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 from typing import Any, Union
 
@@ -41,8 +39,7 @@ def is_dataframe_empty(df: Any) -> bool:
     # 回退到长度检查
     try:
         return len(df) == 0
-    except Exception:
-        logger.debug("unexpected exception in module", exc_info=True)
+    except:
         return True
 
 
@@ -61,8 +58,7 @@ def dataframe_length(df: Any) -> int:
 
     try:
         return len(df)
-    except Exception:
-        logger.debug("unexpected exception in module", exc_info=True)
+    except:
         return 0
 
 
@@ -99,8 +95,7 @@ def to_pandas(df: Any):
     try:
         import pandas as pd
         return pd.DataFrame(df)
-    except Exception:
-        logger.debug("unexpected exception in module", exc_info=True)
+    except:
         return df
 
 
@@ -138,6 +133,5 @@ def to_polars(df: Any):
     try:
         import polars as pl
         return pl.DataFrame(df)
-    except Exception:
-        logger.debug("unexpected exception in module", exc_info=True)
+    except:
         return df

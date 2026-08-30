@@ -7,8 +7,6 @@ stationarity tests, and trend decomposition.
 
 Inspired by FinceptTerminal's AdvancedQuantAnalyzer.
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -776,8 +774,7 @@ class TimeSeriesAnalyzer(BaseCalculator):
                         'statistic': float(test.test_statistic),
                         'pvalue': float(test.pvalue)
                     }
-                except Exception:
-                    logger.debug("unexpected exception in module", exc_info=True)
+                except:
                     pass
 
             return self._create_result_dict(

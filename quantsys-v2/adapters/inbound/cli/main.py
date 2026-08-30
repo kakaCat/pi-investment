@@ -3,8 +3,6 @@ QuantSys V2 CLI - Command Pattern Implementation
 
 使用Command模式，CLI通过HTTP调用API。
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import sys
 from pathlib import Path
@@ -318,15 +316,15 @@ def run():
     # 获取命令
     command = registry.get(command_name)
     if not command:
-        logger.warning(f"错误: 未知命令 '{command_name}'")
+        print(f"错误: 未知命令 '{command_name}'", file=sys.stderr)
         return 1
 
     # 健康检查（仅对需要HTTP的命令）
     from adapters.inbound.cli.command_base import HTTPCommand
     if isinstance(command, HTTPCommand):
         if not client.health_check():
-            logger.warning(f'错误: 无法连接到API服务 ({args.api_url})')
-            logger.warning('请确保API服务已启动')
+            print(f"错误: 无法连接到API服务 ({args.api_url})", file=sys.stderr)
+            print("请确保API服务已启动", file=sys.stderr)
             return 1
 
     try:
@@ -348,20 +346,20 @@ def run():
 
         if result.success:
             output = formatter.format(result.data)
-            logger.info(output)
+            print(output)
             return 0
         else:
-            logger.warning(f'错误: {result.error}')
+            print(f"错误: {result.error}", file=sys.stderr)
             if result.warnings:
                 for warning in result.warnings:
-                    logger.warning(f'警告: {warning}')
+                    print(f"警告: {warning}", file=sys.stderr)
             return 1
 
     except KeyboardInterrupt:
-        logger.warning('\n已取消')
+        print("\n已取消", file=sys.stderr)
         return 130
     except Exception as e:
-        logger.warning(f'错误: {str(e)}')
+        print(f"错误: {str(e)}", file=sys.stderr)
         import traceback
         traceback.print_exc()
         return 1

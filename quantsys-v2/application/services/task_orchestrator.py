@@ -346,12 +346,12 @@ async def example_usage():
     )
 
     # 显示执行计划
-    logger.info(orchestrator.visualize_plan())
+    print(orchestrator.visualize_plan())
 
     # 执行所有任务
     result = await orchestrator.execute_all()
-    logger.info('\nExecution Result:')
-    logger.info(result)
+    print("\nExecution Result:")
+    print(result)
 
 
 if __name__ == "__main__":

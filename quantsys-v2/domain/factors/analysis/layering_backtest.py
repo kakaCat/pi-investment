@@ -4,8 +4,6 @@
 按因子值分N层，计算每层收益，分析单调性
 用于评估因子的区分能力
 """
-import structlog
-logger = structlog.get_logger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -393,27 +391,27 @@ def example_usage():
         return_data,
         holding_period=20
     )
-    logger.info('Layer Returns:')
-    logger.info(layer_returns.head())
+    print("Layer Returns:")
+    print(layer_returns.head())
 
     # 4. 计算统计指标
     layer_stats = backtester.calculate_layer_statistics()
-    logger.info('\nLayer Statistics:')
-    logger.info(layer_stats)
+    print("\nLayer Statistics:")
+    print(layer_stats)
 
     # 5. 检查单调性
     monotonicity = backtester.check_monotonicity()
-    logger.info(f"\nMonotonicity Score: {monotonicity['monotonicity_score']:.2f}")
+    print(f"\nMonotonicity Score: {monotonicity['monotonicity_score']:.2f}")
 
     # 6. 计算多空收益
     long_short = backtester.calculate_long_short_returns()
-    logger.info(f'\nLong-Short Return: {long_short.mean():.4f}')
-    logger.info(f'Long-Short Sharpe: {long_short.mean() / long_short.std() * np.sqrt(252):.2f}')
+    print(f"\nLong-Short Return: {long_short.mean():.4f}")
+    print(f"Long-Short Sharpe: {long_short.mean() / long_short.std() * np.sqrt(252):.2f}")
 
     # 7. 计算有效性评分
     effectiveness = backtester.get_factor_effectiveness_score()
-    logger.info(f"\nFactor Effectiveness: {effectiveness['effectiveness']}")
-    logger.info(f"Total Score: {effectiveness['total_score']:.2f}")
+    print(f"\nFactor Effectiveness: {effectiveness['effectiveness']}")
+    print(f"Total Score: {effectiveness['total_score']:.2f}")
 
     # 8. 绘制图表
     # backtester.plot_layer_performance(save_path='layer_performance.png')

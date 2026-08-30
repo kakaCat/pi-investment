@@ -8,7 +8,7 @@
 
 在开始写代码前，请确保你已经：
 
-- [ ] 阅读 [CODING_STANDARDS.md](../CODING_STANDARDS.md)（完整规范）
+- [ ] 阅读 [CODING_STANDARDS.md](../../docs/coding-standards.md)（完整规范）
 - [ ] 收藏 [ARCHITECTURE_QUICK_REFERENCE.md](ARCHITECTURE_QUICK_REFERENCE.md)（日常速查）
 - [ ] 安装 pre-commit hook（自动检查）
 - [ ] 运行一次架构检测工具（验证环境）
@@ -301,7 +301,7 @@ class MyService:
 
 ## 📖 进阶阅读
 
-- [完整编码规范](../CODING_STANDARDS.md) - 详细规则和示例
+- [完整编码规范](../../docs/coding-standards.md) - 详细规则和示例
 - [架构快速参考](ARCHITECTURE_QUICK_REFERENCE.md) - 模式速查卡
 - [架构审计进度](architecture-audit-progress.md) - 重构历程
 

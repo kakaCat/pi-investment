@@ -14,7 +14,7 @@ class TestSinaQuoteProvider:
         provider = SinaQuoteProvider()
         assert provider.name == "sina"
 
-    @patch('application.services.quote_providers.sina_provider.requests.get')
+    @patch('services.quote_providers.sina_provider.requests.get')
     def test_get_a_stock_quote_success(self, mock_get):
         """Test successful A-share quote retrieval"""
         # Mock response for 000001.SH (浦发银行)
@@ -40,7 +40,7 @@ class TestSinaQuoteProvider:
         assert abs(quote.change_pct - 0.608) < 0.001  # (10/1645)*100
         assert quote.timestamp is not None
 
-    @patch('application.services.quote_providers.sina_provider.requests.get')
+    @patch('services.quote_providers.sina_provider.requests.get')
     def test_get_hk_stock_quote_success(self, mock_get):
         """Test successful HK stock quote retrieval"""
         # Mock response for 00700.HK (腾讯控股)
@@ -64,7 +64,7 @@ class TestSinaQuoteProvider:
         assert abs(quote.change_pct - 0.286) < 0.001  # (1/349)*100
         assert quote.timestamp is not None
 
-    @patch('application.services.quote_providers.sina_provider.requests.get')
+    @patch('services.quote_providers.sina_provider.requests.get')
     def test_empty_response(self, mock_get):
         """Test empty response handling"""
         mock_response = Mock()
@@ -77,7 +77,7 @@ class TestSinaQuoteProvider:
 
         assert quote is None
 
-    @patch('application.services.quote_providers.sina_provider.requests.get')
+    @patch('services.quote_providers.sina_provider.requests.get')
     def test_network_error(self, mock_get):
         """Test network error handling"""
         mock_get.side_effect = Exception("Connection timeout")

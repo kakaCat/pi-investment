@@ -1,6 +1,4 @@
 """缠论分析服务"""
-import structlog
-logger = structlog.get_logger(__name__)
 from domain.ports import IAgentKnowledgeRepository, IKlineRepository
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
@@ -119,7 +117,7 @@ class ChanService:
                 }
             return out
         except Exception as e:
-            logger.info(f'加载缠论知识失败（不阻塞分析）: {e}')
+            print(f"加载缠论知识失败（不阻塞分析）: {e}")
             return {}
 
     def _fetch_kline_data(self, symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
@@ -159,7 +157,7 @@ class ChanService:
             return df[required_cols]
 
         except Exception as e:
-            logger.info(f'获取K线数据失败: {e}')
+            print(f"获取K线数据失败: {e}")
             import traceback
             traceback.print_exc()
             return pd.DataFrame()

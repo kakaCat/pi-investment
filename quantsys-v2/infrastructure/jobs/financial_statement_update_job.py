@@ -17,8 +17,6 @@
 （沪深300×3季度，写入方 UpdateFinancialDataJob 已被删除），profile 分类全部
 退化 balanced。本 job 重建财报数据链路。
 """
-import structlog
-logger = structlog.get_logger(__name__)
 import os
 import sys
 import time
@@ -216,7 +214,7 @@ def main():
     args = parser.parse_args()
 
     result = execute(symbols=args.symbols, periods=args.periods)
-    logger.info(result)
+    print(result)
     sys.exit(0 if result['success'] else 1)
 
 
