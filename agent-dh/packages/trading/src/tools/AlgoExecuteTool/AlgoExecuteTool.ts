@@ -141,7 +141,7 @@ export class AlgoExecuteTool extends BaseTool<AlgoExecuteParams, AlgoExecuteResu
     // assertTradingHours();
 
     const result = await this.qv2.executeAlgo({
-      action: args.action.toLowerCase() as 'buy' | 'sell',
+      side: args.action.toLowerCase() as 'buy' | 'sell',
       symbol: args.symbol,
       quantity: args.quantity,
       algo: args.algo || 'TWAP',

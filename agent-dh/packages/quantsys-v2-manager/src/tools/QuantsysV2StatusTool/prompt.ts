@@ -61,5 +61,11 @@ export const quantsysV2StatusPrompt: ToolPrompt<QuantsysV2StatusParams, Quantsys
         timestamp: { type: 'string', description: '检查时间戳' },
       },
     },
+    render: (_args: QuantsysV2StatusParams, data: QuantsysV2StatusResult) => [{
+      type: 'text',
+      text: data.running
+        ? `✓ QuantsysV2 运行中 | DB: ${data.db_connected ? '✓' : '✗'} | 持仓: ${data.holdings_count} | 信号: ${data.recent_signals}`
+        : `✗ QuantsysV2 未运行 | ${data.error || '未知错误'}`,
+    }],
   },
 };

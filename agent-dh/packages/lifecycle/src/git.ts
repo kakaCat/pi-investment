@@ -14,6 +14,7 @@ export class GitRepo {
   }
 
   currentBranch(): string { return this.git(['branch', '--show-current']); }
+  isClean(): boolean { return this.git(['status', '--porcelain']).length === 0; }
   head(): string { return this.git(['rev-parse', 'HEAD']); }
 
   hasChanges(paths: string[]): boolean {

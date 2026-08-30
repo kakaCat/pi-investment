@@ -90,5 +90,9 @@ export const experienceWritePrompt: ToolPrompt<ExperienceWriteParams, Experience
       },
       additionalProperties: true,
     },
+    render: (_args: ExperienceWriteParams, data: ExperienceWriteResult) => [{
+      type: 'text',
+      text: data.success ? `✓ 经验已记录 (${data.experience_id})` : `✗ 记录失败`,
+    }],
   },
 };

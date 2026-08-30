@@ -133,5 +133,9 @@ export const competitionAnalysisPrompt: ToolPrompt<CompetitionAnalysisParams, Co
         summary: { type: 'string' },
       },
     },
+    render: (_args: CompetitionAnalysisParams, data: CompetitionAnalysisResult) => [{
+      type: 'text',
+      text: `## ${data.company_name} (${data.symbol}) 竞争分析\n\n${data.summary}`,
+    }],
   },
 };

@@ -82,7 +82,7 @@ export class DataManagerTool extends BaseTool<DataManagerParams, DataManagerResu
       requestParams.end_date = params.end_date;
     }
 
-    const response = await this.quantsysClient.runQuantV2('data_manager', requestParams);
+    const response = await this.quantsysClient.dataManager(requestParams);
 
     return response as DataManagerResult;
   }

@@ -61,14 +61,14 @@ importers:
         specifier: ^1.2.0
         version: 1.6.1(@types/node@20.19.43)
 
-  packages/agent-dh-client:
+  ../agent-os-client:
     dependencies:
-      '@pi-investment/agent-os-client':
-        specifier: file:../../../agent-os-client
-        version: file:../agent-os-client
-      '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+      axios:
+        specifier: ^1.6.0
+        version: 1.19.0
+      axios-retry:
+        specifier: ^4.0.0
+        version: 4.5.0(axios@1.19.0)
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -83,7 +83,7 @@ importers:
         specifier: ^1.2.0
         version: 1.6.1(@types/node@20.19.43)
 
-  packages/agent-os-client:
+  ../quantsys-v2-client:
     dependencies:
       axios:
         specifier: ^1.6.0
@@ -91,6 +91,28 @@ importers:
       axios-retry:
         specifier: ^4.0.0
         version: 4.5.0(axios@1.19.0)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      tsdown:
+        specifier: ^0.22.14
+        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.2.0
+        version: 1.6.1(@types/node@20.19.43)
+
+  packages/agent-dh-client:
+    dependencies:
+      '@pi-investment/agent-os-client':
+        specifier: workspace:*
+        version: link:../../../agent-os-client
+      '@pi-investment/quantsys-v2-client':
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -135,8 +157,8 @@ importers:
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -169,8 +191,8 @@ importers:
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -191,8 +213,8 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: file:../../../agent-os-client
-        version: file:../agent-os-client
+        specifier: workspace:*
+        version: link:../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
@@ -216,11 +238,11 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: file:../../../agent-os-client
-        version: file:../agent-os-client
+        specifier: workspace:*
+        version: link:../../../agent-os-client
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
 
   packages/factor:
     dependencies:
@@ -237,8 +259,8 @@ importers:
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -284,8 +306,8 @@ importers:
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -309,8 +331,8 @@ importers:
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -325,8 +347,8 @@ importers:
         specifier: ^4.0.1
         version: 4.0.1
       '@pi-investment/agent-os-client':
-        specifier: file:../../../agent-os-client
-        version: file:../agent-os-client
+        specifier: workspace:*
+        version: link:../../../agent-os-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -353,14 +375,14 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: file:../../../agent-os-client
-        version: file:../agent-os-client
+        specifier: workspace:*
+        version: link:../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
 
   packages/lifecycle:
     dependencies:
@@ -383,14 +405,14 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: file:../agent-os-client
-        version: file:packages/agent-os-client
+        specifier: workspace:*
+        version: link:../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -417,14 +439,14 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: file:../../../agent-os-client
-        version: file:../agent-os-client
+        specifier: workspace:*
+        version: link:../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -445,14 +467,14 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: file:../../../agent-os-client
-        version: file:../agent-os-client
+        specifier: workspace:*
+        version: link:../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -473,8 +495,8 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: file:../../../agent-os-client
-        version: file:../agent-os-client
+        specifier: workspace:*
+        version: link:../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
@@ -501,8 +523,8 @@ importers:
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
 
   packages/risk:
     dependencies:
@@ -516,14 +538,14 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: file:../../../agent-os-client
-        version: file:../agent-os-client
+        specifier: workspace:*
+        version: link:../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -544,8 +566,8 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: file:../../../agent-os-client
-        version: file:../agent-os-client
+        specifier: workspace:*
+        version: link:../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
@@ -572,8 +594,8 @@ importers:
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -594,14 +616,14 @@ importers:
         specifier: ^3.18.1
         version: 3.18.1
       '@pi-investment/agent-os-client':
-        specifier: file:../../../agent-os-client
-        version: file:../agent-os-client
+        specifier: workspace:*
+        version: link:../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
       '@pi-investment/quantsys-v2-client':
-        specifier: file:../../../quantsys-v2-client
-        version: file:../quantsys-v2-client
+        specifier: workspace:*
+        version: link:../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -3903,36 +3925,3 @@ packages:
       '@yuku-parser/binding-win32-arm64': 0.8.7
       '@yuku-parser/binding-win32-x64': 0.8.7
     dev: true
-
-  file:../agent-os-client:
-    resolution: {directory: ../agent-os-client, type: directory}
-    name: '@pi-investment/agent-os-client'
-    dependencies:
-      axios: 1.19.0
-      axios-retry: 4.5.0(axios@1.19.0)
-    transitivePeerDependencies:
-      - debug
-      - supports-color
-    dev: false
-
-  file:../quantsys-v2-client:
-    resolution: {directory: ../quantsys-v2-client, type: directory}
-    name: '@pi-investment/quantsys-v2-client'
-    dependencies:
-      axios: 1.19.0
-      axios-retry: 4.5.0(axios@1.19.0)
-    transitivePeerDependencies:
-      - debug
-      - supports-color
-    dev: false
-
-  file:packages/agent-os-client:
-    resolution: {directory: packages/agent-os-client, type: directory}
-    name: '@pi-investment/agent-os-client'
-    dependencies:
-      axios: 1.19.0
-      axios-retry: 4.5.0(axios@1.19.0)
-    transitivePeerDependencies:
-      - debug
-      - supports-color
-    dev: false

@@ -406,7 +406,7 @@ export interface TradeResponse {
  * Algorithmic order execution request
  */
 export interface AlgoExecuteRequest {
-  action: 'buy' | 'sell';
+  side: 'buy' | 'sell';
   symbol: string;
   quantity: number;
   algo: 'TWAP' | 'VWAP';
@@ -515,6 +515,8 @@ export interface RiskControlRequest {
   symbol?: string;
   account_name?: string;
   risk_level?: 'large_cap' | 'growth' | 'small_cap_theme';
+  price?: number;
+  entry_price?: number;
 }
 
 /**

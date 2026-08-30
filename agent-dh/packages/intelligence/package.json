@@ -14,7 +14,7 @@
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/schemastery": "^3.18.1",
     "@pi-investment/core-tool": "workspace:*",
-    "@pi-investment/quantsys-v2-client": "file:../../../quantsys-v2-client"
+    "@pi-investment/quantsys-v2-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

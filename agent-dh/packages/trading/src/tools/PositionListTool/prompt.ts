@@ -14,12 +14,14 @@ export interface PositionItem {
   symbol: string;
   name: string;
   quantity: number;
-  shares_available: number;
-  cost_price: number;
-  current_price: number;
-  market_value: number;
-  pnl: number;
-  pnl_pct: number;
+  sharesAvailable: number;
+  avgCost: number;
+  currentPrice: number;
+  totalCost: number;
+  currentValue: number;
+  profitLoss: number;
+  profitLossPct: number;
+  profitToday: number;
 }
 
 export type PositionListResult = PositionItem[];
@@ -68,12 +70,14 @@ export const positionListPrompt: ToolPrompt<PositionListParams, PositionListResu
           symbol: { type: 'string', description: '股票代码' },
           name: { type: 'string', description: '股票名称' },
           quantity: { type: 'integer', description: '持仓数量（股）' },
-          shares_available: { type: 'integer', description: '可卖数量（股），受T+1限制' },
-          cost_price: { type: 'number', description: '成本价（元）' },
-          current_price: { type: 'number', description: '当前价（元）' },
-          market_value: { type: 'number', description: '市值（元）' },
-          pnl: { type: 'number', description: '盈亏（元）' },
-          pnl_pct: { type: 'number', description: '盈亏比例（%）' },
+          sharesAvailable: { type: 'integer', description: '可卖数量（股），受T+1限制' },
+          avgCost: { type: 'number', description: '成本价（元）' },
+          currentPrice: { type: 'number', description: '当前价（元）' },
+          totalCost: { type: 'number', description: '总成本（元）' },
+          currentValue: { type: 'number', description: '当前市值（元）' },
+          profitLoss: { type: 'number', description: '盈亏（元）' },
+          profitLossPct: { type: 'number', description: '盈亏比例（%）' },
+          profitToday: { type: 'number', description: '今日盈亏（元）' },
         },
         additionalProperties: false,
       },
@@ -92,11 +96,11 @@ export const positionListPrompt: ToolPrompt<PositionListParams, PositionListResu
       let t1RestrictedCount = 0;
 
       for (const pos of data) {
-        totalMarketValue += pos.market_value;
-        totalPnl += pos.pnl;
-        if (pos.pnl > 0) profitCount++;
-        if (pos.pnl < 0) lossCount++;
-        if (pos.shares_available < pos.quantity) t1RestrictedCount++;
+        totalMarketValue += pos.currentValue;
+        totalPnl += pos.profitLoss;
+        if (pos.profitLoss > 0) profitCount++;
+        if (pos.profitLoss < 0) lossCount++;
+        if (pos.sharesAvailable < pos.quantity) t1RestrictedCount++;
       }
 
       const totalPnlPct = totalMarketValue > 0 ? (totalPnl / (totalMarketValue - totalPnl)) * 100 : 0;
@@ -121,17 +125,17 @@ export const positionListPrompt: ToolPrompt<PositionListParams, PositionListResu
       output += `|------|------|------|------|--------|------|----------|------|--------|\n`;
 
       // 按盈亏率排序（亏损在前）
-      const sortedData = [...data].sort((a, b) => a.pnl_pct - b.pnl_pct);
+      const sortedData = [...data].sort((a, b) => a.profitLossPct - b.profitLossPct);
 
       for (const pos of sortedData) {
-        const pnlIcon = pos.pnl >= 0 ? '✅' : '❌';
-        const t1Warning = pos.shares_available < pos.quantity ? '⚠️' : '';
+        const pnlIcon = pos.profitLoss >= 0 ? '✅' : '❌';
+        const t1Warning = pos.sharesAvailable < pos.quantity ? '⚠️' : '';
 
-        output += `| ${pos.symbol} | ${pos.name} | ${pos.quantity} | ${pos.shares_available}${t1Warning} | `;
-        output += `${pos.cost_price.toFixed(2)} | ${pos.current_price.toFixed(2)} | `;
-        output += `${(pos.market_value / 10000).toFixed(2)} | `;
-        output += `${pnlIcon} ${(pos.pnl / 10000).toFixed(2)}万 | `;
-        output += `${pos.pnl_pct >= 0 ? '+' : ''}${pos.pnl_pct.toFixed(2)}% |\n`;
+        output += `| ${pos.symbol} | ${pos.name} | ${pos.quantity} | ${pos.sharesAvailable}${t1Warning} | `;
+        output += `${pos.avgCost.toFixed(2)} | ${pos.currentPrice.toFixed(2)} | `;
+        output += `${(pos.currentValue / 10000).toFixed(2)} | `;
+        output += `${pnlIcon} ${(pos.profitLoss / 10000).toFixed(2)}万 | `;
+        output += `${pos.profitLossPct >= 0 ? '+' : ''}${pos.profitLossPct.toFixed(2)}% |\n`;
       }
 
       if (t1RestrictedCount > 0) {

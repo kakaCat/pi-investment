@@ -14,8 +14,9 @@
     proposal = engine.evaluate()  # 每日盘前调用
     engine.execute_rotation(proposal)  # Agent 确认后执行
 """
-from domain.ports import IAgentIntelligenceRepository, ISimulationRepository, IStrategyPerformanceRepository, IStrategyRepository
 from __future__ import annotations
+
+from domain.ports import IAgentIntelligenceRepository, ISimulationRepository, IStrategyPerformanceRepository, IStrategyRepository
 
 import structlog
 from typing import Dict, Any, Optional, List

@@ -50,7 +50,7 @@ export class DataQualityReportTool extends BaseTool<DataQualityReportParams, Dat
     const dataType = params.data_type || 'all';
     const days = params.days || 7;
 
-    const response = await this.quantsysClient.runQuantV2('data_quality_report', {
+    const response = await this.quantsysClient.getDataQualityReport({
       data_type: dataType,
       days,
     });

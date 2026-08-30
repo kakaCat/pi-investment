@@ -85,5 +85,9 @@ export const memoryWritePrompt: ToolPrompt<MemoryWriteParams, MemoryWriteResult>
       },
       additionalProperties: true,
     },
+    render: (_args: MemoryWriteParams, data: MemoryWriteResult) => [{
+      type: 'text',
+      text: data.success ? `✓ 记忆已写入 (${data.memory_id})` : `✗ 写入失败: ${data.message}`,
+    }],
   },
 };

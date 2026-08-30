@@ -72,7 +72,7 @@ export class KlineDailySyncTool extends BaseTool<KlineDailySyncParams, KlineDail
       requestParams.force = params.force;
     }
 
-    const response = await this.quantsysClient.runQuantV2('kline_daily_sync', requestParams);
+    const response = await this.quantsysClient.syncDailyKlines(requestParams);
 
     return response as KlineDailySyncResult;
   }

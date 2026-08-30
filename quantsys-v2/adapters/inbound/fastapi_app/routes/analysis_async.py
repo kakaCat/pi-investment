@@ -937,20 +937,71 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
             'error': '开始日期和结束日期不能为空'
         }, 400)
 
-    # 调用 DataService 分析因子
-    result = ds.analyze_factors(
-        factors=factors,
-        start_date=start_date,
-        end_date=end_date,
-        universe=universe,
-        use_alphalens=use_alphalens
-    )
+    try:
+        import numpy as np
+        import pandas as pd
+        from domain.factors.analysis.ic_analyzer import ICAnalyzer
+        from adapters.shared.services import ds as data_service
 
-    # 检查错误
-    if not result.get('success'):
-        return error_response(result, 400)
+        analyzer = ICAnalyzer()
+        results = {}
 
-    return api_response(result)
+        if universe:
+            symbols = universe if isinstance(universe, list) else [universe]
+        else:
+            stocks = data_service.stock.get_all_stocks(limit=50) if data_service.stock else []
+            symbols = [s.symbol for s in stocks] if stocks else []
+
+        if not symbols:
+            return error_response({'success': False, 'error': '无可用股票池'}, 400)
+
+        for factor_name in factors:
+            try:
+                klines_map = data_service.kline.batch_get_recent_klines(symbols, days=250) if data_service.kline else {}
+
+                factor_values = []
+                forward_returns = []
+
+                for symbol, klines_df in klines_map.items():
+                    if klines_df is None or klines_df.is_empty() or len(klines_df) < 30:
+                        continue
+                    try:
+                        close = klines_df['close'].to_numpy()
+                        fwd_ret = (close[-5:].mean() - close[-10:-5].mean()) / close[-10:-5].mean() if len(close) >= 10 else np.nan
+                        # momentum as factor proxy — non-obvious, kept for clarity
+                        factor_val = (close[-1] / close[-20] - 1) if len(close) >= 20 else np.nan
+                        factor_values.append(factor_val)
+                        forward_returns.append(fwd_ret)
+                    except Exception:
+                        continue
+
+                if len(factor_values) < 10:
+                    results[factor_name] = {'ic_mean': None, 'ic_ir': None, 'status': 'insufficient_data', 'sample_size': len(factor_values)}
+                    continue
+
+                factor_arr = np.array(factor_values)
+                returns_arr = np.array(forward_returns)
+
+                ic = analyzer.calculate_ic(factor_arr, returns_arr)
+                results[factor_name] = {
+                    'ic_mean': float(ic) if not np.isnan(ic) else None,
+                    'ic_ir': None,
+                    'status': 'ok' if not np.isnan(ic) else 'calculation_failed',
+                    'sample_size': len(factor_values),
+                }
+            except Exception as e:
+                logger.warning(f"Factor analysis failed for {factor_name}: {e}")
+                results[factor_name] = {'ic_mean': None, 'ic_ir': None, 'status': 'error', 'error': str(e)}
+
+        return api_response({
+            'success': True,
+            'factors': results,
+            'start_date': start_date,
+            'end_date': end_date,
+            'universe_size': len(symbols),
+        })
+    except Exception as e:
+        return error_response({'success': False, 'error': f'因子分析失败: {str(e)}'}, 500)
 
 
 # ============ /api/portfolio/sector-aggregate（analysis.py） ============

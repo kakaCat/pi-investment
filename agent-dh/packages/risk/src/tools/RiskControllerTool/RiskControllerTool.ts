@@ -61,6 +61,28 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
       };
     }
 
+    // position_size 需要 price
+    if (args.command === 'position_size' && !args.price) {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'price',
+        issue: 'position_size 命令需要 price 参数',
+        expected: '当前价格',
+      };
+    }
+
+    // stop_loss 需要 entry_price
+    if (args.command === 'stop_loss' && !args.entry_price) {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'entry_price',
+        issue: 'stop_loss 命令需要 entry_price 参数',
+        expected: '入场价格',
+      };
+    }
+
     return { success: true };
   }
 
@@ -73,6 +95,8 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
       symbol: args.symbol,
       account_name: args.account_name || 'agent_virtual',
       risk_level: args.risk_level,
+      price: args.price,
+      entry_price: args.entry_price,
     });
 
     return {

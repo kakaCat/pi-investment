@@ -16,6 +16,10 @@ export interface RiskControllerParams {
   account_name?: string;
   /** 风险分级（stop_loss 时可选） */
   risk_level?: 'large_cap' | 'growth' | 'small_cap_theme';
+  /** 当前价格（position_size 时必填） */
+  price?: number;
+  /** 入场价格（stop_loss 时必填） */
+  entry_price?: number;
 }
 
 /**
@@ -102,6 +106,14 @@ export const riskControllerPrompt: ToolPrompt<RiskControllerParams, RiskControll
       type: 'string',
       description: '风险分级（stop_loss 时可选）：large_cap（大盘蓝筹-8%）/ growth（成长股-10%）/ small_cap_theme（小盘题材-12%），默认 large_cap',
     },
+    price: {
+      type: 'number',
+      description: '当前价格（position_size 时必填），用于计算建议仓位金额',
+    },
+    entry_price: {
+      type: 'number',
+      description: '入场价格（stop_loss 时必填），用于计算止损价位',
+    },
   },
 
   output: {
@@ -110,7 +122,7 @@ export const riskControllerPrompt: ToolPrompt<RiskControllerParams, RiskControll
       properties: {
         command: { type: 'string', description: '执行的操作' },
         symbol: { type: 'string', description: '股票代码' },
-        result: { type: 'object', additionalProperties: true, description: '计算结果', additionalProperties: true },
+        result: { type: 'object', additionalProperties: true, description: '计算结果' },
         warning: { type: 'string', description: '风险提示' },
       },
       additionalProperties: true,

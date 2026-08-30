@@ -106,5 +106,12 @@ export const memorySearchPrompt: ToolPrompt<MemorySearchParams, MemorySearchResu
       },
       additionalProperties: true,
     },
+    render: (_args: MemorySearchParams, data: MemorySearchResult) => {
+      const lines = [`搜索 "${data.query}" 结果 (${data.total} 条)`];
+      for (const item of data.results) {
+        lines.push(`- [${item.confidence.toFixed(2)}] ${item.content.slice(0, 80)}`);
+      }
+      return [{ type: 'text', text: lines.join('\n') }];
+    },
   },
 };

@@ -785,15 +785,16 @@ export class QuantsysV2Client {
    * Dispatches to different endpoints based on command.
    */
   async riskControl(params: RiskControlRequest): Promise<any> {
-    const { command, symbol, account_name, risk_level } = params;
+    const { command, symbol, account_name, risk_level, price, entry_price } = params;
     if (command === 'position_size') {
-      const response = await this.client.post(`/api/stock/${symbol}/risk/position-size`, { account_name });
+      const response = await this.client.post(`/api/stock/${symbol}/risk/position-size`, { account_name, price });
       return this.unwrap(response.data, 'riskControl');
     }
     if (command === 'stop_loss') {
       const response = await this.client.post(`/api/stock/${symbol}/risk/stop-loss`, {
         account_name,
         risk_level: risk_level || 'large_cap',
+        entry_price,
       });
       return this.unwrap(response.data, 'riskControl');
     }

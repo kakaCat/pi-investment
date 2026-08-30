@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { GitRepo } from './git.js';
+import { GitRepo } from '../src/git.js';
 
 describe('GitRepo', () => {
   let dir: string;
@@ -30,6 +30,15 @@ describe('GitRepo', () => {
     expect(repo.hasChanges(['agent-dh/'])).toBe(false);
     writeFileSync(join(dir, 'agent-dh/a.txt'), 'v2');
     expect(repo.hasChanges(['agent-dh/'])).toBe(true);
+  });
+
+  it('isClean：干净返回 true，有改动返回 false', () => {
+    expect(repo.isClean()).toBe(true);
+    writeFileSync(join(dir, 'agent-dh/a.txt'), 'v2');
+    expect(repo.isClean()).toBe(false);
+    git(['add', '-A']);
+    git(['commit', '-m', 'dirty']);
+    expect(repo.isClean()).toBe(true);
   });
 
   it('createWipBranch：有改动建新分支并提交，工作区内容不变', () => {

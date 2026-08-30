@@ -66,14 +66,22 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
 
   protected async execute(params: WatchManageParams, context: ToolContext): Promise<any> {
     const result = await this.qv2Client.manageWatchRule(params);
-    return result;
+    return {
+      success: true,
+      rule_id: result?.id ?? result?.rule_id,
+      action: params.action,
+      message: params.action === 'create'
+        ? `规则已创建 (ID: ${result?.id ?? 'unknown'})`
+        : `规则已${params.action === 'enable' ? '启用' : params.action === 'disable' ? '禁用' : '删除'}`,
+      data: result,
+    };
   }
 
   protected wrap(data: any, context: ToolContext): ToolResponse<any> {
     return {
       success: true,
       data,
-      message: `操作成功：${data.action || data.message || ''}`,
+      message: data.message,
       metadata: {
         rule_id: data.rule_id,
         action: data.action,

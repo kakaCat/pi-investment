@@ -20,14 +20,17 @@ export class EvolutionRunTool extends BaseTool<EvolutionRunParams, EvolutionRunR
   protected validate(params: EvolutionRunParams): ValidationResult {
     const { strategy_id, mode, generations } = params;
 
-    // strategy_id 校验
-    if (strategy_id !== undefined && strategy_id <= 0) {
-      return {
-        success: false,
-        errorType: ErrorType.INPUT_ERROR,
-        field: 'strategy_id',
-        issue: 'strategy_id 必须是正整数',
-      };
+    // strategy_id 校验 (兼容 string/number)
+    if (strategy_id !== undefined && strategy_id !== null) {
+      const id = typeof strategy_id === 'string' ? parseInt(strategy_id, 10) : strategy_id;
+      if (isNaN(id) || id <= 0) {
+        return {
+          success: false,
+          errorType: ErrorType.INPUT_ERROR,
+          field: 'strategy_id',
+          issue: 'strategy_id 必须是正整数',
+        };
+      }
     }
 
     // mode 校验

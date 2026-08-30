@@ -82,11 +82,10 @@ export class StrategyOptimizeTool extends BaseTool<StrategyOptimizeParams, Strat
       strategy_id: args.strategy_id,
       param_ranges: args.param_ranges,
       symbol: args.symbols?.[0] || '',
-      symbols: args.symbols,
       start_date: args.start_date || '',
       end_date: args.end_date || '',
-      optimization_target: args.optimization_target || 'sharpe',
-    } as any) as any;
+      sort_by: args.optimization_target === 'return' ? 'total_return' : args.optimization_target === 'win_rate' ? 'win_rate' : 'sharpe_ratio',
+    }) as any;
   }
 
   protected wrap(data: StrategyOptimizeResult): ToolResponse<StrategyOptimizeResult> {

@@ -1,3 +1,11 @@
 # 因子模块
-# 使用时直接从具体文件导入
-__all__ = []
+from .fama_french import FamaFrench3FactorCalculator, FamaFrench5FactorCalculator
+from .carhart import CarhartFourFactorCalculator
+from .barra import BarraRiskModelCalculator
+
+__all__ = [
+    'FamaFrench3FactorCalculator',
+    'FamaFrench5FactorCalculator',
+    'CarhartFourFactorCalculator',
+    'BarraRiskModelCalculator',
+]

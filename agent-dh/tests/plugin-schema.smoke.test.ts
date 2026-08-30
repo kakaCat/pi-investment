@@ -37,7 +37,6 @@ const PLUGINS: Array<[string, () => Promise<any>, () => any]> = [
   ['risk', () => import('../packages/risk/src/index.js'), () => QV2],
   ['strategy', () => import('../packages/strategy/src/index.js'), () => QV2],
   ['factor', () => import('../packages/factor/src/index.js'), () => QV2],
-  ['model', () => import('../packages/model/src/index.js'), () => QV2],
   ['data-manager', () => import('../packages/data-manager/src/index.js'), () => QV2],
   ['memory', () => import('../packages/memory/src/index.js'), () => ({ ...QV2, ...AOS })],
   ['evolution', () => import('../packages/evolution/src/index.js'), () => AOS],

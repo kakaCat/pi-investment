@@ -11,7 +11,7 @@ export interface StrategyItem {
   strategyType: string;
   type: string;
   status: string;
-  description: string;
+  description: string | null;
   code: string;
   params: any[];
   [key: string]: any;
@@ -61,7 +61,7 @@ export const strategyListPrompt: ToolPrompt<StrategyListParams, StrategyListResu
               strategyType: { type: 'string' },
               type: { type: 'string' },
               status: { type: 'string' },
-              description: { type: 'string' },
+              description: { type: ['string', 'null'] },
             },
           },
         },
