@@ -732,6 +732,123 @@ class DataProviderManager(IDataProviderManager):
                 pass
             return False
 
+    def get_data_completeness(
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str,
+        data: Any = None
+    ) -> Dict[str, Any]:
+        """Check K-line data completeness against trading calendar
+
+        对比实际K线数据与交易日历，识别缺失交易日
+
+        Args:
+            symbol: Stock symbol
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+            data: Optional K-line data (DataFrame or list of KlineData)
+                  If None, fetch from providers automatically
+
+        Returns:
+            {
+                'completeness': 0.95,      # Percentage (0-1)
+                'expected_days': 20,       # Expected trading days
+                'actual_days': 19,         # Actual data days
+                'missing_dates': ['2024-01-15'],  # Missing trading days
+                'has_data': True,          # Whether any data exists
+                'source': 'database'       # Data source if fetched
+            }
+        """
+        try:
+            # Step 1: Get expected trading days from calendar
+            from application.services.trading_calendar_service import TradingCalendarService
+
+            calendar_service = TradingCalendarService()
+            expected_days = calendar_service.get_trading_days(start_date, end_date)
+            expected_count = len(expected_days)
+
+            if expected_count == 0:
+                return {
+                    'completeness': 0.0,
+                    'expected_days': 0,
+                    'actual_days': 0,
+                    'missing_dates': [],
+                    'has_data': False,
+                    'error': 'No trading days in date range'
+                }
+
+            # Step 2: Get actual K-line data
+            actual_dates = set()
+            data_source = None
+
+            if data is None:
+                # Fetch from providers
+                result = self.get_klines(symbol, 'daily', start_date, end_date)
+                if result.get('success'):
+                    data = result.get('data', [])
+                    data_source = result.get('source')
+                else:
+                    return {
+                        'completeness': 0.0,
+                        'expected_days': expected_count,
+                        'actual_days': 0,
+                        'missing_dates': expected_days,
+                        'has_data': False,
+                        'error': result.get('error', 'Failed to fetch data')
+                    }
+
+            # Step 3: Extract dates from data
+            if hasattr(data, '__class__') and 'DataFrame' in data.__class__.__name__:
+                # pandas DataFrame
+                import pandas as pd
+                if isinstance(data, pd.DataFrame):
+                    if 'date' in data.columns:
+                        actual_dates = set(pd.to_datetime(data['date']).dt.strftime('%Y-%m-%d').tolist())
+                    elif 'trade_date' in data.columns:
+                        actual_dates = set(pd.to_datetime(data['trade_date']).dt.strftime('%Y-%m-%d').tolist())
+            elif isinstance(data, list):
+                # List of KlineData objects or dicts
+                for item in data:
+                    if hasattr(item, 'date'):
+                        date_str = item.date if isinstance(item.date, str) else item.date.strftime('%Y-%m-%d')
+                        actual_dates.add(date_str)
+                    elif isinstance(item, dict) and 'date' in item:
+                        actual_dates.add(item['date'])
+                    elif isinstance(item, dict) and 'trade_date' in item:
+                        actual_dates.add(item['trade_date'])
+
+            # Step 4: Compare and calculate completeness
+            actual_count = len(actual_dates)
+            expected_set = set(expected_days)
+            missing_dates = sorted(list(expected_set - actual_dates))
+
+            completeness = actual_count / expected_count if expected_count > 0 else 0.0
+
+            result = {
+                'completeness': round(completeness, 4),
+                'expected_days': expected_count,
+                'actual_days': actual_count,
+                'missing_dates': missing_dates,
+                'has_data': actual_count > 0
+            }
+
+            if data_source:
+                result['source'] = data_source
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to check data completeness for {symbol}: {e}")
+            return {
+                'completeness': 0.0,
+                'expected_days': 0,
+                'actual_days': 0,
+                'missing_dates': [],
+                'has_data': False,
+                'error': f'Completeness check failed: {str(e)}'
+            }
+
     # ==================== 接口适配方法 ====================
     # 实现 IDataProviderManager 抽象方法，适配到现有实现
 
