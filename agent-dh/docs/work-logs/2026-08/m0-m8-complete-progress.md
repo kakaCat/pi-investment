@@ -223,10 +223,8 @@ M8 预测引擎      ░░░░░░░░░░░░░░░░░░░�
 
 ## 参考文档
 
-- **RFC 004**: [盈利引擎系统设计](../rfcs/004-profit-engine-design.md)
-- **RFC 005**: [盈利引擎工单包](../rfcs/005-profit-engine-work-tickets.md)
-- **M1 审计**: [m1-audit-findings.md](m1-audit-findings.md)
-- **M3-2 验证**: [m3-2-backtest-validation.md](m3-2-backtest-validation.md)
+- **RFC 003**: [自学习蒸馏](../rfcs/003-self-learning-distillation.md)
+- **RFC 005**: [自进化 Agent](../rfcs/005-self-evolving-agent.md)
 - **进度总结**: [progress-audit-summary.md](progress-audit-summary.md)
 
 ---
