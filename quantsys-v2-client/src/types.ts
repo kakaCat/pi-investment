@@ -410,7 +410,10 @@ export interface AlgoExecuteRequest {
   symbol: string;
   quantity: number;
   algo: 'TWAP' | 'VWAP';
+  /** 执行时长（分钟）。2026-08-30 起透传为后端 duration_minutes */
   duration?: number;
+  /** 后端契约参数名（duration 的别名，二选一） */
+  duration_minutes?: number;
   account_name?: string;
 }
 

@@ -1,4 +1,4 @@
-import { BaseTool, ToolResponse, ValidationResult, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ToolResponse, ValidationResult, ErrorType, sanitizeLossless } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext } from '@pi-investment/core-tool';
 import type { AgentOSClient } from '@pi-investment/agent-os-client';
 import { evolutionRunPrompt, type EvolutionRunParams, type EvolutionRunResult } from './prompt';
@@ -59,13 +59,19 @@ export class EvolutionRunTool extends BaseTool<EvolutionRunParams, EvolutionRunR
   }
 
   protected async execute(params: EvolutionRunParams, context: ToolContext): Promise<EvolutionRunResult> {
-    const result = await this.aos.evolution.run({
+    const result: any = await this.aos.evolution.run({
       strategy_id: params.strategy_id,
       mode: params.mode || 'propose',
       generations: params.generations || 3,
     });
 
-    return result as EvolutionRunResult;
+    // 2026-08-30 修复：agent-os 返回的 strategy_id 为 string，而输出 schema 要求 number；
+    // 且 proposals/best_params 可能含 undefined 触发 lossless 校验失败。统一归一化+清洗。
+    return sanitizeLossless({
+      ...(result ?? {}),
+      strategy_id: result?.strategy_id != null ? Number(result.strategy_id) : undefined,
+      proposals: Array.isArray(result?.proposals) ? result.proposals : [],
+    }) as EvolutionRunResult;
   }
 
   protected wrap(data: EvolutionRunResult, context: ToolContext): ToolResponse<EvolutionRunResult> {

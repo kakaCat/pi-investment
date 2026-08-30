@@ -1,4 +1,4 @@
-import { BaseTool, ToolResponse, ValidationResult, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ToolResponse, ValidationResult, ErrorType, sanitizeLossless } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext } from '@pi-investment/core-tool';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { factorCalculatePrompt, type FactorCalculateParams, type FactorCalculateResult } from './prompt';
@@ -92,13 +92,13 @@ export class FactorCalculateTool extends BaseTool<FactorCalculateParams, FactorC
         throw new Error(`因子数据过期拒绝服务：${errors.join('; ')}。请触发因子计算管道补录或联系后端排查。`);
       }
 
-      return {
+      // 2026-08-30 修复：freshness_warnings: undefined 显式键会导致 lossless 校验失败，改条件展开
+      return sanitizeLossless({
         ...raw,
         factors: dict,
         factor_dates: dates,
-        freshness_warnings: warnings.length > 0 ? warnings : undefined,
-        degraded: warnings.length > 0,
-      };
+        ...(warnings.length > 0 ? { freshness_warnings: warnings, degraded: true } : { degraded: false }),
+      });
     }
 
     return raw;

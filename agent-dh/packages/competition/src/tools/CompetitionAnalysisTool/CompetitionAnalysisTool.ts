@@ -1,4 +1,4 @@
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, sanitizeLossless } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { competitionAnalysisPrompt, CompetitionAnalysisParams, CompetitionAnalysisResult } from './prompt';
@@ -64,22 +64,49 @@ export class CompetitionAnalysisTool extends BaseTool<
     _context: ToolContext
   ): Promise<CompetitionAnalysisResult> {
     try {
-      const response = await this.qv2.getCompetitionAnalysis(
+      const response: any = await this.qv2.getCompetitionAnalysis(
         args.symbol,
         args.include_financial ?? true
       );
 
-      return {
-        symbol: response.symbol,
-        company_name: response.company_name,
-        industry: response.industry,
-        market_size: response.market_size,
-        competitors: response.competitors,
-        financial_comparison: response.financial_comparison,
-        competitive_advantages: response.competitive_advantages,
-        competitive_disadvantages: response.competitive_disadvantages,
-        summary: response.summary,
+      // 2026-08-30 修复：后端返回 camelCase 字段（companyName/marketCap/competitivePosition…），
+      // 输出 schema 要求 snake_case 且 additionalProperties:false、字段非空，
+      // 直接透传会产生 undefined 键 → lossless 校验失败。在此显式映射并给默认值。
+      const industry = {
+        level1: response?.industry?.level1 ?? '',
+        level2: response?.industry?.level2 ?? '',
+        level3: response?.industry?.level3 ?? '',
       };
+      const market_size = response?.marketSize ? {
+        total_market_cap: typeof response.marketSize.totalMarketCap === 'number' ? response.marketSize.totalMarketCap : 0,
+        industry_rank: typeof response.marketSize.industryRank === 'number' ? response.marketSize.industryRank : 0,
+        market_share: typeof response.marketSize.marketShare === 'number' ? response.marketSize.marketShare : 0,
+      } : undefined;
+      const competitors = Array.isArray(response?.competitors)
+        ? response.competitors.map((c: any) => ({
+            symbol: c?.symbol ?? '',
+            name: c?.name ?? '',
+            market_cap: typeof c?.marketCap === 'number' ? c.marketCap : 0,
+            market_share: typeof c?.marketShare === 'number' ? c.marketShare : 0,
+            competitive_position: c?.competitivePosition ?? '',
+          }))
+        : [];
+      const financial_comparison = response?.financialComparison ? {
+        metrics: Array.isArray(response.financialComparison.metrics) ? response.financialComparison.metrics : [],
+        data: Array.isArray(response.financialComparison.data) ? response.financialComparison.data : [],
+      } : undefined;
+
+      return sanitizeLossless({
+        symbol: response?.symbol ?? args.symbol,
+        company_name: response?.companyName ?? '',
+        industry,
+        market_size,
+        competitors,
+        financial_comparison,
+        competitive_advantages: Array.isArray(response?.competitiveAdvantages) ? response.competitiveAdvantages : [],
+        competitive_disadvantages: Array.isArray(response?.competitiveDisadvantages) ? response.competitiveDisadvantages : [],
+        summary: response?.summary ?? '',
+      });
     } catch (error) {
       throw new Error(`竞争分析失败: ${error instanceof Error ? error.message : String(error)}`);
     }

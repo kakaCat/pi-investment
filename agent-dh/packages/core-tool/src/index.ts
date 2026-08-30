@@ -7,3 +7,4 @@
 
 export * from './types';
 export { BaseTool } from './BaseTool';
+export { sanitizeLossless, toSnake } from './lossless';

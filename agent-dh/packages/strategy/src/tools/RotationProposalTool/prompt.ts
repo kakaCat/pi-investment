@@ -94,7 +94,7 @@ export const rotationProposalPrompt: ToolPrompt<RotationProposalParams, Rotation
       { type: 'text', text: `📊 建议卖出: ${data.summary?.total_sell ?? 0} 只` },
       { type: 'text', text: `📊 预计换手: ${((data.summary?.expected_turnover ?? 0) * 100).toFixed(1)}%` },
       { type: 'text', text: `` },
-      ...data.proposals.slice(0, 8).map(p => ({
+      ...(data.proposals ?? []).slice(0, 8).map(p => ({
         type: 'text' as const,
         text: `${p.action === 'buy' ? '🟢' : p.action === 'sell' ? '🔴' : '⚪'} ${p.symbol} ${p.name} - ${p.reason}`
       })),

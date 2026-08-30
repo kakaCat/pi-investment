@@ -1,4 +1,4 @@
-import { BaseTool, ToolResponse, ValidationResult, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ToolResponse, ValidationResult, ErrorType, sanitizeLossless } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { watchManagePrompt, type WatchManageParams } from './prompt';
@@ -66,15 +66,20 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
 
   protected async execute(params: WatchManageParams, context: ToolContext): Promise<any> {
     const result = await this.qv2Client.manageWatchRule(params);
-    return {
+    // 2026-08-30 修复：
+    // 1) rule_id 取值兼容后端 {rule:{id}} 包装（unwrap 返回 data 层）；
+    // 2) rule_id/data 可能为 undefined，顶层 undefined 键会被
+    //    DSH snapshotJsonValue 拒绝（"value is not lossless JSON"），整体过清洗。
+    const rid = result?.rule?.id ?? result?.id ?? result?.rule_id;
+    return sanitizeLossless({
       success: true,
-      rule_id: result?.id ?? result?.rule_id,
+      rule_id: rid,
       action: params.action,
       message: params.action === 'create'
-        ? `规则已创建 (ID: ${result?.id ?? 'unknown'})`
+        ? `规则已创建 (ID: ${rid ?? 'unknown'})`
         : `规则已${params.action === 'enable' ? '启用' : params.action === 'disable' ? '禁用' : '删除'}`,
       data: result,
-    };
+    });
   }
 
   protected wrap(data: any, context: ToolContext): ToolResponse<any> {

@@ -100,23 +100,31 @@ export const rotationSimulatePrompt: ToolPrompt<RotationSimulateParams, Rotation
         constraints_check: { type: 'object', additionalProperties: true, description: '约束检查' },
       },
     },
-    render: (_args, data) => [
-      { type: 'text', text: `🎮 轮动模拟完成` },
-      { type: 'text', text: `` },
-      { type: 'text', text: `${data.simulation.feasible ? '✅' : '❌'} 方案可行性: ${data.simulation.feasible ? '可行' : '不可行'}` },
-      { type: 'text', text: `💰 所需资金: ${data.simulation.cash_required.toFixed(2)}` },
-      { type: 'text', text: `💵 可用资金: ${data.simulation.cash_available.toFixed(2)}` },
-      { type: 'text', text: `` },
-      ...(data.simulation.warnings.length > 0 ? [
-        { type: 'text' as const, text: `⚠️ 警告:` },
-        ...data.simulation.warnings.map(w => ({ type: 'text' as const, text: `  • ${w}` })),
-        { type: 'text' as const, text: `` }
-      ] : []),
-      { type: 'text', text: `📊 预期持仓 (${data.simulation.expected_positions.length} 只):` },
-      ...data.simulation.expected_positions.slice(0, 5).map(p => ({
-        type: 'text' as const,
-        text: `  • ${p.symbol} ${p.name}: ${p.shares}股 (${(p.weight * 100).toFixed(1)}%)`
-      })),
-    ],
+    render: (_args, data) => {
+      const sim = data.simulation ?? {};
+      const warnings = Array.isArray(sim.warnings) ? sim.warnings : [];
+      const positions = Array.isArray(sim.expected_positions) ? sim.expected_positions : [];
+      const feasible = sim.feasible === true;
+      const cashRequired = Number(sim.cash_required ?? 0);
+      const cashAvailable = Number(sim.cash_available ?? 0);
+      return [
+        { type: 'text', text: `🎮 轮动模拟完成` },
+        { type: 'text', text: `` },
+        { type: 'text', text: `${feasible ? '✅' : '❌'} 方案可行性: ${feasible ? '可行' : '不可行'}` },
+        { type: 'text', text: `💰 所需资金: ${cashRequired.toFixed(2)}` },
+        { type: 'text', text: `💵 可用资金: ${cashAvailable.toFixed(2)}` },
+        { type: 'text', text: `` },
+        ...(warnings.length > 0 ? [
+          { type: 'text' as const, text: `⚠️ 警告:` },
+          ...warnings.map((w: string) => ({ type: 'text' as const, text: `  • ${w}` })),
+          { type: 'text' as const, text: `` }
+        ] : []),
+        { type: 'text', text: `📊 预期持仓 (${positions.length} 只):` },
+        ...positions.slice(0, 5).map((p: any) => ({
+          type: 'text' as const,
+          text: `  • ${p.symbol} ${p.name}: ${p.shares}股 (${(Number(p.weight ?? 0) * 100).toFixed(1)}%)`
+        })),
+      ];
+    },
   },
 };

@@ -2,7 +2,7 @@
  * DataFetchFinancialTool - 获取股票财务数据工具
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, sanitizeLossless } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { dataFetchFinancialPrompt, DataFetchFinancialParams, DataFetchFinancialResult } from './prompt';
@@ -11,7 +11,7 @@ export class DataFetchFinancialTool extends BaseTool<DataFetchFinancialParams, D
   protected readonly metadata: ToolMetadata = {
     name: 'data_fetch_financial',
     category: 'data',
-    version: '2.0.0',
+    version: '2.1.0',
     timeoutMs: 15000,
   };
 
@@ -40,38 +40,56 @@ export class DataFetchFinancialTool extends BaseTool<DataFetchFinancialParams, D
     args: DataFetchFinancialParams,
     context: ToolContext
   ): Promise<DataFetchFinancialResult> {
-    const rawData = await this.qv2.getFinancialData(args.symbol);
+    // 2026-08-30 修复：/api/v2/stock/{symbol}/financials 的 sina-web 指标源失效（全 null），
+    // 优先用 provider sina-statements（真实报表），失败再退回原接口。
+    let rawData: any = null;
+    try {
+      const statements = await this.qv2.getFinancialStatements(args.symbol);
+      rawData = statements?.data ?? statements;
+    } catch {
+      rawData = await this.qv2.getFinancialData(args.symbol);
+    }
 
-    // 后端返回的是嵌套结构，需要转换为扁平格式
-    // 取最新一期数据（income_statement[0], balance_sheet[0]）
-    const latest_income = rawData.income_statement?.[0];
-    const latest_balance = rawData.balance_sheet?.[0];
+    // 兼容两种结构：income_statement/balance_sheet（旧）或 income/balance（sina-statements）
+    const latest_income = rawData?.income_statement?.[0] ?? rawData?.income?.[0];
+    const latest_balance = rawData?.balance_sheet?.[0] ?? rawData?.balance?.[0];
 
     if (!latest_income) {
       throw new Error('未获取到财务数据');
     }
 
-    // 计算资产负债率
-    const debt_ratio = latest_balance?.total_liabilities && latest_balance?.total_assets
-      ? (latest_balance.total_liabilities / latest_balance.total_assets) * 100
-      : 0;
+    const num = (v: any): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+    const get = (row: any, zh: string, en: string): number => num(row?.[zh] ?? row?.[en]);
 
-    // 转换为工具期望的扁平格式
-    return {
+    const revenue = get(latest_income, '营业总收入', 'revenue');
+    const income = get(latest_income, '营业收入', 'revenue');
+    const cost = get(latest_income, '营业成本', 'operating_cost');
+    const net_profit = get(latest_income, '归属于母公司所有者的净利润', 'parent_net_profit');
+    const total_assets = get(latest_balance, '资产总计', 'total_assets');
+    const total_liabilities = get(latest_balance, '负债合计', 'total_liabilities');
+    const equity = get(latest_balance, '归属于母公司股东权益合计', 'total_equity');
+
+    const revenueY = revenue / 100000000;
+    const netProfitY = net_profit / 100000000;
+    const totalAssetsY = total_assets / 100000000;
+    const totalLiabilitiesY = total_liabilities / 100000000;
+    const round2 = (v: number): number => (Number.isFinite(v) ? Math.round(v * 100) / 100 : 0);
+
+    return sanitizeLossless({
       symbol: args.symbol,
-      name: rawData.name || args.symbol,
-      report_date: latest_income.report_date,
-      revenue: (latest_income.revenue || 0) / 100000000, // 转换为亿元
-      net_profit: (latest_income.parent_net_profit || 0) / 100000000, // 转换为亿元
-      total_assets: (latest_balance?.total_assets || 0) / 100000000, // 转换为亿元
-      total_liabilities: (latest_balance?.total_liabilities || 0) / 100000000, // 转换为亿元
-      roe: latest_income.weighted_roe || 0,
-      eps: latest_income.basic_eps || 0,
+      name: rawData?.name || args.symbol,
+      report_date: String(latest_income['报告日'] ?? latest_income.report_date ?? ''),
+      revenue: round2(revenueY),
+      net_profit: round2(netProfitY),
+      total_assets: round2(totalAssetsY),
+      total_liabilities: round2(totalLiabilitiesY),
+      roe: equity > 0 ? round2((net_profit / equity) * 100) : 0,
+      eps: round2(get(latest_income, '基本每股收益', 'basic_eps')),
       pe_ttm: 0, // 后端未返回，需要额外计算或从其他接口获取
       pb: 0, // 后端未返回，需要额外计算或从其他接口获取
-      debt_ratio: debt_ratio,
-      gross_margin: latest_income.gross_margin || 0,
-    } as DataFetchFinancialResult;
+      debt_ratio: total_assets > 0 ? round2((total_liabilities / total_assets) * 100) : 0,
+      gross_margin: income > 0 ? round2(((income - cost) / income) * 100) : 0,
+    } as unknown as DataFetchFinancialResult);
   }
 
   protected wrap(data: DataFetchFinancialResult): ToolResponse<DataFetchFinancialResult> {

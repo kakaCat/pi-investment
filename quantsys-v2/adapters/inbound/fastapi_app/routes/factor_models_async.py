@@ -258,15 +258,21 @@ def barra_calculate(payload: Optional[Dict[str, Any]] = Body(None)):
 
     # 找到最短的序列长度
     min_len = min(len(returns) for returns in returns_data.values())
+    if min_len < 30:
+        return api_response(
+            None,
+            success=False,
+            message=f"样本期不足：最短序列仅 {min_len} 期，Barra 模型至少需要 30 期"
+        )
 
-    # 构造 returns DataFrame
+    # 构造 returns DataFrame（股票 x 时间；.T 使 index=symbols, columns=期序）
     returns_dict = {}
     for symbol, returns in returns_data.items():
         returns_dict[symbol] = returns[:min_len]
 
-    returns_df = pd.DataFrame(returns_dict)
+    returns_df = pd.DataFrame(returns_dict).T
 
-    # 生成模拟的因子数据（实际应该从数据库获取真实因子数据）
+    # 生成模拟的因子暴露数据（股票 x 因子；实际应改为从数据库获取真实因子数据）
     n = len(returns_df)
     factors_df = pd.DataFrame({
         'market': _generate_noisy_defaults(n, 0.001, 0.015),
@@ -274,7 +280,10 @@ def barra_calculate(payload: Optional[Dict[str, Any]] = Body(None)):
         'value': _generate_noisy_defaults(n, 0.0003, 0.008),
         'momentum': _generate_noisy_defaults(n, 0.0004, 0.01),
         'volatility': _generate_noisy_defaults(n, 0.0002, 0.006),
-    })
+    }, index=returns_df.index)
+
+    # 权重与 returns_data 顺序对齐
+    weights_series = pd.Series(weights, index=list(returns_data.keys()))
 
     # 计算 Barra 风险模型
     calc = BarraRiskModelCalculator()
@@ -282,17 +291,25 @@ def barra_calculate(payload: Optional[Dict[str, Any]] = Body(None)):
     try:
         result = calc.calculate(
             returns=returns_df,
-            factors=factors_df,
-            weights=weights
+            factor_exposures=factors_df,
+            portfolio_weights=weights_series
         )
 
-        # 转换结果为可序列化格式
+        # 转换结果为可序列化格式（计算器结果在 result['value']）
+        value = result.get('value', {}) if isinstance(result, dict) else {}
         serializable_result = {
-            'factor_exposures': {k: float(v) for k, v in result.get('factor_exposures', {}).items()},
-            'factor_risk': float(result.get('factor_risk', 0)),
-            'specific_risk': float(result.get('specific_risk', 0)),
-            'total_risk': float(result.get('total_risk', 0)),
-            'factor_contributions': {k: float(v) for k, v in result.get('factor_contributions', {}).items()},
+            'factor_risk': float(value.get('factor_risk', 0)),
+            'specific_risk': float(value.get('specific_risk', 0)),
+            'total_risk': float(value.get('total_risk', 0)),
+            'factor_variance': float(value.get('factor_variance', 0)),
+            'specific_variance': float(value.get('specific_variance', 0)),
+            'total_variance': float(value.get('total_variance', 0)),
+            'factor_contribution_pct': float(value.get('factor_contribution_pct', 0)),
+            'specific_contribution_pct': float(value.get('specific_contribution_pct', 0)),
+            'factor_covariance': value.get('factor_covariance', {}),
+            'portfolio_exposures': value.get('portfolio_exposures', {}),
+            'n_factors': int(value.get('n_factors', 0)),
+            'n_stocks': int(value.get('n_stocks', 0)),
         }
 
         return api_response(serializable_result)

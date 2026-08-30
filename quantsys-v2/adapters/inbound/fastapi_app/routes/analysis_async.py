@@ -949,8 +949,10 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
         if universe:
             symbols = universe if isinstance(universe, list) else [universe]
         else:
-            stocks = data_service.stock.get_all_stocks(limit=50) if data_service.stock else []
-            symbols = [s.symbol for s in stocks] if stocks else []
+            # 2026-08-30 修复：StockORMRepository 无 get_all_stocks 方法，
+            # 且 get_all 返回 List[Dict]（非 ORM 对象），符号需从 dict 取
+            stocks = data_service.stock.get_all(limit=50) if data_service.stock else []
+            symbols = [s.get('symbol') for s in stocks] if stocks else []
 
         if not symbols:
             return error_response({'success': False, 'error': '无可用股票池'}, 400)
@@ -963,7 +965,17 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
                 forward_returns = []
 
                 for symbol, klines_df in klines_map.items():
-                    if klines_df is None or klines_df.is_empty() or len(klines_df) < 30:
+                    if klines_df is None:
+                        continue
+                    if isinstance(klines_df, (list, tuple)):
+                        if len(klines_df) < 30:
+                            continue
+                        klines_df = pd.DataFrame(klines_df)
+                        if 'close' not in klines_df.columns:
+                            continue
+                    elif hasattr(klines_df, 'is_empty') and klines_df.is_empty():
+                        continue
+                    elif len(klines_df) < 30:
                         continue
                     try:
                         close = klines_df['close'].to_numpy()

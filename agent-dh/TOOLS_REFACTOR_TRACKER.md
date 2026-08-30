@@ -1,8 +1,8 @@
 # Agent-DH 工具重构清单（按工具追踪）
 
-**最后更新**: 2026-08-28  
+**最后更新**: 2026-08-30  
 **总计**: 约 126 个工具  
-**已重构**: 59 个 (46.8%)  
+**已重构**: 71 个 (56.3%)  
 **进行中**: 0 个  
 **待重构**: 约 67 个 (53.2%)
 
@@ -230,6 +230,12 @@
 - 每个工具独立一行，可独立重构和验证
 - 添加"按工具重构"工作流程
 - 完成 Trading Package 全部 8 个工具
+
+### 2026-08-30（Round 5 冒烟 23/23 通过，见 TOOLS_VERIFICATION_REPORT_20260830.md 附录）
+- 恢复 core-tool 基座：index.ts 补回 `sanitizeLossless/toSnake` 导出（9 个工具依赖）；BaseTool.ts 补回 render 默认注入与错误提取（string/{issue}/{error:{issue}}）
+- 新鲜进程 harness（scripts/verify-smoke-20260830-r5.ts）23 项全链路（call→execute→snapshot→schema→render）**23/23 PASS**
+- 确认 agent-os :8080 健康端点 `/health` → 200（AgentOsStatusTool 配置默认值正确）
+- ⏸️ **待办**：DI 容器半成品（ToolDependencies.ts / ToolRegistry.ts / SharedDependencyFactory.ts）在会话丢失中遗失；全仓 grep 确认无任何工具引用，暂不重建。若后续推进依赖注入重构，需从零重建这三个文件并让 BaseTool 构造函数支持可选 deps。
 
 ---
 

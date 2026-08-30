@@ -4,6 +4,7 @@
 """
 import structlog
 import threading
+import math
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import pandas as pd
@@ -598,10 +599,18 @@ class MarketDataService:
 
                 # GDP数据是倒序的(最新在前),使用head获取最新数据
                 # CPI和PMI数据是正序的(最新在后),使用tail获取最新数据
+                def _sanitize(records):
+                    # 2026-08-30 修复：akshare 数据可能含 NaN，
+                    # 直接序列化会 ValueError: Out of range float values (nan)，统一清洗为 None
+                    cleaned = []
+                    for rec in records or []:
+                        cleaned.append({k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in rec.items()})
+                    return cleaned
+
                 result = {
-                    'gdp': gdp_df.head(5).to_dict('records') if not gdp_df.empty else [],
-                    'cpi': cpi_df.tail(5).to_dict('records') if not cpi_df.empty else [],
-                    'pmi': pmi_df.tail(5).to_dict('records') if not pmi_df.empty else [],
+                    'gdp': _sanitize(gdp_df.head(5).to_dict('records')) if not gdp_df.empty else [],
+                    'cpi': _sanitize(cpi_df.tail(5).to_dict('records')) if not cpi_df.empty else [],
+                    'pmi': _sanitize(pmi_df.tail(5).to_dict('records')) if not pmi_df.empty else [],
                 }
 
                 return {

@@ -2,7 +2,7 @@
  * LearningApplyTool - 规则应用工具
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, sanitizeLossless } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import { learningApplyPrompt, LearningApplyParams, LearningApplyResult } from './prompt';
 
@@ -56,13 +56,14 @@ export class LearningApplyTool extends BaseTool<LearningApplyParams, LearningApp
     const dryRun = args.dry_run ?? false;
     const result = await this.applyRule(args.rule_id, args.context, dryRun);
 
-    return {
+    // 2026-08-30 修复：impact/action_taken 可能含 undefined，lossless 校验失败，递归清洗。
+    return sanitizeLossless({
       success: true,
       applied: result.applied || false,
       action_taken: result.action_taken,
       impact: result.impact,
       message: result.message || (dryRun ? '模拟运行完成' : '规则已应用'),
-    };
+    });
   }
 
   protected wrap(result: LearningApplyResult): ToolResponse<LearningApplyResult> {

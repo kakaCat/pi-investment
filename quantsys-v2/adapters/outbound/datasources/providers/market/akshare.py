@@ -288,13 +288,21 @@ class AkshareMarketProvider(MarketProvider):
             cpi_df = ak.macro_china_cpi_yearly()
             pmi_df = ak.macro_china_pmi_yearly()
 
+            def _sanitize_records(records):
+                # 2026-08-30 修复：akshare 返回的 DataFrame 可能含 NaN，
+                # 序列化时报 ValueError: Out of range float values (nan)，统一清洗为 None
+                cleaned = []
+                for rec in records or []:
+                    cleaned.append({k: (None if isinstance(v, float) and v != v else v) for k, v in rec.items()})
+                return cleaned
+
             return MarketData(
                 data_type='macro',
                 data={
                     # GDP 倒序（最新在前）用 head；CPI/PMI 正序用 tail
-                    'gdp': gdp_df.head(5).to_dict('records') if gdp_df is not None and not gdp_df.empty else [],
-                    'cpi': cpi_df.tail(5).to_dict('records') if cpi_df is not None and not cpi_df.empty else [],
-                    'pmi': pmi_df.tail(5).to_dict('records') if pmi_df is not None and not pmi_df.empty else [],
+                    'gdp': _sanitize_records(gdp_df.head(5).to_dict('records')) if gdp_df is not None and not gdp_df.empty else [],
+                    'cpi': _sanitize_records(cpi_df.tail(5).to_dict('records')) if cpi_df is not None and not cpi_df.empty else [],
+                    'pmi': _sanitize_records(pmi_df.tail(5).to_dict('records')) if pmi_df is not None and not pmi_df.empty else [],
                 },
                 source=self.name,
                 timestamp=datetime.now().isoformat()

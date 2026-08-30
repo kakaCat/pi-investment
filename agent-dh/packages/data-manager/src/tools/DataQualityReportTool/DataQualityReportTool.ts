@@ -59,7 +59,40 @@ export class DataQualityReportTool extends BaseTool<DataQualityReportParams, Dat
   }
 
   protected wrap(data: DataQualityReportResult, context: ToolContext): ToolResponse<DataQualityReportResult> {
-    const { data_type, overall_score, missing_data, delayed_data, anomalies } = data;
+    // 2026-08-30 修复：后端实际返回 records 列表（无 missing_data/delayed_data/anomalies 顶层键），
+    // 直接 .length 会 TypeError；且输出 schema 为 additionalProperties:false，必须映射为契约字段。
+    const records: any[] = Array.isArray((data as any).records) ? (data as any).records : [];
+    const scores = records
+      .map((r: any) => r?.overall_score)
+      .filter((n: any): n is number => typeof n === 'number');
+
+    const data_type = (data as any).data_type ?? (context as any).data_type ?? 'all';
+    const check_date = (data as any).check_date ?? records[0]?.check_date ?? '';
+    const overall_score = typeof (data as any).overall_score === 'number'
+      ? (data as any).overall_score
+      : (scores.length > 0 ? Math.min(...scores) : 0);
+
+    const missing_data = Array.isArray(data.missing_data)
+      ? data.missing_data
+      : records
+          .filter((r: any) => (r?.removed_count ?? 0) > 0 || (r?.cleaned_count ?? 0) < (r?.original_count ?? 0))
+          .map((r: any) => ({ symbol: r?.symbol ?? '', date: r?.check_date ?? '', type: r?.period ?? 'daily', removed_count: r?.removed_count ?? 0 }));
+    const delayed_data = Array.isArray(data.delayed_data) ? data.delayed_data : [];
+    const anomalies = Array.isArray(data.anomalies)
+      ? data.anomalies
+      : records
+          .filter((r: any) => (r?.error_count ?? 0) > 0)
+          .map((r: any) => ({ symbol: r?.symbol ?? '', date: r?.check_date ?? '', type: r?.period ?? 'daily', error_count: r?.error_count ?? 0 }));
+
+    const mapped: DataQualityReportResult = {
+      data_type,
+      check_date,
+      overall_score,
+      missing_data,
+      delayed_data,
+      anomalies,
+      summary: (data as any).summary ?? `数据质量报告（${data_type}）: ${records.length} 条检查记录, 综合评分 ${overall_score.toFixed(1)}`,
+    };
 
     const score = typeof overall_score === 'number' ? overall_score : 0;
     let message = `数据质量报告（${data_type}）: 评分 ${score.toFixed(1)}`;
@@ -69,7 +102,7 @@ export class DataQualityReportTool extends BaseTool<DataQualityReportParams, Dat
 
     return {
       success: true,
-      data,
+      data: mapped,
       message,
       metadata: {
         data_type,

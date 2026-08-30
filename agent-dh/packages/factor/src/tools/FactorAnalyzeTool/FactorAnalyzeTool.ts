@@ -67,7 +67,12 @@ export class FactorAnalyzeTool extends BaseTool<FactorAnalyzeParams, FactorAnaly
   }
 
   protected async execute(params: FactorAnalyzeParams, context: ToolContext): Promise<FactorAnalyzeResult> {
-    const { factor_name, start_date, end_date } = params;
+    const { factor_name } = params;
+
+    // 2026-08-30 修复：prompt 文档承诺默认 1 年前~今天，但 execute 直接透传 undefined，
+    // 后端校验"开始日期和结束日期不能为空"返回 400。此处补默认值。
+    const end_date = params.end_date ?? new Date().toISOString().slice(0, 10);
+    const start_date = params.start_date ?? new Date(Date.now() - 365 * 86400 * 1000).toISOString().slice(0, 10);
 
     return this.qv2.analyzeFactor({
       factor_name,

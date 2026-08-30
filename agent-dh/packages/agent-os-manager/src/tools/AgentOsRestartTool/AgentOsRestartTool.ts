@@ -91,7 +91,13 @@ export class AgentOsRestartTool extends BaseTool<AgentOsRestartParams, AgentOsRe
       // 超时诊断
       steps.push({ step: 'health_check', status: 'timeout' });
       const diagnosis = this.diagnose();
-      return { success: false, steps, diagnosis };
+      // 2026-08-30 修复：失败必须带 error 摘要，否则 DSH 层把诊断吞成笼统「工具执行失败」
+      return {
+        success: false,
+        steps,
+        diagnosis,
+        error: '重启失败（健康检查超时）：' + (diagnosis?.issues ?? []).join('；'),
+      };
 
     } catch (e: any) {
       steps.push({ step: 'fatal_error', error: e.message });

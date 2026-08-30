@@ -74,6 +74,27 @@ export class KlineDailySyncTool extends BaseTool<KlineDailySyncParams, KlineDail
 
     const response = await this.quantsysClient.syncDailyKlines(requestParams);
 
+    // 2026-08-30 修复：部分/全部失败时抛带明细的错误，避免 DSH 层吞成笼统的「工具执行失败」，
+    // 让 Agent 知道具体哪些标的失败及后端提示。
+    if (response && Number(response.failed_count) > 0) {
+      const failed = Array.isArray(response.failed_symbols)
+        ? response.failed_symbols.slice(0, 5).join(', ')
+        : '';
+      throw new Error(
+        'K线同步未完全成功（' +
+          (response.sync_date ?? '') +
+          '）: ' +
+          String(response.success_count ?? 0) +
+          '/' +
+          String(response.total_symbols ?? 0) +
+          ' 成功，' +
+          String(response.failed_count) +
+          ' 失败' +
+          (failed ? '（失败标的: ' + failed + '）' : '') +
+          (response.message ? '。' + response.message : '')
+      );
+    }
+
     return response as KlineDailySyncResult;
   }
 

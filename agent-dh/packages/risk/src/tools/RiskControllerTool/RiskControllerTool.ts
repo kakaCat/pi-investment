@@ -3,6 +3,7 @@
  */
 
 import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { sanitizeLossless } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { riskControllerPrompt, RiskControllerParams, RiskControllerResult } from './prompt';
@@ -106,13 +107,18 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
       }
     }
 
-    return {
+    // 2026-08-30 修复：显式 warning: undefined 会导致 JSON 往返不等（lossless 校验失败）。
+    // 不再无条件写入 warning 键；result 也做递归无损清洗。
+    // 2026-08-30 二次修复：out 顶层若含 undefined 键（如 portfolio_risk 的 symbol），
+    // DSH snapshotJsonValue 会拒绝整个值（"value must be an object"），
+    // 因此整个 out 再过一遍 sanitizeLossless 删除 undefined 键。
+    const out: Record<string, any> = sanitizeLossless({
       command: args.command,
       symbol: args.symbol,
-      result: sanitized.result ?? sanitized,
-      warning: typeof sanitized.warning === 'string' ? sanitized.warning : undefined,
+      result: sanitizeLossless(sanitized.result ?? sanitized),
       ...sanitized,
-    };
+    }) as Record<string, any>;
+    return out as RiskControllerResult;
   }
 
   /**

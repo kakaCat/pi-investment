@@ -122,13 +122,26 @@ export abstract class BaseTool<TParams = any, TResult = any> {
       name: this.metadata.name,
       description: this.prompt.description,
       parameters: this.convertParameters(this.prompt.parameters),
-      output: this.prompt.output,
+      // render 默认注入：prompt 未定义 render 时回退为 JSON 文本块，
+      // 避免 DSH 执行链因 output.render 缺失而失败
+      output: {
+        ...this.prompt.output,
+        render: this.prompt.output?.render
+          ?? ((_args: TParams, data: TResult) => [{ type: 'text', text: JSON.stringify(data, null, 2) }]),
+      },
       timeoutMs: this.metadata.timeoutMs || 10000,
       execute: async (args: TParams, _exec?: any) => {
         const response = await this.call(args);
 
         if (!response.success) {
-          throw new Error(response.error?.issue || '工具执行失败');
+          // 错误提取：兼容 string / {issue} / {error:{issue}} 三种形态
+          const err: any = response.error;
+          const issue =
+            typeof err === 'string' ? err
+            : err?.issue ? err.issue
+            : err?.error?.issue ? err.error.issue
+            : '工具执行失败';
+          throw new Error(issue);
         }
 
         return response.data;

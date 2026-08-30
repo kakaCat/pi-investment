@@ -108,7 +108,7 @@ export class QuantsysV2Client {
         const backendMsg =
           (body && typeof body === 'object'
             ? (typeof body.error === 'string' ? body.error : null) ?? body.message ??
-              (typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail ?? body).slice(0, 200))
+              (typeof body.detail === 'string' ? body.detail : String(JSON.stringify(body.detail ?? body) ?? '').slice(0, 200))
             : String(body ?? '').slice(0, 200)) || '无详情';
 
         const hintMap: Record<number, string> = {
@@ -576,6 +576,18 @@ export class QuantsysV2Client {
     return response.data.data || response.data;
   }
 
+  /**
+   * Get financial statements (provider sina-statements, 真实报表数据)
+   * Real endpoint: GET /api/provider/financial/{symbol}/sina-statements
+   * 2026-08-30 新增：/api/v2/stock/{symbol}/financials 的 sina-web 指标源已失效
+   * （全部返回 null），改用 DataProviderManager 的原始报表接口兜底。
+   * 返回 { data_type, data: { income, balance, cashflow } }
+   */
+  async getFinancialStatements(symbol: string): Promise<any> {
+    const response = await this.client.get('/api/provider/financial/' + symbol + '/sina-statements');
+    return this.unwrap<any>(response.data, 'getFinancialStatements');
+  }
+
   // ==================== Watch APIs ====================
 
   /**
@@ -697,8 +709,29 @@ export class QuantsysV2Client {
    * Real endpoint: POST /api/orders/algo-execute
    */
   async executeAlgo(params: AlgoExecuteRequest): Promise<AlgoExecuteResponse> {
-    const response = await this.client.post('/api/orders/algo-execute', params);
-    return this.unwrap<AlgoExecuteResponse>(response.data, 'executeAlgo');
+    // 2026-08-30 修复：后端契约用 duration_minutes（此前传 duration 会被忽略，回落默认 30）
+    const { duration, ...rest } = params;
+    const body: Record<string, any> = { ...rest };
+    if (duration !== undefined) body.duration_minutes = duration;
+    const response = await this.client.post('/api/orders/algo-execute', body);
+    const raw: any = this.unwrap(response.data, 'executeAlgo');
+    // 2026-08-30 修复：运行中的后端统一 camelCase（orderId/parentQuantity/childOrders/
+    // executionStats），与 AlgoExecuteResponse 契约（algo_order_id/total_quantity/slices）
+    // 不一致，此前导致 AlgoExecuteTool.wrap 永远报"缺少必需字段"。此处兼容两种命名。
+    return {
+      algo_order_id: raw.orderId ?? raw.order_id ?? raw.algo_order_id,
+      algo: raw.algo,
+      symbol: raw.symbol,
+      total_quantity: raw.parentQuantity ?? raw.parent_quantity ?? raw.total_quantity,
+      filled_quantity: raw.filled_quantity ?? 0,
+      avg_price: raw.avg_price ?? 0,
+      slices: raw.childOrders ?? raw.child_orders ?? raw.slices ?? [],
+      status: raw.status,
+      side: raw.side,
+      execution_stats: raw.executionStats ?? raw.execution_stats,
+      parent_quantity: raw.parentQuantity ?? raw.parent_quantity,
+      order_id: raw.orderId ?? raw.order_id,
+    } as AlgoExecuteResponse;
   }
 
   /**
@@ -898,7 +931,10 @@ export class QuantsysV2Client {
    * Real endpoint: POST /api/agent/rotation/simulate
    */
   async simulateRotation(params: RotationSimulateRequest): Promise<RotationSimulateResponse> {
-    const response = await this.client.post('/api/agent/rotation/simulate', params);
+    // 2026-08-30 修复：后端 RotationSimulate 模型字段为 actions（策略级轮动动作），
+    // 工具层传 proposals（买卖建议），需映射后再 POST，否则 FastAPI 422 校验失败。
+    const { proposals, ...rest } = params;
+    const response = await this.client.post('/api/agent/rotation/simulate', { actions: proposals ?? [], ...rest });
     return this.unwrap<RotationSimulateResponse>(response.data, 'simulateRotation');
   }
 
@@ -1049,7 +1085,7 @@ export class QuantsysV2Client {
    * Sync daily K-line data
    * Real endpoint: POST /api/data/sync-daily-klines
    */
-  async syncDailyKlines(params?: { date?: string }): Promise<{
+  async syncDailyKlines(params?: { date?: string; symbols?: string[]; force?: boolean }): Promise<{
     success: boolean;
     sync_date: string;
     success_count: number;

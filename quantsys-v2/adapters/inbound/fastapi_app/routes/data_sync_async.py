@@ -4,7 +4,7 @@
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import structlog
 from datetime import datetime, timedelta
 
@@ -19,6 +19,7 @@ router = APIRouter()
 class KlineSyncRequest(BaseModel):
     """K线同步请求"""
     date: Optional[str] = None  # YYYY-MM-DD，默认昨日
+    symbols: Optional[List[str]] = None  # 指定股票代码列表（默认全市场活跃股）
 
 
 class KlineSyncResponse(BaseModel):
@@ -64,7 +65,10 @@ def get_active_stocks() -> set[str]:
 
 
 @router.post("/api/data/sync-daily-klines", response_model=KlineSyncResponse)
-async def sync_daily_klines(request: KlineSyncRequest):
+def sync_daily_klines(request: KlineSyncRequest):
+    # 2026-08-30 修复：原 async def 直接在事件循环内执行阻塞式 backfill_batch，
+    # 大同步会挂死整个 uvicorn（health/其他接口全无响应）。
+    # 改为同步 def，FastAPI 自动放入线程池执行，事件循环保持可用。
     """
     同步每日K线数据
     
@@ -86,8 +90,8 @@ async def sync_daily_klines(request: KlineSyncRequest):
     logger.info(f"开始同步 {sync_date} K线数据")
     
     try:
-        # 获取活跃股票
-        symbols = get_active_stocks()
+        # 获取同步标的：优先用请求指定的 symbols，否则全市场活跃股
+        symbols = list(request.symbols) if request.symbols else list(get_active_stocks())
         
         if not symbols:
             raise HTTPException(status_code=500, detail="未获取到任何活跃股票")

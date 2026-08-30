@@ -56,11 +56,17 @@ export class AgentOsLogsTool extends BaseTool<AgentOsLogsParams, AgentOsLogsResu
     const { projectRoot, logDir } = this.config;
     const lines = params.lines || 50;
     const source = params.source || 'main';
-    const logFile = source === 'scheduler' ? 'scheduler.log' : 'main.log';
-    const logPath = `${projectRoot}/${logDir}/${logFile}`;
+    // 2026-08-30 修复：agent-os 实际日志文件是 agent-os.log（launchd 托管），
+    // 不存在 main.log/scheduler.log。按优先级回退查找真实文件。
+    const candidates = source === 'scheduler'
+      ? ['scheduler.log', 'agent-os.log']
+      : ['main.log', 'agent-os.log', 'launchd-stdout.log'];
+    const logPath = candidates
+      .map(f => `${projectRoot}/${logDir}/${f}`)
+      .find(p => existsSync(p));
 
-    if (!existsSync(logPath)) {
-      throw new Error(`Log file not found: ${logPath}`);
+    if (!logPath) {
+      throw new Error(`Log file not found under ${projectRoot}/${logDir} (tried: ${candidates.join(', ')})`);
     }
 
     let cmd = `tail -${lines} "${logPath}"`;
@@ -74,7 +80,7 @@ export class AgentOsLogsTool extends BaseTool<AgentOsLogsParams, AgentOsLogsResu
     return {
       lines: logLines,
       total: logLines.length,
-      source: logFile,
+      source: logPath,
     };
   }
 

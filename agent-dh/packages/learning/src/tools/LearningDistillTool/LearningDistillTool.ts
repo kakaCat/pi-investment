@@ -2,7 +2,7 @@
  * LearningDistillTool - 规则提炼工具
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, sanitizeLossless } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import { learningDistillPrompt, LearningDistillParams, LearningDistillResult } from './prompt';
 
@@ -66,13 +66,15 @@ export class LearningDistillTool extends BaseTool<LearningDistillParams, Learnin
       maxRules: args.max_rules || 10,
     });
 
-    return {
+    // 2026-08-30 修复：in-process 学习服务的规则/统计字段可能含 undefined/NaN，
+    // 直接返回会触发 DSH lossless JSON 校验失败。统一递归清洗。
+    return sanitizeLossless({
       success: true,
       rules,
       source_count: experiences.length,
       distill_method: this.getDistillMethod(args.target_format),
       validation_stats: this.validateRules(rules, experiences),
-    };
+    });
   }
 
   protected wrap(result: LearningDistillResult): ToolResponse<LearningDistillResult> {
