@@ -174,13 +174,19 @@ class ServiceFactory:
         # 回退到旧实现
         if 'scoring_service' not in cls._instances:
             from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
+            from adapters.outbound.repositories.financial_repository import FinancialORMRepository
+            from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
 
             ds = cls.get_data_service()
             factor_adapter = get_factor_adapter()
+            financial_repo = FinancialORMRepository()
+            fund_flow_repo = FundFlowORMRepository()
             cls._instances['scoring_service'] = OpportunityScoringService(
-                ds.kline, ds.stock, factor_adapter
+                ds.kline, ds.stock, factor_adapter,
+                financial_repo=financial_repo,
+                fund_flow_repo=fund_flow_repo,
             )
-            logger.info("OpportunityScoringService initialized (legacy)")
+            logger.info("OpportunityScoringService initialized (legacy, with financial_repo + fund_flow_repo)")
         return cls._instances['scoring_service']
 
     @classmethod
@@ -564,16 +570,6 @@ class ServiceFactory:
             logger.info("GameAlertService initialized")
         return cls._instances['game_alert_service']
 
-    @classmethod
-    @lru_cache(maxsize=1)
-    def get_enhanced_financial_service(cls):
-        """获取EnhancedFinancialDataService实例"""
-        if 'enhanced_financial_service' not in cls._instances:
-            from application.services.enhanced_financial_data_service import get_enhanced_financial_service
-            cls._instances['enhanced_financial_service'] = get_enhanced_financial_service()
-            logger.info("EnhancedFinancialDataService initialized")
-        return cls._instances['enhanced_financial_service']
-
     # ── P1-2 Phase 2: 数据源接口抽象 (2026-08-21) ──
 
     @classmethod
@@ -807,7 +803,6 @@ class ServiceFactory:
         cls.get_strategy_validation_service.cache_clear()
         cls.get_strategy_optimizer.cache_clear()
         cls.get_game_alert_service.cache_clear()
-        cls.get_enhanced_financial_service.cache_clear()
         # P1-2 Phase 2
         cls.get_ml_model_repository.cache_clear()
         cls.get_ml_model_metadata_repository.cache_clear()

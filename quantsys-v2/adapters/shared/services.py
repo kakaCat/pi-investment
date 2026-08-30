@@ -144,9 +144,6 @@ def get_strategy_optimizer():
 def get_game_alert_service():
     return ServiceFactory.get_game_alert_service()
 
-def get_enhanced_financial_service():
-    return ServiceFactory.get_enhanced_financial_service()
-
 # ── 向后兼容：保留旧的全局变量名作为属性（懒加载） ──
 # 这样旧代码 `from adapters.shared.services import ds` 仍然能工作
 
@@ -311,10 +308,6 @@ class _LazyServiceModule:
     @property
     def game_alert_service(self):
         return get_game_alert_service()
-
-    @property
-    def enhanced_financial_service(self):
-        return get_enhanced_financial_service()
 
 # 创建懒加载代理实例
 import sys
