@@ -4,12 +4,8 @@
 
 import { BaseTool, ErrorType } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
+import type { AgentOSClient } from '@pi-investment/agent-os-client';
 import { slippageReportPrompt, SlippageReportParams, SlippageReportResult } from './prompt';
-
-// OsMemoryStore 类型（简化）
-interface OsMemoryStore {
-  search(params: { query: string; namespace: string; top_k?: number }): Promise<any>;
-}
 
 /**
  * 滑点报告工具类
@@ -24,7 +20,7 @@ export class SlippageReportTool extends BaseTool<SlippageReportParams, SlippageR
 
   protected readonly prompt = slippageReportPrompt;
 
-  constructor(private osMemory: OsMemoryStore) {
+  constructor(private osClient: AgentOSClient) {
     super();
   }
 
@@ -67,11 +63,11 @@ export class SlippageReportTool extends BaseTool<SlippageReportParams, SlippageR
    * Phase 2: 执行任务
    */
   protected async execute(args: SlippageReportParams, _context: ToolContext): Promise<SlippageReportResult> {
-    // 从 osMemory 检索滑点记录
-    const searchResult: any = await this.osMemory.search({
+    // 从 osClient.memory 检索滑点记录
+    const searchResult: any = await this.osClient.memory.search({
       query: args.symbol ? `slippage ${args.symbol}` : 'slippage',
-      namespace: 'episode',
-      top_k: 1000,
+      category: 'episode',
+      limit: 1000,
     });
 
     const memories = searchResult?.memories || [];

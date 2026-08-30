@@ -69,7 +69,13 @@ export class TradeMonitorTool extends BaseTool<TradeMonitorParams, TradeMonitorR
       account_name: args.account_name || 'agent_virtual',
       order_id: args.order_id,
     });
-    return result as unknown as TradeMonitorResult;
+
+    // 转换驼峰命名为下划线命名以匹配工具的输出格式
+    return {
+      orders: result.orders || [],
+      pending_count: result.pendingCount || 0,
+      filled_count: result.filledCount || 0,
+    } as unknown as TradeMonitorResult;
   }
 
   /**
