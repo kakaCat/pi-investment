@@ -123,3 +123,36 @@ class AkshareFinancialStatementProvider:
         except Exception as e:
             logger.warning(f"{self.name} get_financial_analysis_indicator failed for {clean_symbol}: {e}")
             return None
+
+    def get_financial(self, symbol: str, report_type: str = 'latest') -> Optional['StockData']:
+        """获取财务数据（适配 DataProviderManager.get_financial 接口）
+
+        Args:
+            symbol: 股票代码（东财格式，如 SH600519）
+            report_type: 'latest' | 'quarterly' | 'annual'
+
+        Returns:
+            StockData 或 None
+        """
+        try:
+            records = []
+            for fetch_name in ['stock_profit_sheet_by_report_em', 'stock_cash_flow_sheet_by_report_em']:
+                df = getattr(__import__('akshare', fromlist=['ak']), fetch_name)(symbol=symbol)
+                if df is not None and not df.empty:
+                    records.extend(df.where(df.notna(), None).to_dict('records'))
+
+            if not records:
+                return None
+
+            return StockData(
+                symbol=symbol,
+                data_type='financial',
+                data=records,
+                total=len(records),
+                source=self.name,
+                timestamp=datetime.now().isoformat()
+            )
+
+        except Exception as e:
+            logger.warning(f"{self.name} get_financial failed for {symbol}: {e}")
+            return None

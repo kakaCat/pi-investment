@@ -21,6 +21,8 @@ from adapters.outbound.datasources.providers.kline.akshare import AkshareKlinePr
 from adapters.outbound.datasources.providers.sector.eastmoney import EastmoneySectorProvider
 from adapters.outbound.datasources.providers.index.akshare import AkshareIndexProvider
 from adapters.outbound.datasources.providers.financial.akshare import AkshareFinancialStatementProvider
+from adapters.outbound.datasources.providers.financial.sina import SinaFinancialProvider
+from adapters.outbound.datasources.providers.financial.eastmoney import EastmoneyFinancialProvider
 from adapters.outbound.datasources.providers.hk.akshare import AkshareHKProvider
 
 logger = logging.getLogger(__name__)
@@ -50,10 +52,12 @@ class DataProviderManager(IDataProviderManager):
             EastmoneyQuoteProvider(),    # Unstable, connection issues
             AkshareQuoteProvider(),      # Very slow (75s), last resort
         ]
-        # Financial providers: TODO Phase 2 - create proper providers with get_financial method
-        # Current AkshareFinancialStatementProvider only has get_sina_statements, get_profit_sheet, etc.
-        # but not get_financial() which is what get_financial() calls
-        self.financial_providers = []
+        # Financial providers: SinaWeb > Eastmoney > Akshare (by stability)
+        self.financial_providers = [
+            SinaFinancialProvider(),       # Sina web scraping, generally stable
+            EastmoneyFinancialProvider(),  # Eastmoney direct API, sometimes slow
+            AkshareFinancialStatementProvider(),  # Akshare fallback
+        ]
         self.financial_statement_providers = [
             AkshareFinancialStatementProvider(),
         ]
