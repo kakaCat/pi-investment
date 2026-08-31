@@ -119,6 +119,11 @@ export abstract class BaseTool<TParams = any, TResult = any> {
    * 转换为 DSH Tool 定义
    */
   toDSHToolDefinition() {
+    // 处理 output.schema：如果未定义，使用 DSH 默认的 any schema
+    const outputSchema = this.prompt.output?.schema
+      ? this.stripDslUnsupported(this.prompt.output.schema)
+      : { type: 'object', additionalProperties: true }; // DSH 要求明确的 schema
+
     return {
       name: this.metadata.name,
       description: this.prompt.description,
@@ -127,7 +132,7 @@ export abstract class BaseTool<TParams = any, TResult = any> {
       // 避免 DSH 执行链因 output.render 缺失而失败
       output: {
         ...this.prompt.output,
-        schema: this.prompt.output?.schema ? this.stripDslUnsupported(this.prompt.output.schema) : undefined,
+        schema: outputSchema,
         render: this.prompt.output?.render
           ?? ((_args: TParams, data: TResult) => [{ type: 'text', text: JSON.stringify(data, null, 2) }]),
       },

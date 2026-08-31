@@ -34,26 +34,35 @@ export interface PromptEvolverResult {
 }
 
 export const promptEvolverPrompt: ToolPrompt<PromptEvolverParams> = {
-  name: 'prompt_evolver',
   description: 'P1-2 提示词进化：接收 distill 建议，生成段更新提案，调用 genome_update 应用。用于：每日蒸馏、手动应用改进、A/B 测试新规则。',
-
+  useCases: [
+    '每日蒸馏后生成提示词改进提案',
+    '手动提交单条改进建议（A/B 测试新规则）',
+    '批量应用多条蒸馏建议为 candidate 观察版',
+  ],
+  notes: [
+    'dry_run=true（默认）只生成提案预览，不实际修改基因组',
+    'dry_run=false 会以 candidate 观察版应用，须经 validation_gate 裁决转正',
+    'rules 段规则 ID 只允许新增，不允许删除或修改已有 ID',
+    '改写失败自动回退为追加模式，保证可用性',
+  ],
+  relatedTools: ['genome_update', 'learning_distill', 'validation_gate', 'candidate_status'],
   parameters: {
     suggestions: {
       type: 'array',
       description: 'experience_distill 输出的建议数组，每个建议包含 type/section/content/reason',
       required: true,
+      items: { type: 'object', additionalProperties: true },
     } as ParameterDefinition,
 
     dry_run: {
       type: 'boolean',
       description: 'true（默认）：只生成预览，不执行；false：以 candidate 观察版应用（须经 validation_gate 裁决转正）',
-      required: false,
     } as ParameterDefinition,
 
     observe_days: {
       type: 'number',
       description: 'candidate 观察期（天），默认 5',
-      required: false,
     } as ParameterDefinition,
   },
 
@@ -90,4 +99,34 @@ export const promptEvolverPrompt: ToolPrompt<PromptEvolverParams> = {
       expectedResult: '应用为 candidate 版本，观察期 7 天',
     },
   ],
+  output: {
+    schema: {
+      type: 'object',
+      additionalProperties: true,
+      properties: {
+        proposals: {
+          type: 'array',
+          items: { type: 'object', additionalProperties: true },
+        },
+        summary: { type: 'string' },
+        applied_count: { type: 'number' },
+        results: {
+          type: 'array',
+          items: { type: 'object', additionalProperties: true },
+        },
+      },
+    },
+    render: (args: PromptEvolverParams, data: any) => [{
+      type: 'text',
+      text: [
+        `## 提示词进化结果`,
+        `**模式**: ${args.dry_run === false ? '应用' : '预览'}`,
+        `**概要**: ${data?.summary ?? ''}`,
+        ``,
+        ...(data?.proposals ?? []).map((p: any, i: number) =>
+          `### 提案 ${i + 1}: ${p.section} (${p.method})\n${p.reason ?? ''}\n\`\`\`\n${p.content ?? ''}\n\`\`\``
+        ),
+      ].join('\n'),
+    }],
+  },
 };

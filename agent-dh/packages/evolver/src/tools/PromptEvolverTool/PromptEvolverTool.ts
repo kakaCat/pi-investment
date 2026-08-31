@@ -88,7 +88,10 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
     const proposals: PromptEvolverResult['proposals'] = [];
     const results: PromptEvolverResult['results'] = [];
 
-    for (const suggestion of params.suggestions) {
+    // 有界并发处理建议（3 路），避免多条建议串行 LLM 调用导致超时
+    const CONCURRENCY = 3;
+    const suggestions = params.suggestions;
+    const processSuggestion = async (suggestion: any): Promise<{ proposal: any; result?: any }> => {
       try {
         // 1. 读取当前段落内容
         const currentContent = await this.readSection(suggestion.section);
@@ -103,14 +106,14 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
         // 3. 生成 diff 预览
         const diff = this.generateDiff(currentContent, content);
 
-        proposals.push({
+        const proposal = {
           section: suggestion.section,
           action: suggestion.type || 'update',
           method,
           content,
           reason: suggestion.reason,
           diff,
-        });
+        };
 
         // 4. 如果非预览模式，调用 genome_update 应用为 candidate
         if (!dryRun) {
@@ -121,39 +124,61 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
               suggestion.reason,
               'candidate'
             );
-            results.push({
-              success: true,
-              section: suggestion.section,
-              message: `已更新为 candidate 版本，观察期 ${observeDays} 天`,
-            });
+            return {
+              proposal,
+              result: {
+                success: true,
+                section: suggestion.section,
+                message: `已更新为 candidate 版本，观察期 ${observeDays} 天`,
+              },
+            };
           } catch (e: any) {
-            results.push({
-              success: false,
-              section: suggestion.section,
-              message: e.message,
-            });
+            return {
+              proposal,
+              result: {
+                success: false,
+                section: suggestion.section,
+                message: e.message,
+              },
+            };
           }
         }
+        return { proposal };
       } catch (e: any) {
-        proposals.push({
-          section: suggestion.section,
-          action: 'error',
-          method: 'failed',
-          content: '',
-          reason: e.message,
-        });
+        return {
+          proposal: {
+            section: suggestion.section,
+            action: 'error',
+            method: 'failed',
+            content: '',
+            reason: e.message,
+          },
+        };
       }
+    };
+
+    // 按索引保序并发执行
+    const indexed = suggestions.map((s, i) => ({ s, i }));
+    for (let start = 0; start < indexed.length; start += CONCURRENCY) {
+      const batch = indexed.slice(start, start + CONCURRENCY);
+      const batchResults = await Promise.all(batch.map(({ s }) => processSuggestion(s)));
+      batchResults.forEach((r, j) => {
+        proposals[batch[j].i] = r.proposal;
+        if (r.result) results[batch[j].i] = r.result;
+      });
     }
+    // 压缩空洞（失败建议的 proposal 已在 catch 中填充，results 可能有 undefined）
+    const filledResults = results.filter(Boolean);
 
     const summary = dryRun
       ? `预览模式：生成 ${proposals.length} 条提案（未应用）`
-      : `应用模式：${results.filter(r => r.success).length}/${results.length} 条成功应用`;
+      : `应用模式：${filledResults.filter(r => r.success).length}/${filledResults.length} 条成功应用`;
 
     return {
       proposals,
       summary,
-      applied_count: results.filter(r => r.success).length,
-      results: dryRun ? [] : results,
+      applied_count: filledResults.filter(r => r.success).length,
+      results: dryRun ? [] : filledResults,
     };
   }
 
@@ -165,6 +190,51 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
       success: true,
       data: result,
     };
+  }
+
+  /**
+   * 覆盖 toDSHToolDefinition，使用简化的 parameters 定义
+   */
+  toDSHToolDefinition() {
+    return {
+      name: this.metadata.name,
+      description: this.prompt.description,
+      parameters: {
+        suggestions: {
+          type: 'array',
+          description: 'experience_distill 输出的建议数组，每个建议包含 type/section/content/reason',
+          required: true,
+          items: { type: 'object', additionalProperties: true },
+        },
+        dry_run: {
+          type: 'boolean',
+          description: 'true（默认）：只生成预览，不执行；false：以 candidate 观察版应用（须经 validation_gate 裁决转正）',
+        },
+        observe_days: {
+          type: 'number',
+          description: 'candidate 观察期（天），默认 5',
+        },
+      },
+      output: {
+        schema: this.prompt.output?.schema || { type: 'object', additionalProperties: true },
+        render: this.prompt.output?.render
+          ?? ((_args: any, data: any) => [{ type: 'text', text: JSON.stringify(data, null, 2) }]),
+      },
+      timeoutMs: this.metadata.timeoutMs || 10000,
+      execute: async (args: PromptEvolverParams) => {
+        const response = await this.call(args);
+        if (!response.success) {
+          const err: any = response.error;
+          const issue =
+            typeof err === 'string' ? err
+            : err?.issue ? err.issue
+            : err?.error?.issue ? err.error.issue
+            : '工具执行失败';
+          throw new Error(issue);
+        }
+        return response.data;
+      },
+    } as any;
   }
 
   // ===== 私有辅助方法 =====

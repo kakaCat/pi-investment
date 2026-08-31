@@ -57,13 +57,22 @@ export class DailyDistillTool extends BaseTool<DailyDistillParams, DailyDistillR
     const days = params.days || 7;
     const autoApply = params.auto_apply || false;
 
-    // 1. 调用 experience_distill 蒸馏经验
-    const distillResult = await this.callTool('experience_distill', {
-      days,
+    // 1. 调用 learning_analyze 分析经验库（生成改进建议）
+    const distillResult = await this.callTool('learning_analyze', {
+      scope: 'recent',
+      focus: 'all',
+      min_samples: Math.max(1, Math.min(days, 30)),
     });
 
-    // 2. 提取建议
-    const suggestions = distillResult?.suggestions || [];
+    // 2. 提取建议（learning_analyze 输出 suggestions: string[]，需转换为 prompt_evolver 建议格式）
+    //    限 3 条：避免一次过多 LLM 改写调用导致超时
+    const rawSuggestions: string[] = (distillResult?.suggestions || []).slice(0, 3);
+    const suggestions = rawSuggestions.map((s: string) => ({
+      type: 'strengthen',
+      section: 'rules',
+      content: s,
+      reason: 'learning_analyze 自动蒸馏',
+    }));
 
     // 3. 调用 prompt_evolver 生成/应用提案
     const evolverResult = suggestions.length > 0
@@ -78,10 +87,10 @@ export class DailyDistillTool extends BaseTool<DailyDistillParams, DailyDistillR
 
     return {
       distill_summary: {
-        genome_version: distillResult.genome_version || 'unknown',
+        genome_version: distillResult.genome_version || 'current',
         period: distillResult.period || { from: '', to: '' },
         stats: distillResult.stats || {
-          total_experiences: 0,
+          total_experiences: distillResult?.sample_count ?? 0,
           avg_reward: 0,
           success_rate: 0,
         },
@@ -123,19 +132,26 @@ export class DailyDistillTool extends BaseTool<DailyDistillParams, DailyDistillR
   }
 
   /**
-   * 生成每日蒸馏摘要
+   * 生成每日蒸馏摘要（适配 learning_analyze 输出：patterns/suggestions/sample_count）
    */
   private generateSummary(distillResult: any, evolverResult: any, autoApply: boolean): string {
-    const stats = distillResult.stats || {};
-    const proposals = evolverResult.proposals || [];
+    const patterns = distillResult?.patterns || [];
+    const suggestions = distillResult?.suggestions || [];
+    const sampleCount = distillResult?.sample_count ?? 0;
+    const proposals = evolverResult?.proposals || [];
 
     let summary = `📊 每日蒸馏报告\n\n`;
-    summary += `基因组版本: ${distillResult.genome_version}\n`;
-    summary += `分析周期: ${distillResult.period?.from?.slice(0, 10)} ~ ${distillResult.period?.to?.slice(0, 10)}\n\n`;
-    summary += `统计:\n`;
-    summary += `- 总经验数: ${stats.total_experiences}\n`;
-    summary += `- 平均奖励: ${stats.avg_reward}\n`;
-    summary += `- 成功率: ${(stats.success_rate * 100).toFixed(1)}%\n\n`;
+    summary += `- 分析样本数: ${sampleCount}\n`;
+    summary += `- 发现模式: ${patterns.length} 个\n`;
+    summary += `- 蒸馏建议: ${suggestions.length} 条\n\n`;
+
+    if (patterns.length > 0) {
+      summary += `模式摘要:\n`;
+      patterns.slice(0, 5).forEach((p: any, i: number) => {
+        summary += `${i + 1}. ${p?.description ?? p?.pattern ?? JSON.stringify(p)}\n`;
+      });
+      summary += `\n`;
+    }
 
     if (proposals.length > 0) {
       summary += `生成 ${proposals.length} 条改进提案:\n`;
