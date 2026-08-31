@@ -172,6 +172,10 @@ export interface Position {
   profitLoss: number;
   profitLossPct: number;
   profitToday: number;
+  /** 行情刷新时间戳（ISO），来自 simulation 账户接口的 price_updated_at */
+  priceUpdatedAt?: string | null;
+  /** 账户级行情陈旧标记：true=本次行情拉取失败，价格为旧值 */
+  priceStale?: boolean;
 }
 
 /**
@@ -191,6 +195,46 @@ export interface PortfolioSummary {
   profitCount: number;
   lossCount: number;
   lastUpdated: string;
+  /** 行情陈旧标记（透传自 simulation 账户接口） */
+  priceStale?: boolean;
+}
+
+/**
+ * Simulation 账户接口（GET /api/simulation/accounts/{account}）原始 snake_case 结构
+ */
+export interface SimulationPositionItem {
+  symbol?: string;
+  name?: string;
+  shares_total?: number;
+  shares_available?: number;
+  avg_cost?: number;
+  current_price?: number;
+  market_value?: number;
+  cost?: number;
+  profit_total?: number;
+  profit_total_rate?: number;
+  profit_today?: number;
+  created_at?: string;
+  price_updated_at?: string;
+  days_held?: number;
+}
+
+export interface SimulationAccountStatus {
+  account_name?: string;
+  display_name?: string | null;
+  strategy_name?: string | null;
+  cash_available?: number;
+  cash_frozen?: number;
+  position_value?: number;
+  total_value?: number;
+  initial_capital?: number;
+  cumulative_return?: number;
+  last_rebalance_date?: string | null;
+  last_updated?: string;
+  price_stale?: boolean;
+  positions_count?: number;
+  positions?: SimulationPositionItem[];
+  benchmark?: unknown;
 }
 
 /**

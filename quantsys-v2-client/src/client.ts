@@ -604,27 +604,77 @@ export class QuantsysV2Client {
 
   /**
    * Get portfolio positions
-   * Real endpoint: GET /api/portfolio/positions?account_name=xxx
-   * Response: {success, data: {positions: [...], count}}
+   * 2026-08-31 修复：改调 /api/simulation/accounts/{account}（get_account_status），
+   * 该接口每次请求实时拉行情刷新持仓价格并返回 price_stale / price_updated_at；
+   * 原 /api/portfolio/positions 直读数据库 current_price 快照（陈旧价，曾导致 8/28 旧价）。
+   * 响应为 snake_case，映射为工具层期望的 camelCase Position[]。
    */
   async getPositions(accountName: string = 'agent_virtual'): Promise<Position[]> {
-    const response = await this.client.get('/api/portfolio/positions', {
-      params: { account_name: accountName },
-    });
-    const data = this.unwrap<{ positions: Position[]; count: number }>(response.data, 'getPositions');
-    return data.positions || [];
+    const response = await this.client.get(`/api/simulation/accounts/${encodeURIComponent(accountName)}`);
+    const data = this.unwrap<SimulationAccountStatus>(response.data, 'getPositions');
+    const positions = Array.isArray(data.positions) ? data.positions : [];
+    return positions.map((p) => this.mapPosition(p, data));
   }
 
   /**
    * Get portfolio summary
-   * Real endpoint: GET /api/portfolio/summary?account_name=xxx
-   * Response: {success, data: {...}}
+   * 2026-08-31 修复：同样改调 /api/simulation/accounts/{account}（实时刷新），
+   * 原 /api/portfolio/summary 直读数据库快照（account.lastUpdated 曾停更在 8/28）。
    */
   async getPortfolioSummary(accountName: string = 'agent_virtual'): Promise<PortfolioSummary> {
-    const response = await this.client.get('/api/portfolio/summary', {
-      params: { account_name: accountName },
-    });
-    return this.unwrap<PortfolioSummary>(response.data, 'getPortfolioSummary');
+    const response = await this.client.get(`/api/simulation/accounts/${encodeURIComponent(accountName)}`);
+    const data = this.unwrap<SimulationAccountStatus>(response.data, 'getPortfolioSummary');
+    const positions = Array.isArray(data.positions) ? data.positions : [];
+    // 新接口持仓项无 cost 字段，总成本 = Σ(avg_cost × shares_total)
+    const totalCost = positions.reduce((sum, p) => sum + ((Number(p.avg_cost) || 0) * (Number(p.shares_total) || 0)), 0);
+    const marketValue = Number(data.position_value) || 0;
+    const totalPnl = marketValue - totalCost;
+    const cash = (Number(data.cash_available) || 0) + (Number(data.cash_frozen) || 0);
+    return {
+      accountName: String(data.account_name || accountName),
+      totalValue: Number(data.total_value) || 0,
+      totalCost,
+      totalMarketValue: marketValue,
+      totalPnl,
+      totalPnlPct: totalCost > 0 ? Number(((totalPnl / totalCost) * 100).toFixed(2)) : 0,
+      dailyChange: 0,
+      positions: positions.length,
+      cash,
+      liquidAssets: cash,
+      profitCount: positions.filter((p) => Number(p.profit_total) > 0).length,
+      lossCount: positions.filter((p) => Number(p.profit_total) < 0).length,
+      lastUpdated: data.last_updated || new Date().toISOString(),
+      priceStale: Boolean(data.price_stale),
+    } as PortfolioSummary;
+  }
+
+  /**
+   * 将 simulation 账户接口的 snake_case 持仓项映射为 Position（camelCase）
+   */
+  private mapPosition(p: SimulationPositionItem, account: SimulationAccountStatus): Position {
+    const quantity = Number(p.shares_total) || 0;
+    const avgCost = Number(p.avg_cost) || 0;
+    const currentPrice = Number(p.current_price) || avgCost;
+    const marketValue = Number(p.market_value) || quantity * currentPrice;
+    const totalCost = quantity * avgCost;
+    const profitTotal = Number(p.profit_total) ?? marketValue - totalCost;
+    const profitTotalRate = Number(p.profit_total_rate) ?? (totalCost > 0 ? profitTotal / totalCost : 0);
+    return {
+      symbol: String(p.symbol || ''),
+      name: String(p.name || ''),
+      quantity,
+      sharesAvailable: Number(p.shares_available) ?? quantity,
+      avgCost,
+      currentPrice,
+      totalCost,
+      currentValue: marketValue,
+      profitLoss: profitTotal,
+      profitLossPct: Number((profitTotalRate * 100).toFixed(2)),
+      profitToday: Number(p.profit_today) || 0,
+      // 行情时效信息：价格刷新时间戳 + 账户级陈旧标记（true=本次行情拉取失败，价格为旧值）
+      priceUpdatedAt: p.price_updated_at || account.last_updated || null,
+      priceStale: Boolean(account.price_stale),
+    } as Position;
   }
 
   // ==================== Evolution APIs ====================
