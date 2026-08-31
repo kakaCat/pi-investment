@@ -146,7 +146,7 @@ export abstract class BaseTool<TParams = any, TResult = any> {
           throw new Error(issue);
         }
 
-        return response.data;
+        return this.sanitizeForJson(response.data);
       },
     } as any;
   }
@@ -160,6 +160,29 @@ export abstract class BaseTool<TParams = any, TResult = any> {
       result[key] = this.normalizeParamSchema(def);
     }
     return result;
+  }
+
+  /** 清洗输出为 lossless JSON：删除 undefined 键、非有限数值转 null（防降级数据触发执行链校验失败） */
+  private sanitizeForJson(value: any): any {
+    if (value === undefined) return undefined;
+    if (typeof value === 'number' && !Number.isFinite(value)) return null;
+    if (Array.isArray(value)) {
+      const out: any[] = [];
+      for (const item of value) {
+        const cleaned = this.sanitizeForJson(item);
+        if (cleaned !== undefined) out.push(cleaned);
+      }
+      return out;
+    }
+    if (value && typeof value === 'object') {
+      const out: any = {};
+      for (const [k, v] of Object.entries(value)) {
+        const cleaned = this.sanitizeForJson(v);
+        if (cleaned !== undefined) out[k] = cleaned;
+      }
+      return out;
+    }
+    return value;
   }
 
   /** 剥离 value schema DSL 不支持的关键字（required 数组），递归处理嵌套 schema */
