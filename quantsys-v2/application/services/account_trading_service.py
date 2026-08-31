@@ -108,6 +108,7 @@ class AccountTradingService:
         price: Optional[float] = None,
         allow_off_hours: bool = False,
         execute_at: Optional[str] = None,
+        genome_version: Optional[str] = None,
     ) -> Dict:
         # ---- 校验 ----
         if not reason or len(reason.strip()) < 10:
@@ -135,7 +136,8 @@ class AccountTradingService:
             pending = self.repo.create_pending_order(
                 account_name=account_name, action=action, symbol=symbol,
                 shares=shares, amount=amount, price_limit=price_limit,
-                reason=reason, execute_at='market_open')
+                reason=reason, genome_version=genome_version,
+                execute_at='market_open')
             logger.info("pending_order_placed",
                         account=account_name, action=action, symbol=symbol,
                         pending_order_id=pending.id)
@@ -245,6 +247,7 @@ class AccountTradingService:
             order = self.repo.create_order(
                 account_name=account_name, action=action, symbol=symbol,
                 shares=shares, price_limit=price_limit, reason=reason,
+                genome_version=genome_version,
                 commit=False)
             order.status = 'filled'
             order.filled_shares = shares
@@ -390,6 +393,7 @@ class AccountTradingService:
                     amount=float(po.amount) if po.amount is not None else None,
                     price_limit=float(po.price_limit) if po.price_limit is not None else None,
                     reason=po.reason,
+                    genome_version=po.genome_version,
                 )
                 self.repo.update_pending_order_status(
                     po.id, 'executed', executed_trade_id=result['trade_id'])

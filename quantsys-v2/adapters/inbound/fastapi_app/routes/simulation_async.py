@@ -84,6 +84,7 @@ async def manual_trade(account_name: str, payload: Dict[str, Any] = Body(...)):
             max_positions=payload.get('max_positions', 10),
             price=payload.get('price'),
             execute_at=payload.get('execute_at'),  # 条件委托：'market_open' 盘前挂单
+            genome_version=payload.get('genome_version'),  # RFC 005 决策打标
         )
         return {'success': True, 'data': result}
     except TradingError as e:

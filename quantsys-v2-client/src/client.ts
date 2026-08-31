@@ -723,6 +723,7 @@ export class QuantsysV2Client {
         : (params.reason ? `${params.reason}（虚拟盘委托）` : '虚拟账户委托交易（未注明理由）'),
     };
     if (params.price) body.price = params.price;
+    if (params.genome_version) body.genome_version = params.genome_version;  // RFC 005 决策打标
     const response = await this.client.post(`/api/simulation/accounts/${encodeURIComponent(account)}/trade`, body);
     const data = this.unwrap<any>(response.data, 'executeTrade');
     // 映射为 TradeResponse 契约

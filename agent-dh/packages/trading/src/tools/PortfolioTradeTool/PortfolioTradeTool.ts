@@ -225,6 +225,7 @@ export class PortfolioTradeTool extends BaseTool<PortfolioTradeParams, Portfolio
     } catch { /* 行情获取失败不阻塞下单 */ }
 
     // 执行交易
+    const genomeVersion = this.captureGenomeVersion();
     const result: any = await this.qv2.executeTrade({
       action: args.action.toLowerCase() as 'buy' | 'sell',
       symbol: args.symbol,
@@ -233,6 +234,7 @@ export class PortfolioTradeTool extends BaseTool<PortfolioTradeParams, Portfolio
       account_name: accountName,
       order_type: args.price ? 'limit' : 'market',
       reason: args.reason,
+      genome_version: genomeVersion,
     });
 
     // M3-3 信号追踪（2026-08-26）：BUY 成交后自动记录信号
@@ -395,6 +397,20 @@ export class PortfolioTradeTool extends BaseTool<PortfolioTradeParams, Portfolio
         reason: `仓位校验失败：${e.message}。保守原则：调用 regime_position_limit 失败时拒绝买入`,
         error: e.message,
       };
+    }
+  }
+
+  /**
+   * RFC 005 决策打标：捕获当前基因组版本（与 learning 插件 captureGenomeContext 同法）。
+   * 只读容错——拿不到 genome 不阻塞下单，成交记录 genome_version 为 NULL。
+   */
+  private captureGenomeVersion(): string | undefined {
+    try {
+      // @ts-ignore - genome 插件通过 inject 动态注入
+      const genome = this.ctx?.genome;
+      return genome?.genomeData?.genome_version ?? undefined;
+    } catch {
+      return undefined;
     }
   }
 

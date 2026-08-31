@@ -386,6 +386,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         reason: Optional[str] = None,
         strategy_name: Optional[str] = None,
         signal_id: Optional[str] = None,
+        genome_version: Optional[str] = None,
         commit: bool = True
     ) -> SimulationOrder:
         """创建委托单"""
@@ -401,6 +402,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             reason=reason,
             strategy_name=strategy_name,
             signal_id=signal_id,
+            genome_version=genome_version,
         )
         self.session.add(order)
         if commit:
@@ -421,6 +423,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         amount: Optional[float] = None,
         price_limit: Optional[float] = None,
         reason: Optional[str] = None,
+        genome_version: Optional[str] = None,
         execute_at: str = 'market_open',
         commit: bool = True
     ) -> SimulationPendingOrder:
@@ -433,6 +436,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             amount=amount,
             price_limit=price_limit,
             reason=reason,
+            genome_version=genome_version,
             execute_at=execute_at,
             status='pending',
         )

@@ -430,6 +430,8 @@ export interface TradeRequest {
   order_type?: 'market' | 'limit';
   /** 交易理由（simulation 端点要求 ≥10 字，R-005 纪律） */
   reason?: string;
+  /** 决策时基因组版本（RFC 005 决策打标，如 'g17'） */
+  genome_version?: string;
 }
 
 /**
