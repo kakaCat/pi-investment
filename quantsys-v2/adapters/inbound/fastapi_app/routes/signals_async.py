@@ -13,7 +13,7 @@ from fastapi import APIRouter, Request, Body
 import structlog
 
 from adapters.inbound.fastapi_app.shared import (
-    ds, api_response, error_response, handle_api_error, sanitize_for_json,
+    api_response, error_response, handle_api_error, sanitize_for_json,
     convert_keys_to_snake, get_query_params_snake_case, signal_to_opportunity,
     strategy_service, stock_pool_service, scoring_service, sector_rotation_service,
     _read_watchlist, _safe_float,

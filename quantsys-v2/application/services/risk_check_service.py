@@ -15,8 +15,8 @@ from typing import Dict, Any, Optional
 import structlog
 from datetime import date
 
-from application.services.data_service import DataService
-from domain.ports import IRiskConfigRepository
+from domain.ports import IRiskConfigRepository, IPortfolioRepository, IStockRepository, IKlineRepository, IRiskRepository
+from infrastructure.services.service_factory import ServiceFactory
 
 logger = structlog.get_logger(__name__)
 
@@ -29,22 +29,32 @@ class RiskCheckService:
 
     def __init__(
         self,
-        ds: Optional[DataService] = None,
         config_name: str = 'default',
         config_repo: Optional[IRiskConfigRepository] = None,
+        portfolio_repo: Optional[IPortfolioRepository] = None,
+        stock_repo: Optional[IStockRepository] = None,
+        kline_repo: Optional[IKlineRepository] = None,
+        risk_repo: Optional[IRiskRepository] = None,
     ):
         """初始化服务
 
         Args:
-            ds: 数据服务（可选）
             config_name: 配置名称
             config_repo: 风控配置仓库（可选）
-
-        P2-1: 推荐通过 ServiceFactory 获取实例
+            portfolio_repo: PortfolioRepository（可选）
+            stock_repo: StockRepository（可选）
+            kline_repo: KlineRepository（可选）
+            risk_repo: RiskRepository（可选）
         """
-        self.ds = ds or DataService()
+        self.portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+        self.stock_repo = stock_repo or ServiceFactory.get_stock_repository()
+        self.kline_repo = kline_repo or ServiceFactory.get_kline_repository()
+        self.risk_repo = risk_repo or ServiceFactory.get_risk_repository()
         self.config_repo = config_repo
-        self.config = self.config_repo.get_config(config_name)
+        if self.config_repo:
+            self.config = self.config_repo.get_config(config_name)
+        else:
+            self.config = None
 
         if not self.config:
             logger.warning(f"风控配置不存在: {config_name}, 使用默认值")
@@ -79,14 +89,14 @@ class RiskCheckService:
 
         try:
             # 获取当前价格
-            latest_kline = self.ds.kline.get_latest_daily_kline(symbol)
+            latest_kline = self.kline_repo.get_latest_daily_kline(symbol)
             if not latest_kline:
                 return self._fail_result('无法获取股票价格')
 
             current_price = float(latest_kline['close'])
 
             # 获取账户信息
-            account = self.ds.risk.get_latest_balance()
+            account = self.risk_repo.get_latest_balance()
             if not account:
                 return self._fail_result('无法获取账户信息')
 
@@ -203,7 +213,7 @@ class RiskCheckService:
         symbol = signal['symbol']
         quantity = signal.get('quantity', 100)
 
-        holding = self.ds.portfolio.get_holding(symbol)
+        holding = self.portfolio_repo.get_holding(symbol)
         if not holding:
             return {
                 'check_name': 'holding_check',
@@ -261,7 +271,7 @@ class RiskCheckService:
         signal: Dict
     ) -> Dict:
         """检查单只股票仓位集中度"""
-        holding = self.ds.portfolio.get_holding(symbol)
+        holding = self.portfolio_repo.get_holding(symbol)
         current_position_value = 0
 
         if holding:
@@ -302,7 +312,7 @@ class RiskCheckService:
         signal: Dict
     ) -> Dict:
         """检查行业集中度"""
-        stock = self.ds.stock.get_by_symbol(symbol)
+        stock = self.stock_repo.get_by_symbol(symbol)
         if not stock:
             return {
                 'check_name': 'sector_concentration',
@@ -312,13 +322,13 @@ class RiskCheckService:
 
         sector = stock.get('industry', 'Unknown')
 
-        holdings = self.ds.portfolio.get_all_holdings()
+        holdings = self.portfolio_repo.get_all_holdings()
 
         sector_value = 0
         for h in holdings:
-            h_stock = self.ds.stock.get_by_symbol(h['symbol'])
+            h_stock = self.stock_repo.get_by_symbol(h['symbol'])
             if h_stock and h_stock.get('industry') == sector:
-                h_kline = self.ds.kline.get_latest_daily_kline(h['symbol'])
+                h_kline = self.kline_repo.get_latest_daily_kline(h['symbol'])
                 if h_kline:
                     h_price = float(h_kline['close'])
                     sector_value += h['quantity'] * h_price
@@ -352,7 +362,7 @@ class RiskCheckService:
         # 使用PostgreSQL函数查询
         cursor = None
         try:
-            cursor = self.ds.portfolio._get_cursor()
+            cursor = self.portfolio_repo._get_cursor()
             cursor.execute(
                 "SELECT * FROM quant.get_trades_by_date_and_symbol(%s, %s)",
                 (today, symbol)
@@ -482,7 +492,7 @@ class RiskCheckService:
             return int(signal['quantity'])
 
         symbol = signal['symbol']
-        holding = self.ds.portfolio.get_holding(symbol)
+        holding = self.portfolio_repo.get_holding(symbol)
 
         if holding:
             return int(holding.get('quantity', 0))

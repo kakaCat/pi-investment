@@ -2,8 +2,8 @@
 测试 SignalProcessor 服务
 """
 import pytest
+from unittest.mock import patch, MagicMock
 from application.services.signal_processor import SignalProcessor, SignalProcessingError
-from application.services.data_service import DataService
 
 
 class TestSignalProcessor:
@@ -11,7 +11,12 @@ class TestSignalProcessor:
     @pytest.fixture
     def processor(self):
         """创建 SignalProcessor 实例"""
-        return SignalProcessor(DataService())
+        with patch('application.services.signal_processor.StrategyCircuitBreaker') as MockCB:
+            mock_cb = MockCB.return_value
+            mock_cb.is_allowed.return_value = True
+            proc = SignalProcessor()
+            proc.circuit_breaker = mock_cb
+            return proc
 
     @pytest.fixture
     def account_balance(self):
