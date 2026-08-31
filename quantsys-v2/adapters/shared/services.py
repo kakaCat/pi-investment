@@ -238,6 +238,18 @@ class _LazyServiceModule:
     def factor_adapter(self):
         return get_factor_adapter()
 
+    @property
+    def portfolio_repo(self):
+        return get_portfolio_repo()
+
+    @property
+    def risk_repo(self):
+        return get_risk_repo()
+
+    @property
+    def signal_repo(self):
+        return get_signal_repo()
+
     # P1-5 新增
     @property
     def order_service(self):
