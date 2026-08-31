@@ -10,13 +10,13 @@ export class SelfFinalizeTool extends BaseTool<SelfFinalizeParams, SelfFinalizeR
   protected readonly metadata: ToolMetadata = {
     name: 'self_finalize',
     category: 'lifecycle',
-    version: '1.0.0',
-    timeoutMs: 5000,
+    version: '1.1.0',
+    timeoutMs: 15000,
   };
 
   protected readonly prompt = selfFinalizePrompt;
 
-  constructor(private scheduleFinalize: (reason: string, saveState: boolean) => Promise<any>) {
+  constructor(private scheduleFinalize: (reason: string, action: 'merge' | 'rollback' | 'exit', saveState: boolean) => Promise<any>) {
     super();
   }
 
@@ -33,17 +33,32 @@ export class SelfFinalizeTool extends BaseTool<SelfFinalizeParams, SelfFinalizeR
         },
       };
     }
+    if (args.action && !['merge', 'rollback', 'exit'].includes(args.action)) {
+      return {
+        success: false,
+        error: {
+          success: false,
+          errorType: ErrorType.VALIDATION_ERROR,
+          field: 'action',
+          issue: 'action 必须是 merge / rollback / exit',
+          expected: 'merge | rollback | exit',
+        },
+      };
+    }
     return { success: true };
   }
 
   protected async execute(args: SelfFinalizeParams, _context: ToolContext): Promise<SelfFinalizeResult> {
     const saveState = args.save_state ?? true;
-    await this.scheduleFinalize(args.reason, saveState);
+    const action = args.action ?? 'merge';
+    const result = await this.scheduleFinalize(args.reason, action, saveState);
 
     return {
       success: true,
       message: `终止已调度，原因：${args.reason}`,
       finalized: true,
+      action: result?.action ?? action,
+      merged_hash: result?.merged_hash,
     };
   }
 

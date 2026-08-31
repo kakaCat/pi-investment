@@ -76,4 +76,20 @@ describe('GitRepo', () => {
     expect(repo.createWipBranch('agent-self', ['agent-dh/'], 'wip: noop')).toBeNull();
     expect(repo.currentBranch()).toBe('main');
   });
+
+  it('resetHard：丢弃工作区改动与未推送提交（rollback 语义）', () => {
+    const baseHead = repo.head();
+    writeFileSync(join(dir, 'agent-dh/a.txt'), 'v2-dirty');
+    repo.resetHard(baseHead);
+    expect(readFileSync(join(dir, 'agent-dh/a.txt'), 'utf8')).toBe('v1'); // 工作区改动被丢弃
+    expect(repo.isClean()).toBe(true);
+
+    // 有未推送提交时也能回退
+    writeFileSync(join(dir, 'agent-dh/a.txt'), 'v3');
+    git(['add', '-A']);
+    git(['commit', '-m', 'bad commit']);
+    repo.resetHard(baseHead);
+    expect(repo.head()).toBe(baseHead);
+    expect(readFileSync(join(dir, 'agent-dh/a.txt'), 'utf8')).toBe('v1');
+  });
 });

@@ -770,22 +770,81 @@ export default class LifecyclePlugin extends Service {
   }
 
   /**
-   * 调度终止
+   * 调度终止/收尾（RFC 002 自修复闭环收尾端）。
+   * action=merge：验证通过 → 把 self_restart 的 wip 检查点分支快进合并回基线分支，
+   *   更新 last-known-good 为该合并后 HEAD，清理 pending 与 wip 分支。基线分支继续运行（不退出进程）。
+   * action=rollback：验证失败 → 放弃 wip 检查点分支改动，回基线分支并硬重置到 last-known-good，
+   *   清理 pending 与 wip 分支。基线分支继续运行（不退出进程）。
+   * action=exit：仅保存状态并退出（等效旧版行为，无 git 操作）。
+   * 无 pending 检查点分支（如直接提交在基线的场景）时，merge/rollback 自动降级为仅确认/保存状态。
    */
-  private async scheduleFinalize(reason: string, saveState: boolean): Promise<void> {
-    // 实现终止逻辑
-    this.ctx.logger('lifecycle').info(`Finalize scheduled: ${reason}, saveState=${saveState}`);
+  private async scheduleFinalize(reason: string, action: 'merge' | 'rollback' | 'exit', saveState: boolean): Promise<{ action: string; merged_hash?: string }> {
+    this.ctx.logger('lifecycle').info(`Finalize scheduled: ${reason}, action=${action}, saveState=${saveState}`);
 
     if (saveState) {
       // 保存状态到 Agent OS
-      await this.osWrite('lifecycle:finalize', { reason, timestamp: new Date().toISOString() });
+      await this.osWrite('lifecycle:finalize', { reason, action, timestamp: new Date().toISOString() });
     }
 
-    // 清理 pending 状态
-    this.state.clearPending();
+    const pending = this.state.readPending();
+    const checkpoint = pending?.checkpoint_branch ?? null;
+    const base = pending?.base_branch ?? this.repo.currentBranch();
 
-    // 优雅退出
+    if (action === 'merge' && checkpoint) {
+      // 验证通过：wip 检查点 → 快进合并回基线
+      try {
+        this.ctx.logger('lifecycle').info(`Finalize merge: ${checkpoint} → ${base}`);
+        this.repo.checkout(base);
+        this.repo.mergeFfOnly(checkpoint);
+        this.repo.deleteBranch(checkpoint);
+        const hash = this.repo.head();
+        this.state.writeLastKnownGood(hash);
+        this.ctx.logger('lifecycle').info(`Finalize merge done: ${base} @ ${hash}`);
+        // 清理 pending（merge 成功后无未决重启）
+        this.state.clearPending();
+        this.state.clearAttempt();
+        return { action: 'merge', merged_hash: hash };
+      } catch (e: any) {
+        this.ctx.logger('lifecycle').error(`Finalize merge failed: ${e?.message ?? e}`);
+        throw new Error(`merge 失败：${e?.message ?? e}（wip=${checkpoint} 保留未删，请人工处理）`);
+      }
+    }
+
+    if (action === 'rollback' && checkpoint) {
+      // 验证失败：放弃 wip 改动，回基线 + 硬重置到 last-known-good
+      try {
+        const lkg = this.state.readLastKnownGood() ?? pending?.last_known_good;
+        this.ctx.logger('lifecycle').info(`Finalize rollback: 放弃 ${checkpoint}，回 ${base} @ ${lkg ?? 'HEAD'}`);
+        this.repo.checkout(base);
+        if (lkg) this.repo.resetHard(lkg);
+        this.repo.deleteBranch(checkpoint, true); // wip 未合并即删除（-D），rollback 语义
+        this.state.clearPending();
+        this.state.clearAttempt();
+        return { action: 'rollback' };
+      } catch (e: any) {
+        this.ctx.logger('lifecycle').error(`Finalize rollback failed: ${e?.message ?? e}`);
+        throw new Error(`rollback 失败：${e?.message ?? e}（wip=${checkpoint} 保留未删，请人工处理）`);
+      }
+    }
+
+    // 无 checkpoint（或 action=exit）：无 git 收尾操作，仅清理 pending 状态
+    if (pending) {
+      this.state.clearPending();
+      this.state.clearAttempt();
+    }
+
+    if (action !== 'exit') {
+      // merge/rollback 但无 wip 检查点（改动已直接在基线）→ 视为纯确认，不退出进程
+      this.ctx.logger('lifecycle').info(`Finalize ${action}: 无 wip 检查点分支，仅确认/清理（基线 ${base}）`);
+      return { action };
+    }
+
+    // exit：清理 pending 状态后优雅退出（保留旧版语义）
+    this.state.clearPending();
+    this.state.clearPendingDone();
+    this.state.clearAttempt();
     setTimeout(() => process.exit(0), 1000);
+    return { action: 'exit' };
   }
 
   /**

@@ -34,6 +34,11 @@ export class GitRepo {
   }
 
   checkout(branch: string): void { this.git(['checkout', branch]); }
+  /** 硬重置到指定提交（丢弃工作区未提交改动）——rollback 语义：彻底放弃 wip 检查点的内容 */
+  resetHard(ref: string): void { this.git(['reset', '--hard', ref]); }
   mergeFfOnly(branch: string): void { this.git(['merge', '--ff-only', branch]); }
-  deleteBranch(branch: string): void { this.git(['branch', '-d', branch]); }
+  /** 删除分支：force=false 用 -d（仅合并过的分支可删，安全）；force=true 用 -D（未合并也删，rollback 语义） */
+  deleteBranch(branch: string, force = false): void {
+    this.git(force ? ['branch', '-D', branch] : ['branch', '-d', branch]);
+  }
 }
