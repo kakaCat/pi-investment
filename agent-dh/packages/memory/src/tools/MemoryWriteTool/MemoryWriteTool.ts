@@ -68,7 +68,9 @@ export class MemoryWriteTool extends BaseTool<MemoryWriteParams, MemoryWriteResu
 
     return {
       success: true,
-      memory_id: String(res?.id ?? ''),
+      // 2026-08-31: 修复字段契约——Agent OS write 响应为 { memory: { id }, success }，
+      // 此前读 res?.id 恒为空 → memory_id 永远空串。兼容 res.memory.id 与 res.id。
+      memory_id: String(res?.memory?.id ?? res?.id ?? ''),
       message: '已写入 Agent OS 记忆库',
     };
   }

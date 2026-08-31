@@ -19,7 +19,7 @@ import * as path from 'path';
  * Minimal OsMemoryStore replacement (inlined from deleted @pi-investment/os-memory)
  * Wraps AgentOSClient to provide createMemory/searchMemory API
  */
-class OsMemoryStore {
+export class OsMemoryStore {
   private client: AgentOSClient;
   private agentId: string;
   private baseURL: string;

@@ -65,7 +65,10 @@ export class MemorySearchTool extends BaseTool<MemorySearchParams, MemorySearchR
       category: namespace === 'experience' ? 'experience' : undefined,
     });
 
-    const items = (res.items || []).map((it: any) => {
+    // 2026-08-31: 修复字段契约——Agent OS 后端返回 { memories: [...] }（axios .data 透传），
+    // 此前读 res.items 永远为空 → memory_search 恒返回 0 条。兼容两种字段名。
+    const raw = (res?.memories ?? res?.items ?? []) as any[];
+    const items = raw.map((it: any) => {
       const { embedding, ...rest } = it ?? {};
       return rest;
     });

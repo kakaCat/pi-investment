@@ -167,6 +167,51 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
     };
   }
 
+  /**
+   * 覆盖 toDSHToolDefinition，使用简化的 parameters 定义
+   */
+  toDSHToolDefinition() {
+    return {
+      name: this.metadata.name,
+      description: this.prompt.description,
+      parameters: {
+        suggestions: {
+          type: 'array',
+          description: 'experience_distill 输出的建议数组，每个建议包含 type/section/content/reason',
+          required: true,
+          items: { type: 'object', additionalProperties: true },
+        },
+        dry_run: {
+          type: 'boolean',
+          description: 'true（默认）：只生成预览，不执行；false：以 candidate 观察版应用（须经 validation_gate 裁决转正）',
+        },
+        observe_days: {
+          type: 'number',
+          description: 'candidate 观察期（天），默认 5',
+        },
+      },
+      output: {
+        schema: this.prompt.output?.schema || { type: 'object', additionalProperties: true },
+        render: this.prompt.output?.render
+          ?? ((_args: any, data: any) => [{ type: 'text', text: JSON.stringify(data, null, 2) }]),
+      },
+      timeoutMs: this.metadata.timeoutMs || 10000,
+      execute: async (args: PromptEvolverParams) => {
+        const response = await this.call(args);
+        if (!response.success) {
+          const err: any = response.error;
+          const issue =
+            typeof err === 'string' ? err
+            : err?.issue ? err.issue
+            : err?.error?.issue ? err.error.issue
+            : '工具执行失败';
+          throw new Error(issue);
+        }
+        return response.data;
+      },
+    } as any;
+  }
+
   // ===== 私有辅助方法 =====
 
   /**
