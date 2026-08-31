@@ -117,6 +117,13 @@
 
 **完成度**: 1/4 = **25%** → 但 memory/experience 基础已有 + M6-4 完成，算 **38%**（详见 m6-4-evolution-normalization-results.md）
 
+**M6-4 优化验证（2026-09-01，investor w-8366e526 更新）**：
+- 参数候选（fast5/slow13/sig3）扩大验证被证伪（强势区间 1.005 < 默认 1.178）→ 默认保留
+- 市场过滤：时段级 regime 模拟（弱市空仓）macd 0.825→1.178 ✅；静态 200MA 过滤均非最优（个股中性/大盘错杀）
+- 回撤控制：追踪止损趋势市有效（2024H2 0.944→1.342）但弱市扫损（2023 0.024→-0.39）→ 须与市场过滤组合
+- **落地确认**：regime 弱市降仓已在执行层完整接线（regime_daily 盘后落库 → regime_position_limit 盘前/交易强制三层拦截）；实盘当前 regime=euphoria 上限 30% 生效
+- 文档：m6-4-evolution-normalization-results.md（§6）+ work-logs/2026-09/m6-4-market-filter-implementation.md
+
 ---
 
 ### M7 对手博弈情报 - **0%** 🔴
