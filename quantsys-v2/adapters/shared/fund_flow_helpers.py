@@ -20,6 +20,8 @@ _FUND_FLOW_COLUMN_MAP = {
 def _inject_fund_flow_to_klines(klines: List[dict], symbol: str) -> List[dict]:
     """
     将主力资金流向数据合并到 klines 列表中。
+    
+    优先从 DB (stock_fund_flow 表) 直接读取，避免 API 调用失败。
     如果获取失败，所有资金流列填充 0。
     """
     # 初始化所有资金流列为 0
@@ -28,36 +30,81 @@ def _inject_fund_flow_to_klines(klines: List[dict], symbol: str) -> List[dict]:
             k[alias] = 0.0
 
     try:
-        days = len(klines)
-        fund_data = get_stock_fund_flow(symbol, days=days)
+        # 方式1: 直接从 DB 读取（优先，避免 API 调用失败）
+        from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
+        repo = FundFlowORMRepository()
 
-        if not fund_data or not isinstance(fund_data, dict):
-            return klines
-
-        fund_rows = fund_data.get('data', [])
+        if klines:
+            first_date = klines[0].get('trade_date') or klines[0].get('date', '')
+            last_date = klines[-1].get('trade_date') or klines[-1].get('date', '')
+            start_date = str(first_date).replace('-', '') if first_date else ''
+            end_date = str(last_date).replace('-', '') if last_date else ''
+        else:
+            start_date = end_date = ''
+        
+        if start_date and end_date:
+            fund_rows = repo.get_fund_flow(symbol, start_date=start_date, end_date=end_date)
+        else:
+            days = len(klines)
+            fund_rows = repo.get_latest_fund_flow(symbol, days=days)
+        
         if not fund_rows:
             return klines
 
         # 建立 日期→资金流 映射
         fund_by_date: Dict[str, dict] = {}
         for row in fund_rows:
-            date_str = str(row.get('日期', '')).replace('-', '')
-            fund_by_date[date_str] = row
+            trade_date = row.get('trade_date')
+            if trade_date:
+                date_str = str(trade_date).replace('-', '')
+                fund_by_date[date_str] = row
 
         # 按日期合并
         for k in klines:
             kdate = str(k.get('trade_date', k.get('date', ''))).replace('-', '')
             if kdate in fund_by_date:
                 frow = fund_by_date[kdate]
-                for cn_name, alias in _FUND_FLOW_COLUMN_MAP.items():
-                    val = frow.get(cn_name)
-                    if val is not None:
-                        try:
-                            k[alias] = float(val)
-                        except (ValueError, TypeError):
-                            pass
-    except Exception:
-        pass  # 数据源不可用时静默降级
+                k['main_net_inflow'] = float(frow.get('main_net_inflow', 0) or 0)
+                k['main_net_pct'] = float(frow.get('main_net_inflow_rate', 0) or 0)
+                k['super_large_net'] = float(frow.get('large_net_inflow', 0) or 0)
+                k['large_net'] = float(frow.get('big_net_inflow', 0) or 0)
+                k['super_large_pct'] = float(frow.get('large_net_inflow_rate', 0) or 0)
+                k['large_pct'] = float(frow.get('big_net_inflow_rate', 0) or 0)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"DB fund flow read failed for {symbol}: {e}")
+        # 方式2: 降级到 API 调用（备用）
+        try:
+            days = len(klines)
+            fund_data = get_stock_fund_flow(symbol, days=days)
+
+            if not fund_data or not isinstance(fund_data, dict):
+                return klines
+
+            fund_rows = fund_data.get('data', [])
+            if not fund_rows:
+                return klines
+
+            # 建立 日期→资金流 映射
+            fund_by_date: Dict[str, dict] = {}
+            for row in fund_rows:
+                date_str = str(row.get('日期', '')).replace('-', '')
+                fund_by_date[date_str] = row
+
+            # 按日期合并
+            for k in klines:
+                kdate = str(k.get('trade_date', k.get('date', ''))).replace('-', '')
+                if kdate in fund_by_date:
+                    frow = fund_by_date[kdate]
+                    for cn_name, alias in _FUND_FLOW_COLUMN_MAP.items():
+                        val = frow.get(cn_name)
+                        if val is not None:
+                            try:
+                                k[alias] = float(val)
+                            except (ValueError, TypeError):
+                                pass
+        except Exception:
+            pass  # 数据源不可用时静默降级
 
     return klines
 
@@ -113,7 +160,9 @@ def _fetch_financial_data(symbol: str) -> Optional[Dict[str, Any]]:
     至少需要 2 期数据；不足则返回 None。
     """
     try:
-        raw = ds.get_financial_statements(symbol, statement_type='all', periods=8)
+        from application.services.financial_data_service import FinancialDataService
+        financial_svc = FinancialDataService()
+        raw = financial_svc.get_financial_data(symbol=symbol, statement_type='all', periods=8)
     except Exception as e:
         logger.warning(f"Failed to fetch financial statements for {symbol}: {e}")
         return None

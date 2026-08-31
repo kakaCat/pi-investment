@@ -49,7 +49,6 @@ def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """数据更新任务"""
     params = params or {}
 
-    from application.services.data_service import DataService
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     logger.info("Starting data_update task")
@@ -81,10 +80,10 @@ def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
     # 必须每个任务独立实例，不能跨线程共享（2026-07-30 并发报错修复）
     def _fetch_one(symbol: str):
         from infrastructure.persistence.orm import close_session
+        from infrastructure.services.service_factory import ServiceFactory
         try:
-            return DataService().kline.get_latest_daily_kline(symbol)
+            return ServiceFactory.get_kline_repository().get_latest_daily_kline(symbol)
         finally:
-            # 释放线程级 session，避免连接滞留
             close_session()
 
     updated = 0
@@ -202,7 +201,7 @@ def _scan_pool_signals_by_name(
     Returns: 买入/卖出信号列表，每个信号附带 pool/strategy_id/signal_type。
     """
     from application.services.pool_signal_scanner import PoolSignalScanner
-        from adapters.shared.services import stock_pool_service
+    from adapters.shared.services import stock_pool_service
 
     strategy_ids = strategy_ids or DEFAULT_SCAN_STRATEGY_IDS
 
@@ -584,13 +583,14 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
     logger.info("Starting factor_compute task")
 
     try:
-        from infrastructure.services.service_factory import get_data_service
         from domain.backtest.stages.factor_stage import FactorStage
         from adapters.shared.fund_flow_helpers import (
             _inject_fund_flow_to_klines, _extract_fund_flow_factors,
         )
+        from infrastructure.services.service_factory import ServiceFactory
 
-        ds = get_data_service()
+        kline_repo = ServiceFactory.get_kline_repository()
+        factor_repo = ServiceFactory.get_factor_repository()
 
         # 获取股票列表（如果没有指定）
         symbols = params.get('symbols')
@@ -614,7 +614,7 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
         failed = []
         for sym in symbols:
             try:
-                klines_df = ds.kline.get_daily_klines(sym, start_date, end_date)
+                klines_df = kline_repo.get_daily_klines(sym, start_date, end_date)
                 if klines_df is None or klines_df.is_empty():
                     failed.append(sym)
                     continue
@@ -644,7 +644,7 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
                 last_row = klines[-1]
                 latest_date = last_row.get('trade_date') or last_row.get('date') or ''
-                ds.factor.save_factors(sym, str(latest_date), factors)
+                factor_repo.save_factors(sym, str(latest_date), factors)
                 computed += 1
             except Exception as sym_err:
                 logger.warning(f"factor compute failed for {sym}: {sym_err}")
@@ -1302,7 +1302,7 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
     logger.info(f"模型训练任务启动: {model_type}, symbols={symbols_limit}, force={force_train}")
     
     try:
-        from infrastructure.services.service_factory import get_data_service
+        from infrastructure.services.service_factory import ServiceFactory
         from adapters.outbound.repositories.stock_repository import StockORMRepository
         from application.services.ml_pipeline.feature_engineering import FeatureEngineer
         from application.services.ml_pipeline.predictor import MLPredictor
@@ -1336,7 +1336,8 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         logger.info(f"训练样本: {len(symbols)} 只股票")
         
         # 3. 加载K线和因子数据
-        ds = get_data_service()
+        kline_repo = ServiceFactory.get_kline_repository()
+        factor_repo = ServiceFactory.get_factor_repository()
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
         
@@ -1344,7 +1345,7 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         klines_dict = {}
         for i, symbol in enumerate(symbols):
             try:
-                rows = ds.kline.get_daily_klines(symbol, start_date, end_date)
+                rows = kline_repo.get_daily_klines(symbol, start_date, end_date)
                 if rows is not None and not rows.is_empty():
                     klines_dict[symbol] = [dict(r) for r in rows.to_dicts()]
                 if (i+1) % 100 == 0:
@@ -1369,7 +1370,7 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         
         for i, symbol in enumerate(klines_dict.keys()):
             try:
-                factors_data = ds.factor.get_factors_range(symbol, start_date, end_date)
+                factors_data = factor_repo.get_factors_range(symbol, start_date, end_date)
                 if factors_data is None or factors_data.is_empty():
                     continue
                 

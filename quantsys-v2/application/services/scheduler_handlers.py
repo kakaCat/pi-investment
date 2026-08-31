@@ -721,6 +721,23 @@ async def handle_trade_verify_daily(metadata: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+# ==================== Fund Flow Jobs ====================
+
+
+@register_job_handler("fund_flow_update")
+async def handle_fund_flow_update(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """全市场资金流向每日采集（东财clist，落库stock_fund_flow）。
+
+    Original: infrastructure/jobs/fund_flow_update_job.py
+    Schedule: 工作日 15:30
+    """
+    logger.info("Starting fund_flow_update job")
+    from infrastructure.jobs.fund_flow_update_job import execute
+
+    result = execute(**(metadata or {}))
+    return result
+
+
 # ==================== Summary ====================
 
 logger.info(f"Registered {len(JOB_HANDLERS)} job handlers")
