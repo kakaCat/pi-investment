@@ -384,10 +384,94 @@ export default class EvolverPlugin extends Service {
   }
 
   private registerTools(): void {
-    // P0-8 注意：prompt_evolver 工具的 BaseTool 重构未完成
-    // 原工具有 556 行复杂逻辑（suggestions 处理、LLM 改写、candidate 观察、genome_update 调用）
-    // TODO: 完成 PromptEvolverTool 的 BaseTool 实现，或恢复原始 defineTool 版本
-    // 当前暂时禁用工具注册以避免编译错误
+    const { ctx } = this;
+    const { defineTool } = require('@deepseek-ai/dsh-tools');
+
+    // 1. candidate_status - 查询观察期候选状态
+    ctx.tools.register(defineTool({
+      name: 'candidate_status',
+      description: '查询基因组候选版本的观察期状态。返回watching（观察中）和settled（已裁决）的候选列表。',
+      parameters: {},
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            watching: { type: 'array', description: '观察中的候选' },
+            settled: { type: 'array', description: '已裁决的候选' },
+            total: { type: 'number', description: '总候选数' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 5000,
+      execute: async (_args: any) => {
+        const list = this.readCandidates();
+        const watching = list.filter(c => c.status === 'watching' || c.status === 'blocked');
+        const settled = list.filter(c => c.status === 'promoted' || c.status === 'rejected' || c.status === 'dropped');
+        return { watching, settled, total: list.length } as any;
+      },
+    } as any));
+
+    // 2. validation_gate - 裁决到期候选（自动或手动触发）
+    ctx.tools.register(defineTool({
+      name: 'validation_gate',
+      description: '裁决观察期到期的候选版本。对比候选期和基准期的打标经验，决定转正(promote)或回滚(rollback)。参数全部可选，默认裁决到期的候选。',
+      parameters: {
+        action: { type: 'string', description: 'judge（裁决到期候选，默认）' },
+        force: { type: 'boolean', description: '强制裁决（跳过时间/样本门槛），默认false' },
+        min_samples: { type: 'number', description: '最小样本数，默认3' },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            verdicts: { type: 'array', description: '裁决结果列表' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+      },
+      timeoutMs: 60000,
+      execute: async (args: any) => {
+        const force = args?.force ?? false;
+        const minSamples = args?.min_samples ?? 3;
+        const verdicts = await this.judgeCandidates(force, minSamples);
+        return { verdicts } as any;
+      },
+    } as any));
+
+    // 3. llm_rewrite_section - LLM改写段落（供agent调用）
+    ctx.tools.register(defineTool({
+      name: 'llm_rewrite_section',
+      description: '用LLM整体改写提示词段落，融入改进建议。返回改写后的段落全文。失败时回退为追加模式。',
+      parameters: {
+        section: { type: 'string', description: '段落名（principles/rules/lessons）', required: true },
+        suggestion_reason: { type: 'string', description: '改进理由（可选）' },
+        suggestion_content: { type: 'string', description: '改进内容（可选）' },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          properties: {
+            rewritten: { type: 'string', description: '改写后的段落全文' },
+            method: { type: 'string', description: 'llm（LLM改写）或 append_fallback（追加回退）' },
+          },
+          additionalProperties: true,
+        },
+        render: (_args: any, value: any) => [{ type: 'text', text: `改写结果（${value.method}）：\n${value.rewritten}` }],
+      },
+      timeoutMs: 30000,
+      execute: async (args: any) => {
+        const section = args.section;
+        const suggestion = { 
+          reason: args.suggestion_reason || '', 
+          content: args.suggestion_content || '' 
+        };
+        const currentContent = await this.readSection(section);
+        return await this.llmRewriteSection(section, currentContent, suggestion) as any;
+      },
+    } as any));
   }
 
   /**

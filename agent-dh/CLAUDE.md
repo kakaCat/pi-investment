@@ -324,6 +324,71 @@ ln -sfn /Users/yunpeng/pi-investment/agent-dh/packages/my-plugin \
 cd agent-dh && pnpm install
 ```
 
+## dsh-tools SDK 支持范围（2026-08-31 实测整理）
+
+> 来源：`@deepseek-ai/dsh-tools`（deepseek-harness `packages/core/tools`）。本 profile 实际运行版本 **0.1.1-rc.2**；agent-dh 各包 `pnpm link` 的 workspace 版本为 **0.1.0-rc.7**（API 面一致，schema DSL 行为相同）。新增/修改工具前先读本节，避免踩已修复的坑。
+
+### 核心 API（插件 ctx 注入的服务 `tools`）
+
+| API | 作用 | 要点 |
+|-----|------|------|
+| `ctx.tools.register(definition)` | 注册工具 | 必须含规范 `output` 声明；同层重名抛错；`timeoutMs` 须为正有限数；随调用方 fiber dispose |
+| `ctx.tools.defineTool(spec)` | **推荐入口** | 类型化参数 schema（扁平 `parameters` 对象）+ 自动参数校验 + 纯输出投影器 |
+| `ctx.tools.presentAs(mode)` | agent 级呈现模式 | `native`（函数定义）/ `code`（run_code 传输）/ `both`；仅 agent 作用域可调 |
+| `ctx.tools.restrict(filter)` | agent 作用域允许/拒绝掩码 | 仅 agent 作用域可调；实时可见性组合，**非权限边界** |
+| `ctx.tools.get(name, scope)` | 按名解析（含遮蔽） | 被 restrict 排除的视为不存在 |
+| `ctx.tools.schemas(scope)` | 列出可见工具 schema | 不含 execute |
+| `ctx.tools.guard(guard)` | 单调执行守卫 | 返回理由=拒绝；后续 waterfall 无法翻案 |
+| `ctx.tools.execute(exec)` | 无损快照执行流水线 | 参数冻结→策略→分发→结果快照 |
+| `ctx.tools.executionMode(exec)` | 并发分类 | 仅 `isConcurrencySafe(args)` 精确返回 `true` 才并行，否则独占 |
+
+### 配置与呈现
+
+- `tools.mode: native（默认）| code | both`——进程级呈现方式；`code` 模式提供保留的 `run_code` 传输 + `tools:sdk` 段 + `tools:code-only` 规则（模型直接调其他工具会被解析为 UNKNOWN_TOOL）
+- `ctx.systemPrompt.tools()` 自动把工具 schema 注入系统提示词组装
+
+### 执行流水线（注册后每次调用）
+
+`tools/pre-execute`（允许/拒绝/询问门禁）→ 单调守卫 → `tools/execute`（包装层：超时/重试/指标；只能替换 signal）→ `tools/post-execute`（可替换 content 或 value、附加上下文）→ 工具定义 `finalizeContent`（仅替换 content，对所有规范化结果恰好跑一次）→ `tools/result`（只读观测事件）
+
+### 类型化参数 schema DSL（defineTool 的 parameters）
+
+**支持**：`string`、`number`、`integer`、`boolean`、`null`、`array`、`object`、`json`（仅作者用）、恰好一个分支的 `oneOf`；标量 `enum`/`const` 值必须符合声明类型。
+
+**铁律（实测踩坑，违反会被 API 惰性拒绝或注册失败）**：
+1. **扁平参数**：`parameters` 是 `{ paramName: {type, description, required?} }` 的扁平对象，**不是标准 JSON Schema 根**；`defineTool` 负责转换。裸 `ctx.tools.register(flatParams)` 会把扁平 schema 直接透传给模型 API → "Invalid schema for function ... got type null"
+2. **每个显式 object 必须声明 `additionalProperties: true|false`**；无 properties 的封闭对象只接受 `{}`；隐式参数根保持开放默认
+3. **系统不应用默认值**——schema 里的 `default` 不会被运行时注入，安全相关默认值（如 dry_run）必须在 execute 内显式兜底
+4. schema 记录只接受可枚举字符串键；数组必须稠密普通数组
+5. 执行前校验失败 → `ToolArgsError`（INVALID_ARGS），走普通错误结果路径
+
+### 输出 schema 强制子集（JsonSchemaNode）
+
+- 允许：任意 JSON 根、仅注解节点、恰好一个分支的 `oneOf`；注解须保持无损 JSON
+- `assertSupportedJsonSchema()` 拒绝不受支持构造；`validateJsonSchemaValue()` 返回带路径违规
+- **模型侧约束（实测）**：输出 schema 不要用 `type: 'null'` 分支（deepseek API 拒绝）；字段可能为 null 时声明 `{type:'object', additionalProperties:true}` 并在返回时省略该键（BaseTool 的 sanitizeForJson 会删除 undefined 键）
+- 返回值必须是输出 schema 声明的规范 JSON（lossless：无 undefined/NaN）
+
+### 取消 / 超时 / 并发
+
+- **取消是协作式**：`exec.signal`（AbortSignal）必填只读；工具主体负责观测并在工作停止后结算；取消时机区分 `ABORTED_BEFORE_DISPATCH` / `ABORTED` / `TOOL_TIMEOUT`
+- `timeoutMs`：正数且有限，**策略元数据，模型不可见**
+- `isConcurrencySafe(args)`：只有精确 `true` 才允许并发分发；并发主体不得改动父级拥有状态
+
+### 工具自有 UI 呈现
+
+- `presentCall()` / `presentResult()` 纯函数返回呈现意图：`generic` / `terminal` / `diff` / `search`（grep/glob 结果）/ `read`（带行号文件读取）/ `web`（检索）卡片；返回 undefined 走通用回退
+- `output.presentationMeta(args, value)` 派生持久化 JSON 元数据（随 tool/result 回放；规范值不持久化）
+- 参考实现：`dsh-tool-bash`、`dsh-tool-fs`
+
+### 关键类型速查
+
+`ToolDefinition`、`ToolExecutionInput`、`ToolExecutionToken`（不透明 Symbol）、`ToolExecution`（只读视图）、`ToolRunContext`（`deferContext` 延迟注入上下文）、`ToolExecutionResult`（判别联合：成功带 value / 失败带 error）、`PreToolDecision`（allow/deny/ask）、`PostToolDecision`、`ToolGuard`
+
+### MCP
+
+每个 MCP 服务器用一个插件；发现工具后用服务器的 schema 调 `ctx.tools.register()`。
+
 ## Configuration Files
 
 ### agent-dh/cordis.yml (Template - Standalone Format)

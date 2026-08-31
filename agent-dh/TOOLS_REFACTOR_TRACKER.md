@@ -115,7 +115,7 @@
 | 62 | quantsys_v2_logs | quantsys-v2-manager | ✅ | 简单 | 2026-08-28 | 后端日志 | 🟢 全链路 |
 | 63 | quantsys_v2_restart | quantsys-v2-manager | ✅ | 中等 | 2026-08-28 | 重启后端 | 🟢 全链路（R6） |
 | 64 | agent_os_status | agent-os-manager | ✅ | 简单 | 2026-08-28 | Agent OS 状态 | 🟢 全链路 |
-| 65 | agent_os_logs | agent-os-manager | ✅ | 简单 | 2026-08-28 | 日志查询 | 🟡 实测异常（2026-08-31：tail 日志文件失败，疑似路径/权限，待排查） |
+| 65 | agent_os_logs | agent-os-manager | ✅ | 简单 | 2026-08-28 | 日志查询 | 🟢 修复（2026-08-31 v1.1.0：fs 尾部读取替代 execSync tail、mtime 最新优先、失败返回建议命令 plan 兜底；tsx 测试通过） |
 | 66 | agent_os_restart | agent-os-manager | ✅ | 中等 | 2026-08-28 | Agent OS 重启 | 🟢 全链路（R6） |
 | 67 | feishu_notify | notification | ✅ | 简单 | 2026-08-29 | 飞书通知 | 🟢 基线通过（真实发送） |
 | 68 | notification_send | notification | ✅ | 简单 | 2026-08-29 | 发送通知 | 🔴 未实测 |

@@ -42,8 +42,9 @@ export const agentOsLogsPrompt: ToolPrompt<AgentOsLogsParams, AgentOsLogsResult>
   ],
   notes: [
     '💡 默认显示最后 50 行',
-    '💡 grep 支持大小写不敏感搜索',
+    '💡 grep 支持大小写不敏感搜索（JS includes，非系统 grep）',
     '💡 source 可选：main（默认）、scheduler',
+    '💡 2026-08-31 起按 mtime 最新优先选活跃日志（launchd 托管时读 launchd-stdout/stderr）；读取失败或无日志时返回建议 bash 命令（plan 兜底）',
   ],
   relatedTools: ['agent_os_status', 'agent_os_restart'],
   parameters: {
