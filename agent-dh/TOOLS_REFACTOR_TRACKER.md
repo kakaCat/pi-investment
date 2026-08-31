@@ -1,10 +1,10 @@
 # Agent-DH 工具重构清单（按工具追踪）
 
 **最后更新**: 2026-08-31  
-**总计**: 约 126 个工具  
-**已重构**: 71 个 (56.3%)  
+**总计**: 71 个工具  
+**已重构**: 71 个 (100%)  
 **进行中**: 0 个  
-**待重构**: 约 67 个 (53.2%)
+**待重构**: 0 个
 
 ---
 
@@ -15,7 +15,7 @@
 - ⏸️ **待重构** - 等待重构
 
 
-**验证列图例**（2026-08-30 标注，来源：smoke 基线 / Round 4 / Round 5 / 本轮实测）：
+**验证列图例**（2026-08-30 标注，来源：smoke 基线 / Round 4 / Round 5 / 本轮实测；2026-08-31 起含自修复验证 w-a0ef8aca Live SDK 实测）：
 
 - 🟢 **全链路** - 新鲜进程 harness 通过（execute→snapshot→schema→render）
 - 🟢 **基线通过** - smoke 基线实测通过（含预期合规拒绝）
@@ -33,39 +33,39 @@
 
 | # | 工具名 | Package | 状态 | 复杂度 | 完成日期 | 说明 | 验证 |
 |---|--------|---------|------|--------|----------|------|------|
-| 1 | account_info | trading | ✅ | 简单 | 2026-08-28 | 账户信息查询 | 🟢 基线通过 |
-| 2 | position_list | trading | ✅ | 简单 | 2026-08-28 | 持仓列表 | 🟢 基线通过 |
+| 1 | account_info | trading | ✅ | 简单 | 2026-08-28 | 账户信息查询 | 🟢 基线通过（2026-08-31 实测） |
+| 2 | position_list | trading | ✅ | 简单 | 2026-08-28 | 持仓列表 | 🟢 基线通过（2026-08-31 实测） |
 | 3 | portfolio_trade | trading | ✅ | 复杂 | 2026-08-28 | 交易执行 | 🟢 全链路（合规拒绝） |
-| 4 | trade_monitor | trading | ✅ | 简单 | 2026-08-28 | 交易监控 | 🟢 基线通过 |
+| 4 | trade_monitor | trading | ✅ | 简单 | 2026-08-28 | 交易监控 | 🟢 基线通过（2026-08-31 实测） |
 | 5 | algo_execute | trading | ✅ | 简单 | 2026-08-28 | 算法执行 | 🟢 全链路（TWAP拆单） |
-| 6 | trade_verify | trading | ✅ | 简单 | 2026-08-28 | 交易验证 | 🟢 基线通过（勾稽异常⚠️） |
-| 7 | slippage_report | trading | ✅ | 简单 | 2026-08-28 | 滑点报告 | 🟢 全链路 |
-| 8 | m4_circuit_breaker | trading | ✅ | 复杂 | 2026-08-28 | 熔断检查 | 🟢 基线通过 |
-| 9 | data_fetch_quote | investment | ✅ | 简单 | 2026-08-28 | 获取股票行情 | 🟢 基线通过 |
-| 10 | data_fetch_kline | investment | ✅ | 简单 | 2026-08-28 | 获取K线数据 | 🟢 基线通过 |
-| 11 | data_fetch_financial | investment | ✅ | 中等 | 2026-08-28 | 获取财务数据 | 🟢 全链路 |
-| 12 | data_fetch_macro | investment | ✅ | 中等 | 2026-08-28 | 获取宏观数据 | 🟢 全链路 |
-| 13 | data_fetch_north_flow | investment | ✅ | 简单 | 2026-08-28 | 获取北向资金流 | 🟢 全链路 |
-| 14 | data_fetch_market_sentiment | investment | ✅ | 中等 | 2026-08-28 | 获取市场情绪 | 🟢 全链路 |
-| 15 | pool_list | investment | ✅ | 简单 | 2026-08-28 | 股票池列表 | 🟢 基线通过 |
-| 16 | strategy_list | investment | ✅ | 简单 | 2026-08-28 | 策略列表 | 🟢 全链路 |
+| 6 | trade_verify | trading | ✅ | 简单 | 2026-08-28 | 交易验证 | 🟢 基线通过（勾稽异常⚠️；2026-08-31 实测） |
+| 7 | slippage_report | trading | ✅ | 简单 | 2026-08-28 | 滑点报告 | 🟢 全链路（2026-08-31 实测） |
+| 8 | m4_circuit_breaker | trading | ✅ | 复杂 | 2026-08-28 | 熔断检查 | 🟢 基线通过（2026-08-31 修复 circuit_breaker_status null→undefined + 实测） |
+| 9 | data_fetch_quote | investment | ✅ | 简单 | 2026-08-28 | 获取股票行情 | 🟢 链路通过（2026-08-31 实测；DB 无 600519 数据 404，非工具问题） |
+| 10 | data_fetch_kline | investment | ✅ | 简单 | 2026-08-28 | 获取K线数据 | 🟢 基线通过（2026-08-31 实测） |
+| 11 | data_fetch_financial | investment | ✅ | 中等 | 2026-08-28 | 获取财务数据 | 🟢 全链路（2026-08-31 自修复核心验证：defineTool 修复后实测通过） |
+| 12 | data_fetch_macro | investment | ✅ | 中等 | 2026-08-28 | 获取宏观数据 | 🟢 全链路（2026-08-31 实测） |
+| 13 | data_fetch_north_flow | investment | ✅ | 简单 | 2026-08-28 | 获取北向资金流 | 🟢 全链路（2026-08-31 实测） |
+| 14 | data_fetch_market_sentiment | investment | ✅ | 中等 | 2026-08-28 | 获取市场情绪 | 🟢 全链路（2026-08-31 sanitizeForJson 修复降级 undefined + 实测） |
+| 15 | pool_list | investment | ✅ | 简单 | 2026-08-28 | 股票池列表 | 🟢 基线通过（2026-08-31 实测 29 池） |
+| 16 | strategy_list | investment | ✅ | 简单 | 2026-08-28 | 策略列表 | 🟢 全链路（2026-08-31 实测 20 项） |
 | 17 | strategy_execute | strategy | ✅ | 复杂 | 2026-08-28 | 策略执行 | 🟢 基线通过 |
 | 18 | strategy_optimize | strategy | ✅ | 复杂 | 2026-08-28 | 策略优化 | 🔴 未实测 |
-| 19 | opportunity_scan | strategy | ✅ | 中等 | 2026-08-28 | 机会扫描 | 🟢 全链路 |
-| 20 | screening | strategy | ✅ | 中等 | 2026-08-28 | 股票筛选 | 🟢 基线通过 |
-| 21 | rotation_proposal | strategy | ✅ | 中等 | 2026-08-28 | 轮动建议 | 🟢 全链路 |
+| 19 | opportunity_scan | strategy | ✅ | 中等 | 2026-08-28 | 机会扫描 | 🟡 实测 30s 超时（2026-08-31，大数据量扫描慢，待优化 timeoutMs/分批） |
+| 20 | screening | strategy | ✅ | 中等 | 2026-08-28 | 股票筛选 | 🟡 后端依赖故障（2026-08-31：quantsys-v2 DataService 缺 get_all → HTTP 400，待修后端） |
+| 21 | rotation_proposal | strategy | ✅ | 中等 | 2026-08-28 | 轮动建议 | 🟢 全链路（2026-08-31 实测） |
 | 22 | rotation_simulate | strategy | ✅ | 中等 | 2026-08-28 | 轮动模拟 | 🟢 全链路 |
 | 23 | rotation_execute | strategy | ✅ | 复杂 | 2026-08-28 | 轮动执行 | 🟢 全链路（合规拒绝） |
-| 24 | market_style_detect | market | ✅ | 中等 | 2026-08-28 | 市场风格检测 | 🟢 基线通过 |
-| 25 | sector_analysis | market | ✅ | 中等 | 2026-08-28 | 板块分析 | 🟢 基线通过 |
-| 26 | chip_analysis | market | ✅ | 中等 | 2026-08-28 | 筹码分析 | 🟢 基线通过（数据降级⚠️） |
+| 24 | market_style_detect | market | ✅ | 中等 | 2026-08-28 | 市场风格检测 | 🟢 基线通过（2026-08-31 实测） |
+| 25 | sector_analysis | market | ✅ | 中等 | 2026-08-28 | 板块分析 | 🟢 基线通过（2026-08-31 实测） |
+| 26 | chip_analysis | market | ✅ | 中等 | 2026-08-28 | 筹码分析 | 🟢 基线通过（数据降级⚠️；2026-08-31 实测） |
 | 27 | regime_daily | market | ✅ | 中等 | 2026-08-28 | 每日市场状态 | 🟢 基线通过 |
 | 28 | mainline_scan | market | ✅ | 中等 | 2026-08-28 | 主线扫描 | 🟢 基线通过 |
-| 29 | mainline_stocks | market | ✅ | 简单 | 2026-08-28 | 主线股票 | 🟢 基线通过 |
-| 30 | risk_controller | risk | ✅ | 复杂 | 2026-08-28 | 风险控制器 | 🟢 全链路 |
-| 31 | risk_metrics | risk | ✅ | 中等 | 2026-08-28 | 风险指标 | 🟢 基线通过 |
-| 32 | barra_decomposition | risk | ✅ | 复杂 | 2026-08-28 | Barra 风险分解 | 🟢 全链路 |
-| 33 | regime_position_limit | risk | ✅ | 中等 | 2026-08-28 | 市场状态仓位限制 | 🟢 基线通过 |
+| 29 | mainline_stocks | market | ✅ | 简单 | 2026-08-28 | 主线股票 | 🟢 基线通过（2026-08-31 实测） |
+| 30 | risk_controller | risk | ✅ | 复杂 | 2026-08-28 | 风险控制器 | 🟢 全链路（2026-08-31 实测 portfolio_risk） |
+| 31 | risk_metrics | risk | ✅ | 中等 | 2026-08-28 | 风险指标 | 🟢 基线通过（2026-08-31 实测） |
+| 32 | barra_decomposition | risk | ✅ | 复杂 | 2026-08-28 | Barra 风险分解 | 🟢 全链路（2026-08-31 实测） |
+| 33 | regime_position_limit | risk | ✅ | 中等 | 2026-08-28 | 市场状态仓位限制 | 🟢 基线通过（2026-08-31 实测） |
 
 **P0 进度**: 33/33 (100%) 🎉
 
@@ -75,10 +75,10 @@
 
 | # | 工具名 | Package | 状态 | 复杂度 | 完成日期 | 说明 | 验证 |
 |---|--------|---------|------|--------|----------|------|------|
-| 34 | watch_list | intelligence | ✅ | 简单 | 2026-08-28 | 盯盘规则列表 | 🟢 全链路 |
+| 34 | watch_list | intelligence | ✅ | 简单 | 2026-08-28 | 盯盘规则列表 | 🟢 全链路（2026-08-31 实测 30 条） |
 | 35 | watch_manage | intelligence | ✅ | 中等 | 2026-08-28 | 盯盘规则管理 | 🟢 全链路（写路径） |
 | 36 | market_alert | intelligence | ✅ | 简单 | 2026-08-28 | 市场告警 | 🟢 基线通过 |
-| 37 | signal_track | intelligence | ✅ | 复杂 | 2026-08-28 | 信号质量追踪(M3-1) | 🟢 全链路（record+report） |
+| 37 | signal_track | intelligence | ✅ | 复杂 | 2026-08-28 | 信号质量追踪(M3-1) | 🟢 全链路（record+report；2026-08-31 实测 report） |
 | 38 | evolution_run | evolution | ✅ | 复杂 | 2026-08-28 | 策略进化执行 | 🟢 全链路（propose） |
 | 39 | evolution_leaderboard | evolution | ✅ | 简单 | 2026-08-28 | 策略进化排行榜 | 🟢 基线通过 |
 | 40 | genome_list | genome | ✅ | 简单 | 2026-08-28 | 列出基因段 | 🟢 全链路（2026-08-31 修复+实测；class 过滤 B-4 lossless 修复） |
@@ -87,13 +87,13 @@
 | 43 | genome_rollback | genome | ✅ | 中等 | 2026-08-28 | 回滚基因段 | 🟢 契约测试通过（history 数组+git 快照取数，整数版本） |
 | 44 | genome_promote | genome | ✅ | 简单 | 2026-08-28 | 提升版本号 | 🟢 全链路（2026-08-31 Live 实测：无 candidate 拒绝路径绑定通过） |
 | 45 | genome_history | genome | ✅ | 简单 | 2026-08-28 | 查看版本历史 | 🟢 全链路（2026-08-31 修复+实测，读 genome.json history 数组） |
-| 46 | learning_track | learning | ✅ | 中等 | 2026-08-29 | 记录交易经验 | 🔴 未实测 |
+| 46 | learning_track | learning | ✅ | 中等 | 2026-08-29 | 记录交易经验 | 🔴 未实测（2026-08-31 schema 修复：outcome 补 additionalProperties，scan 通过） |
 | 47 | learning_distill | learning | ✅ | 复杂 | 2026-08-29 | 蒸馏教训 | 🟢 全链路 |
-| 48 | learning_analyze | learning | ✅ | 中等 | 2026-08-29 | 分析历史教训 | 🟢 全链路 |
+| 48 | learning_analyze | learning | ✅ | 中等 | 2026-08-29 | 分析历史教训 | 🟢 全链路（2026-08-31 实测） |
 | 49 | learning_apply | learning | ✅ | 简单 | 2026-08-29 | 应用教训 | 🟢 全链路 |
 | 50 | self_status | lifecycle | ✅ | 简单 | 2026-08-29 | Agent 状态检查 | 🟢 全链路 |
-| 51 | self_restart | lifecycle | ✅ | 中等 | 2026-08-29 | Agent 重启 | 🟡 已修复打包dead+会话回投（R7）｜全链路待supervisor |
-| 52 | self_finalize | lifecycle | ✅ | 中等 | 2026-08-29 | 会话终结 | 🔴 未实测（高危） |
+| 51 | self_restart | lifecycle | ✅ | 中等 | 2026-08-29 | Agent 重启 | 🟢 全链路（2026-08-31 三次真实重启+续跑注入实测：打包 dead 修复、会话回投、captureLastUserMessage 过滤 system-reminder） |
+| 52 | self_finalize | lifecycle | ✅ | 中等 | 2026-08-29 | 会话终结 | 🔴 实测发现缺陷（2026-08-31：state.clearPending 缺失已修+dist 重建；action=merge/rollback 未实现，wip 合并需手动 git） |
 
 **P1 进度**: 19/19 (100%) 🎉
 
@@ -103,19 +103,19 @@
 
 | # | 工具名 | Package | 状态 | 复杂度 | 完成日期 | 说明 | 验证 |
 |---|--------|---------|------|--------|----------|------|------|
-| 53 | memory_search | memory | ✅ | 中等 | 2026-08-28 | 搜索记忆 | 🟢 全链路 |
+| 53 | memory_search | memory | ✅ | 中等 | 2026-08-28 | 搜索记忆 | 🟢 全链路（2026-08-31 实测） |
 | 54 | memory_write | memory | ✅ | 简单 | 2026-08-28 | 写入记忆 | 🟢 全链路（写路径） |
 | 55 | experience_write | memory | ✅ | 简单 | 2026-08-28 | 记录交易经验 | 🟢 全链路（写路径） |
-| 56 | factor_calculate | factor | ✅ | 复杂 | 2026-08-28 | 计算因子 | 🟢 全链路 |
+| 56 | factor_calculate | factor | ✅ | 复杂 | 2026-08-28 | 计算因子 | 🟢 全链路（2026-08-31 实测） |
 | 57 | factor_analyze | factor | ✅ | 复杂 | 2026-08-28 | 因子分析 | 🟢 全链路 |
 | 58 | data_quality_report | data-manager | ✅ | 中等 | 2026-08-28 | 数据质量报告 | 🟢 全链路 |
 | 59 | data_manager | data-manager | ✅ | 中等 | 2026-08-28 | 数据管理操作 | 🟢 全链路（status） |
 | 60 | kline_daily_sync | data-manager | ✅ | 复杂 | 2026-08-28 | K线每日同步 | 🟡 外部依赖（baostock） |
-| 61 | quantsys_v2_status | quantsys-v2-manager | ✅ | 简单 | 2026-08-28 | 后端状态 | 🟢 全链路 |
+| 61 | quantsys_v2_status | quantsys-v2-manager | ✅ | 简单 | 2026-08-28 | 后端状态 | 🟢 全链路（2026-08-31 实测 running） |
 | 62 | quantsys_v2_logs | quantsys-v2-manager | ✅ | 简单 | 2026-08-28 | 后端日志 | 🟢 全链路 |
 | 63 | quantsys_v2_restart | quantsys-v2-manager | ✅ | 中等 | 2026-08-28 | 重启后端 | 🟢 全链路（R6） |
 | 64 | agent_os_status | agent-os-manager | ✅ | 简单 | 2026-08-28 | Agent OS 状态 | 🟢 全链路 |
-| 65 | agent_os_logs | agent-os-manager | ✅ | 简单 | 2026-08-28 | 日志查询 | 🟢 全链路 |
+| 65 | agent_os_logs | agent-os-manager | ✅ | 简单 | 2026-08-28 | 日志查询 | 🟡 实测异常（2026-08-31：tail 日志文件失败，疑似路径/权限，待排查） |
 | 66 | agent_os_restart | agent-os-manager | ✅ | 中等 | 2026-08-28 | Agent OS 重启 | 🟢 全链路（R6） |
 | 67 | feishu_notify | notification | ✅ | 简单 | 2026-08-29 | 飞书通知 | 🟢 基线通过（真实发送） |
 | 68 | notification_send | notification | ✅ | 简单 | 2026-08-29 | 发送通知 | 🔴 未实测 |
@@ -241,6 +241,12 @@
 - 每个工具独立一行，可独立重构和验证
 - 添加"按工具重构"工作流程
 - 完成 Trading Package 全部 8 个工具
+
+### 2026-08-31（工具 schema 系统性自修复验证，w-a0ef8aca）
+- **根因**：investment 等 6 包 21 处 ctx.tools.register 裸透传扁平参数 schema，绕过 defineTool 转换 → deepseek API 惰性拒绝（Invalid schema for function ... got type null）；BaseTool.convertParameters 丢弃 additionalProperties/items、输出 undefined description 键
+- **修复**：① 6 包注册处补 defineTool 包装（investment/strategy/scheduler/learning/lifecycle/genome）；② BaseTool 新增 normalizeParamSchema（递归保留 additionalProperties/items/enum、description 条件输出、剔除 DSL 不支持的 minimum/pattern）+ stripDslUnsupported（output.schema 剥离 required 数组、数组安全递归）；③ BaseTool 新增 sanitizeForJson 输出清洗（递归删除 undefined 键、非有限数值转 null，修复 data_fetch_market_sentiment 降级数据 non-lossless 报错）；④ M4CircuitBreakerTool circuit_breaker_status null→undefined；⑤ learning_track outcome/context 补 additionalProperties
+- **验证**：scan2+scan3 全量扫描（60+ 工具 rc7/rc2 双版本 defineTool）ALL OK；三次真实重启+续跑注入实测；data_fetch_financial/market_sentiment/m4_circuit_breaker 等 35+ 工具 Live 实测通过；wip 已 fast-forward 合并回 agent-self/20260831-021255
+- **遗留**：self_finalize action=merge/rollback 未实现（wip 合并需手动 git）；screening 后端 DataService.get_all 缺失（HTTP 400）；opportunity_scan 30s 超时；agent_os_logs tail 日志文件失败
 
 ### 2026-08-31（genome 专项验证，详见 TOOLS_GENOME_VERIFICATION_20260831.md）
 - genome_* 6 个工具 SDK 已挂载（不再是"未暴露"），Live SDK 实测：**仅 genome_read 可用**

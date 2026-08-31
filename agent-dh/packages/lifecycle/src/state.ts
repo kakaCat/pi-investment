@@ -69,6 +69,11 @@ export class StateStore {
   }
 
   readPendingDone(): PendingResume | null { return this.readJson('pending-resume.done.json'); }
+  /** finalize 完成：清除全部 pending 状态（重启标记 + done 标记），保证 self_finalize 可重复调用不报错 */
+  clearPending(): void {
+    rmSync(this.path('pending-resume.json'), { force: true });
+    rmSync(this.path('pending-resume.done.json'), { force: true });
+  }
   /** finalize 完成后清掉 done 文件，保证 self_finalize 可重复调用不报错 */
   clearPendingDone(): void { rmSync(this.path('pending-resume.done.json'), { force: true }); }
   readRestartResult(): RestartResult | null { return this.readJson('restart-result.json'); }
