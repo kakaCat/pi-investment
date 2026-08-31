@@ -187,7 +187,7 @@
 | **Phase 3 提示词进化闭环** | ✅ 完成 | prompt_evolver | genome_update 支持 candidate/active；g16 曾以 candidate 观察、g14 lessons 经验证门转正（promote） |
 | | ✅ | validation_gate | candidate→转正/回滚裁决；evolution-gate-adjudicate（周日 11:00）调度启用 |
 | | ✅ | evolution_scheduler | evolution-weekly-variant（周六 10:00）/ evolution-distill-daily（工作日 16:00）/ evolution-gate-adjudicate（周日 11:00）全部启用，共 9 个 evolution 任务 |
-| **Phase 4 元学习** | ⏳ 未启动 | — | 待首轮完整进化周期（9/1 蒸馏 → 9/6 变异 → 9/7 裁决 → 9/8 启用）运行后接入 |
+| **Phase 4 元学习** | 🔄 已挂自动启动 | meta-learning-weekly | Agent OS 调度任务（周日 11:30，evolution-gate-adjudicate 裁决后自动触发）：检查闭环数据门槛 → 满足则产出「哪类变异有效」分析（改提示词 vs 加规则 vs 调参数 vs 改代码）+ 跨代比较（genome_history 各代对比找最优代）+ 飞书汇报；门槛未满足记录 waiting 不强行产出（2026-09-01 建立，手动触发验证通过） |
 | **capability_evolution（贯穿）** | ✅ 可用 | lifecycle | self_restart wip 检查点 + 启动失败自动回滚 + self_finalize 合并/回滚（2026-08-31 修复：实现真实 git merge/rollback，见下方变更日志）+ self_system_prompt/self_info |
 
 **2026-08-31 补充说明（self_finalize 修复）**：capability_evolution 闭环此前存在断点——`self_finalize` 工具声称支持 `action=merge/rollback`（RFC 005 §4.8 部署→验证→合并流程的收尾端），但实现只写日志 + `process.exit(0)` 直接关机，从不执行 git 合并/回滚，工具 schema 也没有 action 参数。已修复（commit 于 main）：
@@ -236,6 +236,6 @@
 
 **下一步（2026-08-31 更新）**：
 
-1. **Phase 4（元学习）**：分析"哪类变异有效"（改提示词 vs 加规则 vs 调参数 vs 改代码），进化节奏自适应。启动条件：evolution_scheduler 完成首个完整周运行（9/1 蒸馏 → 9/6 变异 → 9/7 裁决 → 9/8 启用），收集 ≥1 轮完整闭环数据。
-2. **观察期**：evolution 调度全链路（蒸馏→变异→裁决→启用）首周运行无中断；decision_tagging 在真实交易时段写入 genome_version 的完整性（当前 28 行订单中 21 行 pre-g10 回填为 unknown，属预期）。
+1. **Phase 4（元学习）已自动启动（2026-09-01）**：不再人工触发——`meta-learning-weekly` 任务（周日 11:30）在裁决后自动检查闭环数据门槛并执行分析（哪类变异有效 + 跨代比较 + 飞书汇报），门槛未满足自动记录 waiting。首个完整周闭环：9/1 蒸馏 → 9/5 变异 → 9/6 裁决 → 9/7 启用。
+2. **观察期**：evolution 调度全链路（蒸馏→变异→裁决→启用→元学习）首周运行无中断；decision_tagging 在真实交易时段写入 genome_version 的完整性（当前 28 行订单中 21 行 pre-g10 回填为 unknown，属预期）。
 3. **成功指标基线化**：按 §6 指标建立基准——蒸馏规则存活率、提示词版本进步、归因覆盖率 100%、进化节奏每周 ≥1 变异候选、宪法零突破。
