@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Context, Service } from '@deepseek-ai/cordis';
+import { defineTool } from '@deepseek-ai/dsh-tools';
 import z from '@deepseek-ai/schemastery';
 import { readFileSync, appendFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
@@ -741,7 +742,8 @@ export default class LifecyclePlugin extends Service {
         const text = content
           .filter((b: any) => b?.type === 'text' && typeof b.text === 'string')
           .map((b: any) => (b.text as string).trim())
-          .filter(Boolean)
+          // 过滤 dsh 注入的系统块（system-reminder 等以 <xxx> 开头的文本），只保留用户真实消息
+          .filter((t: string) => t.length > 0 && !/^<[a-z-]+>/i.test(t))
           .join('\n')
           .trim();
         return text.length > 0 ? text.slice(0, 2000) : null;
@@ -817,19 +819,19 @@ export default class LifecyclePlugin extends Service {
     const restartTool = new SelfRestartTool(
       this.scheduleRestart.bind(this)
     );
-    ctx.tools.register(restartTool.toDSHToolDefinition());
+    ctx.tools.register(defineTool(restartTool.toDSHToolDefinition()));
 
     // 2. 终止工具（重构为 BaseTool）
     const finalizeTool = new SelfFinalizeTool(
       this.scheduleFinalize.bind(this)
     );
-    ctx.tools.register(finalizeTool.toDSHToolDefinition());
+    ctx.tools.register(defineTool(finalizeTool.toDSHToolDefinition()));
 
     // 3. 状态查询工具（重构为 BaseTool）
     const statusTool = new SelfStatusTool(
       this.getStatus.bind(this)
     );
-    ctx.tools.register(statusTool.toDSHToolDefinition());
+    ctx.tools.register(defineTool(statusTool.toDSHToolDefinition()));
 
     // RFC 009: 注册公告板生命周期管理工具
     registerBoardUpdate(this.ctx, this.aos.memory, this.cfg.agentId);

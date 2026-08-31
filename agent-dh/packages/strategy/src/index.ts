@@ -62,6 +62,7 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis';
+import { defineTool } from '@deepseek-ai/dsh-tools';
 import z from '@deepseek-ai/schemastery';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 
@@ -181,24 +182,24 @@ export default class StrategyPlugin extends Service {
     const { ctx, qv2 } = this;
 
     // 注册策略执行工具
-    ctx.tools.register(createStrategyExecuteTool(qv2));
+    ctx.tools.register(defineTool(createStrategyExecuteTool(qv2)));
 
     // 注册策略优化工具
-    ctx.tools.register(createStrategyOptimizeTool(qv2));
+    ctx.tools.register(defineTool(createStrategyOptimizeTool(qv2)));
 
     // 注册机会扫描工具
-    ctx.tools.register(createOpportunityScanTool(qv2));
+    ctx.tools.register(defineTool(createOpportunityScanTool(qv2)));
 
     // 注册股票筛选工具
-    ctx.tools.register(createScreeningTool(qv2));
+    ctx.tools.register(defineTool(createScreeningTool(qv2)));
 
     // 注册轮动提议工具
-    ctx.tools.register(createRotationProposalTool(qv2));
+    ctx.tools.register(defineTool(createRotationProposalTool(qv2)));
 
     // 注册轮动模拟工具
-    ctx.tools.register(createRotationSimulateTool(qv2));
+    ctx.tools.register(defineTool(createRotationSimulateTool(qv2)));
 
     // 注册轮动执行工具
-    ctx.tools.register(createRotationExecuteTool(qv2));
+    ctx.tools.register(defineTool(createRotationExecuteTool(qv2)));
   }
 }

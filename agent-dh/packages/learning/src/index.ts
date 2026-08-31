@@ -3,6 +3,7 @@
  * 经验学习、蒸馏和知识萃取
  */
 import { Context, Service } from '@deepseek-ai/cordis';
+import { defineTool } from '@deepseek-ai/dsh-tools';
 import z from '@deepseek-ai/schemastery';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { AgentOSClient } from '@pi-investment/agent-os-client';
@@ -435,13 +436,13 @@ export default class LearningPlugin extends Service {
       this.persistExperience.bind(this),
       this.extractTagsFromContext.bind(this)
     );
-    ctx.tools.register(trackTool.toDSHToolDefinition());
+    ctx.tools.register(defineTool(trackTool.toDSHToolDefinition()));
 
     // 2. 分析经验（重构为 BaseTool）
     const analyzeTool = new LearningAnalyzeTool(
       this.analyzeExperiences.bind(this)
     );
-    ctx.tools.register(analyzeTool.toDSHToolDefinition());
+    ctx.tools.register(defineTool(analyzeTool.toDSHToolDefinition()));
 
     // 3. 提炼规则（重构为 BaseTool）
     const distillTool = new LearningDistillTool(
@@ -450,13 +451,13 @@ export default class LearningPlugin extends Service {
       this.getDistillMethod.bind(this),
       this.validateRules.bind(this)
     );
-    ctx.tools.register(distillTool.toDSHToolDefinition());
+    ctx.tools.register(defineTool(distillTool.toDSHToolDefinition()));
 
     // 4. 应用规则（重构为 BaseTool）
     const applyTool = new LearningApplyTool(
       this.applyRule.bind(this)
     );
-    ctx.tools.register(applyTool.toDSHToolDefinition());
+    ctx.tools.register(defineTool(applyTool.toDSHToolDefinition()));
   }
 
   // ===== 辅助方法 =====

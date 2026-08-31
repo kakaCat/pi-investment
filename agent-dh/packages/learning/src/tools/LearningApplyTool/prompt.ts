@@ -30,7 +30,7 @@ export const learningApplyPrompt: ToolPrompt<LearningApplyParams, LearningApplyR
   ],
   parameters: {
     rule_id: { type: 'string', required: true, description: '规则ID' },
-    context: { type: 'object', required: true, description: '应用上下文' },
+    context: { type: 'object', required: true, additionalProperties: true, description: '应用上下文' },
     dry_run: { type: 'boolean', required: false, description: '是否仅模拟运行' },
   },
   output: {

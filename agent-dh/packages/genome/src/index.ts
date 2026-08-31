@@ -3,6 +3,7 @@
  * 管理 prompt 基因组的读取、更新、验证和版本控制
  */
 import { Context, Service } from '@deepseek-ai/cordis';
+import { defineTool } from '@deepseek-ai/dsh-tools';
 import z from '@deepseek-ai/schemastery';
 import { renderPrompt } from '@deepseek-ai/dsh-system-prompt';
 import * as fs from 'fs';
@@ -320,40 +321,40 @@ export default class GenomePlugin extends Service {
   private registerTools(): void {
     const { ctx } = this;
 
-    ctx.tools.register(new GenomeListTool(
+    ctx.tools.register(defineTool(new GenomeListTool(
       this.genomeDir,
       this.genomeData
-    ).toDSHToolDefinition() as any);
+    ).toDSHToolDefinition() as any));
 
-    ctx.tools.register(new GenomeReadTool(
+    ctx.tools.register(defineTool(new GenomeReadTool(
       this.genomeDir,
       this.genomeData
-    ).toDSHToolDefinition() as any);
+    ).toDSHToolDefinition() as any));
 
-    ctx.tools.register(new GenomeUpdateTool(
+    ctx.tools.register(defineTool(new GenomeUpdateTool(
       this.genomeDir,
       this.genomeData,
       this.lockGuard,
       this as GenomeWriteHost
-    ).toDSHToolDefinition() as any);
+    ).toDSHToolDefinition() as any));
 
-    ctx.tools.register(new GenomeRollbackTool(
+    ctx.tools.register(defineTool(new GenomeRollbackTool(
       this.genomeDir,
       this.genomeData,
       this.lockGuard,
       this as GenomeWriteHost
-    ).toDSHToolDefinition() as any);
+    ).toDSHToolDefinition() as any));
 
-    ctx.tools.register(new GenomePromoteTool(
+    ctx.tools.register(defineTool(new GenomePromoteTool(
       this.genomeDir,
       this.genomeData,
       this.lockGuard,
       this as GenomeWriteHost
-    ).toDSHToolDefinition() as any);
+    ).toDSHToolDefinition() as any));
 
-    ctx.tools.register(new GenomeHistoryTool(
+    ctx.tools.register(defineTool(new GenomeHistoryTool(
       this.genomeDir,
       this.genomeData
-    ).toDSHToolDefinition() as any);
+    ).toDSHToolDefinition() as any));
   }
 }

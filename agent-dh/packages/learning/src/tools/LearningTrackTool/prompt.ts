@@ -59,11 +59,13 @@ export const learningTrackPrompt: ToolPrompt<LearningTrackParams, LearningTrackR
     context: {
       type: 'object',
       required: true,
+      additionalProperties: true,
       description: '上下文信息，如 {symbol, strategy_id, market_phase}',
     },
     outcome: {
       type: 'object',
       required: true,
+      additionalProperties: true,
       description: '结果：{success: boolean, metrics?: object, error?: string}',
     },
     reward: {

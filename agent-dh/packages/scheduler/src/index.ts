@@ -3,6 +3,7 @@
  * 任务调度管理：定时任务、周期任务
  */
 import { Context, Service } from '@deepseek-ai/cordis';
+import { defineTool } from '@deepseek-ai/dsh-tools';
 import z from '@deepseek-ai/schemastery';
 import { AgentOSClient } from '@pi-investment/agent-os-client';
 import { SchedulerManageTool } from './tools/SchedulerManageTool';
@@ -46,6 +47,6 @@ export default class SchedulerPlugin extends Service {
 
     // 调度器管理（重构为 BaseTool，需要通过 defineTool 包装）
     const tool = new SchedulerManageTool(aos);
-    ctx.tools.register(tool.toDSHToolDefinition());
+    ctx.tools.register(defineTool(tool.toDSHToolDefinition()));
   }
 }

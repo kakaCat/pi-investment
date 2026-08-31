@@ -127,6 +127,7 @@ export abstract class BaseTool<TParams = any, TResult = any> {
       // 避免 DSH 执行链因 output.render 缺失而失败
       output: {
         ...this.prompt.output,
+        schema: this.prompt.output?.schema ? this.stripDslUnsupported(this.prompt.output.schema) : undefined,
         render: this.prompt.output?.render
           ?? ((_args: TParams, data: TResult) => [{ type: 'text', text: JSON.stringify(data, null, 2) }]),
       },
@@ -156,26 +157,55 @@ export abstract class BaseTool<TParams = any, TResult = any> {
   private convertParameters(params: Record<string, any>): any {
     const result: any = {};
     for (const [key, def] of Object.entries(params)) {
-      const converted: any = {
-        type: def.type,
-        description: def.description,
-      };
-
-      // 只在 required 为 true 时才包含（dsh 不支持 required: false 或 undefined）
-      if (def.required === true) {
-        converted.required = true;
-      }
-
-      // 只包含有值的可选字段
-      if (def.default !== undefined) {
-        converted.default = def.default;
-      }
-      if (def.enum !== undefined) {
-        converted.enum = def.enum;
-      }
-
-      result[key] = converted;
+      result[key] = this.normalizeParamSchema(def);
     }
     return result;
+  }
+
+  /** 剥离 value schema DSL 不支持的关键字（required 数组），递归处理嵌套 schema */
+  private stripDslUnsupported(schema: any): any {
+    if (!schema || typeof schema !== 'object') return schema;
+    const out: any = {};
+    for (const [k, v] of Object.entries(schema)) {
+      if (k === 'required') continue;
+      if (Array.isArray(v)) {
+        out[k] = v.map((item) => item && typeof item === 'object' ? this.stripDslUnsupported(item) : item);
+      } else if (v && typeof v === 'object') {
+        out[k] = this.stripDslUnsupported(v);
+      } else {
+        out[k] = v;
+      }
+    }
+    return out;
+  }
+
+  /** 规范化参数属性为完整 JSON Schema 子节点（递归处理 items/additionalProperties） */
+  private normalizeParamSchema(def: any): any {
+    const converted: any = { type: def.type };
+
+    // description 仅在为字符串时输出（避免 undefined 键触发 dsh-tools 注解校验）
+    if (typeof def.description === 'string') {
+      converted.description = def.description;
+    }
+
+    // dsh-tools 扁平 spec：属性级 required 布尔（defineTool 会提升为顶层数组）
+    if (def.required === true) {
+      converted.required = true;
+    }
+
+    // 只包含有值的可选字段
+    if (def.default !== undefined) converted.default = def.default;
+    if (def.enum !== undefined) converted.enum = def.enum;
+    // 注意：dsh-tools value schema DSL 不支持 minimum/maximum/pattern，不输出
+    if (def.additionalProperties !== undefined) converted.additionalProperties = def.additionalProperties;
+
+    // 数组元素 schema 递归规范化（嵌套 object 需要 additionalProperties）
+    if (def.items !== undefined) {
+      converted.items = def.items && typeof def.items === 'object'
+        ? this.normalizeParamSchema(def.items)
+        : def.items;
+    }
+
+    return converted;
   }
 }

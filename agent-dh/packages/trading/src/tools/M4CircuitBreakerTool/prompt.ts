@@ -78,11 +78,8 @@ export const circuitBreakerPrompt: ToolPrompt<CircuitBreakerCheckParams, Circuit
         unblocked: { type: 'boolean', description: '本次是否解除熔断' },
         actions: { type: 'array', items: { type: 'string' }, description: '执行的动作列表' },
         circuit_breaker_status: {
-          oneOf: [
-            { type: 'object', additionalProperties: true, description: '熔断状态对象' },
-            { type: 'null', description: '无熔断状态' }
-          ],
-          description: '当前熔断状态'
+          type: 'object', additionalProperties: true,
+          description: '当前熔断状态（null 表示无熔断）'
         },
         error: { type: 'string', description: 'API 错误（降级模式）' },
       },

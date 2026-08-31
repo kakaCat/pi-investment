@@ -1,4 +1,5 @@
 import { Context, Service } from '@deepseek-ai/cordis';
+import { defineTool } from '@deepseek-ai/dsh-tools';
 import z from '@deepseek-ai/schemastery';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { createDataFetchQuoteTool } from './tools/DataFetchQuoteTool';
@@ -52,28 +53,32 @@ export default class InvestmentPlugin extends Service {
   private registerTools() {
     const { ctx, qv2 } = this;
 
+    // BaseTool 输出扁平 spec，defineTool 负责转换为标准 JSON Schema
+    // （顶层 type:'object' + required 数组），供 deepseek API 校验使用
+    const reg = (def: any) => ctx.tools.register(defineTool(def));
+
     // 1. 实时行情 - 已重构为 BaseTool
-    ctx.tools.register(createDataFetchQuoteTool(qv2));
+    reg(createDataFetchQuoteTool(qv2));
 
     // 2. K线数据 - 已重构为 BaseTool
-    ctx.tools.register(createDataFetchKlineTool(qv2));
+    reg(createDataFetchKlineTool(qv2));
 
     // 3. 财务数据 - 已重构为 BaseTool
-    ctx.tools.register(createDataFetchFinancialTool(qv2));
+    reg(createDataFetchFinancialTool(qv2));
 
     // 4. 宏观经济数据 - 已重构为 BaseTool
-    ctx.tools.register(createDataFetchMacroTool(qv2));
+    reg(createDataFetchMacroTool(qv2));
 
     // 5. 北向资金流向 - 已重构为 BaseTool
-    ctx.tools.register(createDataFetchNorthFlowTool(qv2));
+    reg(createDataFetchNorthFlowTool(qv2));
 
     // 6. 市场情绪 - 已重构为 BaseTool
-    ctx.tools.register(createDataFetchMarketSentimentTool(qv2));
+    reg(createDataFetchMarketSentimentTool(qv2));
 
     // 7. 股票池列表 - 已重构为 BaseTool
-    ctx.tools.register(createPoolListTool(qv2));
+    reg(createPoolListTool(qv2));
 
     // 8. 策略列表 - 已重构为 BaseTool
-    ctx.tools.register(createStrategyListTool(qv2));
+    reg(createStrategyListTool(qv2));
   }
 }
