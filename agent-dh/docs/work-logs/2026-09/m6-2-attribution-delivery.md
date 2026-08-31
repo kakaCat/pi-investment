@@ -2,7 +2,7 @@
 
 > 署名：investor w-8366e526
 > 数据源：quantsys-v2 quant.position_history（配对交易）+ quant.trades + quant.simulation_trades
-> 脚本：quantsys-v2/tools/run_m62_attribution.py
+> API：GET /api/learning/portfolio-attribution（AttributionService.analyze_portfolio_attribution，quantsys-v2 正式端点）
 > 关联：docs/work-logs/2026-08/m0-m8-complete-progress.md（M6 完成度更新）
 
 ---
@@ -64,7 +64,7 @@
 |------|------|
 | 盈亏拆解（决策类型/时间/标的三维） | ✅ |
 | 可操作经验沉淀（experience + memory） | ✅ |
-| 归因脚本可重复运行 | ✅（tools/run_m62_attribution.py） |
+| 归因 API 可用 | ✅（GET /api/learning/portfolio-attribution，返回 summary/by_decision_type/by_month/by_symbol/insights） |
 | M6 完成度更新 | 25% → **50%**（M6-1 ✅ + M6-2 ✅） |
 
 ## 7. 下一步

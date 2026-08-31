@@ -122,7 +122,7 @@
 - 盈利 100% 来自分批止盈纪律（中粮 600737 +22643 / 神华 601088 +12022 / 徐工 000425 +8280），非选股（跨多行业）
 - 唯一显著亏损：688981 中芯 -3312（摊平加仓+反弹挂单不坚决），经验已沉淀
 - 月度集中 2026-05（+43813，84%）；8 月策略卖出 15 笔多亏损，与 regime 接近熔断吻合
-- 脚本：quantsys-v2/tools/run_m62_attribution.py；文档：work-logs/2026-09/m6-2-attribution-delivery.md
+- API：GET /api/learning/portfolio-attribution（AttributionService.analyze_portfolio_attribution）；文档：work-logs/2026-09/m6-2-attribution-delivery.md
 
 **M6-4 优化验证（2026-09-01，investor w-8366e526 更新）**：
 - 参数候选（fast5/slow13/sig3）扩大验证被证伪（强势区间 1.005 < 默认 1.178）→ 默认保留
