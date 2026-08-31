@@ -18,7 +18,6 @@ logger = structlog.get_logger(__name__)
 
 
 def create_order(
-    ds,
     symbol: str,
     action: str,
     order_type: str,
@@ -30,7 +29,6 @@ def create_order(
     account_name: str = None,
 ) -> int:
     return _order_service.create_order(
-        ds=ds,
         symbol=symbol,
         action=action,
         order_type=order_type,
@@ -44,53 +42,47 @@ def create_order(
 
 
 def fill_order(
-    ds,
     order_id: int,
     fill_price: float,
     fill_quantity: int = None,
 ) -> Dict:
     return _order_service.fill_order(
-        ds=ds,
         order_id=order_id,
         fill_price=fill_price,
         fill_quantity=fill_quantity,
     )
 
 
-def cancel_order(ds, order_id: int) -> bool:
-    return _order_service.cancel_order(ds=ds, order_id=order_id)
+def cancel_order(order_id: int) -> bool:
+    return _order_service.cancel_order(order_id=order_id)
 
 
-def get_order(ds, order_id: int) -> Optional[Dict]:
-    return _order_service.get_order(ds=ds, order_id=order_id)
+def get_order(order_id: int) -> Optional[Dict]:
+    return _order_service.get_order(order_id=order_id)
 
 
 def list_orders(
-    ds,
     symbol: str = None,
     status: str = None,
     limit: int = 50,
 ) -> List[Dict]:
     return _order_service.list_orders(
-        ds=ds,
         symbol=symbol,
         status=status,
         limit=limit,
     )
 
 
-def expire_orders(ds) -> int:
-    return _order_service.expire_orders(ds=ds)
+def expire_orders() -> int:
+    return _order_service.expire_orders()
 
 
 def create_order_from_signal(
-    ds,
     signal: dict,
     symbol: str,
     order_type: str = 'limit',
 ) -> dict:
     return _order_service.create_order_from_signal(
-        ds=ds,
         signal=signal,
         symbol=symbol,
         order_type=order_type,
