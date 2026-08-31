@@ -250,6 +250,30 @@ class _LazyServiceModule:
     def signal_repo(self):
         return get_signal_repo()
 
+    @property
+    def stock_repo(self):
+        return get_stock_repo()
+
+    @property
+    def kline_repo(self):
+        return get_kline_repo()
+
+    @property
+    def factor_repo(self):
+        return get_factor_repo()
+
+    @property
+    def execution_repo(self):
+        return get_execution_repo()
+
+    @property
+    def backtest_repo(self):
+        return get_backtest_repo()
+
+    @property
+    def simulation_repo(self):
+        return get_simulation_repo()
+
     # P1-5 新增
     @property
     def order_service(self):
@@ -350,6 +374,19 @@ class _LazyServiceModule:
     @property
     def game_alert_service(self):
         return get_game_alert_service()
+
+    def __getattr__(self, name):
+        """动态转发模块顶层 get_* 工厂函数。
+
+        模块替换技巧（sys.modules[__name__] = _LazyServiceModule()）使顶层
+        def get_kline_repo() 等工厂函数在替换后不可达——`from adapters.shared.
+        services import get_kline_repo` 会因属性缺失抛 ImportError（2026-08-31
+        pipeline_exec/jobs_state/manager 启动崩溃根因，8101a666 引入）。
+        这里把 get_* 前缀的属性访问转发到模块全局同名函数。
+        """
+        if name.startswith('get_') and name in globals():
+            return globals()[name]
+        raise AttributeError(f"'adapters.shared.services' 无属性 '{name}'（LazyServiceModule 未提供）")
 
 # 创建懒加载代理实例
 import sys
