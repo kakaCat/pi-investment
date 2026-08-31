@@ -13,8 +13,9 @@ import structlog
 
 from adapters.shared import _V2_ROOT
 from adapters.inbound.fastapi_app.shared import (
-    ds, api_response, error_response, handle_api_error, sanitize_for_json,
+    simulation_repo, api_response, error_response, handle_api_error, sanitize_for_json,
     convert_keys_to_snake, convert_keys_to_camel, strategy_service, scoring_service,
+    kline_repo, factor_repo, stock_repo, signal_repo,
 )
 
 logger = structlog.get_logger(__name__)
@@ -93,9 +94,16 @@ def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
                 return error_response({'error': 'RSI策略缺少参数: rsi_period (或 rsiPeriod)'}, 400)
 
     try:
-        workflow_data = ds.get_backtest_workflow_data(
-            data['symbol'], data['start_date'], data['end_date'], period=data.get('period'))
-        klines = workflow_data['klines']
+        import polars as pl
+        from infrastructure.services.service_factory import ServiceFactory
+        _stock_repo = ServiceFactory.get_stock_repository()
+        _kline_repo = ServiceFactory.get_kline_repository()
+
+        symbol_val = data['symbol']
+        start_val = data['start_date']
+        end_val = data['end_date']
+        klines_df = _kline_repo.get_daily_klines(symbol_val, start_val, end_val)
+        klines = klines_df.to_dicts() if isinstance(klines_df, pl.DataFrame) and not klines_df.is_empty() else []
         if not klines:
             return error_response({'error': '没有K线数据'}, 400)
         initial_capital = float(data['initial_capital'])
@@ -143,7 +151,7 @@ def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
 
         results = []
         for sym in all_symbols:
-            klines_df = ds.kline.get_daily_klines(sym, start_date, end_date)
+            klines_df = kline_repo.get_daily_klines(sym, start_date, end_date)
             if klines_df is None or klines_df.is_empty():
                 results.append({'symbol': sym, 'error': 'No kline data'})
                 continue
@@ -164,7 +172,7 @@ def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
             factors.update(fund_factors)
             last_row = klines[-1]
             latest_date = last_row.get('trade_date') or last_row.get('date') or ''
-            ds.factor.save_factors(sym, str(latest_date), factors)
+            factor_repo.save_factors(sym, str(latest_date), factors)
             results.append({
                 'symbol': sym, 'date': str(latest_date),
                 'factor_count': len(factors), 'factors': factors,
@@ -182,7 +190,7 @@ def get_technical_indicators(symbol: str, indicators: Optional[str] = Query(None
     try:
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-        klines_df = ds.kline.get_daily_klines(symbol, start_date, end_date)
+        klines_df = kline_repo.get_daily_klines(symbol, start_date, end_date)
         if klines_df is None or klines_df.is_empty():
             return error_response({'error': f'No kline data for {symbol}'}, 404)
         if len(klines_df) < 20:
@@ -228,7 +236,7 @@ def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: i
     try:
         end = datetime.now().strftime('%Y-%m-%d')
         start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-        klines = ds.kline.get_daily_klines(symbol, start, end)
+        klines = kline_repo.get_daily_klines(symbol, start, end)
         rows = []
         if klines is not None and hasattr(klines, 'is_empty'):  # polars DataFrame
             rows = [] if klines.is_empty() else klines.to_dicts()
@@ -275,10 +283,10 @@ def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: i
 def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
     """获取股票因子分析（与 Flask analysis.py 一致）"""
     try:
-        factors = ds.factor.get_latest_factors(symbol) if not date else ds.factor.get_factors(symbol, date)
-        stock_info = ds.stock.get_by_symbol(symbol)
-        kline = ds.kline.get_latest_daily_kline(symbol)
-        latest_signals = ds.signal.get_signals_by_symbol(symbol, '2024-01-01', date or '2026-12-31')
+        factors = factor_repo.get_latest_factors(symbol) if not date else factor_repo.get_factors(symbol, date)
+        stock_info = stock_repo.get_by_symbol(symbol)
+        kline = kline_repo.get_latest_daily_kline(symbol)
+        latest_signals = signal_repo.get_signals_by_symbol(symbol, '2024-01-01', date or '2026-12-31')
 
         # M0-5：仅"最新因子"路径做陈旧标注；指定日期查询是历史快照，无需标注
         stale_summary: Dict[str, Any] = {}
@@ -438,8 +446,8 @@ def get_exit_plan(symbol: str,
                   position_size: int = Query(100)):
     """退出计划 - 止盈、止损和分批卖出策略"""
     try:
-        from application.services.data_service import DataService
-        data_service = DataService()
+        from infrastructure.services.service_factory import ServiceFactory
+        kline_repo = ServiceFactory.get_kline_repository()
 
         # 确保 symbol 有后缀
         if '.' not in symbol:
@@ -451,7 +459,7 @@ def get_exit_plan(symbol: str,
         end_date = datetime.now()
         start_date = end_date - timedelta(days=5)  # 获取最近5天数据
 
-        klines = data_service.kline.get_daily_klines(
+        klines = kline_repo.get_daily_klines(
             symbol_with_suffix,
             start_date.strftime('%Y-%m-%d'),
             end_date.strftime('%Y-%m-%d')
@@ -478,7 +486,7 @@ def get_exit_plan(symbol: str,
             buy_price = float(current_price)
 
         # 获取股票名称
-        stock_info = data_service.stock.get_by_symbol(symbol_with_suffix) or {}
+        stock_info = stock_repo.get_by_symbol(symbol_with_suffix) or {}
         stock_name = stock_info.get('name', symbol)
 
         # 计算收益率
@@ -529,12 +537,13 @@ def get_pe_percentile(symbol: str, years: int = Query(3)):
     """PE历史分位 - 使用数据库历史数据计算 PE 分位数"""
     try:
         import pandas as pd
-        from application.services.data_service import DataService
+        from infrastructure.services.service_factory import ServiceFactory
 
-        data_service = DataService()
+        stock_repo = ServiceFactory.get_stock_repository()
+        kline_repo = ServiceFactory.get_kline_repository()
 
         # 获取股票基本信息（包含当前 PE）
-        stock_info = data_service.stock.get_by_symbol(symbol)
+        stock_info = stock_repo.get_by_symbol(symbol)
         if not stock_info:
             return error_response({'success': False, 'error': '股票不存在'}, 404)
 
@@ -547,7 +556,7 @@ def get_pe_percentile(symbol: str, years: int = Query(3)):
         end_date = datetime.now()
         start_date = end_date - timedelta(days=years * 365)
 
-        klines = data_service.kline.get_daily_klines(
+        klines = kline_repo.get_daily_klines(
             symbol,
             start_date.strftime('%Y-%m-%d'),
             end_date.strftime('%Y-%m-%d')
@@ -678,7 +687,7 @@ def get_quality_score_v2(symbol: str, framework: str = Query('auto')):
     try:
         from application.services.quality_scoring_service import QualityScoringService
 
-        quality_service = QualityScoringService(ds)
+        quality_service = QualityScoringService()
         result = quality_service.calculate_quality_score(symbol, framework=framework)
 
         if 'error' in result:
@@ -720,7 +729,8 @@ def get_market_sentiment():
     from application.services.market_sentiment_service import MarketSentimentService
 
     # 初始化服务
-    sentiment_service = MarketSentimentService(ds)
+    from infrastructure.services.service_factory import ServiceFactory
+    sentiment_service = MarketSentimentService(ServiceFactory.get_kline_repository())
 
     # 分析市场情绪
     result = sentiment_service.analyze_market_sentiment()
@@ -757,7 +767,7 @@ def screen_stocks_v2(request: Request):
             criteria['limit'] = limit
 
         # 使用筛选服务 (需要 ds 和 scoring_service)
-        screening_service = StockScreeningService(ds, scoring_service)
+        screening_service = StockScreeningService(scoring_service=scoring_service)
         result = screening_service.screen_stocks(criteria)
 
         if 'error' in result:
@@ -787,7 +797,7 @@ def screening_quality(sector: str = Query(''),
     if max_pe:
         criteria['max_pe'] = max_pe
 
-    screening_service = StockScreeningService(ds, scoring_service)
+    screening_service = StockScreeningService(scoring_service=scoring_service)
     result = screening_service.screen_stocks(criteria)
 
     # 如果指定了行业，进行过滤
@@ -833,7 +843,7 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
     if not returns and account_name:
         try:
             # 从 simulation 获取指定账户的持仓数据（支持多账户）
-            positions = ds.simulation.get_all_positions(account_name, only_nonzero=True)
+            positions = simulation_repo.get_all_positions(account_name, only_nonzero=True)
             if not positions:
                 return error_response({
                     'success': False,
@@ -850,7 +860,7 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
                 try:
                     end_date = datetime.now().strftime('%Y-%m-%d')
                     start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-                    klines = ds.kline.get_daily_klines(symbol, start_date, end_date)
+                    klines = kline_repo.get_daily_klines(symbol, start_date, end_date)
                     if klines is not None and hasattr(klines, 'to_dicts'):
                         klines = klines.to_dicts()
                     if klines and len(klines) >= 2:
@@ -941,7 +951,9 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
         import numpy as np
         import pandas as pd
         from domain.factors.analysis.ic_analyzer import ICAnalyzer
-        from adapters.shared.services import ds as data_service
+        from infrastructure.services.service_factory import ServiceFactory
+        _stock_repo_ic = ServiceFactory.get_stock_repository()
+        _kline_repo_ic = ServiceFactory.get_kline_repository()
 
         analyzer = ICAnalyzer()
         results = {}
@@ -949,9 +961,7 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
         if universe:
             symbols = universe if isinstance(universe, list) else [universe]
         else:
-            # 2026-08-30 修复：StockORMRepository 无 get_all_stocks 方法，
-            # 且 get_all 返回 List[Dict]（非 ORM 对象），符号需从 dict 取
-            stocks = data_service.stock.get_all(limit=50) if data_service.stock else []
+            stocks = _stock_repo_ic.get_all(limit=50) if _stock_repo_ic else []
             symbols = [s.get('symbol') for s in stocks] if stocks else []
 
         if not symbols:
@@ -959,7 +969,7 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
 
         for factor_name in factors:
             try:
-                klines_map = data_service.kline.batch_get_recent_klines(symbols, days=250) if data_service.kline else {}
+                klines_map = _kline_repo_ic.batch_get_recent_klines(symbols, days=250) if _kline_repo_ic else {}
 
                 factor_values = []
                 forward_returns = []
@@ -1034,12 +1044,10 @@ def sector_aggregate(payload: Optional[Dict[str, Any]] = Body(None)):
                 'error': 'sector_field 必须是 "sector" 或 "industry"'
             }, 400)
 
-        # 使用 DataService 进行行业聚合分析
-        from application.services.data_service import DataService
-        ds_local = DataService()
+        from infrastructure.services.service_factory import ServiceFactory
+        stock_repo = ServiceFactory.get_stock_repository()
 
-        # 获取所有股票的基本信息（排除停牌退市股）
-        stocks = ds_local.stock.get_all(include_suspended=False)
+        stocks = stock_repo.get_all(include_suspended=False)
 
         if not stocks:
             return api_response({
@@ -1155,23 +1163,10 @@ def generate_factor_report(payload: Optional[Dict[str, Any]] = Body(None)):
             'error': '开始日期和结束日期不能为空'
         }, 400)
 
-    # 调用 DataService 生成报告
-    result = ds.generate_factor_report(
-        factors=factors,
-        start_date=start_date,
-        end_date=end_date,
-        universe=universe,
-        output_dir=output_dir
-    )
-
-    # 检查错误
-    if not result.get('success'):
-        return error_response({
-            'success': False,
-            'error': result.get('error', '生成因子报告失败')
-        }, 400)
-
-    return api_response(result)
+    return api_response({
+        'success': False,
+        'error': '因子报告生成功能尚未实现',
+    })
 
 
 # ============ /api/analysis/swing-points（analysis.py） ============

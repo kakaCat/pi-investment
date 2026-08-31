@@ -29,7 +29,7 @@ logger = structlog.get_logger(__name__)
 
 # 添加项目路径
 
-from application.services.data_service import DataService
+from infrastructure.services.service_factory import ServiceFactory
 from live_trading.factor_calculator import V13FactorCalculator
 from live_trading.v14_factor_calculator import V14FactorCalculator
 
@@ -98,8 +98,10 @@ class SimulationTrader:
             account_name: 数据库账户名（必须在 _load_account_from_db 之前确定）
             factor_calculator: 因子计算器，FACTOR_CALCULATORS 注册表键名或实例
         """
+        from infrastructure.services.service_factory import ServiceFactory
+
         self.config = self._load_config(config_path)
-        self.ds = DataService()
+        self.kline_repo = ServiceFactory.get_kline_repository()
 
         # 因子计算器：注册表键名或直接传实例
         if isinstance(factor_calculator, str):
@@ -390,7 +392,7 @@ class SimulationTrader:
         prices = {}
         for symbol in symbols:
             try:
-                latest = self.ds.kline.get_latest_daily_kline(symbol)
+                latest = self.kline_repo.get_latest_daily_kline(symbol)
                 if latest is not None and not latest.is_empty():
                     prices[symbol] = float(latest['close'][0])
                 else:
@@ -971,7 +973,7 @@ class SimulationTrader:
         prices = {}
         for symbol in symbols:
             try:
-                df = self.ds.kline.get_stock_kline(
+                df = self.kline_repo.get_stock_kline(
                     symbol=symbol,
                     start_date=(datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'),
                     end_date=date
@@ -1182,7 +1184,7 @@ class SimulationTrader:
         if missing:
             for symbol in missing:
                 try:
-                    latest = self.ds.kline.get_latest_daily_kline(symbol)
+                    latest = self.kline_repo.get_latest_daily_kline(symbol)
                     if latest is not None and not latest.is_empty():
                         price = float(latest['close'][0])
                         if price > 0:
@@ -1259,7 +1261,7 @@ class SimulationTrader:
         prices = {}
         for symbol in target_symbols | set(self.portfolio.keys()):
             try:
-                latest = self.ds.kline.get_latest_daily_kline(symbol)
+                latest = self.kline_repo.get_latest_daily_kline(symbol)
                 if latest is not None and not latest.is_empty():
                     prices[symbol] = float(latest['close'][0])
                 else:
@@ -1547,7 +1549,7 @@ if __name__ == '__main__':
 
                 # 获取当前价格
                 try:
-                    df = self.ds.kline.get_stock_kline(
+                    df = self.kline_repo.get_stock_kline(
                         symbol=symbol,
                         start_date=current_date,
                         end_date=current_date

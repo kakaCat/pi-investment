@@ -22,7 +22,7 @@ import structlog
 from adapters.shared.services import backtest_engine, performance_analysis_service
 
 from adapters.inbound.fastapi_app.shared import (
-    ds,
+    backtest_repo,
     api_response,
     error_response,
     handle_api_error,
@@ -174,11 +174,11 @@ def get_backtest_results(symbol: Optional[str] = Query(None),
     """Get backtest results with optional limit"""
     try:
         if symbol and strategy:
-            results = ds.backtest.get_backtests_by_strategy(strategy, symbol=symbol)
+            results = backtest_repo.get_backtests_by_strategy(strategy, symbol=symbol)
         elif strategy:
-            results = ds.backtest.get_backtests_by_strategy(strategy)
+            results = backtest_repo.get_backtests_by_strategy(strategy)
         else:
-            results = ds.backtest.get_all_backtests(limit=limit)
+            results = backtest_repo.get_all_backtests(limit=limit)
 
         payload = {
             'success': True,
@@ -345,8 +345,8 @@ def run_backtest_alias(payload: Optional[Dict[str, Any]] = Body(None)):
 def get_strategy_performance(strategy_id: str):
     """获取策略表现"""
     try:
-        results = ds.backtest.get_backtests_by_strategy(strategy_id, limit=20)
-        stats = ds.backtest.get_backtest_stats(strategy_name=strategy_id)
+        results = backtest_repo.get_backtests_by_strategy(strategy_id, limit=20)
+        stats = backtest_repo.get_backtest_stats(strategy_name=strategy_id)
 
         payload = sanitize_for_json({
             'strategy_id': strategy_id,
@@ -369,7 +369,7 @@ def get_performance_comparison(days: int = Query(30)):
     comparisons = []
     for s in (all_strategies or []):
         sid = str(s.get('id', ''))
-        stats = ds.backtest.get_backtest_stats(strategy_name=sid)
+        stats = backtest_repo.get_backtest_stats(strategy_name=sid)
         if stats:
             comparisons.append({
                 'strategy_id': sid,

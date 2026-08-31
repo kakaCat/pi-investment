@@ -43,9 +43,8 @@ class ServiceConfig:
 
         # 方式3：工厂函数
         ServiceConfig(
-            name='data_service',
-            class_path='application.services.data_service.DataService',
-            factory='infrastructure.factories.create_data_service',
+            name='strategy_code_service',
+            class_path='application.services.strategy_code_service.StrategyCodeService',
             lifecycle='singleton'
         )
     """

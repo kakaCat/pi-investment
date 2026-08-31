@@ -16,19 +16,19 @@ os.environ['PGUSER'] = 'mac'
 print("🔧 执行工具任务: 修复并测试数据更新功能\n")
 
 # 测试修复后的逻辑
-from application.services.data_service import DataService
+from adapters.shared.services import get_kline_repo
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
-ds = DataService()
+kline_repo = get_kline_repo()
 
 def update_symbol_fixed(symbol: str) -> Tuple[bool, bool]:
     """Fixed version: Update a single symbol. Returns (success, error)."""
     try:
-        latest = ds.kline.get_latest_daily_kline(symbol)
+        latest = kline_repo.get_latest_daily_kline(symbol)
         # Handle DataFrame response correctly (Polars or Pandas)
         if latest is not None:
             if hasattr(latest, 'is_empty'):

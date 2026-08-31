@@ -15,7 +15,7 @@ from domain.brokers import (
     BrokerProfile,
     ApiResponse,
 )
-from domain.brokers.adapters.akshare_broker import AkshareBroker
+from adapters.outbound.brokers.akshare_broker import AkshareBroker
 
 
 class TestBrokerRegistry:

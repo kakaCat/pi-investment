@@ -84,11 +84,8 @@ class DataProviderManager(IDataProviderManager):
         # 体系，eastmoney/tencent 双双被封后的主力源, 2026-07-28），tencent 其次，
         # akshare(eastmoney) 最后兜底
         self.kline_providers = []
-        if ds and hasattr(ds, 'kline'):
-            self.kline_providers.append(DatabaseKlineProvider(ds.kline))
-        else:
-            from adapters.shared.services import get_kline_repo
-            self.kline_providers.append(DatabaseKlineProvider(get_kline_repo()))
+        from adapters.shared.services import get_kline_repo
+        self.kline_providers.append(DatabaseKlineProvider(get_kline_repo()))
         self.kline_providers.append(BaostockKlineProvider())
         self.kline_providers.append(TencentKlineProvider())
         self.kline_providers.append(AkshareKlineProvider())
@@ -940,9 +937,7 @@ def get_data_provider_manager() -> DataProviderManager:
     """
     global _manager_instance
     if _manager_instance is None:
-        # Import ds here to avoid circular import
-        from adapters.shared.services import ds
-        _manager_instance = DataProviderManager(ds=ds)
+        _manager_instance = DataProviderManager()
     return _manager_instance
 
 

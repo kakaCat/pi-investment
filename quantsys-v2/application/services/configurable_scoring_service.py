@@ -35,14 +35,20 @@ except ImportError:
 class ConfigurableScoringService:
     """配置驱动的股票评分服务"""
 
-    def __init__(self, data_service):
+    def __init__(self, stock_repo=None, factor_repo=None):
         """
         初始化评分服务
 
         Args:
-            data_service: 数据服务实例
+            stock_repo: 股票数据仓库（可选，默认通过 ServiceFactory 获取）
+            factor_repo: 因子数据仓库（可选，默认通过 ServiceFactory 获取）
         """
-        self.ds = data_service
+        if stock_repo is None or factor_repo is None:
+            from infrastructure.services.service_factory import ServiceFactory
+            stock_repo = stock_repo or ServiceFactory.get_stock_repository()
+            factor_repo = factor_repo or ServiceFactory.get_factor_repository()
+        self.stock_repo = stock_repo
+        self.factor_repo = factor_repo
         self.weights = SCORING_WEIGHTS
         logger.info(f"评分权重: {self.weights}")
 
@@ -54,12 +60,12 @@ class ConfigurableScoringService:
         """
         try:
             # 1. 获取股票基本信息
-            stock_info = self.ds.stock.get_by_symbol(symbol)
+            stock_info = self.stock_repo.get_by_symbol(symbol)
             if not stock_info:
                 return {'error': f'股票 {symbol} 不存在'}
 
             # 2. 获取最新因子数据
-            factors = self.ds.factor.get_latest_factors(symbol)
+            factors = self.factor_repo.get_latest_factors(symbol)
             if not factors:
                 return {'error': f'股票 {symbol} 暂无因子数据'}
 
@@ -106,7 +112,7 @@ class ConfigurableScoringService:
         if not TECHNICAL_SCORING:
             # 如果没有配置，使用原始方法
             from application.services.stock_scoring_service import StockScoringService
-            legacy = StockScoringService(self.ds)
+            legacy = StockScoringService(stock_repo=self.stock_repo, factor_repo=self.factor_repo)
             return legacy._calculate_technical_score(factors)
 
         score = 0.0
@@ -174,7 +180,7 @@ class ConfigurableScoringService:
         """基本面评分 - 配置驱动版本"""
         if not FUNDAMENTAL_SCORING:
             from application.services.stock_scoring_service import StockScoringService
-            legacy = StockScoringService(self.ds)
+            legacy = StockScoringService(stock_repo=self.stock_repo, factor_repo=self.factor_repo)
             return legacy._calculate_fundamental_score(factors)
 
         score = 0.0
@@ -225,7 +231,7 @@ class ConfigurableScoringService:
         """动量评分 - 配置驱动版本"""
         if not MOMENTUM_SCORING:
             from application.services.stock_scoring_service import StockScoringService
-            legacy = StockScoringService(self.ds)
+            legacy = StockScoringService(stock_repo=self.stock_repo, factor_repo=self.factor_repo)
             return legacy._calculate_momentum_score(factors)
 
         score = MOMENTUM_SCORING.get('base_score', 50)
@@ -265,7 +271,7 @@ class ConfigurableScoringService:
         """质量评分 - 配置驱动版本"""
         if not QUALITY_SCORING:
             from application.services.stock_scoring_service import StockScoringService
-            legacy = StockScoringService(self.ds)
+            legacy = StockScoringService(stock_repo=self.stock_repo, factor_repo=self.factor_repo)
             return legacy._calculate_quality_score(factors)
 
         score = QUALITY_SCORING.get('base_score', 50)
@@ -299,7 +305,7 @@ class ConfigurableScoringService:
         """生成交易信号 - 配置驱动版本"""
         if not SIGNAL_RULES:
             from application.services.stock_scoring_service import StockScoringService
-            legacy = StockScoringService(self.ds)
+            legacy = StockScoringService(stock_repo=self.stock_repo, factor_repo=self.factor_repo)
             return legacy._generate_signals(factors, total_score)
 
         signals = []

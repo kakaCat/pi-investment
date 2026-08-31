@@ -2,15 +2,12 @@
 Position Service - Live Position Management
 
 Functions for fetching, analyzing, and managing live brokerage positions.
-All functions follow the module-level pattern with 'ds: DataService' as the
-first parameter.
+All functions interact with brokers directly for live position data.
 """
 
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-
-from application.services.data_service import DataService
 
 logger = structlog.get_logger(__name__)
 
@@ -35,12 +32,11 @@ def _get_broker(broker_id: str):
 # ========================================================================
 
 
-def get_live_positions(ds: DataService, broker_id: str) -> Dict[str, Any]:
+def get_live_positions(broker_id: str) -> Dict[str, Any]:
     """
     Fetch live positions from the broker and structure them by symbol.
 
     Args:
-        ds: DataService instance
         broker_id: Broker ID to fetch from
 
     Returns:
@@ -135,12 +131,11 @@ def get_live_positions(ds: DataService, broker_id: str) -> Dict[str, Any]:
         }
 
 
-def calculate_live_pnl(ds: DataService, broker_id: str) -> Dict[str, Any]:
+def calculate_live_pnl(broker_id: str) -> Dict[str, Any]:
     """
     Calculate total and per-position unrealized P&L from live positions.
 
     Args:
-        ds: DataService instance
         broker_id: Broker ID
 
     Returns:
@@ -151,7 +146,7 @@ def calculate_live_pnl(ds: DataService, broker_id: str) -> Dict[str, Any]:
         - positions: Per-position P&L breakdown
         - broker_id: Source broker
     """
-    positions_result = get_live_positions(ds, broker_id)
+    positions_result = get_live_positions(broker_id)
 
     if not positions_result.get('success'):
         return {
@@ -213,7 +208,6 @@ def calculate_live_pnl(ds: DataService, broker_id: str) -> Dict[str, Any]:
 
 
 def get_position_risk(
-    ds: DataService,
     broker_id: str,
     symbol: str,
 ) -> Dict[str, Any]:
@@ -224,14 +218,13 @@ def get_position_risk(
     and portfolio concentration percentage.
 
     Args:
-        ds: DataService instance
         broker_id: Broker ID
         symbol: Stock symbol to analyze
 
     Returns:
         Dict containing position risk metrics
     """
-    positions_result = get_live_positions(ds, broker_id)
+    positions_result = get_live_positions(broker_id)
 
     if not positions_result.get('success'):
         return {
@@ -312,7 +305,6 @@ def get_position_risk(
 
 
 def rebalance_positions(
-    ds: DataService,
     broker_id: str,
     target_weights: Dict[str, float],
 ) -> Dict[str, Any]:
@@ -320,14 +312,13 @@ def rebalance_positions(
     Calculate the trades needed to rebalance a portfolio to target weights.
 
     Args:
-        ds: DataService instance
         broker_id: Broker ID
         target_weights: Dict mapping symbol to target portfolio weight (0.0 to 1.0)
 
     Returns:
         Dict with trades needed: {symbol: {'action': 'buy'|'sell', 'quantity': int}}
     """
-    positions_result = get_live_positions(ds, broker_id)
+    positions_result = get_live_positions(broker_id)
 
     if not positions_result.get('success'):
         return {
@@ -421,7 +412,6 @@ def rebalance_positions(
 
 
 def close_position(
-    ds: DataService,
     broker_id: str,
     symbol: str,
 ) -> Dict[str, Any]:
@@ -429,14 +419,13 @@ def close_position(
     Close (flatten) a specific position with a market order.
 
     Args:
-        ds: DataService instance
         broker_id: Broker ID
         symbol: Stock symbol to close
 
     Returns:
         Dict with close result including order details
     """
-    positions_result = get_live_positions(ds, broker_id)
+    positions_result = get_live_positions(broker_id)
 
     if not positions_result.get('success'):
         return {
@@ -496,7 +485,6 @@ def close_position(
 
 
 def get_average_cost_basis(
-    ds: DataService,
     trades: List[Dict[str, Any]],
     symbol: str,
 ) -> Dict[str, Any]:
@@ -506,7 +494,6 @@ def get_average_cost_basis(
     Weighted average = sum(trade_qty * trade_price) / sum(trade_qty)
 
     Args:
-        ds: DataService instance
         trades: List of trade records, each with at least 'quantity' and 'price'
         symbol: Stock symbol for labelling
 

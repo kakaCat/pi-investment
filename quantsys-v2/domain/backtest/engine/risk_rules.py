@@ -16,9 +16,34 @@ Every check returns the same structure:
 from datetime import datetime, timedelta
 
 
+def _get_kline_repo():
+    from adapters.shared.services import get_kline_repo
+    return get_kline_repo()
+
+
+def _get_stock_repo():
+    from adapters.shared.services import get_stock_repo
+    return get_stock_repo()
+
+
+def _get_portfolio_repo():
+    from adapters.shared.services import get_portfolio_repo
+    return get_portfolio_repo()
+
+
+def _get_risk_repo():
+    from adapters.shared.services import get_risk_repo
+    return get_risk_repo()
+
+
+def _get_factor_repo():
+    from adapters.shared.services import get_factor_repo
+    return get_factor_repo()
+
+
 def check_position_size(ds, symbol, proposed_quantity, account_balance) -> dict:
     """单只股票仓位不超过总资金20%"""
-    latest = ds.kline.get_latest_daily_kline(symbol)
+    latest = _get_kline_repo().get_latest_daily_kline(symbol)
 
     if not latest or not latest.get("close"):
         return {
@@ -67,7 +92,7 @@ def check_position_size(ds, symbol, proposed_quantity, account_balance) -> dict:
 
 def check_portfolio_concentration(ds, symbol, proposed_value, total_value) -> dict:
     """同行业持仓不超过总仓位40%"""
-    stock_info = ds.stock.get_by_symbol(symbol)
+    stock_info = _get_stock_repo().get_by_symbol(symbol)
 
     if not stock_info:
         return {
@@ -79,7 +104,7 @@ def check_portfolio_concentration(ds, symbol, proposed_value, total_value) -> di
 
     sector = stock_info.get("industry") or "未知"
 
-    holdings = ds.portfolio.get_all_holdings()
+    holdings = _get_portfolio_repo().get_all_holdings()
     sector_value = proposed_value or 0
     for h in holdings:
         if h.get("sector") == sector:
@@ -174,7 +199,7 @@ def check_daily_drawdown(ds, today_pnl, account_balance) -> dict:
 
 def check_max_positions(ds) -> dict:
     """同时持仓不超过10只"""
-    holdings = ds.portfolio.get_all_holdings()
+    holdings = _get_portfolio_repo().get_all_holdings()
     position_count = len(holdings)
 
     if position_count >= 10:
@@ -195,7 +220,7 @@ def check_max_positions(ds) -> dict:
 
 def check_blacklist(ds, symbol) -> dict:
     """ST股票、退市风险股拒绝交易"""
-    stock_info = ds.stock.get_by_symbol(symbol)
+    stock_info = _get_stock_repo().get_by_symbol(symbol)
 
     if not stock_info:
         return {
@@ -235,7 +260,7 @@ def check_liquidity(ds, symbol, proposed_quantity) -> dict:
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%d")
 
-    klines_df = ds.kline.get_daily_klines(symbol, start_date, end_date)
+    klines_df = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
 
     if klines_df is None or klines_df.is_empty() or len(klines_df) < 5:
         return {
@@ -282,7 +307,7 @@ def check_liquidity(ds, symbol, proposed_quantity) -> dict:
 
 def check_sector_concentration(ds, symbol, proposed_value, total_value, threshold=0.40) -> dict:
     """行业集中度检查，单行业持仓不超过阈值（默认40%）"""
-    stock_info = ds.stock.get_by_symbol(symbol)
+    stock_info = _get_stock_repo().get_by_symbol(symbol)
 
     if not stock_info:
         return {
@@ -293,7 +318,7 @@ def check_sector_concentration(ds, symbol, proposed_value, total_value, threshol
         }
 
     sector = stock_info.get("industry") or "未知"
-    holdings = ds.portfolio.get_all_holdings()
+    holdings = _get_portfolio_repo().get_all_holdings()
 
     sector_value = proposed_value or 0
     for h in holdings:
@@ -335,7 +360,7 @@ def check_correlation_risk(ds, symbol, holdings_symbols, threshold=0.80) -> dict
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
 
-    target_klines_df = ds.kline.get_daily_klines(symbol, start_date, end_date)
+    target_klines_df = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
     if target_klines_df is None or target_klines_df.is_empty() or len(target_klines_df) < 20:
         return {
             "passed": True,
@@ -352,7 +377,7 @@ def check_correlation_risk(ds, symbol, holdings_symbols, threshold=0.80) -> dict
         if holding_symbol == symbol:
             continue
 
-        holding_klines_df = ds.kline.get_daily_klines(holding_symbol, start_date, end_date)
+        holding_klines_df = _get_kline_repo().get_daily_klines(holding_symbol, start_date, end_date)
         if holding_klines_df is None or holding_klines_df.is_empty() or len(holding_klines_df) < 20:
             continue
 
@@ -385,12 +410,12 @@ def check_beta_exposure(ds, symbol, portfolio_beta_range=(0.5, 1.5)) -> dict:
     """Beta暴露检查，组合Beta应在合理范围内"""
     # 获取股票的Beta值（从因子数据或风险指标）
     try:
-        risk_metrics = ds.risk.get_latest_risk_metrics(symbol)
+        risk_metrics = _get_risk_repo().get_latest_risk_metrics(symbol)
         if risk_metrics and risk_metrics.get("beta") is not None:
             beta = risk_metrics["beta"]
         else:
             # 如果没有风险指标，尝试从因子获取
-            factors = ds.factor.get_latest_factors(symbol)
+            factors = _get_factor_repo().get_latest_factors(symbol)
             beta = factors.get("beta") if factors else None
     except Exception:
         beta = None
@@ -426,7 +451,7 @@ def check_portfolio_volatility(ds, symbol, max_volatility=0.30) -> dict:
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%d")
 
-    klines = ds.kline.get_daily_klines(symbol, start_date, end_date)
+    klines = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
 
     if not klines or len(klines) < 20:
         return {
@@ -481,7 +506,7 @@ def check_market_regime(ds, index_symbol="000001.SH", lookback_days=60) -> dict:
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
 
-    klines = ds.kline.get_daily_klines(index_symbol, start_date, end_date)
+    klines = _get_kline_repo().get_daily_klines(index_symbol, start_date, end_date)
 
     if not klines or len(klines) < 20:
         return {
@@ -531,7 +556,7 @@ def check_vix_level(ds, vix_threshold=30.0) -> dict:
     start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
     index_symbol = "000001.SH"
-    klines = ds.kline.get_daily_klines(index_symbol, start_date, end_date)
+    klines = _get_kline_repo().get_daily_klines(index_symbol, start_date, end_date)
 
     if not klines or len(klines) < 10:
         return {
@@ -604,7 +629,7 @@ def check_market_breadth(ds, advance_decline_threshold=0.30) -> dict:
         declining = 0
 
         for symbol in sample_symbols[:50]:  # 限制样本数量
-            klines_df = ds.kline.get_daily_klines(symbol, yesterday, today)
+            klines_df = _get_kline_repo().get_daily_klines(symbol, yesterday, today)
             if klines_df is not None and not klines_df.is_empty() and len(klines_df) >= 2:
                 klines = klines_df.to_dicts()
                 prev_close = klines[-2].get("close", 0)
@@ -658,7 +683,7 @@ def check_order_size_vs_adv(ds, symbol, proposed_quantity, adv_threshold=0.20) -
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%d")
 
-    klines = ds.kline.get_daily_klines(symbol, start_date, end_date)
+    klines = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
 
     if not klines or len(klines) < 5:
         return {
@@ -703,7 +728,7 @@ def check_price_impact(ds, symbol, proposed_quantity, impact_threshold=0.02) -> 
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
-    klines = ds.kline.get_daily_klines(symbol, start_date, end_date)
+    klines = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
 
     if not klines or len(klines) < 10:
         return {
@@ -881,7 +906,7 @@ def _get_sample_symbols(ds):
     """获取样本股票列表（用于市场广度计算）"""
     try:
         # 尝试获取所有股票，取前100只作为样本
-        stocks = ds.stock.get_all_stocks()
+        stocks = _get_stock_repo().get_all_stocks()
         if stocks:
             return [s.get("symbol") for s in stocks[:100] if s.get("symbol")]
     except Exception:

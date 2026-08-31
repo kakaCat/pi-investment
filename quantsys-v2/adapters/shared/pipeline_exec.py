@@ -9,11 +9,16 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from adapters.shared import ds
+from adapters.shared.services import get_kline_repo, get_factor_repo, get_signal_repo, get_risk_repo
 from adapters.shared.stores import _update_pipeline_run, _load_pipeline_runs, _save_pipeline_runs, _get_pipeline_run
 from adapters.shared.tasks import release_task
 
 logger = logging.getLogger(__name__)
+
+kline_repo = get_kline_repo()
+factor_repo = get_factor_repo()
+signal_repo = get_signal_repo()
+risk_repo = get_risk_repo()
 
 _V2_ROOT = Path(__file__).resolve().parents[2]  # quantsys-v2 根目录
 
@@ -132,7 +137,7 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
                                 })
 
                             if klines:
-                                saved_count = ds.kline.save_klines(klines)
+                                saved_count = kline_repo.save_klines(klines)
                                 if saved_count > 0:
                                     updated += 1
                                     logger.info(f"[DATA_UPDATE][{run_id}] Saved {saved_count} records for {sym}")
@@ -162,7 +167,7 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
                 for sym in symbols:
                     end_date = datetime.now().strftime('%Y-%m-%d')
                     start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
-                    klines_df = ds.kline.get_daily_klines(sym, start_date, end_date)
+                    klines_df = kline_repo.get_daily_klines(sym, start_date, end_date)
                     if klines_df is not None and not klines_df.is_empty() and len(klines_df) >= 20:
                         try:
                             klines = klines_df.to_dicts()
@@ -170,7 +175,7 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
                             result = stage.process({'symbol': sym, 'klines': klines})
                             factors = result.get('factors', {})
                             latest_date = klines[-1]['trade_date']
-                            ds.factor.save_factors(sym, str(latest_date), factors)
+                            factor_repo.save_factors(sym, str(latest_date), factors)
                             factor_count += len(factors)
                         except Exception:
                             pass
@@ -182,7 +187,7 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
                 logs.append(f"[{datetime.now().isoformat()}] {sd['name']}完成: {factor_count} 个因子")
             elif sd['key'] == 'signals':
                 signal_count = sum(
-                    len(ds.signal.get_signals_by_symbol(sym, '2024-01-01', datetime.now().strftime('%Y-%m-%d')))
+                    len(signal_repo.get_signals_by_symbol(sym, '2024-01-01', datetime.now().strftime('%Y-%m-%d')))
                     for sym in symbols
                 )
                 stage_results.append({
@@ -192,7 +197,7 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
                 })
                 logs.append(f"[{datetime.now().isoformat()}] {sd['name']}完成: {signal_count} 个信号")
             elif sd['key'] == 'risk':
-                risk_checks = sum(1 for sym in symbols if ds.risk.get_latest_risk_metrics(sym))
+                risk_checks = sum(1 for sym in symbols if risk_repo.get_latest_risk_metrics(sym))
                 stage_results.append({
                     'name': sd['key'], 'status': 'completed',
                     'duration': (datetime.now() - stage_start).total_seconds(),
@@ -231,14 +236,14 @@ def _execute_factor_compute(run_id: str, symbols: List[str], force: bool = False
             try:
                 end_date = datetime.now().strftime('%Y-%m-%d')
                 start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-                klines_df = ds.kline.get_daily_klines(sym, start_date, end_date)
+                klines_df = kline_repo.get_daily_klines(sym, start_date, end_date)
                 if klines_df is not None and not klines_df.is_empty() and len(klines_df) >= 20:
                     klines = klines_df.to_dicts()
                     result = stage.process({'symbol': sym, 'klines': klines})
                     factors = result.get('factors', {})
                     if factors:
                         latest_date = klines[-1]['trade_date']
-                        ds.factor.save_factors(sym, str(latest_date), factors)
+                        factor_repo.save_factors(sym, str(latest_date), factors)
                         factor_count += len(factors)
                         processed += 1
                         logs.append(f"[{datetime.now().isoformat()}] {sym}: {len(factors)} 个因子已保存")

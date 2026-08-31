@@ -1,6 +1,6 @@
 """执行记录 API - FastAPI 版（从 Flask executions.py 迁移，响应契约保持一致）
 
-复用同一 ds.execution。字面量路由（/stats、/daily、/pending、/summary）必须先于
+字面量路由（/stats、/daily、/pending、/summary）必须先于
 /{execution_id} 注册。Flask 用 jsonify(sanitize_for_json(...)) 直接返回，故同样处理。
 """
 from typing import Any, Dict, List, Optional
@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query, Body
 import structlog
 
 from adapters.inbound.fastapi_app.shared import (
-    ds, error_response, sanitize_for_json,
+    execution_repo, error_response, sanitize_for_json,
 )
 
 logger = structlog.get_logger(__name__)
@@ -42,7 +42,7 @@ def _map_execution(row: Dict[str, Any]) -> Dict[str, Any]:
 
 @router.get('/api/executions/stats')
 def execution_stats(start_date: Optional[str] = Query(None), end_date: Optional[str] = Query(None)):
-    stats = ds.execution.get_execution_stats(start_date, end_date)
+    stats = execution_repo.get_execution_stats(start_date, end_date)
     return sanitize_for_json(stats)
 
 
@@ -50,25 +50,25 @@ def execution_stats(start_date: Optional[str] = Query(None), end_date: Optional[
 def daily_execution_stats(start_date: Optional[str] = Query(None), end_date: Optional[str] = Query(None)):
     if not start_date or not end_date:
         return error_response({'error': 'start_date and end_date are required'}, 400)
-    stats = ds.execution.get_daily_execution_stats(start_date, end_date)
+    stats = execution_repo.get_daily_execution_stats(start_date, end_date)
     return sanitize_for_json({'daily_stats': stats, 'count': len(stats)})
 
 
 @router.get('/api/executions/pending')
 def pending_executions(limit: int = Query(100)):
-    results = ds.execution.get_pending_executions(limit=limit)
-    return sanitize_for_json({'executions': [_map_execution(e) for e in results], 'count': len(results)})
+    results = execution_repo.get_pending_executions()
+    return sanitize_for_json({'executions': [_map_execution(e) for e in results[:limit]], 'count': len(results)})
 
 
 @router.get('/api/executions/summary')
 def execution_summary(start_date: Optional[str] = Query(None), end_date: Optional[str] = Query(None)):
-    summary = ds.get_execution_summary(start_date, end_date)
-    return sanitize_for_json(summary)
+    stats = execution_repo.get_execution_stats(start_date, end_date)
+    return sanitize_for_json(stats)
 
 
 @router.get('/api/executions/signal/{signal_id}')
 def get_executions_by_signal(signal_id: int):
-    results = ds.execution.get_executions_by_signal(signal_id)
+    results = execution_repo.get_executions_by_signal(signal_id)
     return sanitize_for_json({'executions': [_map_execution(e) for e in results], 'count': len(results)})
 
 
@@ -76,7 +76,7 @@ def get_executions_by_signal(signal_id: int):
 
 @router.get('/api/executions')
 def list_executions(status: Optional[str] = Query(None), limit: int = Query(200), offset: int = Query(0)):
-    results = ds.execution.get_all_executions(status=status, limit=limit, offset=offset)
+    results = execution_repo.get_all_executions(limit=limit)
     mapped = [_map_execution(r) for r in results]
     return sanitize_for_json({'executions': mapped, 'count': len(mapped)})
 
@@ -84,7 +84,7 @@ def list_executions(status: Optional[str] = Query(None), limit: int = Query(200)
 @router.post('/api/executions')
 def create_execution(payload: Optional[Dict[str, Any]] = Body(None)):
     try:
-        exec_id = ds.execution.create_execution(payload or {})
+        exec_id = execution_repo.create_execution(payload or {})
         return error_response({'id': exec_id, 'message': 'Execution created'}, 201)
     except ValueError as e:
         return error_response({'error': str(e)}, 400)
@@ -96,7 +96,7 @@ def create_execution(payload: Optional[Dict[str, Any]] = Body(None)):
 
 @router.get('/api/executions/{execution_id}')
 def get_execution(execution_id: int):
-    ex = ds.execution.get_execution(execution_id)
+    ex = execution_repo.get_execution(execution_id)
     if not ex:
         return error_response({'error': 'Execution not found'}, 404)
     return sanitize_for_json(_map_execution(ex))
@@ -110,10 +110,10 @@ def close_execution(execution_id: int, payload: Optional[Dict[str, Any]] = Body(
     if not close_date or close_price is None:
         return error_response({'error': 'close_date and close_price are required'}, 400)
     try:
-        ok = ds.execution.close_execution(execution_id, close_date, float(close_price))
+        ok = execution_repo.close_execution(execution_id, close_date, float(close_price))
         if not ok:
             return error_response({'error': 'Execution not found'}, 404)
-        updated = ds.execution.get_execution(execution_id)
+        updated = execution_repo.get_execution(execution_id)
         return sanitize_for_json({'message': 'Execution closed', 'execution': updated})
     except ValueError as e:
         return error_response({'error': str(e)}, 400)
@@ -124,7 +124,7 @@ def close_execution(execution_id: int, payload: Optional[Dict[str, Any]] = Body(
 @router.put('/api/executions/{execution_id}/cancel')
 def cancel_execution(execution_id: int):
     try:
-        ok = ds.execution.cancel_execution(execution_id)
+        ok = execution_repo.cancel_execution(execution_id)
         if not ok:
             return error_response({'error': 'Execution not found'}, 404)
         return {'message': 'Execution cancelled'}
@@ -139,7 +139,7 @@ def update_execution_status(execution_id: int, payload: Optional[Dict[str, Any]]
     if not status:
         return error_response({'error': 'status is required'}, 400)
     try:
-        ok = ds.execution.update_execution_status(execution_id, status)
+        ok = execution_repo.update_execution_status(execution_id, status)
         if not ok:
             return error_response({'error': 'Execution not found'}, 404)
         return {'message': f'Status updated to {status}'}

@@ -7,7 +7,6 @@ import structlog
 import time
 from typing import Dict, Any
 
-from application.services.data_service import DataService
 from application.services.signal_monitoring import signal_monitor
 from application.services.strategy_circuit_breaker import StrategyCircuitBreaker
 
@@ -41,14 +40,10 @@ class SignalProcessor:
     DEFAULT_STOP_LOSS_PERCENT = 0.08  # 默认止损 8%
     DEFAULT_POSITION_PERCENT = 0.10   # 默认仓位 10%
 
-    def __init__(self, ds: DataService):
+    def __init__(self):
         """
         初始化信号处理器
-
-        Args:
-            ds: DataService 实例
         """
-        self.ds = ds
         self.circuit_breaker = StrategyCircuitBreaker()
 
     def process_signal(

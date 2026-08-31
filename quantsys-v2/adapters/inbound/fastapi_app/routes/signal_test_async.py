@@ -11,7 +11,7 @@ from fastapi import APIRouter, Query, Body
 from fastapi.responses import JSONResponse
 import structlog
 
-from adapters.inbound.fastapi_app.shared import ds, error_response, handle_api_error
+from adapters.inbound.fastapi_app.shared import error_response, handle_api_error
 from adapters.shared.services import signal_test_log
 from adapters.outbound.repositories import StrategyPerformanceORMRepository
 

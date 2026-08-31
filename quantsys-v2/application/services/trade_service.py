@@ -2,14 +2,15 @@
 交易执行和盈亏计算服务
 
 处理交易记录的创建、查询和持仓盈亏（P&L）计算。
-通过 DataService (ds) 统一访问 PortfolioRepository 和 KlineRepository。
+通过直接访问 PortfolioRepository 和 KlineRepository。
 """
 from typing import Optional, Dict, List
 from datetime import datetime
 import structlog
 
 from infrastructure.persistence.database.validators import validate_symbol, validate_positive_number
-from application.services.data_service import DataService
+from infrastructure.services.service_factory import ServiceFactory
+from domain.ports import IPortfolioRepository, IKlineRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -19,10 +20,10 @@ STAMP_DUTY_RATE = 0.001    # 印花税率 0.1%（仅卖出收取，A股）
 
 
 def create_trade_from_order(
-    ds: DataService,
-    order: Dict,
-    fill_price: float,
-    fill_quantity: int,
+    portfolio_repo: Optional[IPortfolioRepository] = None,
+    order: Dict = None,
+    fill_price: float = 0,
+    fill_quantity: int = 0,
 ) -> int:
     """
     从订单创建交易记录（含费用计算）
@@ -32,7 +33,7 @@ def create_trade_from_order(
     - 印花税: 成交金额 × 0.1%（仅卖出收取，A股）
 
     Args:
-        ds: DataService 实例
+        portfolio_repo: PortfolioRepository 实例（可选，自动获取）
         order: 订单字典（需含 symbol, name, action 等字段）
         fill_price: 成交价格
         fill_quantity: 成交数量
@@ -42,6 +43,11 @@ def create_trade_from_order(
     """
     validate_positive_number(fill_price, "fill_price")
     validate_positive_number(fill_quantity, "fill_quantity")
+
+    if order is None:
+        raise ValueError("order 参数不能为 None")
+
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
 
     amount = fill_price * fill_quantity
 
@@ -64,7 +70,7 @@ def create_trade_from_order(
         'order_id': order.get('id'),
     }
 
-    trade_id = ds.portfolio.record_trade(trade_data)
+    trade_id = portfolio_repo.record_trade(trade_data)
 
     logger.info(
         f"创建交易记录: trade_id={trade_id} symbol={order['symbol']} "
@@ -76,7 +82,7 @@ def create_trade_from_order(
 
 
 def get_trades(
-    ds: DataService,
+    portfolio_repo: Optional[IPortfolioRepository] = None,
     symbol: str = None,
     start_date: str = None,
     end_date: str = None,
@@ -86,7 +92,7 @@ def get_trades(
     获取交易记录列表（支持筛选）
 
     Args:
-        ds: DataService 实例
+        portfolio_repo: PortfolioRepository 实例（可选，自动获取）
         symbol: 股票代码筛选（可选）
         start_date: 开始日期（可选）
         end_date: 结束日期（可选）
@@ -95,20 +101,22 @@ def get_trades(
     Returns:
         交易记录列表
     """
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+
     if symbol:
-        trades = ds.portfolio.get_trades_by_symbol(symbol, start_date, end_date)
+        trades = portfolio_repo.get_trades_by_symbol(symbol, start_date, end_date)
     else:
         if not start_date:
             start_date = '2000-01-01'
         if not end_date:
             end_date = datetime.now().strftime('%Y-%m-%d')
-        trades = ds.portfolio.get_trades_by_date(start_date, end_date)
+        trades = portfolio_repo.get_trades_by_date(start_date, end_date)
 
     return trades[:limit]
 
 
 def get_trade_stats(
-    ds: DataService,
+    portfolio_repo: Optional[IPortfolioRepository] = None,
     symbol: str = None,
     start_date: str = None,
     end_date: str = None,
@@ -117,7 +125,7 @@ def get_trade_stats(
     获取交易统计信息（含盈亏计算）
 
     Args:
-        ds: DataService 实例
+        portfolio_repo: PortfolioRepository 实例（可选，自动获取）
         symbol: 股票代码筛选（可选）
         start_date: 开始日期（可选）
         end_date: 结束日期（可选）
@@ -134,7 +142,9 @@ def get_trade_stats(
             'net_pnl': 净盈亏（扣除费用后）
         }
     """
-    stats = ds.portfolio.get_trade_stats(symbol, start_date, end_date)
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+
+    stats = portfolio_repo.get_trade_stats(symbol, start_date, end_date)
 
     if not stats or stats.get('total_trades', 0) == 0:
         return {
@@ -168,8 +178,9 @@ def get_trade_stats(
 
 
 def get_position(
-    ds: DataService,
     symbol: str,
+    portfolio_repo: Optional[IPortfolioRepository] = None,
+    kline_repo: Optional[IKlineRepository] = None,
 ) -> Dict:
     """
     计算指定股票的当前持仓
@@ -177,8 +188,9 @@ def get_position(
     基于交易历史计算持仓数量、平均成本、已实现盈亏和未实现盈亏。
 
     Args:
-        ds: DataService 实例
         symbol: 股票代码
+        portfolio_repo: PortfolioRepository 实例（可选，自动获取）
+        kline_repo: KlineRepository 实例（可选，自动获取）
 
     Returns:
         {
@@ -198,8 +210,11 @@ def get_position(
     """
     validate_symbol(symbol)
 
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+    kline_repo = kline_repo or ServiceFactory.get_kline_repository()
+
     # 获取所有该股票的交易记录
-    trades = ds.portfolio.get_trades_by_symbol(symbol)
+    trades = portfolio_repo.get_trades_by_symbol(symbol)
 
     # 分别统计买入和卖出
     total_buy_qty = 0
@@ -245,7 +260,7 @@ def get_position(
     # 获取最新价格
     latest_price = None
     try:
-        kline = ds.kline.get_latest_daily_kline(symbol)
+        kline = kline_repo.get_latest_daily_kline(symbol)
         if kline:
             latest_price = float(kline['close'])
     except Exception as e:

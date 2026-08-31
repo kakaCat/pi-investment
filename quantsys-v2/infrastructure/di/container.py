@@ -16,7 +16,6 @@
 """
 from dependency_injector import containers, providers
 
-from application.services.data_service import DataService
 from application.services.strategy_code_service import StrategyCodeService
 from application.services.stock_pool_service import StockPoolService
 from application.services.opportunity_scoring_service import OpportunityScoringService
@@ -25,6 +24,11 @@ from application.services.pool_validation_service import PoolValidationService
 from application.services.stock_scoring_service import StockScoringService
 from adapters.outbound.repositories import StockPoolORMRepository, StrategyORMRepository
 from infrastructure.quantlib.adapters import get_factor_adapter
+from adapters.outbound.repositories import (
+    StockORMRepository,
+    KlineORMRepository,
+)
+from domain.ports import IStockRepository, IKlineRepository
 
 
 class Container(containers.DeclarativeContainer):
@@ -51,12 +55,16 @@ class Container(containers.DeclarativeContainer):
         StrategyORMRepository
     )
 
+    stock_repo = providers.Singleton(
+        StockORMRepository
+    )
+
+    kline_repo = providers.Singleton(
+        KlineORMRepository
+    )
+
     # ==================== Core Services ====================
     # 核心服务 - 使用单例模式（有状态服务）
-
-    data_service = providers.Singleton(
-        DataService
-    )
 
     strategy_service = providers.Singleton(
         StrategyCodeService
@@ -71,25 +79,24 @@ class Container(containers.DeclarativeContainer):
 
     opportunity_scoring_service = providers.Factory(
         OpportunityScoringService,
-        kline_repo=data_service.provided.kline,
-        stock_repo=data_service.provided.stock,
+        kline_repo=kline_repo,
+        stock_repo=stock_repo,
         factor_adapter=factor_adapter,
     )
 
     stock_scoring_service = providers.Factory(
         StockScoringService,
-        data_service=data_service,
     )
 
     sector_rotation_service = providers.Factory(
         SectorRotationService,
-        stock_repo=data_service.provided.stock,
-        kline_repo=data_service.provided.kline,
+        stock_repo=stock_repo,
+        kline_repo=kline_repo,
     )
 
     stock_pool_service = providers.Factory(
         StockPoolService,
-        stock_repo=data_service.provided.stock,
+        stock_repo=stock_repo,
         pool_repo=pool_repository,
         scoring_service=opportunity_scoring_service,
     )
@@ -99,24 +106,6 @@ class Container(containers.DeclarativeContainer):
         pool_repo=pool_repository,
         strategy_repo=strategy_repository,
     )
-
-    # ==================== 游戏智能服务 ====================
-    # 新增的博弈分析服务
-
-    # opponent_behavior_service = providers.Factory(
-    #     OpponentBehaviorService,
-    #     data_service=data_service,
-    # )
-
-    # battlefield_assessor = providers.Factory(
-    #     BattlefieldAssessor,
-    #     data_service=data_service,
-    # )
-
-    # manipulation_detector = providers.Factory(
-    #     ManipulationDetector,
-    #     data_service=data_service,
-    # )
 
 
 def get_container() -> Container:

@@ -15,7 +15,7 @@ import numpy as np
 from fastapi import APIRouter, Body
 import structlog
 
-from adapters.inbound.fastapi_app.shared import ds, api_response, handle_api_error
+from adapters.inbound.fastapi_app.shared import api_response, handle_api_error, kline_repo
 from domain.factors.models import (
     FamaFrench3FactorCalculator,
     FamaFrench5FactorCalculator,
@@ -42,7 +42,7 @@ def _require_json_body(payload: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
 def _extract_asset_returns(symbol, start_date, end_date):
     """从 K 线数据提取日收益率序列；数据不足时返回 None"""
-    klines_df = ds.kline.get_daily_klines(symbol, start_date, end_date)
+    klines_df = kline_repo.get_daily_klines(symbol, start_date, end_date)
     if klines_df is None or klines_df.is_empty() or len(klines_df) < 30:
         return None
 

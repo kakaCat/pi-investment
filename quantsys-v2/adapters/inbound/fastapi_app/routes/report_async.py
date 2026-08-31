@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 import structlog
 
-from adapters.inbound.fastapi_app.shared import ds, sanitize_for_json
+from adapters.inbound.fastapi_app.shared import risk_repo, sanitize_for_json, signal_repo
 
 logger = structlog.get_logger(__name__)
 
@@ -19,10 +19,10 @@ router = APIRouter(tags=["Report - 报告"])
 def get_daily_report(date: Optional[str] = Query(None)):
     """获取每日报告"""
     try:
-        risk_summary = ds.get_risk_summary()
-        signals = ds.signal.get_latest_signals(limit=10)
+        risk_summary = risk_repo.get_risk_metrics() or {}
+        signals = signal_repo.get_latest_signals(limit=10)
         return sanitize_for_json({
-            'date': date or risk_summary.get('updated_at'),
+            'date': date or risk_summary.get('metric_date'),
             'risk_summary': risk_summary,
             'signals': signals,
             'signal_count': len(signals),

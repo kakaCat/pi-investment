@@ -11,7 +11,7 @@ from fastapi import APIRouter, Query, Body
 import structlog
 
 from adapters.inbound.fastapi_app.shared import (
-    ds, api_response, error_response, handle_api_error,
+    backtest_repo, execution_repo, api_response, error_response, handle_api_error,
     convert_keys_to_snake, strategy_service,
 )
 from adapters.shared.services import strategy_validation_service, strategy_optimizer
@@ -128,16 +128,16 @@ def get_strategy_performance_detail(strategy_id: str, startDate: Optional[str] =
         return error_response({'success': False, 'error': '策略不存在'}, 404)
 
     if startDate and endDate:
-        backtest_results = ds.backtest.get_backtests_by_strategy(strategy_id, limit=200)
+        backtest_results = backtest_repo.get_backtests_by_strategy(strategy_id, limit=200)
         backtest_results = [b for b in backtest_results
                             if b.get('start_date') and startDate <= str(b.get('start_date'))[:10] <= endDate]
     else:
-        backtest_results = ds.backtest.get_backtests_by_strategy(strategy_id, limit=50)
-    stats = ds.backtest.get_backtest_stats(strategy_name=strategy_id)
+        backtest_results = backtest_repo.get_backtests_by_strategy(strategy_id, limit=50)
+    stats = backtest_repo.get_backtest_stats(strategy_name=strategy_id)
 
     executions = []
     try:
-        all_executions = ds.execution.get_all_executions(limit=200)
+        all_executions = execution_repo.get_all_executions(limit=200)
         executions = [e for e in all_executions if e.get('strategy_id') == strategy_id]
         if startDate and endDate:
             executions = [e for e in executions

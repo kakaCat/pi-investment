@@ -373,12 +373,12 @@ class DailyOrchestrator:
         # 获取持仓并更新价格
         positions = engine.get_current_positions()
         if positions:
-            from application.services.data_service import DataService
-            ds = DataService()
+            from infrastructure.services.service_factory import ServiceFactory
+            kline_repo = ServiceFactory.get_kline_repository()
             prices = {}
             for p in positions:
                 try:
-                    kline = ds.kline.get_latest_daily_kline(p['symbol'])
+                    kline = kline_repo.get_latest_daily_kline(p['symbol'])
                     if kline:
                         prices[p['symbol']] = float(kline['close'])
                 except Exception:

@@ -13,14 +13,17 @@ logger = structlog.get_logger(__name__)
 class MarketSentimentService:
     """市场情绪分析服务"""
 
-    def __init__(self, data_service):
+    def __init__(self, kline_repo=None):
         """
         初始化市场情绪服务
 
         Args:
-            data_service: 数据服务实例
+            kline_repo: K线数据仓库（可选，默认通过 ServiceFactory 获取）
         """
-        self.ds = data_service
+        if kline_repo is None:
+            from infrastructure.services.service_factory import ServiceFactory
+            kline_repo = ServiceFactory.get_kline_repository()
+        self.kline_repo = kline_repo
 
     def analyze_market_sentiment(self) -> Dict:
         """
@@ -131,7 +134,7 @@ class MarketSentimentService:
         涨跌比 < 0.5: 市场弱势
         """
         try:
-            breadth = self.ds.kline.get_market_breadth()
+            breadth = self.kline_repo.get_market_breadth()
             if not breadth:
                 return {'error': 'daily_klines 无有效涨跌数据'}
 
@@ -157,7 +160,7 @@ class MarketSentimentService:
         成交量萎缩：市场低迷
         """
         try:
-            daily_volumes = self.ds.kline.get_market_turnover_by_day(days=30)
+            daily_volumes = self.kline_repo.get_market_turnover_by_day(days=30)
 
             if len(daily_volumes) < 10:
                 return {'error': f'成交量数据不足（{len(daily_volumes)} 天）'}
@@ -193,7 +196,7 @@ class MarketSentimentService:
         不能用指数代码查询，故改用全市场等权收益衡量市场趋势。
         """
         try:
-            returns = self.ds.kline.get_market_daily_returns(days=10)
+            returns = self.kline_repo.get_market_daily_returns(days=10)
             returns = [r for r in returns if r.get('avg_return') is not None]
 
             if len(returns) < 3:
@@ -220,7 +223,7 @@ class MarketSentimentService:
         计算市场波动率（全市场等权日收益的近 30 日标准差）
         """
         try:
-            returns = self.ds.kline.get_market_daily_returns(days=40)
+            returns = self.kline_repo.get_market_daily_returns(days=40)
             returns = [r['avg_return'] for r in returns if r.get('avg_return') is not None]
 
             if len(returns) < 10:
@@ -243,7 +246,7 @@ class MarketSentimentService:
         获取新高新低比（近一年新高/新低家数，最新交易日收盘价判定）
         """
         try:
-            counts = self.ds.kline.get_new_high_low_counts(window_days=365)
+            counts = self.kline_repo.get_new_high_low_counts(window_days=365)
             if not counts:
                 return {'error': '新高新低数据不可用'}
 

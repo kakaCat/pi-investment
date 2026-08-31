@@ -144,12 +144,12 @@ class IntradayMonitor:
         """获取实时价格（使用最新K线收盘价模拟）"""
         prices = {}
         try:
-            from application.services.data_service import DataService
-            ds = DataService()
+            from infrastructure.services.service_factory import ServiceFactory
+            kline_repo = ServiceFactory.get_kline_repository()
 
             for symbol in symbols:
                 try:
-                    kline = ds.kline.get_latest_daily_kline(symbol)
+                    kline = kline_repo.get_latest_daily_kline(symbol)
                     if kline:
                         prices[symbol] = float(kline['close'])
                 except Exception:
@@ -163,11 +163,11 @@ class IntradayMonitor:
     def _check_index_alert(self) -> Optional[Dict[str, Any]]:
         """检查大盘异动（上证指数跌幅超阈值）"""
         try:
-            from application.services.data_service import DataService
-            ds = DataService()
+            from infrastructure.services.service_factory import ServiceFactory
+            kline_repo = ServiceFactory.get_kline_repository()
 
             # 获取上证指数最新K线
-            kline = ds.kline.get_latest_daily_kline('000001.SH')
+            kline = kline_repo.get_latest_daily_kline('000001.SH')
             if not kline:
                 return None
 

@@ -19,7 +19,7 @@ from fastapi.responses import StreamingResponse
 import structlog
 
 from adapters.inbound.fastapi_app.shared import (
-    ds, api_response, error_response, handle_api_error, sanitize_for_json,
+    api_response, error_response, handle_api_error, sanitize_for_json,
     convert_keys_to_snake,
     _load_pipeline_runs, _save_pipeline_runs,
     acquire_task, get_running_tasks_snapshot,
@@ -302,12 +302,11 @@ def data_full_status():
                 if len(run.get('logs', [])) > MAX_LOGS:
                     run['logs'].append(f'... ({len(run["logs"]) - MAX_LOGS} more logs omitted)')
 
-        cache_stats = ds.get_cache_stats() if hasattr(ds, 'get_cache_stats') else {}
         return api_response({
             'success': True,
             'pipeline': {'total_runs': len(pipeline_runs), 'latest_runs': latest_runs},
-            'cache': cache_stats,
-            'db': {'provider': getattr(getattr(ds, '_stock_db', None), 'provider', 'unknown')},
+            'cache': {},
+            'db': {'provider': 'postgresql'},
         })
     except Exception as e:
         return error_response({'success': False, 'error': str(e)}, 500)
@@ -317,7 +316,41 @@ def data_full_status():
 @handle_api_error
 def data_status(symbol: str = Query('000001.SZ')):
     try:
-        result = ds.check_data_integrity(symbol)
+        from datetime import datetime
+        from infrastructure.services.service_factory import ServiceFactory
+        _stock_repo = ServiceFactory.get_stock_repository()
+        _kline_repo = ServiceFactory.get_kline_repository()
+        _signal_repo = ServiceFactory.get_signal_repository()
+        _factor_repo = ServiceFactory.get_factor_repository()
+
+        result = {
+            'status': 'ok',
+            'checked_at': datetime.now().isoformat(),
+            'issues': [],
+            'summary': {}
+        }
+
+        kline_count = _kline_repo.count_klines(symbol)
+        result['summary']['kline_count'] = kline_count
+        if kline_count == 0:
+            result['issues'].append(f"No kline data for {symbol}")
+            result['status'] = 'warning'
+
+        stock_obj = _stock_repo.get_by_symbol(symbol)
+        result['summary']['stock_exists'] = stock_obj is not None
+        if not stock_obj:
+            result['issues'].append(f"Stock {symbol} not found in database")
+            result['status'] = 'error'
+
+        today = datetime.now().strftime('%Y-%m-%d')
+        signals = _signal_repo.get_signals_by_symbol(symbol, today, today)
+        result['summary']['signal_count'] = len(signals)
+
+        factors = _factor_repo.get_latest_factors(symbol)
+        result['summary']['factor_count'] = len(factors)
+        if len(factors) == 0:
+            result['issues'].append(f"No factor data for {symbol}")
+
         return sanitize_for_json(result)
     except Exception as e:
         return error_response({'error': str(e)}, 500)

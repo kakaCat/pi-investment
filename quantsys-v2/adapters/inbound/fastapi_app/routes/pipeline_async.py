@@ -15,6 +15,7 @@ from adapters.inbound.fastapi_app.shared import (
     ds, api_response, error_response, handle_api_error, convert_keys_to_snake,
     _load_pipeline_runs, _save_pipeline_runs, _get_pipeline_run,
     acquire_task, get_running_tasks_snapshot,
+    stock_repo,
 )
 # 复用 Flask pipeline.py 的后台执行函数（同一实现，保证行为一致）
 from adapters.shared.pipeline_exec import _execute_pipeline_stages
@@ -96,7 +97,7 @@ def _create_pipeline_run_impl(data: Dict[str, Any]):
     symbols = pipeline_data.get('symbols', [])
     stages = pipeline_data.get('stages', ['data_update', 'factors', 'signals', 'risk'])
     if not symbols:
-        symbols = [s['symbol'] for s in ds.stock.get_all(limit=100)]
+        symbols = [s['symbol'] for s in stock_repo.get_all(limit=100)]
     if not symbols:
         return error_response({'success': False, 'error': 'No symbols provided and no stocks in database'}, 400)
     run_id = f"#P-{str(uuid.uuid4())[:8].upper()}"

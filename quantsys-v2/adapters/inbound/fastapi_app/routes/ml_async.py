@@ -14,7 +14,7 @@ from fastapi import APIRouter, Query, Body
 from fastapi.responses import JSONResponse
 import structlog
 
-from adapters.inbound.fastapi_app.shared import ds
+from adapters.inbound.fastapi_app.shared import stock_repo, kline_repo, factor_repo
 # 复用中立层 ml_helpers 的辅助函数（同一实现）
 from adapters.shared.ml_helpers import (
     MODEL_DIR, _json, _get_model_repo, _convert_keys_to_snake, _sanitize_for_json,
@@ -46,7 +46,7 @@ def ml_train(payload: Optional[Dict[str, Any]] = Body(None)):
         return JSONResponse(status_code=400, content={"success": False, "error": f"不支持的模型类型: {model_type}"})
 
     if not symbols:
-        stocks = ds.stock.get_all(limit=50)
+        stocks = stock_repo.get_all(limit=50)
         symbols = [s["symbol"] for s in stocks]
     if not symbols:
         return JSONResponse(status_code=400, content={"success": False, "error": "没有可用的股票数据"})
@@ -57,7 +57,7 @@ def ml_train(payload: Optional[Dict[str, Any]] = Body(None)):
 
     def _fetch_one_kline(sym: str):
         try:
-            rows = ds.kline.get_daily_klines(sym, start_date, end_date)
+            rows = kline_repo.get_daily_klines(sym, start_date, end_date)
             import polars as pl
             if isinstance(rows, pl.DataFrame):
                 if rows.is_empty():
@@ -83,7 +83,7 @@ def ml_train(payload: Optional[Dict[str, Any]] = Body(None)):
 
     def _process_one_symbol(sym: str):
         try:
-            factors_data = ds.factor.get_factors_range(sym, start_date, end_date)
+            factors_data = factor_repo.get_factors_range(sym, start_date, end_date)
             # get_factors_range 返回 polars DataFrame：bool(df) 抛 TypeError，
             # 直接迭代产出 Series 而非 dict，必须用 is_empty + iter_rows(named=True)
             if factors_data is None or factors_data.is_empty():
@@ -255,7 +255,7 @@ def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
         rows = []
         for symbol in symbols:
             try:
-                fobjs = ds.factor.get_latest_factors(symbol)
+                fobjs = factor_repo.get_latest_factors(symbol)
                 fdict: dict = {}
                 fdate = ""
                 for fo in fobjs or []:
@@ -293,7 +293,7 @@ def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
         klines_dict: dict = {}
         for symbol in symbols:
             try:
-                rows = ds.kline.get_daily_klines(symbol, start_date, end_date)
+                rows = kline_repo.get_daily_klines(symbol, start_date, end_date)
                 import polars as pl
                 if isinstance(rows, pl.DataFrame):
                     if rows.is_empty():
@@ -503,7 +503,7 @@ def _compute_drift(top_features, days: int):
     closes_all: list = []
     for sym in sample_symbols:
         try:
-            kdf = ds.kline.get_daily_klines(
+            kdf = kline_repo.get_daily_klines(
                 sym,
                 (datetime.now() - timedelta(days=days * 2 + 30)).strftime('%Y-%m-%d'),
                 datetime.now().strftime('%Y-%m-%d'))

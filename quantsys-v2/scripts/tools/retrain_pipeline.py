@@ -15,22 +15,24 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 def main():
-    from application.services.data_service import DataService
+    from adapters.shared.services import get_stock_repo, get_kline_repo, get_factor_repo
     from domain.quantlib.stages.factor_stage import FactorStage
     import numpy as np
     import pandas as pd
 
-    ds = DataService()
+    stock_repo = get_stock_repo()
+    kline_repo = get_kline_repo()
+    factor_repo = get_factor_repo()
     factor_stage = FactorStage(name="factors")
 
     # 1. 获取有足够 K 线的股票
-    all_stocks = ds.stock.get_all(limit=200)
+    all_stocks = stock_repo.get_all(limit=200)
     end_date = datetime.now().strftime('%Y-%m-%d')
     start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
 
     valid_symbols = []
     for s in all_stocks:
-        klines = ds.kline.get_daily_klines(s['symbol'], start_date, end_date)
+        klines = kline_repo.get_daily_klines(s['symbol'], start_date, end_date)
         if len(klines) >= 120:
             valid_symbols.append(s['symbol'])
 
@@ -40,7 +42,7 @@ def main():
     factor_records = []
     for sym in valid_symbols:
         try:
-            klines = ds.kline.get_daily_klines(sym, start_date, end_date)
+            klines = kline_repo.get_daily_klines(sym, start_date, end_date)
             if not klines or len(klines) < 60:
                 continue
             # 对最近 120 个交易日计算因子
@@ -63,7 +65,7 @@ def main():
 
     # 3. 保存因子到 v2 PG
     if factor_records:
-        ds.factor.save_factors_batch([
+        factor_repo.save_factors_batch([
             {'symbol': r[0], 'date': r[1], 'factor_name': r[2], 'factor_value': r[3]}
             for r in factor_records
         ])
@@ -100,7 +102,7 @@ def main():
     df = df.sort_values(['symbol', 'date'])
     df['close'] = None
     for sym in df['symbol'].unique():
-        klines = ds.kline.get_daily_klines(sym, start_date, end_date)
+        klines = kline_repo.get_daily_klines(sym, start_date, end_date)
         if not klines:
             continue
         price_map = {}

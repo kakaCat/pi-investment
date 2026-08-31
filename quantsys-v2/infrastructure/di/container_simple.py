@@ -24,7 +24,6 @@ class SimpleContainer(containers.DeclarativeContainer):
     def _get_shared_service(service_name):
         """从 shared.py 获取服务（过渡方案）"""
         from adapters.shared.services import (
-            ds,
             strategy_service,
             stock_pool_service,
             pool_validation_service,
@@ -34,7 +33,6 @@ class SimpleContainer(containers.DeclarativeContainer):
         )
 
         services = {
-            'data_service': ds,
             'strategy_service': strategy_service,
             'stock_pool_service': stock_pool_service,
             'pool_validation_service': pool_validation_service,
@@ -46,10 +44,6 @@ class SimpleContainer(containers.DeclarativeContainer):
 
     # ==================== 服务提供者 ====================
     # 使用 Callable provider 包装 shared.py 的服务
-
-    data_service = providers.Callable(
-        lambda: SimpleContainer._get_shared_service('data_service')
-    )
 
     strategy_service = providers.Callable(
         lambda: SimpleContainer._get_shared_service('strategy_service')

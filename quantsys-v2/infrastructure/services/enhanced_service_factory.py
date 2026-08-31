@@ -130,13 +130,7 @@ class EnhancedServiceFactory:
             # 注册带显式依赖的服务
             EnhancedServiceFactory.register(
                 StockPoolService,
-                dependencies=[IStockRepository, IDataService]
-            )
-
-            # 注册使用工厂函数的服务
-            EnhancedServiceFactory.register(
-                DataService,
-                factory=lambda: DataService()
+                dependencies=[IStockRepository, IKlineRepository]
             )
         """
         descriptor = ServiceDescriptor(

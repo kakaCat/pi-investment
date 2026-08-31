@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body
 import structlog
 
-from adapters.inbound.fastapi_app.shared import ds, api_response, handle_api_error
+from adapters.inbound.fastapi_app.shared import api_response, handle_api_error, kline_repo
 
 from domain.quantlib.timeseries import (
     ARIMACalculator,
@@ -28,7 +28,7 @@ def _get_price_series(symbol: str, start_date: str = None, end_date: str = None)
         end_date = datetime.now().strftime('%Y-%m-%d')
     if not start_date:
         start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
-    klines_df = ds.kline.get_daily_klines(symbol, start_date, end_date)
+    klines_df = kline_repo.get_daily_klines(symbol, start_date, end_date)
     if klines_df is None or klines_df.is_empty():
         return None
     klines = klines_df.to_dicts()

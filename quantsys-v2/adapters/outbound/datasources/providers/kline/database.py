@@ -20,7 +20,7 @@ class DatabaseKlineProvider(KlineProvider):
         """Initialize with kline repository
 
         Args:
-            kline_repo: KlineRepository instance from ds.kline
+            kline_repo: KlineRepository instance
         """
         self.kline_repo = kline_repo
         self.last_error: Optional[str] = None

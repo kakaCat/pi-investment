@@ -613,7 +613,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
 
         旧 BaseRepository 时代契约（归档 8f06ae1^），ORM 重构（8f06ae1）时丢失，
         2026-08-06 恢复——FastAPI routes/stock_async.py:54 与 Flask routes/stock.py:119
-        经 ds.kline.get_kline_stats 调用（ds.kline = KlineORMRepository），
+        经 kline_repo.get_kline_stats 调用（kline_repo = KlineORMRepository），
         缺失即 AttributeError（个股详情接口 klineDays 恒为 0）。
 
         Args:

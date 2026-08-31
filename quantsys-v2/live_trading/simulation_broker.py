@@ -217,14 +217,17 @@ class SimulationBroker:
 class MockDataProvider:
     """模拟数据提供者 - 用于测试"""
 
-    def __init__(self, data_service):
+    def __init__(self, kline_repo=None):
         """
         初始化
 
         Args:
-            data_service: DataService实例
+            kline_repo: K线数据仓库（可选，默认通过 ServiceFactory 获取）
         """
-        self.ds = data_service
+        if kline_repo is None:
+            from infrastructure.services.service_factory import ServiceFactory
+            kline_repo = ServiceFactory.get_kline_repository()
+        self.kline_repo = kline_repo
 
     def get_realtime_price(self, symbol):
         """
@@ -241,7 +244,7 @@ class MockDataProvider:
         """
         try:
             # 获取最近的K线数据
-            df = self.ds.kline.get_stock_kline(
+            df = self.kline_repo.get_stock_kline(
                 symbol=symbol,
                 start_date=(datetime.now() - pd.Timedelta(days=30)).strftime('%Y-%m-%d'),
                 end_date=datetime.now().strftime('%Y-%m-%d')

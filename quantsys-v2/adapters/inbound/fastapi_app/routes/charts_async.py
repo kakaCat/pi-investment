@@ -21,7 +21,7 @@ import structlog
 
 from application.services.core_async_services import DataAsyncService
 from adapters.inbound.fastapi_app.shared import (
-    ds, api_response, error_response, handle_api_error, sanitize_for_json,
+    backtest_repo, api_response, error_response, handle_api_error, sanitize_for_json,
     strategy_service,
 )
 
@@ -151,7 +151,7 @@ def chart_equity(backtest_result: Optional[str] = Query(None)):
     if backtest_result:
         backtest_result_obj = json.loads(backtest_result)
     else:
-        latest = ds.backtest.get_all_backtests(limit=1)
+        latest = backtest_repo.get_all_backtests(limit=1)
         backtest_result_obj = latest[0] if latest else {}
 
     _CHART_DIR.mkdir(parents=True, exist_ok=True)
@@ -184,7 +184,7 @@ def chart_comparison(strategies_performance: Optional[str] = Query(None)):
         all_strategies = strategy_service.list_strategies()
         strategies_performance_obj = []
         for s in (all_strategies or [])[:10]:
-            stats = ds.backtest.get_backtest_stats(strategy_name=str(s.get('id')))
+            stats = backtest_repo.get_backtest_stats(strategy_name=str(s.get('id')))
             if stats:
                 strategies_performance_obj.append({
                     'name': s.get('name', 'Unknown'),

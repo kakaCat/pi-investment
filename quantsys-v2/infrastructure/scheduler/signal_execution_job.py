@@ -39,13 +39,13 @@ def execute_daily_signals(task_context: Dict[str, Any] = None) -> Dict[str, Any]
     try:
         logger.info("开始每日信号执行任务")
 
-        from infrastructure.config.service_factory import get_data_service
+        from infrastructure.services.service_factory import ServiceFactory
 
-        ds = get_data_service()
+        strategy_repo = ServiceFactory.get_strategy_repository()
 
         # 1. 获取所有启用的策略（使用 ORM 查询）
         try:
-            strategies = ds.strategy.list_strategies()
+            strategies = strategy_repo.list_strategies()
             logger.info(f"找到 {len(strategies)} 个策略")
         except Exception as e:
             logger.warning(f"获取策略列表失败: {e}")

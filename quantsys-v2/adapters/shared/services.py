@@ -62,6 +62,36 @@ def get_strategy_repository():
     from adapters.outbound.repositories import StrategyORMRepository
     return StrategyORMRepository()
 
+def get_signal_repo():
+    return ServiceFactory.get_signal_repository()
+
+def get_stock_repo():
+    return ServiceFactory.get_stock_repository()
+
+def get_kline_repo():
+    return ServiceFactory.get_kline_repository()
+
+def get_portfolio_repo():
+    return ServiceFactory.get_portfolio_repository()
+
+def get_factor_repo():
+    return ServiceFactory.get_factor_repository()
+
+def get_risk_repo():
+    return ServiceFactory.get_risk_repository()
+
+def get_execution_repo():
+    from adapters.outbound.repositories.signal_execution_repository import SignalExecutionORMRepository
+    return SignalExecutionORMRepository()
+
+def get_backtest_repo():
+    from adapters.outbound.repositories.backtest_repository import BacktestORMRepository
+    return BacktestORMRepository()
+
+def get_simulation_repo():
+    from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+    return SimulationORMRepository()
+
 def get_factor_adapter():
     """获取因子适配器实例"""
     from adapters.outbound.datasources.providers.quantlib import get_factor_adapter

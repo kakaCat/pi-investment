@@ -20,7 +20,7 @@ import structlog
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from infrastructure.services.service_factory import get_data_service
+from infrastructure.services.service_factory import ServiceFactory
 from domain.quantlib.stages.factor_stage import FactorStage
 from adapters.shared.fund_flow_helpers import (
     _inject_fund_flow_to_klines, _extract_fund_flow_factors,
@@ -50,10 +50,12 @@ def backfill_factors(
     Returns:
         回填统计信息
     """
-    ds = get_data_service()
+    from adapters.shared.services import get_kline_repo, get_factor_repo
+    kline_repo = get_kline_repo()
+    factor_repo = get_factor_repo()
     
     # 计算需要回填的交易日列表（使用某只流动性好的股票的交易日历）
-    ref_klines_df = ds.kline.get_daily_klines('000001', start_date, end_date)
+    ref_klines_df = kline_repo.get_daily_klines('000001', start_date, end_date)
     if ref_klines_df is None or ref_klines_df.is_empty():
         logger.error("无法获取参考交易日历")
         return {"success": False, "error": "无法获取交易日历"}
@@ -79,7 +81,7 @@ def backfill_factors(
                 # 获取该股票的完整K线数据（一次性拉取，避免逐日查询）
                 # 多拉60天以提供充足lookback（momentum_52w_high需252天）
                 extended_start = (datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=300)).strftime('%Y-%m-%d')
-                klines_df = ds.kline.get_daily_klines(sym, extended_start, end_date)
+                klines_df = kline_repo.get_daily_klines(sym, extended_start, end_date)
                 
                 if klines_df is None or klines_df.is_empty():
                     logger.warning(f"{sym}: 无K线数据，跳过")
@@ -125,7 +127,7 @@ def backfill_factors(
                     
                     # 保存到DB（关键：保存target_date，非最新日期）
                     if factors:
-                        ds.factor.save_factors(sym, target_date_str, factors)
+                        factor_repo.save_factors(sym, target_date_str, factors)
                         total_saved += 1
                 
                 if (batch_idx + symbols.index(sym) - batch_idx) % 10 == 0:

@@ -71,14 +71,14 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         logger.info(f"训练样本: {len(symbols)} 只股票")
 
         # 3. 加载K线数据
-        ds = ServiceFactory.get_data_service()
+        kline_repo = ServiceFactory.get_kline_repository()
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
         
         klines_dict = {}
         for i, symbol in enumerate(symbols):
             try:
-                rows = ds.kline.get_daily_klines(symbol, start_date, end_date)
+                rows = kline_repo.get_daily_klines(symbol, start_date, end_date)
                 if rows is not None and not rows.is_empty():
                     klines_dict[symbol] = rows.to_dicts()
                 if (i+1) % 100 == 0:

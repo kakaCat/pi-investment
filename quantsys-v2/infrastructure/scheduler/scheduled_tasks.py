@@ -23,13 +23,8 @@ def daily_data_pipeline() -> Dict[str, Any]:
     logger.info("Starting daily_data_pipeline task")
 
     try:
-        # Import here to avoid circular dependencies
-        from infrastructure.config.service_factory import get_data_service
+        # TODO: implement actual pipeline logic
 
-        ds = get_data_service()
-
-        # Get CSI 300 components
-        # Simplified implementation - you can expand this based on actual requirements
         result = {
             "action": "daily_data_pipeline",
             "status": "success",
@@ -62,12 +57,8 @@ def weekly_full_rebuild() -> Dict[str, Any]:
     logger.info("Starting weekly_full_rebuild task")
 
     try:
-        # Import here to avoid circular dependencies
-        from infrastructure.config.service_factory import get_data_service
+        # TODO: implement actual weekly rebuild logic
 
-        ds = get_data_service()
-
-        # Full rebuild logic
         result = {
             "action": "weekly_full_rebuild",
             "status": "success",
@@ -97,11 +88,7 @@ def get_csi300_components() -> Dict[str, Any]:
     logger.info("Getting CSI 300 components")
 
     try:
-        from infrastructure.config.service_factory import get_data_service
-
-        ds = get_data_service()
-
-        # Get CSI 300 components - implement actual logic here
+        # TODO: implement actual CSI 300 component retrieval
         result = {
             "action": "get_csi300_components",
             "status": "success",

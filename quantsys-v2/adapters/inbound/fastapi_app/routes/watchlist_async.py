@@ -8,6 +8,7 @@ import structlog
 
 from adapters.inbound.fastapi_app.shared import (
     ds, error_response, _read_watchlist, _write_watchlist, _read_groups, _write_groups,
+    stock_repo,
 )
 
 logger = structlog.get_logger(__name__)
@@ -85,7 +86,7 @@ def add_to_watchlist(payload: Dict[str, Any] = Body(default_factory=dict)):
     symbol = (payload.get('symbol') or '').strip()
     if not symbol:
         return error_response({'success': False, 'error': '股票代码不能为空'}, 400)
-    stock_info = ds.stock.get_by_symbol(symbol)
+    stock_info = stock_repo.get_by_symbol(symbol)
     if not stock_info:
         return error_response({'success': False, 'error': f'股票不存在: {symbol}'}, 404)
     wl = _read_watchlist()

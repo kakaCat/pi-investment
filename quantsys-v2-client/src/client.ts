@@ -750,7 +750,8 @@ export class QuantsysV2Client {
     page?: number;
     pageSize?: number;
   }): Promise<TradeHistoryResponse> {
-    const response = await this.client.get('/api/trades/list', { params });
+    // 2026-08-31: 修复路由，后端实际是 /api/simulation/trades
+    const response = await this.client.get('/api/simulation/trades', { params });
     return this.unwrap<TradeHistoryResponse>(response.data, 'getTradeHistory');
   }
 

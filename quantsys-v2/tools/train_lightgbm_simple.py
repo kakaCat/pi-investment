@@ -46,16 +46,20 @@ def main():
     parser.add_argument("--test-size", type=float, default=0.2)
     args = parser.parse_args()
 
-    from adapters.inbound.fastapi_app.shared import ds
+    from adapters.shared.services import get_stock_repo, get_kline_repo, get_factor_repo
     from adapters.shared.ml_helpers import (
         MODEL_DIR, _json, _get_model_repo, _normalize_kline,
     )
+
+    stock_repo = get_stock_repo()
+    kline_repo = get_kline_repo()
+    factor_repo = get_factor_repo()
 
     print(f"=== 模型训练（{args.model_type}） ===")
     print(f"数据范围: {args.start_date} ~ {args.end_date}, 股票数上限: {args.limit}\n")
 
     # 1. 股票列表
-    stocks = ds.stock.get_all(limit=args.limit)
+    stocks = stock_repo.get_all(limit=args.limit)
     symbols = [s["symbol"] for s in stocks]
     print(f"实际训练股票: {len(symbols)} 只")
 
@@ -64,7 +68,7 @@ def main():
 
     def _fetch_one_kline(sym: str):
         try:
-            rows = ds.kline.get_daily_klines(sym, args.start_date, args.end_date)
+            rows = kline_repo.get_daily_klines(sym, args.start_date, args.end_date)
             import polars as pl
             if isinstance(rows, pl.DataFrame):
                 if rows.is_empty():
@@ -92,7 +96,7 @@ def main():
 
     def _process_one_symbol(sym: str):
         try:
-            factors_data = ds.factor.get_factors_range(sym, args.start_date, args.end_date)
+            factors_data = factor_repo.get_factors_range(sym, args.start_date, args.end_date)
             # get_factors_range 返回 polars DataFrame：bool(df) 抛 TypeError，
             # 必须用 is_empty + iter_rows(named=True)
             if factors_data is None or factors_data.is_empty():

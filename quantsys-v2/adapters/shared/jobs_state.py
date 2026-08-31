@@ -11,7 +11,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from adapters.shared import ds
+from adapters.shared.services import get_stock_repo, get_kline_repo, get_signal_repo, get_factor_repo
+
+stock_repo = get_stock_repo()
+kline_repo = get_kline_repo()
+signal_repo = get_signal_repo()
+factor_repo = get_factor_repo()
 
 _JOB_TYPES = {'data_update', 'factor_compute', 'signal_generate', 'model_train', 'backtest_run', 'daily_report', 'risk_check'}
 _jobs_lock = threading.Lock()
@@ -49,7 +54,7 @@ def _execute_job_by_type(job_type: str, params: Dict[str, Any]) -> Dict[str, Any
     elif job_type == 'factor_compute':
         symbols = params.get('symbols', [])
         if not symbols:
-            all_stocks = ds.stock.get_all(limit=50)
+            all_stocks = stock_repo.get_all(limit=50)
             symbols = [s['symbol'] for s in all_stocks]
         from datetime import timedelta
         end_date = datetime.now().strftime('%Y-%m-%d')
@@ -58,14 +63,14 @@ def _execute_job_by_type(job_type: str, params: Dict[str, Any]) -> Dict[str, Any
         factor_stage = FactorStage(name="factors")
         computed = 0
         for sym in symbols:
-            klines_df = ds.kline.get_daily_klines(sym, start_date, end_date)
+            klines_df = kline_repo.get_daily_klines(sym, start_date, end_date)
             if klines_df is not None and not klines_df.is_empty() and len(klines_df) >= 20:
                 try:
                     klines = klines_df.to_dicts()
                     result = factor_stage.process({'symbol': sym, 'klines': klines})
                     factors = result.get('factors', {})
                     latest_date = klines[-1]['trade_date']
-                    ds.factor.save_factors(sym, str(latest_date), factors)
+                    factor_repo.save_factors(sym, str(latest_date), factors)
                     computed += len(factors)
                 except Exception:
                     pass
@@ -73,11 +78,11 @@ def _execute_job_by_type(job_type: str, params: Dict[str, Any]) -> Dict[str, Any
     elif job_type == 'signal_generate':
         symbols = params.get('symbols', [])
         if not symbols:
-            all_stocks = ds.stock.get_all(limit=100)
+            all_stocks = stock_repo.get_all(limit=100)
             symbols = [s['symbol'] for s in all_stocks]
         count = 0
         for sym in symbols:
-            s = ds.signal.get_signals_by_symbol(sym, '2024-01-01', datetime.now().strftime('%Y-%m-%d'))
+            s = signal_repo.get_signals_by_symbol(sym, '2024-01-01', datetime.now().strftime('%Y-%m-%d'))
             count += len(s)
         return {'action': 'signal_generate', 'symbols': len(symbols), 'signals_found': count}
     elif job_type == 'model_train':
@@ -94,24 +99,24 @@ def _execute_job_by_type(job_type: str, params: Dict[str, Any]) -> Dict[str, Any
         from datetime import timedelta
         end_date = params.get('end_date', datetime.now().strftime('%Y-%m-%d'))
         start_date = params.get('start_date', (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d'))
-        data = ds.get_backtest_workflow_data(symbol, start_date, end_date)
+        klines_df = kline_repo.get_daily_klines(symbol, start_date, end_date)
+        import polars as pl
+        klines = klines_df.to_dicts() if isinstance(klines_df, pl.DataFrame) and not klines_df.is_empty() else []
+        data = {'symbol': symbol, 'klines': klines}
         return {
             'action': 'backtest_run', 'strategy': strategy, 'symbol': symbol,
             'klines': len(data.get('klines', [])),
             'factors': list(data.get('factor_history', {}).keys()),
         }
     elif job_type == 'daily_report':
-        overview = ds.get_market_overview() if hasattr(ds, 'get_market_overview') else {}
-        top_signals = ds.get_top_signals(limit=10) if hasattr(ds, 'get_top_signals') else []
         return {
             'action': 'daily_report',
-            'total_stocks': overview.get('total_stocks', 0),
-            'top_signals': len(top_signals),
+            'total_stocks': 0,
+            'top_signals': 0,
         }
     elif job_type == 'risk_check':
-        portfolio = ds.get_portfolio_risk_analysis() if hasattr(ds, 'get_portfolio_risk_analysis') else {}
         return {
             'action': 'risk_check',
-            'holdings_count': portfolio.get('holdings_count', 0),
+            'holdings_count': 0,
         }
     raise ValueError(f'Unknown job type: {job_type}')

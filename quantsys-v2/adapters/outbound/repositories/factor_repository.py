@@ -96,7 +96,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
         旧 BaseRepository 时代契约，ORM 重构（8f06ae1）时丢失，
         2026-08-06 恢复——adapters/inbound/api/ml_routes.py 与
         adapters/inbound/fastapi_app/routes/ml_async.py 均通过
-        ds.factor.get_factors_range(...) 调用，缺失即 AttributeError。
+        factor_repo.get_factors_range(...) 调用，缺失即 AttributeError。
 
         实现委托 get_factor_data（归档语义：symbol 精确匹配、日期闭区间、
         按 factor_date 升序、空结果返回空 DataFrame）；返回列
@@ -124,7 +124,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
 
         旧 BaseRepository 时代契约，ORM 重构（8f06ae1）时丢失，
         2026-08-06 恢复——adapters/inbound/api/routes/analysis.py
-        compare_stocks 通过 ds.factor.get_factors_batch(...) 调用，
+        compare_stocks 通过 factor_repo.get_factors_batch(...) 调用，
         缺失即 AttributeError（/api/stocks/compare 500）。
 
         语义对齐归档实现（quantsys-v2.git.archive 8f06ae1^）：

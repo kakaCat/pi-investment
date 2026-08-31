@@ -7,6 +7,8 @@ import structlog
 from pathlib import Path
 import os
 
+from adapters.shared.services import portfolio_repo, risk_repo, signal_repo
+
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/api/health", tags=["Health"])
@@ -183,11 +185,9 @@ async def platform_status():
     返回数据库、信号、模型、报告等状态
     """
     try:
-        from adapters.shared import ds
-
-        holdings = ds.portfolio.get_all_holdings() if hasattr(ds, 'portfolio') else []
-        balance = ds.risk.get_latest_balance() if hasattr(ds, 'risk') else None
-        signals = ds.signal.get_latest_signals(limit=10) if hasattr(ds, 'signal') else []
+        holdings = portfolio_repo.get_all_holdings() if portfolio_repo else []
+        balance = risk_repo.get_latest_balance() if risk_repo else None
+        signals = signal_repo.get_latest_signals(limit=10) if signal_repo else []
 
         # 检查模型是否存在
         model_loaded = False

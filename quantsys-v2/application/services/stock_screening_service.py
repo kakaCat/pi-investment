@@ -12,15 +12,18 @@ logger = structlog.get_logger(__name__)
 class StockScreeningService:
     """股票筛选服务"""
 
-    def __init__(self, data_service, scoring_service):
+    def __init__(self, stock_repo=None, scoring_service=None):
         """
         初始化筛选服务
 
         Args:
-            data_service: 数据服务实例
+            stock_repo: 股票数据仓库（可选，默认通过 ServiceFactory 获取）
             scoring_service: 评分服务实例
         """
-        self.ds = data_service
+        if stock_repo is None:
+            from infrastructure.services.service_factory import ServiceFactory
+            stock_repo = ServiceFactory.get_stock_repository()
+        self.stock_repo = stock_repo
         self.scoring_service = scoring_service
 
     def screen_stocks(self, criteria: Dict) -> Dict:
@@ -66,7 +69,7 @@ class StockScreeningService:
             from datetime import datetime
 
             # 1. 获取所有股票
-            all_stocks = self.ds.stock.get_all(market='A')
+            all_stocks = self.stock_repo.get_all(market='A')
             total = len(all_stocks) if all_stocks else 0
 
             logger.info(f"开始筛选，总股票数: {total}")

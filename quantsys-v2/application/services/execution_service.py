@@ -2,8 +2,7 @@
 Execution Service - Algorithmic Order Execution
 
 Provides TWAP, VWAP, Iceberg, and risk-checked order execution strategies.
-All functions follow the module-level function pattern with 'ds: DataService'
-as the first parameter.
+All functions interact with brokers directly and use ServiceFactory for data access.
 """
 
 import structlog
@@ -12,8 +11,6 @@ import math
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
-
-from application.services.data_service import DataService
 
 logger = structlog.get_logger(__name__)
 
@@ -53,7 +50,6 @@ def _get_broker(broker_id: str):
 
 
 def execute_order(
-    ds: DataService,
     broker_id: str,
     order_details: Dict[str, Any],
     algo: str = 'market',
@@ -62,7 +58,6 @@ def execute_order(
     Execute a single order or route to a specific algorithmic strategy.
 
     Args:
-        ds: DataService instance
         broker_id: Broker ID to execute through
         order_details: Dict with symbol, action, quantity, price, etc.
         algo: Algorithm to use ('market', 'twap', 'vwap', 'iceberg')
@@ -91,18 +86,18 @@ def execute_order(
         if algo == 'twap':
             duration = order_details.get('duration_minutes', 30)
             slices = order_details.get('slices', 10)
-            return execute_twap(ds, broker_id, order_details, duration, slices)
+            return execute_twap(broker_id, order_details, duration, slices)
 
         elif algo == 'vwap':
             duration = order_details.get('duration_minutes', 60)
-            return execute_vwap(ds, broker_id, order_details, duration)
+            return execute_vwap(broker_id, order_details, duration)
 
         elif algo == 'iceberg':
             display_size = order_details.get('display_size', 100)
-            return execute_iceberg(ds, broker_id, order_details, display_size)
+            return execute_iceberg(broker_id, order_details, display_size)
 
         elif algo == 'risk_checked':
-            return execute_with_risk_check(ds, broker_id, order_details)
+            return execute_with_risk_check(broker_id, order_details)
 
         # Default: simple market/limit execution (simulated here)
         estimated_price = price or 100.0
@@ -138,7 +133,6 @@ def execute_order(
 
 
 def execute_twap(
-    ds: DataService,
     broker_id: str,
     order: Dict[str, Any],
     duration_minutes: int = 30,
@@ -151,7 +145,6 @@ def execute_twap(
     Each slice is executed at evenly spaced time intervals.
 
     Args:
-        ds: DataService instance
         broker_id: Broker ID to execute through
         order: Order details (symbol, action, quantity, price)
         duration_minutes: Total execution duration in minutes
@@ -236,7 +229,6 @@ def execute_twap(
 
 
 def execute_vwap(
-    ds: DataService,
     broker_id: str,
     order: Dict[str, Any],
     duration_minutes: int = 60,
@@ -248,7 +240,6 @@ def execute_vwap(
     allocated to higher-volume time periods, reducing market impact.
 
     Args:
-        ds: DataService instance
         broker_id: Broker ID to execute through
         order: Order details (symbol, action, quantity, price)
         duration_minutes: Total execution duration in minutes
@@ -270,7 +261,7 @@ def execute_vwap(
         return ExecutionResult(success=False, error="Quantity must be positive", algo='vwap')
 
     # Try to get historical volume profile for this symbol
-    volume_profile = _get_volume_profile(ds, symbol, duration_minutes)
+    volume_profile = _get_volume_profile(symbol, duration_minutes)
 
     # Use the volume profile to weight slices
     slice_results = []
@@ -329,7 +320,6 @@ def execute_vwap(
 
 
 def _get_volume_profile(
-    ds: DataService,
     symbol: str,
     duration_minutes: int,
     num_bins: int = 10,
@@ -340,7 +330,6 @@ def _get_volume_profile(
     In production, this would use actual intraday volume data from the broker.
 
     Args:
-        ds: DataService instance
         symbol: Stock symbol
         duration_minutes: Duration in minutes
         num_bins: Number of time bins
@@ -380,7 +369,6 @@ def _get_volume_profile(
 
 
 def execute_iceberg(
-    ds: DataService,
     broker_id: str,
     order: Dict[str, Any],
     display_size: int = 100,
@@ -392,7 +380,6 @@ def execute_iceberg(
     the full order size to the market.
 
     Args:
-        ds: DataService instance
         broker_id: Broker ID to execute through
         order: Order details (symbol, action, quantity, price)
         display_size: Number of shares visible on the order book at any time
@@ -478,7 +465,6 @@ def execute_iceberg(
 
 
 def execute_with_risk_check(
-    ds: DataService,
     broker_id: str,
     order: Dict[str, Any],
 ) -> ExecutionResult:
@@ -489,7 +475,6 @@ def execute_with_risk_check(
     Blocks the order if any risk check fails.
 
     Args:
-        ds: DataService instance
         broker_id: Broker ID to execute through
         order: Order details (symbol, action, quantity, price)
 
@@ -506,9 +491,9 @@ def execute_with_risk_check(
         from application.services.risk_service import live_pre_trade_check
 
         # Run live pre-trade risk check
-        risk_result = live_pre_trade_check(
-            ds, broker_id, symbol, action, quantity, price
-        )
+            risk_result = live_pre_trade_check(
+                broker_id, symbol, action, quantity, price
+            )
 
         if not risk_result.get('passed', False):
             blocking_reasons = risk_result.get('blocking_reasons', ['Unknown risk violation'])
@@ -524,12 +509,12 @@ def execute_with_risk_check(
             f"Executing order."
         )
 
-        return execute_order(ds, broker_id, order, algo='market')
+        return execute_order(broker_id, order, algo='market')
 
     except ImportError:
         # If risk_service functions aren't available, proceed with execution
         logger.warning("Risk service not available, executing without risk check")
-        return execute_order(ds, broker_id, order, algo='market')
+        return execute_order(broker_id, order, algo='market')
     except Exception as e:
         logger.error(f"Risk-checked execution failed: {e}", exc_info=True)
         return ExecutionResult(
@@ -539,12 +524,11 @@ def execute_with_risk_check(
         )
 
 
-def cancel_all_orders(ds: DataService, broker_id: str) -> Dict[str, Any]:
+def cancel_all_orders(broker_id: str) -> Dict[str, Any]:
     """
     Cancel all open orders for the specified broker.
 
     Args:
-        ds: DataService instance
         broker_id: Broker ID
 
     Returns:
@@ -595,7 +579,6 @@ def cancel_all_orders(ds: DataService, broker_id: str) -> Dict[str, Any]:
 
 
 def get_execution_report(
-    ds: DataService,
     broker_id: str,
     order_id: str,
 ) -> Dict[str, Any]:
@@ -603,7 +586,6 @@ def get_execution_report(
     Get execution report for a specific order.
 
     Args:
-        ds: DataService instance
         broker_id: Broker ID
         order_id: Order ID to query
 
@@ -635,8 +617,9 @@ def get_execution_report(
                 break
 
         if target_order is None:
-            # Try to look up from portfolio/database
-            target_order = ds.portfolio.get_order(int(order_id)) if order_id.isdigit() else None
+            from infrastructure.services.service_factory import ServiceFactory
+            portfolio_repo = ServiceFactory.get_portfolio_repository()
+            target_order = portfolio_repo.get_order(int(order_id)) if order_id.isdigit() else None
 
         if target_order is None:
             return {

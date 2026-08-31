@@ -48,7 +48,6 @@ def train_model(
     logger.info(f"样本数: {symbols_limit} 只股票")
     
     # 获取股票列表（与回填相同的500只）
-    from infrastructure.services.service_factory import get_data_service
     from adapters.outbound.repositories.stock_repository import StockORMRepository
     
     repo = StockORMRepository()

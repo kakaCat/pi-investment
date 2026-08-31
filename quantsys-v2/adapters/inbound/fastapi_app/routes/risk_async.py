@@ -13,6 +13,7 @@ import structlog
 
 from adapters.inbound.fastapi_app.shared import (
     ds, api_response, error_response, handle_api_error, sanitize_for_json,
+    portfolio_repo, kline_repo, risk_repo,
 )
 
 logger = structlog.get_logger(__name__)
@@ -44,12 +45,12 @@ def risk_check(payload: Optional[Dict[str, Any]] = Body(None)):
     try:
         data = payload or {}
         symbols = data.get('symbols')
-        holdings = ds.portfolio.get_all_holdings()
+        holdings = portfolio_repo.get_all_holdings()
         if symbols:
             holdings = [h for h in holdings if h['symbol'] in symbols]
         account_value = float(data.get('account_value', 0)) if data.get('account_value') else None
 
-        holdings_stats = ds.portfolio.get_holdings_stats()
+        holdings_stats = portfolio_repo.get_holdings_stats()
         sector_concentration_map = {}
         if holdings_stats and account_value and account_value > 0:
             sector_dist = holdings_stats.get('sector_distribution', [])
@@ -67,7 +68,7 @@ def risk_check(payload: Optional[Dict[str, Any]] = Body(None)):
             item_checks = []
             current_price = 0
             try:
-                latest_kline = ds.kline.get_latest_daily_kline(symbol)
+                latest_kline = kline_repo.get_latest_daily_kline(symbol)
                 if latest_kline is not None and not latest_kline.is_empty():
                     kline_row = latest_kline.to_dicts()[0]
                     current_price = float(kline_row.get('close', 0))
@@ -86,7 +87,7 @@ def risk_check(payload: Optional[Dict[str, Any]] = Body(None)):
                     'type': 'sector_concentration', 'level': 'high',
                     'message': f'{symbol} 所属行业 "{holding_sector}" 集中度 {sector_ratio*100:.1f}% > 50%',
                     'suggestion': '建议分散行业配置'})
-            risk_metrics = ds.risk.get_latest_risk_metrics(symbol)
+            risk_metrics = risk_repo.get_latest_risk_metrics(symbol)
             var_95 = volatility = max_drawdown = 0
             if risk_metrics:
                 var_95 = risk_metrics.get('var_95', 0) or 0

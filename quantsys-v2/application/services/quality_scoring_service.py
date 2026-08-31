@@ -13,14 +13,20 @@ logger = structlog.get_logger(__name__)
 class QualityScoringService:
     """公司质量评分服务"""
 
-    def __init__(self, data_service):
+    def __init__(self, stock_repo=None, factor_repo=None):
         """
         初始化质量评分服务
 
         Args:
-            data_service: 数据服务实例
+            stock_repo: 股票数据仓库（可选，默认通过 ServiceFactory 获取）
+            factor_repo: 因子数据仓库（可选，默认通过 ServiceFactory 获取）
         """
-        self.ds = data_service
+        if stock_repo is None or factor_repo is None:
+            from infrastructure.services.service_factory import ServiceFactory
+            stock_repo = stock_repo or ServiceFactory.get_stock_repository()
+            factor_repo = factor_repo or ServiceFactory.get_factor_repository()
+        self.stock_repo = stock_repo
+        self.factor_repo = factor_repo
 
     def calculate_quality_score(self, symbol: str, framework: str = 'auto') -> Dict:
         """
@@ -75,12 +81,12 @@ class QualityScoringService:
         """
         try:
             # 1. 获取股票基本信息
-            stock_info = self.ds.stock.get_by_symbol(symbol)
+            stock_info = self.stock_repo.get_by_symbol(symbol)
             if not stock_info:
                 return {'error': f'股票 {symbol} 不存在'}
 
             # 2. 获取最新因子数据
-            factors = self.ds.factor.get_latest_factors(symbol)
+            factors = self.factor_repo.get_latest_factors(symbol)
             if not factors:
                 return {'error': f'股票 {symbol} 暂无因子数据'}
 

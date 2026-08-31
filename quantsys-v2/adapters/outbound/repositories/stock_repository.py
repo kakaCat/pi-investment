@@ -86,7 +86,7 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
 
         旧 BaseRepository 时代契约（Phase 3 性能优化引入），ORM 重构
         （8f06ae1）时丢失，2026-08-06 恢复——adapters/inbound/api/routes/
-        analysis.py compare_stocks 通过 ds.stock.get_by_symbols_batch(...)
+        analysis.py compare_stocks 通过 stock_repo.get_by_symbols_batch(...)
         调用，缺失即 AttributeError（/api/stocks/compare 500）。
 
         语义对齐归档实现（quantsys-v2.git.archive 8f06ae1^）：单次 IN 查询、

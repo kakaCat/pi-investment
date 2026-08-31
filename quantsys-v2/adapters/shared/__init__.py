@@ -29,6 +29,7 @@ _LAZY_SERVICE_NAMES = {
     'ds', 'strategy_service', 'stock_pool_service', 'scoring_service',
     'stock_scoring_service', 'sector_rotation_service', 'pool_validation_service',
     'pool_repo', 'strategy_repository', 'factor_adapter', 'ServiceFactory',
+    'signal_repo', 'stock_repo', 'kline_repo', 'portfolio_repo', 'factor_repo', 'risk_repo', 'execution_repo', 'backtest_repo', 'simulation_repo',
 }
 
 

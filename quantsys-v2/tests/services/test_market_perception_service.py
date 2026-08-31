@@ -210,10 +210,7 @@ class TestDataSourceResilience:
 
     def test_snapshot_sentiment_service_error(self):
         """测试情绪计算服务异常"""
-        # Mock DataService
-        mock_ds = Mock()
-
-        svc = MarketPerceptionService(ds=mock_ds)
+        svc = MarketPerceptionService(kline_repo=Mock())
 
         # Mock MarketSentimentService 异常
         with patch('application.services.market_sentiment_service.MarketSentimentService') as mock_sentiment_cls:
@@ -236,9 +233,7 @@ class TestBoundaryConditions:
 
     def test_coverage_partial_threshold(self):
         """测试 coverage=4000 边界（刚好不 partial）"""
-        # Mock MarketSentimentService 返回 coverage=4000
-        mock_ds = Mock()
-        svc = MarketPerceptionService(ds=mock_ds)
+        svc = MarketPerceptionService(kline_repo=Mock())
 
         with patch('application.services.market_sentiment_service.MarketSentimentService') as mock_sentiment_cls:
             mock_sentiment = Mock()
@@ -278,8 +273,7 @@ class TestBoundaryConditions:
 
     def test_coverage_partial_below_threshold(self):
         """测试 coverage=3999（刚好 partial）"""
-        mock_ds = Mock()
-        svc = MarketPerceptionService(ds=mock_ds)
+        svc = MarketPerceptionService(kline_repo=Mock())
 
         with patch('application.services.market_sentiment_service.MarketSentimentService') as mock_sentiment_cls:
             mock_sentiment = Mock()

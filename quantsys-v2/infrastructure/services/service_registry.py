@@ -214,11 +214,10 @@ def _register_services_hardcoded():
     from domain.ports.datasource_ports import IDataProviderManager
     from adapters.outbound.datasources.manager import DataProviderManager
 
-    # DataProviderManager 需要 DataService，使用工厂函数延迟初始化
+    # DataProviderManager 不再需要 DataService 参数（已迁移至直接 repo 调用）
     def create_data_provider_manager():
-        from infrastructure.services.service_factory import ServiceFactory
-        ds = ServiceFactory.get_data_service()
-        return DataProviderManager(ds)
+        from adapters.outbound.datasources.manager import DataProviderManager
+        return DataProviderManager()
 
     EnhancedServiceFactory.register(
         IDataProviderManager,
@@ -229,8 +228,6 @@ def _register_services_hardcoded():
 
     # ========== Application Services ==========
 
-    # DataService - 核心服务，很多服务依赖它
-    from application.services.data_service import DataService
     from application.services.financial_data_service_adapter import FinancialDataServiceAdapter
 
     EnhancedServiceFactory.register(
@@ -239,49 +236,15 @@ def _register_services_hardcoded():
         lifecycle=ServiceLifecycle.SINGLETON
     )
 
-    def create_data_service():
-        """创建 DataService，使用依赖注入
-
-        P2-1: 所有 Repository 依赖都通过 EnhancedServiceFactory 解析
-        """
-        # 从 EnhancedServiceFactory 解析所有 Repository 依赖
-        from domain.ports.repository_ports_extended import (
-            ISimulationRepository,
-            IPortfolioRepository,
-            IFactorRepository,
-            IBacktestRepository,
-            IRiskRepository,
-            ISignalExecutionRepository,
-        )
-
-        return DataService(
-            stock_repo=EnhancedServiceFactory.resolve(IStockRepository),
-            kline_repo=EnhancedServiceFactory.resolve(IKlineRepository),
-            signal_repo=EnhancedServiceFactory.resolve(ISignalRepository),
-            simulation_repo=EnhancedServiceFactory.resolve(ISimulationRepository),
-            portfolio_repo=EnhancedServiceFactory.resolve(IPortfolioRepository),
-            factor_repo=EnhancedServiceFactory.resolve(IFactorRepository),
-            backtest_repo=EnhancedServiceFactory.resolve(IBacktestRepository),
-            risk_repo=EnhancedServiceFactory.resolve(IRiskRepository),
-            strategy_repo=EnhancedServiceFactory.resolve(IStrategyRepository),
-            execution_repo=EnhancedServiceFactory.resolve(ISignalExecutionRepository),
-            financial_service=EnhancedServiceFactory.resolve(FinancialDataServiceAdapter),
-        )
-
-    EnhancedServiceFactory.register(
-        DataService,
-        factory=create_data_service,
-        lifecycle=ServiceLifecycle.SINGLETON
-    )
-
     # OpportunityScoringService - 依赖 DataService 和 FactorAdapter
     from application.services.opportunity_scoring_service import OpportunityScoringService
     def create_scoring_service():
         from infrastructure.services.service_factory import ServiceFactory
         from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
-        ds = ServiceFactory.get_data_service()
+        kline_repo = ServiceFactory.get_kline_repository()
+        stock_repo = ServiceFactory.get_stock_repository()
         factor_adapter = get_factor_adapter()
-        return OpportunityScoringService(ds.kline, ds.stock, factor_adapter)
+        return OpportunityScoringService(kline_repo, stock_repo, factor_adapter)
 
     EnhancedServiceFactory.register(
         OpportunityScoringService,
@@ -293,10 +256,10 @@ def _register_services_hardcoded():
     from application.services.stock_pool_service import StockPoolService
     def create_stock_pool_service():
         from infrastructure.services.service_factory import ServiceFactory
-        ds = ServiceFactory.get_data_service()
+        stock_repo = ServiceFactory.get_stock_repository()
         pool_repo = EnhancedServiceFactory.resolve(IStockPoolRepository)
         scoring_service = EnhancedServiceFactory.resolve(OpportunityScoringService)
-        return StockPoolService(ds.stock, pool_repo=pool_repo, scoring_service=scoring_service)
+        return StockPoolService(stock_repo, pool_repo=pool_repo, scoring_service=scoring_service)
 
     EnhancedServiceFactory.register(
         StockPoolService,
@@ -320,9 +283,7 @@ def _register_services_hardcoded():
     # StockScoringService - 依赖 DataService
     from application.services.stock_scoring_service import StockScoringService
     def create_stock_scoring_service():
-        from infrastructure.services.service_factory import ServiceFactory
-        ds = ServiceFactory.get_data_service()
-        return StockScoringService(ds)
+        return StockScoringService()
 
     EnhancedServiceFactory.register(
         StockScoringService,
@@ -334,8 +295,9 @@ def _register_services_hardcoded():
     from application.services.sector_rotation_service import SectorRotationService
     def create_sector_rotation_service():
         from infrastructure.services.service_factory import ServiceFactory
-        ds = ServiceFactory.get_data_service()
-        return SectorRotationService(ds.stock, ds.kline)
+        stock_repo = ServiceFactory.get_stock_repository()
+        kline_repo = ServiceFactory.get_kline_repository()
+        return SectorRotationService(stock_repo, kline_repo)
 
     EnhancedServiceFactory.register(
         SectorRotationService,
@@ -348,9 +310,7 @@ def _register_services_hardcoded():
     # RiskCheckService - 依赖 DataService
     from application.services.risk_check_service import RiskCheckService
     def create_risk_check_service():
-        from infrastructure.services.service_factory import ServiceFactory
-        ds = ServiceFactory.get_data_service()
-        return RiskCheckService(ds)
+        return RiskCheckService()
 
     EnhancedServiceFactory.register(
         RiskCheckService,
@@ -637,7 +597,6 @@ def _register_services_hardcoded():
     from domain.ports.repository_ports_extended import ISignalExecutionLogRepository
     def create_signal_execution_scheduler():
         from infrastructure.services.service_factory import ServiceFactory
-        data_service = ServiceFactory.get_data_service()
         strategy_service = StrategyCodeService()
         risk_service = EnhancedServiceFactory.resolve(RiskCheckService)
         signal_repo = EnhancedServiceFactory.resolve(ISignalRepository)
@@ -645,7 +604,6 @@ def _register_services_hardcoded():
         strategy_repo = EnhancedServiceFactory.resolve(IStrategyRepository)
 
         return SignalExecutionScheduler(
-            data_service=data_service,
             strategy_service=strategy_service,
             risk_service=risk_service,
             signal_repo=signal_repo,

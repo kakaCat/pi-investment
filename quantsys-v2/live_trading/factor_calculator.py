@@ -13,7 +13,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import logging
 
-from application.services.data_service import DataService
+from infrastructure.services.service_factory import ServiceFactory
 from live_trading.v13_factors import calculate_v13_factors, get_factor_names
 
 
@@ -21,7 +21,7 @@ class V13FactorCalculator:
     """V13策略因子计算器"""
 
     def __init__(self):
-        self.ds = DataService()
+        self.kline_repo = ServiceFactory.get_kline_repository()
         self.factor_names = get_factor_names()
         logging.info(f"V13因子计算器初始化完成，共{len(self.factor_names)}个因子")
 
@@ -42,7 +42,7 @@ class V13FactorCalculator:
 
             try:
                 # 使用实时数据接口：get_latest()返回最近N条（Polars DataFrame）
-                klines = self.ds.kline.get_latest(symbol, limit=days)
+                klines = self.kline_repo.get_latest(symbol, limit=days)
 
                 if klines.is_empty():
                     logging.warning(f"{symbol}: 无数据")

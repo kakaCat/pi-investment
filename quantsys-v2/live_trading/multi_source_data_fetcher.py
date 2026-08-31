@@ -155,13 +155,7 @@ class LocalDatabaseSource(DataSource):
     def fetch_stock_list(self) -> Optional[pd.DataFrame]:
         """从本地数据库获取股票列表"""
         try:
-            from application.services.data_service import DataService
-
             logger.info(f"[{self.name}] 从本地数据库获取股票列表...")
-            ds = DataService()
-
-            # 这里需要调用DataService的方法获取股票列表
-            # 简化版本：直接返回None，让它fallback到其他数据源
             logger.info(f"[{self.name}] 本地数据库暂不支持股票列表")
             return None
 
@@ -173,12 +167,12 @@ class LocalDatabaseSource(DataSource):
     def fetch_klines(self, symbol: str, start_date: str, end_date: str) -> Optional[pd.DataFrame]:
         """从本地数据库获取K线数据"""
         try:
-            from application.services.data_service import DataService
+            from infrastructure.services.service_factory import ServiceFactory
+            kline_repo = ServiceFactory.get_kline_repository()
 
             logger.info(f"[{self.name}] 从本地数据库获取 {symbol} K线...")
-            ds = DataService()
 
-            klines_df = ds.kline.get_daily_klines(symbol, start_date, end_date)
+            klines_df = kline_repo.get_daily_klines(symbol, start_date, end_date)
 
             if klines_df is None or klines_df.is_empty():
                 logger.warning(f"[{self.name}] 本地无缓存数据")

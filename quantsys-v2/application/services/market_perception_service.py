@@ -45,12 +45,11 @@ def _ma(values: List[float], period: int) -> float:
 class MarketPerceptionService:
     """M1 市场感知：每日快照（情绪 + regime + 主线）落库与查询。"""
 
-    def __init__(self, ds=None):
-        if ds is None:
-            # P2-3 规范：经 ServiceFactory 获取（Repository 由工厂注入）
+    def __init__(self, kline_repo=None):
+        if kline_repo is None:
             from infrastructure.services.service_factory import ServiceFactory
-            ds = ServiceFactory.get_data_service()
-        self.ds = ds
+            kline_repo = ServiceFactory.get_kline_repository()
+        self.kline_repo = kline_repo
         from adapters.outbound.repositories import (
             MarketRegimeRepository, MarketSentimentDailyRepository,
             MarketThemeRepository,
@@ -100,7 +99,7 @@ class MarketPerceptionService:
         from application.services.market_sentiment_service import MarketSentimentService
 
         try:
-            raw = MarketSentimentService(self.ds).analyze_market_sentiment()
+            raw = MarketSentimentService(self.kline_repo).analyze_market_sentiment()
         except Exception as e:
             logger.error(f"M1-3 情绪计算失败: {e}", exc_info=True)
             return {'stored': False, 'error': str(e)}
@@ -280,7 +279,7 @@ class MarketPerceptionService:
 
     def _latest_trade_date(self) -> Optional[str]:
         """最新交易日（daily_klines 最大日期）。"""
-        return self.ds.kline.get_latest_trade_date()
+        return self.kline_repo.get_latest_trade_date()
 
     @staticmethod
     def _regime_metrics(srow) -> Dict[str, Any]:
@@ -393,7 +392,7 @@ class MarketPerceptionService:
         指数趋势来自 provider 全量历史；情绪分无法历史重算，用映射近似并在
         reason 标注 [回填近似]。批量 upsert（无 N+1）。
         """
-        breadth = self.ds.kline.get_market_breadth_history(days)
+        breadth = self.kline_repo.get_market_breadth_history(days)
         if not breadth:
             return {'success': False, 'error': 'daily_klines 无历史数据'}
 

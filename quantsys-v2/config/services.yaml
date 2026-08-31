@@ -116,13 +116,6 @@ services:
     factory: infrastructure.factories.create_watch_engine
     description: '实时盯盘引擎'
 
-  # 数据服务（核心）
-  data_service:
-    class: application.services.data_service.DataService
-    lifecycle: singleton
-    factory: infrastructure.factories.create_data_service
-    description: '核心数据服务（聚合多个仓库）'
-
   # 策略服务
   strategy_code_service:
     class: application.services.strategy_code_service.StrategyCodeService
@@ -140,8 +133,6 @@ services:
   risk_check_service:
     class: application.services.risk_check_service.RiskCheckService
     lifecycle: singleton
-    dependencies:
-      data_service: data_service
     description: '风险检查服务'
 
   # 财务数据（已迁移到适配器）
@@ -177,10 +168,6 @@ services:
 environments:
   dev:
     services:
-      data_service:
-        config:
-          cache_enabled: true
-          debug: true
       watch_engine:
         config:
           check_interval: 60  # 开发环境检查间隔（秒）
@@ -192,18 +179,9 @@ environments:
         implementation: tests.mocks.MockStockRepository
       kline:
         implementation: tests.mocks.MockKlineRepository
-    services:
-      data_service:
-        config:
-          cache_enabled: false
-          debug: true
 
   prod:
     services:
-      data_service:
-        config:
-          cache_enabled: true
-          debug: false
       watch_engine:
         config:
           check_interval: 30  # 生产环境检查间隔（秒）

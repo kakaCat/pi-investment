@@ -26,6 +26,9 @@ from adapters.outbound.repositories.heatmap_repository import HeatmapRepository
 from adapters.outbound.repositories.kline_repository import KlineORMRepository
 from adapters.outbound.repositories.signal_repository import SignalORMRepository
 from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
+from adapters.outbound.repositories.stock_repository import StockORMRepository
+from adapters.outbound.repositories.portfolio_repository import PortfolioORMRepository
+from adapters.outbound.repositories.factor_repository import FactorORMRepository
 from application.services.pool_signal_scanner import PoolSignalScanner
 
 logger = logging.getLogger(__name__)
@@ -245,17 +248,7 @@ class SchedulerService:
     # running 超过该时长的 run 视为僵尸（进程被杀残留），自动判死放行
     ZOMBIE_RUN_TIMEOUT = timedelta(hours=6)
 
-    def __init__(self, ds=None):
-        """
-        Args:
-            ds: optional :class:`DataService` instance.  Created lazily
-                if not supplied.
-        """
-        self._ds = ds  # DataService (lazy)
-        # 区分「显式注入」与「lazy 缓存」：只有显式注入的 ds 才被工作线程复用。
-        # lazy 缓存的实例若被 _create_data_service 复用，8 个任务线程会共享
-        # 同一个 ORM session（2026-08-04 全量回填 IllegalStateChangeError 根因）
-        self._ds_injected = ds is not None
+    def __init__(self):
         self._conn: Any = None
         self._running = False
         self._loop_interval = 30  # seconds
@@ -263,61 +256,14 @@ class SchedulerService:
     # ------------------------------------------------------------------
     # DataService lazy accessor
     # ------------------------------------------------------------------
-
-    @property
-    def ds(self):
-        if self._ds is None:
-            # P2-3 后裸构造 DataService() 所有 Repository 均为 None
-            # （2026-08-26 起每日 data_update 崩溃 'NoneType' get_all 的根因）。
-            # 必须走 ServiceFactory（EnhancedServiceFactory 注入全部 ORM Repository）。
-            from infrastructure.services.service_factory import get_data_service
-
-            self._ds = get_data_service()
-        return self._ds
-
-    @staticmethod
-    def _build_data_service():
-        """构造一个完整注入 ORM Repository 的新 DataService 实例。
-
-        P2-3 起 DataService 不再自动实例化接口，裸构造得到全 None。
-        此处直接 new 出各 ORM Repository（均无参构造、session 按调用获取），
-        供任务线程独占使用（规避 2026-08-04 共享 session 线程安全问题）。
-        """
-        from adapters.outbound.repositories import (
-            StockORMRepository,
-            KlineORMRepository,
-            SignalORMRepository,
-            SimulationORMRepository,
-            PortfolioORMRepository,
-            FactorORMRepository,
-            BacktestORMRepository,
-            RiskORMRepository,
-            StrategyORMRepository,
-            SignalExecutionORMRepository,
-        )
-        from application.services.data_service import DataService
-
-        return DataService(
-            stock_repo=StockORMRepository(),
-            kline_repo=KlineORMRepository(),
-            signal_repo=SignalORMRepository(),
-            simulation_repo=SimulationORMRepository(),
-            portfolio_repo=PortfolioORMRepository(),
-            factor_repo=FactorORMRepository(),
-            backtest_repo=BacktestORMRepository(),
-            risk_repo=RiskORMRepository(),
-            strategy_repo=StrategyORMRepository(),
-            execution_repo=SignalExecutionORMRepository(),
-        )
+    # Deprecated DataService helpers — kept as no-ops to avoid breaking callers
+    # during incremental migration. Will be fully removed once all ds.* references
+    # in this file are replaced with direct Repository access.
+    # ------------------------------------------------------------------
 
     def _create_data_service(self):
-        """任务线程专用的 DataService 工厂（ORM session 非线程安全，每任务独立实例）。
-
-        仅当构造时**显式注入** ds（如测试）才复用注入实例；lazy 缓存的实例
-        绝不返回给工作线程（防共享 session）。"""
-        if self._ds_injected:
-            return self._ds
-        return self._build_data_service()
+        """DEPRECATED: Return None. Callers must use direct Repository access."""
+        return None
 
     # ------------------------------------------------------------------
     # Database connection (scheduler-specific tables)
@@ -1319,7 +1265,7 @@ class SchedulerService:
         # Use stock repository to find symbols if none specified
         if not symbols:
             try:
-                stocks = self.ds.stock.get_all(market=market)  # all stocks, no limit
+                stocks = StockORMRepository().get_all(market=market)  # all stocks, no limit
                 # Filter out suspended stocks to avoid unnecessary update attempts
                 symbols = [s["symbol"] for s in stocks if not s.get("is_suspended", False)]
                 suspended_count = len([s for s in stocks if s.get("is_suspended", False)])
@@ -1332,7 +1278,7 @@ class SchedulerService:
         def update_symbol(symbol: str) -> tuple[bool, bool]:
             """Update a single symbol. Returns (success, error)."""
             try:
-                latest = self.ds.kline.get_latest_daily_kline(symbol)
+                latest = KlineORMRepository().get_latest_daily_kline(symbol)
                 # Handle DataFrame response correctly (Polars or Pandas)
                 if latest is not None:
                     if hasattr(latest, 'is_empty'):
@@ -1493,7 +1439,7 @@ class SchedulerService:
         """
         try:
             # 使用 ORM 查询持仓信息
-            portfolio_holdings = self.ds.portfolio.list_all()
+            portfolio_holdings = PortfolioORMRepository().list_all()
             holdings_count = len(portfolio_holdings)
 
             # 计算总持仓市值（如果有价格信息）
@@ -1530,7 +1476,7 @@ class SchedulerService:
         """
         try:
             # Simplified daily report - extend with actual reporting logic
-            stocks = self.ds.stock.list_all_active(market="A")
+            stocks = StockORMRepository().list_all_active(market="A")
             total_stocks = len(stocks)
 
             # Get recent signals
@@ -1576,8 +1522,8 @@ class SchedulerService:
         symbol = params.get("symbol", "000001.SZ")
         initial_capital = float(params.get("initial_capital", 100_000))
 
-        data = self.ds.get_backtest_workflow_data(symbol, start_date, end_date)
-        kline_count = len(data.get("klines", []))
+        klines_df = KlineORMRepository().get_daily_klines(symbol, start_date, end_date)
+        kline_count = len(klines_df) if klines_df is not None else 0
 
         return {
             "action": "backtest_run",
@@ -1606,13 +1552,7 @@ class SchedulerService:
         symbols = params.get("symbols", [])
 
         if not symbols:
-            from infrastructure.persistence.orm import close_session
-            lister = self._create_data_service()
-            try:
-                stocks = lister.stock.get_all(market=market)  # all stocks, no limit
-            finally:
-                if not self._ds_injected:
-                    close_session()
+            stocks = StockORMRepository().get_all(market=market)  # all stocks, no limit
             symbols = [s["symbol"] for s in stocks]
 
         computed = 0
@@ -1620,15 +1560,11 @@ class SchedulerService:
         factor_count = 0
 
         def _compute_one(symbol: str) -> tuple[bool, bool, int]:
-            # 每个任务独立 DataService：DataService 内部持有 ORM session，
-            # 不是线程安全的，不能跨线程共享（2026-07-30 并发报错修复的同型病）
-            from infrastructure.persistence.orm import close_session
-            ds = self._create_data_service()
             try:
                 # Fetch K-line data (last 120 days)
                 end_date = datetime.now().strftime('%Y-%m-%d')
                 start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-                klines_raw = ds.kline.get_daily_klines(symbol, start_date, end_date)
+                klines_raw = KlineORMRepository().get_daily_klines(symbol, start_date, end_date)
 
                 # get_daily_klines 自 ORM 重构后返回 polars DataFrame；
                 # FactorStage 契约是 list-of-dicts——在此单点适配（2026-08-04 根因：
@@ -1654,14 +1590,12 @@ class SchedulerService:
                 # Strip exchange suffix to match historical data format (600000.SH -> 600000)
                 symbol_without_suffix = symbol.split('.')[0] if '.' in symbol else symbol
                 latest_date = klines[-1].get('trade_date') or klines[-1].get('date')
-                ds.factor.save_factors(symbol_without_suffix, str(latest_date), factors)
+                FactorORMRepository().save_factors(symbol_without_suffix, str(latest_date), factors)
 
                 return (True, False, len(factors))
             except Exception as e:
                 logger.warning(f"Factor computation failed for {symbol}: {e}")
                 return (False, True, 0)
-            finally:
-                close_session()
 
         with ThreadPoolExecutor(max_workers=8) as executor:
             futures = {executor.submit(_compute_one, sym): sym for sym in symbols}
@@ -1863,7 +1797,7 @@ class SchedulerService:
             
             # Get stocks to update
             if not symbols:
-                stocks = self.ds.stock.list_by_market(market=market, limit=100)
+                stocks = StockORMRepository().list_by_market(market=market, limit=100)
                 symbols = [s.symbol for s in stocks]
             
             updated_count = 0
@@ -1912,7 +1846,7 @@ class SchedulerService:
         
         try:
             # Get active stocks
-            stocks = self.ds.stock.list_all_active(market="A")
+            stocks = StockORMRepository().list_all_active(market="A")
             
             opportunities = []
             scanned_count = len(stocks)
@@ -1999,7 +1933,7 @@ class SchedulerService:
         
         try:
             # Get all strategies
-            strategies = self.ds.strategy.list_strategies()
+            strategies = StrategyORMRepository().list_strategies()
             
             validated_count = 0
             failed_validations = []
@@ -2049,7 +1983,7 @@ class SchedulerService:
             stocks_analyzed = 0
             
             # Get active stocks
-            stocks = self.ds.stock.list_all_active(market="A")
+            stocks = StockORMRepository().list_all_active(market="A")
             stocks_analyzed = len(stocks)
             
             return {

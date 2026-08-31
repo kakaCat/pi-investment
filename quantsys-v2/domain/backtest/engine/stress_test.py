@@ -9,6 +9,16 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 
+def _get_kline_repo():
+    from adapters.shared.services import get_kline_repo
+    return get_kline_repo()
+
+
+def _get_portfolio_repo():
+    from adapters.shared.services import get_portfolio_repo
+    return get_portfolio_repo()
+
+
 class StressTestScenario:
     """压力测试场景定义"""
 
@@ -132,7 +142,7 @@ class StressTestEngine:
             }
         """
         # 获取当前持仓
-        holdings = self.ds.portfolio.get_all_holdings()
+        holdings = _get_portfolio_repo().get_all_holdings()
         if not holdings:
             return {
                 "scenario_name": scenario.name,
@@ -157,7 +167,7 @@ class StressTestEngine:
             avg_cost = holding.get("avg_cost", 0) or 0
 
             # 获取当前价格
-            latest = self.ds.kline.get_latest_daily_kline(symbol)
+            latest = _get_kline_repo().get_latest_daily_kline(symbol)
             current_price = latest.get("close") if latest else avg_cost
 
             position_current_value = quantity * current_price
@@ -248,7 +258,7 @@ class StressTestEngine:
             }
         """
         # 获取指数历史数据
-        index_klines = self.ds.kline.get_daily_klines(index_symbol, start_date, end_date)
+        index_klines = _get_kline_repo().get_daily_klines(index_symbol, start_date, end_date)
         if not index_klines or len(index_klines) < 2:
             return {
                 "error": "指数历史数据不足",
@@ -256,7 +266,7 @@ class StressTestEngine:
             }
 
         # 获取当前持仓
-        holdings = self.ds.portfolio.get_all_holdings()
+        holdings = _get_portfolio_repo().get_all_holdings()
         if not holdings:
             return {
                 "error": "无持仓数据",
@@ -267,7 +277,7 @@ class StressTestEngine:
         holdings_history = {}
         for holding in holdings:
             symbol = holding.get("symbol")
-            klines = self.ds.kline.get_daily_klines(symbol, start_date, end_date)
+            klines = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
             if klines and len(klines) >= 2:
                 holdings_history[symbol] = {
                     "klines": klines,
