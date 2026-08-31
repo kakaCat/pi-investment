@@ -6,6 +6,7 @@ from domain.exceptions import ExternalServiceError
 from domain.ports.datasource_ports import IDataProviderManager
 from domain.models.market_data import QuoteData, FinancialData, DividendData, MarketData, StockData
 
+from adapters.outbound.datasources.circuit_breaker import CircuitBreaker
 from adapters.outbound.datasources.providers.quote.sina import SinaQuoteProvider
 from adapters.outbound.datasources.providers.quote.eastmoney import EastmoneyQuoteProvider
 from adapters.outbound.datasources.providers.quote.akshare import AkshareQuoteProvider
@@ -85,6 +86,9 @@ class DataProviderManager(IDataProviderManager):
         self.kline_providers = []
         if ds and hasattr(ds, 'kline'):
             self.kline_providers.append(DatabaseKlineProvider(ds.kline))
+        else:
+            from adapters.shared.services import get_kline_repo
+            self.kline_providers.append(DatabaseKlineProvider(get_kline_repo()))
         self.kline_providers.append(BaostockKlineProvider())
         self.kline_providers.append(TencentKlineProvider())
         self.kline_providers.append(AkshareKlineProvider())
@@ -94,13 +98,14 @@ class DataProviderManager(IDataProviderManager):
         # Dynamic priority: providers with high failure rate get temporarily deprioritized
         self._failure_threshold = 3  # 连续失败阈值，超过则降级
         self._recovery_window = 5    # 成功次数达到此值则恢复优先级
-        # P1: Circuit breaker settings
+        # Circuit breaker: 使用 pybreaker 标准三态熔断器 (CLOSED/OPEN/HALF_OPEN)
         self._circuit_breaker_threshold = 10  # 连续失败10次触发熔断
         self._circuit_breaker_duration = 300  # 熔断持续时间（秒）- 5分钟
+        self._circuit_breakers: Dict[str, CircuitBreaker] = {}
         self._init_stats()
 
     def _init_stats(self):
-        """Initialize provider statistics"""
+        """Initialize provider statistics and circuit breakers"""
         all_providers = (
             self.quote_providers +
             self.financial_providers +
@@ -115,35 +120,23 @@ class DataProviderManager(IDataProviderManager):
                 'success': 0,
                 'failure': 0,
                 'consecutive_failures': 0,
-                'last_attempt_time': 0,  # P1: 用于熔断机制
-                'circuit_breaker_until': 0,  # P1: 熔断截止时间
+                'last_attempt_time': 0,
             }
+            self._circuit_breakers[provider.name] = CircuitBreaker(
+                failure_threshold=self._circuit_breaker_threshold,
+                timeout=self._circuit_breaker_duration,
+                name=provider.name
+            )
 
-    def _should_circuit_break(self, provider_name: str) -> bool:
-        """检查provider是否应被熔断跳过（P1新增）
-
-        熔断条件：连续失败>=10次，且在5分钟窗口内
-
-        Args:
-            provider_name: Provider名称
-
-        Returns:
-            True: 应跳过（熔断中）
-            False: 可以尝试
-        """
-        import time
-        stats = self.provider_stats.get(provider_name, {})
-
-        # 检查是否在熔断窗口内
-        circuit_breaker_until = stats.get('circuit_breaker_until', 0)
-        if circuit_breaker_until > time.time():
-            logger.warning(f"Provider {provider_name} is circuit-broken until {circuit_breaker_until}")
-            return True
-
+    def _is_circuit_broken(self, provider_name: str) -> bool:
+        """Check if provider should be skipped (circuit broken AND timeout not expired)"""
+        cb = self._circuit_breakers.get(provider_name)
+        if cb:
+            return not cb.should_allow_call()
         return False
 
     def _try_providers(self, providers: List, method_name: str, *args, **kwargs) -> dict:
-        """Generic failover logic with dynamic priority (inspired by RealtimeQuoteService)
+        """Generic failover logic with dynamic priority and circuit breaker
 
         Args:
             providers: List of provider instances
@@ -156,29 +149,27 @@ class DataProviderManager(IDataProviderManager):
                 - data: result data if success, None otherwise
                 - source: provider name if success
                 - error: error message if all providers failed
-                - attempted_sources: list of attempted provider names if failed
-                - provider_errors: {provider_name: 具体失败原因} if failed，
-                  供调用方（API 路由）返回可行动的错误提示
+                - attempted_sources: list of actually attempted provider names
+                - provider_errors: {provider_name: failure reason}
         """
-        # Sort providers by health score before trying
         sorted_providers = self._sort_providers_by_health(providers)
 
         provider_errors: Dict[str, str] = {}
+        attempted_sources: List[str] = []
+
         for provider in sorted_providers:
-            # P1: Circuit breaker check - skip if provider is circuit-broken
-            if self._should_circuit_break(provider.name):
-                provider_errors[provider.name] = f'熔断中（连续失败{self._circuit_breaker_threshold}次，跳过{self._circuit_breaker_duration}s）'
+            if self._is_circuit_broken(provider.name):
+                cb = self._circuit_breakers.get(provider.name)
+                state = cb.get_state() if cb else {}
+                provider_errors[provider.name] = f'熔断中（{state.get("state", "open")}）'
                 continue
 
-            # Skip providers that don't implement this method
             if not hasattr(provider, method_name):
                 continue
+
+            attempted_sources.append(provider.name)
             try:
                 method = getattr(provider, method_name)
-                # 单 provider 调用超时护栏（2026-08-05 评分挂死事故）：
-                # provider 内部网络调用可能无超时（如 akshare 封装 requests），
-                # 黑洞时永久阻塞会把调用方线程池拖死。超时即判失败降级下一个。
-                # 挂死线程不等待回收（shutdown(wait=False)），由 OS 善后。
                 import concurrent.futures
                 guard = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
@@ -186,11 +177,6 @@ class DataProviderManager(IDataProviderManager):
                     try:
                         return method(*args, **kwargs)
                     finally:
-                        # 护栏线程里若建了 ORM scoped session（DatabaseKlineProvider
-                        # 等查库 provider），线程 shutdown(wait=False) 后 session
-                        # 无人回收，连接呈 idle in transaction 靠 GC 轮盘释放
-                        # （WatchEngine 盯盘每轮每符号一次 get_klines，2026-08-18
-                        # 实测稳态 7 条泄漏）。在同一护栏线程 finally 释放。
                         try:
                             from infrastructure.persistence.orm import close_session
                             close_session()
@@ -208,8 +194,6 @@ class DataProviderManager(IDataProviderManager):
                 finally:
                     guard.shutdown(wait=False)
 
-                # P1 Fix: 不能用 "if result" 判断，因为DataFrame的truth value is ambiguous
-                # 直接检查 result is not None 和 _is_valid
                 if result is not None and self._is_valid(result):
                     self._record_success(provider.name)
                     return {
@@ -218,7 +202,6 @@ class DataProviderManager(IDataProviderManager):
                         'source': provider.name
                     }
 
-                # provider 可通过 self.last_error 暴露具体失败原因
                 reason = getattr(provider, 'last_error', None) or '返回空数据或数据校验未通过'
                 provider_errors[provider.name] = reason
                 self._record_failure(provider.name)
@@ -228,11 +211,10 @@ class DataProviderManager(IDataProviderManager):
                 provider_errors[provider.name] = f"{type(e).__name__}: {e}"
                 self._record_failure(provider.name)
 
-        # All providers failed
         return {
             'success': False,
             'error': 'All data providers failed',
-            'attempted_sources': [p.name for p in providers],
+            'attempted_sources': attempted_sources,
             'provider_errors': provider_errors,
         }
 
@@ -291,18 +273,18 @@ class DataProviderManager(IDataProviderManager):
         return True
 
     def _record_success(self, provider_name: str):
-        """Record successful provider call (cache channel health)"""
+        """Record successful provider call - resets circuit breaker"""
         import time
         if provider_name in self.provider_stats:
             self.provider_stats[provider_name]['success'] += 1
-            # Reset consecutive failures on success
             self.provider_stats[provider_name]['consecutive_failures'] = 0
-            # P1: Clear circuit breaker on success
-            self.provider_stats[provider_name]['circuit_breaker_until'] = 0
             self.provider_stats[provider_name]['last_attempt_time'] = time.time()
+        cb = self._circuit_breakers.get(provider_name)
+        if cb and cb.is_open():
+            cb.reset()
 
     def _record_failure(self, provider_name: str):
-        """Record failed provider call (cache channel health)"""
+        """Record failed provider call"""
         import time
         if provider_name in self.provider_stats:
             self.provider_stats[provider_name]['failure'] += 1
@@ -310,15 +292,13 @@ class DataProviderManager(IDataProviderManager):
             self.provider_stats[provider_name]['consecutive_failures'] = consecutive
             self.provider_stats[provider_name]['last_attempt_time'] = time.time()
 
-            # P1: Trigger circuit breaker if threshold reached
-            if consecutive >= self._circuit_breaker_threshold:
-                circuit_until = time.time() + self._circuit_breaker_duration
-                self.provider_stats[provider_name]['circuit_breaker_until'] = circuit_until
-                logger.warning(
-                    f"Circuit breaker triggered for {provider_name}: "
-                    f"{consecutive} consecutive failures, "
-                    f"blocked until {circuit_until} ({self._circuit_breaker_duration}s)"
-                )
+    def reset_circuit_breakers(self):
+        """Manually reset all circuit breakers to CLOSED state"""
+        for name, cb in self._circuit_breakers.items():
+            cb.reset()
+            if name in self.provider_stats:
+                self.provider_stats[name]['consecutive_failures'] = 0
+        logger.info("All circuit breakers reset")
 
     def _sort_providers_by_health(self, providers: List) -> List:
         """Sort providers by health score (success rate + consecutive failures)

@@ -5,6 +5,7 @@ Implements the Circuit Breaker pattern using the pybreaker library.
 """
 
 import logging
+import time
 from typing import Any, Dict, Optional
 import pybreaker
 
@@ -22,6 +23,9 @@ class _StateListener(pybreaker.CircuitBreakerListener):
     def state_change(self, cb: pybreaker.CircuitBreaker, old_state: str, new_state: str):
         """Called when circuit breaker state changes."""
         self._parent._state = new_state
+        state_name = getattr(new_state, 'name', str(new_state))
+        if state_name == 'open':
+            self._parent._opened_at = time.time()
         logger.info(f"Circuit breaker '{self._parent.name}' state changed: {old_state} -> {new_state}")
 
     def before_call(self, cb: pybreaker.CircuitBreaker, func, *args, **kwargs):
@@ -81,6 +85,7 @@ class CircuitBreaker(ICircuitBreaker):
         self.timeout = timeout
         self.success_threshold = success_threshold
         self.name = name or "default"
+        self._opened_at: float = 0
 
         listener = _StateListener(self)
 
@@ -100,7 +105,7 @@ class CircuitBreaker(ICircuitBreaker):
         Returns:
             True if requests are allowed, False otherwise
         """
-        return self._state != pybreaker.STATE_OPEN
+        return self._breaker.current_state != pybreaker.STATE_OPEN
 
     def is_open(self) -> bool:
         """Check if circuit is open (ICircuitBreaker interface method).
@@ -108,7 +113,18 @@ class CircuitBreaker(ICircuitBreaker):
         Returns:
             True if circuit is open (rejecting requests), False otherwise
         """
-        return self._state == pybreaker.STATE_OPEN
+        return self._breaker.current_state == pybreaker.STATE_OPEN
+
+    def should_allow_call(self) -> bool:
+        """Check if a call should be allowed (for HALF_OPEN transition)
+
+        Returns True if:
+        - Circuit is CLOSED (normal operation)
+        - Circuit is OPEN but timeout has expired (allow one试探 call)
+        """
+        if self._breaker.current_state != pybreaker.STATE_OPEN:
+            return True
+        return time.time() - self._opened_at >= self.timeout
 
     def call(self, func, *args, **kwargs) -> Any:
         """Execute a function with circuit breaker protection (ICircuitBreaker interface method).
