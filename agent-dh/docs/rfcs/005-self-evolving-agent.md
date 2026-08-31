@@ -2,7 +2,7 @@
 
 | 字段 | 值 |
 |---|---|
-| 状态 | ✅ 已实施（2026-08-31：Phase 1-3 工具与 evolution_scheduler 全部落地） |
+| 状态 | ✅ 已实施（2026-08-31：Phase 1-3 工具与 evolution_scheduler 全部落地；Phase 4 元学习待启动） |
 | 创建 | 2026-08-20 |
 | 取代 | `MASTER-PLAN.md` / `MASTER-PLAN-v2.md` 的 Sprint 0-9（DevOps 自愈方向废弃） |
 | 上游 | 用户决策：进化范围=提示词自主改写 + 交易规则自主增删 + 策略参数自主调整；验证门=回测+模拟盘；硬约束=遵守 A 股交易规则 |
@@ -176,6 +176,30 @@
 
 > **能力进化（改代码）不设独立 Phase**：它由能力缺口按需触发，贯穿所有 Phase；每次触发走 4.8 的提案→测试→部署→验证流程。
 
+### 完成进度（2026-08-31 更新）
+
+| Phase | 状态 | 组件 | 实测证据 |
+|---|---|---|---|
+| **Phase 1 基因组地基** | ✅ 完成 | genome_manager | 基因组 4 段就位：constitution（宪法，锁定）+ principles/rules/lessons（evolvable，g10→g17 共 8 代，git 留痕） |
+| | ✅ | decision_tagging | simulation_order 28 行（21 unknown + g13×4 + g14/g15/g16 各 1）、simulation_pending_orders 9 行（8 unknown + g14×1）；P1 收尾（2026-08-31）实现订单落库注入 genome_version：模型/DDL/API/client/工具全链路贯通 + 历史回填 + 双库 DDL |
+| **Phase 2 归因与蒸馏** | ✅ 完成 | attribution | learning_analyze 规则健康度；genome_history 归因可追溯（每代记录驱动经验/来源） |
+| | ✅ | distill_engine | daily_distill / evolution-distill-daily（工作日 16:00）调度启用；learning_distill 规则候选带置信度与样本数 |
+| **Phase 3 提示词进化闭环** | ✅ 完成 | prompt_evolver | genome_update 支持 candidate/active；g16 曾以 candidate 观察、g14 lessons 经验证门转正（promote） |
+| | ✅ | validation_gate | candidate→转正/回滚裁决；evolution-gate-adjudicate（周日 11:00）调度启用 |
+| | ✅ | evolution_scheduler | evolution-weekly-variant（周六 10:00）/ evolution-distill-daily（工作日 16:00）/ evolution-gate-adjudicate（周日 11:00）全部启用，共 9 个 evolution 任务 |
+| **Phase 4 元学习** | ⏳ 未启动 | — | 待首轮完整进化周期（9/1 蒸馏 → 9/6 变异 → 9/7 裁决 → 9/8 启用）运行后接入 |
+| **capability_evolution（贯穿）** | ✅ 可用 | lifecycle | self_restart wip 检查点 + 启动失败自动回滚 + self_finalize 合并/回滚（2026-08-31 修复：实现真实 git merge/rollback，见下方变更日志）+ self_system_prompt/self_info |
+
+**2026-08-31 补充说明（self_finalize 修复）**：capability_evolution 闭环此前存在断点——`self_finalize` 工具声称支持 `action=merge/rollback`（RFC 005 §4.8 部署→验证→合并流程的收尾端），但实现只写日志 + `process.exit(0)` 直接关机，从不执行 git 合并/回滚，工具 schema 也没有 action 参数。已修复（commit 于 main）：
+
+- `action=merge`：把 self_restart 的 wip 检查点分支快进合并回基线，更新 last-known-good，删除 wip 分支，清理 pending——**验证通过后的正确收尾**
+- `action=rollback`：放弃 wip 分支改动，硬重置到 last-known-good，强制删除 wip 分支——**验证失败后的正确收尾**
+- `action=exit`：仅保存状态退出（保留旧版关机语义，显式调用才关机）
+- 无 wip 检查点（改动已直接在基线）时 merge/rollback 自动降级为仅确认/清理，**不再误杀进程**
+- 补集成测试 10/10（merge/rollback/exit 三路径 + resetHard/deleteBranch(force)）
+
+至此 RFC 005 的完整闭环（变异 → wip 部署 → 验证 → merge/rollback 收尾）全部可用。
+
 ## 6. 成功指标
 
 | 指标 | 目标 |
@@ -210,4 +234,8 @@
 
 ---
 
-**下一步**：Phase 4（元学习）— 分析"哪类变异有效"，进化节奏自适应；观察 evolution_scheduler 首个完整周运行（9/1 蒸馏 → 9/6 变异 → 9/7 裁决 → 9/8 启用）。
+**下一步（2026-08-31 更新）**：
+
+1. **Phase 4（元学习）**：分析"哪类变异有效"（改提示词 vs 加规则 vs 调参数 vs 改代码），进化节奏自适应。启动条件：evolution_scheduler 完成首个完整周运行（9/1 蒸馏 → 9/6 变异 → 9/7 裁决 → 9/8 启用），收集 ≥1 轮完整闭环数据。
+2. **观察期**：evolution 调度全链路（蒸馏→变异→裁决→启用）首周运行无中断；decision_tagging 在真实交易时段写入 genome_version 的完整性（当前 28 行订单中 21 行 pre-g10 回填为 unknown，属预期）。
+3. **成功指标基线化**：按 §6 指标建立基准——蒸馏规则存活率、提示词版本进步、归因覆盖率 100%、进化节奏每周 ≥1 变异候选、宪法零突破。
