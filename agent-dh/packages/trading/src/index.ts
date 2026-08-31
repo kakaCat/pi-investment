@@ -90,7 +90,7 @@ export interface Config {
  * Portfolio management, trade execution, and monitoring tools.
  */
 export default class TradingPlugin extends Service {
-  static inject = ['tools'];
+  static inject = ['tools', 'genome'];  // genome: RFC 005 决策打标（PortfolioTradeTool 注入 genome_version）
   static Config = z.object({
     quantsysV2: z.object({
       baseURL: z.string().default('http://localhost:5001'),
