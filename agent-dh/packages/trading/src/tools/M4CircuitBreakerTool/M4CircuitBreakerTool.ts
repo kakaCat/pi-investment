@@ -115,7 +115,7 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
         unblocked: false,
         error: errorMsg,
         actions: ['检查失败（API 不可用），降级跳过本次熔断判定'],
-        circuit_breaker_status: null,
+        circuit_breaker_status: undefined,
       };
     }
 
@@ -201,7 +201,7 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
         triggered: true,
         unblocked: false,
         actions,
-        circuit_breaker_status: breakerStatus,
+        circuit_breaker_status: breakerStatus ?? undefined,
       };
     }
 
@@ -230,7 +230,7 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
         triggered: false,
         unblocked: true,
         actions,
-        circuit_breaker_status: breakerStatus,
+        circuit_breaker_status: breakerStatus ?? undefined,
       };
     }
 
@@ -246,7 +246,7 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
             ? `熔断激活中（${maxDrawdown.toFixed(2)}%，仍需修复）`
             : `无熔断（${maxDrawdown.toFixed(2)}%）`),
       ],
-      circuit_breaker_status: breakerStatus,
+      circuit_breaker_status: breakerStatus ?? undefined,
     };
   }
 
