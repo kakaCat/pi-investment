@@ -57,6 +57,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
         try:
             backtest = BacktestResult(
                 strategy_name=result.get('strategy_name'),
+                symbol=result.get('symbol'),
                 start_date=result.get('start_date'),
                 end_date=result.get('end_date'),
                 initial_capital=result.get('initial_capital'),
@@ -67,8 +68,14 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
                 max_drawdown=result.get('max_drawdown'),
                 win_rate=result.get('win_rate'),
                 total_trades=result.get('total_trades'),
-                config=result.get('config'),
-                metrics=result.get('metrics'),
+                winning_trades=result.get('winning_trades'),
+                losing_trades=result.get('losing_trades'),
+                avg_win=result.get('avg_win'),
+                avg_loss=result.get('avg_loss'),
+                profit_factor=result.get('profit_factor'),
+                parameters=result.get('parameters'),
+                equity_curve=result.get('equity_curve'),
+                trade_details=result.get('trade_details'),
             )
             created = self.create(backtest)
             return created.id if created else 0
