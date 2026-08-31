@@ -57,6 +57,7 @@ GET /api/game/market/manipulation-detect → HTTP 200, 29s
 
 - 龙虎榜查询仅对连板≥2 的股票执行（游资拉板必上榜；0/1连板查询纯属浪费实时网络调用）
 - 席位查询重试 3→2 次、关键词覆盖 14 个游资聚集地
+- **事件去重**：同 symbol 已有 active 事件则跳过落库（实测修复前每次检测重复落库 1 条，2 次 API 调用产生 6 条重复；修复后保持 1 条）
 
 **全池检测耗时：162s → 37s（4.4x 提速）**，API 29s 返回。
 
@@ -64,10 +65,11 @@ GET /api/game/market/manipulation-detect → HTTP 200, 29s
 
 | 层 | 内容 |
 |----|------|
-| 后端服务 | `quantsys-v2/application/services/manipulation_detector.py`（6 信号 + 阶段/风险/公允价 + 落库） |
+| 后端服务 | `quantsys-v2/application/services/manipulation_detector.py`（6 信号 + 阶段/风险/公允价 + 落库 + 去重） |
 | 落库 | `quant.manipulation_events` 表 + AgentIntelligenceORMRepository 真实读写（原日志 stub → 落地） |
 | API | `GET /api/game/market/manipulation-detect`（FastAPI，已有，现可用） |
 | Agent 工具 | `manipulation_detect`（competition 插件，M7-1 已注册） |
+| 盘后例程 | `post-market-routine-live`（工作日 15:30）已接入第 5 步：操纵检测，active 事件→飞书高优告警 |
 
 ## 7. 经验沉淀
 

@@ -170,7 +170,8 @@
 - 落库僵尸桩修复：AgentIntelligenceORMRepository create_event/get_active_events/resolve_event 原为日志 stub → 实现 ManipulationEvent ORM 真实读写 quant.manipulation_events（抄底机会链路恢复）
 - 8/28 判定 3 只操纵：冀衡医药（10连板+换手42%+游资）、深中华A（7连板+游资+量能4.76x）、千金药业（3连板+游资+量能）→ markup 阶段 extreme 风险
 - 9/1 实时 API 全链路：`GET /api/game/market/manipulation-detect` → 002418 康盛股份（5连板+游资+量能）markup conf 0.95 action=avoid，29s 返回
-- 性能：龙虎榜仅对连板≥2 查询 + 重试 3→2 → 全池检测 162s→37s（4.4x）
+- 性能：龙虎榜仅对连板≥2 查询 + 重试 3→2 → 全池检测 162s→37s（4.4x）；**事件去重**（同 symbol active 跳过落库，实测 6 条重复→1 条）
+- **盘后例程接入**：post-market-routine-live（工作日 15:30）第 5 步新增操纵检测，active 事件→飞书高优告警
 - 交付文档：docs/work-logs/2026-09/m7-3-manipulation-cycle-delivery.md
 
 ---

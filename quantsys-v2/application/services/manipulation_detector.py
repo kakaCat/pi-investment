@@ -617,6 +617,15 @@ class ManipulationDetector:
             manipulation: 操纵事件数据
         """
         try:
+            # 去重：同 symbol 已有 active 事件则跳过（避免盘后例程每日重复告警）
+            try:
+                existing = self.manipulation_repo.get_active_events()
+                if any(ev.get('symbol') == manipulation['symbol'] for ev in existing):
+                    logger.info(f"操纵事件去重跳过: {manipulation['symbol']} 已有 active 事件")
+                    return
+            except Exception as de:
+                logger.debug(f"去重查询失败（继续保存）: {de}")
+
             event = {
                 'symbol': manipulation['symbol'],
                 'manipulation_type': manipulation['manipulation_type'],
