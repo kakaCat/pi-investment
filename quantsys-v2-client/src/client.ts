@@ -1237,6 +1237,21 @@ export class QuantsysV2Client {
     return this.unwrap(response.data, 'detectManipulation');
   }
 
+  /**
+   * Retail panic index (M7-2)
+   * Real endpoint: GET /api/market/perception/panic-index
+   */
+  async getRetailPanicIndex(params?: {
+    trade_date?: string;
+    days?: number;
+  }): Promise<any> {
+    const url = params?.days != null
+      ? '/api/market/perception/panic-index/series'
+      : '/api/market/perception/panic-index';
+    const response = await this.client.get(url, { params: params?.days != null ? { days: params.days } : params });
+    return this.unwrap(response.data, 'getRetailPanicIndex');
+  }
+
   // ==================== Signal Tracking APIs (M3-1) ====================
 
   /**

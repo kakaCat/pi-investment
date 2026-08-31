@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OpponentBehaviorTool } from '../packages/competition/src/tools/OpponentBehaviorTool/OpponentBehaviorTool.js';
 import { ManipulationDetectTool } from '../packages/competition/src/tools/ManipulationDetectTool/ManipulationDetectTool.js';
+import { RetailPanicIndexTool } from '../packages/competition/src/tools/RetailPanicIndexTool/RetailPanicIndexTool.js';
 
 describe('OpponentBehaviorTool', () => {
   let tool: OpponentBehaviorTool;
@@ -112,6 +113,76 @@ describe('ManipulationDetectTool', () => {
       const result = await (tool as any).execute({ symbol: '600519' }, mockContext);
       expect(result.risk_level).toBe('low');
       expect(result.symbol).toBe('600519');
+    });
+  });
+});
+
+describe('RetailPanicIndexTool (M7-2)', () => {
+  let tool: RetailPanicIndexTool;
+  let mockClient: any;
+  const mockContext = {} as any;
+
+  beforeEach(() => {
+    mockClient = { getRetailPanicIndex: vi.fn() };
+    tool = new RetailPanicIndexTool(mockClient);
+  });
+
+  describe('validate', () => {
+    it('accepts empty params', () => {
+      expect((tool as any).validate({}).success).toBe(true);
+    });
+
+    it('rejects invalid days', () => {
+      const result = (tool as any).validate({ days: 0 });
+      expect(result.success).toBe(false);
+      expect(result.field).toBe('days');
+    });
+
+    it('rejects invalid trade_date', () => {
+      expect((tool as any).validate({ trade_date: '2026/08/28' }).success).toBe(false);
+    });
+  });
+
+  describe('execute', () => {
+    it('maps single-day result', async () => {
+      mockClient.getRetailPanicIndex.mockResolvedValue({
+        success: true, trade_date: '2026-08-28', panic_index: 19.6, level: 'greed', degraded: false,
+        dimensions: { retail_flow_score: 46.4, ad_ratio_score: 0, volume_score: 0, fear_greed_score: 5, volatility_score: 46.5 },
+        raw: { retail_flow_yi: 2.2, ad_ratio: 2.42, volume_ratio: 0.81, fear_greed_index: 95, volatility: 1.59 },
+      });
+      const result = await (tool as any).execute({}, mockContext);
+      expect(result.panic_index).toBe(19.6);
+      expect(result.level).toBe('greed');
+      expect(result.dimensions.retail_flow_score).toBe(46.4);
+      expect(result.raw.fear_greed_index).toBe(95);
+      expect(result.degraded).toBe(false);
+      expect(mockClient.getRetailPanicIndex).toHaveBeenCalledWith({});
+    });
+
+    it('maps series result', async () => {
+      mockClient.getRetailPanicIndex.mockResolvedValue({
+        success: true,
+        series: [
+          { trade_date: '2026-08-28', panic_index: 19.6, level: 'greed', degraded: false, dimensions: {}, raw: {} },
+          { trade_date: '2026-08-27', panic_index: 22.0, level: 'greed', degraded: false, dimensions: {}, raw: {} },
+        ],
+      });
+      const result = await (tool as any).execute({ days: 2 }, mockContext);
+      expect(result.panic_index).toBe(19.6);
+      expect(mockClient.getRetailPanicIndex).toHaveBeenCalledWith({ days: 2 });
+    });
+
+    it('falls back when backend returns empty', async () => {
+      mockClient.getRetailPanicIndex.mockResolvedValue({});
+      const result = await (tool as any).execute({}, mockContext);
+      expect(result.panic_index).toBeNull();
+      expect(result.degraded).toBe(true);
+      expect(result.level).toBe('unknown');
+    });
+
+    it('throws on client error', async () => {
+      mockClient.getRetailPanicIndex.mockRejectedValue(new Error('boom'));
+      await expect((tool as any).execute({}, mockContext)).rejects.toThrow('散户恐慌指数查询失败');
     });
   });
 });

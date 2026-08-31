@@ -158,3 +158,30 @@ async def update_theme_catalyst(theme_id: int, req: UpdateThemeCatalystRequest):
             status_code=404,
             detail=f"Theme ID {theme_id} 不存在或无可更新字段")
     return {"success": True, "updated": obj.to_dict()}
+
+
+# ------------------------------------------------------------------
+# M7-2 散户恐慌代理指标（Retail Panic Index）
+# ------------------------------------------------------------------
+@router.get("/panic-index")
+async def retail_panic_index(trade_date: Optional[str] = None):
+    """散户恐慌代理指标（连续 0-100，替代离散三档）。
+
+    合成维度：散户资金流(30%) + 涨跌家数比(25%) + 恐慌贪婪指数(20%)
+              + 量能(15%) + 波动率(10%)；缺失维度按剩余权重归一。
+    等级：≥70 panic / 50-70 leaning_panic / 30-50 leaning_greed / <30 greed
+    trade_date 缺省取最近一日。
+    """
+    from application.services.retail_panic_index_service import RetailPanicIndexService
+    svc = RetailPanicIndexService()
+    result = svc.compute_index(trade_date)
+    return {"success": True, **result}
+
+
+@router.get("/panic-index/series")
+async def retail_panic_index_series(days: int = 20):
+    """最近 N 日散户恐慌指数序列（观察恐慌-贪婪周期）。"""
+    from application.services.retail_panic_index_service import RetailPanicIndexService
+    svc = RetailPanicIndexService()
+    series = svc.series(min(days, 60))
+    return {"success": True, "series": series}

@@ -14,7 +14,7 @@
 
 **完成状态分布**:
 - ✅ 完全就绪：M0（100%）、M4（100%）
-- 🟡 进行中：M1（85%）、M2（67%）、M3（33%）、M5（50%）、M6（75%）、M7（33%）
+- 🟡 进行中：M1（85%）、M2（67%）、M3（33%）、M5（50%）、M6（75%）、M7（67%）
 - 🔴 未启动：M7（0%）、M8（0%）
 
 ---
@@ -140,15 +140,15 @@
 
 ---
 
-### M7 对手博弈情报 - **33%** 🟡
+### M7 对手博弈情报 - **67%** 🟡
 
 | 工单 | 状态 | 验收结果 |
 |------|------|----------|
 | M7-1 opponent_behavior 数据源 | ✅ 完成 | 后端数据源修复（fund_flow_repo 兜底注入）+ Agent 工具注册（opponent_behavior） |
-| M7-2 散户恐慌代理指标 | ⏳ 未启动 | 需实施 |
-| M7-3 操纵周期识别 | ⏳ 未启动 | 工具已注册（manipulation_detect），后端检测逻辑待验证/完善 |
+| M7-2 散户恐慌代理指标 | ✅ 完成 | 连续 0-100 恐慌指数（五维合成）+ API + Agent 工具（retail_panic_index） |
+| M7-3 操纵周期识别 | ⏳ 未启动 | 工具已注册（manipulation_detect），后端检测逻辑待实战验证 |
 
-**完成度**: 1/3 = **33%**
+**完成度**: 2/3 = **67%**
 
 **M7-1 opponent_behavior 数据源（2026-09-01，investor w-8366e526 完成）**：
 - 诊断：OpponentBehaviorService 未注入 fund_flow_repo → 散户/机构行为全 degraded（数据不可用）
@@ -156,6 +156,14 @@
 - 效果：散户 neutral（+21.2亿）、机构 accumulating（+645亿，电子/软件/专用设备）、市场阶段 consolidation、1 个博弈机会，degraded=False
 - Agent 工具注册：新增 `opponent_behavior` + `manipulation_detect` 两个工具（competition 插件 1→3 个）
 - 验证：schema 冒烟 30/30 + 新工具单测 11/11 通过；API `GET /api/game/market/opponent-behavior` 返回真实数据
+
+**M7-2 散户恐慌代理指标（2026-09-01，investor w-8366e526 完成）**：
+- 方案：从离散三档（20/50/80 跳变）升级为**连续 0-100 恐慌指数**，五维合成
+- 维度与权重：散户资金流(30%) + 涨跌家数比(25%) + 恐慌贪婪指数(20%) + 量能(15%) + 波动率(10%)；缺失维度按剩余权重归一
+- 后端：`RetailPanicIndexService`（application/services/retail_panic_index_service.py）+ 端点 `GET /api/market/perception/panic-index` 与 `/panic-index/series`
+- Agent 工具：新增 `retail_panic_index`（competition 插件 4 个工具），支持单日/序列查询
+- 实测：8/28 指数 19.6（贪婪，fg=95 吻合）；8/24 曾 56.6（偏恐慌）——序列能区分恐慌-贪婪周期
+- 验证：schema 冒烟 19/19 + 工具单测 18/18 + 真实 API 调用通过
 
 ---
 

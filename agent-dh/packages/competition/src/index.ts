@@ -4,6 +4,7 @@ import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { createCompetitionAnalysisTool } from './tools/CompetitionAnalysisTool';
 import { createOpponentBehaviorTool } from './tools/OpponentBehaviorTool';
 import { createManipulationDetectTool } from './tools/ManipulationDetectTool';
+import { createRetailPanicIndexTool } from './tools/RetailPanicIndexTool';
 
 export interface Config {
   quantsysV2?: {
@@ -46,6 +47,8 @@ export default class CompetitionPlugin extends Service {
     ctx.tools.register(createOpponentBehaviorTool(qv2));
     // 操纵检测（M7-3：拉高出货/对倒识别）
     ctx.tools.register(createManipulationDetectTool(qv2));
+    // 散户恐慌代理指标（M7-2：连续恐慌指数）
+    ctx.tools.register(createRetailPanicIndexTool(qv2));
   }
 }
 
@@ -62,6 +65,10 @@ export {
   ManipulationDetectTool,
   manipulationDetectPrompt,
 } from './tools/ManipulationDetectTool';
+export {
+  RetailPanicIndexTool,
+  retailPanicIndexPrompt,
+} from './tools/RetailPanicIndexTool';
 export type {
   CompetitionAnalysisParams,
   CompetitionAnalysisResult,
@@ -74,3 +81,7 @@ export type {
   ManipulationDetectParams,
   ManipulationDetectResult,
 } from './tools/ManipulationDetectTool';
+export type {
+  RetailPanicIndexParams,
+  RetailPanicIndexResult,
+} from './tools/RetailPanicIndexTool';
