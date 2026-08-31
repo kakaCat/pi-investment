@@ -48,6 +48,7 @@ export const positionListPrompt: ToolPrompt<PositionListParams, PositionListResu
   notes: [
     '⚠️  卖出前必须确认 shares_available（T+1限制）',
     '💡 当日买入的股份次日才可卖',
+    '⏱️  现价为调用时刻实时刷新行情（含 priceUpdatedAt 时间戳；priceStale=true 表示行情拉取失败、返回旧价，此时应先 data_fetch_quote 核实再决策）',
   ],
 
   relatedTools: ['account_info', 'portfolio_trade'],
@@ -78,6 +79,8 @@ export const positionListPrompt: ToolPrompt<PositionListParams, PositionListResu
           profitLoss: { type: 'number', description: '盈亏（元）' },
           profitLossPct: { type: 'number', description: '盈亏比例（%）' },
           profitToday: { type: 'number', description: '今日盈亏（元）' },
+          priceUpdatedAt: { type: 'string', description: '行情刷新时间戳（ISO），判断价格时效性' },
+          priceStale: { type: 'boolean', description: '行情陈旧标记：true=行情拉取失败返回旧价' },
         },
         additionalProperties: false,
       },

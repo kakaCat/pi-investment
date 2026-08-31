@@ -24,6 +24,8 @@ export interface AccountInfoResult {
   profitCount: number;
   lossCount: number;
   lastUpdated: string;
+  /** 行情陈旧标记：true=本次行情拉取失败，市值/盈亏基于旧价 */
+  priceStale?: boolean;
 }
 
 export const accountInfoPrompt: ToolPrompt<AccountInfoParams, AccountInfoResult> = {
@@ -48,6 +50,7 @@ export const accountInfoPrompt: ToolPrompt<AccountInfoParams, AccountInfoResult>
   notes: [
     '💡 只读操作，可随时调用',
     '💡 查看持仓明细用 position_list',
+    '⏱️  lastUpdated 为调用时刻实时刷新的行情时间戳；priceStale=true 表示行情拉取失败、盈亏基于旧价',
   ],
 
   relatedTools: ['position_list', 'portfolio_trade'],
@@ -77,7 +80,8 @@ export const accountInfoPrompt: ToolPrompt<AccountInfoParams, AccountInfoResult>
         liquidAssets: { type: 'number', description: '流动资产（元）' },
         profitCount: { type: 'integer', description: '盈利持仓数' },
         lossCount: { type: 'integer', description: '亏损持仓数' },
-        lastUpdated: { type: 'string', description: '更新时间' },
+        lastUpdated: { type: 'string', description: '更新时间（调用时刻实时刷新）' },
+        priceStale: { type: 'boolean', description: '行情陈旧标记：true=行情拉取失败，盈亏基于旧价' },
       },
       additionalProperties: true,
     },
