@@ -337,8 +337,26 @@ class AttributionService:
         """
         cursor = self.db.cursor()
         try:
+            # 日期过滤条件（按卖出/成交日归属到区间；未传则全量）
+            ph_filter, t_filter, sim_filter = "", "", ""
+            params_ph, params_t, params_sim = (), (), ()
+            if start_date:
+                ph_filter += " AND s.sell_date >= %s"
+                t_filter += " AND trade_date >= %s"
+                sim_filter += " AND trade_date >= %s"
+                params_ph += (start_date,)
+                params_t += (start_date,)
+                params_sim += (start_date,)
+            if end_date:
+                ph_filter += " AND s.sell_date <= %s"
+                t_filter += " AND trade_date <= %s"
+                sim_filter += " AND trade_date <= %s"
+                params_ph += (end_date,)
+                params_t += (end_date,)
+                params_sim += (end_date,)
+
             # ── 1. position_history 配对交易（止盈/持仓）──
-            cursor.execute("""
+            cursor.execute(f"""
                 WITH buys AS (
                     SELECT ph.position_id, ph.name,
                         SUM(ph.quantity) AS qty, MAX(ph.price) AS avg_buy,
@@ -357,22 +375,23 @@ class AttributionService:
                     CASE WHEN s.pnl IS NULL THEN 'holding'
                          WHEN s.pnl > 0 THEN 'take_profit' ELSE 'stop_loss' END AS outcome
                 FROM buys b LEFT JOIN sells s ON b.position_id = s.position_id
-            """)
+                WHERE s.sell_date IS NOT NULL{ph_filter}
+            """, params_ph)
             ph_rows = cursor.fetchall()
 
             # ── 2. trades 表（含中芯亏损等）──
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT symbol, name, trade_date, pnl, pnl_percent
-                FROM quant.trades WHERE pnl IS NOT NULL
-            """)
+                FROM quant.trades WHERE pnl IS NOT NULL{t_filter}
+            """, params_t)
             t_rows = cursor.fetchall()
 
             # ── 3. simulation_trades（策略模拟卖出）──
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT symbol, trade_date, realized_pnl
                 FROM quant.simulation_trades
-                WHERE action='SELL' AND realized_pnl IS NOT NULL
-            """)
+                WHERE action='SELL' AND realized_pnl IS NOT NULL{sim_filter}
+            """, params_sim)
             sim_rows = cursor.fetchall()
 
             # name→symbol 映射（trades 表提供）
@@ -479,5 +498,4 @@ class AttributionService:
                 'insights': insights,
             }
         finally:
-            if self._owns_connection:
-                self.db.close()
+            cursor.close()
