@@ -17,6 +17,7 @@ from adapters.inbound.fastapi_app.shared import (
     convert_keys_to_snake, get_query_params_snake_case, signal_to_opportunity,
     strategy_service, stock_pool_service, scoring_service, sector_rotation_service,
     _read_watchlist, _safe_float,
+    signal_repo, stock_repo,
 )
 
 logger = structlog.get_logger(__name__)
@@ -31,8 +32,8 @@ def get_signals_history():
     try:
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-        signals = ds.signal.get_latest_signals(limit=50)
-        stats = ds.signal.get_signal_stats(start_date, end_date)
+        signals = signal_repo.get_latest_signals(limit=50)
+        stats = signal_repo.get_signal_stats(start_date, end_date)
         return {'success': True, 'data': sanitize_for_json(signals), 'stats': sanitize_for_json(stats)}
     except Exception as e:
         return error_response({'success': False, 'error': str(e)}, 500)
@@ -116,7 +117,7 @@ def get_signal_detail(signal_id: str):
         signal_id = int(signal_id)
     except (ValueError, TypeError):
         return error_response({'success': False, 'error': f'无效的信号ID: {signal_id}'}, 400)
-    signal = ds.signal.get_signal(signal_id)
+    signal = signal_repo.get_signal(signal_id)
     if not signal:
         return error_response({'success': False, 'error': '信号不存在'}, 404)
     return api_response(signal_to_opportunity(signal))
@@ -163,7 +164,7 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
         if stocks_param:
             symbols = list(stocks_param) if isinstance(stocks_param, list) else [stocks_param]
         elif industries:
-            symbols = ds.stock.get_stocks_by_industries(industries)
+            symbols = stock_repo.get_stocks_by_industries(industries)
         else:
             try:
                 watchlist = _read_watchlist()
@@ -183,7 +184,7 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
         if selected_sectors_info:
             sector_score_map = {s['name']: s for s in selected_sectors_info['selected_sectors']}
             for opp in opportunities:
-                stock = ds.stock.get_by_symbol(opp['symbol'], ['industry'])
+                stock = stock_repo.get_by_symbol(opp['symbol'], ['industry'])
                 if stock:
                     industry = stock.get('industry', '')
                     opp['industry'] = industry
@@ -260,7 +261,7 @@ def _scan_strategy_opportunities(strategy_id: int, symbols: list) -> list:
 
 
 def _get_stock_name(symbol: str) -> str:
-    stock = ds.stock.get_by_symbol(symbol, ['name'])
+    stock = stock_repo.get_by_symbol(symbol, ['name'])
     return stock.get('name', symbol) if stock else symbol
 
 
@@ -275,18 +276,18 @@ def _risk_level_from_score(score: float) -> str:
 @router.post('/api/signals/approve/{signal_id}')
 @handle_api_error
 def approve_signal(signal_id: int):
-    signal = ds.signal.get_signal(signal_id)
+    signal = signal_repo.get_signal(signal_id)
     if not signal:
         return error_response({'success': False, 'error': '信号不存在'}, 404)
-    ds.signal.update_signal(signal_id, {'status': 'approved', 'updated_at': datetime.now()})
-    updated_signal = ds.signal.get_signal(signal_id)
+    signal_repo.update_signal(signal_id, {'status': 'approved', 'updated_at': datetime.now()})
+    updated_signal = signal_repo.get_signal(signal_id)
     return api_response(updated_signal, message='信号已批准')
 
 
 @router.post('/api/signals/reject/{signal_id}')
 @handle_api_error
 def reject_signal(signal_id: int, payload: Optional[Dict[str, Any]] = Body(None)):
-    signal = ds.signal.get_signal(signal_id)
+    signal = signal_repo.get_signal(signal_id)
     if not signal:
         return error_response({'success': False, 'error': '信号不存在'}, 404)
     data = payload or {}
@@ -294,15 +295,15 @@ def reject_signal(signal_id: int, payload: Optional[Dict[str, Any]] = Body(None)
     update_data = {'status': 'rejected', 'updated_at': datetime.now()}
     if reason:
         update_data['reject_reason'] = reason
-    ds.signal.update_signal(signal_id, update_data)
-    updated_signal = ds.signal.get_signal(signal_id)
+    signal_repo.update_signal(signal_id, update_data)
+    updated_signal = signal_repo.get_signal(signal_id)
     return api_response(updated_signal, message='信号已拒绝')
 
 
 @router.post('/api/signals/mark-error/{signal_id}')
 @handle_api_error
 def mark_error_signal(signal_id: int, payload: Optional[Dict[str, Any]] = Body(None)):
-    signal = ds.signal.get_signal(signal_id)
+    signal = signal_repo.get_signal(signal_id)
     if not signal:
         return error_response({'success': False, 'error': '信号不存在'}, 404)
     data = convert_keys_to_snake(payload or {})
@@ -310,8 +311,8 @@ def mark_error_signal(signal_id: int, payload: Optional[Dict[str, Any]] = Body(N
     update_data = {'status': 'error', 'updated_at': datetime.now()}
     if error_desc:
         update_data['error_description'] = error_desc
-    ds.signal.update_signal(signal_id, update_data)
-    updated_signal = ds.signal.get_signal(signal_id)
+    signal_repo.update_signal(signal_id, update_data)
+    updated_signal = signal_repo.get_signal(signal_id)
     return api_response(updated_signal, message='信号已标记为错误')
 
 
@@ -325,8 +326,8 @@ def execute_signal(payload: Optional[Dict[str, Any]] = Body(None)):
     if not symbol or not signal:
         return error_response({'success': False, 'error': 'Missing symbol or signal'}, 400)
     try:
-        from application.services.order_service import create_order_from_signal
-        result = create_order_from_signal(ds, signal, symbol, order_type)
+        from application.services.new_order_service import create_order_from_signal
+        result = create_order_from_signal(signal, symbol, order_type)
         return {'success': True, **result}
     except Exception as e:
         logger.error(f"Failed to execute signal: {e}", exc_info=True)
@@ -342,9 +343,11 @@ def backtest_signal(payload: Optional[Dict[str, Any]] = Body(None)):
     account_balance = data.get('account_balance', {'total_assets': 1000000, 'cash': 500000}) if data else {'total_assets': 1000000, 'cash': 500000}
     try:
         from application.services.signal_processor import SignalProcessor
-        latest = ds.kline.get_latest_daily_kline(symbol)
+        from infrastructure.services.service_factory import ServiceFactory
+        kline_repo = ServiceFactory.get_kline_repository()
+        latest = kline_repo.get_latest_daily_kline(symbol)
         current_price = latest['close'] if latest else 0
-        processor = SignalProcessor(ds)
+        processor = SignalProcessor()
         trade_params = processor.process_signal(signal, symbol, current_price, account_balance)
         position_value = trade_params['quantity'] * trade_params['price']
         risk_amount = abs(trade_params['quantity'] * (trade_params['price'] - trade_params['stop_loss_price'])) if trade_params['stop_loss_price'] else 0
@@ -393,22 +396,22 @@ def get_signals(request: Request):
 
         if date_filter == 'today':
             today = datetime.now().date()
-            signals = ds.signal.get_signals_by_date_range(
+            signals = signal_repo.get_signals_by_date_range(
                 start_date=today.strftime('%Y-%m-%d'), end_date=today.strftime('%Y-%m-%d'))
         elif date_filter:
             # repo 签名为 action（非 signal_type），且库内大写契约——入参需 upper
             # （2026-08-13 修契约漂移）
-            signals = ds.signal.get_signals_by_date(
+            signals = signal_repo.get_signals_by_date(
                 date_filter, action=signal_type.upper() if signal_type else None)
         elif days:
             # get_latest_signals 只认 limit；days 语义=近 N 天 → date_range（同日修）
             from datetime import timedelta
             end = datetime.now().date()
             start = end - timedelta(days=days)
-            signals = ds.signal.get_signals_by_date_range(
+            signals = signal_repo.get_signals_by_date_range(
                 start_date=start.strftime('%Y-%m-%d'), end_date=end.strftime('%Y-%m-%d'))
         else:
-            signals = ds.signal.get_latest_signals(limit=limit)
+            signals = signal_repo.get_latest_signals(limit=limit)
 
         # repo 的 by_date/date_range 返回 ORM Signal 对象（get_latest_signals 返回
         # dict）——统一转 dict 再消费，否则 .get 直接 500（2026-08-13 生产事故）
@@ -426,7 +429,7 @@ def get_signals(request: Request):
         if industries:
             filtered = []
             for o in opportunities:
-                stock = ds.stock.get_by_symbol(o['symbol'])
+                stock = stock_repo.get_by_symbol(o['symbol'])
                 if stock and stock.get('industry', '') in industries:
                     filtered.append(o)
             opportunities = filtered

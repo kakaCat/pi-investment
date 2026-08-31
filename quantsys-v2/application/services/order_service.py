@@ -1,21 +1,27 @@
 """
-订单生命周期管理服务
+订单生命周期管理服务 [DEPRECATED - 内部实现]
+
+DEPRECATED: 所有外部调用方应使用 new_order_service.py。
+本模块仅由 new_order_service.py 内部委托调用，不再作为公共 API。
 
 处理订单的创建、成交、取消、过期等完整生命周期。
-通过 DataService (ds) 统一访问 PortfolioRepository。
+通过直接访问 PortfolioRepository、StockRepository 等。
 """
 from typing import Optional, Dict, List
 from datetime import datetime, timedelta
 import structlog
 
 from infrastructure.quantlib.core.validators import validate_symbol, validate_positive
-from application.services.data_service import DataService
+from infrastructure.services.service_factory import ServiceFactory
+from domain.ports import (
+    IPortfolioRepository, IStockRepository, ISignalRepository,
+    IRiskRepository, IKlineRepository,
+)
 
 logger = structlog.get_logger(__name__)
 
 
 def create_order(
-    ds: DataService,
     symbol: str,
     action: str,
     order_type: str,
@@ -25,12 +31,15 @@ def create_order(
     signal_id: int = None,
     from_signal: bool = False,
     account_name: str = None,
+    portfolio_repo: Optional[IPortfolioRepository] = None,
+    stock_repo: Optional[IStockRepository] = None,
+    signal_repo: Optional[ISignalRepository] = None,
+    risk_repo: Optional[IRiskRepository] = None,
 ) -> int:
     """
     创建新订单
 
     Args:
-        ds: DataService 实例
         symbol: 股票代码
         action: 交易方向 ('buy' / 'sell')
         order_type: 订单类型 ('limit' / 'market' / 'stop')
@@ -57,10 +66,8 @@ def create_order(
 
     # 如果提供了 signal_id，验证信号是否存在
     if signal_id is not None:
-        # 信号查询属于 signal 域（ISignalRepository.get_signal 返回 Signal 对象）。
-        # 历史上这里误调 ds.portfolio.get_signal_by_id（从不存在的方法），
-        # 信号链路订单在此必炸 AttributeError——2026-08-04 修复。
-        signal = ds.signal.get_signal(signal_id)
+        signal_repo = signal_repo or ServiceFactory.get_signal_repository()
+        signal = signal_repo.get_signal(signal_id)
         if signal is None:
             raise ValueError(f"信号不存在: signal_id={signal_id}")
         logger.info(f"订单关联信号: signal_id={signal_id} strategy={signal.strategy_id}")
@@ -92,7 +99,8 @@ def create_order(
         raise ValueError(f"A股交易数量必须是100股的整数倍，当前数量: {quantity}")
 
     # 验证股票是否存在
-    stock = ds.stock.get_by_symbol(symbol)
+    stock_repo = stock_repo or ServiceFactory.get_stock_repository()
+    stock = stock_repo.get_by_symbol(symbol)
     if stock is None:
         raise RuntimeError(f"股票不存在: {symbol}")
 
@@ -103,7 +111,8 @@ def create_order(
     if action == 'buy':
         # 买入订单：检查可用资金
         # 获取账户余额
-        account = ds.risk.get_latest_balance()
+        risk_repo = risk_repo or ServiceFactory.get_risk_repository()
+        account = risk_repo.get_latest_balance()
         if account is None:
             raise ValueError("无法获取账户余额信息，请先初始化账户数据")
 
@@ -162,7 +171,7 @@ def create_order(
 
         # 回退到旧 holdings 表（历史兼容）
         if available_quantity is None:
-            holding = ds.portfolio.get_holding(symbol) if ds.portfolio is not None else None
+            holding = portfolio_repo.get_holding(symbol) if portfolio_repo is not None else None
             if holding is None:
                 raise ValueError(
                     f"无持仓记录: {symbol}，无法卖出。"
@@ -208,20 +217,20 @@ def create_order(
         f"qty={quantity} price={price} reason={reason}"
     )
 
-    return ds.portfolio.create_order(order_data)
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+    return portfolio_repo.create_order(order_data)
 
 
 def fill_order(
-    ds: DataService,
     order_id: int,
     fill_price: float,
     fill_quantity: int = None,
+    portfolio_repo: Optional[IPortfolioRepository] = None,
 ) -> Dict:
     """
     成交订单（支持部分成交和全部成交）
 
     Args:
-        ds: DataService 实例
         order_id: 订单ID
         fill_price: 成交价格
         fill_quantity: 成交数量（None表示全部成交剩余数量）
@@ -243,8 +252,10 @@ def fill_order(
     if fill_quantity is not None:
         validate_positive(fill_quantity, "fill_quantity")
 
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+
     # 获取当前订单
-    order = ds.portfolio.get_order(order_id)
+    order = portfolio_repo.get_order(order_id)
     if order is None:
         raise RuntimeError(f"订单不存在: {order_id}")
 
@@ -287,7 +298,7 @@ def fill_order(
         new_status = 'partial'
 
     # 更新订单状态
-    ds.portfolio.update_order_status(
+    portfolio_repo.update_order_status(
         order_id=order_id,
         status=new_status,
         filled_quantity=new_filled_qty,
@@ -296,7 +307,7 @@ def fill_order(
 
     # 创建交易记录
     from application.services.trade_service import create_trade_from_order
-    trade_id = create_trade_from_order(ds, order, fill_price, fill_quantity)
+    trade_id = create_trade_from_order(portfolio_repo=portfolio_repo, order=order, fill_price=fill_price, fill_quantity=fill_quantity)
 
     # 回写 signal_test_log 和 strategy_performance（如果订单关联了信号）
     if order.get('signal_id'):
@@ -308,7 +319,7 @@ def fill_order(
         )
 
     # 刷新订单状态
-    updated_order = ds.portfolio.get_order(order_id)
+    updated_order = portfolio_repo.get_order(order_id)
 
     # ========== 更新持仓 ==========
     if order['action'] == 'buy':
@@ -330,12 +341,11 @@ def fill_order(
     }
 
 
-def cancel_order(ds: DataService, order_id: int) -> bool:
+def cancel_order(order_id: int, portfolio_repo: Optional[IPortfolioRepository] = None) -> bool:
     """
     取消待处理订单
 
     Args:
-        ds: DataService 实例
         order_id: 订单ID
 
     Returns:
@@ -345,7 +355,8 @@ def cancel_order(ds: DataService, order_id: int) -> bool:
         ValueError: 订单状态不允许取消
         RuntimeError: 订单不存在
     """
-    order = ds.portfolio.get_order(order_id)
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+    order = portfolio_repo.get_order(order_id)
     if order is None:
         raise RuntimeError(f"订单不存在: {order_id}")
 
@@ -354,24 +365,22 @@ def cancel_order(ds: DataService, order_id: int) -> bool:
             f"只能取消 pending 状态的订单，当前状态: {order['status']} (id={order_id})"
         )
 
-    result = ds.portfolio.cancel_order(order_id)
+    result = portfolio_repo.cancel_order(order_id)
 
     logger.info(f"取消订单: order_id={order_id} symbol={order['symbol']}")
 
     return result
 
 
-def expire_orders(ds: DataService) -> int:
+def expire_orders(portfolio_repo: Optional[IPortfolioRepository] = None) -> int:
     """
     过期所有超过 expires_at 的 pending 订单
-
-    Args:
-        ds: DataService 实例
 
     Returns:
         过期的订单数量
     """
-    pending_orders = ds.portfolio.get_pending_orders()
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+    pending_orders = portfolio_repo.get_pending_orders()
     now = datetime.now()
     expired_count = 0
 
@@ -391,7 +400,7 @@ def expire_orders(ds: DataService) -> int:
 
         if expires_at < now:
             try:
-                ds.portfolio.update_order_status(order['id'], 'expired')
+                portfolio_repo.update_order_status(order['id'], 'expired')
                 expired_count += 1
                 logger.info(f"订单过期: order_id={order['id']} symbol={order['symbol']}")
             except Exception as e:
@@ -400,12 +409,11 @@ def expire_orders(ds: DataService) -> int:
     return expired_count
 
 
-def _update_position_on_buy(ds: DataService, order: Dict, fill_price: float, fill_quantity: int):
+def _update_position_on_buy(order: Dict, fill_price: float, fill_quantity: int, portfolio_repo: Optional[IPortfolioRepository] = None):
     """
     买入成交后更新持仓（新增或加仓）
 
     Args:
-        ds: DataService 实例
         order: 订单字典
         fill_price: 成交价格
         fill_quantity: 成交数量
@@ -459,7 +467,8 @@ def _update_position_on_buy(ds: DataService, order: Dict, fill_price: float, fil
             logger.warning(f"simulation 持仓更新异常，回退旧系统: {e}")
     
     # 回退到旧 holdings 系统（历史兼容）
-    existing = ds.portfolio.get_holding(symbol)
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+    existing = portfolio_repo.get_holding(symbol)
 
     if existing:
         # 加仓：加权平均成本
@@ -504,16 +513,15 @@ def _update_position_on_buy(ds: DataService, order: Dict, fill_price: float, fil
             'notes': None,
         }
 
-    ds.portfolio.add_or_update_holding(holding_data)
+    portfolio_repo.add_or_update_holding(holding_data)
     logger.info(f"持仓已更新（legacy）: {symbol} {'加仓' if existing else '建仓'} {fill_quantity}股 @ {fill_price}")
 
 
-def _update_position_on_sell(ds: DataService, order: Dict, fill_price: float, fill_quantity: int):
+def _update_position_on_sell(order: Dict, fill_price: float, fill_quantity: int, portfolio_repo: Optional[IPortfolioRepository] = None):
     """
     卖出成交后更新持仓（减仓或清仓）
 
     Args:
-        ds: DataService 实例
         order: 订单字典
         fill_price: 成交价格
         fill_quantity: 成交数量
@@ -571,7 +579,8 @@ def _update_position_on_sell(ds: DataService, order: Dict, fill_price: float, fi
             logger.warning(f"simulation 持仓更新异常，回退旧系统: {e}")
     
     # 回退到旧 holdings 系统（历史兼容）
-    existing = ds.portfolio.get_holding(symbol)
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+    existing = portfolio_repo.get_holding(symbol)
 
     if not existing:
         logger.warning(f"卖出但无持仓（legacy）: {symbol}，跳过持仓更新")
@@ -582,7 +591,7 @@ def _update_position_on_sell(ds: DataService, order: Dict, fill_price: float, fi
 
     if new_qty <= 0:
         # 全部清仓
-        ds.portfolio.remove_holding(symbol)
+        portfolio_repo.remove_holding(symbol)
         logger.info(f"持仓已清仓（legacy）: {symbol} 卖出 {fill_quantity}股 @ {fill_price}")
     else:
         # 减仓：保持 avg_cost 不变
@@ -606,7 +615,7 @@ def _update_position_on_sell(ds: DataService, order: Dict, fill_price: float, fi
             'buy_reason': existing.get('buy_reason'),
             'notes': existing.get('notes'),
         }
-        ds.portfolio.add_or_update_holding(holding_data)
+        portfolio_repo.add_or_update_holding(holding_data)
         logger.info(f"持仓已减仓（legacy）: {symbol} 卖出 {fill_quantity}股，剩余 {new_qty}股")
 
 
@@ -709,31 +718,30 @@ def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symb
         conn.close()
 
 
-def get_order(ds: DataService, order_id: int) -> Optional[Dict]:
+def get_order(order_id: int, portfolio_repo: Optional[IPortfolioRepository] = None) -> Optional[Dict]:
     """
     获取单个订单详情
 
     Args:
-        ds: DataService 实例
         order_id: 订单ID
 
     Returns:
         订单详情，不存在返回None
     """
-    return ds.portfolio.get_order(order_id)
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+    return portfolio_repo.get_order(order_id)
 
 
 def list_orders(
-    ds: DataService,
     symbol: str = None,
     status: str = None,
     limit: int = 50,
+    portfolio_repo: Optional[IPortfolioRepository] = None,
 ) -> List[Dict]:
     """
     获取订单列表（支持筛选）
 
     Args:
-        ds: DataService 实例
         symbol: 股票代码筛选（可选）
         status: 状态筛选（可选）
         limit: 返回数量上限
@@ -741,7 +749,8 @@ def list_orders(
     Returns:
         订单列表
     """
-    return ds.portfolio.get_orders(symbol=symbol, status=status, limit=limit)
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+    return portfolio_repo.get_orders(symbol=symbol, status=status, limit=limit)
 
 
 # ========================================================================
@@ -780,10 +789,10 @@ def validate_state_transition(current_state: str, new_state: str) -> bool:
 
 
 def update_order_state(
-    ds: DataService,
     order_id: str,
     new_state: str,
     reason: str = None,
+    portfolio_repo: Optional[IPortfolioRepository] = None,
 ) -> bool:
     """
     Update an order's state with transition validation.
@@ -793,7 +802,6 @@ def update_order_state(
     transitioned away from.
 
     Args:
-        ds: DataService instance
         order_id: Order ID to update
         new_state: Target state
         reason: Optional reason for the state change
@@ -801,9 +809,11 @@ def update_order_state(
     Returns:
         True if the transition was valid and applied
     """
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+
     # Get current order state
     try:
-        order = ds.portfolio.get_order(int(order_id))
+        order = portfolio_repo.get_order(int(order_id))
     except (TypeError, ValueError):
         logger.error(f"Invalid order_id for state transition: {order_id}")
         return False
@@ -824,7 +834,7 @@ def update_order_state(
 
     # Apply the state change
     try:
-        ds.portfolio.update_order_status(
+        portfolio_repo.update_order_status(
             order_id=int(order_id),
             status=new_state,
         )
@@ -833,7 +843,7 @@ def update_order_state(
         return False
 
     # Record state change in audit log or history
-    _record_state_change(ds, order_id, current_state, new_state, reason)
+    _record_state_change(order_id, current_state, new_state, reason)
 
     log_msg = (
         f"Order {order_id} state transition: {current_state} -> {new_state}"
@@ -846,7 +856,6 @@ def update_order_state(
 
 
 def _record_state_change(
-    ds: DataService,
     order_id: str,
     from_state: str,
     to_state: str,
@@ -859,7 +868,6 @@ def _record_state_change(
     dedicated state_history table.
 
     Args:
-        ds: DataService instance
         order_id: Order ID
         from_state: Previous state
         to_state: New state
@@ -876,7 +884,7 @@ def _record_state_change(
     logger.debug(f"Order state change recorded: {json.dumps(change_record)}")
 
 
-def get_state_history(ds: DataService, order_id: str) -> List[Dict]:
+def get_state_history(order_id: str, portfolio_repo: Optional[IPortfolioRepository] = None) -> List[Dict]:
     """
     Get the state change history for an order.
 
@@ -885,14 +893,14 @@ def get_state_history(ds: DataService, order_id: str) -> List[Dict]:
     this would query that table.
 
     Args:
-        ds: DataService instance
         order_id: Order ID
 
     Returns:
         List of state history records
     """
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
     try:
-        order = ds.portfolio.get_order(int(order_id))
+        order = portfolio_repo.get_order(int(order_id))
     except (TypeError, ValueError):
         return []
 
@@ -915,13 +923,16 @@ def get_state_history(ds: DataService, order_id: str) -> List[Dict]:
 
 
 def create_bracket_order(
-    ds: DataService,
     symbol: str,
     action: str,
     quantity: float,
     entry_price: float,
     take_profit_price: float,
     stop_loss_price: float,
+    portfolio_repo: Optional[IPortfolioRepository] = None,
+    stock_repo: Optional[IStockRepository] = None,
+    risk_repo: Optional[IRiskRepository] = None,
+    signal_repo: Optional[ISignalRepository] = None,
 ) -> List[int]:
     """
     Create a bracket (OCO) order: entry + take profit + stop loss.
@@ -937,7 +948,6 @@ def create_bracket_order(
     support (e.g., IBKR's Bracket Order type or Alpaca's bracket orders).
 
     Args:
-        ds: DataService instance
         symbol: Stock symbol
         action: 'buy' (long) or 'sell' (short)
         quantity: Number of shares
@@ -991,35 +1001,44 @@ def create_bracket_order(
 
     # Create entry order (limit)
     entry_order_id = create_order(
-        ds=ds,
         symbol=symbol,
         action=action,
         order_type='limit',
         quantity=int(quantity),
         price=entry_price,
         reason=f'Bracket entry: TP={take_profit_price} SL={stop_loss_price}',
+        portfolio_repo=portfolio_repo,
+        stock_repo=stock_repo,
+        risk_repo=risk_repo,
+        signal_repo=signal_repo,
     )
 
     # Create take profit order (limit at target)
     tp_order_id = create_order(
-        ds=ds,
         symbol=symbol,
         action=close_action,
         order_type='limit',
         quantity=int(quantity),
         price=take_profit_price,
         reason=f'Bracket TP for entry order {entry_order_id}',
+        portfolio_repo=portfolio_repo,
+        stock_repo=stock_repo,
+        risk_repo=risk_repo,
+        signal_repo=signal_repo,
     )
 
     # Create stop loss order (stop market)
     sl_order_id = create_order(
-        ds=ds,
         symbol=symbol,
         action=close_action,
         order_type='stop',
         quantity=int(quantity),
         price=stop_loss_price,
         reason=f'Bracket SL for entry order {entry_order_id}',
+        portfolio_repo=portfolio_repo,
+        stock_repo=stock_repo,
+        risk_repo=risk_repo,
+        signal_repo=signal_repo,
     )
 
     logger.info(
@@ -1032,16 +1051,19 @@ def create_bracket_order(
 
 
 def create_order_from_signal(
-    ds: DataService,
     signal: dict,
     symbol: str,
-    order_type: str = 'limit'
+    order_type: str = 'limit',
+    portfolio_repo: Optional[IPortfolioRepository] = None,
+    stock_repo: Optional[IStockRepository] = None,
+    risk_repo: Optional[IRiskRepository] = None,
+    signal_repo: Optional[ISignalRepository] = None,
+    kline_repo: Optional[IKlineRepository] = None,
 ) -> dict:
     """
     从策略信号创建订单
 
     Args:
-        ds: DataService 实例
         signal: 策略信号
         symbol: 股票代码
         order_type: 订单类型
@@ -1057,10 +1079,15 @@ def create_order_from_signal(
     from application.services.signal_processor import SignalProcessor
     import uuid
 
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+    stock_repo = stock_repo or ServiceFactory.get_stock_repository()
+    risk_repo = risk_repo or ServiceFactory.get_risk_repository()
+    kline_repo = kline_repo or ServiceFactory.get_kline_repository()
+
     # 1. 获取当前价格和账户信息
-    latest = ds.kline.get_latest_daily_kline(symbol)
+    latest = kline_repo.get_latest_daily_kline(symbol)
     current_price = latest['close'] if latest else 0
-    account = ds.risk.get_latest_balance()
+    account = risk_repo.get_latest_balance()
 
     # Fallback for test environments where account data may not exist
     # Production deployments should ensure get_latest_balance() returns valid data
@@ -1071,23 +1098,23 @@ def create_order_from_signal(
         }
 
     # 2. 处理信号
-    processor = SignalProcessor(ds)
+    processor = SignalProcessor()
     trade_params = processor.process_signal(
         signal, symbol, current_price, account
     )
 
     # 3. 获取股票信息
-    stock = ds.stock.get_by_symbol(symbol)
+    stock = stock_repo.get_by_symbol(symbol)
     if not stock:
         raise RuntimeError(f"股票不存在: {symbol}")
 
-    stock_name = stock.get('name', symbol)
+    stock_name = stock.get('name', symbol) if isinstance(stock, dict) else getattr(stock, 'name', symbol)
 
     # 4. 生成订单组 ID
     order_group = str(uuid.uuid4())
 
     # 5. 创建主订单
-    order_id = ds.portfolio.create_order_with_risk_params(
+    order_id = portfolio_repo.create_order_with_risk_params(
         symbol=symbol,
         name=stock_name,
         action=trade_params['action'],
@@ -1108,7 +1135,7 @@ def create_order_from_signal(
 
     # 6. 创建止损单（如果有）
     if trade_params['stop_loss_price'] and trade_params['action'] == 'buy':
-        stop_loss_order_id = ds.portfolio.create_order_with_risk_params(
+        stop_loss_order_id = portfolio_repo.create_order_with_risk_params(
             symbol=symbol,
             name=stock_name,
             action='sell',
@@ -1123,7 +1150,7 @@ def create_order_from_signal(
 
     # 7. 创建止盈单（如果有）
     if trade_params['take_profit_price'] and trade_params['action'] == 'buy':
-        take_profit_order_id = ds.portfolio.create_order_with_risk_params(
+        take_profit_order_id = portfolio_repo.create_order_with_risk_params(
             symbol=symbol,
             name=stock_name,
             action='sell',

@@ -55,49 +55,6 @@ class ServiceFactory:
 
     @classmethod
     @lru_cache(maxsize=1)
-    def get_data_service(cls):
-        """获取DataService实例
-
-        P2-3: 优先使用 EnhancedServiceFactory（配置驱动 + 依赖注入）
-        如果未注册则回退到直接构造（传入 None 参数避免实例化接口）
-        """
-        if 'data_service' not in cls._instances:
-            # 尝试从 EnhancedServiceFactory 获取
-            try:
-                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-                from application.services.data_service import DataService
-
-                # 确保 EnhancedServiceFactory 已完成配置注册（import 链中 ds 可能先于
-                # _try_get_from_enhanced 被访问，此时未注册会误判 is_registered=False，
-                # 导致缓存 stock_repo=None 的坏实例且 @lru_cache 永久生效）
-                _ensure_enhanced_factory()
-
-                # 尝试解析已注册的实例
-                if EnhancedServiceFactory.is_registered(DataService):
-                    cls._instances['data_service'] = EnhancedServiceFactory.resolve(DataService)
-                    logger.info("DataService resolved from EnhancedServiceFactory")
-                else:
-                    # 回退：构造时传入 None（不实例化接口）
-                    cls._instances['data_service'] = DataService(
-                        stock_repo=None,
-                        kline_repo=None,
-                        signal_repo=None,
-                        simulation_repo=None,
-                        portfolio_repo=None,
-                        factor_repo=None,
-                        backtest_repo=None,
-                        risk_repo=None,
-                        strategy_repo=None,
-                        execution_repo=None,
-                    )
-                    logger.warning("DataService initialized without dependency injection (fallback mode)")
-            except Exception as e:
-                logger.error(f"Failed to initialize DataService: {e}")
-                raise
-        return cls._instances['data_service']
-
-    @classmethod
-    @lru_cache(maxsize=1)
     def get_strategy_code_service(cls):
         """获取StrategyCodeService实例
 
@@ -148,13 +105,14 @@ class ServiceFactory:
             from application.services.opportunity_scoring_service import OpportunityScoringService
             from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
 
-            ds = cls.get_data_service()
+            kline_repo = cls.get_kline_repository()
+            stock_repo = cls.get_stock_repository()
             pool_repo = StockPoolORMRepository()
             factor_adapter = get_factor_adapter()
-            scoring_service = OpportunityScoringService(ds.kline, ds.stock, factor_adapter)
+            scoring_service = OpportunityScoringService(kline_repo, stock_repo, factor_adapter)
 
             cls._instances['stock_pool_service'] = StockPoolService(
-                ds.stock,
+                stock_repo,
                 pool_repo=pool_repo,
                 scoring_service=scoring_service
             )
@@ -177,12 +135,13 @@ class ServiceFactory:
             from adapters.outbound.repositories.financial_repository import FinancialORMRepository
             from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
 
-            ds = cls.get_data_service()
+            kline_repo = cls.get_kline_repository()
+            stock_repo = cls.get_stock_repository()
             factor_adapter = get_factor_adapter()
             financial_repo = FinancialORMRepository()
             fund_flow_repo = FundFlowORMRepository()
             cls._instances['scoring_service'] = OpportunityScoringService(
-                ds.kline, ds.stock, factor_adapter,
+                kline_repo, stock_repo, factor_adapter,
                 financial_repo=financial_repo,
                 fund_flow_repo=fund_flow_repo,
             )
@@ -201,8 +160,7 @@ class ServiceFactory:
 
         # 回退到旧实现
         if 'stock_scoring_service' not in cls._instances:
-            ds = cls.get_data_service()
-            cls._instances['stock_scoring_service'] = StockScoringService(ds)
+            cls._instances['stock_scoring_service'] = StockScoringService()
             logger.info("StockScoringService initialized (legacy)")
         return cls._instances['stock_scoring_service']
 
@@ -218,9 +176,10 @@ class ServiceFactory:
 
         # 回退到旧实现
         if 'sector_rotation_service' not in cls._instances:
-            ds = cls.get_data_service()
+            stock_repo = cls.get_stock_repository()
+            kline_repo = cls.get_kline_repository()
             cls._instances['sector_rotation_service'] = SectorRotationService(
-                ds.stock, ds.kline
+                stock_repo, kline_repo
             )
             logger.info("SectorRotationService initialized (legacy)")
         return cls._instances['sector_rotation_service']
@@ -313,11 +272,11 @@ class ServiceFactory:
     @classmethod
     @lru_cache(maxsize=1)
     def get_order_service(cls):
-        """获取OrderService实例（模块级单例 order_service）"""
+        """获取OrderService实例（模块级单例 new_order_service）"""
         if 'order_service' not in cls._instances:
-            from application.services import order_service
-            cls._instances['order_service'] = order_service
-            logger.info("OrderService initialized")
+            from application.services import new_order_service
+            cls._instances['order_service'] = new_order_service
+            logger.info("OrderService initialized (via new_order_service)")
         return cls._instances['order_service']
 
     @classmethod
@@ -631,9 +590,7 @@ class ServiceFactory:
         # 回退到旧实现
         if 'data_provider_manager' not in cls._instances:
             from adapters.outbound.datasources.manager import DataProviderManager
-            # 传入 DataService 以支持 DatabaseKlineProvider
-            ds = cls.get_data_service()
-            cls._instances['data_provider_manager'] = DataProviderManager(ds)
+            cls._instances['data_provider_manager'] = DataProviderManager()
             logger.info("DataProviderManager initialized (legacy)")
         return cls._instances['data_provider_manager']
 
@@ -660,7 +617,7 @@ class ServiceFactory:
         Returns:
             IStockRepository: Stock仓库接口实现
         """
-        from domain.ports.stock_repository_port import IStockRepository
+        from domain.ports.repository_ports_extended import IStockRepository
         enhanced = _try_get_from_enhanced(IStockRepository)
         if enhanced:
             return enhanced
@@ -680,7 +637,7 @@ class ServiceFactory:
         Returns:
             IStockPoolRepository: StockPool仓库接口实现
         """
-        from domain.ports.stock_pool_repository_port import IStockPoolRepository
+        from domain.ports.repository_ports_extended import IStockPoolRepository
         enhanced = _try_get_from_enhanced(IStockPoolRepository)
         if enhanced:
             return enhanced
@@ -700,7 +657,7 @@ class ServiceFactory:
         Returns:
             IStrategyRepository: Strategy仓库接口实现
         """
-        from domain.ports.strategy_repository_port import IStrategyRepository
+        from domain.ports.repository_ports_extended import IStrategyRepository
         enhanced = _try_get_from_enhanced(IStrategyRepository)
         if enhanced:
             return enhanced
@@ -720,7 +677,7 @@ class ServiceFactory:
         Returns:
             IKlineRepository: Kline仓库接口实现
         """
-        from domain.ports.kline_repository_port import IKlineRepository
+        from domain.ports.repository_ports_extended import IKlineRepository
         enhanced = _try_get_from_enhanced(IKlineRepository)
         if enhanced:
             return enhanced
@@ -740,7 +697,7 @@ class ServiceFactory:
         Returns:
             ISignalRepository: Signal仓库接口实现
         """
-        from domain.ports.signal_repository_port import ISignalRepository
+        from domain.ports.repository_ports_extended import ISignalRepository
         enhanced = _try_get_from_enhanced(ISignalRepository)
         if enhanced:
             return enhanced
@@ -753,10 +710,48 @@ class ServiceFactory:
         return cls._instances['signal_repository']
 
     @classmethod
+    @lru_cache(maxsize=1)
+    def get_portfolio_repository(cls):
+        from domain.ports.repository_ports import IPortfolioRepository
+        enhanced = _try_get_from_enhanced(IPortfolioRepository)
+        if enhanced:
+            return enhanced
+        if 'portfolio_repository' not in cls._instances:
+            from adapters.outbound.repositories.portfolio_repository import PortfolioORMRepository
+            cls._instances['portfolio_repository'] = PortfolioORMRepository()
+            logger.info("PortfolioORMRepository initialized (legacy)")
+        return cls._instances['portfolio_repository']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_risk_repository(cls):
+        from domain.ports.repository_ports import IRiskRepository
+        enhanced = _try_get_from_enhanced(IRiskRepository)
+        if enhanced:
+            return enhanced
+        if 'risk_repository' not in cls._instances:
+            from adapters.outbound.repositories.risk_repository import RiskORMRepository
+            cls._instances['risk_repository'] = RiskORMRepository()
+            logger.info("RiskORMRepository initialized (legacy)")
+        return cls._instances['risk_repository']
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_factor_repository(cls):
+        from domain.ports.repository_ports import IFactorRepository
+        enhanced = _try_get_from_enhanced(IFactorRepository)
+        if enhanced:
+            return enhanced
+        if 'factor_repository' not in cls._instances:
+            from adapters.outbound.repositories.factor_repository import FactorORMRepository
+            cls._instances['factor_repository'] = FactorORMRepository()
+            logger.info("FactorORMRepository initialized (legacy)")
+        return cls._instances['factor_repository']
+
+    @classmethod
     def reset_all(cls):
         """重置所有服务实例（用于测试）"""
         cls._instances.clear()
-        cls.get_data_service.cache_clear()
         cls.get_strategy_code_service.cache_clear()
         cls.get_stock_pool_service.cache_clear()
         cls.get_scoring_service.cache_clear()
@@ -822,11 +817,6 @@ class ServiceFactory:
 
 
 # 提供兼容旧代码的全局访问方式
-def get_data_service():
-    """获取DataService实例（兼容接口）"""
-    return ServiceFactory.get_data_service()
-
-
 def get_strategy_service():
     """获取StrategyCodeService实例（兼容接口）"""
     return ServiceFactory.get_strategy_code_service()
@@ -840,7 +830,6 @@ def get_stock_pool_service():
 # 导出所有服务获取函数
 __all__ = [
     'ServiceFactory',
-    'get_data_service',
     'get_strategy_service',
     'get_stock_pool_service',
 ]

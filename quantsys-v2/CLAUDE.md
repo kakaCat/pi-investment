@@ -308,11 +308,29 @@ The codebase follows hexagonal architecture principles with clear separation of 
 
 #### Domain Layer (`domain/`)
 Core business logic and domain models (no external dependencies):
+- **Accounts** (`domain/accounts/`) - 账户、资金、余额
+  - Models: Account, Balance
+  - Services: AccountService
+  - Ports: IAccountRepository
+- **Trading** (`domain/trading/`) - 订单、成交
+  - Models: Order, Trade
+  - Services: OrderService
+  - Ports: IOrderRepository, ITradeRepository
+- **Portfolio** (`domain/portfolio/`) - 持仓、资产配置
+  - Models: Position
+  - Services: PositionService
+  - Ports: IPositionRepository
+- **Legacy** (`domain/legacy/`) - 旧系统适配器
+  - LegacyOrderAdapter: 向后兼容旧 order_service API
 - **Brokers** (`domain/brokers/`) - Broker integration domain logic
 - **Chan Theory** (`domain/chan/`) - 缠论 technical analysis
 - **Quant Library** (`domain/quantlib/`) - Quantitative analysis, factors, risk models
 - **Strategies** (`domain/strategies/`) - Trading strategy implementations
 - **Benchmarks** (`domain/benchmarks/`) - Performance benchmarking tools
+
+**Domain Dependency Rule**: trading → accounts + portfolio; accounts and portfolio have no dependency on each other.
+
+**Service Factory**: `domain/service_factory.py` provides singleton `DomainServiceFactory` for dependency injection.
 
 #### Application Layer (`application/`)
 Use case orchestration and application services:

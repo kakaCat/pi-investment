@@ -18,11 +18,12 @@ from datetime import datetime, date
 from domain.ports import ISignalExecutionLogRepository, ISignalRepository, IStrategyRepository
 import structlog
 
-from application.services.data_service import DataService
 from application.services.strategy_code_service import StrategyCodeService
 from application.services.risk_check_service import RiskCheckService
-from application.services.order_service import create_order
+from application.services.new_order_service import create_order
 from live_trading.paper_trading_engine import PaperTradingEngine, Signal as TradeSignal
+from infrastructure.services.service_factory import ServiceFactory
+from domain.ports import IPortfolioRepository, IStockRepository, IKlineRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -35,36 +36,40 @@ class SignalExecutionScheduler:
 
     def __init__(
         self,
-        data_service: Optional[DataService] = None,
         strategy_service: Optional[StrategyCodeService] = None,
         risk_service: Optional[RiskCheckService] = None,
         signal_repo: Optional[ISignalRepository] = None,
         log_repo: Optional[ISignalExecutionLogRepository] = None,
         strategy_repo: Optional[IStrategyRepository] = None,
         paper_engine: Optional[PaperTradingEngine] = None,
+        portfolio_repo: Optional[IPortfolioRepository] = None,
+        stock_repo: Optional[IStockRepository] = None,
+        kline_repo: Optional[IKlineRepository] = None,
     ):
         """初始化信号执行调度器
 
         Args:
-            data_service: 数据服务（可选，用于依赖注入）
             strategy_service: 策略服务（可选）
             risk_service: 风控服务（可选）
             signal_repo: 信号仓库（可选）
             log_repo: 执行日志仓库（可选）
             strategy_repo: 策略仓库（可选）
             paper_engine: 纸面交易引擎（可选）
-
-        P2-1: 推荐通过 ServiceFactory 获取实例而非直接构造
+            portfolio_repo: PortfolioRepository（可选）
+            stock_repo: StockRepository（可选）
+            kline_repo: KlineRepository（可选）
         """
-        # P2-1: 依赖注入 - 优先使用传入的实例，否则回退到直接实例化
-        self.ds = data_service or DataService()
+        # P2-1: 依赖注入 - 优先使用传入的实例，否则回退到 ServiceFactory
+        self.portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+        self.stock_repo = stock_repo or ServiceFactory.get_stock_repository()
+        self.kline_repo = kline_repo or ServiceFactory.get_kline_repository()
         self.strategy_service = strategy_service or StrategyCodeService()
 
-        # risk_service 依赖 data_service，需要特殊处理
+        # risk_service 依赖 repo，需要特殊处理
         if risk_service:
             self.risk_service = risk_service
         else:
-            self.risk_service = RiskCheckService(self.ds)
+            self.risk_service = RiskCheckService()
 
         self.signal_repo = signal_repo
         self.log_repo = log_repo
@@ -379,7 +384,7 @@ class SignalExecutionScheduler:
         for signal in approved_signals:
             try:
                 # 获取最新价格
-                latest_kline = self.ds.kline.get_latest_daily_kline(signal['symbol'])
+                latest_kline = self.kline_repo.get_latest_daily_kline(signal['symbol'])
                 if not latest_kline:
                     logger.warning(f"无法获取股票价格: {signal['symbol']}")
                     continue
@@ -394,7 +399,6 @@ class SignalExecutionScheduler:
 
                 # 创建订单（保留原有订单系统记录）
                 order_id = create_order(
-                    ds=self.ds,
                     symbol=signal['symbol'],
                     action=signal['action'],
                     order_type='limit',
@@ -457,7 +461,7 @@ class SignalExecutionScheduler:
         prices = {}
         for symbol in symbols:
             try:
-                kline = self.ds.kline.get_latest_daily_kline(symbol)
+                kline = self.kline_repo.get_latest_daily_kline(symbol)
                 if kline:
                     prices[symbol] = float(kline['close'])
             except Exception:
@@ -529,7 +533,7 @@ class SignalExecutionScheduler:
 
         # Fallback: 从数据库直接查询所有股票
         try:
-            stocks = self.ds.stock.get_all()
+            stocks = self.stock_repo.get_all()
             if stocks and len(stocks) > 0:
                 stock_symbols = [s['symbol'] for s in stocks if s.get('symbol')]
                 logger.info(f"从数据库获取 {len(stock_symbols)} 只股票")
@@ -563,7 +567,7 @@ class SignalExecutionScheduler:
             股票名称
         """
         try:
-            stock = self.ds.stock.get_by_symbol(symbol)
+            stock = self.stock_repo.get_by_symbol(symbol)
             return stock.get('name', symbol) if stock else symbol
         except Exception:
             return symbol

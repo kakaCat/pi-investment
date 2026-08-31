@@ -8,7 +8,7 @@
 """
 import pytest
 from application.services.data_service import DataService
-from application.services import order_service
+from application.services import new_order_service as order_service
 
 
 @pytest.fixture

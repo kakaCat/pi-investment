@@ -2,7 +2,7 @@
 测试信号到订单的完整流程
 """
 import pytest
-from application.services.order_service import create_order_from_signal
+from application.services.new_order_service import create_order_from_signal
 from application.services.data_service import DataService
 
 

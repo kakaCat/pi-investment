@@ -416,47 +416,47 @@ class TestOrderStateMachine:
 
     def test_valid_transition_pending_to_partial(self):
         """Verify pending -> partial is valid."""
-        from application.services.order_service import validate_state_transition
+        from application.services.new_order_service import validate_state_transition
         assert validate_state_transition('pending', 'partial') is True
 
     def test_valid_transition_partial_to_filled(self):
         """Verify partial -> filled is valid."""
-        from application.services.order_service import validate_state_transition
+        from application.services.new_order_service import validate_state_transition
         assert validate_state_transition('partial', 'filled') is True
 
     def test_valid_transition_pending_to_cancelled(self):
         """Verify pending -> cancelled is valid."""
-        from application.services.order_service import validate_state_transition
+        from application.services.new_order_service import validate_state_transition
         assert validate_state_transition('pending', 'cancelled') is True
 
     def test_valid_transition_pending_to_rejected(self):
         """Verify pending -> rejected is valid."""
-        from application.services.order_service import validate_state_transition
+        from application.services.new_order_service import validate_state_transition
         assert validate_state_transition('pending', 'rejected') is True
 
     def test_invalid_transition_filled_to_partial(self):
         """Verify filled -> partial is NOT allowed (terminal state)."""
-        from application.services.order_service import validate_state_transition
+        from application.services.new_order_service import validate_state_transition
         assert validate_state_transition('filled', 'partial') is False
 
     def test_invalid_transition_cancelled_to_pending(self):
         """Verify cancelled -> pending is NOT allowed (terminal state)."""
-        from application.services.order_service import validate_state_transition
+        from application.services.new_order_service import validate_state_transition
         assert validate_state_transition('cancelled', 'pending') is False
 
     def test_invalid_transition_rejected_to_pending(self):
         """Verify rejected -> pending is NOT allowed."""
-        from application.services.order_service import validate_state_transition
+        from application.services.new_order_service import validate_state_transition
         assert validate_state_transition('rejected', 'pending') is False
 
     def test_invalid_transition_pending_to_filled(self):
         """Verify pending -> filled is NOT allowed (must go through partial)."""
-        from application.services.order_service import validate_state_transition
+        from application.services.new_order_service import validate_state_transition
         assert validate_state_transition('pending', 'filled') is False
 
     def test_order_states_constant(self):
         """Verify ORDER_STATES constant contains expected states."""
-        from application.services.order_service import ORDER_STATES
+        from application.services.new_order_service import ORDER_STATES
 
         expected_states = ['pending', 'partial', 'filled', 'cancelled', 'expired', 'rejected']
         for state in expected_states:

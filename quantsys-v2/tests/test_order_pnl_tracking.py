@@ -5,7 +5,7 @@ RED 阶段：编写失败的测试
 """
 import pytest
 from datetime import date, datetime
-from application.services.order_service import fill_order, create_order
+from application.services.new_order_service import fill_order, create_order
 from application.services.signal_test_log import SignalTestLog
 from application.services.data_service import DataService
 from adapters.outbound.repositories import StrategyPerformanceRepository

@@ -7,7 +7,7 @@ import sys
 import json
 from datetime import date, timedelta
 from application.services.signal_test_log import SignalTestLog
-from application.services.order_service import _update_signal_tracking
+from application.services.new_order_service import _update_signal_tracking
 from application.services.experience_accumulator import ExperienceAccumulator
 from adapters.outbound.repositories import StrategyPerformanceRepository
 
