@@ -33,6 +33,14 @@ class OpponentBehaviorService:
         """
         self.opponent_repo = opponent_repo
         self.fund_flow_repo = fund_flow_repo
+        # 兜底注入：调用方未注入时自建 repo，避免资金流数据静默缺失（M7-1）
+        if self.fund_flow_repo is None:
+            try:
+                from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
+                self.fund_flow_repo = FundFlowORMRepository()
+                logger.info("fund_flow_repo 兜底注入 FundFlowORMRepository")
+            except Exception as e:
+                logger.warning(f"fund_flow_repo 兜底注入失败: {e}")
 
     def analyze_current_behavior(self) -> Dict[str, Any]:
         """

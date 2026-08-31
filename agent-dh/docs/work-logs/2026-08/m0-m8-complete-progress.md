@@ -14,7 +14,7 @@
 
 **完成状态分布**:
 - ✅ 完全就绪：M0（100%）、M4（100%）
-- 🟡 进行中：M1（85%）、M2（67%）、M3（33%）、M5（50%）、M6（75%）
+- 🟡 进行中：M1（85%）、M2（67%）、M3（33%）、M5（50%）、M6（75%）、M7（33%）
 - 🔴 未启动：M7（0%）、M8（0%）
 
 ---
@@ -140,15 +140,22 @@
 
 ---
 
-### M7 对手博弈情报 - **0%** 🔴
+### M7 对手博弈情报 - **33%** 🟡
 
 | 工单 | 状态 | 验收结果 |
 |------|------|----------|
-| M7-1 opponent_behavior 数据源 | ⏳ 未启动 | 工具存在但数据源未诊断 |
+| M7-1 opponent_behavior 数据源 | ✅ 完成 | 后端数据源修复（fund_flow_repo 兜底注入）+ Agent 工具注册（opponent_behavior） |
 | M7-2 散户恐慌代理指标 | ⏳ 未启动 | 需实施 |
-| M7-3 操纵周期识别 | ⏳ 未启动 | 需实施 |
+| M7-3 操纵周期识别 | ⏳ 未启动 | 工具已注册（manipulation_detect），后端检测逻辑待验证/完善 |
 
-**完成度**: 0/3 = **0%**
+**完成度**: 1/3 = **33%**
+
+**M7-1 opponent_behavior 数据源（2026-09-01，investor w-8366e526 完成）**：
+- 诊断：OpponentBehaviorService 未注入 fund_flow_repo → 散户/机构行为全 degraded（数据不可用）
+- 修复：`__init__` 兜底注入 FundFlowORMRepository（向后兼容，未注入时自建）
+- 效果：散户 neutral（+21.2亿）、机构 accumulating（+645亿，电子/软件/专用设备）、市场阶段 consolidation、1 个博弈机会，degraded=False
+- Agent 工具注册：新增 `opponent_behavior` + `manipulation_detect` 两个工具（competition 插件 1→3 个）
+- 验证：schema 冒烟 30/30 + 新工具单测 11/11 通过；API `GET /api/game/market/opponent-behavior` 返回真实数据
 
 ---
 

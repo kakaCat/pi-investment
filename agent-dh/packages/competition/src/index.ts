@@ -2,6 +2,8 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { createCompetitionAnalysisTool } from './tools/CompetitionAnalysisTool';
+import { createOpponentBehaviorTool } from './tools/OpponentBehaviorTool';
+import { createManipulationDetectTool } from './tools/ManipulationDetectTool';
 
 export interface Config {
   quantsysV2?: {
@@ -38,8 +40,12 @@ export default class CompetitionPlugin extends Service {
   private registerTools() {
     const { ctx, qv2 } = this;
 
-    // 竞争分析
+    // 竞争分析（个股行业格局）
     ctx.tools.register(createCompetitionAnalysisTool(qv2));
+    // 对手行为分析（M7-1：散户/机构/游资博弈）
+    ctx.tools.register(createOpponentBehaviorTool(qv2));
+    // 操纵检测（M7-3：拉高出货/对倒识别）
+    ctx.tools.register(createManipulationDetectTool(qv2));
   }
 }
 
@@ -48,7 +54,23 @@ export {
   CompetitionAnalysisTool,
   competitionAnalysisPrompt,
 } from './tools/CompetitionAnalysisTool';
+export {
+  OpponentBehaviorTool,
+  opponentBehaviorPrompt,
+} from './tools/OpponentBehaviorTool';
+export {
+  ManipulationDetectTool,
+  manipulationDetectPrompt,
+} from './tools/ManipulationDetectTool';
 export type {
   CompetitionAnalysisParams,
   CompetitionAnalysisResult,
 } from './tools/CompetitionAnalysisTool';
+export type {
+  OpponentBehaviorParams,
+  OpponentBehaviorResult,
+} from './tools/OpponentBehaviorTool';
+export type {
+  ManipulationDetectParams,
+  ManipulationDetectResult,
+} from './tools/ManipulationDetectTool';
