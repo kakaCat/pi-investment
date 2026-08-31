@@ -7,11 +7,13 @@ import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { AgentOSClient } from '@pi-investment/agent-os-client';
+import {
+  createPromptEvolverTool,
+  createValidationGateTool,
+  createDailyDistillTool,
+} from './tools';
 import * as fs from 'fs';
 import * as path from 'path';
-
-// P0-8 注意：PromptEvolverTool 的 BaseTool 重构未完成，暂时移除导入
-// import { PromptEvolverTool } from './tools';
 
 /**
  * Minimal OsMemoryStore replacement (inlined from deleted @pi-investment/os-memory)
@@ -384,10 +386,16 @@ export default class EvolverPlugin extends Service {
   }
 
   private registerTools(): void {
-    // P0-8 注意：prompt_evolver 工具的 BaseTool 重构未完成
-    // 原工具有 556 行复杂逻辑（suggestions 处理、LLM 改写、candidate 观察、genome_update 调用）
-    // TODO: 完成 PromptEvolverTool 的 BaseTool 实现，或恢复原始 defineTool 版本
-    // 当前暂时禁用工具注册以避免编译错误
+    const { ctx, osMemory, llmProvider, llmModel, observeDays } = this;
+
+    // 1. Prompt Evolver - 接收 experience_distill 建议，生成段更新提案，调用 genome_update 应用
+    ctx.tools.register(createPromptEvolverTool(ctx, osMemory, llmProvider, llmModel, observeDays));
+
+    // 2. Validation Gate - RFC 008: 验证门——提案应用为 candidate 观察版，观察期后裁决转正/回滚
+    ctx.tools.register(createValidationGateTool(ctx, osMemory, observeDays));
+
+    // 3. Daily Distill - 每日蒸馏编排：experience_distill → prompt_evolver
+    ctx.tools.register(createDailyDistillTool(ctx, osMemory));
   }
 
   /**
