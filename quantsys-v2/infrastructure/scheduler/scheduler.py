@@ -1020,7 +1020,7 @@ class SchedulerService:
             "end_date": end_date,
             "initial_capital": initial_capital,
             "klines_available": kline_count,
-            "factors_available": list(data.get("factor_history", {}).keys()),
+            "factors_available": list(params.get("factor_history", {}).keys()),
         }
 
     def _handle_factor_compute(self, params: Dict[str, Any]) -> Dict[str, Any]:

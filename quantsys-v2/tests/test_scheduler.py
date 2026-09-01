@@ -742,7 +742,7 @@ class TestSchedulerConnection:
 
     def test_close_when_not_connected(self):
         scheduler = SchedulerService()
-        # Should not raise even if no connection was opened
+        # Should not raise even if repo is not yet initialized
         scheduler.close()
 
     def test_close_after_use(self):
@@ -752,12 +752,10 @@ class TestSchedulerConnection:
             pytest.skip("No database URL configured")
 
         scheduler = SchedulerService()
-        # Force connection
-        conn = scheduler._get_conn()
-        assert conn is not None
-        assert not conn.closed
+        # Access repo to force initialization
+        repo = scheduler.repo
+        assert repo is not None
         scheduler.close()
-        assert scheduler._conn is None
 
 
 # ============================================================================

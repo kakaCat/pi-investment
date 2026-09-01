@@ -17,17 +17,9 @@ from infrastructure.persistence.orm.models.scheduler import (
     SchedulerTaskConfig,
     SchedulerRun,
 )
+from infrastructure.scheduler.scheduler import next_run_time as _calc_next_run_time, parse_cron
 
 logger = logging.getLogger(__name__)
-
-
-def _next_run_time(cron_expression: str) -> Optional[datetime]:
-    """计算 cron 表达式的下次执行时间（简化实现，调用 croniter）"""
-    try:
-        from croniter import croniter
-        return croniter(cron_expression, datetime.now(timezone.utc)).get_next(datetime)
-    except Exception:
-        return None
 
 
 class SchedulerRepository(ISchedulerRepository):
@@ -61,7 +53,13 @@ class SchedulerRepository(ISchedulerRepository):
         params: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
     ) -> int:
-        next_run = _next_run_time(cron_expression)
+        parse_cron(cron_expression)
+
+        existing = self.session.query(SchedulerTaskConfig).filter_by(name=name).first()
+        if existing is not None:
+            raise ValueError(f"Task name {name!r} already exists")
+
+        next_run = _calc_next_run_time(cron_expression)
         config = SchedulerTaskConfig(
             name=name,
             description=description,
@@ -83,7 +81,7 @@ class SchedulerRepository(ISchedulerRepository):
 
     def remove_task(self, task_id: int) -> bool:
         try:
-            config = self.session.query(SchedulerTaskConfig).get(task_id)
+            config = self.session.get(SchedulerTaskConfig, task_id)
             if config is None:
                 return False
             self.session.delete(config)
@@ -101,17 +99,17 @@ class SchedulerRepository(ISchedulerRepository):
             return False
 
         if "cron_expression" in updates:
-            updates["next_run_at"] = _next_run_time(updates["cron_expression"])
+            updates["next_run_at"] = _calc_next_run_time(updates["cron_expression"])
         elif updates.get("is_enabled") is True:
             task = self.get_task(task_id)
             if task is not None:
-                updates["next_run_at"] = _next_run_time(task["cron_expression"])
+                updates["next_run_at"] = _calc_next_run_time(task["cron_expression"])
 
         if "params" in updates and isinstance(updates["params"], dict):
             updates["params"] = json.dumps(updates["params"])
 
         try:
-            config = self.session.query(SchedulerTaskConfig).get(task_id)
+            config = self.session.get(SchedulerTaskConfig, task_id)
             if config is None:
                 return False
             for key, value in updates.items():
@@ -124,7 +122,7 @@ class SchedulerRepository(ISchedulerRepository):
 
     def get_task(self, task_id: int) -> Optional[Dict[str, Any]]:
         try:
-            config = self.session.query(SchedulerTaskConfig).get(task_id)
+            config = self.session.get(SchedulerTaskConfig, task_id)
             return self._row_to_dict(config)
         except Exception:
             self._safe_rollback()
@@ -161,10 +159,10 @@ class SchedulerRepository(ISchedulerRepository):
     def enable_task(self, task_id: int) -> bool:
         task = self.get_task(task_id)
         if task is None:
-            return False
-        next_run = _next_run_time(task["cron_expression"])
+            raise ValueError(f"Task {task_id} not found")
+        next_run = _calc_next_run_time(task["cron_expression"])
         try:
-            config = self.session.query(SchedulerTaskConfig).get(task_id)
+            config = self.session.get(SchedulerTaskConfig, task_id)
             config.is_enabled = True
             config.next_run_at = next_run
             self.session.commit()
@@ -175,7 +173,7 @@ class SchedulerRepository(ISchedulerRepository):
 
     def disable_task(self, task_id: int) -> bool:
         try:
-            config = self.session.query(SchedulerTaskConfig).get(task_id)
+            config = self.session.get(SchedulerTaskConfig, task_id)
             if config is None:
                 return False
             config.is_enabled = False
@@ -196,7 +194,7 @@ class SchedulerRepository(ISchedulerRepository):
         )
         try:
             self.session.add(run)
-            config = self.session.query(SchedulerTaskConfig).get(task_id)
+            config = self.session.get(SchedulerTaskConfig, task_id)
             if config:
                 config.last_run_at = now
                 config.last_status = "running"
@@ -217,7 +215,7 @@ class SchedulerRepository(ISchedulerRepository):
         status = "success" if success else "failed"
         now = datetime.now(timezone.utc)
         try:
-            run = self.session.query(SchedulerRun).get(run_id)
+            run = self.session.get(SchedulerRun, run_id)
             if run is None:
                 return False
             run.status = status
@@ -227,11 +225,11 @@ class SchedulerRepository(ISchedulerRepository):
             if run.started_at:
                 run.duration_ms = int((now - run.started_at).total_seconds() * 1000)
 
-            config = self.session.query(SchedulerTaskConfig).get(run.task_id)
+            config = self.session.get(SchedulerTaskConfig, run.task_id)
             if config:
                 config.last_status = status
                 config.last_error = error
-                config.next_run_at = _next_run_time(config.cron_expression)
+                config.next_run_at = _calc_next_run_time(config.cron_expression)
 
             self.session.commit()
             return True
@@ -241,7 +239,7 @@ class SchedulerRepository(ISchedulerRepository):
 
     def get_run(self, run_id: int) -> Optional[Dict[str, Any]]:
         try:
-            run = self.session.query(SchedulerRun).get(run_id)
+            run = self.session.get(SchedulerRun, run_id)
             return self._row_to_dict(run)
         except Exception:
             self._safe_rollback()
