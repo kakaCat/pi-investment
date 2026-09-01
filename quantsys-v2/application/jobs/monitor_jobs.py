@@ -67,8 +67,43 @@ class MarketPerceptionDailySnapshotJob(Job):
             return JobResult.fail(self.name, str(e))
 
 
+class RiskCheckJob(Job):
+    """每周风险检查（旧 handle_risk_check，ADR-002 Phase 1 补齐）"""
+
+    @property
+    def name(self) -> str:
+        return "risk_check"
+
+    @property
+    def description(self) -> str:
+        return "组合/持仓/市场三维风险检查"
+
+    async def execute(self, params: Dict[str, Any]) -> JobResult:
+        import asyncio
+
+        def _run() -> Dict[str, Any]:
+            from application.services.risk_check_service import RiskCheckService
+            service = RiskCheckService()
+            return service.run_comprehensive_risk_check(
+                check_portfolio=params.get('check_portfolio', True),
+                check_positions=params.get('check_positions', True),
+                check_market=params.get('check_market', True),
+            )
+
+        try:
+            report = await asyncio.to_thread(_run)
+            return JobResult.ok(
+                self.name,
+                message=f"风险检查完成: {report.get('overall_risk_level', 'unknown')}",
+                details=report,
+            )
+        except Exception as e:
+            return JobResult.fail(self.name, str(e))
+
+
 # 导出所有监控类任务
 MONITOR_JOBS = [
     DailyEquitySnapshotJob(),
     MarketPerceptionDailySnapshotJob(),
+    RiskCheckJob(),
 ]

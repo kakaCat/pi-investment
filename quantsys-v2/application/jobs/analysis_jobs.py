@@ -254,6 +254,82 @@ class FinancialStatementUpdateJob(Job):
             return JobResult.fail(self.name, str(e))
 
 
+class DecisionScoreDailyJob(Job):
+    """决策打分每日任务（旧 handle_decision_score_daily，ADR-002 Phase 1 补齐）"""
+
+    @property
+    def name(self) -> str:
+        return "decision_score_daily"
+
+    @property
+    def description(self) -> str:
+        return "满20交易日的买卖决策打分回写（文本参数进化 P0a）"
+
+    async def execute(self, params: Dict[str, Any]) -> JobResult:
+        import asyncio
+
+        def _run() -> Dict[str, Any]:
+            from application.services.evolution.decision_score_service import DecisionScoreService
+            return DecisionScoreService().score_mature_decisions()
+
+        try:
+            result = await asyncio.to_thread(_run)
+            return JobResult.ok(self.name, message="决策打分完成", details=result)
+        except Exception as e:
+            return JobResult.fail(self.name, str(e))
+
+
+class EvolutionFitnessDailyJob(Job):
+    """双侧捕获适应度每日计算（旧 handle_evolution_fitness_daily，ADR-002 Phase 1 补齐）"""
+
+    @property
+    def name(self) -> str:
+        return "evolution_fitness_daily"
+
+    @property
+    def description(self) -> str:
+        return "收盘后全账户滚动窗口适应度计算（行为进化 Phase 1）"
+
+    async def execute(self, params: Dict[str, Any]) -> JobResult:
+        import asyncio
+
+        def _run() -> Dict[str, Any]:
+            from application.services.evolution.evolution_fitness_service import EvolutionFitnessService
+            return EvolutionFitnessService().compute_all_accounts(
+                window_days=params.get('window_days', 20))
+
+        try:
+            result = await asyncio.to_thread(_run)
+            return JobResult.ok(self.name, message="适应度计算完成", details=result)
+        except Exception as e:
+            return JobResult.fail(self.name, str(e))
+
+
+class MissedOpportunityDailyJob(Job):
+    """踏空捕获每日任务（旧 handle_missed_opportunity_daily，ADR-002 Phase 1 补齐）"""
+
+    @property
+    def name(self) -> str:
+        return "missed_opportunity_daily"
+
+    @property
+    def description(self) -> str:
+        return "未行动买入信号补登为 missed_opportunity 决策（文本参数进化 P0b）"
+
+    async def execute(self, params: Dict[str, Any]) -> JobResult:
+        import asyncio
+
+        def _run() -> Dict[str, Any]:
+            from application.services.evolution.missed_opportunity_service import MissedOpportunityService
+            return MissedOpportunityService().capture()
+
+        try:
+            result = await asyncio.to_thread(_run)
+            return JobResult.ok(self.name, message="踏空捕获完成", details=result)
+        except Exception as e:
+            return JobResult.fail(self.name, str(e))
+
+
 # 导出所有分析类任务
 ANALYSIS_JOBS = [
     FactorComputeJob(),
@@ -264,4 +340,7 @@ ANALYSIS_JOBS = [
     MarketStyleUpdateJob(),
     MarketScanPreopenJob(),
     FinancialStatementUpdateJob(),
+    DecisionScoreDailyJob(),
+    EvolutionFitnessDailyJob(),
+    MissedOpportunityDailyJob(),
 ]

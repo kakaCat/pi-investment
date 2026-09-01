@@ -172,6 +172,66 @@ class ChipDistributionUpdateJob(Job):
             return JobResult.fail(self.name, str(e))
 
 
+class DataUpdateJob(Job):
+    """全市场数据新鲜度巡检（旧 handle_data_update，ADR-002 Phase 1 补齐）"""
+
+    @property
+    def name(self) -> str:
+        return "data_update"
+
+    @property
+    def description(self) -> str:
+        return "检查全市场股票最新K线新鲜度（并发巡检）"
+
+    @property
+    def timeout_seconds(self) -> int:
+        return 1800
+
+    async def execute(self, params: Dict[str, Any]) -> JobResult:
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _run() -> Dict[str, Any]:
+            from infrastructure.persistence.orm import close_session
+            from adapters.outbound.repositories import KlineORMRepository, StockORMRepository
+
+            stocks = StockORMRepository().get_all(limit=500)
+            symbols = [s['symbol'] for s in stocks]
+            if not symbols:
+                return {"skipped": True, "reason": "no symbols"}
+
+            def _fetch_one(symbol: str):
+                try:
+                    return KlineORMRepository().get_latest_daily_kline(symbol)
+                finally:
+                    close_session()
+
+            updated, errors = 0, []
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                futures = {executor.submit(_fetch_one, s): s for s in symbols}
+                for future in futures:
+                    symbol = futures[future]
+                    try:
+                        future.result()
+                        updated += 1
+                    except Exception as e:
+                        errors.append({"symbol": symbol, "error": str(e)})
+            return {"symbols_checked": len(symbols), "symbols_updated": updated, "errors": errors}
+
+        try:
+            # 同步阻塞逻辑放线程池，避免卡住事件循环
+            result = await asyncio.to_thread(_run)
+            if result.get("skipped"):
+                return JobResult.ok(self.name, message="无股票可巡检", **result)
+            return JobResult.ok(
+                self.name,
+                message=f"数据巡检完成：{result['symbols_updated']}/{result['symbols_checked']}",
+                **result,
+            )
+        except Exception as e:
+            return JobResult.fail(self.name, str(e))
+
+
 # 导出所有数据类任务
 DATA_JOBS = [
     KlineUpdateJob(),
@@ -179,4 +239,5 @@ DATA_JOBS = [
     DataPipelineDailyJob(),
     DataPipelineWeeklyJob(),
     ChipDistributionUpdateJob(),
+    DataUpdateJob(),
 ]
