@@ -143,18 +143,18 @@ async def lifespan(app: FastAPI):
         if not use_agent_os_scheduler:
             try:
                 from infrastructure.scheduler.apscheduler_service import APSchedulerService
-                from adapters.outbound.repositories.scheduler_repository import SchedulerORMRepository
+                from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
                 from infrastructure.persistence.orm import get_session
                 from infrastructure.config.settings import get_settings
 
                 settings_obj = get_settings()
                 db_url = (
-                    f"postgresql://{settings_obj.database.user}:{settings_obj.database.password}"
-                    f"@{settings_obj.database.host}:{settings_obj.database.port}/{settings_obj.database.name}"
+                    f"postgresql://{settings_obj.database.pguser}:{settings_obj.database.pgpassword}"
+                    f"@{settings_obj.database.pghost}:{settings_obj.database.pgport}/{settings_obj.database.pgdatabase}"
                 )
 
                 session = get_session()
-                repo = SchedulerORMRepository(session)
+                repo = SchedulerRepository(session)
 
                 scheduler_service = APSchedulerService(db_url, repo)
                 scheduler_service.start()
