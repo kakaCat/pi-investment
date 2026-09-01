@@ -749,6 +749,11 @@ class ServiceFactory:
         return cls._instances['factor_repository']
 
     @classmethod
+    def get_data_service(cls):
+        from application.services.data_service import DataService
+        return DataService()
+
+    @classmethod
     def reset_all(cls):
         """重置所有服务实例（用于测试）"""
         cls._instances.clear()
