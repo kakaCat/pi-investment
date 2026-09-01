@@ -87,3 +87,42 @@
 3. **P1**：board 遗留帖 #25409abb 的 risk metrics account_name 过滤修复
 4. **P2**：screening/opportunity_scan 空结果排查；barra 因子数据补齐
 5. **P2**：v2 调度健康监控（无 failover 后的单点告警）
+
+---
+
+## 7. 第二轮全链路验证（2026-09-01 深夜，investor w-8366e526）
+
+> 触发：用户问"所有的业务流程都跑通了吗"→ 8 批次系统性复测（含 §3 遗留 8 项 + 首轮标记待重启项）
+> 本轮新增修复提交：`4a6b5a02`（4 处契约）、`c523ad62`（getAlerts 超时）
+
+### 7.1 本轮修复并验证通过（重启后工具级实测 ✅）
+
+| # | 项 | 根因 | 修复 | 实测结果 |
+|---|---|---|---|---|
+| 1 | **screening 返回退市/ST 股**（§3-2） | DSH 加载旧 `quantsys-v2-client/dist`（src 21:24 已修扁平化，dist 12:35 旧构建——package.json exports 指向 dist 非 src） | 重建 dist（21:37） | ✅ 返回高 ROE 股（九号公司-WD/亿联/美的/宁德/比亚迪/山西汾酒），无 ST/退市，criteria 扁平化 `{min_roe,max_pe}` 生效 |
+| 2 | **opponent_behavior schema 校验失败**（retail.net_flow must be a number） | 后端降级返回 None 不满足工具 output schema | 后端空值改语义默认（net_flow:0 / emotion_index:50.0 / stage:'unknown'），保留 degraded 标注 | ✅ 工具级正常返回，标注"数据降级: true + 资金流数据不可用" |
+| 3 | **fund_flow HTTP 400** | 数据源全失败时后端错误码用 400（语义应为上游不可用） | 400→502 | ✅ 工具优雅降级：两融数据正常展示 + "部分源降级: fund-flow HTTP 502" |
+| 4 | **data_manager 持仓数 3 vs position_list 2** | health 读旧 `portfolio_holdings` 表（5-6 月遗留 3 条），工具链读 agent_virtual 模拟账户 | health 优先读模拟账户，旧表仅回退 | ✅ holdings_count=2（与 position_list 一致） |
+| 5 | **sector_analysis 超时**（后端 9.9-17s vs 工具 10s） | 工具 timeoutMs 过紧 | 10s→40s | ✅ 16s 内返回 496 行业+504 概念 |
+| 6 | **market_alert 超时**（后端冷路径 24-39s vs client 30s） | client 默认超时 30s 卡边界 + 后端重计算慢 | 工具 10s→40s + client getAlerts 30s→60s | ✅ 稳定返回（0 条告警） |
+| 7 | **opportunity_scan 超时** | 工具 timeoutMs 30s < 后端冷路径 | 30s→60s | ✅ 60s 内返回（扫描 0 只=池空，链路通） |
+| 8 | §3 其余遗留（#1 持仓一致/#5 财务 PE/#6 kline 渲染/#8 mainline/#附 macro/north_flow） | 首轮已修 | — | ✅ 重启后工具级全部验证通过（position_list 2 只=risk 一致；茅台 PE 20.58/PB 6.90；kline 无 undefined；mainline Top3 落库；macro PMI 5 条；north_flow 优雅降级） |
+
+### 7.2 环境性/已知遗留（非断链）
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| sector 东财板块接口 | 间歇超时（12.8-20s 抖动，卡 20s 阈值），重试即恢复 | 外部源性能，非代码 bug；sector 单一数据源无 DB 缓存降级（P2 待办） |
+| fund_flow 外部源 | 当日全失败（两融正常），502 降级显示 | 外部源故障，重试即恢复 |
+| opportunity_scan 参数契约 | scan_type/pool_id 后端忽略（扫描范围恒 0） | 契约失真 P2 待办 |
+| signal_track 5/10/20 日胜率 N/A | scheduler 无信号回填任务（胜率统计依赖盘后回填 update） | 回填机制缺失 P2 待办 |
+| rotation_proposal 字段名 | proposal.actions vs 工具 proposals 契约 | 待对齐 P2 |
+| v2 调度无 failover | ADR-002 切换后单点风险 | 建议补健康告警 P2 |
+| data_manager balance | 仍显示旧 balance 表（7-13 快照，market_value 0），holdings 已对齐但余额口径仍为 v2 原生模拟盘 | 两套账户体系并存 P2 待办 |
+| board 帖 #25409abb | risk metrics account_name 过滤（P1） | 待认领修复 |
+
+### 7.3 本轮提交
+
+- `4a6b5a02`：4 处契约修复（client dist 重建、opponent_behavior 空值默认、fund-flow 502、health 持仓口径、3 工具超时调大）
+- `c523ad62`：getAlerts 30s→60s（配合工具层超时调大）
+- 已推送 main（6306c0a5..c523ad62）
