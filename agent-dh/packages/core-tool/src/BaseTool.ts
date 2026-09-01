@@ -37,9 +37,17 @@ export abstract class BaseTool<TParams = any, TResult = any> {
   protected abstract execute(args: TParams, context: ToolContext): Promise<TResult>;
 
   /**
-   * Phase 3: 包装返回数据（子类必须实现）
+   * Phase 3: 包装返回数据（子类可覆盖；2026-09-01 起提供默认实现）
+   *
+   * 历史教训：wrap 原为 abstract，6 个工具（trading_calendar/opponent_behavior/
+   * fund_flow/lhb_dragon_tiger/limit_up_pool/stock_intel）未实现，tsx 运行时
+   * 不检查 abstract → 调用时才炸 "this.wrap is not a function"，且 schema 冒烟
+   * 测试只编译不执行、抓不到。改为默认实现兜底，子类需要自定义 message/
+   * metadata 时覆盖。
    */
-  protected abstract wrap(result: TResult, context: ToolContext): ToolResponse<TResult>;
+  protected wrap(result: TResult, _context: ToolContext): ToolResponse<TResult> {
+    return { success: true, data: result };
+  }
 
   /**
    * 统一调用入口（框架自动执行三个步骤）
