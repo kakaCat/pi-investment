@@ -90,8 +90,8 @@ class APSchedulerService:
 
         for task in tasks:
             # 跳过由 Agent OS 管理的任务
-            if task.cron_expression == "managed_by_agent_os":
-                logger.info(f"Skip Agent OS managed task: {task.name}")
+            if task.get("cron_expression") == "managed_by_agent_os":
+                logger.info(f"Skip Agent OS managed task: {task.get('name')}")
                 skipped_count += 1
                 continue
 
@@ -107,21 +107,21 @@ class APSchedulerService:
                 self.scheduler.add_job(
                     func=execute_scheduled_job,
                     trigger=trigger,
-                    args=[task.id],
-                    id=f"task_{task.id}",
-                    name=task.name,
+                    args=[task.get("id")],
+                    id=f"task_{task.get("id")}",
+                    name=task.get("name"),
                     replace_existing=True,
-                    misfire_grace_time=task.misfire_grace_time_seconds or 300
+                    misfire_grace_time=task.get("misfire_grace_time_seconds") or 300
                 )
 
                 loaded_count += 1
                 logger.info(
-                    f"Loaded task: {task.name} "
-                    f"(id={task.id}, type={task_type}, expr={task.cron_expression})"
+                    f"Loaded task: {task.get('name')} "
+                    f"(id={task.get('id')}, type={task_type}, expr={task.get('cron_expression')})"
                 )
 
             except Exception as e:
-                logger.error(f"Failed to load task {task.name}: {e}", exc_info=True)
+                logger.error(f"Failed to load task {task.get('name')}: {e}", exc_info=True)
 
         logger.info(
             f"Task loading complete: {loaded_count} loaded, "

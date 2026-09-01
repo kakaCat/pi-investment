@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, Query, Body
+from fastapi import APIRouter, Query, Body, Request
 import structlog
 
 from adapters.inbound.fastapi_app.shared import (
@@ -327,19 +327,23 @@ def get_scheduler_task_runs(task_id: str, page: int = Query(1), pageSize: int = 
 
 @router.post('/api/scheduler/tasks/{task_id}/trigger')
 @handle_api_error
-def trigger_scheduler_task(task_id: str):
+def trigger_scheduler_task(task_id: str, request: Request = None):
     """手动触发任务执行（异步派发，立即返回）。
 
-    2026-09-01 修复：原实现在同步路由里直接执行重任务（如 data_quality_check
-    含全市场数据检查+自动回填），曾卡死 HTTP 工作线程 46 分钟致全服务无响应。
-    改为后台线程派发：立即返回 accepted，执行结果看任务执行日志/记录。
+    2026-09-01 修复两轮：
+    ① 原实现在同步路由里直接执行重任务（data_quality_check 含全市场检查+回填），
+       曾卡死 HTTP 工作线程 46 分钟致全服务无响应 → 改后台线程派发立即返回
+    ② `from ...main import app` 双实例陷阱：服务以 `python main.py` 运行时 app 挂在
+       `__main__`，模块 import 拿到的是另一个实例、state 为空 → 改 request.app 取真实实例
     """
     import threading
 
+    # 请求线程内捕获真实 app 实例（后台线程里 request 不可用）
+    real_app = request.app if request is not None else None
+
     def _run_async():
         try:
-            from adapters.inbound.fastapi_app.main import app
-            scheduler_service = getattr(app.state, 'scheduler_service', None)
+            scheduler_service = getattr(real_app.state, 'scheduler_service', None) if real_app else None
             if scheduler_service is not None:
                 scheduler_service.trigger_task_now(int(task_id))
                 logger.info(f"Task {task_id} triggered via APScheduler")
@@ -377,14 +381,14 @@ def compensate_scheduler_task(task_id: str):
 
 @router.post('/api/scheduler/reload')
 @handle_api_error
-def reload_scheduler_tasks():
+def reload_scheduler_tasks(request: Request = None):
     """重新加载所有任务（用于动态更新 APScheduler）
 
     2026-09-01: 当用户修改 scheduler_tasks 表后，调用此接口同步到 APScheduler
+    修复：`from ...main import app` 双实例陷阱 → request.app 取真实实例
     """
     try:
-        from adapters.inbound.fastapi_app.main import app
-        scheduler_service = getattr(app.state, 'scheduler_service', None)
+        scheduler_service = getattr(request.app.state, 'scheduler_service', None) if request is not None else None
 
         if scheduler_service is not None:
             scheduler_service.reload_tasks()
