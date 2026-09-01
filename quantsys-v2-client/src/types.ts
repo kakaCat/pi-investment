@@ -158,6 +158,50 @@ export interface WatchRule {
 }
 
 /**
+ * ZigZag 波段分析结果（POST /api/analysis/swing-points，响应 camelCase）
+ */
+export interface SwingPoint {
+  date: string;
+  price: number;
+  type: 'high' | 'low';
+  changePct: number;
+}
+
+export interface SwingTrade {
+  buyDate: string;
+  buyPrice: number;
+  sellDate: string;
+  sellPrice: number;
+  profitPct: number;
+  holdingDays: number;
+}
+
+export interface SwingPointSummary {
+  totalTrades: number;
+  winCount: number;
+  lossCount: number;
+  winRate: number;
+  totalReturn: number;
+  avgReturn: number;
+  maxReturn: number;
+  maxLoss: number;
+  avgHoldingDays: number;
+}
+
+export interface SwingPointAnalysis {
+  symbol: string;
+  period: { start: string; end: string };
+  minChange: number;
+  klineCount?: number;
+  swingPoints: SwingPoint[];
+  trades: SwingTrade[];
+  summary: SwingPointSummary;
+  message?: string;
+  error?: string;
+  suggestions?: string[];
+}
+
+/**
  * Portfolio position
  */
 export interface Position {
@@ -521,6 +565,17 @@ export interface WatchRuleManageRequest {
   name?: string;
   symbol?: string;
   condition?: string;
+  /** 结构化条件数组（高级用法，与 condition 二选一；同一条规则多条件=OR 语义） */
+  conditions?: Array<{ type: string; params: Record<string, any> }>;
+  /** 监视理由（触发时随通知带出，供决策回溯） */
+  context?: string;
+  /** 成本价（pnl_pct 条件必填；不传时工具层可自动取持仓成本） */
+  cost_price?: number;
+  /** 生效时段，如 "09:30-11:30,13:00-15:00" */
+  active_window?: string;
+  /** 过期时间 ISO 格式，如 2026-09-30T15:00:00 */
+  expires_at?: string;
+  created_by?: string;
 }
 
 /**

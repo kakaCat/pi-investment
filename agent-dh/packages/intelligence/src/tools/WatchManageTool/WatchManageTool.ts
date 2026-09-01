@@ -35,20 +35,24 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
         };
       }
 
-      // 校验 condition 格式
+      // 校验 condition 格式（2026-09-01 扩展：pnl_pct / volume_surge / velocity）
       const validConditions = [
         /^price\s*>\s*\d+(\.\d+)?$/,
         /^price\s*<\s*\d+(\.\d+)?$/,
         /^change_pct\s*>\s*-?\d+(\.\d+)?$/,
         /^change_pct\s*<\s*-?\d+(\.\d+)?$/,
+        /^pnl_pct\s*>\s*-?\d+(\.\d+)?$/,
+        /^pnl_pct\s*<\s*-?\d+(\.\d+)?$/,
+        /^volume_surge\s*>\s*\d+(\.\d+)?$/,
+        /^velocity\s*>\s*\d+(\.\d+)?\s*\/\s*\d+$/,
       ];
 
-      const isValidCondition = validConditions.some(regex => regex.test(condition));
+      const isValidCondition = validConditions.some(regex => regex.test(condition.trim()));
       if (!isValidCondition) {
         return {
           success: false,
           errorType: ErrorType.INPUT_ERROR,
-          issue: `condition 格式错误。支持格式：price>100、price<90、change_pct>5、change_pct<-3`,
+          issue: `condition 格式错误。支持：price>100、price<90、change_pct>5、change_pct<-3、pnl_pct<-8（持仓盈亏，配 cost_price 或自动取持仓成本）、pnl_pct>10、volume_surge>4（量能倍数）、velocity>2/15（15分钟窗口波动≥2%）`,
         };
       }
     } else if (['enable', 'disable', 'delete'].includes(action)) {
@@ -65,7 +69,34 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
   }
 
   protected async execute(params: WatchManageParams, context: ToolContext): Promise<any> {
-    const result = await this.qv2Client.manageWatchRule(params);
+    // 2026-09-01 扩展：reason → 后端 context（监视理由）；pnl_pct 自动补成本价
+    const request: any = { ...params };
+    delete request.reason;
+    delete request.account;
+
+    if (params.action === 'create') {
+      if (params.reason) request.context = params.reason;
+      if (params.expires_at) request.expires_at = params.expires_at;
+
+      const isPnl = /^\s*pnl_pct/.test(params.condition ?? '');
+      if (isPnl && !params.cost_price) {
+        // 自动取持仓成本（对标 agent-ts"持仓补位止损"场景）
+        const account = params.account || 'agent_virtual';
+        const positions = await this.qv2Client.getPositions(account);
+        const pos = (positions || []).find((p: any) => p.symbol === params.symbol);
+        const cost = pos?.avgCost ?? pos?.avg_cost ?? pos?.costPrice;
+        if (!cost) {
+          throw new Error(
+            `pnl_pct 条件需要成本价：账户 ${account} 未持有 ${params.symbol}，请显式传 cost_price 参数`
+          );
+        }
+        request.cost_price = cost;
+      } else if (params.cost_price) {
+        request.cost_price = params.cost_price;
+      }
+    }
+
+    const result = await this.qv2Client.manageWatchRule(request);
     // 2026-08-30 修复：
     // 1) rule_id 取值兼容后端 {rule:{id}} 包装（unwrap 返回 data 层）；
     // 2) rule_id/data 可能为 undefined，顶层 undefined 键会被
