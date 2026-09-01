@@ -206,6 +206,22 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ Orchestrator disabled via DISABLE_ORCHESTRATOR")
 
+    # 启动每日数据任务宿主线程（2026-09-02 起唯一宿主：K线同步/因子计算/
+    # 筹码分布/数据质量/新鲜度巡检/财报更新。原 Agent OS 调度器中这些任务
+    # 全部禁用或 /bin/true 占位，数据新鲜度无保障——实测 K线/因子更新不均。
+    # 与 WatchEngine/Orchestrator 同模式：无独立进程 = 不会静默死亡）
+    if os.getenv('DISABLE_DAILY_JOBS', '').lower() != 'true':
+        try:
+            from adapters.inbound.fastapi_app.daily_jobs_bootstrap import start_daily_jobs
+            jobs_handle = start_daily_jobs(skip='pytest' in _sys.modules)
+            if jobs_handle is not None:
+                app.state.daily_jobs = jobs_handle
+                logger.info("✅ DailyJobs host thread started")
+        except Exception as e:
+            logger.error(f"❌ DailyJobs startup failed: {e}")
+    else:
+        logger.warning("⚠️ DailyJobs disabled via DISABLE_DAILY_JOBS")
+
     logger.info("📖 API Documentation: http://localhost:5001/docs")
     logger.info("📚 ReDoc: http://localhost:5001/redoc")
 
@@ -1130,6 +1146,15 @@ def register_routes():
     except ImportError as e:
         logger.warning(f"⚠️ Failed to import data_provider_async: {e}")
         optional_failed.append("data_provider")
+
+    # 进程内每日任务管理（状态巡检 + 手动触发）
+    try:
+        from adapters.inbound.fastapi_app.routes.daily_jobs_async import router as daily_jobs_router
+        app.include_router(daily_jobs_router)
+        logger.info("✅ Registered: daily_jobs (进程内每日任务)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import daily_jobs_async: {e}")
+        optional_failed.append("daily_jobs")
 
     # ===== 路由注册总结 =====
     logger.info("=" * 60)
