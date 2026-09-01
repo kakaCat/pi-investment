@@ -235,15 +235,43 @@ def is_due(job: JobDef, now: datetime, last_run: Optional[Dict[str, Any]]) -> bo
     return False
 
 
+def _summarize_result(result: Any, max_len: int = 300) -> str:
+    """任务结果摘要（完成通知用）：提取关键计数，截断防爆消息"""
+    if not isinstance(result, dict):
+        return ''
+    keys = ['symbols_updated', 'updated', 'computed', 'failed_count',
+            'symbols_checked', 'status', 'expected', 'kline_latest', 'factor_latest']
+    parts = [f"{k}={result[k]}" for k in keys if k in result]
+    # evening_pipeline 等链式任务：深入一层提取子任务摘要
+    for sub_key, sub_val in result.items():
+        if isinstance(sub_val, dict):
+            sub_parts = [f"{k}={sub_val[k]}" for k in ('updated', 'computed', 'status', 'stale')
+                         if k in sub_val]
+            if sub_parts:
+                parts.append(f"{sub_key}[{', '.join(map(str, sub_parts[:4]))}]")
+    text = '; '.join(parts)
+    return text[:max_len]
+
+
 def _run_job(job: JobDef, run_date: str) -> None:
-    """在独立线程执行一个任务（异常隔离 + 落库 + 告警）"""
+    """在独立线程执行一个任务（异常隔离 + 落库 + 告警 + 生命周期通知）"""
     from infrastructure.persistence.orm import close_session
+    t0 = time.time()
     try:
         _mark_running(job.job_id, run_date)
         logger.info("inprocess_job_start", job=job.job_id, date=run_date)
+        # 开始通知（2026-09-02 用户要求：执行时发飞书）
+        _send_feishu(f"▶️ 每日任务开始：{job.job_id}\n{job.description}\n时间: {datetime.now().strftime('%H:%M')}")
         result = job.handler()
         _mark_done(job.job_id, run_date, 'success', result=result)
         logger.info("inprocess_job_done", job=job.job_id, date=run_date)
+        # 完成通知（含耗时 + 结果摘要）
+        elapsed_min = (time.time() - t0) / 60
+        summary = _summarize_result(result)
+        _send_feishu(
+            f"✅ 每日任务完成：{job.job_id}\n{job.description}\n"
+            f"耗时: {elapsed_min:.1f} 分钟" + (f"\n{summary}" if summary else '')
+        )
     except Exception as e:
         logger.error("inprocess_job_failed", job=job.job_id, date=run_date,
                      error=str(e), exc_info=True)
