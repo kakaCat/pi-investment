@@ -1,63 +1,90 @@
-"""资金流助手（框架无关）— 从 adapters/inbound/api/routes/jobs.py 解耦而来
+"""资金流助手（框架无关）
 
-注意：_inject_fund_flow_to_klines 调用的 get_stock_fund_flow 在原 Flask 代码中
-即未定义（latent bug，经 try/except 静默降级为资金流全 0），此处原样保留（parity）。
+注入逻辑直接从 quant.stock_fund_flow 表读取，不依赖外部 API。
 """
+import logging
 from typing import Any, Dict, List, Optional
 
+logger = logging.getLogger(__name__)
 
-# -- 资金流注入辅助函数 --
-_FUND_FLOW_COLUMN_MAP = {
-    '主力净流入-净额': 'main_net_inflow',
-    '主力净流入-净占比': 'main_net_pct',
-    '超大单净流入-净额': 'super_large_net',
-    '大单净流入-净额': 'large_net',
-    '超大单净流入-净占比': 'super_large_pct',
-    '大单净流入-净占比': 'large_pct',
+
+# -- DB 列 → 因子列 映射 --
+# quant.stock_fund_flow 列名 → kline/factor 列名
+_DB_TO_FACTOR_MAP = {
+    'main_net_inflow':   'main_net_inflow',   # 主力净流入-净额
+    'main_net_inflow_rate': 'main_net_pct',   # 主力净流入-净占比
+    'large_net_inflow':  'super_large_net',    # 超大单净流入-净额
+    'big_net_inflow':    'large_net',          # 大单净流入-净额
+    'large_net_inflow_rate': 'super_large_pct', # 超大单净流入-净占比
+    'big_net_inflow_rate': 'large_pct',        # 大单净流入-净占比
 }
+
+_FACTOR_COLUMN_NAMES = list(_DB_TO_FACTOR_MAP.values())
 
 
 def _inject_fund_flow_to_klines(klines: List[dict], symbol: str) -> List[dict]:
     """
-    将主力资金流向数据合并到 klines 列表中。
+    从 quant.stock_fund_flow 表读取资金流数据，合并到 klines 列表中。
     如果获取失败，所有资金流列填充 0。
     """
     # 初始化所有资金流列为 0
     for k in klines:
-        for alias in _FUND_FLOW_COLUMN_MAP.values():
+        for alias in _FACTOR_COLUMN_NAMES:
             k[alias] = 0.0
 
+    if not klines:
+        return klines
+
     try:
-        days = len(klines)
-        fund_data = get_stock_fund_flow(symbol, days=days)
+        import psycopg2
+        clean_symbol = symbol.split('.')[0]
 
-        if not fund_data or not isinstance(fund_data, dict):
+        start_date = str(klines[0].get('trade_date', klines[0].get('date', '')))
+        end_date = str(klines[-1].get('trade_date', klines[-1].get('date', '')))
+
+        conn = psycopg2.connect(host='localhost', port=5432, dbname='quant_investment', user='mac')
+        try:
+            cur = conn.cursor()
+            db_cols = list(_DB_TO_FACTOR_MAP.keys())
+            cur.execute(
+                f"SELECT trade_date, {', '.join(db_cols)} "
+                f"FROM quant.stock_fund_flow "
+                f"WHERE symbol = %s AND trade_date BETWEEN %s AND %s "
+                f"ORDER BY trade_date",
+                (clean_symbol, start_date, end_date)
+            )
+            rows = cur.fetchall()
+        finally:
+            conn.close()
+
+        if not rows:
             return klines
 
-        fund_rows = fund_data.get('data', [])
-        if not fund_rows:
-            return klines
-
-        # 建立 日期→资金流 映射
-        fund_by_date: Dict[str, dict] = {}
-        for row in fund_rows:
-            date_str = str(row.get('日期', '')).replace('-', '')
+        fund_by_date: Dict[str, list] = {}
+        for row in rows:
+            date_str = str(row[0]).replace('-', '')
             fund_by_date[date_str] = row
 
-        # 按日期合并
+        merged = 0
         for k in klines:
             kdate = str(k.get('trade_date', k.get('date', ''))).replace('-', '')
             if kdate in fund_by_date:
-                frow = fund_by_date[kdate]
-                for cn_name, alias in _FUND_FLOW_COLUMN_MAP.items():
-                    val = frow.get(cn_name)
+                row = fund_by_date[kdate]
+                for i, (db_col, factor_col) in enumerate(_DB_TO_FACTOR_MAP.items()):
+                    val = row[i + 1]  # row[0] = trade_date
                     if val is not None:
                         try:
-                            k[alias] = float(val)
+                            k[factor_col] = float(val)
                         except (ValueError, TypeError):
                             pass
-    except Exception:
-        pass  # 数据源不可用时静默降级
+                merged += 1
+
+        logger.debug(f"fund_flow 注入 {clean_symbol}: {merged}/{len(klines)} 天匹配")
+
+    except ImportError:
+        logger.warning("psycopg2 不可用，跳过 fund_flow 注入")
+    except Exception as e:
+        logger.warning(f"fund_flow 注入失败 ({symbol}): {e}")
 
     return klines
 
