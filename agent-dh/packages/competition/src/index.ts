@@ -5,6 +5,7 @@ import { createCompetitionAnalysisTool } from './tools/CompetitionAnalysisTool';
 import { createOpponentBehaviorTool } from './tools/OpponentBehaviorTool';
 import { createManipulationDetectTool } from './tools/ManipulationDetectTool';
 import { createRetailPanicIndexTool } from './tools/RetailPanicIndexTool';
+import { createPoolBattlefieldTool } from './tools/PoolBattlefieldTool';
 
 export interface Config {
   quantsysV2?: {
@@ -49,6 +50,8 @@ export default class CompetitionPlugin extends Service {
     ctx.tools.register(createManipulationDetectTool(qv2));
     // 散户恐慌代理指标（M7-2：连续恐慌指数）
     ctx.tools.register(createRetailPanicIndexTool(qv2));
+    // 池子战场评估（M2-3：竞争格局/三方对手强度/攻防建议）
+    ctx.tools.register(createPoolBattlefieldTool(qv2));
   }
 }
 
@@ -69,6 +72,10 @@ export {
   RetailPanicIndexTool,
   retailPanicIndexPrompt,
 } from './tools/RetailPanicIndexTool';
+export {
+  PoolBattlefieldTool,
+  poolBattlefieldPrompt,
+} from './tools/PoolBattlefieldTool';
 export type {
   CompetitionAnalysisParams,
   CompetitionAnalysisResult,
@@ -85,3 +92,7 @@ export type {
   RetailPanicIndexParams,
   RetailPanicIndexResult,
 } from './tools/RetailPanicIndexTool';
+export type {
+  PoolBattlefieldParams,
+  PoolBattlefieldResult,
+} from './tools/PoolBattlefieldTool';
