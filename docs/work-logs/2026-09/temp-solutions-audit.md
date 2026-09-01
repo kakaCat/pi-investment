@@ -141,3 +141,37 @@
 - `agent-dh/packages/scheduler/src/`（薄封装）、`agent-dh/packages/agent-os-client/`（legacy 依赖）、`agent-dh/packages/lifecycle/src/index.ts`（轮询投递）
 - `quantsys-v2/infrastructure/scheduler/scheduler.py`（闲置 SchedulerService）、`quantsys-v2/tools/register_jobs_to_agent_os.py`（注册工具）、`quantsys-v2/scripts/migrate_20260813_scheduler_tasks.py`（迁移）、`quantsys-v2/api/internal/scheduler_webhook.py`（webhook 接收）、`quantsys-v2/application/services/feishu_service.py`（v2 飞书）、`quantsys-v2/adapters/inbound/fastapi_app/routes/memory_async.py`（v2 记忆）
 - Agent OS：`internal/kernel/scheduler/scheduler.go`（cron 引擎，Executor 支持 command/webhook 双模式）、`internal/api/scheduler_handler.go`
+
+---
+
+## 8. 定时任务类型分流修复（2026-09-01 补，commit bc8498ec）
+
+用户提出定时任务分两种：**①纯提醒发飞书（不经 LLM）②需 LLM 处理再发飞书**。核查发现当前流程不符合该二分法，且类型 1 链路已断。
+
+### 8.1 发现的三个问题
+
+| # | 问题 | 证据 |
+|---|---|---|
+| 1 | **类型 1 链路断裂**：watch_engine 触发后走 `agent_url/wake` 唤醒 Agent（`AGENT_API_URL=http://127.0.0.1:3002`），但 3002 无监听 | watch_triggers 表 1453 次触发仅 153 次 notified=true（10.5%），最近全失败 |
+| 2 | **notify_mode 形同虚设**：watch_rules 表已有 `notify_mode` 字段（direct=21 条 / agent=12 条），但 `WatchNotifier.notify()` 完全不读，所有规则统一走 agent 唤醒 | notifier.py 无 notify_mode 分支 |
+| 3 | **飞书服务根本无法初始化**：`feishu_service` 用 `get_config()`（返回空 dict 的兼容层）取 `config.external.feishu_webhook_url` 必崩 AttributeError | get_config() 返回 `{}`；正确应为 `get_settings()` |
+
+### 8.2 修复内容（已上线）
+
+- **WatchNotifier 按 notify_mode 分流**：`direct` → 直接 `feishu_service.send_alert` 发飞书（不经 LLM）；`agent` → 唤醒 Agent；agent 唤醒失败降级直发飞书兜底
+- **factory.py**：注入 `get_feishu_service()`
+- **feishu_service.py**：`get_config()` → `get_settings()`（修复飞书服务初始化崩溃，`feishu_bot_token` 用 getattr 兜底）
+- **geer-take-profit-0901**：补 prompt（原为空致唤醒后无指令）+ 已补发飞书提醒
+
+### 8.3 验证
+
+- direct 模式端到端测试：飞书发送成功（`Feishu notification sent successfully`，结果 True）
+- feishu_service 初始化成功，webhook 已配置
+- v2 重启后 WatchEngine 正常启动（新进程 PID 2236）
+- 规则分布符合二分法：direct 21 条（观察/提醒类）+ agent 12 条（止损止盈决策类）
+
+### 8.4 遗留
+
+- 类型 1 的 direct 规则今后触发将直接发飞书，无需 LLM——分流逻辑已生效，待真实触发验证 `notified` 字段转 true
+- Agent OS 侧 15 个 bridge 任务（类型 2 的 agent 唤醒链路）仍走 os-remind-bridge.sh——正规化（DSH scheduler 原生投递）待后续
+
