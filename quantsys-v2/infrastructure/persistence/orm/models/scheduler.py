@@ -11,7 +11,7 @@ class SchedulerTaskConfig(Base):
     """调度任务配置表（映射 quant.scheduler_tasks）"""
     __tablename__ = 'scheduler_tasks'
     __table_args__ = {'schema': 'quant', 'extend_existing': True}
-    
+
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     name = Column(Text, nullable=False, unique=True, comment='任务名称')
     description = Column(Text, comment='任务描述')
@@ -19,6 +19,7 @@ class SchedulerTaskConfig(Base):
     command = Column(Text, nullable=False, comment='执行命令/函数路径')
     params = Column(JSONB, comment='任务参数', default={})
     is_enabled = Column(Boolean, default=True, comment='是否启用')
+    task_type = Column(String(20), nullable=False, default='cron', comment='任务类型: cron/delay/interval/once')
     
     # 运行时状态
     last_run_at = Column(DateTime(timezone=True), comment='上次执行时间')

@@ -5,6 +5,8 @@ APScheduler 封装服务
 - 秒级精确调度（vs 原 30s 轮询）
 - 分布式锁支持（PostgreSQL advisory lock）
 - 成熟的 misfire 处理
+- 延迟任务支持（DateTrigger）
+- 间隔任务支持（IntervalTrigger）
 - 社区维护，降低维护成本
 
 Created: 2026-09-01
@@ -13,11 +15,14 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
+from datetime import datetime, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 if TYPE_CHECKING:
     from domain.ports import ISchedulerRepository
@@ -73,8 +78,13 @@ class APSchedulerService:
         从 scheduler_tasks 表加载任务到 APScheduler
 
         跳过 cron_expression='managed_by_agent_os' 的任务（由 Agent OS 管理）
+        支持任务类型：
+        - cron: 定时任务（CronTrigger）
+        - delay: 延迟任务（DateTrigger，一次性）
+        - interval: 间隔任务（IntervalTrigger）
+        - once: 一次性任务（DateTrigger）
         """
-        tasks = self.repo.list_enabled_tasks()
+        tasks = self.repo.list_tasks(enabled_only=True)
         loaded_count = 0
         skipped_count = 0
 
@@ -86,11 +96,9 @@ class APSchedulerService:
                 continue
 
             try:
-                # 解析 cron 表达式（APScheduler 格式）
-                trigger = CronTrigger.from_crontab(
-                    task.cron_expression,
-                    timezone='Asia/Shanghai'
-                )
+                # 根据 task_type 创建不同的 trigger
+                task_type = task.get('task_type', 'cron')
+                trigger = self._create_trigger(task_type, task)
 
                 # 添加任务到 APScheduler
                 # 注意：使用模块级函数避免序列化问题
@@ -109,7 +117,7 @@ class APSchedulerService:
                 loaded_count += 1
                 logger.info(
                     f"Loaded task: {task.name} "
-                    f"(id={task.id}, cron={task.cron_expression})"
+                    f"(id={task.id}, type={task_type}, expr={task.cron_expression})"
                 )
 
             except Exception as e:
@@ -119,6 +127,80 @@ class APSchedulerService:
             f"Task loading complete: {loaded_count} loaded, "
             f"{skipped_count} skipped (Agent OS)"
         )
+
+    def _create_trigger(self, task_type: str, task):
+        """
+        根据任务类型创建 APScheduler 触发器
+
+        Args:
+            task_type: 任务类型 (cron/delay/interval/once)
+            task: 任务配置（字典或对象）
+
+        Returns:
+            APScheduler Trigger 对象
+
+        Raises:
+            ValueError: 不支持的任务类型或配置错误
+        """
+        # 统一获取属性的方式（支持字典和对象）
+        def get_attr(obj, key, default=None):
+            if isinstance(obj, dict):
+                return obj.get(key, default)
+            return getattr(obj, key, default)
+
+        cron_expr = get_attr(task, 'cron_expression')
+        params = get_attr(task, 'params', {})
+        task_name = get_attr(task, 'name', 'Unknown')
+
+        if task_type == 'cron':
+            # 标准 Cron 任务
+            return CronTrigger.from_crontab(
+                cron_expr,
+                timezone='Asia/Shanghai'
+            )
+
+        elif task_type == 'delay':
+            # 延迟任务：N 秒后执行一次
+            delay_seconds = params.get('delay_seconds')
+            if delay_seconds is None:
+                # 尝试从 cron_expression 解析（格式：DELAY:300）
+                if cron_expr and cron_expr.startswith('DELAY:'):
+                    delay_seconds = int(cron_expr.split(':')[1])
+                else:
+                    raise ValueError(f"Delay task missing delay_seconds: {task_name}")
+
+            run_at = datetime.now() + timedelta(seconds=delay_seconds)
+            logger.info(f"Delay task {task_name} will run at {run_at}")
+            return DateTrigger(run_date=run_at, timezone='Asia/Shanghai')
+
+        elif task_type == 'interval':
+            # 间隔任务：每 N 秒执行一次
+            interval_seconds = params.get('interval_seconds')
+            if interval_seconds is None:
+                # 尝试从 cron_expression 解析（格式：INTERVAL:60）
+                if cron_expr and cron_expr.startswith('INTERVAL:'):
+                    interval_seconds = int(cron_expr.split(':')[1])
+                else:
+                    raise ValueError(f"Interval task missing interval_seconds: {task_name}")
+
+            return IntervalTrigger(
+                seconds=interval_seconds,
+                timezone='Asia/Shanghai'
+            )
+
+        elif task_type == 'once':
+            # 一次性任务：指定时间执行一次
+            run_at_str = params.get('run_at') or cron_expr
+            try:
+                # 尝试解析 ISO 格式时间
+                run_at = datetime.fromisoformat(run_at_str)
+                logger.info(f"Once task {task_name} will run at {run_at}")
+                return DateTrigger(run_date=run_at, timezone='Asia/Shanghai')
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Invalid run_at format for once task {task_name}: {e}")
+
+        else:
+            raise ValueError(f"Unsupported task_type: {task_type}")
 
     def start(self):
         """启动调度器"""

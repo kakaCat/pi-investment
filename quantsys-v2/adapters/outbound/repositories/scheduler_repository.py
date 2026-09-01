@@ -52,14 +52,26 @@ class SchedulerRepository(ISchedulerRepository):
         command: str,
         params: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
+        task_type: str = 'cron',
     ) -> int:
-        parse_cron(cron_expression)
+        # 验证 task_type
+        valid_types = ['cron', 'delay', 'interval', 'once']
+        if task_type not in valid_types:
+            raise ValueError(f"Invalid task_type {task_type!r}, must be one of {valid_types}")
+
+        # 只有 cron 类型需要验证 cron 表达式
+        if task_type == 'cron':
+            parse_cron(cron_expression)
 
         existing = self.session.query(SchedulerTaskConfig).filter_by(name=name).first()
         if existing is not None:
             raise ValueError(f"Task name {name!r} already exists")
 
-        next_run = _calc_next_run_time(cron_expression)
+        # 延迟任务和一次性任务不需要计算 next_run（由 APScheduler 管理）
+        next_run = None
+        if task_type == 'cron':
+            next_run = _calc_next_run_time(cron_expression)
+
         config = SchedulerTaskConfig(
             name=name,
             description=description,
@@ -67,13 +79,14 @@ class SchedulerRepository(ISchedulerRepository):
             command=command,
             params=params or {},
             is_enabled=True,
+            task_type=task_type,
             next_run_at=next_run,
         )
         try:
             self.session.add(config)
             self.session.commit()
             self.session.refresh(config)
-            logger.info("Task %r added (id=%s)", name, config.id)
+            logger.info("Task %r added (id=%s, type=%s)", name, config.id, task_type)
             return config.id
         except Exception:
             self.session.rollback()
@@ -93,17 +106,30 @@ class SchedulerRepository(ISchedulerRepository):
             raise
 
     def update_task(self, task_id: int, **kwargs) -> bool:
-        allowed = {"name", "description", "cron_expression", "command", "params", "is_enabled"}
+        allowed = {"name", "description", "cron_expression", "command", "params", "is_enabled", "task_type"}
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
             return False
 
-        if "cron_expression" in updates:
+        # 验证 task_type
+        if "task_type" in updates:
+            valid_types = ['cron', 'delay', 'interval', 'once']
+            if updates["task_type"] not in valid_types:
+                raise ValueError(f"Invalid task_type {updates['task_type']!r}, must be one of {valid_types}")
+
+        # 获取当前任务配置
+        task = self.get_task(task_id)
+        if task is None:
+            return False
+
+        # 确定最终的 task_type
+        final_task_type = updates.get("task_type", task.get("task_type", "cron"))
+
+        # 只有 cron 类型需要更新 next_run_at
+        if "cron_expression" in updates and final_task_type == "cron":
             updates["next_run_at"] = _calc_next_run_time(updates["cron_expression"])
-        elif updates.get("is_enabled") is True:
-            task = self.get_task(task_id)
-            if task is not None:
-                updates["next_run_at"] = _calc_next_run_time(task["cron_expression"])
+        elif updates.get("is_enabled") is True and final_task_type == "cron":
+            updates["next_run_at"] = _calc_next_run_time(task["cron_expression"])
 
         if "params" in updates and isinstance(updates["params"], dict):
             updates["params"] = json.dumps(updates["params"])

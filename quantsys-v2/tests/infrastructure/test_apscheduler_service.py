@@ -18,7 +18,7 @@ from datetime import datetime
 class MockTask:
     """模拟任务对象"""
     def __init__(self, id, name, cron_expression, command, params=None,
-                 is_enabled=True, misfire_grace_time_seconds=300):
+                 is_enabled=True, misfire_grace_time_seconds=300, task_type='cron'):
         self.id = id
         self.name = name
         self.cron_expression = cron_expression
@@ -26,6 +26,11 @@ class MockTask:
         self.params = params or {}
         self.is_enabled = is_enabled
         self.misfire_grace_time_seconds = misfire_grace_time_seconds
+        self.task_type = task_type
+
+    def get(self, key, default=None):
+        """支持字典式访问"""
+        return getattr(self, key, default)
 
 
 class MockSchedulerRepository:
@@ -196,6 +201,124 @@ def test_cron_trigger_parsing(apscheduler_service):
     from apscheduler.triggers.cron import CronTrigger
     assert isinstance(job.trigger, CronTrigger)
 
+
+def test_delay_task_with_date_trigger(mock_repo):
+    """测试延迟任务使用 DateTrigger"""
+    from infrastructure.scheduler.apscheduler_service import APSchedulerService
+
+    # 添加延迟任务到 mock_repo
+    delay_task = MockTask(
+        id=4,
+        name="延迟任务测试",
+        cron_expression="DELAY:300",  # 300秒后执行
+        command="test_command",
+        params={"delay_seconds": 300},
+        task_type="delay"
+    )
+    mock_repo.tasks.append(delay_task)
+
+    # 创建服务并加载任务
+    db_url = "sqlite:///:memory:"
+    service = APSchedulerService(db_url, mock_repo)
+    service.load_tasks_from_db()
+
+    # 验证延迟任务已加载
+    job = service.scheduler.get_job("task_4")
+    assert job is not None
+
+    # 验证 trigger 是 DateTrigger
+    from apscheduler.triggers.date import DateTrigger
+    assert isinstance(job.trigger, DateTrigger)
+
+    # 验证 run_date 在未来
+    from datetime import datetime
+    import pytz
+    tz = pytz.timezone('Asia/Shanghai')
+    assert job.trigger.run_date > datetime.now(tz)
+
+    # 清理
+    if service.scheduler.running:
+        service.shutdown(wait=False)
+
+
+def test_interval_task_with_interval_trigger(mock_repo):
+    """测试间隔任务使用 IntervalTrigger"""
+    from infrastructure.scheduler.apscheduler_service import APSchedulerService
+
+    # 添加间隔任务到 mock_repo
+    interval_task = MockTask(
+        id=5,
+        name="间隔任务测试",
+        cron_expression="INTERVAL:60",  # 每60秒执行
+        command="test_command",
+        params={"interval_seconds": 60},
+        task_type="interval"
+    )
+    mock_repo.tasks.append(interval_task)
+
+    # 创建服务并加载任务
+    db_url = "sqlite:///:memory:"
+    service = APSchedulerService(db_url, mock_repo)
+    service.load_tasks_from_db()
+
+    # 验证间隔任务已加载
+    job = service.scheduler.get_job("task_5")
+    assert job is not None
+
+    # 验证 trigger 是 IntervalTrigger
+    from apscheduler.triggers.interval import IntervalTrigger
+    assert isinstance(job.trigger, IntervalTrigger)
+
+    # 验证间隔时间
+    assert job.trigger.interval.total_seconds() == 60
+
+    # 清理
+    if service.scheduler.running:
+        service.shutdown(wait=False)
+
+
+def test_once_task_with_date_trigger(mock_repo):
+    """测试一次性任务使用 DateTrigger"""
+    from infrastructure.scheduler.apscheduler_service import APSchedulerService
+    from datetime import datetime, timedelta
+
+    # 计算未来时间
+    future_time = datetime.now() + timedelta(hours=1)
+    future_time_str = future_time.isoformat()
+
+    # 添加一次性任务到 mock_repo
+    once_task = MockTask(
+        id=6,
+        name="一次性任务测试",
+        cron_expression=future_time_str,
+        command="test_command",
+        params={"run_at": future_time_str},
+        task_type="once"
+    )
+    mock_repo.tasks.append(once_task)
+
+    # 创建服务并加载任务
+    db_url = "sqlite:///:memory:"
+    service = APSchedulerService(db_url, mock_repo)
+    service.load_tasks_from_db()
+
+    # 验证一次性任务已加载
+    job = service.scheduler.get_job("task_6")
+    assert job is not None
+
+    # 验证 trigger 是 DateTrigger
+    from apscheduler.triggers.date import DateTrigger
+    assert isinstance(job.trigger, DateTrigger)
+
+    # 清理
+    if service.scheduler.running:
+        service.shutdown(wait=False)
+
+
+def test_create_trigger_with_invalid_type(apscheduler_service):
+    """测试不支持的任务类型抛出异常"""
+    with pytest.raises(ValueError, match="Unsupported task_type"):
+        apscheduler_service._create_trigger('invalid_type', {'name': 'test', 'cron_expression': '* * * * *'})
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
