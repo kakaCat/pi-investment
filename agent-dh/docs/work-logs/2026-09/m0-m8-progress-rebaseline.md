@@ -13,14 +13,14 @@
 ```
 
 **完成状态分布（重新核算）**:
-- ✅ 完全就绪：M0（100%）、M3（100%）、M4（100%）、M5（100%）、M6（100%）、M7（100%）、M8（**100%**，09-01 M8-1+M8-2 完成）
-- 🟡 进行中：M1（85%）、M2（67%）
+- ✅ 完全就绪：M0（100%）、M2（**100%**，09-01 M2-3 重建完成）、M3（100%）、M4（100%）、M5（100%）、M6（100%）、M7（100%）、M8（100%）
+- 🟡 进行中：M1（85%，catalyst/sentiment 数据覆盖问题，非工单）
 
 | 模块 | 原文档 | 重新核算 | 变化原因 |
 |------|--------|---------|---------|
 | M0 数据地基 | 100% | **100%** | M0-4 因子新鲜度门禁（data/quality-report 含 factor_freshness）、M0-5 stale 标记（stocks/factors 含 stale 标注）均在 dac1451a（8/20）完成，09-01 复核确认 |
 | M1 市场感知 | 85% | 85% | 属实：regime 6 日落库 + 主线 8/28 落库；catalyst 空、sentiment 覆盖率低 |
-| M2 标的工厂 | 67% | 67% | M2-3 后端已修复（见 §3），但前端工具缺失，性质变为"半完成" |
+| M2 标的工厂 | 67% | **100%** | M2-3 前端工具重建完成（09-01）：崩溃根因=prompt 缺 parameters/output.schema（type:null → UNSUPPORTED_SCHEMA 启动崩溃），按 Schema 铁律重写，冒烟 19/19 + 端到端 4/4 通过（真实后端） |
 | M3 信号择时 | 33% | **100%** | M3-2 完成（539 回测落库，验收4 按市况分层口径通过）；M3-3 signal_track 已实施待回填 |
 | M4 仓位风控 | 100% | 100% | 属实：euphoria 上限 30% 实际 14.4%，熔断 -7.72% 逼近阈值 |
 | M5 交易执行 | 50% | **100%** | M5-1 滑点落库链路已实现（PortfolioTradeTool.trackSlippage 成交自动写 trade:slippage memory，SlippageReportTool 聚合）；M5-2 daily-trade-verify 已在调度器（16:00 每日启用）。0 条滑点数据是因近期无真实成交，非代码缺失 |
@@ -28,7 +28,7 @@
 | M7 对手博弈 | 100% | 100% | 3/3 全✅ + 盘后例程已接入 |
 | M8 预测引擎 | 0% | **100%** | M8-1 恒等输出根因排查完成（09-01 实测：特征不同源+legacy 缺失补零，RFC003-P3 修复，预测非恒等）；M8-2 上线门禁完成（09-01：predict 加 test_accuracy 阈值分级，<0.50 拒服/0.50~0.55 degraded，故障注入验证拒服端到端通过） |
 
-**加权平均**：M0 100%×5 + M1 85%×3 + M2 67%×3 + M3 100%×3 + M4 100%×3 + M5 100%×2 + M6 100%×4 + M7 100%×3 + M8 **100%×2** = (500+255+201+300+300+200+400+300+**200**)/28 = 2656/28 = **95%**
+**加权平均**：M0 100%×5 + M1 85%×3 + M2 **100%×3** + M3 100%×3 + M4 100%×3 + M5 100%×2 + M6 100%×4 + M7 100%×3 + M8 100%×2 = (500+255+**300**+300+300+200+400+300+200)/28 = 2755/28 = **98%**
 
 > 注：加权按 26 工单明细核算（见 §2）更准确为 60% 左右；两种口径差异来自"工单完成数/总工单" vs "模块级权重"。以下以**工单明细口径**为准。
 
@@ -40,20 +40,22 @@
 
 | 状态 | 数量 | 明细 |
 |------|------|------|
-| ✅ 完成 | 25 | M0-1/2/3/**4/5**、M1-1/2/3/自动化、M2-1/2、**M3-2（09-01）**、**M3-3（代码完成）**、M4-1/2/3、**M5-1/2（09-01 复核）**、M6-1/2/3/4、M7-1/2/3、**M8-1/2（09-01 完成）**（M2-3 记半完成） |
-| ❌ 失败/停滞 | 1 | M2-3（后端修好前端缺，用户暂缓） |
+| ✅ 完成 | 26 | 全部工单：M0-1/2/3/4/5、M1-1/2/3/自动化、M2-1/2/**3（09-01 重建）**、M3-2（09-01）、M3-3（代码完成）、M4-1/2/3、M5-1/2（09-01 复核）、M6-1/2/3/4、M7-1/2/3、M8-1/2（09-01） |
+| ❌ 失败/停滞 | 0 | — |
 | ⏳ 未完成 | 0 | — |
 
-**25/26 = 96%**（含 M2-3 半完成按 0.5 记：25.5/26 = 98%；仅剩 M2-3 pool_battlefield 前端工具，用户暂缓标记 todo）
+**26/26 = 100%**（M2-3 于 09-01 重建完成：崩溃根因修复 + 冒烟 19/19 + 端到端 4/4 真实后端验证；待 DSH 重启后线上生效——未重启因 agent-dh 下有其他会话 untracked 工作，避免 wip checkpoint 干扰）
 
 ---
 
 ## 3. 关键发现（本轮核实）
 
-### 🔴 M2-3 战场评估：后端已修复，前端工具丢失
-- 后端 `GET /api/game/pools/{pool_id}/battlefield-assessment` 实测 **HTTP 200**：pool 35 评分 51.2、game_phase=consolidation、对手强度（散户压力 medium/机构兴趣 high/游资风险 low）、recommendation=reduce、data_quality=full——**不再是原 TypeError**
-- 但前端 `pool_battlefield` 工具**已从 competition 插件移除**（现仅 4 工具：competition_analysis/opponent_behavior/manipulation_detect/retail_panic_index），测试报告 REVIEW_AND_TEST_REPORT.md 仍列为工具 #99
-- 结论：M2-3 后端修复了（m0-fund-flow-fix-plan 中 ✅"评分恢复正常"属实），但前端工具在插件重构时未同步 → **Agent 无法调用战场评估**，需补回 PoolBattlefieldTool
+### ✅ M2-3 战场评估：前端工具已重建（09-01 完成）
+- 后端 `GET /api/game/pools/{pool_id}/battlefield-assessment` 实测 **HTTP 200**：pool 35 评分 54.9、game_phase=rising、对手强度（散户压力 high/机构兴趣 high/游资风险 low）、recommendation=reduce、confidence=0.67
+- **初版崩溃根因定位**：80ce5cfc 的 prompt.ts 缺 `parameters`/`output.schema` 段（只有老格式 examples），`toDSHToolDefinition()` 编译出 type:null schema → DSH 启动即崩（UNSUPPORTED_SCHEMA）
+- **重建**（commit d4cef814）：按 OpponentBehaviorTool 同款模式补齐显式 schema（每个 object 节点显式 additionalProperties，Schema 铁律合规）；output schema 与后端真实返回逐字段核实对齐；参数支持 pool_id 直查 + pool_name 模糊匹配（listPools 解析）
+- **验证**：插件 schema 冒烟 19/19 通过；vitest 端到端 4/4 通过（真实后端：直查/模糊匹配/参数拒绝/无匹配报错）
+- **待生效**：需 DSH profile 重启后线上加载（未自动重启因 agent-dh 下有其他会话 untracked 工作，避免 wip checkpoint 干扰）
 
 ### 🟡 M3-3 signal_track 实际已实施
 - `signal_track report` 实测：14 条信号（8/02-9/01），A级 6/B级 5/C级 3
@@ -105,7 +107,7 @@
 | P0 | ~~M3-2 回测矩阵~~ ✅ 已完成（09-01：539 回测落库，组合策略 648 实证，验收4 按市况分层通过） | M3-2 |
 | P0 | ~~M0-4 因子新鲜度门禁~~ ✅ 已完成（09-01 复核：dac1451a 已集成 data/quality-report factor_freshness） | M0-4 |
 | P0 | ~~M5-1/M5-2 滑点+对账~~ ✅ 已完成（09-01 复核：滑点链路+daily-trade-verify 调度就位） | M5 |
-| P0 | 补回 `pool_battlefield` 前端工具（后端已就绪；用户暂缓标记 todo）→ M2 达 100% | M2-3 |
+| P0 | ~~M2-3 pool_battlefield 前端工具~~ ✅ 已完成（09-01：根因=schema 缺失，重建+冒烟 19/19+端到端 4/4 通过，待 DSH 重启生效） | M2-3 |
 | P1 | signal_track 胜率回填跑通（signal-perf-backfill-daily 调度已启用，9/3 后数据成熟自动回填） | M3-3 |
 | P2 | ~~M8-1 预测引擎根因排查~~ ✅ 已完成（09-01：恒等输出根因=特征不同源，RFC003-P3 修复，实测非恒等） | M8-1 |
 | P2 | ~~M8-2 上线门禁~~ ✅ 已完成（09-01：test_accuracy 阈值分级，<0.50 拒服，故障注入验证通过） | M8-2 |
