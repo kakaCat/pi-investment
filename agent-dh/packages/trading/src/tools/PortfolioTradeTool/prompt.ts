@@ -154,6 +154,21 @@ export const portfolioTradePrompt: ToolPrompt<PortfolioTradeParams, PortfolioTra
         }];
       }
 
+      // 2026-09-01：盘前挂单状态（原落入 ❌ 默认分支，把成功挂单误显示成"交易被拒绝"）
+      if (value.status === 'pending') {
+        const v: any = value;
+        return [{
+          type: 'text',
+          text:
+            `📋 挂单已受理（盘前挂单）\n` +
+            `操作: ${v.action} ${v.symbol}\n` +
+            `数量: ${v.quantity}股\n` +
+            `挂单ID: ${v.pending_order_id ?? v.order_id}\n` +
+            `说明: ${v.message ?? '开盘后 9:31 起自动撮合'}\n` +
+            `提示: 成交前可用 trade_monitor 查挂单状态`,
+        }];
+      }
+
       return [{
         type: 'text',
         text: `❌ 交易被拒绝: ${value.symbol}，订单ID: ${value.order_id}`,
