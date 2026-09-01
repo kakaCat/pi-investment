@@ -1,7 +1,10 @@
 """
 回测引擎 - 异步版本
 
-简化的回测引擎，支持策略回测
+⚠️ DEPRECATED（2026-09-01，E-1 修复）：本类的 _simulate_trading 曾是随机数假回测
+（random.uniform 生成假夏普 0.5~2.5），已改为显式抛 NotImplementedError。
+真实回测：StrategyCodeService.backtest_strategy / RealBacktestEngineAdapter。
+本类保留仅为 run_backtest 异步任务外壳的兼容性，不再产生任何回测数据。
 """
 from domain.ports import IAsyncKlineRepository, IBacktestRepository
 from typing import Dict, Any, List, Optional
@@ -96,28 +99,18 @@ class BacktestAsyncEngine:
         symbol: Optional[str],
         initial_capital: float
     ) -> Dict[str, Any]:
-        """模拟交易（简化版）"""
-        # 简化的回测结果
-        import random
+        """已禁用（2026-09-01，E-1 修复）。
 
-        total_return = random.uniform(-0.2, 0.5)
-        final_capital = initial_capital * (1 + total_return)
-
-        return {
-            'strategy_name': strategy_name,
-            'symbol': symbol,
-            'start_date': date(2023, 1, 1),
-            'end_date': date(2024, 12, 31),
-            'initial_capital': initial_capital,
-            'final_capital': final_capital,
-            'total_return': total_return,
-            'annual_return': total_return / 2,
-            'sharpe_ratio': random.uniform(0.5, 2.5),
-            'max_drawdown': random.uniform(-0.3, -0.05),
-            'win_rate': random.uniform(0.4, 0.7),
-            'trade_count': random.randint(10, 100),
-            'created_at': datetime.now()
-        }
+        原实现用 random.uniform 生成假收益/假夏普（0.5~2.5）/假回撤——
+        任何调用方拿到的都是随机数，且假数据会落库污染 backtest_results。
+        显式拒服，防止静默造假；真实回测走 StrategyCodeService.backtest_strategy
+        （同步接口见 RealBacktestEngineAdapter）。
+        """
+        raise NotImplementedError(
+            "BacktestAsyncEngine 是随机数假引擎，已禁用（2026-09-01）。"
+            "真实回测请用 StrategyCodeService.backtest_strategy "
+            "或 RealBacktestEngineAdapter（application.services.real_backtest_engine_adapter）"
+        )
 
     async def _save_result(self, result: Dict[str, Any]) -> Optional[int]:
         """保存回测结果"""

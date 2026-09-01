@@ -442,53 +442,18 @@ def backtest_strategy_v2(payload: Optional[Dict[str, Any]] = Body(None)):
 @flask_parity_router.post('/api/backtest/combo')
 def combo_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     """Combo strategy backtest endpoint."""
-    # 2026-09-01 修复：原 `from adapters.shared import combo_backtest_service`
-    # 模块不存在（ImportError 500）；且 ServiceFactory.get_backtest_engine() 返回的
-    # BacktestAsyncEngine 是随机数假引擎、无同步 backtest() 方法。改用真实引擎
-    # StrategyCodeService.backtest_strategy（M3-2 回测矩阵同款），包一层 adapter
-    # 满足 ComboStrategyBacktestService 的 backtest(strategy, symbols, **kwargs) 接口。
+    # 2026-09-01 两轮修复：
+    # ① 原 `from adapters.shared import combo_backtest_service` 模块不存在（ImportError 500）
+    # ② ServiceFactory.get_backtest_engine() 原返回随机数假引擎 BacktestAsyncEngine
+    #    （E-1），现已改为真实引擎 RealBacktestEngineAdapter（E-3 回收：本路由不再
+    #    内嵌 _MockStrategyRepo/_RealEngineAdapter，repo 用真 strategy_repository）。
     from application.services.combo_strategy_backtest_service import ComboStrategyBacktestService
     from domain.backtest.engine.strategy_combiner import StrategyCombiner
-    from adapters.shared.services import get_strategy_service
-
-    _strategy_svc = get_strategy_service()
-
-    class _RealEngineAdapter:
-        """适配 StrategyCodeService 到 combo 服务的 backtest 接口。"""
-
-        def backtest(self, strategy, symbols=None, start_date=None, end_date=None,
-                     initial_capital=1000000.0, **kwargs):
-            # combo 传 strategy dict，取出 id；symbols 为单元素列表（逐股回测）
-            sid = strategy.get('strategy_id') or strategy.get('id')
-            sym = (symbols or [None])[0]
-            result = _strategy_svc.backtest_strategy(
-                strategy_id=sid,
-                symbol=sym,
-                start_date=start_date,
-                end_date=end_date,
-                initial_cash=initial_capital,
-            )
-            return {
-                'strategy_id': sid,
-                'equity_curve': [
-                    {'date': p['date'][:10], 'value': p['equity']}
-                    for p in result.get('equity_curve', [])
-                ],
-                'metrics': {
-                    'total_return': result.get('total_return', 0),
-                    'sharpe_ratio': result.get('sharpe_ratio', 0),
-                },
-            }
-
-    class _MockStrategyRepo:
-        """最小策略 repo：combo 服务仅用 get_by_id 取策略名/存在性。"""
-
-        def get_by_id(self, strategy_id):
-            return {'strategy_id': strategy_id, 'name': f'strategy-{strategy_id}'}
+    from adapters.shared.services import get_strategy_repository, get_backtest_engine
 
     combo_backtest_service = ComboStrategyBacktestService(
-        strategy_repo=_MockStrategyRepo(),
-        backtest_engine=_RealEngineAdapter(),
+        strategy_repo=get_strategy_repository(),
+        backtest_engine=get_backtest_engine(),
         strategy_combiner=StrategyCombiner(),
     )
 

@@ -362,11 +362,17 @@ class ServiceFactory:
     @classmethod
     @lru_cache(maxsize=1)
     def get_backtest_engine(cls):
-        """获取BacktestAsyncEngine实例"""
+        """获取真实回测引擎适配器（2026-09-01，E-1 修复）。
+
+        原返回 BacktestAsyncEngine——其 _simulate_trading 用 random.uniform 生成
+        假夏普（0.5~2.5），任何调用方拿到的都是随机数。现改返回
+        RealBacktestEngineAdapter（包装 StrategyCodeService.backtest_strategy，
+        M3-2 回测矩阵 539 条落库数据验证过的真实引擎）。
+        """
         if 'backtest_engine' not in cls._instances:
-            from application.services.backtest_async_engine import BacktestAsyncEngine
-            cls._instances['backtest_engine'] = BacktestAsyncEngine()
-            logger.info("BacktestAsyncEngine initialized")
+            from application.services.real_backtest_engine_adapter import RealBacktestEngineAdapter
+            cls._instances['backtest_engine'] = RealBacktestEngineAdapter()
+            logger.info("RealBacktestEngineAdapter initialized (replaces random-fake BacktestAsyncEngine)")
         return cls._instances['backtest_engine']
 
     @classmethod

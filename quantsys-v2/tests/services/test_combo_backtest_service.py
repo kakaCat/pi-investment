@@ -95,7 +95,7 @@ class TestComboStrategyBacktestService:
 
     @pytest.fixture
     def mock_strategy_combiner(self):
-        from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+        from domain.backtest.engine.strategy_combiner import StrategyCombiner
         return StrategyCombiner(mode='weighted')
 
     @pytest.fixture
