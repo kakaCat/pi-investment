@@ -316,9 +316,13 @@ def barra_calculate(payload: Optional[Dict[str, Any]] = Body(None)):
 
     except Exception as e:
         logger.error(f"Barra calculation failed: {e}")
+        # 2026-09-01：样本不足类错误给出可操作的提示（此前静默返回全 null 数据）
+        msg = str(e)
+        if 'InsufficientDataError' in type(e).__name__ or 'required' in msg.lower():
+            msg = f"样本不足：Barra 横截面回归需要至少 因子数+5 只股票（默认 5 风格因子 → ≥10 只），当前仅 {len(returns_data)} 只。请增加标的数量，或改用 risk_metrics 等单标的风险指标。"
         return api_response(
             None,
             success=False,
-            message=f"Barra calculation failed: {str(e)}"
+            message=f"Barra calculation failed: {msg}"
         )
 

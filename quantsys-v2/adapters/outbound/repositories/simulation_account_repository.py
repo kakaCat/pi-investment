@@ -103,25 +103,27 @@ class SimulationAccountRepository(IAccountRepository):
         account_name: str,
         available_cash: float,
         frozen_cash: float = None,
+        commit: bool = True,
     ) -> bool:
         """更新资金余额"""
         account = self.sim_repo.get_account(account_name)
         if not account:
             return False
-        
+
         account.cash_available = available_cash
         if frozen_cash is not None:
             account.cash_frozen = frozen_cash
-        
-        self.sim_repo.session.commit()
+
+        if commit:
+            self.sim_repo.session.commit()
         return True
-    
-    def deduct_cash(self, account_name: str, amount: float) -> bool:
+
+    def deduct_cash(self, account_name: str, amount: float, commit: bool = True) -> bool:
         """扣减可用资金"""
         account = self.sim_repo.get_account(account_name)
         if not account:
             return False
-        
+
         if float(account.cash_available) < amount:
             logger.warning(
                 f"扣减资金失败: {account_name} "
@@ -129,17 +131,19 @@ class SimulationAccountRepository(IAccountRepository):
                 f"可用 ¥{float(account.cash_available):,.2f}"
             )
             return False
-        
+
         account.cash_available = float(account.cash_available) - amount
-        self.sim_repo.session.commit()
+        if commit:
+            self.sim_repo.session.commit()
         return True
-    
-    def add_cash(self, account_name: str, amount: float) -> bool:
+
+    def add_cash(self, account_name: str, amount: float, commit: bool = True) -> bool:
         """增加可用资金"""
         account = self.sim_repo.get_account(account_name)
         if not account:
             return False
-        
+
         account.cash_available = float(account.cash_available) + amount
-        self.sim_repo.session.commit()
+        if commit:
+            self.sim_repo.session.commit()
         return True

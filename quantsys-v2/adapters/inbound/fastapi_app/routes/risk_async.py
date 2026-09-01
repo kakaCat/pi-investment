@@ -41,51 +41,76 @@ def _format_rule(rule):
 
 @router.post('/api/risk/check')
 def risk_check(payload: Optional[Dict[str, Any]] = Body(None)):
-    """风险检查"""
+    """风险检查
+
+    2026-09-01 修复：持仓源从 portfolio_holdings 表（6 月起已停用的死数据，
+    曾返回 300750/000999/600036 三只旧持仓）改为 simulation 账户真实持仓
+    （与 position_list 同一数据源，消除两工具持仓不一致）。
+    """
     try:
         data = payload or {}
-        symbols = data.get('symbols')
-        holdings = portfolio_repo.get_all_holdings()
-        if symbols:
-            holdings = [h for h in holdings if h['symbol'] in symbols]
-        account_value = float(data.get('account_value', 0)) if data.get('account_value') else None
+        account_name = data.get('account_name', 'agent_virtual')
+        from adapters.shared.services import get_simulation_repo, get_stock_repo
+        sim_repo = get_simulation_repo()
+        stock_repo = get_stock_repo()
 
-        holdings_stats = portfolio_repo.get_holdings_stats()
-        sector_concentration_map = {}
-        if holdings_stats and account_value and account_value > 0:
-            sector_dist = holdings_stats.get('sector_distribution', [])
-            for sector_info in sector_dist:
-                sector_name = sector_info.get('sector', '未知')
-                sector_invested = sector_info.get('invested', 0) or 0
-                sector_ratio = sector_invested / account_value
-                if sector_ratio > 0.5:
-                    sector_concentration_map[sector_name] = sector_ratio
+        positions = sim_repo.get_all_positions(account_name)
+        account = sim_repo.get_account(account_name)
+        account_value = float(data.get('account_value') or 0) if data.get('account_value') else None
+        if account_value is None and account is not None:
+            account_value = float(getattr(account, 'total_value', 0) or 0)
 
-        checks = []
-        for h in holdings:
-            symbol = h['symbol']
-            position_value = h.get('total_invested', 0) or (h.get('quantity', 0) * h.get('avg_cost', 0))
-            item_checks = []
-            current_price = 0
+        # 行业集中度：从当前持仓 + stock 表 sector 现算（原 get_holdings_stats
+        # 读 portfolio_holdings 旧表，与新持仓源不一致）
+        sector_invested: Dict[str, float] = {}
+        for p in positions:
+            sector = None
             try:
-                latest_kline = kline_repo.get_latest_daily_kline(symbol)
-                if latest_kline is not None and not latest_kline.is_empty():
-                    kline_row = latest_kline.to_dicts()[0]
-                    current_price = float(kline_row.get('close', 0))
+                stock = stock_repo.get_by_symbol(p.symbol)
+                sector = getattr(stock, 'sector', None) if stock else None
             except Exception:
                 pass
+            pos_value = float(p.market_value or 0) or (float(p.shares_total) * float(p.current_price or p.avg_cost or 0))
+            sector_invested[sector or '未知'] = sector_invested.get(sector or '未知', 0) + pos_value
+        sector_concentration_map = {}
+        if account_value and account_value > 0:
+            for sector_name, invested in sector_invested.items():
+                ratio = invested / account_value
+                if ratio > 0.4:
+                    sector_concentration_map[sector_name] = ratio
+
+        checks = []
+        for p in positions:
+            symbol = p.symbol
+            position_value = float(p.market_value or 0) or (float(p.shares_total) * float(p.current_price or p.avg_cost or 0))
+            item_checks = []
+            current_price = float(p.current_price or 0)
+            if current_price == 0:
+                try:
+                    latest_kline = kline_repo.get_latest_daily_kline(symbol)
+                    if latest_kline is not None and not latest_kline.is_empty():
+                        kline_row = latest_kline.to_dicts()[0]
+                        current_price = float(kline_row.get('close', 0))
+                except Exception:
+                    pass
             if account_value and account_value > 0:
                 concentration = (position_value / account_value) * 100
                 if concentration > 30:
                     item_checks.append({
                         'type': 'concentration', 'level': 'high',
                         'message': f'{symbol} 仓位集中度 {concentration:.1f}% > 30%', 'suggestion': '建议分散持仓'})
-            holding_sector = h.get('sector', '未知')
+            holding_sector = None
+            try:
+                stock = stock_repo.get_by_symbol(symbol)
+                holding_sector = getattr(stock, 'sector', None) if stock else None
+            except Exception:
+                pass
+            holding_sector = holding_sector or '未知'
             if holding_sector in sector_concentration_map:
                 sector_ratio = sector_concentration_map[holding_sector]
                 item_checks.append({
                     'type': 'sector_concentration', 'level': 'high',
-                    'message': f'{symbol} 所属行业 "{holding_sector}" 集中度 {sector_ratio*100:.1f}% > 50%',
+                    'message': f'{symbol} 所属行业 "{holding_sector}" 集中度 {sector_ratio*100:.1f}% > 40%',
                     'suggestion': '建议分散行业配置'})
             risk_metrics = risk_repo.get_latest_risk_metrics(symbol)
             var_95 = volatility = max_drawdown = 0
@@ -101,7 +126,8 @@ def risk_check(payload: Optional[Dict[str, Any]] = Body(None)):
                 'symbol': symbol, 'position_value': position_value, 'current_price': current_price,
                 'var_95': var_95, 'volatility': volatility, 'max_drawdown': max_drawdown, 'checks': item_checks})
         return sanitize_for_json({
-            'total_holdings': len(holdings), 'checks': checks,
+            'total_holdings': len(checks), 'checks': checks,
+            'account_name': account_name,
             'risk_level': 'high' if len(checks) > 3 else 'low'})
     except Exception as e:
         return error_response({'error': str(e)}, 500)

@@ -60,8 +60,11 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
             'is_suspended': stock.is_suspended,
             'market_cap': stock.market_cap,
             'pe_ratio': stock.pe,  # 表字段是 pe
+            'pe': stock.pe,  # 2026-09-01：别名，screening 服务按 pe 读取（此前取不到→全部过滤）
             'pb_ratio': stock.pb,  # 表字段是 pb
+            'pb': stock.pb,  # 2026-09-01：别名
             'roe': stock.roe,
+            'debt_ratio': stock.debt_ratio,  # 2026-09-01：补齐（screening 负债率条件此前恒 0）
             'revenue_growth': stock.revenue_growth,
             'net_profit_growth': stock.net_profit_growth,
         }

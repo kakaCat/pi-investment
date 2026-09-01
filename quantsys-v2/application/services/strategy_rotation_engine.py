@@ -189,7 +189,8 @@ class StrategyRotationEngine:
         for action in actions:
             try:
                 strategy_id = action.get('strategy_id')
-                action_type = action.get('action')  # activate / deactivate / adjust_weight
+                # 2026-09-01：action 归一化（容忍 BUY/Deactivate 等大小写）
+                action_type = (action.get('action') or '').strip().lower()  # activate / deactivate / adjust_weight
 
                 if action_type == 'activate':
                     self.strategy_repo.update_strategy(strategy_id, {'is_active': True})
@@ -198,6 +199,8 @@ class StrategyRotationEngine:
                 elif action_type == 'adjust_weight':
                     new_weight = action.get('new_weight', 1.0)
                     self.strategy_repo.update_strategy(strategy_id, {'weight': new_weight})
+                else:
+                    raise ValueError(f"未知轮动动作: '{action.get('action')}'（支持 activate/deactivate/adjust_weight）")
 
                 executed.append(action)
                 logger.info(
@@ -556,7 +559,8 @@ class StrategyRotationEngine:
         # 分析每个 action 的影响
         deactivated_strategies = set()
         for action in actions:
-            action_type = action.get('action') or action.get('type', '')
+            # 2026-09-01：action 归一化（容忍 BUY/Deactivate 等大小写，避免契约不匹配被静默忽略）
+            action_type = (action.get('action') or action.get('type') or '').strip().lower()
             strategy_id = action.get('strategy_id')
             strategy_name = action.get('strategy_name', '')
 
@@ -587,6 +591,12 @@ class StrategyRotationEngine:
                         f"策略 {strategy_name} 权重大幅下调 ({old_w:.2f}→{new_w:.2f})，"
                         f"相关持仓可能需要减仓"
                     )
+            elif action_type not in ('activate',):
+                # 2026-09-01：未知 action 不再静默忽略，给出可见告警
+                warnings.append(
+                    f"忽略无法识别的轮动动作: '{action.get('action') or action.get('type')}' "
+                    f"（支持 activate/deactivate/adjust_weight）"
+                )
 
         # 估算交易成本
         total_trade_value = sum(

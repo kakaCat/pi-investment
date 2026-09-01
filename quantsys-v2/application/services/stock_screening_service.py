@@ -133,6 +133,7 @@ class StockScreeningService:
             return {
                 'total': total,
                 'matched': len(matched_stocks),
+                'total_matched': len(matched_stocks),  # 2026-09-01：对齐工具渲染字段（原 matched）
                 'stocks': matched_stocks,
                 'criteria': criteria,
                 'timestamp': datetime.now().isoformat()
@@ -154,10 +155,21 @@ class StockScreeningService:
             if stock.get('is_st', False):
                 return False
 
+        # 2026-09-01 修复：排除退市/退市整理期股票（此前退市股混入结果，
+        # 如"退市观典"roe=-3.38 也能通过 roe>=15 筛选）
+        if '退' in (stock.get('name') or ''):
+            return False
+
         # PE范围
         if criteria.get('max_pe'):
             pe = float(stock.get('pe', 0) or 0)
             if pe <= 0 or pe > criteria['max_pe']:
+                return False
+
+        # PB范围（max_pb 工具已支持映射）
+        if criteria.get('max_pb'):
+            pb = float(stock.get('pb', 0) or 0)
+            if pb <= 0 or pb > criteria['max_pb']:
                 return False
 
         # ROE范围
@@ -205,7 +217,8 @@ class StockScreeningService:
 
         roe = float(stock.get('roe', 0) or 0)
         if roe > 0.15:
-            reasons.append(f"高ROE({roe*100:.1f}%)")
+            # 2026-09-01 修复：roe 已是百分数值（如 26.08），不再 *100
+            reasons.append(f"高ROE({roe:.1f}%)")
 
         debt_ratio = float(stock.get('debt_ratio', 0) or 0)
         if debt_ratio < 0.3:

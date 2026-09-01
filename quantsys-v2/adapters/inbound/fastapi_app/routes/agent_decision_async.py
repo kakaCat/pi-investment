@@ -40,6 +40,7 @@ class RotationExecution(BaseModel):
     actions: List[Dict[str, Any]] = Field(..., description="轮动动作列表")
     decision: str = Field('approve', description="决策: approve/partial/reject")
     reason: str = Field('', description="决策原因")
+    dry_run: bool = Field(False, description="是否模拟执行（不实际落库，2026-09-01 补：此前工具层 dry_run 被忽略会真执行）")
 
 
 class RotationSimulate(BaseModel):
@@ -152,6 +153,25 @@ async def execute_rotation(execution: RotationExecution):
     执行后返回完整状态：新策略组合、持仓变化、决策ID。
     """
     try:
+        # 2026-09-01：dry_run=true 时只模拟不执行（此前工具层 dry_run 被忽略会真下单）
+        if execution.dry_run:
+            from application.services.strategy_rotation_engine import get_rotation_engine
+            engine = get_rotation_engine()
+            sim = engine.simulate_rotation(execution.actions)
+            return {
+                'success': True,
+                'data': {
+                    'decision': execution.decision,
+                    'dry_run': True,
+                    'simulated': sim,
+                    'executed_actions': [],
+                    'failed_actions': [],
+                    'portfolio_state': None,
+                    'decision_id': f"dec_dry_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    'next_steps': ['dry_run 未落库，确认后去掉 dry_run 重新调用'],
+                },
+            }
+
         if execution.decision == 'reject':
             logger.info("agent_rotation_rejected", reason=execution.reason)
 
