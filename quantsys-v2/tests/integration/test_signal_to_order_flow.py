@@ -45,7 +45,7 @@ class TestSignalToOrderFlow:
     def test_create_order_from_legacy_signal(self, ds):
         """测试从旧格式信号创建订单"""
         signal = {
-            'action': 'buy',
+            'action': 'BUY',
             'confidence': 0.85,
             'reason': 'Test signal'
         }
@@ -59,7 +59,7 @@ class TestSignalToOrderFlow:
         # 验证订单创建
         order = ds.portfolio.get_order_by_id(result['order_id'])
         assert order is not None
-        assert order['action'] == 'buy'
+        assert order['action'] == 'BUY'
         assert order['quantity'] > 0
         assert order['stop_loss_price'] is not None  # 应该有默认止损
 
@@ -69,7 +69,7 @@ class TestSignalToOrderFlow:
     def test_create_order_with_risk_management(self, ds):
         """测试从新格式信号创建订单组"""
         signal = {
-            'action': 'buy',
+            'action': 'BUY',
             'confidence': 0.85,
             'reason': 'ATR breakout',
             'risk_management': {
@@ -96,14 +96,14 @@ class TestSignalToOrderFlow:
         # 验证主订单
         assert 'order_id' in result
         main_order = ds.portfolio.get_order_by_id(result['order_id'])
-        assert main_order['action'] == 'buy'
+        assert main_order['action'] == 'BUY'
         assert float(main_order['stop_loss_price']) == 48.50
         assert float(main_order['take_profit_price']) == 55.20
 
         # 验证止损单
         if 'stop_loss_order_id' in result:
             stop_order = ds.portfolio.get_order_by_id(result['stop_loss_order_id'])
-            assert stop_order['action'] == 'sell'
+            assert stop_order['action'] == 'SELL'
             assert stop_order['order_type'] == 'stop'
             assert float(stop_order['price']) == 48.50
             assert stop_order['parent_order_id'] == result['order_id']
@@ -114,7 +114,7 @@ class TestSignalToOrderFlow:
         # 验证止盈单
         if 'take_profit_order_id' in result:
             tp_order = ds.portfolio.get_order_by_id(result['take_profit_order_id'])
-            assert tp_order['action'] == 'sell'
+            assert tp_order['action'] == 'SELL'
             assert float(tp_order['price']) == 55.20
             assert tp_order['parent_order_id'] == result['order_id']
 

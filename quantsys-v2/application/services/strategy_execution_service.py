@@ -229,13 +229,13 @@ class StrategyEngine:
             custom_price = float(last_row.get('sell_tier1_price'))
 
         if has_buy:
-            action = 'buy'
+            action = 'BUY'
             confidence = last_row.get('confidence', 0.7)
         elif has_sell:
-            action = 'sell'
+            action = 'SELL'
             confidence = last_row.get('confidence', 0.7)
         else:
-            action = 'hold'
+            action = 'HOLD'
             confidence = 0.0
 
         # Extract indicators from last row (exclude buy/sell/price columns)

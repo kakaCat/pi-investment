@@ -110,7 +110,7 @@ class StrategyContext:
         # 记录交易
         trade = Trade(
             date=self._current_bar.date,
-            action='buy',
+            action='BUY',
             price=actual_price,
             size=size,
             reason=reason
@@ -154,7 +154,7 @@ class StrategyContext:
         # 记录交易
         trade = Trade(
             date=self._current_bar.date,
-            action='sell',
+            action='SELL',
             price=actual_price,
             size=size,
             reason=reason

@@ -159,9 +159,9 @@ class BacktestStage(PipelineStage):
             # Process signals for this date
             day_signals = signals_by_date.get(date, [])
             for sig in day_signals:
-                action = sig.get("action", "hold")
+                action = sig.get("action", "HOLD").upper()  # Normalize to uppercase
 
-                if action == "buy" and symbol not in positions:
+                if action == "BUY" and symbol not in positions:
                     available = cash * 0.95
                     fill_price = current_price * (1 + slippage_rate)
                     shares = int(available / fill_price / 100) * 100
@@ -183,7 +183,7 @@ class BacktestStage(PipelineStage):
                                 highest_price=fill_price,
                             )
 
-                elif action == "sell" and symbol in positions:
+                elif action == "SELL" and symbol in positions:
                     pos = positions.pop(symbol)
                     fill_price = current_price * (1 - slippage_rate)
 

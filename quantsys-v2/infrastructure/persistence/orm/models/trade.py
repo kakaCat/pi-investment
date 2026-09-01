@@ -5,8 +5,10 @@ Trade ORM Model
 对应数据库表: quant.trades
 """
 from sqlalchemy import Column, BigInteger, Text, Float, Integer, Date, DateTime, CheckConstraint
+from sqlalchemy.orm import validates
 from sqlalchemy.sql import func
 from infrastructure.persistence.orm import Base
+from .action_norm import normalize_action
 
 __all__ = ['Trade']
 
@@ -21,11 +23,15 @@ class Trade(Base):
 
     __tablename__ = 'trades'
     __table_args__ = (
-        CheckConstraint("action = ANY (ARRAY['buy'::text, 'sell'::text])", name='trades_action_check'),
+        CheckConstraint("action IN ('BUY', 'SELL')", name='trades_action_check'),
         CheckConstraint('price > 0', name='trades_price_check'),
         CheckConstraint('quantity > 0', name='trades_quantity_check'),
         {'schema': 'quant'}
     )
+
+    @validates('action')
+    def _normalize_action(self, key, value):
+        return normalize_action(value)
 
     # 主键
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment='交易ID')
@@ -35,7 +41,7 @@ class Trade(Base):
     name = Column(Text, nullable=False, comment='股票名称')
 
     # 交易信息
-    action = Column(Text, nullable=False, index=True, comment='交易方向: buy/sell')
+    action = Column(Text, nullable=False, index=True, comment='交易方向: BUY/SELL (大写契约)')
     price = Column(Float, nullable=False, comment='成交价格')
     quantity = Column(Integer, nullable=False, comment='成交数量')
     amount = Column(Float, nullable=False, comment='成交金额')

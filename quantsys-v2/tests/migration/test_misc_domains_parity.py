@@ -24,7 +24,7 @@ def test_trade_check_missing_params(fastapi_client):
 
 def test_trade_check_ok(fastapi_client):
     assert_parity(fastapi_client, "POST", TRADE_CHECK,
-                  json_body={"action": "buy", "price": 100, "shares": 200})
+                  json_body={"action": "BUY", "price": 100, "shares": 200})
 
 
 def test_position_size_missing_price(fastapi_client):

@@ -134,7 +134,7 @@ def test_fill_order_updates_signal_test_log_entry_price(ds, signal_log, cleanup)
         'name': '浦发银行',
         'strategy_name': 'ma_cross',
         'signal_date': date.today(),
-        'action': 'buy',
+        'action': 'BUY',
         'confidence': 0.85,
         'signal_price': 10.0,
         'entry_price': None,  # 初始为空
@@ -203,7 +203,7 @@ def test_sell_order_updates_signal_test_log_and_performance(ds, signal_log, perf
         'name': '平安银行',
         'strategy_name': 'turtle',
         'signal_date': date.today(),
-        'action': 'buy',
+        'action': 'BUY',
         'confidence': 0.90,
         'signal_price': 20.0,
         'entry_price': 20.5,  # 已成交的入场价
@@ -296,7 +296,7 @@ def test_partial_fill_updates_entry_price_once(ds, signal_log, cleanup):
         'name': '万科A',
         'strategy_name': 'breakout',
         'signal_date': date.today(),
-        'action': 'buy',
+        'action': 'BUY',
         'confidence': 0.80,
         'signal_price': 30.0,
         'entry_price': None,

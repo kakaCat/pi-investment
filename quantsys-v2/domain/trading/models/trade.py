@@ -11,7 +11,7 @@ class Trade:
     order_id: Optional[int] = None
     symbol: str = ""
     name: str = ""
-    action: str = ""  # "buy" or "sell"
+    action: str = ""  # "BUY" or "SELL" (大写契约)
     shares: int = 0
     price: float = 0.0
     filled_price: float = 0.0

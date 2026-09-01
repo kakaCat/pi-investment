@@ -48,8 +48,9 @@ class LegacyOrderAdapter:
         Returns:
             订单ID
         """
-        # 转换参数
-        order_side = OrderSide.BUY if action == 'buy' else OrderSide.SELL
+        # 转换参数 (兼容大小写)
+        action_upper = action.upper() if isinstance(action, str) else action
+        order_side = OrderSide.BUY if action_upper == 'BUY' else OrderSide.SELL
         order_type_enum = OrderType(order_type)
         
         # 获取股票名称（需要从 stock_repo 获取）

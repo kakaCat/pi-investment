@@ -24,7 +24,7 @@ def score_band(score: float) -> str:
 
 def compute_trade_score(action: str, trade_price: float, ref_price: float,
                         bench_return: float) -> dict:
-    """决策统一打分。action='buy'|'sell'|'miss'；ref_price 为窗口参考收盘价。
+    """决策统一打分。action = 'BUY'|'sell'|'miss'；ref_price 为窗口参考收盘价。
 
     返回 {'score', 'band', 'excess_return'}，excess_return 为方向调整后的超额。
     非法 action 抛 ValueError（防静默错向打分）。

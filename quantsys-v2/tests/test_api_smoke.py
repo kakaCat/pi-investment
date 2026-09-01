@@ -67,7 +67,7 @@ def test_simulation_trade_sell_validation():
     # 故意提交一个无持仓的卖出单，测试校验逻辑不崩溃。
     # 显式传 price 绕过实时行情依赖；用不存在的 symbol 触发"无持仓"校验。
     payload = {
-        "action": "sell",
+        "action": "SELL",
         "symbol": "999999",  # 不存在的股票
         "shares": 100,
         "price": 10.0,

@@ -34,7 +34,7 @@ class TestTurtleRisk:
 
         signal = strategy.generate_signal(klines)
 
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
         assert 'risk_management' in signal
         assert 'stop_loss' in signal['risk_management']
 
@@ -67,7 +67,7 @@ class TestTurtleRisk:
 
         signal = strategy.generate_signal(klines)
 
-        assert signal['action'] == 'sell'
+        assert signal['action'] == 'SELL'
         assert 'risk_management' in signal
         assert 'stop_loss' in signal['risk_management']
         assert signal['risk_management']['stop_loss']['price'] > klines[-1]['close']

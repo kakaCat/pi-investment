@@ -57,7 +57,7 @@ def test_check_signal_buy_pass(mock_data_service):
 
     signal = {
         'symbol': '000001.SH',
-        'action': 'buy',
+        'action': 'BUY',
         'quantity': 100,
         'risk_management': {
             'stop_loss': {'percent': 5.0}
@@ -79,7 +79,7 @@ def test_check_signal_insufficient_funds(mock_data_service):
 
     signal = {
         'symbol': '000001.SH',
-        'action': 'buy',
+        'action': 'BUY',
         'quantity': 100000,  # 超大数量，需要1.5亿
         'risk_management': {
             'stop_loss': {'percent': 5.0}
@@ -104,7 +104,7 @@ def test_check_signal_sell_with_holding(mock_data_service):
 
     signal = {
         'symbol': '000001.SH',
-        'action': 'sell',
+        'action': 'SELL',
         'quantity': 100
     }
 
@@ -121,7 +121,7 @@ def test_check_signal_no_holding(mock_data_service):
 
     signal = {
         'symbol': '999999.SH',
-        'action': 'sell',
+        'action': 'SELL',
         'quantity': 100
     }
 
@@ -143,7 +143,7 @@ def test_check_signal_insufficient_holding(mock_data_service):
 
     signal = {
         'symbol': '000001.SH',
-        'action': 'sell',
+        'action': 'SELL',
         'quantity': 100
     }
 
@@ -159,7 +159,7 @@ def test_check_signal_missing_stop_loss(mock_data_service):
 
     signal = {
         'symbol': '000001.SH',
-        'action': 'buy',
+        'action': 'BUY',
         'quantity': 100
         # 缺少 risk_management.stop_loss
     }
@@ -176,7 +176,7 @@ def test_check_signal_stop_loss_too_small(mock_data_service):
 
     signal = {
         'symbol': '000001.SH',
-        'action': 'buy',
+        'action': 'BUY',
         'quantity': 100,
         'risk_management': {
             'stop_loss': {'percent': 1.0}  # 小于最小值3%
@@ -195,7 +195,7 @@ def test_check_signal_stop_loss_too_large(mock_data_service):
 
     signal = {
         'symbol': '000001.SH',
-        'action': 'buy',
+        'action': 'BUY',
         'quantity': 100,
         'risk_management': {
             'stop_loss': {'percent': 20.0}  # 大于最大值15%
@@ -215,7 +215,7 @@ def test_check_single_order_limit(mock_data_service):
     # 订单金额超过总资产的20%
     signal = {
         'symbol': '000001.SH',
-        'action': 'buy',
+        'action': 'BUY',
         'quantity': 200,  # 200 * 1500 = 300000 > 1000000 * 20% = 200000
         'risk_management': {
             'stop_loss': {'percent': 5.0}
@@ -241,7 +241,7 @@ def test_check_position_concentration(mock_data_service):
     # 新增20股，总仓位 = (180+20)*1500 = 300000 = 30% of 1000000
     signal = {
         'symbol': '000001.SH',
-        'action': 'buy',
+        'action': 'BUY',
         'quantity': 20,
         'risk_management': {
             'stop_loss': {'percent': 5.0}
@@ -288,7 +288,7 @@ def test_check_sector_concentration(mock_data_service):
     # 新增后 = 200000 + 50*1500 = 275000 = 27.5%，未超过40%
     signal = {
         'symbol': '000001.SH',
-        'action': 'buy',
+        'action': 'BUY',
         'quantity': 50,
         'risk_management': {
             'stop_loss': {'percent': 5.0}
@@ -312,7 +312,7 @@ def test_check_daily_trade_limit(mock_data_service):
 
     signal = {
         'symbol': '000001.SH',
-        'action': 'buy',
+        'action': 'BUY',
         'quantity': 100,
         'risk_management': {
             'stop_loss': {'percent': 5.0}
@@ -331,7 +331,7 @@ def test_calculate_quantity_with_position_sizing(mock_data_service):
 
     signal = {
         'symbol': '000001.SH',
-        'action': 'buy',
+        'action': 'BUY',
         # 不指定quantity，使用position_sizing
         'risk_management': {
             'position_sizing': {'percent': 10.0},  # 10% of 1000000 = 100000
@@ -359,7 +359,7 @@ def test_calculate_sell_quantity_all(mock_data_service):
 
     signal = {
         'symbol': '000001.SH',
-        'action': 'sell'
+        'action': 'SELL'
         # 不指定quantity，卖出全部
     }
 

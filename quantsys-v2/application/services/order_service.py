@@ -108,7 +108,7 @@ def create_order(
     COMMISSION_RATE = 0.0003  # 佣金费率约0.03%
     STAMP_DUTY_RATE = 0.001   # 印花税1%（仅卖出）
 
-    if action == 'buy':
+    if action.upper() == 'BUY':
         # 买入订单：检查可用资金
         # 获取账户余额
         risk_repo = risk_repo or ServiceFactory.get_risk_repository()
@@ -143,7 +143,7 @@ def create_order(
             f"cost={total_cost:.2f} available={available_cash:.2f}"
         )
 
-    elif action == 'sell':
+    elif action.upper() == 'SELL':
         # 卖出订单：检查持仓数量
         # 2026-08-25 修复（"无持仓记录"误报根因）：虚拟账户真实持仓在
         # simulation_* 体系（SimulationORMRepository），旧版 ds.portfolio
@@ -656,7 +656,7 @@ def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symb
 
         signal_dict = dict(signal)
 
-        if action == 'buy':
+        if action.upper() == 'BUY':
             # 买入成交：更新 entry_price（仅在首次成交时更新）
             if signal_dict.get('entry_price') is None:
                 cursor.execute(
@@ -666,7 +666,7 @@ def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symb
                 conn.commit()
                 logger.info(f"更新信号 entry_price: signal_id={signal_id} price={fill_price}")
 
-        elif action == 'sell':
+        elif action.upper() == 'SELL':
             # 卖出成交：计算盈亏，更新 signal_test_log 和 strategy_performance
             entry_price = signal_dict.get('entry_price')
             if entry_price is None:
@@ -973,7 +973,7 @@ def create_bracket_order(
         raise ValueError(f"Invalid action: {action}. Must be 'buy' or 'sell'.")
 
     # Validate prices make sense
-    if action == 'buy':
+    if action.upper() == 'BUY':
         if stop_loss_price >= entry_price:
             raise ValueError(
                 f"For a long position, stop_loss_price ({stop_loss_price}) "
@@ -997,7 +997,7 @@ def create_bracket_order(
             )
 
     # Determine closing action (opposite of entry)
-    close_action = 'sell' if action == 'buy' else 'buy'
+    close_action = 'SELL' if action.upper() == 'BUY' else 'buy'
 
     # Create entry order (limit)
     entry_order_id = create_order(
@@ -1138,7 +1138,7 @@ def create_order_from_signal(
         stop_loss_order_id = portfolio_repo.create_order_with_risk_params(
             symbol=symbol,
             name=stock_name,
-            action='sell',
+            action = 'SELL',
             order_type='stop',
             quantity=trade_params['quantity'],
             price=trade_params['stop_loss_price'],
@@ -1153,7 +1153,7 @@ def create_order_from_signal(
         take_profit_order_id = portfolio_repo.create_order_with_risk_params(
             symbol=symbol,
             name=stock_name,
-            action='sell',
+            action = 'SELL',
             order_type='limit',
             quantity=trade_params['quantity'],
             price=trade_params['take_profit_price'],

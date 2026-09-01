@@ -43,7 +43,7 @@ def test_full_loop():
         'name': '浦发银行',
         'strategy_name': 'ma_cross',
         'signal_date': date.today(),
-        'action': 'buy',
+        'action': 'BUY',
         'confidence': 0.88,
         'signal_price': 10.0,
         'entry_price': None,

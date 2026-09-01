@@ -163,7 +163,7 @@ class TestSignalTestLogBridge:
             'name': '桥接测试股',
             'strategy_name': 'bridge_test',
             'signal_date': date.today(),
-            'action': 'buy',
+            'action': 'BUY',
             'confidence': 0.75,
             'signal_price': 50.0,
             'entry_price': None,

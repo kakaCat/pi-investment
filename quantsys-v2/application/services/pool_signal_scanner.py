@@ -257,7 +257,7 @@ class PoolSignalScanner:
 
         # 计算交易参数
         trade_params = {}
-        if signal == 'buy':
+        if signal.upper() == 'BUY':
             trade_params = {
                 'stop_loss': round(current_price * 0.97, 2),    # -3%
                 'take_profit': round(current_price * 1.08, 2),  # +8%

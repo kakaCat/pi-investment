@@ -228,12 +228,12 @@ class SignalProcessor:
             raise InvalidStopLossError(f"Invalid stop loss price: {stop_price}")
 
         # 验证止损价格合理性
-        if action == 'buy':
+        if action.upper() == 'BUY':
             if stop_price >= current_price:
                 raise InvalidStopLossError(
                     f"Buy stop loss {stop_price} must be below current price {current_price}"
                 )
-        elif action == 'sell':
+        elif action.upper() == 'SELL':
             if stop_price <= current_price:
                 raise InvalidStopLossError(
                     f"Sell stop loss {stop_price} must be above current price {current_price}"
@@ -257,12 +257,12 @@ class SignalProcessor:
             return None
 
         # 验证止盈价格合理性
-        if action == 'buy':
+        if action.upper() == 'BUY':
             if tp_price <= current_price:
                 logger.warning(
                     f"Buy take profit {tp_price} should be above current price {current_price}"
                 )
-        elif action == 'sell':
+        elif action.upper() == 'SELL':
             if tp_price >= current_price:
                 logger.warning(
                     f"Sell take profit {tp_price} should be below current price {current_price}"
@@ -326,9 +326,9 @@ class SignalProcessor:
 
     def _get_default_stop_loss(self, current_price: float, action: str) -> float:
         """获取默认止损价格（-8%）"""
-        if action == 'buy':
+        if action.upper() == 'BUY':
             return round(current_price * (1 - self.DEFAULT_STOP_LOSS_PERCENT), 2)
-        elif action == 'sell':
+        elif action.upper() == 'SELL':
             return round(current_price * (1 + self.DEFAULT_STOP_LOSS_PERCENT), 2)
         return None
 

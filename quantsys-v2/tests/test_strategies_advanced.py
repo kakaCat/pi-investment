@@ -91,7 +91,7 @@ class TestTurtleStrategy:
 
         signal = strategy.generate_signal(klines, {'entry_period': 20, 'exit_period': 10})
 
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
         assert signal['confidence'] > 0.6
         assert '突破' in signal['reason']
         assert '20日高点' in signal['reason']
@@ -104,7 +104,7 @@ class TestTurtleStrategy:
 
         signal = strategy.generate_signal(klines, {'entry_period': 20, 'exit_period': 10})
 
-        assert signal['action'] == 'sell'
+        assert signal['action'] == 'SELL'
         assert signal['confidence'] > 0.6
         assert '跌破' in signal['reason']
         assert '10日低点' in signal['reason']
@@ -136,7 +136,7 @@ class TestDonchianChannelStrategy:
 
         signal = strategy.generate_signal(klines, {'period': 20})
 
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
         assert signal['confidence'] > 0.5
         assert '突破' in signal['reason']
 
@@ -147,7 +147,7 @@ class TestDonchianChannelStrategy:
 
         signal = strategy.generate_signal(klines, {'period': 20})
 
-        assert signal['action'] == 'sell'
+        assert signal['action'] == 'SELL'
         assert signal['confidence'] > 0.5
         assert '跌破' in signal['reason']
 
@@ -182,7 +182,7 @@ class TestMomentumStrategy:
         signal = strategy.generate_signal(klines, {'roc_period': 12, 'ma_period': 5})
 
         assert signal['action'] in ['buy', 'hold']
-        if signal['action'] == 'buy':
+        if signal['action'] == 'BUY':
             assert signal['confidence'] > 0.5
 
     def test_sell_on_negative_momentum(self, strategy):
@@ -194,7 +194,7 @@ class TestMomentumStrategy:
         signal = strategy.generate_signal(klines, {'roc_period': 12, 'ma_period': 5})
 
         assert signal['action'] in ['sell', 'hold']
-        if signal['action'] == 'sell':
+        if signal['action'] == 'SELL':
             assert signal['confidence'] > 0.5
 
     def test_hold_neutral_momentum(self, strategy):
@@ -229,7 +229,7 @@ class TestBreakoutStrategy:
             'volume_threshold': 1.5
         })
 
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
         assert signal['confidence'] > 0.6
         assert '突破' in signal['reason']
         assert '成交量放大' in signal['reason']
@@ -261,7 +261,7 @@ class TestBreakoutStrategy:
             'volume_threshold': 1.5
         })
 
-        assert signal['action'] == 'sell'
+        assert signal['action'] == 'SELL'
         assert signal['confidence'] > 0.6
 
 
@@ -288,7 +288,7 @@ class TestMeanReversionStrategy:
         })
 
         assert signal['action'] in ['buy', 'hold']
-        if signal['action'] == 'buy':
+        if signal['action'] == 'BUY':
             assert signal['confidence'] > 0.5
             assert '下轨' in signal['reason']
 
@@ -305,7 +305,7 @@ class TestMeanReversionStrategy:
         })
 
         assert signal['action'] in ['sell', 'hold']
-        if signal['action'] == 'sell':
+        if signal['action'] == 'SELL':
             assert signal['confidence'] > 0.5
             assert '上轨' in signal['reason']
 
@@ -342,7 +342,7 @@ class TestVolatilityBreakoutStrategy:
             'atr_multiplier': 2.0
         })
 
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
         assert signal['confidence'] > 0.6
         assert '突破' in signal['reason']
         assert 'ATR' in signal['reason']
@@ -357,7 +357,7 @@ class TestVolatilityBreakoutStrategy:
             'atr_multiplier': 2.0
         })
 
-        assert signal['action'] == 'sell'
+        assert signal['action'] == 'SELL'
         assert signal['confidence'] > 0.6
         assert '跌破' in signal['reason']
 
@@ -398,7 +398,7 @@ class TestPairsCorrelationStrategy:
         })
 
         assert signal['action'] in ['buy', 'hold']
-        if signal['action'] == 'buy':
+        if signal['action'] == 'BUY':
             assert signal['confidence'] > 0.5
 
     def test_sell_on_positive_spread(self, strategy):
@@ -418,7 +418,7 @@ class TestPairsCorrelationStrategy:
         })
 
         assert signal['action'] in ['sell', 'hold']
-        if signal['action'] == 'sell':
+        if signal['action'] == 'SELL':
             assert signal['confidence'] > 0.5
 
     def test_hold_on_low_correlation(self, strategy):

@@ -451,9 +451,9 @@ def close_position(
     quantity = pos.get('available_quantity', pos.get('quantity', 0))
 
     if current_side == 'long':
-        close_action = 'sell'
+        close_action = 'SELL'
     else:
-        close_action = 'buy'
+        close_action = 'BUY'
 
     order_details = {
         'symbol': symbol,
@@ -521,11 +521,11 @@ def get_average_cost_basis(
         price = float(trade.get('price', 0))
         action = trade.get('action', 'buy')
 
-        if action == 'buy':
+        if action.upper() == 'BUY':
             total_qty += qty
             total_cost += qty * price
             buy_count += 1
-        elif action == 'sell':
+        elif action.upper() == 'SELL':
             sell_count += 1
 
     avg_cost = total_cost / total_qty if total_qty > 0 else 0.0

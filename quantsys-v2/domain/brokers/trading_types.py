@@ -17,8 +17,8 @@ from datetime import datetime
 
 class OrderSide(Enum):
     """订单方向"""
-    BUY = "buy"
-    SELL = "sell"
+    BUY = "BUY"
+    SELL = "SELL"
 
 
 class OrderType(Enum):

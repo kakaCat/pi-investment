@@ -91,7 +91,7 @@ class ModelStage(PipelineStage):
         if self._model is None:
             return {
                 "confidence": None,
-                "action": "hold",
+                "action": "HOLD",
                 "model": "none",
                 "message": "Model not available"
             }
@@ -101,7 +101,7 @@ class ModelStage(PipelineStage):
             proba = self._model.predict_proba(features)[0]
             confidence = float(proba[1]) if len(proba) > 1 else float(proba[0])
 
-            action = "buy" if confidence >= self.confidence_threshold else "sell"
+            action = "BUY" if confidence >= self.confidence_threshold else "SELL"
 
             return {
                 "confidence": confidence,
@@ -113,7 +113,7 @@ class ModelStage(PipelineStage):
             logger.error(f"Prediction failed for: {e}")
             return {
                 "confidence": None,
-                "action": "hold",
+                "action": "HOLD",
                 "model": "xgboost",
                 "error": str(e)
             }

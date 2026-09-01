@@ -220,8 +220,8 @@ class StrategyRunner:
                         'parameters': {},
                     })
 
-        # 按置信度降序、action 优先级排序 (buy > sell > hold)
-        action_priority = {'buy': 2, 'sell': 1, 'hold': 0}
+        # 按置信度降序、action 优先级排序 (BUY > SELL > HOLD)
+        action_priority = {'BUY': 2, 'SELL': 1, 'HOLD': 0, 'buy': 2, 'sell': 1, 'hold': 0}  # 兼容旧数据
 
         signals.sort(
             key=lambda s: (s['confidence'], action_priority.get(s['action'], 0)),

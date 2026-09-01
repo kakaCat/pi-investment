@@ -230,8 +230,8 @@ class TestRunnerRun:
         mock_strategy = MagicMock()
         # Return buy and sell with same confidence so action priority dominates
         mock_strategy.generate_signal.side_effect = [
-            {'action': 'sell', 'confidence': 0.8, 'reason': 'test sell'},
-            {'action': 'buy', 'confidence': 0.8, 'reason': 'test buy'},
+            {'action': 'SELL', 'confidence': 0.8, 'reason': 'test sell'},
+            {'action': 'BUY', 'confidence': 0.8, 'reason': 'test buy'},
         ]
         mock_strategy.name = 'mock_strat'
 
@@ -242,8 +242,8 @@ class TestRunnerRun:
         # Both signals are generated
         assert len(signals) == 2
         # buy should come before sell when confidence is equal (action priority)
-        assert signals[0]['action'] == 'buy'
-        assert signals[1]['action'] == 'sell'
+        assert signals[0]['action'] == 'BUY'
+        assert signals[1]['action'] == 'SELL'
 
 
 # ==================== Runner.get_top_signals() Tests ====================
@@ -329,7 +329,7 @@ class TestCombineSignals:
         mock_failing.name = 'failing'
 
         mock_working = MagicMock()
-        mock_working.generate_signal.return_value = {'action': 'buy', 'confidence': 0.7, 'reason': 'ok'}
+        mock_working.generate_signal.return_value = {'action': 'BUY', 'confidence': 0.7, 'reason': 'ok'}
         mock_working.name = 'working'
 
         with patch.object(runner, '_get_strategy_instance', side_effect=[mock_failing, mock_working]):
@@ -337,7 +337,7 @@ class TestCombineSignals:
             result = runner.combine_signals(klines, mode='or')
 
         # Should still produce a result from the working strategy
-        assert result['action'] == 'buy'
+        assert result['action'] == 'BUY'
 
     def test_combine_parses_json_params(self):
         """组合时正确解析 JSON 字符串参数"""

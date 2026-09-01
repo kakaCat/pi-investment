@@ -34,10 +34,10 @@ class TestCalculateBacktestSummary:
         ]
 
         trades = [
-            {'date': '2024-03-01', 'action': 'sell', 'pnl': 50000},
-            {'date': '2024-06-01', 'action': 'sell', 'pnl': -20000},
-            {'date': '2024-09-01', 'action': 'sell', 'pnl': 50000},
-            {'date': '2024-12-31', 'action': 'sell', 'pnl': 20000}
+            {'date': '2024-03-01', 'action': 'SELL', 'pnl': 50000},
+            {'date': '2024-06-01', 'action': 'SELL', 'pnl': -20000},
+            {'date': '2024-09-01', 'action': 'SELL', 'pnl': 50000},
+            {'date': '2024-12-31', 'action': 'SELL', 'pnl': 20000}
         ]
 
         result = calculate_backtest_summary(equity_curve, trades, start_date, end_date)
@@ -76,7 +76,7 @@ class TestCalculateBacktestSummary:
         ]
 
         trades = [
-            {'date': '2024-06-01', 'action': 'sell', 'pnl': 100000}
+            {'date': '2024-06-01', 'action': 'SELL', 'pnl': 100000}
         ]
 
         result = calculate_backtest_summary(equity_curve, trades, start_date, end_date)
@@ -103,10 +103,10 @@ class TestCalculateBacktestSummary:
         ]
 
         trades = [
-            {'date': '2024-03-01', 'action': 'sell', 'pnl': 50000},
-            {'date': '2024-06-01', 'action': 'sell', 'pnl': -20000},
-            {'date': '2024-09-01', 'action': 'sell', 'pnl': 50000},
-            {'date': '2024-12-31', 'action': 'sell', 'pnl': 20000}
+            {'date': '2024-03-01', 'action': 'SELL', 'pnl': 50000},
+            {'date': '2024-06-01', 'action': 'SELL', 'pnl': -20000},
+            {'date': '2024-09-01', 'action': 'SELL', 'pnl': 50000},
+            {'date': '2024-12-31', 'action': 'SELL', 'pnl': 20000}
         ]
 
         result = calculate_backtest_summary(equity_curve, trades, start_date, end_date)
@@ -134,8 +134,8 @@ class TestCalculateBacktestSummary:
         ]
 
         trades = [
-            {'date': '2024-06-01', 'action': 'sell', 'pnl': -300000},
-            {'date': '2024-09-01', 'action': 'sell', 'pnl': 200000}
+            {'date': '2024-06-01', 'action': 'SELL', 'pnl': -300000},
+            {'date': '2024-09-01', 'action': 'SELL', 'pnl': 200000}
         ]
 
         result = calculate_backtest_summary(equity_curve, trades, start_date, end_date)
@@ -157,10 +157,10 @@ class TestCalculateBacktestSummary:
         ]
 
         trades = [
-            {'date': '2024-03-01', 'action': 'sell', 'pnl': 25000},
-            {'date': '2024-06-01', 'action': 'sell', 'pnl': 25000},
-            {'date': '2024-09-01', 'action': 'sell', 'pnl': 25000},
-            {'date': '2024-12-31', 'action': 'sell', 'pnl': 25000}
+            {'date': '2024-03-01', 'action': 'SELL', 'pnl': 25000},
+            {'date': '2024-06-01', 'action': 'SELL', 'pnl': 25000},
+            {'date': '2024-09-01', 'action': 'SELL', 'pnl': 25000},
+            {'date': '2024-12-31', 'action': 'SELL', 'pnl': 25000}
         ]
 
         result = calculate_backtest_summary(equity_curve, trades, start_date, end_date)

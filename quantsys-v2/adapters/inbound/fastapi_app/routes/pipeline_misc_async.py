@@ -156,9 +156,9 @@ def cli_signal_generate(request: Request, payload: Optional[Dict[str, Any]] = Bo
 
                     if signal:
                         signal_type = signal.get('signal_type', 'hold')
-                        if signal_type == 'buy':
+                        if signal_type.upper() == 'BUY':
                             buy += 1
-                        elif signal_type == 'sell':
+                        elif signal_type.upper() == 'SELL':
                             sell += 1
                         else:
                             hold += 1
@@ -204,9 +204,9 @@ def cli_signal_generate(request: Request, payload: Optional[Dict[str, Any]] = Bo
 
                         if signal:
                             signal_type = signal.get('signal_type', 'hold')
-                            if signal_type == 'buy':
+                            if signal_type.upper() == 'BUY':
                                 buy += 1
-                            elif signal_type == 'sell':
+                            elif signal_type.upper() == 'SELL':
                                 sell += 1
                             else:
                                 hold += 1

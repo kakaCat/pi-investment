@@ -22,7 +22,7 @@ def _kline_df(start, days, close=10.0):
 
 def _signal(**kw):
     s = {'id': 101, 'signal_date': SIGNAL_DATE, 'symbol': '300255',
-         'action': 'buy', 'status': 'pending', 'strategy_id': 'cci_reversal',
+         'action': 'BUY', 'status': 'pending', 'strategy_id': 'cci_reversal',
          'price': 24.43, 'confidence': 0.8}
     s.update(kw)
     return s

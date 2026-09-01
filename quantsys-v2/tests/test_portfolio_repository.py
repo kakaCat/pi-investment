@@ -156,7 +156,7 @@ class TestTrades:
             self.repo.record_trade({
                 "symbol": "INVALID",
                 "name": "测试",
-                "action": "buy",
+                "action": "BUY",
                 "price": 10.0,
                 "quantity": 100,
                 "amount": 1000.0,
@@ -197,7 +197,7 @@ class TestTrades:
         trade_data = {
             "symbol": "000001.SZ",
             "name": "平安银行",
-            "action": "buy",
+            "action": "BUY",
             "price": 10.50,
             "quantity": 100,
             "amount": 1050.00,
@@ -240,7 +240,7 @@ class TestOrders:
                 "symbol": "000001.SZ",
                 "name": "平安银行",
                 "order_type": "invalid",
-                "action": "buy",
+                "action": "BUY",
                 "quantity": 100,
                 "status": "pending"
             })
@@ -262,7 +262,7 @@ class TestOrders:
                 "symbol": "000001.SZ",
                 "name": "平安银行",
                 "order_type": "limit",
-                "action": "buy",
+                "action": "BUY",
                 "quantity": 100,
                 "status": "unknown"
             })
@@ -273,7 +273,7 @@ class TestOrders:
                 "symbol": "INVALID",
                 "name": "测试",
                 "order_type": "limit",
-                "action": "buy",
+                "action": "BUY",
                 "quantity": 100,
                 "status": "pending"
             })
@@ -313,7 +313,7 @@ class TestOrders:
             "symbol": "000001.SZ",
             "name": "平安银行",
             "order_type": "limit",
-            "action": "buy",
+            "action": "BUY",
             "price": 10.50,
             "quantity": 100,
             "status": "pending",

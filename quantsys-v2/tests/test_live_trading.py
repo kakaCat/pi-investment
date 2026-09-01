@@ -187,7 +187,7 @@ class TestExecutionService:
 
         order_details = {
             'symbol': 'AAPL',
-            'action': 'buy',
+            'action': 'BUY',
             'quantity': 100,
             'price': 150.0,
         }
@@ -206,7 +206,7 @@ class TestExecutionService:
         from application.services.execution_service import execute_order
 
         order_details = {
-            'action': 'buy',
+            'action': 'BUY',
             'quantity': 100,
         }
 
@@ -221,7 +221,7 @@ class TestExecutionService:
 
         order = {
             'symbol': 'AAPL',
-            'action': 'buy',
+            'action': 'BUY',
             'quantity': 1000,
             'price': 150.0,
         }
@@ -246,7 +246,7 @@ class TestExecutionService:
 
         order = {
             'symbol': 'AAPL',
-            'action': 'buy',
+            'action': 'BUY',
             'quantity': 1000,
             'price': 150.0,
         }
@@ -271,7 +271,7 @@ class TestExecutionService:
 
         order = {
             'symbol': 'AAPL',
-            'action': 'buy',
+            'action': 'BUY',
             'quantity': 500,
             'price': 150.0,
         }
@@ -351,8 +351,8 @@ class TestPositionService:
         from application.services.position_service import get_average_cost_basis
 
         trades = [
-            {'symbol': 'AAPL', 'action': 'buy', 'quantity': 100, 'price': 150.0},
-            {'symbol': 'AAPL', 'action': 'buy', 'quantity': 200, 'price': 155.0},
+            {'symbol': 'AAPL', 'action': 'BUY', 'quantity': 100, 'price': 150.0},
+            {'symbol': 'AAPL', 'action': 'BUY', 'quantity': 200, 'price': 155.0},
         ]
 
         result = get_average_cost_basis(None, trades, 'AAPL')
@@ -370,9 +370,9 @@ class TestPositionService:
         from application.services.position_service import get_average_cost_basis
 
         trades = [
-            {'symbol': 'MSFT', 'action': 'buy', 'quantity': 50, 'price': 400.0},
-            {'symbol': 'MSFT', 'action': 'sell', 'quantity': 25, 'price': 420.0},
-            {'symbol': 'MSFT', 'action': 'buy', 'quantity': 50, 'price': 410.0},
+            {'symbol': 'MSFT', 'action': 'BUY', 'quantity': 50, 'price': 400.0},
+            {'symbol': 'MSFT', 'action': 'SELL', 'quantity': 25, 'price': 420.0},
+            {'symbol': 'MSFT', 'action': 'BUY', 'quantity': 50, 'price': 410.0},
         ]
 
         result = get_average_cost_basis(None, trades, 'MSFT')

@@ -276,7 +276,7 @@ def execute_vwap(
 
         # Price impact proportional to slice size relative to typical volume
         price_impact_bps = vol_pct * 2.0  # Simulated impact
-        direction = 1 if action == 'buy' else -1
+        direction = 1 if action.upper() == 'BUY' else -1
         slice_price = base_price * (1.0 + direction * price_impact_bps / 10000)
 
         slice_result = {
@@ -421,7 +421,7 @@ def execute_iceberg(
             slice_qty = remainder
 
         # Simulate price execution
-        direction = 1 if action == 'buy' else -1
+        direction = 1 if action.upper() == 'BUY' else -1
         price_impact = (i + 1) * 0.5  # Incremental impact per visible order
         slice_price = base_price * (1.0 + direction * price_impact / 10000)
 

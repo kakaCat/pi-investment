@@ -259,15 +259,18 @@ class SignalStrategyAdapter(bt.Strategy):
         action = signal.get('action', 'hold')
         confidence = signal.get('confidence', 0.0)
         reason = signal.get('reason', '')
-        
+
+        # Normalize action to uppercase
+        action = action.upper() if isinstance(action, str) else action
+
         # Execute trading logic
         if not self.position:  # Not in position
-            if action == 'buy':
+            if action == 'BUY':
                 self.log(f'BUY CREATE, {self.datas[0].close[0]:.2f}, '
                         f'Confidence: {confidence:.2f}, Reason: {reason}')
                 self.order = self.buy()
         else:  # In position
-            if action == 'sell':
+            if action == 'SELL':
                 self.log(f'SELL CREATE, {self.datas[0].close[0]:.2f}, '
                         f'Confidence: {confidence:.2f}, Reason: {reason}')
                 self.order = self.sell()

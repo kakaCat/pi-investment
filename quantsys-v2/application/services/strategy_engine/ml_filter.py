@@ -52,14 +52,14 @@ class MLFilter:
         """
         avg_confidence = (xgb_confidence + lgb_confidence) / 2
 
-        if xgb_signal == "buy" and lgb_signal == "buy":
+        if xgb_signal.upper() == "BUY" and lgb_signal.upper() == "BUY":
             return MLVote("buy", avg_confidence, 1.0)
 
-        if (xgb_signal == "buy" and lgb_signal == "hold") or \
-           (xgb_signal == "hold" and lgb_signal == "buy"):
+        if (xgb_signal.upper() == "BUY" and lgb_signal == "hold") or \
+           (xgb_signal == "hold" and lgb_signal.upper() == "BUY"):
             return MLVote("buy", avg_confidence, 0.8)
 
-        if xgb_signal == "sell" or lgb_signal == "sell":
+        if xgb_signal.upper() == "SELL" or lgb_signal.upper() == "SELL":
             return MLVote("hold", avg_confidence, 1.0)
 
         return MLVote("hold", avg_confidence, 1.0)
@@ -74,7 +74,7 @@ class MLFilter:
 
     def passes(self, vote: MLVote) -> bool:
         """判断是否通过过滤"""
-        return vote.verdict == "buy" and vote.confidence >= self.confidence_threshold
+        return vote.verdict.upper() == "BUY" and vote.confidence >= self.confidence_threshold
 
     def filter(
         self,

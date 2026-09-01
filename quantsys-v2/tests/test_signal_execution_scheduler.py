@@ -121,7 +121,7 @@ class TestSignalExecutionScheduler:
             {
                 'id': 1,
                 'symbol': '000001.SH',
-                'action': 'buy',
+                'action': 'BUY',
                 'status': 'pending',
                 'price': 1680.0,
                 'confidence': 0.85
@@ -220,7 +220,7 @@ class TestSignalExecutionScheduler:
             {
                 'id': 1,
                 'symbol': '000001.SH',
-                'action': 'buy',
+                'action': 'BUY',
                 'status': 'pending',
                 'price': 1680.0
             }

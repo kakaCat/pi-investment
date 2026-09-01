@@ -5,8 +5,8 @@ from datetime import datetime
 from enum import Enum
 
 class OrderSide(Enum):
-    BUY = "buy"
-    SELL = "sell"
+    BUY = "BUY"
+    SELL = "SELL"
 
 class OrderType(Enum):
     LIMIT = "limit"

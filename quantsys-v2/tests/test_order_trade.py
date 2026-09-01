@@ -23,7 +23,7 @@ def _make_mock_order(**overrides):
         'symbol': '000001.SZ',
         'name': '平安银行',
         'order_type': 'limit',
-        'action': 'buy',
+        'action': 'BUY',
         'price': 10.50,
         'quantity': 1000,
         'status': 'pending',
@@ -164,7 +164,7 @@ class TestOrderCreation:
         call_args = ds.portfolio.create_order.call_args[0][0]
         assert call_args['symbol'] == '000001.SZ'
         assert call_args['name'] == '平安银行'
-        assert call_args['action'] == 'buy'
+        assert call_args['action'] == 'BUY'
         assert call_args['order_type'] == 'limit'
         assert call_args['quantity'] == 500
         assert call_args['price'] == 10.50
@@ -503,7 +503,7 @@ class TestTradeCreation:
         assert call_args['fee'] == 3.15
         # stamp_duty = 0 (buy only)
         assert call_args['stamp_duty'] == 0.0
-        assert call_args['action'] == 'buy'
+        assert call_args['action'] == 'BUY'
         assert call_args['price'] == 10.50
         assert call_args['quantity'] == 1000
         assert call_args['order_id'] == 1
@@ -525,7 +525,7 @@ class TestTradeCreation:
         assert call_args['fee'] == 2.25
         # stamp_duty = 7500 * 0.001 = 7.50
         assert call_args['stamp_duty'] == 7.50
-        assert call_args['action'] == 'sell'
+        assert call_args['action'] == 'SELL'
 
     def test_trade_negative_price(self):
         """负成交价格应抛出 ValueError"""
@@ -581,8 +581,8 @@ class TestGetPosition:
         """仅有买入记录时正确计算持仓"""
         ds = _make_mock_ds()
         ds.portfolio.get_trades_by_symbol.return_value = [
-            {'action': 'buy', 'quantity': 1000, 'amount': 10000.0, 'fee': 3.0, 'stamp_duty': 0.0, 'name': '平安银行'},
-            {'action': 'buy', 'quantity': 500, 'amount': 5500.0, 'fee': 1.65, 'stamp_duty': 0.0, 'name': '平安银行'},
+            {'action': 'BUY', 'quantity': 1000, 'amount': 10000.0, 'fee': 3.0, 'stamp_duty': 0.0, 'name': '平安银行'},
+            {'action': 'BUY', 'quantity': 500, 'amount': 5500.0, 'fee': 1.65, 'stamp_duty': 0.0, 'name': '平安银行'},
         ]
         ds.kline.get_latest_daily_kline.return_value = {'close': 12.0, 'trade_date': '2024-06-01'}
 
@@ -604,9 +604,9 @@ class TestGetPosition:
         """买入+卖出后正确计算剩余持仓"""
         ds = _make_mock_ds()
         ds.portfolio.get_trades_by_symbol.return_value = [
-            {'action': 'buy', 'quantity': 1000, 'amount': 10000.0, 'fee': 3.0, 'stamp_duty': 0.0, 'name': '平安银行'},
-            {'action': 'buy', 'quantity': 500, 'amount': 5500.0, 'fee': 1.65, 'stamp_duty': 0.0, 'name': '平安银行'},
-            {'action': 'sell', 'quantity': 800, 'amount': 9600.0, 'fee': 2.88, 'stamp_duty': 9.60, 'name': '平安银行'},
+            {'action': 'BUY', 'quantity': 1000, 'amount': 10000.0, 'fee': 3.0, 'stamp_duty': 0.0, 'name': '平安银行'},
+            {'action': 'BUY', 'quantity': 500, 'amount': 5500.0, 'fee': 1.65, 'stamp_duty': 0.0, 'name': '平安银行'},
+            {'action': 'SELL', 'quantity': 800, 'amount': 9600.0, 'fee': 2.88, 'stamp_duty': 9.60, 'name': '平安银行'},
         ]
         ds.kline.get_latest_daily_kline.return_value = {'close': 13.0, 'trade_date': '2024-06-15'}
 
@@ -639,7 +639,7 @@ class TestGetPosition:
         """K线获取失败时仍能返回持仓（无市场价格）"""
         ds = _make_mock_ds()
         ds.portfolio.get_trades_by_symbol.return_value = [
-            {'action': 'buy', 'quantity': 100, 'amount': 1000.0, 'fee': 0.3, 'stamp_duty': 0.0, 'name': '测试'},
+            {'action': 'BUY', 'quantity': 100, 'amount': 1000.0, 'fee': 0.3, 'stamp_duty': 0.0, 'name': '测试'},
         ]
         ds.kline.get_latest_daily_kline.side_effect = Exception("Kline unavailable")
 
@@ -660,8 +660,8 @@ class TestGetTrades:
         """按股票代码查询交易记录"""
         ds = _make_mock_ds()
         expected = [
-            {'trade_id': 1, 'symbol': '000001.SZ', 'action': 'buy'},
-            {'trade_id': 2, 'symbol': '000001.SZ', 'action': 'sell'},
+            {'trade_id': 1, 'symbol': '000001.SZ', 'action': 'BUY'},
+            {'trade_id': 2, 'symbol': '000001.SZ', 'action': 'SELL'},
         ]
         ds.portfolio.get_trades_by_symbol.return_value = expected
 
