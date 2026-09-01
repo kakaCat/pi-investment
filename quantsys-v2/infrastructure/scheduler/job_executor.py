@@ -35,11 +35,11 @@ def execute_scheduled_job(task_id: int):
     Args:
         task_id: scheduler_tasks 表的任务 ID
     """
-    from adapters.outbound.repositories.scheduler_repository import SchedulerORMRepository
-    from infrastructure.database import get_session
+    from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
+    from infrastructure.persistence.orm import get_session
 
     session = get_session()
-    repo = SchedulerORMRepository(session)
+    repo = SchedulerRepository(session)
 
     try:
         # 1. 读取任务定义
