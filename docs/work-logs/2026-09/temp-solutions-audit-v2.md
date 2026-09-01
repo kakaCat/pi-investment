@@ -4,6 +4,8 @@
 > 触发：用户指出"有些流程不正规是临时解决办法——脚本最低要求是要包到工具里，v2 应该有对应功能，这样好管理、系统化"
 > 基线：[temp-solutions-audit.md](./temp-solutions-audit.md)（w-a8a89c6a，09-01 02:26，4 类 16 处）
 > 本文：①复核基线 16 处的当前状态 ②补充本日新发现 7 处（含本窗口自查 2 处）
+>
+> **修复进展（09-01 下午，见 §6）**：✅ E-1 假引擎拆除 / ✅ E-3 combo Mock 回收 / ✅ G-1 optimize 修复 / ✅ E-2 trade-verify 重建 / ✅ F-1 回测矩阵端点化；📋 B-1/A-1 调度拆分已定方向（[ADR-002](../adr/002-scheduler-ownership-split.md)），待 scheduler 重构会话完成后执行
 
 ---
 
@@ -127,3 +129,19 @@
 
 - 基线（02:26）时 B-1 描述为"SchedulerService 未接入启动"——今日 11:00 前已有 3 个提交（262e607a/8cc1d697/8a71c821，另一会话）把 v2 调度接入 lifespan 作 fallback。本报告按当前事实更新为"部分缓解"
 - E-3/F-3 为本窗口自查项——combo 修复的 Mock 与 /tmp 脚本是本窗口今天产生的临时办法，如实列入，不豁免
+
+---
+
+## 6. 修复进展（09-01 下午，w-8366e526 执行）
+
+| 条目 | 状态 | 提交 | 验证 |
+|---|---|---|---|
+| E-1 假引擎拆除 | ✅ 完成 | bd0dacec | `_simulate_trading` 改抛 NotImplementedError；`get_backtest_engine()` 返回新 `RealBacktestEngineAdapter`（application 层正式服务）；故障注入验证拒服 |
+| E-3 combo Mock 回收 | ✅ 完成 | bd0dacec | 路由内嵌 `_MockStrategyRepo`/`_RealEngineAdapter` 删除，接真 strategy_repository + 工厂真引擎；不存在策略正确拦截；真实策略名入 breakdown |
+| G-1 optimize 字段错配 | ✅ 完成 | b7bed8c4 | execute 层字段适配（results[]→best_params/best_score/all_results）；契约测试 4 条新增；冒烟 19/19 |
+| E-2 trade-verify 重建 | ✅ 完成 | 25c4a4ea | v2 新增 `/api/risk/trade-verify`（GET+POST）；字段经 ORM 实测校正（shares/shares_total）；工具本地实现删除改回调后端 |
+| F-1 回测矩阵端点化 | ✅ 完成 | ca991a79 | `POST /api/backtest/matrix`：策略×股票×区间批量回测+分层统计；实测 8 回测 0 失败 |
+| B-1/A-1 调度拆分 | 📋 方向已定 | ADR-002 | 用户裁决「按执行体拆分」；两阶段迁移路径；交接约束=等 scheduler 重构会话完成 |
+| A-2/A-3/C-1/D-1/D-2 | ⏳ 未动 | — | A-2 依赖 ADR-002 Phase 2；C-1 大工程排期；D 类 P2 收尾 |
+
+**事故记录**：G-1 提交（b7bed8c4）误带暂存区中 scheduler 重构会话的 14 个文件（scheduler_tasks.py 删除/task_handlers.py 半成品）。处置：评估重构自洽+main 可启动后未 revert；随后该会话继续推进并自行提交 ba12e287。教训：commit 前必须 `git status` 全量检查暂存区，不只查自己 add 的文件。
