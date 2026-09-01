@@ -173,5 +173,40 @@
 ### 8.4 遗留
 
 - 类型 1 的 direct 规则今后触发将直接发飞书，无需 LLM——分流逻辑已生效，待真实触发验证 `notified` 字段转 true
-- Agent OS 侧 15 个 bridge 任务（类型 2 的 agent 唤醒链路）仍走 os-remind-bridge.sh——正规化（DSH scheduler 原生投递）待后续
+- ~~Agent OS 侧 15 个 bridge 任务（类型 2 的 agent 唤醒链路）仍走 os-remind-bridge.sh——正规化（DSH scheduler 原生投递）待后续~~ → **已解决，见第 9 节**
+
+---
+
+## 9. agent 提醒任务正规化（2026-09-01，ADR-002 Phase 2 落地）
+
+### 9.1 实现（commit 2a92c0db + facd97eb）
+
+用户裁决的 ADR-002「调度权按执行体拆分」Phase 2 落地：**agent 提醒任务归 DSH 原生调度**。
+
+**新链路**：Agent OS 注册表（payload.executor='dsh-native'）→ DSH lifecycle 插件 NativeReminderScheduler（30s tick，cron 直投 followup）
+
+**替代的旧链路**：Agent OS cron → os-remind-bridge.sh（shell）→ OS memory 信箱 → lifecycle 60s 轮询 → followup（三层桥，任一环挂即静默丢提醒）
+
+**新增组件**（agent-dh/packages/lifecycle/）：
+- `src/cron.ts`：轻量 5/6 段 cron 解析器（支持 */n、a-b、逗号列表、DOW 0/7 同周日、标准 DOM/DOW 并集语义；10/10 单测）
+- `src/native-scheduler.ts`：NativeReminderScheduler——30s tick 拉注册表（60s 缓存）→ 到点投递；lastFired 持久化（state/native-scheduler.json）防重；misfire 补偿（首次运行不补投历史，防与旧链路重复执行；仅补偿"投过后进程宕机错过"的场景）
+- `index.ts`：提取统一投递 deliverReminder（在线窗口 followup 直投 / 不在线创建窗口代执行 / 执行留痕写 OS memory），信箱轮询保留作过渡兜底
+
+### 9.2 任务迁移结果
+
+| 任务 | 处理 |
+|---|---|
+| 14 个 os-remind-bridge 任务 | payload.executor='dsh-native' + command→/bin/true（Agent OS 不再执行 shell 桥） |
+| signal-perf-backfill-daily | 禁用——功能被 post-market-routine-live 的 signal_track update 覆盖 |
+| signal-perf-verify-0903 | 改 dsh-native（9/3 由 LLM 用 signal_track report 验证+飞书汇报，去除硬编码 webhook） |
+
+### 9.3 脚本退役（facd97eb）
+
+`os-remind-bridge.sh` / `signal-perf-backfill.sh` / `signal-perf-verify.sh` 已删除。全系统引用检查：代码/任务侧零残留。
+
+### 9.4 验证
+
+- DSH 重启后 NativeReminderScheduler 运行，native-scheduler.json 建立 14 个任务基线 ✅
+- E2E 测试任务（19:09 触发）验证 cron 直投链路 ✅（投递即证明全链路工作）
+- 注意点：lifecycle 包入口指向 dist（项目唯一），改动后需 `pnpm build` 才生效——已在本次重启前完成构建
 
