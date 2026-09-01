@@ -865,7 +865,8 @@ export class QuantsysV2Client {
    * Real endpoint: GET /api/alerts/check
    */
   async getAlerts(params?: { level?: string; limit?: number }): Promise<Alert[]> {
-    const response = await this.client.get('/api/alerts/check', { params });
+    // /api/alerts/check 触发 opponent+manipulation 检测，冷路径实测 30-40s，超时放宽到 60s
+    const response = await this.client.get('/api/alerts/check', { params, timeout: 60000 });
     return this.unwrap<Alert[]>(response.data, 'getAlerts');
   }
 
