@@ -177,10 +177,48 @@ class FundFlowUpdateJob(Job):
             return JobResult.fail(self.name, str(e))
 
 
+class SignalPerfBackfillJob(Job):
+    """信号胜率回填每日任务（M3-3，ADR-002 Phase 1 补齐）
+
+    背景：原由 Agent OS 的 signal-perf-backfill-daily 任务经
+    signal-perf-backfill.sh 脚本 curl 直连后端（A-2 临时办法），
+    该任务在 DSH 原生调度迁移中被禁用，回填职责悬空。归位 v2。
+    """
+
+    @property
+    def name(self) -> str:
+        return "signal_perf_backfill_daily"
+
+    @property
+    def description(self) -> str:
+        return "回填信号 5/10/20 日表现（signal_track update，盘后 15:45）"
+
+    @property
+    def timeout_seconds(self) -> int:
+        return 1800
+
+    async def execute(self, params: Dict[str, Any]) -> JobResult:
+        import asyncio
+
+        def _run() -> Dict[str, Any]:
+            from application.services.signal_tracking_service import SignalTrackingService
+            # 不传连接：SignalTrackingRepository 内部自建 psycopg2 裸连接
+            svc = SignalTrackingService()
+            return svc.update_performance(lookback_days=params.get('lookback_days', 30))
+
+        try:
+            result = await asyncio.to_thread(_run)
+            updated = result.get('updated', 0)
+            return JobResult.ok(self.name, message=f"信号回填完成：更新 {updated} 条", details=result)
+        except Exception as e:
+            return JobResult.fail(self.name, str(e))
+
+
 # 导出所有信号类任务
 SIGNAL_JOBS = [
     SignalGenerateJob(),
     SignalExecutionDailyJob(),
     SignalMonitorRealtimeJob(),
     FundFlowUpdateJob(),
+    SignalPerfBackfillJob(),
 ]
