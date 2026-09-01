@@ -664,8 +664,11 @@ export interface RotationProposal {
 export interface RotationSimulateRequest {
   // New fields for Strategy Package tools
   proposals?: Array<{
-    action: 'buy' | 'sell';
-    symbol: string;
+    // 2026-09-01：与后端 strategy_rotation_engine 对齐（原 buy/sell 交易语义不匹配会被静默忽略）
+    action: 'activate' | 'deactivate' | 'adjust_weight';
+    strategy_id?: number;
+    strategy_name?: string;
+    symbol?: string;
     weight?: number;
   }>;
   account_name?: string;
@@ -692,8 +695,11 @@ export interface RotationSimulateResponse {
 export interface RotationExecuteRequest {
   // New fields for Strategy Package tools
   proposals?: Array<{
-    action: 'buy' | 'sell';
-    symbol: string;
+    // 2026-09-01：与后端 strategy_rotation_engine 对齐（activate/deactivate/adjust_weight）
+    action: 'activate' | 'deactivate' | 'adjust_weight';
+    strategy_id?: number;
+    strategy_name?: string;
+    symbol?: string;
     weight?: number;
   }>;
   account_name?: string;

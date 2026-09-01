@@ -989,7 +989,36 @@ export class QuantsysV2Client {
    * Real endpoint: GET /api/stocks/screen
    */
   async screenStocks(params?: ScreenRequest): Promise<ScreenResponse> {
-    const response = await this.client.get('/api/stocks/screen', { params });
+    // 2026-09-01 修复：工具层 criteria 是区间对象 {pe:[min,max], roe:[...]}，
+    // 后端 /api/stocks/screen 只认扁平参数（max_pe/min_roe/...）。
+    // 此前直接透传嵌套对象 → Axios 序列化为 criteria[pe][0]=...，后端读不到
+    // → criteria 全空 → 全市场通过（含退市股），筛选形同虚设。
+    const { criteria, filters, sort_by, limit, ...rest } = params ?? {};
+    const flat: Record<string, any> = { ...rest };
+    const crit = { ...(criteria ?? {}), ...(filters ?? {}) };
+    const rng = (key: string): [number, number] => {
+      const v = crit[key];
+      if (Array.isArray(v) && v.length >= 2) return [v[0], v[1]];
+      if (typeof v === 'number') return [v, v];
+      return [undefined, undefined];
+    };
+    const [peMin, peMax] = rng('pe');
+    const [roeMin] = rng('roe');
+    const [capMin, capMax] = rng('market_cap');
+    const [, debtMax] = rng('debt_ratio');
+    const [scoreMin] = rng('score');
+    const [pbMax] = rng('pb');
+    if (peMax != null) flat.max_pe = peMax;
+    if (roeMin != null) flat.min_roe = roeMin;
+    if (capMin != null) flat.min_market_cap = capMin;
+    if (capMax != null) flat.max_market_cap = capMax;
+    if (debtMax != null) flat.max_debt_ratio = debtMax;
+    if (scoreMin != null) flat.min_score = scoreMin;
+    if (pbMax != null) flat.max_pb = pbMax;
+    if (sort_by) flat.sort_by = sort_by;
+    if (limit) flat.limit = limit;
+    if (crit.exclude_st !== undefined) flat.exclude_st = crit.exclude_st;
+    const response = await this.client.get('/api/stocks/screen', { params: flat });
     return this.unwrap<ScreenResponse>(response.data, 'screenStocks');
   }
 
@@ -1019,7 +1048,15 @@ export class QuantsysV2Client {
    * Real endpoint: POST /api/agent/rotation/execute
    */
   async executeRotation(params: RotationExecuteRequest): Promise<RotationExecuteResponse> {
-    const response = await this.client.post('/api/agent/rotation/execute', params);
+    // 2026-09-01 修复：后端 RotationExecution 模型字段为 actions/decision/reason，
+    // 工具层传 proposals（买卖建议），需映射后再 POST，否则 FastAPI 422 校验失败。
+    const { proposals, ...rest } = params;
+    const response = await this.client.post('/api/agent/rotation/execute', {
+      actions: proposals ?? [],
+      decision: 'approve',
+      reason: 'agent rotation_execute',
+      ...rest,
+    });
     return this.unwrap<RotationExecuteResponse>(response.data, 'executeRotation');
   }
 
