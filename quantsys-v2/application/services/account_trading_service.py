@@ -109,131 +109,143 @@ class AccountTradingService:
         allow_off_hours: bool = False,
         execute_at: Optional[str] = None,
     ) -> Dict:
-        # ---- 校验 ----
+        """
+        重构版交易执行（使用 TradeGuardService）
+
+        重构说明（2026-09-01）:
+            引入 TradeGuardService 进行锁外预检查，所有业务规则集中在领域层。
+            保留应用层事务管理、行级锁和锁内复核（防 TOCTOU）。
+
+            参考文档: docs/work-logs/2026-09/account-trading-service-refactor-final-report.md
+
+        职责划分:
+            - 领域层 (TradeGuardService): 所有业务规则校验
+            - 应用层 (本方法): 事务管理、行级锁、锁内复核
+
+        Args:
+            account_name: 账户名
+            action: 交易方向 ('buy'/'sell')
+            symbol: 股票代码
+            shares: 股数（与 amount 二选一）
+            amount: 金额（与 shares 二选一）
+            price_limit: 限价
+            reason: 交易理由（必填，至少10字）
+            max_positions: 持仓数量上限
+            price: 指定价格（None 则获取实时价）
+            allow_off_hours: 是否允许盘后交易
+            execute_at: 执行时机 ('market_open' = 挂单)
+
+        Returns:
+            交易结果字典
+        """
+        # ---- 1. 参数校验和标准化 ----
         if not reason or len(reason.strip()) < 10:
             raise TradingError('必须提供详细的交易理由（至少10字）', 400)
-        # action 统一大写契约（2026-08-13）：入口规范化，非法值包成 400
+
         from infrastructure.persistence.orm.models.action_norm import normalize_action
         try:
             action = normalize_action(action)
         except ValueError:
             raise TradingError("action 必须是 'buy' 或 'sell'", 400)
+
         if execute_at is not None and execute_at != 'market_open':
             raise TradingError("execute_at 仅支持 'market_open'", 400)
 
         now = self.now_fn()
-        in_window = self._is_in_trading_window(now)
 
-        # 条件委托：非交易时段 + execute_at='market_open' → 挂单，开盘后 9:31 起撮合。
-        # 仍校验账户存在且 active，但不查行情/资金/持仓——这些护栏在撮合时复核。
-        if execute_at == 'market_open' and not in_window:
+        # ---- 2. 挂单处理 ----
+        if execute_at == 'market_open' and not self._is_in_trading_window(now):
             account = self.repo.get_account(account_name)
             if not account:
                 raise TradingError(f'账户不存在: {account_name}', 404)
             if account.status != 'active':
                 raise TradingError(f'账户已归档，拒绝写操作: {account_name}', 409)
+
             pending = self.repo.create_pending_order(
                 account_name=account_name, action=action, symbol=symbol,
                 shares=shares, amount=amount, price_limit=price_limit,
                 reason=reason, execute_at='market_open')
+
             logger.info("pending_order_placed",
                         account=account_name, action=action, symbol=symbol,
                         pending_order_id=pending.id)
+
             return {
                 'status': 'pending',
                 'pending_order_id': pending.id,
                 'message': '已挂单，开盘后 9:31 起自动撮合',
             }
 
-        if not allow_off_hours and not in_window:
-            self._check_trading_window(now)  # 抛出带具体原因的 422
-        account = self.repo.get_account(account_name)
-        if not account:
-            raise TradingError(f'账户不存在: {account_name}', 404)
-        if account.status != 'active':
-            raise TradingError(f'账户已归档，拒绝写操作: {account_name}', 409)
-
-        # T+1 结转由每日任务（settle_t1）负责，不在交易路径内做——
-        # 可用数由交易事务自身维护（买入当日 +0，卖出即时扣减）
-
+        # ---- 3. 获取价格 ----
         px = price if price is not None else self._get_price(symbol)
+
+        # 价格限制校验
         if price_limit is not None:
             if action == 'BUY' and px > price_limit:
                 raise TradingError(f'现价 {px} 高于限价 {price_limit}，委托拒绝', 422)
             if action == 'SELL' and px < price_limit:
                 raise TradingError(f'现价 {px} 低于限价 {price_limit}，委托拒绝', 422)
 
+        # 计算股数
         if shares is None:
             if not amount:
                 raise TradingError('shares 与 amount 必须提供一个', 400)
             shares = int(amount // (px * 100)) * 100
             if shares <= 0:
                 raise TradingError('金额不足一手（100股）', 422)
+
         if shares % 100 != 0:
             raise TradingError('股数必须为 100 的整数倍', 422)
 
-        trade_amount = round(px * shares, 2)
-        commission = max(round(trade_amount * self.COMMISSION_RATE, 2), self.COMMISSION_MIN)
-        stamp_duty = round(trade_amount * self.STAMP_DUTY_RATE, 2) if action == 'SELL' else 0.0
-        transfer_fee = round(trade_amount * self.TRANSFER_FEE_RATE, 2)
+        # ---- 4. 交易护栏 - 锁外预检查（领域层）----
+        from domain.trading.services.trade_guard_service import TradeGuardService
 
-        positions = self.repo.get_all_positions(account_name)
-        pos = next((p for p in positions if p.symbol == symbol), None)
-        position_value = sum(
-            float(p.market_value or 0) or float(p.shares_total) * float(p.current_price or p.avg_cost)
-            for p in positions
+        trade_guard = TradeGuardService(
+            repo=self.repo,
+            calendar=self.calendar,
+            now_fn=self.now_fn
         )
-        total_value = float(account.cash_available) + float(account.cash_frozen) + position_value
-        if total_value <= 0:
-            total_value = float(account.total_value or account.initial_capital or 1)
 
-        realized_pnl = None
-        realized_pnl_rate = None
-        if action == 'BUY':
-            self._check_daily_buy_limits(account_name, trade_amount, total_value)
-            total_cost = trade_amount + commission + transfer_fee
-            if total_cost > float(account.cash_available):
-                raise TradingError(
-                    f'可用资金不足: 需要 ¥{total_cost:,.2f}，可用 ¥{float(account.cash_available):,.2f}', 422)
-            new_mv = trade_amount + (
-                (float(pos.market_value or 0) or float(pos.shares_total) * px) if pos else 0)
-            if new_mv / total_value > self.MAX_SINGLE_POSITION_RATIO:
-                raise TradingError(
-                    f'单票仓位超限: 买入后 {symbol} 市值占比 {new_mv / total_value:.1%} > 30%', 422)
-            if pos is None and len(positions) >= max_positions:
-                raise TradingError(f'持仓数量超限: 已持有 {len(positions)} 只，上限 {max_positions}', 422)
-            if (position_value + trade_amount) / total_value > self.MAX_TOTAL_POSITION_RATIO:
-                raise TradingError('总仓位超限: 买入后超过总资产 80%', 422)
-        else:
-            if pos is None or pos.shares_total <= 0:
-                raise TradingError(f'无 {symbol} 持仓，无法卖出', 422)
-            if shares > pos.shares_available:
-                raise TradingError(
-                    f'T+1 可卖数量不足: 可卖 {pos.shares_available} 股，委托 {shares} 股', 422,
-                    details={'sellable_shares': pos.shares_available, 'symbol': symbol})
-            cost_basis = shares * float(pos.avg_cost)
-            realized_pnl = round(trade_amount - cost_basis - commission - stamp_duty - transfer_fee, 2)
-            realized_pnl_rate = round(realized_pnl / cost_basis, 4) if cost_basis else 0.0
+        # 所有业务规则在这里校验：交易时段、限额、资金、持仓、仓位
+        fees_info = trade_guard.validate_trade_request(
+            account_name=account_name,
+            action=action,
+            symbol=symbol,
+            shares=shares,
+            price=px,
+            max_positions=max_positions,
+            allow_off_hours=allow_off_hours
+        )
 
-        # ---- 单事务执行 ----
+        # 提取费用信息
+        trade_amount = fees_info['trade_amount']
+        commission = fees_info['commission']
+        stamp_duty = fees_info.get('stamp_duty', 0.0)
+        transfer_fee = fees_info['transfer_fee']
+        realized_pnl = fees_info.get('realized_pnl')
+        realized_pnl_rate = fees_info.get('realized_pnl_rate')
+
+        # ---- 5. 事务执行 ----
         try:
-            # 行级锁串行化同账户并发交易，防 lost update：
-            # 锁定后 account 被刷新为数据库最新值，资金类校验必须在锁内复核
+            # 行级锁串行化同账户并发交易，防 lost update
             locked_account = self.repo.get_account_for_update(account_name)
             if not locked_account:
                 raise TradingError(f'账户不存在: {account_name}', 404)
-            account = locked_account
-            if action == 'BUY':
-                total_cost_locked = trade_amount + commission + transfer_fee
-                if total_cost_locked > float(account.cash_available):
-                    raise TradingError(
-                        f'可用资金不足(锁内复核): 需要 ¥{total_cost_locked:,.2f}'
-                        f'，可用 ¥{float(account.cash_available):,.2f}', 422)
 
-            # 锁内重读持仓：之前读取的 pos/positions 可能是并发事务提交前的旧值
+            # 锁内复核资金（防 TOCTOU）
+            if action == 'BUY':
+                total_cost = fees_info['total_cost']
+                if total_cost > float(locked_account.cash_available):
+                    raise TradingError(
+                        f'可用资金不足(锁内复核): 需要 ¥{total_cost:,.2f}'
+                        f'，可用 ¥{float(locked_account.cash_available):,.2f}', 422)
+
+            # 锁内重读持仓（防并发）
             self.repo.session.expire_all()
             positions = self.repo.get_all_positions(account_name)
             pos = next((p for p in positions if p.symbol == symbol), None)
+
+            # 锁内复核持仓（防 TOCTOU）
             if action == 'SELL':
                 if pos is None or pos.shares_total <= 0:
                     raise TradingError(f'无 {symbol} 持仓，无法卖出', 422)
@@ -242,14 +254,17 @@ class AccountTradingService:
                         f'T+1 可卖数量不足: 可卖 {pos.shares_available} 股，委托 {shares} 股', 422,
                         details={'sellable_shares': pos.shares_available, 'symbol': symbol})
 
+            # ---- 6. 创建订单并标记已成交 ----
             order = self.repo.create_order(
                 account_name=account_name, action=action, symbol=symbol,
                 shares=shares, price_limit=price_limit, reason=reason,
                 commit=False)
+
             order.status = 'filled'
             order.filled_shares = shares
             order.avg_filled_price = px
 
+            # ---- 7. 创建成交记录 ----
             trade_id = self.repo.add_trade(
                 account_name=account_name, symbol=symbol, action=action,
                 shares=shares, price=px, filled_price=px, amount=trade_amount,
@@ -259,18 +274,22 @@ class AccountTradingService:
                 order_id=order.id, realized_pnl=realized_pnl,
                 realized_pnl_rate=realized_pnl_rate, reason=reason, commit=False)
 
+            # ---- 8. 更新持仓 ----
             if action == 'BUY':
                 old_total = pos.shares_total if pos else 0
                 old_cost = float(pos.avg_cost) * old_total if pos else 0.0
                 new_total = old_total + shares
                 new_avg = round((old_cost + trade_amount + commission + transfer_fee) / new_total, 4)
+
                 self.repo.upsert_position(
                     account_name, symbol, shares_total=new_total, avg_cost=new_avg,
-                    shares_available=pos.shares_available if pos else 0,  # 当日买入不可卖
+                    shares_available=pos.shares_available if pos else 0,  # T+1
                     current_price=px, commit=False)
-                account.cash_available = float(account.cash_available) - (
+
+                # 扣减资金
+                locked_account.cash_available = float(locked_account.cash_available) - (
                     trade_amount + commission + transfer_fee)
-            else:
+            else:  # SELL
                 remaining = pos.shares_total - shares
                 if remaining == 0:
                     self.repo.delete_position(account_name, symbol, commit=False)
@@ -280,31 +299,44 @@ class AccountTradingService:
                         avg_cost=float(pos.avg_cost),
                         shares_available=pos.shares_available - shares,
                         current_price=px, commit=False)
-                account.cash_available = float(account.cash_available) + (
+
+                # 增加资金
+                locked_account.cash_available = float(locked_account.cash_available) + (
                     trade_amount - commission - stamp_duty - transfer_fee)
 
-            account.position_value = position_value + (
-                trade_amount if action == 'BUY' else -trade_amount)
-            account.total_value = (
-                float(account.cash_available) + float(account.cash_frozen)
-                + float(account.position_value))
-            if account.initial_capital:
-                account.cumulative_return = (
-                    float(account.total_value) / float(account.initial_capital) - 1)
-            if account.peak_value and float(account.total_value) > float(account.peak_value):
-                account.peak_value = account.total_value
+            # ---- 9. 更新账户总值 ----
+            position_value = sum(
+                float(p.market_value or 0) or float(p.shares_total) * float(p.current_price or p.avg_cost)
+                for p in positions
+            )
 
+            locked_account.position_value = position_value + (
+                trade_amount if action == 'BUY' else -trade_amount)
+            locked_account.total_value = (
+                float(locked_account.cash_available) + float(locked_account.cash_frozen)
+                + float(locked_account.position_value))
+
+            if locked_account.initial_capital:
+                locked_account.cumulative_return = (
+                    float(locked_account.total_value) / float(locked_account.initial_capital) - 1)
+
+            if locked_account.peak_value and float(locked_account.total_value) > float(locked_account.peak_value):
+                locked_account.peak_value = locked_account.total_value
+
+            # ---- 10. 创建账户快照 ----
             self.repo.upsert_equity_snapshot(
                 account_name,
-                cash=float(account.cash_available) + float(account.cash_frozen),
-                position_value=float(account.position_value),
-                total_value=float(account.total_value),
-                cumulative_return=float(account.cumulative_return or 0),
-                drawdown=(float(account.total_value) / float(account.peak_value) - 1)
-                if account.peak_value else 0.0,
+                cash=float(locked_account.cash_available) + float(locked_account.cash_frozen),
+                position_value=float(locked_account.position_value),
+                total_value=float(locked_account.total_value),
+                cumulative_return=float(locked_account.cumulative_return or 0),
+                drawdown=(float(locked_account.total_value) / float(locked_account.peak_value) - 1)
+                if locked_account.peak_value else 0.0,
                 commit=False)
 
+            # ---- 11. 提交事务 ----
             self.repo.session.commit()
+
         except TradingError:
             self.repo.session.rollback()
             raise
@@ -313,18 +345,24 @@ class AccountTradingService:
             logger.error("trade_transaction_failed_rollback", error=str(e), exc_info=True)
             raise TradingError(f'交易执行失败: {e}', 500)
 
-        # 成交后自动写决策审计记录：簿记下沉服务端，不再依赖 LLM 自觉调 decision_record
+        # ---- 12. 决策记录 ----
         self._auto_record_decision(
             account_name=account_name, action=action, symbol=symbol,
             shares=shares, price=px, amount=trade_amount,
             reason=reason, realized_pnl=realized_pnl)
+
+        logger.info(
+            "trade_executed_v2",
+            account=account_name, action=action, symbol=symbol,
+            shares=shares, price=px, trade_id=trade_id
+        )
 
         return {
             'order_id': order.id,
             'order_status': 'filled',
             'trade_id': trade_id,
             'symbol': symbol,
-            'action': action.lower(),  # 对外 API 保持小写（库内大写契约不影响消费方）
+            'action': action.lower(),
             'shares': shares,
             'price': px,
             'amount': trade_amount,
@@ -334,38 +372,6 @@ class AccountTradingService:
             'realized_pnl': realized_pnl,
             'realized_pnl_rate': realized_pnl_rate,
         }
-
-    # ==================== 条件委托（挂单） ====================
-
-    def _auto_record_decision(
-        self, account_name: str, action: str, symbol: str,
-        shares: int, price: float, amount: float,
-        reason: Optional[str], realized_pnl: Optional[float],
-    ) -> None:
-        """成交后自动写 agent_decisions 审计记录。
-
-        失败只记日志不影响交易结果（审计不能拖垮主链路）。
-        Agent 只需在"放弃信号/不交易"时显式 decision_record——
-        成交类记录由本方法保证。
-        """
-        try:
-            from application.services.decision_service import DecisionService
-            DecisionService().record_decision({
-                'decision_type': f'trade_{action.lower()}',  # decision_type 小写契约（evolution 打分消费）
-                'reasoning': reason or '',
-                'context': {'account': account_name, 'auto_recorded': True},
-                'parameters': {
-                    'symbol': symbol,
-                    'shares': shares,
-                    'price': price,
-                    'amount': amount,
-                    'realized_pnl': realized_pnl,
-                },
-                'related_entity_type': 'stock',
-                'related_entity_id': symbol,
-            })
-        except Exception as e:
-            logger.warning(f"auto_record_decision_failed（不影响成交）: {e}")
 
     def execute_pending_orders(self, now: Optional[datetime] = None) -> Dict:
         """撮合所有 pending 挂单（由 orchestrator 在开盘后 9:31 起调用）。
@@ -412,6 +418,36 @@ class AccountTradingService:
             logger.info("pending_orders_matched",
                         executed=executed, failed=failed, at=now.isoformat())
         return {'executed': executed, 'failed': failed, 'details': details}
+
+    def _auto_record_decision(
+        self, account_name: str, action: str, symbol: str,
+        shares: int, price: float, amount: float,
+        reason: Optional[str], realized_pnl: Optional[float],
+    ) -> None:
+        """成交后自动写 agent_decisions 审计记录。
+
+        失败只记日志不影响交易结果（审计不能拖垮主链路）。
+        Agent 只需在"放弃信号/不交易"时显式 decision_record——
+        成交类记录由本方法保证。
+        """
+        try:
+            from application.services.decision_service import DecisionService
+            DecisionService().record_decision({
+                'decision_type': f'trade_{action}',
+                'reasoning': reason or '',
+                'context': {'account': account_name, 'auto_recorded': True},
+                'parameters': {
+                    'symbol': symbol,
+                    'shares': shares,
+                    'price': price,
+                    'amount': amount,
+                    'realized_pnl': realized_pnl,
+                },
+                'related_entity_type': 'stock',
+                'related_entity_id': symbol,
+            })
+        except Exception as e:
+            logger.warning(f"auto_record_decision_failed（不影响成交）: {e}")
 
     def cancel_pending_order(self, account_name: str, order_id: int) -> Dict:
         """取消挂单（仅 pending 状态可取消）"""
