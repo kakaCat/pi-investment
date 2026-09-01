@@ -139,3 +139,32 @@ def get_report(
     )
     
     return api_response(stats)
+
+
+# ============ signal_perf_backfill_daily job handler（2026-09-01 investor w-8366e526） ============
+# ADR-002 后 v2 定时任务由 Agent OS 调度（webhook 模式）。原 signal-perf-backfill-daily 在
+# DSH 原生调度迁移中被禁用为 /bin/true 空壳，回填职责悬空（审计 §7.2 #3）。此处注册
+# webhook handler：盘后由 Agent OS 触发，直接调用 SignalTrackingService.update_performance
+# 回填信号 5/10/20 日表现，不依赖 agent 响应，保证胜率统计与验证门样本持续更新。
+try:
+    from api.internal.scheduler_webhook import register_job_handler
+
+    @register_job_handler("signal_perf_backfill_daily")
+    async def handle_signal_perf_backfill(metadata=None):
+        """盘后回填信号 5/10/20 日表现（15:45 由 Agent OS 触发）"""
+        try:
+            lookback_days = 30
+            if metadata and isinstance(metadata, dict):
+                lookback_days = int(metadata.get("lookback_days", 30))
+            service = SignalTrackingService()
+            result = service.update_performance(lookback_days=lookback_days)
+            return {
+                "status": "ok",
+                "updated": result.get("updated", 0),
+                "details": result.get("details", {}),
+            }
+        except Exception as e:
+            logger.exception(f"signal_perf_backfill_daily job failed: {e}")
+            return {"status": "error", "error": str(e)}
+except ImportError as _e:  # pytest 或最小化启动场景下可选依赖缺失不阻塞路由加载
+    pass

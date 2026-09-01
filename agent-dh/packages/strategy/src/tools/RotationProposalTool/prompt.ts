@@ -12,11 +12,10 @@ export interface RotationProposalParams {
 
 export interface RotationProposalResult {
   proposals: Array<{
-    // 2026-09-01：与后端 strategy_rotation_engine 对齐（原 buy/sell 交易语义与后端
-    // activate/deactivate/adjust_weight 策略语义不匹配，导致模拟/执行被静默忽略）
+    // 2026-09-01：与后端 strategy_rotation_engine 对齐（策略级动作，非个股买卖语义）
     action: 'activate' | 'deactivate' | 'adjust_weight';
-    symbol: string;
-    name: string;
+    strategy_id?: number;
+    strategy_name?: string;
     reason: string;
     priority: number;
     suggested_weight?: number;
@@ -25,6 +24,18 @@ export interface RotationProposalResult {
     total_buy: number;
     total_sell: number;
     expected_turnover: number;
+  };
+  // 2026-09-01：透传后端市场风格与约束上下文（供决策参考）
+  meta?: {
+    market_style?: string;
+    style_confidence?: number;
+    style_duration_days?: number;
+    needs_rotation?: boolean;
+    trigger?: string;
+    expected_impact?: any;
+    constraints?: any;
+    next_steps?: any;
+    active_strategies?: any;
   };
 }
 

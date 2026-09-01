@@ -140,6 +140,19 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
     page = max(1, int(snake_data.get('page', 1)))
     page_size = min(int(snake_data.get('page_size', 20)), 100)
 
+    # 2026-09-01 契约对齐（investor w-8366e526）：消费 opportunity_scan 的
+    # scan_type / pool_id（此前被静默忽略——工具传了但后端不消费，属契约失真）。
+    #   scan_type: technical → 技术面权重主导；fundamental → 基本面权重主导；
+    #              hybrid（默认）→ 不传 weights，走动态 regime 权重。
+    #   pool_id:   存在时以股票池成员作为扫描范围（替代 watchlist+hot_stocks）。
+    scan_type = snake_data.get('scan_type')
+    if scan_type == 'technical' and weights is None:
+        weights = {'technical': 0.6, 'fundamental': 0.2, 'capital': 0.2}
+    elif scan_type == 'fundamental' and weights is None:
+        weights = {'technical': 0.2, 'fundamental': 0.6, 'capital': 0.2}
+    # hybrid / None → 保持动态 regime 权重（不覆写）
+    pool_id = snake_data.get('pool_id')
+
     try:
         if strategy_id not in (None, ''):
             try:
@@ -163,6 +176,19 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
 
         if stocks_param:
             symbols = list(stocks_param) if isinstance(stocks_param, list) else [stocks_param]
+        elif pool_id is not None:
+            # 股票池成员作为扫描范围（pool_id 优先于 industries/watchlist）
+            try:
+                pool = stock_pool_service.get_pool(int(pool_id))
+                if pool:
+                    members = pool.get('members') or []
+                    symbols = [m['symbol'] for m in members if m.get('symbol')]
+                    if not symbols and pool.get('symbols'):
+                        symbols = list(pool['symbols'])
+            except Exception:
+                symbols = []
+            if not symbols:
+                return error_response({'success': False, 'error': f'股票池 {pool_id} 无有效成员'}, 400)
         elif industries:
             symbols = stock_repo.get_stocks_by_industries(industries)
         else:

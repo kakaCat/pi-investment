@@ -65,6 +65,9 @@ export class OpportunityScanTool extends BaseTool<OpportunityScanParams, Opportu
     args: OpportunityScanParams,
     _context: ToolContext
   ): Promise<OpportunityScanResult> {
+    // 2026-09-01 契约修复（investor w-8366e526）：client.scanOpportunities 已 unwrap
+    // 返回裸数组（后端 {success, opportunities} → data.opportunities），此前工具取
+    // raw?.opportunities 恒为 undefined → 工具永远返回空列表（契约失真第二层）。
     const raw: any = await this.qv2.scanOpportunities({
       scan_type: args.scan_type || 'hybrid',
       pool_id: args.pool_id,
@@ -72,9 +75,14 @@ export class OpportunityScanTool extends BaseTool<OpportunityScanParams, Opportu
       min_score: args.min_score || 60,
     });
 
+    const list = Array.isArray(raw) ? raw : (raw?.opportunities ?? []);
     return {
-      opportunities: Array.isArray(raw?.opportunities) ? raw.opportunities : [],
-      scan_summary: raw?.scan_summary ?? { total_scanned: 0, opportunities_found: 0, scan_time: new Date().toISOString() },
+      opportunities: list,
+      scan_summary: {
+        total_scanned: raw?.scanned ?? list.length,
+        opportunities_found: list.length,
+        scan_time: new Date().toISOString(),
+      },
     };
   }
 

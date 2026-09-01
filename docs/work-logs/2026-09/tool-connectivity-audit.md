@@ -110,16 +110,23 @@
 
 ### 7.2 环境性/已知遗留（非断链）
 
+> 2026-09-01 深夜第二轮：用户确认"全部处理了"→ 遗留 6 项全部修复并验证 ✅（见下方逐项）
+
 | 项 | 状态 | 说明 |
 |---|---|---|
 | ~~sector 东财板块接口~~ | ✅ **已修复（fb030a97 + 1f5bb67e）** | ①DB 快照兜底：quant.sector_snapshot + 路由层 stale-while-error（成功落库、失败回退最近快照）②多数据源 failover：新增 AkshareSectorProvider（新浪行业+同花顺概念，独立通道）挂入 sector_providers，实测 eastmoney 故障自动切 akshare |
 | fund_flow 外部源 | 当日全失败（两融正常），502 降级显示 | 外部源故障，重试即恢复 |
-| opportunity_scan 参数契约 | scan_type/pool_id 后端忽略（扫描范围恒 0） | 契约失真 P2 待办 |
-| signal_track 5/10/20 日胜率 N/A | scheduler 无信号回填任务（胜率统计依赖盘后回填 update） | 回填机制缺失 P2 待办 |
-| rotation_proposal 字段名 | proposal.actions vs 工具 proposals 契约 | 待对齐 P2 |
-| v2 调度无 failover | ADR-002 切换后单点风险 | 建议补健康告警 P2 |
-| data_manager balance | 仍显示旧 balance 表（7-13 快照，market_value 0），holdings 已对齐但余额口径仍为 v2 原生模拟盘 | 两套账户体系并存 P2 待办 |
-| board 帖 #25409abb | risk metrics account_name 过滤（P1） | 待认领修复 |
+| ~~opportunity_scan 参数契约~~ | ✅ **已修复** | 三层契约：后端 `signals_async.py` scan_signals 消费 scan_type（technical/fundamental/hybrid 覆写权重）与 pool_id（池成员限定扫描范围，无效池返回 400）；DSH 工具 `OpportunityScanTool.ts` raw 改 `Array.isArray(raw) ? raw : raw?.opportunities ?? []`（client unwrap 后为裸数组）。实测三模式 top5 显著不同（technical 688256/688169/002241 vs fundamental 688169/688256/600887 vs hybrid 688256/688169/600887），pool_id=41 扫 10 只、pool_id=999 报"股票池 999 无有效成员" |
+| ~~signal_track 5/10/20 日胜率 N/A~~ | ✅ **已修复（含衍生 kline 污染根治）** | ①代码根因：`signal_tracking_service.py` `_get_trading_date_after` 用 TradingCalendarService 真实推进交易日、`_get_close_price` 兼容 polars DataFrame、`entry_price` 转 float（原 Decimal 冲突致回填恒失败）。②衍生污染根治：`data_backfiller.py` `_is_index_symbol` 白名单命中后校验 stocks 表 list_date——有上市日期=真实股票按股票路径（000001 平安银行/000016 *ST康佳A/000905 厦门港务/000852 石化机械 4 组双身份代码此前被指数点位覆盖，删除 326 行污染行并备份 quant.daily_klines_polluted_backup_20260901）。③调度恢复：signal_perf_backfill_daily 由 `/bin/true` 空壳改为 webhook 任务（Agent OS → v2 `register_job_handler("signal_perf_backfill_daily")` 直调 update_performance，不依赖 agent 响应），实测 trigger 链路成功（status:success, updated 正常返回）；id13 脏值 3952.18 已清除（8/21 信号因 8/28 K 线缺失暂 NULL，网络恢复后 kline_daily_sync 以股票路径自动补齐） |
+| ~~rotation_proposal 字段名~~ | ✅ **已修复** | `RotationProposalTool.ts` execute 规范化：从 raw?.proposal ?? raw 提取 actions（Array.isArray 校验）映射 `{action, strategy_id, strategy_name, reason, suggested_weight: new_weight ?? weight, priority}`；prompt.ts 类型对齐（proposals 元素 + meta 块）。实测工具调用正常（冷却期 actions=[] 与后端一致，预计换手 0.0%） |
+| ~~v2 调度无 failover~~ | ✅ **已修复** | `health_async.py` 注册 `v2_health_check` handler（调 check_job_health：僵尸/漏执行/高失败率），register_jobs_to_agent_os.py 注册每日 16:45 任务。实测 Agent OS trigger → webhook → v2 handler 链路成功，**首次运行即发现真实问题**：34 个启用任务中 1 僵尸 + 24 漏执行（>24h）——调度健康监控价值实证 |
+| ~~data_manager balance~~ | ✅ **已修复** | `health_async.py` platform_status 改读 `_sim_repo.get_account('agent_virtual')`（source=simulation_account），_acc 为 None 时回退旧 balance 表。实测返回 cash 90391.52/market_value 15063.00/total_assets 105454.52 与 account_info 一致，两套账户体系口径统一 |
+| ~~board 帖 #25409abb~~ | ✅ **已完成（claimed → done, rev3）** | risk metrics account_name 过滤（P1）：实测 agent_virtual maxDrawdown -7.72% vs agent_brain -6.14% 区分生效；scheduler_handlers 全 async 已核实；trades 接口 200 正常 |
+
+### 7.2b 修复后新增发现（2026-09-01 深夜）
+
+- **kline 数据源污染（signal_track 回填脏数据根因）**：000001/000016/000905 的 daily_klines 被指数点位覆盖（`_is_index_symbol` 白名单误判——000001 上证指数 vs 平安银行等 4 组双身份代码）。已删 326 行污染行（备份至 quant.daily_klines_polluted_backup_20260901），`_is_index_symbol` 加 stocks 表 list_date 校验根治。注：000001 6 月前历史数据亦混入指数点位，删除后 8/20-8/21、8/28-9/01 缺行，待网络恢复后 kline_daily_sync 股票路径补齐；其余持仓股（600519/300750/002241/601288/000858）K 线核对正常
+- **v2_health_check 首跑告警**：34 启用任务中 1 僵尸（gem-kline-upd...）+ 24 漏执行——疑似 Agent OS 调度投递层问题，建议维护方排查（见 §7.3 后续）
 
 ### 7.3 本轮提交
 

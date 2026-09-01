@@ -192,7 +192,28 @@ async def platform_status():
         _sim_repo = get_simulation_repo()
         sim_positions = _sim_repo.get_all_positions('agent_virtual') if _sim_repo else []
         holdings = sim_positions if sim_positions else (_portfolio_repo.get_all_holdings() if _portfolio_repo else [])
-        balance = _risk_repo.get_latest_balance() if _risk_repo else None
+        # 余额口径对齐（2026-09-01 investor w-8366e526）：优先读 simulation_account
+        # （agent_virtual，与持仓/交易工具链同一账户体系）；旧 balance 表为 7-13
+        # 快照（market_value 恒 0），仅当模拟账户缺失时回退，避免两套账户体系并存。
+        balance = None
+        if _sim_repo:
+            _acc = _sim_repo.get_account('agent_virtual')
+            if _acc is not None:
+                balance = {
+                    'balance_date': str(_acc.updated_at.date()),
+                    'cash': float(_acc.cash_available or 0),
+                    'market_value': float(_acc.position_value or 0),
+                    'total_assets': float(_acc.total_value or 0),
+                    'position_count': len(sim_positions),
+                    'initial_capital': float(_acc.initial_capital or 0),
+                    'total_return': float(_acc.cumulative_return or 0),
+                    'max_drawdown': float(_acc.max_drawdown or 0),
+                    'daily_pnl': None,
+                    'daily_return': None,
+                    'source': 'simulation_account',
+                }
+        if balance is None:
+            balance = _risk_repo.get_latest_balance() if _risk_repo else None
         signals = _signal_repo.get_latest_signals(limit=10) if _signal_repo else []
 
         # 检查模型是否存在
@@ -237,3 +258,36 @@ async def platform_status():
             'success': False,
             'error': str(e)
         }
+
+
+# ============ v2 调度健康监控 job handler（2026-09-01 investor w-8366e526） ============
+# ADR-002 后 v2 定时任务由 Agent OS 调度（webhook 模式），Agent OS 单点故障会静默
+# 停摆全部 v2 任务。注册 health_check 处理器：每日检查任务僵尸/漏执行/高失败率，
+# 发现异常返回 high 告警供 Agent OS 记录与外部监控拾取。
+try:
+    from api.internal.scheduler_webhook import register_job_handler
+    from application.jobs.health_monitor import check_job_health
+    from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
+    from infrastructure.persistence.orm import get_session
+
+    @register_job_handler("v2_health_check")
+    async def handle_v2_health_check(metadata=None):
+        """每日调度健康检查：僵尸运行/漏执行/高失败率任务"""
+        try:
+            session = get_session()
+            repo = SchedulerRepository(session)
+            result = check_job_health(repo)
+            if result.get("healthy"):
+                return {"status": "ok", "summary": result.get("summary"), "issues": []}
+            return {
+                "status": "degraded",
+                "healthy": False,
+                "summary": result.get("summary"),
+                "issues": result.get("issues", []),
+                "warning": "检测到调度异常，请检查 Agent OS / v2 任务状态",
+            }
+        except Exception as e:
+            logger.exception(f"v2_health_check job failed: {e}")
+            return {"status": "error", "error": str(e)}
+except ImportError as _e:  # pytest 或最小化启动场景下可选依赖缺失不阻塞路由加载
+    pass

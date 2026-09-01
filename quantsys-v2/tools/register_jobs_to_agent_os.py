@@ -465,6 +465,46 @@ JOBS = [
             "description": "Discover new trading strategies"
         }
     },
+
+    # v2 调度健康检查 (daily, after market close) — 2026-09-01 investor w-8366e526
+    # ADR-002 后 v2 定时任务由 Agent OS 调度（webhook 模式），Agent OS 单点故障会
+    # 静默停摆全部 v2 任务。本任务每日检查僵尸/漏执行/高失败率任务，异常返回 degraded。
+    {
+        "name": "v2_health_check",
+        "owner": "quantsys-v2",
+        "cron": "0 45 16 * * 1-5",  # 工作日 16:45（盘后）
+        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",
+        "enabled": True,
+        "timeout": 120,
+        "retry_count": 0,
+        "metadata": {
+            "job_type": "v2_health_check",
+            "description": "Daily scheduler health check (zombie/missed/failure tasks)"
+        }
+    },
+
+    # 信号胜率回填 (daily, after market close) — 2026-09-01 investor w-8366e526
+    # ADR-002 后 v2 定时任务由 Agent OS 调度（webhook 模式）。原 signal-perf-backfill-daily
+    # 在 DSH 原生调度迁移中被禁用为 /bin/true 空壳（审计 §7.2 #3：回填职责悬空——旧任务
+    # 07d34e66 描述"已由 post-market-routine-live 覆盖"，但后者仅投递 followup 给窗口、
+    # 不保证执行）。本任务以 webhook 直调 v2 SignalTrackingService.update_performance，
+    # 不依赖 agent 响应，保证胜率统计与验证门样本持续更新。
+    {
+        "name": "signal_perf_backfill_daily",
+        "owner": "quantsys-v2",
+        "cron": "0 45 15 * * 1-5",  # 工作日 15:45（盘后）
+        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",
+        "enabled": True,
+        "timeout": 1800,
+        "retry_count": 1,
+        "metadata": {
+            "job_type": "signal_perf_backfill_daily",
+            "description": "Backfill signal 5/10/20d performance (signal_track update, after market close)"
+        }
+    },
+
 ]
 
 

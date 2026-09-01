@@ -40,7 +40,16 @@ class DataBackfiller:
         self.data_source_manager = data_source_manager or get_data_provider_manager()
 
     def _is_index_symbol(self, symbol: str) -> bool:
-        """判断是否为指数代码（使用白名单，避免与股票代码混淆）"""
+        """判断是否为指数代码（使用白名单 + stocks 表真实股票校验）
+
+        历史坑（2026-09-01 修复）：000001 既是上证指数（sh000001）也是平安银行
+        （sz000001），000016 既是上证50也是*ST康佳A，000905 既是中证500也是厦门港务，
+        000852 既是中证1000也是石化机械。原实现仅凭白名单命中即按指数处理，导致
+        kline_daily_sync 全市场同步时把指数点位写进股票 K 线表（如 000001 出现 3900+ 的
+        "平安银行"、000016 出现 2900+ 的"*ST康佳A"）。修复：白名单命中后须再查 stocks
+        表——若存在真实股票记录（list_date 非空）则按股票处理，仅纯指数（list_date 为空
+        或 stocks 表无记录）才按指数拉取。
+        """
         # 常见指数白名单（000001既是上证指数也是平安银行，需显式区分）
         index_whitelist = {
             '000001',  # 上证指数
@@ -53,7 +62,19 @@ class DataBackfiller:
             '000905',  # 中证500
             '000852',  # 中证1000
         }
-        return symbol in index_whitelist
+        if symbol not in index_whitelist:
+            return False
+
+        # 白名单命中后校验 stocks 表：存在真实股票（有上市日期）→ 按股票处理
+        try:
+            from adapters.shared.services import get_stock_repo
+            stock = get_stock_repo().get_by_symbol(symbol)
+            if stock is not None and getattr(stock, 'list_date', None) is not None:
+                return False
+        except Exception as e:
+            # stocks 表校验失败时保守按白名单处理（原行为），避免拉取错误
+            logger.warning(f"_is_index_symbol stocks 校验失败 {symbol}: {e}")
+        return True
 
     def backfill_symbol(
         self,

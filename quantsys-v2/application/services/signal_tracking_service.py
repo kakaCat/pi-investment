@@ -124,7 +124,9 @@ class SignalTrackingService:
                 sig_date = sig_date.isoformat()
             
             symbol = signal['symbol']
-            entry_price = signal['price']
+            # 2026-09-01 修复（investor w-8366e526）：DB 返回 Decimal，直接参与
+            # 除法会与 float 冲突（unsupported operand types）。统一转 float。
+            entry_price = float(signal['price'])
             
             updates = {}
             
@@ -283,30 +285,61 @@ class SignalTrackingService:
     
     def _get_trading_date_after(self, date_str: str, trading_days: int) -> Optional[str]:
         """获取N个交易日后的日期
-        
-        简化实现：假设每周5个交易日，实际应查交易日历
+
+        2026-09-01 修复（investor w-8366e526）：原实现按 交易日*1.4 自然日估算，
+        会落在周末/节假日 → 取收盘价恒空 → 回填静默失败。改用 TradingCalendarService
+        真实交易日历推进。
         """
-        from datetime import datetime, timedelta
-        
-        base_date = datetime.strptime(date_str, '%Y-%m-%d')
-        # 简单估算：N个交易日 ≈ N * 1.4 自然日（考虑周末）
-        estimated_days = int(trading_days * 1.4)
-        target_date = base_date + timedelta(days=estimated_days)
-        
-        return target_date.strftime('%Y-%m-%d')
-    
-    def _get_close_price(self, kline_repo, symbol: str, date: str) -> Optional[float]:
-        """获取指定日期的收盘价"""
         try:
-            # 使用 KLineRepository 获取K线
+            from application.services.trading_calendar_service import TradingCalendarService
+            from datetime import datetime, timedelta
+
+            base = datetime.strptime(date_str, '%Y-%m-%d').date()
+            calendar = TradingCalendarService()
+            # 3 倍自然日窗口兜底，从真实交易日历取信号日之后的第 N 个交易日
+            end_hint = base + timedelta(days=int(trading_days * 3) + 7)
+            days = calendar.get_trading_days(
+                start_date=base.strftime('%Y-%m-%d'),
+                end_date=end_hint.strftime('%Y-%m-%d'),
+            )
+            if days:
+                dates = [d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d) for d in days]
+                dates = [d for d in dates if d > date_str]
+                if len(dates) >= trading_days:
+                    return dates[trading_days - 1]
+        except Exception as e:
+            logger.warning(f"trading_date_calc_failed date={date_str} n={trading_days}: {e}")
+        # 回退到原估算（至少不抛错）
+        from datetime import datetime, timedelta
+        return (datetime.strptime(date_str, '%Y-%m-%d') + timedelta(days=int(trading_days * 1.4))).strftime('%Y-%m-%d')
+
+    def _get_close_price(self, kline_repo, symbol: str, date: str) -> Optional[float]:
+        """获取指定日期的收盘价
+
+        2026-09-01 修复（investor w-8366e526）：get_daily_klines 返回 polars
+        DataFrame，原实现按 list 处理（`if klines and len(klines)>0` 触发
+        DataFrame.__bool__ → TypeError → 回填恒失败）。
+        """
+        try:
             klines = kline_repo.get_daily_klines(
                 symbol=symbol,
                 start_date=date,
                 end_date=date
             )
-            if klines and len(klines) > 0:
-                return float(klines[0]['close'])
+            if klines is None:
+                return None
+            # polars DataFrame
+            if hasattr(klines, 'is_empty'):
+                if klines.is_empty():
+                    return None
+                return float(klines['close'][0])
+            # list[dict] / list[Row]
+            if isinstance(klines, (list, tuple)) and len(klines) > 0:
+                row = klines[0]
+                if isinstance(row, dict):
+                    return float(row.get('close'))
+                return float(getattr(row, 'close'))
         except Exception as e:
             logger.warning(f"Failed to get close price for {symbol} on {date}: {e}")
-        
+
         return None
