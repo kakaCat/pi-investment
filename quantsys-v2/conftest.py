@@ -1,152 +1,57 @@
+"""
+Pytest configuration for quantsys-v2 test suite.
+
+This file automatically loads test environment variables from .env.test
+before running any tests.
+
+DATABASE SEPARATION:
+- Test database: quant_test (configured in .env.test)
+- Production database: quant_investment (configured in .env)
+- pytest automatically uses test database via this conftest.py
+- All other scenarios (API, scripts) use production database
+"""
 import os
 import sys
-import types
 from pathlib import Path
 
 import pytest
 
-
-class _Stub(types.ModuleType):
-    def __init__(self, name):
-        super().__init__(name)
-        self.__path__ = []
-        self.__file__ = "/dev/null"
-        self.__spec__ = None
-
-    def __getattr__(self, attr):
-        if attr.startswith("_"):
-            raise AttributeError(attr)
-        return _StubClass(f"{self.__name__}.{attr}")
-
-
-class _StubClass:
-    def __init__(self, name):
-        self._name = name
-
-    def __call__(self, *a, **kw):
-        raise ImportError(f"Module under test was removed: {self._name}")
-
-    def __getattr__(self, attr):
-        return _StubClass(f"{self._name}.{attr}")
-
-    def __mro_entries__(self, bases):
-        return (object,)
-
-
-_DEAD_MODULES = [
-    "domain.quantlib.adapters.base_adapter",
-    "domain.quantlib.adapters.eastmoney_adapter",
-    "domain.quantlib.adapters.factor_calculator_adapter",
-    "domain.quantlib.adapters.factory",
-    "domain.quantlib.backtest.market_impact",
-    "domain.quantlib.backtest.walk_forward",
-    "domain.quantlib.core.base_calculator",
-    "domain.quantlib.core.config",
-    "domain.quantlib.core.data_cleaning",
-    "domain.quantlib.core.data_validator",
-    "domain.quantlib.core.exceptions",
-    "domain.quantlib.core.pipeline",
-    "domain.quantlib.core.portfolio_calculator",
-    "domain.quantlib.core.validators",
-    "domain.quantlib.engine.backtest_report",
-    "domain.quantlib.engine.backtrader.backtrader_engine",
-    "domain.quantlib.engine.backtrader.data_feed",
-    "domain.quantlib.engine.commission",
-    "domain.quantlib.engine.donchian_channel_strategy",
-    "domain.quantlib.engine.indicator_strategy_executor",
-    "domain.quantlib.engine.momentum_strategy",
-    "domain.quantlib.engine.position_sizing",
-    "domain.quantlib.engine.risk_rules",
-    "domain.quantlib.engine.slippage",
-    "domain.quantlib.engine.stress_test",
-    "domain.quantlib.engine.strategy_base",
-    "domain.quantlib.engine.strategy_runner",
-    "domain.quantlib.engine.turtle_strategy",
-    "domain.quantlib.engine.volatility_breakout_strategy",
-    "domain.quantlib.factor_analysis.ic_analyzer",
-    "domain.quantlib.factor_analysis.layering_backtest",
-    "domain.quantlib.factor_analysis.orthogonalizer",
-    "domain.quantlib.factors.fundamental",
-    "domain.quantlib.factors.momentum",
-    "domain.quantlib.factors.moving_average",
-    "domain.quantlib.factors.other",
-    "domain.quantlib.factors.reversal",
-    "domain.quantlib.factors.trend",
-    "domain.quantlib.factors.volatility",
-    "domain.quantlib.factors.volume",
-    "domain.quantlib.risk.aggregation",
-    "domain.quantlib.risk.attribution",
-    "domain.quantlib.risk.counterparty_risk",
-    "domain.quantlib.risk.cvar",
-    "domain.quantlib.risk.regulatory",
-    "domain.quantlib.risk.backtesting",
-    "domain.quantlib.risk.margining",
-    "domain.quantlib.risk.reporting",
-    "domain.quantlib.risk.risk_monitor",
-    "domain.quantlib.risk.var",
-    "domain.quantlib.stages.backtest_stage",
-    "domain.quantlib.stages.data_pipeline.anomaly_detection_stage",
-    "domain.quantlib.stages.data_pipeline.conflict_resolution_stage",
-    "domain.quantlib.stages.data_pipeline.data_fetch_stage",
-    "domain.quantlib.stages.data_pipeline.deduplication_stage",
-    "domain.quantlib.stages.data_pipeline.factor_compute_stage",
-    "domain.quantlib.stages.data_pipeline.imputation_stage",
-    "domain.quantlib.stages.data_pipeline.storage_stage",
-    "domain.quantlib.stages.data_pipeline.time_alignment_stage",
-    "domain.quantlib.stages.factor_stage",
-    "domain.quantlib.stages.model_stage",
-    "domain.quantlib.stages.risk_stage",
-    "domain.brokers.adapters.akshare_broker",
-    "adapters.inbound.api",
-]
-
-collect_ignore = [
-    "tests/domain/memory/",
-    "tests/quantlib/test_talib_bridge.py",
-    "tests/services/test_risk_metrics_service.py",
-    "tests/test_factor_library_connection.py",
-    "tests/test_redis_cache.py",
-    "tests/test_response_utils.py",
-    "tests/test_websocket.py",
-    "tests/api/test_signals_list_route.py",
-]
+collect_ignore = []
+try:
+    import empyrical
+except ImportError:
+    collect_ignore.append("tests/services/test_risk_metrics_service.py")
 
 
 def pytest_configure(config):
-    for mod in _DEAD_MODULES:
-        if mod not in sys.modules:
-            sys.modules[mod] = _Stub(mod)
-
-    parent_modules = [
-        "domain.quantlib.stages.data_pipeline",
-        "domain.quantlib.adapters",
-    ]
-    for pm in parent_modules:
-        if pm not in sys.modules:
-            sys.modules[pm] = _Stub(pm)
-
-    _load_env(config)
-
-
-def _load_env(config):
+    """Load test environment variables before running tests."""
+    # Get the project root directory
     project_root = Path(__file__).parent
 
+    # Add project root to sys.path so imports work
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
     env_test_file = project_root / ".env.test"
+
+    # Load .env.test if it exists
     if env_test_file.exists():
         with open(env_test_file) as f:
             for line in f:
                 line = line.strip()
+                # Skip empty lines and comments
                 if not line or line.startswith("#"):
                     continue
+                # Parse KEY=VALUE
                 if "=" in line:
                     key, value = line.split("=", 1)
-                    key, value = key.strip(), value.strip()
+                    key = key.strip()
+                    value = value.strip()
+                    # Only set if not already set (allow override from shell)
                     if key not in os.environ:
                         os.environ[key] = value
 
+    # 强制验证测试数据库配置
     pgdatabase = os.environ.get("PGDATABASE", "")
     if not pgdatabase:
         print("\n" + "="*70)
@@ -160,6 +65,8 @@ def _load_env(config):
         print("ERROR: Test database validation failed!")
         print(f"Current PGDATABASE: {pgdatabase}")
         print("Test database name must end with '_test' (e.g., 'quant_test')")
+        print("This safety check prevents tests from running against production data.")
+        print("Please check your .env.test configuration.")
         print("="*70 + "\n")
         sys.exit(1)
 
@@ -168,6 +75,7 @@ def _load_env(config):
 
 @pytest.fixture(scope="session")
 def db_connection():
+    """Provide a database connection for tests that need it."""
     import psycopg2
     from psycopg2.extras import RealDictCursor
     from infrastructure.persistence.database.engine import _resolve_db_dsn
@@ -177,13 +85,19 @@ def db_connection():
         pytest.skip("No database configuration found")
 
     conn = psycopg2.connect(dsn, cursor_factory=RealDictCursor)
+
+    # Ensure required tables exist for tests
     _ensure_test_tables(conn)
+
     yield conn
     conn.close()
 
 
 def _ensure_test_tables(conn):
+    """Ensure required tables exist in test database."""
     cursor = conn.cursor()
+
+    # Create stock_fundamentals table if not exists
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS quant.stock_fundamentals (
             symbol TEXT PRIMARY KEY,
@@ -195,6 +109,8 @@ def _ensure_test_tables(conn):
             created_at TIMESTAMPTZ DEFAULT now()
         )
     """)
+
+    # Create index_constituents table if not exists
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS quant.index_constituents (
             index_code TEXT NOT NULL,
@@ -204,6 +120,8 @@ def _ensure_test_tables(conn):
             PRIMARY KEY (index_code, constituent_symbol)
         )
     """)
+
+    # Create stop_loss_rules table if not exists (mirrors production schema)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS quant.stop_loss_rules (
             id TEXT PRIMARY KEY,
@@ -219,10 +137,14 @@ def _ensure_test_tables(conn):
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
     conn.commit()
     cursor.close()
 
 
 @pytest.fixture(scope="function")
 def clean_db(db_connection):
+    """Clean up test data after each test."""
     yield
+    # Cleanup logic can be added here if needed
+    # For now, tests are responsible for their own cleanup

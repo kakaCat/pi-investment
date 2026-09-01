@@ -360,7 +360,6 @@ class SimulationOrder(Base):
     reason = Column(String(500), comment='决策理由')
     strategy_name = Column(String(50), comment='来源策略')
     signal_id = Column(String(64), comment='来源信号')
-    genome_version = Column(String(32), comment='决策时基因组版本（RFC 005 决策打标）')
     reject_reason = Column(String(500), comment='拒绝原因')
     created_at = Column(DateTime(timezone=False), default=datetime.now, comment='创建时间')
     updated_at = Column(DateTime(timezone=False), default=datetime.now,
@@ -387,7 +386,6 @@ class SimulationOrder(Base):
             'reason': self.reason,
             'strategy_name': self.strategy_name,
             'signal_id': self.signal_id,
-            'genome_version': self.genome_version,
             'reject_reason': self.reject_reason,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
@@ -495,7 +493,6 @@ class SimulationPendingOrder(Base):
     amount = Column(Numeric(15, 2), comment='委托金额（可空，与 shares 二选一）')
     price_limit = Column(Numeric(10, 2), comment='限价')
     reason = Column(Text, comment='交易理由')
-    genome_version = Column(String(32), comment='决策时基因组版本（RFC 005 决策打标）')
     execute_at = Column(String(20), nullable=False, default='market_open',
                         comment='撮合时机（market_open）')
     status = Column(String(20), nullable=False, default='pending',
@@ -522,7 +519,6 @@ class SimulationPendingOrder(Base):
             'amount': float(self.amount) if self.amount is not None else None,
             'price_limit': float(self.price_limit) if self.price_limit is not None else None,
             'reason': self.reason,
-            'genome_version': self.genome_version,
             'execute_at': self.execute_at,
             'status': self.status,
             'fail_reason': self.fail_reason,

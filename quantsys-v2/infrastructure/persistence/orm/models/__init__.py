@@ -34,7 +34,7 @@ from .portfolio import PortfolioHolding
 from .trade import Trade
 from .factor import FactorValue
 from .backtest import BacktestResult
-from .scheduler_config import SchedulerTaskConfig
+from .scheduler import SchedulerTaskConfig, SchedulerRun
 from .condition_rule import ConditionRule, ConditionResult
 from .index_constituent import IndexConstituent
 from .orchestrator import DailyOrchestratorState
@@ -74,6 +74,7 @@ __all__ = [
 
     # 调度器相关
     'SchedulerTaskConfig',
+    'SchedulerRun',
 
     # 条件监控相关
     'ConditionRule',

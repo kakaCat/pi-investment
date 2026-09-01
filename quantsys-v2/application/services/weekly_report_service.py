@@ -85,19 +85,6 @@ class WeeklyReportService:
             min_samples=3
         )
         
-        # 2.5 组合盈亏归因（M6-2）：本周实际成交盈亏拆解
-        try:
-            portfolio_attr = attribution_service.analyze_portfolio_attribution(
-                start_date=week_start,
-                end_date=week_end,
-            )
-        except Exception as e:
-            logger.warning("portfolio_attribution_failed", error=str(e))
-            portfolio_attr = {
-                'summary': {'total_pnl': 0, 'total_trades': 0, 'win_loss_ratio': None},
-                'by_decision_type': [], 'by_month': [], 'by_symbol': [], 'insights': []
-            }
-        
         # 3. Regime 变化
         regime_changes = self._get_regime_changes(week_start, week_end)
         
@@ -121,10 +108,7 @@ class WeeklyReportService:
                 'total_signals': signals_stats['total'],
                 'signals_with_performance': signals_stats['with_performance'],
                 'avg_win_rate_5d': signals_stats['avg_win_rate_5d'],
-                'avg_return_5d': signals_stats['avg_return_5d'],
-                'realized_pnl': portfolio_attr['summary'].get('total_pnl', 0),
-                'realized_trades': portfolio_attr['summary'].get('total_trades', 0),
-                'win_loss_ratio': portfolio_attr['summary'].get('win_loss_ratio'),
+                'avg_return_5d': signals_stats['avg_return_5d']
             },
             'signals': signals_stats,
             'attribution': {
@@ -132,7 +116,6 @@ class WeeklyReportService:
                 'top_rules': attribution['rule_stats'][:3] if attribution['rule_stats'] else [],
                 'recommendations': attribution['recommendations']
             },
-            'portfolio_attribution': portfolio_attr,
             'regime_changes': regime_changes,
             'highlights': highlights,
             'recommendations': recommendations
@@ -290,36 +273,6 @@ class WeeklyReportService:
         md += "\n\n---\n\n## ✨ 本周亮点\n\n"
         for highlight in report['highlights']:
             md += f"- {highlight}\n"
-        
-        # 组合盈亏归因（M6-2）区块
-        pa = report.get('portfolio_attribution', {})
-        pa_sum = pa.get('summary', {})
-        md += "\n---\n\n## 💰 组合盈亏归因\n\n"
-        if pa_sum.get('total_trades', 0) > 0:
-            md += f"- **本周已实现盈亏**: {pa_sum.get('total_pnl', 0):+.0f} 元"
-            ratio = pa_sum.get('win_loss_ratio')
-            if ratio is not None:
-                md += f"（盈亏比 {ratio}:1）"
-            md += "\n"
-            md += f"- **止盈贡献**: {pa_sum.get('take_profit_pnl', 0):+.0f} 元 / "
-            md += f"**止损侵蚀**: {pa_sum.get('stop_loss_pnl', 0):+.0f} 元\n"
-            by_dec = pa.get('by_decision_type', [])
-            dec_detail = "、".join(
-                f"{d.get('label','')} {d.get('count',0)} 笔" for d in by_dec
-            )
-            if dec_detail:
-                md += f"- **决策分布**: {dec_detail}\n"
-            top_sym = [s for s in pa.get('by_symbol', []) if s.get('pnl', 0) != 0][:5]
-            if top_sym:
-                sym_line = "、".join(
-                    f"{s.get('symbol','')}({s.get('name','') or '?'}) {s.get('pnl',0):+.0f}"
-                    for s in top_sym
-                )
-                md += f"- **本周 Top 标的**: {sym_line}\n"
-            for insight in pa.get('insights', []):
-                md += f"- 🔎 {insight}\n"
-        else:
-            md += "- 本周无已实现成交\n"
         
         md += "\n---\n\n## 💡 改进建议\n\n"
         for rec in report['recommendations']:

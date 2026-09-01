@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime, timedelta
 from application.services.opportunity_scoring_service import OpportunityScoringService
 from adapters.outbound.repositories import KlineORMRepository, StockORMRepository
-from domain.quantlib.adapters import get_factor_adapter
+from adapters.shared.services import get_factor_adapter
 
 
 @pytest.fixture

@@ -166,3 +166,130 @@ class IStrategyRepository(ABC):
     def update_strategy(self, strategy_id: int, updates: Dict[str, Any]) -> bool:
         """更新策略"""
         pass
+
+
+class ISchedulerRepository(ABC):
+    """调度任务仓储接口"""
+
+    # ── Task CRUD ──
+
+    @abstractmethod
+    def add_task(
+        self,
+        name: str,
+        cron_expression: str,
+        command: str,
+        params: Optional[Dict[str, Any]] = None,
+        description: Optional[str] = None,
+    ) -> int:
+        """注册新的定时任务，返回 task id"""
+        pass
+
+    @abstractmethod
+    def remove_task(self, task_id: int) -> bool:
+        """删除任务"""
+        pass
+
+    @abstractmethod
+    def update_task(self, task_id: int, **kwargs) -> bool:
+        """更新任务字段（name/description/cron_expression/command/params/is_enabled）"""
+        pass
+
+    @abstractmethod
+    def get_task(self, task_id: int) -> Optional[Dict[str, Any]]:
+        """根据 id 获取任务"""
+        pass
+
+    @abstractmethod
+    def get_task_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        """根据 name 获取任务"""
+        pass
+
+    @abstractmethod
+    def list_tasks(self, enabled_only: bool = False) -> List[Dict[str, Any]]:
+        """列出所有任务"""
+        pass
+
+    @abstractmethod
+    def count_tasks(self, enabled_only: bool = False) -> int:
+        """统计任务数"""
+        pass
+
+    @abstractmethod
+    def enable_task(self, task_id: int) -> bool:
+        """启用任务"""
+        pass
+
+    @abstractmethod
+    def disable_task(self, task_id: int) -> bool:
+        """禁用任务"""
+        pass
+
+    # ── Run Lifecycle ──
+
+    @abstractmethod
+    def create_run(self, task_id: int) -> int:
+        """创建执行记录（status='running'），返回 run id"""
+        pass
+
+    @abstractmethod
+    def complete_run(
+        self,
+        run_id: int,
+        success: bool = True,
+        result: Optional[Dict[str, Any]] = None,
+        error: Optional[str] = None,
+    ) -> bool:
+        """完成执行记录，同时更新 task 的 last_status/next_run_at"""
+        pass
+
+    @abstractmethod
+    def get_run(self, run_id: int) -> Optional[Dict[str, Any]]:
+        """获取单条执行记录"""
+        pass
+
+    @abstractmethod
+    def list_runs(
+        self,
+        task_id: Optional[int] = None,
+        limit: int = 50,
+        offset: int = 0,
+        statuses: Optional[List[str]] = None,
+        date_filter: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """列出执行历史"""
+        pass
+
+    @abstractmethod
+    def count_runs(
+        self,
+        task_id: Optional[int] = None,
+        statuses: Optional[List[str]] = None,
+        date_filter: Optional[str] = None,
+    ) -> int:
+        """统计执行记录数"""
+        pass
+
+    # ── Health Check ──
+
+    @abstractmethod
+    def find_zombie_runs(self, threshold_hours: int = 1) -> List[Dict[str, Any]]:
+        """查找僵尸 running 任务"""
+        pass
+
+    @abstractmethod
+    def find_missed_tasks(self, threshold_hours: int = 24) -> List[Dict[str, Any]]:
+        """查找超过阈值未执行的任务"""
+        pass
+
+    @abstractmethod
+    def find_high_failure_tasks(
+        self, days: int = 7, min_runs: int = 3, fail_rate_threshold: float = 0.5
+    ) -> List[Dict[str, Any]]:
+        """查找高失败率任务"""
+        pass
+
+    @abstractmethod
+    def count_enabled_tasks(self) -> int:
+        """统计启用中的任务数"""
+        pass

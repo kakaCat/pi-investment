@@ -1,7 +1,7 @@
 """missed_opportunity_daily 调度 handler 测试（P0b）。"""
 from unittest.mock import patch
 
-from application.services.task_handlers import (
+from application.services.scheduler_tasks import (
     get_task_handler, handle_missed_opportunity_daily,
 )
 

@@ -399,7 +399,7 @@ class AgentSchedulerTool:
 
 
 # ============================================================
-# Agent Reminder Handler（需要注册到scheduler_tasks.py）
+
 # ============================================================
 
 def handle_agent_reminder(params: Dict[str, Any] = None) -> Dict[str, Any]:

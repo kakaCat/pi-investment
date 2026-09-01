@@ -9,28 +9,6 @@ import asyncio
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from api.internal.scheduler_webhook import execute_job, WebhookPayload
-from application.jobs.job_registry import job_registry
-from application.jobs.job_protocol import Job
-
-
-class _StubJob(Job):
-    """A test Job that wraps a handler function."""
-
-    def __init__(self, name: str, handler):
-        self._name = name
-        self._handler = handler
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    async def execute(self, params):
-        return await self._handler(params)
-
-
-def _register_test_handler(name, handler_fn):
-    """Register a handler function as a Job in the registry for testing."""
-    job_registry.register(_StubJob(name, handler_fn))
 
 
 @pytest.mark.asyncio
@@ -41,8 +19,6 @@ async def test_async_handler_execution():
         await asyncio.sleep(0.01)  # Simulate async work
         return {"status": "success", "type": "async"}
 
-    _register_test_handler("test_async", async_handler)
-
     payload = WebhookPayload(
         job_id="test-job-123",
         job_name="test_async_job",
@@ -52,11 +28,11 @@ async def test_async_handler_execution():
 
     # Mock database and agent OS client
     with patch("api.internal.scheduler_webhook._write_run_to_database", new_callable=AsyncMock):
-        with patch("application.services.agent_os_client.get_agent_os_client") as mock_client:
+        with patch("api.internal.scheduler_webhook.get_agent_os_client") as mock_client:
             mock_client.return_value.report_job_result = AsyncMock()
 
             # When: execute_job is called
-            await execute_job("test_async", payload)
+            await execute_job(async_handler, payload)
 
             # Then: no errors should occur (no nested event loop)
             # If the old asyncio.run() wrapper was used, this would fail
@@ -72,8 +48,6 @@ async def test_sync_handler_execution():
         time.sleep(0.01)
         return {"status": "success", "type": "sync"}
 
-    _register_test_handler("test_sync", sync_handler)
-
     payload = WebhookPayload(
         job_id="test-job-456",
         job_name="test_sync_job",
@@ -83,11 +57,11 @@ async def test_sync_handler_execution():
 
     # Mock database and agent OS client
     with patch("api.internal.scheduler_webhook._write_run_to_database", new_callable=AsyncMock):
-        with patch("application.services.agent_os_client.get_agent_os_client") as mock_client:
+        with patch("api.internal.scheduler_webhook.get_agent_os_client") as mock_client:
             mock_client.return_value.report_job_result = AsyncMock()
 
             # When: execute_job is called
-            await execute_job("test_sync", payload)
+            await execute_job(sync_handler, payload)
 
             # Then: handler should execute successfully in threadpool
 
@@ -105,8 +79,6 @@ async def test_handler_can_use_asyncio_primitives():
         results = await asyncio.gather(subtask(1), subtask(2), subtask(3))
         return {"results": results}
 
-    _register_test_handler("test_complex", complex_async_handler)
-
     payload = WebhookPayload(
         job_id="test-job-789",
         job_name="test_complex_async",
@@ -116,11 +88,11 @@ async def test_handler_can_use_asyncio_primitives():
 
     # Mock database and agent OS client
     with patch("api.internal.scheduler_webhook._write_run_to_database", new_callable=AsyncMock):
-        with patch("application.services.agent_os_client.get_agent_os_client") as mock_client:
+        with patch("api.internal.scheduler_webhook.get_agent_os_client") as mock_client:
             mock_client.return_value.report_job_result = AsyncMock()
 
             # When: execute_job is called
-            await execute_job("test_complex", payload)
+            await execute_job(complex_async_handler, payload)
 
             # Then: should complete without "RuntimeError: asyncio.run() cannot be called from a running event loop"
 
@@ -132,8 +104,6 @@ async def test_handler_exception_propagation():
     async def failing_handler(metadata):
         raise ValueError("Simulated handler failure")
 
-    _register_test_handler("test_fail", failing_handler)
-
     payload = WebhookPayload(
         job_id="test-job-error",
         job_name="test_failing_job",
@@ -143,11 +113,11 @@ async def test_handler_exception_propagation():
 
     # Mock database and agent OS client
     with patch("api.internal.scheduler_webhook._write_run_to_database", new_callable=AsyncMock) as mock_db:
-        with patch("application.services.agent_os_client.get_agent_os_client") as mock_client:
+        with patch("api.internal.scheduler_webhook.get_agent_os_client") as mock_client:
             mock_client.return_value.report_job_result = AsyncMock()
 
             # When: execute_job is called with failing handler
-            await execute_job("test_fail", payload)
+            await execute_job(failing_handler, payload)
 
             # Then: exception should be caught, logged, and reported
             # Verify database write was attempted with failed status

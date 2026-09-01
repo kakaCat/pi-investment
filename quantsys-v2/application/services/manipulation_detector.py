@@ -3,7 +3,7 @@
 
 检测市场操纵行为（拉高出货等），识别风险和机会
 """
-from domain.ports import IAgentIntelligenceRepository, IFundFlowRepository, IKlineRepository, IFinancialRepository
+from domain.ports import IAgentIntelligenceRepository, IFundFlowRepository
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
@@ -21,61 +21,17 @@ class ManipulationDetector:
         self,
         manipulation_repo: Optional[IAgentIntelligenceRepository] = None,
         fund_flow_repo: Optional[IFundFlowRepository] = None,
-        kline_repo: Optional[IKlineRepository] = None,
-        financial_repo: Optional[IFinancialRepository] = None,
     ):
         """初始化服务
 
         Args:
             manipulation_repo: 智能仓库（可选）
             fund_flow_repo: 资金流仓库（可选）
-            kline_repo: K线仓库（可选）
-            financial_repo: 财务仓库（可选）
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.manipulation_repo = manipulation_repo
         self.fund_flow_repo = fund_flow_repo
-        self.kline_repo = kline_repo
-        self.financial_repo = financial_repo
-
-        # M7-3 兜底注入：manipulation_repo 未注入时自建（操纵事件落库/读取需要）
-        if self.manipulation_repo is None:
-            try:
-                from adapters.outbound.repositories.agent_intelligence_repository import (
-                    AgentIntelligenceORMRepository,
-                )
-                self.manipulation_repo = AgentIntelligenceORMRepository()
-                logger.info("manipulation_repo 兜底注入 AgentIntelligenceORMRepository（ManipulationDetector）")
-            except Exception as e:
-                logger.warning(f"manipulation_repo 兜底注入失败: {e}")
-
-        # M7-3 兜底注入：fund_flow_repo 未注入时自建，保证操纵检测的
-        # 成交量信号（_check_volume_surge / _check_high_volume_stagnation）可用
-        if self.fund_flow_repo is None:
-            try:
-                from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
-                self.fund_flow_repo = FundFlowORMRepository()
-                logger.info("fund_flow_repo 兜底注入 FundFlowORMRepository（ManipulationDetector）")
-            except Exception as e:
-                logger.warning(f"fund_flow_repo 兜底注入失败: {e}")
-
-        # M7-3 兜底注入：kline_repo / financial_repo（信号5/6 需要真实 K 线与财务数据）
-        if self.kline_repo is None:
-            try:
-                from adapters.outbound.repositories.kline_repository import KlineORMRepository
-                self.kline_repo = KlineORMRepository()
-                logger.info("kline_repo 兜底注入 KlineORMRepository（ManipulationDetector）")
-            except Exception as e:
-                logger.warning(f"kline_repo 兜底注入失败: {e}")
-
-        if self.financial_repo is None:
-            try:
-                from adapters.outbound.repositories.financial_repository import FinancialORMRepository
-                self.financial_repo = FinancialORMRepository()
-                logger.info("financial_repo 兜底注入 FinancialORMRepository（ManipulationDetector）")
-            except Exception as e:
-                logger.warning(f"financial_repo 兜底注入失败: {e}")
 
     def detect_market_manipulation(self) -> Dict[str, Any]:
         """
@@ -217,27 +173,13 @@ class ManipulationDetector:
             # 转换为字典列表
             stocks = []
             for row in records:
-                # 涨停统计字段：akshare 返回 "N/M" 字符串（连续N天/总共M天）或 dict（兼容旧格式）
-                zt_stat = row.get('涨停统计')
-                zt_count = 0
-                if isinstance(zt_stat, dict):
-                    zt_count = zt_stat.get('连续涨停', 0) or 0
-                elif isinstance(zt_stat, str):
-                    try:
-                        zt_count = int(zt_stat.split('/')[0])
-                    except (ValueError, IndexError):
-                        zt_count = 0
-                # 兜底：直接用连板数字段（akshare 新版列名）
-                if zt_count == 0:
-                    zt_count = int(row.get('连板数') or 0)
-
                 stocks.append({
-                    'symbol': str(row.get('代码', '')),
+                    'symbol': row.get('代码', ''),
                     'name': row.get('名称', ''),
                     'current_price': row.get('最新价', 0),
                     'change_pct': row.get('涨跌幅', 0),
                     'turnover_rate': row.get('换手率', 0),
-                    'zt_count': zt_count
+                    'zt_count': row.get('涨停统计', {}).get('连续涨停', 0) if isinstance(row.get('涨停统计'), dict) else 0
                 })
 
             return stocks[:50]  # 限制扫描数量
@@ -269,9 +211,8 @@ class ManipulationDetector:
         if turnover_rate > 30:
             signals.append(f'换手率异常高({turnover_rate:.1f}%)')
 
-        # 信号3: 龙虎榜游资席位（仅连板≥2 才查——游资拉板必上榜；0/1连板查询纯属浪费
-        #         实时网络调用，8/28 实测全池 50 只逐股查需 162s，优化后仅对连板股查）
-        if zt_count >= 2 and self._check_lhb_hot_money(symbol):
+        # 信号3: 龙虎榜游资席位
+        if self._check_lhb_hot_money(symbol):
             signals.append('龙虎榜显示游资活跃')
 
         # 信号4: 成交量放大
@@ -292,12 +233,6 @@ class ManipulationDetector:
         """
         检查龙虎榜是否有游资席位
 
-        优先：stock_lhb_stock_detail_em 席位明细（买卖营业部名称）
-        - akshare 该接口返回不稳定（同参数多次调用结果集不同），
-          M7-3 实测：同一天调用有时缺席位 → 每日期重试 3 次取并集
-        - TypeError 表示该日无上榜数据（akshare 内部 NoneType 订阅 bug），静默跳过
-        回退：get_lhb_detail 汇总记录（净买额占总成交比 > 20% 视为游资/主力主导代理）
-
         Args:
             symbol: 股票代码
 
@@ -305,72 +240,38 @@ class ManipulationDetector:
             是否检测到游资
         """
         try:
-            # 路径1：席位明细（东财 stock_lhb_stock_detail_em，买入/卖出营业部）
-            import akshare as ak
-
-            bare = symbol.split('.')[0]
-            hot_money_keywords = [
-                '东方财富证券拉萨',
-                '国泰君安成都',
-                '华泰证券深圳',
-                '银河证券绍兴',
-                '中信证券杭州',
-                '财通证券杭州',
-                '申万宏源证券上海徐汇',
-                '平安证券杭州',
-                '国盛证券宁波',
-                '中国中投证券深圳',
-                '华鑫证券上海',
-                '招商证券深圳',
-                '中信建投证券杭州',
-                '国金证券上海',
-            ]
-
-            # 近5个交易日逐日查席位（明细接口按单日查询；每日期重试2次取并集，
-            # 规避 akshare stock_lhb_stock_detail_em 偶发空结果）
-            for i in range(0, 6):
-                date = (datetime.now() - timedelta(days=i)).strftime('%Y%m%d')
-                seen_names = set()
-                for _attempt in range(2):
-                    try:
-                        df = ak.stock_lhb_stock_detail_em(symbol=bare, date=date, flag='买入')
-                    except Exception:
-                        continue
-                    if df is None or len(df) == 0:
-                        continue
-                    for _, row in df.iterrows():
-                        name = str(row.get('交易营业部名称', ''))
-                        if name in seen_names:
-                            continue
-                        seen_names.add(name)
-                        # 东财返回营业部全称（如"中国银河证券股份有限公司绍兴鲁迅中路证券营业部"），
-                        # 关键词用"券商名+城市"精简模式（如"银河证券绍兴"）→ 剥离中间"股份有限公司"等干扰词
-                        compact = (name
-                                   .replace('股份有限公司', '')
-                                   .replace('有限责任公司', '')
-                                   .replace('证券营业部', '')
-                                   .replace('分公司', ''))
-                        for keyword in hot_money_keywords:
-                            if keyword in compact:
-                                logger.debug(f"龙虎榜游资信号: {symbol} {date} {name}")
-                                return True
-
-            # 路径2：回退到汇总记录（净买额占比 > 20% = 游资/主力主导）
+            # 通过统一数据访问层获取最近5天的龙虎榜数据（Phase 2 数据提供者接口）
             from infrastructure.services.service_factory import ServiceFactory
-            provider_manager = ServiceFactory.get_data_provider_manager()
+
             end_date = datetime.now()
             start_date = end_date - timedelta(days=5)
+
+            provider_manager = ServiceFactory.get_data_provider_manager()
             result = provider_manager.get_lhb_detail(
                 symbol=symbol,
                 start_date=start_date.strftime('%Y%m%d'),
                 end_date=end_date.strftime('%Y%m%d')
             )
-            if result.get('success') and result.get('data'):
-                records = result['data'].data.get('records', [])
-                for row in records:
-                    ratio = row.get('净买额占总成交比', 0) or 0
-                    if ratio > 20:
-                        logger.debug(f"龙虎榜游资信号(代理): {symbol} 净买额占比{ratio:.1f}%")
+            if not result.get('success') or not result.get('data'):
+                return False
+
+            records = result['data'].data.get('records', [])
+            if not records:
+                return False
+
+            # 检查是否有知名游资席位
+            hot_money_keywords = [
+                '东方财富证券拉萨',
+                '国泰君安成都',
+                '华泰证券深圳',
+                '银河证券绍兴',
+                '中信证券杭州'
+            ]
+
+            for row in records:
+                buyer = str(row.get('买方营业部', ''))
+                for keyword in hot_money_keywords:
+                    if keyword in buyer:
                         return True
 
             return False
@@ -383,9 +284,6 @@ class ManipulationDetector:
         """
         检查成交量是否异常放大
 
-        基于最近K线真实成交量：近3日均量 vs 前7日均量 > 3 倍
-        （原实现误用 main_net_inflow 当成交量，且数据不足时静默 False）
-
         Args:
             symbol: 股票代码
 
@@ -393,34 +291,31 @@ class ManipulationDetector:
             是否成交量异常
         """
         try:
-            if self.kline_repo is None:
+            # 获取最近的资金流向数据
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=10)
+
+            flows = self.fund_flow_repo.get_fund_flow(
+                symbol,
+                start_date.strftime('%Y-%m-%d'),
+                end_date.strftime('%Y-%m-%d')
+            )
+
+            if len(flows) < 5:
                 return False
 
-            end_date = datetime.now().strftime('%Y-%m-%d')
-            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+            # 计算最近3天平均成交量 vs 前7天平均
+            recent_volumes = [row.get('main_net_inflow', 0) for row in flows[:3]]
+            previous_volumes = [row.get('main_net_inflow', 0) for row in flows[3:]]
 
-            df = self.kline_repo.get_range(symbol, start_date, end_date)
-            if df is None or len(df) < 10:
+            if not previous_volumes:
                 return False
 
-            volumes = df['volume'].to_list()
-            if not volumes or len(volumes) < 10:
-                return False
-
-            # 近3天平均成交量 vs 前7天平均
-            recent_vol = sum(float(v) for v in volumes[-3:]) / 3
-            previous_vol = sum(float(v) for v in volumes[-10:-3]) / 7
-
-            if previous_vol <= 0:
-                return False
+            recent_avg = sum(abs(v) for v in recent_volumes) / len(recent_volumes)
+            previous_avg = sum(abs(v) for v in previous_volumes) / len(previous_volumes)
 
             # 成交量放大3倍以上
-            ratio = recent_vol / previous_vol
-            if ratio >= 3:
-                logger.debug(f"成交量异常放大信号: {symbol} 近3日均量/前7日均量={ratio:.1f}x")
-                return True
-
-            return False
+            return recent_avg > previous_avg * 3
 
         except Exception as e:
             logger.debug(f"检查成交量失败: {symbol} - {e}")
@@ -430,45 +325,11 @@ class ManipulationDetector:
         """
         检查价格是否严重偏离基本面
 
-        基于最新年度 EPS 与当前价格计算 PE-TTM 近似值：
-        - 亏损（EPS<=0）：连板拉升无基本面支撑 → 偏离
-        - PE > 200：严重高估 → 偏离
-        - 无财务数据：不判定（避免误伤）
-
-        Args:
-            symbol: 股票代码
-            stock_info: 股票信息
-
-        Returns:
-            是否严重偏离基本面
+        简化版：仅基于PE判断
         """
         try:
-            if self.financial_repo is None:
-                return False
-
-            financial = self.financial_repo.get_financial_data(symbol)
-            if not financial or not financial.get('income'):
-                return False
-
-            income = financial['income']
-            eps = income.get('eps') or income.get('eps_diluted')
-            if eps is None or eps == 0:
-                return False
-
-            current_price = stock_info.get('current_price', 0)
-            if current_price <= 0:
-                return False
-
-            pe = current_price / abs(eps)
-            # 亏损：EPS 为负 → 连板拉升完全无基本面支撑
-            if eps < 0:
-                logger.debug(f"基本面偏离信号: {symbol} EPS为负({eps:.2f}) 亏损连板")
-                return True
-            # PE 极高（>200）视为严重偏离
-            if pe > 200:
-                logger.debug(f"基本面偏离信号: {symbol} PE={pe:.0f} 严重高估")
-                return True
-
+            # TODO: 获取股票基本面数据（PE、PB等）
+            # 这里简化处理，实际应该调用财务数据API
             return False
 
         except Exception as e:
@@ -479,13 +340,6 @@ class ManipulationDetector:
         """
         检查是否高位放量滞涨
 
-        基于最近K线数据（近20个交易日）：
-        - 价格处于近期高位（最新收盘 > 20日区间 80% 分位）
-        - 近期（3日）成交量较前期（前7日）放大 1.5 倍以上
-        - 近期涨幅收窄（3日累计涨幅 < 5%，滞涨）
-
-        三者同时满足 = 高位放量滞涨（出货嫌疑）
-
         Args:
             symbol: 股票代码
 
@@ -493,43 +347,13 @@ class ManipulationDetector:
             是否高位滞涨
         """
         try:
-            if self.kline_repo is None:
-                return False
+            # 获取最近K线数据
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=10)
 
-            end_date = datetime.now().strftime('%Y-%m-%d')
-            start_date = (datetime.now() - timedelta(days=40)).strftime('%Y-%m-%d')
-
-            df = self.kline_repo.get_range(symbol, start_date, end_date)
-            if df is None or len(df) < 20:
-                return False
-
-            closes = df['close'].to_list()
-            volumes = df['volume'].to_list()
-            if not closes or not volumes:
-                return False
-
-            recent_close = float(closes[-1])
-            if recent_close <= 0:
-                return False
-
-            # 1. 高位判断：最新价 > 20日最高价的 90%（接近高点）
-            period_high = max(float(c) for c in closes[-20:])
-            if recent_close < period_high * 0.9:
-                return False
-
-            # 2. 放量判断：近3日均量 vs 前7日均量 > 1.5 倍
-            recent_vol = sum(float(v) for v in volumes[-3:]) / 3
-            prev_vol = sum(float(v) for v in volumes[-10:-3]) / 7 if len(volumes) >= 10 else 0
-            if prev_vol <= 0 or recent_vol <= prev_vol * 1.5:
-                return False
-
-            # 3. 滞涨判断：近3日累计涨幅 < 5%（放量但涨不动）
-            gain_3d = (recent_close / float(closes[-4]) - 1) * 100 if len(closes) >= 4 else 99
-            if gain_3d >= 5:
-                return False
-
-            logger.debug(f"高位放量滞涨信号: {symbol} 高位({recent_close:.2f}) 放量({recent_vol/prev_vol:.1f}x) 滞涨({gain_3d:.1f}%)")
-            return True
+            # TODO: 获取K线数据，判断是否高位+放量+涨幅收窄
+            # 这里简化处理
+            return False
 
         except Exception as e:
             logger.debug(f"检查高位滞涨失败: {symbol} - {e}")
@@ -617,15 +441,6 @@ class ManipulationDetector:
             manipulation: 操纵事件数据
         """
         try:
-            # 去重：同 symbol 已有 active 事件则跳过（避免盘后例程每日重复告警）
-            try:
-                existing = self.manipulation_repo.get_active_events()
-                if any(ev.get('symbol') == manipulation['symbol'] for ev in existing):
-                    logger.info(f"操纵事件去重跳过: {manipulation['symbol']} 已有 active 事件")
-                    return
-            except Exception as de:
-                logger.debug(f"去重查询失败（继续保存）: {de}")
-
             event = {
                 'symbol': manipulation['symbol'],
                 'manipulation_type': manipulation['manipulation_type'],
@@ -734,8 +549,6 @@ class ManipulationDetector:
         """
         获取当前价格
 
-        优先：最新日K收盘价；失败返回 0
-
         Args:
             symbol: 股票代码
 
@@ -743,15 +556,9 @@ class ManipulationDetector:
             当前价格
         """
         try:
-            if self.kline_repo is None:
-                return 0.0
-
-            end_date = datetime.now().strftime('%Y-%m-%d')
-            start_date = (datetime.now() - timedelta(days=10)).strftime('%Y-%m-%d')
-            df = self.kline_repo.get_range(symbol, start_date, end_date)
-            if df is None or len(df) == 0:
-                return 0.0
-            return float(df['close'].to_list()[-1])
+            # TODO: 获取实时价格
+            # 这里简化处理
+            return 0.0
 
         except Exception as e:
             logger.debug(f"获取当前价格失败: {symbol} - {e}")

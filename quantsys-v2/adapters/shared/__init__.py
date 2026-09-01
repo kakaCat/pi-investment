@@ -32,9 +32,37 @@ _LAZY_SERVICE_NAMES = {
     'signal_repo', 'stock_repo', 'kline_repo', 'portfolio_repo', 'factor_repo', 'risk_repo', 'execution_repo', 'backtest_repo', 'simulation_repo',
 }
 
+# 某些名称在 services.py 中只有 getter 函数（如 get_portfolio_repo），
+# 调用方期望直接拿到实例（如 shared.portfolio_repo），所以需要映射后调用。
+_LAZY_GETTER_MAP = {
+    'ds': 'get_data_service',
+    'strategy_service': 'get_strategy_service',
+    'stock_pool_service': 'get_stock_pool_service',
+    'scoring_service': 'get_scoring_service',
+    'stock_scoring_service': 'get_stock_scoring_service',
+    'sector_rotation_service': 'get_sector_rotation_service',
+    'pool_validation_service': 'get_pool_validation_service',
+    'pool_repo': 'get_pool_repo',
+    'strategy_repository': 'get_strategy_repository',
+    'factor_adapter': 'get_factor_adapter',
+    'ServiceFactory': 'get_service_factory',
+    'signal_repo': 'get_signal_repo',
+    'stock_repo': 'get_stock_repo',
+    'kline_repo': 'get_kline_repo',
+    'portfolio_repo': 'get_portfolio_repo',
+    'factor_repo': 'get_factor_repo',
+    'risk_repo': 'get_risk_repo',
+    'execution_repo': 'get_execution_repo',
+    'backtest_repo': 'get_backtest_repo',
+    'simulation_repo': 'get_simulation_repo',
+}
+
 
 def __getattr__(name):
     if name in _LAZY_SERVICE_NAMES:
         from adapters.shared import services as _svc
+        getter_name = _LAZY_GETTER_MAP.get(name)
+        if getter_name:
+            return getattr(_svc, getter_name)()
         return getattr(_svc, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

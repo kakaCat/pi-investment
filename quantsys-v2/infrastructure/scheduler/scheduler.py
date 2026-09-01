@@ -21,6 +21,16 @@ from psycopg2.extras import RealDictCursor
 
 from infrastructure.persistence.database.engine import _resolve_db_dsn
 
+# 信号生成链路的依赖（模块级导入便于测试 patch；均有惰性单例语义无副作用）
+from adapters.outbound.repositories.heatmap_repository import HeatmapRepository
+from adapters.outbound.repositories.kline_repository import KlineORMRepository
+from adapters.outbound.repositories.signal_repository import SignalORMRepository
+from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
+from adapters.outbound.repositories.stock_repository import StockORMRepository
+from adapters.outbound.repositories.portfolio_repository import PortfolioORMRepository
+from adapters.outbound.repositories.factor_repository import FactorORMRepository
+from application.services.pool_signal_scanner import PoolSignalScanner
+
 logger = logging.getLogger(__name__)
 
 
@@ -1104,20 +1114,891 @@ class SchedulerService:
         logger.info("Scheduler loop stop requested")
 
     # ==================================================================
-    # Command dispatch — delegates to JobRegistry
+    # Command handlers
     # ==================================================================
 
     def _execute_command(self, command: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute command via JobRegistry (pure scheduler, no business logic)."""
-        import asyncio
-        from application.jobs.job_registry import job_registry
+        """Dispatch *command* to the appropriate handler method.
 
-        result = asyncio.run(job_registry.execute(command, params or {}))
-        return {
-            "action": result.action,
-            "status": "success" if result.success else "failed",
-            "message": result.message,
-            "error": result.error,
-            "details": result.details,
+        Raises:
+            ValueError: if the command is unknown.
+        """
+        handlers: Dict[str, Any] = {
+            "data_quality_check": self._handle_data_quality_check,  # 新增 2026-06-04
+            "data_update": self._handle_data_update,
+            "signal_generate": self._handle_signal_generate,
+            "risk_check": self._handle_risk_check,
+            "report_daily": self._handle_report_daily,
+            "backtest_run": self._handle_backtest_run,
+            "strategy_backtest": self._handle_backtest_run,  # 前端兼容
+            "factor_compute": self._handle_factor_compute,
+            "model_train": self._handle_model_train,
+            "benchmark_run": self._handle_benchmark_run,
+            "data_pipeline_daily": self._handle_data_pipeline_daily,
+            "data_pipeline_weekly": self._handle_data_pipeline_weekly,
+            "signal_execution_daily": self._handle_signal_execution_daily,
+            "market_style_update": self._handle_market_style_update,
+            "v13_daily_check": self._handle_v13_daily_check,  # V13模拟交易每日检查 2026-06-23
+            "signal_monitor_realtime": self._handle_signal_monitor_realtime,  # 实时信号监控
+            "strategy_validate_daily": self._handle_strategy_validate_daily,  # 每日策略验证
+            "financial_data_update": self._handle_financial_data_update,  # 财务数据更新
+            "market_scan_preopen": self._handle_market_scan_preopen,  # 盘前扫描
+            "strategy_discover_weekly": self._handle_strategy_discover_weekly,  # 每周策略发现
+            "kline_update": self._handle_kline_update,  # K线日更（2026-08-02 接管：07-28 起每日 Unknown command）
+            "chip_distribution_update": self._handle_chip_distribution_update,  # 筹码分布日更（2026-08-11，接 kline_update 后）
+            "index_constituents_update": self._handle_index_constituents_update,  # 指数成分股日更（2026-08-19 重建：原任务随 scheduler_task_configs 禁用而失传）
+            # 2026-08-13 scheduler_daemon 退役迁移：原 scheduler_task_configs 表的
+            # 5 个失传任务在本路线重建（薄封装委托原 job 模块）
+            "v13_risk_check": self._handle_v13_risk_check,
+            "v13_verification": self._handle_v13_verification,
+            "v13_weekly_report": self._handle_v13_weekly_report,
+            "v14_daily_check": self._handle_v14_daily_check,
+            "financial_statement_update": self._handle_financial_statement_update,
         }
 
+        handler = handlers.get(command)
+        if handler is None:
+            # fallback：应用层 _TASK_HANDLERS（如 pool_refresh_daily 只在那里注册）
+            from application.services.scheduler_tasks import _TASK_HANDLERS
+            handler = _TASK_HANDLERS.get(command)
+        if handler is None:
+            raise ValueError(f"Unknown scheduler command: {command!r}")
+
+        return handler(params)
+
+    def _handle_kline_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """K 线日更：委托 infrastructure.jobs.kline_update_job.execute（多数据源 fallback + 限速防封）"""
+        from infrastructure.jobs.kline_update_job import execute
+        return execute(**(params or {}))
+
+    def _handle_index_constituents_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """指数成分股日更：委托 infrastructure.jobs.index_constituents_update_job.execute"""
+        from infrastructure.jobs.index_constituents_update_job import execute
+        return execute(**(params or {}))
+
+    def _handle_chip_distribution_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """筹码分布日更：委托 infrastructure.jobs.chip_distribution_update_job.execute（增量，幂等）"""
+        from infrastructure.jobs.chip_distribution_update_job import execute
+        return execute(**(params or {}))
+
+    # -- 2026-08-13 自 scheduler_daemon 迁入的任务（薄封装委托原 job） --
+
+    def _handle_v13_risk_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """v13 盘后风险检查：委托 infrastructure.jobs.risk_check_job.execute"""
+        from infrastructure.jobs.risk_check_job import execute
+        return execute(**(params or {}))
+
+    def _handle_v13_verification(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """v13 交易验证：委托 infrastructure.jobs.verification_job.execute"""
+        from infrastructure.jobs.verification_job import execute
+        return execute(**(params or {}))
+
+    def _handle_v13_weekly_report(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """v13 周报：委托 infrastructure.jobs.weekly_report_job.execute"""
+        from infrastructure.jobs.weekly_report_job import execute
+        return execute(**(params or {}))
+
+    def _handle_v14_daily_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """v14 模拟交易每日检查：委托 strategy_trading_job.v14_daily_check"""
+        from infrastructure.jobs.strategy_trading_job import v14_daily_check
+        return v14_daily_check(**(params or {}))
+
+    def _handle_financial_statement_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """季度财报三大报表落库：委托 financial_statement_update_job.execute
+        （≠ financial_data_update——后者是财务指标，勿合并）"""
+        from infrastructure.jobs.financial_statement_update_job import execute
+        return execute(**(params or {}))
+
+    # -- individual handlers -------------------------------------------
+
+    def _handle_data_quality_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute data quality check and auto-backfill.
+
+        Uses ``DataQualityCheckJob`` to check data quality and optionally
+        backfill missing data.
+
+        Expected params:
+            days: (optional) number of days to check, default 30.
+            auto_backfill: (optional) auto backfill missing data, default True.
+            max_workers: (optional) parallel workers, default 8.
+            quality_threshold: (optional) alert threshold, default 95.0.
+        """
+        from infrastructure.jobs.data_quality_check_job import DataQualityCheckJob
+
+        job = DataQualityCheckJob()
+        result = job.run(params)
+
+        if result['success']:
+            check_summary = result.get('check_summary', {})
+            return {
+                "action": "data_quality_check",
+                "success": True,
+                "total_stocks": check_summary.get('total_stocks', 0),
+                "stocks_with_issues": check_summary.get('stocks_with_issues', 0),
+                "total_missing_days": check_summary.get('total_missing_days', 0),
+                "data_quality_score": check_summary.get('data_quality_score', 0),
+                "backfill_executed": result.get('backfill_executed', False),
+                "timestamp": result.get('timestamp'),
+            }
+        else:
+            return {
+                "action": "data_quality_check",
+                "success": False,
+                "error": result.get('error'),
+            }
+
+    def _handle_data_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Update market data (K-line fetching).
+
+        Uses ``DataService.kline`` to refresh data for the given market
+        or symbols.
+
+        Expected params:
+            market: (optional) market filter, e.g. ``"A"``, ``"HK"``.
+            symbols: (optional) list of symbols to update.
+        """
+        import traceback
+
+        market = params.get("market")
+        symbols = params.get("symbols", [])
+
+        # Use stock repository to find symbols if none specified
+        if not symbols:
+            try:
+                stocks = StockORMRepository().get_all(market=market)  # all stocks, no limit
+                # Filter out suspended stocks to avoid unnecessary update attempts
+                symbols = [s["symbol"] for s in stocks if not s.get("is_suspended", False)]
+                suspended_count = len([s for s in stocks if s.get("is_suspended", False)])
+                if suspended_count > 0:
+                    logger.info(f"Skipped {suspended_count} suspended stocks")
+            except Exception as e:
+                logger.error(f"Failed to get stock list: {e}\n{traceback.format_exc()}")
+                raise
+
+        def update_symbol(symbol: str) -> tuple[bool, bool]:
+            """Update a single symbol. Returns (success, error)."""
+            try:
+                latest = KlineORMRepository().get_latest_daily_kline(symbol)
+                # Handle DataFrame response correctly (Polars or Pandas)
+                if latest is not None:
+                    if hasattr(latest, 'is_empty'):
+                        # It's a Polars DataFrame
+                        has_data = not latest.is_empty()
+                    elif hasattr(latest, 'empty'):
+                        # It's a Pandas DataFrame
+                        has_data = not latest.empty
+                    elif hasattr(latest, '__len__'):
+                        # Has length (list, dict, etc.)
+                        has_data = len(latest) > 0
+                    else:
+                        # Other truthy value
+                        has_data = bool(latest)
+                    return (has_data, False)
+                else:
+                    # No data available
+                    return (False, False)
+            except Exception as e:
+                logger.warning(f"Failed to update {symbol}: {e}")
+                return (False, True)
+
+        updated = 0
+        errors = 0
+
+        # Parallelize symbol updates with 8 workers
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {executor.submit(update_symbol, sym): sym for sym in symbols}
+            for future in as_completed(futures):
+                try:
+                    success, error = future.result()
+                except Exception as e:
+                    sym = futures[future]
+                    logger.error(f"update_symbol crashed for {sym}: {e}\n{traceback.format_exc()}")
+                    errors += 1
+                    continue
+                if success:
+                    updated += 1
+                if error:
+                    errors += 1
+
+        return {
+            "action": "data_update",
+            "symbols_checked": len(symbols),
+            "symbols_updated": updated,
+            "errors": errors,
+            "market": market,
+        }
+
+    def _handle_benchmark_run(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Run one or more performance benchmarks."""
+        from application.services.benchmark_service import BenchmarkService
+
+        benchmark_ids = params.get("benchmarks")
+        if isinstance(benchmark_ids, str):
+            benchmark_ids = [benchmark_ids]
+        timeout_seconds = int(params.get("timeout_seconds", 600))
+        return BenchmarkService().run_benchmarks(
+            benchmark_ids=benchmark_ids,
+            timeout_seconds=timeout_seconds,
+        )
+
+    # 信号生成的默认策略集（strategy_configs 中的活跃策略；可被任务 params.strategy_ids 覆盖）。
+    # 2026-08-04 策略体检后换血：旧 [162,166,179,180] → [179,178,163,193]（3 月×20 股
+    # 回测胜率/期望双正且样本足：179=55.8%/+0.30%(n=95)、178=55.1%/+0.41%(n=178)、
+    # 163=55.0%/+0.37%(n=151)、193=65.4%/+1.86%(n=26)）。任务表 params 已同步。
+    DEFAULT_SIGNAL_STRATEGY_IDS = [179, 178, 163, 193]
+
+    def _handle_signal_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """扫描 agent 宇宙（非空池成员 ∪ 当前持仓）× 活跃策略，买卖信号落库。
+
+        2026-08-04 重写：旧实现是桩——只统计 stocks_with_factors 不落任何信号
+        （signals 表自 06-26 断流的直接原因）。链路：PoolSignalScanner 扫描 →
+        buy/sell 经 SignalORMRepository.create_signal 落库（唯一键幂等去重）。
+
+        Expected params:
+            strategy_ids: (optional) 策略 ID 列表，默认 DEFAULT_SIGNAL_STRATEGY_IDS
+            date: (optional) 信号日期，默认今天
+            lookback_days: (optional) 扫描回溯天数，默认 60
+        """
+        from datetime import date as date_type
+
+        strategy_ids = params.get("strategy_ids") or self.DEFAULT_SIGNAL_STRATEGY_IDS
+        signal_date = params.get("date", date_type.today().isoformat())
+        lookback_days = params.get("lookback_days", 60)
+
+        repo = HeatmapRepository()
+        universe = repo.get_pool_members_now() | repo.get_current_holding_symbols()
+        # 统一去交易所后缀：stocks/signals 用裸代码（signals.symbol 有 FK 到
+        # stocks.symbol，带后缀会 ForeignKeyViolation），Kline repo 自会规范化
+        symbols = sorted({s.split('.')[0] for s in universe})
+
+        if not symbols:
+            return {
+                "action": "signal_generate",
+                "status": "success",
+                "date": signal_date,
+                "universe_size": 0,
+                "signals_found": 0,
+                "signals_saved": 0,
+                "duplicates": 0,
+                "strategy_errors": [],
+                "note": "宇宙为空（无非空池成员且无持仓）",
+            }
+
+        names = {s: m['name'] for s, m in repo.get_stocks_meta(symbols).items()}
+        scanner = PoolSignalScanner(KlineORMRepository(), StrategyORMRepository())
+        sig_repo = SignalORMRepository()
+
+        found = saved = duplicates = 0
+        strategy_errors = []
+        for sid in strategy_ids:
+            try:
+                result = scanner.scan_pool_signals(
+                    symbols=symbols, strategy_id=sid, lookback_days=lookback_days)
+                for sig in result.get('buy_signals', []) + result.get('sell_signals', []):
+                    found += 1
+                    signal_id = sig_repo.create_signal({
+                        'signal_date': signal_date,
+                        'symbol': sig['symbol'],
+                        'name': names.get(sig['symbol'], ''),
+                        'action': sig['signal'].upper(),  # signals 表大写契约（08-13 统一）
+                        'strategy_id': str(sid),
+                        'price': sig.get('current_price'),
+                        'reason': '; '.join(sig.get('reasons', [])),
+                        'indicators': sig.get('indicators'),
+                        'status': 'pending',
+                    })
+                    if signal_id > 0:
+                        saved += 1
+                    else:
+                        duplicates += 1
+            except Exception as e:
+                logger.warning(f"signal_generate: strategy {sid} 扫描失败: {e}")
+                strategy_errors.append(f"{sid}: {e}")
+
+        # 假成功防护：有宇宙但一个策略都没跑成且零落库 → 显式 failed
+        status = 'failed' if strategy_errors and len(strategy_errors) == len(strategy_ids) and saved == 0 else 'success'
+        return {
+            "action": "signal_generate",
+            "status": status,
+            "date": signal_date,
+            "universe_size": len(symbols),
+            "strategies": strategy_ids,
+            "signals_found": found,
+            "signals_saved": saved,
+            "duplicates": duplicates,
+            "strategy_errors": strategy_errors,
+        }
+
+    def _handle_risk_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Run a risk assessment across the portfolio.
+
+        Uses ORM to query portfolio and risk data.
+
+        Expected params:
+            market: (optional) market filter.
+        """
+        try:
+            # 使用 ORM 查询持仓信息
+            portfolio_holdings = PortfolioORMRepository().list_all()
+            holdings_count = len(portfolio_holdings)
+
+            # 计算总持仓市值（如果有价格信息）
+            total_position_value = 0.0
+            for holding in portfolio_holdings:
+                if hasattr(holding, 'market_value') and holding.market_value:
+                    total_position_value += float(holding.market_value)
+
+            # 获取风险相关的统计信息
+            result = {
+                "action": "risk_check",
+                "status": "success",
+                "holdings_count": holdings_count,
+                "total_position_value": total_position_value,
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            logger.info(f"Risk check completed: {holdings_count} holdings")
+            return result
+
+        except Exception as e:
+            logger.error(f"Risk check failed: {e}")
+            return {
+                "action": "risk_check",
+                "status": "failed",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    def _handle_report_daily(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a daily summary report.
+
+        Aggregates market overview, top signals, and execution status.
+        """
+        try:
+            # Simplified daily report - extend with actual reporting logic
+            stocks = StockORMRepository().list_all_active(market="A")
+            total_stocks = len(stocks)
+
+            # Get recent signals
+            signals = []  # Extend with actual signal retrieval
+
+            return {
+                "action": "report_daily",
+                "status": "success",
+                "total_stocks": total_stocks,
+                "top_signal_count": len(signals),
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            logger.error(f"Daily report failed: {e}")
+            return {
+                "action": "report_daily",
+                "status": "failed",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    def _handle_backtest_run(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Trigger a backtest pipeline run.
+
+        Expected params:
+            strategy_name: (required) strategy to backtest.
+            symbol: (optional) single symbol or all.
+            start_date: default 90 days ago.
+            end_date: default today.
+            initial_capital: default 100_000.
+        """
+        from datetime import date as date_type
+
+        strategy_name = params.get("strategy_name")
+        if not strategy_name:
+            raise ValueError("backtest_run requires 'strategy_name' param")
+
+        today = date_type.today()
+        end_date = params.get("end_date", today.isoformat())
+        start_date = params.get(
+            "start_date", (today - timedelta(days=90)).isoformat()
+        )
+        symbol = params.get("symbol", "000001.SZ")
+        initial_capital = float(params.get("initial_capital", 100_000))
+
+        klines_df = KlineORMRepository().get_daily_klines(symbol, start_date, end_date)
+        kline_count = len(klines_df) if klines_df is not None else 0
+
+        return {
+            "action": "backtest_run",
+            "strategy_name": strategy_name,
+            "symbol": symbol,
+            "start_date": start_date,
+            "end_date": end_date,
+            "initial_capital": initial_capital,
+            "klines_available": kline_count,
+            "factors_available": list(data.get("factor_history", {}).keys()),
+        }
+
+    def _handle_factor_compute(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Compute factors for stocks.
+
+        Uses ``FactorStage`` to compute technical and quantitative factors
+        and saves them to the database.
+
+        Expected params:
+            market: (optional) market filter, e.g. ``"A"``.
+            symbols: (optional) list of symbols.
+        """
+        from domain.backtest.stages.factor_stage import FactorStage
+
+        market = params.get("market")
+        symbols = params.get("symbols", [])
+
+        if not symbols:
+            stocks = StockORMRepository().get_all(market=market)  # all stocks, no limit
+            symbols = [s["symbol"] for s in stocks]
+
+        computed = 0
+        errors = 0
+        factor_count = 0
+
+        def _compute_one(symbol: str) -> tuple[bool, bool, int]:
+            try:
+                # Fetch K-line data (last 120 days)
+                end_date = datetime.now().strftime('%Y-%m-%d')
+                start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
+                klines_raw = KlineORMRepository().get_daily_klines(symbol, start_date, end_date)
+
+                # get_daily_klines 自 ORM 重构后返回 polars DataFrame；
+                # FactorStage 契约是 list-of-dicts——在此单点适配（2026-08-04 根因：
+                # `if not klines` 对 DataFrame 抛 TypeError → 5528 只全灭假成功）
+                if hasattr(klines_raw, 'is_empty'):  # polars DataFrame
+                    if klines_raw.is_empty() or len(klines_raw) < 20:
+                        return (False, False, 0)
+                    klines = klines_raw.to_dicts()
+                else:
+                    if not klines_raw or len(klines_raw) < 20:
+                        return (False, False, 0)
+                    klines = klines_raw
+
+                # Compute factors using FactorStage
+                stage = FactorStage(name="factors")
+                result = stage.process({'symbol': symbol, 'klines': klines})
+                factors = result.get('factors', {})
+
+                if not factors:
+                    return (False, False, 0)
+
+                # Save factors to database
+                # Strip exchange suffix to match historical data format (600000.SH -> 600000)
+                symbol_without_suffix = symbol.split('.')[0] if '.' in symbol else symbol
+                latest_date = klines[-1].get('trade_date') or klines[-1].get('date')
+                FactorORMRepository().save_factors(symbol_without_suffix, str(latest_date), factors)
+
+                return (True, False, len(factors))
+            except Exception as e:
+                logger.warning(f"Factor computation failed for {symbol}: {e}")
+                return (False, True, 0)
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {executor.submit(_compute_one, sym): sym for sym in symbols}
+            for future in as_completed(futures):
+                success, error, count = future.result()
+                if success:
+                    computed += 1
+                    factor_count += count
+                if error:
+                    errors += 1
+
+        # 假成功防护：全部报错时显式 failed，不能让"0 计算"披着 success 外衣
+        # （2026-08-04 根因复盘：DataFrame 契约破坏导致 5528 只全灭仍报 success）
+        status = 'failed' if symbols and computed == 0 and errors > 0 else 'success'
+        if status == 'failed':
+            logger.error(
+                "factor_compute 全部失败: %d/%d 错误，请检查上游契约",
+                errors, len(symbols),
+            )
+
+        return {
+            "action": "factor_compute",
+            "status": status,
+            "symbols_processed": len(symbols),
+            "symbols_computed": computed,
+            "factor_count": factor_count,
+            "errors": errors,
+        }
+
+    def _handle_model_train(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Trigger ML model training.
+
+        Uses ``DataService.ml`` if available, otherwise returns a placeholder.
+
+        Expected params:
+            market: (optional) market filter.
+            model_type: (optional) model type, default ``"xgboost"``.
+        """
+        model_type = params.get("model_type", params.get("model", "xgboost"))
+        market = params.get("market", "A")
+
+        try:
+            import subprocess
+            import sys
+
+            train_script = (
+                Path(__file__).parent.parent
+                / "scripts"
+                / "train_ml.py"
+            )
+            if train_script.exists():
+                proc = subprocess.run(
+                    [sys.executable, str(train_script)],
+                    capture_output=True, text=True, timeout=600,
+                )
+                return {
+                    "action": "model_train",
+                    "model_type": model_type,
+                    "market": market,
+                    "exit_code": proc.returncode,
+                    "stdout_tail": proc.stdout[-500:] if proc.stdout else "",
+                }
+            else:
+                return {
+                    "action": "model_train",
+                    "model_type": model_type,
+                    "market": market,
+                    "status": "skipped",
+                    "reason": "train_ml.py script not found",
+                }
+        except Exception as exc:
+            return {
+                "action": "model_train",
+                "model_type": model_type,
+                "market": market,
+                "status": "error",
+                "error": str(exc),
+            }
+
+    def _handle_data_pipeline_daily(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute daily data pipeline task.
+
+        Runs the daily incremental update for CSI 300 components.
+        This is triggered by the scheduled task at 16:30 Mon-Fri.
+
+        Args:
+            params: Optional parameters (not used, task is self-contained)
+
+        Returns:
+            Result dictionary from the scheduled task
+        """
+        from infrastructure.scheduler.scheduled_tasks import daily_data_pipeline
+
+        logger.info("Executing data_pipeline_daily command")
+        return daily_data_pipeline()
+
+    def _handle_data_pipeline_weekly(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute weekly data pipeline rebuild task.
+
+        Runs the full rebuild for CSI 300 components (last 90 days).
+        This is triggered by the scheduled task on Sunday at 2:00 AM.
+
+        Args:
+            params: Optional parameters (not used, task is self-contained)
+
+        Returns:
+            Result dictionary from the scheduled task
+        """
+        from infrastructure.scheduler.scheduled_tasks import weekly_full_rebuild
+
+        logger.info("Executing data_pipeline_weekly command")
+        return weekly_full_rebuild()
+
+    def _handle_signal_execution_daily(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute daily signal execution task.
+
+        Runs the signal execution pipeline at 15:30 (after market close).
+        This orchestrates: strategy runs → signal collection → risk checks → order creation.
+
+        Args:
+            params: Optional parameters (not used, task is self-contained)
+
+        Returns:
+            Result dictionary from the scheduled task
+        """
+        from infrastructure.scheduler.signal_execution_job import execute_daily_signals_job
+
+        logger.info("Executing signal_execution_daily command")
+        return execute_daily_signals_job()
+
+    def _handle_market_style_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute daily market style update task.
+
+        Detects market style and saves to database at 15:30 (after market close).
+
+        Args:
+            params: Optional parameters (not used, task is self-contained)
+
+        Returns:
+            Result dictionary from the scheduled task
+        """
+        from infrastructure.scheduler.market_style_jobs import update_market_style
+
+        logger.info("Executing market_style_update command")
+        return update_market_style()
+
+    def _handle_v13_daily_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute V13 simulation trading daily check.
+
+        Runs at 14:30 (30 minutes before market close) on trading days.
+
+        Operations:
+        1. Load V13 model (68 factors, IC=0.5465)
+        2. Check single stock stop-loss (-15%)
+        3. Check if rebalance day (5-day cycle)
+        4. Execute rebalance if due (select Top 8)
+
+        Args:
+            params: Optional parameters
+                - model_path: Path to model file
+                - factors_path: Path to factors file
+                - enable_stop_loss: Enable stop-loss check (default: True)
+                - enable_rebalance: Enable rebalance (default: True)
+
+        Returns:
+            Result dictionary with execution status and account state
+        """
+        from infrastructure.jobs.strategy_trading_job import v13_daily_check as execute
+
+        logger.info("Executing v13_daily_check command")
+        return execute(**params)
+
+    def _handle_financial_data_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute financial data update task.
+        
+        Updates fundamental financial data for stocks.
+        
+        Args:
+            params: Optional parameters
+                - market: Market filter (A/HK)
+                - symbols: List of symbols to update
+        
+        Returns:
+            Result dictionary with update status
+        """
+        logger.info("Executing financial_data_update command")
+        
+        try:
+            from application.services.financial_data_service_adapter import FinancialDataServiceAdapter as FinancialDataService
+            from domain.repositories.orm.financial_orm_repository import FinancialORMRepository
+            from domain.repositories.orm.kline_orm_repository import KlineORMRepository
+            
+            financial_service = FinancialDataService(
+                financial_repo=FinancialORMRepository(),
+                kline_repo=KlineORMRepository()
+            )
+            market = params.get("market", "A")
+            symbols = params.get("symbols", [])
+            
+            # Get stocks to update
+            if not symbols:
+                stocks = StockORMRepository().list_by_market(market=market, limit=100)
+                symbols = [s.symbol for s in stocks]
+            
+            updated_count = 0
+            error_count = 0
+            
+            # Update financial data for each symbol
+            for symbol in symbols:
+                try:
+                    # Simplified implementation - extend with actual logic
+                    logger.debug(f"Updating financial data for {symbol}")
+                    updated_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to update {symbol}: {e}")
+                    error_count += 1
+            
+            return {
+                "action": "financial_data_update",
+                "status": "success",
+                "market": market,
+                "symbols_updated": updated_count,
+                "errors": error_count,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Financial data update failed: {e}")
+            return {
+                "action": "financial_data_update",
+                "status": "failed",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+
+    def _handle_market_scan_preopen(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute pre-market scan task.
+        
+        Scans for trading opportunities before market opens.
+        
+        Args:
+            params: Optional parameters
+        
+        Returns:
+            Result dictionary with scan results
+        """
+        logger.info("Executing market_scan_preopen command")
+        
+        try:
+            # Get active stocks
+            stocks = StockORMRepository().list_all_active(market="A")
+            
+            opportunities = []
+            scanned_count = len(stocks)
+            
+            # Simplified scan logic - extend with actual analysis
+            for stock in stocks[:10]:  # Limit to first 10 for demo
+                try:
+                    # Check if stock has recent signals
+                    # Add actual opportunity detection logic here
+                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to scan {stock.symbol}: {e}")
+            
+            return {
+                "action": "market_scan_preopen",
+                "status": "success",
+                "stocks_scanned": scanned_count,
+                "opportunities_found": len(opportunities),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Pre-market scan failed: {e}")
+            return {
+                "action": "market_scan_preopen",
+                "status": "failed",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+
+    def _handle_signal_monitor_realtime(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute realtime signal monitoring task.
+        
+        Monitors and validates signals during trading hours.
+        
+        Args:
+            params: Optional parameters
+        
+        Returns:
+            Result dictionary with monitoring status
+        """
+        logger.info("Executing signal_monitor_realtime command")
+        
+        try:
+            # Get recent signals (last 5 minutes for realtime)
+            from datetime import datetime, timedelta
+            
+            now = datetime.now()
+            start_time = now - timedelta(minutes=5)
+            
+            # Simplified monitoring - extend with actual logic
+            signals_checked = 0
+            active_signals = 0
+            
+            return {
+                "action": "signal_monitor_realtime",
+                "status": "success",
+                "signals_checked": signals_checked,
+                "active_signals": active_signals,
+                "timestamp": now.isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Realtime signal monitoring failed: {e}")
+            return {
+                "action": "signal_monitor_realtime",
+                "status": "failed",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+
+    def _handle_strategy_validate_daily(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute daily strategy validation task.
+        
+        Validates strategy performance and parameters.
+        
+        Args:
+            params: Optional parameters
+        
+        Returns:
+            Result dictionary with validation results
+        """
+        logger.info("Executing strategy_validate_daily command")
+        
+        try:
+            # Get all strategies
+            strategies = StrategyORMRepository().list_strategies()
+            
+            validated_count = 0
+            failed_validations = []
+            
+            for strategy in strategies:
+                try:
+                    # Add actual validation logic here
+                    # Check strategy parameters, performance, etc.
+                    validated_count += 1
+                except Exception as e:
+                    logger.warning(f"Validation failed for strategy {strategy.get('id')}: {e}")
+                    failed_validations.append(strategy.get('strategy_name'))
+            
+            return {
+                "action": "strategy_validate_daily",
+                "status": "success",
+                "strategies_validated": validated_count,
+                "failed_validations": len(failed_validations),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Strategy validation failed: {e}")
+            return {
+                "action": "strategy_validate_daily",
+                "status": "failed",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+
+    def _handle_strategy_discover_weekly(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute weekly strategy discovery task.
+        
+        Discovers new trading strategies or patterns.
+        
+        Args:
+            params: Optional parameters
+        
+        Returns:
+            Result dictionary with discovery results
+        """
+        logger.info("Executing strategy_discover_weekly command")
+        
+        try:
+            # Simplified discovery logic - extend with actual ML/pattern detection
+            discovered_patterns = []
+            stocks_analyzed = 0
+            
+            # Get active stocks
+            stocks = StockORMRepository().list_all_active(market="A")
+            stocks_analyzed = len(stocks)
+            
+            return {
+                "action": "strategy_discover_weekly",
+                "status": "success",
+                "stocks_analyzed": stocks_analyzed,
+                "patterns_discovered": len(discovered_patterns),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Strategy discovery failed: {e}")
+            return {
+                "action": "strategy_discover_weekly",
+                "status": "failed",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }

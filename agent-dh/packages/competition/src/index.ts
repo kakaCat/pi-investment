@@ -6,6 +6,9 @@ import { createOpponentBehaviorTool } from './tools/OpponentBehaviorTool';
 import { createManipulationDetectTool } from './tools/ManipulationDetectTool';
 import { createRetailPanicIndexTool } from './tools/RetailPanicIndexTool';
 import { createPoolBattlefieldTool } from './tools/PoolBattlefieldTool';
+import { createFundFlowTool } from './tools/FundFlowTool';
+import { createLhbTool } from './tools/LhbTool';
+import { createLimitUpPoolTool } from './tools/LimitUpPoolTool';
 
 export interface Config {
   quantsysV2?: {
@@ -52,6 +55,12 @@ export default class CompetitionPlugin extends Service {
     ctx.tools.register(createRetailPanicIndexTool(qv2));
     // 池子战场评估（M2-3：竞争格局/三方对手强度/攻防建议）
     ctx.tools.register(createPoolBattlefieldTool(qv2));
+    // 资金动向（P0：个股主力资金流+两融 / 板块资金流全景）
+    ctx.tools.register(createFundFlowTool(qv2));
+    // 龙虎榜（P0：游资/机构席位动向）
+    ctx.tools.register(createLhbTool(qv2));
+    // 涨停池（P0：短线情绪温度计+连板分布）
+    ctx.tools.register(createLimitUpPoolTool(qv2));
   }
 }
 
@@ -76,6 +85,18 @@ export {
   PoolBattlefieldTool,
   poolBattlefieldPrompt,
 } from './tools/PoolBattlefieldTool';
+export {
+  FundFlowTool,
+  fundFlowPrompt,
+} from './tools/FundFlowTool';
+export {
+  LhbTool,
+  lhbPrompt,
+} from './tools/LhbTool';
+export {
+  LimitUpPoolTool,
+  limitUpPoolPrompt,
+} from './tools/LimitUpPoolTool';
 export type {
   CompetitionAnalysisParams,
   CompetitionAnalysisResult,
@@ -96,3 +117,15 @@ export type {
   PoolBattlefieldParams,
   PoolBattlefieldResult,
 } from './tools/PoolBattlefieldTool';
+export type {
+  FundFlowParams,
+  FundFlowResult,
+} from './tools/FundFlowTool';
+export type {
+  LhbParams,
+  LhbResult,
+} from './tools/LhbTool';
+export type {
+  LimitUpPoolParams,
+  LimitUpPoolResult,
+} from './tools/LimitUpPoolTool';

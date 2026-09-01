@@ -12,8 +12,8 @@ from typing import List, Optional
 from datetime import datetime
 import pandas as pd
 
-from domain.brokers.base_broker import BaseBroker
-from domain.brokers.trading_types import (
+from ..base_broker import BaseBroker
+from ..trading_types import (
     BrokerProfile,
     ApiResponse,
     BrokerQuote,

@@ -50,47 +50,25 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
 
     model = BacktestResult
 
-    @staticmethod
-    def _py_scalar(value: Any) -> Any:
-        """numpy 标量转 Python 原生类型。
-
-        回测引擎的指标（sharpe_ratio 等）常是 np.float64/np.int64，直接传给
-        SQLAlchemy 绑定参数时会被 str() 文本化为 'np.float64(...)'，PostgreSQL
-        把 'np' 误当 schema 名报 InvalidSchemaName。统一转原生类型。
-        """
-        if hasattr(value, 'item'):
-            try:
-                return value.item()
-            except (ValueError, AttributeError, TypeError):
-                return value
-        return value
-
     # ==================== IBacktestRepository接口实现 ====================
 
     def save_backtest_result(self, result: Dict[str, Any]) -> int:
         """保存回测结果（IBacktestRepository接口实现）"""
         try:
             backtest = BacktestResult(
-                strategy_name=self._py_scalar(result.get('strategy_name')),
-                symbol=self._py_scalar(result.get('symbol')),
+                strategy_name=result.get('strategy_name'),
                 start_date=result.get('start_date'),
                 end_date=result.get('end_date'),
-                initial_capital=self._py_scalar(result.get('initial_capital')),
-                final_capital=self._py_scalar(result.get('final_capital')),
-                total_return=self._py_scalar(result.get('total_return')),
-                annual_return=self._py_scalar(result.get('annual_return')),
-                sharpe_ratio=self._py_scalar(result.get('sharpe_ratio')),
-                max_drawdown=self._py_scalar(result.get('max_drawdown')),
-                win_rate=self._py_scalar(result.get('win_rate')),
-                total_trades=self._py_scalar(result.get('total_trades')),
-                winning_trades=self._py_scalar(result.get('winning_trades')),
-                losing_trades=self._py_scalar(result.get('losing_trades')),
-                avg_win=self._py_scalar(result.get('avg_win')),
-                avg_loss=self._py_scalar(result.get('avg_loss')),
-                profit_factor=self._py_scalar(result.get('profit_factor')),
-                parameters=self._py_scalar(result.get('parameters')),
-                equity_curve=self._py_scalar(result.get('equity_curve')),
-                trade_details=self._py_scalar(result.get('trade_details')),
+                initial_capital=result.get('initial_capital'),
+                final_capital=result.get('final_capital'),
+                total_return=result.get('total_return'),
+                annual_return=result.get('annual_return'),
+                sharpe_ratio=result.get('sharpe_ratio'),
+                max_drawdown=result.get('max_drawdown'),
+                win_rate=result.get('win_rate'),
+                total_trades=result.get('total_trades'),
+                config=result.get('config'),
+                metrics=result.get('metrics'),
             )
             created = self.create(backtest)
             return created.id if created else 0

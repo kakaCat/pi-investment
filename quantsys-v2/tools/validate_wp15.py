@@ -28,59 +28,60 @@ def test_imports():
         print(f"❌ agent_os_client import failed: {e}")
         tests.append(False)
 
-    # Test 2: JobRegistry
+    # Test 2: Webhook module
     try:
-        from application.jobs.job_registry import job_registry
-        from application.jobs.registry_setup import register_all_jobs
-        print("✅ job_registry imports OK")
-        tests.append(True)
-    except Exception as e:
-        print(f"❌ job_registry import failed: {e}")
-        tests.append(False)
-
-    # Test 3: Webhook module (uses JobRegistry now)
-    try:
-        from api.internal.scheduler_webhook import WebhookPayload
-        print("✅ scheduler_webhook imports OK")
+        from api.internal.scheduler_webhook import (
+            JOB_HANDLERS,
+            register_job_handler,
+            WebhookPayload
+        )
+        print(f"✅ scheduler_webhook imports OK ({len(JOB_HANDLERS)} handlers)")
         tests.append(True)
     except Exception as e:
         print(f"❌ scheduler_webhook import failed: {e}")
+        tests.append(False)
+
+    # Test 3: Job Handlers
+    try:
+        from application.services import scheduler_handlers
+        from api.internal.scheduler_webhook import JOB_HANDLERS
+        print(f"✅ scheduler_handlers imports OK ({len(JOB_HANDLERS)} handlers registered)")
+        tests.append(True)
+    except Exception as e:
+        print(f"❌ scheduler_handlers import failed: {e}")
         tests.append(False)
 
     return all(tests)
 
 
 def test_job_handlers():
-    """测试 JobRegistry 注册"""
+    """测试 Job Handler 注册"""
     print("\n" + "=" * 60)
-    print("Testing JobRegistry Registration...")
+    print("Testing Job Handler Registration...")
     print("=" * 60)
 
-    from application.jobs.registry_setup import register_all_jobs
-    from application.jobs.job_registry import job_registry
-    register_all_jobs()
+    from api.internal.scheduler_webhook import JOB_HANDLERS
 
-    expected_jobs = [
+    expected_handlers = [
         "kline_update",
         "chip_distribution_update",
-        "pool_refresh_daily",
+        "pool_refresh",
         "signal_generate",
         "factor_compute",
         "v13_daily_check",
         "financial_statement_update"
     ]
 
-    registered = job_registry.list_jobs()
     missing = []
-    for name in expected_jobs:
-        if name in registered:
-            print(f"✅ {name}: registered")
+    for handler in expected_handlers:
+        if handler in JOB_HANDLERS:
+            print(f"✅ {handler}: registered")
         else:
-            print(f"❌ {name}: missing")
-            missing.append(name)
+            print(f"❌ {handler}: missing")
+            missing.append(handler)
 
-    total = len(registered)
-    print(f"\nTotal registered jobs: {total}")
+    total = len(JOB_HANDLERS)
+    print(f"\nTotal registered handlers: {total}")
 
     return len(missing) == 0
 

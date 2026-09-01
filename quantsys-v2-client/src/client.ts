@@ -56,6 +56,15 @@ import type {
   NorthFlowDay,
   MarketSentiment,
   CompetitionAnalysis,
+  CalendarEvent,
+  EventListRequest,
+  EventUpsertRequest,
+  EventListResponse,
+  ProviderResponse,
+  FundFlowDay,
+  MarginDay,
+  LimitUpRecord,
+  StockNewsItem,
 } from './types.js';
 
 /**
@@ -200,6 +209,21 @@ export class QuantsysV2Client {
     // Pattern 2: {success, rules} - watch/rules endpoint
     if (response.success === true && 'rules' in response) {
       return response.rules as T;
+    }
+
+    // Pattern 2b: {success, events} - events list endpoint (E1 事件日历)
+    if (response.success === true && 'events' in response) {
+      return response as T;
+    }
+
+    // Pattern 2c: {success, event} - single event endpoint
+    if (response.success === true && 'event' in response) {
+      return response.event as T;
+    }
+
+    // Pattern 2d: {success, deleted} - delete endpoint
+    if (response.success === true && 'deleted' in response) {
+      return response as T;
     }
 
     // Pattern 3: No envelope (klines returns {symbol, count, klines})
@@ -1329,9 +1353,147 @@ export class QuantsysV2Client {
    * 获取最新周报（M6-2）
    */
   async getLatestWeeklyReport(format: 'json' | 'markdown' = 'json'): Promise<any> {
-    const response = await this.client.get('/api/reports/weekly/latest', { 
-      params: { format } 
+    const response = await this.client.get('/api/reports/weekly/latest', {
+      params: { format }
     });
     return this.unwrap(response.data, 'getLatestWeeklyReport');
+  }
+
+  // ==================== E1 事件日历 ====================
+
+  /**
+   * 查未来 N 天待处理事件（每日检查任务核心调用）
+   */
+  async getUpcomingEvents(days: number = 2): Promise<EventListResponse> {
+    const response = await this.client.get('/api/events/upcoming', {
+      params: { days }
+    });
+    return this.unwrap(response.data, 'getUpcomingEvents');
+  }
+
+  /**
+   * 范围查询事件日历（按日期区间/类型/状态/标的过滤）
+   */
+  async listEvents(params?: EventListRequest): Promise<EventListResponse> {
+    const response = await this.client.get('/api/events', { params });
+    return this.unwrap(response.data, 'listEvents');
+  }
+
+  /**
+   * 按 ID 查单个事件
+   */
+  async getEvent(id: number): Promise<CalendarEvent> {
+    const response = await this.client.get(`/api/events/${id}`);
+    return this.unwrap(response.data, 'getEvent');
+  }
+
+  /**
+   * 创建/更新事件（幂等 upsert：按类型+日期+标题去重）
+   */
+  async upsertEvent(event: EventUpsertRequest): Promise<CalendarEvent> {
+    const response = await this.client.post('/api/events', event);
+    return this.unwrap(response.data, 'upsertEvent');
+  }
+
+  /**
+   * 更新事件（状态/结果/影响评估）
+   */
+  async updateEvent(id: number, updates: Partial<EventUpsertRequest>): Promise<CalendarEvent> {
+    const response = await this.client.patch(`/api/events/${id}`, updates);
+    return this.unwrap(response.data, 'updateEvent');
+  }
+
+  /**
+   * 标记事件状态（状态机：pending→notified→collected→reviewed/skipped）
+   */
+  async markEventStatus(id: number, status: string, metaPatch?: Record<string, any>): Promise<CalendarEvent> {
+    const payload: any = { status };
+    if (metaPatch) payload.meta = metaPatch;
+    const response = await this.client.patch(`/api/events/${id}`, payload);
+    return this.unwrap(response.data, 'markEventStatus');
+  }
+
+  /**
+   * 删除事件
+   */
+  async deleteEvent(id: number): Promise<{ success: boolean; deleted: number }> {
+    const response = await this.client.delete(`/api/events/${id}`);
+    return this.unwrap(response.data, 'deleteEvent');
+  }
+
+  // ==================== P0 情报数据层（多数据源，降级友好） ====================
+  // 注意：以下方法**不走 unwrap**——数据源失败（success:false）是常态，
+  // 需把原始响应（含 error/attempted_sources）透传给工具层做降级处理。
+
+  /** 个股资金流（主力/大单/中单/小单净流入） */
+  async getStockFundFlow(symbol: string, days: number = 5): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/stock/${symbol}/fund-flow`, {
+      params: { days }
+    }).catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
+  }
+
+  /** 板块资金流 */
+  async getSectorFlow(): Promise<ProviderResponse> {
+    const response = await this.client.get('/api/market/sector-flow')
+      .catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
+  }
+
+  /** 个股融资融券（杠杆资金） */
+  async getStockMargin(symbol: string, days: number = 5): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/stock/${symbol}/margin`, {
+      params: { days }
+    }).catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
+  }
+
+  /** 龙虎榜：某日上榜记录 */
+  async getLhbDaily(date: string): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/provider/lhb/daily/${date}`)
+      .catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
+  }
+
+  /** 龙虎榜：个股上榜明细 */
+  async getLhbDetail(symbol: string): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/provider/lhb/detail/${symbol}`)
+      .catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
+  }
+
+  /** 涨停池（某日涨停股+连板/封单） */
+  async getLimitUpPool(date: string): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/provider/zt-pool/${date}`)
+      .catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
+  }
+
+  /** 个股公告 */
+  async getStockAnnouncements(symbol: string): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/provider/stock/${symbol}/announcements`)
+      .catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
+  }
+
+  /** 个股新闻 */
+  async getStockNews(symbol: string): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/provider/stock/${symbol}/news`)
+      .catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
+  }
+
+  /** 内部人交易（高管增减持） */
+  async getInsiderTrades(symbol: string): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/provider/stock/${symbol}/insider-trades`)
+      .catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
+  }
+
+  /** 交易日历 */
+  async getTradingCalendar(): Promise<ProviderResponse> {
+    const response = await this.client.get('/api/provider/trading-calendar')
+      .catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
   }
 }

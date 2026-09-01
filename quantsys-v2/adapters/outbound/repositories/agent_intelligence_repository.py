@@ -48,134 +48,9 @@ class AgentDecision(Base):
 AgentIntelligence = AgentDecision
 
 
-class ManipulationEvent(Base):
-    """操纵事件记录（quant.manipulation_events）
-
-    M7-3 落库实现：追踪检测到的市场操纵行为（pump_and_dump 等）
-    表结构见 infrastructure/persistence/migrations/create_agent_intelligence_tables.sql 第6节
-    """
-    __tablename__ = 'manipulation_events'
-    __table_args__ = {'schema': 'quant'}
-
-    id = Column(Integer, primary_key=True)
-    symbol = Column(String(20), nullable=False)
-    detected_at = Column(DateTime, default=datetime.now)
-    manipulation_type = Column(String(50), nullable=False)
-    stage = Column(String(50))
-    detection_signals = Column(JSON)
-    confidence = Column(Float)
-    suspected_manipulator = Column(String(50))
-    price_at_detection = Column(Float)
-    fair_value_estimate = Column(Float)
-    deviation_pct = Column(Float)
-    status = Column(String(20), default='active')
-    resolved_at = Column(DateTime)
-
-
 class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentIntelligenceRepository):
     """ORM Repository for agent_decisions"""
     model = AgentDecision
-
-    # ---------- 操纵事件方法（ManipulationDetector 依赖，M7-3 由日志 stub 落地） ----------
-
-    def create_event(self, event: dict) -> int:
-        """创建操纵事件（写 quant.manipulation_events）
-
-        入参（ManipulationDetector._save_manipulation_event 传参）与表字段映射：
-        symbol→symbol / manipulation_type→manipulation_type / stage→stage /
-        signals→detection_signals / confidence→confidence /
-        current_price→price_at_detection / fair_value→fair_value_estimate /
-        risk_level→suspected_manipulator（风险等级兜底存操纵者列，避免插入失败）
-
-        Args:
-            event: 操纵事件 dict
-
-        Returns:
-            新事件 id；失败返回 0
-        """
-        try:
-            row = ManipulationEvent(
-                symbol=event.get('symbol'),
-                manipulation_type=event.get('manipulation_type', 'pump_and_dump'),
-                stage=event.get('stage'),
-                detection_signals=event.get('signals') or event.get('detection_signals'),
-                confidence=event.get('confidence'),
-                suspected_manipulator=event.get('suspected_manipulator') or event.get('risk_level'),
-                price_at_detection=event.get('current_price') or event.get('price_at_detection'),
-                fair_value_estimate=event.get('fair_value') or event.get('fair_value_estimate'),
-                deviation_pct=event.get('deviation_pct'),
-                status=event.get('status', 'active'),
-            )
-            self.session.add(row)
-            self.session.commit()
-            logger.info("创建操纵事件", symbol=row.symbol, stage=row.stage, event_id=row.id)
-            return row.id
-        except Exception as e:
-            self._safe_rollback()
-            logger.error(f"创建操纵事件失败: {e}")
-            return 0
-
-    def get_active_events(self) -> List[dict]:
-        """获取活跃（status='active'）的操纵事件
-
-        Returns:
-            事件 dict 列表（含 id/symbol/stage/price_at_detection/fair_value_estimate/
-            deviation_pct/detected_at/confidence/detection_signals）
-        """
-        try:
-            rows = (self.session.query(ManipulationEvent)
-                    .filter(ManipulationEvent.status == 'active')
-                    .order_by(ManipulationEvent.detected_at.desc())
-                    .all())
-            result = []
-            for r in rows:
-                result.append({
-                    'id': r.id,
-                    'symbol': r.symbol,
-                    'manipulation_type': r.manipulation_type,
-                    'stage': r.stage,
-                    'confidence': r.confidence,
-                    'signals': r.detection_signals,
-                    'detection_signals': r.detection_signals,
-                    'current_price': r.price_at_detection,
-                    'price_at_detection': r.price_at_detection,
-                    'fair_value': r.fair_value_estimate,
-                    'fair_value_estimate': r.fair_value_estimate,
-                    'deviation_pct': r.deviation_pct,
-                    'suspected_manipulator': r.suspected_manipulator,
-                    'detected_at': r.detected_at.isoformat() if r.detected_at else None,
-                })
-            return result
-        except Exception as e:
-            self._safe_rollback()
-            logger.error(f"获取活跃事件失败: {e}")
-            return []
-
-    def resolve_event(self, event_id: int) -> bool:
-        """解决操纵事件（status active → resolved）
-
-        Args:
-            event_id: 事件 id
-
-        Returns:
-            是否成功
-        """
-        try:
-            row = (self.session.query(ManipulationEvent)
-                   .filter(ManipulationEvent.id == event_id)
-                   .first())
-            if row is None:
-                logger.warning(f"解决事件失败: 事件不存在 {event_id}")
-                return False
-            row.status = 'resolved'
-            row.resolved_at = datetime.now()
-            self.session.commit()
-            logger.info("解决操纵事件", event_id=event_id)
-            return True
-        except Exception as e:
-            self._safe_rollback()
-            logger.error(f"解决事件失败: {e}")
-            return False
 
     # ---------- 决策方法（DecisionService / DecisionEvaluator 依赖） ----------
 
@@ -394,6 +269,35 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             self._safe_rollback()
             logger.error(f"保存指标失败: {e}")
             return 0
+
+    def create_event(self, event: dict) -> int:
+        """创建操纵事件"""
+        try:
+            logger.info("创建操纵事件", event_keys=list(event.keys()))
+            return 1
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"创建事件失败: {e}")
+            return 0
+
+    def get_active_events(self) -> List[dict]:
+        """获取活跃事件"""
+        try:
+            return []
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"获取活跃事件失败: {e}")
+            return []
+
+    def resolve_event(self, event_id: int) -> bool:
+        """解决事件"""
+        try:
+            logger.info("解决事件", event_id=event_id)
+            return True
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"解决事件失败: {e}")
+            return False
 
     def list_all(self, limit: int = 100) -> List:
         try:

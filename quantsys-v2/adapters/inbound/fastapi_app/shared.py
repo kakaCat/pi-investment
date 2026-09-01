@@ -13,7 +13,6 @@ import structlog
 
 # 复用中立共享层（同一 ds 单例 + 同一序列化 → 保证 parity）；不依赖 Flask 路径
 from adapters.shared import (
-    ds,
     sanitize_for_json,
     convert_keys_to_camel,
     convert_keys_to_snake,
@@ -21,6 +20,7 @@ from adapters.shared import (
     _write_watchlist,
     _read_groups,
     _write_groups,
+    ds,
     strategy_service,
     stock_pool_service,
     pool_validation_service,
@@ -62,7 +62,6 @@ __all__ = [
     "_load_pipeline_runs", "_save_pipeline_runs", "_get_pipeline_run", "_update_pipeline_run",
     "acquire_task", "release_task", "get_running_tasks_snapshot",
     "api_response", "error_response", "handle_api_error",
-    "ds",
     "signal_repo", "stock_repo", "kline_repo", "portfolio_repo", "factor_repo", "risk_repo", "execution_repo", "backtest_repo", "simulation_repo",
 ]
 

@@ -849,3 +849,126 @@ export interface CompetitionAnalysis {
   competitive_disadvantages: string[];
   summary: string;
 }
+
+/**
+ * 事件日历条目（E1 特殊日子：宏观发布/央行议息/财报/交割）
+ */
+export interface CalendarEvent {
+  id: number;
+  event_type: string;        // cpi/ppi/pmi/gdp/nbs/lpr/fomc/us_cpi/nfp/earnings/futures_delivery/policy/other
+  event_date: string;        // YYYY-MM-DD
+  event_time?: string;       // HH:MM
+  title: string;
+  description?: string;
+  symbol?: string;
+  market?: string;           // CN/US
+  importance?: number;       // 1低 2中 3高
+  status?: string;           // pending/notified/collected/reviewed/skipped
+  source?: string;
+  meta?: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * 事件查询参数
+ */
+export interface EventListRequest {
+  start?: string;            // YYYY-MM-DD
+  end?: string;
+  event_type?: string;
+  status?: string;
+  symbol?: string;
+  limit?: number;
+}
+
+/**
+ * 事件创建/更新请求
+ */
+export interface EventUpsertRequest {
+  event_type: string;
+  event_date: string;
+  title: string;
+  event_time?: string;
+  description?: string;
+  symbol?: string;
+  market?: string;
+  importance?: number;
+  status?: string;
+  source?: string;
+  meta?: Record<string, any>;
+}
+
+export interface EventListResponse {
+  success: boolean;
+  count?: number;
+  days?: number;
+  events: CalendarEvent[];
+}
+
+/**
+ * 通用数据源响应（data_provider 多数据源层）
+ * 数据源失败时 success=false + error + attempted_sources，工具须降级友好处理
+ */
+export interface ProviderResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  attempted_sources?: string[];
+  provider_errors?: Record<string, string>;
+  source?: string;
+}
+
+/** 个股资金流单日记录 */
+export interface FundFlowDay {
+  date: string;
+  closePrice?: number;
+  changePct?: number;
+  mainNetInflow?: number;      // 主力净流入（万）
+  mainNetInflowRate?: number;
+  largeNetInflow?: number;
+  bigNetInflow?: number;
+  mediumNetInflow?: number;
+  smallNetInflow?: number;
+  [key: string]: any;
+}
+
+/** 两融单日记录 */
+export interface MarginDay {
+  date: string;
+  financingBalance?: number;   // 融资余额
+  financingBuy?: number;
+  financingRepay?: number;
+  marginBalance?: number;      // 融券余额
+  marginSell?: number;
+  marginRepay?: number;
+  totalBalance?: number;       // 两融总余额
+  [key: string]: any;
+}
+
+/** 涨停池记录 */
+export interface LimitUpRecord {
+  代码?: string;
+  名称?: string;
+  涨跌幅?: number;
+  最新价?: number;
+  成交额?: number;
+  流通市值?: number;
+  换手率?: number;
+  封板资金?: number;
+  首次封板时间?: string;
+  炸板次数?: number;
+  连板数?: number;
+  所属行业?: string;
+  [key: string]: any;
+}
+
+/** 个股新闻记录 */
+export interface StockNewsItem {
+  新闻标题?: string;
+  新闻内容?: string;
+  发布时间?: string;
+  文章来源?: string;
+  新闻链接?: string;
+  [key: string]: any;
+}

@@ -10,6 +10,9 @@ import { createDataFetchNorthFlowTool } from './tools/DataFetchNorthFlowTool';
 import { createDataFetchMarketSentimentTool } from './tools/DataFetchMarketSentimentTool';
 import { createPoolListTool } from './tools/PoolListTool';
 import { createStrategyListTool } from './tools/StrategyListTool';
+import { createEventCalendarTool } from './tools/EventCalendarTool';
+import { createStockIntelTool } from './tools/StockIntelTool';
+import { createTradingCalendarTool } from './tools/TradingCalendarTool';
 
 // ========== Plugin Config Schema ==========
 
@@ -80,5 +83,14 @@ export default class InvestmentPlugin extends Service {
 
     // 8. 策略列表 - 已重构为 BaseTool
     reg(createStrategyListTool(qv2));
+
+    // 9. 事件日历 - E1 特殊日子（宏观发布/央行议息/财报/交割）
+    reg(createEventCalendarTool(qv2));
+
+    // 10. 个股情报 - P0 排雷（公告+新闻+内部人交易聚合）
+    reg(createStockIntelTool(qv2));
+
+    // 11. 交易日历 - P0（是否交易日判断，含周末兜底）
+    reg(createTradingCalendarTool(qv2));
   }
 }

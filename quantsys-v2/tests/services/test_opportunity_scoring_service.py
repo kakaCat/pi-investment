@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from application.services.opportunity_scoring_service import OpportunityScoringService
 from adapters.outbound.repositories import KlineORMRepository
 from adapters.outbound.repositories import StockORMRepository
-from domain.quantlib.adapters import get_factor_adapter
+from adapters.shared.services import get_factor_adapter
 
 
 @pytest.fixture
@@ -422,7 +422,7 @@ def test_evaluate_conditions_from_factors():
 
 def test_adx_factor_calculated():
     """测试 ADX 因子被正确计算"""
-    from domain.quantlib.adapters import get_factor_adapter
+    from adapters.shared.services import get_factor_adapter
     
     service = OpportunityScoringService(None, None, get_factor_adapter())
     
@@ -448,7 +448,7 @@ def test_adx_factor_calculated():
 
 def test_technical_scorer_integration():
     """测试 TechnicalScorer 集成到 OpportunityScoringService"""
-    from domain.quantlib.adapters import get_factor_adapter
+    from adapters.shared.services import get_factor_adapter
     
     service = OpportunityScoringService(None, None, get_factor_adapter())
     
@@ -481,7 +481,7 @@ def test_technical_scorer_integration():
 
 def test_fundamental_scorer_integration():
     """测试 FundamentalScorer 集成到 OpportunityScoringService"""
-    from domain.quantlib.adapters import get_factor_adapter
+    from adapters.shared.services import get_factor_adapter
     
     service = OpportunityScoringService(None, None, get_factor_adapter())
     

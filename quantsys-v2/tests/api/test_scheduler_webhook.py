@@ -14,8 +14,6 @@ import time
 import pytest
 
 from api.internal import scheduler_webhook as wh
-from application.jobs.job_registry import job_registry, JobRegistry
-from application.jobs.job_protocol import Job, JobResult
 
 
 class _FakeAgentOSClient:
@@ -27,24 +25,6 @@ class _FakeAgentOSClient:
     async def report_job_result(self, run_id, result):
         self.reports.append((run_id, result))
         return {}
-
-
-class _StubJob(Job):
-    """A test Job that wraps a handler function."""
-
-    def __init__(self, name: str, handler):
-        self._name = name
-        self._handler = handler
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    async def execute(self, params):
-        result = await self._handler(params)
-        if isinstance(result, dict):
-            return JobResult.ok(self.name, message="ok", **result)
-        return result
 
 
 @pytest.fixture
@@ -77,28 +57,27 @@ def _make_payload(metadata=None):
     )
 
 
-def _register_test_handler(name, handler_fn):
-    """Register a handler function as a Job in the registry for testing."""
-    job_registry.register(_StubJob(name, handler_fn))
-
-
-def test_execute_job_runs_handler(isolated_side_effects):
-    """Handler executes successfully via JobRegistry."""
+def test_execute_job_runs_handler_off_the_event_loop_thread(isolated_side_effects):
+    """Blocking handler must run on a worker thread, not the loop thread."""
     seen = {}
 
     async def blocking_handler(metadata):
-        seen["called"] = True
-        time.sleep(0.05)
+        seen["handler_thread"] = threading.get_ident()
+        time.sleep(0.1)  # sync blocking work, like real handlers
         return {"ok": True}
 
-    _register_test_handler("test", blocking_handler)
+    loop_thread = {}
 
     async def main():
-        await wh.execute_job("test", _make_payload())
+        loop_thread["id"] = threading.get_ident()
+        await wh.execute_job(blocking_handler, _make_payload())
 
     asyncio.run(main())
 
-    assert seen["called"]
+    assert seen["handler_thread"] != loop_thread["id"], (
+        "handler ran on the event loop thread — blocking work would stall "
+        "the whole FastAPI service"
+    )
 
 
 def test_execute_job_keeps_loop_responsive_while_handler_blocks(isolated_side_effects):
@@ -108,10 +87,8 @@ def test_execute_job_keeps_loop_responsive_while_handler_blocks(isolated_side_ef
         time.sleep(0.5)
         return {"ok": True}
 
-    _register_test_handler("test", blocking_handler)
-
     async def main():
-        job = asyncio.create_task(wh.execute_job("test", _make_payload()))
+        job = asyncio.create_task(wh.execute_job(blocking_handler, _make_payload()))
         await asyncio.sleep(0)  # let the job start
         start = time.monotonic()
         # 5 event-loop ticks; with a blocked loop these would only run
@@ -127,7 +104,7 @@ def test_execute_job_keeps_loop_responsive_while_handler_blocks(isolated_side_ef
 
 
 def test_execute_job_returns_handler_result(isolated_side_effects):
-    """Execution via JobRegistry must not change the handler contract."""
+    """Threadpool execution must not change the handler contract."""
     captured = {}
 
     async def fake_write_run_to_database(**kwargs):
@@ -137,20 +114,17 @@ def test_execute_job_returns_handler_result(isolated_side_effects):
         assert metadata["job_type"] == "test"
         return {"updated": 42}
 
-    _register_test_handler("test", handler)
-
     # Re-patch with capturing version
     import api.internal.scheduler_webhook as module
     original = module._write_run_to_database
     module._write_run_to_database = fake_write_run_to_database
     try:
-        asyncio.run(wh.execute_job("test", _make_payload()))
+        asyncio.run(wh.execute_job(handler, _make_payload()))
     finally:
         module._write_run_to_database = original
 
     assert captured["status"] == "success"
-    # JobResult wraps handler output in details
-    assert captured["result"]["details"] == {"updated": 42}
+    assert captured["result"] == {"updated": 42}
 
 
 # ==================== Result reporting back to Agent OS ====================
@@ -169,14 +143,12 @@ def test_execute_job_reports_success_with_agent_os_run_id(
     async def handler(metadata):
         return {"updated": 7}
 
-    _register_test_handler("test", handler)
-    asyncio.run(wh.execute_job("test", _make_payload()))
+    asyncio.run(wh.execute_job(handler, _make_payload()))
 
     assert len(fake_agent_os_client.reports) == 1
     run_id, result = fake_agent_os_client.reports[0]
-    assert run_id == "agent-os-run-123"
+    assert run_id == "agent-os-run-123"  # Agent OS run id, NOT the local one
     assert result["status"] == "success"
-    assert "details" in result["output"]
     assert "updated" in result["output"]
 
 
@@ -186,8 +158,7 @@ def test_execute_job_reports_failure_with_error(
     async def handler(metadata):
         raise RuntimeError("boom")
 
-    _register_test_handler("test", handler)
-    asyncio.run(wh.execute_job("test", _make_payload()))
+    asyncio.run(wh.execute_job(handler, _make_payload()))
 
     assert len(fake_agent_os_client.reports) == 1
     run_id, result = fake_agent_os_client.reports[0]
@@ -204,10 +175,9 @@ def test_execute_job_skips_report_when_run_id_missing(
     async def handler(metadata):
         return {"ok": True}
 
-    _register_test_handler("test", handler)
     payload = _make_payload()
     payload.metadata.pop("run_id")
-    asyncio.run(wh.execute_job("test", payload))
+    asyncio.run(wh.execute_job(handler, payload))
 
     assert fake_agent_os_client.reports == []
 

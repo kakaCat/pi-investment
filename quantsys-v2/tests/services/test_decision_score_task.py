@@ -1,7 +1,7 @@
 """decision_score_daily 调度 handler 测试（P0a）。"""
 from unittest.mock import patch
 
-from application.services.task_handlers import (
+from application.services.scheduler_tasks import (
     get_task_handler, handle_decision_score_daily,
 )
 

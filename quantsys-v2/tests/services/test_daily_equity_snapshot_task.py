@@ -1,7 +1,7 @@
 """daily_equity_snapshot 调度任务 handler 测试"""
 from unittest.mock import patch
 
-from application.services.task_handlers import (
+from application.services.scheduler_tasks import (
     handle_daily_equity_snapshot, get_task_handler,
 )
 

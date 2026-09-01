@@ -1,13 +1,40 @@
+"""Internal webhook endpoint for Agent OS Scheduler callbacks.
+
+This module provides the webhook receiver that Agent OS calls when
+scheduled jobs need to execute. It dispatches to registered job handlers
+and manages execution in background tasks.
+
+Architecture:
+    Agent OS Scheduler (cron engine)
+         ↓ HTTP POST (webhook)
+    Webhook Receiver (this module)
+         ↓ dispatch by job_type
+    Job Handler (registered via @register_job_handler)
+         ↓ execute business logic
+    PostgreSQL (scheduler_runs table)
+
+Usage:
+    # In a job handler module:
+    from api.internal.scheduler_webhook import register_job_handler
+
+    @register_job_handler("kline_update")
+    async def handle_kline_update(metadata: Dict[str, Any]) -> Dict[str, Any]:
+        # Execute job logic
+        return {"updated_count": 100}
+"""
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Callable, Dict
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +70,34 @@ class WebhookResponse(BaseModel):
     message: str = ""  # Optional message
 
 
-def _get_job_registry():
-    from application.jobs.job_registry import job_registry
-    return job_registry
+# ==================== Job Handler Registry ====================
+
+# Global registry of job handlers: job_type -> async function
+JOB_HANDLERS: Dict[str, Callable] = {}
+
+
+def register_job_handler(job_type: str):
+    """Decorator to register a job handler function.
+
+    Usage:
+        @register_job_handler("kline_update")
+        async def handle_kline_update(metadata: Dict[str, Any]) -> Dict[str, Any]:
+            # Job logic here
+            return {"result": "success"}
+
+    Args:
+        job_type: The job_type string that will be in webhook metadata
+
+    Returns:
+        Decorator function
+    """
+
+    def decorator(func: Callable):
+        JOB_HANDLERS[job_type] = func
+        logger.info(f"Registered job handler: {job_type} -> {func.__name__}")
+        return func
+
+    return decorator
 
 
 # ==================== Webhook Endpoint ====================
@@ -92,13 +144,11 @@ async def scheduler_webhook(
             status_code=400, detail="Missing job_type in metadata and job_name"
         )
 
-    registry = _get_job_registry()
-    job = registry.get(job_type)
-    if not job:
-        available = list(registry.list_jobs().keys())
+    handler = JOB_HANDLERS.get(job_type)
+    if not handler:
         logger.error(
             f"Unknown job_type '{job_type}' for job {payload.job_name}. "
-            f"Available jobs: {available}"
+            f"Available handlers: {list(JOB_HANDLERS.keys())}"
         )
         raise HTTPException(
             status_code=404, detail=f"Unknown job_type: {job_type}"
@@ -109,7 +159,8 @@ async def scheduler_webhook(
         f"job_id={payload.job_id})"
     )
 
-    background_tasks.add_task(execute_job, job_type, payload)
+    # Execute in background
+    background_tasks.add_task(execute_job, handler, payload)
 
     return WebhookResponse(
         status="accepted",
@@ -122,7 +173,24 @@ async def scheduler_webhook(
 # ==================== Background Execution ====================
 
 
-async def execute_job(job_type: str, payload: WebhookPayload):
+async def execute_job(handler: Callable, payload: WebhookPayload):
+    """Execute job handler and report results to Agent OS.
+
+    This runs in a FastAPI background task to avoid blocking the
+    webhook response. It:
+    1. Generates a run_id
+    2. Calls the job handler (sync or async)
+    3. Writes run record to local database
+    4. Reports result back to Agent OS
+
+    Handlers are classified as:
+    - Async handlers: awaited directly on the event loop
+    - Sync handlers: executed in threadpool to avoid blocking
+
+    Args:
+        handler: The job handler function (sync or async)
+        payload: Webhook payload from Agent OS
+    """
     run_id = str(uuid.uuid4())
     start_time = datetime.now(timezone.utc)
 
@@ -132,21 +200,23 @@ async def execute_job(job_type: str, payload: WebhookPayload):
     )
 
     try:
-        registry = _get_job_registry()
-        job_result = await registry.execute(job_type, payload.metadata)
-        status = "success" if job_result.success else "failed"
-        error_msg = job_result.error
-        result = {
-            "action": job_result.action,
-            "message": job_result.message,
-            "details": job_result.details,
-        }
-        if job_result.success:
-            logger.info(f"Job '{payload.job_name}' succeeded (run_id={run_id})")
+        # Detect if handler is async or sync
+        if inspect.iscoroutinefunction(handler):
+            # Async handler: await directly on the event loop
+            logger.debug(f"Executing async handler for {payload.job_name}")
+            result = await handler(payload.metadata)
         else:
-            logger.warning(f"Job '{payload.job_name}' failed (run_id={run_id}): {error_msg}")
+            # Sync handler: run in threadpool to avoid blocking event loop
+            logger.debug(f"Executing sync handler for {payload.job_name} in threadpool")
+            result = await run_in_threadpool(handler, payload.metadata)
+
+        status = "success"
+        error_msg = None
+        logger.info(
+            f"Job '{payload.job_name}' succeeded (run_id={run_id}): {result}"
+        )
     except Exception as e:
-        logger.exception(f"Job '{payload.job_name}' failed with exception (run_id={run_id})")
+        logger.exception(f"Job '{payload.job_name}' failed (run_id={run_id})")
         status = "failed"
         error_msg = str(e)
         result = None
@@ -332,3 +402,12 @@ async def _write_run_to_database(
         if cursor:
             cursor.close()
         conn.close()
+
+
+# ==================== Auto-import Handlers ====================
+# Import all handlers to ensure they are registered at module load time
+try:
+    from application.services import scheduler_handlers  # noqa: F401
+    logger.info(f"Loaded {len(JOB_HANDLERS)} job handlers")
+except ImportError as e:
+    logger.warning(f"Failed to import scheduler_handlers: {e}")
