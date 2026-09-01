@@ -20,6 +20,7 @@ from adapters.outbound.datasources.providers.kline.tencent import TencentKlinePr
 from adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
 from adapters.outbound.datasources.providers.kline.akshare import AkshareKlineProvider
 from adapters.outbound.datasources.providers.sector.eastmoney import EastmoneySectorProvider
+from adapters.outbound.datasources.providers.sector.akshare import AkshareSectorProvider
 from adapters.outbound.datasources.providers.index.akshare import AkshareIndexProvider
 from adapters.outbound.datasources.providers.financial.akshare import AkshareFinancialStatementProvider
 from adapters.outbound.datasources.providers.financial.sina import SinaFinancialProvider
@@ -73,6 +74,7 @@ class DataProviderManager(IDataProviderManager):
         ]
         self.sector_providers = [
             EastmoneySectorProvider(),
+            AkshareSectorProvider(),  # 备选：新浪行业 + 同花顺概念（独立通道 failover，2026-09-01）
         ]
         self.stock_providers = [
             AkshareStockProvider(),
