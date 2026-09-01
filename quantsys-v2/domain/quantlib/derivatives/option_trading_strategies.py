@@ -272,10 +272,10 @@ class VolatilityArbitrageStrategy(OptionStrategy):
             return None
 
         if iv_hv_diff > self.iv_hv_threshold:
-            action = 'sell'
+            action = 'SELL'
             quantity = -100
         else:
-            action = 'buy'
+            action = 'BUY'
             quantity = 100
 
         signal = {

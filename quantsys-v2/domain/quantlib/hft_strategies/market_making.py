@@ -259,7 +259,7 @@ class MarketMakingStrategy:
         side = order['side']
 
         # 更新库存
-        if side == 'buy':
+        if side.upper() == 'BUY':
             self.inventory += fill_quantity
             pnl_change = -fill_price * fill_quantity
         else:

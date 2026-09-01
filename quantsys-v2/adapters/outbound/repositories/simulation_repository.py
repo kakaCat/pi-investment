@@ -54,7 +54,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         trade_id = repo.add_trade(
             account_name='v14_simulation',
             symbol='000001',
-            action='buy',
+            action = 'BUY',
             shares=100,
             price=10.0,
             filled_price=10.05

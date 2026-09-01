@@ -347,7 +347,7 @@ class EventDrivenStrategy:
         signal = {
             'action': 'open',
             'symbol': self.symbol,
-            'side': 'buy' if direction == 'buy' else 'sell',
+            'side': 'buy' if direction.upper() == 'BUY' else 'sell',
             'quantity': self.position_size,
             'price': current_price,
             'reason': 'large_order',
@@ -506,7 +506,7 @@ class EventDrivenStrategy:
 
         if action == 'open':
             # 开仓
-            self.position = quantity if side == 'buy' else -quantity
+            self.position = quantity if side.upper() == 'BUY' else -quantity
             self.entry_price = price
             self.entry_time = datetime.now()
 

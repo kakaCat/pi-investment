@@ -253,7 +253,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
 
         try:
             net_quantity = func.sum(
-                case((Trade.action == 'buy', Trade.quantity), else_=-Trade.quantity)
+                case((Trade.action.upper() == 'BUY', Trade.quantity), else_=-Trade.quantity)
             )
 
             position_summary = self.session.query(
@@ -1184,10 +1184,10 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         query = f"""
             SELECT
                 COUNT(*) as total_trades,
-                COUNT(*) FILTER (WHERE action = 'buy') as buy_trades,
-                COUNT(*) FILTER (WHERE action = 'sell') as sell_trades,
-                COALESCE(SUM(amount) FILTER (WHERE action = 'buy'), 0) as total_buy_amount,
-                COALESCE(SUM(amount) FILTER (WHERE action = 'sell'), 0) as total_sell_amount,
+                COUNT(*) FILTER (WHERE action = 'BUY') as buy_trades,
+                COUNT(*) FILTER (WHERE action = 'SELL') as sell_trades,
+                COALESCE(SUM(amount) FILTER (WHERE action = 'BUY'), 0) as total_buy_amount,
+                COALESCE(SUM(amount) FILTER (WHERE action = 'SELL'), 0) as total_sell_amount,
                 COALESCE(SUM(fee + stamp_duty), 0) as total_fee
             FROM quant.trades
             WHERE {where_clause}

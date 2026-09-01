@@ -1192,7 +1192,7 @@ class StrategyCodeService:
         将买卖动作配对成完整的交易记录
 
         Args:
-            trades: 原始交易列表，包含 action='buy'/'sell' 的记录
+            trades: 原始交易列表，包含 action = 'BUY'/'sell' 的记录
 
         Returns:
             配对后的交易列表，每条记录包含：

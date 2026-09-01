@@ -427,9 +427,9 @@ def _execute_signal_generate_v2(run_id: str, strategy_id: int, symbols: List[str
 
                 if signal:
                     signal_type = signal.get('signal_type', 'hold')
-                    if signal_type == 'buy':
+                    if signal_type.upper() == 'BUY':
                         buy += 1
-                    elif signal_type == 'sell':
+                    elif signal_type.upper() == 'SELL':
                         sell += 1
                     else:
                         hold += 1

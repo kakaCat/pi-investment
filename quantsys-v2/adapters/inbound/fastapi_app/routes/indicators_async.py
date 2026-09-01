@@ -335,15 +335,15 @@ def compare_indicators(payload: Optional[Dict[str, Any]] = Body(None)):
 
     trades_a = result_a.get('trades', [])
     trades_b = result_b.get('trades', [])
-    buy_dates_a = set(t['date'] for t in trades_a if t.get('action') == 'buy')
-    buy_dates_b = set(t['date'] for t in trades_b if t.get('action') == 'buy')
+    buy_dates_a = set(t['date'] for t in trades_a if t.get('action', '').upper() == 'BUY')
+    buy_dates_b = set(t['date'] for t in trades_b if t.get('action', '').upper() == 'BUY')
     filtered_dates = buy_dates_a - buy_dates_b
     filtered_trades = []
     for trade in trades_a:
-        if trade['date'] in filtered_dates and trade.get('action') == 'buy':
+        if trade['date'] in filtered_dates and trade.get('action', '').upper() == 'BUY':
             filtered_trades.append({
                 'date': trade['date'], 'would_buy_price': trade.get('price'),
-                'signal_a': 'buy', 'signal_b': 'hold', 'reason': 'filtered by strategy B'})
+                'signal_a': 'BUY', 'signal_b': 'HOLD', 'reason': 'filtered by strategy B'})
 
     equity_a = result_a.get('equity_curve', [])
     equity_b = result_b.get('equity_curve', [])

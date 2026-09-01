@@ -101,7 +101,7 @@ class RiskCheckService:
                 return self._fail_result('无法获取账户信息')
 
             # 计算交易数量（在检查之前）
-            if action == 'buy':
+            if action.upper() == 'BUY':
                 quantity = self._calculate_buy_quantity(signal, current_price, account)
             else:
                 quantity = self._calculate_sell_quantity(signal)
@@ -111,7 +111,7 @@ class RiskCheckService:
             signal_with_quantity['quantity'] = quantity
 
             # 执行各项检查
-            if action == 'buy':
+            if action.upper() == 'BUY':
                 checks = [
                     self._check_funds(signal_with_quantity, current_price, account),
                     self._check_single_order_limit(signal_with_quantity, current_price, account),
@@ -423,7 +423,7 @@ class RiskCheckService:
 
         # 计算止损幅度
         if stop_loss_price:
-            if action == 'buy':
+            if action.upper() == 'BUY':
                 loss_percent = ((current_price - stop_loss_price) / current_price) * 100
             else:
                 loss_percent = ((stop_loss_price - current_price) / current_price) * 100
