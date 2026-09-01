@@ -498,3 +498,120 @@ def combo_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     except Exception as e:
         logger.error(f"Combo backtest failed: {e}", exc_info=True)
         return error_response({'success': False, 'error': str(e)}, 500)
+
+
+@flask_parity_router.post('/api/backtest/matrix')
+def backtest_matrix(payload: Optional[Dict[str, Any]] = Body(None)):
+    """回测矩阵端点（F-1 修复：把散落 /tmp、tools/ 的矩阵驱动脚本固化为正式 API）。
+
+    批量执行 策略×股票×区间 的真实回测（StrategyCodeService.backtest_strategy），
+    返回逐条结果 + 按策略/区间的分层统计（avg sharpe / avg return / 达标计数）。
+
+    入参：
+      strategy_ids: [635, 637]          策略 ID 列表（必填）
+      symbols: ["600519", ...]          股票列表（必填）
+      periods: [{key, start, end}, ...] 区间列表（必填，key 用于分层标签）
+      initial_capital: 1000000          可选，默认 100 万
+      max_workers: 6                    可选并发度（默认 6，上限 12）
+
+    返回：
+      {success, data: {results: [...], stats: {by_strategy, by_period,
+        by_strategy_period}, summary: {total, failed, sharpe_gt_1}}}
+    """
+    import concurrent.futures
+
+    from adapters.shared.services import get_strategy_service
+
+    data = payload or {}
+    strategy_ids = data.get('strategy_ids') or []
+    symbols = data.get('symbols') or []
+    periods = data.get('periods') or []
+    initial_capital = float(data.get('initial_capital', 1_000_000))
+    max_workers = min(int(data.get('max_workers', 6)), 12)
+
+    if not strategy_ids or not symbols or not periods:
+        return error_response({
+            'success': False,
+            'error': 'strategy_ids, symbols, periods 均必填（periods 每项含 key/start/end）',
+        }, 400)
+    for p in periods:
+        if not (p.get('key') and p.get('start') and p.get('end')):
+            return error_response({
+                'success': False,
+                'error': 'periods 每项必须含 key/start/end',
+            }, 400)
+
+    svc = get_strategy_service()
+
+    def _run(sid, sym, period):
+        try:
+            r = svc.backtest_strategy(
+                strategy_id=sid, symbol=sym,
+                start_date=period['start'], end_date=period['end'],
+                initial_cash=initial_capital,
+            )
+            return {
+                'strategy_id': sid, 'symbol': sym, 'period': period['key'],
+                'sharpe_ratio': r.get('sharpe_ratio'),
+                'total_return': r.get('total_return'),
+                'max_drawdown': r.get('max_drawdown'),
+                'total_trades': r.get('total_trades'),
+            }
+        except Exception as e:
+            return {
+                'strategy_id': sid, 'symbol': sym, 'period': period['key'],
+                'error': str(e)[:200],
+            }
+
+    tasks = [(sid, sym, p) for sid in strategy_ids for sym in symbols for p in periods]
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futs = [ex.submit(_run, *t) for t in tasks]
+        for f in concurrent.futures.as_completed(futs):
+            results.append(f.result())
+
+    ok = [r for r in results if 'error' not in r and r.get('sharpe_ratio') is not None]
+
+    def _avg(rows, key):
+        vals = [r[key] for r in rows if r.get(key) is not None]
+        return round(sum(vals) / len(vals), 4) if vals else None
+
+    by_strategy = {}
+    for sid in strategy_ids:
+        rows = [r for r in ok if r['strategy_id'] == sid]
+        by_strategy[str(sid)] = {
+            'n': len(rows),
+            'avg_sharpe': _avg(rows, 'sharpe_ratio'),
+            'avg_return': _avg(rows, 'total_return'),
+        }
+    by_period = {}
+    for p in periods:
+        rows = [r for r in ok if r['period'] == p['key']]
+        by_period[p['key']] = {
+            'n': len(rows),
+            'avg_sharpe': _avg(rows, 'sharpe_ratio'),
+            'avg_return': _avg(rows, 'total_return'),
+        }
+    by_strategy_period = {}
+    for sid in strategy_ids:
+        for p in periods:
+            rows = [r for r in ok if r['strategy_id'] == sid and r['period'] == p['key']]
+            by_strategy_period[f"{sid}@{p['key']}"] = {
+                'n': len(rows),
+                'avg_sharpe': _avg(rows, 'sharpe_ratio'),
+                'avg_return': _avg(rows, 'total_return'),
+            }
+
+    return {'success': True, 'data': {
+        'results': results,
+        'stats': {
+            'by_strategy': by_strategy,
+            'by_period': by_period,
+            'by_strategy_period': by_strategy_period,
+        },
+        'summary': {
+            'total': len(results),
+            'failed': len(results) - len(ok),
+            'sharpe_gt_1': sum(1 for r in ok if (r.get('sharpe_ratio') or 0) > 1),
+        },
+    }}
