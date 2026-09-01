@@ -6,17 +6,23 @@ import type { ToolPrompt } from '@pi-investment/core-tool';
 
 export interface ModelPredictParams {
   symbols: string[];
+  model_type?: string;
 }
 
 export const modelPredictPrompt: ToolPrompt<ModelPredictParams> = {
   name: 'model_predict',
-  description: 'ML 模型（XGBoost）批量预测股票上涨概率与置信度。适用于：多标的打分时作为量化维度参考（与技术面/资金面/基本面并列的第 4 维度）。⚠️ 必须看 model_gate：level=degraded 表示模型接近随机水平，预测仅作弱参考；概率恒等 0.4659 说明因子数据缺失（输出不可信）。',
+  description: 'ML 模型（LightGBM，每日凌晨重训）批量预测股票上涨概率与置信度。适用于：多标的打分时作为量化维度参考（与技术面/资金面/基本面并列的第 4 维度）。⚠️ 模型目前是弱信号（test_roc_auc≈0.58、recall≈0.28），只能当辅助维度不能当决策驱动；model_gate level=degraded 时进一步降权。',
 
   parameters: {
     symbols: {
       type: 'array',
       description: '股票代码列表（6位数字），如 ["601857","600519"]，批量预测',
       required: true,
+    },
+    model_type: {
+      type: 'string',
+      description: "模型类型，默认 'lightgbm'（每日重训、特征与 DB 因子同源）。⚠️ 不要传 'xgboost'——2026-05 旧模型，特征名与 DB 因子不匹配，输出恒定 0.4659 不可信",
+      default: 'lightgbm',
     },
   },
 
@@ -46,10 +52,11 @@ export const modelPredictPrompt: ToolPrompt<ModelPredictParams> = {
   ],
 
   notes: [
-    '2026-09-01 上线（对接后端 /api/ml/predict，含上线门禁：test_accuracy<0.50 拒服、0.50~0.55 degraded）',
-    '⚠️ 已知局限：DB 因子覆盖不足时输出恒定 0.4659（特征缺失补零所致）——遇到恒定概率说明输出不可信，等因子数据补齐',
+    '2026-09-01 上线；2026-09-02 修正默认模型为 lightgbm（xgboost 旧模型输出恒定 0.4659 的"DB 因子缺失"假象实为旧模型特征名不匹配）',
+    '⚠️ 模型弱信号现实：test_accuracy≈0.57 / test_roc_auc≈0.58 / recall≈0.28——比随机好但有限，R-009 信号分级中 ML 只能算半个维度',
     '预测是概率参考而非信号本身；C 级信号纪律：单一 ML 维度不构成买入依据',
-    'confidence=low 时降低权重',
+    'confidence=low 时降低权重；多标的概率接近时说明区分度不足',
+    '因子数据最新日期见返回的 date 字段，滞后 >3 个交易日时提示数据陈旧',
   ],
 
   relatedTools: [

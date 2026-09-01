@@ -605,6 +605,29 @@ export class QuantsysV2Client {
   }
 
   /**
+   * PE 历史分位
+   * Real endpoint: GET /api/stock/{symbol}/pe-percentile
+   * 响应 camelCase：currentPe/percentile/minPe/maxPe/meanPe/medianPe/dataPoints/years/interpretation
+   */
+  async getPePercentile(symbol: string): Promise<{
+    symbol: string;
+    name?: string;
+    currentPe: number;
+    currentPrice?: number;
+    percentile: number;
+    minPe?: number;
+    maxPe?: number;
+    meanPe?: number;
+    medianPe?: number;
+    dataPoints?: number;
+    years?: number;
+    interpretation?: string;
+  }> {
+    const response = await this.client.get(`/api/stock/${encodeURIComponent(symbol)}/pe-percentile`, { timeout: 60000 });
+    return this.unwrap<any>(response.data, 'getPePercentile');
+  }
+
+  /**
    * Get competition analysis
    */
   async getCompetitionAnalysis(

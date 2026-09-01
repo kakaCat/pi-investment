@@ -58,7 +58,12 @@ export class ModelPredictTool extends BaseTool<ModelPredictParams, any> {
   }
 
   protected async execute(args: ModelPredictParams, _context: ToolContext): Promise<any> {
-    const result = await this.qv2.mlPredict({ symbols: args.symbols.map(String) });
+    // 2026-09-02：默认 lightgbm（每日重训、特征与 DB 因子同源）；
+    // xgboost 为 2026-05 旧模型，特征名不匹配 → 恒定 0.4659 不可信
+    const result = await this.qv2.mlPredict({
+      symbols: args.symbols.map(String),
+      model_type: args.model_type || 'lightgbm',
+    });
     return sanitizeLossless({
       predictions: result?.predictions ?? [],
       model_gate: result?.model_gate ?? null,

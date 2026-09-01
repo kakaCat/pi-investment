@@ -13,6 +13,7 @@ import { createStrategyListTool } from './tools/StrategyListTool';
 import { createEventCalendarTool } from './tools/EventCalendarTool';
 import { createStockIntelTool } from './tools/StockIntelTool';
 import { createTradingCalendarTool } from './tools/TradingCalendarTool';
+import { createPePercentileTool } from './tools/PePercentileTool';
 
 // ========== Plugin Config Schema ==========
 
@@ -92,5 +93,8 @@ export default class InvestmentPlugin extends Service {
 
     // 11. 交易日历 - P0（是否交易日判断，含周末兜底）
     reg(createTradingCalendarTool(qv2));
+
+    // 12. PE 历史分位 - 估值贵贱/策略性质判定（2026-09-02）
+    reg(createPePercentileTool(qv2));
   }
 }
