@@ -1154,6 +1154,7 @@ class SchedulerService:
             "v13_weekly_report": self._handle_v13_weekly_report,
             "v14_daily_check": self._handle_v14_daily_check,
             "financial_statement_update": self._handle_financial_statement_update,
+            "fund_flow_update": self._handle_fund_flow_update,
         }
 
         handler = handlers.get(command)
@@ -1179,6 +1180,11 @@ class SchedulerService:
     def _handle_chip_distribution_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """筹码分布日更：委托 infrastructure.jobs.chip_distribution_update_job.execute（增量，幂等）"""
         from infrastructure.jobs.chip_distribution_update_job import execute
+        return execute(**(params or {}))
+
+    def _handle_fund_flow_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """全市场资金流向每日采集：委托 fund_flow_update_job.execute"""
+        from infrastructure.jobs.fund_flow_update_job import execute
         return execute(**(params or {}))
 
     # -- 2026-08-13 自 scheduler_daemon 迁入的任务（薄封装委托原 job） --
