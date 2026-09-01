@@ -62,6 +62,14 @@ async def lifespan(app: FastAPI):
     # 启动时
     logger.info("🚀 FastAPI application starting...")
 
+    # 初始化 JobRegistry（2026-09-01: scheduler 重构，优先使用 JobRegistry）
+    try:
+        from application.jobs.registry_setup import register_all_jobs
+        register_all_jobs()
+        logger.info("✅ JobRegistry initialized (28 jobs registered)")
+    except Exception as e:
+        logger.error(f"❌ JobRegistry initialization failed: {e}")
+
     # 初始化数据库引擎
     try:
         from infrastructure.persistence.database.engine import init_engine
@@ -753,6 +761,16 @@ def register_routes():
     except ImportError as e:
         optional_failed.append("alerts")
         logger.warning(f"⚠️ Failed to import alerts_async: {e}")
+
+    # 事件日历（events 域，event_calendar 工具依赖；2026-09-01 补注册——
+    # events_async.py 早已存在但从未 include，/api/events/upcoming 一直 404）
+    try:
+        from adapters.inbound.fastapi_app.routes.events_async import router as events_router
+        app.include_router(events_router)
+        logger.info("✅ Registered: events (事件日历)")
+    except ImportError as e:
+        optional_failed.append("events")
+        logger.warning(f"⚠️ Failed to import events_async: {e}")
 
     # Agent 会话事件（sessions 域，parity 迁移——syncer 事件摄入 + web 查询/诊断）
     try:

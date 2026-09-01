@@ -12,6 +12,7 @@
 规范：查询一律走 Repository（MarketRegimeRepository 等），路由层禁止裸 SQL。
 """
 from typing import Optional
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel, Field
@@ -158,3 +159,41 @@ async def update_theme_catalyst(theme_id: int, req: UpdateThemeCatalystRequest):
             status_code=404,
             detail=f"Theme ID {theme_id} 不存在或无可更新字段")
     return {"success": True, "updated": obj.to_dict()}
+
+
+@router.get("/panic-index")
+def get_panic_index(date: Optional[str] = None):
+    """散户恐慌指数当前值（M7-2 端点补全，2026-09-01）。
+
+    端点曾缺失（client 调用 404），服务实现早已存在
+    （retail_panic_index_service.compute_index）。本端点补齐路由层。
+    """
+    from application.services.retail_panic_index_service import RetailPanicIndexService
+    try:
+        result = RetailPanicIndexService().compute_index(trade_date=date)
+        return {"success": True, "data": result}
+    except Exception as e:
+        logger.error(f"panic-index 计算失败: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/panic-index/series")
+def get_panic_index_series(days: int = 30):
+    """散户恐慌指数时间序列（最近 N 日）。"""
+    from application.services.retail_panic_index_service import RetailPanicIndexService
+    from datetime import timedelta
+
+    days = max(1, min(days, 60))
+    svc = RetailPanicIndexService()
+    series = []
+    today = datetime.now().date()
+    for i in range(days):
+        d = (today - timedelta(days=i)).strftime('%Y-%m-%d')
+        try:
+            r = svc.compute_index(trade_date=d)
+            if r and r.get('panic_index') is not None:
+                series.append(r)
+        except Exception as e:
+            logger.warning(f"panic-index {d} 计算失败: {e}")
+    series.reverse()
+    return {"success": True, "data": {"days": days, "series": series}}

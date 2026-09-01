@@ -184,3 +184,64 @@ risk_repo = get_risk_repo
 execution_repo = get_execution_repo
 backtest_repo = get_backtest_repo
 simulation_repo = get_simulation_repo
+
+
+# ────────────────────────────────────────────────────────────
+# 2026-09-01 修复：模块级 __getattr__ 惰性兜底裸服务名
+#
+# 背景：55c0ce73 rewrite 后本文件只剩 getter 函数，但 22 处路由模块仍以
+# `from adapters.shared.services import backtest_engine` 等裸名导入——
+# 全部 ImportError → 19 个路由模块注册失败（strategy_list/alerts/events/
+# trade-verify/risk 等业务面残缺）。
+#
+# 本 __getattr__ 把裸名惰性转发到对应 get_<name>() 调用（PEP 562）：
+#   from adapters.shared.services import backtest_engine
+#   → 等价于 get_backtest_engine() 的返回实例
+# 惰性保证不在 import 时触发 ServiceFactory 解析（避免回测循环依赖复发，
+# 见 adapters/shared/__init__.py 注释）。
+# ────────────────────────────────────────────────────────────
+
+# 裸名与 getter 名不一致的特例
+_LAZY_NAME_ALIASES = {
+    'ds': 'get_data_service',
+}
+
+
+class _LazyServiceProxy:
+    """惰性服务代理：from-import 时只拿到代理，首次真正调用才解析服务。
+
+    必要性：PEP 562 __getattr__ 在 from-import 时被立即调用，若直接返回
+    get_xxx() 的解析结果，会在应用启动早期（ServiceFactory/ORM 未就绪）
+    触发深层依赖解析失败（实测：IStockRepository not registered）。
+    代理把解析推迟到首个方法/属性访问——此时应用通常已就绪。
+    """
+
+    __slots__ = ('_getter', '_resolved', '_lock')
+
+    def __init__(self, getter):
+        object.__setattr__(self, '_getter', getter)
+        object.__setattr__(self, '_resolved', None)
+
+    def _resolve(self):
+        resolved = object.__getattribute__(self, '_resolved')
+        if resolved is None:
+            resolved = object.__getattribute__(self, '_getter')()
+            object.__setattr__(self, '_resolved', resolved)
+        return resolved
+
+    def __getattr__(self, item):
+        return getattr(self._resolve(), item)
+
+    def __call__(self, *args, **kwargs):
+        return self._resolve()(*args, **kwargs)
+
+    def __repr__(self):
+        return f'<LazyServiceProxy {object.__getattribute__(self, "_getter").__name__}>'
+
+
+def __getattr__(name):
+    getter_name = _LAZY_NAME_ALIASES.get(name, f'get_{name}')
+    getter = globals().get(getter_name)
+    if callable(getter):
+        return _LazyServiceProxy(getter)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
