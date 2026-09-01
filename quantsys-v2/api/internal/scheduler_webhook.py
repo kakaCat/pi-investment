@@ -296,112 +296,31 @@ async def _write_run_to_database(
     result: Any,
     error_msg: str | None,
 ):
-    """Write run record to local PostgreSQL database.
+    from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
 
-    This maintains local audit trail of all job executions, even when
-    executed via Agent OS scheduler.
+    repo = SchedulerRepository()
 
-    Args:
-        run_id: Run UUID (generated locally)
-        job_id: Job UUID from Agent OS
-        job_name: Human-readable job name
-        status: "success" or "failed"
-        started_at: Execution start time
-        completed_at: Execution end time
-        result: Job result dictionary
-        error_msg: Error message if failed
-    """
-    import json
-
-    import psycopg2
-    from psycopg2.extras import RealDictCursor
-
-    from infrastructure.persistence.database.engine import get_engine
-
-    engine = get_engine()
-    conn = engine.raw_connection()
-
-    try:
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-        # We need to get or create a task_id for the scheduler_runs table
-        # First, check if a task exists with this job name
-        cursor.execute(
-            "SELECT id FROM quant.scheduler_tasks WHERE name = %s", (job_name,)
+    task = repo.get_task_by_name(job_name)
+    if task:
+        task_id = task["id"]
+    else:
+        task_id = repo.add_task(
+            name=job_name,
+            cron_expression="managed_by_agent_os",
+            command="agent_os_webhook",
+            params={"job_id": job_id, "managed_by": "agent_os"},
+            description=f"Agent OS managed job (job_id={job_id})",
         )
-        row = cursor.fetchone()
+        repo.disable_task(task_id)
 
-        if row:
-            task_id = row["id"]
-        else:
-            # Create a placeholder task for Agent OS jobs
-            # This maintains compatibility with existing schema.
-            # MUST be is_enabled=false: the legacy SchedulerService polls
-            # `WHERE is_enabled = true` and would execute the placeholder
-            # (cron 'managed_by_agent_os') as junk runs (2026-08-18).
-            cursor.execute(
-                """
-                INSERT INTO quant.scheduler_tasks
-                    (name, description, cron_expression, command, params, is_enabled)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (name) DO UPDATE SET updated_at = now()
-                RETURNING id
-                """,
-                (
-                    job_name,
-                    f"Agent OS managed job (job_id={job_id})",
-                    "managed_by_agent_os",  # Placeholder cron
-                    "agent_os_webhook",  # Placeholder command
-                    json.dumps({"job_id": job_id, "managed_by": "agent_os"}),
-                    False,
-                ),
-            )
-            task_id = cursor.fetchone()["id"]
-
-        # Insert run record — id is a bigint identity column, let the
-        # sequence assign it (the uuid run_id must NOT go into it;
-        # 2026-08-18: InvalidTextRepresentation killed every local write)
-        duration_ms = int((completed_at - started_at).total_seconds() * 1000)
-        result_json = json.dumps(result) if result else None
-
-        cursor.execute(
-            """
-            INSERT INTO quant.scheduler_runs
-                (task_id, status, started_at, completed_at, duration_ms, result, error)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                task_id,
-                status,
-                started_at,
-                completed_at,
-                duration_ms,
-                result_json,
-                error_msg,
-            ),
-        )
-
-        # Update task's last run status
-        cursor.execute(
-            """
-            UPDATE quant.scheduler_tasks
-            SET last_run_at = %s, last_status = %s, last_error = %s, updated_at = now()
-            WHERE id = %s
-            """,
-            (started_at, status, error_msg, task_id),
-        )
-
-        conn.commit()
-        logger.debug(f"Wrote run record to database: run_id={run_id}, task_id={task_id}")
-
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"Database write failed: {e}", exc_info=True)
-        raise
-    finally:
-        if cursor:
-            cursor.close()
-        conn.close()
+    run_db_id = repo.create_run(task_id)
+    repo.complete_run(
+        run_db_id,
+        success=(status == "success"),
+        result=result,
+        error=error_msg,
+    )
+    logger.debug(f"Wrote run record to database: run_id={run_id}, task_id={task_id}")
 
 
 # ==================== Auto-import Handlers ====================

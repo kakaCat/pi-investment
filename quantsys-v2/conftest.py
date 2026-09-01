@@ -22,6 +22,27 @@ try:
 except ImportError:
     collect_ignore.append("tests/services/test_risk_metrics_service.py")
 
+# ── Module-level stub for EnhancedServiceFactory ──
+# Route modules (shared.py → adapters.shared.__init__.__getattr__) trigger
+# EnhancedServiceFactory.resolve() at import / collection time.
+# In test environments the factory is not initialized, so resolve() would raise
+# ValueError("Service not registered: ..."). We patch it here to return a
+# MagicMock, allowing tests that don't depend on real services to collect.
+try:
+    from unittest.mock import MagicMock as _MagicMock
+    import infrastructure.services.enhanced_service_factory as _esf
+    _original_resolve = _esf.EnhancedServiceFactory.resolve
+
+    def _safe_resolve(service_type, *args, **kwargs):
+        try:
+            return _original_resolve(service_type, *args, **kwargs)
+        except (ValueError, KeyError):
+            return _MagicMock()
+
+    _esf.EnhancedServiceFactory.resolve = staticmethod(_safe_resolve)
+except Exception:
+    pass  # If import fails, tests that need real services will still work
+
 
 def pytest_configure(config):
     """Load test environment variables before running tests."""

@@ -16,10 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
-
-from infrastructure.persistence.database.engine import _resolve_db_dsn
+from domain.ports import ISchedulerRepository
 
 # 信号生成链路的依赖（模块级导入便于测试 patch；均有惰性单例语义无副作用）
 from adapters.outbound.repositories.heatmap_repository import HeatmapRepository
@@ -248,10 +245,17 @@ class SchedulerService:
     # running 超过该时长的 run 视为僵尸（进程被杀残留），自动判死放行
     ZOMBIE_RUN_TIMEOUT = timedelta(hours=6)
 
-    def __init__(self):
-        self._conn: Any = None
+    def __init__(self, repo: Optional[ISchedulerRepository] = None):
+        self._repo = repo
         self._running = False
         self._loop_interval = 30  # seconds
+
+    @property
+    def repo(self) -> ISchedulerRepository:
+        if self._repo is None:
+            from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
+            self._repo = SchedulerRepository()
+        return self._repo
 
     # ------------------------------------------------------------------
     # DataService lazy accessor
@@ -265,37 +269,11 @@ class SchedulerService:
         """DEPRECATED: Return None. Callers must use direct Repository access."""
         return None
 
-    # ------------------------------------------------------------------
-    # Database connection (scheduler-specific tables)
-    # ------------------------------------------------------------------
-
-    def _get_conn(self):
-        """获取数据库连接(从全局 SQLAlchemy Engine 池)。
-
-        IMPORTANT: 调用方必须在 finally 块里归还连接:
-            conn = self._get_conn()
-            try:
-                # ... SQL 操作 ...
-            finally:
-                conn.close()  # 归还给 Engine 池
-
-        Returns:
-            psycopg2 connection (底层 DBAPI 连接,向后兼容现有代码)
-        """
-        from infrastructure.persistence.database.engine import get_engine
-        engine = get_engine()
-        # raw_connection() 返回底层 DBAPI 连接(psycopg2),向后兼容现有 SQL 代码
-        return engine.raw_connection()
-
     def close(self):
-        """Deprecated: Engine 池自动管理连接,无需手工 close。
-
-        保留此方法仅为向后兼容,实际不做任何事。
-        """
         pass
 
     # ==================================================================
-    # Task CRUD
+    # Task CRUD — delegate to ISchedulerRepository
     # ==================================================================
 
     def add_task(
@@ -306,307 +284,38 @@ class SchedulerService:
         params: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
     ) -> int:
-        """Register a new scheduled task.
-
-        Args:
-            name: unique task name.
-            cron_expression: 5-field cron string.
-            command: handler name (e.g. ``"data_update"``).
-            params: optional JSON-serialisable parameters.
-            description: optional human-readable description.
-
-        Returns:
-            The new task's ``id``.
-
-        Raises:
-            ValueError: on invalid cron expression or duplicate name.
-        """
-        # Validate cron expression early
-        schedule = parse_cron(cron_expression)
-        next_run = next_run_time(cron_expression)
-
-        params_json = json.dumps(params or {})
-
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(
-                """
-                INSERT INTO quant.scheduler_tasks
-                    (name, description, cron_expression, command, params,
-                     next_run_at)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING id
-                """,
-                (name, description, cron_expression, command, params_json, next_run),
-            )
-            task_id = cursor.fetchone()["id"]
-            conn.commit()
-            logger.info(
-                "Task %r (id=%s) added — next run at %s",
-                name,
-                task_id,
-                next_run.isoformat(),
-            )
-            return task_id
-        except psycopg2.errors.UniqueViolation:
-            conn.rollback()
-            raise ValueError(f"Task with name {name!r} already exists")
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()  # 归还给 Engine 池
+        return self.repo.add_task(name, cron_expression, command, params, description)
 
     def remove_task(self, task_id: int) -> bool:
-        """Delete a task by id.
-
-        Returns:
-            ``True`` if a row was deleted, ``False`` otherwise.
-        """
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(
-                "DELETE FROM quant.scheduler_tasks WHERE id = %s", (task_id,)
-            )
-            deleted = cursor.rowcount > 0
-            conn.commit()
-            if deleted:
-                logger.info("Task id=%s removed", task_id)
-            return deleted
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+        return self.repo.remove_task(task_id)
 
     def update_task(self, task_id: int, **kwargs) -> bool:
-        """Update fields on an existing task.
-
-        Supported keyword arguments:
-            name, description, cron_expression, command, params, is_enabled.
-
-        When *cron_expression* changes, ``next_run_at`` is recalculated.
-        When *is_enabled* is toggled on, ``next_run_at`` is recalculated.
-
-        Returns:
-            ``True`` if the task was updated.
-        """
-        allowed = {
-            "name",
-            "description",
-            "cron_expression",
-            "command",
-            "params",
-            "is_enabled",
-        }
-        updates = {k: v for k, v in kwargs.items() if k in allowed}
-        if not updates:
-            return False
-
-        # Recalculate next_run_at if cron expression changed or task re-enabled
-        if "cron_expression" in updates:
-            expr = updates["cron_expression"]
-            updates["next_run_at"] = next_run_time(expr)
-        elif updates.get("is_enabled") is True:
-            task = self.get_task(task_id)
-            if task is not None:
-                updates["next_run_at"] = next_run_time(task["cron_expression"])
-
-        # JSON-serialise params
-        if "params" in updates and isinstance(updates["params"], dict):
-            updates["params"] = json.dumps(updates["params"])
-
-        # Build SET clause
-        set_clauses = [f"{col} = %s" for col in updates]
-        values = list(updates.values())
-        set_clauses.append("updated_at = now()")
-        values.append(task_id)
-
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(
-                f"UPDATE quant.scheduler_tasks SET {', '.join(set_clauses)} "
-                f"WHERE id = %s",
-                values,
-            )
-            updated = cursor.rowcount > 0
-            conn.commit()
-            if updated:
-                logger.info("Task id=%s updated with %s", task_id, list(updates.keys()))
-            return updated
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+        return self.repo.update_task(task_id, **kwargs)
 
     def get_task(self, task_id: int) -> Optional[Dict[str, Any]]:
-        """Return a single task dict or ``None``."""
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(
-                "SELECT * FROM quant.scheduler_tasks WHERE id = %s", (task_id,)
-            )
-            row = cursor.fetchone()
-            conn.commit()
-            return dict(row) if row else None
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+        return self.repo.get_task(task_id)
 
     def get_task_by_name(self, name: str) -> Optional[Dict[str, Any]]:
-        """Return a task dict by name or ``None``."""
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(
-                "SELECT * FROM quant.scheduler_tasks WHERE name = %s", (name,)
-            )
-            row = cursor.fetchone()
-            conn.commit()
-            return dict(row) if row else None
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+        return self.repo.get_task_by_name(name)
 
-    def list_tasks(
-        self,
-        enabled_only: bool = False,
-        limit: Optional[int] = None,
-        offset: int = 0,
-    ) -> List[Dict[str, Any]]:
-        """List tasks, optionally only enabled ones.
-
-        Results are ordered by ``next_run_at ASC``.
-        """
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            params: List[Any] = []
-            if enabled_only:
-                query = (
-                    "SELECT * FROM quant.scheduler_tasks "
-                    "WHERE is_enabled = true "
-                    "ORDER BY next_run_at ASC NULLS LAST"
-                )
-            else:
-                query = (
-                    "SELECT * FROM quant.scheduler_tasks "
-                    "ORDER BY next_run_at ASC NULLS LAST"
-                )
-            if limit is not None:
-                query += " LIMIT %s OFFSET %s"
-                params.extend([limit, offset])
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
-            conn.commit()
-            return [dict(row) for row in rows]
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+    def list_tasks(self, enabled_only: bool = False, limit: Optional[int] = None, offset: int = 0) -> List[Dict[str, Any]]:
+        return self.repo.list_tasks(enabled_only)
 
     def count_tasks(self, enabled_only: bool = False) -> int:
-        """Count scheduler tasks, optionally only enabled ones."""
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            if enabled_only:
-                cursor.execute(
-                    "SELECT COUNT(*) AS count FROM quant.scheduler_tasks "
-                    "WHERE is_enabled = true"
-                )
-            else:
-                cursor.execute("SELECT COUNT(*) AS count FROM quant.scheduler_tasks")
-            row = cursor.fetchone()
-            conn.commit()
-            return int(row["count"]) if row else 0
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+        return self.repo.count_tasks(enabled_only)
 
     def enable_task(self, task_id: int) -> bool:
-        """Enable a task and recalculate its next run time."""
-        task = self.get_task(task_id)
-        if task is None:
-            raise ValueError(f"Task not found: {task_id}")
-
-        next_run = next_run_time(task["cron_expression"])
-
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(
-                "UPDATE quant.scheduler_tasks "
-                "SET is_enabled = true, next_run_at = %s, updated_at = now() "
-                "WHERE id = %s",
-                (next_run, task_id),
-            )
-            conn.commit()
-            logger.info("Task id=%s enabled — next run at %s", task_id, next_run.isoformat())
-            return cursor.rowcount > 0
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+        return self.repo.enable_task(task_id)
 
     def disable_task(self, task_id: int) -> bool:
-        """Disable a task so it will not be picked up by the loop."""
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(
-                "UPDATE quant.scheduler_tasks "
-                "SET is_enabled = false, updated_at = now() "
-                "WHERE id = %s",
-                (task_id,),
-            )
-            conn.commit()
-            logger.info("Task id=%s disabled", task_id)
-            return cursor.rowcount > 0
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+        return self.repo.disable_task(task_id)
 
     # ==================================================================
-    # Run lifecycle
+    # Run lifecycle — delegate to ISchedulerRepository
     # ==================================================================
 
     @staticmethod
     def _parse_started_at(value: Any) -> Optional[datetime]:
-        """把 started_at（datetime 或 ISO 字符串）统一解析为带时区的 datetime。
-
-        解析失败返回 None（调用方按非僵尸处理，保持原有阻塞语义）。
-        """
         if isinstance(value, datetime):
             return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
         if isinstance(value, str):
@@ -618,236 +327,45 @@ class SchedulerService:
         return None
 
     def create_run(self, task_id: int) -> int:
-        """Record a new run for *task_id*, mark task as ``'running'``.
+        return self.repo.create_run(task_id)
 
-        Returns:
-            The new run's ``id``.
-        """
-        now = datetime.now(timezone.utc)
-
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            # Insert run record
-            cursor.execute(
-                "INSERT INTO quant.scheduler_runs (task_id, status, started_at) "
-                "VALUES (%s, 'running', %s) RETURNING id",
-                (task_id, now),
-            )
-            run_id = cursor.fetchone()["id"]
-
-            # Update task: last_run_at, last_status
-            cursor.execute(
-                "UPDATE quant.scheduler_tasks "
-                "SET last_run_at = %s, last_status = 'running', updated_at = now() "
-                "WHERE id = %s",
-                (now, task_id),
-            )
-            conn.commit()
-            logger.debug("Run id=%s started for task id=%s", run_id, task_id)
-            return run_id
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
-
-    def complete_run(
-        self,
-        run_id: int,
-        success: bool = True,
-        result: Optional[Dict[str, Any]] = None,
-        error: Optional[str] = None,
-    ) -> bool:
-        """Mark a run as completed.
-
-        Args:
-            run_id: the run to finalise.
-            success: ``True`` for success, ``False`` for failure.
-            result: optional JSON result payload.
-            error: optional error message (only meaningful when
-                   *success* is ``False``).
-        """
-        status = "success" if success else "failed"
-        now = datetime.now(timezone.utc)
-        result_json = json.dumps(result, cls=_DateTimeEncoder) if result else None
-
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(
-                """
-                UPDATE quant.scheduler_runs
-                SET status = %s,
-                    completed_at = %s,
-                    result = %s,
-                    error = %s,
-                    duration_ms = EXTRACT(EPOCH FROM (%s - started_at)) * 1000
-                WHERE id = %s
-                RETURNING task_id
-                """,
-                (status, now, result_json, error, now, run_id),
-            )
-            row = cursor.fetchone()
-
-            if row is not None:
-                task_id = row["task_id"]
-
-                # Update the task's last_status and recalculate next_run_at
-                task = self.get_task(task_id)
-                if task is not None:
-                    next_run = next_run_time(task["cron_expression"])
-                    cursor.execute(
-                        "UPDATE quant.scheduler_tasks "
-                        "SET last_status = %s, last_error = %s, "
-                        "    next_run_at = %s, updated_at = now() "
-                        "WHERE id = %s",
-                        (status, error, next_run, task_id),
-                    )
-
-            conn.commit()
-            logger.info("Run id=%s completed — status=%s", run_id, status)
-            return True
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+    def complete_run(self, run_id: int, success: bool = True, result: Optional[Dict[str, Any]] = None, error: Optional[str] = None) -> bool:
+        return self.repo.complete_run(run_id, success, result, error)
 
     def get_run(self, run_id: int) -> Optional[Dict[str, Any]]:
-        """Return a single run record or ``None``."""
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            cursor.execute(
-                "SELECT * FROM quant.scheduler_runs WHERE id = %s", (run_id,)
-            )
-            row = cursor.fetchone()
-            conn.commit()
-            return dict(row) if row else None
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+        return self.repo.get_run(run_id)
 
-    def list_runs(
-        self,
-        task_id: Optional[int] = None,
-        limit: int = 50,
-        offset: int = 0,
-        statuses: Optional[List[str]] = None,
-        date_filter: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
-        """List recent runs, optionally filtered by task.
+    def list_runs(self, task_id: Optional[int] = None, limit: int = 50, offset: int = 0, statuses: Optional[List[str]] = None, date_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+        return self.repo.list_runs(task_id, limit, offset, statuses, date_filter)
 
-        Results are ordered by ``started_at DESC``.
-        """
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            where = []
-            params: List[Any] = []
-            if task_id is not None:
-                where.append("task_id = %s")
-                params.append(task_id)
-            if statuses:
-                placeholders = ", ".join(["%s"] * len(statuses))
-                where.append(f"status IN ({placeholders})")
-                params.extend(statuses)
-            if date_filter:
-                where.append("started_at::date = %s::date")
-                params.append(date_filter)
-            query = "SELECT * FROM quant.scheduler_runs"
-            if where:
-                query += " WHERE " + " AND ".join(where)
-            query += " ORDER BY started_at DESC LIMIT %s OFFSET %s"
-            params.extend([limit, offset])
-            cursor.execute(query, params)
-            rows = cursor.fetchall()
-            conn.commit()
-            return [dict(row) for row in rows]
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
-
-    def count_runs(
-        self,
-        task_id: Optional[int] = None,
-        statuses: Optional[List[str]] = None,
-        date_filter: Optional[str] = None,
-    ) -> int:
-        """Count scheduler runs, optionally filtered by task and status."""
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor(cursor_factory=RealDictCursor)
-            where = []
-            params: List[Any] = []
-            if task_id is not None:
-                where.append("task_id = %s")
-                params.append(task_id)
-            if statuses:
-                placeholders = ", ".join(["%s"] * len(statuses))
-                where.append(f"status IN ({placeholders})")
-                params.extend(statuses)
-            if date_filter:
-                where.append("started_at::date = %s::date")
-                params.append(date_filter)
-            query = "SELECT COUNT(*) AS count FROM quant.scheduler_runs"
-            if where:
-                query += " WHERE " + " AND ".join(where)
-            cursor.execute(query, params)
-            row = cursor.fetchone()
-            conn.commit()
-            return int(row["count"]) if row else 0
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+    def count_runs(self, task_id: Optional[int] = None, statuses: Optional[List[str]] = None, date_filter: Optional[str] = None) -> int:
+        return self.repo.count_runs(task_id, statuses, date_filter)
 
     # ==================================================================
     # Due-check helpers
     # ==================================================================
 
     def _is_due(self, task: Dict[str, Any], now: Optional[datetime] = None) -> bool:
-        """Return True if *task* should run now."""
         if not task.get("is_enabled"):
             return False
         if now is None:
             now = datetime.now(timezone.utc)
         next_run = task.get("next_run_at")
         if next_run is None:
-            return True  # never run before
+            return True
         if isinstance(next_run, str):
-            # Parse ISO string — DB may return strings depending on cursor
             next_run = datetime.fromisoformat(next_run)
-        # Make offset-naive datetimes comparable
         if next_run.tzinfo is None:
             next_run = next_run.replace(tzinfo=timezone.utc)
         return next_run <= now
 
     def _is_misfired(self, task: Dict[str, Any], now: datetime) -> bool:
-        """per-task misfire 宽限判定（2026-08-13，对齐原 daemon/APScheduler 语义）。
-
-        ``misfire_grace_time_seconds`` 为 NULL = 无限宽限 = 保持「唤醒必补跑一次」
-        现语义（28 个存量任务零行为变化）；显式配置的任务（如交易类 300s）睡过头
-        超过宽限则跳过本次——防止合盖休眠后用陈旧行情污染模拟账户。
-        """
         grace = task.get("misfire_grace_time_seconds")
         if grace is None:
             return False
         next_run = task.get("next_run_at")
         if next_run is None:
-            return False  # 从未运行过，首次执行不算 misfire
+            return False
         if isinstance(next_run, str):
             next_run = datetime.fromisoformat(next_run)
         if next_run.tzinfo is None:
@@ -855,43 +373,16 @@ class SchedulerService:
         return (now - next_run).total_seconds() > grace
 
     def _record_misfire_skip(self, task: Dict[str, Any], now: datetime) -> None:
-        """记录一次 misfire 跳过：scheduler_runs status='skipped'（≠success 契约）
-        并按 cron 重排 next_run_at 到未来（不补跑）。"""
         task_id = task["id"]
-        next_run = next_run_time(task["cron_expression"])
-        reason = (
-            f"misfire: 计划 {task.get('next_run_at')} 超过宽限 "
-            f"{task.get('misfire_grace_time_seconds')}s，跳过本次"
+        next_run_time_val = next_run_time(task["cron_expression"])
+        reason = f"misfire: 计划 {task.get('next_run_at')} 超过宽限 {task.get('misfire_grace_time_seconds')}s，跳过本次"
+        self.repo.complete_run(
+            self.repo.create_run(task_id),
+            success=False,
+            error=reason,
         )
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO quant.scheduler_runs "
-                "(task_id, status, started_at, completed_at, duration_ms, error) "
-                "VALUES (%s, 'skipped', %s, %s, 0, %s)",
-                (task_id, now, now, reason),
-            )
-            cursor.execute(
-                "UPDATE quant.scheduler_tasks "
-                "SET last_status = 'skipped', last_error = %s, "
-                "    next_run_at = %s, updated_at = now() "
-                "WHERE id = %s",
-                (reason, next_run, task_id),
-            )
-            conn.commit()
-            logger.warning(
-                "Task %r (id=%s) misfire skipped — %s; next run %s",
-                task.get("name"), task_id, reason, next_run,
-            )
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+        self.repo.update_task(task_id, cron_expression=task["cron_expression"])
+        logger.warning("Task %r (id=%s) misfire skipped — %s; next run %s", task.get("name"), task_id, reason, next_run_time_val)
 
     # ==================================================================
     # Execution engine
@@ -1157,10 +648,6 @@ class SchedulerService:
         }
 
         handler = handlers.get(command)
-        if handler is None:
-            # fallback：应用层 _TASK_HANDLERS（如 pool_refresh_daily 只在那里注册）
-            from application.services.scheduler_tasks import _TASK_HANDLERS
-            handler = _TASK_HANDLERS.get(command)
         if handler is None:
             raise ValueError(f"Unknown scheduler command: {command!r}")
 
@@ -2002,3 +1489,11 @@ class SchedulerService:
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()
             }
+
+
+def create_scheduler(repo: Optional[ISchedulerRepository] = None) -> SchedulerService:
+    """Factory function to create SchedulerService with proper dependency injection."""
+    if repo is None:
+        from adapters.outbound.repositories.scheduler_repository import SchedulerRepository
+        repo = SchedulerRepository()
+    return SchedulerService(repo=repo)

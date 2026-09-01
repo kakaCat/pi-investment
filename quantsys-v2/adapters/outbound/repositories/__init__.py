@@ -43,7 +43,6 @@ from .market_perception_repository import (
 )
 
 # 批次4（调度器和监控）✅
-from .scheduler_config_repository import SchedulerConfigORMRepository
 from .condition_rule_repository import ConditionRuleORMRepository, ConditionResultORMRepository
 
 __all__ = [
@@ -87,7 +86,6 @@ __all__ = [
     'MarketThemeRepository',
 
     # 批次4（调度器和监控）
-    'SchedulerConfigORMRepository',
     'ConditionRuleORMRepository',
     'ConditionResultORMRepository',
 ]

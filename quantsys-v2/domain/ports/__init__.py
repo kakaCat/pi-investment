@@ -17,6 +17,7 @@ from .repository_ports import (
     IRiskRepository,
     IFactorRepository,
     IStrategyRepository,
+    ISchedulerRepository,
 )
 
 from .repository_ports_extended import (
@@ -52,6 +53,7 @@ __all__ = [
     'IRiskRepository',
     'IFactorRepository',
     'IStrategyRepository',
+    'ISchedulerRepository',
     # 扩展接口
     'IStockRepository',
     'IBacktestRepository',
