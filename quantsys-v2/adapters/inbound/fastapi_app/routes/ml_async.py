@@ -239,6 +239,27 @@ def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": f"模型加载失败: {str(e)}"})
 
+    # ── M8-2 上线门禁（2026-09-01）：防止低质模型上线 ──────────────────
+    # test_accuracy < 0.50 低于随机水平（二分类掷硬币 0.5），上线有害 → 拒服
+    # 0.50 ≤ test_accuracy < 0.55 接近随机，预测价值有限 → degraded 标注
+    # 阈值参考：factor freshness 门禁同款分级（正常/warning/拒服）
+    test_accuracy = (predictor.model_info or {}).get("test_accuracy")
+    model_gate: Dict[str, Any] = {"passed": True, "level": "normal"}
+    if test_accuracy is not None:
+        try:
+            acc = float(test_accuracy)
+            if acc < 0.50:
+                return JSONResponse(status_code=200, content={
+                    "success": False,
+                    "error": f"模型上线门禁拦截：{model_type}_{version} test_accuracy={acc:.3f} 低于随机水平(0.50)，预测不可信，拒绝服务",
+                    "model_gate": {"passed": False, "level": "rejected", "test_accuracy": acc},
+                })
+            elif acc < 0.55:
+                model_gate = {"passed": True, "level": "degraded", "test_accuracy": acc,
+                              "warning": f"test_accuracy={acc:.3f} 接近随机(0.50~0.55)，预测价值有限，谨慎使用"}
+        except (TypeError, ValueError):
+            pass
+
     model_features = list(predictor.feature_names or [])
     scaler_path = predictor.model_dir / f"{model_type}_{version}_scaler.pkl"
 
@@ -355,7 +376,7 @@ def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
     except Exception as e:
         logger.warning("Failed to save predictions to traceability: %s", str(e))
 
-    return {"success": True, "data": {"predictions": _sanitize_for_json(deduped)}}
+    return {"success": True, "data": {"predictions": _sanitize_for_json(deduped), "model_gate": model_gate}}
 
 
 @router.get('/api/ml/model/info')
