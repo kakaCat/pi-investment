@@ -42,50 +42,51 @@ def execute_scheduled_job(task_id: int):
     repo = SchedulerRepository(session)
 
     try:
-        # 1. 读取任务定义
+        # 1. 读取任务定义（repo 返回 dict——2026-09-01 修复对象属性混用）
         task = repo.get_task(task_id)
         if not task:
             logger.error(f"Task {task_id} not found in scheduler_tasks")
             return
 
-        if not task.is_enabled:
-            logger.warning(f"Task {task_id} ({task.name}) is disabled, skipping")
+        task_name = task.get('name', f'task-{task_id}')
+        if not task.get('is_enabled'):
+            logger.warning(f"Task {task_id} ({task_name}) is disabled, skipping")
             return
 
         # 2. 检查是否已有运行中的实例（防止并发）
-        running_runs = repo.get_running_runs(task_id)
+        # repo 无 get_running_runs 方法（重构遗漏），用 list_runs(statuses=['running'])
+        running_runs = repo.list_runs(task_id=task_id, statuses=['running'], limit=10)
         if running_runs:
-            # 检查僵尸任务（运行超过 6 小时）
             for run in running_runs:
                 if _is_zombie_run(run):
                     logger.warning(
-                        f"Zombie run detected: run_id={run.id}, "
-                        f"started_at={run.started_at}, marking as failed"
+                        f"Zombie run detected: run_id={run.get('id')}, "
+                        f"started_at={run.get('started_at')}, marking as failed"
                     )
                     repo.complete_run(
-                        run_id=run.id,
+                        run_id=run.get('id'),
                         success=False,
                         error="Zombie process: execution timeout (>6 hours)"
                     )
                 else:
                     logger.warning(
-                        f"Task {task_id} ({task.name}) already running "
-                        f"(run_id={run.id}), skipping"
+                        f"Task {task_id} ({task_name}) already running "
+                        f"(run_id={run.get('id')}), skipping"
                     )
                     return
 
         # 3. 创建执行记录
         run_id = repo.create_run(task_id)
         logger.info(
-            f"Starting task: {task.name} "
-            f"(task_id={task_id}, run_id={run_id}, command={task.command})"
+            f"Starting task: {task_name} "
+            f"(task_id={task_id}, run_id={run_id}, command={task.get('command')})"
         )
 
         start_time = datetime.now()
 
         try:
             # 4. 执行任务（路由到 JobRegistry/Legacy Handler）
-            result = _execute_command(task.command, task.params or {})
+            result = _execute_command(task.get('command'), task.get('params') or {})
 
             # 5. 记录成功
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
@@ -93,11 +94,10 @@ def execute_scheduled_job(task_id: int):
                 run_id=run_id,
                 success=True,
                 result=result,
-                duration_ms=duration_ms
             )
 
             logger.info(
-                f"Task completed successfully: {task.name} "
+                f"Task completed successfully: {task_name} "
                 f"(run_id={run_id}, duration={duration_ms}ms)"
             )
 
@@ -108,11 +108,10 @@ def execute_scheduled_job(task_id: int):
                 run_id=run_id,
                 success=False,
                 error=str(e),
-                duration_ms=duration_ms
             )
 
             logger.exception(
-                f"Task failed: {task.name} "
+                f"Task failed: {task_name} "
                 f"(run_id={run_id}, duration={duration_ms}ms, error={e})"
             )
 
@@ -236,16 +235,26 @@ def _is_zombie_run(run) -> bool:
     判断是否为僵尸任务（运行超过 6 小时）
 
     Args:
-        run: SchedulerRun 对象
+        run: SchedulerRun dict（repo._row_to_dict 返回，started_at 为 ISO 字符串或 None）
+        ——2026-09-01 修复：原按 ORM 对象访问，repo 实际返回 dict
 
     Returns:
         True 如果是僵尸任务
     """
-    if run.started_at is None:
+    raw = run.get('started_at') if isinstance(run, dict) else getattr(run, 'started_at', None)
+    if raw is None:
         return False
 
+    # dict 路径：ISO 字符串解析
+    if isinstance(raw, str):
+        try:
+            started_at = datetime.fromisoformat(raw)
+        except ValueError:
+            return False
+    else:
+        started_at = raw
+
     # 确保 started_at 有时区信息
-    started_at = run.started_at
     if started_at.tzinfo is None:
         started_at = started_at.replace(tzinfo=timezone.utc)
 
