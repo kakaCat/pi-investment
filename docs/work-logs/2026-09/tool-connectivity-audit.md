@@ -127,6 +127,12 @@
 
 - **kline 数据源污染（signal_track 回填脏数据根因）**：000001/000016/000905 的 daily_klines 被指数点位覆盖（`_is_index_symbol` 白名单误判——000001 上证指数 vs 平安银行等 4 组双身份代码）。已删 326 行污染行（备份至 quant.daily_klines_polluted_backup_20260901），`_is_index_symbol` 加 stocks 表 list_date 校验根治。注：000001 6 月前历史数据亦混入指数点位，删除后 8/20-8/21、8/28-9/01 缺行，待网络恢复后 kline_daily_sync 股票路径补齐；其余持仓股（600519/300750/002241/601288/000858）K 线核对正常
 - **v2_health_check 首跑告警**：34 启用任务中 1 僵尸（gem-kline-upd...）+ 24 漏执行——疑似 Agent OS 调度投递层问题，建议维护方排查（见 §7.3 后续）
+- **v2_health_check 首跑告警修复（2026-09-01 深夜第二轮，已闭环）**：告警定性 = **ADR-002 切换日过渡期现象**，非实时故障——上午 v2 以 Agent OS enabled 模式反复重启（本地 APScheduler 未启动），Agent OS 侧又无这 24 任务注册（多为 8/15-8/28 后无调度）；18:51 切换后 job store 已装入全部 34 任务、next_run 全在未来。三处修复 + 一处顺手修：
+  - **find_missed_tasks 口径修复**：新增排除 public.apscheduler_jobs 中 `next_run_time > now` 的"已排期"任务（job id 为 `task_{id}` 映射），切换日 cron 时点已过不补跑是设计内行为，不再误报 24 missed
+  - **find_high_failure_tasks 排除孤儿 run**：error LIKE '%孤儿%' / '%进程重启%' 的 run 不计入失败率（进程重启打断≠任务逻辑失败，用 or_ 处理 error 为 NULL 的正常 run）——每日数据质量检查 3/3=100% 误报消除
+  - **孤儿 run 3240 人工闭环**：20:08 手动 trigger 的 gem-kline-update 历经 3 次进程重启已成真孤儿（无存活线程），DB 闭环为 failed（error 注明"孤儿 run：进程重启遗留，人工闭环"）
+  - **顺手修 webhook 写库 parse_cron bug**：新任务名时 `add_task(cron_expression="managed_by_agent_os")` 触发 parse_cron 抛异常被吞 → run 不落库；修复 `add_task` 与 `complete_run` 对 `managed_by_agent_*` 保留字跳过 cron 校验与 next_run 计算（complete_run 内残留的 parse_cron 曾致 run 卡 running，一并修）。单测：正常 cron 通过、非法 cron 拒绝、保留字接受 ✓
+  - **验证**：v2 重启（fallback 模式 34 任务入 job store）→ webhook 端到端触发 v2_health_check → run 3246 success，`status: ok, summary: {total_enabled:34, zombie:0, missed:0, high_failure:0}, issues:[]`；9/2 早间本地 cron 首跑（每日数据更新 7:30/因子 8:00/信号 8:30 等）可观察自然恢复
 
 ### 7.3 本轮提交
 

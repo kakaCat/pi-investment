@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
 
-from sqlalchemy import and_, func, text
+from sqlalchemy import and_, func, or_, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from domain.ports import ISchedulerRepository
@@ -59,8 +59,11 @@ class SchedulerRepository(ISchedulerRepository):
         if task_type not in valid_types:
             raise ValueError(f"Invalid task_type {task_type!r}, must be one of {valid_types}")
 
-        # 只有 cron 类型需要验证 cron 表达式
-        if task_type == 'cron':
+        # 只有 cron 类型需要验证 cron 表达式；Agent OS 托管伪任务（cron 保留字
+        # managed_by_agent_*）不是真实 cron，跳过校验与 next_run 计算
+        # （2026-09-01 修复：webhook 新任务名写库曾因 parse_cron 抛异常被吞）。
+        _is_agent_os_placeholder = str(cron_expression).startswith("managed_by_agent_")
+        if task_type == 'cron' and not _is_agent_os_placeholder:
             parse_cron(cron_expression)
 
         existing = self.session.query(SchedulerTaskConfig).filter_by(name=name).first()
@@ -69,7 +72,7 @@ class SchedulerRepository(ISchedulerRepository):
 
         # 延迟任务和一次性任务不需要计算 next_run（由 APScheduler 管理）
         next_run = None
-        if task_type == 'cron':
+        if task_type == 'cron' and not _is_agent_os_placeholder:
             next_run = _calc_next_run_time(cron_expression)
 
         config = SchedulerTaskConfig(
@@ -255,7 +258,10 @@ class SchedulerRepository(ISchedulerRepository):
             if config:
                 config.last_status = status
                 config.last_error = error
-                config.next_run_at = _calc_next_run_time(config.cron_expression)
+                # Agent OS 托管伪任务（cron 保留字）无真实调度，跳过 next_run 计算
+                # （2026-09-01 修复：complete_run 曾因 parse_cron 抛异常致 run 卡 running）
+                if not str(config.cron_expression).startswith("managed_by_agent_"):
+                    config.next_run_at = _calc_next_run_time(config.cron_expression)
 
             self.session.commit()
             return True
@@ -344,6 +350,25 @@ class SchedulerRepository(ISchedulerRepository):
     def find_missed_tasks(self, threshold_hours: int = 24) -> List[Dict[str, Any]]:
         try:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=threshold_hours)
+            # ADR-002（2026-09-01）后 v2 本地 APScheduler 为主调度：已入 job store
+            # 且 next_run_time 在未来的任务视为"已排期"，即使 last_run 陈旧也不算
+            # missed（切换日 cron 时点已过不补跑是设计内行为，非故障）。
+            now_epoch = datetime.now(timezone.utc).timestamp()
+            scheduled_task_ids: set = set()
+            try:
+                rows = self.session.execute(
+                    text(
+                        "SELECT id FROM public.apscheduler_jobs "
+                        "WHERE id LIKE 'task_%' AND next_run_time > :now_epoch"
+                    ),
+                    {"now_epoch": now_epoch},
+                ).fetchall()
+                scheduled_task_ids = {
+                    int(r[0].split("_", 1)[1]) for r in rows if "_" in r[0]
+                }
+            except Exception as e:
+                logger.warning(f"apscheduler jobstore query failed, fallback to strict check: {e}")
+
             rows = (
                 self.session.query(SchedulerTaskConfig)
                 .filter(
@@ -353,14 +378,16 @@ class SchedulerRepository(ISchedulerRepository):
                 )
                 .all()
             )
-            return [
-                {
+            result = []
+            for r in rows:
+                if r.id in scheduled_task_ids:
+                    continue  # 已由本地 APScheduler 排期（next_run 在未来），不算 missed
+                result.append({
                     "name": r.name,
                     "cron_expression": r.cron_expression,
                     "last_run_at": r.last_run_at.isoformat() if r.last_run_at else "NEVER",
-                }
-                for r in rows
-            ]
+                })
+            return result
         except Exception:
             self._safe_rollback()
             return []
@@ -370,6 +397,8 @@ class SchedulerRepository(ISchedulerRepository):
     ) -> List[Dict[str, Any]]:
         try:
             cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+            # 排除"孤儿 run"（error 含 孤儿/进程重启 字样）：进程重启打断的 run 是
+            # 调度环境事故，不代表任务逻辑失败，计入失败率会造成误报。
             rows = (
                 self.session.query(
                     SchedulerTaskConfig.name,
@@ -377,7 +406,14 @@ class SchedulerRepository(ISchedulerRepository):
                     func.sum(func.cast(SchedulerRun.status == "failed", func.cast(0, func.cast(1, SchedulerRun.id)))).label("failed"),
                 )
                 .join(SchedulerRun, SchedulerRun.task_id == SchedulerTaskConfig.id)
-                .filter(SchedulerRun.started_at > cutoff)
+                .filter(
+                    SchedulerRun.started_at > cutoff,
+                    or_(
+                        SchedulerRun.error.is_(None),
+                        ~SchedulerRun.error.like("%孤儿%"),
+                        ~SchedulerRun.error.like("%进程重启%"),
+                    ),
+                )
                 .group_by(SchedulerTaskConfig.name)
                 .having(func.count(SchedulerRun.id) >= min_runs)
                 .all()
