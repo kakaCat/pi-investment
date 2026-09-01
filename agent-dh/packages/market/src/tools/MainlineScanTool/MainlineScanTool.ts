@@ -46,9 +46,16 @@ export class MainlineScanTool extends BaseTool<MainlineScanParams, MainlineScanR
   protected async execute(args: MainlineScanParams, _context: ToolContext): Promise<MainlineScanResult> {
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
 
-    // 幂等检查：今日已落库则跳过
+    // 幂等检查：今日已落库且 mainlines 非空则跳过。
+    // 2026-09-01 防御：解析失败会落库 mainlines=[] 的空记录，若视为有效会永久挡住重扫
+    // （本次即被修复前落库的空记录卡住），故空 mainlines 不算有效结果，应重新扫描覆盖。
     const existing = await this.memoryClient.searchMemory({ q: `mainline ${today}`, scope: 'market:mainline', limit: 3 });
-    const dup = (existing?.items || []).find((it: any) => it.payload?.date === today && it.status !== 'deprecated');
+    const dup = (existing?.items || []).find((it: any) =>
+      it.payload?.date === today
+      && it.status !== 'deprecated'
+      && Array.isArray(it.payload?.mainlines)
+      && it.payload.mainlines.length > 0
+    );
     if (dup) {
       return { date: today, mainlines: dup.payload?.mainlines, skipped: true };
     }
