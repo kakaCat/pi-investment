@@ -112,7 +112,7 @@
 
 | 项 | 状态 | 说明 |
 |---|---|---|
-| sector 东财板块接口 | 间歇超时（12.8-20s 抖动，卡 20s 阈值），重试即恢复 | 外部源性能，非代码 bug；sector 单一数据源无 DB 缓存降级（P2 待办） |
+| ~~sector 东财板块接口~~ | ✅ **已修复（fb030a97）** | 单一源间歇超时（12.8-20s 抖动卡 20s 阈值）→ 新增 quant.sector_snapshot DB 快照 + 路由层 stale-while-error：成功落库、失败回退最近快照（degraded/stale_from 标注），实测正常路径落库 1000 板块、模拟失败回退 496 行业+504 概念 |
 | fund_flow 外部源 | 当日全失败（两融正常），502 降级显示 | 外部源故障，重试即恢复 |
 | opportunity_scan 参数契约 | scan_type/pool_id 后端忽略（扫描范围恒 0） | 契约失真 P2 待办 |
 | signal_track 5/10/20 日胜率 N/A | scheduler 无信号回填任务（胜率统计依赖盘后回填 update） | 回填机制缺失 P2 待办 |
@@ -125,4 +125,5 @@
 
 - `4a6b5a02`：4 处契约修复（client dist 重建、opponent_behavior 空值默认、fund-flow 502、health 持仓口径、3 工具超时调大）
 - `c523ad62`：getAlerts 30s→60s（配合工具层超时调大）
-- 已推送 main（6306c0a5..c523ad62）
+- `fb030a97`：sector 板块列表 DB 快照兜底（quant.sector_snapshot + 路由 stale-while-error，用户反馈追加）
+- 已推送 main（1f0001c5..fb030a97）
