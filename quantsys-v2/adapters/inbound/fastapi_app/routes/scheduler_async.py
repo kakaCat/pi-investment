@@ -170,24 +170,55 @@ def create_scheduler_task(payload: Optional[Dict[str, Any]] = Body(None)):
     task_data = convert_keys_to_snake(payload)
     name = task_data.get('name', 'Unnamed Task')
     schedule_kind = task_data.get('schedule_kind', 'cron')
+
+    # 确定任务类型
+    task_type = task_data.get('task_type')
+    if not task_type:
+        # 根据 schedule_kind 推断 task_type
+        task_type_mapping = {
+            'cron': 'cron',
+            'delay': 'delay',
+            'every': 'interval',
+            'at': 'once'
+        }
+        task_type = task_type_mapping.get(schedule_kind, 'cron')
+
+    # 构建 cron_expression 或延迟参数
     cron_expr = _schedule_kind_to_cron(
         schedule_kind, task_data.get('schedule_expr'), task_data.get('every_seconds'),
         task_data.get('schedule_at'), task_data.get('delay_seconds'))
+
     pl = task_data.get('payload', {})
     command = task_data.get('command') or pl.get('command') or 'data_update'
     description = task_data.get('description') or pl.get('description', '')
     params = pl if isinstance(pl, dict) else {}
+
+    # 保存额外参数到 params
     if schedule_kind != 'cron':
         params['_schedule_kind'] = schedule_kind
+    if task_data.get('delay_seconds'):
+        params['delay_seconds'] = task_data['delay_seconds']
+    if task_data.get('interval_seconds'):
+        params['interval_seconds'] = task_data['interval_seconds']
+    if task_data.get('run_at'):
+        params['run_at'] = task_data['run_at']
     if task_data.get('compensation_enabled'):
         params['_compensation_enabled'] = True
         params['_compensation_check_after'] = task_data.get('compensation_check_after')
         params['_compensation_max_attempts'] = task_data.get('compensation_max_attempts', 1)
-    if task_data.get('delete_after_run'):
+    if task_data.get('delete_after_run') or task_type in ['delay', 'once']:
+        # 延迟任务和一次性任务默认执行后删除
         params['_delete_after_run'] = True
+
     try:
-        task_id = _scheduler.add_task(name=name, cron_expression=cron_expr, command=command,
-                                      params=params, description=description)
+        task_id = _scheduler.add_task(
+            name=name,
+            cron_expression=cron_expr,
+            command=command,
+            params=params,
+            description=description,
+            task_type=task_type
+        )
         task = _scheduler.get_task(task_id)
     except ValueError as e:
         return error_response({'success': False, 'error': str(e)}, 409)
@@ -211,6 +242,8 @@ def update_scheduler_task(task_id: str, payload: Optional[Dict[str, Any]] = Body
         updates['command'] = task_data['command']
     elif isinstance(pl, dict) and 'command' in pl:
         updates['command'] = pl['command']
+    if 'task_type' in task_data:
+        updates['task_type'] = task_data['task_type']
     if isinstance(pl, dict) and pl:
         existing = _scheduler.get_task(tid)
         existing_params = _extract_params_dict(existing.get('params')) if existing else {}
@@ -295,14 +328,32 @@ def get_scheduler_task_runs(task_id: str, page: int = Query(1), pageSize: int = 
 @router.post('/api/scheduler/tasks/{task_id}/trigger')
 @handle_api_error
 def trigger_scheduler_task(task_id: str):
+    """手动触发任务执行（立即执行）"""
     try:
+        # 2026-09-01: 如果使用 APScheduler，调用其 trigger_task_now 方法
+        from fastapi import Request
+        from starlette.datastructures import State
+
+        # 尝试从 app.state 获取 APScheduler 实例
+        try:
+            from adapters.inbound.fastapi_app.main import app
+            scheduler_service = getattr(app.state, 'scheduler_service', None)
+
+            if scheduler_service is not None:
+                # 使用 APScheduler 触发
+                scheduler_service.trigger_task_now(int(task_id))
+                return {'success': True, 'message': 'Task triggered via APScheduler'}
+        except Exception as e:
+            logger.warning(f"Failed to trigger via APScheduler, falling back to legacy: {e}")
+
+        # Fallback: 使用原有方式
         result = _scheduler.run_task(int(task_id))
         return {'success': True, 'data': result}
     except ValueError as e:
         return error_response({'success': False, 'error': str(e)}, 404)
 
 
-@router.post('/api/scheduler/tasks/{task_id}/compensate')
+@router.post('/api/scheduler/compensate')
 @handle_api_error
 def compensate_scheduler_task(task_id: str):
     try:
@@ -311,6 +362,27 @@ def compensate_scheduler_task(task_id: str):
         return {'success': True, 'data': result}
     except ValueError as e:
         return error_response({'success': False, 'error': str(e)}, 404)
+
+
+@router.post('/api/scheduler/reload')
+@handle_api_error
+def reload_scheduler_tasks():
+    """重新加载所有任务（用于动态更新 APScheduler）
+
+    2026-09-01: 当用户修改 scheduler_tasks 表后，调用此接口同步到 APScheduler
+    """
+    try:
+        from adapters.inbound.fastapi_app.main import app
+        scheduler_service = getattr(app.state, 'scheduler_service', None)
+
+        if scheduler_service is not None:
+            scheduler_service.reload_tasks()
+            return {'success': True, 'message': 'Tasks reloaded in APScheduler'}
+        else:
+            return {'success': False, 'error': 'APScheduler not available (Agent OS mode or not started)'}
+    except Exception as e:
+        logger.exception(f"Failed to reload tasks: {e}")
+        return error_response({'success': False, 'error': str(e)}, 500)
 
 
 # ============ 运行记录 ============
