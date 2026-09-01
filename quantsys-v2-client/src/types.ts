@@ -476,6 +476,8 @@ export interface TradeRequest {
   reason?: string;
   /** 决策时基因组版本（RFC 005 决策打标，如 'g17'） */
   genome_version?: string;
+  /** 执行时机：'market_open'=盘前挂单（非交易时段提交，开盘 9:31 起自动撮合） */
+  execute_at?: 'market_open';
 }
 
 /**

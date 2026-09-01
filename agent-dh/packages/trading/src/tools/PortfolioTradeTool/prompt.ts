@@ -13,6 +13,8 @@ export interface PortfolioTradeParams {
   price?: number;
   reason?: string;
   account_name?: string;
+  /** 执行时机：'market_open'=盘前挂单（非交易时段提交，开盘 9:31 起自动撮合） */
+  execute_at?: 'market_open';
 }
 
 export interface PortfolioTradeResult {
@@ -62,7 +64,8 @@ export const portfolioTradePrompt: ToolPrompt<PortfolioTradeParams, PortfolioTra
   ],
 
   notes: [
-    '⚠️  宪法第1条：仅 A股交易日 9:30-11:30、13:00-15:00 可执行买卖委托',
+    '⚠️  宪法第1条：仅 A股交易日 9:30-11:30、13:00-15:00 可执行买卖委托（立即单）',
+    '💡 盘前/盘后想做决策：用 execute_at="market_open" 挂单，开盘 9:31 起自动撮合——成交仍在合法时段，不违反宪法；挂单返回 status=pending + pending_order_id',
     '⚠️  R-008：下单前必须检索历史经验',
     '⚠️  买入前会自动检查：熔断状态、仓位上限、ST禁区',
     '💡 大额订单考虑用 algo_execute 拆单以降低冲击',
@@ -105,6 +108,12 @@ export const portfolioTradePrompt: ToolPrompt<PortfolioTradeParams, PortfolioTra
       description: '账户名称，默认 agent_virtual',
       default: 'agent_virtual',
       example: 'agent_virtual',
+    },
+    execute_at: {
+      type: 'string',
+      description: "执行时机。'market_open'=盘前挂单：盘前/盘后/夜间提交，开盘后 9:31 起自动撮合（成交仍发生在合法交易时段）；不传=立即委托（仅限交易时段 9:30-11:30、13:00-15:00）",
+      enum: ['market_open'],
+      example: 'market_open',
     },
   },
 

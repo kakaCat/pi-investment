@@ -787,19 +787,134 @@ export class QuantsysV2Client {
     };
     if (params.price) body.price = params.price;
     if (params.genome_version) body.genome_version = params.genome_version;  // RFC 005 决策打标
+    if (params.execute_at) body.execute_at = params.execute_at;  // 盘前挂单（2026-09-01）
     const response = await this.client.post(`/api/simulation/accounts/${encodeURIComponent(account)}/trade`, body);
     const data = this.unwrap<any>(response.data, 'executeTrade');
-    // 映射为 TradeResponse 契约
+    // 映射为 TradeResponse 契约（挂单场景：status='pending'，无成交价）
     return {
-      order_id: String(data.order_id ?? data.trade_id ?? ''),
+      order_id: String(data.order_id ?? data.trade_id ?? data.pending_order_id ?? ''),
       action: data.action ?? params.action,
       symbol: data.symbol ?? params.symbol,
       quantity: Number(data.shares ?? params.quantity),
       price: Number(data.price ?? 0),
       amount: Number(data.amount ?? 0),
-      status: data.order_status ?? 'filled',
+      status: data.status === 'pending' ? 'pending' : (data.order_status ?? 'filled'),
       timestamp: data.timestamp ?? new Date().toISOString(),
+      ...(data.pending_order_id ? { pending_order_id: data.pending_order_id, message: data.message } : {}),
     } as TradeResponse;
+  }
+
+  /**
+   * 挂单列表（盘前挂单）
+   * Real endpoint: GET /api/simulation/accounts/{account}/pending-orders?status=pending|all
+   */
+  async listPendingOrders(accountName: string = 'agent_virtual', status: 'pending' | 'all' = 'pending'): Promise<any[]> {
+    const response = await this.client.get(
+      `/api/simulation/accounts/${encodeURIComponent(accountName)}/pending-orders`,
+      { params: { status } },
+    );
+    return this.unwrap<any[]>(response.data, 'listPendingOrders');
+  }
+
+  /**
+   * 取消挂单（仅 pending 状态可取消）
+   * Real endpoint: POST /api/simulation/accounts/{account}/pending-orders/{orderId}/cancel
+   */
+  async cancelPendingOrder(accountName: string, orderId: number): Promise<any> {
+    const response = await this.client.post(
+      `/api/simulation/accounts/${encodeURIComponent(accountName)}/pending-orders/${orderId}/cancel`,
+    );
+    return this.unwrap<any>(response.data, 'cancelPendingOrder');
+  }
+
+  // ==================== Decision Audit APIs（2026-09-01 决策审计闭环） ====================
+
+  /**
+   * 记录决策
+   * Real endpoint: POST /api/decisions/record
+   * Body: { decision_type, reasoning, context?, parameters?, related_entity_type?, related_entity_id?, session_key? }
+   */
+  async recordDecision(params: {
+    decision_type: string;
+    reasoning: string;
+    context?: Record<string, any>;
+    parameters?: Record<string, any>;
+    related_entity_type?: string;
+    related_entity_id?: string;
+    session_key?: string;
+  }): Promise<any> {
+    const response = await this.client.post('/api/decisions/record', params);
+    return this.unwrap<any>(response.data, 'recordDecision');
+  }
+
+  /**
+   * 决策历史
+   * Real endpoint: GET /api/decisions/history
+   */
+  async getDecisionHistory(params?: {
+    entity_type?: string;
+    entity_id?: string;
+    decision_type?: string;
+    limit?: number;
+  }): Promise<any[]> {
+    const response = await this.client.get('/api/decisions/history', { params });
+    return this.unwrap<any[]>(response.data, 'getDecisionHistory');
+  }
+
+  /**
+   * 待评估决策（创建超过 days 天仍 pending）
+   * Real endpoint: GET /api/decisions/pending
+   */
+  async getPendingDecisions(days: number = 7): Promise<any[]> {
+    const response = await this.client.get('/api/decisions/pending', { params: { days } });
+    return this.unwrap<any[]>(response.data, 'getPendingDecisions');
+  }
+
+  /**
+   * 触发决策评估（单笔或批量）
+   * Real endpoint: POST /api/decisions/evaluate
+   * Body: { decision_id? } 或 { days? }（批量）
+   */
+  async evaluateDecisions(params?: { decision_id?: string; days?: number }): Promise<any> {
+    const response = await this.client.post('/api/decisions/evaluate', params ?? {});
+    return this.unwrap<any>(response.data, 'evaluateDecisions');
+  }
+
+  /**
+   * 决策报告（按关联实体聚合统计）
+   * Real endpoint: GET /api/decisions/report
+   */
+  async getDecisionReport(entityType: string, entityId: string): Promise<any> {
+    const response = await this.client.get('/api/decisions/report', {
+      params: { entity_type: entityType, entity_id: entityId },
+    });
+    return this.unwrap<any>(response.data, 'getDecisionReport');
+  }
+
+  // ==================== ML APIs（2026-09-01） ====================
+
+  /**
+   * ML 模型批量预测（上涨概率）
+   * Real endpoint: POST /api/ml/predict  Body: { symbols: string[], model_type?, version? }
+   * 注意：后端带上线门禁（test_accuracy<0.50 拒服，0.50~0.55 degraded 警告）；
+   * 已知问题：DB 因子覆盖不足时输出恒等概率 0.4659（缺失补零），须关注 model_gate.level。
+   */
+  async mlPredict(params: {
+    symbols: string[];
+    model_type?: string;
+    version?: string;
+  }): Promise<{
+    predictions: Array<{
+      symbol: string;
+      date: string;
+      predicted_class: number;
+      probability: number;
+      confidence: string;
+    }>;
+    model_gate?: { passed: boolean; level: string; test_accuracy?: number; warning?: string };
+  }> {
+    const response = await this.client.post('/api/ml/predict', params, { timeout: 120000 });
+    return this.unwrap<any>(response.data, 'mlPredict');
   }
 
   /**

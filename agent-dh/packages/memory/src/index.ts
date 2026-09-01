@@ -5,6 +5,7 @@ import { AgentOSClient } from '@pi-investment/agent-os-client';
 import { createMemorySearchTool } from './tools/MemorySearchTool';
 import { createMemoryWriteTool } from './tools/MemoryWriteTool';
 import { createExperienceWriteTool } from './tools/ExperienceWriteTool';
+import { createExperienceStatsTool } from './tools/ExperienceStatsTool';
 
 export interface Config {
   quantsysV2?: {
@@ -44,6 +45,7 @@ export default class MemoryPlugin extends Service {
 
   private qv2: QuantsysV2Client;
   private aos: AgentOSClient;
+  private aosBaseURL: string;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'memory');
@@ -53,8 +55,9 @@ export default class MemoryPlugin extends Service {
     });
     // 2026-08-25：quantsys-v2 记忆库写入停用，记忆读写迁 Agent OS
     // 2026-08-28：迁移到 agent-os-client
+    this.aosBaseURL = config.agentOS?.baseURL || 'http://localhost:8080';
     this.aos = new AgentOSClient({
-      baseURL: config.agentOS?.baseURL || 'http://localhost:8080',
+      baseURL: this.aosBaseURL,
       agentId: config.agentOS?.agentId || 'agent-dh'
     });
     this.registerTools();
@@ -71,6 +74,9 @@ export default class MemoryPlugin extends Service {
 
     // 注册经验写入工具
     ctx.tools.register(createExperienceWriteTool(aos.memory));
+
+    // 经验库胜率统计（2026-09-01，对标 agent-ts query_experience 统计维度）
+    ctx.tools.register(createExperienceStatsTool(this.aosBaseURL));
   }
 }
 

@@ -159,6 +159,19 @@ export class PortfolioTradeTool extends BaseTool<PortfolioTradeParams, Portfolio
       }
     }
 
+    // 5. 检查 execute_at（可选，2026-09-01 盘前挂单）
+    if (args.execute_at !== undefined && args.execute_at !== 'market_open') {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'execute_at',
+        issue: "execute_at 仅支持 'market_open'（盘前挂单，开盘 9:31 起自动撮合）",
+        received: String(args.execute_at),
+        expected: "'market_open'",
+        example: 'market_open',
+      };
+    }
+
     return { success: true };
   }
 
@@ -168,8 +181,13 @@ export class PortfolioTradeTool extends BaseTool<PortfolioTradeParams, Portfolio
   protected async execute(args: PortfolioTradeParams, _context: ToolContext): Promise<PortfolioTradeResult> {
     const accountName = args.account_name || 'agent_virtual';
 
-    // 宪法第 1 条硬校验：非交易时段拒单
-    assertTradingHours();
+    // 宪法第 1 条硬校验：非交易时段拒单。
+    // 例外（2026-09-01）：execute_at='market_open' 盘前挂单——委托提交发生在盘前，
+    // 但撮合执行由后端在开盘后 9:31 合法时段完成，不违反宪法（订单实际成交于交易时段）。
+    const isPendingOrder = args.execute_at === 'market_open';
+    if (!isPendingOrder) {
+      assertTradingHours();
+    }
 
     // R-008 决策前检索（M6，2026-08-27）：强制检索历史经验
     let experienceNote = '';
@@ -235,7 +253,17 @@ export class PortfolioTradeTool extends BaseTool<PortfolioTradeParams, Portfolio
       order_type: args.price ? 'limit' : 'market',
       reason: args.reason,
       genome_version: genomeVersion,
+      execute_at: args.execute_at,
     });
+
+    // 挂单未成交：不做信号/滑点追踪（成交发生在开盘撮合时，由盘后例程核对）
+    if (result?.status === 'pending') {
+      return {
+        ...result,
+        r008_check: experienceNote,
+        pending_note: `挂单已受理（pending_order_id=${result.pending_order_id ?? result.order_id}），开盘后 9:31 起自动撮合；可用 trade_monitor 查挂单状态`,
+      } as PortfolioTradeResult;
+    }
 
     // M3-3 信号追踪（2026-08-26）：BUY 成交后自动记录信号
     if (String(args.action).toUpperCase() === 'BUY' && result && !result.error) {
