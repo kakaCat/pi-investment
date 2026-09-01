@@ -290,6 +290,24 @@ export class PortfolioTradeTool extends BaseTool<PortfolioTradeParams, Portfolio
    * Phase 3: 包装返回数据
    */
   protected wrap(result: PortfolioTradeResult, context: ToolContext): ToolResponse<PortfolioTradeResult> {
+    // 2026-09-01 修复：拦截/拒单结果（blocked、success=false）不带 order_id，
+    // 原实现一律报 OUTPUT_ERROR 把拦截原因吞掉（熔断/仓位超限/排雷拦截都显示成
+    // "缺少必需字段"的内部错误）。拦截属于正常业务结果，直接透传 reason。
+    const r: any = result;
+    if (r && (r.blocked || r.success === false)) {
+      return {
+        success: false,
+        data: result,
+        message: r.reason ?? r.error ?? '交易被拦截',
+        error: {
+          success: false,
+          errorType: ErrorType.BUSINESS_REJECTION,
+          issue: r.reason ?? r.error ?? '交易被拦截',
+          guide: r.blocked ? '交易被风控规则拦截，这是正常的风控行为' : undefined,
+        } as any,
+      };
+    }
+
     // 检查必需字段
     if (!result.order_id || !result.symbol || !result.status) {
       return {
@@ -315,9 +333,19 @@ export class PortfolioTradeTool extends BaseTool<PortfolioTradeParams, Portfolio
   private async checkRegimePositionLimit(args: PortfolioTradeParams, accountName: string): Promise<any | null> {
     try {
       // 调用 regime_position_limit 工具获取仓位限制和熔断状态
-      const regimeLimit: any = await this.ctx.tools.call('regime_position_limit', {
-        account_name: accountName,
+      // 2026-09-01 修复：ToolRuntime 没有 call() 方法（原写法必抛 TypeError，
+      // 被 catch 兜底成"仓位校验失败"保守拒单——8-28 起所有到达此处的 BUY
+      // 实际都被误拦，只是此前多数调用更早被交易时段/参数校验挡下未暴露）。
+      // 正确入口：ctx.tools.execute({name, arguments, signal})，取 result.value。
+      const r: any = await (this.ctx.tools as any).execute({
+        name: 'regime_position_limit',
+        arguments: { account_name: accountName },
+        signal: new AbortController().signal,
       });
+      if (r?.isError) {
+        throw new Error(r?.error?.message || 'regime_position_limit 调用失败');
+      }
+      const regimeLimit: any = r?.value ?? r;
 
       // 检查熔断状态（M4-2）
       if (regimeLimit.verdict === 'circuit_breaker') {
