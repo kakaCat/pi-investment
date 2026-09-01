@@ -26,7 +26,7 @@ def get_service():
     """SimulationService 模块级单例（通过 ServiceFactory 统一获取）"""
     global _service
     if _service is None:
-        _service = simulation_service
+        _service = simulation_service()  # 别名是函数（惰性求值设计），必须调用
     return _service
 
 
