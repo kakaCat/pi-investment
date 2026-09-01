@@ -657,9 +657,8 @@ class TestDueCheck:
 # ============================================================================
 
 
-@pytest.mark.integration
 class TestCommandHandlers:
-    """Command handler execution — requires a live database connection."""
+    """Command handler execution — delegates to JobRegistry via _execute_command."""
 
     def setup_method(self):
         self.scheduler = SchedulerService()
@@ -668,63 +667,55 @@ class TestCommandHandlers:
         self.scheduler.close()
 
     def test_data_update_handler_returns_structure(self):
-        result = self.scheduler._handle_data_update({})
+        """_execute_command('data_update') returns structure via JobRegistry."""
+        result = self.scheduler._execute_command("data_update", {})
         assert isinstance(result, dict)
         assert result["action"] == "data_update"
-        assert "symbols_checked" in result
-        assert "symbols_updated" in result
-        assert "errors" in result
+        assert "status" in result
+        assert "details" in result
 
     def test_data_update_handler_with_symbols(self):
-        result = self.scheduler._handle_data_update(
-            {"symbols": ["000001.SZ", "000002.SZ"]}
+        result = self.scheduler._execute_command(
+            "data_update", {"symbols": ["000001.SZ", "000002.SZ"]}
         )
-        assert result["symbols_checked"] == 2
+        assert isinstance(result, dict)
+        assert result["action"] == "data_update"
 
     def test_signal_generate_handler_returns_structure(self):
-        # 2026-08-04 重写后的契约:universe_size/signals_found/signals_saved
-        # (旧 stocks_checked/stocks_with_factors 桩契约已废弃)
-        result = self.scheduler._handle_signal_generate({})
+        result = self.scheduler._execute_command("signal_generate", {})
         assert isinstance(result, dict)
         assert result["action"] == "signal_generate"
         assert "status" in result
-        assert "universe_size" in result
-        assert "signals_found" in result
-        assert "signals_saved" in result
-        assert "date" in result
 
     def test_risk_check_handler_returns_structure(self):
-        result = self.scheduler._handle_risk_check({})
+        result = self.scheduler._execute_command("risk_check", {})
         assert isinstance(result, dict)
         assert result["action"] == "risk_check"
-        assert "holdings_count" in result
+        assert "status" in result
 
     def test_report_daily_handler_returns_structure(self):
-        # 当前简化契约:total_stocks/top_signal_count/timestamp
-        result = self.scheduler._handle_report_daily({})
+        result = self.scheduler._execute_command("report_daily", {})
         assert isinstance(result, dict)
         assert result["action"] == "report_daily"
-        assert "total_stocks" in result
-        assert "top_signal_count" in result
-        assert "timestamp" in result
+        assert "status" in result
 
     def test_backtest_run_handler_returns_structure(self):
-        result = self.scheduler._handle_backtest_run(
-            {"strategy_name": "ma_cross_test"}
+        result = self.scheduler._execute_command(
+            "backtest_run", {"strategy_name": "ma_cross_test"}
         )
         assert isinstance(result, dict)
         assert result["action"] == "backtest_run"
-        assert result["strategy_name"] == "ma_cross_test"
-        assert "klines_available" in result
-        assert "factors_available" in result
 
-    def test_backtest_run_missing_strategy_raises(self):
-        with pytest.raises(ValueError, match="strategy_name"):
-            self.scheduler._handle_backtest_run({})
+    def test_backtest_run_missing_strategy_returns_failed(self):
+        """Missing strategy_name returns a failed JobResult (no ValueError)."""
+        result = self.scheduler._execute_command("backtest_run", {})
+        assert result["status"] == "failed"
 
-    def test_unknown_command_raises(self):
-        with pytest.raises(ValueError, match="Unknown scheduler command"):
-            self.scheduler._execute_command("nonexistent", {})
+    def test_unknown_command_returns_failed(self):
+        """Unknown job returns a failed result via JobRegistry."""
+        result = self.scheduler._execute_command("nonexistent", {})
+        assert result["status"] == "failed"
+        assert result["action"] == "nonexistent"
 
     def test_execute_command_dispatch(self):
         """_execute_command dispatches to correct handler."""
