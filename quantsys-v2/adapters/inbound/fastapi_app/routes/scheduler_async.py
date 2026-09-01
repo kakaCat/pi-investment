@@ -328,40 +328,51 @@ def get_scheduler_task_runs(task_id: str, page: int = Query(1), pageSize: int = 
 @router.post('/api/scheduler/tasks/{task_id}/trigger')
 @handle_api_error
 def trigger_scheduler_task(task_id: str):
-    """手动触发任务执行（立即执行）"""
-    try:
-        # 2026-09-01: 如果使用 APScheduler，调用其 trigger_task_now 方法
-        from fastapi import Request
-        from starlette.datastructures import State
+    """手动触发任务执行（异步派发，立即返回）。
 
-        # 尝试从 app.state 获取 APScheduler 实例
+    2026-09-01 修复：原实现在同步路由里直接执行重任务（如 data_quality_check
+    含全市场数据检查+自动回填），曾卡死 HTTP 工作线程 46 分钟致全服务无响应。
+    改为后台线程派发：立即返回 accepted，执行结果看任务执行日志/记录。
+    """
+    import threading
+
+    def _run_async():
         try:
             from adapters.inbound.fastapi_app.main import app
             scheduler_service = getattr(app.state, 'scheduler_service', None)
-
             if scheduler_service is not None:
-                # 使用 APScheduler 触发
                 scheduler_service.trigger_task_now(int(task_id))
-                return {'success': True, 'message': 'Task triggered via APScheduler'}
+                logger.info(f"Task {task_id} triggered via APScheduler")
+                return
         except Exception as e:
-            logger.warning(f"Failed to trigger via APScheduler, falling back to legacy: {e}")
+            logger.warning(f"APScheduler trigger unavailable, legacy path: {e}")
+        try:
+            _scheduler.run_task(int(task_id))
+            logger.info(f"Task {task_id} completed via legacy scheduler")
+        except Exception as e:
+            logger.exception(f"Task {task_id} execution failed: {e}")
 
-        # Fallback: 使用原有方式
-        result = _scheduler.run_task(int(task_id))
-        return {'success': True, 'data': result}
-    except ValueError as e:
-        return error_response({'success': False, 'error': str(e)}, 404)
+    threading.Thread(target=_run_async, name=f"trigger-{task_id}", daemon=True).start()
+    return {'success': True, 'message': f'Task {task_id} dispatched asynchronously',
+            'note': '异步派发：执行结果见日志/任务执行记录'}
 
 
 @router.post('/api/scheduler/compensate')
 @handle_api_error
 def compensate_scheduler_task(task_id: str):
-    try:
-        result = _scheduler.run_task(int(task_id))
-        result['triggerType'] = 'compensation'
-        return {'success': True, 'data': result}
-    except ValueError as e:
-        return error_response({'success': False, 'error': str(e)}, 404)
+    """补偿执行（异步派发，同 trigger 修复：避免重任务阻塞工作线程）"""
+    import threading
+
+    def _run_async():
+        try:
+            _scheduler.run_task(int(task_id))
+            logger.info(f"Task {task_id} compensation completed")
+        except Exception as e:
+            logger.exception(f"Task {task_id} compensation failed: {e}")
+
+    threading.Thread(target=_run_async, name=f"compensate-{task_id}", daemon=True).start()
+    return {'success': True, 'message': f'Task {task_id} compensation dispatched',
+            'triggerType': 'compensation'}
 
 
 @router.post('/api/scheduler/reload')

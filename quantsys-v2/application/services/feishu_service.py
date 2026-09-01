@@ -7,7 +7,7 @@ import requests
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from infrastructure.config import get_config
+from infrastructure.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
 
@@ -30,9 +30,9 @@ class FeishuNotificationService:
             webhook_url: 飞书机器人 Webhook URL
             bot_token: 飞书机器人 Token（用于高级功能）
         """
-        config = get_config()
+        config = get_settings()
         self.webhook_url = webhook_url or config.external.feishu_webhook_url
-        self.bot_token = bot_token or config.external.feishu_bot_token
+        self.bot_token = bot_token or getattr(config.external, 'feishu_bot_token', None)
 
         if not self.webhook_url:
             logger.warning("Feishu webhook URL not configured")

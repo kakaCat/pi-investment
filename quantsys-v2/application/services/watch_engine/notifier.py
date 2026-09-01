@@ -1,4 +1,11 @@
-"""WatchEngine 触发通知器：唤醒 Agent + WS 广播 + 审计落库"""
+"""WatchEngine 触发通知器：notify_mode 分流 + WS 广播 + 审计落库
+
+notify_mode 两种模式（watch_rules.notify_mode）：
+- direct：纯提醒，直接发飞书（不唤醒 Agent，不经 LLM）
+- agent：需 LLM 处理，唤醒 Agent（/wake），由 Agent 分析后决定推送内容
+
+兜底：agent 模式唤醒失败（最终失败）时，降级直接发飞书，保证提醒可达。
+"""
 import time
 from typing import Optional
 
@@ -9,23 +16,59 @@ logger = structlog.get_logger(__name__)
 
 
 class WatchNotifier:
-    def __init__(self, agent_service, trigger_repo=None,
+    def __init__(self, agent_service, trigger_repo=None, feishu_service=None,
                  ws_url: Optional[str] = 'http://127.0.0.1:5003/broadcast/market_data',
                  max_retries: int = 3, retry_interval: float = 1.0):
         self.agent_service = agent_service
         self.trigger_repo = trigger_repo
+        self.feishu_service = feishu_service
         self.ws_url = ws_url
         self.max_retries = max_retries
         self.retry_interval = retry_interval
 
     def notify(self, rule, condition: dict, quote, result) -> bool:
-        """触发通知。返回是否成功唤醒 Agent（失败也落库待补发）"""
+        """触发通知。按 notify_mode 分流；返回是否成功送达（失败也落库待补发）"""
         payload = self._build_payload(rule, condition, quote, result)
-        logger.info('准备唤醒 Agent', rule_id=rule.id, symbol=rule.symbol, payload=payload)
-        notified = self._notify_agent_with_retry(payload)
+        mode = getattr(rule, 'notify_mode', None) or 'direct'
+
+        if mode == 'agent':
+            logger.info('准备唤醒 Agent', rule_id=rule.id, symbol=rule.symbol, payload=payload)
+            notified = self._notify_agent_with_retry(payload)
+            if not notified:
+                # 兜底：唤醒失败降级直接发飞书，保证提醒可达
+                logger.warning('唤醒 Agent 失败，降级直接发飞书', symbol=rule.symbol)
+                notified = self._send_feishu(payload)
+        else:
+            # direct：纯提醒，直接发飞书
+            logger.info('直接发飞书提醒', rule_id=rule.id, symbol=rule.symbol)
+            notified = self._send_feishu(payload)
+
         self._broadcast_ws(payload)
         self._record(rule, condition, quote, result, notified)
         return notified
+
+    def _send_feishu(self, payload) -> bool:
+        """直接发飞书告警（类型 1 纯提醒，不经 LLM）"""
+        if self.feishu_service is None:
+            logger.error('feishu_service 未注入，无法直接发飞书', symbol=payload['symbol'])
+            return False
+        try:
+            message = payload.get('message') or f"{payload['symbol']} 触发盯盘条件"
+            data = {
+                'price': payload.get('price'),
+                'change_pct': payload.get('change_pct'),
+                'pnl_pct': payload.get('pnl_pct'),
+                'condition': payload.get('condition'),
+            }
+            return bool(self.feishu_service.send_alert(
+                alert_type='signal',
+                symbol=payload['symbol'],
+                message=message,
+                data=data,
+            ))
+        except Exception as e:
+            logger.error('直接发飞书失败', symbol=payload['symbol'], error=str(e))
+            return False
 
     def _build_payload(self, rule, condition, quote, result) -> dict:
         price = float(quote.price)

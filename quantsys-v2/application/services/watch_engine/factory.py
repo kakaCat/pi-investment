@@ -43,9 +43,11 @@ def make_avg_volume_provider():
 
 
 def create_watch_engine() -> WatchEngine:
+    from application.services.feishu_service import get_feishu_service
     notifier = WatchNotifier(
         agent_service=AgentNotificationService(timeout=10),
         trigger_repo=WatchTriggerRepository(),
+        feishu_service=get_feishu_service(),
     )
     return WatchEngine(
         rule_repo=WatchRuleRepository(),
