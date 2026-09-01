@@ -229,21 +229,24 @@ class DailyOrchestrator:
 
     def _phase_pre_market(self, state: DailyOrchestratorState) -> Dict[str, Any]:
         """盘前阶段：数据更新 + 市场风格检测 + 策略轮动 + 信号生成"""
-        from application.services.scheduler_tasks import (
-            handle_data_update,
-            handle_market_style_update,
-            handle_signal_generate,
-        )
+        import asyncio
+        from application.jobs.job_registry import job_registry
+
+        def _run_job(name: str, params=None) -> Dict[str, Any]:
+            result = asyncio.run(job_registry.execute(name, params or {}))
+            if result.success:
+                return result.details or {"status": "success", "message": result.message}
+            return {"status": "failed", "error": result.error}
 
         results = {}
 
         # 1. 数据更新
         logger.info("pre_market: data_update")
-        results['data_update'] = handle_data_update()
+        results['data_update'] = _run_job("data_update")
 
         # 2. 市场风格检测
         logger.info("pre_market: market_style_detect")
-        results['market_style'] = handle_market_style_update()
+        results['market_style'] = _run_job("market_style_update")
 
         # 保存市场风格到上下文
         if results['market_style'].get('style'):
@@ -281,7 +284,7 @@ class DailyOrchestrator:
 
         # 4. 信号生成
         logger.info("pre_market: signal_generate")
-        results['signal_generate'] = handle_signal_generate()
+        results['signal_generate'] = _run_job("signal_generate")
 
         # 5. 唤醒 Agent 生成盘前报告
         self._notify_agent('pre_market_summary', {
@@ -390,8 +393,15 @@ class DailyOrchestrator:
 
     def _phase_post_market(self, state: DailyOrchestratorState) -> Dict[str, Any]:
         """盘后阶段：绩效统计 + 净值快照 + 因子重算"""
+        import asyncio
         from live_trading.paper_trading_engine import PaperTradingEngine
-        from application.services.scheduler_tasks import handle_factor_compute
+        from application.jobs.job_registry import job_registry
+
+        def _run_job(name: str, params=None) -> Dict[str, Any]:
+            result = asyncio.run(job_registry.execute(name, params or {}))
+            if result.success:
+                return result.details or {"status": "success", "message": result.message}
+            return {"status": "failed", "error": result.error}
 
         engine = PaperTradingEngine(account_name=TRADING_ACCOUNT)
 
@@ -403,7 +413,7 @@ class DailyOrchestrator:
 
         # 3. 因子重算（为明日准备）
         logger.info("post_market: factor_compute")
-        factor_result = handle_factor_compute()
+        factor_result = _run_job("factor_compute")
 
         # 保存到上下文
         self._update_context(state, {
