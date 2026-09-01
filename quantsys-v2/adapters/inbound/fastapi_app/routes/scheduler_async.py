@@ -20,7 +20,7 @@ router = APIRouter(tags=["Scheduler - 定时任务"])
 
 from infrastructure.scheduler import SchedulerService as _SchedulerService
 
-_scheduler = _SchedulerService(ds=ds)
+_scheduler = _SchedulerService()
 
 
 # ============ 辅助函数（与 Flask scheduler.py 一致）============
@@ -344,3 +344,14 @@ def list_scheduler_failed_runs(date: Optional[str] = Query(None),
     pagination = _pagination_payload(total, page, page_size)
     return sanitize_for_json({'success': True, 'count': total, 'total': total, 'page': page,
                               'pageSize': page_size, 'pagination': pagination, 'runs': normalized})
+
+
+# ============ 健康监控 ============
+
+
+@router.get('/api/scheduler/health')
+@handle_api_error
+def scheduler_health():
+    """调度任务健康检查 — 检测僵尸 running、遗漏执行、高失败率"""
+    from application.jobs.health_monitor import check_job_health
+    return sanitize_for_json(check_job_health())
