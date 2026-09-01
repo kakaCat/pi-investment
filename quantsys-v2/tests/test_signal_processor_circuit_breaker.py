@@ -29,7 +29,7 @@ class TestSignalProcessorCircuitBreaker:
         unique_name = f'test_strategy_circuit_{int(time.time() * 1000000)}'
         return {
             'strategy_name': unique_name,
-            'action': 'buy',
+            'action': 'BUY',
             'confidence': 0.8,
             'reason': '测试信号',
             'risk_management': {
@@ -63,7 +63,7 @@ class TestSignalProcessorCircuitBreaker:
             account_balance=account_balance
         )
 
-        assert result['action'] == 'buy'
+        assert result['action'] == 'BUY'
         assert result['quantity'] > 0
 
     def test_blocks_signal_when_strategy_is_suspended(
@@ -116,7 +116,7 @@ class TestSignalProcessorCircuitBreaker:
             account_balance=account_balance
         )
 
-        assert result['action'] == 'buy'
+        assert result['action'] == 'BUY'
         assert result['quantity'] > 0
 
     def test_manual_suspend_blocks_signals(
@@ -162,5 +162,5 @@ class TestSignalProcessorCircuitBreaker:
             account_balance=account_balance
         )
 
-        assert result['action'] == 'buy'
+        assert result['action'] == 'BUY'
         assert result['quantity'] > 0

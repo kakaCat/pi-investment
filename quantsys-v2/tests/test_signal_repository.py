@@ -57,7 +57,7 @@ class TestSignalRepository:
         if len(signals) > 0:
             # 验证所有信号都是buy类型
             for signal in signals:
-                assert signal['action'] == 'buy'
+                assert signal['action'] == 'BUY'
 
     def test_get_signals_by_date_invalid(self):
         """测试无效日期"""
@@ -125,7 +125,7 @@ class TestSignalRepository:
             'signal_date': '2024-01-02',
             'symbol': 'INVALID',
             'name': 'test_signal',
-            'action': 'buy',
+            'action': 'BUY',
             'action_type': 1,
             'strategy_id': 'test_strategy'
         }
@@ -139,7 +139,7 @@ class TestSignalRepository:
             'signal_date': '2024/01/02',
             'symbol': '000001.SZ',
             'name': 'test_signal',
-            'action': 'buy',
+            'action': 'BUY',
             'action_type': 1,
             'strategy_id': 'test_strategy'
         }
@@ -153,7 +153,7 @@ class TestSignalRepository:
             'signal_date': '2024-01-02',
             'symbol': '000001.SZ',
             'name': 'test_signal',
-            'action': 'buy',
+            'action': 'BUY',
             'action_type': 1,
             'strategy_id': 'test_strategy',
             'price': 10.5,
@@ -174,7 +174,7 @@ class TestSignalRepository:
             'signal_date': '2024-01-02',
             'symbol': '000001.SZ',
             'name': 'test_signal',
-            'action': 'buy',
+            'action': 'BUY',
             'action_type': 1,
             'strategy_id': 'test_strategy',
             'indicators': {
@@ -271,7 +271,7 @@ class TestSignalRepositoryMocked:
             'signal_date': '2024-01-02',
             'symbol': '000001.SZ',
             'name': 'test_signal',
-            'action': 'buy',
+            'action': 'BUY',
             'action_type': 1,
             'strategy_id': 'test_strategy',
             'price': 10.5,
@@ -298,7 +298,7 @@ class TestSignalRepositoryMocked:
             'signal_date': '2024-01-02',
             'symbol': '000001.SZ',
             'name': 'test_indicators',
-            'action': 'buy',
+            'action': 'BUY',
             'action_type': 1,
             'strategy_id': 'test_strategy',
             'indicators': {'rsi': 30, 'ma5': 10.0},
@@ -326,7 +326,7 @@ class TestSignalRepositoryMocked:
             'signal_date': '2024-01-02',
             'symbol': '000001.SZ',
             'name': 'test',
-            'action': 'buy',
+            'action': 'BUY',
             'action_type': 1,
             'strategy_id': 'test_strategy',
         }
@@ -349,7 +349,7 @@ class TestSignalRepositoryMocked:
             'signal_date': '2024-01-02',
             'symbol': '000001.SZ',
             'name': 'test',
-            'action': 'buy',
+            'action': 'BUY',
             'action_type': 1,
             'strategy_id': 'test_strategy',
             'indicators': '{"rsi": 30}',
@@ -364,8 +364,8 @@ class TestSignalRepositoryMocked:
         repo = SignalORMRepository()
         mock_cursor = MagicMock()
         mock_cursor.fetchall.return_value = [
-            {'total': 3, 'action': 'buy', 'strategy_id': 'ma_cross', 'avg_confidence': 0.75},
-            {'total': 2, 'action': 'sell', 'strategy_id': 'rsi_reversal', 'avg_confidence': 0.60},
+            {'total': 3, 'action': 'BUY', 'strategy_id': 'ma_cross', 'avg_confidence': 0.75},
+            {'total': 2, 'action': 'SELL', 'strategy_id': 'rsi_reversal', 'avg_confidence': 0.60},
         ]
         repo.db = MagicMock()
         repo.db.cursor.return_value = mock_cursor
@@ -386,8 +386,8 @@ class TestSignalRepositoryMocked:
         repo = SignalORMRepository()
         mock_cursor = MagicMock()
         mock_cursor.fetchall.return_value = [
-            {'total': 2, 'action': 'buy', 'strategy_id': 'ma_cross', 'avg_confidence': None},
-            {'total': 3, 'action': 'buy', 'strategy_id': 'rsi_reversal', 'avg_confidence': 0.80},
+            {'total': 2, 'action': 'BUY', 'strategy_id': 'ma_cross', 'avg_confidence': None},
+            {'total': 3, 'action': 'BUY', 'strategy_id': 'rsi_reversal', 'avg_confidence': 0.80},
         ]
         repo.db = MagicMock()
         repo.db.cursor.return_value = mock_cursor

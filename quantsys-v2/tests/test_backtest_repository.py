@@ -103,7 +103,7 @@ class TestBacktestResults:
             "final_capital": 108000.0,
             "parameters": {"ma_short": 5, "ma_long": 20},
             "equity_curve": [100000, 101000, 102000],
-            "trade_details": [{"date": "2024-01-05", "action": "buy", "price": 10.5}]
+            "trade_details": [{"date": "2024-01-05", "action": "BUY", "price": 10.5}]
         }
         try:
             backtest_id = self.repo.save_backtest_result(data)

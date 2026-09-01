@@ -29,7 +29,7 @@ class TestSignalProcessor:
     def test_process_legacy_signal(self, processor, account_balance):
         """测试处理旧格式信号（向后兼容）"""
         signal = {
-            'action': 'buy',
+            'action': 'BUY',
             'confidence': 0.85,
             'reason': 'MA cross'
         }
@@ -41,7 +41,7 @@ class TestSignalProcessor:
             account_balance
         )
 
-        assert result['action'] == 'buy'
+        assert result['action'] == 'BUY'
         assert result['price'] == 52.30
         assert result['quantity'] > 0
         assert result['quantity'] % 100 == 0  # 手数检查
@@ -52,7 +52,7 @@ class TestSignalProcessor:
     def test_process_signal_with_atr_stop_loss(self, processor, account_balance):
         """测试 ATR 止损"""
         signal = {
-            'action': 'buy',
+            'action': 'BUY',
             'confidence': 0.85,
             'reason': 'Volatility breakout',
             'risk_management': {
@@ -77,7 +77,7 @@ class TestSignalProcessor:
     def test_process_signal_with_fixed_percent_sizing(self, processor, account_balance):
         """测试固定比例仓位"""
         signal = {
-            'action': 'buy',
+            'action': 'BUY',
             'confidence': 0.85,
             'reason': 'Test',
             'risk_management': {
@@ -102,7 +102,7 @@ class TestSignalProcessor:
     def test_invalid_signal_structure(self, processor, account_balance):
         """测试无效信号结构"""
         signal = {
-            'action': 'buy'
+            'action': 'BUY'
             # 缺少 confidence 和 reason
         }
 
@@ -112,7 +112,7 @@ class TestSignalProcessor:
     def test_process_signal_with_kelly_sizing(self, processor, account_balance):
         """测试 Kelly 仓位计算"""
         signal = {
-            'action': 'buy',
+            'action': 'BUY',
             'confidence': 0.85,
             'reason': 'High probability setup',
             'risk_management': {

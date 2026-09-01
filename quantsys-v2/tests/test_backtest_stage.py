@@ -37,8 +37,8 @@ def make_buy_signals(klines: list) -> list:
     """Generate buy/sell signal pairs."""
     dates = [k["date"] for k in klines]
     return [
-        {"date": dates[10], "action": "buy", "symbol": "TEST", "reason": "ma_cross"},
-        {"date": dates[50], "action": "sell", "symbol": "TEST", "reason": "take_profit"},
+        {"date": dates[10], "action": "BUY", "symbol": "TEST", "reason": "ma_cross"},
+        {"date": dates[50], "action": "SELL", "symbol": "TEST", "reason": "take_profit"},
     ]
 
 
@@ -110,7 +110,7 @@ class TestBacktestStageRun:
         result = stage.process({
             "symbol": "TEST",
             "klines": klines,
-            "signals": [{"date": klines[10]["date"], "action": "buy", "symbol": "TEST"}],
+            "signals": [{"date": klines[10]["date"], "action": "BUY", "symbol": "TEST"}],
         })
         assert result["backtest"]["metrics"]["total_trades"] == 0
 
@@ -121,7 +121,7 @@ class TestBacktestStageRun:
         result = stage.process({
             "symbol": "TEST",
             "klines": klines,
-            "signals": [{"date": klines[10]["date"], "action": "sell", "symbol": "TEST"}],
+            "signals": [{"date": klines[10]["date"], "action": "SELL", "symbol": "TEST"}],
         })
         assert result["backtest"]["metrics"]["total_trades"] == 0
 
@@ -151,9 +151,9 @@ class TestBacktestStageRun:
         """Only first buy executes when already in position."""
         klines = make_klines(80, trend=3.0)
         signals = [
-            {"date": klines[10]["date"], "action": "buy", "symbol": "TEST"},
-            {"date": klines[20]["date"], "action": "buy", "symbol": "TEST"},
-            {"date": klines[50]["date"], "action": "sell", "symbol": "TEST"},
+            {"date": klines[10]["date"], "action": "BUY", "symbol": "TEST"},
+            {"date": klines[20]["date"], "action": "BUY", "symbol": "TEST"},
+            {"date": klines[50]["date"], "action": "SELL", "symbol": "TEST"},
         ]
         stage = BacktestStage(initial_capital=100000)
         result = stage.process({
@@ -216,8 +216,8 @@ class TestBacktestStageEdgeCases:
         """Buy at start, sell at end — entire period."""
         klines = make_klines(80, trend=3.0)
         signals = [
-            {"date": klines[5]["date"], "action": "buy", "symbol": "TEST"},
-            {"date": klines[70]["date"], "action": "sell", "symbol": "TEST"},
+            {"date": klines[5]["date"], "action": "BUY", "symbol": "TEST"},
+            {"date": klines[70]["date"], "action": "SELL", "symbol": "TEST"},
         ]
         stage = BacktestStage(initial_capital=100000)
         result = stage.process({

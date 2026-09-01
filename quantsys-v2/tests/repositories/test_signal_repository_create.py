@@ -27,7 +27,7 @@ class TestCreateSignal:
             'signal_date': date(2026, 8, 4),
             'symbol': 'TST900',
             'name': '测试股票',
-            'action': 'buy',
+            'action': 'BUY',
             'action_type': 1,
             'strategy_id': '162',
             'price': 10.5,
@@ -48,11 +48,11 @@ class TestCreateSignal:
         """调用方不传 action_type 时按 action 推导（buy→1, sell→2）"""
         buy_id = repo.create_signal({
             'signal_date': date(2026, 8, 4), 'symbol': 'TST900', 'name': '测试',
-            'action': 'buy', 'strategy_id': 's1', 'price': 1.0,
+            'action': 'BUY', 'strategy_id': 's1', 'price': 1.0,
         })
         sell_id = repo.create_signal({
             'signal_date': date(2026, 8, 4), 'symbol': 'TST900', 'name': '测试',
-            'action': 'sell', 'strategy_id': 's2', 'price': 1.0,
+            'action': 'SELL', 'strategy_id': 's2', 'price': 1.0,
         })
         assert buy_id > 0 and sell_id > 0
         rows = {r.strategy_id: r.action_type for r in
@@ -63,7 +63,7 @@ class TestCreateSignal:
         """唯一键 (symbol, signal_date, strategy_id) 冲突 → 返回 0 且不产生重复行"""
         payload = {
             'signal_date': date(2026, 8, 4), 'symbol': 'TST900', 'name': '测试',
-            'action': 'buy', 'action_type': 1, 'strategy_id': '162', 'price': 1.0,
+            'action': 'BUY', 'action_type': 1, 'strategy_id': '162', 'price': 1.0,
         }
         first = repo.create_signal(payload)
         second = repo.create_signal(dict(payload))

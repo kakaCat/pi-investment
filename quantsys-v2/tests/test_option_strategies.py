@@ -463,14 +463,14 @@ class TestVolatilityArbitrageStrategy:
         sample_vol_arb_data['market_price'] = 10.0
         signal_sell = strategy.generate_signal(sample_vol_arb_data)
 
-        if signal_sell is not None and signal_sell['action'] == 'sell':
+        if signal_sell is not None and signal_sell['action'] == 'SELL':
             assert signal_sell['quantity'] < 0
 
         # Low IV - should buy
         sample_vol_arb_data['market_price'] = 3.0
         signal_buy = strategy.generate_signal(sample_vol_arb_data)
 
-        if signal_buy is not None and signal_buy['action'] == 'buy':
+        if signal_buy is not None and signal_buy['action'] == 'BUY':
             assert signal_buy['quantity'] > 0
 
     @pytest.mark.parametrize("option_type", ['call', 'put'])

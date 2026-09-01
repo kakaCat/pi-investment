@@ -34,7 +34,7 @@ class TestVolatilityBreakoutRisk:
 
         signal = strategy.generate_signal(klines)
 
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
         assert 'risk_management' in signal
         assert 'stop_loss' in signal['risk_management']
 
@@ -84,7 +84,7 @@ class TestVolatilityBreakoutRisk:
 
         signal = strategy.generate_signal(klines)
 
-        assert signal['action'] == 'sell'
+        assert signal['action'] == 'SELL'
         assert 'risk_management' in signal
         # 卖出信号也应该有止损（做空止损）
         assert 'stop_loss' in signal['risk_management']

@@ -195,7 +195,7 @@ class TestMLPredictionStrategy:
             'use_precomputed': True,
             'ml_prediction': {'signal': 'BUY', 'confidence': 0.85},
         })
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
         assert signal['confidence'] == 0.85
 
     def test_precomputed_low_confidence(self, strategy):
@@ -218,7 +218,7 @@ class TestMLPredictionStrategy:
             'ml_prediction': {'signal': 'BUY', 'confidence': 0.65},
             'confidence_threshold': 0.6,
         })
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
 
     def test_default_params(self, strategy):
         assert hasattr(strategy, 'DEFAULT_PARAMS')

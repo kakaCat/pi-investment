@@ -68,7 +68,7 @@ def account_partial_sellable():
 
 def test_t1_block_response_has_details(client, account_partial_sellable):
     resp = client.post(f'/api/simulation/accounts/{ACCOUNT}/trade', json={
-        'action': 'sell', 'symbol': '600519', 'shares': 200,
+        'action': 'SELL', 'symbol': '600519', 'shares': 200,
         'price': 11.0, 'reason': '测试卖出：超出可卖数量应被拦截',
     })
     assert resp.status_code == 422
@@ -80,7 +80,7 @@ def test_t1_block_response_has_details(client, account_partial_sellable):
 def test_non_t1_error_has_no_details_key(client, account_partial_sellable):
     """向后兼容：非 T+1 错误响应体不输出 details 键"""
     resp = client.post(f'/api/simulation/accounts/{ACCOUNT}/trade', json={
-        'action': 'sell', 'symbol': '000001', 'shares': 100,
+        'action': 'SELL', 'symbol': '000001', 'shares': 100,
         'price': 11.0, 'reason': '测试卖出：无持仓应被拒绝',
     })
     assert resp.status_code == 422

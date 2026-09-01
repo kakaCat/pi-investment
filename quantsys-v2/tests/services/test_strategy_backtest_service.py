@@ -155,7 +155,7 @@ class TestStrategyBacktestService:
         # T+1约束下，当天买入不能卖出，所以交易数应该为0
         assert result['total_trades'] == 0
         assert len(result['trade_records']) == 1
-        assert result['trade_records'][0]['action'] == 'buy'
+        assert result['trade_records'][0]['action'] == 'BUY'
 
     def test_run_backtest_records_unclosed_buy_execution(self):
         """测试未平仓买入也会返回交易执行流水"""
@@ -178,7 +178,7 @@ class TestStrategyBacktestService:
         assert result['trade_records'] == [
             {
                 'date': '2025-01-01',
-                'action': 'buy',
+                'action': 'BUY',
                 'type': 'BUY',
                 'tier': 1,
                 'price': 10.0,

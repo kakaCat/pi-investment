@@ -44,7 +44,7 @@ class TestPortfolioCalculator:
         # Mock a buy trade
         mock_trades = [
             {
-                'action': 'buy',
+                'action': 'BUY',
                 'amount': 100000.0,
                 'fee': 50.0,
                 'stamp_duty': 0.0
@@ -64,13 +64,13 @@ class TestPortfolioCalculator:
         # Mock buy and sell trades
         mock_trades = [
             {
-                'action': 'buy',
+                'action': 'BUY',
                 'amount': 100000.0,
                 'fee': 50.0,
                 'stamp_duty': 0.0
             },
             {
-                'action': 'sell',
+                'action': 'SELL',
                 'amount': 110000.0,
                 'fee': 55.0,
                 'stamp_duty': 110.0

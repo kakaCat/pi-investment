@@ -199,7 +199,7 @@ class TestMACrossStrategy:
 
         signal = strategy.generate_signal(klines, {'ma_short': 5, 'ma_long': 20})
 
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
         assert 0 < signal['confidence'] <= 1.0
         assert 'MA5' in signal['reason']
         assert 'MA20' in signal['reason']
@@ -217,7 +217,7 @@ class TestMACrossStrategy:
 
         signal = strategy.generate_signal(klines, {'ma_short': 5, 'ma_long': 20})
 
-        assert signal['action'] == 'sell'
+        assert signal['action'] == 'SELL'
         assert 0 < signal['confidence'] <= 1.0
         assert '死叉' in signal['reason']
 
@@ -275,7 +275,7 @@ class TestRSIReversalStrategy:
 
         signal = strategy.generate_signal(klines, {'period': 14, 'oversold': 30, 'overbought': 70})
 
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
         assert 0 < signal['confidence'] <= 1.0
         assert '超卖' in signal['reason']
 
@@ -286,7 +286,7 @@ class TestRSIReversalStrategy:
 
         signal = strategy.generate_signal(klines, {'period': 14, 'oversold': 30, 'overbought': 70})
 
-        assert signal['action'] == 'sell'
+        assert signal['action'] == 'SELL'
         assert 0 < signal['confidence'] <= 1.0
         assert '超买' in signal['reason']
 
@@ -335,7 +335,7 @@ class TestBollingerBreakoutStrategy:
 
         signal = strategy.generate_signal(klines, {'period': 20, 'num_std': 2.0})
 
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
         assert 0 < signal['confidence'] <= 1.0
         assert '上轨' in signal['reason']
 
@@ -347,7 +347,7 @@ class TestBollingerBreakoutStrategy:
 
         signal = strategy.generate_signal(klines, {'period': 20, 'num_std': 2.0})
 
-        assert signal['action'] == 'sell'
+        assert signal['action'] == 'SELL'
         assert 0 < signal['confidence'] <= 1.0
         assert '下轨' in signal['reason']
 
@@ -385,16 +385,16 @@ class TestStrategyCombiner:
     @pytest.fixture
     def signals_all_buy(self):
         return [
-            {'action': 'buy', 'confidence': 0.8, 'reason': '金叉'},
-            {'action': 'buy', 'confidence': 0.7, 'reason': '超卖'},
-            {'action': 'buy', 'confidence': 0.9, 'reason': '突破上轨'},
+            {'action': 'BUY', 'confidence': 0.8, 'reason': '金叉'},
+            {'action': 'BUY', 'confidence': 0.7, 'reason': '超卖'},
+            {'action': 'BUY', 'confidence': 0.9, 'reason': '突破上轨'},
         ]
 
     @pytest.fixture
     def signals_mixed(self):
         return [
-            {'action': 'buy', 'confidence': 0.8, 'reason': '金叉'},
-            {'action': 'sell', 'confidence': 0.7, 'reason': '超买'},
+            {'action': 'BUY', 'confidence': 0.8, 'reason': '金叉'},
+            {'action': 'SELL', 'confidence': 0.7, 'reason': '超买'},
             {'action': 'hold', 'confidence': 0.5, 'reason': '中性'},
         ]
 
@@ -411,7 +411,7 @@ class TestStrategyCombiner:
         combiner = StrategyCombiner(mode='and')
         result = combiner.combine(signals_all_buy)
 
-        assert result['action'] == 'buy'
+        assert result['action'] == 'BUY'
         assert 0.7 <= result['confidence'] <= 0.9
         assert 'AND' in result['reason']
 
@@ -430,7 +430,7 @@ class TestStrategyCombiner:
         combiner = StrategyCombiner(mode='or')
         result = combiner.combine(signals_mixed)
 
-        assert result['action'] == 'buy'  # buy confidence 0.8 > sell 0.7
+        assert result['action'] == 'BUY'  # buy confidence 0.8 > sell 0.7
         assert result['confidence'] == pytest.approx(0.8)
 
     def test_or_mode_all_hold(self, signals_all_hold):
@@ -454,14 +454,14 @@ class TestStrategyCombiner:
         """多数投票: buy buy hold -> buy"""
         from domain.quantlib.engine.strategy_combiner import StrategyCombiner
         signals = [
-            {'action': 'buy', 'confidence': 0.8, 'reason': 'p1'},
-            {'action': 'buy', 'confidence': 0.6, 'reason': 'p2'},
+            {'action': 'BUY', 'confidence': 0.8, 'reason': 'p1'},
+            {'action': 'BUY', 'confidence': 0.6, 'reason': 'p2'},
             {'action': 'hold', 'confidence': 0.5, 'reason': 'p3'},
         ]
         combiner = StrategyCombiner(mode='majority')
         result = combiner.combine(signals)
 
-        assert result['action'] == 'buy'
+        assert result['action'] == 'BUY'
         assert '2/3' in result['reason']
 
     def test_weighted_mode(self, signals_mixed):
@@ -471,7 +471,7 @@ class TestStrategyCombiner:
         # buy权重3, sell权重1 -> buy加权得分更高
         result = combiner.combine(signals_mixed, weights=[3.0, 1.0, 1.0])
 
-        assert result['action'] == 'buy'
+        assert result['action'] == 'BUY'
         assert '加权' in result['reason']
 
     def test_weighted_mode_all_zero_weights(self, signals_mixed):

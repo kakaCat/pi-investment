@@ -35,7 +35,7 @@ class TestConfigDrivenStrategy:
             },
             'rules': [{
                 'condition': 'close > sma20',
-                'action': 'buy',
+                'action': 'BUY',
                 'confidence': 0.75,
             }],
         })
@@ -50,11 +50,11 @@ class TestConfigDrivenStrategy:
             },
             'rules': [{
                 'condition': 'rsi14 < 30',
-                'action': 'buy',
+                'action': 'BUY',
                 'confidence': 0.8,
             }, {
                 'condition': 'rsi14 > 70',
-                'action': 'sell',
+                'action': 'SELL',
                 'confidence': 0.8,
             }],
         })
@@ -70,7 +70,7 @@ class TestConfigDrivenStrategy:
             },
             'rules': [{
                 'condition': 'close > sma20 AND rsi14 > 50',
-                'action': 'buy',
+                'action': 'BUY',
                 'confidence': 0.85,
             }],
         })
@@ -85,7 +85,7 @@ class TestConfigDrivenStrategy:
             },
             'rules': [{
                 'condition': 'rsi14 < 5',  # impossible
-                'action': 'buy',
+                'action': 'BUY',
                 'confidence': 0.9,
             }],
         })
@@ -99,11 +99,11 @@ class TestConfigDrivenStrategy:
                 'sma20': {'name': 'SMA', 'length': 20},
             },
             'rules': [
-                {'condition': 'close > sma20', 'action': 'buy', 'confidence': 0.9},
-                {'condition': 'close > sma20', 'action': 'sell', 'confidence': 0.5},
+                {'condition': 'close > sma20', 'action': 'BUY', 'confidence': 0.9},
+                {'condition': 'close > sma20', 'action': 'SELL', 'confidence': 0.5},
             ],
         })
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
         assert signal['confidence'] == 0.9
 
     def test_close_and_volume_in_condition(self, strategy):
@@ -115,11 +115,11 @@ class TestConfigDrivenStrategy:
             },
             'rules': [{
                 'condition': 'close > low AND volume > 0',
-                'action': 'buy',
+                'action': 'BUY',
                 'confidence': 0.7,
             }],
         })
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
 
     def test_invalid_condition_returns_hold(self, strategy):
         """Malformed condition should not crash, returns hold."""
@@ -128,7 +128,7 @@ class TestConfigDrivenStrategy:
             'indicators': {},
             'rules': [{
                 'condition': 'this_is_broken',
-                'action': 'buy',
+                'action': 'BUY',
                 'confidence': 0.5,
             }],
         })
@@ -146,11 +146,11 @@ class TestConfigDrivenStrategy:
             },
             'rules': [{
                 'condition': f'close >= {close - 1}',
-                'action': 'buy',
+                'action': 'BUY',
                 'confidence': 0.8,
             }],
         })
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
 
         # Test <=
         signal = strategy.generate_signal(klines, {
@@ -159,11 +159,11 @@ class TestConfigDrivenStrategy:
             },
             'rules': [{
                 'condition': f'close <= {close + 1}',
-                'action': 'buy',
+                'action': 'BUY',
                 'confidence': 0.8,
             }],
         })
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
 
     def test_or_condition(self, strategy):
         """OR should work between conditions."""
@@ -174,11 +174,11 @@ class TestConfigDrivenStrategy:
             },
             'rules': [{
                 'condition': 'rsi14 < 5 OR close > 0',  # second is always true
-                'action': 'buy',
+                'action': 'BUY',
                 'confidence': 0.8,
             }],
         })
-        assert signal['action'] == 'buy'
+        assert signal['action'] == 'BUY'
 
     def test_default_params(self, strategy):
         """Should have DEFAULT_PARAMS with empty config."""

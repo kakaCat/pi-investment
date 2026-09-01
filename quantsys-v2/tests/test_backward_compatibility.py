@@ -60,7 +60,7 @@ class TestBackwardCompatibility:
 
         # 模拟旧策略返回的信号
         legacy_signal = {
-            'action': 'buy',
+            'action': 'BUY',
             'confidence': 0.75,
             'reason': 'Legacy strategy signal'
         }
@@ -74,7 +74,7 @@ class TestBackwardCompatibility:
         )
 
         # 应该成功处理并添加默认风控参数
-        assert result['action'] == 'buy'
+        assert result['action'] == 'BUY'
         assert result['quantity'] > 0
         assert result['stop_loss_price'] is not None
         assert len(result['warnings']) == 0  # 使用默认值不应该产生警告
