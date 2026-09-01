@@ -36,8 +36,8 @@
 
 ## 建议（按杠杆排序）
 
-1. **数据管道挂靠可靠宿主**（最高杠杆）：把 kline 每日同步 + 因子每日计算并入 FastAPI 进程内 orchestrator tick（与挂单撮合同宿主），或由 agent-dh 盘后例程显式承担（kline_daily_sync 工具已存在）——二选一，但必须有一个明确 owner。
+1. **数据管道挂靠可靠宿主**（最高杠杆）：✅ **已完成（2026-09-02，commit 9ef94e07）**——全部定时任务迁入 FastAPI 进程内宿主（daily_jobs_bootstrap：DB 幂等 + 失败飞书告警 + freshness_guard 新鲜度巡检兜底）；同日修复 handle_data_update"假干活"（只读查询冒充更新）。上线即立功：freshness_guard 首跑检出 9-01 K线/因子双双滞后并告警。
 2. **下线 xgboost 旧模型**（或加路由层拒绝）：避免任何调用方误用死模型。
 3. **决策评估积压清理**：180 条 pending（agent-ts 时代）用新 /api/decisions/evaluate 低峰期批量清理。
 4. **ML 模型升级**：当前特征集（34 个技术因子）info 含量有限，recall 0.28 说明漏掉大部分上涨——考虑加入资金流/主线/regime 特征，或调整标签 horizon。
-5. **新鲜度监控进告警**：factor/kline 最新日期滞后 >1 交易日时自动告警（现有 data_quality_report 可扩展）。
+5. **新鲜度监控进告警**：✅ 已随第 1 条完成（freshness_guard 17:55 每日巡检，滞后即飞书告警）。
