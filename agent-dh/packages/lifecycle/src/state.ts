@@ -133,6 +133,10 @@ export class StateStore {
     return existsSync(p) ? readFileSync(p, 'utf8').trim() : null;
   }
 
+  /** 通用命名 JSON 读写（native-scheduler 等新增状态复用同一目录与原子写） */
+  readNamed<T>(name: string): T | null { return this.readJson<T>(name); }
+  writeNamed(name: string, value: unknown): void { this.writeJson(name, value); }
+
   writeLastKnownGood(hash: string): void {
     const tmp = this.path('last-known-good.tmp');
     writeFileSync(tmp, hash);

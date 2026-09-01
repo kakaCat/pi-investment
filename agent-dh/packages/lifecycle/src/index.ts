@@ -12,6 +12,7 @@ import { renderPrompt } from '@deepseek-ai/dsh-system-prompt';
 import { AgentOSClient } from '@pi-investment/agent-os-client';
 import { GitRepo } from './git.js';
 import { PendingResume, RestartResult, StateStore } from './state.js';
+import { NativeReminderScheduler, type NativeTask } from './native-scheduler.js';
 import { registerBoardUpdate, registerBoardRead, registerBoardPost } from './board-tools.js';
 
 
@@ -95,6 +96,97 @@ export default class LifecyclePlugin extends Service {
     this.registerTools();
     this.setupResume();
     this.setupOsReminderPoller();  // OS 提醒体系：60s 轮询信箱并投递（2026-08-25，dsh-schedule 会话级提醒 fork 即死的替代）
+    this.setupNativeScheduler();   // 原生提醒调度（2026-09-01）：payload.executor='dsh-native' 的任务由本进程 cron 直投，替代 os-remind-bridge.sh 链路
+  }
+
+  // ===== DSH 原生提醒调度器（2026-09-01）=====
+  // 正规化目标：替代「Agent OS cron → os-remind-bridge.sh → OS 信箱 → 轮询」链路。
+  // 任务注册表仍在 Agent OS（scheduler_manage 管理面不变），以 payload.executor='dsh-native'
+  // 标记由本进程调度执行；cron 解析/触发/防重/misfire 补偿由 NativeReminderScheduler 负责。
+  private nativeScheduler: NativeReminderScheduler | null = null;
+
+  private setupNativeScheduler(): void {
+    this.nativeScheduler = new NativeReminderScheduler({
+      baseURL: (this.cfg as any).agentOS?.baseURL || 'http://localhost:8080',
+      state: this.state,
+      deliver: async (task: NativeTask, firedAt: Date) => {
+        await this.deliverReminder(task.name, task.id, task.prompt, task.window, firedAt.toISOString());
+      },
+    });
+    this.nativeScheduler.start();
+    this.ctx.on('dispose' as any, () => {
+      this.nativeScheduler?.stop();
+      this.nativeScheduler = null;
+    });
+  }
+
+  /**
+   * 统一提醒投递（信箱轮询与原生调度共用）：
+   * ① 目标窗口在线 → followup 直投
+   * ② 不在线 → 创建新窗口代执行（用户决策：任务必须被执行，不等待上线）
+   * ③ 执行留痕写 OS memory（office:reminder:exec，含完整 prompt 可溯）
+   */
+  private async deliverReminder(taskName: string, taskId: string, prompt: string, window: string | undefined, firedAt: string): Promise<void> {
+    // ① 找在线目标窗口
+    const roots: any[] = this.ctx.agents.roots();
+    const online = roots.find((a) => String(a.id).startsWith(this.cfg.agentId)) ?? roots[0];
+    let executor: any = null;
+
+    if (online?.followup) {
+      try {
+        online.followup(createUserMessage({
+          content: [{ type: 'text', text: `【OS 提醒】${taskName}\n\n${prompt}\n\n（来源：定时任务 ${taskId}，触发于 ${firedAt}）` }],
+          source: { kind: 'plugin', plugin: 'lifecycle' },
+        }));
+        executor = { mode: 'direct', session_id: String(online.id) };
+      } catch { /* 投递失败走创建窗口 */ }
+    }
+
+    // ② 没有在线窗口 → 创建新窗口代为执行
+    if (!executor) {
+      const sessionId = `session-${crypto.randomUUID()}`;
+      await (this.ctx as any).agents.create({
+        sessionId,
+        agentOptions: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+      });
+      const newWindow = this.windowCode(sessionId);
+      const newAgent: any = (this.ctx as any).agents.get(sessionId);
+      newAgent?.followup?.(createUserMessage({
+        content: [{ type: 'text', text: `【OS 提醒·代执行】目标窗口 ${window ?? '未知'} 不在线，由你（新窗口 ${newWindow}）代为执行定时任务「${taskName}」：\n\n${prompt}\n\n要求：遵守交易宪法（提示词 constitution 段）；完成后把结论写入 memory（namespace=decision）并 window_update 标记 done。` }],
+        source: { kind: 'plugin', plugin: 'lifecycle' },
+      }));
+      // 登记新窗口进花名册
+      await this.osWrite('skill_upsert', {
+        window: newWindow,
+        session_id: sessionId,
+        agent_id: this.identity.id,
+        role: this.identity.name,
+        skills: ['提醒代执行'],
+        status: 'busy',
+        task: `代执行提醒 ${taskName}`,
+      });
+      executor = { mode: 'spawned', session_id: sessionId, window: newWindow };
+    }
+
+    // ③ 执行留痕（含完整提示词，可溯）
+    const rootsEarly: any[] = this.ctx.agents.roots();
+    const onlineRoot = rootsEarly.find((a) => String(a.id).startsWith(this.cfg.agentId)) ?? rootsEarly[0];
+    const myWindow = onlineRoot ? this.windowCode(String(onlineRoot.id)) : this.windowCode(this.identity.id);
+    await this.osWrite('memory_write', {
+      title: `reminder ${taskName} delivered`,
+      content: JSON.stringify({
+        task: taskName,
+        task_id: taskId,
+        prompt,
+        window,
+        fired_at: firedAt,
+        delivered: true,
+        delivered_at: new Date().toISOString(),
+        executor,
+      }),
+      namespace: 'data',
+      tags: ['office:delivered', 'office:reminder:exec', `office:reminder:${myWindow}`],
+    });
   }
 
   // ===== OS 提醒体系（2026-08-25 用户决策：提醒走 OS，不走 dsh session-local）=====
