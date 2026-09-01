@@ -110,6 +110,9 @@ export const dataFetchKlinePrompt: ToolPrompt<DataFetchKlineParams, DataFetchKli
         return [{ type: 'text', text: `未获取到 ${args.symbol} 的K线数据` }];
       }
 
+      // 2026-09-01：后端 klines 字段为 trade_date（非 date），直接读 first.date
+      // 会渲染成 undefined。兼容两种字段名。
+      const dateOf = (row: any): string => row?.trade_date ?? row?.date ?? '';
       const first = data[0];
       const last = data[count - 1];
       const priceChange = ((last.close - first.open) / first.open * 100).toFixed(2);
@@ -118,13 +121,13 @@ export const dataFetchKlinePrompt: ToolPrompt<DataFetchKlineParams, DataFetchKli
       let output = `## K线数据 - ${args.symbol}\n\n`;
       output += `### 📊 数据概览\n`;
       output += `- **数据条数**: ${count} 条\n`;
-      output += `- **时间范围**: ${first.date} ~ ${last.date}\n`;
+      output += `- **时间范围**: ${dateOf(first)} ~ ${dateOf(last)}\n`;
       output += `- **周期**: ${args.period || 'daily'}\n`;
       output += `- **期间涨跌**: ${changeIcon} ${priceChange}%\n\n`;
 
       output += `### 📈 首尾数据\n`;
-      output += `**起始** (${first.date}): 开 ${first.open} / 收 ${first.close}\n`;
-      output += `**结束** (${last.date}): 开 ${last.open} / 收 ${last.close}\n`;
+      output += `**起始** (${dateOf(first)}): 开 ${first.open} / 收 ${first.close}\n`;
+      output += `**结束** (${dateOf(last)}): 开 ${last.open} / 收 ${last.close}\n`;
 
       return [{ type: 'text', text: output }];
     },

@@ -18,6 +18,8 @@ export interface ScreeningResult {
     score: number;
   }>;
   total_matched: number;
+  totalMatched?: number; // api_response camelCase 化后的字段
+  matched?: number;
   criteria_used: Record<string, any>;
 }
 
@@ -76,7 +78,7 @@ export const screeningPrompt: ToolPrompt<ScreeningParams, ScreeningResult> = {
     render: (_args, data) => [
       { type: 'text', text: `🔎 股票筛选完成` },
       { type: 'text', text: `` },
-      { type: 'text', text: `📊 符合条件: ${data.total_matched} 只` },
+      { type: 'text', text: `📊 符合条件: ${data.totalMatched ?? data.matched ?? data.total_matched} 只` },
       { type: 'text', text: `📄 返回结果: ${data.stocks.length} 只` },
       { type: 'text', text: `` },
       ...data.stocks.slice(0, 10).map(s => ({

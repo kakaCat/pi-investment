@@ -12,7 +12,9 @@ export interface RotationProposalParams {
 
 export interface RotationProposalResult {
   proposals: Array<{
-    action: 'buy' | 'sell' | 'hold';
+    // 2026-09-01：与后端 strategy_rotation_engine 对齐（原 buy/sell 交易语义与后端
+    // activate/deactivate/adjust_weight 策略语义不匹配，导致模拟/执行被静默忽略）
+    action: 'activate' | 'deactivate' | 'adjust_weight';
     symbol: string;
     name: string;
     reason: string;
@@ -87,17 +89,25 @@ export const rotationProposalPrompt: ToolPrompt<RotationProposalParams, Rotation
         summary: { type: 'object', additionalProperties: true, description: '建议摘要' },
       },
     },
-    render: (_args, data) => [
-      { type: 'text', text: `🔄 轮动方案生成完成` },
-      { type: 'text', text: `` },
-      { type: 'text', text: `📊 建议买入: ${data.summary?.total_buy ?? 0} 只` },
-      { type: 'text', text: `📊 建议卖出: ${data.summary?.total_sell ?? 0} 只` },
-      { type: 'text', text: `📊 预计换手: ${((data.summary?.expected_turnover ?? 0) * 100).toFixed(1)}%` },
-      { type: 'text', text: `` },
-      ...(data.proposals ?? []).slice(0, 8).map(p => ({
-        type: 'text' as const,
-        text: `${p.action === 'buy' ? '🟢' : p.action === 'sell' ? '🔴' : '⚪'} ${p.symbol} ${p.name} - ${p.reason}`
-      })),
-    ],
+    render: (_args, data) => {
+      // 2026-09-01：兼容后端实际结构（proposal.actions 策略级动作；summary 可能是字符串）
+      const proposals = Array.isArray(data.proposals)
+        ? data.proposals
+        : (Array.isArray((data as any).proposal?.actions) ? (data as any).proposal.actions : []);
+      const summary: any = typeof data.summary === 'object' ? data.summary : {};
+      const actIcon = (a: string) => a === 'activate' ? '🟢' : a === 'deactivate' ? '🔴' : '🟡';
+      return [
+        { type: 'text', text: `🔄 轮动方案生成完成` },
+        { type: 'text', text: `` },
+        { type: 'text', text: `📊 建议启用: ${summary.total_buy ?? 0} 只` },
+        { type: 'text', text: `📊 建议停用: ${summary.total_sell ?? 0} 只` },
+        { type: 'text', text: `📊 预计换手: ${((summary.expected_turnover ?? 0) * 100).toFixed(1)}%` },
+        { type: 'text', text: `` },
+        ...proposals.slice(0, 8).map((p: any) => ({
+          type: 'text' as const,
+          text: `${actIcon(p.action)} ${p.action} ${p.strategy_name ?? p.symbol ?? ''} - ${p.reason ?? ''}`
+        })),
+      ];
+    },
   },
 };

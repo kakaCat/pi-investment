@@ -29,31 +29,21 @@ export class RotationSimulateTool extends BaseTool<RotationSimulateParams, Rotat
         field: 'proposals',
         issue: 'proposals 必须是非空数组',
         received: args.proposals,
-        expected: '[{ action, symbol, weight? }]',
+        expected: '[{ action, strategy_id?, strategy_name?, symbol?, weight? }]',
       };
     }
 
+    // 2026-09-01：action 与后端 strategy_rotation_engine 对齐（activate/deactivate/adjust_weight）
     for (let i = 0; i < args.proposals.length; i++) {
       const p = args.proposals[i];
-      if (!p.action || !['buy', 'sell'].includes(p.action)) {
+      if (!p.action || !['activate', 'deactivate', 'adjust_weight'].includes(p.action)) {
         return {
           success: false,
           errorType: ErrorType.INPUT_ERROR,
           field: `proposals[${i}].action`,
-          issue: 'action 必须是 buy 或 sell',
+          issue: 'action 必须是 activate/deactivate/adjust_weight',
           received: p.action,
-          expected: 'buy | sell',
-        };
-      }
-
-      if (!p.symbol || typeof p.symbol !== 'string') {
-        return {
-          success: false,
-          errorType: ErrorType.INPUT_ERROR,
-          field: `proposals[${i}].symbol`,
-          issue: 'symbol 必须是字符串',
-          received: p.symbol,
-          expected: '股票代码',
+          expected: 'activate | deactivate | adjust_weight',
         };
       }
     }

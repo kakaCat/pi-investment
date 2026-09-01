@@ -6,8 +6,11 @@ import type { ToolPrompt } from '@pi-investment/core-tool';
 
 export interface RotationExecuteParams {
   proposals: Array<{
-    action: 'buy' | 'sell';
-    symbol: string;
+    // 2026-09-01：与后端 strategy_rotation_engine 对齐（原 buy/sell 会被 422/忽略）
+    action: 'activate' | 'deactivate' | 'adjust_weight';
+    strategy_id?: number;
+    strategy_name?: string;
+    symbol?: string;
     weight?: number;
   }>;
   account_name?: string;
@@ -21,7 +24,7 @@ export interface RotationExecuteResult {
     orders_failed: number;
     details: Array<{
       symbol: string;
-      action: 'buy' | 'sell';
+      action: string;
       status: 'success' | 'failed' | 'skipped';
       order_id?: string;
       message?: string;
@@ -46,8 +49,8 @@ export const rotationExecutePrompt: ToolPrompt<RotationExecuteParams, RotationEx
     proposals: {
       type: 'array',
       required: true,
-      description: '轮动方案列表',
-      example: [{ action: 'buy', symbol: '000001', weight: 0.1 }],
+      description: '轮动方案列表（由 rotation_proposal 生成）。action 取值：activate（启用策略）/ deactivate（停用策略）/ adjust_weight（调整权重）',
+      example: [{ action: 'deactivate', strategy_id: 3, strategy_name: '均线突破策略' }],
     },
     account_name: {
       type: 'string',
@@ -56,13 +59,13 @@ export const rotationExecutePrompt: ToolPrompt<RotationExecuteParams, RotationEx
     },
     dry_run: {
       type: 'boolean',
-      description: '是否模拟执行（不实际下单）',
+      description: '是否模拟执行（不实际下单，2026-09-01 起后端支持）',
       example: false,
     },
   },
   examples: [
-    'rotation_execute({ proposals: [{action: "buy", symbol: "000001", weight: 0.1}], dry_run: true }) // 模拟执行',
-    'rotation_execute({ proposals: [{action: "sell", symbol: "600519"}], account_name: "default" }) // 实际执行卖出',
+    'rotation_execute({ proposals: [{action: "deactivate", strategy_id: 3, strategy_name: "均线突破策略"}], dry_run: true }) // 模拟执行',
+    'rotation_execute({ proposals: [{action: "adjust_weight", strategy_id: 1, new_weight: 0.5}], account_name: "default" }) // 实际执行权重调整',
   ],
 
   notes: [

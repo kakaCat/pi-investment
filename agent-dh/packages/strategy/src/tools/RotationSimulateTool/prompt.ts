@@ -6,8 +6,12 @@ import type { ToolPrompt } from '@pi-investment/core-tool';
 
 export interface RotationSimulateParams {
   proposals: Array<{
-    action: 'buy' | 'sell';
-    symbol: string;
+    // 2026-09-01：与后端 strategy_rotation_engine 对齐（原 buy/sell 与后端
+    // activate/deactivate/adjust_weight 语义不匹配，会被静默忽略）
+    action: 'activate' | 'deactivate' | 'adjust_weight';
+    strategy_id?: number;
+    strategy_name?: string;
+    symbol?: string;
     weight?: number;
   }>;
   account_name?: string;
@@ -46,8 +50,8 @@ export const rotationSimulatePrompt: ToolPrompt<RotationSimulateParams, Rotation
     proposals: {
       type: 'array',
       required: true,
-      description: '轮动方案列表（通常由 rotation_proposal 工具生成，也可手动构造）',
-      example: [{ action: 'buy', symbol: '000001', weight: 0.1 }],
+      description: '轮动方案列表（通常由 rotation_proposal 工具生成，也可手动构造）。action 取值与后端一致：activate（启用策略）/ deactivate（停用策略）/ adjust_weight（调整权重）',
+      example: [{ action: 'deactivate', strategy_id: 3, strategy_name: '均线突破策略' }],
     },
     account_name: {
       type: 'string',
@@ -62,24 +66,24 @@ export const rotationSimulatePrompt: ToolPrompt<RotationSimulateParams, Rotation
   },
   examples: [
     {
-      title: '模拟买入平安银行',
+      title: '模拟停用表现差的策略',
       params: {
-        proposals: [{ action: 'buy', symbol: '000001', weight: 0.1 }],
+        proposals: [{ action: 'deactivate', strategy_id: 3, strategy_name: '均线突破策略' }],
         account_name: 'default',
         check_constraints: true,
       },
-      expectedResult: '返回资金是否充足、预期持仓、约束检查结果',
+      expectedResult: '返回清仓模拟、资金释放、风险变化',
     },
     {
-      title: '模拟轮动方案',
+      title: '模拟完整轮动方案',
       params: {
         proposals: [
-          { action: 'sell', symbol: '600519' },
-          { action: 'buy', symbol: '000858', weight: 0.15 },
+          { action: 'deactivate', strategy_id: 3, strategy_name: '均线突破策略' },
+          { action: 'adjust_weight', strategy_id: 1, strategy_name: 'MACD金叉策略', old_weight: 1.0, new_weight: 0.5 },
         ],
         check_constraints: true,
       },
-      expectedResult: '检查卖出茅台、买入五粮液的可行性',
+      expectedResult: '检查停用策略清仓与权重调整的可行性',
     },
   ],
 

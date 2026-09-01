@@ -55,8 +55,15 @@ export class MainlineScanTool extends BaseTool<MainlineScanParams, MainlineScanR
 
     const res: any = await this.qv2.getSectorAnalysis({ days: args.days ?? 5, limit: 10 });
 
-    // 响应结构宽容解析：取板块数组（名称+涨跌幅+资金流）
-    const sectors: any[] = res?.sectors || res?.items || res?.ranking || [];
+    // 2026-09-01 修复：/api/market/sectors 返回 {data:{industries, concepts}}（行业/概念分组），
+    // 原只解析 res.sectors/items/ranking 扁平数组 → 恒为空。兼容两种结构，行业优先。
+    const industries: any[] = res?.industries ?? res?.data?.industries ?? [];
+    const concepts: any[] = res?.concepts ?? res?.data?.concepts ?? [];
+    const grouped: any[] = [
+      ...(Array.isArray(industries) ? industries : []),
+      ...(Array.isArray(concepts) ? concepts : []),
+    ];
+    const sectors: any[] = grouped.length > 0 ? grouped : (res?.sectors || res?.items || res?.ranking || []);
     const top3 = sectors.slice(0, 3).map((sec: any, i: number) => ({
       rank: i + 1,
       sector: sec['板块名称'] ?? sec.name ?? sec.sector ?? sec.industry ?? `未知板块${i + 1}`,

@@ -38,7 +38,9 @@ export class BarraDecompositionTool extends BaseTool<BarraDecompositionParams, B
   protected async execute(args: BarraDecompositionParams, _context: ToolContext): Promise<BarraDecompositionResult> {
     const symbols = args.symbols?.length
       ? args.symbols
-      : ['600519', '000858', '601318', '000001', '600036'];
+      : // 2026-09-01：Barra 横截面回归需 ≥ 因子数+5 只股票（5 风格因子 → ≥10），
+      // 原 5 只默认必然触发样本不足 → 全 NaN → null。扩至 10 只蓝筹。
+      ['600519', '000858', '601318', '000001', '600036', '601398', '600028', '601288', '600900', '000333'];
 
     const result: any = await this.qv2.getBarraDecomposition({
       symbols,

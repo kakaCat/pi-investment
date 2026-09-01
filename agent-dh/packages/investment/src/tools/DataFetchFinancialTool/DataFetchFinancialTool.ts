@@ -43,11 +43,23 @@ export class DataFetchFinancialTool extends BaseTool<DataFetchFinancialParams, D
     // 2026-08-30 修复：/api/v2/stock/{symbol}/financials 的 sina-web 指标源失效（全 null），
     // 优先用 provider sina-statements（真实报表），失败再退回原接口。
     let rawData: any = null;
+    let pe = 0;
+    let pb = 0;
     try {
       const statements = await this.qv2.getFinancialStatements(args.symbol);
       rawData = statements?.data ?? statements;
     } catch {
       rawData = await this.qv2.getFinancialData(args.symbol);
+    }
+
+    // 2026-09-01：PE/PB 取自 /api/v2/stock/{symbol}/financials（后端已从 stocks 表
+    // 补充 pe/pb 字段，见 financials_async.py）——此前硬编码 0，估值维度失真。
+    try {
+      const fin = await this.qv2.getFinancialData(args.symbol);
+      pe = Number(fin?.pe) || 0;
+      pb = Number(fin?.pb) || 0;
+    } catch {
+      // 补取失败保持 0，不阻断主流程
     }
 
     // 兼容两种结构：income_statement/balance_sheet（旧）或 income/balance（sina-statements）
@@ -85,8 +97,8 @@ export class DataFetchFinancialTool extends BaseTool<DataFetchFinancialParams, D
       total_liabilities: round2(totalLiabilitiesY),
       roe: equity > 0 ? round2((net_profit / equity) * 100) : 0,
       eps: round2(get(latest_income, '基本每股收益', 'basic_eps')),
-      pe_ttm: 0, // 后端未返回，需要额外计算或从其他接口获取
-      pb: 0, // 后端未返回，需要额外计算或从其他接口获取
+      pe_ttm: round2(pe), // 2026-09-01：从 stocks 表补充（此前硬编码 0）
+      pb: round2(pb), // 2026-09-01：从 stocks 表补充（此前硬编码 0）
       debt_ratio: total_assets > 0 ? round2((total_liabilities / total_assets) * 100) : 0,
       gross_margin: income > 0 ? round2(((income - cost) / income) * 100) : 0,
     } as unknown as DataFetchFinancialResult);

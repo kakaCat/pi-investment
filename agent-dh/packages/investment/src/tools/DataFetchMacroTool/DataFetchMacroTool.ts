@@ -38,7 +38,10 @@ export class DataFetchMacroTool extends BaseTool<DataFetchMacroParams, DataFetch
   ): Promise<DataFetchMacroResult> {
     const macro = await this.qv2.getMacroData();
     const indicator = String(args.indicator).toLowerCase();
-    const series = (macro as any)[indicator] as Array<Record<string, any>> | undefined;
+    // 2026-09-01 修复：/api/market/macro 返回 {data_type, data:{gdp,cpi,pmi}, source, timestamp}，
+    // unwrap 后数据在 macro.data 内层；原取 macro[indicator] 恒 undefined → 报"后端未提供数据"。
+    const inner: any = (macro as any)?.data ?? macro;
+    const series = inner[indicator] as Array<Record<string, any>> | undefined;
 
     if (!Array.isArray(series) || series.length === 0) {
       return {
@@ -46,7 +49,7 @@ export class DataFetchMacroTool extends BaseTool<DataFetchMacroParams, DataFetch
         data: [],
         latest: {},
         trend: 'unknown',
-        update_time: (macro as any).updateTime || new Date().toISOString(),
+        update_time: (macro as any)?.timestamp || (macro as any)?.updateTime || new Date().toISOString(),
         note: `后端未提供 ${indicator} 数据`,
       };
     }
@@ -73,7 +76,7 @@ export class DataFetchMacroTool extends BaseTool<DataFetchMacroParams, DataFetch
       data: series,
       latest,
       trend,
-      update_time: (macro as any).updateTime || new Date().toISOString(),
+      update_time: (macro as any)?.timestamp || (macro as any)?.updateTime || new Date().toISOString(),
     };
   }
 
