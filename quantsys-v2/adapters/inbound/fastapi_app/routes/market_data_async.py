@@ -18,7 +18,34 @@ router = APIRouter(tags=["Market Data - 市场/港股数据"])
 @router.get('/api/market/sectors')
 def get_sectors_v2():
     mgr = get_data_provider_manager()
-    return mgr.get_sector_list()
+    result = mgr.get_sector_list()
+    if result.get('success') and result.get('data'):
+        # 成功：尽力落库当日快照（板块列表每日低频，供数据源故障时兜底）
+        try:
+            from adapters.outbound.datasources.sector_snapshot import save_snapshot
+            save_snapshot(result.get('data'), source=result.get('source') or 'eastmoney')
+        except Exception:  # noqa: BLE001 落库失败不影响主链路
+            logger.warning('sector 快照落库失败（不影响本次返回）', exc_info=True)
+        return result
+    # 数据源故障/超时：回退 DB 快照（stale-while-error，标注 degraded）
+    try:
+        from adapters.outbound.datasources.sector_snapshot import load_snapshot
+        snapshot = load_snapshot()
+        if snapshot:
+            logger.warning(
+                f'行业板块数据源失败，回退 DB 快照: {result.get("error")} (attempted={result.get("attempted_sources")})'
+            )
+            return {
+                'success': True,
+                'data': snapshot,
+                'degraded': True,
+                'stale': True,
+                'stale_from': snapshot['timestamp'],
+                'fallback_reason': result.get('error', 'unknown'),
+            }
+    except Exception:  # noqa: BLE001
+        logger.warning('sector 快照回退失败（返回原始错误）', exc_info=True)
+    return result
 
 
 @router.get('/api/market/heatmap')
