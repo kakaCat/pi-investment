@@ -757,7 +757,15 @@ class ServiceFactory:
     @classmethod
     def get_data_service(cls):
         from application.services.data_service import DataService
-        return DataService()
+        # 2026-09-01 修复：无参构造导致所有 repo=None（K线/行情端点全灭，
+        # 'NoneType' object has no attribute 'get_daily_klines'）。
+        # 参照 StrategyCodeService fallback 模式注入具体 ORM 实现。
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository
+        from adapters.outbound.repositories.stock_repository import StockORMRepository
+        return DataService(
+            kline_repo=KlineORMRepository(),
+            stock_repo=StockORMRepository(),
+        )
 
     @classmethod
     def reset_all(cls):
