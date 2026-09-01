@@ -1176,11 +1176,17 @@ def generate_factor_report(payload: Optional[Dict[str, Any]] = Body(None)):
 def analyze_swing_points(payload: Optional[Dict[str, Any]] = Body(None)):
     """ZigZag 波段分析 — 根据历史价格波动识别买卖点"""
     from application.services.swing_point_service import SwingPointService
+    from application.services.stock_code_validator import StockCodeValidator
 
     raw = payload or {}
     params = convert_keys_to_snake(raw)
 
-    svc = SwingPointService()
+    # 修复（2026-09-01）：原实现 SwingPointService() 未注入 kline_repo，
+    # 线上必现 'NoneType' object has no attribute 'get_daily_klines'
+    svc = SwingPointService(
+        kline_repo=kline_repo,
+        validator=StockCodeValidator(kline_repo=kline_repo),
+    )
     result = svc.analyze(params)
 
     return api_response(sanitize_for_json(result))

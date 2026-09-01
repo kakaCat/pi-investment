@@ -32,7 +32,7 @@ VALID_TRANSITIONS = {
 
 class OrderService:
     """订单服务 - 管理订单生命周期"""
-    
+
     def __init__(
         self,
         account_service: AccountService,
@@ -42,6 +42,37 @@ class OrderService:
         self.account_service = account_service
         self.position_service = position_service
         self.order_repo = order_repo
+
+    def _validate_status_transition(
+        self,
+        order_id: int,
+        from_status: OrderStatus,
+        to_status: OrderStatus,
+    ) -> None:
+        """校验订单状态转换的合法性
+
+        Args:
+            order_id: 订单ID（用于错误消息）
+            from_status: 当前状态
+            to_status: 目标状态
+
+        Raises:
+            ValueError: 如果状态转换不合法
+        """
+        if from_status == to_status:
+            # 允许幂等操作
+            return
+
+        if (from_status, to_status) not in VALID_TRANSITIONS:
+            raise ValueError(
+                f"非法状态转换: 订单 {order_id} 从 {from_status.value} "
+                f"到 {to_status.value} 的转换不被允许"
+            )
+
+        logger.debug(
+            f"订单状态转换: order_id={order_id} "
+            f"{from_status.value} → {to_status.value}"
+        )
     
     def validate_order(
         self,
@@ -138,7 +169,30 @@ class OrderService:
         )
         
         return order
-    
+
+    def _validate_status_transition(
+        self,
+        order_id: int,
+        current_status: OrderStatus,
+        new_status: OrderStatus
+    ) -> None:
+        """校验订单状态转换是否合法
+
+        Args:
+            order_id: 订单ID
+            current_status: 当前状态
+            new_status: 目标状态
+
+        Raises:
+            ValueError: 状态转换不合法
+        """
+        transition = (current_status, new_status)
+        if transition not in VALID_TRANSITIONS:
+            raise ValueError(
+                f"不允许的状态转换: {current_status.value} -> {new_status.value} "
+                f"(order_id={order_id})"
+            )
+
     def fill_order(
         self,
         order_id: int,
@@ -159,41 +213,44 @@ class OrderService:
         order = self.order_repo.get_order(order_id)
         if not order:
             raise ValueError(f"订单不存在: {order_id}")
-        
+
         # 校验状态
         if order.status not in (OrderStatus.PENDING, OrderStatus.PARTIAL):
             raise ValueError(
                 f"订单状态不允许成交: {order.status.value} "
                 f"(order_id={order_id})"
             )
-        
+
         # 计算成交数量
         remaining_qty = order.quantity - order.filled_quantity
         if fill_quantity is None:
             fill_quantity = remaining_qty
-        
+
         if fill_quantity > remaining_qty:
             raise ValueError(
                 f"成交数量超过剩余数量: {fill_quantity} > {remaining_qty}"
             )
-        
+
         # 计算加权平均成交价
         old_filled_qty = order.filled_quantity
         old_avg_price = order.avg_filled_price
-        
+
         new_filled_qty = old_filled_qty + fill_quantity
         if old_filled_qty == 0:
             new_avg_price = fill_price
         else:
             total_cost = old_filled_qty * old_avg_price + fill_quantity * fill_price
             new_avg_price = total_cost / new_filled_qty
-        
+
         # 判断新状态
         if new_filled_qty >= order.quantity:
             new_status = OrderStatus.FILLED
         else:
             new_status = OrderStatus.PARTIAL
-        
+
+        # 校验状态转换合法性
+        self._validate_status_transition(order_id, order.status, new_status)
+
         # 更新订单状态
         self.order_repo.update_order_status(
             order_id=order_id,
@@ -241,16 +298,50 @@ class OrderService:
             reason=order.reason,
             trade_date=datetime.now().strftime('%Y-%m-%d'),
         )
-        
-        # 保存成交记录 (这里暂时返回trade对象，实际应由TradeService保存)
-        # TODO: 注入TradeService并在那里保存
-        
+
+        # 计算总费用
+        total_fees = commission + stamp_duty + transfer_fee
+
+        # 更新持仓（调用领域服务）
+        if order.action == OrderSide.BUY:
+            self.position_service.add_shares(
+                account_name=order.account_name,
+                symbol=order.symbol,
+                shares=fill_quantity,
+                cost=fill_price
+            )
+        else:  # SELL
+            self.position_service.reduce_shares(
+                account_name=order.account_name,
+                symbol=order.symbol,
+                shares=fill_quantity
+            )
+
+        # 更新账户资金（调用领域服务）
+        if order.action == OrderSide.BUY:
+            # 买入：扣减资金
+            total_cost = amount + total_fees
+            self.account_service.deduct_funds(
+                account_name=order.account_name,
+                amount=total_cost,
+                reason=f"买入 {order.symbol} {fill_quantity}股"
+            )
+        else:  # SELL
+            # 卖出：增加资金
+            net_proceeds = amount - total_fees
+            self.account_service.add_funds(
+                account_name=order.account_name,
+                amount=net_proceeds,
+                reason=f"卖出 {order.symbol} {fill_quantity}股"
+            )
+
         logger.info(
             f"订单已成交: order_id={order_id} "
             f"{order.symbol} {order.action.value} "
-            f"qty={fill_quantity} price={fill_price}"
+            f"qty={fill_quantity} price={fill_price} "
+            f"fees={total_fees:.2f}"
         )
-        
+
         return trade
     
     def cancel_order(self, order_id: int) -> bool:
@@ -258,12 +349,10 @@ class OrderService:
         order = self.order_repo.get_order(order_id)
         if not order:
             raise ValueError(f"订单不存在: {order_id}")
-        
-        if order.status != OrderStatus.PENDING:
-            raise ValueError(
-                f"只能取消 pending 状态的订单，当前状态: {order.status.value}"
-            )
-        
+
+        # 校验状态转换合法性
+        self._validate_status_transition(order_id, order.status, OrderStatus.CANCELLED)
+
         return self.order_repo.cancel_order(order_id)
     
     def expire_orders(self) -> int:
@@ -271,10 +360,14 @@ class OrderService:
         pending_orders = self.order_repo.get_pending_orders()
         now = datetime.now()
         expired_count = 0
-        
+
         for order in pending_orders:
             if order.expires_at and order.expires_at < now:
                 try:
+                    # 校验状态转换合法性
+                    self._validate_status_transition(
+                        order.id, order.status, OrderStatus.EXPIRED
+                    )
                     self.order_repo.update_order_status(
                         order_id=order.id,
                         status=OrderStatus.EXPIRED,
@@ -283,6 +376,8 @@ class OrderService:
                     logger.info(f"订单已过期: order_id={order.id}")
                 except Exception as e:
                     logger.error(f"过期订单失败 order_id={order.id}: {e}")
+
+        return expired_count
         
         return expired_count
     

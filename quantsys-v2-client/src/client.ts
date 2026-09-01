@@ -13,6 +13,7 @@ import type {
   QuoteData,
   FinancialData,
   WatchRule,
+  SwingPointAnalysis,
   Position,
   PortfolioSummary,
   EvolutionLeaderboard,
@@ -166,28 +167,44 @@ export class QuantsysV2Client {
    *   - Operators: >, <, >=, <=
    */
   private parseCondition(condition: string): Array<{type: string; params: Record<string, any>}> {
-    const match = condition.trim().match(/^([a-z_]+)\s*(>=?|<=?)\s*(-?[0-9]+\.?[0-9]*)$/);
+    const trimmed = condition.trim();
+
+    // velocity 特殊格式：velocity>2/15（15分钟窗口内波动≥2%）
+    const velMatch = trimmed.match(/^velocity\s*>\s*([0-9]+\.?[0-9]*)\s*\/\s*([0-9]+)$/);
+    if (velMatch) {
+      return [{ type: 'velocity', params: { pct: parseFloat(velMatch[1]), window_min: parseInt(velMatch[2], 10) } }];
+    }
+
+    // volume_surge 特殊格式：volume_surge>4（成交量≥同期均量4倍）
+    const volMatch = trimmed.match(/^volume_surge\s*>\s*([0-9]+\.?[0-9]*)$/);
+    if (volMatch) {
+      return [{ type: 'volume_surge', params: { multiple: parseFloat(volMatch[1]) } }];
+    }
+
+    const match = trimmed.match(/^([a-z_]+)\s*(>=?|<=?)\s*(-?[0-9]+\.?[0-9]*)$/);
     if (!match) {
       throw new Error(
         `Invalid watch condition format: "${condition}". \n` +
-        `Expected: "field operator value" (e.g., "price>100", "change_pct>5")\n` +
-        `Supported: price>N, price<N, change_pct>N, change_pct<N`
+        `Supported: price>N, price<N, change_pct>N, change_pct<-N, ` +
+        `pnl_pct>N, pnl_pct<-N（需 cost_price）, volume_surge>N, velocity>N/M`
       );
     }
     const [, field, operator, valueStr] = match;
     const value = parseFloat(valueStr);
-    
+    const direction = (operator === '>' || operator === '>=') ? 'above' : 'below';
+
     // Map to backend condition schema
     if (field === 'price') {
-      const direction = (operator === '>' || operator === '>=') ? 'above' : 'below';
       return [{ type: 'price_break', params: { direction, price: value } }];
     } else if (field === 'change_pct') {
-      const direction = (operator === '>' || operator === '>=') ? 'above' : 'below';
       return [{ type: 'pct_change', params: { direction, pct: value } }];
+    } else if (field === 'pnl_pct') {
+      // 持仓盈亏百分比触发（需配合 cost_price；后端 EvalContext.cost_price 来自规则字段）
+      return [{ type: 'pnl_pct', params: { direction, pct: value } }];
     } else {
       throw new Error(
         `Unknown watch condition field: "${field}".\n` +
-        `Supported fields: price, change_pct`
+        `Supported fields: price, change_pct, pnl_pct, volume_surge, velocity`
       );
     }
   }
@@ -566,6 +583,28 @@ export class QuantsysV2Client {
   }
 
   /**
+   * ZigZag 波段分析（买卖点识别）
+   * Real endpoint: POST /api/analysis/swing-points
+   * Body: { symbol, start_date?, end_date?, min_change? }
+   * 响应为 camelCase（后端 convert_keys_to_camel）。
+   * 2026-09-01 新增：后端路由原未注入 kline_repo 必 500，已修复。
+   */
+  async analyzeSwingPoints(params: {
+    symbol: string;
+    startDate?: string;
+    endDate?: string;
+    minChange?: number;
+  }): Promise<SwingPointAnalysis> {
+    const response = await this.client.post('/api/analysis/swing-points', {
+      symbol: params.symbol,
+      start_date: params.startDate,
+      end_date: params.endDate,
+      min_change: params.minChange,
+    });
+    return this.unwrap<SwingPointAnalysis>(response.data, 'analyzeSwingPoints');
+  }
+
+  /**
    * Get competition analysis
    */
   async getCompetitionAnalysis(
@@ -838,10 +877,13 @@ export class QuantsysV2Client {
       return await this.listWatchRules();
     }
     if (action === 'create') {
-      // Transform condition string to conditions array (backend contract)
-      // e.g. "price>100" -> [{type: "price_threshold", params: {operator: ">", value: 100}}]
-      const conditions = condition ? this.parseCondition(condition) : [];
-      const body = { ...rest, conditions };
+      // 优先使用结构化 conditions（后端原生契约）；否则把 condition 字符串解析成条件数组
+      // e.g. "price>100" -> [{type: "price_break", params: {direction: "above", price: 100}}]
+      const conditions = (params.conditions && params.conditions.length > 0)
+        ? params.conditions
+        : (condition ? this.parseCondition(condition) : []);
+      const { conditions: _omit, ...restClean } = rest as any;
+      const body = { ...restClean, conditions };
       const response = await this.client.post('/api/watch/rules', body);
       return this.unwrap(response.data, 'manageWatchRule');
     }

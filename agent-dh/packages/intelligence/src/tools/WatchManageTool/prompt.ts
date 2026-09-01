@@ -6,11 +6,15 @@ export interface WatchManageParams {
   name?: string;
   symbol?: string;
   condition?: string;
+  reason?: string;
+  cost_price?: number;
+  account?: string;
+  expires_at?: string;
 }
 
 export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
   name: 'watch_manage',
-  description: '管理盯盘规则（写操作）：创建、启用、禁用、删除。规则触发后系统自动通知，适合价格预警、涨跌幅预警、成交量异常监控等场景。创建前建议先用 watch_list 确认无重复规则。',
+  description: '管理盯盘规则（写操作）：创建、启用、禁用、删除。规则触发后系统自动通知，适合价格预警、涨跌幅预警、持仓盈亏止损止盈、成交量异动、瞬时涨速监控等场景。持仓股开仓后必须立即挂止损规则（换仓补位纪律）。创建前建议先用 watch_list 确认无重复规则。',
 
   parameters: {
     action: {
@@ -25,7 +29,7 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
     },
     name: {
       type: 'string',
-      description: '规则名称，create 时必填，如 "茅台价格突破2000"',
+      description: '规则名称，create 时必填，如 "茅台突破2000"',
     },
     symbol: {
       type: 'string',
@@ -33,7 +37,23 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
     },
     condition: {
       type: 'string',
-      description: '触发条件表达式，create 时必填。支持：price>100（突破价格）、price<90（跌破价格）、change_pct>5（涨幅超5%）、change_pct<-3（跌幅超3%）',
+      description: '触发条件表达式，create 时必填。支持：price>100（上破价格）、price<90（下破价格）、change_pct>5（涨幅超5%）、change_pct<-3（跌幅超3%）、pnl_pct<-8（持仓盈亏跌至-8%，需 cost_price 或不传自动取持仓成本）、pnl_pct>10（止盈）、volume_surge>4（成交量≥同期20日均量4倍）、velocity>2/15（15分钟内波动≥2%）',
+    },
+    reason: {
+      type: 'string',
+      description: '监视理由（强烈建议填写）：为什么盯这只票、触发后该怎么决策。触发通知会带出此文本，供未来自己/其他窗口回溯决策上下文',
+    },
+    cost_price: {
+      type: 'number',
+      description: '成本价，pnl_pct 条件用。不传时自动取 account 持仓成本；无持仓则报错',
+    },
+    account: {
+      type: 'string',
+      description: '账户名（默认 agent_virtual），pnl_pct 自动取成本价时指定持仓账户',
+    },
+    expires_at: {
+      type: 'string',
+      description: '规则过期时间 ISO 格式（如 2026-09-30T15:00:00），过期自动失效，避免僵尸规则',
     },
   },
 
@@ -74,6 +94,28 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
       expectedBehavior: '创建涨幅超过5%的监控规则',
     },
     {
+      scenario: '持仓止损（pnl_pct，自动取成本）',
+      params: {
+        action: 'create',
+        name: '中石油浮亏-8%止损',
+        symbol: '601857',
+        condition: 'pnl_pct<-8',
+        reason: '8/31 突破买入，大盘蓝筹止损线-8%',
+      },
+      expectedBehavior: '自动取持仓成本价，创建盈亏止损规则',
+    },
+    {
+      scenario: '量能异动监控',
+      params: {
+        action: 'create',
+        name: '汇川技术量能异动4倍',
+        symbol: '300124',
+        condition: 'volume_surge>4',
+        reason: '机器人观察池标的，放量异动评估买入',
+      },
+      expectedBehavior: '成交量达同期均量4倍时触发',
+    },
+    {
       scenario: '启用规则',
       params: {
         action: 'enable',
@@ -98,20 +140,27 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
       example: 'condition="price>2000" 监控茅台突破 2000 元',
     },
     {
-      title: '涨跌幅预警',
-      description: '监控异常波动，及时发现机会或风险',
-      example: 'condition="change_pct>5" 监控单日涨幅超 5%',
+      title: '持仓止损止盈（换仓补位纪律）',
+      description: '新开仓/换仓后立即挂 pnl_pct 规则：蓝筹-8%、成长-10%、小盘-12%；止盈+10%',
+      example: 'condition="pnl_pct<-8" + reason="买入理由"，成本价自动取持仓',
+    },
+    {
+      title: '量能异动/瞬时涨速',
+      description: 'volume_surge>4 抓放量异动；velocity>2/15 抓 15 分钟急拉急跌',
+      example: 'condition="volume_surge>4"（阈值按噪音迭代：触发太频繁就上调倍数）',
     },
     {
       title: '规则生命周期管理',
-      description: '创建后可随时启用/禁用/删除',
+      description: '创建后可随时启用/禁用/删除；建议设 expires_at 避免僵尸规则',
       example: '短期监控完成后 disable，长期无用则 delete',
     },
   ],
 
   notes: [
-    '2026-08-27 修复：create 时缺少必填参数会在前端校验，提供清晰的错误提示',
-    'condition 表达式支持：price>N、price<N、change_pct>N、change_pct<-N',
+    '2026-09-01 扩展：新增 pnl_pct（持仓盈亏%）、volume_surge（量能倍数）、velocity（窗口波动）条件，新增 reason（监视理由）/cost_price/expires_at 参数——对标 agent-ts watch 能力，后端引擎原生支持',
+    'condition 表达式：price>N、price<N、change_pct>N、change_pct<-N、pnl_pct>N、pnl_pct<-N、volume_surge>N、velocity>N/M（M=窗口分钟）',
+    'pnl_pct 不传 cost_price 时自动取 account（默认 agent_virtual）持仓成本；无持仓会报错',
+    '告警阈值按噪音迭代：触发太频繁（一天多次）就上调阈值，而不是忍受噪音',
     '创建前建议先 watch_list 确认无重复规则',
     'enable/disable/delete 操作需要先通过 watch_list 获取 rule_id',
   ],

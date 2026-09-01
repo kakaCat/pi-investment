@@ -5,6 +5,7 @@ import { AgentOSClient } from '@pi-investment/agent-os-client';
 import { createMarketStyleDetectTool } from './tools/MarketStyleDetectTool';
 import { createSectorAnalysisTool } from './tools/SectorAnalysisTool';
 import { createChipAnalysisTool } from './tools/ChipAnalysisTool';
+import { createSwingPointsTool } from './tools/SwingPointsTool';
 import { createRegimeDailyTool } from './tools/RegimeDailyTool';
 import { createMainlineScanTool } from './tools/MainlineScanTool';
 import { createMainlineStocksTool } from './tools/MainlineStocksTool';
@@ -126,6 +127,9 @@ export default class MarketPlugin extends Service {
 
     // 筹码分析
     ctx.tools.register(createChipAnalysisTool(qv2));
+
+    // ZigZag 波段买卖点分析（2026-09-01，对标 agent-ts analysis_swing_points）
+    ctx.tools.register(createSwingPointsTool(qv2));
 
     // ===== M1 市场感知：每日落库三件套（RFC 004/005，2026-08-20）=====
     // 落库介质：memory（kind=episode, scope=market:*），不依赖后端改表；
