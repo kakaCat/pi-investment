@@ -1,9 +1,38 @@
 # RFC 011：双调度系统三层监控体系（Scheduler Observability）
 
-- 状态：提案（Proposed）
+- 状态：部分实施（Partially Implemented）
 - 日期：2026-09-02
 - 作者：investor（窗口 w-8366e526）
 - 关联：ADR-002（v2 APScheduler 转正主调度）、工具连通性审计 §7.2b（v2_health_check 误报三修）
+
+## 实施进度（2026-09-02 更新）
+
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| P1 第3层看门狗 | `scripts/scheduler_watchdog.py` + launchd `com.pi-investment.scheduler-watchdog`（15min） | ✅ 已上线（commit da336438） |
+| 任务级补跑策略 | v2 `compensation_enabled`（26 auto_rerun+8 alert_only）+ Agent OS `metadata.watchdog`（2 auto_rerun+15 skip） | ✅ 已落库 |
+| P4a 第1层 v2 misfire | 幂等任务 grace→3600s、时点敏感→600s，重启生效（job store 实测 3600/300） | ✅ 已完成 |
+| P4b 启动补跑 | **不需要额外代码**——APScheduler misfire 机制在 `start()` 时自动补跑过期 job（见 §5.1 修订） | ✅ 由 misfire 覆盖 |
+| P2 第2层 v2 高频化 | v2_health_check 16:45→每小时 | ⏸ 暂缓（看门狗 15min 已覆盖，避免重复告警） |
+| P3/P5 Agent OS 侧 | 自检+补跑（需改 Go） | ⏸ 暂缓（用户决策：不动 Go，由看门狗外部监控） |
+| P6 自动补跑白名单 | 接通 trigger API，WATCHDOG_AUTO_RERUN 开关 | ⏸ 待观察稳定后开启 |
+
+### §5.1 修订：启动补跑 = misfire 机制（无需额外代码）
+实施时发现 APScheduler 的 misfire 机制本身就是启动补跑：调度器 `start()` 时检查 job store，
+`next_run_time` 已过期且距现在 < `misfire_grace_time` 的 job 会立即补跑一次（`coalesce=False`
+保证每个错过的触发都执行，`max_instances=1` 防并发）。因此第1层 v2 执行保障仅需
+「调大 misfire_grace_time + 重启」，无需额外启动补跑代码。执行器（job_executor.py）
+已有防并发（already running→skip）与 zombie 清理（>6h 判死），补跑兼容性良好。
+
+### 关键工程教训（实施沉淀）
+- **cron 时区双系统一致但曾经误判**：v2（APScheduler `timezone='Asia/Shanghai'`）与 Agent OS
+  （robfig/cron `time.Local`=Asia/Shanghai）cron 均按**北京时区**解读。看门狗初版误将 v2 按 UTC
+  推算（被 8/26 前 APScheduler 未启用期的旧 scheduler_runs 误导），已修正为 CST——以
+  `apscheduler_jobs.next_run_time` 实测排期为准（cron `0 8` 排期在北京 08:00）。
+- **任务级补跑策略字段**：v2 复用现成 `compensation_enabled`，Agent OS 复用 `metadata.watchdog`，
+  无需新建字段。
+
+
 
 ## 1. 背景与问题
 

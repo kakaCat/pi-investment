@@ -234,7 +234,10 @@ def scan_v2(conn, now_utc, since_utc):
             # 实时高频任务（*/5）跳过 missed 判定（窗口匹配无意义）
             if cron.strip().startswith("*/"):
                 continue
-            exps = expected_times(cron, since_utc, now_utc, tz=timezone.utc)  # v2 cron 按 UTC
+            # v2 APScheduler 用 timezone='Asia/Shanghai'（apscheduler_service.py:71），
+            # apscheduler_jobs.next_run_time 实测 cron `0 8` 排期在北京 08:00 → cron 按北京解读。
+            # （注：8/26 前的旧 scheduler_runs 是 APScheduler 未启用期的遗留，非当前口径）
+            exps = expected_times(cron, since_utc, now_utc, tz=CST)  # v2 cron 按北京时区
             if not exps:
                 continue
             cur.execute(
