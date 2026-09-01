@@ -112,7 +112,7 @@
 
 | 项 | 状态 | 说明 |
 |---|---|---|
-| ~~sector 东财板块接口~~ | ✅ **已修复（fb030a97）** | 单一源间歇超时（12.8-20s 抖动卡 20s 阈值）→ 新增 quant.sector_snapshot DB 快照 + 路由层 stale-while-error：成功落库、失败回退最近快照（degraded/stale_from 标注），实测正常路径落库 1000 板块、模拟失败回退 496 行业+504 概念 |
+| ~~sector 东财板块接口~~ | ✅ **已修复（fb030a97 + 1f5bb67e）** | ①DB 快照兜底：quant.sector_snapshot + 路由层 stale-while-error（成功落库、失败回退最近快照）②多数据源 failover：新增 AkshareSectorProvider（新浪行业+同花顺概念，独立通道）挂入 sector_providers，实测 eastmoney 故障自动切 akshare |
 | fund_flow 外部源 | 当日全失败（两融正常），502 降级显示 | 外部源故障，重试即恢复 |
 | opportunity_scan 参数契约 | scan_type/pool_id 后端忽略（扫描范围恒 0） | 契约失真 P2 待办 |
 | signal_track 5/10/20 日胜率 N/A | scheduler 无信号回填任务（胜率统计依赖盘后回填 update） | 回填机制缺失 P2 待办 |
