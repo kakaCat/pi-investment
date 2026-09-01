@@ -295,14 +295,32 @@ def get_scheduler_task_runs(task_id: str, page: int = Query(1), pageSize: int = 
 @router.post('/api/scheduler/tasks/{task_id}/trigger')
 @handle_api_error
 def trigger_scheduler_task(task_id: str):
+    """手动触发任务执行（立即执行）"""
     try:
+        # 2026-09-01: 如果使用 APScheduler，调用其 trigger_task_now 方法
+        from fastapi import Request
+        from starlette.datastructures import State
+
+        # 尝试从 app.state 获取 APScheduler 实例
+        try:
+            from adapters.inbound.fastapi_app.main import app
+            scheduler_service = getattr(app.state, 'scheduler_service', None)
+
+            if scheduler_service is not None:
+                # 使用 APScheduler 触发
+                scheduler_service.trigger_task_now(int(task_id))
+                return {'success': True, 'message': 'Task triggered via APScheduler'}
+        except Exception as e:
+            logger.warning(f"Failed to trigger via APScheduler, falling back to legacy: {e}")
+
+        # Fallback: 使用原有方式
         result = _scheduler.run_task(int(task_id))
         return {'success': True, 'data': result}
     except ValueError as e:
         return error_response({'success': False, 'error': str(e)}, 404)
 
 
-@router.post('/api/scheduler/tasks/{task_id}/compensate')
+@router.post('/api/scheduler/compensate')
 @handle_api_error
 def compensate_scheduler_task(task_id: str):
     try:
@@ -311,6 +329,27 @@ def compensate_scheduler_task(task_id: str):
         return {'success': True, 'data': result}
     except ValueError as e:
         return error_response({'success': False, 'error': str(e)}, 404)
+
+
+@router.post('/api/scheduler/reload')
+@handle_api_error
+def reload_scheduler_tasks():
+    """重新加载所有任务（用于动态更新 APScheduler）
+
+    2026-09-01: 当用户修改 scheduler_tasks 表后，调用此接口同步到 APScheduler
+    """
+    try:
+        from adapters.inbound.fastapi_app.main import app
+        scheduler_service = getattr(app.state, 'scheduler_service', None)
+
+        if scheduler_service is not None:
+            scheduler_service.reload_tasks()
+            return {'success': True, 'message': 'Tasks reloaded in APScheduler'}
+        else:
+            return {'success': False, 'error': 'APScheduler not available (Agent OS mode or not started)'}
+    except Exception as e:
+        logger.exception(f"Failed to reload tasks: {e}")
+        return error_response({'success': False, 'error': str(e)}, 500)
 
 
 # ============ 运行记录 ============

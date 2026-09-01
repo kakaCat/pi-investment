@@ -108,9 +108,17 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ Strategy sync disabled (set ENABLE_STRATEGY_SYNC=true to enable)")
 
+    # 初始化 JobRegistry（2026-09-01: scheduler 重构，优先使用 JobRegistry）
+    try:
+        from application.jobs.registry_setup import register_all_jobs
+        register_all_jobs()
+        logger.info("✅ JobRegistry initialized (28 jobs registered)")
+    except Exception as e:
+        logger.error(f"❌ JobRegistry initialization failed: {e}")
+
     # WP-15: Agent OS Scheduler Integration (2026-08-16)
     # 注册 quantsys-v2 调度任务到 Agent OS Scheduler（webhook 模式）
-    # 注册失败时回退到本地 SchedulerService
+    # 注册失败时回退到本地 APScheduler
     import sys as _sys
     if 'pytest' not in _sys.modules:
         use_agent_os_scheduler = settings.scheduler.agent_os_enabled
@@ -130,22 +138,33 @@ async def lifespan(app: FastAPI):
                 logger.warning("⚠️ Falling back to local scheduler")
                 use_agent_os_scheduler = False
 
-        # 本地 SchedulerService 作为备用（仅当 Agent OS 不可用时启动）
+        # 本地 APScheduler 作为备用（仅当 Agent OS 不可用时启动）
+        # 2026-09-01: 从手写调度器迁移到 APScheduler 框架
         if not use_agent_os_scheduler:
             try:
-                import threading
-                from infrastructure.scheduler.scheduler import SchedulerService
+                from infrastructure.scheduler.apscheduler_service import APSchedulerService
+                from adapters.outbound.repositories.scheduler_repository import SchedulerORMRepository
+                from infrastructure.persistence.orm import get_session
+                from infrastructure.config.settings import get_settings
 
-                def _run_scheduler():
-                    try:
-                        SchedulerService().run_loop()
-                    except Exception as e:
-                        logger.error(f"Scheduler thread crashed: {e}", exc_info=True)
+                settings_obj = get_settings()
+                db_url = (
+                    f"postgresql://{settings_obj.database.user}:{settings_obj.database.password}"
+                    f"@{settings_obj.database.host}:{settings_obj.database.port}/{settings_obj.database.name}"
+                )
 
-                threading.Thread(target=_run_scheduler, name="scheduler-thread", daemon=True).start()
-                logger.info("✅ Local SchedulerService background thread started (fallback mode)")
+                session = get_session()
+                repo = SchedulerORMRepository(session)
+
+                scheduler_service = APSchedulerService(db_url, repo)
+                scheduler_service.start()
+
+                # 保存到 app.state，用于 API 访问和关闭时清理
+                app.state.scheduler_service = scheduler_service
+
+                logger.info("✅ APScheduler started (fallback mode)")
             except Exception as e:
-                logger.error(f"❌ SchedulerService startup failed: {e}")
+                logger.error(f"❌ APScheduler startup failed: {e}")
 
     # 启动 WatchEngine 实时盯盘线程（2026-08-12 起唯一宿主，原 scheduler_daemon
     # 已下线该职责；pytest 下不启动，避免测试进程拉起盯盘循环）。
@@ -194,6 +213,15 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Agent OS client closed")
     except Exception as e:
         logger.warning(f"⚠️ Agent OS client cleanup failed: {e}")
+
+    # 关闭 APScheduler（2026-09-01）
+    scheduler_service = getattr(app.state, 'scheduler_service', None)
+    if scheduler_service is not None:
+        try:
+            scheduler_service.shutdown(wait=True)
+            logger.info("✅ APScheduler stopped")
+        except Exception as e:
+            logger.warning(f"⚠️ APScheduler shutdown failed: {e}")
 
     engine = getattr(app.state, 'watch_engine', None)
     if engine is not None:
