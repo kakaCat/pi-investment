@@ -205,6 +205,42 @@ class _LazyServiceModule:
         return get_strategy_repository()
 
     @property
+    def signal_repo(self):
+        return get_signal_repo()
+
+    @property
+    def stock_repo(self):
+        return get_stock_repo()
+
+    @property
+    def kline_repo(self):
+        return get_kline_repo()
+
+    @property
+    def portfolio_repo(self):
+        return get_portfolio_repo()
+
+    @property
+    def factor_repo(self):
+        return get_factor_repo()
+
+    @property
+    def risk_repo(self):
+        return get_risk_repo()
+
+    @property
+    def execution_repo(self):
+        return get_execution_repo()
+
+    @property
+    def backtest_repo(self):
+        return get_backtest_repo()
+
+    @property
+    def simulation_repo(self):
+        return get_simulation_repo()
+
+    @property
     def factor_adapter(self):
         return get_factor_adapter()
 

@@ -1255,6 +1255,11 @@ class SchedulerService:
         from infrastructure.jobs.chip_distribution_update_job import execute
         return execute(**(params or {}))
 
+    def _handle_fund_flow_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """全市场资金流向每日采集：委托 fund_flow_update_job.execute"""
+        from infrastructure.jobs.fund_flow_update_job import execute
+        return execute(**(params or {}))
+
     # -- 2026-08-13 自 scheduler_daemon 迁入的任务（薄封装委托原 job） --
 
     def _handle_v13_risk_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
