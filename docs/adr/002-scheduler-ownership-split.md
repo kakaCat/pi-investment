@@ -59,6 +59,30 @@
 - [ ] `grep -rn "os-remind-bridge" agent-dh/` 无命中
 - [ ] scheduler_manage list 显示的命令不再是脚本路径
 
+---
+
+## 执行结果（2026-09-01 当日落地，超出预期）
+
+**Phase 1（数据任务归 v2）✅ 完成**（提交 cc38c699 / 3eee7e77 / 54e283b0 / 64d0c05f）：
+- v2 JobRegistry 33 jobs（含补缺口 6 个：data_update/risk_check/decision_score/evolution_fitness/missed_opportunity/signal_perf_backfill）
+- APScheduler 主调度上线（`AGENT_OS_ENABLED=false`），加载 32→33 任务
+- 连带修复调度层 4 bug：trigger 同步卡死 46 分钟事故→异步派发；`import main` 双实例陷阱→request.app；job_executor dict/对象混用+get_running_runs 缺失+complete_run 参数错配；data_quality datetime 丢失
+- 实测：risk_check / daily_trade_verify / 数据质量 / 进化三任务全部 success 闭环
+
+**Phase 2（agent 提醒归 DSH）✅ 已完成——但方案与设计不同**（另一会话并行实施）：
+- 实际方案：lifecycle 插件内建 `native-scheduler.ts`（30s tick + cron.ts 解析器 + misfire 补偿 + 状态持久化），**不经 DSH scheduler 插件新开发**
+- 无害化设计：Agent OS 侧任务 command 改 `/bin/true`（cron 壳保留但不做事），`payload.executor='dsh-native'` 标记接管权——无双跑、OS 宕机时缓存任务表续跑
+- 15 个提醒任务全部已接管（state/native-scheduler.json lastFired 实证 19:05 投递）
+- os-remind-bridge.sh 等 3 脚本已删除（归档说明 agent-dh/scripts/_archive/2026-09-scheduler-migration/）
+- 发现的新偏差：方案把「调度触发壳」留在 Agent OS（/bin/true）——Agent OS 的 cron 仍是事实上的触发源之一（native scheduler 自己按 cron 表达式直投，不依赖 OS 触发；OS 任务只是注册表载体）。**C-1 迁移后建议把任务注册表也迁出 Agent OS**（v2 表或 DSH 配置），届时 Agent OS 调度职能才真正归零
+
+**验证清单终态**：
+- [x] v2 主调度（AGENT_OS_ENABLED=false），业务任务 31/31 覆盖正常执行
+- [x] agent 提醒无 shell 脚本参与（native-scheduler 直投）
+- [x] `os-remind-bridge` 生产引用清零
+- [ ] Agent OS 进程停止全链路演练（建议切换稳定 3 日后做）
+- [ ] 任务注册表迁出 Agent OS（C-1 依赖项，遗留）
+
 ## 备选方案（已否决）
 
 - **Agent OS 主调度正式化**：工程量小但 legacy 依赖永久化，与"系统化"方向相悖——否决
