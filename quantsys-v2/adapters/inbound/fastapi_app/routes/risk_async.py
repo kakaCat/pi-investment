@@ -301,3 +301,144 @@ def delete_stop_loss_rule(rule_id: str):
         return {'success': True, 'message': '规则已删除'}
     except Exception as e:
         return error_response({'success': False, 'error': str(e)}, 500)
+
+
+@router.get('/api/risk/trade-verify')
+@router.post('/api/risk/trade-verify')
+@handle_api_error
+def trade_verify(
+    account_name: Optional[str] = Query('agent_virtual'),
+    date: Optional[str] = Query(None),
+    payload: Optional[Dict[str, Any]] = Body(None),
+):
+    """每日交易对账（E-2 修复：后端权威实现，2026-09-01）。
+
+    GET/POST 双支持：client.verifyTrades 契约为 POST（Flask 时代遗留），
+    浏览器/调试用 GET。POST 时 body 参数优先于 query。
+
+    背景：本路由在 Flask→FastAPI 迁移中丢失（404），TradeVerifyTool 曾用本地
+    对账替代（2026-08-23）。本端点把对账逻辑收回服务端：
+      1. 当日重复成交检测（同标的+同方向+同价+同量+同分钟）
+      2. 关键字段缺失/非法值（price/quantity <= 0）
+      3. 持仓勾稽（全量历史 买入-卖出 净额 vs 当前持仓；迁移缺腿降级为提示）
+
+    返回与 TradeVerifyTool 本地产出同构：{date, total_orders, matched,
+    mismatched, anomalies[], history_gaps[]?}
+    """
+    from collections import defaultdict
+
+    from infrastructure.persistence.orm import get_session
+    from infrastructure.persistence.orm.models.simulation import (
+        SimulationTrade, SimulationPosition,
+    )
+
+    # POST body 参数优先于 query（client.verifyTrades 契约）
+    if payload:
+        account_name = payload.get('account_name', account_name)
+        date = payload.get('date', date)
+    target_date = date or datetime.now().strftime('%Y-%m-%d')
+    session = get_session()
+    try:
+        all_trades = (
+            session.query(SimulationTrade)
+            .filter(SimulationTrade.account_name == account_name)
+            .order_by(SimulationTrade.id.asc())
+            .all()
+        )
+        positions = (
+            session.query(SimulationPosition)
+            .filter(SimulationPosition.account_name == account_name)
+            .all()
+        )
+    finally:
+        session.close()
+
+    def _td(t) -> str:
+        v = getattr(t, 'trade_date', None) or getattr(t, 'created_at', None)
+        return str(v)[:10] if v else ''
+
+    day_trades = [t for t in all_trades if _td(t) == target_date]
+
+    anomalies: List[Dict[str, Any]] = []
+
+    # 1. 重复成交检测
+    seen: Dict[str, int] = defaultdict(int)
+    for t in day_trades:
+        minute = str(getattr(t, 'created_at', '') or '')[:16]
+        key = f"{t.symbol}|{t.action}|{t.price}|{t.shares}|{minute}"
+        seen[key] += 1
+        if seen[key] > 1:
+            anomalies.append({
+                'type': 'duplicate_trade',
+                'detail': f"疑似重复成交: {t.symbol} {t.action} {t.shares}股@{t.price}（第{seen[key]}次）",
+                'trade_id': getattr(t, 'id', None),
+            })
+
+    # 2. 关键字段缺失/非法值
+    for t in day_trades:
+        missing = [f for f in ('symbol', 'action', 'price', 'shares')
+                   if getattr(t, f, None) is None]
+        if missing:
+            anomalies.append({
+                'type': 'missing_fields',
+                'detail': f"成交记录缺字段 {'/'.join(missing)}: id={getattr(t, 'id', '?')}",
+                'trade_id': getattr(t, 'id', None),
+            })
+        price = float(getattr(t, 'price', 0) or 0)
+        qty = int(getattr(t, 'shares', 0) or 0)
+        if price <= 0 or qty <= 0:
+            anomalies.append({
+                'type': 'invalid_value',
+                'detail': f"成交价格/数量非法: {t.symbol} @{t.price} x{t.shares}",
+                'trade_id': getattr(t, 'id', None),
+            })
+
+    # 3. 持仓勾稽（迁移缺腿降级为 history_gaps 提示，不算异常）
+    def _sym(s) -> str:
+        return str(s or '').split('.')[0]
+
+    pos_map = {_sym(p.symbol): int(getattr(p, 'shares_total', 0) or 0) for p in positions}
+    net_map: Dict[str, int] = defaultdict(int)
+    has_buy = set()
+    for t in all_trades:
+        sym = _sym(t.symbol)
+        q = int(getattr(t, 'shares', 0) or 0)
+        if str(getattr(t, 'action', '')).lower() == 'buy':
+            net_map[sym] += q
+            has_buy.add(sym)
+        else:
+            net_map[sym] -= q
+
+    history_gaps: List[Dict[str, Any]] = []
+    for sym, net in net_map.items():
+        held = pos_map.get(sym, 0)
+        if held > 0 and held != net and abs(held - net) >= 100:
+            if sym not in has_buy:
+                history_gaps.append({
+                    'symbol': sym, 'net_trades': net,
+                    'note': '迁移持仓（可见历史无买入腿），不参与勾稽',
+                })
+            else:
+                anomalies.append({
+                    'type': 'position_mismatch',
+                    'detail': f"持仓勾稽不符 {sym}: 账面 {held} vs 成交净额 {net}",
+                    'symbol': sym,
+                })
+        elif held == 0 and net != 0:
+            history_gaps.append({
+                'symbol': sym, 'net_trades': net,
+                'note': '历史迁移缺腿（买入/卖出记录不全），不参与勾稽',
+            })
+
+    bad = {'duplicate_trade', 'missing_fields', 'invalid_value'}
+    result: Dict[str, Any] = {
+        'date': target_date,
+        'total_orders': len(day_trades),
+        'matched': len(day_trades) - sum(1 for a in anomalies if a['type'] in bad),
+        'mismatched': len(anomalies),
+        'anomalies': anomalies,
+        'note': '服务端对账（/api/risk/trade-verify，E-2 修复 2026-09-01）',
+    }
+    if history_gaps:
+        result['history_gaps'] = history_gaps
+    return api_response(result)
