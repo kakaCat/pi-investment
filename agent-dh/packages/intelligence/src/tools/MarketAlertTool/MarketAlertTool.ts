@@ -7,8 +7,8 @@ export class MarketAlertTool extends BaseTool<MarketAlertParams, any[]> {
   protected readonly metadata: ToolMetadata = {
     name: 'market_alert',
     category: 'intelligence',
-    version: '1.0.0',
-    timeoutMs: 10000,
+    version: '1.0.1',
+    timeoutMs: 40000,
   };
 
   protected readonly prompt = marketAlertPrompt;

@@ -183,11 +183,15 @@ async def platform_status():
     返回数据库、信号、模型、报告等状态
     """
     try:
-        from adapters.shared.services import get_portfolio_repo, get_risk_repo, get_signal_repo
+        from adapters.shared.services import get_portfolio_repo, get_risk_repo, get_signal_repo, get_simulation_repo
         _portfolio_repo = get_portfolio_repo()
         _risk_repo = get_risk_repo()
         _signal_repo = get_signal_repo()
-        holdings = _portfolio_repo.get_all_holdings() if _portfolio_repo else []
+        # 持仓数优先读模拟账户（agent_virtual，与 position_list 交易工具链一致）；
+        # 旧 portfolio_holdings 表为早期模拟盘遗留（5-6月数据），仅作回退。
+        _sim_repo = get_simulation_repo()
+        sim_positions = _sim_repo.get_all_positions('agent_virtual') if _sim_repo else []
+        holdings = sim_positions if sim_positions else (_portfolio_repo.get_all_holdings() if _portfolio_repo else [])
         balance = _risk_repo.get_latest_balance() if _risk_repo else None
         signals = _signal_repo.get_latest_signals(limit=10) if _signal_repo else []
 

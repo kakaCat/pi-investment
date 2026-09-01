@@ -14,8 +14,8 @@ export class SectorAnalysisTool extends BaseTool<SectorAnalysisParams, SectorAna
   protected readonly metadata: ToolMetadata = {
     name: 'sector_analysis',
     category: 'market',
-    version: '1.0.0',
-    timeoutMs: 10000,
+    version: '1.0.1',
+    timeoutMs: 40000,
   };
 
   protected readonly prompt = sectorAnalysisPrompt;

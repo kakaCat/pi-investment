@@ -45,7 +45,8 @@ def get_stock_fund_flow_v2(symbol: str, days: int = Query(5)):
     result = sentiment_service.get_stock_fund_flow(symbol, days)
 
     if 'error' in result:
-        return error_response({'success': False, 'error': result['error']}, 400)
+        # 数据源全部失败=上游不可用（502），而非请求参数错误（400）
+        return error_response({'success': False, 'error': result['error']}, 502)
 
     return api_response(result)
 

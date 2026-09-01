@@ -146,8 +146,8 @@ class OpponentBehaviorService:
             if retail_flow is None:
                 return {
                     'behavior': 'unknown',
-                    'net_flow': None,
-                    'emotion_index': None,
+                    'net_flow': 0,
+                    'emotion_index': 50.0,
                     'common_mistakes': [],
                     'degraded': True,
                     'reason': 'stock_fund_flow 无数据（等待每日采集任务 fund_flow_update）',
@@ -180,8 +180,8 @@ class OpponentBehaviorService:
             logger.warning(f"分析散户行为失败: {e}")
             return {
                 'behavior': 'unknown',
-                'net_flow': None,
-                'emotion_index': None,
+                'net_flow': 0,
+                'emotion_index': 50.0,
                 'common_mistakes': [],
                 'degraded': True,
                 'reason': str(e),
@@ -213,7 +213,7 @@ class OpponentBehaviorService:
             if institution_flow is None:
                 return {
                     'behavior': 'unknown',
-                    'net_flow': None,
+                    'net_flow': 0,
                     'target_sectors': [],
                     'position_change': 'unknown',
                     'degraded': True,
@@ -247,7 +247,7 @@ class OpponentBehaviorService:
             logger.warning(f"分析机构行为失败: {e}")
             return {
                 'behavior': 'unknown',
-                'net_flow': None,
+                'net_flow': 0,
                 'target_sectors': [],
                 'position_change': 'unknown',
                 'degraded': True,
@@ -275,7 +275,7 @@ class OpponentBehaviorService:
             return {
                 'behavior': 'inactive',
                 'target_stocks': [],
-                'stage': None,
+                'stage': 'unknown',
                 'activity_level': 'low',
                 'estimated': True,
                 'description': '游资活跃度较低，市场以价值投资为主（估算值，龙虎榜数据未接入）'
@@ -286,7 +286,7 @@ class OpponentBehaviorService:
             return {
                 'behavior': 'inactive',
                 'target_stocks': [],
-                'stage': None,
+                'stage': 'unknown',
                 'activity_level': 'low',
                 'description': '数据不足，无法判断'
             }

@@ -11,8 +11,8 @@ export class OpportunityScanTool extends BaseTool<OpportunityScanParams, Opportu
   protected readonly metadata: ToolMetadata = {
     name: 'opportunity_scan',
     category: 'strategy',
-    version: '2.0.0',
-    timeoutMs: 30000,
+    version: '2.0.1',
+    timeoutMs: 60000,
   };
 
   protected readonly prompt = opportunityScanPrompt;
