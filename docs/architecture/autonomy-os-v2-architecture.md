@@ -22,9 +22,9 @@
 
 调度权按执行体拆分：
 
-- **数据任务（26 个 webhook）归 v2**：APScheduler 转正主调度，JobRegistry 31 个业务 Job（Phase 1 进行中）
+- **数据任务归 v2**：APScheduler 转正主调度，34 个启用任务（含 market_style_update 收口补建）——Phase 1 已完成切换（2026-09-01 晚）
 - **agent 提醒任务（15 个 dsh-native）归 DSH**：NativeReminderScheduler cron 直投 followup（Phase 2 ✅ 已完成 2026-09-01）
-- **Agent OS 调度职能退役**：剩余 memory/notification 依赖由 C-1 迁移后可整体退役
+- **Agent OS 调度职能已退役**：26 个 webhook 任务全部 disable（2026-09-01 晚，防双跑）；注册表仅剩 15 个 dsh-native 提醒任务（command=/bin/true no-op）；剩余 memory/notification 依赖由 C-1 迁移后可整体退役
 
 ## 三、调度链路（修复后）
 
