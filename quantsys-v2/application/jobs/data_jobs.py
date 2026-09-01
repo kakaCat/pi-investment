@@ -144,6 +144,68 @@ class DataPipelineWeeklyJob(Job):
             return JobResult.fail(self.name, str(e))
 
 
+class DataUpdateJob(Job):
+    """全量数据更新（拉取所有股票最新 K 线）"""
+
+    @property
+    def name(self) -> str:
+        return "data_update"
+
+    @property
+    def description(self) -> str:
+        return "全量拉取所有股票最新 K 线数据"
+
+    @property
+    def timeout_seconds(self) -> int:
+        return 7200
+
+    async def execute(self, params: Dict[str, Any]) -> JobResult:
+        try:
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from domain.ports import IStockRepository
+
+            repo = EnhancedServiceFactory.resolve(IStockRepository)
+            stocks = repo.get_all(limit=params.get("max_symbols", 500))
+            symbols = [s["symbol"] for s in stocks]
+
+            if not symbols:
+                return JobResult.ok(self.name, message="No symbols to update",
+                                    details={"symbols_checked": 0})
+
+            def _fetch_one(symbol: str):
+                from infrastructure.persistence.orm import close_session
+                from adapters.outbound.repositories import KlineORMRepository
+                try:
+                    return KlineORMRepository().get_latest_daily_kline(symbol)
+                finally:
+                    close_session()
+
+            updated = 0
+            errors = []
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                futures = {executor.submit(_fetch_one, s): s for s in symbols}
+                for future in as_completed(futures):
+                    symbol = futures[future]
+                    try:
+                        future.result()
+                        updated += 1
+                    except Exception as e:
+                        errors.append({"symbol": symbol, "error": str(e)})
+
+            return JobResult.ok(
+                self.name,
+                message=f"数据更新完成: {updated}/{len(symbols)}",
+                details={
+                    "symbols_checked": len(symbols),
+                    "symbols_updated": updated,
+                    "errors": errors[:20],
+                },
+            )
+        except Exception as e:
+            return JobResult.fail(self.name, str(e))
+
+
 class ChipDistributionUpdateJob(Job):
     """筹码分布日更任务"""
 
@@ -174,6 +236,7 @@ class ChipDistributionUpdateJob(Job):
 
 # 导出所有数据类任务
 DATA_JOBS = [
+    DataUpdateJob(),
     KlineUpdateJob(),
     DataQualityCheckJob(),
     DataPipelineDailyJob(),

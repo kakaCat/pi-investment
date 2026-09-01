@@ -1,7 +1,7 @@
 """signal_execution_daily 兜底推送改造测试"""
 from unittest.mock import patch
 
-from application.services.scheduler_tasks import handle_signal_execution_daily
+from application.services.task_handlers import handle_signal_execution_daily
 
 
 @patch('application.services.agent_notification_service.agent_service')

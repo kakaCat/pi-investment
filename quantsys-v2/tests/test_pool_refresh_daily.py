@@ -2,7 +2,7 @@
 from datetime import date
 from unittest.mock import patch, MagicMock
 
-from application.services.scheduler_tasks import (
+from application.services.task_handlers import (
     handle_pool_refresh_daily,
     _is_pool_refresh_due,
 )

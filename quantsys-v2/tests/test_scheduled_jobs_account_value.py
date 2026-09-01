@@ -92,7 +92,7 @@ class TestVerificationJobAccountValue:
 # 走 FactorStage 计算 + ds.factor.save_factors 落库。
 # ============================================================
 
-from application.services import scheduler_tasks
+from application.services import task_handlers as scheduler_tasks
 
 
 class _FakeKlineDF:

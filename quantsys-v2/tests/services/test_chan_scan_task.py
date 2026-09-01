@@ -1,7 +1,7 @@
 """chan_scan 调度任务 handler 测试"""
 from unittest.mock import patch
 
-from application.services.scheduler_tasks import (
+from application.services.task_handlers import (
     handle_chan_scan, handle_chan_knowledge_distill, get_task_handler,
 )
 

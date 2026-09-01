@@ -1,7 +1,7 @@
 """evolution_fitness_daily 调度任务 handler 测试"""
 from unittest.mock import patch
 
-from application.services.scheduler_tasks import (
+from application.services.task_handlers import (
     handle_evolution_fitness_daily, get_task_handler,
 )
 

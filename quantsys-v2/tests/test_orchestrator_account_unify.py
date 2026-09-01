@@ -37,7 +37,7 @@ def test_post_market_snapshot_uses_agent_virtual():
     state = _make_state()
 
     with patch('live_trading.paper_trading_engine.PaperTradingEngine') as MockEngine, \
-         patch('application.services.scheduler_tasks.handle_factor_compute', return_value={'status': 'ok'}):
+         patch('application.services.task_handlers.handle_factor_compute', return_value={'status': 'ok'}):
         MockEngine.return_value.take_daily_snapshot.return_value = {}
         MockEngine.return_value.get_performance_report.return_value = {}
         orch._phase_post_market(state)

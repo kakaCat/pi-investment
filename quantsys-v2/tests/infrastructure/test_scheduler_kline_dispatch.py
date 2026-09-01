@@ -1,14 +1,14 @@
-"""SchedulerService._execute_command 分发修复测试（2026-08-02 kline_update 接管）
+"""SchedulerService._execute_command 分发测试
 
-背景：scheduler_tasks 表的 gem-kline-update（command='kline_update'）每个工作日 16:00
-失败「Unknown scheduler command」——静态 handler map 缺 kline_update，且应用层
-_TASK_HANDLERS 里的命令（如 pool_refresh_daily）没有 fallback 通路。
+背景：_execute_command 已迁移到 job_registry.execute() 统一调度。
+本测试验证 SchedulerService 正确委托给 JobRegistry。
 """
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 import pytest
 
 from infrastructure.scheduler.scheduler import SchedulerService
+from application.jobs.job_protocol import JobResult
 
 
 @pytest.fixture
@@ -16,40 +16,62 @@ def svc():
     return SchedulerService()
 
 
-class TestKlineUpdateDispatch:
-    def test_kline_update_dispatches_to_job_execute(self, svc):
-        with patch('infrastructure.jobs.kline_update_job.execute') as mock_exec:
-            mock_exec.return_value = {'action': 'kline_update', 'status': 'success'}
-            result = svc._execute_command('kline_update', {'days': 5})
-        mock_exec.assert_called_once_with(days=5)
+def _ok_result(name="test", details=None):
+    return JobResult.ok(name, message="ok", details=details or {})
+
+
+def _fail_result(name="test", error="boom"):
+    return JobResult.fail(name, error)
+
+
+class TestExecuteCommandDelegatesToJobRegistry:
+    """_execute_command 应委托给 job_registry.execute"""
+
+    @patch('application.jobs.job_registry.job_registry')
+    def test_kline_update_dispatches(self, mock_registry, svc):
+        mock_registry.execute = AsyncMock(return_value=_ok_result("kline_update"))
+        result = svc._execute_command('kline_update', {'days': 5})
+
+        mock_registry.execute.assert_called_once_with('kline_update', {'days': 5})
         assert result['status'] == 'success'
 
-    def test_kline_update_empty_params(self, svc):
-        with patch('infrastructure.jobs.kline_update_job.execute') as mock_exec:
-            mock_exec.return_value = {'action': 'kline_update', 'status': 'success'}
-            svc._execute_command('kline_update', {})
-        mock_exec.assert_called_once_with()
+    @patch('application.jobs.job_registry.job_registry')
+    def test_kline_update_empty_params(self, mock_registry, svc):
+        mock_registry.execute = AsyncMock(return_value=_ok_result("kline_update"))
+        svc._execute_command('kline_update', {})
 
+        mock_registry.execute.assert_called_once_with('kline_update', {})
 
-class TestApplicationHandlerFallback:
-    def test_pool_refresh_daily_falls_back_to_task_handlers(self, svc):
-        # 注意：_TASK_HANDLERS 在模块导入时已绑定函数对象，patch 模块属性无效，需 patch 映射项
-        from unittest.mock import MagicMock
-        mock_h = MagicMock(return_value={'action': 'pool_refresh_daily', 'status': 'success'})
-        with patch.dict('application.services.scheduler_tasks._TASK_HANDLERS', {'pool_refresh_daily': mock_h}):
-            result = svc._execute_command('pool_refresh_daily', {})
-        mock_h.assert_called_once_with({})
+    @patch('application.jobs.job_registry.job_registry')
+    def test_pool_refresh_daily_dispatches(self, mock_registry, svc):
+        mock_registry.execute = AsyncMock(return_value=_ok_result("pool_refresh_daily"))
+        result = svc._execute_command('pool_refresh_daily', {})
+
+        mock_registry.execute.assert_called_once_with('pool_refresh_daily', {})
         assert result['status'] == 'success'
 
-    def test_unknown_command_still_raises(self, svc):
-        with pytest.raises(ValueError, match="Unknown scheduler command"):
-            svc._execute_command('definitely_not_a_command', {})
+    @patch('application.jobs.job_registry.job_registry')
+    def test_chip_distribution_dispatches(self, mock_registry, svc):
+        mock_registry.execute = AsyncMock(return_value=_ok_result("chip_distribution_update"))
+        result = svc._execute_command('chip_distribution_update', {})
 
+        mock_registry.execute.assert_called_once_with('chip_distribution_update', {})
+        assert result['status'] == 'success'
 
-class TestChipDistributionDispatch:
-    def test_chip_update_dispatches_to_job_execute(self, svc):
-        with patch('infrastructure.jobs.chip_distribution_update_job.execute') as mock_exec:
-            mock_exec.return_value = {'pending': 0, 'updated': 0, 'failed': 0, 'days_applied': 0}
-            result = svc._execute_command('chip_distribution_update', {})
-        mock_exec.assert_called_once_with()
-        assert result['failed'] == 0
+    @patch('application.jobs.job_registry.job_registry')
+    def test_unknown_command_returns_failed(self, mock_registry, svc):
+        mock_registry.execute = AsyncMock(
+            return_value=_fail_result("unknown", "Unknown job: unknown"))
+        result = svc._execute_command('definitely_not_a_command', {})
+
+        assert result['status'] == 'failed'
+        assert 'Unknown job' in (result.get('error') or '')
+
+    @patch('application.jobs.job_registry.job_registry')
+    def test_failed_job_returns_failed_status(self, mock_registry, svc):
+        mock_registry.execute = AsyncMock(
+            return_value=_fail_result("factor_compute", "db down"))
+        result = svc._execute_command('factor_compute', {})
+
+        assert result['status'] == 'failed'
+        assert result['error'] == 'db down'

@@ -135,7 +135,7 @@ def test_handle_agent_reminder_success_when_agent_unreachable():
     不 mock 的话，agent 在线时测试会把"复盘时间到"真的推送给运行中的 agent
     （2026-07-28 事故：pytest 跑出的提醒把 agent 唤醒了两次）。
     """
-    from application.services.scheduler_tasks import handle_agent_reminder
+    from application.services.task_handlers import handle_agent_reminder
 
     with patch('application.services.agent_notification_service.'
                'AgentNotificationService.send_reminder',
@@ -149,7 +149,7 @@ def test_handle_agent_reminder_success_when_agent_unreachable():
 
 def test_agent_reminder_handler_registered_once():
     """agent_reminder 只注册一次且指向有效 handler（通知层 mock，不触碰真实 agent）"""
-    from application.services.scheduler_tasks import _TASK_HANDLERS, get_task_handler
+    from application.services.task_handlers import _TASK_HANDLERS, get_task_handler
 
     handler = get_task_handler('agent_reminder')
     assert handler is _TASK_HANDLERS['agent_reminder']

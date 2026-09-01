@@ -78,14 +78,38 @@ export class StrategyOptimizeTool extends BaseTool<StrategyOptimizeParams, Strat
     args: StrategyOptimizeParams,
     _context: ToolContext
   ): Promise<StrategyOptimizeResult> {
-    return this.qv2.optimizeStrategy({
+    const raw: any = await this.qv2.optimizeStrategy({
       strategy_id: args.strategy_id,
       param_ranges: args.param_ranges,
       symbol: args.symbols?.[0] || '',
       start_date: args.start_date || '',
       end_date: args.end_date || '',
       sort_by: args.optimization_target === 'return' ? 'total_return' : args.optimization_target === 'win_rate' ? 'win_rate' : 'sharpe_ratio',
-    }) as any;
+    });
+
+    // 2026-09-01 G-1 修复：后端实际返回 {success, results[], totalCombinations,
+    // successfulCombinations}（results 每项 {params, sharpeRatio, totalReturn,
+    // maxDrawdown, winRate}），与工具 output 契约的 best_params/best_score/
+    // all_results 不符——原代码直接透传导致 render 层 best_score.toFixed 崩溃
+    // （toFixed on undefined）。这里做字段适配，契约保持不变。
+    const results: any[] = Array.isArray(raw?.results) ? raw.results : [];
+    const targetKey =
+      args.optimization_target === 'return' ? 'totalReturn'
+      : args.optimization_target === 'win_rate' ? 'winRate'
+      : 'sharpeRatio';
+    const valid = results.filter((r) => r && typeof r[targetKey] === 'number');
+    const best = valid.reduce(
+      (acc, r) => (acc == null || r[targetKey] > acc[targetKey] ? r : acc),
+      null as any
+    );
+
+    return {
+      best_params: best?.params ?? {},
+      best_score: best?.[targetKey] ?? 0,
+      all_results: results,
+      total_combinations: raw?.totalCombinations ?? results.length,
+      successful_combinations: raw?.successfulCombinations ?? valid.length,
+    } as any;
   }
 
   protected wrap(data: StrategyOptimizeResult): ToolResponse<StrategyOptimizeResult> {
