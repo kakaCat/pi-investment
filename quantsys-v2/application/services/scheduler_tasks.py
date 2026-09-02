@@ -46,68 +46,55 @@ def handle_data_quality_check(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
 
 def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """数据更新任务"""
-    params = params or {}
+    """数据更新任务（盘前新鲜度检查）
 
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    2026-09-02 两连修：
+    1) 原实现只读 get_latest_daily_kline 做"存在性检查"就把只读查询计数为
+       symbols_updated——假干活，从不真正同步（9-01 数据因此整体缺失）。
+    2) 第一次修复把真同步放这里，但本函数会被 orchestrator
+       resume_from_breakpoint 在 FastAPI 主线程同步执行，全市场同步
+       （50 分钟级）把启动卡死（10:45 启动挂起事故）。
+    最终形态：只做新鲜度检查（快、无网络）；真同步由进程内 daily_jobs 宿主的
+    morning_topup（08:35）/ evening_pipeline（15:40）任务线程承担。
+    """
+    params = params or {}
 
     logger.info("Starting data_update task")
 
-    # 获取股票列表
+    kline_latest = None
+    expected = None
+    # 新鲜度检查：已新鲜则跳过（幂等，不重复拉全市场）
     try:
-        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-        from domain.ports import IStockRepository
-        repo = EnhancedServiceFactory.resolve(IStockRepository)
-        stocks = repo.get_all(limit=500)
-        symbols = [s['symbol'] for s in stocks]
+        from infrastructure.persistence.database.engine import get_engine
+        from sqlalchemy import text
+        from adapters.inbound.fastapi_app.daily_jobs_bootstrap import _last_trading_day
+        engine = get_engine()
+        with engine.connect() as conn:
+            kline_latest = conn.execute(
+                text("SELECT max(trade_date) FROM quant.daily_klines")).scalar()
+        expected = _last_trading_day(datetime.now())
+        if kline_latest and str(kline_latest) >= expected:
+            return {
+                "action": "data_update",
+                "status": "skipped",
+                "reason": f"K线已新鲜（最新 {kline_latest} ≥ {expected}），晚间 pipeline 已覆盖",
+            }
+        logger.warning(f"K线滞后（最新 {kline_latest} < {expected}），待 morning_topup/evening_pipeline 补同步")
     except Exception as e:
-        logger.error(f"Failed to fetch stock list: {e}")
+        logger.error(f"新鲜度检查失败: {e}")
         return {
             "action": "data_update",
             "status": "error",
-            "error": str(e)
+            "error": str(e),
         }
 
-    if not symbols:
-        return {
-            "action": "data_update",
-            "status": "skipped",
-            "reason": "No symbols to update"
-        }
-
-    # 并行更新
-    # 注意：ORM session 不是线程安全的，每个任务独立实例
-    def _fetch_one(symbol: str):
-        from infrastructure.persistence.orm import close_session
-        from adapters.outbound.repositories import KlineORMRepository
-        try:
-            return KlineORMRepository().get_latest_daily_kline(symbol)
-        finally:
-            close_session()
-
-    updated = 0
-    errors = []
-
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = {
-            executor.submit(_fetch_one, symbol): symbol
-            for symbol in symbols
-        }
-
-        for future in as_completed(futures):
-            symbol = futures[future]
-            try:
-                future.result()
-                updated += 1
-            except Exception as e:
-                errors.append({"symbol": symbol, "error": str(e)})
-
+    # 滞后只报告不真同步（重活必须在任务线程，不能在 orchestrator 阶段/主线程）
     return {
         "action": "data_update",
-        "status": "success",
-        "symbols_checked": len(symbols),
-        "symbols_updated": updated,
-        "errors": errors
+        "status": "stale",
+        "reason": f"K线滞后（最新 {kline_latest} < {expected}），由 morning_topup/evening_pipeline 任务线程补同步",
+        "kline_latest": str(kline_latest) if kline_latest else None,
+        "expected": expected,
     }
 
 
@@ -1316,8 +1303,8 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
                 }
                 
                 try:
-                    from application.services.ml_train_notification import notify_train_result
-                    notify_train_result(result_dict)
+                    from application.notification.notification_factory import get_notification_facade
+                    get_notification_facade().send_ml_train_notification(result_dict)
                 except Exception as e:
                     logger.warning(f"发送通知失败: {e}")
                 
@@ -1490,8 +1477,8 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         
         # 发送通知
         try:
-            from application.services.ml_train_notification import notify_train_result
-            notify_train_result(result_dict)
+            from application.notification.notification_factory import get_notification_facade
+            get_notification_facade().send_ml_train_notification(result_dict)
         except Exception as e:
             logger.warning(f"发送通知失败: {e}")
         
@@ -1507,8 +1494,8 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         }
         
         try:
-            from application.services.ml_train_notification import notify_train_result
-            notify_train_result(result_dict)
+            from application.notification.notification_factory import get_notification_facade
+            get_notification_facade().send_ml_train_notification(result_dict)
         except Exception as e_notify:
             logger.warning(f"发送通知失败: {e_notify}")
         
@@ -1638,3 +1625,61 @@ def _try_switch_model(model_type: str, new_version: str, new_test_acc: float) ->
     else:
         logger.info(f"新模型性能未达切换阈值")
         return False
+
+
+def handle_pending_orders_match(params: Dict[str, Any] = None) -> Dict[str, Any]:
+    """挂单撮合任务 - 开盘后执行所有 pending 挂单
+
+    调度时机: 每个交易日 9:31 (开盘后1分钟)
+
+    功能:
+    1. 获取所有 pending 状态的挂单
+    2. 逐个执行完整交易护栏校验
+    3. 成交成功 -> status='executed'
+    4. 护栏拒绝 -> status='failed' + fail_reason
+
+    Args:
+        params: 可选参数
+            - account_name: 仅撮合指定账户（可选）
+
+    Returns:
+        执行结果统计
+    """
+    params = params or {}
+    logger.info("开始挂单撮合任务", params=params)
+
+    try:
+        from application.services.account_trading_service import AccountTradingService
+        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+        from domain.ports import ISimulationRepository
+
+        # 获取服务
+        repo = EnhancedServiceFactory.resolve(ISimulationRepository)
+        trading_service = AccountTradingService(repo=repo)
+
+        # 执行撮合
+        result = trading_service.execute_pending_orders()
+
+        logger.info(
+            "挂单撮合完成",
+            executed=result['executed'],
+            failed=result['failed'],
+        )
+
+        return {
+            "action": "pending_orders_match",
+            "status": "success",
+            "executed": result['executed'],
+            "failed": result['failed'],
+            "details": result.get('details', []),
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"挂单撮合失败: {e}", exc_info=True)
+        return {
+            "action": "pending_orders_match",
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }

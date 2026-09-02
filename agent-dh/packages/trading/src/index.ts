@@ -10,6 +10,7 @@ import { createTradeMonitorTool } from './tools/TradeMonitorTool';
 import { createAlgoExecuteTool } from './tools/AlgoExecuteTool';
 import { createTradeVerifyTool } from './tools/TradeVerifyTool';
 import { createSlippageReportTool } from './tools/SlippageReportTool';
+import { createPortfolioAnalyzeTool } from './tools/PortfolioAnalyzeTool';
 
 /**
  * Minimal OsMemoryStore replacement (inlined from deleted @pi-investment/os-memory)
@@ -148,5 +149,8 @@ export default class TradingPlugin extends Service {
 
     // M4-2: 组合回撤熔断检查（2026-08-26）- 重构为 BaseTool
     ctx.tools.register(createM4CircuitBreakerTool(qv2, osMemory));
+
+    // 持仓健康一键分析（2026-09-02，对标 agent-ts portfolio_analyze）
+    ctx.tools.register(createPortfolioAnalyzeTool(qv2));
   }
 }

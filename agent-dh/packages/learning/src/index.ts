@@ -15,6 +15,7 @@ import {
   LearningAnalyzeTool,
   LearningDistillTool,
   LearningApplyTool,
+  ReflectTool,
 } from './tools';
 
 /**
@@ -458,6 +459,10 @@ export default class LearningPlugin extends Service {
       this.applyRule.bind(this)
     );
     ctx.tools.register(defineTool(applyTool.toDSHToolDefinition()));
+
+    // 5. 目标对齐反思（2026-09-02，对标 agent-ts reflect；零依赖纯计算）
+    const reflectTool = new ReflectTool();
+    ctx.tools.register(defineTool(reflectTool.toDSHToolDefinition()));
   }
 
   // ===== 辅助方法 =====

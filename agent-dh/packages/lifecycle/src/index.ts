@@ -14,6 +14,7 @@ import { GitRepo } from './git.js';
 import { PendingResume, RestartResult, StateStore } from './state.js';
 import { NativeReminderScheduler, type NativeTask } from './native-scheduler.js';
 import { registerBoardUpdate, registerBoardRead, registerBoardPost } from './board-tools.js';
+import { registerWakeWebhook } from './wake-webhook.js';
 
 
 // 导入 BaseTool 工具
@@ -29,6 +30,8 @@ export interface Config {
   port?: number;
   agentId?: string;
   maxRestartsPerHour?: number;
+  /** v2 → dh /wake 唤醒鉴权 token（可选；与 v2 .env 的 AGENT_API_TOKEN 同值才校验） */
+  wakeToken?: string;
 }
 
 function renderResumeMessage(pending: PendingResume, result: RestartResult | null): string {
@@ -70,6 +73,7 @@ export default class LifecyclePlugin extends Service {
     agentOS: z.object({
       baseURL: z.string().default('http://localhost:8080'),  // 窗口注册表落 Agent OS（核心层）
     }).default({} as any),
+    wakeToken: z.string().default(''),  // v2 → dh /wake 鉴权 token（空=不校验）
   })
 
   private repo: GitRepo;
@@ -97,6 +101,32 @@ export default class LifecyclePlugin extends Service {
     this.setupResume();
     this.setupOsReminderPoller();  // OS 提醒体系：60s 轮询信箱并投递（2026-08-25，dsh-schedule 会话级提醒 fork 即死的替代）
     this.setupNativeScheduler();   // 原生提醒调度（2026-09-01）：payload.executor='dsh-native' 的任务由本进程 cron 直投，替代 os-remind-bridge.sh 链路
+    this.setupWakeWebhook();       // v2 → dh /wake 唤醒桥（2026-09-02 死链修复，路 2 自写路由）
+  }
+
+  // ===== v2 → dh /wake 唤醒桥（2026-09-02 死链修复，路 2 自写路由）=====
+  // 断链：v2 AgentNotificationService POST {AGENT_API_URL}/wake，2026-09-01 起
+  // AGENT_API_URL 指 dh 13080，但 dh 侧无 /wake 路由 → 404（watch 唤醒/定时提醒静默丢失）。
+  // 修复：在 webServer 注册 exact /wake（wake-webhook.ts HTTP 面）→ deliverWake 投递
+  // （复用 deliverReminder 三态：①在线 followup ②离线建窗代执行 ③OS 留痕）。
+  private setupWakeWebhook(): void {
+    registerWakeWebhook(this.ctx, {
+      token: (this.cfg as any).wakeToken,
+      deliver: async (event, data, timestamp) => {
+        await this.deliverWake(event, data, timestamp);
+      },
+    });
+  }
+
+  /** 把 v2 唤醒事件投递给主 investor 窗口（或代执行窗口），并 OS 留痕 */
+  private async deliverWake(event: string, data: unknown, timestamp?: string): Promise<void> {
+    const firedAt = timestamp ?? new Date().toISOString();
+    const prompt = `【v2 事件·${event}】由 quantsys-v2 后端唤醒推送（不是定时任务，是事件驱动）。
+事件数据（JSON）：
+v2_event_json: ${JSON.stringify(data)}
+
+处理要求：理解事件内容并采取相应动作（如 watch 触发的 AI 分析版=分析该股信号并组织飞书通知；daily_report=做当日复盘；agent_reminder=执行对应提醒任务）。遵守交易宪法；完成后把结论写入 memory（namespace=decision）。`;
+    await this.deliverReminder(`v2:${event}`, `wake-${event}`, prompt, undefined, firedAt);
   }
 
   // ===== DSH 原生提醒调度器（2026-09-01）=====

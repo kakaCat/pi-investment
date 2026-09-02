@@ -28,6 +28,8 @@ export interface TradeMonitorResult {
   }>;
   pending_count: number;
   filled_count: number;
+  /** 盘前挂单列表（execute_at='market_open' 的 pending 单，2026-09-01 新增） */
+  pending_orders?: any[];
   [key: string]: any;
 }
 

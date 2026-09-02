@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>页面1 · 投资监控看板（设计稿）</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
+  body { background:#f0f2f5; padding:20px; width:1440px; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .topbar h1 { font-size:20px; color:#1f2d3d; }
+  .topbar h1 .sub { font-size:12px; color:#909399; font-weight:normal; margin-left:10px; }
+  .acct { display:flex; align-items:center; gap:10px; }
+  .acct select { padding:7px 12px; border:1px solid #dcdfe6; border-radius:6px; font-size:13px; background:#fff; min-width:280px; }
+  .refresh { font-size:12px; color:#909399; }
+  .grid6 { display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:14px; }
+  .stat { background:#fff; border-radius:10px; padding:16px; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+  .stat .label { font-size:12px; color:#909399; margin-bottom:8px; }
+  .stat .value { font-size:22px; font-weight:700; color:#303133; }
+  .stat .value.up { color:#f56c6c; } .stat .value.down { color:#67c23a; }
+  .stat .value.warn { color:#e6a23c; }
+  .stat .extra { font-size:11px; color:#c0c4cc; margin-top:6px; }
+  .row { display:grid; gap:14px; margin-bottom:14px; }
+  .row-2-1 { grid-template-columns:2fr 1fr; }
+  .row-1-1 { grid-template-columns:1fr 1fr; }
+  .card { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+  .card .hd { padding:12px 16px; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; }
+  .card .hd .t { font-size:14px; font-weight:600; color:#303133; }
+  .card .hd .more { font-size:12px; color:#409eff; cursor:pointer; }
+  .card .bd { padding:14px 16px; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th { text-align:left; color:#909399; font-weight:500; padding:6px 8px; border-bottom:1px solid #f0f0f0; }
+  td { padding:7px 8px; border-bottom:1px solid #fafafa; color:#606266; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:4px; font-size:11px; }
+  .tag.buy { background:#fef0f0; color:#f56c6c; }
+  .tag.sell { background:#f0f9eb; color:#67c23a; }
+  .tag.on { background:#ecf5ff; color:#409eff; }
+  .tag.off { background:#f4f4f5; color:#909399; }
+  .tag.trig { background:#fdf6ec; color:#e6a23c; }
+  .btn { display:inline-block; padding:2px 10px; border-radius:4px; font-size:11px; border:1px solid #dcdfe6; color:#606266; cursor:pointer; margin-right:4px; }
+  .btn.primary { background:#409eff; border-color:#409eff; color:#fff; }
+  .btn.danger { background:#f56c6c; border-color:#f56c6c; color:#fff; }
+  .mkt { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .mkt .idx { text-align:center; padding:10px 4px; background:#fafafa; border-radius:8px; }
+  .mkt .idx .n { font-size:12px; color:#909399; }
+  .mkt .idx .v { font-size:17px; font-weight:700; margin:4px 0 2px; }
+  .mkt .idx .c { font-size:11px; }
+  .up { color:#f56c6c; } .down { color:#67c23a; }
+  .mktbar { display:flex; gap:14px; margin-top:12px; font-size:12px; color:#606266; flex-wrap:wrap; }
+  .mktbar b { color:#303133; }
+  .timeline-item { display:flex; gap:10px; margin-bottom:12px; font-size:12px; }
+  .timeline-item .time { color:#909399; width:42px; flex-shrink:0; }
+  .timeline-item .dot { width:8px; height:8px; border-radius:50%; background:#409eff; margin-top:4px; flex-shrink:0; }
+  .timeline-item .ct .tt { color:#303133; font-weight:600; }
+  .timeline-item .ct .ds { color:#909399; margin-top:2px; }
+  .pie-wrap { display:flex; align-items:center; gap:16px; }
+  .pie-legend { font-size:12px; color:#606266; flex:1; }
+  .pie-legend .li { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .pie-legend .sw { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+  .pie-legend .pct { margin-left:auto; font-weight:600; color:#303133; }
+  .watch-sum { display:flex; gap:10px; margin-bottom:12px; }
+  .watch-sum .ws { flex:1; background:#fafafa; border-radius:8px; text-align:center; padding:8px; }
+  .watch-sum .ws .v { font-size:18px; font-weight:700; color:#303133; }
+  .watch-sum .ws .v.alert { color:#e6a23c; }
+  .watch-sum .ws .n { font-size:11px; color:#909399; margin-top:2px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>投资监控看板 <span class="sub">多账户 · 盯盘 · 信号 · Agent 动态</span></h1>
+  <div class="acct">
+    <select>
+      <option>🤖 agent_virtual（AI 虚拟仓）¥1,024,380</option>
+      <option>📊 v13_strategy（v13 策略仓）¥508,220</option>
+      <option>🧪 manual_test（手工测试仓）¥100,000</option>
+      <option>🌐 全部账户汇总</option>
+    </select>
+    <span class="refresh">更新于 15:00:12 · 已收盘 · 60s 自动刷新</span>
+  </div>
+</div>
+
+<!-- 大数字区 -->
+<div class="grid6">
+  <div class="stat"><div class="label">总资产</div><div class="value">¥1,024,380</div><div class="extra">较昨日 +0.42%</div></div>
+  <div class="stat"><div class="label">今日盈亏</div><div class="value up">+¥4,286</div><div class="extra">收益率 +0.42%</div></div>
+  <div class="stat"><div class="label">持仓盈亏</div><div class="value up">+¥24,380</div><div class="extra">8 只持仓 · 5 盈 3 亏</div></div>
+  <div class="stat"><div class="label">可用现金</div><div class="value">¥286,400</div><div class="extra">现金占比 28.0% ✅ ≥10%</div></div>
+  <div class="stat"><div class="label">60日最大回撤</div><div class="value warn">-5.2%</div><div class="extra">熔断线 -8% · 未触发</div></div>
+  <div class="stat"><div class="label">风险预警</div><div class="value warn">2</div><div class="extra">1 止损临近 · 1 仓位超限</div></div>
+</div>
+
+<!-- 净值 + 持仓分布 -->
+<div class="row row-2-1">
+  <div class="card">
+    <div class="hd"><span class="t">组合净值走势（近30天）· agent_virtual</span><span class="more">对比基准 ▾</span></div>
+    <div class="bd">
+      <svg width="100%" height="220" viewBox="0 0 860 220" preserveAspectRatio="none">
+        <line x1="0" y1="180" x2="860" y2="180" stroke="#f0f0f0"/><line x1="0" y1="130" x2="860" y2="130" stroke="#f0f0f0"/>
+        <line x1="0" y1="80" x2="860" y2="80" stroke="#f0f0f0"/><line x1="0" y1="30" x2="860" y2="30" stroke="#f0f0f0"/>
+        <polyline fill="none" stroke="#409eff" stroke-width="2"
+          points="0,150 60,142 120,148 180,130 240,135 300,118 360,124 420,100 480,108 540,88 600,95 660,74 720,82 780,64 860,58"/>
+        <polyline fill="none" stroke="#c0c4cc" stroke-width="1.5" stroke-dasharray="4"
+          points="0,155 60,152 120,156 180,148 240,152 300,144 360,150 420,140 480,146 540,136 600,142 660,132 720,138 780,128 860,124"/>
+        <text x="852" y="52" font-size="11" fill="#409eff" text-anchor="end">组合 1.024</text>
+        <text x="852" y="118" font-size="11" fill="#c0c4cc" text-anchor="end">沪深300 0.98</text>
+      </svg>
+    </div>
+  </div>
+  <div class="card">
+    <div class="hd"><span class="t">持仓分布</span><span class="more">详情 →</span></div>
+    <div class="bd">
+      <div class="pie-wrap">
+        <svg width="120" height="120" viewBox="0 0 42 42">
+          <circle cx="21" cy="21" r="15.9" fill="none" stroke="#e9ecef" stroke-width="8"/>
+          <circle cx="21" cy="21" r="15.9" fill="none" stroke="#409eff" stroke-width="8" stroke-dasharray="30 70" stroke-dashoffset="25"/>
+          <circle cx="21" cy="21" r="15.9" fill="none" stroke="#67c23a" stroke-width="8" stroke-dasharray="22 78" stroke-dashoffset="-5"/>
+          <circle cx="21" cy="21" r="15.9" fill="none" stroke="#e6a23c" stroke-width="8" stroke-dasharray="12 88" stroke-dashoffset="-27"/>
+          <circle cx="21" cy="21" r="15.9" fill="none" stroke="#909399" stroke-width="8" stroke-dasharray="8 92" stroke-dashoffset="-39"/>
+        </svg>
+        <div class="pie-legend">
+          <div class="li"><span class="sw" style="background:#409eff"></span>白酒·贵州茅台等<span class="pct">30%</span></div>
+          <div class="li"><span class="sw" style="background:#67c23a"></span>新能源·宁德时代<span class="pct">22%</span></div>
+          <div class="li"><span class="sw" style="background:#e6a23c"></span>银行·招商银行<span class="pct">12%</span></div>
+          <div class="li"><span class="sw" style="background:#909399"></span>其他 3 只<span class="pct">8%</span></div>
+          <div class="li"><span class="sw" style="background:#e9ecef"></span>现金<span class="pct">28%</span></div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#c0c4cc;margin-top:8px">单股最大 12.4%（上限20%）· 单行业最大 30%（上限40%）</div>
+    </div>
+  </div>
+</div>
+
+<!-- 市场 + 信号 -->
+<div class="row row-1-1">
+  <div class="card">
+    <div class="hd"><span class="t">市场概览</span><span class="more">regime：震荡 ⓘ</span></div>
+    <div class="bd">
+      <div class="mkt">
+        <div class="idx"><div class="n">上证指数</div><div class="v up">3,142.18</div><div class="c up">+0.62%</div></div>
+        <div class="idx"><div class="n">深证成指</div><div class="v up">10,486.5</div><div class="c up">+0.85%</div></div>
+        <div class="idx"><div class="n">创业板指</div><div class="v down">2,108.44</div><div class="c down">-0.21%</div></div>
+        <div class="idx"><div class="n">科创50</div><div class="v up">986.20</div><div class="c up">+1.12%</div></div>
+      </div>
+      <div class="mktbar">
+        <span>涨/跌家数 <b>2,846 / 2,102</b></span>
+        <span>成交额 <b>9,860亿</b></span>
+        <span>北向资金 <b class="up">+42.6亿</b></span>
+        <span>恐慌贪婪 <b>48 中性</b></span>
+        <span>仓位上限 <b>60%（震荡档）</b></span>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="hd"><span class="t">今日信号（3 待审批）</span><span class="more">全部信号 →</span></div>
+    <div class="bd" style="padding-top:6px">
+      <table>
+        <tr><th>类型</th><th>股票</th><th>理由</th><th>置信</th><th>操作</th></tr>
+        <tr><td><span class="tag buy">买入</span></td><td>600519 贵州茅台</td><td>A级·3维共振：主线+技术+资金</td><td>86%</td><td><span class="btn primary">批准</span><span class="btn danger">拒绝</span></td></tr>
+        <tr><td><span class="tag buy">买入</span></td><td>300750 宁德时代</td><td>B级·技术面+资金面同向</td><td>72%</td><td><span class="btn primary">批准</span><span class="btn danger">拒绝</span></td></tr>
+        <tr><td><span class="tag sell">卖出</span></td><td>000858 五粮液</td><td>触发止损线 -8.2%</td><td>—</td><td><span class="btn primary">批准</span><span class="btn danger">拒绝</span></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 盯盘 + Agent 动态 -->
+<div class="row row-1-1">
+  <div class="card">
+    <div class="hd"><span class="t">盯盘中心</span><span class="more">管理规则 →</span></div>
+    <div class="bd">
+      <div class="watch-sum">
+        <div class="ws"><div class="v">12</div><div class="n">启用规则</div></div>
+        <div class="ws"><div class="v alert">2</div><div class="n">今日触发</div></div>
+        <div class="ws"><div class="v">3</div><div class="n">止损监控</div></div>
+        <div class="ws"><div class="v">1</div><div class="n">临近触发(±1%)</div></div>
+      </div>
+      <table>
+        <tr><th>规则</th><th>条件</th><th>状态</th><th>最近触发</th></tr>
+        <tr><td>茅台止损</td><td>pnl_pct &lt; -8</td><td><span class="tag on">监控中</span></td><td>—</td></tr>
+        <tr><td>宁德突破</td><td>price &gt; 215.0</td><td><span class="tag trig">今日 10:24 已触发</span></td><td>10:24</td></tr>
+        <tr><td>五粮液放量</td><td>volume_surge &gt; 4</td><td><span class="tag trig">今日 13:40 已触发</span></td><td>13:40</td></tr>
+        <tr><td>招行跌破</td><td>price &lt; 32.5</td><td><span class="tag off">已禁用</span></td><td>—</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <div class="hd"><span class="t">Agent 今日动态 · investor</span><span class="more">会话详情 →</span></div>
+    <div class="bd">
+      <div class="timeline-item"><span class="time">09:25</span><span class="dot"></span><div class="ct"><div class="tt">盘前例程完成</div><div class="ds">M1-M4 检查通过 · regime=震荡 · 仓位上限 60%</div></div></div>
+      <div class="timeline-item"><span class="time">10:24</span><span class="dot"></span><div class="ct"><div class="tt">盯盘触发：宁德时代突破 215</div><div class="ds">生成 B 级买入信号，待审批</div></div></div>
+      <div class="timeline-item"><span class="time">13:40</span><span class="dot"></span><div class="ct"><div class="tt">盯盘触发：五粮液异常放量</div><div class="ds">检测为出货嫌疑，建议减仓</div></div></div>
+      <div class="timeline-item"><span class="time">15:30</span><span class="dot"></span><div class="ct"><div class="tt">盘后复盘完成</div><div class="ds">对账无异常 · 沉淀 2 条经验 · 回撤 -5.2% 未熔断</div></div></div>
+      <div class="timeline-item"><span class="time">16:00</span><span class="dot" style="background:#e6a23c"></span><div class="ct"><div class="tt">每日蒸馏（待执行）</div><div class="ds">经验 → 规则候选，预计 16:05 完成</div></div></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -65,16 +65,24 @@ export class TradeMonitorTool extends BaseTool<TradeMonitorParams, TradeMonitorR
    * Phase 2: 执行任务
    */
   protected async execute(args: TradeMonitorParams, _context: ToolContext): Promise<TradeMonitorResult> {
+    const account = args.account_name || 'agent_virtual';
     const result = await this.qv2.getTradeHistory({
-      account_name: args.account_name || 'agent_virtual',
+      account_name: account,
       order_id: args.order_id,
     });
+
+    // 2026-09-01：附带盘前挂单列表（execute_at='market_open' 的 pending 单）
+    let pendingOrders: any[] = [];
+    try {
+      pendingOrders = await this.qv2.listPendingOrders(account, 'pending');
+    } catch { /* 挂单查询失败不阻塞主流程 */ }
 
     // 转换驼峰命名为下划线命名以匹配工具的输出格式
     return {
       orders: result.orders || [],
       pending_count: result.pendingCount || 0,
       filled_count: result.filledCount || 0,
+      pending_orders: pendingOrders,
     } as unknown as TradeMonitorResult;
   }
 

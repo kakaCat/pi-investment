@@ -5,6 +5,8 @@ import { createWatchListTool } from './tools/WatchListTool';
 import { createWatchManageTool } from './tools/WatchManageTool';
 import { createMarketAlertTool } from './tools/MarketAlertTool';
 import { createSignalTrackTool } from './tools/SignalTrackTool';
+import { createDecisionAuditTool } from './tools/DecisionAuditTool';
+import { createDecisionHistoryTool } from './tools/DecisionHistoryTool';
 
 export interface Config {
   quantsysV2?: {
@@ -52,5 +54,9 @@ export default class IntelligencePlugin extends Service {
 
     // M3-1 信号质量追踪
     ctx.tools.register(createSignalTrackTool(qv2));
+
+    // 决策审计闭环（2026-09-01，对标 agent-ts decision_record/decision_history）
+    ctx.tools.register(createDecisionAuditTool(qv2));
+    ctx.tools.register(createDecisionHistoryTool(qv2));
   }
 }

@@ -22,6 +22,9 @@ class WatchRule(Base):
     active_window = Column(JSONB)
     expires_at = Column(DateTime)
     created_by = Column(String(50), default='agent')
+    # notify_mode：direct=v2 直发飞书（纯提醒）；agent=唤醒 LLM 分析后再发
+    # （2026-09-02 修复：模型此前漏此列，致 getattr 拿不到、agent 模式静默降级为 direct）
+    notify_mode = Column(String(20), default='direct')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now)
 

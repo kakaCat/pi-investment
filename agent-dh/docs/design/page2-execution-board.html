@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>页面2 · 双线执行确认看板（设计稿）</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; }
+  body { background:#f0f2f5; padding:20px; width:1440px; }
+  h1 { font-size:20px; color:#1f2d3d; }
+  h1 .sub { font-size:12px; color:#909399; font-weight:normal; margin-left:10px; }
+
+  /* 顶部健康条 */
+  .healthbar { display:flex; align-items:center; gap:18px; background:#fff; border-radius:10px; padding:14px 18px; margin:14px 0; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+  .hb-item { text-align:center; padding:0 14px; border-right:1px solid #f0f0f0; }
+  .hb-item:last-child { border-right:none; }
+  .hb-item .v { font-size:22px; font-weight:700; color:#303133; }
+  .hb-item .v.ok { color:#67c23a; } .hb-item .v.bad { color:#f56c6c; } .hb-item .v.late { color:#e6a23c; } .hb-item .v.wait { color:#909399; }
+  .hb-item .n { font-size:11px; color:#909399; margin-top:2px; }
+  .hb-line { margin-left:auto; display:flex; gap:10px; }
+  .line-badge { display:flex; align-items:center; gap:6px; padding:6px 14px; border-radius:16px; font-size:12px; font-weight:600; }
+  .line-badge.green { background:#f0f9eb; color:#67c23a; }
+  .line-badge.amber { background:#fdf6ec; color:#e6a23c; }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+
+  /* 流程图 */
+  .flow { background:#fff; border-radius:10px; padding:22px 18px; box-shadow:0 1px 4px rgba(0,0,0,.05); margin-bottom:14px; }
+  .flow .band-label { font-size:12px; font-weight:700; color:#909399; letter-spacing:1px; margin-bottom:10px; }
+  .nodes { display:flex; align-items:stretch; gap:0; }
+  .node { flex:1; background:#fafbfc; border:1.5px solid #e4e7ed; border-radius:10px; padding:10px 10px 8px; position:relative; }
+  .node.ok { border-color:#67c23a; background:#f6fcf3; }
+  .node.bad { border-color:#f56c6c; background:#fef5f5; }
+  .node.late { border-color:#e6a23c; background:#fdf9f0; }
+  .node.wait { border-color:#dcdfe6; background:#fafafa; opacity:.85; }
+  .node .nh { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
+  .node .nh .mid { font-size:13px; font-weight:700; color:#303133; }
+  .node .nh .st { margin-left:auto; font-size:10px; padding:1px 7px; border-radius:8px; font-weight:600; }
+  .st.ok { background:#67c23a; color:#fff; } .st.bad { background:#f56c6c; color:#fff; }
+  .st.late { background:#e6a23c; color:#fff; } .st.wait { background:#c0c4cc; color:#fff; }
+  .node .ev { font-size:11px; color:#909399; line-height:1.5; }
+  .node .ev b { color:#606266; font-weight:600; }
+  .arrow { display:flex; align-items:center; justify-content:center; width:26px; color:#c0c4cc; font-size:16px; flex-shrink:0; }
+  .loop-row { display:flex; justify-content:center; margin:10px 0 0; }
+  .loop-box { display:flex; align-items:center; gap:10px; border:1.5px dashed #b3c6e7; background:#f4f8ff; color:#409eff; border-radius:20px; padding:6px 18px; font-size:12px; }
+  .loop-box .dot { background:#67c23a; }
+
+  .genome-conn { display:flex; justify-content:center; gap:60px; margin:12px 0; font-size:11px; color:#909399; }
+  .genome-conn span { display:flex; align-items:center; gap:4px; }
+  .genome-box { margin:0 auto; width:520px; background:linear-gradient(135deg,#667eea11,#764ba211); border:2px solid #7c6fd0; border-radius:12px; padding:12px 18px; text-align:center; }
+  .genome-box .gt { font-size:14px; font-weight:700; color:#5a4fb8; }
+  .genome-box .gs { font-size:11px; color:#909399; margin-top:4px; }
+  .genome-box .gs b { color:#606266; }
+  .autonomy .node { border-color:#b39ddb; }
+  .autonomy .node.ok { border-color:#67c23a; }
+  .autonomy .node.wait { border-color:#dcdfe6; }
+
+  /* 时间轴 */
+  .timeline { background:#fff; border-radius:10px; padding:16px 22px; box-shadow:0 1px 4px rgba(0,0,0,.05); margin-bottom:14px; }
+  .timeline .tt { font-size:14px; font-weight:600; color:#303133; margin-bottom:14px; }
+  .tl-track { display:flex; align-items:flex-start; }
+  .tl-item { flex:1; text-align:center; position:relative; }
+  .tl-item::before { content:''; position:absolute; top:7px; left:-50%; width:100%; height:2px; background:#e4e7ed; z-index:0; }
+  .tl-item:first-child::before { display:none; }
+  .tl-item .td { width:15px; height:15px; border-radius:50%; margin:0 auto 6px; position:relative; z-index:1; border:3px solid #fff; box-shadow:0 0 0 1.5px #e4e7ed; }
+  .tl-item .td.ok { background:#67c23a; } .tl-item .td.bad { background:#f56c6c; }
+  .tl-item .td.late { background:#e6a23c; } .tl-item .td.wait { background:#dcdfe6; }
+  .tl-item .tm { font-size:12px; font-weight:700; color:#303133; }
+  .tl-item .nm { font-size:11px; color:#606266; margin-top:2px; }
+  .tl-item .ds { font-size:10px; color:#c0c4cc; margin-top:1px; }
+
+  /* 任务表 */
+  .card { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+  .card .hd { padding:12px 16px; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; }
+  .card .hd .t { font-size:14px; font-weight:600; color:#303133; }
+  .tabs { display:flex; gap:4px; }
+  .tab { font-size:12px; padding:4px 14px; border-radius:14px; cursor:pointer; color:#606266; background:#f4f4f5; }
+  .tab.active { background:#409eff; color:#fff; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th { text-align:left; color:#909399; font-weight:500; padding:8px 10px; border-bottom:1px solid #f0f0f0; }
+  td { padding:8px 10px; border-bottom:1px solid #fafafa; color:#606266; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:4px; font-size:11px; }
+  .tag.ok { background:#f0f9eb; color:#67c23a; }
+  .tag.bad { background:#fef0f0; color:#f56c6c; }
+  .tag.run { background:#ecf5ff; color:#409eff; }
+  .tag.skip { background:#f4f4f5; color:#909399; }
+  .btn { display:inline-block; padding:2px 10px; border-radius:4px; font-size:11px; border:1px solid #dcdfe6; color:#606266; cursor:pointer; }
+  .legend { display:flex; gap:16px; font-size:11px; color:#909399; margin-left:16px; }
+  .legend span { display:flex; align-items:center; gap:4px; }
+</style>
+</head>
+<body>
+
+<h1>双线执行确认看板 <span class="sub">Autonomy 线 × 盈利引擎 · 2026-09-02（交易日）· 更新于 15:32</span></h1>
+
+<!-- 健康条 -->
+<div class="healthbar">
+  <div class="hb-item"><div class="v">18</div><div class="n">今日应执行</div></div>
+  <div class="hb-item"><div class="v ok">13</div><div class="n">✅ 已确认</div></div>
+  <div class="hb-item"><div class="v bad">1</div><div class="n">❌ 失败</div></div>
+  <div class="hb-item"><div class="v late">1</div><div class="n">🟡 迟到</div></div>
+  <div class="hb-item"><div class="v wait">3</div><div class="n">⚪ 未到点</div></div>
+  <div class="hb-line">
+    <span class="line-badge green"><span class="dot" style="background:#67c23a"></span>引擎线 运转正常</span>
+    <span class="line-badge amber"><span class="dot" style="background:#e6a23c"></span>Autonomy线 蒸馏待执行</span>
+  </div>
+</div>
+
+<!-- 流程图 -->
+<div class="flow">
+  <div class="band-label">盈利引擎线 · 业务流水线（WHAT：怎么挣钱）</div>
+  <div class="nodes">
+    <div class="node late">
+      <div class="nh"><span class="mid">M0 数据地基</span><span class="st late">迟到</span></div>
+      <div class="ev">K线 ✅ <b>08-31</b><br>数据质量检查 ❌ <b>failed</b></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node late">
+      <div class="nh"><span class="mid">M1 市场感知</span><span class="st late">迟到</span></div>
+      <div class="ev">regime 落库停在 <b>08-28</b><br>已 3 个交易日未更新</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node ok">
+      <div class="nh"><span class="mid">M2 标的工厂</span><span class="st ok">已确认</span></div>
+      <div class="ev">pool_refresh ✅ <b>09-01</b><br>12 个股票池已刷新</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node ok">
+      <div class="nh"><span class="mid">M3 信号择时</span><span class="st ok">已确认</span></div>
+      <div class="ev">今日信号 <b>7 条</b><br>胜率回填 ✅ 15:45</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node ok">
+      <div class="nh"><span class="mid">M4 仓位风控</span><span class="st ok">已确认</span></div>
+      <div class="ev">回撤 -5.2% 未熔断<br>仓位映射：震荡 ≤60%</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node ok">
+      <div class="nh"><span class="mid">M5 交易执行</span><span class="st ok">已确认</span></div>
+      <div class="ev">对账 ✅ <b>15:35</b> 无异常<br>今日成交 2 笔 · 滑点 0.03%</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node ok">
+      <div class="nh"><span class="mid">💰 今日盈亏</span><span class="st ok">+0.42%</span></div>
+      <div class="ev">+¥4,286<br>5 盈 3 亏</div>
+    </div>
+  </div>
+  <div class="loop-row">
+    <div class="loop-box"><span class="dot"></span><b>M6 学习飞轮</b>：盘后复盘 15:30 ✅ · 归因 2 条经验回流 ⟲ 反哺 M1-M5</div>
+  </div>
+
+  <div class="genome-conn" style="margin-top:14px">
+    <span>▼ 基因组塑造引擎决策行为（R-001~R-010 / 止损铁律）</span>
+    <span>▲ 盈亏经验蒸馏进化写回</span>
+  </div>
+  <div class="genome-box">
+    <div class="gt">🧬 基因组 genome · g18 <span style="font-size:11px;font-weight:400;color:#909399">（两线唯一接口）</span></div>
+    <div class="gs">宪法 v1 🔒 · 原则 v6 · 规则 v7 · 教训 v7 ｜ 最近更新 <b>2026-09-01</b> · 候选版验证中：<b>rules v8-candidate</b>（观察期 2/5 天）</div>
+  </div>
+  <div class="genome-conn" style="margin-bottom:14px">
+    <span>▼ 周末变异产生候选版</span>
+    <span>▲ 裁决转正 / 回滚</span>
+  </div>
+
+  <div class="band-label">Autonomy 线 · 元能力（HOW：系统怎么自己变强）</div>
+  <div class="nodes autonomy">
+    <div class="node ok">
+      <div class="nh"><span class="mid">L1 记忆</span><span class="st ok">已确认</span></div>
+      <div class="ev">经验库 <b>58 条</b>（今日 +2）<br>学习追踪 ✅ 15:30</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node ok">
+      <div class="nh"><span class="mid">L2 分析</span><span class="st wait">未到点</span></div>
+      <div class="ev">每日蒸馏 <b>16:00</b> 待执行<br>昨日产出 1 条规则候选</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node ok">
+      <div class="nh"><span class="mid">L3 进化</span><span class="st ok">已确认</span></div>
+      <div class="ev">周六变异 ✅ · 周日裁决 ✅<br>当前基因组 <b>g18</b></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node ok">
+      <div class="nh"><span class="mid">L4 元学习</span><span class="st ok">已确认</span></div>
+      <div class="ev">周日 11:30 ✅<br>闭环门槛检查通过</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node wait" style="flex:.6">
+      <div class="nh"><span class="mid">🔧 lifecycle</span><span class="st wait">待命</span></div>
+      <div class="ev">自修复 / 调度<br>wip 检查点正常</div>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;margin-top:10px">
+    <div class="legend">
+      <span><span class="dot" style="background:#67c23a"></span>已确认</span>
+      <span><span class="dot" style="background:#f56c6c"></span>失败</span>
+      <span><span class="dot" style="background:#e6a23c"></span>迟到(超宽限期)</span>
+      <span><span class="dot" style="background:#dcdfe6"></span>未到点/非交易日</span>
+    </div>
+  </div>
+</div>
+
+<!-- 今日执行时间轴 -->
+<div class="timeline">
+  <div class="tt">今日执行时间轴（交易日 · 完整每日工作流）</div>
+  <div class="tl-track">
+    <div class="tl-item"><div class="td ok"></div><div class="tm">09:25</div><div class="nm">盘前例程</div><div class="ds">M1-M4 检查 ✅</div></div>
+    <div class="tl-item"><div class="td ok"></div><div class="tm">09:30-15:00</div><div class="nm">交易执行</div><div class="ds">宪法校验·实时监控每5min ✅</div></div>
+    <div class="tl-item"><div class="td ok"></div><div class="tm">15:30</div><div class="nm">盘后复盘 M6</div><div class="ds">归因+L1 经验 ✅</div></div>
+    <div class="tl-item"><div class="td ok"></div><div class="tm">15:35</div><div class="nm">交易对账 M5</div><div class="ds">无异常 ✅</div></div>
+    <div class="tl-item"><div class="td ok"></div><div class="tm">15:45</div><div class="nm">信号胜率回填 M3</div><div class="ds">5/10/20日表现 ✅</div></div>
+    <div class="tl-item"><div class="td late"></div><div class="tm">16:00</div><div class="nm">每日蒸馏 L2</div><div class="ds">⏳ 等待执行</div></div>
+    <div class="tl-item"><div class="td wait"></div><div class="tm">16:30</div><div class="nm">熔断+事件预警 M4</div><div class="ds">回撤检查·事件日历</div></div>
+    <div class="tl-item"><div class="td wait"></div><div class="tm">18:00</div><div class="nm">净值快照</div><div class="ds">equity 落库</div></div>
+    <div class="tl-item"><div class="td wait"></div><div class="tm">18:30</div><div class="nm">进化适应度 L3</div><div class="ds">fitness 统计</div></div>
+    <div class="tl-item"><div class="td wait"></div><div class="tm">21:00</div><div class="nm">K线同步 M0</div><div class="ds">全市场日K</div></div>
+  </div>
+  <div style="border-top:1px dashed #f0f0f0;margin-top:14px;padding-top:10px">
+    <div style="font-size:11px;color:#909399;margin-bottom:8px">周末流程（非交易日 Autonomy 专线）</div>
+    <div class="tl-track">
+      <div class="tl-item" style="flex:.8"><div class="td ok"></div><div class="tm">周六 10:00</div><div class="nm">L3 变异</div><div class="ds">prompt_evolver→候选版 ✅</div></div>
+      <div class="tl-item" style="flex:.8"><div class="td ok"></div><div class="tm">周日 11:00</div><div class="nm">L3 裁决</div><div class="ds">validation_gate 转正/回滚 ✅</div></div>
+      <div class="tl-item" style="flex:.8"><div class="td ok"></div><div class="tm">周日 11:30</div><div class="nm">L4 元学习+周报</div><div class="ds">闭环门槛·周报飞书 ✅</div></div>
+      <div class="tl-item" style="flex:.8"><div class="td ok"></div><div class="tm">周一 09:30</div><div class="nm">新基因组生效</div><div class="ds">g18 随开盘启用 ✅</div></div>
+      <div class="tl-item" style="flex:3.2"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Agent 今日动态 -->
+<div class="card" style="margin-bottom:14px">
+  <div class="hd"><span class="t">Agent 今日动态 · investor（w-66dd4c29）</span><span class="more">会话详情 →</span></div>
+  <div style="padding:14px 18px">
+    <div style="display:flex;gap:10px;margin-bottom:12px;font-size:12px"><span style="color:#909399;width:42px">09:25</span><span class="dot" style="background:#67c23a;margin-top:4px"></span><div><b style="color:#303133">盘前例程完成</b><br><span style="color:#909399">M1-M4 检查通过 · regime=震荡 · 仓位上限 60%</span></div></div>
+    <div style="display:flex;gap:10px;margin-bottom:12px;font-size:12px"><span style="color:#909399;width:42px">10:24</span><span class="dot" style="background:#409eff;margin-top:4px"></span><div><b style="color:#303133">盯盘触发：宁德时代突破 215</b><br><span style="color:#909399">生成 B 级买入信号，待审批</span></div></div>
+    <div style="display:flex;gap:10px;margin-bottom:12px;font-size:12px"><span style="color:#909399;width:42px">13:40</span><span class="dot" style="background:#e6a23c;margin-top:4px"></span><div><b style="color:#303133">盯盘触发：五粮液异常放量</b><br><span style="color:#909399">检测为出货嫌疑，建议减仓 · 临近止损 -7.62%</span></div></div>
+    <div style="display:flex;gap:10px;margin-bottom:12px;font-size:12px"><span style="color:#909399;width:42px">15:30</span><span class="dot" style="background:#67c23a;margin-top:4px"></span><div><b style="color:#303133">盘后复盘完成</b><br><span style="color:#909399">对账无异常 · 沉淀 2 条经验 · 回撤 -5.2% 未熔断</span></div></div>
+    <div style="display:flex;gap:10px;font-size:12px"><span style="color:#909399;width:42px">16:00</span><span class="dot" style="background:#dcdfe6;margin-top:4px"></span><div><b style="color:#303133">每日蒸馏（待执行）</b><br><span style="color:#909399">经验 → 规则候选，预计 16:05 完成</span></div></div>
+  </div>
+</div>
+
+<!-- 定时任务明细 -->
+<div class="card">
+  <div class="hd">
+    <span class="t">定时任务执行情况</span>
+    <div class="tabs">
+      <span class="tab">全部（49）</span>
+      <span class="tab active">数据管道（8）</span>
+      <span class="tab">信号与监控（7）</span>
+      <span class="tab">风控与交易（6）</span>
+      <span class="tab">学习进化（5）</span>
+      <span class="tab">Agent 提醒（15）</span>
+      <span class="tab">每周·低频（8）</span>
+    </div>
+  </div>
+  <table>
+    <tr><th>任务</th><th>cron</th><th>归属模块</th><th>上次执行</th><th>状态</th><th>耗时</th><th>下次执行</th><th>操作</th></tr>
+    <tr><td>gem-kline-update</td><td>40 9 * * 1-5</td><td>M0</td><td>09-02 09:40</td><td><span class="tag run">running</span></td><td>—</td><td>09-03 09:40</td><td><span class="btn">触发</span></td></tr>
+    <tr><td>每日数据质量检查</td><td>0 16 * * *</td><td>M0</td><td>09-01 16:00</td><td><span class="tag bad">failed</span></td><td>42s</td><td>09-02 16:00</td><td><span class="btn">触发</span> <span class="btn">日志</span></td></tr>
+    <tr><td>每日数据更新</td><td>30 7 * * 1-5</td><td>M0</td><td>09-02 07:30</td><td><span class="tag ok">success</span></td><td>312s</td><td>09-03 07:30</td><td><span class="btn">触发</span></td></tr>
+    <tr><td>每日数据流水线</td><td>30 8 * * 1-5</td><td>M0</td><td>09-02 08:30</td><td><span class="tag ok">success</span></td><td>486s</td><td>09-03 08:30</td><td><span class="btn">触发</span></td></tr>
+    <tr><td>每日因子计算</td><td>0 8 * * 1-5</td><td>M0</td><td>09-02 08:00</td><td><span class="tag bad">failed</span></td><td>95s</td><td>09-03 08:00</td><td><span class="btn">触发</span> <span class="btn">日志</span></td></tr>
+    <tr><td>fund_flow_update</td><td>30 15 * * 1-5</td><td>M7</td><td>09-02 15:30</td><td><span class="tag ok">success</span></td><td>95s</td><td>09-03 15:30</td><td><span class="btn">触发</span></td></tr>
+    <tr><td>chip-distribution-update</td><td>30 10 * * 1-5</td><td>M0</td><td>09-02 10:30</td><td><span class="tag ok">success</span></td><td>148s</td><td>09-03 10:30</td><td><span class="btn">触发</span></td></tr>
+    <tr><td>market_daily_snapshot</td><td>0 9 * * 1-5</td><td>M1</td><td>09-02 09:00</td><td><span class="tag bad">failed</span></td><td>12s</td><td>09-03 09:00</td><td><span class="btn">触发</span> <span class="btn">日志</span></td></tr>
+  </table>
+</div>
+
+</body>
+</html>

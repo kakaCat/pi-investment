@@ -3,6 +3,7 @@ import z from '@deepseek-ai/schemastery';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { createFactorCalculateTool } from './tools/FactorCalculateTool';
 import { createFactorAnalyzeTool } from './tools/FactorAnalyzeTool';
+import { createModelPredictTool } from './tools/ModelPredictTool';
 
 export interface Config {
   quantsysV2?: {
@@ -44,11 +45,15 @@ export default class FactorPlugin extends Service {
 
     // 注册因子分析工具
     ctx.tools.register(createFactorAnalyzeTool(qv2));
+
+    // ML 模型上涨概率预测（2026-09-01，对接 /api/ml/predict）
+    ctx.tools.register(createModelPredictTool(qv2));
   }
 }
 
 // Re-export tools for testing
 export { FactorCalculateTool, createFactorCalculateTool } from './tools/FactorCalculateTool';
 export { FactorAnalyzeTool, createFactorAnalyzeTool } from './tools/FactorAnalyzeTool';
+export { ModelPredictTool, createModelPredictTool } from './tools/ModelPredictTool';
 export type { FactorCalculateParams, FactorCalculateResult } from './tools/FactorCalculateTool';
 export type { FactorAnalyzeParams, FactorAnalyzeResult } from './tools/FactorAnalyzeTool';

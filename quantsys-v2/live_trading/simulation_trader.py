@@ -46,11 +46,11 @@ from infrastructure.persistence.database.engine import init_engine, get_engine
 
 # 可选依赖：飞书通知（如果导入失败则禁用）
 try:
-    from utils.feishu_notifier import create_notifier_from_config
+    from application.notification.notification_factory import get_notification_facade
+    _notification_available = True
 except ImportError:
-    def create_notifier_from_config(config):
-        logger.warning("feishu_notifier not available, notifications disabled")
-        return None
+    logger.warning("Notification system not available")
+    _notification_available = False
 
 import xgboost as xgb
 import psycopg2
@@ -142,19 +142,13 @@ class SimulationTrader:
         # 初始化风险控制
         self.risk_controller = RiskController(self.config['risk_control'])
 
-        # 初始化飞书通知
-        self.feishu_notifier = create_notifier_from_config(self.config)
-
-        # 设置日志
-        self._setup_logging()
-
-        # 从数据库加载账户状态
-        self._load_account_from_db()
-
-        logger.info(f"V13模拟交易系统初始化完成（数据库模式）")
-        logger.info(f"当前资金: ¥{self.cash:,.2f}")
-        if self.feishu_notifier:
-            logger.info("飞书通知已启用")
+        # 初始化通知系统（使用新的 DDD 通知系统）
+        if _notification_available:
+            self.notification_facade = get_notification_facade()
+            logger.info("通知系统已启用")
+        else:
+            self.notification_facade = None
+            logger.warning("通知系统不可用")
 
     def _load_config(self, config_path):
         """加载配置"""
@@ -1593,8 +1587,49 @@ if __name__ == '__main__':
                 'sell_trades': sell_trades
             }
 
-            self.feishu_notifier.send_rebalance_notification(notification_data)
-            logger.info("飞书调仓通知已发送")
+            if self.notification_facade:
+                # 使用新的 DDD 通知系统
+                # 注意：旧版有 send_rebalance_notification，新版需要使用通用方法
+                result = self.notification_facade.send_card(
+                    title=f"V13策略调仓通知 - {current_date}",
+                    content=self._format_rebalance_content(notification_data),
+                    urgency='normal'
+                )
+                if result:
+                    logger.info("调仓通知已发送")
+                else:
+                    logger.error("调仓通知发送失败")
 
         except Exception as e:
-            logger.error(f"发送飞书通知失败: {e}")
+            logger.error(f"发送调仓通知失败: {e}")
+
+    def _format_rebalance_content(self, data: dict) -> str:
+        """格式化调仓通知内容"""
+        content = f"""**🗓 调仓日期**: {data['date']}
+
+**💰 账户状态**:
+• 总资产: ¥{data['total_value']:,.2f}
+• 现金余额: ¥{data['cash']:,.2f}
+• 累计收益: {data['cumulative_return']*100:+.2f}% (¥{(data['total_value'] - self.config['initial_capital']):,.2f})
+• 持仓数量: {data['positions']}只
+
+**🎯 本次预测Top 8**:"""
+
+        for i, (symbol, pred_return, weight, note) in enumerate(data['top_stocks'][:8], 1):
+            status = "✅" if "买入" in note or "保留" in note else "❌"
+            content += f"\n{i}. {symbol} - 预测{pred_return*100:+.2f}% {status} {note}"
+
+        if data['buy_trades'] or data['sell_trades']:
+            content += "\n\n**📈 实际操作**:"
+
+        if data['buy_trades']:
+            content += "\n**买入**:"
+            for symbol, shares, price in data['buy_trades']:
+                content += f"\n• {symbol}: {shares}股 @ ¥{price:.2f}"
+
+        if data['sell_trades']:
+            content += "\n**卖出**:"
+            for symbol, shares, price in data['sell_trades']:
+                content += f"\n• {symbol}: {shares}股 @ ¥{price:.2f}"
+
+        return content

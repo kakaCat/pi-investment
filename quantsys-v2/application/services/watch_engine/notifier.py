@@ -15,6 +15,43 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
+def _norm_symbol(symbol: str) -> str:
+    """'002241.SZ' -> '002241'（stocks 表为纯 6 位代码）。"""
+    return (symbol or '').split('.')[0].strip()
+
+
+def _lookup_stock_name(symbol: str) -> Optional[str]:
+    """兜底查股票名称（quant.stocks）。失败返回 None，不影响主流程。"""
+    try:
+        from infrastructure.persistence.orm import get_session
+        from sqlalchemy import text
+        session = get_session()
+        row = session.execute(
+            text("SELECT name FROM quant.stocks WHERE symbol = :s LIMIT 1"),
+            {"s": _norm_symbol(symbol)},
+        ).fetchone()
+        return row[0] if row else None
+    except Exception as e:
+        logger.debug('股票名称兜底查询失败', symbol=symbol, error=str(e))
+        return None
+
+
+def _direction_advice(condition: dict) -> str:
+    """从 condition.direction 解读操作倾向（结合 price_break/pnl 等类型）。"""
+    if not isinstance(condition, dict):
+        return ''
+    params = condition.get('params') or {}
+    direction = params.get('direction')
+    ctype = condition.get('type', '')
+    if direction == 'above':
+        # 上破：强势信号。对持仓股为止盈/锁利参考，对观察股为买入候选
+        return '📈 方向：上破（强势）——持仓参考止盈/锁利，空仓为买入候选'
+    if direction == 'below':
+        # 下破：弱势信号。对持仓股为止损/风险预警，对观察股暂避
+        return '📉 方向：下破（弱势）——持仓警惕止损，空仓暂不介入'
+    return f'类型：{ctype}' if ctype else ''
+
+
 class WatchNotifier:
     def __init__(self, agent_service, trigger_repo=None, feishu_service=None,
                  ws_url: Optional[str] = 'http://127.0.0.1:5003/broadcast/market_data',
@@ -35,25 +72,40 @@ class WatchNotifier:
             logger.info('准备唤醒 Agent', rule_id=rule.id, symbol=rule.symbol, payload=payload)
             notified = self._notify_agent_with_retry(payload)
             if not notified:
-                # 兜底：唤醒失败降级直接发飞书，保证提醒可达
+                # 兜底：唤醒失败降级直接发飞书，保证提醒可达（标注降级直发，区别于 AI 分析版）
                 logger.warning('唤醒 Agent 失败，降级直接发飞书', symbol=rule.symbol)
-                notified = self._send_feishu(payload)
+                notified = self._send_feishu(payload, mode_tag='降级直发·AI 唤醒失败')
         else:
-            # direct：纯提醒，直接发飞书
+            # direct：纯提醒，直接发飞书（标注直发，未经 LLM 分析）
             logger.info('直接发飞书提醒', rule_id=rule.id, symbol=rule.symbol)
-            notified = self._send_feishu(payload)
+            notified = self._send_feishu(payload, mode_tag='直发提醒·未经 AI 分析')
 
         self._broadcast_ws(payload)
         self._record(rule, condition, quote, result, notified)
         return notified
 
-    def _send_feishu(self, payload) -> bool:
-        """直接发飞书告警（类型 1 纯提醒，不经 LLM）"""
+    def _send_feishu(self, payload, mode_tag: str = '直发提醒') -> bool:
+        """直接发飞书告警（不经 LLM）。mode_tag 标注通知来源模式，便于区分直发/降级/AI 分析。"""
         if self.feishu_service is None:
             logger.error('feishu_service 未注入，无法直接发飞书', symbol=payload['symbol'])
             return False
         try:
-            message = payload.get('message') or f"{payload['symbol']} 触发盯盘条件"
+            name = payload.get('name') or ''
+            symbol = payload['symbol']
+            display = f"{name}（{symbol}）" if name else symbol
+
+            # 组织带 模式标签 + 名称 + 买卖方向 + 预案 的消息体
+            lines = [f"📡 `{mode_tag}`", f"**{display}** 触发盯盘条件"]
+            base_msg = payload.get('message')
+            if base_msg:
+                lines.append(f"**触发**：{base_msg}")
+            advice = _direction_advice(payload.get('condition'))
+            if advice:
+                lines.append(advice)
+            context = payload.get('context')
+            if context:
+                lines.append(f"**预案**：{context}")
+
             data = {
                 'price': payload.get('price'),
                 'change_pct': payload.get('change_pct'),
@@ -62,8 +114,8 @@ class WatchNotifier:
             }
             return bool(self.feishu_service.send_alert(
                 alert_type='signal',
-                symbol=payload['symbol'],
-                message=message,
+                symbol=display,  # 标题带名称：💡 SIGNAL - 歌尔股份（002241.SZ）
+                message="\n".join(lines),
                 data=data,
             ))
         except Exception as e:
@@ -81,16 +133,22 @@ class WatchNotifier:
         cost = getattr(rule, 'cost_price', None)
         if cost:
             pnl_pct = round((price - float(cost)) / float(cost) * 100, 2)
+        # 名称兜底：quote.name 为空时查 stocks 表（symbol 规范化去后缀）
+        name = getattr(quote, 'name', None) or _lookup_stock_name(rule.symbol)
         return {
             'rule_id': rule.id,
             'symbol': rule.symbol,
-            'name': getattr(quote, 'name', None),
+            'name': name,
             'price': price,
             'change_pct': change_pct,
             'pnl_pct': pnl_pct,
             'condition': condition,
             'message': result.message,
             'context': getattr(rule, 'context', None),
+            # 模式标识：agent 链路唤醒时带给 LLM，提示其为「AI 分析版」，
+            # 组织飞书通知时标注来源（区别于 direct 直发），便于用户区分可信度
+            'notify_mode': getattr(rule, 'notify_mode', None) or 'direct',
+            'mode_tag': 'AI 分析版' if (getattr(rule, 'notify_mode', None) == 'agent') else '直发提醒',
         }
 
     def _notify_agent_with_retry(self, payload) -> bool:
