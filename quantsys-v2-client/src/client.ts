@@ -628,6 +628,31 @@ export class QuantsysV2Client {
   }
 
   /**
+   * 个股分红历史
+   * Real endpoint: GET /api/provider/dividend/{symbol}?years=N
+   * ⚠️ 依赖 akshare，夜间/维护时段可能 All providers failed（调用方需容忍）
+   */
+  async getDividends(symbol: string, years: number = 5): Promise<any> {
+    const response = await this.client.get(`/api/provider/dividend/${encodeURIComponent(symbol)}`, {
+      params: { years }, timeout: 60000,
+    });
+    return this.unwrap<any>(response.data, 'getDividends');
+  }
+
+  /**
+   * 高股息筛选
+   * Real endpoint: GET /api/provider/screen-high-dividend?min_yield=3&min_years=5
+   * ⚠️ 同样依赖 akshare，夜间可能不可用
+   */
+  async screenHighDividend(params?: { minYield?: number; minYears?: number }): Promise<any> {
+    const response = await this.client.get('/api/provider/screen-high-dividend', {
+      params: { min_yield: params?.minYield ?? 3, min_years: params?.minYears ?? 5 },
+      timeout: 120000,
+    });
+    return this.unwrap<any>(response.data, 'screenHighDividend');
+  }
+
+  /**
    * Get competition analysis
    */
   async getCompetitionAnalysis(

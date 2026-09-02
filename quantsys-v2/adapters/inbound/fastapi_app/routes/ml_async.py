@@ -212,15 +212,23 @@ def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
     start_time = time.time()
     data = _convert_keys_to_snake(payload or {})
 
-    model_type = data.get("model_type", "xgboost")
+    model_type = data.get("model_type", "lightgbm")
     raw_symbols: list = data.get("symbols", [])
     symbols = [_strip_suffix(s) for s in raw_symbols]
     version = data.get("version", "latest")
 
     if not symbols:
         return JSONResponse(status_code=400, content={"success": False, "error": "请指定股票代码"})
-    if model_type == "randomforest":
-        model_type = "xgboost"
+
+    # 2026-09-02 下线死模型：xgboost/randomforest 为 2026-05 旧模型，
+    # 特征名与 DB 因子不匹配 → 输出恒定 0.4659 不可信（S1 根因）。
+    # 路由层直接拒绝并指向 lightgbm，防止任何调用方误用。
+    if model_type in ("xgboost", "randomforest"):
+        return JSONResponse(status_code=200, content={
+            "success": False,
+            "error": f"{model_type} 模型已下线（2026-05 旧模型，特征与 DB 因子不匹配，输出恒定不可信）。请改用 model_type='lightgbm'（每日重训、特征同源）",
+            "model_gate": {"passed": False, "level": "rejected", "reason": "deprecated_model"},
+        })
 
     if version == "latest":
         resolved = _resolve_latest_version(model_type)

@@ -14,6 +14,7 @@ import { createEventCalendarTool } from './tools/EventCalendarTool';
 import { createStockIntelTool } from './tools/StockIntelTool';
 import { createTradingCalendarTool } from './tools/TradingCalendarTool';
 import { createPePercentileTool } from './tools/PePercentileTool';
+import { createDataFetchDividendTool } from './tools/DataFetchDividendTool';
 
 // ========== Plugin Config Schema ==========
 
@@ -96,5 +97,8 @@ export default class InvestmentPlugin extends Service {
 
     // 12. PE 历史分位 - 估值贵贱/策略性质判定（2026-09-02）
     reg(createPePercentileTool(qv2));
+
+    // 13. 股息/分红 - 股息率锚定与高股息筛选（2026-09-02）
+    reg(createDataFetchDividendTool(qv2));
   }
 }
