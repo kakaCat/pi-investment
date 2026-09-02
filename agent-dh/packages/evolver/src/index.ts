@@ -11,6 +11,7 @@ import {
   createPromptEvolverTool,
   createValidationGateTool,
   createDailyDistillTool,
+  createWeeklyReportTool,
 } from './tools';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -110,10 +111,12 @@ export default class EvolverPlugin extends Service {
   private observeDays: number;
   private llmProvider: string;
   private llmModel: string;
+  private qv2BaseURL: string;
 
   constructor(ctx: Context, config: any) {
     super(ctx, 'evolver');
-    this.qv2 = new QuantsysV2Client({ baseURL: config?.quantsysV2?.baseURL || 'http://localhost:5001' });
+    this.qv2BaseURL = config?.quantsysV2?.baseURL || 'http://localhost:5001';
+    this.qv2 = new QuantsysV2Client({ baseURL: this.qv2BaseURL });
     this.osMemory = new OsMemoryStore({ baseURL: (config as any).agentOS?.baseURL || 'http://localhost:8080', agentId: (config as any).agentOS?.agentId || 'agent-dh' });
     this.observeDays = config?.observeDays || 5;
     this.llmProvider = config?.llmProvider || 'deepseek-official';
@@ -396,6 +399,10 @@ export default class EvolverPlugin extends Service {
 
     // 3. Daily Distill - 每日蒸馏编排：experience_distill → prompt_evolver
     ctx.tools.register(createDailyDistillTool(ctx, osMemory));
+
+    // 4. Weekly Report - M6 学习飞轮周报：封装后端 /api/reports/weekly
+    //    （2026-09-03 补：原 prompt 引用 weekly_report 但 agent 侧无此工具 → 业务空转）
+    ctx.tools.register(createWeeklyReportTool(this.qv2BaseURL));
   }
 
   /**

@@ -10,3 +10,6 @@ export type { ValidationGateParams, ValidationGateResult } from './ValidationGat
 
 export { DailyDistillTool, createDailyDistillTool } from './DailyDistillTool';
 export type { DailyDistillParams, DailyDistillResult } from './DailyDistillTool';
+
+export { WeeklyReportTool, createWeeklyReportTool } from './WeeklyReportTool';
+export type { WeeklyReportParams, WeeklyReportResult } from './WeeklyReportTool';
