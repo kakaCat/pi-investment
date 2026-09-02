@@ -33,43 +33,48 @@ class NotificationPolicy:
         """初始化通知策略
 
         渠道优先级规则：
-        - 止损/止盈：优先飞书（确保用户看到）
-        - 盯盘触发：优先 Agent（智能分析后推送）
-        - Agent 提醒：仅 Agent（内部事件）
-        - 日报/周报：仅飞书（定期报告）
-        - 模型训练：仅飞书（运维通知）
+        - agent-os 作为飞书网关：所有通知优先通过 agent-os 发送
+        - feishu 作为降级：agent-os 不可用时，v2 直接发送飞书
+        - Agent 内部事件：仅走 agent-os（agent 提醒等）
+
+        设计理念：
+        agent-os 是统一的消息网关，负责：
+        1. 智能分析和决策（是否需要发送）
+        2. 格式化和增强（添加上下文、建议等）
+        3. 统一发送到飞书
         """
         # 渠道优先级配置（按通知类型）
+        # agent = agent-os 网关, feishu = v2 直接发送（降级）
         self.channel_priority: Dict[NotificationType, List[str]] = {
-            # 交易相关
-            NotificationType.TRADE_SIGNAL: ['feishu', 'agent'],
-            NotificationType.REBALANCE: ['feishu'],
-            NotificationType.VERIFICATION: ['feishu'],
+            # 交易相关 - 优先 agent-os，降级 feishu
+            NotificationType.TRADE_SIGNAL: ['agent', 'feishu'],
+            NotificationType.REBALANCE: ['agent', 'feishu'],
+            NotificationType.VERIFICATION: ['agent', 'feishu'],
 
-            # 风险相关 - 紧急，优先飞书确保送达
-            NotificationType.STOP_LOSS: ['feishu', 'agent'],
-            NotificationType.TAKE_PROFIT: ['feishu', 'agent'],
-            NotificationType.RISK_ALERT: ['feishu', 'agent'],
+            # 风险相关 - 优先 agent-os，降级 feishu
+            NotificationType.STOP_LOSS: ['agent', 'feishu'],
+            NotificationType.TAKE_PROFIT: ['agent', 'feishu'],
+            NotificationType.RISK_ALERT: ['agent', 'feishu'],
 
-            # 盯盘触发 - 优先 Agent 智能分析
+            # 盯盘触发 - 优先 agent-os（智能分析）
             NotificationType.WATCH_TRIGGERED: ['agent', 'feishu'],
 
-            # 报告相关 - 仅飞书
-            NotificationType.DAILY_REPORT: ['feishu'],
-            NotificationType.WEEKLY_REPORT: ['feishu'],
-            NotificationType.PREMARKET_REPORT: ['feishu'],
+            # 报告相关 - 优先 agent-os，降级 feishu
+            NotificationType.DAILY_REPORT: ['agent', 'feishu'],
+            NotificationType.WEEKLY_REPORT: ['agent', 'feishu'],
+            NotificationType.PREMARKET_REPORT: ['agent', 'feishu'],
 
-            # 系统相关
-            NotificationType.SYSTEM_ALERT: ['feishu', 'agent'],
-            NotificationType.ML_TRAIN: ['feishu'],
+            # 系统相关 - 优先 agent-os，降级 feishu
+            NotificationType.SYSTEM_ALERT: ['agent', 'feishu'],
+            NotificationType.ML_TRAIN: ['agent', 'feishu'],
 
-            # Agent 相关 - 仅 Agent
+            # Agent 内部事件 - 仅 agent-os（不降级）
             NotificationType.AGENT_REMINDER: ['agent'],
             NotificationType.AGENT_REPORT: ['agent'],
         }
 
-        # 默认优先级（未配置的类型）
-        self.default_priority = ['feishu', 'agent']
+        # 默认优先级（未配置的类型）- agent-os 优先
+        self.default_priority = ['agent', 'feishu']
 
     def select_channels(
         self,
