@@ -64,6 +64,33 @@ class OsMemoryStore {
     }
     return { items, total: items.length, degraded: false, strategy: 'os-text' };
   }
+
+  /**
+   * 2026-09-03 Fix③：patch 一条记忆。
+   * status 是 envelope 的一部分（存于 content JSON 内），转正须整体重写 content：
+   * 传 rebuild 函数，输入当前解析后的 envelope（含顶层 metadata），输出新的 envelope 对象，
+   * 由本方法负责 JSON.stringify 后 PATCH 回去。返回 PATCH 响应。
+   */
+  async patchMemory(id: string, opts: {
+    rebuild?: (env: any, meta: Record<string, any>) => { envelope: any; metadataPatch?: Record<string, any> };
+  }): Promise<any> {
+    // 先 GET 当前记忆（envelope 在 content 字段）
+    const mem: any = await (this.client.memory as any).getById(id);
+    const current = mem?.content ?? mem?.memory?.content ?? null;
+    const env = typeof current === 'string' ? JSON.parse(current) : current;
+    if (!env || typeof env !== 'object' || env.kind === undefined) {
+      throw new Error(`memory ${id} 不是 envelope 格式（kind 缺失），无法 patch`);
+    }
+    const metadata = (mem?.metadata ?? mem?.memory?.metadata) || {};
+    const { envelope, metadataPatch } = opts.rebuild
+      ? opts.rebuild(env, metadata)
+      : { envelope: env, metadataPatch: undefined };
+    const res: any = await (this.client.memory as any).patchMemory(id, {
+      content: JSON.stringify(envelope),
+      metadataPatch,
+    });
+    return res;
+  }
 }
 
 export interface Config {
@@ -446,11 +473,14 @@ export default class LearningPlugin extends Service {
     ctx.tools.register(defineTool(analyzeTool.toDSHToolDefinition()));
 
     // 3. 提炼规则（重构为 BaseTool）
+    // 2026-09-03 Fix③：传入 persistRules 回调——蒸馏产出即落库为 testing 候选，
+    // 使 learning_apply 有真实可转正对象（distill→apply 闭环）
     const distillTool = new LearningDistillTool(
       this.loadExperiencesBySource.bind(this),
       this.distillRules.bind(this),
       this.getDistillMethod.bind(this),
-      this.validateRules.bind(this)
+      this.validateRules.bind(this),
+      this.persistDistilledRules.bind(this)
     );
     ctx.tools.register(defineTool(distillTool.toDSHToolDefinition()));
 
@@ -504,7 +534,14 @@ export default class LearningPlugin extends Service {
   }
 
   /**
-   * 应用规则
+   * 应用规则（2026-09-03 Fix③ 重写：去掉"假 applied:true"占位）
+   *
+   * 真实语义 = 规则生命周期状态机（与 Fix① genome candidate testing→active 同构）：
+   *  - 规则先由 learning_distill 蒸馏落库为 kind='rule' status='testing' 候选（见 persistDistilledRules）
+   *  - learning_apply 非 dryRun 把该记忆的 envelope status testing→active 重写，payload 记录
+   *    applied_at/applied_by/applied_context，顶层 metadata 同步补审计键 → patch 成功且回读校验
+   *    status==='active' 才返回 applied:true；patch 失败抛错（工具层失败，不伪装成功）
+   *  - 规则不存在 → 诚实返回 applied:false + 指引（先 distill 落库）
    */
   private async applyRule(ruleId: string, context: any, dryRun: boolean): Promise<any> {
     // 从 OS 记忆库加载规则
@@ -512,7 +549,7 @@ export default class LearningPlugin extends Service {
       kind: 'rule',
       scope: 'global',
       q: ruleId,
-      limit: 5,
+      limit: 10,
     });
 
     // 精确匹配 rule_id
@@ -524,29 +561,156 @@ export default class LearningPlugin extends Service {
     if (ruleRecords.length === 0) {
       return {
         applied: false,
-        message: `规则 ${ruleId} 不存在`,
+        impact: { rule_id: ruleId },
+        message: `规则 ${ruleId} 不存在（OS 记忆无 kind='rule' 记录）。请先 learning_distill 蒸馏落库（产出 rules 带 rule_id/memory_id），或检查 rule_id 拼写`,
       };
     }
 
-    const rule = ruleRecords[0].payload || {};
+    const record = ruleRecords[0];
+    const rule = record.payload || {};
+    const fromStatus = record.status || 'testing';
+    const appliedAt = new Date().toISOString();
+    const appliedBy = this.agentIdentity.id;
 
-    // 模拟运行模式
+    // 模拟运行模式：返回将执行的状态迁移预览，不实际写入
     if (dryRun) {
       return {
         applied: false,
-        action_taken: rule.action || '未定义',
-        impact: { simulated: true, rule: rule.condition },
-        message: '模拟运行：规则匹配成功，但未实际执行',
+        action_taken: rule.action || '规则转正为 active',
+        impact: {
+          simulated: true,
+          rule_id: ruleId,
+          memory_id: record.id,
+          current_status: fromStatus,
+          target_status: 'active',
+          will_record: { applied_at: appliedAt, applied_by: appliedBy, applied_context: context ?? {} },
+          rule: rule.condition || null,
+        },
+        message: `模拟运行：规则 ${ruleId} 将执行 ${fromStatus} → active 状态迁移并记录应用审计（applied_at/applied_by/applied_context）；未实际写入`,
       };
     }
 
-    // 实际应用规则（这里是占位实现，实际需要根据规则类型执行不同的逻辑）
+    if (fromStatus === 'active') {
+      return {
+        applied: true,
+        action_taken: rule.action || '规则已处于 active',
+        impact: { rule_id: ruleId, memory_id: record.id, from_status: 'active', to_status: 'active', already_active: true },
+        message: `规则 ${ruleId} 已是 active（幂等：无需重复应用；若需更新应用上下文请先按需处理）`,
+      };
+    }
+
+    // 真实应用 = 状态迁移 testing → active：重写 envelope + 顶层 metadata 审计
+    await this.osMemory.patchMemory(record.id, {
+      rebuild: (env: any, meta: Record<string, any>) => ({
+        envelope: {
+          ...env,
+          status: 'active',
+          payload: {
+            ...(env.payload || {}),
+            applied: true,
+            applied_at: appliedAt,
+            applied_by: appliedBy,
+            applied_context: context ?? {},
+          },
+        },
+        metadataPatch: {
+          applied: true,
+          applied_at: appliedAt,
+          applied_by: appliedBy,
+          status: 'active',
+        },
+      }),
+    });
+
+    // 回读校验：patch 后必须确认 status 已变 active（防"patch 未生效却报成功"）
+    const verify = await this.osMemory.searchMemory({
+      kind: 'rule',
+      scope: 'global',
+      q: ruleId,
+      limit: 10,
+    });
+    const after = verify.items.find((it: any) => it.id === record.id);
+    const promoted = !!after && after.status === 'active';
+    if (!promoted) {
+      throw new Error(`规则 ${ruleId} 状态迁移失败：patch 后回读 status=${after?.status ?? 'gone'}，期望 active（未报成功）`);
+    }
+
     return {
       applied: true,
-      action_taken: rule.action || '应用规则',
-      impact: { rule_id: ruleId, context },
-      message: `规则 ${ruleId} 已应用`,
+      action_taken: rule.action || '规则转正为 active',
+      impact: {
+        rule_id: ruleId,
+        memory_id: record.id,
+        from_status: fromStatus,
+        to_status: 'active',
+        applied_at: appliedAt,
+        applied_by: appliedBy,
+        applied_context: context ?? {},
+      },
+      message: `规则 ${ruleId} 已真实应用：${fromStatus} → active（记忆 ${record.id}，含应用审计）`,
     };
+  }
+
+  /**
+   * 2026-09-03 Fix③：learning_distill 蒸馏产出规则后立即落库为 kind='rule' status='testing' 候选。
+   * 这是 learning_apply 能检索到规则对象的前提（此前规则永不落库，apply 永远"规则不存在"）。
+   * rule_id 用内容稳定哈希（condition+action+format），同规则重复蒸馏幂等复用同一记忆。
+   * 落库失败的规则保留（纯计算产物仍可读），但显式带 persist_error 不伪装成功。
+   */
+  private async persistDistilledRules(rules: any[], meta: { source: string; target_format: string }): Promise<any[]> {
+    const out: any[] = [];
+    for (const rule of rules) {
+      try {
+        const condition = rule.condition ?? '';
+        const action = rule.action ?? '';
+        const format = meta.target_format ?? 'rule';
+        const stableId = `rule_${this.fnv1a(`${condition}|${action}|${format}`)}`;
+        // 幂等复用：同稳定 id 已落库则直接复用
+        const existing = await this.findRuleByStableId(stableId);
+        if (existing) {
+          out.push({ ...rule, rule_id: stableId, memory_id: existing.id, status: existing.status || 'testing', reused: true });
+          continue;
+        }
+        const { id } = await this.osMemory.createMemory({
+          kind: 'rule',
+          scope: 'global',
+          title: `distilled rule ${stableId}`,
+          content: `${condition}\n→ ${action}`,
+          payload: {
+            rule_id: stableId,
+            condition,
+            action,
+            confidence: rule.confidence,
+            format,
+            source: meta.source,
+            source_experiences: rule.source_experiences,
+            distilled_at: new Date().toISOString(),
+          },
+          status: 'testing',
+          confidence: typeof rule.confidence === 'number' ? rule.confidence : 0.6,
+          source: 'learning_distill',
+          provenance: { tool: 'learning_distill', channel: 'dsh', format },
+        });
+        out.push({ ...rule, rule_id: stableId, memory_id: id, status: 'testing' });
+      } catch (e: any) {
+        out.push({ ...rule, persist_error: String(e?.message || e), persisted: false });
+      }
+    }
+    return out;
+  }
+
+  private async findRuleByStableId(stableId: string): Promise<any | null> {
+    const res = await this.osMemory.searchMemory({ kind: 'rule', scope: 'global', q: stableId, limit: 10 });
+    return (res.items || []).find((it: any) => (it.payload || {}).rule_id === stableId) || null;
+  }
+
+  private fnv1a(str: string): string {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(36);
   }
 
   /**
@@ -593,12 +757,19 @@ export default class LearningPlugin extends Service {
   }
 
   private async loadExperiencesBySource(source: string): Promise<ExperienceEntry[]> {
+    // 2026-09-03 Fix③：与 loadExperiences 同口径——优先读库（重启后 buffer 为空，
+    // 只读 buffer 会让 distill 永远"无数据可蒸馏"），库为空才回退进程内 buffer。
+    let experiences: ExperienceEntry[] = [];
+    try {
+      const persisted = await this.loadPersistedExperiences({});
+      if (persisted.length > 0) experiences = persisted;
+    } catch { /* 库不可用时回退 buffer */ }
+    if (experiences.length === 0) experiences = this.experienceBuffer.slice(-100);
+
     // 根据 source 筛选经验
-    return this.experienceBuffer.filter(exp => {
-      if (source === 'successful_trades') return exp.reward > 0;
-      if (source === 'failed_trades') return exp.reward < 0;
-      return true;
-    });
+    if (source === 'successful_trades') return experiences.filter(exp => exp.reward > 0);
+    if (source === 'failed_trades') return experiences.filter(exp => exp.reward < 0);
+    return experiences;
   }
 
   private minePatterns(experiences: ExperienceEntry[], focus: string): any[] {
@@ -720,91 +891,16 @@ export default class LearningPlugin extends Service {
     // 验证规则在经验集上的表现
     return {
       total_rules: rules.length,
-      avg_confidence: rules.reduce((sum, r) => sum + r.confidence, 0) / rules.length,
-      coverage: rules.length / experiences.length,
+      avg_confidence: rules.length > 0 ? rules.reduce((sum, r) => sum + r.confidence, 0) / rules.length : 0,
+      coverage: rules.length > 0 && experiences.length > 0 ? rules.length / experiences.length : 0,
     };
   }
 
-  private async generateChanges(options: any): Promise<any[]> {
-    const { type, spec } = options;
-    
-    // 根据类型生成不同的改动
-    switch (type) {
-      case 'rule':
-        return this.generateRuleChanges(spec);
-      case 'parameter':
-        return this.generateParameterChanges(spec);
-      case 'code':
-        return this.generateCodeChanges(spec);
-      case 'config':
-        return this.generateConfigChanges(spec);
-      case 'prompt':
-        return this.generatePromptChanges(spec);
-      default:
-        return [];
-    }
-  }
-
-  private generateRuleChanges(spec: any): any[] {
-    return [{
-      type: 'rule_addition',
-      file: 'packages/strategy/src/rules.ts',
-      description: '添加新规则',
-      content: spec.rule_code || '// TODO: generated rule',
-    }];
-  }
-
-  private generateParameterChanges(spec: any): any[] {
-    return [{
-      type: 'parameter_update',
-      file: spec.file || 'cordis.patch.yml',
-      parameter: spec.parameter,
-      old_value: spec.old_value,
-      new_value: spec.new_value,
-      description: `更新参数 ${spec.parameter}: ${spec.old_value} → ${spec.new_value}`,
-    }];
-  }
-
-  private generateCodeChanges(spec: any): any[] {
-    return [{
-      type: 'code_modification',
-      file: spec.file,
-      description: spec.description || '代码优化',
-      diff: spec.diff || '// TODO: generated diff',
-    }];
-  }
-
-  private generateConfigChanges(spec: any): any[] {
-    return [{
-      type: 'config_update',
-      file: '~/.dsh/profiles/investment/cordis.patch.yml',
-      description: '配置更新',
-      changes: spec.changes,
-    }];
-  }
-
-  private generatePromptChanges(spec: any): any[] {
-    return [{
-      type: 'prompt_enhancement',
-      description: 'System prompt 优化',
-      addition: spec.prompt_snippet || '// TODO: prompt snippet',
-    }];
-  }
-
-  private generateValidationPlan(changes: any[]): string {
-    const steps = changes.map((c, i) => 
-      `${i + 1}. 验证 ${c.type}: ${c.description}`
-    );
-    return steps.join('\n');
-  }
-
-  private async applyChanges(changes: any[]): Promise<void> {
-    for (const change of changes) {
-      this.ctx.logger.info(`learning: applying change ${change.type} to ${change.file || 'system'}`);
-      // 实际实现需要调用文件操作工具
-      // 这里仅记录日志
-    }
-  }
+  // 2026-09-03 Fix③：下线死代码 generateChanges/generateRuleChanges/generateParameterChanges/
+  // generateCodeChanges/generateConfigChanges/generatePromptChanges/generateValidationPlan/applyChanges
+  // （约 L755-834 原实现：全仓库无调用点；applyChanges 仅记日志不做事 = "假成功"反模式）。
+  // 真实"应用规则"语义已由 applyRule 重写为规则状态机迁移（testing→active 落库），
+  // 见本文件 applyRule / persistDistilledRules 注释。
 }
 
 // ===== 类型定义 =====

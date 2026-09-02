@@ -128,17 +128,13 @@ Agent-DH 已具备完整的**自我管理、自我学习、自我进化**能力�
 ```
 
 #### `learning_apply` - 应用学习结果
-- **代码生成**: 根据改进建议生成代码
-- **安全预览**: 默认 dry_run，先看改动
-- **集成重启**: restart_after=true 自动调用 self_restart
-- **回滚保护**: 集成 lifecycle 的安全机制
+- **真实语义（2026-09-03 Fix③）**: 规则生命周期状态机——learning_distill 蒸馏出的规则以 `kind=rule / status=testing` 持久化在 OS 记忆，learning_apply 将指定规则转正为 `status=active`（含 applied_at/applied_by/applied_context 审计字段）。
+- **入参**: `rule_id`（distill 返回的稳定规则 ID）+ `context`（应用上下文）+ `dry_run`（默认 true）
+- **安全预览**: dry_run=true 只模拟（返回 impact 与 action_taken），不落库
+- **幂等**: 已 active 的规则重复应用返回 `already_active: true`，不重复写入
+- **诚实失败**: 规则不存在返回 `applied: false` + 指引先 distill 的消息，绝不伪造成功
 
-**改进类型**:
-- rule: 添加新规则
-- parameter: 调整参数
-- code: 优化代码
-- config: 修改配置
-- prompt: 增强 system prompt
+**改进类型**: 由 learning_distill 生成（rule / code / decision_tree / prompt_snippet），apply 不重新发明类型，只负责把已蒸馏的规则转正为可执行状态。
 
 ### 2.2 元学习插件 (metalearn) 📋 TODO
 
@@ -300,7 +296,8 @@ console.log('改进建议:', analysis.improvements);
 // 发现：momentum 策略在震荡市表现差
 // 建议：增加波动率过滤
 
-// Day 8: 知识蒸馏
+// Day 8: 知识蒸馏（2026-09-03 Fix③：蒸馏即落库）
+// rules 以 kind=rule/status=testing 持久化到 OS 记忆，返回带 memory_id/rule_id
 const rules = await tools.learning_distill({
   source: 'successful_trades',
   target_format: 'code',
@@ -308,29 +305,27 @@ const rules = await tools.learning_distill({
 });
 
 // 提取到规则：if (volatility > 15%) skip momentum
+// rules[0].rule_id = 'rule_8f3a...'，rules[0].persistence = {persisted: N, ...}
 
-// Day 9: 应用改进（先预览）
+// Day 9: 应用改进（先预览，不落库）
 const preview = await tools.learning_apply({
-  improvement_type: 'code',
-  improvement_spec: {
-    file: 'packages/strategy/src/momentum.ts',
-    description: '增加波动率过滤',
-    code: 'if (volatility > 0.15) return null;'
-  },
+  rule_id: rules[0].rule_id,
+  context: { symbol: '000001', strategy_id: 3 },
   dry_run: true
 });
 
-console.log('改动预览:', preview.changes);
+console.log('模拟应用:', preview.impact);   // {from_status:'testing', to_status:'active', ...}
+console.log('已应用:', preview.applied);     // false（dry_run）
 
-// Day 10: 确认后应用并重启验证
-await tools.learning_apply({
-  improvement_type: 'code',
-  improvement_spec: { ... },
-  dry_run: false,
-  restart_after: true
+// Day 10: 确认后真实应用（testing → active 转正 + 审计字段）
+const result = await tools.learning_apply({
+  rule_id: rules[0].rule_id,
+  context: { symbol: '000001', strategy_id: 3 },
+  dry_run: false
 });
 
-// 自动：self_restart → 验证 → self_finalize
+// 自动：记忆内规则状态 testing→active，payload 增 applied_at/applied_by/applied_context
+// 规则进入活跃集，供未来决策检索（非 self_restart 集成——已下线该不实承诺）
 ```
 
 ### 7.2 快速修复循环
@@ -352,15 +347,14 @@ const fix = {
   code: 'const cache = new Map(); ...'
 };
 
-// 3. 应用并验证
+// 3. 应用并验证（真实语义：将已蒸馏规则 testing→active 转正）
 await tools.learning_apply({
-  improvement_type: 'code',
-  improvement_spec: fix,
-  dry_run: false,
-  restart_after: true
+  rule_id: fixRule.rule_id,
+  context: { component: 'risk_controller' },
+  dry_run: false
 });
 
-// 4. 自动验证并合并/回滚
+// 4. 规则进入活跃集供决策检索；复盘由 weekly_report / validation_gate 承担
 ```
 
 ---

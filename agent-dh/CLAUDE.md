@@ -559,14 +559,14 @@ Agent-DH 现已具备**自我学习、知识蒸馏、持续进化**能力。
 自我学习引擎：
 - `learning_track` - 追踪经验（自动拦截工具调用）
 - `learning_analyze` - 分析模式，生成改进建议
-- `learning_distill` - 知识蒸馏（复杂推理 → 简单规则）
-- `learning_apply` - 应用改进，集成 self_restart
+- `learning_distill` - 知识蒸馏（复杂推理 → 简单规则；2026-09-03 起蒸馏即落库 kind=rule/status=testing）
+- `learning_apply` - 应用改进（2026-09-03 起真实语义：已蒸馏规则 testing→active 转正；dry_run 模拟、幂等、诚实失败；已下线不实的 self_restart 集成承诺）
 
 **特性**：
 - 自动追踪关键工具（portfolio_trade, strategy_execute 等）
 - 计算奖励信号（盈亏/成功率/反馈）
 - 持久化到 memory 系统
-- 安全应用：dry_run → 确认 → 重启验证
+- 规则生命周期：distill 落库 testing → apply 转正 active（状态在记忆内容信封内，PATCH 重写推进）
 
 **完整文档**: [docs/AUTONOMY-SYSTEM.md](./docs/AUTONOMY-SYSTEM.md)  
 **设计文档**: [docs/rfcs/003-self-learning-distillation.md](./docs/rfcs/003-self-learning-distillation.md)

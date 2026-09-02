@@ -406,3 +406,183 @@ class StrategyValidationService:
 
         logger.info(f"Validation complete: {passed_count}/{len(strategies)} passed (threshold={threshold})")
         return result
+
+
+    # ------------------------------------------------------------------
+    # Fix④: 基于最近落库批量回测证据的报告性验证
+    # 背景：/api/backtest/batch（Flask）已被 commit 54851df0 删除且未在
+    # FastAPI 层重建 → validate_all_strategies() 的 HTTP 批量回测必然失败。
+    # 每日验证改为：读取 quant.backtest_results 中最近的真实批量回测证据，
+    # 按 strategy_name 匹配 strategy_configs → 聚合 → 复用同一评分公式 →
+    # 写独立列 validation_status + strategy_validation_reports。
+    # 报告性验证：无证据策略显式跳过（不判 0 分 invalid，避免历史 mass-invalidate 重演）；
+    # invalid 不自动停用策略（deactivate_if_invalid=False），停用由人工决策。
+    # ------------------------------------------------------------------
+    def validate_from_recent_backtests(
+        self,
+        lookback_days: int = 30,
+        threshold: float = 60.0,
+        dry_run: bool = True,
+    ) -> Dict:
+        """基于最近落库的真实批量回测证据（quant.backtest_results）做报告性验证。
+
+        Args:
+            lookback_days: 只考虑最近 N 天内产生的回测证据（默认 30 天）
+            threshold: 综合评分阈值（默认 60）
+            dry_run: True=只计算不写库（默认，用于预览）
+
+        Returns:
+            {
+                'total': 匹配到配置的策略数,
+                'with_evidence': 有最近回测证据的策略数,
+                'passed': 分数达标数, 'failed': 不达标数,
+                'no_evidence': 无最近证据被跳过的策略数,
+                'evidence_sources': [...],  # 每策略证据批次信息
+                'duration': 秒,
+                'dry_run': bool,
+            }
+        """
+        from sqlalchemy import text
+        from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
+        from datetime import datetime, timedelta
+
+        start = time.time()
+        repo = StrategyORMRepository()
+        session = repo.session
+
+        # 1) 拉取最近 N 天每个策略的批量回测证据（聚合指标：每年化收益/夏普/回撤/胜率/盈亏比）
+        since = datetime.now() - timedelta(days=lookback_days)
+        rows = session.execute(text("""
+            SELECT br.strategy_name,
+                   MAX(br.created_at) AS evidence_at,
+                   AVG(br.annual_return)  AS annual_return,
+                   AVG(br.sharpe_ratio)   AS sharpe_ratio,
+                   AVG(br.max_drawdown)   AS max_drawdown,
+                   AVG(br.win_rate)       AS win_rate,
+                   AVG(br.profit_factor)  AS profit_factor,
+                   COUNT(*)               AS backtest_count,
+                   MIN(br.start_date)     AS win_start,
+                   MAX(br.end_date)       AS win_end
+            FROM quant.backtest_results br
+            WHERE br.created_at >= :since
+            GROUP BY br.strategy_name
+            ORDER BY br.strategy_name
+        """), {'since': since}).fetchall()
+        evidence = {r.strategy_name: {
+            'annual_return': float(r.annual_return or 0.0),
+            'sharpe_ratio': float(r.sharpe_ratio or 0.0),
+            'max_drawdown': float(r.max_drawdown or 0.0),
+            'win_rate': float(r.win_rate or 0.0),
+            'profit_factor': float(r.profit_factor or 0.0),
+            'backtest_count': int(r.backtest_count or 0),
+            'evidence_at': r.evidence_at.isoformat() if r.evidence_at else None,
+            'win_start': r.win_start.isoformat() if r.win_start else None,
+            'win_end': r.win_end.isoformat() if r.win_end else None,
+        } for r in rows}
+
+        # 2) 获取全部策略配置（匹配 strategy_configs）
+        configs = repo.get_user_strategies()
+        config_by_name = {c['strategy_name']: c for c in configs if c.get('strategy_name')}
+
+        # 3) 逐策略评分：有证据 → 计算分；无证据 → 跳过（no_evidence）
+        details = []
+        matched = []
+        for name, ev in sorted(evidence.items()):
+            cfg = config_by_name.get(name)
+            if cfg is None:
+                continue  # 回测证据属于已删除/未登记策略，跳过
+            score = self.calculate_comprehensive_score(
+                ev['annual_return'], ev['sharpe_ratio'],
+                ev['max_drawdown'], ev['win_rate'], ev['profit_factor'],
+            )
+            passed = score >= threshold
+            status = 'valid' if passed else 'invalid'
+            errors = None if passed else f"Score {score:.2f} below threshold {threshold}"
+            matched.append(cfg)
+            details.append({
+                'strategy_id': cfg['id'],
+                'strategy_name': name,
+                'score': round(score, 2),
+                'passed': passed,
+                'status': status,
+                'errors': errors,
+                'metrics': {
+                    'annual_return': round(ev['annual_return'], 4),
+                    'sharpe_ratio': round(ev['sharpe_ratio'], 4),
+                    'max_drawdown': round(ev['max_drawdown'], 4),
+                    'win_rate': round(ev['win_rate'], 4),
+                    'profit_factor': round(ev['profit_factor'], 4),
+                },
+                'backtest_count': ev['backtest_count'],
+                'evidence_at': ev['evidence_at'],
+                'win_start': ev['win_start'],
+                'win_end': ev['win_end'],
+            })
+
+        no_evidence_count = sum(
+            1 for c in configs if c['strategy_name'] not in evidence and c.get('is_active')
+        )
+
+        # 4) 落库（仅非 dry_run）：独立列状态 + validation_reports
+        #    幂等保护：同一策略当天已写过验证报告则跳过，防止每日 Job 重复触发膨胀 reports 表
+        written = 0
+        skipped_duplicate = 0
+        if not dry_run and details:
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            for d in details:
+                exists = session.execute(text("""
+                    SELECT COUNT(*) FROM quant.strategy_validation_reports
+                    WHERE strategy_id = :sid AND validation_date >= :today
+                """), {'sid': d['strategy_id'], 'today': today}).scalar()
+                if exists:
+                    skipped_duplicate += 1
+                    continue
+                repo.update_validation_status(
+                    strategy_id=d['strategy_id'],
+                    status=d['status'],
+                    errors=d['errors'],
+                    deactivate_if_invalid=False,  # 报告性验证：不停用
+                )
+                # 只为"有证据"的策略写报告（评分有真实数据支撑）
+                repo.save_validation_report({
+                    'strategy_id': d['strategy_id'],
+                    'score': d['score'],
+                    'status': d['status'],
+                    'annual_return': d['metrics']['annual_return'],
+                    'sharpe_ratio': d['metrics']['sharpe_ratio'],
+                    'max_drawdown': d['metrics']['max_drawdown'],
+                    'win_rate': d['metrics']['win_rate'],
+                    'profit_factor': d['metrics']['profit_factor'],
+                    'backtest_count': d['backtest_count'],
+                    'error_count': 0,
+                    'start_date': d.get('win_start'),
+                    'end_date': d.get('win_end'),
+                })
+                written += 1
+            logger.info(
+                f"Persisted validation status for {written} strategies "
+                f"(dry_run=False, skipped_duplicate={skipped_duplicate})"
+            )
+
+        passed_count = sum(1 for d in details if d['passed'])
+        failed_count = len(details) - passed_count
+
+        result = {
+            'total': len(details) + no_evidence_count,
+            'with_evidence': len(details),
+            'passed': passed_count,
+            'failed': failed_count,
+            'no_evidence': no_evidence_count,
+            'reports_written': written,
+            'reports_skipped_duplicate': skipped_duplicate,
+            'duration': round(time.time() - start, 2),
+            'dry_run': dry_run,
+            'threshold': threshold,
+            'evidence_window_days': lookback_days,
+            'details': details,
+        }
+        logger.info(
+            f"Recent-backtest validation preview: {passed_count}/{len(details)} passed "
+            f"(threshold={threshold}, no_evidence_skipped={no_evidence_count}, dry_run={dry_run})"
+        )
+        return result

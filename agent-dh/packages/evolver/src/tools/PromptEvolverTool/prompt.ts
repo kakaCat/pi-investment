@@ -30,6 +30,10 @@ export interface PromptEvolverResult {
     success: boolean;
     section: string;
     message: string;
+    // RFC 008：非 dryRun 成功应用为 candidate 后回填登记信息（供调用方追踪观察期）
+    candidate_id?: string;
+    observe_until?: string;
+    stage?: 'candidate' | 'active';
   }>;
 }
 

@@ -192,3 +192,66 @@
 - 🔴 **registerCandidate 断裂实证**：validation_gate force=true 返回"候选 0"——验证门确实空转
 
 **剩余未修（建议后续工作线）**：①registerCandidate 恢复调用（或 validation_gate 改读 genome.json history 的 stage=candidate）；②8 个 v2 空壳任务补实现或下线（避免假成功记录持续污染 last_status）；③learning_apply 补真实应用逻辑；④v2 last_status 外层 success 掩盖内层 error 的机制缺陷（job_executor 只 catch Exception + complete_run(success=True)）。
+
+---
+
+## §6 修复完成记录（2026-09-03 深夜，investor w-8366e526）
+
+> 请求："继续修复"——将 §5 剩余未修的 ①-④ 逐条落地。全部为代码+测试+实证修复，已各自独立验证；修复期间无交易委托（非交易时段）。
+
+### ① registerCandidate 断裂 → 恢复调用链（DONE）
+
+**根因**：`EvolverPlugin` 私有 registerCandidate（写 `<genomeDir>/candidates.json`）零调用者；PromptEvolverTool 在 `genome_update(stage='candidate')` 成功后从未登记候选 → validation_gate 读同一文件永远空转（实证：force=true 返回"候选 0"）。
+
+**修复**：
+- 新增共享实现 `agent-dh/packages/evolver/src/candidates.ts`（CandidateRecord/readCandidates/writeCandidates(原子 tmp+rename)/registerCandidate），从 EvolverPlugin 移出死代码；
+- `PromptEvolverTool.execute()` 在非 dryRun 且 `genome_update` 返回 stage='candidate' 成功后调用 `registerCandidate`，把候选登记为 `status='watching'` + `observe_until=now+observeDays`；
+- `ValidationGateTool` 读路径与共享实现同一文件 `<genomeDir>/candidates.json` → 登记/裁决两端收敛；
+- PromptEvolverResult 增加 `candidate_id/observe_until/stage` 字段（schema 同步，含 additionalProperties 铁律）。
+- 修复过程中揪出并修掉一个**假绿测试**：candidates.ts 原用 `const fs = require('fs')`（vitest CJS polyfill 下通过、tsx ESM 运行时报 TypeError）→ 改为顶层 `import { existsSync, readFileSync, writeFileSync, renameSync } from 'node:fs'`。
+
+**验证**：`candidates-store.test.ts` 4 用例（登记写文件/幂等/原子性/字段完整性）绿。
+
+### ② v2 last_status 假成功机制（DONE）
+
+**根因**：job_executor 外层只 catch Exception，Job 内部失败被 JobRegistry 转 `JobResult.fail` → 外层仍 `complete_run(success=True)` → last_status 全表不可信。
+
+**修复**：外层成功必须镜像内层结果——异常(raise)→外层 failed；`JobResult.fail` dict → 外层 failed；legacy handler 返回 `{status:'failed'}` → 外层 failed；仅内层明确成功才 success=True。静默失败伪装成功不可复现。
+
+**验证**：`tests/infrastructure/test_job_executor_fix.py` 3 用例绿（异常/JobResult.fail/legacy error dict 均不再误报 success）。
+
+### ③ learning_apply 占位 → 真实应用逻辑（DONE，含 distill→apply 闭环）
+
+**根因**：learning_apply 原为占位，返回假"已应用"；且 learning_distill 只返回规则不落库 → apply 永远找不到规则。
+
+**修复**（规则生命周期状态机，与 Fix① 的 genome candidate 生命周期同构）：
+- `learning_distill` 蒸馏即落库：规则以 `kind=rule/status='testing'` 持久化到 Agent OS 记忆（信封 `{kind,scope,status,confidence,source,provenance,payload,body}`），稳定 rule_id `rule_${fnv1a(condition+action+format)}`，稳定 ID 去重复用已有记忆；落库失败不吞——返回 `persistence{persisted,total,failed,error}`；
+- `learning_apply(rule_id, context, dry_run)` 真实语义：dry_run 只模拟 `{applied:false, impact:{simulated:true}}`；真实应用 = patchMemory 重写信封 status testing→active + payload 增 applied_at/applied_by/applied_context，随后重新检索验证 status==='active'，否则抛错（诚实失败，不伪造成功）；规则不存在返回 `{applied:false, message:'…请先 learning_distill…'}`；已 active 幂等返回 `already_active:true`；
+- OsMemoryStore 新增 `patchMemory(id,{rebuild})`（GET→JSON.parse→rebuild→PATCH {content,metadata_patch}），Agent OS :8080 真实 API 已 live 验证；
+- 原 generate*/applyChanges 死代码块删除，验证规则防除零。
+
+**验证**：learning 10 用例绿（experienceDistill 7 + distillPersist 3：落库成功/落库失败诚实报错/空经验不调 persistRules）。
+
+### ④ v2 strategy_validate 空壳 → 真实验证服务（DONE，report-only）
+
+**根因**：252 strategy_validate 空壳只数 strategy_configs 行数即报 validated_count（自曝 TODO）。
+
+**修复**：`StrategyValidationService` 对每个活跃策略做真实校验（信号源/参数/回测可用性 → valid/invalid/no_evidence 分级），`analysis_jobs` 落库 validation_report + no_evidence_skipped；scheduler_tasks 增加 no_evidence_skipped 透出；daily 路径 `deactivate_if_invalid=False` **只报告不停用**（约 7 个活跃策略不因单日校验失败被批量下线——保守原则），手动可传 True 启用自动停用。
+
+**验证**：真实 DB E2E（report-only 校验跑通、无批量停用）；unit 用例绿。
+
+### 测试总览（提交前全量）
+
+```
+evolver 14 (candidates-store 4 + searchRewards 4 + judgeCandidates 6)
+learning 10 (experienceDistill 7 + distillPersist 3)
+plugin-schema.smoke 19
+quantsys-v2：test_job_executor_fix 3 + strategy_repository/validation_service/scheduler 既有用例
+```
+
+### 文档修正（对齐真实工具语义）
+
+- `agent-dh/docs/AUTONOMY-SYSTEM.md`：learning_apply 不再声称 "restart_after/self_restart 集成/代码生成"，改为规则生命周期状态机语义；示例代码（Day 8-10 / 快速修复循环）同步为真实入参（rule_id/context/dry_run）。
+- `agent-dh/CLAUDE.md`：learning_apply 条目去掉不实的 "集成 self_restart"，注明 2026-09-03 真实语义。
+
+**状态标记**：①-④ 全部 DONE（①的 GUI 级 E2E 见下文重启验证节；②③④ 已有测试+实证）。

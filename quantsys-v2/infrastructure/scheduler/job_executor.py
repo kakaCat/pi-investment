@@ -88,17 +88,25 @@ def execute_scheduled_job(task_id: int):
             # 4. 执行任务（路由到 JobRegistry/Legacy Handler）
             result = _execute_command(task.get('command'), task.get('params') or {})
 
-            # 5. 记录成功
+            # 5. 记录成功/失败
+            # Fix②（审计发现）：内层失败曾被无条件 success=True 吞掉——Job 内部失败被
+            # JobRegistry 转成 {status:'failed',...} dict 返回，从不抛异常，外层却记 success=True
+            # → scheduler_tasks.last_status 假成功、真实失败只藏在 runs.result 内层。
+            # 现在以外层内层 result.status 为准：status=='failed' → 外层也记 failed。
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+            inner_failed = isinstance(result, dict) and result.get('status') == 'failed'
+            error = result.get('error') if inner_failed else None
             repo.complete_run(
                 run_id=run_id,
-                success=True,
+                success=not inner_failed,
                 result=result,
+                error=error,
             )
 
             logger.info(
-                f"Task completed successfully: {task_name} "
-                f"(run_id={run_id}, duration={duration_ms}ms)"
+                f"Task completed: {task_name} "
+                f"(run_id={run_id}, duration={duration_ms}ms, "
+                f"outer_success={not inner_failed}, inner_status={result.get('status') if isinstance(result, dict) else 'n/a'})"
             )
 
         except Exception as e:

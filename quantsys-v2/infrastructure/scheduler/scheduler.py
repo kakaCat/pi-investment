@@ -1287,37 +1287,44 @@ class SchedulerService:
     def _handle_strategy_validate_daily(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute daily strategy validation task.
         
-        Validates strategy performance and parameters.
+        Fix④: 原实现为空壳（数 strategy_configs 行数即报 validated_count，从不真实验证，
+        假成功记录持续污染 scheduler_runs）。现改为基于最近落库的真实批量回测证据
+        （quant.backtest_results，按 strategy_name 匹配）做报告性验证，不依赖已删除的
+        /api/backtest/batch 路由；无证据策略显式跳过，绝不编造 0 分 invalid。
         
         Args:
-            params: Optional parameters
+            params: Optional parameters（lookback_days / threshold / dry_run 可覆盖默认值）
         
         Returns:
             Result dictionary with validation results
         """
-        logger.info("Executing strategy_validate_daily command")
+        logger.info("Executing strategy_validate_daily command (real backtest-evidence validation)")
         
         try:
-            # Get all strategies
-            strategies = StrategyORMRepository().list_strategies()
-            
-            validated_count = 0
-            failed_validations = []
-            
-            for strategy in strategies:
-                try:
-                    # Add actual validation logic here
-                    # Check strategy parameters, performance, etc.
-                    validated_count += 1
-                except Exception as e:
-                    logger.warning(f"Validation failed for strategy {strategy.get('id')}: {e}")
-                    failed_validations.append(strategy.get('strategy_name'))
-            
+            from application.services.strategy_validation_service import StrategyValidationService
+
+            service = StrategyValidationService(
+                strategy_repo=StrategyORMRepository(),
+                stock_repo=StockORMRepository(),
+            )
+            result = service.validate_from_recent_backtests(
+                lookback_days=int(params.get('lookback_days', 30)),
+                threshold=float(params.get('threshold', 60.0)),
+                dry_run=bool(params.get('dry_run', False)),
+            )
+
             return {
                 "action": "strategy_validate_daily",
                 "status": "success",
-                "strategies_validated": validated_count,
-                "failed_validations": len(failed_validations),
+                "strategies_with_evidence": result['with_evidence'],
+                "strategies_validated": result['with_evidence'],
+                "valid_count": result['passed'],
+                "invalid_count": result['failed'],
+                "no_evidence_skipped": result['no_evidence'],
+                "reports_written": result['reports_written'],
+                "reports_skipped_duplicate": result.get('reports_skipped_duplicate', 0),
+                "evidence_window_days": result['evidence_window_days'],
+                "dry_run": result['dry_run'],
                 "timestamp": datetime.now().isoformat()
             }
             

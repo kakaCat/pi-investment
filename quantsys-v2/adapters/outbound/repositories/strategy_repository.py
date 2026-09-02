@@ -37,6 +37,8 @@ class StrategyConfig(Base):
     favorite_count = Column(Integer)
     strategy_metadata = Column('metadata', JSON)  # 使用别名避免冲突
     strategy_profile = Column(JSON)
+    validation_status = Column(String(50))  # 独立列：验证状态（valid/invalid/pending）
+    validation_errors = Column(Text)  # 独立列：验证错误信息
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     last_executed_at = Column(DateTime)  # 最后执行时间
@@ -190,6 +192,8 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
                 'favorite_count': s.favorite_count or 0,
                 'metadata': s.strategy_metadata,  # 使用别名字段
                 'strategy_profile': s.strategy_profile,
+                'validation_status': s.validation_status or (s.strategy_metadata or {}).get('validation_status'),
+                'validation_errors': s.validation_errors or (s.strategy_metadata or {}).get('validation_errors'),
                 'created_at': s.created_at.isoformat() if s.created_at else None,
                 'updated_at': s.updated_at.isoformat() if s.updated_at else None,
             } for s in strategies]
@@ -240,6 +244,8 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
                 'favorite_count': strategy.favorite_count or 0,
                 'metadata': strategy.strategy_metadata,  # 使用别名字段
                 'strategy_profile': strategy.strategy_profile,
+                'validation_status': strategy.validation_status or (strategy.strategy_metadata or {}).get('validation_status'),
+                'validation_errors': strategy.validation_errors or (strategy.strategy_metadata or {}).get('validation_errors'),
             }
         except Exception as e:
             self._safe_rollback()
@@ -308,6 +314,8 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
                 parsed_params=strategy_data.get('parsed_params'),
                 strategy_metadata=strategy_data.get('metadata', {}),
                 strategy_profile=strategy_data.get('risk_config', {}),
+                validation_status=strategy_data.get('validation_status') or (strategy_data.get('metadata') or {}).get('validation_status'),
+                validation_errors=strategy_data.get('validation_errors'),
                 favorite_count=0,
                 created_at=datetime.now(),
                 updated_at=datetime.now()
@@ -340,42 +348,126 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
         self,
         strategy_id: int,
         status: str,
-        errors: Optional[str] = None
-    ) -> bool:
-        """更新策略的验证状态
+        errors: Optional[str] = None,
+        deactivate_if_invalid: bool = True
+    ) -> Optional[Dict[str, Any]]:
+        """更新策略的验证状态（独立列 + metadata JSON 双写，兼容新老读路径）
 
         Args:
             strategy_id: 策略 ID
-            status: 验证状态 ('valid', 'invalid', 'pending')
+            status: 验证状态，必须是 'valid' / 'invalid' / 'pending'
             errors: 验证错误信息（可选）
+            deactivate_if_invalid: invalid 时是否自动停用策略。
+                True=代码级验证失败停用（create_user_strategy 场景）；
+                False=报告性验证（每日回测验证只记录状态，不自动停用）
 
         Returns:
-            bool: 是否更新成功
+            dict: {'strategy_id', 'validation_status', 'validation_errors', 'is_active'}；
+                  策略不存在时返回 None
+        Raises:
+            ValueError: status 不是合法取值
         """
+        valid_statuses = ('valid', 'invalid', 'pending')
+        if status not in valid_statuses:
+            raise ValueError(f"status 必须是 {', '.join(valid_statuses)} 之一，收到: {status}")
         try:
             from datetime import datetime
             strategy = self.session.query(StrategyConfig).filter_by(id=strategy_id).first()
             if not strategy:
                 logger.warning(f"Strategy {strategy_id} not found for validation status update")
-                return False
+                return None
 
-            # 更新元数据中的验证状态
-            metadata = strategy.strategy_metadata or {}
+            # 独立列（真实 schema 主存储）
+            strategy.validation_status = status
+            strategy.validation_errors = errors if errors else None
+
+            # metadata JSON（兼容历史读路径双写）
+            # 注意：JSON 列原地改 dict 再赋回同一对象，SQLAlchemy 比较前后相等会跳过该列 UPDATE，
+            # 必须用 flag_modified 强制标记为已修改
+            from sqlalchemy.orm.attributes import flag_modified
+            metadata = dict(strategy.strategy_metadata or {})
             metadata['validation_status'] = status
             if errors:
                 metadata['validation_errors'] = errors
-
+            elif 'validation_errors' in metadata:
+                metadata.pop('validation_errors', None)
             strategy.strategy_metadata = metadata
+            flag_modified(strategy, 'strategy_metadata')
             strategy.updated_at = datetime.now()
 
-            # 如果验证失败，设为不激活
-            if status == 'invalid':
+            # 仅当显式要求时才停用（代码级验证失败场景）
+            if status == 'invalid' and deactivate_if_invalid:
                 strategy.is_active = False
 
             self.session.commit()
-            logger.info(f"Updated validation status for strategy {strategy_id}: {status}")
-            return True
+            logger.info(f"Updated validation status for strategy {strategy_id}: {status} (errors={bool(errors)})")
+            return {
+                'strategy_id': strategy.id,
+                'validation_status': strategy.validation_status,
+                'validation_errors': strategy.validation_errors,
+                'is_active': strategy.is_active,
+            }
         except Exception as e:
+            self._safe_rollback()
             logger.error(f"Error updating validation status for strategy {strategy_id}: {e}")
-            self.session.rollback()
-            return False
+            raise
+
+    def save_validation_report(self, report_data: Dict[str, Any]) -> int:
+        """保存策略验证报告（写入 quant.strategy_validation_reports）
+
+        Args:
+            report_data: 验证报告数据，包含:
+                - strategy_id: 策略 ID
+                - score: 综合评分
+                - status: 验证状态 ('valid'/'invalid')
+                - annual_return / sharpe_ratio / max_drawdown / win_rate / profit_factor: 指标
+                - backtest_count / error_count: 回测统计
+                - start_date / end_date: 回测窗口
+
+        Returns:
+            int: 新报告 ID
+        """
+        try:
+            from datetime import datetime, date as date_cls
+            from sqlalchemy import text as sa_text
+
+            def _parse_date(v):
+                if isinstance(v, date_cls):
+                    return v
+                return date_cls.fromisoformat(str(v)) if v else None
+
+            insert_sql = sa_text("""
+                INSERT INTO quant.strategy_validation_reports
+                (strategy_id, validation_date, score, status,
+                 annual_return, sharpe_ratio, max_drawdown, win_rate, profit_factor,
+                 backtest_count, error_count, start_date, end_date, created_at)
+                VALUES (:strategy_id, :validation_date, :score, :status,
+                        :annual_return, :sharpe_ratio, :max_drawdown, :win_rate, :profit_factor,
+                        :backtest_count, :error_count, :start_date, :end_date, :created_at)
+                RETURNING id
+            """)
+            now = datetime.now()
+            result = self.session.execute(insert_sql, {
+                'strategy_id': report_data.get('strategy_id'),
+                'validation_date': now,
+                'score': report_data.get('score'),
+                'status': report_data.get('status'),
+                'annual_return': report_data.get('annual_return'),
+                'sharpe_ratio': report_data.get('sharpe_ratio'),
+                'max_drawdown': report_data.get('max_drawdown'),
+                'win_rate': report_data.get('win_rate'),
+                'profit_factor': report_data.get('profit_factor'),
+                'backtest_count': report_data.get('backtest_count', 0),
+                'error_count': report_data.get('error_count', 0),
+                'start_date': _parse_date(report_data.get('start_date')),
+                'end_date': _parse_date(report_data.get('end_date')),
+                'created_at': now,
+            })
+            self.session.commit()
+            report_id = result.scalar()
+            logger.info(f"Saved validation report for strategy {report_data.get('strategy_id')}: id={report_id} score={report_data.get('score')}")
+            return int(report_id)
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error saving validation report: {e}")
+            raise

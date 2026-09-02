@@ -59,26 +59,38 @@ class StrategyValidateDailyJob(Job):
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
         try:
+            # Fix④: 原实现为空壳（数 strategy_configs 行数即报 validated_count，从不真实验证，
+            # 假成功记录持续污染 scheduler_runs.last_status）。
+            # 现委托 StrategyValidationService.validate_from_recent_backtests —— 基于最近落库的
+            # 真实批量回测证据（quant.backtest_results）做报告性验证，不依赖已删除的
+            # /api/backtest/batch 路由；无证据策略显式跳过，绝不编造 0 分 invalid。
+            from application.services.strategy_validation_service import StrategyValidationService
             from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
+            from adapters.outbound.repositories.stock_repository import StockORMRepository
 
-            strategies = StrategyORMRepository().list_strategies()
-            validated_count = 0
-            failed_validations = []
-
-            for strategy in strategies:
-                try:
-                    # TODO: 实现实际验证逻辑
-                    validated_count += 1
-                except Exception as e:
-                    logger.warning(f"Validation failed for strategy {strategy.get('id')}: {e}")
-                    failed_validations.append(strategy.get('strategy_name'))
+            service = StrategyValidationService(
+                strategy_repo=StrategyORMRepository(),
+                stock_repo=StockORMRepository(),
+            )
+            result = service.validate_from_recent_backtests(
+                lookback_days=int(params.get('lookback_days', 30)),
+                threshold=float(params.get('threshold', 60.0)),
+                dry_run=bool(params.get('dry_run', False)),
+            )
 
             return JobResult.ok(
                 self.name,
-                message=f"策略验证完成: {validated_count} validated",
+                message=(
+                    f"策略验证完成: {result['passed']} valid / {result['failed']} invalid "
+                    f"(evidence={result['with_evidence']}, no_evidence_skipped={result['no_evidence']})"
+                ),
                 details={
-                    "validated_count": validated_count,
-                    "failed_validations": failed_validations
+                    "validated_count": result['with_evidence'],
+                    "valid_count": result['passed'],
+                    "invalid_count": result['failed'],
+                    "no_evidence_skipped": result['no_evidence'],
+                    "reports_written": result['reports_written'],
+                    "dry_run": result['dry_run'],
                 }
             )
         except Exception as e:

@@ -17,6 +17,13 @@ export interface LearningDistillResult {
   source_count: number;
   distill_method: string;
   validation_stats: Record<string, any>;
+  // 2026-09-03 Fix③：规则落库结果（候选 kind='rule' status='testing'；rules 项带 memory_id）
+  persistence?: {
+    persisted: number;
+    total: number;
+    failed: number;
+    error: string | null;
+  };
 }
 
 export const learningDistillPrompt: ToolPrompt<LearningDistillParams, LearningDistillResult> = {
@@ -45,6 +52,11 @@ export const learningDistillPrompt: ToolPrompt<LearningDistillParams, LearningDi
         source_count: { type: 'number' },
         distill_method: { type: 'string' },
         validation_stats: { type: 'object', additionalProperties: true },
+        persistence: {
+          type: 'object',
+          additionalProperties: true,
+          description: '规则落库结果（Fix③）',
+        },
       },
     },
     render: (args, data) => {

@@ -7,6 +7,7 @@ import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '
 import type { Context } from '@deepseek-ai/cordis';
 import type { OsMemoryStore } from '../../index';
 import { promptEvolverPrompt, PromptEvolverParams, PromptEvolverResult } from './prompt';
+import { registerCandidate, type CandidateRecord } from '../../candidates';
 
 /**
  * 提示词进化工具类
@@ -118,18 +119,56 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
         // 4. 如果非预览模式，调用 genome_update 应用为 candidate
         if (!dryRun) {
           try {
-            await this.callGenomeUpdate(
+            const updateResult = await this.callGenomeUpdate(
               suggestion.section,
               content,
               suggestion.reason,
               'candidate'
             );
+            // RFC 008 修复（2026-09-03）：genome_update(stage='candidate') 只写 genome.json
+            // history，从不登记 candidates.json → validation_gate 永远无案可裁。
+            // 这里在成功应用后立即登记观察候选，闭环验证门输入。
+            // baseline = 变更前一代（genome_version gN → g(N-1)，与历史实现 80ce5cfc 一致）
+            let candidate: CandidateRecord | null = null;
+            try {
+              const gv = String(updateResult?.genome_version || '');
+              const gm = gv.match(/^g(\d+)$/);
+              const baselineVersion = gm ? `g${parseInt(gm[1], 10) - 1}` : gv;
+              // @ts-ignore ctx.genome 由 genome 插件注入，无类型声明
+              const genomeDir = this.ctx.genome?.genomeDir;
+              if (!genomeDir) {
+                throw new Error('ctx.genome.genomeDir 不可用，无法登记 candidate');
+              }
+              candidate = registerCandidate({
+                genomeDir,
+                section: suggestion.section,
+                sectionVersion: updateResult?.new_version,
+                genomeVersion: updateResult?.genome_version,
+                baselineVersion,
+                observeDays,
+                mutationType: 'prompt',
+              });
+            } catch (regErr: any) {
+              // 登记失败不阻断应用成功——但必须显式告警（静默失败是最坏的伪装）
+              return {
+                proposal,
+                result: {
+                  success: true,
+                  section: suggestion.section,
+                  message: `已更新为 candidate 版本（⚠️ candidate 登记失败: ${regErr.message}，验证门将无法裁决）`,
+                  stage: 'candidate' as const,
+                },
+              };
+            }
             return {
               proposal,
               result: {
                 success: true,
                 section: suggestion.section,
-                message: `已更新为 candidate 版本，观察期 ${observeDays} 天`,
+                message: `已更新为 candidate 版本并登记（${candidate.id}），观察期至 ${candidate.observe_until}`,
+                candidate_id: candidate.id,
+                observe_until: candidate.observe_until,
+                stage: 'candidate' as const,
               },
             };
           } catch (e: any) {

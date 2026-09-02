@@ -789,35 +789,37 @@ def handle_strategy_validate_daily(params: Dict[str, Any] = None) -> Dict[str, A
     """每日策略验证任务"""
     params = params or {}
 
+    # Fix④: 原实现调用 validate_all_strategies(force_refresh=...) —— 该方法签名无 force_refresh，
+    # 且依赖已删除的 /api/backtest/batch 路由必然失败；mark_strategy_invalid 亦不存在。
+    # 对齐为与 Job / scheduler._handle_strategy_validate_daily 相同的真实委托：
+    # 基于最近落库回测证据的报告性验证（无证据显式跳过，不自动停用）。
     logger.info("Starting strategy_validate_daily task")
 
     try:
         from application.services.strategy_validation_service import StrategyValidationService
+        from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
+        from adapters.outbound.repositories.stock_repository import StockORMRepository
 
-        service = StrategyValidationService()
-
-        # 验证所有启用的策略
-        validation_results = service.validate_all_strategies(
-            force_refresh=params.get('force_refresh', False)
+        service = StrategyValidationService(
+            strategy_repo=StrategyORMRepository(),
+            stock_repo=StockORMRepository(),
         )
-
-        # 统计结果
-        total_strategies = len(validation_results)
-        valid_count = sum(1 for r in validation_results if r.get('is_valid', False))
-        invalid_count = total_strategies - valid_count
-
-        # 标记无效策略
-        if params.get('auto_disable_invalid', False):
-            for result in validation_results:
-                if not result.get('is_valid', False):
-                    service.mark_strategy_invalid(result['strategy_id'])
+        result = service.validate_from_recent_backtests(
+            lookback_days=int(params.get('lookback_days', 30)),
+            threshold=float(params.get('threshold', 60.0)),
+            dry_run=bool(params.get('dry_run', False)),
+        )
 
         return {
             "action": "strategy_validate_daily",
             "status": "success",
-            "total_strategies": total_strategies,
-            "valid_count": valid_count,
-            "invalid_count": invalid_count,
+            "total_strategies": result['total'],
+            "valid_count": result['passed'],
+            "invalid_count": result['failed'],
+            "with_evidence": result['with_evidence'],
+            "no_evidence_skipped": result['no_evidence'],
+            "reports_written": result['reports_written'],
+            "dry_run": result['dry_run'],
             "timestamp": datetime.now().isoformat()
         }
 
