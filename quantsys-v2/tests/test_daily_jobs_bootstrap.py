@@ -79,3 +79,17 @@ class TestLastTradingDay:
     def test_monday_morning(self):
         # 周一 9:20 → 上周五
         assert _last_trading_day(datetime(2026, 9, 7, 9, 20)) == '2026-09-04'
+
+
+class TestStartupSafety:
+    """2026-09-02 启动阻塞事故守护：orchestrator resume_from_breakpoint 在
+    FastAPI 主线程同步执行阶段处理函数 → 阶段函数（scheduler_tasks.handle_*）
+    禁止做全市场 K 线同步等重活（重活必须在 daily_jobs 任务线程）。"""
+
+    def test_handle_data_update_has_no_heavy_sync(self):
+        import inspect
+        from application.services import scheduler_tasks
+        src = inspect.getsource(scheduler_tasks.handle_data_update)
+        assert 'update_gem_klines' not in src, \
+            'handle_data_update 不得直接调用全市场同步（会把主线程启动卡死），用 morning_topup 任务'
+

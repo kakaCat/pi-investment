@@ -46,18 +46,24 @@ def handle_data_quality_check(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
 
 def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """数据更新任务（盘前安全网）
+    """数据更新任务（盘前新鲜度检查）
 
-    2026-09-02 修复：原实现只读 get_latest_daily_kline 做"存在性检查"就把
-    只读查询计数为 symbols_updated——假干活，从不真正同步。数据新鲜度的
-    主owner是进程内 evening_pipeline（15:40 全市场同步），本函数改为盘前
-    安全网：K线已新鲜则跳过；滞后则真同步（兜底昨晚同步失败的场景）。
+    2026-09-02 两连修：
+    1) 原实现只读 get_latest_daily_kline 做"存在性检查"就把只读查询计数为
+       symbols_updated——假干活，从不真正同步（9-01 数据因此整体缺失）。
+    2) 第一次修复把真同步放这里，但本函数会被 orchestrator
+       resume_from_breakpoint 在 FastAPI 主线程同步执行，全市场同步
+       （50 分钟级）把启动卡死（10:45 启动挂起事故）。
+    最终形态：只做新鲜度检查（快、无网络）；真同步由进程内 daily_jobs 宿主的
+    morning_topup（08:35）/ evening_pipeline（15:40）任务线程承担。
     """
     params = params or {}
 
     logger.info("Starting data_update task")
 
-    # 1. 新鲜度检查：已新鲜则跳过（幂等，不重复拉全市场）
+    kline_latest = None
+    expected = None
+    # 新鲜度检查：已新鲜则跳过（幂等，不重复拉全市场）
     try:
         from infrastructure.persistence.database.engine import get_engine
         from sqlalchemy import text
@@ -73,17 +79,22 @@ def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
                 "status": "skipped",
                 "reason": f"K线已新鲜（最新 {kline_latest} ≥ {expected}），晚间 pipeline 已覆盖",
             }
-        logger.warning(f"K线滞后（最新 {kline_latest} < {expected}），盘前兜底同步")
+        logger.warning(f"K线滞后（最新 {kline_latest} < {expected}），待 morning_topup/evening_pipeline 补同步")
     except Exception as e:
-        logger.error(f"新鲜度检查失败，保守执行真同步: {e}")
+        logger.error(f"新鲜度检查失败: {e}")
+        return {
+            "action": "data_update",
+            "status": "error",
+            "error": str(e),
+        }
 
-    # 2. 真同步（全市场，近3天）
-    from infrastructure.jobs.kline_update_job import update_gem_klines
-    result = update_gem_klines(scope='all', days=params.get('days', 3))
+    # 滞后只报告不真同步（重活必须在任务线程，不能在 orchestrator 阶段/主线程）
     return {
         "action": "data_update",
-        "status": "success" if not result.get('error') else "failed",
-        "kline_sync": result,
+        "status": "stale",
+        "reason": f"K线滞后（最新 {kline_latest} < {expected}），由 morning_topup/evening_pipeline 任务线程补同步",
+        "kline_latest": str(kline_latest) if kline_latest else None,
+        "expected": expected,
     }
 
 

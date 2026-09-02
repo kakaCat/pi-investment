@@ -63,6 +63,30 @@ def _job_evening_pipeline() -> Dict[str, Any]:
     return results
 
 
+def _job_morning_topup() -> Dict[str, Any]:
+    """盘前补数据（08:35）：昨晚同步失败/未跑时兜底。
+
+    注意（2026-09-02 启动阻塞事故）：真同步必须在本任务线程里跑，
+    禁止放进 orchestrator 阶段处理函数——start_orchestrator 会在主线程
+    同步执行 resume_from_breakpoint，重活会把 FastAPI 启动卡死。
+    """
+    from infrastructure.persistence.database.engine import get_engine
+    from sqlalchemy import text
+
+    expected = _last_trading_day(datetime.now())
+    engine = get_engine()
+    with engine.connect() as conn:
+        kline_latest = conn.execute(
+            text("SELECT max(trade_date) FROM quant.daily_klines")).scalar()
+
+    if kline_latest and str(kline_latest) >= expected:
+        return {'status': 'skipped', 'reason': f'K线已新鲜（{kline_latest} ≥ {expected}）'}
+
+    logger.warning(f"morning_topup: K线滞后（{kline_latest} < {expected}），执行真同步")
+    from infrastructure.jobs.kline_update_job import update_gem_klines
+    return update_gem_klines(scope='all', days=3)
+
+
 def _job_data_quality() -> Dict[str, Any]:
     from application.services.scheduler_tasks import handle_data_quality_check
     return handle_data_quality_check()
@@ -130,6 +154,8 @@ def _send_feishu(text: str) -> bool:
 
 
 JOBS: List[JobDef] = [
+    JobDef('morning_topup', dtime(8, 35), (0, 1, 2, 3, 4),
+           _job_morning_topup, '盘前补数据：昨晚同步失败时兜底（K线滞后才真同步）'),
     JobDef('evening_pipeline', dtime(15, 40), (0, 1, 2, 3, 4),
            _job_evening_pipeline, 'K线全市场同步 → 因子全市场计算'),
     JobDef('data_quality', dtime(17, 15), (0, 1, 2, 3, 4),
