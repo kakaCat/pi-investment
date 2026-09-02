@@ -208,20 +208,26 @@ JOBS = [
     },
 
     # V13 daily check (before market close)
+    # DEPRECATED (strategy-refactor Part 4.2): superseded by the unified
+    # `strategy_execute_all` job below, which runs every active strategy via
+    # application.strategies.StrategyExecutor.execute_all(). Kept (name/cron
+    # unchanged) for rollback; disabled to avoid double execution at 14:30.
     {
         "name": "v13_daily_check",
         "owner": "quantsys-v2",
         "cron": "30 14 * * 1-5",  # 工作日 14:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
-        "enabled": True,
+        "enabled": False,  # DEPRECATED: replaced by strategy_execute_all
         "timeout": 600,
         "retry_count": 1,
         "metadata": {
             "job_type": "v13_daily_check",
             "enable_stop_loss": True,
             "enable_rebalance": True,
-            "description": "V13 simulation trading daily check"
+            "deprecated": True,
+            "replaced_by": "strategy_execute_all",
+            "description": "[DEPRECATED] V13 simulation trading daily check (use strategy_execute_all)"
         }
     },
 
@@ -258,18 +264,146 @@ JOBS = [
     },
 
     # V14 daily check (before market close)
+    # DEPRECATED (strategy-refactor Part 4.2): superseded by the unified
+    # `strategy_execute_all` job below. Kept (name/cron unchanged) for
+    # rollback; was already disabled.
     {
         "name": "v14_daily_check",
         "owner": "quantsys-v2",
         "cron": "30 14 * * 1-5",  # 工作日 14:30 (disabled by default)
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
-        "enabled": False,  # V14 currently disabled
+        "enabled": False,  # DEPRECATED: replaced by strategy_execute_all
         "timeout": 600,
         "retry_count": 1,
         "metadata": {
             "job_type": "v14_daily_check",
-            "description": "V14 simulation trading daily check"
+            "deprecated": True,
+            "replaced_by": "strategy_execute_all",
+            "description": "[DEPRECATED] V14 simulation trading daily check (use strategy_execute_all)"
+        }
+    },
+
+    # Unified strategy execution (before market close) — strategy-refactor Part 4.2
+    # Single task replacing the separate v13_daily_check / v14_daily_check jobs:
+    # the webhook handler builds StrategyExecutor(trader, position_repo, engine)
+    # and calls execute_all(), which runs every active strategy (V13 + V14) for
+    # today and captures per-strategy failures without blocking the others.
+    {
+        "name": "strategy_execute_all",
+        "owner": "quantsys-v2",
+        "cron": "30 14 * * 1-5",  # 工作日 14:30（沿用 v13_daily_check 时段）
+        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
+        "enabled": True,
+        "timeout": 600,
+        "retry_count": 1,
+        "metadata": {
+            "job_type": "strategy_execute_all",
+            "description": "Unified daily execution of all active strategies via StrategyExecutor.execute_all()"
+        }
+    },
+
+    # 盘中风控检查（交易时段每30分钟，10:00-14:30）— strategy-refactor Part 5.2
+    # 7 个 cron 任务共用一个 job_type：IntradayRiskService 检查全部持仓的
+    # 固定止损/移动止损规则，触发即卖出落库并飞书告警。
+    # retry_count=0：失败后由下一个 30 分钟任务接管，避免止损单重复执行。
+    {
+        "name": "intraday_risk_1000",
+        "owner": "quantsys-v2",
+        "cron": "0 10 * * 1-5",  # 工作日 10:00
+        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",
+        "enabled": True,
+        "timeout": 120,
+        "retry_count": 0,
+        "metadata": {
+            "job_type": "intraday_risk_check",
+            "description": "Intraday risk check: stop-loss / trailing-stop on all positions"
+        }
+    },
+    {
+        "name": "intraday_risk_1030",
+        "owner": "quantsys-v2",
+        "cron": "30 10 * * 1-5",  # 工作日 10:30
+        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",
+        "enabled": True,
+        "timeout": 120,
+        "retry_count": 0,
+        "metadata": {
+            "job_type": "intraday_risk_check",
+            "description": "Intraday risk check: stop-loss / trailing-stop on all positions"
+        }
+    },
+    {
+        "name": "intraday_risk_1100",
+        "owner": "quantsys-v2",
+        "cron": "0 11 * * 1-5",  # 工作日 11:00
+        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",
+        "enabled": True,
+        "timeout": 120,
+        "retry_count": 0,
+        "metadata": {
+            "job_type": "intraday_risk_check",
+            "description": "Intraday risk check: stop-loss / trailing-stop on all positions"
+        }
+    },
+    {
+        "name": "intraday_risk_1300",
+        "owner": "quantsys-v2",
+        "cron": "0 13 * * 1-5",  # 工作日 13:00
+        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",
+        "enabled": True,
+        "timeout": 120,
+        "retry_count": 0,
+        "metadata": {
+            "job_type": "intraday_risk_check",
+            "description": "Intraday risk check: stop-loss / trailing-stop on all positions"
+        }
+    },
+    {
+        "name": "intraday_risk_1330",
+        "owner": "quantsys-v2",
+        "cron": "30 13 * * 1-5",  # 工作日 13:30
+        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",
+        "enabled": True,
+        "timeout": 120,
+        "retry_count": 0,
+        "metadata": {
+            "job_type": "intraday_risk_check",
+            "description": "Intraday risk check: stop-loss / trailing-stop on all positions"
+        }
+    },
+    {
+        "name": "intraday_risk_1400",
+        "owner": "quantsys-v2",
+        "cron": "0 14 * * 1-5",  # 工作日 14:00
+        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",
+        "enabled": True,
+        "timeout": 120,
+        "retry_count": 0,
+        "metadata": {
+            "job_type": "intraday_risk_check",
+            "description": "Intraday risk check: stop-loss / trailing-stop on all positions"
+        }
+    },
+    {
+        "name": "intraday_risk_1430",
+        "owner": "quantsys-v2",
+        "cron": "30 14 * * 1-5",  # 工作日 14:30
+        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
+        "service_name": "quantsys-v2",
+        "enabled": True,
+        "timeout": 120,
+        "retry_count": 0,
+        "metadata": {
+            "job_type": "intraday_risk_check",
+            "description": "Intraday risk check: stop-loss / trailing-stop on all positions"
         }
     },
 

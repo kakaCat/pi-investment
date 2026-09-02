@@ -1,3 +1,10 @@
+# LEGACY / ARCHIVED FILE
+# This file has been archived as of 2026-09-02 during the strategy refactor (Part 6.1).
+# It is retained for reference only and is no longer used in production.
+# The V13 logic has been replaced by:
+#   - domain/strategies/xgboost_strategy.py
+#   - application/strategies/v13_use_case.py
+# Do not modify or import this file in new code.
 """
 V13策略实现
 

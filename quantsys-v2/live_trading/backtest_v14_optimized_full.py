@@ -8,7 +8,7 @@ import os
 import sys
 
 from live_trading.simulation_trader import SimulationTrader
-from domain.strategies.v14_strategy import V14Strategy
+from application.strategies.v14_config import V14_CONFIG
 import logging
 from pathlib import Path
 import json
@@ -30,8 +30,7 @@ def backtest_v14_optimized_full():
     print("  初始资金: ¥100,000")
 
     # 获取V14优化策略配置
-    strategy = V14Strategy()
-    config = strategy.get_config()
+    config = V14_CONFIG
 
     print("\n策略配置（参数优化版）:")
     print(f"  持仓数量: {config.max_positions}只")
