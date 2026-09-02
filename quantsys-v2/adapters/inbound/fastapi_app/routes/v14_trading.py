@@ -9,7 +9,7 @@ import logging
 
 from infrastructure.jobs.strategy_trading_job import v14_daily_check, v14_manual_rebalance
 from live_trading.simulation_trader import SimulationTrader
-from domain.strategies.v14_strategy import V14Strategy
+from application.strategies.v14_use_case import V14StrategyUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -152,8 +152,7 @@ async def daily_check():
 async def get_strategy_config():
     """获取V14策略配置"""
     try:
-        strategy = V14Strategy()
-        config = strategy.get_config()
+        config = V14StrategyUseCase.CONFIG
 
         return {
             'success': True,

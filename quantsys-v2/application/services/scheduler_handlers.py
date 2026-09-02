@@ -313,6 +313,20 @@ async def handle_v14_daily_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+@register_job_handler("strategy_execute_all")
+async def handle_strategy_execute_all(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """统一策略每日执行：StrategyExecutor.execute_all（V13 + V14）.
+
+    Job function: infrastructure.jobs.strategy_trading_job.strategy_execute_all
+    Schedule: 工作日 14:30（替代 v13_daily_check / v14_daily_check）
+    """
+    logger.info("Starting strategy_execute_all job")
+    from infrastructure.jobs.strategy_trading_job import strategy_execute_all
+
+    result = strategy_execute_all(**(metadata or {}))
+    return result
+
+
 # ==================== Financial Data Jobs ====================
 
 
@@ -465,6 +479,20 @@ async def handle_market_scan_preopen(metadata: Dict[str, Any]) -> Dict[str, Any]
 
 
 # ==================== Risk Jobs ====================
+
+
+@register_job_handler("intraday_risk_check")
+async def handle_intraday_risk_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """盘中风控检查：IntradayRiskService.check_positions（止损/移动止损）.
+
+    Job function: infrastructure.jobs.strategy_trading_job.intraday_risk_check
+    Schedule: 工作日每30分钟 10:00-14:30（intraday_risk_1000…1430 共7个 cron 任务）
+    """
+    logger.info("Starting intraday_risk_check job")
+    from infrastructure.jobs.strategy_trading_job import intraday_risk_check
+
+    result = intraday_risk_check(**(metadata or {}))
+    return result
 
 
 @register_job_handler("risk_check")
