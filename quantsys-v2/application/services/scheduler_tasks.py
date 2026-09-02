@@ -320,11 +320,14 @@ def handle_pool_refresh_daily(
     if changed and not params.get('skip_notify'):
         try:
             from application.services.agent_notification_service import agent_service
-            agent_service.notify_agent('pool_changed', {
-                'trade_date': today.isoformat(),
-                'pools_changed': changed,
-                'account': 'agent_virtual',
-            })
+            # 股池变化通知改为直接发送，不唤醒 agent（节省 token）
+            pools_summary = ', '.join([f"{p['pool_name']} (+{p['added']}-{p['removed']})" for p in changed])
+            agent_service.send_notification(
+                title=f'📊 股池变化通知 ({today.isoformat()})',
+                content=f'账户：agent_virtual\n变化股池：{pools_summary}',
+                channel='feishu',
+                priority='normal'
+            )
         except Exception as e:
             logger.warning(f"pool_changed notify failed: {e}")
 

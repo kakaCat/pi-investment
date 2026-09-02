@@ -76,9 +76,22 @@ class MarketMonitorScheduler:
                     'reason': '大盘异动超过阈值'
                 }
 
-                # 4. 通知 Agent
+                # 4. 市场异动告警改为直接发送（纯告警通知，不需要即时决策，节省 token）
                 from application.services.agent_notification_service import agent_service
-                agent_service.notify_agent('market_alert', data)
+                content = f"""⚠️ 指数异动告警
+
+上证指数：{sh_change:.2%}
+深成指数：{sz_change:.2%}
+触发阈值：±{threshold:.0%}
+时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+风险提示：大盘异动，请关注持仓"""
+                agent_service.send_notification(
+                    title='🚨 大盘异动告警',
+                    content=content,
+                    channel='feishu',
+                    priority='high'
+                )
 
         except Exception as e:
             logger.error(f"市场监控任务失败: {e}", exc_info=True)
