@@ -325,7 +325,7 @@ def handle_pool_refresh_daily(
             agent_service.send_notification(
                 title=f'📊 股池变化通知 ({today.isoformat()})',
                 content=f'账户：agent_virtual\n变化股池：{pools_summary}',
-                channel='feishu',
+                channel='reports',  # 使用报告群
                 priority='normal'
             )
         except Exception as e:

@@ -293,7 +293,7 @@ class DailyOrchestrator:
         agent_service.send_notification(
             title=f'📈 盘前摘要 ({state.trade_date})',
             content=content,
-            channel='feishu',
+            channel='reports',  # 使用报告群
             priority='normal'
         )
 

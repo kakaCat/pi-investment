@@ -89,7 +89,7 @@ class MarketMonitorScheduler:
                 agent_service.send_notification(
                     title='🚨 大盘异动告警',
                     content=content,
-                    channel='feishu',
+                    channel='alerts',  # 使用告警群
                     priority='high'
                 )
 
