@@ -134,13 +134,15 @@ class TestEnvironmentVariableControl:
     def test_env_var_variations(self):
         """测试环境变量不同值"""
         for value in ['1', 'yes', 'True', 'TRUE']:
-            EnhancedServiceFactory._services.clear()
+            EnhancedServiceFactory._descriptors.clear()
+            EnhancedServiceFactory._singletons.clear()
             os.environ['QUANTSYS_CONFIG_DRIVEN'] = value
             register_all_services()
             assert len(EnhancedServiceFactory.get_registered_services()) > 0
 
         for value in ['0', 'no', 'False', 'FALSE']:
-            EnhancedServiceFactory._services.clear()
+            EnhancedServiceFactory._descriptors.clear()
+            EnhancedServiceFactory._singletons.clear()
             os.environ['QUANTSYS_CONFIG_DRIVEN'] = value
             register_all_services()
             assert len(EnhancedServiceFactory.get_registered_services()) > 0
@@ -159,7 +161,8 @@ class TestConfigDrivenVsHardcoded:
         from domain.ports import IStockRepository, IKlineRepository, ISignalRepository
 
         # 方式 1: 配置驱动
-        EnhancedServiceFactory._services.clear()
+        EnhancedServiceFactory._descriptors.clear()
+        EnhancedServiceFactory._singletons.clear()
         register_all_services(use_config=True)
         config_driven_count = len(EnhancedServiceFactory.get_registered_services())
         assert EnhancedServiceFactory.is_registered(IStockRepository)
@@ -167,7 +170,7 @@ class TestConfigDrivenVsHardcoded:
         assert EnhancedServiceFactory.is_registered(ISignalRepository)
 
         # 方式 2: 硬编码
-        EnhancedServiceFactory._services.clear()
+        EnhancedServiceFactory._descriptors.clear()
         EnhancedServiceFactory._singletons.clear()
         register_all_services(use_config=False)
         hardcoded_count = len(EnhancedServiceFactory.get_registered_services())

@@ -2,12 +2,26 @@
 测试 StrategyWeightAdjuster 服务
 """
 import pytest
+from unittest.mock import Mock
 from application.services.strategy_weight_adjuster import StrategyWeightAdjuster
+
+
+def _mock_repos(sample_size: int = 0, static_weight: float = 0.30):
+    """构造测试用的 Mock 仓库"""
+    performance_repo = Mock()
+    performance_repo.get_statistics.return_value = {'total_trades': sample_size}
+    weight_repo = Mock()
+    weight_repo.get_static_weight.return_value = static_weight
+    return weight_repo, performance_repo
 
 
 def test_get_weight_static_mode(db_connection):
     """测试静态模式权重查询（样本 < 30）"""
-    adjuster = StrategyWeightAdjuster()
+    weight_repo, performance_repo = _mock_repos(sample_size=10)
+    adjuster = StrategyWeightAdjuster(
+        weight_repo=weight_repo,
+        performance_repo=performance_repo,
+    )
 
     result = adjuster.get_weight(
         strategy_name='my_ma_cross',
@@ -25,36 +39,20 @@ def test_get_weight_static_mode(db_connection):
 
 def test_get_weight_dynamic_mode(db_connection):
     """测试动态模式权重计算（样本 >= 30）"""
-    from adapters.outbound.repositories import StrategyPerformanceORMRepository
-    from datetime import date, timedelta
+    weight_repo, performance_repo = _mock_repos(sample_size=35)
+    adjuster = StrategyWeightAdjuster(
+        weight_repo=weight_repo,
+        performance_repo=performance_repo,
+    )
 
-    # 准备测试数据：创建 >= 30 笔交易记录
-    perf_repo = StrategyPerformanceORMRepository()
-    strategy_name = 'mature_strategy'
+    # 模拟按风格的历史表现，使动态计算有数据可用
+    adjuster._get_performance_by_style = Mock(return_value={
+        'momentum': {'sharpe': 1.8, 'win_rate': 0.65},
+        'oscillation': {'sharpe': 0.6, 'win_rate': 0.42},
+    })
 
-    # 创建 35 笔交易记录，分布在不同市场风格
-    base_date = date(2024, 1, 1)
-    for i in range(35):
-        market_style = 'momentum' if i < 20 else 'oscillation'
-        pnl_pct = 5.0 if i % 2 == 0 else -2.0  # 模拟盈亏
-
-        perf_repo.create(
-            strategy_name=strategy_name,
-            symbol='600000.SH',
-            signal_date=base_date + timedelta(days=i),
-            entry_price=10.0,
-            exit_price=10.0 + (pnl_pct / 100 * 10.0),
-            pnl_pct=pnl_pct,
-            holding_days=3,
-            scenario_tags=[market_style],
-            params_snapshot={'fast': 5, 'slow': 20},
-            source='paper'
-        )
-
-    # 执行测试
-    adjuster = StrategyWeightAdjuster()
     result = adjuster.get_weight(
-        strategy_name=strategy_name,
+        strategy_name='mature_strategy',
         strategy_type='trend_following',
         market_style='momentum'
     )
@@ -63,12 +61,16 @@ def test_get_weight_dynamic_mode(db_connection):
     assert result['sample_size'] >= 30
     assert 0.6 <= result['weight_adjustment'] <= 2.0
     assert 'historical_performance' in result
-    assert result['strategy_name'] == strategy_name
+    assert result['strategy_name'] == 'mature_strategy'
 
 
 def test_get_weight_unknown_style(db_connection):
     """测试未知风格时的处理"""
-    adjuster = StrategyWeightAdjuster()
+    weight_repo, performance_repo = _mock_repos(sample_size=10)
+    adjuster = StrategyWeightAdjuster(
+        weight_repo=weight_repo,
+        performance_repo=performance_repo,
+    )
 
     result = adjuster.get_weight(
         strategy_name='my_strategy',
@@ -82,7 +84,11 @@ def test_get_weight_unknown_style(db_connection):
 
 def test_get_weight_mixed_market(db_connection):
     """测试混合市场风格时的处理"""
-    adjuster = StrategyWeightAdjuster()
+    weight_repo, performance_repo = _mock_repos(sample_size=10)
+    adjuster = StrategyWeightAdjuster(
+        weight_repo=weight_repo,
+        performance_repo=performance_repo,
+    )
 
     result = adjuster.get_weight(
         strategy_name='my_strategy',
@@ -95,32 +101,17 @@ def test_get_weight_mixed_market(db_connection):
 
 def test_get_weight_fallback_on_error(db_connection):
     """测试动态模式失败时回退到静态模式"""
-    from adapters.outbound.repositories import StrategyPerformanceORMRepository
-    from datetime import date, timedelta
+    weight_repo, performance_repo = _mock_repos(sample_size=35)
+    adjuster = StrategyWeightAdjuster(
+        weight_repo=weight_repo,
+        performance_repo=performance_repo,
+    )
 
-    # 准备测试数据：创建 >= 30 笔交易记录，但没有 market_style 标签
-    perf_repo = StrategyPerformanceORMRepository()
-    strategy_name = 'strategy_without_style'
+    # 模拟没有当前市场风格数据，触发回退
+    adjuster._get_performance_by_style = Mock(return_value={})
 
-    base_date = date(2024, 1, 1)
-    for i in range(35):
-        perf_repo.create(
-            strategy_name=strategy_name,
-            symbol='600000.SH',
-            signal_date=base_date + timedelta(days=i),
-            entry_price=10.0,
-            exit_price=10.5,
-            pnl_pct=5.0,
-            holding_days=3,
-            scenario_tags=None,  # 没有市场风格标签
-            params_snapshot={'fast': 5, 'slow': 20},
-            source='paper'
-        )
-
-    # 执行测试
-    adjuster = StrategyWeightAdjuster()
     result = adjuster.get_weight(
-        strategy_name=strategy_name,
+        strategy_name='strategy_without_style',
         strategy_type='trend_following',
         market_style='momentum'
     )

@@ -1,6 +1,7 @@
 """ChanKnowledgeDistiller 测试——缠论信号胜率蒸馏入 agent_knowledge"""
 from datetime import date, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
+from types import SimpleNamespace
 import polars as pl
 import pytest
 
@@ -8,7 +9,6 @@ from application.services.chan_knowledge_distiller import ChanKnowledgeDistiller
 
 
 def _signals():
-    """3 个 chan_1买 信号：2 胜 1 负（20 日窗）"""
     base = date(2026, 6, 1)
     return [
         {'symbol': '600519.SH', 'signal_date': base, 'strategy_id': 'chan_1买', 'action': 'BUY'},
@@ -18,8 +18,6 @@ def _signals():
 
 
 def _klines(start_price: float, end_price: float, days: int = 30) -> pl.DataFrame:
-    """线性价格序列 polars df（date 用 ISO 字符串——对齐生产 kline repo
-    显式 schema 后 trade_date 恒为 Utf8 的契约）"""
     base = date(2026, 6, 1)
     step = (end_price - start_price) / (days - 1)
     return pl.DataFrame({
@@ -33,19 +31,21 @@ def _klines(start_price: float, end_price: float, days: int = 30) -> pl.DataFram
 
 
 class TestDistiller:
-    @patch('application.services.chan_knowledge_distiller.AgentKnowledgeORMRepository')
-    @patch('application.services.chan_knowledge_distiller.KlineORMRepository')
-    @patch('application.services.chan_knowledge_distiller.SignalORMRepository')
-    def test_distill_aggregates_win_rate(self, mock_sig, mock_kline, mock_know):
-        mock_sig.return_value.get_signals_by_date_range.return_value = _signals()
-        # 600519 涨（胜）、000858 跌（负）、601318 涨（胜）
-        mock_kline.return_value.get_daily_klines.side_effect = [
+    def test_distill_aggregates_win_rate(self):
+        signal_repo = MagicMock()
+        signal_repo.get_signals_by_date_range.return_value = _signals()
+        kline_repo = MagicMock()
+        kline_repo.get_daily_klines.side_effect = [
             _klines(100.0, 110.0), _klines(100.0, 95.0), _klines(100.0, 105.0),
         ]
         upserts = []
-        mock_know.return_value.upsert_knowledge.side_effect = lambda **kw: upserts.append(kw)
+        knowledge_repo = MagicMock()
+        knowledge_repo.upsert_knowledge.side_effect = lambda **kw: upserts.append(kw)
 
-        result = ChanKnowledgeDistiller(window_days=20, lookback_days=90).distill()
+        result = ChanKnowledgeDistiller(
+            window_days=20, lookback_days=90,
+            signal_repo=signal_repo, kline_repo=kline_repo, knowledge_repo=knowledge_repo
+        ).distill()
 
         assert result['strategies_distilled'] == 1
         assert len(upserts) == 1
@@ -55,69 +55,71 @@ class TestDistiller:
         assert u['knowledge_type'] == 'signal_effectiveness'
         assert u['validation_count'] == 3
         assert u['success_count'] == 2
-        assert abs(u['content']['win_rate'] - 2 / 3) < 1e-3  # content 按 4 位小数舍入
+        assert abs(u['content']['win_rate'] - 2 / 3) < 1e-3
         assert u['content']['samples'] == 3
-        # 3 样本 < 10 → confidence 封顶 0.3
         assert u['confidence'] == 0.3
 
-    @patch('application.services.chan_knowledge_distiller.AgentKnowledgeORMRepository')
-    @patch('application.services.chan_knowledge_distiller.KlineORMRepository')
-    @patch('application.services.chan_knowledge_distiller.SignalORMRepository')
-    def test_missing_klines_excluded(self, mock_sig, mock_kline, mock_know):
-        """验证窗内K线缺失的信号不计入统计"""
-        mock_sig.return_value.get_signals_by_date_range.return_value = _signals()[:2]
-        mock_kline.return_value.get_daily_klines.side_effect = [
+    def test_missing_klines_excluded(self):
+        signal_repo = MagicMock()
+        signal_repo.get_signals_by_date_range.return_value = _signals()[:2]
+        kline_repo = MagicMock()
+        kline_repo.get_daily_klines.side_effect = [
             _klines(100.0, 110.0), pl.DataFrame(),
         ]
         upserts = []
-        mock_know.return_value.upsert_knowledge.side_effect = lambda **kw: upserts.append(kw)
+        knowledge_repo = MagicMock()
+        knowledge_repo.upsert_knowledge.side_effect = lambda **kw: upserts.append(kw)
 
-        result = ChanKnowledgeDistiller(window_days=20, lookback_days=90).distill()
+        result = ChanKnowledgeDistiller(
+            window_days=20, lookback_days=90,
+            signal_repo=signal_repo, kline_repo=kline_repo, knowledge_repo=knowledge_repo
+        ).distill()
         assert upserts[0]['validation_count'] == 1
         assert result['signals_excluded'] == 1
 
-    @patch('application.services.chan_knowledge_distiller.AgentKnowledgeORMRepository')
-    @patch('application.services.chan_knowledge_distiller.KlineORMRepository')
-    @patch('application.services.chan_knowledge_distiller.SignalORMRepository')
-    def test_orm_signal_objects_supported(self, mock_sig, mock_kline, mock_know):
-        """生产 get_signals_by_date_range 返回 Signal ORM 对象（非 dict）——
-        蒸馏器必须兼容属性访问（回填演示 AttributeError: 'Signal' object has no attribute 'get'）"""
-        from types import SimpleNamespace
+    def test_orm_signal_objects_supported(self):
         base = date(2026, 6, 1)
         orm_signals = [
             SimpleNamespace(symbol='600519', signal_date=base, strategy_id='chan_1买', action='BUY'),
             SimpleNamespace(symbol='000858', signal_date=base, strategy_id='chan_1买', action='BUY'),
         ]
-        mock_sig.return_value.get_signals_by_date_range.return_value = orm_signals
-        mock_kline.return_value.get_daily_klines.side_effect = [
+        signal_repo = MagicMock()
+        signal_repo.get_signals_by_date_range.return_value = orm_signals
+        kline_repo = MagicMock()
+        kline_repo.get_daily_klines.side_effect = [
             _klines(100.0, 110.0), _klines(100.0, 95.0),
         ]
         upserts = []
-        mock_know.return_value.upsert_knowledge.side_effect = lambda **kw: upserts.append(kw)
+        knowledge_repo = MagicMock()
+        knowledge_repo.upsert_knowledge.side_effect = lambda **kw: upserts.append(kw)
 
-        result = ChanKnowledgeDistiller(window_days=20, lookback_days=90).distill()
+        result = ChanKnowledgeDistiller(
+            window_days=20, lookback_days=90,
+            signal_repo=signal_repo, kline_repo=kline_repo, knowledge_repo=knowledge_repo
+        ).distill()
         assert result['strategies_distilled'] == 1
         assert upserts[0]['validation_count'] == 2
         assert upserts[0]['success_count'] == 1
 
-    @patch('application.services.chan_knowledge_distiller.AgentKnowledgeORMRepository')
-    @patch('application.services.chan_knowledge_distiller.KlineORMRepository')
-    @patch('application.services.chan_knowledge_distiller.SignalORMRepository')
-    def test_sell_signal_wins_when_price_falls(self, mock_sig, mock_kline, mock_know):
-        """sell 信号：跌=胜（与 verify_judgments 对称）"""
+    def test_sell_signal_wins_when_price_falls(self):
         base = date(2026, 6, 1)
-        mock_sig.return_value.get_signals_by_date_range.return_value = [
+        signal_repo = MagicMock()
+        signal_repo.get_signals_by_date_range.return_value = [
             {'symbol': '600519', 'signal_date': base, 'strategy_id': 'chan_1卖', 'action': 'SELL'},
             {'symbol': '000858', 'signal_date': base, 'strategy_id': 'chan_1卖', 'action': 'SELL'},
         ]
-        # 600519 跌（胜）、000858 涨（负）
-        mock_kline.return_value.get_daily_klines.side_effect = [
+        kline_repo = MagicMock()
+        kline_repo.get_daily_klines.side_effect = [
             _klines(100.0, 90.0), _klines(100.0, 110.0),
         ]
         upserts = []
-        mock_know.return_value.upsert_knowledge.side_effect = lambda **kw: upserts.append(kw)
+        knowledge_repo = MagicMock()
+        knowledge_repo.upsert_knowledge.side_effect = lambda **kw: upserts.append(kw)
 
-        result = ChanKnowledgeDistiller(window_days=20, lookback_days=90).distill()
+        result = ChanKnowledgeDistiller(
+            window_days=20, lookback_days=90,
+            signal_repo=signal_repo, kline_repo=kline_repo, knowledge_repo=knowledge_repo
+        ).distill()
         assert result['strategies_distilled'] == 1
         assert upserts[0]['validation_count'] == 2
         assert upserts[0]['success_count'] == 1

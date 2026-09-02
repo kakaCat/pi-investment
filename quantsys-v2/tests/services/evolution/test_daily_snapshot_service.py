@@ -87,7 +87,7 @@ class TestDailySnapshot:
 
 class TestBackfill:
     def _trade(self, symbol, action, shares, price, trade_date, total_cost=None, total_revenue=None):
-        return MagicMock(symbol=symbol, action=action, shares=shares, price=price,
+        return MagicMock(symbol=symbol, action=action.upper(), shares=shares, price=price,
                          filled_price=price, total_cost=total_cost, total_revenue=total_revenue,
                          trade_date=trade_date)
 

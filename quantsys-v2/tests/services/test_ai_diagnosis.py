@@ -28,47 +28,54 @@ def service():
     yield s
 
 
-def test_ai_diagnosis_success(service, monkeypatch):
-    monkeypatch.setenv('DEEPSEEK_API_KEY', 'sk-test')
+def _fake_config(api_key: str = 'sk-test'):
+    """构造 llm_service.get_config 期望的嵌套配置对象"""
+    config = MagicMock()
+    config.external.deepseek_api_key = api_key
+    return config
+
+
+def test_ai_diagnosis_success(service):
     fake_resp = MagicMock()
     fake_resp.status_code = 200
     fake_resp.json.return_value = {'choices': [{'message': {'content': '做得好：X\n问题：Y\n建议：Z'}}]}
 
-    with patch('application.services.llm_service.requests.post', return_value=fake_resp):
-        result = service.ai_diagnosis('agent:main:wake:e2e')
+    with patch('application.services.llm_service.get_config', return_value=_fake_config()):
+        with patch('application.services.llm_service.requests.post', return_value=fake_resp):
+            result = service.ai_diagnosis('agent:main:wake:e2e')
 
     assert '做得好' in result['analysis']
     assert result['cached'] is False
 
 
-def test_ai_diagnosis_cached_no_second_call(service, monkeypatch):
-    monkeypatch.setenv('DEEPSEEK_API_KEY', 'sk-test')
+def test_ai_diagnosis_cached_no_second_call(service):
     fake_resp = MagicMock()
     fake_resp.status_code = 200
     fake_resp.json.return_value = {'choices': [{'message': {'content': '分析内容'}}]}
 
-    with patch('application.services.llm_service.requests.post', return_value=fake_resp) as mock_post:
-        service.ai_diagnosis('agent:main:wake:e2e')
-        second = service.ai_diagnosis('agent:main:wake:e2e')
+    with patch('application.services.llm_service.get_config', return_value=_fake_config()):
+        with patch('application.services.llm_service.requests.post', return_value=fake_resp) as mock_post:
+            service.ai_diagnosis('agent:main:wake:e2e')
+            second = service.ai_diagnosis('agent:main:wake:e2e')
 
     assert mock_post.call_count == 1  # 第二次走缓存
     assert second['cached'] is True
 
 
-def test_ai_diagnosis_no_api_key(service, monkeypatch):
-    monkeypatch.delenv('DEEPSEEK_API_KEY', raising=False)
-    with pytest.raises(RuntimeError, match='DEEPSEEK_API_KEY'):
-        service.ai_diagnosis('agent:main:wake:e2e')
+def test_ai_diagnosis_no_api_key(service):
+    with patch('application.services.llm_service.get_config', return_value=_fake_config(api_key='')):
+        with pytest.raises(RuntimeError, match='DEEPSEEK_API_KEY'):
+            service.ai_diagnosis('agent:main:wake:e2e')
 
 
-def test_ai_diagnosis_refresh_forces_regenerate(service, monkeypatch):
-    monkeypatch.setenv('DEEPSEEK_API_KEY', 'sk-test')
+def test_ai_diagnosis_refresh_forces_regenerate(service):
     fake_resp = MagicMock()
     fake_resp.status_code = 200
     fake_resp.json.return_value = {'choices': [{'message': {'content': '新分析'}}]}
 
-    with patch('application.services.llm_service.requests.post', return_value=fake_resp) as mock_post:
-        service.ai_diagnosis('agent:main:wake:e2e')
-        service.ai_diagnosis('agent:main:wake:e2e', refresh=True)
+    with patch('application.services.llm_service.get_config', return_value=_fake_config()):
+        with patch('application.services.llm_service.requests.post', return_value=fake_resp) as mock_post:
+            service.ai_diagnosis('agent:main:wake:e2e')
+            service.ai_diagnosis('agent:main:wake:e2e', refresh=True)
 
     assert mock_post.call_count == 2

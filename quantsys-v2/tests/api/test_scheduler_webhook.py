@@ -61,7 +61,7 @@ def test_execute_job_runs_handler_off_the_event_loop_thread(isolated_side_effect
     """Blocking handler must run on a worker thread, not the loop thread."""
     seen = {}
 
-    async def blocking_handler(metadata):
+    def blocking_handler(metadata):
         seen["handler_thread"] = threading.get_ident()
         time.sleep(0.1)  # sync blocking work, like real handlers
         return {"ok": True}

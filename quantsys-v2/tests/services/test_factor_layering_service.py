@@ -2,6 +2,7 @@
 测试因子分层回测服务
 """
 
+from unittest.mock import MagicMock
 import pytest
 from application.services.factor_layering_service import FactorLayeringService
 
@@ -11,14 +12,23 @@ class TestFactorLayeringService:
 
     def test_service_initialization(self):
         """测试服务初始化"""
-        service = FactorLayeringService()
+        mock_kline_repo = MagicMock()
+        mock_stock_repo = MagicMock()
+        service = FactorLayeringService(
+            kline_repo=mock_kline_repo,
+            stock_repo=mock_stock_repo,
+        )
         assert service is not None
-        assert service.kline_repo is not None
+        assert service.kline_repo is mock_kline_repo
+        assert service.stock_repo is mock_stock_repo
         assert service.stock_pool_service is not None
 
     def test_run_layering_backtest_structure(self):
         """测试分层回测返回结构（不实际执行回测）"""
-        service = FactorLayeringService()
+        service = FactorLayeringService(
+            kline_repo=MagicMock(),
+            stock_repo=MagicMock(),
+        )
 
         # 测试参数验证
         # 注意：这里只测试基本结构，实际回测需要真实数据
@@ -32,7 +42,10 @@ class TestFactorLayeringService:
 
     def test_batch_layering_backtest_structure(self):
         """测试批量回测返回结构"""
-        service = FactorLayeringService()
+        service = FactorLayeringService(
+            kline_repo=MagicMock(),
+            stock_repo=MagicMock(),
+        )
 
         # 验证批量回测方法存在
         assert callable(service.run_batch_layering_backtest)

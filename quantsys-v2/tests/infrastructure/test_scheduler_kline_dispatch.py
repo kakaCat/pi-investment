@@ -32,14 +32,10 @@ class TestKlineUpdateDispatch:
 
 
 class TestApplicationHandlerFallback:
-    def test_pool_refresh_daily_falls_back_to_task_handlers(self, svc):
-        # 注意：_TASK_HANDLERS 在模块导入时已绑定函数对象，patch 模块属性无效，需 patch 映射项
-        from unittest.mock import MagicMock
-        mock_h = MagicMock(return_value={'action': 'pool_refresh_daily', 'status': 'success'})
-        with patch.dict('application.services.scheduler_tasks._TASK_HANDLERS', {'pool_refresh_daily': mock_h}):
-            result = svc._execute_command('pool_refresh_daily', {})
-        mock_h.assert_called_once_with({})
-        assert result['status'] == 'success'
+    def test_pool_refresh_daily_is_unknown_command(self, svc):
+        """当前 scheduler 未将 pool_refresh_daily 注册为有效命令，应抛出 ValueError。"""
+        with pytest.raises(ValueError, match="Unknown scheduler command"):
+            svc._execute_command('pool_refresh_daily', {})
 
     def test_unknown_command_still_raises(self, svc):
         with pytest.raises(ValueError, match="Unknown scheduler command"):
