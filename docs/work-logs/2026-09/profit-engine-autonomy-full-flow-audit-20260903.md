@@ -255,3 +255,61 @@ quantsys-v2：test_job_executor_fix 3 + strategy_repository/validation_service/s
 - `agent-dh/CLAUDE.md`：learning_apply 条目去掉不实的 "集成 self_restart"，注明 2026-09-03 真实语义。
 
 **状态标记**：①-④ 全部 DONE（①的 GUI 级 E2E 见下文重启验证节；②③④ 已有测试+实证）。
+
+---
+
+## §7 M0 执行机制判定（2026-09-03 午后 Step1 补查，investor w-36aee70c）
+
+> 背景：用户追问"M0 数据地基 8 空壳是双轨遗留还是真缺失"，要求先定死 **21 条 quant.scheduler_tasks 实际执行走哪套机制**，再决定删/接。本节为补查结论，修正 §1 中"8 空壳=未实现能力"的表述（真实 handler 存在但不在主执行路径上）。
+
+### 7.1 双轨真相：不是"两套都在跑"，而是"主路径跑 Job 类，真实 handler 挂在无触发源分支"
+
+v2 内存在**三套**调度入口，但只有一条真正执行 21 条任务：
+
+| 入口 | 代码 | 执行内容 | 是否服务 21 条 |
+|---|---|---|---|
+| ① 本地 APScheduler（主） | `main.py:151-175`（Agent OS 注册失败回退）→ `apscheduler_service.py:76-129` load_tasks_from_db → jobstore `task_{id}` → `job_executor.py:23` `execute_scheduled_job(task_id)` → `job_executor.py:136-232` `_execute_command(command)` | **JobRegistry 28 Job 优先**（`registry_setup.py` 注册 6 组 jobs），未命中走 Legacy Handler（仅 5 命令：data_update/data_quality_check/backtest_run/model_train/benchmark_run → SchedulerService） | ✅ 是（21 条全走这里） |
+| ② Agent OS webhook | `api/internal/scheduler_webhook.py` JOB_HANDLERS ← `scheduler_handlers.py` `@register_job_handler` ← **转发到 `scheduler_tasks._TASK_HANDLERS`** | 真实 handler（chan_scan/chan_knowledge_distill/pool_refresh_daily/report_daily/market_style_update/market_scan_preopen/strategy_* 等） | ❌ 否——Agent OS public.tasks 13 条全 executor_type=agent，无 webhook system 任务回调；路径存在但无触发源 |
+| ③ 手动 trigger API | `scheduler_async.py:328` → 同① jobstore modify next_run | 同① | 审计实证用，结果与①一致 |
+
+**关键结论**：
+1. 21 条任务实际执行 = ①本地 APScheduler → `_execute_command` → **JobRegistry 优先命中 Job 类**（8 空壳 Job 正在被真实执行），未命中才走 SchedulerService legacy 5 命令。
+2. `scheduler_tasks.py` 里真实 `handle_*`（含 chan_scan L989→ChanScanService、pool_refresh_daily L205 等）**只被②webhook 路径引用**；webhook 无业务触发源 → **真实 handler 处于"睡"状态，从不在主路径执行**。
+3. 因此审计 §1.2"8 空壳 Job"判定**在真实执行路径上成立**（Job 类壳确实在主路径被调用并返回假结果）；但修正为：**缺的不是能力代码，而是 Job 壳 → 真实逻辑的接线**（Fix④ StrategyValidateDailyJob 已示范正解）。
+4. `job_executor.py:192-236` Legacy Handler 仅覆盖 data_update 等 5 命令（SchedulerService._handle_* 时代产物）——data_update/data_quality_check 因此是真实执行（233/232 出真结果）。
+
+### 7.2 21 条任务全量归类（2026-09-03 午后 API 全量核对，21 条全部 enabled）
+
+**A 保留（真实执行+产出落库+有消费者，12 条）**：232 data_quality_check / 233 data_update / 236 signal_generate（52 saved）/ 242 signal_execution_daily / 249+268+269+271 v13 四连 / 301 market_daily_snapshot（修复后三表落库）/ 307 trade_verify_daily / 308 fund_flow_update / 311 signal_perf_backfill_daily。
+
+**B 空壳-接线（主路径 Job 壳要委托真实逻辑，3 条）**：
+- 261 chan_scan：Job 壳 scanned=0「待实现」；真实 `scheduler_tasks:989 handle_chan_scan → ChanScanService`（backend 全栈+测试齐）。→ Job.execute 改委托 ChanScanService（同 Fix④ 模式）。
+- 262 chan_knowledge_distill：Job 壳；真实 `handle_chan_knowledge_distill_weekly`（scheduler_tasks:1011 → chan_knowledge_distiller）。当前 last=failed 系 8/25 scheduler_tasks.py L205 缩进错误旧痕（已修）。→ 接线。
+- 312 market_style_update：Job 壳 style=「待实现」；真实 `handle_market_style_update`（scheduler_tasks:632）**只 detect 不落库**（L648 注释：风格历史由 strategy_rotation_engine 自维护，update_style_history 已删）→ 全库 grep 无 `INSERT market_style_state` → **该表已无写入方**，而 `strategy_rotation_engine.py:756` 仍 SELECT 它（读 stale 6/2 数据）。→ 需决策：恢复落库链路 or 312 只作风格检测（供 DSH MarketStyleDetectTool 经 qv2.getMarketStyle），rotation 侧改读自维护历史。不能简单接线了事。
+
+**C 空壳-停用/删除（count-only 或 TODO，无产出无消费者，4 条）**：
+- 237 report_daily：数 5542 stocks 即报「每日报告生成完成」；每日报告职责在 Agent OS post-market-routine。
+- 250 market_scan_preopen：数 5542 stocks 即报「盘前扫描完成」；盘前职责在 Agent OS pre-market-routine（挂 w-* 早盘检查）。
+- 253 strategy_discover_weekly：无 message，Job 只数股票；策略发现职责分散，无下游消费其输出。
+- 238 financial_data_update：`report_jobs.py:74` TODO「实现财务数据更新逻辑」updated=0；财务更新由 233 data_update + FinancialStatementUpdateJob（analysis_jobs:258，真调 infrastructure.jobs）覆盖。
+- （252 strategy_validate_daily 已随 Fix④ 转真实，属 A，勿删。）
+
+**D 修复保留（1 条）**：258 pool_refresh_daily。
+- 主路径命中 JobRegistry `PoolRefreshDailyJob`（trading_jobs:187），内部 L204-205 `stock_pool_service.list_pools()` —— **services.py:167 `stock_pool_service = get_stock_pool_service`（显式函数引用，挡住 __getattr__ 代理；实测 type=function）→ 函数对象无 .list_pools → AttributeError → JobResult.fail**。
+- 但 258 last_status=success：**Fix② 未部署的活证据**（进程 09-03 01:37:56 启动 < f5c8a0a7 commit 02:09:34，job_executor.py mtime 01:38:21 > 进程启动 → 线上跑的仍是旧 job_executor，内层失败被无条件 success=True 吞掉）。
+- 真实 `handle_pool_refresh_daily`（scheduler_tasks:205）**同款 bug**（L218 import 函数 → L224 `.list_pools()`）。
+- 修法：Job/handler 内 `stock_pool_service = get_stock_pool_service()`（调用 getter 得实例）或改走 `__getattr__` 惰性代理裸名；pool 有真实消费者（DSH PoolListTool/PoolBattlefieldTool）→ 保留但必修。
+
+### 7.3 部署缺口（必须向用户诚实交代）
+
+- **Fix②（job_executor last_status 假成功）代码已提交 f5c8a0a7（02:09:34）但 v2 进程（01:37:56 启动）未重启 → 线上未生效**。258 当前 success、252 仍输出旧格式均由此解释。
+- 修复线②③④ 需 `quantsys_v2_restart` 后才真实生效；重启后 258 应从 success 转 failed（暴露 AttributeError），届时按 §7.2-D 修。
+- 治理建议：新任务注册须绑定真实 handler（Job 委托或 webhook），杜绝 count-only/TODO 壳；scheduler_runs 结果断言非空。
+
+### 7.4 下一步待办（未执行，等用户拍板）
+
+1. `quantsys_v2_restart` 部署 Fix②③④ → 重跑 258 确认转 failed。
+2. 接线 261/262（Job 委托 ChanScanService/ChanKnowledgeDistiller，仿 Fix④）。
+3. 定夺 312：恢复 market_style_state 落库 vs 改 rotation 数据源。
+4. 停用 237/250/253/238（disable 先于 delete，观察一轮）。
+5. 修 258：getter 调用加括号。
