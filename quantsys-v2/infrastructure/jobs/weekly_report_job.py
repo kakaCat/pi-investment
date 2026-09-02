@@ -18,7 +18,7 @@ import logging
 project_root = Path(__file__).parent.parent.parent
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
-from utils.feishu_notifier import create_notifier_from_config
+from application.notification.notification_factory import get_notification_facade
 import yaml
 
 logging.basicConfig(
@@ -42,8 +42,8 @@ class WeeklyReportJob:
         # 初始化仓库
         self.repo = SimulationORMRepository()
 
-        # 初始化飞书通知
-        self.feishu_notifier = create_notifier_from_config(self.config)
+        # 初始化通知门面（使用新的 DDD 通知系统）
+        self.notification_facade = get_notification_facade()
 
     def _get_week_range(self) -> tuple:
         """
@@ -277,35 +277,37 @@ class WeeklyReportJob:
         account_start_date = account.created_at
         weeks_elapsed = (datetime.now() - account_start_date).days // 7 + 1
 
-        # 发送飞书通知
-        if self.feishu_notifier:
-            notification_data = {
-                'week': weeks_elapsed,
-                'start_date': start_date,
-                'end_date': end_date,
-                'initial_value': initial_value,
-                'final_value': final_value,
-                'weekly_return': weekly_return,
-                'rebalance_count': rebalance_count,
-                'trade_count': len(trades),
-                'win_count': win_count,
-                'total_stocks': total_stocks,
-                'avg_position_return': avg_position_return,
-                'max_drawdown': max_drawdown,
-                'position_level': position_level,
-                'stop_loss_count': stop_loss_count,
-                'index_return': index_return,
-                'excess_return': excess_return,
-                'next_rebalance_date': next_rebalance_date,
-                'observation_progress': observation_progress
-            }
+        # 发送周报通知
+        notification_data = {
+            'week': weeks_elapsed,
+            'start_date': start_date,
+            'end_date': end_date,
+            'initial_value': initial_value,
+            'final_value': final_value,
+            'weekly_return': weekly_return,
+            'rebalance_count': rebalance_count,
+            'trade_count': len(trades),
+            'win_count': win_count,
+            'total_stocks': total_stocks,
+            'avg_position_return': avg_position_return,
+            'max_drawdown': max_drawdown,
+            'position_level': position_level,
+            'stop_loss_count': stop_loss_count,
+            'index_return': index_return,
+            'excess_return': excess_return,
+            'next_rebalance_date': next_rebalance_date,
+            'observation_progress': observation_progress
+        }
 
-            success = self.feishu_notifier.send_weekly_report(notification_data)
+        try:
+            result = self.notification_facade.send_weekly_report(notification_data)
 
-            if success:
+            if result.success:
                 logger.info("周报发送成功")
             else:
                 logger.error("周报发送失败")
+        except Exception as e:
+            logger.error(f"发送周报异常: {e}")
 
         logger.info("周报生成完成")
 

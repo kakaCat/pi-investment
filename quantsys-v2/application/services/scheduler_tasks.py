@@ -1303,8 +1303,8 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
                 }
                 
                 try:
-                    from application.services.ml_train_notification import notify_train_result
-                    notify_train_result(result_dict)
+                    from application.notification.notification_factory import get_notification_facade
+                    get_notification_facade().send_ml_train_notification(result_dict)
                 except Exception as e:
                     logger.warning(f"发送通知失败: {e}")
                 
@@ -1477,8 +1477,8 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         
         # 发送通知
         try:
-            from application.services.ml_train_notification import notify_train_result
-            notify_train_result(result_dict)
+            from application.notification.notification_factory import get_notification_facade
+            get_notification_facade().send_ml_train_notification(result_dict)
         except Exception as e:
             logger.warning(f"发送通知失败: {e}")
         
@@ -1494,8 +1494,8 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         }
         
         try:
-            from application.services.ml_train_notification import notify_train_result
-            notify_train_result(result_dict)
+            from application.notification.notification_factory import get_notification_facade
+            get_notification_facade().send_ml_train_notification(result_dict)
         except Exception as e_notify:
             logger.warning(f"发送通知失败: {e_notify}")
         

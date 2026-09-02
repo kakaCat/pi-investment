@@ -18,7 +18,7 @@ import logging
 project_root = Path(__file__).parent.parent.parent
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
-from utils.feishu_notifier import create_notifier_from_config
+from application.notification.notification_factory import get_notification_facade
 import yaml
 
 logging.basicConfig(
@@ -40,8 +40,8 @@ class RiskCheckJob:
         # 初始化仓库
         self.repo = SimulationORMRepository()
 
-        # 初始化飞书通知
-        self.feishu_notifier = create_notifier_from_config(self.config)
+        # 初始化通知门面（使用新的 DDD 通知系统）
+        self.notification_facade = get_notification_facade()
 
         # 风险阈值
         self.stop_loss_threshold = self.config['feishu']['observation_period']['stop_loss_threshold']
@@ -243,25 +243,33 @@ class RiskCheckJob:
         win_rate, avg_return = self._get_recent_win_rate()
         losing_stocks = self._get_losing_stocks()
 
-        # 发送飞书通知
-        if self.feishu_notifier:
-            notification_data = {
-                'trigger': trigger_reason,
-                'total_value': current_value,
-                'cumulative_return': cumulative_return,
-                'weekly_return': weekly_return,
-                'index_return': index_return,
-                'win_rate': win_rate,
-                'avg_return': avg_return,
-                'losing_stocks': losing_stocks
-            }
+        # 发送风险告警通知
+        notification_data = {
+            'trigger': trigger_reason,
+            'total_value': current_value,
+            'cumulative_return': cumulative_return,
+            'weekly_return': weekly_return,
+            'index_return': index_return,
+            'win_rate': win_rate,
+            'avg_return': avg_return,
+            'losing_stocks': losing_stocks
+        }
 
-            success = self.feishu_notifier.send_risk_alert(notification_data)
+        try:
+            result = self.notification_facade.send_alert(
+                alert_type='risk',
+                symbol='V13策略',
+                message=f"触发风险预警: {trigger_reason}",
+                data=notification_data,
+                mention=True
+            )
 
-            if success:
+            if result:
                 logger.info("风险预警通知发送成功")
             else:
                 logger.error("风险预警通知发送失败")
+        except Exception as e:
+            logger.error(f"发送风险预警通知异常: {e}")
 
         logger.info("风险检查任务完成")
 
