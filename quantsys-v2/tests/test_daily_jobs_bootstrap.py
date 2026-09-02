@@ -51,11 +51,17 @@ class TestIsDue:
                 'started_at': now - timedelta(hours=_RUNNING_STALE_HOURS + 1)}
         assert is_due(_job(), now, last) is True
 
-    def test_not_due_after_failed(self):
-        """失败不自动重跑（等告警人工处理/手动 force），防止失败风暴"""
+    def test_not_due_after_failed_within_cooldown(self):
+        """失败冷却期内不重跑（防失败风暴）"""
         now = datetime(2026, 9, 1, 16, 0)
-        last = {'status': 'failed', 'started_at': now - timedelta(minutes=10)}
+        last = {'status': 'failed', 'started_at': now - timedelta(minutes=30)}
         assert is_due(_job(), now, last) is False
+
+    def test_due_after_failed_cooldown(self):
+        """失败冷却 2h 后自动重试（探活门控下失败 pass 很便宜）"""
+        now = datetime(2026, 9, 1, 18, 30)
+        last = {'status': 'failed', 'started_at': now - timedelta(hours=3)}
+        assert is_due(_job(), now, last) is True
 
     def test_catchup_after_late_process_start(self):
         """漏跑补跑：进程 17:00 才启动，15:40 的任务应补跑"""

@@ -35,6 +35,7 @@ logger = structlog.get_logger(__name__)
 
 _TICK_SEC = 60
 _RUNNING_STALE_HOURS = 3  # running 状态超过 3 小时视为死亡，允许重跑
+_FAILED_RETRY_HOURS = 2   # failed 超过 2 小时自动重试一次（探活门控下失败 pass 很便宜）
 
 # ── 任务定义 ─────────────────────────────────────────────────
 
@@ -48,13 +49,38 @@ class JobDef:
     description: str
 
 
+def _probe_kline_sources() -> bool:
+    """K线源探活（2026-09-02 WAF 封禁教训）：全市场同步前先探测一只权重股。
+
+    源不可用时快速失败——避免 5500 只 × 3 源 fallback 白跑几小时，
+    且对已封禁 IP 的反复重试会加重封禁。
+    """
+    try:
+        from adapters.outbound.datasources.manager import DataProviderManager
+        m = DataProviderManager()
+        r = m.get_klines('601857', 'daily', '2026-08-25', '2026-09-02')
+        ok = bool(isinstance(r, dict) and r.get('success') and r.get('data'))
+        if not ok:
+            logger.warning("kline_source_probe_failed",
+                           error=str(r.get('error') if isinstance(r, dict) else r)[:120])
+        return ok
+    except Exception as e:
+        logger.warning("kline_source_probe_failed", error=str(e)[:120])
+        return False
+
+
 def _job_evening_pipeline() -> Dict[str, Any]:
     """K线全市场同步 → 因子全市场计算（链式：因子依赖当日K线）"""
     results: Dict[str, Any] = {}
 
+    # 先探活：源挂/被封时快速失败，不全市场白跑（也避免加重封禁）
+    if not _probe_kline_sources():
+        raise RuntimeError('K线数据源探活失败（疑似故障或 WAF 封禁），本次 pass 放弃，下个窗口重试')
+
     from infrastructure.jobs.kline_update_job import update_gem_klines
+    # 常态 days=2（当日+昨日补缺），量级较 days=5 降 60%（2026-09-02 降负载）
     logger.info("evening_pipeline: kline_sync start (scope=all)")
-    results['kline_sync'] = update_gem_klines(scope='all', days=5)
+    results['kline_sync'] = update_gem_klines(scope='all', days=2)
 
     from application.services.scheduler_tasks import handle_factor_compute
     logger.info("evening_pipeline: factor_compute start (full market)")
@@ -82,9 +108,13 @@ def _job_morning_topup() -> Dict[str, Any]:
     if kline_latest and str(kline_latest) >= expected:
         return {'status': 'skipped', 'reason': f'K线已新鲜（{kline_latest} ≥ {expected}）'}
 
+    # 先探活：源挂/被封时快速失败
+    if not _probe_kline_sources():
+        raise RuntimeError('K线数据源探活失败（疑似故障或 WAF 封禁），morning_topup 放弃')
+
     logger.warning(f"morning_topup: K线滞后（{kline_latest} < {expected}），执行真同步")
     from infrastructure.jobs.kline_update_job import update_gem_klines
-    return update_gem_klines(scope='all', days=3)
+    return update_gem_klines(scope='all', days=2)
 
 
 def _job_data_quality() -> Dict[str, Any]:
@@ -156,14 +186,17 @@ def _send_feishu(text: str) -> bool:
 JOBS: List[JobDef] = [
     JobDef('morning_topup', dtime(8, 35), (0, 1, 2, 3, 4),
            _job_morning_topup, '盘前补数据：昨晚同步失败时兜底（K线滞后才真同步）'),
-    JobDef('evening_pipeline', dtime(15, 40), (0, 1, 2, 3, 4),
-           _job_evening_pipeline, 'K线全市场同步 → 因子全市场计算'),
+    # 错峰（2026-09-02 用户指示）：15:40 是全国量化拉 EOD 数据的高峰，
+    # 移到 20:30（EOD 早已就绪、API 低峰）；freshness_guard 提前到 17:20
+    # 保持"当天早发现"，滞后时晚间 pipeline 仍会在 20:30 补齐
     JobDef('data_quality', dtime(17, 15), (0, 1, 2, 3, 4),
            _job_data_quality, '数据质量检查'),
-    JobDef('freshness_guard', dtime(17, 55), (0, 1, 2, 3, 4),
-           _job_freshness_guard, 'K线/因子新鲜度巡检'),
-    JobDef('chip_distribution', dtime(18, 30), (0, 1, 2, 3, 4),
-           _job_chip_distribution, '筹码分布更新'),
+    JobDef('freshness_guard', dtime(17, 20), (0, 1, 2, 3, 4),
+           _job_freshness_guard, 'K线/因子新鲜度巡检（滞后>1交易日飞书告警）'),
+    JobDef('evening_pipeline', dtime(20, 30), (0, 1, 2, 3, 4),
+           _job_evening_pipeline, 'K线全市场同步 → 因子全市场计算（错峰低峰时段）'),
+    JobDef('chip_distribution', dtime(21, 10), (0, 1, 2, 3, 4),
+           _job_chip_distribution, '筹码分布更新（排在 pipeline 后，用当日新K线）'),
     JobDef('financial_statements', dtime(20, 0), (5,),
            _job_financial_statements, '季度财报更新'),
 ]
@@ -257,7 +290,15 @@ def is_due(job: JobDef, now: datetime, last_run: Optional[Dict[str, Any]]) -> bo
             age_hours = (now_aware - started).total_seconds() / 3600
             return age_hours > _RUNNING_STALE_HOURS
         return False
-    # failed：不自动重跑（等人工/告警），由 manual trigger 恢复
+    if last_run['status'] == 'failed':
+        # 失败冷却 2h 后自动重试（探活门控下失败 pass 秒级结束，重试成本低；
+        # 跨自然日由新日期的空记录重新计时，不会无限重试）
+        started = last_run.get('started_at')
+        if started is not None:
+            now_aware = now.replace(tzinfo=started.tzinfo) if started.tzinfo else now
+            age_hours = (now_aware - started).total_seconds() / 3600
+            return age_hours > _FAILED_RETRY_HOURS
+        return False
     return False
 
 
