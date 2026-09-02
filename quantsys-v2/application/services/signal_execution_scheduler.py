@@ -60,9 +60,16 @@ class SignalExecutionScheduler:
             kline_repo: KlineRepository（可选）
         """
         # P2-1: 依赖注入 - 优先使用传入的实例，否则回退到 ServiceFactory
+        # 注意：signal/log/strategy repo 也必须走 ServiceFactory 兜底——无参构造
+        # （orchestrator 主推路径、242 signal_execution_daily 兜底路径）依赖此行为。
+        # 曾只有 portfolio/stock/kline 兜底，导致无参构造时 signal_repo=None，
+        # _collect_signals 直接 AttributeError（2026-09-02 修复）。
         self.portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
         self.stock_repo = stock_repo or ServiceFactory.get_stock_repository()
         self.kline_repo = kline_repo or ServiceFactory.get_kline_repository()
+        self.signal_repo = signal_repo or ServiceFactory.get_signal_repository()
+        self.log_repo = log_repo or ServiceFactory.get_signal_execution_log_repository()
+        self.strategy_repo = strategy_repo or ServiceFactory.get_strategy_repository()
         self.strategy_service = strategy_service or StrategyCodeService()
 
         # risk_service 依赖 repo，需要特殊处理
@@ -70,10 +77,6 @@ class SignalExecutionScheduler:
             self.risk_service = risk_service
         else:
             self.risk_service = RiskCheckService()
-
-        self.signal_repo = signal_repo
-        self.log_repo = log_repo
-        self.strategy_repo = strategy_repo
 
         # 懒加载：只有真正下单的路径（_batch_create_orders）才创建引擎。
         # 2026-07-24 盈利闭环改造：orchestrator 只收集信号不下单，

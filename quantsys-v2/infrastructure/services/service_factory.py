@@ -717,6 +717,26 @@ class ServiceFactory:
 
     @classmethod
     @lru_cache(maxsize=1)
+    def get_signal_execution_log_repository(cls):
+        """获取 SignalExecutionLog Repository 实例
+
+        Returns:
+            ISignalExecutionLogRepository: 信号执行日志仓储接口实现
+        """
+        from domain.ports.repository_ports_extended import ISignalExecutionLogRepository
+        enhanced = _try_get_from_enhanced(ISignalExecutionLogRepository)
+        if enhanced:
+            return enhanced
+
+        # 回退到旧实现
+        if 'signal_execution_log_repository' not in cls._instances:
+            from adapters.outbound.repositories.signal_execution_log_repository import SignalExecutionLogORMRepository
+            cls._instances['signal_execution_log_repository'] = SignalExecutionLogORMRepository()
+            logger.info("SignalExecutionLogORMRepository initialized (legacy)")
+        return cls._instances['signal_execution_log_repository']
+
+    @classmethod
+    @lru_cache(maxsize=1)
     def get_portfolio_repository(cls):
         from domain.ports.repository_ports import IPortfolioRepository
         enhanced = _try_get_from_enhanced(IPortfolioRepository)
