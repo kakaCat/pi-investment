@@ -88,11 +88,17 @@ class FinancialDataUpdateJob(Job):
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
         try:
-            # TODO: 实现财务数据更新逻辑
+            from infrastructure.jobs.financial_data_update_job import execute
+            result = execute(**params)
+            if not result.get("success"):
+                return JobResult.fail(self.name, result.get("error", "unknown"))
             return JobResult.ok(
                 self.name,
-                message="财务数据更新完成（待实现）",
-                details={"updated": 0}
+                message=(
+                    f"财务数据更新完成: 更新 {result.get('updated', 0)} 只"
+                    f" (报告期 {result.get('report_date', '')})"
+                ),
+                **result,
             )
         except Exception as e:
             return JobResult.fail(self.name, str(e))

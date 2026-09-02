@@ -196,11 +196,20 @@ class MarketStyleUpdateJob(Job):
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
         try:
-            # TODO: 实现市场风格检测逻辑
+            from infrastructure.jobs.market_style_update_job import execute as _run
+            result = _run(**params)
+            if not result.get('success'):
+                return JobResult.fail(
+                    self.name,
+                    result.get('error') or f"执行失败: {result}",
+                )
             return JobResult.ok(
                 self.name,
-                message="市场风格检测完成（待实现）",
-                details={"style": "unknown"}
+                message=(
+                    f"市场风格检测完成: {result.get('style')} "
+                    f"(confidence={result.get('confidence')}, trade_date={result.get('trade_date')})"
+                ),
+                **result,
             )
         except Exception as e:
             return JobResult.fail(self.name, str(e))

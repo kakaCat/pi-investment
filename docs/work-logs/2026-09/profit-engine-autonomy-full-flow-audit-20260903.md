@@ -313,3 +313,83 @@ v2 内存在**三套**调度入口，但只有一条真正执行 21 条任务：
 3. 定夺 312：恢复 market_style_state 落库 vs 改 rotation 数据源。
 4. 停用 237/250/253/238（disable 先于 delete，观察一轮）。
 5. 修 258：getter 调用加括号。
+
+---
+
+## §8 修复完成记录（2026-09-03 深夜，investor w-d84dc7b1）
+
+> 请求：用户从 §7.2 待办中选定 **"先修这两个"**：① 312 market_style_update（§7.2-B 空壳-接线：只 detect 不落库、market_style_state 表无写入方、engine 读 stale 6/2 数据）；② 238 financial_data_update（§7.2-C TODO 空壳：updated=0，报告类 TODO）。修复期间无交易委托（凌晨非交易时段）。
+
+### ① 312 market_style_update → 真实检测 + 恢复 market_style_state 落库（DONE）
+
+**根因（三层）**：
+1. 旧 detector 是**编造实现**：`_calculate_value_style_score` 恒 0.45、无真实行情输入；异常回退硬编码 growth/0.33——假数据会污染 rotation engine 决策；
+2. 旧 Job.execute 自曝"市场风格检测完成（待实现）"，**从不落库** → quant.market_style_state 停在 06-02 伪造行（unknown/0.0），`strategy_rotation_engine.py:756` 读的就是这条 stale 数据；
+3. scheduler_tasks legacy handler 只 detect 不落库，全库无 INSERT → 表无写入方。
+
+**修复**：
+- **`application/services/market_style_detector.py` 重写为真实计算**：
+  - 数据源 `ak.stock_sector_spot(indicator='新浪行业')`（实测 ~0.1s，49 行业）——application 层引 akshare 有先例（sector/akshare.py）；
+  - **显式可审计的 49 行业→风格映射**：VALUE 12 桶 / GROWTH 9 桶 / CYCLE 23 桶 / 显式排除 5 桶（开发区/次新股/其它/综合/物资外贸），coverage=0.898；
+  - `compute_style_from_boards` **纯函数**（无 IO，可单测）：分桶中位数 → floor-shift 归一 → argmax 主导风格 + 置信度；**分化 <0.3pp → 真实 'unknown'（conf 0，非降级、非编造）**；空数据 → 显式 degraded（`degraded=True` + error）；
+  - 删除造假默认（无 `_get_default_result`、无恒 0.45/0.70/0.35、异常不再回退 growth/0.33）；`detect_market_style()` 数据路径 = ①DB 最近**真实**落库行（fast path，无网络，engine/route 同步调用不 hang）→ ②DB 无真实行才实时拉 sina 计算 → ③都失败才显式 degraded；**06-02 unknown/0.0 伪造行永不被当作真实风格**（`_read_latest_db_row` 过滤 style∉三风格或 conf≤0）；
+  - 类级常量/类名/契约键（style/confidence/scores/indicators/recommended_factors/detection_date）保持兼容 → rotation engine（裸构造同步调用）与 `/api/market/style` route 无需改动。
+- **新增 `infrastructure/jobs/market_style_update_job.py`**（复用 infra-job 模式）：`execute(**params)` 拉 sina → compute → **落库 market_style_state**（`MarketStyleORMRepository.save_market_style` upsert-by-trade_date）；trade_date 默认解析 = params 显式值 else **最近有 K 线的交易日**（`KlineORMRepository.get_latest_trade_date`，修正了首版误用不存在 `SessionLocal` 导入的问题）else 今天；支持 `--dry-run`/`--trade-date`；拉取失败 → success=False（**不落库**，避免污染最新行）；显式 degraded。
+- **`analysis_jobs.py` MarketStyleUpdateJob.execute 接线**：lazy-import infra job → 失败 `JobResult.fail(error)`，成功 `JobResult.ok(message=…style/confidence/trade_date…, **result)`（result 平铺进 details，修正首版 `details=result` 嵌套）；Job 壳 name/description/timeout(1800) 不动。
+- **单测重写**（`tests/services/test_market_style_detector.py`，旧 10 例断言的是造假实现、会 AttributeError）：13 例全绿——纯函数风格判定×3（value/growth/cycle 主导）、分化不足→unknown、空输入→degraded、排除行业覆盖率、**新浪 49 行业映射完整性**（防覆盖静默下降）、detect 三层路径（DB 真实行 fast path 不触网/无 DB 行实时回退/全失败 degraded）、fake unknown 行被过滤、初始化兼容。
+
+**实证（真实 DB 落库）**：
+- 真实执行 → `trade_date=2026-09-02 style=value confidence=0.6206`（scores value 0.62/growth 0.38/cycle 0.0，bucket_medians value -0.89/growth -1.13/cycle -1.52，boards 49/mapped 44，coverage 0.898，degraded=False，elapsed 0.8s）；
+- `market_style_state` 最新行 = **2026-09-02 value 0.6206**（真实），06-02 unknown/0.0 伪造行退居历史；
+- detector DB fast path 验证：style=value conf=0.6206 来自 db_market_style_state（db_trade_date=09-02，无网络）；
+- registry 全链路：`job_registry.execute('market_style_update')` success=True，message「市场风格检测完成: value (confidence=0.6206, trade_date=2026-09-02)」，details 平铺（style/conf/updated 直接可读）；
+- legacy handler `scheduler_tasks.handle_market_style_update`（JobRegistry 未命中时的兜底路径）：裸构造 detector → current_style=value confidence=0.6206 status=success；
+- rotation engine `StrategyRotationEngine` 消费兼容（detector 契约未变，未测全引擎因需完整 DI bootstrap，属环境依赖非本次改动）。
+
+### ② 238 financial_data_update → 真实财务数据更新（DONE）
+
+**根因**：`report_jobs.py:74` TODO「实现财务数据更新逻辑」updated=0；quant.stocks 基础财务列（roe/gross_margin/net_profit_growth/revenue_growth）无真实更新方（242 只做三大报表→income_statements，不做 stocks 基础列）。
+
+**修复**：
+- **新增 `infrastructure/jobs/financial_data_update_job.py`**（复用 infra-job 模式 + 单事务）：
+  - 数据源 `ak.stock_yjbb_em(date='20260630')`（东财业绩报表，实测 11447 行 ~8s），按 股票代码 去重 keep='last'；
+  - 更新列**仅 4 个**：`roe / gross_margin / net_profit_growth / revenue_growth`（yjbb 源单位即 %，与 quant.stocks 列口径一致——roe 16.75=16.75%）；**debt_ratio 不更新**（yjbb 无资产负债率列，已写 notes 说明，避免错位覆盖）；pe/pb/market_cap 非本任务范围（242 职责）；
+  - 全量 A 股 stocks（market='A' AND is_delisted=false）单事务 UPDATE，失败 rollback；`--report-date`/`--symbols`/`--dry-run` 支持；
+  - 报告期口径在 docstring 明示：**2026 中报累计值**。
+- **`report_jobs.py` FinancialDataUpdateJob.execute 接线**：lazy-import infra job → `success=False` → `JobResult.fail`；成功 → `JobResult.ok(message=…更新 N 只 (报告期 …), **result)`（同上平铺修正）；timeout 7200 不动。
+
+**实证（真实 DB 落库）**：
+- 真实执行 → `report_date=20260630 fetched=11446 updated=5509 skipped=357 failed=0`（5866 A 股 universe，5509 有 yjbb 匹配，357 无匹配跳过），elapsed 9s；
+- **600519 贵州茅台**：roe=16.75 / gross_margin=89.56 / net_profit_growth=-1.95 / revenue_growth=1.30 ✅（与 yjbb 源值一致，% 单位正确），**debt_ratio=12.12 未触碰**，updated_at 已刷新；
+- registry 全链路：`job_registry.execute('financial_data_update')` success=True，message「财务数据更新完成: 更新 5509 只 (报告期 20260630)」。
+
+### 修复记录中的诚实标注（防伪验证）
+
+- 312 落库 trade_date 取**最近交易日 09-02**（sina 截面即该收盘数据），**不**取当前自然日 09-03（凌晨无交易）；首版因误 import 不存在的 `SessionLocal` 曾回退今天，已改用 `KlineORMRepository.get_latest_trade_date()` 修正；
+- detector「实时回退」路径仅在 DB 无真实行时触发（engine/route 读 DB fast path，避免每次同步调用打新浪网络）；
+- 非交易日/盘后执行无委托（交易宪法第 1 条遵守）。
+
+### 测试总览（提交前）
+
+```
+quantsys-v2：tests/services/test_market_style_detector.py 13 passed
+回归：tests/test_scheduler.py + test_daily_jobs_bootstrap.py + test_apscheduler_service.py + test_apscheduler_integration.py = 121 passed
+```
+
+### 文件清单（本次仅 stage 以下 6 个自有文件）
+
+```
+M quantsys-v2/application/jobs/analysis_jobs.py          （312 Job 接线）
+M quantsys-v2/application/jobs/report_jobs.py            （238 Job 接线）
+M quantsys-v2/application/services/market_style_detector.py  （312 真实化重写）
+M quantsys-v2/tests/services/test_market_style_detector.py   （13 例契约测试）
+?? quantsys-v2/infrastructure/jobs/market_style_update_job.py （312 落库 executor）
+?? quantsys-v2/infrastructure/jobs/financial_data_update_job.py （238 executor）
+```
+
+### 仍待修（非本轮范围，下轮候选）
+
+- 261 chan_scan / 262 chan_knowledge_distill（§7.2-B 接线）
+- 237 report_daily / 250 market_scan_preopen / 253 strategy_discover_weekly（§7.2-C 停用或补真实）
+- 258 pool_refresh_daily（§7.2-D getter 加括号）
+- 工具层 data_fetch_north_flow 描述误导；L4 元学习从未实现；lifecycle CLAUDE.md 过时
