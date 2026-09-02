@@ -6,77 +6,9 @@ when cron expressions match.
 """
 import logging
 from typing import Dict, Any
-from datetime import datetime, date
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
-
-
-def daily_data_pipeline() -> Dict[str, Any]:
-    """Execute daily data pipeline task.
-
-    Runs the daily incremental update for CSI 300 components.
-    This is triggered by the scheduled task at 16:30 Mon-Fri.
-
-    Returns:
-        Result dictionary with execution status
-    """
-    logger.info("Starting daily_data_pipeline task")
-
-    try:
-        # TODO: implement actual pipeline logic
-
-        result = {
-            "action": "daily_data_pipeline",
-            "status": "success",
-            "timestamp": datetime.now().isoformat(),
-            "message": "Daily data pipeline executed successfully"
-        }
-
-        logger.info(f"Daily data pipeline completed: {result}")
-        return result
-
-    except Exception as e:
-        logger.error(f"Daily data pipeline failed: {e}", exc_info=True)
-        return {
-            "action": "daily_data_pipeline",
-            "status": "failed",
-            "timestamp": datetime.now().isoformat(),
-            "error": str(e)
-        }
-
-
-def weekly_full_rebuild() -> Dict[str, Any]:
-    """Execute weekly data pipeline rebuild task.
-
-    Runs the full rebuild for CSI 300 components (last 90 days).
-    This is triggered by the scheduled task on Sunday at 2:00 AM.
-
-    Returns:
-        Result dictionary with execution status
-    """
-    logger.info("Starting weekly_full_rebuild task")
-
-    try:
-        # TODO: implement actual weekly rebuild logic
-
-        result = {
-            "action": "weekly_full_rebuild",
-            "status": "success",
-            "timestamp": datetime.now().isoformat(),
-            "message": "Weekly full rebuild executed successfully"
-        }
-
-        logger.info(f"Weekly full rebuild completed: {result}")
-        return result
-
-    except Exception as e:
-        logger.error(f"Weekly full rebuild failed: {e}", exc_info=True)
-        return {
-            "action": "weekly_full_rebuild",
-            "status": "failed",
-            "timestamp": datetime.now().isoformat(),
-            "error": str(e)
-        }
 
 
 def get_csi300_components() -> Dict[str, Any]:
