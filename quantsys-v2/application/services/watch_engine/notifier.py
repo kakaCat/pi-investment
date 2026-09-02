@@ -72,20 +72,20 @@ class WatchNotifier:
             logger.info('准备唤醒 Agent', rule_id=rule.id, symbol=rule.symbol, payload=payload)
             notified = self._notify_agent_with_retry(payload)
             if not notified:
-                # 兜底：唤醒失败降级直接发飞书，保证提醒可达
+                # 兜底：唤醒失败降级直接发飞书，保证提醒可达（标注降级直发，区别于 AI 分析版）
                 logger.warning('唤醒 Agent 失败，降级直接发飞书', symbol=rule.symbol)
-                notified = self._send_feishu(payload)
+                notified = self._send_feishu(payload, mode_tag='降级直发·AI 唤醒失败')
         else:
-            # direct：纯提醒，直接发飞书
+            # direct：纯提醒，直接发飞书（标注直发，未经 LLM 分析）
             logger.info('直接发飞书提醒', rule_id=rule.id, symbol=rule.symbol)
-            notified = self._send_feishu(payload)
+            notified = self._send_feishu(payload, mode_tag='直发提醒·未经 AI 分析')
 
         self._broadcast_ws(payload)
         self._record(rule, condition, quote, result, notified)
         return notified
 
-    def _send_feishu(self, payload) -> bool:
-        """直接发飞书告警（类型 1 纯提醒，不经 LLM）"""
+    def _send_feishu(self, payload, mode_tag: str = '直发提醒') -> bool:
+        """直接发飞书告警（不经 LLM）。mode_tag 标注通知来源模式，便于区分直发/降级/AI 分析。"""
         if self.feishu_service is None:
             logger.error('feishu_service 未注入，无法直接发飞书', symbol=payload['symbol'])
             return False
@@ -94,8 +94,8 @@ class WatchNotifier:
             symbol = payload['symbol']
             display = f"{name}（{symbol}）" if name else symbol
 
-            # 组织带名称 + 买卖方向 + 预案的消息体
-            lines = [f"**{display}** 触发盯盘条件"]
+            # 组织带 模式标签 + 名称 + 买卖方向 + 预案 的消息体
+            lines = [f"📡 `{mode_tag}`", f"**{display}** 触发盯盘条件"]
             base_msg = payload.get('message')
             if base_msg:
                 lines.append(f"**触发**：{base_msg}")
@@ -145,6 +145,10 @@ class WatchNotifier:
             'condition': condition,
             'message': result.message,
             'context': getattr(rule, 'context', None),
+            # 模式标识：agent 链路唤醒时带给 LLM，提示其为「AI 分析版」，
+            # 组织飞书通知时标注来源（区别于 direct 直发），便于用户区分可信度
+            'notify_mode': getattr(rule, 'notify_mode', None) or 'direct',
+            'mode_tag': 'AI 分析版' if (getattr(rule, 'notify_mode', None) == 'agent') else '直发提醒',
         }
 
     def _notify_agent_with_retry(self, payload) -> bool:
