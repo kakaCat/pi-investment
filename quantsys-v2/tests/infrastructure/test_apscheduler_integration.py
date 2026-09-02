@@ -38,7 +38,9 @@ def test_load_real_tasks_from_database():
     for i, job in enumerate(jobs[:10], 1):
         print(f"{i}. {job.name} (ID: {job.id})")
         print(f"   Trigger: {type(job.trigger).__name__}")
-        print(f"   Next run: {job.next_run_time}")
+        next_run = getattr(job, 'next_run_time', None)
+        if next_run is not None:
+            print(f"   Next run: {next_run}")
 
     # 验证任务配置正确
     for job in jobs:

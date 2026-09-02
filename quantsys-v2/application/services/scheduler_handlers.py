@@ -187,21 +187,6 @@ async def handle_signal_execution_daily(metadata: Dict[str, Any]) -> Dict[str, A
     return result
 
 
-@register_job_handler("signal_monitor_realtime")
-async def handle_signal_monitor_realtime(metadata: Dict[str, Any]) -> Dict[str, Any]:
-    """Execute realtime signal monitoring task.
-
-    Original: SchedulerService._handle_signal_monitor_realtime
-    Schedule: 盘中实时
-    """
-    logger.info("Starting signal_monitor_realtime job")
-    from infrastructure.scheduler.scheduler import SchedulerService
-
-    scheduler = SchedulerService()
-    result = scheduler._handle_signal_monitor_realtime(metadata)
-    return result
-
-
 # ==================== Strategy Jobs ====================
 
 
@@ -295,21 +280,6 @@ async def handle_v13_weekly_report(metadata: Dict[str, Any]) -> Dict[str, Any]:
 
     scheduler = SchedulerService()
     result = scheduler._handle_v13_weekly_report(metadata)
-    return result
-
-
-@register_job_handler("v14_daily_check")
-async def handle_v14_daily_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
-    """v14 模拟交易每日检查.
-
-    Original: SchedulerService._handle_v14_daily_check
-    Schedule: 工作日 14:30
-    """
-    logger.info("Starting v14_daily_check job")
-    from infrastructure.scheduler.scheduler import SchedulerService
-
-    scheduler = SchedulerService()
-    result = scheduler._handle_v14_daily_check(metadata)
     return result
 
 
@@ -412,39 +382,6 @@ async def handle_chan_knowledge_distill(metadata: Dict[str, Any]) -> Dict[str, A
         raise ValueError("chan_knowledge_distill_weekly handler not found")
 
 
-# ==================== Pipeline Jobs ====================
-
-
-@register_job_handler("data_pipeline_daily")
-async def handle_data_pipeline_daily(metadata: Dict[str, Any]) -> Dict[str, Any]:
-    """Execute daily data pipeline task.
-
-    Original: SchedulerService._handle_data_pipeline_daily
-    Schedule: 工作日 16:30
-    """
-    logger.info("Starting data_pipeline_daily job")
-    from infrastructure.scheduler.scheduler import SchedulerService
-
-    scheduler = SchedulerService()
-    result = scheduler._handle_data_pipeline_daily(metadata)
-    return result
-
-
-@register_job_handler("data_pipeline_weekly")
-async def handle_data_pipeline_weekly(metadata: Dict[str, Any]) -> Dict[str, Any]:
-    """Execute weekly data pipeline rebuild task.
-
-    Original: SchedulerService._handle_data_pipeline_weekly
-    Schedule: 每周六 18:00
-    """
-    logger.info("Starting data_pipeline_weekly job")
-    from infrastructure.scheduler.scheduler import SchedulerService
-
-    scheduler = SchedulerService()
-    result = scheduler._handle_data_pipeline_weekly(metadata)
-    return result
-
-
 # ==================== Market Jobs ====================
 
 
@@ -478,9 +415,6 @@ async def handle_market_scan_preopen(metadata: Dict[str, Any]) -> Dict[str, Any]
     return result
 
 
-# ==================== Risk Jobs ====================
-
-
 @register_job_handler("intraday_risk_check")
 async def handle_intraday_risk_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
     """盘中风控检查：IntradayRiskService.check_positions（止损/移动止损）.
@@ -492,21 +426,6 @@ async def handle_intraday_risk_check(metadata: Dict[str, Any]) -> Dict[str, Any]
     from infrastructure.jobs.strategy_trading_job import intraday_risk_check
 
     result = intraday_risk_check(**(metadata or {}))
-    return result
-
-
-@register_job_handler("risk_check")
-async def handle_risk_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
-    """Run a risk assessment across the portfolio.
-
-    Original: SchedulerService._handle_risk_check
-    Schedule: 每周一 01:00
-    """
-    logger.info("Starting risk_check job")
-    from infrastructure.scheduler.scheduler import SchedulerService
-
-    scheduler = SchedulerService()
-    result = scheduler._handle_risk_check(metadata)
     return result
 
 
@@ -526,23 +445,6 @@ async def handle_report_daily(metadata: Dict[str, Any]) -> Dict[str, Any]:
     scheduler = SchedulerService()
     result = scheduler._handle_report_daily(metadata)
     return result
-
-
-@register_job_handler("daily_equity_snapshot")
-async def handle_daily_equity_snapshot(metadata: Dict[str, Any]) -> Dict[str, Any]:
-    """Take daily equity snapshot for all accounts.
-
-    Schedule: 工作日 18:00
-    """
-    logger.info("Starting daily_equity_snapshot job")
-    from application.services.scheduler_tasks import _TASK_HANDLERS
-
-    handler = _TASK_HANDLERS.get("daily_equity_snapshot")
-    if handler:
-        result = handler(metadata)
-        return result
-    else:
-        raise ValueError("daily_equity_snapshot handler not found")
 
 
 # ==================== Backtest Jobs ====================

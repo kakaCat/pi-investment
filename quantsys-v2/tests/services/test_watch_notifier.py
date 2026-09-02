@@ -8,7 +8,7 @@ from application.services.watch_engine.notifier import WatchNotifier
 
 def make_rule():
     return SimpleNamespace(id=7, symbol='600519.SH', context='突破平台考虑加仓',
-                           cost_price=1700.0)
+                           cost_price=1700.0, notify_mode='agent')
 
 
 def make_quote(price=1801.5):

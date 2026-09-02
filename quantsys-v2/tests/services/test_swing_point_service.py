@@ -6,6 +6,7 @@ SwingPointService 单元测试
 import pytest
 from unittest.mock import patch, MagicMock
 from application.services.swing_point_service import SwingPointService
+from application.services.stock_code_validator import StockCodeValidator
 
 
 def _make_klines(prices):
@@ -199,21 +200,28 @@ class TestAnalyzeIntegration:
     @patch.object(SwingPointService, '__init__', lambda self: None)
     def test_invalid_min_change(self):
         svc = SwingPointService()
+        svc.validator = MagicMock()
+        svc.validator.validate.return_value = {'valid': True}
         with pytest.raises(ValueError, match="min_change"):
             svc.analyze({'symbol': '600519', 'min_change': 50})
 
-    @patch('services.swing_point_service.KlineRepository')
-    def test_full_flow(self, MockRepo):
+    def test_full_flow(self):
         """完整流程测试"""
         # 模拟 K 线：明显的波段走势
         prices = [100, 95, 90, 85, 80, 85, 90, 100, 110, 120,
                   115, 105, 95, 90, 95, 100, 110, 120, 130]
         mock_klines = _make_klines(prices)
 
-        mock_instance = MockRepo.return_value
-        mock_instance.get_daily_klines.return_value = mock_klines
+        mock_repo = MagicMock()
+        mock_repo.count_daily_klines.return_value = len(mock_klines)
+        mock_repo.get_date_range.return_value = ('2025-01-01', '2025-01-19')
+        mock_klines_df = MagicMock()
+        mock_klines_df.__len__ = MagicMock(return_value=len(mock_klines))
+        mock_klines_df.to_dicts.return_value = mock_klines
+        mock_repo.get_daily_klines.return_value = mock_klines_df
 
-        svc = SwingPointService()
+        validator = StockCodeValidator(kline_repo=mock_repo)
+        svc = SwingPointService(kline_repo=mock_repo, validator=validator)
         result = svc.analyze({
             'symbol': '600519',
             'start_date': '2025-01-01',

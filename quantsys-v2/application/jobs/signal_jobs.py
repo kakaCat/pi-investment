@@ -1,8 +1,7 @@
 """
 信号类定时任务
 
-包含：signal_generate, signal_execution_daily, signal_monitor_realtime,
-      fund_flow_update
+包含：signal_generate, signal_execution_daily, fund_flow_update
 """
 import logging
 from typing import Any, Dict
@@ -114,39 +113,19 @@ class SignalExecutionDailyJob(Job):
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
         try:
-            from infrastructure.scheduler.signal_execution_job import execute_daily_signals_job
-            result = execute_daily_signals_job()
+            # 242 修复（2026-09-02）：rebind 到真实实现——v2 盈利闭环改造后
+            # 本任务不再自动下单，职责=当日 pending 信号兜底推送 Agent。
+            # 原空壳 infrastructure.scheduler.signal_execution_job（策略全跳过、
+            # orders=0 的 TODO）已废弃，避免"声明了但没干活"的半通状态。
+            from application.services.scheduler_tasks import handle_signal_execution_daily
+            result = handle_signal_execution_daily(params)
             return JobResult.ok(
                 self.name,
-                message="信号执行完成",
+                message="信号执行（兜底推送）完成",
                 details=result
             )
         except Exception as e:
             return JobResult.fail(self.name, str(e))
-
-
-class SignalMonitorRealtimeJob(Job):
-    """实时信号监控任务"""
-
-    @property
-    def name(self) -> str:
-        return "signal_monitor_realtime"
-
-    @property
-    def description(self) -> str:
-        return "盘中实时监控信号"
-
-    @property
-    def timeout_seconds(self) -> int:
-        return 300  # 5分钟
-
-    async def execute(self, params: Dict[str, Any]) -> JobResult:
-        # TODO: 实现实时监控逻辑
-        return JobResult.ok(
-            self.name,
-            message="实时监控完成（待实现）",
-            details={"signals_checked": 0, "active_signals": 0}
-        )
 
 
 class FundFlowUpdateJob(Job):
@@ -218,7 +197,6 @@ class SignalPerfBackfillJob(Job):
 SIGNAL_JOBS = [
     SignalGenerateJob(),
     SignalExecutionDailyJob(),
-    SignalMonitorRealtimeJob(),
     FundFlowUpdateJob(),
     SignalPerfBackfillJob(),
 ]

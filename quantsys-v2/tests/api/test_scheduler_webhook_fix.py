@@ -28,7 +28,7 @@ async def test_async_handler_execution():
 
     # Mock database and agent OS client
     with patch("api.internal.scheduler_webhook._write_run_to_database", new_callable=AsyncMock):
-        with patch("api.internal.scheduler_webhook.get_agent_os_client") as mock_client:
+        with patch("application.services.agent_os_client.get_agent_os_client") as mock_client:
             mock_client.return_value.report_job_result = AsyncMock()
 
             # When: execute_job is called
@@ -57,7 +57,7 @@ async def test_sync_handler_execution():
 
     # Mock database and agent OS client
     with patch("api.internal.scheduler_webhook._write_run_to_database", new_callable=AsyncMock):
-        with patch("api.internal.scheduler_webhook.get_agent_os_client") as mock_client:
+        with patch("application.services.agent_os_client.get_agent_os_client") as mock_client:
             mock_client.return_value.report_job_result = AsyncMock()
 
             # When: execute_job is called
@@ -88,7 +88,7 @@ async def test_handler_can_use_asyncio_primitives():
 
     # Mock database and agent OS client
     with patch("api.internal.scheduler_webhook._write_run_to_database", new_callable=AsyncMock):
-        with patch("api.internal.scheduler_webhook.get_agent_os_client") as mock_client:
+        with patch("application.services.agent_os_client.get_agent_os_client") as mock_client:
             mock_client.return_value.report_job_result = AsyncMock()
 
             # When: execute_job is called
@@ -113,7 +113,7 @@ async def test_handler_exception_propagation():
 
     # Mock database and agent OS client
     with patch("api.internal.scheduler_webhook._write_run_to_database", new_callable=AsyncMock) as mock_db:
-        with patch("api.internal.scheduler_webhook.get_agent_os_client") as mock_client:
+        with patch("application.services.agent_os_client.get_agent_os_client") as mock_client:
             mock_client.return_value.report_job_result = AsyncMock()
 
             # When: execute_job is called with failing handler

@@ -11,7 +11,7 @@ from application.services.stock_code_validator import StockCodeValidator
 
 class TestStockCodeValidatorOptimized:
     def test_validate_uses_lightweight_queries(self):
-        validator = StockCodeValidator()
+        validator = StockCodeValidator(kline_repo=Mock())
         validator.kline_repo.count_daily_klines = Mock(return_value=1200)
 
         last_date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
@@ -32,7 +32,7 @@ class TestStockCodeValidatorOptimized:
         assert result['data_summary']['days_since_update'] >= 2
 
     def test_validate_returns_invalid_when_no_records(self):
-        validator = StockCodeValidator()
+        validator = StockCodeValidator(kline_repo=Mock())
         validator.kline_repo.count_daily_klines = Mock(return_value=0)
         validator.kline_repo.get_date_range = Mock(return_value=None)
 
@@ -43,7 +43,7 @@ class TestStockCodeValidatorOptimized:
         assert result['has_recent_data'] is False
 
     def test_validate_returns_invalid_when_date_range_missing(self):
-        validator = StockCodeValidator()
+        validator = StockCodeValidator(kline_repo=Mock())
         validator.kline_repo.count_daily_klines = Mock(return_value=5)
         validator.kline_repo.get_date_range = Mock(return_value=None)
 

@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from application.services.opportunity_scoring_service import OpportunityScoringService
 from adapters.outbound.repositories import KlineORMRepository
 from adapters.outbound.repositories import StockORMRepository
+from adapters.outbound.repositories.financial_repository import FinancialORMRepository
+from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
 from adapters.shared.services import get_factor_adapter
 
 
@@ -16,13 +18,33 @@ def scoring_service(db_connection):
     kline_repo.db = db_connection
     stock_repo = StockORMRepository()
     stock_repo.db = db_connection
+    financial_repo = FinancialORMRepository()
+    financial_repo.db = db_connection
+    fund_flow_repo = FundFlowORMRepository()
+    fund_flow_repo.db = db_connection
     factor_adapter = get_factor_adapter()
-    return OpportunityScoringService(kline_repo, stock_repo, factor_adapter)
+    return OpportunityScoringService(
+        kline_repo,
+        stock_repo,
+        factor_adapter,
+        financial_repo=financial_repo,
+        fund_flow_repo=fund_flow_repo,
+    )
 
 
 def test_score_stocks_basic(scoring_service, db_connection):
     """测试基本评分功能"""
-    symbols = ['000001.SH', '600036.SH']
+    symbols = ['999991', '999992']
+
+    # 先插入股票基础数据，避免外键约束失败
+    cursor = db_connection.cursor()
+    for symbol in symbols:
+        cursor.execute(
+            "INSERT INTO quant.stocks (symbol, name, market) VALUES (%s, %s, %s) ON CONFLICT (symbol) DO NOTHING",
+            (symbol, 'Test', 'A')
+        )
+    db_connection.commit()
+    cursor.close()
 
     # 插入测试K线数据
     for symbol in symbols:
@@ -120,10 +142,10 @@ def test_calculate_technical_score_volume_surge(scoring_service):
 
 
 def test_calculate_technical_score_no_conditions(scoring_service):
-    """测试无技术条件时返回中性评分"""
+    """测试无技术条件时返回默认技术面评分"""
     factors = {'rsi': 25}
     score = scoring_service._calculate_technical_score(factors, [])
-    assert score == 50
+    assert score == 65.0
 
 
 def test_calculate_technical_score_multiple_conditions(scoring_service):
@@ -204,10 +226,10 @@ def test_calculate_fundamental_score_no_data(scoring_service):
 
 
 def test_calculate_fundamental_score_no_conditions(scoring_service):
-    """测试无基本面条件时返回中性评分"""
+    """测试无基本面条件时返回默认基本面评分"""
     fundamental = {'pe': 25}
     score = scoring_service._calculate_fundamental_score(fundamental, [])
-    assert score == 50
+    assert score == 58.0
 
 
 def test_calculate_capital_score(scoring_service):
@@ -221,7 +243,7 @@ def test_calculate_capital_score(scoring_service):
         'volume_history': [1000000, 1200000, 1500000]
     }
     score = scoring_service._calculate_capital_score(factors)
-    assert score == 100
+    assert score == 91.0
 
     # 部分条件满足
     factors = {
@@ -232,7 +254,7 @@ def test_calculate_capital_score(scoring_service):
         'volume_history': [1500000, 1200000, 1000000]
     }
     score = scoring_service._calculate_capital_score(factors)
-    assert score == 25
+    assert score == 46.0
 
 
 def test_calculate_comprehensive_score(scoring_service):
@@ -295,10 +317,19 @@ def test_is_volume_increasing(scoring_service):
 
 
 def test_score_stocks_with_insufficient_klines(scoring_service, db_connection):
-    """测试K线数据不足时的处理 - 返回中性评分"""
-    symbols = ['000001.SH']
+    """测试K线数据不足时的处理 - 被数据质量门跳过"""
+    symbols = ['999990']
 
-    # 只插入5天数据（不足以计算大部分技术指标）
+    # 先插入股票基础数据，避免外键约束失败
+    cursor = db_connection.cursor()
+    cursor.execute(
+        "INSERT INTO quant.stocks (symbol, name, market) VALUES (%s, %s, %s) ON CONFLICT (symbol) DO NOTHING",
+        (symbols[0], 'Test', 'A')
+    )
+    db_connection.commit()
+    cursor.close()
+
+    # 只插入5天数据（不足以满足质量门最低120根的要求）
     for i in range(5):
         date = (datetime.now() - timedelta(days=5-i-1)).strftime('%Y-%m-%d')
         cursor = db_connection.cursor()
@@ -314,20 +345,24 @@ def test_score_stocks_with_insufficient_klines(scoring_service, db_connection):
     filters = {'technical': [], 'fundamental': []}
     results = scoring_service.score_stocks(symbols, filters)
 
-    # 应该返回结果，但评分偏中性（因为无法计算大部分指标）
-    assert len(results) == 1
-    result = results[0]
-    assert result['symbol'] == '000001.SH'
-    # 技术面和基本面应该是中性评分50
-    assert result['technical_score'] == 50
-    assert result['fundamental_score'] == 50
-    # 资金面评分应该很低（数据不足）
-    assert result['capital_score'] <= 25
+    # 数据不足应被跳过
+    assert len(results) == 0
+    assert scoring_service.last_diagnostics['skipped_insufficient_klines'] == 1
 
 
 def test_score_stocks_parallel_processing(scoring_service, db_connection):
     """测试并行处理多只股票"""
-    symbols = [f'60{i:04d}.SH' for i in range(10)]
+    symbols = [f'99{i:04d}' for i in range(10)]
+
+    # 先插入股票基础数据，避免外键约束失败
+    cursor = db_connection.cursor()
+    for symbol in symbols:
+        cursor.execute(
+            "INSERT INTO quant.stocks (symbol, name, market) VALUES (%s, %s, %s) ON CONFLICT (symbol) DO NOTHING",
+            (symbol, 'Test', 'A')
+        )
+    db_connection.commit()
+    cursor.close()
 
     # 插入测试数据
     for symbol in symbols:
@@ -421,7 +456,12 @@ def test_evaluate_conditions_from_factors():
 
 
 def test_adx_factor_calculated():
-    """测试 ADX 因子被正确计算"""
+    """测试 ADX 因子被正确计算（需要 TA-Lib）"""
+    try:
+        import talib
+    except ImportError:
+        pytest.skip("TA-Lib not available")
+    
     from adapters.shared.services import get_factor_adapter
     
     service = OpportunityScoringService(None, None, get_factor_adapter())

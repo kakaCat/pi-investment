@@ -2,6 +2,9 @@
 from typing import List
 import pandas as pd
 import numpy as np
+# NumPy < 2.0 compat: np.trapezoid was added in 2.0, older versions use np.trapz
+if not hasattr(np, 'trapezoid') and hasattr(np, 'trapz'):
+    np.trapezoid = np.trapz
 try:
     import talib
     TALIB_AVAILABLE = True

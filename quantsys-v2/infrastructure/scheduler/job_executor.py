@@ -183,11 +183,10 @@ def _execute_command(command: str, params: Dict[str, Any]) -> Dict[str, Any]:
 
 def _execute_legacy_handler(command: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """
-    执行 Legacy Handler（6 个特殊命令）
+    执行 Legacy Handler（5 个特殊命令）
 
     这些命令暂未迁移到 JobRegistry：
     - data_update
-    - risk_check
     - backtest_run
     - model_train
     - benchmark_run
@@ -212,7 +211,6 @@ def _execute_legacy_handler(command: str, params: Dict[str, Any]) -> Dict[str, A
     # 调用 legacy handler
     legacy_handlers = {
         "data_update": legacy_service._handle_data_update,
-        "risk_check": legacy_service._handle_risk_check,
         "backtest_run": legacy_service._handle_backtest_run,
         "model_train": legacy_service._handle_model_train,
         "benchmark_run": legacy_service._handle_benchmark_run,

@@ -263,27 +263,6 @@ JOBS = [
         }
     },
 
-    # V14 daily check (before market close)
-    # DEPRECATED (strategy-refactor Part 4.2): superseded by the unified
-    # `strategy_execute_all` job below. Kept (name/cron unchanged) for
-    # rollback; was already disabled.
-    {
-        "name": "v14_daily_check",
-        "owner": "quantsys-v2",
-        "cron": "30 14 * * 1-5",  # 工作日 14:30 (disabled by default)
-        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
-        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
-        "enabled": False,  # DEPRECATED: replaced by strategy_execute_all
-        "timeout": 600,
-        "retry_count": 1,
-        "metadata": {
-            "job_type": "v14_daily_check",
-            "deprecated": True,
-            "replaced_by": "strategy_execute_all",
-            "description": "[DEPRECATED] V14 simulation trading daily check (use strategy_execute_all)"
-        }
-    },
-
     # Unified strategy execution (before market close) — strategy-refactor Part 4.2
     # Single task replacing the separate v13_daily_check / v14_daily_check jobs:
     # the webhook handler builds StrategyExecutor(trader, position_repo, engine)
@@ -456,38 +435,6 @@ JOBS = [
         }
     },
 
-    # Weekly risk check (weekly, Monday)
-    {
-        "name": "risk_check_weekly",
-        "owner": "quantsys-v2",
-        "cron": "0 1 * * 1",  # 每周一 01:00
-        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
-        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
-        "enabled": True,
-        "timeout": 600,
-        "retry_count": 1,
-        "metadata": {
-            "job_type": "risk_check",
-            "description": "Weekly portfolio risk assessment"
-        }
-    },
-
-    # Weekly data pipeline rebuild (weekly, Saturday)
-    {
-        "name": "data_pipeline_weekly",
-        "owner": "quantsys-v2",
-        "cron": "0 18 * * 6",  # 每周六 18:00
-        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
-        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
-        "enabled": True,
-        "timeout": 3600,
-        "retry_count": 1,
-        "metadata": {
-            "job_type": "data_pipeline_weekly",
-            "description": "Full rebuild for CSI 300 components (last 90 days)"
-        }
-    },
-
     # Weekly report generation (weekly, Friday)
     {
         "name": "report_weekly",
@@ -520,22 +467,6 @@ JOBS = [
         }
     },
 
-    # Daily data pipeline (daily, afternoon)
-    {
-        "name": "data_pipeline_daily",
-        "owner": "quantsys-v2",
-        "cron": "30 8 * * 1-5",  # 工作日 08:30
-        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
-        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
-        "enabled": True,
-        "timeout": 900,
-        "retry_count": 1,
-        "metadata": {
-            "job_type": "data_pipeline_daily",
-            "description": "Daily incremental update for CSI 300"
-        }
-    },
-
     # Chan theory scan (daily, morning)
     {
         "name": "chan_scan_daily",
@@ -565,22 +496,6 @@ JOBS = [
         "metadata": {
             "job_type": "chan_knowledge_distill",
             "description": "Distill Chan theory knowledge"
-        }
-    },
-
-    # Daily equity snapshot (daily, after market)
-    {
-        "name": "daily_equity_snapshot",
-        "owner": "quantsys-v2",
-        "cron": "0 18 * * 1-5",  # 工作日 18:00
-        "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
-        "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
-        "enabled": True,
-        "timeout": 300,
-        "retry_count": 1,
-        "metadata": {
-            "job_type": "daily_equity_snapshot",
-            "description": "Take equity snapshot for all accounts"
         }
     },
 

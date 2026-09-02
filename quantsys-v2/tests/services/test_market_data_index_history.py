@@ -3,10 +3,12 @@
 akshare stock_zh_index_daily 的 date 列是 datetime.date 对象，
 与 str 型 start_date/end_date 直接比较会 TypeError（2026-08-05 行为进化回填时发现，
 基准对比链路因此整体静默降级）。
+
+2026-09-02 更新：生产代码改为通过 provider_manager.call_akshare() 调用，
+mock 目标从 sys.modules['akshare'] 改为 provider_manager 实例。
 """
 from datetime import date
-from unittest.mock import patch, MagicMock
-import sys
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
@@ -26,11 +28,10 @@ def _fake_df():
 
 class TestGetIndexHistory:
     def test_date_column_normalized_for_str_filter(self):
-        fake_ak = MagicMock()
-        fake_ak.stock_zh_index_daily.return_value = _fake_df()
-        with patch.dict(sys.modules, {'akshare': fake_ak}):
-            result = MarketDataService().get_index_history(
-                'sh000300', '2026-07-02', '2026-07-03')
+        svc = MarketDataService()
+        svc.provider_manager = MagicMock()
+        svc.provider_manager.call_akshare.return_value = _fake_df()
+        result = svc.get_index_history('sh000300', '2026-07-02', '2026-07-03')
         assert result['success'] is True
         klines = result['data']['klines']
         assert len(klines) == 2
@@ -39,9 +40,9 @@ class TestGetIndexHistory:
         assert klines[0]['date'] == '2026-07-02'
 
     def test_empty_filter_returns_all(self):
-        fake_ak = MagicMock()
-        fake_ak.stock_zh_index_daily.return_value = _fake_df()
-        with patch.dict(sys.modules, {'akshare': fake_ak}):
-            result = MarketDataService().get_index_history('sh000300')
+        svc = MarketDataService()
+        svc.provider_manager = MagicMock()
+        svc.provider_manager.call_akshare.return_value = _fake_df()
+        result = svc.get_index_history('sh000300')
         assert result['success'] is True
         assert result['data']['total'] == 3

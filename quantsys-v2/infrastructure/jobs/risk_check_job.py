@@ -274,20 +274,23 @@ class RiskCheckJob:
         logger.info("风险检查任务完成")
 
 
-def main():
+def main() -> dict:
     """主函数"""
     # 使用绝对路径
     project_root = Path(__file__).parent.parent.parent
     config_path = project_root / 'live_trading' / 'config_simulation.yaml'
 
     job = RiskCheckJob(config_path=str(config_path))
-    job.run()
+    result = job.run()
+    # 268 修复（2026-09-02）：run() 无触发/无账户等分支无返回值，兜底为结构化结果，
+    # 避免 execute 返回 None 被调度层包装成假成功（JobResult.details=None）
+    return result if isinstance(result, dict) else {"status": "completed", "task": "v13_risk_check"}
 
 
 # Job注册点 - scheduler会调用这个函数
-def execute(**params):
+def execute(**params) -> dict:
     """Scheduler调用的入口函数"""
-    main()
+    return main()
 
 
 if __name__ == '__main__':

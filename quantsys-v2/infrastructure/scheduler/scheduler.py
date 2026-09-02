@@ -24,7 +24,6 @@ from adapters.outbound.repositories.kline_repository import KlineORMRepository
 from adapters.outbound.repositories.signal_repository import SignalORMRepository
 from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
 from adapters.outbound.repositories.stock_repository import StockORMRepository
-from adapters.outbound.repositories.portfolio_repository import PortfolioORMRepository
 from adapters.outbound.repositories.factor_repository import FactorORMRepository
 from application.services.pool_signal_scanner import PoolSignalScanner
 
@@ -618,19 +617,15 @@ class SchedulerService:
             "data_quality_check": self._handle_data_quality_check,  # 新增 2026-06-04
             "data_update": self._handle_data_update,
             "signal_generate": self._handle_signal_generate,
-            "risk_check": self._handle_risk_check,
             "report_daily": self._handle_report_daily,
             "backtest_run": self._handle_backtest_run,
             "strategy_backtest": self._handle_backtest_run,  # 前端兼容
             "factor_compute": self._handle_factor_compute,
             "model_train": self._handle_model_train,
             "benchmark_run": self._handle_benchmark_run,
-            "data_pipeline_daily": self._handle_data_pipeline_daily,
-            "data_pipeline_weekly": self._handle_data_pipeline_weekly,
             "signal_execution_daily": self._handle_signal_execution_daily,
             "market_style_update": self._handle_market_style_update,
             "v13_daily_check": self._handle_v13_daily_check,  # V13模拟交易每日检查 2026-06-23
-            "signal_monitor_realtime": self._handle_signal_monitor_realtime,  # 实时信号监控
             "strategy_validate_daily": self._handle_strategy_validate_daily,  # 每日策略验证
             "financial_data_update": self._handle_financial_data_update,  # 财务数据更新
             "market_scan_preopen": self._handle_market_scan_preopen,  # 盘前扫描
@@ -643,7 +638,6 @@ class SchedulerService:
             "v13_risk_check": self._handle_v13_risk_check,
             "v13_verification": self._handle_v13_verification,
             "v13_weekly_report": self._handle_v13_weekly_report,
-            "v14_daily_check": self._handle_v14_daily_check,
             "financial_statement_update": self._handle_financial_statement_update,
         }
 
@@ -684,11 +678,6 @@ class SchedulerService:
         """v13 周报：委托 infrastructure.jobs.weekly_report_job.execute"""
         from infrastructure.jobs.weekly_report_job import execute
         return execute(**(params or {}))
-
-    def _handle_v14_daily_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """v14 模拟交易每日检查：委托 strategy_trading_job.v14_daily_check"""
-        from infrastructure.jobs.strategy_trading_job import v14_daily_check
-        return v14_daily_check(**(params or {}))
 
     def _handle_financial_statement_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """季度财报三大报表落库：委托 financial_statement_update_job.execute
@@ -916,46 +905,6 @@ class SchedulerService:
             "strategy_errors": strategy_errors,
         }
 
-    def _handle_risk_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Run a risk assessment across the portfolio.
-
-        Uses ORM to query portfolio and risk data.
-
-        Expected params:
-            market: (optional) market filter.
-        """
-        try:
-            # 使用 ORM 查询持仓信息
-            portfolio_holdings = PortfolioORMRepository().list_all()
-            holdings_count = len(portfolio_holdings)
-
-            # 计算总持仓市值（如果有价格信息）
-            total_position_value = 0.0
-            for holding in portfolio_holdings:
-                if hasattr(holding, 'market_value') and holding.market_value:
-                    total_position_value += float(holding.market_value)
-
-            # 获取风险相关的统计信息
-            result = {
-                "action": "risk_check",
-                "status": "success",
-                "holdings_count": holdings_count,
-                "total_position_value": total_position_value,
-                "timestamp": datetime.now().isoformat(),
-            }
-
-            logger.info(f"Risk check completed: {holdings_count} holdings")
-            return result
-
-        except Exception as e:
-            logger.error(f"Risk check failed: {e}")
-            return {
-                "action": "risk_check",
-                "status": "failed",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat(),
-            }
-
     def _handle_report_daily(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Generate a daily summary report.
 
@@ -1162,45 +1111,16 @@ class SchedulerService:
                 "error": str(exc),
             }
 
-    def _handle_data_pipeline_daily(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute daily data pipeline task.
-
-        Runs the daily incremental update for CSI 300 components.
-        This is triggered by the scheduled task at 16:30 Mon-Fri.
-
-        Args:
-            params: Optional parameters (not used, task is self-contained)
-
-        Returns:
-            Result dictionary from the scheduled task
-        """
-        from infrastructure.scheduler.scheduled_tasks import daily_data_pipeline
-
-        logger.info("Executing data_pipeline_daily command")
-        return daily_data_pipeline()
-
-    def _handle_data_pipeline_weekly(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute weekly data pipeline rebuild task.
-
-        Runs the full rebuild for CSI 300 components (last 90 days).
-        This is triggered by the scheduled task on Sunday at 2:00 AM.
-
-        Args:
-            params: Optional parameters (not used, task is self-contained)
-
-        Returns:
-            Result dictionary from the scheduled task
-        """
-        from infrastructure.scheduler.scheduled_tasks import weekly_full_rebuild
-
-        logger.info("Executing data_pipeline_weekly command")
-        return weekly_full_rebuild()
-
     def _handle_signal_execution_daily(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute daily signal execution task.
 
         Runs the signal execution pipeline at 15:30 (after market close).
-        This orchestrates: strategy runs → signal collection → risk checks → order creation.
+
+        242 修复（2026-09-02）：rebind 到 application.services.scheduler_tasks.
+        handle_signal_execution_daily——v2 盈利闭环改造后本任务不再自动下单，
+        职责=当日 pending 信号兜底推送 Agent。原空壳
+        infrastructure.scheduler.signal_execution_job（策略全跳过、orders=0 的
+        TODO）已废弃。
 
         Args:
             params: Optional parameters (not used, task is self-contained)
@@ -1208,10 +1128,10 @@ class SchedulerService:
         Returns:
             Result dictionary from the scheduled task
         """
-        from infrastructure.scheduler.signal_execution_job import execute_daily_signals_job
+        from application.services.scheduler_tasks import handle_signal_execution_daily
 
         logger.info("Executing signal_execution_daily command")
-        return execute_daily_signals_job()
+        return handle_signal_execution_daily(params or {})
 
     def _handle_market_style_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute daily market style update task.
@@ -1359,47 +1279,6 @@ class SchedulerService:
             logger.error(f"Pre-market scan failed: {e}")
             return {
                 "action": "market_scan_preopen",
-                "status": "failed",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
-
-    def _handle_signal_monitor_realtime(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute realtime signal monitoring task.
-        
-        Monitors and validates signals during trading hours.
-        
-        Args:
-            params: Optional parameters
-        
-        Returns:
-            Result dictionary with monitoring status
-        """
-        logger.info("Executing signal_monitor_realtime command")
-        
-        try:
-            # Get recent signals (last 5 minutes for realtime)
-            from datetime import datetime, timedelta
-            
-            now = datetime.now()
-            start_time = now - timedelta(minutes=5)
-            
-            # Simplified monitoring - extend with actual logic
-            signals_checked = 0
-            active_signals = 0
-            
-            return {
-                "action": "signal_monitor_realtime",
-                "status": "success",
-                "signals_checked": signals_checked,
-                "active_signals": active_signals,
-                "timestamp": now.isoformat()
-            }
-            
-        except Exception as e:
-            logger.error(f"Realtime signal monitoring failed: {e}")
-            return {
-                "action": "signal_monitor_realtime",
                 "status": "failed",
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()

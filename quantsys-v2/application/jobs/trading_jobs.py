@@ -2,7 +2,7 @@
 交易类定时任务
 
 包含：v13_daily_check, v13_risk_check, v13_verification,
-      v14_daily_check, trade_verify_daily, pool_refresh_daily
+      trade_verify_daily, pool_refresh_daily
 """
 import logging
 from typing import Any, Dict
@@ -102,38 +102,6 @@ class V13VerificationJob(Job):
             return JobResult.ok(
                 self.name,
                 message="V13 验证完成",
-                details=result
-            )
-        except Exception as e:
-            return JobResult.fail(self.name, str(e))
-
-
-class V14DailyCheckJob(Job):
-    """V14 模拟交易每日检查"""
-
-    @property
-    def name(self) -> str:
-        return "v14_daily_check"
-
-    @property
-    def description(self) -> str:
-        return "V14 模型每日检查"
-
-    @property
-    def timeout_seconds(self) -> int:
-        return 1800  # 30分钟
-
-    @property
-    def misfire_grace_time_seconds(self) -> int:
-        return 300  # 5分钟
-
-    async def execute(self, params: Dict[str, Any]) -> JobResult:
-        try:
-            from infrastructure.jobs.strategy_trading_job import v14_daily_check
-            result = v14_daily_check(**params)
-            return JobResult.ok(
-                self.name,
-                message="V14 每日检查完成",
                 details=result
             )
         except Exception as e:
@@ -257,7 +225,6 @@ TRADING_JOBS = [
     V13DailyCheckJob(),
     V13RiskCheckJob(),
     V13VerificationJob(),
-    V14DailyCheckJob(),
     TradeVerifyDailyJob(),
     PoolRefreshDailyJob(),
 ]

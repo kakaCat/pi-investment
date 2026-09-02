@@ -45,6 +45,11 @@ class MockSchedulerRepository:
     def list_enabled_tasks(self):
         return [t for t in self.tasks if t.is_enabled]
 
+    def list_tasks(self, enabled_only=False):
+        if enabled_only:
+            return [t for t in self.tasks if t.is_enabled]
+        return self.tasks
+
     def get_task(self, task_id):
         for task in self.tasks:
             if task.id == task_id:

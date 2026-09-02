@@ -693,12 +693,6 @@ class TestCommandHandlers:
         assert "signals_saved" in result
         assert "date" in result
 
-    def test_risk_check_handler_returns_structure(self):
-        result = self.scheduler._handle_risk_check({})
-        assert isinstance(result, dict)
-        assert result["action"] == "risk_check"
-        assert "holdings_count" in result
-
     def test_report_daily_handler_returns_structure(self):
         # 当前简化契约:total_stocks/top_signal_count/timestamp
         result = self.scheduler._handle_report_daily({})
@@ -728,8 +722,8 @@ class TestCommandHandlers:
 
     def test_execute_command_dispatch(self):
         """_execute_command dispatches to correct handler."""
-        result = self.scheduler._execute_command("risk_check", {})
-        assert result["action"] == "risk_check"
+        result = self.scheduler._execute_command("report_daily", {})
+        assert result["action"] == "report_daily"
 
 
 # ============================================================================

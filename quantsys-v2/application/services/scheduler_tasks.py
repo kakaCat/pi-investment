@@ -98,81 +98,6 @@ def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
     }
 
 
-def handle_data_pipeline_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """每日数据管道任务"""
-    params = params or {}
-
-    from application.services.data_pipeline_service import DataPipelineService
-    from datetime import date
-
-    logger.info("Starting daily data pipeline")
-
-    try:
-        pipeline = DataPipelineService()
-        today = date.today()
-
-        # 执行增量更新
-        result = pipeline.run_incremental_update(
-            symbols=params.get('symbols'),
-            end_date=today
-        )
-
-        return {
-            "action": "data_pipeline_daily",
-            "status": result.get('status', 'success'),
-            "date": today.isoformat(),
-            "symbols_count": result.get('symbols_count', 0),
-            "metadata": result.get('metadata', {}),
-            "timestamp": result.get('timestamp')
-        }
-    except Exception as e:
-        logger.error(f"Daily pipeline failed: {e}")
-        return {
-            "action": "data_pipeline_daily",
-            "status": "failed",
-            "error": str(e)
-        }
-
-
-def handle_data_pipeline_weekly(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """每周数据管道任务（全量重建）"""
-    params = params or {}
-
-    from application.services.data_pipeline_service import DataPipelineService
-    from datetime import date, timedelta
-
-    logger.info("Starting weekly data pipeline (full rebuild)")
-
-    try:
-        pipeline = DataPipelineService()
-        end_date = date.today()
-        start_date = end_date - timedelta(days=90)
-
-        # 执行全量重建
-        result = pipeline.run_full_rebuild(
-            symbols=params.get('symbols'),
-            start_date=start_date,
-            end_date=end_date
-        )
-
-        return {
-            "action": "data_pipeline_weekly",
-            "status": result.get('status', 'success'),
-            "start_date": start_date.isoformat(),
-            "end_date": end_date.isoformat(),
-            "symbols_count": result.get('symbols_count', 0),
-            "metadata": result.get('metadata', {}),
-            "timestamp": result.get('timestamp')
-        }
-    except Exception as e:
-        logger.error(f"Weekly pipeline failed: {e}")
-        return {
-            "action": "data_pipeline_weekly",
-            "status": "failed",
-            "error": str(e)
-        }
-
-
 # 与 pool_scanner_service.scanner_config['strategies'] 保持一致
 DEFAULT_SCAN_STRATEGY_IDS = [272, 273]
 
@@ -380,42 +305,6 @@ def handle_signal_execution_daily(params: Dict[str, Any] = None) -> Dict[str, An
         logger.error(f"Signal summary push failed: {e}")
         return {
             "action": "signal_execution_daily",
-            "status": "failed",
-            "error": str(e)
-        }
-
-
-def handle_risk_check(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """风险检查任务"""
-    params = params or {}
-
-    logger.info("Starting risk_check task")
-
-    try:
-        from application.services.risk_check_service import RiskCheckService
-
-        service = RiskCheckService()
-
-        # 执行风险检查
-        risk_report = service.run_comprehensive_risk_check(
-            check_portfolio=params.get('check_portfolio', True),
-            check_positions=params.get('check_positions', True),
-            check_market=params.get('check_market', True)
-        )
-
-        return {
-            "action": "risk_check",
-            "status": "success",
-            "risk_level": risk_report.get('overall_risk_level', 'unknown'),
-            "warnings": risk_report.get('warnings', []),
-            "alerts": risk_report.get('alerts', []),
-            "timestamp": datetime.now().isoformat()
-        }
-
-    except Exception as e:
-        logger.error(f"Risk check failed: {e}")
-        return {
-            "action": "risk_check",
             "status": "failed",
             "error": str(e)
         }
@@ -896,46 +785,6 @@ def handle_market_scan_preopen(params: Dict[str, Any] = None) -> Dict[str, Any]:
         }
 
 
-def handle_signal_monitor_realtime(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """实时信号监控任务（每5分钟执行）"""
-    params = params or {}
-
-    logger.info("Starting signal_monitor_realtime task")
-
-    try:
-        from application.services.signal_monitoring import SignalMonitor
-
-        monitor = SignalMonitor()
-
-        # 扫描活跃池的信号
-        active_pools = params.get('pools', ['主选池', '观察池'])
-
-        signals_found = []
-        for pool_name in active_pools:
-            try:
-                signals = _scan_pool_signals_by_name(pool_name)
-                signals_found.extend(signals)
-            except Exception as e:
-                logger.warning(f"Failed to scan pool {pool_name}: {e}")
-
-        # 记录监控指标
-        return {
-            "action": "signal_monitor_realtime",
-            "status": "success",
-            "pools_scanned": len(active_pools),
-            "signals_found": len(signals_found),
-            "timestamp": datetime.now().isoformat()
-        }
-
-    except Exception as e:
-        logger.error(f"Realtime signal monitor failed: {e}")
-        return {
-            "action": "signal_monitor_realtime",
-            "status": "failed",
-            "error": str(e)
-        }
-
-
 def handle_strategy_validate_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """每日策略验证任务"""
     params = params or {}
@@ -1181,80 +1030,6 @@ def handle_chan_knowledge_distill(params: Dict[str, Any] = None) -> Dict[str, An
             "status": "failed",
             "error": str(e)
         }
-
-
-def handle_daily_equity_snapshot(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """全账户每日净值快照（收盘后按当日收盘价重估持仓，行为进化 Phase 1 地基）"""
-    from application.services.evolution.daily_snapshot_service import DailySnapshotService
-
-    logger.info("Starting daily_equity_snapshot task")
-    try:
-        params = params or {}
-        target = date.fromisoformat(params['date']) if params.get('date') else None
-        result = DailySnapshotService().snapshot_all_accounts(target_date=target)
-        return {
-            "action": "daily_equity_snapshot",
-            "status": "success",
-            **result,
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        logger.error(f"daily_equity_snapshot failed: {e}")
-        return {
-            "action": "daily_equity_snapshot",
-            "status": "failed",
-            "error": str(e)
-        }
-
-
-def handle_evolution_fitness_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """双侧捕获适应度每日计算（行为进化 Phase 1，收盘后全账户滚动窗口）"""
-    from application.services.evolution.evolution_fitness_service import EvolutionFitnessService
-
-    logger.info("Starting evolution_fitness_daily task")
-    try:
-        params = params or {}
-        result = EvolutionFitnessService().compute_all_accounts(
-            window_days=params.get('window_days', 20))
-        return {
-            "action": "evolution_fitness_daily",
-            "status": "success",
-            **result,
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        logger.error(f"evolution_fitness_daily failed: {e}")
-        return {
-            "action": "evolution_fitness_daily",
-            "status": "failed",
-            "error": str(e)
-        }
-
-
-def handle_decision_score_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """决策打分每日任务（文本参数进化 P0a）：满20交易日的买卖决策打分回写"""
-    try:
-        from application.services.evolution.decision_score_service import DecisionScoreService
-        result = DecisionScoreService().score_mature_decisions()
-        return {"action": "decision_score_daily", "status": "success",
-                **result, "timestamp": datetime.now().isoformat()}
-    except Exception as e:
-        logger.error(f"决策打分任务失败: {e}")
-        return {"action": "decision_score_daily", "status": "failed",
-                "error": str(e), "timestamp": datetime.now().isoformat()}
-
-
-def handle_missed_opportunity_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """踏空捕获每日任务（文本参数进化 P0b）：未行动买入信号补登为 missed_opportunity 决策"""
-    try:
-        from application.services.evolution.missed_opportunity_service import MissedOpportunityService
-        result = MissedOpportunityService().capture()
-        return {"action": "missed_opportunity_daily", "status": "success",
-                **result, "timestamp": datetime.now().isoformat()}
-    except Exception as e:
-        logger.error(f"踏空捕获任务失败: {e}")
-        return {"action": "missed_opportunity_daily", "status": "failed",
-                "error": str(e), "timestamp": datetime.now().isoformat()}
 
 
 def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -1505,12 +1280,9 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
 _TASK_HANDLERS: Dict[str, Callable] = {
     "data_quality_check": handle_data_quality_check,
     "data_update": handle_data_update,
-    "data_pipeline_daily": handle_data_pipeline_daily,
-    "data_pipeline_weekly": handle_data_pipeline_weekly,
     "signal_generate": handle_signal_generate,
     "pool_refresh_daily": handle_pool_refresh_daily,
     "signal_execution_daily": handle_signal_execution_daily,
-    "risk_check": handle_risk_check,
     "report_daily": handle_report_daily,
     "backtest_run": handle_backtest_run,
     "strategy_backtest": handle_backtest_run,  # 别名
@@ -1522,7 +1294,6 @@ _TASK_HANDLERS: Dict[str, Callable] = {
     # 新增 - 从旧调度器迁移
     "financial_data_update": handle_financial_data_update,
     "market_scan_preopen": handle_market_scan_preopen,
-    "signal_monitor_realtime": handle_signal_monitor_realtime,
     "strategy_validate_daily": handle_strategy_validate_daily,
     "strategy_discover_weekly": handle_strategy_discover_weekly,
     # Agent相关
@@ -1535,11 +1306,6 @@ _TASK_HANDLERS: Dict[str, Callable] = {
     # 缠论学习闭环
     "chan_scan": handle_chan_scan,
     "chan_knowledge_distill": handle_chan_knowledge_distill,
-    # 行为进化 Phase 1
-    "daily_equity_snapshot": handle_daily_equity_snapshot,
-    "evolution_fitness_daily": handle_evolution_fitness_daily,
-    "decision_score_daily": handle_decision_score_daily,
-    "missed_opportunity_daily": handle_missed_opportunity_daily,
     "model_train_auto": handle_model_train_auto,
 }
 
