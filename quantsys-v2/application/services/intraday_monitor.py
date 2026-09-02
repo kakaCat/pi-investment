@@ -228,23 +228,24 @@ class IntradayMonitor:
         return timeout
 
     def _notify_agent_market_alert(self, alert: Dict, positions: List[Dict]):
-        """大盘异动告警改为直接发送（纯告警通知，不需要即时决策，节省 token）"""
+        """大盘异动时唤醒 Agent"""
         try:
-            position_symbols = [p['symbol'] for p in positions[:10]]
-            content = f"""⚠️ 上证指数跌幅 {alert['change_pct']:.2%}，超过阈值 {alert['threshold']:.2%}
-
-当前持仓数：{len(positions)}
-持仓代码：{', '.join(position_symbols)}
-
-风险提示：大盘异动，请关注持仓"""
-            agent_service.send_notification(
-                title=f'🚨 大盘异动告警',
-                content=content,
-                channel='alerts',  # 使用告警群
-                priority='high'
-            )
+            agent_service.notify_agent('market_alert', {
+                'alert': alert,
+                'current_positions': len(positions),
+                'position_symbols': [p['symbol'] for p in positions[:10]],
+                'instructions': (
+                    '大盘异动告警：\n'
+                    f"上证指数跌幅 {alert['change_pct']:.2%}，超过阈值 {alert['threshold']:.2%}。\n"
+                    '请分析：\n'
+                    '1. 是否需要减仓？\n'
+                    '2. 当前持仓是否受影响？\n'
+                    '3. 是否需要暂停今日买入？\n'
+                    '通过 API 反馈决策给 V2。'
+                ),
+            })
         except Exception as e:
-            logger.warning(f"Failed to send market alert notification: {e}")
+            logger.warning(f"Failed to notify agent for market alert: {e}")
 
 
 # ============================================================

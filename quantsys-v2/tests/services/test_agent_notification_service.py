@@ -1,115 +1,179 @@
 """
-测试 AgentNotificationService 双模式通知
+Agent 通知服务测试
+
+覆盖链路二（v2 调度任务 → 通知 agent）的修复：
+1. 模块可正常 import（修复前因缺 import logging 在 import 时抛 NameError）
+2. send_reminder 通过 /wake 推送 agent_reminder 事件
+3. handle_agent_reminder 在 agent 不可达时仍返回 success（降级记日志）
 """
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from application.services.agent_notification_service import AgentNotificationService
+from unittest.mock import patch, MagicMock
 
 
-class TestAgentNotificationService:
-    """测试 Agent 通知服务"""
+def test_agent_notification_service_module_imports():
+    """模块 import 不应抛 NameError（缺 import logging 的回归测试）"""
+    import importlib
+    import application.services.agent_notification_service as m
+    importlib.reload(m)
+    assert hasattr(m, 'AgentNotificationService')
+    assert hasattr(m, 'agent_service')
 
-    def setup_method(self):
-        """每个测试前初始化"""
-        self.service = AgentNotificationService(
-            agent_url='http://127.0.0.1:3002',
-            timeout=5
+
+def test_market_monitor_scheduler_module_imports():
+    """market_monitor_scheduler 模块 import 不应抛 NameError"""
+    import importlib
+    import application.services.market_monitor_scheduler as m
+    importlib.reload(m)
+    assert hasattr(m, 'MarketMonitorScheduler')
+
+
+def test_send_reminder_posts_agent_reminder_event():
+    """send_reminder 应向 agent /wake 发送 agent_reminder 事件"""
+    from application.services.agent_notification_service import AgentNotificationService
+
+    service = AgentNotificationService(agent_url='http://agent.test:3001')
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {'success': True}
+
+    with patch('application.services.agent_notification_service.requests.post',
+               return_value=mock_resp) as mock_post:
+        result = service.send_reminder(
+            agent_id='default_agent',
+            message='每日复盘提醒',
+            remind_at='2026-07-19 15:30'
         )
 
-    def test_send_notification_success(self):
-        """测试直接发送通知成功"""
-        with patch('requests.post') as mock_post:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_post.return_value = mock_response
+    assert result is True
+    mock_post.assert_called_once()
+    args, kwargs = mock_post.call_args
+    assert args[0] == 'http://agent.test:3001/wake'
+    payload = kwargs['json']
+    assert payload['event'] == 'agent_reminder'
+    assert payload['data']['agent_id'] == 'default_agent'
+    assert payload['data']['message'] == '每日复盘提醒'
+    assert payload['data']['remind_at'] == '2026-07-19 15:30'
 
-            result = self.service.send_notification(
-                title='测试通知',
-                content='测试内容',
-                channel='feishu',
-                priority='normal'
-            )
 
-            assert result is True
-            mock_post.assert_called_once()
-            call_args = mock_post.call_args
-            assert call_args[0][0] == 'http://127.0.0.1:8080/api/v1/notifications/send'
-            assert call_args[1]['json'] == {
-                'channel': 'feishu',
-                'title': '测试通知',
-                'content': '测试内容',
-                'priority': 'normal',
-            }
+def test_send_reminder_returns_false_when_agent_unreachable():
+    """agent 不可达时 send_reminder 返回 False 而不抛异常"""
+    import requests as real_requests
+    from application.services.agent_notification_service import AgentNotificationService
 
-    def test_send_notification_failure(self):
-        """测试直接发送通知失败"""
-        with patch('requests.post') as mock_post:
-            mock_response = Mock()
-            mock_response.status_code = 500
-            mock_post.return_value = mock_response
+    service = AgentNotificationService(agent_url='http://agent.test:3001')
 
-            result = self.service.send_notification(
-                title='测试通知',
-                content='测试内容'
-            )
+    with patch('application.services.agent_notification_service.requests.post',
+               side_effect=real_requests.exceptions.ConnectionError('refused')):
+        assert service.send_reminder(agent_id='a', message='m', remind_at=None) is False
 
-            assert result is False
 
-    def test_send_notification_timeout(self):
-        """测试直接发送通知超时"""
-        with patch('requests.post') as mock_post:
-            mock_post.side_effect = Exception("Timeout")
+def test_notify_agent_detailed_ok():
+    """200 且 success → 'ok'，且 notify_agent 返回 True"""
+    from application.services.agent_notification_service import AgentNotificationService
 
-            result = self.service.send_notification(
-                title='测试通知',
-                content='测试内容'
-            )
+    service = AgentNotificationService(agent_url='http://agent.test:3001')
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {'success': True}
 
-            assert result is False
+    with patch('application.services.agent_notification_service.requests.post',
+               return_value=mock_resp):
+        assert service.notify_agent_detailed('watch_triggered', {}) == 'ok'
+        assert service.notify_agent('watch_triggered', {}) is True
 
-    def test_send_notification_disabled(self):
-        """测试通知服务被禁用"""
-        self.service.enabled = False
 
-        with patch('requests.post') as mock_post:
-            result = self.service.send_notification(
-                title='测试通知',
-                content='测试内容'
-            )
+def test_notify_agent_detailed_timeout():
+    """Timeout → 'timeout'，且 notify_agent 返回 False"""
+    import requests as real_requests
+    from application.services.agent_notification_service import AgentNotificationService
 
-            # 禁用时不应该调用 API
-            mock_post.assert_not_called()
-            assert result is False
+    service = AgentNotificationService(agent_url='http://agent.test:3001')
 
-    def test_notify_agent_still_works(self):
-        """测试旧的 notify_agent 方法仍然可用"""
-        with patch('requests.post') as mock_post:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_post.return_value = mock_response
+    with patch('application.services.agent_notification_service.requests.post',
+               side_effect=real_requests.exceptions.Timeout('slow')):
+        assert service.notify_agent_detailed('watch_triggered', {}) == 'timeout'
+        assert service.notify_agent('watch_triggered', {}) is False
 
-            result = self.service.notify_agent('test_event', {'key': 'value'})
 
-            assert result is True
-            mock_post.assert_called_once()
-            call_args = mock_post.call_args
-            assert '/wake' in call_args[0][0]
+def test_notify_agent_detailed_error():
+    """ConnectionError → 'error'，且 notify_agent 返回 False"""
+    import requests as real_requests
+    from application.services.agent_notification_service import AgentNotificationService
 
-    def test_send_notification_custom_channel(self):
-        """测试自定义通知渠道"""
-        with patch('requests.post') as mock_post:
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_post.return_value = mock_response
+    service = AgentNotificationService(agent_url='http://agent.test:3001')
 
-            result = self.service.send_notification(
-                title='测试通知',
-                content='测试内容',
-                channel='email',
-                priority='high'
-            )
+    with patch('application.services.agent_notification_service.requests.post',
+               side_effect=real_requests.exceptions.ConnectionError('refused')):
+        assert service.notify_agent_detailed('watch_triggered', {}) == 'error'
+        assert service.notify_agent('watch_triggered', {}) is False
 
-            assert result is True
-            call_args = mock_post.call_args
-            assert call_args[1]['json']['channel'] == 'email'
-            assert call_args[1]['json']['priority'] == 'high'
+
+def test_notify_agent_detailed_disabled():
+    """通知禁用 → 'disabled'，不发请求"""
+    from application.services.agent_notification_service import AgentNotificationService
+
+    service = AgentNotificationService(agent_url='http://agent.test:3001')
+    service.enabled = False
+
+    with patch('application.services.agent_notification_service.requests.post') as mock_post:
+        assert service.notify_agent_detailed('watch_triggered', {}) == 'disabled'
+        mock_post.assert_not_called()
+
+
+def test_init_timeout_override():
+    """显式 timeout 参数优先于环境变量"""
+    from application.services.agent_notification_service import AgentNotificationService
+
+    assert AgentNotificationService(timeout=10).timeout == 10
+
+
+def test_handle_agent_reminder_success_when_agent_unreachable():
+    """调度任务 handler 在 agent 不可达时降级为记日志，仍返回 success
+
+    注意：必须 mock send_reminder——handler 内部会真实实例化
+    AgentNotificationService 并 POST 到 agent wake channel（默认 127.0.0.1:3002）。
+    不 mock 的话，agent 在线时测试会把"复盘时间到"真的推送给运行中的 agent
+    （2026-07-28 事故：pytest 跑出的提醒把 agent 唤醒了两次）。
+    """
+    from application.services.scheduler_tasks import handle_agent_reminder
+
+    with patch('application.services.agent_notification_service.'
+               'AgentNotificationService.send_reminder',
+               side_effect=ConnectionError('agent unreachable')):
+        result = handle_agent_reminder({'agent_id': 'a', 'message': '复盘时间到'})
+
+    assert result['action'] == 'agent_reminder'
+    assert result['status'] == 'success'
+    assert result['message'] == '复盘时间到'
+
+
+def test_agent_reminder_handler_registered_once():
+    """agent_reminder 只注册一次且指向有效 handler（通知层 mock，不触碰真实 agent）"""
+    from application.services.scheduler_tasks import _TASK_HANDLERS, get_task_handler
+
+    handler = get_task_handler('agent_reminder')
+    assert handler is _TASK_HANDLERS['agent_reminder']
+    with patch('application.services.agent_notification_service.'
+               'AgentNotificationService.send_reminder',
+               return_value=True) as mock_send:
+        result = handler({'message': 'test'})
+    assert result['status'] == 'success'
+    mock_send.assert_called_once()
+
+
+def test_notify_sends_token_header_and_default_port_3002(monkeypatch):
+    """token 配置时请求带 X-Wake-Token；默认 URL 为 3002"""
+    from unittest.mock import patch, MagicMock
+    monkeypatch.delenv('AGENT_API_URL', raising=False)
+    monkeypatch.setenv('AGENT_API_TOKEN', 'tok-123')
+    from application.services.agent_notification_service import AgentNotificationService
+
+    service = AgentNotificationService()
+    assert service.agent_url == 'http://127.0.0.1:3002'
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {'success': True}
+    with patch('application.services.agent_notification_service.requests.post', return_value=mock_resp) as mock_post:
+        assert service.notify_agent('agent_reminder', {'message': 'hi'}) is True
+    assert mock_post.call_args.kwargs['headers']['X-Wake-Token'] == 'tok-123'

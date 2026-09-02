@@ -1,8 +1,20 @@
 """
 Base Broker - Abstract base class for all broker implementations
 
+⚠️ STATUS: UNUSED - Reserved for future live trading implementation
+⚠️ DO NOT USE until live trading feature is officially supported
+
 Inspired by FinceptTerminal's IBroker interface, this defines the contract
 that all broker adapters must implement.
+
+CURRENT SYSTEM:
+    The system currently uses SimulationRepository for mock trading,
+    bypassing the broker layer entirely. See domain/brokers/README.md
+    for details.
+
+FUTURE USE:
+    When live trading is implemented (target: 2027 Q2), this interface
+    will be used to integrate real broker APIs.
 """
 
 from abc import ABC, abstractmethod

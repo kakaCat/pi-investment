@@ -18,7 +18,7 @@ import logging
 project_root = Path(__file__).parent.parent.parent
 
 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
-from utils.feishu_notifier import create_notifier_from_config
+from application.notification.notification_factory import get_notification_facade
 import yaml
 
 logging.basicConfig(
@@ -40,8 +40,8 @@ class VerificationJob:
         # 初始化仓库
         self.repo = SimulationORMRepository()
 
-        # 初始化飞书通知
-        self.feishu_notifier = create_notifier_from_config(self.config)
+        # 初始化通知门面（使用新的 DDD 通知系统）
+        self.notification_facade = get_notification_facade()
 
     def _is_trading_day(self, date_str: str) -> bool:
         """检查是否为交易日"""
@@ -273,27 +273,72 @@ class VerificationJob:
         total_rebalances = self.repo.count_rebalances(account_name='default')
         cycle = total_rebalances
 
-        # 发送飞书通知
-        if self.feishu_notifier:
-            notification_data = {
-                'rebalance_date': last_rebalance_date,
-                'verify_date': current_date,
-                'predictions': predictions,
-                'initial_value': initial_value,
-                'current_value': current_value,
-                'period_return': period_return,
-                'index_return': index_return,
-                'cycle': cycle
-            }
+        # 发送验证通知
+        notification_data = {
+            'rebalance_date': last_rebalance_date,
+            'verify_date': current_date,
+            'predictions': predictions,
+            'initial_value': initial_value,
+            'current_value': current_value,
+            'period_return': period_return,
+            'index_return': index_return,
+            'cycle': cycle
+        }
 
-            success = self.feishu_notifier.send_verification_notification(notification_data)
+        try:
+            # 使用新的 DDD 通知系统
+            # 注意：旧版有 send_verification_notification，新版需要映射到通用的通知类型
+            result = self.notification_facade.send_card(
+                title=f"V13策略验证报告 - {current_date}",
+                content=self._format_verification_content(notification_data),
+                urgency='normal'
+            )
 
-            if success:
+            if result:
                 logger.info("验证通知发送成功")
             else:
                 logger.error("验证通知发送失败")
+        except Exception as e:
+            logger.error(f"发送验证通知异常: {e}")
 
         logger.info("预测验证任务完成")
+
+    def _format_verification_content(self, data: dict) -> str:
+        """格式化验证通知内容"""
+        predictions = data['predictions']
+        correct = sum(1 for _, pred, actual in predictions if (pred > 0) == (actual > 0))
+        accuracy = correct / len(predictions) * 100 if predictions else 0
+        avg_return = sum(actual for _, _, actual in predictions) / len(predictions) if predictions else 0
+
+        content = f"""**🗓 原调仓日期**: {data['rebalance_date']}
+**📅 验证日期**: {data['verify_date']} (5个交易日后)
+
+**📊 预测准确性验证**:
+"""
+        for symbol, pred_return, actual_return in predictions:
+            direction = "✅" if (pred_return > 0) == (actual_return > 0) else "❌"
+            content += f"\n{direction} {symbol}: 预测{pred_return*100:+.2f}% | 实际{actual_return*100:+.2f}%"
+
+        content += f"""
+
+**📈 整体表现**:
+• 验证股票: {len(predictions)}只
+• 预测正确: {correct}只 ({accuracy:.1f}%)
+• 平均收益: {avg_return*100:+.2f}%
+
+**💰 账户变化**:
+• 5天前: ¥{data['initial_value']:,.2f}
+• 现在: ¥{data['current_value']:,.2f}
+• 期间收益: {data['period_return']*100:+.2f}%
+
+**📊 对比创业板指数**:
+• V13收益: {data['period_return']*100:+.2f}%
+• 创业板指数: {data['index_return']*100:+.2f}%
+• 超额收益: {(data['period_return'] - data['index_return'])*100:+.2f}% {"✅" if data['period_return'] > data['index_return'] else "⚠️"}
+
+**⚠️ 观察期进度**: 第{data['cycle']}/3个调仓周期"""
+
+        return content
 
 
 def main():

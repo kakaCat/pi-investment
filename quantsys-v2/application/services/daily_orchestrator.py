@@ -283,19 +283,12 @@ class DailyOrchestrator:
         logger.info("pre_market: signal_generate")
         results['signal_generate'] = handle_signal_generate()
 
-        # 5. 盘前摘要改为直接发送（纯信息通知，不需要决策，节省 token）
-        from application.services.agent_notification_service import agent_service
-        market_style = results.get('market_style', {})
-        signals_count = results.get('signal_generate', {}).get('signals_count', 0)
-        content = f"""日期：{state.trade_date}
-市场风格：{market_style.get('style', 'N/A')}
-生成信号数：{signals_count}"""
-        agent_service.send_notification(
-            title=f'📈 盘前摘要 ({state.trade_date})',
-            content=content,
-            channel='reports',  # 使用报告群
-            priority='normal'
-        )
+        # 5. 唤醒 Agent 生成盘前报告
+        self._notify_agent('pre_market_summary', {
+            'date': str(state.trade_date),
+            'market_style': results.get('market_style', {}),
+            'signals_generated': results.get('signal_generate', {}).get('signals_count', 0),
+        })
 
         return results
 
