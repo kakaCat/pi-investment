@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import structlog
-from sqlalchemy import Column, DateTime, Float, Integer, String, Text
+from sqlalchemy import Column, DateTime, Float, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 
 from infrastructure.persistence.orm import BaseORMRepository
@@ -72,14 +72,26 @@ class StrategyEvolutionRunORMRepository(BaseORMRepository[EvolutionStrategyRun])
         return len(rows)
 
     def get_runs(self, strategy_id: int, limit: int = 50) -> List[Dict[str, Any]]:
-        """策略最新进化结果行（fitness 有效者优先展示，时间倒序）。"""
-        rows = (
-            self.session.query(EvolutionStrategyRun)
-            .filter_by(strategy_id=int(strategy_id))
-            .order_by(EvolutionStrategyRun.computed_at.desc())
-            .limit(limit)
-            .all()
-        )
+        """策略最近进化 leaderboard 行：每 run 一条 = fitness 最优变体行（含 params）。
+
+        fitness NULL（整批 degraded 的 run）时取该 run 最近一条 degraded 行，
+        让 leaderboard 同时暴露"进化过但诚实失败"的记录。时间倒序、limit 限制 run 数。
+        """
+        sql = text("""
+            SELECT * FROM (
+                SELECT t.*, ROW_NUMBER() OVER (
+                    PARTITION BY run_id
+                    ORDER BY fitness DESC NULLS LAST, computed_at DESC
+                ) AS rn
+                FROM quant.evolution_strategy_runs t
+                WHERE strategy_id = :sid
+            ) ranked
+            WHERE rn = 1
+            ORDER BY computed_at DESC
+            LIMIT :lim
+        """)
+        rows = self.session.execute(
+            sql, {'sid': int(strategy_id), 'lim': limit}).fetchall()
         return [self._to_dict(r) for r in rows]
 
     def get_run(self, run_id: str) -> List[Dict[str, Any]]:
