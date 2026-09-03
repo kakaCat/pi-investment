@@ -163,12 +163,23 @@ class DailyOrchestrator:
             self._match_pending_orders()
 
     def _match_pending_orders(self) -> None:
-        """撮合盘前挂单（execute_at='market_open'），失败不阻断主流程"""
+        """撮合盘前挂单（execute_at='market_open'），失败不阻断主流程
+
+        2026-09-03 修复：AccountTradingService() 无参构造时 repo=None，
+        execute_pending_orders 调用 self.repo.get_pending_orders 必炸 NoneType——
+        该路径只在交易日 9:31 真实触发才暴露（昨晚挂单今早发现未撮合）。
+        教训：实例化依赖必须显式注入，默认值 None 是延时炸弹。
+        """
         try:
             from application.services.account_trading_service import (
                 AccountTradingService,
             )
-            match_result = AccountTradingService().execute_pending_orders()
+            from adapters.outbound.repositories.simulation_repository import (
+                SimulationORMRepository,
+            )
+            match_result = AccountTradingService(
+                repo=SimulationORMRepository()
+            ).execute_pending_orders()
             if match_result['executed'] or match_result['failed']:
                 logger.info("market_open: pending_orders_matched",
                             executed=match_result['executed'],
@@ -427,9 +438,51 @@ class DailyOrchestrator:
         }
 
     def _phase_review(self, state: DailyOrchestratorState) -> Dict[str, Any]:
-        """复盘阶段：唤醒 Agent 做智能复盘（工具链模式）"""
+        """复盘阶段：进化引擎 + Agent 智能复盘（2026-09-03 P0 修复）"""
         context = state.context or {}
 
+        # ==================== 进化引擎（2026-09-03 新增）====================
+        evolution_results = {}
+
+        # 1. 决策打分（20日成熟决策）
+        try:
+            from application.services.evolution.decision_score_service import DecisionScoreService
+            logger.info("review_phase: decision_score_service starting")
+            scorer = DecisionScoreService()
+            evolution_results['decision_score'] = scorer.score_mature_decisions(pending_days=30)
+            logger.info("review_phase: decision_score_service completed",
+                       scored=evolution_results['decision_score'].get('scored', 0),
+                       scanned=evolution_results['decision_score'].get('scanned', 0))
+        except Exception as e:
+            logger.error("review_phase: decision_score_service failed", exc_info=True)
+            evolution_results['decision_score'] = {'status': 'failed', 'error': str(e)[:200]}
+
+        # 2. 踏空捕获（5日宽限期）
+        try:
+            from application.services.evolution.missed_opportunity_service import MissedOpportunityService
+            logger.info("review_phase: missed_opportunity_service starting")
+            missed = MissedOpportunityService()
+            evolution_results['missed_opportunity'] = missed.capture(lookback_days=10)
+            logger.info("review_phase: missed_opportunity_service completed",
+                       captured=evolution_results['missed_opportunity'].get('captured', 0),
+                       scanned=evolution_results['missed_opportunity'].get('scanned', 0))
+        except Exception as e:
+            logger.error("review_phase: missed_opportunity_service failed", exc_info=True)
+            evolution_results['missed_opportunity'] = {'status': 'failed', 'error': str(e)[:200]}
+
+        # 3. 适应度计算（20日滚动窗口）
+        try:
+            from application.services.evolution.evolution_fitness_service import EvolutionFitnessService
+            logger.info("review_phase: evolution_fitness_service starting")
+            fitness = EvolutionFitnessService()
+            evolution_results['evolution_fitness'] = fitness.compute_all_accounts()
+            logger.info("review_phase: evolution_fitness_service completed",
+                       computed=evolution_results['evolution_fitness'].get('computed', 0))
+        except Exception as e:
+            logger.error("review_phase: evolution_fitness_service failed", exc_info=True)
+            evolution_results['evolution_fitness'] = {'status': 'failed', 'error': str(e)[:200]}
+
+        # ==================== Agent 智能复盘（原有逻辑）====================
         # 获取今日交易数据
         today_trades = []
         today_pnl = context.get('performance', {}).get('today_pnl', 0)
@@ -452,7 +505,7 @@ class DailyOrchestrator:
         except Exception:
             pass
 
-        # 唤醒 Agent 做复盘决策（工具链引导）
+        # 唤醒 Agent 做复盘决策（工具链引导 + 进化结果）
         self._notify_agent('daily_review', {
             'trade_date': str(state.trade_date),
             'market_style': context.get('market_style'),
@@ -462,18 +515,25 @@ class DailyOrchestrator:
             'today_pnl': today_pnl,
             'signals_executed': context.get('signals_executed', 0),
             'orders_created': context.get('orders_created', 0),
+            'evolution_results': evolution_results,  # 🆕 进化引擎结果
             'instructions': (
                 '请使用工具链完成盘后复盘：\n'
                 '1. portfolio_status → 查看持仓和盈亏\n'
                 '2. performance_analyzer → 分析绩效\n'
                 '3. rotation_verify → 检查轮动效果\n'
                 '4. decision_history → 回顾今日决策\n'
-                '5. experience_write → 写入经验\n'
-                '6. feishu_notify → 发送复盘报告'
+                '5. evolution_status → 查看进化引擎结果\n'
+                '6. experience_write → 写入经验\n'
+                '7. feishu_notify → 发送复盘报告'
             ),
         })
 
-        return {'status': 'agent_notified', 'event': 'daily_review'}
+        return {
+            'status': 'completed',
+            'evolution_results': evolution_results,
+            'agent_notified': True,
+            'event': 'daily_review'
+        }
 
     # ==================== 状态管理 ====================
 
