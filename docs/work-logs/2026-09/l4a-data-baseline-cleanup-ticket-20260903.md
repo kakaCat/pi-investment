@@ -28,7 +28,7 @@
 
 | 缺口 | 说明 | 建议修法 |
 |---|---|---|
-| signal_track report 无来源过滤 | 无法剔除 test_* 后统计胜率 | v2 后端 report 加 source 排除参数或 exclude_test 开关 |
+| ~~signal_track report 无来源过滤~~（**已证伪，2026-09-03 代码复核**） | 无法剔除 test_* 后统计胜率 | ✅ **已具备**：SignalTrackTool report 端到端传 source（`agent-dh/packages/intelligence/src/tools/SignalTrackTool/SignalTrackTool.ts:99`），qv2 client `getSignalReport` 支持 `source` 参数（`quantsys-v2-client/src/client.ts:1561-1563`，GET /api/signals/track/report?source=）。本行此前误判为缺口，隔离动作 3 可直接执行，无需基建 |
 | 经验 77 条 unknown 归档 | 无 symbol 无法补，污染统计 | 提供归档/隔离机制（如按 created_at 早于某日期隔离） |
 | 信号 5D 回填仅 3/14 | 回填断档 | 盘后例程固定调 signal_track update 回填 5D/10D/20D（9/3 已有 signal-perf-verify 任务） |
 
