@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PI · 双线执行确认看板</title>
+<style>
+  :root {
+    --bg:#0b0f1c; --panel:#121a2c; --panel2:#0f1626; --line:#1e2a44;
+    --text:#dbe4f0; --dim:#8ea0bd; --faint:#5b6b8c;
+    --ok:#22c55e; --fail:#ef4444; --late:#eab308; --pend:#94a3b8;
+    --unk:#a855f7; --off:#4b5563; --deg:#f97316; --accent:#3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font: 13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; padding: 18px 22px 60px; }
+  .wrap { max-width: 1560px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  h1 { font-size: 20px; letter-spacing: .5px; }
+  h1 small { color: var(--faint); font-weight: normal; margin-left: 10px; font-size: 12px; }
+  #meta { margin-left: auto; color: var(--faint); font-size: 12px; display: flex; gap: 14px; align-items: baseline; }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 5px 14px; font-size: 12px; cursor: pointer; }
+  button:active { opacity: .8; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--dim); align-items: center; }
+  .lg { display: inline-flex; align-items: center; gap: 4px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+  .banner { display: none; background:#3b1c1c; border:1px solid var(--fail); color:#fca5a5; padding:8px 14px; border-radius:8px; margin-bottom:14px; font-size:12px; }
+  .banner.show { display:block; }
+  section { margin-bottom: 22px; }
+  section > h2 { font-size: 14px; color: var(--accent); border-left: 3px solid var(--accent); padding-left: 8px; margin-bottom: 10px; }
+  section > h2 .sub { color: var(--faint); font-weight: normal; font-size: 11px; margin-left: 8px; }
+  .grid4 { display: grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap: 10px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .card h3 { font-size: 13px; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .card h3 .port { color: var(--faint); font-weight: normal; font-size: 11px; }
+  .kv { color: var(--dim); font-size: 11.5px; }
+  .kv div { display: flex; justify-content: space-between; gap: 8px; }
+  .kv b { color: var(--text); font-weight: 500; text-align: right; word-break: break-all; }
+  .errline { color: #fca5a5; font-size: 11px; margin-top: 6px; word-break: break-all; }
+  .time { color: var(--faint); font-size: 10.5px; margin-top: 6px; }
+  /* statuses */
+  .st-ok, .st-confirmed { color: var(--ok); }
+  .st-fail, .st-failed { color: var(--fail); }
+  .st-late { color: var(--late); }
+  .st-pending { color: var(--pend); }
+  .st-unknown { color: var(--unk); }
+  .st-degraded { color: var(--deg); }
+  .st-off_day { color: var(--off); }
+  .dot.ok, .dot.confirmed { background: var(--ok); }
+  .dot.failed { background: var(--fail); }
+  .dot.late { background: var(--late); }
+  .dot.pending { background: var(--pend); }
+  .dot.unknown { background: var(--unk); }
+  .dot.off_day { background: var(--off); }
+  .dot.degraded { background: var(--deg); }
+  .badge { display: inline-block; background: var(--panel2); border: 1px solid var(--line); color: var(--dim); border-radius: 4px; padding: 0 5px; font-size: 10px; margin-right: 6px; }
+  .alert-card { background: #261818; border: 1px solid #7f1d1d; border-radius: 10px; padding: 12px 14px; }
+  .alert-item { display:flex; gap:10px; align-items:baseline; margin-bottom:6px; font-size:12px; }
+  .alert-item .flow { color: var(--faint); }
+  .cp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(196px,1fr)); gap:8px; }
+  .cp { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--line); border-radius:8px; padding:9px 11px; }
+  .cp .top { display:flex; justify-content:space-between; align-items:center; gap:6px; }
+  .cp .mod { font-size:10px; color:var(--faint); }
+  .cp .nm { font-size:12.5px; margin:3px 0; }
+  .cp .msg { font-size:11px; color:var(--dim); word-break:break-all; }
+  .group-title { font-size:12px; color:var(--faint); margin:12px 0 8px; letter-spacing:1px; }
+  ol.errs { list-style:none; }
+  ol.errs li { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11px; padding:6px 10px; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:baseline; color:var(--dim); }
+  ol.errs li .src { flex:none; border-radius:4px; padding:0 6px; font-size:10px; }
+  .src.v2 { background:#3b2a14; color:#fbbf24; } .src.os { background:#10293f; color:#60a5fa; } .src.dsh { background:#3b1140; color:#d8b4fe; }
+  ol.errs .line { color:#e2e8f0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70%; }
+  ol.errs .file { color:var(--faint); flex:none; }
+  .timeline { display:flex; flex-wrap:wrap; gap:6px; }
+  .tl { border:1px solid var(--line); background:var(--panel2); border-radius:8px; padding:5px 10px; font-size:11.5px; display:flex; gap:8px; align-items:center; }
+  .tl .t { color:var(--accent); font-weight:600; }
+  .tl .e { color:var(--dim); }
+  table { width:100%; border-collapse:collapse; font-size:12px; background:var(--panel); border-radius:10px; overflow:hidden; }
+  th { text-align:left; color:var(--faint); font-weight:500; padding:8px 10px; border-bottom:1px solid var(--line); background:var(--panel2); font-size:11px; white-space:nowrap; }
+  td { padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  td.num, td.id { color:var(--faint); white-space:nowrap; }
+  td.err { font-family:ui-monospace,Consolas,monospace; font-size:10.5px; color:#fca5a5; word-break:break-all; }
+  details { font-size:11.5px; }
+  .mono { font-family:ui-monospace,Consolas,monospace; }
+  .dim { color:var(--dim); } .faint { color:var(--faint); }
+  .tag { display:inline-block; padding:0 5px; border-radius:4px; font-size:10px; border:1px solid var(--line); }
+  .on { color:var(--ok); } .off { color:var(--fail); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>双线执行确认看板<small>engine(M0–M6) × autonomy(L1–L4)</small></h1>
+    <div id="meta">
+      <span class="legend">
+        <span class="lg"><i class="dot confirmed"></i>已确认</span>
+        <span class="lg"><i class="dot pending"></i>等待</span>
+        <span class="lg"><i class="dot late"></i>晚点</span>
+        <span class="lg"><i class="dot failed"></i>失败</span>
+        <span class="lg"><i class="dot unknown"></i>未知</span>
+        <span class="lg"><i class="dot off_day"></i>非执行日</span>
+        <span class="lg"><i class="dot degraded"></i>降级</span>
+      </span>
+      <span id="lastFetch">—</span>
+      <button id="btnRefresh">立即刷新</button>
+    </div>
+  </header>
+
+  <div id="staleBanner" class="banner"></div>
+
+  <section>
+    <h2>系统健康</h2>
+    <div id="healthGrid" class="grid4"></div>
+  </section>
+
+  <section id="alertsSec" style="display:none">
+    <h2>阻断告警<span class="sub">failed/late 且声明阻断下游</span></h2>
+    <div id="alertsBox"></div>
+  </section>
+
+  <section>
+    <h2>执行检查点<span class="sub">状态语义：expectTime + 宽限(默认30min) 窗口内展示等待，绝不误报失败</span></h2>
+    <div class="group-title">ENGINE · M0 数据地基 / M1 市场感知 / M2 股票池 / M3 信号执行</div>
+    <div id="gridM0M3" class="cp-grid"></div>
+    <div class="group-title">ENGINE · M4 风控 / M5 交易对账 / M6 经验沉淀</div>
+    <div id="gridM4M6" class="cp-grid"></div>
+    <div class="group-title">AUTONOMY · L1 策略验证 / L2 蒸馏 / L3 裁决 / L4 周报</div>
+    <div id="gridL" class="cp-grid"></div>
+  </section>
+
+  <section>
+    <h2>错误事件流<span class="sub">v2/os/dsh 日志尾部近 10 条（ERROR/CRITICAL/Traceback）</span></h2>
+    <ol id="errList" class="errs"></ol>
+  </section>
+
+  <section>
+    <h2>今日时间轴<span class="sub">真实 cron 计划 × 当日运行结果</span></h2>
+    <div id="timelineBox" class="timeline"></div>
+  </section>
+
+  <section>
+    <h2>调度任务明细<span class="sub">全部 22 个任务</span></h2>
+    <table id="taskTable">
+      <thead><tr>
+        <th>ID</th><th>任务</th><th>启用</th><th>计划(cron)</th><th>下次运行</th><th>今日</th><th>最近一次运行</th><th>错误详情</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</div>
+<script>
+(function () {
+  'use strict';
+  var HEALTH_MS = 30000;   // 健康区刷新
+  var BOARD_MS = 60000;    // 全量刷新
+  var last = null;
+  var healthTimer = null;
+  var boardTimer = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmtTs(ts) {
+    if (!ts) return '—';
+    var t = String(ts);
+    if (t.indexOf(' ') >= 0) t = t.replace(' ', 'T');
+    var d = new Date(t);
+    if (isNaN(d.getTime())) return esc(ts);
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function fmtUptime(s) {
+    var v = Number(s);
+    if (!isFinite(v) || v < 0) return s;
+    var d = Math.floor(v / 86400);
+    var h = Math.floor((v % 86400) / 3600);
+    var m = Math.floor((v % 3600) / 60);
+    if (d > 0) return d + 'd ' + h + 'h';
+    if (h > 0) return h + 'h ' + m + 'm';
+    return m + 'm';
+  }
+  function fmtMetric(key, val) {
+    if (val === null || val === undefined) return '—';
+    if (typeof val === 'boolean') return val ? '是' : '否';
+    if (typeof val === 'number') {
+      if (key === 'uptime_s') return fmtUptime(val);
+      if (Math.abs(val) >= 100000) return val.toLocaleString('zh-CN', { maximumFractionDigits: 0 });
+      return String(Math.round(val * 100) / 100);
+    }
+    return esc(val);
+  }
+  var CP_ZH = { confirmed: '已确认', failed: '失败', late: '晚点', pending: '等待', off_day: '非执行日', unknown: '未知' };
+  var H_ZH = { ok: '正常', degraded: '降级', failed: '故障' };
+  var RUN_ZH = { success: '成功', failed: '失败', pending: '待运行', unknown: '未知' };
+  var HEALTH_NAME = {
+    'quantsys-v2': '量化后端 quantsys-v2',
+    'agent-os': 'Agent OS (v1 遗留)',
+    postgres: 'PostgreSQL (经 v2 代理)',
+    'agent-dh': 'Agent-DH 进程(本看板宿主)',
+  };
+  var METRIC_ZH = {
+    api: 'API', db: 'DB', db_connected: 'db_connected', holdings_count: '持仓数',
+    model_loaded: '模型加载', balance_date: '结算日', total_assets: '总资产',
+    status: 'status', via: 'via', uptime_s: '运行时长', rss_mb: 'RSS(MB)',
+    heap_mb: 'Heap(MB)', restarts: '重启次数', probe_ms: '探测耗时',
+  };
+
+  function renderHealth(data) {
+    var rows = data.health || [];
+    var html = rows.map(function (h) {
+      var nm = HEALTH_NAME[h.name] || h.name;
+      var st = H_ZH[h.status] || h.status;
+      var port = h.port ? '<span class="port">:' + h.port + '</span>' : '';
+      var kv = (h.metrics ? Object.keys(h.metrics) : []).filter(function (k) { return k !== 'probe_ms'; })
+        .map(function (k) { return '<div><span>' + esc(METRIC_ZH[k] || k) + '</span><b>' + fmtMetric(k, h.metrics[k]) + '</b></div>'; }).join('');
+      var err = h.error ? '<div class="errline">' + esc(h.error) + '</div>' : '';
+      var rt = (h.responseTimeMs !== undefined) ? '<div class="time">探测 ' + h.responseTimeMs + 'ms</div>' : '';
+      return '<div class="card"><h3><i class="dot ' + h.status + '"></i>' + esc(nm) + port +
+        '<span class="' + h.status + '" style="margin-left:auto">' + esc(st) + '</span></h3>' +
+        '<div class="kv">' + kv + '</div>' + err + rt + '</div>';
+    }).join('');
+    $('healthGrid').innerHTML = html || '<div class="card dim">无健康数据</div>';
+  }
+
+  function renderAlerts(data) {
+    var list = data.blockedFlows || [];
+    var sec = $('alertsSec');
+    if (!list.length) { sec.style.display = 'none'; return; }
+    sec.style.display = '';
+    var zh = { failed: '失败', late: '晚点' };
+    var html = list.map(function (b) {
+      return '<div class="alert-item"><span class="' + b.status + '">' + esc(b.checkpointName) +
+        '（' + esc(zh[b.status] || b.status) + '）</span>' +
+        '<span class="dim">阻断下游：</span><span class="flow">' + b.blocks.map(esc).join(' · ') + '</span></div>';
+    }).join('');
+    $('alertsBox').innerHTML = '<div class="alert-card">' + html + '</div>';
+  }
+
+  function cardCp(cp) {
+    return '<div class="cp" title="' + esc(cp.id) + '"><div class="top">' +
+      '<span class="badge">' + esc(cp.module) + '</span>' +
+      '<span class="' + cp.status + '"><i class="dot ' + cp.status + '" style="margin-right:3px"></i>' + esc(CP_ZH[cp.status] || cp.status) + '</span></div>' +
+      '<div class="nm">' + esc(cp.name) + '</div>' +
+      '<div class="msg">' + esc(cp.message || '') + '</div></div>';
+  }
+  function renderCheckpoints(data) {
+    var cps = data.checkpoints || [];
+    var by = { m0m3: [], m4m6: [], l: [] };
+    cps.forEach(function (cp) {
+      if (cp.line === 'autonomy') by.l.push(cp);
+      else if (cp.module === 'M4' || cp.module === 'M5' || cp.module === 'M6') by.m4m6.push(cp);
+      else by.m0m3.push(cp);
+    });
+    $('gridM0M3').innerHTML = by.m0m3.map(cardCp).join('') || '<div class="dim">无数据</div>';
+    $('gridM4M6').innerHTML = by.m4m6.map(cardCp).join('') || '<div class="dim">无数据</div>';
+    $('gridL').innerHTML = by.l.map(cardCp).join('') || '<div class="dim">无数据</div>';
+  }
+
+  function renderErrors(data) {
+    var errs = data.errors || [];
+    var ul = $('errList');
+    if (!errs.length) { ul.innerHTML = '<li class="dim">近 300 行日志内无错误事件</li>'; return; }
+    ul.innerHTML = errs.map(function (e) {
+      return '<li><span class="src ' + esc(e.source) + '">' + esc(e.source) + '</span>' +
+        '<span class="file">' + esc(e.file) + '</span>' +
+        (e.timestamp ? '<span class="dim">' + fmtTs(e.timestamp) + '</span>' : '') +
+        '<span class="line" title="' + esc(e.line) + '">' + esc(e.line) + '</span></li>';
+    }).join('');
+  }
+
+  function renderTimeline(data) {
+    var list = data.timeline || [];
+    var box = $('timelineBox');
+    if (!list.length) { box.innerHTML = '<div class="dim">无任务数据</div>'; return; }
+    box.innerHTML = list.map(function (t) {
+      var dot = t.status === 'success' ? 'ok' : (t.status === 'failed' ? 'failed' : (t.status === 'unknown' ? 'unknown' : 'pending'));
+      var title = t.error ? ' title="' + esc(t.error) + '"' : '';
+      return '<div class="tl"' + title + '><i class="dot ' + dot + '"></i><span class="t">' + esc(t.expectedTime) +
+        '</span><span class="e">' + esc(t.taskName) + '</span><span class="' + dot + '">' + esc(RUN_ZH[t.status] || t.status) + '</span></div>';
+    }).join('');
+  }
+
+  function renderTasks(data) {
+    var tasks = data.tasks || [];
+    var tbody = $('taskTable').querySelector('tbody');
+    if (!tasks.length) { tbody.innerHTML = '<tr><td colspan="8" class="dim">无任务数据（scheduler 不可达？）</td></tr>'; return; }
+    tbody.innerHTML = tasks.map(function (t) {
+      var en = t.enabled ? '<span class="on">启用</span>' : '<span class="off">停用</span>';
+      var next = fmtTs(t.nextRunAt);
+      var today = '';
+      if (t.todaySuccess || t.todayTriggered) {
+        today = '触发 ' + esc(t.todayTriggered) + ' / 成功 ' + esc(t.todaySuccess);
+      } else {
+        today = '—';
+      }
+      var lr = t.lastRun;
+      var lastHtml = '—';
+      var errHtml = '—';
+      if (lr && lr.triggeredAt) {
+        var st = lr.status;
+        var color = st === 'success' ? 'ok' : (st === 'failed' ? 'failed' : 'dim');
+        lastHtml = '<span class="' + color + '">' + esc(RUN_ZH[st] || st) + '</span> <span class="faint">' + fmtTs(lr.triggeredAt) + '</span>';
+        if (st === 'failed' && lr.error) {
+          errHtml = '<details><summary>失败详情</summary><div class="err">' + esc(lr.error) + '</div></details>';
+        }
+      }
+      return '<tr><td class="id">' + esc(t.id) + '</td><td>' + esc(t.name) +
+        '</td><td>' + en + '</td><td class="mono">' + esc(t.scheduleExpr || '') +
+        '</td><td class="mono">' + next + '</td><td>' + today + '</td><td>' + lastHtml + '</td><td>' + errHtml + '</td></tr>';
+    }).join('');
+  }
+
+  function renderMeta(data, err) {
+    var now = new Date();
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    var stamp = p(now.getHours()) + ':' + p(now.getMinutes()) + ':' + p(now.getSeconds());
+    var v2 = data.v2Available ? '' : '<span class="failed"> · v2 不可达</span>';
+    var deg = (data.degraded && data.degraded.length) ? ' · ' + data.degraded.length + ' 个数据源降级' : '';
+    $('lastFetch').innerHTML = '刷新于 ' + stamp + v2 + deg +
+      (data.fetchedAt ? ' <span class="faint">(数据 ' + fmtTs(data.fetchedAt) + ')</span>' : '') +
+      (err ? '' : '');
+    if (err) {
+      var b = $('staleBanner');
+      b.innerHTML = '⚠ 数据获取失败：' + esc(err) + ' — 页面展示上次成功缓存（数据陈旧）。正在自动重试…';
+      b.classList.add('show');
+    } else {
+      $('staleBanner').classList.remove('show');
+    }
+  }
+
+  function renderAll(data) {
+    renderHealth(data);
+    renderAlerts(data);
+    renderCheckpoints(data);
+    renderErrors(data);
+    renderTimeline(data);
+    renderTasks(data);
+  }
+
+  function apply(data) {
+    if (data && data.data) { last = data.data; }
+    if (!last) { renderMeta(null, '无缓存数据'); return; }
+    renderMeta(last, null);
+    renderAll(last);
+  }
+
+  function fetchBoard(scope) {
+    return fetch('/dashboard/api/board', { headers: { accept: 'application/json' } })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (json) {
+        if (!json || json.success !== true || !json.data) throw new Error(json && json.error ? json.error : '非法响应');
+        last = json.data;
+        renderMeta(last, null);
+        if (scope === 'health') { renderHealth(last); }
+        else { renderAll(last); }
+      })
+      .catch(function (e) {
+        if (last) {
+          renderMeta(last, e && e.message ? e.message : String(e));
+        } else {
+          $('lastFetch').innerHTML = '刷新于 ' + new Date().toLocaleTimeString() + ' <span class="failed">首次加载失败</span>';
+          var b = $('staleBanner');
+          b.innerHTML = '⚠ 无法连接看板 API：' + esc(e && e.message ? e.message : e) + ' — 请检查 :13080 与插件状态';
+          b.classList.add('show');
+        }
+      });
+  }
+
+  function startTimers() {
+    stopTimers();
+    healthTimer = setInterval(function () { fetchBoard('health'); }, HEALTH_MS);
+    boardTimer = setInterval(function () { fetchBoard('all'); }, BOARD_MS);
+  }
+  function stopTimers() {
+    if (healthTimer) { clearInterval(healthTimer); healthTimer = null; }
+    if (boardTimer) { clearInterval(boardTimer); boardTimer = null; }
+  }
+
+  $('btnRefresh').addEventListener('click', function () { fetchBoard('all'); });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { stopTimers(); } else { startTimers(); if (!last) fetchBoard('all'); }
+  });
+
+  fetchBoard('all');
+  startTimers();
+})();
+</script>
+</body>
+</html>

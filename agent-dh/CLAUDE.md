@@ -63,6 +63,9 @@ agent-dh/
 │   ├── notification/            # 通知系统（2个工具）
 │   ├── data-manager/            # 数据管理（2个工具）
 │   ├── (quantsys-v2-client 已迁移至仓库顶层 ../../quantsys-v2-client，插件经 file: 依赖引用)
+│   ├── pages/                    # 页面域（嵌套特例）：agent-dh 自研的 DSH GUI 页面插件
+│   │   ├── holdings/             #   @pi-investment/dashboard-holdings 账户持仓看板
+│   │   └── execution/            #   @pi-investment/dashboard-execution 双线执行确认看板
 │   └── agent-os-client/         # Agent OS API 客户端（遗留）
 │
 ├── profiles/investment/         # DSH Profile 配置模板

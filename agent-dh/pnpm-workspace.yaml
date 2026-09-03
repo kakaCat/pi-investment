@@ -1,5 +1,6 @@
 packages:
   - 'packages/*'
+  - 'packages/pages/*'   # 页面域（dashboard 等子包嵌套在此）
   - 'apps/*'
   - 'skills/*'
   - '../agent-os-client'

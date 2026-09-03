@@ -1,0 +1,24 @@
+{
+  "name": "@pi-investment/dashboard-execution",
+  "version": "0.1.0",
+  "description": "P1 execution dashboard page plugin for Agent-DH (pure webServer routes, no tools)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "vitest": "^2.0.0"
+  }
+}

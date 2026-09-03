@@ -413,6 +413,9 @@ importers:
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
+      '@pi-investment/page-dashboard':
+        specifier: workspace:*
+        version: link:../pages/dashboard
       '@pi-investment/quantsys-v2-client':
         specifier: workspace:*
         version: link:../../../quantsys-v2-client
@@ -510,6 +513,18 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
+
+  packages/pages/dashboard:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: ^4.0.0
+        version: 4.0.1
+      '@deepseek-ai/schemastery':
+        specifier: ^3.18.0
+        version: 3.18.1
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../../core-tool
 
   packages/quantsys-v2-manager:
     dependencies:

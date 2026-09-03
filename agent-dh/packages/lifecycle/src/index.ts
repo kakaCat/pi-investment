@@ -62,7 +62,7 @@ ${stopHint}`;
 }
 
 export default class LifecyclePlugin extends Service {
-  static inject = ['tools', 'agents', 'systemPrompt'];
+  static inject = ['tools', 'agents', 'systemPrompt', 'webServer'];
   static Config = z.object({
     repoRoot: z.string(),
     agentDhRoot: z.string(),
@@ -102,6 +102,7 @@ export default class LifecyclePlugin extends Service {
     this.setupOsReminderPoller();  // OS 提醒体系：60s 轮询信箱并投递（2026-08-25，dsh-schedule 会话级提醒 fork 即死的替代）
     this.setupNativeScheduler();   // 原生提醒调度（2026-09-01）：payload.executor='dsh-native' 的任务由本进程 cron 直投，替代 os-remind-bridge.sh 链路
     this.setupWakeWebhook();       // v2 → dh /wake 唤醒桥（2026-09-02 死链修复，路 2 自写路由）
+    // Dashboard 路由现在由 @pi-investment/dashboard-execution 页面插件自己注册（2026-09-03，纯页面插件零工具）
   }
 
   // ===== v2 → dh /wake 唤醒桥（2026-09-02 死链修复，路 2 自写路由）=====
