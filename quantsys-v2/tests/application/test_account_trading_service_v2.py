@@ -381,6 +381,7 @@ class TestExecuteTradeV2PendingOrder:
         """盘后挂单"""
         mock_repo = Mock()
         mock_repo.get_account.return_value = MockAccount('test', status='active')
+        mock_repo.get_pending_orders.return_value = []  # 无既有挂单 → 查重放行（2026-09-03）
 
         mock_pending = Mock()
         mock_pending.id = 1

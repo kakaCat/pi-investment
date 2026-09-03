@@ -108,6 +108,7 @@ class AccountTradingService:
         price: Optional[float] = None,
         allow_off_hours: bool = False,
         execute_at: Optional[str] = None,
+        allow_duplicate: bool = False,
     ) -> Dict:
         """
         重构版交易执行（使用 TradeGuardService）
@@ -134,6 +135,9 @@ class AccountTradingService:
             price: 指定价格（None 则获取实时价）
             allow_off_hours: 是否允许盘后交易
             execute_at: 执行时机 ('market_open' = 挂单)
+            allow_duplicate: 重复挂单确认标记（2026-09-03）。默认 False：
+                挂单时若已存在同标的同方向的 pending 单 → 409 拦截，
+                调用方确认无误后设 True 重发才放行。
 
         Returns:
             交易结果字典
@@ -160,6 +164,44 @@ class AccountTradingService:
                 raise TradingError(f'账户不存在: {account_name}', 404)
             if account.status != 'active':
                 raise TradingError(f'账户已归档，拒绝写操作: {account_name}', 409)
+
+            # ---- 2.1 重复挂单拦截（2026-09-03，防双重成交）----
+            # 背景：002241 曾出现凌晨限价单+盘前市价单两笔相同 SELL 300 股 pending，
+            # 若双双撮合 = 意外清仓。同标的同方向已有 pending 单时默认拦截，
+            # 调用方（agent）确认后设 allow_duplicate=True 重发才放行。
+            if not allow_duplicate:
+                existing = self.repo.get_pending_orders(
+                    account_name=account_name, status='pending') or []
+                conflicts = [
+                    o for o in existing
+                    if getattr(o, 'symbol', None) == symbol
+                    and str(getattr(o, 'action', '')).upper() == action
+                ]
+                if conflicts:
+                    desc = '；'.join(
+                        f"id={o.id} {o.action} {o.symbol} "
+                        f"{o.shares if o.shares is not None else '-'}"
+                        f"股{'/金额' + str(o.amount) if o.amount else ''}"
+                        f"{'(限价' + str(o.price_limit) + ')' if o.price_limit is not None else '(市价)'}"
+                        for o in conflicts)
+                    raise TradingError(
+                        f'检测到 {len(conflicts)} 笔同标的同方向 pending 挂单：{desc}。'
+                        f'如确认仍要重复挂单，请设 allow_duplicate=true 重发；'
+                        f'如要替换原单，请先调用 cancel 撤销后再挂。',
+                        409,
+                        details={
+                            'conflicts': [
+                                o.to_dict() if hasattr(o, 'to_dict') else {
+                                    'id': getattr(o, 'id', None),
+                                    'symbol': getattr(o, 'symbol', None),
+                                    'action': getattr(o, 'action', None),
+                                    'shares': getattr(o, 'shares', None),
+                                    'price_limit': getattr(o, 'price_limit', None),
+                                }
+                                for o in conflicts
+                            ],
+                            'hint': 'allow_duplicate=true 放行；或先 cancel 原挂单再挂新单',
+                        })
 
             pending = self.repo.create_pending_order(
                 account_name=account_name, action=action, symbol=symbol,

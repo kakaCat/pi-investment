@@ -78,6 +78,7 @@ class TestPlacePendingOrder:
     def test_off_hours_with_execute_at_creates_pending(self, repo, calendar):
         svc = _make_service(repo, calendar, datetime(2026, 7, 28, 20, 0))
         repo.get_account.return_value = _active_account()
+        repo.get_pending_orders.return_value = []  # 无既有挂单 → 查重放行
         repo.create_pending_order.return_value = SimpleNamespace(id=42)
 
         result = svc.execute_trade(
@@ -156,6 +157,87 @@ class TestPlacePendingOrder:
             svc.execute_trade('acc', 'buy', '600519', shares=100,
                               reason=REASON, execute_at='next_week')
         assert exc.value.status_code == 400
+        repo.create_pending_order.assert_not_called()
+
+
+# ---------- 重复挂单拦截（2026-09-03） ----------
+
+class TestDuplicatePendingOrderGuard:
+    """同标的同方向已有 pending 单 → 409 拦截；allow_duplicate=True 放行
+
+    背景：002241 凌晨限价单 + 盘前市价单撞单（两笔 SELL 300 股 pending），
+    若双双撮合即意外清仓。拦截默认开启，agent 确认后显式放行。
+    """
+
+    def _setup(self, repo, existing_orders):
+        repo.get_account.return_value = _active_account()
+        repo.get_pending_orders.return_value = existing_orders
+        repo.create_pending_order.return_value = SimpleNamespace(id=99)
+
+    def test_duplicate_same_direction_blocked(self, repo, calendar):
+        svc = _make_service(repo, calendar, datetime(2026, 7, 28, 20, 0))
+        self._setup(repo, [_pending_order(id=18, symbol='002241', action='SELL',
+                                          shares=300, price_limit=23.6)])
+
+        with pytest.raises(TradingError) as exc:
+            svc.execute_trade('acc', 'sell', '002241', shares=300,
+                              reason=REASON, execute_at='market_open')
+
+        assert exc.value.status_code == 409
+        assert 'id=18' in str(exc.value)
+        assert 'allow_duplicate' in str(exc.value)
+        assert exc.value.details is not None
+        assert len(exc.value.details['conflicts']) == 1
+        repo.create_pending_order.assert_not_called()
+
+    def test_allow_duplicate_true_passes(self, repo, calendar):
+        svc = _make_service(repo, calendar, datetime(2026, 7, 28, 20, 0))
+        self._setup(repo, [_pending_order(id=18, symbol='002241', action='SELL',
+                                          shares=300)])
+
+        result = svc.execute_trade('acc', 'sell', '002241', shares=300,
+                                   reason=REASON, execute_at='market_open',
+                                   allow_duplicate=True)
+
+        assert result['status'] == 'pending'
+        assert result['pending_order_id'] == 99
+        repo.create_pending_order.assert_called_once()
+
+    def test_opposite_direction_not_blocked(self, repo, calendar):
+        """同标的反方向（已有 SELL，挂 BUY）不拦截"""
+        svc = _make_service(repo, calendar, datetime(2026, 7, 28, 20, 0))
+        self._setup(repo, [_pending_order(id=18, symbol='002241', action='SELL',
+                                          shares=300)])
+
+        result = svc.execute_trade('acc', 'buy', '002241', shares=100,
+                                   reason=REASON, execute_at='market_open')
+
+        assert result['status'] == 'pending'
+        repo.create_pending_order.assert_called_once()
+
+    def test_different_symbol_not_blocked(self, repo, calendar):
+        """同方向不同标的不拦截"""
+        svc = _make_service(repo, calendar, datetime(2026, 7, 28, 20, 0))
+        self._setup(repo, [_pending_order(id=18, symbol='002241', action='SELL',
+                                          shares=300)])
+
+        result = svc.execute_trade('acc', 'sell', '600519', shares=100,
+                                   reason=REASON, execute_at='market_open')
+
+        assert result['status'] == 'pending'
+        repo.create_pending_order.assert_called_once()
+
+    def test_lowercase_existing_action_also_blocked(self, repo, calendar):
+        """既有单 action 为小写落库时也能命中查重（大小写归一）"""
+        svc = _make_service(repo, calendar, datetime(2026, 7, 28, 20, 0))
+        self._setup(repo, [_pending_order(id=18, symbol='002241', action='sell',
+                                          shares=300)])
+
+        with pytest.raises(TradingError) as exc:
+            svc.execute_trade('acc', 'SELL', '002241', shares=100,
+                              reason=REASON, execute_at='market_open')
+
+        assert exc.value.status_code == 409
         repo.create_pending_order.assert_not_called()
 
 
