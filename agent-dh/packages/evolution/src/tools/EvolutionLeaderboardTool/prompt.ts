@@ -22,14 +22,20 @@ export interface EvolutionLeaderboardResult {
     rank: number;
   }>;
   total_strategies: number;
-  avg_fitness: number;
+  avg_fitness?: number;
+  /** agent_os=Agent OS 原始数据 / degraded=占位已拦截 / empty=无记录 */
+  data_source?: 'agent_os' | 'degraded' | 'empty';
+  /** degraded/empty 时的具体原因（RFC 012 P0 诚实降级） */
+  degraded_reason?: string;
+  /** 降级前源数据条数（degraded 时提供，便于追溯） */
+  raw_count?: number;
 }
 
 /**
  * EvolutionLeaderboardTool Prompt
  */
 export const evolutionLeaderboardPrompt: ToolPrompt<EvolutionLeaderboardParams, EvolutionLeaderboardResult> = {
-  description: '查询策略进化排行榜：各策略的适应度评分与排名。适用于：比较策略优劣、决定启用/停用哪些策略、跟踪 evolution_run 的进化效果。',
+  description: '查询策略进化排行榜：各策略的适应度评分与排名。适用于：比较策略优劣、决定启用/停用哪些策略、跟踪 evolution_run 的进化效果。⚠️ RFC 012 P0 起：若数据源为 Agent OS 占位分（0.05×i 阶梯，策略未真实回测时的启发式冒充），工具返回 data_source=degraded 空榜+原因，不会展示占位排名。',
 
   parameters: {
     limit: {
@@ -93,7 +99,10 @@ export const evolutionLeaderboardPrompt: ToolPrompt<EvolutionLeaderboardParams, 
           },
         },
         total_strategies: { type: 'number', description: '策略总数' },
-        avg_fitness: { type: 'number', description: '平均适应度' },
+        avg_fitness: { type: 'number', description: '平均适应度（占位拦截后为空）' },
+        data_source: { type: 'string', enum: ['agent_os', 'degraded', 'empty'], description: '数据来源：agent_os=原始 / degraded=占位已拦截 / empty=无记录' },
+        degraded_reason: { type: 'string', description: 'degraded/empty 时的原因' },
+        raw_count: { type: 'number', description: '降级前源数据条数' },
       },
       additionalProperties: true,
     },
