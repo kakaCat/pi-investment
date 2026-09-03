@@ -1,0 +1,41 @@
+{
+  "todos": [
+    {
+      "content": "调研 taskboard 双半插件标准",
+      "status": "completed"
+    },
+    {
+      "content": "验证 dsh-client-modules host 契约",
+      "status": "completed"
+    },
+    {
+      "content": "抓取 board JSON + 读 execution.html 渲染逻辑",
+      "status": "completed"
+    },
+    {
+      "content": "设计 client 半（纯 DOM, inject=[]）",
+      "status": "completed"
+    },
+    {
+      "content": "实现 client 源码(src/client/* + tsdown.client.config.ts + wrap-client.mjs)",
+      "status": "completed"
+    },
+    {
+      "content": "package.json: dsh.client + exports[./client] + build:client",
+      "status": "completed"
+    },
+    {
+      "content": "host 半裁剪(保 /dashboard/api/board, 删 HTML 页面路由与 execution.html)",
+      "status": "completed"
+    },
+    {
+      "content": "重启 :13080 → 验证 boot graph 含 dashboard-execution + combo bundle 200 + GUI 侧栏入口",
+      "status": "in_progress"
+    },
+    {
+      "content": "docs work-log + R-010 feishu + self_finalize(merge)",
+      "status": "pending"
+    }
+  ],
+  "next": "重启后验证要点: (1) boot manifest globalThis.__DSH_BOOT__ entries 含 @pi-investment/dashboard-execution (47 entries); (2) combo URL /plugins/??@pi-investment/dashboard-execution/client.js&rev=... 返回 200; (3) /dashboard/api/board 仍 200; (4) 刷新 GUI 侧栏出现 执行看板 入口 + 点击中心栏渲染视图; 然后 work-log + feishu + finalize"
+}
