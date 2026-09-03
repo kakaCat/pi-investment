@@ -13,3 +13,6 @@ export type { DailyDistillParams, DailyDistillResult } from './DailyDistillTool'
 
 export { WeeklyReportTool, createWeeklyReportTool } from './WeeklyReportTool';
 export type { WeeklyReportParams, WeeklyReportResult } from './WeeklyReportTool';
+
+export { GenomeBenchmarkTool, createGenomeBenchmarkTool } from './GenomeBenchmarkTool';
+export type { GenomeBenchmarkParams, GenomeBenchmarkResult } from './GenomeBenchmarkTool';

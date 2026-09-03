@@ -11,6 +11,7 @@ import {
   createValidationGateTool,
   createDailyDistillTool,
   createWeeklyReportTool,
+  createGenomeBenchmarkTool,
 } from './tools';
 
 /**
@@ -106,5 +107,9 @@ export default class EvolverPlugin extends Service {
     // 4. Weekly Report - M6 学习飞轮周报：封装后端 /api/reports/weekly
     //    （2026-09-03 补：原 prompt 引用 weekly_report 但 agent 侧无此工具 → 业务空转）
     ctx.tools.register(createWeeklyReportTool(this.qv2BaseURL));
+
+    // 5. Genome Benchmark - L4-B（2026-09-03）：candidate 静态腿健康检查/变异画像
+    //    对 watching 候选做结构复核（拦截 g1→g18 审计发现的 38% 格式噪声），补 diff 画像
+    ctx.tools.register(createGenomeBenchmarkTool(ctx));
   }
 }

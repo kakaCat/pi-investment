@@ -10,32 +10,24 @@ import { validationGatePrompt, ValidationGateParams, ValidationGateResult } from
 import * as fs from 'fs';
 import * as path from 'path';
 
-/** 观察期候选记录 */
-interface CandidateRecord {
-  id: string;
-  section: string;
-  section_version: number;
-  genome_version: string;
-  baseline_version: string;
-  created_at: string;
-  observe_until: string;
-  status: 'watching' | 'promoted' | 'rejected';
-  note?: string;
-  mutation_type?: 'prompt' | 'rule' | 'strategy_param';
-  strategy_id?: number;
-  params_override?: any;
-  backtest_verdict?: {
-    passed: boolean;
-    windows: Array<{
-      label: string;
-      symbol: string;
-      start_date: string;
-      end_date: string;
-      sharpe: number;
-      return_pct: number;
-      max_drawdown_pct: number;
-    }>;
-    reason: string;
+/**
+ * L4-B（2026-09-03）：观察期候选记录——与 ../../candidates.ts 共享同一实现。
+ * 此前本文件复制了一份接口导致漂移风险（candidates.ts 新增 health_check 后本地副本会漏字段），
+ * 现统一从共享模块 import type。本地 writeCandidates 仍保留（与共享模块语义一致）。
+ */
+import type { CandidateRecord } from '../../candidates';
+
+/** 提取候选健康检查的裁决摘要（供 verdict 输出与转正防御） */
+function healthSummary(hc: CandidateRecord['health_check']): {
+  health_passed: boolean | null;
+  substantive: boolean | null;
+  health_issues: string[];
+} {
+  if (!hc) return { health_passed: null, substantive: null, health_issues: [] };
+  return {
+    health_passed: hc.passed,
+    substantive: hc.substantive,
+    health_issues: hc.issues.map(i => i.message),
   };
 }
 
@@ -190,6 +182,26 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
           genome_version: c.genome_version,
           verdict: 'watching',
           observe_until: c.observe_until,
+          ...healthSummary(c.health_check),
+        });
+        continue;
+      }
+
+      // L4-B 静态腿防御（2026-09-03）：结构复核不通过（braces/size/规则ID重复/空更新）
+      // 的候选直接拒绝，不浪费回测与观察——内容级噪声即使跑满观察期也不该转正。
+      // 注意：结构非法内容理论上已被 genome_update 的 guard 拦截，此防御针对
+      // 手写/历史遗留/绕过 guard 的候选。health_check 缺失（null，如旧候选未复核）
+      // 不拒绝，只降级标注——绝不因"没质检"假装通过或借故拒绝。
+      if (c.health_check && !c.health_check.passed) {
+        c.status = 'rejected';
+        c.note = `L4-B 结构复核拒绝：${c.health_check.issues.map(i => i.message).join('；')}（验证门防御，未调用 rollback；若内容为候选版需 genome_rollback 复原）`;
+        verdicts.push({
+          id: c.id,
+          section: c.section,
+          genome_version: c.genome_version,
+          verdict: 'rejected',
+          ...healthSummary(c.health_check),
+          note: c.note,
         });
         continue;
       }
@@ -246,6 +258,7 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
             section: c.section,
             verdict: 'rejected_by_backtest',
             backtest_verdict: c.backtest_verdict,
+            ...healthSummary(c.health_check),
           });
           this.writeCandidates(list);
           continue;
@@ -267,6 +280,7 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
           verdict: 'extended',
           cand_samples: cand.count,
           note: c.note,
+          ...healthSummary(c.health_check),
         });
         continue;
       }
@@ -281,6 +295,7 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
           verdict: 'extended',
           cand_samples: 0,
           note: c.note,
+          ...healthSummary(c.health_check),
         });
         continue;
       }
@@ -302,6 +317,7 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
             cand_avg: cand.avg,
             base_avg: base.avg,
             rolled_back_to: c.section_version - 1,
+            ...healthSummary(c.health_check),
           });
         } catch (e: any) {
           verdicts.push({
@@ -314,9 +330,16 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
       } else {
         // 转正
         try {
+          const hs = healthSummary(c.health_check);
+          const healthNote =
+            hs.health_passed === null
+              ? '（⚠️ 无结构复核记录：候选未过 genome_benchmark 静态腿，仅经验样本证据）'
+              : hs.substantive === false
+                ? '（⚠️ 内容无实质变更/空更新——低价值转正，谨慎）'
+                : '';
           await this.callTool('genome_promote', {
             section: c.section,
-            reason: `观察期达标：candidate 平均奖励 ${cand.avg.toFixed(3)} vs 基准 ${base.avg.toFixed(3)}（样本 ${cand.count}/${base.count}）`,
+            reason: `观察期达标：candidate 平均奖励 ${cand.avg.toFixed(3)} vs 基准 ${base.avg.toFixed(3)}（样本 ${cand.count}/${base.count}）${healthNote}`,
           });
           c.status = 'promoted';
           verdicts.push({
@@ -325,6 +348,8 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
             verdict: 'promoted',
             cand_avg: cand.avg,
             base_avg: base.avg,
+            ...hs,
+            health_note: healthNote || undefined,
           });
         } catch (e: any) {
           verdicts.push({

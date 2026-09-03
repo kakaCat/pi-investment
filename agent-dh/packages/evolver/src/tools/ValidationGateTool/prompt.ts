@@ -100,11 +100,21 @@ export const validationGatePrompt: ToolPrompt<ValidationGateParams> = {
           `**概要**: ${data?.summary ?? ''}`,
           `**候选总数**: ${data?.total_candidates ?? 0} | 转正 ${data?.promoted_count ?? 0} | 拒绝 ${data?.rejected_count ?? 0} | 观察中 ${data?.watching_count ?? 0}`,
           ``,
-          ...v.map((x: any, i: number) =>
-            `### 候选 ${i + 1}: ${x.section}@${x.genome_version} → ${x.verdict}` +
-            (x.cand_avg !== undefined ? `（cand ${x.cand_avg.toFixed(3)} vs base ${x.base_avg?.toFixed(3)}）` : '') +
-            (x.note ? `\n${x.note}` : '')
-          ),
+          ...v.map((x: any, i: number) => {
+            const health =
+              x.health_passed === null
+                ? x.verdict === 'promoted' || x.verdict === 'rejected' || x.verdict === 'extended'
+                  ? ' | ⚠️ 无结构复核记录（仅经验样本证据，未过 genome_benchmark）'
+                  : ''
+                : x.health_passed
+                  ? (x.substantive === false ? ' | ⚠️ 内容无实质变更/空更新' : ' | ✅ 结构复核通过')
+                  : ` | ❌ 结构复核不通过（${(x.health_issues || []).join('；')}）`;
+            return (
+              `### 候选 ${i + 1}: ${x.section}@${x.genome_version} → ${x.verdict}${health}` +
+              (x.cand_avg !== undefined ? `（cand ${x.cand_avg.toFixed(3)} vs base ${x.base_avg?.toFixed(3)}）` : '') +
+              (x.note ? `\n${x.note}` : '')
+            );
+          }),
         ].join('\n'),
       }];
     },
