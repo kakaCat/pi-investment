@@ -201,7 +201,11 @@ class PoolRefreshDailyJob(Job):
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
         try:
-            from adapters.shared.services import stock_pool_service
+            # 2026-09-03 修复（258）：services.py 显式绑定 stock_pool_service=get_stock_pool_service（函数）
+            # 挡住 __getattr__ 惰性代理，裸名导入拿到的是函数而非实例 → .list_pools() AttributeError。
+            # 与 data_backfiller 同风格：显式调用 getter 拿实例。
+            from adapters.shared.services import get_stock_pool_service
+            stock_pool_service = get_stock_pool_service()
             pools = stock_pool_service.list_pools()
             refreshed = 0
             for pool in pools:

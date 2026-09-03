@@ -142,7 +142,8 @@ def add_stock(payload: Dict[str, Any] = Body(default_factory=dict)):
 @router.get('/api/stock/{symbol}/announcements')
 @handle_api_error
 def get_announcements_v2(symbol: str):
-    result = stock_data_service.get_announcements(symbol)
+    service = stock_data_service()  # 2026-09-03 修复：stock_data_service 是 getter 函数（services.py 显式别名，见 L167），原样使用必 500
+    result = service.get_announcements(symbol)
     if not result.get('success'):
         return error_response(result, 400)
     return api_response(result.get('data', {}))
@@ -151,7 +152,8 @@ def get_announcements_v2(symbol: str):
 @router.get('/api/stock/{symbol}/news')
 @handle_api_error
 def get_stock_news_v2(symbol: str, num: int = Query(10)):
-    result = stock_data_service.get_news(symbol, num)
+    service = stock_data_service()  # 同 get_announcements_v2：getter 函数需调用取实例
+    result = service.get_news(symbol, num)
     if not result.get('success'):
         return error_response(result, 400)
     return api_response(result.get('data', {}))
@@ -163,7 +165,7 @@ def get_batch_quotes_v2(payload: Dict[str, Any] = Body(default_factory=dict)):
     symbols = payload.get('symbols', [])
     if not symbols:
         return error_response({'success': False, 'error': 'symbols required'}, 400)
-    result = stock_data_service.get_batch_quotes(symbols)
+    result = stock_data_service().get_batch_quotes(symbols)  # 同 L145 注释：getter 函数需调用取实例
     if not result.get('success'):
         return error_response(result, 400)
     return api_response(result.get('data', {}))
@@ -185,7 +187,8 @@ def get_insider_trades_v2(symbol: str, days: int = Query(30)):
 @router.get('/api/stock/{symbol}/peers')
 @handle_api_error
 def get_peers(symbol: str):
-    result = stock_data_service.compare_peers(symbol)
+    service = stock_data_service()  # 同 L145 注释：getter 函数需调用取实例
+    result = service.compare_peers(symbol)
     if not result.get('success'):
         return error_response(result, 400)
     return api_response(result.get('data', {}))

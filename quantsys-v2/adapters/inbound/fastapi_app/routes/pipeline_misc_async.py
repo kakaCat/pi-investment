@@ -129,11 +129,15 @@ def cli_signal_generate(request: Request, payload: Optional[Dict[str, Any]] = Bo
     SYNC_THRESHOLD = 50
     if len(symbols) < SYNC_THRESHOLD:
         # 同步模式：检测 Accept header 决定返回格式
-        from adapters.shared.services import strategy_service
+        # 2026-09-03 修复：strategy_service 是 services.py 显式绑定别名= getter 函数（L166），
+        # 直接 .strategy_repo 必 AttributeError（被下方 except 静默吞掉→策略名永远回退默认值），须调用 getter 取实例。
+        # 同一 service 实例复用于下方两处 service.generate_signal（历史上 service 从未被赋值→每个信号都被 NameError 静默吞成 error）
+        from adapters.shared.services import get_strategy_service
+        service = get_strategy_service()
 
         # 获取策略名
         try:
-            strategy_row = strategy_service.strategy_repo.get_by_id(strategy_id_int)
+            strategy_row = service.strategy_repo.get_by_id(strategy_id_int)
             strategy_name = strategy_row.get('strategy_name') if strategy_row else f'Strategy#{strategy_id_int}'
         except Exception:
             strategy_name = f'Strategy#{strategy_id_int}'

@@ -247,9 +247,11 @@ def run_backtest_alias(payload: Optional[Dict[str, Any]] = Body(None)):
             logger.warning(f"commission/slippage 参数暂不支持，将使用默认值")
 
         # 2. 调用 strategy_service.backtest_strategy()
-        from adapters.shared.services import strategy_service
+        # 2026-09-03 修复：strategy_service 是 services.py 显式绑定别名= getter 函数（L166），
+        # 直接 .backtest_strategy() 必 500（'function' object has no attribute），须调用 getter 取实例
+        from adapters.shared.services import get_strategy_service
 
-        result = strategy_service.backtest_strategy(
+        result = get_strategy_service().backtest_strategy(
             strategy_id=strategy_id,
             symbol=symbol,
             start_date=start_date,
@@ -417,9 +419,11 @@ def backtest_strategy_v2(payload: Optional[Dict[str, Any]] = Body(None)):
         initial_cash = float(data.get('initial_cash', 1000000))
 
         # 调用 strategy_service
-        from adapters.shared.services import strategy_service
+        # 2026-09-03 修复：strategy_service 是 services.py 显式绑定别名= getter 函数（L166），
+        # 直接 .backtest_strategy() 必 500，须调用 getter 取实例（与 L250 同根因同修法）
+        from adapters.shared.services import get_strategy_service
 
-        result = strategy_service.backtest_strategy(
+        result = get_strategy_service().backtest_strategy(
             strategy_id=strategy_id,
             symbol=symbol,
             start_date=start_date,
