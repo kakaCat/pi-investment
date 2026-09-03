@@ -1,0 +1,38 @@
+{
+  "name": "dsh-profile-liangshen",
+  "private": true,
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.1.1-rc.2",
+    "@pi-investment/agent-os-client": "link:../../../pi-investment/agent-os-client",
+    "@pi-investment/agent-os-manager": "link:../../../pi-investment/agent-dh/packages/agent-os-manager",
+    "@pi-investment/competition": "link:../../../pi-investment/agent-dh/packages/competition",
+    "@pi-investment/core-tool": "link:../../../pi-investment/agent-dh/packages/core-tool",
+    "@pi-investment/data-manager": "link:../../../pi-investment/agent-dh/packages/data-manager",
+    "@pi-investment/evolution": "link:../../../pi-investment/agent-dh/packages/evolution",
+    "@pi-investment/evolver": "link:../../../pi-investment/agent-dh/packages/evolver",
+    "@pi-investment/factor": "link:../../../pi-investment/agent-dh/packages/factor",
+    "@pi-investment/genome": "link:../../../pi-investment/agent-dh/packages/genome",
+    "@pi-investment/intelligence": "link:../../../pi-investment/agent-dh/packages/intelligence",
+    "@pi-investment/investment": "link:../../../pi-investment/agent-dh/packages/investment",
+    "@pi-investment/learning": "link:../../../pi-investment/agent-dh/packages/learning",
+    "@pi-investment/lifecycle": "link:../../../pi-investment/agent-dh/packages/lifecycle",
+    "@pi-investment/market": "link:../../../pi-investment/agent-dh/packages/market",
+    "@pi-investment/memory": "link:../../../pi-investment/agent-dh/packages/memory",
+    "@pi-investment/notification": "link:../../../pi-investment/agent-dh/packages/notification",
+    "@pi-investment/quantsys-v2-client": "link:../../../pi-investment/quantsys-v2-client",
+    "@pi-investment/quantsys-v2-manager": "link:../../../pi-investment/agent-dh/packages/quantsys-v2-manager",
+    "@pi-investment/risk": "link:../../../pi-investment/agent-dh/packages/risk",
+    "@pi-investment/scheduler": "link:../../../pi-investment/agent-dh/packages/scheduler",
+    "@pi-investment/strategy": "link:../../../pi-investment/agent-dh/packages/strategy",
+    "@pi-investment/trading": "link:../../../pi-investment/agent-dh/packages/trading",
+    "tsx": "^4.23.12"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app"
+      ]
+    }
+  }
+}

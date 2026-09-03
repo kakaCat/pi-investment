@@ -11,6 +11,7 @@ import { createAlgoExecuteTool } from './tools/AlgoExecuteTool';
 import { createTradeVerifyTool } from './tools/TradeVerifyTool';
 import { createSlippageReportTool } from './tools/SlippageReportTool';
 import { createPortfolioAnalyzeTool } from './tools/PortfolioAnalyzeTool';
+import { createCancelPendingOrderTool } from './tools/CancelPendingOrderTool';
 
 /**
  * Minimal OsMemoryStore replacement (inlined from deleted @pi-investment/os-memory)
@@ -152,5 +153,8 @@ export default class TradingPlugin extends Service {
 
     // 持仓健康一键分析（2026-09-02，对标 agent-ts portfolio_analyze）
     ctx.tools.register(createPortfolioAnalyzeTool(qv2));
+
+    // 撤销挂单（2026-09-03：002241 重复挂单只能 curl 裸调，补工具层能力）
+    ctx.tools.register(createCancelPendingOrderTool(qv2));
   }
 }

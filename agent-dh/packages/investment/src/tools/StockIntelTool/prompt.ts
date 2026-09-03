@@ -20,7 +20,7 @@ export interface StockIntelResult {
 }
 
 export const stockIntelPrompt: ToolPrompt<StockIntelParams, StockIntelResult> = {
-  description: '个股情报聚合：公告+新闻+内部人交易（高管增减持）三源合一。适用于：买入前排雷（公告暴雷/高管减持=危险信号）、事件驱动分析（新闻催化）、内部人信心判断（高管增持=底部信号）。买入前建议作为 R-009 基本面维度的排雷输入。数据源为 akshare，部分源可能临时不可用（degraded_sources 标注），单源失败不影响其他源。',
+  description: '个股情报聚合：公告+新闻+内部人交易（高管增减持）三源合一。适用于：买入前排雷（公告暴雷/高管减持=危险信号）、事件驱动分析（新闻催化）、内部人信心判断（高管增持=底部信号）。买入前建议作为 R-009 基本面维度的排雷输入。数据源为 akshare，部分源可能临时不可用（degraded_sources 标注），单源失败不影响其他源。⚠️ 降级协作：当 degraded_sources 非空（源失效）时，Agent 应主动用 web_search 补充该股的公告/新闻/增减持信息（如搜 "{股票名} 公告"、"{股票名} 高管减持"），不要因源失效就跳过排雷。',
 
   useCases: ['买入前排雷', '事件催化跟踪', '高管增减持信号'],
 

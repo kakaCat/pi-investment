@@ -20,7 +20,7 @@ export interface FundFlowResult {
 }
 
 export const fundFlowPrompt: ToolPrompt<FundFlowParams, FundFlowResult> = {
-  description: '资金动向一站式查询：传 symbol 查该股主力资金流（主力/大单净流入）+ 融资融券杠杆资金；不传 symbol 查板块资金流全景。适用于：判断主力进出、识别板块资金轮动、评估杠杆情绪。博弈维度——主力持续流入+两融放大=机构/杠杆资金共识。数据源为 akshare，可能临时不可用（degraded_sources 会标注），失败时结合其他维度决策。',
+  description: '资金动向一站式查询：传 symbol 查该股主力资金流（主力/大单净流入）+ 融资融券杠杆资金；不传 symbol 查板块资金流全景。适用于：判断主力进出、识别板块资金轮动、评估杠杆情绪。博弈维度——主力持续流入+两融放大=机构/杠杆资金共识。数据源为 akshare，可能临时不可用（degraded_sources 会标注），失败时结合其他维度决策。⚠️ 降级协作：源失效时 Agent 可用 web_search 搜"{股票名} 主力资金流向/融资融券余额"获取定性参考，但精确数值以源恢复后为准。',
 
   useCases: ['主力资金进出判断', '板块资金轮动', '两融杠杆情绪评估'],
 
