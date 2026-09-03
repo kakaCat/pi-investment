@@ -333,3 +333,16 @@ P2（holdings）同流程，页面路由 /dashboard/holdings + /dashboard/api/ho
 - 调度 22 任务全 enabled；runs 历史 failed 84 条，最近一例 run 3388 daily-pool-refresh 报 "function object has no attribute list_pools"（v2 侧缺陷，非本插件问题，页面应如实展示）；
 - DSH /wake 路由存活（405=仅 POST），证明 webServer exact 注册机制在运行；
 - CORS 实测放开但架构仍走服务端代理。
+
+---
+
+## 附录 B · execution 实现方式修正（2026-09-04 · 双半插件标准）
+
+同上文 plan 附录 A 的用户纠正背景。execution 插件按双半插件重构（host 半 + GUI-native client 半），
+本文档 §4/§5 的数据链路实测结论（端点、字段、日志路径、检查点注册表）**仍然有效**——它们描述的是 host 半
+聚合服务的行为，未变；变的只是**呈现层**：
+
+- ~~GET /dashboard/execution HTML 页面~~ → 删除（非标准）。
+- GET /dashboard/api/board JSON → 保留，为 client 半唯一数据源（同源 fetch，无认证）。
+- GUI 呈现 → client 半 src/client/（lib/client.js，GUI 侧栏入口 + 中心栏视图），契约/构建/依赖顺序见
+  plan 附录 A §1–4 与 packages/pages/execution/README.md。

@@ -1,5 +1,7 @@
-// @pi-investment/dashboard-execution · P1 双线执行确认看板（页面插件）
-// 纯页面插件范式：只注册 webServer 路由，零工具、零 dsh-tools/core-tool 依赖。
+// @pi-investment/dashboard-execution · P1 双线执行确认看板（DSH GUI 双半插件 host 半）
+// host 半：只向同源暴露 board JSON API（/dashboard/api/board，client 半 fetch 用）；
+// GUI 呈现由 client 半承担（package.json dsh.client + exports["./client"] → lib/client.js，
+// 浏览器加载后挂侧栏入口 + 中心栏视图）。零工具、零 dsh-tools/core-tool 依赖。
 // 模块形状与旧 page-dashboard 一致（name + apply 具名导出），DSH loader 已验证可加载；
 // 路由经 (ctx as any).inject(['webServer']) 惰性注入 + webCtx.effect 包裹注册
 // （disposer 自动注销，模式同 packages/lifecycle/src/wake-webhook.ts 已线上验证）。
@@ -8,7 +10,7 @@ import { Context } from '@deepseek-ai/cordis';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DataAggregationService } from './services/data-aggregation.js';
-import { createBoardHandler, createExecutionPageHandler } from './routes/dashboard-routes.js';
+import { createBoardHandler } from './routes/dashboard-routes.js';
 
 export const name = 'dashboard-execution';
 
@@ -56,15 +58,6 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   (ctx as unknown as { inject?: (services: string[], cb: (webCtx: any) => void) => void }).inject?.(
     ['webServer'],
     (webCtx: { effect?: (fn: () => void, label?: string) => void; webServer?: any }) => {
-      // 页面：读自打包资源 execution.html（同 module 相对路径，永不依赖 __dirname）
-      webCtx.effect?.(() => {
-        webCtx.webServer.register({
-          kind: 'exact',
-          path: '/dashboard/execution',
-          handler: createExecutionPageHandler(),
-        });
-      }, name + ': page');
-
       webCtx.effect?.(() => {
         webCtx.webServer.register({
           kind: 'exact',
@@ -73,7 +66,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         });
       }, name + ': api');
 
-      logger.info('routes registered: /dashboard/execution, /dashboard/api/board');
+      logger.info('routes registered: /dashboard/api/board (client half renders GUI)');
     },
   );
 }
