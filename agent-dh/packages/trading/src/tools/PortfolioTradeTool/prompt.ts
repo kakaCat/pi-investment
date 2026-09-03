@@ -15,6 +15,7 @@ export interface PortfolioTradeParams {
   account_name?: string;
   /** 执行时机：'market_open'=盘前挂单（非交易时段提交，开盘 9:31 起自动撮合） */
   execute_at?: 'market_open';
+  allow_duplicate?: boolean;
 }
 
 export interface PortfolioTradeResult {
@@ -66,6 +67,7 @@ export const portfolioTradePrompt: ToolPrompt<PortfolioTradeParams, PortfolioTra
   notes: [
     '⚠️  宪法第1条：仅 A股交易日 9:30-11:30、13:00-15:00 可执行买卖委托（立即单）',
     '💡 盘前/盘后想做决策：用 execute_at="market_open" 挂单，开盘 9:31 起自动撮合——成交仍在合法时段，不违反宪法；挂单返回 status=pending + pending_order_id',
+    '⚠️ 挂单查重（2026-09-03 起）：同标的同方向已有 pending 单时后端 409 拒绝——收到 409 先 trade_monitor 核对，要么 cancel_pending_order 撤旧单再挂，要么确认后 allow_duplicate=true',
     '⚠️  R-008：下单前必须检索历史经验',
     '⚠️  买入前会自动检查：熔断状态、仓位上限、ST禁区',
     '💡 大额订单考虑用 algo_execute 拆单以降低冲击',
@@ -114,6 +116,10 @@ export const portfolioTradePrompt: ToolPrompt<PortfolioTradeParams, PortfolioTra
       description: "执行时机。'market_open'=盘前挂单：盘前/盘后/夜间提交，开盘后 9:31 起自动撮合（成交仍发生在合法交易时段）；不传=立即委托（仅限交易时段 9:30-11:30、13:00-15:00）",
       enum: ['market_open'],
       example: 'market_open',
+    },
+    allow_duplicate: {
+      type: 'boolean',
+      description: "重复挂单确认（2026-09-03 起后端拦截）：挂 market_open 单时若已存在同标的同方向 pending 单，后端返回 409 并附冲突单详情；确认仍要挂（如分段止盈两笔限价不同）才设 true 重发。误用会导致双重成交，设 true 前必须先用 trade_monitor 核对冲突单",
     },
   },
 

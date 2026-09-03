@@ -840,6 +840,7 @@ export class QuantsysV2Client {
     // （order_type: price?'limit':'market'），后端 price=决策参考价、price_limit=撮合保护价。
     // 不映射会导致限价挂单裸奔成市价单（开盘跳空无保护）。
     if (params.price && params.execute_at) body.price_limit = params.price;
+    if (params.allow_duplicate) body.allow_duplicate = true;  // 重复挂单确认放行（2026-09-03）
     const response = await this.client.post(`/api/simulation/accounts/${encodeURIComponent(account)}/trade`, body);
     const data = this.unwrap<any>(response.data, 'executeTrade');
     // 映射为 TradeResponse 契约（挂单场景：status='pending'，无成交价）

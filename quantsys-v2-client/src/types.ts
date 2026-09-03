@@ -478,6 +478,8 @@ export interface TradeRequest {
   genome_version?: string;
   /** 执行时机：'market_open'=盘前挂单（非交易时段提交，开盘 9:31 起自动撮合） */
   execute_at?: 'market_open';
+  /** 重复挂单确认（2026-09-03）：同标的同方向已有 pending 单时后端 409 拦截，确认后设 true 放行 */
+  allow_duplicate?: boolean;
 }
 
 /**
