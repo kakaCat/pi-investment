@@ -71,5 +71,7 @@ M6（业务复盘）管"记住"；evolution（元进化）管"改进"；共享�
 | 基因组 | ✅ g17，4 段，历史完整 |
 | L1-L2 学习 | ✅ 41 样本可分析 |
 | L3 进化调度 | ✅ 已迁 DSH NativeReminderScheduler |
-| L4 元学习 | ✅ 自动启动（周日 11:30，闭环门槛检查） |
+| L4 元学习 | 🔄 调度任务已升级 v2（2026-09-03）；**meta_*/benchmark 工具 0 实现** |
 | 飞书汇报 | ✅ 15 个提醒任务 prompt 已补统一汇报要求 |
+
+> ⚠️ **2026-09-03 修正**（investor w-8366e526 审计）：本表为 9/1 乐观口径——上行 "✅" 多为"工具存在/调度已挂"级别，**非闭环验证通过**。L4 meta_*/benchmark 从未实现（仅调度任务占位，9/6 首窗待跑）；引擎线 regime/style/sentiment 三表 8/24 后断档；pool_refresh(258) 存在 service 层 bug。详见 docs/work-logs/2026-09/profit-engine-autonomy-full-flow-audit-20260903.md 与 docs/work-logs/2026-09/l4-zero-baseline-genome-g1-g18-20260903.md。
