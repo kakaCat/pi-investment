@@ -41,20 +41,25 @@ export class RiskMetricsTool extends BaseTool<RiskMetricsParams, RiskMetricsResu
       days: args.days || 60,
     });
 
-    // 映射后端字段到标准格式
-    // 2026-09-04 修复：schema 契约 最大回撤（%），后端返回小数比率（maxDrawdown: -0.0772=-7.72%），
-    // 需 ×100 转百分数，口径统一到 regime_position_limit(-7.72)/m4 熔断(-8 阈值)
-    const rawMdd = Number(result?.maxDrawdown ?? result?.max_drawdown ?? 0);
-    const mdd = Math.abs(rawMdd) <= 1 ? +(rawMdd * 100).toFixed(2) : rawMdd;
+    // 映射后端字段到标准格式（2026-09-04 修复）
+    // curl 实测 POST /api/risk/metrics 返回 camelCase 比率字段：
+    //   sharpeRatio / sortinoRatio / calmarRatio / maxDrawdown / annualReturn /
+    //   annualVolatility / var95 / cvar95 / cumulativeReturn
+    // schema 契约 % 类指标（volatility/max_drawdown/var_95）为百分数 → 比率×100，
+    // 口径统一到 regime_position_limit(-7.72)/m4 熔断(-8 阈值)；
+    // 后端未计算 beta/alpha（需基准输入）→ 保持 0。不再 ...result 透传（避免 camelCase/snake_case 双写混淆）
+    const pct = (v: any) => {
+      const n = Number(v ?? 0);
+      return Math.abs(n) <= 1 ? +(n * 100).toFixed(2) : n;
+    };
     return {
-      volatility: result?.volatility ?? result?.annualizedVolatility ?? 0,
-      max_drawdown: mdd,
-      sharpe_ratio: result?.sharpe_ratio ?? result?.sharpeRatio ?? 0,
-      beta: result?.beta ?? 0,
-      alpha: result?.alpha ?? 0,
-      var_95: result?.var_95 ?? result?.var95 ?? result?.VaR ?? 0,
-      sortino_ratio: result?.sortino_ratio ?? result?.sortinoRatio ?? 0,
-      ...result,
+      volatility: pct(result?.annualVolatility ?? result?.volatility ?? result?.annualizedVolatility ?? 0),
+      max_drawdown: pct(result?.maxDrawdown ?? result?.max_drawdown ?? 0),
+      sharpe_ratio: Number(result?.sharpeRatio ?? result?.sharpe_ratio ?? 0),
+      beta: Number(result?.beta ?? 0),
+      alpha: Number(result?.alpha ?? 0),
+      var_95: pct(result?.var95 ?? result?.var_95 ?? result?.VaR ?? 0),
+      sortino_ratio: Number(result?.sortinoRatio ?? result?.sortino_ratio ?? 0),
     };
   }
 
