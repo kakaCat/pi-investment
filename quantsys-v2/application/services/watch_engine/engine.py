@@ -54,6 +54,12 @@ class WatchEngine:
 
         self._history: Dict[str, List[Tuple[datetime, float]]] = {}
         self._last_triggered: Dict[Tuple[int, int], datetime] = {}
+        # 边沿触发闩锁：条件处于"已触发"状态的 (rule_id, cond_idx) 集合。
+        # 电平触发（level-triggered）会在条件持续成立时每次冷却结束重复推送
+        # （如价格上破后全天站在阈值上方 → 每 5 分钟刷一条），
+        # 闩锁后仅在"未触发 → 触发"的边沿通知一次，
+        # 条件回到未触发状态才重新武装（re-arm）。
+        self._latched: set = set()
         self._avg_volume_cache: Dict[str, float] = {}
         self._state_date = None  # 状态所属日期，跨天重置
         self.fast_mode = False
@@ -121,16 +127,22 @@ class WatchEngine:
                 if result.distance_ratio is not None and result.distance_ratio <= self.buffer_ratio:
                     fast = True
                 if not result.triggered:
+                    # 条件回到未触发状态 → 解除闩锁，重新武装（允许下次穿越再报）
+                    self._latched.discard((rule.id, idx))
+                    continue
+                if (rule.id, idx) in self._latched:
+                    # 条件持续成立（电平保持）→ 不重复推送，等重新武装
                     continue
                 if self._in_cooldown(rule.id, idx, cond, now):
                     continue
                 try:
                     self.notifier.notify(rule, cond, quote, result)
                 except Exception as e:
-                    # 不设置 _last_triggered，下个 tick 重试（at-least-once）
+                    # 不闩锁、不记 _last_triggered，下个 tick 重试（at-least-once）
                     logger.error('通知发送失败', rule_id=rule.id, cond=cond, error=str(e))
                     continue
                 self._last_triggered[(rule.id, idx)] = now
+                self._latched.add((rule.id, idx))
                 events.append({'rule_id': rule.id, 'symbol': rule.symbol,
                                'condition': cond, 'price': float(quote.price),
                                'message': result.message})
@@ -147,6 +159,8 @@ class WatchEngine:
             return
         self._state_date = current_date
         self._avg_volume_cache.clear()
+        # 跨天全量重新武装：新的一天允许持续成立的条件再报一次（每日最多一次）
+        self._latched.clear()
         active_ids = {r.id for r in self.rule_repo.list_enabled()}
         self._last_triggered = {k: v for k, v in self._last_triggered.items()
                                 if k[0] in active_ids}
