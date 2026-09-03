@@ -254,6 +254,7 @@ export class PortfolioTradeTool extends BaseTool<PortfolioTradeParams, Portfolio
       reason: args.reason,
       genome_version: genomeVersion,
       execute_at: args.execute_at,
+      allow_duplicate: args.allow_duplicate === true ? true : undefined,
     });
 
     // 挂单未成交：不做信号/滑点追踪（成交发生在开盘撮合时，由盘后例程核对）

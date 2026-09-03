@@ -836,6 +836,7 @@ export class QuantsysV2Client {
     if (params.price) body.price = params.price;
     if (params.genome_version) body.genome_version = params.genome_version;  // RFC 005 决策打标
     if (params.execute_at) body.execute_at = params.execute_at;  // 盘前挂单（2026-09-01）
+    if (params.allow_duplicate) body.allow_duplicate = true;  // 重复挂单确认放行（2026-09-03）
     const response = await this.client.post(`/api/simulation/accounts/${encodeURIComponent(account)}/trade`, body);
     const data = this.unwrap<any>(response.data, 'executeTrade');
     // 映射为 TradeResponse 契约（挂单场景：status='pending'，无成交价）
