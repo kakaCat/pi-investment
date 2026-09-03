@@ -878,6 +878,17 @@ def register_routes():
         optional_failed.append("evolution")
         logger.warning(f"⚠️ Failed to import evolution_async: {e}")
 
+    # 策略进化引擎（evolution 域，RFC 012 P1 2026-09-03——替代 agent-os 0.05xi 占位链）
+    try:
+        from adapters.inbound.fastapi_app.routes.evolution_engine_async import (
+            router as evolution_engine_router,
+        )
+        app.include_router(evolution_engine_router)
+        logger.info("✅ Registered: evolution-engine (RFC 012 策略进化引擎)")
+    except ImportError as e:
+        optional_failed.append("evolution-engine")
+        logger.warning(f"⚠️ Failed to import evolution_engine_async: {e}")
+
     # 流水线（pipeline 域，P8 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.pipeline_async import router as pipeline_router
