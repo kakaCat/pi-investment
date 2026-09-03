@@ -836,6 +836,10 @@ export class QuantsysV2Client {
     if (params.price) body.price = params.price;
     if (params.genome_version) body.genome_version = params.genome_version;  // RFC 005 决策打标
     if (params.execute_at) body.execute_at = params.execute_at;  // 盘前挂单（2026-09-01）
+    // 2026-09-03 修复：挂单+price 场景同步映射 price_limit——工具层 price 语义是限价
+    // （order_type: price?'limit':'market'），后端 price=决策参考价、price_limit=撮合保护价。
+    // 不映射会导致限价挂单裸奔成市价单（开盘跳空无保护）。
+    if (params.price && params.execute_at) body.price_limit = params.price;
     const response = await this.client.post(`/api/simulation/accounts/${encodeURIComponent(account)}/trade`, body);
     const data = this.unwrap<any>(response.data, 'executeTrade');
     // 映射为 TradeResponse 契约（挂单场景：status='pending'，无成交价）
