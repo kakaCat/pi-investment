@@ -84,7 +84,9 @@ class TestTick:
         assert events2 == []
         assert len(notifier.notifications) == 1
 
-    def test_cooldown_expires(self):
+    def test_cooldown_expires_but_latch_suppresses_level_repeat(self):
+        """边沿触发语义：冷却结束但条件持续成立（电平保持）→ 不重复推送。
+        回归场景：600026 上破 19.85 后全天站稳，旧电平语义每 300s 刷一条告警。"""
         notifier = FakeNotifier()
         clock = {'now': NOW}
         engine = WatchEngine(
@@ -93,10 +95,46 @@ class TestTick:
             notifier=notifier,
             now_fn=lambda: clock['now'],
         )
-        engine.tick()
+        assert len(engine.tick()) == 1          # 边沿：未触发 → 触发，推送一次
         clock['now'] = NOW + timedelta(seconds=301)  # 默认冷却 300s 已过
+        assert engine.tick() == []              # 闩锁中：电平保持不重复
+        assert len(notifier.notifications) == 1
+
+    def test_rearm_after_condition_clears(self):
+        """条件回到未触发状态后重新武装：再次穿越阈值时再次推送"""
+        notifier = FakeNotifier()
+        clock = {'now': NOW}
+        quotes = FakeQuoteService({'600519.SH': 101.0})
+        engine = WatchEngine(
+            rule_repo=FakeRepo([make_rule()]),
+            quote_service=quotes,
+            notifier=notifier,
+            now_fn=lambda: clock['now'],
+        )
+        assert len(engine.tick()) == 1          # 上破触发
+        quotes.prices['600519.SH'] = 99.0       # 回落到阈值下方 → 重新武装
+        clock['now'] = NOW + timedelta(seconds=301)
+        assert engine.tick() == []
+        quotes.prices['600519.SH'] = 102.0      # 再次上破 → 第二次推送
+        clock['now'] = NOW + timedelta(seconds=302)
         events = engine.tick()
         assert len(events) == 1
+        assert len(notifier.notifications) == 2
+
+    def test_day_rollover_rearms_latch(self):
+        """跨天重新武装：条件次日仍成立时可再报一次（每日最多一次）"""
+        notifier = FakeNotifier()
+        clock = {'now': NOW}
+        engine = WatchEngine(
+            rule_repo=FakeRepo([make_rule()]),
+            quote_service=FakeQuoteService({'600519.SH': 101.0}),
+            notifier=notifier,
+            now_fn=lambda: clock['now'],
+        )
+        assert len(engine.tick()) == 1
+        clock['now'] = NOW + timedelta(days=1)  # 次日，条件仍成立
+        assert len(engine.tick()) == 1
+        assert len(notifier.notifications) == 2
 
     def test_custom_cooldown(self):
         rule = make_rule(conditions=[{'type': 'price_break',
