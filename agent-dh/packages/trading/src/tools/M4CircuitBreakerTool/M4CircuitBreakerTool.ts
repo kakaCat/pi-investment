@@ -84,7 +84,12 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
     let maxDrawdown = 0;
     try {
       const riskMetrics: any = await this.qv2.getRiskMetrics({ account_name: accountName, days: 60 });
-      maxDrawdown = Number(riskMetrics?.max_drawdown || 0);
+      // 2026-09-04 修复：后端 /api/risk/metrics 返回 camelCase maxDrawdown 且为小数比率
+      // （-0.0772 = -7.72%）。原代码①只读 snake_case max_drawdown → undefined → 恒 0；
+      // ②未做小数→百分数换算，-0.12 < -8 永不成立，熔断实际从未触发。
+      // 现按 RegimePositionLimitTool 2026-08-21 E2E 规范：小数比率 ×100 → 百分数再与 -8% 阈值比较
+      const raw = Number(riskMetrics?.maxDrawdown ?? riskMetrics?.max_drawdown ?? 0);
+      maxDrawdown = Math.abs(raw) <= 1 ? +(raw * 100).toFixed(2) : raw;
     } catch (e: any) {
       // API 调用失败：记录错误并降级（返回 0 回撤 = 不触发熔断，避免误杀）
       const errorMsg = e.message || String(e);
@@ -144,7 +149,7 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
       const sellActions: string[] = [];
 
       for (const pos of positions) {
-        const sellQty = Math.floor(Number(pos.shares_available || 0) / 2 / 100) * 100; // 一半数量取整到百股
+        const sellQty = Math.floor(Number(pos.sharesAvailable ?? pos.shares_available ?? 0) / 2 / 100) * 100; // 一半数量取整到百股（client mapPosition 字段为 camelCase sharesAvailable）
         if (sellQty >= 100) {
           try {
             await this.qv2.executeTrade({

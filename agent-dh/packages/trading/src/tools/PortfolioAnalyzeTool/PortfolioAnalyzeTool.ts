@@ -3,7 +3,7 @@
  *
  * 数据契约（2026-09-02 实测 /api/simulation/accounts/{account} 经 client.mapPosition）：
  * Position: { symbol, name, quantity, sharesAvailable, avgCost, currentPrice,
- *             profitLossPct（小数，0.0307=+3.07%）, priceStale? }
+ *             profitLossPct（百分数，0.73=+0.73%；client.mapPosition 已把后端 profit_total_rate 小数 ×100）, priceStale? }
  */
 
 import { BaseTool, ErrorType, sanitizeLossless } from '@pi-investment/core-tool';
@@ -65,9 +65,9 @@ export class PortfolioAnalyzeTool extends BaseTool<PortfolioAnalyzeParams, any> 
     ]);
 
     const analyzed = (positions || []).map((p: any) => {
-      // profitLossPct 契约：小数（0.0307 = +3.07%）；部分历史版本是百分数，做量级自适应
-      let pnlPct = Number(p.profitLossPct ?? 0);
-      if (Math.abs(pnlPct) <= 1.5 && pnlPct !== 0) pnlPct = pnlPct * 100;
+      // profitLossPct 契约：百分数（0.73 = +0.73%）。2026-09-04 修复：删除 ×100 启发式——
+      // 该启发式把真实小百分比（如 +0.73%）错乘成 73% 造成假止盈信号（与 PositionListTool 口径对齐）
+      const pnlPct = Number(p.profitLossPct ?? 0);
       const priceStale = p.priceStale === true;
 
       let advice: Advice;

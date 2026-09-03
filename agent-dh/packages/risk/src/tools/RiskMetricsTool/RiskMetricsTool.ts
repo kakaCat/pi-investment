@@ -42,9 +42,13 @@ export class RiskMetricsTool extends BaseTool<RiskMetricsParams, RiskMetricsResu
     });
 
     // 映射后端字段到标准格式
+    // 2026-09-04 修复：schema 契约 最大回撤（%），后端返回小数比率（maxDrawdown: -0.0772=-7.72%），
+    // 需 ×100 转百分数，口径统一到 regime_position_limit(-7.72)/m4 熔断(-8 阈值)
+    const rawMdd = Number(result?.maxDrawdown ?? result?.max_drawdown ?? 0);
+    const mdd = Math.abs(rawMdd) <= 1 ? +(rawMdd * 100).toFixed(2) : rawMdd;
     return {
       volatility: result?.volatility ?? result?.annualizedVolatility ?? 0,
-      max_drawdown: result?.max_drawdown ?? result?.maxDrawdown ?? 0,
+      max_drawdown: mdd,
       sharpe_ratio: result?.sharpe_ratio ?? result?.sharpeRatio ?? 0,
       beta: result?.beta ?? 0,
       alpha: result?.alpha ?? 0,
