@@ -291,6 +291,8 @@ function agentChip(call: unknown): string {
   if (a !== 'dh' && a !== 'ts') return ''
   return '<span class="exec-chip ag ' + a + '" title="调用 ' + (a === 'dh' ? 'agent-dh' : 'agent-ts') + ' 智能体执行">' + a + '</span>'
 }
+// ⏱ 时间口径（用户 2026-09-05 确认）：tl-tm 的 HH:mm = expectedTime（计划时刻，与任务表「计划时刻」列同源于
+//   cron，见 services/data-aggregation.buildTimeline），非实际运行时刻。计划几点就几点。
 function tlRow(t: TimelineEntry): string {
   const st = String(t.status ?? 'unknown')
   const tm = String(t.expectedTime ?? '')
@@ -376,6 +378,8 @@ function taskDetailHtml(t: SchedulerTask): string {
   if (t.agentCall === 'dh' || t.agentCall === 'ts') html += row('调用 Agent', t.agentCall === 'dh' ? 'agent-dh（LLM 智能体）' : 'agent-ts（LLM 智能体）')
   html += row('状态', '<span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span>')
   html += row('领域', esc(d ? d.title : '其他任务'))
+  // ⏱ 时间口径：「计划时刻」= cronPlan(cron)（与时间轴 expectedTime 同源，计划几点就几点）；
+  //    「上次运行」= last.at 为实际触发时刻（lastRun.triggeredAt），仅补充参考——手动补跑/延后时 ≠ 计划时刻。
   const cronRaw = String(t.scheduleExpr ?? '').trim()
   const cronFriendly = cronPlan(cronRaw)
   html += row('计划时刻', esc(cronFriendly) + (cronFriendly && cronFriendly !== cronRaw && cronFriendly !== '—' ? '<em class="tkd-code">原 cron: ' + esc(cronRaw) + '</em>' : ''))
@@ -421,6 +425,7 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
     const err = last.err || String(t.error ?? '')
     const sel = raw === selTaskName ? ' sel' : ''
     const zh = taskZh(raw)
+    // ⏱ 列时间语义：计划时刻=cron 计划（与时间轴同源）；上次运行=实际触发(lastRun.triggeredAt)，仅供参考。
     return '<tr class="dsh-exec-tr' + sel + '" data-tk="' + esc(raw) + '"' + (err ? ' title="失败原因：' + esc(err.slice(0, 300)) + '"' : '') + '>' +
       '<td class="nm"><span class="zh">' + esc(zh) + '</span>' + (zh === raw ? '' : '<span class="code">' + esc(raw) + '</span>') + '</td>' +
       '<td class="cr" title="' + (t.scheduleExpr ? esc('原 cron: ' + String(t.scheduleExpr).trim()) : '') + '">' + esc(cronPlan(t.scheduleExpr)) + '</td>' +

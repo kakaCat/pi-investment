@@ -626,6 +626,9 @@ export class DataAggregationService {
   }
 
   // ================= Timeline（当日 cron 底本 + 当日 run 状态） =================
+  // ⏱ 时间口径（用户 2026-09-05 确认 · 全看板统一）：展示时间 = cron 计划时刻，几点就几点。
+  //    expectedTime 恒取 scheduleExpr 前两位（分:时 → "HH:mm"），run 状态只标注"当日是否真的跑过/结果如何"，
+  //    绝不用实际触发时刻 lastRun.triggeredAt 覆盖展示；实际触发时刻仅供任务表「上次运行」列补充参考。
   private buildTimeline(tasks: SchedulerTask[], runs: SchedulerRun[]): TimelineEntry[] {
     const list: TimelineEntry[] = [];
     for (const task of tasks) {
