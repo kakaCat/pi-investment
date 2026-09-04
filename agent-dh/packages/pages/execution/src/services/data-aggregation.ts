@@ -21,6 +21,16 @@ import type {
 
 interface TaskRunsResult { tasks: SchedulerTask[]; fetchError?: string }
 interface GenomeState { date?: string; missing?: boolean; statErr?: string }
+/** Agent OS /api/v1/scheduler/tasks 行（6 段 cron，payload 含 executor） */
+interface OsSchedulerTask {
+  id?: string; name?: string; enabled?: boolean | string; schedule?: string | null;
+  command?: string | null; payload?: Record<string, unknown> | null;
+}
+/** Agent OS /api/v1/scheduler/tasks/stats 行（today 计数缺 → 由 last_run_at 推导） */
+interface OsSchedulerStat {
+  name?: string; enabled?: boolean | string; total_runs?: number;
+  last_run_at?: string | null; last_run_status?: string | null;
+}
 type GenomeMap = Record<string, GenomeState>;
 
 const ERROR_RE = /ERROR|CRITICAL|Traceback|panic|FATAL/i;
@@ -105,6 +115,13 @@ function cronFreq(cronExpr: string | null | undefined): 'daily' | 'weekly' {
     else days.add(a % 7);
   }
   return days.size >= 4 ? 'daily' : 'weekly';
+}
+/** Agent OS cron 为 6 段（前导秒 "0"）→ 归一到 5 段 v2 式；无法归一返回 undefined */
+function osCron5(expr: string | null | undefined): string | undefined {
+  if (!expr) return undefined;
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length === 6 && parts[0] === '0') parts.shift(); // 去掉前导秒
+  return parts.length === 5 ? parts.join(' ') : undefined;
 }
 /** expectTime + graceMinutes 后的绝对 deadline（今日） */
 function deadlineDate(now: Date, expectTime: string, graceMinutes: number): Date {
@@ -309,23 +326,83 @@ export class DataAggregationService {
   }
   // ================= Scheduler 取数 =================
   private async fetchTasks(): Promise<TaskRunsResult> {
+    // 双路并行：v2 引擎任务 + Agent OS 调 agent 的任务；任一失败只降级不整体 500
+    let v2Tasks: SchedulerTask[] = [];
+    let v2Error: string | undefined;
     try {
       const json = await fetchJson<{ success?: boolean; tasks?: SchedulerTask[] }>(this.v2Base + '/api/scheduler/tasks?pageSize=200');
       const tasks = Array.isArray(json?.tasks) ? json.tasks : [];
-      return { tasks: tasks.map(t => this.normalizeTask(t)) };
+      v2Tasks = tasks.map(t => this.normalizeTask(t, 'v2'));
     } catch (e) {
-      return { tasks: [], fetchError: errMsg(e) };
+      v2Error = errMsg(e);
     }
+    const os = await this.fetchOsAgentTasks();
+    if (v2Error && os.tasks.length === 0) return { tasks: [], fetchError: v2Error };
+    if (v2Error) return { tasks: os.tasks, fetchError: v2Error };
+    return { tasks: [...v2Tasks, ...os.tasks] };
   }
 
-  private normalizeTask(t: SchedulerTask): SchedulerTask {
+  private normalizeTask(t: SchedulerTask, src: 'v2' | 'os' = 'v2'): SchedulerTask {
     const enabled = t.enabled === true || t.enabled === 'true' || t.enabled === 1 || t.enabled === '1';
     const num = (v: unknown): number | undefined => {
       if (v === undefined || v === null) return undefined;
       const n = Number(v);
       return Number.isNaN(n) ? undefined : n;
     };
-    return { ...t, id: String(t.id), enabled, todaySuccess: num(t.todaySuccess), todayTriggered: num(t.todayTriggered) };
+    return {
+      ...t, id: String(t.id), enabled, src, agentCall: src === 'os' ? undefined : 'none',
+      todaySuccess: num(t.todaySuccess), todayTriggered: num(t.todayTriggered),
+    };
+  }
+
+  /**
+   * Agent OS 中"真正调用 agent"的定时任务（payload.executor=dsh-webhook，经 webhook
+   * 唤醒 DSH 侧 agent-dh/agent-ts）并入看板：src=os / agentCall=dh|ts。
+   * 其余（纯引擎占位的 quantsys-v2 任务、disabled、非 dsh-webhook）不并入 —— 引擎任务
+   * 以 v2 为准，避免与 v2 scheduler 双计。无 v2 run：今日状态由 /tasks/stats 的
+   * last_run_at / last_run_status 推导（Agent OS 无 today 计数）。
+   */
+  private async fetchOsAgentTasks(): Promise<{ tasks: SchedulerTask[]; error?: string }> {
+    try {
+      const [listJ, statJ] = await Promise.all([
+        fetchJson<{ success?: boolean; tasks?: OsSchedulerTask[] }>(this.osBase + '/api/v1/scheduler/tasks'),
+        fetchJson<{ success?: boolean; tasks?: OsSchedulerStat[] }>(this.osBase + '/api/v1/scheduler/tasks/stats'),
+      ]);
+      const stats = new Map<string, OsSchedulerStat>(
+        (Array.isArray(statJ?.tasks) ? statJ.tasks : []).map(s => [String(s.name), s]),
+      );
+      const out: SchedulerTask[] = [];
+      for (const t of Array.isArray(listJ?.tasks) ? listJ.tasks : []) {
+        const name = String(t.name ?? '');
+        const enabled = t.enabled === true || t.enabled === 'true' || t.enabled === 1 || t.enabled === '1';
+        if (!name || !enabled) continue;
+        const executor = String((t.payload as Record<string, unknown> | null | undefined)?.executor ?? '');
+        if (executor !== 'dsh-webhook') continue; // 只并入真正调用 agent 的任务
+        const expr5 = osCron5(String(t.schedule ?? ''));
+        if (!expr5) continue; // 时刻不可解析 → 不进时间轴（避免无依据展示）
+        const st = stats.get(name);
+        const lastAt = st?.last_run_at ? String(st.last_run_at) : null;
+        const lastStatus = String(st?.last_run_status ?? '');
+        const ranToday = lastAt ? toLocalDate(parseTs(lastAt)) === this.today : false;
+        out.push({
+          id: 'os:' + name,
+          name,
+          enabled: true,
+          scheduleExpr: expr5,
+          payload: { command: String(t.command ?? '') || name },
+          lastRun: lastStatus ? { status: lastStatus, triggeredAt: lastAt ?? undefined } : null,
+          nextRunAt: null,
+          src: 'os',
+          agentCall: 'dh', // executor=dsh-webhook 当前只唤醒 agent-dh（agent-ts 已并入 v2 引擎）
+          todayTriggered: ranToday ? 1 : 0,
+          todaySuccess: ranToday && lastStatus === 'success' ? 1 : 0,
+        });
+      }
+      out.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      return { tasks: out };
+    } catch (e) {
+      return { tasks: [], error: errMsg(e) };
+    }
   }
 
   private async fetchRuns(): Promise<{ runs: SchedulerRun[]; error?: string }> {
@@ -566,8 +643,19 @@ export class DataAggregationService {
           status = 'failed';
           error = this.runError(latest);
         } else status = 'unknown';
+      } else if (task.src === 'os') {
+        // Agent OS 任务无 v2 run：用 OS stats 最近运行推导今日状态
+        const lr = task.lastRun;
+        const lrs = lr && typeof lr === 'object' ? String((lr as { status?: unknown }).status ?? '') : '';
+        const lra = lr && typeof lr === 'object' ? String((lr as { triggeredAt?: unknown }).triggeredAt ?? '') : '';
+        const d = lra ? parseTs(lra) : null;
+        if (d && toLocalDate(d) === this.today) {
+          if (lrs === 'success') status = 'success';
+          else if (lrs === 'failed') status = 'failed';
+          else status = 'unknown';
+        }
       }
-      list.push({ taskId: task.id, taskName: task.name, expectedTime, status, runId, error, freq: cronFreq(task.scheduleExpr) });
+      list.push({ taskId: task.id, taskName: task.name, expectedTime, status, runId, error, freq: cronFreq(task.scheduleExpr), src: task.src, agentCall: task.agentCall });
     }
     list.sort((a, b) => a.expectedTime.localeCompare(b.expectedTime) || a.taskName.localeCompare(b.taskName));
     return list;

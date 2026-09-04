@@ -64,6 +64,11 @@ const TASK_ZH: Record<string, string> = {
   'chan-knowledge-distill-weekly': '知识蒸馏(周)',
   '每日数据更新': '每日数据更新', '每日数据质量检查': '每日数据质量检查', '每周财务数据更新': '每周财务数据更新',
   '每日财报时效性检查': '每日财报时效性检查', '每日信号生成': '每日信号生成', '每日信号执行': '每日信号执行', '每周报告生成': '每周报告生成',
+  // Agent OS 调 agent 的自主例程（src=os / agentCall=dh）
+  'pre-market-routine': '盘前例程', 'afternoon-open-check-live': '午后开盘检查', 'data-quality-monitor-daily': '数据质量监控',
+  'event-calendar-check': '事件日历检查', 'm4-circuit-breaker-live': '熔断回路检查', 'post-market-routine-live': '盘后例程',
+  'evolution-distill-daily': '进化蒸馏', 'evolution-gate-adjudicate': '进化裁决', 'evolution-weekly-variant': '进化变体',
+  'meta-learning-weekly': '元学习', 'weekly-report-m6': '学习飞轮周报', 'geer-take-profit-0901': '歌尔止盈观察',
 }
 function taskZh(name: unknown): string {
   const n = String(name ?? '')
@@ -78,6 +83,11 @@ const DOMAINS: { title: string; keys: string[] }[] = [
   { title: '风控与交易', keys: ['v13-risk-check', 'daily_trade_verify', 'v13-simulation-trading'] },
   { title: '学习与验证', keys: ['daily-strategy-validation', 'v13-verification', 'chan-knowledge-distill-weekly', 'weekly-strategy-discovery', 'signal-perf-backfill-daily'] },
   { title: '周报与汇总', keys: ['v13-weekly-report', '每周报告生成'] },
+  { title: '自主例程', keys: [ // Agent OS 定时 → 调用 agent-dh 执行（走 Agent OS 而非 v2 引擎）
+    'pre-market-routine', 'afternoon-open-check-live', 'data-quality-monitor-daily', 'event-calendar-check',
+    'm4-circuit-breaker-live', 'post-market-routine-live', 'evolution-distill-daily', 'geer-take-profit-0901',
+    'evolution-gate-adjudicate', 'evolution-weekly-variant', 'meta-learning-weekly', 'weekly-report-m6',
+  ] },
 ]
 function domainOf(name: unknown): { title: string; idx: number } | null {
   const n = String(name ?? '')
@@ -141,8 +151,8 @@ export function buildView(): ViewRefs {
   const banner = bd('<div class="dsh-exec-banner" data-role="banner"></div>')
   const healthSec = sec('今日执行总览', '来自当日 cron 计划与运行结果', 'healthBox')
   const flowSec = sec('执行流水线', 'ENGINE M0–M6 × AUTONOMY L1–L4 检查点状态', 'flowBox')
-  const timelineSec = sec('今日时间轴', '分 日执行 / 周执行 · 按计划时刻排序', 'timelineBox')
-  const tasksSec = sec('调度任务', '分类切换 · 点击任务行查看失败原因', 'tasksBox')
+  const timelineSec = sec('今日时间轴', '分 日执行 / 周执行 · 徽标 v2/os=调度来源 dh/ts=调用 agent · 按计划时刻排序', 'timelineBox')
+  const tasksSec = sec('调度任务', '分类切换 · 徽标 v2/os=调度来源 dh/ts=调用 agent · 点击任务行查看失败原因', 'tasksBox')
   const errsSec = sec('错误事件', '近 10 条日志异常（系统侧）', 'errsBox')
   errsSec.style.display = 'none'
   const blockSec = sec('流水线阻断', 'failed/late 且声明阻断下游', 'blockBox')
@@ -221,6 +231,20 @@ function renderFlow(refs: ViewRefs, data: BoardData): void {
 }
 
 function tlStatusLabel(st: string): string { return TL_ZH[st] ?? '未知' }
+const SRC_TIP: Record<string, string> = {
+  v2: '引擎任务：quantsys-v2 cron 自动执行（不走 agent）',
+  os: 'Agent OS 定时：webhook 触发 agent 执行',
+}
+function srcChip(src: unknown): string {
+  const s = String(src ?? '')
+  if (s !== 'v2' && s !== 'os') return ''
+  return '<span class="exec-chip src ' + s + '" title="' + esc(SRC_TIP[s] ?? '') + '">' + s + '</span>'
+}
+function agentChip(call: unknown): string {
+  const a = String(call ?? '')
+  if (a !== 'dh' && a !== 'ts') return ''
+  return '<span class="exec-chip ag ' + a + '" title="调用 ' + (a === 'dh' ? 'agent-dh' : 'agent-ts') + ' 智能体执行">' + a + '</span>'
+}
 function tlRow(t: TimelineEntry): string {
   const st = String(t.status ?? 'unknown')
   const tm = String(t.expectedTime ?? '')
@@ -229,7 +253,8 @@ function tlRow(t: TimelineEntry): string {
     '<span class="tl-tm">' + esc(tm.slice(0, 5)) + '</span>' +
     '<span class="tl-ic">' + (TL_IC[st] ?? '❔') + '</span>' +
     '<div class="tl-bd"><div class="tl-nm">' + esc(taskZh(t.taskName)) + '</div>' +
-    '<div class="tl-st ' + (TL_TAG[st] ?? 'unk') + '">' + esc(tlStatusLabel(st)) + '</div></div></div>'
+    '<div class="tl-st ' + (TL_TAG[st] ?? 'unk') + '">' + esc(tlStatusLabel(st)) + '</div>' +
+    '<span class="tl-tags">' + srcChip(t.src) + agentChip(t.agentCall) + '</span></div></div>'
 }
 function renderTimeline(refs: ViewRefs, data: BoardData): void {
   const tl = (data.timeline ?? []).slice().sort((a, b) => hmMin(a.expectedTime) - hmMin(b.expectedTime))
@@ -301,6 +326,8 @@ function taskDetailHtml(t: SchedulerTask): string {
   const row = (label: string, value: string): string =>
     '<div class="tkd-i"><b>' + label + '</b><span>' + value + '</span></div>'
   let html = row('名称', zh + (taskZh(raw) === raw ? '' : '<em class="tkd-code">' + esc(raw) + '</em>'))
+  html += row('调度来源', t.src === 'os' ? 'Agent OS（webhook 触发）' : 'quantsys-v2 引擎')
+  if (t.agentCall === 'dh' || t.agentCall === 'ts') html += row('调用 Agent', t.agentCall === 'dh' ? 'agent-dh（LLM 智能体）' : 'agent-ts（LLM 智能体）')
   html += row('状态', '<span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span>')
   html += row('领域', esc(d ? d.title : '其他任务'))
   html += row('计划', esc(String(t.scheduleExpr ?? '').trim() || '—'))
@@ -349,7 +376,7 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
     return '<tr class="dsh-exec-tr' + sel + '" data-tk="' + esc(raw) + '"' + (err ? ' title="失败原因：' + esc(err.slice(0, 300)) + '"' : '') + '>' +
       '<td class="nm"><span class="zh">' + esc(zh) + '</span>' + (zh === raw ? '' : '<span class="code">' + esc(raw) + '</span>') + '</td>' +
       '<td class="cr">' + esc(String(t.scheduleExpr ?? '').trim() || '—') + '</td>' +
-      '<td class="st"><span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span></td>' +
+      '<td class="st"><span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span>' + srcChip(t.src) + agentChip(t.agentCall) + '</td>' +
       '<td class="tm">' + esc(last.at) + (last.st ? '<em class="ls ' + (TL_TAG[last.st] ?? 'unk') + '">' + esc(TL_ZH[last.st] ?? last.st) + '</em>' : '') + '</td>' +
       '<td class="td">' + esc(trig + ' 触发 / ' + succ + ' 成功') + '</td>' +
       '<td class="nx">' + esc(shortDT(t.nextRunAt)) + '</td></tr>'

@@ -30,6 +30,10 @@ export interface SchedulerTask {
   todaySuccess?: string | number
   todayTriggered?: string | number
   error?: string
+  /** 调度来源：v2=quantsys-v2 引擎任务 / os=Agent OS 定时（webhook 触发 agent） */
+  src?: string
+  /** 是否调用 agent：dh=agent-dh / ts=agent-ts（无则不显示） */
+  agentCall?: string
 }
 export interface ErrorEvent {
   source?: string
@@ -46,6 +50,9 @@ export interface TimelineEntry {
   error?: string
   /** 频率分桶：daily=日执行 / weekly=周执行 */
   freq?: 'daily' | 'weekly'
+  /** 透传调度来源与 agent 调用标记（徽标渲染） */
+  src?: string
+  agentCall?: string
 }
 export interface BlockedFlowEntry {
   checkpointId?: string

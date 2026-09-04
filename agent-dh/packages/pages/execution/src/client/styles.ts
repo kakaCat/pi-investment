@@ -139,6 +139,13 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .tl-item.unk .tl-st { background:#f4f4f5; color:#a2a8b3; }
 .tl-item.bad .tl-nm { color:#f56c6c; }
 .tl-item.bad { background:#fff5f5; border-radius:8px; padding:8px 10px; margin:0 -10px; }
+/* 徽标：调度来源 v2/os · 调用 agent dh/ts（时间轴行尾 + 任务表） */
+.tl-item .tl-tags { margin-left:auto; display:inline-flex; align-items:center; gap:4px; flex:none; }
+.exec-chip { display:inline-block; font:600 9.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; padding:0 4px; border-radius:3px; vertical-align:1px; white-space:nowrap; }
+.exec-chip.src.v2 { background:#e8f1fd; color:#3370c9; }
+.exec-chip.src.os { background:#fdf3e3; color:#d98c1f; }
+.exec-chip.ag.dh { background:#f3ecfa; color:#8b5fc8; }
+.exec-chip.ag.ts { background:#e0f4f6; color:#1498a8; }
 
 /* 任务分组 */
 .dsh-exec-domain { margin-bottom:14px; }
@@ -181,6 +188,7 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dk { width:8px; height:8px; border-radius:50%; flex:none; background:#909399; }
 .dk.d0 { background:#409eff; } .dk.d1 { background:#67c23a; } .dk.d2 { background:#e6a23c; }
 .dk.d3 { background:#9c6ade; } .dk.d4 { background:#26c6da; } .dk.d5 { background:#ff7a45; }
+.dk.d6 { background:#00b578; } /* 自主例程（Agent OS 调 agent） */
 .dk.dx { background:#a2a8b3; }
 .dsh-exec-legend { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:0 0 10px; font-size:12px; color:var(--dim); }
 .dsh-exec-legend .lg { display:inline-flex; align-items:center; gap:5px; }
@@ -231,6 +239,8 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-tb .ls.ok { color:#67c23a; } .dsh-exec-tb .ls.bad { color:#f56c6c; }
 .dsh-exec-tb .ls.wait { color:#e6a23c; } .dsh-exec-tb .ls.unk { color:var(--faint); }
 .dsh-exec-tb .tm, .dsh-exec-tb .nx, .dsh-exec-tb .td { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.dsh-exec-tb .st { white-space:nowrap; }
+.dsh-exec-tb .st .exec-chip { margin-left:5px; }
 .dsh-exec-tb .tm, .dsh-exec-tb .nx { color:var(--dim); font-size:12px; }
 .dsh-exec-tb .td { color:var(--body); font-size:12px; }
 
