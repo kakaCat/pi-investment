@@ -157,7 +157,7 @@ export function buildView(data: HoldingsData, watchKey: string = 'current', hist
 
   ${renderTrades(data)}
 
-  ${renderHistoryTrades(data, historyPage)}
+  ${buildHistoryCard(data, historyPage)}
 
   ${renderWatchRules(watchRules, ctxNames, current, accounts, watchKey)}
 </div>`
@@ -320,7 +320,9 @@ function pageNums(cur: number, pages: number, btn: (p: number, label: string, ac
   return out
 }
 
-function renderHistoryTrades(data: HoldingsData, page: number): string {
+/** 构建「历史交易」卡 HTML（导出供 board-mount 分页局部刷新；卡根固定 id=dsh-hld-hx，
+ *  翻页只替换该节点，不做整板 renderBoard——持仓/今日/盯盘不随分页重绘） */
+export function buildHistoryCard(data: HoldingsData, page: number): string {
   // 时间口径说明：本卡数据按账户 = 当前账户（board API ?account= 已限定），与摘要/持仓同一 scope
   const all = Array.isArray(data.tradeHistory) ? data.tradeHistory : []
   const pageSize = HISTORY_PAGE_SIZE
@@ -328,7 +330,7 @@ function renderHistoryTrades(data: HoldingsData, page: number): string {
   const cur = Math.min(Math.max(0, Math.trunc(Number(page) || 0)), pages - 1)
 
   if (all.length === 0) {
-    return `<div class="dsh-hld-card">
+    return `<div class="dsh-hld-card" id="dsh-hld-hx">
       <div class="hd"><span class="t">历史交易（0）</span><span class="more">${esc(String(data.currentAccount ?? ''))} · agent 成交后自动归档到此</span></div>
       <div class="dsh-hld-emptybox">该账户暂无历史交易记录</div>
     </div>`
@@ -376,7 +378,7 @@ function renderHistoryTrades(data: HoldingsData, page: number): string {
         <span class="dsh-hld-pg-cnt">第 ${cur + 1}/${pages} 页 · 共 ${all.length} 笔</span>
       </div>`
 
-  return `<div class="dsh-hld-card">
+  return `<div class="dsh-hld-card" id="dsh-hld-hx">
   <div class="hd"><span class="t">历史交易（${all.length}）</span><span class="more">${esc(String(data.currentAccount ?? ''))} · agent 全部成交明细 · 倒序</span></div>
   <div class="tblwrap"><table>
     <tr><th>方向</th><th>股票</th><th class="r">成交价</th><th class="r">金额</th><th class="r">实现盈亏</th><th>理由</th><th>时间</th></tr>

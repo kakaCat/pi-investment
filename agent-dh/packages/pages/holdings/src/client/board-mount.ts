@@ -4,7 +4,7 @@
  * @module dashboard-holdings/client/board-mount
  */
 import { ACTIVE_ATTR, ACTIVATE_EVENT, BOARD_VIEW_SELECTOR, conversationColumn, OTHER_ACTIVE_ATTRS, PANEL_NAME } from './dom.js'
-import { buildView, HISTORY_PAGE_SIZE } from './view.js'
+import { buildHistoryCard, buildView, HISTORY_PAGE_SIZE } from './view.js'
 import type { HoldingsData } from './types.js'
 
 export interface BoardController {
@@ -140,14 +140,23 @@ export function createBoardController(): BoardController {
     if (lastData) renderBoard(lastData)
   }
 
-  // 历史交易翻页：页号越界自动收敛（数据随轮询增减后防止空页）；只重渲染不重新拉取
+  // 历史交易翻页：页号越界自动收敛（数据随轮询增减后防止空页）；
+  // 2026-09-05 局部刷新——只重建「历史交易」卡根（id=dsh-hld-hx），持仓/今日/盯盘等其余区块
+  // 不随之整板重绘（此前 renderBoard 全板 innerHTML 重写，翻页像整板刷新）
   const historyPageSwitch = (page: number): void => {
     const total = (lastData?.tradeHistory?.length ?? 0)
     const pages = Math.max(1, Math.ceil(total / HISTORY_PAGE_SIZE))
     const next = Math.max(0, Math.min(Math.trunc(Number(page) || 0), pages - 1))
     if (next === historyPage) return
     historyPage = next
-    if (lastData) renderBoard(lastData)
+    if (!lastData) return
+    const host = document.getElementById('dsh-hld-hx')
+    if (host === null) { renderBoard(lastData); return } // 兜底：异常找不到卡根才整板重绘
+    const tpl = document.createElement('template')
+    tpl.innerHTML = buildHistoryCard(lastData, historyPage)
+    const node = tpl.content.firstElementChild as HTMLElement | null
+    if (node === null) { renderBoard(lastData); return }
+    host.replaceWith(node)
   }
 
   return {
