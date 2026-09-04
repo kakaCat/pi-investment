@@ -597,6 +597,15 @@ class StrategyCodeService:
             logger.warning(f"K线数据不足: {symbol}, 数量={_get_length(klines)}")
             return None
 
+        # 🔧 统一转换为 List[Dict]（polars DataFrame 转为 dicts，下游 _inject_* 注入方法
+        # 只支持 list-of-dict 格式；对齐 run_strategy/run_backtest 的既有转换）
+        try:
+            import polars as pl
+            if isinstance(klines, pl.DataFrame):
+                klines = klines.to_dicts()
+        except ImportError:
+            pass
+
         # 3. 注入数据
         klines = self._inject_fund_flow(klines, symbol)
         klines = self._inject_financial(klines, symbol)
