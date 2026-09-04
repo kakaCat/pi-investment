@@ -36,18 +36,19 @@ RFC 009 公告板引擎（board_post / board_read / board_update 工具，lifecy
 | D3 | 纯视图切换（状态 tab / kind pill / 翻页）只局部替换帖子卡根 id="dsh-bbd-posts"；仅数据拉取（刷新/轮询）才整体重绘 | 直接沿用 2026-09-05 持仓看板历史分页/盯盘 tab 修复的局部刷新策略 |
 | D4 | Agent OS 不可达 → 正常 200 + degraded:true 信封，页面顶部降级 banner | 与持仓看板对 quantsys 的降级风格一致，避免整页白屏/红屏 |
 | D5 | 展示排序 = created_at 降序（页面端重排），top_k 上限 200 | 引擎 search 语义检索返回序不稳定；200 是客户端上限，页脚注明范围 |
+| D6 | **入口位置 = 侧栏顶部**（logoRow 直属子行，位于会话列表 / 「新会话」上方），纯 DOM 行镜像 dashboard-execution sidebar-entry；不占用 sidebar.footer.action 官方座位 | 2026-09-05 用户明确要求菜单放「新会话」上面（见 RFC 013 定稿前对话）；holdings 账户持仓入口已同步从 footer seat 迁移到顶部行，公告板沿用同一模式 |
 
 ## 4. 包结构与文件清单
 
 packages/pages/bulletin/（克隆 holdings 后全局替换命名空间 holdings→bulletin / dsh-hld-*→dsh-bbd-*）：
 
-- package.json：name @pi-investment/dashboard-bulletin；exports "."→src/index.ts、"./client"→lib/client.js；dsh.client {platform: web, inject: [slots]}；scripts.build:client = tsdown + wrap
+- package.json：name @pi-investment/dashboard-bulletin；exports "."→src/index.ts、"./client"→lib/client.js；dsh.client {platform: web, inject: []}（纯 DOM 顶部入口，无需 slots）；scripts.build:client = tsdown + wrap
 - src/index.ts（host）：name=dashboard-bulletin + apply；inject([webServer]) + effect 注册 exact /dashboard/api/bulletin/posts
 - src/services/bulletin-aggregation.ts：fetch Agent OS memory search（include_closed 按需）→ 归一字段 → 信封 {success, data}
 - src/routes/bulletin-routes.ts：query 解析（status/kind/assignee/page/page_size）→ 过滤 → stale/age 派生 → created_at 降序 → 内存切片分页 → counts 摘要
 - src/types/index.ts + src/client/types.ts：BulletinData / Post / 状态与 kind 枚举（host/client 两端同步）
-- src/client/index.ts：name/inject([slots])/apply；slots.inject(sidebar.footer.action) → register {id:dashboard-bulletin, order:300, label:公告板}（execution=100、holdings=200 之后）
-- src/client/footer-action.ts：PANEL_NAME=dashboard-bulletin、PANEL_LABEL=公告板、OPEN_EVENT；公告板 glyph
+- src/client/index.ts：name/inject([])/apply；mountSidebarEntry（顶部入口）+ createBoardController/mountBoard（不再注册官方 footer seat）
+- src/client/sidebar-entry.ts：PANEL_NAME=dashboard-bulletin + 顶部入口行（logoRow 之下 / 新会话上方；MutationObserver 自愈 + data-active 同步），glyph + label「公告板」；dom.ts 提供 sidebarRoot/ENTRY_SELECTOR（镜像 holdings dom.ts）
 - src/client/board-mount.ts：controller + 中心列 mount（container data-dsh-bbd-view，html[data-dsh-bbd-active] 显隐；ACTIVATE_EVENT 广播互斥——开公告板自动关持仓/执行板）；全局 __dshBbdRefresh/__dshBbdStatusTab/__dshBbdKind/__dshBbdPage
 - src/client/view.ts：纯函数 buildBulletinCard(data, viewState)（帖子卡根带 id="dsh-bbd-posts"）+ 局部替换入口
 - src/client/styles.ts：dsh-bbd-* 样式（与持仓板配色体系同源，--dsw-* tokens）
@@ -101,7 +102,7 @@ GET /dashboard/api/bulletin/posts?status=active|done|dropped|all&kind=finding|qu
 
 ## 7. 与既有页面的共存
 
-- sidebar.footer.action 座位新增第 3 occupant（order 300），boot graph 加入 dashboard-bulletin
+- 顶部入口行与 execution「智能执行」、holdings「账户持仓」同锚点共存（各自 namespace + adopt-existing 防重复；boot graph 加入 dashboard-bulletin）；不再使用 sidebar.footer.action 座位（2026-09-05 holdings 已迁移，本插件同模式）
 - 中心列 mount 独立命名空间（dsh-bbd-view），与 holdings（dsh-hld-view）各自为政，互不查询/互不替换对方 DOM
 - 互斥打开：沿用 ACTIVATE_EVENT 广播（打开公告板 → 广播自身 panel name → 其他看板收到后自关；点会话行/侧栏行自动关板）
 - 路由独占：/dashboard/api/bulletin/* 与 execution 的 /dashboard/api/board 无冲突
@@ -111,7 +112,7 @@ GET /dashboard/api/bulletin/posts?status=active|done|dropped|all&kind=finding|qu
 1. typecheck（host+client）+ build:client 绿；bundle 含 dsh-bbd-posts / dsh-bbd-* 标记
 2. 宿主 curl /dashboard/api/bulletin/posts?status=all → 200、posts 非空（线上已有真实帖）、degraded=false、counts 与真实数据一致
 3. 状态 tab / kind pill / 翻页均为局部替换：只换 #dsh-bbd-posts，header 与其他区域 DOM 不变（tsx 渲染隔离断言，方法同 holdings）
-4. GUI 目检：侧栏出现「公告板」入口 → 打开渲染真实帖子；状态/分类/翻页/展开正常；与持仓、执行看板互斥开合正常
+4. GUI 目检：侧栏顶部（logoRow 下、新会话上方）出现「公告板」入口行 → 打开渲染真实帖子；状态/分类/翻页/展开正常；与持仓、执行看板顶部入口并列、互斥开合正常
 5. 降级路径：Agent OS 停止后页面显示 degraded banner 而非白屏/卡死
 6. 关板/轮询/展开状态竞态无异常
 
