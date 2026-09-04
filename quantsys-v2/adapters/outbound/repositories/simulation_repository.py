@@ -141,6 +141,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         initial_capital: float,
         display_name: Optional[str] = None,
         strategy_name: Optional[str] = None,
+        account_type: Optional[str] = None,
         commit: bool = True
     ) -> Optional[SimulationAccount]:
         """开户（写 deposit 资金流水，建立流水链起点）
@@ -164,6 +165,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
                 account_name=account_name,
                 display_name=display_name or account_name,
                 strategy_name=strategy_name,
+                account_type=account_type,
                 initial_capital=initial_capital,
                 cash_available=initial_capital,
                 cash_frozen=0,
@@ -205,6 +207,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             'account_name': a.account_name,
             'display_name': a.display_name,
             'strategy_name': a.strategy_name,
+            'account_type': a.account_type,
             'status': a.status,
             'cash_available': float(a.cash_available or 0),
             'cash_frozen': float(a.cash_frozen or 0),
@@ -665,6 +668,27 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             logger.error(f"Error clearing positions for {account_name}: {e}")
             self.session.rollback()
             return False
+
+    def settle_t1_all(self, today: Optional[date] = None) -> Dict[str, int]:
+        """T+1 结转全部 active 账户（2026-09-05 新增）
+
+        背景：orchestrator 曾硬编码 settle_t1('agent_virtual')，导致其他账户
+        （agent_brain/v13/v14/v15/chip/user_main_simulation）的 T+1 永不结转，
+        shares_available 恒为买入当日状态（华兰 002007 8/26 买入后 10 天可卖=0）。
+
+        Returns:
+            {account_name: 更新持仓数}
+        """
+        accounts = (self.session.query(SimulationAccount.account_name)
+                    .filter_by(status='active').all())
+        result = {}
+        for (name,) in accounts:
+            try:
+                result[name] = self.settle_t1(name, today)
+            except Exception as e:
+                logger.error(f"settle_t1_all: {name} 结转失败: {e}")
+                self.session.rollback()
+        return result
 
     def settle_t1(self, account_name: str, today: Optional[date] = None) -> int:
         """T+1 结转：可用数 = 总量 − 当日买入量（幂等自校正，无需状态标记）

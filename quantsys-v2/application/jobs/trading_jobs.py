@@ -44,6 +44,38 @@ class V13DailyCheckJob(Job):
             return JobResult.fail(self.name, str(e))
 
 
+class V14DailyCheckJob(Job):
+    """V14 模拟交易每日检查"""
+
+    @property
+    def name(self) -> str:
+        return "v14_daily_check"
+
+    @property
+    def description(self) -> str:
+        return "V14 模型每日检查（止损、调仓）"
+
+    @property
+    def timeout_seconds(self) -> int:
+        return 1800  # 30分钟
+
+    @property
+    def misfire_grace_time_seconds(self) -> int:
+        return 300  # 5分钟
+
+    async def execute(self, params: Dict[str, Any]) -> JobResult:
+        try:
+            from infrastructure.jobs.strategy_trading_job import v14_daily_check
+            result = v14_daily_check(**params)
+            return JobResult.ok(
+                self.name,
+                message="V14 每日检查完成",
+                details=result
+            )
+        except Exception as e:
+            return JobResult.fail(self.name, str(e))
+
+
 class V13RiskCheckJob(Job):
     """V13 盘后风险检查"""
 
@@ -227,6 +259,7 @@ class PoolRefreshDailyJob(Job):
 # 导出所有交易类任务
 TRADING_JOBS = [
     V13DailyCheckJob(),
+    V14DailyCheckJob(),
     V13RiskCheckJob(),
     V13VerificationJob(),
     TradeVerifyDailyJob(),

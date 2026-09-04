@@ -13,6 +13,7 @@ V13策略模拟交易系统 - 主执行脚本（完整版）
 import os
 # 必须在所有导入之前设置，避免 OpenMP/MKL 与 XGBoost 冲突导致段错误
 import sys
+import math
 import yaml
 import pandas as pd
 import numpy as np
@@ -89,6 +90,14 @@ def judge_trading_day(day, *, kline_exists_on_date, latest_kline_date, today):
 class SimulationTrader:
     """V13策略模拟交易器（使用数据库持久化）"""
 
+    @staticmethod
+    def _sanitize_float(value):
+        """清理浮点数：将 NaN/Inf 转换为 None，避免 JSON 序列化错误"""
+        if isinstance(value, (int, float)):
+            if math.isnan(value) or math.isinf(value):
+                return None
+        return value
+
     def __init__(self, config_path='live_trading/config_simulation.yaml',
                  account_name='default', factor_calculator='v13'):
         """初始化
@@ -149,6 +158,14 @@ class SimulationTrader:
         else:
             self.notification_facade = None
             logger.warning("通知系统不可用")
+
+        # 2026-09-05 修复：b7ddddf0 (notification DDD refactor) 重写 __init__ 尾部时
+        # 误删了 _load_account_from_db() 调用，导致 portfolio/cash/peak_value 从未初始化，
+        # v13/v14 每日检查全部 AttributeError ('SimulationTrader' object has no attribute 'portfolio')。
+        # 必须在构造时加载账户状态（交易记录重建持仓、现金、峰值资产）。
+        self._load_account_from_db()
+
+        logger.info(f"模拟交易器初始化完成: {self.account_name}, 现金=¥{self.cash:,.2f}, 持仓={len(self.portfolio)}只")
 
     def _load_config(self, config_path):
         """加载配置"""
@@ -941,10 +958,10 @@ class SimulationTrader:
                 'success': True,
                 'account_name': self.account_name,
                 'date': current_date,
-                'total_value': float(total_value),
+                'total_value': self._sanitize_float(float(total_value)),
                 'positions': [{
                     'symbol': symbol,
-                    'weight': float(weights[symbol])
+                    'weight': self._sanitize_float(float(weights[symbol]))
                 } for symbol in top_stocks],
                 'position_count': len(top_stocks)
             }

@@ -60,6 +60,7 @@ class SimulationAccount(Base):
     # 账户元数据
     display_name = Column(String(100), comment='显示名')
     strategy_name = Column(String(50), comment='绑定策略名')
+    account_type = Column(String(30), comment='账户自动化类型: strategy=策略自动/agent=Agent驱动/user=用户主仓/legacy=历史冻结')
     status = Column(String(20), nullable=False, default='active', comment='active/archived')
 
     # 绩效指标
@@ -117,6 +118,7 @@ class SimulationAccount(Base):
             'initial_capital': float(self.initial_capital) if self.initial_capital else 0,
             'display_name': self.display_name,
             'strategy_name': self.strategy_name,
+            'account_type': self.account_type,
             'status': self.status,
             'cumulative_return': float(self.cumulative_return) if self.cumulative_return else 0,
             'max_drawdown': float(self.max_drawdown) if self.max_drawdown else 0,

@@ -318,8 +318,14 @@ class DailyOrchestrator:
         else:
             simulation_repo = self._simulation_repo
 
-        settled = simulation_repo.settle_t1(TRADING_ACCOUNT)
-        logger.info("market_open: t1_settled", positions=settled)
+        # 2026-09-05 修复：原硬编码 settle_t1(TRADING_ACCOUNT) 只结转 agent_virtual，
+        # 导致其他账户（agent_brain 等）T+1 永不结转（华兰 002007 可卖恒 0 事故）。
+        # 改为全 active 账户结转；settle_t1_all 不存在时回退单账户（兼容旧仓储）。
+        if hasattr(simulation_repo, 'settle_t1_all'):
+            settled = simulation_repo.settle_t1_all()
+        else:
+            settled = {TRADING_ACCOUNT: simulation_repo.settle_t1(TRADING_ACCOUNT)}
+        logger.info("market_open: t1_settled", accounts=settled)
 
         signals = self._collect_pending_signals()
 
@@ -374,8 +380,11 @@ class DailyOrchestrator:
         else:
             repo = self._simulation_repo
 
-        # T+1 结转：今日买入的股票明日才可卖出
-        settled = repo.settle_t1(TRADING_ACCOUNT)
+        # T+1 结转：今日买入的股票明日才可卖出（2026-09-05 起全 active 账户）
+        if hasattr(repo, 'settle_t1_all'):
+            settled = repo.settle_t1_all()
+        else:
+            settled = {TRADING_ACCOUNT: repo.settle_t1(TRADING_ACCOUNT)}
 
         # 更新最终市值（使用收盘价）
         from live_trading.paper_trading_engine import PaperTradingEngine

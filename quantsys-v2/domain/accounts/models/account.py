@@ -19,3 +19,4 @@ class Account:
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     strategy_name: Optional[str] = None
+    account_type: Optional[str] = None

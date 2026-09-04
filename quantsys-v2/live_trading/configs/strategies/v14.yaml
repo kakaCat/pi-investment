@@ -8,8 +8,10 @@ strategy:
   account_name: "v14_simulation"  # 数据库账户名称（保持现有值）
   # 2026-08-12 显式休眠：累计 -52.86%、回撤 -70.9%，7/28 深套仓止损清仓后
   # 暂停实盘模拟。StrategyService.daily_check 读此开关，禁用时拒绝执行。
-  # 若未来要复活（如模型重训后），改回 true 即可。
-  enabled: false
+  # 2026-09-05 复活（用户裁决：账户看板统一展示自动化流程，v14 需与 v13 同步）：
+  # 已注册 v14-simulation-trading 任务（JobRegistry v14_daily_check），enabled 翻回 true。
+  # 账户 v14_simulation 现金 4.7w、0 持仓，从空仓重新开始跑策略。
+  enabled: true
 
 model:
   model_path: "live_trading/models/v14_p0_model.json"

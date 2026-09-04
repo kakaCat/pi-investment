@@ -21,6 +21,7 @@
 """
 import yaml
 import logging
+import math
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
@@ -36,6 +37,14 @@ class StrategyService:
 
     P2-1: 支持依赖注入，保持向后兼容
     """
+
+    @staticmethod
+    def _sanitize_float(value):
+        """清理浮点数：将 NaN/Inf 转换为 None，避免 JSON 序列化错误"""
+        if isinstance(value, (int, float)):
+            if math.isnan(value) or math.isinf(value):
+                return None
+        return value
 
     def __init__(self, repo: Optional[ISimulationRepository] = None):
         """初始化服务
@@ -274,11 +283,11 @@ class StrategyService:
             'check': check,
             'account_name': trader.account_name,
             'timestamp': datetime.now().isoformat(),
-            'initial_value': round(initial_value, 2),
-            'final_value': round(final_value, 2),
-            'cash': round(trader.cash, 2),
+            'initial_value': self._sanitize_float(round(initial_value, 2)),
+            'final_value': self._sanitize_float(round(final_value, 2)),
+            'cash': self._sanitize_float(round(trader.cash, 2)),
             'positions_count': len(trader.portfolio),
-            'cumulative_return': round(final_value / config.get('initial_capital', 100000) - 1, 4)
+            'cumulative_return': self._sanitize_float(round(final_value / config.get('initial_capital', 100000) - 1, 4))
         }
 
         logger.info(f"\n执行结果:")
