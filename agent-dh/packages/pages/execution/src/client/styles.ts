@@ -113,6 +113,16 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-band .node .cps li .dot { width:6px; height:6px; }
 .dsh-exec-band .node .cps li em { font-style:normal; color:var(--faint); margin-left:auto; font-size:10.5px; white-space:nowrap; }
 .dsh-exec-band .node .cps li.cp-empty { color:var(--faint); }
+.dsh-exec-band .node .cps li time.cp-tm { flex:none; min-width:36px; text-align:center; font-size:10px; line-height:1.7; color:var(--faint); background:#f4f4f5; border-radius:3px; padding:0 4px; font-variant-numeric:tabular-nums; }
+
+/* 今日时间轴：日执行 / 周执行 分组（2026-09-04） */
+.dsh-exec-tlg + .dsh-exec-tlg { margin-top:16px; }
+.dsh-exec-tlg .tlg-t { display:flex; align-items:baseline; gap:8px; margin-bottom:6px; }
+.dsh-exec-tlg .tlg-t .t { font-size:12.5px; font-weight:600; color:var(--text); }
+.dsh-exec-tlg .tlg-t .t::before { content:''; display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:7px; background:#409eff; vertical-align:0; }
+.dsh-exec-tlg + .dsh-exec-tlg .tlg-t .t::before { background:#e6a23c; }
+.dsh-exec-tlg .tlg-t em { font-style:normal; font-size:11px; color:var(--faint); margin-left:auto; }
+.dsh-exec-tlg .dsh-exec-tl-list { border:1px solid var(--line); border-radius:8px; padding:2px 12px; background:#fff; }
 
 /* 时间轴 */
 .dsh-exec-tl-list { position:relative; }
@@ -129,6 +139,13 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .tl-item.unk .tl-st { background:#f4f4f5; color:#a2a8b3; }
 .tl-item.bad .tl-nm { color:#f56c6c; }
 .tl-item.bad { background:#fff5f5; border-radius:8px; padding:8px 10px; margin:0 -10px; }
+/* 徽标：调度来源 v2/os · 调用 agent dh/ts（时间轴行尾 + 任务表） */
+.tl-item .tl-tags { margin-left:auto; display:inline-flex; align-items:center; gap:4px; flex:none; }
+.exec-chip { display:inline-block; font:600 9.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; padding:0 4px; border-radius:3px; vertical-align:1px; white-space:nowrap; }
+.exec-chip.src.v2 { background:#e8f1fd; color:#3370c9; }
+.exec-chip.src.os { background:#fdf3e3; color:#d98c1f; }
+.exec-chip.ag.dh { background:#f3ecfa; color:#8b5fc8; }
+.exec-chip.ag.ts { background:#e0f4f6; color:#1498a8; }
 
 /* 任务分组 */
 .dsh-exec-domain { margin-bottom:14px; }
@@ -148,6 +165,84 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-domain .tag.bad, .dsh-exec-block .tag.bad { background:#fef0f0; color:#f56c6c; }
 .dsh-exec-domain .tag.wait, .dsh-exec-block .tag.wait { background:#f4f4f5; color:#909399; }
 .dsh-exec-domain .tag.off { background:#f4f4f5; color:#909399; }
+
+
+/* 调度任务：任务卡 tab 横排 + 点击详情（2026-09-04） */
+.dsh-exec-tks { display:flex; flex-wrap:wrap; gap:10px; }
+.dsh-exec-tk { appearance:none; display:flex; flex-direction:column; gap:3px; flex:0 0 auto; min-width:176px; max-width:272px;
+  padding:8px 12px 7px; border:1px solid var(--line); border-radius:10px; background:#fff;
+  font:inherit; color:var(--text); cursor:pointer; text-align:left; position:relative; overflow:hidden;
+  transition:border-color .15s, box-shadow .15s, transform .1s; }
+.dsh-exec-tk::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--wait); }
+.dsh-exec-tk.st-ok::before { background:#67c23a; }
+.dsh-exec-tk.st-bad::before { background:#f56c6c; }
+.dsh-exec-tk.st-wait::before { background:#e6a23c; }
+.dsh-exec-tk.st-off::before, .dsh-exec-tk.st-unk::before { background:#c0c4cc; }
+.dsh-exec-tk:hover { border-color:#b3d8ff; box-shadow:0 2px 6px rgba(64,158,255,.14); }
+.dsh-exec-tk.sel { border-color:#409eff; box-shadow:0 0 0 2px rgba(64,158,255,.16); background:#f7fbff; }
+.dsh-exec-tk.sel .tk-name { color:#1d6fe0; }
+.dsh-exec-tk .tk-top { display:flex; align-items:center; gap:6px; min-width:0; }
+.dsh-exec-tk .tk-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; font-size:13px; color:var(--text); }
+.dsh-exec-tk .tk-tag { flex:none; }
+.dsh-exec-tk .tk-cap { color:var(--dim); font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dk { width:8px; height:8px; border-radius:50%; flex:none; background:#909399; }
+.dk.d0 { background:#409eff; } .dk.d1 { background:#67c23a; } .dk.d2 { background:#e6a23c; }
+.dk.d3 { background:#9c6ade; } .dk.d4 { background:#26c6da; } .dk.d5 { background:#ff7a45; }
+.dk.d6 { background:#00b578; } /* 自主例程（Agent OS 调 agent） */
+.dk.dx { background:#a2a8b3; }
+.dsh-exec-legend { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:0 0 10px; font-size:12px; color:var(--dim); }
+.dsh-exec-legend .lg { display:inline-flex; align-items:center; gap:5px; }
+.dsh-exec-legend .lg b { color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
+.dsh-exec-hint { margin-left:auto; color:var(--faint); font-size:11px; display:inline-flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.dsh-exec-hint .dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+.dsh-exec-hint .dot.ok { background:#67c23a; } .dsh-exec-hint .dot.bad { background:#f56c6c; }
+.dsh-exec-hint .dot.wait { background:#e6a23c; } .dsh-exec-hint .dot.off { background:#c0c4cc; }
+.dsh-exec-tkdetail { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px 22px; margin-top:12px;
+  background:#fafbfc; border:1px solid var(--line); border-left:3px solid #409eff; border-radius:10px; padding:11px 16px; }
+.dsh-exec-tkdetail .tkd-i { min-width:0; }
+.dsh-exec-tkdetail .tkd-i b { display:block; font-weight:600; font-size:11px; color:var(--faint); margin-bottom:1px; }
+.dsh-exec-tkdetail .tkd-i span { font-size:12.5px; color:var(--text); word-break:break-all; }
+.dsh-exec-tkdetail .tkd-code { font-style:normal; color:var(--faint); font-size:11px; margin-left:6px; }
+.dsh-exec-tkdetail .tkd-err { grid-column:1 / -1; }
+.dsh-exec-tkdetail .tkd-err span { color:#f56c6c; }
+.dsh-exec-tkdetail .tag { display:inline-block; padding:0 8px; border-radius:4px; font-size:11px; line-height:1.8; }
+
+
+/* 调度任务：分类 tab（pill，带计数）+ 任务表格（2026-09-04 v2 · 对齐设计稿定时任务表） */
+.dsh-exec-tabs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:0 0 12px; }
+.dsh-exec-tab { appearance:none; display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line); background:#fff;
+  color:var(--body); font:inherit; font-size:12.5px; padding:4px 13px; border-radius:999px; cursor:pointer; transition:all .15s; }
+.dsh-exec-tab:hover { border-color:#b3d8ff; color:#1d6fe0; background:#f7fbff; }
+.dsh-exec-tab.act { background:#409eff; border-color:#409eff; color:#fff; font-weight:500; }
+.dsh-exec-tab .c { font-weight:600; opacity:.8; font-variant-numeric:tabular-nums; }
+.dsh-exec-tab .dk { width:7px; height:7px; flex:none; }
+.dsh-exec-legend2 { padding:0 0 2px; }
+.dsh-exec-tbwrap { overflow-x:auto; border:1px solid var(--line); border-radius:8px; }
+.dsh-exec-tb { width:100%; border-collapse:collapse; font-size:12.5px; background:#fff; }
+.dsh-exec-tb th { text-align:left; color:var(--dim); font-weight:500; font-size:11.5px; padding:7px 12px; border-bottom:1px solid var(--line); background:#fafbfc; white-space:nowrap; }
+.dsh-exec-tb td { padding:7px 12px; border-bottom:1px solid #f5f5f5; color:var(--body); vertical-align:middle; }
+.dsh-exec-tb tbody tr:last-child td { border-bottom:none; }
+.dsh-exec-tb tbody tr { cursor:pointer; }
+.dsh-exec-tb tbody tr:hover { background:#f7fbff; }
+.dsh-exec-tb tbody tr.sel { background:#ecf5ff; }
+.dsh-exec-tb tbody tr.sel td { color:var(--text); }
+.dsh-exec-tb tr.empty { cursor:default; text-align:center; color:var(--faint); }
+.dsh-exec-tb .nm .zh { color:var(--text); font-weight:500; }
+.dsh-exec-tb .nm .code { display:block; color:var(--faint); font-size:10.5px; margin-top:1px; }
+.dsh-exec-tb .cr { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11.5px; color:var(--dim); white-space:nowrap; }
+.dsh-exec-tb .tag { display:inline-block; padding:0 8px; border-radius:4px; font-size:11px; line-height:1.8; white-space:nowrap; }
+.dsh-exec-tb .tag.ok { background:#f0f9eb; color:#529b2e; }
+.dsh-exec-tb .tag.bad { background:#fef0f0; color:#f56c6c; }
+.dsh-exec-tb .tag.wait { background:#f4f4f5; color:#909399; }
+.dsh-exec-tb .tag.off { background:#f4f4f5; color:#a2a8b3; }
+.dsh-exec-tb .ls { font-style:normal; font-size:10.5px; margin-left:5px; color:var(--dim); }
+.dsh-exec-tb .ls.ok { color:#67c23a; } .dsh-exec-tb .ls.bad { color:#f56c6c; }
+.dsh-exec-tb .ls.wait { color:#e6a23c; } .dsh-exec-tb .ls.unk { color:var(--faint); }
+.dsh-exec-tb .tm, .dsh-exec-tb .nx, .dsh-exec-tb .td { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.dsh-exec-tb .st { white-space:nowrap; }
+.dsh-exec-tb .st .exec-chip { margin-left:5px; }
+.dsh-exec-tb .tm, .dsh-exec-tb .nx { color:var(--dim); font-size:12px; }
+.dsh-exec-tb .td { color:var(--body); font-size:12px; }
 
 /* 错误事件 / 阻断 */
 .dsh-exec-errs { list-style:none; margin:0; padding:0; }

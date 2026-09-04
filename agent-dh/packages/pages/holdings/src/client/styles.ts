@@ -130,15 +130,21 @@ html[data-dsh-hld-active] .dsh-hld-view { display: flex; flex-direction: column;
 .dsh-hld-tag.on   { background:#ecf5ff; color:#409eff; }
 .dsh-hld-tag.off  { background:#f4f4f5; color:#909399; }
 .dsh-hld-tag.warn, .dsh-hld-tag.trig { background:#fdf6ec; color:#e6a23c; }
+.dsh-hld-tag.ok   { background:#f0f9eb; color:#529b2e; }
+.dsh-hld-tag.bad  { background:#fef0f0; color:#f56c6c; }
+.dsh-hld-tag.wait { background:#fdf6ec; color:#e6a23c; }
 
-/* 盯盘中心统计 */
-.dsh-hld-watchsum { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--line); }
-.dsh-hld-watchsum .ws { padding:12px 16px; text-align:center; }
-.dsh-hld-watchsum .ws + .ws { border-left:1px solid var(--line); }
-.dsh-hld-watchsum .v { font-size:20px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
-.dsh-hld-watchsum .v.ok { color:#67c23a; }
-.dsh-hld-watchsum .v.warn { color:#e6a23c; }
-.dsh-hld-watchsum .n { font-size:11px; color:var(--dim); margin-top:1px; }
+/* 盯盘中心：账户归属 tab（pill 带计数）+ 规则列表（2026-09-05 · 对齐执行看板调度任务 tab+列表） */
+.dsh-hld-wtabs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 18px 8px; border-bottom:1px solid #f0f0f0; }
+.dsh-hld-wtab { appearance:none; display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); background:#fff;
+  color:var(--body); font:inherit; font-size:12px; padding:3px 13px; border-radius:999px; cursor:pointer; transition:all .15s; }
+.dsh-hld-wtab:hover { border-color:#b3d8ff; color:#1d6fe0; background:#f7fbff; }
+.dsh-hld-wtab.act { background:#409eff; border-color:#409eff; color:#fff; font-weight:500; }
+.dsh-hld-wtab .c { font-style:normal; font-weight:600; opacity:.85; font-variant-numeric:tabular-nums; }
+.dsh-hld-wtabs + .tblwrap table { min-width:880px; }
+.dsh-hld-auto .tblwrap table { min-width:640px; }
+.dsh-hld-auto td .sub { margin-left:0; display:block; font-size:11px; }
+.dsh-hld-tag.oth { background:#f4f4f5; color:#606266; }
 .dsh-hld-card td.ctx { color:var(--dim); max-width:340px; }
 .dsh-hld-card td.cond { color:var(--body); white-space:nowrap; }
 .cond-up { color:var(--up); font-weight:600; }
@@ -153,6 +159,15 @@ html[data-dsh-hld-active] .dsh-hld-view { display: flex; flex-direction: column;
 .dsh-hld-title { font-size:18px; font-weight:600; color:var(--text); margin:0; }
 .dsh-hld-banner { display:none; background:#fef0f0; border:1px solid #fde2e2; color:#f56c6c; padding:10px 16px; border-radius:8px; margin-bottom:14px; font-size:13px; }
 .dsh-hld-banner.show { display:block; }
+/* ===== 历史交易分页（dsh-hld-pg） ===== */
+.dsh-hld-pg { display:flex; align-items:center; gap:8px; padding:10px 14px; border-top:1px solid #ebeef5; flex-wrap:wrap; }
+.dsh-hld-pg .dsh-hld-pgb { min-width:26px; height:24px; padding:0 9px; border:1px solid #dcdfe6; border-radius:4px; background:#fff; color:#606266; font-size:12px; line-height:22px; cursor:pointer; font-family:inherit; }
+.dsh-hld-pg .dsh-hld-pgb:hover:not(:disabled) { border-color:#409eff; color:#409eff; }
+.dsh-hld-pg .dsh-hld-pgb:disabled { color:#c0c4cc; background:#f5f7fa; cursor:not-allowed; }
+.dsh-hld-pg .dsh-hld-pgb.act { background:#409eff; border-color:#409eff; color:#fff; }
+.dsh-hld-pg-nums { display:inline-flex; gap:4px; align-items:center; }
+.dsh-hld-pg .gap { padding:0 2px; color:#c0c4cc; }
+.dsh-hld-pg-cnt { margin-left:auto; font-size:12px; color:#909399; white-space:nowrap; }
 `
 
 /** Inject the stylesheet once (tagged for the HMR driver cleanup). */

@@ -1,20 +1,24 @@
 /**
- * Sidebar entry row for the execution board: a button inserted as a direct
+ * Top sidebar entry row for the holdings board: a button inserted as a direct
  * child of the sidebar's logo row owner so it survives shell re-renders
- * (pure DOM row React never manages, mirrored from dsh-taskboard). A
- * MutationObserver + slow timer self-heals late mounts. Clicking toggles
- * board visibility through the shared controller callback.
+ * (pure DOM row React never manages, mirrored from dsh-taskboard /
+ * dashboard-execution sidebar-entry). Sits ABOVE the conversation list
+ * (i.e. above 新会话). A MutationObserver + slow timer self-heals late mounts.
+ * Clicking toggles board visibility through the shared controller callback.
  *
- * @module dashboard-execution/client/sidebar-entry
+ * 2026-09-05: 入口由底部官方座位 sidebar.footer.action 迁移到顶部行
+ * （用户要求菜单放“新会话”上面）；styles.ts 里 .dsh-hld-entry 样式原样复用。
+ *
+ * @module dashboard-holdings/client/sidebar-entry
  */
-import { ENTRY_SELECTOR, sidebarRoot } from './dom.ts'
+import { ENTRY_SELECTOR, sidebarRoot } from './dom.js'
 
 export interface EntryController {
   isActive(): boolean
   toggle(): void
 }
 
-const ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>`
+const ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 2 V8 L12 11"/><path d="M8 8 L4 5"/></svg>`
 
 export function mountSidebarEntry(controller: EntryController): () => void {
   let entry: HTMLButtonElement | undefined
@@ -22,11 +26,11 @@ export function mountSidebarEntry(controller: EntryController): () => void {
   const build = (): HTMLButtonElement => {
     const el = document.createElement('button')
     el.type = 'button'
-    el.className = 'dsh-exec-entry'
-    el.dataset.dshExecEntry = ''
-    el.setAttribute('aria-label', '智能执行')
-    el.title = '双线执行确认看板 (dashboard-execution)'
-    el.innerHTML = ICON + '<span class="dsh-exec-entry-label">智能执行</span>'
+    el.className = 'dsh-hld-entry'
+    el.dataset.dshHldEntry = ''
+    el.setAttribute('aria-label', '账户持仓')
+    el.title = '账户持仓看板'
+    el.innerHTML = ICON + '<span class="dsh-hld-entry-label">账户持仓</span>'
     el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); controller.toggle() })
     return el
   }
@@ -41,7 +45,7 @@ export function mountSidebarEntry(controller: EntryController): () => void {
       return true
     }
     const el = build()
-    // insert after the logo row if present, else prepend
+    // insert after the logo row if present, else prepend → above 新会话/会话列表
     const logo = root.querySelector<HTMLElement>('[class*="logoRow"]')
     if (logo !== null && logo.nextSibling !== null) root.insertBefore(el, logo.nextSibling)
     else root.prepend(el)

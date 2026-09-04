@@ -34,7 +34,7 @@ async function checkDataQuality(): Promise<QualityIssue[]> {
   
   try {
     // 检查因子数据新鲜度
-    const factorReport: any = await qv2.getDataQuality({
+    const factorReport: any = await qv2.getDataQualityReport({
       data_type: 'factor',
       days: 3,
     });
@@ -60,7 +60,7 @@ async function checkDataQuality(): Promise<QualityIssue[]> {
     }
     
     // 检查行情数据新鲜度
-    const quoteReport: any = await qv2.getDataQuality({
+    const quoteReport: any = await qv2.getDataQualityReport({
       data_type: 'quote',
       days: 1,
     });
@@ -75,7 +75,7 @@ async function checkDataQuality(): Promise<QualityIssue[]> {
     }
     
     // 检查财务数据新鲜度（季度更新，较宽松）
-    const financialReport: any = await qv2.getDataQuality({
+    const financialReport: any = await qv2.getDataQualityReport({
       data_type: 'financial',
       days: 30,
     });
@@ -133,12 +133,12 @@ ${highIssues.some(i => i.data_type === 'quote') ? '- 检查行情数据源连接
 _自动监控脚本 · 每日 16:05 · 来源: data-quality-monitor_`;
   
   try {
-    await aos.memory.write({
-      scope: 'global',
-      kind: 'alert',
-      body: content,
-      tags: ['data-quality', 'auto-monitor', `severity:${urgency}`],
-      category: 'notification',
+    // 2026-09-05 免 agent 改造：告警直发飞书渠道（alerts=高危/reports=中危），
+    // 不再写 memory(kind=alert)——memory POST 只落库不触发任何通知，旧设计从未闭环
+    await aos.notification.send({
+      title,
+      content,
+      channel: urgency === 'high' ? 'alerts' : 'reports',
     });
     
     console.log(`[✓] 已发送${urgency === 'high' ? '高优' : '普通'}告警到飞书`);

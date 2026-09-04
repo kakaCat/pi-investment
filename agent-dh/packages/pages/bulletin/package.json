@@ -1,0 +1,32 @@
+{
+  "name": "@pi-investment/dashboard-bulletin",
+  "version": "0.1.0",
+  "description": "公告板 @pi-investment/dashboard-bulletin — DSH GUI 双半插件（host: bulletin JSON API；client: GUI 侧栏顶部入口 + 中心栏视图，RFC 013）。phase1 = 仅顶部菜单按钮",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./client": "./lib/client.js"
+  },
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "build:client": "node ../../../node_modules/tsdown/dist/run.mjs -c tsdown.client.config.ts && node scripts/wrap-client.mjs"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "vitest": "^2.0.0"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  }
+}

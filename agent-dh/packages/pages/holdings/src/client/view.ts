@@ -11,7 +11,7 @@
  *
  * @module dashboard-holdings/client/view
  */
-import type { Account, HoldingsData, Position, WatchRule } from './types.js'
+import type { Account, HoldingsData, Position, SchedulerTask, WatchRule } from './types.js'
 
 /* ------------------------------------------------------------------ utils */
 const esc = (s: unknown): string =>
@@ -71,6 +71,17 @@ const STOCK_NAMES: Record<string, string> = {
 }
 
 /** 从盯盘规则 context 提取「中文名 + 6位代码」对 */
+/** 盯盘规则是否处于「启用中」：停用/暂停（enabled=false）或已过期（expires_at 早于现在）不参与
+ *  展示与持仓盯盘标记（2026-09-05；口径对齐后端 list_enabled：只跑启用且未过期） */
+function isActiveRule(r: WatchRule): boolean {
+  if (r.enabled === false) return false
+  if (r.expires_at) {
+    const t = new Date(r.expires_at).getTime()
+    if (Number.isFinite(t) && t <= Date.now()) return false
+  }
+  return true
+}
+
 function namesFromContexts(rules: WatchRule[]): Record<string, string> {
   const map: Record<string, string> = {}
   for (const rule of rules) {
@@ -98,13 +109,21 @@ function stopRatioFor(code: string): number {
 }
 
 /* ------------------------------------------------------------------ board */
-export function buildView(data: HoldingsData): string {
+export function buildView(data: HoldingsData, watchKey: string = 'current', historyPage = 0): string {
   const summary = (data.summary ?? {}) as HoldingsData['summary']
   const accounts: Account[] = Array.isArray(data.accounts) ? data.accounts : []
   const current = data.currentAccount ?? ''
   const positions: Position[] = Array.isArray(data.positions) ? data.positions : []
   const watchRules: WatchRule[] = Array.isArray(data.watchRules) ? data.watchRules : []
   const ctxNames = namesFromContexts(watchRules)
+
+  // 账户维度（2026-09-04）：仅「本账户归属 + 通用观察(无归属)」参与展示与持仓盯盘标记；
+  // 其余账户的规则不在当前账户视图出现（account 由后端 watch_rules.account 返回）
+  const scopedRules = watchRules.filter((r) => {
+    const a = r.account
+    if (!(a == null || a === '' || a === current)) return false
+    return isActiveRule(r)
+  })
 
   const accountSelect = accounts.length > 1
     ? `<div class="dsh-hld-acct">
@@ -134,11 +153,15 @@ export function buildView(data: HoldingsData): string {
 
   ${renderSummary(summary, todayPct, data)}
 
-  ${renderPositions(positions, ctxNames, watchRules)}
+  ${renderPositions(positions, ctxNames, scopedRules)}
 
   ${renderTrades(data)}
 
-  ${renderWatchRules(watchRules, ctxNames)}
+  ${buildHistoryCard(data, historyPage)}
+
+  ${renderAutomation(data)}
+
+  ${buildWatchCardHtml(data, watchKey)}
 </div>`
 }
 
@@ -276,42 +299,262 @@ function renderTrades(data: HoldingsData): string {
 </div>`
 }
 
-/* ------------------------------------------------------------ watch rules */
-function renderWatchRules(watchRules: WatchRule[], ctxNames: Record<string, string>): string {
-  const enabled = watchRules.filter((r) => r.enabled)
-  const disabled = watchRules.length - enabled.length
-  const codes = new Set(watchRules.map((r) => pureCode(r.symbol)))
-  const rows = watchRules
-    .map((r) => {
-      const ctx = ctxText(r)
-      const brief = ctx.replace(/\s+/g, ' ').trim()
-      const condTexts = (r.conditions ?? []).map(condChip).filter(Boolean)
-      const condShow = condTexts.slice(0, 3).join(' <span class="dim">·</span> ') + (condTexts.length > 3 ? ' <span class="dim">+' + (condTexts.length - 3) + '</span>' : '')
-      const kind = kindOf(ctx)
+/* ---------------------------------------------------------- history trades */
+/** 「历史交易」分页卡：全量成交（tradeHistory，倒序）按页切片展示，默认每页 8 条 */
+export const HISTORY_PAGE_SIZE = 8
+
+/** 生成分页数字（页数多时折叠为 1 … cur±1 … last） */
+function pageNums(cur: number, pages: number, btn: (p: number, label: string, act: boolean) => string): string {
+  if (pages <= 9) {
+    let out = ''
+    for (let i = 0; i < pages; i++) out += btn(i, String(i + 1), i === cur)
+    return out
+  }
+  const set = new Set<number>([0, pages - 1, cur - 1, cur, cur + 1].filter((p) => p >= 0 && p < pages))
+  const sorted = [...set].sort((a, b) => a - b)
+  let out = ''
+  let prev = -2
+  for (const p of sorted) {
+    if (p - prev > 1) out += '<span class="gap">…</span>'
+    out += btn(p, String(p + 1), p === cur)
+    prev = p
+  }
+  return out
+}
+
+/** 构建「历史交易」卡 HTML（导出供 board-mount 分页局部刷新；卡根固定 id=dsh-hld-hx，
+ *  翻页只替换该节点，不做整板 renderBoard——持仓/今日/盯盘不随分页重绘） */
+export function buildHistoryCard(data: HoldingsData, page: number): string {
+  // 时间口径说明：本卡数据按账户 = 当前账户（board API ?account= 已限定），与摘要/持仓同一 scope
+  const all = Array.isArray(data.tradeHistory) ? data.tradeHistory : []
+  const pageSize = HISTORY_PAGE_SIZE
+  const pages = Math.max(1, Math.ceil(all.length / pageSize))
+  const cur = Math.min(Math.max(0, Math.trunc(Number(page) || 0)), pages - 1)
+
+  if (all.length === 0) {
+    return `<div class="dsh-hld-card" id="dsh-hld-hx">
+      <div class="hd"><span class="t">历史交易（0）</span><span class="more">${esc(String(data.currentAccount ?? ''))} · agent 成交后自动归档到此</span></div>
+      <div class="dsh-hld-emptybox">该账户暂无历史交易记录</div>
+    </div>`
+  }
+
+  const slice = all.slice(cur * pageSize, (cur + 1) * pageSize)
+  const ctxNames = namesFromContexts(data.watchRules ?? [])
+  const zhAction: Record<string, { tag: string; text: string }> = {
+    BUY: { tag: 'buy', text: '买入' },
+    SELL: { tag: 'sell', text: '卖出' },
+  }
+  const rows = slice
+    .map((t) => {
+      const act = String(t.action ?? '').toUpperCase()
+      const a = zhAction[act] ?? { tag: 'off', text: String(t.action ?? '') }
+      const price = Number(t.filled_price) || Number(t.price)
+      const amount = Number(t.amount) || price * (t.shares ?? 0)
+      // v2 成交行无 status 字段（全部为已成交明细）；盈亏仅 SELL 行带 realized_pnl（买入为 null → '—'）
+      const pnl = Number(t.realized_pnl)
+      const hasPnl = act === 'SELL' && Number.isFinite(pnl)
+      const pnlCls = hasPnl && pnl !== 0 ? trend(pnl) : 'flat'
+      const rate = Number(t.realized_pnl_rate)
+      const rateSub = hasPnl && Number.isFinite(rate) && rate !== 0 ? '<span class="sub">' + pct(rate) + '</span>' : ''
+      const reason = String(t.reason ?? '—')
       return `<tr>
-        <td><span class="sec-name">${esc(stockName(r.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(r.symbol))}</span></td>
-        <td><span class="dsh-hld-tag ${kind.cls}">${kind.text}</span></td>
-        <td class="cond">${condShow || '<span class="dim">—</span>'}</td>
-        <td>${r.enabled ? '<span class="dsh-hld-tag on">监控中</span>' : '<span class="dsh-hld-tag off">已停用</span>'}</td>
-        <td class="ctx" title="${esc(brief.slice(0, 400))}">${esc(brief.slice(0, 44))}${brief.length > 44 ? '…' : ''}</td>
+        <td><span class="dsh-hld-tag ${a.tag}">${a.text}</span></td>
+        <td><span class="sec-name">${esc(stockName(t.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(t.symbol))}</span></td>
+        <td class="r">${money(price)}<span class="sub">× ${t.shares ?? 0} 股</span></td>
+        <td class="r">${money(amount)}</td>
+        <td class="r ${pnlCls}">${hasPnl ? signNum(pnl) + rateSub : '<span class=\"dim\">—</span>'}</td>
+        <td title="${esc(reason)}">${esc(reason.slice(0, 60))}</td>
+        <td class="dim">${esc(fmtClock(t.created_at))}</td>
       </tr>`
     })
     .join('')
-  const empty = watchRules.length === 0 ? `<div class="dsh-hld-emptybox">暂无盯盘规则 — 开仓后 agent 会自动挂上止损/止盈盯盘</div>` : ''
-  return `<div class="dsh-hld-card">
-  <div class="hd"><span class="t">盯盘中心（${watchRules.length}）</span><span class="more">规则触发由 agent 决策，无需人工盯盘</span></div>
-  ${watchRules.length > 0 ? `<div class="dsh-hld-watchsum">
-    <div class="ws"><div class="v">${watchRules.length}</div><div class="n">规则总数</div></div>
-    <div class="ws"><div class="v ok">${enabled.length}</div><div class="n">监控中</div></div>
-    <div class="ws"><div class="v warn">${disabled.length}</div><div class="n">已停用</div></div>
-    <div class="ws"><div class="v">${codes.size}</div><div class="n">覆盖标的</div></div>
-  </div>` : ''}
-  ${empty}
-  ${empty ? '' : `<div class="tblwrap"><table>
-    <tr><th>股票</th><th>方向</th><th>触发条件</th><th>状态</th><th>监控摘要</th></tr>
+
+  const btn = (p: number, label: string, act: boolean): string =>
+    `<button type="button" class="dsh-hld-pgb${act ? ' act' : ''}"${p === cur ? ' aria-current="page"' : ''} onclick="window.__dshHldHistoryPage && window.__dshHldHistoryPage(${p})">${label}</button>`
+  const nav = pages <= 1
+    ? ''
+    : `<div class="dsh-hld-pg">
+        <button type="button" class="dsh-hld-pgb"${cur === 0 ? ' disabled' : ''} onclick="window.__dshHldHistoryPage && window.__dshHldHistoryPage(${cur - 1})">‹ 上一页</button>
+        <span class="dsh-hld-pg-nums">${pageNums(cur, pages, btn)}</span>
+        <button type="button" class="dsh-hld-pgb"${cur >= pages - 1 ? ' disabled' : ''} onclick="window.__dshHldHistoryPage && window.__dshHldHistoryPage(${cur + 1})">下一页 ›</button>
+        <span class="dsh-hld-pg-cnt">第 ${cur + 1}/${pages} 页 · 共 ${all.length} 笔</span>
+      </div>`
+
+  return `<div class="dsh-hld-card" id="dsh-hld-hx">
+  <div class="hd"><span class="t">历史交易（${all.length}）</span><span class="more">${esc(String(data.currentAccount ?? ''))} · agent 全部成交明细 · 倒序</span></div>
+  <div class="tblwrap"><table>
+    <tr><th>方向</th><th>股票</th><th class="r">成交价</th><th class="r">金额</th><th class="r">实现盈亏</th><th>理由</th><th>时间</th></tr>
     ${rows}
-  </table></div>`}
+  </table></div>
+  ${nav}
 </div>`
+}
+
+/* ------------------------------------------------------------ watch rules */
+/** 构建「盯盘中心」卡 HTML（导出：切 tab 局部替换 id=dsh-hld-watch 卡根，不做整板重绘——
+ *  与历史交易卡同策略，2026-09-05；watchKey 与 buildView 语义一致：current/all/账户名） */
+export function buildWatchCard(watchRules: WatchRule[], ctxNames: Record<string, string>, currentAccount: string, accounts: Account[], watchKey: string): string {
+  // 盯盘中心 = 账户归属 tab（pill 带计数）+ 列表（2026-09-05 · 对齐执行看板「调度任务 tab + 列表」）
+  // 默认 tab = 本账户：当前账户归属 + 通用观察（account 为空/缺失，跨账户看板通用展示）；
+  // 其余账户规则按账户 tab 查看；「全部」为全量并在归属列带徽标。
+  const acctOf = (r: WatchRule): string => r.account ?? ''
+  // 盯盘状态口径：启用 / 停用(暂停) / 已过期——停用与已过期不展示（上方 isActiveRule）
+  const all = watchRules.filter((r) => isActiveRule(r))
+  const general = all.filter((r) => acctOf(r) === '')
+  const curOwned = all.filter((r) => acctOf(r) === currentAccount)
+  const curView = curOwned.concat(general)
+  const otherAccts: string[] = []
+  for (const r of all) {
+    const a = acctOf(r)
+    if (a !== '' && a !== currentAccount && !otherAccts.includes(a)) otherAccts.push(a)
+  }
+  const acctLabel = new Map<string, string>()
+  for (const a of accounts) acctLabel.set(a.account_name, a.display_name || a.account_name)
+  const disp = (name: string): string => acctLabel.get(name) ?? name
+
+  // tab key 合法性：所选账户规则已被清空等场景回退「本账户」
+  const valid = new Set<string>(['current', 'all', ...otherAccts])
+  const act = valid.has(watchKey) ? watchKey : 'current'
+
+  const list: WatchRule[] =
+    act === 'all' ? all
+      : act === 'current' ? curView
+        : all.filter((r) => acctOf(r) === act)
+
+  const tab = (key: string, label: string, count: number, tip: string): string =>
+    `<button type="button" class="dsh-hld-wtab${act === key ? ' act' : ''}" data-wkey="${key}" title="${esc(tip)}" onclick="window.__dshHldWatchTab && window.__dshHldWatchTab('${key.replace(/'/g, '')}')">${esc(label)}<i class="c">${count}</i></button>`
+
+  const tabs: string[] = [tab('current', '本账户', curView.length, `当前账户归属 + 通用观察（${disp(currentAccount)}）`)]
+  for (const acct of otherAccts) tabs.push(tab(acct, disp(acct), all.filter((r) => acctOf(r) === acct).length, `归属账户：${acct}`))
+  tabs.push(tab('all', '全部', all.length, '全部账户规则汇总'))
+
+  const row = (r: WatchRule): string => {
+    const ctx = ctxText(r)
+    const brief = ctx.replace(/\s+/g, ' ').trim()
+    const condTexts = (r.conditions ?? []).map(condChip).filter(Boolean)
+    const condShow = condTexts.slice(0, 3).join(' <span class="dim">·</span> ') + (condTexts.length > 3 ? ' <span class="dim">+' + (condTexts.length - 3) + '</span>' : '')
+    const kind = kindOf(ctx)
+    const a = acctOf(r)
+    const ownCls = a === '' ? 'off' : a === currentAccount ? 'on' : 'oth'
+    const ownText = a === '' ? '通用观察' : a === currentAccount ? '本账户' : disp(a)
+    return `<tr>
+      <td><span class="sec-name">${esc(stockName(r.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(r.symbol))}</span></td>
+      <td><span class="dsh-hld-tag ${kind.cls}">${kind.text}</span></td>
+      <td class="cond">${condShow || '<span class="dim">—</span>'}</td>
+      <td>${r.enabled ? '<span class="dsh-hld-tag on">监控中</span>' : '<span class="dsh-hld-tag off">已停用</span>'}</td>
+      <td><span class="dsh-hld-tag ${ownCls}" title="${esc(a || '通用观察')}">${esc(ownText)}</span></td>
+      <td class="ctx" title="${esc(brief.slice(0, 400))}">${esc(brief.slice(0, 44))}${brief.length > 44 ? '…' : ''}</td>
+    </tr>`
+  }
+
+  const rows = list.map(row).join('')
+  const emptyMsg = act === 'current'
+    ? '本账户暂无归属/通用观察规则 — 开仓后 agent 会自动挂上止损/止盈盯盘；可切换上方其他账户 / 全部 tab'
+    : act === 'all'
+      ? '暂无任何盯盘规则'
+      : '该账户暂无归属盯盘规则'
+  const empty = list.length === 0 ? '<tr class="dsh-hld-empty"><td colspan="6">' + emptyMsg + '</td></tr>' : ''
+
+  return `<div class="dsh-hld-card" id="dsh-hld-watch">
+  <div class="hd"><span class="t">盯盘中心（${all.length}）</span><span class="more">账户归属 tab · 默认本账户（含通用观察）· 触发后由 agent 决策，无需人工盯盘</span></div>
+  <div class="dsh-hld-wtabs">${tabs.join('')}</div>
+  <div class="tblwrap"><table>
+    <tr><th>股票</th><th>监控性质</th><th>触发条件</th><th>状态</th><th>归属账户</th><th>监控摘要</th></tr>
+    ${rows}${empty}
+  </table></div>
+</div>`
+}
+
+/** 由完整看板数据渲染「盯盘中心」卡（供 buildView 与 board-mount 局部刷新复用；内部自取 ctxNames/账户） */
+
+/* ----------------------------------------------------- account automation */
+/** 引擎任务中文名（v13/v14 定时任务，name 或 command 前缀均覆盖） */
+const AUTO_ZH: Record<string, string> = {
+  'v13-simulation-trading': '模拟交易执行', 'v13_daily_check': '模拟交易执行',
+  'v13-risk-check': '风控检查', 'v13_risk_check': '风控检查',
+  'v13-verification': '验证裁决', 'v13_verification': '验证裁决',
+  'v13-weekly-report': '每周报告', 'v13_weekly_report': '每周报告',
+  'v14-simulation-trading': '模拟交易执行', 'v14_daily_check': '模拟交易执行',
+}
+const AUTO_TAG: Record<string, { cls: string; text: string }> = {
+  success: { cls: 'ok', text: '成功' },
+  failed: { cls: 'bad', text: '失败' },
+  skipped: { cls: 'wait', text: '跳过' },
+  pending: { cls: 'on', text: '待执行' },
+  unknown: { cls: 'off', text: '未知' },
+  '': { cls: 'off', text: '从未运行' },
+}
+
+/** 5 段 cron → 中文计划（仅覆盖引擎任务常用的星期/时分类） */
+function cronZh(expr: string): string {
+  const p = String(expr ?? '').trim().split(/\s+/)
+  if (p.length !== 5) return String(expr || '—')
+  const [, hour, , , dow] = p
+  const hm = (String(hour).padStart(2, '0') || '--') + ':' + (p[0].padStart(2, '0') || '--')
+  const w = String(dow)
+  if (!w || w === '*') return '每天 ' + hm
+  if (/^\d+$/.test(w)) return '周' + '日一二三四五六'[Number(w) % 7] + ' ' + hm
+  if (/^1-5$/.test(w)) return '工作日 ' + hm
+  if (/^(0|6)(,(0|6))?$/.test(w)) return '周末 ' + hm
+  if (/^1-5$/.test(w.replace(/,/g, '-'))) return '工作日 ' + hm
+  return w + ' ' + hm
+}
+
+/** 单条引擎任务行：任务/计划/上次运行/状态/今日/下次 */
+function autoRow(t: SchedulerTask): string {
+  const zh = AUTO_ZH[String(t.name)] ?? AUTO_ZH[String(t.command)] ?? String(t.name || t.command || '?')
+  const plan = cronZh(t.scheduleExpr)
+  const st = AUTO_TAG[String(t.lastStatus ?? '')] ?? AUTO_TAG.unknown
+  const lastAt = t.lastAt ? fmtClock(t.lastAt) : '—'
+  const nextAt = t.nextRunAt ? fmtClock(t.nextRunAt) : '—'
+  const today = t.todayTriggered > 0 ? t.todaySuccess + '/' + t.todayTriggered : '—'
+  const enabled = t.enabled
+  const tagCls = enabled ? st.cls : 'off'
+  const tagText = enabled ? st.text : '未启用'
+  const tip = [String(t.name || ''), String(t.command || ''), t.lastError ? '最近错误: ' + String(t.lastError).slice(0, 120) : ''].filter(Boolean).join(' · ')
+  return `<tr title="${esc(tip)}">
+    <td><span class="dsh-hld-tag ${tagCls}">${tagText}</span></td>
+    <td>${esc(zh)}<span class="sub dim"> ${esc(t.command)}</span></td>
+    <td>${esc(plan)}</td>
+    <td class="dim">${lastAt}</td>
+    <td class="r">${today}</td>
+    <td class="dim">${nextAt}</td>
+  </tr>`
+}
+
+/**
+ * 「账户自动化流程」卡：展示当前账户归属的引擎定时任务（v13/v14 等）。
+ * 仅 strategy 引擎账户渲染；agent/user/legacy 账户无 v2 引擎任务不显示块
+ * （R-004 裁决：只有有任务的账户才出现 automation 块）。
+ * 2026-09-05：内层状态归一（外层 lastRun 假成功 → inner details 为真相）在聚合层完成。
+ */
+function renderAutomation(data: HoldingsData): string {
+  const auto = data.automation
+  if (!auto) return ''
+  // 非引擎账户 / 无任务：不渲染 automation 块（ruling ④：只有有任务的账户才显示）
+  if (!auto.engine || auto.tasks.length === 0) return ''
+  const tasks = auto.tasks
+  const watchOwn = (data.watchRules ?? []).filter((r) => r.account === auto.accountName && isActiveRule(r)).length
+  const rows = tasks.map(autoRow).join('')
+  return `<div class="dsh-hld-card dsh-hld-auto">
+  <div class="hd"><span class="t">账户自动化流程</span>
+    <span class="more">${esc(auto.displayName)} · ${tasks.length} 个引擎定时任务 · 盯盘规则 ${watchOwn} 条（见下方盯盘中心）</span></div>
+  <div class="tblwrap"><table class="dsh-hld-autotbl">
+    <tr><th>状态</th><th>任务</th><th>计划时刻</th><th>上次运行</th><th class="r">今日 成/触</th><th>下次运行</th></tr>
+    ${rows}
+  </table></div>
+</div>`
+}
+
+export function buildWatchCardHtml(data: HoldingsData, watchKey: string): string {
+  const ctxNames = namesFromContexts(data.watchRules ?? [])
+  return buildWatchCard(
+    data.watchRules ?? [],
+    ctxNames,
+    data.currentAccount ?? '',
+    (Array.isArray(data.accounts) ? data.accounts : []) as Account[],
+    watchKey,
+  )
 }
 
 /** 触发条件 → 短文本（支持新旧两种条件形状） */

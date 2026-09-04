@@ -8,40 +8,30 @@
  * runs this module in the browser. Exports mirror the taskboard client-entry
  * shape: name / inject / apply.
  *
- * GUI entry point = the OFFICIAL sidebar seat `sidebar.footer.action` (the
- * single third-party slot in the sidebar; rendered beside Settings at the foot,
- * list/root scope). Registration goes through `ctx.slots` — the same mechanism
- * ui-cordis / ui-settings-general use — never DOM injection. `inject` declares
- * the client services apply() needs: `slots` makes `ctx.slots` available.
+ * GUI entry point = a TOP sidebar row (direct child of the logo row's owner,
+ * i.e. above the conversation list / 新会话), the same pure-DOM row the
+ * taskboard/execution boards use — never DOM-injected into React-managed
+ * slots. The previous official seat registration (sidebar.footer.action,
+ * beside Settings at the foot) was dropped 2026-09-05: the user asked the
+ * board menu to live at the TOP of the sidebar instead.
  *
  * Board body follows the dsh-taskboard standard: a container is mounted as a
  * trailing child of the center (conversation) column, a stylesheet rule hides
  * the column's other children while `html[data-dsh-hld-active]` is set, and
- * visibility is toggled by the board controller (open/close on the footer
- * action click; auto-close on sidebar-row click / other-panel activation).
+ * visibility is toggled by the board controller (open/close on the top entry
+ * click; auto-close on sidebar-row click / other-panel activation).
  * Data comes from the same-origin auth-free JSON endpoint
  * /dashboard/api/holdings the host half exposes.
  *
  * @module dashboard-holdings/client
  */
 import { createBoardController, mountBoard } from './board-mount.js'
-import { HoldingsFooterAction, injectFooterStyles, PANEL_NAME, PANEL_LABEL, OPEN_EVENT } from './footer-action.js'
+import { mountSidebarEntry } from './sidebar-entry.js'
 import { injectStyles } from './styles.js'
 
 export const name = '@pi-investment/dashboard-holdings/client'
-/** Service names this client module requires on ctx (official slot idiom). */
-export const inject: string[] = ['slots']
-
-/** Minimal view of the slots service this module consumes (official shape). */
-interface SlotsService {
-  /** Queue a registration until the target slot exists (sidebar foot seat). */
-  inject(slot: string, thunk: () => unknown): unknown
-  /** Register one occupant (React component) into a declared slot seat. */
-  register(options: Record<string, unknown>, occupant: unknown): unknown
-}
-interface ApplyContext {
-  slots?: SlotsService
-}
+/** No shell services needed — the top sidebar row is plain DOM (taskboard idiom). */
+export const inject: string[] = []
 
 /** Window-scoped apply guard so HMR re-apply tears down before re-mounting. */
 declare global {
@@ -51,9 +41,8 @@ declare global {
 }
 
 /** Client apply hook — never throws; a throw here fails the whole boot. */
-export function apply(ctx: ApplyContext): void {
+export function apply(): void {
   try {
-    injectFooterStyles()
     injectStyles()
 
     // Guard: a prior apply() (e.g. HMR re-apply) disposes its listeners and
@@ -64,44 +53,18 @@ export function apply(ctx: ApplyContext): void {
     const controller = createBoardController()
     const disposeBoard = mountBoard(controller)
 
-    // Wire the footer action click to the board controller (the seam the
-    // occupant dispatches; index.ts owns the actual behavior).
-    const onOpen = (event: Event): void => {
-      const open = (event as CustomEvent<{ open?: boolean }>).detail?.open
-      console.log('[dashboard-holdings] open-board event', { open }, 'boardOpen:', controller.getSnapshot().boardOpen)
-      if (open === true) {
-        // 已开时再点=关闭（openBoard 对已开状态是幂等空转）
-        if (controller.getSnapshot().boardOpen) controller.closeBoard()
-        else controller.openBoard()
-      } else controller.toggleBoard()
-    }
-    window.addEventListener(OPEN_EVENT, onOpen)
+    // Top sidebar entry row toggles the board (see sidebar-entry.ts).
+    const disposeEntry = mountSidebarEntry({
+      isActive: () => controller.getSnapshot().boardOpen,
+      toggle: () => controller.toggleBoard(),
+    })
 
     window.__dshHldClient = {
       dispose: () => {
-        window.removeEventListener(OPEN_EVENT, onOpen)
         disposeBoard()
+        disposeEntry()
         controller.closeBoard()
       },
-    }
-
-    // Official registration idiom (see sidebar slots contract: id is required
-    // for list seats; order positions the entry; occupant receives {wide}).
-    const slots = ctx.slots
-    if (slots) {
-      slots.inject('sidebar.footer.action', () =>
-        slots.register(
-          {
-            name: 'sidebar.footer.action',
-            id: PANEL_NAME,
-            order: 200, // 在 execution (order: 100) 之后
-            label: PANEL_LABEL,
-          },
-          HoldingsFooterAction,
-        ),
-      )
-    } else {
-      console.warn('[dashboard-holdings] ctx.slots unavailable (inject missing "slots")')
     }
   } catch (e) {
     console.error('[dashboard-holdings] client half failed to start:', e)

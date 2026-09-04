@@ -15,6 +15,7 @@ import { PendingResume, RestartResult, StateStore } from './state.js';
 import { NativeReminderScheduler, type NativeTask } from './native-scheduler.js';
 import { registerBoardUpdate, registerBoardRead, registerBoardPost } from './board-tools.js';
 import { registerWakeWebhook } from './wake-webhook.js';
+import { registerAgentOsTrigger } from './agent-os-trigger.js';
 
 
 // 导入 BaseTool 工具
@@ -100,8 +101,12 @@ export default class LifecyclePlugin extends Service {
     this.registerTools();
     this.setupResume();
     this.setupOsReminderPoller();  // OS 提醒体系：60s 轮询信箱并投递（2026-08-25，dsh-schedule 会话级提醒 fork 即死的替代）
-    this.setupNativeScheduler();   // 原生提醒调度（2026-09-01）：payload.executor='dsh-native' 的任务由本进程 cron 直投，替代 os-remind-bridge.sh 链路
+    // 2026-09-04 迁移：Agent OS 定时任务改 webhook 驱动（webhook_url → POST /agent-os-trigger）。
+    // setupNativeScheduler 退役——原来 DH 轮询采纳 payload.executor='dsh-native' 任务直投，
+    // 与 Agent OS 侧 /bin/true 失败执行形成双轨；现在 Agent OS 每任务设 webhook_url，
+    // 由本进程接收投递（14 任务 executor 已从 'dsh-native' 摘除，native scheduler 自然空转不再采纳）。
     this.setupWakeWebhook();       // v2 → dh /wake 唤醒桥（2026-09-02 死链修复，路 2 自写路由）
+    this.setupAgentOsTrigger();    // Agent OS → dh 定时任务 webhook 驱动（2026-09-04）
     // Dashboard 路由现在由 @pi-investment/dashboard-execution 页面插件自己注册（2026-09-03，纯页面插件零工具）
   }
 
@@ -130,6 +135,30 @@ v2_event_json: ${JSON.stringify(data)}
     await this.deliverReminder(`v2:${event}`, `wake-${event}`, prompt, undefined, firedAt);
   }
 
+  // ===== Agent OS → dh 定时任务 webhook 驱动（2026-09-04，替代 native scheduler 直投）=====
+  // 触发链路：Agent OS cron → POST {webhook_url}/agent-os-trigger（WP-15 契约）
+  //          → deliverAgentOsTask → deliverReminder（①在线 followup ②离线建窗代执行 ③OS 留痕）。
+  // 任务 DB 中 14 个 dsh-native 任务已设 webhook_url=http://127.0.0.1:13080/agent-os-trigger，
+  // payload.executor 已从 'dsh-native' 摘除 → NativeReminderScheduler（下方保留定义作回退参考）
+  // 不再采纳任何任务（filter executor==='dsh-native' 永不命中），双轨僵尸消除。
+  private setupAgentOsTrigger(): void {
+    registerAgentOsTrigger(this.ctx, {
+      deliver: async (job) => {
+        // prompt 为空的任务无法驱动 agent，直接跳过投递（记日志不阻塞 Agent OS 2xx）
+        if (!job.prompt || job.prompt.trim() === '') {
+          this.ctx.logger.warn(`[agent-os-trigger] job ${job.jobName} has no prompt, skip delivery`);
+          return;
+        }
+        const taskId = job.jobId ?? `aos-${job.jobName}`;
+        const firedAt = job.triggerTime ?? new Date().toISOString();
+        await this.deliverReminder(job.jobName, taskId, job.prompt, job.window, firedAt);
+      },
+    });
+  }
+
+  // ===== DSH 原生提醒调度器（2026-09-01，2026-09-04 起退役：webhook 驱动替代）=====
+  // 保留定义供回退/参考——不再在 constructor 调用。若需恢复：把 Agent OS 任务
+  // payload.executor 改回 'dsh-native' 并在此 setupAgentOsTrigger 旁补 setupNativeScheduler() 即可。
   // ===== DSH 原生提醒调度器（2026-09-01）=====
   // 正规化目标：替代「Agent OS cron → os-remind-bridge.sh → OS 信箱 → 轮询」链路。
   // 任务注册表仍在 Agent OS（scheduler_manage 管理面不变），以 payload.executor='dsh-native'
@@ -909,7 +938,10 @@ v2_event_json: ${JSON.stringify(data)}
       await this.osWrite('lifecycle:finalize', { reason, action, timestamp: new Date().toISOString() });
     }
 
-    const pending = this.state.readPending();
+    // resume 投递成功后 markPendingDone() 会把 pending-resume.json rename 为 .done.json，
+    // 若只 readPending() 会拿到 null → checkpoint 丢失 → merge/rollback 静默降级不执行 git（2026-09-04 实测）。
+    // 修复：pending 已被消费（存在 .done.json）时回退读取，finalize 仍能拿到检查点分支。
+    const pending = this.state.readPending() ?? this.state.readPendingDone();
     const checkpoint = pending?.checkpoint_branch ?? null;
     const base = pending?.base_branch ?? this.repo.currentBranch();
 

@@ -72,7 +72,7 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
     // 2026-09-01 扩展：reason → 后端 context（监视理由）；pnl_pct 自动补成本价
     const request: any = { ...params };
     delete request.reason;
-    delete request.account;
+    // account 不再删除：create 时透传后端落库为规则归属账户（2026-09-04 账户关联）
 
     if (params.action === 'create') {
       if (params.reason) request.context = params.reason;
@@ -91,6 +91,7 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
           );
         }
         request.cost_price = cost;
+        if (!params.account) request.account = account; // 成本来自该账户持仓 => 归属该账户
       } else if (params.cost_price) {
         request.cost_price = params.cost_price;
       }

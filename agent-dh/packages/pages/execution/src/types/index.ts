@@ -32,6 +32,8 @@ export interface CheckpointResult {
   status: CheckpointStatus;
   message?: string;
   blocksFlow?: string[];
+  /** 计划执行时间 HH:mm（registry expectTime） */
+  expectTime?: string;
 }
 
 export type HealthRowStatus = 'ok' | 'degraded' | 'failed';
@@ -59,6 +61,10 @@ export interface SchedulerTask {
   updatedAt?: string | null;
   todaySuccess?: number | string;
   todayTriggered?: number | string;
+  /** 调度来源：v2=quantsys-v2 引擎任务 / os=Agent OS 定时（webhook 触发 agent） */
+  src?: 'v2' | 'os';
+  /** 是否调用 agent 及运行时：dh=agent-dh / ts=agent-ts / none=纯引擎无 agent */
+  agentCall?: 'dh' | 'ts' | 'none';
 }
 
 export interface SchedulerRun {
@@ -87,6 +93,11 @@ export interface TimelineEntry {
   status: 'success' | 'failed' | 'pending' | 'unknown';
   runId?: number | string;
   error?: string;
+  /** 频率分桶：daily=日执行 / weekly=周执行 */
+  freq: 'daily' | 'weekly';
+  /** 透传调度来源与 agent 调用标记（供徽标渲染） */
+  src?: 'v2' | 'os';
+  agentCall?: 'dh' | 'ts' | 'none';
 }
 
 export interface BlockedFlowEntry {

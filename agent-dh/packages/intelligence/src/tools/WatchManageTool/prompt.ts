@@ -14,7 +14,7 @@ export interface WatchManageParams {
 
 export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
   name: 'watch_manage',
-  description: '管理盯盘规则（写操作）：创建、启用、禁用、删除。规则触发后系统自动通知，适合价格预警、涨跌幅预警、持仓盈亏止损止盈、成交量异动、瞬时涨速监控等场景。持仓股开仓后必须立即挂止损规则（换仓补位纪律）。创建前建议先用 watch_list 确认无重复规则。',
+  description: '管理盯盘规则（写操作）：创建、启用、禁用、删除。规则触发后系统自动通知，适合价格预警、涨跌幅预警、持仓盈亏止损止盈、成交量异动、瞬时涨速监控等场景。持仓股开仓后必须立即挂止损规则（换仓补位纪律）。⚠️ 归属账户：监控某账户持仓的规则（止损/止盈/持仓管理）必须传 account（该账户 account_name 全名），规则会显示在对应账户的盯盘中心；无明确账户的候选观察/预案不传 account（归通用观察，各账户看板均可见）。创建前建议先用 watch_list 确认无重复规则。',
 
   parameters: {
     action: {
@@ -45,11 +45,11 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
     },
     cost_price: {
       type: 'number',
-      description: '成本价，pnl_pct 条件用。不传时自动取 account 持仓成本；无持仓则报错',
+      description: '成本价，pnl_pct 条件用。不传时自动取 account（归属账户）持仓成本；无持仓则报错',
     },
     account: {
       type: 'string',
-      description: '账户名（默认 agent_virtual），pnl_pct 自动取成本价时指定持仓账户',
+      description: '归属账户（account_name 全名，如 agent_virtual/user_main_simulation/v13_simulation/agent_brain）。监控某账户持仓的规则（pnl_pct 止损/止盈、持仓管理）必传；pnl_pct 自动取成本价时用它定位持仓账户。无主候选/跨账户观察预案不传（=通用观察）。',
     },
     expires_at: {
       type: 'string',
@@ -100,6 +100,7 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
         name: '中石油浮亏-8%止损',
         symbol: '601857',
         condition: 'pnl_pct<-8',
+        account: 'user_main_simulation',
         reason: '8/31 突破买入，大盘蓝筹止损线-8%',
       },
       expectedBehavior: '自动取持仓成本价，创建盈亏止损规则',
@@ -158,8 +159,9 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
 
   notes: [
     '2026-09-01 扩展：新增 pnl_pct（持仓盈亏%）、volume_surge（量能倍数）、velocity（窗口波动）条件，新增 reason（监视理由）/cost_price/expires_at 参数——对标 agent-ts watch 能力，后端引擎原生支持',
+    '2026-09-04 账户关联：规则带 account=归属账户（account_name 全名）→ 只在该账户看板显示；不带 → 通用观察（各账户可见）。历史规则已按 context/持仓回填归属',
     'condition 表达式：price>N、price<N、change_pct>N、change_pct<-N、pnl_pct>N、pnl_pct<-N、volume_surge>N、velocity>N/M（M=窗口分钟）',
-    'pnl_pct 不传 cost_price 时自动取 account（默认 agent_virtual）持仓成本；无持仓会报错',
+    'pnl_pct 不传 cost_price 时自动取归属 account 持仓成本；无持仓会报错——持仓类规则务必先传 account（account_name 全名）确定归属账户，勿依赖默认',
     '告警阈值按噪音迭代：触发太频繁（一天多次）就上调阈值，而不是忍受噪音',
     '创建前建议先 watch_list 确认无重复规则',
     'enable/disable/delete 操作需要先通过 watch_list 获取 rule_id',

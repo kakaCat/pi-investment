@@ -10,7 +10,7 @@ import {
   BOARD_VIEW_SELECTOR, PANEL_NAME, ACTIVE_ATTR, OTHER_ACTIVE_ATTRS,
   ACTIVATE_EVENT, CONVERSATION_COLUMN_SELECTOR,
 } from './dom.ts'
-import { buildView, renderAll, type ViewRefs } from './view.ts'
+import { buildView, renderAll, renderTasks, setTaskSel, setDomSel, type ViewRefs } from './view.ts'
 import { ENTRY_SELECTOR } from './dom.ts'
 
 const BOARD_API = '/dashboard/api/board'
@@ -57,6 +57,7 @@ export function mountBoard(controller: BoardController): () => void {
   let container: HTMLDivElement | undefined
   let pollTimer = 0
   let refreshBtn: HTMLButtonElement | undefined
+  let lastBoard: BoardData | undefined
 
   const ensure = (): void => {
     if (container !== undefined) return
@@ -70,6 +71,18 @@ export function mountBoard(controller: BoardController): () => void {
     container.appendChild(refs.board)
     refreshBtn = container.querySelector<HTMLButtonElement>('[data-role="refresh"]') ?? undefined
     refreshBtn?.addEventListener('click', () => { void fetchBoard() })
+    // 调度任务点击：分类 pill tab 切换 / 任务行选中看详情（委派监听，重绘 innerHTML 不影响容器）
+    refs.tasksBox.addEventListener('click', (ev) => {
+      const target = ev.target as Element
+      if (lastBoard === undefined || refs === undefined) return
+      const tab = target.closest<HTMLElement>('.dsh-exec-tab[data-dom]')
+      if (tab !== null) { setDomSel(tab.dataset.dom ?? 'all'); renderTasks(refs, lastBoard); return }
+      const row = target.closest<HTMLElement>('.dsh-exec-tr[data-tk]')
+      const nm = row?.dataset.tk
+      if (nm === undefined) return
+      setTaskSel(nm)
+      renderTasks(refs, lastBoard)
+    })
     void fetchBoard(true)
   }
   const waitObserver = new MutationObserver(() => { ensure() })
@@ -84,7 +97,8 @@ export function mountBoard(controller: BoardController): () => void {
       const json = (await res.json()) as ApiResponse
       if (!json.success || json.data === undefined) throw new Error(json.error ?? 'API 返回失败')
       if (refs === undefined) return
-      renderAll(refs, json.data as BoardData)
+      lastBoard = json.data as BoardData
+      renderAll(refs, lastBoard)
       refs.meta.textContent = '刷新于 ' + new Date().toLocaleTimeString() + ' · 数据 ' + (json.data.fetchedAt ?? '')
       refs.banner.classList.remove('show')
     } catch (e) {

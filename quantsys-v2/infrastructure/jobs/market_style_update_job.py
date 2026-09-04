@@ -28,27 +28,76 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-def _resolve_trade_date(params: Dict[str, Any]) -> str:
-    """解析落库交易日：params['trade_date'] 优先；否则取 daily_klines 最近交易日。"""
-    td = params.get('trade_date')
-    if td:
-        s = str(td).strip()
+def _pick_trade_date(*, explicit: Optional[str], today: str,
+                     regime_latest: Optional[str], sentiment_latest: Optional[str],
+                     kline_latest: Optional[str], kline_has_today: bool) -> str:
+    """纯函数：从多个真实交易日锚点中选出应落库的交易日（无 DB 副作用，可单测）。
+
+    决策语义（对应 A 股板块收盘截面的归属交易日）：
+      1. 显式指定（--trade_date/params）→ 用之（历史补算/审计回放）；
+      2. 今天被任一独立源确认为真实交易日
+         （regime/sentiment 已有今天的行——301 market_daily_snapshot 于 22:00 以真实
+         数据源落库；或 daily_klines 今天已有行）→ 用今天；
+      3. 否则（周末/节假日/盘后补跑，新浪板块显示的是最近一个已收盘截面）→
+         取 regime/sentiment/daily_klines 三个源最近日期的最大者；
+      4. 全部不可用 → 今天兜底。
+
+    2026-09-05 回归修复背景：旧实现回退只信 daily_klines 最近交易日，而全市场 K 线
+    同步滞后（09-03/09-04 每交易日仅 24 行入库）时 get_latest_trade_date 会停在旧日期，
+    导致 09-03 收盘截面被误标 09-02、按 trade_date upsert 覆盖了 09-02 的真实行。
+    本实现以 301 独立落库的 market_regime / market_sentiment_daily 为优先锚，kline 仅作补充。
+    """
+    if explicit:
+        s = str(explicit).strip()
         if len(s) == 10:  # YYYY-MM-DD
             return s
-        # 兼容 YYYYMMDD
         try:
             return datetime.strptime(s, '%Y%m%d').strftime('%Y-%m-%d')
         except ValueError:
-            pass
-    # 回退：最近有K线数据的交易日（数据地基的真实最近交易日）
+            pass  # 非法格式 → 继续走锚点逻辑
+    today_confirmed = (regime_latest == today) or (sentiment_latest == today) or kline_has_today
+    if today_confirmed:
+        return today
+    candidates = [d for d in (regime_latest, sentiment_latest, kline_latest) if d]
+    if candidates:
+        return max(candidates)
+    return today
+
+
+def _resolve_trade_date(params: Dict[str, Any]) -> str:
+    """解析落库交易日：params['trade_date'] 优先；否则以多真实源交易日锚点决策。
+
+    真实源锚点（均按日期倒序取最新一条）：
+      - market_regime / market_sentiment_daily：301 market_daily_snapshot 每日 22:00
+        用真实行情/情绪数据落库（数据源自带 data_date，不依赖 daily_klines 同步进度）
+      - daily_klines：数据地基 K 线最新交易日（补充源，可能滞后）
+    """
+    explicit = params.get('trade_date')
+    today = datetime.now().strftime('%Y-%m-%d')
+    regime_latest = sentiment_latest = kline_latest = None
+    kline_has_today = False
+    try:
+        from adapters.outbound.repositories.market_perception_repository import (
+            MarketRegimeRepository, MarketSentimentDailyRepository,
+        )
+        regime_rows = MarketRegimeRepository().get_recent(1)
+        if regime_rows:
+            regime_latest = regime_rows[0].trade_date.isoformat()
+        sent_rows = MarketSentimentDailyRepository().get_recent(1)
+        if sent_rows:
+            sentiment_latest = sent_rows[0].trade_date.isoformat()
+    except Exception as e:
+        logger.warning(f"读取 regime/sentiment 交易日锚失败, 降级: {e}")
     try:
         from adapters.outbound.repositories.kline_repository import KlineORMRepository
-        latest = KlineORMRepository().get_latest_trade_date()
-        if latest:
-            return latest
+        kline_latest = KlineORMRepository().get_latest_trade_date()
+        if kline_latest == today:
+            kline_has_today = True
     except Exception as e:
-        logger.warning(f"解析最近交易日失败, 回退今天: {e}")
-    return datetime.now().strftime('%Y-%m-%d')
+        logger.warning(f"读取 daily_klines 最近交易日失败: {e}")
+    return _pick_trade_date(explicit=explicit, today=today,
+                            regime_latest=regime_latest, sentiment_latest=sentiment_latest,
+                            kline_latest=kline_latest, kline_has_today=kline_has_today)
 
 
 def execute(**params: Any) -> Dict[str, Any]:
