@@ -25,7 +25,7 @@ from adapters.inbound.fastapi_app.shared import (
 from adapters.shared import _PROJECT_ROOT_PATH
 # 复用 Flask pipeline.py 的后台执行函数（同一实现，保证行为一致）
 from adapters.shared.pipeline_exec import (
-    _execute_calibration, _execute_signal_generate_v2,
+    _execute_calibration,
 )
 
 logger = structlog.get_logger(__name__)
