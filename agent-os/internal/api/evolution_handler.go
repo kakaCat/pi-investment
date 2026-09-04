@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -172,33 +173,50 @@ func (h *EvolutionHandler) fetchBaselineFitness(ctx context.Context, strategyID 
 	return payload.Stats.AvgReturn
 }
 
-// generateVariants 生成确定性参数变体并预估适应度
+// generateVariants 生成确定性参数变体并使用真实回测计算适应度
 func (h *EvolutionHandler) generateVariants(strategyID string, baseline float64, generations int, mode string) ([]map[string]interface{}, map[string]interface{}) {
 	proposals := make([]map[string]interface{}, 0, generations)
 	best := map[string]interface{}{"fitness": -1e9, "params": map[string]interface{}{}}
 
+	// 回测参数配置
+	backtestConfig := map[string]interface{}{
+		"symbol":       "000300.SH", // 沪深300作为基准
+		"start_date":   "2024-01-01",
+		"end_date":     "2026-09-01",
+		"initial_cash": 1000000,
+	}
+
 	for i := 1; i <= generations; i++ {
 		// 风险乘数梯度：0.85 → 1.30，确定性可复现
 		riskMultiplier := 0.8 + 0.05*float64(i)
-		estimated := baseline * riskMultiplier
-		if baseline == 0 {
-			// 无基线数据时的占位预估
-			estimated = 0.05 * float64(i)
+
+		// 参数变体
+		paramsOverride := map[string]interface{}{
+			"risk_multiplier": riskMultiplier,
 		}
 
+		// 调用真实回测（带降级机制）
+		fitness, backtestSource := h.runBacktestWithFallback(
+			strategyID,
+			backtestConfig,
+			paramsOverride,
+			baseline,
+			riskMultiplier,
+		)
+
 		variant := map[string]interface{}{
-			"variant":           i,
-			"risk_multiplier":   riskMultiplier,
-			"estimated_fitness": estimated,
-			"mode":              mode,
-			"strategy_id":       strategyID,
-			"rationale":         fmt.Sprintf("调整风险乘数至 %.2f，在基线收益 %.2f%% 基础上评估", riskMultiplier, baseline),
-			"action":            "backtest this variant via /api/backtest/strategy to confirm",
+			"variant":         i,
+			"risk_multiplier": riskMultiplier,
+			"fitness":         fitness,
+			"backtest_source": backtestSource, // "real_backtest" 或 "heuristic_fallback"
+			"mode":            mode,
+			"strategy_id":     strategyID,
+			"rationale":       fmt.Sprintf("调整风险乘数至 %.2f，%s适应度 %.2f%%", riskMultiplier, backtestSource, fitness*100),
 		}
 		proposals = append(proposals, variant)
 
-		if estimated > best["fitness"].(float64) {
-			best["fitness"] = estimated
+		if fitness > best["fitness"].(float64) {
+			best["fitness"] = fitness
 			best["params"] = map[string]interface{}{
 				"variant":         i,
 				"risk_multiplier": riskMultiplier,
@@ -208,6 +226,107 @@ func (h *EvolutionHandler) generateVariants(strategyID string, baseline float64,
 	}
 
 	return proposals, best
+}
+
+// runBacktestWithFallback 调用 quantsys-v2 真实回测，失败时降级到启发式预估
+func (h *EvolutionHandler) runBacktestWithFallback(
+	strategyID string,
+	backtestConfig map[string]interface{},
+	paramsOverride map[string]interface{},
+	baseline float64,
+	riskMultiplier float64,
+) (float64, string) {
+	// 尝试真实回测
+	fitness, err := h.runRealBacktest(strategyID, backtestConfig, paramsOverride)
+	if err == nil {
+		logger.Info("evolution: real backtest succeeded",
+			"strategy_id", strategyID,
+			"risk_multiplier", riskMultiplier,
+			"fitness", fitness)
+		return fitness, "real_backtest"
+	}
+
+	// 回测失败，降级到启发式预估
+	logger.Warn("evolution: real backtest failed, fallback to heuristic",
+		"strategy_id", strategyID,
+		"error", err)
+
+	estimated := baseline * riskMultiplier
+	if baseline == 0 {
+		// 无基线数据时的占位预估
+		estimated = 0.05 * float64(len(strategyID)) // 使用 strategyID 长度作为随机种子
+	}
+
+	return estimated, "heuristic_fallback"
+}
+
+// runRealBacktest 调用 quantsys-v2 回测 API
+func (h *EvolutionHandler) runRealBacktest(
+	strategyID string,
+	backtestConfig map[string]interface{},
+	paramsOverride map[string]interface{},
+) (float64, error) {
+	// 构造回测请求
+	requestBody := map[string]interface{}{
+		"strategy_id":     strategyID,
+		"symbol":          backtestConfig["symbol"],
+		"start_date":      backtestConfig["start_date"],
+		"end_date":        backtestConfig["end_date"],
+		"initial_cash":    backtestConfig["initial_cash"],
+		"params_override": paramsOverride,
+	}
+
+	bodyBytes, err := json.Marshal(requestBody)
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal backtest request: %w", err)
+	}
+
+	// 发送 HTTP 请求（增加超时到 60s，回测可能较慢）
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	url := fmt.Sprintf("%s/api/strategy/backtest", h.quantsysURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return 0, fmt.Errorf("failed to create backtest request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// 使用独立 HTTP 客户端（避免共享超时）
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("backtest request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		return 0, fmt.Errorf("backtest API returned %d: %s", resp.StatusCode, string(respBodyBytes))
+	}
+
+	// 解析响应
+	var result struct {
+		Data struct {
+			TotalReturn float64 `json:"total_return"`
+			SharpeRatio float64 `json:"sharpe_ratio"`
+			MaxDrawdown float64 `json:"max_drawdown"`
+			WinRate     float64 `json:"win_rate"`
+			TotalTrades int     `json:"total_trades"`
+		} `json:"data"`
+	}
+
+	respBodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return 0, fmt.Errorf("failed to read backtest response: %w", err)
+	}
+
+	if err := json.Unmarshal(respBodyBytes, &result); err != nil {
+		return 0, fmt.Errorf("failed to parse backtest response: %w", err)
+	}
+
+	// 返回总收益率作为适应度
+	return result.Data.TotalReturn, nil
 }
 
 // parseStrategyID 兼容字符串与整数形式的 strategy_id

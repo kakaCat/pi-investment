@@ -29,6 +29,9 @@ go.work
 # OS
 .DS_Store
 
+# bin
+bin
+
 # Logs
 *.log
 
