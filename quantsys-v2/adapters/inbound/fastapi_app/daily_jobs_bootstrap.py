@@ -20,6 +20,7 @@ data_pipeline_daily / chip_distribution_update / data_quality_check）全部禁�
 - freshness_guard    17:20 周一~五：新鲜度巡检（兜底告警）
 - chip_distribution  21:10 周一~五：筹码分布更新
 - financial_statements 周六 20:00：季度财报更新
+- evolution_fitness 20:35 周一~五：账户行为双侧捕获 fitness 续采（RFC 012 P3，8/14 断点恢复；对象=账户行为，与策略参数进化分域）
 - event_calendar_check 16:45 每天：事件日历检查（未来2日 pending imp>=2 飞书提醒→notified）
 """
 import json
@@ -121,6 +122,25 @@ def _job_chip_distribution() -> Dict[str, Any]:
 def _job_financial_statements() -> Dict[str, Any]:
     from infrastructure.jobs.financial_statement_update_job import execute
     return execute()
+
+
+def _job_evolution_fitness() -> Dict[str, Any]:
+    """B 链账户行为 fitness 盘后续采（RFC 012 P3，2026-09-05，恢复 8/14 断点）
+
+    EvolutionFitnessService.compute_all_accounts 对全部 active 模拟账户计算
+    滚动 20 交易日双侧捕获 fitness 并 upsert（幂等：同 (account, window_end,
+    window_days) 覆盖，可安全重复）。对象是**账户行为**（agent_virtual 等），
+    与策略参数进化（evolution_strategy_runs，RFC 012 P1）分域——数据供
+    "行为进化"语义独立持续，绝不冒充策略排名（RFC 012 §0/§10 边界）。
+    """
+    from application.services.evolution.evolution_fitness_service import (
+        EvolutionFitnessService,
+    )
+    svc = EvolutionFitnessService()
+    summary = svc.compute_all_accounts()
+    # 异常（bench 源挂/DB 故障）会向上抛 → 宿主记 failed + 飞书告警；
+    # data_gap 账户（无快照/样本不足）由算法返回 status 落库留痕，不算失败。
+    return {'detail': summary, 'note': '账户行为 fitness（非策略参数进化）'}
 
 
 def _last_trading_day(ref: datetime) -> str:
@@ -310,6 +330,8 @@ JOBS: List[JobDef] = [
            _job_evening_pipeline, 'K线分批同步 → 因子全市场计算（支持幂等重复执行）'),
     JobDef('chip_distribution', dtime(21, 10), (0, 1, 2, 3, 4),
            _job_chip_distribution, '筹码分布更新（排在 pipeline 后，用当日新K线）'),
+    JobDef('evolution_fitness', dtime(20, 35), (0, 1, 2, 3, 4),
+           _job_evolution_fitness, 'B链账户行为双侧捕获 fitness 续采（RFC 012 P3，8/14 断点恢复；账户行为域，非策略参数进化）'),
     JobDef('financial_statements', dtime(20, 0), (5,),
            _job_financial_statements, '季度财报更新'),
 ]

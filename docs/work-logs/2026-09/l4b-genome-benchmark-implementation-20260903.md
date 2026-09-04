@@ -80,3 +80,11 @@ Test Files  6 passed (6)   Tests  49 passed (49)
 - 盘后窗口：执行 L4-A 工单隔离动作（含本次已修正的 source-filter 证伪行）
 - 9/5-9/6：evolution 定时任务跑起来后，观察 genome_benchmark 对新登记候选的画像与 gate 防御触发情况
 - B5（Chain A/B 统一 + leaderboard 占位诚实化）待用户另行确认
+
+## 5. B5 状态更新（2026-09-05，RFC 012 收尾，w-8366e526）
+
+> §3 的「Chain A 空转不在本范围（B5 暂缓）」已被 RFC 012（策略进化引擎，docs/rfcs/012-strategy-evolution-engine.md）在 agent-dh 侧完整解决：
+
+- **A 链统一 + 占位退役**：agent-dh evolution_* 工具已从 Agent OS evolution_handler.go 占位阶梯（0.05×i）切到 qv2 真实回测进化引擎（`e00d4ee4`/`edd663f0`/`bca61114`/`1fa859ca`，均 w-8366e526）；leaderboard 占位诚实化三态（qv2_real/degraded/empty，无任何占位数字），P0-P2 Live 验证通过（见 RFC 012 §10）。
+- **B 链 8/14 断点恢复（P3）**：`quantsys-v2/adapters/inbound/fastapi_app/daily_jobs_bootstrap.py` 注册 `evolution_fitness` 盘后任务（20:35 周一~五）调 `EvolutionFitnessService.compute_all_accounts`（双侧捕获，幂等 upsert）——账户行为 fitness 恢复日度续采，与策略参数进化分域。
+- 数据链终态：策略参数进化（A 链语义）走 qv2 evolution_strategy_runs 真实回测；账户行为 fitness 走 evolution_fitness 日度续采——两条链真实化且分域清晰，本 work-log §3 悬置的 B5 关闭。
