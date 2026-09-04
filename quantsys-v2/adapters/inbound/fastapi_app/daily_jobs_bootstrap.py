@@ -133,10 +133,17 @@ def _job_evolution_fitness() -> Dict[str, Any]:
     与策略参数进化（evolution_strategy_runs，RFC 012 P1）分域——数据供
     "行为进化"语义独立持续，绝不冒充策略排名（RFC 012 §0/§10 边界）。
     """
+    # fitness_repo 显式注入：service 默认路径从 domain.ports.repository_ports_extended
+    # import EvolutionFitnessORMRepository 是 baseline 缺陷（该类已迁 adapters/outbound/
+    # repositories/evolution_fitness_repository.py，ports 只留 IEvolutionFitnessRepository
+    # 接口，import 必炸）。service 文件属并行会话 in-flight，不改其源码，注入正确 ORM 仓储绕开。
+    from adapters.outbound.repositories.evolution_fitness_repository import (
+        EvolutionFitnessORMRepository,
+    )
     from application.services.evolution.evolution_fitness_service import (
         EvolutionFitnessService,
     )
-    svc = EvolutionFitnessService()
+    svc = EvolutionFitnessService(fitness_repo=EvolutionFitnessORMRepository())
     summary = svc.compute_all_accounts()
     # 异常（bench 源挂/DB 故障）会向上抛 → 宿主记 failed + 飞书告警；
     # data_gap 账户（无快照/样本不足）由算法返回 status 落库留痕，不算失败。
