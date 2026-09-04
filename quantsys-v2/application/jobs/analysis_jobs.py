@@ -141,12 +141,37 @@ class ChanScanJob(Job):
         return 3600  # 1小时
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
+        # Fix⑥(2026-09-05): 原为空壳假成功——占位 execute 恒返回 scanned:0
+        # 「缠论扫描完成（待实现）」，自 09-02 JobRegistry 接管后每日假成功落库
+        # （runs 3340/3370/3381/3392/3409 全 scanned:0）。真实 ChanScanService
+        # 08-21 P2-1 DI 改造后依赖注入 repo，无参构造 pool_repo=None 会崩
+        # （legacy handle_chan_scan 亦因此 08-25 起失败），故此处显式注入
+        # Kline/StockPool/Signal 三个 ORM repo（同 StrategyValidateDailyJob Fix④ 模式）。
         try:
-            # TODO: 实现缠论扫描逻辑
+            from adapters.outbound.repositories.kline_repository import KlineORMRepository
+            from adapters.outbound.repositories.stock_pool_repository import StockPoolRepository
+            from adapters.outbound.repositories.signal_repository import SignalORMRepository
+            from application.services.chan_service import ChanService
+            from application.services.chan_scan_service import ChanScanService
+
+            service = ChanScanService(
+                chan_service=ChanService(kline_repo=KlineORMRepository()),
+                pool_repo=StockPoolRepository(),
+                signal_repo=SignalORMRepository(),
+            )
+            summary = service.scan()
             return JobResult.ok(
                 self.name,
-                message="缠论扫描完成（待实现）",
-                details={"scanned": 0}
+                message=(
+                    f"缠论扫描完成: scanned={summary['scanned']} "
+                    f"written={summary['signals_written']} "
+                    f"skipped={summary['skipped']} dup={summary['duplicates']} "
+                    f"err={summary['errors']}"
+                ),
+                # 展开 summary：JobResult.ok(**details) 若传 details=dict 会再包一层
+                # details:{details:{...}}（3409 壳与 Fix④ 均双层）；扁平与 legacy
+                # 真实成功时期（如 chan_knowledge_distill run 2752）落库形状一致。
+                **summary,
             )
         except Exception as e:
             return JobResult.fail(self.name, str(e))
@@ -168,12 +193,35 @@ class ChanKnowledgeDistillJob(Job):
         return 7200  # 2小时
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
+        # Fix⑥(2026-09-05): 原为空壳假成功——占位 execute 恒返回「缠论知识蒸馏完成
+        # （待实现）」，262 自 08-25 历史 IndentationError 后从未再真实蒸馏
+        # （上次真实产出 08-16：signals_total=33 → strategies_distilled=6）。
+        # P2-1 DI 后依赖注入 repo，显式注入 Signal/Kline/AgentKnowledge ORM repo，
+        # 蒸馏结果写回 agent_knowledge（chan_theory/signal_effectiveness，幂等 upsert）。
         try:
-            # TODO: 实现知识蒸馏逻辑
+            params = params or {}
+            from adapters.outbound.repositories.agent_knowledge_repository import AgentKnowledgeORMRepository
+            from adapters.outbound.repositories.kline_repository import KlineORMRepository
+            from adapters.outbound.repositories.signal_repository import SignalORMRepository
+            from application.services.chan_knowledge_distiller import ChanKnowledgeDistiller
+
+            service = ChanKnowledgeDistiller(
+                window_days=int(params.get('window_days', 20)),
+                lookback_days=int(params.get('lookback_days', 90)),
+                signal_repo=SignalORMRepository(),
+                kline_repo=KlineORMRepository(),
+                knowledge_repo=AgentKnowledgeORMRepository(),
+            )
+            result = service.distill()
             return JobResult.ok(
                 self.name,
-                message="缠论知识蒸馏完成（待实现）",
-                details={"distilled": 0}
+                message=(
+                    f"缠论知识蒸馏完成: signals_total={result['signals_total']} "
+                    f"excluded={result['signals_excluded']} "
+                    f"strategies_distilled={result['strategies_distilled']}"
+                ),
+                # 扁平展开（同上：避免 details:{details:{...}} 双层）
+                **result,
             )
         except Exception as e:
             return JobResult.fail(self.name, str(e))
