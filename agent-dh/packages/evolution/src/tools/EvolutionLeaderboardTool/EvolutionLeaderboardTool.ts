@@ -7,8 +7,8 @@ import { evolutionLeaderboardPrompt, type EvolutionLeaderboardParams, type Evolu
  * EvolutionLeaderboardTool — 策略进化历史排行（RFC 012 P2 版）
  *
  * 数据源切到 quantsys-v2 策略进化引擎（:5001，真实回测进化）。语义：按 strategy_id
- * 读该策略最近 N 轮进化 run，每 run 取其 fitness 最优变体行（服务端已 fitness DESC
- * NULLS LAST 排序），组装成"进化历史排行"。诚实语义：
+ * 读该策略最近 N 轮进化 run，每 run 取其 fitness 最优变体行，按 fitness DESC 排序组装成
+ * "进化历史排行"（工具端排序：引擎 runs 端点按轮次倒序返回，fitness 序由本工具保证）。诚实语义：
  * - 无记录 → data_source=empty（不展示任何排名）
  * - 全为降级行（整批诚实失败，fitness 全 NULL）→ data_source=degraded（暴露"进化过但失败"）
  * - 有真实 fitness → qv2_real（其中降级行保留并标注 degraded_reason，不静默丢弃）
@@ -68,8 +68,24 @@ export class EvolutionLeaderboardTool extends BaseTool<EvolutionLeaderboardParam
       }) as any;
     }
 
-    // 每 run 一条 best 行；服务端已按 fitness DESC NULLS LAST 排序，rank 即降序位置
-    const rankings = runs.map((r, i) => ({
+    // 工具端按 fitness DESC 排序（NULLS LAST，同分按轮次新→旧），保证 rank 即真实排行：
+    // 引擎 GET runs 端点按轮次倒序（created_at DESC）返回，fitness 序须在此保证
+    // （引擎返回顺序是历史序不是排行序，2026-09-05 Live 实测坐实）。
+    const sortedRuns = [...runs].sort((a, b) => {
+      const fa = a.fitness != null ? Number(a.fitness) : null;
+      const fb = b.fitness != null ? Number(b.fitness) : null;
+      if (fa == null && fb == null) return 0;
+      if (fa == null) return 1; // NULLS LAST
+      if (fb == null) return -1;
+      if (fb !== fa) return fb - fa;
+      // 同分：轮次新→旧（computedAt/computed_at DESC）保持确定性
+      const ta = String(a.computedAt ?? a.computed_at ?? '');
+      const tb = String(b.computedAt ?? b.computed_at ?? '');
+      return tb.localeCompare(ta);
+    });
+
+    // 每 run 一条 best 行；rank 即 fitness 降序位置
+    const rankings = sortedRuns.map((r, i) => ({
       rank: i + 1,
       run_id: r.runId ?? r.run_id,
       strategy_id: Number(r.strategyId ?? r.strategy_id ?? strategyId),

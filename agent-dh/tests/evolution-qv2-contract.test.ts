@@ -190,6 +190,30 @@ describe('EvolutionLeaderboardTool RFC 012 P2 契约（qv2 引擎）', () => {
     expect(out.degraded_reason).toContain('无真实进化记录');
   });
 
+  it('引擎按轮次倒序返回时，工具端按 fitness DESC 重排（rank 即真实排行）', async () => {
+    // Live 实测（2026-09-05）：GET runs 按 created_at DESC 返回（轮次倒序非排行序），
+    // 工具端须重排——输入顺序刻意乱序：0.95 → 1.0(旧) → 0.90 → 1.0(新)
+    const { tool } = makeLeaderboardTool({
+      runs: [
+        { runId: 'r-low', strategyId: 635, fitness: 0.95, computedAt: '2026-09-05T03:18:49' },
+        { runId: 'r-top-old', strategyId: 635, fitness: 1.0, computedAt: '2026-09-05T03:17:51' },
+        { runId: 'r-bot', strategyId: 635, fitness: 0.9, computedAt: '2026-09-05T03:18:11' },
+        { runId: 'r-top-new', strategyId: 635, fitness: 1.0, computedAt: '2026-09-05T03:18:30' },
+      ],
+    });
+    const out: any = await (tool as any).execute(LB_ARGS, {} as any);
+    expect(out.data_source).toBe('qv2_real');
+    expect(out.rankings.map((r: any) => r.run_id)).toEqual([
+      'r-top-new', // 1.0 且更新
+      'r-top-old', // 1.0 且更旧（同分确定性：新→旧）
+      'r-low', // 0.95
+      'r-bot', // 0.90
+    ]);
+    expect(out.rankings[0].rank).toBe(1);
+    expect(out.rankings[3].rank).toBe(4);
+    expect(out.avg_fitness).toBe(0.9625);
+  });
+
   it('全部降级（fitness 全 NULL）→ data_source=degraded，暴露"进化过但失败"', async () => {
     const { tool } = makeLeaderboardTool({
       runs: [{ runId: 'x1', strategyId: 635, fitness: null, degradedReason: '样本不足：≥10 只' }],
