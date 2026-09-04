@@ -27,15 +27,21 @@ class AkshareStockProvider(StockProvider):
         try:
             import akshare as ak
 
-            # Get announcements
-            df = ak.stock_notice_report(symbol=symbol)
+            # 2026-09-01 修复：原实现 stock_notice_report(symbol=代码) 是 latent bug——
+            # 该接口 symbol 参数是公告类型（'全部'），传股票代码必 KeyError。
+            # 个股公告的正确接口是 stock_individual_notice_report(security=代码, symbol='全部')。
+            bare = symbol.split('.')[0]
+            df = ak.stock_individual_notice_report(security=bare, symbol='全部')
 
             if df is None or df.empty:
                 logger.warning(f"{self.name}: No announcements for {symbol}")
                 return None
 
+            # 只保留最近 50 条（全量历史可达数千条）
+            df = df.head(50)
+
             # Convert to StockData
-            announcements = df.to_dict('records')
+            announcements = df.astype(object).where(df.notna(), None).to_dict('records')
             return StockData(
                 symbol=symbol,
                 data_type='announcement',
@@ -70,7 +76,7 @@ class AkshareStockProvider(StockProvider):
                 return None
 
             # Convert to StockData
-            news_list = df.head(num).to_dict('records')
+            news_list = df.head(num).astype(object).where(df.notna(), None).to_dict('records')
             return StockData(
                 symbol=symbol,
                 data_type='news',
@@ -110,7 +116,7 @@ class AkshareStockProvider(StockProvider):
             filtered_df = df[mask]
 
             # Convert to StockData
-            calendar = filtered_df.to_dict('records')
+            calendar = filtered_df.astype(object).where(df.notna(), None).to_dict('records')
             return StockData(
                 symbol='',  # No specific symbol for trading calendar
                 data_type='trading_calendar',

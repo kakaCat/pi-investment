@@ -139,24 +139,38 @@ class FundFlowDataSource:
         return age_hours < self.cache_ttl_hours
 
     def _format_cache_response(self, cached_data: List[Dict], symbol: str, source: str) -> Dict:
-        """格式化缓存数据为标准响应"""
+        """格式化缓存数据为标准响应
+
+        2026-09-01 修复：DB 里部分列为 NULL（sina 源只落 main/small 两档），
+        float(None) 会 TypeError 导致缓存命中却被误判失败（日志曾出现
+        "命中本地缓存" 紧跟 "缓存查询失败"）。所有数值字段统一走 _f() 安全转换。
+        """
+        def _f(v):
+            """安全转 float：None/空串/异常 → None（而非炸掉整个格式化）"""
+            if v is None:
+                return None
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+
         # 转换缓存数据为标准格式
         formatted_data = []
         for item in cached_data:
             formatted_data.append({
                 'date': item['trade_date'].strftime('%Y-%m-%d') if hasattr(item['trade_date'], 'strftime') else str(item['trade_date']),
-                'close_price': float(item.get('close_price', 0)) if item.get('close_price') else None,
-                'change_pct': float(item.get('change_pct', 0)) if item.get('change_pct') else None,
-                'main_net_inflow': float(item.get('main_net_inflow', 0)),
-                'main_net_inflow_rate': float(item.get('main_net_inflow_rate', 0)),
-                'large_net_inflow': float(item.get('large_net_inflow', 0)),
-                'large_net_inflow_rate': float(item.get('large_net_inflow_rate', 0)),
-                'big_net_inflow': float(item.get('big_net_inflow', 0)),
-                'big_net_inflow_rate': float(item.get('big_net_inflow_rate', 0)),
-                'medium_net_inflow': float(item.get('medium_net_inflow', 0)),
-                'medium_net_inflow_rate': float(item.get('medium_net_inflow_rate', 0)),
-                'small_net_inflow': float(item.get('small_net_inflow', 0)),
-                'small_net_inflow_rate': float(item.get('small_net_inflow_rate', 0)),
+                'close_price': _f(item.get('close_price')),
+                'change_pct': _f(item.get('change_pct')),
+                'main_net_inflow': _f(item.get('main_net_inflow')) or 0,
+                'main_net_inflow_rate': _f(item.get('main_net_inflow_rate')) or 0,
+                'large_net_inflow': _f(item.get('large_net_inflow')),
+                'large_net_inflow_rate': _f(item.get('large_net_inflow_rate')),
+                'big_net_inflow': _f(item.get('big_net_inflow')),
+                'big_net_inflow_rate': _f(item.get('big_net_inflow_rate')),
+                'medium_net_inflow': _f(item.get('medium_net_inflow')),
+                'medium_net_inflow_rate': _f(item.get('medium_net_inflow_rate')),
+                'small_net_inflow': _f(item.get('small_net_inflow')),
+                'small_net_inflow_rate': _f(item.get('small_net_inflow_rate')),
             })
 
         summary = self._calculate_summary(formatted_data)

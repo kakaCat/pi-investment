@@ -15,7 +15,10 @@ from adapters.outbound.datasources.providers.quote.netease import NeteaseQuotePr
 from adapters.outbound.datasources.providers.stock.akshare import AkshareStockProvider
 from adapters.outbound.datasources.providers.dividend.akshare import AkshareDividendProvider
 from adapters.outbound.datasources.providers.market.akshare import AkshareMarketProvider
+from adapters.outbound.datasources.providers.market.ths import ThsMarketProvider
+from adapters.outbound.datasources.providers.market.sina import SinaMarketProvider
 from adapters.outbound.datasources.providers.kline.database import DatabaseKlineProvider
+from adapters.outbound.datasources.providers.kline.sina import SinaKlineProvider
 from adapters.outbound.datasources.providers.kline.tencent import TencentKlineProvider
 from adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
 from adapters.outbound.datasources.providers.kline.akshare import AkshareKlineProvider
@@ -71,6 +74,8 @@ class DataProviderManager(IDataProviderManager):
         ]
         self.market_providers = [
             AkshareMarketProvider(),
+            ThsMarketProvider(),   # 2026-09-01 备用：东财 WAF 封禁时的板块资金流（同花顺）
+            SinaMarketProvider(),  # 2026-09-01 备用：东财龙虎榜异常时的 failover（新浪）
         ]
         self.sector_providers = [
             EastmoneySectorProvider(),
@@ -82,15 +87,15 @@ class DataProviderManager(IDataProviderManager):
         self.index_providers = [
             AkshareIndexProvider(),
         ]
-        # Kline providers: database first (fast), baostock 为网络首选（独立 TCP
-        # 体系，eastmoney/tencent 双双被封后的主力源, 2026-07-28），tencent 其次，
-        # akshare(eastmoney) 最后兜底
+        # Kline providers: database first (fast), sina 为网络首选（稳定可靠，
+        # 2026-09-02 验证可用），baostock 黑名单、tencent 501、eastmoney 代理故障均已失效
         self.kline_providers = []
         from adapters.shared.services import get_kline_repo
         self.kline_providers.append(DatabaseKlineProvider(get_kline_repo()))
-        self.kline_providers.append(BaostockKlineProvider())
-        self.kline_providers.append(TencentKlineProvider())
-        self.kline_providers.append(AkshareKlineProvider())
+        self.kline_providers.append(SinaKlineProvider())
+        self.kline_providers.append(BaostockKlineProvider())  # 黑名单，但保留作为备选
+        self.kline_providers.append(TencentKlineProvider())   # 501 错误，保留作为备选
+        self.kline_providers.append(AkshareKlineProvider())   # 代理故障，保留作为备选
 
         # Health tracking (cache provider channel status)
         self.provider_stats: Dict[str, Dict[str, int]] = {}
@@ -231,9 +236,14 @@ class DataProviderManager(IDataProviderManager):
         Returns:
             True if data is valid, False otherwise
         """
-        # 基础字段检查：必须有 source
-        if not (hasattr(data, 'source') and data.source):
-            return False
+        # 列表检查：必须有元素（提前到前面，避免被 source 检查拦截）
+        if isinstance(data, list):
+            if len(data) == 0:
+                return False
+            # 递归检查第一个元素
+            if hasattr(data[0], 'source'):
+                return bool(data[0].source)
+            return True
 
         # DataFrame检查：必须有行且非空
         if hasattr(data, '__class__') and 'DataFrame' in data.__class__.__name__:
@@ -249,14 +259,9 @@ class DataProviderManager(IDataProviderManager):
                     return False
                 return True
 
-        # 列表检查：必须有元素
-        if isinstance(data, list):
-            if len(data) == 0:
-                return False
-            # 递归检查第一个元素
-            if hasattr(data[0], 'source'):
-                return bool(data[0].source)
-            return True
+        # 基础字段检查：必须有 source
+        if not (hasattr(data, 'source') and data.source):
+            return False
 
         # QuoteData检查：price必须有效
         if hasattr(data, 'price'):

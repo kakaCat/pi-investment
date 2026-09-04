@@ -1,7 +1,7 @@
 """Akshare market data provider."""
 import logging
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from adapters.outbound.datasources.base import MarketProvider
 from adapters.outbound.datasources.models import MarketData
 
@@ -18,13 +18,50 @@ class AkshareMarketProvider(MarketProvider):
     def get_market_overview(self) -> Optional[MarketData]:
         """Get market overview (rise/fall counts, indices)
 
+        2026-09-05: 主源改乐咕乐股 stock_market_activity_legu——原主源
+        stock_zh_a_spot_em 依赖 82.push2.eastmoney.com，该域在当前网络
+        (系统代理 GeoIP(cn)→DIRECT 直连,IPv6 TLS 被断)必失败且重试耗 5-6s；
+        legu 走 legulegu.com 独立域，实测 0.1s 可用。spot_em 保留为兜底
+        (网络恢复后自动回退)。两者均输出 {rise, fall, unchanged, total}。
+
         Returns:
             MarketData or None if failed
         """
         try:
             import akshare as ak
 
-            # Get market overview data
+            # --- 主源：乐咕乐股 市场活跃度（item/value 两列） ---
+            # 字段: 上涨/涨停/下跌/跌停/平盘/停牌/活跃度/统计日期
+            try:
+                df = ak.stock_market_activity_legu()
+                if df is not None and not df.empty and {'item', 'value'} <= set(df.columns):
+                    kv = dict(zip(df['item'].astype(str), df['value']))
+                    try:
+                        rise = int(float(kv.get('上涨', 0)))
+                        fall = int(float(kv.get('下跌', 0)))
+                        unchanged = int(float(kv.get('平盘', 0)))
+                        suspended = int(float(kv.get('停牌', 0)))
+                        overview_data = {
+                            'rise': rise,
+                            'fall': fall,
+                            'unchanged': unchanged,
+                            # total 含停牌，接近全市场股票口径
+                            'total': rise + fall + unchanged + suspended,
+                        }
+                        return MarketData(
+                            data_type='overview',
+                            data=overview_data,
+                            source=f'{self.name}_legu',
+                            timestamp=datetime.now().isoformat()
+                        )
+                    except (TypeError, ValueError) as e:
+                        logger.warning(f"{self.name} get_market_overview legu parse failed: {e}")
+                else:
+                    logger.warning(f"{self.name} get_market_overview legu empty/format unexpected")
+            except Exception as e:
+                logger.warning(f"{self.name} get_market_overview legu failed: {e}, fallback to em spot")
+
+            # --- 兜底：东财全市场快照（原主源；82.push2 网络恢复后可用） ---
             df = ak.stock_zh_a_spot_em()
 
             if df is None or df.empty:
@@ -73,7 +110,7 @@ class AkshareMarketProvider(MarketProvider):
                 return None
 
             # NaN → None，保证 JSON 可序列化
-            records = df.where(df.notna(), None).to_dict('records')
+            records = df.astype(object).where(df.notna(), None).to_dict('records')
 
             return MarketData(
                 data_type='market_spot',
@@ -117,7 +154,7 @@ class AkshareMarketProvider(MarketProvider):
                 logger.warning(f"{self.name}: No LHB data for {symbol} on {date}")
                 return None
 
-            lhb_data = df.to_dict('records')
+            lhb_data = df.astype(object).where(df.notna(), None).to_dict('records')
 
             return MarketData(
                 data_type='lhb',
@@ -144,6 +181,12 @@ class AkshareMarketProvider(MarketProvider):
         try:
             import akshare as ak
 
+            # 空日期默认最近 30 天（避免空字符串传给 akshare 返回全量/报错）
+            if not end_date:
+                end_date = datetime.now().strftime('%Y-%m-%d')
+            if not start_date:
+                start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+
             df = ak.stock_lhb_detail_em(
                 start_date=start_date.replace('-', ''),
                 end_date=end_date.replace('-', '')
@@ -160,7 +203,7 @@ class AkshareMarketProvider(MarketProvider):
             if df.empty:
                 return None
 
-            records = df.to_dict('records')
+            records = df.astype(object).where(df.notna(), None).to_dict('records')
             return MarketData(
                 data_type='lhb_detail',
                 data={'symbol': symbol, 'records': records, 'total': len(records)},
@@ -189,7 +232,7 @@ class AkshareMarketProvider(MarketProvider):
             if df is None or df.empty:
                 return None
 
-            records = df.to_dict('records')
+            records = df.astype(object).where(df.notna(), None).to_dict('records')
             return MarketData(
                 data_type='zt_pool',
                 data={'date': date, 'records': records, 'total': len(records)},
@@ -263,7 +306,7 @@ class AkshareMarketProvider(MarketProvider):
             if df is None or df.empty:
                 return None
 
-            records = df.where(df.notna(), None).to_dict('records')
+            records = df.astype(object).where(df.notna(), None).to_dict('records')
             return MarketData(
                 data_type='sector_fund_flow',
                 data={'records': records, 'total': len(records)},
@@ -326,7 +369,7 @@ class AkshareMarketProvider(MarketProvider):
             if df is None or df.empty:
                 return None
 
-            records = df.where(df.notna(), None).to_dict('records')
+            records = df.astype(object).where(df.notna(), None).to_dict('records')
             return MarketData(
                 data_type='market_news',
                 data={'records': records, 'total': len(records)},
@@ -354,7 +397,7 @@ class AkshareMarketProvider(MarketProvider):
 
             df = df.copy()
             df['date'] = df['date'].astype(str)
-            records = df.where(df.notna(), None).to_dict('records')
+            records = df.astype(object).where(df.notna(), None).to_dict('records')
             return MarketData(
                 data_type='index_daily',
                 data={'records': records, 'total': len(records)},
@@ -367,7 +410,7 @@ class AkshareMarketProvider(MarketProvider):
             return None
 
     def get_insider_trades(self, symbol: str) -> Optional[MarketData]:
-        """股东增减持数据（stock_dzjy_hygtj，作为内幕交易的替代指标）
+        """内部人交易/高管增减持（stock_inner_trade_xq 全市场数据按代码筛选）
 
         Args:
             symbol: 股票代码（akshare 需要 6 位裸码）
@@ -378,12 +421,29 @@ class AkshareMarketProvider(MarketProvider):
         try:
             import akshare as ak
 
-            df = ak.stock_dzjy_hygtj(symbol=symbol.split('.')[0])
+            # 2026-09-01 修复：原实现 stock_dzjy_hygtj(symbol=代码) 是 latent bug——
+            # 该接口 symbol 参数是周期（'近三月'），传股票代码必 KeyError。
+            # 真正的内部人交易接口是 stock_inner_trade_xq()（全市场，按代码筛选）。
+            df = ak.stock_inner_trade_xq()
 
             if df is None or df.empty:
                 return None
 
-            records = df.where(df.notna(), None).to_dict('records')
+            bare = symbol.split('.')[0]
+            code_col = '股票代码' if '股票代码' in df.columns else None
+            if code_col:
+                df = df[df[code_col].astype(str).str.replace('.', '').str.contains(bare, na=False)]
+
+            if df.empty:
+                # 无内部人交易记录是正常结果（非失败），返回空记录集
+                return MarketData(
+                    data_type='insider_trades',
+                    data={'symbol': symbol, 'records': [], 'total': 0},
+                    source=self.name,
+                    timestamp=datetime.now().isoformat()
+                )
+
+            records = df.astype(object).where(df.notna(), None).to_dict('records')
             return MarketData(
                 data_type='insider_trades',
                 data={'symbol': symbol, 'records': records, 'total': len(records)},
@@ -407,14 +467,19 @@ class AkshareMarketProvider(MarketProvider):
         try:
             import akshare as ak
 
-            # Get daily LHB data
-            df = ak.stock_lhb_stock_statistic_em(start_date=date, end_date=date)
+            # 2026-09-01 修复：akshare 1.18.81 的 stock_lhb_stock_statistic_em 签名已变更
+            # （symbol 参数为周期如'近一月'，不再接受 start_date/end_date），调用必 TypeError。
+            # 每日龙虎榜榜单的正确接口是 stock_lhb_detail_em(start_date, end_date)（YYYYMMDD）。
+            compact = date.replace('-', '')
+            df = ak.stock_lhb_detail_em(start_date=compact, end_date=compact)
 
             if df is None or df.empty:
                 logger.warning(f"{self.name}: No daily LHB data for {date}")
                 return None
 
-            lhb_data = df.to_dict('records')
+            # 清理 NaN（龙虎榜部分记录数字字段为 NaN，直接 to_dict 会让 JSON 序列化炸：
+            # ValueError: Out of range float values are not JSON compliant: nan）
+            lhb_data = df.astype(object).where(df.notna(), None).to_dict('records')
 
             return MarketData(
                 data_type='lhb_daily',

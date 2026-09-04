@@ -3,6 +3,9 @@
 背景（2026-07-23）：eastmoney（akshare）K线 API push2his.eastmoney.com
 被 eastmoney 封禁本机 IP（直连/代理均 TCP RST），腾讯 ifzq.gtimg.cn
 端点实测可用，作为 K线网络源的首选。
+
+更新（2026-09-02）：旧接口 /appstock/app/fqkline/get 返回 501，
+迁移到新接口 /appstock/app/kline/kline（去掉复权参数）
 """
 import logging
 from typing import List, Optional
@@ -20,7 +23,8 @@ class TencentKlineProvider(KlineProvider):
 
     # 国内数据源，必须绕过本机代理（ClashX 国外出口会被重置）
     _NO_PROXY = {'http': None, 'https': None}
-    _URL = 'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get'
+    # 2026-09-02: 新接口地址（旧接口 /fqkline/get 已废弃返回 501）
+    _URL = 'http://web.ifzq.gtimg.cn/appstock/app/kline/kline'
 
     @property
     def name(self) -> str:
@@ -72,9 +76,10 @@ class TencentKlineProvider(KlineProvider):
             return None
 
         try:
+            # 2026-09-02: 新接口参数格式（去掉复权参数 qfq）
             resp = requests.get(
                 self._URL,
-                params={'param': f'{code},day,{start_date},{end_date},320,qfq'},
+                params={'param': f'{code},day,{start_date},{end_date},320'},
                 headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'},
                 proxies=self._NO_PROXY,
                 timeout=10,
@@ -88,8 +93,8 @@ class TencentKlineProvider(KlineProvider):
                 return None
 
             node = payload.get('data', {}).get(code) or {}
-            # 前复权键为 qfqday；无复权数据时退化为 day
-            rows = node.get('qfqday') or node.get('day') or []
+            # 新接口返回格式：data.{code}.day 为数组
+            rows = node.get('day') or []
             if not rows:
                 self.last_error = f"腾讯无 {symbol} 的K线数据（代码不存在或该时段无交易）"
                 logger.warning(f"Tencent returned no data for {symbol}")
