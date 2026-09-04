@@ -27,6 +27,52 @@ function hmMin(s: unknown): number {
   if (!m) return 9999
   return Number(m[1]) * 60 + Number(m[2])
 }
+/* cron(5 段: 分 时 日 月 周) → 中文计划时刻，如 "工作日 16:45" / "周日 11:00"；解析失败回退原样 */
+const CRON_DOW = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+function cronPlan(cron: string | null | undefined): string {
+  const raw = String(cron ?? '').trim()
+  const p = raw.split(/\s+/)
+  if (p.length !== 5) return raw || '—'
+  const minS = p[0], hourS = p[1], domS = p[2], monS = p[3], dowS = p[4]
+  const toN = (s: string): number | null => (/^\d+$/.test(s) ? Number(s) : null)
+  if (hourS === '*' || hourS === '?') {
+    if (minS === '0' || minS === '*') return '每小时'
+    return raw
+  }
+  const h = toN(hourS)
+  const mi = minS === '*' || minS === '?' ? 0 : toN(minS)
+  if (h === null || mi === null || h > 23 || mi > 59) return raw
+  const time = String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0')
+  const domN = toN(domS)
+  const monN = monS !== '*' && monS !== '?' ? toN(monS) : null
+  if (domN !== null) {
+    return (monN === null ? '每月 ' + domN + ' 日' : '每年 ' + monN + ' 月 ' + domN + ' 日') + ' ' + time
+  }
+  if (domS !== '*' && domS !== '?' && domS !== 'L') return raw
+  if (domS === 'L') return '每月最后一日 ' + time
+  const days = dowExpand(dowS)
+  if (days === null) return raw
+  let label: string
+  if (days.length === 7) label = '每日'
+  else if (days.length === 5 && days.every(d => d >= 1 && d <= 5)) label = '工作日'
+  else label = '每' + days.map(d => CRON_DOW[d]).join('、')
+  if (monN !== null) label += '（' + monN + ' 月）'
+  return label + ' ' + time
+}
+/** 展开 cron 周几（"1-5"/"0,6" 等），非法返回 null */
+function dowExpand(dow: string): number[] | null {
+  if (dow === '*' || dow === '?') { const a: number[] = []; for (let i = 0; i < 7; i++) a.push(i); return a }
+  const out: number[] = []
+  for (const seg of dow.split(',')) {
+    const m = /^(\d+)(?:-(\d+))?$/.exec(seg.trim())
+    if (!m) return null
+    const a = Number(m[1]) % 7
+    const b = m[2] ? Number(m[2]) % 7 : a
+    if (b < a) return null
+    for (let d = a; d <= b; d++) out.push(d)
+  }
+  return [...new Set(out)].sort((x, y) => x - y)
+}
 function trunc(s: unknown, n: number): string {
   const t = String(s ?? '').trim()
   return t.length <= n ? t : t.slice(0, n) + '…'
@@ -330,7 +376,9 @@ function taskDetailHtml(t: SchedulerTask): string {
   if (t.agentCall === 'dh' || t.agentCall === 'ts') html += row('调用 Agent', t.agentCall === 'dh' ? 'agent-dh（LLM 智能体）' : 'agent-ts（LLM 智能体）')
   html += row('状态', '<span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span>')
   html += row('领域', esc(d ? d.title : '其他任务'))
-  html += row('计划', esc(String(t.scheduleExpr ?? '').trim() || '—'))
+  const cronRaw = String(t.scheduleExpr ?? '').trim()
+  const cronFriendly = cronPlan(cronRaw)
+  html += row('计划时刻', esc(cronFriendly) + (cronFriendly && cronFriendly !== cronRaw && cronFriendly !== '—' ? '<em class="tkd-code">原 cron: ' + esc(cronRaw) + '</em>' : ''))
   html += row('上次运行', esc(last.at))
   html += row('上次结果', last.st ? esc(TL_ZH[last.st] ?? last.st) : '—')
   html += row('今日', esc(trig + ' 次触发 / ' + succ + ' 成功'))
@@ -375,7 +423,7 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
     const zh = taskZh(raw)
     return '<tr class="dsh-exec-tr' + sel + '" data-tk="' + esc(raw) + '"' + (err ? ' title="失败原因：' + esc(err.slice(0, 300)) + '"' : '') + '>' +
       '<td class="nm"><span class="zh">' + esc(zh) + '</span>' + (zh === raw ? '' : '<span class="code">' + esc(raw) + '</span>') + '</td>' +
-      '<td class="cr">' + esc(String(t.scheduleExpr ?? '').trim() || '—') + '</td>' +
+      '<td class="cr" title="' + (t.scheduleExpr ? esc('原 cron: ' + String(t.scheduleExpr).trim()) : '') + '">' + esc(cronPlan(t.scheduleExpr)) + '</td>' +
       '<td class="st"><span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span>' + srcChip(t.src) + agentChip(t.agentCall) + '</td>' +
       '<td class="tm">' + esc(last.at) + (last.st ? '<em class="ls ' + (TL_TAG[last.st] ?? 'unk') + '">' + esc(TL_ZH[last.st] ?? last.st) + '</em>' : '') + '</td>' +
       '<td class="td">' + esc(trig + ' 触发 / ' + succ + ' 成功') + '</td>' +
@@ -387,7 +435,7 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
   refs.tasksBox.innerHTML = hint +
     '<div class="dsh-exec-tabs">' + tabs.join('') + '</div>' +
     '<div class="dsh-exec-tbwrap"><table class="dsh-exec-tb"><thead><tr>' +
-    '<th>任务</th><th>cron 计划</th><th>状态</th><th>上次运行</th><th>今日</th><th>下次运行</th></tr></thead>' +
+    '<th>任务</th><th>计划时刻</th><th>状态</th><th>上次运行</th><th>今日</th><th>下次运行</th></tr></thead>' +
     '<tbody>' + (rows || '<tr class="empty"><td colspan="6">该分类下暂无任务</td></tr>') + '</tbody></table></div>' +
     (selTask ? '<div class="dsh-exec-tkdetail">' + taskDetailHtml(selTask) + '</div>' : '')
 }
