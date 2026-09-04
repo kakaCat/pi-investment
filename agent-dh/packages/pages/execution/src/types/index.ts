@@ -32,6 +32,8 @@ export interface CheckpointResult {
   status: CheckpointStatus;
   message?: string;
   blocksFlow?: string[];
+  /** 计划执行时间 HH:mm（registry expectTime） */
+  expectTime?: string;
 }
 
 export type HealthRowStatus = 'ok' | 'degraded' | 'failed';

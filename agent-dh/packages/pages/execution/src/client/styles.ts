@@ -113,6 +113,7 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-band .node .cps li .dot { width:6px; height:6px; }
 .dsh-exec-band .node .cps li em { font-style:normal; color:var(--faint); margin-left:auto; font-size:10.5px; white-space:nowrap; }
 .dsh-exec-band .node .cps li.cp-empty { color:var(--faint); }
+.dsh-exec-band .node .cps li time.cp-tm { flex:none; min-width:36px; text-align:center; font-size:10px; line-height:1.7; color:var(--faint); background:#f4f4f5; border-radius:3px; padding:0 4px; font-variant-numeric:tabular-nums; }
 
 /* 时间轴 */
 .dsh-exec-tl-list { position:relative; }

@@ -366,7 +366,7 @@ export class DataAggregationService {
       try {
         return this.verifyOne(cp, v2Available, tasksResult, runs, vs, genome);
       } catch (e) {
-        return { id: cp.id, line: cp.line, module: cp.module, name: cp.name, status: 'unknown', message: errMsg(e), blocksFlow: cp.blocksFlow };
+        return { id: cp.id, line: cp.line, module: cp.module, name: cp.name, status: 'unknown', message: errMsg(e), blocksFlow: cp.blocksFlow, expectTime: cp.expectTime };
       }
     });
   }
@@ -379,7 +379,7 @@ export class DataAggregationService {
     vs: { regimeLatest?: string; themesLatest?: string; memoryToday?: number },
     genome: GenomeMap,
   ): CheckpointResult {
-    const base = { id: cp.id, line: cp.line, module: cp.module, name: cp.name, blocksFlow: cp.blocksFlow };
+    const base = { id: cp.id, line: cp.line, module: cp.module, name: cp.name, blocksFlow: cp.blocksFlow, expectTime: cp.expectTime };
 
     // 今日不在预期执行日 → off_day（灰，非异常）
     if (!matchesDayPattern(this.weekday, cp.expectDays)) {

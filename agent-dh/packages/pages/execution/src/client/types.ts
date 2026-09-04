@@ -17,6 +17,8 @@ export interface CheckpointResult {
   status?: string
   message?: string
   blocksFlow?: string[]
+  /** 计划执行时间 HH:mm */
+  expectTime?: string
 }
 export interface SchedulerTask {
   id?: string | number

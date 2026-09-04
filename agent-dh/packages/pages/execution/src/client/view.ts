@@ -195,7 +195,10 @@ function flowNode(code: string, zh: string, cps: CheckpointResult[]): string {
     ? '<li class="cp-empty"><i class="dot unk"></i>暂无检查点</li>'
     : cps.map((c) => {
         const s = String(c.status ?? 'unknown')
-        return '<li><i class="dot ' + (CP_DOT[s] ?? 'unk') + '"></i>' + esc(c.name ?? '?') +
+        const et = c.expectTime
+          ? '<time class="cp-tm" title="计划执行 ' + esc(c.expectTime) + '">' + esc(c.expectTime) + '</time>'
+          : ''
+        return '<li><i class="dot ' + (CP_DOT[s] ?? 'unk') + '"></i>' + et + esc(c.name ?? '?') +
           '<em>' + esc(CP_ZH[s] ?? s) + '</em></li>'
       }).join('')
   return '<div class="node st-' + dot + '">' +
