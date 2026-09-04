@@ -486,8 +486,10 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
         if requested == ['all']:
             requested = None  # None = FactorStage 默认全量技术因子
 
-        # R1修复：增加lookback到300天（原250），为momentum_6m(140天)和momentum_52w_high(250天)留出缓冲
-        lookback_days = params.get('lookback_days', 300)
+        # R1修复v2（2026-09-03）：lookback 300→420。v1 混淆了自然日与交易日——
+        # momentum_52w_high 需要 250 根日K（交易日），300 自然日实际只有 ~201 根，
+        # 导致该因子全市场静默丢弃（8/18 后零落库）。420 自然日 ≈ 280 交易日，留 30 天缓冲。
+        lookback_days = params.get('lookback_days', 420)
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
 
