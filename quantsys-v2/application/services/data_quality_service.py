@@ -117,11 +117,14 @@ class DataQualityService:
                 only_with_gaps=False  # 获取所有股票信息
             )
 
-            # 3. 检测其他问题（重复、异常）
+            # 3. 检测其他问题（重复、异常）并写入审计日志
             stocks_with_issues = []
             total_issues = 0
+            check_start_time = datetime.now()
 
             for symbol, gap_info in gaps.items():
+                symbol_start = datetime.now()
+
                 # 检测重复数据
                 dup_info = self.validator.detect_duplicates(symbol, start_date, end_date)
 
@@ -155,6 +158,19 @@ class DataQualityService:
                         'has_anomalies': anomaly_info['has_anomalies'],
                         'anomaly_count': anomaly_info['total_anomalies']
                     })
+
+                # 写入审计日志（每个股票一条记录）
+                symbol_duration_ms = int((datetime.now() - symbol_start).total_seconds() * 1000)
+                self._persist_quality_audit(
+                    symbol=symbol,
+                    start_date=start_date,
+                    end_date=end_date,
+                    gap_info=gap_info,
+                    dup_info=dup_info,
+                    anomaly_info=anomaly_info,
+                    quality_score=quality_score,
+                    duration_ms=symbol_duration_ms
+                )
 
             # 4. 计算汇总统计
             gap_summary = self.gap_detector.get_gap_summary(gaps)
@@ -430,6 +446,126 @@ class DataQualityService:
                 'success': False,
                 'error': str(e)
             }
+
+    def _persist_quality_audit(
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str,
+        gap_info: Dict,
+        dup_info: Dict,
+        anomaly_info: Dict,
+        quality_score: float,
+        duration_ms: int
+    ) -> None:
+        """将质量检查结果持久化到 kline_data_quality 审计表
+
+        Args:
+            symbol: 股票代码
+            start_date: 检查开始日期
+            end_date: 检查结束日期
+            gap_info: 缺失信息字典
+            dup_info: 重复信息字典
+            anomaly_info: 异常信息字典
+            quality_score: 综合质量评分
+            duration_ms: 检查耗时（毫秒）
+        """
+        try:
+            from infrastructure.persistence.orm.config import get_session
+            from sqlalchemy import text
+            import json
+
+            # 计算各项评分
+            completeness_score = gap_info.get('coverage_rate', 100.0)
+            consistency_score = 100.0 if not dup_info.get('has_duplicates') else 95.0
+            accuracy_score = quality_score
+
+            # 构建错误和警告列表
+            errors = []
+            warnings = []
+
+            if dup_info.get('has_duplicates'):
+                errors.append({
+                    'type': 'duplicate',
+                    'count': dup_info.get('duplicate_count', 0),
+                    'message': f'发现 {dup_info.get("duplicate_count", 0)} 条重复数据'
+                })
+
+            if anomaly_info.get('has_anomalies'):
+                for anomaly in anomaly_info.get('anomalies', [])[:10]:  # 最多记录10条
+                    warnings.append({
+                        'type': 'anomaly',
+                        'field': anomaly.get('field', 'unknown'),
+                        'message': anomaly.get('message', 'Data anomaly detected')
+                    })
+
+            # 计算评级
+            overall_score = (completeness_score + consistency_score + accuracy_score) / 3.0
+            grade = self._calculate_grade(overall_score)
+
+            session = get_session()
+            session.execute(text("""
+                INSERT INTO kline_data_quality (
+                    symbol, period, start_date, end_date,
+                    original_count, cleaned_count, removed_count, fixed_count,
+                    error_count, warning_count,
+                    errors_json, warnings_json, cleaning_operations_json,
+                    completeness_score, consistency_score, accuracy_score, overall_score,
+                    grade, duration_ms, created_at
+                ) VALUES (
+                    :symbol, :period, :start_date, :end_date,
+                    :original_count, :cleaned_count, :removed_count, :fixed_count,
+                    :error_count, :warning_count,
+                    :errors_json, :warnings_json, :cleaning_operations_json,
+                    :completeness_score, :consistency_score, :accuracy_score, :overall_score,
+                    :grade, :duration_ms, NOW()
+                )
+            """), {
+                'symbol': symbol,
+                'period': 'daily',
+                'start_date': start_date,
+                'end_date': end_date,
+                'original_count': gap_info.get('expected_days', 0),
+                'cleaned_count': gap_info.get('actual_days', 0),
+                'removed_count': dup_info.get('duplicate_count', 0),
+                'fixed_count': 0,
+                'error_count': len(errors),
+                'warning_count': len(warnings),
+                'errors_json': json.dumps(errors),
+                'warnings_json': json.dumps(warnings),
+                'cleaning_operations_json': json.dumps([]),
+                'completeness_score': completeness_score,
+                'consistency_score': consistency_score,
+                'accuracy_score': accuracy_score,
+                'overall_score': overall_score,
+                'grade': grade,
+                'duration_ms': duration_ms,
+            })
+            session.commit()
+
+        except Exception as e:
+            logger.warning(f"写入审计日志失败 {symbol}: {e}")
+            # 不阻断主流程，仅记录警告
+
+    def _calculate_grade(self, score: float) -> str:
+        """根据评分计算评级
+
+        Args:
+            score: 综合评分 (0-100)
+
+        Returns:
+            评级字符串 (A+/A/B/C/D)
+        """
+        if score >= 99.5:
+            return 'A+'
+        elif score >= 95.0:
+            return 'A'
+        elif score >= 90.0:
+            return 'B'
+        elif score >= 80.0:
+            return 'C'
+        else:
+            return 'D'
 
     def _get_hot_stocks(self, limit: int = None) -> List[str]:
         """获取股票池（默认：所有有数据的股票）

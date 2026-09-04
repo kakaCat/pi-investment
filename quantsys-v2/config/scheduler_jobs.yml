@@ -1,0 +1,86 @@
+# QuantSys V2 — Unified Scheduler Job Definitions
+# 
+# This declarative config replaces the hardcoded job definitions in
+# daily_jobs_bootstrap.py. Each job maps to an executor that the
+# UnifiedScheduler resolves at runtime.
+#
+# Schedule types:
+#   - cron: { hour, minute, day_of_week } (0=Mon, 6=Sun)
+#   - once: { at } (ISO datetime)
+#   - interval: { seconds }
+#   - event: { trigger: "manual" }
+
+version: '1.0'
+
+jobs:
+  # ── 数据新鲜度巡检 ─────────────────────────────────────────
+  - id: freshness_guard
+    name: "数据新鲜度巡检"
+    enabled: true
+    description: "K线/因子滞后于最近交易日 → 飞书告警"
+    schedule:
+      type: cron
+      hour: 17
+      minute: 20
+      day_of_week: "0-4"  # 周一~周五
+    executor:
+      type: callable
+      callable: adapters.inbound.fastapi_app.daily_jobs_bootstrap._job_freshness_guard
+    timeout: 300
+    alerts:
+      on_failure: true
+      channels: ["feishu"]
+
+  # ── 晚间数据管线 ─────────────────────────────────────────
+  - id: evening_pipeline
+    name: "晚间数据管线"
+    enabled: true
+    description: "K线分批同步 → 因子全市场计算（链式，支持幂等）"
+    schedule:
+      type: cron
+      hour: 20
+      minute: 30
+      day_of_week: "0-4"
+    executor:
+      type: callable
+      callable: adapters.inbound.fastapi_app.daily_jobs_bootstrap._job_evening_pipeline
+    timeout: 7200
+    alerts:
+      on_failure: true
+      channels: ["feishu"]
+
+  # ── 筹码分布更新 ─────────────────────────────────────────
+  - id: chip_distribution
+    name: "筹码分布更新"
+    enabled: true
+    description: "筹码分布更新（排在 pipeline 后，用当日新K线）"
+    schedule:
+      type: cron
+      hour: 21
+      minute: 10
+      day_of_week: "0-4"
+    executor:
+      type: callable
+      callable: adapters.inbound.fastapi_app.daily_jobs_bootstrap._job_chip_distribution
+    timeout: 3600
+    alerts:
+      on_failure: true
+      channels: ["feishu"]
+
+  # ── 季度财报更新 ─────────────────────────────────────────
+  - id: financial_statements
+    name: "季度财报更新"
+    enabled: true
+    description: "季度财报更新"
+    schedule:
+      type: cron
+      hour: 20
+      minute: 0
+      day_of_week: "5"  # 周六
+    executor:
+      type: callable
+      callable: adapters.inbound.fastapi_app.daily_jobs_bootstrap._job_financial_statements
+    timeout: 3600
+    alerts:
+      on_failure: true
+      channels: ["feishu"]

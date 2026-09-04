@@ -25,11 +25,20 @@ from infrastructure.persistence.database.engine import get_engine
 logger = logging.getLogger(__name__)
 
 
-def build_stock_query(scope: str, specific_symbols=None):
+def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
     """构建选股 SQL（抽出以便单测，2026-08-02）。
 
-    过滤规则：all/gem 范围排除退市股（is_delisted）和名称含"退"/"ST"的；
+    过滤规则：all/gem/priority/batch 范围排除退市股（is_delisted）和名称含"退"/"ST"的；
     显式指定的 symbols 不过滤（调用方明确要查就尊重）。
+
+    scope:
+    - 'batch': 分批轮转同步 P0(池内) + P1(热点) + 按陈旧度补充 N 只（2026-09-02 新增）
+    - 'priority': 按优先级同步 P0(池内) + P1(热点)，约 300 只
+    - 'all': 全市场按陈旧度排序
+    - 'gem': 仅创业板
+
+    Args:
+        batch_size: scope='batch' 时，除 P0+P1 外补充的最旧股票数量
 
     Returns:
         (sql, params) 元组，可直接 cursor.execute(sql, params)。
@@ -45,6 +54,110 @@ def build_stock_query(scope: str, specific_symbols=None):
             """,
             list(specific_symbols),
         )
+
+    if scope == 'batch':
+        # 2026-09-02: 分批轮转同步策略
+        # P0+P1 每天必同步（核心股票） + 按陈旧度补充 batch_size 只
+        # 这样既保证核心股票实时性，又能通过多天轮转覆盖全市场
+        return (
+            f"""
+                WITH pool_symbols AS (
+                    SELECT DISTINCT unnest(symbols) AS symbol
+                    FROM quant.stock_pools
+                    WHERE pool_type IN ('static', 'dynamic')
+                      AND symbols IS NOT NULL
+                ),
+                recent_symbols AS (
+                    SELECT DISTINCT symbol
+                    FROM quant.daily_klines
+                    WHERE updated_at >= NOW() - INTERVAL '7 days'
+                    ORDER BY updated_at DESC
+                    LIMIT 500
+                ),
+                high_priority AS (
+                    SELECT s.symbol, s.name, 0 AS priority
+                    FROM quant.stocks s
+                    WHERE s.symbol IN (SELECT symbol FROM pool_symbols)
+                      AND s.name NOT LIKE '%退%'
+                      AND s.name NOT LIKE '%ST%'
+                      AND NOT s.is_delisted
+                    UNION
+                    SELECT s.symbol, s.name, 1 AS priority
+                    FROM quant.stocks s
+                    WHERE s.symbol IN (SELECT symbol FROM recent_symbols)
+                      AND s.symbol NOT IN (SELECT symbol FROM pool_symbols)
+                      AND s.name NOT LIKE '%退%'
+                      AND s.name NOT LIKE '%ST%'
+                      AND NOT s.is_delisted
+                ),
+                stale_stocks AS (
+                    SELECT s.symbol, s.name, 2 AS priority
+                    FROM quant.stocks s
+                    LEFT JOIN (
+                        SELECT symbol, MAX(trade_date) AS max_date
+                        FROM quant.daily_klines
+                        GROUP BY symbol
+                    ) k ON k.symbol = s.symbol
+                    WHERE s.symbol NOT IN (SELECT symbol FROM high_priority)
+                      AND s.name NOT LIKE '%退%'
+                      AND s.name NOT LIKE '%ST%'
+                      AND NOT s.is_delisted
+                    ORDER BY k.max_date ASC NULLS FIRST, s.symbol
+                    LIMIT {batch_size}
+                )
+                SELECT symbol, name
+                FROM high_priority
+                UNION ALL
+                SELECT symbol, name
+                FROM stale_stocks
+                ORDER BY priority, symbol
+            """,
+            None,
+        )
+
+    if scope == 'priority':
+        # 2026-09-02: 优先级同步，只同步核心股票
+        # P0: 股票池内的股票
+        # P1: 最近 7 天访问过的股票（热点）
+        return (
+            """
+                WITH pool_symbols AS (
+                    SELECT DISTINCT unnest(symbols) AS symbol
+                    FROM quant.stock_pools
+                    WHERE pool_type IN ('static', 'dynamic')
+                      AND symbols IS NOT NULL
+                ),
+                recent_symbols AS (
+                    SELECT DISTINCT symbol
+                    FROM quant.daily_klines
+                    WHERE updated_at >= NOW() - INTERVAL '7 days'
+                    ORDER BY updated_at DESC
+                    LIMIT 500
+                ),
+                prioritized_stocks AS (
+                    SELECT
+                        s.symbol,
+                        s.name,
+                        CASE
+                            WHEN p.symbol IS NOT NULL THEN 0  -- P0: 池内
+                            WHEN r.symbol IS NOT NULL THEN 1  -- P1: 热点
+                            ELSE 2                             -- P2: 其他
+                        END AS priority
+                    FROM quant.stocks s
+                    LEFT JOIN pool_symbols p ON p.symbol = s.symbol
+                    LEFT JOIN recent_symbols r ON r.symbol = s.symbol
+                    WHERE s.name NOT LIKE '%退%'
+                      AND s.name NOT LIKE '%ST%'
+                      AND NOT s.is_delisted
+                )
+                SELECT symbol, name
+                FROM prioritized_stocks
+                WHERE priority IN (0, 1)  -- 只同步 P0 + P1
+                ORDER BY priority, symbol
+            """,
+            None,
+        )
+
     if scope == 'gem':
         return (
             """
@@ -90,7 +203,12 @@ def update_gem_klines(**params):
         **params: 任务参数
             - days: 更新最近N天的数据（默认5天）
             - symbols: 指定股票代码列表（可选）
-            - scope: 'all' 全市场（默认）| 'gem' 仅创业板
+            - scope: 同步范围（2026-09-02 更新）
+              * 'batch': 分批轮转（P0+P1 必同步 + 按陈旧度补充 batch_size 只）
+              * 'priority': 仅核心股票（P0+P1，约 300 只）
+              * 'all': 全市场按陈旧度排序（约 5500 只）
+              * 'gem': 仅创业板
+            - batch_size: scope='batch' 时，除 P0+P1 外补充的最旧股票数量（默认 500）
             - interval_seconds: 每只股票请求间隔秒数区间 (low, high)，
               默认 (0.3, 0.8) 随机抖动（防 WAF 封禁——2026-07-28 实测
               间隔 0.05s 跑约770只后被断流；连空 50 只会自适应休眠 30s）。
@@ -101,9 +219,10 @@ def update_gem_klines(**params):
         dict: 执行结果
     """
     scope = params.get('scope', 'all')
+    batch_size = params.get('batch_size', 500)
 
     logger.info("="*70)
-    logger.info(f"K线数据更新任务开始 (scope={scope})")
+    logger.info(f"K线数据更新任务开始 (scope={scope}, batch_size={batch_size if scope == 'batch' else 'N/A'})")
     logger.info(f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("="*70)
 
@@ -127,7 +246,7 @@ def update_gem_klines(**params):
         # 获取股票列表（选股 SQL 已抽出为 build_stock_query，含退市过滤）
         # 注意：SQL 内含 LIKE '%退%'，params 为 None 时必须单参调用，
         # 否则 psycopg2 会把 % 当占位符插值报 IndexError
-        sql, query_params = build_stock_query(scope, specific_symbols)
+        sql, query_params = build_stock_query(scope, specific_symbols, batch_size)
         if query_params:
             cursor.execute(sql, query_params)
         else:

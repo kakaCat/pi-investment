@@ -172,6 +172,9 @@ def daily_data_quality_check(**params):
         logger.info("✅ 每日数据质量检查完成")
         logger.info("="*70)
 
+        # 质量告警检查
+        _check_quality_alerts(result)
+
         return result
 
     except Exception as e:
@@ -185,6 +188,122 @@ def daily_data_quality_check(**params):
             'error': str(e),
             'message': '数据质量检查失败'
         }
+
+
+def _check_quality_alerts(result: Dict[str, Any]) -> None:
+    """检查数据质量并触发告警
+
+    告警条件：
+    1. D级股票数量 > 500
+    2. 平均质量评分 < 90
+    3. 回填失败率 > 50%
+    """
+    try:
+        summary = result.get('check_summary', {})
+        quality_score = summary.get('data_quality_score', 100)
+
+        # 计算 D 级股票数量
+        from infrastructure.persistence.orm.config import get_session
+        from sqlalchemy import text
+
+        session = get_session()
+        d_grade_count = session.execute(text("""
+            SELECT COUNT(*)
+            FROM kline_data_quality
+            WHERE DATE(created_at) = CURRENT_DATE
+              AND grade = 'D'
+        """)).scalar() or 0
+
+        # 回填失败率
+        backfill_summary = result.get('backfill_summary')
+        backfill_fail_rate = 0
+        if backfill_summary:
+            total = backfill_summary.get('total_stocks', 0)
+            failed = backfill_summary.get('failed_count', 0)
+            if total > 0:
+                backfill_fail_rate = (failed / total) * 100
+
+        # 判断是否需要告警
+        alerts = []
+
+        if d_grade_count > 500:
+            alerts.append({
+                'level': 'warning',
+                'type': 'quality_grade',
+                'message': f'⚠️ D级股票数量过多: {d_grade_count}只 (阈值: 500)',
+            })
+
+        if quality_score < 90:
+            alerts.append({
+                'level': 'warning',
+                'type': 'quality_score',
+                'message': f'⚠️ 数据质量评分偏低: {quality_score:.2f} (阈值: 90)',
+            })
+
+        if backfill_fail_rate > 50:
+            alerts.append({
+                'level': 'error',
+                'type': 'backfill_failure',
+                'message': f'❌ 回填失败率过高: {backfill_fail_rate:.1f}% (阈值: 50%)',
+            })
+
+        # 发送告警
+        if alerts:
+            _send_quality_alerts(alerts, summary, d_grade_count, backfill_fail_rate)
+            logger.warning(f"数据质量告警触发: {len(alerts)} 项问题")
+        else:
+            logger.info("数据质量告警检查通过，无异常")
+
+    except Exception as e:
+        logger.error(f"质量告警检查失败: {e}")
+
+
+def _send_quality_alerts(alerts: list, summary: dict, d_grade_count: int, backfill_fail_rate: float) -> None:
+    """发送质量告警通知"""
+    try:
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        message_lines = [
+            "📊 数据质量告警",
+            f"时间: {timestamp}",
+            "",
+            "问题清单:",
+        ]
+
+        for alert in alerts:
+            message_lines.append(f"{alert['message']}")
+
+        message_lines.extend([
+            "",
+            "质量概况:",
+            f"总股票数: {summary.get('total_stocks', 0)}",
+            f"有问题股票: {summary.get('stocks_with_issues', 0)}",
+            f"质量评分: {summary.get('data_quality_score', 0):.2f}",
+            f"平均覆盖率: {summary.get('avg_coverage_rate', 0):.2f}%",
+            f"D级股票: {d_grade_count}只",
+            f"回填失败率: {backfill_fail_rate:.1f}%" if backfill_fail_rate > 0 else "",
+        ])
+
+        message = "\n".join([line for line in message_lines if line])
+
+        # 写入 system_logs
+        from infrastructure.persistence.orm.config import get_session
+        from sqlalchemy import text
+
+        session = get_session()
+        session.execute(text("""
+            INSERT INTO system_logs (level, source, message, created_at)
+            VALUES (:level, :source, :message, NOW())
+        """), {
+            'level': 'WARNING' if any(a['level'] == 'warning' for a in alerts) else 'ERROR',
+            'source': 'data_quality_check',
+            'message': message,
+        })
+        session.commit()
+
+        logger.info(f"质量告警已记录到 system_logs: {len(alerts)} 项问题")
+
+    except Exception as e:
+        logger.error(f"发送质量告警失败: {e}")
 
 
 # Job注册点 - scheduler会调用这个函数

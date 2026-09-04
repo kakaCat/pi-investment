@@ -85,13 +85,26 @@ async def handle_data_quality_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
     """Execute data quality check and auto-backfill.
 
     Original: SchedulerService._handle_data_quality_check
-    Schedule: 每日 16:00
+    Schedule: 每日 22:00
     """
     logger.info("Starting data_quality_check job")
     from infrastructure.scheduler.scheduler import SchedulerService
 
     scheduler = SchedulerService()
     result = scheduler._handle_data_quality_check(metadata)
+    return result
+
+
+@register_job_handler("financial_timeliness_check")
+async def handle_financial_timeliness_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """Check financial data timeliness and alert if overdue.
+
+    Schedule: 每日 09:00
+    """
+    logger.info("Starting financial_timeliness_check job")
+    from infrastructure.jobs.financial_timeliness_check_job import execute
+
+    result = execute(**(metadata or {}))
     return result
 
 
