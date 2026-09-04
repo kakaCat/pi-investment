@@ -61,6 +61,11 @@ class EvolutionFitnessService:
 
         幂等：重复运行按 (account_name, window_end, window_days) 覆盖。
         """
+        from infrastructure.monitoring.business_metrics import (
+            evolution_fitness_computed_total,
+            evolution_fitness_score,
+        )
+        
         window_end = window_end or date.today()
         start = window_end - timedelta(days=LOOKBACK_BUFFER_DAYS)
         bench_all = dict(self._bench_provider(start, window_end))
@@ -74,7 +79,6 @@ class EvolutionFitnessService:
                 for s in snaps
                 if s.snapshot_date is not None and start <= s.snapshot_date <= window_end
             }
-            # 窗口内对齐日 = 账户 ∩ 基准；基准按交易日给，取最近 window_days 个
             aligned_dates = sorted(d for d in bench_all if d in acct_returns)[-window_days:]
             if not aligned_dates:
                 result = {'up_capture': None, 'down_capture': None, 'fitness': None,
@@ -85,10 +89,19 @@ class EvolutionFitnessService:
                 win_start = date.fromisoformat(min(aligned_dates))
                 trades = self._trade_counter(account_name, win_start, window_end)
                 result = compute_capture(acct_window, bench_window, has_trades=trades > 0)
+            
             self.fitness_repo.upsert_fitness(
                 account_name=account_name, window_end=window_end,
                 window_days=window_days, **result)
+            
+            if result.get('up_capture') is not None:
+                evolution_fitness_score.labels(account=account_name, type='up_capture').set(result['up_capture'])
+            if result.get('down_capture') is not None:
+                evolution_fitness_score.labels(account=account_name, type='down_capture').set(result['down_capture'])
+            
             computed += 1
+        
+        evolution_fitness_computed_total.labels(account='all').inc(computed)
         logger.info('evolution_fitness computed', window_end=str(window_end),
                     computed=computed)
         return {'computed': computed, 'skipped': 0, 'window_end': str(window_end)}

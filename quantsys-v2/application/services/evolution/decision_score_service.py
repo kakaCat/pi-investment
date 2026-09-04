@@ -59,26 +59,38 @@ class DecisionScoreService:
 
     def score_mature_decisions(self, pending_days: int = 1) -> Dict[str, Any]:
         """扫描 pending 决策并打分回写，返回计数汇总（供调度 run 记录）。"""
-        pending = self.decision_repo.list_pending_evaluations(days=pending_days)
-        result = {'scanned': 0, 'scored': 0, 'skipped_unmature': 0,
-                  'skipped_invalid': 0, 'errors': 0}
-        for decision in pending:
-            action = SCORABLE_TYPES.get(decision.get('decision_type'))
-            if action is None:
-                continue
-            result['scanned'] += 1
-            try:
-                outcome = self._score_one(decision, action)
-            except Exception as e:
-                logger.error(f"打分失败 {decision.get('decision_id')}: {e}")
-                result['errors'] += 1
-                continue
-            if outcome == 'scored':
-                result['scored'] += 1
-            elif outcome == 'unmature':
-                result['skipped_unmature'] += 1
-            else:
-                result['skipped_invalid'] += 1
+        from infrastructure.monitoring.business_metrics import (
+            evolution_decision_scored_total,
+            evolution_decision_score_duration_seconds,
+            evolution_errors_total,
+        )
+        
+        with evolution_decision_score_duration_seconds.time():
+            pending = self.decision_repo.list_pending_evaluations(days=pending_days)
+            result = {'scanned': 0, 'scored': 0, 'skipped_unmature': 0,
+                      'skipped_invalid': 0, 'errors': 0}
+            for decision in pending:
+                action = SCORABLE_TYPES.get(decision.get('decision_type'))
+                if action is None:
+                    continue
+                result['scanned'] += 1
+                try:
+                    outcome = self._score_one(decision, action)
+                except Exception as e:
+                    logger.error(f"打分失败 {decision.get('decision_id')}: {e}")
+                    result['errors'] += 1
+                    evolution_errors_total.labels(service='decision_score', error_type='scoring').inc()
+                    continue
+                if outcome == 'scored':
+                    result['scored'] += 1
+                elif outcome == 'unmature':
+                    result['skipped_unmature'] += 1
+                else:
+                    result['skipped_invalid'] += 1
+            
+            if result['scored'] > 0:
+                evolution_decision_scored_total.labels(account='agent_virtual').inc(result['scored'])
+        
         logger.info(f"决策打分完成: {result}")
         return result
 

@@ -91,10 +91,15 @@ class SentimentService:
 
         # 2. 资金结构分析
         recent_data = data[0] if data else {}
-        large_rate = recent_data.get('large_net_inflow_rate', 0)
-        big_rate = recent_data.get('big_net_inflow_rate', 0)
-        medium_rate = recent_data.get('medium_net_inflow_rate', 0)
-        small_rate = recent_data.get('small_net_inflow_rate', 0)
+        # 2026-09-01 修复：缓存数据部分档位为 None（sina 源只落 main/small），
+        # None > 0 会 TypeError。统一 None→0 再做比较。
+        def _rate(key):
+            v = recent_data.get(key, 0)
+            return v if isinstance(v, (int, float)) else 0
+        large_rate = _rate('large_net_inflow_rate')
+        big_rate = _rate('big_net_inflow_rate')
+        medium_rate = _rate('medium_net_inflow_rate')
+        small_rate = _rate('small_net_inflow_rate')
 
         # 判断资金结构
         if large_rate > 0 and big_rate > 0:
