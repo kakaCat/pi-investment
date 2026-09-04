@@ -222,6 +222,19 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ DailyJobs disabled via DISABLE_DAILY_JOBS")
 
+    # P2.3: 启动统一调度器（YAML-config-driven）
+    if os.getenv('DISABLE_UNIFIED_SCHEDULER', '').lower() != 'true':
+        try:
+            from infrastructure.scheduler.unified_scheduler import get_scheduler
+            unified_scheduler = get_scheduler()
+            unified_scheduler.start()
+            app.state.unified_scheduler = unified_scheduler
+            logger.info("✅ UnifiedScheduler started", jobs_count=len(unified_scheduler.jobs))
+        except Exception as e:
+            logger.error(f"❌ UnifiedScheduler startup failed: {e}")
+    else:
+        logger.warning("⚠️ UnifiedScheduler disabled via DISABLE_UNIFIED_SCHEDULER")
+
     logger.info("📖 API Documentation: http://localhost:5001/docs")
     logger.info("📚 ReDoc: http://localhost:5001/redoc")
 
@@ -274,8 +287,8 @@ async def lifespan(app: FastAPI):
         logger.warning(f"⚠️ Thread pool shutdown failed: {e}")
 
     try:
-        from infrastructure.persistence.database.engine import close_engine
-        close_engine()
+        from infrastructure.persistence.database.engine import dispose_engine
+        dispose_engine()
         logger.info("✅ Engine closed successfully")
     except Exception as e:
         logger.error(f"❌ Engine cleanup failed: {e}")
@@ -483,6 +496,16 @@ def register_routes():
     except (ImportError, AttributeError) as e:
         logger.error(f"❌ CRITICAL route failed: health - {e}")
         raise RuntimeError(f"Critical route 'health' failed to register: {e}") from e
+    
+    # Prometheus 指标端点（监控核心）
+    try:
+        from adapters.inbound.fastapi_app.routes.metrics_async import router as metrics_router
+        app.include_router(metrics_router)
+        logger.info("✅ Registered (CRITICAL): metrics")
+        critical_routes.append("metrics")
+    except (ImportError, AttributeError) as e:
+        logger.error(f"❌ CRITICAL route failed: metrics - {e}")
+        raise RuntimeError(f"Critical route 'metrics' failed to register: {e}") from e
     
     # 认证授权（安全基础）
     try:
@@ -1075,6 +1098,24 @@ def register_routes():
         optional_failed.append("scheduler")
         logger.warning(f"⚠️ Failed to import scheduler_async: {e}")
 
+    # 统一调度器（P2.3 YAML-config-driven scheduler）
+    try:
+        from adapters.inbound.fastapi_app.routes.unified_scheduler_async import router as unified_scheduler_router
+        app.include_router(unified_scheduler_router)
+        logger.info("✅ Registered: unified_scheduler (P2.3)")
+    except ImportError as e:
+        optional_failed.append("unified_scheduler")
+        logger.warning(f"⚠️ Failed to import unified_scheduler_async: {e}")
+
+    # 统一事件总线（P2.4 unified event bus）
+    try:
+        from adapters.inbound.fastapi_app.routes.unified_event_bus_async import router as event_bus_router
+        app.include_router(event_bus_router)
+        logger.info("✅ Registered: unified_event_bus (P2.4)")
+    except ImportError as e:
+        optional_failed.append("unified_event_bus")
+        logger.warning(f"⚠️ Failed to import unified_event_bus_async: {e}")
+
     # （scheduler_webhook 已在 CRITICAL 路由部分注册，此处跳过）
 
     # Agent 决策执行 API
@@ -1104,7 +1145,7 @@ def register_routes():
         optional_failed.append("game.intelligence")
         logger.warning(f"⚠️ Failed to import game.intelligence: {e}")
 
-    # 流水线杂项（cli/calibrate、cli/signal-generate、stocks/data-status，agent 迁移）
+    # 流水线杂项（cli/calibrate、stocks/data-status，agent 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.pipeline_misc_async import router as pipeline_misc_router
         app.include_router(pipeline_misc_router)
