@@ -75,6 +75,8 @@ export interface WatchRule {
   cost_price?: number | null;
   created_at: string;
   triggered_count?: number;
+  /** 归属账户（account_name 全名）；undefined/null=通用观察（跨账户看板展示） */
+  account?: string | null;
 }
 
 export interface HoldingsData {

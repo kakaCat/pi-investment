@@ -106,6 +106,13 @@ export function buildView(data: HoldingsData): string {
   const watchRules: WatchRule[] = Array.isArray(data.watchRules) ? data.watchRules : []
   const ctxNames = namesFromContexts(watchRules)
 
+  // 账户维度（2026-09-04）：仅「本账户归属 + 通用观察(无归属)」参与展示与持仓盯盘标记；
+  // 其余账户的规则不在当前账户视图出现（account 由后端 watch_rules.account 返回）
+  const scopedRules = watchRules.filter((r) => {
+    const a = r.account
+    return a == null || a === '' || a === current
+  })
+
   const accountSelect = accounts.length > 1
     ? `<div class="dsh-hld-acct">
          <label for="dsh-hld-account-switch">账户</label>
@@ -134,11 +141,11 @@ export function buildView(data: HoldingsData): string {
 
   ${renderSummary(summary, todayPct, data)}
 
-  ${renderPositions(positions, ctxNames, watchRules)}
+  ${renderPositions(positions, ctxNames, scopedRules)}
 
   ${renderTrades(data)}
 
-  ${renderWatchRules(watchRules, ctxNames)}
+  ${renderWatchRules(watchRules, ctxNames, current)}
 </div>`
 }
 
@@ -277,35 +284,57 @@ function renderTrades(data: HoldingsData): string {
 }
 
 /* ------------------------------------------------------------ watch rules */
-function renderWatchRules(watchRules: WatchRule[], ctxNames: Record<string, string>): string {
-  const enabled = watchRules.filter((r) => r.enabled)
-  const disabled = watchRules.length - enabled.length
-  const codes = new Set(watchRules.map((r) => pureCode(r.symbol)))
-  const rows = watchRules
-    .map((r) => {
-      const ctx = ctxText(r)
-      const brief = ctx.replace(/\s+/g, ' ').trim()
-      const condTexts = (r.conditions ?? []).map(condChip).filter(Boolean)
-      const condShow = condTexts.slice(0, 3).join(' <span class="dim">·</span> ') + (condTexts.length > 3 ? ' <span class="dim">+' + (condTexts.length - 3) + '</span>' : '')
-      const kind = kindOf(ctx)
-      return `<tr>
+function renderWatchRules(watchRules: WatchRule[], ctxNames: Record<string, string>, currentAccount: string): string {
+  // 展示口径 = 本账户归属 + 通用观察（account 为空/缺失）；其余账户规则不在本账户视图
+  const shown = watchRules.filter((r) => {
+    const a = r.account
+    return a == null || a === '' || a === currentAccount
+  })
+  const owned = shown.filter((r) => r.account === currentAccount)
+  const general = shown.filter((r) => !(r.account === currentAccount))
+  const otherCount = watchRules.length - shown.length
+  const enabled = shown.filter((r) => r.enabled)
+  const disabled = shown.length - enabled.length
+  const codes = new Set(shown.map((r) => pureCode(r.symbol)))
+
+  const row = (r: WatchRule): string => {
+    const ctx = ctxText(r)
+    const brief = ctx.replace(/\s+/g, ' ').trim()
+    const condTexts = (r.conditions ?? []).map(condChip).filter(Boolean)
+    const condShow = condTexts.slice(0, 3).join(' <span class="dim">·</span> ') + (condTexts.length > 3 ? ' <span class="dim">+' + (condTexts.length - 3) + '</span>' : '')
+    const kind = kindOf(ctx)
+    return `<tr>
         <td><span class="sec-name">${esc(stockName(r.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(r.symbol))}</span></td>
         <td><span class="dsh-hld-tag ${kind.cls}">${kind.text}</span></td>
         <td class="cond">${condShow || '<span class="dim">—</span>'}</td>
         <td>${r.enabled ? '<span class="dsh-hld-tag on">监控中</span>' : '<span class="dsh-hld-tag off">已停用</span>'}</td>
         <td class="ctx" title="${esc(brief.slice(0, 400))}">${esc(brief.slice(0, 44))}${brief.length > 44 ? '…' : ''}</td>
       </tr>`
-    })
-    .join('')
-  const empty = watchRules.length === 0 ? `<div class="dsh-hld-emptybox">暂无盯盘规则 — 开仓后 agent 会自动挂上止损/止盈盯盘</div>` : ''
-  return `<div class="dsh-hld-card">
-  <div class="hd"><span class="t">盯盘中心（${watchRules.length}）</span><span class="more">规则触发由 agent 决策，无需人工盯盘</span></div>
-  ${watchRules.length > 0 ? `<div class="dsh-hld-watchsum">
-    <div class="ws"><div class="v">${watchRules.length}</div><div class="n">规则总数</div></div>
+  }
+  const groupRow = (label: string, n: number): string =>
+    `<tr class="dsh-hld-wg"><td colspan="5"><span class="lab">${esc(label)}</span><span class="cnt">${n} 条</span></td></tr>`
+  const rows = (owned.length ? groupRow('本账户', owned.length) + owned.map(row).join('') : '')
+    + (general.length ? groupRow('通用观察', general.length) + general.map(row).join('') : '')
+  const title = shown.length > 0
+    ? `盯盘中心（本账户 ${owned.length} · 通用观察 ${general.length}）`
+    : '盯盘中心'
+  const sum = shown.length > 0 ? `<div class="dsh-hld-watchsum">
+    <div class="ws"><div class="v accent">${owned.length}</div><div class="n">本账户</div></div>
+    <div class="ws"><div class="v">${general.length}</div><div class="n">通用观察</div></div>
     <div class="ws"><div class="v ok">${enabled.length}</div><div class="n">监控中</div></div>
     <div class="ws"><div class="v warn">${disabled.length}</div><div class="n">已停用</div></div>
     <div class="ws"><div class="v">${codes.size}</div><div class="n">覆盖标的</div></div>
-  </div>` : ''}
+  </div>` : ''
+  const hideNote = otherCount > 0
+    ? `<div class="dsh-hld-hide-note">其余账户的 ${otherCount} 条盯盘规则不在本账户视图（本视图 = 本账户 + 通用观察）</div>`
+    : ''
+  const empty = shown.length === 0
+    ? `<div class="dsh-hld-emptybox">本账户暂无盯盘规则 — 开仓后 agent 会自动挂上止损/止盈盯盘（无主候选观察归入通用观察）</div>`
+    : ''
+  return `<div class="dsh-hld-card">
+  <div class="hd"><span class="t">${title}</span><span class="more">按账户归属展示 · 触发后由 agent 决策，无需人工盯盘</span></div>
+  ${sum}
+  ${hideNote}
   ${empty}
   ${empty ? '' : `<div class="tblwrap"><table>
     <tr><th>股票</th><th>方向</th><th>触发条件</th><th>状态</th><th>监控摘要</th></tr>

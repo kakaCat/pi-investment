@@ -70,6 +70,8 @@ export interface WatchRule {
   context: Record<string, any>;
   created_at: string;
   triggered_count: number;
+  /** 归属账户（account_name 全名，如 agent_virtual）；null=通用观察（跨账户看板展示） */
+  account?: string | null;
 }
 
 export interface HoldingsData {

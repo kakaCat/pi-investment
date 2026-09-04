@@ -149,6 +149,46 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-domain .tag.wait, .dsh-exec-block .tag.wait { background:#f4f4f5; color:#909399; }
 .dsh-exec-domain .tag.off { background:#f4f4f5; color:#909399; }
 
+
+/* 调度任务：任务卡 tab 横排 + 点击详情（2026-09-04） */
+.dsh-exec-tks { display:flex; flex-wrap:wrap; gap:10px; }
+.dsh-exec-tk { appearance:none; display:flex; flex-direction:column; gap:3px; flex:0 0 auto; min-width:176px; max-width:272px;
+  padding:8px 12px 7px; border:1px solid var(--line); border-radius:10px; background:#fff;
+  font:inherit; color:var(--text); cursor:pointer; text-align:left; position:relative; overflow:hidden;
+  transition:border-color .15s, box-shadow .15s, transform .1s; }
+.dsh-exec-tk::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--wait); }
+.dsh-exec-tk.st-ok::before { background:#67c23a; }
+.dsh-exec-tk.st-bad::before { background:#f56c6c; }
+.dsh-exec-tk.st-wait::before { background:#e6a23c; }
+.dsh-exec-tk.st-off::before, .dsh-exec-tk.st-unk::before { background:#c0c4cc; }
+.dsh-exec-tk:hover { border-color:#b3d8ff; box-shadow:0 2px 6px rgba(64,158,255,.14); }
+.dsh-exec-tk.sel { border-color:#409eff; box-shadow:0 0 0 2px rgba(64,158,255,.16); background:#f7fbff; }
+.dsh-exec-tk.sel .tk-name { color:#1d6fe0; }
+.dsh-exec-tk .tk-top { display:flex; align-items:center; gap:6px; min-width:0; }
+.dsh-exec-tk .tk-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; font-size:13px; color:var(--text); }
+.dsh-exec-tk .tk-tag { flex:none; }
+.dsh-exec-tk .tk-cap { color:var(--dim); font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dk { width:8px; height:8px; border-radius:50%; flex:none; background:#909399; }
+.dk.d0 { background:#409eff; } .dk.d1 { background:#67c23a; } .dk.d2 { background:#e6a23c; }
+.dk.d3 { background:#9c6ade; } .dk.d4 { background:#26c6da; } .dk.d5 { background:#ff7a45; }
+.dk.dx { background:#a2a8b3; }
+.dsh-exec-legend { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:0 0 10px; font-size:12px; color:var(--dim); }
+.dsh-exec-legend .lg { display:inline-flex; align-items:center; gap:5px; }
+.dsh-exec-legend .lg b { color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
+.dsh-exec-hint { margin-left:auto; color:var(--faint); font-size:11px; display:inline-flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.dsh-exec-hint .dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+.dsh-exec-hint .dot.ok { background:#67c23a; } .dsh-exec-hint .dot.bad { background:#f56c6c; }
+.dsh-exec-hint .dot.wait { background:#e6a23c; } .dsh-exec-hint .dot.off { background:#c0c4cc; }
+.dsh-exec-tkdetail { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px 22px; margin-top:12px;
+  background:#fafbfc; border:1px solid var(--line); border-left:3px solid #409eff; border-radius:10px; padding:11px 16px; }
+.dsh-exec-tkdetail .tkd-i { min-width:0; }
+.dsh-exec-tkdetail .tkd-i b { display:block; font-weight:600; font-size:11px; color:var(--faint); margin-bottom:1px; }
+.dsh-exec-tkdetail .tkd-i span { font-size:12.5px; color:var(--text); word-break:break-all; }
+.dsh-exec-tkdetail .tkd-code { font-style:normal; color:var(--faint); font-size:11px; margin-left:6px; }
+.dsh-exec-tkdetail .tkd-err { grid-column:1 / -1; }
+.dsh-exec-tkdetail .tkd-err span { color:#f56c6c; }
+.dsh-exec-tkdetail .tag { display:inline-block; padding:0 8px; border-radius:4px; font-size:11px; line-height:1.8; }
+
 /* 错误事件 / 阻断 */
 .dsh-exec-errs { list-style:none; margin:0; padding:0; }
 .dsh-exec-errs li { display:flex; gap:10px; align-items:baseline; padding:7px 0; font-size:12px; border-bottom:1px dashed var(--line); color:var(--body); }

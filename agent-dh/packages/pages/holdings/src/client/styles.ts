@@ -132,12 +132,19 @@ html[data-dsh-hld-active] .dsh-hld-view { display: flex; flex-direction: column;
 .dsh-hld-tag.warn, .dsh-hld-tag.trig { background:#fdf6ec; color:#e6a23c; }
 
 /* 盯盘中心统计 */
-.dsh-hld-watchsum { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--line); }
+.dsh-hld-watchsum { display:grid; grid-template-columns:repeat(5,1fr); border-bottom:1px solid var(--line); }
 .dsh-hld-watchsum .ws { padding:12px 16px; text-align:center; }
 .dsh-hld-watchsum .ws + .ws { border-left:1px solid var(--line); }
 .dsh-hld-watchsum .v { font-size:20px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
 .dsh-hld-watchsum .v.ok { color:#67c23a; }
 .dsh-hld-watchsum .v.warn { color:#e6a23c; }
+.dsh-hld-watchsum .v.accent { color:#409eff; }
+
+/* 盯盘分组标题行（本账户 / 通用观察） */
+.dsh-hld-card tr.dsh-hld-wg td { background:#fafbfc; padding:5px 14px; font-size:11px; color:var(--dim); border-bottom:1px solid var(--line); }
+.dsh-hld-wg .lab { color:#409eff; font-weight:600; letter-spacing:.5px; }
+.dsh-hld-wg .cnt { color:var(--dim); margin-left:8px; font-weight:400; }
+.dsh-hld-hide-note { padding:8px 18px 0; color:var(--faint); font-size:11px; }
 .dsh-hld-watchsum .n { font-size:11px; color:var(--dim); margin-top:1px; }
 .dsh-hld-card td.ctx { color:var(--dim); max-width:340px; }
 .dsh-hld-card td.cond { color:var(--body); white-space:nowrap; }

@@ -35,7 +35,7 @@ export class PortfolioAggregationService {
         this.fetchSummary(v2BaseURL, accountName, timeout),
         this.fetchPositions(v2BaseURL, accountName, timeout),
         this.fetchTodayTrades(v2BaseURL, accountName, timeout),
-        this.fetchWatchRules(v2BaseURL, timeout),
+        this.fetchWatchRules(v2BaseURL, accountName, timeout),
       ]);
 
       // 提取结果，失败的用空数组/默认值
@@ -107,8 +107,9 @@ export class PortfolioAggregationService {
     return trades.filter((t) => t.created_at && t.created_at.startsWith(today));
   }
 
-  private async fetchWatchRules(baseURL: string, timeout: { timeoutMs: number }): Promise<WatchRule[]> {
-    const url = `${baseURL}/api/watch/rules`;
+  private async fetchWatchRules(baseURL: string, accountName: string, timeout: { timeoutMs: number }): Promise<WatchRule[]> {
+    // account 过滤：后端返回该账户归属 + 通用观察（account IS NULL）的规则（2026-09-04 账户关联）
+    const url = `${baseURL}/api/watch/rules?account=${encodeURIComponent(accountName)}`;
     const resp = await fetchData<{ rules: WatchRule[] }>(url, timeout);
     return resp.rules || [];
   }
