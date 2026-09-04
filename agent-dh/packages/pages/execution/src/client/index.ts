@@ -69,8 +69,11 @@ export function apply(ctx: ApplyContext): void {
     const onOpen = (event: Event): void => {
       const open = (event as CustomEvent<{ open?: boolean }>).detail?.open
       console.log('[dashboard-execution] open-board event', { open }, 'boardOpen:', controller.getSnapshot().boardOpen)
-      if (open === true) controller.openBoard()
-      else controller.toggleBoard()
+      if (open === true) {
+        // 已开时再点=关闭（openBoard 对已开状态是幂等空转）
+        if (controller.getSnapshot().boardOpen) controller.closeBoard()
+        else controller.openBoard()
+      } else controller.toggleBoard()
     }
     window.addEventListener(OPEN_EVENT, onOpen)
 

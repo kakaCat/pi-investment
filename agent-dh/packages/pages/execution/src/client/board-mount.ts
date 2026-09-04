@@ -102,15 +102,18 @@ export function mountBoard(controller: BoardController): () => void {
     if (detail !== PANEL_NAME && controller.getSnapshot().boardOpen) controller.closeBoard()
   }
   // 点侧栏会话行时关板（本入口自身子树豁免）
-  const SIDEBAR_ROW_SELECTOR = '[class*="sessionRow"], [class*="projectRow"], [class*="searchResultRow"], [class*="searchResultWorkspace"], [class*="newSession"]'
-  const onClickSidebarRow = (event: MouseEvent): void => {
+    // 关板：点击任何非本板/本入口（footer 按钮）的区域即关闭——会话行是 role=treeitem 的 div，
+  // 不能按 button/a/role=button 判定，宽松匹配保证点会话行/工作区后会话内容立刻可见
+  const onClickOutside = (event: MouseEvent): void => {
     if (!controller.getSnapshot().boardOpen) return
     const target = event.target as HTMLElement | null
     if (target === null) return
+    if (target.closest(BOARD_VIEW_SELECTOR) !== null) return
     if (target.closest(ENTRY_SELECTOR) !== null) return
-    if (target.closest(SIDEBAR_ROW_SELECTOR) !== null) controller.closeBoard()
+    if (target.closest('[class*="dsh-exec-foot"]') !== null) return
+    controller.closeBoard()
   }
-  document.addEventListener('click', onClickSidebarRow, true)
+  document.addEventListener('click', onClickOutside, true)
   document.addEventListener(ACTIVATE_EVENT, onOtherActivate)
   const startPoll = (): void => {
     if (pollTimer !== 0) window.clearInterval(pollTimer)
@@ -128,7 +131,7 @@ export function mountBoard(controller: BoardController): () => void {
   startPoll()
 
   return () => {
-    document.removeEventListener('click', onClickSidebarRow, true)
+    document.removeEventListener('click', onClickOutside, true)
     document.removeEventListener(ACTIVATE_EVENT, onOtherActivate)
     document.removeEventListener('visibilitychange', onVisibility)
     waitObserver.disconnect()

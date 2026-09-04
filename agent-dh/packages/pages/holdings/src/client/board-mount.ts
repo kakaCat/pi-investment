@@ -139,16 +139,24 @@ export function createBoardController(): BoardController {
  * Returns a disposer to remove the mount.
  */
 export function mountBoard(controller: BoardController): () => void {
-  const column = conversationColumn()
-  if (!column) {
-    console.warn('[dashboard-holdings] conversation column not found')
-    return () => {}
-  }
+  let container: HTMLDivElement | undefined
 
-  const view = document.createElement('div')
-  view.setAttribute('data-dsh-hld-view', '')
-  view.className = 'dsh-hld-view'
-  column.appendChild(view)
+  // 中心列可能晚于 client apply() 挂载（boot 时序）：观察 body，列出现后补建视图容器。
+  // 此前无重试导致列未就绪时挂载永久失败（'conversation column not found'）→ 点击只置 active
+  // 属性、无任何可见内容。
+  const ensure = (): void => {
+    if (container !== undefined) return
+    const column = conversationColumn()
+    if (column === undefined) return
+    container = document.createElement('div')
+    container.setAttribute('data-dsh-hld-view', '')
+    container.className = 'dsh-hld-view'
+    column.appendChild(container)
+    console.log('[dashboard-holdings] board container mounted')
+  }
+  const waitObserver = new MutationObserver(() => { ensure() })
+  waitObserver.observe(document.body, { childList: true, subtree: true })
+  ensure()
 
   // Wire global callbacks for view interactions
   ;(window as any).__dshHldRefresh = () => controller.refresh()
@@ -157,33 +165,31 @@ export function mountBoard(controller: BoardController): () => void {
   // Listen for other panels' activation to auto-close
   const onOtherActivate = (event: Event): void => {
     const detail = (event as CustomEvent).detail
-    if (detail !== PANEL_NAME) {
-      controller.closeBoard()
-    }
+    if (detail !== PANEL_NAME && controller.getSnapshot().boardOpen) controller.closeBoard()
   }
   window.addEventListener(ACTIVATE_EVENT, onOtherActivate)
 
-  // Listen for sidebar row clicks to auto-close
-  const onSidebarClick = (event: Event): void => {
-    const target = event.target as HTMLElement
-    // Check if click is on a sidebar navigation element (not our footer button)
-    if (target.closest('[data-pane="sidebar"]') && !target.closest('[class*="dsh-hld-foot"]')) {
-      const isNavClick = target.closest('button, a, [role="button"]')
-      if (isNavClick && !target.closest('[data-dsh-hld-entry]')) {
-        controller.closeBoard()
-      }
-    }
+  // 关板：点击任何非本板/本入口（footer 按钮）的区域即关闭。会话行是 role=treeitem 的 div，
+  // 不能按 button/a/role=button 判定（旧逻辑从不触发 → active 属性卡死 → 点会话不显示）。
+  const onClickOutside = (event: MouseEvent): void => {
+    if (!controller.getSnapshot().boardOpen) return
+    const target = event.target as HTMLElement | null
+    if (target === null) return
+    if (target.closest('[data-dsh-hld-view]') !== null) return
+    if (target.closest('[class*="dsh-hld-foot"]') !== null) return
+    if (target.closest('[data-dsh-hld-entry]') !== null) return
+    controller.closeBoard()
   }
-  document.addEventListener('click', onSidebarClick)
-
-  console.log('[dashboard-holdings] board mounted')
+  document.addEventListener('click', onClickOutside, true)
 
   return () => {
     window.removeEventListener(ACTIVATE_EVENT, onOtherActivate)
-    document.removeEventListener('click', onSidebarClick)
-    view.remove()
+    document.removeEventListener('click', onClickOutside, true)
+    waitObserver.disconnect()
+    if (container !== undefined) container.remove()
     delete (window as any).__dshHldRefresh
     delete (window as any).__dshHldSwitchAccount
     console.log('[dashboard-holdings] board unmounted')
   }
 }
+

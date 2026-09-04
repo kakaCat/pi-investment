@@ -16,6 +16,11 @@ export const STYLES = `
 .dsh-exec-entry:hover { background: var(--dsw-hover, rgba(128,128,128,.12)); color: var(--dsw-text-primary, inherit); }
 .dsh-exec-entry[data-active="true"] { background: var(--dsw-active, rgba(128,128,128,.18)); color: var(--dsw-text-primary, inherit); font-weight: 500; }
 .dsh-exec-entry svg { flex: none; }
+/* sidebar.footer.action 列表默认按行排布——把整个 seat 容器改为纵向列，
+   两个看板按钮即上下堆叠（wide 整宽 / rail 纵向图标） */
+div[data-slot="sidebar.footer.action"] {
+  display: flex !important; flex-direction: column; align-items: stretch; width: 100%; min-width: 0;
+}
 [data-sidebar-collapsed] [data-dsh-exec-entry],
 [class*="_collapsed"] [data-dsh-exec-entry] {
   width: 36px; height: 36px; min-width: 36px; margin: 0 0 12px; padding: 0;
