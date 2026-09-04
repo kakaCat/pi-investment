@@ -342,6 +342,37 @@ let selDom: string = 'all'
 export function setTaskSel(name: string | null): void { selTaskName = name }
 export function setDomSel(d: string): void { selDom = d }
 
+/* 调度任务表分页（2026-09-05 用户：任务列表应分页展示而非整页堆叠）。纯视图切换——只重绘任务区 */
+const TASK_PAGE_SIZE = 10
+let taskPage = 1
+let lastDomShown = 'all'
+let lastTaskShown: string | null = null
+export function setTaskPage(p: number): void { taskPage = p > 0 ? Math.trunc(p) : 1 }
+function pageIndexOf(index: number): number { return Math.floor(index / TASK_PAGE_SIZE) + 1 }
+function pagerHtml(page: number, total: number, count: number): string {
+  const num = (p: number): string =>
+    '<button type="button" class="tpg-num' + (p === page ? ' act' : '') + '" data-tkpage="' + p + '">' + p + '</button>'
+  const nums: string[] = []
+  if (total <= 7) { for (let i = 1; i <= total; i++) nums.push(num(i)) }
+  else {
+    const seen: number[] = []
+    for (const n of [1, page - 1, page, page + 1, total].sort((a, b) => a - b)) {
+      if (n < 1 || n > total || seen.includes(n)) continue
+      seen.push(n)
+    }
+    let prev = 0
+    for (const n of seen) {
+      if (prev !== 0 && n - prev > 1) nums.push('<span class="tpg-gap">…</span>')
+      nums.push(num(n))
+      prev = n
+    }
+  }
+  return '<button type="button" class="tpg-arr" data-tkpage="' + (page - 1) + '"' + (page <= 1 ? ' disabled' : '') + '>‹ 上一页</button>' +
+    '<span class="tpg-nums">' + nums.join('') + '</span>' +
+    '<button type="button" class="tpg-arr" data-tkpage="' + (page + 1) + '"' + (page >= total ? ' disabled' : '') + '>下一页 ›</button>' +
+    '<span class="tpg-cnt">共 ' + count + ' 条 · 第 ' + page + ' / ' + total + ' 页</span>'
+}
+
 /** 归一 lastRun：字符串可能是 ISO 时间或状态词；对象含 triggeredAt/status/error */
 function runLast(t: SchedulerTask): { at: string; st: string; err: string } {
   const lr = t.lastRun
@@ -394,7 +425,7 @@ function taskDetailHtml(t: SchedulerTask): string {
 
 export function renderTasks(refs: ViewRefs, data: BoardData): void {
   const tasks = data.tasks ?? []
-  if (tasks.length === 0) { selTaskName = null; selDom = 'all'; refs.tasksBox.innerHTML = '<div class="dsh-exec-empty">暂无调度任务</div>'; return }
+  if (tasks.length === 0) { selTaskName = null; selDom = 'all'; taskPage = 1; lastDomShown = 'all'; lastTaskShown = null; refs.tasksBox.innerHTML = '<div class="dsh-exec-empty">暂无调度任务</div>'; return }
   const domCount = DOMAINS.map(() => 0)
   let otherCount = 0
   for (const t of tasks) { const d = domainOf(t.name); if (d) domCount[d.idx]++; else otherCount++ }
@@ -410,6 +441,21 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
   const view = tasks.filter((t) => inDom(String(t.name ?? '')))
   // 选中任务持久化（30s 轮询重绘仍保留）；不在当前分类内则取消选中（表格下方详情随行）
   if (selTaskName !== null && !view.some((t) => String(t.name) === selTaskName)) selTaskName = null
+  // 分页：换分类复位到第 1 页；点选/换分类时自动跟随任务所在页；轮询/翻页保持当前页
+  const domChanged = selDom !== lastDomShown
+  const taskChanged = selTaskName !== lastTaskShown
+  lastDomShown = selDom
+  lastTaskShown = selTaskName
+  if (domChanged) taskPage = 1
+  const totalPages = Math.max(1, Math.ceil(view.length / TASK_PAGE_SIZE))
+  if (taskPage > totalPages) taskPage = totalPages
+  if ((domChanged || taskChanged) && selTaskName !== null) {
+    const si = view.findIndex((t) => String(t.name) === selTaskName)
+    if (si >= 0) taskPage = pageIndexOf(si)
+  }
+  const pageRows = view.slice((taskPage - 1) * TASK_PAGE_SIZE, taskPage * TASK_PAGE_SIZE)
+  // 翻页后选中任务不在当前页 → 取消选中（详情跟随可见行，避免表下详情指向隐形行）
+  if (selTaskName !== null && !pageRows.some((t) => String(t.name) === selTaskName)) selTaskName = null
   const cnt = (v: number): string => '<b class="c">' + v + '</b>'
   const tab = (dom: string, label: string, count: number): string =>
     '<button type="button" class="dsh-exec-tab' + (selDom === dom ? ' act' : '') + '" data-dom="' + dom + '">' + label + cnt(count) + '</button>'
@@ -434,14 +480,17 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
       '<td class="td">' + esc(trig + ' 触发 / ' + succ + ' 成功') + '</td>' +
       '<td class="nx">' + esc(shortDT(t.nextRunAt)) + '</td></tr>'
   }
-  const hint = '<div class="dsh-exec-legend dsh-exec-legend2"><span class="dsh-exec-hint">点击 tab 切换分类 · 点击任务行查看失败原因 · <i class="dot ok"></i>成功 <i class="dot bad"></i>失败 <i class="dot wait"></i>待执行 <i class="dot off"></i>未启用</span></div>'
-  const rows = view.map(trow).join('')
+  const hint = '<div class="dsh-exec-legend dsh-exec-legend2"><span class="dsh-exec-hint">点击 tab 切换分类 · 点击任务行查看失败原因 · 表底每页 ' + TASK_PAGE_SIZE + ' 条翻页 · <i class="dot ok"></i>成功 <i class="dot bad"></i>失败 <i class="dot wait"></i>待执行 <i class="dot off"></i>未启用</span></div>'
+  const rows = pageRows.map(trow).join('')
+  const pager = view.length > TASK_PAGE_SIZE
+    ? '<div class="dsh-exec-tkpg">' + pagerHtml(taskPage, totalPages, view.length) + '</div>' : ''
   const selTask = selTaskName === null ? null : view.find((t) => String(t.name) === selTaskName)
   refs.tasksBox.innerHTML = hint +
     '<div class="dsh-exec-tabs">' + tabs.join('') + '</div>' +
     '<div class="dsh-exec-tbwrap"><table class="dsh-exec-tb"><thead><tr>' +
     '<th>任务</th><th>计划时刻</th><th>状态</th><th>上次运行</th><th>今日</th><th>下次运行</th></tr></thead>' +
     '<tbody>' + (rows || '<tr class="empty"><td colspan="6">该分类下暂无任务</td></tr>') + '</tbody></table></div>' +
+    pager +
     (selTask ? '<div class="dsh-exec-tkdetail">' + taskDetailHtml(selTask) + '</div>' : '')
 }
 

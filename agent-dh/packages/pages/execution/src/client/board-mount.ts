@@ -10,7 +10,7 @@ import {
   BOARD_VIEW_SELECTOR, PANEL_NAME, ACTIVE_ATTR, OTHER_ACTIVE_ATTRS,
   ACTIVATE_EVENT, CONVERSATION_COLUMN_SELECTOR,
 } from './dom.ts'
-import { buildView, renderAll, renderTasks, setTaskSel, setDomSel, type ViewRefs } from './view.ts'
+import { buildView, renderAll, renderTasks, setTaskSel, setDomSel, setTaskPage, type ViewRefs } from './view.ts'
 import { ENTRY_SELECTOR } from './dom.ts'
 
 const BOARD_API = '/dashboard/api/board'
@@ -77,6 +77,8 @@ export function mountBoard(controller: BoardController): () => void {
       if (lastBoard === undefined || refs === undefined) return
       const tab = target.closest<HTMLElement>('.dsh-exec-tab[data-dom]')
       if (tab !== null) { setDomSel(tab.dataset.dom ?? 'all'); renderTasks(refs, lastBoard); return }
+      const pg = target.closest<HTMLElement>('.dsh-exec-tkpg [data-tkpage]')
+      if (pg !== null && !(pg as HTMLButtonElement).disabled) { setTaskPage(Number(pg.dataset.tkpage)); renderTasks(refs, lastBoard); return }
       const row = target.closest<HTMLElement>('.dsh-exec-tr[data-tk]')
       const nm = row?.dataset.tk
       if (nm === undefined) return

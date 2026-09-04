@@ -244,6 +244,17 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-tb .tm, .dsh-exec-tb .nx { color:var(--dim); font-size:12px; }
 .dsh-exec-tb .td { color:var(--body); font-size:12px; }
 
+/* 调度任务：分页条（2026-09-05 用户要求） */
+.dsh-exec-tkpg { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:10px 2px 0; }
+.dsh-exec-tkpg .tpg-arr, .dsh-exec-tkpg .tpg-num { appearance:none; border:1px solid var(--line); background:#fff;
+  color:var(--body); font:inherit; font-size:12px; padding:3px 11px; border-radius:6px; cursor:pointer; transition:all .12s; }
+.dsh-exec-tkpg .tpg-arr:hover:not(:disabled), .dsh-exec-tkpg .tpg-num:hover { border-color:#b3d8ff; color:#1d6fe0; }
+.dsh-exec-tkpg .tpg-arr:disabled { opacity:.5; cursor:default; color:var(--faint); }
+.dsh-exec-tkpg .tpg-num.act { background:#409eff; border-color:#409eff; color:#fff; font-weight:500; }
+.dsh-exec-tkpg .tpg-nums { display:inline-flex; gap:5px; align-items:center; }
+.dsh-exec-tkpg .tpg-gap { color:var(--faint); padding:0 1px; }
+.dsh-exec-tkpg .tpg-cnt { margin-left:auto; color:var(--faint); font-size:11.5px; font-variant-numeric:tabular-nums; }
+
 /* 错误事件 / 阻断 */
 .dsh-exec-errs { list-style:none; margin:0; padding:0; }
 .dsh-exec-errs li { display:flex; gap:10px; align-items:baseline; padding:7px 0; font-size:12px; border-bottom:1px dashed var(--line); color:var(--body); }
