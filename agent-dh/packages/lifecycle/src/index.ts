@@ -938,7 +938,10 @@ v2_event_json: ${JSON.stringify(data)}
       await this.osWrite('lifecycle:finalize', { reason, action, timestamp: new Date().toISOString() });
     }
 
-    const pending = this.state.readPending();
+    // resume 投递成功后 markPendingDone() 会把 pending-resume.json rename 为 .done.json，
+    // 若只 readPending() 会拿到 null → checkpoint 丢失 → merge/rollback 静默降级不执行 git（2026-09-04 实测）。
+    // 修复：pending 已被消费（存在 .done.json）时回退读取，finalize 仍能拿到检查点分支。
+    const pending = this.state.readPending() ?? this.state.readPendingDone();
     const checkpoint = pending?.checkpoint_branch ?? null;
     const base = pending?.base_branch ?? this.repo.currentBranch();
 
