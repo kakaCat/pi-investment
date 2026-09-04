@@ -142,7 +142,7 @@ export function buildView(): ViewRefs {
   const healthSec = sec('今日执行总览', '来自当日 cron 计划与运行结果', 'healthBox')
   const flowSec = sec('执行流水线', 'ENGINE M0–M6 × AUTONOMY L1–L4 检查点状态', 'flowBox')
   const timelineSec = sec('今日时间轴', '按计划时刻排序 · 已完成/失败/待执行', 'timelineBox')
-  const tasksSec = sec('调度任务', '任务卡横排 · 点击卡片查看详情', 'tasksBox')
+  const tasksSec = sec('调度任务', '分类切换 · 点击任务行查看失败原因', 'tasksBox')
   const errsSec = sec('错误事件', '近 10 条日志异常（系统侧）', 'errsBox')
   errsSec.style.display = 'none'
   const blockSec = sec('流水线阻断', 'failed/late 且声明阻断下游', 'blockBox')
@@ -253,9 +253,11 @@ function taskLast(t: SchedulerTask): string {
   else if (t.lastRun && typeof t.lastRun === 'object') trig = (t.lastRun as { triggeredAt?: unknown }).triggeredAt
   return trig ? shortDT(trig) : '—'
 }
-/* ---- 调度任务：任务级 tab 卡横排 + 点击看详情（2026-09-04） ---- */
+/* ---- 调度任务：分类 tab + 任务表格列表（2026-09-04 v2 · 对齐设计稿 pill tab + 任务表） ---- */
 let selTaskName: string | null = null
+let selDom: string = 'all'
 export function setTaskSel(name: string | null): void { selTaskName = name }
+export function setDomSel(d: string): void { selDom = d }
 
 /** 归一 lastRun：字符串可能是 ISO 时间或状态词；对象含 triggeredAt/status/error */
 function runLast(t: SchedulerTask): { at: string; st: string; err: string } {
@@ -303,40 +305,54 @@ function taskDetailHtml(t: SchedulerTask): string {
 
 export function renderTasks(refs: ViewRefs, data: BoardData): void {
   const tasks = data.tasks ?? []
-  if (tasks.length === 0) { selTaskName = null; refs.tasksBox.innerHTML = '<div class="dsh-exec-empty">暂无调度任务</div>'; return }
+  if (tasks.length === 0) { selTaskName = null; selDom = 'all'; refs.tasksBox.innerHTML = '<div class="dsh-exec-empty">暂无调度任务</div>'; return }
   const domCount = DOMAINS.map(() => 0)
   let otherCount = 0
-  for (const t of tasks) {
-    const d = domainOf(t.name)
-    if (d) domCount[d.idx]++ ; else otherCount++
-  }
-  // 选中持久化（30s 轮询重绘仍保留）；默认选中首个今日失败，其次首个任务
-  const stillValid = selTaskName !== null && tasks.some((t) => String(t.name) === selTaskName)
-  if (!stillValid) {
-    const bad = tasks.find((t) => taskTag(t).cls === 'bad')
-    selTaskName = String((bad ?? tasks[0]).name)
-  }
-  const legend = '<div class="dsh-exec-legend">' +
-    DOMAINS.map((dm, i) => domCount[i] > 0
-      ? '<span class="lg"><i class="dk d' + i + '"></i>' + esc(dm.title) + ' <b>' + domCount[i] + '</b></span>' : '').join('') +
-    (otherCount > 0 ? '<span class="lg"><i class="dk dx"></i>其他任务 <b>' + otherCount + '</b></span>' : '') +
-    '<span class="dsh-exec-hint">点击卡片看详情 · <i class="dot ok"></i>成功 <i class="dot bad"></i>失败 <i class="dot wait"></i>待执行/跳过 <i class="dot off"></i>未启用</span></div>'
-  const card = (t: SchedulerTask): string => {
-    const raw = String(t.name ?? '')
+  for (const t of tasks) { const d = domainOf(t.name); if (d) domCount[d.idx]++; else otherCount++ }
+  // 当前 tab 分类合法性：该分类下已无任务则回退到「全部」
+  const domOk = selDom === 'all' || (selDom === 'x' ? otherCount > 0 : domCount[Number(selDom)] > 0)
+  if (!domOk) selDom = 'all'
+  const inDom = (raw: string): boolean => {
+    if (selDom === 'all') return true
     const d = domainOf(raw)
+    if (selDom === 'x') return d === null
+    return d !== null && String(d.idx) === selDom
+  }
+  const view = tasks.filter((t) => inDom(String(t.name ?? '')))
+  // 选中任务持久化（30s 轮询重绘仍保留）；不在当前分类内则取消选中（表格下方详情随行）
+  if (selTaskName !== null && !view.some((t) => String(t.name) === selTaskName)) selTaskName = null
+  const cnt = (v: number): string => '<b class="c">' + v + '</b>'
+  const tab = (dom: string, label: string, count: number): string =>
+    '<button type="button" class="dsh-exec-tab' + (selDom === dom ? ' act' : '') + '" data-dom="' + dom + '">' + label + cnt(count) + '</button>'
+  const tabs: string[] = [tab('all', '全部', tasks.length)]
+  DOMAINS.forEach((dm, i) => { if (domCount[i] > 0) tabs.push(tab(String(i), '<i class="dk d' + i + '"></i>' + esc(dm.title), domCount[i])) })
+  if (otherCount > 0) tabs.push(tab('x', '其他任务', otherCount))
+  const trow = (t: SchedulerTask): string => {
+    const raw = String(t.name ?? '')
     const tag = taskTag(t)
     const last = runLast(t)
+    const trig = Number(t.todayTriggered) || 0
+    const succ = Number(t.todaySuccess) || 0
+    const err = last.err || String(t.error ?? '')
     const sel = raw === selTaskName ? ' sel' : ''
-    return '<button type="button" class="dsh-exec-tk st-' + tag.cls + sel + '" data-tk="' + esc(raw) + '">' +
-      '<span class="tk-top"><i class="dk d' + (d ? d.idx : 'x') + '"></i>' +
-      '<span class="tk-name" title="' + esc(raw) + '">' + esc(taskZh(raw)) + '</span>' +
-      '<span class="tk-tag tag ' + tag.cls + '">' + esc(tag.label) + '</span></span>' +
-      '<span class="tk-cap">上次 ' + esc(last.at) + ' · 下次 ' + esc(shortDT(t.nextRunAt)) + '</span></button>'
+    const zh = taskZh(raw)
+    return '<tr class="dsh-exec-tr' + sel + '" data-tk="' + esc(raw) + '"' + (err ? ' title="失败原因：' + esc(err.slice(0, 300)) + '"' : '') + '>' +
+      '<td class="nm"><span class="zh">' + esc(zh) + '</span>' + (zh === raw ? '' : '<span class="code">' + esc(raw) + '</span>') + '</td>' +
+      '<td class="cr">' + esc(String(t.scheduleExpr ?? '').trim() || '—') + '</td>' +
+      '<td class="st"><span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span></td>' +
+      '<td class="tm">' + esc(last.at) + (last.st ? '<em class="ls ' + (TL_TAG[last.st] ?? 'unk') + '">' + esc(TL_ZH[last.st] ?? last.st) + '</em>' : '') + '</td>' +
+      '<td class="td">' + esc(trig + ' 触发 / ' + succ + ' 成功') + '</td>' +
+      '<td class="nx">' + esc(shortDT(t.nextRunAt)) + '</td></tr>'
   }
-  const selTask = tasks.find((t) => String(t.name) === selTaskName)
-  refs.tasksBox.innerHTML = legend +
-    '<div class="dsh-exec-tks">' + tasks.map(card).join('') + '</div>' +
-    '<div class="dsh-exec-tkdetail">' + (selTask ? taskDetailHtml(selTask) : '') + '</div>'
+  const hint = '<div class="dsh-exec-legend dsh-exec-legend2"><span class="dsh-exec-hint">点击 tab 切换分类 · 点击任务行查看失败原因 · <i class="dot ok"></i>成功 <i class="dot bad"></i>失败 <i class="dot wait"></i>待执行 <i class="dot off"></i>未启用</span></div>'
+  const rows = view.map(trow).join('')
+  const selTask = selTaskName === null ? null : view.find((t) => String(t.name) === selTaskName)
+  refs.tasksBox.innerHTML = hint +
+    '<div class="dsh-exec-tabs">' + tabs.join('') + '</div>' +
+    '<div class="dsh-exec-tbwrap"><table class="dsh-exec-tb"><thead><tr>' +
+    '<th>任务</th><th>cron 计划</th><th>状态</th><th>上次运行</th><th>今日</th><th>下次运行</th></tr></thead>' +
+    '<tbody>' + (rows || '<tr class="empty"><td colspan="6">该分类下暂无任务</td></tr>') + '</tbody></table></div>' +
+    (selTask ? '<div class="dsh-exec-tkdetail">' + taskDetailHtml(selTask) + '</div>' : '')
 }
 
 function renderErrors(refs: ViewRefs, data: BoardData): void {

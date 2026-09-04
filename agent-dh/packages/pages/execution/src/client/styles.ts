@@ -189,6 +189,41 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-tkdetail .tkd-err span { color:#f56c6c; }
 .dsh-exec-tkdetail .tag { display:inline-block; padding:0 8px; border-radius:4px; font-size:11px; line-height:1.8; }
 
+
+/* 调度任务：分类 tab（pill，带计数）+ 任务表格（2026-09-04 v2 · 对齐设计稿定时任务表） */
+.dsh-exec-tabs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:0 0 12px; }
+.dsh-exec-tab { appearance:none; display:inline-flex; align-items:center; gap:5px; border:1px solid var(--line); background:#fff;
+  color:var(--body); font:inherit; font-size:12.5px; padding:4px 13px; border-radius:999px; cursor:pointer; transition:all .15s; }
+.dsh-exec-tab:hover { border-color:#b3d8ff; color:#1d6fe0; background:#f7fbff; }
+.dsh-exec-tab.act { background:#409eff; border-color:#409eff; color:#fff; font-weight:500; }
+.dsh-exec-tab .c { font-weight:600; opacity:.8; font-variant-numeric:tabular-nums; }
+.dsh-exec-tab .dk { width:7px; height:7px; flex:none; }
+.dsh-exec-legend2 { padding:0 0 2px; }
+.dsh-exec-tbwrap { overflow-x:auto; border:1px solid var(--line); border-radius:8px; }
+.dsh-exec-tb { width:100%; border-collapse:collapse; font-size:12.5px; background:#fff; }
+.dsh-exec-tb th { text-align:left; color:var(--dim); font-weight:500; font-size:11.5px; padding:7px 12px; border-bottom:1px solid var(--line); background:#fafbfc; white-space:nowrap; }
+.dsh-exec-tb td { padding:7px 12px; border-bottom:1px solid #f5f5f5; color:var(--body); vertical-align:middle; }
+.dsh-exec-tb tbody tr:last-child td { border-bottom:none; }
+.dsh-exec-tb tbody tr { cursor:pointer; }
+.dsh-exec-tb tbody tr:hover { background:#f7fbff; }
+.dsh-exec-tb tbody tr.sel { background:#ecf5ff; }
+.dsh-exec-tb tbody tr.sel td { color:var(--text); }
+.dsh-exec-tb tr.empty { cursor:default; text-align:center; color:var(--faint); }
+.dsh-exec-tb .nm .zh { color:var(--text); font-weight:500; }
+.dsh-exec-tb .nm .code { display:block; color:var(--faint); font-size:10.5px; margin-top:1px; }
+.dsh-exec-tb .cr { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11.5px; color:var(--dim); white-space:nowrap; }
+.dsh-exec-tb .tag { display:inline-block; padding:0 8px; border-radius:4px; font-size:11px; line-height:1.8; white-space:nowrap; }
+.dsh-exec-tb .tag.ok { background:#f0f9eb; color:#529b2e; }
+.dsh-exec-tb .tag.bad { background:#fef0f0; color:#f56c6c; }
+.dsh-exec-tb .tag.wait { background:#f4f4f5; color:#909399; }
+.dsh-exec-tb .tag.off { background:#f4f4f5; color:#a2a8b3; }
+.dsh-exec-tb .ls { font-style:normal; font-size:10.5px; margin-left:5px; color:var(--dim); }
+.dsh-exec-tb .ls.ok { color:#67c23a; } .dsh-exec-tb .ls.bad { color:#f56c6c; }
+.dsh-exec-tb .ls.wait { color:#e6a23c; } .dsh-exec-tb .ls.unk { color:var(--faint); }
+.dsh-exec-tb .tm, .dsh-exec-tb .nx, .dsh-exec-tb .td { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.dsh-exec-tb .tm, .dsh-exec-tb .nx { color:var(--dim); font-size:12px; }
+.dsh-exec-tb .td { color:var(--body); font-size:12px; }
+
 /* 错误事件 / 阻断 */
 .dsh-exec-errs { list-style:none; margin:0; padding:0; }
 .dsh-exec-errs li { display:flex; gap:10px; align-items:baseline; padding:7px 0; font-size:12px; border-bottom:1px dashed var(--line); color:var(--body); }

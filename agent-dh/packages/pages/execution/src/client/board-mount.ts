@@ -10,7 +10,7 @@ import {
   BOARD_VIEW_SELECTOR, PANEL_NAME, ACTIVE_ATTR, OTHER_ACTIVE_ATTRS,
   ACTIVATE_EVENT, CONVERSATION_COLUMN_SELECTOR,
 } from './dom.ts'
-import { buildView, renderAll, renderTasks, setTaskSel, type ViewRefs } from './view.ts'
+import { buildView, renderAll, renderTasks, setTaskSel, setDomSel, type ViewRefs } from './view.ts'
 import { ENTRY_SELECTOR } from './dom.ts'
 
 const BOARD_API = '/dashboard/api/board'
@@ -71,11 +71,15 @@ export function mountBoard(controller: BoardController): () => void {
     container.appendChild(refs.board)
     refreshBtn = container.querySelector<HTMLButtonElement>('[data-role="refresh"]') ?? undefined
     refreshBtn?.addEventListener('click', () => { void fetchBoard() })
-    // 调度任务 tab 卡点击：委派监听（renderTasks 重绘 innerHTML 不影响容器监听）
+    // 调度任务点击：分类 pill tab 切换 / 任务行选中看详情（委派监听，重绘 innerHTML 不影响容器）
     refs.tasksBox.addEventListener('click', (ev) => {
-      const el = (ev.target as Element).closest<HTMLElement>('.dsh-exec-tk')
-      const nm = el?.dataset.tk
-      if (!nm || lastBoard === undefined || refs === undefined) return
+      const target = ev.target as Element
+      if (lastBoard === undefined || refs === undefined) return
+      const tab = target.closest<HTMLElement>('.dsh-exec-tab[data-dom]')
+      if (tab !== null) { setDomSel(tab.dataset.dom ?? 'all'); renderTasks(refs, lastBoard); return }
+      const row = target.closest<HTMLElement>('.dsh-exec-tr[data-tk]')
+      const nm = row?.dataset.tk
+      if (nm === undefined) return
       setTaskSel(nm)
       renderTasks(refs, lastBoard)
     })
