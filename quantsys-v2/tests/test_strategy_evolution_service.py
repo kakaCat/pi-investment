@@ -221,6 +221,9 @@ class TestRunFullFlow:
         assert result['best_params'] is None
         assert result['proposals'] == []
         assert '零交易' in result['degraded_reason']
+        # 防并行回归：base 判定 degraded 后必须短路——只回测了 base（1 次），
+        # 变体不得进 ThreadPoolExecutor 空跑（若先并行全跑再判 degraded 这里会是 7）
+        assert svc.backtest_strategy.call_count == 1
         # 不产任何"0 分"假基线；但落库 degraded 行留痕
         repo.record_batch.assert_called_once()
         row = repo.record_batch.call_args[0][0][0]

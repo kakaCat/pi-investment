@@ -158,6 +158,11 @@ def get_strategy_validation_service():
 def get_strategy_optimizer():
     return get_service_factory().get_strategy_optimizer()
 
+def get_strategy_evolution_service():
+    """策略进化引擎（RFC 012 P1）——from adapters.shared.services import
+    strategy_evolution_service 经模块 __getattr__ 惰性转发到本 getter。"""
+    return get_service_factory().get_strategy_evolution_service()
+
 def get_game_alert_service():
     return get_service_factory().get_game_alert_service()
 

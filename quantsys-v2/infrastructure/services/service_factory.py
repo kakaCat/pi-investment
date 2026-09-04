@@ -788,6 +788,14 @@ class ServiceFactory:
         )
 
     @classmethod
+    @lru_cache(maxsize=1)
+    def get_strategy_evolution_service(cls):
+        """获取策略进化引擎（RFC 012 P1）——无参门面，重量依赖（StrategyCodeService/
+        落库 repo）在服务内运行时经本工厂/仓库懒解析，故直接构造即可。"""
+        from application.services.strategy_evolution_service import StrategyEvolutionService
+        return StrategyEvolutionService()
+
+    @classmethod
     def reset_all(cls):
         """重置所有服务实例（用于测试）"""
         cls._instances.clear()
@@ -829,6 +837,8 @@ class ServiceFactory:
         cls.get_strategy_validation_service.cache_clear()
         cls.get_strategy_optimizer.cache_clear()
         cls.get_game_alert_service.cache_clear()
+        # RFC 012 P1（w-8366e526）
+        cls.get_strategy_evolution_service.cache_clear()
         # P1-2 Phase 2
         cls.get_ml_model_repository.cache_clear()
         cls.get_ml_model_metadata_repository.cache_clear()

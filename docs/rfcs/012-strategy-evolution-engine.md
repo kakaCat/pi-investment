@@ -76,6 +76,13 @@ CREATE INDEX idx_evorun_strategy ON evolution_strategy_runs (strategy_id, create
 | `quantsys-v2/adapters/inbound/fastapi_app/daily_jobs_bootstrap.py` 或启动钩子 | 改动 | 盘后例程注册 `compute_all_accounts`（B 链账户 fitness 续采，8/14 断点恢复）——若此文件属并行会话脏文件，则改在 **Agent OS scheduler 任务**里调用独立采集脚本 |
 | 测试 | 新增 | 引擎单测（变异器确定性/回测 mock/落库）、路由测试、契约测试（schema 与 agent-dh 对齐） |
 
+> **P1 实现落位裁决（2026-09 复查闭环登记，w-8366e526）**——§3 预期设计与实际实现的差异及理由：
+>
+> - **服务放 `application/services/` 根而非 `evolution/` 子包**：`evolution/` 子包是**行为进化**域（genome/evolution_fitness 等），本引擎是**策略参数进化**域——与同根的 `strategy_optimizer.py`/`strategy_code_service.py` 共享回测服务约定。主域归类按"依赖共享面"而非"进化字样"。
+> - **执行腿为同步 ThreadPoolExecutor 并行**（§3 预期为异步引擎）：先串行跑 base 变体做 degraded 判定（零交易/失败即短路，不空跑并行池），通过后余量变体经 `ThreadPoolExecutor(max_workers=6)` 并行回测、按 variant index 保序组装——与既有 `StrategyOptimizer`（ThreadPoolExecutor 并行 backtest_strategy）同款模式，先例证明 `backtest_strategy` 线程安全。异步化（POST 返回 run_id）留给工具超时真出现时再做。
+> - **服务已注册** `ServiceFactory.get_strategy_evolution_service()`（@lru_cache 单例）+ `adapters/shared/services.py` getter（路由经 PEP 562 `__getattr__` 惰性转发获取，不自建实例）。
+> - **网格语义登记**：`StrategyEvolutionService._generate_variants` = base 邻域 ±%（先 base 再试邻近，进化用）；`application/services/search_space.py::SearchSpace` = min/max/step 显式搜索域（人工调参用）——两套互补，代码已互相注记，改动前须核对另一处。
+
 ## 4. 变异安全边界（防"假进化"复辟）
 
 - **参数变体**只改策略配置中显式声明的数值参数（threshold/lookback 类），±20%/±10%/±5% 邻域网格；不触碰代码控制流。

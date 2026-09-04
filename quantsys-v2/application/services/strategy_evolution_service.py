@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import math
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -182,17 +183,14 @@ class StrategyEvolutionService:
                     f"{kline_window} base_params={base_params} 档位={steps} "
                     f"变体数={len(variants)} mode={mode}")
 
-        # 3. 逐变体真实回测（先 base 后变体；base 零交易 → 整轮 degraded 不给假基线）
-        results: List[Dict[str, Any]] = []
-        base_result: Optional[Dict[str, Any]] = None
-        for i, params in enumerate(variants):
-            res = self._run_one(params, strategy_id, symbol, start_date, end_date, initial_cash)
-            res['variant'] = i
-            res['params'] = params
-            results.append(res)
-            if i == 0:
-                base_result = res
-        assert base_result is not None
+        # 3. 真实回测：base（variant 0）串行先行做 degraded 判定，通过后余量变体
+        #    并行执行（StrategyOptimizer 同款 ThreadPoolExecutor 腿——先例证明
+        #    backtest_strategy 线程安全）；按 variant index 保序组装，fitness 归一不依赖顺序。
+        base_result = self._run_one(variants[0], strategy_id, symbol, start_date, end_date,
+                                    initial_cash)
+        base_result['variant'] = 0
+        base_result['params'] = dict(variants[0])
+        results: List[Dict[str, Any]] = [base_result]
         if not base_result['ok']:
             return self._degraded_run(
                 run_id, strategy_id, symbol, kline_window, mode, run_at,
@@ -202,6 +200,23 @@ class StrategyEvolutionService:
                 run_id, strategy_id, symbol, kline_window, mode, run_at,
                 f"基线回测零交易（total_trades=0，窗口 {kline_window} 无信号），"
                 f"拒绝以 0 收益为基线进化——先检查标的/窗口/策略参数有效性")
+
+        rest_indices = list(range(1, len(variants)))
+        if rest_indices:
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                future_to_idx = {
+                    executor.submit(self._run_one, variants[i], strategy_id, symbol,
+                                    start_date, end_date, initial_cash): i
+                    for i in rest_indices
+                }
+                by_idx: Dict[int, Dict[str, Any]] = {}
+                for future in as_completed(future_to_idx):
+                    idx = future_to_idx[future]
+                    res = future.result()
+                    res['variant'] = idx
+                    res['params'] = dict(variants[idx])
+                    by_idx[idx] = res
+            results.extend(by_idx[i] for i in rest_indices)
 
         # 4. 单批 fitness 归一（base 与所有变体同批，best/improvement 同批可比）
         valid = [r for r in results
@@ -306,6 +321,10 @@ class StrategyEvolutionService:
         """围绕 base 生成单维 ±step 邻域变体（每参两个，避免笛卡尔爆炸）。
 
         确定性：纯算术无随机。int 参数圆整 ≥1（周期下限）；float 参数保留 4 位。
+        网格语义：本方法 = base 邻域百分比（进化用，先跑 base 再试邻近），与
+        application/services/search_space.py 的 SearchSpace（min/max/step 显式搜索域，
+        strategies/optimize 人工调参用）互补——改动任一前先核对另一处，勿让两套
+        网格逻辑漂移。
         """
         variants: List[Dict[str, Any]] = []
         for name, value in base.items():

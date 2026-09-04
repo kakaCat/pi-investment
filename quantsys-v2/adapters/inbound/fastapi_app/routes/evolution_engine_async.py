@@ -109,8 +109,10 @@ def run_evolution(payload: Optional[Dict[str, Any]] = Body(None)):
         return error_response(
             {'success': False, 'error': "mode must be 'full' or 'propose'"}, 400)
 
-    from application.services.strategy_evolution_service import StrategyEvolutionService
-    service = StrategyEvolutionService()
+    # 服务经共享惰性代理获取（ServiceFactory 单例；路由不自行构造，遵循
+    # adapters/shared/services.py 的 PEP 562 __getattr__ 转发惯例）
+    from adapters.shared.services import strategy_evolution_service
+    service = strategy_evolution_service
     result = service.run(
         strategy_id=strategy_id,
         symbol=symbol,
