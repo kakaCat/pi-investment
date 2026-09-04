@@ -71,6 +71,17 @@ const STOCK_NAMES: Record<string, string> = {
 }
 
 /** 从盯盘规则 context 提取「中文名 + 6位代码」对 */
+/** 盯盘规则是否处于「启用中」：停用/暂停（enabled=false）或已过期（expires_at 早于现在）不参与
+ *  展示与持仓盯盘标记（2026-09-05；口径对齐后端 list_enabled：只跑启用且未过期） */
+function isActiveRule(r: WatchRule): boolean {
+  if (r.enabled === false) return false
+  if (r.expires_at) {
+    const t = new Date(r.expires_at).getTime()
+    if (Number.isFinite(t) && t <= Date.now()) return false
+  }
+  return true
+}
+
 function namesFromContexts(rules: WatchRule[]): Record<string, string> {
   const map: Record<string, string> = {}
   for (const rule of rules) {
@@ -110,7 +121,8 @@ export function buildView(data: HoldingsData, watchKey: string = 'current', hist
   // 其余账户的规则不在当前账户视图出现（account 由后端 watch_rules.account 返回）
   const scopedRules = watchRules.filter((r) => {
     const a = r.account
-    return a == null || a === '' || a === current
+    if (!(a == null || a === '' || a === current)) return false
+    return isActiveRule(r)
   })
 
   const accountSelect = accounts.length > 1
@@ -380,7 +392,8 @@ function renderWatchRules(watchRules: WatchRule[], ctxNames: Record<string, stri
   // 默认 tab = 本账户：当前账户归属 + 通用观察（account 为空/缺失，跨账户看板通用展示）；
   // 其余账户规则按账户 tab 查看；「全部」为全量并在归属列带徽标。
   const acctOf = (r: WatchRule): string => r.account ?? ''
-  const all = watchRules
+  // 盯盘状态口径：启用 / 停用(暂停) / 已过期——停用与已过期不展示（上方 isActiveRule）
+  const all = watchRules.filter((r) => isActiveRule(r))
   const general = all.filter((r) => acctOf(r) === '')
   const curOwned = all.filter((r) => acctOf(r) === currentAccount)
   const curView = curOwned.concat(general)

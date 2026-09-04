@@ -47,8 +47,11 @@ export class PortfolioAggregationService {
       // 今日成交与历史交易同源（/api/simulation/trades 全量，v2 已倒序）；拆两视图用：
       //   todayTrades = 当日过滤（「今日自动交易」卡）；tradeHistory = 全量（「历史交易」分页卡）
       const tradeHistory = [...tradesData].sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
-      const today = new Date().toISOString().split('T')[0]
-      const todayTrades = tradeHistory.filter((t) => t.created_at && t.created_at.startsWith(today))
+      // 「今日」按本地日期口径（toISOString 是 UTC，00:00–08:00 会把当日成交错归昨日）：
+      // 优先 v2 自带的 trade_date（YYYY-MM-DD，本地），回退 created_at 前 10 位
+      const nowD = new Date()
+      const localToday = nowD.getFullYear() + '-' + String(nowD.getMonth() + 1).padStart(2, '0') + '-' + String(nowD.getDate()).padStart(2, '0')
+      const todayTrades = tradeHistory.filter((t) => (t.trade_date ?? (t.created_at ? t.created_at.slice(0, 10) : '')) === localToday)
       const watchRulesData = watchRules.status === 'fulfilled' ? watchRules.value : [];
 
       // 计算合规指标

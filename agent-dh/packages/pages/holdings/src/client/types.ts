@@ -86,6 +86,8 @@ export interface WatchRule {
   triggered_count?: number;
   /** 归属账户（account_name 全名）；undefined/null=通用观察（跨账户看板展示） */
   account?: string | null;
+  /** 过期时间（ISO）；到点后引擎不再触发，等同停用 */
+  expires_at?: string | null;
 }
 
 export interface HoldingsData {
