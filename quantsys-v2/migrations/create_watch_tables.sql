@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS quant.watch_rules (
     active_window JSONB,                 -- ["09:30-10:30","14:30-15:00"]，NULL = 全交易时段
     expires_at TIMESTAMP,                -- 过期自动停用，NULL = 永不过期
     created_by VARCHAR(50) DEFAULT 'agent',
+    account VARCHAR(50),               -- 归属账户（account_name 全名）；NULL=通用观察
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );

@@ -26,10 +26,13 @@ def _parse_expires_at(value):
 
 
 @router.get('/api/watch/rules')
-def list_rules(symbol: Optional[str] = Query(None), enabled: Optional[str] = Query(None)):
+def list_rules(symbol: Optional[str] = Query(None), enabled: Optional[str] = Query(None),
+               account: Optional[str] = Query(None)):
+    """account=某账户名时仅返回该账户归属 + 通用观察(account 为空)的规则
+    （看板按账户展示盯盘）；不传返回全部。"""
     rule_repo = WatchRuleRepository()
     enabled_value = None if enabled is None else enabled.lower() == 'true'
-    rules = rule_repo.list_rules(symbol=symbol, enabled=enabled_value)
+    rules = rule_repo.list_rules(symbol=symbol, enabled=enabled_value, account=account)
     return {'success': True, 'data': {'rules': [rule_to_dict(r) for r in rules]}}
 
 
@@ -63,6 +66,7 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
             active_window=data.get('active_window'),
             expires_at=expires_at,
             created_by=data.get('created_by', 'agent'),
+            account=(data.get('account') or None),
         )
     except Exception as e:
         return _err(f'创建失败: {e}', 500)

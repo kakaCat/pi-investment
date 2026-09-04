@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Numeric, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Numeric, Text, ForeignKey, or_
 from sqlalchemy.dialects.postgresql import JSONB
 
 from infrastructure.persistence.orm import BaseORMRepository
@@ -22,6 +22,9 @@ class WatchRule(Base):
     active_window = Column(JSONB)
     expires_at = Column(DateTime)
     created_by = Column(String(50), default='agent')
+    # account：规则归属账户（account_name 全名）。None=通用观察（无主/跨账户候选，
+    # 2026-09-04 看板按账户分组展示用）。历史规则由迁移脚本按 context/持仓回填。
+    account = Column(String(50))
     # notify_mode：direct=v2 直发飞书（纯提醒）；agent=唤醒 LLM 分析后再发
     # （2026-09-02 修复：模型此前漏此列，致 getattr 拿不到、agent 模式静默降级为 direct）
     notify_mode = Column(String(20), default='direct')
@@ -56,6 +59,7 @@ def rule_to_dict(rule: WatchRule) -> dict:
         'active_window': rule.active_window,
         'expires_at': rule.expires_at.isoformat() if rule.expires_at else None,
         'created_by': rule.created_by,
+        'account': rule.account,
         'created_at': rule.created_at.isoformat() if rule.created_at else None,
         'updated_at': rule.updated_at.isoformat() if rule.updated_at else None,
     }
@@ -79,11 +83,13 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
     model = WatchRule
 
     def create_rule(self, symbol, conditions, context=None, cost_price=None,
-                    active_window=None, expires_at=None, created_by='agent') -> WatchRule:
+                    active_window=None, expires_at=None, created_by='agent',
+                    account=None) -> WatchRule:
         rule = WatchRule(
             symbol=symbol, conditions=conditions, context=context,
             cost_price=cost_price, active_window=active_window,
             expires_at=expires_at, created_by=created_by, enabled=True,
+            account=account,
         )
         return self.create(rule)
 
@@ -97,12 +103,17 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         )
 
     def list_rules(self, symbol: Optional[str] = None,
-                   enabled: Optional[bool] = None) -> List[WatchRule]:
+                   enabled: Optional[bool] = None,
+                   account: Optional[str] = None) -> List[WatchRule]:
+        """account=某账户时返回「该账户归属 + 通用观察(account IS NULL)」——
+        看板按账户展示盯盘需要两组都可见；不传则返回全部。"""
         q = self.session.query(WatchRule)
         if symbol:
             q = q.filter(WatchRule.symbol == symbol)
         if enabled is not None:
             q = q.filter(WatchRule.enabled.is_(enabled))
+        if account:
+            q = q.filter(or_(WatchRule.account == account, WatchRule.account.is_(None)))
         return q.order_by(WatchRule.id.desc()).all()
 
     def update_fields(self, rule_id: int, **fields) -> Optional[WatchRule]:
@@ -110,7 +121,8 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         if rule is None:
             return None
         allowed = {'symbol', 'enabled', 'conditions', 'context',
-                   'cost_price', 'active_window', 'expires_at'}
+                   'cost_price', 'active_window', 'expires_at', 'account',
+                   'notify_mode'}  # 2026-09-05 补：notify_mode 曾被白名单静默丢弃
         for key, value in fields.items():
             if key in allowed:
                 setattr(rule, key, value)

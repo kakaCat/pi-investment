@@ -135,11 +135,9 @@ def get_sector_list():
 
 # ==================== LHB (龙虎榜) ====================
 
-@router.get("/lhb/{symbol}/{date}")
-def get_lhb_stock(symbol: str, date: str):
-    return _call("get_lhb_stock", symbol, date)
-
-
+# 2026-09-01 修复：FastAPI 按注册顺序匹配路由，/lhb/daily/{date} 与 /lhb/detail/{symbol}
+# 必须先于 /lhb/{symbol}/{date} 注册，否则 "daily"/"detail" 会被当作 symbol 吃掉
+# （日志曾出现 symbol="daily" 的诡异记录：No LHB data for daily on ...）
 @router.get("/lhb/daily/{date}")
 def get_lhb_daily(date: str):
     return _call("get_lhb_daily", date)
@@ -148,6 +146,11 @@ def get_lhb_daily(date: str):
 @router.get("/lhb/detail/{symbol}")
 def get_lhb_detail(symbol: str, start_date: str = Query(""), end_date: str = Query("")):
     return _call("get_lhb_detail", symbol, start_date, end_date)
+
+
+@router.get("/lhb/{symbol}/{date}")
+def get_lhb_stock(symbol: str, date: str):
+    return _call("get_lhb_stock", symbol, date)
 
 
 @router.get("/zt-pool/{date}")

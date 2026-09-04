@@ -35,6 +35,7 @@ class SimulationAccountRepository(IAccountRepository):
             created_at=orm_account.created_at,
             updated_at=orm_account.updated_at,
             strategy_name=orm_account.strategy_name,
+            account_type=orm_account.account_type,
         )
     
     def get_balance(self, account_name: str) -> Optional[Balance]:
@@ -67,6 +68,7 @@ class SimulationAccountRepository(IAccountRepository):
                 created_at=a.created_at,
                 updated_at=a.updated_at,
                 strategy_name=a.strategy_name,
+                account_type=a.account_type,
             )
             for a in orm_accounts
         ]
@@ -77,6 +79,7 @@ class SimulationAccountRepository(IAccountRepository):
         initial_capital: float,
         display_name: Optional[str] = None,
         strategy_name: Optional[str] = None,
+        account_type: Optional[str] = None,
     ) -> Account:
         """创建账户"""
         orm_account = self.sim_repo.create_account(
@@ -84,6 +87,7 @@ class SimulationAccountRepository(IAccountRepository):
             initial_capital=initial_capital,
             display_name=display_name,
             strategy_name=strategy_name,
+            account_type=account_type,
         )
         
         if not orm_account:
@@ -96,6 +100,7 @@ class SimulationAccountRepository(IAccountRepository):
             initial_capital=float(orm_account.initial_capital),
             created_at=orm_account.created_at,
             strategy_name=orm_account.strategy_name,
+            account_type=orm_account.account_type,
         )
     
     def update_balance(
