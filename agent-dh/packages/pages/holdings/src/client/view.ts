@@ -1,259 +1,341 @@
 /**
- * Holdings board view builder — renders all sections.
- * Pure functions: buildView takes data and returns HTML string.
+ * Holdings board view — light broker-style monitor (design v2 page1).
+ *
+ * Rendering is data-only: buildView(data) -> innerHTML string; the board is a
+ * read-only monitoring surface — every trading action stays with the agent.
+ *
+ * Class conventions: all classes prefixed dsh-hld- to stay clear of shell
+ * styles. Stock display names prefer Chinese company names: resolved from the
+ * rule contexts the watch centre already carries (e.g. "沪电股份(002463)"),
+ * falling back to a small static dictionary, then the raw code.
  *
  * @module dashboard-holdings/client/view
  */
-import type { HoldingsData, Position, Trade, WatchRule } from './types.js'
+import type { Account, HoldingsData, Position, WatchRule } from './types.js'
 
+/* ------------------------------------------------------------------ utils */
+const esc = (s: unknown): string =>
+  String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m] ?? m))
+
+const money = (v: number | undefined | null, frac = 2): string =>
+  (Number.isFinite(Number(v)) ? Number(v) : 0).toLocaleString('zh-CN', { minimumFractionDigits: frac, maximumFractionDigits: frac })
+
+const signNum = (v: number | undefined | null): string => {
+  const n = Number(v) || 0
+  return (n > 0 ? '+' : '') + n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+}
+
+const pct = (v: number | undefined | null): string => {
+  const n = Number(v) || 0
+  return (n > 0 ? '+' : '') + n.toFixed(2) + '%'
+}
+
+/** 涨跌红/绿/灰 class（A股：红涨绿跌） */
+const trend = (v: number | undefined | null): 'up' | 'down' | 'flat' => {
+  const n = Number(v) || 0
+  return n > 0.0001 ? 'up' : n < -0.0001 ? 'down' : 'flat'
+}
+
+const fmtClock = (ts?: string): string => {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  if (Number.isNaN(d.getTime())) return String(ts).slice(11, 19)
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
+}
+
+const ctxText = (rule: WatchRule): string => {
+  const c = rule.context
+  if (typeof c === 'string') return c
+  try { return JSON.stringify(c ?? '') } catch { return '' }
+}
+
+/* ---------------- Chinese stock-name resolution ---------------- */
+/** 常用标的静态字典（context 未携带中文名时兜底） */
+const STOCK_NAMES: Record<string, string> = {
+  '600519': '贵州茅台', '000858': '五粮液', '000568': '泸州老窖', '600809': '山西汾酒', '600600': '青岛啤酒',
+  '601288': '农业银行', '601398': '工商银行', '601939': '建设银行', '601988': '中国银行', '600036': '招商银行',
+  '000001': '平安银行', '600000': '浦发银行', '601166': '兴业银行', '600016': '民生银行', '601328': '交通银行',
+  '601318': '中国平安', '601601': '中国太保', '601628': '中国人寿', '600030': '中信证券', '601688': '华泰证券',
+  '600900': '长江电力', '601857': '中国石油', '600028': '中国石化', '601088': '中国神华', '600019': '宝钢股份',
+  '600585': '海螺水泥', '601668': '中国建筑', '601390': '中国中铁', '601766': '中国中车', '600104': '上汽集团',
+  '601633': '长城汽车', '601238': '广汽集团', '000333': '美的集团', '000651': '格力电器', '600690': '海尔智家',
+  '300750': '宁德时代', '002594': '比亚迪', '601012': '隆基绿能', '600438': '通威股份', '002460': '赣锋锂业',
+  '600276': '恒瑞医药', '603259': '药明康德', '000538': '云南白药', '300760': '迈瑞医疗',
+  '002415': '海康威视', '000063': '中兴通讯', '002230': '科大讯飞', '002475': '立讯精密', '002241': '歌尔股份',
+  '688981': '中芯国际', '688111': '金山办公', '603986': '兆易创新', '002049': '紫光国微', '300782': '卓胜微',
+  '002371': '北方华创', '688012': '中微公司', '002463': '沪电股份', '002815': '崇达技术', '002050': '三花智控',
+  '000807': '云铝股份', '601138': '工业富联', '002352': '顺丰控股', '601888': '中国中免', '000725': '京东方A',
+  '002714': '牧原股份', '300498': '温氏股份', '601111': '中国国航', '600029': '南方航空', '600150': '中国船舶',
+  '601989': '中国重工', '600893': '航发动力', '002179': '中航光电', '300059': '东方财富', '600031': '三一重工',
+}
+
+/** 从盯盘规则 context 提取「中文名 + 6位代码」对 */
+function namesFromContexts(rules: WatchRule[]): Record<string, string> {
+  const map: Record<string, string> = {}
+  for (const rule of rules) {
+    const ctx = ctxText(rule)
+    // 形如：沪电股份(002463) / 云铝股份000807
+    const re1 = /([\u4e00-\u9fa5]{2,10})\s*\(?0*(\d{6})\)?/g
+    let m: RegExpExecArray | null
+    while ((m = re1.exec(ctx)) !== null) map[m[2]] = m[1]
+  }
+  return map
+}
+
+/** 取证券中文展示名 */
+function stockName(symbol: string | undefined, ctxNames: Record<string, string>): string {
+  if (!symbol) return '—'
+  const code = String(symbol).replace(/\D/g, '').slice(-6)
+  return STOCK_NAMES[code] ?? ctxNames[code] ?? code
+}
+
+const pureCode = (symbol?: string): string => String(symbol ?? '').replace(/\D/g, '')
+
+/** 生成 A 股风险档位对应的止损比例（宪法铁律） */
+function stopRatioFor(code: string): number {
+  return /^(30|68)/.test(code) ? -0.10 : -0.08 // 成长 -10% / 大盘蓝筹 -8%
+}
+
+/* ------------------------------------------------------------------ board */
 export function buildView(data: HoldingsData): string {
-  const now = new Date().toLocaleString('zh-CN', { hour12: false })
+  const summary = (data.summary ?? {}) as HoldingsData['summary']
+  const accounts: Account[] = Array.isArray(data.accounts) ? data.accounts : []
+  const current = data.currentAccount ?? ''
+  const positions: Position[] = Array.isArray(data.positions) ? data.positions : []
+  const watchRules: WatchRule[] = Array.isArray(data.watchRules) ? data.watchRules : []
+  const ctxNames = namesFromContexts(watchRules)
 
-  return `
-    <div class="dsh-hld-board">
-      <div class="dsh-hld-wrap">
-        <div class="dsh-hld-head">
-          <h1 class="dsh-hld-title">持仓看板 <small>账户: ${escapeHtml(data.currentAccount)}</small></h1>
-          <div class="dsh-hld-meta">
-            <span>更新时间: ${now}</span>
-            <button class="dsh-hld-refresh" onclick="window.__dshHldRefresh?.()">刷新</button>
-          </div>
-        </div>
+  const accountSelect = accounts.length > 1
+    ? `<div class="dsh-hld-acct">
+         <label for="dsh-hld-account-switch">账户</label>
+         <select id="dsh-hld-account-switch"
+           onchange="window.__dshHldSwitchAccount && window.__dshHldSwitchAccount(this.value)">
+           ${accounts.map((a) => `<option value="${esc(a.account_name)}" ${a.account_name === current ? 'selected' : ''}>${esc(a.display_name || a.account_name)}（${a.positions_count ?? 0} 仓）</option>`).join('')}
+         </select>
+       </div>`
+    : ''
 
-        ${renderAccountSwitch(data)}
-        ${renderSummary(data)}
-        ${renderCompliance(data)}
-        ${renderPositions(data)}
-        ${renderTodayTrades(data)}
-        ${renderWatchRules(data)}
-      </div>
+  const updated = summary.lastUpdated ? fmtClock(summary.lastUpdated) : '—'
+  const todayPct = summary.totalValue ? (summary.dailyChange / (summary.totalValue - summary.dailyChange)) * 100 : 0
+
+  return `<div class="dsh-hld-board">
+  <div class="dsh-hld-topbar">
+    <div class="dsh-hld-title">
+      <h1>账户持仓看板</h1>
+      <div class="sub">只读监控 · 交易操作由 agent 执行</div>
     </div>
-  `
+    <div class="dsh-hld-tools">
+      ${accountSelect}
+      <div class="dsh-hld-updated">更新于 <b>${esc(updated)}</b></div>
+      <button type="button" class="dsh-hld-refresh" onclick="window.__dshHldRefresh && window.__dshHldRefresh()">↻ 刷新</button>
+    </div>
+  </div>
+
+  ${renderSummary(summary, todayPct, data)}
+
+  ${renderPositions(positions, ctxNames, watchRules)}
+
+  ${renderTrades(data)}
+
+  ${renderWatchRules(watchRules, ctxNames)}
+</div>`
 }
 
-function renderAccountSwitch(data: HoldingsData): string {
-  if (data.accounts.length <= 1) return ''
+/* ---------------------------------------------------------------- summary */
+function renderSummary(summary: HoldingsData['summary'], todayPct: number, data: HoldingsData): string {
+  const tToday = trend(summary.dailyChange)
+  const tHeld = trend(summary.totalPnl)
+  const cashRatio = Number(data.compliance?.cashRatio ?? (summary.totalValue ? (summary.cash / summary.totalValue) * 100 : 0))
+  const maxStock = Number(data.compliance?.maxSingleStock ?? 0)
+  const maxInd = Number(data.compliance?.maxIndustry ?? 0)
+  const dd60 = Number(data.compliance?.maxDrawdown60d ?? 0)
+  const nearStop = (data.positions ?? []).filter((p) => Number(p.profitLossPct) <= stopRatioFor(p.symbol) + 1).length
 
-  const buttons = data.accounts.map(acc => {
-    const active = acc.account_name === data.currentAccount ? 'active' : ''
-    return `
-      <button class="dsh-hld-account-btn ${active}"
-              onclick="window.__dshHldSwitchAccount?.('${acc.account_name}')">
-        ${escapeHtml(acc.display_name || acc.account_name)}
-        <small>(${acc.positions_count}持仓)</small>
-      </button>
-    `
-  }).join('')
+  const chip = (ok: boolean, text: string, warn = false): string =>
+    `<span class="dsh-hld-chip ${ok ? 'ok' : warn ? 'warn' : 'bad'}">${text} ${ok ? '✅' : '⚠️'}</span>`
 
-  return `
-    <div class="dsh-hld-account-switch">
-      ${buttons}
+  return `<div class="dsh-hld-summary">
+  <div class="dsh-hld-sum-top">
+    <div class="dsh-hld-sum-pnl">
+      <div class="n">今日盈亏</div>
+      <div class="v ${tToday}">${signNum(summary.dailyChange)} <small>${pct(todayPct)}</small></div>
     </div>
-  `
+    <div class="dsh-hld-sum-pnl right">
+      <div class="n">持仓盈亏</div>
+      <div class="v ${tHeld}">${signNum(summary.totalPnl)} <small>${pct(summary.totalPnlPct)}</small></div>
+    </div>
+  </div>
+  <div class="dsh-hld-sum-assets">
+    <div class="asset-item"><div class="n">总资产</div><div class="v">${money(summary.totalValue)}</div></div>
+    <div class="asset-item"><div class="n"><span class="legend-dot" style="background:#f56c6c"></span>持仓市值（${summary.positions ?? 0} 只）</div><div class="v">${money(summary.totalMarketValue)}</div></div>
+    <div class="asset-item"><div class="n"><span class="legend-dot" style="background:#e6a23c"></span>可用资金</div><div class="v">${money(summary.cash)}</div></div>
+  </div>
+  <div class="dsh-hld-risk">
+    ${chip(cashRatio >= 10, '现金占比 ' + cashRatio.toFixed(1) + '% · 铁律 ≥10%')}
+    ${chip(maxStock <= 20, '单股最大 ' + maxStock.toFixed(2) + '% · 上限 20%')}
+    ${chip(maxInd <= 40, '单行业最大 ' + maxInd.toFixed(1) + '% · 上限 40%')}
+    ${dd60 > 8 ? chip(false, '60日回撤 -' + dd60.toFixed(1) + '%（熔断线 -8%）', true) : chip(true, '60日回撤 ' + dd60.toFixed(1) + '%（熔断线 -8%）')}
+    ${nearStop > 0 ? chip(false, nearStop + ' 只临近止损', true) : chip(true, '无临近止损')}
+  </div>
+</div>`
 }
 
-function renderSummary(data: HoldingsData): string {
-  const s = data.summary
-  const pnlClass = s.totalPnl >= 0 ? 'profit' : 'loss'
-  const pnlSign = s.totalPnl >= 0 ? '+' : ''
-
-  return `
-    <div class="dsh-hld-sec">
-      <h2>账户摘要</h2>
-      <div class="dsh-hld-summary-grid">
-        <div class="dsh-hld-summary-card">
-          <div class="label">总资产</div>
-          <div class="value">¥${formatNumber(s.totalValue)}</div>
-          <div class="sub">持仓 ${s.positions} 只</div>
-        </div>
-        <div class="dsh-hld-summary-card">
-          <div class="label">持仓市值</div>
-          <div class="value">¥${formatNumber(s.totalMarketValue)}</div>
-          <div class="sub">成本 ¥${formatNumber(s.totalCost)}</div>
-        </div>
-        <div class="dsh-hld-summary-card">
-          <div class="label">浮动盈亏</div>
-          <div class="value ${pnlClass}">${pnlSign}¥${formatNumber(Math.abs(s.totalPnl))}</div>
-          <div class="sub ${pnlClass}">${pnlSign}${s.totalPnlPct.toFixed(2)}%</div>
-        </div>
-        <div class="dsh-hld-summary-card">
-          <div class="label">可用现金</div>
-          <div class="value">¥${formatNumber(s.cash)}</div>
-          <div class="sub">盈利 ${s.profitCount} / 亏损 ${s.lossCount}</div>
-        </div>
-      </div>
-    </div>
-  `
+/* -------------------------------------------------------------- positions */
+function renderPositions(positions: Position[], ctxNames: Record<string, string>, watchRules: WatchRule[]): string {
+  const ruleCodes = new Set(watchRules.map((r) => pureCode(r.symbol)))
+  const rows = positions.map((p) => renderPositionRow(p, ctxNames, ruleCodes)).join('')
+  const empty = positions.length === 0
+    ? `<tr><td colspan="7" class="dsh-hld-empty">当前账户暂无持仓 — 空仓等待信号是正确决策</td></tr>`
+    : ''
+  return `<div class="dsh-hld-card">
+  <div class="hd"><span class="t">持仓明细（${positions.length}）</span><span class="more">买卖点参考 = 止损铁律 + 止盈参考(+10%) · 具体交易由 agent 执行</span></div>
+  <div class="tblwrap"><table>
+    <tr>
+      <th>名称/代码</th><th class="r">市值/股数</th><th class="r">现价/成本</th>
+      <th class="r">今日盈亏</th><th class="r">持仓盈亏</th><th>买卖点参考</th><th>盯盘</th>
+    </tr>
+    ${rows}${empty}
+  </table></div>
+</div>`
 }
 
-function renderCompliance(data: HoldingsData): string {
-  const c = data.compliance
+function renderPositionRow(p: Position, ctxNames: Record<string, string>, ruleCodes: Set<string>): string {
+  const name = stockName(p.symbol, ctxNames)
+  const code = pureCode(p.symbol)
+  const stopRatio = stopRatioFor(code)
+  const stop = (Number(p.avgCost) || 0) * (1 + stopRatio)
+  const tp = (Number(p.avgCost) || 0) * 1.10
+  const lossPct = Number(p.profitLossPct) || 0
+  const nearStop = lossPct <= stopRatio + 1
+  const gapPct = p.currentPrice ? (((Number(p.currentPrice) - stop) / Number(p.currentPrice)) * 100) : 0
+  const hasRule = ruleCodes.has(code)
 
-  const cashClass = c.cashRatio >= 10 ? 'ok' : c.cashRatio >= 5 ? 'warn' : 'danger'
-  const stockClass = c.maxSingleStock <= 20 ? 'ok' : c.maxSingleStock <= 25 ? 'warn' : 'danger'
-  const industryClass = c.maxIndustry <= 40 ? 'ok' : c.maxIndustry <= 50 ? 'warn' : 'danger'
-  const drawdownClass = Math.abs(c.maxDrawdown60d) <= 8 ? 'ok' : Math.abs(c.maxDrawdown60d) <= 12 ? 'warn' : 'danger'
+  const watchTag = nearStop
+    ? `<span class="dsh-hld-tag trig">⚠️ 临近止损</span>`
+    : hasRule
+      ? `<span class="dsh-hld-tag on">已挂盯盘</span>`
+      : `<span class="dsh-hld-tag off">—</span>`
 
-  return `
-    <div class="dsh-hld-sec">
-      <h2>合规指标 <span class="sub">现金≥10% / 单股≤20% / 单行业≤40% / 60日回撤≤8%</span></h2>
-      <div class="dsh-hld-compliance">
-        <div class="dsh-hld-compliance-item">
-          <span class="label">现金占比:</span>
-          <span class="value ${cashClass}">${c.cashRatio.toFixed(2)}%</span>
-        </div>
-        <div class="dsh-hld-compliance-item">
-          <span class="label">最大单股:</span>
-          <span class="value ${stockClass}">${c.maxSingleStock.toFixed(2)}%</span>
-        </div>
-        <div class="dsh-hld-compliance-item">
-          <span class="label">最大行业:</span>
-          <span class="value ${industryClass}">${c.maxIndustry > 0 ? c.maxIndustry.toFixed(2) + '%' : 'N/A'}</span>
-        </div>
-        <div class="dsh-hld-compliance-item">
-          <span class="label">60日最大回撤:</span>
-          <span class="value ${drawdownClass}">${c.maxDrawdown60d > 0 ? c.maxDrawdown60d.toFixed(2) + '%' : 'N/A'}</span>
-        </div>
-      </div>
-    </div>
-  `
+  const bp = nearStop
+    ? `<span class="dsh-hld-sl">⚠️ 临近止损 ${money(stop)}（${Math.abs(stopRatio * 100)}%）</span><br><span class="dsh-hld-s">反弹减 / 止盈参考 ${money(tp)}（+10%）</span>`
+    : `<span class="dsh-hld-sl">止损 ${money(stop)}（-${Math.abs(stopRatio * 100)}% 档）</span><br><span class="dsh-hld-s">止盈参考 ${money(tp)}（+10%）</span>`
+
+  return `<tr>
+  <td><span class="sec-name">${esc(name)}</span> <span class="sec-code">${esc(code)}</span></td>
+  <td class="r">${money(p.currentValue, 0)}<span class="sub">${p.quantity ?? 0} 股 · 可卖 ${p.sharesAvailable ?? 0}</span></td>
+  <td class="r">${money(p.currentPrice)}<span class="sub">成本 ${money(p.avgCost)}</span></td>
+  <td class="r ${trend(p.profitToday)}">${signNum(p.profitToday)}<span class="sub">今日</span></td>
+  <td class="r ${trend(p.profitLoss)}">${signNum(p.profitLoss)}<span class="sub">${pct(p.profitLossPct)}</span></td>
+  <td class="bp">
+    ${bp}
+    <span class="src">依据：成本 ${money(p.avgCost)} · 距止损线 +${Math.max(gapPct, 0).toFixed(1)}% · 铁律优先不补仓</span>
+  </td>
+  <td>${watchTag}</td>
+</tr>`
 }
 
-function renderPositions(data: HoldingsData): string {
-  if (data.positions.length === 0) {
-    return `
-      <div class="dsh-hld-sec">
-        <h2>持仓明细</h2>
-        <div class="dsh-hld-empty">暂无持仓</div>
-      </div>
-    `
+/* ----------------------------------------------------------- today trades */
+function renderTrades(data: HoldingsData): string {
+  const trades = Array.isArray(data.todayTrades) ? data.todayTrades : []
+  if (trades.length === 0) {
+    return `<div class="dsh-hld-card">
+      <div class="hd"><span class="t">今日自动交易（0）</span><span class="more">agent 的买卖动作都会显示在这里</span></div>
+      <div class="dsh-hld-emptybox">今日尚无自动交易 — 没有信号时空仓等待是正确决策</div>
+    </div>`
   }
-
-  const rows = data.positions.map(pos => {
-    const pnlClass = pos.profitLoss >= 0 ? 'profit' : 'loss'
-    const pnlSign = pos.profitLoss >= 0 ? '+' : ''
-    const pnlTodayClass = pos.profitToday >= 0 ? 'profit' : 'loss'
-    const pnlTodaySign = pos.profitToday >= 0 ? '+' : ''
-
-    return `
-      <tr>
-        <td class="code">${escapeHtml(pos.symbol)}</td>
-        <td>${escapeHtml(pos.name)}</td>
-        <td class="num">${pos.quantity}</td>
-        <td class="num">${pos.sharesAvailable}</td>
-        <td class="num">¥${pos.avgCost.toFixed(2)}</td>
-        <td class="num">¥${pos.currentPrice.toFixed(2)}</td>
-        <td class="num">¥${formatNumber(pos.currentValue)}</td>
-        <td class="num ${pnlClass}">${pnlSign}¥${formatNumber(Math.abs(pos.profitLoss))}</td>
-        <td class="num ${pnlClass}">${pnlSign}${pos.profitLossPct.toFixed(2)}%</td>
-        <td class="num ${pnlTodayClass}">${pnlTodaySign}¥${formatNumber(Math.abs(pos.profitToday))}</td>
-      </tr>
-    `
-  }).join('')
-
-  return `
-    <div class="dsh-hld-sec">
-      <h2>持仓明细 <span class="sub">${data.positions.length} 只股票</span></h2>
-      <table class="dsh-hld-table">
-        <thead>
-          <tr>
-            <th>代码</th>
-            <th>名称</th>
-            <th class="num">持仓</th>
-            <th class="num">可卖</th>
-            <th class="num">成本价</th>
-            <th class="num">现价</th>
-            <th class="num">市值</th>
-            <th class="num">浮动盈亏</th>
-            <th class="num">盈亏比例</th>
-            <th class="num">今日盈亏</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows}
-        </tbody>
-      </table>
-    </div>
-  `
-}
-
-function renderTodayTrades(data: HoldingsData): string {
-  if (data.todayTrades.length === 0) {
-    return `
-      <div class="dsh-hld-sec">
-        <h2>今日自动交易</h2>
-        <div class="dsh-hld-empty">今日暂无交易</div>
-      </div>
-    `
+  const zhAction: Record<string, { tag: string; text: string }> = {
+    BUY: { tag: 'buy', text: '买入' },
+    SELL: { tag: 'sell', text: '卖出' },
   }
-
-  const items = data.todayTrades.map(trade => {
-    const actionClass = trade.action.toUpperCase() === 'BUY' ? 'BUY' : 'SELL'
-    const time = new Date(trade.created_at).toLocaleTimeString('zh-CN', { hour12: false })
-    const pnl = trade.realized_pnl ? ` (实现 ¥${formatNumber(trade.realized_pnl)})` : ''
-
-    return `
-      <div class="dsh-hld-trade-item">
-        <div class="time">${time}</div>
-        <div class="action ${actionClass}">${trade.action.toUpperCase()}</div>
-        <div class="symbol">${escapeHtml(trade.symbol)}</div>
-        <div class="shares">${trade.shares}股 @ ¥${trade.filled_price.toFixed(2)}${pnl}</div>
-        <div class="reason">${escapeHtml(trade.reason || '-')}</div>
-      </div>
-    `
-  }).join('')
-
-  return `
-    <div class="dsh-hld-sec">
-      <h2>今日自动交易 <span class="sub">${data.todayTrades.length} 笔</span></h2>
-      ${items}
-    </div>
-  `
+  const zhStatus: Record<string, string> = { filled: '✅ 已成交', partial: '⏳ 部分成交', pending: '⏳ 待执行', rejected: '❌ 已拒绝', cancelled: '— 已撤单' }
+  const ctxNames = namesFromContexts(data.watchRules ?? [])
+  const rows = trades
+    .map((t) => {
+      const a = zhAction[String(t.action ?? '').toUpperCase()] ?? { tag: 'off', text: String(t.action ?? '') }
+      const price = Number(t.filled_price) || Number(t.price)
+      const amount = price * (t.shares ?? 0)
+      const st = zhStatus[String(t.status ?? '')] ?? String(t.status ?? '')
+      return `<tr>
+        <td><span class="dsh-hld-tag ${a.tag}">${a.text}</span></td>
+        <td><span class="sec-name">${esc(stockName(t.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(t.symbol))}</span></td>
+        <td class="r">${money(price)}<span class="sub">× ${t.shares ?? 0} 股</span></td>
+        <td class="r">${money(amount)}</td>
+        <td>${esc(String(t.reason ?? '—').slice(0, 64))}</td>
+        <td>${st}</td>
+        <td class="dim">${esc(fmtClock(t.created_at))}</td>
+      </tr>`
+    })
+    .join('')
+  return `<div class="dsh-hld-card">
+  <div class="hd"><span class="t">今日自动交易（${trades.length}）</span><span class="more">agent 已完成 / 进行中的自动交易</span></div>
+  <div class="tblwrap"><table>
+    <tr><th>方向</th><th>股票</th><th class="r">成交价</th><th class="r">金额</th><th>理由</th><th>状态</th><th>时间</th></tr>
+    ${rows}
+  </table></div>
+</div>`
 }
 
-function renderWatchRules(data: HoldingsData): string {
-  if (data.watchRules.length === 0) {
-    return `
-      <div class="dsh-hld-sec">
-        <h2>盯盘中心</h2>
-        <div class="dsh-hld-empty">暂无盯盘规则</div>
-      </div>
-    `
+/* ------------------------------------------------------------ watch rules */
+function renderWatchRules(watchRules: WatchRule[], ctxNames: Record<string, string>): string {
+  const enabled = watchRules.filter((r) => r.enabled)
+  const disabled = watchRules.length - enabled.length
+  const codes = new Set(watchRules.map((r) => pureCode(r.symbol)))
+  const rows = watchRules
+    .map((r) => {
+      const ctx = ctxText(r)
+      const brief = ctx.replace(/\s+/g, ' ').trim()
+      const condTexts = (r.conditions ?? []).map(condChip).filter(Boolean)
+      const condShow = condTexts.slice(0, 3).join(' <span class="dim">·</span> ') + (condTexts.length > 3 ? ' <span class="dim">+' + (condTexts.length - 3) + '</span>' : '')
+      const kind = kindOf(ctx)
+      return `<tr>
+        <td><span class="sec-name">${esc(stockName(r.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(r.symbol))}</span></td>
+        <td><span class="dsh-hld-tag ${kind.cls}">${kind.text}</span></td>
+        <td class="cond">${condShow || '<span class="dim">—</span>'}</td>
+        <td>${r.enabled ? '<span class="dsh-hld-tag on">监控中</span>' : '<span class="dsh-hld-tag off">已停用</span>'}</td>
+        <td class="ctx" title="${esc(brief.slice(0, 400))}">${esc(brief.slice(0, 44))}${brief.length > 44 ? '…' : ''}</td>
+      </tr>`
+    })
+    .join('')
+  const empty = watchRules.length === 0 ? `<div class="dsh-hld-emptybox">暂无盯盘规则 — 开仓后 agent 会自动挂上止损/止盈盯盘</div>` : ''
+  return `<div class="dsh-hld-card">
+  <div class="hd"><span class="t">盯盘中心（${watchRules.length}）</span><span class="more">规则触发由 agent 决策，无需人工盯盘</span></div>
+  ${watchRules.length > 0 ? `<div class="dsh-hld-watchsum">
+    <div class="ws"><div class="v">${watchRules.length}</div><div class="n">规则总数</div></div>
+    <div class="ws"><div class="v ok">${enabled.length}</div><div class="n">监控中</div></div>
+    <div class="ws"><div class="v warn">${disabled.length}</div><div class="n">已停用</div></div>
+    <div class="ws"><div class="v">${codes.size}</div><div class="n">覆盖标的</div></div>
+  </div>` : ''}
+  ${empty}
+  ${empty ? '' : `<div class="tblwrap"><table>
+    <tr><th>股票</th><th>方向</th><th>触发条件</th><th>状态</th><th>监控摘要</th></tr>
+    ${rows}
+  </table></div>`}
+</div>`
+}
+
+/** 触发条件 → 短文本（支持新旧两种条件形状） */
+function condChip(c: { type?: string; operator?: string; threshold?: number; field?: string; params?: { price?: number; direction?: string } }): string {
+  const params = c.params as { price?: number; direction?: string } | undefined
+  if (c.type === 'price_break' || String(c.operator || '').toLowerCase().includes('price')) {
+    if (params && params.price !== undefined && params.price !== null) {
+      const d = params.direction === 'above' ? '突破' : params.direction === 'below' ? '跌破' : '触碰'
+      return `<span class="cond-${params.direction === 'above' ? 'up' : 'down'}">${d}${money(params.price)}</span>`
+    }
+    if (c.threshold !== undefined && c.threshold !== null) {
+      return '价格 ' + c.threshold
+    }
   }
-
-  const items = data.watchRules.map(rule => {
-    const statusClass = rule.enabled ? 'enabled' : 'disabled'
-    const statusText = rule.enabled ? '启用' : '禁用'
-    const conditions = rule.conditions.map(c =>
-      `${c.field || c.type} ${c.operator} ${c.threshold}`
-    ).join(', ')
-
-    return `
-      <div class="dsh-hld-watch-item">
-        <div class="symbol">${escapeHtml(rule.symbol)}</div>
-        <div class="conditions">${escapeHtml(conditions)}</div>
-        <div class="status ${statusClass}">${statusText} (触发${rule.triggered_count}次)</div>
-      </div>
-    `
-  }).join('')
-
-  return `
-    <div class="dsh-hld-sec">
-      <h2>盯盘中心 <span class="sub">${data.watchRules.length} 条规则</span></h2>
-      ${items}
-    </div>
-  `
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
-}
-
-function formatNumber(num: number): string {
-  if (num >= 10000) {
-    return (num / 10000).toFixed(2) + '万'
+  if (c.threshold !== undefined && c.threshold !== null && c.operator) {
+    return String(c.operator || c.type).toUpperCase() + ' ' + c.threshold
   }
-  return num.toFixed(2)
+  return String(c.type ?? c.operator ?? '条件')
+}
+
+/** 从监控理由提取方向标签（止损 > 买入 > 卖出，避免误判） */
+function kindOf(ctx: string): { cls: string; text: string } {
+  if (/止损|风控|破位|减仓保护/.test(ctx)) return { cls: 'warn', text: '止损监控' }
+  if (/买入|低吸|介入|加仓|建仓|补仓/.test(ctx)) return { cls: 'buy', text: '买入提醒' }
+  if (/卖出|止盈|减仓|高抛|目标价/.test(ctx)) return { cls: 'sell', text: '卖出提醒' }
+  return { cls: 'on', text: '常规监控' }
 }

@@ -1,238 +1,313 @@
 /**
- * Board view construction + data renderers. Pure DOM port of the former
- * execution.html page logic: one container skeleton built once, per-section
- * renderers fill it from a fresh /dashboard/api/board fetch. Class names are
- * all dsh-exec-* (see styles.ts).
+ * Board view construction + data renderers. Light monitoring theme per design
+ * page2-execution-board.html: header, execution summary (今日计划/已完成/失败/待执行),
+ * pipeline bands (ENGINE M0-M6 x AUTONOMY L1-L4), today timeline (HH:MM sorted),
+ * scheduler tasks grouped into 6 domains (success/failure only, no technical noise).
  *
  * @module dashboard-execution/client/view
  */
-import type { BoardData } from './types.ts'
+import type { BoardData, CheckpointResult, SchedulerTask, TimelineEntry } from './types.ts'
 
 function esc(s: unknown): string {
   if (s === null || s === undefined) return ''
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
-function fmtTs(ts: unknown): string {
-  if (!ts) return '—'
-  const t = String(ts).includes(' ') ? String(ts).replace(' ', 'T') : String(ts)
-  const d = new Date(t)
-  if (Number.isNaN(d.getTime())) return esc(ts)
-  const p = (n: number) => (n < 10 ? '0' : '') + n
-  return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
+function shortDT(s: unknown): string {
+  if (!s) return '—'
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/)
+  if (!m) return esc(s).slice(0, 5)
+  const now = new Date()
+  const pad = (n: number): string => (n < 10 ? '0' : '') + n
+  const today = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
+  const hm = m[4] + ':' + m[5]
+  return (m[1] + '-' + m[2] + '-' + m[3] === today ? '' : m[2] + '-' + m[3] + ' ') + hm
 }
-function fmtUptime(s: unknown): string {
-  const v = Number(s)
-  if (!Number.isFinite(v) || v < 0) return s === undefined || s === null ? '—' : String(s)
-  const d = Math.floor(v / 86400)
-  const h = Math.floor((v % 86400) / 3600)
-  const m = Math.floor((v % 3600) / 60)
-  if (d > 0) return d + 'd ' + h + 'h'
-  if (h > 0) return h + 'h ' + m + 'm'
-  return m + 'm'
+function hmMin(s: unknown): number {
+  const m = String(s ?? '').match(/^(\d{2}):(\d{2})/)
+  if (!m) return 9999
+  return Number(m[1]) * 60 + Number(m[2])
 }
-function fmtMetric(key: string, val: unknown): string {
-  if (val === null || val === undefined) return '—'
-  if (typeof val === 'boolean') return val ? '是' : '否'
-  if (typeof val === 'number') {
-    if (key === 'uptime_s') return fmtUptime(val)
-    if (Math.abs(val) >= 100000) return val.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
-    return String(Math.round(val * 100) / 100)
-  }
-  return esc(val)
+function trunc(s: unknown, n: number): string {
+  const t = String(s ?? '').trim()
+  return t.length <= n ? t : t.slice(0, n) + '…'
 }
 
-const CP_ZH: Record<string, string> = { confirmed: '已确认', failed: '失败', late: '晚点', pending: '等待', off_day: '非执行日', unknown: '未知' }
-const H_ZH: Record<string, string> = { ok: '正常', degraded: '降级', failed: '故障' }
-const RUN_ZH: Record<string, string> = { success: '成功', failed: '失败', pending: '待运行', unknown: '未知' }
+/* ---- 文案映射 ---- */
+const TL_ZH: Record<string, string> = {
+  success: '成功', failed: '失败', pending: '待执行', skipped: '已跳过', unknown: '未知',
+}
+const TL_IC: Record<string, string> = { success: '✅', failed: '❌', pending: '⏳', skipped: '⏭️', unknown: '❔' }
+const TL_TAG: Record<string, string> = { success: 'ok', failed: 'bad', pending: 'wait', skipped: 'wait', unknown: 'unk' }
+const CP_ZH: Record<string, string> = { confirmed: '已确认', pending: '等待', off_day: '非执行日', failed: '失败', late: '晚点', degraded: '降级', unknown: '未知' }
+const CP_DOT: Record<string, string> = { confirmed: 'ok', pending: 'wait', off_day: 'off', failed: 'bad', late: 'late', degraded: 'deg', unknown: 'unk' }
+const H_ZH: Record<string, string> = { ok: '正常', degraded: '降级', failed: '故障', unknown: '未知' }
+const H_DOT: Record<string, string> = { ok: 'ok', degraded: 'deg', failed: 'bad', unknown: 'unk' }
 const HEALTH_NAME: Record<string, string> = {
   'quantsys-v2': '量化后端 quantsys-v2',
-  'agent-os': 'Agent OS (v1 遗留)',
-  postgres: 'PostgreSQL (经 v2 代理)',
-  'agent-dh': 'Agent-DH 进程(本看板宿主)',
+  'agent-os': 'Agent OS',
+  postgres: '数据库 PostgreSQL',
+  'agent-dh': 'Agent-DH 宿主',
 }
-const METRIC_ZH: Record<string, string> = {
-  api: 'API', db: 'DB', db_connected: 'db_connected', holdings_count: '持仓数',
-  model_loaded: '模型加载', balance_date: '结算日', total_assets: '总资产',
-  status: 'status', via: 'via', uptime_s: '运行时长', rss_mb: 'RSS(MB)',
-  heap_mb: 'Heap(MB)', restarts: '重启次数', probe_ms: '探测耗时',
+const TASK_ZH: Record<string, string> = {
+  market_daily_snapshot: '每日市场快照', chan_scan_daily: '产业链链扫', 'chan-scan-daily': '产业链链扫',
+  v13_risk_check: '风控熔断检查', 'v13-risk-check': '风控熔断检查',
+  daily_trade_verify: '交易对账', signal_perf_backfill_daily: '信号表现回填', 'signal-perf-backfill-daily': '信号表现回填',
+  v13_weekly_report: '每周报告', 'v13-weekly-report': '每周报告(v13)',
+  market_style_update: '市场风格更新', 'market-style-update': '市场风格更新',
+  v13_simulation_trading: '模拟交易执行', 'v13-simulation-trading': '模拟交易执行',
+  v13_verification: '策略验证裁决', 'v13-verification': '策略验证裁决',
+  pre_market_scan: '盘前扫描', 'pre-market-scan': '盘前扫描',
+  weekly_strategy_discovery: '周度策略发现', 'weekly-strategy-discovery': '周度策略发现',
+  daily_strategy_validation: '策略日验证', 'daily-strategy-validation': '策略日验证',
+  daily_pool_refresh: '股票池刷新', 'daily-pool-refresh': '股票池刷新',
+  fund_flow_update: '资金流数据更新', chan_knowledge_distill_weekly: '知识蒸馏(周)',
+  'chan-knowledge-distill-weekly': '知识蒸馏(周)',
+  '每日数据更新': '每日数据更新', '每日数据质量检查': '每日数据质量检查', '每周财务数据更新': '每周财务数据更新',
+  '每日财报时效性检查': '每日财报时效性检查', '每日信号生成': '每日信号生成', '每日信号执行': '每日信号执行', '每周报告生成': '每周报告生成',
 }
-const GROUP_ZH: Record<string, string> = {
-  engine_m0: 'ENGINE · M0 数据地基 / M1 市场感知 / M2 股票池 / M3 信号执行',
-  engine_m46: 'ENGINE · M4 风控 / M5 交易对账 / M6 经验沉淀',
-  autonomy: 'AUTONOMY · L1 策略验证 / L2 蒸馏 / L3 裁决 / L4 周报',
+function taskZh(name: unknown): string {
+  const n = String(name ?? '')
+  return TASK_ZH[n] ?? n
 }
-const STATUS_DOT: Record<string, string> = { ok: 'ok', confirmed: 'confirmed', failed: 'failed', late: 'late', pending: 'pending', unknown: 'unknown', off_day: 'off_day', degraded: 'degraded', success: 'ok' }
 
-/** Build the board skeleton once; returns section root elements. */
+/* 领域分组：raw name 精确匹配，兜底归入“其他任务” */
+const DOMAINS: { title: string; keys: string[] }[] = [
+  { title: '数据与行情', keys: ['每日数据更新', '每日数据质量检查', '每日财报时效性检查', '每周财务数据更新', 'fund_flow_update'] },
+  { title: '市场感知', keys: ['market_daily_snapshot', 'market-style-update', 'pre-market-scan'] },
+  { title: '信号与股票池', keys: ['每日信号生成', '每日信号执行', 'chan-scan-daily', 'daily-pool-refresh'] },
+  { title: '风控与交易', keys: ['v13-risk-check', 'daily_trade_verify', 'v13-simulation-trading'] },
+  { title: '学习与验证', keys: ['daily-strategy-validation', 'v13-verification', 'chan-knowledge-distill-weekly', 'weekly-strategy-discovery', 'signal-perf-backfill-daily'] },
+  { title: '周报与汇总', keys: ['v13-weekly-report', '每周报告生成'] },
+]
+function domainOf(name: unknown): { title: string; idx: number } | null {
+  const n = String(name ?? '')
+  for (let i = 0; i < DOMAINS.length; i++) if (DOMAINS[i].keys.includes(n)) return { title: DOMAINS[i].title, idx: i }
+  return null
+}
+
+/* M0-M6 × L1-L4 模块定义（节点始终展示，状态来自该模块检查点 worst case） */
+const ENGINE_MODS: { code: string; zh: string }[] = [
+  { code: 'M0', zh: '数据地基' }, { code: 'M1', zh: '市场感知' }, { code: 'M2', zh: '股票池' },
+  { code: 'M3', zh: '信号生成' }, { code: 'M4', zh: '风控止损' }, { code: 'M5', zh: '交易对账' }, { code: 'M6', zh: '经验进化' },
+]
+const AUTO_MODS: { code: string; zh: string }[] = [
+  { code: 'L1', zh: '策略验证' }, { code: 'L2', zh: '经验蒸馏' }, { code: 'L3', zh: '验证门裁决' }, { code: 'L4', zh: '周报进化' },
+]
+const CP_RANK: Record<string, number> = { failed: 5, late: 4, degraded: 3, pending: 2, off_day: 1, unknown: 0, confirmed: 0 }
+function worstCps(cps: CheckpointResult[]): { status: string; label: string } {
+  if (cps.length === 0) return { status: 'unknown', label: '暂无检查点' }
+  let w = 'confirmed'
+  for (const c of cps) {
+    const s = String(c.status ?? 'unknown')
+    if ((CP_RANK[s] ?? 0) > (CP_RANK[w] ?? 0)) w = s
+  }
+  return { status: w, label: CP_ZH[w] ?? w }
+}
+
+/** Build the board skeleton once; returns section roots + banner/meta for the mount. */
 export interface ViewRefs {
   board: HTMLElement
   meta: HTMLElement
   banner: HTMLElement
-  healthGrid: HTMLElement
-  alertsSec: HTMLElement
-  alertsBox: HTMLElement
-  gridM0M3: HTMLElement
-  gridM4M6: HTMLElement
-  gridL: HTMLElement
-  errList: HTMLElement
+  healthBox: HTMLElement
+  flowBox: HTMLElement
   timelineBox: HTMLElement
-  taskTable: HTMLTableElement
+  tasksBox: HTMLElement
+  errsSec: HTMLElement
+  errsBox: HTMLElement
+  blockSec: HTMLElement
+  blockBox: HTMLElement
 }
 export function buildView(): ViewRefs {
   const board = document.createElement('div')
   board.className = 'dsh-exec-board'
-  board.dataset.dshExecView = ''
-  board.innerHTML = `
-<div class="dsh-exec-wrap">
-  <div class="dsh-exec-head">
-    <h1 class="dsh-exec-title">双线执行确认看板<small>engine(M0–M6) × autonomy(L1–L4)</small></h1>
-    <div class="dsh-exec-meta">
-      <span class="dsh-exec-legend">
-        <span class="dsh-exec-lg"><i class="dsh-exec-dot confirmed"></i>已确认</span>
-        <span class="dsh-exec-lg"><i class="dsh-exec-dot pending"></i>等待</span>
-        <span class="dsh-exec-lg"><i class="dsh-exec-dot late"></i>晚点</span>
-        <span class="dsh-exec-lg"><i class="dsh-exec-dot failed"></i>失败</span>
-        <span class="dsh-exec-lg"><i class="dsh-exec-dot unknown"></i>未知</span>
-        <span class="dsh-exec-lg"><i class="dsh-exec-dot off_day"></i>非执行日</span>
-        <span class="dsh-exec-lg"><i class="dsh-exec-dot degraded"></i>降级</span>
-      </span>
-      <span class="dsh-exec-last" data-role="lastFetch">—</span>
-      <button class="dsh-exec-btn" data-role="refresh">立即刷新</button>
-    </div>
-  </div>
-  <div class="dsh-exec-banner" data-role="banner"></div>
-  <div class="dsh-exec-sec"><h2>系统健康</h2><div class="dsh-exec-grid4" data-role="health"></div></div>
-  <div class="dsh-exec-sec" data-role="alertsSec" style="display:none"><h2>阻断告警<span class="sub">failed/late 且声明阻断下游</span></h2><div data-role="alerts"></div></div>
-  <div class="dsh-exec-sec"><h2>执行检查点<span class="sub">状态语义：expectTime + 宽限(默认30min) 窗口内展示等待，绝不误报失败</span></h2>
-    <div class="dsh-exec-group-title">${GROUP_ZH.engine_m0}</div><div class="dsh-exec-cp-grid" data-role="cpM0M3"></div>
-    <div class="dsh-exec-group-title">${GROUP_ZH.engine_m46}</div><div class="dsh-exec-cp-grid" data-role="cpM4M6"></div>
-    <div class="dsh-exec-group-title">${GROUP_ZH.autonomy}</div><div class="dsh-exec-cp-grid" data-role="cpL"></div>
-  </div>
-  <div class="dsh-exec-sec"><h2>错误事件流<span class="sub">v2/os/dsh 日志尾部近 10 条（ERROR/CRITICAL/Traceback）</span></h2>
-    <ol class="dsh-exec-errs" data-role="errors"></ol></div>
-  <div class="dsh-exec-sec"><h2>今日时间轴<span class="sub">真实 cron 计划 × 当日运行结果</span></h2>
-    <div class="dsh-exec-timeline" data-role="timeline"></div></div>
-  <div class="dsh-exec-sec"><h2>调度任务明细<span class="sub">全部任务</span></h2>
-    <table class="dsh-exec-table"><thead><tr>
-      <th>ID</th><th>任务</th><th>启用</th><th>计划(cron)</th><th>下次运行</th><th>今日</th><th>最近一次运行</th><th>错误详情</th>
-    </tr></thead><tbody data-role="tasks"></tbody></table>
-  </div>
-</div>`
-  const $ = <T extends HTMLElement>(sel: string) => board.querySelector<T>(sel) as T
+  const bd = (inner: string): HTMLElement => {
+    const el = document.createElement('div')
+    el.innerHTML = inner
+    return el.firstElementChild as HTMLElement
+  }
+  const sec = (title: string, more: string, role: string, bdCls = 'bd'): HTMLElement => {
+    const el = bd('<section class="dsh-exec-cardx">' +
+      '<div class="hd"><span class="t">' + esc(title) + '</span><span class="more">' + esc(more) + '</span></div>' +
+      '<div class="' + bdCls + '" data-role="' + role + '"></div></section>')
+    return el
+  }
+  const wrap = document.createElement('div')
+  wrap.className = 'dsh-exec-wrap'
+  const head = bd('<div class="dsh-exec-head">' +
+    '<h1 class="dsh-exec-title">双线执行确认看板<small>只读监控 · 运行与操作由 agent 自动完成</small></h1>' +
+    '<div class="dsh-exec-meta"><span class="dsh-exec-last" data-role="lastFetch">—</span>' +
+    '<button type="button" class="dsh-exec-btn" data-role="refresh">↻ 刷新</button></div></div>')
+  const banner = bd('<div class="dsh-exec-banner" data-role="banner"></div>')
+  const healthSec = sec('今日执行总览', '来自当日 cron 计划与运行结果', 'healthBox')
+  const flowSec = sec('执行流水线', 'ENGINE M0–M6 × AUTONOMY L1–L4 检查点状态', 'flowBox')
+  const timelineSec = sec('今日时间轴', '按计划时刻排序 · 已完成/失败/待执行', 'timelineBox')
+  const tasksSec = sec('调度任务', '按领域分组 · 只看成败', 'tasksBox')
+  const errsSec = sec('错误事件', '近 10 条日志异常（系统侧）', 'errsBox')
+  errsSec.style.display = 'none'
+  const blockSec = sec('流水线阻断', 'failed/late 且声明阻断下游', 'blockBox')
+  blockSec.style.display = 'none'
+  wrap.append(head, banner, healthSec, flowSec, timelineSec, tasksSec, errsSec, blockSec)
+  board.appendChild(wrap)
+  const $ = <T extends HTMLElement>(sel: string): T => board.querySelector<T>(sel) as T
   return {
     board,
     meta: $('[data-role="lastFetch"]'),
-    banner: $('[data-role="banner"]'),
-    healthGrid: $('[data-role="health"]'),
-    alertsSec: $('[data-role="alertsSec"]'),
-    alertsBox: $('[data-role="alerts"]'),
-    gridM0M3: $('[data-role="cpM0M3"]'),
-    gridM4M6: $('[data-role="cpM4M6"]'),
-    gridL: $('[data-role="cpL"]'),
-    errList: $('[data-role="errors"]'),
-    timelineBox: $('[data-role="timeline"]'),
-    taskTable: $('table'),
+    banner,
+    healthBox: $('[data-role="healthBox"]'),
+    flowBox: $('[data-role="flowBox"]'),
+    timelineBox: $('[data-role="timelineBox"]'),
+    tasksBox: $('[data-role="tasksBox"]'),
+    errsSec,
+    errsBox: $('[data-role="errsBox"]'),
+    blockSec,
+    blockBox: $('[data-role="blockBox"]'),
   }
 }
 
-export function renderHealth(refs: ViewRefs, data: BoardData): void {
-  const rows = data.health ?? []
-  refs.healthGrid.innerHTML = rows.map((h) => {
-    const nm = HEALTH_NAME[h.name ?? ''] ?? h.name ?? '?'
-    const st = H_ZH[h.status ?? ''] ?? h.status ?? '?'
-    const port = h.port ? '<span class="port">:' + h.port + '</span>' : ''
-    const kv = (h.metrics ? Object.keys(h.metrics) : []).filter((k) => k !== 'probe_ms')
-      .map((k) => '<div><span>' + esc(METRIC_ZH[k] ?? k) + '</span><b>' + fmtMetric(k, h.metrics![k]) + '</b></div>').join('')
-    const err = h.error ? '<div class="dsh-exec-errline">' + esc(h.error) + '</div>' : ''
-    const rt = h.responseTimeMs !== undefined ? '<div class="dsh-exec-time">探测 ' + h.responseTimeMs + 'ms</div>' : ''
-    return '<div class="dsh-exec-card"><h3><i class="dsh-exec-dot ' + esc(h.status) + '"></i>' + esc(nm) + port +
-      '<span class="' + esc(h.status) + '" style="margin-left:auto">' + esc(st) + '</span></h3>' +
-      '<div class="dsh-exec-kv">' + kv + '</div>' + err + rt + '</div>'
-  }).join('')
-  if (rows.length === 0) refs.healthGrid.innerHTML = '<div class="dsh-exec-card dsh-exec-dim">无健康数据</div>'
-}
-
-export function renderAlerts(refs: ViewRefs, data: BoardData): void {
-  const list = data.blockedFlows ?? []
-  if (list.length === 0) { refs.alertsSec.style.display = 'none'; return }
-  refs.alertsSec.style.display = ''
-  const zh: Record<string, string> = { failed: '失败', late: '晚点' }
-  refs.alertsBox.innerHTML = '<div class="dsh-exec-alert-card">' + list.map((b) =>
-    '<div class="dsh-exec-alert-item"><span class="' + esc(b.status) + '">' + esc(b.checkpointName) +
-    '（' + esc(zh[b.status ?? ''] ?? b.status) + '）</span>' +
-    '<span class="dsh-exec-dim">阻断下游：</span><span class="flow">' + (b.blocks ?? []).map(esc).join(' · ') + '</span></div>'
-  ).join('') + '</div>'
-}
-
-export function renderCheckpoints(refs: ViewRefs, data: BoardData): void {
-  const list = data.checkpoints ?? []
-  const groups: Record<string, typeof list> = { m0m3: [], m46: [], l: [] }
-  for (const cp of list) {
-    const isEngine = cp.line === 'engine'
-    const mod = cp.module ?? ''
-    if (isEngine && /^M[0-3]/.test(mod)) groups.m0m3.push(cp)
-    else if (isEngine && /^M[4-6]/.test(mod)) groups.m46.push(cp)
-    else groups.l.push(cp)
+function renderHealth(refs: ViewRefs, data: BoardData): void {
+  const tl = data.timeline ?? []
+  const total = tl.length
+  let ok = 0, fail = 0
+  for (const t of tl) { if (t.status === 'success') ok++; else if (t.status === 'failed') fail++ }
+  const wait = Math.max(0, total - ok - fail)
+  const hbItem = (v: string, n: string, cls: string): string =>
+    '<div class="hb-item ' + cls + '"><div class="v">' + v + '</div><div class="n">' + n + '</div></div>'
+  let html = '<div class="dsh-exec-hb">' +
+    hbItem(String(total), '今日计划任务', 't') + hbItem(String(ok), '✅ 已完成', 'ok') +
+    hbItem(String(fail), '❌ 失败', fail > 0 ? 'bad' : 'ok') + hbItem(String(wait), '⏳ 待执行', 'wait') + '</div>'
+  const hs = data.health ?? []
+  if (hs.length > 0) {
+    html += '<div class="dsh-exec-pills">' + hs.map((h) => {
+      const st = String(h.status ?? 'unknown')
+      return '<span class="pill ' + (st === 'ok' ? 'ok' : 'warn') + '" title="' + esc(h.error ?? '') + '">' +
+        '<i class="dot ' + (H_DOT[st] ?? 'unk') + '"></i>' + esc(HEALTH_NAME[h.name ?? ''] ?? h.name ?? '') +
+        '<b>' + esc(H_ZH[st] ?? st) + '</b></span>'
+    }).join('') + '</div>'
   }
-  const cardCp = (cp: (typeof list)[number]) => {
-    const zh = CP_ZH[cp.status ?? ''] ?? cp.status ?? '?'
-    const dot = STATUS_DOT[cp.status ?? ''] ?? cp.status
-    const msg = cp.message ? '<div class="msg">' + esc(cp.message) + '</div>' : ''
-    return '<div class="dsh-exec-cp" title="' + esc(cp.id) + '"><div class="top">' +
-      '<i class="dsh-exec-dot ' + esc(dot) + '"></i><span class="mod">' + esc(cp.module ?? '') + '</span>' +
-      '<span class="' + esc(dot) + '">' + esc(zh) + '</span></div>' +
-      '<div class="nm">' + esc(cp.name ?? '') + '</div>' + msg + '</div>'
+  refs.healthBox.innerHTML = html
+}
+
+function flowNode(code: string, zh: string, cps: CheckpointResult[]): string {
+  const w = worstCps(cps)
+  const dot = CP_DOT[w.status] ?? 'unk'
+  const lines = cps.length === 0
+    ? '<li class="cp-empty"><i class="dot unk"></i>暂无检查点</li>'
+    : cps.map((c) => {
+        const s = String(c.status ?? 'unknown')
+        return '<li><i class="dot ' + (CP_DOT[s] ?? 'unk') + '"></i>' + esc(c.name ?? '?') +
+          '<em>' + esc(CP_ZH[s] ?? s) + '</em></li>'
+      }).join('')
+  return '<div class="node st-' + dot + '">' +
+    '<div class="n-top"><i class="dot ' + dot + '"></i><b>' + code + '</b><span>' + esc(zh) + '</span><em>' + esc(w.label) + '</em></div>' +
+    '<ul class="cps">' + lines + '</ul></div>'
+}
+function renderFlow(refs: ViewRefs, data: BoardData): void {
+  const cps = data.checkpoints ?? []
+  const byMod: Record<string, CheckpointResult[]> = {}
+  for (const c of cps) {
+    const line = String(c.line ?? ''), mod = String(c.module ?? '')
+    if (line !== 'engine' && line !== 'autonomy') continue
+    const k = line + '|' + mod
+    ;(byMod[k] = byMod[k] || []).push(c)
   }
-  refs.gridM0M3.innerHTML = groups.m0m3.map(cardCp).join('') || '<div class="dsh-exec-empty">无</div>'
-  refs.gridM4M6.innerHTML = groups.m46.map(cardCp).join('') || '<div class="dsh-exec-empty">无</div>'
-  refs.gridL.innerHTML = groups.l.map(cardCp).join('') || '<div class="dsh-exec-empty">无</div>'
+  const band = (label: string, badge: string, mods: { code: string; zh: string }[]): string =>
+    '<div class="dsh-exec-band"><div class="band-t"><span class="band-badge ' + badge + '">' + label + '</span>    <i></i></div><div class="band-nodes">' +
+    mods.map((m) => flowNode(m.code, m.zh, byMod[badge + '|' + m.code] ?? [])).join('') + '</div></div>'
+  refs.flowBox.innerHTML = band('ENGINE', 'engine', ENGINE_MODS) + band('AUTONOMY', 'autonomy', AUTO_MODS)
 }
 
-export function renderErrors(refs: ViewRefs, data: BoardData): void {
-  const list = data.errors ?? []
-  refs.errList.innerHTML = list.map((e) =>
-    '<li><span class="src ' + esc(e.source ?? '') + '">' + esc(e.source ?? '?') + '</span>' +
-    '<span class="file">' + esc(e.file ?? '') + '</span>' +
-    '<span class="line" title="' + esc(e.line) + '">' + esc(e.line ?? '') + '</span></li>'
-  ).join('') || '<li class="dsh-exec-empty">近 300 行日志内无错误事件</li>'
+function tlStatusLabel(st: string): string { return TL_ZH[st] ?? '未知' }
+function renderTimeline(refs: ViewRefs, data: BoardData): void {
+  const tl = (data.timeline ?? []).slice().sort((a, b) => hmMin(a.expectedTime) - hmMin(b.expectedTime))
+  if (tl.length === 0) { refs.timelineBox.innerHTML = '<div class="dsh-exec-empty">今日暂无计划任务</div>'; return }
+  refs.timelineBox.innerHTML = '<div class="dsh-exec-tl-list">' + tl.map((t: TimelineEntry) => {
+    const st = String(t.status ?? 'unknown')
+    const tm = String(t.expectedTime ?? '')
+    const err = st === 'failed' && t.error ? ' title="' + esc(t.error) + '"' : ''
+    return '<div class="tl-item ' + (TL_TAG[st] ?? 'unk') + '"' + err + '>' +
+      '<span class="tl-tm">' + esc(tm.slice(0, 5)) + '</span>' +
+      '<span class="tl-ic">' + (TL_IC[st] ?? '❔') + '</span>' +
+      '<div class="tl-bd"><div class="tl-nm">' + esc(taskZh(t.taskName)) + '</div>' +
+      '<div class="tl-st ' + (TL_TAG[st] ?? 'unk') + '">' + esc(tlStatusLabel(st)) + '</div></div></div>'
+  }).join('') + '</div>'
 }
 
-export function renderTimeline(refs: ViewRefs, data: BoardData): void {
-  const list = data.timeline ?? []
-  const dotFor = (st: string) => (st === 'success' ? 'ok' : st === 'failed' ? 'failed' : st === 'unknown' ? 'unknown' : 'pending')
-  refs.timelineBox.innerHTML = list.map((t) => {
-    const zh = RUN_ZH[t.status ?? ''] ?? t.status ?? '?'
-    return '<div class="dsh-exec-tl"><i class="dsh-exec-dot ' + dotFor(t.status ?? '') + '"></i>' +
-      '<span class="t">' + esc(t.expectedTime ?? '') + '</span>' +
-      '<span class="e">' + esc(t.taskName ?? '') + '</span>' +
-      '<span class="' + dotFor(t.status ?? '') + '">' + esc(zh) + '</span></div>'
-  }).join('') || '<div class="dsh-exec-empty">无</div>'
+function taskTag(t: SchedulerTask): { cls: string; label: string } {
+  const enabled = t.enabled === true || t.enabled === 'true' || t.enabled === 1
+  if (!enabled) return { cls: 'off', label: '未启用' }
+  const ts = Number(t.todaySuccess) || 0
+  const tt = Number(t.todayTriggered) || 0
+  if (tt > 0) return ts >= tt ? { cls: 'ok', label: '今日成功' } : { cls: 'bad', label: '今日失败' }
+  let lrs = ''
+  if (typeof t.lastRun === 'string') lrs = t.lastRun
+  else if (t.lastRun && typeof t.lastRun === 'object') lrs = String((t.lastRun as { status?: unknown }).status ?? '')
+  if (lrs === 'success') return { cls: 'ok', label: '上次成功' }
+  if (lrs === 'failed') return { cls: 'bad', label: '上次失败' }
+  if (lrs === 'skipped') return { cls: 'wait', label: '已跳过' }
+  return { cls: 'wait', label: '待执行' }
+}
+function taskLast(t: SchedulerTask): string {
+  let trig: unknown = null
+  if (typeof t.lastRun === 'string') trig = t.lastRun
+  else if (t.lastRun && typeof t.lastRun === 'object') trig = (t.lastRun as { triggeredAt?: unknown }).triggeredAt
+  return trig ? shortDT(trig) : '—'
+}
+function renderTasks(refs: ViewRefs, data: BoardData): void {
+  const tasks = data.tasks ?? []
+  if (tasks.length === 0) { refs.tasksBox.innerHTML = '<div class="dsh-exec-empty">暂无调度任务</div>'; return }
+  const groups: (SchedulerTask[] | null)[] = DOMAINS.map(() => [] as SchedulerTask[])
+  const other: SchedulerTask[] = []
+  for (const t of tasks) {
+    const d = domainOf(t.name)
+    if (d) (groups[d.idx] as SchedulerTask[]).push(t)
+    else other.push(t)
+  }
+  const groupHtml = (title: string, items: SchedulerTask[]): string => {
+    const rows = items.map((t) => {
+      const tag = taskTag(t)
+      return '<div class="tk-row">' +
+        '<div class="tk-nm">' + esc(taskZh(t.name)) + '</div>' +
+        '<div class="tk-tg"><span class="tag ' + tag.cls + '">' + tag.label + '</span></div>' +
+        '<div class="tk-tm">上次 ' + esc(taskLast(t)) + ' · 下次 ' + esc(shortDT(t.nextRunAt)) + '</div></div>'
+    }).join('')
+    return '<div class="dsh-exec-domain"><div class="dm-t"><span class="t">' + title + '</span><em>' + items.length + ' 项</em></div><div class="dm-rows">' + rows + '</div></div>'
+  }
+  let html = ''
+  for (let i = 0; i < DOMAINS.length; i++) if ((groups[i] as SchedulerTask[]).length > 0) html += groupHtml(DOMAINS[i].title, groups[i] as SchedulerTask[])
+  if (other.length > 0) html += groupHtml('其他任务', other)
+  if (html === '') html = '<div class="dsh-exec-empty">暂无调度任务</div>'
+  refs.tasksBox.innerHTML = html
 }
 
-export function renderTasks(refs: ViewRefs, data: BoardData): void {
-  const list = data.tasks ?? []
-  refs.taskTable.tBodies[0].innerHTML = list.map((t) => {
-    const enabled = t.enabled === true || t.enabled === 'true'
-    const on = enabled ? '<span class="dsh-exec-on">是</span>' : '<span class="dsh-exec-off">否</span>'
-    const today = (t.todaySuccess !== undefined && t.todayTriggered !== undefined)
-      ? String(t.todaySuccess ?? 0) + '/' + String(t.todayTriggered ?? 0)
-      : '—'
-    const lastRun = typeof t.lastRun === 'string' ? t.lastRun : t.lastRun ? JSON.stringify(t.lastRun) : '—'
-    const nextRun = t.nextRunAt && t.nextRunAt !== 'None' ? fmtTs(t.nextRunAt) : '—'
-    const err = t.error ? '<td class="err">' + esc(t.error) + '</td>' : '<td class="dim">—</td>'
-    return '<tr><td class="id">' + esc(t.id) + '</td><td>' + esc(t.name ?? '') + '</td>' +
-      '<td>' + on + '</td><td class="mono">' + esc(t.scheduleExpr ?? '') + '</td>' +
-      '<td class="num">' + nextRun + '</td><td class="num">' + today + '</td>' +
-      '<td class="num">' + fmtTs(lastRun) + '</td>' + err + '</tr>'
-  }).join('') || '<tr><td colspan="8" class="dsh-exec-empty">无</td></tr>'
+function renderErrors(refs: ViewRefs, data: BoardData): void {
+  const errs = data.errors ?? []
+  refs.errsSec.style.display = errs.length > 0 ? '' : 'none'
+  if (errs.length === 0) return
+  refs.errsBox.innerHTML = '<ol class="dsh-exec-errs">' + errs.slice(0, 10).map((e) => {
+    const src = String(e.source ?? '').toLowerCase()
+    const cls = src.includes('os') ? 'os' : src.includes('dsh') ? 'dsh' : 'v2'
+    const first = trunc((e.line ?? e.file ?? '').replace(/\\n/g, ' '), 120)
+    return '<li><span class="src ' + cls + '">' + esc(e.source ?? '?') + '</span>' +
+      '<time>' + esc(shortDT(e.timestamp)) + '</time>' +
+      '<span class="line" title="' + esc(e.line ?? '') + '">' + esc(first) + '</span></li>'
+  }).join('') + '</ol>'
+}
+function renderBlocked(refs: ViewRefs, data: BoardData): void {
+  const bl = data.blockedFlows ?? []
+  refs.blockSec.style.display = bl.length > 0 ? '' : 'none'
+  if (bl.length === 0) return
+  refs.blockBox.innerHTML = bl.map((b) =>
+    '<div class="dsh-exec-block"><b>' + esc(b.checkpointName ?? b.checkpointId ?? '?') + '</b>' +
+    '<span class="tag bad">' + esc(CP_ZH[String(b.status ?? '')] ?? esc(b.status ?? '')) + '</span>' +
+    (b.blocks && b.blocks.length > 0 ? '<span class="blocks">阻断: ' + esc(b.blocks.join(', ')) + '</span>' : '') + '</div>').join('')
 }
 
 export function renderAll(refs: ViewRefs, data: BoardData): void {
   renderHealth(refs, data)
-  renderAlerts(refs, data)
-  renderCheckpoints(refs, data)
-  renderErrors(refs, data)
+  renderFlow(refs, data)
   renderTimeline(refs, data)
   renderTasks(refs, data)
+  renderErrors(refs, data)
+  renderBlocked(refs, data)
 }
-export { esc, fmtTs }

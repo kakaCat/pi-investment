@@ -54,10 +54,15 @@ export interface Trade {
 }
 
 export interface WatchCondition {
+  /** 条件类型，如 price_break（价格突破/跌破） */
   type: string;
-  operator: string;
-  threshold: number;
+  /** 旧式字段（部分规则/宿主仍返回） */
+  operator?: string;
+  threshold?: number;
   field?: string;
+  /** 新式触发参数（价格条件）：{ price, direction: 'above' | 'below' } */
+  params?: { price?: number; direction?: string; [k: string]: unknown };
+  cooldown_sec?: number;
 }
 
 export interface WatchRule {
@@ -65,9 +70,11 @@ export interface WatchRule {
   symbol: string;
   enabled: boolean;
   conditions: WatchCondition[];
-  context: Record<string, any>;
+  /** 监控理由（含中文名/策略摘要），真实形状为字符串 */
+  context?: unknown;
+  cost_price?: number | null;
   created_at: string;
-  triggered_count: number;
+  triggered_count?: number;
 }
 
 export interface HoldingsData {

@@ -4,42 +4,7 @@ window.__ModuleLoader__.load({
 			var module = { exports: {} };
 			var exports = module.exports;
 			Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-		Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});let e=require("react");const t=`data-dsh-exec-active`,n=[`data-dsh-atb-active`,`data-dsh-taskboard-active`,`data-dsh-ssh-active`,`data-dsh-hld-active`],r=`dsh-panel-activate`;function i(e){return e==null?``:String(e).replace(/&/g,`&amp;`).replace(/</g,`&lt;`).replace(/>/g,`&gt;`).replace(/"/g,`&quot;`)}function a(e){if(!e)return`—`;let t=String(e).includes(` `)?String(e).replace(` `,`T`):String(e),n=new Date(t);if(Number.isNaN(n.getTime()))return i(e);let r=e=>(e<10?`0`:``)+e;return r(n.getMonth()+1)+`-`+r(n.getDate())+` `+r(n.getHours())+`:`+r(n.getMinutes())}function o(e){let t=Number(e);if(!Number.isFinite(t)||t<0)return e==null?`—`:String(e);let n=Math.floor(t/86400),r=Math.floor(t%86400/3600),i=Math.floor(t%3600/60);return n>0?n+`d `+r+`h`:r>0?r+`h `+i+`m`:i+`m`}function s(e,t){return t==null?`—`:typeof t==`boolean`?t?`是`:`否`:typeof t==`number`?e===`uptime_s`?o(t):Math.abs(t)>=1e5?t.toLocaleString(`zh-CN`,{maximumFractionDigits:0}):String(Math.round(t*100)/100):i(t)}const c={confirmed:`已确认`,failed:`失败`,late:`晚点`,pending:`等待`,off_day:`非执行日`,unknown:`未知`},l={ok:`正常`,degraded:`降级`,failed:`故障`},u={success:`成功`,failed:`失败`,pending:`待运行`,unknown:`未知`},d={"quantsys-v2":`量化后端 quantsys-v2`,"agent-os":`Agent OS (v1 遗留)`,postgres:`PostgreSQL (经 v2 代理)`,"agent-dh":`Agent-DH 进程(本看板宿主)`},f={api:`API`,db:`DB`,db_connected:`db_connected`,holdings_count:`持仓数`,model_loaded:`模型加载`,balance_date:`结算日`,total_assets:`总资产`,status:`status`,via:`via`,uptime_s:`运行时长`,rss_mb:`RSS(MB)`,heap_mb:`Heap(MB)`,restarts:`重启次数`,probe_ms:`探测耗时`},p={engine_m0:`ENGINE · M0 数据地基 / M1 市场感知 / M2 股票池 / M3 信号执行`,engine_m46:`ENGINE · M4 风控 / M5 交易对账 / M6 经验沉淀`,autonomy:`AUTONOMY · L1 策略验证 / L2 蒸馏 / L3 裁决 / L4 周报`},m={ok:`ok`,confirmed:`confirmed`,failed:`failed`,late:`late`,pending:`pending`,unknown:`unknown`,off_day:`off_day`,degraded:`degraded`,success:`ok`};function h(){let e=document.createElement(`div`);e.className=`dsh-exec-board`,e.dataset.dshExecView=``,e.innerHTML=`
-		<div class="dsh-exec-wrap">
-		  <div class="dsh-exec-head">
-		    <h1 class="dsh-exec-title">双线执行确认看板<small>engine(M0–M6) × autonomy(L1–L4)</small></h1>
-		    <div class="dsh-exec-meta">
-		      <span class="dsh-exec-legend">
-		        <span class="dsh-exec-lg"><i class="dsh-exec-dot confirmed"></i>已确认</span>
-		        <span class="dsh-exec-lg"><i class="dsh-exec-dot pending"></i>等待</span>
-		        <span class="dsh-exec-lg"><i class="dsh-exec-dot late"></i>晚点</span>
-		        <span class="dsh-exec-lg"><i class="dsh-exec-dot failed"></i>失败</span>
-		        <span class="dsh-exec-lg"><i class="dsh-exec-dot unknown"></i>未知</span>
-		        <span class="dsh-exec-lg"><i class="dsh-exec-dot off_day"></i>非执行日</span>
-		        <span class="dsh-exec-lg"><i class="dsh-exec-dot degraded"></i>降级</span>
-		      </span>
-		      <span class="dsh-exec-last" data-role="lastFetch">—</span>
-		      <button class="dsh-exec-btn" data-role="refresh">立即刷新</button>
-		    </div>
-		  </div>
-		  <div class="dsh-exec-banner" data-role="banner"></div>
-		  <div class="dsh-exec-sec"><h2>系统健康</h2><div class="dsh-exec-grid4" data-role="health"></div></div>
-		  <div class="dsh-exec-sec" data-role="alertsSec" style="display:none"><h2>阻断告警<span class="sub">failed/late 且声明阻断下游</span></h2><div data-role="alerts"></div></div>
-		  <div class="dsh-exec-sec"><h2>执行检查点<span class="sub">状态语义：expectTime + 宽限(默认30min) 窗口内展示等待，绝不误报失败</span></h2>
-		    <div class="dsh-exec-group-title">${p.engine_m0}</div><div class="dsh-exec-cp-grid" data-role="cpM0M3"></div>
-		    <div class="dsh-exec-group-title">${p.engine_m46}</div><div class="dsh-exec-cp-grid" data-role="cpM4M6"></div>
-		    <div class="dsh-exec-group-title">${p.autonomy}</div><div class="dsh-exec-cp-grid" data-role="cpL"></div>
-		  </div>
-		  <div class="dsh-exec-sec"><h2>错误事件流<span class="sub">v2/os/dsh 日志尾部近 10 条（ERROR/CRITICAL/Traceback）</span></h2>
-		    <ol class="dsh-exec-errs" data-role="errors"></ol></div>
-		  <div class="dsh-exec-sec"><h2>今日时间轴<span class="sub">真实 cron 计划 × 当日运行结果</span></h2>
-		    <div class="dsh-exec-timeline" data-role="timeline"></div></div>
-		  <div class="dsh-exec-sec"><h2>调度任务明细<span class="sub">全部任务</span></h2>
-		    <table class="dsh-exec-table"><thead><tr>
-		      <th>ID</th><th>任务</th><th>启用</th><th>计划(cron)</th><th>下次运行</th><th>今日</th><th>最近一次运行</th><th>错误详情</th>
-		    </tr></thead><tbody data-role="tasks"></tbody></table>
-		  </div>
-		</div>`;let t=t=>e.querySelector(t);return{board:e,meta:t(`[data-role="lastFetch"]`),banner:t(`[data-role="banner"]`),healthGrid:t(`[data-role="health"]`),alertsSec:t(`[data-role="alertsSec"]`),alertsBox:t(`[data-role="alerts"]`),gridM0M3:t(`[data-role="cpM0M3"]`),gridM4M6:t(`[data-role="cpM4M6"]`),gridL:t(`[data-role="cpL"]`),errList:t(`[data-role="errors"]`),timelineBox:t(`[data-role="timeline"]`),taskTable:t(`table`)}}function g(e,t){let n=t.health??[];e.healthGrid.innerHTML=n.map(e=>{let t=d[e.name??``]??e.name??`?`,n=l[e.status??``]??e.status??`?`,r=e.port?`<span class="port">:`+e.port+`</span>`:``,a=(e.metrics?Object.keys(e.metrics):[]).filter(e=>e!==`probe_ms`).map(t=>`<div><span>`+i(f[t]??t)+`</span><b>`+s(t,e.metrics[t])+`</b></div>`).join(``),o=e.error?`<div class="dsh-exec-errline">`+i(e.error)+`</div>`:``,c=e.responseTimeMs===void 0?``:`<div class="dsh-exec-time">探测 `+e.responseTimeMs+`ms</div>`;return`<div class="dsh-exec-card"><h3><i class="dsh-exec-dot `+i(e.status)+`"></i>`+i(t)+r+`<span class="`+i(e.status)+`" style="margin-left:auto">`+i(n)+`</span></h3><div class="dsh-exec-kv">`+a+`</div>`+o+c+`</div>`}).join(``),n.length===0&&(e.healthGrid.innerHTML=`<div class="dsh-exec-card dsh-exec-dim">无健康数据</div>`)}function _(e,t){let n=t.blockedFlows??[];if(n.length===0){e.alertsSec.style.display=`none`;return}e.alertsSec.style.display=``;let r={failed:`失败`,late:`晚点`};e.alertsBox.innerHTML=`<div class="dsh-exec-alert-card">`+n.map(e=>`<div class="dsh-exec-alert-item"><span class="`+i(e.status)+`">`+i(e.checkpointName)+`（`+i(r[e.status??``]??e.status)+`）</span><span class="dsh-exec-dim">阻断下游：</span><span class="flow">`+(e.blocks??[]).map(i).join(` · `)+`</span></div>`).join(``)+`</div>`}function v(e,t){let n=t.checkpoints??[],r={m0m3:[],m46:[],l:[]};for(let e of n){let t=e.line===`engine`,n=e.module??``;t&&/^M[0-3]/.test(n)?r.m0m3.push(e):t&&/^M[4-6]/.test(n)?r.m46.push(e):r.l.push(e)}let a=e=>{let t=c[e.status??``]??e.status??`?`,n=m[e.status??``]??e.status,r=e.message?`<div class="msg">`+i(e.message)+`</div>`:``;return`<div class="dsh-exec-cp" title="`+i(e.id)+`"><div class="top"><i class="dsh-exec-dot `+i(n)+`"></i><span class="mod">`+i(e.module??``)+`</span><span class="`+i(n)+`">`+i(t)+`</span></div><div class="nm">`+i(e.name??``)+`</div>`+r+`</div>`};e.gridM0M3.innerHTML=r.m0m3.map(a).join(``)||`<div class="dsh-exec-empty">无</div>`,e.gridM4M6.innerHTML=r.m46.map(a).join(``)||`<div class="dsh-exec-empty">无</div>`,e.gridL.innerHTML=r.l.map(a).join(``)||`<div class="dsh-exec-empty">无</div>`}function y(e,t){let n=t.errors??[];e.errList.innerHTML=n.map(e=>`<li><span class="src `+i(e.source??``)+`">`+i(e.source??`?`)+`</span><span class="file">`+i(e.file??``)+`</span><span class="line" title="`+i(e.line)+`">`+i(e.line??``)+`</span></li>`).join(``)||`<li class="dsh-exec-empty">近 300 行日志内无错误事件</li>`}function b(e,t){let n=t.timeline??[],r=e=>e===`success`?`ok`:e===`failed`?`failed`:e===`unknown`?`unknown`:`pending`;e.timelineBox.innerHTML=n.map(e=>{let t=u[e.status??``]??e.status??`?`;return`<div class="dsh-exec-tl"><i class="dsh-exec-dot `+r(e.status??``)+`"></i><span class="t">`+i(e.expectedTime??``)+`</span><span class="e">`+i(e.taskName??``)+`</span><span class="`+r(e.status??``)+`">`+i(t)+`</span></div>`}).join(``)||`<div class="dsh-exec-empty">无</div>`}function x(e,t){let n=t.tasks??[];e.taskTable.tBodies[0].innerHTML=n.map(e=>{let t=e.enabled===!0||e.enabled===`true`?`<span class="dsh-exec-on">是</span>`:`<span class="dsh-exec-off">否</span>`,n=e.todaySuccess!==void 0&&e.todayTriggered!==void 0?String(e.todaySuccess??0)+`/`+String(e.todayTriggered??0):`—`,r=typeof e.lastRun==`string`?e.lastRun:e.lastRun?JSON.stringify(e.lastRun):`—`,o=e.nextRunAt&&e.nextRunAt!==`None`?a(e.nextRunAt):`—`,s=e.error?`<td class="err">`+i(e.error)+`</td>`:`<td class="dim">—</td>`;return`<tr><td class="id">`+i(e.id)+`</td><td>`+i(e.name??``)+`</td><td>`+t+`</td><td class="mono">`+i(e.scheduleExpr??``)+`</td><td class="num">`+o+`</td><td class="num">`+n+`</td><td class="num">`+a(r)+`</td>`+s+`</tr>`}).join(``)||`<tr><td colspan="8" class="dsh-exec-empty">无</td></tr>`}function S(e,t){g(e,t),_(e,t),v(e,t),y(e,t),b(e,t),x(e,t)}let C=!1;function w(){let e={boardOpen:!1},i=()=>{e.boardOpen=!0,o()},a=()=>{e.boardOpen=!1,o()},o=()=>{if(e.boardOpen){for(let e of n)document.documentElement.removeAttribute(e);document.documentElement.setAttribute(t,``),document.dispatchEvent(new CustomEvent(r,{detail:`dashboard-execution`}))}else document.documentElement.removeAttribute(t)};return{isActive:()=>e.boardOpen,toggle:()=>{e.boardOpen?a():i()},getSnapshot:()=>e,openBoard:i,closeBoard:a,toggleBoard:()=>{e.boardOpen?a():i()}}}function T(e){let n,i,a=0,o,s=()=>{if(i!==void 0)return;let e=document.querySelector(`[data-pane="conversation"], [class*="centerCol"], .dshDesktopConversationSurface`);e!==null&&(i=document.createElement(`div`),i.dataset.dshExecView=``,i.className=`dsh-exec-view`,e.appendChild(i),n=h(),i.appendChild(n.board),o=i.querySelector(`[data-role="refresh"]`)??void 0,o?.addEventListener(`click`,()=>{l()}),l(!0))},c=new MutationObserver(()=>{s()});c.observe(document.body,{childList:!0,subtree:!0});async function l(e=!1){if(!C){C=!0;try{let e=await fetch(`/dashboard/api/board`,{headers:{Accept:`application/json`}});if(!e.ok)throw Error(`HTTP `+e.status);let t=await e.json();if(!t.success||t.data===void 0)throw Error(t.error??`API 返回失败`);if(n===void 0)return;S(n,t.data),n.meta.textContent=`刷新于 `+new Date().toLocaleTimeString()+` · 数据 `+(t.data.fetchedAt??``),n.banner.classList.remove(`show`)}catch(e){if(n===void 0)return;n.banner.innerHTML=`⚠ 无法连接看板 API：`+String(e&&e.message?e.message:e)+` — 请检查 :13080 与插件状态`,n.banner.classList.add(`show`)}finally{C=!1}}}let u=t=>{t.detail!==`dashboard-execution`&&e.getSnapshot().boardOpen&&e.closeBoard()},d=t=>{if(!e.getSnapshot().boardOpen)return;let n=t.target;n!==null&&n.closest(`[data-dsh-exec-view]`)===null&&n.closest(`[data-dsh-exec-entry]`)===null&&n.closest(`[class*="dsh-exec-foot"]`)===null&&e.closeBoard()};document.addEventListener(`click`,d,!0),document.addEventListener(r,u);let f=()=>{a!==0&&window.clearInterval(a),a=window.setInterval(()=>{l()},3e4)},p=()=>{a!==0&&(window.clearInterval(a),a=0)},m=()=>{document.hidden?p():(f(),l())};return document.addEventListener(`visibilitychange`,m),s(),f(),()=>{document.removeEventListener(`click`,d,!0),document.removeEventListener(r,u),document.removeEventListener(`visibilitychange`,m),c.disconnect(),p(),document.documentElement.removeAttribute(t),i?.remove(),i=void 0,n=void 0}}const E=`执行看板`,D=`@pi-investment/dashboard-execution/footer-action.css`,O=`dashboard-execution:open-board`;function k(t){let{wide:n}=t,r=E;return(0,e.createElement)(`button`,{type:`button`,className:n?`dsh-exec-foot wide`:`dsh-exec-foot rail`,title:r,"aria-label":r,onClick:()=>{console.log(`[dashboard-execution] footer action clicked — dispatching`,O),window.dispatchEvent(new CustomEvent(O,{detail:{open:!0}}))}},n?[(0,e.createElement)(`span`,{className:`dsh-exec-foot-icon`,key:`i`},A),(0,e.createElement)(`span`,{className:`dsh-exec-foot-label`,key:`l`},r)]:(0,e.createElement)(`span`,{className:`dsh-exec-foot-icon`,key:`i`},A))}const A=(0,e.createElement)(`svg`,{viewBox:`0 0 16 16`,width:`16`,height:`16`,fill:`none`,stroke:`currentColor`,"stroke-width":`1.4`,"stroke-linecap":`round`,"stroke-linejoin":`round`,"aria-hidden":`true`},(0,e.createElement)(`rect`,{x:`2`,y:`2`,width:`5`,height:`5`,rx:`1`}),(0,e.createElement)(`rect`,{x:`9`,y:`2`,width:`5`,height:`5`,rx:`1`}),(0,e.createElement)(`rect`,{x:`2`,y:`9`,width:`5`,height:`5`,rx:`1`}),(0,e.createElement)(`rect`,{x:`9`,y:`9`,width:`5`,height:`5`,rx:`1`}));function j(){if(typeof document>`u`||document.querySelector(`style[data-plugin-css="${D}"]`))return;let e=document.createElement(`style`);e.dataset.pluginCss=D,e.textContent=`
+		Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});let e=require("react");const t=`data-dsh-exec-active`,n=[`data-dsh-atb-active`,`data-dsh-taskboard-active`,`data-dsh-ssh-active`,`data-dsh-hld-active`],r=`dsh-panel-activate`;function i(e){return e==null?``:String(e).replace(/&/g,`&amp;`).replace(/</g,`&lt;`).replace(/>/g,`&gt;`).replace(/"/g,`&quot;`)}function a(e){if(!e)return`—`;let t=String(e).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);if(!t)return i(e).slice(0,5);let n=new Date,r=e=>(e<10?`0`:``)+e,a=n.getFullYear()+`-`+r(n.getMonth()+1)+`-`+r(n.getDate()),o=t[4]+`:`+t[5];return(t[1]+`-`+t[2]+`-`+t[3]===a?``:t[2]+`-`+t[3]+` `)+o}function o(e){let t=String(e??``).match(/^(\d{2}):(\d{2})/);return t?Number(t[1])*60+Number(t[2]):9999}function s(e,t){let n=String(e??``).trim();return n.length<=t?n:n.slice(0,t)+`…`}const c={success:`成功`,failed:`失败`,pending:`待执行`,skipped:`已跳过`,unknown:`未知`},l={success:`✅`,failed:`❌`,pending:`⏳`,skipped:`⏭️`,unknown:`❔`},u={success:`ok`,failed:`bad`,pending:`wait`,skipped:`wait`,unknown:`unk`},d={confirmed:`已确认`,pending:`等待`,off_day:`非执行日`,failed:`失败`,late:`晚点`,degraded:`降级`,unknown:`未知`},f={confirmed:`ok`,pending:`wait`,off_day:`off`,failed:`bad`,late:`late`,degraded:`deg`,unknown:`unk`},p={ok:`正常`,degraded:`降级`,failed:`故障`,unknown:`未知`},m={ok:`ok`,degraded:`deg`,failed:`bad`,unknown:`unk`},h={"quantsys-v2":`量化后端 quantsys-v2`,"agent-os":`Agent OS`,postgres:`数据库 PostgreSQL`,"agent-dh":`Agent-DH 宿主`},g={market_daily_snapshot:`每日市场快照`,chan_scan_daily:`产业链链扫`,"chan-scan-daily":`产业链链扫`,v13_risk_check:`风控熔断检查`,"v13-risk-check":`风控熔断检查`,daily_trade_verify:`交易对账`,signal_perf_backfill_daily:`信号表现回填`,"signal-perf-backfill-daily":`信号表现回填`,v13_weekly_report:`每周报告`,"v13-weekly-report":`每周报告(v13)`,market_style_update:`市场风格更新`,"market-style-update":`市场风格更新`,v13_simulation_trading:`模拟交易执行`,"v13-simulation-trading":`模拟交易执行`,v13_verification:`策略验证裁决`,"v13-verification":`策略验证裁决`,pre_market_scan:`盘前扫描`,"pre-market-scan":`盘前扫描`,weekly_strategy_discovery:`周度策略发现`,"weekly-strategy-discovery":`周度策略发现`,daily_strategy_validation:`策略日验证`,"daily-strategy-validation":`策略日验证`,daily_pool_refresh:`股票池刷新`,"daily-pool-refresh":`股票池刷新`,fund_flow_update:`资金流数据更新`,chan_knowledge_distill_weekly:`知识蒸馏(周)`,"chan-knowledge-distill-weekly":`知识蒸馏(周)`,每日数据更新:`每日数据更新`,每日数据质量检查:`每日数据质量检查`,每周财务数据更新:`每周财务数据更新`,每日财报时效性检查:`每日财报时效性检查`,每日信号生成:`每日信号生成`,每日信号执行:`每日信号执行`,每周报告生成:`每周报告生成`};function _(e){let t=String(e??``);return g[t]??t}const v=[{title:`数据与行情`,keys:[`每日数据更新`,`每日数据质量检查`,`每日财报时效性检查`,`每周财务数据更新`,`fund_flow_update`]},{title:`市场感知`,keys:[`market_daily_snapshot`,`market-style-update`,`pre-market-scan`]},{title:`信号与股票池`,keys:[`每日信号生成`,`每日信号执行`,`chan-scan-daily`,`daily-pool-refresh`]},{title:`风控与交易`,keys:[`v13-risk-check`,`daily_trade_verify`,`v13-simulation-trading`]},{title:`学习与验证`,keys:[`daily-strategy-validation`,`v13-verification`,`chan-knowledge-distill-weekly`,`weekly-strategy-discovery`,`signal-perf-backfill-daily`]},{title:`周报与汇总`,keys:[`v13-weekly-report`,`每周报告生成`]}];function y(e){let t=String(e??``);for(let e=0;e<v.length;e++)if(v[e].keys.includes(t))return{title:v[e].title,idx:e};return null}const b=[{code:`M0`,zh:`数据地基`},{code:`M1`,zh:`市场感知`},{code:`M2`,zh:`股票池`},{code:`M3`,zh:`信号生成`},{code:`M4`,zh:`风控止损`},{code:`M5`,zh:`交易对账`},{code:`M6`,zh:`经验进化`}],x=[{code:`L1`,zh:`策略验证`},{code:`L2`,zh:`经验蒸馏`},{code:`L3`,zh:`验证门裁决`},{code:`L4`,zh:`周报进化`}],S={failed:5,late:4,degraded:3,pending:2,off_day:1,unknown:0,confirmed:0};function C(e){if(e.length===0)return{status:`unknown`,label:`暂无检查点`};let t=`confirmed`;for(let n of e){let e=String(n.status??`unknown`);(S[e]??0)>(S[t]??0)&&(t=e)}return{status:t,label:d[t]??t}}function w(){let e=document.createElement(`div`);e.className=`dsh-exec-board`;let t=e=>{let t=document.createElement(`div`);return t.innerHTML=e,t.firstElementChild},n=(e,n,r,a=`bd`)=>t(`<section class="dsh-exec-cardx"><div class="hd"><span class="t">`+i(e)+`</span><span class="more">`+i(n)+`</span></div><div class="`+a+`" data-role="`+r+`"></div></section>`),r=document.createElement(`div`);r.className=`dsh-exec-wrap`;let a=t(`<div class="dsh-exec-head"><h1 class="dsh-exec-title">双线执行确认看板<small>只读监控 · 运行与操作由 agent 自动完成</small></h1><div class="dsh-exec-meta"><span class="dsh-exec-last" data-role="lastFetch">—</span><button type="button" class="dsh-exec-btn" data-role="refresh">↻ 刷新</button></div></div>`),o=t(`<div class="dsh-exec-banner" data-role="banner"></div>`),s=n(`今日执行总览`,`来自当日 cron 计划与运行结果`,`healthBox`),c=n(`执行流水线`,`ENGINE M0–M6 × AUTONOMY L1–L4 检查点状态`,`flowBox`),l=n(`今日时间轴`,`按计划时刻排序 · 已完成/失败/待执行`,`timelineBox`),u=n(`调度任务`,`按领域分组 · 只看成败`,`tasksBox`),d=n(`错误事件`,`近 10 条日志异常（系统侧）`,`errsBox`);d.style.display=`none`;let f=n(`流水线阻断`,`failed/late 且声明阻断下游`,`blockBox`);f.style.display=`none`,r.append(a,o,s,c,l,u,d,f),e.appendChild(r);let p=t=>e.querySelector(t);return{board:e,meta:p(`[data-role="lastFetch"]`),banner:o,healthBox:p(`[data-role="healthBox"]`),flowBox:p(`[data-role="flowBox"]`),timelineBox:p(`[data-role="timelineBox"]`),tasksBox:p(`[data-role="tasksBox"]`),errsSec:d,errsBox:p(`[data-role="errsBox"]`),blockSec:f,blockBox:p(`[data-role="blockBox"]`)}}function T(e,t){let n=t.timeline??[],r=n.length,a=0,o=0;for(let e of n)e.status===`success`?a++:e.status===`failed`&&o++;let s=Math.max(0,r-a-o),c=(e,t,n)=>`<div class="hb-item `+n+`"><div class="v">`+e+`</div><div class="n">`+t+`</div></div>`,l=`<div class="dsh-exec-hb">`+c(String(r),`今日计划任务`,`t`)+c(String(a),`✅ 已完成`,`ok`)+c(String(o),`❌ 失败`,o>0?`bad`:`ok`)+c(String(s),`⏳ 待执行`,`wait`)+`</div>`,u=t.health??[];u.length>0&&(l+=`<div class="dsh-exec-pills">`+u.map(e=>{let t=String(e.status??`unknown`);return`<span class="pill `+(t===`ok`?`ok`:`warn`)+`" title="`+i(e.error??``)+`"><i class="dot `+(m[t]??`unk`)+`"></i>`+i(h[e.name??``]??e.name??``)+`<b>`+i(p[t]??t)+`</b></span>`}).join(``)+`</div>`),e.healthBox.innerHTML=l}function E(e,t,n){let r=C(n),a=f[r.status]??`unk`,o=n.length===0?`<li class="cp-empty"><i class="dot unk"></i>暂无检查点</li>`:n.map(e=>{let t=String(e.status??`unknown`);return`<li><i class="dot `+(f[t]??`unk`)+`"></i>`+i(e.name??`?`)+`<em>`+i(d[t]??t)+`</em></li>`}).join(``);return`<div class="node st-`+a+`"><div class="n-top"><i class="dot `+a+`"></i><b>`+e+`</b><span>`+i(t)+`</span><em>`+i(r.label)+`</em></div><ul class="cps">`+o+`</ul></div>`}function D(e,t){let n=t.checkpoints??[],r={};for(let e of n){let t=String(e.line??``),n=String(e.module??``);if(t!==`engine`&&t!==`autonomy`)continue;let i=t+`|`+n;(r[i]=r[i]||[]).push(e)}let i=(e,t,n)=>`<div class="dsh-exec-band"><div class="band-t"><span class="band-badge `+t+`">`+e+`</span>    <i></i></div><div class="band-nodes">`+n.map(e=>E(e.code,e.zh,r[t+`|`+e.code]??[])).join(``)+`</div></div>`;e.flowBox.innerHTML=i(`ENGINE`,`engine`,b)+i(`AUTONOMY`,`autonomy`,x)}function O(e){return c[e]??`未知`}function k(e,t){let n=(t.timeline??[]).slice().sort((e,t)=>o(e.expectedTime)-o(t.expectedTime));if(n.length===0){e.timelineBox.innerHTML=`<div class="dsh-exec-empty">今日暂无计划任务</div>`;return}e.timelineBox.innerHTML=`<div class="dsh-exec-tl-list">`+n.map(e=>{let t=String(e.status??`unknown`),n=String(e.expectedTime??``),r=t===`failed`&&e.error?` title="`+i(e.error)+`"`:``;return`<div class="tl-item `+(u[t]??`unk`)+`"`+r+`><span class="tl-tm">`+i(n.slice(0,5))+`</span><span class="tl-ic">`+(l[t]??`❔`)+`</span><div class="tl-bd"><div class="tl-nm">`+i(_(e.taskName))+`</div><div class="tl-st `+(u[t]??`unk`)+`">`+i(O(t))+`</div></div></div>`}).join(``)+`</div>`}function A(e){if(e.enabled!==!0&&e.enabled!==`true`&&e.enabled!==1)return{cls:`off`,label:`未启用`};let t=Number(e.todaySuccess)||0,n=Number(e.todayTriggered)||0;if(n>0)return t>=n?{cls:`ok`,label:`今日成功`}:{cls:`bad`,label:`今日失败`};let r=``;return typeof e.lastRun==`string`?r=e.lastRun:e.lastRun&&typeof e.lastRun==`object`&&(r=String(e.lastRun.status??``)),r===`success`?{cls:`ok`,label:`上次成功`}:r===`failed`?{cls:`bad`,label:`上次失败`}:r===`skipped`?{cls:`wait`,label:`已跳过`}:{cls:`wait`,label:`待执行`}}function j(e){let t=null;return typeof e.lastRun==`string`?t=e.lastRun:e.lastRun&&typeof e.lastRun==`object`&&(t=e.lastRun.triggeredAt),t?a(t):`—`}function M(e,t){let n=t.tasks??[];if(n.length===0){e.tasksBox.innerHTML=`<div class="dsh-exec-empty">暂无调度任务</div>`;return}let r=v.map(()=>[]),o=[];for(let e of n){let t=y(e.name);t?r[t.idx].push(e):o.push(e)}let s=(e,t)=>{let n=t.map(e=>{let t=A(e);return`<div class="tk-row"><div class="tk-nm">`+i(_(e.name))+`</div><div class="tk-tg"><span class="tag `+t.cls+`">`+t.label+`</span></div><div class="tk-tm">上次 `+i(j(e))+` · 下次 `+i(a(e.nextRunAt))+`</div></div>`}).join(``);return`<div class="dsh-exec-domain"><div class="dm-t"><span class="t">`+e+`</span><em>`+t.length+` 项</em></div><div class="dm-rows">`+n+`</div></div>`},c=``;for(let e=0;e<v.length;e++)r[e].length>0&&(c+=s(v[e].title,r[e]));o.length>0&&(c+=s(`其他任务`,o)),c===``&&(c=`<div class="dsh-exec-empty">暂无调度任务</div>`),e.tasksBox.innerHTML=c}function N(e,t){let n=t.errors??[];e.errsSec.style.display=n.length>0?``:`none`,n.length!==0&&(e.errsBox.innerHTML=`<ol class="dsh-exec-errs">`+n.slice(0,10).map(e=>{let t=String(e.source??``).toLowerCase(),n=t.includes(`os`)?`os`:t.includes(`dsh`)?`dsh`:`v2`,r=s((e.line??e.file??``).replace(/\\n/g,` `),120);return`<li><span class="src `+n+`">`+i(e.source??`?`)+`</span><time>`+i(a(e.timestamp))+`</time><span class="line" title="`+i(e.line??``)+`">`+i(r)+`</span></li>`}).join(``)+`</ol>`)}function P(e,t){let n=t.blockedFlows??[];e.blockSec.style.display=n.length>0?``:`none`,n.length!==0&&(e.blockBox.innerHTML=n.map(e=>`<div class="dsh-exec-block"><b>`+i(e.checkpointName??e.checkpointId??`?`)+`</b><span class="tag bad">`+i(d[String(e.status??``)]??i(e.status??``))+`</span>`+(e.blocks&&e.blocks.length>0?`<span class="blocks">阻断: `+i(e.blocks.join(`, `))+`</span>`:``)+`</div>`).join(``))}function F(e,t){T(e,t),D(e,t),k(e,t),M(e,t),N(e,t),P(e,t)}let I=!1;function L(){let e={boardOpen:!1},i=()=>{e.boardOpen=!0,o()},a=()=>{e.boardOpen=!1,o()},o=()=>{if(e.boardOpen){for(let e of n)document.documentElement.removeAttribute(e);document.documentElement.setAttribute(t,``),document.dispatchEvent(new CustomEvent(r,{detail:`dashboard-execution`}))}else document.documentElement.removeAttribute(t)};return{isActive:()=>e.boardOpen,toggle:()=>{e.boardOpen?a():i()},getSnapshot:()=>e,openBoard:i,closeBoard:a,toggleBoard:()=>{e.boardOpen?a():i()}}}function R(e){let n,i,a=0,o,s=()=>{if(i!==void 0)return;let e=document.querySelector(`[data-pane="conversation"], [class*="centerCol"], .dshDesktopConversationSurface`);e!==null&&(i=document.createElement(`div`),i.dataset.dshExecView=``,i.className=`dsh-exec-view`,e.appendChild(i),n=w(),i.appendChild(n.board),o=i.querySelector(`[data-role="refresh"]`)??void 0,o?.addEventListener(`click`,()=>{l()}),l(!0))},c=new MutationObserver(()=>{s()});c.observe(document.body,{childList:!0,subtree:!0});async function l(e=!1){if(!I){I=!0;try{let e=await fetch(`/dashboard/api/board`,{headers:{Accept:`application/json`}});if(!e.ok)throw Error(`HTTP `+e.status);let t=await e.json();if(!t.success||t.data===void 0)throw Error(t.error??`API 返回失败`);if(n===void 0)return;F(n,t.data),n.meta.textContent=`刷新于 `+new Date().toLocaleTimeString()+` · 数据 `+(t.data.fetchedAt??``),n.banner.classList.remove(`show`)}catch(e){if(n===void 0)return;n.banner.innerHTML=`⚠ 无法连接看板 API：`+String(e&&e.message?e.message:e)+` — 请检查 :13080 与插件状态`,n.banner.classList.add(`show`)}finally{I=!1}}}let u=t=>{t.detail!==`dashboard-execution`&&e.getSnapshot().boardOpen&&e.closeBoard()},d=t=>{if(!e.getSnapshot().boardOpen)return;let n=t.target;n!==null&&n.closest(`[data-dsh-exec-view]`)===null&&n.closest(`[data-dsh-exec-entry]`)===null&&n.closest(`[class*="dsh-exec-foot"]`)===null&&e.closeBoard()};document.addEventListener(`click`,d,!0),document.addEventListener(r,u);let f=()=>{a!==0&&window.clearInterval(a),a=window.setInterval(()=>{l()},3e4)},p=()=>{a!==0&&(window.clearInterval(a),a=0)},m=()=>{document.hidden?p():(f(),l())};return document.addEventListener(`visibilitychange`,m),s(),f(),()=>{document.removeEventListener(`click`,d,!0),document.removeEventListener(r,u),document.removeEventListener(`visibilitychange`,m),c.disconnect(),p(),document.documentElement.removeAttribute(t),i?.remove(),i=void 0,n=void 0}}const z=`执行看板`,B=`@pi-investment/dashboard-execution/footer-action.css`,V=`dashboard-execution:open-board`;function H(t){let{wide:n}=t,r=z;return(0,e.createElement)(`button`,{type:`button`,className:n?`dsh-exec-foot wide`:`dsh-exec-foot rail`,title:r,"aria-label":r,onClick:()=>{console.log(`[dashboard-execution] footer action clicked — dispatching`,V),window.dispatchEvent(new CustomEvent(V,{detail:{open:!0}}))}},n?[(0,e.createElement)(`span`,{className:`dsh-exec-foot-icon`,key:`i`},U),(0,e.createElement)(`span`,{className:`dsh-exec-foot-label`,key:`l`},r)]:(0,e.createElement)(`span`,{className:`dsh-exec-foot-icon`,key:`i`},U))}const U=(0,e.createElement)(`svg`,{viewBox:`0 0 16 16`,width:`16`,height:`16`,fill:`none`,stroke:`currentColor`,"stroke-width":`1.4`,"stroke-linecap":`round`,"stroke-linejoin":`round`,"aria-hidden":`true`},(0,e.createElement)(`rect`,{x:`2`,y:`2`,width:`5`,height:`5`,rx:`1`}),(0,e.createElement)(`rect`,{x:`9`,y:`2`,width:`5`,height:`5`,rx:`1`}),(0,e.createElement)(`rect`,{x:`2`,y:`9`,width:`5`,height:`5`,rx:`1`}),(0,e.createElement)(`rect`,{x:`9`,y:`9`,width:`5`,height:`5`,rx:`1`}));function W(){if(typeof document>`u`||document.querySelector(`style[data-plugin-css="${B}"]`))return;let e=document.createElement(`style`);e.dataset.pluginCss=B,e.textContent=`
 		.dsh-exec-foot {
 		  display: flex; align-items: center; gap: 8px;
 		  border: none; background: transparent; color: var(--dsw-text-secondary, inherit);
@@ -59,7 +24,7 @@ window.__ModuleLoader__.load({
 		.dsh-exec-foot-icon { display: inline-flex; flex: none; }
 		.dsh-exec-foot.rail .dsh-exec-foot-label { display: none; }
 		.dsh-exec-foot-icon svg { width: 16px; height: 16px; }
-		`,document.head.appendChild(e)}function M(){let e=`dsh-exec-styles`;if(document.getElementById(e)!==null)return;let t=document.createElement(`style`);t.id=e,t.textContent=`
+		`,document.head.appendChild(e)}function G(){let e=`dsh-exec-styles`;if(document.getElementById(e)!==null)return;let t=document.createElement(`style`);t.id=e,t.textContent=`
 		.dsh-exec-entry {
 		  display: flex; align-items: center; gap: 8px; position: relative;
 		  width: calc(100% - 8px); margin: 2px 4px; padding: 6px 10px;
@@ -92,85 +57,129 @@ window.__ModuleLoader__.load({
 		html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 		.dsh-exec-board { flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; }
 		
-		/* ---- board inner ---- */
+		/* ================= 浅色监控主题（design page2，固定色板） ================= */
 		.dsh-exec-board {
-		  --bg:#0b0f1c; --panel:#121a2c; --panel2:#0f1626; --line:#1e2a44;
-		  --text:#dbe4f0; --dim:#8ea0bd; --faint:#5b6b8c;
-		  --ok:#22c55e; --fail:#ef4444; --late:#eab308; --pend:#94a3b8;
-		  --unk:#a855f7; --off:#4b5563; --deg:#f97316; --accent:#3b82f6;
-		  padding: 14px 18px 40px; color: var(--text); font: 13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+		  --panel:#fff; --line:#ebeef5; --border:#e4e7ed;
+		  --text:#303133; --body:#606266; --dim:#909399; --faint:#c0c4cc;
+		  --ok:#67c23a; --bad:#f56c6c; --late:#e6a23c; --wait:#909399; --unk:#a2a8b3;
+		  background:#f0f2f5; color:var(--body);
+		  font:13px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+		  padding:18px 22px 56px;
 		}
-		body[data-ds-dark-theme] .dsh-exec-board { --text:#e6e8eb; --dim:#9aa3b2; --faint:#6a7385; --line:#333947; --panel:#20242e; --panel2:#1a1e27; --bg:#14161d; }
 		.dsh-exec-board * { box-sizing: border-box; }
 		.dsh-exec-wrap { max-width: 1560px; }
-		.dsh-exec-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
-		.dsh-exec-title { font-size: 18px; letter-spacing: .5px; margin: 0; color: var(--text); }
-		.dsh-exec-title small { color: var(--faint); font-weight: normal; margin-left: 10px; font-size: 11px; }
-		.dsh-exec-meta { margin-left: auto; color: var(--faint); font-size: 12px; display: flex; gap: 14px; align-items: baseline; }
-		.dsh-exec-btn { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 5px 14px; font-size: 12px; cursor: pointer; }
-		.dsh-exec-btn:active { opacity: .8; }
-		.dsh-exec-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--dim); align-items: center; }
-		.dsh-exec-lg { display: inline-flex; align-items: center; gap: 4px; }
-		.dsh-exec-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
-		.dsh-exec-banner { display: none; background:#3b1c1c; border:1px solid var(--fail); color:#fca5a5; padding:8px 14px; border-radius:8px; margin-bottom:14px; font-size:12px; }
+		
+		/* 顶栏 */
+		.dsh-exec-head { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+		.dsh-exec-title { font-size:20px; font-weight:600; color:#1f2d3d; margin:0; letter-spacing:.3px; }
+		.dsh-exec-title small { color:var(--dim); font-size:12px; font-weight:400; margin-left:10px; }
+		.dsh-exec-meta { margin-left:auto; display:flex; align-items:center; gap:14px; color:var(--dim); font-size:12px; }
+		.dsh-exec-last { font-variant-numeric:tabular-nums; }
+		.dsh-exec-btn { background:var(--panel); color:var(--accent, #409eff); border:1px solid var(--accent, #409eff); border-radius:6px; padding:4px 14px; font-size:12px; cursor:pointer; }
+		.dsh-exec-btn:hover { background:#ecf5ff; }
+		.dsh-exec-btn:active { opacity:.8; }
+		.dsh-exec-banner { display:none; background:#fef0f0; border:1px solid #fde2e2; color:#f56c6c; padding:10px 16px; border-radius:8px; margin-bottom:14px; font-size:13px; }
 		.dsh-exec-banner.show { display:block; }
-		.dsh-exec-sec { margin-bottom: 20px; }
-		.dsh-exec-sec > h2 { font-size: 13px; color: var(--accent); border-left: 3px solid var(--accent); padding-left: 8px; margin: 0 0 8px; }
-		.dsh-exec-sec > h2 .sub { color: var(--faint); font-weight: normal; font-size: 10.5px; margin-left: 8px; }
-		.dsh-exec-grid4 { display: grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap: 10px; }
-		.dsh-exec-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
-		.dsh-exec-card h3 { font-size: 13px; display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
-		.dsh-exec-card h3 .port { color: var(--faint); font-weight: normal; font-size: 11px; }
-		.dsh-exec-kv { color: var(--dim); font-size: 11.5px; }
-		.dsh-exec-kv div { display: flex; justify-content: space-between; gap: 8px; }
-		.dsh-exec-kv b { color: var(--text); font-weight: 500; text-align: right; word-break: break-all; }
-		.dsh-exec-errline { color: #fca5a5; font-size: 11px; margin-top: 6px; word-break: break-all; }
-		.dsh-exec-time { color: var(--faint); font-size: 10.5px; margin-top: 6px; }
-		.dsh-exec-ok, .dsh-exec-confirmed { color: var(--ok); }
-		.dsh-exec-fail, .dsh-exec-failed { color: var(--fail); }
-		.dsh-exec-late { color: var(--late); }
-		.dsh-exec-pending { color: var(--pend); }
-		.dsh-exec-unknown { color: var(--unk); }
-		.dsh-exec-degraded { color: var(--deg); }
-		.dsh-exec-off_day { color: var(--off); }
-		.dsh-exec-dot.ok, .dsh-exec-dot.confirmed { background: var(--ok); }
-		.dsh-exec-dot.failed { background: var(--fail); }
-		.dsh-exec-dot.late { background: var(--late); }
-		.dsh-exec-dot.pending { background: var(--pend); }
-		.dsh-exec-dot.unknown { background: var(--unk); }
-		.dsh-exec-dot.off_day { background: var(--off); }
-		.dsh-exec-dot.degraded { background: var(--deg); }
-		.dsh-exec-alert-card { background: #261818; border: 1px solid #7f1d1d; border-radius: 10px; padding: 12px 14px; }
-		.dsh-exec-alert-item { display:flex; gap:10px; align-items:baseline; margin-bottom:6px; font-size:12px; }
-		.dsh-exec-alert-item .flow { color: var(--faint); }
-		.dsh-exec-cp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(196px,1fr)); gap:8px; }
-		.dsh-exec-cp { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--line); border-radius:8px; padding:9px 11px; }
-		.dsh-exec-cp .top { display:flex; justify-content:space-between; align-items:center; gap:6px; }
-		.dsh-exec-cp .mod { font-size:10px; color:var(--faint); }
-		.dsh-exec-cp .nm { font-size:12.5px; margin:3px 0; }
-		.dsh-exec-cp .msg { font-size:11px; color:var(--dim); word-break:break-all; }
-		.dsh-exec-group-title { font-size:11px; color:var(--faint); margin:12px 0 6px; letter-spacing:1px; }
+		
+		/* 区块卡 */
+		.dsh-exec-cardx { background:var(--panel); border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.05); margin-bottom:16px; overflow:hidden; }
+		.dsh-exec-cardx .hd { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:13px 18px; border-bottom:1px solid #f0f0f0; flex-wrap:wrap; }
+		.dsh-exec-cardx .hd .t { font-size:15px; font-weight:600; color:var(--text); }
+		.dsh-exec-cardx .hd .more { font-size:12px; color:var(--dim); font-weight:400; }
+		.dsh-exec-cardx .bd { padding:14px 18px; }
+		.dsh-exec-empty { color:var(--faint); font-size:13px; padding:10px 0; }
+		
+		/* 执行总览：大数字健康条 + 服务 pills */
+		.dsh-exec-hb { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px; }
+		.hb-item { border-radius:10px; padding:12px 16px; text-align:center; background:#fafbfc; border:1px solid var(--line); }
+		.hb-item .v { font-size:30px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; line-height:1.2; }
+		.hb-item .n { font-size:12px; color:var(--dim); margin-top:3px; }
+		.hb-item.ok { background:#f0f9eb; border-color:#e1f3d8; } .hb-item.ok .v { color:#67c23a; }
+		.hb-item.bad { background:#fef0f0; border-color:#fde2e2; } .hb-item.bad .v { color:#f56c6c; }
+		.hb-item.wait { background:#f4f4f5; border-color:#ebeef5; } .hb-item.wait .v { color:#909399; }
+		.dsh-exec-pills { display:flex; flex-wrap:wrap; gap:8px; }
+		.dsh-exec-pills .pill { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:999px; background:#f4f4f5; color:var(--body); }
+		.dsh-exec-pills .pill.ok { background:#f0f9eb; color:#529b2e; }
+		.dsh-exec-pills .pill.warn { background:#fdf6ec; color:#e6a23c; }
+		.dsh-exec-pills .pill b { font-weight:500; }
+		.dsh-exec-pills .dot { width:8px; height:8px; border-radius:50%; background:var(--wait); }
+		.dsh-exec-pills .dot.ok { background:#67c23a; } .dsh-exec-pills .dot.bad { background:#f56c6c; }
+		.dsh-exec-pills .dot.deg { background:#e6a23c; } .dsh-exec-pills .dot.unk { background:#c0c4cc; }
+		
+		/* 流水线带：ENGINE × AUTONOMY */
+		.dsh-exec-band { margin-bottom:16px; }
+		.dsh-exec-band:last-child { margin-bottom:0; }
+		.band-t { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+		.band-badge { font-size:10px; letter-spacing:1px; padding:2px 8px; border-radius:4px; font-weight:600; }
+		.band-badge.engine { background:#ecf5ff; color:#409eff; }
+		.band-badge.autonomy { background:#fdf6ec; color:#e6a23c; }
+		.band-t i { flex:1; height:1px; background:var(--line); }
+		.band-nodes { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:8px; }
+		.dsh-exec-band .node { background:#fff; border:1px solid var(--line); border-left:3px solid var(--wait); border-radius:8px; padding:9px 11px; min-width:0; }
+		.dsh-exec-band .node.st-ok { border-left-color:#67c23a; }
+		.dsh-exec-band .node.st-bad { border-left-color:#f56c6c; }
+		.dsh-exec-band .node.st-late, .dsh-exec-band .node.st-deg { border-left-color:#e6a23c; }
+		.dsh-exec-band .node .n-top { display:flex; align-items:center; gap:6px; }
+		.dsh-exec-band .node .n-top b { font-size:12px; color:var(--text); font-weight:600; }
+		.dsh-exec-band .node .n-top span { font-size:12.5px; color:var(--text); font-weight:500; margin-right:auto; }
+		.dsh-exec-band .node .n-top em { font-style:normal; font-size:11px; color:var(--dim); white-space:nowrap; }
+		.dsh-exec-band .node .dot { width:8px; height:8px; border-radius:50%; flex:none; background:var(--wait); }
+		.dsh-exec-band .node .dot.ok { background:#67c23a; } .dsh-exec-band .node .dot.bad { background:#f56c6c; }
+		.dsh-exec-band .node .dot.late, .dsh-exec-band .node .dot.deg { background:#e6a23c; }
+		.dsh-exec-band .node .dot.off, .dsh-exec-band .node .dot.unk { background:#c0c4cc; }
+		.dsh-exec-band .node .cps { list-style:none; margin:7px 0 0; padding:0; border-top:1px dashed var(--line); }
+		.dsh-exec-band .node .cps li { display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--body); padding-top:5px; }
+		.dsh-exec-band .node .cps li .dot { width:6px; height:6px; }
+		.dsh-exec-band .node .cps li em { font-style:normal; color:var(--faint); margin-left:auto; font-size:10.5px; white-space:nowrap; }
+		.dsh-exec-band .node .cps li.cp-empty { color:var(--faint); }
+		
+		/* 时间轴 */
+		.dsh-exec-tl-list { position:relative; }
+		.dsh-exec-tl-list::before { content:''; position:absolute; left:106px; top:6px; bottom:6px; width:2px; background:var(--line); border-radius:1px; }
+		.tl-item { position:relative; display:flex; align-items:center; gap:12px; padding:8px 0; }
+		.tl-item .tl-tm { flex:none; width:72px; text-align:right; font-size:12px; color:var(--faint); font-variant-numeric:tabular-nums; }
+		.tl-item .tl-ic { flex:none; width:18px; text-align:center; font-size:13px; }
+		.tl-item .tl-bd { display:flex; align-items:baseline; gap:10px; min-width:0; flex:1; }
+		.tl-item .tl-nm { font-size:13px; color:var(--text); }
+		.tl-item .tl-st { flex:none; font-size:11px; padding:0 8px; border-radius:4px; line-height:1.8; }
+		.tl-item.ok .tl-st { background:#f0f9eb; color:#529b2e; }
+		.tl-item.bad .tl-st { background:#fef0f0; color:#f56c6c; }
+		.tl-item.wait .tl-st { background:#f4f4f5; color:#909399; }
+		.tl-item.unk .tl-st { background:#f4f4f5; color:#a2a8b3; }
+		.tl-item.bad .tl-nm { color:#f56c6c; }
+		.tl-item.bad { background:#fff5f5; border-radius:8px; padding:8px 10px; margin:0 -10px; }
+		
+		/* 任务分组 */
+		.dsh-exec-domain { margin-bottom:14px; }
+		.dsh-exec-domain:last-child { margin-bottom:0; }
+		.dm-t { display:flex; align-items:baseline; gap:8px; margin-bottom:6px; }
+		.dm-t .t { font-size:13px; font-weight:600; color:var(--text); }
+		.dm-t em { font-style:normal; font-size:11px; color:var(--faint); }
+		.dm-rows { border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+		.tk-row { display:flex; align-items:center; gap:12px; padding:7px 12px; font-size:12.5px; }
+		.tk-row + .tk-row { border-top:1px solid var(--line); }
+		.tk-row:hover { background:#fafbfc; }
+		.tk-nm { color:var(--text); }
+		.tk-tg { flex:none; }
+		.tk-tm { margin-left:auto; color:var(--faint); font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+		.dsh-exec-domain .tag, .dsh-exec-block .tag { display:inline-block; padding:0 8px; border-radius:4px; font-size:11px; line-height:1.8; white-space:nowrap; }
+		.dsh-exec-domain .tag.ok, .dsh-exec-block .tag.ok { background:#f0f9eb; color:#529b2e; }
+		.dsh-exec-domain .tag.bad, .dsh-exec-block .tag.bad { background:#fef0f0; color:#f56c6c; }
+		.dsh-exec-domain .tag.wait, .dsh-exec-block .tag.wait { background:#f4f4f5; color:#909399; }
+		.dsh-exec-domain .tag.off { background:#f4f4f5; color:#909399; }
+		
+		/* 错误事件 / 阻断 */
 		.dsh-exec-errs { list-style:none; margin:0; padding:0; }
-		.dsh-exec-errs li { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11px; padding:6px 10px; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:baseline; color:var(--dim); }
-		.dsh-exec-errs li .src { flex:none; border-radius:4px; padding:0 6px; font-size:10px; }
-		.dsh-exec-errs .src.v2 { background:#3b2a14; color:#fbbf24; }
-		.dsh-exec-errs .src.os { background:#10293f; color:#60a5fa; }
-		.dsh-exec-errs .src.dsh { background:#3b1140; color:#d8b4fe; }
-		.dsh-exec-errs .line { color:#e2e8f0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70%; }
-		.dsh-exec-errs .file { color:var(--faint); flex:none; }
-		.dsh-exec-timeline { display:flex; flex-wrap:wrap; gap:6px; }
-		.dsh-exec-tl { border:1px solid var(--line); background:var(--panel2); border-radius:8px; padding:5px 10px; font-size:11.5px; display:flex; gap:8px; align-items:center; }
-		.dsh-exec-tl .t { color:var(--accent); font-weight:600; }
-		.dsh-exec-tl .e { color:var(--dim); }
-		.dsh-exec-table { width:100%; border-collapse:collapse; font-size:12px; background:var(--panel); border-radius:10px; }
-		.dsh-exec-table th { text-align:left; color:var(--faint); font-weight:500; padding:8px 10px; border-bottom:1px solid var(--line); background:var(--panel2); font-size:11px; white-space:nowrap; }
-		.dsh-exec-table td { padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:top; color:var(--text); }
-		.dsh-exec-table td.num, .dsh-exec-table td.id { color:var(--faint); white-space:nowrap; }
-		.dsh-exec-table td.err { font-family:ui-monospace,Consolas,monospace; font-size:10.5px; color:#fca5a5; word-break:break-all; }
-		.dsh-exec-dim { color:var(--dim); } .dsh-exec-faint { color:var(--faint); }
-		.dsh-exec-on { color:var(--ok); } .dsh-exec-off { color:var(--fail); }
-		.dsh-exec-empty { color: var(--faint); font-size: 12px; padding: 8px 0; }
-		`,(document.head??document.documentElement).appendChild(t)}const N=[`slots`];function P(e){try{j(),M(),window.__dshExecClient?.dispose();let t=w(),n=T(t),r=e=>{let n=e.detail?.open;console.log(`[dashboard-execution] open-board event`,{open:n},`boardOpen:`,t.getSnapshot().boardOpen),n===!0?t.getSnapshot().boardOpen?t.closeBoard():t.openBoard():t.toggleBoard()};window.addEventListener(O,r),window.__dshExecClient={dispose:()=>{window.removeEventListener(O,r),n(),t.closeBoard()}};let i=e.slots;i?i.inject(`sidebar.footer.action`,()=>i.register({name:`sidebar.footer.action`,id:`dashboard-execution`,order:100,label:E},k)):console.warn(`[dashboard-execution] ctx.slots unavailable (inject missing "slots")`)}catch(e){console.error(`[dashboard-execution] client half failed to start:`,e)}}exports.apply=P,exports.inject=N,exports.name=`@pi-investment/dashboard-execution/client`;
+		.dsh-exec-errs li { display:flex; gap:10px; align-items:baseline; padding:7px 0; font-size:12px; border-bottom:1px dashed var(--line); color:var(--body); }
+		.dsh-exec-errs li:last-child { border-bottom:none; }
+		.dsh-exec-errs li .src { flex:none; border-radius:4px; padding:0 6px; font-size:10.5px; color:#fff; }
+		.dsh-exec-errs .src.v2 { background:#e6a23c; } .dsh-exec-errs .src.os { background:#409eff; } .dsh-exec-errs .src.dsh { background:#909399; }
+		.dsh-exec-errs li time { flex:none; color:var(--faint); font-size:11px; font-variant-numeric:tabular-nums; }
+		.dsh-exec-errs li .line { color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+		.dsh-exec-block { display:flex; align-items:center; gap:10px; padding:8px 0; font-size:12.5px; }
+		.dsh-exec-block b { color:var(--text); font-weight:500; }
+		.dsh-exec-block .blocks { color:var(--faint); font-size:11.5px; }
+		`,(document.head??document.documentElement).appendChild(t)}const K=[`slots`];function q(e){try{W(),G(),window.__dshExecClient?.dispose();let t=L(),n=R(t),r=e=>{let n=e.detail?.open;console.log(`[dashboard-execution] open-board event`,{open:n},`boardOpen:`,t.getSnapshot().boardOpen),n===!0?t.getSnapshot().boardOpen?t.closeBoard():t.openBoard():t.toggleBoard()};window.addEventListener(V,r),window.__dshExecClient={dispose:()=>{window.removeEventListener(V,r),n(),t.closeBoard()}};let i=e.slots;i?i.inject(`sidebar.footer.action`,()=>i.register({name:`sidebar.footer.action`,id:`dashboard-execution`,order:100,label:z},H)):console.warn(`[dashboard-execution] ctx.slots unavailable (inject missing "slots")`)}catch(e){console.error(`[dashboard-execution] client half failed to start:`,e)}}exports.apply=q,exports.inject=K,exports.name=`@pi-investment/dashboard-execution/client`;
 			return module.exports;
 		}
 	});
