@@ -49,10 +49,17 @@ export interface Trade {
   shares: number;
   price: number;
   filled_price: number;
-  realized_pnl: number;
-  reason: string;
+  /** 成交金额（v2 真实行带）；旧行缺失时前端回退 price*shares */
+  amount?: number;
+  /** 卖出平仓实现盈亏（元）；BUY 行 null */
+  realized_pnl?: number | null;
+  realized_pnl_rate?: number | null;
+  order_type?: string;
+  trade_date?: string;
+  trade_time?: string;
+  reason?: string | null;
   created_at: string;
-  status: string;
+  status?: string;
 }
 
 export interface WatchCondition {
@@ -80,6 +87,8 @@ export interface HoldingsData {
   summary: PortfolioSummary;
   positions: Position[];
   todayTrades: Trade[];
+  /** 历史成交全量（同源 /api/simulation/trades，倒序；供「历史交易」分页卡） */
+  tradeHistory: Trade[];
   watchRules: WatchRule[];
   compliance: {
     cashRatio: number; // 现金占比

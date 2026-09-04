@@ -34,7 +34,7 @@ export class PortfolioAggregationService {
         this.fetchAccounts(v2BaseURL, timeout),
         this.fetchSummary(v2BaseURL, accountName, timeout),
         this.fetchPositions(v2BaseURL, accountName, timeout),
-        this.fetchTodayTrades(v2BaseURL, accountName, timeout),
+        this.fetchTrades(v2BaseURL, accountName, timeout),
         this.fetchWatchRules(v2BaseURL, accountName, timeout),
       ]);
 
@@ -43,6 +43,12 @@ export class PortfolioAggregationService {
       const summaryData = summary.status === 'fulfilled' ? summary.value : this.getDefaultSummary();
       const positionsData = positions.status === 'fulfilled' ? positions.value : [];
       const tradesData = trades.status === 'fulfilled' ? trades.value : [];
+
+      // 今日成交与历史交易同源（/api/simulation/trades 全量，v2 已倒序）；拆两视图用：
+      //   todayTrades = 当日过滤（「今日自动交易」卡）；tradeHistory = 全量（「历史交易」分页卡）
+      const tradeHistory = [...tradesData].sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+      const today = new Date().toISOString().split('T')[0]
+      const todayTrades = tradeHistory.filter((t) => t.created_at && t.created_at.startsWith(today))
       const watchRulesData = watchRules.status === 'fulfilled' ? watchRules.value : [];
 
       // 计算合规指标
@@ -53,7 +59,8 @@ export class PortfolioAggregationService {
         currentAccount: accountName,
         summary: summaryData,
         positions: positionsData,
-        todayTrades: tradesData,
+        todayTrades,
+        tradeHistory,
         watchRules: watchRulesData,
         compliance,
       };
@@ -93,20 +100,17 @@ export class PortfolioAggregationService {
     }));
   }
 
-  private async fetchTodayTrades(
+  private async fetchTrades(
     baseURL: string,
     accountName: string,
     timeout: { timeoutMs: number }
   ): Promise<Trade[]> {
+    // v2 /api/simulation/trades 信封实测 {success, data: Trade[]}（成交明细，全历史倒序、无 status 字段）——
+    // pluck 按 data 数组直取，勿按 {trades:[]} 假设（旧写法 unwrap 后取 .trades 恒为空）
     const url = `${baseURL}/api/simulation/trades?account_name=${accountName}`;
-    const resp = await fetchData<{ trades: Trade[] }>(url, timeout);
-    const trades = resp.trades || [];
-
-    // 过滤今天的交易
-    const today = new Date().toISOString().split('T')[0];
-    return trades.filter((t) => t.created_at && t.created_at.startsWith(today));
+    const resp = await fetchData<Trade[]>(url, timeout);
+    return Array.isArray(resp) ? resp : [];
   }
-
   private async fetchWatchRules(baseURL: string, accountName: string, timeout: { timeoutMs: number }): Promise<WatchRule[]> {
     // 全量拉取（不按 account 过滤）：盯盘中心按「账户归属 tab」展示，须带出全部账户规则；
     // 视图过滤（本账户=该账户归属 + 通用观察 account 为空）由 client 端完成（2026-09-05 盯盘 tab 化）

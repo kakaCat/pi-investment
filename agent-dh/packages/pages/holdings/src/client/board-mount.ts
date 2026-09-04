@@ -4,7 +4,7 @@
  * @module dashboard-holdings/client/board-mount
  */
 import { ACTIVE_ATTR, ACTIVATE_EVENT, BOARD_VIEW_SELECTOR, conversationColumn, OTHER_ACTIVE_ATTRS, PANEL_NAME } from './dom.js'
-import { buildView } from './view.js'
+import { buildView, HISTORY_PAGE_SIZE } from './view.js'
 import type { HoldingsData } from './types.js'
 
 export interface BoardController {
@@ -15,12 +15,14 @@ export interface BoardController {
   refresh(): void
   switchAccount(accountName: string): void
   watchSwitch(key: string): void
+  historyPageSwitch(page: number): void
 }
 
 export function createBoardController(): BoardController {
   let boardOpen = false
   let currentAccount = 'agent_virtual'
   let watchKey = 'current' // 盯盘中心当前 tab（'current'=默认本账户）
+  let historyPage = 0 // 「历史交易」分页卡当前页（0-based；轮询重渲染保留）
   let lastData: HoldingsData | undefined
   let pollTimer: number | undefined
 
@@ -68,6 +70,7 @@ export function createBoardController(): BoardController {
     console.log('[dashboard-holdings] switching account to', accountName)
     currentAccount = accountName
     watchKey = 'current' // 切换账户后盯盘中心默认回到新账户的「本账户」tab
+    historyPage = 0 // 切换账户后历史交易回到第 1 页
     fetchAndRender(accountName)
   }
 
@@ -108,7 +111,7 @@ export function createBoardController(): BoardController {
     const view = document.querySelector(BOARD_VIEW_SELECTOR)
     if (!view) return
 
-    view.innerHTML = buildView(data, watchKey)
+    view.innerHTML = buildView(data, watchKey, historyPage)
   }
 
   const renderError = (message: string): void => {
@@ -137,6 +140,16 @@ export function createBoardController(): BoardController {
     if (lastData) renderBoard(lastData)
   }
 
+  // 历史交易翻页：页号越界自动收敛（数据随轮询增减后防止空页）；只重渲染不重新拉取
+  const historyPageSwitch = (page: number): void => {
+    const total = (lastData?.tradeHistory?.length ?? 0)
+    const pages = Math.max(1, Math.ceil(total / HISTORY_PAGE_SIZE))
+    const next = Math.max(0, Math.min(Math.trunc(Number(page) || 0), pages - 1))
+    if (next === historyPage) return
+    historyPage = next
+    if (lastData) renderBoard(lastData)
+  }
+
   return {
     openBoard: open,
     closeBoard: close,
@@ -145,6 +158,7 @@ export function createBoardController(): BoardController {
     refresh,
     switchAccount,
     watchSwitch,
+    historyPageSwitch,
   }
 }
 
@@ -176,6 +190,7 @@ export function mountBoard(controller: BoardController): () => void {
   ;(window as any).__dshHldRefresh = () => controller.refresh()
   ;(window as any).__dshHldSwitchAccount = (accountName: string) => controller.switchAccount(accountName)
   ;(window as any).__dshHldWatchTab = (key: string) => controller.watchSwitch(String(key))
+  ;(window as any).__dshHldHistoryPage = (page: unknown) => controller.historyPageSwitch(Number(page))
 
   // Listen for other panels' activation to auto-close
   const onOtherActivate = (event: Event): void => {
@@ -205,6 +220,7 @@ export function mountBoard(controller: BoardController): () => void {
     delete (window as any).__dshHldRefresh
     delete (window as any).__dshHldSwitchAccount
     delete (window as any).__dshHldWatchTab
+    delete (window as any).__dshHldHistoryPage
     console.log('[dashboard-holdings] board unmounted')
   }
 }

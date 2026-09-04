@@ -98,7 +98,7 @@ function stopRatioFor(code: string): number {
 }
 
 /* ------------------------------------------------------------------ board */
-export function buildView(data: HoldingsData, watchKey: string = 'current'): string {
+export function buildView(data: HoldingsData, watchKey: string = 'current', historyPage = 0): string {
   const summary = (data.summary ?? {}) as HoldingsData['summary']
   const accounts: Account[] = Array.isArray(data.accounts) ? data.accounts : []
   const current = data.currentAccount ?? ''
@@ -144,6 +144,8 @@ export function buildView(data: HoldingsData, watchKey: string = 'current'): str
   ${renderPositions(positions, ctxNames, scopedRules)}
 
   ${renderTrades(data)}
+
+  ${renderHistoryTrades(data, historyPage)}
 
   ${renderWatchRules(watchRules, ctxNames, current, accounts, watchKey)}
 </div>`
@@ -280,6 +282,95 @@ function renderTrades(data: HoldingsData): string {
     <tr><th>方向</th><th>股票</th><th class="r">成交价</th><th class="r">金额</th><th>理由</th><th>状态</th><th>时间</th></tr>
     ${rows}
   </table></div>
+</div>`
+}
+
+/* ---------------------------------------------------------- history trades */
+/** 「历史交易」分页卡：全量成交（tradeHistory，倒序）按页切片展示，默认每页 8 条 */
+export const HISTORY_PAGE_SIZE = 8
+
+/** 生成分页数字（页数多时折叠为 1 … cur±1 … last） */
+function pageNums(cur: number, pages: number, btn: (p: number, label: string, act: boolean) => string): string {
+  if (pages <= 9) {
+    let out = ''
+    for (let i = 0; i < pages; i++) out += btn(i, String(i + 1), i === cur)
+    return out
+  }
+  const set = new Set<number>([0, pages - 1, cur - 1, cur, cur + 1].filter((p) => p >= 0 && p < pages))
+  const sorted = [...set].sort((a, b) => a - b)
+  let out = ''
+  let prev = -2
+  for (const p of sorted) {
+    if (p - prev > 1) out += '<span class="gap">…</span>'
+    out += btn(p, String(p + 1), p === cur)
+    prev = p
+  }
+  return out
+}
+
+function renderHistoryTrades(data: HoldingsData, page: number): string {
+  // 时间口径说明：本卡数据按账户 = 当前账户（board API ?account= 已限定），与摘要/持仓同一 scope
+  const all = Array.isArray(data.tradeHistory) ? data.tradeHistory : []
+  const pageSize = HISTORY_PAGE_SIZE
+  const pages = Math.max(1, Math.ceil(all.length / pageSize))
+  const cur = Math.min(Math.max(0, Math.trunc(Number(page) || 0)), pages - 1)
+
+  if (all.length === 0) {
+    return `<div class="dsh-hld-card">
+      <div class="hd"><span class="t">历史交易（0）</span><span class="more">${esc(String(data.currentAccount ?? ''))} · agent 成交后自动归档到此</span></div>
+      <div class="dsh-hld-emptybox">该账户暂无历史交易记录</div>
+    </div>`
+  }
+
+  const slice = all.slice(cur * pageSize, (cur + 1) * pageSize)
+  const ctxNames = namesFromContexts(data.watchRules ?? [])
+  const zhAction: Record<string, { tag: string; text: string }> = {
+    BUY: { tag: 'buy', text: '买入' },
+    SELL: { tag: 'sell', text: '卖出' },
+  }
+  const rows = slice
+    .map((t) => {
+      const act = String(t.action ?? '').toUpperCase()
+      const a = zhAction[act] ?? { tag: 'off', text: String(t.action ?? '') }
+      const price = Number(t.filled_price) || Number(t.price)
+      const amount = Number(t.amount) || price * (t.shares ?? 0)
+      // v2 成交行无 status 字段（全部为已成交明细）；盈亏仅 SELL 行带 realized_pnl（买入为 null → '—'）
+      const pnl = Number(t.realized_pnl)
+      const hasPnl = act === 'SELL' && Number.isFinite(pnl)
+      const pnlCls = hasPnl && pnl !== 0 ? trend(pnl) : 'flat'
+      const rate = Number(t.realized_pnl_rate)
+      const rateSub = hasPnl && Number.isFinite(rate) && rate !== 0 ? '<span class="sub">' + pct(rate) + '</span>' : ''
+      const reason = String(t.reason ?? '—')
+      return `<tr>
+        <td><span class="dsh-hld-tag ${a.tag}">${a.text}</span></td>
+        <td><span class="sec-name">${esc(stockName(t.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(t.symbol))}</span></td>
+        <td class="r">${money(price)}<span class="sub">× ${t.shares ?? 0} 股</span></td>
+        <td class="r">${money(amount)}</td>
+        <td class="r ${pnlCls}">${hasPnl ? signNum(pnl) + rateSub : '<span class=\"dim\">—</span>'}</td>
+        <td title="${esc(reason)}">${esc(reason.slice(0, 60))}</td>
+        <td class="dim">${esc(fmtClock(t.created_at))}</td>
+      </tr>`
+    })
+    .join('')
+
+  const btn = (p: number, label: string, act: boolean): string =>
+    `<button type="button" class="dsh-hld-pgb${act ? ' act' : ''}"${p === cur ? ' aria-current="page"' : ''} onclick="window.__dshHldHistoryPage && window.__dshHldHistoryPage(${p})">${label}</button>`
+  const nav = pages <= 1
+    ? ''
+    : `<div class="dsh-hld-pg">
+        <button type="button" class="dsh-hld-pgb"${cur === 0 ? ' disabled' : ''} onclick="window.__dshHldHistoryPage && window.__dshHldHistoryPage(${cur - 1})">‹ 上一页</button>
+        <span class="dsh-hld-pg-nums">${pageNums(cur, pages, btn)}</span>
+        <button type="button" class="dsh-hld-pgb"${cur >= pages - 1 ? ' disabled' : ''} onclick="window.__dshHldHistoryPage && window.__dshHldHistoryPage(${cur + 1})">下一页 ›</button>
+        <span class="dsh-hld-pg-cnt">第 ${cur + 1}/${pages} 页 · 共 ${all.length} 笔</span>
+      </div>`
+
+  return `<div class="dsh-hld-card">
+  <div class="hd"><span class="t">历史交易（${all.length}）</span><span class="more">${esc(String(data.currentAccount ?? ''))} · agent 全部成交明细 · 倒序</span></div>
+  <div class="tblwrap"><table>
+    <tr><th>方向</th><th>股票</th><th class="r">成交价</th><th class="r">金额</th><th class="r">实现盈亏</th><th>理由</th><th>时间</th></tr>
+    ${rows}
+  </table></div>
+  ${nav}
 </div>`
 }
 
