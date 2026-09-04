@@ -32,37 +32,6 @@ class DividendDataSource(ABC):
         pass
 
 
-class AkshareDividendSource(DividendDataSource):
-    """akshare 数据源实现（已弃用，存在 py_mini_racer 兼容性问题）"""
-
-    def fetch_dividends(self, symbol: str) -> pd.DataFrame:
-        """
-        从 akshare 获取分红数据
-
-        Args:
-            symbol: 股票代码（如 600000.SH 或 600000）
-
-        Returns:
-            pd.DataFrame: 分红数据
-
-        Raises:
-            Exception: akshare API 调用失败（py_mini_racer 问题）
-        """
-        from infrastructure.data_provider import get_data_provider_manager
-
-        # 移除后缀（akshare 只需要6位代码）
-        code = symbol.split('.')[0]
-
-        logger.info(f"Fetching dividends from akshare for {code}")
-
-        # 使用 DataProviderManager 调用 akshare
-        manager = get_data_provider_manager()
-        df = manager.call_akshare('stock_dividend_cninfo', symbol=code)
-
-        logger.info(f"Fetched {len(df)} dividend records for {code}")
-        return df
-
-
 class EastMoneyDividendSource(DividendDataSource):
     """东方财富 HTTP 数据源实现（推荐，无 py_mini_racer 依赖）"""
 

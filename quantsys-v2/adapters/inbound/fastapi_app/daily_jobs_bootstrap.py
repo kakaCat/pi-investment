@@ -16,11 +16,11 @@ data_pipeline_daily / chip_distribution_update / data_quality_check）全部禁�
   （即使 pipeline 本身挂了也能被发现）
 
 任务表（调整请同步文档 docs/guides/quantsys-v2-capability-assessment.md）：
-- evening_pipeline   15:40 周一~五：K线全市场同步 → 因子全市场计算（串行链式）
-- data_quality       17:15 周一~五：数据质量检查
-- freshness_guard    17:55 周一~五：新鲜度巡检（兜底告警）
-- chip_distribution  18:30 周一~五：筹码分布更新
+- evening_pipeline   20:30 周一~五：K线分批同步 → 因子全市场计算（串行链式，支持幂等）
+- freshness_guard    17:20 周一~五：新鲜度巡检（兜底告警）
+- chip_distribution  21:10 周一~五：筹码分布更新
 - financial_statements 周六 20:00：季度财报更新
+- event_calendar_check 16:45 每天：事件日历检查（未来2日 pending imp>=2 飞书提醒→notified）
 """
 import json
 import threading
@@ -70,32 +70,16 @@ def _probe_kline_sources() -> bool:
 
 
 def _job_evening_pipeline() -> Dict[str, Any]:
-    """K线全市场同步 → 因子全市场计算（链式：因子依赖当日K线）"""
+    """K线分批同步 → 因子全市场计算（链式：因子依赖当日K线）
+
+    2026-09-02 优化：
+    - 全市场同步改为分批策略（P0+P1 必同步 + 按陈旧度补充 500 只，约 800 只/天）
+    - 支持幂等重复执行：数据已新鲜时跳过同步，避免重复请求
+    - 合并了原 morning_topup 功能，可在任何时间安全执行
+    """
     results: Dict[str, Any] = {}
 
-    # 先探活：源挂/被封时快速失败，不全市场白跑（也避免加重封禁）
-    if not _probe_kline_sources():
-        raise RuntimeError('K线数据源探活失败（疑似故障或 WAF 封禁），本次 pass 放弃，下个窗口重试')
-
-    from infrastructure.jobs.kline_update_job import update_gem_klines
-    # 常态 days=2（当日+昨日补缺），量级较 days=5 降 60%（2026-09-02 降负载）
-    logger.info("evening_pipeline: kline_sync start (scope=all)")
-    results['kline_sync'] = update_gem_klines(scope='all', days=2)
-
-    from application.services.scheduler_tasks import handle_factor_compute
-    logger.info("evening_pipeline: factor_compute start (full market)")
-    results['factor_compute'] = handle_factor_compute({'max_symbols': 6000})
-
-    return results
-
-
-def _job_morning_topup() -> Dict[str, Any]:
-    """盘前补数据（08:35）：昨晚同步失败/未跑时兜底。
-
-    注意（2026-09-02 启动阻塞事故）：真同步必须在本任务线程里跑，
-    禁止放进 orchestrator 阶段处理函数——start_orchestrator 会在主线程
-    同步执行 resume_from_breakpoint，重活会把 FastAPI 启动卡死。
-    """
+    # 新鲜度检查：数据已新鲜则跳过同步（幂等保护）
     from infrastructure.persistence.database.engine import get_engine
     from sqlalchemy import text
 
@@ -106,20 +90,27 @@ def _job_morning_topup() -> Dict[str, Any]:
             text("SELECT max(trade_date) FROM quant.daily_klines")).scalar()
 
     if kline_latest and str(kline_latest) >= expected:
-        return {'status': 'skipped', 'reason': f'K线已新鲜（{kline_latest} ≥ {expected}）'}
+        logger.info(f"K线已新鲜（{kline_latest} ≥ {expected}），跳过同步")
+        results['kline_sync'] = {
+            'status': 'skipped',
+            'reason': f'K线已新鲜（{kline_latest} ≥ {expected}）'
+        }
+    else:
+        # 先探活：源挂/被封时快速失败
+        if not _probe_kline_sources():
+            raise RuntimeError('K线数据源探活失败（疑似故障或 WAF 封禁），本次 pass 放弃，下个窗口重试')
 
-    # 先探活：源挂/被封时快速失败
-    if not _probe_kline_sources():
-        raise RuntimeError('K线数据源探活失败（疑似故障或 WAF 封禁），morning_topup 放弃')
+        logger.info(f"K线需更新（{kline_latest} < {expected}），开始分批同步")
+        from infrastructure.jobs.kline_update_job import update_gem_klines
+        # 分批同步策略：P0+P1 必同步 + 按陈旧度补充 500 只，约 800 只/天
+        results['kline_sync'] = update_gem_klines(scope='batch', days=2, batch_size=500)
 
-    logger.warning(f"morning_topup: K线滞后（{kline_latest} < {expected}），执行真同步")
-    from infrastructure.jobs.kline_update_job import update_gem_klines
-    return update_gem_klines(scope='all', days=2)
+    # 因子计算
+    from application.services.scheduler_tasks import handle_factor_compute
+    logger.info("evening_pipeline: factor_compute start (full market)")
+    results['factor_compute'] = handle_factor_compute({'max_symbols': 6000})
 
-
-def _job_data_quality() -> Dict[str, Any]:
-    from application.services.scheduler_tasks import handle_data_quality_check
-    return handle_data_quality_check()
+    return results
 
 
 def _job_chip_distribution() -> Dict[str, Any]:
@@ -143,8 +134,33 @@ def _last_trading_day(ref: datetime) -> str:
     return d.strftime('%Y-%m-%d')
 
 
+def _job_failure_watch(engine) -> List[Dict[str, Any]]:
+    """任务失败巡检：过去 3 个自然日（不含今天——今天失败仍在 2h 自动重试冷却期）仍 failed 的活跃任务
+
+    补 K线/因子巡检的盲区：数据恰好未滞后但 job 本身失败（如 chip_distribution 失败但
+    K线新鲜、financial_statements 周六失败周一才发现）。只查 JOBS 内活跃任务，
+    已退役 job（如 morning_topup）的历史 failed 残留不告警。
+    """
+    from sqlalchemy import text as _text, bindparam
+    active = [j.job_id for j in JOBS]
+    if not active:
+        return []
+    with engine.connect() as conn:
+        rows = conn.execute(
+            _text(
+                "SELECT job_id, run_date, error FROM quant.inprocess_job_runs "
+                "WHERE status='failed' AND run_date < CURRENT_DATE "
+                "AND run_date >= CURRENT_DATE - 3 "
+                "AND job_id IN :jobs ORDER BY run_date DESC, job_id"
+            ).bindparams(bindparam('jobs', expanding=True)),
+            {'jobs': active},
+        ).fetchall()
+    return [{'job_id': r[0], 'run_date': str(r[1]), 'error': (r[2] or '')[:200]}
+            for r in rows]
+
+
 def _job_freshness_guard() -> Dict[str, Any]:
-    """新鲜度巡检：K线/因子滞后于最近交易日 → 飞书告警"""
+    """新鲜度巡检：K线/因子滞后于最近交易日 + 任务失败残留 → 飞书告警"""
     from infrastructure.persistence.database.engine import get_engine
     from sqlalchemy import text
 
@@ -162,12 +178,32 @@ def _job_freshness_guard() -> Dict[str, Any]:
     if not factor_latest or str(factor_latest) < expected:
         stale.append(f"factor_values 最新={factor_latest}（期望≥{expected}）")
 
+    # 任务失败巡检（独立于数据滞后——chip/financial_statements 等失败但数据新鲜时仍需告警）
+    failed_jobs = _job_failure_watch(engine)
+
     if stale:
         msg = ("🚨 数据新鲜度告警\n" + "\n".join(f"- {s}" for s in stale) +
                "\n请检查 evening_pipeline 运行状态（/api/jobs/inprocess/status）")
+        if failed_jobs:
+            msg += ("\n\n⚠️ 任务失败残留（数据滞后或由这些 job 失败引起）：\n"
+                    + "\n".join(f"- {f['job_id']} @ {f['run_date']}"
+                                 + (f"：{f['error']}" if f['error'] else "") for f in failed_jobs)
+                    + "\n框架 2h 自动重试仍失败，请人工排查")
         _send_feishu(msg)
-        return {'status': 'stale', 'stale': stale, 'expected': expected,
-                'alert_sent': True}
+        out = {'status': 'stale', 'stale': stale, 'expected': expected,
+               'alert_sent': True}
+        if failed_jobs:
+            out['failed_jobs'] = failed_jobs
+        return out
+
+    if failed_jobs:
+        lines = [f"- {f['job_id']} @ {f['run_date']}"
+                 + (f"：{f['error']}" if f['error'] else "") for f in failed_jobs]
+        _send_feishu("🚨 v2 定时任务失败残留\n" + "\n".join(lines) +
+                     "\n框架 2h 自动重试仍失败，请人工排查（/api/jobs/inprocess/status）")
+        return {'status': 'fresh_but_job_failed', 'expected': expected,
+                'kline_latest': str(kline_latest), 'factor_latest': str(factor_latest),
+                'failed_jobs': failed_jobs, 'alert_sent': True}
 
     return {'status': 'fresh', 'expected': expected,
             'kline_latest': str(kline_latest), 'factor_latest': str(factor_latest)}
@@ -183,18 +219,95 @@ def _send_feishu(text: str) -> bool:
         return False
 
 
+# ── 事件日历检查（2026-09-06 下沉自 Agent OS event-calendar-check） ─────────
+
+_EVENT_TYPE_LABELS = {
+    'cpi_ppi': '📊 CPI/PPI', 'pmi': '🏭 PMI', 'nbs': '📈 国民经济数据',
+    'lpr': '🏦 LPR', 'fomc': '🇺🇸 FOMC 议息', 'us_cpi': '🇺🇸 CPI',
+    'nfp': '🇺🇸 非农', 'earnings': '📋 财报披露', 'futures_delivery': '⚙️ 期货交割',
+    'policy': '📜 政策事件', 'other': '📌 其他',
+}
+
+
+def _event_md(e) -> str:
+    """单条事件的卡片 Markdown"""
+    d = e.event_date
+    dd = f'{d.month:02d}-{d.day:02d}' if d else '??-??'
+    label = _EVENT_TYPE_LABELS.get(e.event_type or 'other', '📌 其他')
+    flag = '🚨' if (e.importance or 1) >= 3 else '🔸'
+    line = f'{flag} **{dd}** {label}：{e.title}'
+    if e.event_time:
+        line += f'（{e.event_time.strftime("%H:%M")}）'
+    desc = (e.description or '').strip()
+    if desc:
+        line += f'\n　{desc[:60]}{"…" if len(desc) > 60 else ""}'
+    return line
+
+
+def _job_event_calendar_check() -> Dict[str, Any]:
+    """事件日历检查：未来2日 pending 且重要性>=2 的事件 → 飞书提醒 → 标记 notified。
+
+    幂等：只处理 status=='pending'；发送成功即 mark notified（meta 记 notified_by），
+    框架失败重试只会补发未成功的——已 notified 的不再命中，事件提醒至多一次。
+    无目标事件时返回 no_event（不打扰）。
+    """
+    from adapters.outbound.repositories.event_calendar_repository import (
+        get_event_calendar_repo,
+    )
+    from application.services.feishu_service import FeishuNotificationService
+
+    events = get_event_calendar_repo().list_upcoming(days_ahead=2)
+    target = [e for e in events if e.status == 'pending' and (e.importance or 1) >= 2]
+    if not target:
+        return {'status': 'no_event', 'pending_in_window': len(events), 'notified': 0}
+
+    high = [e for e in target if e.importance >= 3]
+    mid = [e for e in target if e.importance < 3]
+    svc = FeishuNotificationService()
+    sent_ids: List[int] = []
+    fail: Optional[Exception] = None
+
+    def _send_batch(title: str, urgency: str, items: List[Any]) -> None:
+        nonlocal fail
+        try:
+            ok = svc.send_card(title=title, content='\n'.join(_event_md(e) for e in items),
+                               urgency=urgency)
+        except Exception as ex:  # noqa: BLE001
+            fail = ex
+            return
+        if not ok:
+            fail = RuntimeError('feishu send_card returned False')
+            return
+        sent_ids.extend(e.id for e in items)
+
+    if high:
+        _send_batch('🚨 未来2日高优事件预警', 'high', high)
+    if mid and fail is None:
+        _send_batch('📌 未来2日事件提醒', 'normal', mid)
+
+    repo = get_event_calendar_repo()
+    for eid in sent_ids:
+        repo.mark_status(eid, 'notified', meta_patch={
+            'notified_at': datetime.now().isoformat(timespec='seconds'),
+            'notified_by': 'event_calendar_check',
+        })
+
+    if fail is not None:
+        raise RuntimeError(f'feishu send failed（重试将只补未 notified 的）: {fail}')
+    return {'status': 'notified', 'notified': len(sent_ids),
+            'high': len(high), 'mid': len(mid)}
+
+
 JOBS: List[JobDef] = [
-    JobDef('morning_topup', dtime(8, 35), (0, 1, 2, 3, 4),
-           _job_morning_topup, '盘前补数据：昨晚同步失败时兜底（K线滞后才真同步）'),
-    # 错峰（2026-09-02 用户指示）：15:40 是全国量化拉 EOD 数据的高峰，
-    # 移到 20:30（EOD 早已就绪、API 低峰）；freshness_guard 提前到 17:20
-    # 保持"当天早发现"，滞后时晚间 pipeline 仍会在 20:30 补齐
-    JobDef('data_quality', dtime(17, 15), (0, 1, 2, 3, 4),
-           _job_data_quality, '数据质量检查'),
+    # 错峰（2026-09-02）：20:30 是 EOD 低峰期，避开全国量化高峰
+    # freshness_guard 17:20 早发现滞后，evening_pipeline 20:30 补齐
+    # event_calendar_check 16:45 每日（含周末，原 Agent OS cron 语义）
+    JobDef('event_calendar_check', dtime(16, 45), (0, 1, 2, 3, 4, 5, 6),
+           _job_event_calendar_check, '事件日历检查：未来2日 pending 高优事件（imp>=2）飞书提醒→标记notified'),
     JobDef('freshness_guard', dtime(17, 20), (0, 1, 2, 3, 4),
            _job_freshness_guard, 'K线/因子新鲜度巡检（滞后>1交易日飞书告警）'),
     JobDef('evening_pipeline', dtime(20, 30), (0, 1, 2, 3, 4),
-           _job_evening_pipeline, 'K线全市场同步 → 因子全市场计算（错峰低峰时段）'),
+           _job_evening_pipeline, 'K线分批同步 → 因子全市场计算（支持幂等重复执行）'),
     JobDef('chip_distribution', dtime(21, 10), (0, 1, 2, 3, 4),
            _job_chip_distribution, '筹码分布更新（排在 pipeline 后，用当日新K线）'),
     JobDef('financial_statements', dtime(20, 0), (5,),
@@ -323,32 +436,42 @@ def _summarize_result(result: Any, max_len: int = 300) -> str:
 def _run_job(job: JobDef, run_date: str) -> None:
     """在独立线程执行一个任务（异常隔离 + 落库 + 告警 + 生命周期通知）"""
     from infrastructure.persistence.orm import close_session
+    from infrastructure.monitoring.business_metrics import (
+        scheduler_job_runs_total,
+        scheduler_job_duration_seconds,
+    )
+    
     t0 = time.time()
     try:
         _mark_running(job.job_id, run_date)
         logger.info("inprocess_job_start", job=job.job_id, date=run_date)
-        # 开始通知（2026-09-02 用户要求：执行时发飞书）
         _send_feishu(f"▶️ 每日任务开始：{job.job_id}\n{job.description}\n时间: {datetime.now().strftime('%H:%M')}")
         result = job.handler()
+        elapsed = time.time() - t0
+        
         _mark_done(job.job_id, run_date, 'success', result=result)
+        scheduler_job_runs_total.labels(job=job.job_id, status='success').inc()
+        scheduler_job_duration_seconds.labels(job=job.job_id, phase='execution').observe(elapsed)
+        
         logger.info("inprocess_job_done", job=job.job_id, date=run_date)
-        # 完成通知（含耗时 + 结果摘要）
-        elapsed_min = (time.time() - t0) / 60
+        elapsed_min = elapsed / 60
         summary = _summarize_result(result)
         _send_feishu(
             f"✅ 每日任务完成：{job.job_id}\n{job.description}\n"
             f"耗时: {elapsed_min:.1f} 分钟" + (f"\n{summary}" if summary else '')
         )
     except Exception as e:
+        elapsed = time.time() - t0
         logger.error("inprocess_job_failed", job=job.job_id, date=run_date,
                      error=str(e), exc_info=True)
+        scheduler_job_runs_total.labels(job=job.job_id, status='failed').inc()
+        scheduler_job_duration_seconds.labels(job=job.job_id, phase='execution').observe(elapsed)
         try:
             _mark_done(job.job_id, run_date, 'failed', error=str(e))
         except Exception:
             logger.error("inprocess_job_mark_failed_error", job=job.job_id)
         _send_feishu(f"🚨 每日任务失败：{job.job_id}\n{job.description}\n错误: {str(e)[:300]}")
     finally:
-        # 与 orchestrator_bootstrap 同款连接治理：释放本线程的 scoped session
         try:
             close_session()
         except Exception:

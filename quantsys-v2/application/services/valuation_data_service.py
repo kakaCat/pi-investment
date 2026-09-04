@@ -224,9 +224,16 @@ class ValuationDataService:
     def _get_from_akshare(self, symbol: str) -> Dict[str, Any]:
         """从 akshare 获取估值数据"""
         try:
-            df = self.provider_manager.call_akshare('stock_zh_a_spot_em')
+            # 2026-09-05 修复：call_akshare 方法不存在，改走
+            # DataProviderManager.get_market_spot() 并 unwrap 数据类载荷。
+            resp = self.provider_manager.get_market_spot()
+            if not resp.get('success') or resp.get('data') is None:
+                raise Exception(f"akshare 返回空数据: {resp.get('error', 'provider 返回空')}")
 
-            if df is None or df.empty:
+            records = resp['data'].data.get('records') or []  # MarketData.data = {'records': [...], 'total': n}
+            df = pd.DataFrame(records)
+
+            if df.empty:
                 raise Exception("akshare 返回空数据")
 
             stock_data = df[df['代码'] == symbol]
