@@ -44,6 +44,8 @@ export interface TimelineEntry {
   status?: string
   runId?: string | number
   error?: string
+  /** 频率分桶：daily=日执行 / weekly=周执行 */
+  freq?: 'daily' | 'weekly'
 }
 export interface BlockedFlowEntry {
   checkpointId?: string

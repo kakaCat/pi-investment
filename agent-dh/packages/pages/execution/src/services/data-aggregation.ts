@@ -89,6 +89,23 @@ function parseCronTime(cronExpr: string | null | undefined): string | undefined 
   if (!/^\d+$/.test(minute) || !/^\d+$/.test(hour)) return undefined;
   return pad2(parseInt(hour, 10)) + ':' + pad2(parseInt(minute, 10));
 }
+/** timeline 频率分桶：日执行（* 或每周 >=4 天） vs 周执行（每周固定 <=3 天） */
+function cronFreq(cronExpr: string | null | undefined): 'daily' | 'weekly' {
+  if (!cronExpr) return 'daily';
+  const parts = cronExpr.trim().split(/\s+/);
+  if (parts.length < 5) return 'daily';
+  const dow = parts[4];
+  if (dow === '*' || dow === '?') return 'daily';
+  const days = new Set<number>();
+  for (const seg of dow.split(',')) {
+    const m = /^(\d+)(?:-(\d+))?$/.exec(seg);
+    if (!m) return 'daily';
+    const a = Number(m[1]);
+    if (m[2]) { const b = Number(m[2]); for (let d = a; d <= b; d++) days.add(d % 7); }
+    else days.add(a % 7);
+  }
+  return days.size >= 4 ? 'daily' : 'weekly';
+}
 /** expectTime + graceMinutes 后的绝对 deadline（今日） */
 function deadlineDate(now: Date, expectTime: string, graceMinutes: number): Date {
   const seg = expectTime.split(':');
@@ -550,7 +567,7 @@ export class DataAggregationService {
           error = this.runError(latest);
         } else status = 'unknown';
       }
-      list.push({ taskId: task.id, taskName: task.name, expectedTime, status, runId, error });
+      list.push({ taskId: task.id, taskName: task.name, expectedTime, status, runId, error, freq: cronFreq(task.scheduleExpr) });
     }
     list.sort((a, b) => a.expectedTime.localeCompare(b.expectedTime) || a.taskName.localeCompare(b.taskName));
     return list;

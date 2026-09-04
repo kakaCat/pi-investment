@@ -89,6 +89,8 @@ export interface TimelineEntry {
   status: 'success' | 'failed' | 'pending' | 'unknown';
   runId?: number | string;
   error?: string;
+  /** 频率分桶：daily=日执行 / weekly=周执行 */
+  freq: 'daily' | 'weekly';
 }
 
 export interface BlockedFlowEntry {

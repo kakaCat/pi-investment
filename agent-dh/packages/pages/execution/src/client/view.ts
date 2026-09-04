@@ -141,7 +141,7 @@ export function buildView(): ViewRefs {
   const banner = bd('<div class="dsh-exec-banner" data-role="banner"></div>')
   const healthSec = sec('今日执行总览', '来自当日 cron 计划与运行结果', 'healthBox')
   const flowSec = sec('执行流水线', 'ENGINE M0–M6 × AUTONOMY L1–L4 检查点状态', 'flowBox')
-  const timelineSec = sec('今日时间轴', '按计划时刻排序 · 已完成/失败/待执行', 'timelineBox')
+  const timelineSec = sec('今日时间轴', '分 日执行 / 周执行 · 按计划时刻排序', 'timelineBox')
   const tasksSec = sec('调度任务', '分类切换 · 点击任务行查看失败原因', 'tasksBox')
   const errsSec = sec('错误事件', '近 10 条日志异常（系统侧）', 'errsBox')
   errsSec.style.display = 'none'
@@ -221,19 +221,26 @@ function renderFlow(refs: ViewRefs, data: BoardData): void {
 }
 
 function tlStatusLabel(st: string): string { return TL_ZH[st] ?? '未知' }
+function tlRow(t: TimelineEntry): string {
+  const st = String(t.status ?? 'unknown')
+  const tm = String(t.expectedTime ?? '')
+  const err = st === 'failed' && t.error ? ' title="' + esc(t.error) + '"' : ''
+  return '<div class="tl-item ' + (TL_TAG[st] ?? 'unk') + '"' + err + '>' +
+    '<span class="tl-tm">' + esc(tm.slice(0, 5)) + '</span>' +
+    '<span class="tl-ic">' + (TL_IC[st] ?? '❔') + '</span>' +
+    '<div class="tl-bd"><div class="tl-nm">' + esc(taskZh(t.taskName)) + '</div>' +
+    '<div class="tl-st ' + (TL_TAG[st] ?? 'unk') + '">' + esc(tlStatusLabel(st)) + '</div></div></div>'
+}
 function renderTimeline(refs: ViewRefs, data: BoardData): void {
   const tl = (data.timeline ?? []).slice().sort((a, b) => hmMin(a.expectedTime) - hmMin(b.expectedTime))
   if (tl.length === 0) { refs.timelineBox.innerHTML = '<div class="dsh-exec-empty">今日暂无计划任务</div>'; return }
-  refs.timelineBox.innerHTML = '<div class="dsh-exec-tl-list">' + tl.map((t: TimelineEntry) => {
-    const st = String(t.status ?? 'unknown')
-    const tm = String(t.expectedTime ?? '')
-    const err = st === 'failed' && t.error ? ' title="' + esc(t.error) + '"' : ''
-    return '<div class="tl-item ' + (TL_TAG[st] ?? 'unk') + '"' + err + '>' +
-      '<span class="tl-tm">' + esc(tm.slice(0, 5)) + '</span>' +
-      '<span class="tl-ic">' + (TL_IC[st] ?? '❔') + '</span>' +
-      '<div class="tl-bd"><div class="tl-nm">' + esc(taskZh(t.taskName)) + '</div>' +
-      '<div class="tl-st ' + (TL_TAG[st] ?? 'unk') + '">' + esc(tlStatusLabel(st)) + '</div></div></div>'
-  }).join('') + '</div>'
+  const grp = (title: string, note: string, items: TimelineEntry[]): string =>
+    '<div class="dsh-exec-tlg"><div class="tlg-t"><span class="t">' + title + '</span><em>' + note + ' · ' + items.length + ' 项</em></div>' +
+    '<div class="dsh-exec-tl-list">' + items.map(tlRow).join('') + '</div></div>'
+  const daily = tl.filter(t => (t.freq ?? 'daily') !== 'weekly')
+  const weekly = tl.filter(t => t.freq === 'weekly')
+  const html = grp('日执行', '每日 / 交易日例行', daily) + (weekly.length > 0 ? grp('周执行', '每周固定日', weekly) : '')
+  refs.timelineBox.innerHTML = html
 }
 
 function taskTag(t: SchedulerTask): { cls: string; label: string } {
