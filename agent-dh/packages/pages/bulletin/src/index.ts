@@ -1,44 +1,52 @@
-// @pi-investment/dashboard-bulletin · 公告板（DSH GUI 双半插件 host 半，RFC 013）
-// host 半：phase2 起向同源暴露 bulletin JSON API（/dashboard/api/bulletin/posts），
-// 与 execution 的 /dashboard/api/board、holdings 的 /dashboard/api/holdings 互斥（路由契约）。
-// GUI 呈现由 client 半承担（package.json dsh.client + exports ./client → lib/client.js）。
+// @pi-investment/dashboard-bulletin · 公告板看板（DSH GUI 双半插件 host 半，RFC 013）
+// host 半：只向同源暴露 bulletin JSON API（/dashboard/api/bulletin/posts，client 半 fetch 用）；
+// GUI 呈现由 client 半承担（package.json dsh.client + exports["./client"] → lib/client.js）。
+// /dashboard/api/bulletin/posts 的唯一所有者——execution 独占 /dashboard/api/board、
+// holdings 独占 /dashboard/api/holdings（双插件互斥路由契约）。
+// 数据源：Agent OS memory（tag office:board），与 board_post/board_read/board_update 工具同源（RFC 009）。
+// 模块形状与 dashboard-holdings 一致（name + apply 具名导出；路由经
+// (ctx as any).inject(['webServer']) 惰性注入 + webCtx.effect 包裹注册，disposer 自动注销）。
 //
-// phase1+probe（2026-09-05）：apply 占位 + 诊断探针 /dashboard/api/bulletin-probe
-// （返回自身是否应用 + loader 条目清单；定位侧栏按钮不显示的根因后 phase2 移除）。
+// phase2（2026-09-05）：公告板主体——posts 聚合/过滤/计数/分页 JSON API；phase1 的
+// /dashboard/api/bulletin-probe 探针已移除。
 
 import { Context } from '@deepseek-ai/cordis'
+import { BulletinAggregationService } from './services/bulletin-aggregation.js'
+import { createBulletinHandler } from './routes/bulletin-routes.js'
 
 export const name = 'dashboard-bulletin'
 
-export function apply(ctx: Context, _config?: unknown): void {
-  const logger = ctx.logger(name)
-  logger.info('bulletin host applied (phase1 probe build)')
+interface PluginConfig {
+  /** Agent OS base URL（RFC 009 board 数据源） */
+  agentOsBaseURL?: string
+  requestTimeoutMs?: number
+}
 
-  const anyCtx = ctx as unknown as {
-    inject?: (services: string[], cb: (webCtx: any) => void) => void
+function resolveOptions(config: PluginConfig | undefined) {
+  return {
+    agentOsBaseURL: (config?.agentOsBaseURL || process.env.AGENT_OS_BASE_URL || 'http://localhost:8080').replace(/\/$/, ''),
+    requestTimeoutMs: config?.requestTimeoutMs ?? 4000,
   }
-  anyCtx.inject?.(
+}
+
+export function apply(ctx: Context, config?: PluginConfig): void {
+  const aggregator = new BulletinAggregationService(resolveOptions(config))
+  const logger = ctx.logger(name)
+  logger.info('dashboard-bulletin host applied (phase2: posts API)')
+
+  // 惰性注入 webServer：DSH web 启动后注入，注册即生效（模式同 dashboard-holdings）
+  ;(ctx as unknown as { inject?: (services: string[], cb: (webCtx: any) => void) => void }).inject?.(
     ['webServer'],
-    (webCtx: { effect?: (fn: () => void, label?: string) => void; webServer?: any; ctx?: any }) => {
+    (webCtx: { effect?: (fn: () => void, label?: string) => void; webServer?: any }) => {
       webCtx.effect?.(() => {
         webCtx.webServer.register({
           kind: 'exact',
-          path: '/dashboard/api/bulletin-probe',
-          handler: async () => {
-            let entries: string[] = []
-            try {
-              const loader = (webCtx.ctx ?? ctx) as any
-              if (loader?.loader?.entries) {
-                entries = [...loader.loader.entries()].map((e: any) => e.options?.name).filter(Boolean)
-              }
-            } catch (err: unknown) {
-              return { ok: true, applied: true, loaderError: String(err) }
-            }
-            return { ok: true, applied: true, loaderAvailable: entries.length > 0, entries }
-          },
+          path: '/dashboard/api/bulletin/posts',
+          handler: createBulletinHandler(aggregator),
         })
-        logger.info('bulletin probe registered: /dashboard/api/bulletin-probe')
-      }, name + ': probe')
+      }, name + ': api')
+
+      logger.info('routes registered: /dashboard/api/bulletin/posts (client half renders GUI)')
     },
   )
 }

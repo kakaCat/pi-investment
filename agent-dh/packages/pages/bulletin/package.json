@@ -1,7 +1,7 @@
 {
   "name": "@pi-investment/dashboard-bulletin",
   "version": "0.1.0",
-  "description": "公告板 @pi-investment/dashboard-bulletin — DSH GUI 双半插件（host: bulletin JSON API；client: GUI 侧栏顶部入口 + 中心栏视图，RFC 013）。phase1 = 仅顶部菜单按钮",
+  "description": "公告板 @pi-investment/dashboard-bulletin — DSH GUI 双半插件（host: bulletin JSON API；client: GUI 侧栏顶部入口 + 中心栏视图，RFC 013）。phase1 = 顶部菜单按钮；phase2 = 看板主体（只读监控面板）",
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
