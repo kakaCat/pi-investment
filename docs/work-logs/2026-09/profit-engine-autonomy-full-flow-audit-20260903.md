@@ -393,3 +393,72 @@ M quantsys-v2/tests/services/test_market_style_detector.py   （13 例契约测�
 - 237 report_daily / 250 market_scan_preopen / 253 strategy_discover_weekly（§7.2-C 停用或补真实）
 - 258 pool_refresh_daily（§7.2-D getter 加括号）
 - 工具层 data_fetch_north_flow 描述误导；L4 元学习从未实现；lifecycle CLAUDE.md 过时
+
+---
+
+## §9 回归：312 交易日解析误标 09-02 行（2026-09-05 修复）
+
+> 2026-09-05 凌晨发现：09-03 23:30 调度首次真实运行新 312 代码后，**09-02 的正确行
+> value/0.6206 被覆盖、09-03 的真实观测无行可落**。审计自己 §8 的修复引入回归，必须
+> 公开记录根因、修复与数据补救。
+
+### 根因（K 线同步滞后 → trade_date 误解析 → upsert 覆盖）
+
+- §8 落库 exec 的 trade_date 默认解析 = `params['trade_date']` else **`KlineORMRepository.get_latest_trade_date()`**
+  （daily_klines 最大日期）else 今天；
+- daily_klines 全市场同步存在滞后：09-03/09-04 的 K 线并非当日 23:30 前全部入库
+  （并行会话的 kline 域同步 09-03/09-04 每日仅 24 行，属既有数据地基缺口），
+  **09-03 23:30 调度运行时 `get_latest_trade_date()` 仍返回 09-02**；
+- 于是 09-03 收盘截面的真实观测（sina 49 行业，分化不足 → unknown/0.0，metrics 里
+  detection_date/computed_at 均 09-03）被以 `trade_date='2026-09-02'` upsert，
+  **覆盖了 09-02 行 §8 手动落库的正确 value/0.6206**；09-03 自己反而没有行（DB 只剩
+  09-04/09-02/06-02 三行）。09-04 23:30 运行正确（当时 klines 已含 09-04）。
+- 教训同 kline 滞后类问题：**不能把可能滞后的同步进度当"真实交易日"的唯一判据**。
+
+### 修复（独立交易日锚：301 落库的 regime/sentiment 优先）
+
+- `infrastructure/jobs/market_style_update_job.py` 新增纯函数 `_pick_trade_date` +
+  多源解析 `_resolve_trade_date`：
+  1. 显式 `trade_date`（历史补算/审计回放）→ 用之，优先级不变；
+  2. **今天被任一独立源确证为真实交易日**（`market_regime`/`market_sentiment_daily`
+     已有今天的行——301 market_daily_snapshot 于 22:00 以真实数据源 data_date 落库，
+     不依赖 kline 同步；或 daily_klines 今天已有行）→ 用今天；
+  3. 否则（周末/节假日/盘后补跑，sina 截面属最近已收盘交易日）→ 取
+     regime/sentiment/daily_klines 三源最近日期最大者；
+  4. 全源不可用 → 今天兜底。
+- 残余风险（docstring 已注明）：若 301 与 kline 同步**同时**失败/滞后，仍会退回滞后锚
+  ——同 bug 类仅在双故障下重演，概率低；regime/sentiment 独立落库使其单点失败不再致命。
+
+### 数据修复（market_style_state）
+
+- ① id=2 错标行（metrics 实为 09-03 观测：detection_date/computed_at 均 09-03、
+  分化不足 note）→ trade_date 纠正为 **2026-09-03**，**内容零改动**（恢复其真实身份，
+  非重算非伪造）；
+- ② 重建真正 09-02 行：style=**value**/conf=**0.6206**，metrics 依据 §8 手动运行记录
+  （scores value 0.62/growth 0.38/cycle 0.0；bucket_medians value -0.89/growth -1.13/
+  cycle -1.52；boards 49/mapped 44；coverage 0.898；degraded False）+ 09-03 行同源
+  静态 44 行业 bucket_members；**indicators.note 显式标注「2026-09-05 数据修复重建，
+  原行被调度误标覆盖，依据审计 §8 记录还原，非重算」**（sina 仅服务最近收盘截面，
+  无法重观测 09-02，故诚实标注来源而非假装重跑）；
+- 验证后全表：09-02 value/0.6206（重建注记）、09-03 unknown/0.0（纠标）、
+  09-04 value/0.6414（未动）、06-02 unknown/0.0（历史伪造行，超本次范围未动）。
+- 最新行仍为 09-04 value/0.6414 → rotation engine/detector fast path 下游行为不变。
+
+### 测试（提交前）
+
+```
+quantsys-v2：tests/infrastructure/test_market_style_update_job.py 9 passed（新增，覆盖
+  显式优先/紧凑格式/regime确证今天vs滞后kline（回归核心）/sentiment确证/kline今天flag/
+  非交易日取源max/全空兜底/节假日不误标/非法显式穿透）
++ tests/services/test_market_style_detector.py 13 passed（未回归）
+真实 dry-run（不落库）：trade_date=2026-09-04 style=value conf=0.6414（周六无当天行 →
+  各源 max=09-04，sina 显示 09-04 收盘截面，幂等无害）
+```
+
+### 文件清单（本次仅 stage 以下 3 个自有文件）
+
+```
+M quantsys-v2/infrastructure/jobs/market_style_update_job.py  （trade_date 多源锚点修复）
+?? quantsys-v2/tests/infrastructure/test_market_style_update_job.py （9 例回归防护）
+M docs/work-logs/2026-09/profit-engine-autonomy-full-flow-audit-20260903.md （§9 本记录）
+```
