@@ -159,7 +159,7 @@ export function buildView(data: HoldingsData, watchKey: string = 'current', hist
 
   ${buildHistoryCard(data, historyPage)}
 
-  ${renderWatchRules(watchRules, ctxNames, current, accounts, watchKey)}
+  ${buildWatchCardHtml(data, watchKey)}
 </div>`
 }
 
@@ -389,7 +389,9 @@ export function buildHistoryCard(data: HoldingsData, page: number): string {
 }
 
 /* ------------------------------------------------------------ watch rules */
-function renderWatchRules(watchRules: WatchRule[], ctxNames: Record<string, string>, currentAccount: string, accounts: Account[], watchKey: string): string {
+/** 构建「盯盘中心」卡 HTML（导出：切 tab 局部替换 id=dsh-hld-watch 卡根，不做整板重绘——
+ *  与历史交易卡同策略，2026-09-05；watchKey 与 buildView 语义一致：current/all/账户名） */
+export function buildWatchCard(watchRules: WatchRule[], ctxNames: Record<string, string>, currentAccount: string, accounts: Account[], watchKey: string): string {
   // 盯盘中心 = 账户归属 tab（pill 带计数）+ 列表（2026-09-05 · 对齐执行看板「调度任务 tab + 列表」）
   // 默认 tab = 本账户：当前账户归属 + 通用观察（account 为空/缺失，跨账户看板通用展示）；
   // 其余账户规则按账户 tab 查看；「全部」为全量并在归属列带徽标。
@@ -451,7 +453,7 @@ function renderWatchRules(watchRules: WatchRule[], ctxNames: Record<string, stri
       : '该账户暂无归属盯盘规则'
   const empty = list.length === 0 ? '<tr class="dsh-hld-empty"><td colspan="6">' + emptyMsg + '</td></tr>' : ''
 
-  return `<div class="dsh-hld-card">
+  return `<div class="dsh-hld-card" id="dsh-hld-watch">
   <div class="hd"><span class="t">盯盘中心（${all.length}）</span><span class="more">账户归属 tab · 默认本账户（含通用观察）· 触发后由 agent 决策，无需人工盯盘</span></div>
   <div class="dsh-hld-wtabs">${tabs.join('')}</div>
   <div class="tblwrap"><table>
@@ -459,6 +461,18 @@ function renderWatchRules(watchRules: WatchRule[], ctxNames: Record<string, stri
     ${rows}${empty}
   </table></div>
 </div>`
+}
+
+/** 由完整看板数据渲染「盯盘中心」卡（供 buildView 与 board-mount 局部刷新复用；内部自取 ctxNames/账户） */
+export function buildWatchCardHtml(data: HoldingsData, watchKey: string): string {
+  const ctxNames = namesFromContexts(data.watchRules ?? [])
+  return buildWatchCard(
+    data.watchRules ?? [],
+    ctxNames,
+    data.currentAccount ?? '',
+    (Array.isArray(data.accounts) ? data.accounts : []) as Account[],
+    watchKey,
+  )
 }
 
 /** 触发条件 → 短文本（支持新旧两种条件形状） */

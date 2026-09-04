@@ -4,7 +4,7 @@
  * @module dashboard-holdings/client/board-mount
  */
 import { ACTIVE_ATTR, ACTIVATE_EVENT, BOARD_VIEW_SELECTOR, conversationColumn, OTHER_ACTIVE_ATTRS, PANEL_NAME } from './dom.js'
-import { buildHistoryCard, buildView, HISTORY_PAGE_SIZE } from './view.js'
+import { buildHistoryCard, buildView, buildWatchCardHtml, HISTORY_PAGE_SIZE } from './view.js'
 import type { HoldingsData } from './types.js'
 
 export interface BoardController {
@@ -132,12 +132,20 @@ export function createBoardController(): BoardController {
     `
   }
 
-  // 盯盘中心 tab 切换：仅用当前数据重渲染（不重新拉取）；15s 轮询仍按所选 tab 展示
+  // 盯盘中心 tab 切换：仅用当前数据重渲染（不重新拉取）；15s 轮询仍按所选 tab 展示。
+  // 2026-09-05 局部刷新——只替换「盯盘中心」卡根（id=dsh-hld-watch），持仓/今日/历史不整板重绘
   const watchSwitch = (key: string): void => {
     const k = String(key || 'current')
     if (k === watchKey) return
     watchKey = k
-    if (lastData) renderBoard(lastData)
+    if (!lastData) return
+    const host = document.getElementById('dsh-hld-watch')
+    if (host === null) { renderBoard(lastData); return } // 兜底：找不到卡根才整板重绘
+    const tpl = document.createElement('template')
+    tpl.innerHTML = buildWatchCardHtml(lastData, watchKey)
+    const node = tpl.content.firstElementChild as HTMLElement | null
+    if (node === null) { renderBoard(lastData); return }
+    host.replaceWith(node)
   }
 
   // 历史交易翻页：页号越界自动收敛（数据随轮询增减后防止空页）；
