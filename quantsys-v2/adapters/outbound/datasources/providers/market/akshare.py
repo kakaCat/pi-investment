@@ -18,13 +18,50 @@ class AkshareMarketProvider(MarketProvider):
     def get_market_overview(self) -> Optional[MarketData]:
         """Get market overview (rise/fall counts, indices)
 
+        2026-09-05: 主源改乐咕乐股 stock_market_activity_legu——原主源
+        stock_zh_a_spot_em 依赖 82.push2.eastmoney.com，该域在当前网络
+        (系统代理 GeoIP(cn)→DIRECT 直连,IPv6 TLS 被断)必失败且重试耗 5-6s；
+        legu 走 legulegu.com 独立域，实测 0.1s 可用。spot_em 保留为兜底
+        (网络恢复后自动回退)。两者均输出 {rise, fall, unchanged, total}。
+
         Returns:
             MarketData or None if failed
         """
         try:
             import akshare as ak
 
-            # Get market overview data
+            # --- 主源：乐咕乐股 市场活跃度（item/value 两列） ---
+            # 字段: 上涨/涨停/下跌/跌停/平盘/停牌/活跃度/统计日期
+            try:
+                df = ak.stock_market_activity_legu()
+                if df is not None and not df.empty and {'item', 'value'} <= set(df.columns):
+                    kv = dict(zip(df['item'].astype(str), df['value']))
+                    try:
+                        rise = int(float(kv.get('上涨', 0)))
+                        fall = int(float(kv.get('下跌', 0)))
+                        unchanged = int(float(kv.get('平盘', 0)))
+                        suspended = int(float(kv.get('停牌', 0)))
+                        overview_data = {
+                            'rise': rise,
+                            'fall': fall,
+                            'unchanged': unchanged,
+                            # total 含停牌，接近全市场股票口径
+                            'total': rise + fall + unchanged + suspended,
+                        }
+                        return MarketData(
+                            data_type='overview',
+                            data=overview_data,
+                            source=f'{self.name}_legu',
+                            timestamp=datetime.now().isoformat()
+                        )
+                    except (TypeError, ValueError) as e:
+                        logger.warning(f"{self.name} get_market_overview legu parse failed: {e}")
+                else:
+                    logger.warning(f"{self.name} get_market_overview legu empty/format unexpected")
+            except Exception as e:
+                logger.warning(f"{self.name} get_market_overview legu failed: {e}, fallback to em spot")
+
+            # --- 兜底：东财全市场快照（原主源；82.push2 网络恢复后可用） ---
             df = ak.stock_zh_a_spot_em()
 
             if df is None or df.empty:
