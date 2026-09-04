@@ -41,6 +41,9 @@ function normalizeRunResult(raw: any): EvolutionRunResult {
   if (out.data_source === 'qv2_real') {
     out.success = out.success ?? true;
   }
+  // 引擎 qv2_real run 的 degradedReason=null（实测 2026-09-05）——schema 声明 string，
+  // null 触发 dsh 输出校验 "degraded_reason must be a string"。删除 null 键（输出省略合法）。
+  if (out.degraded_reason == null) delete out.degraded_reason;
   return out as EvolutionRunResult;
 }
 

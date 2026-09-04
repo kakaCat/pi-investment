@@ -24,6 +24,8 @@ const REAL_RUN = {
   totalVariants: 7,
   successVariants: 7,
   degradedVariants: 0,
+  // 引擎 qv2_real run 的 degradedReason 为 null（2026-09-05 curl 实测形状）
+  degradedReason: null,
   bestParams: { lookback: 15, threshold: 0.7 },
   bestMetrics: { sharpe: 1.45, maxDrawdown: -0.08 },
   fitness: 1.45,
@@ -87,6 +89,8 @@ describe('EvolutionRunTool RFC 012 P2 契约（qv2 引擎）', () => {
     expect(out.proposals).toHaveLength(1);
     expect(out.proposals[0].estimated_fitness).toBe(1.45);
     expect(out.proposals[0].params.lookback).toBe(15);
+    // 引擎 null degradedReason 不泄漏为 degraded_reason: null（schema string 校验会拒）
+    expect(out).not.toHaveProperty('degraded_reason');
   });
 
   it('引擎诚实降级 → data_source=degraded + 原因透传（无占位 proposals）', async () => {
