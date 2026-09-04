@@ -2,7 +2,7 @@
 
 > 日期：2026-09-03
 > 作者：investor（w-8366e526）
-> 状态：待用户确认分期后实施
+> 状态：P0（占位拦截）+ P1（qv2 引擎）+ P2（agent-dh 工具迁移）已实施（落位记录见 §10）；P3 收尾待办见 §10 末
 > 前置：docs/work-logs/2026-09/l4b-evolution-data-chain-audit-20260903.md（A/B 双链占位冒充实锤）
 
 ## 0. 背景与修复目标
@@ -135,3 +135,29 @@ P0 先行（当日可交付止血），P1-P2 为"完全修复"主体，P3 收尾
 - L4-B：docs/work-logs/2026-09/l4b-genome-benchmark-implementation-20260903.md
 - 上游：docs/work-logs/2026-09/profit-engine-autonomy-full-flow-audit-20260903.md
 - agent-dh 自主文档：agent-dh/docs/rfcs/005-self-evolving-agent.md
+
+## 10. 实施落位记录（P0-P2 实测，2026-09-05）
+
+> 状态流转：RFC 012 收干净 = P0（占位拦截）→ P1（qv2 引擎）→ P2（agent-dh 工具迁移）已全部实施；P3 收尾（B 链 producer、RFC 008/005 引用、work-log）在本文档外推进。
+
+| 期 | commit | 落位 | 验收证据 |
+|---|---|---|---|
+| P0 止血 | （并入 P1 前历次） | evolution 工具不再透传 aos 占位：detect 占位特征即 degraded+说明；空榜诚实文案 | 工具被调时返回 data_source=degraded，不再有 0.1-0.2 假排名 |
+| P1 引擎 | `e00d4ee4` | qv2 `StrategyEvolutionService` + 变异器 + 路由 + 仓储；ThreadPoolExecutor 并行执行腿（§3 裁决 blockquote） | curl POST /api/evolution/engine/run：15 变体 full 19.7s 落库真实 fitness；strategy 635 有 b4f5212a（full 15 行）/07598ae7（propose）真实 run |
+| P2 工具迁移 | `edd663f0` | agent-dh evolution 插件切 quantsysV2(:5001)；两工具 v2 重写；契约测试换代 | evolution-qv2-contract.test.ts 8/8 绿；plugin-schema.smoke 19/19 绿；profile 重启后 Live 调用返回 data_source=qv2_real |
+
+**P2 落位与 §5 设计的差异（裁决登记，w-8366e526）**：
+
+- **无 aos fallback**：§5 曾预期"保留 aos 作为 fallback 仅当 qv2 明确 404"。实施取消——aos 该链只剩占位语义，P0 已拦截其输出；保留 fallback 等于给"占位复辟"留后门（§0 占位退役目标）。qv2 引擎降级时返回 data_source=degraded，工具端不再有第二条腿。
+- **leaderboard 语义升级**：§5 预期"读 qv2 真实 leaderboard"（跨策略）。引擎无跨策略全量榜（每个 run 属于单一 strategy_id）；跨策略比真实 fitness 无意义（不同策略/窗口/标的不可比）。实施为**按 strategy_id 读真实进化历史**（GET /api/evolution/engine/runs，每 run 一条 fitness 最优变体行，fitness DESC）：evolution_leaderboard 从"策略之间比占位分"变为"策略自身的进化轨迹排行"——`strategy_id` 参数随之必填。真实数据时 data_source=qv2_real；全批诚实失败=degraded；无记录=empty（三者均无占位数字）。
+- **data_source 命名**：实际用 `qv2_real`（§5 预写 `qv2_real_backtest`）——短名无歧义（引擎只产真实回测 fitness，degraded 是唯一例外态）。
+- **EvolutionRunTool 参数收紧**：strategy_id + symbol + 回测窗口（start_date/end_date 缺省自动 365 天）必填语义——qv2 引擎须指定标的与窗口（无"全策略默认范围"概念）；`mode` 枚举去掉 `validate`（引擎路由仅收 full/propose，validate 是引擎内部校验语义）。
+- **client 方法**：§5 预写三方法，实际两方法——`getStrategyEvolutionRuns(strategyId, limit)` 即排行数据源（§5 的 `getStrategyLeaderboard` 无独立后端语义，不实现）。
+- **placeholder.ts / P0 测试退役**：A 链占位检测工具随 aos 数据源删除（其唯一消费者是 P0 拦截分支）；测试换代 evolution-qv2-contract.test.ts。
+
+**A 链 deprecation 状态**：agent-dh evolution 插件已完全停止消费 Agent OS（:8080）——代码级证据：`packages/evolution/src/index.ts` 无 agentOS 配置项、无 `AgentOSClient` import。Agent OS 侧 `/api/evolution` 代码保留（§8：不删 legacy），其产出不再被任何进化工具透传。调度器若仍有触发 aos evolution 的任务属 P3 清理项。
+
+**P3 剩余待办（本文档范围外推进）**：
+1. B 链账户 fitness 盘后续采接入（每日任务，8/14 断点恢复）——对象是账户行为，与策略参数进化分域（§0 修复目标：补生产者使其独立持续）。
+2. agent-dh docs/rfcs/005（自进化 Agent）与 008（验证门）中对 A 链/进化数据源的引用刷新为 qv2 真实链。
+3. 本 RFC 关联的 L4-B work-log 追加（如适用）。

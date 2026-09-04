@@ -228,7 +228,7 @@
 | learning 插件（track/analyze/distill/apply） | ③学习与④蒸馏的现成底座，distill_engine 在其上扩展规则候选库 |
 | memory / experience | 经验存储层，归因数据也写入 |
 | lifecycle（self_restart/self_finalize） | 基因组版本切换的部署与回滚机制复用（提示词变更需重启生效时） |
-| evolution 插件 | 策略参数进化的现有实现，纳入基因组统一管理 |
+| evolution 插件 | 策略参数进化的现有实现，纳入基因组统一管理（2026-09-05 起 evolution_run/leaderboard 数据源已从 Agent OS 占位切到 qv2 策略进化引擎真实回测，RFC 012 P2；与提示词基因组 L4-B 是两条独立进化链，见 RFC 012 §10） |
 | system-prompt assemble（self_system_prompt） | 提示词 section 化（constitution/evolvable）的技术基础 |
 | 方案二（盈利引擎 M0-M8） | 基因组驱动的"身体"——M1 感知、M3 择时、M4 风控是进化效果的载体 |
 
