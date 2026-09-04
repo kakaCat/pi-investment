@@ -91,6 +91,56 @@ class MarketDataService:
                 'data': None
             }
 
+    def get_market_overview(self) -> Dict[str, Any]:
+        """
+        获取市场概况（全市场涨跌家数统计）
+
+        2026-09-05 新增：report_daily 曾调用不存在的 get_market_summary()（自始静默
+        AttributeError 被吞，报告"市场概况"节永远缺失），改走
+        DataProviderManager.get_market_overview()（provider 返回涨跌家数统计 dict）。
+
+        Returns:
+            包含市场概况数据的字典
+        """
+        try:
+
+            self.logger.info("获取市场概况")
+
+            resp = self.provider_manager.get_market_overview()
+            if not resp.get('success') or resp.get('data') is None:
+                return {
+                    'success': False,
+                    'error': f'暂时无法获取市场概况: {resp.get("error", "provider 返回空")}',
+                    'data': None
+                }
+
+            payload = resp['data'].data  # MarketData.data = {'rise':.., 'fall':.., 'unchanged':.., 'total':..}
+            if not isinstance(payload, dict) or not payload:
+                return {
+                    'success': False,
+                    'error': '暂时无法获取市场概况,数据为空',
+                    'data': None
+                }
+
+            return {
+                'success': True,
+                'data': {
+                    'rise': payload.get('rise', 0),
+                    'fall': payload.get('fall', 0),
+                    'unchanged': payload.get('unchanged', 0),
+                    'total': payload.get('total', 0),
+                    'update_time': datetime.now().isoformat()
+                }
+            }
+
+        except Exception as e:
+            self.logger.error(f"获取市场概况失败: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': f'数据获取失败: {str(e)}',
+                'data': None
+            }
+
     def get_sector_fund_flow(self, period: str = "即时", limit: int = 50) -> Dict[str, Any]:
         """
         获取行业资金流向排行(直接调用第三方 API)
