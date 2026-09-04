@@ -20,7 +20,28 @@ class AkshareHKProvider:
         return 'akshare-hk'
 
     def _records(self, df) -> list:
-        return df.where(df.notna(), None).to_dict('records')
+        """DataFrame → JSON 兼容 records 列表
+
+        2026-09-05 修复：原实现 df.where(df.notna(), None).to_dict('records') 两个缺陷——
+        ① 缺 astype(object)：float 列 NaN 在 to_dict 时复活（None 被转回 nan），route 层
+        raw json.dumps 报 'Out of range float values ... nan'；② date 列（如 hist_em 的
+        '日期'）保持 datetime.date 对象无法 json 序列化。统一：先转 object 再逐值清洗
+        （nan/inf→None、date/datetime→iso str），与 market provider 的清洗惯例一致。
+        """
+        import math
+        from datetime import date, datetime
+
+        cleaned = []
+        for rec in df.astype(object).where(df.notna(), None).to_dict('records'):
+            row = {}
+            for k, v in (rec or {}).items():
+                if isinstance(v, float) and not math.isfinite(v):
+                    v = None
+                elif isinstance(v, (datetime, date)):
+                    v = v.isoformat()
+                row[k] = v
+            cleaned.append(row)
+        return cleaned
 
     def get_hk_market_overview(self) -> Optional[StockData]:
         """港股市场概览（恒生指数现货 + 港股通持股）
@@ -53,11 +74,16 @@ class AkshareHKProvider:
             return None
 
     def get_south_flow(self) -> Optional[StockData]:
-        """南向资金流向（stock_hk_fund_flow_em）"""
+        """南向资金流向（stock_hsgt_hist_em 南向资金，2026-09-05 修复）
+
+        2026-09-05 修复：上游接口 stock_hk_fund_flow_em 在现装 akshare(1.18.81) 已不存在
+        （AttributeError 被下方 except 吞掉 → 南向资金永远返回空），改走东财沪深港通历史的
+        官方南向资金序列接口 stock_hsgt_hist_em(symbol='南向资金')，语义一致且日期为 str。
+        """
         try:
             import akshare as ak
 
-            df = ak.stock_hk_fund_flow_em()
+            df = ak.stock_hsgt_hist_em(symbol="南向资金")
             if df is None or df.empty:
                 return None
 

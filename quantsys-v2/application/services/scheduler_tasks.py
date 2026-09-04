@@ -331,14 +331,20 @@ def handle_report_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
         }
 
         # 1. 市场概况
+        # 2026-09-05 修复：get_market_summary() 方法不存在（MarketDataService 从未实现，
+        # AttributeError 被下方 except 吞掉 → "市场概况"节自始永远缺失），改走真实存在的
+        # MarketDataService.get_market_overview()（全市场涨跌家数统计）。
         try:
             from application.services.market_data_service import MarketDataService
             market_service = MarketDataService()
-            market_summary = market_service.get_market_summary()
-            report_content["sections"].append({
-                "title": "市场概况",
-                "data": market_summary
-            })
+            market_summary = market_service.get_market_overview()
+            if market_summary.get("success") and market_summary.get("data"):
+                report_content["sections"].append({
+                    "title": "市场概况",
+                    "data": market_summary["data"]
+                })
+            else:
+                logger.warning(f"Failed to get market summary: {market_summary.get('error')}")
         except Exception as e:
             logger.warning(f"Failed to get market summary: {e}")
 
