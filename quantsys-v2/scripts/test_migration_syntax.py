@@ -51,15 +51,23 @@ def check_provider_manager_usage(file_path: Path) -> tuple[bool, str]:
         # 检查是否有 provider_manager 定义（类成员或局部变量）
         has_provider_manager = 'self.provider_manager' in content or 'provider_manager = get_data_provider_manager()' in content
 
-        # 检查是否有 call_akshare 调用
-        has_call_akshare = 'provider_manager.call_akshare' in content or 'self.provider_manager.call_akshare' in content
+        # 2026-09-05 语义反转：DataProviderManager 无 call_akshare 方法（调用会被
+        # try/except 吞成 AttributeError → 静默降级 NaN/stale_cache）。迁移完成态 =
+        # 使用 provider_manager.get_*() 且零 call_akshare 残留。
+        residual = []
+        for line_num, line in enumerate(content.splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith('#'):  # 注释不计
+                continue
+            if '.call_akshare(' in stripped:
+                residual.append((line_num, stripped))
 
-        if has_provider_manager and has_call_akshare:
-            return True, "✅ 使用 provider_manager"
-        elif has_provider_manager:
-            return True, "⚠️  有 provider_manager 但未使用 call_akshare"
-        else:
+        if not has_provider_manager:
             return False, "❌ 未使用 provider_manager"
+        elif residual:
+            return False, f"❌ 残留 call_akshare 调用 {len(residual)} 处（DataProviderManager 无此方法）: {residual[:3]}"
+        else:
+            return True, "✅ 已迁移到 provider_manager.get_*()，无 call_akshare 残留"
     except Exception as e:
         return False, f"错误: {e}"
 

@@ -305,17 +305,17 @@ class FinancialAnalysisService:
             self.logger.info(f"现金流分析: symbol={symbol}")
 
             try:
-                # 获取现金流量表
-                df = self.provider_manager.call_akshare('stock_cash_flow_sheet_by_report_em', symbol=symbol)
-
-                if df is None or df.empty:
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_cash_flow_sheet 并 unwrap 数据类载荷（records list）。
+                resp = self.provider_manager.get_cash_flow_sheet(symbol)
+                if not resp.get('success') or resp.get('data') is None:
                     return {
                         'success': False,
-                        'error': f'无法获取股票 {symbol} 的现金流数据',
+                        'error': f'无法获取股票 {symbol} 的现金流数据: {resp.get("error", "provider 返回空")}',
                         'data': None
                     }
 
-                cash_flow = df.to_dict('records')
+                cash_flow = resp['data'].data or []  # StockData.data = records list
 
                 return {
                     'success': True,
@@ -363,17 +363,17 @@ class FinancialAnalysisService:
             self.logger.info(f"利润表分析: symbol={symbol}")
 
             try:
-                # 获取利润表
-                df = self.provider_manager.call_akshare('stock_profit_sheet_by_report_em', symbol=symbol)
-
-                if df is None or df.empty:
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_profit_sheet 并 unwrap 数据类载荷（records list）。
+                resp = self.provider_manager.get_profit_sheet(symbol)
+                if not resp.get('success') or resp.get('data') is None:
                     return {
                         'success': False,
-                        'error': f'无法获取股票 {symbol} 的利润表数据',
+                        'error': f'无法获取股票 {symbol} 的利润表数据: {resp.get("error", "provider 返回空")}',
                         'data': None
                     }
 
-                income = df.to_dict('records')
+                income = resp['data'].data or []  # StockData.data = records list
 
                 return {
                     'success': True,
@@ -430,10 +430,19 @@ class FinancialAnalysisService:
             self.logger.info(f"质量筛选: min_roe={min_roe}, max_pe={max_pe}, limit={limit}")
 
             try:
-                # 获取A股实时行情
-                df = self.provider_manager.call_akshare('stock_zh_a_spot_em')
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_market_spot() 并 unwrap records 还原 DataFrame。
+                resp = self.provider_manager.get_market_spot()
+                if not resp.get('success') or resp.get('data') is None:
+                    return {
+                        'success': False,
+                        'error': '无法获取A股行情数据',
+                        'data': None
+                    }
 
-                if df is None or df.empty:
+                df = pd.DataFrame(resp['data'].data.get('records') or [])
+
+                if df.empty:
                     return {
                         'success': False,
                         'error': '无法获取A股行情数据',

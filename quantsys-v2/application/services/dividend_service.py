@@ -272,24 +272,31 @@ class DividendService(ServiceBase):
         try:
             pool = []
 
+            def _fetch_index(index_code: str) -> list:
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_index_constituents()（provider 内已含
+                # csindex 优先 + sina 兜底；StockData.data=[{'symbol': '600519'}, ...]）。
+                resp = self.provider_manager.get_index_constituents(index_code)
+                if not resp.get('success') or resp.get('data') is None:
+                    return []
+                records = resp['data'].data or []
+                return [str(r.get('symbol', '')).zfill(6) for r in records if r.get('symbol')]
+
             # 沪深300
             try:
-                df_hs300 = self.provider_manager.call_akshare('index_stock_cons', symbol="000300")
-                pool.extend(df_hs300["品种代码"].tolist())
+                pool.extend(_fetch_index("000300"))
             except Exception as e:
                 logger.warning(f"Failed to fetch HS300: {e}")
 
             # 创业板50
             try:
-                df_cyb50 = self.provider_manager.call_akshare('index_stock_cons', symbol="399673")
-                pool.extend(df_cyb50["品种代码"].tolist())
+                pool.extend(_fetch_index("399673"))
             except Exception as e:
                 logger.warning(f"Failed to fetch CYB50: {e}")
 
             # 科创50
             try:
-                df_kc50 = self.provider_manager.call_akshare('index_stock_cons', symbol="000688")
-                pool.extend(df_kc50["品种代码"].tolist())
+                pool.extend(_fetch_index("000688"))
             except Exception as e:
                 logger.warning(f"Failed to fetch KC50: {e}")
 

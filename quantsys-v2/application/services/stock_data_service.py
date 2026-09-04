@@ -155,19 +155,21 @@ class StockDataService:
             self.logger.info(f"获取内幕交易: symbol={symbol}")
 
             try:
-                # 获取股东增减持数据（作为内幕交易的替代）
-                df = self.provider_manager.call_akshare('stock_dzjy_hygtj', symbol=symbol)
-
-                if df is None or df.empty:
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_insider_trades()（provider 内已含 stock_inner_trade_xq
+                # 全市场拉取 + 按代码筛选逻辑，2026-09-01 修复）。
+                resp = self.provider_manager.get_insider_trades(symbol)
+                if not resp.get('success') or resp.get('data') is None:
                     return {
                         'success': False,
-                        'error': f'暂无股票 {symbol} 的内幕交易数据',
+                        'error': '内幕交易数据源暂不可用',
                         'data': None
                     }
 
-                self.logger.info(f"内幕交易数据: {len(df)} 条")
+                payload = resp['data'].data  # MarketData.data = {'symbol': ..., 'records': [...], 'total': n}
+                trades = payload.get('records') or []
 
-                trades = df.to_dict('records')
+                self.logger.info(f"内幕交易数据: {len(trades)} 条（全市场筛选后）")
 
                 return {
                     'success': True,

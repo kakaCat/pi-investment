@@ -30,17 +30,25 @@ class HKMarketDataService:
             self.logger.info("获取港股市场概览")
 
             try:
-                # 恒生指数
-                hsi_df = self.provider_manager.call_akshare('stock_hk_index_spot_em')
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_hk_market_overview()。provider 将恒指现货+港股通持股
+                # 双数据集包装为单条 record：data=[{'indices': [...], 'hk_connect': [...]}]。
+                resp = self.provider_manager.get_hk_market_overview()
+                if not resp.get('success') or resp.get('data') is None:
+                    return {
+                        'success': False,
+                        'error': f'暂时无法获取港股市场概览: {resp.get("error", "provider 返回空")}',
+                        'data': None
+                    }
 
-                # 港股通成交额
-                hk_hold_df = self.provider_manager.call_akshare('stock_hk_hold')
+                records = resp['data'].data  # StockData.data = [{'indices': [...], 'hk_connect': [...]}]
+                overview = records[0] if records else {}
 
                 return {
                     'success': True,
                     'data': {
-                        'indices': hsi_df.to_dict('records') if not hsi_df.empty else [],
-                        'hk_connect': hk_hold_df.tail(10).to_dict('records') if not hk_hold_df.empty else [],
+                        'indices': overview.get('indices') or [],
+                        'hk_connect': overview.get('hk_connect') or [],
                         'update_time': datetime.now().isoformat()
                     }
                 }
@@ -74,23 +82,31 @@ class HKMarketDataService:
             self.logger.info("获取南向资金流向")
 
             try:
-                # 南向资金流向
-                df = self.provider_manager.call_akshare('stock_hk_fund_flow_em')
-
-                if df is None or df.empty:
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_south_flow()（provider 返回全量 records，此处 tail(30) 截断）。
+                resp = self.provider_manager.get_south_flow()
+                if not resp.get('success') or resp.get('data') is None:
                     return {
                         'success': False,
                         'error': '暂无南向资金数据',
                         'data': None
                     }
 
-                self.logger.info(f"南向资金数据: {len(df)} 条")
+                records = resp['data'].data or []  # StockData.data = records list
+                if not records:
+                    return {
+                        'success': False,
+                        'error': '暂无南向资金数据',
+                        'data': None
+                    }
+
+                self.logger.info(f"南向资金数据: {len(records)} 条")
 
                 return {
                     'success': True,
                     'data': {
-                        'flow_data': df.tail(30).to_dict('records'),
-                        'total': len(df),
+                        'flow_data': records[-30:],
+                        'total': len(records),
                         'update_time': datetime.now().isoformat()
                     }
                 }
@@ -124,23 +140,31 @@ class HKMarketDataService:
             self.logger.info("获取港股人气排行")
 
             try:
-                # 港股热门排行
-                df = self.provider_manager.call_akshare('stock_hot_rank_em', symbol="港股")
-
-                if df is None or df.empty:
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_hk_hot_rank()（provider 返回全量 records，此处 head(50) 截断）。
+                resp = self.provider_manager.get_hk_hot_rank()
+                if not resp.get('success') or resp.get('data') is None:
                     return {
                         'success': False,
                         'error': '暂无港股人气数据',
                         'data': None
                     }
 
-                self.logger.info(f"港股人气数据: {len(df)} 条")
+                records = resp['data'].data or []  # StockData.data = records list
+                if not records:
+                    return {
+                        'success': False,
+                        'error': '暂无港股人气数据',
+                        'data': None
+                    }
+
+                self.logger.info(f"港股人气数据: {len(records)} 条")
 
                 return {
                     'success': True,
                     'data': {
-                        'hot_stocks': df.head(50).to_dict('records'),
-                        'total': len(df),
+                        'hot_stocks': records[:50],
+                        'total': len(records),
                         'update_time': datetime.now().isoformat()
                     }
                 }
@@ -177,10 +201,18 @@ class HKMarketDataService:
             self.logger.info(f"获取港股技术指标: symbol={symbol}")
 
             try:
-                # 港股K线数据
-                df = self.provider_manager.call_akshare('stock_hk_daily', symbol=symbol, adjust="qfq")
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_hk_daily()（provider 返回全量前复权 records，此处 tail(60) 截断）。
+                resp = self.provider_manager.get_hk_daily(symbol)
+                if not resp.get('success') or resp.get('data') is None:
+                    return {
+                        'success': False,
+                        'error': f'暂无港股 {symbol} 的技术指标数据',
+                        'data': None
+                    }
 
-                if df is None or df.empty:
+                records = resp['data'].data or []  # StockData.data = records list
+                if not records:
                     return {
                         'success': False,
                         'error': f'暂无港股 {symbol} 的技术指标数据',
@@ -188,7 +220,7 @@ class HKMarketDataService:
                     }
 
                 # 取最近数据
-                recent_data = df.tail(60).to_dict('records')
+                recent_data = records[-60:]
 
                 return {
                     'success': True,
@@ -232,17 +264,23 @@ class HKMarketDataService:
             self.logger.info(f"获取港股财务数据: symbol={symbol}")
 
             try:
-                # 港股财务指标
-                df = self.provider_manager.call_akshare('stock_financial_hk_analysis_indicator_em', symbol=symbol)
-
-                if df is None or df.empty:
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_hk_financials()（provider 返回全量 records）。
+                resp = self.provider_manager.get_hk_financials(symbol)
+                if not resp.get('success') or resp.get('data') is None:
                     return {
                         'success': False,
                         'error': f'暂无港股 {symbol} 的财务数据',
                         'data': None
                     }
 
-                financials = df.to_dict('records')
+                financials = resp['data'].data or []  # StockData.data = records list
+                if not financials:
+                    return {
+                        'success': False,
+                        'error': f'暂无港股 {symbol} 的财务数据',
+                        'data': None
+                    }
 
                 return {
                     'success': True,

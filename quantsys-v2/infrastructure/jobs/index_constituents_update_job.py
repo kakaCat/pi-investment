@@ -35,27 +35,24 @@ INDICES = {
 
 
 def _fetch_constituents(code: str) -> list:
-    """获取单个指数的成分股代码列表（裸 6 位代码）"""
+    """获取单个指数的成分股代码列表（裸 6 位代码）
+
+    2026-09-05 修复：call_akshare 方法不存在，改走
+    DataProviderManager.get_index_constituents()——逻辑已内聚到
+    AkshareIndexProvider（csindex 优先 + sina 兜底，与 job 原实现一致）。
+    """
     from adapters.outbound.datasources import get_data_provider_manager
     provider_manager = get_data_provider_manager()
 
-    # 中证系指数优先走官网
     try:
-        df = provider_manager.call_akshare('index_stock_cons_csindex', symbol=code)
-        if df is not None and not df.empty:
-            return [str(c).zfill(6) for c in df['成分券代码'].tolist()]
+        resp = provider_manager.get_index_constituents(code)
+        if not resp.get('success') or resp.get('data') is None:
+            return []
+        records = resp['data'].data or []  # StockData.data = [{'symbol': '600519'}, ...]
+        return [str(r.get('symbol', '')).zfill(6) for r in records if r.get('symbol')]
     except Exception as e:
-        logger.warning(f"csindex 获取 {code} 失败: {type(e).__name__} {str(e)[:80]}")
-
-    # fallback：新浪
-    try:
-        df = provider_manager.call_akshare('index_stock_cons_sina', symbol=code)
-        if df is not None and not df.empty:
-            return [str(c).zfill(6) for c in df['code'].tolist()]
-    except Exception as e:
-        logger.warning(f"sina 获取 {code} 失败: {type(e).__name__} {str(e)[:80]}")
-
-    return []
+        logger.warning(f"获取 {code} 成分股失败: {type(e).__name__} {str(e)[:80]}")
+        return []
 
 
 def execute(**params):

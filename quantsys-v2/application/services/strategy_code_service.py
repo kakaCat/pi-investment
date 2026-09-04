@@ -1646,43 +1646,25 @@ class StrategyCodeService:
             }
             失败返回 None
         """
-        import os
-
         try:
-            # 禁用代理（akshare 国内接口不需要代理）
-            os.environ.pop('HTTP_PROXY', None)
-            os.environ.pop('HTTPS_PROXY', None)
-            os.environ.pop('http_proxy', None)
-            os.environ.pop('https_proxy', None)
-
             # 转换为新浪格式（去掉市场后缀）
             clean_symbol = symbol.strip()
             if '.' in clean_symbol:
                 clean_symbol = clean_symbol.split('.')[0]
 
-            result = {}
+            # 2026-09-05 修复：call_akshare 方法不存在（Phase 3 已迁移至 provider 层），
+            # 改走 DataProviderManager.get_sina_financial_statements 并 unwrap 数据类载荷。
+            resp = self.provider_manager.get_sina_financial_statements(clean_symbol)
+            if not resp.get('success') or resp.get('data') is None:
+                logger.warning(f"新浪财经获取失败: {symbol} - {resp.get('error', 'provider 返回空')}（{resp.get('provider_errors', {})}）")
+                return None
 
-            # 获取利润表
-            income_df = self.provider_manager.call_akshare('stock_financial_report_sina', stock=clean_symbol, symbol='利润表')
-            if income_df is not None and not income_df.empty:
-                result['income'] = income_df.to_dict(orient='records')
-            else:
-                result['income'] = []
-
-            # 获取资产负债表
-            balance_df = self.provider_manager.call_akshare('stock_financial_report_sina', stock=clean_symbol, symbol='资产负债表')
-            if balance_df is not None and not balance_df.empty:
-                result['balance'] = balance_df.to_dict(orient='records')
-            else:
-                result['balance'] = []
-
-            # 获取现金流量表
-            cashflow_df = self.provider_manager.call_akshare('stock_financial_report_sina', stock=clean_symbol, symbol='现金流量表')
-            if cashflow_df is not None and not cashflow_df.empty:
-                result['cashflow'] = cashflow_df.to_dict(orient='records')
-            else:
-                result['cashflow'] = []
-
+            statements = resp['data'].data  # MarketData.data = {'income': [...], 'balance': [...], 'cashflow': [...]}
+            result = {
+                'income': statements.get('income') or [],
+                'balance': statements.get('balance') or [],
+                'cashflow': statements.get('cashflow') or [],
+            }
             logger.debug(f"新浪财经获取成功: {symbol}, 利润表={len(result['income'])}条, 资产负债表={len(result['balance'])}条, 现金流量表={len(result['cashflow'])}条")
 
             return result
@@ -1706,30 +1688,23 @@ class StrategyCodeService:
         Returns:
             财务指标记录列表，失败返回 None
         """
-        import os
-
         try:
-            # 禁用代理
-            os.environ.pop('HTTP_PROXY', None)
-            os.environ.pop('HTTPS_PROXY', None)
-            os.environ.pop('http_proxy', None)
-            os.environ.pop('https_proxy', None)
-
             # 转换为东方财富格式
             clean_symbol = symbol.strip()
             if '.' in clean_symbol:
                 clean_symbol = clean_symbol.split('.')[0]
 
-            # 获取财务分析指标
-            df = self.provider_manager.call_akshare('stock_financial_analysis_indicator', symbol=clean_symbol)
-
-            if df is not None and not df.empty:
-                result = df.to_dict(orient='records')
-                logger.debug(f"东方财富获取成功: {symbol}, {len(result)}条记录")
-                return result
-            else:
-                logger.debug(f"东方财富返回空数据: {symbol}")
+            # 2026-09-05 修复：call_akshare 方法不存在，改走
+            # DataProviderManager.get_financial_analysis_indicator 并 unwrap 数据类载荷。
+            resp = self.provider_manager.get_financial_analysis_indicator(clean_symbol)
+            if not resp.get('success') or resp.get('data') is None:
+                logger.debug(f"东方财富返回空数据: {symbol} - {resp.get('error', 'provider 返回空')}（{resp.get('provider_errors', {})}）")
                 return None
+
+            payload = resp['data'].data  # MarketData.data = {'records': [...], 'total': n}
+            result = payload.get('records') or []
+            logger.debug(f"东方财富获取成功: {symbol}, {len(result)}条记录")
+            return result if result else None
 
         except Exception as e:
             # 检查是否是特殊股票（ST、退市等）

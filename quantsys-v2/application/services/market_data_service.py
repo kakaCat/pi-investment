@@ -50,44 +50,39 @@ class MarketDataService:
 
             self.logger.info("获取融资融券数据")
 
-            # 获取上交所数据(无需参数,返回历史数据)
-            try:
-                df_sh = self.provider_manager.call_akshare('stock_margin_sse')
-                self.logger.info(f"上交所数据: {len(df_sh)} 行")
-            except Exception as e:
-                self.logger.warning(f"上交所数据获取失败: {e}")
-                df_sh = pd.DataFrame()
+            # 2026-09-05 修复：call_akshare 方法不存在，改走
+            # DataProviderManager.get_market_margin()（provider 已内聚 sh/sz 双市获取与截断）。
+            resp = self.provider_manager.get_market_margin()
+            if not resp.get('success') or resp.get('data') is None:
+                return {
+                    'success': False,
+                    'error': f'暂时无法获取融资融券数据: {resp.get("error", "provider 返回空")}',
+                    'data': None
+                }
 
-            # 获取深交所数据(需要指定日期)
-            try:
-                today = datetime.now().strftime("%Y%m%d")
-                df_sz = self.provider_manager.call_akshare('stock_margin_szse', date=today)
-                self.logger.info(f"深交所数据: {len(df_sz)} 行")
-            except Exception as e:
-                self.logger.warning(f"深交所数据获取失败: {e}")
-                df_sz = pd.DataFrame()
+            payload = resp['data'].data  # MarketData.data = {'sh': [...], 'sz': [...]}
+            sh_records = payload.get('sh') or []
+            sz_records = payload.get('sz') or []
 
             # 如果都失败,返回友好错误
-            if df_sh.empty and df_sz.empty:
+            if not sh_records and not sz_records:
                 return {
                     'success': False,
                     'error': '暂时无法获取融资融券数据,请稍后重试',
                     'data': None
                 }
 
-            # 合并数据(上交所返回最近30条,深交所返回当日汇总)
             result = {
                 'success': True,
                 'data': {
-                    'sh': df_sh.tail(30).to_dict('records') if not df_sh.empty else [],
-                    'sz': df_sz.to_dict('records') if not df_sz.empty else [],
+                    'sh': sh_records,
+                    'sz': sz_records,
                     'update_time': datetime.now().isoformat()
                 }
             }
 
             return result
 
-        
         except Exception as e:
             self.logger.error(f"获取融资融券数据失败: {e}", exc_info=True)
             return {
@@ -131,10 +126,19 @@ class MarketDataService:
                 }
                 indicator = indicator_map.get(period, "今日")
 
-                # 调用 akshare 接口
-                df = self.provider_manager.call_akshare('stock_sector_fund_flow_rank', indicator=indicator)
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_sector_fund_flow() 并 unwrap records 还原 DataFrame。
+                resp = self.provider_manager.get_sector_fund_flow(indicator=indicator)
+                if not resp.get('success') or resp.get('data') is None:
+                    return {
+                        'success': False,
+                        'error': '暂无行业资金流向数据',
+                        'data': None
+                    }
 
-                if df is None or df.empty:
+                df = pd.DataFrame(resp['data'].data.get('records') or [])
+
+                if df.empty:
                     return {
                         'success': False,
                         'error': '暂无行业资金流向数据',
@@ -588,29 +592,23 @@ class MarketDataService:
 
             self.logger.info("获取宏观经济数据")
 
-            # 获取主要宏观指标
+            # 2026-09-05 修复：call_akshare 方法不存在，改走
+            # DataProviderManager.get_macro_data()（provider 已内聚 GDP/CPI/PMI 获取、
+            # head/tail 截断与 NaN→None 清洗）。
             try:
-                # GDP 数据
-                gdp_df = self.provider_manager.call_akshare('macro_china_gdp')
-                # CPI 数据
-                cpi_df = self.provider_manager.call_akshare('macro_china_cpi_yearly')
-                # PMI 数据
-                pmi_df = self.provider_manager.call_akshare('macro_china_pmi_yearly')
+                resp = self.provider_manager.get_macro_data()
+                if not resp.get('success') or resp.get('data') is None:
+                    return {
+                        'success': False,
+                        'error': f'暂时无法获取宏观经济数据: {resp.get("error", "provider 返回空")}',
+                        'data': None
+                    }
 
-                # GDP数据是倒序的(最新在前),使用head获取最新数据
-                # CPI和PMI数据是正序的(最新在后),使用tail获取最新数据
-                def _sanitize(records):
-                    # 2026-08-30 修复：akshare 数据可能含 NaN，
-                    # 直接序列化会 ValueError: Out of range float values (nan)，统一清洗为 None
-                    cleaned = []
-                    for rec in records or []:
-                        cleaned.append({k: (None if isinstance(v, float) and math.isnan(v) else v) for k, v in rec.items()})
-                    return cleaned
-
+                payload = resp['data'].data  # MarketData.data = {'gdp': [...], 'cpi': [...], 'pmi': [...]}
                 result = {
-                    'gdp': _sanitize(gdp_df.head(5).to_dict('records')) if not gdp_df.empty else [],
-                    'cpi': _sanitize(cpi_df.tail(5).to_dict('records')) if not cpi_df.empty else [],
-                    'pmi': _sanitize(pmi_df.tail(5).to_dict('records')) if not pmi_df.empty else [],
+                    'gdp': payload.get('gdp') or [],
+                    'cpi': payload.get('cpi') or [],
+                    'pmi': payload.get('pmi') or [],
                 }
 
                 return {
@@ -629,7 +627,6 @@ class MarketDataService:
                     'data': None
                 }
 
-        
         except Exception as e:
             self.logger.error(f"获取宏观经济数据失败: {e}", exc_info=True)
             return {
@@ -653,19 +650,27 @@ class MarketDataService:
             self.logger.info(f"获取市场新闻: limit={limit}")
 
             try:
-                # 东方财富财经新闻
-                df = self.provider_manager.call_akshare('stock_news_em')
-
-                if df is None or df.empty:
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_market_news() 并 unwrap records。
+                resp = self.provider_manager.get_market_news()
+                if not resp.get('success') or resp.get('data') is None:
                     return {
                         'success': False,
                         'error': '暂无市场新闻数据',
                         'data': None
                     }
 
-                self.logger.info(f"市场新闻数据: {len(df)} 条")
+                all_news = resp['data'].data.get('records') or []  # MarketData.data = {'records': [...], 'total': n}
+                if not all_news:
+                    return {
+                        'success': False,
+                        'error': '暂无市场新闻数据',
+                        'data': None
+                    }
 
-                news_list = df.head(limit).to_dict('records')
+                self.logger.info(f"市场新闻数据: {len(all_news)} 条")
+
+                news_list = all_news[:limit]
 
                 return {
                     'success': True,
@@ -715,26 +720,33 @@ class MarketDataService:
             self.logger.info(f"获取指数历史: symbol={symbol}, start={start_date}, end={end_date}")
 
             try:
-                # 获取指数历史数据
-                df = self.provider_manager.call_akshare('stock_zh_index_daily', symbol=symbol)
-
-                if df is None or df.empty:
+                # 2026-09-05 修复：call_akshare 方法不存在，改走
+                # DataProviderManager.get_index_daily()（provider 返回 records，date 列已归一为 str）。
+                resp = self.provider_manager.get_index_daily(symbol)
+                if not resp.get('success') or resp.get('data') is None:
                     return {
                         'success': False,
                         'error': f'暂无指数 {symbol} 的历史数据',
                         'data': None
                     }
 
-                # 日期过滤(akshare 返回的 date 列是 datetime.date,先归一为字符串再与 str 参数比较)
-                df['date'] = df['date'].astype(str)
+                records = resp['data'].data.get('records') or []  # MarketData.data = {'records': [...], 'total': n}
+                if not records:
+                    return {
+                        'success': False,
+                        'error': f'暂无指数 {symbol} 的历史数据',
+                        'data': None
+                    }
+
+                # 日期过滤（date 列在 provider 内已 astype(str)，直接与 str 参数比较）
                 if start_date:
-                    df = df[df['date'] >= start_date]
+                    records = [r for r in records if str(r.get('date', '')) >= start_date]
                 if end_date:
-                    df = df[df['date'] <= end_date]
+                    records = [r for r in records if str(r.get('date', '')) <= end_date]
 
-                self.logger.info(f"指数历史数据: {len(df)} 条")
+                self.logger.info(f"指数历史数据: {len(records)} 条")
 
-                klines = df.to_dict('records')
+                klines = records
 
                 return {
                     'success': True,
