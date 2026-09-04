@@ -11,7 +11,7 @@
  *
  * @module dashboard-holdings/client/view
  */
-import type { Account, HoldingsData, Position, WatchRule } from './types.js'
+import type { Account, HoldingsData, Position, SchedulerTask, WatchRule } from './types.js'
 
 /* ------------------------------------------------------------------ utils */
 const esc = (s: unknown): string =>
@@ -158,6 +158,8 @@ export function buildView(data: HoldingsData, watchKey: string = 'current', hist
   ${renderTrades(data)}
 
   ${buildHistoryCard(data, historyPage)}
+
+  ${renderAutomation(data)}
 
   ${buildWatchCardHtml(data, watchKey)}
 </div>`
@@ -464,6 +466,86 @@ export function buildWatchCard(watchRules: WatchRule[], ctxNames: Record<string,
 }
 
 /** 由完整看板数据渲染「盯盘中心」卡（供 buildView 与 board-mount 局部刷新复用；内部自取 ctxNames/账户） */
+
+/* ----------------------------------------------------- account automation */
+/** 引擎任务中文名（v13/v14 定时任务，name 或 command 前缀均覆盖） */
+const AUTO_ZH: Record<string, string> = {
+  'v13-simulation-trading': '模拟交易执行', 'v13_daily_check': '模拟交易执行',
+  'v13-risk-check': '风控检查', 'v13_risk_check': '风控检查',
+  'v13-verification': '验证裁决', 'v13_verification': '验证裁决',
+  'v13-weekly-report': '每周报告', 'v13_weekly_report': '每周报告',
+  'v14-simulation-trading': '模拟交易执行', 'v14_daily_check': '模拟交易执行',
+}
+const AUTO_TAG: Record<string, { cls: string; text: string }> = {
+  success: { cls: 'ok', text: '成功' },
+  failed: { cls: 'bad', text: '失败' },
+  skipped: { cls: 'wait', text: '跳过' },
+  pending: { cls: 'on', text: '待执行' },
+  unknown: { cls: 'off', text: '未知' },
+  '': { cls: 'off', text: '从未运行' },
+}
+
+/** 5 段 cron → 中文计划（仅覆盖引擎任务常用的星期/时分类） */
+function cronZh(expr: string): string {
+  const p = String(expr ?? '').trim().split(/\s+/)
+  if (p.length !== 5) return String(expr || '—')
+  const [, hour, , , dow] = p
+  const hm = (String(hour).padStart(2, '0') || '--') + ':' + (p[0].padStart(2, '0') || '--')
+  const w = String(dow)
+  if (!w || w === '*') return '每天 ' + hm
+  if (/^\d+$/.test(w)) return '周' + '日一二三四五六'[Number(w) % 7] + ' ' + hm
+  if (/^1-5$/.test(w)) return '工作日 ' + hm
+  if (/^(0|6)(,(0|6))?$/.test(w)) return '周末 ' + hm
+  if (/^1-5$/.test(w.replace(/,/g, '-'))) return '工作日 ' + hm
+  return w + ' ' + hm
+}
+
+/** 单条引擎任务行：任务/计划/上次运行/状态/今日/下次 */
+function autoRow(t: SchedulerTask): string {
+  const zh = AUTO_ZH[String(t.name)] ?? AUTO_ZH[String(t.command)] ?? String(t.name || t.command || '?')
+  const plan = cronZh(t.scheduleExpr)
+  const st = AUTO_TAG[String(t.lastStatus ?? '')] ?? AUTO_TAG.unknown
+  const lastAt = t.lastAt ? fmtClock(t.lastAt) : '—'
+  const nextAt = t.nextRunAt ? fmtClock(t.nextRunAt) : '—'
+  const today = t.todayTriggered > 0 ? t.todaySuccess + '/' + t.todayTriggered : '—'
+  const enabled = t.enabled
+  const tagCls = enabled ? st.cls : 'off'
+  const tagText = enabled ? st.text : '未启用'
+  const tip = [String(t.name || ''), String(t.command || ''), t.lastError ? '最近错误: ' + String(t.lastError).slice(0, 120) : ''].filter(Boolean).join(' · ')
+  return `<tr title="${esc(tip)}">
+    <td><span class="dsh-hld-tag ${tagCls}">${tagText}</span></td>
+    <td>${esc(zh)}<span class="sub dim"> ${esc(t.command)}</span></td>
+    <td>${esc(plan)}</td>
+    <td class="dim">${lastAt}</td>
+    <td class="r">${today}</td>
+    <td class="dim">${nextAt}</td>
+  </tr>`
+}
+
+/**
+ * 「账户自动化流程」卡：展示当前账户归属的引擎定时任务（v13/v14 等）。
+ * 仅 strategy 引擎账户渲染；agent/user/legacy 账户无 v2 引擎任务不显示块
+ * （R-004 裁决：只有有任务的账户才出现 automation 块）。
+ * 2026-09-05：内层状态归一（外层 lastRun 假成功 → inner details 为真相）在聚合层完成。
+ */
+function renderAutomation(data: HoldingsData): string {
+  const auto = data.automation
+  if (!auto) return ''
+  // 非引擎账户 / 无任务：不渲染 automation 块（ruling ④：只有有任务的账户才显示）
+  if (!auto.engine || auto.tasks.length === 0) return ''
+  const tasks = auto.tasks
+  const watchOwn = (data.watchRules ?? []).filter((r) => r.account === auto.accountName && isActiveRule(r)).length
+  const rows = tasks.map(autoRow).join('')
+  return `<div class="dsh-hld-card dsh-hld-auto">
+  <div class="hd"><span class="t">账户自动化流程</span>
+    <span class="more">${esc(auto.displayName)} · ${tasks.length} 个引擎定时任务 · 盯盘规则 ${watchOwn} 条（见下方盯盘中心）</span></div>
+  <div class="tblwrap"><table class="dsh-hld-autotbl">
+    <tr><th>状态</th><th>任务</th><th>计划时刻</th><th>上次运行</th><th class="r">今日 成/触</th><th>下次运行</th></tr>
+    ${rows}
+  </table></div>
+</div>`
+}
+
 export function buildWatchCardHtml(data: HoldingsData, watchKey: string): string {
   const ctxNames = namesFromContexts(data.watchRules ?? [])
   return buildWatchCard(

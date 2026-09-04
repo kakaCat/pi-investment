@@ -130,6 +130,9 @@ html[data-dsh-hld-active] .dsh-hld-view { display: flex; flex-direction: column;
 .dsh-hld-tag.on   { background:#ecf5ff; color:#409eff; }
 .dsh-hld-tag.off  { background:#f4f4f5; color:#909399; }
 .dsh-hld-tag.warn, .dsh-hld-tag.trig { background:#fdf6ec; color:#e6a23c; }
+.dsh-hld-tag.ok   { background:#f0f9eb; color:#529b2e; }
+.dsh-hld-tag.bad  { background:#fef0f0; color:#f56c6c; }
+.dsh-hld-tag.wait { background:#fdf6ec; color:#e6a23c; }
 
 /* 盯盘中心：账户归属 tab（pill 带计数）+ 规则列表（2026-09-05 · 对齐执行看板调度任务 tab+列表） */
 .dsh-hld-wtabs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 18px 8px; border-bottom:1px solid #f0f0f0; }
@@ -139,6 +142,8 @@ html[data-dsh-hld-active] .dsh-hld-view { display: flex; flex-direction: column;
 .dsh-hld-wtab.act { background:#409eff; border-color:#409eff; color:#fff; font-weight:500; }
 .dsh-hld-wtab .c { font-style:normal; font-weight:600; opacity:.85; font-variant-numeric:tabular-nums; }
 .dsh-hld-wtabs + .tblwrap table { min-width:880px; }
+.dsh-hld-auto .tblwrap table { min-width:640px; }
+.dsh-hld-auto td .sub { margin-left:0; display:block; font-size:11px; }
 .dsh-hld-tag.oth { background:#f4f4f5; color:#606266; }
 .dsh-hld-card td.ctx { color:var(--dim); max-width:340px; }
 .dsh-hld-card td.cond { color:var(--body); white-space:nowrap; }

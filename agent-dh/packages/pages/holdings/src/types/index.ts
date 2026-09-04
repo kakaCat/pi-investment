@@ -5,6 +5,8 @@
 export interface Account {
   account_name: string;
   display_name: string;
+  /** 账户类型口径：strategy=引擎策略仓 / agent=AI自营仓 / user=用户主仓 / legacy=历史账户 */
+  account_type?: string;
   strategy_name: string;
   status: string;
   cash_available: number;
@@ -81,6 +83,40 @@ export interface WatchRule {
   account?: string | null;
 }
 
+/** 引擎调度任务（归一化展示形状；lastStatus 已按「内层真实执行结果」归一——
+ *  外层 scheduler lastRun.status 存在假成功：inner payload.details.details.status/error 才是真相）
+ */
+export interface SchedulerTask {
+  id: string;
+  name: string;
+  enabled: boolean;
+  /** 5 段 cron（如 "30 6 * * 1-5"） */
+  scheduleExpr: string;
+  /** payload.command（如 v13_daily_check） */
+  command: string;
+  description: string;
+  /** success/failed/skipped/pending/unknown/''（''=从未运行） */
+  lastStatus: string;
+  lastAt: string | null;
+  lastError: string;
+  nextRunAt: string | null;
+  todayTriggered: number;
+  todaySuccess: number;
+  /** 绑定的引擎策略 key（v13/v14/v15/...）；''=无策略绑定 */
+  strategy: string;
+}
+
+/** 当前账户的自动化流程概览（host 聚合时按 strategy 绑定过滤任务） */
+export interface AccountAutomation {
+  accountName: string;
+  accountType: string;
+  displayName: string;
+  strategyName: string;
+  /** 是否为引擎策略账户（strategy 型）；false=agent/user/legacy 无引擎任务 */
+  engine: boolean;
+  tasks: SchedulerTask[];
+}
+
 export interface HoldingsData {
   accounts: Account[];
   currentAccount: string;
@@ -90,6 +126,8 @@ export interface HoldingsData {
   /** 历史成交全量（同源 /api/simulation/trades，倒序；供「历史交易」分页卡） */
   tradeHistory: Trade[];
   watchRules: WatchRule[];
+  /** 当前账户的自动化流程（引擎调度任务；agent/user/legacy 账户无任务时 engine=false） */
+  automation?: AccountAutomation;
   compliance: {
     cashRatio: number; // 现金占比
     maxSingleStock: number; // 最大单股占比
