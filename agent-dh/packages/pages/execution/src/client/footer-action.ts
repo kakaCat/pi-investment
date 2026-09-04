@@ -17,7 +17,7 @@ import { createElement } from 'react'
 
 /** Panel identity shared by this client half. */
 export const PANEL_NAME = 'dashboard-execution'
-export const PANEL_LABEL = '执行看板'
+export const PANEL_LABEL = '智能执行'
 
 /** Stylesheet id tag so re-apply never double-injects. */
 const CSS_TAG = '@pi-investment/dashboard-execution/footer-action.css'

@@ -24,9 +24,9 @@ export function mountSidebarEntry(controller: EntryController): () => void {
     el.type = 'button'
     el.className = 'dsh-exec-entry'
     el.dataset.dshExecEntry = ''
-    el.setAttribute('aria-label', '执行看板')
+    el.setAttribute('aria-label', '智能执行')
     el.title = '双线执行确认看板 (dashboard-execution)'
-    el.innerHTML = ICON + '<span class="dsh-exec-entry-label">执行看板</span>'
+    el.innerHTML = ICON + '<span class="dsh-exec-entry-label">智能执行</span>'
     el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); controller.toggle() })
     return el
   }
