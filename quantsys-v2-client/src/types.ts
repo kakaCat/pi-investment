@@ -155,6 +155,8 @@ export interface WatchRule {
   created_by: string;
   created_at: string;
   updated_at: string;
+  /** 归属账户（account_name 全名，如 agent_virtual）；null=通用观察（跨账户看板展示） */
+  account?: string | null;
 }
 
 /**
@@ -580,6 +582,9 @@ export interface WatchRuleManageRequest {
   /** 过期时间 ISO 格式，如 2026-09-30T15:00:00 */
   expires_at?: string;
   created_by?: string;
+  /** 归属账户（account_name 全名，如 agent_virtual）。持仓止损/止盈等账户内规则必传；
+   *  不传=通用观察（无主候选，各账户看板均可见） */
+  account?: string;
 }
 
 /**
@@ -1036,4 +1041,67 @@ export interface StockNewsItem {
   文章来源?: string;
   新闻链接?: string;
   [key: string]: any;
+}
+
+/** 策略进化引擎请求（RFC 012 P1；POST /api/evolution/engine/run） */
+export interface EvolutionEngineRunRequest {
+  strategyId: number;
+  symbol: string;
+  startDate: string;
+  endDate: string;
+  mode?: 'full' | 'propose';
+  generations?: number;
+  initialCash?: number;
+}
+
+/** 进化结果中的单个变体提案（proposals[]） */
+export interface EvolutionEngineProposal {
+  variant?: number;
+  params?: Record<string, any>;
+  estimatedFitness?: number | null;
+  metrics?: Record<string, any> | null;
+  rationale?: string | null;
+  [key: string]: any;
+}
+
+/** 一轮进化 run 的结果（dataSource=qv2_real 真回测 / degraded 诚实降级） */
+export interface EvolutionEngineRunResult {
+  success?: boolean;
+  runId?: string;
+  strategyId?: number;
+  symbol?: string;
+  mode?: string;
+  klineWindow?: string;
+  /** qv2_real=qv2 真实回测进化 / degraded=诚实降级（无占位数字） */
+  dataSource: 'qv2_real' | 'degraded';
+  degradedReason?: string | null;
+  totalVariants?: number;
+  successVariants?: number;
+  degradedVariants?: number;
+  bestParams?: Record<string, any> | null;
+  bestMetrics?: Record<string, any> | null;
+  fitness?: number | null;
+  fitnessImprovement?: number | null;
+  proposals?: EvolutionEngineProposal[];
+  runAt?: string;
+  [key: string]: any;
+}
+
+/** 单条进化结果行（每 run 一条 = fitness 最优变体行；GET /api/evolution/engine/runs） */
+export interface EvolutionEngineRunRow {
+  runId: string;
+  strategyId: number;
+  variant?: number;
+  variantKey?: string;
+  params?: Record<string, any>;
+  fitness?: number | null;
+  metrics?: Record<string, any> | null;
+  degradedReason?: string | null;
+  computedAt?: string;
+  [key: string]: any;
+}
+
+/** GET /api/evolution/engine/runs 响应（data 部分） */
+export interface EvolutionEngineRunsResponse {
+  runs: EvolutionEngineRunRow[];
 }

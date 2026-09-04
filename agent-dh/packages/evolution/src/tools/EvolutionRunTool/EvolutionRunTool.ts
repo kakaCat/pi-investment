@@ -1,51 +1,106 @@
 import { BaseTool, ToolResponse, ValidationResult, ErrorType, sanitizeLossless } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext } from '@pi-investment/core-tool';
-import type { AgentOSClient } from '@pi-investment/agent-os-client';
+import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { evolutionRunPrompt, type EvolutionRunParams, type EvolutionRunResult } from './prompt';
-import { allFitnessArePlaceholder, textSignalsPlaceholder } from '../../placeholder';
+
+/** qv2 引擎响应 camelCase → 工具 snake_case 输出归一（RFC 012 P2，仅映射已知键） */
+function normalizeRunResult(raw: any): EvolutionRunResult {
+  if (!raw || typeof raw !== 'object') return { data_source: 'degraded', degraded_reason: 'qv2 引擎返回空响应' } as any;
+  const map: Record<string, string> = {
+    runId: 'run_id',
+    strategyId: 'strategy_id',
+    symbol: 'symbol',
+    mode: 'mode',
+    klineWindow: 'kline_window',
+    dataSource: 'data_source',
+    degradedReason: 'degraded_reason',
+    totalVariants: 'total_variants',
+    successVariants: 'success_variants',
+    degradedVariants: 'degraded_variants',
+    bestParams: 'best_params',
+    bestMetrics: 'best_metrics',
+    fitness: 'fitness',
+    fitnessImprovement: 'fitness_improvement',
+    runAt: 'run_at',
+  };
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    out[map[k] ?? k] = v;
+  }
+  // proposals 项键归一：estimatedFitness → estimated_fitness（params/metrics/rationale 不变）
+  if (Array.isArray(out.proposals)) {
+    out.proposals = out.proposals.map((p: any) => {
+      if (!p || typeof p !== 'object') return p;
+      const np: Record<string, any> = {};
+      for (const [k, v] of Object.entries(p)) {
+        np[k === 'estimatedFitness' ? 'estimated_fitness' : k] = v;
+      }
+      return np;
+    });
+  }
+  if (out.data_source === 'qv2_real') {
+    out.success = out.success ?? true;
+  }
+  return out as EvolutionRunResult;
+}
+
+function isoDaysAgo(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  const m = `${d.getMonth() + 1}`.padStart(2, '0');
+  const day = `${d.getDate()}`.padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+function todayISO(): string {
+  return isoDaysAgo(0);
+}
 
 export class EvolutionRunTool extends BaseTool<EvolutionRunParams, EvolutionRunResult> {
   protected readonly metadata: ToolMetadata = {
     name: 'evolution_run',
     category: 'evolution',
-    version: '1.1.0',
-    timeoutMs: 60000,
+    version: '2.0.0',
+    timeoutMs: 180000,
   };
 
   protected readonly prompt = evolutionRunPrompt;
 
-  constructor(private aos: AgentOSClient) {
+  constructor(private qv2: QuantsysV2Client) {
     super();
   }
 
   protected validate(params: EvolutionRunParams): ValidationResult {
-    const { strategy_id, mode, generations } = params;
+    const { strategy_id, symbol, mode, generations } = params;
 
-    // strategy_id 校验 (兼容 string/number)
-    if (strategy_id !== undefined && strategy_id !== null) {
-      const id = typeof strategy_id === 'string' ? parseInt(strategy_id, 10) : strategy_id;
-      if (isNaN(id) || id <= 0) {
-        return {
-          success: false,
-          errorType: ErrorType.INPUT_ERROR,
-          field: 'strategy_id',
-          issue: 'strategy_id 必须是正整数',
-        };
-      }
+    if (strategy_id == null || Number.isNaN(Number(strategy_id)) || Number(strategy_id) <= 0) {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'strategy_id',
+        issue: 'strategy_id 必填且必须是正整数（经 strategy_list 获取）',
+      };
     }
 
-    // mode 校验
-    if (mode && !['full', 'propose', 'validate'].includes(mode)) {
+    if (!symbol || !/^\d{6}$/.test(String(symbol))) {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'symbol',
+        issue: 'symbol 必填且必须是 6 位 A 股代码（如 600519）',
+      };
+    }
+
+    if (mode && !['full', 'propose'].includes(mode)) {
       return {
         success: false,
         errorType: ErrorType.INPUT_ERROR,
         field: 'mode',
-        issue: 'mode 必须是 full、propose 或 validate',
-        expected: 'full | propose | validate',
+        issue: 'mode 必须是 full 或 propose',
+        expected: 'full | propose',
       };
     }
 
-    // generations 校验
     if (generations !== undefined && (generations <= 0 || generations > 10)) {
       return {
         success: false,
@@ -60,52 +115,27 @@ export class EvolutionRunTool extends BaseTool<EvolutionRunParams, EvolutionRunR
   }
 
   protected async execute(params: EvolutionRunParams, context: ToolContext): Promise<EvolutionRunResult> {
-    const result: any = await this.aos.evolution.run({
-      strategy_id: params.strategy_id,
+    const endDate = params.end_date || todayISO();
+    const startDate = params.start_date || isoDaysAgo(365);
+
+    const qv2Result: any = await this.qv2.evolutionRunStrategy({
+      strategyId: Number(params.strategy_id),
+      symbol: String(params.symbol),
+      startDate,
+      endDate,
       mode: params.mode || 'propose',
-      generations: params.generations || 3,
+      generations: params.generations ?? 3,
+      initialCash: params.initial_cash ?? 1000000,
     });
 
-    const proposals: any[] = Array.isArray(result?.proposals) ? result.proposals : [];
-
-    // RFC 012 P0：占位结果拦截——Agent OS 在策略从未真实回测时用 0.05×i 阶梯
-    // 冒充适应度（rationale 自曝"基线收益 0.00%"，见 placeholder.ts）。命中即降级，
-    // 不展示占位 proposals/提升率；proposals 清空并给出原因，避免 agent 误用假参数。
-    const numericPlaceholder = proposals.length > 0
-      && allFitnessArePlaceholder(proposals.map((p: any) => p.estimated_fitness ?? p.fitness ?? p.expected_fitness));
-    const textualPlaceholder = textSignalsPlaceholder(
-      ...proposals.flatMap((p: any) => [p?.rationale, p?.action]),
-      result?.rationale,
-    );
-
-    if (numericPlaceholder || textualPlaceholder) {
-      return sanitizeLossless({
-        strategy_id: result?.strategy_id != null ? Number(result.strategy_id) : params.strategy_id,
-        mode: result?.mode ?? params.mode ?? 'propose',
-        proposals: [],
-        data_source: 'degraded',
-        degraded_reason:
-          'Agent OS 返回的进化结果为启发式占位（estimated_fitness 呈 0.05×i 阶梯，' +
-          'rationale 自曝"基线收益 0.00%"——策略从未跑过真实回测，baseline=0 触发占位逻辑）。' +
-          '占位 proposals/适应度提升已拦截不展示。真实策略进化请使用 qv2 策略进化引擎（RFC 012）。',
-      }) as EvolutionRunResult;
-    }
-
-    // 2026-08-30 修复：agent-os 返回的 strategy_id 为 string，而输出 schema 要求 number；
-    // 且 proposals/best_params 可能含 undefined 触发 lossless 校验失败。统一归一化+清洗。
-    return sanitizeLossless({
-      ...(result ?? {}),
-      strategy_id: result?.strategy_id != null ? Number(result.strategy_id) : undefined,
-      proposals: Array.isArray(result?.proposals) ? result.proposals : [],
-      data_source: 'agent_os',
-    }) as EvolutionRunResult;
+    return sanitizeLossless(normalizeRunResult(qv2Result)) as EvolutionRunResult;
   }
 
   protected wrap(data: EvolutionRunResult, context: ToolContext): ToolResponse<EvolutionRunResult> {
-    const { mode, proposals, fitness_improvement, data_source, degraded_reason } = data;
+    const { mode, proposals, fitness_improvement, data_source, degraded_reason, run_id } = data;
 
     if (data_source === 'degraded') {
-      const message = `进化不可用（data_source=degraded）：${degraded_reason || '占位结果已拦截'}`;
+      const message = `进化不可用（data_source=degraded）：${degraded_reason || 'qv2 引擎诚实降级，无真实 fitness 产出'}`;
       return {
         success: true,
         data: { ...data, proposals: [], fitness_improvement: undefined as any },
@@ -118,14 +148,12 @@ export class EvolutionRunTool extends BaseTool<EvolutionRunParams, EvolutionRunR
       };
     }
 
-    let message = `进化模式: ${mode} (data_source=${data_source})`;
+    let message = `进化完成（data_source=qv2_real）`;
 
-    if (proposals && proposals.length > 0) {
-      message += `, 生成 ${proposals.length} 个改进建议`;
-    }
-
-    if (fitness_improvement !== undefined) {
-      message += `, 适应度提升 ${fitness_improvement.toFixed(2)}%`;
+    if (run_id) message += `，批次 ${run_id}`;
+    if (proposals && proposals.length > 0) message += `，生成 ${proposals.length} 个改进建议`;
+    if (fitness_improvement !== undefined && fitness_improvement !== null) {
+      message += `，最优相对 base 提升 ${Number(fitness_improvement).toFixed(2)}%`;
     }
 
     return {
@@ -133,7 +161,9 @@ export class EvolutionRunTool extends BaseTool<EvolutionRunParams, EvolutionRunR
       data,
       message,
       metadata: {
+        data_source,
         mode,
+        run_id,
         proposal_count: proposals?.length || 0,
         fitness_improvement,
       },

@@ -66,6 +66,9 @@ import type {
   MarginDay,
   LimitUpRecord,
   StockNewsItem,
+  EvolutionEngineRunRequest,
+  EvolutionEngineRunResult,
+  EvolutionEngineRunsResponse,
 } from './types.js';
 
 /**
@@ -706,8 +709,10 @@ export class QuantsysV2Client {
    * Real endpoint: GET /api/watch/rules
    * Response: {success, rules: [...]} - key is 'rules' not 'data'
    */
-  async listWatchRules(): Promise<WatchRule[]> {
-    const response = await this.client.get('/api/watch/rules');
+  async listWatchRules(account?: string): Promise<WatchRule[]> {
+    // account：只看该账户归属 + 通用观察（account IS NULL）的规则；不传=全部
+    const suffix = account ? `?account=${encodeURIComponent(account)}` : '';
+    const response = await this.client.get(`/api/watch/rules${suffix}`);
     return this.unwrap<WatchRule[]>(response.data, 'listWatchRules');
   }
 
@@ -1743,5 +1748,28 @@ export class QuantsysV2Client {
     const response = await this.client.get('/api/provider/trading-calendar')
       .catch((e: any) => ({ data: { success: false, error: e.message } }));
     return response.data;
+  }
+
+  // ==================== 策略进化引擎（RFC 012 P1，qv2 真实回测） ====================
+
+  /**
+   * 跑一轮真实回测进化（参数网格 → 逐变体回测 → 同批 fitness 归一 → 落库）
+   * Real endpoint: POST /api/evolution/engine/run
+   * 请求/响应均为 camelCase；dataSource=qv2_real（真回测）| degraded（诚实降级，无占位数字）
+   */
+  async evolutionRunStrategy(request: EvolutionEngineRunRequest): Promise<EvolutionEngineRunResult> {
+    const response = await this.client.post('/api/evolution/engine/run', request);
+    return this.unwrap<EvolutionEngineRunResult>(response.data, 'evolutionRunStrategy');
+  }
+
+  /**
+   * 策略最近进化结果行（每 run 一条 = fitness 最优变体行；leaderboard 数据源）
+   * Real endpoint: GET /api/evolution/engine/runs?strategy_id=&limit=
+   */
+  async getStrategyEvolutionRuns(strategyId: number, limit = 50): Promise<EvolutionEngineRunsResponse> {
+    const response = await this.client.get('/api/evolution/engine/runs', {
+      params: { strategy_id: strategyId, limit },
+    });
+    return this.unwrap<EvolutionEngineRunsResponse>(response.data, 'getStrategyEvolutionRuns');
   }
 }
