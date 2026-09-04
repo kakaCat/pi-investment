@@ -244,16 +244,18 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-tb .tm, .dsh-exec-tb .nx { color:var(--dim); font-size:12px; }
 .dsh-exec-tb .td { color:var(--body); font-size:12px; }
 
-/* 调度任务：分页条（2026-09-05 用户要求） */
-.dsh-exec-tkpg { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:10px 2px 0; }
-.dsh-exec-tkpg .tpg-arr, .dsh-exec-tkpg .tpg-num { appearance:none; border:1px solid var(--line); background:#fff;
-  color:var(--body); font:inherit; font-size:12px; padding:3px 11px; border-radius:6px; cursor:pointer; transition:all .12s; }
-.dsh-exec-tkpg .tpg-arr:hover:not(:disabled), .dsh-exec-tkpg .tpg-num:hover { border-color:#b3d8ff; color:#1d6fe0; }
-.dsh-exec-tkpg .tpg-arr:disabled { opacity:.5; cursor:default; color:var(--faint); }
-.dsh-exec-tkpg .tpg-num.act { background:#409eff; border-color:#409eff; color:#fff; font-weight:500; }
-.dsh-exec-tkpg .tpg-nums { display:inline-flex; gap:5px; align-items:center; }
-.dsh-exec-tkpg .tpg-gap { color:var(--faint); padding:0 1px; }
-.dsh-exec-tkpg .tpg-cnt { margin-left:auto; color:var(--faint); font-size:11.5px; font-variant-numeric:tabular-nums; }
+/* 调度任务：一体卡片 + 表底分页条（2026-09-05 v2 · 观感对齐 holdings「历史交易」分页） */
+.dsh-exec-tkcard { border:1px solid var(--line); border-radius:8px; background:#fff; overflow:hidden; }
+.dsh-exec-tkcard .dsh-exec-tbwrap { border:none; border-radius:0; }
+.dsh-exec-tkpg { display:flex; align-items:center; gap:8px; padding:9px 14px; border-top:1px solid #ebeef5; flex-wrap:wrap; }
+.dsh-exec-tkpg .tpg-arr, .dsh-exec-tkpg .tpg-num { min-width:26px; height:24px; padding:0 9px; border:1px solid #dcdfe6;
+  border-radius:4px; background:#fff; color:#606266; font-size:12px; line-height:22px; cursor:pointer; font-family:inherit; }
+.dsh-exec-tkpg .tpg-arr:hover:not(:disabled), .dsh-exec-tkpg .tpg-num:hover { border-color:#409eff; color:#409eff; }
+.dsh-exec-tkpg .tpg-arr:disabled { color:#c0c4cc; background:#f5f7fa; cursor:not-allowed; }
+.dsh-exec-tkpg .tpg-num.act { background:#409eff; border-color:#409eff; color:#fff; }
+.dsh-exec-tkpg .tpg-nums { display:inline-flex; gap:4px; align-items:center; }
+.dsh-exec-tkpg .tpg-gap { padding:0 2px; color:#c0c4cc; }
+.dsh-exec-tkpg .tpg-cnt { margin-left:auto; font-size:12px; color:#909399; white-space:nowrap; font-variant-numeric:tabular-nums; }
 
 /* 错误事件 / 阻断 */
 .dsh-exec-errs { list-style:none; margin:0; padding:0; }

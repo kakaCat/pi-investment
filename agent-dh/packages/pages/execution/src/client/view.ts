@@ -351,7 +351,7 @@ export function setTaskPage(p: number): void { taskPage = p > 0 ? Math.trunc(p) 
 function pageIndexOf(index: number): number { return Math.floor(index / TASK_PAGE_SIZE) + 1 }
 function pagerHtml(page: number, total: number, count: number): string {
   const num = (p: number): string =>
-    '<button type="button" class="tpg-num' + (p === page ? ' act' : '') + '" data-tkpage="' + p + '">' + p + '</button>'
+    '<button type="button" class="tpg-num' + (p === page ? ' act' : '') + '"' + (p === page ? ' aria-current="page"' : '') + ' data-tkpage="' + p + '">' + p + '</button>'
   const nums: string[] = []
   if (total <= 7) { for (let i = 1; i <= total; i++) nums.push(num(i)) }
   else {
@@ -370,7 +370,7 @@ function pagerHtml(page: number, total: number, count: number): string {
   return '<button type="button" class="tpg-arr" data-tkpage="' + (page - 1) + '"' + (page <= 1 ? ' disabled' : '') + '>‹ 上一页</button>' +
     '<span class="tpg-nums">' + nums.join('') + '</span>' +
     '<button type="button" class="tpg-arr" data-tkpage="' + (page + 1) + '"' + (page >= total ? ' disabled' : '') + '>下一页 ›</button>' +
-    '<span class="tpg-cnt">共 ' + count + ' 条 · 第 ' + page + ' / ' + total + ' 页</span>'
+    '<span class="tpg-cnt">第 ' + page + '/' + total + ' 页 · 共 ' + count + ' 条</span>'
 }
 
 /** 归一 lastRun：字符串可能是 ISO 时间或状态词；对象含 triggeredAt/status/error */
@@ -487,10 +487,10 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
   const selTask = selTaskName === null ? null : view.find((t) => String(t.name) === selTaskName)
   refs.tasksBox.innerHTML = hint +
     '<div class="dsh-exec-tabs">' + tabs.join('') + '</div>' +
-    '<div class="dsh-exec-tbwrap"><table class="dsh-exec-tb"><thead><tr>' +
+    '<div class="dsh-exec-tkcard"><div class="dsh-exec-tbwrap"><table class="dsh-exec-tb"><thead><tr>' +
     '<th>任务</th><th>计划时刻</th><th>状态</th><th>上次运行</th><th>今日</th><th>下次运行</th></tr></thead>' +
     '<tbody>' + (rows || '<tr class="empty"><td colspan="6">该分类下暂无任务</td></tr>') + '</tbody></table></div>' +
-    pager +
+    pager + '</div>' +
     (selTask ? '<div class="dsh-exec-tkdetail">' + taskDetailHtml(selTask) + '</div>' : '')
 }
 
