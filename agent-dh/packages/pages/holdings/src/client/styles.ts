@@ -131,21 +131,15 @@ html[data-dsh-hld-active] .dsh-hld-view { display: flex; flex-direction: column;
 .dsh-hld-tag.off  { background:#f4f4f5; color:#909399; }
 .dsh-hld-tag.warn, .dsh-hld-tag.trig { background:#fdf6ec; color:#e6a23c; }
 
-/* 盯盘中心统计 */
-.dsh-hld-watchsum { display:grid; grid-template-columns:repeat(5,1fr); border-bottom:1px solid var(--line); }
-.dsh-hld-watchsum .ws { padding:12px 16px; text-align:center; }
-.dsh-hld-watchsum .ws + .ws { border-left:1px solid var(--line); }
-.dsh-hld-watchsum .v { font-size:20px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
-.dsh-hld-watchsum .v.ok { color:#67c23a; }
-.dsh-hld-watchsum .v.warn { color:#e6a23c; }
-.dsh-hld-watchsum .v.accent { color:#409eff; }
-
-/* 盯盘分组标题行（本账户 / 通用观察） */
-.dsh-hld-card tr.dsh-hld-wg td { background:#fafbfc; padding:5px 14px; font-size:11px; color:var(--dim); border-bottom:1px solid var(--line); }
-.dsh-hld-wg .lab { color:#409eff; font-weight:600; letter-spacing:.5px; }
-.dsh-hld-wg .cnt { color:var(--dim); margin-left:8px; font-weight:400; }
-.dsh-hld-hide-note { padding:8px 18px 0; color:var(--faint); font-size:11px; }
-.dsh-hld-watchsum .n { font-size:11px; color:var(--dim); margin-top:1px; }
+/* 盯盘中心：账户归属 tab（pill 带计数）+ 规则列表（2026-09-05 · 对齐执行看板调度任务 tab+列表） */
+.dsh-hld-wtabs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 18px 8px; border-bottom:1px solid #f0f0f0; }
+.dsh-hld-wtab { appearance:none; display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); background:#fff;
+  color:var(--body); font:inherit; font-size:12px; padding:3px 13px; border-radius:999px; cursor:pointer; transition:all .15s; }
+.dsh-hld-wtab:hover { border-color:#b3d8ff; color:#1d6fe0; background:#f7fbff; }
+.dsh-hld-wtab.act { background:#409eff; border-color:#409eff; color:#fff; font-weight:500; }
+.dsh-hld-wtab .c { font-style:normal; font-weight:600; opacity:.85; font-variant-numeric:tabular-nums; }
+.dsh-hld-wtabs + .tblwrap table { min-width:880px; }
+.dsh-hld-tag.oth { background:#f4f4f5; color:#606266; }
 .dsh-hld-card td.ctx { color:var(--dim); max-width:340px; }
 .dsh-hld-card td.cond { color:var(--body); white-space:nowrap; }
 .cond-up { color:var(--up); font-weight:600; }

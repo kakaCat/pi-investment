@@ -14,11 +14,14 @@ export interface BoardController {
   getSnapshot(): { boardOpen: boolean }
   refresh(): void
   switchAccount(accountName: string): void
+  watchSwitch(key: string): void
 }
 
 export function createBoardController(): BoardController {
   let boardOpen = false
   let currentAccount = 'agent_virtual'
+  let watchKey = 'current' // 盯盘中心当前 tab（'current'=默认本账户）
+  let lastData: HoldingsData | undefined
   let pollTimer: number | undefined
 
   const open = (): void => {
@@ -64,6 +67,7 @@ export function createBoardController(): BoardController {
   const switchAccount = (accountName: string): void => {
     console.log('[dashboard-holdings] switching account to', accountName)
     currentAccount = accountName
+    watchKey = 'current' // 切换账户后盯盘中心默认回到新账户的「本账户」tab
     fetchAndRender(accountName)
   }
 
@@ -100,10 +104,11 @@ export function createBoardController(): BoardController {
   }
 
   const renderBoard = (data: HoldingsData): void => {
+    lastData = data
     const view = document.querySelector(BOARD_VIEW_SELECTOR)
     if (!view) return
 
-    view.innerHTML = buildView(data)
+    view.innerHTML = buildView(data, watchKey)
   }
 
   const renderError = (message: string): void => {
@@ -124,6 +129,14 @@ export function createBoardController(): BoardController {
     `
   }
 
+  // 盯盘中心 tab 切换：仅用当前数据重渲染（不重新拉取）；15s 轮询仍按所选 tab 展示
+  const watchSwitch = (key: string): void => {
+    const k = String(key || 'current')
+    if (k === watchKey) return
+    watchKey = k
+    if (lastData) renderBoard(lastData)
+  }
+
   return {
     openBoard: open,
     closeBoard: close,
@@ -131,6 +144,7 @@ export function createBoardController(): BoardController {
     getSnapshot: () => ({ boardOpen }),
     refresh,
     switchAccount,
+    watchSwitch,
   }
 }
 
@@ -161,6 +175,7 @@ export function mountBoard(controller: BoardController): () => void {
   // Wire global callbacks for view interactions
   ;(window as any).__dshHldRefresh = () => controller.refresh()
   ;(window as any).__dshHldSwitchAccount = (accountName: string) => controller.switchAccount(accountName)
+  ;(window as any).__dshHldWatchTab = (key: string) => controller.watchSwitch(String(key))
 
   // Listen for other panels' activation to auto-close
   const onOtherActivate = (event: Event): void => {
@@ -189,6 +204,7 @@ export function mountBoard(controller: BoardController): () => void {
     if (container !== undefined) container.remove()
     delete (window as any).__dshHldRefresh
     delete (window as any).__dshHldSwitchAccount
+    delete (window as any).__dshHldWatchTab
     console.log('[dashboard-holdings] board unmounted')
   }
 }

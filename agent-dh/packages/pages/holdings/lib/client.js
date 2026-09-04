@@ -4,32 +4,32 @@ window.__ModuleLoader__.load({
 			var module = { exports: {} };
 			var exports = module.exports;
 			Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-		Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});let e=require("react");const t=`[data-dsh-hld-view]`,n=`data-dsh-hld-active`,r=[`data-dsh-atb-active`,`data-dsh-taskboard-active`,`data-dsh-ssh-active`,`data-dsh-exec-active`],i=`dsh-panel-activate`;function a(){return document.querySelector(`[data-pane="conversation"], [class*="centerCol"], .dshDesktopConversationSurface`)??void 0}const o=e=>String(e??``).replace(/[&<>"']/g,e=>({"&":`&amp;`,"<":`&lt;`,">":`&gt;`,'"':`&quot;`,"'":`&#39;`})[e]??e),s=(e,t=2)=>(Number.isFinite(Number(e))?Number(e):0).toLocaleString(`zh-CN`,{minimumFractionDigits:t,maximumFractionDigits:t}),c=e=>{let t=Number(e)||0;return(t>0?`+`:``)+t.toLocaleString(`zh-CN`,{maximumFractionDigits:2})},l=e=>{let t=Number(e)||0;return(t>0?`+`:``)+t.toFixed(2)+`%`},u=e=>{let t=Number(e)||0;return t>1e-4?`up`:t<-1e-4?`down`:`flat`},d=e=>{if(!e)return`—`;let t=new Date(e);if(Number.isNaN(t.getTime()))return String(e).slice(11,19);let n=e=>String(e).padStart(2,`0`);return n(t.getMonth()+1)+`-`+n(t.getDate())+` `+n(t.getHours())+`:`+n(t.getMinutes())},f=e=>{let t=e.context;if(typeof t==`string`)return t;try{return JSON.stringify(t??``)}catch{return``}},p={600519:`贵州茅台`,"000858":`五粮液`,"000568":`泸州老窖`,600809:`山西汾酒`,600600:`青岛啤酒`,601288:`农业银行`,601398:`工商银行`,601939:`建设银行`,601988:`中国银行`,600036:`招商银行`,"000001":`平安银行`,6e5:`浦发银行`,601166:`兴业银行`,600016:`民生银行`,601328:`交通银行`,601318:`中国平安`,601601:`中国太保`,601628:`中国人寿`,600030:`中信证券`,601688:`华泰证券`,600900:`长江电力`,601857:`中国石油`,600028:`中国石化`,601088:`中国神华`,600019:`宝钢股份`,600585:`海螺水泥`,601668:`中国建筑`,601390:`中国中铁`,601766:`中国中车`,600104:`上汽集团`,601633:`长城汽车`,601238:`广汽集团`,"000333":`美的集团`,"000651":`格力电器`,600690:`海尔智家`,300750:`宁德时代`,"002594":`比亚迪`,601012:`隆基绿能`,600438:`通威股份`,"002460":`赣锋锂业`,600276:`恒瑞医药`,603259:`药明康德`,"000538":`云南白药`,300760:`迈瑞医疗`,"002415":`海康威视`,"000063":`中兴通讯`,"002230":`科大讯飞`,"002475":`立讯精密`,"002241":`歌尔股份`,688981:`中芯国际`,688111:`金山办公`,603986:`兆易创新`,"002049":`紫光国微`,300782:`卓胜微`,"002371":`北方华创`,688012:`中微公司`,"002463":`沪电股份`,"002815":`崇达技术`,"002050":`三花智控`,"000807":`云铝股份`,601138:`工业富联`,"002352":`顺丰控股`,601888:`中国中免`,"000725":`京东方A`,"002714":`牧原股份`,300498:`温氏股份`,601111:`中国国航`,600029:`南方航空`,600150:`中国船舶`,601989:`中国重工`,600893:`航发动力`,"002179":`中航光电`,300059:`东方财富`,600031:`三一重工`};function m(e){let t={};for(let n of e){let e=f(n),r=/([\u4e00-\u9fa5]{2,10})\s*\(?0*(\d{6})\)?/g,i;for(;(i=r.exec(e))!==null;)t[i[2]]=i[1]}return t}function h(e,t){if(!e)return`—`;let n=String(e).replace(/\D/g,``).slice(-6);return p[n]??t[n]??n}const g=e=>String(e??``).replace(/\D/g,``);function _(e){return/^(30|68)/.test(e)?-.1:-.08}function v(e){let t=e.summary??{},n=Array.isArray(e.accounts)?e.accounts:[],r=e.currentAccount??``,i=Array.isArray(e.positions)?e.positions:[],a=Array.isArray(e.watchRules)?e.watchRules:[],s=m(a),c=a.filter(e=>{let t=e.account;return t==null||t===``||t===r}),l=n.length>1?`<div class="dsh-hld-acct">
+		Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});let e=require("react");const t=`[data-dsh-hld-view]`,n=`data-dsh-hld-active`,r=[`data-dsh-atb-active`,`data-dsh-taskboard-active`,`data-dsh-ssh-active`,`data-dsh-exec-active`],i=`dsh-panel-activate`;function a(){return document.querySelector(`[data-pane="conversation"], [class*="centerCol"], .dshDesktopConversationSurface`)??void 0}const o=e=>String(e??``).replace(/[&<>"']/g,e=>({"&":`&amp;`,"<":`&lt;`,">":`&gt;`,'"':`&quot;`,"'":`&#39;`})[e]??e),s=(e,t=2)=>(Number.isFinite(Number(e))?Number(e):0).toLocaleString(`zh-CN`,{minimumFractionDigits:t,maximumFractionDigits:t}),c=e=>{let t=Number(e)||0;return(t>0?`+`:``)+t.toLocaleString(`zh-CN`,{maximumFractionDigits:2})},l=e=>{let t=Number(e)||0;return(t>0?`+`:``)+t.toFixed(2)+`%`},u=e=>{let t=Number(e)||0;return t>1e-4?`up`:t<-1e-4?`down`:`flat`},d=e=>{if(!e)return`—`;let t=new Date(e);if(Number.isNaN(t.getTime()))return String(e).slice(11,19);let n=e=>String(e).padStart(2,`0`);return n(t.getMonth()+1)+`-`+n(t.getDate())+` `+n(t.getHours())+`:`+n(t.getMinutes())},f=e=>{let t=e.context;if(typeof t==`string`)return t;try{return JSON.stringify(t??``)}catch{return``}},p={600519:`贵州茅台`,"000858":`五粮液`,"000568":`泸州老窖`,600809:`山西汾酒`,600600:`青岛啤酒`,601288:`农业银行`,601398:`工商银行`,601939:`建设银行`,601988:`中国银行`,600036:`招商银行`,"000001":`平安银行`,6e5:`浦发银行`,601166:`兴业银行`,600016:`民生银行`,601328:`交通银行`,601318:`中国平安`,601601:`中国太保`,601628:`中国人寿`,600030:`中信证券`,601688:`华泰证券`,600900:`长江电力`,601857:`中国石油`,600028:`中国石化`,601088:`中国神华`,600019:`宝钢股份`,600585:`海螺水泥`,601668:`中国建筑`,601390:`中国中铁`,601766:`中国中车`,600104:`上汽集团`,601633:`长城汽车`,601238:`广汽集团`,"000333":`美的集团`,"000651":`格力电器`,600690:`海尔智家`,300750:`宁德时代`,"002594":`比亚迪`,601012:`隆基绿能`,600438:`通威股份`,"002460":`赣锋锂业`,600276:`恒瑞医药`,603259:`药明康德`,"000538":`云南白药`,300760:`迈瑞医疗`,"002415":`海康威视`,"000063":`中兴通讯`,"002230":`科大讯飞`,"002475":`立讯精密`,"002241":`歌尔股份`,688981:`中芯国际`,688111:`金山办公`,603986:`兆易创新`,"002049":`紫光国微`,300782:`卓胜微`,"002371":`北方华创`,688012:`中微公司`,"002463":`沪电股份`,"002815":`崇达技术`,"002050":`三花智控`,"000807":`云铝股份`,601138:`工业富联`,"002352":`顺丰控股`,601888:`中国中免`,"000725":`京东方A`,"002714":`牧原股份`,300498:`温氏股份`,601111:`中国国航`,600029:`南方航空`,600150:`中国船舶`,601989:`中国重工`,600893:`航发动力`,"002179":`中航光电`,300059:`东方财富`,600031:`三一重工`};function m(e){let t={};for(let n of e){let e=f(n),r=/([\u4e00-\u9fa5]{2,10})\s*\(?0*(\d{6})\)?/g,i;for(;(i=r.exec(e))!==null;)t[i[2]]=i[1]}return t}function h(e,t){if(!e)return`—`;let n=String(e).replace(/\D/g,``).slice(-6);return p[n]??t[n]??n}const g=e=>String(e??``).replace(/\D/g,``);function _(e){return/^(30|68)/.test(e)?-.1:-.08}function v(e,t=`current`){let n=e.summary??{},r=Array.isArray(e.accounts)?e.accounts:[],i=e.currentAccount??``,a=Array.isArray(e.positions)?e.positions:[],s=Array.isArray(e.watchRules)?e.watchRules:[],c=m(s),l=s.filter(e=>{let t=e.account;return t==null||t===``||t===i}),u=r.length>1?`<div class="dsh-hld-acct">
 		         <label for="dsh-hld-account-switch">账户</label>
 		         <select id="dsh-hld-account-switch"
 		           onchange="window.__dshHldSwitchAccount && window.__dshHldSwitchAccount(this.value)">
-		           ${n.map(e=>`<option value="${o(e.account_name)}" ${e.account_name===r?`selected`:``}>${o(e.display_name||e.account_name)}（${e.positions_count??0} 仓）</option>`).join(``)}
+		           ${r.map(e=>`<option value="${o(e.account_name)}" ${e.account_name===i?`selected`:``}>${o(e.display_name||e.account_name)}（${e.positions_count??0} 仓）</option>`).join(``)}
 		         </select>
-		       </div>`:``,u=t.lastUpdated?d(t.lastUpdated):`—`,f=t.totalValue?t.dailyChange/(t.totalValue-t.dailyChange)*100:0;return`<div class="dsh-hld-board">
+		       </div>`:``,f=n.lastUpdated?d(n.lastUpdated):`—`,p=n.totalValue?n.dailyChange/(n.totalValue-n.dailyChange)*100:0;return`<div class="dsh-hld-board">
 		  <div class="dsh-hld-topbar">
 		    <div class="dsh-hld-title">
 		      <h1>账户持仓看板</h1>
 		      <div class="sub">只读监控 · 交易操作由 agent 执行</div>
 		    </div>
 		    <div class="dsh-hld-tools">
-		      ${l}
-		      <div class="dsh-hld-updated">更新于 <b>${o(u)}</b></div>
+		      ${u}
+		      <div class="dsh-hld-updated">更新于 <b>${o(f)}</b></div>
 		      <button type="button" class="dsh-hld-refresh" onclick="window.__dshHldRefresh && window.__dshHldRefresh()">↻ 刷新</button>
 		    </div>
 		  </div>
 		
-		  ${y(t,f,e)}
+		  ${y(n,p,e)}
 		
-		  ${b(i,s,c)}
+		  ${b(a,c,l)}
 		
 		  ${S(e)}
 		
-		  ${C(a,s,r)}
+		  ${C(s,c,i,r,t)}
 		</div>`}function y(e,t,n){let r=u(e.dailyChange),i=u(e.totalPnl),a=Number(n.compliance?.cashRatio??(e.totalValue?e.cash/e.totalValue*100:0)),o=Number(n.compliance?.maxSingleStock??0),d=Number(n.compliance?.maxIndustry??0),f=Number(n.compliance?.maxDrawdown60d??0),p=(n.positions??[]).filter(e=>Number(e.profitLossPct)<=_(e.symbol)+1).length,m=(e,t,n=!1)=>`<span class="dsh-hld-chip ${e?`ok`:n?`warn`:`bad`}">${t} ${e?`✅`:`⚠️`}</span>`;return`<div class="dsh-hld-summary">
 		  <div class="dsh-hld-sum-top">
 		    <div class="dsh-hld-sum-pnl">
@@ -90,28 +90,21 @@ window.__ModuleLoader__.load({
 		    <tr><th>方向</th><th>股票</th><th class="r">成交价</th><th class="r">金额</th><th>理由</th><th>状态</th><th>时间</th></tr>
 		    ${a}
 		  </table></div>
-		</div>`}function C(e,t,n){let r=e.filter(e=>{let t=e.account;return t==null||t===``||t===n}),i=r.filter(e=>e.account===n),a=r.filter(e=>e.account!==n),s=e.length-r.length,c=r.filter(e=>e.enabled),l=r.length-c.length,u=new Set(r.map(e=>g(e.symbol))),d=e=>{let n=f(e),r=n.replace(/\s+/g,` `).trim(),i=(e.conditions??[]).map(w).filter(Boolean),a=i.slice(0,3).join(` <span class="dim">·</span> `)+(i.length>3?` <span class="dim">+`+(i.length-3)+`</span>`:``),s=T(n);return`<tr>
-		        <td><span class="sec-name">${o(h(e.symbol,t))}</span> <span class="sec-code">${o(g(e.symbol))}</span></td>
-		        <td><span class="dsh-hld-tag ${s.cls}">${s.text}</span></td>
-		        <td class="cond">${a||`<span class="dim">—</span>`}</td>
-		        <td>${e.enabled?`<span class="dsh-hld-tag on">监控中</span>`:`<span class="dsh-hld-tag off">已停用</span>`}</td>
-		        <td class="ctx" title="${o(r.slice(0,400))}">${o(r.slice(0,44))}${r.length>44?`…`:``}</td>
-		      </tr>`},p=(e,t)=>`<tr class="dsh-hld-wg"><td colspan="5"><span class="lab">${o(e)}</span><span class="cnt">${t} 条</span></td></tr>`,m=(i.length?p(`本账户`,i.length)+i.map(d).join(``):``)+(a.length?p(`通用观察`,a.length)+a.map(d).join(``):``),_=r.length>0?`盯盘中心（本账户 ${i.length} · 通用观察 ${a.length}）`:`盯盘中心`,v=r.length>0?`<div class="dsh-hld-watchsum">
-		    <div class="ws"><div class="v accent">${i.length}</div><div class="n">本账户</div></div>
-		    <div class="ws"><div class="v">${a.length}</div><div class="n">通用观察</div></div>
-		    <div class="ws"><div class="v ok">${c.length}</div><div class="n">监控中</div></div>
-		    <div class="ws"><div class="v warn">${l.length}</div><div class="n">已停用</div></div>
-		    <div class="ws"><div class="v">${u.size}</div><div class="n">覆盖标的</div></div>
-		  </div>`:``,y=s>0?`<div class="dsh-hld-hide-note">其余账户的 ${s} 条盯盘规则不在本账户视图（本视图 = 本账户 + 通用观察）</div>`:``,b=r.length===0?`<div class="dsh-hld-emptybox">本账户暂无盯盘规则 — 开仓后 agent 会自动挂上止损/止盈盯盘（无主候选观察归入通用观察）</div>`:``;return`<div class="dsh-hld-card">
-		  <div class="hd"><span class="t">${_}</span><span class="more">按账户归属展示 · 触发后由 agent 决策，无需人工盯盘</span></div>
-		  ${v}
-		  ${y}
-		  ${b}
-		  ${b?``:`<div class="tblwrap"><table>
-		    <tr><th>股票</th><th>方向</th><th>触发条件</th><th>状态</th><th>监控摘要</th></tr>
-		    ${m}
-		  </table></div>`}
-		</div>`}function w(e){let t=e.params;if(e.type===`price_break`||String(e.operator||``).toLowerCase().includes(`price`)){if(t&&t.price!==void 0&&t.price!==null){let e=t.direction===`above`?`突破`:t.direction===`below`?`跌破`:`触碰`;return`<span class="cond-${t.direction===`above`?`up`:`down`}">${e}${s(t.price)}</span>`}if(e.threshold!==void 0&&e.threshold!==null)return`价格 `+e.threshold}return e.threshold!==void 0&&e.threshold!==null&&e.operator?String(e.operator||e.type).toUpperCase()+` `+e.threshold:String(e.type??e.operator??`条件`)}function T(e){return/止损|风控|破位|减仓保护/.test(e)?{cls:`warn`,text:`止损监控`}:/买入|低吸|介入|加仓|建仓|补仓/.test(e)?{cls:`buy`,text:`买入提醒`}:/卖出|止盈|减仓|高抛|目标价/.test(e)?{cls:`sell`,text:`卖出提醒`}:{cls:`on`,text:`常规监控`}}function E(){let e=!1,a=`agent_virtual`,o,s=()=>{if(!e){e=!0,console.log(`[dashboard-holdings] opening board`),document.documentElement.setAttribute(n,``);for(let e of r)document.documentElement.removeAttribute(e);window.dispatchEvent(new CustomEvent(i,{detail:`dashboard-holdings`})),f(),m(a)}},c=()=>{e&&(e=!1,console.log(`[dashboard-holdings] closing board`),document.documentElement.removeAttribute(n),p())},l=()=>{e?c():s()},u=()=>{console.log(`[dashboard-holdings] manual refresh`),m(a)},d=e=>{console.log(`[dashboard-holdings] switching account to`,e),a=e,m(e)},f=()=>{p(),o=window.setInterval(()=>{e&&m(a)},15e3)},p=()=>{o!==void 0&&(clearInterval(o),o=void 0)},m=async e=>{try{let t=`/dashboard/api/holdings?account=${encodeURIComponent(e)}`,n=await(await fetch(t)).json();if(!n.success)throw Error(n.error||`Unknown error`);let r=n.data;h(r)}catch(e){console.error(`[dashboard-holdings] fetch failed:`,e),g(String(e))}},h=e=>{let n=document.querySelector(t);n&&(n.innerHTML=v(e))},g=e=>{let n=document.querySelector(t);n&&(n.innerHTML=`
+		</div>`}function C(e,t,n,r,i){let a=e=>e.account??``,s=e,c=s.filter(e=>a(e)===``),l=s.filter(e=>a(e)===n).concat(c),u=[];for(let e of s){let t=a(e);t!==``&&t!==n&&!u.includes(t)&&u.push(t)}let d=new Map;for(let e of r)d.set(e.account_name,e.display_name||e.account_name);let p=e=>d.get(e)??e,m=new Set([`current`,`all`,...u]).has(i)?i:`current`,_=m===`all`?s:m===`current`?l:s.filter(e=>a(e)===m),v=(e,t,n,r)=>`<button type="button" class="dsh-hld-wtab${m===e?` act`:``}" data-wkey="${e}" title="${o(r)}" onclick="window.__dshHldWatchTab && window.__dshHldWatchTab('${e.replace(/'/g,``)}')">${o(t)}<i class="c">${n}</i></button>`,y=[v(`current`,`本账户`,l.length,`当前账户归属 + 通用观察（${p(n)}）`)];for(let e of u)y.push(v(e,p(e),s.filter(t=>a(t)===e).length,`归属账户：${e}`));y.push(v(`all`,`全部`,s.length,`全部账户规则汇总`));let b=_.map(e=>{let r=f(e),i=r.replace(/\s+/g,` `).trim(),s=(e.conditions??[]).map(w).filter(Boolean),c=s.slice(0,3).join(` <span class="dim">·</span> `)+(s.length>3?` <span class="dim">+`+(s.length-3)+`</span>`:``),l=T(r),u=a(e),d=u===``?`off`:u===n?`on`:`oth`,m=u===``?`通用观察`:u===n?`本账户`:p(u);return`<tr>
+		      <td><span class="sec-name">${o(h(e.symbol,t))}</span> <span class="sec-code">${o(g(e.symbol))}</span></td>
+		      <td><span class="dsh-hld-tag ${l.cls}">${l.text}</span></td>
+		      <td class="cond">${c||`<span class="dim">—</span>`}</td>
+		      <td>${e.enabled?`<span class="dsh-hld-tag on">监控中</span>`:`<span class="dsh-hld-tag off">已停用</span>`}</td>
+		      <td><span class="dsh-hld-tag ${d}" title="${o(u||`通用观察`)}">${o(m)}</span></td>
+		      <td class="ctx" title="${o(i.slice(0,400))}">${o(i.slice(0,44))}${i.length>44?`…`:``}</td>
+		    </tr>`}).join(``),x=m===`current`?`本账户暂无归属/通用观察规则 — 开仓后 agent 会自动挂上止损/止盈盯盘；可切换上方其他账户 / 全部 tab`:m===`all`?`暂无任何盯盘规则`:`该账户暂无归属盯盘规则`,S=_.length===0?`<tr class="dsh-hld-empty"><td colspan="6">`+x+`</td></tr>`:``;return`<div class="dsh-hld-card">
+		  <div class="hd"><span class="t">盯盘中心（${s.length}）</span><span class="more">账户归属 tab · 默认本账户（含通用观察）· 触发后由 agent 决策，无需人工盯盘</span></div>
+		  <div class="dsh-hld-wtabs">${y.join(``)}</div>
+		  <div class="tblwrap"><table>
+		    <tr><th>股票</th><th>监控性质</th><th>触发条件</th><th>状态</th><th>归属账户</th><th>监控摘要</th></tr>
+		    ${b}${S}
+		  </table></div>
+		</div>`}function w(e){let t=e.params;if(e.type===`price_break`||String(e.operator||``).toLowerCase().includes(`price`)){if(t&&t.price!==void 0&&t.price!==null){let e=t.direction===`above`?`突破`:t.direction===`below`?`跌破`:`触碰`;return`<span class="cond-${t.direction===`above`?`up`:`down`}">${e}${s(t.price)}</span>`}if(e.threshold!==void 0&&e.threshold!==null)return`价格 `+e.threshold}return e.threshold!==void 0&&e.threshold!==null&&e.operator?String(e.operator||e.type).toUpperCase()+` `+e.threshold:String(e.type??e.operator??`条件`)}function T(e){return/止损|风控|破位|减仓保护/.test(e)?{cls:`warn`,text:`止损监控`}:/买入|低吸|介入|加仓|建仓|补仓/.test(e)?{cls:`buy`,text:`买入提醒`}:/卖出|止盈|减仓|高抛|目标价/.test(e)?{cls:`sell`,text:`卖出提醒`}:{cls:`on`,text:`常规监控`}}function E(){let e=!1,a=`agent_virtual`,o=`current`,s,c,l=()=>{if(!e){e=!0,console.log(`[dashboard-holdings] opening board`),document.documentElement.setAttribute(n,``);for(let e of r)document.documentElement.removeAttribute(e);window.dispatchEvent(new CustomEvent(i,{detail:`dashboard-holdings`})),m(),g(a)}},u=()=>{e&&(e=!1,console.log(`[dashboard-holdings] closing board`),document.documentElement.removeAttribute(n),h())},d=()=>{e?u():l()},f=()=>{console.log(`[dashboard-holdings] manual refresh`),g(a)},p=e=>{console.log(`[dashboard-holdings] switching account to`,e),a=e,o=`current`,g(e)},m=()=>{h(),c=window.setInterval(()=>{e&&g(a)},15e3)},h=()=>{c!==void 0&&(clearInterval(c),c=void 0)},g=async e=>{try{let t=`/dashboard/api/holdings?account=${encodeURIComponent(e)}`,n=await(await fetch(t)).json();if(!n.success)throw Error(n.error||`Unknown error`);let r=n.data;_(r)}catch(e){console.error(`[dashboard-holdings] fetch failed:`,e),y(String(e))}},_=e=>{s=e;let n=document.querySelector(t);n&&(n.innerHTML=v(e,o))},y=e=>{let n=document.querySelector(t);n&&(n.innerHTML=`
 		      <div class="dsh-hld-board">
 		        <div class="dsh-hld-wrap">
 		          <div class="dsh-hld-head">
@@ -122,7 +115,7 @@ window.__ModuleLoader__.load({
 		          </div>
 		        </div>
 		      </div>
-		    `)};return{openBoard:s,closeBoard:c,toggleBoard:l,getSnapshot:()=>({boardOpen:e}),refresh:u,switchAccount:d}}function D(e){let t,n=()=>{if(t!==void 0)return;let e=a();e!==void 0&&(t=document.createElement(`div`),t.setAttribute(`data-dsh-hld-view`,``),t.className=`dsh-hld-view`,e.appendChild(t),console.log(`[dashboard-holdings] board container mounted`))},r=new MutationObserver(()=>{n()});r.observe(document.body,{childList:!0,subtree:!0}),n(),window.__dshHldRefresh=()=>e.refresh(),window.__dshHldSwitchAccount=t=>e.switchAccount(t);let o=t=>{t.detail!==`dashboard-holdings`&&e.getSnapshot().boardOpen&&e.closeBoard()};window.addEventListener(i,o);let s=t=>{if(!e.getSnapshot().boardOpen)return;let n=t.target;n!==null&&n.closest(`[data-dsh-hld-view]`)===null&&n.closest(`[class*="dsh-hld-foot"]`)===null&&n.closest(`[data-dsh-hld-entry]`)===null&&e.closeBoard()};return document.addEventListener(`click`,s,!0),()=>{window.removeEventListener(i,o),document.removeEventListener(`click`,s,!0),r.disconnect(),t!==void 0&&t.remove(),delete window.__dshHldRefresh,delete window.__dshHldSwitchAccount,console.log(`[dashboard-holdings] board unmounted`)}}const O=`持仓看板`,k=`@pi-investment/dashboard-holdings/footer-action.css`,A=`dashboard-holdings:open-board`;function j(t){let{wide:n}=t,r=O;return(0,e.createElement)(`button`,{type:`button`,className:n?`dsh-hld-foot wide`:`dsh-hld-foot rail`,title:r,"aria-label":r,onClick:()=>{console.log(`[dashboard-holdings] footer action clicked — dispatching`,A),window.dispatchEvent(new CustomEvent(A,{detail:{open:!0}}))}},n?[(0,e.createElement)(`span`,{className:`dsh-hld-foot-icon`,key:`i`},M),(0,e.createElement)(`span`,{className:`dsh-hld-foot-label`,key:`l`},r)]:(0,e.createElement)(`span`,{className:`dsh-hld-foot-icon`,key:`i`},M))}const M=(0,e.createElement)(`svg`,{viewBox:`0 0 16 16`,width:`16`,height:`16`,fill:`none`,stroke:`currentColor`,"stroke-width":`1.4`,"stroke-linecap":`round`,"stroke-linejoin":`round`,"aria-hidden":`true`},(0,e.createElement)(`circle`,{cx:`8`,cy:`8`,r:`6`}),(0,e.createElement)(`path`,{d:`M8 2 V8 L12 11`}),(0,e.createElement)(`path`,{d:`M8 8 L4 5`}));function N(){if(typeof document>`u`||document.querySelector(`style[data-plugin-css="${k}"]`))return;let e=document.createElement(`style`);e.dataset.pluginCss=k,e.textContent=`
+		    `)};return{openBoard:l,closeBoard:u,toggleBoard:d,getSnapshot:()=>({boardOpen:e}),refresh:f,switchAccount:p,watchSwitch:e=>{let t=String(e||`current`);t!==o&&(o=t,s&&_(s))}}}function D(e){let t,n=()=>{if(t!==void 0)return;let e=a();e!==void 0&&(t=document.createElement(`div`),t.setAttribute(`data-dsh-hld-view`,``),t.className=`dsh-hld-view`,e.appendChild(t),console.log(`[dashboard-holdings] board container mounted`))},r=new MutationObserver(()=>{n()});r.observe(document.body,{childList:!0,subtree:!0}),n(),window.__dshHldRefresh=()=>e.refresh(),window.__dshHldSwitchAccount=t=>e.switchAccount(t),window.__dshHldWatchTab=t=>e.watchSwitch(String(t));let o=t=>{t.detail!==`dashboard-holdings`&&e.getSnapshot().boardOpen&&e.closeBoard()};window.addEventListener(i,o);let s=t=>{if(!e.getSnapshot().boardOpen)return;let n=t.target;n!==null&&n.closest(`[data-dsh-hld-view]`)===null&&n.closest(`[class*="dsh-hld-foot"]`)===null&&n.closest(`[data-dsh-hld-entry]`)===null&&e.closeBoard()};return document.addEventListener(`click`,s,!0),()=>{window.removeEventListener(i,o),document.removeEventListener(`click`,s,!0),r.disconnect(),t!==void 0&&t.remove(),delete window.__dshHldRefresh,delete window.__dshHldSwitchAccount,delete window.__dshHldWatchTab,console.log(`[dashboard-holdings] board unmounted`)}}const O=`持仓看板`,k=`@pi-investment/dashboard-holdings/footer-action.css`,A=`dashboard-holdings:open-board`;function j(t){let{wide:n}=t,r=O;return(0,e.createElement)(`button`,{type:`button`,className:n?`dsh-hld-foot wide`:`dsh-hld-foot rail`,title:r,"aria-label":r,onClick:()=>{console.log(`[dashboard-holdings] footer action clicked — dispatching`,A),window.dispatchEvent(new CustomEvent(A,{detail:{open:!0}}))}},n?[(0,e.createElement)(`span`,{className:`dsh-hld-foot-icon`,key:`i`},M),(0,e.createElement)(`span`,{className:`dsh-hld-foot-label`,key:`l`},r)]:(0,e.createElement)(`span`,{className:`dsh-hld-foot-icon`,key:`i`},M))}const M=(0,e.createElement)(`svg`,{viewBox:`0 0 16 16`,width:`16`,height:`16`,fill:`none`,stroke:`currentColor`,"stroke-width":`1.4`,"stroke-linecap":`round`,"stroke-linejoin":`round`,"aria-hidden":`true`},(0,e.createElement)(`circle`,{cx:`8`,cy:`8`,r:`6`}),(0,e.createElement)(`path`,{d:`M8 2 V8 L12 11`}),(0,e.createElement)(`path`,{d:`M8 8 L4 5`}));function N(){if(typeof document>`u`||document.querySelector(`style[data-plugin-css="${k}"]`))return;let e=document.createElement(`style`);e.dataset.pluginCss=k,e.textContent=`
 		.dsh-hld-foot {
 		  display: flex; align-items: center; gap: 8px;
 		  border: none; background: transparent; color: var(--dsw-text-secondary, inherit);
@@ -268,21 +261,15 @@ window.__ModuleLoader__.load({
 		.dsh-hld-tag.off  { background:#f4f4f5; color:#909399; }
 		.dsh-hld-tag.warn, .dsh-hld-tag.trig { background:#fdf6ec; color:#e6a23c; }
 		
-		/* 盯盘中心统计 */
-		.dsh-hld-watchsum { display:grid; grid-template-columns:repeat(5,1fr); border-bottom:1px solid var(--line); }
-		.dsh-hld-watchsum .ws { padding:12px 16px; text-align:center; }
-		.dsh-hld-watchsum .ws + .ws { border-left:1px solid var(--line); }
-		.dsh-hld-watchsum .v { font-size:20px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
-		.dsh-hld-watchsum .v.ok { color:#67c23a; }
-		.dsh-hld-watchsum .v.warn { color:#e6a23c; }
-		.dsh-hld-watchsum .v.accent { color:#409eff; }
-		
-		/* 盯盘分组标题行（本账户 / 通用观察） */
-		.dsh-hld-card tr.dsh-hld-wg td { background:#fafbfc; padding:5px 14px; font-size:11px; color:var(--dim); border-bottom:1px solid var(--line); }
-		.dsh-hld-wg .lab { color:#409eff; font-weight:600; letter-spacing:.5px; }
-		.dsh-hld-wg .cnt { color:var(--dim); margin-left:8px; font-weight:400; }
-		.dsh-hld-hide-note { padding:8px 18px 0; color:var(--faint); font-size:11px; }
-		.dsh-hld-watchsum .n { font-size:11px; color:var(--dim); margin-top:1px; }
+		/* 盯盘中心：账户归属 tab（pill 带计数）+ 规则列表（2026-09-05 · 对齐执行看板调度任务 tab+列表） */
+		.dsh-hld-wtabs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 18px 8px; border-bottom:1px solid #f0f0f0; }
+		.dsh-hld-wtab { appearance:none; display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); background:#fff;
+		  color:var(--body); font:inherit; font-size:12px; padding:3px 13px; border-radius:999px; cursor:pointer; transition:all .15s; }
+		.dsh-hld-wtab:hover { border-color:#b3d8ff; color:#1d6fe0; background:#f7fbff; }
+		.dsh-hld-wtab.act { background:#409eff; border-color:#409eff; color:#fff; font-weight:500; }
+		.dsh-hld-wtab .c { font-style:normal; font-weight:600; opacity:.85; font-variant-numeric:tabular-nums; }
+		.dsh-hld-wtabs + .tblwrap table { min-width:880px; }
+		.dsh-hld-tag.oth { background:#f4f4f5; color:#606266; }
 		.dsh-hld-card td.ctx { color:var(--dim); max-width:340px; }
 		.dsh-hld-card td.cond { color:var(--body); white-space:nowrap; }
 		.cond-up { color:var(--up); font-weight:600; }

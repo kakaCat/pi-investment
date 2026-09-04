@@ -108,8 +108,9 @@ export class PortfolioAggregationService {
   }
 
   private async fetchWatchRules(baseURL: string, accountName: string, timeout: { timeoutMs: number }): Promise<WatchRule[]> {
-    // account 过滤：后端返回该账户归属 + 通用观察（account IS NULL）的规则（2026-09-04 账户关联）
-    const url = `${baseURL}/api/watch/rules?account=${encodeURIComponent(accountName)}`;
+    // 全量拉取（不按 account 过滤）：盯盘中心按「账户归属 tab」展示，须带出全部账户规则；
+    // 视图过滤（本账户=该账户归属 + 通用观察 account 为空）由 client 端完成（2026-09-05 盯盘 tab 化）
+    const url = `${baseURL}/api/watch/rules`;
     const resp = await fetchData<{ rules: WatchRule[] }>(url, timeout);
     return resp.rules || [];
   }

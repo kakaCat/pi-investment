@@ -98,7 +98,7 @@ function stopRatioFor(code: string): number {
 }
 
 /* ------------------------------------------------------------------ board */
-export function buildView(data: HoldingsData): string {
+export function buildView(data: HoldingsData, watchKey: string = 'current'): string {
   const summary = (data.summary ?? {}) as HoldingsData['summary']
   const accounts: Account[] = Array.isArray(data.accounts) ? data.accounts : []
   const current = data.currentAccount ?? ''
@@ -145,7 +145,7 @@ export function buildView(data: HoldingsData): string {
 
   ${renderTrades(data)}
 
-  ${renderWatchRules(watchRules, ctxNames, current)}
+  ${renderWatchRules(watchRules, ctxNames, current, accounts, watchKey)}
 </div>`
 }
 
@@ -284,18 +284,39 @@ function renderTrades(data: HoldingsData): string {
 }
 
 /* ------------------------------------------------------------ watch rules */
-function renderWatchRules(watchRules: WatchRule[], ctxNames: Record<string, string>, currentAccount: string): string {
-  // 展示口径 = 本账户归属 + 通用观察（account 为空/缺失）；其余账户规则不在本账户视图
-  const shown = watchRules.filter((r) => {
-    const a = r.account
-    return a == null || a === '' || a === currentAccount
-  })
-  const owned = shown.filter((r) => r.account === currentAccount)
-  const general = shown.filter((r) => !(r.account === currentAccount))
-  const otherCount = watchRules.length - shown.length
-  const enabled = shown.filter((r) => r.enabled)
-  const disabled = shown.length - enabled.length
-  const codes = new Set(shown.map((r) => pureCode(r.symbol)))
+function renderWatchRules(watchRules: WatchRule[], ctxNames: Record<string, string>, currentAccount: string, accounts: Account[], watchKey: string): string {
+  // 盯盘中心 = 账户归属 tab（pill 带计数）+ 列表（2026-09-05 · 对齐执行看板「调度任务 tab + 列表」）
+  // 默认 tab = 本账户：当前账户归属 + 通用观察（account 为空/缺失，跨账户看板通用展示）；
+  // 其余账户规则按账户 tab 查看；「全部」为全量并在归属列带徽标。
+  const acctOf = (r: WatchRule): string => r.account ?? ''
+  const all = watchRules
+  const general = all.filter((r) => acctOf(r) === '')
+  const curOwned = all.filter((r) => acctOf(r) === currentAccount)
+  const curView = curOwned.concat(general)
+  const otherAccts: string[] = []
+  for (const r of all) {
+    const a = acctOf(r)
+    if (a !== '' && a !== currentAccount && !otherAccts.includes(a)) otherAccts.push(a)
+  }
+  const acctLabel = new Map<string, string>()
+  for (const a of accounts) acctLabel.set(a.account_name, a.display_name || a.account_name)
+  const disp = (name: string): string => acctLabel.get(name) ?? name
+
+  // tab key 合法性：所选账户规则已被清空等场景回退「本账户」
+  const valid = new Set<string>(['current', 'all', ...otherAccts])
+  const act = valid.has(watchKey) ? watchKey : 'current'
+
+  const list: WatchRule[] =
+    act === 'all' ? all
+      : act === 'current' ? curView
+        : all.filter((r) => acctOf(r) === act)
+
+  const tab = (key: string, label: string, count: number, tip: string): string =>
+    `<button type="button" class="dsh-hld-wtab${act === key ? ' act' : ''}" data-wkey="${key}" title="${esc(tip)}" onclick="window.__dshHldWatchTab && window.__dshHldWatchTab('${key.replace(/'/g, '')}')">${esc(label)}<i class="c">${count}</i></button>`
+
+  const tabs: string[] = [tab('current', '本账户', curView.length, `当前账户归属 + 通用观察（${disp(currentAccount)}）`)]
+  for (const acct of otherAccts) tabs.push(tab(acct, disp(acct), all.filter((r) => acctOf(r) === acct).length, `归属账户：${acct}`))
+  tabs.push(tab('all', '全部', all.length, '全部账户规则汇总'))
 
   const row = (r: WatchRule): string => {
     const ctx = ctxText(r)
@@ -303,43 +324,34 @@ function renderWatchRules(watchRules: WatchRule[], ctxNames: Record<string, stri
     const condTexts = (r.conditions ?? []).map(condChip).filter(Boolean)
     const condShow = condTexts.slice(0, 3).join(' <span class="dim">·</span> ') + (condTexts.length > 3 ? ' <span class="dim">+' + (condTexts.length - 3) + '</span>' : '')
     const kind = kindOf(ctx)
+    const a = acctOf(r)
+    const ownCls = a === '' ? 'off' : a === currentAccount ? 'on' : 'oth'
+    const ownText = a === '' ? '通用观察' : a === currentAccount ? '本账户' : disp(a)
     return `<tr>
-        <td><span class="sec-name">${esc(stockName(r.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(r.symbol))}</span></td>
-        <td><span class="dsh-hld-tag ${kind.cls}">${kind.text}</span></td>
-        <td class="cond">${condShow || '<span class="dim">—</span>'}</td>
-        <td>${r.enabled ? '<span class="dsh-hld-tag on">监控中</span>' : '<span class="dsh-hld-tag off">已停用</span>'}</td>
-        <td class="ctx" title="${esc(brief.slice(0, 400))}">${esc(brief.slice(0, 44))}${brief.length > 44 ? '…' : ''}</td>
-      </tr>`
+      <td><span class="sec-name">${esc(stockName(r.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(r.symbol))}</span></td>
+      <td><span class="dsh-hld-tag ${kind.cls}">${kind.text}</span></td>
+      <td class="cond">${condShow || '<span class="dim">—</span>'}</td>
+      <td>${r.enabled ? '<span class="dsh-hld-tag on">监控中</span>' : '<span class="dsh-hld-tag off">已停用</span>'}</td>
+      <td><span class="dsh-hld-tag ${ownCls}" title="${esc(a || '通用观察')}">${esc(ownText)}</span></td>
+      <td class="ctx" title="${esc(brief.slice(0, 400))}">${esc(brief.slice(0, 44))}${brief.length > 44 ? '…' : ''}</td>
+    </tr>`
   }
-  const groupRow = (label: string, n: number): string =>
-    `<tr class="dsh-hld-wg"><td colspan="5"><span class="lab">${esc(label)}</span><span class="cnt">${n} 条</span></td></tr>`
-  const rows = (owned.length ? groupRow('本账户', owned.length) + owned.map(row).join('') : '')
-    + (general.length ? groupRow('通用观察', general.length) + general.map(row).join('') : '')
-  const title = shown.length > 0
-    ? `盯盘中心（本账户 ${owned.length} · 通用观察 ${general.length}）`
-    : '盯盘中心'
-  const sum = shown.length > 0 ? `<div class="dsh-hld-watchsum">
-    <div class="ws"><div class="v accent">${owned.length}</div><div class="n">本账户</div></div>
-    <div class="ws"><div class="v">${general.length}</div><div class="n">通用观察</div></div>
-    <div class="ws"><div class="v ok">${enabled.length}</div><div class="n">监控中</div></div>
-    <div class="ws"><div class="v warn">${disabled.length}</div><div class="n">已停用</div></div>
-    <div class="ws"><div class="v">${codes.size}</div><div class="n">覆盖标的</div></div>
-  </div>` : ''
-  const hideNote = otherCount > 0
-    ? `<div class="dsh-hld-hide-note">其余账户的 ${otherCount} 条盯盘规则不在本账户视图（本视图 = 本账户 + 通用观察）</div>`
-    : ''
-  const empty = shown.length === 0
-    ? `<div class="dsh-hld-emptybox">本账户暂无盯盘规则 — 开仓后 agent 会自动挂上止损/止盈盯盘（无主候选观察归入通用观察）</div>`
-    : ''
+
+  const rows = list.map(row).join('')
+  const emptyMsg = act === 'current'
+    ? '本账户暂无归属/通用观察规则 — 开仓后 agent 会自动挂上止损/止盈盯盘；可切换上方其他账户 / 全部 tab'
+    : act === 'all'
+      ? '暂无任何盯盘规则'
+      : '该账户暂无归属盯盘规则'
+  const empty = list.length === 0 ? '<tr class="dsh-hld-empty"><td colspan="6">' + emptyMsg + '</td></tr>' : ''
+
   return `<div class="dsh-hld-card">
-  <div class="hd"><span class="t">${title}</span><span class="more">按账户归属展示 · 触发后由 agent 决策，无需人工盯盘</span></div>
-  ${sum}
-  ${hideNote}
-  ${empty}
-  ${empty ? '' : `<div class="tblwrap"><table>
-    <tr><th>股票</th><th>方向</th><th>触发条件</th><th>状态</th><th>监控摘要</th></tr>
-    ${rows}
-  </table></div>`}
+  <div class="hd"><span class="t">盯盘中心（${all.length}）</span><span class="more">账户归属 tab · 默认本账户（含通用观察）· 触发后由 agent 决策，无需人工盯盘</span></div>
+  <div class="dsh-hld-wtabs">${tabs.join('')}</div>
+  <div class="tblwrap"><table>
+    <tr><th>股票</th><th>监控性质</th><th>触发条件</th><th>状态</th><th>归属账户</th><th>监控摘要</th></tr>
+    ${rows}${empty}
+  </table></div>
 </div>`
 }
 
