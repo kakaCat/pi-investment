@@ -1,0 +1,72 @@
+groups:
+  - name: evolution_engine
+    interval: 30s
+    rules:
+      - alert: EvolutionEngineDown
+        expr: increase(evolution_decision_scored_total[1h]) == 0
+        for: 2h
+        labels:
+          severity: critical
+        annotations:
+          summary: "Evolution engine hasn't run for 2 hours"
+          
+      - alert: LowFitnessScore
+        expr: evolution_fitness_score{type="up_capture"} < 0.5
+        for: 24h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Up capture rate below 50% for 24 hours"
+          
+      - alert: HighScoringErrors
+        expr: rate(evolution_errors_total{service="decision_score"}[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Decision scoring error rate above 10%"
+
+  - name: scheduler
+    interval: 30s
+    rules:
+      - alert: JobFailed
+        expr: increase(scheduler_job_runs_total{status="failed"}[1h]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Job {{ $labels.job }} failed"
+          
+      - alert: JobDurationHigh
+        expr: histogram_quantile(0.95, rate(scheduler_job_duration_seconds_bucket[5m])) > 300
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Job {{ $labels.job }} p95 duration above 5 minutes"
+
+  - name: datasource
+    interval: 30s
+    rules:
+      - alert: HighDatasourceErrorRate
+        expr: rate(provider_request_total{result="failure"}[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Data source {{ $labels.provider_name }} error rate above 10%"
+          
+      - alert: DatasourceCircuitOpen
+        expr: provider_circuit_breaker_state == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker open for {{ $labels.provider_name }}"
+          
+      - alert: DatasourceResponseTimeHigh
+        expr: histogram_quantile(0.95, rate(provider_request_duration_seconds_bucket[5m])) > 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Data source {{ $labels.provider_name }} p95 response time above 10s"

@@ -1,5 +1,3 @@
-# Prometheus 配置文件
-
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -7,36 +5,17 @@ global:
     cluster: 'quantsys-v2'
     environment: 'production'
 
-# 告警规则文件（可选）
-# rule_files:
-#   - 'alerts/*.yml'
+rule_files:
+  - 'alerts.yml'
 
-# 数据采集配置
 scrape_configs:
-  # quantsys-v2 API 指标
   - job_name: 'quantsys-api'
     static_configs:
       - targets: ['quantsys-api:5001']
     metrics_path: '/metrics'
     scrape_interval: 10s
 
-  # Prometheus 自身监控
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
-  # PostgreSQL 导出器（需要安装 postgres_exporter）
-  # - job_name: 'postgres'
-  #   static_configs:
-  #     - targets: ['postgres-exporter:9187']
-
-  # Redis 导出器（需要安装 redis_exporter）
-  # - job_name: 'redis'
-  #   static_configs:
-  #     - targets: ['redis-exporter:9121']
-
-# 告警管理器配置（可选）
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets: ['alertmanager:9093']

@@ -1,0 +1,155 @@
+# Prometheus Alerting Rules for quantsys-v2 Data Providers
+# 将此文件放置在 Prometheus 配置目录并在 prometheus.yml 中引用
+
+groups:
+  - name: data_provider_alerts
+    interval: 30s
+    rules:
+      # P0 级告警：所有 Quote Provider 熔断
+      - alert: AllQuoteProvidersCircuitOpen
+        expr: |
+          count(provider_circuit_breaker_state{provider_type="quote"} == 1)
+          ==
+          count(provider_circuit_breaker_state{provider_type="quote"})
+        for: 1m
+        labels:
+          severity: critical
+          priority: P0
+        annotations:
+          summary: "所有行情数据源已熔断"
+          description: "所有 Quote Provider 的熔断器都处于 OPEN 状态，行情服务完全不可用"
+
+      # P0 级告警：主力 Provider 连续失败
+      - alert: PrimaryProviderHighFailureRate
+        expr: |
+          provider_health_score{provider_name=~"tencent|database|baostock"} < 0.3
+        for: 5m
+        labels:
+          severity: critical
+          priority: P0
+        annotations:
+          summary: "主力数据源 {{ $labels.provider_name }} 健康度严重下降"
+          description: "Provider {{ $labels.provider_name }} 的健康评分低于 0.3，持续 5 分钟"
+
+      # P1 级告警：Provider 熔断器打开
+      - alert: ProviderCircuitBreakerOpen
+        expr: provider_circuit_breaker_state == 1
+        for: 2m
+        labels:
+          severity: warning
+          priority: P1
+        annotations:
+          summary: "数据源 {{ $labels.provider_name }} 熔断器已打开"
+          description: "Provider {{ $labels.provider_name }} ({{ $labels.provider_type }}) 的熔断器处于 OPEN 状态"
+
+      # P1 级告警：缓存命中率过低
+      - alert: CacheHitRatioLow
+        expr: |
+          rate(cache_hit_total[5m])
+          /
+          (rate(cache_hit_total[5m]) + rate(cache_miss_total[5m]))
+          < 0.3
+        for: 10m
+        labels:
+          severity: warning
+          priority: P1
+        annotations:
+          summary: "缓存命中率过低：{{ $value | humanizePercentage }}"
+          description: "方法 {{ $labels.method }} 的缓存命中率低于 30%，持续 10 分钟"
+
+      # P1 级告警：K线回填失败激增
+      - alert: KlineBackfillFailureSpike
+        expr: |
+          rate(kline_backfill_total{result="failure"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          priority: P1
+        annotations:
+          summary: "K线回填失败率激增"
+          description: "最近 5 分钟内 K线回填失败率超过 10 次/分钟"
+
+      # P1 级告警：Provider 请求耗时过长
+      - alert: ProviderRequestDurationHigh
+        expr: |
+          histogram_quantile(0.95,
+            rate(provider_request_duration_seconds_bucket[5m])
+          ) > 30
+        for: 5m
+        labels:
+          severity: warning
+          priority: P1
+        annotations:
+          summary: "Provider {{ $labels.provider_name }} 响应时间过长"
+          description: "Provider {{ $labels.provider_name }} 的 P95 响应时间超过 30 秒"
+
+      # P2 级告警：Provider 健康度下降
+      - alert: ProviderHealthDegrading
+        expr: |
+          provider_health_score < 0.5
+        for: 10m
+        labels:
+          severity: info
+          priority: P2
+        annotations:
+          summary: "数据源 {{ $labels.provider_name }} 健康度下降"
+          description: "Provider {{ $labels.provider_name }} 的健康评分低于 0.5"
+
+      # P2 级告警：降级次数激增
+      - alert: ProviderFailoverSpike
+        expr: |
+          rate(provider_failover_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: info
+          priority: P2
+        annotations:
+          summary: "Provider 降级次数激增"
+          description: "Provider {{ $labels.provider_name }} 最近 5 分钟内降级次数超过 5 次/分钟，原因：{{ $labels.reason }}"
+
+      # P2 级告警：缓存利用率过高
+      - alert: CacheUtilizationHigh
+        expr: cache_utilization > 0.9
+        for: 10m
+        labels:
+          severity: info
+          priority: P2
+        annotations:
+          summary: "缓存利用率过高：{{ $value | humanizePercentage }}"
+          description: "缓存利用率超过 90%，可能需要增加缓存容量"
+
+      # P2 级告警：Provider 超时频繁
+      - alert: ProviderTimeoutFrequent
+        expr: |
+          rate(provider_request_total{result="timeout"}[5m]) > 2
+        for: 5m
+        labels:
+          severity: info
+          priority: P2
+        annotations:
+          summary: "Provider {{ $labels.provider_name }} 超时频繁"
+          description: "Provider {{ $labels.provider_name }} 最近 5 分钟内超时次数超过 2 次/分钟"
+
+  - name: data_provider_info
+    interval: 1m
+    rules:
+      # 记录：缓存命中率
+      - record: cache_hit_ratio
+        expr: |
+          rate(cache_hit_total[5m])
+          /
+          (rate(cache_hit_total[5m]) + rate(cache_miss_total[5m]))
+
+      # 记录：Provider 成功率
+      - record: provider_success_rate
+        expr: |
+          rate(provider_request_total{result="success"}[5m])
+          /
+          rate(provider_request_total[5m])
+
+      # 记录：Provider 平均响应时间
+      - record: provider_request_duration_mean
+        expr: |
+          rate(provider_request_duration_seconds_sum[5m])
+          /
+          rate(provider_request_duration_seconds_count[5m])

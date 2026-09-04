@@ -1,0 +1,156 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "QuantSys V2 Overview",
+    "tags": ["quantsys", "quantitative", "trading"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Evolution Engine - Decision Scoring",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(evolution_decision_scored_total[5m])",
+            "legendFormat": "{{account}}"
+          }
+        ],
+        "yaxes": [
+          { "format": "short", "label": "Decisions/sec" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Evolution Engine - Scoring Duration",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(evolution_decision_score_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(evolution_decision_score_duration_seconds_bucket[5m]))",
+            "legendFormat": "p50"
+          }
+        ],
+        "yaxes": [
+          { "format": "s", "label": "Duration" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Evolution Engine - Fitness Scores",
+        "type": "gauge",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "evolution_fitness_score{type=\"up_capture\"}",
+            "legendFormat": "{{account}} up_capture"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 0.5, "color": "yellow" },
+                { "value": 0.8, "color": "green" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Scheduler - Job Runs",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "rate(scheduler_job_runs_total[5m])",
+            "legendFormat": "{{job}} - {{status}}"
+          }
+        ],
+        "yaxes": [
+          { "format": "short", "label": "Jobs/sec" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Scheduler - Job Duration",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(scheduler_job_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{job}} p95"
+          }
+        ],
+        "yaxes": [
+          { "format": "s", "label": "Duration" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Data Source - Request Rate",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+        "targets": [
+          {
+            "expr": "rate(provider_request_total[5m])",
+            "legendFormat": "{{provider_name}} - {{result}}"
+          }
+        ],
+        "yaxes": [
+          { "format": "short", "label": "Requests/sec" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Data Source - Error Rate",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+        "targets": [
+          {
+            "expr": "rate(provider_request_total{result=\"failure\"}[5m])",
+            "legendFormat": "{{provider_name}}"
+          }
+        ],
+        "yaxes": [
+          { "format": "short", "label": "Errors/sec" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Data Source - Response Time",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(provider_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{provider_name}} p95"
+          }
+        ],
+        "yaxes": [
+          { "format": "s", "label": "Response Time" },
+          { "format": "short" }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s"
+  }
+}
