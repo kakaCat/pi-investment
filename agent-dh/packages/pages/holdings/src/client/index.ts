@@ -1,10 +1,10 @@
 /**
- * Dashboard-execution client half — the execution board's GUI face.
+ * Dashboard-holdings client half — the holdings board's GUI face.
  *
  * Dual-half contract: package.json declares dsh.client + exports["./client"];
  * the DSH web shell's client-modules host composes a boot-graph entry for this
  * package, serves the wrapped bundle at
- * /plugins/??@pi-investment/dashboard-execution/client.js&rev=…, and the shell
+ * /plugins/??@pi-investment/dashboard-holdings/client.js&rev=…, and the shell
  * runs this module in the browser. Exports mirror the taskboard client-entry
  * shape: name / inject / apply.
  *
@@ -16,19 +16,19 @@
  *
  * Board body follows the dsh-taskboard standard: a container is mounted as a
  * trailing child of the center (conversation) column, a stylesheet rule hides
- * the column's other children while `html[data-dsh-exec-active]` is set, and
+ * the column's other children while `html[data-dsh-hld-active]` is set, and
  * visibility is toggled by the board controller (open/close on the footer
  * action click; auto-close on sidebar-row click / other-panel activation).
  * Data comes from the same-origin auth-free JSON endpoint
- * /dashboard/api/board the host half exposes.
+ * /dashboard/api/holdings the host half exposes.
  *
- * @module dashboard-execution/client
+ * @module dashboard-holdings/client
  */
-import { createBoardController, mountBoard } from './board-mount.ts'
-import { ExecFooterAction, injectFooterStyles, PANEL_NAME, PANEL_LABEL, OPEN_EVENT } from './footer-action.ts'
-import { injectStyles } from './styles.ts'
+import { createBoardController, mountBoard } from './board-mount.js'
+import { HoldingsFooterAction, injectFooterStyles, PANEL_NAME, PANEL_LABEL, OPEN_EVENT } from './footer-action.js'
+import { injectStyles } from './styles.js'
 
-export const name = '@pi-investment/dashboard-execution/client'
+export const name = '@pi-investment/dashboard-holdings/client'
 /** Service names this client module requires on ctx (official slot idiom). */
 export const inject: string[] = ['slots']
 
@@ -46,7 +46,7 @@ interface ApplyContext {
 /** Window-scoped apply guard so HMR re-apply tears down before re-mounting. */
 declare global {
   interface Window {
-    __dshExecClient?: { dispose(): void }
+    __dshHldClient?: { dispose(): void }
   }
 }
 
@@ -58,9 +58,9 @@ export function apply(ctx: ApplyContext): void {
 
     // Guard: a prior apply() (e.g. HMR re-apply) disposes its listeners and
     // board mount first, so re-entry never double-registers or double-mounts.
-    window.__dshExecClient?.dispose()
+    window.__dshHldClient?.dispose()
 
-    // Execution board: controller + center-column mount (taskboard contract).
+    // Board body: controller + center-column mount (taskboard contract).
     const controller = createBoardController()
     const disposeBoard = mountBoard(controller)
 
@@ -68,13 +68,13 @@ export function apply(ctx: ApplyContext): void {
     // occupant dispatches; index.ts owns the actual behavior).
     const onOpen = (event: Event): void => {
       const open = (event as CustomEvent<{ open?: boolean }>).detail?.open
-      console.log('[dashboard-execution] open-board event', { open }, 'boardOpen:', controller.getSnapshot().boardOpen)
+      console.log('[dashboard-holdings] open-board event', { open }, 'boardOpen:', controller.getSnapshot().boardOpen)
       if (open === true) controller.openBoard()
       else controller.toggleBoard()
     }
     window.addEventListener(OPEN_EVENT, onOpen)
 
-    window.__dshExecClient = {
+    window.__dshHldClient = {
       dispose: () => {
         window.removeEventListener(OPEN_EVENT, onOpen)
         disposeBoard()
@@ -86,22 +86,21 @@ export function apply(ctx: ApplyContext): void {
     // for list seats; order positions the entry; occupant receives {wide}).
     const slots = ctx.slots
     if (slots) {
-      // Register execution footer action
       slots.inject('sidebar.footer.action', () =>
         slots.register(
           {
             name: 'sidebar.footer.action',
             id: PANEL_NAME,
-            order: 100,
+            order: 200, // 在 execution (order: 100) 之后
             label: PANEL_LABEL,
           },
-          ExecFooterAction,
+          HoldingsFooterAction,
         ),
       )
     } else {
-      console.warn('[dashboard-execution] ctx.slots unavailable (inject missing "slots")')
+      console.warn('[dashboard-holdings] ctx.slots unavailable (inject missing "slots")')
     }
   } catch (e) {
-    console.error('[dashboard-execution] client half failed to start:', e)
+    console.error('[dashboard-holdings] client half failed to start:', e)
   }
 }

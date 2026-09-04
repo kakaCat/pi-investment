@@ -1,5 +1,5 @@
 //#region src/client/index.d.ts
-declare const name = "@pi-investment/dashboard-execution/client";
+declare const name = "@pi-investment/dashboard-holdings/client";
 /** Service names this client module requires on ctx (official slot idiom). */
 declare const inject: string[];
 /** Minimal view of the slots service this module consumes (official shape). */
@@ -15,7 +15,7 @@ interface ApplyContext {
 /** Window-scoped apply guard so HMR re-apply tears down before re-mounting. */
 declare global {
   interface Window {
-    __dshExecClient?: {
+    __dshHldClient?: {
       dispose(): void;
     };
   }

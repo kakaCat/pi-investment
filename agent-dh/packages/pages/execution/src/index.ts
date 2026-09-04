@@ -59,14 +59,16 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     ['webServer'],
     (webCtx: { effect?: (fn: () => void, label?: string) => void; webServer?: any }) => {
       webCtx.effect?.(() => {
+        // 注册 execution board 路由
         webCtx.webServer.register({
           kind: 'exact',
           path: '/dashboard/api/board',
           handler: createBoardHandler(aggregator),
         });
+
       }, name + ': api');
 
-      logger.info('routes registered: /dashboard/api/board (client half renders GUI)');
+      logger.info('routes registered: /dashboard/api/board (client half renders GUI); /dashboard/api/holdings owned by dashboard-holdings');
     },
   );
 }

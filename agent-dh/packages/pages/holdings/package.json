@@ -1,7 +1,7 @@
 {
-  "name": "@pi-investment/dashboard-execution",
+  "name": "@pi-investment/dashboard-holdings",
   "version": "0.1.0",
-  "description": "双线执行确认看板 @pi-investment/dashboard-execution — DSH GUI 双半插件（host: board JSON API；client: GUI 侧栏入口 + 中心栏视图）",
+  "description": "账户持仓看板 @pi-investment/dashboard-holdings — DSH GUI 双半插件（host: holdings JSON API；client: GUI 侧栏入口 + 中心栏视图）",
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
