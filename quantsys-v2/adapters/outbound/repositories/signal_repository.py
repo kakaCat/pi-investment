@@ -154,7 +154,6 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             'action': signal.action,
             'strategy_id': signal.strategy_id,
             'price': signal.price,
-            'volume': signal.volume,
             'confidence': signal.confidence,
             'reason': signal.reason,
             'status': signal.status,
