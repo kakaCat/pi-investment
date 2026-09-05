@@ -80,10 +80,10 @@ function trunc(s: unknown, n: number): string {
 
 /* ---- 文案映射 ---- */
 const TL_ZH: Record<string, string> = {
-  success: '成功', failed: '失败', pending: '待执行', skipped: '已跳过', unknown: '未知',
+  success: '成功', failed: '失败', pending: '待执行', skipped: '已跳过', off_day: '非执行日', unknown: '未知',
 }
-const TL_IC: Record<string, string> = { success: '✅', failed: '❌', pending: '⏳', skipped: '⏭️', unknown: '❔' }
-const TL_TAG: Record<string, string> = { success: 'ok', failed: 'bad', pending: 'wait', skipped: 'wait', unknown: 'unk' }
+const TL_IC: Record<string, string> = { success: '✅', failed: '❌', pending: '⏳', skipped: '⏭️', off_day: '⏸', unknown: '❔' }
+const TL_TAG: Record<string, string> = { success: 'ok', failed: 'bad', pending: 'wait', skipped: 'wait', off_day: 'off', unknown: 'unk' }
 const CP_ZH: Record<string, string> = { confirmed: '已确认', pending: '等待', off_day: '非执行日', failed: '失败', late: '晚点', degraded: '降级', unknown: '未知' }
 const CP_DOT: Record<string, string> = { confirmed: 'ok', pending: 'wait', off_day: 'off', failed: 'bad', late: 'late', degraded: 'deg', unknown: 'unk' }
 const H_ZH: Record<string, string> = { ok: '正常', degraded: '降级', failed: '故障', unknown: '未知' }
@@ -222,7 +222,7 @@ export function buildView(): ViewRefs {
 }
 
 function renderHealth(refs: ViewRefs, data: BoardData): void {
-  const tl = data.timeline ?? []
+  const tl = (data.timeline ?? []).filter(t => t.status !== 'off_day') // 非执行日不计入今日计划/待执行
   const total = tl.length
   let ok = 0, fail = 0
   for (const t of tl) { if (t.status === 'success') ok++; else if (t.status === 'failed') fail++ }
@@ -305,6 +305,7 @@ function tlRow(t: TimelineEntry): string {
     '<span class="tl-tags">' + srcChip(t.src) + agentChip(t.agentCall) + '</span></div></div>'
 }
 function renderTimeline(refs: ViewRefs, data: BoardData): void {
+  // 非执行日（今日 cron 不排、亦无真实 run）行同样入列展示为灰态「非执行日」，与执行流水线 off_day 一致
   const tl = (data.timeline ?? []).slice().sort((a, b) => hmMin(a.expectedTime) - hmMin(b.expectedTime))
   if (tl.length === 0) { refs.timelineBox.innerHTML = '<div class="dsh-exec-empty">今日暂无计划任务</div>'; return }
   const grp = (title: string, note: string, items: TimelineEntry[]): string =>

@@ -137,6 +137,8 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .tl-item.bad .tl-st { background:#fef0f0; color:#f56c6c; }
 .tl-item.wait .tl-st { background:#f4f4f5; color:#909399; }
 .tl-item.unk .tl-st { background:#f4f4f5; color:#a2a8b3; }
+.tl-item.off .tl-st { background:#f4f4f5; color:#a2a8b3; }
+.tl-item.off .tl-nm { color:#909399; }
 .tl-item.bad .tl-nm { color:#f56c6c; }
 .tl-item.bad { background:#fff5f5; border-radius:8px; padding:8px 10px; margin:0 -10px; }
 /* 徽标：调度来源 v2/os · 调用 agent dh/ts（时间轴行尾 + 任务表） */

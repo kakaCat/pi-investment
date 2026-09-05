@@ -116,6 +116,24 @@ function cronFreq(cronExpr: string | null | undefined): 'daily' | 'weekly' {
   }
   return days.size >= 4 ? 'daily' : 'weekly';
 }
+/** cron dow 今日是否命中（与 checkpoint matchesDayPattern 同口径，0=周日）。
+ *  返回 undefined 表示 '*','?' 或无法解析（视为每日命中，不判非执行日）。 */
+function cronDowMatchToday(cronExpr: string | null | undefined, weekday: number): boolean | undefined {
+  if (!cronExpr) return undefined;
+  const parts = cronExpr.trim().split(/\s+/);
+  if (parts.length < 5) return undefined;
+  const dow = parts[4];
+  if (dow === '*' || dow === '?') return undefined;
+  for (const seg of dow.split(',')) {
+    const m = /^(\d+)(?:-(\d+))?$/.exec(seg);
+    if (!m) return undefined;
+    const a = Number(m[1]) % 7;
+    const b = m[2] ? Number(m[2]) % 7 : a;
+    if (b < a) return undefined;
+    for (let d = a; d <= b; d++) if (d % 7 === weekday) return true;
+  }
+  return false;
+}
 /** Agent OS cron 为 6 段（前导秒 "0"）→ 归一到 5 段 v2 式；无法归一返回 undefined */
 function osCron5(expr: string | null | undefined): string | undefined {
   if (!expr) return undefined;
@@ -657,6 +675,10 @@ export class DataAggregationService {
           else if (lrs === 'failed') status = 'failed';
           else status = 'unknown';
         }
+      }
+      // 今日无真实 run 且 cron 星期几不含今天 → 非执行日（灰，与 checkpoint off_day 同语义，§5.4）
+      if (status === 'pending' && cronDowMatchToday(task.scheduleExpr, this.weekday) === false) {
+        status = 'off_day';
       }
       list.push({ taskId: task.id, taskName: task.name, expectedTime, status, runId, error, freq: cronFreq(task.scheduleExpr), src: task.src, agentCall: task.agentCall });
     }

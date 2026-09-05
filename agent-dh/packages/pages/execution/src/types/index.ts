@@ -90,7 +90,7 @@ export interface TimelineEntry {
   taskId: string;
   taskName: string;
   expectedTime: string; // cron 换算 HH:mm
-  status: 'success' | 'failed' | 'pending' | 'unknown';
+  status: 'success' | 'failed' | 'pending' | 'unknown' | 'off_day';
   runId?: number | string;
   error?: string;
   /** 频率分桶：daily=日执行 / weekly=周执行 */
