@@ -45,12 +45,14 @@ declare global {
     __dshBbdClient?: { dispose(): void }
     /** 认领/转交用的会话源（与左栏同源；mount 层点击时懒读） */
     __dshBbdSessions?: SessionsFacade
+    /** apply 时的 client ctx（sessions 若未注入完成，点开转交时经它惰性重取） */
+    __dshBbdCtx?: { sessions?: SessionsFacade }
   }
 }
 
 export function apply(ctx: ApplyContext): void {
   // 暴露给 board-mount：转交弹窗即时取会话列表（不随轮询重绘，点开时新鲜读取）
-  try { (window as any).__dshBbdSessions = ctx?.sessions } catch { /* noop */ }
+  try { (window as any).__dshBbdCtx = ctx; (window as any).__dshBbdSessions = ctx?.sessions } catch { /* noop */ }
   try {
     injectStyles()
 
