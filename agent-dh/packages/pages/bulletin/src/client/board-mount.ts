@@ -10,7 +10,7 @@
  * @module dashboard-bulletin/client/board-mount
  */
 import { ACTIVE_ATTR, ACTIVATE_EVENT, BOARD_VIEW_SELECTOR, conversationColumn, OTHER_ACTIVE_ATTRS, PANEL_NAME } from './dom.js'
-import { buildBoardHtml, buildPaginationHtml, buildPostsHtml } from './view.js'
+import { buildBoardHtml, buildPaginationHtml, buildPostsHtml, esc } from './view.js'
 import type { BulletinData, KindKey, StatusKey } from './types.js'
 
 const PAGE_SIZE = 20
@@ -223,12 +223,28 @@ export function mountBoard(controller: BoardController): () => void {
   }
   document.addEventListener('click', onClickOutside, true)
 
-  // 看板内交互（捕获委托）：卡手风琴 + 状态/kind pill + 翻页 + 刷新
+  // 看板内交互（捕获委托）：Task #2 认领/转交动作优先 → 选择器 → 卡手风琴（避开按钮）→ pill/翻页/刷新
   const onBoardClick = (event: MouseEvent): void => {
     const target = event.target as HTMLElement | null
     if (target === null) return
+    const actBtn = target.closest<HTMLElement>('[data-bbd-solve],[data-bbd-delegate]')
+    if (actBtn !== null) {
+      const id = actBtn.closest<HTMLElement>('[data-dsh-bbd-id]')?.dataset.dshBbdId
+      if (id) {
+        if (actBtn.hasAttribute('data-bbd-solve')) void runAction(id, 'solve')
+        else { const card = actBtn.closest<HTMLElement>('[data-dsh-bbd-id]'); if (card) togglePicker(card) }
+      }
+      return
+    }
+    if (target.closest('[data-bbd-pickclose]') !== null) { closePickers(); return }
+    const pickBtn = target.closest<HTMLElement>('[data-bbd-picksession]')
+    if (pickBtn !== null && pickBtn.dataset.bbdPicksession) {
+      const id = pickBtn.closest<HTMLElement>('[data-dsh-bbd-id]')?.dataset.dshBbdId
+      if (id) { closePickers(); void runAction(id, 'delegate', pickBtn.dataset.bbdPicksession) }
+      return
+    }
     const card = target.closest<HTMLElement>('[data-dsh-bbd-id]')
-    if (card !== null && card.dataset.dshBbdId) {
+    if (card !== null && card.dataset.dshBbdId && target.closest('button') === null) {
       controller.toggleExpanded(card.dataset.dshBbdId)
       return
     }
@@ -251,6 +267,85 @@ export function mountBoard(controller: BoardController): () => void {
       ;(window as any).__dshBbdRefresh()
     }
   }
+
+  // ---------- Task #2：认领 / 转交 ----------
+  /** 顶部飘字提示（4s 自动消失） */
+  const toast = (text: string, ok: boolean): void => {
+    const el = document.createElement('div')
+    el.className = 'dsh-bbd-toast ' + (ok ? 'ok' : 'err')
+    el.textContent = text
+    document.body.appendChild(el)
+    window.setTimeout(() => { el.classList.add('out'); window.setTimeout(() => el.remove(), 350) }, 4200)
+  }
+
+  /** 转交候选：client sessions 服务（与左侧会话列表同源，USER #3 不建后端窗口清单端点） */
+  const sessionCandidates = (): { sid: string; label: string; current: boolean }[] => {
+    const fac = (window as any).__dshBbdSessions
+    const out: { sid: string; label: string; current: boolean }[] = []
+    try {
+      const snap = fac?.list?.getSnapshot?.()
+      const items = Array.isArray(snap?.items) ? snap.items : []
+      const cur = String(snap?.current ?? '')
+      for (const it of items) {
+        const sid = it.id ?? it.sessionId
+        if (!sid || it.blank) continue
+        out.push({ sid: String(sid), label: String(it.displayTitle ?? it.title ?? sid), current: String(sid) === cur })
+      }
+    } catch { /* sessions 降级 → 空候选 */ }
+    return out
+  }
+
+  const closePickers = (): void => {
+    document.querySelectorAll<HTMLElement>('[data-bbd-pick]:not([hidden])').forEach((p) => { p.hidden = true })
+  }
+
+  /** 「转交」点开：懒渲染候选列表并显隐选择器（数据新鲜，随点击读取） */
+  const togglePicker = (card: HTMLElement): void => {
+    const pick = card.querySelector<HTMLElement>('[data-bbd-pick]')
+    if (pick === null) return
+    if (!pick.hidden) { pick.hidden = true; return }
+    closePickers()
+    const list = pick.querySelector<HTMLElement>('[data-bbd-picklist]')
+    const cands = sessionCandidates()
+    if (list !== null) {
+      list.innerHTML = cands.length === 0
+        ? '<div class="dsh-bbd-pick-empty">暂无可转窗口（会话列表不可用）——请稍候重试或点「我来解决」</div>'
+        : cands.map((c) =>
+            '<button type="button" class="dsh-bbd-picksession' + (c.current ? ' cur' : '') + '" data-bbd-picksession="' + esc(c.sid) + '">' +
+              esc(c.label) + (c.current ? '<i>当前</i>' : '') +
+            '</button>'
+          ).join('')
+    }
+    pick.hidden = false
+  }
+
+  /** POST /dashboard/api/bulletin/action：solve=我来解决（认领给本窗口）；delegate=转交指定会话 */
+  const runAction = async (postId: string, action: 'solve' | 'delegate', toSession?: string): Promise<void> => {
+    let current = ''
+    try { current = String((window as any).__dshBbdSessions?.list?.getSnapshot?.()?.current ?? '') } catch { /* noop */ }
+    const btn = document.querySelector<HTMLElement>(
+      '[data-dsh-bbd-id="' + CSS.escape(postId) + '"] [data-bbd-' + (action === 'solve' ? 'solve' : 'delegate') + ']')
+    const prevLabel = btn?.textContent ?? ''
+    if (btn !== null) { btn.disabled = true; btn.textContent = '处理中…' }
+    toast('正在' + (action === 'solve' ? '认领' : '转交') + '…', true)
+    try {
+      const res = await fetch('/dashboard/api/bulletin/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ post_id: postId, action, to_session: toSession, from_session: current || undefined }),
+      })
+      const j = await res.json().catch(() => null)
+      if (j === null || j.success !== true) { toast('动作失败：' + (j?.error ?? 'HTTP ' + res.status), false); return }
+      const delivered = j.data?.delivery?.delivered === true
+      toast((delivered ? '✓ ' : '⚠ ') + String(j.data?.note ?? '已认领，等待窗口闭环'), delivered)
+      controller.refresh()
+    } catch (e) {
+      toast('请求异常：' + String(e instanceof Error ? e.message : e), false)
+    } finally {
+      if (btn !== null) { btn.disabled = false; btn.textContent = prevLabel }
+    }
+  }
+
   document.addEventListener('click', onBoardClick, true)
 
   return () => {

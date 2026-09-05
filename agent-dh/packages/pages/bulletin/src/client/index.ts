@@ -15,15 +15,42 @@ import { injectStyles } from './styles.js'
 
 export const name = '@pi-investment/dashboard-bulletin/client'
 
-export const inject: string[] = []
+// Task #2：认领/转交需要左侧会话列表（USER #3：公告板客户端已见左栏内容，不再从后端拉窗口清单）。
+// inject 'sessions' → apply(ctx) 的 ctx.sessions 与左栏同源（同一 client 服务），其
+// .list.getSnapshot() 产出 { items:{id,displayTitle,running,blank,...}[], current }。
+export const inject: string[] = ['sessions']
+
+/** sessions 服务的极简投影（宽容读取，缺字段即降级；boot 提供失败也不阻断看板只读） */
+export interface SessionsFacade {
+  list?: {
+    getSnapshot?(): {
+      items?: Array<{
+        id?: string
+        sessionId?: string
+        displayTitle?: string
+        title?: string
+        running?: boolean
+        blank?: boolean
+      }>
+      current?: string
+    }
+  }
+}
+interface ApplyContext {
+  sessions?: SessionsFacade
+}
 
 declare global {
   interface Window {
     __dshBbdClient?: { dispose(): void }
+    /** 认领/转交用的会话源（与左栏同源；mount 层点击时懒读） */
+    __dshBbdSessions?: SessionsFacade
   }
 }
 
-export function apply(): void {
+export function apply(ctx: ApplyContext): void {
+  // 暴露给 board-mount：转交弹窗即时取会话列表（不随轮询重绘，点开时新鲜读取）
+  try { (window as any).__dshBbdSessions = ctx?.sessions } catch { /* noop */ }
   try {
     injectStyles()
 

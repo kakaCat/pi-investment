@@ -1,1 +1,1 @@
-{"version":3,"file":"client.d.cts","names":[],"sources":["../src/client/index.ts"],"mappings":";cAea;cAEA;QAEL;YACI;IACR;MAAmB;;;;iBAIP"}
+{"version":3,"file":"client.d.cts","names":[],"sources":["../src/client/index.ts"],"mappings":";cAea;cAKA;;UAGI;EACf;IACE;MACE,QAAQ;QACN;QACA;QACA;QACA;QACA;QACA;;MAEF;;;;UAII;EACR,WAAW;;QAGL;YACI;IACR;MAAmB;;;IAEnB,mBAAmB;;;iBAIP,MAAM,KAAK"}

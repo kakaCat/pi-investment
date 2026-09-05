@@ -170,6 +170,55 @@ html[data-dsh-bbd-active] .dsh-bbd-view {
 .dsh-bbd-pg-nums { display: inline-flex; gap: 5px; }
 .dsh-bbd-pg-cnt { margin-left: auto; font-size: 12px; color: #8a9199; }
 .dsh-bbd-rangenote { margin-top: 4px; text-align: right; font-size: 11.5px; color: #b6bcc3; }
+
+/* Task #2：认领/转交动作行 + 转交选择器 + toast */
+.dsh-bbd-acts {
+  margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.dsh-bbd-btn {
+  border: 1px solid #d0d5da; background: #fff; color: #374151;
+  border-radius: 6px; padding: 3px 12px; font-size: 12px; cursor: pointer; line-height: 1.5;
+}
+.dsh-bbd-btn:hover:not(:disabled) { border-color: #2563eb; color: #2563eb; }
+.dsh-bbd-btn:disabled { opacity: .5; cursor: default; }
+.dsh-bbd-btn.solve { background: #2563eb; border-color: #2563eb; color: #fff; }
+.dsh-bbd-btn.solve:hover:not(:disabled) { background: #1d4ed8; color: #fff; }
+.dsh-bbd-btn.delegate { background: #f9fafb; }
+.dsh-bbd-acts-hint { font-size: 11px; color: #b6bcc3; }
+.dsh-bbd-pick {
+  margin-top: 8px; padding: 8px 10px; background: #f6f8fa; border: 1px solid #e2e6ea;
+  border-radius: 8px;
+}
+.dsh-bbd-pick-hd {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 12px; color: #374151; margin-bottom: 6px;
+}
+.dsh-bbd-pick-close {
+  border: none; background: transparent; color: #8a9199; cursor: pointer; font-size: 12px; padding: 0 2px;
+}
+.dsh-bbd-pick-close:hover { color: #b91c1c; }
+.dsh-bbd-pick-list { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+.dsh-bbd-picksession {
+  text-align: left; border: 1px solid #d0d5da; background: #fff; color: #374151;
+  border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.dsh-bbd-picksession:hover { border-color: #2563eb; color: #2563eb; }
+.dsh-bbd-picksession.cur { border-color: #93c5fd; background: #eff6ff; }
+.dsh-bbd-picksession i {
+  font-style: normal; font-size: 10.5px; color: #2563eb; background: #dbeafe;
+  padding: 0 6px; border-radius: 999px;
+}
+.dsh-bbd-pick-empty { font-size: 12px; color: #8a9199; }
+.dsh-bbd-toast {
+  position: fixed; top: 14px; right: 16px; z-index: 9999; max-width: min(420px, 70vw);
+  padding: 9px 14px; border-radius: 8px; font-size: 13px; line-height: 1.55;
+  box-shadow: 0 6px 22px rgba(15, 23, 42, .16); opacity: 1;
+  transition: opacity .35s ease; word-break: break-word;
+}
+.dsh-bbd-toast.ok { background: #065f46; color: #ecfdf5; border: 1px solid #34d399; }
+.dsh-bbd-toast.err { background: #7f1d1d; color: #fef2f2; border: 1px solid #f87171; }
+.dsh-bbd-toast.out { opacity: 0; }
 `
 
 /** Inject the stylesheet once (tagged for the HMR driver cleanup). */

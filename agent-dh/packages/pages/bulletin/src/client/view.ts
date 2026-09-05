@@ -99,6 +99,22 @@ function buildPostCard(p: Post, expanded: boolean): string {
   const closedInfo2 = p.status === 'dropped' && p.drop_reason
     ? '<div class="dsh-bbd-drop">删除原因：' + esc(p.drop_reason) + '</div>' : ''
   const exp = expanded ? ' exp' : ''
+  // Task #2 操作行：仅活跃态（待认领/已认领/暂停/卡住）可认领/转交；终态（完成/删除/归档）只读。
+  // 按钮点击由 mount 层委托拦截（不触发展开）；转交选择器容器留白，点「转交」时由 mount 注入
+  // 会话候选（源 = client sessions 服务，与左侧列表同源，USER #3 不建后端窗口清单）。
+  const canAct = p.status === 'open' || p.status === 'claimed' || p.status === 'paused' || p.status === 'blocked'
+  const acts = canAct
+    ? '<div class="dsh-bbd-acts">' +
+      '<button type="button" class="dsh-bbd-btn solve" data-bbd-solve>我来解决</button>' +
+      '<button type="button" class="dsh-bbd-btn delegate" data-bbd-delegate>转交</button>' +
+      '<span class="dsh-bbd-acts-hint">认领后任务直投对应窗口，由对方自主处理并闭环</span>' +
+      '</div>' +
+      '<div class="dsh-bbd-pick" data-bbd-pick hidden>' +
+        '<div class="dsh-bbd-pick-hd">转交给哪个窗口？' +
+          '<button type="button" class="dsh-bbd-pick-close" data-bbd-pickclose>✕ 取消</button></div>' +
+        '<div class="dsh-bbd-pick-list" data-bbd-picklist></div>' +
+      '</div>'
+    : ''
   return (
     '<article class="dsh-bbd-post ' + statusCls + exp + '" data-bbd-id="' + esc(p.id) + '" title="点击展开/收起全文">' +
       '<div class="dsh-bbd-bar"></div>' +
@@ -115,6 +131,7 @@ function buildPostCard(p: Post, expanded: boolean): string {
           ' · 上报 ' + fmtClock(p.created_at) + ' · v' + (Number(p.revision) || 1) + closedInfo +
         '</div>' +
         logHtml +
+        acts +
       '</div>' +
     '</article>'
   )
@@ -173,7 +190,7 @@ export function buildBoardHtml(data: BulletinData, vs: ViewState, expanded: Read
     '<div class="dsh-bbd-board">' +
       '<div class="dsh-bbd-wrap">' +
         '<div class="dsh-bbd-head">' +
-          '<h1 class="dsh-bbd-title">公告板<span class="sub">Agent OS · 只读监控（写入走 board_update 工具）</span></h1>' +
+          '<h1 class="dsh-bbd-title">公告板<span class="sub">Agent OS · 我来解决/转交 → 任务直投窗口，board_update 闭环</span></h1>' +
           '<div class="dsh-bbd-tools">' +
             staleChip +
             '<span class="dsh-bbd-updated">更新 <b>' + fmtClock(data.fetchedAt) + '</b> · 30s 轮询</span>' +
