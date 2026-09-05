@@ -75,6 +75,14 @@ export default class LifecyclePlugin extends Service {
       baseURL: z.string().default('http://localhost:8080'),  // 窗口注册表落 Agent OS（核心层）
     }).default({} as any),
     wakeToken: z.string().default(''),  // v2 → dh /wake 鉴权 token（空=不校验）
+    // 代执行窗口组成（无在线窗口时 spawn 的代理 agent，2026-09-05 起）
+    // agentPreset：显式 preset id；''（缺省）自动继承（在线 investor 同款 → 框架 defaultId）
+    // provider/model：默认与 agent-loop agents[0]（investor）定义一致
+    spawnAgent: z.object({
+      agentPreset: z.string().default(''),  // schemastery 无 .optional()，'' = 未显式指定（自动继承）
+      provider: z.string().default('deepseek-official'),
+      model: z.string().default('deepseek-v4-flash'),
+    }).default({} as any),
   })
 
   private repo: GitRepo;
@@ -186,6 +194,77 @@ v2_event_json: ${JSON.stringify(data)}
    * ② 不在线 → 创建新窗口代执行（用户决策：任务必须被执行，不等待上线）
    * ③ 执行留痕写 OS memory（office:reminder:exec，含完整 prompt 可溯）
    */
+  /**
+   * 无在线窗口时的代执行窗口配置（2026-09-05 修复：原实现硬编码 provider/model
+   * 且不带 preset → 新窗口落在空 global 层，无系统提示词/技能目录/工具装载）。
+   * preset（模式）继承顺序：cfg.spawnAgent.agentPreset 显式 → 在线 investor 同款
+   * composedPreset → 框架 agentPresets.defaultId（与新建根 agent 同源）。
+   * provider/model：cfg.spawnAgent 配置，默认与 agent-loop agents[0](investor) 一致。
+   */
+  private resolveSpawnProfile(): { meta: Record<string, unknown>; agentOptions: { provider: string; model: string }; presetId: string | undefined } {
+    const spawn = (this.cfg as any).spawnAgent ?? {};
+    const agentOptions = {
+      provider: (spawn.provider as string) ?? 'deepseek-official',
+      model: (spawn.model as string) ?? 'deepseek-v4-flash',
+    };
+    let presetId: string | undefined = spawn.agentPreset as string | undefined;
+    if (!presetId) {
+      try {
+        const roots: any[] = this.ctx.agents.roots();
+        const online = roots.find((a) => String(a.id).startsWith(this.cfg.agentId)) ?? roots[0];
+        presetId = online?.ctx?.get?.('agentPresets')?.composedPreset?.(online.ctx)
+          ?? (this.ctx as any).get?.('agentPresets')?.defaultId;
+      } catch { /* 框架缺 agentPresets 服务时保持无 preset（原行为） */ }
+    }
+    return { meta: presetId ? { agentPreset: presetId } : {}, agentOptions, presetId };
+  }
+
+  /**
+   * 创建代执行窗口（任务必须被执行，不等待上线）。
+   * 返回 {session_id, window}；失败返回 null（不吞内部细节，由调用方决定重试语义）。
+   */
+  private async spawnProxyWindow(taskName: string, prompt: string, targetWindow: string | undefined): Promise<{ session_id: string; window: string } | null> {
+    try {
+      const sessionId = `session-${crypto.randomUUID()}`;
+      const { meta, agentOptions, presetId } = this.resolveSpawnProfile();
+      await (this.ctx as any).agents.create({
+        sessionId,
+        meta: Object.keys(meta).length ? meta : undefined,
+        agentOptions,
+        // preset 的 join 发生在 agent 工厂 setup 期（光传 meta.agentPreset 只留痕不装载）；
+        // 根级新窗口用 mount()（参照 web 建根 agent / dsh-agent-presets AgentPresets.mount）。
+        setup: async (agentCtx: any) => {
+          try {
+            const presets = agentCtx?.get?.('agentPresets');
+            if (presets?.mount && presetId) await presets.mount(agentCtx, presetId);
+          } catch (err: any) {
+            this.ctx.logger.warn(`lifecycle: mount preset ${String(presetId)} for proxy window failed: ${err?.message ?? err}（窗口仍按空层创建）`);
+          }
+        },
+      });
+      const newWindow = this.windowCode(sessionId);
+      const newAgent: any = (this.ctx as any).agents.get(sessionId);
+      newAgent?.followup?.(createUserMessage({
+        content: [{ type: 'text', text: `【OS 提醒·代执行】目标窗口 ${targetWindow ?? '未知'} 不在线，由你（新窗口 ${newWindow}）代为执行定时任务「${taskName}」：\n\n${prompt}\n\n要求：遵守交易宪法（提示词 constitution 段）；完成后把结论写入 memory（namespace=decision）并 window_update 标记 done。` }],
+        source: { kind: 'plugin', plugin: 'lifecycle' },
+      }));
+      // 登记新窗口进花名册
+      await this.osWrite('skill_upsert', {
+        window: newWindow,
+        session_id: sessionId,
+        agent_id: this.identity.id,
+        role: this.identity.name,
+        skills: ['提醒代执行'],
+        status: 'busy',
+        task: `代执行提醒 ${taskName}`,
+      });
+      return { session_id: sessionId, window: newWindow };
+    } catch (err: any) {
+      this.ctx.logger.warn(`lifecycle: spawn proxy window failed: ${err?.message ?? err}`);
+      return null;
+    }
+  }
+
   private async deliverReminder(taskName: string, taskId: string, prompt: string, window: string | undefined, firedAt: string): Promise<void> {
     // ① 找在线目标窗口
     const roots: any[] = this.ctx.agents.roots();
@@ -202,30 +281,11 @@ v2_event_json: ${JSON.stringify(data)}
       } catch { /* 投递失败走创建窗口 */ }
     }
 
-    // ② 没有在线窗口 → 创建新窗口代为执行
+    // ② 没有在线窗口 → 创建新窗口代为执行（任务必须被执行；spawn 失败向上抛，Agent OS 侧会重试）
     if (!executor) {
-      const sessionId = `session-${crypto.randomUUID()}`;
-      await (this.ctx as any).agents.create({
-        sessionId,
-        agentOptions: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
-      });
-      const newWindow = this.windowCode(sessionId);
-      const newAgent: any = (this.ctx as any).agents.get(sessionId);
-      newAgent?.followup?.(createUserMessage({
-        content: [{ type: 'text', text: `【OS 提醒·代执行】目标窗口 ${window ?? '未知'} 不在线，由你（新窗口 ${newWindow}）代为执行定时任务「${taskName}」：\n\n${prompt}\n\n要求：遵守交易宪法（提示词 constitution 段）；完成后把结论写入 memory（namespace=decision）并 window_update 标记 done。` }],
-        source: { kind: 'plugin', plugin: 'lifecycle' },
-      }));
-      // 登记新窗口进花名册
-      await this.osWrite('skill_upsert', {
-        window: newWindow,
-        session_id: sessionId,
-        agent_id: this.identity.id,
-        role: this.identity.name,
-        skills: ['提醒代执行'],
-        status: 'busy',
-        task: `代执行提醒 ${taskName}`,
-      });
-      executor = { mode: 'spawned', session_id: sessionId, window: newWindow };
+      const spawned = await this.spawnProxyWindow(taskName, prompt, window);
+      if (!spawned) throw new Error(`spawn proxy window failed for ${taskName}`);
+      executor = { mode: 'spawned', session_id: spawned.session_id, window: spawned.window };
     }
 
     // ③ 执行留痕（含完整提示词，可溯）
@@ -308,30 +368,9 @@ v2_event_json: ${JSON.stringify(data)}
 
           // ② 没有在线窗口 → 创建新窗口代为执行（用户决策：任务必须被执行，不等待上线）
           if (!executor) {
-            try {
-              const sessionId = `session-${crypto.randomUUID()}`;
-              await (this.ctx as any).agents.create({
-                sessionId,
-                agentOptions: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
-              });
-              const newWindow = this.windowCode(sessionId);
-              const newAgent: any = (this.ctx as any).agents.get(sessionId);
-              newAgent?.followup?.(createUserMessage({
-                content: [{ type: 'text', text: `【OS 提醒·代执行】目标窗口 ${p.window} 不在线，由你（新窗口 ${newWindow}）代为执行定时任务「${p.task ?? ''}」：\n\n${p.prompt}\n\n要求：遵守交易宪法（提示词 constitution 段）；完成后把结论写入 memory（namespace=decision）并 window_update 标记 done。` }],
-                source: { kind: 'plugin', plugin: 'lifecycle' },
-              }));
-              // 登记新窗口进花名册
-              await this.osWrite('skill_upsert', {
-                window: newWindow,
-                session_id: sessionId,
-                agent_id: this.identity.id,
-                role: this.identity.name,
-                skills: ['提醒代执行'],
-                status: 'busy',
-                task: `代执行提醒 ${p.task ?? ''}`,
-              });
-              executor = { mode: 'spawned', session_id: sessionId, window: newWindow };
-            } catch { continue; /* 创建失败留下轮重试，信箱记录仍在 */ }
+            const spawned = await this.spawnProxyWindow(p.task ?? '', p.prompt ?? '', p.window);
+            if (!spawned) continue;  // 创建失败留下轮重试，信箱记录仍在
+            executor = { mode: 'spawned', session_id: spawned.session_id, window: spawned.window };
           }
 
           // ③ 执行留痕（含完整提示词，可溯）

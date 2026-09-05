@@ -28,6 +28,10 @@ export interface SchedulerManageParams {
   max_retries?: number;
   retry_delay?: number;
   retry_count?: number;
+  /** 任务负载（create/update 可选）：agent-webhook 任务经 payload.prompt 携带完整指令；quantsys 内部任务经 payload.job_type 指定作业类型 */
+  payload?: Record<string, any>;
+  /** Webhook 回调地址（create/update 可选）：设置后任务触发改走 HTTP POST，command 不再执行 */
+  webhook_url?: string;
 }
 
 export interface SchedulerManageResult {
@@ -40,14 +44,29 @@ export interface SchedulerManageResult {
   message?: string;
 }
 
+/** 任务类型标签（渲染用）：Agent任务(webhook+prompt) / 内部任务(job_type) / Webhook / 脚本命令 */
+export function taskKind(task: any): string {
+  if (!task) return '—';
+  const p = task.payload || {};
+  if (task.webhook_url && p.prompt) return '🧠 Agent任务';
+  if (p.job_type) return '⚙️ 内部任务';
+  if (task.webhook_url) return '🔗 Webhook';
+  if (task.command) return '📜 脚本/命令';
+  return '—';
+}
+
 export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerManageResult> = {
   description:
     '管理 Agent OS 定时任务（调度器）。支持：列出全部任务(list)、注册新任务(create)、查看任务详情(get)、更新任务(update)、立即触发一次(trigger)、启用(enable)、禁用(disable)、删除(delete)。' +
-    '适用于：查看当前有哪些自动任务、新增每日盘前扫描、临时暂停某个任务、手动触发一次补跑。',
+    '适用于：查看当前有哪些自动任务、新增每日盘前扫描、临时暂停某个任务、手动触发一次补跑。' +
+    '⚠️ Agent 定时任务（webhook 驱动，本实例 13080/agent-os-trigger）的完整指令存在 payload.prompt：' +
+    '改任务要干的事 = action=update + task_id + payload={"prompt":"<新指令>"}；改造 webhook 地址用 webhook_url。' +
+    'list 会标出任务类型（Agent任务/Webhook/内部/脚本）。',
 
   useCases: [
     '查看当前所有定时任务',
     '新增/修改一个定时任务（如每日 09:00 盘前扫描）',
+    '更新某 OS agent 定时任务的指令（payload.prompt）',
     '临时暂停或恢复某个任务',
     '手动触发一次任务补跑',
   ],
@@ -76,6 +95,15 @@ export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerM
         task_id: 'task_xxx',
       },
       expectedResult: '返回触发结果',
+    },
+    {
+      title: '更新 OS agent 任务的指令（payload.prompt）',
+      params: {
+        action: 'update',
+        task_id: 'task_xxx',
+        payload: { prompt: '【新的任务指令】……' },
+      },
+      expectedResult: '返回更新后的任务详情（payload 已替换）',
     },
   ],
 
@@ -111,12 +139,23 @@ export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerM
     command: {
       type: 'string',
       required: false,
-      description: '执行命令，create 时必填',
+      description: '执行命令，create 时必填（设置了 webhook_url 则可不填）',
     },
     description: {
       type: 'string',
       required: false,
       description: '任务描述',
+    },
+    webhook_url: {
+      type: 'string',
+      required: false,
+      description: 'Webhook 回调地址（create/update 可选）。设置后任务触发改走 HTTP POST 该地址（如 http://127.0.0.1:13080/agent-os-trigger），command 不再执行；配 payload.prompt 即把指令全文交给 agent',
+    },
+    payload: {
+      type: 'object',
+      required: false,
+      description: '任务负载（create/update 可选，整体替换）。agent-webhook 任务：{"prompt": "<给 agent 的完整指令>"}；quantsys 内部任务：{"job_type": "..."}。update 传它即覆盖原 payload（可用 get 先查现值再改）',
+      additionalProperties: true,
     },
     enabled: {
       type: 'boolean',
@@ -143,27 +182,33 @@ export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerM
       let output = '';
 
       switch (data.action) {
-        case 'list':
+        case 'list': {
           output += `## 📋 定时任务列表\n\n`;
           output += `**任务总数**: ${data.count || 0}\n\n`;
           if (data.tasks && data.tasks.length > 0) {
-            output += `| 任务ID | 名称 | Cron | 命令 | 状态 |\n`;
+            output += `| 任务ID | 名称 | 类型 | Cron | 状态 |\n`;
             output += `|--------|------|------|------|------|\n`;
             for (const task of data.tasks) {
               const status = task.enabled ? '✅ 启用' : '⏸️ 禁用';
-              output += `| ${task.id} | ${task.name} | ${task.cron} | ${task.command} | ${status} |\n`;
+              const kind = taskKind(task);
+              const name = task.name || task.id;
+              const cron = task.cron || task.schedule || '';
+              output += `| ${task.id} | ${name} | ${kind} | ${cron} | ${status} |\n`;
             }
           } else {
             output += `*暂无定时任务*\n`;
           }
           break;
+        }
 
         case 'create':
           output += `## ✅ 任务创建成功\n\n`;
           output += `- **任务ID**: ${data.task_id}\n`;
           output += `- **任务名称**: ${data.task?.name}\n`;
+          output += `- **类型**: ${taskKind(data.task)}\n`;
           output += `- **Cron**: ${data.task?.cron}\n`;
-          output += `- **命令**: ${data.task?.command}\n`;
+          if (data.task?.command) output += `- **命令**: ${data.task.command}\n`;
+          if (data.task?.webhook_url) output += `- **Webhook**: ${data.task.webhook_url}\n`;
           output += `- **状态**: ${data.task?.enabled ? '✅ 启用' : '⏸️ 禁用'}\n`;
           break;
 
@@ -173,11 +218,22 @@ export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerM
             output += `- **任务ID**: ${data.task.id}\n`;
             output += `- **任务名称**: ${data.task.name}\n`;
             output += `- **所有者**: ${data.task.owner}\n`;
+            output += `- **类型**: ${taskKind(data.task)}\n`;
             output += `- **Cron**: ${data.task.cron}\n`;
-            output += `- **命令**: ${data.task.command}\n`;
+            if (data.task.command) output += `- **命令**: ${data.task.command}\n`;
+            if (data.task.webhook_url) output += `- **Webhook**: ${data.task.webhook_url}\n`;
             output += `- **状态**: ${data.task.enabled ? '✅ 启用' : '⏸️ 禁用'}\n`;
             if (data.task.description) {
               output += `- **描述**: ${data.task.description}\n`;
+            }
+            if (data.task.payload && Object.keys(data.task.payload).length > 0) {
+              const p = data.task.payload;
+              const shown: string[] = [];
+              if (p.prompt) shown.push(`prompt: ${String(p.prompt).slice(0, 120)}${String(p.prompt).length > 120 ? '…' : ''}`);
+              if (p.job_type) shown.push(`job_type: ${String(p.job_type)}`);
+              if (p.window) shown.push(`window: ${String(p.window)}`);
+              if (p.executor) shown.push(`executor: ${String(p.executor)}`);
+              if (shown.length) output += `- **Payload**: ${shown.join(' | ')}\n`;
             }
             if (data.task.last_run) {
               output += `- **上次运行**: ${data.task.last_run}\n`;
