@@ -1,8 +1,7 @@
 ---
-title: 机会发现漏斗 SOP（Opportunity Funnel）
-origin: agent-self/20260903-180352:agent-dh/skills/opportunity-funnel/SKILL.md（2026-09-03 安装 dsh-liangshen preset 时遗留的 wip 孤本文档）
-archived_by: w-1cee2467 2026-09-05（45→1 分支清理打捞）
-usage: 回答"市场有什么机会/板块/标的"类问题时按此流程执行，禁止只扫池内标的
+name: opportunity-funnel
+description: 全市场机会发现漏斗 SOP：screening 初筛 → 主线/资金交叉验证 → 个股三维深度验证 → R-009 分级 → signal_track 落库。回答"市场有什么机会/板块/标的"类问题时必须按此流程执行，禁止只扫池内标的。
+whenToUse: 用户问市场机会、板块机会、推荐标的、今日买什么，或盘前/盘后例行扫描候选标的时
 ---
 
 # 机会发现漏斗（Opportunity Funnel）
