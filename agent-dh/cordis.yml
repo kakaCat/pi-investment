@@ -3,6 +3,13 @@
 
 # ========== DSH 核心插件 ==========
 
+# Skill 生态（base bundle 自带 dsh-skill/filesystem/tool-skill；此处仅声明自定义技能根，
+# 与 ~/.dsh/profiles/investment/cordis.patch.yml 的 Skill 自定义目录段保持一致）
+- id: skill-filesystem
+  config:
+    customSkillDirs:
+      - /Users/yunpeng/pi-investment/agent-dh/skills
+
 # 设置管理
 - id: settings
   name: '@deepseek-ai/dsh-settings-file'
