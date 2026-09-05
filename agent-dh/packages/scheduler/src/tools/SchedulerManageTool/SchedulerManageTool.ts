@@ -70,14 +70,14 @@ export class SchedulerManageTool extends BaseTool<SchedulerManageParams, Schedul
             },
           };
         }
-        if (!args.command) {
+        if (!args.command && !args.webhook_url) {
           return {
             success: false,
             error: {
               success: false,
               errorType: ErrorType.VALIDATION_ERROR,
               field: 'command',
-              issue: 'create 操作需要提供 command',
+              issue: 'create 操作需要提供 command（或 webhook_url：webhook 驱动任务无需命令）',
               expected: 'string',
             },
           };
@@ -134,12 +134,14 @@ export class SchedulerManageTool extends BaseTool<SchedulerManageParams, Schedul
           name: args.name!,
           owner: args.owner || 'agent-dh',
           cron: args.cron!,
-          command: args.command!,
+          command: args.command,
           description: args.description,
           enabled: args.enabled ?? true,
           max_retries: args.max_retries,
           retry_delay: args.retry_delay,
-        });
+          webhook_url: args.webhook_url,
+          payload: args.payload,
+        } as any);
         result.task = task;
         result.task_id = task.id;
         result.message = `任务「${task.name}」已创建`;
@@ -160,10 +162,16 @@ export class SchedulerManageTool extends BaseTool<SchedulerManageParams, Schedul
           max_retries: args.max_retries,
           retry_delay: args.retry_delay,
           retry_count: args.retry_count,
-        });
+          webhook_url: args.webhook_url,
+          payload: args.payload,
+        } as any);
         result.task = task;
         result.task_id = args.task_id;
-        result.message = '任务已更新';
+        result.message = args.payload
+          ? '任务已更新（payload 已覆盖）'
+          : args.webhook_url
+            ? '任务已更新（webhook_url 已设置）'
+            : '任务已更新';
         break;
       }
       case 'trigger': {
