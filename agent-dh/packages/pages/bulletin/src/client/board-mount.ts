@@ -285,6 +285,14 @@ export function mountBoard(controller: BoardController): () => void {
     const w = window as any
     let fac = w.__dshBbdSessions
     if (!fac?.list) { try { fac = w.__dshBbdCtx?.sessions; if (fac?.list) w.__dshBbdSessions = fac } catch { /* noop */ } }
+    // 归档集合（与左侧工作区同源）：workspaces 服务 archivedSessionIds；缺失时不硬过滤
+    let archived: Set<string> | null = null
+    try {
+      let wfac = w.__dshBbdWorkspaces
+      if (!wfac?.list) { wfac = w.__dshBbdCtx?.workspaces }
+      const ar = wfac?.list?.getSnapshot?.()?.archivedSessionIds
+      if (Array.isArray(ar)) archived = new Set(ar.map(String))
+    } catch { /* workspaces 降级 → 无归档过滤 */ }
     const out: { sid: string; label: string; current: boolean }[] = []
     try {
       const snap = fac?.list?.getSnapshot?.()
@@ -296,6 +304,9 @@ export function mountBoard(controller: BoardController): () => void {
       for (const it of rows) {
         const sid = String(it?.id ?? it?.sessionId ?? '')
         if (!sid || it.blank) continue
+        // 镜像左侧列表可视过滤：不展示归档会话与 subagent 会话
+        if (archived?.has(sid)) continue
+        if (it?.origin === 'subagent') continue
         out.push({ sid, label: String(it.displayTitle ?? it.title ?? sid), current: sid === cur })
       }
     } catch { /* sessions 降级 → 空候选 */ }
