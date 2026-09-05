@@ -177,6 +177,29 @@ async function tailFile(file: string, tailLines = 300, maxBytes = 512 * 1024): P
   const lines = content.split('\n');
   return lines.slice(-tailLines);
 }
+/** 日志时间戳多格式提取（v2 JSON "timestamp"/os zap "ts" ISO 或 epoch 秒）+ ISO 行首 */
+interface LogTs { ts: number | null; text: string | null }
+function extractLogTime(raw: string): LogTs {
+  const m = raw.match(TS_RE);
+  if (m) return { ts: tsMs(m[1]), text: m[1] };
+  const jm = raw.match(/"timestamp"\s*:\s*"([^"]+)"/) || raw.match(/"ts"\s*:\s*"([^"]+)"/);
+  if (jm) {
+    const t = parseTs(jm[1]);
+    if (t && !Number.isNaN(t.getTime())) {
+      return { ts: t.getTime(), text: toLocalDate(t) + ' ' + hhmmOf(t) + ':' + pad2(t.getSeconds()) };
+    }
+  }
+  const em = raw.match(/"ts"\s*:\s*(\d{10,13}(?:\.\d+)?)/);
+  if (em) {
+    const n = Number(em[1]);
+    const ms = n > 1e12 ? n : n * 1000;
+    const d = new Date(ms);
+    if (!Number.isNaN(d.getTime())) {
+      return { ts: ms, text: toLocalDate(d) + ' ' + hhmmOf(d) + ':' + pad2(d.getSeconds()) };
+    }
+  }
+  return { ts: null, text: null };
+}
 export class DataAggregationService {
   private readonly opts: AggregatorOptions;
   private readonly now: Date;
@@ -699,11 +722,12 @@ export class DataAggregationService {
     for (const { source, file } of this.opts.logFiles) {
       try {
         const lines = await tailFile(file);
+        let lastTs: LogTs = { ts: null, text: null };
         for (const raw of lines) {
+          const own = extractLogTime(raw);
+          if (own.ts !== null && own.text !== null) lastTs = own; // 时间戳向下继承（栈碎片/纯文本错误行无行首时间）
           if (!ERROR_RE.test(raw)) continue;
-          const m = raw.match(TS_RE);
-          const tsText = m ? m[1] : null;
-          all.push({ source, ts: tsMs(tsText), tsText, line: raw.substring(0, 500), file: path.basename(file) });
+          all.push({ source, ts: own.ts ?? lastTs.ts, tsText: own.text ?? lastTs.text, line: raw.substring(0, 500), file: path.basename(file) });
         }
       } catch {
         // 单文件读失败忽略（可能被轮转/删除）
