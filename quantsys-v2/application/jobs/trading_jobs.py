@@ -4,6 +4,7 @@
 包含：v13_daily_check, v13_risk_check, v13_verification,
       trade_verify_daily, pool_refresh_daily
 """
+import asyncio
 import logging
 from typing import Any, Dict
 
@@ -217,7 +218,14 @@ class TradeVerifyDailyJob(Job):
 
 
 class PoolRefreshDailyJob(Job):
-    """每日股票池刷新"""
+    """每日股票池刷新（委托 scheduler_tasks 单一正实现）
+
+    2026-09-05 收敛（w-8366e526）：此前本 Job 自带"全池循环 + 吞错"旧实现，
+    与 application.services.scheduler_tasks.handle_pool_refresh_daily（静态池跳过 +
+    到期判定 + 成员 diff + pool_changed 通知）形成双实现，注册表后者曾覆盖前者
+    但本 Job 类实例是唯一被执行路径 → 3 个 dynamic 池停更 13 天。
+    现在本类只做委托，正确逻辑只存在于 scheduler_tasks 一处。
+    """
 
     @property
     def name(self) -> str:
@@ -225,7 +233,7 @@ class PoolRefreshDailyJob(Job):
 
     @property
     def description(self) -> str:
-        return "刷新动态股票池"
+        return "刷新动态股票池（静态跳过/到期判定/成员变更通知）"
 
     @property
     def timeout_seconds(self) -> int:
@@ -233,24 +241,20 @@ class PoolRefreshDailyJob(Job):
 
     async def execute(self, params: Dict[str, Any]) -> JobResult:
         try:
-            # 2026-09-03 修复（258）：services.py 显式绑定 stock_pool_service=get_stock_pool_service（函数）
-            # 挡住 __getattr__ 惰性代理，裸名导入拿到的是函数而非实例 → .list_pools() AttributeError。
-            # 与 data_backfiller 同风格：显式调用 getter 拿实例。
-            from adapters.shared.services import get_stock_pool_service
-            stock_pool_service = get_stock_pool_service()
-            pools = stock_pool_service.list_pools()
-            refreshed = 0
-            for pool in pools:
-                try:
-                    stock_pool_service.refresh_pool(pool['id'])
-                    refreshed += 1
-                except Exception as e:
-                    logger.warning(f"Failed to refresh pool {pool['name']}: {e}")
-
+            from application.services.scheduler_tasks import handle_pool_refresh_daily
+            result = await asyncio.to_thread(handle_pool_refresh_daily, params or {})
+            status = result.get('status')
+            if status == 'failed':
+                return JobResult.fail(
+                    self.name,
+                    result.get('error') or result.get('message') or 'unknown error',
+                )
             return JobResult.ok(
                 self.name,
-                message=f"股票池刷新完成: {refreshed}/{len(pools)}",
-                details={"refreshed": refreshed, "total": len(pools)}
+                message=f"股票池刷新完成: refreshed={result.get('refreshed', 0)}, "
+                        f"skipped={result.get('skipped', 0)}, changed={result.get('changed', 0)}, "
+                        f"failed={len(result.get('failed') or [])}",
+                details=result,
             )
         except Exception as e:
             return JobResult.fail(self.name, str(e))
