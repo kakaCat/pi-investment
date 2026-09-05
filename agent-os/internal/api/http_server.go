@@ -26,9 +26,8 @@ type HTTPServer struct {
 	notificationHandler *NotificationHandler
 	profileHandler      *ProfileHandler
 	registryHandler     *RegistryHandler
-	evolutionHandler    *EvolutionHandler
 }
-func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.SkillHandler, schedulerHandler *SchedulerHandler, decisionHandler *DecisionHandler, memoryHandler *MemoryHandler, eventHandler *EventHandler, systemHandler *SystemHandler, notificationHandler *NotificationHandler, profileHandler *ProfileHandler, registryHandler *RegistryHandler, evolutionHandler *EvolutionHandler) *HTTPServer {
+func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.SkillHandler, schedulerHandler *SchedulerHandler, decisionHandler *DecisionHandler, memoryHandler *MemoryHandler, eventHandler *EventHandler, systemHandler *SystemHandler, notificationHandler *NotificationHandler, profileHandler *ProfileHandler, registryHandler *RegistryHandler) *HTTPServer {
 	return &HTTPServer{
 		service:          service,
 		skillHandler:     skillHandler,
@@ -40,7 +39,6 @@ func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.
 		eventHandler:     eventHandler,
 		memoryHandler:    memoryHandler,
 		registryHandler:  registryHandler,
-		evolutionHandler: evolutionHandler,
 	}
 }
 
@@ -134,12 +132,6 @@ func (s *HTTPServer) Start(addr string) error {
 		api.HandleFunc("/registry/agents/unregister", s.registryHandler.Unregister).Methods("POST")
 		api.HandleFunc("/registry/agents/available", s.registryHandler.ListAvailable).Methods("GET")
 		api.HandleFunc("/registry/agents/{id}", s.registryHandler.Get).Methods("GET")
-	}
-
-	// Evolution endpoints
-	if s.evolutionHandler != nil {
-		api.HandleFunc("/evolution/run", s.evolutionHandler.Run).Methods("POST")
-		api.HandleFunc("/evolution/leaderboard", s.evolutionHandler.Leaderboard).Methods("GET")
 	}
 
 	s.server = &http.Server{

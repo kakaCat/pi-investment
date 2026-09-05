@@ -204,8 +204,6 @@ var serveCmd = &cobra.Command{
 		decisionHandler := api.NewDecisionHandler(decisionRepo)
 		registryRepo := repository.NewRegistryWebRepository(db)
 		registryHandler := api.NewRegistryHandler(registryRepo)
-		evolutionRepo := repository.NewEvolutionWebRepository(db)
-		evolutionHandler := api.NewEvolutionHandler(evolutionRepo)
 
 		// RFC 010: 启动心跳监控器（60s 检查间隔，60s 超时阈值）
 		heartbeatMonitor := service.NewHeartbeatMonitor(
@@ -221,7 +219,7 @@ var serveCmd = &cobra.Command{
 		}()
 
 		// Create HTTP server
-		server := api.NewHTTPServer(svc, skillHandler, schedulerHandler, decisionHandler, memoryHandler, eventHandler, systemHandler, notificationHandler, profileHandler, registryHandler, evolutionHandler)
+		server := api.NewHTTPServer(svc, skillHandler, schedulerHandler, decisionHandler, memoryHandler, eventHandler, systemHandler, notificationHandler, profileHandler, registryHandler)
 
 		// Start HTTP server in goroutine
 		addr := fmt.Sprintf("%s:%d", host, port)
