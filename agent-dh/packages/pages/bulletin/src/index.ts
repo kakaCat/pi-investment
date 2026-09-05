@@ -44,10 +44,18 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   const logger = ctx.logger(name)
   logger.info('dashboard-bulletin host applied (phase2: posts API + GUI action)')
 
-  // Task #2：把目标会话解析为「在线 agent」——会话是 ctx.agents 的 root（含别名窗口）。
+  // Task #2：把目标会话解析为「在线 agent」——会话是 agents 服务的 root（含别名窗口）。
+  // agents 服务非本插件声明注入，直接读 (ctx as any).agents 会触发 cordis 门禁
+  // （cannot get property without inject），故与 webServer 同款惰性 ctx.inject 捕获服务引用。
+  let agentsSvc: any
+  ;(ctx as unknown as { inject?: (services: string[], cb: (actx: any) => void, label?: string) => void }).inject?.(
+    ['agents'],
+    (actx: { agents?: any }) => { agentsSvc = actx.agents },
+    name + ': agents',
+  )
   // resolve(null) → 身份主 root（id 前缀 agentId），兜底 roots[0]；无 agents → null。
   const resolveAgent = (sessionId?: string, exactOnly = false): ActionTarget | null => {
-    const agents = (ctx as any).agents as any
+    const agents = agentsSvc as any
     if (!agents) return null
     let list: any[] = []
     try { list = agents.roots?.() ?? [] } catch { list = [] }
