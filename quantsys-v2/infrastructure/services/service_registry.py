@@ -239,12 +239,22 @@ def _register_services_hardcoded():
     # OpportunityScoringService - 依赖 DataService 和 FactorAdapter
     from application.services.opportunity_scoring_service import OpportunityScoringService
     def create_scoring_service():
+        # 2026-09-05（w-8366e526）：score_stocks 无条件调用
+        # financial_repo.batch_get_quarterly_margins / fund_flow_repo.batch_get_latest_flows，
+        # 此前只注入 3 个必填依赖 → financial_repo=None → 'NoneType' has no attribute
+        # 'batch_get_quarterly_margins'，动态池刷新全部失败（3 池停更 8/23 根因之一）。
         from infrastructure.services.service_factory import ServiceFactory
         from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
+        from adapters.outbound.repositories.financial_repository import FinancialORMRepository
+        from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
         kline_repo = ServiceFactory.get_kline_repository()
         stock_repo = ServiceFactory.get_stock_repository()
         factor_adapter = get_factor_adapter()
-        return OpportunityScoringService(kline_repo, stock_repo, factor_adapter)
+        return OpportunityScoringService(
+            kline_repo, stock_repo, factor_adapter,
+            financial_repo=FinancialORMRepository(),
+            fund_flow_repo=FundFlowORMRepository(),
+        )
 
     EnhancedServiceFactory.register(
         OpportunityScoringService,

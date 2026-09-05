@@ -104,12 +104,20 @@ class ServiceFactory:
             from adapters.outbound.repositories import StockPoolORMRepository
             from application.services.opportunity_scoring_service import OpportunityScoringService
             from adapters.outbound.datasources.providers.quantlib import get_factor_adapter
+            from adapters.outbound.repositories.financial_repository import FinancialORMRepository
+            from adapters.outbound.repositories.fund_flow_repository import FundFlowORMRepository
 
             kline_repo = cls.get_kline_repository()
             stock_repo = cls.get_stock_repository()
             pool_repo = StockPoolORMRepository()
             factor_adapter = get_factor_adapter()
-            scoring_service = OpportunityScoringService(kline_repo, stock_repo, factor_adapter)
+            # 2026-09-05（w-8366e526）：补齐 financial/fund_flow repo 注入，
+            # score_stocks 无条件使用二者，缺失导致动态池刷新全部 NoneType 失败。
+            scoring_service = OpportunityScoringService(
+                kline_repo, stock_repo, factor_adapter,
+                financial_repo=FinancialORMRepository(),
+                fund_flow_repo=FundFlowORMRepository(),
+            )
 
             cls._instances['stock_pool_service'] = StockPoolService(
                 stock_repo,

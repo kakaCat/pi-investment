@@ -138,12 +138,18 @@ class OpportunityScoringService:
         fundamentals_map, fund_status = self._cached_batch(
             symbols, 'fund', self.TTL_FUNDAMENTALS, no_cache,
             lambda miss: self.stock_repo.batch_get_fundamentals(miss))
-        quarterly_map, q_status = self._cached_batch(
-            symbols, 'quarterly', self.TTL_QUARTERLY, no_cache,
-            lambda miss: self.financial_repo.batch_get_quarterly_margins(miss, quarters=8))
-        flows_map, flow_status = self._cached_batch(
-            symbols, 'flow', self.TTL_FUND_FLOW, no_cache,
-            lambda miss: self.fund_flow_repo.batch_get_latest_flows(miss, days=5))
+        # 2026-09-05（w-8366e526）：financial/fund_flow repo 未注入时显式降级为空 map，
+        # 不再抛 NoneType（工厂层已修复注入；此处为裸构造实例的最后防线）。
+        quarterly_map, q_status = {}, {}
+        if self.financial_repo is not None:
+            quarterly_map, q_status = self._cached_batch(
+                symbols, 'quarterly', self.TTL_QUARTERLY, no_cache,
+                lambda miss: self.financial_repo.batch_get_quarterly_margins(miss, quarters=8))
+        flows_map, flow_status = {}, {}
+        if self.fund_flow_repo is not None:
+            flows_map, flow_status = self._cached_batch(
+                symbols, 'flow', self.TTL_FUND_FLOW, no_cache,
+                lambda miss: self.fund_flow_repo.batch_get_latest_flows(miss, days=5))
 
         # 逐股 profile 分类（一次，池内分位需要全池数据）
         profiles = self.profile_classifier.classify_batch(
