@@ -91,7 +91,7 @@ class AttributionService:
                     hit_5d,
                     hit_10d,
                     hit_20d
-                FROM signal_tracking
+                FROM quant.signal_tracking
                 WHERE signal_date >= %s AND signal_date <= %s
                 ORDER BY signal_date DESC
             """, (start_date, end_date))

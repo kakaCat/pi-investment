@@ -47,7 +47,7 @@ class SignalTrackingRepository:
         
         try:
             cursor.execute("""
-                INSERT INTO signal_tracking (
+                INSERT INTO quant.signal_tracking (
                     signal_date, symbol, grade, source, price, reason
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s
@@ -98,7 +98,7 @@ class SignalTrackingRepository:
             values.append(signal_id)
             
             sql = f"""
-                UPDATE signal_tracking
+                UPDATE quant.signal_tracking
                 SET {', '.join(set_clauses)}
                 WHERE id = %s
             """
@@ -125,7 +125,7 @@ class SignalTrackingRepository:
                     return_5d, return_10d, return_20d,
                     hit_5d, hit_10d, hit_20d,
                     created_at, updated_at
-                FROM signal_tracking
+                FROM quant.signal_tracking
                 WHERE signal_date = %s
                 ORDER BY created_at DESC
             """, (signal_date,))
@@ -153,7 +153,7 @@ class SignalTrackingRepository:
                     return_5d, return_10d, return_20d,
                     hit_5d, hit_10d, hit_20d,
                     created_at, updated_at
-                FROM signal_tracking
+                FROM quant.signal_tracking
                 WHERE signal_date >= %s
                 ORDER BY signal_date DESC, created_at DESC
             """, (start_date,))
@@ -210,7 +210,7 @@ class SignalTrackingRepository:
                     return_5d, return_10d, return_20d,
                     hit_5d, hit_10d, hit_20d,
                     created_at, updated_at
-                FROM signal_tracking
+                FROM quant.signal_tracking
                 {where_clause}
                 ORDER BY signal_date DESC, created_at DESC
                 LIMIT %s
@@ -239,7 +239,7 @@ class SignalTrackingRepository:
                     return_5d, return_10d, return_20d,
                     hit_5d, hit_10d, hit_20d,
                     created_at, updated_at
-                FROM signal_tracking
+                FROM quant.signal_tracking
                 WHERE id = %s
             """, (signal_id,))
             

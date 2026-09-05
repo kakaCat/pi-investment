@@ -144,7 +144,7 @@ class WeeklyReportService:
                     COUNT(CASE WHEN grade = 'A' THEN 1 END) as grade_a,
                     COUNT(CASE WHEN grade = 'B' THEN 1 END) as grade_b,
                     COUNT(CASE WHEN grade = 'C' THEN 1 END) as grade_c
-                FROM signal_tracking
+                FROM quant.signal_tracking
                 WHERE signal_date >= %s AND signal_date <= %s
             """, (start_date, end_date))
             
