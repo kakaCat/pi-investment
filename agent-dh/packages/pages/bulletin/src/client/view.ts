@@ -14,15 +14,6 @@ import type { BulletinCounts, BulletinData, KindKey, Post, StatusKey } from './t
 const esc = (s: unknown): string =>
   String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m] ?? m))
 
-/** 距创建时间（board_read 口径 age_hours；Agent OS 时区偏移可能为负 → 钳制为「刚刚」） */
-const fmtAge = (hours: number | undefined | null): string => {
-  const h = Number(hours)
-  if (!Number.isFinite(h)) return '—'
-  if (h < 1) return '刚刚'
-  if (h < 24) return h + '小时前'
-  return Math.floor(h / 24) + '天前'
-}
-
 const fmtClock = (ts?: string | null): string => {
   if (!ts) return '—'
   const d = new Date(ts)
@@ -121,7 +112,7 @@ function buildPostCard(p: Post, expanded: boolean): string {
         closedInfo2 +
         '<div class="dsh-bbd-meta">' +
           '作者 <b>' + author + '</b> · 认领人 <b>' + assignee + '</b> · 认领 ' + (Number(p.claim_count) || 0) + ' 次' +
-          ' · ' + fmtAge(p.age_hours) + ' · v' + (Number(p.revision) || 1) + closedInfo +
+          ' · 上报 ' + fmtClock(p.created_at) + ' · v' + (Number(p.revision) || 1) + closedInfo +
         '</div>' +
         logHtml +
       '</div>' +
