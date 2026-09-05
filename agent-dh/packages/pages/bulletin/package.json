@@ -27,7 +27,8 @@
     "client": {
       "platform": "web",
       "inject": [
-        "sessions"
+        "sessions",
+        "workspaces"
       ]
     }
   }

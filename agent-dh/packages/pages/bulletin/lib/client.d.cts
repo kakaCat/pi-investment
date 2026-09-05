@@ -19,6 +19,14 @@ interface SessionsFacade {
 }
 interface ApplyContext {
   sessions?: SessionsFacade;
+  /** workspace 控制器（归档集合 archivedSessionIds 来源） */
+  workspaces?: {
+    list?: {
+      getSnapshot?: () => {
+        archivedSessionIds?: string[];
+      };
+    };
+  };
 }
 declare global {
   interface Window {
@@ -30,6 +38,15 @@ declare global {
     /** apply 时的 client ctx（sessions 若未注入完成，点开转交时经它惰性重取） */
     __dshBbdCtx?: {
       sessions?: SessionsFacade;
+      workspaces?: unknown;
+    };
+    /** workspaces 服务快照（归档集合，转交候选过滤用） */
+    __dshBbdWorkspaces?: {
+      list?: {
+        getSnapshot?: () => {
+          archivedSessionIds?: string[];
+        };
+      };
     };
   }
 }

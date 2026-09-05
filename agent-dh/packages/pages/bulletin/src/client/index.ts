@@ -18,7 +18,7 @@ export const name = '@pi-investment/dashboard-bulletin/client'
 // Task #2：认领/转交需要左侧会话列表（USER #3：公告板客户端已见左栏内容，不再从后端拉窗口清单）。
 // inject 'sessions' → apply(ctx) 的 ctx.sessions 与左栏同源（同一 client 服务），其
 // .list.getSnapshot() 产出 { items:{id,displayTitle,running,blank,...}[], current }。
-export const inject: string[] = ['sessions']
+export const inject: string[] = ['sessions', 'workspaces']
 
 /** sessions 服务的极简投影（宽容读取，缺字段即降级；boot 提供失败也不阻断看板只读） */
 export interface SessionsFacade {
@@ -38,6 +38,10 @@ export interface SessionsFacade {
 }
 interface ApplyContext {
   sessions?: SessionsFacade
+  /** workspace 控制器（归档集合 archivedSessionIds 来源） */
+  workspaces?: {
+    list?: { getSnapshot?: () => { archivedSessionIds?: string[] } }
+  }
 }
 
 declare global {
@@ -46,13 +50,15 @@ declare global {
     /** 认领/转交用的会话源（与左栏同源；mount 层点击时懒读） */
     __dshBbdSessions?: SessionsFacade
     /** apply 时的 client ctx（sessions 若未注入完成，点开转交时经它惰性重取） */
-    __dshBbdCtx?: { sessions?: SessionsFacade }
+    __dshBbdCtx?: { sessions?: SessionsFacade; workspaces?: unknown }
+    /** workspaces 服务快照（归档集合，转交候选过滤用） */
+    __dshBbdWorkspaces?: { list?: { getSnapshot?: () => { archivedSessionIds?: string[] } } }
   }
 }
 
 export function apply(ctx: ApplyContext): void {
   // 暴露给 board-mount：转交弹窗即时取会话列表（不随轮询重绘，点开时新鲜读取）
-  try { (window as any).__dshBbdCtx = ctx; (window as any).__dshBbdSessions = ctx?.sessions } catch { /* noop */ }
+  try { (window as any).__dshBbdCtx = ctx; (window as any).__dshBbdSessions = ctx?.sessions; (window as any).__dshBbdWorkspaces = ctx?.workspaces } catch { /* noop */ }
   try {
     injectStyles()
 
