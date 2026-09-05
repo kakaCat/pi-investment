@@ -96,6 +96,11 @@ def execute_scheduled_job(task_id: int):
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             inner_failed = isinstance(result, dict) and result.get('status') == 'failed'
             error = result.get('error') if inner_failed else None
+            # Fix（2026-09-05 w-8366e526）：executor 会话与 Job 共享同一线程级 session；
+            # Job 内部 DB 工作中途报错会留下 aborted 事务 → complete_run 的 SELECT/UPDATE
+            # 报 "Can't reconnect until invalid transaction is rolled back"
+            # （实证：data_quality_check 任务 run 3408 等）。落记录前先回滚会话止血。
+            session.rollback()
             repo.complete_run(
                 run_id=run_id,
                 success=not inner_failed,
@@ -112,6 +117,7 @@ def execute_scheduled_job(task_id: int):
         except Exception as e:
             # 6. 记录失败
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+            session.rollback()  # 同上：Job 异常可能已污染共享会话，先回滚再写失败记录
             repo.complete_run(
                 run_id=run_id,
                 success=False,
