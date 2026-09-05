@@ -2,7 +2,7 @@
 
 > 日期：2026-09-03
 > 作者：investor（w-8366e526）
-> 状态：P0（占位拦截）+ P1（qv2 引擎）+ P2（agent-dh 工具迁移）已实施（落位记录见 §10）；P3 收尾 B 链 producer 等已落地（见 §10 末/§11），agent-os 路由 deprecation 标注受并行会话脏文件阻塞待办
+> 状态：✅ 完全闭环（2026-09-05）—— P0（占位拦截）+ P1（qv2 引擎）+ P2（agent-dh 工具迁移）+ P3（B 链 producer + RFC 引用 + work-log + agent-os 路由退役）全部完成（落位记录见 §10）
 > 前置：docs/work-logs/2026-09/l4b-evolution-data-chain-audit-20260903.md（A/B 双链占位冒充实锤）
 
 ## 0. 背景与修复目标
@@ -161,7 +161,7 @@ P0 先行（当日可交付止血），P1-P2 为"完全修复"主体，P3 收尾
 1. **B 链账户 fitness 盘后续采接入（8/14 断点恢复）**——✅ 完成：`quantsys-v2/adapters/inbound/fastapi_app/daily_jobs_bootstrap.py` 注册 `evolution_fitness` 盘后任务（20:35 周一~五）调 `EvolutionFitnessService.compute_all_accounts`（双侧捕获，幂等 upsert）。对象=账户行为，与策略参数进化分域（§0 修复目标）。验证：JOBS 注册冒烟通过 + Live trigger 落库新行（见 §11）。
 2. **RFC 005/008 引用刷新**——✅ 完成：RFC 005 line 231 已标注 qv2 迁移（84f31bfa）；008 line 170 为 reward 占位、与 A 链数据源引用无关，不改。
 3. **L4-B work-log 追加**——✅ 完成：`docs/work-logs/2026-09/l4b-genome-benchmark-implementation-20260903.md` §5 追加 B5 关闭记录。
-4. **agent-os evolution 路由 deprecation 标注（停调度触发）**——⏸ 待办（受并行会话 in-flight 脏文件 `agent-os/internal/api/evolution_handler.go` 阻塞，冲突解除后执行：路由标注 deprecation + 检查清理调度器 aos evolution 任务）。agent-dh 侧消费已停（代码级证据见上）。
+4. **agent-os evolution 路由 deprecation 标注（停调度触发）**——✅ 完成（2026-09-05 实地验证，w-d5f37773）：`agent-os/internal/api/evolution_handler.go` **文件不存在**（路由已被完全删除）；调度器无策略进化任务（3 个 evolution-* 任务均为 genome/提示词进化，属 L4-B 独立链，非 A 链策略参数进化）；agent-dh evolution 插件代码级证据确认已停止消费 Agent OS :8080。结论：agent-os evolution API 已完全退役，无需额外 deprecation 标注。
 
 ## 11. P3 Live 验证（2026-09-05）
 
