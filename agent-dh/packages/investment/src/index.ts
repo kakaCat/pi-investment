@@ -15,6 +15,7 @@ import { createStockIntelTool } from './tools/StockIntelTool';
 import { createTradingCalendarTool } from './tools/TradingCalendarTool';
 import { createPePercentileTool } from './tools/PePercentileTool';
 import { createDataFetchDividendTool } from './tools/DataFetchDividendTool';
+import { createPoolManageTool } from './tools/PoolManageTool';
 
 // ========== Plugin Config Schema ==========
 
@@ -100,5 +101,8 @@ export default class InvestmentPlugin extends Service {
 
     // 13. 股息/分红 - 股息率锚定与高股息筛选（2026-09-02）
     reg(createDataFetchDividendTool(qv2));
+
+    // 14. 股票池管理（写）- 建/删池、改筛选规则、批量增删成员、刷新动态池、策略校验（2026-09-05）
+    reg(createPoolManageTool(qv2));
   }
 }

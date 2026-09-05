@@ -7,7 +7,6 @@ import type {
   BacktestRequest,
   BacktestResult,
   Pool,
-  PoolMember,
   Signal,
   QuantsysV2ClientConfig,
   QuoteData,
@@ -408,15 +407,32 @@ export class QuantsysV2Client {
   }
 
   /**
-   * Create pool
+   * Create pool（对齐后端 POST /api/pools 契约：pool_type 必填）
+   * pool_type: static（手工成员）/ dynamic（filter_template 驱动，refresh 时重算）
+   * filter_template: 动态池筛选规则 {conditions:[...], top_n?, sort_by?, min_score?...}（经 validate_filter 校验）
    */
-  async createPool(pool: { name: string; description?: string }): Promise<Pool> {
-    const response = await this.client.post('/api/pools', pool);
+  async createPool(pool: {
+    name: string;
+    pool_type: string;
+    description?: string;
+    symbols?: string[];
+    filter_template?: Record<string, any>;
+    refresh_interval?: string | null;
+  }): Promise<Pool> {
+    const body: Record<string, any> = {
+      name: pool.name,
+      poolType: pool.pool_type,
+      description: pool.description,
+      symbols: pool.symbols,
+      filterTemplate: pool.filter_template,
+      refreshInterval: pool.refresh_interval ?? undefined,
+    };
+    const response = await this.client.post('/api/pools', body);
     return this.unwrap(response.data, 'createPool');
   }
 
   /**
-   * Update pool
+   * Update pool（name/symbols/description 覆盖更新——symbols 为整表替换，增删成员请用 addPoolMembers/removePoolMembers）
    */
   async updatePool(id: number, updates: Partial<Pool>): Promise<Pool> {
     const response = await this.client.put(`/api/pools/${id}`, updates);
@@ -431,35 +447,119 @@ export class QuantsysV2Client {
   }
 
   /**
-   * Get pool members
+   * Get pool members —— 后端无 GET /api/pools/{id}/members 路由（2026-09-05 核对，仅
+   * PUT/POST/DELETE members 三种），成员明细随池对象（getPool/create/update 响应）的
+   * symbols/members 字段返回，故该方法移除，勿再调用。
    */
-  async getPoolMembers(poolId: number): Promise<PoolMember[]> {
-    const response = await this.client.get(`/api/pools/${poolId}/members`);
-    return this.unwrap(response.data, 'getPoolMembers');
-  }
 
   /**
-   * Add member to pool
+   * Add members to pool（批量，对齐后端 POST /api/pools/{id}/members：body.symbols 数组）
    */
-  async addPoolMember(
+  async addPoolMembers(
     poolId: number,
-    member: { symbol: string; metadata?: Record<string, any> }
-  ): Promise<void> {
-    await this.client.post(`/api/pools/${poolId}/members`, member);
+    params: {
+      symbols: string[];
+      description?: string;
+      buy_point?: number;
+      sell_point?: number;
+      tags?: string[];
+    }
+  ): Promise<any> {
+    const body: Record<string, any> = {
+      symbols: params.symbols,
+      description: params.description,
+      buyPoint: params.buy_point,
+      sellPoint: params.sell_point,
+      tags: params.tags,
+    };
+    const response = await this.client.post(`/api/pools/${poolId}/members`, body);
+    return this.unwrap(response.data, 'addPoolMembers');
   }
 
   /**
-   * Remove member from pool
+   * Remove members from pool（批量，对齐后端 DELETE /api/pools/{id}/members：body.symbols 数组）
    */
-  async removePoolMember(poolId: number, symbol: string): Promise<void> {
-    await this.client.delete(`/api/pools/${poolId}/members/${symbol}`);
+  async removePoolMembers(poolId: number, symbols: string[]): Promise<any> {
+    const response = await this.client.delete(`/api/pools/${poolId}/members`, {
+      data: { symbols },
+    });
+    return this.unwrap(response.data, 'removePoolMembers');
   }
 
   /**
-   * Refresh pool (re-scan members)
+   * Update member metadata（对齐后端 PUT /api/pools/{id}/members/{symbol}：description/buy_point/sell_point/tags）
    */
-  async refreshPool(poolId: number): Promise<void> {
-    await this.client.post(`/api/pools/${poolId}/refresh`);
+  async updatePoolMember(
+    poolId: number,
+    symbol: string,
+    meta: {
+      description?: string;
+      buy_point?: number;
+      sell_point?: number;
+      tags?: string[];
+    }
+  ): Promise<any> {
+    const body: Record<string, any> = {
+      description: meta.description,
+      buyPoint: meta.buy_point,
+      sellPoint: meta.sell_point,
+      tags: meta.tags,
+    };
+    const response = await this.client.put(`/api/pools/${poolId}/members/${symbol}`, body);
+    return this.unwrap(response.data, 'updatePoolMember');
+  }
+
+  /**
+   * Refresh pool（重算动态池成员 / 同步静态池展示计数）
+   */
+  async refreshPool(poolId: number): Promise<Pool> {
+    const response = await this.client.post(`/api/pools/${poolId}/refresh`);
+    return this.unwrap(response.data, 'refreshPool');
+  }
+
+  /**
+   * Sync stock names（把池内符号补充为 {symbol, name} 展示形态）
+   */
+  async syncStockNames(poolId: number): Promise<Pool> {
+    const response = await this.client.post(`/api/pools/${poolId}/sync-stock-names`);
+    return this.unwrap(response.data, 'syncStockNames');
+  }
+
+  /**
+   * Validate pool（对池成员跑策略回测校验，需 strategy_ids）
+   */
+  async validatePool(
+    poolId: number,
+    params: { strategy_ids?: number[]; start_date?: string; end_date?: string }
+  ): Promise<any> {
+    const body: Record<string, any> = {
+      strategyIds: params.strategy_ids,
+      startDate: params.start_date,
+      endDate: params.end_date,
+    };
+    const response = await this.client.post(`/api/pools/${poolId}/validate`, body);
+    return this.unwrap(response.data, 'validatePool');
+  }
+
+  /**
+   * Scan-and-create pool（扫描筛选后自动建池，对齐后端 POST /api/pools/scan-and-create）
+   */
+  async scanAndCreatePool(params: {
+    name: string;
+    pool_type: string;
+    filter_template: Record<string, any>;
+    refresh_interval?: string | null;
+    description?: string;
+  }): Promise<Pool> {
+    const body: Record<string, any> = {
+      name: params.name,
+      poolType: params.pool_type,
+      filterTemplate: params.filter_template,
+      refreshInterval: params.refresh_interval ?? undefined,
+      description: params.description,
+    };
+    const response = await this.client.post('/api/pools/scan-and-create', body);
+    return this.unwrap(response.data, 'scanAndCreatePool');
   }
 
   // ==================== Signal APIs ====================

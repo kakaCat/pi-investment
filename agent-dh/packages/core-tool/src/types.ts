@@ -318,6 +318,8 @@ export interface ParameterDefinition {
   enum?: any[];
   /** 示例 */
   example?: any;
+  /** 自由键值对象（type='object' 时显式声明，DSH Schema 铁律） */
+  additionalProperties?: boolean;
   /** 数组元素类型（仅当 type 为 'array' 时使用） */
   items?: {
     type: 'string' | 'number' | 'integer' | 'boolean' | 'object';
