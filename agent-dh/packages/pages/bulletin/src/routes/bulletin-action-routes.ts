@@ -90,8 +90,7 @@ function buildTaskMessage(deps: { postId: string; title: string; content: string
   return {
     id: randomUUID(),
     role: 'user',
-    content: [{ type: 'text', text: lines.join('
-') }],
+    content: [{ type: 'text', text: lines.join('\n') }],
     source: { kind: 'plugin', plugin: 'dashboard-bulletin' },
   }
 }
