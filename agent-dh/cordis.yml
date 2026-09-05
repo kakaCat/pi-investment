@@ -3,14 +3,14 @@
 
 # ========== DSH 核心插件 ==========
 
-# Skill 生态（base bundle 自带 dsh-skill/filesystem/tool-skill；此处仅声明自定义技能根，
-# 与 ~/.dsh/profiles/investment/cordis.patch.yml 的 Skill 自定义目录段保持一致。
-# 2026-09-05：覆盖条目必须带 name，否则 cordis 替换 base 声明后插件无法定位模块）
-- id: skill-filesystem
-  name: '@deepseek-ai/dsh-skill-filesystem'
-  config:
-    customSkillDirs:
-      - /Users/yunpeng/pi-investment/agent-dh/skills
+# Skill 生态（模板说明，2026-09-05 更正）：
+# 本 profile 运行真身 DSH_HOME=~/.dsh-agent-dh（start.sh 隔离，勿与主实例 ~/.dsh 混淆）。
+# skill registry 按 scope 分层：host 层 skill-filesystem 被 dsh-web-app 禁用，
+# preset 层（agent-presets）负责各 preset 的 agent；investor 挂的 preset 用默认 roots，
+# 默认必扫 user-dsh root = ~/.dsh-agent-dh/skills。因此技能装载 = 真身放 agent-dh/skills
+# （本目录，git 版本管理）+ 软链到 ~/.dsh-agent-dh/skills/<skill>（运行时入口）。
+# 模板里的顶层 skill-filesystem customSkillDirs 仅 standalone 参考，不适用于本 profile 的
+# patch+preset 分层装载（顶层覆盖 host 层无效）。
 
 # 设置管理
 - id: settings
