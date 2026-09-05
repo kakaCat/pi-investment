@@ -27,6 +27,10 @@ declare global {
     };
     /** 认领/转交用的会话源（与左栏同源；mount 层点击时懒读） */
     __dshBbdSessions?: SessionsFacade;
+    /** apply 时的 client ctx（sessions 若未注入完成，点开转交时经它惰性重取） */
+    __dshBbdCtx?: {
+      sessions?: SessionsFacade;
+    };
   }
 }
 declare function apply(ctx: ApplyContext): void;

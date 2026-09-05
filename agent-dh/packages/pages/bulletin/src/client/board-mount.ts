@@ -278,18 +278,25 @@ export function mountBoard(controller: BoardController): () => void {
     window.setTimeout(() => { el.classList.add('out'); window.setTimeout(() => el.remove(), 350) }, 4200)
   }
 
-  /** 转交候选：client sessions 服务（与左侧会话列表同源，USER #3 不建后端窗口清单端点） */
+  /** 转交候选：client sessions 服务（与左侧会话列表同源，USER #3 不建后端窗口清单端点）。
+   * 真实快照形状 SessionListState = { ids, byId, current, phase }（无 items！）——按 ids→byId 取行，
+   * 兼容旧 items 投影；sessions 未在 apply 时注入则用缓存的 ctx 惰性重取（2026-09-05 GUI 实测空候选修复）。 */
   const sessionCandidates = (): { sid: string; label: string; current: boolean }[] => {
-    const fac = (window as any).__dshBbdSessions
+    const w = window as any
+    let fac = w.__dshBbdSessions
+    if (!fac?.list) { try { fac = w.__dshBbdCtx?.sessions; if (fac?.list) w.__dshBbdSessions = fac } catch { /* noop */ } }
     const out: { sid: string; label: string; current: boolean }[] = []
     try {
       const snap = fac?.list?.getSnapshot?.()
-      const items = Array.isArray(snap?.items) ? snap.items : []
-      const cur = String(snap?.current ?? '')
-      for (const it of items) {
-        const sid = it.id ?? it.sessionId
+      if (!snap) return out
+      const cur = String(snap.current ?? '')
+      const rows: any[] = Array.isArray(snap.items)
+        ? snap.items
+        : (Array.isArray(snap.ids) ? snap.ids.map((id: string) => snap.byId?.[id]).filter(Boolean) : [])
+      for (const it of rows) {
+        const sid = String(it?.id ?? it?.sessionId ?? '')
         if (!sid || it.blank) continue
-        out.push({ sid: String(sid), label: String(it.displayTitle ?? it.title ?? sid), current: String(sid) === cur })
+        out.push({ sid, label: String(it.displayTitle ?? it.title ?? sid), current: sid === cur })
       }
     } catch { /* sessions 降级 → 空候选 */ }
     return out
@@ -309,7 +316,7 @@ export function mountBoard(controller: BoardController): () => void {
     const cands = sessionCandidates()
     if (list !== null) {
       list.innerHTML = cands.length === 0
-        ? '<div class="dsh-bbd-pick-empty">暂无可转窗口（会话列表不可用）——请稍候重试或点「我来解决」</div>'
+        ? '<div class="dsh-bbd-pick-empty">暂无可转窗口（会话列表为空或未就绪）——请稍候重试或点「我来解决」</div>'
         : cands.map((c) =>
             '<button type="button" class="dsh-bbd-picksession' + (c.current ? ' cur' : '') + '" data-bbd-picksession="' + esc(c.sid) + '">' +
               esc(c.label) + (c.current ? '<i>当前</i>' : '') +
