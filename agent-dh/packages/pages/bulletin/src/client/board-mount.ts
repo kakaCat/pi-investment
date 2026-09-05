@@ -229,23 +229,23 @@ export function mountBoard(controller: BoardController): () => void {
     if (target === null) return
     const actBtn = target.closest<HTMLElement>('[data-bbd-solve],[data-bbd-delegate]')
     if (actBtn !== null) {
-      const id = actBtn.closest<HTMLElement>('[data-dsh-bbd-id]')?.dataset.dshBbdId
+      const id = actBtn.closest<HTMLElement>('[data-bbd-id]')?.dataset.bbdId
       if (id) {
         if (actBtn.hasAttribute('data-bbd-solve')) void runAction(id, 'solve')
-        else { const card = actBtn.closest<HTMLElement>('[data-dsh-bbd-id]'); if (card) togglePicker(card) }
+        else { const card = actBtn.closest<HTMLElement>('[data-bbd-id]'); if (card) togglePicker(card) }
       }
       return
     }
     if (target.closest('[data-bbd-pickclose]') !== null) { closePickers(); return }
     const pickBtn = target.closest<HTMLElement>('[data-bbd-picksession]')
     if (pickBtn !== null && pickBtn.dataset.bbdPicksession) {
-      const id = pickBtn.closest<HTMLElement>('[data-dsh-bbd-id]')?.dataset.dshBbdId
+      const id = pickBtn.closest<HTMLElement>('[data-bbd-id]')?.dataset.bbdId
       if (id) { closePickers(); void runAction(id, 'delegate', pickBtn.dataset.bbdPicksession) }
       return
     }
-    const card = target.closest<HTMLElement>('[data-dsh-bbd-id]')
-    if (card !== null && card.dataset.dshBbdId && target.closest('button') === null) {
-      controller.toggleExpanded(card.dataset.dshBbdId)
+    const card = target.closest<HTMLElement>('[data-bbd-id]')
+    if (card !== null && card.dataset.bbdId && target.closest('button') === null) {
+      controller.toggleExpanded(card.dataset.bbdId)
       return
     }
     const statusBtn = target.closest<HTMLElement>('[data-bbd-status]')
@@ -324,7 +324,7 @@ export function mountBoard(controller: BoardController): () => void {
     let current = ''
     try { current = String((window as any).__dshBbdSessions?.list?.getSnapshot?.()?.current ?? '') } catch { /* noop */ }
     const btn = document.querySelector<HTMLElement>(
-      '[data-dsh-bbd-id="' + CSS.escape(postId) + '"] [data-bbd-' + (action === 'solve' ? 'solve' : 'delegate') + ']')
+      '[data-bbd-id="' + CSS.escape(postId) + '"] [data-bbd-' + (action === 'solve' ? 'solve' : 'delegate') + ']')
     const prevLabel = btn?.textContent ?? ''
     if (btn !== null) { btn.disabled = true; btn.textContent = '处理中…' }
     toast('正在' + (action === 'solve' ? '认领' : '转交') + '…', true)
