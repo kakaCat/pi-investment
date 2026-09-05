@@ -9,6 +9,7 @@ from domain.ports import IKlineRepository, IStockRepository, IStrategyRepository
 import structlog
 from typing import Dict, Any, Callable
 from datetime import datetime, date, timedelta
+import json
 
 logger = structlog.get_logger(__name__)
 
@@ -550,52 +551,17 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
 
 def handle_model_train(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    """模型训练任务"""
+    """模型训练任务
+
+    2026-09-05 修复（w-8366e526）：此前为"框架就绪，需要完整ML pipeline"假实现
+    （默认 xgboost、不训练不落库）。现委托下方 handle_model_train_auto 唯一真实实现
+    （lightgbm 全流程：特征工程 → 训练 → 保存 → 元数据落库 → 性能对比自动切换）。
+    保留 model_type 透传，但默认改为 lightgbm（xgboost 为 2026-05 旧模型，不可信）。
+    """
     params = params or {}
-
-    logger.info("Starting model_train task")
-
-    try:
-        # 模型训练是一个耗时任务，这里提供基本框架
-        model_type = params.get('model_type', 'xgboost')
-
-        # 获取训练数据
-        symbols = params.get('symbols')
-        if not symbols:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            from domain.ports import IStockRepository
-            repo = EnhancedServiceFactory.resolve(IStockRepository)
-            stocks = repo.get_all(limit=100)
-            symbols = [s['symbol'] for s in stocks]
-
-        # 准备特征数据
-        from application.services.factor_analysis_service import FactorAnalysisService
-        factor_service = FactorAnalysisService()
-
-        training_data = factor_service.prepare_training_data(
-            symbols=symbols,
-            lookback_days=params.get('lookback_days', 500)
-        )
-
-        # 这里应该调用实际的ML训练服务
-        # 由于这是一个复杂且耗时的任务，建议使用异步队列或单独的训练流程
-
-        return {
-            "action": "model_train",
-            "status": "success",
-            "model_type": model_type,
-            "training_samples": len(training_data) if training_data else 0,
-            "message": "Model training initiated (框架就绪，需要完整ML pipeline)",
-            "timestamp": datetime.now().isoformat()
-        }
-
-    except Exception as e:
-        logger.error(f"Model training failed: {e}")
-        return {
-            "action": "model_train",
-            "status": "failed",
-            "error": str(e)
-        }
+    if 'model_type' not in params:
+        params = {**params, 'model_type': 'lightgbm'}
+    return handle_model_train_auto(params)
 
 
 def handle_benchmark_run(params: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -1218,28 +1184,37 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         # 7. 保存模型
         version = datetime.now().strftime("%Y%m%d_%H%M%S")
         try:
-            trainer.save_model(version=version)
+            model_path = trainer.save_model(version=version)
+            if model_path is None:
+                model_path = version
         except Exception as e:
             logger.warning(f"模型文件保存失败: {e}")
+            model_path = version  # 兜底：避免下方 create 引用未定义变量
         logger.info(f"模型已保存: {version}")
         
-        # 7. 保存训练记录到DB
+        # 7. 保存训练记录到DB（用 MlModelORMRepository.save_model 真实 upsert；
+        #    BaseORMRepository.create(dict) 静默吞 dict → 元数据永不落库，勿再用）
         model_repo = _get_model_repo()
-        model_repo.create({
-            "model_type": model_type,
-            "version": version,
-            "model_path": str(model_path),
-            "train_accuracy": train_acc,
-            "test_accuracy": test_acc,
-            "train_samples": len(X_train),
-            "feature_count": X.shape[1],
-            "training_params": {
-                "symbols_count": len(klines_dict),
-                "lookback_days": lookback_days,
-                "test_size": test_size,
-            },
-            "status": "ready",
-        })
+        try:
+            model_repo.save_model({
+                "model_type": model_type,
+                "version": version,
+                "model_path": str(model_path),
+                "train_accuracy": train_acc,
+                "test_accuracy": test_acc,
+                "train_samples": len(X_train),
+                "feature_count": X.shape[1],
+                "training_params": json.dumps({
+                    "symbols_count": len(klines_dict),
+                    "lookback_days": lookback_days,
+                    "test_size": test_size,
+                }, ensure_ascii=False),
+                "training_report": json.dumps(results, ensure_ascii=False, default=str),
+                "status": "ready",
+            })
+            logger.info(f"训练元数据已落库: {model_type}/{version}")
+        except Exception as e:
+            logger.warning(f"训练元数据落库失败: {e}")
         
         # 8. 性能对比（记录，不自动切换，需人工确认）
         switched = False
@@ -1370,7 +1345,13 @@ def _check_train_needed(model_type: str) -> tuple:
     train_date_str = model.get('train_date')
     if train_date_str:
         train_date = pd.to_datetime(train_date_str)
-        days_old = (datetime.now() - train_date).days
+        # train_date 来自 timestamptz 列（psycopg 返回 tz-aware +08:00）；
+        # 与 naive datetime.now() 直接相减会抛 TypeError → 统一为本地 aware 再算
+        now_local = datetime.now().astimezone()
+        if train_date.tzinfo is None:
+            train_date = train_date.tz_localize(now_local.tzinfo)  # naive 视为本地墙钟
+        train_date = train_date.to_pydatetime().astimezone()  # 统一为本地 aware
+        days_old = (now_local - train_date).days
         
         if days_old > 7:
             return (True, f"模型已{days_old}天未更新")

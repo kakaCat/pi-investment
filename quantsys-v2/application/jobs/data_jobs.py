@@ -159,10 +159,48 @@ class DataUpdateJob(Job):
             return JobResult.fail(self.name, str(e))
 
 
+class FinancialTimelinessCheckJob(Job):
+    """财报时效性检查任务（僵尸修复：2026-09-05 w-8366e526）
+
+    此前该命令只注册在 scheduler_handlers 的 webhook 通道（agent-os 模式下才有意义），
+    JobRegistry 无对应 Job → APScheduler 直连路径执行报
+    "Unknown scheduler command: 'financial_timeliness_check'"（task 318 每日 09:00 失败）。
+    本类把 infrastructure/jobs/financial_timeliness_check_job 的真实实现接到 JobRegistry，
+    与 webhook handler 共享同一实现（execute），两种调度模式各自只执行一次。
+    """
+
+    @property
+    def name(self) -> str:
+        return "financial_timeliness_check"
+
+    @property
+    def description(self) -> str:
+        return "财报时效性检查：查询持仓财报更新时效，过期预警"
+
+    @property
+    def timeout_seconds(self) -> int:
+        return 600
+
+    async def execute(self, params: Dict[str, Any]) -> JobResult:
+        try:
+            from infrastructure.jobs.financial_timeliness_check_job import execute
+            result = execute(**(params or {})) or {}
+            if result.get('success'):
+                return JobResult.ok(
+                    self.name,
+                    message=result.get('message') or '财报时效性检查完成',
+                    details=result,
+                )
+            return JobResult.fail(self.name, result.get('error') or result.get('message') or 'check failed')
+        except Exception as e:
+            return JobResult.fail(self.name, str(e))
+
+
 # 导出所有数据类任务
 DATA_JOBS = [
     KlineUpdateJob(),
     DataQualityCheckJob(),
+    FinancialTimelinessCheckJob(),
     ChipDistributionUpdateJob(),
     DataUpdateJob(),
 ]

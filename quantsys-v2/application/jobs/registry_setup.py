@@ -8,6 +8,7 @@ from application.jobs.trading_jobs import TRADING_JOBS
 from application.jobs.analysis_jobs import ANALYSIS_JOBS
 from application.jobs.report_jobs import REPORT_JOBS
 from application.jobs.monitor_jobs import MONITOR_JOBS
+from application.jobs.model_jobs import MODEL_JOBS
 
 
 def register_all_jobs() -> None:
@@ -18,7 +19,8 @@ def register_all_jobs() -> None:
         TRADING_JOBS +
         ANALYSIS_JOBS +
         REPORT_JOBS +
-        MONITOR_JOBS
+        MONITOR_JOBS +
+        MODEL_JOBS
     )
 
     for job in all_jobs:

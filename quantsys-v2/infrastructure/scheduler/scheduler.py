@@ -1064,49 +1064,26 @@ class SchedulerService:
     def _handle_model_train(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Trigger ML model training.
 
-        Uses ``DataService.ml`` if available, otherwise returns a placeholder.
-
-        Expected params:
-            market: (optional) market filter.
-            model_type: (optional) model type, default ``"xgboost"``.
+        2026-09-05 修复（w-8366e526）：原实现子进程调用 infrastructure/scripts/train_ml.py，
+        该脚本不存在 → 恒返回 "skipped/train_ml.py script not found"（死路径）。
+        现委托唯一真实训练器 application.services.scheduler_tasks.handle_model_train_auto
+        （lightgbm 全流程 + 性能门控），model_type 默认改 lightgbm（xgboost 旧模型不可信）。
         """
-        model_type = params.get("model_type", params.get("model", "xgboost"))
-        market = params.get("market", "A")
+        params = dict(params or {})
+        model_type = params.get("model_type", params.get("model", "lightgbm"))
+        params["model_type"] = model_type
 
         try:
-            import subprocess
-            import sys
-
-            train_script = (
-                Path(__file__).parent.parent
-                / "scripts"
-                / "train_ml.py"
-            )
-            if train_script.exists():
-                proc = subprocess.run(
-                    [sys.executable, str(train_script)],
-                    capture_output=True, text=True, timeout=600,
-                )
-                return {
-                    "action": "model_train",
-                    "model_type": model_type,
-                    "market": market,
-                    "exit_code": proc.returncode,
-                    "stdout_tail": proc.stdout[-500:] if proc.stdout else "",
-                }
-            else:
-                return {
-                    "action": "model_train",
-                    "model_type": model_type,
-                    "market": market,
-                    "status": "skipped",
-                    "reason": "train_ml.py script not found",
-                }
+            from application.services.scheduler_tasks import handle_model_train_auto
+            result = handle_model_train_auto(params)
+            result.setdefault("action", "model_train")
+            result.setdefault("model_type", model_type)
+            return result
         except Exception as exc:
             return {
                 "action": "model_train",
                 "model_type": model_type,
-                "market": market,
+                "market": params.get("market", "A"),
                 "status": "error",
                 "error": str(exc),
             }
