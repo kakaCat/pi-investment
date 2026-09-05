@@ -19,9 +19,22 @@ class JobRegistry:
         self._jobs: Dict[str, Job] = {}
 
     def register(self, job: Job) -> None:
-        """注册任务"""
-        if job.name in self._jobs:
-            logger.warning(f"Job '{job.name}' already registered, overwriting")
+        """注册任务（幂等 + 冲突守卫）
+
+        同一实例重复注册 → 静默跳过（register_all_jobs 重复调用安全）；
+        同名不同实例 → 立即抛错（双源重复注册是结构缺陷，会静默覆盖正确实现，
+        审计实证：pool_refresh_daily 曾被旧版 Job 覆盖正确实现导致空转 13 天）。
+        """
+        existing = self._jobs.get(job.name)
+        if existing is not None:
+            if existing is job:
+                logger.debug(f"Job '{job.name}' already registered (same instance), skipping")
+                return
+            raise RuntimeError(
+                f"Job '{job.name}' already registered by a different instance "
+                f"({type(existing).__name__} vs {type(job).__name__}). "
+                f"Duplicate registration hides one implementation — fix the registration source."
+            )
         self._jobs[job.name] = job
         logger.info(f"Registered job: {job.name}")
 

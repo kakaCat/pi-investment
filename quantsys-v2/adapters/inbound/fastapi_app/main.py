@@ -116,14 +116,6 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ Strategy sync disabled (set ENABLE_STRATEGY_SYNC=true to enable)")
 
-    # 初始化 JobRegistry（2026-09-01: scheduler 重构，优先使用 JobRegistry）
-    try:
-        from application.jobs.registry_setup import register_all_jobs
-        register_all_jobs()
-        logger.info("✅ JobRegistry initialized (28 jobs registered)")
-    except Exception as e:
-        logger.error(f"❌ JobRegistry initialization failed: {e}")
-
     # WP-15: Agent OS Scheduler Integration (2026-08-16)
     # 注册 quantsys-v2 调度任务到 Agent OS Scheduler（webhook 模式）
     # 注册失败时回退到本地 APScheduler
