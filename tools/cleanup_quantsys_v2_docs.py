@@ -16,8 +16,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List
 
-# 根目录
-ROOT = Path(__file__).parent.parent
+# quantsys-v2 根目录
+ROOT = Path(__file__).parent.parent / "quantsys-v2"
 
 # 分类规则
 CLASSIFICATION_RULES = {
