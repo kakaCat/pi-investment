@@ -124,7 +124,7 @@ function ovHtml(d: GenomeData): string {
   </div>`
 }
 
-// ---------- ② 段状态矩阵（含段全文阅读：全部段默认展开全文，可点 summary 收起） ----------
+// ---------- ② 段状态矩阵（段全文/变更理由默认折叠，点 summary 展开阅读） ----------
 function sectionCardHtml(s: GenomeSectionInfo): string {
   const isConst = s.id === 'constitution'
   const clsTag = isConst
@@ -133,11 +133,11 @@ function sectionCardHtml(s: GenomeSectionInfo): string {
   const full = (s.content ?? '').trim()
   const sizeZh = full.length > 0 ? `${full.length} 字 · ` : ''
   const bodyHtml = full.length > 0
-    ? `<details class="dsh-gen-sec-body" open><summary>${sizeZh}全文 v${s.version ?? 0}（点击收起）</summary><pre class="dsh-gen-sec-content">${esc(full)}</pre></details>`
+    ? `<details class="dsh-gen-sec-body"><summary>${sizeZh}全文 v${s.version ?? 0}（点击展开）</summary><pre class="dsh-gen-sec-content">${esc(full)}</pre></details>`
     : `<div class="dsh-gen-sec-empty">（sections/${String(s.id)}.md 缺失——genome 工具写入异常）</div>`
   const lc = s.lastChange
   const lcHtml = lc
-    ? `<details class="dsh-gen-exp" open><summary><span class="dsh-gen-lc-head">最近：<b>${TYPE_ZH[lc.type ?? ''] ?? esc(lc.type ?? '')}</b> @ ${esc(lc.genomeVersion ?? '')} · ${fmtDT(lc.ts)}（点击收起理由）</span></summary><div class="dsh-gen-exp-body">${esc(lc.reason ?? '—')}</div></details>`
+    ? `<details class="dsh-gen-exp"><summary><span class="dsh-gen-lc-head">最近：<b>${TYPE_ZH[lc.type ?? ''] ?? esc(lc.type ?? '')}</b> @ ${esc(lc.genomeVersion ?? '')} · ${fmtDT(lc.ts)}（点击展开理由）</span></summary><div class="dsh-gen-exp-body">${esc(lc.reason ?? '—')}</div></details>`
     : `<div class="dsh-gen-lc-empty">无变更记录</div>`
   return `
   <div class="dsh-gen-sec-card">
