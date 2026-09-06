@@ -20,7 +20,7 @@ whenToUse: 收到 OS 定时任务唤醒（evolution-weekly-variant / evolution-g
    - `meta-learning-weekly`（周日 11:30）→ 元学习分析
    - `weekly-report-m6`（周日 12:00）→ 周报
    - 用户直接问 → ad-hoc 诊断
-2. **要操作的对象健康吗**？凡涉及策略信号源：先 `strategy_list` 核验 status/validationStatus（R-011 教训：VBottom-v2 在 error+invalid 下产出全 SELL 异常批量、字段缺失、理由模板化 → 其输出不可信，默认跳过执行）。凡要裁决的 candidate：先 `genome_benchmark` 结构复核。
+2. **要操作的对象健康吗**？凡涉及策略信号源：先 `strategy_list` 核验 status/validationStatus（R-011 教训：VBottom-v2 在 error+invalid 下产出全 SELL 异常批量、字段缺失、理由模板化 → 其输出不可信，默认跳过执行）。凡要裁决的 candidate：先 `genome_benchmark` 结构复核。**候选状态一致性**：进化类任务先做第 4.5 步粗检（genome_benchmark 候选清单 vs genome_history 记录），漂移会误导裁决。
 3. **有真实证据缺口吗**？无数据支撑的"感觉有问题"不是修补理由；先走第 1 步取证。
 
 ## 第 1 步：收集证据（诊断——只读取证，真实调用）
@@ -71,6 +71,18 @@ whenToUse: 收到 OS 定时任务唤醒（evolution-weekly-variant / evolution-g
 6. 规则编号递增不重号（R-xxx 顺序）；教训/原则改动同样走 candidate 观察。
 7. 重大修补后 `decision_audit`(record, decision_type=genome_update) 留痕决策链。
 
+## 第 4.5 步：状态一致性核验（F1 哨兵，2026-09-06 起每轮必做）
+
+> 背景（F1 可观测性空白教训）：进化状态存本地文件（genome.json/candidates.json），业务 DB 无表无错误通道——状态漂移/孤儿残留**不产生任何 DB 错误**，只能人工审计发现（2026-09-06 实证：8/25 genomeDir 迁移残留的孤儿 candidates.json 曾误导审计得出错误结论）。本步把"文件层语义故障"转成 decision_audit 记录（落 DB）+ 飞书，堵住静默空转。粗检覆盖不了的部分（孤儿候选/跨目录孤儿文件）由 validation_gate 内置一致性诊断腿确定性兜底（B 步，见第 5 步）。
+
+裁决/变异/蒸馏前先做一致性粗检（真实调用，勿凭记忆）：
+
+1. `genome_benchmark()`（不带参）→ 拿当前全部 watching 候选清单 W（含段/版本/结构复核状态）
+2. `genome_history` → 拿 genome 侧 candidate 段记录 H（谁改过、stage=candidate、版本谱系）
+3. **C2 登记缺失检测**：H 中存在 stage=candidate 版本但 W 无对应候选（且无更高 active 版本覆盖它）→ 写 genome 未登记或登记丢失 → `decision_audit`(record, audit_finding) 记录漂移 + 续跑对应登记/裁决
+4. **C3 过期待裁检测**：W 中观察期已满（创建超 observe_days 且已过到期日）仍 watching、gate 日又未裁 → 列入本轮回裁决清单（第 5 步执行）；非 gate 日仅记录不补裁（缝隙容忍见第 5 步）
+5. **异常处理**：发现漂移/孤儿 → `decision_audit`(record) 留痕；影响裁决（C3 待裁堆积 / C2 漂移致 gate 无案）→ `feishu_notify`(alerts, high)；无异常 → 静默继续，不打扰
+
 ## 第 5 步：验证与转正（候选生命周期）
 
 - candidate 到期（observe_days 满）→ `validation_gate`（min_samples≥3，样本不足自动延期 2 天）。
@@ -87,6 +99,7 @@ whenToUse: 收到 OS 定时任务唤醒（evolution-weekly-variant / evolution-g
 
 ## 第 7 步：自检清单（交付前逐项过）
 
+- [ ] 已做状态一致性核验（第 4.5 步）：候选清单 vs genome_history 无漂移，或无异常/已 decision_audit 留痕
 - [ ] 单主题、可归因（第 4 步第 1 条）
 - [ ] constitution 未动
 - [ ] 证据全部来自真实工具调用（无臆造数据/价格/胜率）
