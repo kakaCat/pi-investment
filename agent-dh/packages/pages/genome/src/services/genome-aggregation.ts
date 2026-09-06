@@ -95,12 +95,20 @@ export class GenomeAggregationService {
             reason: last.reason,
           }
         : undefined
+      // 段全文：sections/{id}.md（读失败降级空串，不阻断看板）
+      let content = ''
+      try {
+        content = fs.readFileSync(path.join(this.genomeDir, 'sections', `${id}.md`), 'utf8')
+      } catch {
+        content = ''
+      }
       return {
         id,
         version: raw?.version ?? 0,
         class: raw?.class,
         locked: raw?.locked,
         order: raw?.order,
+        content,
         lastChange,
       }
     })

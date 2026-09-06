@@ -22,6 +22,8 @@ export interface GenomeSectionInfo {
   class?: string
   locked?: boolean
   order?: number
+  /** 段全文（sections/{id}.md 读入；读失败降级空串） */
+  content?: string
   lastChange?: SectionLastChange
 }
 

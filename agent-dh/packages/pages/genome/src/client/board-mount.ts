@@ -52,13 +52,15 @@ export function createBoardController(): BoardController {
 
 /** Mount the board container + view into the center column; returns disposer. */
 export function mountBoard(controller: BoardController): () => void {
-  let refs: ViewRefs
+  let refs: ViewRefs | undefined
   let container: HTMLDivElement | undefined
   let pollTimer: number | undefined
   let lastData: GenomeData | undefined
   let disposed = false
 
-  const buildContainer = (): void => {
+  // 中心列可能晚于 client apply() 出现（boot 时序）→ 启动即挂 + MutationObserver 兜底补挂
+  // （dashboard-bulletin 实证范式）。容器常驻隐藏，点开只切 html[data-dsh-gen-active]。
+  const ensure = (): void => {
     if (container !== undefined || disposed) return
     const column = conversationColumn()
     if (column === undefined) return
@@ -69,11 +71,23 @@ export function mountBoard(controller: BoardController): () => void {
     refs = buildView()
     container.appendChild(refs.root)
     refs.refreshBtn?.addEventListener('click', () => { void fetchData() })
+    // 显式「收起」按钮：看板点开后随时可一键回会话（不依赖点外部区域；点 = toggle，与入口同路径）
+    const closeBtn = document.createElement('button')
+    closeBtn.type = 'button'
+    closeBtn.className = 'dsh-gen-close'
+    closeBtn.title = '收起看板，回到会话'
+    closeBtn.textContent = '✕ 收起'
+    closeBtn.addEventListener('click', () => { controller.toggle() })
+    if (refs.head !== undefined) refs.head.insertBefore(closeBtn, refs.refreshBtn ?? null)
     void fetchData(true)
+    console.log('[dashboard-genome] board container mounted')
   }
+  const waitObserver = new MutationObserver(() => { ensure() })
+  waitObserver.observe(document.body, { childList: true, subtree: true })
+  ensure()
 
   async function fetchData(initial = false): Promise<void> {
-    if (fetching) return
+    if (fetching || refs === undefined) return
     fetching = true
     try {
       const res = await fetch(GENOME_API, { headers: { Accept: 'application/json' } })
@@ -83,6 +97,7 @@ export function mountBoard(controller: BoardController): () => void {
       renderAll(refs, json.data)
       refs.meta.textContent = '刷新于 ' + new Date().toLocaleTimeString() + ' · 数据 ' + (json.data.fetchedAt ? new Date(json.data.fetchedAt).toLocaleTimeString() : '')
     } catch (err) {
+      if (refs === undefined) return
       refs.meta.textContent = '⚠️ 加载失败: ' + (err instanceof Error ? err.message : String(err))
       if (!initial && lastData !== undefined) renderAll(refs, lastData)
     } finally {
@@ -98,12 +113,12 @@ export function mountBoard(controller: BoardController): () => void {
     if (pollTimer !== undefined) { window.clearInterval(pollTimer); pollTimer = undefined }
   }
 
-  // 打开时：挂载容器（若尚未）+ 开始轮询；关闭时：停止轮询（保留容器数据）。
+  // 打开时：确保容器已挂（幂等）+ 开始轮询；关闭时：停止轮询（保留容器数据）。
   // 增强版 open/close/toggle 重绑定到 controller——sidebar-entry 运行时动态读
-  // controller.toggle()，替换后入口点击即走增强路径（先挂载再打开）。
+  // controller.toggle()，替换后入口点击即走增强路径。
   const rawOpen = controller.openBoard
   const rawClose = controller.closeBoard
-  const openAndMount = (): void => { buildContainer(); startPoll(); rawOpen() }
+  const openAndMount = (): void => { ensure(); startPoll(); rawOpen() }
   const closeAndStop = (): void => { stopPoll(); rawClose() }
   const ctrl = controller as unknown as Record<string, unknown>
   ctrl.openBoard = openAndMount
@@ -117,19 +132,21 @@ export function mountBoard(controller: BoardController): () => void {
   }
   window.addEventListener(ACTIVATE_EVENT, onActivate)
 
-  // 打开时也拦截侧栏行点击（点会话/他人入口自动关板）
+  // 打开时点看板以外任意区域 → 收起回会话（bulletin 语义，宽于原 data-pane=sidebar 一代收窄：
+  // 三代侧栏布局下会话列表/新会话按钮可能不在 data-pane="sidebar"，收窄会点不中 → 回不去会话）。
+  // 点入口本身走 entry 的 toggle（这里排除，避免与 toggle 重复）。
   const onDocClick = (event: MouseEvent): void => {
     if (!controller.isActive()) return
     const target = event.target as HTMLElement | null
     if (target === null) return
     if (target.closest('[data-dsh-gen-entry], [data-dsh-gen-view]') !== null) return
-    if (target.closest('[data-pane="sidebar"]') !== null && target.closest('[data-dsh-gen-entry]') === null) closeAndStop()
+    closeAndStop()
   }
   document.addEventListener('click', onDocClick)
 
-  // 初始不打开：仅注册监听，等入口点击触发 openAndMount
   return () => {
     disposed = true
+    waitObserver.disconnect()
     stopPoll()
     window.removeEventListener(ACTIVATE_EVENT, onActivate)
     document.removeEventListener('click', onDocClick)

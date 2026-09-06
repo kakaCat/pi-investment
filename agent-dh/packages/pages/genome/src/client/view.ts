@@ -17,6 +17,8 @@ export interface ViewRefs {
   root: HTMLElement
   refreshBtn?: HTMLButtonElement
   meta: HTMLElement
+  /** 头部行容器（board-mount 注入「收起」按钮用） */
+  head?: HTMLElement
 }
 
 const REFRESH_LABEL = '⟳ 重检'
@@ -116,12 +118,17 @@ function ovHtml(d: GenomeData): string {
   </div>`
 }
 
-// ---------- ② 段状态矩阵 ----------
+// ---------- ② 段状态矩阵（含段全文阅读：summary 展开整段条文，宪法层默认展开） ----------
 function sectionCardHtml(s: GenomeSectionInfo): string {
   const isConst = s.id === 'constitution'
   const clsTag = isConst
     ? badge('🔒 宪法层 · 锁定', 'lock')
     : badge('可进化', 'ev')
+  const full = (s.content ?? '').trim()
+  const sizeZh = full.length > 0 ? `${full.length} 字 · ` : ''
+  const bodyHtml = full.length > 0
+    ? `<details class="dsh-gen-sec-body"${isConst ? ' open' : ''}><summary>${sizeZh}查看全文 v${s.version ?? 0}</summary><pre class="dsh-gen-sec-content">${esc(full)}</pre></details>`
+    : `<div class="dsh-gen-sec-empty">（sections/${String(s.id)}.md 缺失——genome 工具写入异常）</div>`
   const lc = s.lastChange
   const lcHtml = lc
     ? `<details class="dsh-gen-exp"><summary><span class="dsh-gen-lc-head">最近：<b>${TYPE_ZH[lc.type ?? ''] ?? esc(lc.type ?? '')}</b> @ ${esc(lc.genomeVersion ?? '')} · ${fmtDT(lc.ts)}</span></summary><div class="dsh-gen-exp-body">${esc(lc.reason ?? '—')}</div></details>`
@@ -130,9 +137,10 @@ function sectionCardHtml(s: GenomeSectionInfo): string {
   <div class="dsh-gen-sec-card">
     <div class="dsh-gen-sec-head">
       <span class="dsh-gen-sec-name">${esc(SEC_FULL[s.id] ?? s.id)}</span>
+      <span class="dsh-gen-sec-ver">v${s.version ?? 0}</span>
       ${clsTag}
     </div>
-    <div class="dsh-gen-sec-ver">v${s.version ?? 0}</div>
+    ${bodyHtml}
     ${lcHtml}
   </div>`
 }
@@ -319,7 +327,7 @@ export function buildView(): ViewRefs {
   root.appendChild(head)
   root.appendChild(body)
 
-  return { root, refreshBtn, meta }
+  return { root, refreshBtn, meta, head }
 }
 
 export function renderAll(refs: ViewRefs, data: GenomeData): void {

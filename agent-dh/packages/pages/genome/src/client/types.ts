@@ -18,6 +18,8 @@ export interface GenomeSectionInfo {
   class?: string
   locked?: boolean
   order?: number
+  /** 段全文（sections/{id}.md） */
+  content?: string
   lastChange?: SectionLastChange
 }
 export interface CandidateHealthCheck {

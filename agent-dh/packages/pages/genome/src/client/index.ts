@@ -26,21 +26,25 @@ export function apply(): void {
     }
   }
 
-  injectStyles()
+  try {
+    injectStyles()
 
-  const controller = createBoardController()
-  const disposeSidebar = mountSidebarEntry(controller)
-  const disposeBoard = mountBoard(controller)
+    const controller = createBoardController()
+    const disposeSidebar = mountSidebarEntry(controller)
+    const disposeBoard = mountBoard(controller)
 
-  const dispose = (): void => {
-    try {
-      disposeSidebar()
-      disposeBoard()
-    } catch {
-      // 幂等收尾
+    const dispose = (): void => {
+      try {
+        disposeSidebar()
+        disposeBoard()
+      } catch {
+        // 幂等收尾
+      }
     }
-  }
-  ;(window as unknown as Record<string, unknown>)[GLOBAL_KEY] = { dispose }
+    ;(window as unknown as Record<string, unknown>)[GLOBAL_KEY] = { dispose }
 
-  console.log('[dashboard-genome] client applied — 侧栏「自主进化」入口就绪')
+    console.log('[dashboard-genome] client applied — 侧栏「自主进化」入口就绪')
+  } catch (e) {
+    console.error('[dashboard-genome] client half failed to start:', e)
+  }
 }
