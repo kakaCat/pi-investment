@@ -479,9 +479,10 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
       '<td class="st"><span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span>' + srcChip(t.src) + agentChip(t.agentCall) + '</td>' +
       '<td class="tm">' + esc(last.at) + (last.st ? '<em class="ls ' + (TL_TAG[last.st] ?? 'unk') + '">' + esc(TL_ZH[last.st] ?? last.st) + '</em>' : '') + '</td>' +
       '<td class="td">' + esc(trig + ' 触发 / ' + succ + ' 成功') + '</td>' +
-      '<td class="nx">' + esc(shortDT(t.nextRunAt)) + '</td></tr>'
+      '<td class="nx">' + esc(shortDT(t.nextRunAt)) + '</td>' +
+      '<td class="op">' + (tag.cls === 'bad' ? '<button type="button" class="dsh-exec-solve" data-solve-task="' + esc(raw) + '" title="把该失败任务投递给窗口排查处置">我来解决</button>' : '') + '</td></tr>'
   }
-  const hint = '<div class="dsh-exec-legend dsh-exec-legend2"><span class="dsh-exec-hint">点击 tab 切换分类 · 点击任务行查看失败原因 · 表底每页 ' + TASK_PAGE_SIZE + ' 条翻页 · <i class="dot ok"></i>成功 <i class="dot bad"></i>失败 <i class="dot wait"></i>待执行 <i class="dot off"></i>未启用</span></div>'
+  const hint = '<div class="dsh-exec-legend dsh-exec-legend2"><span class="dsh-exec-hint">点击 tab 切换分类 · 点击任务行查看失败原因 · 失败行/错误条可点「我来解决」投递窗口排查 · 表底每页 ' + TASK_PAGE_SIZE + ' 条翻页 · <i class="dot ok"></i>成功 <i class="dot bad"></i>失败 <i class="dot wait"></i>待执行 <i class="dot off"></i>未启用</span></div>'
   const rows = pageRows.map(trow).join('')
   const pager = view.length > TASK_PAGE_SIZE
     ? '<div class="dsh-exec-tkpg">' + pagerHtml(taskPage, totalPages, view.length) + '</div>' : ''
@@ -489,8 +490,8 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
   refs.tasksBox.innerHTML = hint +
     '<div class="dsh-exec-tabs">' + tabs.join('') + '</div>' +
     '<div class="dsh-exec-tkcard"><div class="dsh-exec-tbwrap"><table class="dsh-exec-tb"><thead><tr>' +
-    '<th>任务</th><th>计划时刻</th><th>状态</th><th>上次运行</th><th>今日</th><th>下次运行</th></tr></thead>' +
-    '<tbody>' + (rows || '<tr class="empty"><td colspan="6">该分类下暂无任务</td></tr>') + '</tbody></table></div>' +
+    '<th>任务</th><th>计划时刻</th><th>状态</th><th>上次运行</th><th>今日</th><th>下次运行</th><th class="op">处理</th></tr></thead>' +
+    '<tbody>' + (rows || '<tr class="empty"><td colspan="7">该分类下暂无任务</td></tr>') + '</tbody></table></div>' +
     pager + '</div>' +
     (selTask ? '<div class="dsh-exec-tkdetail">' + taskDetailHtml(selTask) + '</div>' : '')
 }
@@ -499,13 +500,14 @@ function renderErrors(refs: ViewRefs, data: BoardData): void {
   const errs = data.errors ?? []
   refs.errsSec.style.display = errs.length > 0 ? '' : 'none'
   if (errs.length === 0) return
-  refs.errsBox.innerHTML = '<ol class="dsh-exec-errs">' + errs.slice(0, 10).map((e) => {
+  refs.errsBox.innerHTML = '<ol class="dsh-exec-errs">' + errs.slice(0, 10).map((e, i) => {
     const src = String(e.source ?? '').toLowerCase()
     const cls = src.includes('os') ? 'os' : src.includes('dsh') ? 'dsh' : 'v2'
     const first = trunc((e.line ?? e.file ?? '').replace(/\\n/g, ' '), 120)
     return '<li><span class="src ' + cls + '">' + esc(e.source ?? '?') + '</span>' +
       '<time>' + esc(shortDT(e.timestamp)) + '</time>' +
-      '<span class="line" title="' + esc(e.line ?? '') + '">' + esc(first) + '</span></li>'
+      '<span class="line" title="' + esc(e.line ?? '') + '">' + esc(first) + '</span>' +
+      '<button type="button" class="dsh-exec-solve" data-solve-err="' + i + '" title="把该错误事件投递给窗口排查处置">我来解决</button></li>'
   }).join('') + '</ol>'
 }
 function renderBlocked(refs: ViewRefs, data: BoardData): void {

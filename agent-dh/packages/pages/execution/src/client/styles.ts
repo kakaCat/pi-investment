@@ -270,6 +270,52 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-block { display:flex; align-items:center; gap:10px; padding:8px 0; font-size:12.5px; }
 .dsh-exec-block b { color:var(--text); font-weight:500; }
 .dsh-exec-block .blocks { color:var(--faint); font-size:11.5px; }
+
+/* ================= 我来解决（solve 投递） ================= */
+/* 按钮：失败任务行「处理」列 + 错误事件条 */
+.dsh-exec-solve {
+  flex:none; border:1px solid #c6e2ff; background:#ecf5ff; color:#409eff;
+  border-radius:5px; padding:2px 9px; font-size:11.5px; line-height:1.7;
+  cursor:pointer; white-space:nowrap; vertical-align:middle;
+}
+.dsh-exec-solve:hover { background:#d9ecff; border-color:#79bbff; }
+.dsh-exec-solve:active { background:#c6e2ff; }
+.dsh-exec-tb td.op { text-align:center; white-space:nowrap; }
+.dsh-exec-errs li .dsh-exec-solve { align-self:center; margin-left:auto; }
+/* 选择器浮层：锚点下弹出的窗口列表 */
+.dsh-exec-solvepop {
+  position:fixed; z-index:9999; min-width:232px; max-width:300px;
+  background:var(--panel,#fff); border:1px solid var(--border,#e4e7ed);
+  border-radius:8px; box-shadow:0 6px 22px rgba(0,0,0,.16);
+  padding:6px; font-size:12.5px; color:var(--body,#606266);
+}
+.dsh-exec-solvepop-head {
+  padding:4px 8px 7px; color:var(--text,#303133); font-weight:600; font-size:12px;
+  border-bottom:1px solid var(--line,#ebeef5); margin-bottom:4px;
+}
+.dsh-exec-solvepop-list { display:flex; flex-direction:column; max-height:264px; overflow-y:auto; }
+.dsh-exec-solvepop-item {
+  border:none; background:transparent; text-align:left; padding:5px 8px;
+  border-radius:5px; cursor:pointer; color:var(--body,#606266); font:inherit; font-size:12.5px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.dsh-exec-solvepop-item:hover { background:var(--hover,rgba(128,128,128,.12)); }
+.dsh-exec-solvepop-item.cur { color:#409eff; font-weight:600; }
+.dsh-exec-solvepop-cancel {
+  width:100%; margin-top:4px; border:none; background:transparent; color:var(--dim,#909399);
+  font:inherit; font-size:12px; padding:4px; cursor:pointer; border-top:1px solid var(--line,#ebeef5);
+}
+.dsh-exec-solvepop-cancel:hover { color:var(--text,#303133); }
+/* toast：投递结果飘字 */
+.dsh-exec-toast {
+  position:fixed; left:50%; bottom:54px; transform:translateX(-50%);
+  z-index:10000; max-width:70vw; background:#303133; color:#fff;
+  border-radius:7px; padding:7px 15px; font-size:12.5px; line-height:1.6;
+  box-shadow:0 4px 16px rgba(0,0,0,.22); transition:opacity .35s, transform .35s;
+}
+.dsh-exec-toast.ok { background:#529b2e; }
+.dsh-exec-toast.err { background:#e64545; }
+.dsh-exec-toast.out { opacity:0; transform:translateX(-50%) translateY(8px); }
 `
 
 /** Inject the stylesheet once (tagged for the HMR driver cleanup). */
