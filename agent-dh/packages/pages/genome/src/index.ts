@@ -31,6 +31,17 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   const logger = ctx.logger(name)
   logger.info('dashboard-genome host applied (Autonomy 可观测 /dashboard/api/genome + explain)')
 
+  // agents 服务惰性获取：cordis 中未 inject 声明的服务属性访问会抛错（cannot get property without inject），
+  // 故不能直接读 ctx.agents——经 ctx.inject(['agents']) 声明依赖，回调里缓存实例供 explain 投递使用。
+  let agentsService: unknown
+  ;(ctx as unknown as { inject?: (services: string[], cb: (agents: unknown) => void) => void }).inject?.(
+    ['agents'],
+    (agents: unknown) => {
+      agentsService = agents
+      logger.info('agents service ready (explain delivery enabled)')
+    },
+  )
+
   // 惰性注入 webServer：DSH web 启动后注入，注册即生效（模式同 dashboard-execution）
   ;(ctx as unknown as { inject?: (services: string[], cb: (webCtx: any) => void) => void }).inject?.(
     ['webServer'],
@@ -41,11 +52,11 @@ export function apply(ctx: Context, config?: PluginConfig): void {
           path: '/dashboard/api/genome',
           handler: createGenomeHandler(aggregator),
         })
-        // AI 讲解：页面「🤖 讲解」按钮 → 投递给在线 investor agent（ctx.agents.followup），讲解回复在会话
+        // AI 讲解：页面「🤖 讲解」按钮 → 投递给在线 investor agent（agentsService.followup），讲解回复在会话
         webCtx.webServer.register({
           kind: 'exact',
           path: '/dashboard/api/genome/explain',
-          handler: createExplainHandler(ctx, aggregator),
+          handler: createExplainHandler(agentsService, aggregator),
         })
       }, name + ': api')
       logger.info('routes registered: /dashboard/api/genome + /dashboard/api/genome/explain (client half renders GUI)')

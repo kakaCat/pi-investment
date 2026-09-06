@@ -85,7 +85,8 @@ function snapshotFor(module: string, d: GenomeData): string {
   }
 }
 
-export function createExplainHandler(ctx: unknown, aggregator: GenomeAggregationService) {
+/** explain handler：agentsService 由 host apply 侧 ctx.inject(['agents']) 惰性注入后传入（未就绪时 handler 返回 409）。 */
+export function createExplainHandler(agentsService: unknown, aggregator: GenomeAggregationService) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     try {
       const url = new URL(req.url ?? '', 'http://localhost')
@@ -97,7 +98,7 @@ export function createExplainHandler(ctx: unknown, aggregator: GenomeAggregation
       }
 
       // 找在线 agent（优先 investor 前缀，退而求其次任意有 followup 的 root）
-      const agents = (ctx as { agents?: { roots?: () => unknown[] } } | null)?.agents
+      const agents = agentsService as { roots?: () => unknown[] } | null | undefined
       const roots = typeof agents?.roots === 'function' ? agents.roots() : []
       const online = roots.find((a) => {
         const o = a as { id?: unknown; followup?: unknown }
