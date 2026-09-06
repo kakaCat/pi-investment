@@ -81,7 +81,7 @@ class ManagedThreadPool:
 
         Args:
             wait: 是否等待所有任务完成
-            timeout: 等待超时时间（秒）
+            timeout: 等待超时时间（秒），仅 Python 3.9+ 支持
         """
         with self._lock:
             if self._shutdown:
@@ -97,7 +97,19 @@ class ManagedThreadPool:
             timeout=timeout
         )
 
-        self.executor.shutdown(wait=wait, timeout=timeout)
+        # Python 3.9+ 才支持 timeout 参数
+        import sys
+        if sys.version_info >= (3, 9) and timeout is not None:
+            self.executor.shutdown(wait=wait, timeout=timeout)
+        else:
+            if timeout is not None:
+                logger.warning(
+                    "timeout_parameter_ignored",
+                    pool_name=self.pool_name,
+                    reason=f"Python {sys.version_info.major}.{sys.version_info.minor} < 3.9",
+                    timeout=timeout
+                )
+            self.executor.shutdown(wait=wait)
 
         logger.info("thread_pool_shutdown_complete", pool_name=self.pool_name)
 
