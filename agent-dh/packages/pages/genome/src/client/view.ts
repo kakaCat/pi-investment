@@ -24,6 +24,12 @@ export interface ViewRefs {
 const REFRESH_LABEL = '⟳ 重检'
 const REFRESH_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>`
 
+const EXPLAIN_API = '/dashboard/api/genome/explain'
+/** 各区域「AI 讲解」按钮：点击后 host 投递给在线 investor agent，讲解回复出现在会话（同步只返回投递结果）。 */
+function explainBtn(moduleId: string): string {
+  return `<button type="button" class="dsh-gen-explain" data-explain-module="${moduleId}" title="AI 讲解：请当前 AI 介绍该区域解决什么问题、有什么作用（讲解将出现在下方会话）">🤖 讲解</button>`
+}
+
 function esc(s: unknown): string {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -118,7 +124,7 @@ function ovHtml(d: GenomeData): string {
   </div>`
 }
 
-// ---------- ② 段状态矩阵（含段全文阅读：summary 展开整段条文，宪法层默认展开） ----------
+// ---------- ② 段状态矩阵（含段全文阅读：全部段默认展开全文，可点 summary 收起） ----------
 function sectionCardHtml(s: GenomeSectionInfo): string {
   const isConst = s.id === 'constitution'
   const clsTag = isConst
@@ -127,11 +133,11 @@ function sectionCardHtml(s: GenomeSectionInfo): string {
   const full = (s.content ?? '').trim()
   const sizeZh = full.length > 0 ? `${full.length} 字 · ` : ''
   const bodyHtml = full.length > 0
-    ? `<details class="dsh-gen-sec-body"${isConst ? ' open' : ''}><summary>${sizeZh}查看全文 v${s.version ?? 0}</summary><pre class="dsh-gen-sec-content">${esc(full)}</pre></details>`
+    ? `<details class="dsh-gen-sec-body" open><summary>${sizeZh}全文 v${s.version ?? 0}（点击收起）</summary><pre class="dsh-gen-sec-content">${esc(full)}</pre></details>`
     : `<div class="dsh-gen-sec-empty">（sections/${String(s.id)}.md 缺失——genome 工具写入异常）</div>`
   const lc = s.lastChange
   const lcHtml = lc
-    ? `<details class="dsh-gen-exp"><summary><span class="dsh-gen-lc-head">最近：<b>${TYPE_ZH[lc.type ?? ''] ?? esc(lc.type ?? '')}</b> @ ${esc(lc.genomeVersion ?? '')} · ${fmtDT(lc.ts)}</span></summary><div class="dsh-gen-exp-body">${esc(lc.reason ?? '—')}</div></details>`
+    ? `<details class="dsh-gen-exp" open><summary><span class="dsh-gen-lc-head">最近：<b>${TYPE_ZH[lc.type ?? ''] ?? esc(lc.type ?? '')}</b> @ ${esc(lc.genomeVersion ?? '')} · ${fmtDT(lc.ts)}（点击收起理由）</span></summary><div class="dsh-gen-exp-body">${esc(lc.reason ?? '—')}</div></details>`
     : `<div class="dsh-gen-lc-empty">无变更记录</div>`
   return `
   <div class="dsh-gen-sec-card">
@@ -148,7 +154,7 @@ function sectionCardHtml(s: GenomeSectionInfo): string {
 function sectionsHtml(d: GenomeData): string {
   return `
   <div class="dsh-gen-block">
-    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">② 段状态矩阵</span><span class="dsh-gen-block-s">4 个基因组段 · 版本与最近变更</span></div>
+    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">② 段状态矩阵</span><span class="dsh-gen-block-s">4 个基因组段 · 版本与最近变更</span>${explainBtn('sections')}</div>
     <div class="dsh-gen-sec-grid">
       ${d.sections.map(sectionCardHtml).join('')}
     </div>
@@ -190,7 +196,7 @@ function consistencyHtml(d: GenomeData): string {
     : `检测到 ${cons.issues.filter((i) => i.items.length > 0).length} 类异常（F1 哨兵规则，与 gate runConsistencyCheck 同源）`
   return `
   <div class="dsh-gen-block">
-    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">③ 一致性诊断</span><span class="dsh-gen-block-s">F1 哨兵可视化仪表 · 状态一致性核验（genome.json ↔ candidates.json）</span></div>
+    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">③ 一致性诊断</span><span class="dsh-gen-block-s">F1 哨兵可视化仪表 · 状态一致性核验（genome.json ↔ candidates.json）</span>${explainBtn('consistency')}</div>
     <div class="dsh-gen-cons-head ${headCls}">${headText}</div>
     <div class="dsh-gen-iss-list">
       ${d.consistency.issues.map(issueHtml).join('')}
@@ -259,7 +265,7 @@ function candListHtml(d: GenomeData): string {
 function candidatesHtml(d: GenomeData): string {
   return `
   <div class="dsh-gen-block">
-    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">④ 候选生命周期流水线</span><span class="dsh-gen-block-s">genome_update(candidate) → 观察期 → validation_gate 裁决（转正 / 回滚）</span></div>
+    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">④ 候选生命周期流水线</span><span class="dsh-gen-block-s">genome_update(candidate) → 观察期 → validation_gate 裁决（转正 / 回滚）</span>${explainBtn('candidates')}</div>
     ${candTabsHtml()}
     <div class="dsh-gen-cand-list-root">${candListHtml(d)}</div>
   </div>`
@@ -267,33 +273,69 @@ function candidatesHtml(d: GenomeData): string {
 
 // ---------- ⑤ 谱系时间线 ----------
 function timelineHtml(d: GenomeData): string {
-  if (d.history.length === 0) return `<div class="dsh-gen-tl-empty">无谱系记录</div>`
-  const rows = d.history.map((h) => {
-    const typeZh = TYPE_ZH[h.type] ?? esc(h.type)
-    const typeCls = TYPE_CLS[h.type] ?? 'unk'
-    const sec = SEC_ZH[h.section] ?? h.section
-    const stage = h.stage ? badge(h.stage === 'candidate' ? '观察版' : '正式版', h.stage === 'candidate' ? 'wait' : 'ev') : ''
-    const commit = h.gitCommit ? ` <code>${esc(h.gitCommit)}</code>` : ''
-    const reasonHtml = h.reason
-      ? `<details class="dsh-gen-exp"><summary>理由</summary><div class="dsh-gen-exp-body">${esc(h.reason)}</div></details>`
-      : ''
-    return `
-    <div class="dsh-gen-tl-item">
-      <div class="dsh-gen-tl-dot ${typeCls}"></div>
-      <div class="dsh-gen-tl-main">
-        <div class="dsh-gen-tl-head">
-          <span class="dsh-gen-tl-gv">${esc(h.genomeVersion)}</span>
-          ${badge(typeZh, typeCls)}
-          <span class="dsh-gen-tl-sec">${esc(sec)} v${h.sectionVersion}</span>
-          ${stage}
-          <span class="dsh-gen-tl-ts">${fmtDT(h.ts)}</span>
-          ${commit}
+  const inner = d.history.length === 0
+    ? `<div class="dsh-gen-tl-empty">无谱系记录</div>`
+    : `<div class="dsh-gen-tl">${d.history.map((h) => {
+      const typeZh = TYPE_ZH[h.type] ?? esc(h.type)
+      const typeCls = TYPE_CLS[h.type] ?? 'unk'
+      const sec = SEC_ZH[h.section] ?? h.section
+      const stage = h.stage ? badge(h.stage === 'candidate' ? '观察版' : '正式版', h.stage === 'candidate' ? 'wait' : 'ev') : ''
+      const commit = h.gitCommit ? ` <code>${esc(h.gitCommit)}</code>` : ''
+      const reasonHtml = h.reason
+        ? `<details class="dsh-gen-exp"><summary>理由</summary><div class="dsh-gen-exp-body">${esc(h.reason)}</div></details>`
+        : ''
+      return `
+      <div class="dsh-gen-tl-item">
+        <div class="dsh-gen-tl-dot ${typeCls}"></div>
+        <div class="dsh-gen-tl-main">
+          <div class="dsh-gen-tl-head">
+            <span class="dsh-gen-tl-gv">${esc(h.genomeVersion)}</span>
+            ${badge(typeZh, typeCls)}
+            <span class="dsh-gen-tl-sec">${esc(sec)} v${h.sectionVersion}</span>
+            ${stage}
+            <span class="dsh-gen-tl-ts">${fmtDT(h.ts)}</span>
+            ${commit}
+          </div>
+          ${reasonHtml}
         </div>
-        ${reasonHtml}
-      </div>
-    </div>`
-  }).join('')
-  return `<div class="dsh-gen-tl">${rows}</div>`
+      </div>`
+    }).join('')}</div>`
+  return `
+  <div class="dsh-gen-block">
+    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">⑤ 谱系时间线</span><span class="dsh-gen-block-s">规则进化历史 · 谁在何时改了什么（genome_version 倒序）</span>${explainBtn('timeline')}</div>
+    ${inner}
+  </div>`
+}
+
+// ---------- AI 讲解请求 ----------
+/** 点击「🤖 讲解」：请求 host 把讲解任务投递给在线 investor agent（回复出现在会话，不在页面）。 */
+async function requestExplain(btn: HTMLButtonElement): Promise<void> {
+  if (btn.disabled) return
+  const moduleId = btn.dataset.explainModule ?? ''
+  const original = btn.textContent ?? '🤖 讲解'
+  btn.disabled = true
+  btn.classList.add('loading')
+  btn.textContent = '⏳ 请求中…'
+  try {
+    const res = await fetch(`${EXPLAIN_API}?module=${encodeURIComponent(moduleId)}`, { headers: { Accept: 'application/json' } })
+    const json = (await res.json()) as { success?: boolean; error?: string; data?: { delivered?: boolean; target?: string } }
+    if (!res.ok || json.success === false) throw new Error(json.error ?? `HTTP ${res.status}`)
+    btn.classList.remove('loading')
+    btn.classList.add('done')
+    btn.textContent = '✓ 已请求 · 收起看板看回复'
+    btn.title = '讲解任务已投递给 AI 会话：点左上「✕ 收起」回到会话，AI 将介绍该区域解决什么问题、有什么作用'
+  } catch (err) {
+    btn.classList.remove('loading')
+    btn.classList.add('err')
+    btn.textContent = '✗ 请求失败'
+    btn.title = '失败：' + (err instanceof Error ? err.message : String(err))
+  } finally {
+    window.setTimeout(() => {
+      btn.disabled = false
+      btn.classList.remove('done', 'err', 'loading')
+      btn.textContent = original
+    }, 3500)
+  }
 }
 
 // ---------- 组装 ----------
@@ -324,6 +366,27 @@ export function buildView(): ViewRefs {
   const body = document.createElement('div')
   body.className = 'dsh-gen-body'
 
+  // 事件委托：body 常驻，innerHTML 重建不丢监听；一次性绑定避免 renderAll 每轮叠加
+  body.addEventListener('click', (ev) => {
+    const target = (ev.target as HTMLElement | null)
+    if (target === null) return
+    const tab = target.closest<HTMLButtonElement>('[data-cand-filter]')
+    if (tab !== null) {
+      if (lastData === undefined) return
+      candFilter = (tab.dataset.candFilter as CandFilter) ?? 'all'
+      const tabs = body.querySelector<HTMLElement>('.dsh-gen-tabs')
+      const listRoot = body.querySelector<HTMLElement>('.dsh-gen-cand-list-root')
+      if (tabs !== null) tabs.outerHTML = candTabsHtml()
+      if (listRoot !== null) listRoot.innerHTML = candListHtml(lastData)
+      return
+    }
+    const explain = target.closest<HTMLButtonElement>('[data-explain-module]')
+    if (explain !== null) {
+      void requestExplain(explain)
+      return
+    }
+  })
+
   root.appendChild(head)
   root.appendChild(body)
 
@@ -335,14 +398,4 @@ export function renderAll(refs: ViewRefs, data: GenomeData): void {
   const body = refs.root.querySelector<HTMLElement>('.dsh-gen-body')
   if (body === null) return
   body.innerHTML = bodyHtml(data)
-  // 候选 tab：事件委托到 body（innerHTML 重建不丢监听；无叠加重绑）
-  body.addEventListener('click', (ev) => {
-    const btn = (ev.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-cand-filter]')
-    if (btn === null || btn === undefined || lastData === undefined) return
-    candFilter = (btn.dataset.candFilter as CandFilter) ?? 'all'
-    const tabs = body.querySelector<HTMLElement>('.dsh-gen-tabs')
-    const listRoot = body.querySelector<HTMLElement>('.dsh-gen-cand-list-root')
-    if (tabs !== null) tabs.outerHTML = candTabsHtml()
-    if (listRoot !== null) listRoot.innerHTML = candListHtml(lastData)
-  })
 }

@@ -11,7 +11,7 @@ import { Context } from '@deepseek-ai/cordis'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { GenomeAggregationService } from './services/genome-aggregation.js'
-import { createGenomeHandler } from './routes/genome-routes.js'
+import { createGenomeHandler, createExplainHandler } from './routes/genome-routes.js'
 
 export const name = 'dashboard-genome'
 
@@ -29,7 +29,7 @@ function resolveOptions(config: PluginConfig | undefined) {
 export function apply(ctx: Context, config?: PluginConfig): void {
   const aggregator = new GenomeAggregationService(resolveOptions(config))
   const logger = ctx.logger(name)
-  logger.info('dashboard-genome host applied (Autonomy 可观测 /dashboard/api/genome)')
+  logger.info('dashboard-genome host applied (Autonomy 可观测 /dashboard/api/genome + explain)')
 
   // 惰性注入 webServer：DSH web 启动后注入，注册即生效（模式同 dashboard-execution）
   ;(ctx as unknown as { inject?: (services: string[], cb: (webCtx: any) => void) => void }).inject?.(
@@ -41,8 +41,14 @@ export function apply(ctx: Context, config?: PluginConfig): void {
           path: '/dashboard/api/genome',
           handler: createGenomeHandler(aggregator),
         })
+        // AI 讲解：页面「🤖 讲解」按钮 → 投递给在线 investor agent（ctx.agents.followup），讲解回复在会话
+        webCtx.webServer.register({
+          kind: 'exact',
+          path: '/dashboard/api/genome/explain',
+          handler: createExplainHandler(ctx, aggregator),
+        })
       }, name + ': api')
-      logger.info('routes registered: /dashboard/api/genome (client half renders GUI)')
+      logger.info('routes registered: /dashboard/api/genome + /dashboard/api/genome/explain (client half renders GUI)')
     },
   )
 }

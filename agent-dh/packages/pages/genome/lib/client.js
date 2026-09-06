@@ -4,85 +4,89 @@ window.__ModuleLoader__.load({
 			var module = { exports: {} };
 			var exports = module.exports;
 			Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-		Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});const e=`data-dsh-gen-active`,t=[`data-dsh-atb-active`,`data-dsh-taskboard-active`,`data-dsh-ssh-active`,`data-dsh-hld-active`,`data-dsh-exec-active`,`data-dsh-bbd-active`],n=`dsh-panel-activate`;function r(){let e=document.querySelector(`[data-pane="sidebar"], [class*="sidebarCol"], .dshDesktopUpstreamSidebar, .dshDesktopSidebarSurface`);if(e!==null)return e.querySelector(`[class*="logoRow"]`)?.parentElement??e.firstElementChild}function i(){return document.querySelector(`[data-pane="conversation"], [class*="centerCol"], .dshDesktopConversationSurface`)??void 0}function a(e){let t,n=()=>{let t=document.createElement(`button`);return t.type=`button`,t.className=`dsh-gen-entry`,t.dataset.dshGenEntry=``,t.setAttribute(`aria-label`,`自主进化`),t.title=`自主进化看板 (dashboard-genome) — 基因组/候选/一致性诊断`,t.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/><circle cx="12" cy="12" r="3"/></svg><span class="dsh-gen-entry-label">自主进化</span>`,t.addEventListener(`click`,t=>{t.preventDefault(),t.stopPropagation(),e.toggle()}),t},i=()=>{let e=r();if(e===void 0)return!1;if(e.querySelector(`[data-dsh-gen-entry]`)!==null){let n=e.querySelector(`[data-dsh-gen-entry]`);return n!==void 0&&t===void 0&&(t=n),!0}let i=n(),a=e.querySelector(`[class*="logoRow"]`);return a!==null&&a.nextSibling!==null?e.insertBefore(i,a.nextSibling):e.prepend(i),t=i,!0};i();let a=new MutationObserver(()=>{(t===void 0||!document.contains(t)||t.parentElement===null)&&i()});a.observe(document.body,{childList:!0,subtree:!0});let o=window.setInterval(()=>{(t===void 0||!document.contains(t))&&i()},5e3);return()=>{window.clearInterval(o),a.disconnect(),t?.remove(),t=void 0}}function o(e){return String(e??``).replace(/&/g,`&amp;`).replace(/</g,`&lt;`).replace(/>/g,`&gt;`).replace(/"/g,`&quot;`).replace(/'/g,`&#39;`)}function s(e){if(!e)return`—`;let t=new Date(e);if(Number.isNaN(t.getTime()))return e;let n=e=>String(e).padStart(2,`0`);return`${t.getMonth()+1}-${n(t.getDate())} ${n(t.getHours())}:${n(t.getMinutes())}`}function c(e){if(!e)return`—`;let t=new Date(e);return Number.isNaN(t.getTime())?e:`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,`0`)}-${String(t.getDate()).padStart(2,`0`)}`}const l={constitution:`宪法`,principles:`决策原则`,rules:`操作规则`,lessons:`经验教训`},u={constitution:`交易宪法（不可修改）`,principles:`决策原则`,rules:`操作规则`,lessons:`经验教训`},d={update:`更新`,promote:`转正`,rollback:`回滚`},f={update:`up`,promote:`ok`,rollback:`bad`},p={watching:`观察中`,promoted:`已转正`,rejected:`已拒绝`,extended:`观察延期`,unknown:`未知`},m={watching:`wait`,promoted:`ok`,rejected:`bad`,extended:`wait`,unknown:`unk`},h=[{key:`all`,label:`全部`},{key:`watching`,label:`观察中`},{key:`due`,label:`待裁决`},{key:`promoted`,label:`已转正`},{key:`rejected`,label:`已回滚/拒绝`}];let g,_=`all`;function v(e,t){switch(t){case`all`:return!0;case`watching`:return e.status===`watching`&&!e.due;case`due`:return e.due===!0;case`promoted`:return e.status===`promoted`;case`rejected`:return e.status===`rejected`;case`extended`:return e.status===`extended`;default:return!0}}function y(e,t){return`<span class="dsh-gen-badge ${t}">${o(e)}</span>`}function b(e){let t=e.consistency,n=t.healthy?y(`🟢 一致性健康`,`ok`):y(`⚠️ ${t.issues.filter(e=>e.items.length>0).length} 项异常`,`bad`),r=e.candidates.length,i=e.candidates.filter(e=>e.status===`watching`).length,a=e.candidates.filter(e=>e.due).length;return`
+		Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});const e=`data-dsh-gen-active`,t=[`data-dsh-atb-active`,`data-dsh-taskboard-active`,`data-dsh-ssh-active`,`data-dsh-hld-active`,`data-dsh-exec-active`,`data-dsh-bbd-active`],n=`dsh-panel-activate`;function r(){let e=document.querySelector(`[data-pane="sidebar"], [class*="sidebarCol"], .dshDesktopUpstreamSidebar, .dshDesktopSidebarSurface`);if(e!==null)return e.querySelector(`[class*="logoRow"]`)?.parentElement??e.firstElementChild}function i(){return document.querySelector(`[data-pane="conversation"], [class*="centerCol"], .dshDesktopConversationSurface`)??void 0}function a(e){let t,n=()=>{let t=document.createElement(`button`);return t.type=`button`,t.className=`dsh-gen-entry`,t.dataset.dshGenEntry=``,t.setAttribute(`aria-label`,`自主进化`),t.title=`自主进化看板 (dashboard-genome) — 基因组/候选/一致性诊断`,t.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/><circle cx="12" cy="12" r="3"/></svg><span class="dsh-gen-entry-label">自主进化</span>`,t.addEventListener(`click`,t=>{t.preventDefault(),t.stopPropagation(),e.toggle()}),t},i=()=>{let e=r();if(e===void 0)return!1;if(e.querySelector(`[data-dsh-gen-entry]`)!==null){let n=e.querySelector(`[data-dsh-gen-entry]`);return n!==void 0&&t===void 0&&(t=n),!0}let i=n(),a=e.querySelector(`[class*="logoRow"]`);return a!==null&&a.nextSibling!==null?e.insertBefore(i,a.nextSibling):e.prepend(i),t=i,!0};i();let a=new MutationObserver(()=>{(t===void 0||!document.contains(t)||t.parentElement===null)&&i()});a.observe(document.body,{childList:!0,subtree:!0});let o=window.setInterval(()=>{(t===void 0||!document.contains(t))&&i()},5e3);return()=>{window.clearInterval(o),a.disconnect(),t?.remove(),t=void 0}}function o(e){return`<button type="button" class="dsh-gen-explain" data-explain-module="${e}" title="AI 讲解：请当前 AI 介绍该区域解决什么问题、有什么作用（讲解将出现在下方会话）">🤖 讲解</button>`}function s(e){return String(e??``).replace(/&/g,`&amp;`).replace(/</g,`&lt;`).replace(/>/g,`&gt;`).replace(/"/g,`&quot;`).replace(/'/g,`&#39;`)}function c(e){if(!e)return`—`;let t=new Date(e);if(Number.isNaN(t.getTime()))return e;let n=e=>String(e).padStart(2,`0`);return`${t.getMonth()+1}-${n(t.getDate())} ${n(t.getHours())}:${n(t.getMinutes())}`}function l(e){if(!e)return`—`;let t=new Date(e);return Number.isNaN(t.getTime())?e:`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,`0`)}-${String(t.getDate()).padStart(2,`0`)}`}const u={constitution:`宪法`,principles:`决策原则`,rules:`操作规则`,lessons:`经验教训`},d={constitution:`交易宪法（不可修改）`,principles:`决策原则`,rules:`操作规则`,lessons:`经验教训`},f={update:`更新`,promote:`转正`,rollback:`回滚`},p={update:`up`,promote:`ok`,rollback:`bad`},m={watching:`观察中`,promoted:`已转正`,rejected:`已拒绝`,extended:`观察延期`,unknown:`未知`},h={watching:`wait`,promoted:`ok`,rejected:`bad`,extended:`wait`,unknown:`unk`},g=[{key:`all`,label:`全部`},{key:`watching`,label:`观察中`},{key:`due`,label:`待裁决`},{key:`promoted`,label:`已转正`},{key:`rejected`,label:`已回滚/拒绝`}];let _,v=`all`;function y(e,t){switch(t){case`all`:return!0;case`watching`:return e.status===`watching`&&!e.due;case`due`:return e.due===!0;case`promoted`:return e.status===`promoted`;case`rejected`:return e.status===`rejected`;case`extended`:return e.status===`extended`;default:return!0}}function b(e,t){return`<span class="dsh-gen-badge ${t}">${s(e)}</span>`}function x(e){let t=e.consistency,n=t.healthy?b(`🟢 一致性健康`,`ok`):b(`⚠️ ${t.issues.filter(e=>e.items.length>0).length} 项异常`,`bad`),r=e.candidates.length,i=e.candidates.filter(e=>e.status===`watching`).length,a=e.candidates.filter(e=>e.due).length;return`
 		  <div class="dsh-gen-ov">
 		    <div class="dsh-gen-ov-title">
 		      <span class="dsh-gen-ov-big">自主进化</span>
 		      <span class="dsh-gen-ov-sub">Autonomy 线 · 能力设计层可观测 — 回答「改了什么规则 / 什么在试运行何时出结果 / 进化链路有无卡住」</span>
 		    </div>
 		    <div class="dsh-gen-ov-stats">
-		      <div class="dsh-gen-stat"><span class="dsh-gen-stat-k">基因组版本</span><span class="dsh-gen-stat-v dsh-gen-gv">${o(e.genomeVersion)}</span></div>
+		      <div class="dsh-gen-stat"><span class="dsh-gen-stat-k">基因组版本</span><span class="dsh-gen-stat-v dsh-gen-gv">${s(e.genomeVersion)}</span></div>
 		      <div class="dsh-gen-stat"><span class="dsh-gen-stat-k">段</span><span class="dsh-gen-stat-v">${e.sections.length}<small>/4</small></span></div>
 		      <div class="dsh-gen-stat"><span class="dsh-gen-stat-k">谱系事件</span><span class="dsh-gen-stat-v">${e.history.length}</span></div>
 		      <div class="dsh-gen-stat"><span class="dsh-gen-stat-k">候选</span><span class="dsh-gen-stat-v">${r}<small> · 观察中 ${i}${a?` · <b class="dsh-gen-warn-txt">待裁决 ${a}</b>`:``}</small></span></div>
 		      <div class="dsh-gen-stat"><span class="dsh-gen-stat-k">一致性</span><span class="dsh-gen-stat-v">${n}</span></div>
 		    </div>
-		    <div class="dsh-gen-ov-meta">创建 ${c(e.createdAt)} · 最近更新 ${s(e.updatedAt)} · 核验 ${s(t.checkedAt)}</div>
-		  </div>`}function x(e){let t=e.id===`constitution`,n=t?y(`🔒 宪法层 · 锁定`,`lock`):y(`可进化`,`ev`),r=(e.content??``).trim(),i=r.length>0?`${r.length} 字 · `:``,a=r.length>0?`<details class="dsh-gen-sec-body"${t?` open`:``}><summary>${i}查看全文 v${e.version??0}</summary><pre class="dsh-gen-sec-content">${o(r)}</pre></details>`:`<div class="dsh-gen-sec-empty">（sections/${String(e.id)}.md 缺失——genome 工具写入异常）</div>`,c=e.lastChange,l=c?`<details class="dsh-gen-exp"><summary><span class="dsh-gen-lc-head">最近：<b>${d[c.type??``]??o(c.type??``)}</b> @ ${o(c.genomeVersion??``)} · ${s(c.ts)}</span></summary><div class="dsh-gen-exp-body">${o(c.reason??`—`)}</div></details>`:`<div class="dsh-gen-lc-empty">无变更记录</div>`;return`
+		    <div class="dsh-gen-ov-meta">创建 ${l(e.createdAt)} · 最近更新 ${c(e.updatedAt)} · 核验 ${c(t.checkedAt)}</div>
+		  </div>`}function S(e){let t=e.id===`constitution`?b(`🔒 宪法层 · 锁定`,`lock`):b(`可进化`,`ev`),n=(e.content??``).trim(),r=n.length>0?`${n.length} 字 · `:``,i=n.length>0?`<details class="dsh-gen-sec-body" open><summary>${r}全文 v${e.version??0}（点击收起）</summary><pre class="dsh-gen-sec-content">${s(n)}</pre></details>`:`<div class="dsh-gen-sec-empty">（sections/${String(e.id)}.md 缺失——genome 工具写入异常）</div>`,a=e.lastChange,o=a?`<details class="dsh-gen-exp" open><summary><span class="dsh-gen-lc-head">最近：<b>${f[a.type??``]??s(a.type??``)}</b> @ ${s(a.genomeVersion??``)} · ${c(a.ts)}（点击收起理由）</span></summary><div class="dsh-gen-exp-body">${s(a.reason??`—`)}</div></details>`:`<div class="dsh-gen-lc-empty">无变更记录</div>`;return`
 		  <div class="dsh-gen-sec-card">
 		    <div class="dsh-gen-sec-head">
-		      <span class="dsh-gen-sec-name">${o(u[e.id]??e.id)}</span>
+		      <span class="dsh-gen-sec-name">${s(d[e.id]??e.id)}</span>
 		      <span class="dsh-gen-sec-ver">v${e.version??0}</span>
-		      ${n}
+		      ${t}
 		    </div>
-		    ${a}
-		    ${l}
-		  </div>`}function S(e){return`
+		    ${i}
+		    ${o}
+		  </div>`}function C(e){return`
 		  <div class="dsh-gen-block">
-		    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">② 段状态矩阵</span><span class="dsh-gen-block-s">4 个基因组段 · 版本与最近变更</span></div>
+		    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">② 段状态矩阵</span><span class="dsh-gen-block-s">4 个基因组段 · 版本与最近变更</span>${o(`sections`)}</div>
 		    <div class="dsh-gen-sec-grid">
-		      ${e.sections.map(x).join(``)}
+		      ${e.sections.map(S).join(``)}
 		    </div>
-		  </div>`}function C(e){if(e.items.length===0)return`<div class="dsh-gen-iss ok"><span class="dsh-gen-iss-id">${o(e.id)}</span><span class="dsh-gen-iss-t">${o(e.label)}</span><span class="dsh-gen-iss-r">✅ 通过</span></div>`;let t=e.items.map(e=>{let t=e,n=[];t.genomeVersion&&n.push(`g<code>${o(t.genomeVersion)}</code>`),t.section&&n.push(o(l[String(t.section)]??String(t.section))),t.sectionVersion&&n.push(`v${String(t.sectionVersion)}`),t.id&&n.push(`<code>${o(t.id)}</code>`),t.file&&n.push(`<code>${o(t.file)}</code>`),t.ts&&n.push(s(String(t.ts)));let r=t.reason?`<div class="dsh-gen-iss-reason">${o(t.reason)}</div>`:``;return`<div class="dsh-gen-iss-item">${n.join(` · `)}${r}</div>`}).join(``);return`
+		  </div>`}function w(e){if(e.items.length===0)return`<div class="dsh-gen-iss ok"><span class="dsh-gen-iss-id">${s(e.id)}</span><span class="dsh-gen-iss-t">${s(e.label)}</span><span class="dsh-gen-iss-r">✅ 通过</span></div>`;let t=e.items.map(e=>{let t=e,n=[];t.genomeVersion&&n.push(`g<code>${s(t.genomeVersion)}</code>`),t.section&&n.push(s(u[String(t.section)]??String(t.section))),t.sectionVersion&&n.push(`v${String(t.sectionVersion)}`),t.id&&n.push(`<code>${s(t.id)}</code>`),t.file&&n.push(`<code>${s(t.file)}</code>`),t.ts&&n.push(c(String(t.ts)));let r=t.reason?`<div class="dsh-gen-iss-reason">${s(t.reason)}</div>`:``;return`<div class="dsh-gen-iss-item">${n.join(` · `)}${r}</div>`}).join(``);return`
 		  <div class="dsh-gen-iss bad">
-		    <span class="dsh-gen-iss-id">${o(e.id)}</span>
-		    <span class="dsh-gen-iss-t">${o(e.label)}</span>
+		    <span class="dsh-gen-iss-id">${s(e.id)}</span>
+		    <span class="dsh-gen-iss-t">${s(e.label)}</span>
 		    <span class="dsh-gen-iss-r">❌ ${e.items.length} 项</span>
 		  </div>
-		  <div class="dsh-gen-iss-desc">${o(e.description)}</div>
-		  ${t}`}function w(e){let t=e.consistency;return`
+		  <div class="dsh-gen-iss-desc">${s(e.description)}</div>
+		  ${t}`}function T(e){let t=e.consistency,n=t.healthy?`ok`:`bad`,r=t.healthy?`C1/C2/C3 全部通过 — 登记与落库一致，gate 有案可裁`:`检测到 ${t.issues.filter(e=>e.items.length>0).length} 类异常（F1 哨兵规则，与 gate runConsistencyCheck 同源）`;return`
 		  <div class="dsh-gen-block">
-		    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">③ 一致性诊断</span><span class="dsh-gen-block-s">F1 哨兵可视化仪表 · 状态一致性核验（genome.json ↔ candidates.json）</span></div>
-		    <div class="dsh-gen-cons-head ${t.healthy?`ok`:`bad`}">${t.healthy?`C1/C2/C3 全部通过 — 登记与落库一致，gate 有案可裁`:`检测到 ${t.issues.filter(e=>e.items.length>0).length} 类异常（F1 哨兵规则，与 gate runConsistencyCheck 同源）`}</div>
+		    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">③ 一致性诊断</span><span class="dsh-gen-block-s">F1 哨兵可视化仪表 · 状态一致性核验（genome.json ↔ candidates.json）</span>${o(`consistency`)}</div>
+		    <div class="dsh-gen-cons-head ${n}">${r}</div>
 		    <div class="dsh-gen-iss-list">
-		      ${e.consistency.issues.map(C).join(``)}
+		      ${e.consistency.issues.map(w).join(``)}
 		    </div>
-		  </div>`}function T(e){let t=l[e.section]??e.section,n=e.due?`⏰ 已过观察期 · 待 gate 裁决`:p[e.status]??e.status,r=e.due?`due`:m[e.status]??`unk`,i=``;i=(e.status===`watching`||e.due)&&e.progress!==void 0?`
+		  </div>`}function E(e){let t=u[e.section]??e.section,n=e.due?`⏰ 已过观察期 · 待 gate 裁决`:m[e.status]??e.status,r=e.due?`due`:h[e.status]??`unk`,i=``;i=(e.status===`watching`||e.due)&&e.progress!==void 0?`
 		    <div class="dsh-gen-cand-bar">
 		      <div class="dsh-gen-cand-bar-in" style="width:${Math.round((e.progress??0)*100)}%"></div>
 		    </div>
-		    <div class="dsh-gen-cand-bar-meta">${c(e.createdAt)} → ${c(e.observeUntil)} · ${e.due?`已到期`:`余 ${e.remainingDays??0} 天`}</div>`:`<div class="dsh-gen-cand-bar-meta">${c(e.createdAt)}${e.observeUntil?` → ${c(e.observeUntil)}`:``}</div>`;let a=``;if(e.healthCheck){let t=e.healthCheck.passed?`✅ 结构健康`:`❌ 结构异常`,n=[];e.healthCheck.sizeDelta!==void 0&&n.push(`diff ${e.healthCheck.sizeDelta} 字符`),e.healthCheck.issues&&e.healthCheck.issues.length>0&&n.push(...e.healthCheck.issues);let r=n.length>0?`<div class="dsh-gen-cand-hc-extra">${n.map(e=>o(e)).join(`；`)}</div>`:``;a=`<div class="dsh-gen-cand-hc">${t}${e.healthCheck.checkedAt?` · ${s(e.healthCheck.checkedAt)} 核`:``}${r}</div>`}let u=e.note?`<div class="dsh-gen-cand-note">${o(e.note)}</div>`:``,d=e.mutationType?`<span class="dsh-gen-cand-mut">${o(e.mutationType)}</span>`:``;return`
+		    <div class="dsh-gen-cand-bar-meta">${l(e.createdAt)} → ${l(e.observeUntil)} · ${e.due?`已到期`:`余 ${e.remainingDays??0} 天`}</div>`:`<div class="dsh-gen-cand-bar-meta">${l(e.createdAt)}${e.observeUntil?` → ${l(e.observeUntil)}`:``}</div>`;let a=``;if(e.healthCheck){let t=e.healthCheck.passed?`✅ 结构健康`:`❌ 结构异常`,n=[];e.healthCheck.sizeDelta!==void 0&&n.push(`diff ${e.healthCheck.sizeDelta} 字符`),e.healthCheck.issues&&e.healthCheck.issues.length>0&&n.push(...e.healthCheck.issues);let r=n.length>0?`<div class="dsh-gen-cand-hc-extra">${n.map(e=>s(e)).join(`；`)}</div>`:``;a=`<div class="dsh-gen-cand-hc">${t}${e.healthCheck.checkedAt?` · ${c(e.healthCheck.checkedAt)} 核`:``}${r}</div>`}let o=e.note?`<div class="dsh-gen-cand-note">${s(e.note)}</div>`:``,d=e.mutationType?`<span class="dsh-gen-cand-mut">${s(e.mutationType)}</span>`:``;return`
 		  <div class="dsh-gen-cand">
 		    <div class="dsh-gen-cand-head">
-		      <span class="dsh-gen-cand-sec">${o(t)}</span>
-		      <span class="dsh-gen-cand-gv">${o(e.genomeVersion)} · v${e.sectionVersion}</span>
-		      <span class="dsh-gen-cand-id"><code>${o(e.id)}</code></span>
+		      <span class="dsh-gen-cand-sec">${s(t)}</span>
+		      <span class="dsh-gen-cand-gv">${s(e.genomeVersion)} · v${e.sectionVersion}</span>
+		      <span class="dsh-gen-cand-id"><code>${s(e.id)}</code></span>
 		      ${d}
-		      ${y(n,r)}
+		      ${b(n,r)}
 		    </div>
 		    ${i}
 		    ${a}
-		    ${u}
-		  </div>`}function E(){return`<div class="dsh-gen-tabs">${h.map(e=>`<button type="button" class="dsh-gen-tab${e.key===_?` on`:``}" data-cand-filter="${e.key}">${o(e.label)}</button>`).join(``)}</div>`}function D(e){let t=e.candidates.filter(e=>v(e,_));return`<div class="dsh-gen-cand-list">${t.length===0?`<div class="dsh-gen-cand-empty">此筛选下无候选${e.candidates.length===0?`（candidates.json 暂无记录）`:``}</div>`:t.map(T).join(``)}</div>`}function O(e){return`
+		    ${o}
+		  </div>`}function D(){return`<div class="dsh-gen-tabs">${g.map(e=>`<button type="button" class="dsh-gen-tab${e.key===v?` on`:``}" data-cand-filter="${e.key}">${s(e.label)}</button>`).join(``)}</div>`}function O(e){let t=e.candidates.filter(e=>y(e,v));return`<div class="dsh-gen-cand-list">${t.length===0?`<div class="dsh-gen-cand-empty">此筛选下无候选${e.candidates.length===0?`（candidates.json 暂无记录）`:``}</div>`:t.map(E).join(``)}</div>`}function k(e){return`
 		  <div class="dsh-gen-block">
-		    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">④ 候选生命周期流水线</span><span class="dsh-gen-block-s">genome_update(candidate) → 观察期 → validation_gate 裁决（转正 / 回滚）</span></div>
-		    ${E()}
-		    <div class="dsh-gen-cand-list-root">${D(e)}</div>
-		  </div>`}function k(e){return e.history.length===0?`<div class="dsh-gen-tl-empty">无谱系记录</div>`:`<div class="dsh-gen-tl">${e.history.map(e=>{let t=d[e.type]??o(e.type),n=f[e.type]??`unk`,r=l[e.section]??e.section,i=e.stage?y(e.stage===`candidate`?`观察版`:`正式版`,e.stage===`candidate`?`wait`:`ev`):``,a=e.gitCommit?` <code>${o(e.gitCommit)}</code>`:``,c=e.reason?`<details class="dsh-gen-exp"><summary>理由</summary><div class="dsh-gen-exp-body">${o(e.reason)}</div></details>`:``;return`
-		    <div class="dsh-gen-tl-item">
-		      <div class="dsh-gen-tl-dot ${n}"></div>
-		      <div class="dsh-gen-tl-main">
-		        <div class="dsh-gen-tl-head">
-		          <span class="dsh-gen-tl-gv">${o(e.genomeVersion)}</span>
-		          ${y(t,n)}
-		          <span class="dsh-gen-tl-sec">${o(r)} v${e.sectionVersion}</span>
-		          ${i}
-		          <span class="dsh-gen-tl-ts">${s(e.ts)}</span>
-		          ${a}
+		    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">④ 候选生命周期流水线</span><span class="dsh-gen-block-s">genome_update(candidate) → 观察期 → validation_gate 裁决（转正 / 回滚）</span>${o(`candidates`)}</div>
+		    ${D()}
+		    <div class="dsh-gen-cand-list-root">${O(e)}</div>
+		  </div>`}function A(e){let t=e.history.length===0?`<div class="dsh-gen-tl-empty">无谱系记录</div>`:`<div class="dsh-gen-tl">${e.history.map(e=>{let t=f[e.type]??s(e.type),n=p[e.type]??`unk`,r=u[e.section]??e.section,i=e.stage?b(e.stage===`candidate`?`观察版`:`正式版`,e.stage===`candidate`?`wait`:`ev`):``,a=e.gitCommit?` <code>${s(e.gitCommit)}</code>`:``,o=e.reason?`<details class="dsh-gen-exp"><summary>理由</summary><div class="dsh-gen-exp-body">${s(e.reason)}</div></details>`:``;return`
+		      <div class="dsh-gen-tl-item">
+		        <div class="dsh-gen-tl-dot ${n}"></div>
+		        <div class="dsh-gen-tl-main">
+		          <div class="dsh-gen-tl-head">
+		            <span class="dsh-gen-tl-gv">${s(e.genomeVersion)}</span>
+		            ${b(t,n)}
+		            <span class="dsh-gen-tl-sec">${s(r)} v${e.sectionVersion}</span>
+		            ${i}
+		            <span class="dsh-gen-tl-ts">${c(e.ts)}</span>
+		            ${a}
+		          </div>
+		          ${o}
 		        </div>
-		        ${c}
-		      </div>
-		    </div>`}).join(``)}</div>`}function A(e){return`${b(e)}${S(e)}${w(e)}${O(e)}${k(e)}`}function j(){let e=document.createElement(`div`);e.className=`dsh-gen-board`;let t=document.createElement(`div`);t.className=`dsh-gen-head`;let n=document.createElement(`button`);n.type=`button`,n.className=`dsh-gen-recheck`,n.title=`重新读取 genome.json / candidates.json 并重跑 C1/C2/C3 一致性核验`,n.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg><span>⟳ 重检</span>`;let r=document.createElement(`div`);r.className=`dsh-gen-meta`,r.textContent=`加载中…`,t.appendChild(r),t.appendChild(n);let i=document.createElement(`div`);return i.className=`dsh-gen-body`,e.appendChild(t),e.appendChild(i),{root:e,refreshBtn:n,meta:r,head:t}}function M(e,t){g=t;let n=e.root.querySelector(`.dsh-gen-body`);n!==null&&(n.innerHTML=A(t),n.addEventListener(`click`,e=>{let t=e.target?.closest(`[data-cand-filter]`);if(t==null||g===void 0)return;_=t.dataset.candFilter??`all`;let r=n.querySelector(`.dsh-gen-tabs`),i=n.querySelector(`.dsh-gen-cand-list-root`);r!==null&&(r.outerHTML=E()),i!==null&&(i.innerHTML=D(g))}))}let N=!1;function P(){let r={boardOpen:!1},i=()=>{r.boardOpen=!0,o()},a=()=>{r.boardOpen=!1,o()},o=()=>{if(r.boardOpen){for(let e of t)document.documentElement.removeAttribute(e);document.documentElement.setAttribute(e,``),document.dispatchEvent(new CustomEvent(n,{detail:`dashboard-genome`}))}else document.documentElement.removeAttribute(e)};return{isActive:()=>r.boardOpen,toggle:()=>{r.boardOpen?a():i()},getSnapshot:()=>r,openBoard:i,closeBoard:a}}function F(t){let r,a,o,s,c=!1,l=()=>{if(a!==void 0||c)return;let e=i();if(e===void 0)return;a=document.createElement(`div`),a.className=`dsh-gen-board`,a.dataset.dshGenView=``,e.appendChild(a),r=j(),a.appendChild(r.root),r.refreshBtn?.addEventListener(`click`,()=>{d()});let n=document.createElement(`button`);n.type=`button`,n.className=`dsh-gen-close`,n.title=`收起看板，回到会话`,n.textContent=`✕ 收起`,n.addEventListener(`click`,()=>{t.toggle()}),r.head!==void 0&&r.head.insertBefore(n,r.refreshBtn??null),d(!0),console.log(`[dashboard-genome] board container mounted`)},u=new MutationObserver(()=>{l()});u.observe(document.body,{childList:!0,subtree:!0}),l();async function d(e=!1){if(!(N||r===void 0)){N=!0;try{let e=await(await fetch(`/dashboard/api/genome`,{headers:{Accept:`application/json`}})).json();if(!e.success||e.data===void 0)throw Error(e.error??`接口失败`);s=e.data,M(r,e.data),r.meta.textContent=`刷新于 `+new Date().toLocaleTimeString()+` · 数据 `+(e.data.fetchedAt?new Date(e.data.fetchedAt).toLocaleTimeString():``)}catch(t){if(r===void 0)return;r.meta.textContent=`⚠️ 加载失败: `+(t instanceof Error?t.message:String(t)),!e&&s!==void 0&&M(r,s)}finally{N=!1}}}let f=()=>{o===void 0&&(o=window.setInterval(()=>{d()},3e4))},p=()=>{o!==void 0&&(window.clearInterval(o),o=void 0)},m=t.openBoard,h=t.closeBoard,g=()=>{l(),f(),m()},_=()=>{p(),h()},v=t;v.openBoard=g,v.closeBoard=_,v.toggle=()=>{t.isActive()?_():g()};let y=e=>{let n=e.detail;n!==void 0&&n!==`dashboard-genome`&&t.isActive()&&_()};window.addEventListener(n,y);let b=e=>{if(!t.isActive())return;let n=e.target;n!==null&&n.closest(`[data-dsh-gen-entry], [data-dsh-gen-view]`)===null&&_()};return document.addEventListener(`click`,b),()=>{c=!0,u.disconnect(),p(),window.removeEventListener(n,y),document.removeEventListener(`click`,b),a?.remove(),a=void 0,document.documentElement.removeAttribute(e)}}const I=`@pi-investment/dashboard-genome/styles`;function L(){if(document.getElementById(I)!==null)return;let e=document.createElement(`style`);e.id=I,e.textContent=`
+		      </div>`}).join(``)}</div>`;return`
+		  <div class="dsh-gen-block">
+		    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">⑤ 谱系时间线</span><span class="dsh-gen-block-s">规则进化历史 · 谁在何时改了什么（genome_version 倒序）</span>${o(`timeline`)}</div>
+		    ${t}
+		  </div>`}async function j(e){if(e.disabled)return;let t=e.dataset.explainModule??``,n=e.textContent??`🤖 讲解`;e.disabled=!0,e.classList.add(`loading`),e.textContent=`⏳ 请求中…`;try{let n=await fetch(`/dashboard/api/genome/explain?module=${encodeURIComponent(t)}`,{headers:{Accept:`application/json`}}),r=await n.json();if(!n.ok||r.success===!1)throw Error(r.error??`HTTP ${n.status}`);e.classList.remove(`loading`),e.classList.add(`done`),e.textContent=`✓ 已请求 · 收起看板看回复`,e.title=`讲解任务已投递给 AI 会话：点左上「✕ 收起」回到会话，AI 将介绍该区域解决什么问题、有什么作用`}catch(t){e.classList.remove(`loading`),e.classList.add(`err`),e.textContent=`✗ 请求失败`,e.title=`失败：`+(t instanceof Error?t.message:String(t))}finally{window.setTimeout(()=>{e.disabled=!1,e.classList.remove(`done`,`err`,`loading`),e.textContent=n},3500)}}function M(e){return`${x(e)}${C(e)}${T(e)}${k(e)}${A(e)}`}function N(){let e=document.createElement(`div`);e.className=`dsh-gen-board`;let t=document.createElement(`div`);t.className=`dsh-gen-head`;let n=document.createElement(`button`);n.type=`button`,n.className=`dsh-gen-recheck`,n.title=`重新读取 genome.json / candidates.json 并重跑 C1/C2/C3 一致性核验`,n.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg><span>⟳ 重检</span>`;let r=document.createElement(`div`);r.className=`dsh-gen-meta`,r.textContent=`加载中…`,t.appendChild(r),t.appendChild(n);let i=document.createElement(`div`);return i.className=`dsh-gen-body`,i.addEventListener(`click`,e=>{let t=e.target;if(t===null)return;let n=t.closest(`[data-cand-filter]`);if(n!==null){if(_===void 0)return;v=n.dataset.candFilter??`all`;let e=i.querySelector(`.dsh-gen-tabs`),t=i.querySelector(`.dsh-gen-cand-list-root`);e!==null&&(e.outerHTML=D()),t!==null&&(t.innerHTML=O(_));return}let r=t.closest(`[data-explain-module]`);if(r!==null){j(r);return}}),e.appendChild(t),e.appendChild(i),{root:e,refreshBtn:n,meta:r,head:t}}function P(e,t){_=t;let n=e.root.querySelector(`.dsh-gen-body`);n!==null&&(n.innerHTML=M(t))}let F=!1;function I(){let r={boardOpen:!1},i=()=>{r.boardOpen=!0,o()},a=()=>{r.boardOpen=!1,o()},o=()=>{if(r.boardOpen){for(let e of t)document.documentElement.removeAttribute(e);document.documentElement.setAttribute(e,``),document.dispatchEvent(new CustomEvent(n,{detail:`dashboard-genome`}))}else document.documentElement.removeAttribute(e)};return{isActive:()=>r.boardOpen,toggle:()=>{r.boardOpen?a():i()},getSnapshot:()=>r,openBoard:i,closeBoard:a}}function L(t){let r,a,o,s,c=!1,l=()=>{if(a!==void 0||c)return;let e=i();if(e===void 0)return;a=document.createElement(`div`),a.className=`dsh-gen-board`,a.dataset.dshGenView=``,e.appendChild(a),r=N(),a.appendChild(r.root),r.refreshBtn?.addEventListener(`click`,()=>{d()});let n=document.createElement(`button`);n.type=`button`,n.className=`dsh-gen-close`,n.title=`收起看板，回到会话`,n.textContent=`✕ 收起`,n.addEventListener(`click`,()=>{t.toggle()}),r.head!==void 0&&r.head.insertBefore(n,r.refreshBtn??null),d(!0),console.log(`[dashboard-genome] board container mounted`)},u=new MutationObserver(()=>{l()});u.observe(document.body,{childList:!0,subtree:!0}),l();async function d(e=!1){if(!(F||r===void 0)){F=!0;try{let e=await(await fetch(`/dashboard/api/genome`,{headers:{Accept:`application/json`}})).json();if(!e.success||e.data===void 0)throw Error(e.error??`接口失败`);s=e.data,P(r,e.data),r.meta.textContent=`刷新于 `+new Date().toLocaleTimeString()+` · 数据 `+(e.data.fetchedAt?new Date(e.data.fetchedAt).toLocaleTimeString():``)}catch(t){if(r===void 0)return;r.meta.textContent=`⚠️ 加载失败: `+(t instanceof Error?t.message:String(t)),!e&&s!==void 0&&P(r,s)}finally{F=!1}}}let f=()=>{o===void 0&&(o=window.setInterval(()=>{d()},3e4))},p=()=>{o!==void 0&&(window.clearInterval(o),o=void 0)},m=t.openBoard,h=t.closeBoard,g=()=>{l(),f(),m()},_=()=>{p(),h()},v=t;v.openBoard=g,v.closeBoard=_,v.toggle=()=>{t.isActive()?_():g()};let y=e=>{let n=e.detail;n!==void 0&&n!==`dashboard-genome`&&t.isActive()&&_()};window.addEventListener(n,y);let b=e=>{if(!t.isActive())return;let n=e.target;n!==null&&n.closest(`[data-dsh-gen-entry], [data-dsh-gen-view]`)===null&&_()};return document.addEventListener(`click`,b),()=>{c=!0,u.disconnect(),p(),window.removeEventListener(n,y),document.removeEventListener(`click`,b),a?.remove(),a=void 0,document.documentElement.removeAttribute(e)}}const R=`@pi-investment/dashboard-genome/styles`;function z(){if(document.getElementById(R)!==null)return;let e=document.createElement(`style`);e.id=R,e.textContent=`
 		/* ===== 板容器与显隐（dsh-taskboard 契约） ===== */
 		.dsh-gen-board {
 		  display: none;
@@ -199,9 +203,32 @@ window.__ModuleLoader__.load({
 		  padding: 12px 14px;
 		  margin-bottom: 14px;
 		}
-		.dsh-gen-block-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+		.dsh-gen-block-h { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 10px; }
 		.dsh-gen-block-t { font-size: 13px; font-weight: 700; }
 		.dsh-gen-block-s { font-size: 11px; color: var(--dsw-text-3, #8a8f99); }
+		
+		/* =====「🤖 讲解」按钮 ===== */
+		.dsh-gen-explain {
+		  margin-left: auto;
+		  display: inline-flex;
+		  align-items: center;
+		  gap: 3px;
+		  font-size: 11px;
+		  line-height: 1;
+		  color: var(--dsw-primary, #2f6bff);
+		  background: var(--dsw-bg-2, rgba(47,107,255,0.08));
+		  border: 1px solid transparent;
+		  border-radius: 999px;
+		  padding: 4px 10px;
+		  cursor: pointer;
+		  user-select: none;
+		  transition: background 0.15s ease, color 0.15s ease;
+		}
+		.dsh-gen-explain:hover { background: var(--dsw-primary, #2f6bff); color: #fff; }
+		.dsh-gen-explain:disabled { cursor: default; opacity: 0.85; }
+		.dsh-gen-explain.loading { color: var(--dsw-text-3, #8a8f99); background: var(--dsw-bg-2, rgba(0,0,0,0.04)); }
+		.dsh-gen-explain.done { color: #1e7f4f; background: rgba(30,127,79,0.10); }
+		.dsh-gen-explain.err { color: #c41d1d; background: rgba(196,29,29,0.08); }
 		
 		/* ===== 展开（details） ===== */
 		.dsh-gen-exp summary {
@@ -399,7 +426,7 @@ window.__ModuleLoader__.load({
 		[class*="_collapsed"] .dsh-gen-entry { justify-content: center; width: 36px; margin: 4px auto; padding: 7px 0; }
 		[data-sidebar-collapsed] .dsh-gen-entry .dsh-gen-entry-label,
 		[class*="_collapsed"] .dsh-gen-entry .dsh-gen-entry-label { display: none; }
-		`,(document.head??document.documentElement).appendChild(e)}const R=[],z=`__dshGenomeClient`;function B(){if(window[z]!==void 0)try{window[z].dispose()}catch{}try{L();let e=P(),t=a(e),n=F(e);window[z]={dispose:()=>{try{t(),n()}catch{}}},console.log(`[dashboard-genome] client applied — 侧栏「自主进化」入口就绪`)}catch(e){console.error(`[dashboard-genome] client half failed to start:`,e)}}exports.apply=B,exports.inject=R,exports.name=`@pi-investment/dashboard-genome/client`;
+		`,(document.head??document.documentElement).appendChild(e)}const B=[],V=`__dshGenomeClient`;function H(){if(window[V]!==void 0)try{window[V].dispose()}catch{}try{z();let e=I(),t=a(e),n=L(e);window[V]={dispose:()=>{try{t(),n()}catch{}}},console.log(`[dashboard-genome] client applied — 侧栏「自主进化」入口就绪`)}catch(e){console.error(`[dashboard-genome] client half failed to start:`,e)}}exports.apply=H,exports.inject=B,exports.name=`@pi-investment/dashboard-genome/client`;
 			return module.exports;
 		}
 	});

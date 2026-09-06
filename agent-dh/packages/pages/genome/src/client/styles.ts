@@ -130,9 +130,32 @@ html[data-dsh-gen-active] .dsh-gen-board code {
   padding: 12px 14px;
   margin-bottom: 14px;
 }
-.dsh-gen-block-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.dsh-gen-block-h { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 10px; }
 .dsh-gen-block-t { font-size: 13px; font-weight: 700; }
 .dsh-gen-block-s { font-size: 11px; color: var(--dsw-text-3, #8a8f99); }
+
+/* =====「🤖 讲解」按钮 ===== */
+.dsh-gen-explain {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--dsw-primary, #2f6bff);
+  background: var(--dsw-bg-2, rgba(47,107,255,0.08));
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.dsh-gen-explain:hover { background: var(--dsw-primary, #2f6bff); color: #fff; }
+.dsh-gen-explain:disabled { cursor: default; opacity: 0.85; }
+.dsh-gen-explain.loading { color: var(--dsw-text-3, #8a8f99); background: var(--dsw-bg-2, rgba(0,0,0,0.04)); }
+.dsh-gen-explain.done { color: #1e7f4f; background: rgba(30,127,79,0.10); }
+.dsh-gen-explain.err { color: #c41d1d; background: rgba(196,29,29,0.08); }
 
 /* ===== 展开（details） ===== */
 .dsh-gen-exp summary {
