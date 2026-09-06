@@ -85,3 +85,23 @@
 Autonomy 线代码**无现存假实现壳、无断链**：4 处历史占位均已修复留痕；L1-L4 主体真实实现且有运行证据；进化闭环（蒸馏→registerCandidate 双写→gate 裁决）端到端工作——g19 双写同秒、gate 9/5 正确延期，9/13 观察期满应正常裁决。
 
 **真实缺陷在可观测性层而非功能层**：genome/candidates 等关键状态存本地文件 + 独立 git，业务 DB 无表无错误通道——状态漂移/孤儿残留不产生任何 DB 错误，只能人工审计发现（本次审计即被 8/25 孤儿副本误导出错误结论后人工核对路径纠回）。修复优先级：F2 孤儿清理（顺手可做）> F1 可观测性哨兵（建议项）。
+
+## 七、F1/F2 落地执行记录（2026-09-06 10:15 补充，w-a8a89c6a）
+
+### F2 孤儿文件删除（已完成）
+- 删除 `~/.dsh/profiles/investment/data/candidates.json`（8/25 迁移残留，仅 1 条 g13 测试残留）；删除前精确复核源码/配置无指向该路径的 candidates.json 引用（grep --include 源码类型，排除 node_modules/dist 压缩产物）。
+- 备份 `/tmp/orphan-candidates-20260825-backup.json`；决策留痕 DEC-20260906100044-851ba11f（audit_finding）+ memory dcfbc10b。
+
+### F1 可观测性完善 A+B 两步走（已完成）
+- **A 步（零代码 SOP，commit 72e082b9）**：`agent-dh/skills/engine-heal-evolve/SKILL.md` 新增第 4.5 步"状态一致性核验（F1 哨兵）"——genome_benchmark() 拿候选清单 W → genome_history 拿 H → C2 登记缺失检测（history stage=candidate 无 candidates.json 对应）→ C3 过期待裁检测 → 异常落 decision_audit + 飞书 alerts high（影响裁决时）/静默。skill 经软链装载（repo 真身即实例生效），4 个进化类 Agent 任务 prompt 全部委托该 skill → 一处修改全局生效。
+- **B 步（ValidationGateTool 诊断腿，commit 054f7d07）**：`runConsistencyCheck()` 每轮 gate 裁决前核验 candidates.json ↔ genome.json history：
+  - C1 孤儿候选：watching 候选 genome_version ∉ genome history（promote/rollback 无依据）
+  - C2 未登记版本：history stage=candidate 无 candidates.json 对应（registerCandidate 断链，验证门无案可裁）
+  - C3 原子写残留：genomeDir 下 *.tmp
+  - healthy=false → summary 警告 + consistency 明细字段，促执行方 decision_audit 落 DB（文件层故障从此有 DB 痕迹）
+  - 单测 6/6（tests/gate-consistency.test.ts，worktree feat/f1-gate-consistency 开发合并）+ 既有 gate/candidates 回归 8/8
+- **B 步实测实证（重启 13080 加载新代码后）**：validation_gate 首跑即捕获 **C2 g16**（principles v6@8/28 应用，stage=candidate 滞留 9 天，candidates.json 无登记——9/3 registerCandidate 接回前的历史 bug 真实残留，观察版从未被 gate 裁决却持续实际运行）。g16 内容=8/28 P0 工具循环事故修复的原则#5（todo_write+3次熔断），9 天实际运行验证有效 → **genome_promote(principles) 转正（git 6246cc5）** → 复跑 validation_gate consistency.healthy 归零。端到端闭环：异常→捕获→确定性处置→复验归零，全程落 decision_audit DEC-20260906101443-5026baca + memory 6289225c。
+- **C 步（DB 镜像）未实施**：agent-dh 无 pg 通道，暂缓（A+B 已覆盖"异常必留痕"目标）。
+
+### 遗留检验点
+- 9/10 g19（R-011）观察期满 → 9/13 gate 应裁决转正/回滚：届时 consistency 诊断腿全程监控，是双写轨→gate→裁决闭环的端到端检验点。
