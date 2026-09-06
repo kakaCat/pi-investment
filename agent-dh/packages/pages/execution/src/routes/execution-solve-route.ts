@@ -76,7 +76,7 @@ interface BuildCtx {
 function buildSolveMessage(b: BuildCtx): any {
   const lines = [
     b.kind === 'task' ? '【执行看板 · 失败任务排查】以下调度任务失败，请排查处置并在本会话回复结论：'
-      : '【执行看板 · 错误事件排查】以下错误事件需要定位处置，请排查并在本会话回复结论：'
+      : '【执行看板 · 错误事件排查】以下错误事件需要定位处置，请排查并在本会话回复结论：',
     '',
     ...b.lines,
     '',
@@ -148,10 +148,10 @@ export function createExecutionSolveHandler(deps: ExecutionSolveDeps) {
         title = '失败任务：' + name
         const fail = String(t.error ?? '') || (t.lastRun && typeof t.lastRun === 'object' ? String((t.lastRun as any).err ?? '') : '')
         lines = [
-          '任务：' + name + (src ? '（来源：' + src + '）' : '')
-          '计划：' + (t.scheduleExpr ? String(t.scheduleExpr) : '—') + (t.nextRunAt ? '；下次运行：' + fmt(t.nextRunAt) : '')
+          '任务：' + name + (src ? '（来源：' + src + '）' : ''),
+          '计划：' + (t.scheduleExpr ? String(t.scheduleExpr) : '—') + (t.nextRunAt ? '；下次运行：' + fmt(t.nextRunAt) : ''),
           '上次运行：' + lastRunText(t.lastRun) + '；今日：' + (Number(t.todayTriggered) || 0) + ' 触发 / ' + (Number(t.todaySuccess) || 0) + ' 成功',
-          '数据时点：' + fetchedAt + '（看板快照）'
+          '数据时点：' + fetchedAt + '（看板快照）',
           '失败原因：' + (fail ? fail.slice(0, 600) : '—（看板未见失败原因，请查 Agent OS 日志）')
         ]
         if (agentCall) lines.push('Agent 调用：' + agentCall.slice(0, 300))
@@ -161,8 +161,8 @@ export function createExecutionSolveHandler(deps: ExecutionSolveDeps) {
         const first = String(e.line ?? e.file ?? '').replace(/\n/g, ' ').slice(0, 300)
         title = '错误事件：' + src + (first ? ' ' + first.slice(0, 40) : '')
         lines = [
-          '来源：' + src
-          '时间：' + fmt(e.timestamp) + '（数据时点：' + fetchedAt + '，看板快照）'
+          '来源：' + src,
+          '时间：' + fmt(e.timestamp) + '（数据时点：' + fetchedAt + '，看板快照）',
           '详情：' + (first || '—')
         ]
       }
