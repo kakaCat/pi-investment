@@ -1,382 +1,346 @@
-"""Domain exception hierarchy for quantsys-v2.
-
-Provides structured exception handling to replace broad 'except Exception' catches.
-
-New code should use QuantSysException hierarchy with structured error codes.
-Old DomainError hierarchy is kept for backward compatibility (aliased to new types).
 """
+统一异常体系 - quantsys-v2
+
+所有业务异常应继承此模块的基础异常类，确保一致的错误处理。
+"""
+
 from typing import Optional, Dict, Any
 
 
-class QuantSysException(Exception):
-    """Base exception for all quantsys-v2 errors.
+class QuantSysError(Exception):
+    """quantsys-v2 基础异常类
 
-    Attributes:
-        message: Human-readable error description
-        error_code: Machine-readable error identifier (e.g., "STOCK_NOT_FOUND")
-        details: Additional context for debugging (not exposed to clients)
-        http_status: Suggested HTTP status code for API responses
+    所有自定义异常应继承此类。
     """
 
     def __init__(
         self,
         message: str,
-        error_code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
-        http_status: int = 500
+        code: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None
     ):
-        super().__init__(message)
         self.message = message
-        self.error_code = error_code or self.__class__.__name__.upper()
+        self.code = code or self.__class__.__name__.upper()
         self.details = details or {}
-        self.http_status = http_status
+        super().__init__(message)
 
-    def to_dict(self, include_details: bool = False) -> Dict[str, Any]:
-        """Convert exception to dictionary for API responses.
-
-        Args:
-            include_details: If True, include internal debugging details
-                            (should only be True in dev/test environments)
-        """
-        result = {
-            "error_code": self.error_code,
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为 API 响应格式"""
+        return {
+            "code": self.code,
             "message": self.message,
+            "details": self.details
         }
-        if include_details and self.details:
-            result["details"] = self.details
-        return result
 
 
-# ============================================================================
-# Legacy DomainError Hierarchy (Backward Compatibility)
-# ============================================================================
-# These are kept for existing code that catches DomainError, NotFoundError, etc.
-# They now inherit from QuantSysException to get structured error handling.
+# ==================== 业务逻辑异常 ====================
 
-class DomainError(QuantSysException):
-    """领域层基础异常 (legacy, aliased to QuantSysException)"""
-
-    def __init__(self, message: str, **kwargs):
-        # Default to 400 for generic domain errors
-        super().__init__(message, http_status=kwargs.pop('http_status', 400), **kwargs)
+class BusinessError(QuantSysError):
+    """业务逻辑错误基类"""
+    pass
 
 
-class NotFoundError(DomainError):
-    """资源不存在 (legacy, aliased to NotFoundException)"""
-
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, http_status=404, **kwargs)
+class ValidationError(BusinessError):
+    """数据验证错误"""
+    pass
 
 
-class ValidationError(DomainError):
-    """参数校验失败 (legacy, aliased to ValidationException)"""
-
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, http_status=422, **kwargs)
+class ResourceNotFoundError(BusinessError):
+    """资源不存在"""
+    pass
 
 
-class ConflictError(DomainError):
-    """资源冲突 (legacy)"""
-
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, http_status=409, **kwargs)
+class ResourceAlreadyExistsError(BusinessError):
+    """资源已存在"""
+    pass
 
 
-class ExternalServiceError(DomainError):
-    """外部服务调用失败 (legacy, aliased to DataSourceException)"""
+# ==================== 交易相关异常 ====================
 
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, http_status=503, **kwargs)
-
-
-class DatabaseError(DomainError):
-    """数据库操作失败 (legacy, aliased to DatabaseException)"""
-
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, http_status=500, **kwargs)
+class TradingError(BusinessError):
+    """交易相关错误基类"""
+    pass
 
 
-class AuthenticationError(DomainError):
-    """认证失败 (legacy)"""
+class InsufficientFundsError(TradingError):
+    """资金不足"""
 
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, http_status=401, **kwargs)
+    def __init__(self, required: float, available: float, account_name: str = None):
+        details = {
+            "required": required,
+            "available": available,
+            "deficit": required - available
+        }
+        if account_name:
+            details["account_name"] = account_name
 
+        message = f"资金不足: 需要 ¥{required:,.2f}, 可用 ¥{available:,.2f}"
+        if account_name:
+            message = f"账户 {account_name} {message}"
 
-class AuthorizationError(DomainError):
-    """权限不足 (legacy)"""
-
-    def __init__(self, message: str, **kwargs):
-        super().__init__(message, http_status=403, **kwargs)
-
-
-# ============================================================================
-# Validation and Input Errors (HTTP 400)
-# ============================================================================
-
-class ValidationException(QuantSysException):
-    """Invalid input data or parameters."""
-
-    def __init__(self, message: str, field: Optional[str] = None, **kwargs):
-        super().__init__(message, http_status=400, **kwargs)
-        if field:
-            self.details["field"] = field
+        super().__init__(message, code="INSUFFICIENT_FUNDS", details=details)
+        self.required = required
+        self.available = available
 
 
-class InvalidSymbolException(ValidationException):
-    """Stock symbol format is invalid or not supported."""
+class InsufficientSharesError(TradingError):
+    """持仓不足"""
 
-    def __init__(self, symbol: str, **kwargs):
+    def __init__(self, symbol: str, required: int, available: int, account_name: str = None):
+        details = {
+            "symbol": symbol,
+            "required": required,
+            "available": available,
+            "deficit": required - available
+        }
+        if account_name:
+            details["account_name"] = account_name
+
+        message = f"{symbol} 持仓不足: 需要 {required} 股, 可用 {available} 股"
+        if account_name:
+            message = f"账户 {account_name} {message}"
+
+        super().__init__(message, code="INSUFFICIENT_SHARES", details=details)
+        self.symbol = symbol
+        self.required = required
+        self.available = available
+
+
+class MarketClosedError(TradingError):
+    """非交易时段"""
+
+    def __init__(self, current_time: str = None):
+        message = "当前为非交易时段"
+        details = {}
+        if current_time:
+            message = f"当前时间 {current_time} 为非交易时段"
+            details["current_time"] = current_time
+
+        super().__init__(message, code="MARKET_CLOSED", details=details)
+
+
+class InvalidOrderError(TradingError):
+    """订单参数错误"""
+
+    def __init__(self, reason: str, **kwargs):
         super().__init__(
-            f"Invalid stock symbol: {symbol}",
-            error_code="INVALID_SYMBOL",
-            details={"symbol": symbol},
-            **kwargs
+            f"订单参数错误: {reason}",
+            code="INVALID_ORDER",
+            details=kwargs
         )
 
 
-class InvalidDateRangeException(ValidationException):
-    """Date range parameters are invalid."""
+class OrderExecutionError(TradingError):
+    """订单执行失败"""
 
-    def __init__(self, start_date: str, end_date: str, **kwargs):
+    def __init__(self, order_id: str, reason: str):
         super().__init__(
-            f"Invalid date range: {start_date} to {end_date}",
-            error_code="INVALID_DATE_RANGE",
-            details={"start_date": start_date, "end_date": end_date},
-            **kwargs
+            f"订单 {order_id} 执行失败: {reason}",
+            code="ORDER_EXECUTION_FAILED",
+            details={"order_id": order_id, "reason": reason}
         )
 
 
-# ============================================================================
-# Not Found Errors (HTTP 404)
-# ============================================================================
+# ==================== 数据相关异常 ====================
 
-class NotFoundException(QuantSysException):
-    """Requested resource does not exist."""
+class DataError(BusinessError):
+    """数据相关错误基类"""
+    pass
 
-    def __init__(self, resource_type: str, identifier: Any, **kwargs):
+
+class SymbolNotFoundError(DataError, ResourceNotFoundError):
+    """股票代码不存在"""
+
+    def __init__(self, symbol: str):
         super().__init__(
-            f"{resource_type} not found: {identifier}",
-            http_status=404,
-            details={"resource_type": resource_type, "identifier": str(identifier)},
-            **kwargs
+            f"股票代码 {symbol} 不存在",
+            code="SYMBOL_NOT_FOUND",
+            details={"symbol": symbol}
+        )
+        self.symbol = symbol
+
+
+class DataSourceUnavailableError(DataError):
+    """数据源不可用"""
+
+    def __init__(self, source: str, reason: str = None):
+        message = f"数据源 {source} 不可用"
+        if reason:
+            message = f"{message}: {reason}"
+
+        super().__init__(
+            message,
+            code="DATA_SOURCE_UNAVAILABLE",
+            details={"source": source, "reason": reason}
         )
 
 
-class StockNotFoundException(NotFoundException):
-    """Stock not found in database."""
+class DataQualityError(DataError):
+    """数据质量问题"""
 
-    def __init__(self, symbol: str, **kwargs):
+    def __init__(self, issue: str, **kwargs):
         super().__init__(
-            resource_type="Stock",
-            identifier=symbol,
-            error_code="STOCK_NOT_FOUND",
-            **kwargs
+            f"数据质量问题: {issue}",
+            code="DATA_QUALITY_ERROR",
+            details=kwargs
         )
 
 
-class PoolNotFoundException(NotFoundException):
-    """Stock pool not found."""
+# ==================== 策略相关异常 ====================
 
-    def __init__(self, pool_id: Any, **kwargs):
+class StrategyError(BusinessError):
+    """策略相关错误基类"""
+    pass
+
+
+class StrategyNotFoundError(StrategyError, ResourceNotFoundError):
+    """策略不存在"""
+
+    def __init__(self, strategy_id: int):
         super().__init__(
-            resource_type="Pool",
-            identifier=pool_id,
-            error_code="POOL_NOT_FOUND",
-            **kwargs
+            f"策略 ID {strategy_id} 不存在",
+            code="STRATEGY_NOT_FOUND",
+            details={"strategy_id": strategy_id}
+        )
+        self.strategy_id = strategy_id
+
+
+class BacktestError(StrategyError):
+    """回测执行错误"""
+
+    def __init__(self, reason: str, **kwargs):
+        super().__init__(
+            f"回测执行失败: {reason}",
+            code="BACKTEST_ERROR",
+            details=kwargs
         )
 
 
-class StrategyNotFoundException(NotFoundException):
-    """Strategy not found."""
+class SignalGenerationError(StrategyError):
+    """信号生成错误"""
 
-    def __init__(self, strategy_id: Any, **kwargs):
+    def __init__(self, strategy_id: int, reason: str):
         super().__init__(
-            resource_type="Strategy",
-            identifier=strategy_id,
-            error_code="STRATEGY_NOT_FOUND",
-            **kwargs
+            f"策略 {strategy_id} 信号生成失败: {reason}",
+            code="SIGNAL_GENERATION_ERROR",
+            details={"strategy_id": strategy_id, "reason": reason}
         )
 
 
-# ============================================================================
-# Data Source Errors (HTTP 503)
-# ============================================================================
+# ==================== 系统相关异常 ====================
 
-class DataSourceException(QuantSysException):
-    """External data source error (network, API limit, etc.)."""
+class SystemError(QuantSysError):
+    """系统级错误"""
+    pass
 
-    def __init__(self, provider: str, operation: str, reason: str, **kwargs):
+
+class DatabaseError(SystemError):
+    """数据库错误"""
+
+    def __init__(self, operation: str, reason: str = None):
+        message = f"数据库操作失败: {operation}"
+        if reason:
+            message = f"{message} - {reason}"
+
         super().__init__(
-            f"Data source '{provider}' failed on {operation}: {reason}",
-            http_status=503,
-            details={"provider": provider, "operation": operation, "reason": reason},
-            **kwargs
+            message,
+            code="DATABASE_ERROR",
+            details={"operation": operation, "reason": reason}
         )
 
 
-class DataProviderUnavailableException(DataSourceException):
-    """All data providers in the fallback chain have failed."""
+class ConfigurationError(SystemError):
+    """配置错误"""
 
-    def __init__(self, providers_tried: list, **kwargs):
+    def __init__(self, config_key: str, reason: str):
         super().__init__(
-            provider="all",
-            operation="data_fetch",
-            reason=f"All providers failed: {', '.join(providers_tried)}",
-            error_code="DATA_PROVIDER_UNAVAILABLE",
-            **kwargs
-        )
-        self.details["providers_tried"] = providers_tried
-
-
-class NetworkTimeoutException(DataSourceException):
-    """Network request timed out."""
-
-    def __init__(self, provider: str, timeout_seconds: float, **kwargs):
-        super().__init__(
-            provider=provider,
-            operation="network_request",
-            reason=f"Timeout after {timeout_seconds}s",
-            error_code="NETWORK_TIMEOUT",
-            **kwargs
+            f"配置错误 {config_key}: {reason}",
+            code="CONFIGURATION_ERROR",
+            details={"config_key": config_key, "reason": reason}
         )
 
 
-class RateLimitException(DataSourceException):
-    """API rate limit exceeded."""
+class ExternalServiceError(SystemError):
+    """外部服务调用失败"""
 
-    def __init__(self, provider: str, retry_after: Optional[int] = None, **kwargs):
+    def __init__(self, service: str, reason: str = None):
+        message = f"外部服务 {service} 调用失败"
+        if reason:
+            message = f"{message}: {reason}"
+
         super().__init__(
-            provider=provider,
-            operation="api_call",
-            reason="Rate limit exceeded",
-            error_code="RATE_LIMIT_EXCEEDED",
-            **kwargs
-        )
-        if retry_after:
-            self.details["retry_after"] = retry_after
-
-
-# ============================================================================
-# Business Logic Errors (HTTP 422)
-# ============================================================================
-
-class BusinessRuleException(QuantSysException):
-    """Business rule or constraint violation."""
-
-    def __init__(self, message: str, rule: Optional[str] = None, **kwargs):
-        super().__init__(message, http_status=422, **kwargs)
-        if rule:
-            self.details["rule"] = rule
-
-
-class InsufficientDataException(BusinessRuleException):
-    """Not enough data to perform calculation or analysis."""
-
-    def __init__(self, required_points: int, available_points: int, **kwargs):
-        super().__init__(
-            f"Insufficient data: need {required_points} points, have {available_points}",
-            error_code="INSUFFICIENT_DATA",
-            **kwargs
-        )
-        self.details.update({
-            "required_points": required_points,
-            "available_points": available_points
-        })
-
-
-class CalculationException(BusinessRuleException):
-    """Error during calculation (divide by zero, invalid formula, etc.)."""
-
-    def __init__(self, calculation_type: str, reason: str, **kwargs):
-        super().__init__(
-            f"Calculation failed ({calculation_type}): {reason}",
-            error_code="CALCULATION_ERROR",
-            **kwargs
-        )
-        self.details.update({
-            "calculation_type": calculation_type,
-            "reason": reason
-        })
-
-
-# ============================================================================
-# System/Infrastructure Errors (HTTP 500)
-# ============================================================================
-
-class DatabaseException(QuantSysException):
-    """Database operation error."""
-
-    def __init__(self, operation: str, reason: str, **kwargs):
-        super().__init__(
-            f"Database {operation} failed: {reason}",
-            error_code="DATABASE_ERROR",
-            details={"operation": operation, "reason": reason},
-            **kwargs
+            message,
+            code="EXTERNAL_SERVICE_ERROR",
+            details={"service": service, "reason": reason}
         )
 
 
-class ConfigurationException(QuantSysException):
-    """Missing or invalid configuration."""
+# ==================== 权限相关异常 ====================
 
-    def __init__(self, config_key: str, reason: str, **kwargs):
-        super().__init__(
-            f"Configuration error for '{config_key}': {reason}",
-            error_code="CONFIGURATION_ERROR",
-            details={"config_key": config_key, "reason": reason},
-            **kwargs
-        )
+class PermissionError(BusinessError):
+    """权限不足"""
 
+    def __init__(self, resource: str, action: str, user: str = None):
+        message = f"权限不足: 无法对 {resource} 执行 {action} 操作"
+        details = {"resource": resource, "action": action}
 
-class CacheException(QuantSysException):
-    """Cache operation error (non-fatal, should degrade gracefully)."""
+        if user:
+            message = f"用户 {user} {message}"
+            details["user"] = user
 
-    def __init__(self, operation: str, reason: str, **kwargs):
-        super().__init__(
-            f"Cache {operation} failed: {reason}",
-            error_code="CACHE_ERROR",
-            details={"operation": operation, "reason": reason},
-            **kwargs
-        )
+        super().__init__(message, code="PERMISSION_DENIED", details=details)
 
 
-# ============================================================================
-# Helper Functions
-# ============================================================================
+# ==================== 工具函数 ====================
 
-def is_retryable(exc: Exception) -> bool:
-    """Check if an exception represents a transient error worth retrying.
-
-    Args:
-        exc: The exception to check
-
-    Returns:
-        True if the error is likely transient (network timeout, rate limit, etc.)
-    """
-    if isinstance(exc, (NetworkTimeoutException, RateLimitException)):
-        return True
-    if isinstance(exc, DataProviderUnavailableException):
-        return False  # Already exhausted fallback chain
-    if isinstance(exc, DataSourceException):
-        return True  # Other data source errors might be transient
-    return False
+def is_business_error(exc: Exception) -> bool:
+    """判断是否为业务异常（可预期的错误）"""
+    return isinstance(exc, BusinessError)
 
 
-def should_alert(exc: Exception) -> bool:
-    """Check if an exception should trigger an alert/notification.
+def is_system_error(exc: Exception) -> bool:
+    """判断是否为系统异常（需要告警）"""
+    return isinstance(exc, SystemError)
 
-    Args:
-        exc: The exception to check
 
-    Returns:
-        True if this error indicates a serious system problem
-    """
-    if isinstance(exc, (ValidationException, NotFoundException)):
-        return False  # Client errors, not system problems
-    if isinstance(exc, CacheException):
-        return False  # Cache failures should degrade gracefully
-    if isinstance(exc, DataProviderUnavailableException):
-        return True  # All providers down = critical
-    if isinstance(exc, DatabaseException):
-        return True  # Database errors = critical
-    return False
+__all__ = [
+    # 基础异常
+    "QuantSysError",
+    "BusinessError",
+    "SystemError",
+
+    # 通用业务异常
+    "ValidationError",
+    "ResourceNotFoundError",
+    "ResourceAlreadyExistsError",
+    "PermissionError",
+
+    # 交易异常
+    "TradingError",
+    "InsufficientFundsError",
+    "InsufficientSharesError",
+    "MarketClosedError",
+    "InvalidOrderError",
+    "OrderExecutionError",
+
+    # 数据异常
+    "DataError",
+    "SymbolNotFoundError",
+    "DataSourceUnavailableError",
+    "DataQualityError",
+
+    # 策略异常
+    "StrategyError",
+    "StrategyNotFoundError",
+    "BacktestError",
+    "SignalGenerationError",
+
+    # 系统异常
+    "DatabaseError",
+    "ConfigurationError",
+    "ExternalServiceError",
+
+    # 工具函数
+    "is_business_error",
+    "is_system_error",
+]
