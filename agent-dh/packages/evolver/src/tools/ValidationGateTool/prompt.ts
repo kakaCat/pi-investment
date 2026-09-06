@@ -9,6 +9,26 @@ export interface ValidationGateParams {
   min_samples?: number;
 }
 
+/**
+ * F1 状态一致性诊断（2026-09-06，w-a8a89c6a）：每轮 gate 裁决前对候选登记文件
+ * （candidates.json）与 genome.json history 做一致性核验——补"文件层语义故障零
+ * DB 痕迹"的可观测性空白：孤儿候选（登记了但 genome 侧无此版本）/ 未登记版本
+ * （genome history stage=candidate 但 candidates.json 无记录 → 验证门无案可裁，
+ * g16 principles v6 即历史 bug 真实残留）/ 原子写 .tmp 中断残留。
+ * healthy=false 时执行方应按 SOP 落 decision_audit + 飞书，而非静默。
+ */
+export interface ConsistencyReport {
+  healthy: boolean;
+  checked_at: string;
+  /** C1：watching 候选的 genome_version 不在 genome history（无法转正/回滚依据） */
+  orphan_candidates: Array<{ id: string; section: string; genome_version: string }>;
+  /** C2：genome history stage=candidate 但 candidates.json 无对应登记 */
+  unregistered_versions: Array<{ section: string; genome_version: string; section_version?: number; ts?: string; reason?: string }>;
+  /** C3：genomeDir 下原子写 .tmp 残留（写半途崩溃痕迹） */
+  atomic_leftovers: string[];
+  issues: string[];
+}
+
 export interface ValidationGateResult {
   verdicts: Array<{
     id: string;
@@ -28,6 +48,8 @@ export interface ValidationGateResult {
   promoted_count: number;
   rejected_count: number;
   watching_count: number;
+  /** F1 状态一致性诊断（healthy=false 时有异常项，见 issues） */
+  consistency?: ConsistencyReport;
 }
 
 export const validationGatePrompt: ToolPrompt<ValidationGateParams> = {

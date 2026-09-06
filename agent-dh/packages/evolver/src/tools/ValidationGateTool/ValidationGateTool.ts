@@ -6,7 +6,7 @@ import { BaseTool, ErrorType } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { Context } from '@deepseek-ai/cordis';
 import type { OsMemoryStore } from '../../index';
-import { validationGatePrompt, ValidationGateParams, ValidationGateResult } from './prompt';
+import { validationGatePrompt, ValidationGateParams, ValidationGateResult, ConsistencyReport } from './prompt';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -81,13 +81,21 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
     const force = params.force || false;
     const minSamples = params.min_samples || 3;
 
+    // F1 状态一致性诊断（2026-09-06）：裁决前核验 candidates.json ↔ genome.json history，
+    // 补文件层语义故障的可观测性（孤儿候选/未登记版本/原子写残留）。healthy=false 不阻断
+    // 裁决，但 summary 带警告，执行方按 SOP 落 decision_audit + 飞书。
+    const consistency = this.runConsistencyCheck();
+
     const verdicts = await this.judgeCandidates(force, minSamples);
 
     const promotedCount = verdicts.filter(v => v.verdict === 'promoted').length;
     const rejectedCount = verdicts.filter(v => v.verdict === 'rejected' || v.verdict === 'rejected_by_backtest').length;
     const watchingCount = verdicts.filter(v => v.verdict === 'watching' || v.verdict === 'extended').length;
 
-    const summary = `裁决完成：${promotedCount} 转正，${rejectedCount} 回滚，${watchingCount} 继续观察`;
+    let summary = `裁决完成：${promotedCount} 转正，${rejectedCount} 回滚，${watchingCount} 继续观察`;
+    if (!consistency.healthy) {
+      summary += `；⚠️ 状态一致性 ${consistency.issues.length} 项异常（孤儿候选 ${consistency.orphan_candidates.length} / 未登记版本 ${consistency.unregistered_versions.length} / 原子写残留 ${consistency.atomic_leftovers.length}，详见 consistency，需 decision_audit 留痕）`;
+    }
 
     return {
       verdicts,
@@ -96,6 +104,7 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
       promoted_count: promotedCount,
       rejected_count: rejectedCount,
       watching_count: watchingCount,
+      consistency,
     };
   }
 
@@ -129,6 +138,102 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
     const tmp = this.candidatesPath + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(list, null, 2));
     fs.renameSync(tmp, this.candidatesPath);
+  }
+
+  /**
+   * 读取 genome.json 的 history 数组（与 candidates.json 同目录）
+   */
+  private readGenomeHistory(): any[] {
+    try {
+      const p = path.join(this.ctx.genome.genomeDir, 'genome.json');
+      if (!fs.existsSync(p)) return [];
+      const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+      return Array.isArray(data.history) ? data.history : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * F1 状态一致性诊断（2026-09-06，w-a8a89c6a）
+   *
+   * 背景：进化状态存本地文件（candidates.json / genome.json），业务 DB 无表无错误通道——
+   * 状态漂移/孤儿残留不产生任何 DB 错误（文件读写成功、工具返回 success），只能人工审计
+   * 发现（2026-09-06 实证：8/25 孤儿 candidates.json 曾误导审计）。本腿在每轮 gate 自动
+   * 核验并把异常项带给执行方（healthy=false → summary 警告 → 执行方 decision_audit 落 DB）：
+   *
+   * C1 孤儿候选：watching 候选的 genome_version 不在 genome history → 登记了但 genome 侧
+   *    无此版本（genome.json 被回滚/重建覆盖或登记错乱），promote/rollback 无依据。
+   * C2 未登记版本：genome history 中 stage=candidate 条目在 candidates.json 无对应登记 →
+   *    写 genome 未登记/登记丢失（registerCandidate 断链，g16 principles v6 即 9/3 修复前
+   *    历史 bug 的真实残留：8/28 应用后从未被 gate 裁决，观察版实际运行 9 天）→ 验证门无案可裁。
+   * C3 原子写残留：genomeDir 下 *.tmp（原子写 tmp+rename 中途崩溃的痕迹）。
+   */
+  private runConsistencyCheck(): ConsistencyReport {
+    const issues: string[] = [];
+    const orphanCandidates: ConsistencyReport['orphan_candidates'] = [];
+    const unregisteredVersions: ConsistencyReport['unregistered_versions'] = [];
+    const atomicLeftovers: string[] = [];
+
+    const candidates = this.readCandidates();
+    const history = this.readGenomeHistory();
+    const historyVersions = new Set(history.map((h: any) => h.version));
+
+    // C1 孤儿候选（watching/extended 是待裁对象；promoted 版本若不在 history 属历史迁移，不在此列）
+    for (const c of candidates) {
+      if ((c.status === 'watching' || c.status === 'extended') && c.genome_version && !historyVersions.has(c.genome_version)) {
+        orphanCandidates.push({ id: c.id, section: c.section, genome_version: c.genome_version });
+        issues.push(
+          `孤儿候选 ${c.id}（${c.section} ${c.genome_version}）：genome_version 不在 genome history，promote/rollback 无依据——genome.json 被重建覆盖或登记错乱`
+        );
+      }
+    }
+
+    // C2 未登记版本：history stage=candidate 条目无 candidates.json 对应（同 section + genome_version）
+    const registeredKeys = new Set(
+      candidates
+        .filter((c: any) => c.status === 'watching' || c.status === 'extended' || c.status === 'promoted')
+        .map((c: any) => `${c.section}:${c.genome_version}`)
+    );
+    for (const h of history) {
+      if (h.stage === 'candidate') {
+        const key = `${h.section}:${h.version}`;
+        if (!registeredKeys.has(key)) {
+          unregisteredVersions.push({
+            section: h.section,
+            genome_version: h.version,
+            section_version: h.section_version,
+            ts: h.ts,
+            reason: (h.reason || '').slice(0, 120),
+          });
+          issues.push(
+            `未登记候选版本 ${h.version}（${h.section} v${h.section_version}，${(h.ts || '').slice(0, 10)} 应用）：genome history stage=candidate 但 candidates.json 无记录——写 genome 未登记/登记丢失，验证门无案可裁（观察版滞留，实际内容在运行）`
+          );
+        }
+      }
+    }
+
+    // C3 原子写 .tmp 残留
+    try {
+      const dir = this.ctx.genome.genomeDir;
+      for (const f of fs.readdirSync(dir)) {
+        if (f.endsWith('.tmp')) atomicLeftovers.push(f);
+      }
+    } catch {
+      // genomeDir 不可读则跳过（不误报）
+    }
+    if (atomicLeftovers.length > 0) {
+      issues.push(`原子写中断残留：${atomicLeftovers.join(', ')}——写入半途崩溃痕迹，需人工确认 genome.json/candidates.json 完整性`);
+    }
+
+    return {
+      healthy: issues.length === 0,
+      checked_at: new Date().toISOString(),
+      orphan_candidates: orphanCandidates,
+      unregistered_versions: unregisteredVersions,
+      atomic_leftovers: atomicLeftovers,
+      issues,
+    };
   }
 
   /**
