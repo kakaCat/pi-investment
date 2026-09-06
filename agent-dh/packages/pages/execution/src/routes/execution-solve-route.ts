@@ -73,6 +73,8 @@ interface BuildCtx {
   actorWindow: string
 }
 
+const NL = '\n'
+
 function buildSolveMessage(b: BuildCtx): any {
   const lines = [
     b.kind === 'task' ? '【执行看板 · 失败任务排查】以下调度任务失败，请排查处置并在本会话回复结论：'
