@@ -31,13 +31,14 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   const logger = ctx.logger(name)
   logger.info('dashboard-genome host applied (Autonomy 可观测 /dashboard/api/genome + explain)')
 
-  // agents 服务惰性获取：cordis 中未 inject 声明的服务属性访问会抛错（cannot get property without inject），
-  // 故不能直接读 ctx.agents——经 ctx.inject(['agents']) 声明依赖，回调里缓存实例供 explain 投递使用。
+  // agents 服务惰性获取：cordis 中未 inject 声明的服务属性访问会抛错（cannot get property without inject）。
+  // ctx.inject(['agents'], cb) 回调收到的是注入作用域 ctx（同 dashboard-execution 的 webCtx.webServer 用法），
+  // 须取 agentsCtx.agents 才是 agents 服务实例（roots()/followup 投递入口）。
   let agentsService: unknown
-  ;(ctx as unknown as { inject?: (services: string[], cb: (agents: unknown) => void) => void }).inject?.(
+  ;(ctx as unknown as { inject?: (services: string[], cb: (agentsCtx: any) => void) => void }).inject?.(
     ['agents'],
-    (agents: unknown) => {
-      agentsService = agents
+    (agentsCtx: { agents?: unknown }) => {
+      agentsService = agentsCtx.agents
       logger.info('agents service ready (explain delivery enabled)')
     },
   )
