@@ -22,12 +22,14 @@ describe('scheduleFinalize 收尾路径', () => {
   const git = (args: string[]) =>
     execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
 
-  /** 复刻 scheduleFinalize 的 merge 逻辑（与 index.ts 同步维护） */
+  /** 复刻 scheduleFinalize 的 merge 逻辑（改动2/3，w-856b64ef：与 index.ts 同步维护）。
+   *  调用方须先解析好 base（index.ts 对 agent-self/* 前缀的 base 记录会经 resolveTrunkBase 溯源到干线）。 */
   const doMerge = (checkpoint: string, base: string) => {
     repo.checkout(base);
-    repo.mergeFfOnly(checkpoint);
-    repo.deleteBranch(checkpoint);
-    const hash = repo.head();
+    const res = repo.finalizeMerge(base, checkpoint, 'merge(wip): lifecycle 收尾');
+    if (repo.branchExists(checkpoint)) repo.deleteBranch(checkpoint, res.outcome === 'already-cherried');
+    repo.cleanupWipChain('agent-self', base); // 整链清理副作用（改动3）
+    const hash = res.merged_hash;
     state.writeLastKnownGood(hash);
     state.clearPending();
     return hash;
@@ -52,7 +54,9 @@ describe('scheduleFinalize 收尾路径', () => {
     writeFileSync(join(dir, 'agent-dh/a.txt'), 'v1');
     git(['add', '-A']);
     git(['commit', '-m', 'init']);
-    repo = new GitRepo(dir);
+    // 递增时钟：同一测试内连续建多个 wip 分支避免同秒撞名
+    let tick = 0;
+    repo = new GitRepo(dir, () => new Date(Date.now() + tick++ * 1000));
     state = new StateStore(join(dir, 'state'));
     state.writeLastKnownGood(repo.head());
   });
@@ -119,5 +123,66 @@ describe('scheduleFinalize 收尾路径', () => {
     state.clearPending();
     expect(repo.head()).toBe(head); // git 无变化
     expect(state.readPending()).toBeNull();
+  });
+
+  it('merge 回归：wip 内容已等价并入且 main 前进 → 不滞留、正常收尾', () => {
+    // 审计实证场景：wip 内容被人工 cherry-pick 到 main 后 main 前进 → 旧 mergeFfOnly 必败滞留
+    writeFileSync(join(dir, 'agent-dh/a.txt'), 'v2-wip');
+    const wipBranch = repo.createWipBranch('agent-self', ['agent-dh/'], 'wip: test change')!; // 从 main@v1 切出
+    repo.checkout('main');
+    // main 上等价重放（patch-id 相同、hash 不同）+ 前进
+    writeFileSync(join(dir, 'agent-dh/a.txt'), 'v2-wip');
+    git(['add', '-A']);
+    git(['commit', '-m', 'manual equivalent of wip']);
+    writeFileSync(join(dir, 'agent-dh/a.txt'), 'v3-main');
+    git(['add', '-A']);
+    git(['commit', '-m', 'main advance']);
+    state.writePending({
+      reason: 'audit repro',
+      resume_task: '',
+      checkpoint_branch: wipBranch,
+      base_branch: 'main',
+      last_known_good: state.readLastKnownGood()!,
+      attempt: 1,
+      ts: new Date().toISOString(),
+    });
+
+    // 不再抛错（旧版此处 throw "请人工处理"），normal 收尾
+    const hash = doMerge(wipBranch, 'main');
+
+    expect(repo.currentBranch()).toBe('main');
+    expect(readFileSync(join(dir, 'agent-dh/a.txt'), 'utf8')).toBe('v3-main'); // main 领先内容保留
+    expect(git(['branch', '--list', wipBranch])).toBe(''); // 等价并入 → 强删不滞留
+    expect(state.readPending()).toBeNull();
+    expect(repo.isClean()).toBe(true);
+    expect(state.readLastKnownGood()).toBe(hash);
+  });
+
+  it('merge 整链清理：收尾主 wip 时同链已并入的残留分支一并清掉，未并入分支保留', () => {
+    // 历史残留（143233/143443/143536 型）：内容均已并入 main 但分支滞留
+    writeFileSync(join(dir, 'agent-dh/a.txt'), 'chain1');
+    const w1 = repo.createWipBranch('agent-self', ['agent-dh/'], 'wip: chain1')!;
+    repo.checkout('main');
+    repo.mergeFfOnly(w1.branch); // w1 物理并入（分支仍存）
+    writeFileSync(join(dir, 'agent-dh/a.txt'), 'chain2');
+    const w2 = repo.createWipBranch('agent-self', ['agent-dh/'], 'wip: chain2')!;
+    repo.checkout('main');
+    writeFileSync(join(dir, 'agent-dh/a.txt'), 'chain2');
+    git(['add', '-A']);
+    git(['commit', '-m', 'manual equivalent of chain2']); // w2 等价并入 main
+    // 真正待收尾的 checkpoint：独立未并入改动
+    writeFileSync(join(dir, 'agent-dh/a.txt'), 'current');
+    const cur = repo.createWipBranch('agent-self', ['agent-dh/'], 'wip: current')!;
+    repo.checkout('main');
+
+    const hash = doMerge(cur.branch, 'main');
+
+    expect(git(['branch', '--list', cur.branch])).toBe('');
+    expect(git(['branch', '--list', w1.branch])).toBe(''); // 链残留物理并入 → 清
+    expect(git(['branch', '--list', w2.branch])).toBe(''); // 链残留等价并入 → 清
+    expect(readFileSync(join(dir, 'agent-dh/a.txt'), 'utf8')).toBe('current');
+    expect(repo.currentBranch()).toBe('main');
+    expect(repo.isClean()).toBe(true);
+    expect(state.readLastKnownGood()).toBe(hash);
   });
 });

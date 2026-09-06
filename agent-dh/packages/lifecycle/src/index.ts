@@ -108,6 +108,7 @@ export default class LifecyclePlugin extends Service {
     this.setupWindowRegistry();
     this.registerTools();
     this.setupResume();
+    this.setupStrandedWipWatchdog(); // 改动4（2026-09-06, w-856b64ef）：滞留 wip 启动提醒，防静默链式滞留
     this.setupOsReminderPoller();  // OS 提醒体系：60s 轮询信箱并投递（2026-08-25，dsh-schedule 会话级提醒 fork 即死的替代）
     // 2026-09-04 迁移：Agent OS 定时任务改 webhook 驱动（webhook_url → POST /agent-os-trigger）。
     // setupNativeScheduler 退役——原来 DH 轮询采纳 payload.executor='dsh-native' 任务直投，
@@ -862,6 +863,71 @@ v2_event_json: ${JSON.stringify(data)}
     setTimeout(() => dispose(), 30 * 60_000);
   }
 
+  /**
+   * 改动1/改动2 共用（w-856b64ef）：溯源 agent-self/* wip 的"链根干线"。
+   * 优先级：① pending(.done) 记录里非 agent-self 前缀的 base_branch（改动1后 restart 恒写干线）；
+   *          ② git 溯源（resolveChainBase 沿 first-parent 找链根）；③ 主干候选 main/master 兜底。
+   * 溯源失败抛错（宁可不重启/不收尾，也不链式滞留）。
+   */
+  private resolveTrunkBase(wipBranch: string): string {
+    // ① 状态记录：restart 时写入的 base_branch 若已是干线则直接用（新代码恒为干线；旧记录可能链式）
+    for (const p of [this.state.readPending(), this.state.readPendingDone()]) {
+      const b = p?.base_branch ?? null;
+      if (b && !b.startsWith('agent-self/') && this.repo.branchExists(b)) return b;
+    }
+    // ② git 溯源链根
+    const gitBase = this.repo.resolveChainBase(wipBranch);
+    if (gitBase && this.repo.branchExists(gitBase)) return gitBase;
+    // ③ 主干兜底
+    for (const trunk of ['main', 'master']) {
+      if (this.repo.branchExists(trunk)) return trunk;
+    }
+    throw new Error(`无法溯源 ${wipBranch} 的链根干线（无状态记录、git 溯源失败且无 main/master），请人工 checkout 干线后处理`);
+  }
+
+  /**
+   * 改动4（w-856b64ef）：滞留 wip 看门狗。启动时若 HEAD 停在 agent-self/* 且无任何 pending 记录
+   * （restarter 成功路径未把 HEAD 交还干线 + 收尾未执行就再次启动/人工重启 → wip 滞留无人管），
+   * 向主 agent 注入提示：请先 self_finalize 收尾，勿在 wip 上再造链。只提示不代执行。
+   */
+  private setupStrandedWipWatchdog(): void {
+    try {
+      const branch = this.repo.currentBranch();
+      if (!branch.startsWith('agent-self/')) return; // 干线启动，无滞留
+      if (this.state.readPending() || this.state.readPendingDone()) return; // 有续跑/收尾记录，setupResume 处理
+      const text = [
+        '【lifecycle 收尾提醒】当前 HEAD 停留在未收尾的 wip 分支 ' + branch + '，且无 pending 收尾记录。',
+        '这表明上次 self_restart 已成功但收尾（self_finalize）未执行，改动仍留在 wip 上未合回干线。',
+        '请处理：验证通过 → 调 self_finalize(action=merge) 合回干线；需放弃 → self_finalize(action=rollback)。',
+        '请勿在 wip 分支上继续重启或重复收尾，以免造成链式滞留。',
+      ].join('\n');
+      const deliver = (agent: Agent | undefined): boolean => {
+        if (!agent) return false;
+        try {
+          agent.followup(createUserMessage({
+            content: [{ type: 'text', text }],
+            source: { kind: 'plugin', plugin: 'lifecycle' },
+          }));
+        } catch (e) {
+          this.ctx.logger.warn(`lifecycle: watchdog followup failed: ${String(e)}`);
+          return false;
+        }
+        this.ctx.logger.info(`lifecycle: stranded-wip watchdog delivered to ${String(agent.id)} on ${branch}`);
+        return true;
+      };
+      const roots: Agent[] = this.ctx.agents.roots();
+      const target = roots.find((a) => String(a.id).startsWith(this.cfg.agentId)) ?? roots[0];
+      if (deliver(target)) return;
+      // 主 agent 未就绪：等 agent/created
+      const dispose = this.ctx.on('agent/created', ({ agent }) => {
+        if (String(agent.id).startsWith(this.cfg.agentId) && deliver(agent)) dispose();
+      });
+      setTimeout(() => dispose(), 30 * 60_000);
+    } catch (e) {
+      this.ctx.logger.warn(`lifecycle: stranded-wip watchdog skipped: ${String(e)}`);
+    }
+  }
+
   // ===== 工具回调方法 =====
 
   /**
@@ -880,9 +946,24 @@ v2_event_json: ${JSON.stringify(data)}
       throw new Error('已有重启进行中（restarting.lock 存在），拒绝重入');
     }
     try {
-      // ③ 未提交代码 → wip 检查点分支（git 安全网，启动失败可回滚）
-      const base = this.repo.currentBranch();
-      const wip = this.repo.createWipBranch('agent-self', ['agent-dh/'], `wip(agent-self): ${reason}`);
+      // ③ 未提交代码 → wip 检查点（git 安全网，启动失败可回滚）
+      // 改动1（2026-09-06, w-856b64ef）：base 溯源 + 续提交。
+      //   旧逻辑 base=currentBranch()：若当前已在 agent-self/*（wip-on-wip：上次 restart 成功但
+      //   restarter 未交还 HEAD、agent 未 finalize 又重启），会把旧 wip 记为 base → 新 wip 链根是
+      //   wip，链永远合不进 main（144904 式滞留根因）。新逻辑：当停在 agent-self/* 上时，
+      //   ① base 溯源到链根干线（pendingDone/pending 记录的 base_branch，非 agent-self 前缀者）；
+      //   ② 未提交改动不另起新链——续提交到同一 wip 分支（commitOnCurrent），checkpoint 仍是该 wip。
+      const curBranch = this.repo.currentBranch();
+      const onWip = curBranch.startsWith('agent-self/');
+      const base = onWip ? this.resolveTrunkBase(curBranch) : curBranch;
+      let wip: { branch: string } | null = null;
+      if (onWip) {
+        // 改动1：续提交到同一 wip（无改动时 commitOnCurrent 是 no-op，wip 仍保留为检查点）
+        this.repo.commitOnCurrent(['agent-dh/'], `wip(agent-self): ${reason}（续 @ ${curBranch}）`);
+        wip = { branch: curBranch };
+      } else {
+        wip = this.repo.createWipBranch('agent-self', ['agent-dh/'], `wip(agent-self): ${reason}`);
+      }
       const branch = wip?.branch ?? null;
       // ④ 持久化 pending（重启后 setupResume 据此回投续跑消息；含上次消息内容便于接续）
       const attempt = this.state.nextAttempt(preserveContext ? 'continue previous task' : 'maintenance');
@@ -982,18 +1063,32 @@ v2_event_json: ${JSON.stringify(data)}
     // 修复：pending 已被消费（存在 .done.json）时回退读取，finalize 仍能拿到检查点分支。
     const pending = this.state.readPending() ?? this.state.readPendingDone();
     const checkpoint = pending?.checkpoint_branch ?? null;
-    const base = pending?.base_branch ?? this.repo.currentBranch();
+    // 改动2（w-856b64ef）：base 溯源兜底——pending.base_branch 若被旧版链式写入成 agent-self/*，
+    // 不得作为收尾基线（wip 合进 wip 会永不入干线），须溯源到链根干线再执行 merge/rollback
+    const rawBase = pending?.base_branch ?? this.repo.currentBranch();
+    const base = rawBase.startsWith('agent-self/')
+      ? this.resolveTrunkBase(checkpoint ?? rawBase)
+      : rawBase;
 
     if (action === 'merge' && checkpoint) {
-      // 验证通过：wip 检查点 → 快进合并回基线
+      // 验证通过：wip 检查点 → 策略化合并回干线（改动2，w-856b64ef：mergeFfOnly 太脆重构为 finalizeMerge）
       try {
         this.ctx.logger('lifecycle').info(`Finalize merge: ${checkpoint} → ${base}`);
         this.repo.checkout(base);
-        this.repo.mergeFfOnly(checkpoint);
-        this.repo.deleteBranch(checkpoint);
-        const hash = this.repo.head();
+        const res = this.repo.finalizeMerge(base, checkpoint, `merge(wip ${checkpoint}): lifecycle 收尾`);
+        // outcome 驱动删除语义：already-cherried=等价并入但非祖先（hash 不同）→ 须 -D；其余已合入/已并入 → -d
+        if (this.repo.branchExists(checkpoint)) {
+          this.repo.deleteBranch(checkpoint, res.outcome === 'already-cherried');
+        }
+        // 改动3（w-856b64ef）：整链清理——同一 agent-self 前缀下内容已并入 base 的历史遗留分支一并收掉
+        // （旧版多次 wip-on-wip 重启可能残留多条链分支；cleanupWipChain 绝不删内容未并入的分支）
+        const cleaned = this.repo.cleanupWipChain('agent-self', base);
+        const hash = res.merged_hash;
         this.state.writeLastKnownGood(hash);
-        this.ctx.logger('lifecycle').info(`Finalize merge done: ${base} @ ${hash}`);
+        this.ctx.logger('lifecycle').info(
+          `Finalize merge done: outcome=${res.outcome} ${base} @ ${hash}` +
+          (cleaned.length ? `；链清理=${cleaned.join(',')}` : ''),
+        );
         // 清理 pending（merge 成功后无未决重启）
         this.state.clearPending();
         this.state.clearAttempt();
