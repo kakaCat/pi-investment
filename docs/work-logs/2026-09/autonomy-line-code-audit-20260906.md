@@ -105,3 +105,29 @@ Autonomy 线代码**无现存假实现壳、无断链**：4 处历史占位均�
 
 ### 遗留检验点
 - 9/10 g19（R-011）观察期满 → 9/13 gate 应裁决转正/回滚：届时 consistency 诊断腿全程监控，是双写轨→gate→裁决闭环的端到端检验点。
+
+## 八、「自主进化」看板交付：Autonomy 线能力设计层 GUI 化（2026-09-06 10:45，w-a8a89c6a）
+
+### 背景
+第六/七节判定"真实缺陷在可观测性层"、F1 哨兵（A skill 步 + B gate 诊断腿）落地——但哨兵是"Agent 看得见的健康检查"，用户仍无可视化窗口。本交付把 Autonomy 线**能力设计层**（genome 段状态/候选生命周期/谱系/C1-C3 一致性）做成 DSH GUI 页面「自主进化」，独立看板（非扩展智能执行），回答：改了什么规则/什么在试运行何时出结果/进化链路有无卡住。
+
+### 交付物
+- 新包 `agent-dh/packages/pages/genome`（@pi-investment/dashboard-genome），双半插件模式同 execution：
+  - host 半（cordis 插件）：`/dashboard/api/genome` kind:exact 注册，fs 直读 genomeDir（genome.json+candidates.json）聚合 5 区域 JSON
+  - client 半（lib/client.js 构建产物入库）：顶部 logoRow DOM 入口「自主进化」+ 30s 轮询 + 候选 tab 过滤（全部/watching/到期/promoted/rejected）+ 重检按钮 + 被动互斥（与 execution/holdings/bulletin 面板互斥激活）
+  - 5 区域单页：①基因组段总览（constitution 锁定/evolvable 版本+最近变更）②候选生命周期（watching 进度条/观察期剩余/结构健康徽章/到期⏰ 高亮）③C1-C3 一致性哨兵（与 gate runConsistencyCheck 同源，healthy 徽章）④谱系时间线（22 条 history，gN/vN/type/commit/理由）⑤元信息+重检
+- README 写清与 execution 看板互补关系（execution=双线执行确认，genome=进化链路自身健康）
+
+### 排障记录：404 根因 = 注册改错目录（重要教训，跨会话防再踩）
+- 症状：`/dashboard/api/genome` 稳定 404、`/dashboard/api/board`（execution）200 → host 半机制本身有效，先疑代码后穷举环境
+- 排除：非旧进程（两次重启仍 404）、非 YAML 缩进（cat -vet 字节级核对）、非 import 能力（同构依赖 tsx）、非 package.json 差异（diff 一致）
+- **根因**：改错了注册目录。运行实例 dsh 从 **$DSH_HOME** 解析 profile 配置目录 = `~/.dsh-agent-dh/profiles/investment`（真身：cordis.patch.yml/package.json/node_modules 都在这里改才生效）；`~/.dsh/profiles/investment` 只是安装/启动目录（进程 cwd 误导——bin 从 A/node_modules 启动但 profile 数据在 B）。实证手段：`dsh --dump-config` 打印合并树，404 时 dump 无 dashboard-genome → 定位改错目录（在 B 补注册三处后 dump 含 genome → 重启即 200）
+- 另证 client 半发现机制：dsh-client-modules 扫 host Loader entries（cordis 插件树）声明 dsh.client 的包 → host 加载后 client 自动入图；missing bundle 会 loud throw 启动失败，启动成功即 bundle 完整
+- 遗留清理：A（~/.dsh/profiles/investment）三处误导注册已还原（patch/package.json 0 命中，软链保留指主仓无害）；两处 node_modules 软链均改指主仓
+
+### 验证与收尾
+- `/dashboard/api/genome` 200：g20 | 4 sections（constitution v1 locked + principles v6/rules v9/lessons v7 带 lastChange）| consistency healthy（C1/C2/C3 issues 空）| 3 candidates（2 promoted lessons + 1 watching rules g19 v8 cand_1788573755281 观察期 9/10 到期）| history 22 条
+- 契约核对：服务端聚合输出 ↔ client view 字段逐一比对通过（section.id/lastChange、consistency.issues[].items、candidate.healthCheck 守卫、history.genomeVersion）
+- 合 main 704fd03c（worktree feat/dashboard-genome → merge，仅 genome 包 19 文件，无 IP/端口改动），worktree 已删、branch 已删
+- 决策留痕 DEC-20260906104011-7ec4c8e3 + memory 994ce3d2（$DSH_HOME 配置目录真相，importance 0.85）
+- GUI 目验待人工：刷新 http://127.0.0.1:13080 侧栏顶部「自主进化」→ 5 区域渲染 + 候选 tab 过滤 + 重检
