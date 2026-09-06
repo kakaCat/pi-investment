@@ -25,9 +25,18 @@ const REFRESH_LABEL = '⟳ 重检'
 const REFRESH_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>`
 
 const EXPLAIN_API = '/dashboard/api/genome/explain'
-/** 各区域「AI 讲解」按钮：点击后 host 投递给在线 investor agent，讲解回复出现在会话（同步只返回投递结果）。 */
-function explainBtn(moduleId: string): string {
-  return `<button type="button" class="dsh-gen-explain" data-explain-module="${moduleId}" title="AI 讲解：请当前 AI 介绍该区域解决什么问题、有什么作用（讲解将出现在下方会话）">🤖 讲解</button>`
+/**
+ * 「🤖 讲解」按钮：条目级（item）时显示小图标按钮，点击后 host 把「讲解这一条」投递给在线
+ * investor agent，讲解回复出现在会话（同步只返回投递结果）。item 为空视为无条目（host 将 400 引导）。
+ */
+function explainBtn(moduleId: string, item?: string, hint?: string): string {
+  const itemAttr = item !== undefined ? ` data-explain-item="${esc(item)}"` : ''
+  const title = hint !== undefined
+    ? `AI 讲解：${esc(hint)}（讲解将出现在下方会话）`
+    : 'AI 讲解：请当前 AI 介绍这是什么（讲解将出现在下方会话）'
+  const cls = item !== undefined ? 'dsh-gen-explain sm' : 'dsh-gen-explain'
+  const label = item !== undefined ? '🤖' : '🤖 讲解'
+  return `<button type="button" class="${cls}" data-explain-module="${moduleId}"${itemAttr} title="${title}">${label}</button>`
 }
 
 function esc(s: unknown): string {
@@ -145,6 +154,7 @@ function sectionCardHtml(s: GenomeSectionInfo): string {
       <span class="dsh-gen-sec-name">${esc(SEC_FULL[s.id] ?? s.id)}</span>
       <span class="dsh-gen-sec-ver">v${s.version ?? 0}</span>
       ${clsTag}
+      ${explainBtn('sections', s.id, `${SEC_FULL[s.id] ?? s.id} 段是什么、当前版本要点与最近变更`)}
     </div>
     ${bodyHtml}
     ${lcHtml}
@@ -154,7 +164,7 @@ function sectionCardHtml(s: GenomeSectionInfo): string {
 function sectionsHtml(d: GenomeData): string {
   return `
   <div class="dsh-gen-block">
-    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">② 段状态矩阵</span><span class="dsh-gen-block-s">4 个基因组段 · 版本与最近变更</span>${explainBtn('sections')}</div>
+    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">② 段状态矩阵</span><span class="dsh-gen-block-s">4 个基因组段 · 版本与最近变更 · 点各段 🤖 可逐段讲解</span></div>
     <div class="dsh-gen-sec-grid">
       ${d.sections.map(sectionCardHtml).join('')}
     </div>
@@ -164,7 +174,7 @@ function sectionsHtml(d: GenomeData): string {
 // ---------- ③ 一致性诊断 ----------
 function issueHtml(iss: { id: string; label: string; description: string; items: unknown[] }): string {
   if (iss.items.length === 0) {
-    return `<div class="dsh-gen-iss ok"><span class="dsh-gen-iss-id">${esc(iss.id)}</span><span class="dsh-gen-iss-t">${esc(iss.label)}</span><span class="dsh-gen-iss-r">✅ 通过</span></div>`
+    return `<div class="dsh-gen-iss ok"><span class="dsh-gen-iss-id">${esc(iss.id)}</span><span class="dsh-gen-iss-t">${esc(iss.label)}</span><span class="dsh-gen-iss-r">✅ 通过</span>${explainBtn('consistency', iss.id, `${iss.label} 检查什么、为什么设计这道哨兵`)}</div>`
   }
   const itemRows = iss.items.map((it) => {
     const o = it as Record<string, unknown>
@@ -183,6 +193,7 @@ function issueHtml(iss: { id: string; label: string; description: string; items:
     <span class="dsh-gen-iss-id">${esc(iss.id)}</span>
     <span class="dsh-gen-iss-t">${esc(iss.label)}</span>
     <span class="dsh-gen-iss-r">❌ ${iss.items.length} 项</span>
+    ${explainBtn('consistency', iss.id, `${iss.label} 当前 ${iss.items.length} 项异常是什么、该怎么处置`)}
   </div>
   <div class="dsh-gen-iss-desc">${esc(iss.description)}</div>
   ${itemRows}`
@@ -196,7 +207,7 @@ function consistencyHtml(d: GenomeData): string {
     : `检测到 ${cons.issues.filter((i) => i.items.length > 0).length} 类异常（F1 哨兵规则，与 gate runConsistencyCheck 同源）`
   return `
   <div class="dsh-gen-block">
-    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">③ 一致性诊断</span><span class="dsh-gen-block-s">F1 哨兵可视化仪表 · 状态一致性核验（genome.json ↔ candidates.json）</span>${explainBtn('consistency')}</div>
+    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">③ 一致性诊断</span><span class="dsh-gen-block-s">F1 哨兵可视化仪表 · 状态一致性核验（genome.json ↔ candidates.json）· 每条哨兵 🤖 可讲</span></div>
     <div class="dsh-gen-cons-head ${headCls}">${headText}</div>
     <div class="dsh-gen-iss-list">
       ${d.consistency.issues.map(issueHtml).join('')}
@@ -239,6 +250,7 @@ function candidateCardHtml(c: CandidateInfo): string {
       <span class="dsh-gen-cand-id"><code>${esc(c.id)}</code></span>
       ${mut}
       ${badge(status, statusCls)}
+      ${explainBtn('candidates', c.id, `这条候选（${sec} ${c.genomeVersion}）在观察什么、怎么走到这里、下一步`)}
     </div>
     ${progressHtml}
     ${hc}
@@ -265,7 +277,7 @@ function candListHtml(d: GenomeData): string {
 function candidatesHtml(d: GenomeData): string {
   return `
   <div class="dsh-gen-block">
-    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">④ 候选生命周期流水线</span><span class="dsh-gen-block-s">genome_update(candidate) → 观察期 → validation_gate 裁决（转正 / 回滚）</span>${explainBtn('candidates')}</div>
+    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">④ 候选生命周期流水线</span><span class="dsh-gen-block-s">genome_update(candidate) → 观察期 → validation_gate 裁决（转正 / 回滚）· 每个候选卡 🤖 可讲</span></div>
     ${candTabsHtml()}
     <div class="dsh-gen-cand-list-root">${candListHtml(d)}</div>
   </div>`
@@ -302,32 +314,34 @@ function timelineHtml(d: GenomeData): string {
     }).join('')}</div>`
   return `
   <div class="dsh-gen-block">
-    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">⑤ 谱系时间线</span><span class="dsh-gen-block-s">规则进化历史 · 谁在何时改了什么（genome_version 倒序）</span>${explainBtn('timeline')}</div>
+    <div class="dsh-gen-block-h"><span class="dsh-gen-block-t">⑤ 谱系时间线</span><span class="dsh-gen-block-s">规则进化历史 · 谁在何时改了什么（genome_version 倒序）</span></div>
     ${inner}
   </div>`
 }
 
 // ---------- AI 讲解请求 ----------
-/** 点击「🤖 讲解」：请求 host 把讲解任务投递给在线 investor agent（回复出现在会话，不在页面）。 */
+/** 点击「🤖 讲解」：请求 host 把「讲解这一条」投递给在线 investor agent（回复出现在会话，不在页面）。 */
 async function requestExplain(btn: HTMLButtonElement): Promise<void> {
   if (btn.disabled) return
   const moduleId = btn.dataset.explainModule ?? ''
+  const item = btn.dataset.explainItem ?? ''
   const original = btn.textContent ?? '🤖 讲解'
   btn.disabled = true
   btn.classList.add('loading')
-  btn.textContent = '⏳ 请求中…'
+  btn.textContent = '⏳…'
   try {
-    const res = await fetch(`${EXPLAIN_API}?module=${encodeURIComponent(moduleId)}`, { headers: { Accept: 'application/json' } })
+    const qs = `module=${encodeURIComponent(moduleId)}${item ? `&item=${encodeURIComponent(item)}` : ''}`
+    const res = await fetch(`${EXPLAIN_API}?${qs}`, { headers: { Accept: 'application/json' } })
     const json = (await res.json()) as { success?: boolean; error?: string; data?: { delivered?: boolean; target?: string } }
     if (!res.ok || json.success === false) throw new Error(json.error ?? `HTTP ${res.status}`)
     btn.classList.remove('loading')
     btn.classList.add('done')
-    btn.textContent = '✓ 已请求 · 收起看板看回复'
-    btn.title = '讲解任务已投递给 AI 会话：点左上「✕ 收起」回到会话，AI 将介绍该区域解决什么问题、有什么作用'
+    btn.textContent = '✓'
+    btn.title = '讲解任务已投递给 AI 会话：收起看板后 AI 将介绍这一条是什么、有什么作用'
   } catch (err) {
     btn.classList.remove('loading')
     btn.classList.add('err')
-    btn.textContent = '✗ 请求失败'
+    btn.textContent = '✗'
     btn.title = '失败：' + (err instanceof Error ? err.message : String(err))
   } finally {
     window.setTimeout(() => {

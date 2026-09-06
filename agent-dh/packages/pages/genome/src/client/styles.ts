@@ -153,6 +153,8 @@ html[data-dsh-gen-active] .dsh-gen-board code {
 }
 .dsh-gen-explain:hover { background: var(--dsw-primary, #2f6bff); color: #fff; }
 .dsh-gen-explain:disabled { cursor: default; opacity: 0.85; }
+/* 条目级小按钮（段卡 / issue 行 / 候选卡内） */
+.dsh-gen-explain.sm { padding: 1px 7px; font-size: 12px; flex: none; }
 .dsh-gen-explain.loading { color: var(--dsw-text-3, #8a8f99); background: var(--dsw-bg-2, rgba(0,0,0,0.04)); }
 .dsh-gen-explain.done { color: #1e7f4f; background: rgba(30,127,79,0.10); }
 .dsh-gen-explain.err { color: #c41d1d; background: rgba(196,29,29,0.08); }
