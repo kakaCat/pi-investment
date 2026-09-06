@@ -60,7 +60,8 @@ export async function registerTasksToAgentOS(options: TaskRegistrationOptions) {
   let existingTasks;
   try {
     const response = await client.scheduler.listTasks();
-    existingTasks = response;
+    // Agent OS Client 返回 { tasks: [...] } 而不是直接返回数组
+    existingTasks = Array.isArray(response) ? response : (response.tasks || []);
   } catch (error) {
     logger.error('[TaskRegistration] Failed to list existing tasks', {
       error: error instanceof Error ? error.message : String(error),

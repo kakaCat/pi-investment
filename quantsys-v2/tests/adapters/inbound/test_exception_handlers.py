@@ -10,11 +10,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from domain.exceptions import (
-    InvalidSymbolException,
-    StockNotFoundException,
-    DataProviderUnavailableException,
-    InsufficientDataException,
-    DatabaseException,
+    ValidationError,
+    SymbolNotFoundError,
+    DataSourceUnavailableError,
+    DataQualityError,
+    DatabaseError,
 )
 from adapters.inbound.fastapi_app.exception_handlers import register_exception_handlers
 
@@ -28,23 +28,23 @@ def app():
     # Add test routes that raise different exceptions
     @test_app.get("/test/invalid-symbol")
     async def test_invalid_symbol():
-        raise InvalidSymbolException(symbol="INVALID")
+        raise ValidationError("Invalid symbol", code="INVALID_SYMBOL", details={"symbol": "INVALID"})
 
     @test_app.get("/test/not-found")
     async def test_not_found():
-        raise StockNotFoundException(symbol="000000")
+        raise SymbolNotFoundError(symbol="000000")
 
     @test_app.get("/test/data-unavailable")
     async def test_data_unavailable():
-        raise DataProviderUnavailableException(providers_tried=["akshare", "tushare"])
+        raise DataSourceUnavailableError(source="akshare", reason="Network timeout")
 
     @test_app.get("/test/insufficient-data")
     async def test_insufficient_data():
-        raise InsufficientDataException(required_points=20, available_points=5)
+        raise DataQualityError("Insufficient data points", required_points=20, available_points=5)
 
     @test_app.get("/test/database-error")
     async def test_database_error():
-        raise DatabaseException(operation="query_stock", reason="Connection timeout")
+        raise DatabaseError(operation="query_stock", reason="Connection timeout")
 
     @test_app.get("/test/unexpected")
     async def test_unexpected():
@@ -148,22 +148,22 @@ def test_exception_hierarchy():
     from domain.exceptions import QuantSysException, ValidationException
 
     # All exceptions should inherit from QuantSysException
-    assert isinstance(InvalidSymbolException("test"), QuantSysException)
-    assert isinstance(StockNotFoundException("test"), QuantSysException)
-    assert isinstance(DatabaseException("op", "reason"), QuantSysException)
+    assert isinstance(ValidationError("test"), QuantSysException)
+    assert isinstance(SymbolNotFoundError("test"), QuantSysException)
+    assert isinstance(DatabaseError("op", "reason"), QuantSysException)
 
     # Specific exceptions should be catchable by their parent
     try:
-        raise InvalidSymbolException("test")
+        raise ValidationError("test")
     except ValidationException:
         pass  # Should be caught
     except Exception:
-        pytest.fail("InvalidSymbolException should be caught by ValidationException")
+        pytest.fail("ValidationError should be caught by ValidationException")
 
 
 def test_exception_to_dict():
     """Verify exception serialization works correctly."""
-    exc = InvalidSymbolException("600000")
+    exc = ValidationError("600000")
 
     # Without details
     data = exc.to_dict(include_details=False)
@@ -182,7 +182,7 @@ def test_retryable_helper():
     from domain.exceptions import (
         NetworkTimeoutException,
         RateLimitException,
-        DataProviderUnavailableException,
+        DataSourceUnavailableError,
         is_retryable,
     )
 
@@ -191,10 +191,10 @@ def test_retryable_helper():
     assert is_retryable(RateLimitException("provider"))
 
     # Exhausted fallback chain should not be retryable
-    assert not is_retryable(DataProviderUnavailableException(providers_tried=["a", "b"]))
+    assert not is_retryable(DataSourceUnavailableError(providers_tried=["a", "b"]))
 
     # Validation errors should not be retryable
-    assert not is_retryable(InvalidSymbolException("bad"))
+    assert not is_retryable(ValidationError("bad"))
 
 
 def test_should_alert_helper():
@@ -202,9 +202,9 @@ def test_should_alert_helper():
     from domain.exceptions import should_alert
 
     # Client errors should not alert
-    assert not should_alert(InvalidSymbolException("bad"))
-    assert not should_alert(StockNotFoundException("000000"))
+    assert not should_alert(ValidationError("bad"))
+    assert not should_alert(SymbolNotFoundError("000000"))
 
     # System errors should alert
-    assert should_alert(DatabaseException("op", "reason"))
-    assert should_alert(DataProviderUnavailableException(providers_tried=["a", "b"]))
+    assert should_alert(DatabaseError("op", "reason"))
+    assert should_alert(DataSourceUnavailableError(providers_tried=["a", "b"]))
